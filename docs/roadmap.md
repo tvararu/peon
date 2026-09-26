@@ -23,8 +23,8 @@ milestone section and in the linked records.
 
 The next slices for 3a, 3b, 5 and 6 are listed in their sections as
 live-verifiable work, ready to become issues. The
-[Pi harness](#candidate-epic-the-pi-harness) is a candidate epic, not a
-milestone.
+[Pi harness](#epic-the-pi-harness) is an approved epic, not a milestone
+(maintainer decision, 2026-09-26).
 
 ## The ambition
 
@@ -109,8 +109,8 @@ The [Pi harness design](plans/2026-09-25-pi-harness-design.md) proposes one
 shape for this: tuicraft embeds the Pi agent runtime under Bun, owns the
 world session in-process, and renders live panels such as the map alongside
 the agent conversation. The CLI and daemon stay as a second shell over the
-same core. It is a candidate epic, not an approved milestone; see
-[below](#candidate-epic-the-pi-harness).
+same core. It is an approved epic, not a roadmap milestone; see
+[below](#epic-the-pi-harness).
 
 ## Proposed runtime boundaries
 
@@ -780,15 +780,17 @@ one encounter. Missing:
    joined by a planned route (3a) and a second ability set on another SOAP
    character. Evidence: session records from slice 4.
 
-## Candidate epic: the Pi harness
+## Epic: the Pi harness
 
 [2026-09-25-pi-harness-design.md](plans/2026-09-25-pi-harness-design.md)
 records a spike and Theo's choice of stock Pi as the base for an in-process
-agent harness, with its own proposed milestones (core event bus, harness
-skeleton, credentials, tool surface, game logs, spatial panel, hosting the Jev
-tactical loop). It is a candidate epic, not an approved milestone. Nothing in
-this roadmap waits for it, and its milestones are not roadmap milestones until
-a recorded decision says so.
+agent harness. The Pi harness is an approved epic (maintainer decision,
+2026-09-26). The
+[epic design](plans/2026-09-26-pi-harness-epic-design.md) records the
+approved design, its decisions and its evaluation plan. The epic runs on
+draft PR [#367](https://github.com/tvararu/tuicraft/pull/367), branch
+`epic/pi-harness`, outside the factory until it merges. Nothing in this
+roadmap waits for it, and its milestones are not roadmap milestones.
 
 ## Working through the milestones
 
