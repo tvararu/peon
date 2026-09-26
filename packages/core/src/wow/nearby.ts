@@ -1,7 +1,9 @@
 import type { ControlPose, ControlState } from "#wow/control";
 import type { Entity, Position } from "#wow/entity-store";
+import type { FactionRelation } from "#wow/faction-template";
 import { bearing, distance2d, normalizeAngle } from "#wow/geometry";
 import type { ObservedPosition, PositionSource } from "#wow/motion-store";
+import type { NpcRole } from "#wow/npc-roles";
 import type { RemotePose } from "#wow/remote-motion";
 
 export const NEARBY_DEFAULT_RANGE = 100;
@@ -27,6 +29,19 @@ export type NearbyRow = {
   self: boolean;
   remotePose: RemotePose | undefined;
   preparedAt: number;
+  relation: FactionRelation;
+  attackable: boolean;
+  attackingMe: boolean;
+  targetOf: bigint | undefined;
+  roles: NpcRole[];
+  lootable: boolean;
+  tapped: boolean;
+  tappedByOther: boolean;
+};
+
+export type NearbyUnits = {
+  relation: (guid: bigint) => FactionRelation;
+  attackingMe: (guid: bigint) => boolean;
 };
 
 export type NearbySources = {
@@ -35,6 +50,7 @@ export type NearbySources = {
   observedPosition: (guid: bigint) => ObservedPosition | undefined;
   remotePoses: readonly RemotePose[];
   now: number;
+  units?: NearbyUnits;
 };
 
 export type NearbyQuery = { all?: boolean };
@@ -50,6 +66,31 @@ type Measurement = Pick<
   NearbyRow,
   "distance" | "horizontalDistance" | "bearingRadians" | "turnRadians"
 >;
+
+type Traits = Pick<
+  NearbyRow,
+  | "relation"
+  | "attackable"
+  | "attackingMe"
+  | "targetOf"
+  | "roles"
+  | "lootable"
+  | "tapped"
+  | "tappedByOther"
+>;
+
+function traits(): Traits {
+  return {
+    relation: "unknown",
+    attackable: false,
+    attackingMe: false,
+    targetOf: undefined,
+    roles: [],
+    lootable: false,
+    tapped: false,
+    tappedByOther: false,
+  };
+}
 
 function place(
   entity: Entity,
@@ -176,6 +217,7 @@ export function queryNearby(
       preparedAt: now,
       remotePose: poses.get(entity.guid),
       self: isSelf,
+      ...traits(),
     };
   });
 

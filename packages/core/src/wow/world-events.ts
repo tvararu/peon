@@ -1,5 +1,6 @@
 import { Emitter } from "#lib/emitter";
 import type { ChatMessage, DuelEvent, GroupEvent } from "#wow/client";
+import type { NoticeEvent } from "#wow/client-extras";
 import type { CombatEvent } from "#wow/combat";
 import type { ControlEvent } from "#wow/control";
 import type { DestroyEvent } from "#wow/destroy";
@@ -38,6 +39,7 @@ export type WorldEvents = {
   vendor: Emitter<[VendorEvent]>;
   defense: Emitter<[DefenseEvent]>;
   destroy: Emitter<[DestroyEvent]>;
+  notice: Emitter<[NoticeEvent]>;
 };
 
 export function createWorldEvents(
@@ -64,6 +66,7 @@ export function createWorldEvents(
     vendor: new Emitter(report),
     defense: new Emitter(report),
     destroy: new Emitter(report),
+    notice: new Emitter(report),
   };
 }
 

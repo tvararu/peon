@@ -73,7 +73,8 @@ export type ControlEventType =
   | "target_observed"
   | "server_correction"
   | "control_changed"
-  | "control_error";
+  | "control_error"
+  | "place_changed";
 
 export type ControlEvent = {
   type: ControlEventType;

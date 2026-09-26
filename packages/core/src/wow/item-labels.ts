@@ -6,7 +6,19 @@ import type {
 import type { LootItem } from "#wow/protocol/loot";
 import type { RewardsLoot, RewardsOpenLoot, RewardsState } from "#wow/rewards";
 
-export type ItemLabel = { name: string | null; quality: number | null };
+export type ItemLabel = {
+  name: string | null;
+  quality: number | null;
+  itemClass?: number;
+  subclass?: number;
+  useSpellIds?: number[];
+};
+
+export type ItemKind = "food_drink" | "potion" | "other";
+
+export function itemKind(_label: ItemLabel): ItemKind {
+  throw new Error("not_implemented");
+}
 export type ItemLabeler = (entry: number | undefined) => ItemLabel;
 
 type Occupied = Extract<InventorySlot, { status: "occupied" }>;

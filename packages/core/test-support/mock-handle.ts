@@ -6,9 +6,10 @@ import type {
   GroupEvent,
   WorldHandle,
 } from "#wow/client";
+import type { NoticeEvent } from "#wow/client-extras";
 import { type CombatEvent, CombatRuntime } from "#wow/combat";
 import type { ControlEvent, ControlState } from "#wow/control";
-import { EncounterCycleRuntime } from "#wow/encounter-cycle";
+import { type CycleEvent, EncounterCycleRuntime } from "#wow/encounter-cycle";
 import type { Entity, EntityEvent } from "#wow/entity-store";
 import type { FriendEntry, FriendEvent } from "#wow/friend-store";
 import type { GuildEvent, GuildRoster } from "#wow/guild-store";
@@ -23,6 +24,7 @@ import type { RemotePose } from "#wow/remote-motion";
 import { type RewardsEvent, RewardsRuntime } from "#wow/rewards";
 import { SelfDefense } from "#wow/self-defense";
 import type { TacticsEvent, TacticsState } from "#wow/tactics";
+import type { TrainerEvent } from "#wow/trainer";
 import { type VendorEvent, VendorRuntime } from "#wow/vendor";
 import { createWorldEvents } from "#wow/world-events";
 
@@ -41,6 +43,9 @@ type MockHandle = WorldHandle & {
   triggerQuestEvent: (event: QuestEvent) => void;
   triggerRewardsEvent: (event: RewardsEvent) => void;
   triggerVendorEvent: (event: VendorEvent) => void;
+  triggerNotice: (event: NoticeEvent) => void;
+  triggerCycleEvent: (event: CycleEvent) => void;
+  triggerTrainerEvent: (event: TrainerEvent) => void;
   resolveClosed: () => void;
 };
 
@@ -121,6 +126,7 @@ export function createMockHandle(): MockHandle {
   });
   const events = createWorldEvents();
   defense.onEvent((event) => events.defense.emit(event));
+  cycle.onEvent((event) => events.cycle.emit(event));
   let closeResolve: () => void;
   const closed = new Promise<void>((r) => {
     closeResolve = r;
@@ -140,6 +146,12 @@ export function createMockHandle(): MockHandle {
     buyItem: jest.fn(),
     cancelCast: jest.fn(),
     cancelInteraction: jest.fn(),
+    capabilities: jest.fn(() => ({
+      factions: false,
+      jev: false,
+      navigation: false,
+      spells: false,
+    })),
     cast: jest.fn(),
     chooseQuestReward: jest.fn(),
     close: jest.fn(() => closeResolve()),
@@ -154,6 +166,7 @@ export function createMockHandle(): MockHandle {
     getChannel: jest.fn(),
     getCombatState: jest.fn(() => combat.snapshot()),
     getControlState: jest.fn((): ControlState => controlState),
+    getCreatureInfo: jest.fn(() => undefined),
     getCycleState: jest.fn(() => cycle.snapshot()),
     getDefenseState: jest.fn(() => defense.snapshot()),
     getDestroyState: jest.fn(() => ({
@@ -183,6 +196,14 @@ export function createMockHandle(): MockHandle {
     })),
     getNearbyEntities: jest.fn((): Entity[] => []),
     getPartyState: jest.fn(() => new PartyStore().snapshot()),
+    getPlaceState: jest.fn(() => ({
+      area: undefined,
+      areaId: undefined,
+      at: undefined,
+      mapId: undefined,
+      zone: undefined,
+      zoneId: undefined,
+    })),
     getQuestState: jest.fn(() => quests.snapshot()),
     getRecoveryState: jest.fn(() => recovery.snapshot()),
     getRemotePoses: jest.fn((): RemotePose[] => []),
@@ -218,6 +239,7 @@ export function createMockHandle(): MockHandle {
     leaveChannel: jest.fn(),
     leaveGroup: jest.fn(),
     logout: jest.fn(() => closeResolve()),
+    lootCorpse: jest.fn(async () => ({ ok: true as const, record: undefined })),
     move: jest.fn(),
     observeNavigation: jest.fn(() =>
       observeNavigation(handle.getNavigationState()),
@@ -229,7 +251,7 @@ export function createMockHandle(): MockHandle {
       return events.control.subscribe(cb);
     },
     onCycleEvent(cb) {
-      return cycle.onEvent(cb);
+      return events.cycle.subscribe(cb);
     },
     onDefenseEvent(cb) {
       return events.defense.subscribe(cb);
@@ -257,6 +279,9 @@ export function createMockHandle(): MockHandle {
     },
     onMessage(cb) {
       return events.message.subscribe(cb);
+    },
+    onNotice(cb) {
+      return events.notice.subscribe(cb);
     },
     onPacketError: jest.fn((cb: (opcode: number, err: Error) => void) =>
       events.packetError.subscribe(cb),
@@ -300,6 +325,10 @@ export function createMockHandle(): MockHandle {
     ),
     queryQuest: jest.fn(),
     reclaimCorpse: jest.fn(),
+    recoverCorpse: jest.fn(async () => ({
+      cause: "mock_recover_unavailable",
+      ok: false as const,
+    })),
     releaseLoot: jest.fn(),
     releaseSpirit: jest.fn(),
     removeFriend: jest.fn(),
@@ -358,6 +387,9 @@ export function createMockHandle(): MockHandle {
     triggerControlEvent(event) {
       events.control.emit(event);
     },
+    triggerCycleEvent(event) {
+      events.cycle.emit(event);
+    },
     triggerDuelEvent(event) {
       events.duel.emit(event);
     },
@@ -379,6 +411,9 @@ export function createMockHandle(): MockHandle {
     triggerMessage(msg) {
       events.message.emit(msg);
     },
+    triggerNotice(event) {
+      events.notice.emit(event);
+    },
     triggerQuestEvent(event) {
       events.quest.emit(event);
     },
@@ -390,6 +425,9 @@ export function createMockHandle(): MockHandle {
     },
     triggerTacticsEvent(event) {
       events.tactics.emit(event);
+    },
+    triggerTrainerEvent(event) {
+      events.trainer.emit(event);
     },
     triggerVendorEvent(event) {
       events.vendor.emit(event);

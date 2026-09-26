@@ -11,6 +11,12 @@ import {
 } from "#wow/client-connection";
 import { controlMethods } from "#wow/client-control";
 import {
+  type Capabilities,
+  type CreatureInfo,
+  extrasMethods,
+  type NoticeEvent,
+} from "#wow/client-extras";
+import {
   combatMethods,
   cycleMethods,
   defenseMethods,
@@ -20,6 +26,12 @@ import {
   rewardsMethods,
 } from "#wow/client-gameplay";
 import { registerWorldHandlers } from "#wow/client-handlers";
+import { type PlaceState, placeMethods } from "#wow/client-place";
+import {
+  type LootOutcome,
+  type RecoveryOutcome,
+  runMethods,
+} from "#wow/client-runs";
 import {
   groupMethods,
   guildMethods,
@@ -317,6 +329,12 @@ export type WorldHandle = {
   disarmDefense: () => void;
   getDefenseState: () => DefenseState;
   onDefenseEvent: (cb: (event: DefenseEvent) => void) => Unsubscribe;
+  capabilities: () => Capabilities;
+  getPlaceState: () => PlaceState;
+  lootCorpse: (guid: bigint, signal: AbortSignal) => Promise<LootOutcome>;
+  recoverCorpse: (signal: AbortSignal) => Promise<RecoveryOutcome>;
+  onNotice: (cb: (event: NoticeEvent) => void) => Unsubscribe;
+  getCreatureInfo: (entry: number) => CreatureInfo | undefined;
 };
 
 type SessionHandle = {
@@ -349,6 +367,9 @@ function createHandle(session: SessionHandle): WorldHandle {
     ...trainerMethods(conn, rt),
     ...vendorMethods(conn, rt),
     ...defenseMethods(conn, rt),
+    ...placeMethods(conn, rt),
+    ...runMethods(conn, rt),
+    ...extrasMethods(conn, rt),
   };
   return handle;
 }

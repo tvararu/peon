@@ -112,6 +112,7 @@ export type CombatState = {
   lastOutcome: CombatOutcome | undefined;
   lastXp: CombatXp | undefined;
   lastLevelUp: (LevelUpInfo & { at: number }) | undefined;
+  attackers: bigint[];
 };
 
 export type CombatEventType =
@@ -135,6 +136,7 @@ export type CombatEvent = {
   state: CombatState;
   reason?: string;
   spellName?: string;
+  attacker?: bigint;
 };
 
 export type CombatDeps = {
@@ -219,6 +221,7 @@ export class CombatRuntime {
       lastOutcome: this.lastOutcome,
       lastXp: this.lastXp,
       lastLevelUp: this.lastLevelUp,
+      attackers: [],
     };
   }
 

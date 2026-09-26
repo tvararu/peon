@@ -5,7 +5,7 @@ import {
 } from "#test-support/item-query-fixtures";
 import { createMockHandle } from "#test-support/mock-handle";
 import { EntityStore } from "#wow/entity-store";
-import { labelRewards } from "#wow/item-labels";
+import { itemKind, labelRewards } from "#wow/item-labels";
 import { ItemTemplates } from "#wow/item-use";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { parseItemQueryResponse } from "#wow/protocol/item";
@@ -136,5 +136,13 @@ describe("item labels", () => {
         { itemId: 858, name: "Lesser Healing Potion", quality: 1 },
       ],
     });
+  });
+});
+
+describe("itemKind", () => {
+  test("is not implemented yet", () => {
+    expect(() => itemKind({ name: null, quality: null })).toThrow(
+      "not_implemented",
+    );
   });
 });

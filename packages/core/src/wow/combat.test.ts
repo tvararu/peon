@@ -394,3 +394,8 @@ test("cast events carry the spell name when spell data is loaded", () => {
   });
   expect(events.at(-1)?.spellName).toBeUndefined();
 });
+
+test("combat state carries an attackers list", () => {
+  const { combat } = setup();
+  expect(combat.snapshot().attackers).toEqual([]);
+});

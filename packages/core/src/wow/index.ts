@@ -10,6 +10,14 @@ export type {
   WorldHandle,
 } from "#wow/client";
 export type {
+  Capabilities,
+  CreatureInfo,
+  CreatureRank,
+  NoticeEvent,
+} from "#wow/client-extras";
+export type { PlaceState } from "#wow/client-place";
+export type { LootOutcome, RecoveryOutcome } from "#wow/client-runs";
+export type {
   NamedTrainerSpell,
   NamedTrainerState,
 } from "#wow/client-trainer";
@@ -44,16 +52,19 @@ export type { FriendEntry, FriendEvent } from "#wow/friend-store";
 export type { GuildEvent, GuildMember, GuildRoster } from "#wow/guild-store";
 export type { IgnoreEntry, IgnoreEvent } from "#wow/ignore-store";
 export type { InventoryState } from "#wow/inventory";
-export type {
-  ItemLabel,
-  NamedInventoryState,
-  NamedRewardsState,
+export {
+  type ItemKind,
+  type ItemLabel,
+  itemKind,
+  type NamedInventoryState,
+  type NamedRewardsState,
 } from "#wow/item-labels";
 export {
   type NavigationObservation,
   nextStepFor,
 } from "#wow/navigation-observation";
-export type { NearbyQuery, NearbyRow } from "#wow/nearby";
+export type { NearbyQuery, NearbyRow, NearbyUnits } from "#wow/nearby";
+export { type NpcRole, npcRoles } from "#wow/npc-roles";
 export type {
   PartyChange,
   PartyLoot,
