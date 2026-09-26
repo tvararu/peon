@@ -7,6 +7,10 @@
     "@tuicraft/core": "workspace:*"
   },
   "exports": {},
+  "imports": {
+    "#harness/*": "./src/*.ts",
+    "#test-support/*": "./test-support/*.ts"
+  },
   "name": "@tuicraft/harness",
   "private": true,
   "type": "module"
