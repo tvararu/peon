@@ -162,6 +162,65 @@ without objection. The R-numbers are stable ids that the records cite.
 | K4 default "N1 waits for a ruling" | R27 |
 | Eval suite P1 `soap exec` | t1 service verbs (`5d75de0`) |
 
+### Decisions taken during spec review, not yet ruled by the maintainer
+
+An agent self-review of this spec settled the points below on
+2026-09-26. The maintainer approved sections A-K (R28-R38), but not these
+settlements. The advisor accepted them on 2026-09-26 in the maintainer's
+place under the goal (entry 38), pending his morning review. Each line
+gives the settlement, the section it changed and the commit.
+
+1. `engage` takes a new attacker as its next target while `count` allows
+   another kill, else finishes the kill and names the attacker in
+   `Danger:`; `travel`, `rest` and `recover` stop with `FAILED
+   interrupted` (V.4 #6). Section 6.B, 9.2; `4d3bda3`, `c243144`.
+2. A wake line is `[game <age>] <event>`; a chat wake names the sender
+   exactly, quotes the text and gives the `social` reply call (LU.3 #1).
+   Section 6.C, 9.2; `4d3bda3`.
+3. Passive lines are never prepended to a chat wake (LU.3 #11); they
+   flush at `agent_end`, before the next non-chat wake, and after `[now]`
+   when a human message starts a run. Section 6.C, 9.2; `4d3bda3`.
+4. The wake budget is at most 25 pushed tokens a minute (was about
+   15-25); the simulated range over all rule sets is 15-53. Sections 1
+   (criterion 4) and 6.C; `4d3bda3`.
+5. `<HARNESS_LAUNCH>` is `bun packages/harness/src/entry.ts --profile
+   $RUN/account.json --run-dir $RUN` from the eval worktree root, with
+   the account in the mode-600 file `$RUN/account.json`. Section 8;
+   `4d3bda3`.
+6. `<HARNESS_QUIT>` is Ctrl-D on an empty editor, confirmed with `read
+   --screen`, then two Ctrl-C within 500 ms if Pi still shows. Section 8;
+   `4d3bda3`.
+7. The grader's password scan skips `account.json` and `partner.json`,
+   and the grader deletes both after `soap delete`. Section 8; `4d3bda3`.
+8. A grader does not retry a login refusal: it records `aborted`
+   (`launch_failed`); the README's `status 0x4` failures are put down to
+   a checkout older than `486da85`. Section 8; `4d3bda3`.
+9. Pi tool timeout row: `pi-agent-core` 0.87.1 sets no tool timer; the
+   only one found (`TOOL_TIMEOUT_MS = 120000`) is on a path Luna does not
+   use and would race the yield there; the 120 s yield stays, and the
+   first live run tool must block for 120 s and return (was: open, sit
+   under any timeout). Section 9.2; `4d3bda3`, `c243144`.
+10. Tapped filter: `engage` skips rows with `tappedByOther`, round 1
+    checks the flag live, and a wrong flag is a friction item with area
+    `core` (was: open). Section 9.2; `4d3bda3`.
+11. K4 and N1 read as decided by R27, not by K4's default; the record
+    copies (harness design K4, I.4, N1; nav diagnosis F1 + F2) now say
+    so. Sections 6 (J and K), 7; `4d3bda3`, `30a9cdf`.
+12. The navigation track counts as landed (`fb30883`, `f80b559`,
+    `ac080e5`, `65b26f7`, `98101a9`, `c91f70f`); graders mark as `core`
+    only a movement failure at one of its still-open places (was: every
+    movement failure until it lands). Sections 6.I, 7; `30a9cdf`.
+13. The scenario catalogue holds 37 scenarios (was 38), 7 of them from
+    the t1 revision (was 8). Sections 8, 10 and the eval suite;
+    `c243144`.
+14. R28-R37 are split into one entry per section, and R5's "Superseded"
+    reading is marked as the coordinator's record, not his words.
+    Section 2; `4d3bda3`.
+15. The parse tax is 2,410 of 3,221 CLI episodes (75 %) piped into jq or
+    python (was about 75 % of CLI calls). Section 3.1; `e86494a`.
+16. `9a5010c` (SRP reference-server tests) is on `epic/pi-harness` only,
+    not on `main`. Eval suite; `4d3bda3`.
+
 ## 3. Context
 
 ### 3.1 The problem
