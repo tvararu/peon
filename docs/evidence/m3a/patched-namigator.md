@@ -500,6 +500,6 @@ The evidence is the Fairbreeze Village navigation diagnosis of the same day
 `ZoneAndArea`, `navigation.height` and `navigation.stepHeight` also read
 `GetADTHeight`, and the grid does not measure them; heights change only on
 quad edges, by about 0.02 yards per the PR #155 review. The M3a live
-records ran on the old installed library, so they need a live re-proof on
-this build.
+records ran on the old installed library; the live re-proof on this build
+is [patched-library-reproof.md](patched-library-reproof.md).
 

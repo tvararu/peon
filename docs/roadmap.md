@@ -447,8 +447,9 @@ automatic retries.
   patch, reversing the #151 acceptance criterion that kept it opt-in, and
   every `soap create` account runs the repository's patched build
   ([m3a/patched-namigator.md](evidence/m3a/patched-namigator.md)). The
-  M3a live records ran on an unpatched library, so the M3a slices need a
-  live re-proof on the patched build.
+  M3a live records ran on an unpatched library; every route they name was
+  re-run live on the patched build
+  ([m3a/patched-library-reproof.md](evidence/m3a/patched-library-reproof.md)).
 
 #### Status: partly met on committed evidence
 
