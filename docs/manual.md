@@ -283,7 +283,7 @@ An enemy already attacking can continue after `halt`; stopping client actions
 does not disengage combat.
 
 `tuicraft combat` [`--json`]
-:: Print combat state. With `--json`, `data` is an object. GUIDs are hex. Predicted poses keep `source=predicted`.
+:: Print combat state. With `--json`, `data` is an object. GUIDs are hex. Predicted poses keep `source=predicted`. `attackers` lists the GUIDs of live units that are attacking the character.
 Without `--json` it prints a summary: self name, level, health and power,
 whether auto-attack is on and at which GUID, the selected target, active self
 aura spell IDs, cooldowns, the last XP award, the last cast or attack result,

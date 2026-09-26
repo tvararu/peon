@@ -395,7 +395,33 @@ test("cast events carry the spell name when spell data is loaded", () => {
   expect(events.at(-1)?.spellName).toBeUndefined();
 });
 
-test("combat state carries an attackers list", () => {
+test("attackers lists live incoming attackers and attacked names each one", () => {
   const { combat } = setup();
+  const events: CombatEvent[] = [];
+  combat.onEvent((event) => events.push(event));
+  combat.applyAttackStart({ attacker: 0x10n, victim: 1n });
+  combat.applyAttackStart({ attacker: 0x20n, victim: 1n });
+  expect(combat.snapshot().attackers).toEqual([0x10n, 0x20n]);
+  const attacked = events.filter((event) => event.type === "attacked");
+  expect(attacked.map((event) => event.attacker)).toEqual([0x10n, 0x20n]);
+  expect(attacked.at(-1)?.state.attackers).toEqual([0x10n, 0x20n]);
+});
+
+test("a dead or stopped attacker leaves attackers", () => {
+  const store = new EntityStore();
+  store.create(0x10n, ObjectType.UNIT, { health: 50 });
+  store.create(0x20n, ObjectType.UNIT, { health: 50 });
+  const combat = new CombatRuntime({
+    send() {},
+    now: () => 1000,
+    selfGuid: () => 1n,
+    selectedGuid: () => undefined,
+    getEntity: (guid) => store.get(guid),
+    selfPose: () => undefined,
+  });
+  combat.applyAttackStart({ attacker: 0x10n, victim: 1n });
+  combat.applyAttackStart({ attacker: 0x20n, victim: 1n });
+  store.update(0x10n, { health: 0 });
+  combat.applyAttackStop({ attacker: 0x20n, victim: 1n, dead: 0 });
   expect(combat.snapshot().attackers).toEqual([]);
 });

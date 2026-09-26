@@ -221,7 +221,7 @@ export class CombatRuntime {
       lastOutcome: this.lastOutcome,
       lastXp: this.lastXp,
       lastLevelUp: this.lastLevelUp,
-      attackers: [],
+      attackers: this.attackers(),
     };
   }
 
@@ -466,7 +466,7 @@ export class CombatRuntime {
       this.emit("attack_started");
     } else if (packet.victim === this.deps.selfGuid()) {
       this.incomingAttackers.add(packet.attacker);
-      this.emit("attacked");
+      this.emit("attacked", undefined, packet.attacker);
     }
   }
 
@@ -529,9 +529,14 @@ export class CombatRuntime {
     );
   }
 
-  private emit(type: CombatEventType, reason?: string): void {
+  private emit(
+    type: CombatEventType,
+    reason?: string,
+    attacker?: bigint,
+  ): void {
     const event: CombatEvent = { type, state: this.snapshot() };
     if (reason !== undefined) event.reason = reason;
+    if (attacker !== undefined) event.attacker = attacker;
     const spellId = event.state.lastOutcome?.spellId;
     const spellName =
       type.startsWith("cast_") && spellId !== undefined
