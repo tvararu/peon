@@ -230,3 +230,16 @@ describe("loot flags", () => {
     ]);
   });
 });
+
+describe("npc roles", () => {
+  test("units carry roles from their NPC flags; game objects none", () => {
+    const post = { ...entity(7n, at(2, 0)), objectType: ObjectType.GAMEOBJECT };
+    const rows = queryNearby(
+      sources(pose(0, 0), [unit(6n, { npcFlags: 0x2 | 0x80 }), post]),
+    );
+    expect(rows.map((row) => row.roles)).toEqual([
+      ["questgiver", "vendor"],
+      [],
+    ]);
+  });
+});

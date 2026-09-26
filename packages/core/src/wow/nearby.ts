@@ -3,7 +3,7 @@ import { type Entity, fieldOf, isUnit, type Position } from "#wow/entity-store";
 import type { FactionRelation } from "#wow/faction-template";
 import { bearing, distance2d, normalizeAngle } from "#wow/geometry";
 import type { ObservedPosition, PositionSource } from "#wow/motion-store";
-import type { NpcRole } from "#wow/npc-roles";
+import { type NpcRole, npcRoles } from "#wow/npc-roles";
 import { UNIT_FIELDS } from "#wow/protocol/entity-fields";
 import type { RemotePose } from "#wow/remote-motion";
 
@@ -101,7 +101,7 @@ function traits(entity: Entity): Traits {
     attackable: false,
     attackingMe: false,
     targetOf: undefined,
-    roles: [],
+    roles: isUnit(entity) ? npcRoles(entity.npcFlags) : [],
     ...lootFlags(entity),
   };
 }
