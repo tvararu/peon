@@ -1656,7 +1656,7 @@ you do not answer, so building can start now.
    **Decided (R27):** the navigation track delivers F4, F3, then F1 + F2
    (N1), then a live re-proof of the M3a routes. Until it lands on
    `epic/pi-harness`, movement failures near Fairbreeze are graded as
-   `core`.
+   `core`. The track has since landed (epic spec, section 7).
 5. **`engage` default guards.** With no named target, `engage` picks the
    nearest hostile at most 3 levels above the character, and every pull
    refuses under 50 % HP or 30 % mana. A named target bypasses the level

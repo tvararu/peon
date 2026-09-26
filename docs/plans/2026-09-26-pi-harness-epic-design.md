@@ -644,8 +644,9 @@ checks on `char` and the guid in `meta.json`, because soap characters share
 the `eversong10` spawn. `agent/now` rows and the session JSONL separate "the
 harness told it wrong" from "it misread". Movement near Fairbreeze depends
 on the navigation track (1 of 9 guid gotos arrive on the old library, 7 of
-9 with the fixes, measured live); until it lands, graders mark those
-movement failures as area `core`.
+9 with the fixes, measured live). The track has landed (section 7);
+graders mark a movement failure at one of its still-open places as area
+`core`.
 
 ### J and K. Scope and build questions (R37, R38)
 
@@ -694,10 +695,11 @@ records it in the roadmap. F2 reverses the #151 acceptance rule that kept
 changed points and every recorded refusal kept; the M3a transcripts
 describe the old library, so the track re-proves the M3a routes live.
 
-**Status.** In progress on `epic/nav-track` (child worktree `pi-epic-nav`),
-to be rebased onto `epic/pi-harness`. Commits read on that branch:
-`ef796bf` (F4), `fd4440f` (F3), `200dc15` (F2), `305acf6` (F1), `8dff45c`
-(M3a re-proof). The maintainer's own `config.toml` still points at the July
+**Status.** Landed on `epic/pi-harness` from `epic/nav-track`: `fb30883`
+(F4), `f80b559` (F3), `ac080e5` (F2), `65b26f7` (F1), `98101a9` (M3a
+re-proof) and `c91f70f`, which scopes the re-proof to the slice 1, 4 and
+5 routes and lists the routes that still need one (read, commit
+messages). The maintainer's own `config.toml` still points at the July
 library; the track does not touch it. **Still open**: the Sathiel inn
 doorstep, the step edge at 8850, -6685, the platform at z 93, and Halis to
 Landra (ambiguous at route).
