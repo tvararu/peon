@@ -1,5 +1,6 @@
 import type { ClientConfig, Unsubscribe, WorldHandle } from "@tuicraft/core";
 import { messageOf } from "@tuicraft/core/lib/errors";
+import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
 import { authWithRetry, worldSession } from "@tuicraft/core/session";
 import type { ConnectionState, Profile } from "#harness/contract/config";
 import type { LogDraft } from "#harness/contract/log";
@@ -63,6 +64,8 @@ class ConnectionSlot {
   private readonly listeners = new Set<(state: ConnectionState) => void>();
   private detach: Unsubscribe[] = [];
   private retry: ReturnType<typeof setTimeout> | undefined;
+  private epoch = 0;
+  private closing: Promise<void> | undefined;
 
   constructor(init: ConnectionInit) {
     this.init = init;
@@ -70,30 +73,26 @@ class ConnectionSlot {
   }
 
   async connect(): Promise<void> {
+    if (this.closing) await this.closing;
     if (this.state === "online" || this.state === "connecting") return;
     this.clearRetry();
+    const epoch = ++this.epoch;
     this.set("connecting");
     const handle = await this.init
       .login(this.init.profile.client)
       .catch((error: unknown) => {
+        if (epoch !== this.epoch) return;
         this.set("offline");
         throw error;
       });
-    this.attach(handle, 1);
+    if (handle) this.adopt(handle, epoch, 1);
   }
 
-  async disconnect(): Promise<void> {
-    this.clearRetry();
-    const handle = this.current;
-    if (!handle) {
-      this.set("offline");
-      return;
-    }
-    this.set("closing");
-    handle.logout();
-    if (!(await closedWithin(handle, CLOSE_WAIT_MS))) handle.close();
-    await handle.closed;
-    this.set("offline");
+  disconnect(): Promise<void> {
+    this.closing ??= this.close().finally(() => {
+      this.closing = undefined;
+    });
+    return this.closing;
   }
 
   subscribe(cb: (state: ConnectionState) => void): Unsubscribe {
@@ -119,6 +118,26 @@ class ConnectionSlot {
     this.init.log.append({ ...draft, domain: "session" });
   }
 
+  private async close(): Promise<void> {
+    this.clearRetry();
+    this.epoch++;
+    const handle = this.current;
+    if (!handle) {
+      if (this.state !== "offline") this.set("offline");
+      return;
+    }
+    this.set("closing");
+    handle.logout();
+    if (!(await closedWithin(handle, CLOSE_WAIT_MS))) handle.close();
+    await handle.closed;
+    if (this.state === "closing") this.set("offline");
+  }
+
+  private adopt(handle: WorldHandle, epoch: number, attempt: number): void {
+    if (epoch === this.epoch) this.attach(handle, attempt);
+    else handle.logout();
+  }
+
   private clearRetry(): void {
     clearTimeout(this.retry);
     this.retry = undefined;
@@ -129,7 +148,7 @@ class ConnectionSlot {
     this.detach = this.init.observers.map((observer) =>
       observer.attach(handle),
     );
-    handle.closed.then(() => this.closed(handle));
+    handle.closed.then(() => this.closed(handle)).catch(ignoreFailure);
     this.append({
       class: "log",
       data: { attempt },
@@ -176,10 +195,13 @@ class ConnectionSlot {
 
   private reconnect(index: number): void {
     this.retry = undefined;
+    const epoch = ++this.epoch;
     this.set("connecting");
     this.init.login(this.init.profile.client).then(
-      (handle) => this.attach(handle, index + 1),
-      (error: unknown) => this.failed(index, error),
+      (handle) => this.adopt(handle, epoch, index + 1),
+      (error: unknown) => {
+        if (epoch === this.epoch) this.failed(index, error);
+      },
     );
   }
 

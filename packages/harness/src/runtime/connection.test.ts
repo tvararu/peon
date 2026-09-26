@@ -144,4 +144,80 @@ describe("createConnection", () => {
       jest.useRealTimers();
     }
   });
+  test("disconnect emits offline once", async () => {
+    const { connection } = setup(async () => createMockHandle());
+    await connection.connect();
+    const states: string[] = [];
+    connection.onConnection((state) => states.push(state));
+    await connection.disconnect();
+    expect(states).toEqual(["closing", "offline"]);
+  });
+
+  test("disconnect during the first login logs out the late handle and stays offline", async () => {
+    const handle = createMockHandle();
+    const { promise, resolve } = Promise.withResolvers<WorldHandle>();
+    const { attached, connection } = setup(() => promise);
+    const connecting = connection.connect();
+    await connection.disconnect();
+    resolve(handle);
+    await connecting;
+    expect(connection.connection()).toBe("offline");
+    expect(connection.handle()).toBeUndefined();
+    expect(handle.logout).toHaveBeenCalled();
+    expect(attached).toEqual([]);
+  });
+
+  test("disconnect during a reconnect login logs out the late handle and stays offline", async () => {
+    jest.useFakeTimers();
+    try {
+      const first = createMockHandle();
+      const second = createMockHandle();
+      const { promise, resolve } = Promise.withResolvers<WorldHandle>();
+      const { connection, drafts } = setup(async (n) =>
+        n === 1 ? first : promise,
+      );
+      const states: string[] = [];
+      connection.onConnection((state) => states.push(state));
+      await connection.connect();
+      first.resolveClosed();
+      await flush();
+      jest.advanceTimersByTime(BACKOFF_MS[0] ?? 0);
+      await flush();
+      await connection.disconnect();
+      resolve(second);
+      await flush();
+      expect(states).toEqual([
+        "connecting",
+        "online",
+        "backoff",
+        "connecting",
+        "offline",
+      ]);
+      expect(connection.handle()).toBeUndefined();
+      expect(second.logout).toHaveBeenCalled();
+      expect(
+        drafts.filter((d) => d.event === "session/connected"),
+      ).toHaveLength(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("connect while closing waits for the close and does not treat it as lost", async () => {
+    const first = { ...createMockHandle(), logout: jest.fn() };
+    const second = createMockHandle();
+    const { connection, drafts, runs } = setup(async (n) =>
+      n === 1 ? first : second,
+    );
+    await connection.connect();
+    const closing = connection.disconnect();
+    const connecting = connection.connect();
+    first.resolveClosed();
+    await closing;
+    await connecting;
+    expect(runs.cancelAll).not.toHaveBeenCalled();
+    expect(drafts.some((d) => d.event === "session/lost")).toBe(false);
+    expect(connection.handle()).toBe(second);
+    expect(connection.connection()).toBe("online");
+  });
 });
