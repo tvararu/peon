@@ -58,7 +58,7 @@ the new paths.
 | A `position` write leaves `position.zone` = 0 until the next login saves it; a fresh copy's `savedAt` is the template's old save (2026-09-25), not the copy time | [measured] |
 | `/health`: `authUp`, `worldUp`, `dbUp`, `soapUp`, `factoryOnline`, `limits {maxSoapParallel 1, soapCallMs 40, testedSimultaneousLogins 58, maxLogins 60}`; note: 58 logins in one burst with 500 bots, login p95 1.3 s | [measured] |
 | `soap create` confirms each copy with `pinfo` and copies again, up to 3 attempts, because `pdump copy Tplhunter` can report success and create nothing (2 of 7 on t1) | [read] `7f0faf3`, `docs/factory.md`; failure rate [decided] |
-| SRP salt/B/A/S are serialised at fixed width; the leading-zero bug (1 account in 256 never logs in with status 0x4, 1 login in 256 fails at random) is fixed and has reference-server tests | [read] `486da85`, `9a5010c`, both on `epic/pi-harness` and `main` |
+| SRP salt/B/A/S are serialised at fixed width; the leading-zero bug (1 account in 256 never logs in with status 0x4, 1 login in 256 fails at random) is fixed and has reference-server tests | [read] `486da85` (on `main` and `epic/pi-harness`), `9a5010c` (tests, on `epic/pi-harness` only) |
 | `soap create` prints a `Session` JSON that **contains the password** (`src/factory/soap.ts:27-33`, printed at `src/factory/soap-cli.ts:39`) | [read] |
 | `soap create` writes the account dir and the wrapper `tmp/tc-<ACC>` under the **current directory** | [read] `live-testing.md:86-87` |
 | `soap delete` and `sweep` refuse any name not matching `^FAC[0-9A-F]{10}$` (`src/factory/soap.ts:35`, `:204-207`) | [read] |
@@ -1251,7 +1251,7 @@ round 0 measures create and truth wall time.
 ## 7. Open points
 
 - `<HARNESS_LAUNCH>` and `<HARNESS_QUIT>` are placeholders until the
-  skeleton lands.
+  skeleton lands. The epic spec, section 8, fixes both.
 - The GL event names used in checks must be mapped to the real game-log
   domains; builders add any missing event a check needs (kill credit,
   death, release, reclaim, loot open/close, cast, chat out, pose).
@@ -1388,7 +1388,9 @@ throwaway `eversong10` account (created from the epic worktree, probed
 with `soap truth` and six `soap setup` writes, deleted, deletion
 confirmed by `truth` → `character_not_found`) [measured]; AzerothCore
 base SQL for the new NPCs and quests [read]. The t1 README was not read
-(`ssh t1` returned exit 1 and no output). No password was printed; the
+(`ssh t1` returned exit 1 and no output). t1 later served it at
+`GET /readme`; the copy is [t1-service-readme.md](t1-service-readme.md).
+No password was printed; the
 truth output was checked for it with `rg -F -f` (0 hits).
 
 1. **Grading uses `soap truth`** [measured fields]. Section 0's

@@ -54,7 +54,9 @@ reading, not yet confirmed)" that fight and cycle are exposed as tools, and
 this task's brief says they are exposed. The `wow_fight` renderer and the
 JEV section of ui-layout depend on the R5-refined reading. Both renderers
 only need a run with a status, decisions and an outcome, so they fit a later
-replacement loop too (concept says; inferred).
+replacement loop too (concept says; inferred). Resolved later: the
+maintainer approved sections B and J (R29, R37), which expose fight and
+cycle through `engage`.
 
 ## Proposed screen at 160 columns (round 1)
 

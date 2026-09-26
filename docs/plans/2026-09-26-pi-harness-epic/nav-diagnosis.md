@@ -564,7 +564,8 @@ live, on installed / default / adt-edges (`tmp/ch-m3a.json` (not kept),
   paths. Heights change only at quad edges (0.02 yd per the PR #155
   review), so the risk is low, but it is not measured. It also reverses
   the #151 acceptance criterion, which `patched-namigator.md` records.
-  That needs a maintainer ruling, not only a PR.
+  That needs a maintainer ruling, not only a PR. R27 gave it: the
+  maintainer approved F1 + F2.
 - **F3:** only the guid form changes. The coordinate-form
   `pick_destination` contract (slice 1, `client-control.test.ts:89`
   "refuses an ambiguous column at pick_destination with its floors") is
@@ -586,7 +587,8 @@ live, on installed / default / adt-edges (`tmp/ch-m3a.json` (not kept),
    floor. With the installed library that floor then usually stops on
    UNKNOWN_HEIGHT, so F3 alone does not make the loop work.
 3. **F1 + F2 as one ops-and-vendor change**, gated on a maintainer ruling
-   on #151, on the grid (0 OK→refusal, 1 hash change) and on the M3a
+   on #151 (given by R27),
+   on the grid (0 OK→refusal, 1 hash change) and on the M3a
    replay table above. Then a live re-proof of the M3a slices on the new
    library. F1 without F2 gains nothing for the quest givers except
    Landra-with-Z. Pick the variant where `soap create` builds or points

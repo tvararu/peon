@@ -66,7 +66,8 @@ part of every design (ND Summary and §5, measured there):
   surface`) are small pure-core fixes that R21 allows. They go to G.
 - F1+F2 (install a patched namigator with `adt-edges` as a default patch)
   raise guid gotos from the spawn from 1/9 to 7/9 (ND Pass P, measured
-  live). They need a maintainer ruling on #151. That goes to K.
+  live). They needed a maintainer ruling on #151; K4 asked for it, and
+  R27 approved the navigation track that delivers them.
 - A ~5 yd move clears a snapped start (ND R3b, measured live). The design
   gives the model one call for it (`travel(to: "unstick")`), not an
   automatic detour.
@@ -1297,7 +1298,8 @@ and `mise test:live` at the final gate (R21).
 
 Not core code, but it bounds the movement scenarios: **N1**, install a
 namigator build with `adt-edges` as a default patch and make soap point
-at a repository build (ND F1 + F2). See K4.
+at a repository build (ND F1 + F2). See K4. R27 approved it: the
+navigation track delivers N1 together with G8.
 
 ---
 
@@ -1579,7 +1581,8 @@ Navigation bounds `t1-walk-to-npc`, `t4-quest-first`, `t5-vendor-buy`
 and `t6-die-and-recover` (all near Fairbreeze Village). On the installed
 library, guid gotos from the spawn arrive 1 of 9 times; with G8 plus N1
 they arrive 7 of 9 (ND Pass A vs Pass P, measured live). Without N1,
-grade those runs' movement failures as area `core`, not `tool`. What the
+grade those runs' movement failures as area `core`, not `tool`. R27
+approved N1, so this applies only until the navigation track lands. What the
 harness guarantees without N1: an honest `FAILED` in one call, never a
 loop, never a false arrival (`t1-unreachable` checks it).
 
@@ -1611,6 +1614,10 @@ a reason and a place to come back.
 
 ## K. Open questions for the maintainer (only ones that change the build)
 
+**Decided.** R38 approved the defaults of K1-K3, K5 and K6. R27 decides K4: the
+navigation track delivers G8 and N1, so K4's default below no longer
+applies. The questions stay as asked, for the record.
+
 **Summary.** Six questions. Each has a default that the build uses if
 you do not answer, so building can start now.
 
@@ -1640,6 +1647,10 @@ you do not answer, so building can start now.
    G8 also changes the "unique native column" rule for the guid form.
    Default: G8 in core now; N1 waits for your ruling, and movement
    failures in round 1 are graded as `core`.
+   **Decided (R27):** the navigation track delivers F4, F3, then F1 + F2
+   (N1), then a live re-proof of the M3a routes. Until it lands on
+   `epic/pi-harness`, movement failures near Fairbreeze are graded as
+   `core`.
 5. **`engage` default guards.** With no named target, `engage` picks the
    nearest hostile at most 3 levels above the character, and every pull
    refuses under 50 % HP or 30 % mana. A named target bypasses the level
@@ -1891,7 +1902,8 @@ beyond the ~100 yd the client sees (ES `t0-hostiles`, inferred there).
 6. **K4 is stale**: HANDOVER R27 approved the navigation track (F4 → F3
    → F1+F2), so N1 is decided, and I.4's "grade movement as `core`
    without N1" applies only until that track lands. Not edited here (the
-   implementability verifier owns K).
+   implementability verifier owns K). Resolved in this copy: K
+   now records the R27 decision.
 7. **`look` with `within` and `find` together** can still hide units
    past 20 rows at a crowded spawn; the row cap is a guess (inferred).
 8. **`how` reaches Jev only as free text** ("only use Smite",
