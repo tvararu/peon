@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { ControlPose } from "#wow/control";
-import type { Entity, Position } from "#wow/entity-store";
+import type { Entity, Position, UnitEntity } from "#wow/entity-store";
 import { type NearbySources, queryNearby } from "#wow/nearby";
-import { ObjectType } from "#wow/protocol/entity-fields";
+import { ObjectType, UNIT_FIELDS } from "#wow/protocol/entity-fields";
 import type { RemotePose } from "#wow/remote-motion";
 
 const SELF = 1n;
@@ -18,6 +18,36 @@ function entity(guid: bigint, position?: Position): Entity {
     rawFields: new Map(),
     scale: 1,
   } as Entity;
+}
+
+function unit(guid: bigint, over: Partial<UnitEntity> = {}): UnitEntity {
+  return {
+    class_: 0,
+    displayId: 0,
+    entry: 1,
+    factionTemplate: 0,
+    gender: 0,
+    guid,
+    health: 100,
+    level: 1,
+    maxHealth: 100,
+    maxPower: [],
+    name: undefined,
+    npcFlags: 0,
+    objectType: ObjectType.UNIT,
+    position: at(1, 0),
+    power: [],
+    race: 0,
+    rawFields: new Map(),
+    scale: 1,
+    target: 0n,
+    unitFlags: 0,
+    ...over,
+  };
+}
+
+function dynamic(flags: number): Map<number, number> {
+  return new Map([[UNIT_FIELDS.DYNAMIC_FLAGS.offset, flags]]);
 }
 
 function at(x: number, y: number, z = 0, mapId = 0): Position {
@@ -164,5 +194,39 @@ describe("queryNearby", () => {
       tappedByOther: false,
     });
     expect(row?.targetOf).toBeUndefined();
+  });
+});
+
+describe("loot flags", () => {
+  test("read lootable and tapped from UNIT_DYNAMIC_FLAGS", () => {
+    const rows = queryNearby(
+      sources(pose(0, 0), [
+        unit(2n, { rawFields: dynamic(0x1) }),
+        unit(3n, { position: at(2, 0), rawFields: dynamic(0x4) }),
+        unit(4n, { position: at(3, 0), rawFields: dynamic(0x4 | 0x8) }),
+      ]),
+    );
+    expect(
+      rows.map((row) => [row.lootable, row.tapped, row.tappedByOther]),
+    ).toEqual([
+      [true, false, false],
+      [false, true, true],
+      [false, true, false],
+    ]);
+  });
+
+  test("an unobserved unit and a game object are neither lootable nor tapped", () => {
+    const post = {
+      ...entity(6n, at(2, 0)),
+      objectType: ObjectType.GAMEOBJECT,
+      rawFields: dynamic(0x1 | 0x4),
+    };
+    const rows = queryNearby(sources(pose(0, 0), [unit(5n), post]));
+    expect(
+      rows.map((row) => [row.lootable, row.tapped, row.tappedByOther]),
+    ).toEqual([
+      [false, false, false],
+      [false, false, false],
+    ]);
   });
 });

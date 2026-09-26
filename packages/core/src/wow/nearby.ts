@@ -1,9 +1,10 @@
 import type { ControlPose, ControlState } from "#wow/control";
-import type { Entity, Position } from "#wow/entity-store";
+import { type Entity, fieldOf, isUnit, type Position } from "#wow/entity-store";
 import type { FactionRelation } from "#wow/faction-template";
 import { bearing, distance2d, normalizeAngle } from "#wow/geometry";
 import type { ObservedPosition, PositionSource } from "#wow/motion-store";
 import type { NpcRole } from "#wow/npc-roles";
+import { UNIT_FIELDS } from "#wow/protocol/entity-fields";
 import type { RemotePose } from "#wow/remote-motion";
 
 export const NEARBY_DEFAULT_RANGE = 100;
@@ -79,16 +80,29 @@ type Traits = Pick<
   | "tappedByOther"
 >;
 
-function traits(): Traits {
+const DYNFLAG_LOOTABLE = 0x1;
+const DYNFLAG_TAPPED = 0x4;
+const DYNFLAG_TAPPED_BY_PLAYER = 0x8;
+
+type LootFlags = Pick<NearbyRow, "lootable" | "tapped" | "tappedByOther">;
+
+function lootFlags(entity: Entity): LootFlags {
+  const offset = UNIT_FIELDS.DYNAMIC_FLAGS.offset;
+  const flags = isUnit(entity) ? (fieldOf(entity, offset) ?? 0) : 0;
+  const tapped = (flags & DYNFLAG_TAPPED) !== 0;
+  const mine = (flags & DYNFLAG_TAPPED_BY_PLAYER) !== 0;
+  const lootable = (flags & DYNFLAG_LOOTABLE) !== 0;
+  return { lootable, tapped, tappedByOther: tapped && !mine };
+}
+
+function traits(entity: Entity): Traits {
   return {
     relation: "unknown",
     attackable: false,
     attackingMe: false,
     targetOf: undefined,
     roles: [],
-    lootable: false,
-    tapped: false,
-    tappedByOther: false,
+    ...lootFlags(entity),
   };
 }
 
@@ -217,7 +231,7 @@ export function queryNearby(
       preparedAt: now,
       remotePose: poses.get(entity.guid),
       self: isSelf,
-      ...traits(),
+      ...traits(entity),
     };
   });
 
