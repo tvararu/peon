@@ -24,7 +24,7 @@ Plan index: [2026-09-26-pi-harness-epic-plan.md](../2026-09-26-pi-harness-epic-p
 
 The contract is not changed. Each item says how this plan works around it.
 
-1. **Quit keys.** Contract 2.13 says `quit` sends two `\x03`. The approved spec (§7 settlement 6, §8) says `<HARNESS_QUIT>` is Ctrl-D on an empty editor, then two Ctrl-C only if Pi still shows. E1b keeps the signature `quit: () => Promise<void>` and implements the spec: send `\x04`, wait up to `QUIT_CONFIRM_MS` (3 s) for exit, then send two `\x03` without an await between them (Pi exits on two within 500 ms, luna-runtime §6).
+1. **Quit keys.** Contract 2.13 says `quit` sends two `\x03`. The approved spec (§7 settlement 6, §8) says `<HARNESS_QUIT>` is Ctrl-D on an empty editor, then two Ctrl-C only if Pi still shows. E1b keeps the signature `quit: () => Promise<void>` and implements the spec: send `\x04` (the runner types nothing after the last steer, so the editor is empty), wait up to `QUIT_CONFIRM_MS` (3 s) for exit, confirm with `read --screen`, and only if the pane still shows Pi send two `\x03` without an await between them (Pi exits on two within 500 ms, luna-runtime §6).
 2. **`exec` prefix on the launch command.** Contract 2.13 gives `harnessCommand` → `bun packages/harness/src/entry.ts …`. Orca types `--command` into an interactive shell, and the shell stays alive after Pi exits (luna-runtime §6, measured), so `terminal wait --for exit` never fires. Measured here on 2026-09-26: a pane created with `--command "exec sleep 4"` gave `wait --for exit` → `ok: true, satisfied: true, status: "exited"`, a timeout gave `ok: false, error.code: "timeout"` with exit code 1, `read --screen` after the exit gave `status: "exited", tail: []`, and `close --tab` after the exit gave `ok: false, error.code: "terminal_handle_stale"` while `terminal list` no longer showed the tab. So E1b returns `exec bun packages/harness/src/entry.ts --profile <p> --run-dir <d> --glyphs nerd` (`HARNESS_LAUNCH` is unchanged), `close` treats `terminal_handle_stale` as closed, and the watcher saves the final frame before the quit (the screen is empty after the exit).
 3. **Frame interval.** The coordinator's brief says "frame capture every 15 s". The contract (`FRAME_EVERY_MS = 5000`), eval-suite step 7a and design I.2 say 5 s. This plan keeps 5000 ms; 15 s is the eval-suite step 9 fallback poll for a grader without the watcher. Frames are saved only when the tagged screen changed, so 5 s does not multiply the files.
 4. **`SteerAt` cannot count or delay.** Round 1 needs "after the second kill" (`t7-question-while-acting`) and "20 s after the agent acknowledges" (`t7-halt-resume`). This plan keeps the contract type and gives the runner sequential semantics (E7b): steer *i* is armed only after steer *i−1* was sent; a `trigger` steer fires on the first matching trigger row later than the previous steer (or the task); an `elapsed` steer fires `ms` after the previous steer (or the task). The data then uses the closest legal values: `t7-question-while-acting` steer 1 fires at the **first** kill, and `t7-halt-resume` steer 2 fires 25 s after the stop steer. The coordinator can add `count?: number` and `afterMs?: number` to the trigger variant later; E5 owns the type.
@@ -319,14 +319,30 @@ describe("attachPane", () => {
     expect(texts).toEqual(["\u0004"]);
   });
 
-  test("quit sends two Ctrl-C when Ctrl-D did not exit", async () => {
-    const { calls, exec } = fakeExec((argv) => (argv[2] === "wait" ? failed(1, "", TIMEOUT) : orcaOk({ handle: HANDLE })));
+  test("quit sends two Ctrl-C when read --screen still shows Pi after Ctrl-D", async () => {
+    const { calls, exec } = fakeExec((argv) => {
+      if (argv[2] === "wait") return failed(1, "", TIMEOUT);
+      if (argv[2] === "read") return orcaOk({ handle: HANDLE, status: "running", tail: ["─".repeat(40)] });
+      return orcaOk({ handle: HANDLE });
+    });
     await attachPane({ exec, id: HANDLE }).quit();
     const texts = calls.flatMap((call) => (call.argv[2] === "send" ? [call.argv[6]] : []));
     expect(texts).toEqual(["\u0004", "\u0003", "\u0003"]);
     expect(calls.find((call) => call.argv[2] === "wait")?.argv).toEqual([
       "orca-ide", "terminal", "wait", "--terminal", HANDLE, "--for", "exit", "--timeout-ms", "3000", "--json",
     ]);
+    expect(calls.find((call) => call.argv[2] === "read")?.argv).toEqual(["orca-ide", "terminal", "read", "--terminal", HANDLE, "--screen", "--json"]);
+  });
+
+  test("quit sends no Ctrl-C when read --screen shows Pi has gone", async () => {
+    const { calls, exec } = fakeExec((argv) => {
+      if (argv[2] === "wait") return failed(1, "", TIMEOUT);
+      if (argv[2] === "read") return orcaOk({ handle: HANDLE, status: "exited", tail: [] });
+      return orcaOk({ handle: HANDLE });
+    });
+    await attachPane({ exec, id: HANDLE }).quit();
+    const texts = calls.flatMap((call) => (call.argv[2] === "send" ? [call.argv[6]] : []));
+    expect(texts).toEqual(["\u0004"]);
   });
 
   test("waitExit is false on a timeout and true on exit", async () => {
@@ -436,9 +452,18 @@ export function attachPane({ exec, id }: { exec: Exec; id: string }): Pane {
     const args = ["wait", "--terminal", id, "--for", "exit", "--timeout-ms", String(timeoutMs)];
     return succeeded(await orca(exec, args, timeoutMs + 5000));
   };
+  const showsPi = async (): Promise<boolean> => {
+    const reply = await orca(exec, ["read", "--terminal", id, "--screen"]);
+    const result = reply.json?.["result"];
+    const term = isRecord(result) ? result["terminal"] : undefined;
+    if (!succeeded(reply) || !isRecord(term) || term["status"] === "exited") return false;
+    const tail = term["tail"];
+    return Array.isArray(tail) && tail.length > 0;
+  };
   const quit = async (): Promise<void> => {
     await send(CTRL_D);
     if (await waitExit(QUIT_CONFIRM_MS)) return;
+    if (!(await showsPi())) return;
     await Promise.all([send(CTRL_C), send(CTRL_C)]);
   };
   const screen = async (): Promise<string> => {
@@ -491,7 +516,7 @@ export function fakePane(screens: readonly string[]): FakePane {
 - [ ] **Step 4: Run the test and see it pass**
 
 Run: `mise test packages/harness/src/grader/pane.test.ts`
-Expected: PASS, 13 tests. Then `mise format:fix packages/harness && mise lint:fix packages/harness && mise lint packages/harness && mise typecheck harness` exits 0.
+Expected: PASS, 14 tests. Then `mise format:fix packages/harness && mise lint:fix packages/harness && mise lint packages/harness && mise typecheck harness` exits 0.
 
 - [ ] **Step 5: Orca pane smoke (live, not in CI)**
 
@@ -1459,7 +1484,20 @@ Expected: PASS, 18 tests (13 from `test.each`). Then `mise format:fix packages/h
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/harness/src/grader/scenarios.ts packages/harness/src/grader/scenarios.test.ts packages/harness/src/grader/scenarios
+git add packages/harness/src/grader/scenarios.ts packages/harness/src/grader/scenarios.test.ts \
+  packages/harness/src/grader/scenarios/t0-hostiles.json \
+  packages/harness/src/grader/scenarios/t0-self-state.json \
+  packages/harness/src/grader/scenarios/t0-who-is-near.json \
+  packages/harness/src/grader/scenarios/t1-walk-to-npc.json \
+  packages/harness/src/grader/scenarios/t2-whisper-reply.json \
+  packages/harness/src/grader/scenarios/t3-ghostlands-kill.json \
+  packages/harness/src/grader/scenarios/t3-kill-one-hunter.json \
+  packages/harness/src/grader/scenarios/t4-alliance-first.json \
+  packages/harness/src/grader/scenarios/t4-quest-first.json \
+  packages/harness/src/grader/scenarios/t5-vendor-buy-goldshire.json \
+  packages/harness/src/grader/scenarios/t6-die-and-recover.json \
+  packages/harness/src/grader/scenarios/t7-halt-resume.json \
+  packages/harness/src/grader/scenarios/t7-question-while-acting.json
 mise exec -- git commit -m "chore: Add the round-1 eval scenarios as data" -m "The runner and the grader read one scenario file per id, so task text, budgets, steers and checks come from eval-suite section 2.3 and are not retyped per run."
 ```
 
@@ -1472,7 +1510,7 @@ mise exec -- git commit -m "chore: Add the round-1 eval scenarios as data" -m "T
 - Test: `packages/harness/src/grader/frames.test.ts`
 
 **Interfaces:**
-- Consumes: E1b `Pane`, test support `fakePane`; U1 `tagNerdGlyphs`, `nerd` from `#harness/ui/glyphs` (the moved `design/glyphs/glyphs.ts`).
+- Consumes: E1b `Pane`, test support `fakePane`; U1 `tagNerdGlyphs`, `nerd` from `#harness/ui/glyphs` (copied from `docs/plans/2026-09-26-pi-harness-epic/glyphs.ts`).
 - Produces:
   - `export type Frame = { seq: number; at: number; file: string; text: string };`
   - `export function tagFrame(screen: string): string;` (every Nerd glyph becomes `<name>`)
@@ -4423,7 +4461,7 @@ mise exec -- git commit -m "chore: Add the grader CLI and mise eval task" -m "A 
 
 ---
 
-## Task order and hand-off
+## Build order and hand-off
 
 | Task | Needs | Files |
 |---|---|---|

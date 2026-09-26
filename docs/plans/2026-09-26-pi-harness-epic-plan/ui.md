@@ -129,7 +129,7 @@ plan does not change the contract. It plans around each item as stated.
 
 **Files**
 
-- Create: `packages/harness/src/ui/glyphs.ts` (moved from `/home/deity/code/tuicraft/tmp/pi-epic/design/glyphs/glyphs.ts`, lint fixes only; contract issue 2)
+- Create: `packages/harness/src/ui/glyphs.ts` (copied from the committed design file `docs/plans/2026-09-26-pi-harness-epic/glyphs.ts`, lint fixes only; contract issue 2)
 - Create: `packages/harness/src/ui/context.ts`
 - Test: `packages/harness/src/ui/glyphs.test.ts`, `packages/harness/src/ui/context.test.ts`
 
@@ -287,7 +287,7 @@ Expected: FAIL — error: Cannot find module "#harness/ui/glyphs" from ".../src/
 ```bash
 cd "$(git rev-parse --show-toplevel)"
 mkdir -p packages/harness/src/ui
-cp /home/deity/code/tuicraft/tmp/pi-epic/design/glyphs/glyphs.ts packages/harness/src/ui/glyphs.ts
+cp docs/plans/2026-09-26-pi-harness-epic/glyphs.ts packages/harness/src/ui/glyphs.ts
 perl -0pi -e 's/  warn: \(message: string\) => void = \(\) => \{\},\n/  warn: (message: string) => void,\n/' packages/harness/src/ui/glyphs.ts
 perl -0pi -e 's/flag !== undefined \? \["--glyphs", flag\] : \["TUICRAFT_GLYPHS", env\]/flag === undefined ? ["TUICRAFT_GLYPHS", env] : ["--glyphs", flag]/' packages/harness/src/ui/glyphs.ts
 mise exec -- biome check --write packages/harness/src/ui/glyphs.ts
@@ -2085,7 +2085,7 @@ mise exec -- git commit -m "feat: Add the harness unit-frame footer" -m "The foo
 - Produces:
 
 ```ts
-export type TickerSource = { recent: (n: number) => GameLogEntry[]; run: () => RunView | undefined; kills: () => number; xp: () => number };
+export type TickerSource = { recent: (n: number) => GameLogEntry[]; run: () => RunView | undefined; kills: () => number; xp: () => number; now: () => number };
 export type TickerInit = { source: TickerSource; width: number; theme: Theme; now: number };
 export const TICKER_ROWS = 6;
 export function tickerLines(init: TickerInit): string[];
@@ -2105,7 +2105,7 @@ No sparklines (contract issue 6).
 - [ ] **Write the failing test.** `packages/harness/src/ui/ticker.test.ts`:
 
 ```ts
-import { describe, expect, setSystemTime, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import type { GameLogEntry } from "#harness/contract/log";
 import type { RunView } from "#harness/contract/views";
@@ -2148,6 +2148,7 @@ const source = (
   active: RunView | undefined,
 ): TickerSource => ({
   kills: () => 1,
+  now: () => now,
   recent: (n) => rows.slice(-n),
   run: () => active,
   xp: () => 84,
@@ -2240,20 +2241,26 @@ describe("tickerLines", () => {
 
 describe("createTicker", () => {
   test("keeps its lines within a second and redraws when a new row arrives", () => {
-    setSystemTime(new Date(now));
-    try {
-      const rows = [...entries];
-      const component = createTicker(source(rows, run))(
-        createFakeTui().tui,
-        theme,
-      );
-      const before = component.render(120);
-      expect(component.render(120)).toBe(before);
-      rows.push(row(5, { text: "a new row" }));
-      expect(plain(component.render(120))[5]).toContain("a new row");
-    } finally {
-      setSystemTime();
-    }
+    const rows = [...entries];
+    const component = createTicker(source(rows, run))(
+      createFakeTui().tui,
+      theme,
+    );
+    const before = component.render(120);
+    expect(component.render(120)).toBe(before);
+    rows.push(row(5, { text: "a new row" }));
+    expect(plain(component.render(120))[5]).toContain("a new row");
+  });
+
+  test("reads the time from the source clock, not the wall clock", () => {
+    let at = now;
+    const component = createTicker({ ...source(entries, run), now: () => at })(
+      createFakeTui().tui,
+      theme,
+    );
+    const before = plain(component.render(120));
+    at += 60_000;
+    expect(plain(component.render(120))).not.toEqual(before);
   });
 });
 ```
@@ -2288,6 +2295,7 @@ export type TickerSource = {
   run: () => RunView | undefined;
   kills: () => number;
   xp: () => number;
+  now: () => number;
 };
 
 export type TickerInit = {
@@ -2370,7 +2378,7 @@ export function createTicker(
         last = undefined;
       },
       render: (width) => {
-        const now = Date.now();
+        const now = source.now();
         const run = source.run();
         const key = [
           width,
@@ -5990,6 +5998,7 @@ function mountUi(init: MountInit): () => void {
   });
   const ticker = createTicker({
     kills: hud.kills,
+    now: () => rt.clock.now(),
     recent: (n) => rt.log.recent(n),
     run: () => hud.snapshot()?.run,
     xp: hud.xp,
@@ -6216,9 +6225,9 @@ mise exec -- git commit -m "docs: Record the harness UI pane smoke" -m "The foot
 
 ---
 
-## Task order inside this area
+## Build order inside this area
 
-| Wave (contract 4.2) | Tasks | Needs outside this area |
+| Step | Tasks | Needs outside this area |
 | --- | --- | --- |
 | 0 | U1a, U1c | F1 |
 | 1 | U1b, then U2, U3, U4, U5, U9 in any order | F2 |

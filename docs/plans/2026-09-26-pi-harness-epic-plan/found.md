@@ -273,7 +273,11 @@ Also run `bun run tsc --noEmit -p packages/harness` once before `lint:fix`: it p
 - [ ] **Step 6: Commit**
 
 ```bash
-git add packages/harness/src/contract packages/harness/src/ops/refusal.ts packages/harness/src/ops/refusal.test.ts
+git add packages/harness/src/contract/result.ts packages/harness/src/contract/views.ts \
+  packages/harness/src/contract/details.ts packages/harness/src/contract/log.ts \
+  packages/harness/src/contract/runs.ts packages/harness/src/contract/config.ts \
+  packages/harness/src/contract/services.ts \
+  packages/harness/src/ops/refusal.ts packages/harness/src/ops/refusal.test.ts
 mise exec -- git commit -m "feat: Add the frozen harness contract types" -m "Every cross-module harness type lives in contract/ so the tool, UI, log and eval tracks build in parallel against one frozen surface. Refusal is the one runtime file: any harness code throws it and tools/define.ts turns it into a result."
 ```
 
@@ -4270,7 +4274,10 @@ Expected: exit 0 for each command.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add packages/harness/src/extension packages/harness/test-support/fake-pi.ts
+git add packages/harness/src/extension/extension.ts packages/harness/src/extension/extension.test.ts \
+  packages/harness/src/extension/input.ts packages/harness/src/extension/input.test.ts \
+  packages/harness/src/extension/guards.ts packages/harness/src/extension/guards.test.ts \
+  packages/harness/test-support/fake-pi.ts
 mise exec -- git commit -m "feat: Add the wow extension factory" -m "One factory installs every harness hook in a fixed order, so later tasks each add one line. Shutdown keeps the character logged in on /new and /reload and logs out only on quit (design H.3)."
 ```
 
@@ -6054,8 +6061,7 @@ This checks what a unit test cannot: the TUI starts from source, and quit writes
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
-ACC_JSON=$(bun packages/factory/src/main.ts soap create fresh)
-echo "$ACC_JSON" > tmp/f6b-account.json
+(umask 077 && bun packages/factory/src/main.ts soap create fresh > tmp/f6b-account.json)
 bun packages/harness/src/entry.ts --profile tmp/f6b-account.json --check
 orca-ide terminal create --worktree "path:$(git rev-parse --show-toplevel)" --title f6b-boot \
   --command "bun packages/harness/src/entry.ts --profile tmp/f6b-account.json --run-dir tmp/f6b-run --no-connect" --json
@@ -6063,7 +6069,6 @@ orca-ide terminal read --terminal <handle> --screen --json
 orca-ide terminal send --terminal <handle> --text $'\x04' --json
 jq '{endedAt, exitReason, character}' tmp/f6b-run/meta.json
 ls ~/.local/state/tuicraft-harness/locks/
-bun packages/factory/src/main.ts soap delete "$(jq -r .account tmp/f6b-account.json)"
 ```
 
 Expected: `--check` prints `Codex login: valid until … UTC (omp).`; the screen shows Pi's editor and footer with `gpt-6-luna • high` and no stack trace; after Ctrl-D, `meta.json` has a numeric `endedAt` and `exitReason: "quit"`, and the lock dir has no `<ACCOUNT>-<character>.lock`. Send Ctrl-D only on an empty editor (luna-runtime §6). Close the pane with `orca-ide terminal close --terminal <handle> --tab --json`.
@@ -6078,6 +6083,15 @@ tmp/harness-bin/harness --profile tmp/f6b-account.json --check
 ```
 
 Expected: the same credential line (luna-runtime §5: the binary needs `registerBunOAuthFlows()`, which `entry.ts` calls, and `theme/*.json` beside it). Round 1 runs from source; record a failure here in the commit body, do not block on it.
+
+- [ ] **Step 6b: Delete the account and its file (always, also when Step 6 is skipped or fails)**
+
+`tmp/f6b-account.json` holds the account password, so it is written with `umask 077` (mode 600) and deleted here.
+
+```bash
+bun packages/factory/src/main.ts soap delete "$(jq -r .account tmp/f6b-account.json)"
+rm -f tmp/f6b-account.json
+```
 
 - [ ] **Step 7: Commit**
 
@@ -6103,7 +6117,7 @@ This is the harness live gate (AGENTS.md "Testing": live evidence, throwaway soa
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
-bun packages/factory/src/main.ts soap create eversong10 > tmp/f8e-account.json
+(umask 077 && bun packages/factory/src/main.ts soap create eversong10 > tmp/f8e-account.json)
 bun packages/harness/src/entry.ts --profile tmp/f8e-account.json --check
 ```
 
@@ -6158,6 +6172,7 @@ V1 passes when the turn with a `look` call completes with an assistant answer af
 orca-ide terminal close --terminal <handle> --tab --json
 orca-ide terminal close --terminal <handle2> --tab --json
 bun packages/factory/src/main.ts soap delete "$(jq -r .account tmp/f8e-account.json)"
+rm -f tmp/f8e-account.json
 ```
 
 - [ ] **Step 5: Write the record** `docs/plans/2026-09-26-pi-harness-epic/smoke-live.md`

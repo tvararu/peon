@@ -11,7 +11,8 @@ the writer does not invent a second name.
 Sources: `design/harness-design.md` (A–K, approved R28–R38, and its two
 verification sections), `design/eval-suite.md` (with the t1 service
 revision), `design/luna-runtime.md`, `design/harness-architecture.md`,
-`design/event-volume.md`, `design/ui-gallery.md`, `design/glyphs/`,
+`design/event-volume.md`, `design/ui-gallery.md`, `design/glyphs/` (its
+`glyphs.ts` is committed as `docs/plans/2026-09-26-pi-harness-epic/glyphs.ts`),
 `design/nav-diagnosis.md`, `design/migration-plan.md` §2,
 `t1-service/README.md`, `HANDOVER.md`. Code read at `epic/pi-harness`
 `5d75de0`. Marks: **measured** (a command ran here), **read** (read in the
@@ -98,8 +99,9 @@ commits are on `epic/pi-harness`. Follow-ups this plan owns:
   `~/.config/tuicraft/config.toml`.
 - E5 marks the movement-bound round-1 scenarios (`t1-walk-to-npc`,
   `t4-quest-first`, `t5-vendor-buy-goldshire`, `t6-die-and-recover`) with
-  `"navBound": true` and grades their movement failures as area `core`
-  until NAV is on the eval worktree's commit (design I.4).
+  `"navBound": true`. Graders mark a movement failure as area `core`
+  only at one of the navigation track's still-open places (spec §7; spec
+  §2 settlement 12); the track itself counts as landed.
 
 ## 1. Core additions (`packages/core/src/wow/`)
 
@@ -1943,11 +1945,12 @@ export function coreErrorResult<A>(error: unknown, after: A): ToolResult<A>;
   1. `session.turnToolCalls += 1`; append `tool/call {toolCallId, name, args}`;
      `stats.call(name)`.
   2. `turnToolCalls > TURN_BUDGET` → `REFUSED turn_budget: report to the
-     human now.`
+     human now.` with next `end your turn and report to the human.`
   3. no handle → `REFUSED offline` (the `requireHandle` text in the
      `contract/services.ts` notes).
   4. `kind` is `action` or `run` and `session.humanWaiting` → `REFUSED
      human_waiting: the human wrote a message. Read it before you act.`
+     with next `end your turn and read the human's message.`
   5. `ready.whenReady(READY_WAIT_MS)` is false → `REFUSED not_ready: the
      world is still loading.` with next `call look again in a few seconds.`
   6. `name !== "look"`: `repeats.check(...)` hit → `REFUSED repeat:` with
@@ -1959,7 +1962,8 @@ export function coreErrorResult<A>(error: unknown, after: A): ToolResult<A>;
   9. `repeats.record`, `progress.afterAction`, `stats.result`, append
      `tool/result {toolCallId, status, reason, ms}`, `log.mark(seq, {
      consumedBy: toolCallId })` for each `evidence` row.
-  10. `danger = dangerLine(dangerView(ctx))` when a handle exists.
+  10. `danger = dangerLine(dangerView(ctx), { still: spec.kind === "control" })`
+      when a handle exists (only `stop` is `control`).
   11. Return `{ content: [{ type: "text", text: formatContent(result, {
       danger, maxLines: spec.maxLines ?? MAX_CONTENT_LINES }) }], details: {
       tool: name, result } }`.
@@ -2167,7 +2171,7 @@ export type InterruptCause = { code: "attacked" | "rooted" | "died"; detail: str
 export type InterruptWatch = { signal: AbortSignal; cause: () => InterruptCause | undefined; dispose: () => void };
 export function createAttackLedger(clock: Clock): AttackLedger;
 export function dangerView(ctx: ViewCtx): DangerView;
-export function dangerLine(view: DangerView): string | undefined;
+export function dangerLine(view: DangerView, opts?: { still?: boolean }): string | undefined;
 export function watchInterrupts(ctx: OpsCtx, rules: InterruptRules): InterruptWatch;
 
 // ops/progress.ts (A9)
@@ -2200,7 +2204,9 @@ export function createProgressTracker(init: { clock: Clock; log: GameLog }): Pro
 - `dangerLine`: one attacker → `Danger: <Name> <ref> is attacking you (hit
   you <n> s ago). You are at <p>% HP.`; no hit seen yet → drop the brackets;
   two or more → `Danger: <Name> <ref> and <k> more are attacking you. You
-  are at <p>% HP.`; no attacker → `undefined`.
+  are at <p>% HP.`; no attacker → `undefined`. `still: true` (the `stop`
+  tool, design B.11) gives `is still attacking you` / `are still attacking
+  you`.
 - `watchInterrupts` aborts its `signal` on the first rule that fires:
   a unit attacks that was not an attacker when the watch started, the
   control state's `blockedReason` becomes `"rooted"` (`control-core.ts:182`,
@@ -2722,7 +2728,7 @@ export function watchRun(init: { runDir: string; pane: Pane; exec: Exec; clock: 
 ### 2.14 `ui/` and human commands (U1–U11)
 
 ```ts
-// ui/glyphs.ts (U1): design/glyphs/glyphs.ts moved unchanged. Exports (read):
+// ui/glyphs.ts (U1): docs/plans/2026-09-26-pi-harness-epic/glyphs.ts copied unchanged. Exports (read):
 // nerdFontsVersion, nerdClasses, GlyphName, glyphSetNames, GlyphSetName, GlyphSet,
 // nerd, unicode, ascii, glyphSets, isGlyphSetName, resolveGlyphSet, glyphNamesByChar,
 // glyphName, tagNerdGlyphs.
@@ -2772,7 +2778,7 @@ export function footerLines(init: { snapshot: NowSnapshot | undefined; chrome: F
 export function createFooter(source: FooterSource): Parameters<ExtensionUIContext["setFooter"]>[0];
 
 // ui/ticker.ts (U3)
-export type TickerSource = { recent: (n: number) => GameLogEntry[]; run: () => RunView | undefined; kills: () => number; xp: () => number };
+export type TickerSource = { recent: (n: number) => GameLogEntry[]; run: () => RunView | undefined; kills: () => number; xp: () => number; now: () => number };
 export const TICKER_ROWS = 6;
 export function tickerLines(init: { source: TickerSource; width: number; theme: Theme; now: number }): string[];
 export function createTicker(source: TickerSource): (tui: TUI, theme: Theme) => Component;
@@ -3034,10 +3040,10 @@ the harness adds no CLI verb (R21).
 
 ## 4. Task DAG
 
-The task index in [the plan index](../2026-09-26-pi-harness-epic-plan.md) supersedes the tables below for split ids
-(for example `F5a` → `F5aa`, `F5b`, `F5ab`) and for the edges that the
-area files and the main plan's rulings add (F6b: A3b, L9a, F8a and no B
-tool; L10b: F8c, F8d; P3: P2, F5ab; C12–C14 added; and the shared-file and import edges of the plan index "Verification (dag-commands)").
+The task index in [the plan index](../2026-09-26-pi-harness-epic-plan.md) is the source of truth for
+task ids (split ids such as `F5a` → `F5aa`, `F5b`, `F5ab`), owner files
+and edges (the area files' edges, the main plan's rulings and the
+shared-file and import edges of its "Verification (dag-commands)").
 
 `Needs` lists the tasks whose output (section 1–3 names) the task consumes.
 A task starts when every task it needs has landed on `epic/pi-harness`.
@@ -3049,173 +3055,23 @@ round-1 canary `t0-self-state`.
 
 ### 4.1 Tasks
 
-core-a (one builder, one commit each, in this order):
-
-| Id | Design | Produces | Needs |
-|---|---|---|---|
-| C0 | G0 | all of 1.2–1.13 surface, neutral values, stubs | — |
-| C1 | G1 | 1.12 C1 export lines | C0 |
-| C5 | G5 | `attackers`, `CombatEvent.attacker`, `combat --json` | C1 |
-| C4 | G4 | `lootable`, `tapped`, `tappedByOther` | C1 |
-| C3 | G3 | `npcRoles`, `roles` | C4 |
-| C2 | G2 | `capabilities`, `relation`, `attackable`, `attackingMe`, `targetOf`, `NearbySources.units` wiring | C3, C5, NAV |
-| C9 | G9 | `getCreatureInfo` | C2 |
-| C11 | G11 | `itemKind`, `ItemLabel` class/subclass/`useSpellIds` | C1 |
-| C10 | G10 | `onNotice` emits; CLI prints notices as before | C6b, C9 |
-
-core-b (parallel with core-a after C1):
-
-| Id | Design | Produces | Needs |
-|---|---|---|---|
-| C6a | G6 | `packages/devtools/src/area-names.ts`, `data/area-names.json`, `biome.json` ignore | C1 |
-| C6b | G6 | `protocol/world-states.ts`, `getPlaceState`, `place_changed`, stub row removed, daemon case | C6a |
-| C7a | G7 | `lootCorpse` | C1 |
-| C7b | G7 | `recoverCorpse` | C7a |
-
-found:
-
-| Id | Produces | Needs |
-|---|---|---|
-| F1 | harness `package.json` imports map, `tsconfig.json`, empty `index.ts` | — |
-| F2 | `contract/*.ts`, `ops/refusal.ts` | F1, C1 |
-| F3a | `parseFlags`, `harnessStateDir`, `UsageError` | F2 |
-| F3b | `loadProfile`, `ProfileError`, protected lists (and the NAV follow-up test) | F2 |
-| F3c | `acquireLock`, `LockError` | F3b |
-| F4a | `OmpCredentialStore`, `readOmpRow`, `CredentialExpiredError` | F2 |
-| F4b | `credentialStatus`, `startupCheck` | F4a |
-| F5a | `createHarnessRuntime`, `createWorldMutex`, `createYieldGate`, `runtime-fixture.ts` | F2 |
-| F5b | `createConnection`, `defaultLogin` | F5a |
-| F5c | `createReadyGate` | F5a, A2 |
-| F6a | `createPiRuntime`, `test-support/faux-session.ts` | F5a |
-| F7a | `wowExtension`, `installShutdown`, empty `installInput` and `installGuards` | F5a |
-| F7b | `installInput`, `isStopReflex`, `humanStop` | F7a |
-| F7c | `installGuards` (V7 path) | F7a |
-| F8a | smoke V3 (faux; runs first) | F6a, F7b |
-| F8b | smoke V4 | F8a |
-| F8c | smoke V6 | F8a |
-| F8d | smoke V2 | F8a |
-| F6b | `entry.ts`, `main.ts` (composition root) | F3a, F3b, F3c, F4b, F5b, F5c, F6a, F7a, F7b, F7c, L1, L3, L5, L11, L12, L13, L14, A2, A6, A7, A8, A9, A1, U1 |
-| F8e | live checks V1, V5, V6, V7 in an Orca pane on a soap account; record in `smoke-live.md` | F6b, U11, L10, P3 |
-
-log-events:
-
-| Id | Produces | Needs |
-|---|---|---|
-| L1 | `createGameLog`, `createJsonlSink` | F2 |
-| L3 | `createRunRegistry`, `awaitRun` | F2, F5a |
-| L2 | `queryLog`, `formatLogRows` | L1, L3 |
-| L4 | `awaitGoto`, `awaitTactics`, `awaitCycle`, `awaitQuestCycle`, `jevCode` | F2 |
-| L5 | `createEventRouter`, `RuleContext`, `runDrafts` | L1, L3 |
-| L6 | `chatDrafts`, `groupDrafts`, `duelDrafts` | L5 |
-| L7 | `combatDrafts`, `tacticsDrafts`, `cycleDrafts`, `recoveryDrafts`, `vitalsDrafts` | L5 |
-| L8 | `controlDrafts`, `questDrafts`, `rewardsDrafts`, `vendorDrafts`, `trainerDrafts`, `entityDrafts`, `packetErrorDrafts`, `noticeDrafts` | L5 |
-| L9 | `createWakeGuard`, `createStuckWatch`, `createDelivery`, `formatWake` | L5, A9 |
-| L10 | `formatNow`, `installEvents` (+ its `extension.ts` line) | L9, A3, F7a |
-| L11 | `createWorldSnapshots` | L1 |
-| L12 | run dir functions | F3a |
-| L13 | `createToolStats` | F2 |
-| L14 | `statusSnapshot`, `createStatusWriter` | L3, F5a |
-
-ops-tools-a:
-
-| Id | Produces | Needs |
-|---|---|---|
-| A1 | `defineGameTool`, `result`, `formatContent`, `nextCall`, `askHuman`, `coreErrorResult`, `params.ts`, the ten tool stubs, `gameTools`, `installTools` (+ its `extension.ts` line) | F2, F5a, F7a, P2, U5 |
-| A2 | `guidHex`, `parseRef`, `createRefTable` | F2 |
-| A4 | `settle` | F2 |
-| A6 | `createRepeatGuard`, `repeatRefusal` | F2 |
-| A7 | `createAttackLedger`, `dangerView`, `dangerLine`, `watchInterrupts` | A2, F5a |
-| A8 | `createSightings` | A2 |
-| A9 | `createProgressTracker` | F2, L1 |
-| A3 | views, `nowSnapshot`, `snapshotWorld`, `resolveUnit`, `unitRefusal` | A2, A7, A8 |
-| A5 | range constants, `distanceTo`, `compassTo` | A3 |
-| A10 | `look` | A1, A3, A5, A7, L11 |
-| A11 | `journal` | A1, L2, C11 |
-| A12 | `social` | A1, A4 |
-| A13 | `stop` | A1, A3, A7, L3 |
-
-ops-tools-b:
-
-| Id | Produces | Needs |
-|---|---|---|
-| B1 | `travelLeg`, `refusalCode` | A1, A3, L4 |
-| B2 | `unstick`, `explore`, `parseDirection` | B1 |
-| B3 | `lootCorpseOp` | A3, A4 (C7a for the core path; fallback without it) |
-| B4 | `recoverOp` | A3, A4 (C7b for the core path) |
-| B5 | `travel` | B1, B2, B4, L3, A7, V3 |
-| B6 | `loot` | B1, B3, A5 |
-| B7 | `interact` talk/accept/turn_in/gossip | B1, A4, A5 |
-| B8 | `interact` buy/sell_junk | B7 |
-| B9 | `interact` train/repair | B7 |
-| B10 | `rest` | A1, A3, A7, L3, C11, V3 |
-| B11 | `recover` | B4, L3, V3 |
-| B12 | `engage` choose and guards | B1, B2, A3, A5, A7 |
-| B13 | `engage` fight, loot, report | B12, B3, L3, L4, V3 |
-
-ui:
-
-| Id | Produces | Needs |
-|---|---|---|
-| U1 | `ui/glyphs.ts` (moved), `ui/context.ts` | F1 |
-| U5 | `rendererFor`, `ToolRenderers`, line family | U1, F2 |
-| U2 | footer | U1, F2 |
-| U3 | ticker | U1, F2 |
-| U4 | event cards, human lines | U1, F2 |
-| U6 | picture family (`look`) | U5 |
-| U7 | live-run family | U5 |
-| U8 | card family | U5 |
-| U9 | `titleFor`, `workingMessage` | F2 |
-| U10 | `installCommands` (+ its `extension.ts` line) | F7b, L2, F5a |
-| U11 | `installUi` (+ its `extension.ts` line) | U2, U3, U4, U9, A3, F7a |
-
-prompt-docs:
-
-| Id | Produces | Needs |
-|---|---|---|
-| P1 | `buildSystemPrompt` | F1 |
-| P2 | `TOOL_TEXT` | F2 |
-| P3 | `installPrompt` (+ its `extension.ts` line) | P1, F5c, F7a |
-| P4 | `mise.toml` `[tasks.harness]` | F6b |
-| P5 | `docs/harness.md` | F6b |
-| P6 | `README.md` harness section, `AGENTS.md` commands | P4, P5, E7 |
-
-eval-infra:
-
-| Id | Produces | Needs |
-|---|---|---|
-| E1 | `Exec`, `bunExec`, `Pane`, `openPane`, `attachPane`, `harnessCommand` | F1 |
-| E4 | `EvalResult`, `validateResult`, schema file | F1 |
-| E5 | `Scenario`, `loadScenario`, `ROUND_1`, 13 scenario files | F1 |
-| E2 | `tagFrame`, `captureFrame` | E1, U1 |
-| E3 | `Truth`, `readTruth`, `finalTruth`, `leakCheck` | E1 |
-| E6 | `watchRun` | E1, E2, E5, F2 |
-| E7 | `grader/cli.ts`, `mise.toml` `[tasks.eval]` | E2, E3, E4, E5, E6, P4 |
+The source of truth for task ids, owner files and `Depends on` edges is
+the "Task index" of [the plan index](../2026-09-26-pi-harness-epic-plan.md).
+This section keeps no copy, so no second table can drift from it.
 
 ### 4.2 Waves (what runs in parallel after which gate)
 
-| Wave | Starts after | Tasks that can run at once |
-|---|---|---|
-| 0 | — | core-a C0 → C1; F1; then U1, P1, E1, E4, E5 (each needs only F1) |
-| 1 | SURFACE | core-a C5, C4, C11 in order; core-b C6a, C7a; F3a, F3b, F4a, F5a; L1, L4, L13; A2, A4, A6; U2, U3, U4, U5, U9; P2; E2, E3 |
-| 2 | wave-1 producers | C3; C6b, C7b; F3c, F4b, F5b, F5c, F6a, F7a; L3, L11, L12; A7, A8, A9; U6, U7, U8; E6 |
-| 3 | wave-2 producers | C2 (also NAV); F7b, F7c; L2, L5, L14; A1, A3; P3 |
-| 4 | wave-3 producers | C9; F8a (V3); L6, L7, L8, L9; A5, A12, A13; B1, B3, B4; U10, U11 |
-| 5 | V3 | C10; F8b, F8c, F8d; L10; A10, A11; B2, B6, B7, B10, B11 |
-| 6 | wave-5 producers | B5, B8, B9, B12 → B13 |
-| 7 | all of the above | F6b (BOOT) |
-| 8 | BOOT | P4, P5, F8e, E7 → P6 |
-| 9 | everything | FINAL |
-
-Nine builders map to the nine areas; within an area a builder takes tasks
-in `Needs` order. A task whose `Needs` crosses areas waits for that
-commit on `epic/pi-harness`.
+The phases, gates and parallel work are in "DAG, phases and gates" of
+[the plan index](../2026-09-26-pi-harness-epic-plan.md). A builder takes
+its area's tasks in index order; a task starts when every task in its
+`Depends on` column is on `epic/pi-harness`.
 
 ### 4.3 Critical path
 
-C0 → C1 → F2 → F5a → F7a → F7b → F8a (V3) → B5/B10/B11/B13 → F6b → F8e →
-FINAL. V3 is the first behaviour test to run; if it fails, the coordinator
-applies design H.7's fallback (raise the yield delay; last resort: runs
-return at 20 s) before any run tool (B5, B10, B11, B13) is built.
+The run-tool path and the longest path are in "Phase 2" of
+[the plan index](../2026-09-26-pi-harness-epic-plan.md). V3 (F8a) is the
+first behaviour test to run; if it fails, the coordinator applies design
+H.7's fallback before any run tool (B5, B10, B11, B13) is built.
 
 ## 5. Decisions this contract adds to the design
 

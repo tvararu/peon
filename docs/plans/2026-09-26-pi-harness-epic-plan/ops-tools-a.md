@@ -77,7 +77,9 @@ around it. This plan does not change the contract.
     `maxLines` only.
 14. **`stop` example text** (`is still attacking you`) differs from
     `dangerLine` (`is attacking you`). Plan: `define.ts` appends the
-    contract `dangerLine`; `stop` adds no second danger text.
+    contract `dangerLine` with `still: true` for the `control` kind
+    (`stop`), so the text is the design's; `stop` adds no second danger
+    text (main plan "Fix-ups before approval").
 15. **The `tool/call` log row can hold the password** (a model that
     passes it to `social`). E3 `leakCheck` scans the run dir. Plan:
     `define.ts` replaces `rt.profile.client.password` in the logged args
@@ -979,7 +981,7 @@ describe("formatContent", () => {
 
   test("the design stop example fits the limits", () => {
     const stop = result("DONE", { after: 0, detail: "stopped r4 (engage, 1 of 3 kills). Not moving, not attacking. HP 190/217." });
-    const text = formatContent(stop, { danger: "Danger: Springpaw Stalker u9 is attacking you. You are at 88% HP.", maxLines: MAX_CONTENT_LINES });
+    const text = formatContent(stop, { danger: "Danger: Springpaw Stalker u9 is still attacking you. You are at 88% HP.", maxLines: MAX_CONTENT_LINES });
     expect(text.split("\n").length).toBeLessThanOrEqual(MAX_CONTENT_LINES);
     expect(Buffer.byteLength(text)).toBeLessThanOrEqual(MAX_CONTENT_BYTES);
   });
@@ -1649,10 +1651,12 @@ Needs: A2, F5a.
 ```ts
 export function createAttackLedger(clock: Clock): AttackLedger;
 export function dangerView(ctx: ViewCtx): DangerView;
-export function dangerLine(view: DangerView): string | undefined;
+export function dangerLine(view: DangerView, opts?: { still?: boolean }): string | undefined;
 ```
 
-Until C5 lands, `attacker` is `undefined`, so `lastHitAt` stays
+`still: true` (the `stop` tool, design B.11) says `is still attacking you`
+and `are still attacking you`, so the model learns that a stop is not an
+escape. Until C5 lands, `attacker` is `undefined`, so `lastHitAt` stays
 `undefined` and the line drops the brackets; a test covers that path.
 An unknown self HP gives `hpPct` 100 (no false alarm).
 
@@ -1725,6 +1729,15 @@ describe("dangerView and dangerLine", () => {
 
   test("gives no line without attackers", () => {
     expect(dangerLine({ attackers: [], hpPct: 100 })).toBeUndefined();
+  });
+
+  test("says still for a stop", () => {
+    const one = { attackers: [{ guid: "50", hitAgoMs: undefined, name: "Springpaw Stalker", ref: "u9" }], hpPct: 88 };
+    expect(dangerLine(one, { still: true })).toBe("Danger: Springpaw Stalker u9 is still attacking you. You are at 88% HP.");
+    const attacker = (ref: string) => ({ guid: ref, hitAgoMs: 1000, name: "Mana Wyrm", ref });
+    expect(dangerLine({ attackers: [attacker("u3"), attacker("u4")], hpPct: 30 }, { still: true })).toBe(
+      "Danger: Mana Wyrm u3 and 1 more are still attacking you. You are at 30% HP.",
+    );
   });
 
   test("names an attacker from sightings, else as an unknown unit", async () => {
@@ -1801,13 +1814,14 @@ export function dangerView(ctx: ViewCtx): DangerView {
   return { attackers: attackers.map((guid) => attackerView(ctx, guid)), hpPct };
 }
 
-export function dangerLine({ attackers, hpPct }: DangerView): string | undefined {
+export function dangerLine({ attackers, hpPct }: DangerView, opts: { still?: boolean } = {}): string | undefined {
   const [first] = attackers;
   if (!first) return;
   const hp = `You are at ${hpPct}% HP.`;
-  if (attackers.length > 1) return `Danger: ${first.name} ${first.ref} and ${attackers.length - 1} more are attacking you. ${hp}`;
+  const still = opts.still ? "still " : "";
+  if (attackers.length > 1) return `Danger: ${first.name} ${first.ref} and ${attackers.length - 1} more are ${still}attacking you. ${hp}`;
   const ago = first.hitAgoMs === undefined ? "" : ` (hit you ${Math.round(first.hitAgoMs / 1000)} s ago)`;
-  return `Danger: ${first.name} ${first.ref} is attacking you${ago}. ${hp}`;
+  return `Danger: ${first.name} ${first.ref} is ${still}attacking you${ago}. ${hp}`;
 }
 ```
 
@@ -1816,7 +1830,7 @@ export function dangerLine({ attackers, hpPct }: DangerView): string | undefined
 - [ ] **Step 4: Run it and see it pass**
 
 Run: `mise test packages/harness/src/ops/danger.test.ts`
-Expected: PASS, 8 tests. Then `mise lint:fix`, type check, `mise lint`.
+Expected: PASS, 9 tests. Then `mise lint:fix`, type check, `mise lint`.
 
 - [ ] **Step 5: Commit**
 
@@ -3471,7 +3485,7 @@ describe("defineGameTool", () => {
     const { rt } = await createTestRuntime();
     rt.session.turnToolCalls = TURN_BUDGET;
     const run = jest.fn(said);
-    expect((await runTool(probe(run)(rt), {})).text).toBe("REFUSED turn_budget: report to the human now.");
+    expect((await runTool(probe(run)(rt), {})).text).toBe("REFUSED turn_budget: report to the human now.\nNext: end your turn and report to the human.");
     expect(run).not.toHaveBeenCalled();
   });
 
@@ -3483,7 +3497,9 @@ describe("defineGameTool", () => {
   test("refuses an action while a human message waits; a read still runs", async () => {
     const { rt } = await createTestRuntime();
     rt.session.humanWaiting = true;
-    expect((await runTool(probe(said)(rt), {})).text).toBe("REFUSED human_waiting: the human wrote a message. Read it before you act.");
+    expect((await runTool(probe(said)(rt), {})).text).toBe(
+      "REFUSED human_waiting: the human wrote a message. Read it before you act.\nNext: end your turn and read the human's message.",
+    );
     expect((await runTool(probe(said, "read")(rt), {})).text).toBe("DONE said hi.");
     expect((await runTool(probe(said, "control")(rt), {})).text).toBe("DONE said hi.");
   });
@@ -3691,10 +3707,10 @@ function repeatCall<P extends TSchema, K extends ToolName>({ args, rt, spec }: C
 
 async function admit<P extends TSchema, K extends ToolName>(call: Call<P, K>): Promise<WorldHandle> {
   const { rt, spec } = call;
-  if (rt.session.turnToolCalls > TURN_BUDGET) throw new Refusal({ detail: "report to the human now.", reason: "turn_budget" });
+  if (rt.session.turnToolCalls > TURN_BUDGET) throw new Refusal({ detail: "report to the human now.", next: "end your turn and report to the human.", reason: "turn_budget" });
   const handle = rt.requireHandle();
   if (ACTING.has(spec.kind) && rt.session.humanWaiting) {
-    throw new Refusal({ detail: "the human wrote a message. Read it before you act.", reason: "human_waiting" });
+    throw new Refusal({ detail: "the human wrote a message. Read it before you act.", next: "end your turn and read the human's message.", reason: "human_waiting" });
   }
   if (!(await rt.ready.whenReady(READY_WAIT_MS))) {
     throw new Refusal({ detail: "the world is still loading.", next: "call look again in a few seconds.", reason: "not_ready" });
@@ -3776,7 +3792,7 @@ async function runCall<P extends TSchema, K extends ToolName>(call: Call<P, K>):
   const outcome = withHumanStop(await outcomeOf(call));
   const handle = rt.handle();
   closeCall(call, { handle, ms: rt.clock.now() - startedAt, outcome });
-  const danger = handle ? dangerLine(dangerView({ handle, rt })) : undefined;
+  const danger = handle ? dangerLine(dangerView({ handle, rt }), { still: spec.kind === "control" }) : undefined;
   const text = formatContent(outcome, { danger, maxLines: spec.maxLines ?? MAX_CONTENT_LINES });
   return { content: [{ text, type: "text" }], details: detailsOf(spec.name, outcome) };
 }
@@ -4803,7 +4819,7 @@ describe("stop", () => {
     const out = await runTool(tool, {});
     expect(out.text.split("\n")).toEqual([
       "DONE nothing was running. Not moving, not attacking. HP 190/217.",
-      "Danger: Springpaw Stalker u1 is attacking you. You are at 88% HP.",
+      "Danger: Springpaw Stalker u1 is still attacking you. You are at 88% HP.",
     ]);
     expect(out.details.result.after).toMatchObject({ attackers: [{ ref: "u1" }], self: { hp: 190, maxHp: 217 } });
   });
@@ -4917,7 +4933,9 @@ Needs: A1d, A3b, A5, A7a, L11; tests also L1, L3.
 Decisions: rows are creatures and players only (A3 `unitViews`), within
 `within` (default `LOOK_DEFAULT_YD`), at most `LOOK_DEFAULT_ROWS` rows,
 or `LOOK_MAX_ROWS` when `within` is set. The `Nearest` line always shows
-`hostile` and `lootable`, plus the filter's own kind. With a filter that
+`hostile`, `lootable` and `trainer` (design B.2), plus the filter's own
+kind. No lootable unit gives `none` (a corpse is a current fact); no unit
+of another kind gives `none seen` (a sighting). With a filter that
 matches nothing in view and no unit of that kind seen in 30 min, the
 result is the design's two-line "0 … seen" answer with a conditional
 explore hint and no `Next:` (LU V-L2). The unchanged note uses a
@@ -4995,7 +5013,7 @@ describe("look", () => {
         "- u2 Velan Brightoak L30 friendly, questgiver, 11 yd E",
         "- u3 Marniel Amberlight L15 friendly, vendor repair, 38 yd W",
         "- u4 Silvermoon Guardian L22 friendly, 58 yd S",
-        "Nearest hostile: u5 Springpaw Stalker L7 alive, 78 yd N (seen now). Nearest lootable: none seen.",
+        "Nearest hostile: u5 Springpaw Stalker L7 alive, 78 yd N (seen now). Nearest lootable: none. Nearest trainer: none seen.",
         "No unit is attacking you.",
       ].join("\n"),
     );
@@ -5026,7 +5044,7 @@ describe("look", () => {
     place(handle, eversong([stalker()]));
     const lines = (await runTool(tool, { find: "hostile" })).text.split("\n");
     expect(lines[2]).toBe("No hostile units within 60 yd.");
-    expect(lines[3]).toBe("Nearest hostile: u5 Springpaw Stalker L7 alive, 78 yd N (seen now). Nearest lootable: none seen.");
+    expect(lines[3]).toBe("Nearest hostile: u5 Springpaw Stalker L7 alive, 78 yd N (seen now). Nearest lootable: none. Nearest trainer: none seen.");
   });
 
   test("within lists up to 20 rows and cuts the text at 24 lines", async () => {
@@ -5101,7 +5119,7 @@ type LookFit = { filter: LookFilter; name: string | undefined; unit: UnitView; w
 
 const UNCHANGED_AFTER = 3;
 const UNCHANGED_WINDOW_MS = 60_000;
-const ALWAYS_NEAREST: readonly NearestKind[] = ["hostile", "lootable"];
+const ALWAYS_NEAREST: readonly NearestKind[] = ["hostile", "lootable", "trainer"];
 const unchangedLooks = new WeakMap<HarnessRuntime, Unchanged>();
 
 function emptyLook(): LookAfter {
@@ -5204,7 +5222,7 @@ function rowLine(unit: UnitView): string {
 
 function nearestText(kind: NearestKind, unit: UnitView | undefined): string {
   const label = `Nearest ${kind.replace("_", " ")}:`;
-  if (!unit) return `${label} none seen.`;
+  if (!unit) return `${label} ${kind === "lootable" ? "none" : "none seen"}.`;
   const seen = unit.inView ? "seen now" : `seen ${ageText(unit.seenAgoMs)} ago`;
   return `${label} ${unit.ref} ${unit.name} L${unit.level} ${unit.alive ? "alive" : "dead"}, ${distanceText(unit)} (${seen}).`;
 }

@@ -50,6 +50,7 @@ AGENTS.md "Testing": run it yourself on two throwaway accounts after the task's 
 
 ```bash
 mkdir -p tmp
+umask 077
 bun packages/factory/src/main.ts soap create fresh --gm 2 > tmp/live-1.json
 bun packages/factory/src/main.ts soap create eversong10 > tmp/live-2.json
 WOW_ACCOUNT_1="$(jq -r .account tmp/live-1.json)" \

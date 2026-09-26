@@ -144,7 +144,7 @@ The contract is not changed. Each item says how this plan works around it.
 15. **Run helpers.** `runLabel(record)` and `runView(record, now)` are exported
     from `runs/registry.ts` (L3a) for L5a, L14 and, if it wants, A3.
 
-## Task order
+## Build order
 
 L1a → L1b → L9a → L3a → L3b → L4a → L4b → L5a → L5b → L6 → L7 → L8a → L8b →
 L2 → L9b → L11 → L12a → L12b → L13 → L14 → L10a → L10b.
@@ -4389,23 +4389,23 @@ describe("formatWake", () => {
   test("puts wake rows first, with ages and the whisper hint", () => {
     const base = { char: "Fgk", seq: 1, v: 1 as const };
     const passive = { ...base, ...passiveDraft("You gain 130 XP."), ts: 0 };
-    const whisper = { ...base, ...whisperDraft, seq: 2, ts: 3000 };
-    expect(formatWake([passive, whisper], 5000)).toBe(
-      '[game 2s] Whisper from Kaelyn: "hey" Next: social(to: "Kaelyn", text: "…")\n[game 5s] You gain 130 XP.',
-    );
+    const ended = { ...base, ...wakeDraft("r4 travel ended: DONE arrived."), seq: 2, ts: 3000 };
+    expect(formatWake([passive, ended], 5000)).toBe("[game 2s] r4 travel ended: DONE arrived.\n[game 5s] You gain 130 XP.");
+    const whisper = { ...base, ...whisperDraft, seq: 3, ts: 3000 };
+    expect(formatWake([whisper], 5000)).toBe('[game 2s] Whisper from Kaelyn: "hey" Next: social(to: "Kaelyn", text: "…")');
   });
 
   test("gives party, guild and say wakes their reply call", () => {
     const base = { char: "Fgk", seq: 1, ts: 0, v: 1 as const };
     const line = (type: number, text: string) => ({ ...base, ...whisperDraft, data: { sender: "Kaelyn", type }, text });
-    expect(formatWake([line(ChatType.PARTY, "[Party] Kaelyn: pull")], 0)).toBe(
-      '[game 0s] [Party] Kaelyn: pull Next: social(do: "party", text: "…")',
+    expect(formatWake([line(ChatType.PARTY, '[party] Kaelyn: "pull"')], 0)).toBe(
+      '[game 0s] [party] Kaelyn: "pull" Next: social(do: "party", text: "…")',
     );
-    expect(formatWake([line(ChatType.GUILD, "[Guild] Kaelyn: hi")], 0)).toBe(
-      '[game 0s] [Guild] Kaelyn: hi Next: social(do: "guild", text: "…")',
+    expect(formatWake([line(ChatType.GUILD, '[guild] Kaelyn: "hi"')], 0)).toBe(
+      '[game 0s] [guild] Kaelyn: "hi" Next: social(do: "guild", text: "…")',
     );
-    expect(formatWake([line(ChatType.SAY, "Kaelyn says: Fgk, hi")], 0)).toBe(
-      '[game 0s] Kaelyn says: Fgk, hi Next: social(do: "say", text: "…")',
+    expect(formatWake([line(ChatType.SAY, 'Kaelyn says: "Fgk, hi"')], 0)).toBe(
+      '[game 0s] Kaelyn says: "Fgk, hi" Next: social(do: "say", text: "…")',
     );
   });
 });

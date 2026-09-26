@@ -30,7 +30,7 @@ Plan index: [2026-09-26-pi-harness-epic-plan.md](../2026-09-26-pi-harness-epic-p
 18. **The C0 mock says `jev: false`** (contract 1.13). Engage tests that fight set `handle.capabilities = () => ({ …, jev: true })`; `checkHelper` treats a throwing `capabilities()` (before C2) as "try the fight".
 19. **Verified in scratch, not in the worktree.** Every B code block in this file type-checks with `tsc` against the contract types and the C0/C1 shapes, passes `biome check` with the repository `biome.json` (sorted keys, no nested ternaries, at most 4 parameters, functions at most 50 lines, cognitive complexity at most 15), and the 104 B tests pass under `bun test` against the A2–A7, A1a, F5, L3 and L4 code of `ops-tools-a.md`, `found.md` and `log-events.md` as written at 22:10 (measured). A later change to those plans can break a B test; the builder reruns the file and adapts `ops-fixtures.ts` first.
 
-## Task order and needs
+## Build order and needs
 
 | Id | Files | Needs |
 |---|---|---|
@@ -5650,7 +5650,7 @@ describe("rest", () => {
     const res = await pending;
     expect(res).toMatchObject({ reason: "interrupted", status: "FAILED" });
     expect(res.detail).toMatch(
-      /^Springpaw Stalker \(u\d+\) hit you while resting \(HP 100\/200, mana 100%\)\.$/,
+      /^Springpaw Stalker \(u\d+\) hit you while resting \(HP 100\/200\)\.$/,
     );
     expect(res.next).toMatch(/^engage\(target: "u\d+"\)$/);
   });
@@ -5788,6 +5788,11 @@ function vitalsText(ctx: ViewCtx): string {
   const vitals = vitalsView(ctx);
   const { mana } = levelsOf(ctx);
   return `HP ${vitals.hp}/${vitals.maxHp}${mana === undefined ? "" : `, mana ${mana}%`}`;
+}
+
+function hpText(ctx: ViewCtx): string {
+  const vitals = vitalsView(ctx);
+  return `HP ${vitals.hp}/${vitals.maxHp}`;
 }
 
 function youLine(ctx: ViewCtx): string {
@@ -5941,7 +5946,7 @@ function stoppedReport(init: {
   if (cause?.attacker !== undefined)
     return result("FAILED", {
       after,
-      detail: `${attackerName(ctx, cause.attacker)} hit you while resting (${vitalsText(ctx)}).`,
+      detail: `${attackerName(ctx, cause.attacker)} hit you while resting (${hpText(ctx)}).`,
       next: nextCall("engage", { target: ctx.rt.refs.refOf(cause.attacker) }),
       reason: "interrupted",
     });
@@ -7746,9 +7751,7 @@ describe("engage fight", () => {
       toolCtx<EngageAfter>(t),
     );
     expect(res.status).toBe("DONE");
-    expect(res.body).toEqual([
-      expect.stringMatching(/^Also attacking you: .+ u\d+\.$/),
-    ]);
+    expect(res.body ?? []).toEqual([]);
     expect(res.next).toMatch(/^engage\(target: "u\d+"\)$/);
   });
 
@@ -8273,22 +8276,12 @@ function stopped(scene: Scene, end: ModeEnd): Report | undefined {
     });
 }
 
-function alsoAttacking(scene: Scene): {
-  body: string[];
-  next: string | undefined;
-} {
+function attackerNext(scene: Scene): string | undefined {
   const fought = new Set(scene.tally.targets.map((target) => target.ref));
-  const others = dangerView(scene.ops).attackers.filter(
+  const first = dangerView(scene.ops).attackers.find(
     (attacker) => !fought.has(attacker.ref),
   );
-  const [first] = others;
-  if (!first) return { body: [], next: undefined };
-  return {
-    body: [
-      `Also attacking you: ${others.map((attacker) => `${attacker.name} ${attacker.ref}`).join(", ")}.`,
-    ],
-    next: nextCall("engage", { target: first.ref }),
-  };
+  return first ? nextCall("engage", { target: first.ref }) : undefined;
 }
 
 function againCall(scene: Scene, left: number): string {
@@ -8307,7 +8300,7 @@ function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
   const after = afterOf(scene.ops, scene);
   const killed = kills(tally);
   const refs = killedRefs(tally);
-  const also = alsoAttacking(scene);
+  const also = attackerNext(scene);
   const complete =
     choice.mode === "quest"
       ? end.stopCause === "objective_complete"
@@ -8318,9 +8311,8 @@ function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
       killed === 1 ? `${name} (${refs})` : `${killed} ${name} (${refs})`;
     return result("DONE", {
       after,
-      body: also.body,
       detail: `killed ${what} in ${secs} s, server kill credit.${gains(scene)}`,
-      next: also.next,
+      next: also,
     });
   }
   const why =
@@ -8328,16 +8320,14 @@ function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
   if (killed > 0)
     return result("PARTLY", {
       after,
-      body: also.body,
       detail: `${killed} of ${choice.wanted} kills (${refs}). Stopped: ${why}.${gains(scene)}`,
-      next: also.next ?? againCall(scene, Math.max(1, choice.wanted - killed)),
+      next: also ?? againCall(scene, Math.max(1, choice.wanted - killed)),
       reason: why,
     });
   return result("FAILED", {
     after,
-    body: also.body,
     detail: `${name} was not killed (${why}). ${vitalsLine(scene.ops)}`,
-    next: also.next ?? nextCall("look", { find: "hostile" }),
+    next: also ?? nextCall("look", { find: "hostile" }),
     reason: "lost",
   });
 }
@@ -8623,7 +8613,7 @@ MSG
 
 No B task changes protocol or daemon code, so the per-task gate is `mise test` plus type check and lint. The tools meet the real server only once the harness boots (F6b). Then one builder runs this checklist in an Orca pane on a throwaway account and records the result, with the run directory, in `docs/plans/2026-09-26-pi-harness-epic/smoke-live.md` (F8e's file) or in the FINAL notes. The session JSON that `soap create` prints holds the password: write it to a file and never print it.
 
-1. Create the account: `bun packages/factory/src/main.ts soap create eversong10 > tmp/b-smoke.json` (a level 10 priest near Marniel Amberlight and the Springpaw Stalker field).
+1. Create the account with mode 600: `(umask 077 && bun packages/factory/src/main.ts soap create eversong10 > tmp/b-smoke.json)` (a level 10 priest near Marniel Amberlight and the Springpaw Stalker field).
 2. Open the pane: `orca-ide terminal create --worktree path:/home/deity/orca/workspaces/tuicraft/pi-epic --title b-smoke --command "bun packages/harness/src/entry.ts --profile tmp/b-smoke.json --run-dir tmp/b-smoke-run" --json`, keep the handle `H`, and wait with `orca-ide terminal wait --terminal H --for tui-idle --timeout-ms 60000`.
 3. Send each prompt with `orca-ide terminal send --terminal H --text "<prompt>" --enter --wait-submit 10 --json`, wait for `tui-idle`, read with `orca-ide terminal read --terminal H --screen --json`, and check `tmp/b-smoke-run/gamelog.jsonl`:
 
@@ -8637,5 +8627,5 @@ No B task changes protocol or daemon code, so the per-task gate is `mise test` p
 | `Kill three Springpaw Stalkers.`, then `Stop!` after the first `combat/attack_start` row | the reflex stops the run: `run/cancelled` with `human_stop`, and no `combat/cast` or `control/move_start` row later than 5 s after the `human/input` row |
 | `What does the nearest quest giver offer?` (talk only) | `look` then `interact` `DONE` with the offers list and `#<id>` on each quest |
 
-4. Close: send Ctrl-C twice (`--text $'\x03'` two times), `orca-ide terminal close --terminal H --tab --json`, then `bun packages/factory/src/main.ts soap delete <ACCOUNT>` with the account from the JSON's `.account`, and delete `tmp/b-smoke.json`.
-5. A failure caused by movement (planner refusals) is graded as area `core` until NAV is on the pane's commit (contract 0.5, design I.4). Death and `recover` are covered by the eval scenario `t6-die-and-recover`, not by this smoke.
+4. Close: send Ctrl-D (`--text $'\x04'`) on the empty editor; if `orca-ide terminal read --terminal H --screen --json` still shows Pi, send Ctrl-C twice back to back (`--text $'\x03'` two times; spec §8 `<HARNESS_QUIT>`); then `orca-ide terminal close --terminal H --tab --json`, then `bun packages/factory/src/main.ts soap delete <ACCOUNT>` with the account from the JSON's `.account`, and delete `tmp/b-smoke.json`.
+5. A failure caused by movement (planner refusals) is graded as area `core` only at one of the navigation track's still-open places (spec §7: the Sathiel inn doorstep, the step edge at (8850, −6685), the platform at z 93, Halis → Landra; spec §2 settlement 12); elsewhere it is a harness or tool finding. Death and `recover` are covered by the eval scenario `t6-die-and-recover`, not by this smoke.
