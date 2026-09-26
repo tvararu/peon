@@ -447,9 +447,11 @@ automatic retries.
   patch, reversing the #151 acceptance criterion that kept it opt-in, and
   every `soap create` account runs the repository's patched build
   ([m3a/patched-namigator.md](evidence/m3a/patched-namigator.md)). The
-  M3a live records ran on an unpatched library; every route they name was
-  re-run live on the patched build
-  ([m3a/patched-library-reproof.md](evidence/m3a/patched-library-reproof.md)).
+  M3a live records ran on an unpatched library. The slice 1, 4 and 5 routes
+  of the M3a README were re-run live on the patched build
+  ([m3a/patched-library-reproof.md](evidence/m3a/patched-library-reproof.md));
+  the funnel corner, replanning and Sunstrider Isle routes still need a
+  live re-proof on it.
 
 #### Status: partly met on committed evidence
 

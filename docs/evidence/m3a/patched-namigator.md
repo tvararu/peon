@@ -500,6 +500,8 @@ The evidence is the Fairbreeze Village navigation diagnosis of the same day
 `ZoneAndArea`, `navigation.height` and `navigation.stepHeight` also read
 `GetADTHeight`, and the grid does not measure them; heights change only on
 quad edges, by about 0.02 yards per the PR #155 review. The M3a live
-records ran on the old installed library; the live re-proof on this build
-is [patched-library-reproof.md](patched-library-reproof.md).
+records ran on the old installed library. The live re-proof of the M3a
+README routes on this build is
+[patched-library-reproof.md](patched-library-reproof.md); the funnel
+corner, replanning and Sunstrider Isle routes are not re-run.
 

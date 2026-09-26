@@ -12,27 +12,42 @@ Each run teleports with `.go xyz <start> 530`, waits 2.5 s, runs
 `goto … --json`, polls `navigation --json` until `active` is false and reads
 the final pose from `control --json`.
 
-## M3a recorded routes
+## M3a README routes
 
-Every route that the M3a live records name, from its recorded start:
+The routes of slices 1, 4 and 5 in the [M3a README](README.md), each from
+its recorded start, plus two other Fairbreeze routes:
 
-| Route | Offline replay on the old library | Live now |
+| Route | Result in the M3a README | Live now |
 |---|---|---|
-| slice 1, inn start → 8755.71 −6687.55 | `ambiguous ground column leaving start` | arrived |
-| slice 1, → 8764.71 −6648.63 (funnel gap) | `UNKNOWN_HEIGHT` | arrived |
+| slice 1, inn start → 8755.71 −6687.55 | `stop: ambiguous ground column at start` | arrived |
+| slice 1, → 8764.71 −6648.63 | `UNKNOWN_HEIGHT` | arrived |
 | slice 1, exit → 8764.71 −6683.07 | arrived | arrived, z 69.79 |
-| slice 1, → inn 8714.14 −6650.33 | `pick_destination` (floors 102.01, 93.44, 72.75, 70.37) | same refusal |
+| slice 1, → inn 8714.14 −6650.33 | `pick_destination` | same refusal, floors 102.01, 93.44, 72.75, 70.37 |
 | slice 1 re-proof, → 8764.71 −6683.07 | arrived | arrived |
 | slice 4, A → B and B → A | arrived | both arrived |
-| slice 4, redirect target 8744.35 −6687.06 | arrived | arrived |
+| slice 4, redirect target 8744.35 −6687.06 | arrived after a mid-route redirect | arrived as a single goto |
 | slice 5, → 8667.46 −6773.76 | `unreachable` (`UNKNOWN_PATH`) | same |
 | slice 5, → 8727.46 −6683.76 | `unreachable` (end snapped) | same |
-| slice 5, stalker route → 8822.03 −6784.36 | arrived | arrived, z 43.29 |
-| funnel corner → 8722.99 −6666.06 | arrived | arrived |
-| #361, → 8721 −6660 72.34 | arrived | arrived |
+| slice 5, stalker route → 8822.03 −6784.36 | `goto <guid>`, stopped `target_lost` by the GM | coordinate goto to that position, arrived, z 43.29 |
+| A (8709.46 −6671.76) → funnel corner point 8722.99 −6666.06 | not recorded | arrived |
+| issue #361, spawn → 8721 −6660 72.34 | not recorded | arrived |
 
-The slice 4 redirect ran as a single goto to the redirect target, not as a
-mid-route redirect. Every refusal left the pose unchanged.
+The slice 4 redirect and the slice 5 `target_lost` stop are behaviours of
+the route, and this run does not repeat them. Every refusal left the pose
+unchanged.
+
+## Routes not re-run
+
+These M3a records name routes that this run does not repeat on the patched
+library:
+
+- [funnel-corner.md](funnel-corner.md): the recorded route
+  (8709.46, −6671.76) → (8801.13, −6550.23) through the corner. The gap in
+  the roadmap's slice 2 stays open.
+- [replanning.md](replanning.md): the C → B and D → B replanning runs.
+- The Sunstrider Isle routes in [sunstrider-floors.md](sunstrider-floors.md),
+  [step-edges.md](step-edges.md), [ground-policy.md](ground-policy.md) and
+  [findheight-surface-above-hint.md](findheight-surface-above-hint.md).
 
 ## `goto <guid>` from the spawn (8735, −6685, 70.5)
 
