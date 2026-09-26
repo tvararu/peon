@@ -33,10 +33,10 @@ type Extras = Pick<
   "capabilities" | "onNotice" | "getCreatureInfo"
 >;
 
-export function extrasMethods(conn: WorldConn, _rt: Runtimes): Extras {
+export function extrasMethods(conn: WorldConn, rt: Runtimes): Extras {
   return {
     capabilities() {
-      throw new Error("not_implemented");
+      return rt.capabilities();
     },
     onNotice(cb) {
       return conn.events.notice.subscribe(cb);

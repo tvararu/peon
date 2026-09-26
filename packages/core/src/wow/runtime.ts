@@ -1,5 +1,6 @@
 import type { Unsubscribe } from "#lib/emitter";
 import type { ClientConfig } from "#wow/client";
+import type { Capabilities } from "#wow/client-extras";
 import { CombatRuntime } from "#wow/combat";
 import { CombatActions } from "#wow/combat-actions";
 import { defendTarget } from "#wow/combat-defense";
@@ -7,26 +8,26 @@ import { ControlRuntime } from "#wow/control";
 import { ItemDestroyRuntime } from "#wow/destroy";
 import { EncounterCycleRuntime } from "#wow/encounter-cycle";
 import type { EntityLookup } from "#wow/entity-store";
-import {
-  type FactionTemplateCatalog,
-  loadFactionTemplates,
-} from "#wow/faction-template";
+import type { FactionTemplateCatalog } from "#wow/faction-template";
 import { bearing } from "#wow/geometry";
 import { ItemTemplates } from "#wow/item-use";
 import { type JevSelect, selectJevAction } from "#wow/jev";
 import { createFaultSelect, faultMarker, parseJevFault } from "#wow/jev-fault";
-import {
-  createNavigation,
-  type Navigation,
-  type NavPoint,
-} from "#wow/navigation";
+import type { Navigation, NavPoint } from "#wow/navigation";
 import { observedTargetPosition } from "#wow/observed-target";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { QuestRuntime } from "#wow/quests";
 import { RecoveryRuntime } from "#wow/recovery";
 import { RewardsRuntime } from "#wow/rewards";
+import {
+  capabilitiesOf,
+  type LazyState,
+  loadCatalog,
+  loadFactions,
+  loadNavigation,
+  warmCatalogs,
+} from "#wow/runtime-data";
 import { SelfDefense } from "#wow/self-defense";
-import { loadSpellCatalog } from "#wow/spell-catalog";
 import { TacticsLoop } from "#wow/tactics";
 import { TrainerRuntime } from "#wow/trainer";
 import { VendorRuntime } from "#wow/vendor";
@@ -47,20 +48,14 @@ export type Runtimes = {
   defense: SelfDefense;
   destroy: ItemDestroyRuntime;
   prepareCatalog: () => Promise<void>;
+  factions: () => FactionTemplateCatalog | undefined;
+  capabilities: () => Capabilities;
   navigation: () => Navigation;
   observedTarget: (guid: bigint) => NavPoint;
   halt: () => void;
   override: (reason?: string) => void;
   steer: (reason?: string) => void;
   dispose: (sendStop: boolean) => void;
-};
-
-type LazyState = {
-  disposed: boolean;
-  catalogPromise?: Promise<void>;
-  factions?: FactionTemplateCatalog;
-  factionPromise?: Promise<void>;
-  navigation?: Navigation;
 };
 
 type RuntimeParts = {
@@ -105,42 +100,6 @@ function createControl(
       }
     },
   });
-}
-
-function loadCatalog(
-  config: ClientConfig,
-  lazy: LazyState,
-  combat: CombatRuntime,
-): Promise<void> {
-  if (!config.spellDataDir)
-    return Promise.reject(new Error("missing_spell_data"));
-  lazy.catalogPromise ??= loadSpellCatalog(config.spellDataDir).then(
-    (catalog) => {
-      if (!lazy.disposed) combat.setCatalog(catalog);
-    },
-  );
-  return lazy.catalogPromise;
-}
-
-function loadFactions(config: ClientConfig, lazy: LazyState): Promise<void> {
-  if (!config.spellDataDir)
-    return Promise.reject(new Error("missing_spell_data"));
-  lazy.factionPromise ??= loadFactionTemplates(config.spellDataDir).then(
-    (data) => {
-      if (!lazy.disposed) lazy.factions = data;
-    },
-  );
-  return lazy.factionPromise;
-}
-
-function loadNavigation(config: ClientConfig, lazy: LazyState): Navigation {
-  if (!(config.navigationDataDir && config.navigationLibrary))
-    throw new Error("missing_navigation");
-  lazy.navigation ??= createNavigation({
-    dataPath: config.navigationDataDir,
-    libraryPath: config.navigationLibrary,
-  });
-  return lazy.navigation;
 }
 
 function createTactics(
@@ -427,6 +386,19 @@ function manualControl(
   };
 }
 
+function catalogAccess(
+  config: ClientConfig,
+  lazy: LazyState,
+  combat: CombatRuntime,
+): Pick<Runtimes, "prepareCatalog" | "factions" | "capabilities"> {
+  warmCatalogs(config, lazy, combat);
+  return {
+    prepareCatalog: () => loadCatalog(config, lazy, combat),
+    factions: () => lazy.factions,
+    capabilities: () => capabilitiesOf(config, lazy),
+  };
+}
+
 export function createRuntimes(
   conn: WorldConn,
   config: ClientConfig,
@@ -442,7 +414,7 @@ export function createRuntimes(
     lazy,
     control,
   );
-  const prepareCatalog = (): Promise<void> => loadCatalog(config, lazy, combat);
+  const data = catalogAccess(config, lazy, combat);
   function haltMovement(reason: string): void {
     if (lazy.disposed) return;
     control.setMode("none");
@@ -457,7 +429,7 @@ export function createRuntimes(
     actions,
     async prepare(signal) {
       signal.throwIfAborted();
-      await prepareCatalog();
+      await data.prepareCatalog();
       signal.throwIfAborted();
       await loadFactions(config, lazy);
       signal.throwIfAborted();
@@ -477,7 +449,7 @@ export function createRuntimes(
   const unwire = wireEvents(conn, parts);
   return {
     ...parts,
-    prepareCatalog,
+    ...data,
     navigation: getNavigation,
     observedTarget: (guid) => findObservedTarget(conn, parts, guid),
     halt: () => rawHalt(),

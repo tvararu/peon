@@ -29,9 +29,20 @@ describe("extrasMethods", () => {
     expect(seen).toEqual([notice]);
   });
 
-  test("capabilities and getCreatureInfo are not implemented yet", () => {
+  test("capabilities come from the runtimes", () => {
+    const flags = {
+      factions: true,
+      spells: false,
+      navigation: true,
+      jev: false,
+    };
+    const conn = { events: createWorldEvents() } as unknown as WorldConn;
+    const rt = { capabilities: () => flags } as unknown as Runtimes;
+    expect(extrasMethods(conn, rt).capabilities()).toEqual(flags);
+  });
+
+  test("getCreatureInfo is not implemented yet", () => {
     const { methods } = extras();
-    expect(() => methods.capabilities()).toThrow("not_implemented");
     expect(() => methods.getCreatureInfo(1)).toThrow("not_implemented");
   });
 });
