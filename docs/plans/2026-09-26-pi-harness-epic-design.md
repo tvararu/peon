@@ -155,7 +155,7 @@ without objection. The R-numbers are stable ids that the records cite.
 Agents drive tuicraft through a CLI over a daemon, one verb at a time. The
 pain-point study read 4,399 episodes from 131 sessions on this machine
 ([pain-points-report.md](2026-09-26-pi-harness-epic/pain-points-report.md));
-about 75 % of CLI calls piped `--json` into a parser. The revised ranking is
+2,410 of 3,221 CLI episodes (75 %) piped into jq or python (measured there). The revised ranking is
 distinct sessions × severity over the 3,922 game-facing episodes (114
 sessions); a second critic reproduced every count (measured there).
 
