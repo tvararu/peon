@@ -1,0 +1,233 @@
+import type {
+  ClientConfig,
+  FactionRelation,
+  NearbyRow,
+  NpcRole,
+  Unsubscribe,
+  WorldHandle,
+} from "@tuicraft/core";
+import type {
+  AgentState,
+  ConnectionState,
+  HarnessFlags,
+  Profile,
+  RunPaths,
+  ToolsJson,
+} from "#harness/contract/config";
+import type { GameLogEntry, LogDraft, LogEvent } from "#harness/contract/log";
+import type {
+  ToolName,
+  ToolResult,
+  ToolStatus,
+} from "#harness/contract/result";
+import type { RunRecord, RunRegistry, StopCause } from "#harness/contract/runs";
+import type { InWorld, NoProgress, PoseView } from "#harness/contract/views";
+
+export type Clock = { now: () => number };
+
+export type HandleObserver = { attach: (handle: WorldHandle) => Unsubscribe };
+
+export type JsonlSink = {
+  write: (row: unknown) => void;
+  flush: () => Promise<void>;
+  close: () => Promise<void>;
+};
+
+export type GameLog = {
+  append: (draft: LogDraft) => GameLogEntry;
+  mark: (
+    seq: number,
+    patch: { consumedBy?: string; delivered?: boolean },
+  ) => void;
+  get: (seq: number) => GameLogEntry | undefined;
+  since: (seq: number) => GameLogEntry[];
+  recent: (n: number) => GameLogEntry[];
+  count: () => number;
+  lastSeq: () => number;
+  subscribe: (cb: (entry: GameLogEntry) => void) => Unsubscribe;
+  flush: () => Promise<void>;
+  close: () => Promise<void>;
+};
+
+export type RefTable = {
+  refOf: (guid: bigint) => string;
+  guidOf: (ref: string) => bigint | undefined;
+  size: () => number;
+};
+
+export type Sighting = {
+  guid: bigint;
+  entry: number;
+  name: string;
+  kind: "creature" | "player";
+  level: number;
+  relation: FactionRelation;
+  roles: NpcRole[];
+  alive: boolean;
+  lootable: boolean;
+  mapId: number;
+  x: number;
+  y: number;
+  z: number;
+  seenAt: number;
+};
+
+export type Sightings = HandleObserver & {
+  note: (row: NearbyRow) => void;
+  get: (guid: bigint) => Sighting | undefined;
+  all: () => Sighting[];
+  prune: (now: number) => void;
+};
+
+export type ProgressTracker = HandleObserver & {
+  digest: (handle: WorldHandle) => string;
+  afterAction: (init: {
+    tool: ToolName;
+    status: ToolStatus;
+    reason: string | undefined;
+    digest: string;
+    untried: string[];
+  }) => void;
+  noProgress: () => NoProgress | undefined;
+  lastProgress: () => { at: number; event: LogEvent } | undefined;
+  count: () => number;
+};
+
+export type RepeatCall = {
+  tool: ToolName;
+  args: unknown;
+  pose: PoseView | undefined;
+  digest: string;
+};
+
+export type RepeatHit = { reason: string; times: number; untried: string[] };
+
+export type RepeatGuard = {
+  check: (call: RepeatCall) => RepeatHit | undefined;
+  record: (call: RepeatCall & { result: ToolResult<unknown> }) => void;
+  hits: () => number;
+};
+
+export type AttackLedger = HandleObserver & {
+  lastHitAt: (guid: bigint) => number | undefined;
+  lastAttacker: () => bigint | undefined;
+};
+
+export type WorldSnapshots = HandleObserver & {
+  capture: (cause: "look" | "tick") => void;
+  write: (label: string) => Promise<string>;
+};
+
+export type ReadyGate = HandleObserver & {
+  isReady: () => boolean;
+  whenReady: (timeoutMs: number) => Promise<boolean>;
+  inWorld: () => InWorld | undefined;
+  onReady: (cb: (world: InWorld) => void) => Unsubscribe;
+};
+
+export type DeliverySink = {
+  wake: (entries: GameLogEntry[]) => void;
+  passive: (entry: GameLogEntry) => void;
+  human: (entry: GameLogEntry) => void;
+};
+
+export type EventRouter = HandleObserver & {
+  setSink: (sink: DeliverySink | undefined) => void;
+};
+
+export type YieldGate = {
+  wait: () => Promise<"human">;
+  trigger: () => void;
+};
+
+export type WorldMutex = { run: <T>(send: () => T) => Promise<T> };
+
+export type ToolStats = {
+  call: (tool: string) => void;
+  result: (init: {
+    tool: string;
+    status: ToolStatus;
+    reason: string | undefined;
+    ms: number;
+  }) => void;
+  validationError: (tool: string) => void;
+  repeatHit: (tool: string) => void;
+  error: (init: { tool: string; message: string }) => void;
+  snapshot: () => ToolsJson;
+  start: (init: { path: string; everyMs: number }) => void;
+  stop: () => Promise<void>;
+};
+
+export type SessionFlags = {
+  humanWaiting: boolean;
+  turnToolCalls: number;
+  agent: AgentState;
+  tool: string | undefined;
+  lastToolCallAt: number | undefined;
+  turnStartSeq: number;
+  lastNow: string | undefined;
+  wake: boolean;
+  unreadWhispers: number;
+};
+
+export type TravelMemory = {
+  lastGoodPose: PoseView | undefined;
+  lastRefusedGoal: string | undefined;
+  visitedCells: Set<string>;
+};
+
+export type Login = (config: ClientConfig) => Promise<WorldHandle>;
+
+export type ViewCtx = { rt: HarnessRuntime; handle: WorldHandle };
+
+export type OpsCtx = ViewCtx & {
+  signal: AbortSignal;
+  toolCallId: string;
+  progress: (text: string) => void;
+};
+
+export type ToolCtx<A> = OpsCtx & { update: (partial: ToolResult<A>) => void };
+
+export type HarnessRuntime = {
+  flags: HarnessFlags;
+  profile: Profile;
+  paths: RunPaths;
+  clock: Clock;
+  log: GameLog;
+  jevLog: JsonlSink;
+  runs: RunRegistry;
+  refs: RefTable;
+  sightings: Sightings;
+  progress: ProgressTracker;
+  repeats: RepeatGuard;
+  attacks: AttackLedger;
+  snapshots: WorldSnapshots;
+  ready: ReadyGate;
+  router: EventRouter;
+  stats: ToolStats;
+  mutex: WorldMutex;
+  yields: YieldGate;
+  travel: TravelMemory;
+  session: SessionFlags;
+  handle: () => WorldHandle | undefined;
+  requireHandle: () => WorldHandle;
+  connection: () => ConnectionState;
+  onConnection: (cb: (state: ConnectionState) => void) => Unsubscribe;
+  connect: () => Promise<void>;
+  disconnect: () => Promise<void>;
+  stopAll: (cause: StopCause) => RunRecord[];
+  shutdown: () => Promise<void>;
+};
+
+export type RuntimeParts = Omit<
+  HarnessRuntime,
+  | "session"
+  | "handle"
+  | "requireHandle"
+  | "connection"
+  | "onConnection"
+  | "connect"
+  | "disconnect"
+  | "stopAll"
+  | "shutdown"
+> & { login: Login };
