@@ -152,8 +152,9 @@ human, the log and graders only.
    measured by simulation). Everything goes to the game log first.
 8. **History is a query**, never a draining cursor (REPORT §2.9).
 9. **Reflexes in code, goals in the model.** Runs stop on death,
-   `rooted` or a new attacker. A human "stop" halts in code before the
-   model reads it.
+   `rooted` or a new attacker. (`engage` follows the new attacker
+   rule of the epic spec, section 6.B.) A human "stop" halts in code
+   before the model reads it.
 10. **Identity is bound at start; tools wait for `world_ready`** (self
     pose known and first object burst seen). No default profile
     (R19, REPORT §2.7b).
@@ -526,7 +527,8 @@ steering agent (R5 refined):
    maps `TacticsOutcome.reason === "jev_timeout"` (and a transport
    event) to the harness code `jev_unavailable`; matching on
    `jev_unavailable` would never fire. A new unrelated attacker becomes the next target
-   when `count` allows; otherwise the run reports it.
+   when `count` allows; otherwise the run reports it. The epic spec, section 6.B,
+   settles the exact rule (V.4 #6).
 
 Model gets:
 
@@ -802,6 +804,10 @@ one-line `[now]` situation of about 60 tokens.
 | `wake` | yes | yes (`triggerTurn: true`; while streaming `deliverAs: "followUp"`, never `steer`) | whisper, party, raid, guild, officer chat **from another character**; say or yell from a player that names the character (word boundary); group invite, kicked, disbanded; duel, trade, guild invite; own death, ghost, resurrection (a change of `life` only); attacked while **no run** is active (once per attacker per 30 s); HP below 50 % and 25 % while no run is active (re-arms 10 points above); connection lost; a run end **no tool call awaited**; stuck notice (C.6) |
 | `passive` | yes, batched; flushed at `agent_end`, prepended to the next wake, and added after `[now]` when a human message starts a run | no | say, yell, emote in range not naming the character; monster say; XP, level up, item, money, quest progress, completed, rewarded that no tool result showed; fight start inside a cycle; server pose correction over 5 yd; teleport; group roster change; kills inside a multi-kill `engage` |
 | `log` | only through `journal(about: "log")` | no | all Jev records; combat ticks inside a run; movement, facing, target changes; entity appear, disappear, update; reward request/observe steps; recovery steps other than life changes; `QUEST:log/intent`; `[tuicraft] X is not yet implemented` (944 of 1861 chat-type lines, 51 %, EV §1, measured); `[debug]`; login banners; `CHANNEL` chatter from others; own echoes; packet errors (also shown to the human) |
+
+The epic spec, section 6.C, settles two points here: passive lines are
+never prepended to a chat wake, and a chat wake names its sender (LU.3
+#1, #11).
 
 Why `followUp` only: runs stop themselves on death, so no event needs to
 cut a tool batch (SMF §2.3). A death during a run reaches the model in
@@ -1807,9 +1813,10 @@ builders after `contract/` and G0 land, with an integrator on
    not checked against `Entity` fields.
 5. **No tool timeout in Pi** for a 120 s blocking tool: not checked in
    the 0.87.1 source. If one exists, the 120 s yield must sit under it.
+   Checked later: see the epic spec, section 9.2.
 6. **`engage` new-attacker rule** (B.4 step 6: the attacker becomes the
    next target) conflicts with principle 9 (runs stop on a new
-   attacker). Needs one rule.
+   attacker). Needs one rule. Settled in the epic spec, section 6.B.
 7. **`t4-quest-first` with an item quest** now refuses
    `item_sources_unknown` unless the model names the creature; if the
    round-1 quest has an item objective, that scenario needs a brief that
@@ -1881,6 +1888,7 @@ beyond the ~100 yd the client sees (ES `t0-hostiles`, inferred there).
    name and the text, for example `[game 0s] Whisper from Kaelyn: "hey,
    what level are you?" Answer with social(to: "Kaelyn", text: "…").`
    Without the sender, `social.to` is a guess. Inferred risk: medium.
+   Settled in the epic spec, section 6.C.
 2. **Level-1 fight at a level-7 Stalker** (`t6-die-and-recover`): after
    `too_strong` Luna must decide to name the target. The prompt has no
    rule for "the human asked for a fight the tool calls too strong";
@@ -1898,7 +1906,7 @@ beyond the ~100 yd the client sees (ES `t0-hostiles`, inferred there).
 5. **`engage(count > 1)` over bots**: 500 playerbots tap Stalkers and
    Mana Wyrms; the tapped filter (G4) is not live-verified ("tapped-by-me
    meaning to verify live"). If it is wrong, `engage` stalls on tapped
-   targets. Out of this lens; recorded.
+   targets. Out of this lens; recorded. Handling: the epic spec, section 9.2.
 6. **K4 is stale**: HANDOVER R27 approved the navigation track (F4 → F3
    → F1+F2), so N1 is decided, and I.4's "grade movement as `core`
    without N1" applies only until that track lands. Not edited here (the
@@ -1925,3 +1933,4 @@ beyond the ~100 yd the client sees (ES `t0-hostiles`, inferred there).
     one reply by `say` to chat not addressed to the character; "Ignore
     other chat" in F.1 is the only defence. Consider not prepending
     passive chat to a whisper wake. Inferred risk: medium.
+    Settled in the epic spec, section 6.C.

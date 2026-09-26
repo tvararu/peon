@@ -313,7 +313,7 @@ Added for the harness:
 | 8 | `t8-quest-to-level-3` | fresh | none | 60 min / 150 / 500 | High |
 | 8 | `t8-grind-30` | eversong10 | none | 40 min / 100 / 300 | High |
 
-38 scenarios (8 added in the t1 revision: a hunter, a mage and a
+37 scenarios (7 added in the t1 revision: a hunter, a mage and a
 level-20 Ghostlands fight, two Alliance scenarios in Elwynn, a
 Tranquillien vendor run and a whisper to a bot). The Setup column lists
 `soap setup` endpoints; nothing needs a console command or a GM level.
@@ -1453,7 +1453,7 @@ truth output was checked for it with `rg -F -f` (0 hits).
     items, and adds truth and setup latency, one login per new preset,
     `position.zone` after logout and what `soap reset` restores.
     `soap reset` is the replica-reuse path once round 0 shows its effect.
-13. **Wider catalogue** (8 new entries, [read] NPC and quest rows,
+13. **Wider catalogue** (7 new entries, [read] NPC and quest rows,
     distances [inferred]): `t3-kill-one-hunter`, `t3-kill-one-mage`
     (first non-priest classes), `t3-ghostlands-kill` (level 20, busiest
     bot zone), `t4-alliance-first` (Northshire, Willem 783 → McBride),

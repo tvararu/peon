@@ -768,7 +768,8 @@ superseded by R22 revised.
 
 **Round 1**: 13 scenarios, one replica each, 6 panes, about 42 minutes (the
 design's luna-usability pass walked an earlier set of 11). The catalogue
-has 38 scenarios in tiers 0-8; tier 8 runs in a long lane.
+has 37 scenarios in tiers 0-8 (counted in its catalogue table); tier 8
+runs in a long lane.
 
 | # | Scenario | Preset | Why first |
 |---:|---|---|---|
@@ -838,7 +839,7 @@ plan (§10) and its verification, and the eval critique.
 | The blocking-run model rests on V3 (steer ordering), read but not run | V.4 #1 | run V3 before any run tool |
 | `startTactics` fails both synchronously and by promise rejection | V.4 #2 | the adapter catches both |
 | Sources not checked: `life/dead.killer`, `session/in_world` race and class, unit level; `area-names.json` import support | V.4 #3, #4, #9 | infer the killer from the last attacker; check the rest while building |
-| Pi may have a tool timeout under 120 s | V.4 #5 | read: `pi-agent-core` 0.87.1 tool execution sets no timer; the only tool timeout found is `TOOL_TIMEOUT_MS = 120000` in the bundled Anthropic session tool runner, a path Luna (`openai-codex`) does not use (inferred). The 120 s yield stays; V3 must show a run tool that blocks for 120 s and returns |
+| Pi may have a tool timeout under 120 s | V.4 #5 | read: `pi-agent-core` 0.87.1 tool execution sets no timer; the only tool timeout found is `TOOL_TIMEOUT_MS = 120000` in the bundled Anthropic session tool runner, a path Luna (`openai-codex`) does not use (inferred). That timer equals the yield, so it would race it on that path. The 120 s yield stays; the first live run tool must block for 120 s and return |
 | `engage` new-attacker rule conflicts with "runs stop on a new attacker" | V.4 #6 | settled: the new attacker rule of section 6.B |
 | Item quests refuse `item_sources_unknown` unless the model names the creature | V.4 #7 | the brief names it |
 | `/login` interception (V7) is untried | V.4 #8 | banner fallback |
@@ -869,7 +870,7 @@ were not kept.
 | File | What it holds |
 |---|---|
 | [harness-design.md](2026-09-26-pi-harness-epic/harness-design.md) | The approved harness design: judgement, sections A-K, implementability and luna-usability verification |
-| [eval-suite.md](2026-09-26-pi-harness-epic/eval-suite.md) | 38 scenarios, grader protocol, feedback schema, rounds, stop rules, round 1, critique, t1 revision |
+| [eval-suite.md](2026-09-26-pi-harness-epic/eval-suite.md) | 37 scenarios, grader protocol, feedback schema, rounds, stop rules, round 1, critique, t1 revision |
 | [nav-diagnosis.md](2026-09-26-pi-harness-epic/nav-diagnosis.md) | Navigation diagnosis in Fairbreeze Village: causes, fixes F1-F5, challenge, M3a side effects |
 | [migration-plan.md](2026-09-26-pi-harness-epic/migration-plan.md) | Layout B migration: scores, grafts, specifiers, configs, moves, checks, rollback, post-merge steps, risks |
 | [luna-runtime.md](2026-09-26-pi-harness-epic/luna-runtime.md) | Pi 0.87.1 with Luna under Bun: credentials, model, headless calls, renderers, compile, Orca pane |
