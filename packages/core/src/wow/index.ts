@@ -1,3 +1,5 @@
+export type { Unsubscribe } from "#lib/emitter";
+export type { CombatAura } from "#wow/aura-store";
 export type { AuthResult } from "#wow/auth";
 export type {
   ChatMessage,
@@ -22,16 +24,28 @@ export type {
   NamedTrainerState,
 } from "#wow/client-trainer";
 export type { NamedVendorGood, NamedVendorState } from "#wow/client-vendor";
-export type { CombatEvent, CombatState, CombatUnit } from "#wow/combat";
+export type {
+  CombatEvent,
+  CombatEventType,
+  CombatState,
+  CombatUnit,
+} from "#wow/combat";
 export type {
   ControlEvent,
+  ControlEventType,
   ControlPose,
   ControlState,
   MovementDirection,
   NavigationState,
   WalkOutcome,
 } from "#wow/control";
-export type { DestroyRequest, DestroyState } from "#wow/destroy";
+export type { CycleRecovery } from "#wow/corpse-run";
+export type { CycleStop } from "#wow/cycle-stop";
+export type {
+  DestroyEvent,
+  DestroyRequest,
+  DestroyState,
+} from "#wow/destroy";
 export type {
   CycleEvent,
   CycleLootRecord,
@@ -47,6 +61,7 @@ export type {
   UnitEntity,
 } from "#wow/entity-store";
 export type { ExperienceState } from "#wow/experience";
+export type { FactionRelation } from "#wow/faction-template";
 export { type FramingVariant, parseFramingVariant } from "#wow/framing";
 export type { FriendEntry, FriendEvent } from "#wow/friend-store";
 export type { GuildEvent, GuildMember, GuildRoster } from "#wow/guild-store";
@@ -56,9 +71,13 @@ export {
   type ItemKind,
   type ItemLabel,
   itemKind,
+  type NamedInventoryItem,
+  type NamedInventorySlot,
   type NamedInventoryState,
+  type NamedLootItem,
   type NamedRewardsState,
 } from "#wow/item-labels";
+export { JevUnavailableError } from "#wow/jev-failure";
 export {
   type NavigationObservation,
   nextStepFor,
@@ -71,6 +90,7 @@ export type {
   PartyMember,
   PartyState,
 } from "#wow/party-store";
+export type { PlayerLife } from "#wow/player-state";
 export type { WhoResult } from "#wow/protocol/chat";
 export { ObjectType } from "#wow/protocol/entity-fields";
 export {
@@ -90,14 +110,23 @@ export { type QuestLogSlot, questSlotStatus } from "#wow/quest-slots";
 export type { QuestEvent, QuestState } from "#wow/quests";
 export type { QuestDialog, QuestIntent } from "#wow/quests-requests";
 export type { RecoveryEvent, RecoveryState } from "#wow/recovery";
-export type { RemotePose } from "#wow/remote-motion";
+export type { RemoteMotionEvent, RemotePose } from "#wow/remote-motion";
 export type { RewardsEvent, RewardsState } from "#wow/rewards";
 export type { DefenseEvent, DefenseState } from "#wow/self-defense";
 export type { SpellDefinition } from "#wow/spell-catalog";
 export {
   DEFAULT_FIGHT_INSTRUCTION,
   type TacticsEvent,
+  type TacticsOutcome,
   type TacticsState,
 } from "#wow/tactics";
-export type { TrainerOutcome, TrainerRequest } from "#wow/trainer";
-export type { VendorOutcome, VendorRequest } from "#wow/vendor";
+export type {
+  TrainerEvent,
+  TrainerOutcome,
+  TrainerRequest,
+} from "#wow/trainer";
+export type {
+  VendorEvent,
+  VendorOutcome,
+  VendorRequest,
+} from "#wow/vendor";
