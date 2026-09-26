@@ -13,7 +13,7 @@
     }
   },
   "files": {
-    "includes": ["packages/**"]
+    "includes": ["packages/**", "!**/wow/data/area-names.json"]
   },
   "formatter": {
     "indentStyle": "space"
