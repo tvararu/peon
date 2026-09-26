@@ -1,16 +1,139 @@
-import { describe, expect, test } from "bun:test";
-import { installInput } from "#harness/extension/input";
+import { describe, expect, jest, test } from "bun:test";
+import type { RunEnd } from "#harness/contract/runs";
+import {
+  humanStop,
+  installInput,
+  isStopReflex,
+} from "#harness/extension/input";
+import { YIELD_DELAY_MS } from "#harness/runtime/yield";
 import { createFakePi } from "#test-support/fake-pi";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 
-async function setup() {
-  const { rt } = await createTestRuntime();
-  const fake = createFakePi();
-  installInput(fake.api, rt);
-  return { fake, rt };
+function waitForAbort(signal: AbortSignal): Promise<RunEnd<undefined>> {
+  const { promise, resolve } = Promise.withResolvers<RunEnd<undefined>>();
+  signal.addEventListener("abort", () =>
+    resolve({
+      reason: (signal.reason as Error).message,
+      status: "cancelled",
+      summary: "stopped",
+      value: undefined,
+    }),
+  );
+  return promise;
 }
 
+async function setup(flags: { stopReflex?: boolean } = {}) {
+  const { rt, handle } = await createTestRuntime({ flags });
+  const fake = createFakePi();
+  installInput(fake.api, rt);
+  return { fake, handle, rt };
+}
+
+const human = (text: string) => ({
+  source: "interactive",
+  text,
+  type: "input",
+});
+
+describe("isStopReflex", () => {
+  test.each([
+    "stop",
+    "Stop!",
+    "Stop! Stop right now.",
+    "Stop, we're done.",
+    "HALT",
+    "freeze now",
+    "hold on",
+  ])("matches %p", (text) => {
+    expect(isStopReflex(text)).toBe(true);
+  });
+
+  test.each([
+    "wait",
+    "please stop",
+    "stop and then go north past the big tree",
+    "",
+    "stopwatch",
+  ])("does not match %p", (text) => {
+    expect(isStopReflex(text)).toBe(false);
+  });
+});
+
 describe("installInput", () => {
+  test("a stop reflex cancels the run, halts the character and logs the stopped runs", async () => {
+    const { fake, handle, rt } = await setup();
+    rt.runs.start({
+      args: {},
+      kind: "engage",
+      launch: ({ signal }) => waitForAbort(signal),
+      toolCallId: "t1",
+    });
+    const [result] = await fake.emit(human("Stop! Stop right now."));
+    expect(result).toEqual({ action: "continue" });
+    expect(rt.runs.get("r1")).toMatchObject({
+      reason: "human_stop",
+      status: "cancelled",
+    });
+    expect(handle.halt).toHaveBeenCalled();
+    expect(rt.log.recent(1)[0]).toMatchObject({
+      data: { stoppedRuns: ["r1"], stopReflex: true, via: "reflex" },
+      event: "human/input",
+    });
+  });
+
+  test("--stop-reflex off lets a stop message through without stopping", async () => {
+    const { fake, handle, rt } = await setup({ stopReflex: false });
+    await fake.emit(human("stop"));
+    expect(handle.halt).not.toHaveBeenCalled();
+    expect(rt.log.recent(1)[0]).toMatchObject({
+      data: { stopReflex: false, via: "input" },
+    });
+  });
+
+  test("human text while the agent works sets humanWaiting and triggers a yield", async () => {
+    const { fake, rt } = await setup();
+    jest.useFakeTimers();
+    try {
+      let yielded = false;
+      rt.yields.wait().then(() => {
+        yielded = true;
+      });
+      await fake.emit({ type: "agent_start" });
+      await fake.emit({
+        args: {},
+        toolCallId: "c1",
+        toolName: "engage",
+        type: "tool_execution_start",
+      });
+      await fake.emit(human("how much health do you have?"));
+      expect(rt.session.humanWaiting).toBe(true);
+      jest.advanceTimersByTime(YIELD_DELAY_MS - 1);
+      await Promise.resolve();
+      expect(yielded).toBe(false);
+      jest.advanceTimersByTime(1);
+      await Promise.resolve();
+      expect(yielded).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("an idle stop reflex stops nothing, logs the text and does not set humanWaiting", async () => {
+    const { fake, rt } = await setup();
+    await fake.emit(human("stop"));
+    expect(rt.session.humanWaiting).toBe(false);
+    expect(rt.log.recent(1)[0]).toMatchObject({
+      data: { stoppedRuns: [] },
+      text: "Human: stop",
+    });
+  });
+
+  test("text that an extension sends is not human input", async () => {
+    const { fake, rt } = await setup();
+    await fake.emit({ source: "extension", text: "stop", type: "input" });
+    expect(rt.log.recent(1)[0]?.event).not.toBe("human/input");
+  });
+
   test("tracks the agent state through a turn", async () => {
     const { fake, rt } = await setup();
     await fake.emit({ type: "agent_start" });
@@ -36,6 +159,7 @@ describe("installInput", () => {
     await fake.emit({ messages: [], type: "agent_end" });
     expect(rt.session.agent).toBe("idle");
   });
+
   test("logs assistant text as agent/message", async () => {
     const { fake, rt } = await setup();
     await fake.emit({
@@ -50,4 +174,33 @@ describe("installInput", () => {
       text: "I am level 10.",
     });
   });
+
+  test("F9 stops every run", async () => {
+    const { fake, rt } = await setup();
+    rt.runs.start({
+      args: {},
+      kind: "rest",
+      launch: ({ signal }) => waitForAbort(signal),
+      toolCallId: "t1",
+    });
+    await fake.press("f9");
+    expect(rt.runs.get("r1")?.status).toBe("cancelled");
+    expect(rt.log.recent(1)[0]).toMatchObject({
+      data: { via: "key" },
+      text: "Human: F9",
+    });
+  });
+});
+
+test("humanStop returns the cancelled records", async () => {
+  const { rt } = await createTestRuntime();
+  rt.runs.start({
+    args: {},
+    kind: "travel",
+    launch: ({ signal }) => waitForAbort(signal),
+    toolCallId: "t1",
+  });
+  expect(
+    humanStop({ rt, text: "/stop", via: "command" }).map((run) => run.id),
+  ).toEqual(["r1"]);
 });

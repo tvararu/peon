@@ -1,9 +1,53 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type {
+  ExtensionAPI,
+  InputEvent,
+  InputEventResult,
+} from "@earendil-works/pi-coding-agent";
+import type { RunRecord } from "#harness/contract/runs";
 import type { HarnessRuntime } from "#harness/contract/services";
+
+type Via = "reflex" | "command" | "key";
+type HumanRow = {
+  text: string;
+  via: Via | "input";
+  stopReflex: boolean;
+  stoppedRuns: string[];
+};
+
+export const STOP_WORDS: readonly string[] = ["stop", "halt", "freeze", "hold"];
+export const STOP_MAX_WORDS = 5;
+
+const PUNCTUATION = /[^\p{L}\p{N}]/gu;
+const SPACES = /\s+/;
+
+export function isStopReflex(text: string): boolean {
+  const words = text
+    .trim()
+    .split(SPACES)
+    .filter((word) => word.length > 0);
+  const first = words[0]?.replace(PUNCTUATION, "").toLowerCase() ?? "";
+  return words.length <= STOP_MAX_WORDS && STOP_WORDS.includes(first);
+}
+
+export function humanStop(init: {
+  rt: HarnessRuntime;
+  via: Via;
+  text: string;
+}): RunRecord[] {
+  const stopped = init.rt.stopAll("human");
+  appendHuman(init.rt, {
+    stoppedRuns: stopped.map((run) => run.id),
+    stopReflex: true,
+    text: init.text,
+    via: init.via,
+  });
+  return stopped;
+}
 
 export function installInput(pi: ExtensionAPI, rt: HarnessRuntime): void {
   const { session } = rt;
+  pi.on("input", (event) => onInput(rt, event));
   pi.on("agent_start", () => {
     Object.assign(session, {
       agent: "streaming",
@@ -28,6 +72,38 @@ export function installInput(pi: ExtensionAPI, rt: HarnessRuntime): void {
     Object.assign(session, { agent: "idle", tool: undefined });
   });
   pi.on("message_end", (event) => noteAssistant(rt, event.message));
+  pi.registerShortcut("f9", {
+    description: "Stop every action now.",
+    handler: () => void humanStop({ rt, text: "F9", via: "key" }),
+  });
+}
+
+function onInput(rt: HarnessRuntime, event: InputEvent): InputEventResult {
+  if (event.source === "extension") return { action: "continue" };
+  if (rt.flags.stopReflex && isStopReflex(event.text))
+    humanStop({ rt, text: event.text, via: "reflex" });
+  else
+    appendHuman(rt, {
+      stoppedRuns: [],
+      stopReflex: false,
+      text: event.text,
+      via: "input",
+    });
+  if (rt.session.agent !== "idle") {
+    rt.session.humanWaiting = true;
+    rt.yields.trigger();
+  }
+  return { action: "continue" };
+}
+
+function appendHuman(rt: HarnessRuntime, row: HumanRow): void {
+  rt.log.append({
+    class: "log",
+    data: row,
+    domain: "human",
+    event: "human/input",
+    text: `Human: ${row.text}`,
+  });
 }
 
 function noteAssistant(rt: HarnessRuntime, message: AgentMessage): void {
