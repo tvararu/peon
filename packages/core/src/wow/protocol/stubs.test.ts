@@ -5,6 +5,12 @@ import { registerStubs, STUBS } from "#wow/protocol/stubs";
 import { OpcodeDispatch } from "#wow/protocol/world";
 
 describe("registerStubs", () => {
+  test("leaves world states to the place handler", () => {
+    expect(STUBS.map(([opcode]) => opcode)).not.toContain(
+      GameOpcode.SMSG_INIT_WORLD_STATES,
+    );
+  });
+
   test("registers SMSG opcodes that aren't already handled", () => {
     const d = new OpcodeDispatch();
     d.on(GameOpcode.SMSG_MESSAGE_CHAT, () => {});

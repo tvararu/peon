@@ -1,5 +1,6 @@
 import type { Socket } from "bun";
 import type { ChatMode } from "#wow/client";
+import type { PlaceState } from "#wow/client-place";
 import type { CombatRuntime } from "#wow/combat";
 import type { ControlRuntime } from "#wow/control";
 import type { Arc4 } from "#wow/crypto/arc4";
@@ -63,4 +64,5 @@ export type WorldConn = {
   vendor?: VendorRuntime;
   destroy?: ItemDestroyRuntime;
   tactics?: TacticsLoop;
+  place?: PlaceState;
 };

@@ -40,6 +40,19 @@ function sampleState(overrides: Partial<ControlState> = {}): ControlState {
 }
 
 describe("onControlEvent", () => {
+  test("ignores place_changed, which carries no place data", () => {
+    const events = new RingBuffer<EventEntry>(10);
+    const append = jest.fn(() => Promise.resolve());
+    const log = { append } as unknown as SessionLog;
+    onControlEvent(
+      { state: sampleState(), type: "place_changed" },
+      events,
+      log,
+    );
+    expect(events.drain()).toEqual([]);
+    expect(append).not.toHaveBeenCalled();
+  });
+
   test("pushes event to ring and session log with hex ids", () => {
     const events = new RingBuffer<EventEntry>(10);
     const append = jest.fn(() => Promise.resolve());

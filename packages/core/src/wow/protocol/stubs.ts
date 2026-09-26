@@ -42,7 +42,6 @@ export const STUBS: [opcode: number, label: string][] = [
   [GameOpcode.SMSG_ARENA_TEAM_EVENT, "Arena team event"],
   [GameOpcode.SMSG_ARENA_TEAM_COMMAND_RESULT, "Arena command result"],
   [GameOpcode.SMSG_WEATHER, "Weather change"],
-  [GameOpcode.SMSG_INIT_WORLD_STATES, "World states"],
   [GameOpcode.SMSG_WARDEN_DATA, "Warden anti-cheat"],
   [GameOpcode.SMSG_LOGIN_SETTIMESPEED, "Game time"],
   [GameOpcode.SMSG_ACCOUNT_DATA_TIMES, "Account data"],

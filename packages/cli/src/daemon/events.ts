@@ -332,6 +332,7 @@ export function onControlEvent(
   events: RingBuffer<EventEntry>,
   log: SessionLog,
 ): void {
+  if (event.type === "place_changed") return;
   const obj = formatControlEventObj(event);
   events.push({
     json: JSON.stringify(obj),
