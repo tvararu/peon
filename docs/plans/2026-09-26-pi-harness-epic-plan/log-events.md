@@ -6094,7 +6094,7 @@ EOF
   `HarnessRuntime`, `DeliverySink` (`#harness/contract/services`);
   `createDelivery`, `formatWake`, `Delivery` (L9b); `createStuckWatch` (L9b);
   `formatNow`, `nowClock` (L10a); `linkSession` (L12b); `nowSnapshot`
-  (`#harness/ops/views`, A3); `createTestRuntime`, `testPaths` (F5a).
+  (`#harness/ops/views`, A3); `createTestRuntime`, `testPaths` (F5ab).
 - Produces:
   ```ts
   export const NOW_DISPLAY = false;

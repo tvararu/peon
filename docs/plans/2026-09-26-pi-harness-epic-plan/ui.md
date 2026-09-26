@@ -16,7 +16,7 @@ other areas (measured 2026-09-26: `bun test` ran 98 tests across 15 files, 98 pa
 1. U1a–U1c make the base: `ui/glyphs.ts` (83 names × 3 sets), the glyph context, the shared drawing helpers in `ui/draw.ts`, and two test-support files (a test theme with snapshot fixtures, and a Pi recorder).
 2. U2 (4-row unit-frame footer), U3 (6-row ticker), U4 (event cards and human-only lines) and U9 (tab title and working message) are pure functions of contract types, with width sweeps from 30 to 220 columns.
 3. U5 builds the renderer registry and the line family (`social`, `stop`) plus the helpers that every family uses; U6 (picture: `look`), U7 (live run: `travel`, `engage`, `rest`, `recover`) and U8 (card: `interact`, `loot`, `journal`) each add one family and their registry entries.
-4. U10 registers the eleven human slash commands; U11a mounts the footer, ticker, renderers, title and working message in each TUI session with a 10 Hz repaint cap and a 1 s tick.
+4. U11a mounts the footer, ticker, renderers, title and working message in each TUI session with a 10 Hz repaint cap and a 1 s tick; then U10 registers the eleven human slash commands (U10 depends on U11a: both edit `extension.ts`, and `installUi` comes first).
 5. U11b is the Orca pane smoke on a throwaway soap account after BOOT; it also decides the V5 footer fallback (a one-line flip in `ui/install.ts`).
 
 ## Contract issues
@@ -5110,6 +5110,468 @@ mise exec -- git commit -m "feat: Draw interact, loot and journal cards" -m "Que
 
 ---
 
+## Task U11a: mount the UI in each Pi session
+
+**Needs:** U2, U3, U4, U9, U1c, A3 (`nowSnapshot`), F5a, F7a, P3 (it lands `installPrompt` in `extension.ts` first).
+
+**Files**
+
+- Create: `packages/harness/src/ui/install.ts`
+- Modify: `packages/harness/src/extension/extension.ts` (insertion point: one import line and one call line)
+- Test: `packages/harness/src/ui/install.test.ts`
+
+**Interfaces**
+
+- Consumes: `nowSnapshot(rt: HarnessRuntime): NowSnapshot | undefined` (A3);
+  `createFooter`, `FooterChrome` (U2); `createTicker` (U3);
+  `renderEventCard`, `renderHumanLine` (U4); `titleFor`, `workingMessage`
+  (U9); `glyphSetName()` (U1a); `HarnessRuntime` members `log`, `flags`,
+  `session`, `connection`, `ready.inWorld`; `Capabilities`
+  (`@tuicraft/core`); Pi: `pi.on("session_start" | "session_shutdown")`,
+  `pi.registerMessageRenderer`, `pi.registerEntryRenderer`,
+  `pi.getThinkingLevel`, `ctx.mode`, `ctx.model`, `ctx.getContextUsage`,
+  `ctx.ui.setFooter`, `setWidget`, `setTitle`, `setWorkingMessage`.
+- Produces:
+
+```ts
+export type FooterMount = "footer" | "widget";
+export type Factory = (tui: TUI, theme: Theme) => Component;
+export const REPAINT_GAP_MS = 100;
+export const TICK_MS = 1000;
+export function mountFooter(ui: ExtensionUIContext, factory: Factory, mount: FooterMount): void;
+export function installUi(pi: ExtensionAPI, rt: HarnessRuntime): void;
+```
+
+Behaviour (contract 2.14, design E):
+
+- The two renderers register once, in `installUi` itself, not in
+  `session_start` (which fires again on `/new`, `/resume` and `/fork`).
+- On `session_start` with `ctx.mode === "tui"` only (luna-runtime #13: the
+  faux smoke tests run without a TUI), it mounts the footer through
+  `mountFooter(…, FOOTER_MOUNT)` and the ticker with
+  `setWidget("wow-ticker", …, { placement: "aboveEditor" })`, then paints
+  once. A second `session_start` unmounts the first.
+- One cached `NowSnapshot` feeds the footer, the title and the working
+  message. It is refreshed only on a repaint, so a key press does not
+  rebuild views.
+- A repaint happens at most once per `REPAINT_GAP_MS` after a log append,
+  and once per `TICK_MS` tick. It refreshes the snapshot, calls `setTitle`
+  and `setWorkingMessage`, and calls `requestRender` on each TUI that a
+  factory got.
+- Kills and XP for the ticker count `combat/kill_credit` rows and the
+  `amount` of `xp/gain` rows from the session start.
+- `session_shutdown` clears the interval, the pending repaint and the log
+  subscriptions.
+- The tests use the found plan's `createTestRuntime` with its mock handle,
+  so `nowSnapshot(rt)` (A3) runs on that handle. If it throws there, the
+  fault is in A3 or in the fixture, not in `install.ts`; report it to the
+  owner of that task and do not catch it here.
+- `FOOTER_MOUNT` is a module constant, `"footer"`. The V5 fallback
+  (`"widget"`, a 4-line widget below the editor) is the same code path
+  through `mountFooter`; U11b flips the constant if V5 fails (contract
+  issue 9).
+
+**Steps**
+
+- [ ] **Write the failing test.** `packages/harness/src/ui/install.test.ts`:
+
+```ts
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
+import type { Component, TUI } from "@earendil-works/pi-tui";
+import { FOOTER_ROWS } from "#harness/ui/footer";
+import { nerd } from "#harness/ui/glyphs";
+import {
+  type Factory,
+  installUi,
+  mountFooter,
+  REPAINT_GAP_MS,
+  TICK_MS,
+} from "#harness/ui/install";
+import { TICKER_ROWS } from "#harness/ui/ticker";
+import {
+  createFakeTui,
+  createPiRecorder,
+  createUiRecorder,
+  recorderContext,
+  type UiRecorder,
+} from "#test-support/pi-recorder";
+import { createTestRuntime } from "#test-support/runtime-fixture";
+import { plain, testTheme } from "#test-support/ui-fixture";
+
+const theme = testTheme();
+
+async function mounted(mode: "tui" | "rpc" = "tui") {
+  const { rt } = await createTestRuntime();
+  const fake = createPiRecorder();
+  installUi(fake.pi, rt);
+  const ui = createUiRecorder();
+  const ctx = recorderContext({ contextPct: 14, mode, ui: ui.ui });
+  await fake.fire(
+    "session_start",
+    { reason: "startup", type: "session_start" },
+    ctx,
+  );
+  return { ctx, fake, rt, ui };
+}
+
+function asFactory(value: unknown): Factory {
+  if (typeof value !== "function") throw new Error("no factory");
+  return value as Factory;
+}
+
+function widget(ui: UiRecorder, key: string): Factory {
+  const call = ui.named("setWidget").find((args) => args[0] === key);
+  return asFactory(call?.[1]);
+}
+
+function footerOf(ui: UiRecorder): Factory {
+  const call = ui.named("setFooter")[0];
+  return call ? asFactory(call[0]) : widget(ui, "wow-footer");
+}
+
+function mount(factory: Factory): {
+  component: Component;
+  tui: TUI;
+  renders: () => number;
+} {
+  const { tui, renders } = createFakeTui();
+  return { component: factory(tui, theme), renders, tui };
+}
+
+describe("installUi", () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  test("registers the event card and human line renderers", async () => {
+    const { fake } = await mounted("rpc");
+    expect(fake.messageRenderers.has("wow-event")).toBe(true);
+    expect(fake.entryRenderers.has("wow-human")).toBe(true);
+  });
+
+  test("outside the TUI it makes no UI call", async () => {
+    const { ui } = await mounted("rpc");
+    expect(ui.calls).toEqual([]);
+  });
+
+  test("mounts a 4-row footer and a 6-row ticker above the editor", async () => {
+    const { ui } = await mounted();
+    const footer = mount(footerOf(ui)).component;
+    const ticker = mount(widget(ui, "wow-ticker")).component;
+    const options = ui
+      .named("setWidget")
+      .find((args) => args[0] === "wow-ticker")?.[2];
+    expect(footer.render(120)).toHaveLength(FOOTER_ROWS);
+    expect(ticker.render(120)).toHaveLength(TICKER_ROWS);
+    expect(options).toEqual({ placement: "aboveEditor" });
+  });
+
+  test("sets the tab title and the working message on mount", async () => {
+    const { ui } = await mounted();
+    expect(ui.named("setTitle")).toHaveLength(1);
+    expect(ui.named("setWorkingMessage")).toHaveLength(1);
+  });
+
+  test("log appends repaint at most once per 100 ms", async () => {
+    const { rt, ui } = await mounted();
+    const { renders } = mount(footerOf(ui));
+    for (let i = 0; i < 5; i += 1)
+      rt.log.append({
+        class: "log",
+        data: {},
+        domain: "xp",
+        event: "xp/gain",
+        text: `xp ${i}`,
+      });
+    expect(renders()).toBe(0);
+    jest.advanceTimersByTime(REPAINT_GAP_MS);
+    expect(renders()).toBe(1);
+    expect(ui.named("setTitle")).toHaveLength(2);
+  });
+
+  test("a 1 s tick repaints while nothing happens", async () => {
+    const { ui } = await mounted();
+    const { renders } = mount(footerOf(ui));
+    jest.advanceTimersByTime(TICK_MS + REPAINT_GAP_MS);
+    expect(renders()).toBe(1);
+  });
+
+  test("kills and XP from the log reach the ticker head", async () => {
+    const { rt, ui } = await mounted();
+    const ticker = mount(widget(ui, "wow-ticker")).component;
+    rt.log.append({
+      class: "log",
+      data: { name: "Springpaw Stalker" },
+      domain: "combat",
+      event: "combat/kill_credit",
+      text: "Springpaw Stalker killed",
+    });
+    rt.log.append({
+      class: "log",
+      data: { amount: 84 },
+      domain: "xp",
+      event: "xp/gain",
+      text: "+84 xp",
+    });
+    expect(plain(ticker.render(160))[0]).toContain(
+      `${nerd.kill} 1 kill ${nerd.xp} +84 xp`,
+    );
+  });
+
+  test("session_shutdown stops the timers", async () => {
+    const { ctx, fake, ui } = await mounted();
+    const { renders } = mount(footerOf(ui));
+    await fake.fire(
+      "session_shutdown",
+      { reason: "quit", type: "session_shutdown" },
+      ctx,
+    );
+    jest.advanceTimersByTime(5 * TICK_MS);
+    expect(renders()).toBe(0);
+  });
+});
+
+describe("mountFooter", () => {
+  test("the V5 fallback puts the footer in a widget below the editor", () => {
+    const ui = createUiRecorder();
+    const factory: Factory = () => ({
+      invalidate: () => undefined,
+      render: () => [],
+    });
+    mountFooter(ui.ui, factory, "widget");
+    expect(ui.named("setWidget")).toEqual([
+      ["wow-footer", factory, { placement: "belowEditor" }],
+    ]);
+    mountFooter(ui.ui, factory, "footer");
+    expect(ui.named("setFooter")).toEqual([[factory]]);
+  });
+});
+```
+
+- [ ] **Run the test and see it fail.**
+
+```bash
+mise test packages/harness/src/ui/install.test.ts
+```
+
+Expected: FAIL — error: Cannot find module "#harness/ui/install" from ".../src/ui/install.test.ts".
+
+- [ ] **Implement.** `packages/harness/src/ui/install.ts`:
+
+```ts
+import type {
+  ExtensionAPI,
+  ExtensionContext,
+  ExtensionUIContext,
+  Theme,
+} from "@earendil-works/pi-coding-agent";
+import type { Component, TUI } from "@earendil-works/pi-tui";
+import type { Capabilities } from "@tuicraft/core";
+import type {
+  GameLogEntry,
+  HumanLineDetails,
+  WowEventDetails,
+} from "#harness/contract/log";
+import type { HarnessRuntime } from "#harness/contract/services";
+import type { NowSnapshot } from "#harness/contract/views";
+import { nowSnapshot } from "#harness/ops/views";
+import { renderEventCard, renderHumanLine } from "#harness/ui/cards";
+import { glyphSetName } from "#harness/ui/context";
+import { createFooter, type FooterChrome } from "#harness/ui/footer";
+import { titleFor, workingMessage } from "#harness/ui/status-line";
+import { createTicker } from "#harness/ui/ticker";
+
+export type FooterMount = "footer" | "widget";
+export type Factory = (tui: TUI, theme: Theme) => Component;
+
+type Hud = {
+  snapshot: () => NowSnapshot | undefined;
+  refresh: () => void;
+  kills: () => number;
+  xp: () => number;
+  dispose: () => void;
+};
+type MountInit = {
+  pi: ExtensionAPI;
+  rt: HarnessRuntime;
+  ctx: ExtensionContext;
+};
+
+export const REPAINT_GAP_MS = 100;
+export const TICK_MS = 1000;
+
+const FOOTER_MOUNT: FooterMount = "footer";
+
+const CHIPS = [
+  ["jev", "jev"],
+  ["navigation", "nav"],
+  ["factions", "factions"],
+  ["spells", "spells"],
+] as const;
+
+function missingOf(
+  capabilities: Capabilities | undefined,
+): FooterChrome["missing"] {
+  if (!capabilities) return [];
+  return CHIPS.filter(([key]) => !capabilities[key]).map(([, chip]) => chip);
+}
+
+function footerChrome({ pi, rt, ctx }: MountInit): FooterChrome {
+  return {
+    connection: rt.connection(),
+    contextPct: ctx.getContextUsage()?.percent ?? undefined,
+    glyphSet: glyphSetName(),
+    logRows: rt.log.count(),
+    missing: missingOf(rt.ready.inWorld()?.capabilities),
+    model: ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : rt.flags.model,
+    thinking: pi.getThinkingLevel(),
+    unreadWhispers: rt.session.unreadWhispers,
+    wake: rt.session.wake,
+  };
+}
+
+function createHud(rt: HarnessRuntime): Hud {
+  let snapshot = nowSnapshot(rt);
+  let kills = 0;
+  let xp = 0;
+  const count = (entry: GameLogEntry) => {
+    const amount = entry.data["amount"];
+    if (entry.event === "combat/kill_credit") kills += 1;
+    if (entry.event === "xp/gain" && typeof amount === "number") xp += amount;
+  };
+  const dispose = rt.log.subscribe(count);
+  const refresh = () => {
+    snapshot = nowSnapshot(rt);
+  };
+  return {
+    dispose,
+    kills: () => kills,
+    refresh,
+    snapshot: () => snapshot,
+    xp: () => xp,
+  };
+}
+
+function createRepaint(paint: () => void): {
+  request: () => void;
+  dispose: () => void;
+} {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const run = () => {
+    timer = undefined;
+    paint();
+  };
+  const request = () => {
+    timer ??= setTimeout(run, REPAINT_GAP_MS);
+  };
+  return { dispose: () => clearTimeout(timer), request };
+}
+
+export function mountFooter(
+  ui: ExtensionUIContext,
+  factory: Factory,
+  mount: FooterMount,
+): void {
+  if (mount === "widget") {
+    ui.setWidget("wow-footer", factory, { placement: "belowEditor" });
+    return;
+  }
+  ui.setFooter(factory);
+}
+
+function mountUi(init: MountInit): () => void {
+  const { rt, ctx } = init;
+  const hud = createHud(rt);
+  const tuis = new Set<TUI>();
+  const track =
+    (factory: Factory): Factory =>
+    (tui, theme) => {
+      tuis.add(tui);
+      return factory(tui, theme);
+    };
+  const paint = () => {
+    hud.refresh();
+    ctx.ui.setTitle(titleFor(hud.snapshot()));
+    ctx.ui.setWorkingMessage(workingMessage(hud.snapshot()?.run));
+    for (const tui of tuis) tui.requestRender();
+  };
+  const repaint = createRepaint(paint);
+  const unsubscribe = rt.log.subscribe(repaint.request);
+  const tick = setInterval(repaint.request, TICK_MS);
+  const footer = createFooter({
+    chrome: () => footerChrome(init),
+    snapshot: hud.snapshot,
+  });
+  const ticker = createTicker({
+    kills: hud.kills,
+    now: () => rt.clock.now(),
+    recent: (n) => rt.log.recent(n),
+    run: () => hud.snapshot()?.run,
+    xp: hud.xp,
+  });
+  mountFooter(ctx.ui, track(footer), FOOTER_MOUNT);
+  ctx.ui.setWidget("wow-ticker", track(ticker), { placement: "aboveEditor" });
+  paint();
+  return () => {
+    unsubscribe();
+    clearInterval(tick);
+    repaint.dispose();
+    hud.dispose();
+    tuis.clear();
+  };
+}
+
+export function installUi(pi: ExtensionAPI, rt: HarnessRuntime): void {
+  pi.registerMessageRenderer<WowEventDetails>("wow-event", renderEventCard);
+  pi.registerEntryRenderer<HumanLineDetails>("wow-human", renderHumanLine);
+  let unmount: (() => void) | undefined;
+  pi.on("session_start", (_event, ctx) => {
+    unmount?.();
+    unmount = ctx.mode === "tui" ? mountUi({ ctx, pi, rt }) : undefined;
+  });
+  pi.on("session_shutdown", () => {
+    unmount?.();
+    unmount = undefined;
+  });
+}
+```
+
+- [ ] **Add the insertion line.** In `packages/harness/src/extension/extension.ts` add
+
+```ts
+import { installUi } from "#harness/ui/install";
+```
+
+and `installUi(pi, rt);` in the factory body after `installPrompt(pi, rt);`
+(or after the last installer line that is present) and before
+`installCommands(pi, rt);` and `installShutdown(pi, rt);` (contract 2.5).
+Change no other line.
+
+- [ ] **Run the tests and see them pass.**
+
+```bash
+mise test packages/harness/src/ui/install.test.ts
+mise test packages/harness/src/extension
+bun run tsc --noEmit -p packages/harness
+mise lint
+mise format
+```
+
+Expected: every test passes; `tsc`, `lint` and `format` exit 0.
+
+- [ ] **Commit.**
+
+```bash
+cd "$(git rev-parse --show-toplevel)"
+mise ci:checks
+git add packages/harness/src/ui/install.ts \
+  packages/harness/src/ui/install.test.ts \
+  packages/harness/src/extension/extension.ts
+mise exec -- git commit -m "feat: Mount the harness UI in Pi sessions" -m "The footer, ticker, cards, title and working message need one owner that mounts them per session and repaints them from the game log. A 10 Hz cap and a 1 s tick keep the pane live without a render on every packet."
+```
+
+
+---
+
 ## Task U10: human slash commands
 
 **Needs:** U1c, F5a (`createTestRuntime`), F7a (`extension.ts`), F7b
@@ -5600,468 +6062,6 @@ git add packages/harness/src/extension/commands.ts \
   packages/harness/src/extension/commands.test.ts \
   packages/harness/src/extension/extension.ts
 mise exec -- git commit -m "feat: Add harness human slash commands" -m "The human needs to stop, chat, read the log and see the last [now] line without a model turn. The commands log their own human/input rows because Pi runs them before the input event."
-```
-
-
----
-
-## Task U11a: mount the UI in each Pi session
-
-**Needs:** U2, U3, U4, U9, U1c, A3 (`nowSnapshot`), F5a, F7a, P3 (it lands `installPrompt` in `extension.ts` first).
-
-**Files**
-
-- Create: `packages/harness/src/ui/install.ts`
-- Modify: `packages/harness/src/extension/extension.ts` (insertion point: one import line and one call line)
-- Test: `packages/harness/src/ui/install.test.ts`
-
-**Interfaces**
-
-- Consumes: `nowSnapshot(rt: HarnessRuntime): NowSnapshot | undefined` (A3);
-  `createFooter`, `FooterChrome` (U2); `createTicker` (U3);
-  `renderEventCard`, `renderHumanLine` (U4); `titleFor`, `workingMessage`
-  (U9); `glyphSetName()` (U1a); `HarnessRuntime` members `log`, `flags`,
-  `session`, `connection`, `ready.inWorld`; `Capabilities`
-  (`@tuicraft/core`); Pi: `pi.on("session_start" | "session_shutdown")`,
-  `pi.registerMessageRenderer`, `pi.registerEntryRenderer`,
-  `pi.getThinkingLevel`, `ctx.mode`, `ctx.model`, `ctx.getContextUsage`,
-  `ctx.ui.setFooter`, `setWidget`, `setTitle`, `setWorkingMessage`.
-- Produces:
-
-```ts
-export type FooterMount = "footer" | "widget";
-export type Factory = (tui: TUI, theme: Theme) => Component;
-export const REPAINT_GAP_MS = 100;
-export const TICK_MS = 1000;
-export function mountFooter(ui: ExtensionUIContext, factory: Factory, mount: FooterMount): void;
-export function installUi(pi: ExtensionAPI, rt: HarnessRuntime): void;
-```
-
-Behaviour (contract 2.14, design E):
-
-- The two renderers register once, in `installUi` itself, not in
-  `session_start` (which fires again on `/new`, `/resume` and `/fork`).
-- On `session_start` with `ctx.mode === "tui"` only (luna-runtime #13: the
-  faux smoke tests run without a TUI), it mounts the footer through
-  `mountFooter(…, FOOTER_MOUNT)` and the ticker with
-  `setWidget("wow-ticker", …, { placement: "aboveEditor" })`, then paints
-  once. A second `session_start` unmounts the first.
-- One cached `NowSnapshot` feeds the footer, the title and the working
-  message. It is refreshed only on a repaint, so a key press does not
-  rebuild views.
-- A repaint happens at most once per `REPAINT_GAP_MS` after a log append,
-  and once per `TICK_MS` tick. It refreshes the snapshot, calls `setTitle`
-  and `setWorkingMessage`, and calls `requestRender` on each TUI that a
-  factory got.
-- Kills and XP for the ticker count `combat/kill_credit` rows and the
-  `amount` of `xp/gain` rows from the session start.
-- `session_shutdown` clears the interval, the pending repaint and the log
-  subscriptions.
-- The tests use the found plan's `createTestRuntime` with its mock handle,
-  so `nowSnapshot(rt)` (A3) runs on that handle. If it throws there, the
-  fault is in A3 or in the fixture, not in `install.ts`; report it to the
-  owner of that task and do not catch it here.
-- `FOOTER_MOUNT` is a module constant, `"footer"`. The V5 fallback
-  (`"widget"`, a 4-line widget below the editor) is the same code path
-  through `mountFooter`; U11b flips the constant if V5 fails (contract
-  issue 9).
-
-**Steps**
-
-- [ ] **Write the failing test.** `packages/harness/src/ui/install.test.ts`:
-
-```ts
-import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
-import type { Component, TUI } from "@earendil-works/pi-tui";
-import { FOOTER_ROWS } from "#harness/ui/footer";
-import { nerd } from "#harness/ui/glyphs";
-import {
-  type Factory,
-  installUi,
-  mountFooter,
-  REPAINT_GAP_MS,
-  TICK_MS,
-} from "#harness/ui/install";
-import { TICKER_ROWS } from "#harness/ui/ticker";
-import {
-  createFakeTui,
-  createPiRecorder,
-  createUiRecorder,
-  recorderContext,
-  type UiRecorder,
-} from "#test-support/pi-recorder";
-import { createTestRuntime } from "#test-support/runtime-fixture";
-import { plain, testTheme } from "#test-support/ui-fixture";
-
-const theme = testTheme();
-
-async function mounted(mode: "tui" | "rpc" = "tui") {
-  const { rt } = await createTestRuntime();
-  const fake = createPiRecorder();
-  installUi(fake.pi, rt);
-  const ui = createUiRecorder();
-  const ctx = recorderContext({ contextPct: 14, mode, ui: ui.ui });
-  await fake.fire(
-    "session_start",
-    { reason: "startup", type: "session_start" },
-    ctx,
-  );
-  return { ctx, fake, rt, ui };
-}
-
-function asFactory(value: unknown): Factory {
-  if (typeof value !== "function") throw new Error("no factory");
-  return value as Factory;
-}
-
-function widget(ui: UiRecorder, key: string): Factory {
-  const call = ui.named("setWidget").find((args) => args[0] === key);
-  return asFactory(call?.[1]);
-}
-
-function footerOf(ui: UiRecorder): Factory {
-  const call = ui.named("setFooter")[0];
-  return call ? asFactory(call[0]) : widget(ui, "wow-footer");
-}
-
-function mount(factory: Factory): {
-  component: Component;
-  tui: TUI;
-  renders: () => number;
-} {
-  const { tui, renders } = createFakeTui();
-  return { component: factory(tui, theme), renders, tui };
-}
-
-describe("installUi", () => {
-  beforeEach(() => jest.useFakeTimers());
-  afterEach(() => jest.useRealTimers());
-
-  test("registers the event card and human line renderers", async () => {
-    const { fake } = await mounted("rpc");
-    expect(fake.messageRenderers.has("wow-event")).toBe(true);
-    expect(fake.entryRenderers.has("wow-human")).toBe(true);
-  });
-
-  test("outside the TUI it makes no UI call", async () => {
-    const { ui } = await mounted("rpc");
-    expect(ui.calls).toEqual([]);
-  });
-
-  test("mounts a 4-row footer and a 6-row ticker above the editor", async () => {
-    const { ui } = await mounted();
-    const footer = mount(footerOf(ui)).component;
-    const ticker = mount(widget(ui, "wow-ticker")).component;
-    const options = ui
-      .named("setWidget")
-      .find((args) => args[0] === "wow-ticker")?.[2];
-    expect(footer.render(120)).toHaveLength(FOOTER_ROWS);
-    expect(ticker.render(120)).toHaveLength(TICKER_ROWS);
-    expect(options).toEqual({ placement: "aboveEditor" });
-  });
-
-  test("sets the tab title and the working message on mount", async () => {
-    const { ui } = await mounted();
-    expect(ui.named("setTitle")).toHaveLength(1);
-    expect(ui.named("setWorkingMessage")).toHaveLength(1);
-  });
-
-  test("log appends repaint at most once per 100 ms", async () => {
-    const { rt, ui } = await mounted();
-    const { renders } = mount(footerOf(ui));
-    for (let i = 0; i < 5; i += 1)
-      rt.log.append({
-        class: "log",
-        data: {},
-        domain: "xp",
-        event: "xp/gain",
-        text: `xp ${i}`,
-      });
-    expect(renders()).toBe(0);
-    jest.advanceTimersByTime(REPAINT_GAP_MS);
-    expect(renders()).toBe(1);
-    expect(ui.named("setTitle")).toHaveLength(2);
-  });
-
-  test("a 1 s tick repaints while nothing happens", async () => {
-    const { ui } = await mounted();
-    const { renders } = mount(footerOf(ui));
-    jest.advanceTimersByTime(TICK_MS + REPAINT_GAP_MS);
-    expect(renders()).toBe(1);
-  });
-
-  test("kills and XP from the log reach the ticker head", async () => {
-    const { rt, ui } = await mounted();
-    const ticker = mount(widget(ui, "wow-ticker")).component;
-    rt.log.append({
-      class: "log",
-      data: { name: "Springpaw Stalker" },
-      domain: "combat",
-      event: "combat/kill_credit",
-      text: "Springpaw Stalker killed",
-    });
-    rt.log.append({
-      class: "log",
-      data: { amount: 84 },
-      domain: "xp",
-      event: "xp/gain",
-      text: "+84 xp",
-    });
-    expect(plain(ticker.render(160))[0]).toContain(
-      `${nerd.kill} 1 kill ${nerd.xp} +84 xp`,
-    );
-  });
-
-  test("session_shutdown stops the timers", async () => {
-    const { ctx, fake, ui } = await mounted();
-    const { renders } = mount(footerOf(ui));
-    await fake.fire(
-      "session_shutdown",
-      { reason: "quit", type: "session_shutdown" },
-      ctx,
-    );
-    jest.advanceTimersByTime(5 * TICK_MS);
-    expect(renders()).toBe(0);
-  });
-});
-
-describe("mountFooter", () => {
-  test("the V5 fallback puts the footer in a widget below the editor", () => {
-    const ui = createUiRecorder();
-    const factory: Factory = () => ({
-      invalidate: () => undefined,
-      render: () => [],
-    });
-    mountFooter(ui.ui, factory, "widget");
-    expect(ui.named("setWidget")).toEqual([
-      ["wow-footer", factory, { placement: "belowEditor" }],
-    ]);
-    mountFooter(ui.ui, factory, "footer");
-    expect(ui.named("setFooter")).toEqual([[factory]]);
-  });
-});
-```
-
-- [ ] **Run the test and see it fail.**
-
-```bash
-mise test packages/harness/src/ui/install.test.ts
-```
-
-Expected: FAIL — error: Cannot find module "#harness/ui/install" from ".../src/ui/install.test.ts".
-
-- [ ] **Implement.** `packages/harness/src/ui/install.ts`:
-
-```ts
-import type {
-  ExtensionAPI,
-  ExtensionContext,
-  ExtensionUIContext,
-  Theme,
-} from "@earendil-works/pi-coding-agent";
-import type { Component, TUI } from "@earendil-works/pi-tui";
-import type { Capabilities } from "@tuicraft/core";
-import type {
-  GameLogEntry,
-  HumanLineDetails,
-  WowEventDetails,
-} from "#harness/contract/log";
-import type { HarnessRuntime } from "#harness/contract/services";
-import type { NowSnapshot } from "#harness/contract/views";
-import { nowSnapshot } from "#harness/ops/views";
-import { renderEventCard, renderHumanLine } from "#harness/ui/cards";
-import { glyphSetName } from "#harness/ui/context";
-import { createFooter, type FooterChrome } from "#harness/ui/footer";
-import { titleFor, workingMessage } from "#harness/ui/status-line";
-import { createTicker } from "#harness/ui/ticker";
-
-export type FooterMount = "footer" | "widget";
-export type Factory = (tui: TUI, theme: Theme) => Component;
-
-type Hud = {
-  snapshot: () => NowSnapshot | undefined;
-  refresh: () => void;
-  kills: () => number;
-  xp: () => number;
-  dispose: () => void;
-};
-type MountInit = {
-  pi: ExtensionAPI;
-  rt: HarnessRuntime;
-  ctx: ExtensionContext;
-};
-
-export const REPAINT_GAP_MS = 100;
-export const TICK_MS = 1000;
-
-const FOOTER_MOUNT: FooterMount = "footer";
-
-const CHIPS = [
-  ["jev", "jev"],
-  ["navigation", "nav"],
-  ["factions", "factions"],
-  ["spells", "spells"],
-] as const;
-
-function missingOf(
-  capabilities: Capabilities | undefined,
-): FooterChrome["missing"] {
-  if (!capabilities) return [];
-  return CHIPS.filter(([key]) => !capabilities[key]).map(([, chip]) => chip);
-}
-
-function footerChrome({ pi, rt, ctx }: MountInit): FooterChrome {
-  return {
-    connection: rt.connection(),
-    contextPct: ctx.getContextUsage()?.percent ?? undefined,
-    glyphSet: glyphSetName(),
-    logRows: rt.log.count(),
-    missing: missingOf(rt.ready.inWorld()?.capabilities),
-    model: ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : rt.flags.model,
-    thinking: pi.getThinkingLevel(),
-    unreadWhispers: rt.session.unreadWhispers,
-    wake: rt.session.wake,
-  };
-}
-
-function createHud(rt: HarnessRuntime): Hud {
-  let snapshot = nowSnapshot(rt);
-  let kills = 0;
-  let xp = 0;
-  const count = (entry: GameLogEntry) => {
-    const amount = entry.data["amount"];
-    if (entry.event === "combat/kill_credit") kills += 1;
-    if (entry.event === "xp/gain" && typeof amount === "number") xp += amount;
-  };
-  const dispose = rt.log.subscribe(count);
-  const refresh = () => {
-    snapshot = nowSnapshot(rt);
-  };
-  return {
-    dispose,
-    kills: () => kills,
-    refresh,
-    snapshot: () => snapshot,
-    xp: () => xp,
-  };
-}
-
-function createRepaint(paint: () => void): {
-  request: () => void;
-  dispose: () => void;
-} {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const run = () => {
-    timer = undefined;
-    paint();
-  };
-  const request = () => {
-    timer ??= setTimeout(run, REPAINT_GAP_MS);
-  };
-  return { dispose: () => clearTimeout(timer), request };
-}
-
-export function mountFooter(
-  ui: ExtensionUIContext,
-  factory: Factory,
-  mount: FooterMount,
-): void {
-  if (mount === "widget") {
-    ui.setWidget("wow-footer", factory, { placement: "belowEditor" });
-    return;
-  }
-  ui.setFooter(factory);
-}
-
-function mountUi(init: MountInit): () => void {
-  const { rt, ctx } = init;
-  const hud = createHud(rt);
-  const tuis = new Set<TUI>();
-  const track =
-    (factory: Factory): Factory =>
-    (tui, theme) => {
-      tuis.add(tui);
-      return factory(tui, theme);
-    };
-  const paint = () => {
-    hud.refresh();
-    ctx.ui.setTitle(titleFor(hud.snapshot()));
-    ctx.ui.setWorkingMessage(workingMessage(hud.snapshot()?.run));
-    for (const tui of tuis) tui.requestRender();
-  };
-  const repaint = createRepaint(paint);
-  const unsubscribe = rt.log.subscribe(repaint.request);
-  const tick = setInterval(repaint.request, TICK_MS);
-  const footer = createFooter({
-    chrome: () => footerChrome(init),
-    snapshot: hud.snapshot,
-  });
-  const ticker = createTicker({
-    kills: hud.kills,
-    now: () => rt.clock.now(),
-    recent: (n) => rt.log.recent(n),
-    run: () => hud.snapshot()?.run,
-    xp: hud.xp,
-  });
-  mountFooter(ctx.ui, track(footer), FOOTER_MOUNT);
-  ctx.ui.setWidget("wow-ticker", track(ticker), { placement: "aboveEditor" });
-  paint();
-  return () => {
-    unsubscribe();
-    clearInterval(tick);
-    repaint.dispose();
-    hud.dispose();
-    tuis.clear();
-  };
-}
-
-export function installUi(pi: ExtensionAPI, rt: HarnessRuntime): void {
-  pi.registerMessageRenderer<WowEventDetails>("wow-event", renderEventCard);
-  pi.registerEntryRenderer<HumanLineDetails>("wow-human", renderHumanLine);
-  let unmount: (() => void) | undefined;
-  pi.on("session_start", (_event, ctx) => {
-    unmount?.();
-    unmount = ctx.mode === "tui" ? mountUi({ ctx, pi, rt }) : undefined;
-  });
-  pi.on("session_shutdown", () => {
-    unmount?.();
-    unmount = undefined;
-  });
-}
-```
-
-- [ ] **Add the insertion line.** In `packages/harness/src/extension/extension.ts` add
-
-```ts
-import { installUi } from "#harness/ui/install";
-```
-
-and `installUi(pi, rt);` in the factory body after `installPrompt(pi, rt);`
-(or after the last installer line that is present) and before
-`installCommands(pi, rt);` and `installShutdown(pi, rt);` (contract 2.5).
-Change no other line.
-
-- [ ] **Run the tests and see them pass.**
-
-```bash
-mise test packages/harness/src/ui/install.test.ts
-mise test packages/harness/src/extension
-bun run tsc --noEmit -p packages/harness
-mise lint
-mise format
-```
-
-Expected: every test passes; `tsc`, `lint` and `format` exit 0.
-
-- [ ] **Commit.**
-
-```bash
-cd "$(git rev-parse --show-toplevel)"
-mise ci:checks
-git add packages/harness/src/ui/install.ts \
-  packages/harness/src/ui/install.test.ts \
-  packages/harness/src/extension/extension.ts
-mise exec -- git commit -m "feat: Mount the harness UI in Pi sessions" -m "The footer, ticker, cards, title and working message need one owner that mounts them per session and repaints them from the game log. A 10 Hz cap and a 1 s tick keep the pane live without a render on every packet."
 ```
 
 

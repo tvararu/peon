@@ -6580,7 +6580,7 @@ MSG
 
 ## Task B12: `engage` target choice and guards
 
-The first half of `engage` (design B.4 steps 1–2, K5, D11): the guards before any run (dead; another attacker when the target is not that attacker; under 50 % HP or 30 % mana before a pull, mana only for a mana class; no Jev key when `capabilities()` says so; an unknown quest), and, inside the run, the target choice: a named target (explores up to 3 times when not seen, skips the level cap), the attacker when one is on you, else the nearest hostile unit at most 3 levels above you that no other player tapped (explores up to 3 times; `too_strong` with conditional text and no `Next:` when only stronger units are in view). A pull while a unit attacks you is a defence, so it skips the HP and mana guard (otherwise `engage` refuses `low_health` and `rest` refuses `in_combat`, and the model has no way out). The fight itself is B13; until B13 lands, the run returns `FAILED not_implemented`.
+The first half of `engage` (design B.4 steps 1–2, K5, D11): the guards before any run (dead; another attacker when the target is not that attacker; under 50 % HP or 30 % mana before a pull, mana only for a mana class; no Jev key when `capabilities()` says so; an unknown quest), and, inside the run, the target choice: a named target (explores up to 3 times when not seen, skips the level cap; a named unit that another player tapped refuses `tapped_by_other`, because a kill on a tapped unit gives no loot, experience or quest credit and a small model cannot know that; `Next:` names an untapped unit of the same name in view, else `engage()`), the attacker when one is on you, else the nearest hostile unit at most 3 levels above you that no other player tapped (explores up to 3 times; `too_strong` with conditional text and no `Next:` when only stronger units are in view). A pull while a unit attacks you is a defence, so it skips the HP and mana guard (otherwise `engage` refuses `low_health` and `rest` refuses `in_combat`, and the model has no way out). The fight itself is B13; until B13 lands, the run returns `FAILED not_implemented`.
 
 **Files**
 - Create: `packages/harness/src/tools/engage-choose.ts`
@@ -6601,7 +6601,7 @@ The first half of `engage` (design B.4 steps 1–2, K5, D11): the guards before 
   - `export function guardPull(ctx: ToolCtx<EngageAfter>, args: EngageArgs): void;`
   - `export function checkHelper(ctx: ToolCtx<EngageAfter>): void;`
 - Produces (`engage.ts`): `export function emptyEngage(): EngageAfter;`, `export const engageSpec: GameToolSpec<typeof engageParams, "engage">;`, `export const engageTool`
-- Reason codes: `dead`, `other_attacker`, `low_health`, `low_mana`, `no_combat_helper`, `unknown_quest`, `too_strong`, `friendly`, `not_seen`, `ambiguous_unit` (A3), `not_implemented` (until B13)
+- Reason codes: `dead`, `other_attacker`, `low_health`, `low_mana`, `no_combat_helper`, `unknown_quest`, `too_strong`, `tapped_by_other`, `friendly`, `not_seen`, `ambiguous_unit` (A3), `not_implemented` (until B13)
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -6725,6 +6725,67 @@ describe("chooseTarget", () => {
       target: "Springpaw Stalker",
     });
     expect(choice).toMatchObject({ guid: STALKER, named: true });
+  });
+
+  test("named: a unit another player tapped refuses tapped_by_other", async () => {
+    const t = await field(10);
+    setUnits(t.handle, [
+      unitRow({
+        distance: 10,
+        entry: 15_366,
+        guid: STALKER,
+        level: 7,
+        name: "Springpaw Stalker",
+        tappedByOther: true,
+        x: 10,
+        y: 0,
+      }),
+      lynx,
+    ]);
+    const refused = chooseTarget(toolCtx<EngageAfter>(t), {
+      target: "Springpaw Stalker",
+    });
+    await expect(refused).rejects.toMatchObject({
+      next: "engage()",
+      reason: "tapped_by_other",
+    });
+    await expect(refused).rejects.toHaveProperty(
+      "detail",
+      expect.stringMatching(
+        /^Springpaw Stalker u\d+ is tapped by another player; killing it gives you no loot, experience or quest credit\.$/,
+      ),
+    );
+  });
+
+  test("named: a tapped unit points at an untapped one of the same name", async () => {
+    const t = await field(10);
+    setUnits(t.handle, [
+      unitRow({
+        distance: 10,
+        entry: 15_366,
+        guid: STALKER,
+        level: 7,
+        name: "Springpaw Stalker",
+        tappedByOther: true,
+        x: 10,
+        y: 0,
+      }),
+      unitRow({
+        distance: 40,
+        entry: 15_366,
+        guid: 0x22n,
+        level: 7,
+        name: "Springpaw Stalker",
+        x: 40,
+        y: 0,
+      }),
+    ]);
+    await expect(
+      chooseTarget(toolCtx<EngageAfter>(t), { target: "Springpaw Stalker" }),
+    ).rejects.toMatchObject({
+      next: expect.stringMatching(/^engage\(target: "u\d+"\)$/),
+      reason: "tapped_by_other",
+    });
   });
 
   test("a named target not seen yet explores until it comes into view", async () => {
@@ -7052,6 +7113,19 @@ async function findUnnamed(ops: OpsCtx): Promise<UnitView> {
   });
 }
 
+function tappedByOther(ctx: ViewCtx, unit: UnitView): Refusal {
+  const free = hostiles(ctx).find(
+    (view) => view.name === unit.name && view.ref !== unit.ref,
+  );
+  return new Refusal({
+    detail: `${unit.name} ${unit.ref} is tapped by another player; killing it gives you no loot, experience or quest credit.`,
+    next: free
+      ? nextCall("engage", { target: free.ref })
+      : nextCall("engage"),
+    reason: "tapped_by_other",
+  });
+}
+
 async function findNamed(ops: OpsCtx, text: string): Promise<UnitView> {
   const lower = text.toLowerCase();
   let resolved = resolveUnit(ops, { alive: true, text });
@@ -7068,6 +7142,7 @@ async function findNamed(ops: OpsCtx, text: string): Promise<UnitView> {
   }
   if (resolved.kind !== "unit")
     throw unitRefusal({ param: "target", resolved, tool: "engage" });
+  if (resolved.unit.tappedByOther) throw tappedByOther(ops, resolved.unit);
   return resolved.unit;
 }
 
@@ -7411,7 +7486,7 @@ export const engageTool = defineGameTool(engageSpec);
 - [ ] **Step 4: Run the tests and see them pass**
 
 Run: `mise test packages/harness/src/tools/engage-choose.test.ts packages/harness/src/tools/engage.test.ts`
-Expected: PASS, 17 tests (14 and 3).
+Expected: PASS, 19 tests (16 and 3).
 
 - [ ] **Step 5: Commit**
 

@@ -168,7 +168,11 @@ An agent self-review of this spec settled the points below on
 2026-09-26. The maintainer approved sections A-K (R28-R38), but not these
 settlements. The advisor accepted them on 2026-09-26 in the maintainer's
 place under the goal (entry 38), pending his morning review. Each line
-gives the settlement, the section it changed and the commit.
+gives the settlement, the section it changed and the commit. Entries
+17-19 are decisions the plan's contract adds, and entries 20-21 are
+advisor rulings from the plan review; the advisor approved the plan in
+the maintainer's place on 2026-09-26, and these wait for the same
+review.
 
 1. `engage` takes a new attacker as its next target while `count` allows
    another kill, else finishes the kill and names the attacker in
@@ -220,6 +224,33 @@ gives the settlement, the section it changed and the commit.
     python (was about 75 % of CLI calls). Section 3.1; `e86494a`.
 16. `9a5010c` (SRP reference-server tests) is on `epic/pi-harness` only,
     not on `main`. Eval suite; `4d3bda3`.
+17. Contract decision D1: the grader tooling lives in
+    `packages/harness/src/grader/`, not in `packages/devtools`, because
+    devtools cannot import `ui/glyphs.ts`. Sections 4.2, 6.I, 8;
+    `docs/plans/2026-09-26-pi-harness-epic-plan/contract.md` section 5;
+    `9dc0483`.
+18. Contract decision D2: the P6 watcher is tracked in the repository
+    (`grader/watch.ts`, eval-infra task E6b); it writes only into the run
+    dir. Section 8; contract section 5; `9dc0483`.
+19. Contract decisions D3-D16 are as `contract.md` section 5 states them
+    (core surface defaults in C0, reused core types, the creature query
+    surface, `place_changed`, `ToolResult.body`, the `formatContent`
+    line 1, tool stubs, the `extension.ts` insertion lines, a new attacker
+    inside `engage`, no Pi tool timeout, the area-name JSON import, the
+    faux provider API, the `social.text` description and the Truth reader
+    subprocess). Sections 4 and 6; contract section 5; `9dc0483`,
+    `4014bc3`.
+20. The advisor ruled: a named `engage` on a unit with `tappedByOther`
+    returns `REFUSED tapped_by_other` with a `Next:` line (an untapped
+    unit of the same name in view, else `engage()`). A kill on a tapped
+    unit gives no loot, experience or quest credit, and a small model
+    cannot know that. Sections 6.B, 9.2; plan task B12
+    (`ops-tools-b.md`).
+21. The advisor ruled: the harness login's `authWithRetry(config, {
+    maxAttempts: 2 })` (plan task F5b, `defaultLogin`) is accepted as a
+    retry of a transient failure. It is separate from settlement 8,
+    which binds the grader: a grader still does not retry a login
+    refusal. Sections 6.H, 8; plan task F5b (`found.md`).
 
 ## 3. Context
 

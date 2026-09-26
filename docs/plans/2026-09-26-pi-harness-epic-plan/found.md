@@ -14,8 +14,8 @@ Plan index: [2026-09-26-pi-harness-epic-plan.md](../2026-09-26-pi-harness-epic-p
 
 ## Area overview
 
-1. Tasks: F1, F2, F3a, F3b, F3c, F4a, F4b, F5aa, F5b, F5ab, F5c, F6a, F7a, F7b, F7c, F8a (V3), F8b (V4), F8c (V6), F8d (V2), F6b, F8e (V1, V5, V6 live half, V7 live).
-2. Order inside the area: F1 → F2 → {F3a, F3b → F3c, F4a → F4b, F5aa → F5b → F5ab → {F5c, F6a, F7a → {F7b, F7c}}} → F8a → {F8b, F8c, F8d} → F6b → F8e.
+1. Tasks: F1, F2, F3a, F3b, F3c, F4a, F4b, F5aa, F5b, F5ab, F6a, F7a, F7b, F7c, F8a (V3), F5c, F8b (V4), F8c (V6), F8d (V2), F6b, F8e (V1, V5, V6 live half, V7 live).
+2. Order inside the area: F1 → F2 → {F3a, F3b → F3c, F4a → F4b, F5aa → F5b → F5ab → {F6a, F7a → {F7b, F7c}}} → F8a → {F5c, F8b, F8c, F8d} → F6b → F8e. F5c comes after F8a because it also needs A2 (ops-tools-a), and F8a (V3) is the gate.
 3. F8a (V3) is the gate for every run tool (B5, B10, B11, B13). It is the first behaviour test after F6a and F7b. It passed as a scratch probe on the faux provider (see "Measured facts").
 4. Every task runs in an Orca child worktree of the epic worktree `/home/deity/orca/workspaces/tuicraft/pi-epic` and lands on `epic/pi-harness` by rebase and fast-forward push ([plan index](../2026-09-26-pi-harness-epic-plan.md) "Execution mechanics"; never a merge commit). Live steps run from that child worktree root, so they test the task's own code. No task merges PR #367.
 5. The harness adds no CLI verb and no core change. Legacy `mise ci` stays green after every commit (R21).
