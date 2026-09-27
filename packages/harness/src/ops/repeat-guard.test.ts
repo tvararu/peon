@@ -3,6 +3,7 @@ import type { ToolResult } from "#harness/contract/result";
 import type { RepeatCall } from "#harness/contract/services";
 import type { PoseView } from "#harness/contract/views";
 import {
+  CONTINUES,
   createRepeatGuard,
   REPEAT_MOVE_YD,
   repeatRefusal,
@@ -132,6 +133,39 @@ describe("createRepeatGuard", () => {
     guard.record({ ...call(), result: outcome("REFUSED", "too_far") });
     now.t = 300_001;
     expect(guard.check(call())).toBeUndefined();
+  });
+
+  test("a PARTLY blocks its Next from here but is never refused", () => {
+    const guard = guardAt({ t: 0 });
+    const walk = call({ args: { to: "explore" }, tool: "travel" });
+    guard.record({
+      ...walk,
+      result: outcome("PARTLY", "obstructed", 'travel(to: "explore")'),
+    });
+    expect(guard.check(walk)).toBeUndefined();
+    expect(guard.blocks(walk)).toBe(true);
+    expect(guard.blocks({ ...walk, digest: "d2" })).toBe(false);
+    expect(guard.hits()).toBe(0);
+  });
+
+  test("a continuation is never stored", () => {
+    const guard = guardAt({ t: 0 });
+    for (const reason of CONTINUES) {
+      const walk = call({ args: { reason }, tool: "engage" });
+      guard.record({ ...walk, result: outcome("PARTLY", reason) });
+      guard.record({ ...walk, result: outcome("FAILED", reason) });
+      expect(guard.blocks(walk)).toBe(false);
+    }
+  });
+
+  test("untried leaves out the call it refuses", () => {
+    const guard = guardAt({ t: 0 });
+    const fight = call({ args: { target: "u9" }, tool: "engage" });
+    guard.record({
+      ...fight,
+      result: outcome("FAILED", "lost", 'engage(target: "u9")'),
+    });
+    expect(guard.check(fight)?.untried).toEqual([]);
   });
 
   test("untried lists distinct next texts, newest first, at most 3", () => {

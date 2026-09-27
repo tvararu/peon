@@ -173,8 +173,13 @@ describe("defineGameTool", () => {
     expect(run).toHaveBeenCalledTimes(1);
   });
 
-  test("a Next that repeats the call that just stopped asks the human", async () => {
-    const { rt } = await createTestRuntime();
+  test("a Next that repeats the call keeps it until a repeat makes no progress", async () => {
+    const { rt } = await createTestRuntime({
+      parts: {
+        progress: fixedProgress(),
+        repeats: createRepeatGuard({ now: () => 0 }),
+      },
+    });
     const run: Run = () =>
       Promise.resolve(
         result("PARTLY", {
@@ -184,9 +189,42 @@ describe("defineGameTool", () => {
           reason: "cut_off",
         }),
       );
-    const out = await runTool(probe(run)(rt), { text: "a" });
-    expect(out.text).toBe(
+    const tool = probe(run)(rt);
+    expect((await runTool(tool, { text: "a" })).text).toBe(
+      'PARTLY cut_off: said half.\nNext: social(text: "a")',
+    );
+    expect((await runTool(tool, { text: "a" })).text).toBe(
       'PARTLY cut_off: said half.\nNext: ask the human: "My social call stopped (cut_off) and repeating it will not help. What should I do?"',
+    );
+  });
+
+  test("a repeat that made progress keeps the same call as its Next", async () => {
+    let at: number | undefined;
+    const { rt } = await createTestRuntime({
+      parts: {
+        progress: {
+          ...fixedProgress(),
+          lastProgress: () =>
+            at === undefined ? undefined : { at, event: "combat/kill_credit" },
+        },
+        repeats: createRepeatGuard({ now: () => 0 }),
+      },
+    });
+    const run: Run = () => {
+      at = rt.clock.now();
+      return Promise.resolve(
+        result("PARTLY", {
+          after: emptySocial(),
+          detail: "said half.",
+          next: 'social(text: "a")',
+          reason: "cut_off",
+        }),
+      );
+    };
+    const tool = probe(run)(rt);
+    await runTool(tool, { text: "a" });
+    expect((await runTool(tool, { text: "a" })).text).toBe(
+      'PARTLY cut_off: said half.\nNext: social(text: "a")',
     );
   });
 

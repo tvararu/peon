@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { guardNext, parseCall } from "#harness/ops/next-guard";
+import { guardNext } from "#harness/ops/next-guard";
+import { parseCall } from "#harness/ops/repeat-guard";
 import { result } from "#harness/tools/define";
 
 const never = () => false;
@@ -37,15 +38,60 @@ describe("guardNext", () => {
     reason: "queue_exhausted",
   });
 
-  test("a PARTLY whose Next is the same call asks the human instead", () => {
+  const sameCall = (call: { tool: string; args: Record<string, unknown> }) =>
+    call.tool === "engage" && call.args["count"] === 2;
+
+  test("a first PARTLY whose Next is the same call keeps it", () => {
     const guarded = guardNext(partly, {
       args: { count: 2, target: "Springpaw Stalker" },
       blocked: never,
+      progressed: false,
+      tool: "engage",
+    });
+    expect(guarded).toBe(partly);
+  });
+
+  test("a repeat with no progress from the same place asks the human", () => {
+    const guarded = guardNext(partly, {
+      args: { count: 2, target: "Springpaw Stalker" },
+      blocked: sameCall,
+      progressed: false,
       tool: "engage",
     });
     expect(guarded.next).toBe(
       'ask the human: "My engage call stopped (queue_exhausted) and repeating it will not help. What should I do?"',
     );
+  });
+
+  test("a repeat that made progress keeps its Next", () => {
+    const guarded = guardNext(partly, {
+      args: { count: 2, target: "Springpaw Stalker" },
+      blocked: sameCall,
+      progressed: true,
+      tool: "engage",
+    });
+    expect(guarded).toBe(partly);
+  });
+
+  test.each([
+    "loot_denied:release_only",
+    "loot_denied:timeout",
+    "loot_denied:loot_source_unavailable",
+  ])("a quest engage stopped by %s may run again", (reason) => {
+    const denied = result("PARTLY", {
+      after: {},
+      detail: "5 of 8 kills.",
+      next: 'engage(quest: "8325")',
+      reason,
+    });
+    expect(
+      guardNext(denied, {
+        args: { quest: "8325" },
+        blocked: () => true,
+        progressed: false,
+        tool: "engage",
+      }),
+    ).toBe(denied);
   });
 
   test("a Next the repeat guard would block asks the human instead", () => {
@@ -58,6 +104,7 @@ describe("guardNext", () => {
     const guarded = guardNext(failed, {
       args: { do: "talk", npc: "u14" },
       blocked: (call) => call.tool === "travel" && call.args["to"] === "u14",
+      progressed: false,
       tool: "interact",
     });
     expect(guarded.next).toBe(
@@ -69,12 +116,18 @@ describe("guardNext", () => {
     const other = guardNext(partly, {
       args: { count: 3, target: "Springpaw Stalker" },
       blocked: never,
+      progressed: false,
       tool: "engage",
     });
     expect(other.next).toBe(partly.next);
     const done = result("DONE", { after: {}, detail: "ok.", next: "look()" });
     expect(
-      guardNext(done, { args: {}, blocked: () => true, tool: "look" }).next,
+      guardNext(done, {
+        args: {},
+        blocked: () => true,
+        progressed: false,
+        tool: "look",
+      }).next,
     ).toBe("look()");
     const rest = result("PARTLY", {
       after: {},
@@ -82,9 +135,14 @@ describe("guardNext", () => {
       next: "rest()",
       reason: "time_limit",
     });
-    expect(guardNext(rest, { args: {}, blocked: never, tool: "rest" })).toBe(
-      rest,
-    );
+    expect(
+      guardNext(rest, {
+        args: {},
+        blocked: never,
+        progressed: false,
+        tool: "rest",
+      }),
+    ).toBe(rest);
   });
 
   test("a run stopped by something other than the human may be started again", () => {
@@ -95,7 +153,12 @@ describe("guardNext", () => {
       reason: "cancelled",
     });
     expect(
-      guardNext(stopped, { args: {}, blocked: () => true, tool: "recover" }),
+      guardNext(stopped, {
+        args: {},
+        blocked: () => true,
+        progressed: false,
+        tool: "recover",
+      }),
     ).toBe(stopped);
   });
 
@@ -110,6 +173,7 @@ describe("guardNext", () => {
       guardNext(capped, {
         args: { quest: "8325" },
         blocked: never,
+        progressed: false,
         tool: "engage",
       }),
     ).toBe(capped);

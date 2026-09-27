@@ -15,6 +15,14 @@ export const TIME_CODES: readonly string[] = [
   "busy",
   "human_waiting",
 ];
+export const CONTINUES: readonly string[] = [
+  "time_limit",
+  "cancelled",
+  "max_starts_reached",
+  "loot_denied:release_only",
+  "loot_denied:timeout",
+  "loot_denied:loot_source_unavailable",
+];
 export const REPEAT_MOVE_YD = 2;
 
 const REPEAT_TTL_MS = 300_000;
@@ -29,8 +37,15 @@ const CLEARING: ReadonlySet<ToolName> = new Set([
   "social",
 ]);
 
+export type CallShape = { tool: string; args: Record<string, unknown> };
+
+const CALL = /^([a-z_]+)\((.*)\)$/;
+const ARG =
+  /([a-z_]+): ("(?:[^"\\]|\\.)*"|-?\d+(?:\.\d+)?|true|false)(?:, |$)/y;
+
 type Failure = {
   at: number;
+  partly: boolean;
   digest: string;
   next: string | undefined;
   pose: PoseView | undefined;
@@ -50,7 +65,27 @@ export function stable(value: unknown): string {
   return JSON.stringify(value) ?? "undefined";
 }
 
-function keyOf({ args, tool }: RepeatCall): string {
+function argValue(raw: string): unknown {
+  if (raw === "true" || raw === "false") return raw === "true";
+  return raw.startsWith('"') ? JSON.parse(raw) : Number(raw);
+}
+
+export function parseCall(text: string): CallShape | undefined {
+  const [, tool, inner] = CALL.exec(text.trim()) ?? [];
+  if (tool === undefined || inner === undefined) return;
+  const args: Record<string, unknown> = {};
+  ARG.lastIndex = 0;
+  while (ARG.lastIndex < inner.length) {
+    const at = ARG.lastIndex;
+    const match = ARG.exec(inner);
+    const [, key, raw] = match ?? [];
+    if (key === undefined || raw === undefined || ARG.lastIndex === at) return;
+    args[key] = argValue(raw);
+  }
+  return { args, tool };
+}
+
+function keyOf({ args, tool }: { args: unknown; tool: string }): string {
   return `${tool}:${stable(args)}`;
 }
 
@@ -64,20 +99,24 @@ function moved(a: PoseView | undefined, b: PoseView | undefined): boolean {
 function storable(
   result: ToolResult<unknown>,
 ): result is ToolResult<unknown> & { reason: string } {
-  const failed = result.status === "REFUSED" || result.status === "FAILED";
+  const failed = result.status !== "DONE" && result.status !== "RUNNING";
   return (
     failed &&
     result.reason !== undefined &&
     result.reason !== "repeat" &&
-    !TIME_CODES.includes(result.reason)
+    !TIME_CODES.includes(result.reason) &&
+    !CONTINUES.includes(result.reason)
   );
 }
 
-function untriedOf(failures: Map<string, Failure>): string[] {
-  const newest = [...failures.values()].sort((a, b) => b.at - a.at);
-  const nexts = newest.flatMap((failure) =>
-    failure.next ? [failure.next] : [],
-  );
+function untriedOf(failures: Map<string, Failure>, key: string): string[] {
+  const newest = [...failures.values()]
+    .filter((failure) => !failure.partly)
+    .sort((a, b) => b.at - a.at);
+  const nexts = newest.flatMap((failure) => {
+    const call = failure.next ? parseCall(failure.next) : undefined;
+    return failure.next && !(call && keyOf(call) === key) ? [failure.next] : [];
+  });
   return [...new Set(nexts)].slice(0, UNTRIED_MAX);
 }
 
@@ -97,13 +136,13 @@ export function createRepeatGuard(clock: Clock): RepeatGuard {
     },
     check(call) {
       const failure = stored(call);
-      if (!(failure && blocking(failure, call))) return;
+      if (!failure || failure.partly || !blocking(failure, call)) return;
       hitCount += 1;
       failure.times += 1;
       return {
         reason: failure.reason,
         times: failure.times,
-        untried: untriedOf(failures),
+        untried: untriedOf(failures, keyOf(call)),
       };
     },
     hits: () => hitCount,
@@ -116,6 +155,7 @@ export function createRepeatGuard(clock: Clock): RepeatGuard {
         at: clock.now(),
         digest: call.digest,
         next: result.next,
+        partly: result.status === "PARTLY",
         pose: call.pose,
         reason: result.reason,
         times: times + 1,

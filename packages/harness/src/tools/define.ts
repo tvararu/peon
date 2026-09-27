@@ -481,7 +481,10 @@ async function runCall<P extends TSchema, K extends ToolName>(
   openCall(call);
   const raw = withHumanStop(await outcomeOf(call));
   const handle = rt.handle();
-  const outcome = guardCall({ ...call, handle, tool: spec.name }, raw);
+  const outcome = guardCall(
+    { ...call, handle, startedAt, tool: spec.name },
+    raw,
+  );
   closeCall(call, { handle, ms: rt.clock.now() - startedAt, outcome });
   const danger = handle
     ? dangerLine(dangerView({ handle, rt }), { still: spec.kind === "control" })
