@@ -8,6 +8,7 @@ import type { OpsCtx, ToolCtx, ViewCtx } from "#harness/contract/services";
 import {
   dangerView,
   type InterruptCause,
+  selfHealthOf,
   watchInterrupts,
 } from "#harness/ops/danger";
 import { guidHex } from "#harness/ops/refs";
@@ -43,6 +44,7 @@ type Rested = {
   used: LootLine[];
   waitedMs: number;
   auraConfirmed: boolean;
+  hurt: boolean;
   startLevels: Levels;
   stalled: boolean;
   confirmed: Set<number>;
@@ -285,9 +287,10 @@ function stoppedReport(init: {
   ctx: ViewCtx;
   signal: AbortSignal;
   cause: InterruptCause | undefined;
-  after: RestAfter;
+  rested: Rested;
 }): Report {
-  const { ctx, signal, cause, after } = init;
+  const { ctx, signal, cause, rested } = init;
+  const after = afterOf(ctx, rested);
   if (cause?.code === "died")
     return result("FAILED", {
       after,
@@ -295,13 +298,15 @@ function stoppedReport(init: {
       next: nextCall("recover"),
       reason: "died",
     });
-  if (cause?.attacker !== undefined)
+  if (cause?.attacker !== undefined) {
+    const verb = rested.hurt ? "hit you" : "started attacking you";
     return result("FAILED", {
       after,
-      detail: `${attackerName(ctx, cause.attacker)} hit you while resting (${hpText(ctx)}).`,
+      detail: `${attackerName(ctx, cause.attacker)} ${verb} while resting (${hpText(ctx)}).`,
       next: nextCall("engage", { target: ctx.rt.refs.refOf(cause.attacker) }),
       reason: "interrupted",
     });
+  }
   const code = messageOf(signal.reason, "cancelled");
   if (code === "human_stop" || code === "esc")
     return result("FAILED", {
@@ -331,6 +336,17 @@ function runEnd(value: Report, stop?: string): RunEnd<Report> {
   };
 }
 
+function watchHurt(ctx: ViewCtx, rested: Rested): () => void {
+  const { handle } = ctx;
+  let health = handle.getCombatState().self.health;
+  return handle.onEntityEvent((event) => {
+    const now = selfHealthOf(handle, event);
+    if (now === undefined) return;
+    if (health !== undefined && now < health) rested.hurt = true;
+    health = now;
+  });
+}
+
 async function launch(init: {
   ctx: ToolCtx<RestAfter>;
   until: number;
@@ -338,6 +354,7 @@ async function launch(init: {
   rested: Rested;
 }): Promise<RunEnd<Report>> {
   const { ctx, until, control, rested } = init;
+  const unwatchHurt = watchHurt(ctx, rested);
   const watch = watchInterrupts(
     { ...ctx, progress: control.progress, signal: control.signal },
     { death: true, newAttacker: true, rooted: false },
@@ -357,15 +374,16 @@ async function launch(init: {
       : undefined;
     return runEnd(
       stoppedReport({
-        after: afterOf(ops, rested),
         cause: watch.cause(),
         ctx: ops,
+        rested,
         signal: ops.signal,
       }),
       stop,
     );
   } finally {
     watch.dispose();
+    unwatchHurt();
   }
 }
 
@@ -389,6 +407,7 @@ function precheck(ctx: ToolCtx<RestAfter>, until: number): Report | undefined {
   const rested: Rested = {
     auraConfirmed: false,
     confirmed: new Set(),
+    hurt: false,
     stalled: false,
     startLevels: levels,
     used: [],
@@ -422,6 +441,7 @@ async function runRest(
   const rested: Rested = {
     auraConfirmed: false,
     confirmed: new Set(),
+    hurt: false,
     stalled: false,
     startLevels: levelsOf(ctx),
     used: [],

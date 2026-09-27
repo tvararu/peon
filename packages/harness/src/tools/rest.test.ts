@@ -14,6 +14,7 @@ import {
   createTestRuntime,
   type MockHandle,
 } from "#test-support/runtime-fixture";
+import { unitEntity } from "#test-support/world-fixtures";
 
 const STALKER = 0x20n;
 const DRINK_SPELL = 430;
@@ -65,6 +66,21 @@ function drinkAura(handle: MockHandle): void {
 
 async function flush(): Promise<void> {
   for (let i = 0; i < 20; i += 1) await Promise.resolve();
+}
+
+function selfHp(handle: MockHandle, health: number): void {
+  const state = handle.getCombatState();
+  const next = { ...state, self: { ...state.self, health } };
+  handle.getCombatState = () => next;
+  handle.triggerEntityEvent({
+    changed: ["health"],
+    entity: unitEntity({
+      guid: handle.getControlState().selfGuid,
+      health,
+      maxHealth: 200,
+    }),
+    type: "update",
+  });
 }
 
 describe("rest", () => {
@@ -264,29 +280,58 @@ describe("rest", () => {
     }
   });
 
-  test("an attacker stops the rest with an engage step", async () => {
-    const t = await createTestRuntime();
-    setSelf(t.handle, { hp: 100, maxHp: 200 });
-    setUnits(t.handle, [
-      unitRow({
-        distance: 5,
-        guid: STALKER,
-        level: 7,
-        name: "Springpaw Stalker",
-        x: 5,
-        y: 0,
-      }),
-    ]);
-    const pending = restSpec.run({}, toolCtx<RestAfter>(t));
-    await Bun.sleep(0);
-    attackBy(t.handle, STALKER);
-    const res = await pending;
-    expect(res).toMatchObject({ reason: "interrupted", status: "FAILED" });
-    expect(res.detail).toMatch(
-      /^Springpaw Stalker \(u\d+\) hit you while resting \(HP 100\/200\)\.$/,
-    );
-    expect(res.next).toMatch(/^engage\(target: "u\d+"\)$/);
-  });
+  test.each([
+    {
+      hit: "none",
+      hp: 200,
+      name: "an attack start",
+      verb: "started attacking",
+    },
+    { hit: "during", hp: 180, name: "a hit during the rest", verb: "hit" },
+    {
+      hit: "first",
+      hp: 180,
+      name: "a hit seen before its attack start",
+      verb: "hit",
+    },
+    {
+      hit: "before",
+      hp: 200,
+      name: "a hit only before the rest",
+      verb: "started attacking",
+    },
+  ] as const)(
+    "$name stops the rest with an engage step",
+    async ({ hit, hp, verb }) => {
+      const t = await createTestRuntime();
+      setSelf(t.handle, { hp: 200, maxHp: 200, power: 60 });
+      setUnits(t.handle, [
+        unitRow({
+          distance: 5,
+          guid: STALKER,
+          level: 7,
+          name: "Springpaw Stalker",
+          x: 5,
+          y: 0,
+        }),
+      ]);
+      if (hit === "before") {
+        selfHp(t.handle, 150);
+        selfHp(t.handle, 200);
+      }
+      const pending = restSpec.run({}, toolCtx<RestAfter>(t));
+      await flush();
+      if (hit === "first") selfHp(t.handle, hp);
+      attackBy(t.handle, STALKER);
+      if (hit === "during") selfHp(t.handle, hp);
+      const res = await pending;
+      expect(res).toMatchObject({ reason: "interrupted", status: "FAILED" });
+      expect(res.detail).toBe(
+        `Springpaw Stalker (${t.rt.refs.refOf(STALKER)}) ${verb} you while resting (HP ${hp}/200).`,
+      );
+      expect(res.next).toBe(`engage(target: "${t.rt.refs.refOf(STALKER)}")`);
+    },
+  );
 
   test("refuses while an attacker is on you", async () => {
     const t = await createTestRuntime();
