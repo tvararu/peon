@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { EngageAfter } from "#harness/contract/details";
+import { createSightings } from "#harness/ops/sightings";
+import { unitViews } from "#harness/ops/views";
 import {
   checkHelper,
   chooseTarget,
@@ -53,6 +55,25 @@ function questLog(handle: MockHandle, questId: number): void {
       slots: [{ counters, expiresAtSeconds: 0, flags: 0, questId, slot: 0 }],
     },
   });
+}
+
+const REMEMBERED = 0x23n;
+
+function remember(t: Awaited<ReturnType<typeof createTestRuntime>>) {
+  t.rt.sightings = createSightings(t.rt.clock);
+  setUnits(t.handle, [
+    unitRow({
+      distance: 8,
+      entry: 15_366,
+      guid: REMEMBERED,
+      level: 7,
+      name: "Springpaw Stalker",
+      x: 8,
+      y: 0,
+      z: 3,
+    }),
+  ]);
+  unitViews(toolCtx<EngageAfter>(t));
 }
 
 async function field(level: number) {
@@ -194,6 +215,76 @@ describe("chooseTarget", () => {
     });
     expect(choice.guid).toBe(STALKER);
     expect(goTo).toHaveBeenCalledTimes(1);
+  });
+
+  test("named: a unit in view wins over a nearer remembered one", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { level: 10 });
+    remember(t);
+    setUnits(t.handle, [stalker(30)]);
+    const goTo = driveGoto(t.handle, [{ arrive: { x: 0, y: 0 } }]);
+    const choice = await chooseTarget(toolCtx<EngageAfter>(t), {
+      target: "Springpaw Stalker",
+    });
+    expect(choice.guid).toBe(STALKER);
+    expect(choice.unit?.inView).toBe(true);
+    expect(goTo).not.toHaveBeenCalled();
+  });
+
+  test("named: only a remembered unit walks to where it was seen first", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { level: 10, x: -40 });
+    remember(t);
+    setUnits(t.handle, []);
+    const goTo = driveGoto(t.handle, [
+      {
+        arrive: { x: 5, y: 0, z: 3 },
+        onArrive: () => setUnits(t.handle, [stalker(12)]),
+      },
+    ]);
+    const choice = await chooseTarget(toolCtx<EngageAfter>(t), {
+      target: "Springpaw Stalker",
+    });
+    expect(goTo).toHaveBeenNthCalledWith(1, {
+      kind: "point",
+      x: 8,
+      y: 0,
+      z: 3,
+    });
+    expect(choice.guid).toBe(STALKER);
+  });
+
+  test("named: a remembered unit still out of view refuses with an explore step", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { level: 10, x: -40 });
+    remember(t);
+    setUnits(t.handle, []);
+    driveGoto(t.handle, [{ refuse: "stop: ground corridor changes surface" }]);
+    const refused = chooseTarget(toolCtx<EngageAfter>(t), {
+      target: "Springpaw Stalker",
+    });
+    await expect(refused).rejects.toMatchObject({
+      next: 'travel(to: "explore north")',
+      reason: "not_in_view",
+    });
+    await expect(refused).rejects.toHaveProperty(
+      "detail",
+      expect.stringMatching(
+        /^Springpaw Stalker u\d+ is not in view; it was last seen 48 yd north of you\.$/,
+      ),
+    );
+  });
+
+  test("a unit id seen only earlier is treated like a remembered name", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { level: 10, x: -40 });
+    remember(t);
+    const ref = t.rt.refs.refOf(REMEMBERED);
+    setUnits(t.handle, [stalker(30)]);
+    driveGoto(t.handle, [{ refuse: "stop: ground corridor changes surface" }]);
+    await expect(
+      chooseTarget(toolCtx<EngageAfter>(t), { target: ref }),
+    ).rejects.toMatchObject({ reason: "not_in_view" });
   });
 
   test("count above 1 is a cycle over that kind of creature", async () => {

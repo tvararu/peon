@@ -54,6 +54,12 @@ const STEP: Record<Compass, { dx: number; dy: number }> = {
   W: { dx: 0, dy: 1 },
 };
 
+export function compassWord(compass: Compass): string {
+  return (
+    Object.entries(WORDS).find(([, value]) => value === compass)?.[0] ?? compass
+  );
+}
+
 export function parseDirection(text: string): Compass | undefined {
   const word = text.trim().toLowerCase().replace(EXPLORE_PREFIX, "");
   if (word === "") return undefined;

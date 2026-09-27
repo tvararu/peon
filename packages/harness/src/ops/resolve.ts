@@ -10,6 +10,7 @@ import { nextCall } from "#harness/tools/define";
 export type UnitQuery = {
   text: string;
   alive?: boolean;
+  inView?: boolean;
   lootable?: boolean;
   relation?: readonly FactionRelation[];
 };
@@ -24,9 +25,10 @@ const CANDIDATE_LINES = 5;
 
 function fits(
   unit: UnitView,
-  { alive, lootable, relation }: UnitQuery,
+  { alive, inView, lootable, relation }: UnitQuery,
 ): boolean {
   if (alive !== undefined && unit.alive !== alive) return false;
+  if (inView !== undefined && unit.inView !== inView) return false;
   if (lootable !== undefined && unit.lootable !== lootable) return false;
   return !relation || relation.includes(unit.relation);
 }

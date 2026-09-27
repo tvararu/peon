@@ -4,10 +4,16 @@ import type { RunControl } from "#harness/contract/runs";
 import type { OpsCtx, ToolCtx, ViewCtx } from "#harness/contract/services";
 import type { UnitView } from "#harness/contract/views";
 import { dangerView, type InterruptCause } from "#harness/ops/danger";
-import { explore } from "#harness/ops/explore";
+import { compassWord, explore } from "#harness/ops/explore";
 import { Refusal } from "#harness/ops/refusal";
-import { resolveUnit, unitRefusal } from "#harness/ops/resolve";
-import { selfView, unitViews, vitalsView } from "#harness/ops/views";
+import { type Resolved, resolveUnit, unitRefusal } from "#harness/ops/resolve";
+import { travelLeg } from "#harness/ops/travel-leg";
+import {
+  knownUnits,
+  selfView,
+  unitViews,
+  vitalsView,
+} from "#harness/ops/views";
 import { askHuman, nextCall } from "#harness/tools/define";
 import type { EngageArgs } from "#harness/tools/params";
 
@@ -36,6 +42,7 @@ export const LEVEL_CAP_ABOVE = 3;
 export const MIN_HP_PCT = 50;
 export const MIN_MANA_PCT = 30;
 export const EXPLORE_TRIES = 3;
+const REMEMBERED_WITHIN_YD = 10;
 const QUEST_ID = /^#?(\d+)$/;
 
 function unitGuid(ctx: ViewCtx, unit: UnitView): bigint {
@@ -140,9 +147,48 @@ function tappedByOther(ctx: ViewCtx, unit: UnitView): Refusal {
   });
 }
 
-async function findNamed(ops: OpsCtx, text: string): Promise<UnitView> {
+function inView(ops: OpsCtx, text: string): Resolved {
+  const resolved = resolveUnit(ops, { alive: true, inView: true, text });
+  return resolved.kind === "unit" && !resolved.unit.inView
+    ? { kind: "not_seen", text }
+    : resolved;
+}
+
+function notInView(unit: UnitView): Refusal {
+  const where =
+    unit.distance === undefined
+      ? ""
+      : ` ${Math.round(unit.distance)} yd${unit.compass ? ` ${compassWord(unit.compass)}` : ""} of you`;
+  return new Refusal({
+    detail: `${unit.name} ${unit.ref} is not in view; it was last seen${where}.`,
+    next: nextCall("travel", {
+      to: unit.compass ? `explore ${compassWord(unit.compass)}` : "explore",
+    }),
+    reason: "not_in_view",
+  });
+}
+
+async function seekRemembered(
+  ops: OpsCtx,
+  text: string,
+  unit: UnitView,
+): Promise<Resolved> {
+  if (unit.x !== undefined && unit.y !== undefined && unit.z !== undefined)
+    await travelLeg(ops, {
+      goal: { kind: "point", x: unit.x, y: unit.y, z: unit.z },
+      within: REMEMBERED_WITHIN_YD,
+    });
+  const resolved = inView(ops, text);
+  if (resolved.kind === "not_seen") {
+    const [last] = knownUnits(ops).filter((view) => view.guid === unit.guid);
+    throw notInView(last ?? unit);
+  }
+  return resolved;
+}
+
+async function exploreFor(ops: OpsCtx, text: string): Promise<Resolved> {
   const lower = text.toLowerCase();
-  let resolved = resolveUnit(ops, { alive: true, text });
+  let resolved = inView(ops, text);
   for (
     let tries = 0;
     resolved.kind === "not_seen" && tries < EXPLORE_TRIES;
@@ -152,7 +198,21 @@ async function findNamed(ops: OpsCtx, text: string): Promise<UnitView> {
       direction: undefined,
       wanted: (unit) => unit.name.toLowerCase().includes(lower),
     });
-    resolved = resolveUnit(ops, { alive: true, text });
+    resolved = inView(ops, text);
+  }
+  return resolved;
+}
+
+async function findNamed(ops: OpsCtx, text: string): Promise<UnitView> {
+  let resolved = inView(ops, text);
+  if (resolved.kind === "not_seen") {
+    const known = resolveUnit(ops, { alive: true, text });
+    if (known.kind === "ambiguous")
+      throw unitRefusal({ param: "target", resolved: known, tool: "engage" });
+    resolved =
+      known.kind === "unit"
+        ? await seekRemembered(ops, text, known.unit)
+        : await exploreFor(ops, text);
   }
   if (resolved.kind !== "unit")
     throw unitRefusal({ param: "target", resolved, tool: "engage" });
