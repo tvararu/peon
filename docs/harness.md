@@ -153,9 +153,12 @@ also work. The game connection stays open across `/new`, `/resume`,
   `no-nav`, `no-factions`, `no-spells`). The footer shows the same facts as the
   `[now]` line.
 - **Ticker (6 rows, above the editor).** The live run, then the newest
-  game events, also the ones that do not wake the agent.
+  game events, also the ones that do not wake the agent. Emote notices
+  the core does not parse yet are left out.
 - **Event cards.** Each `[game]` message is one line per event with a
-  glyph, the time and the text.
+  glyph, the time and the text, oldest first. Kills, XP and loot inside
+  an `engage` run that ends `DONE` or `PARTLY` are reported by its
+  result, not as separate lines.
 - **Human-only lines.** Packet errors, server corrections and not-yet-built
   notices. The model never sees them.
 - **Tool rows.** Each tool call shows one call line and a short result.
