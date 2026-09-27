@@ -165,6 +165,7 @@ export const PLAYER_FIELDS = {
   NEXT_LEVEL_XP: { offset: UNIT_END + 0x01_e7, size: 1, type: "u32" },
   CHARACTER_POINTS2: { offset: UNIT_END + 0x03_69, size: 1, type: "u32" },
   COINAGE: { offset: UNIT_END + 0x03_fe, size: 1, type: "u32" },
+  AMMO_ID: { offset: UNIT_END + 0x04_1a, size: 1, type: "u32" },
 } as const satisfies Record<string, FieldDef>;
 
 export const ITEM_FIELDS = {

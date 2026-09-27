@@ -52,3 +52,9 @@ export function parseXpGain(r: PacketReader): XpGain {
   const recruitAFriend = r.uint8() !== 0;
   return { victim, total, kind, original, groupRate, recruitAFriend };
 }
+
+export type CancelAutoRepeat = { target: bigint | undefined };
+
+export function parseCancelAutoRepeat(r: PacketReader): CancelAutoRepeat {
+  return { target: r.remaining === 0 ? undefined : r.packedGuidBig() };
+}

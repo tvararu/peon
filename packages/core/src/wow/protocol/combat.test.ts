@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildAttackSwing,
+  parseCancelAutoRepeat,
   parseAttackStart,
   parseAttackStop,
   parseXpGain,
@@ -92,5 +93,17 @@ describe("parseXpGain", () => {
     expect(result.total).toBe(50);
     expect(result.original).toBeUndefined();
     expect(result.recruitAFriend).toBe(true);
+  });
+});
+
+describe("parseCancelAutoRepeat", () => {
+  test("reads the packed target guid", () => {
+    expect(parseCancelAutoRepeat(reader([0x01, 0x64]))).toEqual({
+      target: 0x64n,
+    });
+  });
+
+  test("tolerates an empty body", () => {
+    expect(parseCancelAutoRepeat(reader([]))).toEqual({ target: undefined });
   });
 });
