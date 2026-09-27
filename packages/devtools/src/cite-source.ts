@@ -15,6 +15,7 @@ const LAMBDA_CALL = /(?<!operator\s*)\[[^\]]*\]\s*\(/;
 const FUNCTION_END =
   /\)\s*(?:const|override|final|noexcept|volatile|&|&&|\s)*(?:->\s*[\w:<>,*&\s]+)?$/;
 const TYPE = /\b(?:class|struct|union|enum)\s+\w+/;
+const OPCODE_TABLE = /\b(?:OpcodeTable::Initialize|enum\s+Opcodes)\b/;
 const HANDLER =
   /DEFINE_HANDLER\(\s*(\w+)\s*,[^;]*&WorldSession::(Handle\w+)\s*\)/g;
 const PACKET_CTOR =
@@ -136,7 +137,8 @@ function enclosing(blocks: Block[], line: number): Block | undefined {
 export function scopeText(text: string, line: number): string {
   const lines = text.split("\n");
   const block = enclosing(blocksOf(text), line);
-  if (!block) return lines[line - 1] ?? "";
+  const head = block ? (lines[block.start - 1] ?? "") : "";
+  if (!block || OPCODE_TABLE.test(head)) return lines[line - 1] ?? "";
   return lines.slice(block.start - 1, block.close).join("\n");
 }
 
