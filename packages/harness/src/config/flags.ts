@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { messageOf } from "@peon/core/lib/errors";
-import type { HarnessFlags } from "#harness/contract/config";
+import type { HarnessFlags, PacketTraceMode } from "#harness/contract/config";
 
 export class UsageError extends Error {}
 
@@ -20,6 +20,7 @@ export const USAGE = `Usage: mise harness --profile <path> [options]
   --stop-reflex on|off    stop all actions when a short message starts with "stop" (default: on)
   --now-per-call          send the [now] line before every model request
   --log-entities          write raw entity rows to the game log
+  --packet-trace <mode>   off|headers|bodies: write packets.jsonl (default: off)
   --extension <path>      load a Pi extension file; repeat for more (after the profile's extensions)
   --check                 check the profile, the lock and the Codex login, then exit`;
 
@@ -41,6 +42,7 @@ const OPTIONS = {
   model: { type: "string" },
   "no-connect": { type: "boolean" },
   "now-per-call": { type: "boolean" },
+  "packet-trace": { type: "string" },
   profile: { type: "string" },
   "run-dir": { type: "string" },
   "stop-reflex": { type: "string" },
@@ -63,6 +65,7 @@ export function parseFlags(argv: readonly string[]): HarnessFlags {
     logEntities: values["log-entities"] ?? false,
     model: values.model ?? DEFAULT_MODEL,
     nowPerCall: values["now-per-call"] ?? false,
+    packetTrace: traceMode(values["packet-trace"]),
     profile: values.profile,
     runDir: values["run-dir"],
     stopReflex: onOff("--stop-reflex", values["stop-reflex"]),
@@ -92,6 +95,18 @@ function thinkingOf(value: string | undefined): ThinkingLevel {
       `--thinking must be one of ${THINKING.join("|")}, not "${value}".`,
     );
   return level;
+}
+
+const TRACE_MODES: readonly PacketTraceMode[] = ["off", "headers", "bodies"];
+
+function traceMode(value: string | undefined): PacketTraceMode {
+  if (value === undefined) return "off";
+  const mode = TRACE_MODES.find((known) => known === value);
+  if (!mode)
+    throw new UsageError(
+      `--packet-trace must be off, headers or bodies, not "${value}".`,
+    );
+  return mode;
 }
 
 function onOff(flag: string, value: string | undefined): boolean {

@@ -7,6 +7,8 @@ import type { JevPort } from "#harness/jev/contract";
 import type { GameCapabilities } from "#harness/loops/game";
 import type { NavigationSource } from "#harness/navigation/native";
 
+export type PacketTraceMode = "off" | "headers" | "bodies";
+
 export type HarnessFlags = {
   profile: string;
   runDir: string | undefined;
@@ -18,6 +20,7 @@ export type HarnessFlags = {
   stopReflex: boolean;
   nowPerCall: boolean;
   logEntities: boolean;
+  packetTrace: PacketTraceMode;
   extensions: string[];
   check: boolean;
 };
@@ -38,6 +41,8 @@ export type Profile = {
 export type RunPaths = {
   dir: string;
   meta: string;
+  packets: string;
+  packetCounts: string;
   gamelog: string;
   jev: string;
   session: string;
@@ -77,6 +82,8 @@ export type RunMeta = {
     runs: string;
     jev: string;
     status: string;
+    packets: string;
+    packetCounts: string;
   };
 };
 

@@ -18,6 +18,7 @@ describe("parseFlags", () => {
       logEntities: false,
       model: DEFAULT_MODEL,
       nowPerCall: false,
+      packetTrace: "off",
       profile: "/p.json",
       runDir: undefined,
       stopReflex: true,
@@ -45,6 +46,8 @@ describe("parseFlags", () => {
       "off",
       "--now-per-call",
       "--log-entities",
+      "--packet-trace",
+      "headers",
       "--check",
     ];
     expect(parseFlags(argv)).toEqual({
@@ -55,6 +58,7 @@ describe("parseFlags", () => {
       logEntities: true,
       model: "faux/faux-1",
       nowPerCall: true,
+      packetTrace: "headers",
       profile: "/p.json",
       runDir: "/r",
       stopReflex: false,
@@ -92,6 +96,12 @@ describe("parseFlags", () => {
     );
   });
 
+  test("refuses a packet trace mode it does not know", () => {
+    expect(() =>
+      parseFlags(["--profile", "/p", "--packet-trace", "full"]),
+    ).toThrow('--packet-trace must be off, headers or bodies, not "full".');
+  });
+
   test("turns an unknown flag into a UsageError", () => {
     expect(() => parseFlags(["--profile", "/p", "--account", "X"])).toThrow(
       UsageError,
@@ -110,6 +120,7 @@ describe("parseFlags", () => {
       "--stop-reflex",
       "--now-per-call",
       "--log-entities",
+      "--packet-trace",
       "--check",
     ]) {
       expect(USAGE).toContain(flag);

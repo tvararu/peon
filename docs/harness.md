@@ -82,6 +82,7 @@ still applies: it refuses the protected accounts and the character
 | `--stop-reflex on\|off` | `on` | When on, a short human message that starts with stop, halt, freeze or hold stops every action before the model reads it. |
 | `--now-per-call` | off | Adds the `[now]` line before every model call, not only at the start of a turn. |
 | `--log-entities` | off | Writes raw entity rows to the game log. |
+| `--packet-trace off\|headers\|bodies` | `off` | `headers` writes one row per game packet to `packets.jsonl`; `bodies` adds each packet body in hex, including whisper and chat text. The login packet never has a body. The eval grader runs every eval with `headers`. |
 | `--extension <path>` | none | Loads a Pi extension file; repeat it for more. See [Extensions](#extensions). |
 | `--check` | off | Checks the profile, the extension paths, the lock and the Codex login, then exits with code 0. |
 
@@ -379,6 +380,8 @@ A proposed redesign of the screen lives at
 | `tools.json` | Calls, status words, validation errors, repeat refusals and timings per tool. |
 | `runs.jsonl` | One row per run when it ends. |
 | `status.json` | Agent state, active run and last progress, written every second. |
+| `packets.json` | Packet counts by opcode name (`seen` and `unhandled` from the server, `sent` by the client) summed over every game session, and `sessions`. Written when each session closes, whatever `--packet-trace` says. |
+| `packets.jsonl` | With `--packet-trace headers` or `bodies`: one row per packet with `at`, `dir` (`in` or `out`), `opcode` (name, or hex when unnamed), `size` (body bytes), `outcome` for `in` rows (`handled`, `unhandled`, `error`, or `skipped` for a dropped inner move), `via: "compressed"` for a packet inside `SMSG_COMPRESSED_MOVES`, and `body` with `bodies`. Rows are appended at most once a second. |
 | `snapshots/` | Files from `/snapshot`. |
 | `workspace/` | The empty working directory of Pi. |
 

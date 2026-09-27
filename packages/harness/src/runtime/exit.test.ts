@@ -21,6 +21,8 @@ function meta(): RunMeta {
     files: {
       gamelog: "gamelog.jsonl",
       jev: "jev.jsonl",
+      packetCounts: "packets.json",
+      packets: "packets.jsonl",
       runs: "runs.jsonl",
       session: "session.jsonl",
       status: "status.json",

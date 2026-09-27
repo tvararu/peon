@@ -1,6 +1,7 @@
 import type { ClientConfig, Unsubscribe, WorldHandle } from "@peon/core";
 import { messageOf } from "@peon/core/lib/errors";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
+import type { TraceSink } from "@peon/core/session";
 import { authWithRetry, worldSession } from "@peon/core/session";
 import type { ConnectionState, Profile } from "#harness/contract/config";
 import type { LogDraft } from "#harness/contract/log";
@@ -45,9 +46,12 @@ export async function sessionLogin(config: ClientConfig): Promise<WorldHandle> {
   return worldSession(config, auth);
 }
 
-export async function defaultLogin(profile: Profile): Promise<Game> {
+export async function defaultLogin(
+  profile: Profile,
+  trace?: TraceSink,
+): Promise<Game> {
   const navigation = sessionNavigation(profile.navigation);
-  const client = { ...profile.client, ground: navigation?.ground };
+  const client = { ...profile.client, ground: navigation?.ground, trace };
   const handle = await sessionLogin(client).catch((error: unknown) => {
     navigation?.navigation.close();
     throw error;

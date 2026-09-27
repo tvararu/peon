@@ -76,6 +76,11 @@ character.
    when that config logs in another character.
 4. `soap delete <ACCOUNT>` afterwards.
 
+For protocol proof, run the harness on the character with
+`--packet-trace headers` ([harness.md](harness.md#flags)): the run
+directory's `packets.jsonl` shows each packet the server sent or accepted,
+and `packets.json` counts them by opcode.
+
 Presets, the puppet wrapper and the realm service are described in
 [factory.md](factory.md). A run that fails because the server or SOAP is
 down is an infrastructure failure: report it to the maintainer.

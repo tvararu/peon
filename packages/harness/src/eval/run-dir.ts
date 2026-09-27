@@ -47,6 +47,8 @@ export function runPaths(dir: string): RunPaths {
     gamelog: at("gamelog.jsonl"),
     jev: at("jev.jsonl"),
     meta: at("meta.json"),
+    packetCounts: at("packets.json"),
+    packets: at("packets.jsonl"),
     piSessions: at("pi-sessions"),
     runs: at("runs.jsonl"),
     session: at("session.jsonl"),
