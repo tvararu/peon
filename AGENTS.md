@@ -60,6 +60,9 @@ Run everything through the `mise.toml` tasks as `mise <task>`, never
 - `mise harness --profile <path>`: the Pi harness
   ([docs/harness.md](docs/harness.md)).
 - `mise eval <command>`: the eval grader ([docs/evals.md](docs/evals.md)).
+- `mise protocol:probe <ACCOUNT> [--send <OPCODE>]... [--flow <name>]...`:
+  log a soap account in, send opcodes or run flows, and report the
+  replies ([docs/protocol.md](docs/protocol.md#probe-the-server)).
 - `mise namigator:build`: build the patched `libnamigator.so` that
   `soap create` needs.
 - `mise factory <command>`: the factory CLI (`soap`, `status`,

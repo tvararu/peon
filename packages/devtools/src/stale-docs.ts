@@ -24,6 +24,7 @@ const tmpOutputs = [
   "puppet-<ACCOUNT>",
   "evals/",
   "factory-account-<ACCOUNT>/",
+  "probe/",
 ];
 
 const tmpPrefix = /^(?:\.\/)?tmp\//;

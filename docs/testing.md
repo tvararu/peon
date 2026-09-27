@@ -81,6 +81,13 @@ For protocol proof, run the harness on the character with
 directory's `packets.jsonl` shows each packet the server sent or accepted,
 and `packets.json` counts them by opcode.
 
+For one opcode or one short flow, `mise protocol:probe <ACCOUNT>` is
+cheaper than a harness run ([protocol.md](protocol.md#probe-the-server)).
+It logs the account in with its own config, sends what `--send` names or
+runs a `--flow`, waits, logs out and prints one JSON report of what
+arrived; `--expect` makes it exit 3 when an opcode never came. It refuses
+while the account's puppet runs, so stop the puppet first.
+
 To reach the state a live proof needs (a level, items, a quest, a guild),
 use `mise factory soap gm <ACCOUNT> <verb>` on your own account only; it
 refuses accounts created from another worktree and logs every command.

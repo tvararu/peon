@@ -214,6 +214,48 @@ connection) it calls `close` with `PacketCounts`: `seen` and `unhandled`
 from `OpcodeDispatch.counts()`, and `sent`, keyed by `GameOpcode` name
 (`opcodeName`).
 
+## Probe the server
+
+`mise protocol:probe` logs a `soap create` account in and reports what the
+server sends back:
+
+```
+mise protocol:probe <ACCOUNT> [--send <OPCODE> [--body <hex>]]...
+    [--flow <name> [--arg <key>=<value>]...] [--wait <s>] [--until <OPCODE>]...
+    [--expect <OPCODE>]... [--bodies] [--out <dir>]
+```
+
+- The account matches `^FAC[0-9A-F]{10}$`, and its config is the one
+  `soap create` wrote under `tmp/factory-account-<ACCOUNT>/` in the
+  current checkout. The probe refuses while that account's puppet runs.
+- `--send` takes a `GameOpcode` name or `0x` hex, with an optional hex
+  `--body`, and sends it through the trace sink's raw sender. `--send` and
+  `--flow` steps run in the order given, then the probe waits `--wait`
+  seconds (default 5), or less once every `--until` opcode has arrived.
+  It then logs out and waits for the socket to close.
+- The report on stdout is one JSON object: `sent` (the `--send` packets),
+  `flows` (each result or error), `received` (count and first `at` per
+  inbound opcode, login included), `notices`, `packetErrors`, `missing`
+  (`--expect` opcodes that never arrived), `counts` (the session's
+  `PacketCounts`) and `trace`, the paths of `packets.jsonl` and
+  `packets.json`. They go to `--out`, or to `tmp/probe/<ACCOUNT>-<time>/`;
+  rows carry headers, and bodies with `--bodies`.
+- Exit codes: 0 done, 1 login, flow or I/O failure, 2 usage, 3 an
+  expected opcode did not arrive.
+
+Flows live one per file in `packages/devtools/src/probe-flows/`; the
+probe loads every `*.ts` there, and each exports a `flow` named after its
+file. An area adds a flow without a shared edit.
+
+| Flow | Arguments | Result |
+|---|---|---|
+| `login` | none | map, zone, area and position after login |
+| `nearest` | `kind=<unit\|player\|gameobject\|NPC role>` | the five nearest matches |
+| `talk` | `entry=<n>` | talks (`CMSG_GOSSIP_HELLO`) to the nearest entity with that entry |
+
+`talk` does not walk: pick an entry within interaction range, which
+`nearest` shows.
+
 ## Check citations
 
 `mise protocol:cite-check [path...]` checks the AzerothCore `path:line`
