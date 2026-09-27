@@ -4,7 +4,7 @@ bun = "latest"
 gh = "latest"
 hk = "latest"
 jq = "latest"
-pkl = "latest"
+rg = "latest"
 
 [settings]
 npm.package_manager = "bun"
