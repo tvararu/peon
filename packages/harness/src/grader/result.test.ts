@@ -97,7 +97,7 @@ describe("validateResult", () => {
     ]);
   });
 
-  test("accepts the abort causes added for the t1 service", () => {
+  test("accepts the abort causes added for the realm service", () => {
     const aborted = {
       ...valid,
       abort: { cause: "stale_truth", evidence: "savedAt older than exit" },

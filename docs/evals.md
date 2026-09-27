@@ -23,7 +23,7 @@ answer is graded against truth at the time of the answer, not at the end.
 | `pass` | Every check is met. |
 | `fail` | A check is unmet, or the run shows a new failure. Only `fail` makes builder work. |
 | `blocked` | A check is unmet because of a gap the scenario already names, a playerbot interference the grader quotes, or a game-log event that does not exist yet. |
-| `aborted` | Infrastructure: SOAP or the t1 service down, `soap create` or setup failed, a stale final truth, the game server down, an expired Codex login, model rate limits that stall the agent for more than 2 minutes, Jev down for the whole run, a pane or harness launch failure, or grader contamination. Never a product finding. |
+| `aborted` | Infrastructure: SOAP or the realm service down, `soap create` or setup failed, a stale final truth, the game server down, an expired Codex login, model rate limits that stall the agent for more than 2 minutes, Jev down for the whole run, a pane or harness launch failure, or grader contamination. Never a product finding. |
 
 **Efficiency.** Tool calls, agent turns, wall time from the task to the
 accepted answer, time to the first action, and tokens, each also as a
@@ -51,7 +51,7 @@ about it. Passwords never reach a transcript or a result file.
 ## Run a scenario
 
 Run evals from an eval worktree: an Orca worktree of the commit under
-test, with Orca, the t1 service, a Codex login and `TYPESAFE_API_KEY`
+test, with Orca, the realm service, a Codex login and `TYPESAFE_API_KEY`
 available. From its root:
 
 ```

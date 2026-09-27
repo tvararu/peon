@@ -74,7 +74,7 @@ export function testProfile(): Profile {
   const client = {
     account: "TESTACC",
     character: "Testchar",
-    host: "t1",
+    host: "realm.example",
     password: "TESTPASSWORD",
     port: 3724,
   };

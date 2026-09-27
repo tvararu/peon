@@ -10,7 +10,7 @@ import {
   envelope,
   factoryAccount,
   hasTriple,
-  navConfig,
+  inheritedConfig,
   newNames,
   newPassword,
   parseEnv,
@@ -157,19 +157,19 @@ describe("pinfoAccount", () => {
 describe("parseEnv", () => {
   test("reads KEY=VALUE lines and strips quotes", () => {
     const env = parseEnv(
-      `PEON_SOAP_URL=http://t1:7878/\n# note\nPEON_SOAP_USER="TCFACTORY"\n\n`,
+      `PEON_SOAP_URL=http://realm.example:7878/\n# note\nPEON_SOAP_USER="TCFACTORY"\n\n`,
     );
     expect(env).toEqual({
-      PEON_SOAP_URL: "http://t1:7878/",
+      PEON_SOAP_URL: "http://realm.example:7878/",
       PEON_SOAP_USER: "TCFACTORY",
     });
   });
 });
 
-describe("navConfig", () => {
+describe("inheritedConfig", () => {
   const patched = "/store/0123456789abcdef/libnamigator.so";
 
-  test("uses the patched library and copies only the data paths", async () => {
+  test("uses the patched library and copies the realm and data paths", async () => {
     const dir = scratchDir("soap-nav");
     try {
       const path = `${dir}/config.toml`;
@@ -178,19 +178,21 @@ describe("navConfig", () => {
         serializeConfig({
           account: "ME",
           character: "Me",
-          host: "t1",
+          host: "realm.example",
           language: 1,
           navigation_data_dir: "/data/nav",
           navigation_library: "/home/me/old/libnamigator.so",
           password: "secret",
-          port: 3724,
+          port: 3725,
           spell_data_dir: "/data/spells",
           timeout_minutes: 30,
         }),
       );
-      expect(await navConfig(path, async () => patched)).toEqual({
+      expect(await inheritedConfig(path, async () => patched)).toEqual({
+        host: "realm.example",
         navigation_data_dir: "/data/nav",
         navigation_library: patched,
+        port: 3725,
         spell_data_dir: "/data/spells",
       });
     } finally {
@@ -198,16 +200,16 @@ describe("navConfig", () => {
     }
   });
 
-  test("sets the patched library without a maintainer config", async () => {
+  test("defaults to localhost without a maintainer config", async () => {
     expect(
-      await navConfig("/missing/config.toml", async () => patched),
-    ).toEqual({ navigation_library: patched });
+      await inheritedConfig("/missing/config.toml", async () => patched),
+    ).toEqual({ host: "localhost", navigation_library: patched, port: 3724 });
   });
 
   test("refuses when the patched library is missing", async () => {
     const missing = () => Promise.reject(new Error("run mise namigator:build"));
-    await expect(navConfig("/missing/config.toml", missing)).rejects.toThrow(
-      "run mise namigator:build",
-    );
+    await expect(
+      inheritedConfig("/missing/config.toml", missing),
+    ).rejects.toThrow("run mise namigator:build");
   });
 });

@@ -76,6 +76,6 @@ character.
    when that config logs in another character.
 4. `soap delete <ACCOUNT>` afterwards.
 
-Presets, the puppet wrapper and the t1 service are described in
+Presets, the puppet wrapper and the realm service are described in
 [factory.md](factory.md). A run that fails because the server or SOAP is
 down is an infrastructure failure: report it to the maintainer.

@@ -11,10 +11,14 @@ export type Config = {
   navigation_library?: string;
 };
 
-const DEFAULTS: Partial<Config> = {
+export const realmDefaults: Pick<Config, "host" | "port"> = {
   host: "localhost",
-  language: 1,
   port: 3724,
+};
+
+const DEFAULTS: Partial<Config> = {
+  ...realmDefaults,
+  language: 1,
   timeout_minutes: 30,
 };
 

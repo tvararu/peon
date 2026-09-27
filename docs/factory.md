@@ -54,7 +54,9 @@ finds no Peon config.
 character on a fresh account; `soap delete <ACCOUNT>` removes it, `soap
 list` prints the ledger (`--with-passwords` adds passwords). `mise eval
 run` creates and deletes its own. Create needs the patched navigation
-library from `mise namigator:build`.
+library from `mise namigator:build`. The account's config connects to the
+`host` and `port` in `~/.config/peon/config.toml` (default
+`localhost:3724`) and copies its navigation data paths.
 
 Presets: `fresh`, `eversong10`, `max80`, `eversong10-warrior`,
 `eversong10-mage`, `eversong10-hunter`, `ghostlands20` (Horde), `elwynn1`,
@@ -68,16 +70,19 @@ its own `XDG_*` directories under `tmp/factory-account-<ACCOUNT>/`:
 `start --json`, `send -w <name> <text>`, `read --json`, `nearby --json`,
 `stop`. Eval graders drive the second character through it.
 
-Graders reach the t1 service (`PEON_T1_SERVICE`, default
-`http://100.73.138.96:7879`) through `soap health`, `soap presets`,
-`soap accounts`, `soap truth <ACCOUNT>`, `soap setup <ACCOUNT> <endpoint>
-[json]` and `soap reset <ACCOUNT>`. Endpoints: `position`, `level`,
+Graders reach the realm service, the HTTP helper beside the game server
+that reads and sets character state, through `soap health`, `soap
+presets`, `soap accounts`, `soap truth <ACCOUNT>`, `soap setup <ACCOUNT>
+<endpoint> [json]` and `soap reset <ACCOUNT>`. Endpoints: `position`, `level`,
 `money`, `xp`, `hearth`, `rep`, `items/add`, `items/remove`,
 `items/clear-bags`, `spells/learn`, `spells/unlearn`, `quest/add`,
 `quest/complete`, `quest/remove`, `quest/reward`, `quest/objective`,
 `life`, `snapshot`, `restore`. Output is the service's JSON; a failure
 prints `{"ok":false,"reason":...}` and exits 1. Only factory accounts are
-accepted, and setup refuses an online character, so stop its puppet first.
+accepted, and setup refuses an online character, so stop its puppet
+first. The service URL is `PEON_REALM_SERVICE`, from the environment or
+`soap.env`; it has no default, and these commands fail naming it when it
+is unset.
 
 ## Status
 

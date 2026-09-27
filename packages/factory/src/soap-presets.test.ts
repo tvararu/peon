@@ -9,7 +9,7 @@ import {
 } from "#factory/soap-presets";
 
 describe("presets", () => {
-  test("keeps the original three and adds the t1 service presets", () => {
+  test("keeps the original three and adds the realm service presets", () => {
     expect(presets).toEqual([
       "fresh",
       "eversong10",

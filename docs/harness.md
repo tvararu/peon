@@ -19,6 +19,11 @@ that grade it are in [evals.md](evals.md).
    mise factory soap create eversong10 > "$XDG_RUNTIME_DIR/char.json"
    ```
 
+   The character connects to the `host` and `port` in
+   `~/.config/peon/config.toml` ([Play your own
+   character](#play-your-own-character)), or to `localhost:3724` without
+   one. A soap ledger JSON as a profile does the same.
+
 3. Start the harness from the repository root:
 
    ```

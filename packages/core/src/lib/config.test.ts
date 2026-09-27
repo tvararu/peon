@@ -78,7 +78,7 @@ describe("serializeConfig", () => {
     const cfg: Config = {
       account: "x",
       character: "Xia",
-      host: "t1",
+      host: "realm.example",
       language: 1,
       password: "xwow2026",
       port: 3724,
@@ -93,7 +93,7 @@ describe("serializeConfig", () => {
     const cfg: Config = {
       account: 'te"st',
       character: "Z",
-      host: "t1",
+      host: "realm.example",
       language: 1,
       password: "p\\w",
       port: 3724,

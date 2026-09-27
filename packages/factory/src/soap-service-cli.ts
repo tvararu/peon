@@ -1,14 +1,14 @@
-import { characterName, factoryAccount } from "#factory/soap";
 import {
   isCharEndpoint,
   type Json,
   jsonObject,
+  type RealmService,
   ServiceError,
-  type T1Service,
-} from "#factory/t1-service";
+} from "#factory/realm-service";
+import { characterName, factoryAccount } from "#factory/soap";
 
 export type ServiceDeps = {
-  service: T1Service;
+  service: RealmService;
   out: (line: string) => void;
   err: (line: string) => void;
 };

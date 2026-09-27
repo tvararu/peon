@@ -1,9 +1,9 @@
+import { factoryConfigDir } from "#factory/config";
 import { factoryAccount } from "#factory/soap";
 
 const trailingSlashes = /\/+$/;
-const urlKey = "PEON_T1_SERVICE";
+const urlKey = "PEON_REALM_SERVICE";
 
-export const defaultServiceUrl = "http://100.73.138.96:7879";
 export const factoryCharacter = /^F[a-p]{10}$/;
 export const charEndpoints = [
   "position",
@@ -37,7 +37,7 @@ export type ServiceOptions = {
   truthTimeoutMs?: number;
 };
 type Reply = { ok?: unknown; reason?: unknown; error?: unknown };
-export type T1Service = ReturnType<typeof createService>;
+export type RealmService = ReturnType<typeof createService>;
 
 export class ServiceError extends Error {
   readonly reason: string;
@@ -57,7 +57,11 @@ export function serviceUrl(
   env: Record<string, string | undefined>,
   config: Record<string, string>,
 ): string {
-  const url = env[urlKey] || config[urlKey] || defaultServiceUrl;
+  const url = env[urlKey] || config[urlKey];
+  if (!url)
+    throw new Error(
+      `${urlKey} is not set: set it in the environment or ${factoryConfigDir()}/soap.env`,
+    );
   return url.replace(trailingSlashes, "");
 }
 
