@@ -11,18 +11,15 @@ const FLOOR = 70.34;
 function walked() {
   const control = setup();
   let columns = (_x: number, _y: number) => [FLOOR];
-  const navigation = createNavigation(
-    { dataPath: "data", libraryPath: "lib" },
-    () => ({
-      loadAdtAt() {},
-      findHeights: (x, y) => columns(x, y),
-      findHeight: (from, x, y) =>
-        columns(x, y).find((z) => Math.abs(z - from.z) <= 2) ?? Number.NaN,
-      lineOfSight: () => true,
-      findPath: (from: NavPoint, to: NavPoint) => [from, to],
-      close() {},
-    }),
-  );
+  const navigation = createNavigation(() => ({
+    loadAdtAt() {},
+    findHeights: (x, y) => columns(x, y),
+    findHeight: (from, x, y) =>
+      columns(x, y).find((z) => Math.abs(z - from.z) <= 2) ?? Number.NaN,
+    lineOfSight: () => true,
+    findPath: (from: NavPoint, to: NavPoint) => [from, to],
+    close() {},
+  }));
   const rt = {
     control: control.runtime,
     navigation: () => navigation,

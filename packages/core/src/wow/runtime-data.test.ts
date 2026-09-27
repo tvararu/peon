@@ -1,14 +1,19 @@
-import { afterEach, describe, expect, jest, test } from "bun:test";
-import { rm } from "node:fs/promises";
-import { join } from "node:path";
+import { describe, expect, jest, test } from "bun:test";
 import { dbcFiles, packDbc } from "#test-support/dbc";
-import { scratchDir } from "#test-support/scratch";
+import type { NavigationSource } from "#wow/navigation-native";
 import { catalogAccess } from "#wow/runtime";
 import {
   capabilitiesOf,
   type LazyState,
   warmCatalogs,
 } from "#wow/runtime-data";
+
+const expansionOnly: NavigationSource = {
+  covers: (mapId) => mapId === 530,
+  open: () => {
+    throw new Error("unused");
+  },
+};
 
 const EMPTY_DBCS: [file: string, fields: number][] = [
   ["FactionTemplate.dbc", 14],
@@ -18,25 +23,11 @@ const EMPTY_DBCS: [file: string, fields: number][] = [
   ["SpellDuration.dbc", 4],
   ["SpellRadius.dbc", 4],
 ];
-const dirs: string[] = [];
-
-function dataDir(): string {
-  const dir = scratchDir("runtime-data");
-  dirs.push(dir);
-  return dir;
-}
-
 function emptyDbcs(files: [file: string, fields: number][]) {
   return dbcFiles(
     new Map(files.map(([file, fields]) => [file, packDbc(fields, [])])),
   );
 }
-
-afterEach(async () => {
-  await Promise.all(
-    dirs.splice(0).map((dir) => rm(dir, { force: true, recursive: true })),
-  );
-});
 
 describe("capabilitiesOf", () => {
   test("reports nothing when no data is configured or loaded", () => {
@@ -48,15 +39,11 @@ describe("capabilitiesOf", () => {
     });
   });
 
-  test("navigation needs both paths and jev needs a provider", () => {
+  test("navigation needs a source and jev needs a provider", () => {
     const lazy: LazyState = { disposed: false };
-    expect(capabilitiesOf({ navigationDataDir: "d" }, lazy).navigation).toBe(
-      false,
-    );
     const full = {
       jev: { select: () => Promise.reject(new Error("unused")) },
-      navigationDataDir: "d",
-      navigationLibrary: "l",
+      navigation: expansionOnly,
     };
     expect(capabilitiesOf(full, lazy)).toMatchObject({
       jev: true,
@@ -64,28 +51,21 @@ describe("capabilitiesOf", () => {
     });
   });
 
-  test("navigation on the current map needs that map's navmesh", async () => {
-    const dir = dataDir();
-    await Bun.write(join(dir, "Expansion01.map"), "");
+  test("navigation on the current map needs the source to cover it", () => {
     const lazy: LazyState = { disposed: false };
-    const config = { navigationDataDir: dir, navigationLibrary: "l" };
+    const config = { navigation: expansionOnly };
     expect(capabilitiesOf(config, lazy, 530).navigation).toBe(true);
     expect(capabilitiesOf(config, lazy, 0).navigation).toBe(false);
-    expect(capabilitiesOf(config, lazy, 36).navigation).toBe(false);
     expect(capabilitiesOf({}, lazy, 530).navigation).toBe(false);
   });
 
-  test("runtime capabilities follow the current pose's map", async () => {
-    const dir = dataDir();
-    await Bun.write(join(dir, "Expansion01.map"), "");
+  test("runtime capabilities follow the current pose's map", () => {
     let mapId: number | undefined = 530;
     const control = {
       snapshot: () => ({ pose: mapId === undefined ? undefined : { mapId } }),
     } as unknown as Parameters<typeof catalogAccess>[3];
     const access = catalogAccess(
-      { navigationDataDir: dir, navigationLibrary: "l" } as Parameters<
-        typeof catalogAccess
-      >[0],
+      { navigation: expansionOnly } as Parameters<typeof catalogAccess>[0],
       { disposed: false },
       {} as Parameters<typeof catalogAccess>[2],
       control,

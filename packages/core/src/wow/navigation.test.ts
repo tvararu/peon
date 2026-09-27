@@ -186,20 +186,6 @@ describe("grounded navigation", () => {
 });
 
 describe("navigation lifecycle", () => {
-  test("rejects unsupported maps before native construction", () => {
-    let opened = false;
-    const nav = createNavigation(
-      { dataPath: "fixture", libraryPath: "fixture" },
-      () => {
-        opened = true;
-        return native();
-      },
-    );
-    expect(() => nav.plan(36, start, end)).toThrow(/unsupported map/);
-    expect(opened).toBe(false);
-    nav.close();
-  });
-
   test("closed navigation and routes cannot query freed native state", () => {
     let closed = false;
     const map = native({
@@ -217,26 +203,14 @@ describe("navigation lifecycle", () => {
     expect(() => nav.plan(530, start, end)).toThrow(/closed/);
     expect(() => route.sample(0.25)).toThrow(/closed/);
   });
-
-  test("missing native library is explicit rather than flat-ground fallback", () => {
-    const nav = createNavigation({
-      dataPath: "/does-not-exist-nav-data",
-      libraryPath: "/does-not-exist-libnamigator.so",
-    });
-    expect(() => nav.plan(530, start, end)).toThrow(/library not found/);
-    nav.close();
-  });
 });
 
 test("out-of-domain coordinates are rejected before map creation or native calls", () => {
   let opened = false;
-  const nav = createNavigation(
-    { dataPath: "fixture", libraryPath: "fixture" },
-    () => {
-      opened = true;
-      throw new Error("native must not be entered");
-    },
-  );
+  const nav = createNavigation(() => {
+    opened = true;
+    throw new Error("native must not be entered");
+  });
   const mid = 32 * (533 + 1 / 3);
   for (const point of [
     { x: 1e6, y: 0, z: 0 },
@@ -396,9 +370,8 @@ describe("ground destinations", () => {
     }
   });
 
-  test("retains lifecycle, domain and map gates", () => {
+  test("retains lifecycle and domain gates", () => {
     const nav = navigation(native());
-    expect(() => nav.planGround(36, start, end)).toThrow(/unsupported map/);
     expect(() => nav.planGround(530, start, { x: 1e6, y: 0 })).toThrow(
       /coordinate/,
     );
@@ -485,6 +458,5 @@ describe("ground destinations", () => {
     expect(nav.clear(530, { x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 0 })).toBe(
       false,
     );
-    expect(() => nav.clear(36, start, end)).toThrow(/unsupported map/);
   });
 });

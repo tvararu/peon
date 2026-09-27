@@ -93,6 +93,15 @@ export type {
   JevSelect,
 } from "#wow/jev";
 export { JevTransportError, JevUnavailableError } from "#wow/jev-failure";
+export { createNavigation, type Navigation } from "#wow/navigation";
+export {
+  groundError,
+  type NativeMap,
+  type NativePoint,
+  type NavigationSource,
+  validateNativePoint,
+  validateNativeXY,
+} from "#wow/navigation-native";
 export {
   type NavigationObservation,
   nextStepFor,

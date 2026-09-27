@@ -1,4 +1,5 @@
 import { createNavigation } from "../../packages/core/src/wow/navigation";
+import { navigationSource } from "../../packages/harness/src/navigation/maps";
 
 const EXPANSION01 = 530;
 const CORNER = { x: 8733.333, y: -6666.666 };
@@ -21,7 +22,7 @@ function attempt(run: () => unknown): string {
   }
 }
 
-const nav = createNavigation({ dataPath, libraryPath });
+const nav = createNavigation(navigationSource({ dataDir: dataPath, library: libraryPath }).open);
 const corner = attempt(() => nav.height(EXPANSION01, CORNER.x, CORNER.y));
 const route = attempt(() => nav.planGround(EXPANSION01, SPAWN, HALIS));
 nav.close();

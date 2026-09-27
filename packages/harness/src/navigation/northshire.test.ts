@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
-import { createNavigation, type Navigation } from "#wow/navigation";
+import { createNavigation, type Navigation } from "@peon/core";
+import { navigationSource } from "#harness/navigation/maps";
 
 const dataPath = process.env["NAV_DATA"] ?? "";
 const libraryPath = process.env["NAV_LIB"] ?? "";
@@ -11,7 +12,9 @@ const present =
   existsSync(libraryPath);
 
 function patched(): boolean {
-  const nav = createNavigation({ dataPath, libraryPath });
+  const nav = createNavigation(
+    navigationSource({ dataDir: dataPath, library: libraryPath }).open,
+  );
   try {
     nav.height(530, 8733.333, -6666.666);
     return true;
@@ -29,7 +32,9 @@ describe.skipIf(!(present && patched()))(
   () => {
     let opened: Navigation | undefined;
     const nav = () => {
-      opened ??= createNavigation({ dataPath, libraryPath });
+      opened ??= createNavigation(
+        navigationSource({ dataDir: dataPath, library: libraryPath }).open,
+      );
       return opened;
     };
     afterAll(() => opened?.close());

@@ -63,6 +63,7 @@ import type {
 } from "#wow/item-labels";
 import type { JevPort } from "#wow/jev";
 import { LOGOUT_TIMEOUT_MS, requestLogout } from "#wow/logout";
+import type { NavigationSource } from "#wow/navigation-native";
 import type { NavigationObservation } from "#wow/navigation-observation";
 import type { NearbyQuery, NearbyRow } from "#wow/nearby";
 import type { PartyChange, PartyLoot, PartyState } from "#wow/party-store";
@@ -93,8 +94,7 @@ export type ClientConfig = {
   language?: number;
   cachedSessionKey?: Uint8Array;
   dbc?: DbcSource;
-  navigationDataDir?: string;
-  navigationLibrary?: string;
+  navigation?: NavigationSource;
   jev?: JevPort;
 };
 

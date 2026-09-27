@@ -1,9 +1,9 @@
 import { createNavigation } from "../../packages/core/src/wow/navigation";
-import {
-  type NativeMap,
-  type NativePoint,
-  openNativeMap,
+import type {
+  NativeMap,
+  NativePoint,
 } from "../../packages/core/src/wow/navigation-native";
+import { navigationSource } from "../../packages/harness/src/navigation/maps";
 
 const LOW = 0.25;
 const HIGH = 1.6;
@@ -37,8 +37,9 @@ if (rest[0] === "grid") {
 
 let steps: Step[] = [];
 let native: NativeMap | undefined;
-const nav = createNavigation({ dataPath, libraryPath }, (...args) => {
-  const map = openNativeMap(...args);
+const source = navigationSource({ dataDir: dataPath, library: libraryPath });
+const nav = createNavigation((mapId) => {
+  const map = source.open(mapId);
   native = map;
   return {
     loadAdtAt: (x, y) => map.loadAdtAt(x, y),
