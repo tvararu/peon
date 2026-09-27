@@ -15,7 +15,6 @@ import type { FriendEntry, FriendEvent } from "#wow/friend-store";
 import type { GuildEvent, GuildRoster } from "#wow/guild-store";
 import type { IgnoreEntry, IgnoreEvent } from "#wow/ignore-store";
 import { labelInventory, labelRewards } from "#wow/item-labels";
-import { observeNavigation } from "#wow/navigation-observation";
 import { type NearbyQuery, queryNearby } from "#wow/nearby";
 import { PartyStore } from "#wow/party-store";
 import { type QuestEvent, QuestRuntime } from "#wow/quests";
@@ -102,7 +101,6 @@ export function createMockHandle(): MockHandle {
     cancelInteraction: jest.fn(),
     capabilities: jest.fn(() => ({
       factions: false,
-      navigation: false,
       spells: false,
     })),
     cast: jest.fn(),
@@ -115,6 +113,7 @@ export function createMockHandle(): MockHandle {
     destroyItem: jest.fn(),
     face: jest.fn(),
     faceGuid: jest.fn(),
+    follow: jest.fn(),
     getChannel: jest.fn(),
     getCombatState: jest.fn(() => combat.snapshot()),
     getControlState: jest.fn((): ControlState => controlState),
@@ -138,14 +137,6 @@ export function createMockHandle(): MockHandle {
     ),
     getItemTemplate: jest.fn(async () => undefined),
     getLastChatMode: jest.fn(() => lastChatMode),
-    getNavigationState: jest.fn(() => ({
-      active: false,
-      blockedReason: undefined,
-      destination: undefined,
-      owner: "none" as const,
-      refusal: undefined,
-      remaining: undefined,
-    })),
     getNearbyEntities: jest.fn((): Entity[] => []),
     getPartyState: jest.fn(() => new PartyStore().snapshot()),
     getPlaceState: jest.fn(() => ({
@@ -176,7 +167,6 @@ export function createMockHandle(): MockHandle {
       ...vendor.snapshot(),
       window: undefined,
     })),
-    goTo: jest.fn(),
     guildDemote: jest.fn(),
     guildInvite: jest.fn(),
     guildLeader: jest.fn(),
@@ -197,9 +187,6 @@ export function createMockHandle(): MockHandle {
     observedPosition: jest.fn((): never => {
       throw new Error("target_not_observed");
     }),
-    observeNavigation: jest.fn(() =>
-      observeNavigation(handle.getNavigationState()),
-    ),
     onCombatEvent(cb) {
       return events.combat.subscribe(cb);
     },
@@ -230,6 +217,7 @@ export function createMockHandle(): MockHandle {
     onMessage(cb) {
       return events.message.subscribe(cb);
     },
+    onMovementStop: jest.fn(() => () => {}),
     onNotice(cb) {
       return events.notice.subscribe(cb);
     },
@@ -372,7 +360,7 @@ export function createMockHandle(): MockHandle {
     uninvite: jest.fn(),
     unitRelation: jest.fn(() => "unknown" as const),
     useItem: jest.fn(async () => {}),
-    walkToward: jest.fn(async () => {
+    walkTowardPoint: jest.fn(async () => {
       throw new Error("mock_walk_unavailable");
     }),
     who: jest.fn(async () => []),

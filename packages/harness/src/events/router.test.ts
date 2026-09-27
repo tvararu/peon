@@ -30,7 +30,9 @@ describe("createEventRouter", () => {
   test("attach subscribes all 20 hooks and detach removes them", () => {
     const { router } = setup();
     const handle = createMockGame();
-    const hooks = Object.keys(handle).filter((key) => /^on[A-Z]/.test(key));
+    const hooks = Object.keys(handle).filter(
+      (key) => /^on[A-Z]/.test(key) && key !== "onMovementStop",
+    );
     const live = new Set<string>();
     const spied: Record<string, unknown> = {};
     for (const name of hooks)

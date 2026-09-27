@@ -1,19 +1,10 @@
 import { describe, expect, jest, test } from "bun:test";
 import { dbcFiles, packDbc } from "#test-support/dbc";
-import type { NavigationSource } from "#wow/navigation-native";
-import { catalogAccess } from "#wow/runtime";
 import {
   capabilitiesOf,
   type LazyState,
   warmCatalogs,
 } from "#wow/runtime-data";
-
-const expansionOnly: NavigationSource = {
-  covers: (mapId) => mapId === 530,
-  open: () => {
-    throw new Error("unused");
-  },
-};
 
 const EMPTY_DBCS: [file: string, fields: number][] = [
   ["FactionTemplate.dbc", 14],
@@ -30,45 +21,11 @@ function emptyDbcs(files: [file: string, fields: number][]) {
 }
 
 describe("capabilitiesOf", () => {
-  test("reports nothing when no data is configured or loaded", () => {
-    expect(capabilitiesOf({}, { disposed: false })).toEqual({
+  test("reports nothing when no data is loaded", () => {
+    expect(capabilitiesOf({ disposed: false })).toEqual({
       factions: false,
       spells: false,
-      navigation: false,
     });
-  });
-
-  test("navigation needs a source", () => {
-    const lazy: LazyState = { disposed: false };
-    expect(capabilitiesOf({ navigation: expansionOnly }, lazy)).toMatchObject({
-      navigation: true,
-    });
-  });
-
-  test("navigation on the current map needs the source to cover it", () => {
-    const lazy: LazyState = { disposed: false };
-    const config = { navigation: expansionOnly };
-    expect(capabilitiesOf(config, lazy, 530).navigation).toBe(true);
-    expect(capabilitiesOf(config, lazy, 0).navigation).toBe(false);
-    expect(capabilitiesOf({}, lazy, 530).navigation).toBe(false);
-  });
-
-  test("runtime capabilities follow the current pose's map", () => {
-    let mapId: number | undefined = 530;
-    const control = {
-      snapshot: () => ({ pose: mapId === undefined ? undefined : { mapId } }),
-    } as unknown as Parameters<typeof catalogAccess>[3];
-    const access = catalogAccess(
-      { navigation: expansionOnly } as Parameters<typeof catalogAccess>[0],
-      { disposed: false },
-      {} as Parameters<typeof catalogAccess>[2],
-      control,
-    );
-    expect(access.capabilities().navigation).toBe(true);
-    mapId = 0;
-    expect(access.capabilities().navigation).toBe(false);
-    mapId = undefined;
-    expect(access.capabilities().navigation).toBe(true);
   });
 });
 
@@ -85,7 +42,7 @@ describe("warmCatalogs", () => {
     const combat = { setCatalog: jest.fn() };
     warmCatalogs({ dbc: emptyDbcs(EMPTY_DBCS) }, lazy, combat);
     await Promise.all([lazy.catalogPromise, lazy.factionPromise]);
-    expect(capabilitiesOf({}, lazy)).toMatchObject({
+    expect(capabilitiesOf(lazy)).toMatchObject({
       factions: true,
       spells: true,
     });
@@ -99,7 +56,7 @@ describe("warmCatalogs", () => {
     warmCatalogs({ dbc }, lazy, combat);
     await lazy.factionPromise;
     await expect(lazy.catalogPromise).rejects.toThrow(/Spell\.dbc/);
-    expect(capabilitiesOf({}, lazy)).toMatchObject({
+    expect(capabilitiesOf(lazy)).toMatchObject({
       factions: true,
       spells: false,
     });

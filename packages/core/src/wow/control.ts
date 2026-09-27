@@ -4,18 +4,12 @@ import {
   type GroundOracle,
   MAX_DURATION_MS,
 } from "#wow/control-motion";
-import { Mover } from "#wow/control-mover";
-import { RouteFollower, type RouteRefusal } from "#wow/control-route";
+import { type MovementGuide, Mover } from "#wow/control-mover";
 import { MovementSync, type SelfObservation } from "#wow/control-sync";
 import { DirectedWalk } from "#wow/control-walk";
 import type { Position } from "#wow/entity-store";
 import { bearing, distance2d } from "#wow/geometry";
-import type {
-  GroundRoute,
-  NavDestination,
-  NavigationRefusal,
-  NavPoint,
-} from "#wow/navigation";
+import type { NavPoint } from "#wow/ground-step";
 import {
   buildSetSelection,
   type ClientControl,
@@ -26,7 +20,6 @@ import {
   type SpeedAck,
 } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import type { Replanner, ReplanState } from "#wow/route-session";
 
 export type MovementDirection = "forward" | "backward" | "left" | "right";
 
@@ -57,18 +50,6 @@ export type ControlState = {
   blockedReason: string | undefined;
   speed: number;
   owner: ControlOwner;
-};
-
-export type NavigationState = {
-  active: boolean;
-  destination: NavDestination | undefined;
-  remaining: number | undefined;
-  owner: ControlOwner;
-  blockedReason: string | undefined;
-  refusal: NavigationRefusal | undefined;
-  target?: bigint;
-  replan?: ReplanState;
-  floors?: number[];
 };
 
 export type ControlEventType =
@@ -113,7 +94,7 @@ export class ControlRuntime {
   private readonly events = new Emitter<[ControlEvent]>();
   private readonly sync: MovementSync;
   private readonly mover: Mover;
-  private readonly routes: RouteFollower;
+  private readonly stops = new Emitter<[string]>();
   private lease: ControlLease = "manual";
   private requestedTarget: bigint | undefined;
 
@@ -126,18 +107,18 @@ export class ControlRuntime {
       abort: (reason: string) => this.mover.abort(reason),
       stop: (reason: string) => this.mover.stop(reason, false),
     };
-    const interrupt = (reason: string): void =>
-      this.routes.cancelReplan(reason);
-    const lease = (): ControlLease => this.lease;
+    const interrupt = (reason: string): void => this.stops.emit(reason);
     this.deps = deps;
     this.sync = new MovementSync({ deps, emit, motion });
     this.mover = new Mover({ deps, sync: this.sync, emit, interrupt });
-    const parts = { deps, sync: this.sync, mover: this.mover, emit, lease };
-    this.routes = new RouteFollower(parts);
   }
 
   onEvent(listener: (event: ControlEvent) => void): Unsubscribe {
     return this.events.subscribe(listener);
+  }
+
+  onStop(listener: (reason: string) => void): Unsubscribe {
+    return this.stops.subscribe(listener);
   }
 
   snapshot(): ControlState {
@@ -222,34 +203,10 @@ export class ControlRuntime {
     this.emit("control_changed", "lease_changed");
   }
 
-  serverFixAge(): number | undefined {
-    const server = this.sync.server;
-    return server && this.deps.now() - server.updatedAt;
-  }
-
-  navigationState(): NavigationState {
-    return this.routes.state();
-  }
-
-  navigationError(
-    destination: NavDestination | undefined,
-    reason: string,
-    detail?: RouteRefusal,
-  ): void {
-    this.routes.refuse(destination, reason, detail);
-  }
-
-  navigate(
-    route: GroundRoute,
-    destination: NavPoint,
-    replan?: Replanner,
-    target?: bigint,
-  ): void {
-    this.routes.navigate(route, destination, replan, target);
-  }
-
-  observeDisappear(guid: bigint): void {
-    this.routes.observeDisappear(guid);
+  follow(guide: MovementGuide, facing: number, durationMs: number): void {
+    this.mover.guard("forward");
+    this.mover.face(facing);
+    this.mover.start("forward", durationMs, guide);
   }
 
   walkActive(): boolean {
@@ -333,6 +290,7 @@ export class ControlRuntime {
     this.events.clear();
     this.lease = "manual";
     this.mover.abort("close");
+    this.stops.clear();
   }
 
   private emit(type: ControlEventType, reason?: string): void {

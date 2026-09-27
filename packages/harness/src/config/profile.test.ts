@@ -102,7 +102,7 @@ describe("loadProfile", () => {
       await sessionProfile("FACABC0123456", "Fgklibhlflc"),
       root,
     );
-    expect(() => profile.client.navigation?.open(530)).toThrow(
+    expect(() => profile.navigation?.open(530)).toThrow(
       "navigation library not found: /patched/libnamigator.so",
     );
   });
@@ -163,7 +163,7 @@ describe("loadProfile", () => {
     const profile = await loadProfile(path, root);
     expect(profile.source).toBe("soap_ledger");
     expect(profile.client.account).toBe("FACABC0123456");
-    expect(() => profile.client.navigation?.open(530)).toThrow(
+    expect(() => profile.navigation?.open(530)).toThrow(
       "navigation library not found: /home/lib.so",
     );
     expect(profile.client.language).toBe(7);

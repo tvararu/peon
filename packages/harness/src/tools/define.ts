@@ -4,7 +4,6 @@ import type {
 } from "@earendil-works/pi-agent-core";
 import type { Static, TSchema } from "@earendil-works/pi-ai";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
-import { nextStepFor } from "@peon/core";
 import { messageOf } from "@peon/core/lib/errors";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { AfterMap, ToolDetails } from "#harness/contract/details";
@@ -28,6 +27,7 @@ import type {
 import { attachCallRows } from "#harness/events/delivery";
 import { JevUnavailableError } from "#harness/jev/failure";
 import type { Game } from "#harness/loops/game";
+import { nextStepFor } from "#harness/navigation/observation";
 import { dangerLine, dangerView } from "#harness/ops/danger";
 import { guardCall } from "#harness/ops/next-guard";
 import { Refusal } from "#harness/ops/refusal";

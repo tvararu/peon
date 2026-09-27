@@ -13,6 +13,7 @@ import type {
   Login,
 } from "#harness/contract/services";
 import { createGame, type Game } from "#harness/loops/game";
+import { sessionNavigation } from "#harness/navigation/travel";
 import { Refusal } from "#harness/ops/refusal";
 
 export type ConnectionInit = {
@@ -45,7 +46,13 @@ export async function sessionLogin(config: ClientConfig): Promise<WorldHandle> {
 }
 
 export async function defaultLogin(profile: Profile): Promise<Game> {
-  return createGame(await sessionLogin(profile.client), profile.jev);
+  const navigation = sessionNavigation(profile.navigation);
+  const client = { ...profile.client, ground: navigation?.ground };
+  const handle = await sessionLogin(client).catch((error: unknown) => {
+    navigation?.navigation.close();
+    throw error;
+  });
+  return createGame(handle, { jev: profile.jev, navigation });
 }
 
 export function createConnection(init: ConnectionInit): Connection {

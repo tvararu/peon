@@ -6,7 +6,7 @@ import {
   type NativePoint,
   validateNativePoint,
   validateNativeXY,
-} from "@peon/core";
+} from "#harness/navigation/native";
 
 type Ptr = number;
 

@@ -1,11 +1,9 @@
 import { describe, expect, jest, test } from "bun:test";
-import {
-  type ControlPose,
-  type NavigationState,
-  nextStepFor,
-} from "@peon/core";
+import type { ControlPose } from "@peon/core";
 import { JevUnavailableError } from "#harness/jev/failure";
 import type { TacticsEvent } from "#harness/loops/tactics";
+import { nextStepFor } from "#harness/navigation/observation";
+import type { NavigationState } from "#harness/navigation/route-follower";
 import {
   awaitCycle,
   awaitGoto,

@@ -1,11 +1,15 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
-import { setup } from "#test-support/control-fixtures";
-import { must } from "#test-support/must";
-import { GroundRoute, type NavPoint } from "#wow/navigation";
-import { groundError, type NativeMap } from "#wow/navigation-native";
-import { nextStepFor, observeNavigation } from "#wow/navigation-observation";
-import { GameOpcode } from "#wow/protocol/opcodes";
-import { REPLAN_LIMITS, RouteSession } from "#wow/route-session";
+import type { NavPoint } from "@peon/core";
+import { GameOpcode } from "@peon/core/test-support/internals";
+import { must } from "@peon/core/test-support/must";
+import { groundError, type NativeMap } from "#harness/navigation/native";
+import {
+  nextStepFor,
+  observeNavigation,
+} from "#harness/navigation/observation";
+import { GroundRoute } from "#harness/navigation/planner";
+import { REPLAN_LIMITS, RouteSession } from "#harness/navigation/route-session";
+import { routeSetup as setup } from "#test-support/navigation-fixtures";
 
 const UNKNOWN = "pathfind_find_height failed (UNKNOWN_HEIGHT)";
 
@@ -15,22 +19,22 @@ function scene() {
   const destination = { x: start.x + 20, y: start.y, z: start.z };
   const ground = { failing: true };
   const map: NativeMap = {
-    loadAdtAt() {},
-    findHeights: () => [start.z],
+    close() {},
     findHeight: (_from, x) => {
       const along = x - start.x;
       if (ground.failing && along > 3.05 && along < 3.2)
         throw groundError(UNKNOWN);
       return start.z;
     },
-    lineOfSight: () => true,
+    findHeights: () => [start.z],
     findPath: () => [],
-    close() {},
+    lineOfSight: () => true,
+    loadAdtAt() {},
   };
   const origins: NavPoint[] = [];
   const route = (from: NavPoint) => new GroundRoute([from, destination], map);
   const origin = { x: start.x, y: start.y, z: start.z };
-  return { ...f, start, destination, ground, origins, route, origin };
+  return { ...f, destination, ground, origin, origins, route, start };
 }
 
 function stops(events: { type: string; reason?: string }[]): string[] {
@@ -59,22 +63,22 @@ describe("bounded replanning", () => {
     expect(s.runtime.navigationState()).toMatchObject({
       active: false,
       blockedReason: UNKNOWN,
-      replan: { plans: 1, pending: true, interruptions: [UNKNOWN] },
+      replan: { interruptions: [UNKNOWN], pending: true, plans: 1 },
     });
     s.advance(REPLAN_LIMITS.delayMs);
     expect(s.origins).toEqual([{ x: stopped.x, y: stopped.y, z: stopped.z }]);
     expect(s.runtime.navigationState()).toMatchObject({
       active: true,
       blockedReason: undefined,
-      replan: { plans: 2, pending: false },
+      replan: { pending: false, plans: 2 },
     });
     s.advance(4000);
     const done = s.runtime.navigationState();
     expect(done).toMatchObject({
       active: false,
-      remaining: 0,
       blockedReason: undefined,
-      replan: { plans: 2, interruptions: [UNKNOWN] },
+      remaining: 0,
+      replan: { interruptions: [UNKNOWN], plans: 2 },
     });
     expect(must(done.replan).traveled).toBeCloseTo(20, 5);
     expect(s.runtime.snapshot().pose).toMatchObject({
@@ -82,12 +86,6 @@ describe("bounded replanning", () => {
       y: s.destination.y,
     });
     expect(stops(s.events)).toEqual([UNKNOWN, "arrived"]);
-    expect(
-      s.events.some(
-        (event) =>
-          event.type === "control_changed" && event.reason === "replanned",
-      ),
-    ).toBe(true);
   });
 
   test("a mid-walk ground refusal awaiting its replan gives no manual advice", () => {
@@ -129,11 +127,7 @@ describe("bounded replanning", () => {
       active: false,
       blockedReason: `replan_refused: ${UNKNOWN}`,
       refusal: "stop",
-      replan: { plans: 1, pending: false, interruptions: [UNKNOWN] },
-    });
-    expect(s.events.at(-1)).toMatchObject({
-      reason: `replan_refused: ${UNKNOWN}`,
-      type: "control_error",
+      replan: { interruptions: [UNKNOWN], pending: false, plans: 1 },
     });
     const count = s.sent.length;
     s.advance(60_000);
@@ -152,7 +146,7 @@ describe("bounded replanning", () => {
     expect(s.runtime.navigationState()).toMatchObject({
       active: false,
       blockedReason: "replan_no_progress",
-      replan: { plans: 1, interruptions: [UNKNOWN] },
+      replan: { interruptions: [UNKNOWN], plans: 1 },
     });
   });
 
@@ -169,7 +163,7 @@ describe("bounded replanning", () => {
     expect(s.runtime.navigationState()).toMatchObject({
       active: false,
       blockedReason: "halt",
-      replan: { plans: 1, pending: false },
+      replan: { pending: false, plans: 1 },
     });
   });
 
@@ -179,7 +173,7 @@ describe("bounded replanning", () => {
     const replan = jest.fn((from: NavPoint) => s.route(from));
     s.runtime.navigate(s.route(s.origin), s.destination, replan);
     s.advance(500);
-    const corrected = { ...s.origin, x: s.start.x + 3, orientation: 0 };
+    const corrected = { ...s.origin, orientation: 0, x: s.start.x + 3 };
     s.runtime.observeSelf({ position: { mapId: 530, ...corrected } });
     expect(s.runtime.navigationState()).toMatchObject({
       blockedReason: "server_correction",
@@ -205,7 +199,7 @@ describe("bounded replanning", () => {
     expect(replan).not.toHaveBeenCalled();
     expect(s.runtime.navigationState()).toMatchObject({
       blockedReason: "root",
-      replan: { plans: 1, pending: false },
+      replan: { pending: false, plans: 1 },
     });
   });
 
@@ -228,7 +222,7 @@ describe("bounded replanning", () => {
     expect(pending.runtime.navigationState()).toMatchObject({
       active: false,
       blockedReason: "target_lost",
-      replan: { plans: 1, pending: false },
+      replan: { pending: false, plans: 1 },
       target: 0x99n,
     });
 
@@ -261,12 +255,12 @@ describe("bounded replanning", () => {
 
 describe("RouteSession limits", () => {
   const map: NativeMap = {
-    loadAdtAt() {},
-    findHeights: () => [0],
-    findHeight: () => 0,
-    lineOfSight: () => true,
-    findPath: () => [],
     close() {},
+    findHeight: () => 0,
+    findHeights: () => [0],
+    findPath: () => [],
+    lineOfSight: () => true,
+    loadAdtAt() {},
   };
   const leg = (x: number) =>
     new GroundRoute(

@@ -9,6 +9,7 @@ import {
   MOVE_IDS,
   setup,
 } from "#test-support/combat-actions-fixtures";
+import { routedControl } from "#test-support/navigation-fixtures";
 
 test("transient cooldown and cancellation waits do not block an encounter", () => {
   const { actions, combat } = setup();
@@ -229,13 +230,15 @@ test("an attacking creature whose faction relation is unknown can be engaged", (
     factionTemplate: 7,
     rawFields: new Map([[UNIT_FIELDS.HEALTH.offset, 100]]),
   });
-  const control = new ControlRuntime({
+  const runtime = new ControlRuntime({
     send() {},
     now: () => 1000,
     ticks: () => 0,
     selfGuid: () => 1n,
     ground: { height: () => undefined, pathClear: () => false },
   });
+  const { control } = routedControl(runtime, () => 1000);
+
   control.observeSelf({
     position: { mapId: 530, x: 0, y: 0, z: 0, orientation: 0 },
     runSpeed: 7,

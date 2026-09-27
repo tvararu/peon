@@ -2,7 +2,6 @@ import { jest } from "bun:test";
 import {
   type FactionRelation,
   type GameObjectEntity,
-  type GotoTarget,
   type NearbyRow,
   type NpcRole,
   ObjectType,
@@ -11,6 +10,7 @@ import {
 } from "@peon/core";
 import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
+import type { GotoTarget } from "#harness/navigation/goto";
 import {
   formatContent,
   MAX_CONTENT_BYTES,

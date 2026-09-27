@@ -7,8 +7,8 @@ import { feedControl } from "#wow/control-feed";
 import type { GroundOracle } from "#wow/control-motion";
 import { ItemDestroyRuntime } from "#wow/destroy";
 import type { FactionTemplateCatalog } from "#wow/faction-template";
+import type { NavPoint } from "#wow/ground-step";
 import type { ItemTemplates } from "#wow/item-use";
-import type { Navigation, NavPoint } from "#wow/navigation";
 import { observedTargetPosition } from "#wow/observed-target";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { QuestRuntime } from "#wow/quests";
@@ -19,7 +19,6 @@ import {
   type LazyState,
   loadCatalog,
   loadFactions,
-  loadNavigation,
   warmCatalogs,
 } from "#wow/runtime-data";
 import { type SessionStores, sessionDeps } from "#wow/session-stores";
@@ -42,7 +41,6 @@ export type Runtimes = {
   loadCatalogs: () => Promise<void>;
   factions: () => FactionTemplateCatalog | undefined;
   capabilities: () => Capabilities;
-  navigation: () => Navigation;
   observedTarget: (guid: bigint) => NavPoint;
   halt: () => void;
   dispose: (sendStop: boolean) => void;
@@ -59,33 +57,6 @@ type RuntimeParts = {
   vendor: VendorRuntime;
   destroy: ItemDestroyRuntime;
 };
-
-function groundOracle(
-  config: ClientConfig,
-  lazy: LazyState,
-): GroundOracle | undefined {
-  if (!capabilitiesOf(config, lazy).navigation) return undefined;
-  const getNavigation = (): Navigation => loadNavigation(config, lazy);
-  return {
-    height: (mapId, x, y, from) => {
-      try {
-        const navigation = getNavigation();
-        return from
-          ? navigation.stepHeight(mapId, x, y, from)
-          : navigation.height(mapId, x, y);
-      } catch {
-        return Number.NaN;
-      }
-    },
-    pathClear: (mapId, from, to) => {
-      try {
-        return getNavigation().clear(mapId, from, to);
-      } catch {
-        return false;
-      }
-    },
-  };
-}
 
 function createControl(
   conn: WorldConn,
@@ -110,9 +81,6 @@ function wireStores(
       conn.events.control.emit({ ...event, state: control.snapshot() }),
     ),
     stores.self.onEvent((event) => feedControl(control, event)),
-    conn.entityStore.onEvent((event) => {
-      if (event.type === "disappear") control.observeDisappear(event.guid);
-    }),
   ];
 }
 
@@ -206,7 +174,6 @@ function disposeParts(
   trainer.dispose();
   vendor.dispose();
   destroy.dispose();
-  lazy.navigation?.close();
 }
 
 function createSupportRuntimes(
@@ -253,7 +220,6 @@ export function catalogAccess(
   config: ClientConfig,
   lazy: LazyState,
   combat: CombatRuntime,
-  control: Pick<ControlRuntime, "snapshot">,
 ): Pick<
   Runtimes,
   "prepareCatalog" | "loadCatalogs" | "factions" | "capabilities"
@@ -267,8 +233,7 @@ export function catalogAccess(
       await loadFactions(config, lazy);
     },
     factions: () => lazy.factions,
-    capabilities: () =>
-      capabilitiesOf(config, lazy, control.snapshot().pose?.mapId),
+    capabilities: () => capabilitiesOf(lazy),
   };
 }
 
@@ -278,10 +243,9 @@ export function createRuntimes(
   config: ClientConfig,
 ): Runtimes {
   const lazy: LazyState = { disposed: false };
-  const getNavigation = (): Navigation => loadNavigation(config, lazy);
-  const control = createControl(conn, groundOracle(config, lazy));
+  const control = createControl(conn, config.ground);
   const { combat, trainer } = createCombat(conn, stores, control);
-  const data = catalogAccess(config, lazy, combat, control);
+  const data = catalogAccess(config, lazy, combat);
   function rawHalt(reason = "halt"): void {
     if (lazy.disposed) return;
     control.setLease("manual");
@@ -298,7 +262,6 @@ export function createRuntimes(
   return {
     ...parts,
     ...data,
-    navigation: getNavigation,
     observedTarget: (guid) => findObservedTarget(conn, parts, guid),
     halt: () => rawHalt(),
     dispose(sendStop: boolean): void {

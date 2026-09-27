@@ -6,9 +6,7 @@ export type {
   ChatMode,
   ClientConfig,
   DuelEvent,
-  GotoTarget,
   GroupEvent,
-  WalkTarget,
   WorldHandle,
 } from "#wow/client";
 export type {
@@ -35,13 +33,18 @@ export type {
   ControlEvent,
   ControlEventType,
   ControlLease,
+  ControlOwner,
   ControlPose,
   ControlState,
   MovementDirection,
-  NavigationState,
   WalkOutcome,
 } from "#wow/control";
-export { isStepRefusal } from "#wow/control-motion";
+export {
+  type GroundOracle,
+  isStepRefusal,
+  MAX_DURATION_MS,
+} from "#wow/control-motion";
+export type { GuideStep, MovementGuide } from "#wow/control-mover";
 export type { DbcSource } from "#wow/dbc";
 export type {
   DestroyEvent,
@@ -69,6 +72,16 @@ export {
   distance2d,
   normalizeAngle,
 } from "#wow/geometry";
+export {
+  CELL_HEIGHT,
+  collisionFree,
+  GROUND_ERROR,
+  MESH_HEIGHT,
+  type NavPoint,
+  WALKABLE_CLIMB,
+  WALKABLE_SLOPE,
+  withinStep,
+} from "#wow/ground-step";
 export type { GuildEvent, GuildMember, GuildRoster } from "#wow/guild-store";
 export type { IgnoreEntry, IgnoreEvent } from "#wow/ignore-store";
 export {
@@ -86,23 +99,6 @@ export {
   type NamedLootItem,
   type NamedRewardsState,
 } from "#wow/item-labels";
-export {
-  createNavigation,
-  type Navigation,
-  type NavPoint,
-} from "#wow/navigation";
-export {
-  groundError,
-  type NativeMap,
-  type NativePoint,
-  type NavigationSource,
-  validateNativePoint,
-  validateNativeXY,
-} from "#wow/navigation-native";
-export {
-  type NavigationObservation,
-  nextStepFor,
-} from "#wow/navigation-observation";
 export type { NearbyQuery, NearbyRow, NearbyUnits } from "#wow/nearby";
 export { type NpcRole, npcRoles } from "#wow/npc-roles";
 export type {

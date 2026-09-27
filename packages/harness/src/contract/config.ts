@@ -5,6 +5,7 @@ import type { ToolStatus } from "#harness/contract/result";
 import type { RunView } from "#harness/contract/views";
 import type { JevPort } from "#harness/jev/contract";
 import type { GameCapabilities } from "#harness/loops/game";
+import type { NavigationSource } from "#harness/navigation/native";
 
 export type HarnessFlags = {
   profile: string;
@@ -29,6 +30,7 @@ export type Profile = {
   character: string;
   client: ClientConfig;
   jev?: JevPort;
+  navigation?: NavigationSource;
 };
 
 export type RunPaths = {

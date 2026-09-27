@@ -1,11 +1,12 @@
 import { homedir } from "node:os";
-import type { ClientConfig, NavigationSource } from "@peon/core";
+import type { ClientConfig } from "@peon/core";
 import { type Config, parseConfig } from "@peon/core/lib/config";
 import { messageOf } from "@peon/core/lib/errors";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { Profile, ProfileSource } from "#harness/contract/config";
 import { jevPort } from "#harness/jev/port";
 import { navigationSource } from "#harness/navigation/maps";
+import type { NavigationSource } from "#harness/navigation/native";
 import { dbcDirectory } from "#harness/runtime/dbc-directory";
 
 export type ProfileErrorCode =
@@ -74,6 +75,7 @@ export async function loadProfile(
     character: config.character,
     client: clientConfig(config),
     jev: jevPort(Bun.env),
+    navigation: navigationOf(config),
     path,
     source,
   };
@@ -86,7 +88,6 @@ export function clientConfig(cfg: Config): ClientConfig {
     dbc: cfg.spell_data_dir ? dbcDirectory(cfg.spell_data_dir) : undefined,
     host: cfg.host,
     language: cfg.language,
-    navigation: navigationOf(cfg),
     password: cfg.password.toUpperCase(),
     port: cfg.port,
   };

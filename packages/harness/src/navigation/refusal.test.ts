@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { classifyNavigationRefusal } from "#wow/navigation";
+import { classifyNavigationRefusal } from "#harness/navigation/planner";
 
 describe("classifyNavigationRefusal", () => {
   test("maps ground refusals to a next step", () => {

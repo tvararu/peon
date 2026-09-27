@@ -1,39 +1,26 @@
 import { describe, expect, jest, test } from "bun:test";
-import { setup } from "#test-support/control-fixtures";
-import { must } from "#test-support/must";
-import { controlMethods } from "#wow/client-control";
-import { createNavigation, type NavPoint } from "#wow/navigation";
-import type { Runtimes } from "#wow/runtime";
-import type { WorldConn } from "#wow/world-conn";
+import type { NavPoint } from "@peon/core";
+import { must } from "@peon/core/test-support/must";
+import { travelFixture } from "#test-support/navigation-fixtures";
 
 const FLOOR = 70.34;
 
 function walked() {
-  const control = setup();
   let columns = (_x: number, _y: number) => [FLOOR];
-  const navigation = createNavigation(() => ({
-    loadAdtAt() {},
-    findHeights: (x, y) => columns(x, y),
+  const f = travelFixture({
+    close() {},
     findHeight: (from, x, y) =>
       columns(x, y).find((z) => Math.abs(z - from.z) <= 2) ?? Number.NaN,
-    lineOfSight: () => true,
+    findHeights: (x, y) => columns(x, y),
     findPath: (from: NavPoint, to: NavPoint) => [from, to],
-    close() {},
-  }));
-  const rt = {
-    control: control.runtime,
-    navigation: () => navigation,
-    observedTarget: () => {
-      throw new Error("target_not_observed");
-    },
-  } as unknown as Runtimes;
-  const handle = controlMethods({} as WorldConn, rt);
-  const start = must(control.runtime.snapshot().pose);
-  handle.goTo({ kind: "point", x: start.x + 5, y: start.y });
-  control.advance(3000);
+    lineOfSight: () => true,
+    loadAdtAt() {},
+  });
+  const start = must(f.runtime.snapshot().pose);
+  f.handle.goTo({ kind: "point", x: start.x + 5, y: start.y });
+  f.advance(3000);
   return {
-    ...control,
-    handle,
+    ...f,
     lower(atX: number, column: number[]) {
       columns = (x) => (Math.abs(x - atX) < 1 ? column : [FLOOR - 0.6]);
     },

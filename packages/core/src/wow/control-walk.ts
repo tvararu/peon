@@ -1,9 +1,9 @@
 import type { ControlPose, WalkOutcome } from "#wow/control";
 import { MAX_DURATION_MS } from "#wow/control-motion";
 import {
-  type Guide,
   type GuideStep,
   HEARTBEAT_MS,
+  type MovementGuide,
   type Mover,
   STEP_YARDS,
 } from "#wow/control-mover";
@@ -21,7 +21,7 @@ export type WalkPlan = {
 
 export type WalkParts = { mover: Mover; sync: MovementSync; plan: WalkPlan };
 
-export class DirectedWalk implements Guide {
+export class DirectedWalk implements MovementGuide {
   readonly heartbeatMs = HEARTBEAT_MS;
   readonly outcome: Promise<WalkOutcome>;
   private readonly mover: Mover;

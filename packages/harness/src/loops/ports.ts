@@ -3,12 +3,13 @@ import type {
   ControlLease,
   ControlState,
   MovementDirection,
-  NavigationState,
   RecoveryState,
   RewardsState,
   SpellDefinition,
   WorldHandle,
 } from "@peon/core";
+import type { NavigationState } from "#harness/navigation/route-follower";
+import type { Travel } from "#harness/navigation/travel";
 
 export type CombatPort = {
   snapshot: (targetGuid?: bigint) => CombatState;
@@ -67,12 +68,12 @@ export function combatPort(handle: WorldHandle): CombatPort {
   };
 }
 
-export function controlPort(handle: WorldHandle): ControlPort {
+export function controlPort(handle: WorldHandle, travel: Travel): ControlPort {
   return {
     face: (orientation) => handle.face(orientation),
     halt: (reason) => handle.stopMoving(reason),
     move: (direction, durationMs) => handle.move(direction, durationMs),
-    navigationState: () => handle.getNavigationState(),
+    navigationState: () => travel.getNavigationState(),
     selectTarget: (guid) => handle.selectTarget(guid),
     setLease: (lease) => handle.setControlLease(lease),
     snapshot: () => handle.getControlState(),

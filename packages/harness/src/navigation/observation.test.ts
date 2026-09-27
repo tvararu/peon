@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import type { NavigationState } from "#wow/control";
-import { nextStepFor, observeNavigation } from "#wow/navigation-observation";
+import {
+  nextStepFor,
+  observeNavigation,
+} from "#harness/navigation/observation";
+import type { NavigationState } from "#harness/navigation/route-follower";
 
 function state(overrides: Partial<NavigationState> = {}): NavigationState {
   return {

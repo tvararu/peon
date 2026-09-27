@@ -1,10 +1,6 @@
-import {
-  GROUND_ERROR,
-  MESH_HEIGHT,
-  START_SNAP,
-  WALKABLE_CLIMB,
-} from "#wow/navigation-collision";
-import { groundError, type NativeMap } from "#wow/navigation-native";
+import { GROUND_ERROR, MESH_HEIGHT, WALKABLE_CLIMB } from "@peon/core";
+import { START_SNAP } from "#harness/navigation/collision";
+import { groundError, type NativeMap } from "#harness/navigation/native";
 
 export const FLOOR_MERGE = 0.01;
 

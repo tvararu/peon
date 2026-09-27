@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import type { NavPoint } from "@peon/core";
+import { refusalFloors } from "#harness/navigation/planner";
 import { native, navigation } from "#test-support/navigation-fixtures";
-import { type NavPoint, refusalFloors } from "#wow/navigation";
 
 const start: NavPoint = { x: 0, y: 0, z: 0 };
 const end = { x: 10, y: 0 };

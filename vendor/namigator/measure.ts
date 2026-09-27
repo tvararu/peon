@@ -1,4 +1,4 @@
-import { createNavigation } from "../../packages/core/src/wow/navigation";
+import { createNavigation } from "../../packages/harness/src/navigation/planner";
 import { navigationSource } from "../../packages/harness/src/navigation/maps";
 
 const [libraryPath, originArg, ...rest] = process.argv.slice(2);

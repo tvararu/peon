@@ -6,7 +6,6 @@ import {
   type FactionTemplateCatalog,
   loadFactionTemplates,
 } from "#wow/faction-template";
-import { createNavigation, type Navigation } from "#wow/navigation";
 import { loadSpellCatalog } from "#wow/spell-catalog";
 
 export type LazyState = {
@@ -15,11 +14,9 @@ export type LazyState = {
   spellsLoaded?: boolean;
   factions?: FactionTemplateCatalog;
   factionPromise?: Promise<void>;
-  navigation?: Navigation;
 };
 
 type SpellData = Pick<ClientConfig, "dbc">;
-type NavigationData = Pick<ClientConfig, "navigation">;
 
 type CatalogSink = Pick<CombatRuntime, "setCatalog">;
 
@@ -48,16 +45,6 @@ export function loadFactions(
   return lazy.factionPromise;
 }
 
-export function loadNavigation(
-  config: NavigationData,
-  lazy: LazyState,
-): Navigation {
-  const source = config.navigation;
-  if (!source) throw new Error("missing_navigation");
-  lazy.navigation ??= createNavigation((mapId) => source.open(mapId));
-  return lazy.navigation;
-}
-
 export function warmCatalogs(
   config: SpellData,
   lazy: LazyState,
@@ -68,20 +55,9 @@ export function warmCatalogs(
   loadFactions(config, lazy).catch(ignoreFailure);
 }
 
-export function capabilitiesOf(
-  config: NavigationData,
-  lazy: LazyState,
-  mapId?: number,
-): Capabilities {
+export function capabilitiesOf(lazy: LazyState): Capabilities {
   return {
     factions: lazy.factions !== undefined,
     spells: lazy.spellsLoaded === true,
-    navigation: navigationOn(config, mapId),
   };
-}
-
-function navigationOn(config: NavigationData, mapId?: number): boolean {
-  const source = config.navigation;
-  if (!source) return false;
-  return mapId === undefined || source.covers(mapId);
 }

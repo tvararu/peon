@@ -1,8 +1,8 @@
 import { expect, jest, test } from "bun:test";
-import { setup } from "#test-support/control-fixtures";
-import { must } from "#test-support/must";
-import { GroundRoute } from "#wow/navigation";
-import type { NativeMap } from "#wow/navigation-native";
+import { must } from "@peon/core/test-support/must";
+import type { NativeMap } from "#harness/navigation/native";
+import { GroundRoute } from "#harness/navigation/planner";
+import { routeSetup as setup } from "#test-support/navigation-fixtures";
 
 test("ground-route movement samples mesh height and HALT prevents lease renewal", () => {
   jest.useFakeTimers();
@@ -15,12 +15,12 @@ test("ground-route movement samples mesh height and HALT prevents lease renewal"
       Math.min(2, ((x - start.x) * 2) / 7) +
       Math.max(0, x - start.x - 7) / 14;
     const ground: NativeMap = {
-      loadAdtAt() {},
-      findHeights: (x) => [height(x)],
-      findHeight: (_from, x) => height(x),
-      lineOfSight: () => true,
-      findPath: () => [],
       close() {},
+      findHeight: (_from, x) => height(x),
+      findHeights: (x) => [height(x)],
+      findPath: () => [],
+      lineOfSight: () => true,
+      loadAdtAt() {},
     };
     const route = new GroundRoute(
       [
@@ -55,12 +55,12 @@ test("tactical authority survives stationary waits but root stops navigation", (
     const start = must(runtime.snapshot().pose);
     const destination = { x: start.x + 20, y: start.y, z: start.z };
     const ground: NativeMap = {
-      loadAdtAt() {},
-      findHeights: () => [start.z],
-      findHeight: () => start.z,
-      lineOfSight: () => true,
-      findPath: () => [],
       close() {},
+      findHeight: () => start.z,
+      findHeights: () => [start.z],
+      findPath: () => [],
+      lineOfSight: () => true,
+      loadAdtAt() {},
     };
     runtime.navigate(
       new GroundRoute([start, destination], ground),
@@ -83,12 +83,12 @@ test("an old-origin route cannot reset a moving predicted pose", () => {
     const start = must(runtime.snapshot().pose);
     const destination = { x: start.x + 20, y: start.y, z: start.z };
     const ground: NativeMap = {
-      loadAdtAt() {},
-      findHeights: () => [start.z],
-      findHeight: () => start.z,
-      lineOfSight: () => true,
-      findPath: () => [],
       close() {},
+      findHeight: () => start.z,
+      findHeights: () => [start.z],
+      findPath: () => [],
+      lineOfSight: () => true,
+      loadAdtAt() {},
     };
     const route = new GroundRoute([start, destination], ground);
     runtime.navigate(route, destination);
@@ -108,11 +108,11 @@ test("navigationError stores refusal and navigate clears refusal", () => {
   runtime.navigationError(dest, "position disagrees with ground height");
   expect(runtime.navigationState()).toEqual({
     active: false,
-    destination: dest,
-    remaining: undefined,
-    owner: "none",
     blockedReason: "position disagrees with ground height",
+    destination: dest,
+    owner: "none",
     refusal: "wait",
+    remaining: undefined,
   });
 
   runtime.navigationError(dest, "ambiguous ground column at destination");
@@ -124,12 +124,12 @@ test("navigationError stores refusal and navigate clears refusal", () => {
   const start = must(runtime.snapshot().pose);
   const destMatching = { ...dest, z: start.z };
   const ground: NativeMap = {
-    loadAdtAt() {},
-    findHeights: () => [start.z],
-    findHeight: () => start.z,
-    lineOfSight: () => true,
-    findPath: () => [],
     close() {},
+    findHeight: () => start.z,
+    findHeights: () => [start.z],
+    findPath: () => [],
+    lineOfSight: () => true,
+    loadAdtAt() {},
   };
   runtime.navigate(
     new GroundRoute([start, destMatching], ground),
@@ -144,12 +144,12 @@ test("a route may start on the floor just under the pose, nowhere else", () => {
   const pose = must(runtime.snapshot().pose);
   const routeFrom = (origin: { x: number; y: number; z: number }) => {
     const ground: NativeMap = {
-      loadAdtAt() {},
-      findHeights: () => [origin.z],
-      findHeight: () => origin.z,
-      lineOfSight: () => true,
-      findPath: () => [],
       close() {},
+      findHeight: () => origin.z,
+      findHeights: () => [origin.z],
+      findPath: () => [],
+      lineOfSight: () => true,
+      loadAdtAt() {},
     };
     const destination = { ...origin, x: origin.x + 10 };
     return [

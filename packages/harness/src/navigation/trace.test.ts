@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import type { NavPoint } from "@peon/core";
+import { groundError } from "#harness/navigation/native";
 import { native, navigation } from "#test-support/navigation-fixtures";
-import type { NavPoint } from "#wow/navigation";
-import { groundError } from "#wow/navigation-native";
 
 const start: NavPoint = { x: 0, y: 0, z: 0 };
 const end: NavPoint = { x: 10, y: 0, z: 0 };
@@ -56,11 +56,11 @@ describe("lost height traces", () => {
 
   test("walks the terrain line when the lost trace sits under a raised mesh corner", () => {
     const map = native({
-      findPath: (from, to) => [from, { x: 5, y: 1, z: 3 }, to],
       findHeight: (from, x) => {
         if (from.x < 5 && x >= 5) throw groundError("UNKNOWN_HEIGHT");
         return 0;
       },
+      findPath: (from, to) => [from, { x: 5, y: 1, z: 3 }, to],
     });
     expect(navigation(map).plan(530, start, end).length).toBeCloseTo(10);
   });

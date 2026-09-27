@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { NativeMap, WorldHandle } from "@peon/core";
+import type { WorldHandle } from "@peon/core";
 import { worldSession } from "@peon/core/session";
 import { dbcFiles, packDbc } from "@peon/core/test-support/dbc";
 import {
@@ -18,15 +18,6 @@ import { createGame } from "#harness/loops/game";
 
 const SELF = 0x42;
 const TARGET = 0x99;
-
-const flatMap = (): NativeMap => ({
-  loadAdtAt() {},
-  findHeights: () => [3],
-  findHeight: () => 3,
-  lineOfSight: () => true,
-  findPath: (from, to) => [from, to],
-  close() {},
-});
 
 const emptyData = dbcFiles(
   new Map([
@@ -55,7 +46,6 @@ async function session() {
       clientSeed,
       dbc: emptyData,
       host: "127.0.0.1",
-      navigation: { covers: () => true, open: flatMap },
       password: FIXTURE_PASSWORD,
       port: server.port,
       srpPrivateKey: clientPrivateKey,
@@ -124,7 +114,7 @@ test("a raw move leaves the cycle running until takeControl stops it", async () 
 
 async function activeTactics(handle: WorldHandle, calls: string[]) {
   const game = createGame(recordActuators(handle, calls), {
-    select: hangUntilAborted,
+    jev: { select: hangUntilAborted },
   });
   const requested = Promise.withResolvers<void>();
   game.onTacticsEvent((event) => {
