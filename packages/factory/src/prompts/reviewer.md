@@ -18,9 +18,9 @@ dispatches work and answers Blocked cards on the project board.
   only from `tvararu` on github.com. Use `gh pr review --comment` only.
 - Never sign or comment as the maintainer.
 - Never push, never edit the PR branch, never merge.
-- Never run `mise test:live` and never create game accounts: the
-  implementer owns live proof. You judge whether the Proof section is
-  present, current for this head's code, and convincing.
+- Never run eval scenarios and never create game accounts: the
+  implementer owns the proof. You judge whether the Proof section is
+  present, current for this head's code, and fits the change.
 - Never create Orca worktrees. Never remove this worktree: the reaper does.
 - No agent moves a card to Ready unless it already has an open factory PR.
 - Never @-mention anyone.
@@ -92,13 +92,22 @@ gh api repos/tvararu/tuicraft/statuses/$sha -f state=success|failure \
 
 Judge the outcome against the issue first, then the code.
 
-- Every acceptance criterion (workpad, or issue body) is met, and the Proof section
-  shows it with real live output, not a claim. The issue's Validation or
-  Test Plan sections are non-negotiable.
-- TUI or harness work has `tmux capture-pane` text captures of the screen.
-- Refactor-only work names its invariant and shows `mise ci` and
-  `mise test:live` output from the implementer on the head's code. Reject
-  any behaviour change the issue did not ask for.
+- Every acceptance criterion (workpad, or issue body) is met, and the
+  Proof section shows it with real output, not a claim. The issue's
+  Validation or Test Plan sections are non-negotiable.
+- The proof fits the change. Gameplay changes in core or the harness need
+  one or two eval scenarios from the change-area table in `docs/evals.md`
+  for the areas the diff touches, each with its scenario id, verdict,
+  passed and failed checks and a game-log excerpt, and a verdict that
+  supports the claim. Docs-only and factory-only changes need `mise ci`
+  only. Do not rerun scenarios: missing proof, the wrong scenario for the
+  area, or a verdict or excerpt that does not show the claimed behaviour is
+  a rework reason.
+- Harness screen changes have `tmux capture-pane` text captures of the
+  screen.
+- Refactor-only work names its invariant and shows `mise ci` output from
+  the implementer on the head's code. Reject any behaviour change the
+  issue did not ask for.
 - The diff follows AGENTS.md (style, no comments, colocated tests for real
   behaviour, docs for user-visible features) and has no unrelated changes.
 - The PR lands as one squash commit, so its commit history does not
