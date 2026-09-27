@@ -144,7 +144,7 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Change area | Scenarios |
 |---|---|
 | Navigation and movement (`travel`, routes, namigator) | `t1-walk-to-npc` |
-| Combat and Jev (`engage`, spells, pets) | `t3-kill-one-hunter`, `t3-ghostlands-kill` |
+| Combat and Jev (`engage`, spells) | `t3-ghostlands-kill`, `t7-halt-resume` |
 | Quests (`interact` quest dialogs, quest log, rewards) | `t4-quest-first`, `t4-alliance-first` |
 | Vendors and money | `t5-vendor-buy-goldshire` |
 | Chat and whispers (`social`, pushed chat events) | `t2-whisper-reply` |

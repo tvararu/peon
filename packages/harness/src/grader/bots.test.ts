@@ -63,7 +63,7 @@ describe("recordBots", () => {
       exec,
       log: (line) => lines.push(line),
       runDir: dir,
-      scenario: loadScenario("t3-kill-one-hunter"),
+      scenario: loadScenario("t7-halt-resume"),
     });
     expect(await Bun.file(`${dir}/run.json`).json()).toMatchObject({
       bots: { count: 105, risk: "high" },

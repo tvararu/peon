@@ -84,8 +84,8 @@ describe("liveClash", () => {
     });
     await sibling(round, {
       finished: "result.json",
-      name: "t3-kill-one-hunter-1",
-      scenario: "t3-kill-one-hunter",
+      name: "t7-halt-resume-1",
+      scenario: "t7-halt-resume",
     });
     await sibling(round, {
       name: "t7-question-while-acting-1",
