@@ -379,6 +379,33 @@ describe("runScenario", () => {
         trigger: "elapsed:40000",
       },
     ]);
+    const setups = world.calls.filter((call) => call[3] === "setup");
+    expect(setups.map((call) => call.slice(4))).toEqual([
+      [
+        ACC,
+        "position",
+        JSON.stringify({
+          map: 530,
+          o: 1.686,
+          x: 8731,
+          y: -6677,
+          z: 69.76,
+          zone: 3430,
+        }),
+      ],
+      [
+        ACC,
+        "position",
+        JSON.stringify({
+          map: 530,
+          o: 1.686,
+          x: 8739,
+          y: -6693,
+          z: 71.09,
+          zone: 3430,
+        }),
+      ],
+    ]);
     const reads = await jsonLines(`${world.runDir}/partner-read.jsonl`);
     expect(reads.at(-1)?.["events"]).toEqual([
       { message: "10", sender: "Fevala", type: "whisper" },
