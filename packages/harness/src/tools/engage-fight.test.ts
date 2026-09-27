@@ -105,6 +105,25 @@ describe("engage fight", () => {
     );
   });
 
+  test("a kill after an approach counts only the fight time", async () => {
+    const t = await field();
+    setUnits(t.handle, [stalker(STALKER, 45)]);
+    driveGoto(t.handle, [
+      { arrive: { x: 25, y: 0 }, onArrive: () => t.clock.advance(10_000) },
+    ]);
+    tactics(t.handle, (runId) => {
+      t.clock.advance(7000);
+      outcome(t.handle, runId, KILL);
+    });
+    const res = await engageSpec.run(
+      { loot: false, target: "Springpaw Stalker" },
+      toolCtx<EngageAfter>(t),
+    );
+    expect(res.detail).toMatch(
+      /^killed Springpaw Stalker \(u\d+\) in 7 s, server kill credit\./,
+    );
+  });
+
   test("Jev timing out 3 times maps to jev_unavailable", async () => {
     const t = await field();
     tactics(t.handle, (runId) =>

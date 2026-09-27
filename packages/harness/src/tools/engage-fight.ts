@@ -209,11 +209,14 @@ function killedRefs(tally: Tally): string {
     .join(", ");
 }
 
+function foughtSecs({ walk }: Scene, secs: number): number {
+  return walk ? Math.max(0, secs - Math.round(walk.ms / 1000)) : secs;
+}
+
 function fightTime(scene: Scene, secs: number): string {
+  const into = `${foughtSecs(scene, secs)} s into the fight`;
   const { walk } = scene;
-  if (!walk) return `${secs} s into the fight`;
-  const fought = Math.max(0, secs - Math.round(walk.ms / 1000));
-  return `${fought} s into the fight (you walked ${Math.round(walk.yd)} yd first)`;
+  return walk ? `${into} (you walked ${Math.round(walk.yd)} yd first)` : into;
 }
 
 function diedReport(scene: Scene, secs: number): Report {
@@ -324,7 +327,7 @@ function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
   if (complete)
     return result("DONE", {
       after,
-      detail: `${creditText(tally, secs)}${gains(scene)}`,
+      detail: `${creditText(tally, foughtSecs(scene, secs))}${gains(scene)}`,
       next: also,
     });
   const why =
