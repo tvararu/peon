@@ -1,6 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { RestAfter } from "#harness/contract/details";
-import { restSpec } from "#harness/tools/rest";
+import { REST_MAX_MS, restSpec } from "#harness/tools/rest";
 import {
   attackBy,
   contentOf,
@@ -58,10 +58,9 @@ function drinkAura(handle: MockHandle): void {
     stacks: 1,
     timeLeft: 18_000,
   };
-  handle.triggerCombatEvent({
-    state: { ...state, auras: [aura] },
-    type: "aura",
-  });
+  const next = { ...state, auras: [aura] };
+  handle.getCombatState = () => next;
+  handle.triggerCombatEvent({ state: next, type: "aura" });
 }
 
 async function flush(): Promise<void> {
@@ -90,28 +89,120 @@ describe("rest", () => {
     expect(res.after).toMatchObject({ auraConfirmed: true, idle: false });
   });
 
-  test("with no food it idles 30 s and says how far another rest gets", async () => {
+  async function ticking(
+    t: Awaited<ReturnType<typeof createTestRuntime>>,
+    each: (tick: number) => void,
+    ticks = 200,
+  ) {
+    let done = false;
+    const pending = restSpec.run({}, toolCtx<RestAfter>(t)).finally(() => {
+      done = true;
+    });
+    for (let tick = 0; tick < ticks && !done; tick += 1) {
+      each(tick);
+      jest.advanceTimersByTime(1000);
+      await flush();
+    }
+    return pending;
+  }
+
+  test("with no food it runs past 30 s until the threshold", async () => {
+    jest.useFakeTimers();
+    try {
+      const t = await createTestRuntime();
+      setSelf(t.handle, { hp: 100, maxHp: 200, maxPower: 300, power: 300 });
+      const res = await ticking(t, (tick) => {
+        if (tick % 5 === 4)
+          setSelf(t.handle, {
+            hp: Math.min(200, 100 + ((tick + 1) / 5) * 10),
+            maxHp: 200,
+            maxPower: 300,
+            power: 300,
+          });
+      });
+      expect(res.status).toBe("DONE");
+      expect(res.after.durationMs).toBeGreaterThan(30_000);
+      expect(res.detail).toMatch(
+        /^rested \d+ s without food or drink: HP 180\/200, mana 100%\.$/,
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("a rest that keeps rising stops at the rest limit and names it", async () => {
+    jest.useFakeTimers();
+    try {
+      const t = await createTestRuntime();
+      setSelf(t.handle, { hp: 10, maxHp: 1000, maxPower: 300, power: 300 });
+      const res = await ticking(t, (tick) =>
+        setSelf(t.handle, {
+          hp: 10 + tick * 5,
+          maxHp: 1000,
+          maxPower: 300,
+          power: 300,
+        }),
+      );
+      expect(res).toMatchObject({
+        after: { durationMs: REST_MAX_MS },
+        next: "rest()",
+        reason: "time_limit",
+        status: "PARTLY",
+      });
+      expect(res.detail).toStartWith(
+        `rested ${REST_MAX_MS / 1000} s (the limit for one rest) without food or drink: `,
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("with no food and nothing rising it stops after 10 s", async () => {
     jest.useFakeTimers();
     try {
       const t = await createTestRuntime();
       setSelf(t.handle, { hp: 100, maxHp: 200, maxPower: 300, power: 150 });
-      let done = false;
-      const pending = restSpec.run({}, toolCtx<RestAfter>(t)).finally(() => {
-        done = true;
-      });
-      for (let tick = 0; tick < 40 && !done; tick += 1) {
-        jest.advanceTimersByTime(1000);
-        await flush();
-      }
-      const res = await pending;
+      const res = await ticking(t, () => undefined);
       expect(res).toMatchObject({
-        after: { durationMs: 30_000, idle: true },
-        reason: "time_limit",
+        after: { durationMs: 10_000, idle: true },
+        next: "look()",
+        reason: "no_regen",
         status: "PARTLY",
       });
       expect(res.detail).toBe(
-        "rested 30 s without food or drink: HP 100/200, mana 50%. Another rest() will not reach 90% without food or drink.",
+        "rested 10 s without food or drink: HP 100/200, mana 50%. Nothing rose for 10 s. Another rest() will not reach 90% without food or drink.",
       );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("eats again when the food aura ends before the threshold", async () => {
+    jest.useFakeTimers();
+    try {
+      const t = await createTestRuntime();
+      setSelf(t.handle, { hp: 200, maxHp: 200, maxPower: 300, power: 30 });
+      water(t.handle, 5);
+      let drinks = 0;
+      t.handle.useItem = async () => {
+        drinks += 1;
+        water(t.handle, 5 - drinks);
+        drinkAura(t.handle);
+      };
+      const res = await ticking(t, (tick) => {
+        setSelf(t.handle, {
+          hp: 200,
+          maxHp: 200,
+          maxPower: 300,
+          power: Math.min(300, 30 + tick * 6),
+        });
+        if (tick === 20) {
+          const state = t.handle.getCombatState();
+          t.handle.getCombatState = () => ({ ...state, auras: [] });
+        }
+      });
+      expect(drinks).toBe(2);
+      expect(res.status).toBe("DONE");
     } finally {
       jest.useRealTimers();
     }
@@ -119,13 +210,15 @@ describe("rest", () => {
 
   test.each([
     {
-      detail: "HP 200/200, mana 80%. Another rest() reaches 90%.",
+      detail:
+        "HP 200/200, mana 80%. Nothing rose for 10 s. Another rest() reaches 90%.",
       end: { hp: 200, maxHp: 200, maxPower: 300, power: 240 },
       name: "a full stat does not block a rising one",
       start: { hp: 200, maxHp: 200, maxPower: 300, power: 180 },
     },
     {
-      detail: "HP 120/200, mana 100%. Another rest() reaches about 70%.",
+      detail:
+        "HP 120/200, mana 100%. Nothing rose for 10 s. Another rest() reaches about 70%.",
       end: { hp: 120, maxHp: 200, maxPower: 300, power: 300 },
       name: "a slow stat projects short of the threshold",
       start: { hp: 100, maxHp: 200, maxPower: 300, power: 300 },
@@ -135,18 +228,12 @@ describe("rest", () => {
     try {
       const t = await createTestRuntime();
       setSelf(t.handle, start);
-      let done = false;
-      const pending = restSpec.run({}, toolCtx<RestAfter>(t)).finally(() => {
-        done = true;
-      });
-      for (let tick = 0; tick < 40 && !done; tick += 1) {
+      const res = await ticking(t, (tick) => {
         if (tick === 5) setSelf(t.handle, end);
-        jest.advanceTimersByTime(1000);
-        await flush();
-      }
-      const res = await pending;
-      expect(res).toMatchObject({ reason: "time_limit", status: "PARTLY" });
-      expect(res.detail).toBe(`rested 30 s without food or drink: ${detail}`);
+      });
+      expect(res).toMatchObject({ reason: "no_regen", status: "PARTLY" });
+      expect(res.detail).toMatch(/^rested \d+ s without food or drink: /);
+      expect(res.detail).toEndWith(detail);
     } finally {
       jest.useRealTimers();
     }

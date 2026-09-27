@@ -61,7 +61,7 @@ export const TOOL_TEXT: Readonly<Record<ToolName, ToolText>> = {
   },
   rest: {
     description:
-      "Eats and drinks from your bags until your health and mana reach a percent. It waits up to 30 seconds and stops if a unit attacks you. It refuses in combat and when you are dead.",
+      "Eats and drinks from your bags until your health and mana reach a percent, and eats again when the food ends. It stops at that percent, after 110 seconds, when nothing increases for 10 seconds, or when a unit attacks you. It refuses in combat and when you are dead.",
     guidelines: [
       "Rest before a fight when your health is under 50% or your mana is under 30%.",
     ],

@@ -14,7 +14,7 @@ import { guidHex } from "#harness/ops/refs";
 import { Refusal } from "#harness/ops/refusal";
 import { settle } from "#harness/ops/settle";
 import { poseView, selfView, unitViews, vitalsView } from "#harness/ops/views";
-import { awaitRun } from "#harness/runs/wait";
+import { awaitRun, YIELD_AFTER_MS } from "#harness/runs/wait";
 import {
   defineGameTool,
   type GameToolSpec,
@@ -38,10 +38,12 @@ type Rested = {
   waitedMs: number;
   auraConfirmed: boolean;
   startLevels: Levels;
+  stalled: boolean;
 };
 
 const DEFAULT_UNTIL = 90;
-const REST_MAX_MS = 30_000;
+export const REST_MAX_MS = YIELD_AFTER_MS - 10_000;
+const STALL_MS = 10_000;
 const POLL_MS = 1000;
 const AURA_MS = 3000;
 const BAG_REGIONS = new Set(["backpack", "bag_item"]);
@@ -151,21 +153,55 @@ async function useOne(ops: OpsCtx, item: Consumable): Promise<boolean> {
   }
 }
 
-async function rest(ops: OpsCtx, until: number, rested: Rested): Promise<void> {
+function eating(ctx: ViewCtx, item: Consumable): boolean {
+  return ctx.handle
+    .getCombatState()
+    .auras.some((aura) => item.spellIds.includes(aura.spellId));
+}
+
+function noteUsed(rested: Rested, item: Consumable): void {
+  const same = rested.used.find((line) => line.itemId === item.entry);
+  if (same) {
+    same.count += 1;
+    return;
+  }
+  rested.used.push({
+    count: 1,
+    itemId: item.entry,
+    name: item.name,
+    quality: item.quality,
+  });
+}
+
+async function eat(ops: OpsCtx, until: number, rested: Rested): Promise<void> {
   for (const item of consumables(ops)) {
     if (reached(levelsOf(ops), until)) break;
+    if (eating(ops, item)) continue;
     const confirmed = await useOne(ops, item);
-    rested.used.push({
-      count: 1,
-      itemId: item.entry,
-      name: item.name,
-      quality: item.quality,
-    });
+    noteUsed(rested, item);
     rested.auraConfirmed ||= confirmed;
   }
+}
+
+function rose(now: Levels, best: Levels): boolean {
+  return now.hp > best.hp || (now.mana ?? 0) > (best.mana ?? 0);
+}
+
+async function rest(ops: OpsCtx, until: number, rested: Rested): Promise<void> {
+  await eat(ops, until, rested);
+  let best = levelsOf(ops);
+  let stillMs = 0;
   while (!reached(levelsOf(ops), until) && rested.waitedMs < REST_MAX_MS) {
     await pause(POLL_MS, ops.signal);
     rested.waitedMs += POLL_MS;
+    const now = levelsOf(ops);
+    stillMs = rose(now, best) ? 0 : stillMs + POLL_MS;
+    if (rose(now, best)) best = now;
+    if (rested.used.length > 0) await eat(ops, until, rested);
+    if (stillMs >= STALL_MS) {
+      rested.stalled = true;
+      return;
+    }
   }
 }
 
@@ -205,9 +241,18 @@ function doneReport(ctx: ViewCtx, rested: Rested, until: number): Report {
     ? "without food or drink"
     : `with ${rested.used.map((item) => item.name).join(" and ")}`;
   const left = after.idle ? "" : ` ${after.itemsLeft} food and drink left.`;
-  const detail = `rested ${secs} s ${how}: ${vitalsText(ctx)}.${left}`;
+  const capped =
+    rested.waitedMs >= REST_MAX_MS ? " (the limit for one rest)" : "";
+  const detail = `rested ${secs} s${capped} ${how}: ${vitalsText(ctx)}.${left}`;
   if (reached(levelsOf(ctx), until)) return result("DONE", { after, detail });
   const hint = after.idle ? projection(rested, levelsOf(ctx), until) : "";
+  if (rested.stalled)
+    return result("PARTLY", {
+      after,
+      detail: `${detail} Nothing rose for ${STALL_MS / 1000} s.${hint}`,
+      next: nextCall("look"),
+      reason: "no_regen",
+    });
   return result("PARTLY", {
     after,
     detail: `${detail}${hint}`,
@@ -329,6 +374,7 @@ function precheck(ctx: ToolCtx<RestAfter>, until: number): Report | undefined {
   if (!reached(levels, until)) return;
   const rested: Rested = {
     auraConfirmed: false,
+    stalled: false,
     startLevels: levels,
     used: [],
     waitedMs: 0,
@@ -360,6 +406,7 @@ async function runRest(
   if (ready) return ready;
   const rested: Rested = {
     auraConfirmed: false,
+    stalled: false,
     startLevels: levelsOf(ctx),
     used: [],
     waitedMs: 0,
