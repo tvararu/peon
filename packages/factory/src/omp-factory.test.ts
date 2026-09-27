@@ -143,11 +143,14 @@ describe("omp-factory", () => {
     expect(await mirrored(run.state)).toEqual({
       mise: `${home}/.local/state/mise`,
     });
-    const paths = resolvePaths({
-      XDG_CONFIG_HOME: run.config,
-      XDG_RUNTIME_DIR: run.runtime,
-      XDG_STATE_HOME: run.state,
-    });
+    const paths = resolvePaths(
+      {
+        XDG_CONFIG_HOME: run.config,
+        XDG_RUNTIME_DIR: run.runtime,
+        XDG_STATE_HOME: run.state,
+      },
+      { home, tmp: tmpdir(), uid: 0 },
+    );
     expect(paths.configPath).toBe(`${base}/config/peon/config.toml`);
     expect(paths.socketPath).toBe(`${run.runtime}/peon/sock`);
     expect(await git(worktree, "status", "--porcelain", "--ignored")).toBe("");

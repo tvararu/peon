@@ -1,3 +1,4 @@
+import { homedir, tmpdir } from "node:os";
 import { basename, dirname } from "node:path";
 import { type PathEnv, resolvePaths } from "@peon/core/lib/paths";
 
@@ -30,7 +31,8 @@ const NOT_LISTENING: readonly string[] = ["ENOENT", "ECONNREFUSED"];
 const CMDS: readonly string[] = ["status", "read", "nearby", "whisper", "stop"];
 
 export function puppetPaths(env: PathEnv = Bun.env): PuppetPaths {
-  const { configPath, runtimeDir } = resolvePaths(env);
+  const host = { home: homedir(), tmp: tmpdir(), uid: process.getuid?.() ?? 0 };
+  const { configPath, runtimeDir } = resolvePaths(env, host);
   return {
     configPath,
     pid: `${runtimeDir}/puppet.pid`,

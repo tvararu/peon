@@ -50,7 +50,7 @@ password = "<password>"
 character = "<character>"
 ```
 
-`host` (default `t1`), `port` (3724), `language` (1, Orcish; 7 for
+`host` (default `localhost`), `port` (3724), `language` (1, Orcish; 7 for
 Alliance), `timeout_minutes` (30), `spell_data_dir`,
 `navigation_data_dir` and `navigation_library` are optional. Then run:
 

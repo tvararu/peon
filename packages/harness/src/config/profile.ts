@@ -1,5 +1,6 @@
 import { homedir } from "node:os";
-import { type Config, clientConfig, parseConfig } from "@peon/core/lib/config";
+import type { ClientConfig } from "@peon/core";
+import { type Config, parseConfig } from "@peon/core/lib/config";
 import { messageOf } from "@peon/core/lib/errors";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { Profile, ProfileSource } from "#harness/contract/config";
@@ -71,6 +72,24 @@ export async function loadProfile(
     client: clientConfig(config),
     path,
     source,
+  };
+}
+
+export function clientConfig(cfg: Config): ClientConfig {
+  return {
+    account: cfg.account.toUpperCase(),
+    character: cfg.character,
+    host: cfg.host,
+    jevApiKey: Bun.env["TYPESAFE_API_KEY"],
+    jevEndpointUrl:
+      Bun.env["JEV_ENDPOINT_URL"] ?? Bun.env["TYPESAFE_ENDPOINT_URL"],
+    jevFault: Bun.env["JEV_FAULT"],
+    language: cfg.language,
+    navigationDataDir: cfg.navigation_data_dir,
+    navigationLibrary: cfg.navigation_library,
+    password: cfg.password.toUpperCase(),
+    port: cfg.port,
+    spellDataDir: cfg.spell_data_dir,
   };
 }
 

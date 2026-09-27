@@ -19,8 +19,8 @@ not a target.
   mock: add new `WorldHandle` methods to it.
 - `mock.module()` leaks across files in Bun, so `config/biome.grit` bans
   it. Inject dependencies instead: file locations come from a `Paths`
-  value (`resolvePaths()` by default) and tests pass `pathsUnder(dir)`
-  from `packages/core/test-support/temp-paths.ts`.
+  value that `resolvePaths(env, host)` builds, and tests pass their own
+  XDG directories, home, temp directory and uid.
 - Tests that spawn git use `git()` or `gitEnv()` from
   `packages/factory/test-support/git.ts`, which strip `GIT_*`: an
   inherited `GIT_DIR` makes `git init` write into another repository.

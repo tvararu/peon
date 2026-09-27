@@ -1,13 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import { resolvePaths } from "#lib/paths";
 
+const host = { home: "/home/u", tmp: "/tmp", uid: 1000 };
+
 describe("resolvePaths", () => {
   test("honours XDG directories", () => {
-    const paths = resolvePaths({
-      XDG_CONFIG_HOME: "/cfg",
-      XDG_RUNTIME_DIR: "/run/user/7",
-      XDG_STATE_HOME: "/state",
-    });
+    const paths = resolvePaths(
+      {
+        XDG_CONFIG_HOME: "/cfg",
+        XDG_RUNTIME_DIR: "/run/user/7",
+        XDG_STATE_HOME: "/state",
+      },
+      host,
+    );
     expect(paths).toEqual({
       configDir: "/cfg/peon",
       configPath: "/cfg/peon/config.toml",
@@ -20,16 +25,17 @@ describe("resolvePaths", () => {
   });
 
   test("falls back to home and a uid-scoped temp directory", () => {
-    const paths = resolvePaths({});
-    expect(paths.configDir).toMatch(/\/\.config\/peon$/);
-    expect(paths.stateDir).toMatch(/\/\.local\/state\/peon$/);
-    expect(paths.runtimeDir).toMatch(/\/peon-\d+$/);
-    expect(paths.socketPath).toBe(`${paths.runtimeDir}/sock`);
+    const paths = resolvePaths({}, host);
+    expect(paths.configDir).toBe("/home/u/.config/peon");
+    expect(paths.stateDir).toBe("/home/u/.local/state/peon");
+    expect(paths.runtimeDir).toBe("/tmp/peon-1000");
+    expect(paths.socketPath).toBe("/tmp/peon-1000/sock");
   });
 
   test("treats empty XDG values as unset", () => {
-    const paths = resolvePaths({ XDG_CONFIG_HOME: "", XDG_STATE_HOME: "" });
-    expect(paths.configDir).toMatch(/\/\.config\/peon$/);
-    expect(paths.stateDir).toMatch(/\/\.local\/state\/peon$/);
+    const env = { XDG_CONFIG_HOME: "", XDG_STATE_HOME: "" };
+    const paths = resolvePaths(env, host);
+    expect(paths.configDir).toBe("/home/u/.config/peon");
+    expect(paths.stateDir).toBe("/home/u/.local/state/peon");
   });
 });

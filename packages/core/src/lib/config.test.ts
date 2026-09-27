@@ -1,18 +1,5 @@
-import { afterEach, describe, expect, test } from "bun:test";
-import { rm, stat } from "node:fs/promises";
-import {
-  type Config,
-  parseConfig,
-  readConfig,
-  serializeConfig,
-  writeConfig,
-} from "#lib/config";
-import { pathsUnder } from "#test-support/temp-paths";
-
-const tmpBase = `./tmp/config-test-${Date.now()}`;
-const paths = pathsUnder(tmpBase);
-const cfgDir = paths.configDir;
-const cfgPath = paths.configPath;
+import { describe, expect, test } from "bun:test";
+import { type Config, parseConfig, serializeConfig } from "#lib/config";
 
 describe("parseConfig", () => {
   test("parses string and number values", () => {
@@ -32,7 +19,7 @@ describe("parseConfig", () => {
 
   test("uses defaults for missing keys", () => {
     const cfg = parseConfig(`account = "x"\npassword = "y"\ncharacter = "Z"`);
-    expect(cfg.host).toBe("t1");
+    expect(cfg.host).toBe("localhost");
     expect(cfg.port).toBe(3724);
     expect(cfg.language).toBe(1);
     expect(cfg.timeout_minutes).toBe(30);
@@ -117,62 +104,6 @@ describe("serializeConfig", () => {
     expect(text).toContain('password = "p\\\\w"');
     const parsed = parseConfig(text);
     expect(parsed).toEqual(cfg);
-  });
-});
-
-const sampleConfig: Config = {
-  account: "testuser",
-  character: "Gandalf",
-  host: "t1",
-  language: 1,
-  password: "testpass",
-  port: 3724,
-  timeout_minutes: 30,
-};
-
-describe("readConfig", () => {
-  afterEach(async () => {
-    await rm(tmpBase, { force: true, recursive: true });
-  });
-
-  test("names the missing config path", async () => {
-    await expect(readConfig(paths)).rejects.toThrow(
-      `No config found at ${cfgPath}`,
-    );
-  });
-
-  test("parses an existing config file", async () => {
-    const { mkdir } = await import("node:fs/promises");
-    await mkdir(cfgDir, { recursive: true });
-    await Bun.write(cfgPath, `${serializeConfig(sampleConfig)}\n`);
-    const cfg = await readConfig(paths);
-    expect(cfg).toEqual(sampleConfig);
-  });
-});
-
-describe("writeConfig", () => {
-  afterEach(async () => {
-    await rm(tmpBase, { force: true, recursive: true });
-  });
-
-  test("creates directory and writes config", async () => {
-    await writeConfig(sampleConfig, paths);
-    const content = await Bun.file(cfgPath).text();
-    expect(content).toContain('account = "testuser"');
-    expect(content).toContain('password = "testpass"');
-    expect(content).toContain("port = 3724");
-  });
-
-  test("round-trips through writeConfig and readConfig", async () => {
-    await writeConfig(sampleConfig, paths);
-    const cfg = await readConfig(paths);
-    expect(cfg).toEqual(sampleConfig);
-  });
-
-  test("creates file with mode 0600", async () => {
-    await writeConfig(sampleConfig, paths);
-    const st = await stat(cfgPath);
-    expect(st.mode.toString(8).slice(-3)).toBe("600");
   });
 });
 
