@@ -20,7 +20,7 @@ export type LazyState = {
 
 type SpellData = Pick<ClientConfig, "dbc">;
 type NavigationData = Pick<ClientConfig, "navigation">;
-type Configured = NavigationData & Pick<ClientConfig, "jev">;
+
 type CatalogSink = Pick<CombatRuntime, "setCatalog">;
 
 export function loadCatalog(
@@ -69,7 +69,7 @@ export function warmCatalogs(
 }
 
 export function capabilitiesOf(
-  config: Configured,
+  config: NavigationData,
   lazy: LazyState,
   mapId?: number,
 ): Capabilities {
@@ -77,7 +77,6 @@ export function capabilitiesOf(
     factions: lazy.factions !== undefined,
     spells: lazy.spellsLoaded === true,
     navigation: navigationOn(config, mapId),
-    jev: config.jev !== undefined,
   };
 }
 

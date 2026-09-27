@@ -2,20 +2,36 @@ import type { WorldHandle } from "#wow/client";
 import { readExperience } from "#wow/experience";
 import { labelInventory, labelRewards } from "#wow/item-labels";
 import { useItem } from "#wow/item-use";
-import { questCycleObjective } from "#wow/quest-cycle";
 import type { Runtimes } from "#wow/runtime";
 import type { WorldConn } from "#wow/world-conn";
 import { selfGuid } from "#wow/world-handlers";
 
 export function combatMethods(conn: WorldConn, rt: Runtimes) {
-  const { combat, tactics, recovery } = rt;
+  const { combat } = rt;
   return {
-    getCombatState() {
-      return combat.snapshot();
+    getCombatState(targetGuid) {
+      return targetGuid === undefined
+        ? combat.snapshot()
+        : combat.snapshot(targetGuid);
     },
     async getSpellbook() {
       await rt.prepareCatalog();
       return combat.spellbook();
+    },
+    loadCatalogs() {
+      return rt.loadCatalogs();
+    },
+    spellDefinition(spellId) {
+      return combat.definition(spellId);
+    },
+    spellReadyAt(spellId) {
+      return combat.readyAt(spellId);
+    },
+    isAttackingSelf(guid) {
+      return combat.isAttackingSelf(guid);
+    },
+    getSelfClass() {
+      return conn.selfClass;
     },
     cast(spellId, targetGuid) {
       combat.cast(spellId, targetGuid);
@@ -29,20 +45,17 @@ export function combatMethods(conn: WorldConn, rt: Runtimes) {
     stopAttack() {
       combat.stopAttack();
     },
-    startTactics(targetGuid, instruction, signal, framing) {
-      const life = recovery.snapshot().life;
-      if (life === "dead" || life === "ghost")
-        throw new Error("self_not_alive");
-      return tactics.start({ targetGuid, instruction, framing }, signal);
+    stopAutoRepeat() {
+      combat.stopAutoRepeat();
     },
-    getTacticsState() {
-      return tactics.snapshot();
+    petAttack(petGuid, targetGuid) {
+      combat.petAttack(petGuid, targetGuid);
+    },
+    stopCombat() {
+      combat.halt();
     },
     onCombatEvent(cb) {
       return conn.events.combat.subscribe(cb);
-    },
-    onTacticsEvent(cb) {
-      return conn.events.tactics.subscribe(cb);
     },
   } satisfies Partial<WorldHandle>;
 }
@@ -155,6 +168,13 @@ export function rewardsMethods(conn: WorldConn, rt: Runtimes) {
     releaseLoot() {
       rewards.close();
     },
+    abandonLoot() {
+      rewards.abandonOpen();
+    },
+    getItemTemplate(entry) {
+      return items.lookup(entry);
+    },
+
     useItem(bag, slot) {
       const inventory = () => rewards.snapshot().inventory;
       return useItem({ inventory, templates: items, combat }, bag, slot);
@@ -173,42 +193,6 @@ export function rewardsMethods(conn: WorldConn, rt: Runtimes) {
     },
     onDestroyEvent(cb) {
       return conn.events.destroy.subscribe(cb);
-    },
-  } satisfies Partial<WorldHandle>;
-}
-
-export function cycleMethods(conn: WorldConn, rt: Runtimes) {
-  const { cycle } = rt;
-  return {
-    async startCycle(guids, instruction, maxStarts) {
-      rt.takeControl("manual_override");
-      rt.halt();
-      await cycle.start({ guids, instruction, maxStarts });
-    },
-    async startQuestCycle(questId, sources, instruction, maxStarts) {
-      const { objective, defaultMaxStarts } = await questCycleObjective(
-        conn,
-        rt,
-        questId,
-        sources,
-      );
-      rt.takeControl("manual_override");
-      rt.halt();
-      await cycle.start({
-        guids: [],
-        instruction,
-        maxStarts: maxStarts ?? defaultMaxStarts,
-        objective,
-      });
-    },
-    stopCycle() {
-      cycle.stop("manual_override");
-    },
-    getCycleState() {
-      return cycle.snapshot();
-    },
-    onCycleEvent(cb) {
-      return conn.events.cycle.subscribe(cb);
     },
   } satisfies Partial<WorldHandle>;
 }

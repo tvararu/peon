@@ -2,13 +2,13 @@ import { messageOf } from "@peon/core/lib/errors";
 import { bootPuppet } from "#harness/puppet/boot";
 import type { PuppetLaunchMessage } from "#harness/puppet/launch";
 import { puppetPaths } from "#harness/puppet/protocol";
-import { defaultLogin } from "#harness/runtime/connection";
+import { sessionLogin } from "#harness/runtime/connection";
 
 const notify = (message: PuppetLaunchMessage) => process.send?.(message);
 
 try {
   const server = await bootPuppet({
-    login: defaultLogin,
+    login: sessionLogin,
     paths: puppetPaths(),
   });
   for (const signal of ["SIGINT", "SIGTERM"] as const)

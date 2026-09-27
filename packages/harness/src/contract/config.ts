@@ -1,8 +1,10 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import type { Capabilities, ClientConfig } from "@peon/core";
+import type { ClientConfig } from "@peon/core";
 import type { LogEvent } from "#harness/contract/log";
 import type { ToolStatus } from "#harness/contract/result";
 import type { RunView } from "#harness/contract/views";
+import type { JevPort } from "#harness/jev/contract";
+import type { GameCapabilities } from "#harness/loops/game";
 
 export type HarnessFlags = {
   profile: string;
@@ -26,6 +28,7 @@ export type Profile = {
   account: string;
   character: string;
   client: ClientConfig;
+  jev?: JevPort;
 };
 
 export type RunPaths = {
@@ -62,7 +65,7 @@ export type RunMeta = {
   startedAt: number;
   endedAt: number | undefined;
   exitReason: string | undefined;
-  capabilities: Capabilities | undefined;
+  capabilities: GameCapabilities | undefined;
   files: {
     gamelog: string;
     session: string;

@@ -12,6 +12,7 @@ import type {
   HarnessRuntime,
   Login,
 } from "#harness/contract/services";
+import { createGame, type Game } from "#harness/loops/game";
 import { Refusal } from "#harness/ops/refusal";
 
 export type ConnectionInit = {
@@ -38,10 +39,13 @@ export const BACKOFF_MS: readonly number[] = [5000, 15_000, 45_000];
 export const LOGOUT_WAIT_MS = 30_000;
 const LOST_TEXT = "Connection lost. The human must run /connect.";
 
-export function defaultLogin(config: ClientConfig): Promise<WorldHandle> {
-  return authWithRetry(config, { maxAttempts: 2 }).then((auth) =>
-    worldSession(config, auth),
-  );
+export async function sessionLogin(config: ClientConfig): Promise<WorldHandle> {
+  const auth = await authWithRetry(config, { maxAttempts: 2 });
+  return worldSession(config, auth);
+}
+
+export async function defaultLogin(profile: Profile): Promise<Game> {
+  return createGame(await sessionLogin(profile.client), profile.jev);
 }
 
 export function createConnection(init: ConnectionInit): Connection {
@@ -58,7 +62,7 @@ export function createConnection(init: ConnectionInit): Connection {
 
 class ConnectionSlot {
   state: ConnectionState = "offline";
-  current: WorldHandle | undefined;
+  current: Game | undefined;
   private readonly init: ConnectionInit;
   private readonly backoff: readonly number[];
   private readonly listeners = new Set<(state: ConnectionState) => void>();
@@ -79,7 +83,7 @@ class ConnectionSlot {
     const epoch = ++this.epoch;
     this.set("connecting");
     const handle = await this.init
-      .login(this.init.profile.client)
+      .login(this.init.profile)
       .catch((error: unknown) => {
         if (epoch !== this.epoch) return;
         this.set("offline");
@@ -100,7 +104,7 @@ class ConnectionSlot {
     return () => this.listeners.delete(cb);
   }
 
-  require(): WorldHandle {
+  require(): Game {
     if (this.current) return this.current;
     throw new Refusal({
       detail: "the game connection is down.",
@@ -145,7 +149,7 @@ class ConnectionSlot {
     });
   }
 
-  private adopt(handle: WorldHandle, epoch: number, attempt: number): void {
+  private adopt(handle: Game, epoch: number, attempt: number): void {
     if (epoch === this.epoch) this.attach(handle, attempt);
     else handle.logout();
   }
@@ -155,7 +159,7 @@ class ConnectionSlot {
     this.retry = undefined;
   }
 
-  private attach(handle: WorldHandle, attempt: number): void {
+  private attach(handle: Game, attempt: number): void {
     this.current = handle;
     this.detach = this.init.observers.map((observer) =>
       observer.attach(handle),
@@ -170,7 +174,7 @@ class ConnectionSlot {
     this.set("online");
   }
 
-  private closed(handle: WorldHandle): void {
+  private closed(handle: Game): void {
     if (handle !== this.current) return;
     for (const off of this.detach) off();
     this.detach = [];
@@ -209,7 +213,7 @@ class ConnectionSlot {
     this.retry = undefined;
     const epoch = ++this.epoch;
     this.set("connecting");
-    this.init.login(this.init.profile.client).then(
+    this.init.login(this.init.profile).then(
       (handle) => this.adopt(handle, epoch, index + 1),
       (error: unknown) => {
         if (epoch === this.epoch) this.failed(index, error);
@@ -229,7 +233,7 @@ class ConnectionSlot {
 }
 
 export async function logOutWithin(
-  handle: WorldHandle,
+  handle: Pick<WorldHandle, "logout" | "close" | "closed">,
   ms: number,
 ): Promise<boolean> {
   handle.logout();
@@ -239,7 +243,10 @@ export async function logOutWithin(
   return complete;
 }
 
-async function closedWithin(handle: WorldHandle, ms: number): Promise<boolean> {
+async function closedWithin(
+  handle: Pick<WorldHandle, "closed">,
+  ms: number,
+): Promise<boolean> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<false>((resolve) => {
     timer = setTimeout(() => resolve(false), ms);

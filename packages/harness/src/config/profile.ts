@@ -73,6 +73,7 @@ export async function loadProfile(
     account: config.account.toUpperCase(),
     character: config.character,
     client: clientConfig(config),
+    jev: jevPort(Bun.env),
     path,
     source,
   };
@@ -84,7 +85,6 @@ export function clientConfig(cfg: Config): ClientConfig {
     character: cfg.character,
     dbc: cfg.spell_data_dir ? dbcDirectory(cfg.spell_data_dir) : undefined,
     host: cfg.host,
-    jev: jevPort(Bun.env),
     language: cfg.language,
     navigation: navigationOf(cfg),
     password: cfg.password.toUpperCase(),

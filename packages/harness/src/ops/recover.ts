@@ -1,11 +1,7 @@
-import type {
-  PlayerLife,
-  RecoveryEvent,
-  RecoveryOutcome,
-  RecoveryState,
-} from "@peon/core";
+import type { PlayerLife, RecoveryEvent, RecoveryState } from "@peon/core";
 import type { OpsCtx } from "#harness/contract/services";
 import type { PoseView, UnitView } from "#harness/contract/views";
+import type { RecoveryOutcome } from "#harness/loops/runs";
 import { TALK_RANGE_YD } from "#harness/ops/range";
 import { settle } from "#harness/ops/settle";
 import { unitViews } from "#harness/ops/views";

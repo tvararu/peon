@@ -7,7 +7,6 @@ import {
   type VendorEvent,
   type VendorOutcome,
 } from "@peon/core";
-import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import {
   controlDrafts,
   entityDrafts,
@@ -16,9 +15,10 @@ import {
   trainerDrafts,
   vendorDrafts,
 } from "#harness/events/rules-world";
+import { createMockGame } from "#test-support/mock-game";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
-const handle = createMockHandle();
+const handle = createMockGame();
 const controlBase = handle.getControlState();
 const vendorBase = handle.getVendorState();
 

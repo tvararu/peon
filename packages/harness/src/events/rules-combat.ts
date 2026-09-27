@@ -1,10 +1,4 @@
-import type {
-  CombatEvent,
-  CycleEvent,
-  EntityEvent,
-  TacticsEvent,
-  TacticsOutcome,
-} from "@peon/core";
+import type { CombatEvent, EntityEvent } from "@peon/core";
 import type { LogClass, LogDraft } from "#harness/contract/log";
 import {
   type AuraMemo,
@@ -15,6 +9,8 @@ import {
 } from "#harness/events/rules";
 import { watchUnit } from "#harness/events/rules-death";
 import { levelDrafts, xpDrafts } from "#harness/events/rules-xp";
+import type { CycleEvent } from "#harness/loops/encounter-cycle";
+import type { TacticsEvent, TacticsOutcome } from "#harness/loops/tactics";
 
 const LOW_HEALTH = [50, 25];
 const REARM_POINTS = 10;

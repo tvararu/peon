@@ -220,37 +220,6 @@ describe("session lifecycle", () => {
     }
   });
 
-  test("a raw move leaves the cycle running until takeControl stops it", async () => {
-    const server = await startMockWorldServer({
-      loginMapId: 530,
-      coalesceSelfCreate: true,
-    });
-    try {
-      const handle = await worldSession(
-        { ...base, ...NAVIGATION, host: "127.0.0.1", port: server.port },
-        fakeAuth(server.port),
-      );
-      try {
-        const running = handle.startCycle([0x99n], "stay alive", 1);
-        expect(handle.getCycleState().active).toBe(true);
-        handle.move("forward", 1000);
-        expect(handle.getCycleState().active).toBe(true);
-        handle.takeControl("manual_override");
-        expect(handle.getCycleState()).toMatchObject({
-          active: false,
-          stopCause: "manual_override",
-        });
-        handle.move("forward", 1000);
-        expect(handle.getControlState().owner).toBe("manual");
-        await running;
-      } finally {
-        handle.close();
-        await handle.closed;
-      }
-    } finally {
-      server.stop();
-    }
-  });
   test("face-guid turns toward a currently observed object and refuses a lost GUID", async () => {
     const server = await startMockWorldServer({
       loginMapId: 530,

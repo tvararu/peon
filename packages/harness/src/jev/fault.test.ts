@@ -1,9 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
-import {
-  type JevActionRequest,
-  type JevActionResult,
-  JevTransportError,
-} from "@peon/core";
+import type { JevActionRequest, JevActionResult } from "#harness/jev/contract";
+import { JevTransportError } from "#harness/jev/failure";
 import {
   createFaultSelect,
   faultMarker,

@@ -1,5 +1,4 @@
 import { join } from "node:path";
-import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import { scratchDir } from "@peon/core/test-support/scratch";
 import type { HarnessFlags, Profile, RunPaths } from "#harness/contract/config";
 import type { GameLogEntry } from "#harness/contract/log";
@@ -31,8 +30,9 @@ import { Refusal } from "#harness/ops/refusal";
 import { createHarnessRuntime } from "#harness/runtime/harness-runtime";
 import { createWorldMutex } from "#harness/runtime/mutex";
 import { createYieldGate } from "#harness/runtime/yield";
+import { createMockGame, type MockGame } from "#test-support/mock-game";
 
-export type MockHandle = ReturnType<typeof createMockHandle>;
+export type MockHandle = MockGame;
 export type TestClock = Clock & {
   set: (ms: number) => void;
   advance: (ms: number) => void;
@@ -107,7 +107,7 @@ export function testPaths(dir: string): RunPaths {
 export async function createTestRuntime(
   init: TestRuntimeInit = {},
 ): Promise<TestRuntime> {
-  const handle = createMockHandle();
+  const handle = createMockGame();
   const clock = testClock();
   const parts = {
     ...defaultParts({

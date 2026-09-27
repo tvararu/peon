@@ -1,15 +1,15 @@
 import { describe, expect, jest, test } from "bun:test";
-import type { WorldHandle } from "@peon/core";
-import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import type { Profile } from "#harness/contract/config";
 import type { LogDraft } from "#harness/contract/log";
 import type { RunRegistry } from "#harness/contract/runs";
 import type { GameLog, HandleObserver } from "#harness/contract/services";
+import type { Game } from "#harness/loops/game";
 import {
   BACKOFF_MS,
   createConnection,
   LOGOUT_WAIT_MS,
 } from "#harness/runtime/connection";
+import { createMockGame } from "#test-support/mock-game";
 
 const profile: Profile = {
   account: "FACABC0123456",
@@ -26,7 +26,7 @@ const profile: Profile = {
 };
 
 function setup(
-  login: (n: number) => Promise<WorldHandle>,
+  login: (n: number) => Promise<Game>,
   now: () => number = () => 0,
 ) {
   const drafts: LogDraft[] = [];
@@ -59,7 +59,7 @@ async function flush(): Promise<void> {
 
 describe("createConnection", () => {
   test("connect logs in with the profile, attaches observers in order and goes online", async () => {
-    const handle = createMockHandle();
+    const handle = createMockGame();
     const { attached, connection, drafts } = setup(async () => handle);
     const states: string[] = [];
     connection.onConnection((state) => states.push(state));
@@ -72,7 +72,7 @@ describe("createConnection", () => {
   });
 
   test("requireHandle refuses offline with the /connect hint", () => {
-    const { connection } = setup(async () => createMockHandle());
+    const { connection } = setup(async () => createMockGame());
     expect(() => connection.requireHandle()).toThrow(
       "offline: the game connection is down.",
     );
@@ -87,7 +87,7 @@ describe("createConnection", () => {
   });
 
   test("disconnect logs out, detaches observers and goes offline", async () => {
-    const handle = createMockHandle();
+    const handle = createMockGame();
     const { attached, connection } = setup(async () => handle);
     await connection.connect();
     await connection.disconnect();
@@ -100,8 +100,8 @@ describe("createConnection", () => {
   test("a lost socket cancels runs as lost and reconnects after 5 s", async () => {
     jest.useFakeTimers();
     try {
-      const first = createMockHandle();
-      const second = createMockHandle();
+      const first = createMockGame();
+      const second = createMockGame();
       const { calls, connection, drafts, runs } = setup(async (n) =>
         n === 1 ? first : second,
       );
@@ -127,7 +127,7 @@ describe("createConnection", () => {
   test("after 5 s, 15 s and 45 s of failed retries it wakes the agent once and stays offline", async () => {
     jest.useFakeTimers();
     try {
-      const first = createMockHandle();
+      const first = createMockGame();
       const { connection, drafts } = setup(async (n) => {
         if (n === 1) return first;
         throw new Error("realm down");
@@ -152,7 +152,7 @@ describe("createConnection", () => {
     }
   });
   test("disconnect emits offline once", async () => {
-    const { connection } = setup(async () => createMockHandle());
+    const { connection } = setup(async () => createMockGame());
     await connection.connect();
     const states: string[] = [];
     connection.onConnection((state) => states.push(state));
@@ -161,8 +161,8 @@ describe("createConnection", () => {
   });
 
   test("disconnect during the first login logs out the late handle and stays offline", async () => {
-    const handle = createMockHandle();
-    const { promise, resolve } = Promise.withResolvers<WorldHandle>();
+    const handle = createMockGame();
+    const { promise, resolve } = Promise.withResolvers<Game>();
     const { attached, connection } = setup(() => promise);
     const connecting = connection.connect();
     await connection.disconnect();
@@ -177,9 +177,9 @@ describe("createConnection", () => {
   test("disconnect during a reconnect login logs out the late handle and stays offline", async () => {
     jest.useFakeTimers();
     try {
-      const first = createMockHandle();
-      const second = createMockHandle();
-      const { promise, resolve } = Promise.withResolvers<WorldHandle>();
+      const first = createMockGame();
+      const second = createMockGame();
+      const { promise, resolve } = Promise.withResolvers<Game>();
       const { connection, drafts } = setup(async (n) =>
         n === 1 ? first : promise,
       );
@@ -211,8 +211,8 @@ describe("createConnection", () => {
   });
 
   test("connect while closing waits for the close and does not treat it as lost", async () => {
-    const first = { ...createMockHandle(), logout: jest.fn() };
-    const second = createMockHandle();
+    const first = { ...createMockGame(), logout: jest.fn() };
+    const second = createMockGame();
     const { connection, drafts, runs } = setup(async (n) =>
       n === 1 ? first : second,
     );
@@ -232,7 +232,7 @@ describe("createConnection", () => {
     jest.useFakeTimers();
     try {
       let now = 1000;
-      const handle = { ...createMockHandle(), logout: jest.fn() };
+      const handle = { ...createMockGame(), logout: jest.fn() };
       const { connection, drafts } = setup(
         async () => handle,
         () => now,
@@ -265,7 +265,7 @@ describe("createConnection", () => {
     jest.useFakeTimers();
     try {
       let now = 0;
-      const handle = { ...createMockHandle(), logout: jest.fn() };
+      const handle = { ...createMockGame(), logout: jest.fn() };
       const { connection, drafts } = setup(
         async () => handle,
         () => now,

@@ -1,6 +1,7 @@
-import type { LootOutcome, NamedRewardsState } from "@peon/core";
+import type { NamedRewardsState } from "@peon/core";
 import type { LootLine } from "#harness/contract/details";
 import type { OpsCtx } from "#harness/contract/services";
+import type { LootOutcome } from "#harness/loops/runs";
 import { itemIdText, nameLootLines } from "#harness/ops/item-names";
 
 export type LootOpResult = {

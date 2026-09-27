@@ -1,10 +1,8 @@
 import type {
-  ClientConfig,
   FactionRelation,
   NearbyRow,
   NpcRole,
   Unsubscribe,
-  WorldHandle,
 } from "@peon/core";
 import type {
   AgentState,
@@ -27,10 +25,11 @@ import type {
   NoProgress,
   PoseView,
 } from "#harness/contract/views";
+import type { Game } from "#harness/loops/game";
 
 export type Clock = { now: () => number };
 
-export type HandleObserver = { attach: (handle: WorldHandle) => Unsubscribe };
+export type HandleObserver = { attach: (handle: Game) => Unsubscribe };
 
 export type JsonlSink = {
   write: (row: unknown) => void;
@@ -86,7 +85,7 @@ export type Sightings = HandleObserver & {
 };
 
 export type ProgressTracker = HandleObserver & {
-  digest: (handle: WorldHandle) => string;
+  digest: (handle: Game) => string;
   afterAction: (init: {
     tool: ToolName;
     status: ToolStatus;
@@ -221,9 +220,9 @@ export type QuestNote = {
 
 export type QuestMemory = Map<number, QuestNote>;
 
-export type Login = (config: ClientConfig) => Promise<WorldHandle>;
+export type Login = (profile: Profile) => Promise<Game>;
 
-export type ViewCtx = { rt: HarnessRuntime; handle: WorldHandle };
+export type ViewCtx = { rt: HarnessRuntime; handle: Game };
 
 export type OpsCtx = ViewCtx & {
   signal: AbortSignal;
@@ -255,8 +254,8 @@ export type HarnessRuntime = {
   travel: TravelMemory;
   quests: QuestMemory;
   session: SessionFlags;
-  handle: () => WorldHandle | undefined;
-  requireHandle: () => WorldHandle;
+  handle: () => Game | undefined;
+  requireHandle: () => Game;
   connection: () => ConnectionState;
   onConnection: (cb: (state: ConnectionState) => void) => Unsubscribe;
   connect: () => Promise<void>;

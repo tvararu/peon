@@ -1,4 +1,4 @@
-import type { JevPort } from "@peon/core";
+import type { JevPort } from "#harness/jev/contract";
 import {
   createFaultSelect,
   faultMarker,

@@ -1,7 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import { type Entity, ObjectType, type UnitEntity } from "@peon/core";
-import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import { createReadyGate, READY_STABLE_MS } from "#harness/runtime/ready";
+import { createMockGame } from "#test-support/mock-game";
 import {
   createTestRuntime,
   type MockHandle,
@@ -199,7 +199,7 @@ describe("createReadyGate", () => {
       placeSelf(handle, [selfUnit()]);
       step(clock, READY_STABLE_MS + 200);
       expect(gate.isReady()).toBe(true);
-      gate.attach(createMockHandle());
+      gate.attach(createMockGame());
       expect(gate.isReady()).toBe(false);
       expect(gate.inWorld()).toBeUndefined();
     } finally {

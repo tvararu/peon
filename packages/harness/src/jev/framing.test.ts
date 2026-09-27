@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { JevActionRequest } from "@peon/core";
+import type { JevActionRequest } from "#harness/jev/contract";
 import { selectJevAction } from "#harness/jev/select";
 import {
   jsonResponse,

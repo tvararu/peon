@@ -35,18 +35,12 @@ describe("capabilitiesOf", () => {
       factions: false,
       spells: false,
       navigation: false,
-      jev: false,
     });
   });
 
-  test("navigation needs a source and jev needs a provider", () => {
+  test("navigation needs a source", () => {
     const lazy: LazyState = { disposed: false };
-    const full = {
-      jev: { select: () => Promise.reject(new Error("unused")) },
-      navigation: expansionOnly,
-    };
-    expect(capabilitiesOf(full, lazy)).toMatchObject({
-      jev: true,
+    expect(capabilitiesOf({ navigation: expansionOnly }, lazy)).toMatchObject({
       navigation: true,
     });
   });

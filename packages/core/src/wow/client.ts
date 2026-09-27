@@ -19,7 +19,6 @@ import {
 } from "#wow/client-extras";
 import {
   combatMethods,
-  cycleMethods,
   questMethods,
   questRewardMethods,
   recoveryMethods,
@@ -27,11 +26,6 @@ import {
 } from "#wow/client-gameplay";
 import { registerWorldHandlers } from "#wow/client-handlers";
 import { type PlaceState, placeMethods } from "#wow/client-place";
-import {
-  type LootOutcome,
-  type RecoveryOutcome,
-  runMethods,
-} from "#wow/client-runs";
 import {
   groupMethods,
   guildMethods,
@@ -43,6 +37,7 @@ import { type NamedVendorState, vendorMethods } from "#wow/client-vendor";
 import type { CombatEvent, CombatState } from "#wow/combat";
 import type {
   ControlEvent,
+  ControlLease,
   ControlState,
   MovementDirection,
   NavigationState,
@@ -50,10 +45,9 @@ import type {
 } from "#wow/control";
 import type { DbcSource } from "#wow/dbc";
 import type { DestroyEvent, DestroyState } from "#wow/destroy";
-import type { CycleEvent, CycleState } from "#wow/encounter-cycle";
 import type { Entity, EntityEvent } from "#wow/entity-store";
 import type { ExperienceState } from "#wow/experience";
-import type { FramingVariant } from "#wow/framing";
+import type { FactionRelation } from "#wow/faction-template";
 import type { FriendEntry, FriendEvent } from "#wow/friend-store";
 import type { GuildEvent, GuildRoster } from "#wow/guild-store";
 import type { IgnoreEntry, IgnoreEvent } from "#wow/ignore-store";
@@ -62,14 +56,15 @@ import type {
   NamedInventoryState,
   NamedRewardsState,
 } from "#wow/item-labels";
-import type { JevPort } from "#wow/jev";
 import { LOGOUT_TIMEOUT_MS, requestLogout } from "#wow/logout";
+import type { NavPoint } from "#wow/navigation";
 import type { NavigationSource } from "#wow/navigation-native";
 import type { NavigationObservation } from "#wow/navigation-observation";
 import type { NearbyQuery, NearbyRow } from "#wow/nearby";
 import type { PartyChange, PartyLoot, PartyState } from "#wow/party-store";
 import type { WhoResult } from "#wow/protocol/chat";
 import { Language } from "#wow/protocol/enums";
+import type { ItemTemplate } from "#wow/protocol/item";
 import type { RollVote } from "#wow/protocol/loot";
 import type { QuestEvent, QuestState } from "#wow/quests";
 import type { RecoveryEvent, RecoveryState } from "#wow/recovery";
@@ -78,7 +73,6 @@ import type { RewardsEvent } from "#wow/rewards";
 import { createRuntimes, type Runtimes } from "#wow/runtime";
 import { createSessionStores, type SessionStores } from "#wow/session-stores";
 import type { SpellDefinition } from "#wow/spell-catalog";
-import type { TacticsEvent, TacticsState } from "#wow/tactics";
 import type { TrainerEvent } from "#wow/trainer";
 import type { VendorEvent } from "#wow/vendor";
 import type { WorldConn } from "#wow/world-conn";
@@ -97,7 +91,6 @@ export type ClientConfig = {
   cachedSessionKey?: Uint8Array;
   dbc?: DbcSource;
   navigation?: NavigationSource;
-  jev?: JevPort;
 };
 
 import type { AuthResult } from "#wow/auth";
@@ -218,6 +211,7 @@ export type WorldHandle = {
   onEntityEvent: (cb: (event: EntityEvent) => void) => Unsubscribe;
   onPacketError: (cb: (opcode: number, err: Error) => void) => Unsubscribe;
   getNearbyEntities: () => Entity[];
+  getEntity: (guid: bigint) => Entity | undefined;
   getFriends: () => FriendEntry[];
   addFriend: (name: string) => void;
   removeFriend: (name: string) => void;
@@ -249,30 +243,33 @@ export type WorldHandle = {
     signal?: AbortSignal,
   ) => Promise<WalkOutcome>;
   selectTarget: (guid: bigint) => void;
-  takeControl: (reason: string) => void;
+  stopMoving: (reason?: string) => void;
+  setControlLease: (lease: ControlLease) => void;
+  observedPosition: (guid: bigint) => NavPoint;
+  unitRelation: (guid: bigint) => FactionRelation;
   halt: () => void;
   onControlEvent: (cb: (event: ControlEvent) => void) => Unsubscribe;
   getRemotePoses: () => RemotePose[];
   queryNearby: (query?: NearbyQuery) => NearbyRow[];
   onRemoteMotionEvent: (cb: (event: RemoteMotionEvent) => void) => Unsubscribe;
-  getCombatState: () => CombatState;
+  getCombatState: (targetGuid?: bigint) => CombatState;
   getSpellbook: () => Promise<SpellDefinition[]>;
+  loadCatalogs: () => Promise<void>;
+  spellDefinition: (spellId: number) => SpellDefinition | undefined;
+  spellReadyAt: (spellId: number) => number;
+  isAttackingSelf: (guid: bigint) => boolean;
+  getSelfClass: () => string | undefined;
   cast: (spellId: number, targetGuid: bigint) => void;
   attack: (targetGuid: bigint) => void;
   cancelCast: () => void;
   stopAttack: () => void;
-  startTactics: (
-    targetGuid: bigint,
-    instruction: string,
-    signal?: AbortSignal,
-    framing?: FramingVariant,
-  ) => Promise<void>;
-  getTacticsState: () => TacticsState;
+  stopAutoRepeat: () => void;
+  petAttack: (petGuid: bigint, targetGuid: bigint) => void;
+  stopCombat: () => void;
   goTo: (target: GotoTarget) => void;
   getNavigationState: () => NavigationState;
   observeNavigation: () => NavigationObservation;
   onCombatEvent: (cb: (event: CombatEvent) => void) => Unsubscribe;
-  onTacticsEvent: (cb: (event: TacticsEvent) => void) => Unsubscribe;
   getRecoveryState: () => RecoveryState;
   queryCorpse: () => void;
   releaseSpirit: () => void;
@@ -300,26 +297,14 @@ export type WorldHandle = {
   takeLoot: (slot: number) => void;
   takeLootMoney: () => void;
   releaseLoot: () => void;
+  abandonLoot: () => void;
+  getItemTemplate: (entry: number) => Promise<ItemTemplate | undefined>;
   useItem: (bag: number, slot: number) => Promise<void>;
   rollLoot: (guid: bigint, slot: number, vote: RollVote) => void;
   onRewardsEvent: (cb: (event: RewardsEvent) => void) => Unsubscribe;
   destroyItem: (bag: number, slot: number, count?: number) => void;
   getDestroyState: () => DestroyState;
   onDestroyEvent: (cb: (event: DestroyEvent) => void) => Unsubscribe;
-  startCycle: (
-    guids: bigint[],
-    instruction: string,
-    maxStarts?: number,
-  ) => Promise<void>;
-  startQuestCycle: (
-    questId: number,
-    sources: number[],
-    instruction: string,
-    maxStarts?: number,
-  ) => Promise<void>;
-  stopCycle: () => void;
-  getCycleState: () => CycleState;
-  onCycleEvent: (cb: (event: CycleEvent) => void) => Unsubscribe;
   getTrainerState: () => Promise<NamedTrainerState>;
   openTrainer: (guid: bigint) => void;
   trainSpell: (spellId: number) => void;
@@ -332,8 +317,6 @@ export type WorldHandle = {
   onVendorEvent: (cb: (event: VendorEvent) => void) => Unsubscribe;
   capabilities: () => Capabilities;
   getPlaceState: () => PlaceState;
-  lootCorpse: (guid: bigint, signal: AbortSignal) => Promise<LootOutcome>;
-  recoverCorpse: (signal: AbortSignal) => Promise<RecoveryOutcome>;
   onNotice: (cb: (event: NoticeEvent) => void) => Unsubscribe;
   getCreatureInfo: (entry: number) => CreatureInfo | undefined;
 };
@@ -365,11 +348,9 @@ function createHandle(session: SessionHandle): WorldHandle {
     ...questMethods(conn, rt),
     ...questRewardMethods(rt),
     ...rewardsMethods(conn, rt),
-    ...cycleMethods(conn, rt),
     ...trainerMethods(conn, rt),
     ...vendorMethods(conn, rt),
     ...placeMethods(stores),
-    ...runMethods(conn, rt),
     ...extrasMethods(conn, rt),
   };
   return handle;

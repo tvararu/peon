@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import type { ControlEvent } from "@peon/core";
-import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import type { RunEnd } from "#harness/contract/runs";
 import { MOVE_JOIN_MS } from "#harness/events/move-join";
+import { createMockGame } from "#test-support/mock-game";
 import { routerSetup } from "#test-support/router-fixture";
 
 function world() {
   const setup = routerSetup();
-  const handle = createMockHandle();
+  const handle = createMockGame();
   setup.router.attach(handle);
   let finish = () => {};
   const run = setup.runs.start({
@@ -87,7 +87,7 @@ describe("move rows between route legs", () => {
 
   test("a stop outside any run is written at once", () => {
     const { log, router } = routerSetup();
-    const handle = createMockHandle();
+    const handle = createMockGame();
     router.attach(handle);
     handle.triggerControlEvent({
       reason: "halt",

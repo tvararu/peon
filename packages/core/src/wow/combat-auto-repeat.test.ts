@@ -1,11 +1,11 @@
 import { expect, jest, test } from "bun:test";
+import { combatParts, testStores } from "#test-support/session-fixtures";
 import {
   ARCANE_SHOT,
   AUTO_SHOT,
   HUNTER_SPELLS,
   hunterSpells,
-} from "#test-support/hunter-fixtures";
-import { combatParts, testStores } from "#test-support/session-fixtures";
+} from "#test-support/spell-fixtures";
 import { writePackedGuid } from "#test-support/world-handlers-fixtures";
 import type { CombatEvent } from "#wow/combat";
 import { registerCombatHandlers } from "#wow/gameplay-handlers";

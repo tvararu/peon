@@ -1,9 +1,4 @@
-import type {
-  CombatEvent,
-  CycleState,
-  RewardsEvent,
-  TacticsEvent,
-} from "@peon/core";
+import type { CombatEvent, RewardsEvent } from "@peon/core";
 import type {
   CodeWord,
   EngageAfter,
@@ -12,6 +7,8 @@ import type {
   LootLine,
 } from "#harness/contract/details";
 import type { OpsCtx, ViewCtx } from "#harness/contract/services";
+import type { CycleState } from "#harness/loops/encounter-cycle";
+import type { TacticsEvent } from "#harness/loops/tactics";
 import { itemIdText } from "#harness/ops/item-names";
 import { guidHex } from "#harness/ops/refs";
 import { unitViews, vitalsView } from "#harness/ops/views";

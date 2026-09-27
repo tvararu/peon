@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import type { RecoveryEvent, RewardsEvent } from "@peon/core";
-import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import type { RunEnd, RunKind } from "#harness/contract/runs";
+import { createMockGame } from "#test-support/mock-game";
 import { routerSetup } from "#test-support/router-fixture";
 
 type Ending = RunEnd<number>["status"];
 
 function world() {
   const setup = routerSetup();
-  const handle = createMockHandle();
+  const handle = createMockGame();
   setup.router.attach(handle);
   const start = (kind: RunKind, args: Record<string, unknown> = {}) => {
     let finish: (status: Ending) => void = () => {};

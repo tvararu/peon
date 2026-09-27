@@ -1,18 +1,11 @@
 import type { Unsubscribe } from "#lib/emitter";
 import type { ClientConfig } from "#wow/client";
-import { cycleApproach } from "#wow/client-control";
 import type { Capabilities } from "#wow/client-extras";
 import { CombatRuntime } from "#wow/combat";
-import { CombatActions } from "#wow/combat-actions";
-import { defendTarget } from "#wow/combat-defense";
-import { readRangedGear } from "#wow/combat-ranged-gear";
 import { ControlRuntime } from "#wow/control";
 import { feedControl } from "#wow/control-feed";
 import type { GroundOracle } from "#wow/control-motion";
-import { approachUnit, type CycleApproach } from "#wow/cycle-approach";
-import { pullGate } from "#wow/cycle-gate";
 import { ItemDestroyRuntime } from "#wow/destroy";
-import { EncounterCycleRuntime } from "#wow/encounter-cycle";
 import type { FactionTemplateCatalog } from "#wow/faction-template";
 import type { ItemTemplates } from "#wow/item-use";
 import type { Navigation, NavPoint } from "#wow/navigation";
@@ -30,7 +23,6 @@ import {
   warmCatalogs,
 } from "#wow/runtime-data";
 import { type SessionStores, sessionDeps } from "#wow/session-stores";
-import { TacticsLoop } from "#wow/tactics";
 import { TrainerRuntime } from "#wow/trainer";
 import { VendorRuntime } from "#wow/vendor";
 import type { WorldConn } from "#wow/world-conn";
@@ -39,34 +31,30 @@ import { selfGuid, sendPacket } from "#wow/world-handlers";
 export type Runtimes = {
   control: ControlRuntime;
   combat: CombatRuntime;
-  tactics: TacticsLoop;
   recovery: RecoveryRuntime;
   quests: QuestRuntime;
   rewards: RewardsRuntime;
   items: ItemTemplates;
-  cycle: EncounterCycleRuntime;
   trainer: TrainerRuntime;
   vendor: VendorRuntime;
   destroy: ItemDestroyRuntime;
   prepareCatalog: () => Promise<void>;
+  loadCatalogs: () => Promise<void>;
   factions: () => FactionTemplateCatalog | undefined;
   capabilities: () => Capabilities;
   navigation: () => Navigation;
   observedTarget: (guid: bigint) => NavPoint;
   halt: () => void;
-  takeControl: (reason: string) => void;
   dispose: (sendStop: boolean) => void;
 };
 
 type RuntimeParts = {
   control: ControlRuntime;
   combat: CombatRuntime;
-  tactics: TacticsLoop;
   recovery: RecoveryRuntime;
   quests: QuestRuntime;
   rewards: RewardsRuntime;
   items: ItemTemplates;
-  cycle: EncounterCycleRuntime;
   trainer: TrainerRuntime;
   vendor: VendorRuntime;
   destroy: ItemDestroyRuntime;
@@ -112,38 +100,10 @@ function createControl(
   });
 }
 
-function createTactics(
-  conn: WorldConn,
-  config: ClientConfig,
-  hooks: {
-    actions: CombatActions;
-    prepare: (signal: AbortSignal) => Promise<void>;
-    halt: () => void;
-    defense: { combat: CombatRuntime; control: ControlRuntime };
-  },
-): TacticsLoop {
-  const { actions } = hooks;
-  return new TacticsLoop({
-    fault: config.jev?.fault,
-    characterClass: () => conn.selfClass,
-    select: config.jev?.select,
-    prepare: (_context, signal) => hooks.prepare(signal),
-    activate: (context) => actions.activate(context),
-    observe: (context) => actions.observe(context),
-    execute: (id, context) => actions.execute(id, context),
-    halt: hooks.halt,
-    defend: (context) =>
-      defendTarget(
-        { ...hooks.defense, entity: (guid) => conn.entityStore.get(guid) },
-        context.targetGuid,
-      ),
-  });
-}
-
 function wireStores(
   conn: WorldConn,
   stores: SessionStores,
-  { control, cycle }: Pick<RuntimeParts, "control" | "cycle">,
+  { control }: Pick<RuntimeParts, "control">,
 ): Unsubscribe[] {
   return [
     stores.place.onEvent((event) =>
@@ -153,7 +113,6 @@ function wireStores(
     conn.entityStore.onEvent((event) => {
       if (event.type === "disappear") control.observeDisappear(event.guid);
     }),
-    conn.events.entity.subscribe((event) => cycle.observeEntity(event)),
   ];
 }
 
@@ -168,8 +127,6 @@ function wireEvents(
     recovery,
     quests,
     rewards,
-    cycle,
-    tactics,
     trainer,
     vendor,
     destroy,
@@ -179,31 +136,17 @@ function wireEvents(
   const detach = [
     control.onEvent((event) => {
       events.control.emit(event);
-      cycle.observeControl(event);
     }),
     combat.onEvent((event) => {
       events.combat.emit(event);
       if (event.type === "learned") stores.trainer.observe();
     }),
-    tactics.onEvent((event) => events.tactics.emit(event)),
-    recovery.onEvent((event) => {
-      if (
-        event.type === "recovery_invalidated" ||
-        (event.type === "life_observed" &&
-          (event.state.life === "dead" || event.state.life === "ghost"))
-      ) {
-        tactics.stop(`self_${event.state.life}`);
-      }
-      events.recovery.emit(event);
-      cycle.observeRecovery(event);
-    }),
+    recovery.onEvent((event) => events.recovery.emit(event)),
     quests.onEvent((event) => events.quest.emit(event)),
     rewards.onEvent((event) => {
       events.rewards.emit(event);
       items.observeRewards(event);
-      cycle.observeRewards(event);
     }),
-    cycle.onEvent((event) => events.cycle.emit(event)),
     trainer.onEvent((event) => events.trainer.emit(event)),
     vendor.onEvent((event) => {
       events.vendor.emit(event);
@@ -245,11 +188,9 @@ function disposeParts(
   const {
     control,
     combat,
-    tactics,
     recovery,
     quests,
     rewards,
-    cycle,
     trainer,
     vendor,
     destroy,
@@ -258,12 +199,10 @@ function disposeParts(
   if (options.sendStop) options.halt();
   lazy.disposed = true;
   control.dispose();
-  tactics.dispose();
   recovery.dispose();
   quests.dispose();
   rewards.dispose();
   combat.dispose();
-  cycle.dispose();
   trainer.dispose();
   vendor.dispose();
   destroy.dispose();
@@ -273,14 +212,11 @@ function disposeParts(
 function createSupportRuntimes(
   conn: WorldConn,
   stores: SessionStores,
-  parts: Pick<RuntimeParts, "control" | "tactics" | "combat"> & {
-    approach: CycleApproach;
-  },
+  control: ControlRuntime,
 ): Pick<
   RuntimeParts,
-  "recovery" | "quests" | "rewards" | "items" | "cycle" | "vendor" | "destroy"
+  "recovery" | "quests" | "rewards" | "items" | "vendor" | "destroy"
 > {
-  const { control, tactics, approach, combat } = parts;
   const runtimeDeps = sessionDeps(conn);
   const recovery = new RecoveryRuntime(stores.recovery, {
     ...runtimeDeps,
@@ -289,36 +225,16 @@ function createSupportRuntimes(
   const quests = new QuestRuntime(stores.quests, runtimeDeps);
   const rewards = new RewardsRuntime(stores.rewards, runtimeDeps);
   const { items } = stores;
-  const cycle = new EncounterCycleRuntime({
-    approach,
-    gate: pullGate(() => combat.snapshot()),
-    tactics,
-    rewards,
-    recovery,
-    control,
-    entity: (guid) => conn.entityStore.get(guid),
-    bags: {
-      questItems: () =>
-        new Set(quests.snapshot().items.map((item) => item.itemId)),
-      stackSize: (entry) =>
-        items.lookup(entry).then(
-          (template) => template?.stackSize,
-          () => undefined,
-        ),
-    },
-    now: runtimeDeps.now,
-  });
   const vendor = new VendorRuntime(stores.vendor, runtimeDeps);
   const destroy = new ItemDestroyRuntime(stores.destroy, runtimeDeps);
-  return { recovery, quests, rewards, items, cycle, vendor, destroy };
+  return { recovery, quests, rewards, items, vendor, destroy };
 }
 
 function createCombat(
   conn: WorldConn,
   stores: SessionStores,
-  lazy: LazyState,
   control: ControlRuntime,
-): { combat: CombatRuntime; actions: CombatActions; trainer: TrainerRuntime } {
+): { combat: CombatRuntime; trainer: TrainerRuntime } {
   const runtimeDeps = sessionDeps(conn);
   const combat = new CombatRuntime(stores, {
     ...runtimeDeps,
@@ -326,22 +242,11 @@ function createCombat(
     selfPose: () => control.snapshot().pose,
     selfServerPose: () => control.snapshot().serverPose,
   });
-  const actions = new CombatActions({
-    combat,
-    control,
-    entity: (guid) => conn.entityStore.get(guid),
-    factions: () => lazy.factions,
-    now: () => Date.now(),
-    gear: () =>
-      readRangedGear(runtimeDeps.selfGuid(), runtimeDeps.getEntity, (entry) =>
-        stores.items.label(entry),
-      ),
-  });
   const trainer = new TrainerRuntime(stores.trainer, {
     ...runtimeDeps,
     learned: () => stores.combat.learned(),
   });
-  return { combat, actions, trainer };
+  return { combat, trainer };
 }
 
 export function catalogAccess(
@@ -349,46 +254,21 @@ export function catalogAccess(
   lazy: LazyState,
   combat: CombatRuntime,
   control: Pick<ControlRuntime, "snapshot">,
-): Pick<Runtimes, "prepareCatalog" | "factions" | "capabilities"> {
+): Pick<
+  Runtimes,
+  "prepareCatalog" | "loadCatalogs" | "factions" | "capabilities"
+> {
   warmCatalogs(config, lazy, combat);
+  const prepareCatalog = () => loadCatalog(config, lazy, combat);
   return {
-    prepareCatalog: () => loadCatalog(config, lazy, combat),
+    prepareCatalog,
+    async loadCatalogs() {
+      await prepareCatalog();
+      await loadFactions(config, lazy);
+    },
     factions: () => lazy.factions,
     capabilities: () =>
       capabilitiesOf(config, lazy, control.snapshot().pose?.mapId),
-  };
-}
-
-function preparer(
-  config: ClientConfig,
-  lazy: LazyState,
-  data: Pick<Runtimes, "prepareCatalog">,
-): (signal: AbortSignal) => Promise<void> {
-  return async (signal) => {
-    signal.throwIfAborted();
-    await data.prepareCatalog();
-    signal.throwIfAborted();
-    await loadFactions(config, lazy);
-    signal.throwIfAborted();
-  };
-}
-
-function lateApproach(getNavigation: () => Navigation) {
-  let routes: Parameters<typeof cycleApproach>[0] | undefined;
-  const approach: CycleApproach = async (guid, signal) =>
-    routes && approachUnit(cycleApproach(routes), guid, signal);
-  return {
-    approach,
-    bind(conn: WorldConn, parts: Pick<RuntimeParts, "control" | "combat">) {
-      const observedTarget = (guid: bigint) =>
-        findObservedTarget(conn, parts, guid);
-      routes = {
-        control: parts.control,
-        navigation: getNavigation,
-        observedTarget,
-      };
-      return observedTarget;
-    },
   };
 }
 
@@ -400,50 +280,27 @@ export function createRuntimes(
   const lazy: LazyState = { disposed: false };
   const getNavigation = (): Navigation => loadNavigation(config, lazy);
   const control = createControl(conn, groundOracle(config, lazy));
-  const { combat, actions, trainer } = createCombat(
-    conn,
-    stores,
-    lazy,
-    control,
-  );
+  const { combat, trainer } = createCombat(conn, stores, control);
   const data = catalogAccess(config, lazy, combat, control);
-  const { approach, bind } = lateApproach(getNavigation);
   function rawHalt(reason = "halt"): void {
     if (lazy.disposed) return;
     control.setLease("manual");
     control.halt(reason);
     combat.halt();
   }
-  const tactics = createTactics(conn, config, {
-    actions,
-    prepare: preparer(config, lazy, data),
-    halt: rawHalt,
-    defense: { combat, control },
-  });
   const parts: RuntimeParts = {
     control,
     combat,
-    tactics,
-    ...createSupportRuntimes(conn, stores, {
-      approach,
-      combat,
-      control,
-      tactics,
-    }),
+    ...createSupportRuntimes(conn, stores, control),
     trainer,
   };
   const unwire = wireEvents(conn, stores, parts);
-  const observedTarget = bind(conn, parts);
   return {
     ...parts,
     ...data,
     navigation: getNavigation,
-    observedTarget,
+    observedTarget: (guid) => findObservedTarget(conn, parts, guid),
     halt: () => rawHalt(),
-    takeControl(reason): void {
-      parts.cycle.stop(reason);
-      parts.tactics.stop(reason);
-    },
     dispose(sendStop: boolean): void {
       if (lazy.disposed) return;
       disposeParts(parts, lazy, { sendStop, halt: rawHalt, unwire });

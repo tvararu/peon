@@ -1,6 +1,6 @@
-import { grayLevel } from "@peon/core";
 import type { ViewCtx } from "#harness/contract/services";
 import type { UnitView } from "#harness/contract/views";
+import { grayLevel } from "#harness/loops/combat-actions-credit";
 import { selfView } from "#harness/ops/views";
 
 type Wanted = (unit: UnitView) => boolean;

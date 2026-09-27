@@ -51,7 +51,6 @@ describe("extrasMethods", () => {
       factions: true,
       spells: false,
       navigation: true,
-      jev: false,
     };
     const conn = {
       creatureInfoCache: new Map(),
