@@ -338,9 +338,11 @@ request timeout is counted separately as `jev_timeout`.
 The instruction must be a single line. Daemon `ERR` replies, including inspection failures, make the CLI exit with status 1.
 The spell kit requires observed normal form (`combat.self.shapeshiftForm=0`). A complete server CREATE defines omitted public fields as zero. An absent entity or incomplete observation does not establish that baseline.
 Unknown or nonzero forms make spells unsupported, not melee automatically.
-`no_supported_combat_actions` is a structural block when no supported spell
-and no current melee or attack progress are available. Cooldowns and pending
-server responses remain waits. `fight` classifies the target from
+A character with no usable spell still fights in melee: the fight offers
+movement and facing, and `attack` once in melee range, and ends
+`target_unreachable` only after 5 seconds without getting closer.
+`no_supported_combat_actions` is kept for a character that cannot melee.
+Cooldowns and pending server responses remain waits. `fight` classifies the target from
 `FactionTemplate.dbc` in both directions: friendly if either side is friendly,
 hostile if either side is hostile, otherwise neutral, and unknown without
 faction data. Hostile and neutral creatures are engaged. A friendly creature is
@@ -468,11 +470,17 @@ cause (for example `HTTP 402 billing_error`), the current target and the rest
 of the queue stay `queued`, and `cycle` or `cycle --resume` replies
 `ERR jev_unavailable: <cause>` and exits with status 1. Run `cycle --resume`
 once Jev is back to fight the same target again.
+Before each fight the loop skips a queued unit that is dead, tapped by
+another player or fighting another player (queue cause `target_dead`,
+`tapped_by_other` or `engaged_by_other`); a skip uses no start. Before a
+loot open it walks to within 4 yards of the corpse. A release-only or
+unanswered loot open or take records no loot for that corpse (queue
+`loot: "none"`, cause `loot_denied:release_only` or
+`loot_denied:timeout`) and the loop continues.
 The loop stops on queue exhaustion (`queue_exhausted`), the starts cap
 (`max_starts_reached`), `halt`, a denied or blocked loot window
 (`loot_denied:*`, `loot_inventory_full`, `inventory_reserve_reached`,
-`loot_denied:release_only`, `loot_release_unconfirmed`), an
-unanswered loot take (`loot_denied:timeout`), or an unrecovered death
+`loot_release_unconfirmed`), or an unrecovered death
 (`corpse_absent`, `reclaim_delayed`, `corpse_out_of_range`,
 `corpse_unreachable`, among other recovery causes). A recovered death does
 not stop the loop. The loop waits for the
