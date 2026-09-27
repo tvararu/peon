@@ -266,24 +266,24 @@ function healerText(unit: UnitView): string {
   return `${g.spiritHealer} ${unit.ref}${dist}${where}`;
 }
 
-function recoverySegments(snapshot: NowSnapshot, theme: Theme): Segment[] {
+function reclaimText(ms: number | undefined): string {
+  if (ms === undefined) return "";
+  if (ms <= 0) return "reclaim ready";
+  return `reclaim in ${glyphs().clock} ${seconds(ms)}`;
+}
+
+function recoverySegments(snapshot: NowSnapshot): Segment[] {
   const g = glyphs();
   const r = snapshot.recovery;
-  const word =
-    snapshot.self.life === "ghost" ? `${g.ghost} GHOST` : `${g.death} DEAD`;
-  const head = { drop: 0, variants: [theme.fg("error", word)] };
-  if (!r) return [head];
+  if (!r) return [];
   const where = r.corpseCompass ? ` ${g[COMPASS_GLYPH[r.corpseCompass]]}` : "";
   const corpse =
     r.corpseYd === undefined
       ? ""
       : `${g.corpse} ${r.corpseYd.toFixed(1)}y${where}`;
-  const reclaim = r.reclaimInMs
-    ? `reclaim in ${g.clock} ${seconds(r.reclaimInMs)}`
-    : "reclaim ready";
+  const reclaim = reclaimText(r.reclaimInMs);
   const healer = r.spiritHealer ? healerText(r.spiritHealer) : "";
   return [
-    head,
     { drop: 2, variants: [corpse, ""] },
     { drop: 3, variants: [reclaim, ""] },
     { drop: 4, variants: [healer, ""] },
@@ -293,7 +293,7 @@ function recoverySegments(snapshot: NowSnapshot, theme: Theme): Segment[] {
 function targetRow({ snapshot, theme }: Row, width: number): string {
   const dead = snapshot.self.life === "dead" || snapshot.self.life === "ghost";
   const left = dead
-    ? recoverySegments(snapshot, theme)
+    ? recoverySegments(snapshot)
     : targetSegments(snapshot, theme);
   return fitSegments(
     [...left, auraSegment(snapshot, theme), castSegment(snapshot, theme)],

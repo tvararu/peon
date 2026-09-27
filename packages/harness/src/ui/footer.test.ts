@@ -32,17 +32,20 @@ const chrome: FooterChrome = {
   wake: true,
 };
 
-const ghost = nowFixture({
-  attackers: [],
-  recovery: {
-    corpseCompass: "SW",
-    corpseYd: 57.3,
-    reclaimInMs: 12_000,
-    spiritHealer: undefined,
-  },
-  self: selfFixture({ hp: 0, inCombat: false, life: "ghost" }),
-  target: undefined,
-});
+const ghostWith = (reclaimInMs: number | undefined) =>
+  nowFixture({
+    attackers: [],
+    recovery: {
+      corpseCompass: "SW",
+      corpseYd: 57.3,
+      reclaimInMs,
+      spiritHealer: undefined,
+    },
+    self: selfFixture({ hp: 0, inCombat: false, life: "ghost" }),
+    target: undefined,
+  });
+
+const ghost = ghostWith(12_000);
 
 describe("footerLines", () => {
   afterEach(() => setGlyphs("nerd"));
@@ -77,6 +80,22 @@ describe("footerLines", () => {
     expect(self).toContain(`${nerd.ghost} GHOST`);
     expect(row).toContain(`${nerd.corpse} 57.3y ${nerd.compassSW}`);
     expect(row).toContain(`reclaim in ${nerd.clock} 12s`);
+    expect(row).not.toContain("GHOST");
+  });
+
+  test("the reclaim clause follows the [now] recovery facts", () => {
+    const rowFor = (reclaimInMs: number | undefined) =>
+      plain(
+        footerLines({
+          chrome,
+          snapshot: ghostWith(reclaimInMs),
+          theme,
+          width: 160,
+        }),
+      )[1] ?? "";
+    expect(rowFor(undefined)).not.toContain("reclaim");
+    expect(rowFor(0)).toContain("reclaim ready");
+    expect(rowFor(30_000)).toContain(`reclaim in ${nerd.clock} 30s`);
   });
 
   test("always four rows that fit, at every width from 30 to 220", () => {
