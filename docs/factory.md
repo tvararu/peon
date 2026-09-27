@@ -67,19 +67,22 @@ whose git directory is gone. A launch from an already isolated shell
 reuses the same directories. Each links every entry of the real directory
 except `tuicraft` and the other `tuicraft-factory-*` directories, so `gh`,
 git, `mise` and `systemctl --user` find their usual config, state and
-sockets, while plain `bun packages/cli/src/main.ts` finds no config and cannot reach the
-default daemon socket. The main checkout and other repositories keep the
-default directories. Live characters come from
-`bun packages/factory/src/main.ts soap create <preset>`. Its config sets
-`navigation_library` to the repository's patched build that
+sockets, while the harness finds no tuicraft config and logs in nobody.
+The main checkout and other repositories keep the default directories.
+Live characters come from `bun packages/factory/src/main.ts soap create
+<preset>`; `mise eval run` creates and deletes its own this way. Its
+config sets `navigation_library` to the repository's patched build that
 `mise namigator:build` installs, and create refuses when that build is
 missing; the spell and navigation data paths come from
-`~/.config/tuicraft/config.toml`. Create also writes
-`tmp/tc-<ACCOUNT>`: it exports the account's own `XDG_*` directories under
-`tmp/factory-account-<ACCOUNT>/`, refuses to run when that account's config
-or running daemon names another character, prints the character on
-stderr, and runs `bun packages/cli/src/main.ts "$@"`. `soap delete <ACCOUNT>` removes
-the wrapper and those directories.
+`~/.config/tuicraft/config.toml`. Create also writes the launcher
+`tmp/puppet-<ACCOUNT>`, the soap JSON's `.wrapper`: it exports the
+account's own `XDG_*` directories under `tmp/factory-account-<ACCOUNT>/`,
+refuses to run when that account's config names another account or
+character, prints the character on stderr, and runs the harness's
+headless puppet with its arguments (`start --json`, `send -w <name>
+<text>`, `read --json`, `nearby --json`, `stop`). Eval graders drive the
+second character through it. `soap delete <ACCOUNT>` removes the launcher
+and those directories.
 
 `soap create` presets are `fresh`, `eversong10`, `max80`,
 `eversong10-warrior`, `eversong10-mage`, `eversong10-hunter` (all Horde,
@@ -103,10 +106,10 @@ endpoint is one of the service's character endpoints (`position`,
 `life`, `snapshot`, `restore`) and the JSON object is its body. Each
 prints the service's JSON on stdout. A failure prints
 `{"ok":false,"reason":...}` with the service's reason code and exits 1.
-The CLI refuses any account that is not a factory account before it calls
+`soap` refuses any account that is not a factory account before it calls
 the service. Setup endpoints refuse an online character
-(`character_online`), so stop its daemon first; `truth` saves an online
-character before it reads.
+(`character_online`), so stop its puppet or harness first; `truth` saves
+an online character before it reads.
 
 ## Status
 
@@ -168,9 +171,15 @@ for at most 3 open linked PRs per issue, which is enough while an issue
 has one factory PR.
 
 - **Worker.** Takes the oldest Ready card with no live claim, moves it to In
-  progress, keeps one workpad comment, live-tests on its own SOAP account,
-  opens a PR from `factory/<N>-<slug>` and moves the card to In review. The
-  worker precheck records each pick in `worker-picks.json` in the factory
+  progress, keeps one workpad comment, proves the change, opens a PR from
+  `factory/<N>-<slug>` and moves the card to In review. The proof is
+  always `mise ci`; a gameplay change in core or the harness adds one or
+  two eval scenarios from the change-area table in
+  [evals.md](evals.md), run with `mise eval run <id> --round 0` and
+  graded against it, with each scenario's id, verdict, passed and failed
+  checks and a short game-log excerpt in `## Proof`. Docs-only and
+  factory-only changes prove with `mise ci` only. The worker precheck
+  records each pick in `worker-picks.json` in the factory
   state directory and skips, and counts toward the cap, a Ready card it
   picked in the last 3 minutes, so a tick that runs before the previous
   worker has posted its claim does not start the same card. A
@@ -182,7 +191,9 @@ has one factory PR.
   Runs `mise ci` on the head and posts `factory/ci`, judges the outcome and
   code, and posts `factory/review`. Pass leaves the card In review for the
   merger; fail moves it back to Ready; a product question moves it to
-  Blocked. Never runs `mise test:live`: it judges the implementer's proof.
+  Blocked. It never runs eval scenarios: it checks that the proof fits the
+  change (the right scenario for the area, a verdict that supports the
+  claim), and missing or unconvincing proof fails the review.
   If an earlier head passed review and the new head's zero-context patch
   matches it (`same-patch`), the review carries over after CI. Claims are
   per head SHA.
@@ -198,10 +209,16 @@ has one factory PR.
   conflict or failing CI sends the card back to Ready with a comment. On
   merge GitHub moves the card to Done.
 - **QA.** Runs when `main` moves. Maps new commits to PRs and issues via
-  trailers, smoke-tests and plays, and files problems as OpenHubris issues
-  with the `qa` label; auto-add puts them in Backlog. Every agent files as
-  OpenHubris, so the label is what shows that QA found an issue. No other
-  role adds, removes or reacts to it.
+  trailers and runs `mise ci`. It then picks up to 3 eval scenarios for the
+  files changed since the last QA SHA, with the change-area table, plus 1
+  rotating canary: the next id in `mise eval scenario` order, wrapping,
+  kept in `~/.local/state/tuicraft-factory/qa-canary`. With no change under
+  `packages/core/` or `packages/harness/` it runs the canary only. It runs
+  and grades each serially and files one OpenHubris issue with the `qa`
+  label per failed check or serious friction, with the scenario, verdict,
+  failed check and evidence pasted in; auto-add puts them in Backlog.
+  Every agent files as OpenHubris, so the label is what shows that QA
+  found an issue. No other role adds, removes or reacts to it.
 - **Reaper** (systemd timer, every minute). First syncs the role prompts
   (above), logging a failed edit and carrying on. Then removes finished or
   over-cap `auto-*` worktrees that are clean and pushed or landed, and other
