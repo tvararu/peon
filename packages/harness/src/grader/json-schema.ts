@@ -8,6 +8,7 @@ export type Schema = {
   minimum?: number;
   maxLength?: number;
   additionalProperties?: Schema | boolean;
+  anyOf?: readonly Schema[];
 };
 
 export function schemaErrors(schema: Schema, value: unknown): string[] {
@@ -27,6 +28,12 @@ function hasType(type: string | undefined, value: unknown): boolean {
 }
 
 function errorsAt(node: Schema, value: unknown, path: string): string[] {
+  if (node.anyOf !== undefined)
+    return node.anyOf.some(
+      (branch) => errorsAt(branch, value, path).length === 0,
+    )
+      ? []
+      : [`${path}: matches none of ${node.anyOf.length} shapes`];
   if (node.enum !== undefined)
     return node.enum.includes(value)
       ? []

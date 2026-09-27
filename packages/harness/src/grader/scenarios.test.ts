@@ -42,6 +42,26 @@ describe("scenario files", () => {
     );
   });
 
+  test("a schedule missing the field its kind needs is invalid", () => {
+    const scenario = loadScenario("t2-whisper-reply");
+    const text = "go";
+    for (const at of [{ kind: "elapsed" }, { kind: "trigger" }]) {
+      expect(() =>
+        parseScenario("t2-whisper-reply.json", {
+          ...scenario,
+          steers: [{ at, text }],
+        }),
+      ).toThrow("$.steers[0].at: matches none of 2 shapes");
+      const [action] = scenario.partnerActions ?? [];
+      expect(() =>
+        parseScenario("t2-whisper-reply.json", {
+          ...scenario,
+          partnerActions: [{ ...action, at }],
+        }),
+      ).toThrow("$.partnerActions[0].at: matches none of 2 shapes");
+    }
+  });
+
   test("an unknown id throws and names the known ids", () => {
     expect(() => loadScenario("t9-nope")).toThrow(
       "unknown scenario: t9-nope (known: t4-quest-first,",

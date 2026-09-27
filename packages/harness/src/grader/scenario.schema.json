@@ -161,37 +161,51 @@
             "type": "array"
           },
           "at": {
-            "additionalProperties": false,
-            "properties": {
-              "delayMs": {
-                "minimum": 0,
-                "type": "integer"
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "delayMs": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "enum": ["trigger"]
+                  },
+                  "nth": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "trigger": {
+                    "enum": [
+                      "fight_start",
+                      "kill",
+                      "death",
+                      "movement_start",
+                      "answer_text",
+                      "steer_landed",
+                      "task_landed"
+                    ]
+                  }
+                },
+                "required": ["kind", "trigger"],
+                "type": "object"
               },
-              "kind": {
-                "enum": ["trigger", "elapsed"]
-              },
-              "ms": {
-                "minimum": 1,
-                "type": "integer"
-              },
-              "nth": {
-                "minimum": 1,
-                "type": "integer"
-              },
-              "trigger": {
-                "enum": [
-                  "fight_start",
-                  "kill",
-                  "death",
-                  "movement_start",
-                  "answer_text",
-                  "steer_landed",
-                  "task_landed"
-                ]
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": ["elapsed"]
+                  },
+                  "ms": {
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": ["kind", "ms"],
+                "type": "object"
               }
-            },
-            "required": ["kind"],
-            "type": "object"
+            ]
           },
           "windowMs": {
             "minimum": 1,
@@ -231,37 +245,51 @@
         "additionalProperties": false,
         "properties": {
           "at": {
-            "additionalProperties": false,
-            "properties": {
-              "delayMs": {
-                "minimum": 0,
-                "type": "integer"
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "delayMs": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "enum": ["trigger"]
+                  },
+                  "nth": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "trigger": {
+                    "enum": [
+                      "fight_start",
+                      "kill",
+                      "death",
+                      "movement_start",
+                      "answer_text",
+                      "steer_landed",
+                      "task_landed"
+                    ]
+                  }
+                },
+                "required": ["kind", "trigger"],
+                "type": "object"
               },
-              "kind": {
-                "enum": ["trigger", "elapsed"]
-              },
-              "ms": {
-                "minimum": 1,
-                "type": "integer"
-              },
-              "nth": {
-                "minimum": 1,
-                "type": "integer"
-              },
-              "trigger": {
-                "enum": [
-                  "fight_start",
-                  "kill",
-                  "death",
-                  "movement_start",
-                  "answer_text",
-                  "steer_landed",
-                  "task_landed"
-                ]
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": ["elapsed"]
+                  },
+                  "ms": {
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": ["kind", "ms"],
+                "type": "object"
               }
-            },
-            "required": ["kind"],
-            "type": "object"
+            ]
           },
           "text": {
             "type": "string"
