@@ -4,7 +4,7 @@ import {
   type PromptInit,
 } from "#harness/prompt/system-prompt";
 
-const SPEC = `${import.meta.dir}/../../../../docs/plans/2026-09-26-pi-harness-epic-design.md`;
+const SPEC = `${import.meta.dir}/../../../../docs/archive/2026-09-26-pi-harness-epic-design.md`;
 const TEMPLATE = "as {character}, a level {level} {race} {class}.";
 const LINE_TAIL =
   "A human gives you tasks and can type to you at any time. You act only through your tools.";

@@ -1,7 +1,7 @@
 memory:
   backend: mnemopi
 mnemopi:
-  bank: tuicraft
+  bank: peon
   scoping: global
   autoRetain: false
   llmMode: none

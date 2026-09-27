@@ -43,9 +43,7 @@ describe("grader cli", () => {
   test("prints usage for an unknown command", async () => {
     const d = deps();
     expect(await main(["dance"], d)).toBe(2);
-    expect(d.errors[0]).toContain(
-      "usage: bun packages/harness/src/grader/cli.ts <command>",
-    );
+    expect(d.errors[0]).toContain("usage: mise eval <command>");
   });
 
   test("does not treat an Object prototype name as a command", async () => {

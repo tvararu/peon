@@ -5,7 +5,7 @@ character, the [Pi harness](harness.md) in an Orca pane, a task typed to
 the agent, and a grade from server-confirmed state. Evals are the live
 proof for gameplay changes in core and the harness. The full design and
 the whole catalogue are in
-[the eval suite design](plans/2026-09-26-pi-harness-epic/eval-suite.md).
+[the eval suite design](archive/2026-09-26-pi-harness-epic/eval-suite.md).
 
 ## Grading rules
 

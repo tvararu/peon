@@ -1,433 +1,158 @@
 # AGENTS.md
 
-## Priorities and Ownership
+Peon is an agent harness that plays World of Warcraft 3.3.5a. The goal is
+working, protocol-correct gameplay on a real server.
 
-- Working, protocol-correct gameplay is the goal. Agents own implementation,
-  engineering decisions, review, and integration; the user is not a code-review
-  gate. Keep existing conventions where useful, but do not pursue cosmetic
-  refactors or coverage percentages instead of gameplay.
-- Prioritize agent control and real-server outcomes. Human-facing usability
-  follows user feedback; it is not a prerequisite for agent-playable
-  capabilities.
-- Play as soon as a useful loop works, use failures to guide development, and
-  continue normal gameplay and leveling on the user's server when the active
-  goal allows it. Do not substitute server-data edits for client capabilities.
-- Delegate multi-step live gameplay and gameplay debugging to one omp worker.
-- omp is the main harness. Orca worktrees spawn agents with `--agent omp`;
-  "omp worktree" means `orca-ide worktree create --agent omp`.
-- Match the omp subagent to the work. `sonic` and `scout` run on the fast
-  `smol` model: give `sonic` mechanical edits and data collection, and
-  `scout` read-only code searches. Keep `task` for work that needs
-  judgement, and `reviewer` for independent review.
+## Priorities
+
+- Agents own implementation, engineering decisions, review and integration.
+  Keep useful conventions; skip cosmetic refactors and coverage chasing.
+- Agent control and real-server outcomes come first. Human-facing
+  usability follows the maintainer's feedback.
+- Play as soon as a useful loop works and let failures guide development.
+  Build client capabilities; never edit server data to fake them.
+- Delegate multi-step live gameplay and gameplay debugging to one omp
+  worker. Match the subagent to the work: `sonic` for mechanical edits and
+  data collection, `scout` for read-only searches, `task` for judgement,
+  `reviewer` for independent review.
+
+## Ways of working
+
+Two modes, both described in [README.md](README.md). Both land through a
+PR with green `signoff/ci`, `factory/ci` and `factory/review` statuses.
+
+- **Paired** (the current mode): the maintainer works one item with one
+  interactive agent session.
+  1. Open an issue with a `## Acceptance criteria` section, and scope it
+     with the maintainer. Keep its board card out of Ready.
+  2. Work in your own worktree on `factory/<N>-<slug>`. Open a PR whose
+     body opens with a why paragraph, then `Fixes #N` and `## Proof`.
+  3. Stop until the maintainer has reviewed the PR.
+  4. After approval: run `mise ci` on the PR head, post `factory/ci` and
+     `factory/review` on it (`gh api repos/tvararu/peon/statuses/<sha> -f
+     state=success -f context=factory/<ci|review> -f description=...`),
+     then squash-merge with the message from `mise factory squash-message
+     <PR>` (`gh pr merge --squash --match-head-commit`).
+  Never post the statuses or merge before the maintainer's review.
+- **Factory**: Orca automations work cards the maintainer moves to Ready on
+  the project board (tvararu/1). Workers open PRs, reviewers post the
+  `factory/*` statuses and the merger lands them; no agent does another
+  role's step by hand, and no agent posts `factory/*` on its own factory
+  PR. Roles, statuses, attempts, stacked PRs and pace are in
+  [docs/factory.md](docs/factory.md).
 
 ## Commands
 
-Use `mise` to run tasks (not `bun` directly, not `mise run`):
+Run everything through the `mise.toml` tasks as `mise <task>`, never
+`bun <script>` or `mise run`.
 
-- `mise bundle` — install dependencies and git hooks (`bun install`, then `hk install --mise`)
-- `mise test` — run all tests (`bun test`)
-- `mise test:coverage` — tests with coverage reporting; no percentage gate
-- `mise typecheck [package]` — type-check the whole repo and then each
-  package on its own (`tsc --noEmit`, then `tsc --noEmit -p packages/<p>`),
-  or only the named package
-- `mise format [path]` — check formatting (`biome format`, default `packages/`)
-- `mise format:fix [path]` — fix formatting (`biome format --write`, default `packages/`)
-- `mise lint [path]` — lint rules and assist actions (`biome check --formatter-enabled=false --error-on-warnings`)
-- `mise lint:fix [path]` — apply safe lint fixes and assist actions
-  (`biome check --write`, default `packages/`)
-- `mise lint:docs` — check the docs agents read as current instructions
-  for dated history and dead references (`bun packages/devtools/src/stale-docs.ts`)
-- `mise ci` — `mise ci:checks` (`typecheck`, `test:coverage`, `format`,
-  `lint`, `lint:docs`), then `gh signoff ci` posts a green `signoff/ci`
-  status for HEAD.
-  Signoff runs only after the checks pass and only for a HEAD that was clean
-  throughout and is pushed to its upstream; otherwise it prints a note and
-  exits 0. No remote CI
-- `mise ci --publish` — used by the hk `pre-push` hook: pushes HEAD to a
-  temporary `refs/signoff/<sha>` ref so the not-yet-pushed commit can be
-  signed off, deletes that ref, and fails the push if signoff fails
-- `mise namigator:build` — build `libnamigator.so` from the pinned upstream
-  commit plus the patches in `vendor/namigator/` (in `tmp/namigator/`) and
-  install it at `~/.local/share/peon/namigator/<key>/libnamigator.so`,
-  keyed by `UPSTREAM`, `build.sh` and the patches; it skips the build when
-  that file exists. `soap create` needs it
-- `bun packages/factory/src/main.ts <precheck|status|landings|qa-changes|squash-message|same-patch|soap|reap|setup>` — the dev
-  factory CLI (how it works: `docs/factory.md`).
-  Automations and the reaper run it from the runner clone,
-  `~/.local/share/peon-factory/runner`, which follows `origin/main`
-- `mise factory:pace [pause|default|max]` — show the factory pace and the
-  live schedules, or set it (automation schedules in place, worker and
-  review caps, reaper timer). Use `max` in quiet weeks with usage to spare
-  and for overnight pushes. `pause` disables `work`, `review` and `merge`
-  and leaves QA and the reaper running; `default` or `max` ends it. The
-  design doc's Pace section has the table
-- `mise harness --profile <path> [flags]` — run the Pi harness
-  (`bun packages/harness/src/entry.ts`), the interactive agent that plays
-  one character; flags, credentials and commands are in `docs/harness.md`
-- `mise eval <command>` — the harness eval grader CLI
-  (`bun packages/harness/src/grader/cli.ts`): `run`, `result`,
-  `scenario`, `launch`, `send`, `frame`, `watch`, `truth`, `final-truth`,
-  `leak-check`, `validate`; run it without a command for the usage.
-  Scenarios, grading and which scenario covers what are in `docs/evals.md`
-- `mise test:slowest` — show 10 slowest tests via junit XML
-- `orca-ide worktree create --name <name> --parent-worktree active --comment
-  "owner: <agent>, <purpose>" --agent omp` — create a worktree.
-  Setup is `scripts.setup` in the committed `orca.yaml` (`mise trust -y &&
-  mise bundle && mkdir -p tmp`) and the agent starts only after it
-  finishes; no other flags needed, and a nested agent creating its own
-  worktree inherits both setup and lineage. Automation worktrees skip
-  setup unless the automation has "Run setup for each new workspace" on.
-- `orca-ide worktree rm --worktree name:<name>` — remove a worktree and its
-  branch. No `--run-hooks`: there is no archive hook and passing it only adds
-  a way for removal to fail.
+- `mise bundle`: install dependencies and git hooks.
+- `mise test [file]`, `mise test:coverage`, `mise test:slowest`.
+- `mise typecheck [package]`, `mise format[:fix] [path]`,
+  `mise lint[:fix] [path]`, `mise lint:docs`.
+- `mise ci`: all the checks (`mise ci:checks`), then a `signoff/ci` status
+  for a clean, pushed HEAD. The `pre-push` hook runs `mise ci --publish`.
+- `mise harness --profile <path>`: the Pi harness
+  ([docs/harness.md](docs/harness.md)).
+- `mise eval <command>`: the eval grader ([docs/evals.md](docs/evals.md)).
+- `mise namigator:build`: build the patched `libnamigator.so` that
+  `soap create` needs.
+- `mise factory <command>`: the factory CLI (`soap`, `status`,
+  `squash-message`, `pace [pause|default|max]`, ...); run it bare for its
+  commands. Factory prompts call the runner clone's copy directly.
+- In `mise.toml`, write tasks that hold regexes or backslashes as `'''`
+  literal strings; `"""` processes escapes.
 
-## Skills
+## Code
 
-- Skills and frameworks, including Superpowers, are optional aids. Choose the
-  planning, delegation, and review process that best delivers and verifies the
-  active goal; no framework-specific ceremony or routine human approval gate.
-- Canonical Superpowers source is upstream `obra/superpowers` (this machine:
-  `superpowers@6.4.1`, installed via `omp install
-  git:github.com/obra/superpowers`). The Pi extension injects the
-  `using-superpowers` bootstrap into the model context at session start and
-  after compaction; it does not appear as a `skill://` entry or in saved
-  transcripts, so verify with a no-tools prompt
-  (`omp -p --no-session --no-tools "…"`) rather than `skill://` reads or
-  session JSONL. Claude Code uses `superpowers@claude-plugins-official`
-  (already enabled in `.claude/settings.json`).
-- Use `/typescript-style` as a reference for existing code conventions.
-- When designing or integrating Jev, read `.claude/skills/typesafe-ai` first. Keep the TypeSafe API key private.
-
-## Memory
-
-- omp memory is on for this repo (`.omp/config.yml`: Mnemopi, shared bank
-  `tuicraft`, no transcript auto-save, no LLM calls); factory runs turn it
-  off through `packages/factory/src/omp-factory.yml`. The bank keeps the
-  project's old name, because every stored memory is keyed to it.
-- Automatic recall only fires on a close match, so call `recall` with your
-  task's topic when you start. Recalled memory is background; AGENTS.md and
-  the maintainer's instructions win when they conflict.
-- Use `learn` only for a verified, reusable lesson that isn't already in
-  AGENTS.md or `docs/`. Never record the maintainer's rulings; the
-  coordinator records those.
-- Only the coordinator and the maintainer edit or forget memories
-  (`memory_edit`); report a wrong memory instead of changing it.
-
-## Code Style
-
-- Strict TypeScript — `noUncheckedIndexedAccess`, `noUnusedLocals`,
-  `noUnusedParameters`, all strict flags on (see `tsconfig.base.json`, which the root
-  `tsconfig.json` and each package's `tsconfig.json` extend)
-- Never write comments, so never use `biome-ignore`; rule exceptions live as
-  path overrides in `biome.json` (protocol bit flags, wire-order literals in
-  `packages/core/src/wow/**`, the opcode table, test files and
-  `packages/*/test-support/**`)
-- Files are capped at 500 non-blank lines (`noExcessiveLinesPerFile`, tests
-  included). Split by responsibility into sibling modules before a file grows
-  past it; shared test setup goes in
-  `packages/<pkg>/test-support/<name>-fixtures.ts`. Only the
-  central `opcodes.ts` table is exempt
+- Strict TypeScript (`tsconfig.base.json`). biome, `config/biome.grit` and
+  the hk hooks enforce formatting, lint, import boundaries, the 500-line
+  file cap and commit-message shape; fix the code, never the rule. Rule
+  exceptions are path overrides in `biome.json`.
+- Never write comments, so never `biome-ignore`.
+- Split a file by responsibility into sibling modules before it reaches
+  500 non-blank lines.
 - Fire-and-forget promises end in `.catch(ignoreFailure)` from
-  `"#lib/ignore-failure"` in core or `"@peon/core/lib/ignore-failure"`
-  elsewhere, not an empty callback
-- Use Bun APIs over Node.js equivalents (`Bun.file` over `node:fs`, `WebSocket`
-  built-in, etc.)
-- `node:os` (tmpdir/homedir), `node:fs/promises` (mkdir/appendFile) are fine — no
-  Bun equivalents exist
-- `Bun.write` has no permission mode option — use `writeFile` from
-  `node:fs/promises` with `{ mode: 0o600 }` when writing files containing
-  secrets
-- `Bun.file().exists()` only works on regular files — use `fs.access()` for
-  unix sockets and other special files
-- Bun automatically loads `.env`, so don't use dotenv
+  `#lib/ignore-failure` (core) or `@peon/core/lib/ignore-failure`.
+- Prefer Bun APIs over Node's; `node:os` and `node:fs/promises` are fine
+  where Bun has no equivalent. Bun loads `.env` itself.
+- Packages: `@peon/core`, `@peon/factory`, `@peon/devtools`,
+  `@peon/harness`. Inside a package import through its `#` aliases. Other
+  packages reach core only through its `exports` (`@peon/core`,
+  `@peon/core/session`, `@peon/core/lib/<module>`, and in tests
+  `@peon/core/test-support/<module>`); export a symbol from the barrel
+  before another package uses it. Core imports no other workspace package
+  and no test support at runtime; only the harness imports
+  `@earendil-works/*`.
+- Protocol work: read [docs/protocol.md](docs/protocol.md) for the
+  reference codebases, packet-parsing gotchas and event rules. Never sort
+  keys in object literals that read packets.
 
 ## Testing
 
-- Use coverage to find risk, not as a target or release gate. Keep meaningful
-  tests for behavior, protocol boundaries, and failure recovery. Do not add
-  tests or restructure code solely to reach a percentage.
-- **After gameplay or protocol changes, run the closest eval scenario from
-  `docs/evals.md` yourself.** Do not ask the user to run it. Run it on
-  throwaway accounts of your own, never on anyone else's character. Run
-  `mise namigator:build` first when the patch set changed; `soap create`
-  refuses without it. `bun packages/factory/src/main.ts soap create <preset>`
-  prints JSON that includes the password: redirect it to a file under
-  `tmp/` and read fields with `jq`, so the password never reaches a
-  transcript (`soap list` omits passwords), and delete each account with
-  `soap delete <ACCOUNT>` afterwards. Unit, type, format, and coverage
-  checks are not live evidence. Do not claim gameplay works without a
-  passing eval run. If the run fails for infrastructure reasons (server
-  down, SOAP unreachable), defer to the user.
-- Run a `soap create` character as a puppet only through the wrapper it
-  writes, `tmp/puppet-<ACCOUNT>` (the JSON's `.wrapper`), never by exporting
-  `XDG_*` into your shell. The wrapper sets the account's own config,
-  runtime and state directories, refuses to run if that config logs in
-  another character, prints `puppet-<ACCOUNT>: character <name>` on stderr
-  and runs `bun packages/harness/src/puppet/main.ts "$@"`. `soap delete`
-  removes it with the account's directories. `omp-factory` starts every omp
-  in a Peon worktree other than the main checkout with per-run `XDG_*`
-  directories (config and state in `factory-xdg/` in the worktree's git
-  directory, runtime in `$XDG_RUNTIME_DIR/peon-factory-<hash>`) that
-  link everything in the real ones except `peon`, so a run there finds
-  no Peon config of its own.
-- Tests are colocated: `foo.ts` → `foo.test.ts` in the same directory.
-- Import from `bun:test`: `import { test, expect, describe } from "bun:test"`
-- Run with `mise test`
-- `mise test packages/core/src/lib/errors.test.ts` runs a single file (args pass through to `bun test`)
-- Use `jest.useFakeTimers()` / `advanceTimersByTime()` from `bun:test` for
-  timer-dependent tests (wrap in `try/finally` with `jest.useRealTimers()`)
-- Prefer promise-based waiting over `Bun.sleep()` — await the event, not a
-  hardcoded delay
-- Use `./tmp/` for scratch files, not `/tmp/` (gitignored)
-- `bun test` scans `./tmp/` for test files — never leave `.test.ts` files there
-- macOS `tmpdir()` returns `/var/folders/.../T/`, not `/tmp/` — don't hardcode
-  `/tmp/` paths
-- `Bun.connect()` returns a promise — connection errors escape `new Promise`
-  constructors. Chain `.catch(reject)` on the returned promise, not try/catch
-- `Bun.listen` server-side `socket.end()` doesn't reliably trigger client
-  `close` — detect the protocol terminator in `data` handler instead
-- Use unique socket paths per test (counter + timestamp) to avoid cleanup races
-- Tests that spawn git use `git()` or `gitEnv()` from `packages/factory/test-support/git.ts`, which
-  strip `GIT_*`: an inherited `GIT_DIR` makes `git init` write `core.worktree`
-  into another repository's config
-- `mock.module()` leaks across test files in Bun, so `config/biome.grit` bans
-  it. Use dependency injection: file locations come from a `Paths` value
-  (`resolvePaths()` by default), and tests pass `pathsUnder(dir)` from
-  `packages/core/test-support/temp-paths.ts`
-- `Bun.sleep(0)` yields one microtask tick (enough for `.then()` chains);
-  `Bun.sleep(1)` yields one full event loop turn (needed for filesystem I/O like
-  `unlink` to complete) — prefer the minimum needed in tests
-- `bun test` suppresses per-test lines when piped — use `mise test:slowest` or
-  `--reporter=junit --reporter-outfile=<file>` for timing data
+- Test behaviour, protocol boundaries and failure recovery. Delete tests
+  that pin wording or implementation. Conventions and Bun gotchas are in
+  [docs/testing.md](docs/testing.md).
+- After a gameplay or protocol change, run the closest eval scenario from
+  [docs/evals.md](docs/evals.md) yourself, on throwaway accounts from
+  `soap create` driven through their `tmp/puppet-<ACCOUNT>` wrapper
+  ([docs/testing.md](docs/testing.md#live-characters)). Unit, type and lint
+  checks are not live evidence: never claim gameplay works without a
+  passing eval run. If the server or SOAP is down, report it and stop.
+- Use only accounts you created. Never touch ADMIN, DEITY, X, Y,
+  AUCTIONHOUSE, TCFACTORY, TCPRESETS, RNDBOT* or the maintainer's
+  characters, never change server data, and never restart the worldserver.
+- Scratch files go in `./tmp/`, which is ephemeral: keep nothing there
+  that matters.
 
-## Mise Task Authoring
+## Git
 
-- Use `'''` (TOML literal strings) for tasks with regex/backslashes — `"""`
-  processes escapes and breaks sed/awk patterns
+- Conventional Commits: subject of 50 characters or fewer, capitalised
+  after the prefix (`feat: Add thing`), then a 1-3 sentence why, no
+  bullets. `feat:` is only for user-visible features; tooling is `chore:`,
+  docs `docs:`. Split PRs that span types. Read `git log -n 5` for style.
+- Each PR lands as one squash commit built from the PR title (the subject)
+  and the PR body's opening paragraph; commits inside a PR may be as
+  granular as helps.
+- `main` accepts only squash merges and linear history; a merge commit
+  fails the push with `GH013`. Never force-push, delete branches or bypass
+  hooks, except `--force-with-lease` on your own PR branch after a rebase.
+- `git add` the intended files, then commit as a separate step.
+- The `archive/vibe` tag holds unreviewed code. Read it for patterns
+  (`git show archive/vibe:<path>`); never merge, rebase or cherry-pick it.
+- There are no releases.
 
-## Plans and Design Docs
+## Worktrees
 
-- The sole current roadmap is [docs/roadmap.md](docs/roadmap.md).
-- Existing `docs/plans/` files are historical design/protocol references, not
-  instructions to execute old tasks. When a durable design note is useful, use
-  `docs/plans/YYYY-MM-DD-<topic>-{design,plan}.md`; not every change needs one.
+- Create one with `orca-ide worktree create --name <name>
+  --parent-worktree active --comment "owner: <agent>, <purpose>" --agent
+  omp`. `orca.yaml` runs the setup. Remove it with `orca-ide worktree rm
+  --worktree name:<name>`, then `git branch -D`, once the work has landed.
+- Every worktree has one owner, and the maintainer must never find stale
+  worktrees or idle agents. Commit and push before you stop. Factory runs
+  never create worktrees.
+- omp in any worktree but the main checkout gets its own `XDG_*`
+  directories and finds no Peon config. The reaper cleans up after runs and
+  holds dirty trees; see [docs/factory.md](docs/factory.md).
 
-## Branches and archives
+## Docs and memory
 
-- Unreviewed work from the `vibe` branch lives in the tag `archive/vibe`
-  (commit `5fbe7bf`); there is no `vibe` branch. `main` has reviewed
-  replacements for its pieces (`packages/core/src/wow/navigation-native.ts` for the
-  `bun:ffi` namigator bridge, `packages/core/src/wow/combat-actions-*`). Nobody reviewed
-  the tag's code, and unreviewed code must not enter `main` disguised as
-  progress. Read it freely for patterns (`git show archive/vibe:<path>`),
-  never merge, rebase or cherry-pick it without the maintainer saying so,
-  and never treat its journals as roadmap evidence.
-- `main` has a GitHub `required_linear_history` rule and allows only
-  squash merges, so **merge commits are rejected at push time**. Local
-  merges, hooks and `mise ci` all pass first, and the push then fails with
-  `GH013: Repository rule violations found` naming only a commit hash,
-  which reads as an auth or branch-protection fault rather than a
-  history-shape one. The maintainer's admin bypass is the only direct push
-  to `main`; it integrates by cherry-picking commits in order, never by
-  merging. Note that `git cherry-pick --continue` opens an editor, so pass
-  `-c core.editor=true`.
-- `tmp/` is ephemeral: keep nothing there that matters, and accept that
-  it can be lost.
-
-## Worktree lifecycle
-
-The maintainer must never find stale worktrees or idle agents in Orca.
-
-- Every worktree has exactly one owner, recorded in Orca lineage when it is
-  created: pass `--parent-worktree active` and
-  `--comment "owner: <agent>, <purpose>"`, never `--no-parent`. Factory run
-  worktrees (`auto-*`) belong to the reaper, and ones the maintainer makes
-  in the app belong to the maintainer. The main checkout is never removed.
-- The owner removes its worktree and branch once the work has landed
-  (`orca-ide worktree rm --worktree name:<name>`, then `git branch -D`).
-  Commit and push before you stop.
-- Factory runs never create worktrees; subagents work inside the run's own
-  worktree.
-- The reaper (`peon-factory-reaper.timer`, every minute) is the
-  backstop. It removes finished or over-time `auto-*` runs, and removes
-  other worktrees only when they have landed on `main`, are clean, and have
-  been idle for more than 12 hours. It never deletes a dirty tree: it
-  archives a patch to `tmp/worktree-archive-<date>/` in the main checkout
-  and keeps one draft card in Blocked on the project board titled
-  `Reaper: <worktree> held (<reason>)` that says what to do. It deletes
-  that card itself once the worktree is gone or no longer held, so a Reaper
-  card in Blocked always needs action.
-
-## Reference Codebases
-
-- `../wow-chat-client` — Node.js WoW chat client, primary protocol reference
-- `../azerothcore-wotlk-playerbots` — AzerothCore server source (C++). Key files:
-  `../azerothcore-wotlk-playerbots/src/server/game/Entities/Object/Updates/UpdateFields.h` (complete field index
-  for 3.3.5a build 12340), `../azerothcore-wotlk-playerbots/src/server/game/Handlers/SpellHandler.cpp`
-  (CMSG_CAST_SPELL handling), `../azerothcore-wotlk-playerbots/src/server/game/Handlers/GroupHandler.cpp`
-  (SMSG_PARTY_MEMBER_STATS construction)
-- `../wowser` — browser-based WoW 3.3.5a client (ES2015/React/WebGL). Useful for
-  cross-referencing opcodes, auth error codes, and realm parsing. Key files:
-  `../wowser/src/lib/auth/` (challenge opcodes, reconnect),
-  `../wowser/src/lib/game/opcode.js` (40+ world opcodes),
-  `../wowser/src/lib/realms/handler.js` (realm list parsing),
-  `../wowser/src/lib/crypto/srp.js` (SRP-6 reference — uses insecure Math.random, ours is
-  better)
-- `../wow_messages` — auto-generated WoW protocol definitions in `.wowm` format
-  (Rust crate source). Machine-readable spec for every opcode across Vanilla/TBC/
-  WotLK. Key path: `wow_message_parser/wowm/world/` for world packet definitions
-- `../namigator` — C++ pathfinding + line-of-sight library for WoW (Alpha through
-  WotLK). Reads MPQ files, generates navmesh via Recast/Detour.
-- `../namigator-rs` — Rust bindings for namigator. Clean API reference for the FFI
-  wrapper we'll build: `find_path`, `line_of_sight`, `find_height`, `load_adt`
-- wowdev.wiki is unnecessary — it 403s automated access and has no offline dump.
-  wow_messages and AzerothCore source cover everything needed for protocol work
-
-## Protocol Gotchas
-
-- Server sends message lengths including the null terminator — strip trailing \0
-  when decoding
-- `drainWorldPackets` must catch handler errors — one bad packet breaks all
-  subsequent processing
-- Always run the closest eval scenario from `docs/evals.md` after protocol
-  changes — never claim something works without verifying against the real
-  server
-- Live-first testing: validate behavior against the real server, then encode it
-  in mock integration tests as a living spec
-- Chat messages must use a valid racial language (LANG_ORCISH=1 for Horde,
-  LANG_COMMON=7 for Alliance) — server rejects LANG_UNIVERSAL (0) silently
-- Object literals evaluate in key order, and parsers read packets inside them
-  (`{ guid: r.packedGuidBig(), counter: r.uint32LE() }`). Never sort or
-  reorder such keys; `useSortedKeys` is off for `packages/core/src/wow/**` for this reason
-
-## Packages
-
-- The code is a Bun workspace (`packages/*`): `@peon/core`
-  (`packages/core`: `packages/core/src/wow`, the runtime helpers in
-  `packages/core/src/lib` and shared test support in
-  `packages/core/test-support`), `@peon/factory`,
-  `@peon/devtools` and `@peon/harness`. `bun install`
-  (`mise bundle`) must run before any cross-package import resolves.
-- Inside a package, import with its private `#` aliases from its
-  `package.json` `imports` (`"#wow/client"`, `"#harness/config/lock"`,
-  `"#test-support/must"`); relative imports are for siblings and non-code files.
-- Other packages import core only through its `exports`:
-  `"@peon/core"` (the barrel, `packages/core/src/wow/index.ts`),
-  `"@peon/core/session"` for `worldSession` and auth,
-  `"@peon/core/lib/<module>"` for the listed helpers and, in tests
-  only, `"@peon/core/test-support/<module>"`. Any other subpath
-  fails to resolve in Bun and tsc, and biome's `noRestrictedImports`
-  rejects it too. The barrel exports no value that loads the session.
-  Export a new core symbol from the barrel
-  (or add an `exports` entry) before another package uses it; a test
-  that needs a core internal imports it from
-  `"@peon/core/test-support/internals"`.
-- Core imports nothing from another workspace package, and core runtime
-  code imports no test support. Only `packages/harness` may import
-  `@earendil-works/*`. biome enforces both.
-
-## WorldHandle
-
-- `packages/core/test-support/mock-handle.ts` is the shared WorldHandle mock;
-  add new WorldHandle methods to it
-- `WorldHandle` `on*` hooks are multi-subscriber: each returns an
-  unsubscribe function and all of them are backed by `conn.events`
-  (`packages/core/src/wow/world-events.ts`, built on `#lib/emitter`). Emit through
-  `conn.events.<name>.emit(...)`, never a setter. Every listener gets the
-  event; a listener that throws during packet dispatch is reported through
-  `onPacketError` with the dispatching opcode, and elsewhere the error is
-  rethrown once delivery finishes
-- `cleanupSession` clears `conn.events` before socket teardown —
-  `entityStore.clear()` in the socket close handler fires disappear for every
-  entity, so subscribers must be detached first
-
-## Entity Fields
-
-- `extractObjectFields` / `extractUnitFields` / `extractGameObjectFields` return
-  `_changed: string[]` — destructure it out on the create path, use it on the
-  values path to filter which fields to pass to `entityStore.update()`
-
-## Documentation
-
-- When adding user-visible features, update `docs/harness.md`,
-  `docs/evals.md` and `README.md` where they describe the changed behaviour
-- Docs state the current rule or state in the present tense. History
-  belongs in commit messages and `docs/plans/`: don't narrate when, why or
-  at whose request a rule changed ("since <date>", "deleted on <date>"),
-  and never point a reader at something that no longer exists or lives
-  only in `tmp/`. Keep a date only where it is the fact a reader needs,
-  such as when an evidence record was taken. `mise lint:docs` checks the
-  common forms in the files agents read as current instructions (listed
-  in `packages/devtools/src/stale-docs.ts`)
-
-## Commits
-
-Use [Conventional Commits](https://www.conventionalcommits.org/), then:
-
-- Keep the subject line to 50 characters or fewer (including prefix)
-- Capitalize the subject after the prefix: `feat: Add thing` not `feat: add thing`
-- Pick the right prefix — `feat:` is only for application features visible to
-  end users. Tooling and infra are `chore:`, README changes are `docs:`, CI
-  changes are `ci:`. When a PR spans types, split it into separate PRs.
-- Blank line, then 1-3 sentence description of "why" (wrap at 72 chars)
-- No bullet points
-- Check `git log -n 5` first to match existing style
-- Never use `--oneline` — commit bodies carry important context
-- These rules bind the squash commit that lands on `main`, which the PR
-  title and body produce (see Shipping). The hk hooks still check every
-  local commit; they let `fixup!`, `squash!` and `amend!` subjects through
-  so autosquash works, but a PR's own history is never reviewed.
-
-Shipping:
-
-- Everything reaches `main` through a pull request that has green
-  `signoff/ci`, `factory/ci` and `factory/review` statuses (the `main`
-  ruleset). The maintainer's approval is not required right now
-  (`required_approving_review_count: 0`, and `maintainerApproval = false` in
-  `packages/factory/src/config.ts`). If it is turned back on, only an approval by
-  `tvararu` on github.com counts: approvals clicked inside Orca are sent as
-  `OpenHubris`, the PR author.
-- The dev factory works issues whose card the maintainer has moved to
-  Ready on the project board (tvararu/1): workers open PRs as `OpenHubris`
-  from `factory/<issue>-<slug>` branches, reviewers post `factory/ci` and
-  `factory/review`, and only the merger lands them, by squash merge. Do not
-  land factory PRs or move their cards by hand. Moving the card to Ready is
-  the whole release step.
-- Work that doesn't come from the factory goes through the same review and
-  merger, so give it what their prompts need. File an issue with a
-  `## Acceptance criteria` section. Push the work to a branch named
-  `factory/<N>-<slug>`, and open a PR whose body has `Fixes #N` and a
-  `## Proof` section. Then run `bun packages/factory/src/main.ts status N in-review`.
-  The reviewer posts the statuses and the merger lands it. Never post
-  `factory/*` statuses on your own PR.
-- Each PR lands as one squash commit. OpenHubris authors it because it
-  performs the merge. Its subject is the PR title, so the title must be a
-  Conventional Commit of 50 characters or fewer, capitalised after the
-  prefix. Its body is the PR body's opening paragraph (1-3 sentences of
-  why, before `Fixes #N` and any heading), then one trailer block:
-  `Refs: #N` for each closed issue, `PR: #M`, and
-  `Co-authored-by: Theodor Vararu <theo@vararu.org>` to credit the maintainer.
-  `bun packages/factory/src/main.ts squash-message <M>` builds it and fails on a bad
-  title or a missing why. Commits inside the PR may be as granular as
-  helps; no history cleanup is needed.
-- The merger lands only a PR whose current head has green `factory/ci` and
-  `factory/review`. `precheck merger` comments on an In review issue whose
-  head moved after a passing review, and moves it to Blocked on the third
-  moved head since the card last entered In review; the merger's own
-  rebases do not count. After a rebase, a PR whose zero-context patch
-  (`same-patch`) still matches the reviewed head keeps its review; CI
-  reruns on the new head.
-- Stacked PRs: when an issue needs another open PR's code, link the child
-  issue as blocked by the parent's issue, base the child PR on the parent's
-  branch so its diff shows only the child, and put
-  `Stacked-on: #<parent PR> <parent tip SHA>` in its body. Once the parent
-  lands, GitHub retargets the child to `main` and it is rebased with
-  `git rebase --onto origin/main <parent tip>`. Keep stacks 2-3 deep.
-- `git add` the intended files, then `git commit` as a separate step. Do
-  not stage unrelated work.
-- Independent agents work in their own worktree and commit there freely.
-  Never instruct a worker to leave its work uncommitted.
-- Do not force-push, delete branches, or bypass hooks without permission.
-  The exception is your own PR branch: force-push it with
-  `--force-with-lease` after rebasing it.
-- There are no releases; do not publish versions.
+- [docs/](docs/) holds current documentation; [docs/archive/](docs/archive/)
+  holds historical designs and plans, which are not instructions. Put a new
+  design note in `docs/plans/YYYY-MM-DD-<topic>-{design,plan}.md` when one
+  is useful.
+- When behaviour visible to users changes, update `README.md` and the
+  matching doc under `docs/`.
+- Docs state what holds now, in the present tense. History belongs in
+  commit messages and design notes; never point at something that no
+  longer exists or lives only in `tmp/`. `mise lint:docs` checks this.
+- Skills and frameworks such as Superpowers are optional aids; choose the
+  process that delivers the goal. Use `/typescript-style` for code
+  conventions, and read `.claude/skills/typesafe-ai` before working on Jev.
+  Keep the TypeSafe API key private.
+- omp memory (Mnemopi, bank `peon`, set in `.omp/config.yml`) is on here
+  and off in factory runs. Call `recall` on your topic when you start;
+  AGENTS.md and the maintainer win over recalled memory. `learn` only
+  verified, reusable lessons not already in the docs, and never record the
+  maintainer's rulings. Only the coordinator and the maintainer edit or
+  forget memories.
