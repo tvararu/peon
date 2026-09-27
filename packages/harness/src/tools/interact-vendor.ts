@@ -115,6 +115,17 @@ export const vendorExtra: TalkExtra = async ({ ctx, npc }) => {
   return { after: { stock }, lines: [stockText(stock)] };
 };
 
+function exactGood(
+  goods: readonly NamedVendorGood[],
+  text: string,
+): NamedVendorGood | null | undefined {
+  const byLine = LINE_NUMBER.test(text) ? goods[Number(text) - 1] : undefined;
+  if (byLine) return byLine;
+  const id = ITEM_ID.exec(text)?.[1];
+  if (id === undefined) return undefined;
+  return goods.find((good) => good.itemId === Number(id)) ?? null;
+}
+
 function pickGood(
   npc: NpcTarget,
   goods: readonly NamedVendorGood[],
@@ -135,13 +146,15 @@ function pickGood(
       reason: "what_needed",
     });
   const text = what.trim().toLowerCase();
-  const byLine = LINE_NUMBER.test(text) ? goods[Number(text) - 1] : undefined;
-  if (byLine) return byLine;
-  const id = ITEM_ID.exec(text)?.[1];
-  const byId = id
-    ? goods.find((good) => good.itemId === Number(id))
-    : undefined;
-  if (byId) return byId;
+  const exact = exactGood(goods, text);
+  if (exact) return exact;
+  if (exact === null)
+    throw new Refusal({
+      body,
+      detail: `${npcLabel(npc)} sells nothing as "${what}".`,
+      next: first ? buy(first.name) : undefined,
+      reason: "no_match",
+    });
   const matches = goods.filter((good) =>
     nameOf(good).toLowerCase().includes(text),
   );

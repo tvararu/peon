@@ -79,4 +79,21 @@ describe("interact vendor unresolved names", () => {
     expect(res.detail).toContain("bought item 117 x5");
     expect(slots).toEqual([1]);
   });
+
+  test("an item <id> the vendor lacks refuses, not a prefix match", async () => {
+    const t = await marniel([
+      { ...good(1, 1179, "Ice Cold Water"), name: null },
+    ]);
+    const slots: number[] = [];
+    t.handle.buyItem = (slot) => {
+      slots.push(slot);
+      vendorEvent(t.handle, "bought");
+    };
+    const run = interactSpec.run(
+      { do: "buy", npc: "Marniel Amberlight", what: "item 117" },
+      toolCtx<InteractAfter>(t),
+    );
+    await expect(run).rejects.toMatchObject({ reason: "no_match" });
+    expect(slots).toEqual([]);
+  });
 });
