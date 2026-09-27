@@ -27,6 +27,7 @@ import { type FightInit, MIN_HP_PCT } from "#harness/tools/engage-choose";
 import {
   afterOf,
   isKill,
+  killNames,
   kills,
   nameOf,
   newTally,
@@ -293,6 +294,9 @@ function attackerNext(scene: Scene): string | undefined {
 }
 
 function againCall(scene: Scene, left: number): string {
+  const { questId } = scene.choice;
+  if (scene.choice.mode === "quest" && questId !== undefined)
+    return nextCall("engage", { quest: String(questId) });
   const name = scene.choice.unit?.name;
   const call = nextCall(
     "engage",
@@ -318,22 +322,25 @@ function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
       ? end.stopCause === "objective_complete"
       : killed >= choice.wanted;
   const name = choice.unit?.name ?? "the quest targets";
-  if (complete) {
-    const what =
-      killed === 1 ? `${name} (${refs})` : `${killed} ${name} (${refs})`;
+  if (complete && killed === 0)
     return result("DONE", {
       after,
-      detail: `killed ${what} in ${secs} s, server kill credit.${gains(scene)}`,
+      detail: `nothing left to kill: the objectives of quest #${choice.questId} are complete. ${vitalsLine(scene.ops)}`,
       next: also,
     });
-  }
+  if (complete)
+    return result("DONE", {
+      after,
+      detail: `killed ${killNames(tally)} in ${secs} s, server kill credit.${gains(scene)}`,
+      next: also,
+    });
   const why =
     end.stopCause ?? end.error ?? tally.targets.at(-1)?.reason ?? "stopped";
   if (killed > 0)
     return result("PARTLY", {
       after,
-      detail: `${killed} of ${choice.wanted} kills (${refs}). Stopped: ${why}.${gains(scene)}`,
-      next: also ?? againCall(scene, Math.max(1, choice.wanted - killed)),
+      detail: `${after.kills} of ${after.wanted} kills (${refs}). Stopped: ${why}.${gains(scene)}`,
+      next: also ?? againCall(scene, Math.max(1, after.wanted - after.kills)),
       reason: why,
     });
   return result("FAILED", {
@@ -355,6 +362,11 @@ export async function fight(init: FightInit): Promise<Report> {
   const tick = init.ops.handle.onTacticsEvent(() =>
     init.progress(afterOf(init.ops, scene)),
   );
+  const credit = init.ops.handle.onCycleEvent((event) => {
+    if (init.choice.mode === "single") return;
+    noteCycle(init.ops, tally, event.state);
+    init.progress(afterOf(init.ops, scene));
+  });
   try {
     const blocked = (await approach(scene)) ?? unobserved(scene);
     if (blocked) return blocked;
@@ -370,6 +382,7 @@ export async function fight(init: FightInit): Promise<Report> {
     if (died) return diedReport(scene, secs);
     return stopped(scene, end) ?? outcomeReport(scene, end, secs);
   } finally {
+    credit();
     tick();
     off();
   }

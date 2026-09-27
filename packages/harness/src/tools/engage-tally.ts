@@ -170,6 +170,53 @@ export function noteCycle(ctx: ViewCtx, tally: Tally, state: CycleState): void {
   }
 }
 
+export function killNames(tally: Tally): string {
+  const groups = new Map<string, string[]>();
+  for (const target of tally.targets)
+    if (target.outcome === "killed")
+      groups.set(target.name, [...(groups.get(target.name) ?? []), target.ref]);
+  const parts = [...groups].map(([name, refs]) =>
+    refs.length === 1
+      ? `${name} (${refs.join(", ")})`
+      : `${refs.length} ${name} (${refs.join(", ")})`,
+  );
+  const last = parts.pop();
+  return parts.length === 0 ? (last ?? "") : `${parts.join(", ")} and ${last}`;
+}
+
+export function questCount(
+  ctx: ViewCtx,
+  questId: number,
+): { kills: number; wanted: number } | undefined {
+  const state = ctx.handle.getQuestState();
+  const query = state.queries.find((known) => known.questId === questId);
+  const slot = state.log.slots.find((known) => known.questId === questId);
+  if (query?.status !== "known" || !slot) return;
+  const goals = query.data.targets.flatMap((target, index) =>
+    target.npcOrGoId > 0 && target.count > 0
+      ? [{ current: slot.counters[index] ?? 0, required: target.count }]
+      : [],
+  );
+  if (goals.length === 0) return;
+  return {
+    kills: goals.reduce(
+      (sum, goal) => sum + Math.min(goal.current, goal.required),
+      0,
+    ),
+    wanted: goals.reduce((sum, goal) => sum + goal.required, 0),
+  };
+}
+
+function killCounts(
+  ops: OpsCtx,
+  choice: Choice,
+  tally: Tally,
+): { kills: number; wanted: number } {
+  const own = { kills: kills(tally), wanted: choice.wanted };
+  if (choice.mode !== "quest" || choice.wanted > 0) return own;
+  return questCount(ops, choice.questId ?? 0) ?? own;
+}
+
 function words(counts: Map<string, number>): CodeWord[] {
   return [...counts].map(([word, count]) => {
     const code = Number(word);
@@ -183,6 +230,7 @@ export function afterOf(
 ): EngageAfter {
   const { choice, how, tally } = init;
   const target = ops.handle.getCombatState().target?.guid;
+  const count = killCounts(ops, choice, tally);
   const hex = target === undefined ? undefined : guidHex(target);
   return {
     cast: undefined,
@@ -191,7 +239,7 @@ export function afterOf(
     current: unitViews(ops).find((unit) => unit.guid === hex && unit.alive),
     decisions: tally.decisions,
     how,
-    kills: kills(tally),
+    kills: count.kills,
     loot: tally.loot,
     mode: choice.mode,
     questId: choice.questId,
@@ -199,7 +247,7 @@ export function afterOf(
     swingErrors: words(tally.swingErrors),
     targets: tally.targets,
     timeouts: ops.handle.getTacticsState().timeouts.total,
-    wanted: choice.wanted,
+    wanted: count.wanted,
     xp: tally.xp,
   };
 }
