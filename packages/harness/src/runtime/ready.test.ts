@@ -1,5 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
 import { type Entity, ObjectType, type UnitEntity } from "@tuicraft/core";
+import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
 import { createReadyGate, READY_STABLE_MS } from "#harness/runtime/ready";
 import {
   createTestRuntime,
@@ -166,6 +167,41 @@ describe("createReadyGate", () => {
       step(clock, READY_STABLE_MS + 200);
       detach();
       expect(gate.isReady()).toBe(false);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("stays not ready while the self pose is unknown", async () => {
+    jest.useFakeTimers();
+    try {
+      const { clock, gate, handle } = await setup();
+      gate.attach(handle);
+      placeSelf(handle, [selfUnit()]);
+      const state = handle.getControlState();
+      const pose = state.pose;
+      state.pose = undefined;
+      step(clock, READY_STABLE_MS * 3);
+      expect(gate.isReady()).toBe(false);
+      state.pose = pose;
+      step(clock, 200);
+      expect(gate.isReady()).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("attaching a second handle resets readiness", async () => {
+    jest.useFakeTimers();
+    try {
+      const { clock, gate, handle } = await setup();
+      gate.attach(handle);
+      placeSelf(handle, [selfUnit()]);
+      step(clock, READY_STABLE_MS + 200);
+      expect(gate.isReady()).toBe(true);
+      gate.attach(createMockHandle());
+      expect(gate.isReady()).toBe(false);
+      expect(gate.inWorld()).toBeUndefined();
     } finally {
       jest.useRealTimers();
     }
