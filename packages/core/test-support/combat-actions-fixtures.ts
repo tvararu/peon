@@ -57,7 +57,7 @@ export function spell(): SpellDefinition {
         realPointsPerLevel: 1,
       },
     ],
-    equippedItem: { itemClass: -1 },
+    equippedItem: { itemClass: -1, subclassMask: 0 },
     id: 17,
     interruptFlags: 0,
     maxLevel: 0,

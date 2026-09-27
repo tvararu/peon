@@ -62,7 +62,7 @@ export type SpellTargeting = {
   requiresSpellFocus: number;
 };
 
-export type SpellEquippedItem = { itemClass: number };
+export type SpellEquippedItem = { itemClass: number; subclassMask: number };
 
 export type SpellCooldown = {
   recoveryTimeMs: number;
@@ -259,6 +259,7 @@ function decodeTargets(spell: DbcFile, row: number): SpellTargeting {
 function decodeEquipped(spell: DbcFile, row: number): SpellEquippedItem {
   return {
     itemClass: i32(spell, row, 68),
+    subclassMask: u32(spell, row, 69),
   };
 }
 

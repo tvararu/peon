@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildAttackSwing,
-  parseCancelAutoRepeat,
   parseAttackStart,
   parseAttackStop,
+  parseCancelAutoRepeat,
   parseXpGain,
 } from "#wow/protocol/combat";
 import { PacketReader } from "#wow/protocol/packet";

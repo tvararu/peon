@@ -208,6 +208,7 @@ describe("SpellCatalog.get", () => {
           52: 17_056,
           60: 1,
           68: -1,
+          69: 0x4_00_0c,
           71: 2,
           74: 1,
           77: fbits(0.25),
@@ -247,6 +248,7 @@ describe("SpellCatalog.get", () => {
     expect(def.targets.targets).toBe(0x20);
     expect(def.targets.creatureType).toBe(8);
     expect(def.equippedItem.itemClass).toBe(-1);
+    expect(def.equippedItem.subclassMask).toBe(0x4_00_0c);
     expect(def.reagents).toEqual([{ itemId: 17_056, count: 1 }]);
     expect(def.effects).toHaveLength(1);
     expect(def.effects[0]?.effect).toBe(2);
