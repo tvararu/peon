@@ -27,6 +27,11 @@ import {
   type TalkExtra,
   turnInStep,
 } from "#harness/tools/interact-quest";
+import {
+  buyStep,
+  sellJunkStep,
+  vendorExtra,
+} from "#harness/tools/interact-vendor";
 import { type InteractArgs, interactParams } from "#harness/tools/params";
 
 const SHOP_ROLES = new Set([
@@ -57,7 +62,7 @@ function emptyInteract(): InteractAfter {
   };
 }
 
-const TALK_EXTRAS: TalkExtra[] = [];
+const TALK_EXTRAS: TalkExtra[] = [vendorExtra];
 
 function talkNext(npc: NpcTarget, after: InteractAfter): string | undefined {
   const available = after.offers.find((offer) => offer.state === "available");
@@ -119,6 +124,8 @@ const STEPS = new Map<string, InteractStep>([
   ["accept", acceptStep],
   ["turn_in", turnInStep],
   ["gossip", gossipStep],
+  ["buy", buyStep],
+  ["sell_junk", sellJunkStep],
 ]);
 
 function findNpc(ctx: ToolCtx<InteractAfter>, text: string): NpcTarget {
