@@ -67,6 +67,7 @@ export type RuleMemo = {
   questTitles: Map<number, string>;
   runProgressAt: Map<string, number>;
   vendorAction: VendorMemo | undefined;
+  vendorLists: Map<string | undefined, string>;
   watched: Set<bigint>;
   pendingXp: PendingXp | undefined;
   xpAt: string | undefined;
@@ -101,6 +102,7 @@ export function createRuleMemo(): RuleMemo {
     recovery: { corpse: undefined, via: undefined },
     runProgressAt: new Map(),
     vendorAction: undefined,
+    vendorLists: new Map(),
     watched: new Set(),
     xpAt: undefined,
   };

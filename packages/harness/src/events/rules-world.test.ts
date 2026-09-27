@@ -181,7 +181,7 @@ describe("vendorDrafts and trainerDrafts", () => {
       {
         class: "passive",
         data: {
-          cost: -25,
+          cost: 25,
           count: 1,
           itemId: 159,
           name: "Refreshing Spring Water",
@@ -250,6 +250,37 @@ describe("vendorDrafts and trainerDrafts", () => {
       event: "vendor/list",
       text: "The vendor lists 0 items.",
     });
+  });
+
+  test("a vendor list repeats only when it changed for that NPC", () => {
+    const listed = (guid: bigint, itemIds: number[]): VendorEvent => ({
+      at: 0,
+      state: {
+        ...vendorBase,
+        window: {
+          emptyReason: undefined,
+          guid,
+          invalidatedReason: undefined,
+          items: itemIds.map((itemId, slot) => ({
+            buyCount: 1,
+            displayId: 0,
+            extendedCost: 0,
+            itemId,
+            maxDurability: 0,
+            price: 25,
+            slot,
+            stock: null,
+          })),
+          openedAt: 0,
+        },
+      },
+      type: "listed",
+    });
+    const rc = testRuleInput();
+    expect(vendorDrafts(listed(0x10n, [159, 4540]), rc)).toHaveLength(1);
+    expect(vendorDrafts(listed(0x10n, [159, 4540]), rc)).toEqual([]);
+    expect(vendorDrafts(listed(0x11n, [159, 4540]), rc)).toHaveLength(1);
+    expect(vendorDrafts(listed(0x10n, [159]), rc)).toHaveLength(1);
   });
 
   test("a vendor list row carries the item names", () => {

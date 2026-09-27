@@ -181,7 +181,7 @@ function vendorDeal(
   ].join(" ");
   const why = reason ? ` (${reason})` : "";
   const data = {
-    cost: moneyDelta,
+    cost: moneyDelta === undefined ? undefined : Math.abs(moneyDelta),
     count,
     itemId,
     items,
@@ -223,6 +223,14 @@ function vendorList(
   };
 }
 
+function freshList(row: LogDraft, rc: RuleInput): Drafts {
+  const npc = row.guid;
+  const key = JSON.stringify(row.data["names"]);
+  if (rc.memo.vendorLists.get(npc) === key) return [];
+  rc.memo.vendorLists.set(npc, key);
+  return [row];
+}
+
 function noteVendorAction(event: VendorEvent, rc: RuleInput): void {
   const action = event.state.pending?.action;
   const noted = rc.memo.vendorAction;
@@ -235,7 +243,7 @@ function noteVendorAction(event: VendorEvent, rc: RuleInput): void {
 export function vendorDrafts(event: VendorEvent, rc: RuleInput): Drafts {
   noteVendorAction(event, rc);
   const { lastOutcome, window } = event.state;
-  if (event.type === "listed") return [vendorList(window, rc)];
+  if (event.type === "listed") return freshList(vendorList(window, rc), rc);
   if (!(lastOutcome && VENDOR_SETTLED.has(event.type))) return [];
   return [vendorDeal(lastOutcome, window, rc)];
 }
