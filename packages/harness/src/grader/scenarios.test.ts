@@ -89,10 +89,6 @@ describe("round-1 scenarios", () => {
     expect(loadScenario("t2-whisper-reply").partner).toBe("partner");
     expect(ids((id) => loadScenario(id).setup.length > 0)).toEqual([
       "t3-ghostlands-kill",
-      "t6-die-and-recover",
-    ]);
-    expect(loadScenario("t6-die-and-recover").setup).toEqual([
-      { body: { level: 1 }, endpoint: "level" },
     ]);
   });
 
@@ -206,10 +202,11 @@ describe("expectations match preset truth", () => {
       expect(neutral).toContain(name);
   });
 
-  test("t6 dies for certain: a level-1 warrior cannot heal itself", () => {
-    expect(loadScenario("t6-die-and-recover").preset).toBe(
-      "eversong10-warrior",
-    );
+  test("t6 keeps its gear: a level-1 fresh character with no level write", () => {
+    const scenario = loadScenario("t6-die-and-recover");
+    expect(scenario.preset).toBe("fresh");
+    expect(scenario.setup).toEqual([]);
+    expect(scenario.spawn).toBe("eversong");
   });
 
   test("t3-ghostlands-kill starts on the only floor at z 88.66", () => {

@@ -28,8 +28,9 @@
   "needsWatcher": false,
   "paneMinutes": 18,
   "partner": null,
-  "preset": "eversong10-warrior",
-  "setup": [{ "body": { "level": 1 }, "endpoint": "level" }],
+  "preset": "fresh",
+  "setup": [],
+  "spawn": "eversong",
   "steers": [
     {
       "at": { "kind": "trigger", "trigger": "death" },

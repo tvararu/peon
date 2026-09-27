@@ -66,6 +66,14 @@ describe("startSlots", () => {
     ).toBe(true);
   });
 
+  test("t6 starts on an eversong slot although its preset is fresh", () => {
+    const body = bodyOf(
+      startSlots(loadScenario("t6-die-and-recover"), 1)?.agent ?? { body: {} },
+    );
+    expect(body.map).toBe(530);
+    expect(Math.hypot(body.x - 8735, body.y + 6685)).toBeLessThanOrEqual(16);
+  });
+
   test("the first ghostlands run starts on the preset point at the floor z", () => {
     expect(startSlots(loadScenario("t3-ghostlands-kill"), 1)?.agent).toEqual({
       body: { map: 530, o: 4.007, x: 7575, y: -6835, z: 88.66, zone: 3433 },

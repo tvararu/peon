@@ -304,7 +304,7 @@ Added for the harness:
 | 5 | `t5-vendor-buy-tranquillien` | ghostlands20 | none | 6 min / 12 / 30 | Med |
 | 5 | `t5-loot-kill` | eversong10 | none | 10 min / 20 / 50 | High |
 | 5 | `t5-trainer-learn` | eversong10 | `level 12`, `position` at `falconwing` | 8 min / 15 / 40 | Low |
-| 6 | `t6-die-and-recover` | eversong10 | `level 1` | 15 min / 30 / 80 | Med |
+| 6 | `t6-die-and-recover` | fresh | `position` at an `eversong10-spawn` slot | 15 min / 30 / 80 | Med |
 | 6 | `t6-death-in-cycle` | eversong10 | none | 25 min / 50 / 150 | Med |
 | 7 | `t7-halt-resume` | eversong10 | none | 10 min / 20 / 50 | High |
 | 7 | `t7-question-while-acting` | eversong10 | none | 10 min / 20 / 50 | High |
@@ -677,10 +677,13 @@ The partner is driven by the grader with `tmp/tc-<ACC2>` commands.
 #### Tier 6: death and recovery
 
 **`t6-die-and-recover`**
-- Setup: `soap setup <ACC> level '{"level":1}'` on an `eversong10`
-  character, so a level 8–10 Stalker kills it. Lowering 10 → 1 works
-  [measured]. `eversong10` spawns outside the inn (section 0). The
-  service cannot kill the character offline (`life dead` →
+- Setup: a `fresh` character (level 1 priest, level-1 gear) with a
+  `position` write to an `eversong10-spawn` slot, so a level 8–10
+  Stalker kills it. A `level 1` write on a level-10 preset unequips
+  the level-10 gear at login and leaves the character unarmed [measured];
+  the `fresh` character keeps its Neophyte gear through login and
+  logout [measured]. It can still cast Lesser Heal, so its death is
+  likely, not certain. The service cannot kill the character offline (`life dead` →
   `not_supported` [measured]), so the death still comes from a creature
   after login; `life` can only revive.
 - Task: `Head north out of the village and fight the first big cat you see.`
