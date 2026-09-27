@@ -7,7 +7,6 @@
     "./lib/ignore-failure": "./src/lib/ignore-failure.ts",
     "./lib/paths": "./src/lib/paths.ts",
     "./session": "./src/wow/session.ts",
-    "./test-support/control-fixtures": "./test-support/control-fixtures.ts",
     "./test-support/internals": "./test-support/internals.ts",
     "./test-support/mock-handle": "./test-support/mock-handle.ts",
     "./test-support/mock-world-server": "./test-support/mock-world-server.ts",

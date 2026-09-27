@@ -21,7 +21,6 @@ const tmpOutputs = [
   "worktree-archive-<date>/",
   "squash.json",
   "qa-changes.json",
-  "tc-<ACCOUNT>",
   "puppet-<ACCOUNT>",
   "evals/",
   "factory-account-<ACCOUNT>/",
@@ -80,7 +79,6 @@ const sources = [
   "README.md",
   "docs/*.md",
   "packages/factory/src/prompts/*.md",
-  "packages/cli/src/cli/help.ts",
 ];
 
 const globTail = /\/[^/]*[*{<].*$/;

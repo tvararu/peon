@@ -11,13 +11,6 @@
         "typescript": "^7",
       },
     },
-    "packages/cli": {
-      "name": "@tuicraft/cli",
-      "version": "0.4.2",
-      "dependencies": {
-        "@tuicraft/core": "workspace:*",
-      },
-    },
     "packages/core": {
       "name": "@tuicraft/core",
     },
@@ -186,8 +179,6 @@
     "@smithy/types": ["@smithy/types@4.19.0", "", { "dependencies": { "tslib": "^2.6.2" } }, "sha512-r7jh49VJxGerfAcTQA6gXcKc+98zOp/tqRwzYjgOE+iSQsP6cEU1hq2QzbuipmP68QtYdY9wKEhiCQZIzHgZ4Q=="],
 
     "@stablelib/base64": ["@stablelib/base64@1.0.1", "", {}, "sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ=="],
-
-    "@tuicraft/cli": ["@tuicraft/cli@workspace:packages/cli"],
 
     "@tuicraft/core": ["@tuicraft/core@workspace:packages/core"],
 

@@ -75,7 +75,7 @@ describe("staleFindings", () => {
       ].includes(path);
     const text = [
       "See `src/wow/client.ts` and `packages/core/src/wow/client.ts`.",
-      "Prompts: `packages/factory/src/prompts/*.md`, gone: `packages/cli/src/nope.ts`.",
+      "Prompts: `packages/factory/src/prompts/*.md`, gone: `packages/harness/src/nope.ts`.",
       "AzerothCore `src/server/game/Handlers/SpellHandler.cpp` and `../wowser/src/lib/auth/`.",
       "Runner: `F=~/r/runner/src/factory/main.ts`, `./src/main.ts` and `$root/src/main.ts`.",
     ].join("\n");
@@ -83,7 +83,7 @@ describe("staleFindings", () => {
       staleFindings({ path: "A.md", text }, exists).map((f) => f.match),
     ).toEqual([
       "src/wow/client.ts",
-      "packages/cli/src/nope.ts",
+      "packages/harness/src/nope.ts",
       "src/factory/main.ts",
       "src/main.ts",
       "src/main.ts",

@@ -39,7 +39,6 @@
   },
   "permissions": {
     "allow": [
-      "Bash(./dist/tuicraft:*)",
       "Bash(gh issue list:*)",
       "Bash(gh repo view:*)",
       "Bash(gh run list:*)",
@@ -52,17 +51,14 @@
       "Bash(git fetch:*)",
       "Bash(git log:*)",
       "Bash(git stash:*)",
-      "Bash(mise build:*)",
       "Bash(mise ci:*)",
       "Bash(mise format:*)",
-      "Bash(mise start:*)",
       "Bash(mise tasks:*)",
       "Bash(mise test:*)",
       "Bash(mise typecheck:*)",
       "Skill(claude-md-management:revise-claude-md)",
       "WebFetch(domain:bun.com)",
       "WebFetch(domain:mise.jdx.dev)",
-      "WebFetch(domain:tuicraft.vararu.org)",
       "WebFetch(domain:wowdev.wiki)",
       "WebSearch"
     ],
