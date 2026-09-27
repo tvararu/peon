@@ -170,6 +170,23 @@ The tool descriptions and usage lines are in
 Other human text while the agent works goes to the agent at the next
 step. Action tools refuse until the agent reads it.
 
+## Who controls the character
+
+One owner holds the character at a time, ranked human, agent, loop.
+While the human holds it, action tools refuse with `human_driving`.
+
+- **Human.** The stop reflex, `/stop` and `F9` claim the character,
+  stop every run and halt it. They hand it back at once unless the
+  human already held it.
+- **Agent.** An action tool claims the character when it starts; the
+  agent keeps it, with the runs its tools start, until its turn ends.
+- **Loop.** A run still going when the agent's turn ends belongs to the
+  loop until it ends. Action tools still work beside it, and a new run
+  is refused as `busy` until it ends or the agent stops it.
+
+The rule lives in `packages/harness/src/runtime/control-owner.ts`; the
+core client only moves and fights when told to.
+
 ## Commands
 
 | Command | What it does |

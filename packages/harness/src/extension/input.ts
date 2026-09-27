@@ -36,8 +36,9 @@ export function humanStop(init: {
   text: string;
 }): RunRecord[] {
   const { control } = init.rt;
+  const driving = control.owner() === "human";
   const claim = control.claim("human", init.via);
-  control.release("human", init.via);
+  if (!driving) control.release("human", init.via);
   const stopped = claim.granted ? claim.stopped : [];
   appendHuman(init.rt, {
     stoppedRuns: stopped.map((run) => run.id),
