@@ -31,6 +31,7 @@ import { Refusal } from "#harness/ops/refusal";
 import { repeatRefusal } from "#harness/ops/repeat-guard";
 import { poseView } from "#harness/ops/views";
 import { TOOL_TEXT } from "#harness/prompt/guidelines";
+import { scrub } from "#harness/tools/scrub";
 export const TURN_BUDGET = 40;
 export const READY_WAIT_MS = 10_000;
 export const UPDATE_EVERY_MS = 500;
@@ -266,7 +267,6 @@ type Closing<A> = {
 };
 
 const ACTING: ReadonlySet<ToolKind> = new Set(["action", "run"]);
-const SECRET = "[secret]";
 const HUMAN_STOP: Mapped = {
   detail: "the human stopped you. Start nothing new.",
   next: "end your turn and wait for the human.",
@@ -279,17 +279,6 @@ function detailsOf<K extends ToolName>(
   outcome: ToolResult<AfterMap[K]>,
 ): ToolDetails {
   return { result: outcome, tool } as ToolDetails;
-}
-
-function scrub(value: unknown, secret: string): unknown {
-  if (secret.length === 0) return value;
-  if (typeof value === "string") return value.replaceAll(secret, SECRET);
-  if (Array.isArray(value)) return value.map((item) => scrub(item, secret));
-  if (value && typeof value === "object")
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, scrub(item, secret)]),
-    );
-  return value;
 }
 
 function openCall<P extends TSchema, K extends ToolName>({
@@ -527,5 +516,13 @@ export function defineGameTool<P extends TSchema, K extends ToolName>(
     name: spec.name,
     parameters: spec.parameters,
     promptGuidelines: text.guidelines,
+  });
+}
+
+export function notBuilt(): never {
+  throw new Refusal({
+    detail: "this tool is not built yet.",
+    next: askHuman("This tool is not built yet. What should I do instead?"),
+    reason: "not_implemented",
   });
 }

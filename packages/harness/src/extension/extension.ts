@@ -5,11 +5,13 @@ import type {
 import type { HarnessRuntime } from "#harness/contract/services";
 import { installGuards } from "#harness/extension/guards";
 import { installInput } from "#harness/extension/input";
+import { installTools } from "#harness/tools/install";
 
 export function wowExtension(rt: HarnessRuntime): ExtensionFactory {
   return (pi) => {
     installInput(pi, rt);
     installGuards(pi, rt);
+    installTools(pi, rt);
     installShutdown(pi, rt);
   };
 }
