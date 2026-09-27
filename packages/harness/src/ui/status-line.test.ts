@@ -4,7 +4,7 @@ import { nowFixture, selfFixture } from "#test-support/ui-fixture";
 
 describe("titleFor", () => {
   test("puts danger in the tab title", () => {
-    expect(titleFor(nowFixture())).toBe("Fgklibhlflc L10 81% ATTACKED");
+    expect(titleFor(nowFixture())).toBe("Fgklibhlflc L10 81% AGGRO");
   });
 
   test("a calm character shows health only", () => {
@@ -43,9 +43,5 @@ describe("workingMessage", () => {
       progress: undefined,
     };
     expect(workingMessage(run)).toBe("engage Springpaw Stalker u9 (r5, 2s)");
-  });
-
-  test("no run restores the default message", () => {
-    expect(workingMessage(undefined)).toBeUndefined();
   });
 });

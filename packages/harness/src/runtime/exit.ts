@@ -30,7 +30,7 @@ type ExitInit = {
 
 export const EXIT_SIGINT = 130;
 export const LOGOUT_NOTICE =
-  "Logging out of the game. The harness exits when the server confirms, in up to 30 s.";
+  "Work complete. Logging out of the game. The harness exits when the server confirms, in up to 30 s.";
 
 const SIGNALS: readonly (readonly [string, ExitReason, number])[] = [
   ["SIGTERM", "sigterm", 143],
