@@ -61,9 +61,7 @@ export class ItemTemplates {
       return { name: null, quality: null };
     if (this.known.has(entry)) {
       const template = this.known.get(entry);
-      return template
-        ? { name: template.name, quality: template.quality }
-        : { name: null, quality: null };
+      return template ? templateLabel(template) : { name: null, quality: null };
     }
     if (!this.waiting.has(entry)) this.lookup(entry).catch(ignoreFailure);
     return { name: null, quality: null };
@@ -92,6 +90,14 @@ export class ItemTemplates {
     this.lifetime.abort();
     this.waiting.clear();
   }
+}
+
+function templateLabel(template: ItemTemplate): ItemLabel {
+  const { name, quality, itemClass, subclass, spells } = template;
+  const useSpellIds = spells
+    .filter((spell) => spell.trigger === ItemSpellTrigger.ON_USE)
+    .map((spell) => spell.id);
+  return { name, quality, itemClass, subclass, useSpellIds };
 }
 
 type UseDeps = {

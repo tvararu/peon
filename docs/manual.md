@@ -841,7 +841,8 @@ seconds. Replies never wait
 for it: a row shows only the entry until the server answers. In `--json`,
 inventory slot items and loot items carry `name` and `quality` (the server's
 0–7 quality code) next to `entry`/`itemId`; both stay `null` until answered or
-when the server has no such item.
+when the server has no such item. An answered item also carries `itemClass`,
+`subclass` and `useSpellIds` (the IDs of its on-use spells).
 
 `tuicraft open-loot` _guid_
 :: Request loot from an observed UNIT corpse with an explicitly observed lootable flag while self is authoritatively alive.
@@ -949,7 +950,8 @@ range the charge falls in; the observed `moneyDelta` is what was paid.
 In `--json`, `data` holds `window` (`guid`, `items`, `emptyReason`,
 `openedAt`, `invalidatedReason`), `pending`, `lastOutcome` and `coinage`. Each
 item has `slot`, `itemId`, `name`, `quality`, `price`, `stock` (`null` when
-unlimited), `buyCount`, `maxDurability`, `displayId` and `extendedCost`.
+unlimited), `buyCount`, `maxDurability`, `displayId` and `extendedCost`, and
+`itemClass`, `subclass` and `useSpellIds` once the item template is answered.
 `lastOutcome` has `action` (`list`, `sell`, `buy` or `repair`), `status`,
 `reason`, the original `request` with its `coinageBefore`, `coinageAfter`
 and `moneyDelta`. A buy `request.count` counts purchases, not items; one

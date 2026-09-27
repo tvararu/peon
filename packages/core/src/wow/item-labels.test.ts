@@ -36,6 +36,9 @@ describe("item labels", () => {
     expect(f.templates.label(858)).toEqual({
       name: "Lesser Healing Potion",
       quality: 1,
+      itemClass: 0,
+      subclass: 1,
+      useSpellIds: [440],
     });
     expect(f.queried).toEqual([858]);
   });
@@ -140,9 +143,17 @@ describe("item labels", () => {
 });
 
 describe("itemKind", () => {
-  test("is not implemented yet", () => {
-    expect(() => itemKind({ name: null, quality: null })).toThrow(
-      "not_implemented",
+  test("classes consumables by subclass", () => {
+    const label = { name: "x", quality: 1 };
+    expect(itemKind({ ...label, itemClass: 0, subclass: 5 })).toBe(
+      "food_drink",
     );
+    expect(itemKind({ ...label, itemClass: 0, subclass: 1 })).toBe("potion");
+    expect(itemKind({ ...label, itemClass: 0, subclass: 4 })).toBe("other");
+    expect(itemKind({ ...label, itemClass: 2, subclass: 5 })).toBe("other");
+  });
+
+  test("an unanswered label is other", () => {
+    expect(itemKind({ name: null, quality: null })).toBe("other");
   });
 });

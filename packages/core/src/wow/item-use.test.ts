@@ -227,3 +227,15 @@ test("a potion can be used over a cast that is being cancelled, not over a live 
   expect(c.fail(5005, 1, 40, "interrupted")).toBeUndefined();
   expect(c.pending).toMatchObject({ spellId: 440, count: 2 });
 });
+
+test("a known template labels class, subclass and only its on-use spells", () => {
+  const templates = new ItemTemplates({ send: () => {} });
+  templates.receive({ entry: 2687, template: ribs });
+  expect(templates.label(2687)).toEqual({
+    name: "Dry Pork Ribs",
+    quality: 1,
+    itemClass: 0,
+    subclass: 5,
+    useSpellIds: [5005],
+  });
+});

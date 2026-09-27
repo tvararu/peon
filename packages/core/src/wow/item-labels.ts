@@ -16,8 +16,15 @@ export type ItemLabel = {
 
 export type ItemKind = "food_drink" | "potion" | "other";
 
-export function itemKind(_label: ItemLabel): ItemKind {
-  throw new Error("not_implemented");
+const CONSUMABLE = 0;
+const POTION = 1;
+const FOOD_DRINK = 5;
+
+export function itemKind(label: ItemLabel): ItemKind {
+  if (label.itemClass !== CONSUMABLE) return "other";
+  if (label.subclass === FOOD_DRINK) return "food_drink";
+  if (label.subclass === POTION) return "potion";
+  return "other";
 }
 export type ItemLabeler = (entry: number | undefined) => ItemLabel;
 
