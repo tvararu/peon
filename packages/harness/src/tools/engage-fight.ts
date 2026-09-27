@@ -32,6 +32,7 @@ import {
   noXpText,
   type StopInit,
   stopText,
+  unreachedText,
 } from "#harness/tools/engage-reasons";
 import {
   afterOf,
@@ -53,12 +54,15 @@ type ModeEnd = {
   error: string | undefined;
   jev: string | undefined;
   stopCause: string | undefined;
+  stopDetail?: Record<string, unknown> | undefined;
 };
+type Far = { name: string; ref: string; distance: number };
 
 const TOP_UPS = 3;
 const MISSING_KEY = "missing_jev_key";
 const JEV_UNAVAILABLE = "jev_unavailable";
 const NO_ATTACK = "no_supported_combat_actions";
+const OUT_OF_REACH = "objective_targets_out_of_reach";
 
 function instruction(scene: Scene): string {
   return scene.args.how ?? DEFAULT_FIGHT_INSTRUCTION;
@@ -181,6 +185,7 @@ async function quest(scene: Scene): Promise<ModeEnd> {
     error: end.error,
     jev: stopCause === JEV_UNAVAILABLE ? JEV_UNAVAILABLE : undefined,
     stopCause,
+    stopDetail: end.state.stopDetail,
   };
 }
 
@@ -321,17 +326,30 @@ function blockedNext(scene: Scene, why: string): string | undefined {
   return `${nextCall("travel", { to: unit.ref })}, then ${nextCall("engage", { target: unit.ref })}`;
 }
 
-function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
+function farTarget(scene: Scene, end: ModeEnd): Far | undefined {
+  const nearest = end.stopDetail?.["nearest"];
+  if (end.stopCause !== OUT_OF_REACH || typeof nearest !== "string") return;
+  const guid = BigInt(nearest);
+  return {
+    distance: Number(end.stopDetail?.["distance"] ?? 0),
+    name: nameOf(scene.ops, guid),
+    ref: scene.ops.rt.refs.refOf(guid),
+  };
+}
+
+function doneReport(
+  scene: Scene,
+  end: ModeEnd,
+  secs: number,
+): Report | undefined {
   const { choice, tally } = scene;
   const after = afterOf(scene.ops, scene);
   const killed = kills(tally);
-  const refs = killedRefs(tally);
   const also = attackerNext(scene);
   const complete =
     choice.mode === "quest"
       ? end.stopCause === "objective_complete"
       : killed >= choice.wanted;
-  const name = choice.unit?.name ?? "the quest targets";
   if (complete && killed === 0)
     return result("DONE", {
       after,
@@ -344,6 +362,17 @@ function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
       detail: `${creditText(tally, foughtSecs(scene, secs))}${gains(scene)}`,
       next: also,
     });
+}
+
+function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
+  const done = doneReport(scene, end, secs);
+  if (done) return done;
+  const { choice, tally } = scene;
+  const after = afterOf(scene.ops, scene);
+  const killed = kills(tally);
+  const refs = killedRefs(tally);
+  const also = attackerNext(scene);
+  const name = choice.unit?.name ?? "the quest targets";
   const why =
     end.stopCause ?? end.error ?? tally.targets.at(-1)?.reason ?? "stopped";
   const stop: StopInit = {
@@ -353,6 +382,8 @@ function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
     wanted: after.wanted,
     why,
   };
+  const far = farTarget(scene, end);
+  const toFar = far && nextCall("travel", { to: far.ref });
   const low = lowText(why, after, vitalsView(scene.ops));
   if (low)
     return result("PARTLY", {
@@ -365,14 +396,20 @@ function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
     return result("PARTLY", {
       after,
       detail: `${after.kills} of ${after.wanted} kills (${refs}). Stopped: ${stopText(stop)}.${gains(scene)}`,
-      next: also ?? againCall(scene, Math.max(1, after.wanted - after.kills)),
+      next:
+        also ??
+        toFar ??
+        againCall(scene, Math.max(1, after.wanted - after.kills)),
       reason: why,
     });
   return result(end.blocked ? "REFUSED" : "FAILED", {
     after,
-    detail: `${failText(stop)} ${vitalsLine(scene.ops)}`,
+    detail: `${far ? unreachedText(far) : failText(stop)} ${vitalsLine(scene.ops)}`,
     next:
-      also ?? blockedNext(scene, why) ?? nextCall("look", { find: "hostile" }),
+      also ??
+      toFar ??
+      blockedNext(scene, why) ??
+      nextCall("look", { find: "hostile" }),
     reason: end.blocked ? why : "lost",
   });
 }

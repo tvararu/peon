@@ -10,7 +10,11 @@ import type { EntityEvent, EntityLookup } from "#wow/entity-store";
 import { EventWaiter } from "#wow/event-waiter";
 import { JEV_UNAVAILABLE, JevUnavailableError } from "#wow/jev-failure";
 import { lootCorpse } from "#wow/loot-run";
-import type { ObjectivePick, ObjectiveProgress } from "#wow/quest-objective";
+import {
+  type ObjectivePick,
+  type ObjectiveProgress,
+  outOfReach,
+} from "#wow/quest-objective";
 import type { RecoveryEvent, RecoveryRuntime } from "#wow/recovery";
 import type { RewardsEvent, RewardsRuntime } from "#wow/rewards";
 import type { TacticsLoop, TacticsOutcome, TacticsState } from "#wow/tactics";
@@ -302,8 +306,8 @@ export class EncounterCycleRuntime {
       const failed = await this.engage(record, signal);
       signal.throwIfAborted();
       this.state.objective = objective.progress();
-      if (failed && !this.selfDead())
-        return this.stop(failed.cause, failed.detail);
+      const far = failed ?? outOfReach(pick, record.cause);
+      if (far && !this.selfDead()) return this.stop(far.cause, far.detail);
       if (failed) record.cause = failed.cause;
       this.emit("target_done");
     }

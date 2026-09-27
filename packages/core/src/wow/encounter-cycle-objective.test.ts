@@ -54,6 +54,13 @@ const target = (guid: bigint): ObjectivePick => ({
   kind: "target",
 });
 
+const far = (guid: bigint): ObjectivePick => ({
+  distance: 90,
+  entry: 15_274,
+  guid,
+  kind: "target",
+});
+
 test("an objective run fights picked targets until the server log is complete", async () => {
   const { runtime, tactics } = cycle(["ok", "ok"]);
   const { source, tried } = objective([
@@ -144,4 +151,46 @@ test("a loot stop still reports the server progress of the last kill", async () 
   const state = runtime.snapshot();
   expect(state.stopCause).toBe("loot_denied:4");
   expect(state.objective?.kills[0]?.current).toBe(1);
+});
+
+test("a far objective target is routed to, then fought", async () => {
+  const tactics = fakeTactics(["ok"]);
+  const routed: bigint[] = [];
+  const runtime = makeCycle({
+    approach: async (guid) => {
+      routed.push(guid);
+    },
+    control: fakeControl(),
+    loot: fakeLoot({}),
+    now: () => 0,
+    recovery: fakeRecovery({ life: ["alive"] }),
+    tactics,
+  });
+  const { source } = objective([
+    far(1n),
+    { kind: "complete", progress: progress(2) },
+  ]);
+  await runtime.start({ guids: [], instruction: "fight", objective: source });
+  expect(routed).toEqual([1n]);
+  expect(tactics.calls()).toBe(1);
+  expect(runtime.snapshot().stopCause).toBe("objective_complete");
+});
+
+test("a far objective target with no route stops the run naming it", async () => {
+  const tactics = fakeTactics([]);
+  const runtime = makeCycle({
+    approach: async () => "target_unreachable",
+    control: fakeControl(),
+    loot: fakeLoot({}),
+    now: () => 0,
+    recovery: fakeRecovery({ life: ["alive"] }),
+    tactics,
+  });
+  const { source } = objective([far(0x42n)]);
+  await runtime.start({ guids: [], instruction: "fight", objective: source });
+  expect(tactics.calls()).toBe(0);
+  expect(runtime.snapshot()).toMatchObject({
+    stopCause: "objective_targets_out_of_reach",
+    stopDetail: { distance: 90, nearest: "0x42", reach: 50 },
+  });
 });

@@ -202,6 +202,7 @@ export function cycleEnds(
   handle: MockHandle,
   records: CycleTargetRecord[],
   stopCause: string,
+  stopDetail?: Record<string, unknown>,
 ): void {
   const base = handle.getCycleState();
   const stopped = {
@@ -210,6 +211,7 @@ export function cycleEnds(
     phase: "stopped" as const,
     queue: records,
     stopCause,
+    stopDetail,
   };
   const finish = () => {
     handle.getCycleState = () => stopped;

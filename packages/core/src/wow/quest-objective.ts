@@ -9,6 +9,19 @@ import type { QuestLog } from "#wow/quest-slots";
 
 export const OBJECTIVE_REACH = 50;
 
+export function outOfReach(
+  pick: { guid: bigint; distance: number },
+  cause: string | undefined,
+): CycleStop | undefined {
+  if (cause !== "target_unreachable" || pick.distance <= OBJECTIVE_REACH)
+    return undefined;
+  return cycleStop("objective_targets_out_of_reach", {
+    nearest: `0x${pick.guid.toString(16)}`,
+    distance: Math.round(pick.distance),
+    reach: OBJECTIVE_REACH,
+  });
+}
+
 const LOG_COMPLETE = 1;
 const LOG_FAILED = 2;
 
@@ -124,11 +137,5 @@ export function pickObjectiveTarget(args: {
   const nearest = candidates[0];
   if (nearest === undefined)
     return cycleStop("objective_targets_absent", { entries: [...entries] });
-  if (nearest.distance > OBJECTIVE_REACH)
-    return cycleStop("objective_targets_out_of_reach", {
-      nearest: `0x${nearest.guid.toString(16)}`,
-      distance: Math.round(nearest.distance),
-      reach: OBJECTIVE_REACH,
-    });
   return { kind: "target", ...nearest };
 }

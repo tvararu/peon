@@ -176,9 +176,13 @@ describe("objective target selection", () => {
     });
     expect(pick([], log(2, [0]))).toMatchObject({ cause: "quest_failed" });
     expect(pick([])).toMatchObject({ cause: "objective_targets_absent" });
-    expect(pick([unit(1n, WYRM, OBJECTIVE_REACH + 1)])).toMatchObject({
-      cause: "objective_targets_out_of_reach",
-      detail: { distance: OBJECTIVE_REACH + 1, nearest: "0x1" },
+  });
+
+  test("a target in view beyond the objective reach is picked to route to", () => {
+    expect(pick([unit(1n, WYRM, OBJECTIVE_REACH + 40)])).toMatchObject({
+      distance: OBJECTIVE_REACH + 40,
+      guid: 1n,
+      kind: "target",
     });
   });
 });

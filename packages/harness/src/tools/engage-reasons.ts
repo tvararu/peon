@@ -32,7 +32,7 @@ const PLAIN: Record<string, string> = {
   no_supported_combat_actions:
     "no usable attack from here; move into melee range",
   objective_targets_absent: "no quest targets are in view",
-  objective_targets_out_of_reach: "the quest targets in view cannot be reached",
+  objective_targets_out_of_reach: "the nearest quest target has no route",
   obstructed: "the way there was blocked",
   out_of_range: "out of range",
   queue_exhausted: "no more targets in view",
@@ -122,4 +122,12 @@ export function lowText(
   if (why === "low_health")
     return `${kills} You are at ${pct(vitals.hp, vitals.maxHp)}% HP.`;
   return undefined;
+}
+
+export function unreachedText(far: {
+  name: string;
+  ref: string;
+  distance: number;
+}): string {
+  return `${far.name} ${far.ref} is ${far.distance} yd away and no route to it was found.`;
 }

@@ -2,7 +2,13 @@ import { describe, expect, test } from "bun:test";
 import type { CycleTargetRecord } from "@tuicraft/core";
 import type { EngageAfter } from "#harness/contract/details";
 import { engageSpec } from "#harness/tools/engage";
-import { field, KILL, STALKER, STALKER_2 } from "#test-support/engage-fixtures";
+import {
+  cycleEnds,
+  field,
+  KILL,
+  STALKER,
+  STALKER_2,
+} from "#test-support/engage-fixtures";
 import { attackBy, setSelf, toolCtx } from "#test-support/ops-fixtures";
 
 const UNSEEN = 0x99n;
@@ -98,5 +104,38 @@ describe("engage pull gate", () => {
       reason: "low_health",
       status: "PARTLY",
     });
+  });
+});
+
+describe("engage quest targets out of reach", () => {
+  test("names the unit that could not be routed to and travels to it next", async () => {
+    const t = await field();
+    const state = t.handle.getQuestState();
+    const counters: [number, number, number, number] = [0, 0, 0, 0];
+    t.handle.getQuestState = () => ({
+      ...state,
+      log: {
+        complete: false,
+        slots: [
+          { counters, expiresAtSeconds: 0, flags: 0, questId: 8325, slot: 0 },
+        ],
+      },
+    });
+    cycleEnds(
+      t.handle,
+      [{ cause: "target_unreachable", guid: STALKER, status: "skipped" }],
+      "objective_targets_out_of_reach",
+      { distance: 90, nearest: "0x20", reach: 50 },
+    );
+    const res = await engageSpec.run(
+      { quest: "8325" },
+      toolCtx<EngageAfter>(t),
+    );
+    const ref = t.rt.refs.refOf(STALKER);
+    expect(res.detail).toStartWith(
+      `Springpaw Stalker ${ref} is 90 yd away and no route to it was found.`,
+    );
+    expect(res.next).toBe(`travel(to: "${ref}")`);
+    expect(res.next).not.toContain("look(");
   });
 });
