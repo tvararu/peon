@@ -1,0 +1,327 @@
+{
+  "$id": "peon/scenario/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "blockedBy": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "botRisk": {
+      "enum": ["low", "med", "high"]
+    },
+    "budget": {
+      "additionalProperties": false,
+      "properties": {
+        "minutes": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "tools": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "turns": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": ["minutes", "tools", "turns"],
+      "type": "object"
+    },
+    "checks": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "blockedBy": {
+            "type": "string"
+          },
+          "evidence": {
+            "additionalProperties": false,
+            "properties": {
+              "delta": {
+                "items": {
+                  "enum": ["money", "totalXp"]
+                },
+                "type": "array"
+              },
+              "events": {
+                "items": {
+                  "pattern": "^[a-z]+/[a-z_]+\\*?$",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "ids": {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "items": {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "point": {
+                "additionalProperties": false,
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "required": ["x", "y"],
+                "type": "object"
+              },
+              "truth": {
+                "items": {
+                  "enum": [
+                    "alive",
+                    "inventory",
+                    "level",
+                    "money",
+                    "quests",
+                    "totalXp"
+                  ]
+                },
+                "type": "array"
+              }
+            },
+            "type": "object"
+          },
+          "expect": {
+            "type": "string"
+          },
+          "id": {
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "measure": {
+            "enum": [
+              "answer_time",
+              "answer_values",
+              "kill_after_answer",
+              "kill_xp",
+              "max_attackers",
+              "no_fight_after_stop",
+              "pet_attack"
+            ]
+          },
+          "source": {
+            "enum": [
+              "truth",
+              "verifier",
+              "witness",
+              "game_log",
+              "session",
+              "frame"
+            ]
+          }
+        },
+        "required": ["expect", "id", "source"],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "field": {
+      "pattern": "^[a-z]+(-[a-z]+)+$",
+      "type": "string"
+    },
+    "id": {
+      "pattern": "^t[0-9]-[a-z0-9]+(-[a-z0-9]+)*$",
+      "type": "string"
+    },
+    "navBound": {
+      "type": "boolean"
+    },
+    "needsWatcher": {
+      "type": "boolean"
+    },
+    "paneMinutes": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "partner": {
+      "enum": ["partner", "witness", null]
+    },
+    "partnerActions": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "argv": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "delayMs": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "enum": ["trigger"]
+                  },
+                  "nth": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "trigger": {
+                    "enum": [
+                      "fight_start",
+                      "kill",
+                      "death",
+                      "movement_start",
+                      "answer_text",
+                      "steer_landed",
+                      "task_landed"
+                    ]
+                  }
+                },
+                "required": ["kind", "trigger"],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": ["elapsed"]
+                  },
+                  "ms": {
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": ["kind", "ms"],
+                "type": "object"
+              }
+            ]
+          },
+          "windowMs": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": ["argv", "at", "windowMs"],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "preset": {
+      "type": "string"
+    },
+    "setup": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "object"
+          },
+          "endpoint": {
+            "type": "string"
+          }
+        },
+        "required": ["body", "endpoint"],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "spawn": {
+      "pattern": "^[a-z]+(-[a-z]+)*$",
+      "type": "string"
+    },
+    "steers": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "delayMs": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "enum": ["trigger"]
+                  },
+                  "nth": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "trigger": {
+                    "enum": [
+                      "fight_start",
+                      "kill",
+                      "death",
+                      "movement_start",
+                      "answer_text",
+                      "steer_landed",
+                      "task_landed"
+                    ]
+                  }
+                },
+                "required": ["kind", "trigger"],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": ["elapsed"]
+                  },
+                  "ms": {
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": ["kind", "ms"],
+                "type": "object"
+              }
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": ["at", "text"],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "task": {
+      "type": "string"
+    },
+    "tier": {
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "botRisk",
+    "budget",
+    "checks",
+    "id",
+    "navBound",
+    "needsWatcher",
+    "paneMinutes",
+    "partner",
+    "preset",
+    "setup",
+    "steers",
+    "task",
+    "tier"
+  ],
+  "type": "object"
+}

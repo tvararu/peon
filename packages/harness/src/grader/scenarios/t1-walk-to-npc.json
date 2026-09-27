@@ -7,11 +7,20 @@
   },
   "checks": [
     {
+      "evidence": {
+        "point": {
+          "x": 8700.4,
+          "y": -6638.4
+        }
+      },
       "expect": "T final position within 5 yd of marniel (8700.4, -6638.4, 72.8, map 530); creature spawn and live nearby agree on this point",
       "id": "at-marniel",
       "source": "truth"
     },
     {
+      "evidence": {
+        "events": ["control/move_stop", "control/move_start"]
+      },
       "expect": "GL shows the agent stopped: the last control/move_stop comes before the done message and no control/move_start follows it until logout",
       "id": "stopped",
       "source": "game_log"

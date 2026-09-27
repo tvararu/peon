@@ -7,30 +7,45 @@
   },
   "checks": [
     {
+      "evidence": {
+        "events": ["combat/kill_credit"]
+      },
       "expect": "GL server_kill_credit (combat/kill_credit) for a Springpaw Stalker",
       "id": "kill",
       "source": "game_log"
     },
     {
+      "evidence": {
+        "delta": ["totalXp"],
+        "truth": ["totalXp"]
+      },
       "expect": "T delta total XP > 0",
       "id": "total-xp",
       "source": "truth"
     },
     {
+      "evidence": {
+        "truth": ["alive"]
+      },
       "expect": "alive at the end (T final alive)",
       "id": "alive",
       "source": "truth"
     },
     {
+      "evidence": {
+        "events": ["tool/call"]
+      },
       "expect": "the kill came through the Jev fight tool (engage), not only manual casts (GL tool/call rows)",
       "id": "through-engage",
       "source": "game_log"
     },
     {
-      "events": ["combat/cast"],
+      "evidence": {
+        "events": ["combat/cast"],
+        "ids": [75, 3044, 1978, 13549, 5116]
+      },
       "expect": "GL combat/cast of a ranged shot (spellId 75 Auto Shot, 3044 Arcane Shot, 1978 or 13549 Serpent Sting, or 5116 Concussive Shot) at the target",
       "id": "ranged-cast",
-      "ids": [75, 3044, 1978, 13549, 5116],
       "source": "game_log"
     },
     {
@@ -40,6 +55,9 @@
       "source": "game_log"
     },
     {
+      "evidence": {
+        "items": [2515]
+      },
       "expect": "T delta Sharp Arrow count < 0",
       "id": "arrows-used",
       "source": "truth"

@@ -7,26 +7,44 @@
   },
   "checks": [
     {
+      "evidence": {
+        "truth": ["quests"]
+      },
       "expect": "8325 is in T final rewardedQuests and absent from T final quests",
       "id": "rewarded",
       "source": "truth"
     },
     {
+      "evidence": {
+        "events": ["quest/rewarded"],
+        "ids": [8325]
+      },
       "expect": "the GL server rewarded packet (quest/rewarded for 8325) corroborates and dates the turn-in",
       "id": "rewarded-packet",
       "source": "game_log"
     },
     {
+      "evidence": {
+        "delta": ["money"],
+        "truth": ["money"]
+      },
       "expect": "T delta money >= +30",
       "id": "money",
       "source": "truth"
     },
     {
+      "evidence": {
+        "items": [20997, 20998]
+      },
       "expect": "one of items 20997/20998 is new in T final inventory",
       "id": "reward-item",
       "source": "truth"
     },
     {
+      "evidence": {
+        "delta": ["totalXp"],
+        "truth": ["totalXp"]
+      },
       "expect": "T delta total XP >= +100 (total XP: the XP to next level of every level crossed plus the xp field; the character levels on the way, so raw xp would be wrong)",
       "id": "total-xp",
       "source": "truth"

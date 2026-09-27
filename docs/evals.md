@@ -89,6 +89,35 @@ check, the friction and the verdict against this document, and writes the
 result with `mise eval result <run-dir> <file>`, which validates it
 against the schema.
 
+## Add a scenario
+
+A scenario is one JSON file in `packages/harness/src/grader/scenarios/`,
+named after its `id`. The grader loads every file there and validates it
+against `packages/harness/src/grader/scenario.schema.json`; an invalid
+file stops the grader with its file name and the schema errors. To add a
+scenario, drop the file in and add its id to `ROUND_1` in
+`packages/harness/src/grader/scenarios.ts`. A test fails while a file
+sits in no round or a round names an id with no file.
+
+Each check has an `id`, a `source` and an `expect` text, which is for the
+grader to read. The draft fills the check's `observed` from its typed
+`evidence` or its `measure`, never from `expect`:
+
+| `evidence` field | For | The draft shows |
+|---|---|---|
+| `truth` | `truth` checks | Baseline and final of the listed fields: `alive` (with `deathState`), `inventory`, `level`, `money`, `quests` (with `rewardedQuests`) and `totalXp` (with `level` and `xp`). With no `truth`, `items` or `point`, the whole truth summary. |
+| `delta` | `truth` checks | Final minus baseline of `money` or `totalXp`. |
+| `items` | `truth` checks | Baseline, final and delta counts, summed over every row, of each listed item id and of every item whose count changed. |
+| `point` | `truth` checks | An `{ "x", "y" }` point: the final position and its 2D distance to the point, instead of the other truth fields. |
+| `events` | `game_log` checks | The game-log rows of these events (`domain/name`; a trailing `*` matches a prefix): the count, the first and last match, the first 10 rows and the last row of the same domains. |
+| `ids` | `game_log` checks | Only the rows of those events whose data holds one of these numbers. |
+
+A `measure` names a computed measure in
+`packages/harness/src/grader/draft-measure.ts` (for example `kill_xp` or
+`max_attackers`); on a check whose source is not `truth` it replaces
+`evidence`.
+A check with neither leaves `observed` null for the grader to fill.
+
 ## The second character
 
 Scenarios with a `partner` or a witness (`t2-whisper-reply`,
