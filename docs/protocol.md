@@ -253,8 +253,11 @@ file. An area adds a flow without a shared edit.
 | `nearest` | `kind=<unit\|player\|gameobject\|NPC role>` | the five nearest matches |
 | `talk` | `entry=<n>` | talks (`CMSG_GOSSIP_HELLO`) to the nearest entity with that entry |
 
-`talk` does not walk: pick an entry within interaction range, which
-`nearest` shows.
+Each flow waits up to 5 s for what it reads (the place, a match, the
+entry) to arrive after login. `talk` does not walk, and the server ignores
+`CMSG_GOSSIP_HELLO` from beyond `INTERACTION_DISTANCE` (5.5 yards) without
+a reply, so pick an entry within range, which `nearest` shows, or stage
+the character next to it with `soap setup <ACCOUNT> position`.
 
 ## Check citations
 
