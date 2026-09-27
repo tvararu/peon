@@ -16,7 +16,7 @@ const profile: Profile = {
   client: {
     account: "FACABC0123456",
     character: "Fgklibhlflc",
-    host: "t1",
+    host: "realm.example",
     password: "PW",
     port: 3724,
   },

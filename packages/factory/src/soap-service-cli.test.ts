@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { createService, type Fetch } from "#factory/realm-service";
 import { runService, serviceCommands } from "#factory/soap-service-cli";
-import { createService, type Fetch } from "#factory/t1-service";
 
 function harness(status = 200, body = '{"ok":true,"savedAt":"t"}') {
   const urls: string[] = [];
@@ -15,7 +15,7 @@ function harness(status = 200, body = '{"ok":true,"savedAt":"t"}') {
   const deps = {
     err: (line: string) => err.push(line),
     out: (line: string) => out.push(line),
-    service: createService({ baseUrl: "http://t1.test", fetch }),
+    service: createService({ baseUrl: "http://realm.test", fetch }),
   };
   return { bodies, deps, err, out, urls };
 }
@@ -35,7 +35,7 @@ describe("runService", () => {
   test("truth maps the account to its character", async () => {
     const h = harness();
     expect(await runService(["truth", "FAC6AB6E05F5A"], h.deps)).toBe(0);
-    expect(h.urls).toEqual(["http://t1.test/truth/Fgklgoafpfk"]);
+    expect(h.urls).toEqual(["http://realm.test/truth/Fgklgoafpfk"]);
     expect(JSON.parse(h.out[0] ?? "")).toEqual({ ok: true, savedAt: "t" });
   });
 
@@ -43,7 +43,7 @@ describe("runService", () => {
     const h = harness();
     const args = ["setup", "FAC6AB6E05F5A", "money", '{"copper":500}'];
     expect(await runService(args, h.deps)).toBe(0);
-    expect(h.urls).toEqual(["http://t1.test/char/Fgklgoafpfk/money"]);
+    expect(h.urls).toEqual(["http://realm.test/char/Fgklgoafpfk/money"]);
     expect(h.bodies).toEqual(['{"copper":500}']);
   });
 
@@ -58,8 +58,8 @@ describe("runService", () => {
     await runService(["reset", "FAC6AB6E05F5A"], h.deps);
     await runService(["health"], h.deps);
     expect(h.urls).toEqual([
-      "http://t1.test/account/FAC6AB6E05F5A/reset",
-      "http://t1.test/health",
+      "http://realm.test/account/FAC6AB6E05F5A/reset",
+      "http://realm.test/health",
     ]);
   });
 

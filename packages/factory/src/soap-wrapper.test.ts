@@ -27,7 +27,7 @@ async function writeAccountConfig(name: string, char: string): Promise<void> {
     `${serializeConfig({
       account: name,
       character: char,
-      host: "t1",
+      host: "realm.example",
       language: 1,
       password: "pw",
       port: 3724,

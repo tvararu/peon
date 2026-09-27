@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import type { ClientConfig } from "@peon/core";
-import { type Config, parseConfig } from "@peon/core/lib/config";
+import { type Config, parseConfig, realmDefaults } from "@peon/core/lib/config";
 import { messageOf } from "@peon/core/lib/errors";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { Profile, ProfileSource } from "#harness/contract/config";
@@ -40,9 +40,13 @@ export const PROTECTED_CHARACTERS: readonly string[] = ["Xiara"];
 
 type Json = Record<string, unknown>;
 type Parsed = { source: ProfileSource; config: Config };
-type NavFields = Pick<
+type BaseFields = Pick<
   Config,
-  "spell_data_dir" | "navigation_data_dir" | "navigation_library"
+  | "host"
+  | "port"
+  | "spell_data_dir"
+  | "navigation_data_dir"
+  | "navigation_library"
 >;
 
 const ALLIANCE_PRESETS: readonly string[] = ["elwynn1", "elwynn10"];
@@ -200,7 +204,7 @@ async function sessionConfig(json: Json): Promise<Config> {
 }
 
 async function ledgerConfig(json: Json, home: string): Promise<Config> {
-  const nav = await navFields(`${home}/.config/peon/config.toml`);
+  const base = await baseFields(`${home}/.config/peon/config.toml`);
   const language = ALLIANCE_PRESETS.includes(field(json, "preset")) ? 7 : 1;
   const [account, character, password] = [
     field(json, "account"),
@@ -210,21 +214,28 @@ async function ledgerConfig(json: Json, home: string): Promise<Config> {
   return {
     account,
     character,
-    host: "t1",
     language,
     password,
-    port: 3724,
     timeout_minutes: 30,
-    ...nav,
+    ...base,
   };
 }
 
-async function navFields(path: string): Promise<Partial<NavFields>> {
+async function baseFields(path: string): Promise<BaseFields> {
   const text = await Bun.file(path).text().catch(ignoreFailure);
-  if (text === undefined) return {};
-  const { spell_data_dir, navigation_data_dir, navigation_library } = parseToml(
-    text,
-    path,
-  );
-  return { navigation_data_dir, navigation_library, spell_data_dir };
+  if (text === undefined) return { ...realmDefaults };
+  const {
+    host,
+    port,
+    spell_data_dir,
+    navigation_data_dir,
+    navigation_library,
+  } = parseToml(text, path);
+  return {
+    host,
+    navigation_data_dir,
+    navigation_library,
+    port,
+    spell_data_dir,
+  };
 }

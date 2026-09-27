@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import {
   type Config,
   parseConfig,
+  realmDefaults,
   serializeConfig,
 } from "@peon/core/lib/config";
 import { factoryConfigDir, factoryStateDir } from "#factory/config";
@@ -53,7 +54,10 @@ const lockTries = 400;
 const pinfoTries = 100;
 const pinfoPollMs = 50;
 const copiedFields = ["spell_data_dir", "navigation_data_dir"] as const;
-type Nav = Pick<Config, (typeof copiedFields)[number] | "navigation_library">;
+type Inherited = Pick<
+  Config,
+  (typeof copiedFields)[number] | "host" | "navigation_library" | "port"
+>;
 const envLine = /^([A-Z0-9_]+)=(.*)$/;
 const quoted = /^(["'])(.*)\1$/;
 const resultTag = /<result>([\s\S]*?)<\/result>/;
@@ -265,21 +269,26 @@ async function presetTemplate(preset: Preset): Promise<string> {
   return templateFor(preset, await soapEnv());
 }
 
-export async function navConfig(
+export async function inheritedConfig(
   configPath = `${homedir()}/.config/peon/config.toml`,
   library: () => Promise<string> = requirePatchedLibrary,
-): Promise<Nav> {
-  const nav: Nav = { navigation_library: await library() };
+): Promise<Inherited> {
+  const inherited: Inherited = {
+    ...realmDefaults,
+    navigation_library: await library(),
+  };
   const file = Bun.file(configPath);
-  if (!(await file.exists())) return nav;
+  if (!(await file.exists())) return inherited;
   const base = parseConfig(await file.text());
-  for (const key of copiedFields) if (base[key]) nav[key] = base[key];
-  return nav;
+  inherited.host = base.host;
+  inherited.port = base.port;
+  for (const key of copiedFields) if (base[key]) inherited[key] = base[key];
+  return inherited;
 }
 
 async function writeSession(
   entry: Ledger & { root: string },
-  nav: Nav,
+  inherited: Inherited,
 ): Promise<Session> {
   const { account, password, character, preset, root } = entry;
   const { dir } = accountFiles(root, account);
@@ -287,12 +296,10 @@ async function writeSession(
   const config: Config = {
     account,
     character,
-    host: "t1",
     language: presetLanguage(preset),
     password,
-    port: 3724,
     timeout_minutes: 30,
-    ...nav,
+    ...inherited,
   };
   await mkdir(`${env.XDG_CONFIG_HOME}/peon`, {
     mode: 0o700,
@@ -315,9 +322,9 @@ export async function createAccount({
   gm,
   owner,
 }: CreateOptions): Promise<Session> {
-  const [template, nav] = await Promise.all([
+  const [template, inherited] = await Promise.all([
     presetTemplate(preset),
-    navConfig(),
+    inheritedConfig(),
   ]);
   const names = newNames();
   const root = process.cwd();
@@ -334,7 +341,7 @@ export async function createAccount({
     await saveLedger(entry);
     await copyConfirmed(soap, template, names);
     if (gm) await must(`account set gmlevel ${entry.account} ${gm} -1`);
-    return await writeSession(entry, nav);
+    return await writeSession(entry, inherited);
   } catch (err) {
     await deleteAccount(entry.account).catch((e) =>
       console.error(`cleanup of ${entry.account} failed: ${e}`),

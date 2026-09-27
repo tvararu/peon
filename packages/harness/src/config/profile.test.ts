@@ -36,7 +36,7 @@ async function writeToml({
   const config = {
     account,
     character,
-    host: "t1",
+    host: "realm.example",
     language: 1,
     navigation_data_dir: "/nav/data",
     navigation_library: library,
@@ -85,7 +85,7 @@ describe("loadProfile", () => {
     expect(profile.account).toBe("FACABC0123456");
     expect(profile.character).toBe("Fgklibhlflc");
     expect(profile.client.password).toBe("SECRETPW");
-    expect(profile.client.host).toBe("t1");
+    expect(profile.client.host).toBe("realm.example");
     await expect(profile.client.dbc?.("Spell.dbc")).rejects.toThrow(
       "missing Spell.dbc in /spells",
     );
@@ -145,7 +145,7 @@ describe("loadProfile", () => {
     expect(String(error)).toContain(join(root, "gone/config/peon/config.toml"));
   });
 
-  test("reads a soap ledger entry with navigation paths from home", async () => {
+  test("reads a soap ledger entry with the realm and navigation paths from home", async () => {
     await writeToml({
       account: "HOMEACC",
       character: "Homechar",
@@ -167,6 +167,21 @@ describe("loadProfile", () => {
       "navigation library not found: /home/lib.so",
     );
     expect(profile.client.language).toBe(7);
+    expect(profile.client.host).toBe("realm.example");
+  });
+
+  test("connects a ledger entry to localhost without a home config", async () => {
+    const path = await writeJson("ledger.json", {
+      account: "FACABC0123456",
+      character: "Fgklibhlflc",
+      createdAt: "2026-09-26T00:00:00Z",
+      owner: "/w",
+      password: "pw",
+      preset: "fresh",
+    });
+    const profile = await loadProfile(path, root);
+    expect(profile.client.host).toBe("localhost");
+    expect(profile.client.port).toBe(3724);
   });
 
   test("reads a Peon config.toml", async () => {

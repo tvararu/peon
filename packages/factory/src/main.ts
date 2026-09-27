@@ -32,8 +32,8 @@ const usage = `usage: mise factory <command>
   qa-changes <prev> <sha>                 JSON of commits -> PRs -> issues
   same-patch <base>..<old> <base>..<new>  exit 0 when -U0 patches match
   squash-message <pr>                     JSON subject and body to land
-  soap <create|delete|sweep|list> ...    per-run game accounts on t1
-  soap <health|truth|setup|reset> ...    t1 service reads and setup
+  soap <create|delete|sweep|list> ...    per-run game accounts on the realm
+  soap <health|truth|setup|reset> ...    realm service reads and setup
   reap [--dry-run]                        worktree, account, prompt backstop
   setup <automations|wrapper> [--apply]  automations, omp wrapper link`;
 

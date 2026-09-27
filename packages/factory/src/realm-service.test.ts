@@ -1,12 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
   createService,
-  defaultServiceUrl,
   type Fetch,
   isCharEndpoint,
   ServiceError,
   serviceUrl,
-} from "#factory/t1-service";
+} from "#factory/realm-service";
 
 type Call = { url: string; method: string; body?: string; signal: boolean };
 
@@ -25,7 +24,7 @@ function fake(status: number, body: string) {
 }
 
 const ok = (data: object) => JSON.stringify({ ok: true, ...data });
-const base = "http://t1.test:7879";
+const base = "http://realm.test:7879";
 
 async function reason(promise: Promise<unknown>): Promise<string> {
   const err = await promise.then(
@@ -38,15 +37,16 @@ async function reason(promise: Promise<unknown>): Promise<string> {
 }
 
 describe("serviceUrl", () => {
-  test("env wins, then soap.env, then the default", () => {
-    expect(serviceUrl({ PEON_T1_SERVICE: "http://a:1/" }, {})).toBe(
+  test("env wins over soap.env", () => {
+    const config = { PEON_REALM_SERVICE: "http://b:2" };
+    expect(serviceUrl({ PEON_REALM_SERVICE: "http://a:1/" }, config)).toBe(
       "http://a:1",
     );
-    expect(serviceUrl({}, { PEON_T1_SERVICE: "http://b:2" })).toBe(
-      "http://b:2",
-    );
-    expect(serviceUrl({}, {})).toBe(defaultServiceUrl);
-    expect(defaultServiceUrl).toBe("http://100.73.138.96:7879");
+    expect(serviceUrl({}, config)).toBe("http://b:2");
+  });
+
+  test("names the variable when neither sets it", () => {
+    expect(() => serviceUrl({}, {})).toThrow(/PEON_REALM_SERVICE is not set/);
   });
 });
 

@@ -22,7 +22,7 @@ commands.
   never edit server data to fake them. A module runs with server
   authority, so every capability would need a rule for what it may touch.
 
-## What the t1 upgrade found about Playerbots
+## What the server upgrade found about Playerbots
 
 The facts come from the upgrade audit in the server reference clone
 (`docs/upgrades/2026-09-27-audit.md`, section 8), which the maintainer used

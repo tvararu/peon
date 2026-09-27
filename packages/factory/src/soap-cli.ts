@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
 import { factoryConfigDir, roleCapHours } from "#factory/config";
+import { createService, serviceUrl } from "#factory/realm-service";
 import {
   createAccount,
   deleteAccount,
@@ -16,7 +17,6 @@ import {
   serviceCommands,
   serviceUsage,
 } from "#factory/soap-service-cli";
-import { createService, serviceUrl } from "#factory/t1-service";
 
 const usage = `usage: soap create <${presets.join("|")}> [--owner <label>] [--gm <level>]
        soap delete <ACCOUNT>
