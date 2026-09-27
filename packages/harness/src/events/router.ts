@@ -22,6 +22,7 @@ import type {
   JsonlSink,
 } from "#harness/contract/services";
 import type { WakeGuard } from "#harness/events/guard";
+import { createMoveJoin } from "#harness/events/move-join";
 import {
   createRuleMemo,
   type Drafts,
@@ -298,33 +299,68 @@ function throttled(draft: LogDraft, cls: LogClass): LogDraft {
   };
 }
 
-export function createEventRouter(init: RouterInit): EventRouter {
-  const { guard, log, runs } = init;
-  let sink: DeliverySink | undefined;
-  let lookup = lookupFor(undefined);
-  let memo = createRuleMemo();
+type WriterInit = Pick<RouterInit, "guard" | "log" | "runs">;
+
+function createWriter({ guard, log, runs }: WriterInit) {
   const held = createHeldRows(log);
+  const moves = createMoveJoin();
   const admit = (draft: LogDraft, rc: RuleContext): LogClass => {
     const wanted = draft.class === "wake" && !rc.wake ? "passive" : draft.class;
     return wanted === "log" ? "log" : guard.admit({ ...draft, class: wanted });
   };
-  const record = (draft: LogDraft, rc: RuleContext) => {
+  const write = (draft: LogDraft, rc: RuleContext) => {
     const cls = admit(draft, rc);
     held.hold(log.append(stamped({ ...draft, class: cls }, runs)));
     if (draft.class === "wake" && rc.wake && cls !== "wake")
       log.append(throttled(draft, cls));
   };
+  return {
+    observe: (entry: GameLogEntry) => moves.observe(entry),
+    record(draft: LogDraft, rc: RuleContext) {
+      const runId = runs.active()?.id;
+      if (!moves.take(draft, runId, (late) => write(late, rc)))
+        write(draft, rc);
+    },
+    settle(event: RunEvent) {
+      if (event.type === "ended") moves.flush();
+      held.settle(event);
+    },
+  };
+}
+
+function namedFor(
+  itemName: RuleLookup["itemName"],
+  signal: AbortSignal,
+): Named {
+  return (itemIds, run) => {
+    if (itemIds.every((itemId) => itemName(itemId))) return true;
+    awaitItemNames(itemIds, itemName, { signal, timeoutMs: ITEM_NAME_WAIT_MS })
+      .then(() => {
+        if (!signal.aborted) run();
+      })
+      .catch(ignoreFailure);
+    return false;
+  };
+}
+
+export function createEventRouter(init: RouterInit): EventRouter {
+  const { log, runs } = init;
+  let sink: DeliverySink | undefined;
+  let lookup = lookupFor(undefined);
+  let memo = createRuleMemo();
+  const writer = createWriter(init);
   const route: Route = (make) => {
     const rc: RuleInput = { ...init.context(), lookup, memo };
-    for (const draft of make(rc)) record(draft, rc);
+    for (const draft of make(rc)) writer.record(draft, rc);
   };
   const jev = (event: TacticsEvent) =>
     init.jevLog.write({ ...event, ts: init.context().now });
   log.subscribe((entry) => {
+    writer.observe(entry);
     if (sink) deliver(sink, entry);
   });
   runs.subscribe((event) => {
-    held.settle(event);
+    writer.settle(event);
     route((rc) => runDrafts(event, rc));
   });
   return {
@@ -332,24 +368,11 @@ export function createEventRouter(init: RouterInit): EventRouter {
       lookup = lookupFor({ attacks: init.attacks, handle });
       memo = createRuleMemo();
       const life = new AbortController();
-      const itemName = lookup.itemName;
-      const named: Named = (itemIds, run) => {
-        if (itemIds.every((itemId) => itemName(itemId))) return true;
-        awaitItemNames(itemIds, itemName, {
-          signal: life.signal,
-          timeoutMs: ITEM_NAME_WAIT_MS,
-        })
-          .then(() => {
-            if (!life.signal.aborted) run();
-          })
-          .catch(ignoreFailure);
-        return false;
-      };
       const offs = subscribeAll({
         handle,
         jev,
         logEntities: init.flags.logEntities,
-        named,
+        named: namedFor(lookup.itemName, life.signal),
         route,
         selfGuid: () => init.context().selfGuid,
       });
