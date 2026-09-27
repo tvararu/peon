@@ -156,6 +156,35 @@ describe("journal", () => {
     });
   });
 
+  test("a long bag list labels each continuation line", async () => {
+    const { handle, tool } = await world();
+    const inventory = handle.getInventoryState();
+    const names = [
+      "Jerky",
+      "Water",
+      "Fang",
+      "Meat",
+      "Collar",
+      "Ear",
+      "Tail",
+      "Pelt",
+    ];
+    const slots: NamedInventorySlot[] = names.map((name, index) => ({
+      bag: 255,
+      guid: BigInt(index + 1),
+      item: bagItem(BigInt(index + 1), 100 + index, name, 1),
+      region: "backpack",
+      slot: 23 + index,
+      status: "occupied",
+    }));
+    handle.getInventoryState = () => ({ ...inventory, freeSlots: 4, slots });
+    const out = await runTool(tool, { about: "bags" });
+    expect(out.text.split("\n").slice(2)).toEqual([
+      "Bags: Jerky x1, Water x1, Fang x1, Meat x1, Collar x1, Ear x1.",
+      "Bags (continued): Tail x1, Pelt x1.",
+    ]);
+  });
+
   test("spells lists known spells by name with cost and cooldown", async () => {
     const { handle, tool } = await world();
     const spell = (

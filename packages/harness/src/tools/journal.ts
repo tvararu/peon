@@ -219,7 +219,7 @@ function itemLines({ items }: BagsView): string[] {
   for (let start = 0; start < words.length; start += ITEMS_PER_LINE)
     lines.push(words.slice(start, start + ITEMS_PER_LINE).join(", "));
   return lines.map((line, index) =>
-    index === 0 ? `Bags: ${line}.` : `${line}.`,
+    index === 0 ? `Bags: ${line}.` : `Bags (continued): ${line}.`,
   );
 }
 
