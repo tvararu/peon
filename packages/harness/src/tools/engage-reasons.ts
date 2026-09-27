@@ -10,7 +10,9 @@ export type StopInit = {
 
 const QUEUE_EXHAUSTED = "queue_exhausted";
 const REJECTED = "server_action_rejected:";
+const LOOT_DENIED = "loot_denied:";
 const PLAIN: Record<string, string> = {
+  died: "you died",
   "loot_denied:loot_source_unavailable":
     "the last corpse despawned or left view",
   "loot_denied:release_only": "the last corpse was out of loot range",
@@ -21,7 +23,9 @@ const PLAIN: Record<string, string> = {
     "no usable attack from here; move into melee range",
   objective_targets_absent: "no quest targets are in view",
   objective_targets_out_of_reach: "the quest targets in view cannot be reached",
+  obstructed: "the way there was blocked",
   out_of_range: "out of range",
+  queue_exhausted: "no more targets in view",
   "server_action_rejected:line_of_sight": "out of line of sight",
   tapped: "tapped by another player",
   target_dead_without_server_credit: "killed by another player",
@@ -37,6 +41,7 @@ const PLAIN: Record<string, string> = {
 export function plainReason(code: string): string {
   const known = PLAIN[code];
   if (known) return known;
+  if (code.startsWith(LOOT_DENIED)) return "the corpse could not be looted";
   return code.startsWith(REJECTED)
     ? `the server rejected the attack (${code.slice(REJECTED.length).replaceAll("_", " ")})`
     : code;
@@ -75,7 +80,9 @@ export function stopText(init: StopInit): string {
 
 export function failText(init: StopInit): string {
   const skipped = skippedText(init.targets);
-  if (init.why === QUEUE_EXHAUSTED && skipped)
-    return `0 of ${init.wanted} kills: ${skipped}.`;
+  if (init.why === QUEUE_EXHAUSTED)
+    return skipped
+      ? `0 of ${init.wanted} kills: ${skipped}.`
+      : `${init.name} was not killed: no more ${init.name} in view.`;
   return `${init.name} was not killed: ${plainReason(init.why)}.`;
 }

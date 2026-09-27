@@ -41,6 +41,10 @@ describe("plainReason", () => {
     ["server_action_rejected:line_of_sight", "out of line of sight"],
     ["manual_override", "stopped by a manual command"],
     ["max_starts_reached", "the fight limit for one call was reached"],
+    ["queue_exhausted", "no more targets in view"],
+    ["loot_denied:3", "the corpse could not be looted"],
+    ["obstructed", "the way there was blocked"],
+    ["died", "you died"],
   ])("%s", (code, words) => {
     expect(plainReason(code)).toBe(words);
   });
@@ -117,6 +121,20 @@ describe("failText", () => {
       }),
     ).toBe(
       "0 of 3 kills: u20 and u26 killed by another player, u25 could not be reached.",
+    );
+  });
+
+  test("an empty queue with nothing skipped says none are left in view", () => {
+    expect(
+      failText({
+        kills: 0,
+        name: "Springpaw Stalker",
+        targets: [],
+        wanted: 2,
+        why: "queue_exhausted",
+      }),
+    ).toBe(
+      "Springpaw Stalker was not killed: no more Springpaw Stalker in view.",
     );
   });
 
