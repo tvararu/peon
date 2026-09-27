@@ -35,7 +35,6 @@ function fakeProcess(): ExitProcess {
       exits.push(code);
       proc.emit("exit", code);
     },
-    listenerCount: (event) => proc.listenerCount(event),
     on: (event, listener) => proc.on(event, listener),
   };
 }
@@ -229,7 +228,6 @@ describe("main exit paths write endedAt and exitReason", () => {
   });
 
   test("SIGTERM: Pi shuts down and the meta says sigterm", async () => {
-    proc.on("SIGTERM", () => undefined);
     const { result, runDir } = await playing(async (runtime) => {
       proc.emit("SIGTERM");
       await runtime.dispose();
@@ -258,8 +256,7 @@ describe("main exit paths write endedAt and exitReason", () => {
     const { result, runDir } = await playing(async () => {
       throw new Error("boom");
     });
-    expect(result).rejects.toThrow("boom");
-    await result.catch(() => undefined);
+    await expect(result).rejects.toThrow("boom");
     proc.emit("exit", 1);
     expect(readMeta(runDir)).toMatchObject({
       endedAt: NOW,

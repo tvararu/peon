@@ -196,6 +196,7 @@ async function play({
         `The harness could not connect: ${messageOf(error)}. Use /connect to try again.`,
       ),
     );
+  exit.piOwnsSignals();
   await deps.interactive(piRuntime);
 }
 

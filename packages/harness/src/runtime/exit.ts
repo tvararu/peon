@@ -9,11 +9,11 @@ export type ExitReason =
 
 export type ExitProcess = {
   on: (event: string, listener: (code: number) => void) => unknown;
-  listenerCount: (event: string) => number;
   exit: (code: number) => unknown;
 };
 
 export type ExitRecorder = {
+  piOwnsSignals: () => void;
   begin: () => Promise<void>;
   end: (patch: Partial<RunMeta>) => Promise<void>;
 };
@@ -41,6 +41,7 @@ export function createExitRecorder(init: ExitInit): ExitRecorder {
   let reason: ExitReason | undefined;
   let meta = init.meta;
   let done = false;
+  let piOwns = false;
   const stamp = (patch: Partial<RunMeta>, fallback: ExitReason): RunMeta => {
     meta = {
       ...meta,
@@ -58,7 +59,7 @@ export function createExitRecorder(init: ExitInit): ExitRecorder {
   for (const [signal, cause, code] of SIGNALS)
     proc.on(signal, () => {
       reason ??= cause;
-      if (proc.listenerCount(signal) > 1) return;
+      if (piOwns) return;
       final(cause);
       proc.exit(code);
     });
@@ -77,6 +78,9 @@ export function createExitRecorder(init: ExitInit): ExitRecorder {
       const value = stamp(patch, "quit");
       await init.write(value);
       done = true;
+    },
+    piOwnsSignals() {
+      piOwns = true;
     },
   };
 }

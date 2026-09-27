@@ -44,7 +44,6 @@ function setup() {
       exits.push(code);
       emitter.emit("exit", code);
     },
-    listenerCount: (event) => emitter.listenerCount(event),
     on: (event, listener) => emitter.on(event, listener),
   };
   let clock = START;
@@ -86,7 +85,7 @@ describe("createExitRecorder", () => {
 
   test("SIGTERM records sigterm and leaves the shutdown to Pi", async () => {
     const t = setup();
-    t.emitter.on("SIGTERM", () => undefined);
+    t.recorder.piOwnsSignals();
     t.emitter.emit("SIGTERM");
     expect(t.exits).toEqual([]);
     await t.recorder.begin();
@@ -100,7 +99,7 @@ describe("createExitRecorder", () => {
 
   test("SIGHUP records sighup", async () => {
     const t = setup();
-    t.emitter.on("SIGHUP", () => undefined);
+    t.recorder.piOwnsSignals();
     t.emitter.emit("SIGHUP");
     await t.recorder.begin();
     expect(t.written[0]?.exitReason).toBe("sighup");
@@ -108,6 +107,7 @@ describe("createExitRecorder", () => {
 
   test("SIGTERM before Pi listens still ends the process with the meta written", () => {
     const t = setup();
+    t.emitter.on("SIGTERM", () => undefined);
     t.emitter.emit("SIGTERM");
     expect(t.exits).toEqual([143]);
     expect(t.synced[0]).toMatchObject({ exitReason: "sigterm" });

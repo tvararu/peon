@@ -171,7 +171,7 @@ Use a terminal font with Nerd Font glyphs for `--glyphs nerd`. Use
 
 | File | Content |
 |---|---|
-| `meta.json` | Version, git sha, account and character (no password), model, thinking, glyph set, flags, start and end, exit reason, capabilities. Every exit writes `endedAt` and `exitReason`: `quit` (Ctrl-D, `/quit`, two Ctrl-C), `sigterm`, `sighup`, `sigint` (Ctrl-C during the logout) or `fatal_error`. |
+| `meta.json` | Version, git sha, account and character (no password), model, thinking, glyph set, flags, start and end, exit reason, capabilities. Every exit writes `endedAt` and `exitReason`: `quit` (Ctrl-D, `/quit`, two Ctrl-C), `sigterm`, `sighup`, `sigint` (Ctrl-C during the logout) or `fatal_error`. Only a SIGKILL leaves both empty. |
 | `gamelog.jsonl` | Every game event as one typed row (`domain/event`). |
 | `jev.jsonl` | Jev fight requests and decisions. |
 | `session.jsonl` | A link to the current Pi session file in `pi-sessions/`. |
@@ -190,6 +190,7 @@ Use a terminal font with Nerd Font glyphs for `--glyphs nerd`. Use
 | 3 | No Codex login, or the login expires in less than 10 minutes. |
 | 1 | A fatal error. `meta.json` says `fatal_error`. |
 | 130 | SIGINT, for example Ctrl-C while the harness waits for the logout. `meta.json` says `sigint`. |
+| 129, 143 | SIGHUP or SIGTERM before Pi has started. After Pi starts, both log out and exit 0. |
 
 ## Live smoke: the 120-second yield
 
