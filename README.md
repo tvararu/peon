@@ -138,6 +138,7 @@ tuicraft cancel-cast        # interrupt the current cast
 tuicraft stop-attack       # stop auto-attack
 tuicraft fight 0xabc [--json] # Jev tactics; optional --framing none|minimal|mechanics
 tuicraft fight 0xabc conserve mana # extra words are the instruction
+# a hunter's fight also uses Auto Shot, ranged shots (weapon and ammo) and pet_attack
 tuicraft tactics [--json]  # outcome, target, vitals and last XP of the last run
 tuicraft cycle 0xa 0xb --max 3 --instruction stay alive # explicit GUID queue from nearby; no auto-acquire
 tuicraft cycle --resume --instruction "kite" # resume the remaining queue after halt

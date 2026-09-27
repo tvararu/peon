@@ -42,6 +42,7 @@ USAGE
                             Engages hostile/neutral creatures; refuses friendly (target_friendly) and players
                             A GUID not in view (never seen or left view) is refused with target_unobserved
                             Spell kit needs observed form 0; inspect tactics on refusal
+                            Hunter: shots and Auto Shot need a ranged weapon and ammo, 5-35 yd; pet_attack sends the pet
                             3 recoverable server rejections in a row stop a fight; see defense
                             Out of melee and spell range 5 s without closing 1 yd blocks target_unreachable
   tuicraft tactics [--json]  Tactics summary: outcome, target, vitals, last XP

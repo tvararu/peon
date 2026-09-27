@@ -337,6 +337,7 @@ consecutive network failures, rate limits (429) or server errors (5xx), or
 request timeout is counted separately as `jev_timeout`.
 The instruction must be a single line. Daemon `ERR` replies, including inspection failures, make the CLI exit with status 1.
 The spell kit requires observed normal form (`combat.self.shapeshiftForm=0`). A complete server CREATE defines omitted public fields as zero. An absent entity or incomplete observation does not establish that baseline.
+A hunter's ranged shots (Arcane Shot, Serpent Sting, Concussive Shot) and Auto Shot need a bow, gun or crossbow in the ranged slot and matching ammo in the bags (`no_ranged_weapon`, `wrong_ranged_weapon`, `no_ammo`, `wrong_ammo`), and work from outside melee range (`too_close`) out to 35 yd. Auto Shot keeps firing until `stop_auto_shot`, a halt or the end of the fight; the observation shows it as `autoRepeat` (`shots`). The hunter's pet appears as `pet` (guid, health, target), and `pet_attack` sends it at the target.
 Unknown or nonzero forms make spells unsupported, not melee automatically.
 A character with no usable spell still fights in melee: the fight offers
 movement and facing, and `attack` once in melee range, and ends
