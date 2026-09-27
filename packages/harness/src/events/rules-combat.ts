@@ -14,6 +14,7 @@ import {
   unitIds,
 } from "#harness/events/rules";
 import { watchUnit } from "#harness/events/rules-death";
+import { levelDrafts, xpDrafts } from "#harness/events/rules-xp";
 
 const LOW_HEALTH = [50, 25];
 const REARM_POINTS = 10;
@@ -89,51 +90,6 @@ function castDrafts(event: CombatEvent): Drafts {
       domain: "combat",
       event: "combat/cast",
       text: `Cast ${name} ${result}${why}.`,
-    },
-  ];
-}
-
-function xpDrafts(event: CombatEvent, rc: RuleInput): Drafts {
-  const xp = event.state.lastXp;
-  if (!xp || rc.memo.xpAt === xp.at) return [];
-  rc.memo.xpAt = xp.at;
-  const { next, xp: total } = rc.lookup.experience();
-  const gain: LogDraft = {
-    class: "passive",
-    data: {
-      amount: xp.total,
-      next,
-      source: xp.kind,
-      total,
-      victim: guidText(xp.victim),
-    },
-    domain: "xp",
-    event: "xp/gain",
-    text: `You gain ${xp.total} XP.`,
-  };
-  if (xp.kind !== "kill") return [gain];
-  const credit: LogDraft = {
-    class: "passive",
-    data: { name: rc.lookup.unitName(xp.victim), xp: xp.total },
-    domain: "combat",
-    event: "combat/kill_credit",
-    ...unitIds(xp.victim, rc),
-    text: `Kill credit: ${named(xp.victim, rc)} (+${xp.total} XP).`,
-  };
-  return [credit, gain];
-}
-
-function levelDrafts(event: CombatEvent, rc: RuleInput): Drafts {
-  const up = event.state.lastLevelUp;
-  if (!up || rc.memo.levelAt === up.at) return [];
-  rc.memo.levelAt = up.at;
-  return [
-    {
-      class: "passive",
-      data: { level: up.level },
-      domain: "xp",
-      event: "xp/level_up",
-      text: `You reached level ${up.level}.`,
     },
   ];
 }

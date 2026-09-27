@@ -6,6 +6,7 @@ import type {
 } from "@tuicraft/core";
 import type { LogDraft, LogEvent } from "#harness/contract/log";
 import { type Drafts, guidText, type RuleInput } from "#harness/events/rules";
+import { questXpDrafts } from "#harness/events/rules-xp";
 import { itemIdText } from "#harness/ops/item-names";
 
 export const MONEY_NOTICE_MS = 2000;
@@ -137,7 +138,7 @@ export function questDrafts(event: QuestEvent, rc: RuleInput): Drafts {
     case "progress":
       return progressRows(event, base, label, rc);
     case "rewarded":
-      return [rewardRow(event, base, label)];
+      return [rewardRow(event, base, label), ...questXpDrafts(event, rc)];
     default:
       return [];
   }

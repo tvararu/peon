@@ -16,6 +16,7 @@ import {
   type RuleInput,
   unitIds,
 } from "#harness/events/rules";
+import { exploredDrafts } from "#harness/events/rules-xp";
 import { itemIdText } from "#harness/ops/item-names";
 
 const TELEPORTS = new Set(["teleport", "near_teleport", "new_world"]);
@@ -141,6 +142,8 @@ export function controlDrafts(event: ControlEvent, rc: RuleInput): Drafts {
   if (event.type === "movement_started" || event.type === "movement_stopped")
     return [moveRow(event, pose)];
   if (event.type === "place_changed") return [placeRow(rc)];
+  if (event.type === "area_explored" && event.explored)
+    return exploredDrafts(event.explored, rc);
   return [];
 }
 

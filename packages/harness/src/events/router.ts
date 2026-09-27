@@ -29,6 +29,7 @@ import {
   type RuleContext,
   type RuleInput,
   type RuleLookup,
+  type RuleMemo,
   runDrafts,
   type Tap,
 } from "#harness/events/rules";
@@ -59,6 +60,7 @@ import {
   questDrafts,
   rewardsDrafts,
 } from "#harness/events/rules-world-quest";
+import { flushPendingXp, XP_SOURCE_WAIT_MS } from "#harness/events/rules-xp";
 import {
   awaitItemNames,
   ITEM_NAME_WAIT_MS,
@@ -299,6 +301,16 @@ function throttled(draft: LogDraft, cls: LogClass): LogDraft {
   };
 }
 
+function armXp(memo: RuleMemo, route: Route): void {
+  const pending = memo.pendingXp;
+  if (!pending || pending.armed) return;
+  pending.armed = true;
+  const flush = () => {
+    if (memo.pendingXp === pending) route(flushPendingXp);
+  };
+  setTimeout(flush, XP_SOURCE_WAIT_MS);
+}
+
 type WriterInit = Pick<RouterInit, "guard" | "log" | "runs">;
 
 function createWriter({ guard, log, runs }: WriterInit) {
@@ -352,6 +364,7 @@ export function createEventRouter(init: RouterInit): EventRouter {
   const route: Route = (make) => {
     const rc: RuleInput = { ...init.context(), lookup, memo };
     for (const draft of make(rc)) writer.record(draft, rc);
+    armXp(rc.memo, route);
   };
   const jev = (event: TacticsEvent) =>
     init.jevLog.write({ ...event, ts: init.context().now });

@@ -31,6 +31,7 @@ export type {
   CombatUnit,
 } from "#wow/combat";
 export type {
+  AreaExplored,
   ControlEvent,
   ControlEventType,
   ControlPose,

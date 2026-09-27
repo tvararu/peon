@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import {
   ObjectType,
   type TacticsEvent,
@@ -7,6 +7,7 @@ import {
 } from "@tuicraft/core";
 import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
 import type { RunEnd, RunRegistry } from "#harness/contract/runs";
+import { XP_SOURCE_WAIT_MS } from "#harness/events/rules-xp";
 import { routerSetup as setup } from "#test-support/router-fixture";
 
 async function endRun(runs: RunRegistry, awaited: boolean): Promise<string> {
@@ -133,6 +134,7 @@ describe("createEventRouter", () => {
   });
 
   test("rows an engage run summarises are consumed by its call", () => {
+    jest.useFakeTimers();
     const { log, router, runs } = setup();
     const handle = createMockHandle();
     router.attach(handle);
@@ -174,6 +176,8 @@ describe("createEventRouter", () => {
       state: handle.getQuestState(),
       type: "completed",
     });
+    jest.advanceTimersByTime(XP_SOURCE_WAIT_MS);
+    jest.useRealTimers();
     const rows = log
       .since(0)
       .filter((row) => row.class === "passive")
@@ -182,8 +186,8 @@ describe("createEventRouter", () => {
       ["fight/start", run.id, "call-7"],
       ["combat/kill_credit", run.id, "call-7"],
       ["xp/gain", run.id, "call-7"],
-      ["xp/gain", run.id, undefined],
       ["quest/completed", run.id, undefined],
+      ["xp/gain", run.id, undefined],
     ]);
   });
 

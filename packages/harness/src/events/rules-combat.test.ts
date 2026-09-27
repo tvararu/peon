@@ -166,12 +166,12 @@ describe("combatDrafts", () => {
           amount: 130,
           next: 8000,
           source: "kill",
-          total: 4200,
+          total: 4330,
           victim: "2a",
         },
         domain: "xp",
         event: "xp/gain",
-        text: "You gain 130 XP.",
+        text: "You gain 130 XP (kill, now 4330 of 8000).",
       },
     ]);
     expect(combatDrafts(event, rc)).toEqual([]);

@@ -32,6 +32,14 @@ export type RuleLookup = {
   unitName: (guid: bigint) => string | undefined;
 };
 export type AuraMemo = { spellId: number; name: string | undefined };
+export type PendingXp = {
+  amount: number;
+  armed: boolean;
+  levelUp?: boolean;
+  next: number | undefined;
+  total: number | undefined;
+  victim: bigint;
+};
 export type RecoveryMemo = {
   corpse: PoseMemo | undefined;
   via: string | undefined;
@@ -60,7 +68,8 @@ export type RuleMemo = {
   runProgressAt: Map<string, number>;
   vendorAction: VendorMemo | undefined;
   watched: Set<bigint>;
-  xpAt: number | undefined;
+  pendingXp: PendingXp | undefined;
+  xpAt: string | undefined;
 };
 export type RuleInput = RuleContext & { lookup: RuleLookup; memo: RuleMemo };
 
@@ -85,6 +94,7 @@ export function createRuleMemo(): RuleMemo {
     lootOpen: undefined,
     lowHealth: new Map(),
     moneyNoticeAt: undefined,
+    pendingXp: undefined,
     pose: undefined,
     questProgress: new Map(),
     questTitles: new Map(),
