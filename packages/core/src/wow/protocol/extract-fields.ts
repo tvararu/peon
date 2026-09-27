@@ -12,9 +12,9 @@ function uint32ToFloat(v: number): number {
 }
 
 function readU64(
-  raw: Map<number, number>,
+  raw: ReadonlyMap<number, number>,
   offset: number,
-  fallback?: Map<number, number>,
+  fallback?: ReadonlyMap<number, number>,
 ): bigint | undefined {
   const low = raw.get(offset);
   const high = raw.get(offset + 1);
@@ -33,8 +33,8 @@ export type ObjectFieldsResult = {
 };
 
 export function extractObjectFields(
-  raw: Map<number, number>,
-  fallback?: Map<number, number>,
+  raw: ReadonlyMap<number, number>,
+  fallback?: ReadonlyMap<number, number>,
 ): ObjectFieldsResult {
   const changed: string[] = [];
   const result: ObjectFieldsResult = { _changed: changed };
@@ -120,7 +120,7 @@ const MAXPOWER_KEYS = [
 ] as const;
 
 function copyU32Fields(
-  raw: Map<number, number>,
+  raw: ReadonlyMap<number, number>,
   map: [keyof typeof UNIT_FIELDS, keyof UnitFieldsResult][],
   result: UnitFieldsResult,
   changed: string[],
@@ -135,7 +135,7 @@ function copyU32Fields(
 }
 
 function readPowerArray(
-  raw: Map<number, number>,
+  raw: ReadonlyMap<number, number>,
   keys: typeof POWER_KEYS | typeof MAXPOWER_KEYS,
   changed: string[],
   changeKey: "power" | "maxPower",
@@ -155,7 +155,7 @@ function readPowerArray(
 }
 
 function readBytes0(
-  raw: Map<number, number>,
+  raw: ReadonlyMap<number, number>,
   result: UnitFieldsResult,
   changed: string[],
 ): void {
@@ -170,8 +170,8 @@ function readBytes0(
 }
 
 export function extractUnitFields(
-  raw: Map<number, number>,
-  fallback?: Map<number, number>,
+  raw: ReadonlyMap<number, number>,
+  fallback?: ReadonlyMap<number, number>,
 ): UnitFieldsResult {
   const changed: string[] = [];
   const result: UnitFieldsResult = { _changed: changed };
@@ -231,7 +231,7 @@ const GO_U32_FIELDS: [
 ];
 
 export function extractGameObjectFields(
-  raw: Map<number, number>,
+  raw: ReadonlyMap<number, number>,
 ): GameObjectFieldsResult {
   const changed: string[] = [];
   const result: GameObjectFieldsResult = { _changed: changed };

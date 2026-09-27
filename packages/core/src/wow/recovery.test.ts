@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { bytes } from "#test-support/hex";
 import { must } from "#test-support/must";
 import type { ControlPose } from "#wow/control";
-import type { Entity } from "#wow/entity-store";
+import { type Entity, EntityStore } from "#wow/entity-store";
 import {
   parseCorpseQuery,
   parseCorpseReclaimDelay,
@@ -19,19 +19,16 @@ import {
 } from "#wow/recovery";
 
 function fixture(health = 0, flags = 0) {
-  const self: Entity = {
-    guid: 1n,
-    objectType: ObjectType.PLAYER,
-    entry: 0,
+  const store = new EntityStore();
+  store.create(1n, ObjectType.PLAYER, {
     scale: 1,
-    position: undefined,
     rawFields: new Map([
       [0x18, health],
       [0x96, flags],
     ]),
-    name: undefined,
     createComplete: true,
-  };
+  });
+  const self = must(store.get(1n));
   const clock = { now: 1000 };
   const pose: ControlPose = {
     mapId: 530,
@@ -56,8 +53,14 @@ function fixture(health = 0, flags = 0) {
   });
   runtime.onEvent((event) => events.push(event));
   function life(nextHealth: number, nextFlags: number): void {
-    self.rawFields.set(0x18, nextHealth);
-    self.rawFields.set(0x96, nextFlags);
+    store.update(
+      1n,
+      {},
+      new Map([
+        [0x18, nextHealth],
+        [0x96, nextFlags],
+      ]),
+    );
     runtime.observeEntity({
       type: "update",
       entity: self,

@@ -66,10 +66,13 @@ export function questCapture(self: bigint) {
   const packet = (opcode: number, hex: string) =>
     dispatch.handle(opcode, new PacketReader(hexBytes(hex)));
   const logQuest = (questId: number, flags: number, counters = 0) => {
-    const fields = must(entities.get(self)).rawFields;
     const base = PLAYER_FIELDS.QUEST_LOG.offset;
-    for (const [i, value] of [questId, flags, counters, 0, 0].entries())
-      fields.set(base + i, value);
+    const values = [questId, flags, counters, 0, 0];
+    entities.update(
+      self,
+      {},
+      new Map(values.map((value, i) => [base + i, value])),
+    );
     runtime.observeQuestLog();
   };
   const carry = (item: bigint, slot: number, itemId: number, count: number) => {
@@ -79,18 +82,23 @@ export function questCapture(self: bigint) {
       Number(guid & 0xff_ff_ff_ffn),
       Number(guid >> 32n),
     ];
-    const fields = must(entities.get(item)).rawFields;
-    fields.set(OBJECT_FIELDS.ENTRY.offset, itemId);
-    fields.set(ITEM_FIELDS.STACK_COUNT.offset, count);
+    const fields = new Map([
+      [OBJECT_FIELDS.ENTRY.offset, itemId],
+      [ITEM_FIELDS.STACK_COUNT.offset, count],
+    ]);
     for (const offset of [
       ITEM_FIELDS.OWNER.offset,
       ITEM_FIELDS.CONTAINED.offset,
     ])
       for (const [i, word] of guidWords(self).entries())
         fields.set(offset + i, word);
+    entities.update(item, {}, fields);
     const pack = PLAYER_FIELDS.PACK_SLOT_1.offset + (slot - 23) * 2;
-    for (const [i, word] of guidWords(item).entries())
-      must(entities.get(self)).rawFields.set(pack + i, word);
+    entities.update(
+      self,
+      {},
+      new Map(guidWords(item).map((word, i) => [pack + i, word])),
+    );
     runtime.observeQuestLog();
   };
   const advance = (ms: number) => {

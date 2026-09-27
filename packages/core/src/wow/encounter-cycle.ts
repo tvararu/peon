@@ -6,7 +6,11 @@ import type { CycleApproach } from "#wow/cycle-approach";
 import type { PullGate } from "#wow/cycle-gate";
 import { type CycleStop, cycleStop } from "#wow/cycle-stop";
 import { vetTarget } from "#wow/cycle-vet";
-import type { EntityEvent, EntityLookup } from "#wow/entity-store";
+import {
+  type EntityEvent,
+  type EntityLookup,
+  snapshotEntityEvent,
+} from "#wow/entity-store";
 import { EventWaiter } from "#wow/event-waiter";
 import { JEV_UNAVAILABLE, JevUnavailableError } from "#wow/jev-failure";
 import { lootCorpse } from "#wow/loot-run";
@@ -158,7 +162,8 @@ export class EncounterCycleRuntime {
 
   observeEntity(event: EntityEvent): void {
     const guid = event.type === "disappear" ? event.guid : event.entity.guid;
-    if (guid === this.bodyEvents?.guid) this.bodyEvents.waiter.push(event);
+    if (guid === this.bodyEvents?.guid)
+      this.bodyEvents.waiter.push(snapshotEntityEvent(event));
   }
 
   async start(args: {

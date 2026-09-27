@@ -25,12 +25,14 @@ const START: ControlPose = {
 };
 
 function corpseAt(x: number, lootable = true) {
-  const { entity } = body(2n, 10, { x, y: 0, z: 0 }) as { entity: UnitEntity };
+  let { entity } = body(2n, 10, { x, y: 0, z: 0 }) as { entity: UnitEntity };
   const tactics = fakeTactics([]);
   const start = tactics.start;
   tactics.start = (context, signal) => {
-    lootableCorpse(entity);
-    if (!lootable) entity.rawFields.delete(UNIT_FIELDS.DYNAMIC_FLAGS.offset);
+    const corpse = lootableCorpse(entity);
+    const rawFields = new Map(corpse.rawFields);
+    if (!lootable) rawFields.delete(UNIT_FIELDS.DYNAMIC_FLAGS.offset);
+    entity = { ...corpse, rawFields };
     return start(context, signal);
   };
   return {

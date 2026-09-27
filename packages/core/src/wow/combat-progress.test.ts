@@ -1,6 +1,5 @@
 import { expect, jest, test } from "bun:test";
 import { context, setup, spell } from "#test-support/combat-actions-fixtures";
-import { must } from "#test-support/must";
 import type { CombatState } from "#wow/combat";
 import { NO_PROGRESS_MS, ProgressWatch } from "#wow/combat-progress";
 import { UNIT_FIELDS } from "#wow/protocol/entity-fields";
@@ -16,9 +15,10 @@ function idleFight() {
     return fixture.actions.observe(context).outcome;
   };
   const setHealth = (health: number) =>
-    must(fixture.store.get(2n)).rawFields.set(
-      UNIT_FIELDS.HEALTH.offset,
-      health,
+    fixture.store.update(
+      2n,
+      {},
+      new Map([[UNIT_FIELDS.HEALTH.offset, health]]),
     );
   const place = (x: number) =>
     fixture.combat.observePosition(2n, {

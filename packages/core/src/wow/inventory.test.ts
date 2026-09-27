@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { Entity } from "#wow/entity-store";
+import { type Entity, EntityStore } from "#wow/entity-store";
 import { readInventory } from "#wow/inventory";
 import { ObjectType } from "#wow/protocol/entity-fields";
 
@@ -117,8 +117,10 @@ describe("carried inventory authority", () => {
     expect(view([self]).slots.find((slot) => slot.slot === 23)?.status).toBe(
       "unknown",
     );
-    self.rawFields.set(0x1_73, 0x80_00_00_00);
-    expect(view([self]).slots.find((slot) => slot.slot === 23)).toMatchObject({
+    const rawFields = new Map([...self.rawFields, [0x1_73, 0x80_00_00_00]]);
+    expect(
+      view([{ ...self, rawFields }]).slots.find((slot) => slot.slot === 23),
+    ).toMatchObject({
       status: "occupied",
       guid: 0x8000000000000003n,
     });
@@ -217,20 +219,28 @@ describe("carried inventory authority", () => {
   });
 
   test("tracks raw count and coinage updates without mutating a prior snapshot", () => {
-    const self = entity(1n, ObjectType.PLAYER, [
-      [0x4_92, 10],
-      [0x1_72, 3],
-    ]);
-    const item = entity(3n, ObjectType.ITEM, [
-      [3, 200],
-      [6, 1],
-      [8, 1],
-      [14, 2],
-    ]);
-    const before = view([self, item]);
-    self.rawFields.set(0x4_92, 19);
-    item.rawFields.set(14, 5);
-    const after = view([self, item]);
+    const store = new EntityStore();
+    store.create(1n, ObjectType.PLAYER, {
+      createComplete: true,
+      rawFields: new Map([
+        [0x4_92, 10],
+        [0x1_72, 3],
+      ]),
+    });
+    store.create(3n, ObjectType.ITEM, {
+      createComplete: true,
+      rawFields: new Map([
+        [3, 200],
+        [6, 1],
+        [8, 1],
+        [14, 2],
+      ]),
+    });
+    const read = () => readInventory(1n, (guid) => store.get(guid));
+    const before = read();
+    store.update(1n, {}, new Map([[0x4_92, 19]]));
+    store.update(3n, {}, new Map([[14, 5]]));
+    const after = read();
     expect(before.coinage).toBe(10);
     expect(after.coinage).toBe(19);
     expect(before.slots.find((slot) => slot.slot === 23)).toMatchObject({
