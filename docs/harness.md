@@ -169,7 +169,7 @@ module, one entry in that list and its name in `ToolName`.
   The harness stops every run and halts the character before the model
   reads the message.
 - `/stop` does the same.
-- `F9` does the same from any screen.
+- `F9` or `Ctrl+\` does the same from any screen, in PLAY too.
 - `Esc` aborts the model's turn. The harness then stops every run and
   halts the character.
 
@@ -181,9 +181,10 @@ step. Action tools refuse until the agent reads it.
 One owner holds the character at a time, ranked human, agent, loop.
 While the human holds it, action tools refuse with `human_driving`.
 
-- **Human.** The stop reflex, `/stop` and `F9` claim the character,
-  stop every run and halt it. They hand it back at once unless the
-  human already held it.
+- **Human.** The stop reflex, `/stop`, `F9` and `Ctrl+\` claim the
+  character, stop every run and halt it. They hand it back at once
+  unless the human already held it. PLAY holds it until `Esc`
+  ([Drive the character yourself](#drive-the-character-yourself)).
 - **Agent.** An action tool claims the character when it starts; the
   agent keeps it, with the runs its tools start, until its turn ends.
 - **Loop.** A run still going when the agent's turn ends belongs to the
@@ -192,6 +193,52 @@ While the human holds it, action tools refuse with `human_driving`.
 
 The rule lives in `packages/harness/src/runtime/control-owner.ts`; the
 core client only moves and fights when told to.
+
+## Drive the character yourself
+
+The harness has two modes. In TALK, today's default, the editor owns
+the keyboard and you type to the agent. `F1` or `Ctrl+]` switches to
+PLAY from anywhere: the harness takes the character for you, stops
+every run, aborts the agent's turn if one is running, and the agent's
+action tools refuse with `human_driving` until you hand back. The
+takeover lasts until `Esc`; keys never claim the character again.
+
+| Key in PLAY | What it does |
+|---|---|
+| `W` / `S` (or up / down) | Move forward / back while held |
+| `A` / `D` (or left / right) | Turn left / right while held |
+| `Q` / `E` | Strafe left / right while held |
+| `Space` | Jump |
+| `Tab` | Target the nearest living hostile in view; again for the next nearest |
+| `1`–`0`, `-`, `=` | Use that slot of the character's action bar: a spell on the target, or on yourself when the spell does not aim at an enemy; an item from the bags. Other slot types are refused. |
+| `F` | Talk to the target, or loot it when it is lootable |
+| `Enter` | Back to TALK to type a message; you stop moving but keep the character, and `F1` resumes PLAY |
+| `Esc` | Hand the character back to the agent |
+| `F9`, `Ctrl+\` | Stop everything; you keep the character |
+
+Held keys combine, so `W` with `A` walks in a curve. A terminal that
+reports key releases (the kitty keyboard protocol) stops a key when you
+let go. Other terminals only repeat a held key, so the harness keeps it
+held for 0.6 s after the first press and 0.25 s after each repeat; the
+indicator above the editor then marks the held keys `(estimated)`.
+PLAY keys take no Ctrl, Alt or function-key combination except `F1`,
+`Ctrl+]`, `F9` and `Ctrl+\`, so Pi's own keys such as Ctrl-C and
+Ctrl-D keep working.
+
+On `Esc` the agent gets one `[human]` note, shown in the session: how
+long you drove, how far the character moved and whether that end pose
+came from the server or the client's prediction, the targets you
+picked, the slots and interactions you used, the game-log lines while
+you drove (runs your takeover stopped, casts, kills, loot, quests,
+chat), and the current HP, mana and target. Spell names there
+and on the indicator come from the game files and say so, next to the
+spell id. If the game connection closes while you drive, or the
+harness quits, the takeover ends at once: the held keys are dropped,
+the character is freed and the note says why. After a reconnect you
+are in TALK and the agent holds nothing until someone claims it. The
+note does not start a turn; the agent reads it on its next one. The mode is an ordinary Pi
+extension in `packages/harness/src/drive/` that uses the world service
+below.
 
 ## Extensions
 

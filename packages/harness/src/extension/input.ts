@@ -17,6 +17,10 @@ type HumanRow = {
 
 export const STOP_WORDS: readonly string[] = ["stop", "halt", "freeze", "hold"];
 export const STOP_MAX_WORDS = 5;
+const STOP_KEYS = [
+  ["f9", "F9"],
+  ["ctrl+\\", "Ctrl+\\"],
+] as const;
 
 const PUNCTUATION = /[^\p{L}\p{N}]/gu;
 const SPACES = /\s+/;
@@ -74,10 +78,11 @@ export function installInput(pi: ExtensionAPI, rt: HarnessRuntime): void {
     handToLoop(rt);
   });
   pi.on("message_end", (event) => noteAssistant(rt, event.message));
-  pi.registerShortcut("f9", {
-    description: "Stop every action now.",
-    handler: () => void humanStop({ rt, text: "F9", via: "key" }),
-  });
+  for (const [key, text] of STOP_KEYS)
+    pi.registerShortcut(key, {
+      description: "Stop every action now.",
+      handler: () => void humanStop({ rt, text, via: "key" }),
+    });
 }
 
 function stopAsHuman(rt: HarnessRuntime, via: Via): RunRecord[] {
