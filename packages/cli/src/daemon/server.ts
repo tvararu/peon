@@ -1,5 +1,5 @@
 import { mkdir, unlink, writeFile } from "node:fs/promises";
-import type { WorldHandle } from "@tuicraft/core";
+import { ChatType, type WorldHandle } from "@tuicraft/core";
 import { clientConfig, readConfig } from "@tuicraft/core/lib/config";
 import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
 import { type Paths, resolvePaths } from "@tuicraft/core/lib/paths";
@@ -274,6 +274,13 @@ export function startDaemonServer(args: DaemonServerArgs): DaemonServer {
   const { handle, sock, log, onActivity, onStop } = args;
   const events = new RingBuffer<EventEntry>(1000);
   handle.onMessage((msg) => onChatMessage(msg, events, log));
+  handle.onNotice(({ text }) =>
+    onChatMessage(
+      { message: text, sender: "", type: ChatType.SYSTEM },
+      events,
+      log,
+    ),
+  );
   handle.onGroupEvent((event) => onGroupEvent(event, events, log));
   handle.onEntityEvent((event) => onEntityEvent(event, events, log));
   handle.onFriendEvent((event) => onFriendEvent(event, events, log));

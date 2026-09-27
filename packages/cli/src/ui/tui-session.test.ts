@@ -382,4 +382,29 @@ describe("startTui", () => {
     input.end();
     await done;
   });
+
+  test("a not-implemented notice writes the old system line", async () => {
+    const handle = createMockHandle();
+    const input = new PassThrough();
+    const output: string[] = [];
+
+    const done = startTui(handle, false, {
+      input,
+      write: (s) => void output.push(s),
+    });
+    handle.triggerNotice({
+      at: 1,
+      label: "Weather change",
+      opcode: 1,
+      text: "[tuicraft] Weather change is not yet implemented",
+      type: "not_implemented",
+    });
+
+    expect(output.join("")).toContain(
+      "[system] [tuicraft] Weather change is not yet implemented",
+    );
+
+    input.end();
+    await done;
+  });
 });

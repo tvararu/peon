@@ -8,7 +8,7 @@ import {
   registerVendorHandlers,
 } from "#wow/gameplay-handlers";
 import { registerMovementHandlers } from "#wow/movement-handlers";
-import { ChatType, GameOpcode } from "#wow/protocol/opcodes";
+import { GameOpcode } from "#wow/protocol/opcodes";
 import type { PacketReader } from "#wow/protocol/packet";
 import { registerStubs } from "#wow/protocol/stubs";
 import type { WorldConn } from "#wow/world-conn";
@@ -155,12 +155,12 @@ export function registerGameHandlers(conn: WorldConn): void {
 
 export function registerWorldHandlers(conn: WorldConn): void {
   registerGameHandlers(conn);
-  registerStubs(conn.dispatch, (msg) => {
-    if (conn.events.message.size === 0) return false;
-    conn.events.message.emit({
-      type: ChatType.SYSTEM,
-      sender: "",
-      message: msg,
+  registerStubs(conn.dispatch, (notice) => {
+    if (conn.events.notice.size === 0) return false;
+    conn.events.notice.emit({
+      type: "not_implemented",
+      ...notice,
+      at: Date.now(),
     });
     return true;
   });

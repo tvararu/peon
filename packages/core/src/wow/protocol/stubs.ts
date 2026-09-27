@@ -62,15 +62,18 @@ export const STUBS: [opcode: number, label: string][] = [
   [GameOpcode.SMSG_RAID_INSTANCE_MESSAGE, "Instance message"],
 ];
 
+export type StubNotice = { opcode: number; label: string; text: string };
+
 export function registerStubs(
   dispatch: OpcodeDispatch,
-  notify: (message: string) => boolean,
+  notify: (notice: StubNotice) => boolean,
 ): void {
   for (const [opcode, label] of STUBS) {
     if (dispatch.has(opcode)) continue;
+    const text = `[tuicraft] ${label} is not yet implemented`;
     let fired = false;
     dispatch.on(opcode, () => {
-      if (!fired) fired = notify(`[tuicraft] ${label} is not yet implemented`);
+      if (!fired) fired = notify({ opcode, label, text });
     });
   }
 }

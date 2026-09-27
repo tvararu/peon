@@ -8,6 +8,7 @@ import {
   waitForEchoProbe,
 } from "#test-support/world-handlers-fixtures";
 import { type ChatMessage, worldSession } from "#wow/client";
+import type { NoticeEvent } from "#wow/client-extras";
 import { ChatType, GameOpcode } from "#wow/protocol/opcodes";
 
 describe("world handler tests", () => {
@@ -314,7 +315,7 @@ describe("world handler tests", () => {
     }
   });
 
-  test("stubbed opcode notifies via onMessage", async () => {
+  test("stubbed opcode notifies via onNotice", async () => {
     const ws = await startMockWorldServer();
     try {
       const handle = await worldSession(
@@ -323,16 +324,18 @@ describe("world handler tests", () => {
       );
       await waitForEchoProbe(handle);
 
-      const received = new Promise<ChatMessage>((resolve) => {
-        handle.onMessage((chat) => {
-          if (chat.message.includes("not yet implemented")) resolve(chat);
+      const received = new Promise<NoticeEvent>((resolve) => {
+        handle.onNotice((event) => {
+          if (event.label === "Ambiguous player name") resolve(event);
         });
       });
 
       ws.inject(GameOpcode.SMSG_CHAT_PLAYER_AMBIGUOUS, new Uint8Array(0));
-      const msg = await received;
-      expect(msg.type).toBe(ChatType.SYSTEM);
-      expect(msg.message).toContain("Ambiguous player name");
+      const notice = await received;
+      expect(notice.type).toBe("not_implemented");
+      expect(notice.text).toBe(
+        "[tuicraft] Ambiguous player name is not yet implemented",
+      );
 
       handle.close();
       await handle.closed;

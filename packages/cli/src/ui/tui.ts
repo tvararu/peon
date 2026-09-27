@@ -228,6 +228,9 @@ function subscribeEvents(state: TuiState, echo: (line: string) => void) {
     if (msg.type === ChatType.WHISPER) state.lastWhisperFrom = msg.sender;
     echo(formatMessage(msg));
   });
+  handle.onNotice(({ text }) =>
+    echo(formatMessage({ message: text, sender: "", type: ChatType.SYSTEM })),
+  );
 
   handle.onGroupEvent((event) => {
     const line = formatGroupEvent(event);

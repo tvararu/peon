@@ -1,5 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
 import { MARNIEL, MARNIEL_LIST_INVENTORY } from "#test-support/vendor-fixtures";
+import type { NoticeEvent } from "#wow/client-extras";
 import {
   registerGameHandlers,
   registerWorldHandlers,
@@ -9,6 +10,7 @@ import { PacketReader } from "#wow/protocol/packet";
 import { STUBS } from "#wow/protocol/stubs";
 import { OpcodeDispatch } from "#wow/protocol/world";
 import type { WorldConn } from "#wow/world-conn";
+import { createWorldEvents } from "#wow/world-events";
 
 describe("registerGameHandlers", () => {
   test("leaves every stubbed opcode without a real handler", () => {
@@ -63,5 +65,48 @@ describe("registerWorldHandlers", () => {
       guid: MARNIEL,
       emptyReason: undefined,
     });
+  });
+});
+
+function stubConn(): WorldConn {
+  const conn = {
+    dispatch: new OpcodeDispatch(),
+    events: createWorldEvents(),
+  } as unknown as WorldConn;
+  registerWorldHandlers(conn);
+  return conn;
+}
+
+function weather(): PacketReader {
+  return new PacketReader(new Uint8Array(0));
+}
+
+describe("stub notices", () => {
+  test("a stubbed opcode emits a notice, not a chat line", () => {
+    const conn = stubConn();
+    const chat: string[] = [];
+    const notices: NoticeEvent[] = [];
+    conn.events.message.subscribe((msg) => chat.push(msg.message));
+    conn.events.notice.subscribe((event) => notices.push(event));
+    conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
+    expect(chat).toEqual([]);
+    expect(notices).toMatchObject([
+      {
+        type: "not_implemented",
+        opcode: GameOpcode.SMSG_WEATHER,
+        label: "Weather change",
+        text: "[tuicraft] Weather change is not yet implemented",
+      },
+    ]);
+  });
+
+  test("a notice with no subscriber is retried on the next packet", () => {
+    const conn = stubConn();
+    conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
+    const notices: NoticeEvent[] = [];
+    conn.events.notice.subscribe((event) => notices.push(event));
+    conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
+    conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
+    expect(notices).toHaveLength(1);
   });
 });

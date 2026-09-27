@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
-import { registerStubs, STUBS } from "#wow/protocol/stubs";
+import { registerStubs, STUBS, type StubNotice } from "#wow/protocol/stubs";
 import { OpcodeDispatch } from "#wow/protocol/world";
 
 describe("registerStubs", () => {
@@ -34,8 +34,8 @@ describe("registerStubs", () => {
   test("notifies on first receipt only", () => {
     const d = new OpcodeDispatch();
     const messages: string[] = [];
-    registerStubs(d, (msg) => {
-      messages.push(msg);
+    registerStubs(d, (notice) => {
+      messages.push(notice.text);
       return true;
     });
 
@@ -50,9 +50,9 @@ describe("registerStubs", () => {
     const d = new OpcodeDispatch();
     const messages: string[] = [];
     let ready = false;
-    registerStubs(d, (msg) => {
+    registerStubs(d, (notice) => {
       if (!ready) return false;
-      messages.push(msg);
+      messages.push(notice.text);
       return true;
     });
 
@@ -66,6 +66,23 @@ describe("registerStubs", () => {
 
     d.handle(GameOpcode.SMSG_WEATHER, new PacketReader(new Uint8Array(0)));
     expect(messages).toHaveLength(1);
+  });
+
+  test("the notice names the opcode, the label and the old text", () => {
+    const d = new OpcodeDispatch();
+    const notices: StubNotice[] = [];
+    registerStubs(d, (notice) => {
+      notices.push(notice);
+      return true;
+    });
+    d.handle(GameOpcode.SMSG_WEATHER, new PacketReader(new Uint8Array(0)));
+    expect(notices).toEqual([
+      {
+        opcode: GameOpcode.SMSG_WEATHER,
+        label: "Weather change",
+        text: "[tuicraft] Weather change is not yet implemented",
+      },
+    ]);
   });
 
   test("lists only server opcodes", () => {
