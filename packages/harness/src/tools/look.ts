@@ -259,7 +259,7 @@ function lookAfter(
 }
 
 function noneSeen(after: LookAfter): ToolResult<LookAfter> {
-  const hint = `If your task needs one: ${nextCall("travel", { to: "explore north" })}, or another direction.`;
+  const hint = `If your task needs one: ${nextCall("travel", { to: "explore" })}.`;
   const detail = `0 ${nounOf(after.filter)} seen at any distance in the last 30 min. The client sees about 100 yd around you.`;
   return result("DONE", { after, body: [hint], detail });
 }

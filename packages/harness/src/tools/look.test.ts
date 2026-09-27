@@ -139,7 +139,7 @@ describe("look", () => {
     const { handle, tool } = await world();
     place(handle, eversong());
     expect((await runTool(tool, { find: "hostile" })).text).toBe(
-      'DONE 0 hostile units seen at any distance in the last 30 min. The client sees about 100 yd around you.\nIf your task needs one: travel(to: "explore north"), or another direction.',
+      'DONE 0 hostile units seen at any distance in the last 30 min. The client sees about 100 yd around you.\nIf your task needs one: travel(to: "explore").',
     );
   });
 
