@@ -4,7 +4,7 @@ import type { ToolResult } from "#harness/contract/result";
 import type { ViewCtx } from "#harness/contract/services";
 import type { UnitView } from "#harness/contract/views";
 import { dangerView } from "#harness/ops/danger";
-import { nameLootLines } from "#harness/ops/item-names";
+import { ITEM_NAME_WAIT_MS, nameLootLines } from "#harness/ops/item-names";
 import { lootCorpseOp } from "#harness/ops/loot";
 import { ENGAGE_APPROACH_YD } from "#harness/ops/range";
 import { guidHex } from "#harness/ops/refs";
@@ -353,9 +353,14 @@ export async function fight(init: FightInit): Promise<Report> {
     if (blocked) return blocked;
     const modes = { cycle, quest, single };
     const end = await modes[init.choice.mode](scene);
-    tally.loot = await nameLootLines(init.ops, tally.loot);
     const secs = Math.round((init.ops.rt.clock.now() - tally.startedAt) / 1000);
-    if (init.cause()?.code === "died") return diedReport(scene, secs);
+    const died = init.cause()?.code === "died";
+    tally.loot = await nameLootLines(
+      init.ops,
+      tally.loot,
+      died ? 0 : ITEM_NAME_WAIT_MS,
+    );
+    if (died) return diedReport(scene, secs);
     return stopped(scene, end) ?? outcomeReport(scene, end, secs);
   } finally {
     tick();

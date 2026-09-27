@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { CycleTargetRecord, TacticsOutcome } from "@tuicraft/core";
 import type { EngageAfter } from "#harness/contract/details";
+import { ITEM_NAME_WAIT_MS } from "#harness/ops/item-names";
 import { engageSpec } from "#harness/tools/engage";
 import {
   attackBy,
@@ -296,11 +297,21 @@ describe("engage fight", () => {
       pushItem(t.handle, 4813);
       die(t.handle);
     });
+    const started = performance.now();
     const res = await engageSpec.run(
       { target: "Springpaw Stalker" },
       toolCtx<EngageAfter>(t),
     );
-    expect(res).toMatchObject({ reason: "died", status: "FAILED" });
+    expect(performance.now() - started).toBeLessThan(ITEM_NAME_WAIT_MS / 4);
+    expect(res).toMatchObject({
+      next: "recover()",
+      reason: "died",
+      status: "FAILED",
+    });
+    expect(res.detail).toContain("killed you");
+    expect(res.after.loot).toEqual([
+      { count: 1, itemId: 4813, name: "item 4813", quality: null },
+    ]);
   });
 
   test("loot named late by the server is reported by name", async () => {

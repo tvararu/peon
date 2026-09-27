@@ -64,17 +64,14 @@ export function itemLabelIn(handle: NameSources): LabelOf {
 }
 
 function tick(signal: AbortSignal | undefined): Promise<void> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const timer = setTimeout(done, POLL_MS);
-    const abort = () => {
-      clearTimeout(timer);
-      reject(signal?.reason);
-    };
     function done() {
-      signal?.removeEventListener("abort", abort);
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", done);
       resolve();
     }
-    signal?.addEventListener("abort", abort, { once: true });
+    signal?.addEventListener("abort", done, { once: true });
   });
 }
 
@@ -85,7 +82,7 @@ export async function awaitItemNames(
 ): Promise<void> {
   const pending = () => itemIds.some((itemId) => !nameOf(itemId));
   for (let waited = 0; pending() && waited < timeoutMs; waited += POLL_MS) {
-    signal?.throwIfAborted();
+    if (signal?.aborted) return;
     await tick(signal);
   }
 }
@@ -102,8 +99,6 @@ export async function nameLootLines(
   await awaitItemNames(unnamed, (itemId) => labelOf(itemId)?.name, {
     signal: ctx.signal,
     timeoutMs,
-  }).catch((error: unknown) => {
-    if (!ctx.signal?.aborted) throw error;
   });
   return lines.map((line) => {
     if (!unnamed.includes(line.itemId)) return line;

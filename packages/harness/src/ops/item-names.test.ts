@@ -35,15 +35,24 @@ describe("awaitItemNames", () => {
     expect(performance.now() - started).toBeLessThan(20);
   });
 
-  test("stops when the signal aborts", async () => {
+  test("returns without throwing when the signal aborts", async () => {
     const abort = new AbortController();
     setTimeout(() => abort.abort(new Error("stop")), 30);
-    await expect(
-      awaitItemNames([117], () => undefined, {
-        signal: abort.signal,
-        timeoutMs: 2000,
-      }),
-    ).rejects.toThrow("stop");
+    const started = performance.now();
+    await awaitItemNames([117], () => undefined, {
+      signal: abort.signal,
+      timeoutMs: 2000,
+    });
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+
+  test("returns at once when the signal is already aborted", async () => {
+    const started = performance.now();
+    await awaitItemNames([117], () => undefined, {
+      signal: AbortSignal.abort(new Error("died")),
+      timeoutMs: 2000,
+    });
+    expect(performance.now() - started).toBeLessThan(20);
   });
 });
 
