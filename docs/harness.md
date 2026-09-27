@@ -215,13 +215,55 @@ Use a terminal font with Nerd Font glyphs for `--glyphs nerd`. Use
 |---|---|
 | `meta.json` | Version, git sha, account and character (no password), model, thinking, glyph set, flags, start and end, exit reason, capabilities. Every exit writes `endedAt` and `exitReason`: `quit` (Ctrl-D, `/quit`, two Ctrl-C), `sigterm`, `sighup`, `sigint` (Ctrl-C during the logout) or `fatal_error`. Only a SIGKILL leaves both empty. |
 | `gamelog.jsonl` | Every game event as one typed row (`domain/event`). |
-| `jev.jsonl` | Jev fight requests and decisions. |
+| `jev.jsonl` | Every Jev call and every fight-loop event; see [Jev log](#jev-log). |
 | `session.jsonl` | A link to the current Pi session file in `pi-sessions/`. |
 | `tools.json` | Calls, status words, validation errors, repeat refusals and timings per tool. |
 | `runs.jsonl` | One row per run when it ends. |
 | `status.json` | Agent state, active run and last progress, written every second. |
 | `snapshots/` | Files from `/snapshot`. |
 | `workspace/` | The empty working directory of Pi. |
+
+## Jev log
+
+`jev.jsonl` is a complete record of every Jev call, on in every run. Use
+it to debug one bad decision: see the state Jev was shown, what it
+answered and what happened next, then replay that call.
+
+Every row has `type`, `runId` (one fight loop) and `ts`. The rows of one
+call also share `call`, which counts from 1 in each `runId`.
+
+| `type` | Content |
+|---|---|
+| `started`, `activated`, `stopped` | A fight loop's target, instruction, framing and fault marker, then its start and end reason. |
+| `request` | `call`, `observation` (the state Jev sees, `unavailable` included), `candidates`, `instruction`, `framing`, `characterClass`, `sentAtMs`. |
+| `exchange` | `call`, `model`, `instructions` (Jev's question), `framing` (the sentence sent, if any), `status`, `elapsedMs`, and `response` (the parsed body, or its text when it isn't JSON) or `error` when no answer came back. |
+| `result` | `call`, `choice`, `probabilities`, `confidence`, `model`, `inputTokens`, `elapsedMs`. |
+| `applied`, `discarded` | `call` and the action taken, or why it wasn't (`stale_age`, `unavailable`, `aborted`, ...). |
+| `transport` | A failed call or loop: the `error` (`jev_timeout`, `TypeSafe HTTP 503`, ...), with `call` when it was one call. |
+| `outcome` | How the fight ended, with the last `observation`. |
+
+A call that times out still gets its `exchange` row, and its `result`
+and `discarded` rows, when the answer arrives late. No row holds the API
+key, an auth header or the endpoint URL. One call's rows take about
+13 KB, nearly all of it the `request` row. A fight makes about 4 calls a
+second, so an hour of nonstop fighting writes about 180 MB; time out of
+a fight writes nothing.
+
+To replay one call, give its `runId` and `call`. The body is the one
+Peon sent:
+
+```sh
+jq -c --arg run "$RUN" --argjson call "$CALL" -s '
+  map(select(.runId == $run and .call == $call))
+  | (.[] | select(.type == "request")) as $q | (.[] | select(.type == "exchange")) as $x
+  | {model: $x.model,
+     questions: {action: {criteria: ($q.candidates | map({(.id): .description}) | add),
+                          instructions: $x.instructions, type: "choice"}},
+     state: ($q.observation + {standingInstruction: $q.instruction}
+             + if $x.framing then {framing: $x.framing} else {} end)}' jev.jsonl \
+| curl -s https://api.typesafe.ai/v1/systemone -H "Authorization: Bearer $TYPESAFE_API_KEY" \
+    -H 'Content-Type: application/json' -d @-
+```
 
 ## Exit codes
 
