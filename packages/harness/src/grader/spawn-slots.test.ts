@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { loadScenario, ROUND_1 } from "#harness/grader/scenarios";
-import { startSlots } from "#harness/grader/spawn-slots";
+import { spawnOf, startSlots } from "#harness/grader/spawn-slots";
 
 type Body = { map: number; x: number; y: number; z: number; zone: number };
 
@@ -24,22 +24,46 @@ describe("startSlots", () => {
     expect(seen.size).toBe(2 * 2 * 10);
   });
 
-  test("points stay a few yards from the preset spawn, on its map and zone", () => {
+  test("points stay a few yards from their spawn, on its map and zone", () => {
     for (const id of ROUND_1) {
-      const slots = startSlots(loadScenario(id), 2);
+      const scenario = loadScenario(id);
+      const slots = startSlots(scenario, 2);
       if (slots === undefined) continue;
+      const spawn = spawnOf(scenario);
+      const [x, y] = spawn?.points[0] ?? [0, 0];
       for (const step of [slots.agent, slots.partner]) {
         expect(step.endpoint).toBe("position");
         const body = bodyOf(step);
-        const spawn =
-          body.map === 530 && body.zone === 3433
-            ? { x: 7575, y: -6835 }
-            : { x: 8735, y: -6685 };
-        expect(
-          Math.hypot(body.x - spawn.x, body.y - spawn.y),
-        ).toBeLessThanOrEqual(16);
+        expect(body.map).toBe(spawn?.map ?? -1);
+        expect(body.zone).toBe(spawn?.zone ?? -1);
+        expect(Math.hypot(body.x - x, body.y - y)).toBeLessThanOrEqual(16);
       }
     }
+  });
+
+  test("the crowd-sensitive runs start 60 yd or more from every other start", () => {
+    const starts = (id: string) =>
+      [1, 2].flatMap((replica) => {
+        const slots = startSlots(loadScenario(id), replica);
+        return slots === undefined ? [] : [slots.agent, slots.partner];
+      });
+    const others = ROUND_1.filter(
+      (id) => id !== "t0-who-is-near" && id !== "t2-whisper-reply",
+    ).flatMap(starts);
+    const apart = (a: string, b: readonly Body[]) =>
+      starts(a).every((step) =>
+        b.every(
+          (other) =>
+            Math.hypot(bodyOf(step).x - other.x, bodyOf(step).y - other.y) >=
+            60,
+        ),
+      );
+    expect(others.length).toBeGreaterThan(0);
+    expect(apart("t0-who-is-near", others.map(bodyOf))).toBe(true);
+    expect(apart("t2-whisper-reply", others.map(bodyOf))).toBe(true);
+    expect(
+      apart("t0-who-is-near", starts("t2-whisper-reply").map(bodyOf)),
+    ).toBe(true);
   });
 
   test("the first ghostlands run starts on the preset point at the floor z", () => {

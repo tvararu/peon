@@ -96,6 +96,21 @@ describe("round-1 scenarios", () => {
     ]);
   });
 
+  test("every kill scenario names its target field", () => {
+    const kills = [
+      "t3-ghostlands-kill",
+      "t3-kill-one-hunter",
+      "t4-alliance-first",
+      "t4-quest-first",
+      "t6-die-and-recover",
+      "t7-halt-resume",
+      "t7-question-while-acting",
+    ];
+    for (const id of kills)
+      expect(loadScenario(id).field ?? "").toMatch(/^[a-z]+(-[a-z]+)+$/);
+    expect(ids((id) => loadScenario(id).field !== undefined)).toEqual(kills);
+  });
+
   test("pane minutes add up to the 155 of the round-1 table", () => {
     expect(
       ROUND_1.reduce((sum, id) => sum + loadScenario(id).paneMinutes, 0),

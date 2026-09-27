@@ -31,6 +31,7 @@
   ],
   "preset": "eversong10",
   "setup": [],
+  "spawn": "fairbreeze-east",
   "steers": [],
   "task": "Hang around here and answer anyone who talks to you directly.",
   "tier": 2

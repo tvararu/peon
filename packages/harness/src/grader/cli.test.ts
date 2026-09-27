@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { type CliDeps, main } from "#harness/grader/cli";
 import { bunExec } from "#harness/grader/exec";
@@ -102,6 +102,51 @@ describe("grader cli", () => {
     expect(d.errors[0]).toBe(
       "run from the eval worktree root (packages/factory/src/main.ts not found)",
     );
+  });
+
+  test("run refuses while a run on the same field is still going", async () => {
+    const cwd = await mkdtemp(`${tmpdir()}/cli-`);
+    await mkdir(`${cwd}/packages/factory/src`, { recursive: true });
+    await writeFile(`${cwd}/packages/factory/src/main.ts`, "");
+    const other = `${cwd}/tmp/evals/3/t7-question-while-acting-1`;
+    await mkdir(other, { recursive: true });
+    await writeFile(
+      `${other}/run.json`,
+      JSON.stringify({
+        scenario: "t7-question-while-acting",
+        t0: 1_727_384_000_000,
+      }),
+    );
+    const { calls, exec } = fakeExec(() => orcaOk({}));
+    const d = deps({ cwd, exec });
+    expect(await main(["run", "t7-halt-resume", "--round", "3"], d)).toBe(1);
+    expect(d.errors[0]).toStartWith(
+      "t7-question-while-acting-1 is still running on field fairbreeze-stalkers",
+    );
+    expect(calls).toEqual([]);
+  });
+
+  test("round refuses a plan with two scenarios on one field", async () => {
+    const d = deps();
+    expect(
+      await main(
+        [
+          "round",
+          "t7-halt-resume",
+          "t0-self-state",
+          "t7-question-while-acting",
+        ],
+        d,
+      ),
+    ).toBe(1);
+    expect(d.errors).toEqual([
+      "t7-halt-resume and t7-question-while-acting share field fairbreeze-stalkers",
+    ]);
+    const fine = deps();
+    expect(
+      await main(["round", "t7-halt-resume", "t4-quest-first"], fine),
+    ).toBe(0);
+    expect(fine.lines).toEqual(["no field is shared"]);
   });
 
   test("leak-check prints file names only", async () => {

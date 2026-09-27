@@ -28,6 +28,7 @@
       "source": "truth"
     }
   ],
+  "field": "fairbreeze-stalkers",
   "id": "t3-kill-one-hunter",
   "navBound": false,
   "needsWatcher": false,

@@ -18,6 +18,7 @@
     },
     { "expect": "T delta total XP > 0", "id": "total-xp", "source": "truth" }
   ],
+  "field": "ghostlands-tranquillien",
   "id": "t3-ghostlands-kill",
   "navBound": false,
   "needsWatcher": false,

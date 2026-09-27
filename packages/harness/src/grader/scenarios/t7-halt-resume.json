@@ -17,6 +17,7 @@
       "source": "session"
     }
   ],
+  "field": "fairbreeze-stalkers",
   "id": "t7-halt-resume",
   "navBound": false,
   "needsWatcher": true,

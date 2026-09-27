@@ -1,11 +1,13 @@
+import { dirname } from "node:path";
 import { parseArgs } from "node:util";
 import { messageOf } from "@tuicraft/core/lib/errors";
 import type { Clock } from "#harness/contract/services";
 import { bunExec, type Exec } from "#harness/grader/exec";
+import { fieldClashes, liveClash } from "#harness/grader/fields";
 import { captureFrame } from "#harness/grader/frames";
 import { attachPane, harnessCommand, openPane } from "#harness/grader/pane";
 import { type EvalResult, validateResult } from "#harness/grader/result";
-import { runScenario } from "#harness/grader/run";
+import { runPaths, runScenario } from "#harness/grader/run";
 import { summaryLine, writeJson } from "#harness/grader/run-finish";
 import { loadScenario, ROUND_1 } from "#harness/grader/scenarios";
 import { finalTruth, leakCheck, readTruth } from "#harness/grader/truth";
@@ -27,6 +29,7 @@ export const CLI_USAGE = `usage: bun packages/harness/src/grader/cli.ts <command
   run <scenario> --round <n> [--replica <n>]        run one scenario replica end to end (steps 1-13)
   result <run-dir> <file>                           validate a graded result and write <run-dir>/result.json
   scenario [<id>]                                   print one scenario as JSON, or the round-1 ids
+  round <id>...                                     refuse a round plan in which two scenarios share a target field
   launch <run-dir> --title <tab>                    open a harness pane for <run-dir>/account.json
   send <terminal> <text> [--enter]                  type into a pane
   frame <terminal> <dir> <seq>                      save one tagged screen frame
@@ -72,6 +75,21 @@ async function run(args: string[], deps: CliDeps): Promise<number> {
     );
   }
   const { clock, exec, sleep } = deps;
+  const { runDir } = runPaths({
+    replica,
+    round,
+    scenario: id,
+    worktree: deps.cwd,
+  });
+  const clash = await liveClash({
+    now: clock.now(),
+    round: dirname(runDir),
+    scenario,
+  });
+  if (clash !== undefined) {
+    deps.err(clash);
+    return 1;
+  }
   deps.out(
     await runScenario({
       clock,
@@ -117,6 +135,15 @@ function showScenario([id]: string[], deps: CliDeps): number {
     return 0;
   }
   printJson(deps, loadScenario(id));
+  return 0;
+}
+
+function planRound(ids: string[], deps: CliDeps): number {
+  if (ids.length === 0) return usage(deps);
+  const clashes = fieldClashes(ids);
+  for (const clash of clashes) deps.err(clash);
+  if (clashes.length > 0) return 1;
+  deps.out("no field is shared");
   return 0;
 }
 
@@ -227,6 +254,7 @@ const COMMANDS: Readonly<Record<string, Command>> = {
   launch,
   "leak-check": leaks,
   result,
+  round: planRound,
   run,
   scenario: showScenario,
   send,

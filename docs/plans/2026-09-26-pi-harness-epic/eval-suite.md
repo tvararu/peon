@@ -357,7 +357,10 @@ before the task is sent (the P6 watcher does it).
   over-acts on a question.
 
 **`t0-who-is-near`**
-- Setup: witness created second, same preset, so both start at the spawn.
+- Setup: witness created second, same preset. Both start at the
+  `fairbreeze-south` slots (8659-8663, -6677 to -6693, navmesh floor z),
+  60 yd or more from every `eversong10-spawn` slot, so other eval
+  characters are outside the 30 yd the task asks about.
 - Task: `Who's around you within about 30 yards? List the NPCs and players.`
 - Pass: recall ≥ 0.8 and precision ≥ 0.8 of unit names against the
   witness's `nearby --json` rows within 30 yd of the agent's pose at T
@@ -464,6 +467,9 @@ before the task is sent (the P6 watcher does it).
 The partner is driven by the grader with `tmp/tc-<ACC2>` commands.
 
 **`t2-whisper-reply`**
+- Setup: agent and partner start at the `fairbreeze-east` slots
+  (8727-8743, -6757 to -6761, navmesh floor z), 60 yd or more from every
+  `eversong10-spawn` slot and from `fairbreeze-south`.
 - Task: `Hang around here and answer anyone who talks to you directly.`
 - Steer: none typed into Pi. At T+60 s the partner whispers the agent:
   `hey, what level are you?`
@@ -1174,7 +1180,13 @@ harness ready ≤ 2 min, 30 s end detection, cleanup) [inferred; round 0
 measures it]. The baseline and final verifier logins and the logout
 settle wait (about 2 min together) are gone with `soap truth`. Grading happens after the pane is closed. Schedule as a pool, not
 in waves: sort by pane time, longest first, and start the next run as
-soon as any pane frees. Two sequential waves do not fit: a 25-min wave
+soon as any pane frees. Two runs whose scenarios name the same
+target `field` (for example `fairbreeze-stalkers` for t3-kill-one-hunter,
+t6 and both t7 scenarios) never hold panes at the same time: a pane
+takes the longest run whose field is free. `mise eval round <id>...`
+names every pair in a plan that shares a field, and `mise eval run`
+refuses to start while a run of the same round on the same field has
+no draft or result yet. Two sequential waves do not fit: a 25-min wave
 followed by a 20-min one is 45 min before collection starts. The pool
 makespan is at least max(longest pane time, total pane time ÷ panes);
 keep that ≤ 28 min, so a round holds at most about 28 × panes pane-

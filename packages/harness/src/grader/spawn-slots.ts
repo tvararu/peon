@@ -6,7 +6,12 @@ import {
 
 type SetupStep = Scenario["setup"][number];
 type Point = readonly [x: number, y: number, z: number];
-type Spawn = { map: number; zone: number; o: number; points: readonly Point[] };
+export type Spawn = {
+  map: number;
+  zone: number;
+  o: number;
+  points: readonly Point[];
+};
 
 const EVERSONG: Spawn = {
   map: 530,
@@ -72,6 +77,38 @@ const GHOSTLANDS: Spawn = {
   zone: 3433,
 };
 
+const FAIRBREEZE_SOUTH: Spawn = {
+  map: 530,
+  o: 1.686,
+  points: [
+    [8663, -6685, 75.57],
+    [8663, -6689, 75],
+    [8663, -6681, 76.48],
+    [8663, -6693, 74.75],
+    [8663, -6677, 77.67],
+    [8659, -6685, 77.92],
+    [8659, -6689, 77.45],
+    [8659, -6693, 76.96],
+  ],
+  zone: 3430,
+};
+
+const FAIRBREEZE_EAST: Spawn = {
+  map: 530,
+  o: 1.686,
+  points: [
+    [8735, -6757, 85.13],
+    [8731, -6757, 86.07],
+    [8739, -6757, 83.48],
+    [8735, -6761, 86.84],
+    [8731, -6761, 87.43],
+    [8727, -6757, 86.5],
+    [8743, -6757, 81.27],
+    [8727, -6761, 87.62],
+  ],
+  zone: 3430,
+};
+
 const SPAWN_OF: Readonly<Record<string, Spawn>> = {
   eversong10: EVERSONG,
   "eversong10-hunter": EVERSONG,
@@ -79,6 +116,22 @@ const SPAWN_OF: Readonly<Record<string, Spawn>> = {
   "eversong10-warrior": EVERSONG,
   ghostlands20: GHOSTLANDS,
 };
+
+const NAMED: Readonly<Record<string, Spawn>> = {
+  eversong: EVERSONG,
+  "fairbreeze-east": FAIRBREEZE_EAST,
+  "fairbreeze-south": FAIRBREEZE_SOUTH,
+  ghostlands: GHOSTLANDS,
+};
+
+export function spawnOf(scenario: Scenario): Spawn | undefined {
+  const { spawn } = scenario;
+  if (spawn === undefined) return SPAWN_OF[scenario.preset];
+  const named = NAMED[spawn];
+  if (named === undefined)
+    throw new Error(`unknown spawn ${spawn} in ${scenario.id}`);
+  return named;
+}
 
 export type StartSlots = { agent: SetupStep; partner: SetupStep };
 
@@ -94,11 +147,9 @@ export function startSlots(
   scenario: Scenario,
   replica: number,
 ): StartSlots | undefined {
-  const spawn = SPAWN_OF[scenario.preset];
+  const spawn = spawnOf(scenario);
   if (spawn === undefined) return undefined;
-  const group = ROUND_1.filter(
-    (id) => SPAWN_OF[loadScenario(id).preset] === spawn,
-  );
+  const group = ROUND_1.filter((id) => spawnOf(loadScenario(id)) === spawn);
   const index = group.indexOf(scenario.id);
   const slot = index < 0 ? -1 : index + (replica - 1) * group.length;
   const agent = slot < 0 ? undefined : spawn.points[2 * slot];

@@ -62,6 +62,8 @@ export type Scenario = {
   steers: { at: SteerAt; text: string }[];
   partnerActions?: PartnerAction[];
   blockedBy?: string[];
+  field?: string;
+  spawn?: string;
   checks: ScenarioCheck[];
   needsWatcher: boolean;
   navBound: boolean;

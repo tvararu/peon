@@ -22,6 +22,7 @@
       "source": "game_log"
     }
   ],
+  "field": "fairbreeze-stalkers",
   "id": "t7-question-while-acting",
   "navBound": false,
   "needsWatcher": false,

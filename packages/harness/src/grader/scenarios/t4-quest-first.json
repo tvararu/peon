@@ -23,6 +23,7 @@
       "source": "truth"
     }
   ],
+  "field": "sunstrider-wyrms",
   "id": "t4-quest-first",
   "navBound": true,
   "needsWatcher": false,

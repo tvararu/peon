@@ -24,6 +24,7 @@
   "partner": "witness",
   "preset": "eversong10",
   "setup": [],
+  "spawn": "fairbreeze-south",
   "steers": [],
   "task": "Who's around you within about 30 yards? List the NPCs and players.",
   "tier": 0
