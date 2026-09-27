@@ -196,3 +196,33 @@ each such opcode once as a `not_implemented` notice labelled with its
 `GameOpcode` name. A report made while no notice subscriber exists, such
 as one during login, is retried on the next unhandled packet. The harness
 game log shows these notices as `notice/not_implemented`.
+
+## Check citations
+
+`mise protocol:cite-check [path...]` checks the AzerothCore `path:line`
+citations in the area notes (`docs/areas/*.md`), or in the files it is
+given; `-` reads stdin, so a PR body can be piped from
+`gh pr view <N> --json body -q .body`. It reads the checkout named by
+`PEON_AZEROTHCORE_DIR`, or `~/code/azerothcore-wotlk-playerbots` on its
+`deployed` branch. It is not part of `mise ci`, because a CI host may
+lack the checkout.
+
+A citation is a `.cpp`, `.cc`, `.h`, `.hpp` or `.inl` path followed by
+`:<line>`, `:<from>-<to>` or a comma list of those. The path may be any
+suffix of the checkout path that names exactly one file. A citation
+binds to every opcode named in its paragraph, list item or table row.
+For each cited line the checker takes the enclosing function, or the
+enclosing class for a header member, or the line itself outside both.
+
+| Verdict | Meaning |
+|---|---|
+| `ok` | the file and lines exist, and the scope names a bound opcode, its `WorldSession` handler from `Opcodes.cpp` or its `WorldPackets` class |
+| `unbound` | no opcode in the block; only the file and lines are checked |
+| `missing` | no file in the checkout ends with the path |
+| `ambiguous` | more than one file ends with the path |
+| `out_of_range` | a line is past the end of the file |
+| `mismatch` | the scope names none of the bound opcodes |
+
+The last four fail the command. A helper that writes part of a body but
+does not name the opcode, such as `ByteBuffer::AppendPackedTime`, gets
+`mismatch` in a block that names the opcode.

@@ -53,6 +53,9 @@ These come from the machine, not from mise:
 - `systemctl --user` for the factory timers.
 - A C++ toolchain for `mise namigator:build`: `bash`, `cmake`, `ninja`,
   `g++` and `nm`.
+- The AzerothCore checkout for `mise protocol:cite-check`:
+  `~/code/azerothcore-wotlk-playerbots`, or the path in
+  `PEON_AZEROTHCORE_DIR`.
 
 The harness looks up `fd` and `rg` and seeds a silent stub in Pi's
 `bin/` directory when either is missing, so Pi never downloads them.

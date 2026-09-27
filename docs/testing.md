@@ -79,3 +79,9 @@ character.
 Presets, the puppet wrapper and the realm service are described in
 [factory.md](factory.md). A run that fails because the server or SOAP is
 down is an infrastructure failure: report it to the maintainer.
+
+When the live server cannot be made to send an opcode, the proof is a
+mock-world-server test with a packet built from the AzerothCore code that
+writes it. The proof cites that writer as `path:line`; check the
+citations with `mise protocol:cite-check`
+([protocol.md](protocol.md#check-citations)).
