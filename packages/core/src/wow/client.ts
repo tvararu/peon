@@ -36,11 +36,7 @@ import {
 import { type NamedTrainerState, trainerMethods } from "#wow/client-trainer";
 import { type NamedVendorState, vendorMethods } from "#wow/client-vendor";
 import type { CombatEvent, CombatState } from "#wow/combat";
-import type {
-  ControlEvent,
-  ControlState,
-  WalkOutcome,
-} from "#wow/control";
+import type { ControlEvent, ControlState, WalkOutcome } from "#wow/control";
 import type { MovementDirection, MovementInput } from "#wow/control-input";
 import type { GroundOracle } from "#wow/control-motion";
 import type { MovementGuide } from "#wow/control-mover";
