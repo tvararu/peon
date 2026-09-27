@@ -73,6 +73,7 @@ export async function openVendorWindow(
       goods().find((good) => good.itemId === itemId)?.name ?? undefined,
     { signal: ctx.signal, timeoutMs: ITEM_NAME_WAIT_MS },
   );
+  ctx.signal?.throwIfAborted();
   return ctx.handle.getVendorState().window?.items;
 }
 

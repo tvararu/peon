@@ -66,6 +66,19 @@ describe("interact vendor item names", () => {
   });
 });
 
+describe("interact vendor cancel", () => {
+  test("a cancel during the name wait stops talk", async () => {
+    const t = await marniel(STOCK, 5000);
+    const abort = new AbortController();
+    setTimeout(() => abort.abort(new Error("cancelled")), 50);
+    const run = interactSpec.run(
+      { npc: "Marniel Amberlight" },
+      toolCtx<InteractAfter>(t, abort.signal),
+    );
+    await expect(run).rejects.toThrow("cancelled");
+  });
+});
+
 describe("interact vendor unresolved names", () => {
   test("after the bound, ids are listed and item <id> picks exactly", async () => {
     const t = await marniel(STOCK.map((line) => ({ ...line, name: null })));
