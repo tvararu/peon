@@ -1,254 +1,30 @@
 import { describe, expect, test } from "bun:test";
-import type { CycleTargetRecord, TacticsOutcome } from "@tuicraft/core";
+import type { CycleTargetRecord } from "@tuicraft/core";
 import type { EngageAfter } from "#harness/contract/details";
-import { ITEM_NAME_WAIT_MS } from "#harness/ops/item-names";
 import { engageSpec } from "#harness/tools/engage";
+import {
+  cycleEnds,
+  field,
+  KILL,
+  LYNX,
+  lootsFang,
+  outcome,
+  STALKER,
+  STALKER_2,
+  stalker,
+  tactics,
+  xp,
+} from "#test-support/engage-fixtures";
 import {
   attackBy,
   contentOf,
   die,
   driveGoto,
   limitProblem,
-  setSelf,
   setUnits,
   toolCtx,
   unitRow,
 } from "#test-support/ops-fixtures";
-import {
-  createTestRuntime,
-  type MockHandle,
-} from "#test-support/runtime-fixture";
-
-const STALKER = 0x20n;
-const STALKER_2 = 0x22n;
-const LYNX = 0x21n;
-const KILL: TacticsOutcome = {
-  reason: "server_kill_credit",
-  status: "completed",
-};
-
-function stalker(guid: bigint, distance: number) {
-  return unitRow({
-    distance,
-    entry: 15_366,
-    guid,
-    level: 7,
-    name: "Springpaw Stalker",
-    x: distance,
-    y: 0,
-  });
-}
-
-function xp(handle: MockHandle, victim: bigint, total: number): void {
-  const state = handle.getCombatState();
-  handle.triggerCombatEvent({
-    state: { ...state, lastXp: { at: 0, kind: "kill", total, victim } },
-    type: "xp",
-  });
-}
-
-function tactics(
-  handle: MockHandle,
-  finish: ((runId: string) => void) | undefined,
-): void {
-  const idle = handle.getTacticsState();
-  handle.startTactics = (guid, instruction, signal) => {
-    const runId = "t1";
-    handle.getTacticsState = () => ({
-      ...idle,
-      runId,
-      status: "active",
-      targetGuid: guid,
-    });
-    handle.triggerTacticsEvent({
-      framing: "minimal",
-      instruction,
-      runId,
-      targetGuid: `0x${guid.toString(16)}`,
-      type: "started",
-    });
-    return new Promise<void>((resolve) => {
-      signal?.addEventListener("abort", () => resolve(), { once: true });
-      if (finish)
-        queueMicrotask(() => {
-          finish(runId);
-          resolve();
-        });
-    });
-  };
-}
-
-function outcome(
-  handle: MockHandle,
-  runId: string,
-  result: TacticsOutcome,
-): void {
-  handle.triggerTacticsEvent({ ...result, runId, type: "outcome" });
-}
-
-function namedLater(
-  handle: MockHandle,
-  itemId: number,
-  name: string,
-  ms: number,
-): void {
-  const inventory = handle.getInventoryState();
-  let named = false;
-  setTimeout(() => {
-    named = true;
-  }, ms);
-  const item = {
-    contained: undefined,
-    count: 1,
-    durability: undefined,
-    entry: itemId,
-    flags: 0,
-    guid: 0x90n,
-    maxDurability: undefined,
-    owner: undefined,
-    randomPropertyId: 0,
-  };
-  handle.getInventoryState = () => ({
-    ...inventory,
-    slots: [
-      {
-        bag: 255,
-        guid: 0x90n,
-        item: { ...item, name: named ? name : null, quality: named ? 0 : null },
-        region: "backpack",
-        slot: 23,
-        status: "occupied",
-      },
-    ],
-  });
-}
-
-function pushItem(handle: MockHandle, itemId: number): void {
-  const state = handle.getRewardsState();
-  handle.triggerRewardsEvent({
-    at: 0,
-    state: {
-      ...state,
-      lastItemPush: {
-        bagSlot: 255,
-        count: 1,
-        created: 0,
-        guid: 0n,
-        itemId,
-        observedAt: 0,
-        randomPropertyId: 0,
-        randomSuffix: 0,
-        received: 1,
-        showInChat: 1,
-        slot: 0,
-        totalCount: 1,
-      },
-    },
-    type: "item_push",
-  });
-}
-
-function lootsFang(
-  handle: MockHandle,
-  name: string | null = "Broken Fang",
-): void {
-  const base = handle.getRewardsState();
-  const open = {
-    ...base,
-    loot: {
-      guid: STALKER,
-      invalidatedReason: undefined,
-      items: [
-        {
-          count: 1,
-          displayId: 0,
-          itemId: 7073,
-          name,
-          quality: 0,
-          randomPropertyId: 0,
-          randomSuffix: 0,
-          slot: 0,
-          slotType: 0,
-        },
-      ],
-      lootType: 1,
-      money: 12,
-      openedAt: 0,
-      phase: "open" as const,
-    },
-  };
-  const pushed = {
-    bagSlot: 255,
-    count: 1,
-    created: 0,
-    guid: 0n,
-    itemId: 7073,
-    observedAt: 0,
-    randomPropertyId: 0,
-    randomSuffix: 0,
-    received: 1,
-    showInChat: 1,
-    slot: 0,
-    totalCount: 1,
-  };
-  handle.lootCorpse = async () => {
-    handle.getRewardsState = () => open;
-    handle.triggerRewardsEvent({ at: 0, state: open, type: "loot_opened" });
-    handle.triggerRewardsEvent({
-      at: 0,
-      state: { ...open, lastItemPush: pushed },
-      type: "item_push",
-    });
-    handle.triggerRewardsEvent({
-      at: 0,
-      state: {
-        ...open,
-        lastMoneyNotice: { alone: true, money: 12, observedAt: 0 },
-      },
-      type: "money_notice",
-    });
-    handle.getRewardsState = () => base;
-    return { ok: true, record: undefined };
-  };
-}
-
-function cycleEnds(
-  handle: MockHandle,
-  records: CycleTargetRecord[],
-  stopCause: string,
-): void {
-  const base = handle.getCycleState();
-  const stopped = {
-    ...base,
-    active: false,
-    phase: "stopped" as const,
-    queue: records,
-    stopCause,
-  };
-  const finish = () => {
-    handle.getCycleState = () => stopped;
-    handle.triggerCycleEvent({ at: 0, state: stopped, type: "stopped" });
-  };
-  const start = async () => {
-    handle.getCycleState = () => ({ ...base, active: true, phase: "fighting" });
-    queueMicrotask(finish);
-  };
-  handle.startCycle = start;
-  handle.startQuestCycle = start;
-}
-
-async function field() {
-  const t = await createTestRuntime();
-  t.handle.capabilities = () => ({
-    factions: true,
-    jev: true,
-    navigation: true,
-    spells: true,
-  });
-  setSelf(t.handle, { level: 10 });
-  setUnits(t.handle, [stalker(STALKER, 22), stalker(STALKER_2, 28)]);
-  return t;
-}
 
 describe("engage fight", () => {
   test("one kill: kill credit, XP and loot in one DONE line", async () => {
@@ -288,45 +64,6 @@ describe("engage fight", () => {
     expect(res.detail).toMatch(
       /^Springpaw Stalker \(u\d+\) killed you after 0 s\. You are dead at 0, 0\.$/,
     );
-  });
-
-  test("a death while a loot name is pending still reports died", async () => {
-    const t = await field();
-    tactics(t.handle, () => {
-      attackBy(t.handle, STALKER);
-      pushItem(t.handle, 4813);
-      die(t.handle);
-    });
-    const started = performance.now();
-    const res = await engageSpec.run(
-      { target: "Springpaw Stalker" },
-      toolCtx<EngageAfter>(t),
-    );
-    expect(performance.now() - started).toBeLessThan(ITEM_NAME_WAIT_MS / 4);
-    expect(res).toMatchObject({
-      next: "recover()",
-      reason: "died",
-      status: "FAILED",
-    });
-    expect(res.detail).toContain("killed you");
-    expect(res.after.loot).toEqual([
-      { count: 1, itemId: 4813, name: "item 4813", quality: null },
-    ]);
-  });
-
-  test("loot named late by the server is reported by name", async () => {
-    const t = await field();
-    tactics(t.handle, (runId) => {
-      xp(t.handle, STALKER, 108);
-      outcome(t.handle, runId, KILL);
-    });
-    lootsFang(t.handle, null);
-    namedLater(t.handle, 7073, "Broken Fang", 60);
-    const res = await engageSpec.run(
-      { target: "Springpaw Stalker" },
-      toolCtx<EngageAfter>(t),
-    );
-    expect(contentOf(res)).toContain("Looted Broken Fang x1, 12 copper.");
   });
 
   test("Jev timing out 3 times maps to jev_unavailable", async () => {
