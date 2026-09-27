@@ -102,8 +102,8 @@ by itself; a person can run the same commands through the launcher.
 |---|---|---|
 | `start --json` | partner, witness | Starts the puppet process and returns once the character is in the world. |
 | `send -w <name> <text>` | the `t2-whisper-reply` partner action | Whispers, and exits 0 on success. |
-| `read --json` | partner, after the run (`partner-read.jsonl`) | Prints the chat events since start, then drains them. |
-| `nearby --json` | witness, sampled into `witness.jsonl` | Prints the nearby unit rows, one JSON object per line. |
+| `read --json` | partner, after the run (`partner-read.jsonl`) | Prints one JSON envelope whose `events` array holds the chat events since start, then drains them. |
+| `nearby --json` | witness, sampled into `witness.jsonl` | Prints one JSON envelope whose `data` array holds the nearby unit rows. |
 | `stop` | the run's finish | Logs out, waits for the server logout, and the process exits. |
 
 ## Which scenarios to run
