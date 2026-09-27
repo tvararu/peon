@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "@tuicraft/core";
+import type { Unsubscribe } from "@peon/core";
 
 export type SettleInit<E> = {
   subscribe: (cb: (event: E) => void) => Unsubscribe;

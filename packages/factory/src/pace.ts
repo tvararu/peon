@@ -24,7 +24,7 @@ export type Detail = Automation & { setupDecision?: string };
 
 export type Target = [Spec, Automation];
 
-const timer = "tuicraft-factory-reaper.timer";
+const timer = "peon-factory-reaper.timer";
 const dropIn = `${homedir()}/.config/systemd/user/${timer}.d/pace.conf`;
 const activeSec = /OnUnitActiveUSec=(\S+)/;
 const bootSec = /OnBootUSec=/;

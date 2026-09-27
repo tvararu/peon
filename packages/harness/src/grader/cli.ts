@@ -2,7 +2,7 @@ import { appendFileSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { parseArgs } from "node:util";
-import { messageOf } from "@tuicraft/core/lib/errors";
+import { messageOf } from "@peon/core/lib/errors";
 import type { Clock } from "#harness/contract/services";
 import { bunExec, type Exec } from "#harness/grader/exec";
 import { awaitField, fieldClashes, liveClash } from "#harness/grader/fields";

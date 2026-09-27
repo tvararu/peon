@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { serializeConfig } from "@tuicraft/core/lib/config";
+import { serializeConfig } from "@peon/core/lib/config";
 
 export async function staleSocket(path: string): Promise<void> {
   const child = Bun.spawn(

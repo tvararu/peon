@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { QuestLogSlot } from "@tuicraft/core";
+import type { QuestLogSlot } from "@peon/core";
 import type { InteractAfter } from "#harness/contract/details";
 import { interactSpec } from "#harness/tools/interact";
 import { journalTool } from "#harness/tools/journal";

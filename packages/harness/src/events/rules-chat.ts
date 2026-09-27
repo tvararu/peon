@@ -3,7 +3,7 @@ import {
   ChatType,
   type DuelEvent,
   type GroupEvent,
-} from "@tuicraft/core";
+} from "@peon/core";
 import type { LogClass, LogDraft, LogEvent } from "#harness/contract/log";
 import type { Drafts, RuleInput } from "#harness/events/rules";
 

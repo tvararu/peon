@@ -6,8 +6,8 @@ import {
   type TrainerEvent,
   type VendorEvent,
   type VendorOutcome,
-} from "@tuicraft/core";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+} from "@peon/core";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import {
   controlDrafts,
   entityDrafts,
@@ -398,7 +398,7 @@ describe("entity, packet and notice rules", () => {
       at: 42,
       label: "SMSG_FOO",
       opcode: 0x1_23,
-      text: "[tuicraft] SMSG_FOO is not yet implemented",
+      text: "[peon] SMSG_FOO is not yet implemented",
       type: "not_implemented" as const,
     };
     expect(noticeDrafts(notice, testRuleInput())).toEqual([

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { visibleWidth } from "@earendil-works/pi-tui";
-import { ChatType } from "@tuicraft/core";
+import { ChatType } from "@peon/core";
 import type { GameLogEntry } from "#harness/contract/log";
 import { setGlyphs } from "#harness/ui/context";
 import {

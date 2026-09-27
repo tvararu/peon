@@ -3,7 +3,7 @@ import type {
   QuestState,
   RewardsEvent,
   RewardsState,
-} from "@tuicraft/core";
+} from "@peon/core";
 import type { LogDraft, LogEvent } from "#harness/contract/log";
 import { type Drafts, guidText, type RuleInput } from "#harness/events/rules";
 import { questXpDrafts } from "#harness/events/rules-xp";

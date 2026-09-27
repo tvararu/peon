@@ -3,7 +3,7 @@ import type {
   FactionRelation,
   NpcRole,
   PlayerLife,
-} from "@tuicraft/core";
+} from "@peon/core";
 import type { RunKind } from "#harness/contract/runs";
 
 export type Compass = "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW";

@@ -1,4 +1,4 @@
-import type { RecoveryEvent } from "@tuicraft/core";
+import type { RecoveryEvent } from "@peon/core";
 import type { LogDraft } from "#harness/contract/log";
 import {
   type Drafts,

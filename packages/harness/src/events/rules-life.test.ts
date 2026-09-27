@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { RecoveryEvent, RecoveryState } from "@tuicraft/core";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+import type { RecoveryEvent, RecoveryState } from "@peon/core";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import { recoveryDrafts } from "#harness/events/rules-life";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 

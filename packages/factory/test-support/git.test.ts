@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdir, rm } from "node:fs/promises";
 import { git, gitEnv } from "#test-support/git";
 
-const nested = "TUICRAFT_GIT_ENV_SUITE";
+const nested = "PEON_GIT_ENV_SUITE";
 
 async function settingsOutsideBranches(config: string): Promise<string[]> {
   const list = ["config", "--file", config, "--list", "-z"];

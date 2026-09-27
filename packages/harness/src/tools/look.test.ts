@@ -1,5 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
-import type { CombatState, NearbyRow, NpcRole } from "@tuicraft/core";
+import type { CombatState, NearbyRow, NpcRole } from "@peon/core";
 import type { WorldSnapshots } from "#harness/contract/services";
 import { createGameLog, createJsonlSink } from "#harness/log/store";
 import { createAttackLedger } from "#harness/ops/danger";

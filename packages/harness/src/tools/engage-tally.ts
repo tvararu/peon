@@ -3,7 +3,7 @@ import type {
   CycleState,
   RewardsEvent,
   TacticsEvent,
-} from "@tuicraft/core";
+} from "@peon/core";
 import type {
   CodeWord,
   EngageAfter,

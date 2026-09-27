@@ -232,7 +232,7 @@
               "options": {
                 "patterns": [
                   {
-                    "group": ["@tuicraft/**"],
+                    "group": ["@peon/**"],
                     "message": "Core imports nothing from other packages; inside core use \"#wow/…\", \"#lib/…\" or \"#test-support/…\"."
                   },
                   {
@@ -269,7 +269,7 @@
               "options": {
                 "patterns": [
                   {
-                    "group": ["@tuicraft/**"],
+                    "group": ["@peon/**"],
                     "message": "Core imports nothing from other packages; inside core use \"#wow/…\" or \"#lib/…\"."
                   },
                   {
@@ -315,13 +315,13 @@
                 "patterns": [
                   {
                     "group": [
-                      "@tuicraft/**",
-                      "!@tuicraft/core",
-                      "!@tuicraft/core/session",
-                      "!@tuicraft/core/lib/*",
-                      "!@tuicraft/core/test-support/*"
+                      "@peon/**",
+                      "!@peon/core",
+                      "!@peon/core/session",
+                      "!@peon/core/lib/*",
+                      "!@peon/core/test-support/*"
                     ],
-                    "message": "Shells import core only from \"@tuicraft/core\" (the barrel), \"@tuicraft/core/session\", \"@tuicraft/core/lib/<module>\" and, in tests, \"@tuicraft/core/test-support/<module>\"."
+                    "message": "Shells import core only from \"@peon/core\" (the barrel), \"@peon/core/session\", \"@peon/core/lib/<module>\" and, in tests, \"@peon/core/test-support/<module>\"."
                   },
                   {
                     "group": ["@earendil-works/**", "../**/@earendil-works/**"],
@@ -363,12 +363,12 @@
                 "patterns": [
                   {
                     "group": [
-                      "@tuicraft/**",
-                      "!@tuicraft/core",
-                      "!@tuicraft/core/session",
-                      "!@tuicraft/core/lib/*"
+                      "@peon/**",
+                      "!@peon/core",
+                      "!@peon/core/session",
+                      "!@peon/core/lib/*"
                     ],
-                    "message": "Shells import core only from \"@tuicraft/core\" (the barrel), \"@tuicraft/core/session\", \"@tuicraft/core/lib/<module>\" and, in tests, \"@tuicraft/core/test-support/<module>\"."
+                    "message": "Shells import core only from \"@peon/core\" (the barrel), \"@peon/core/session\", \"@peon/core/lib/<module>\" and, in tests, \"@peon/core/test-support/<module>\"."
                   },
                   {
                     "group": ["@earendil-works/**", "../**/@earendil-works/**"],
@@ -405,13 +405,13 @@
                 "patterns": [
                   {
                     "group": [
-                      "@tuicraft/**",
-                      "!@tuicraft/core",
-                      "!@tuicraft/core/session",
-                      "!@tuicraft/core/lib/*",
-                      "!@tuicraft/core/test-support/*"
+                      "@peon/**",
+                      "!@peon/core",
+                      "!@peon/core/session",
+                      "!@peon/core/lib/*",
+                      "!@peon/core/test-support/*"
                     ],
-                    "message": "Shells import core only from \"@tuicraft/core\" (the barrel), \"@tuicraft/core/session\", \"@tuicraft/core/lib/<module>\" and, in tests, \"@tuicraft/core/test-support/<module>\"."
+                    "message": "Shells import core only from \"@peon/core\" (the barrel), \"@peon/core/session\", \"@peon/core/lib/<module>\" and, in tests, \"@peon/core/test-support/<module>\"."
                   },
                   {
                     "group": [
@@ -444,12 +444,12 @@
                 "patterns": [
                   {
                     "group": [
-                      "@tuicraft/**",
-                      "!@tuicraft/core",
-                      "!@tuicraft/core/session",
-                      "!@tuicraft/core/lib/*"
+                      "@peon/**",
+                      "!@peon/core",
+                      "!@peon/core/session",
+                      "!@peon/core/lib/*"
                     ],
-                    "message": "Shells import core only from \"@tuicraft/core\" (the barrel), \"@tuicraft/core/session\", \"@tuicraft/core/lib/<module>\" and, in tests, \"@tuicraft/core/test-support/<module>\"."
+                    "message": "Shells import core only from \"@peon/core\" (the barrel), \"@peon/core/session\", \"@peon/core/lib/<module>\" and, in tests, \"@peon/core/test-support/<module>\"."
                   },
                   {
                     "group": [

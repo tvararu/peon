@@ -4,7 +4,7 @@ The Pi harness is an interactive terminal agent that plays one World of
 Warcraft 3.3.5a character. A model (by default `openai-codex/gpt-6-luna`
 at high thinking) acts through ten game tools. A human watches the same
 terminal and can type to the agent at any time. The harness is built on
-`@tuicraft/core` and is the only way to play tuicraft. The eval scenarios
+`@peon/core` and is the only way to play Peon. The eval scenarios
 that grade it are in [evals.md](evals.md).
 
 ## Run it
@@ -40,8 +40,8 @@ connection, add `--check`. The harness prints one line and exits.
 
 ## Play your own character
 
-A tuicraft `config.toml` is a profile too. Write the character you play
-into `~/.config/tuicraft/config.toml` (mode 600, since it holds the
+A Peon `config.toml` is a profile too. Write the character you play
+into `~/.config/peon/config.toml` (mode 600, since it holds the
 password):
 
 ```
@@ -55,7 +55,7 @@ Alliance), `timeout_minutes` (30), `spell_data_dir`,
 `navigation_data_dir` and `navigation_library` are optional. Then run:
 
 ```
-mise harness --profile ~/.config/tuicraft/config.toml
+mise harness --profile ~/.config/peon/config.toml
 ```
 
 The harness guard in [Credentials and safety](#credentials-and-safety)
@@ -66,13 +66,13 @@ still applies: it refuses the protected accounts and the character
 
 | Flag | Default | What it does |
 |---|---|---|
-| `--profile <path>` | required | The character to play: a soap session JSON, a soap ledger JSON, or a tuicraft `config.toml`. There is no default profile. |
-| `--run-dir <path>` | `~/.local/state/tuicraft-harness/runs/<utc>-<character>` | Where the run files go. The harness refuses a directory that already has `gamelog.jsonl`. |
+| `--profile <path>` | required | The character to play: a soap session JSON, a soap ledger JSON, or a Peon `config.toml`. There is no default profile. |
+| `--run-dir <path>` | `~/.local/state/peon-harness/runs/<utc>-<character>` | Where the run files go. The harness refuses a directory that already has `gamelog.jsonl`. |
 | `--model <provider/id>` | `openai-codex/gpt-6-luna` | The model from Pi's bundled catalog. |
 | `--thinking <level>` | `high` | The Pi thinking level. |
 | `--no-connect` | off | Start without a game connection. Use `/connect` later. |
 | `--wake on\|off` | `on` | When off, game events do not start an agent turn. |
-| `--glyphs nerd\|unicode\|ascii` | `nerd`, or `TUICRAFT_GLYPHS` | The glyph set of the human UI. The model text never has glyphs. |
+| `--glyphs nerd\|unicode\|ascii` | `nerd`, or `PEON_GLYPHS` | The glyph set of the human UI. The model text never has glyphs. |
 | `--stop-reflex on\|off` | `on` | When on, a short human message that starts with stop, halt, freeze or hold stops every action before the model reads it. |
 | `--now-per-call` | off | Adds the `[now]` line before every model call, not only at the start of a turn. |
 | `--log-entities` | off | Writes raw entity rows to the game log. |
@@ -100,7 +100,7 @@ character.
   account that starts with `RNDBOT`, and the character `Xiara`. There is
   no flag to override this.
 - **One owner per character.** A lock file
-  `~/.local/state/tuicraft-harness/locks/<ACCOUNT>-<character>.lock`
+  `~/.local/state/peon-harness/locks/<ACCOUNT>-<character>.lock`
   stops a second harness. A lock from a dead process is replaced.
 - **Secrets.** No log, run file or tool result holds the password. The
   `social` tool refuses chat text that contains the account name or the

@@ -8,7 +8,7 @@ import {
   ObjectType,
   type PlayerLife,
   type UnitEntity,
-} from "@tuicraft/core";
+} from "@peon/core";
 import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
 import {

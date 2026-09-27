@@ -1,5 +1,5 @@
 import { basename, relative } from "node:path";
-import { messageOf } from "@tuicraft/core/lib/errors";
+import { messageOf } from "@peon/core/lib/errors";
 import type { Clock } from "#harness/contract/services";
 import { type Exec, isRecord, parseJsonOutput } from "#harness/grader/exec";
 

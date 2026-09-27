@@ -1,5 +1,5 @@
 import { appendFile } from "node:fs/promises";
-import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
+import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { GameLogEntry, LogDraft } from "#harness/contract/log";
 import type { Clock, GameLog, JsonlSink } from "#harness/contract/services";
 

@@ -1,4 +1,4 @@
-import type { WorldHandle } from "@tuicraft/core";
+import type { WorldHandle } from "@peon/core";
 import type { RunRecord, RunRegistry, StopCause } from "#harness/contract/runs";
 import type {
   HarnessRuntime,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { JevUnavailableError } from "@tuicraft/core";
+import { JevUnavailableError } from "@peon/core";
 import type { ToolResult } from "#harness/contract/result";
 import {
   coreErrorResult,

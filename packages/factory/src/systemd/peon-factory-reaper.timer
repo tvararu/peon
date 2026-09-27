@@ -1,5 +1,5 @@
 [Unit]
-Description=Run the tuicraft factory reaper every minute
+Description=Run the Peon factory reaper every minute
 
 [Timer]
 OnBootSec=1min

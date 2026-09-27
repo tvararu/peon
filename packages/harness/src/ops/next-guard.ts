@@ -1,4 +1,4 @@
-import type { WorldHandle } from "@tuicraft/core";
+import type { WorldHandle } from "@peon/core";
 import type { ToolName, ToolResult } from "#harness/contract/result";
 import type { HarnessRuntime, ViewCtx } from "#harness/contract/services";
 import type { Compass } from "#harness/contract/views";

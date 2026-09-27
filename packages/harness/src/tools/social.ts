@@ -6,7 +6,7 @@ import {
   PartyResult,
   type Unsubscribe,
   type WorldHandle,
-} from "@tuicraft/core";
+} from "@peon/core";
 import type { SocialAction, SocialAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { HarnessRuntime, ToolCtx } from "#harness/contract/services";

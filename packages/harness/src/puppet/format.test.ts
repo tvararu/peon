@@ -4,7 +4,7 @@ import {
   ChatType,
   type NearbyRow,
   ObjectType,
-} from "@tuicraft/core";
+} from "@peon/core";
 import {
   chatEventObj,
   eventsJson,

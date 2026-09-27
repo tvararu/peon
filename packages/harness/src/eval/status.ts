@@ -1,4 +1,4 @@
-import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
+import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { StatusJson } from "#harness/contract/config";
 import type { HarnessRuntime } from "#harness/contract/services";
 import { writeJsonAtomic } from "#harness/eval/run-dir";

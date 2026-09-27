@@ -3,7 +3,7 @@ import type {
   ControlPose,
   RecoveryState,
   WorldHandle,
-} from "@tuicraft/core";
+} from "@peon/core";
 import type { GameLogEntry, LogEvent } from "#harness/contract/log";
 import type { ToolName } from "#harness/contract/result";
 import type {

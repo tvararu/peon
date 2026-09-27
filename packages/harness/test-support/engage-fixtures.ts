@@ -1,4 +1,4 @@
-import type { CycleTargetRecord, TacticsOutcome } from "@tuicraft/core";
+import type { CycleTargetRecord, TacticsOutcome } from "@peon/core";
 import { setSelf, setUnits, unitRow } from "#test-support/ops-fixtures";
 import {
   createTestRuntime,

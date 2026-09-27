@@ -12,7 +12,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
+import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import { harnessStateDir } from "#harness/config/flags";
 import type { RunMeta, RunPaths } from "#harness/contract/config";
 

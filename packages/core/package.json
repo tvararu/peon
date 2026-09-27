@@ -19,7 +19,7 @@
     "#test-support/*": "./test-support/*.ts",
     "#wow/*": "./src/wow/*.ts"
   },
-  "name": "@tuicraft/core",
+  "name": "@peon/core",
   "private": true,
   "type": "module"
 }

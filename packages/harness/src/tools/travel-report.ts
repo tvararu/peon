@@ -1,4 +1,4 @@
-import { messageOf } from "@tuicraft/core/lib/errors";
+import { messageOf } from "@peon/core/lib/errors";
 import type { TravelAfter, TravelGoalView } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { OpsCtx, ViewCtx } from "#harness/contract/services";

@@ -3,7 +3,7 @@ import {
   CLASS_NAMES,
   type UnitEntity,
   type WorldHandle,
-} from "@tuicraft/core";
+} from "@peon/core";
 import type { Profile } from "#harness/contract/config";
 import type { Clock, GameLog, ReadyGate } from "#harness/contract/services";
 import type { InWorld } from "#harness/contract/views";

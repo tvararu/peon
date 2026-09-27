@@ -6,8 +6,8 @@ import type {
   RewardsState,
   VendorEvent,
   VendorRequest,
-} from "@tuicraft/core";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+} from "@peon/core";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import { vendorDrafts } from "#harness/events/rules-world";
 import {
   MONEY_NOTICE_MS,

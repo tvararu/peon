@@ -1,6 +1,6 @@
-import { type CombatEvent, itemKind } from "@tuicraft/core";
-import { pause } from "@tuicraft/core/lib/abort";
-import { messageOf } from "@tuicraft/core/lib/errors";
+import { type CombatEvent, itemKind } from "@peon/core";
+import { pause } from "@peon/core/lib/abort";
+import { messageOf } from "@peon/core/lib/errors";
 import type { LootLine, RestAfter } from "#harness/contract/details";
 import type { ToolResult, ToolStatus } from "#harness/contract/result";
 import type { RunControl, RunEnd, RunStatus } from "#harness/contract/runs";

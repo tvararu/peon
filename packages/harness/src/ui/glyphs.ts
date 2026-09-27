@@ -368,7 +368,7 @@ export const resolveGlyphSet = (
   warn: (message: string) => void,
 ): GlyphSetName => {
   const [source, value] =
-    flag === undefined ? ["TUICRAFT_GLYPHS", env] : ["--glyphs", flag];
+    flag === undefined ? ["PEON_GLYPHS", env] : ["--glyphs", flag];
   if (value === undefined || value === "") return "nerd";
   if (isGlyphSetName(value)) return value;
   warn(

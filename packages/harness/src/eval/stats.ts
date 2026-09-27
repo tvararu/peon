@@ -1,4 +1,4 @@
-import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
+import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { ToolStatsRow, ToolsJson } from "#harness/contract/config";
 import type { Clock, ToolStats } from "#harness/contract/services";
 import { writeJsonAtomic } from "#harness/eval/run-dir";

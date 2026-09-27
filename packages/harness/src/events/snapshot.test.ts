@@ -2,7 +2,7 @@ import { describe, expect, jest, test } from "bun:test";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import type { RunPaths } from "#harness/contract/config";
 import type {
   SelfView,

@@ -1,8 +1,4 @@
-import type {
-  NamedTrainerSpell,
-  TrainerEvent,
-  VendorEvent,
-} from "@tuicraft/core";
+import type { NamedTrainerSpell, TrainerEvent, VendorEvent } from "@peon/core";
 import type { InteractAfter, TrainerLine } from "#harness/contract/details";
 import type { ToolCtx } from "#harness/contract/services";
 import { Refusal } from "#harness/ops/refusal";

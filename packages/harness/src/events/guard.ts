@@ -1,4 +1,4 @@
-import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
+import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { GameLogEntry, LogClass, LogDraft } from "#harness/contract/log";
 import type { Clock, HarnessRuntime } from "#harness/contract/services";
 

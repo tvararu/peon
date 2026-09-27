@@ -50,19 +50,17 @@ describe("presets", () => {
 
   test("env keys use underscores so soap.env can hold them", () => {
     expect(presetEnvKey("eversong10-hunter")).toBe(
-      "TUICRAFT_PRESET_EVERSONG10_HUNTER",
+      "PEON_PRESET_EVERSONG10_HUNTER",
     );
-    expect(presetEnvKey("fresh")).toBe("TUICRAFT_PRESET_FRESH");
+    expect(presetEnvKey("fresh")).toBe("PEON_PRESET_FRESH");
   });
 
   test("soap.env overrides the built-in template", () => {
     expect(templateFor("fresh", {})).toBe("Tplfresh");
-    expect(templateFor("fresh", { TUICRAFT_PRESET_FRESH: "Other" })).toBe(
-      "Other",
-    );
+    expect(templateFor("fresh", { PEON_PRESET_FRESH: "Other" })).toBe("Other");
     expect(
       templateFor("eversong10-mage", {
-        TUICRAFT_PRESET_EVERSONG10_MAGE: "Mage2",
+        PEON_PRESET_EVERSONG10_MAGE: "Mage2",
       }),
     ).toBe("Mage2");
   });

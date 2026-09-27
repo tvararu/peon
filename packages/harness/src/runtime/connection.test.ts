@@ -1,6 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
-import type { WorldHandle } from "@tuicraft/core";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+import type { WorldHandle } from "@peon/core";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import type { Profile } from "#harness/contract/config";
 import type { LogDraft } from "#harness/contract/log";
 import type { RunRegistry } from "#harness/contract/runs";

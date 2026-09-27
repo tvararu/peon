@@ -2,7 +2,7 @@ import {
   type CycleState,
   DEFAULT_FIGHT_INSTRUCTION,
   MIN_HP_PCT,
-} from "@tuicraft/core";
+} from "@peon/core";
 import type { EngageAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { ViewCtx } from "#harness/contract/services";

@@ -11,7 +11,7 @@ import {
   type RecoveryState,
   type UnitEntity,
   type WorldHandle,
-} from "@tuicraft/core";
+} from "@peon/core";
 
 export const SELF_GUID = 0x10n;
 export const MAP_ID = 530;

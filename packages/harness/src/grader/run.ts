@@ -1,7 +1,7 @@
 import { appendFileSync } from "node:fs";
 import { appendFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
-import { messageOf } from "@tuicraft/core/lib/errors";
+import { messageOf } from "@peon/core/lib/errors";
 import type { Clock } from "#harness/contract/services";
 import {
   type AccountNames,

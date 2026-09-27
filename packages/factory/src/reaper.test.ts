@@ -35,7 +35,7 @@ function wt(over: Partial<Worktree>): Worktree {
 
 const cli = { createdAt: now - 5 * hour, kind: "created-by-cli" };
 const main = wt({
-  displayName: "tuicraft",
+  displayName: "peon",
   id: "r::/main",
   isMainWorktree: true,
 });

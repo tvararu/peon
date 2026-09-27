@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { serializeConfig } from "@tuicraft/core/lib/config";
+import { serializeConfig } from "@peon/core/lib/config";
 import {
   accountFiles,
   removeAccountFiles,
@@ -21,9 +21,9 @@ let wrapper: string;
 let env: XdgEnv;
 
 async function writeAccountConfig(name: string, char: string): Promise<void> {
-  await mkdir(`${env.XDG_CONFIG_HOME}/tuicraft`, { recursive: true });
+  await mkdir(`${env.XDG_CONFIG_HOME}/peon`, { recursive: true });
   await writeFile(
-    `${env.XDG_CONFIG_HOME}/tuicraft/config.toml`,
+    `${env.XDG_CONFIG_HOME}/peon/config.toml`,
     `${serializeConfig({
       account: name,
       character: char,

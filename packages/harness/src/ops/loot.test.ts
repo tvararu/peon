@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { NamedRewardsState } from "@tuicraft/core";
+import type { NamedRewardsState } from "@peon/core";
 import { lootCorpseOp } from "#harness/ops/loot";
 import { toolCtx } from "#test-support/ops-fixtures";
 import {

@@ -104,6 +104,6 @@ describe("parseFlags", () => {
 
 test("harnessStateDir is a fixed home path", () => {
   expect(harnessStateDir("/home/me")).toBe(
-    "/home/me/.local/state/tuicraft-harness",
+    "/home/me/.local/state/peon-harness",
   );
 });

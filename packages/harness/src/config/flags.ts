@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import { messageOf } from "@tuicraft/core/lib/errors";
+import { messageOf } from "@peon/core/lib/errors";
 import type { HarnessFlags } from "#harness/contract/config";
 
 export class UsageError extends Error {}
@@ -9,13 +9,13 @@ export const DEFAULT_MODEL = "openai-codex/gpt-6-luna";
 
 export const USAGE = `Usage: bun packages/harness/src/entry.ts --profile <path> [options]
 
-  --profile <path>        soap session JSON, soap ledger JSON or tuicraft config.toml (required)
+  --profile <path>        soap session JSON, soap ledger JSON or Peon config.toml (required)
   --run-dir <path>        run directory (default: <state>/runs/<utc>-<character>)
   --model <provider/id>   model (default: ${DEFAULT_MODEL})
   --thinking <level>      off|minimal|low|medium|high|xhigh|max (default: high)
   --no-connect            do not log in at start; use /connect
   --wake on|off           let game events start a turn (default: on)
-  --glyphs <name>         nerd|unicode|ascii (default: nerd, or TUICRAFT_GLYPHS)
+  --glyphs <name>         nerd|unicode|ascii (default: nerd, or PEON_GLYPHS)
   --stop-reflex on|off    stop all actions when a short message starts with "stop" (default: on)
   --now-per-call          send the [now] line before every model request
   --log-entities          write raw entity rows to the game log
@@ -46,7 +46,7 @@ const OPTIONS = {
 } as const;
 
 export function harnessStateDir(home: string): string {
-  return `${home}/.local/state/tuicraft-harness`;
+  return `${home}/.local/state/peon-harness`;
 }
 
 export function parseFlags(argv: readonly string[]): HarnessFlags {

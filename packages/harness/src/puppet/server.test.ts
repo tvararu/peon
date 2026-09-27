@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { access, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import type { WorldHandle } from "@tuicraft/core";
-import { worldSession } from "@tuicraft/core/session";
-import { GameOpcode } from "@tuicraft/core/test-support/internals";
-import { startMockWorldServer } from "@tuicraft/core/test-support/mock-world-server";
+import type { WorldHandle } from "@peon/core";
+import { worldSession } from "@peon/core/session";
+import { GameOpcode } from "@peon/core/test-support/internals";
+import { startMockWorldServer } from "@peon/core/test-support/mock-world-server";
 import {
   base,
   fakeAuth,
   waitForEchoProbe,
-} from "@tuicraft/core/test-support/world-handlers-fixtures";
+} from "@peon/core/test-support/world-handlers-fixtures";
 import {
   PuppetNotRunning,
   type PuppetPaths,
@@ -67,7 +67,7 @@ async function ask(paths: PuppetPaths, request: PuppetRequest) {
 }
 
 const LONG_ROOT =
-  "/home/deity/orca/workspaces/tuicraft/pi-harness-eval-worktree/tmp/factory-account-FAC0123456789/runtime";
+  "/home/deity/orca/workspaces/peon/pi-harness-eval-worktree/tmp/factory-account-FAC0123456789/runtime";
 
 async function exists(path: string): Promise<boolean> {
   return access(path).then(

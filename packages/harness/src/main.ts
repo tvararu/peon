@@ -6,7 +6,7 @@ import {
   InteractiveMode,
   initTheme,
 } from "@earendil-works/pi-coding-agent";
-import { messageOf } from "@tuicraft/core/lib/errors";
+import { messageOf } from "@peon/core/lib/errors";
 import { harnessStateDir } from "#harness/config/flags";
 import { acquireLock, type Lock, LockError } from "#harness/config/lock";
 import { loadProfile, ProfileError } from "#harness/config/profile";
@@ -164,7 +164,7 @@ async function play({
   const rt = composeRuntime({ flags, paths, profile });
   const glyphs = resolveGlyphSet(
     flags.glyphs,
-    Bun.env["TUICRAFT_GLYPHS"],
+    Bun.env["PEON_GLYPHS"],
     deps.err,
   );
   setGlyphs(glyphs);

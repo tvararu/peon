@@ -18,7 +18,7 @@ describe("titleFor", () => {
   });
 
   test("no snapshot gives the program name", () => {
-    expect(titleFor(undefined)).toBe("tuicraft");
+    expect(titleFor(undefined)).toBe("peon");
   });
 });
 

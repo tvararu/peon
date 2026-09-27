@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { messageOf } from "@tuicraft/core/lib/errors";
+import { messageOf } from "@peon/core/lib/errors";
 import type { RunEnd, RunEvent } from "#harness/contract/runs";
 import type { JsonlSink } from "#harness/contract/services";
 import { createGameLog } from "#harness/log/store";

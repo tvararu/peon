@@ -334,7 +334,7 @@ describe("world handler tests", () => {
       const notice = await received;
       expect(notice.type).toBe("not_implemented");
       expect(notice.text).toBe(
-        "[tuicraft] Ambiguous player name is not yet implemented",
+        "[peon] Ambiguous player name is not yet implemented",
       );
 
       handle.close();

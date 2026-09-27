@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { ChatType } from "@tuicraft/core";
+import { ChatType } from "@peon/core";
 import type {
   GameLogEntry,
   HumanLineDetails,

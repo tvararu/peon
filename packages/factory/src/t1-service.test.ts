@@ -39,10 +39,10 @@ async function reason(promise: Promise<unknown>): Promise<string> {
 
 describe("serviceUrl", () => {
   test("env wins, then soap.env, then the default", () => {
-    expect(serviceUrl({ TUICRAFT_T1_SERVICE: "http://a:1/" }, {})).toBe(
+    expect(serviceUrl({ PEON_T1_SERVICE: "http://a:1/" }, {})).toBe(
       "http://a:1",
     );
-    expect(serviceUrl({}, { TUICRAFT_T1_SERVICE: "http://b:2" })).toBe(
+    expect(serviceUrl({}, { PEON_T1_SERVICE: "http://b:2" })).toBe(
       "http://b:2",
     );
     expect(serviceUrl({}, {})).toBe(defaultServiceUrl);

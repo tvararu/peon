@@ -4,7 +4,7 @@ import {
   type Config,
   parseConfig,
   serializeConfig,
-} from "@tuicraft/core/lib/config";
+} from "@peon/core/lib/config";
 import { factoryConfigDir, factoryStateDir } from "#factory/config";
 import { requirePatchedLibrary } from "#factory/namigator-library";
 import {
@@ -152,8 +152,8 @@ async function withLock<T>(fn: () => Promise<T>): Promise<T> {
 
 async function post(command: string): Promise<SoapResult> {
   const env = await soapEnv();
-  const user = required(env, "TUICRAFT_SOAP_USER");
-  const auth = btoa(`${user}:${required(env, "TUICRAFT_SOAP_PASSWORD")}`);
+  const user = required(env, "PEON_SOAP_USER");
+  const auth = btoa(`${user}:${required(env, "PEON_SOAP_PASSWORD")}`);
   const headers = {
     Authorization: `Basic ${auth}`,
     "Content-Type": "text/xml",
@@ -164,7 +164,7 @@ async function post(command: string): Promise<SoapResult> {
     method: "POST",
     signal: AbortSignal.timeout(10_000),
   };
-  const res = await fetch(required(env, "TUICRAFT_SOAP_URL"), init);
+  const res = await fetch(required(env, "PEON_SOAP_URL"), init);
   return parseResponse(await res.text());
 }
 
@@ -266,7 +266,7 @@ async function presetTemplate(preset: Preset): Promise<string> {
 }
 
 export async function navConfig(
-  configPath = `${homedir()}/.config/tuicraft/config.toml`,
+  configPath = `${homedir()}/.config/peon/config.toml`,
   library: () => Promise<string> = requirePatchedLibrary,
 ): Promise<Nav> {
   const nav: Nav = { navigation_library: await library() };
@@ -294,7 +294,7 @@ async function writeSession(
     timeout_minutes: 30,
     ...nav,
   };
-  await mkdir(`${env.XDG_CONFIG_HOME}/tuicraft`, {
+  await mkdir(`${env.XDG_CONFIG_HOME}/peon`, {
     mode: 0o700,
     recursive: true,
   });
@@ -302,7 +302,7 @@ async function writeSession(
   await chmod(env.XDG_RUNTIME_DIR, 0o700);
   await mkdir(env.XDG_STATE_HOME, { recursive: true });
   await writeFile(
-    `${env.XDG_CONFIG_HOME}/tuicraft/config.toml`,
+    `${env.XDG_CONFIG_HOME}/peon/config.toml`,
     `${serializeConfig(config)}\n`,
     { mode: 0o600 },
   );

@@ -4,7 +4,7 @@ import {
   ObjectType,
   type Position,
   type UnitEntity,
-} from "@tuicraft/core";
+} from "@peon/core";
 import type { Clock, Sighting, Sightings } from "#harness/contract/services";
 import { isUnitEntity } from "#harness/ops/refs";
 

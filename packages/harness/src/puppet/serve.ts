@@ -1,4 +1,4 @@
-import { messageOf } from "@tuicraft/core/lib/errors";
+import { messageOf } from "@peon/core/lib/errors";
 import { bootPuppet } from "#harness/puppet/boot";
 import type { PuppetLaunchMessage } from "#harness/puppet/launch";
 import { puppetPaths } from "#harness/puppet/protocol";

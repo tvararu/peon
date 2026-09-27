@@ -1,5 +1,5 @@
-import { messageOf } from "@tuicraft/core/lib/errors";
-import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
+import { messageOf } from "@peon/core/lib/errors";
+import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type {
   RunEnd,
   RunEvent,

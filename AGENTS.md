@@ -48,13 +48,13 @@ Use `mise` to run tasks (not `bun` directly, not `mise run`):
   signed off, deletes that ref, and fails the push if signoff fails
 - `mise namigator:build` — build `libnamigator.so` from the pinned upstream
   commit plus the patches in `vendor/namigator/` (in `tmp/namigator/`) and
-  install it at `~/.local/share/tuicraft/namigator/<key>/libnamigator.so`,
+  install it at `~/.local/share/peon/namigator/<key>/libnamigator.so`,
   keyed by `UPSTREAM`, `build.sh` and the patches; it skips the build when
   that file exists. `soap create` needs it
 - `bun packages/factory/src/main.ts <precheck|status|landings|qa-changes|squash-message|same-patch|soap|reap|setup>` — the dev
   factory CLI (how it works: `docs/factory.md`).
   Automations and the reaper run it from the runner clone,
-  `~/.local/share/tuicraft-factory/runner`, which follows `origin/main`
+  `~/.local/share/peon-factory/runner`, which follows `origin/main`
 - `mise factory:pace [pause|default|max]` — show the factory pace and the
   live schedules, or set it (automation schedules in place, worker and
   review caps, reaper timer). Use `max` in quiet weeks with usage to spare
@@ -102,7 +102,8 @@ Use `mise` to run tasks (not `bun` directly, not `mise run`):
 
 - omp memory is on for this repo (`.omp/config.yml`: Mnemopi, shared bank
   `tuicraft`, no transcript auto-save, no LLM calls); factory runs turn it
-  off through `packages/factory/src/omp-factory.yml`.
+  off through `packages/factory/src/omp-factory.yml`. The bank keeps the
+  project's old name, because every stored memory is keyed to it.
 - Automatic recall only fires on a close match, so call `recall` with your
   task's topic when you start. Recalled memory is background; AGENTS.md and
   the maintainer's instructions win when they conflict.
@@ -127,7 +128,7 @@ Use `mise` to run tasks (not `bun` directly, not `mise run`):
   `packages/<pkg>/test-support/<name>-fixtures.ts`. Only the
   central `opcodes.ts` table is exempt
 - Fire-and-forget promises end in `.catch(ignoreFailure)` from
-  `"#lib/ignore-failure"` in core or `"@tuicraft/core/lib/ignore-failure"`
+  `"#lib/ignore-failure"` in core or `"@peon/core/lib/ignore-failure"`
   elsewhere, not an empty callback
 - Use Bun APIs over Node.js equivalents (`Bun.file` over `node:fs`, `WebSocket`
   built-in, etc.)
@@ -164,11 +165,11 @@ Use `mise` to run tasks (not `bun` directly, not `mise run`):
   another character, prints `puppet-<ACCOUNT>: character <name>` on stderr
   and runs `bun packages/harness/src/puppet/main.ts "$@"`. `soap delete`
   removes it with the account's directories. `omp-factory` starts every omp
-  in a tuicraft worktree other than the main checkout with per-run `XDG_*`
+  in a Peon worktree other than the main checkout with per-run `XDG_*`
   directories (config and state in `factory-xdg/` in the worktree's git
-  directory, runtime in `$XDG_RUNTIME_DIR/tuicraft-factory-<hash>`) that
-  link everything in the real ones except `tuicraft`, so a run there finds
-  no tuicraft config of its own.
+  directory, runtime in `$XDG_RUNTIME_DIR/peon-factory-<hash>`) that
+  link everything in the real ones except `peon`, so a run there finds
+  no Peon config of its own.
 - Tests are colocated: `foo.ts` → `foo.test.ts` in the same directory.
 - Import from `bun:test`: `import { test, expect, describe } from "bun:test"`
 - Run with `mise test`
@@ -247,7 +248,7 @@ The maintainer must never find stale worktrees or idle agents in Orca.
   Commit and push before you stop.
 - Factory runs never create worktrees; subagents work inside the run's own
   worktree.
-- The reaper (`tuicraft-factory-reaper.timer`, every minute) is the
+- The reaper (`peon-factory-reaper.timer`, every minute) is the
   backstop. It removes finished or over-time `auto-*` runs, and removes
   other worktrees only when they have landed on `main`, are clean, and have
   been idle for more than 12 hours. It never deletes a dirty tree: it
@@ -301,26 +302,26 @@ The maintainer must never find stale worktrees or idle agents in Orca.
 
 ## Packages
 
-- The code is a Bun workspace (`packages/*`): `@tuicraft/core`
+- The code is a Bun workspace (`packages/*`): `@peon/core`
   (`packages/core`: `packages/core/src/wow`, the runtime helpers in
   `packages/core/src/lib` and shared test support in
-  `packages/core/test-support`), `@tuicraft/factory`,
-  `@tuicraft/devtools` and `@tuicraft/harness`. `bun install`
+  `packages/core/test-support`), `@peon/factory`,
+  `@peon/devtools` and `@peon/harness`. `bun install`
   (`mise bundle`) must run before any cross-package import resolves.
 - Inside a package, import with its private `#` aliases from its
   `package.json` `imports` (`"#wow/client"`, `"#harness/config/lock"`,
   `"#test-support/must"`); relative imports are for siblings and non-code files.
 - Other packages import core only through its `exports`:
-  `"@tuicraft/core"` (the barrel, `packages/core/src/wow/index.ts`),
-  `"@tuicraft/core/session"` for `worldSession` and auth,
-  `"@tuicraft/core/lib/<module>"` for the listed helpers and, in tests
-  only, `"@tuicraft/core/test-support/<module>"`. Any other subpath
+  `"@peon/core"` (the barrel, `packages/core/src/wow/index.ts`),
+  `"@peon/core/session"` for `worldSession` and auth,
+  `"@peon/core/lib/<module>"` for the listed helpers and, in tests
+  only, `"@peon/core/test-support/<module>"`. Any other subpath
   fails to resolve in Bun and tsc, and biome's `noRestrictedImports`
   rejects it too. The barrel exports no value that loads the session.
   Export a new core symbol from the barrel
   (or add an `exports` entry) before another package uses it; a test
   that needs a core internal imports it from
-  `"@tuicraft/core/test-support/internals"`.
+  `"@peon/core/test-support/internals"`.
 - Core imports nothing from another workspace package, and core runtime
   code imports no test support. Only `packages/harness` may import
   `@earendil-works/*`. biome enforces both.

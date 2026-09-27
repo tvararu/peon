@@ -1,4 +1,4 @@
-import type { QuestDialog } from "@tuicraft/core";
+import type { QuestDialog } from "@peon/core";
 import type { InteractAfter, QuestOffer } from "#harness/contract/details";
 import type { ToolCtx } from "#harness/contract/services";
 import {

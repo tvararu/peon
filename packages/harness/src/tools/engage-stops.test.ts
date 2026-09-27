@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { CycleTargetRecord } from "@tuicraft/core";
+import type { CycleTargetRecord } from "@peon/core";
 import type { EngageAfter } from "#harness/contract/details";
 import { engageSpec } from "#harness/tools/engage";
 import {

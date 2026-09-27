@@ -2,7 +2,7 @@ import type {
   NamedInventorySlot,
   NamedVendorGood,
   VendorEvent,
-} from "@tuicraft/core";
+} from "@peon/core";
 import type {
   InteractAfter,
   LootLine,

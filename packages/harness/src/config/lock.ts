@@ -2,7 +2,7 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { mkdir, open, readFile, rm } from "node:fs/promises";
 import { hostname } from "node:os";
 import { dirname } from "node:path";
-import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
+import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { Profile } from "#harness/contract/config";
 
 export type LockInit = {

@@ -11,7 +11,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { resolvePaths } from "@tuicraft/core/lib/paths";
+import { resolvePaths } from "@peon/core/lib/paths";
 import { git, gitEnv } from "#test-support/git";
 
 const launcher = `${import.meta.dir}/omp-factory`;
@@ -33,7 +33,7 @@ let other: string;
 
 function runtimeFor(gitDir: string): string {
   const hash = new Bun.CryptoHasher("sha256").update(gitDir).digest("hex");
-  return `${home}/run/tuicraft-factory-${hash.slice(0, 12)}`;
+  return `${home}/run/peon-factory-${hash.slice(0, 12)}`;
 }
 
 async function launch(
@@ -82,14 +82,14 @@ beforeAll(async () => {
   await writeFile(`${home}/bin/omp`, fakeOmp, { mode: 0o755 });
   for (const dir of [
     ".config/gh",
-    ".config/tuicraft",
+    ".config/peon",
     ".local/state/mise",
-    ".local/state/tuicraft",
-    "run/tuicraft",
+    ".local/state/peon",
+    "run/peon",
   ])
     await mkdir(`${home}/${dir}`, { recursive: true });
   await writeFile(`${home}/run/bus`, "");
-  main = `${home}/code/tuicraft`;
+  main = `${home}/code/peon`;
   worktree = `${home}/wt`;
   other = `${home}/other`;
   await mkdir(main, { recursive: true });
@@ -113,7 +113,7 @@ beforeAll(async () => {
 afterAll(() => rm(home, { force: true, recursive: true }));
 
 describe("omp-factory", () => {
-  test("keeps the default XDG dirs outside tuicraft worktrees", async () => {
+  test("keeps the default XDG dirs outside peon worktrees", async () => {
     for (const cwd of [main, other]) {
       const run = await launch(cwd, "hello");
       expect(run).toEqual({
@@ -125,7 +125,7 @@ describe("omp-factory", () => {
     }
   });
 
-  test("gives a linked worktree per-run dirs mirroring all but tuicraft", async () => {
+  test("gives a linked worktree per-run dirs mirroring all but peon", async () => {
     const run = await launch(worktree, "hello");
     const gitDir = `${main}/.git/worktrees/wt`;
     const base = `${gitDir}/factory-xdg`;
@@ -148,12 +148,12 @@ describe("omp-factory", () => {
       XDG_RUNTIME_DIR: run.runtime,
       XDG_STATE_HOME: run.state,
     });
-    expect(paths.configPath).toBe(`${base}/config/tuicraft/config.toml`);
-    expect(paths.socketPath).toBe(`${run.runtime}/tuicraft/sock`);
+    expect(paths.configPath).toBe(`${base}/config/peon/config.toml`);
+    expect(paths.socketPath).toBe(`${run.runtime}/peon/sock`);
     expect(await git(worktree, "status", "--porcelain", "--ignored")).toBe("");
   });
 
-  test("isolates a factory role even outside a tuicraft worktree", async () => {
+  test("isolates a factory role even outside a peon worktree", async () => {
     const run = await launch(other, "[factory:qa] go");
     const base = `${other}/tmp/factory-xdg`;
     expect(run.config).toBe(`${base}/config`);
@@ -189,8 +189,8 @@ describe("omp-factory", () => {
 
   test("deletes runtime dirs of removed worktrees only", async () => {
     const live = (await launch(worktree, "hello")).runtime;
-    const dead = `${home}/run/tuicraft-factory-000000000000`;
-    await mkdir(`${dead}/tuicraft`, { recursive: true });
+    const dead = `${home}/run/peon-factory-000000000000`;
+    await mkdir(`${dead}/peon`, { recursive: true });
     await symlink(`${home}/gone`, `${dead}/.factory-gitdir`);
     await launch(other, "[factory:qa] go");
     await expect(stat(dead)).rejects.toThrow();

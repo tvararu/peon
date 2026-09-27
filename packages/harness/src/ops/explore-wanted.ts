@@ -1,4 +1,4 @@
-import { grayLevel } from "@tuicraft/core";
+import { grayLevel } from "@peon/core";
 import type { ViewCtx } from "#harness/contract/services";
 import type { UnitView } from "#harness/contract/views";
 import { selfView } from "#harness/ops/views";

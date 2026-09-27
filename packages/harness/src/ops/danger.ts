@@ -1,4 +1,4 @@
-import type { CombatEvent, EntityEvent, WorldHandle } from "@tuicraft/core";
+import type { CombatEvent, EntityEvent, WorldHandle } from "@peon/core";
 import type {
   AttackLedger,
   Clock,

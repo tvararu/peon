@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "tuicraft",
+      "name": "peon",
       "devDependencies": {
         "@types/bun": "latest",
       },
@@ -12,28 +12,28 @@
       },
     },
     "packages/core": {
-      "name": "@tuicraft/core",
+      "name": "@peon/core",
     },
     "packages/devtools": {
-      "name": "@tuicraft/devtools",
+      "name": "@peon/devtools",
       "dependencies": {
-        "@tuicraft/core": "workspace:*",
+        "@peon/core": "workspace:*",
       },
     },
     "packages/factory": {
-      "name": "@tuicraft/factory",
+      "name": "@peon/factory",
       "dependencies": {
-        "@tuicraft/core": "workspace:*",
+        "@peon/core": "workspace:*",
       },
     },
     "packages/harness": {
-      "name": "@tuicraft/harness",
+      "name": "@peon/harness",
       "dependencies": {
         "@earendil-works/pi-agent-core": "0.87.1",
         "@earendil-works/pi-ai": "0.87.1",
         "@earendil-works/pi-coding-agent": "0.87.1",
         "@earendil-works/pi-tui": "0.87.1",
-        "@tuicraft/core": "workspace:*",
+        "@peon/core": "workspace:*",
       },
     },
   },
@@ -180,13 +180,13 @@
 
     "@stablelib/base64": ["@stablelib/base64@1.0.1", "", {}, "sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ=="],
 
-    "@tuicraft/core": ["@tuicraft/core@workspace:packages/core"],
+    "@peon/core": ["@peon/core@workspace:packages/core"],
 
-    "@tuicraft/devtools": ["@tuicraft/devtools@workspace:packages/devtools"],
+    "@peon/devtools": ["@peon/devtools@workspace:packages/devtools"],
 
-    "@tuicraft/factory": ["@tuicraft/factory@workspace:packages/factory"],
+    "@peon/factory": ["@peon/factory@workspace:packages/factory"],
 
-    "@tuicraft/harness": ["@tuicraft/harness@workspace:packages/harness"],
+    "@peon/harness": ["@peon/harness@workspace:packages/harness"],
 
     "@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
 

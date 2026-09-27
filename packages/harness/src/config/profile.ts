@@ -1,11 +1,7 @@
 import { homedir } from "node:os";
-import {
-  type Config,
-  clientConfig,
-  parseConfig,
-} from "@tuicraft/core/lib/config";
-import { messageOf } from "@tuicraft/core/lib/errors";
-import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
+import { type Config, clientConfig, parseConfig } from "@peon/core/lib/config";
+import { messageOf } from "@peon/core/lib/errors";
+import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { Profile, ProfileSource } from "#harness/contract/config";
 
 export type ProfileErrorCode =
@@ -117,7 +113,7 @@ async function parseProfile({
     return { config: await ledgerConfig(json, home), source: "soap_ledger" };
   throw new ProfileError(
     "unknown_format",
-    `${path} is not a soap session, a soap ledger entry or a tuicraft config.toml.`,
+    `${path} is not a soap session, a soap ledger entry or a Peon config.toml.`,
   );
 }
 
@@ -165,7 +161,7 @@ function field(json: Json, name: string): string {
 
 async function sessionConfig(json: Json): Promise<Config> {
   const character = field(json, "character");
-  const path = `${field(json, "dir")}/config/tuicraft/config.toml`;
+  const path = `${field(json, "dir")}/config/peon/config.toml`;
   const base = parseToml(await readText(path), path);
   const logsIn =
     base.account.toUpperCase() === field(json, "account").toUpperCase() &&
@@ -179,7 +175,7 @@ async function sessionConfig(json: Json): Promise<Config> {
 }
 
 async function ledgerConfig(json: Json, home: string): Promise<Config> {
-  const nav = await navFields(`${home}/.config/tuicraft/config.toml`);
+  const nav = await navFields(`${home}/.config/peon/config.toml`);
   const language = ALLIANCE_PRESETS.includes(field(json, "preset")) ? 7 : 1;
   const [account, character, password] = [
     field(json, "account"),

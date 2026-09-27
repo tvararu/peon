@@ -1,4 +1,4 @@
-import { type Entity, ObjectType, type UnitEntity } from "@tuicraft/core";
+import { type Entity, ObjectType, type UnitEntity } from "@peon/core";
 import type { RefTable } from "#harness/contract/services";
 
 const REF = /^u([1-9]\d*)$/;

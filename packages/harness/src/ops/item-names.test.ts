@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import {
   awaitItemNames,
   itemLabelIn,

@@ -5,8 +5,8 @@ import {
   type NavigationState,
   nextStepFor,
   type TacticsEvent,
-} from "@tuicraft/core";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+} from "@peon/core";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import {
   awaitCycle,
   awaitGoto,

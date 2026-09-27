@@ -1,4 +1,4 @@
-import type { EntityEvent } from "@tuicraft/core";
+import type { EntityEvent } from "@peon/core";
 import type { LogClass } from "#harness/contract/log";
 import {
   type Drafts,

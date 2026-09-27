@@ -1,6 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
-import { type ChatMessage, ChatType } from "@tuicraft/core";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+import { type ChatMessage, ChatType } from "@peon/core";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import type { RunEnd } from "#harness/contract/runs";
 import { createWakeGuard } from "#harness/events/guard";
 import { createEventRouter } from "#harness/events/router";
@@ -106,9 +106,8 @@ describe("chatDrafts", () => {
 
   test("quiet system lines are log, other system lines passive", () => {
     expect(
-      one(
-        msg(ChatType.SYSTEM, "", "[tuicraft] SMSG_FOO is not yet implemented"),
-      )?.class,
+      one(msg(ChatType.SYSTEM, "", "[peon] SMSG_FOO is not yet implemented"))
+        ?.class,
     ).toBe("log");
     expect(one(msg(ChatType.SYSTEM, "", "Welcome to AzerothCore"))?.class).toBe(
       "log",

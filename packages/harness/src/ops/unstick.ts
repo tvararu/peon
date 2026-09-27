@@ -1,4 +1,4 @@
-import { ObjectType } from "@tuicraft/core";
+import { ObjectType } from "@peon/core";
 import type { OpsCtx } from "#harness/contract/services";
 import type { Compass, PoseView } from "#harness/contract/views";
 import { ahead, compassOf, SEARCH, STEP, turned } from "#harness/ops/compass";
