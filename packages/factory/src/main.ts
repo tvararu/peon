@@ -34,6 +34,7 @@ const usage = `usage: mise factory <command>
   squash-message <pr>                     JSON subject and body to land
   soap <create|delete|sweep|list> ...    per-run game accounts on the realm
   soap <health|truth|setup|reset> ...    realm service reads and setup
+  soap gm <ACCOUNT> <verb> ...           GM staging on your own accounts
   reap [--dry-run]                        worktree, account, prompt backstop
   setup <automations|wrapper> [--apply]  automations, omp wrapper link`;
 

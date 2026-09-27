@@ -1,4 +1,12 @@
-import { chmod, mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
+import {
+  appendFile,
+  chmod,
+  mkdir,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { homedir } from "node:os";
 import {
   type Config,
@@ -44,6 +52,14 @@ export type Session = Names & {
   password: string;
   dir: string;
   wrapper: string;
+};
+
+export type ConsoleDeps = {
+  cwd: string;
+  load: (account: string) => Promise<Ledger | undefined>;
+  log: (line: string) => Promise<void>;
+  now: () => Date;
+  run: (command: string) => Promise<SoapResult>;
 };
 
 export const factoryAccount = /^FAC[0-9A-F]{10}$/;
@@ -418,4 +434,50 @@ export async function sweep(hours: number): Promise<string[]> {
     );
   }
   return deleted;
+}
+
+function gmLogPath(): string {
+  return `${factoryStateDir()}/gm.log`;
+}
+
+async function appendGmLog(line: string): Promise<void> {
+  await mkdir(factoryStateDir(), { recursive: true });
+  await appendFile(gmLogPath(), line, { mode: 0o600 });
+}
+
+async function assertOwned(
+  account: string,
+  { cwd, load }: ConsoleDeps,
+): Promise<void> {
+  assertFactory(account);
+  const entry = await load(account);
+  if (!entry) throw new Error(`no ledger entry for ${account}`);
+  if (entry.root !== cwd)
+    throw new Error(`${account} was not created in this worktree (${cwd})`);
+  if (entry.character !== characterName(account))
+    throw new Error(`${account} ledger names another character`);
+}
+
+export async function consoleCommand(
+  accounts: string[],
+  command: string,
+  overrides: Partial<ConsoleDeps> = {},
+): Promise<SoapResult> {
+  const deps: ConsoleDeps = {
+    cwd: process.cwd(),
+    load: loadLedger,
+    log: appendGmLog,
+    now: () => new Date(),
+    run: soap,
+    ...overrides,
+  };
+  if (accounts.length === 0)
+    throw new Error("console command needs an account");
+  for (const account of accounts) await assertOwned(account, deps);
+  const res = await deps.run(command);
+  const at = deps.now().toISOString();
+  const { ok, text } = res;
+  const record = { accounts, at, command, ok, root: deps.cwd, text };
+  await deps.log(`${JSON.stringify(record)}\n`);
+  return res;
 }
