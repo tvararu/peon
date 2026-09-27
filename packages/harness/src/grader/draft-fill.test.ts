@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { writeFile } from "node:fs/promises";
 import { scratchDir } from "@peon/core/test-support/scratch";
 import { observedChecks, truthSummary } from "#harness/grader/draft-fill";
-import type { ScenarioCheck } from "#harness/grader/scenarios";
+import type { CheckEvidence, ScenarioCheck } from "#harness/grader/scenarios";
 import type { Truth } from "#harness/grader/truth";
 import { totalXp } from "#harness/grader/xp-table";
 
@@ -77,13 +77,15 @@ async function runDir(files: Record<string, string>): Promise<string> {
   return dir;
 }
 
-const gl = (id: string, text: string): ScenarioCheck => ({
-  expect: text,
+const gl = (id: string, evidence?: CheckEvidence): ScenarioCheck => ({
+  evidence,
+  expect: id,
   id,
   source: "game_log",
 });
-const tr = (id: string, text: string): ScenarioCheck => ({
-  expect: text,
+const tr = (id: string, evidence?: CheckEvidence): ScenarioCheck => ({
+  evidence,
+  expect: id,
   id,
   source: "truth",
 });
@@ -107,10 +109,7 @@ describe("observedChecks on game_log", () => {
   test("puts the row of the named event and id in observed with a ref", async () => {
     const dir = await runDir({ "gamelog.jsonl": `${gamelog}\n` });
     const [check] = await observedChecks(dir, [
-      gl(
-        "rewarded-packet",
-        "the GL rewarded packet (quest/rewarded for 8325) corroborates",
-      ),
+      gl("rewarded-packet", { events: ["quest/rewarded"], ids: [8325] }),
     ]);
     expect(check?.ref).toBe("gamelog.jsonl:3");
     expect(check?.observed).toMatchObject({
@@ -124,10 +123,7 @@ describe("observedChecks on game_log", () => {
   test("a missing event gives a null match and the last related row", async () => {
     const dir = await runDir({ "gamelog.jsonl": gamelog });
     const [check] = await observedChecks(dir, [
-      gl(
-        "rewarded-packet",
-        "the GL rewarded packet (quest/rewarded for 783) corroborates",
-      ),
+      gl("rewarded-packet", { events: ["quest/rewarded"], ids: [783] }),
     ]);
     expect(check?.ref).toBeUndefined();
     expect(check?.observed).toMatchObject({
@@ -137,7 +133,7 @@ describe("observedChecks on game_log", () => {
     });
   });
 
-  test("explicit ids and events on the check override the text", async () => {
+  test("ids keep only the named events that hold one of them", async () => {
     const dir = await runDir({
       "gamelog.jsonl": [
         row(1, "combat/cast", { spellId: 2050 }),
@@ -146,11 +142,7 @@ describe("observedChecks on game_log", () => {
       ].join("\n"),
     });
     const [check] = await observedChecks(dir, [
-      {
-        ...gl("ranged-cast", "ranged casts"),
-        events: ["combat/cast"],
-        ids: [75, 3044],
-      },
+      gl("ranged-cast", { events: ["combat/cast"], ids: [75, 3044] }),
     ]);
     expect(check?.observed).toMatchObject({
       count: 2,
@@ -168,7 +160,7 @@ describe("observedChecks on game_log", () => {
       ].join("\n"),
     });
     const [check] = await observedChecks(dir, [
-      gl("halted", "no movement (control/move_*) after the stop"),
+      gl("halted", { events: ["control/move_*"] }),
     ]);
     expect(check?.observed).toMatchObject({
       count: 2,
@@ -177,19 +169,20 @@ describe("observedChecks on game_log", () => {
     });
   });
 
-  test("a slash pair outside the game log domains is not an event", async () => {
+  test("a check that names no event stays null", async () => {
     const dir = await runDir({ "gamelog.jsonl": gamelog });
-    const [check] = await observedChecks(dir, [
-      gl("vitals", "within 5% of GL vitals (T health/power are saved values)"),
+    const filled = await observedChecks(dir, [
+      gl("vitals"),
+      gl("vitals", { events: [] }),
     ]);
-    expect(check?.observed).toBeNull();
+    expect(filled.map((check) => check.observed)).toEqual([null, null]);
   });
 
   test("a check that names no event and a missing game log stay null", async () => {
     const dir = await runDir({});
     const filled = await observedChecks(dir, [
-      gl("vitals", "within 5% of GL vitals (T health/power are saved values)"),
-      gl("kill", "GL combat/kill_credit for a Springpaw Stalker"),
+      gl("vitals"),
+      gl("kill", { events: ["combat/kill_credit"] }),
     ]);
     expect(filled.map((check) => check.observed)).toEqual([null, null]);
   });
@@ -204,7 +197,7 @@ describe("observedChecks on truth", () => {
   test("a delta total XP check gets level, xp and the computed delta only", async () => {
     const dir = await runDir(files({ level: 11, xp: 100 }));
     const [check] = await observedChecks(dir, [
-      tr("total-xp", "T delta total XP > 0"),
+      tr("total-xp", { delta: ["totalXp"], truth: ["totalXp"] }),
     ]);
     expect(check?.observed).toEqual({
       baseline: { level: 10, totalXp: totalXp(10, 40), xp: 40 },
@@ -216,10 +209,7 @@ describe("observedChecks on truth", () => {
   test("a rewarded check gets the quest lists only", async () => {
     const dir = await runDir(files({ quests: [], rewardedQuests: [8325] }));
     const [check] = await observedChecks(dir, [
-      tr(
-        "rewarded",
-        "8325 is in T final rewardedQuests and absent from T final quests",
-      ),
+      tr("rewarded", { truth: ["quests"] }),
     ]);
     expect(check?.observed).toEqual({
       baseline: { quests: [{ quest: 8325, status: 3 }], rewardedQuests: [] },
@@ -227,7 +217,7 @@ describe("observedChecks on truth", () => {
     });
   });
 
-  test("an item check gets the changed and named items with deltas", async () => {
+  test("an item check gets the changed and listed items with deltas", async () => {
     const dir = await runDir(
       files({
         inventory: [
@@ -243,9 +233,7 @@ describe("observedChecks on truth", () => {
         ],
       }),
     );
-    const [check] = await observedChecks(dir, [
-      tr("water", "T item 159 count, summed over every T row, has delta >= +5"),
-    ]);
+    const [check] = await observedChecks(dir, [tr("water", { items: [159] })]);
     expect(check?.observed).toEqual({
       items: {
         "159": {
@@ -259,14 +247,15 @@ describe("observedChecks on truth", () => {
     });
   });
 
-  test("an item named in the check is kept even when its count is unchanged", async () => {
+  test("a listed item is kept even when its count is unchanged or zero", async () => {
     const dir = await runDir(files({}));
     const [check] = await observedChecks(dir, [
-      tr("dagger", "T delta Worn Dagger count < 0"),
+      tr("dagger", { items: [2092, 2515] }),
     ]);
     expect(check?.observed).toEqual({
       items: {
         "2092": { baseline: 1, delta: 0, final: 1, name: "Worn Dagger" },
+        "2515": { baseline: 0, delta: 0, final: 0 },
       },
     });
   });
@@ -285,10 +274,7 @@ describe("observedChecks on truth", () => {
       }),
     );
     const [check] = await observedChecks(dir, [
-      tr(
-        "at-marniel",
-        "T final position within 5 yd of marniel (8700.4, -6638.4, 72.8, map 530)",
-      ),
+      tr("at-marniel", { point: { x: 8700.4, y: -6638.4 } }),
     ]);
     expect(check?.observed).toEqual({
       distance2d: 5,
@@ -309,7 +295,7 @@ describe("observedChecks on truth", () => {
   test("an alive check gets alive and deathState", async () => {
     const dir = await runDir(files({}));
     const [check] = await observedChecks(dir, [
-      tr("alive", "T final alive is true and T final deathState is alive"),
+      tr("alive", { truth: ["alive"] }),
     ]);
     expect(check?.observed).toEqual({
       baseline: { alive: true, deathState: "alive" },
@@ -320,7 +306,7 @@ describe("observedChecks on truth", () => {
   test("a money check gets money and its delta", async () => {
     const dir = await runDir(files({ money: 50_030 }));
     const [check] = await observedChecks(dir, [
-      tr("money", "T delta money >= +30"),
+      tr("money", { delta: ["money"], truth: ["money"] }),
     ]);
     expect(check?.observed).toEqual({
       baseline: { money: 50_000 },
@@ -332,7 +318,7 @@ describe("observedChecks on truth", () => {
   test("a missing final truth leaves final null and no delta", async () => {
     const dir = await runDir({ "baseline.json": JSON.stringify(truth()) });
     const [check] = await observedChecks(dir, [
-      tr("level", "the stated level equals T baseline level"),
+      tr("level", { delta: ["money"], truth: ["level"] }),
     ]);
     expect(check?.observed).toEqual({ baseline: { level: 10 }, final: null });
   });
@@ -340,8 +326,17 @@ describe("observedChecks on truth", () => {
   test("no truth at all leaves the check null", async () => {
     const dir = await runDir({});
     const [check] = await observedChecks(dir, [
-      tr("level", "the stated level"),
+      tr("level", { truth: ["level"] }),
     ]);
     expect(check?.observed).toBeNull();
+  });
+
+  test("a check that selects no truth field gets the whole summary", async () => {
+    const dir = await runDir(files({ money: 50_030 }));
+    const [check] = await observedChecks(dir, [tr("state")]);
+    expect(check?.observed).toEqual({
+      baseline: truthSummary(truth()),
+      final: truthSummary(truth({ money: 50_030 })),
+    });
   });
 });

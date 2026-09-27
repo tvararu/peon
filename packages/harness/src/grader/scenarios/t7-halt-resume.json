@@ -7,11 +7,17 @@
   },
   "checks": [
     {
+      "evidence": {
+        "events": ["combat/cast", "combat/attack_start", "control/move_*"]
+      },
       "expect": "GL shows no cast, attack or movement (combat/cast, combat/attack_start, control/move_*) from the character later than 5 s after the stop steer until the resume steer",
       "id": "halted",
       "source": "game_log"
     },
     {
+      "evidence": {
+        "events": ["combat/cast"]
+      },
       "expect": "after resume, 3 kills total with no non-Smite damage spell cast (GL combat/cast)",
       "id": "smite-only-kills",
       "source": "game_log"

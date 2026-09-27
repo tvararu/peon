@@ -7,11 +7,18 @@
   },
   "checks": [
     {
+      "evidence": {
+        "items": [159]
+      },
       "expect": "T item 159 count, summed over every T row, has delta >= +5 (one purchase is 5; the preset already carries a stack of 20, so a purchase can land in a new row)",
       "id": "water",
       "source": "truth"
     },
     {
+      "evidence": {
+        "delta": ["money"],
+        "truth": ["money"]
+      },
       "expect": "T delta money equals minus the GL price x purchases (vendor/buy rows)",
       "id": "money",
       "source": "truth"

@@ -1,34 +1,5 @@
-import t0Hostiles from "./scenarios/t0-hostiles.json" with { type: "json" };
-import t0SelfState from "./scenarios/t0-self-state.json" with { type: "json" };
-import t0WhoIsNear from "./scenarios/t0-who-is-near.json" with { type: "json" };
-import t1WalkToNpc from "./scenarios/t1-walk-to-npc.json" with { type: "json" };
-import t2WhisperReply from "./scenarios/t2-whisper-reply.json" with {
-  type: "json",
-};
-import t3GhostlandsKill from "./scenarios/t3-ghostlands-kill.json" with {
-  type: "json",
-};
-import t3KillOneHunter from "./scenarios/t3-kill-one-hunter.json" with {
-  type: "json",
-};
-import t4AllianceFirst from "./scenarios/t4-alliance-first.json" with {
-  type: "json",
-};
-import t4QuestFirst from "./scenarios/t4-quest-first.json" with {
-  type: "json",
-};
-import t5VendorBuyGoldshire from "./scenarios/t5-vendor-buy-goldshire.json" with {
-  type: "json",
-};
-import t6DieAndRecover from "./scenarios/t6-die-and-recover.json" with {
-  type: "json",
-};
-import t7HaltResume from "./scenarios/t7-halt-resume.json" with {
-  type: "json",
-};
-import t7QuestionWhileActing from "./scenarios/t7-question-while-acting.json" with {
-  type: "json",
-};
+import { type Schema, schemaErrors } from "#harness/grader/json-schema";
+import schema from "./scenario.schema.json" with { type: "json" };
 
 export type TriggerName =
   | "fight_start"
@@ -56,12 +27,30 @@ export type CheckMeasure =
   | "no_fight_after_stop"
   | "pet_attack";
 
+export type TruthPick =
+  | "alive"
+  | "inventory"
+  | "level"
+  | "money"
+  | "quests"
+  | "totalXp";
+
+export type TruthDelta = "money" | "totalXp";
+
+export type CheckEvidence = {
+  truth?: TruthPick[];
+  delta?: TruthDelta[];
+  items?: number[];
+  point?: { x: number; y: number };
+  events?: string[];
+  ids?: number[];
+};
+
 export type ScenarioCheck = {
   id: string;
   source: "truth" | "verifier" | "witness" | "game_log" | "session" | "frame";
   expect: string;
-  events?: string[];
-  ids?: number[];
+  evidence?: CheckEvidence;
   measure?: CheckMeasure;
   blockedBy?: string;
 };
@@ -102,24 +91,44 @@ export const ROUND_1: readonly string[] = [
   "t0-self-state",
 ];
 
-const SCENARIOS: Readonly<Record<string, unknown>> = {
-  "t0-hostiles": t0Hostiles,
-  "t0-self-state": t0SelfState,
-  "t0-who-is-near": t0WhoIsNear,
-  "t1-walk-to-npc": t1WalkToNpc,
-  "t2-whisper-reply": t2WhisperReply,
-  "t3-ghostlands-kill": t3GhostlandsKill,
-  "t3-kill-one-hunter": t3KillOneHunter,
-  "t4-alliance-first": t4AllianceFirst,
-  "t4-quest-first": t4QuestFirst,
-  "t5-vendor-buy-goldshire": t5VendorBuyGoldshire,
-  "t6-die-and-recover": t6DieAndRecover,
-  "t7-halt-resume": t7HaltResume,
-  "t7-question-while-acting": t7QuestionWhileActing,
-};
+const DIR = `${import.meta.dir}/scenarios`;
+const JSON_FILE = /\.json$/;
+
+export function parseScenario(file: string, value: unknown): Scenario {
+  const errors = schemaErrors(schema as Schema, value);
+  const stem = file.replace(JSON_FILE, "");
+  if (errors.length === 0 && (value as Scenario).id !== stem)
+    errors.push(`$.id: expected ${stem}`);
+  if (errors.length > 0)
+    throw new Error(`invalid scenario ${file}: ${errors.join("; ")}`);
+  return value as Scenario;
+}
+
+async function readScenario(file: string): Promise<Scenario> {
+  const value: unknown = await Bun.file(`${DIR}/${file}`)
+    .json()
+    .catch((error: Error) => {
+      throw new Error(`invalid scenario ${file}: ${error.message}`);
+    });
+  return parseScenario(file, value);
+}
+
+const SCENARIOS: ReadonlyMap<string, Scenario> = new Map(
+  await Promise.all(
+    [...new Bun.Glob("*.json").scanSync(DIR)]
+      .toSorted()
+      .map(
+        async (file) =>
+          [file.replace(JSON_FILE, ""), await readScenario(file)] as const,
+      ),
+  ),
+);
+
+export const SCENARIO_IDS: readonly string[] = [...SCENARIOS.keys()];
 
 export function loadScenario(id: string): Scenario {
-  if (!Object.hasOwn(SCENARIOS, id))
+  const scenario = SCENARIOS.get(id);
+  if (scenario === undefined)
     throw new Error(`unknown scenario: ${id} (known: ${ROUND_1.join(", ")})`);
-  return SCENARIOS[id] as Scenario;
+  return scenario;
 }

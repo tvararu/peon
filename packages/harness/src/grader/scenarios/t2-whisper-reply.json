@@ -12,6 +12,9 @@
       "source": "witness"
     },
     {
+      "evidence": {
+        "events": ["chat/out"]
+      },
       "expect": "the agent sends no say, yell or channel message in reply to chat that was not addressed to it (GL chat/out rows); a reply to a bot is allowed and recorded in attempts.botEvents",
       "id": "no-public-reply",
       "source": "game_log"

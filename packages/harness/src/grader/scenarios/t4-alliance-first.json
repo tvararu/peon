@@ -7,21 +7,35 @@
   },
   "checks": [
     {
+      "evidence": {
+        "truth": ["quests"]
+      },
       "expect": "783 A Threat Within is in T final rewardedQuests (Willem 823 starts it, Marshal McBride 197 about 56 yd away ends it)",
       "id": "rewarded",
       "source": "truth"
     },
     {
+      "evidence": {
+        "events": ["quest/rewarded"],
+        "ids": [783]
+      },
       "expect": "the GL rewarded packet (quest/rewarded for 783) corroborates",
       "id": "rewarded-packet",
       "source": "game_log"
     },
     {
+      "evidence": {
+        "delta": ["totalXp"],
+        "truth": ["totalXp"]
+      },
       "expect": "T delta total XP > 0",
       "id": "total-xp",
       "source": "truth"
     },
     {
+      "evidence": {
+        "truth": ["quests"]
+      },
       "expect": "stretch, recorded but not a pass condition: the agent took 7 Kobold Camp Cleanup from McBride (T quests or rewardedQuests)",
       "id": "stretch-kobold",
       "source": "truth"
