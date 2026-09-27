@@ -8,7 +8,7 @@ import type {
 import type { AttackerView, DangerView } from "#harness/contract/views";
 import { guidHex } from "#harness/ops/refs";
 
-function selfHealthOf(
+export function selfHealthOf(
   handle: WorldHandle,
   event: EntityEvent,
 ): number | undefined {

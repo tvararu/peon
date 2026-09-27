@@ -1,6 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { RestAfter } from "#harness/contract/details";
-import { createAttackLedger } from "#harness/ops/danger";
 import { REST_MAX_MS, restSpec } from "#harness/tools/rest";
 import {
   attackBy,
@@ -67,11 +66,6 @@ function drinkAura(handle: MockHandle): void {
 
 async function flush(): Promise<void> {
   for (let i = 0; i < 20; i += 1) await Promise.resolve();
-}
-
-function withAttackers(handle: MockHandle, attackers: bigint[]): void {
-  const next = { ...handle.getCombatState(), attackers };
-  handle.getCombatState = () => next;
 }
 
 function selfHp(handle: MockHandle, health: number): void {
@@ -295,6 +289,12 @@ describe("rest", () => {
     },
     { hit: "during", hp: 180, name: "a hit during the rest", verb: "hit" },
     {
+      hit: "first",
+      hp: 180,
+      name: "a hit seen before its attack start",
+      verb: "hit",
+    },
+    {
       hit: "before",
       hp: 200,
       name: "a hit only before the rest",
@@ -303,12 +303,8 @@ describe("rest", () => {
   ] as const)(
     "$name stops the rest with an engage step",
     async ({ hit, hp, verb }) => {
-      const now = { t: 1000 };
-      const clock = { now: () => now.t };
-      const attacks = createAttackLedger(clock);
-      const t = await createTestRuntime({ parts: { attacks, clock } });
+      const t = await createTestRuntime();
       setSelf(t.handle, { hp: 200, maxHp: 200, power: 60 });
-      attacks.attach(t.handle);
       setUnits(t.handle, [
         unitRow({
           distance: 5,
@@ -320,15 +316,12 @@ describe("rest", () => {
         }),
       ]);
       if (hit === "before") {
-        withAttackers(t.handle, [STALKER]);
         selfHp(t.handle, 150);
-        withAttackers(t.handle, []);
         selfHp(t.handle, 200);
       }
-      now.t = 2000;
       const pending = restSpec.run({}, toolCtx<RestAfter>(t));
       await flush();
-      now.t = 3000;
+      if (hit === "first") selfHp(t.handle, hp);
       attackBy(t.handle, STALKER);
       if (hit === "during") selfHp(t.handle, hp);
       const res = await pending;
