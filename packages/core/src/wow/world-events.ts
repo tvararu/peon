@@ -1,4 +1,5 @@
 import { Emitter } from "#lib/emitter";
+import { ignoreFailure } from "#lib/ignore-failure";
 import type { ChatMessage, DuelEvent, GroupEvent } from "#wow/client";
 import type { NoticeEvent } from "#wow/client-extras";
 import type { CombatEvent } from "#wow/combat";
@@ -49,7 +50,7 @@ export function createWorldEvents(
     message: new Emitter(report),
     group: new Emitter(report),
     entity: new Emitter(report),
-    packetError: new Emitter(),
+    packetError: new Emitter(ignoreFailure),
     friend: new Emitter(report),
     ignore: new Emitter(report),
     guild: new Emitter(report),

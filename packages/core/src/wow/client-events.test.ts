@@ -122,6 +122,33 @@ describe("WorldHandle event subscriptions", () => {
     }
   });
 
+  test("a throwing packet error listener does not stop the next packet", async () => {
+    const { server, handle } = await session();
+    try {
+      await waitForEchoProbe(handle);
+      handle.onPacketError(() => {
+        throw new Error("bad packet error listener");
+      });
+      const seen: string[] = [];
+      const done = Promise.withResolvers<void>();
+      handle.onMessage((msg) => {
+        if (msg.message === "first") throw new Error("bad subscriber");
+      });
+      handle.onMessage((msg) => {
+        seen.push(msg.message);
+        if (msg.message === "second") done.resolve();
+      });
+      handle.sendSay("first");
+      handle.sendSay("second");
+      await done.promise;
+      expect(seen).toEqual(["first", "second"]);
+    } finally {
+      handle.close();
+      await handle.closed;
+      server.stop();
+    }
+  });
+
   test("a subscriber error mid-packet does not abort the rest of the packet", async () => {
     const { server, handle } = await session();
     try {
