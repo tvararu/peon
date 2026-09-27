@@ -13,6 +13,7 @@ export type CombatAura = {
   timeLeft: number | undefined;
   flags: number;
   level: number;
+  name?: string;
 };
 
 type TrackedAura = CombatAura & { unit: bigint; receivedAt: number };
@@ -20,9 +21,14 @@ type TrackedAura = CombatAura & { unit: bigint; receivedAt: number };
 export class AuraStore {
   private readonly auras = new Map<string, TrackedAura>();
   private readonly now: () => number;
+  private readonly nameOf: (spellId: number) => string | undefined;
 
-  constructor(now: () => number) {
+  constructor(
+    now: () => number,
+    nameOf: (spellId: number) => string | undefined = () => undefined,
+  ) {
     this.now = now;
+    this.nameOf = nameOf;
   }
 
   apply(update: AuraUpdate): void {
@@ -57,7 +63,12 @@ export class AuraStore {
           : Math.max(0, aura.timeLeft - (this.now() - aura.receivedAt));
       if (timeLeft === 0) continue;
       const { unit: _unit, receivedAt: _receivedAt, ...value } = aura;
-      list.push({ ...value, timeLeft });
+      const name = this.nameOf(value.spellId);
+      list.push({
+        ...value,
+        timeLeft,
+        ...(name === undefined ? {} : { name }),
+      });
     }
     return list;
   }

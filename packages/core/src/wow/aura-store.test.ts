@@ -40,4 +40,25 @@ describe("AuraStore", () => {
     expect(store.forUnit(1n).map((a) => a.slot)).toEqual([3]);
     expect(store.forUnit(2n)).toHaveLength(1);
   });
+
+  test("an aura carries its spell name when the name is known", () => {
+    const store = new AuraStore(
+      () => 0,
+      (spellId) => (spellId === 17 ? "Power Word: Shield" : undefined),
+    );
+    const aura = (slot: number, spellId: number) => ({
+      unit: 1n,
+      slot,
+      removed: false as const,
+      spellId,
+      flags: 0,
+      level: 1,
+      stacks: 1,
+    });
+    store.apply(aura(0, 17));
+    store.apply(aura(1, 433));
+    const [shield, other] = store.forUnit(1n);
+    expect(shield?.name).toBe("Power Word: Shield");
+    expect(other && "name" in other).toBe(false);
+  });
 });

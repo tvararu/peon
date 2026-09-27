@@ -395,6 +395,29 @@ test("cast events carry the spell name when spell data is loaded", () => {
   expect(events.at(-1)?.spellName).toBeUndefined();
 });
 
+test("self auras carry the spell name once spell data is loaded", () => {
+  const { combat } = setup();
+  combat.setCatalog({
+    get: (id: number) =>
+      id === 17 ? { name: "Power Word: Shield" } : undefined,
+  } as unknown as SpellCatalog);
+  combat.applyAuraAll({
+    unit: 1n,
+    auras: [
+      {
+        unit: 1n,
+        slot: 0,
+        removed: false,
+        spellId: 17,
+        flags: 0x28,
+        level: 10,
+        stacks: 1,
+      },
+    ],
+  });
+  expect(combat.snapshot().auras[0]?.name).toBe("Power Word: Shield");
+});
+
 test("attackers lists live incoming attackers and attacked names each one", () => {
   const { combat } = setup();
   const events: CombatEvent[] = [];

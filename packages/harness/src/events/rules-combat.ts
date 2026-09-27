@@ -8,6 +8,7 @@ import type {
 } from "@tuicraft/core";
 import type { LogClass, LogDraft } from "#harness/contract/log";
 import {
+  type AuraMemo,
   type Drafts,
   guidText,
   type RuleInput,
@@ -137,29 +138,33 @@ function levelDrafts(event: CombatEvent, rc: RuleInput): Drafts {
 
 function auraRow(
   event: "aura/gain" | "aura/fade",
-  data: { slot: number; spellId: number },
+  slot: number,
+  aura: AuraMemo,
 ): LogDraft {
   const verb = event === "aura/gain" ? "gained" : "faded";
   return {
     class: "log",
-    data,
+    data: { name: aura.name, slot, spellId: aura.spellId },
     domain: "aura",
     event,
-    text: `Aura ${data.spellId} ${verb}.`,
+    text: `${aura.name ?? `spell ${aura.spellId}`} ${verb}.`,
   };
 }
 
 function auraDrafts(event: CombatEvent, rc: RuleInput): Drafts {
   const current = new Map(
-    event.state.auras.map((aura) => [aura.slot, aura.spellId]),
+    event.state.auras.map((aura) => [
+      aura.slot,
+      { name: aura.name, spellId: aura.spellId },
+    ]),
   );
   const drafts: Drafts = [];
-  for (const [slot, spellId] of rc.memo.auras)
-    if (current.get(slot) !== spellId)
-      drafts.push(auraRow("aura/fade", { slot, spellId }));
-  for (const [slot, spellId] of current)
-    if (rc.memo.auras.get(slot) !== spellId)
-      drafts.push(auraRow("aura/gain", { slot, spellId }));
+  for (const [slot, aura] of rc.memo.auras)
+    if (current.get(slot)?.spellId !== aura.spellId)
+      drafts.push(auraRow("aura/fade", slot, aura));
+  for (const [slot, aura] of current)
+    if (rc.memo.auras.get(slot)?.spellId !== aura.spellId)
+      drafts.push(auraRow("aura/gain", slot, aura));
   rc.memo.auras = current;
   return drafts;
 }

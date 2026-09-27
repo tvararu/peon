@@ -36,8 +36,9 @@ function combat(
   return { state: { ...combatBase, ...state }, type, ...over };
 }
 
-function aura(slot: number, spellId: number): CombatAura {
+function aura(slot: number, spellId: number, name?: string): CombatAura {
   return {
+    ...(name === undefined ? {} : { name }),
     caster: 1n,
     duration: 30_000,
     flags: 0,
@@ -219,6 +220,23 @@ describe("combatDrafts", () => {
     expect(events([aura(0, 433), aura(1, 1243)])).toEqual([
       ["aura/gain", 433],
       ["aura/gain", 1243],
+    ]);
+  });
+
+  test("aura rows name the spell and keep its name for the fade", () => {
+    const rc = testRuleInput();
+    const rows = (auras: CombatAura[]) =>
+      combatDrafts(combat("aura", { auras }), rc).map((draft) => [
+        draft.text,
+        draft.data["name"],
+      ]);
+    expect(rows([aura(0, 17, "Power Word: Shield"), aura(1, 433)])).toEqual([
+      ["Power Word: Shield gained.", "Power Word: Shield"],
+      ["spell 433 gained.", undefined],
+    ]);
+    expect(rows([])).toEqual([
+      ["Power Word: Shield faded.", "Power Word: Shield"],
+      ["spell 433 faded.", undefined],
     ]);
   });
 });

@@ -172,7 +172,7 @@ export class CombatRuntime {
       deps.now,
       (id) => this.definition(id)?.cooldown,
     );
-    this.auras = new AuraStore(deps.now);
+    this.auras = new AuraStore(deps.now, (id) => this.definition(id)?.name);
     this.motions = new MotionStore(deps.now);
     this.casts = new CombatCasts({
       send: deps.send,

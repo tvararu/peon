@@ -29,9 +29,10 @@ export type RuleLookup = {
   unitLevel: (guid: bigint) => number | undefined;
   unitName: (guid: bigint) => string | undefined;
 };
+export type AuraMemo = { spellId: number; name: string | undefined };
 export type PoseMemo = { mapId: number; x: number; y: number; z: number };
 export type RuleMemo = {
-  auras: Map<number, number>;
+  auras: Map<number, AuraMemo>;
   coinage: number | undefined;
   cycleActive: boolean;
   fights: Map<string, { at: number; guid: bigint }>;
