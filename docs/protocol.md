@@ -107,11 +107,13 @@ settled outcome) and `PlaceStore` (map, zone and area). A store
 runs no timer and sends no packet, except the item query that
 `ItemTemplates` waits on; an actuator that sends passes its `send` in.
 Each runtime (`CombatRuntime`, `RewardsRuntime`, `QuestRuntime` and so
-on) takes the stores it reads, re-emits their events and then reacts to
-them, and holds the policy: validating actions, sending requests,
-querying logged quests, timing out unanswered requests and releasing an
-emptied loot window. Session cleanup disposes the runtimes, then the
-stores.
+on) takes the stores it reads, re-emits their events and holds the
+policy: validating actions, sending requests, querying logged quests,
+timing out unanswered requests and releasing an emptied loot window. For
+each store event a runtime first arms, clears or retimes its request
+timers, then publishes the event, then runs follow-up actions such as
+the loot release; a listener that starts a request from the event keeps
+its own timeout. Session cleanup disposes the runtimes, then the stores.
 
 ## Entity fields
 
