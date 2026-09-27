@@ -15,8 +15,9 @@ import {
   newPassword,
   parseEnv,
   parseResponse,
+  reserveNames,
 } from "#factory/soap";
-import { pinfoAccount } from "#factory/soap-copy";
+import { pinfoAccount, type SoapResult } from "#factory/soap-copy";
 
 describe("names", () => {
   test("account is FAC + 8 hex seconds + 2 random, uppercase", () => {
@@ -211,5 +212,57 @@ describe("inheritedConfig", () => {
     await expect(
       inheritedConfig("/missing/config.toml", missing),
     ).rejects.toThrow("run mise namigator:build");
+  });
+});
+
+describe("reserveNames", () => {
+  const collision = {
+    ok: false,
+    text: "Account with this name already exist!",
+  };
+  const created = { ok: true, text: "Account created: X" };
+  const fresh = () => {
+    let n = 0;
+    return () =>
+      newNames(0x6a_b6_e0_50 * 1000, () => (0x10 + n++).toString(16));
+  };
+  const server = (replies: SoapResult[]) => {
+    const commands: string[] = [];
+    const run = async (command: string) => {
+      commands.push(command);
+      return replies.shift() ?? created;
+    };
+    return { commands, run };
+  };
+
+  test("creates once when the name is free", async () => {
+    const { commands, run } = server([created]);
+    const names = await reserveNames("pw", run, fresh());
+    expect(commands).toEqual([`account create ${names.account} pw`]);
+  });
+
+  test("retries with fresh names after a collision", async () => {
+    const { commands, run } = server([collision, collision, created]);
+    const names = await reserveNames("pw", run, fresh());
+    const accounts = commands.map((c) => c.split(" ")[2]);
+    expect(commands).toHaveLength(3);
+    expect(new Set(accounts).size).toBe(3);
+    expect(accounts.at(-1)).toBe(names.account);
+  });
+
+  test("gives up after eight collisions", async () => {
+    const { commands, run } = server(
+      Array.from({ length: 10 }, () => collision),
+    );
+    await expect(reserveNames("pw", run, fresh())).rejects.toThrow();
+    expect(commands).toHaveLength(8);
+  });
+
+  test("does not retry other failures", async () => {
+    const { commands, run } = server([
+      { ok: false, text: "Account name is too long" },
+    ]);
+    await expect(reserveNames("pw", run, fresh())).rejects.toThrow();
+    expect(commands).toHaveLength(1);
   });
 });

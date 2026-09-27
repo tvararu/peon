@@ -64,6 +64,8 @@ const resultTag = /<result>([\s\S]*?)<\/result>/;
 const faultTag = /<faultstring>([\s\S]*?)<\/faultstring>/;
 const tripleLetter = /(.)\1\1/i;
 const accountMissing = /Account not exist/i;
+const accountTaken = /already exist/i;
+const createTries = 8;
 const lowerLetters = String.fromCharCode(
   ...Array.from({ length: 26 }, (_, i) => 97 + i),
 );
@@ -317,6 +319,22 @@ async function writeSession(
   return { account, character, dir, password, preset, wrapper };
 }
 
+export async function reserveNames(
+  password: string,
+  run: (command: string) => Promise<SoapResult> = soap,
+  fresh: () => Names = newNames,
+): Promise<Names> {
+  let text = "";
+  for (let i = 0; i < createTries; i++) {
+    const names = fresh();
+    const res = await run(`account create ${names.account} ${password}`);
+    if (res.ok) return names;
+    text = res.text;
+    if (!accountTaken.test(text)) break;
+  }
+  throw new Error(`account create: ${text}`);
+}
+
 export async function createAccount({
   preset,
   gm,
@@ -326,17 +344,17 @@ export async function createAccount({
     presetTemplate(preset),
     inheritedConfig(),
   ]);
-  const names = newNames();
+  const password = newPassword();
+  const names = await reserveNames(password);
   const root = process.cwd();
   const entry = {
     ...names,
     createdAt: new Date().toISOString(),
     owner: owner ?? root,
-    password: newPassword(),
+    password,
     preset,
     root,
   };
-  await must(`account create ${entry.account} ${entry.password}`);
   try {
     await saveLedger(entry);
     await copyConfirmed(soap, template, names);
