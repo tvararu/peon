@@ -93,9 +93,10 @@ export const ROUND_1: readonly string[] = [
 
 const DIR = `${import.meta.dir}/scenarios`;
 const JSON_FILE = /\.json$/;
+const SCHEMA = schema as unknown as Schema;
 
 export function parseScenario(file: string, value: unknown): Scenario {
-  const errors = schemaErrors(schema as Schema, value);
+  const errors = schemaErrors(SCHEMA, value);
   const stem = file.replace(JSON_FILE, "");
   if (errors.length === 0 && (value as Scenario).id !== stem)
     errors.push(`$.id: expected ${stem}`);
