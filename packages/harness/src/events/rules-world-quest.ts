@@ -17,6 +17,7 @@ type QuestRow = {
 };
 type Objective = { count: number; objective: number; required: number };
 type ItemPush = NonNullable<RewardsState["lastItemPush"]>;
+type LootRelease = NonNullable<RewardsState["lastRelease"]>;
 
 function questRow({ event, data, text }: QuestRow): LogDraft {
   return { class: "passive", data, domain: "quest", event, text };
@@ -163,43 +164,46 @@ function itemRow(push: ItemPush, rc: RuleInput): Drafts {
   return [{ class: "passive", data, domain: "loot", event: "loot/item", text }];
 }
 
+function lootOpenRow(data: Record<string, unknown>, text: string): LogDraft {
+  return { class: "log", data, domain: "loot", event: "loot/open", text };
+}
+
+function openedRow(loot: RewardsState["loot"], rc: RuleInput): Drafts {
+  if (loot.phase !== "open") return [];
+  const guid = guidText(loot.guid);
+  rc.memo.lootOpen = guid;
+  const data = { guid, money: loot.money, slots: loot.items.length };
+  const text = `Loot window open: ${loot.items.length} items, ${loot.money} copper.`;
+  return [lootOpenRow(data, text)];
+}
+
+function releaseRows(release: LootRelease, rc: RuleInput): Drafts {
+  const guid = guidText(release.guid);
+  const opened = rc.memo.lootOpen === guid;
+  rc.memo.lootOpen = undefined;
+  const empty = { empty: true, guid, money: 0, slots: 0 };
+  const data = { guid, status: release.status };
+  return [
+    ...(opened ? [] : [lootOpenRow(empty, "Loot window: nothing to loot.")]),
+    {
+      class: "log",
+      data,
+      domain: "loot",
+      event: "loot/release",
+      text: "Loot window closed.",
+    },
+  ];
+}
+
 export function lootDrafts(
   { type, state }: RewardsEvent,
   rc: RuleInput,
 ): Drafts {
   const { lastItemPush, lastRelease, loot } = state;
   if (type === "item_push" && lastItemPush) return itemRow(lastItemPush, rc);
-  if (type === "loot_opened" && loot.phase === "open") {
-    const data = {
-      guid: guidText(loot.guid),
-      money: loot.money,
-      slots: loot.items.length,
-    };
-    return [
-      {
-        class: "log",
-        data,
-        domain: "loot",
-        event: "loot/open",
-        text: `Loot window open: ${loot.items.length} items, ${loot.money} copper.`,
-      },
-    ];
-  }
-  if (type === "loot_release_observed" && lastRelease) {
-    const data = {
-      guid: guidText(lastRelease.guid),
-      status: lastRelease.status,
-    };
-    return [
-      {
-        class: "log",
-        data,
-        domain: "loot",
-        event: "loot/release",
-        text: "Loot window closed.",
-      },
-    ];
-  }
+  if (type === "loot_opened") return openedRow(loot, rc);
+  if (type === "loot_release_observed" && lastRelease)
+    return releaseRows(lastRelease, rc);
   return [];
 }
 

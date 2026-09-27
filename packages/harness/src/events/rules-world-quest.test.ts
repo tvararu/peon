@@ -237,8 +237,9 @@ describe("rewardsDrafts", () => {
       openedAt: 0,
       phase: "open" as const,
     };
+    const rc = testRuleInput();
     expect(
-      rewardsDrafts(rewards("loot_opened", { loot }), testRuleInput())[0],
+      rewardsDrafts(rewards("loot_opened", { loot }), rc)[0],
     ).toMatchObject({
       class: "log",
       data: { guid: "2a", money: 12, slots: 0 },
@@ -246,11 +247,8 @@ describe("rewardsDrafts", () => {
     });
     const lastRelease = { guid: 0x2an, observedAt: 0, status: 1 };
     expect(
-      rewardsDrafts(
-        rewards("loot_release_observed", { lastRelease }),
-        testRuleInput(),
-      )[0],
-    ).toMatchObject({ class: "log", event: "loot/release" });
+      rewardsDrafts(rewards("loot_release_observed", { lastRelease }), rc),
+    ).toMatchObject([{ class: "log", event: "loot/release" }]);
   });
 
   test("money changes come from coinage, with loot as the reason after a notice", () => {
@@ -313,5 +311,40 @@ describe("rewardsDrafts", () => {
     expect(
       rewardsDrafts(rewards("inventory_observed", {}, 49_950), rc)[0]?.data,
     ).toMatchObject({ reason: "vendor_sell" });
+  });
+
+  test("a release without a loot window still logs an empty open first", () => {
+    const rc = testRuleInput();
+    const lastRelease = { guid: 0x2an, observedAt: 0, status: 1 };
+    const drafts = rewardsDrafts(
+      rewards("loot_release_observed", { lastRelease }),
+      rc,
+    );
+    expect(drafts.map((draft) => draft.event)).toEqual([
+      "loot/open",
+      "loot/release",
+    ]);
+    expect(drafts[0]).toMatchObject({
+      class: "log",
+      data: { empty: true, guid: "2a", money: 0, slots: 0 },
+      text: "Loot window: nothing to loot.",
+    });
+    const loot = {
+      guid: 0x2bn,
+      invalidatedReason: undefined,
+      items: [],
+      lootType: 1,
+      money: 3,
+      openedAt: 0,
+      phase: "open" as const,
+    };
+    rewardsDrafts(rewards("loot_opened", { loot }), rc);
+    const again = { ...lastRelease, guid: 0x2bn };
+    expect(
+      rewardsDrafts(
+        rewards("loot_release_observed", { lastRelease: again }),
+        rc,
+      ).map((draft) => draft.event),
+    ).toEqual(["loot/release"]);
   });
 });

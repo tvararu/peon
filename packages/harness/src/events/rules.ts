@@ -49,6 +49,7 @@ export type RuleMemo = {
   cycleFights: { base: number; used: number };
   fights: Map<string, { at: number; guid: bigint }>;
   levelAt: number | undefined;
+  lootOpen: string | undefined;
   life: PlayerLife | undefined;
   lowHealth: Map<number, boolean>;
   recovery: RecoveryMemo;
@@ -81,6 +82,7 @@ export function createRuleMemo(): RuleMemo {
     fights: new Map(),
     levelAt: undefined,
     life: undefined,
+    lootOpen: undefined,
     lowHealth: new Map(),
     moneyNoticeAt: undefined,
     pose: undefined,
