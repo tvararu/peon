@@ -131,6 +131,15 @@ describe("chatDrafts", () => {
       expect(one(msg(ChatType.SYSTEM, "", message))?.class).toBe("log");
   });
 
+  test("login toggles and the MOTD stay in the log", () => {
+    for (const message of [
+      "Accepting Whisper: ON",
+      "Accepting Whisper: OFF",
+      "|cff00ff00Welcome to the server|r\nHave fun",
+    ])
+      expect(one(msg(ChatType.SYSTEM, "", message))?.class).toBe("log");
+  });
+
   test("strips colour codes and link wrappers from chat text", () => {
     expect(
       one(

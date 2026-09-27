@@ -46,7 +46,7 @@ const VERBS = new Map<number, string>([
   [ChatType.MONSTER_WHISPER, "whispers"],
 ]);
 const QUIET_SYSTEM =
-  /not yet implemented|^\[debug\]|^(This server|Playerbots:|Individual Progression|Joined channel|Left channel|Welcome)/;
+  /not yet implemented|^\[debug\]|^(This server|Playerbots:|Individual Progression|Joined channel|Left channel|Welcome|Accepting Whisper)/;
 const REGEX_SPECIALS = /[.*+?^${}()|[\]\\]/g;
 const COLOUR_CODES = /\|c[0-9a-fA-F]{8}|\|r|\|H[^|]*\|h|\|h/g;
 
