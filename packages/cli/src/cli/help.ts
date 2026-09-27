@@ -225,7 +225,7 @@ DAEMON
 
 GAMEPLAY DATA
   spell_data_dir            Build-12340 DBC directory in account config
-  navigation_data_dir       Compatible Namigator data root (map 530)
+  navigation_data_dir       Namigator data root (maps 0, 1, 530, 571)
   navigation_library        Compatible Namigator shared library
   TYPESAFE_API_KEY           Jev key in daemon environment, never config
   JEV_ENDPOINT_URL           Jev endpoint override (fallback TYPESAFE_ENDPOINT_URL)

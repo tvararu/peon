@@ -528,7 +528,7 @@ that the official game client does.
 | Feature           | Status |
 | ----------------- | ------ |
 | Bounded walk / face / target | ✅     |
-| Pathfinding / navigation     | Ground routes on map 530 |
+| Pathfinding / navigation     | Ground routes on maps 0, 1, 530, 571 with Namigator data |
 | Spells / auras    | Learned-spell casts, observed auras |
 | Combat log        | ❌     |
 | Loot              | Bounded creature offers, group loot rolls |

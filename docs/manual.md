@@ -68,8 +68,13 @@ Add optional data paths to the existing account config:
   names the upstream commit and patch set, and prints that path. It skips
   the build when that file already exists.
 
-The current ground planner supports Expansion01/map 530. Unsupported or
-ambiguous geometry fails explicitly.
+The ground planner opens a map when `navigation_data_dir` holds its
+Namigator data (`<name>.map` and `Nav/<name>/`): map 0 `Azeroth`, 1
+`Kalimdor`, 530 `Expansion01` and 571 `Northrend`. Other maps, and a map
+without its data, are refused as `unsupported map <id>`, and the
+navigation capability is false there. A start pose up to 1 yd above the
+only floor of its column plans from that floor. Unsupported or ambiguous
+geometry fails explicitly.
 
 Set `TYPESAFE_API_KEY` in the daemon environment, not in the account config.
 Restart the daemon after changing data paths or its environment. Chat and
