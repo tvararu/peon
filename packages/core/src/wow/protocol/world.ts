@@ -263,8 +263,11 @@ export class OpcodeDispatch {
 
   private countUnhandled(opcode: number) {
     this.unhandled.set(opcode, (this.unhandled.get(opcode) ?? 0) + 1);
-    if (this.reported.has(opcode)) return;
-    if (this.report(opcode)) this.reported.add(opcode);
+    for (const pending of this.unhandled.keys()) {
+      if (this.reported.has(pending)) continue;
+      if (!this.report(pending)) return;
+      this.reported.add(pending);
+    }
   }
 
   private findWaiter(

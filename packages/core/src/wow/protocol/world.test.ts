@@ -259,7 +259,7 @@ describe("OpcodeDispatch", () => {
     ]);
   });
 
-  test("reports an unhandled opcode again until the report is taken", () => {
+  test("reports a held-back opcode on the next unhandled packet", () => {
     const d = new OpcodeDispatch();
     let taken = false;
     const reported: number[] = [];
@@ -268,10 +268,11 @@ describe("OpcodeDispatch", () => {
       return taken;
     });
     d.handle(0x50, new PacketReader(new Uint8Array(0)));
+    d.handle(0x51, new PacketReader(new Uint8Array(0)));
     taken = true;
+    d.handle(0x52, new PacketReader(new Uint8Array(0)));
     d.handle(0x50, new PacketReader(new Uint8Array(0)));
-    d.handle(0x50, new PacketReader(new Uint8Array(0)));
-    expect(reported).toEqual([0x50, 0x50]);
+    expect(reported).toEqual([0x50, 0x50, 0x50, 0x51, 0x52]);
   });
 
   test("counts nothing for an opcode a handler or waiter takes", async () => {

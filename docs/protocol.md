@@ -133,5 +133,6 @@ in `STUBS`. `missing`: neither.
 `OpcodeDispatch` counts every inbound opcode that has neither a handler
 nor a waiter (`unhandledCounts()`) and never throws for one. It reports
 each such opcode once as a `not_implemented` notice labelled with its
-`GameOpcode` name, retried on the next packet while no notice subscriber
-exists; the harness game log shows it as `notice/not_implemented`.
+`GameOpcode` name. A report made while no notice subscriber exists, such
+as one during login, is retried on the next unhandled packet. The harness
+game log shows these notices as `notice/not_implemented`.
