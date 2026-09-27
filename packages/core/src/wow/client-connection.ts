@@ -5,6 +5,7 @@ import { type EntityEvent, EntityStore, isUnit } from "#wow/entity-store";
 import { FriendStore } from "#wow/friend-store";
 import { GuildStore } from "#wow/guild-store";
 import { IgnoreStore } from "#wow/ignore-store";
+import { type TraceOutcome, traceIn, traceOut } from "#wow/packet-trace";
 import { PartyStore } from "#wow/party-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -39,10 +40,13 @@ function drainWorldPackets(conn: WorldConn): void {
     if (conn.buf.length < bodySize) break;
 
     const { opcode } = conn.pendingHeader;
+    const body = conn.buf.drain(bodySize);
+    const at = Date.now();
+    let outcome: TraceOutcome = "error";
     conn.pendingHeader = undefined;
     conn.dispatchingOpcode = opcode;
     try {
-      conn.dispatch.handle(opcode, new PacketReader(conn.buf.drain(bodySize)));
+      outcome = conn.dispatch.handle(opcode, new PacketReader(body));
     } catch (err) {
       if (err instanceof Error) {
         conn.events.packetError.emit(opcode, err);
@@ -50,6 +54,7 @@ function drainWorldPackets(conn: WorldConn): void {
     } finally {
       flushEntityEvents(conn, opcode);
       conn.dispatchingOpcode = undefined;
+      traceIn(conn.trace, { at, body, opcode, outcome });
     }
   }
 }
@@ -90,6 +95,7 @@ export async function authenticateWorld(
   });
   if (!conn.socket) throw new Error("World socket is not connected");
   conn.socket.write(buildOutgoingPacket(GameOpcode.CMSG_AUTH_SESSION, body));
+  traceOut(conn.trace, { body, opcode: GameOpcode.CMSG_AUTH_SESSION });
   conn.arc4 = new Arc4(auth.sessionKey);
 
   const resp = await conn.dispatch.expect(GameOpcode.SMSG_AUTH_RESPONSE);
@@ -214,6 +220,7 @@ export function createWorldConn(): WorldConn {
     pendingRequest: null,
     duelArbiter: 0n,
     events: createWorldEvents((error) => reportListenerError(conn, error)),
+    pendingNotices: [],
   };
   conn.friendStore.onEvent((event) => conn.events.friend.emit(event));
   conn.ignoreStore.onEvent((event) => conn.events.ignore.emit(event));

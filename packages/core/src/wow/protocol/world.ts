@@ -169,6 +169,13 @@ export type ExpectOptions = {
   match?: (reader: PacketReader) => boolean;
 };
 
+export type DispatchOutcome = "handled" | "unhandled";
+
+export type DispatchCounts = {
+  seen: ReadonlyMap<number, number>;
+  unhandled: ReadonlyMap<number, number>;
+};
+
 type Waiter = {
   match?: (reader: PacketReader) => boolean;
   resolve: (reader: PacketReader) => void;
@@ -179,6 +186,7 @@ export class OpcodeDispatch {
   private readonly handlers: Map<number, (reader: PacketReader) => void>;
   private readonly waiters: Map<number, Waiter[]>;
   private readonly unhandled: Map<number, number>;
+  private readonly seen: Map<number, number>;
   private readonly reported: Set<number>;
   private report: (opcode: number) => boolean;
 
@@ -186,6 +194,7 @@ export class OpcodeDispatch {
     this.handlers = new Map();
     this.waiters = new Map();
     this.unhandled = new Map();
+    this.seen = new Map();
     this.reported = new Set();
     this.report = () => false;
   }
@@ -196,6 +205,10 @@ export class OpcodeDispatch {
 
   unhandledCounts(): ReadonlyMap<number, number> {
     return this.unhandled;
+  }
+
+  counts(): DispatchCounts {
+    return { seen: this.seen, unhandled: this.unhandled };
   }
 
   has(opcode: number): boolean {
@@ -236,10 +249,11 @@ export class OpcodeDispatch {
     return promise;
   }
 
-  handle(opcode: number, reader: PacketReader) {
+  handle(opcode: number, reader: PacketReader): DispatchOutcome {
+    this.seen.set(opcode, (this.seen.get(opcode) ?? 0) + 1);
     if (!(this.handlers.has(opcode) || this.waiters.has(opcode))) {
       this.countUnhandled(opcode);
-      return;
+      return "unhandled";
     }
     const body = reader.fork();
     try {
@@ -259,6 +273,7 @@ export class OpcodeDispatch {
       this.removeWaiter(opcode, waiter);
       waiter.resolve(body.fork());
     }
+    return "handled";
   }
 
   private countUnhandled(opcode: number) {

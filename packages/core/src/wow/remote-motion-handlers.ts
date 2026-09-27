@@ -1,3 +1,4 @@
+import { type TraceOutcome, traceIn } from "#wow/packet-trace";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 import {
@@ -47,12 +48,17 @@ export function handleCompressedMoves(conn: WorldConn, r: PacketReader): void {
     const supported =
       isRemoteMovementOpcode(move.opcode) ||
       move.opcode === GameOpcode.SMSG_MONSTER_MOVE;
-    if (!supported) continue;
+    let outcome: TraceOutcome = supported ? "error" : "skipped";
     try {
-      conn.dispatch.handle(move.opcode, new PacketReader(move.body));
+      if (supported)
+        outcome = conn.dispatch.handle(
+          move.opcode,
+          new PacketReader(move.body),
+        );
     } catch (error) {
       failure ??= error;
     }
+    traceIn(conn.trace, { ...move, outcome, via: "compressed" });
   }
   if (failure) throw failure;
 }
