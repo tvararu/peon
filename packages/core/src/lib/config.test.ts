@@ -135,8 +135,10 @@ describe("readConfig", () => {
     await rm(tmpBase, { force: true, recursive: true });
   });
 
-  test("throws when config file does not exist", async () => {
-    await expect(readConfig(paths)).rejects.toThrow("No config found");
+  test("names the missing config path", async () => {
+    await expect(readConfig(paths)).rejects.toThrow(
+      `No config found at ${cfgPath}`,
+    );
   });
 
   test("parses an existing config file", async () => {

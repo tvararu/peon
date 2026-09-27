@@ -86,11 +86,8 @@ export async function readConfig(
   paths: Paths = resolvePaths(),
 ): Promise<Config> {
   const file = Bun.file(paths.configPath);
-  if (!(await file.exists())) {
-    throw new Error(
-      "No config found. Run 'tuicraft setup' or 'tuicraft' interactively.",
-    );
-  }
+  if (!(await file.exists()))
+    throw new Error(`No config found at ${paths.configPath}.`);
   return parseConfig(await file.text());
 }
 
