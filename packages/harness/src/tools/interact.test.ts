@@ -1,193 +1,26 @@
 import { describe, expect, test } from "bun:test";
-import type {
-  QuestDialog,
-  QuestEvent,
-  QuestQuery,
-  QuestState,
-} from "@tuicraft/core";
 import type { InteractAfter } from "#harness/contract/details";
 import { interactSpec } from "#harness/tools/interact";
 import {
   contentOf,
   driveGoto,
   limitProblem,
-  setSelf,
   setUnits,
   toolCtx,
   unitRow,
 } from "#test-support/ops-fixtures";
 import {
-  createTestRuntime,
-  type MockHandle,
-} from "#test-support/runtime-fixture";
-
-type KnownQuest = Extract<QuestQuery, { status: "known" }>["data"];
-
-const VELAN = 0x30n;
-const MCBRIDE = 0x31n;
-const NO_REWARDS = {
-  arenaPoints: 0,
-  choices: [],
-  experience: 0,
-  factions: [],
-  honor: 0,
-  honorMultiplier: 0,
-  items: [],
-  money: 0,
-  reputationMask: 0,
-  spellCastId: 0,
-  spellId: 0,
-  talents: 0,
-  titleId: 0,
-};
-const OFFERED = [
-  { icon: 2, level: 9, questId: 9254, title: "The Wayward Apprentice" },
-  {
-    icon: 2,
-    level: 10,
-    questId: 8892,
-    title: "Situation at Sunsail Anchorage",
-  },
-];
-
-function listDialog(
-  quests: readonly {
-    icon: number;
-    level: number;
-    questId: number;
-    title: string;
-  }[],
-): QuestDialog {
-  return {
-    data: {
-      emote: 0,
-      emoteDelay: 0,
-      guid: VELAN,
-      quests: quests.map((quest) => ({ ...quest, flags: 0, repeatable: 0 })),
-      title: "Greetings",
-    },
-    kind: "list",
-  };
-}
-
-function detailsDialog(questId: number, title: string): QuestDialog {
-  return {
-    data: {
-      activateAccept: 1,
-      autoAccept: false,
-      details: "",
-      dividerGuid: 0n,
-      emotes: [],
-      flags: 0,
-      guid: VELAN,
-      objectives: "",
-      questId,
-      rewards: NO_REWARDS,
-      suggestedPlayers: 0,
-      title,
-      unknown: 0,
-    },
-    kind: "details",
-  };
-}
-
-function offerDialog(questId: number, title: string): QuestDialog {
-  return {
-    data: {
-      emotes: [],
-      enableNext: 0,
-      flags: 0,
-      guid: VELAN,
-      questId,
-      rewards: {
-        ...NO_REWARDS,
-        choices: [
-          { count: 1, displayId: 0, itemId: 2046 },
-          { count: 1, displayId: 0, itemId: 2047 },
-        ],
-      },
-      rewardText: "",
-      suggestedPlayers: 0,
-      title,
-      unknownAfterHonorMultiplier: 0,
-    },
-    kind: "offer",
-  };
-}
-
-function requestDialog(
-  questId: number,
-  title: string,
-  flags: number,
-): QuestDialog {
-  return {
-    data: {
-      closeOnCancel: 0,
-      completionFlags: [flags, 4, 8, 16],
-      emote: 0,
-      flags: 0,
-      guid: VELAN,
-      items: [],
-      questId,
-      requestText: "",
-      requiredMoney: 0,
-      suggestedPlayers: 0,
-      title,
-      unknown: 0,
-    },
-    kind: "requestItems",
-  };
-}
-
-function talkQuery(questId: number, objectives: string): QuestQuery {
-  const none = {
-    count: 0,
-    encodedNpcOrGoId: 0,
-    itemDropId: 0,
-    npcOrGoId: 0,
-    unknownSourceCount: 0,
-  };
-  const data = {
-    objectives,
-    questId,
-    requiredItems: [],
-    targets: [none, none, none, none],
-    title: "A Threat Within",
-  } as unknown as KnownQuest;
-  return { data, questId, receivedAt: 0, status: "known" };
-}
-
-function answer(
-  handle: MockHandle,
-  type: QuestEvent["type"],
-  patch: Partial<QuestState>,
-  questId?: number,
-): void {
-  const state = { ...handle.getQuestState(), ...patch };
-  handle.getQuestState = () => state;
-  handle.triggerQuestEvent({ questId, source: "packet", state, type });
-}
-
-async function velan(distance = 3) {
-  const t = await createTestRuntime();
-  setSelf(t.handle);
-  setUnits(t.handle, [
-    unitRow({
-      distance,
-      guid: VELAN,
-      name: "Velan Brightoak",
-      relation: "friendly",
-      roles: ["questgiver", "gossip"],
-      x: distance,
-      y: 0,
-    }),
-  ]);
-  let cancelled = 0;
-  t.handle.cancelInteraction = () => {
-    cancelled += 1;
-  };
-  return { cancels: () => cancelled, t };
-}
+  answer,
+  detailsDialog,
+  listDialog,
+  MCBRIDE,
+  OFFERED,
+  offerDialog,
+  requestDialog,
+  talkQuery,
+  VELAN,
+  velan,
+} from "#test-support/quest-fixtures";
 
 describe("interact", () => {
   test("talk lists the offers as the design example does, then closes the window", async () => {
@@ -265,7 +98,7 @@ describe("interact", () => {
     });
   });
 
-  test("accept of a quest with nothing to kill or collect points at the NPC it names", async () => {
+  test("accept of a quest with nothing to kill or collect points at an NPC in view that its goal names", async () => {
     const { t } = await velan();
     setUnits(t.handle, [
       ...t.handle.queryNearby(),
@@ -290,7 +123,7 @@ describe("interact", () => {
       answer(
         t.handle,
         "accepted",
-        { queries: [talkQuery(783, "Speak with Marshal McBride.")] },
+        { queries: [talkQuery(783, "Find Marshal McBride.")] },
         783,
       );
     const res = await interactSpec.run(
@@ -300,13 +133,13 @@ describe("interact", () => {
     const ref = t.rt.refs.refOf(MCBRIDE);
     expect(res).toMatchObject({
       detail:
-        "accepted A Threat Within #783. It has nothing to kill or collect: Speak with Marshal McBride.",
+        "accepted A Threat Within #783. Goal: Find Marshal McBride. It has nothing to kill or collect.",
       next: `interact(do: "turn_in", npc: "${ref}")`,
       status: "DONE",
     });
   });
 
-  test("accept of a talk quest whose NPC is not in view looks for questgivers", async () => {
+  test("accept of a quest whose goal names no NPC in view looks for questgivers", async () => {
     const { t } = await velan();
     t.handle.talk = () =>
       answer(t.handle, "dialog", {
@@ -322,7 +155,7 @@ describe("interact", () => {
       answer(
         t.handle,
         "accepted",
-        { queries: [talkQuery(783, "Speak with Marshal McBride.")] },
+        { queries: [talkQuery(783, "Find the lost scroll.")] },
         783,
       );
     const res = await interactSpec.run(
@@ -386,7 +219,7 @@ describe("interact", () => {
         toolCtx<InteractAfter>(t),
       ),
     ).rejects.toMatchObject({
-      body: ["1. item 2046 x1", "2. item 2047 x1"],
+      body: ["1. Green Chain Boots (mail)", "2. Sunstrider Axe (axe)"],
       reason: "reward_needed",
     });
     const res = await interactSpec.run(
@@ -395,7 +228,7 @@ describe("interact", () => {
     );
     expect(chosen).toEqual([1]);
     expect(res).toMatchObject({
-      detail: "turned in Thinning the Ranks #8325.",
+      detail: "turned in Thinning the Ranks #8325. Reward: Sunstrider Axe.",
       status: "DONE",
     });
   });
@@ -455,7 +288,8 @@ describe("interact", () => {
     );
     expect(sent).toEqual(["request", "choose 0"]);
     expect(res).toMatchObject({
-      detail: "turned in Unfortunate Measures #8326.",
+      detail:
+        "turned in Unfortunate Measures #8326. Reward: Green Chain Boots.",
       status: "DONE",
     });
   });
@@ -494,7 +328,7 @@ describe("interact", () => {
         toolCtx<InteractAfter>(t),
       ),
     ).rejects.toMatchObject({
-      body: ["1. item 2046 x1", "2. item 2047 x1"],
+      body: ["1. Green Chain Boots (mail)", "2. Sunstrider Axe (axe)"],
       detail:
         "reward 3 is not one of the 2 choices; pick a reward for Unfortunate Measures.",
       reason: "reward_needed",

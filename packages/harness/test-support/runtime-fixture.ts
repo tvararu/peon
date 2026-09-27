@@ -163,6 +163,7 @@ function defaultParts({
       lastProgress: () => undefined,
       noProgress: () => undefined,
     } satisfies ProgressTracker,
+    quests: new Map(),
     ready: readyDouble(forceReady),
     refs: memoryRefs(),
     repeats: {

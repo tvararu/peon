@@ -108,3 +108,40 @@ export async function nameLootLines(
       : line;
   });
 }
+
+const WEAPON = 2;
+const ARMOR = 4;
+const WEAPON_KINDS: Record<number, string> = {
+  0: "axe",
+  1: "two-handed axe",
+  2: "bow",
+  3: "gun",
+  4: "mace",
+  5: "two-handed mace",
+  6: "polearm",
+  7: "sword",
+  8: "two-handed sword",
+  10: "staff",
+  13: "fist weapon",
+  15: "dagger",
+  16: "thrown",
+  18: "crossbow",
+  19: "wand",
+};
+const ARMOR_KINDS: Record<number, string> = {
+  1: "cloth",
+  2: "leather",
+  3: "mail",
+  4: "plate",
+  6: "shield",
+};
+
+export function gearKind(label: {
+  itemClass?: number;
+  subclass?: number;
+}): string | undefined {
+  const { itemClass, subclass } = label;
+  if (subclass === undefined) return;
+  if (itemClass === WEAPON) return WEAPON_KINDS[subclass];
+  if (itemClass === ARMOR) return ARMOR_KINDS[subclass];
+}

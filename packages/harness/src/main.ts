@@ -254,6 +254,7 @@ function composeRuntime({
     login: defaultLogin,
     paths,
     profile,
+    quests: new Map(),
     router,
     runs,
     snapshots,

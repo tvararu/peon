@@ -52,6 +52,7 @@ const target = (count: number) => ({
 });
 const reclaiming = {
   level: 4,
+  objectives: "Kill 8 Mana Wyrms.",
   objectiveTexts: ["Mana Wyrm slain", "", "", ""],
   targets: [target(8), target(0), target(0), target(0)],
   title: "Reclaiming Sunstrider Isle",
@@ -96,7 +97,7 @@ describe("journal", () => {
       [
         "DONE 2 quests. This is your quest log. To see what an NPC offers, use interact.",
         "#8325 Reclaiming Sunstrider Isle (L4): Mana Wyrm slain 3/8; incomplete.",
-        "#8326 quest 8326: no counted objectives; complete.",
+        '#8326 quest 8326: complete. Turn in to the NPC named in the goal; try look(find: "questgiver").',
       ].join("\n"),
     );
     expect(out.details.result.after).toMatchObject({

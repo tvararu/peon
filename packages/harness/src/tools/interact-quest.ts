@@ -276,6 +276,11 @@ export const acceptStep: InteractStep = async ({ args, ctx, npc }) => {
     if (!details)
       throw unanswered(npc, `with the text of ${offer.title}`, retry);
   }
+  const shown = ctx.handle.getQuestState().dialog;
+  const objectives =
+    shown?.kind === "details" && shown.data.questId === offer.id
+      ? shown.data.objectives
+      : "";
   const accepted = await questStep(ctx, {
     match: (event) => event.type === "accepted" && event.questId === offer.id,
     packet: () => ctx.handle.acceptQuest(),
@@ -284,7 +289,7 @@ export const acceptStep: InteractStep = async ({ args, ctx, npc }) => {
   if (!accepted) throw unanswered(npc, `the accept of ${offer.title}`, retry);
   return result("DONE", {
     after: { ...baseAfter(ctx, npc, "accept"), dialogOpened: true, offers },
-    ...acceptedNext(ctx, offer),
+    ...acceptedNext(ctx, offer, { giver: npc.unit.name, objectives }),
   });
 };
 

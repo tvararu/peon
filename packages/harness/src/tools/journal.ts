@@ -18,7 +18,8 @@ import type {
 import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
 import { formatLogRows, queryLog } from "#harness/log/query";
-import { defineGameTool, result } from "#harness/tools/define";
+import { questGoal, questTitle } from "#harness/ops/quest-memory";
+import { defineGameTool, nextCall, result } from "#harness/tools/define";
 import { type JournalArgs, journalParams } from "#harness/tools/params";
 
 type KnownQuest = Extract<QuestQuery, { status: "known" }>["data"];
@@ -27,6 +28,7 @@ type Occupied = Extract<NamedInventorySlot, { status: "occupied" }>;
 type Ctx = ToolCtx<JournalAfter>;
 
 const ITEMS_PER_LINE = 6;
+const STOP = /[.!?]$/;
 const QUEST_STATUS = {
   complete: "complete",
   failed: "failed",
@@ -93,9 +95,13 @@ function itemObjectives(
   }));
 }
 
-function questLine(state: QuestState, slot: LoggedSlot): QuestLine {
+type ShownQuest = QuestLine & { goal: string };
+
+function questLine(ctx: Ctx, state: QuestState, slot: LoggedSlot): ShownQuest {
   const quest = knownQuest(state, slot.questId);
+  const goal = questGoal(ctx, slot.questId);
   return {
+    goal: goal.objectives.replace(STOP, ""),
     id: slot.questId,
     level: quest?.level,
     objectives: [
@@ -103,37 +109,49 @@ function questLine(state: QuestState, slot: LoggedSlot): QuestLine {
       ...itemObjectives(state, slot.questId),
     ],
     status: QUEST_STATUS[questSlotStatus(slot)],
-    title: quest?.title ?? `quest ${slot.questId}`,
-    turnIn: undefined,
+    title: questTitle(ctx, slot.questId),
+    turnIn: goal.ender,
   };
 }
 
+function turnInText(status: QuestLine["status"], turnIn: string | undefined) {
+  if (turnIn) return ` Turn in to ${turnIn}.`;
+  return status === "complete"
+    ? ` Turn in to the NPC named in the goal; try ${nextCall("look", { find: "questgiver" })}.`
+    : "";
+}
+
 function questText({
+  goal,
   id,
   level,
   objectives,
   status,
   title,
-}: QuestLine): string {
+  turnIn,
+}: ShownQuest): string {
   const levelText = level ? ` (L${level})` : "";
-  const goals =
-    objectives
-      .map((goal) => `${goal.text} ${goal.count}/${goal.required}`)
-      .join(", ") || "no counted objectives";
-  return `#${id} ${title}${levelText}: ${goals}; ${status}.`;
+  const counts = objectives
+    .map((item) => `${item.text} ${item.count}/${item.required}`)
+    .join(", ");
+  const empty = status === "complete" ? "" : "no counted objectives";
+  const goals = counts || goal || empty;
+  const shown = goals === "" ? `${status}.` : `${goals}; ${status}.`;
+  return `#${id} ${title}${levelText}: ${shown}${turnInText(status, turnIn)}`;
 }
 
-function questsResult({ handle }: Ctx): ToolResult<JournalAfter> {
-  const state = handle.getQuestState();
+function questsResult(ctx: Ctx): ToolResult<JournalAfter> {
+  const state = ctx.handle.getQuestState();
   const logged = state.log.slots.filter(
     (slot): slot is LoggedSlot =>
       slot.questId !== undefined && slot.questId > 0,
   );
-  const quests = logged.map((slot) => questLine(state, slot));
+  const shown = logged.map((slot) => questLine(ctx, state, slot));
+  const quests = shown.map(({ goal: _goal, ...line }) => line);
   const detail = `${quests.length} quests. This is your quest log. To see what an NPC offers, use interact.`;
   return result("DONE", {
     after: { about: "quests", quests },
-    body: quests.map(questText),
+    body: shown.map(questText),
     detail,
   });
 }

@@ -192,6 +192,15 @@ export type TravelMemory = {
   visitedCells: Set<string>;
 };
 
+export type QuestNote = {
+  title: string;
+  giver: string | undefined;
+  objectives: string;
+  ender: string | undefined;
+};
+
+export type QuestMemory = Map<number, QuestNote>;
+
 export type Login = (config: ClientConfig) => Promise<WorldHandle>;
 
 export type ViewCtx = { rt: HarnessRuntime; handle: WorldHandle };
@@ -224,6 +233,7 @@ export type HarnessRuntime = {
   mutex: WorldMutex;
   yields: YieldGate;
   travel: TravelMemory;
+  quests: QuestMemory;
   session: SessionFlags;
   handle: () => WorldHandle | undefined;
   requireHandle: () => WorldHandle;
