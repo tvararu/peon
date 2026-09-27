@@ -219,7 +219,7 @@ function earlyRefusal(
     return result("FAILED", {
       after,
       detail: `${goal.unit.name} is no longer in view; it may be dead or despawned.`,
-      next: nextCall("look", { find: goal.unit.name }),
+      next: nextCall("look", { name: goal.unit.name, within: 100 }),
       reason: "target_not_observed",
     });
   if (leg.reason === "start_off_mesh")

@@ -3,8 +3,9 @@ import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
 import { INTERACT_APPROACH_YD, TALK_RANGE_YD } from "#harness/ops/range";
 import { Refusal } from "#harness/ops/refusal";
+import { notAtLastKnown, seekLastKnown } from "#harness/ops/remembered";
 import { resolveUnit, unitRefusal } from "#harness/ops/resolve";
-import { travelLeg } from "#harness/ops/travel-leg";
+import { type LegResult, travelLeg } from "#harness/ops/travel-leg";
 import { reachNext } from "#harness/ops/unreached";
 import {
   defineGameTool,
@@ -143,32 +144,47 @@ function findNpc(ctx: ToolCtx<InteractAfter>, text: string): NpcTarget {
   return { guid: resolved.guid, unit: resolved.unit };
 }
 
-async function approach(
+function unreached(npc: NpcTarget, leg: LegResult): Refusal {
+  return new Refusal({
+    detail: `could not reach ${npcLabel(npc)}: ${leg.detail}.`,
+    next: reachNext(leg, npc.unit),
+    reason: leg.reason ?? leg.status,
+    status: "FAILED",
+  });
+}
+
+async function lastKnown(
   ctx: ToolCtx<InteractAfter>,
   npc: NpcTarget,
-): Promise<void> {
-  if ((npc.unit.distance ?? 0) <= TALK_RANGE_YD) return;
+): Promise<NpcTarget> {
+  if (npc.unit.inView) return npc;
+  const { found, leg } = await seekLastKnown(ctx, npc.unit);
+  if (found) return found;
+  if (leg && leg.status !== "arrived") throw unreached(npc, leg);
+  throw notAtLastKnown(ctx, npc.unit);
+}
+
+async function approach(
+  ctx: ToolCtx<InteractAfter>,
+  seen: NpcTarget,
+): Promise<NpcTarget> {
+  const npc = await lastKnown(ctx, seen);
+  if ((npc.unit.distance ?? 0) <= TALK_RANGE_YD) return npc;
   const leg = await travelLeg(ctx, {
     goal: { guid: npc.guid, kind: "unit", name: npc.unit.name },
     within: INTERACT_APPROACH_YD,
   });
-  if (leg.status !== "arrived")
-    throw new Refusal({
-      detail: `could not reach ${npcLabel(npc)}: ${leg.detail}.`,
-      next: reachNext(leg, npc.unit),
-      reason: leg.reason ?? leg.status,
-      status: "FAILED",
-    });
+  if (leg.status !== "arrived") throw unreached(npc, leg);
+  return npc;
 }
 
 async function runInteract(
   args: InteractArgs,
   ctx: ToolCtx<InteractAfter>,
 ): Promise<ToolResult<InteractAfter>> {
-  const npc = findNpc(ctx, args.npc);
   const step = STEPS.get(args.do ?? "talk");
   if (!step) throw new Error("not_implemented");
-  await approach(ctx, npc);
+  const npc = await approach(ctx, findNpc(ctx, args.npc));
   try {
     return await step({ args, ctx, npc });
   } finally {

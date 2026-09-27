@@ -8,6 +8,7 @@ import { explore, parseDirection, unstick } from "#harness/ops/explore";
 import { distanceTo } from "#harness/ops/range";
 import { aliveWhere, recoverOp } from "#harness/ops/recover";
 import { Refusal } from "#harness/ops/refusal";
+import { notAtLastKnown, seekLastKnown } from "#harness/ops/remembered";
 import { resolveUnit, unitRefusal } from "#harness/ops/resolve";
 import { travelLeg } from "#harness/ops/travel-leg";
 import { poseView, selfView, unitViews } from "#harness/ops/views";
@@ -89,11 +90,14 @@ function remainingOf(ctx: OpsCtx, goal: Goal): number | undefined {
     : undefined;
 }
 
+type UnitGoal = Extract<Goal, { kind: "unit" }>;
+
 async function legWork(
   work: Work & { goal: Extract<Goal, { kind: "unit" | "point" }> },
+  walkedYd = 0,
 ): Promise<Report> {
   const { ops, args, goal, after } = work;
-  const leg = await travelLeg(ops, {
+  const walked = await travelLeg(ops, {
     goal:
       goal.kind === "unit"
         ? { guid: goal.guid, kind: "unit", name: goal.unit.name }
@@ -105,6 +109,7 @@ async function legWork(
           },
     within: args.within ?? (goal.kind === "unit" ? 3 : 1),
   });
+  const leg = { ...walked, traveledYd: walked.traveledYd + walkedYd };
   const view = after({
     floorRetried: leg.floorRetried,
     floors: leg.floors,
@@ -120,6 +125,28 @@ async function legWork(
     traveledYd: leg.traveledYd,
   });
   return legReport({ after: view, ctx: ops, goal, leg, to: args.to });
+}
+
+async function rememberedWork(
+  work: Work & { goal: UnitGoal },
+): Promise<Report> {
+  const { ops, args, goal, after } = work;
+  const { found, leg } = await seekLastKnown(ops, goal.unit);
+  if (found)
+    return legWork(
+      { ...work, goal: { ...goal, guid: found.guid, unit: found.unit } },
+      leg?.traveledYd,
+    );
+  const view = after({ traveledYd: leg?.traveledYd ?? 0 });
+  if (leg && leg.status !== "arrived")
+    return legReport({ after: view, ctx: ops, goal, leg, to: args.to });
+  const refusal = notAtLastKnown(ops, goal.unit);
+  return result("FAILED", {
+    after: view,
+    detail: refusal.detail,
+    next: refusal.next,
+    reason: refusal.reason,
+  });
 }
 
 async function unstickWork(work: Work): Promise<Report> {
@@ -169,6 +196,8 @@ async function corpseWork(work: Work): Promise<Report> {
 
 async function doWork(work: Work): Promise<Report> {
   const { goal } = work;
+  if (goal.kind === "unit" && !goal.unit.inView)
+    return rememberedWork({ ...work, goal });
   if (goal.kind === "unit" || goal.kind === "point")
     return legWork({ ...work, goal });
   if (goal.kind === "unstick") return unstickWork(work);

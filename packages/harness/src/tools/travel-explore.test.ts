@@ -159,7 +159,7 @@ describe("travel explore", () => {
     expect(res).toMatchObject({
       detail:
         "Springpaw Stalker is no longer in view; it may be dead or despawned.",
-      next: 'look(find: "Springpaw Stalker")',
+      next: 'look(name: "Springpaw Stalker", within: 100)',
       reason: "target_not_observed",
       status: "FAILED",
     });

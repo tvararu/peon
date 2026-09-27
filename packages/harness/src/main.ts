@@ -16,7 +16,11 @@ import type {
   RunMeta,
   RunPaths,
 } from "#harness/contract/config";
-import type { Clock, HarnessRuntime } from "#harness/contract/services";
+import type {
+  Clock,
+  HarnessRuntime,
+  QuestMemory,
+} from "#harness/contract/services";
 import { OmpCredentialStore, ompDbPath } from "#harness/credentials/omp-store";
 import { credentialStatus, startupCheck } from "#harness/credentials/status";
 import {
@@ -44,6 +48,7 @@ import { createGameLog, createJsonlSink } from "#harness/log/store";
 import { createAttackLedger } from "#harness/ops/danger";
 import { createProgressTracker } from "#harness/ops/progress";
 import { createRefTable } from "#harness/ops/refs";
+import { pinnedBy } from "#harness/ops/remembered";
 import { createRepeatGuard } from "#harness/ops/repeat-guard";
 import { createSightings } from "#harness/ops/sightings";
 import { snapshotWorld } from "#harness/ops/views";
@@ -245,6 +250,7 @@ function composeRuntime({
     obstructedExplores: new Map(),
     visitedCells: new Set<string>(),
   };
+  const quests: QuestMemory = new Map();
   const shared = {
     attacks,
     clock,
@@ -254,7 +260,7 @@ function composeRuntime({
     login: defaultLogin,
     paths,
     profile,
-    quests: new Map(),
+    quests,
     router,
     runs,
     snapshots,
@@ -262,7 +268,7 @@ function composeRuntime({
   };
   late.rt = createHarnessRuntime({
     ...shared,
-    ...services({ clock, log, profile }),
+    ...services({ clock, log, profile, quests }),
   });
   return late.rt;
 }
@@ -271,10 +277,12 @@ function services({
   clock,
   log,
   profile,
+  quests,
 }: {
   clock: Clock;
   log: ReturnType<typeof createGameLog>;
   profile: Profile;
+  quests: QuestMemory;
 }) {
   return {
     mutex: createWorldMutex(),
@@ -282,7 +290,7 @@ function services({
     ready: createReadyGate({ clock, log, profile }),
     refs: createRefTable(),
     repeats: createRepeatGuard(clock),
-    sightings: createSightings(clock),
+    sightings: createSightings(clock, pinnedBy(quests)),
     stats: createToolStats(clock),
     yields: createYieldGate(),
   };

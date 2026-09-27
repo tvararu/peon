@@ -10,6 +10,12 @@ import { isUnitEntity } from "#harness/ops/refs";
 
 export const SIGHTING_TTL_MS = 1_800_000;
 
+export type Pinned = (sighting: Sighting) => boolean;
+
+export function staticRole({ roles }: Pick<Sighting, "roles">): boolean {
+  return roles.some((role) => role !== "gossip");
+}
+
 type Known = Pick<Sighting, "lootable" | "name" | "relation" | "roles">;
 type Located = { entity: UnitEntity; position: Position; seenAt: number };
 
@@ -67,15 +73,18 @@ function fromEntity(
   return sightingOf({ entity, position, seenAt }, known);
 }
 
-export function createSightings(clock: Clock): Sightings {
+export function createSightings(
+  clock: Clock,
+  pinned: Pinned = staticRole,
+): Sightings {
   const seen = new Map<bigint, Sighting>();
-  const fresh = (sighting: Sighting) =>
-    clock.now() - sighting.seenAt <= SIGHTING_TTL_MS;
+  const fresh = (sighting: Sighting, now = clock.now()) =>
+    now - sighting.seenAt <= SIGHTING_TTL_MS || pinned(sighting);
   const keep = (sighting: Sighting | undefined) => {
     if (sighting) seen.set(sighting.guid, sighting);
   };
   return {
-    all: () => [...seen.values()].filter(fresh),
+    all: () => [...seen.values()].filter((sighting) => fresh(sighting)),
     attach: (handle) =>
       handle.onEntityEvent((event) => {
         if (
@@ -94,7 +103,7 @@ export function createSightings(clock: Clock): Sightings {
     note: (row) => keep(fromRow(row, seen.get(row.entity.guid), clock.now())),
     prune(now) {
       for (const [guid, sighting] of seen)
-        if (now - sighting.seenAt > SIGHTING_TTL_MS) seen.delete(guid);
+        if (!fresh(sighting, now)) seen.delete(guid);
     },
   };
 }
