@@ -9,7 +9,11 @@ import {
 import { messageOf } from "@peon/core/lib/errors";
 import { harnessStateDir } from "#harness/config/flags";
 import { acquireLock, type Lock, LockError } from "#harness/config/lock";
-import { loadProfile, ProfileError } from "#harness/config/profile";
+import {
+  loadProfile,
+  ProfileError,
+  readableExtensions,
+} from "#harness/config/profile";
 import type {
   HarnessFlags,
   Profile,
@@ -66,6 +70,7 @@ import { createPiRuntime } from "#harness/runtime/pi-runtime";
 import { createReadyGate } from "#harness/runtime/ready";
 import { createYieldGate } from "#harness/runtime/yield";
 import { setGlyphs } from "#harness/ui/context";
+import { worldExtension } from "#harness/world/extension";
 import { type GlyphSetName, resolveGlyphSet } from "#harness/ui/glyphs";
 
 export const EXIT = { credential: 3, ok: 0, refused: 2, usage: 2 } as const;
@@ -85,6 +90,7 @@ type Started = {
   profile: Profile;
   lock: Lock;
   credentials: CredentialStore;
+  extensionPaths: string[];
 };
 type Finish = {
   rt: HarnessRuntime;
@@ -127,6 +133,7 @@ function defaultDeps(): MainDeps {
 
 async function start(flags: HarnessFlags, deps: MainDeps): Promise<number> {
   const profile = await loadProfile(flags.profile, deps.home);
+  const extensionPaths = await readableExtensions(profile, flags);
   const lock = await acquireLock({
     profile,
     runDir: flags.runDir ?? runsRoot(deps.home),
@@ -144,7 +151,7 @@ async function start(flags: HarnessFlags, deps: MainDeps): Promise<number> {
     await lock.release();
     return check.ok ? EXIT.ok : EXIT.credential;
   }
-  await play({ credentials, deps, flags, lock, profile });
+  await play({ credentials, deps, extensionPaths, flags, lock, profile });
   return EXIT.ok;
 }
 
@@ -154,6 +161,7 @@ async function play({
   profile,
   lock,
   credentials,
+  extensionPaths,
 }: Started): Promise<void> {
   const paths = await createRunDir({
     character: profile.character,
@@ -189,7 +197,11 @@ async function play({
   const piRuntime = await createPiRuntime({
     agentDir,
     credentials,
-    extension: withFinish(wowExtension(rt), exit, finish),
+    extensionPaths,
+    extensions: [
+      { factory: worldExtension(rt), name: "world" },
+      { factory: withFinish(wowExtension(rt), exit, finish), name: "wow" },
+    ],
     runtime: rt,
   });
   await linkSession(

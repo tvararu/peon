@@ -1,9 +1,14 @@
 import { homedir } from "node:os";
+import { dirname, resolve } from "node:path";
 import type { ClientConfig } from "@peon/core";
 import { type Config, parseConfig, realmDefaults } from "@peon/core/lib/config";
 import { messageOf } from "@peon/core/lib/errors";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
-import type { Profile, ProfileSource } from "#harness/contract/config";
+import type {
+  HarnessFlags,
+  Profile,
+  ProfileSource,
+} from "#harness/contract/config";
 import { jevPort } from "#harness/jev/port";
 import { navigationSource } from "#harness/navigation/maps";
 import type { NavigationSource } from "#harness/navigation/native";
@@ -39,7 +44,7 @@ export const PROTECTED_ACCOUNT_PREFIXES: readonly string[] = ["RNDBOT"];
 export const PROTECTED_CHARACTERS: readonly string[] = ["Xiara"];
 
 type Json = Record<string, unknown>;
-type Parsed = { source: ProfileSource; config: Config };
+type Parsed = { source: ProfileSource; config: Config; extensions: string[] };
 type BaseFields = Pick<
   Config,
   | "host"
@@ -59,7 +64,7 @@ export async function loadProfile(
   path: string,
   home = homedir(),
 ): Promise<Profile> {
-  const { source, config } = await parseProfile({
+  const { source, config, extensions } = await parseProfile({
     home,
     path,
     text: await readText(path),
@@ -78,11 +83,26 @@ export async function loadProfile(
     account: config.account.toUpperCase(),
     character: config.character,
     client: clientConfig(config),
+    extensions,
     jev: jevPort(Bun.env),
     navigation: navigationOf(config),
     path,
     source,
   };
+}
+
+export async function readableExtensions(
+  profile: Pick<Profile, "extensions">,
+  flags: Pick<HarnessFlags, "extensions">,
+): Promise<string[]> {
+  const paths = [...profile.extensions, ...flags.extensions];
+  for (const path of paths)
+    if (!(await Bun.file(path).exists()))
+      throw new ProfileError(
+        "unreadable",
+        `Cannot read the extension ${path}.`,
+      );
+  return paths;
 }
 
 export function clientConfig(cfg: Config): ClientConfig {
@@ -133,13 +153,29 @@ async function parseProfile({
   text: string;
   home: string;
 }): Promise<Parsed> {
-  if (!text.trimStart().startsWith("{"))
-    return { config: parseToml(text, path), source: "config_toml" };
+  if (!text.trimStart().startsWith("{")) {
+    const config = parseToml(text, path);
+    const table: unknown = Bun.TOML.parse(text);
+    return {
+      config,
+      extensions: extensionsOf(table, path),
+      source: "config_toml",
+    };
+  }
   const json = parseJson(text, path);
+  const extensions = extensionsOf(json, path);
   if (typeof json["dir"] === "string")
-    return { config: await sessionConfig(json), source: "soap_session" };
+    return {
+      config: await sessionConfig(json),
+      extensions,
+      source: "soap_session",
+    };
   if (typeof json["createdAt"] === "string")
-    return { config: await ledgerConfig(json, home), source: "soap_ledger" };
+    return {
+      config: await ledgerConfig(json, home),
+      extensions,
+      source: "soap_ledger",
+    };
   throw new ProfileError(
     "unknown_format",
     `${path} is not a soap session, a soap ledger entry or a Peon config.toml.`,
@@ -179,6 +215,22 @@ function parseToml(text: string, path: string): Config {
     ? "missing_field"
     : "unknown_format";
   throw new ProfileError(code, `${path}: ${config.message}`, { cause: config });
+}
+
+function extensionsOf(table: unknown, path: string): string[] {
+  const value =
+    typeof table === "object" && table !== null && "extensions" in table
+      ? table.extensions
+      : [];
+  if (
+    !Array.isArray(value) ||
+    !value.every((entry) => typeof entry === "string" && entry.length > 0)
+  )
+    throw new ProfileError(
+      "unknown_format",
+      `${path}: "extensions" must be a list of file paths.`,
+    );
+  return value.map((entry: string) => resolve(dirname(path), entry));
 }
 
 function field(json: Json, name: string): string {

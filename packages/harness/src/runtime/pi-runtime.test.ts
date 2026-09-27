@@ -129,7 +129,7 @@ describe("createPiRuntime", () => {
       createPiRuntime({
         agentDir: rt.paths.dir,
         credentials: emptyCredentials,
-        extension: probeTool,
+        extensions: [{ factory: probeTool, name: "wow" }],
         runtime: rt,
       }),
     ).rejects.toThrow("The model faux/missing is not in the Pi catalog.");
@@ -143,7 +143,7 @@ describe("createPiRuntime", () => {
     await createPiRuntime({
       agentDir: rt.paths.dir,
       credentials: emptyCredentials,
-      extension: probeTool,
+      extensions: [{ factory: probeTool, name: "wow" }],
       runtime: rt,
     }).catch(() => undefined);
     for (const [bin, names] of [

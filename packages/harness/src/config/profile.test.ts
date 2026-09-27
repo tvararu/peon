@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { serializeConfig } from "@peon/core/lib/config";
 import { scratchDir } from "@peon/core/test-support/scratch";
@@ -7,6 +7,7 @@ import {
   isProtected,
   loadProfile,
   ProfileError,
+  readableExtensions,
 } from "#harness/config/profile";
 
 let root: string;
@@ -226,6 +227,45 @@ describe("loadProfile", () => {
     ).rejects.toMatchObject({ code: "unknown_format" });
   });
 
+  test("resolves extensions against the directory of the file that lists them", async () => {
+    const session = JSON.parse(
+      await Bun.file(await sessionProfile("FACABC0123456", "Fgk")).text(),
+    );
+    const json = await writeJson("session.json", {
+      ...session,
+      extensions: ["ext/a.ts", "/abs/b.ts"],
+    });
+    const toml = join(root, "cfg/config.toml");
+    await writeToml({
+      account: "a",
+      character: "B",
+      library: "/l",
+      path: toml,
+    });
+    await appendFile(toml, 'extensions = ["../tools/c.ts"]\n');
+    expect((await loadProfile(json, root)).extensions).toEqual([
+      join(root, "ext/a.ts"),
+      "/abs/b.ts",
+    ]);
+    expect((await loadProfile(toml, root)).extensions).toEqual([
+      join(root, "tools/c.ts"),
+    ]);
+  });
+
+  test.each([
+    ["a string", "a.ts"],
+    ["a number entry", [1]],
+    ["an empty entry", [""]],
+  ])("refuses extensions given as %s", async (_label, extensions) => {
+    const session = JSON.parse(
+      await Bun.file(await sessionProfile("FACABC0123456", "Fgk")).text(),
+    );
+    const path = await writeJson("bad.json", { ...session, extensions });
+    await expect(loadProfile(path, root)).rejects.toMatchObject({
+      code: "unknown_format",
+    });
+  });
+
   test("refuses a file that does not exist", async () => {
     await expect(
       loadProfile(join(root, "missing.json"), root),
@@ -238,4 +278,21 @@ test("isProtected matches accounts, the RNDBOT prefix and Xiara", () => {
   expect(isProtected("RNDBOT7", "Bot")).toBe(true);
   expect(isProtected("FACABC0123456", "XIARA")).toBe(true);
   expect(isProtected("FACABC0123456", "Fgklibhlflc")).toBe(false);
+});
+
+describe("readableExtensions", () => {
+  test("puts the profile's extensions before the flag's", async () => {
+    const [a, b] = [join(root, "a.ts"), join(root, "b.ts")];
+    await writeFile(a, "");
+    await writeFile(b, "");
+    expect(
+      await readableExtensions({ extensions: [b] }, { extensions: [a] }),
+    ).toEqual([b, a]);
+  });
+
+  test("refuses a path that does not exist", async () => {
+    await expect(
+      readableExtensions({ extensions: [] }, { extensions: [join(root, "x")] }),
+    ).rejects.toMatchObject({ code: "unreadable" });
+  });
 });

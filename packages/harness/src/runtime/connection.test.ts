@@ -21,6 +21,7 @@ const profile: Profile = {
     password: "PW",
     port: 3724,
   },
+  extensions: [],
   path: "/p.json",
   source: "soap_session",
 };

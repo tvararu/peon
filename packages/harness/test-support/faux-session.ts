@@ -11,6 +11,7 @@ import type {
 import { scratchDir } from "@peon/core/test-support/scratch";
 import type { HarnessRuntime } from "#harness/contract/services";
 import { createPiRuntime } from "#harness/runtime/pi-runtime";
+import { worldExtension } from "#harness/world/extension";
 
 export const FAUX_MODEL = "faux/faux-1";
 
@@ -31,6 +32,7 @@ export const emptyCredentials: CredentialStore = {
 export async function createFauxSession(init: {
   rt: HarnessRuntime;
   extension: ExtensionFactory;
+  extensionPaths?: readonly string[];
 }): Promise<FauxSession> {
   const faux = fauxProvider({
     models: [{ id: "faux-1", reasoning: true }],
@@ -40,7 +42,11 @@ export async function createFauxSession(init: {
   const runtime = await createPiRuntime({
     agentDir,
     credentials: emptyCredentials,
-    extension: init.extension,
+    extensions: [
+      { factory: worldExtension(init.rt), name: "world" },
+      { factory: init.extension, name: "wow" },
+    ],
+    extensionPaths: init.extensionPaths,
     providers: [faux.provider],
     runtime: init.rt,
   });

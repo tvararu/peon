@@ -59,6 +59,7 @@ const CANCEL_CODES: Record<StopCause, string> = {
 const FLAGS: HarnessFlags = {
   check: false,
   connect: true,
+  extensions: [],
   glyphs: "ascii",
   logEntities: false,
   model: "faux/faux-1",
@@ -82,6 +83,7 @@ export function testProfile(): Profile {
     account: "TESTACC",
     character: "Testchar",
     client,
+    extensions: [],
     path: "/test/profile.json",
     source: "soap_session",
   };

@@ -155,6 +155,16 @@
       }
     },
     {
+      "includes": ["packages/harness/test-support/extensions/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDefaultExport": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["packages/**/*.test.ts", "packages/*/test-support/**"],
       "linter": {
         "rules": {

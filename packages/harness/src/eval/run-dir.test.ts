@@ -120,6 +120,7 @@ function meta(dir: string): RunMeta {
   const flags = {
     check: false,
     connect: true,
+    extensions: [],
     glyphs: undefined,
     logEntities: false,
     model: "openai-codex/gpt-6-luna",

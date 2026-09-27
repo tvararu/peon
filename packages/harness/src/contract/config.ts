@@ -18,6 +18,7 @@ export type HarnessFlags = {
   stopReflex: boolean;
   nowPerCall: boolean;
   logEntities: boolean;
+  extensions: string[];
   check: boolean;
 };
 
@@ -31,6 +32,7 @@ export type Profile = {
   client: ClientConfig;
   jev?: JevPort;
   navigation?: NavigationSource;
+  extensions: string[];
 };
 
 export type RunPaths = {

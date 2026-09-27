@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { resolve } from "node:path";
 import {
   DEFAULT_MODEL,
   harnessStateDir,
@@ -12,6 +13,7 @@ describe("parseFlags", () => {
     expect(parseFlags(["--profile", "/p.json"])).toEqual({
       check: false,
       connect: true,
+      extensions: [],
       glyphs: undefined,
       logEntities: false,
       model: DEFAULT_MODEL,
@@ -48,6 +50,7 @@ describe("parseFlags", () => {
     expect(parseFlags(argv)).toEqual({
       check: true,
       connect: false,
+      extensions: [],
       glyphs: "ascii",
       logEntities: true,
       model: "faux/faux-1",
@@ -58,6 +61,18 @@ describe("parseFlags", () => {
       thinking: "low",
       wake: false,
     });
+  });
+
+  test("collects repeated --extension paths as absolute paths in order", () => {
+    const argv = [
+      "--profile",
+      "/p",
+      "--extension",
+      "b.ts",
+      "--extension",
+      "/x/a.ts",
+    ];
+    expect(parseFlags(argv).extensions).toEqual([resolve("b.ts"), "/x/a.ts"]);
   });
 
   test("requires --profile", () => {
