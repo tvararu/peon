@@ -147,6 +147,11 @@ raw = true
 quiet = true
 run = "bun packages/harness/src/entry.ts"
 
+[tasks.eval]
+description = "Run the eval grader CLI: run a scenario, grade, read truth, check leaks"
+raw = true
+run = "bun packages/harness/src/grader/cli.ts"
+
 [tasks."evidence:encounter"]
 description = "Distil an encounter record from the session log"
 raw = true
