@@ -486,15 +486,18 @@ of the queue stay `queued`, and `cycle` or `cycle --resume` replies
 `ERR jev_unavailable: <cause>` and exits with status 1. Run `cycle --resume`
 once Jev is back to fight the same target again.
 Before each fight the loop skips a queued unit that is dead, tapped by
-another player or fighting another player (queue cause `target_dead`,
-`tapped_by_other` or `engaged_by_other`); a skip uses no start. Before a
+another player, fighting another player or no longer in view (queue cause
+`target_dead`, `tapped_by_other`, `engaged_by_other` or `target_unobserved`);
+a skip uses no start. Before each pull of a unit that is not attacking you
+it checks your health and mana, and stops with `low_health` below 50% HP or
+`low_mana` below 30% mana (`stopDetail.pct`); rest, then resume. Before a
 loot open it walks to within 4 yards of a dead, lootable corpse, and it
 does not walk to a corpse with no loot. A release-only or
 unanswered loot open or take records no loot for that corpse (queue
 `loot: "none"`, cause `loot_denied:release_only` or
 `loot_denied:timeout`) and the loop continues.
 The loop stops on queue exhaustion (`queue_exhausted`), the starts cap
-(`max_starts_reached`), `halt`, a denied or blocked loot window
+(`max_starts_reached`), `halt`, `low_health` or `low_mana`, a denied or blocked loot window
 (`loot_denied:*`, `loot_inventory_full`, `inventory_reserve_reached`,
 `loot_release_unconfirmed`), or an unrecovered death
 (`corpse_absent`, `reclaim_delayed`, `corpse_out_of_range`,
@@ -531,7 +534,8 @@ Nothing is repaired between the stop and the resume; check `nearby` and
 the objective creatures and counts from the server's quest data. Before each
 fight it re-reads the quest log slot, then picks the nearest live creature of
 a still-needed entry that it has not tried, that is not tapped by someone else,
-and that is within 50 yd. Jev fights it exactly as in a GUID cycle, then the
+at any distance in view; a creature more than 30 yd away is walked to first.
+Jev fights it exactly as in a GUID cycle, then the
 loop loots and picks again; a death is recovered as in a GUID cycle and the
 run continues. The quest query names required items but not the creatures
 that drop them, so item objectives need one `--source` creature entry per
@@ -541,8 +545,9 @@ dropping creature; without one the start fails with
 required count. The run stops with `objective_complete` once the server marks
 the quest log slot complete, and otherwise with `quest_not_in_log`,
 `quest_failed`, `objective_targets_absent` (no candidate observed; `stopDetail`
-lists the entries), `objective_targets_out_of_reach` (`stopDetail` has the
-nearest GUID and distance), `self_pose_unobserved`, or any GUID-cycle cause.
+lists the entries), `objective_targets_out_of_reach` (no route to a
+creature more than 50 yd away; `stopDetail` has its GUID and distance),
+`self_pose_unobserved`, or any GUID-cycle cause.
 `cycle --resume` continues a stopped quest run and never re-picks a creature
 it already tried. Travel toward more creatures and resume or start again after
 an `objective_targets_*` stop. Travel to and from the quest giver, acceptance
