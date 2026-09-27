@@ -69,6 +69,18 @@ describe("skippedText", () => {
       ]),
     ).toBe("u10 could not be reached");
   });
+
+  test("names the recheck skips in plain words", () => {
+    expect(
+      skippedText([
+        target("u26", "engaged_by_other"),
+        target("u25", "tapped_by_other"),
+        target("u24", "target_dead"),
+      ]),
+    ).toBe(
+      "u26 fighting another player, u25 tapped by another player, u24 already dead",
+    );
+  });
 });
 
 describe("stopText", () => {

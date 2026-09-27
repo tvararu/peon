@@ -13,6 +13,7 @@ const REJECTED = "server_action_rejected:";
 const LOOT_DENIED = "loot_denied:";
 const PLAIN: Record<string, string> = {
   died: "you died",
+  engaged_by_other: "fighting another player",
   "loot_denied:loot_source_unavailable":
     "the last corpse despawned or left view",
   "loot_denied:release_only": "the last corpse was out of loot range",
@@ -28,6 +29,8 @@ const PLAIN: Record<string, string> = {
   queue_exhausted: "no more targets in view",
   "server_action_rejected:line_of_sight": "out of line of sight",
   tapped: "tapped by another player",
+  tapped_by_other: "tapped by another player",
+  target_dead: "already dead",
   target_dead_without_server_credit: "killed by another player",
   target_death_unconfirmed: "its death was not confirmed",
   target_friendly: "not hostile",
