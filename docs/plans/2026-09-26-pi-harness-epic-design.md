@@ -567,6 +567,105 @@ as the spec settlements.
     eversong10-spawn slot with no level write, replacing the warrior
     of item 80. The first human input of a run logs as `task_landed`.
     `bb24d6d`, `dc0016d`.
+95. Eval round 2 fix engage-continuity: the cycle and the standalone
+    loot walk to within 4 yd of a corpse before the open, but only when
+    the corpse is dead and flagged lootable. A release-only or
+    unanswered open or take records no loot for that corpse and moves
+    on; a new `RewardsRuntime.abandonOpen` frees the open. Inventory
+    limits still stop the run. `7cdddee`, `b4df16f`.
+96. Eval round 2 fix engage-continuity: a character that can melee but
+    has no usable spell gets movement and auto-attack in melee range,
+    and ends `target_unreachable` only after 5 s without approach
+    progress. `no_supported_combat_actions` stays for a character that
+    cannot melee. Three spell tests that expected the block now expect
+    the approach. `0375545`.
+97. Eval round 2 fix engage-continuity: each queued unit is checked
+    just before its fight and skipped as `target_dead`,
+    `tapped_by_other` or `engaged_by_other` without a fight or a start.
+    A fight refused because its target is already dead gives its start
+    back. The re-pick stays in the harness top-up in `engage-fight.ts`.
+    A unit that fights a party member is also skipped, which is
+    correct for solo play. Luna reads the skips in plain words.
+    `10cace1`, `9a30b2f`, `b4df16f`.
+98. Eval round 2 fix engage-continuity: the rule memo carries the
+    fights already fought into the next cycle of the same run, so the
+    `run/progress` fight count does not fall at a top-up; it resets
+    when a run starts or a cycle starts outside a run. `ae05d0d`.
+99. Eval round 3 fix act-before-ask: the danger line ages a hit from
+    the last HP drop. Before any hit it reads `is coming at you
+    (12 yd)`, a form the harness design does not name. `a721223`.
+100. Eval round 3 fix act-before-ask: repeat calls carry the target
+     distance and the attacker set, and engage on a unit that attacks
+     the character is never blocked. `nextCall` and `askHuman` move to
+     `tools/next-call`. `74bbe0d`.
+101. Eval round 3 fix act-before-ask: under attack, a blocked Next or
+     a repeat refusal that would ask the human becomes engage on the
+     attacker. A positional failure first moves with
+     `travel(to: "explore southeast")`, because travel accepts a
+     direction only with the explore prefix; the guard asks the human
+     only after the same tool also failed from a pose at least
+     `REPEAT_MOVE_YD` away. `bd9b44e`.
+102. Eval round 3 fix quest-handoff: core `WorldHandle` gains
+     `itemLabel`, which returns the cached item label and queries an
+     unknown item, so the harness can name quest reward items. The
+     brief kept quest-handoff in the harness. `9bae34d`.
+103. Eval round 3 fix quest-handoff: accept keeps the details text and
+     the ender on a harness quest record that the journal and
+     `no_offer` use; turn-in reports XP, money and items from the
+     rewarded event. Reward choices show the armor or weapon kind but
+     not the slot, because the core item query does not parse the
+     inventory type. The journal shows the goal text for a quest with
+     no counted objectives. A `turn_in` with no complete quest keeps
+     the old refusal. `no_offer` names the giver when the ender is
+     unknown and the giver is another NPC. `b895c86`, `71a4488`.
+104. Eval round 3 fix quest-handoff: engage and loot add `Quest N
+     complete` for each quest completed during the call and, when no
+     other Next is set, point at the ender or giver, or at a
+     questgiver look. `8d9d498`.
+105. Eval round 3 fix unit-reach: when the strict routes lose a height
+     trace, the planner retries the mesh corridor and then the
+     straight line, and takes the one ground floor within a walkable
+     slope where the trace fails. This applies to every route, not
+     only unit routes, and a lone lost trace on one continuous floor
+     is no longer a refusal. `466760e`.
+106. Eval round 3 fix unit-reach: the cycle plans a goto guid route to
+     every queued target farther than 30 yd and stops within 25 yd
+     before the fight and its bound start. A target with no route is
+     skipped as `target_unreachable` without a start, and a target is
+     vetted again after the walk. `d1d4b02`.
+107. Eval round 3 fix unit-reach: a gray target (all 3.3.5a level
+     bands) that dies tapped by the character, or fought with no tap
+     flags seen, completes as gray; a non-gray target tapped by the
+     character that dies with no XP after 5 s completes as
+     `no_xp_kill`; another player is named only when the tap flags say
+     so. XP 0 lives on the harness target record. `a416721`.
+108. Eval round 3 fix t6-and-grader: t6-die-and-recover heads northeast,
+     not northwest as the brief said, because 58 measured Springpaw
+     Stalker fights put the field 25 to 40 degrees east of north from
+     every eversong10-spawn slot. The eval-suite stalker-field point
+     holds that cluster. `99f83b6`.
+109. Eval round 3 fix t6-and-grader: the rescue nudge asks the agent to
+     try another way to finish the task, not to report what blocks it.
+     `eb914da`.
+110. Eval round 3 fix t6-and-grader: `mise eval run --wait` polls a
+     busy field every 15 s and starts when it frees, or exits 1 naming
+     the holder after 20 min. Waiting is not yet the default. `b57337f`.
+111. Eval round 3 fix t6-and-grader: `wallSec` ends at the answer the
+     done rule accepts, or at the end decision for budget, stuck and
+     abort ends; a new `exitSec` keeps the time to harness exit.
+     `f67f0c1`, `eae7f06`.
+112. Eval round 3 fix t6-and-grader: each draft game_log check gets
+     the first and last matching rows, only known game log domains
+     count as events, each truth check gets only the fields it reads,
+     and the draft verdict is null so an unedited draft does not
+     validate. `7795bd8`, `39a707d`.
+113. Eval round 3 fix t6-and-grader: t3-kill-one-hunter's
+     pet-and-ranged check splits into ranged-cast (spell 75, 3044,
+     1978, 5116 or 13549) and pet-attack, which carries `blockedBy
+     P5:pet_attack` and grades blocked. `01bd061`, `84d654e`.
+114. Eval round 3 fix t6-and-grader: the runner reads soap health at
+     preflight and writes the bot count and a bot risk to `run.json`.
+     `ddcbc4e`.
 
 ## 3. Context
 
@@ -1744,3 +1843,120 @@ Deferred:
   instead of printing the zone twice, and add damage-dealt events.
 - Eval: `session.jsonl` records Pi's default system prompt, not the
   Luna prompt that `install.ts` sends.
+
+### Eval round 4
+
+Head `84d654e`. Thirteen scenarios, one run each, in the eval worktree.
+
+- Fix briefs landed before the round: engage-continuity (`b4df16f`),
+  unit-reach (`a416721`), act-before-ask (`bd9b44e`), quest-handoff
+  (`71a4488`) and t6-and-grader (`84d654e`).
+- Pass rate 9 of 13 (0.69; round 3 0.62, round 2 0.54, round 1 0.46).
+  Abort rate 0 of 13 (round 3 0). Median tool calls 4 (round 3 7).
+  Median wall time 65.3 s (round 3 145.7 s). From this round `wallSec`
+  ends at the accepted answer (`f67f0c1`); rounds 1 to 3 ran to harness
+  exit, which added the 30 s done wait and about 20 s of logout. Most
+  of the wall time drop comes from the new measurement, not from
+  faster runs.
+- t6-die-and-recover passes after 3 blocked rounds, and
+  t4-alliance-first goes from fail to pass, after unit-reach, the t6
+  bearing change and quest-handoff. t4-quest-first goes from pass to
+  fail. Every run ended `done`.
+
+| Scenario | Verdict | Checks | Tool calls | Turns | Wall s | First action s |
+|---|---|---|---|---|---|---|
+| t0-hostiles | pass | 3/3 | 1 | 2 | 3.6 | 2.56 |
+| t0-self-state | pass | 5/5 | 2 | 3 | 8.7 | 5.09 |
+| t0-who-is-near | pass | 3/3 | 1 | 2 | 4.1 | 2.32 |
+| t1-walk-to-npc | pass | 2/2 | 10 | 11 | 52.0 | 2.30 |
+| t2-whisper-reply | pass | 3/3 | 2 | 4 | 65.3 | 2.09 |
+| t3-ghostlands-kill | fail | 3/4 | 23 | 24 | 112.8 | 2.50 |
+| t3-kill-one-hunter | fail | 4/7 | 8 | 9 | 67.3 | 2.60 |
+| t4-alliance-first | pass | 3/4 | 14 | 15 | 58.1 | 2.98 |
+| t4-quest-first | fail | 1/5 | 28 | 29 | 335.3 | 3.00 |
+| t5-vendor-buy-goldshire | pass | 2/2 | 2 | 3 | 13.5 | 2.99 |
+| t6-die-and-recover | pass | 4/4 | 4 | 6 | 81.4 | 3.38 |
+| t7-halt-resume | pass | 3/3 | 4 | 6 | 143.0 | 2.56 |
+| t7-question-while-acting | fail | 3/4 | 16 | 18 | 339.8 | 2.42 |
+
+No run had a tool error. The failures:
+
+- t4-quest-first: the route back to the hub refused
+  `ambiguous_ground_column` on a route segment, and Magistrix Erona
+  dropped out of memory once she left view, so the quest could not be
+  turned in.
+- t7-question-while-acting: the agent answered mana 49% from a RUNNING
+  result while Jev read 38.1%. The prompt rule `Answer questions from
+  the newest result or [now]` causes it. This is the 3rd round.
+- t3-ghostlands-kill: 0 kills. The agent made 12 explore legs of 20 to
+  40 yd inside the town and stopped at 113 s of 600 s.
+- t3-kill-one-hunter: Jev has no ranged shots for the 4th round; the
+  core-b hunter brief is deferred again.
+
+Top friction clusters (score is the sum of severities over runs:
+blocker 4, major 3, minor 1):
+
+1. Finding and remembering units (ops-tools-a, score 20; t4-quest,
+   t4-alliance, t1, t3-ghost). The `look` 6-row cap hides the quest
+   ender or the named NPC, static NPCs are forgotten when they leave
+   update range, and explore legs stop at 40 yd and circle the town.
+2. Luna prompt gaps (prompt-docs, score 12; t7-q, t4-alliance,
+   t3-ghost, t4-quest, t1, t0-self). The agent answers live values
+   from a stale result, ignores Next hints, explores instead of
+   travel or interact by name, gives up early, and calls a redundant
+   look for state answers.
+3. Engage cycle (core-a, score 9; t4-quest, t7-q, t3-hunter).
+   Objective targets beyond 50 yd are refused instead of walked to, a
+   cycle starts new pulls at low mana, and an unobserved queued target
+   starts a fight row.
+4. Navigation refusals on the route (core-a, score 8; t4-quest,
+   t4-alliance, t1). `ambiguous_ground_column` on route segments (the
+   landed floor retry covers only the destination), explore legs
+   blocked at the start, and an unstick that moves 0 yd.
+5. Eval checks that measure the wrong thing (eval-infra, score 5).
+   total-xp passes on non-kill XP, one-at-a-time passes with no fight,
+   `--wait` is not the default, the snapshot stops at 60 yd when look
+   used 100, and t7-q answer-values flips with the truth stream.
+
+Briefs for round 5:
+
+- luna-rules (prompt-docs): act on Next hints, search by name, read
+  live values with look, keep going, and replace Pi's coding preamble.
+- find-and-remember (ops-tools-a): rank look rows by relevance, remember
+  static NPCs, and explore farther.
+- route-columns-and-pulls (core-a): pass multi-floor route columns,
+  walk to far objective targets, and gate each pull on mana and health.
+- check-truth (eval-infra): make eval checks measure what they name.
+
+Deferred:
+
+- core-b: hunter Auto Shot and shot spells in Jev (the equipped ranged
+  weapon and ammo requirement, the auto-repeat attribute), pet
+  observation and `pet_attack`. Deferred for the 4th round; it blocks
+  the t3-kill-one-hunter ranged-cast and arrows-used checks.
+- log-events: drop wakes that a tool result already covered, and do
+  not start a turn after the final answer (t4-quest, t6, t7-q, t2).
+- log-events: `xp/gain` source exploration with the area name, and the
+  total after the gain (t6, t3-ghost, t5).
+- log-events: `life/alive` with pose, via and corpse distance (t6);
+  `loot/open` for every loot and release (t7-halt); `money/change`
+  reason `vendor_buy` (t5); no pushed `[system]` Accepting Whisper
+  line (t2).
+- ops-tools-b: recover text `alive again 29 yd from your corpse`; the
+  engage death text gives fight time and walk separately; the
+  `human_waiting` refusal quotes the pending message (t6).
+- ops-tools-b: tapped-by-other in look and an engage refusal before
+  the approach; stop the approach when the target is destroyed
+  (t3-hunter).
+- ops-tools-b: vendor buy wording `x1 (5 items)`; mana as current and
+  max; the journal bag line wrap (t5, t0-self).
+- core: parse `SMSG_SPELLNONMELEEDAMAGELOG` and `SMSG_POWER_UPDATE`
+  (t7-halt, t0-hostiles).
+- core: the sub-area from the pose when areaId equals zoneId (t0-who,
+  t2; 2nd round).
+- core: aura names from the spell catalog (t3-hunter).
+- ui: clear the target and hostile row on death (t7-q, t7-halt,
+  t3-hunter); whisper and system glyphs (t2, 2nd round); a neutral
+  alive glyph (t6); the `fd not found` warning at start (t0-who).
+- log-events: `control/move_stop` cause `arrived`, and no stop and
+  start between route legs (t1).
