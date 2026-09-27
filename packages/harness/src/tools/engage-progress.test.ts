@@ -185,6 +185,32 @@ describe("engage kill names", () => {
     );
   });
 
+  test("a kill that completes the quest points at its turn-in", async () => {
+    const t = await field();
+    t.rt.quests.set(8325, {
+      ender: undefined,
+      giver: "Magistrix Erona",
+      objectives: "",
+      title: "Reclaiming Sunstrider Isle",
+    });
+    questLog(t.handle, 1, 0);
+    cycleKills(t.handle, [done(TENDER)], "objective_complete", () => {
+      questLog(t.handle, 1, 1);
+      const state = t.handle.getQuestState();
+      const slots = state.log.slots.map((slot) => ({ ...slot, flags: 1 }));
+      t.handle.getQuestState = () => ({
+        ...state,
+        log: { ...state.log, slots },
+      });
+    });
+    const res = await engageSpec.run(
+      { quest: "8325" },
+      toolCtx<EngageAfter>(t),
+    );
+    expect(res.detail).toEndWith(" Quest 8325 complete.");
+    expect(res.next).toBe('interact(do: "turn_in", npc: "Magistrix Erona")');
+  });
+
   test("a quest already complete says so instead of naming no kills", async () => {
     const t = await field();
     questLog(t.handle, 1, 1);

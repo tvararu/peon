@@ -3,6 +3,7 @@ import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
 import type { UnitView } from "#harness/contract/views";
 import { type LootOpResult, lootCorpseOp } from "#harness/ops/loot";
+import { completeQuestIds, noteQuestsDone } from "#harness/ops/quest-memory";
 import { LOOT_APPROACH_YD, LOOT_WALK_MAX_YD } from "#harness/ops/range";
 import { Refusal } from "#harness/ops/refusal";
 import { resolveUnit, unitRefusal } from "#harness/ops/resolve";
@@ -147,8 +148,10 @@ async function runLoot(
     args.target === undefined
       ? nearestCorpse(ctx)
       : namedCorpse(ctx, args.target);
+  const before = completeQuestIds(ctx.handle.getQuestState());
   await approach(ctx, corpse);
-  return report(ctx, corpse, await lootCorpseOp(ctx, corpse.guid));
+  const op = await lootCorpseOp(ctx, corpse.guid);
+  return noteQuestsDone(ctx, before, report(ctx, corpse, op));
 }
 
 export const lootSpec: GameToolSpec<typeof lootParams, "loot"> = {

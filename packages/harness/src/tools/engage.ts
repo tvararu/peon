@@ -4,6 +4,7 @@ import type { ToolResult } from "#harness/contract/result";
 import type { RunControl, RunEnd, RunStatus } from "#harness/contract/runs";
 import type { OpsCtx, ToolCtx, ViewCtx } from "#harness/contract/services";
 import { watchInterrupts } from "#harness/ops/danger";
+import { completeQuestIds, noteQuestsDone } from "#harness/ops/quest-memory";
 import { Refusal } from "#harness/ops/refusal";
 import { poseView, vitalsView } from "#harness/ops/views";
 import { awaitRun } from "#harness/runs/wait";
@@ -116,6 +117,7 @@ async function launch(init: {
   runId: () => string;
 }): Promise<RunEnd<Report>> {
   const { ctx, args, control, latest } = init;
+  const before = completeQuestIds(ctx.handle.getQuestState());
   const rules = { death: true, newAttacker: false, rooted: true };
   const watch = watchInterrupts(
     { ...ctx, progress: control.progress, signal: control.signal },
@@ -152,7 +154,7 @@ async function launch(init: {
         stopReport(control.signal, report.after),
         messageOf(control.signal.reason),
       );
-    return runEnd(report);
+    return runEnd(noteQuestsDone(ops, before, report));
   } catch (error) {
     if (error instanceof Refusal)
       return runEnd(refusalReport(error, latest.after));
