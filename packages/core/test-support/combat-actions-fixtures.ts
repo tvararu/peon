@@ -1,4 +1,4 @@
-import { CombatRuntime } from "#wow/combat";
+import { combatParts } from "#test-support/session-fixtures";
 import { CombatActions } from "#wow/combat-actions";
 import type { RangedGear } from "#wow/combat-ranged-gear";
 import { ControlRuntime } from "#wow/control";
@@ -150,7 +150,11 @@ export function setup(
     runBackSpeed: 4,
     runSpeed: 7,
   });
-  const combat = new CombatRuntime({
+  const {
+    combat,
+    store: combatStore,
+    motion,
+  } = combatParts({
     getEntity: (guid) => store.get(guid),
     now: nowFn,
     selectedGuid: () => 2n,
@@ -161,14 +165,14 @@ export function setup(
     },
   });
   if (options.observeTargetPosition ?? true)
-    combat.observePosition(2n, {
+    motion.observe(2n, {
       mapId: 530,
       orientation: 0,
       x: 10,
       y: 0,
       z: 0,
     });
-  combat.applyInitialSpells({ cooldowns: [], spells: [{ spellId: 17 }] });
+  combatStore.applyInitialSpells({ cooldowns: [], spells: [{ spellId: 17 }] });
   const actions = new CombatActions({
     combat,
     control,
@@ -178,5 +182,5 @@ export function setup(
     ...(options.gear && { gear: options.gear }),
   });
   actions.activate(context);
-  return { actions, combat, control, fields, sent, store };
+  return { actions, combat, combatStore, control, fields, motion, sent, store };
 }

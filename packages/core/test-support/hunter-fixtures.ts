@@ -111,15 +111,17 @@ export function hunter(
   let now = 1000;
   const fixture = setup(() => now, { gear });
   const defs = hunterSpells();
-  jest.spyOn(fixture.combat, "definition").mockImplementation((id) => defs[id]);
-  fixture.combat.applyInitialSpells({
+  jest
+    .spyOn(fixture.combatStore, "definition")
+    .mockImplementation((id) => defs[id]);
+  fixture.combatStore.applyInitialSpells({
     cooldowns: [],
     spells: HUNTER_SPELLS.map((spellId) => ({ spellId })),
   });
   fixture.fields.set(UNIT_FIELDS.POWER1.offset, 300);
   fixture.store.update(1n, { combatReach: 1.5 });
   fixture.store.update(2n, { combatReach: 1.5 });
-  fixture.combat.observePosition(2n, {
+  fixture.motion.observe(2n, {
     mapId: 530,
     orientation: 0,
     x: targetX,

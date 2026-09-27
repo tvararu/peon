@@ -91,6 +91,23 @@ cleanup (`remoteMotion.forget`, `combat.forget`,
 entity, before the packet can re-create the GUID. Events raised outside
 dispatch are delivered immediately.
 
+## Session stores
+
+`createSessionStores` (`packages/core/src/wow/session-stores.ts`) builds
+the protocol state stores before any handler is registered, and
+`registerWorldHandlers(conn, stores)` takes them as a required argument.
+A handler parses its packet and writes a store: `CombatStore` (spellbook,
+cooldowns, auras, casts, attacks, XP), `MotionStore` (observed unit
+positions and splines), `RewardsStore` (loot window, item pushes,
+inventory errors, rolls) and `ItemTemplates` (item query cache). A store
+runs no timer and sends no packet, except the item query that
+`ItemTemplates` waits on; an actuator that sends passes its `send` in.
+Runtimes such as `CombatRuntime` and `RewardsRuntime` take the stores
+they read, subscribe to their events, and hold the policy: sending
+requests, validating actions, releasing an emptied loot window and timing
+out a release-only open. Session cleanup disposes the runtimes, then the
+stores.
+
 ## Entity fields
 
 `extractObjectFields`, `extractUnitFields` and `extractGameObjectFields`

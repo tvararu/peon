@@ -1,5 +1,6 @@
 import { must } from "#test-support/must";
 import { hexBytes } from "#test-support/quest-8325-packets";
+import { testStores } from "#test-support/session-fixtures";
 import { EntityStore } from "#wow/entity-store";
 import {
   registerLootHandlers,
@@ -60,7 +61,14 @@ export function questCapture(self: bigint) {
     vendor,
   } as unknown as WorldConn;
   registerQuestHandlers(conn);
-  registerLootHandlers(conn);
+  registerLootHandlers(
+    conn,
+    testStores({
+      getEntity: (guid) => entities.get(guid),
+      now: () => clock,
+      selfGuid: () => self,
+    }),
+  );
   registerTrainerHandlers(conn);
   registerVendorHandlers(conn);
   const packet = (opcode: number, hex: string) =>

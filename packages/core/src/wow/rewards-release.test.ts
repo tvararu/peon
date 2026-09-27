@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { bytes } from "#test-support/hex";
+import { rewardsParts } from "#test-support/session-fixtures";
 import type { Entity } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import {
@@ -9,7 +10,7 @@ import {
 } from "#wow/protocol/loot";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
-import { type RewardsEvent, RewardsRuntime } from "#wow/rewards";
+import type { RewardsEvent } from "#wow/rewards";
 
 const corpse = 0xf1_30_00_3b_aa_07_46_55n;
 
@@ -44,7 +45,7 @@ function opened(offer: string) {
   ]);
   const sent: { opcode: number; body: Uint8Array | undefined }[] = [];
   const events: RewardsEvent["type"][] = [];
-  const runtime = new RewardsRuntime({
+  const { runtime, store } = rewardsParts({
     getEntity: (guid) => entities.get(guid),
     now: () => 1000,
     selfGuid: () => 1n,
@@ -54,14 +55,12 @@ function opened(offer: string) {
   });
   runtime.onEvent((event) => events.push(event.type));
   runtime.open(corpse);
-  runtime.receiveLootResponse(
-    parseLootResponse(new PacketReader(bytes(offer))),
-  );
+  store.receiveLootResponse(parseLootResponse(new PacketReader(bytes(offer))));
   sent.length = 0;
   events.length = 0;
   const removed = (hex: string) =>
-    runtime.receiveLootRemoved(parseLootRemoved(new PacketReader(bytes(hex))));
-  return { events, removed, runtime, sent };
+    store.receiveLootRemoved(parseLootRemoved(new PacketReader(bytes(hex))));
+  return { events, removed, runtime, sent, store };
 }
 
 const release = {
@@ -84,7 +83,7 @@ describe("automatic loot release", () => {
       "loot_close_requested",
     ]);
     expect(f.runtime.snapshot().pending).toMatchObject({ action: "close" });
-    f.runtime.receiveLootRelease(
+    f.store.receiveLootRelease(
       parseLootReleaseResponse(new PacketReader(bytes(released))),
     );
     expect(f.runtime.snapshot().loot.phase).toBe("closed");
@@ -106,7 +105,7 @@ describe("automatic loot release", () => {
     f.removed("00");
     expect(f.runtime.snapshot().loot.phase).toBe("open");
     f.runtime.takeMoney();
-    f.runtime.receiveLootMoneyCleared();
+    f.store.receiveLootMoneyCleared();
     expect(f.sent.at(-1)).toEqual(release);
     expect(f.runtime.snapshot().loot.phase).toBe("closing");
   });
@@ -119,7 +118,7 @@ describe("automatic loot release", () => {
     f.removed("01");
     const sent = f.sent.length;
     expect(f.runtime.close().loot.phase).toBe("closing");
-    f.runtime.receiveLootRelease(
+    f.store.receiveLootRelease(
       parseLootReleaseResponse(new PacketReader(bytes(released))),
     );
     expect(f.runtime.close().loot.phase).toBe("closed");

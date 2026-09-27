@@ -21,28 +21,39 @@ import {
   parseUpdateObject,
   type UpdateEntry,
 } from "#wow/protocol/update-object";
+import type { SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
 import { selfGuid, sendPacket } from "#wow/world-handlers";
+
+type EntityStores = Pick<SessionStores, "motion">;
 
 type TypeFields = Partial<UnitFieldsResult> & Partial<GameObjectFieldsResult>;
 type Entry<T extends UpdateEntry["type"]> = Extract<UpdateEntry, { type: T }>;
 
-export function handleUpdateObject(conn: WorldConn, r: PacketReader): void {
+export function handleUpdateObject(
+  conn: WorldConn,
+  stores: EntityStores,
+  r: PacketReader,
+): void {
   const entries = parseUpdateObject(r, conn.control?.currentMapId() ?? 0);
-  for (const entry of entries) applyEntry(conn, entry);
+  for (const entry of entries) applyEntry(conn, stores, entry);
   conn.quests?.observeQuestLog();
 }
 
-function applyEntry(conn: WorldConn, entry: UpdateEntry): void {
+function applyEntry(
+  conn: WorldConn,
+  stores: EntityStores,
+  entry: UpdateEntry,
+): void {
   switch (entry.type) {
     case "create":
-      applyCreate(conn, entry);
+      applyCreate(conn, stores, entry);
       return;
     case "values":
       applyValues(conn, entry);
       return;
     case "movement":
-      applyMovement(conn, entry);
+      applyMovement(conn, stores, entry);
       return;
     case "outOfRange":
       for (const guid of entry.guids) conn.entityStore.destroy(guid);
@@ -71,7 +82,11 @@ function typeFields(
   return {};
 }
 
-function applyCreate(conn: WorldConn, entry: Entry<"create">): void {
+function applyCreate(
+  conn: WorldConn,
+  { motion }: EntityStores,
+  entry: Entry<"create">,
+): void {
   const { guid, objectType, fields, position } = entry;
   const { _changed: _o, ...object } = extractObjectFields(fields);
   const { _changed: _t, ...extra } = typeFields(objectType, fields);
@@ -88,7 +103,7 @@ function applyCreate(conn: WorldConn, entry: Entry<"create">): void {
   const created = guid === self ? conn.entityStore.get(self) : undefined;
   if (created) conn.quests?.observeSelfCreate(created);
   if (position) {
-    conn.combat?.observePosition(guid, position, entry.spline);
+    motion.observe(guid, position, entry.spline);
     conn.remoteMotion.observe(guid, {
       position,
       source: "create",
@@ -125,7 +140,11 @@ function applyValues(conn: WorldConn, entry: Entry<"values">): void {
     });
 }
 
-function applyMovement(conn: WorldConn, entry: Entry<"movement">): void {
+function applyMovement(
+  conn: WorldConn,
+  { motion }: EntityStores,
+  entry: Entry<"movement">,
+): void {
   if (!entry.position) return;
   conn.remoteMotion.observe(entry.guid, {
     position: entry.position,
@@ -133,7 +152,7 @@ function applyMovement(conn: WorldConn, entry: Entry<"movement">): void {
     info: entry.movementInfo,
   });
   conn.entityStore.setPosition(entry.guid, entry.position);
-  conn.combat?.observePosition(entry.guid, entry.position, entry.spline);
+  motion.observe(entry.guid, entry.position, entry.spline);
   if (entry.guid !== selfGuid(conn)) return;
   conn.control?.observeSelf({
     position: entry.position,
@@ -145,6 +164,7 @@ function applyMovement(conn: WorldConn, entry: Entry<"movement">): void {
 
 export function handleCompressedUpdateObject(
   conn: WorldConn,
+  stores: EntityStores,
   r: PacketReader,
 ): void {
   const uncompressedSize = r.uint32LE();
@@ -155,7 +175,11 @@ export function handleCompressedUpdateObject(
       `Compressed update size mismatch: expected ${uncompressedSize}, got ${decompressed.length}`,
     );
   }
-  handleUpdateObject(conn, new PacketReader(new Uint8Array(decompressed)));
+  handleUpdateObject(
+    conn,
+    stores,
+    new PacketReader(new Uint8Array(decompressed)),
+  );
 }
 
 export function handleDestroyObject(conn: WorldConn, r: PacketReader): void {

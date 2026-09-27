@@ -48,10 +48,10 @@ function fixture(loot?: bigint) {
     lootGuid: () => loot,
     now: () => now,
     selfGuid: () => self,
-    send: (opcode, body) => {
-      sent.push({ body, opcode });
-    },
   });
+  const send = (opcode: number, body?: Uint8Array) => {
+    sent.push({ body, opcode });
+  };
   const read = (hex: string) => new PacketReader(bytes(hex));
   rolls.receiveStart(parseLootStartRoll(read(start)));
   return {
@@ -61,6 +61,7 @@ function fixture(loot?: bigint) {
     events,
     read,
     rolls,
+    send,
     sent,
   };
 }
@@ -89,7 +90,7 @@ describe("group loot rolls", () => {
 
   test("answering sends the roll id, slot and vote once", () => {
     const f = fixture();
-    f.rolls.roll(rollGuid, 3, "need");
+    f.rolls.roll(f.send, rollGuid, 3, "need");
     expect(f.sent).toEqual([
       {
         body: bytes("773d0f0000000040 03000000 01"),
@@ -97,7 +98,7 @@ describe("group loot rolls", () => {
       },
     ]);
     expect(f.rolls.snapshot().pending[0]?.choice).toBe("need");
-    expect(() => f.rolls.roll(rollGuid, 3, "greed")).toThrow(
+    expect(() => f.rolls.roll(f.send, rollGuid, 3, "greed")).toThrow(
       "Loot roll was already answered",
     );
     expect(f.sent).toHaveLength(1);
@@ -105,17 +106,17 @@ describe("group loot rolls", () => {
 
   test("refuses rolls that are not pending or not allowed", () => {
     const f = fixture();
-    expect(() => f.rolls.roll(rollGuid, 0, "pass")).toThrow(
+    expect(() => f.rolls.roll(f.send, rollGuid, 0, "pass")).toThrow(
       "No pending loot roll",
     );
-    expect(() => f.rolls.roll(corpse, 3, "pass")).toThrow(
+    expect(() => f.rolls.roll(f.send, corpse, 3, "pass")).toThrow(
       "No pending loot roll",
     );
-    expect(() => f.rolls.roll(rollGuid, 3, "disenchant")).toThrow(
+    expect(() => f.rolls.roll(f.send, rollGuid, 3, "disenchant")).toThrow(
       "Roll type is not allowed: disenchant",
     );
     f.advance(60_000 + ROLL_GRACE_MS);
-    expect(() => f.rolls.roll(rollGuid, 3, "pass")).toThrow(
+    expect(() => f.rolls.roll(f.send, rollGuid, 3, "pass")).toThrow(
       "No pending loot roll",
     );
     expect(f.sent).toEqual([]);
@@ -134,7 +135,7 @@ describe("group loot rolls", () => {
         slotType: 1,
       },
     ]);
-    f.rolls.roll(corpse, 3, "pass");
+    f.rolls.roll(f.send, corpse, 3, "pass");
     expect(f.sent[0]?.body).toEqual(bytes("773d0f0000000040 03000000 00"));
   });
 

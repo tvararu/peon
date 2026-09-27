@@ -21,7 +21,7 @@ function idleFight() {
       new Map([[UNIT_FIELDS.HEALTH.offset, health]]),
     );
   const place = (x: number) =>
-    fixture.combat.observePosition(2n, {
+    fixture.motion.observe(2n, {
       mapId: 530,
       x,
       y: 0,

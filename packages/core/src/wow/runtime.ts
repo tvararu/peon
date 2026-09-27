@@ -12,9 +12,8 @@ import { approachUnit, type CycleApproach } from "#wow/cycle-approach";
 import { pullGate } from "#wow/cycle-gate";
 import { ItemDestroyRuntime } from "#wow/destroy";
 import { EncounterCycleRuntime } from "#wow/encounter-cycle";
-import type { EntityLookup } from "#wow/entity-store";
 import type { FactionTemplateCatalog } from "#wow/faction-template";
-import { ItemTemplates } from "#wow/item-use";
+import type { ItemTemplates } from "#wow/item-use";
 import type { Navigation, NavPoint } from "#wow/navigation";
 import { observedTargetPosition } from "#wow/observed-target";
 import { ObjectType } from "#wow/protocol/entity-fields";
@@ -29,6 +28,7 @@ import {
   loadNavigation,
   warmCatalogs,
 } from "#wow/runtime-data";
+import { type SessionStores, sessionDeps } from "#wow/session-stores";
 import { TacticsLoop } from "#wow/tactics";
 import { TrainerRuntime } from "#wow/trainer";
 import { VendorRuntime } from "#wow/vendor";
@@ -152,6 +152,7 @@ function wireEvents(conn: WorldConn, parts: RuntimeParts): Unsubscribe {
     trainer,
     vendor,
     destroy,
+    items,
   } = parts;
   const { events } = conn;
   const detach = [
@@ -178,11 +179,17 @@ function wireEvents(conn: WorldConn, parts: RuntimeParts): Unsubscribe {
     quests.onEvent((event) => events.quest.emit(event)),
     rewards.onEvent((event) => {
       events.rewards.emit(event);
+      items.observeRewards(event);
       cycle.observeRewards(event);
     }),
     cycle.onEvent((event) => events.cycle.emit(event)),
     trainer.onEvent((event) => events.trainer.emit(event)),
-    vendor.onEvent((event) => events.vendor.emit(event)),
+    vendor.onEvent((event) => {
+      events.vendor.emit(event);
+      if (event.type !== "listed") return;
+      for (const good of event.state.window?.items ?? [])
+        items.label(good.itemId);
+    }),
     destroy.onEvent((event) => events.destroy.emit(event)),
   ];
   return () => {
@@ -234,7 +241,6 @@ function disposeParts(
   quests.dispose();
   rewards.dispose();
   combat.dispose();
-  parts.items.dispose();
   cycle.dispose();
   trainer.dispose();
   vendor.dispose();
@@ -242,16 +248,9 @@ function disposeParts(
   lazy.navigation?.close();
 }
 
-type RuntimeDeps = {
-  send: (opcode: number, body?: Uint8Array) => void;
-  now: () => number;
-  selfGuid: () => bigint;
-  getEntity: EntityLookup;
-};
-
 function createSupportRuntimes(
   conn: WorldConn,
-  runtimeDeps: RuntimeDeps,
+  stores: SessionStores,
   parts: Pick<RuntimeParts, "control" | "tactics" | "combat"> & {
     approach: CycleApproach;
   },
@@ -260,6 +259,7 @@ function createSupportRuntimes(
   "recovery" | "quests" | "rewards" | "items" | "cycle" | "vendor" | "destroy"
 > {
   const { control, tactics, approach, combat } = parts;
+  const runtimeDeps = sessionDeps(conn);
   const recovery = new RecoveryRuntime({
     ...runtimeDeps,
     pose: () => control.snapshot().pose,
@@ -267,10 +267,8 @@ function createSupportRuntimes(
   conn.recovery = recovery;
   const quests = new QuestRuntime(runtimeDeps);
   conn.quests = quests;
-  const rewards = new RewardsRuntime(runtimeDeps);
-  conn.rewards = rewards;
-  const items = new ItemTemplates(runtimeDeps);
-  conn.itemTemplates = items;
+  const rewards = new RewardsRuntime(stores.rewards, runtimeDeps);
+  const { items } = stores;
   const cycle = new EncounterCycleRuntime({
     approach,
     gate: pullGate(() => combat.snapshot()),
@@ -300,17 +298,17 @@ function createSupportRuntimes(
 
 function createCombat(
   conn: WorldConn,
-  runtimeDeps: RuntimeDeps,
+  stores: SessionStores,
   lazy: LazyState,
   control: ControlRuntime,
 ): { combat: CombatRuntime; actions: CombatActions; trainer: TrainerRuntime } {
-  const combat = new CombatRuntime({
+  const runtimeDeps = sessionDeps(conn);
+  const combat = new CombatRuntime(stores, {
     ...runtimeDeps,
     selectedGuid: () => control.snapshot().target,
     selfPose: () => control.snapshot().pose,
     selfServerPose: () => control.snapshot().serverPose,
   });
-  conn.combat = combat;
   const actions = new CombatActions({
     combat,
     control,
@@ -318,11 +316,8 @@ function createCombat(
     factions: () => lazy.factions,
     now: () => Date.now(),
     gear: () =>
-      readRangedGear(
-        runtimeDeps.selfGuid(),
-        runtimeDeps.getEntity,
-        (entry) =>
-          conn.itemTemplates?.label(entry) ?? { name: null, quality: null },
+      readRangedGear(runtimeDeps.selfGuid(), runtimeDeps.getEntity, (entry) =>
+        stores.items.label(entry),
       ),
   });
   const trainer = new TrainerRuntime({
@@ -331,15 +326,6 @@ function createCombat(
   });
   conn.trainer = trainer;
   return { combat, actions, trainer };
-}
-
-function runtimeDepsFor(conn: WorldConn): RuntimeDeps {
-  return {
-    send: (opcode, body) => sendPacket(conn, opcode, body ?? new Uint8Array()),
-    now: () => Date.now(),
-    selfGuid: () => selfGuid(conn),
-    getEntity: (guid) => conn.entityStore.get(guid),
-  };
 }
 
 function manualControl(
@@ -413,16 +399,16 @@ function lateApproach(getNavigation: () => Navigation) {
 
 export function createRuntimes(
   conn: WorldConn,
+  stores: SessionStores,
   config: ClientConfig,
 ): Runtimes {
   const lazy: LazyState = { disposed: false };
   const getNavigation = (): Navigation => loadNavigation(config, lazy);
   conn.control = createControl(conn, groundOracle(config, lazy));
   const control = conn.control;
-  const runtimeDeps = runtimeDepsFor(conn);
   const { combat, actions, trainer } = createCombat(
     conn,
-    runtimeDeps,
+    stores,
     lazy,
     control,
   );
@@ -449,7 +435,7 @@ export function createRuntimes(
     control,
     combat,
     tactics,
-    ...createSupportRuntimes(conn, runtimeDeps, {
+    ...createSupportRuntimes(conn, stores, {
       approach,
       combat,
       control,

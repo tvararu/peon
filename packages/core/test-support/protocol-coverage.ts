@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { testStores } from "#test-support/session-fixtures";
 import { registerWorldHandlers } from "#wow/client-handlers";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { STUBS } from "#wow/protocol/stubs";
@@ -43,10 +44,10 @@ function direction(name: string): Direction {
 
 export function protocolCoverage(sources: string[]): CoverageRow[] {
   const dispatch = new OpcodeDispatch();
-  registerWorldHandlers({
-    dispatch,
-    events: createWorldEvents(),
-  } as unknown as WorldConn);
+  registerWorldHandlers(
+    { dispatch, events: createWorldEvents() } as unknown as WorldConn,
+    testStores(),
+  );
   const stubs = new Set(STUBS.map(([opcode]) => opcode));
   const named = new Set(
     sources.flatMap((s) => [...s.matchAll(NAMED)].map((m) => m[1])),

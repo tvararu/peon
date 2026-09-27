@@ -1,17 +1,9 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import {
-  type EntityEvent,
-  type EntityLookup,
-  fieldOf,
-} from "#wow/entity-store";
-import { type InventoryState, readInventory } from "#wow/inventory";
-import { LootRolls, type RewardsRolls } from "#wow/loot-rolls";
-import { readLife } from "#wow/player-state";
+import { type EntityLookup, fieldOf } from "#wow/entity-store";
+import type { InventoryState } from "#wow/inventory";
+import type { RewardsRolls } from "#wow/loot-rolls";
 import { ObjectType } from "#wow/protocol/entity-fields";
-import {
-  type InventoryChangeFailure,
-  InventoryResult,
-} from "#wow/protocol/inventory";
+import type { InventoryChangeFailure } from "#wow/protocol/inventory";
 import {
   buildAutostoreLootItem,
   buildLoot,
@@ -20,11 +12,11 @@ import {
   type LootItem,
   type LootMoneyNotify,
   type LootReleaseResponse,
-  type LootRemoved,
-  type LootResponse,
+  type RollVote,
 } from "#wow/protocol/loot";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { UNIT_FIELDS } from "#wow/protocol/update-fields";
+import type { RewardsStore } from "#wow/rewards-store";
 
 export type RewardsDeps = {
   send: (opcode: number, body?: Uint8Array) => void;
@@ -126,90 +118,36 @@ export const NOT_DEAD = "Loot source is not authoritatively dead";
 export const NOT_LOOTABLE = "Creature has no observed lootable flag";
 export const RELEASE_ONLY_MS = 3000;
 
-function holdsItem(inventory: InventoryState, guid: bigint): boolean {
-  return inventory.slots.some(
-    (slot) => slot.status === "occupied" && slot.guid === guid,
-  );
-}
-
-function copyLoot(loot: RewardsLoot): RewardsLoot {
-  if (loot.phase === "open" || loot.phase === "closing")
-    return { ...loot, items: loot.items.map((item) => ({ ...item })) };
-  return { ...loot };
-}
-
-function copyInventoryError(
-  error: RewardsInventoryError | undefined,
-): RewardsInventoryError | undefined {
-  if (!error) return undefined;
-  return {
-    ...error,
-    packet: { ...error.packet, detail: { ...error.packet.detail } },
-  };
-}
-
 export class RewardsRuntime {
   private readonly events = new Emitter<[RewardsEvent]>();
-  private disposed = false;
-  private selfUnavailable = false;
-  private loot: RewardsLoot = { phase: "closed" };
-  private pending: RewardsRequest | undefined;
-  private lastLootError: RewardsLootError | undefined;
-  private lastOpenFailure: RewardsOpenFailure | undefined;
-  private releaseOnlyTimer: ReturnType<typeof setTimeout> | undefined;
-  private lastInventoryError: RewardsInventoryError | undefined;
-  private lastItemPush: RewardsItemPush | undefined;
-  private lastMoneyNotice: RewardsMoneyNotice | undefined;
-  private lastRelease: RewardsRelease | undefined;
-  private lastInventory: InventoryState | undefined;
-
+  private readonly store: RewardsStore;
   private readonly deps: RewardsDeps;
-  readonly rolls: LootRolls;
+  private disposed = false;
+  private releaseOnlyTimer: ReturnType<typeof setTimeout> | undefined;
 
-  constructor(deps: RewardsDeps) {
+  constructor(store: RewardsStore, deps: RewardsDeps) {
+    this.store = store;
     this.deps = deps;
-    this.rolls = new LootRolls({
-      changed: (type) => {
-        if (!this.disposed) this.emit(type);
-      },
-      lootGuid: () =>
-        this.loot.phase === "closed" ? undefined : this.loot.guid,
-      now: deps.now,
-      selfGuid: deps.selfGuid,
-      send: deps.send,
+    store.onEvent((event) => {
+      this.events.emit(event);
+      this.react(event);
     });
   }
 
   onEvent(listener: (event: RewardsEvent) => void): Unsubscribe {
-    if (this.disposed) return () => undefined;
-    this.lastInventory = undefined;
+    if (this.disposed || this.store.disposed) return () => undefined;
+    this.store.resetInventoryBaseline();
     return this.events.subscribe(listener);
   }
 
   snapshot(): RewardsState {
-    return {
-      loot: copyLoot(this.loot),
-      pending: this.pending ? { ...this.pending } : undefined,
-      inventory: this.inventory(),
-      lastLootError: this.lastLootError ? { ...this.lastLootError } : undefined,
-      lastOpenFailure: this.lastOpenFailure
-        ? { ...this.lastOpenFailure }
-        : undefined,
-      lastInventoryError: copyInventoryError(this.lastInventoryError),
-      lastItemPush: this.lastItemPush ? { ...this.lastItemPush } : undefined,
-      lastMoneyNotice: this.lastMoneyNotice
-        ? { ...this.lastMoneyNotice }
-        : undefined,
-      lastRelease: this.lastRelease ? { ...this.lastRelease } : undefined,
-      rolls: this.rolls.snapshot(),
-      disposed: this.disposed,
-    };
+    return this.store.snapshot();
   }
 
   open(guid: bigint): RewardsState {
     this.active();
     this.alive();
-    if (this.loot.phase !== "closed")
+    if (this.store.loot.phase !== "closed")
       throw new Error("Previous loot window has not closed");
     const source = this.deps.getEntity(guid);
     if (source?.guid !== guid || source.objectType !== ObjectType.UNIT)
@@ -218,22 +156,13 @@ export class RewardsRuntime {
     const flags = source.rawFields.get(UNIT_FIELDS.DYNAMIC_FLAGS.offset);
     if (health !== 0) throw new Error(NOT_DEAD);
     if (flags === undefined || !(flags & 1)) throw new Error(NOT_LOOTABLE);
-    const requestedAt = this.deps.now();
     this.deps.send(GameOpcode.CMSG_LOOT, buildLoot(guid));
-    this.lastOpenFailure = undefined;
-    this.loot = {
-      phase: "opening",
-      guid,
-      requestedAt,
-      invalidatedReason: undefined,
-    };
-    this.pending = { action: "open", guid, requestedAt, status: "unanswered" };
-    return this.emit("loot_open_requested");
+    return this.store.requestOpen(guid);
   }
 
   abandonOpen(): RewardsState {
-    this.failOpen("abandoned");
-    return this.snapshot();
+    this.store.failOpen("abandoned");
+    return this.store.snapshot();
   }
 
   take(slot: number): RewardsState {
@@ -242,268 +171,84 @@ export class RewardsRuntime {
     if (!item) throw new Error("Loot slot was not offered");
     if (item.slotType !== 0 && item.slotType !== 4)
       throw new Error("Loot slot is not available for direct pickup");
-    const requestedAt = this.deps.now();
     this.deps.send(
       GameOpcode.CMSG_AUTOSTORE_LOOT_ITEM,
       buildAutostoreLootItem(slot),
     );
-    this.pending = {
-      action: "take",
-      guid: window.guid,
-      slot,
-      requestedAt,
-      status: "unanswered",
-    };
-    return this.emit("loot_take_requested");
+    return this.store.requestTake(window.guid, slot);
   }
 
   takeMoney(): RewardsState {
     const window = this.actionWindow();
     if (window.money === 0) throw new Error("Loot window has no offered money");
-    const requestedAt = this.deps.now();
     this.deps.send(GameOpcode.CMSG_LOOT_MONEY);
-    this.pending = {
-      action: "money",
-      guid: window.guid,
-      requestedAt,
-      status: "unanswered",
-    };
-    return this.emit("loot_money_requested");
+    return this.store.requestMoney(window.guid);
   }
 
   close(): RewardsState {
     this.active();
-    if (this.loot.phase === "closed" || this.loot.phase === "closing")
-      return this.snapshot();
-    if (this.loot.phase !== "open")
-      throw new Error("No open loot window to close");
-    return this.release(this.loot);
+    const { loot } = this.store;
+    if (loot.phase === "closed" || loot.phase === "closing")
+      return this.store.snapshot();
+    if (loot.phase !== "open") throw new Error("No open loot window to close");
+    return this.release(loot);
   }
 
-  receiveLootResponse(response: LootResponse): void {
-    if (this.disposed) return;
-    if (this.loot.phase === "closed" || response.guid !== this.loot.guid)
-      return;
-    if (response.kind === "error") {
-      this.stopReleaseOnlyTimer();
-      this.lastLootError = {
-        guid: response.guid,
-        error: response.error,
-        observedAt: this.deps.now(),
-      };
-      if (this.loot.phase === "opening") this.loot = { phase: "closed" };
-      if (this.pending?.action !== "close") this.pending = undefined;
-      this.emit("loot_error");
-      return;
-    }
-    if (this.loot.phase !== "opening") return;
-    this.stopReleaseOnlyTimer();
-    this.loot = {
-      phase: "open",
-      guid: response.guid,
-      lootType: response.lootType,
-      money: response.money,
-      items: response.items,
-      openedAt: this.deps.now(),
-      invalidatedReason: this.loot.invalidatedReason,
-    };
-    this.pending = undefined;
-    this.rolls.observeOffer(response.guid, response.items);
-    this.emit("loot_opened");
-  }
-
-  receiveLootRemoved({ slot }: LootRemoved): void {
-    if (this.disposed) return;
-    if (this.loot.phase !== "open" && this.loot.phase !== "closing") return;
-    const index = this.loot.items.findIndex((item) => item.slot === slot);
-    if (index < 0) return;
-    this.loot.items.splice(index, 1);
-    if (this.pending?.action === "take" && this.pending.slot === slot)
-      this.pending = undefined;
-    this.emit("loot_removed");
-    this.releaseIfEmpty();
-  }
-
-  receiveLootMoneyCleared(): void {
-    if (this.disposed) return;
-    if (this.loot.phase !== "open" && this.loot.phase !== "closing") return;
-    this.loot.money = 0;
-    if (this.pending?.action === "money") this.pending = undefined;
-    this.emit("loot_money_cleared");
-    this.releaseIfEmpty();
-  }
-
-  receiveLootRelease(response: LootReleaseResponse): void {
-    if (this.disposed) return;
-    if (this.loot.phase === "closed" || response.guid !== this.loot.guid)
-      return;
-    this.lastRelease = { ...response, observedAt: this.deps.now() };
-    if (this.loot.phase === "opening")
-      this.startReleaseOnlyTimer(response.guid);
-    if (response.status === 1 && this.loot.phase !== "opening") {
-      this.loot = { phase: "closed" };
-      this.pending = undefined;
-    }
-    this.emit("loot_release_observed");
-  }
-
-  receiveMoneyNotice(notice: LootMoneyNotify): void {
-    if (this.disposed) return;
-    if (!this.deps.selfGuid()) return;
-    this.lastMoneyNotice = { ...notice, observedAt: this.deps.now() };
-    this.emit("money_notice");
-  }
-
-  receiveItemPush(push: ItemPushResult): void {
-    if (this.disposed) return;
-    const selfGuid = this.deps.selfGuid();
-    if (!selfGuid || push.guid !== selfGuid) return;
-    this.lastItemPush = { ...push, observedAt: this.deps.now() };
-    this.emit("item_push");
-  }
-
-  receiveInventoryFailure(packet: InventoryChangeFailure): void {
-    if (this.disposed) return;
-    if (packet.kind === "ok") {
-      this.lastInventoryError = undefined;
-      this.emit("inventory_result");
-      return;
-    }
-    this.lastInventoryError = {
-      packet,
-      inventoryFull: packet.result === InventoryResult.INVENTORY_FULL,
-      bagFull:
-        packet.result === InventoryResult.BAG_FULL ||
-        packet.result === InventoryResult.BAG_FULL3,
-      observedAt: this.deps.now(),
-    };
-    if (this.pending?.action === "take") this.pending = undefined;
-    this.emit("inventory_error");
-  }
-
-  observeEntity(event: EntityEvent): void {
-    if (this.disposed) return;
-    const guid = event.type === "disappear" ? event.guid : event.entity.guid;
-    if (guid === this.deps.selfGuid()) this.observeSelf(event, guid);
-    if (
-      event.type === "disappear" &&
-      this.loot.phase !== "closed" &&
-      guid === this.loot.guid
-    )
-      this.invalidate("loot_source_unavailable");
-    if (this.events.size === 0) return;
-    this.observeInventory(guid);
-  }
-
-  private observeSelf(event: EntityEvent, guid: bigint): void {
-    if (event.type === "disappear") this.selfUnavailable = true;
-    else if (event.type === "appear") this.selfUnavailable = false;
-    if (
-      this.selfUnavailable ||
-      readLife(guid, this.deps.getEntity).life !== "alive"
-    )
-      this.invalidate("self_unavailable");
-  }
-
-  private observeInventory(guid: bigint): void {
-    const previous = this.lastInventory;
-    if (guid !== this.deps.selfGuid() && previous && !holdsItem(previous, guid))
-      return;
-    const inventory = this.inventory();
-    this.lastInventory = inventory;
-    if (guid !== this.deps.selfGuid() && !holdsItem(inventory, guid)) return;
-    if (previous && Bun.deepEquals(inventory, previous, true)) return;
-    this.emit("inventory_observed");
+  roll(target: bigint, slot: number, choice: RollVote): void {
+    this.store.rolls.roll(this.deps.send, target, slot, choice);
   }
 
   dispose(): void {
     this.disposed = true;
     this.events.clear();
-    this.selfUnavailable = true;
-    this.loot = { phase: "closed" };
-    this.pending = undefined;
-    this.lastLootError = undefined;
-    this.lastInventoryError = undefined;
-    this.lastItemPush = undefined;
-    this.lastMoneyNotice = undefined;
-    this.lastRelease = undefined;
-    this.lastOpenFailure = undefined;
     this.stopReleaseOnlyTimer();
-    this.lastInventory = undefined;
-    this.rolls.clear();
+  }
+
+  private react({ type, state }: RewardsEvent): void {
+    if (
+      type === "loot_error" ||
+      type === "loot_opened" ||
+      type === "loot_open_failed"
+    )
+      this.stopReleaseOnlyTimer();
+    else if (type === "loot_release_observed" && state.loot.phase === "opening")
+      this.startReleaseOnlyTimer(state.loot.guid);
+    else if (type === "loot_removed" || type === "loot_money_cleared")
+      this.releaseIfEmpty();
   }
 
   private active(): void {
-    if (this.disposed) throw new Error("Rewards runtime disposed");
+    if (this.disposed || this.store.disposed)
+      throw new Error("Rewards runtime disposed");
     if (!this.deps.selfGuid())
       throw new Error("Authenticated player GUID is unknown");
   }
 
   private alive(): void {
-    if (
-      this.selfUnavailable ||
-      readLife(this.deps.selfGuid(), this.deps.getEntity).life !== "alive"
-    )
+    if (!this.store.selfAlive())
       throw new Error("Loot action requires authoritative alive state");
   }
 
   private actionWindow(): RewardsOpenLoot {
     this.active();
     this.alive();
-    if (this.loot.phase !== "open")
+    const { loot } = this.store;
+    if (loot.phase !== "open")
       throw new Error("No open server-observed loot window");
-    if (this.loot.invalidatedReason)
-      throw new Error(`Loot window is invalid: ${this.loot.invalidatedReason}`);
-    if (this.pending)
+    if (loot.invalidatedReason)
+      throw new Error(`Loot window is invalid: ${loot.invalidatedReason}`);
+    if (this.store.pending)
       throw new Error("Previous loot request remains unanswered");
-    return this.loot;
-  }
-
-  private inventory(): InventoryState {
-    const selfGuid = this.deps.selfGuid();
-    if (this.selfUnavailable || this.disposed)
-      return {
-        selfGuid,
-        scope: "carried",
-        status: "unknown",
-        coinage: undefined,
-        slots: [],
-        bags: [],
-        freeSlots: undefined,
-        issues: [],
-      };
-    return readInventory(selfGuid, this.deps.getEntity);
-  }
-
-  private invalidate(reason: string): void {
-    if (this.loot.phase === "opening") {
-      this.failOpen(reason);
-      return;
-    }
-    if (this.loot.phase === "closed" || this.loot.invalidatedReason) return;
-    this.loot.invalidatedReason = reason;
-    this.emit("loot_invalidated");
-  }
-
-  private failOpen(reason: string): void {
-    if (this.loot.phase !== "opening") return;
-    this.stopReleaseOnlyTimer();
-    this.lastOpenFailure = {
-      guid: this.loot.guid,
-      reason,
-      observedAt: this.deps.now(),
-    };
-    this.loot = { phase: "closed" };
-    this.pending = undefined;
-    this.emit("loot_open_failed");
+    return loot;
   }
 
   private startReleaseOnlyTimer(guid: bigint): void {
     if (this.releaseOnlyTimer) return;
     this.releaseOnlyTimer = setTimeout(() => {
       this.releaseOnlyTimer = undefined;
-      if (this.loot.phase === "opening" && this.loot.guid === guid)
-        this.failOpen("release_only");
+      const { loot } = this.store;
+      if (loot.phase === "opening" && loot.guid === guid)
+        this.store.failOpen("release_only");
     }, RELEASE_ONLY_MS);
   }
 
@@ -513,23 +258,14 @@ export class RewardsRuntime {
   }
 
   private release(window: RewardsOpenLoot): RewardsState {
-    const { guid } = window;
-    const requestedAt = this.deps.now();
-    this.deps.send(GameOpcode.CMSG_LOOT_RELEASE, buildLootRelease(guid));
-    window.phase = "closing";
-    this.pending = { action: "close", guid, requestedAt, status: "unanswered" };
-    return this.emit("loot_close_requested");
+    this.deps.send(GameOpcode.CMSG_LOOT_RELEASE, buildLootRelease(window.guid));
+    return this.store.requestClose(window);
   }
 
   private releaseIfEmpty(): void {
-    if (this.loot.phase !== "open" || this.pending) return;
-    if (this.loot.items.length > 0 || this.loot.money > 0) return;
-    this.release(this.loot);
-  }
-
-  private emit(type: RewardsEvent["type"]): RewardsState {
-    const state = this.snapshot();
-    this.events.emit({ type, at: this.deps.now(), state });
-    return state;
+    const { loot } = this.store;
+    if (loot.phase !== "open" || this.store.pending) return;
+    if (loot.items.length > 0 || loot.money > 0) return;
+    this.release(loot);
   }
 }

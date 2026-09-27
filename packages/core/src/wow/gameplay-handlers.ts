@@ -74,78 +74,86 @@ import {
   parseSellItemFailure,
 } from "#wow/protocol/vendor";
 import type { QuestDialog } from "#wow/quests-requests";
+import type { SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
 
-export function registerCombatHandlers(conn: WorldConn): void {
-  registerSpellHandlers(conn);
-  registerMeleeHandlers(conn);
+type CombatStores = Pick<SessionStores, "combat" | "motion">;
+
+export function registerCombatHandlers(
+  conn: WorldConn,
+  stores: CombatStores,
+): void {
+  registerSpellHandlers(conn, stores);
+  registerMeleeHandlers(conn, stores);
 }
 
-function registerSpellHandlers(conn: WorldConn): void {
+function registerSpellHandlers(
+  conn: WorldConn,
+  { combat }: CombatStores,
+): void {
   const on = (opcode: number, handle: (r: PacketReader) => void) =>
     conn.dispatch.on(opcode, handle);
   on(GameOpcode.SMSG_INITIAL_SPELLS, (r) =>
-    conn.combat?.applyInitialSpells(parseInitialSpells(r)),
+    combat.applyInitialSpells(parseInitialSpells(r)),
   );
   on(GameOpcode.SMSG_LEARNED_SPELL, (r) =>
-    conn.combat?.applyLearned(parseLearnedSpell(r)),
+    combat.applyLearned(parseLearnedSpell(r)),
   );
   on(GameOpcode.SMSG_REMOVED_SPELL, (r) =>
-    conn.combat?.applyRemoved(parseRemovedSpell(r)),
+    combat.applyRemoved(parseRemovedSpell(r)),
   );
   on(GameOpcode.SMSG_SUPERCEDED_SPELL, (r) =>
-    conn.combat?.applySuperseded(parseSupersededSpell(r)),
+    combat.applySuperseded(parseSupersededSpell(r)),
   );
   on(GameOpcode.SMSG_SPELL_START, (r) =>
-    conn.combat?.applySpellStart(parseSpellStart(r)),
+    combat.applySpellStart(parseSpellStart(r)),
   );
-  on(GameOpcode.SMSG_SPELL_GO, (r) =>
-    conn.combat?.applySpellGo(parseSpellGo(r)),
-  );
+  on(GameOpcode.SMSG_SPELL_GO, (r) => combat.applySpellGo(parseSpellGo(r)));
   on(GameOpcode.SMSG_CAST_FAILED, (r) =>
-    conn.combat?.applyCastFailed(parseCastFailed(r)),
+    combat.applyCastFailed(parseCastFailed(r)),
   );
   on(GameOpcode.SMSG_SPELL_FAILURE, (r) =>
-    conn.combat?.applySpellFailure(parseSpellFailure(r)),
+    combat.applySpellFailure(parseSpellFailure(r)),
   );
   on(GameOpcode.SMSG_SPELL_COOLDOWN, (r) =>
-    conn.combat?.applyCooldown(parseSpellCooldown(r)),
+    combat.applyCooldown(parseSpellCooldown(r)),
   );
   on(GameOpcode.SMSG_CLEAR_COOLDOWN, (r) =>
-    conn.combat?.applyClearCooldown(parseCooldownNotice(r)),
+    combat.applyClearCooldown(parseCooldownNotice(r)),
   );
   on(GameOpcode.SMSG_COOLDOWN_EVENT, (r) =>
-    conn.combat?.applyCooldownEvent(parseCooldownNotice(r)),
+    combat.applyCooldownEvent(parseCooldownNotice(r)),
   );
   on(GameOpcode.SMSG_SPELL_DELAYED, (r) =>
-    conn.combat?.applySpellDelayed(parseSpellDelayed(r)),
+    combat.applySpellDelayed(parseSpellDelayed(r)),
   );
 }
 
-function registerMeleeHandlers(conn: WorldConn): void {
+function registerMeleeHandlers(
+  conn: WorldConn,
+  { combat, motion }: CombatStores,
+): void {
   const on = (opcode: number, handle: (r: PacketReader) => void) =>
     conn.dispatch.on(opcode, handle);
-  on(GameOpcode.SMSG_CANCEL_COMBAT, () => conn.combat?.applyCancelCombat());
+  on(GameOpcode.SMSG_CANCEL_COMBAT, () => combat.applyCancelCombat());
   for (const [opcode, error] of ATTACK_SWING_ERRORS)
-    on(opcode, () => conn.combat?.applyAttackError(error));
+    on(opcode, () => combat.applyAttackError(error));
   on(GameOpcode.SMSG_ATTACKSTART, (r) =>
-    conn.combat?.applyAttackStart(parseAttackStart(r)),
+    combat.applyAttackStart(parseAttackStart(r)),
   );
   on(GameOpcode.SMSG_ATTACKSTOP, (r) =>
-    conn.combat?.applyAttackStop(parseAttackStop(r)),
+    combat.applyAttackStop(parseAttackStop(r)),
   );
   on(GameOpcode.SMSG_CANCEL_AUTO_REPEAT, (r) =>
-    conn.combat?.applyCancelAutoRepeat(parseCancelAutoRepeat(r)),
+    combat.applyCancelAutoRepeat(parseCancelAutoRepeat(r)),
   );
-  on(GameOpcode.SMSG_AURA_UPDATE, (r) =>
-    conn.combat?.applyAura(parseAuraUpdate(r)),
-  );
+  on(GameOpcode.SMSG_AURA_UPDATE, (r) => combat.applyAura(parseAuraUpdate(r)));
   on(GameOpcode.SMSG_AURA_UPDATE_ALL, (r) =>
-    conn.combat?.applyAuraAll(parseAuraUpdateAll(r)),
+    combat.applyAuraAll(parseAuraUpdateAll(r)),
   );
-  on(GameOpcode.SMSG_LOG_XPGAIN, (r) => conn.combat?.applyXp(parseXpGain(r)));
+  on(GameOpcode.SMSG_LOG_XPGAIN, (r) => combat.applyXp(parseXpGain(r)));
   on(GameOpcode.SMSG_LEVELUP_INFO, (r) =>
-    conn.combat?.applyLevelUp(parseLevelUpInfo(r)),
+    combat.applyLevelUp(parseLevelUpInfo(r)),
   );
   on(GameOpcode.SMSG_MONSTER_MOVE, (r) => {
     const move = parseMonsterMove(r);
@@ -156,7 +164,7 @@ function registerMeleeHandlers(conn: WorldConn): void {
       ...move.start,
       orientation: orientation ?? 0,
     });
-    conn.combat?.applyMonsterMove(move, mapId);
+    motion.monsterMove(move, mapId);
   });
 }
 
@@ -246,51 +254,56 @@ function registerQuestProgressHandlers(conn: WorldConn): void {
   );
 }
 
-export function registerLootHandlers(conn: WorldConn): void {
+export function registerLootHandlers(
+  conn: WorldConn,
+  {
+    combat,
+    rewards,
+    items,
+  }: Pick<SessionStores, "combat" | "rewards" | "items">,
+): void {
   const on = (opcode: number, handle: (r: PacketReader) => void) =>
     conn.dispatch.on(opcode, handle);
   on(GameOpcode.SMSG_LOOT_RESPONSE, (r) =>
-    conn.rewards?.receiveLootResponse(parseLootResponse(r)),
+    rewards.receiveLootResponse(parseLootResponse(r)),
   );
   on(GameOpcode.SMSG_LOOT_REMOVED, (r) =>
-    conn.rewards?.receiveLootRemoved(parseLootRemoved(r)),
+    rewards.receiveLootRemoved(parseLootRemoved(r)),
   );
   on(GameOpcode.SMSG_LOOT_RELEASE_RESPONSE, (r) =>
-    conn.rewards?.receiveLootRelease(parseLootReleaseResponse(r)),
+    rewards.receiveLootRelease(parseLootReleaseResponse(r)),
   );
   on(GameOpcode.SMSG_LOOT_MONEY_NOTIFY, (r) =>
-    conn.rewards?.receiveMoneyNotice(parseLootMoneyNotify(r)),
+    rewards.receiveMoneyNotice(parseLootMoneyNotify(r)),
   );
-  on(GameOpcode.SMSG_LOOT_CLEAR_MONEY, () =>
-    conn.rewards?.receiveLootMoneyCleared(),
-  );
+  on(GameOpcode.SMSG_LOOT_CLEAR_MONEY, () => rewards.receiveLootMoneyCleared());
   on(GameOpcode.SMSG_LOOT_START_ROLL, (r) =>
-    conn.rewards?.rolls.receiveStart(parseLootStartRoll(r)),
+    rewards.rolls.receiveStart(parseLootStartRoll(r)),
   );
   on(GameOpcode.SMSG_LOOT_ROLL, (r) =>
-    conn.rewards?.rolls.receiveRoll(parseLootRoll(r)),
+    rewards.rolls.receiveRoll(parseLootRoll(r)),
   );
   on(GameOpcode.SMSG_LOOT_ROLL_WON, (r) =>
-    conn.rewards?.rolls.receiveWon(parseLootRollWon(r)),
+    rewards.rolls.receiveWon(parseLootRollWon(r)),
   );
   on(GameOpcode.SMSG_LOOT_ALL_PASSED, (r) =>
-    conn.rewards?.rolls.receiveAllPassed(parseLootAllPassed(r)),
+    rewards.rolls.receiveAllPassed(parseLootAllPassed(r)),
   );
   on(GameOpcode.SMSG_ITEM_PUSH_RESULT, (r) => {
     const push = parseItemPushResult(r);
-    conn.rewards?.receiveItemPush(push);
+    rewards.receiveItemPush(push);
     conn.quests?.receiveItemPush(push);
   });
   on(GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE, (r) => {
     const packet = parseInventoryChangeFailure(r);
-    conn.rewards?.receiveInventoryFailure(packet);
-    conn.combat?.applyInventoryFailure(packet);
+    rewards.receiveInventoryFailure(packet);
+    combat.applyInventoryFailure(packet);
     conn.vendor?.receiveInventoryFailure(packet);
     conn.quests?.receiveInventoryFailure(packet);
     conn.destroy?.receiveInventoryFailure(packet);
   });
   on(GameOpcode.SMSG_ITEM_QUERY_SINGLE_RESPONSE, (r) =>
-    conn.itemTemplates?.receive(parseItemQueryResponse(r)),
+    items.receive(parseItemQueryResponse(r)),
   );
 }
 

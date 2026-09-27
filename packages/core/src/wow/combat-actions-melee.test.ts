@@ -12,7 +12,7 @@ function warrior(targetX: number) {
   fixture.fields.set(UNIT_FIELDS.POWER1.offset, 0);
   fixture.store.update(1n, { combatReach: 1.5 });
   fixture.store.update(2n, { combatReach: 1.5 });
-  fixture.combat.observePosition(2n, {
+  fixture.motion.observe(2n, {
     mapId: 530,
     orientation: 0,
     x: targetX,

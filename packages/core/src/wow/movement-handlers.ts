@@ -15,13 +15,25 @@ import {
   observeRemoteMovement,
   registerRemoteMotionHandlers,
 } from "#wow/remote-motion-handlers";
+import type { SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
 import { selfGuid } from "#wow/world-handlers";
 
-function handleNearTeleport(conn: WorldConn, r: PacketReader): void {
+type MovementStores = Pick<SessionStores, "motion">;
+
+function handleNearTeleport(
+  conn: WorldConn,
+  stores: MovementStores,
+  r: PacketReader,
+): void {
   const guid = r.packedGuidBig();
   if (guid !== selfGuid(conn)) {
-    observeRemoteMovement(conn, GameOpcode.MSG_MOVE_TELEPORT, guid, r);
+    observeRemoteMovement(
+      conn,
+      stores,
+      { opcode: GameOpcode.MSG_MOVE_TELEPORT, guid },
+      r,
+    );
     return;
   }
   conn.control?.nearTeleport(parseMovementInfo(r));
@@ -72,14 +84,17 @@ function handleCanFly(conn: WorldConn, r: PacketReader, enable: boolean): void {
   conn.control?.setCanFly(parseMoveCounter(r).counter, enable);
 }
 
-export function registerMovementHandlers(conn: WorldConn): void {
+export function registerMovementHandlers(
+  conn: WorldConn,
+  stores: MovementStores,
+): void {
   conn.dispatch.on(GameOpcode.SMSG_LOGIN_VERIFY_WORLD, (r) => {
     const position = parseWorldPosition(r);
     conn.control?.loginVerified(position);
     conn.remoteMotion.mapChanged(position.mapId);
   });
   conn.dispatch.on(GameOpcode.MSG_MOVE_TELEPORT, (r) =>
-    handleNearTeleport(conn, r),
+    handleNearTeleport(conn, stores, r),
   );
   conn.dispatch.on(GameOpcode.MSG_MOVE_TELEPORT_ACK, (r) =>
     handleTeleportAckRequest(conn, r),
@@ -108,5 +123,5 @@ export function registerMovementHandlers(conn: WorldConn): void {
   );
   for (const spec of SPEED_ACKS)
     conn.dispatch.on(spec.smsg, (r) => handleForceSpeedChange(conn, r, spec));
-  registerRemoteMotionHandlers(conn);
+  registerRemoteMotionHandlers(conn, stores);
 }

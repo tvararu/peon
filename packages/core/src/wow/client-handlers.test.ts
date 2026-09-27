@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
+import { testStores } from "#test-support/session-fixtures";
 import { MARNIEL, MARNIEL_LIST_INVENTORY } from "#test-support/vendor-fixtures";
 import type { NoticeEvent } from "#wow/client-extras";
 import {
@@ -15,7 +16,7 @@ import { createWorldEvents } from "#wow/world-events";
 describe("registerGameHandlers", () => {
   test("leaves every stubbed opcode without a real handler", () => {
     const dispatch = new OpcodeDispatch();
-    registerGameHandlers({ dispatch } as unknown as WorldConn);
+    registerGameHandlers({ dispatch } as unknown as WorldConn, testStores());
     const names = new Map<number, string>(
       Object.entries(GameOpcode).map(([name, value]) => [value, name]),
     );
@@ -35,7 +36,10 @@ describe("registerWorldHandlers", () => {
       onUnhandled: () => {},
     };
     const events = { message: { size: 0, emit: () => {} } };
-    registerWorldHandlers({ dispatch, events } as unknown as WorldConn);
+    registerWorldHandlers(
+      { dispatch, events } as unknown as WorldConn,
+      testStores(),
+    );
     const names = new Map<number, string>(
       Object.entries(GameOpcode).map(([name, value]) => [value, name]),
     );
@@ -50,12 +54,15 @@ describe("registerWorldHandlers", () => {
     const receiveInventory = jest.fn();
     const receiveWindow = jest.fn();
     const events = { message: { size: 0, emit: () => {} } };
-    registerWorldHandlers({
-      dispatch,
-      events,
-      quests: { receiveWindow },
-      vendor: { receiveInventory },
-    } as unknown as WorldConn);
+    registerWorldHandlers(
+      {
+        dispatch,
+        events,
+        quests: { receiveWindow },
+        vendor: { receiveInventory },
+      } as unknown as WorldConn,
+      testStores(),
+    );
     dispatch.handle(
       GameOpcode.SMSG_LIST_INVENTORY,
       new PacketReader(MARNIEL_LIST_INVENTORY),
@@ -74,7 +81,7 @@ function stubConn(): WorldConn {
     dispatch: new OpcodeDispatch(),
     events: createWorldEvents(),
   } as unknown as WorldConn;
-  registerWorldHandlers(conn);
+  registerWorldHandlers(conn, testStores());
   return conn;
 }
 
