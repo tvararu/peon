@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { WorldHandle } from "@tuicraft/core";
+import type { TacticsEvent, WorldHandle } from "@tuicraft/core";
 import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
 import type { RunEnd, RunRegistry } from "#harness/contract/runs";
 import { routerSetup as setup } from "#test-support/router-fixture";
@@ -125,6 +125,83 @@ describe("createEventRouter", () => {
     });
     expect(sink.wake).toHaveBeenCalledWith([lost]);
     expect(sink.human).toHaveBeenCalledWith(lost);
+  });
+
+  test("rows an engage run summarises are consumed by its call", () => {
+    const { log, router, runs } = setup();
+    const handle = createMockHandle();
+    router.attach(handle);
+    const run = runs.start<number>({
+      args: {},
+      kind: "engage",
+      launch: () => new Promise(() => {}),
+      toolCallId: "call-7",
+    });
+    handle.triggerCycleEvent({
+      at: 0,
+      state: handle.getCycleState(),
+      type: "started",
+    });
+    handle.triggerTacticsEvent({
+      instruction: "fight",
+      runId: "t1",
+      targetGuid: "0x2a",
+      type: "started",
+    } as TacticsEvent);
+    const combat = handle.getCombatState();
+    handle.triggerCombatEvent({
+      state: {
+        ...combat,
+        lastXp: { at: 1, kind: "kill", total: 90, victim: 0x2an },
+      },
+      type: "xp",
+    });
+    handle.triggerCombatEvent({
+      state: {
+        ...combat,
+        lastXp: { at: 2, kind: "other", total: 30, victim: 0n },
+      },
+      type: "xp",
+    });
+    handle.triggerQuestEvent({
+      questId: 8325,
+      source: "packet",
+      state: handle.getQuestState(),
+      type: "completed",
+    });
+    const rows = log
+      .since(0)
+      .filter((row) => row.class === "passive")
+      .map((row) => [row.event, row.runId, row.consumedBy]);
+    expect(rows).toEqual([
+      ["fight/start", run.id, "call-7"],
+      ["combat/kill_credit", run.id, "call-7"],
+      ["xp/gain", run.id, "call-7"],
+      ["xp/gain", run.id, undefined],
+      ["quest/completed", run.id, undefined],
+    ]);
+  });
+
+  test("the same rows outside an engage run stay unconsumed", () => {
+    const { log, router, runs } = setup();
+    const handle = createMockHandle();
+    router.attach(handle);
+    runs.start<number>({
+      args: {},
+      kind: "travel",
+      launch: () => new Promise(() => {}),
+      toolCallId: "call-8",
+    });
+    handle.triggerCombatEvent({
+      state: {
+        ...handle.getCombatState(),
+        lastXp: { at: 1, kind: "kill", total: 90, victim: 0x2an },
+      },
+      type: "xp",
+    });
+    expect(log.since(0).filter((row) => row.consumedBy !== undefined)).toEqual(
+      [],
+    );
   });
 
   test("delivers nothing without a sink", async () => {

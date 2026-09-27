@@ -13,7 +13,7 @@ import type {
   LogDraft,
   LogEvent,
 } from "#harness/contract/log";
-import type { RunRegistry } from "#harness/contract/runs";
+import type { RunRecord, RunRegistry } from "#harness/contract/runs";
 import type {
   AttackLedger,
   DeliverySink,
@@ -222,6 +222,38 @@ function deliver(sink: DeliverySink, entry: GameLogEntry): void {
   if (entry.class === "passive") sink.passive(entry);
 }
 
+function summarised(draft: LogDraft): boolean {
+  switch (draft.event) {
+    case "fight/start":
+    case "fight/end":
+    case "combat/kill_credit":
+      return true;
+    case "xp/gain":
+      return draft.data["source"] === "kill";
+    case "loot/item":
+      return draft.data["source"] === "loot";
+    case "money/change":
+      return draft.data["reason"] === "loot";
+    default:
+      return false;
+  }
+}
+
+function consumer(
+  draft: LogDraft,
+  run: RunRecord | undefined,
+): string | undefined {
+  if (draft.class !== "passive" || run?.kind !== "engage") return;
+  return summarised(draft) ? (run.toolCallId ?? run.id) : undefined;
+}
+
+function stamped(draft: LogDraft, runs: RunRegistry): LogDraft {
+  const run = draft.runId ? runs.get(draft.runId) : runs.active();
+  const delivered = draft.class === "log" ? undefined : false;
+  const consumedBy = consumer(draft, run);
+  return { ...draft, consumedBy, delivered, runId: draft.runId ?? run?.id };
+}
+
 function throttled(draft: LogDraft, cls: LogClass): LogDraft {
   const text = `Wake held back: ${draft.event} became ${cls}.`;
   return {
@@ -244,9 +276,7 @@ export function createEventRouter(init: RouterInit): EventRouter {
   };
   const record = (draft: LogDraft, rc: RuleContext) => {
     const cls = admit(draft, rc);
-    const runId = draft.runId ?? runs.active()?.id;
-    const delivered = cls === "log" ? undefined : false;
-    log.append({ ...draft, class: cls, delivered, runId });
+    log.append(stamped({ ...draft, class: cls }, runs));
     if (draft.class === "wake" && rc.wake && cls !== "wake")
       log.append(throttled(draft, cls));
   };
