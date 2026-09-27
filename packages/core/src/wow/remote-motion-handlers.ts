@@ -7,12 +7,13 @@ import {
   REMOTE_MOVEMENT_OPCODES,
   type RemoteMovementBody,
 } from "#wow/protocol/remote-movement";
+import type { SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
 
 export function observeRemoteMovement(
   conn: WorldConn,
-  opcode: number,
-  guid: bigint,
+  { motion }: Pick<SessionStores, "motion">,
+  { opcode, guid }: { opcode: number; guid: bigint },
   r: PacketReader,
 ): void {
   let body: RemoteMovementBody;
@@ -37,7 +38,7 @@ export function observeRemoteMovement(
   const source = "observer";
   conn.remoteMotion.observe(guid, { position, source, info, transition });
   conn.entityStore.setPosition(guid, position);
-  conn.combat?.observePosition(guid, position, undefined, "movement");
+  motion.observe(guid, position, undefined, "movement");
 }
 
 export function handleCompressedMoves(conn: WorldConn, r: PacketReader): void {
@@ -56,11 +57,19 @@ export function handleCompressedMoves(conn: WorldConn, r: PacketReader): void {
   if (failure) throw failure;
 }
 
-export function registerRemoteMotionHandlers(conn: WorldConn): void {
+export function registerRemoteMotionHandlers(
+  conn: WorldConn,
+  stores: Pick<SessionStores, "motion">,
+): void {
   for (const opcode of REMOTE_MOVEMENT_OPCODES) {
     if (opcode === GameOpcode.MSG_MOVE_TELEPORT) continue;
     conn.dispatch.on(opcode, (r) =>
-      observeRemoteMovement(conn, opcode, r.packedGuidBig(), r),
+      observeRemoteMovement(
+        conn,
+        stores,
+        { opcode, guid: r.packedGuidBig() },
+        r,
+      ),
     );
   }
   conn.dispatch.on(GameOpcode.SMSG_COMPRESSED_MOVES, (r) =>

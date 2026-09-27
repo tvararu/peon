@@ -18,6 +18,7 @@ import {
   type StubNotice,
   unhandledNotice,
 } from "#wow/protocol/stubs";
+import type { SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
 import {
   handleDuelComplete,
@@ -118,12 +119,12 @@ function registerPartyHandlers(conn: WorldConn): void {
   );
 }
 
-function registerObjectHandlers(conn: WorldConn): void {
+function registerObjectHandlers(conn: WorldConn, stores: SessionStores): void {
   const on = (opcode: number, handle: (r: PacketReader) => void) =>
     conn.dispatch.on(opcode, handle);
-  on(GameOpcode.SMSG_UPDATE_OBJECT, (r) => handleUpdateObject(conn, r));
+  on(GameOpcode.SMSG_UPDATE_OBJECT, (r) => handleUpdateObject(conn, stores, r));
   on(GameOpcode.SMSG_COMPRESSED_UPDATE_OBJECT, (r) =>
-    handleCompressedUpdateObject(conn, r),
+    handleCompressedUpdateObject(conn, stores, r),
   );
   on(GameOpcode.SMSG_DESTROY_OBJECT, (r) => handleDestroyObject(conn, r));
   on(GameOpcode.SMSG_CREATURE_QUERY_RESPONSE, (r) =>
@@ -150,21 +151,27 @@ function registerObjectHandlers(conn: WorldConn): void {
   );
 }
 
-export function registerGameHandlers(conn: WorldConn): void {
+export function registerGameHandlers(
+  conn: WorldConn,
+  stores: SessionStores,
+): void {
   registerChatHandlers(conn);
   registerPartyHandlers(conn);
-  registerObjectHandlers(conn);
-  registerMovementHandlers(conn);
-  registerCombatHandlers(conn);
+  registerObjectHandlers(conn, stores);
+  registerMovementHandlers(conn, stores);
+  registerCombatHandlers(conn, stores);
   registerQuestHandlers(conn);
-  registerLootHandlers(conn);
+  registerLootHandlers(conn, stores);
   registerRecoveryHandlers(conn);
   registerTrainerHandlers(conn);
   registerVendorHandlers(conn);
 }
 
-export function registerWorldHandlers(conn: WorldConn): void {
-  registerGameHandlers(conn);
+export function registerWorldHandlers(
+  conn: WorldConn,
+  stores: SessionStores,
+): void {
+  registerGameHandlers(conn, stores);
   const notify = (notice: StubNotice): boolean => {
     if (conn.events.notice.size === 0) return false;
     conn.events.notice.emit({

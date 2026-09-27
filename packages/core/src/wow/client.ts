@@ -6,6 +6,7 @@ import {
   cleanupSession,
   connectWorld,
   createWorldConn,
+  routeEntityEvents,
   selectCharacter,
   startPingLoop,
 } from "#wow/client-connection";
@@ -75,6 +76,7 @@ import type { RecoveryEvent, RecoveryState } from "#wow/recovery";
 import type { RemoteMotionEvent, RemotePose } from "#wow/remote-motion";
 import type { RewardsEvent } from "#wow/rewards";
 import { createRuntimes, type Runtimes } from "#wow/runtime";
+import { createSessionStores } from "#wow/session-stores";
 import type { SpellDefinition } from "#wow/spell-catalog";
 import type { TacticsEvent, TacticsState } from "#wow/tactics";
 import type { TrainerEvent } from "#wow/trainer";
@@ -377,12 +379,15 @@ export function worldSession(
 ): Promise<WorldHandle> {
   return new Promise((resolve, reject) => {
     const conn = createWorldConn();
-    const rt = createRuntimes(conn, config);
+    const stores = createSessionStores(conn);
+    routeEntityEvents(conn, stores);
+    const rt = createRuntimes(conn, stores, config);
+    const session = { stores, rt };
     let pingInterval: ReturnType<typeof setInterval> | undefined;
     let done = false;
     const { promise: closed, resolve: closedResolve } =
       Promise.withResolvers<void>();
-    registerWorldHandlers(conn);
+    registerWorldHandlers(conn, stores);
 
     async function login(): Promise<void> {
       await authenticateWorld(conn, config, auth);
@@ -392,14 +397,14 @@ export function worldSession(
       done = true;
       const close = (): void => {
         clearInterval(pingInterval);
-        cleanupSession(conn, rt, true);
+        cleanupSession(conn, session, true);
         conn.socket?.end();
       };
       let loggingOut = false;
       const logout = (): void => {
         if (loggingOut) return;
         loggingOut = true;
-        cleanupSession(conn, rt, true);
+        cleanupSession(conn, session, true);
         const timeoutMs = config.logoutTimeoutMs ?? LOGOUT_TIMEOUT_MS;
         requestLogout(conn, closed, timeoutMs).then(close).catch(ignoreFailure);
       };
@@ -411,14 +416,14 @@ export function worldSession(
       done = true;
       clearInterval(pingInterval);
       reject(err);
-      cleanupSession(conn, rt, false);
+      cleanupSession(conn, session, false);
       conn.socket?.end();
     });
 
     connectWorld(conn, auth, {
       close() {
         clearInterval(pingInterval);
-        cleanupSession(conn, rt, false);
+        cleanupSession(conn, session, false);
         conn.entityStore.clear();
         if (!done) reject(new Error("World connection closed"));
         closedResolve();

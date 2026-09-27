@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CombatRuntime } from "#wow/combat";
+import { combatParts } from "#test-support/session-fixtures";
 import { EntityStore } from "#wow/entity-store";
 import { observedTargetPosition } from "#wow/observed-target";
 import { ObjectType } from "#wow/protocol/entity-fields";
@@ -11,7 +11,7 @@ function setup() {
   let now = 1000;
   const entities = new EntityStore();
   entities.create(GUID, ObjectType.UNIT, { position: SPAWN });
-  const combat = new CombatRuntime({
+  const { combat, motion } = combatParts({
     send: () => {},
     now: () => now,
     selfGuid: () => 1n,
@@ -19,11 +19,12 @@ function setup() {
     getEntity: (guid) => entities.get(guid),
     selfPose: () => undefined,
   });
-  combat.observePosition(GUID, SPAWN);
+  motion.observe(GUID, SPAWN);
   const target = () =>
     observedTargetPosition(entities.get(GUID), combat.unit(GUID), 530);
   return {
     combat,
+    motion,
     entities,
     target,
     advance: (ms: number) => {
@@ -41,7 +42,7 @@ describe("observedTargetPosition", () => {
 
   test("a creature that finished a spline is targeted at its endpoint", () => {
     const f = setup();
-    f.combat.applyMonsterMove(
+    f.motion.monsterMove(
       {
         kind: "move",
         guid: GUID,
@@ -67,7 +68,7 @@ describe("observedTargetPosition", () => {
   test("a creature removed from the entity store is not a target", () => {
     const f = setup();
     f.entities.destroy(GUID);
-    f.combat.forget(GUID);
+    f.motion.forget(GUID);
     expect(f.target).toThrow("target_not_observed");
   });
 

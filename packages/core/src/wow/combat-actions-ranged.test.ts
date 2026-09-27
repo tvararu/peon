@@ -79,7 +79,7 @@ test("shots describe themselves as instant, not with the DBC sentinel", () => {
 });
 
 test("Auto Shot starts once, stays on beside other shots, and can be stopped", () => {
-  const { actions, combat, control, ids } = hunter(20);
+  const { actions, combat, combatStore, control, ids } = hunter(20);
   control.move("forward", 1000);
   actions.execute(`spell:${AUTO_SHOT}:target`, context);
   expect(control.snapshot().moving).toBe(false);
@@ -88,7 +88,7 @@ test("Auto Shot starts once, stays on beside other shots, and can be stopped", (
     status: "pending",
     target: context.targetGuid,
   });
-  combat.applySpellStart({
+  combatStore.applySpellStart({
     castCount: 1,
     castItem: 1n,
     caster: 1n,

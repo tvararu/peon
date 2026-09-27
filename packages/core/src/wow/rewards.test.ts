@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { bytes } from "#test-support/hex";
 import { must } from "#test-support/must";
+import { rewardsParts } from "#test-support/session-fixtures";
 import { type Entity, EntityStore } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { parseInventoryChangeFailure } from "#wow/protocol/inventory";
@@ -12,7 +13,7 @@ import {
   parseLootResponse,
 } from "#wow/protocol/loot";
 import { PacketReader } from "#wow/protocol/packet";
-import { type RewardsEvent, RewardsRuntime } from "#wow/rewards";
+import type { RewardsEvent } from "#wow/rewards";
 
 function entity(
   guid: bigint,
@@ -53,7 +54,7 @@ function fixture() {
     entities.update(guid, {}, new Map([[offset, value]]));
   const sent: { opcode: number; body: Uint8Array | undefined }[] = [];
   const events: RewardsEvent[] = [];
-  const runtime = new RewardsRuntime({
+  const { runtime, store } = rewardsParts({
     send: (opcode, body) => {
       sent.push({ opcode, body });
     },
@@ -64,6 +65,7 @@ function fixture() {
   const unsubscribe = runtime.onEvent((event) => events.push(event));
   return {
     runtime,
+    store,
     self,
     target,
     add,
@@ -97,9 +99,9 @@ describe("authoritative loot runtime", () => {
     expect(() => f.runtime.take(4)).toThrow();
     const wrong = bytes(loot);
     wrong[0] = 3;
-    f.runtime.receiveLootResponse(parseLootResponse(new PacketReader(wrong)));
+    f.store.receiveLootResponse(parseLootResponse(new PacketReader(wrong)));
     expect(f.runtime.snapshot().loot.phase).toBe("opening");
-    f.runtime.receiveLootResponse(
+    f.store.receiveLootResponse(
       parseLootResponse(new PacketReader(bytes(loot))),
     );
     expect(f.runtime.snapshot().loot).toMatchObject({
@@ -122,7 +124,7 @@ describe("authoritative loot runtime", () => {
     expect(() => f.runtime.open(2n)).toThrow();
     f.set(2n, 0x4f, 1);
     f.runtime.open(2n);
-    f.runtime.receiveLootResponse(
+    f.store.receiveLootResponse(
       parseLootResponse(new PacketReader(bytes(loot))),
     );
     expect(() => f.runtime.take(1)).toThrow();
@@ -135,24 +137,20 @@ describe("authoritative loot runtime", () => {
   test("slot removal and own item pushes remain separate from actual slot/count changes", () => {
     const f = fixture();
     f.runtime.open(2n);
-    f.runtime.receiveLootResponse(
+    f.store.receiveLootResponse(
       parseLootResponse(new PacketReader(bytes(loot))),
     );
     f.runtime.take(4);
-    f.runtime.receiveLootRemoved(
-      parseLootRemoved(new PacketReader(bytes("04"))),
-    );
+    f.store.receiveLootRemoved(parseLootRemoved(new PacketReader(bytes("04"))));
     expect(
       f.runtime.snapshot().inventory.slots.find((slot) => slot.slot === 23)
         ?.status,
     ).toBe("empty");
     const other = bytes(push);
     other[0] = 9;
-    f.runtime.receiveItemPush(parseItemPushResult(new PacketReader(other)));
+    f.store.receiveItemPush(parseItemPushResult(new PacketReader(other)));
     expect(f.runtime.snapshot().lastItemPush).toBeUndefined();
-    f.runtime.receiveItemPush(
-      parseItemPushResult(new PacketReader(bytes(push))),
-    );
+    f.store.receiveItemPush(parseItemPushResult(new PacketReader(bytes(push))));
     expect(f.runtime.snapshot().lastItemPush).toMatchObject({
       guid: 1n,
       count: 3,
@@ -170,7 +168,7 @@ describe("authoritative loot runtime", () => {
     ]);
     f.add(item);
     f.set(1n, 0x1_72, 5);
-    f.runtime.observeEntity({ type: "appear", entity: item });
+    f.store.observeEntity({ type: "appear", entity: item });
     expect(
       f.runtime.snapshot().inventory.slots.find((slot) => slot.slot === 23),
     ).toMatchObject({
@@ -186,7 +184,7 @@ describe("authoritative loot runtime", () => {
   test("observes a child item introduced by a later equipped-bag create", () => {
     const f = fixture();
     f.set(1n, 0x1_6a, 8);
-    f.runtime.observeEntity({ type: "appear", entity: f.self });
+    f.store.observeEntity({ type: "appear", entity: f.self });
     expect(
       f.runtime
         .snapshot()
@@ -201,7 +199,7 @@ describe("authoritative loot runtime", () => {
       [0x42, 5],
     ]);
     f.add(bag);
-    f.runtime.observeEntity({ type: "appear", entity: bag });
+    f.store.observeEntity({ type: "appear", entity: bag });
     expect(
       f.runtime
         .snapshot()
@@ -218,7 +216,7 @@ describe("authoritative loot runtime", () => {
       [14, 3],
     ]);
     f.add(item);
-    f.runtime.observeEntity({ type: "appear", entity: item });
+    f.store.observeEntity({ type: "appear", entity: item });
     expect(
       f.events
         .at(-1)
@@ -230,10 +228,10 @@ describe("authoritative loot runtime", () => {
 
   test("resuming inventory observation refreshes membership changed while the listener was absent", () => {
     const f = fixture();
-    f.runtime.observeEntity({ type: "appear", entity: f.self });
+    f.store.observeEntity({ type: "appear", entity: f.self });
     f.unsubscribe();
     f.set(1n, 0x1_72, 5);
-    f.runtime.observeEntity({
+    f.store.observeEntity({
       type: "update",
       entity: f.self,
       changed: ["rawFields"],
@@ -246,7 +244,7 @@ describe("authoritative loot runtime", () => {
       [14, 3],
     ]);
     f.add(item);
-    f.runtime.observeEntity({ type: "appear", entity: item });
+    f.store.observeEntity({ type: "appear", entity: item });
     expect(
       f.events.at(-1)?.state.inventory.slots.find((slot) => slot.slot === 23),
     ).toMatchObject({ status: "occupied", guid: 5n, item: { count: 3 } });
@@ -254,7 +252,7 @@ describe("authoritative loot runtime", () => {
 
   test("does not label zero-GUID packets as owned before player identity is known", () => {
     const f = fixture();
-    const runtime = new RewardsRuntime({
+    const { runtime, store } = rewardsParts({
       send: () => {},
       now: () => 1000,
       selfGuid: () => 0n,
@@ -262,8 +260,8 @@ describe("authoritative loot runtime", () => {
     });
     const unknown = bytes(push);
     unknown[0] = 0;
-    runtime.receiveItemPush(parseItemPushResult(new PacketReader(unknown)));
-    runtime.receiveMoneyNotice(
+    store.receiveItemPush(parseItemPushResult(new PacketReader(unknown)));
+    store.receiveMoneyNotice(
       parseLootMoneyNotify(new PacketReader(bytes("09000000 01"))),
     );
     expect(runtime.snapshot().lastItemPush).toBeUndefined();
@@ -273,15 +271,15 @@ describe("authoritative loot runtime", () => {
   test("money clearance and money notices never increment coinage optimistically", () => {
     const f = fixture();
     f.runtime.open(2n);
-    f.runtime.receiveLootResponse(
+    f.store.receiveLootResponse(
       parseLootResponse(new PacketReader(bytes(loot))),
     );
     f.runtime.takeMoney();
     expect(f.sent.at(-1)).toEqual({ opcode: 0x1_5e, body: undefined });
-    f.runtime.receiveLootMoneyCleared();
+    f.store.receiveLootMoneyCleared();
     expect(f.runtime.snapshot().loot).toMatchObject({ money: 0 });
     expect(f.runtime.snapshot().inventory.coinage).toBe(10);
-    f.runtime.receiveMoneyNotice(
+    f.store.receiveMoneyNotice(
       parseLootMoneyNotify(new PacketReader(bytes("09000000 01"))),
     );
     expect(f.runtime.snapshot().lastMoneyNotice).toMatchObject({
@@ -290,13 +288,13 @@ describe("authoritative loot runtime", () => {
     });
     expect(f.runtime.snapshot().inventory.coinage).toBe(10);
     f.set(1n, 0x4_92, 19);
-    f.runtime.observeEntity({
+    f.store.observeEntity({
       type: "update",
       entity: f.self,
       changed: ["rawFields"],
     });
     expect(f.runtime.snapshot().inventory.coinage).toBe(19);
-    f.runtime.receiveMoneyNotice(
+    f.store.receiveMoneyNotice(
       parseLootMoneyNotify(new PacketReader(bytes("09000000 01"))),
     );
     expect(f.runtime.snapshot().inventory.coinage).toBe(19);
@@ -305,11 +303,11 @@ describe("authoritative loot runtime", () => {
   test("inventory-full answers the take: the item stays offered and can be taken again", () => {
     const f = fixture();
     f.runtime.open(2n);
-    f.runtime.receiveLootResponse(
+    f.store.receiveLootResponse(
       parseLootResponse(new PacketReader(bytes(loot))),
     );
     f.runtime.take(4);
-    f.runtime.receiveInventoryFailure(
+    f.store.receiveInventoryFailure(
       parseInventoryChangeFailure(
         new PacketReader(bytes("32 0000000000000000 0000000000000000 00")),
       ),
@@ -328,9 +326,7 @@ describe("authoritative loot runtime", () => {
       action: "take",
       slot: 4,
     });
-    f.runtime.receiveLootRemoved(
-      parseLootRemoved(new PacketReader(bytes("04"))),
-    );
+    f.store.receiveLootRemoved(parseLootRemoved(new PacketReader(bytes("04"))));
     expect(f.runtime.snapshot()).toMatchObject({
       loot: { phase: "open", items: [{ slot: 7 }, { slot: 8 }] },
       pending: undefined,
@@ -340,33 +336,29 @@ describe("authoritative loot runtime", () => {
   test("matching release is a barrier even when a pending slot disappears or status is unsuccessful", () => {
     const f = fixture();
     f.runtime.open(2n);
-    f.runtime.receiveLootResponse(
+    f.store.receiveLootResponse(
       parseLootResponse(new PacketReader(bytes(loot))),
     );
     f.runtime.take(4);
     f.runtime.close();
-    f.runtime.receiveLootRemoved(
-      parseLootRemoved(new PacketReader(bytes("04"))),
-    );
+    f.store.receiveLootRemoved(parseLootRemoved(new PacketReader(bytes("04"))));
     expect(f.runtime.snapshot().pending?.action).toBe("close");
     expect(() => f.runtime.open(3n)).toThrow();
-    f.runtime.receiveLootRelease(
+    f.store.receiveLootRelease(
       parseLootReleaseResponse(new PacketReader(bytes("0300000000000000 01"))),
     );
-    f.runtime.receiveLootRelease(
+    f.store.receiveLootRelease(
       parseLootReleaseResponse(new PacketReader(bytes("0200000000000000 00"))),
     );
     expect(f.runtime.snapshot().loot.phase).toBe("closing");
-    f.runtime.receiveLootRelease(
+    f.store.receiveLootRelease(
       parseLootReleaseResponse(new PacketReader(bytes("0200000000000000 01"))),
     );
     f.runtime.open(3n);
-    f.runtime.receiveLootResponse(
+    f.store.receiveLootResponse(
       parseLootResponse(new PacketReader(bytes(loot))),
     );
-    f.runtime.receiveLootRemoved(
-      parseLootRemoved(new PacketReader(bytes("07"))),
-    );
+    f.store.receiveLootRemoved(parseLootRemoved(new PacketReader(bytes("07"))));
     expect(f.runtime.snapshot().loot).toMatchObject({
       phase: "opening",
       guid: 3n,
@@ -376,23 +368,23 @@ describe("authoritative loot runtime", () => {
   test("accepts a same-GUID offer after an unsolicited release and preliminary ownership cleanup", () => {
     const f = fixture();
     f.runtime.open(2n);
-    f.runtime.receiveLootResponse(
+    f.store.receiveLootResponse(
       parseLootResponse(new PacketReader(bytes(loot))),
     );
     f.runtime.take(4);
-    f.runtime.receiveLootRelease(
+    f.store.receiveLootRelease(
       parseLootReleaseResponse(new PacketReader(bytes("0200000000000000 01"))),
     );
     expect(f.runtime.snapshot().loot.phase).toBe("closed");
     f.runtime.open(2n);
-    f.runtime.receiveLootRelease(
+    f.store.receiveLootRelease(
       parseLootReleaseResponse(new PacketReader(bytes("0200000000000000 01"))),
     );
     expect(f.runtime.snapshot()).toMatchObject({
       loot: { phase: "opening", guid: 2n },
       pending: { action: "open", status: "unanswered" },
     });
-    f.runtime.receiveLootResponse(
+    f.store.receiveLootResponse(
       parseLootResponse(new PacketReader(bytes(loot))),
     );
     expect(f.runtime.snapshot().loot.phase).toBe("open");
@@ -403,7 +395,7 @@ describe("authoritative loot runtime", () => {
   test("a release-only opening response is unanswered, not an offer or permission to retry", () => {
     const f = fixture();
     f.runtime.open(2n);
-    f.runtime.receiveLootRelease(
+    f.store.receiveLootRelease(
       parseLootReleaseResponse(new PacketReader(bytes("0200000000000000 01"))),
     );
     expect(f.runtime.snapshot()).toMatchObject({
@@ -421,7 +413,7 @@ describe("authoritative loot runtime", () => {
   test("rejected opens and empty loot report actual outcomes without fake reward progress", () => {
     const f = fixture();
     f.runtime.open(2n);
-    f.runtime.receiveLootResponse(
+    f.store.receiveLootResponse(
       parseLootResponse(new PacketReader(bytes("0200000000000000 00 04"))),
     );
     expect(f.runtime.snapshot()).toMatchObject({
@@ -429,7 +421,7 @@ describe("authoritative loot runtime", () => {
       lastLootError: { guid: 2n, error: 4 },
     });
     f.runtime.open(3n);
-    f.runtime.receiveLootResponse(
+    f.store.receiveLootResponse(
       parseLootResponse(
         new PacketReader(bytes("0300000000000000 01 00000000 00")),
       ),
@@ -443,10 +435,10 @@ describe("authoritative loot runtime", () => {
   test("self or source disappearance invalidates the window but does not fabricate a release ACK", () => {
     const f = fixture();
     f.runtime.open(2n);
-    f.runtime.receiveLootResponse(
+    f.store.receiveLootResponse(
       parseLootResponse(new PacketReader(bytes(loot))),
     );
-    f.runtime.observeEntity({ type: "disappear", guid: 2n });
+    f.store.observeEntity({ type: "disappear", guid: 2n });
     expect(f.runtime.snapshot().loot).toMatchObject({
       phase: "open",
       invalidatedReason: "loot_source_unavailable",
@@ -460,16 +452,16 @@ describe("authoritative loot runtime", () => {
   test("self disappearance hides old private inventory before the store clears its object", () => {
     const f = fixture();
     f.runtime.open(2n);
-    f.runtime.receiveLootResponse(
+    f.store.receiveLootResponse(
       parseLootResponse(new PacketReader(bytes(loot))),
     );
-    f.runtime.observeEntity({ type: "disappear", guid: 1n });
+    f.store.observeEntity({ type: "disappear", guid: 1n });
     expect(f.runtime.snapshot().inventory).toMatchObject({
       status: "unknown",
       coinage: undefined,
     });
     expect(() => f.runtime.take(4)).toThrow();
-    f.runtime.observeEntity({ type: "appear", entity: f.self });
+    f.store.observeEntity({ type: "appear", entity: f.self });
     expect(f.runtime.snapshot().inventory.coinage).toBe(10);
     expect(() => f.runtime.take(4)).toThrow();
   });
@@ -477,18 +469,17 @@ describe("authoritative loot runtime", () => {
   test("snapshots cannot inject offered items and disposal prevents stale handlers or actions", () => {
     const f = fixture();
     f.runtime.open(2n);
-    f.runtime.receiveLootResponse(
+    f.store.receiveLootResponse(
       parseLootResponse(new PacketReader(bytes(loot))),
     );
     const state = f.runtime.snapshot();
     if (state.loot.phase === "open") must(state.loot.items[0]).slot = 99;
     expect(() => f.runtime.take(99)).toThrow();
     f.runtime.dispose();
+    f.store.dispose();
     const count = f.events.length;
-    f.runtime.receiveItemPush(
-      parseItemPushResult(new PacketReader(bytes(push))),
-    );
-    f.runtime.receiveLootResponse(
+    f.store.receiveItemPush(parseItemPushResult(new PacketReader(bytes(push))));
+    f.store.receiveLootResponse(
       parseLootResponse(new PacketReader(bytes(loot))),
     );
     expect(f.events.length).toBe(count);
@@ -504,12 +495,12 @@ describe("authoritative loot runtime", () => {
     const f = fixture();
     f.runtime.open(2n);
     expect(() =>
-      f.runtime.receiveLootResponse(
+      f.store.receiveLootResponse(
         parseLootResponse(new PacketReader(bytes("0200000000000000 01"))),
       ),
     ).toThrow(RangeError);
     expect(f.runtime.snapshot().loot.phase).toBe("opening");
-    const runtime = new RewardsRuntime({
+    const { runtime } = rewardsParts({
       send: () => {
         throw new Error("socket closed");
       },

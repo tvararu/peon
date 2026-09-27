@@ -5,8 +5,8 @@ import {
   type MotionFixture,
   motionFixture,
 } from "#test-support/remote-motion-fixtures";
+import { combatParts } from "#test-support/session-fixtures";
 import { writePackedGuid } from "#test-support/world-handlers-fixtures";
-import { CombatRuntime } from "#wow/combat";
 import { registerCombatHandlers } from "#wow/gameplay-handlers";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -113,7 +113,11 @@ describe("SMSG_MONSTER_MOVE positions", () => {
 
 describe("registerCombatHandlers", () => {
   test("attack swing errors are named, not opcode numbers", () => {
-    const combat = new CombatRuntime({
+    const {
+      combat,
+      store: combatStore,
+      motion,
+    } = combatParts({
       send() {},
       now: () => 1,
       selfGuid: () => 1n,
@@ -121,11 +125,8 @@ describe("registerCombatHandlers", () => {
       getEntity: () => undefined,
       selfPose: () => undefined,
     });
-    const conn = {
-      dispatch: new OpcodeDispatch(),
-      combat,
-    } as unknown as WorldConn;
-    registerCombatHandlers(conn);
+    const conn = { dispatch: new OpcodeDispatch() } as unknown as WorldConn;
+    registerCombatHandlers(conn, { combat: combatStore, motion });
     combat.attack(2n);
     conn.dispatch.handle(
       GameOpcode.SMSG_ATTACKSWING_NOTINRANGE,

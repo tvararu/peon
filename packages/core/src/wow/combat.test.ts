@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { must } from "#test-support/must";
-import { type CombatEvent, CombatRuntime } from "#wow/combat";
+import { combatParts } from "#test-support/session-fixtures";
+import type { CombatEvent } from "#wow/combat";
 import { EntityStore } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import type { MonsterMovePath } from "#wow/protocol/monster-move";
@@ -31,7 +32,11 @@ function path(over: Partial<MonsterMovePath>): MonsterMovePath {
 function setup() {
   let now = 1000;
   const sent: number[] = [];
-  const combat = new CombatRuntime({
+  const {
+    combat,
+    store: combatStore,
+    motion,
+  } = combatParts({
     send: (opcode) => {
       sent.push(opcode);
     },
@@ -41,9 +46,11 @@ function setup() {
     getEntity: () => undefined,
     selfPose: () => undefined,
   });
-  combat.applyInitialSpells({ spells: [{ spellId: 17 }], cooldowns: [] });
+  combatStore.applyInitialSpells({ spells: [{ spellId: 17 }], cooldowns: [] });
   return {
     combat,
+    combatStore,
+    motion,
     sent,
     advance: (ms: number) => {
       now += ms;
@@ -75,22 +82,22 @@ describe("combat observations", () => {
   });
 
   test("late failure from a prior count cannot clear the new pending cast", () => {
-    const { combat } = setup();
+    const { combat, combatStore } = setup();
     combat.cast(17, 2n);
-    combat.applyCastFailed(failure(1));
+    combatStore.applyCastFailed(failure(1));
     expect(combat.snapshot().pendingCast).toBeUndefined();
     combat.cast(17, 2n);
-    combat.applyCastFailed(failure(1));
+    combatStore.applyCastFailed(failure(1));
     expect(combat.snapshot().pendingCast?.count).toBe(2);
     expect(combat.snapshot().lastOutcome?.status).toBe("sent");
-    combat.applyCastFailed(failure(2));
+    combatStore.applyCastFailed(failure(2));
     expect(combat.snapshot().pendingCast).toBeUndefined();
     expect(combat.snapshot().lastOutcome?.status).toBe("failed");
   });
 
   test("full aura snapshots replace stale slots and duration expiry is reflected", () => {
-    const { combat, advance } = setup();
-    combat.applyAuraAll({
+    const { combat, advance, combatStore } = setup();
+    combatStore.applyAuraAll({
       unit: 1n,
       auras: [
         {
@@ -122,30 +129,30 @@ describe("combat observations", () => {
     ]);
     advance(501);
     expect(combat.snapshot().auras).toEqual([]);
-    combat.applyAuraAll({ unit: 1n, auras: [] });
+    combatStore.applyAuraAll({ unit: 1n, auras: [] });
     expect(combat.snapshot().auras).toEqual([]);
   });
 
   test("foreign cooldown packets cannot block self and clears release observed cooldown", () => {
-    const { combat } = setup();
+    const { combat, combatStore } = setup();
     const cooldown = (guid: bigint) => ({
       guid,
       flags: 0,
       cooldowns: [{ spellId: 17, time: 3000 }],
     });
-    combat.applyCooldown(cooldown(2n));
+    combatStore.applyCooldown(cooldown(2n));
     expect(combat.snapshot().cooldowns).toEqual([]);
-    combat.applyCooldown(cooldown(1n));
+    combatStore.applyCooldown(cooldown(1n));
     expect(combat.snapshot().cooldowns[0]?.remainingMs).toBe(3000);
-    combat.applyClearCooldown({ spellId: 17, guid: 1n });
+    combatStore.applyClearCooldown({ spellId: 17, guid: 1n });
     expect(combat.snapshot().cooldowns).toEqual([]);
   });
 
   test("attack stop on a dead victim does not fabricate kill credit", () => {
-    const { combat } = setup();
-    combat.applyAttackStop({ attacker: 1n, victim: 2n, dead: 1 });
+    const { combat, combatStore } = setup();
+    combatStore.applyAttackStop({ attacker: 1n, victim: 2n, dead: 1 });
     expect(combat.snapshot().lastXp).toBeUndefined();
-    combat.applyXp({
+    combatStore.applyXp({
       victim: 2n,
       total: 55,
       kind: "kill",
@@ -161,9 +168,9 @@ describe("combat observations", () => {
   });
 
   test("a victimless attack stop clears the pending swing as failed", () => {
-    const { combat } = setup();
+    const { combat, combatStore } = setup();
     combat.attack(0xf1300000000000ffn);
-    combat.applyAttackStop({
+    combatStore.applyAttackStop({
       attacker: 1n,
       victim: undefined,
       dead: undefined,
@@ -179,15 +186,15 @@ describe("combat observations", () => {
   });
 
   test("spline predictions preserve observed provenance and disappear clears motion", () => {
-    const { combat, advance } = setup();
-    combat.observePosition(2n, {
+    const { combat, advance, combatStore, motion } = setup();
+    motion.observe(2n, {
       mapId: 530,
       x: 0,
       y: 0,
       z: 3,
       orientation: 1,
     });
-    combat.applyMonsterMove(path({}), 530);
+    motion.monsterMove(path({}), 530);
     advance(500);
     const target = must(combat.snapshot().target);
     expect(target.pose).toMatchObject({ source: "predicted", x: 5 });
@@ -198,13 +205,14 @@ describe("combat observations", () => {
     });
     advance(500);
     expect(combat.snapshot().target?.serverPose?.updatedAt).toBe(1000);
-    combat.forget(2n);
+    combatStore.forget(2n);
+    motion.forget(2n);
     expect(combat.snapshot().target?.pose).toBeUndefined();
   });
 });
 
 test("cancellation intent survives START and repeated server failures", () => {
-  const { combat } = setup();
+  const { combat, combatStore } = setup();
   combat.cast(17, 2n);
   combat.cancelCast();
   const start: SpellStart = {
@@ -216,11 +224,11 @@ test("cancellation intent survives START and repeated server failures", () => {
     timer: 1500,
     targets: { flags: 2, objectGuid: 2n },
   };
-  combat.applySpellStart(start);
+  combatStore.applySpellStart(start);
   expect(combat.snapshot().casting?.cancelRequested).toBe(true);
-  combat.applyCastFailed(failure(1, 40));
+  combatStore.applyCastFailed(failure(1, 40));
   expect(combat.snapshot().lastOutcome?.kind).toBe("cancel");
-  combat.applySpellFailure({
+  combatStore.applySpellFailure({
     caster: 1n,
     extraCasts: 1,
     spellId: 17,
@@ -231,12 +239,12 @@ test("cancellation intent survives START and repeated server failures", () => {
 });
 
 test("a new cast does not inherit the previous cancellation intent", () => {
-  const { combat } = setup();
+  const { combat, combatStore } = setup();
   combat.cast(17, 2n);
   combat.cancelCast();
-  combat.applyCastFailed(failure(1, 40));
+  combatStore.applyCastFailed(failure(1, 40));
   combat.cast(17, 2n);
-  combat.applyCastFailed(failure(2, 40));
+  combatStore.applyCastFailed(failure(2, 40));
   expect(combat.snapshot().lastOutcome).toMatchObject({
     kind: "cast",
     status: "failed",
@@ -244,10 +252,10 @@ test("a new cast does not inherit the previous cancellation intent", () => {
 });
 
 test("cancellation requests do not hide other server errors", () => {
-  const { combat } = setup();
+  const { combat, combatStore } = setup();
   combat.cast(17, 2n);
   combat.cancelCast();
-  combat.applyCastFailed(failure(1, 41));
+  combatStore.applyCastFailed(failure(1, 41));
   expect(combat.snapshot().lastOutcome).toMatchObject({
     kind: "cast",
     status: "failed",
@@ -256,18 +264,18 @@ test("cancellation requests do not hide other server errors", () => {
 });
 
 test("failed and interrupted casts name the server result next to its code", () => {
-  const { combat } = setup();
+  const { combat, combatStore } = setup();
   const events: { type: string; reason?: string }[] = [];
   combat.onEvent((event) => events.push(event));
   combat.cast(17, 2n);
-  combat.applyCastFailed(failure(1, 97));
+  combatStore.applyCastFailed(failure(1, 97));
   expect(combat.snapshot().lastOutcome).toMatchObject({
     status: "failed",
     result: 97,
     reason: "out_of_range",
   });
   combat.cast(17, 2n);
-  combat.applySpellFailure({
+  combatStore.applySpellFailure({
     caster: 1n,
     extraCasts: 2,
     spellId: 17,
@@ -287,7 +295,7 @@ test("failed and interrupted casts name the server result next to its code", () 
 
 test("full creature aura snapshots preserve unsigned GUID halves", () => {
   const guid = 0xf130003fd20009e5n;
-  const combat = new CombatRuntime({
+  const { combat, store: combatStore } = combatParts({
     send() {},
     now: () => 1,
     selfGuid: () => 1n,
@@ -295,7 +303,7 @@ test("full creature aura snapshots preserve unsigned GUID halves", () => {
     getEntity: () => undefined,
     selfPose: () => undefined,
   });
-  combat.applyAuraAll({
+  combatStore.applyAuraAll({
     unit: guid,
     auras: [
       {
@@ -317,9 +325,9 @@ test("full creature aura snapshots preserve unsigned GUID halves", () => {
 });
 
 test("a new open Catmull packet cannot promote old facing to authoritative launch yaw", () => {
-  const { combat } = setup();
-  combat.observePosition(2n, { mapId: 530, x: 0, y: 0, z: 0, orientation: 0 });
-  combat.applyMonsterMove(
+  const { combat, motion } = setup();
+  motion.observe(2n, { mapId: 530, x: 0, y: 0, z: 0, orientation: 0 });
+  motion.monsterMove(
     path({
       start: { x: 0, y: 2, z: 0 },
       flags: 0x4_00_00,
@@ -343,19 +351,19 @@ test("a new open Catmull packet cannot promote old facing to authoritative launc
 });
 
 test("incoming attack start registers attacker against self and stop clears it", () => {
-  const { combat } = setup();
+  const { combat, combatStore } = setup();
   expect(combat.isAttackingSelf(0x10n)).toBe(false);
-  combat.applyAttackStart({ attacker: 0x10n, victim: 1n });
+  combatStore.applyAttackStart({ attacker: 0x10n, victim: 1n });
   expect(combat.isAttackingSelf(0x10n)).toBe(true);
   expect(combat.isAttackingSelf(0x20n)).toBe(false);
-  combat.applyAttackStop({ attacker: 0x10n, victim: 1n, dead: 0 });
+  combatStore.applyAttackStop({ attacker: 0x10n, victim: 1n, dead: 0 });
   expect(combat.isAttackingSelf(0x10n)).toBe(false);
 });
 
 test("dead incoming attacker is cleared on check", () => {
   const store = new EntityStore();
   store.create(0x10n, ObjectType.UNIT, { health: 50 });
-  const combat = new CombatRuntime({
+  const { combat, store: combatStore } = combatParts({
     send() {},
     now: () => 1000,
     selfGuid: () => 1n,
@@ -363,30 +371,30 @@ test("dead incoming attacker is cleared on check", () => {
     getEntity: (guid) => store.get(guid),
     selfPose: () => undefined,
   });
-  combat.applyAttackStart({ attacker: 0x10n, victim: 1n });
+  combatStore.applyAttackStart({ attacker: 0x10n, victim: 1n });
   expect(combat.isAttackingSelf(0x10n)).toBe(true);
   store.update(0x10n, { health: 0 });
   expect(combat.isAttackingSelf(0x10n)).toBe(false);
 });
 
 test("cast events carry the spell name when spell data is loaded", () => {
-  const { combat } = setup();
+  const { combat, combatStore } = setup();
   const events: CombatEvent[] = [];
   combat.onEvent((event) => events.push(event));
   combat.cast(17, 2n);
-  combat.applyCastFailed(failure(1, 97));
+  combatStore.applyCastFailed(failure(1, 97));
   expect(events.at(-1)?.spellName).toBeUndefined();
   combat.setCatalog({
     get: (id: number) =>
       id === 17 ? { name: "Power Word: Shield" } : undefined,
   } as unknown as SpellCatalog);
   combat.cast(17, 2n);
-  combat.applyCastFailed(failure(2, 97));
+  combatStore.applyCastFailed(failure(2, 97));
   expect(events.at(-1)).toMatchObject({
     spellName: "Power Word: Shield",
     type: "cast_failed",
   });
-  combat.applyXp({
+  combatStore.applyXp({
     kind: "kill",
     recruitAFriend: false,
     total: 40,
@@ -396,12 +404,12 @@ test("cast events carry the spell name when spell data is loaded", () => {
 });
 
 test("self auras carry the spell name once spell data is loaded", () => {
-  const { combat } = setup();
+  const { combat, combatStore } = setup();
   combat.setCatalog({
     get: (id: number) =>
       id === 17 ? { name: "Power Word: Shield" } : undefined,
   } as unknown as SpellCatalog);
-  combat.applyAuraAll({
+  combatStore.applyAuraAll({
     unit: 1n,
     auras: [
       {
@@ -419,11 +427,11 @@ test("self auras carry the spell name once spell data is loaded", () => {
 });
 
 test("attackers lists live incoming attackers and attacked names each one", () => {
-  const { combat } = setup();
+  const { combat, combatStore } = setup();
   const events: CombatEvent[] = [];
   combat.onEvent((event) => events.push(event));
-  combat.applyAttackStart({ attacker: 0x10n, victim: 1n });
-  combat.applyAttackStart({ attacker: 0x20n, victim: 1n });
+  combatStore.applyAttackStart({ attacker: 0x10n, victim: 1n });
+  combatStore.applyAttackStart({ attacker: 0x20n, victim: 1n });
   expect(combat.snapshot().attackers).toEqual([0x10n, 0x20n]);
   const attacked = events.filter((event) => event.type === "attacked");
   expect(attacked.map((event) => event.attacker)).toEqual([0x10n, 0x20n]);
@@ -434,7 +442,7 @@ test("a dead or stopped attacker leaves attackers", () => {
   const store = new EntityStore();
   store.create(0x10n, ObjectType.UNIT, { health: 50 });
   store.create(0x20n, ObjectType.UNIT, { health: 50 });
-  const combat = new CombatRuntime({
+  const { combat, store: combatStore } = combatParts({
     send() {},
     now: () => 1000,
     selfGuid: () => 1n,
@@ -442,10 +450,10 @@ test("a dead or stopped attacker leaves attackers", () => {
     getEntity: (guid) => store.get(guid),
     selfPose: () => undefined,
   });
-  combat.applyAttackStart({ attacker: 0x10n, victim: 1n });
-  combat.applyAttackStart({ attacker: 0x20n, victim: 1n });
+  combatStore.applyAttackStart({ attacker: 0x10n, victim: 1n });
+  combatStore.applyAttackStart({ attacker: 0x20n, victim: 1n });
   store.update(0x10n, { health: 0 });
-  combat.applyAttackStop({ attacker: 0x20n, victim: 1n, dead: 0 });
+  combatStore.applyAttackStop({ attacker: 0x20n, victim: 1n, dead: 0 });
   expect(combat.snapshot().attackers).toEqual([]);
 });
 

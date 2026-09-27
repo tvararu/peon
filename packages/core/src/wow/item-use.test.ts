@@ -181,22 +181,24 @@ function casts() {
     () => 0,
     () => undefined,
   );
+  const send = (opcode: number, body?: Uint8Array) => {
+    sent.push([opcode, [...(body ?? [])]]);
+  };
   const c = new CombatCasts({
-    send: (opcode, body) => sent.push([opcode, [...(body ?? [])]]),
     now: () => 0,
     learned: new Set(),
     cooldowns: store,
   });
-  return { c, sent };
+  return { c, send, sent };
 }
 
 const item = { entry: 2687, bag: 255, slot: 29, guid: RIBS };
 
 test("an item cast carries its item through the server cast result", () => {
-  const { c, sent } = casts();
-  expect(c.sendItem(5005, item)).toMatchObject({ status: "sent", item });
+  const { c, send, sent } = casts();
+  expect(c.sendItem(send, 5005, item)).toMatchObject({ status: "sent", item });
   expect(sent[0]?.[0]).toBe(GameOpcode.CMSG_USE_ITEM);
-  expect(() => c.sendItem(5005, item)).toThrow("cast_in_progress");
+  expect(() => c.sendItem(send, 5005, item)).toThrow("cast_in_progress");
   expect(c.fail(5005, 1, 12, "failed")).toMatchObject({
     status: "failed",
     result: 12,
@@ -206,8 +208,8 @@ test("an item cast carries its item through the server cast result", () => {
 });
 
 test("an inventory error for the used item fails the pending item cast", () => {
-  const { c } = casts();
-  c.sendItem(5005, item);
+  const { c, send } = casts();
+  c.sendItem(send, 5005, item);
   expect(c.rejectItem(8n, 60)).toBeUndefined();
   expect(c.rejectItem(RIBS, 60)).toEqual({
     kind: "cast",
@@ -218,16 +220,19 @@ test("an inventory error for the used item fails the pending item cast", () => {
     item,
   });
   expect(c.pending).toBeUndefined();
-  c.sendItem(5005, item);
+  c.sendItem(send, 5005, item);
   expect(c.rejectItem(0n, 22)).toMatchObject({ inventoryResult: 22 });
 });
 
 test("a potion can be used over a cast that is being cancelled, not over a live one", () => {
-  const { c, sent } = casts();
-  c.sendItem(5005, item);
-  expect(() => c.sendItem(440, item)).toThrow("cast_in_progress");
-  c.cancel();
-  expect(c.sendItem(440, item)).toMatchObject({ status: "sent", spellId: 440 });
+  const { c, send, sent } = casts();
+  c.sendItem(send, 5005, item);
+  expect(() => c.sendItem(send, 440, item)).toThrow("cast_in_progress");
+  c.cancel(send);
+  expect(c.sendItem(send, 440, item)).toMatchObject({
+    status: "sent",
+    spellId: 440,
+  });
   expect(sent.map(([opcode]) => opcode)).toEqual([
     GameOpcode.CMSG_USE_ITEM,
     GameOpcode.CMSG_CANCEL_CAST,

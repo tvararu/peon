@@ -1,4 +1,5 @@
 import { jest } from "bun:test";
+import { testStores } from "#test-support/session-fixtures";
 import type {
   ChatMessage,
   ChatMode,
@@ -68,7 +69,8 @@ export function createMockHandle(): MockHandle {
     selfGuid: () => 0n,
     send: () => {},
   };
-  const combat = new CombatRuntime({
+  const stores = testStores(runtimeDeps);
+  const combat = new CombatRuntime(stores, {
     ...runtimeDeps,
     selectedGuid: () => undefined,
     selfPose: () => undefined,
@@ -78,7 +80,7 @@ export function createMockHandle(): MockHandle {
     pose: () => undefined,
   });
   const quests = new QuestRuntime(runtimeDeps);
-  const rewards = new RewardsRuntime(runtimeDeps);
+  const rewards = new RewardsRuntime(stores.rewards, runtimeDeps);
   const vendor = new VendorRuntime(runtimeDeps);
   const tacticsState: TacticsState = {
     instruction: "",

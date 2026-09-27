@@ -1,5 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
 import { bytes } from "#test-support/hex";
+import { rewardsParts } from "#test-support/session-fixtures";
 import type { Entity, EntityEvent } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import {
@@ -7,7 +8,7 @@ import {
   parseLootResponse,
 } from "#wow/protocol/loot";
 import { PacketReader } from "#wow/protocol/packet";
-import { RELEASE_ONLY_MS, RewardsRuntime } from "#wow/rewards";
+import { RELEASE_ONLY_MS } from "#wow/rewards";
 
 const cub = 0xf1_30_00_3c_06_07_6d_c1n;
 const next = 0xf1_30_00_3c_06_07_6d_73n;
@@ -39,25 +40,25 @@ function opening() {
     [cub, unit(cub, [[0x4f, 1]])],
     [next, unit(next, [[0x4f, 1]])],
   ]);
-  const runtime = new RewardsRuntime({
+  const { runtime, store } = rewardsParts({
     getEntity: (guid) => entities.get(guid),
     now: () => 1000,
     selfGuid: () => 1n,
     send: () => undefined,
   });
   runtime.open(cub);
-  runtime.receiveLootRelease(
+  store.receiveLootRelease(
     parseLootReleaseResponse(new PacketReader(bytes(releaseOnly))),
   );
-  return runtime;
+  return { runtime, store };
 }
 
 describe("release-only loot opening", () => {
   test("a full response after the release still opens the window", () => {
     jest.useFakeTimers();
     try {
-      const runtime = opening();
-      runtime.receiveLootResponse(
+      const { runtime, store } = opening();
+      store.receiveLootResponse(
         parseLootResponse(new PacketReader(bytes(offer))),
       );
       jest.advanceTimersByTime(RELEASE_ONLY_MS);
@@ -72,9 +73,9 @@ describe("release-only loot opening", () => {
   });
 
   test("the corpse despawning closes the opening and frees the next open", () => {
-    const runtime = opening();
+    const { runtime, store } = opening();
     const gone: EntityEvent = { guid: cub, type: "disappear" };
-    runtime.observeEntity(gone);
+    store.observeEntity(gone);
     expect(runtime.snapshot()).toMatchObject({
       lastOpenFailure: {
         guid: cub,
@@ -93,7 +94,7 @@ describe("release-only loot opening", () => {
   test("no full response within the bound closes it as release_only", () => {
     jest.useFakeTimers();
     try {
-      const runtime = opening();
+      const { runtime } = opening();
       jest.advanceTimersByTime(RELEASE_ONLY_MS - 1);
       expect(runtime.snapshot().loot.phase).toBe("opening");
       jest.advanceTimersByTime(1);
@@ -111,7 +112,7 @@ describe("release-only loot opening", () => {
 
 describe("abandoned loot opening", () => {
   test("an unanswered open can be abandoned so the next corpse opens", () => {
-    const runtime = opening();
+    const { runtime } = opening();
     const events: string[] = [];
     runtime.onEvent((event) => events.push(event.type));
     const state = runtime.abandonOpen();
@@ -125,7 +126,7 @@ describe("abandoned loot opening", () => {
   });
 
   test("abandoning with no open request changes nothing", () => {
-    const runtime = opening();
+    const { runtime } = opening();
     runtime.abandonOpen();
     const events: string[] = [];
     runtime.onEvent((event) => events.push(event.type));

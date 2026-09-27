@@ -21,6 +21,7 @@ import {
 } from "#wow/protocol/world";
 import { RemoteMotion } from "#wow/remote-motion";
 import type { Runtimes } from "#wow/runtime";
+import { disposeSessionStores, type SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
 import { clearWorldEvents, createWorldEvents } from "#wow/world-events";
 import { selfGuid, sendPacket } from "#wow/world-handlers";
@@ -54,10 +55,10 @@ function drainWorldPackets(conn: WorldConn): void {
 }
 
 function flushEntityEvents(conn: WorldConn, opcode: number): void {
-  const queue = conn.pendingEntityEvents;
-  for (const event of queue) {
+  const queue = conn.pendingEntityDeliveries;
+  for (const deliver of queue) {
     try {
-      deliverEntityEvent(conn, event);
+      deliver();
     } catch (err) {
       if (err instanceof Error) conn.events.packetError.emit(opcode, err);
     }
@@ -146,20 +147,30 @@ export function startPingLoop(
   }, intervalMs);
 }
 
-function routeEntityEvent(conn: WorldConn, event: EntityEvent): void {
+function routeEntityEvent(
+  conn: WorldConn,
+  stores: SessionStores,
+  event: EntityEvent,
+): void {
   if (event.type === "disappear") {
     conn.remoteMotion.forget(event.guid);
-    conn.combat?.forget(event.guid);
+    stores.motion.forget(event.guid);
+    stores.combat.forget(event.guid);
     conn.control?.observeDisappear(event.guid);
   }
-  if (conn.dispatchingOpcode === undefined) deliverEntityEvent(conn, event);
-  else conn.pendingEntityEvents.push(event);
+  const deliver = () => deliverEntityEvent(conn, stores, event);
+  if (conn.dispatchingOpcode === undefined) deliver();
+  else conn.pendingEntityDeliveries.push(deliver);
 }
 
-function deliverEntityEvent(conn: WorldConn, event: EntityEvent): void {
+function deliverEntityEvent(
+  conn: WorldConn,
+  stores: SessionStores,
+  event: EntityEvent,
+): void {
   conn.recovery?.observeEntity(event);
-  conn.rewards?.observeEntity(event);
-  conn.itemTemplates?.observeEntity(event);
+  stores.rewards.observeEntity(event);
+  stores.items.observeEntity(event);
   conn.cycle?.observeEntity(event);
   conn.trainer?.observe();
   conn.vendor?.observeEntity(event);
@@ -182,7 +193,7 @@ export function createWorldConn(): WorldConn {
     partyMembers: new Map(),
     party: new PartyStore(),
     entityStore: new EntityStore(),
-    pendingEntityEvents: [],
+    pendingEntityDeliveries: [],
     remoteMotion: new RemoteMotion({
       now: () => Date.now(),
       eligible: (guid) =>
@@ -205,28 +216,27 @@ export function createWorldConn(): WorldConn {
     duelArbiter: 0n,
     events: createWorldEvents((error) => reportListenerError(conn, error)),
   };
-  conn.entityStore.onEvent((event) => routeEntityEvent(conn, event));
-  conn.events.rewards.subscribe((event) =>
-    conn.itemTemplates?.observeRewards(event),
-  );
-  conn.events.vendor.subscribe(({ type, state }) => {
-    if (type !== "listed") return;
-    for (const good of state.window?.items ?? [])
-      conn.itemTemplates?.label(good.itemId);
-  });
   conn.friendStore.onEvent((event) => conn.events.friend.emit(event));
   conn.ignoreStore.onEvent((event) => conn.events.ignore.emit(event));
   conn.guildStore.onEvent((event) => conn.events.guild.emit(event));
   return conn;
 }
 
+export function routeEntityEvents(
+  conn: WorldConn,
+  stores: SessionStores,
+): void {
+  conn.entityStore.onEvent((event) => routeEntityEvent(conn, stores, event));
+}
+
 export function cleanupSession(
   conn: WorldConn,
-  rt: Runtimes,
+  session: { stores: SessionStores; rt: Runtimes },
   sendStop: boolean,
 ): void {
   clearWorldEvents(conn.events);
-  rt.dispose(sendStop);
+  session.rt.dispose(sendStop);
+  disposeSessionStores(session.stores);
 }
 export function connectWorld(
   conn: WorldConn,

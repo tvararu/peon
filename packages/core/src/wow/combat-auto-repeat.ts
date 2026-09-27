@@ -1,4 +1,4 @@
-import type { CombatCasts } from "#wow/combat-casts";
+import type { CombatCasts, Send } from "#wow/combat-casts";
 import type { CombatOutcome } from "#wow/combat-types";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { SpellGo, SpellStart } from "#wow/protocol/spell";
@@ -14,7 +14,6 @@ export type CombatAutoRepeat = {
 };
 
 type AutoRepeatDeps = {
-  send: (opcode: number, body?: Uint8Array) => void;
   now: () => number;
   casts: CombatCasts;
 };
@@ -33,8 +32,8 @@ export class AutoRepeatTracker {
     return state;
   }
 
-  send(spellId: number, target: bigint): CombatOutcome {
-    const count = this.deps.casts.sendUntracked(spellId, target);
+  send(send: Send, spellId: number, target: bigint): CombatOutcome {
+    const count = this.deps.casts.sendUntracked(send, spellId, target);
     const at = this.deps.now();
     this.current = {
       count,
@@ -112,10 +111,10 @@ export class AutoRepeatTracker {
     };
   }
 
-  stop(): CombatOutcome | undefined {
+  stop(send: Send): CombatOutcome | undefined {
     const spellId = this.current?.spellId;
     if (spellId === undefined) return undefined;
-    this.deps.send(GameOpcode.CMSG_CANCEL_AUTO_REPEAT_SPELL);
+    send(GameOpcode.CMSG_CANCEL_AUTO_REPEAT_SPELL);
     this.current = undefined;
     return { at: this.deps.now(), kind: "cancel", spellId, status: "sent" };
   }

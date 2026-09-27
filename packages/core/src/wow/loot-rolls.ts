@@ -11,7 +11,6 @@ import {
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 export type LootRollDeps = {
-  send: (opcode: number, body?: Uint8Array) => void;
   now: () => number;
   selfGuid: () => bigint;
   lootGuid: () => bigint | undefined;
@@ -105,7 +104,12 @@ export class LootRolls {
     };
   }
 
-  roll(target: bigint, slot: number, choice: RollVote): void {
+  roll(
+    send: (opcode: number, body?: Uint8Array) => void,
+    target: bigint,
+    slot: number,
+    choice: RollVote,
+  ): void {
     this.prune();
     const roll = this.rolls.find(
       (r) => r.slot === slot && (r.guid === target || r.corpseGuid === target),
@@ -117,7 +121,7 @@ export class LootRolls {
     if (roll.choice) throw new Error("Loot roll was already answered");
     if (!roll.allowed.includes(choice))
       throw new Error(`Roll type is not allowed: ${choice}`);
-    this.deps.send(
+    send(
       GameOpcode.CMSG_LOOT_ROLL,
       buildLootRoll(roll.guid, roll.slot, choice),
     );

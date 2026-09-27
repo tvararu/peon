@@ -16,7 +16,7 @@ function fight() {
       f.combat.cast(17, 2n);
       const count = f.combat.snapshot().pendingCast?.count ?? 0;
       now += 100;
-      f.combat.applyCastFailed({
+      f.combatStore.applyCastFailed({
         castCount: count,
         spellId: 17,
         result,
@@ -28,7 +28,7 @@ function fight() {
       f.combat.cast(17, 2n);
       const count = f.combat.snapshot().pendingCast?.count ?? 0;
       now += 100;
-      f.combat.applySpellFailure({
+      f.combatStore.applySpellFailure({
         caster: 1n,
         extraCasts: count,
         spellId: 17,
@@ -37,7 +37,7 @@ function fight() {
     },
     kill() {
       now += 100;
-      f.combat.applyXp({
+      f.combatStore.applyXp({
         victim: 2n,
         total: 60,
         kind: "kill",
@@ -71,17 +71,17 @@ test("recoverable rejections stop the fight only when they come three in a row",
   const f = fight();
   for (let i = 1; i < MAX_CONSECUTIVE_REJECTIONS; i++) {
     f.later();
-    f.combat.applyAttackError("bad_facing");
+    f.combatStore.applyAttackError("bad_facing");
     expect(f.actions.observe(context).outcome).toBeUndefined();
   }
   f.later();
-  f.combat.applyAttackStart({ attacker: 1n, victim: 2n });
+  f.combatStore.applyAttackStart({ attacker: 1n, victim: 2n });
   expect(f.actions.observe(context).observation["rejections"]).toMatchObject({
     consecutive: 0,
   });
   for (let i = 0; i < MAX_CONSECUTIVE_REJECTIONS; i++) {
     f.later();
-    f.combat.applyAttackError("bad_facing");
+    f.combatStore.applyAttackError("bad_facing");
     f.actions.observe(context);
   }
   expect(f.actions.observe(context).outcome).toEqual({

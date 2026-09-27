@@ -5,8 +5,9 @@ import {
   HUNTER_SPELLS,
   hunterSpells,
 } from "#test-support/hunter-fixtures";
+import { combatParts } from "#test-support/session-fixtures";
 import { writePackedGuid } from "#test-support/world-handlers-fixtures";
-import { type CombatEvent, CombatRuntime } from "#wow/combat";
+import type { CombatEvent } from "#wow/combat";
 import { registerCombatHandlers } from "#wow/gameplay-handlers";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
@@ -17,7 +18,11 @@ import type { WorldConn } from "#wow/world-conn";
 function setup() {
   let now = 1000;
   const sent: { opcode: number; body: Uint8Array | undefined }[] = [];
-  const combat = new CombatRuntime({
+  const {
+    combat,
+    store: combatStore,
+    motion,
+  } = combatParts({
     getEntity: () => undefined,
     now: () => now,
     selectedGuid: () => 2n,
@@ -28,8 +33,8 @@ function setup() {
     },
   });
   const defs = hunterSpells();
-  jest.spyOn(combat, "definition").mockImplementation((id) => defs[id]);
-  combat.applyInitialSpells({
+  jest.spyOn(combatStore, "definition").mockImplementation((id) => defs[id]);
+  combatStore.applyInitialSpells({
     cooldowns: [],
     spells: HUNTER_SPELLS.map((spellId) => ({ spellId })),
   });
@@ -38,7 +43,7 @@ function setup() {
   const advance = (ms: number) => {
     now += ms;
   };
-  return { advance, combat, events, sent };
+  return { advance, combat, combatStore, events, motion, sent };
 }
 
 function start(castCount: number): SpellStart {
@@ -68,7 +73,7 @@ function shot(): SpellGo {
 }
 
 test("Auto Shot is an auto-repeat attack, not a cast that never ends", () => {
-  const { advance, combat, events, sent } = setup();
+  const { advance, combat, events, sent, combatStore } = setup();
   combat.cast(AUTO_SHOT, 2n);
   const request = new PacketReader(sent[0]?.body ?? new Uint8Array());
   expect(sent[0]?.opcode).toBe(GameOpcode.CMSG_CAST_SPELL);
@@ -85,12 +90,12 @@ test("Auto Shot is an auto-repeat attack, not a cast that never ends", () => {
     status: "pending",
     target: 2n,
   });
-  combat.applySpellStart(start(1));
+  combatStore.applySpellStart(start(1));
   expect(combat.snapshot().casting).toBeUndefined();
   expect(combat.snapshot().autoRepeat?.status).toBe("active");
   advance(2500);
-  combat.applySpellGo(shot());
-  combat.applySpellGo(shot());
+  combatStore.applySpellGo(shot());
+  combatStore.applySpellGo(shot());
   expect(combat.snapshot().autoRepeat).toMatchObject({
     lastShotAt: 3500,
     shots: 2,
@@ -112,10 +117,10 @@ test("Auto Shot is an auto-repeat attack, not a cast that never ends", () => {
 });
 
 test("the server's SMSG_CANCEL_AUTO_REPEAT ends the auto-repeat", () => {
-  const { combat } = setup();
+  const { combat, combatStore } = setup();
   combat.cast(AUTO_SHOT, 2n);
-  combat.applySpellStart(start(1));
-  combat.applyCancelAutoRepeat({ target: 1n });
+  combatStore.applySpellStart(start(1));
+  combatStore.applyCancelAutoRepeat({ target: 1n });
   expect(combat.snapshot().autoRepeat).toBeUndefined();
   expect(combat.snapshot().lastOutcome).toMatchObject({
     kind: "cancel",
@@ -126,9 +131,9 @@ test("the server's SMSG_CANCEL_AUTO_REPEAT ends the auto-repeat", () => {
 });
 
 test("stop and halt send CMSG_CANCEL_AUTO_REPEAT_SPELL with an empty body", () => {
-  const { combat, sent } = setup();
+  const { combat, sent, combatStore } = setup();
   combat.cast(AUTO_SHOT, 2n);
-  combat.applySpellStart(start(1));
+  combatStore.applySpellStart(start(1));
   combat.stopAutoRepeat();
   expect(sent.at(-1)?.opcode).toBe(GameOpcode.CMSG_CANCEL_AUTO_REPEAT_SPELL);
   expect(sent.at(-1)?.body?.byteLength ?? 0).toBe(0);
@@ -143,9 +148,9 @@ test("stop and halt send CMSG_CANCEL_AUTO_REPEAT_SPELL with an empty body", () =
 });
 
 test("a rejected Auto Shot clears the auto-repeat with the server reason", () => {
-  const { combat, events } = setup();
+  const { combat, events, combatStore } = setup();
   combat.cast(AUTO_SHOT, 2n);
-  combat.applyCastFailed({
+  combatStore.applyCastFailed({
     castCount: 1,
     extra: [],
     result: 75,
@@ -161,12 +166,9 @@ test("a rejected Auto Shot clears the auto-repeat with the server reason", () =>
 });
 
 test("the SMSG_CANCEL_AUTO_REPEAT handler reads the wire packet", () => {
-  const { combat } = setup();
-  const conn = {
-    combat,
-    dispatch: new OpcodeDispatch(),
-  } as unknown as WorldConn;
-  registerCombatHandlers(conn);
+  const { combat, combatStore, motion } = setup();
+  const conn = { dispatch: new OpcodeDispatch() } as unknown as WorldConn;
+  registerCombatHandlers(conn, { combat: combatStore, motion });
   combat.cast(AUTO_SHOT, 2n);
   conn.dispatch.handle(
     GameOpcode.SMSG_SPELL_START,

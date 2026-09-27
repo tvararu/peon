@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { testStores } from "#test-support/session-fixtures";
 import { ControlRuntime } from "#wow/control";
 import { EntityStore } from "#wow/entity-store";
 import { registerMovementHandlers } from "#wow/movement-handlers";
@@ -67,7 +68,7 @@ describe("handleNearTeleport", () => {
     });
     sent.length = 0;
     const conn = fakeConn(runtime, store);
-    registerMovementHandlers(conn);
+    registerMovementHandlers(conn, testStores());
     expect(conn.dispatch.has(GameOpcode.MSG_MOVE_TELEPORT)).toBe(true);
     conn.dispatch.handle(
       GameOpcode.MSG_MOVE_TELEPORT,
@@ -99,7 +100,7 @@ describe("handleNearTeleport", () => {
       },
       store,
     );
-    registerMovementHandlers(conn);
+    registerMovementHandlers(conn, testStores());
     conn.dispatch.handle(
       GameOpcode.MSG_MOVE_TELEPORT,
       new PacketReader(nearTeleportBody(0x99)),

@@ -11,8 +11,9 @@ import {
 } from "#wow/protocol/spell";
 import { spellCastReason } from "#wow/protocol/spell-cast-result";
 
+export type Send = (opcode: number, body?: Uint8Array) => void;
+
 type CastDeps = {
-  send: (opcode: number, body?: Uint8Array) => void;
   now: () => number;
   learned: ReadonlySet<number>;
   cooldowns: CooldownStore;
@@ -50,20 +51,20 @@ export class CombatCasts {
     this.lastCast = undefined;
   }
 
-  send(spellId: number, targetGuid: bigint): CombatOutcome {
+  send(send: Send, spellId: number, targetGuid: bigint): CombatOutcome {
     this.validate(spellId, targetGuid);
     if (this.pendingCast || this.currentCast)
       throw new Error("cast_in_progress");
-    const count = this.sendUntracked(spellId, targetGuid);
+    const count = this.sendUntracked(send, spellId, targetGuid);
     return this.track(spellId, targetGuid === 0n ? undefined : targetGuid, {
       count,
     });
   }
 
-  sendUntracked(spellId: number, targetGuid: bigint): number {
+  sendUntracked(send: Send, spellId: number, targetGuid: bigint): number {
     this.validate(spellId, targetGuid);
     const count = this.nextCount();
-    this.deps.send(
+    send(
       GameOpcode.CMSG_CAST_SPELL,
       buildCastSpell(count, spellId, targetGuid),
     );
@@ -78,13 +79,13 @@ export class CombatCasts {
     if (!this.deps.learned.has(spellId)) throw new Error("unknown_spell");
   }
 
-  sendItem(spellId: number, item: CombatItem): CombatOutcome {
+  sendItem(send: Send, spellId: number, item: CombatItem): CombatOutcome {
     if (this.hasUncancelled()) throw new Error("cast_in_progress");
     this.pendingCast = undefined;
     this.currentCast = undefined;
     const count = this.nextCount();
     const { bag, slot, guid: itemGuid } = item;
-    this.deps.send(
+    send(
       GameOpcode.CMSG_USE_ITEM,
       buildUseItem({ bag, slot, castCount: count, spellId, itemGuid }),
     );
@@ -122,10 +123,10 @@ export class CombatCasts {
     };
   }
 
-  cancel(): CombatOutcome {
+  cancel(send: Send): CombatOutcome {
     const spellId = this.currentCast?.spellId ?? this.pendingCast?.spellId;
     if (spellId === undefined) throw new Error("not_casting");
-    this.deps.send(GameOpcode.CMSG_CANCEL_CAST, buildCancelCast(spellId));
+    send(GameOpcode.CMSG_CANCEL_CAST, buildCancelCast(spellId));
     if (this.currentCast) this.currentCast.cancelRequested = true;
     if (this.pendingCast) this.pendingCast.cancelRequested = true;
     return {

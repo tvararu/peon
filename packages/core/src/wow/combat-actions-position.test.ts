@@ -5,7 +5,7 @@ import {
   setup,
   spell,
 } from "#test-support/combat-actions-fixtures";
-import { CombatRuntime } from "#wow/combat";
+import { combatParts } from "#test-support/session-fixtures";
 import { CombatActions } from "#wow/combat-actions";
 import { ControlRuntime } from "#wow/control";
 import { EntityStore } from "#wow/entity-store";
@@ -37,10 +37,10 @@ test("transient cooldown and cancellation waits do not block an encounter", () =
 });
 
 test("an unsupported spellbook does not block facing and melee engagement", () => {
-  const { actions, combat, store } = setup();
+  const { actions, combat, store, motion } = setup();
   store.update(1n, { combatReach: 1.5 });
   store.update(2n, { combatReach: 1.5 });
-  combat.observePosition(2n, {
+  motion.observe(2n, {
     mapId: 530,
     x: -1,
     y: 0,
@@ -83,10 +83,10 @@ test("dead target waits for real credit and offers no attack or spell", () => {
 
 test("an unreachable target stops after the persistence threshold", () => {
   let time = 1000;
-  const { actions, combat } = setup(() => time);
+  const { actions, combat, motion } = setup(() => time);
   const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
   try {
-    combat.observePosition(2n, {
+    motion.observe(2n, {
       mapId: 530,
       x: 50,
       y: 0,
@@ -116,10 +116,10 @@ test("an unreachable target stops after the persistence threshold", () => {
 
 test("a target re-entering range resets the unreachable persistence threshold", () => {
   let time = 1000;
-  const { actions, combat } = setup(() => time);
+  const { actions, combat, motion } = setup(() => time);
   const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
   try {
-    combat.observePosition(2n, {
+    motion.observe(2n, {
       mapId: 530,
       x: 50,
       y: 0,
@@ -128,7 +128,7 @@ test("a target re-entering range resets the unreachable persistence threshold", 
     });
     expect(actions.observe(context).outcome).toBeUndefined();
     time = 3000;
-    combat.observePosition(2n, {
+    motion.observe(2n, {
       mapId: 530,
       x: 10,
       y: 0,
@@ -141,7 +141,7 @@ test("a target re-entering range resets the unreachable persistence threshold", 
       frame.candidates.some((candidate) => candidate.id === "spell:17:target"),
     ).toBe(true);
     time = 4000;
-    combat.observePosition(2n, {
+    motion.observe(2n, {
       mapId: 530,
       x: 50,
       y: 0,
@@ -163,11 +163,11 @@ test("a target re-entering range resets the unreachable persistence threshold", 
 
 test("closing on an out-of-range target restarts the unreachable bound", () => {
   let time = 1000;
-  const { actions, combat } = setup(() => time);
+  const { actions, combat, motion } = setup(() => time);
   const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
   const at = (ms: number, x: number) => {
     time = ms;
-    combat.observePosition(2n, { mapId: 530, x, y: 0, z: 0, orientation: 0 });
+    motion.observe(2n, { mapId: 530, x, y: 0, z: 0, orientation: 0 });
     return actions.observe(context).outcome;
   };
   try {
@@ -244,7 +244,11 @@ test("an attacking creature whose faction relation is unknown can be engaged", (
     runSpeed: 7,
     runBackSpeed: 4,
   });
-  const combat = new CombatRuntime({
+  const {
+    combat,
+    store: combatStore,
+    motion,
+  } = combatParts({
     send() {},
     now: () => 1000,
     selfGuid: () => 1n,
@@ -252,8 +256,8 @@ test("an attacking creature whose faction relation is unknown can be engaged", (
     getEntity: (guid) => store.get(guid),
     selfPose: () => control.snapshot().pose,
   });
-  combat.observePosition(2n, { mapId: 530, x: 10, y: 0, z: 0, orientation: 0 });
-  combat.applyInitialSpells({ spells: [{ spellId: 17 }], cooldowns: [] });
+  motion.observe(2n, { mapId: 530, x: 10, y: 0, z: 0, orientation: 0 });
+  combatStore.applyInitialSpells({ spells: [{ spellId: 17 }], cooldowns: [] });
   const factionsCatalog = {
     relation: () => "unknown" as const,
   } as unknown as FactionTemplateCatalog;
@@ -269,11 +273,11 @@ test("an attacking creature whose faction relation is unknown can be engaged", (
     "unverified_hostile_relation",
   );
 
-  combat.applyAttackStart({ attacker: 2n, victim: 1n });
+  combatStore.applyAttackStart({ attacker: 2n, victim: 1n });
 
   expect(() => actions.activate(context)).not.toThrow();
 
-  combat.applyAttackStop({ attacker: 2n, victim: 1n, dead: 0 });
+  combatStore.applyAttackStop({ attacker: 2n, victim: 1n, dead: 0 });
 
   expect(() => actions.activate(context)).toThrow(
     "unverified_hostile_relation",
