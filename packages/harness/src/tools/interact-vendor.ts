@@ -9,6 +9,11 @@ import type {
   StockLine,
 } from "#harness/contract/details";
 import type { ToolCtx } from "#harness/contract/services";
+import {
+  awaitItemNames,
+  ITEM_NAME_WAIT_MS,
+  itemIdText,
+} from "#harness/ops/item-names";
 import { Refusal } from "#harness/ops/refusal";
 import { settle } from "#harness/ops/settle";
 import { nextCall, result } from "#harness/tools/define";
@@ -37,6 +42,7 @@ const JUNK_QUALITY = 0;
 const BAG_REGIONS = new Set(["backpack", "bag_item"]);
 const NO_ANSWER = "no_answer";
 const LINE_NUMBER = /^\d+$/;
+const ITEM_ID = /^item (\d+)$/;
 
 function vendorStep(
   ctx: ToolCtx<InteractAfter>,
@@ -59,9 +65,15 @@ export async function openVendorWindow(
     packet: () => ctx.handle.openVendor(npc.guid),
     settled: ["listed", "refused", "unanswered"],
   });
-  return listed?.type === "listed"
-    ? ctx.handle.getVendorState().window?.items
-    : undefined;
+  if (listed?.type !== "listed") return undefined;
+  const goods = () => ctx.handle.getVendorState().window?.items ?? [];
+  await awaitItemNames(
+    goods().map((good) => good.itemId),
+    (itemId) =>
+      goods().find((good) => good.itemId === itemId)?.name ?? undefined,
+    { signal: ctx.signal, timeoutMs: ITEM_NAME_WAIT_MS },
+  );
+  return ctx.handle.getVendorState().window?.items;
 }
 
 function stopReason(answer: VendorEvent | undefined): string {
@@ -70,7 +82,7 @@ function stopReason(answer: VendorEvent | undefined): string {
 }
 
 function nameOf(good: NamedVendorGood): string {
-  return good.name ?? `item ${good.itemId}`;
+  return good.name ?? itemIdText(good.itemId);
 }
 
 export function stockLines(goods: readonly NamedVendorGood[]): StockLine[] {
@@ -125,6 +137,11 @@ function pickGood(
   const text = what.trim().toLowerCase();
   const byLine = LINE_NUMBER.test(text) ? goods[Number(text) - 1] : undefined;
   if (byLine) return byLine;
+  const id = ITEM_ID.exec(text)?.[1];
+  const byId = id
+    ? goods.find((good) => good.itemId === Number(id))
+    : undefined;
+  if (byId) return byId;
   const matches = goods.filter((good) =>
     nameOf(good).toLowerCase().includes(text),
   );
@@ -238,7 +255,7 @@ async function sellAll(
       sold.push({
         count: slot.item.count ?? 1,
         itemId: slot.item.entry ?? 0,
-        name: slot.item.name ?? "item",
+        name: slot.item.name ?? itemIdText(slot.item.entry ?? 0),
         quality: slot.item.quality,
       });
       continue;
