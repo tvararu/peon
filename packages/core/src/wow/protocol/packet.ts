@@ -30,6 +30,10 @@ export class PacketReader {
     return this.pos;
   }
 
+  fork(): PacketReader {
+    return new PacketReader(this.data, this.pos);
+  }
+
   uint8(): number {
     const v = this.view.getUint8(this.pos);
     this.pos += 1;

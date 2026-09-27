@@ -164,13 +164,23 @@ export function parseCharacterList(r: PacketReader): CharacterInfo[] {
   return chars;
 }
 
+export type ExpectOptions = {
+  timeoutMs?: number;
+  match?: (reader: PacketReader) => boolean;
+};
+
+type Waiter = {
+  match?: (reader: PacketReader) => boolean;
+  resolve: (reader: PacketReader) => void;
+};
+
 export class OpcodeDispatch {
   private readonly handlers: Map<number, (reader: PacketReader) => void>;
-  private readonly expects: Map<number, (reader: PacketReader) => void>;
+  private readonly waiters: Map<number, Waiter[]>;
 
   constructor() {
     this.handlers = new Map();
-    this.expects = new Map();
+    this.waiters = new Map();
   }
 
   has(opcode: number): boolean {
@@ -185,30 +195,47 @@ export class OpcodeDispatch {
     this.handlers.set(opcode, handler);
   }
 
-  expect(opcode: number, timeoutMs = 10_000): Promise<PacketReader> {
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.expects.delete(opcode);
-        reject(
-          new Error(`Timed out waiting for opcode 0x${opcode.toString(16)}`),
-        );
-      }, timeoutMs);
-      this.expects.set(opcode, (reader) => {
+  expect(
+    opcode: number,
+    { timeoutMs = 10_000, match }: ExpectOptions = {},
+  ): Promise<PacketReader> {
+    const { promise, resolve, reject } = Promise.withResolvers<PacketReader>();
+    const timer = setTimeout(() => {
+      this.removeWaiter(opcode, waiter);
+      reject(
+        new Error(`Timed out waiting for opcode 0x${opcode.toString(16)}`),
+      );
+    }, timeoutMs);
+    const waiter: Waiter = {
+      match,
+      resolve: (reader) => {
         clearTimeout(timer);
         resolve(reader);
-      });
-    });
+      },
+    };
+    this.waiters.set(opcode, [...(this.waiters.get(opcode) ?? []), waiter]);
+    return promise;
   }
 
   handle(opcode: number, reader: PacketReader) {
-    const expectHandler = this.expects.get(opcode);
-    if (expectHandler) {
-      this.expects.delete(opcode);
-      expectHandler(reader);
-      return;
+    const body = reader.fork();
+    try {
+      this.handlers.get(opcode)?.(reader);
+    } finally {
+      const waiter = this.waiters
+        .get(opcode)
+        ?.find((w) => !w.match || w.match(body.fork()));
+      if (waiter) {
+        this.removeWaiter(opcode, waiter);
+        waiter.resolve(body.fork());
+      }
     }
-    const handler = this.handlers.get(opcode);
-    if (handler) handler(reader);
+  }
+
+  private removeWaiter(opcode: number, waiter: Waiter) {
+    const rest = (this.waiters.get(opcode) ?? []).filter((w) => w !== waiter);
+    if (rest.length > 0) this.waiters.set(opcode, rest);
+    else this.waiters.delete(opcode);
   }
 }
 

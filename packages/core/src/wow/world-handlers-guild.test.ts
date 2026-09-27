@@ -37,9 +37,9 @@ describe("world handler tests", () => {
       return w.finish();
     }
 
-    function buildGuildQueryResponsePacket(): Uint8Array {
+    function buildGuildQueryResponsePacket(guildId: number): Uint8Array {
       const w = new PacketWriter();
-      w.uint32LE(1);
+      w.uint32LE(guildId);
       w.cString("Horde Elite");
       w.cString("Guild Master");
       w.cString("Officer");
@@ -96,7 +96,7 @@ describe("world handler tests", () => {
         });
         ws.inject(
           GameOpcode.SMSG_GUILD_QUERY_RESPONSE,
-          buildGuildQueryResponsePacket(),
+          buildGuildQueryResponsePacket(1),
         );
         const event = await metaEvent;
         if (event.type !== "guild-roster") throw new Error("expected roster");
@@ -167,7 +167,7 @@ describe("world handler tests", () => {
         ws.inject(GameOpcode.SMSG_GUILD_ROSTER, buildGuildRosterPacket());
         ws.inject(
           GameOpcode.SMSG_GUILD_QUERY_RESPONSE,
-          buildGuildQueryResponsePacket(),
+          buildGuildQueryResponsePacket(42),
         );
 
         const roster = await rosterPromise;

@@ -25,7 +25,6 @@ import {
   buildGuildRemove,
 } from "#wow/protocol/guild";
 import { ChatType, GameOpcode } from "#wow/protocol/opcodes";
-import type { PacketReader } from "#wow/protocol/packet";
 import {
   buildAddFriend,
   buildAddIgnore,
@@ -34,10 +33,6 @@ import {
 } from "#wow/protocol/social";
 import type { WorldConn } from "#wow/world-conn";
 import { sendPacket } from "#wow/world-handlers";
-import {
-  handleGuildQueryResponse,
-  handleGuildRoster,
-} from "#wow/world-handlers-guild";
 
 function notify(conn: WorldConn, message: string): void {
   conn.events.message.emit({ type: ChatType.SYSTEM, sender: "", message });
@@ -189,22 +184,17 @@ async function requestGuildRoster(
   conn: WorldConn,
 ): Promise<GuildRoster | undefined> {
   sendPacket(conn, GameOpcode.CMSG_GUILD_ROSTER);
-  const rosterPromise = conn.dispatch.expect(GameOpcode.SMSG_GUILD_ROSTER);
-  let queryPromise: Promise<PacketReader> | undefined;
-  if (conn.guildId) {
-    sendPacket(
-      conn,
-      GameOpcode.CMSG_GUILD_QUERY,
-      buildGuildQuery(conn.guildId),
+  const replies = [conn.dispatch.expect(GameOpcode.SMSG_GUILD_ROSTER)];
+  const { guildId } = conn;
+  if (guildId) {
+    sendPacket(conn, GameOpcode.CMSG_GUILD_QUERY, buildGuildQuery(guildId));
+    replies.push(
+      conn.dispatch.expect(GameOpcode.SMSG_GUILD_QUERY_RESPONSE, {
+        match: (r) => r.uint32LE() === guildId,
+      }),
     );
-    queryPromise = conn.dispatch.expect(GameOpcode.SMSG_GUILD_QUERY_RESPONSE);
   }
-  const [rosterReader, queryReader] = await Promise.all([
-    rosterPromise,
-    queryPromise ?? Promise.resolve(undefined),
-  ]);
-  handleGuildRoster(conn, rosterReader);
-  if (queryReader) handleGuildQueryResponse(conn, queryReader);
+  await Promise.all(replies);
   return conn.guildStore.get();
 }
 
