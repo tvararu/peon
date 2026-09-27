@@ -46,6 +46,21 @@ const HIDDEN: ReadonlySet<LogEvent> = new Set<LogEvent>([
   "tool/validation_error",
 ]);
 
+const SMSG_EMOTE = 259;
+const SMSG_TEXT_EMOTE = 261;
+const EMOTE_OPCODES: ReadonlySet<unknown> = new Set([
+  SMSG_EMOTE,
+  SMSG_TEXT_EMOTE,
+]);
+
+function visible(entry: GameLogEntry): boolean {
+  if (HIDDEN.has(entry.event)) return false;
+  return !(
+    entry.event === "notice/not_implemented" &&
+    EMOTE_OPCODES.has(entry.data["opcode"])
+  );
+}
+
 function runText(run: RunView | undefined, theme: Theme): string {
   const g = glyphs();
   if (!run) return theme.fg("muted", `${g.idle} no run`);
@@ -76,9 +91,7 @@ export function tickerLines({
   theme,
   now,
 }: TickerInit): string[] {
-  const shown = source
-    .recent(SCAN_ROWS)
-    .filter((entry) => !HIDDEN.has(entry.event));
+  const shown = source.recent(SCAN_ROWS).filter(visible);
   const events = shown
     .slice(-EVENT_ROWS)
     .map((entry) => eventRow(entry, theme, now));

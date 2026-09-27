@@ -106,6 +106,36 @@ describe("tickerLines", () => {
     expect(painted(theme, "dim", lines[5] ?? "")).toBe(true);
   });
 
+  test("emote notices never reach the ticker", () => {
+    const notice = (seq: number, opcode: number, label: string) =>
+      row(seq, {
+        class: "log",
+        data: { label, opcode },
+        domain: "notice",
+        event: "notice/not_implemented",
+        text: `[tuicraft] ${label} is not yet implemented`,
+      });
+    const lines = tickerLines({
+      now,
+      source: source(
+        [
+          ...entries,
+          notice(20, 259, "Emote animation"),
+          notice(21, 261, "Text emote"),
+        ],
+        run,
+      ),
+      theme,
+      width: 200,
+    });
+    const text = lines.join("\n");
+    expect(text).not.toContain("Emote animation");
+    expect(text).not.toContain("Text emote");
+    expect(plain([lines[5] ?? ""]).join("")).toContain(
+      "SMSG_SPELLLOGEXECUTE is not handled",
+    );
+  });
+
   test("no run shows an idle head", () => {
     expect(
       plain(
