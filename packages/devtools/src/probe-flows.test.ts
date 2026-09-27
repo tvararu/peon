@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { Entity, WorldHandle } from "@peon/core";
 import { createMockHandle } from "@peon/core/test-support/mock-handle";
-import { type FlowContext, loadFlows } from "#tools/probe-flows";
+import { type FlowContext, loadFlows, settleWithin } from "#tools/probe-flows";
 
 type Row = ReturnType<WorldHandle["queryNearby"]>[number];
 type Spec = {
@@ -89,12 +89,18 @@ const ROWS = [
 
 function context(
   args: Record<string, string> = {},
+  rows: () => Row[] = () => ROWS,
 ): FlowContext & { talked: bigint[] } {
   const handle = createMockHandle();
   const talked: bigint[] = [];
-  handle.queryNearby = () => ROWS;
+  handle.queryNearby = rows;
   handle.talk = (guid) => talked.push(guid);
-  return { args, handle, talked };
+  return { args, handle, settle: settleWithin(300), talked };
+}
+
+function arrivingAfter(calls: number): () => Row[] {
+  let seen = 0;
+  return () => (++seen > calls ? ROWS : []);
 }
 
 const flows = await loadFlows();
@@ -127,6 +133,15 @@ describe("login flow", () => {
       mapId: 530,
       pose: null,
       zone: "Eversong Woods",
+    });
+  });
+
+  test("reports an unknown place once the settle time runs out", async () => {
+    expect(await flow("login").run(context())).toEqual({
+      area: null,
+      mapId: null,
+      pose: null,
+      zone: null,
     });
   });
 });
@@ -168,9 +183,21 @@ describe("nearest flow", () => {
     });
   });
 
-  test("refuses an unknown kind", () => {
-    const run = () => flow("nearest").run(context({ kind: "dragon" }));
-    expect(run).toThrow("kind=");
+  test("waits for the world to fill in, up to the settle time", async () => {
+    const late = context({ kind: "gameobject" }, arrivingAfter(2));
+    const never = context({ kind: "gameobject" }, () => []);
+    expect(await flow("nearest").run(late)).toMatchObject({
+      rows: [{ entry: 181_222 }],
+    });
+    expect(await flow("nearest").run(never)).toEqual({
+      kind: "gameobject",
+      rows: [],
+    });
+  });
+
+  test("refuses an unknown kind", async () => {
+    const run = flow("nearest").run(context({ kind: "dragon" }));
+    await expect(run).rejects.toThrow("kind=");
   });
 });
 
@@ -188,16 +215,22 @@ describe("talk flow", () => {
     expect(ctx.talked).toEqual([0xf1_31n]);
   });
 
-  test("refuses when no such entity is nearby", () => {
+  test("waits for the entity to come into view", async () => {
+    const ctx = context({ entry: "16475" }, arrivingAfter(2));
+    expect(await flow("talk").run(ctx)).toMatchObject({ entry: 16_475 });
+    expect(ctx.talked).toEqual([0xf1_31n]);
+  });
+
+  test("refuses when no such entity is nearby", async () => {
     const ctx = context({ entry: "1" });
-    expect(() => flow("talk").run(ctx)).toThrow("entry 1");
+    await expect(flow("talk").run(ctx)).rejects.toThrow("entry 1");
     expect(ctx.talked).toEqual([]);
   });
 
-  test("refuses a missing or non-numeric entry", () => {
-    const missing = () => flow("talk").run(context());
-    const word = () => flow("talk").run(context({ entry: "x" }));
-    expect(missing).toThrow("entry=");
-    expect(word).toThrow("entry=");
+  test("refuses a missing or non-numeric entry", async () => {
+    const missing = flow("talk").run(context());
+    const word = flow("talk").run(context({ entry: "x" }));
+    await expect(missing).rejects.toThrow("entry=");
+    await expect(word).rejects.toThrow("entry=");
   });
 });

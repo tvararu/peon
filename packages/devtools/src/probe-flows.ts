@@ -8,9 +8,12 @@ export type Json =
   | Json[]
   | { [key: string]: Json };
 
+export type Settle = <T>(read: () => T | undefined) => Promise<T | undefined>;
+
 export type FlowContext = {
   handle: WorldHandle;
   args: Readonly<Record<string, string>>;
+  settle: Settle;
 };
 
 export type ProbeFlow = {
@@ -20,6 +23,8 @@ export type ProbeFlow = {
 };
 
 type NearbyRow = ReturnType<WorldHandle["queryNearby"]>[number];
+
+const SETTLE_POLL_MS = 100;
 
 const FLOWS_DIR = `${import.meta.dir}/probe-flows`;
 const TYPES: Readonly<Record<number, string>> = {
@@ -36,6 +41,18 @@ function isFlow(value: unknown): value is ProbeFlow {
     typeof usage === "string" &&
     typeof run === "function"
   );
+}
+
+export function settleWithin(ms: number): Settle {
+  return async (read) => {
+    const deadline = Date.now() + ms;
+    let value = read();
+    while (value === undefined && Date.now() < deadline) {
+      await Bun.sleep(SETTLE_POLL_MS);
+      value = read();
+    }
+    return value;
+  };
 }
 
 export async function loadFlows(

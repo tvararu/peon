@@ -36,17 +36,21 @@ const ROLES = new Set([
   "mailbox",
 ]);
 
-function run({ handle, args }: FlowContext): Json {
+async function run({ handle, args, settle }: FlowContext): Promise<Json> {
   const kind = args["kind"] ?? "";
   if (!(TYPES.has(kind) || ROLES.has(kind)))
     throw new Error(
       `nearest needs kind=<unit|player|gameobject|an NPC role>, not "${kind}".`,
     );
-  const rows = others(handle).filter((row) =>
-    TYPES.has(kind)
-      ? entityType(row) === kind
-      : row.roles.some((role) => role === kind),
-  );
+  const matches = () => {
+    const found = others(handle).filter((row) =>
+      TYPES.has(kind)
+        ? entityType(row) === kind
+        : row.roles.some((role) => role === kind),
+    );
+    return found.length > 0 ? found : undefined;
+  };
+  const rows = (await settle(matches)) ?? [];
   return { kind, rows: rows.slice(0, LIMIT).map(summary) };
 }
 

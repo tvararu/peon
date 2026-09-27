@@ -56,7 +56,12 @@ async function setup(after?: (ws: World) => void): Promise<Setup> {
     after?.(ws);
     return handle;
   };
-  return { deps: { login, logoutMs: 100, root }, handles, root, ws };
+  return {
+    deps: { login, logoutMs: 100, root, settleMs: 200 },
+    handles,
+    root,
+    ws,
+  };
 }
 
 function args(extra: Partial<ProbeArgs>): ProbeArgs {

@@ -13,7 +13,13 @@ import type {
   ProbeStep,
   SendStep,
 } from "#tools/probe-args";
-import { type Json, loadFlows, type ProbeFlow } from "#tools/probe-flows";
+import {
+  type Json,
+  loadFlows,
+  type ProbeFlow,
+  type Settle,
+  settleWithin,
+} from "#tools/probe-flows";
 import {
   createProbeSink,
   type ProbeSink,
@@ -24,6 +30,7 @@ export type ProbeDeps = {
   root: string;
   login?: (config: ClientConfig) => Promise<WorldHandle>;
   logoutMs?: number;
+  settleMs?: number;
 };
 
 type Arrival = { count: number; firstAt: number };
@@ -51,6 +58,7 @@ export type ProbeReport = {
 export type ProbeResult = { code: 0 | 1 | 2 | 3; report: ProbeReport };
 
 type Session = {
+  settle: Settle;
   handle: WorldHandle;
   sink: ProbeSink;
   report: ProbeReport;
@@ -58,6 +66,7 @@ type Session = {
 };
 
 const LOGOUT_MS = 30_000;
+const SETTLE_MS = 5000;
 
 async function sessionLogin(config: ClientConfig): Promise<WorldHandle> {
   const auth = await authWithRetry(config, { maxAttempts: 2 });
@@ -94,7 +103,10 @@ async function runFlow(
 ): Promise<boolean> {
   const run = session.flows.get(name)?.run;
   const outcome = await Promise.resolve()
-    .then(() => run?.({ args, handle: session.handle }) ?? null)
+    .then(
+      () =>
+        run?.({ args, handle: session.handle, settle: session.settle }) ?? null,
+    )
     .then(
       (result) => ({ result }),
       (error: unknown) => ({ error: messageOf(error) }),
@@ -184,17 +196,20 @@ export async function runProbe(
   try {
     const config = await loadAccount(deps.root, args.account);
     report.character = config.character;
+    const settle = settleWithin(deps.settleMs ?? SETTLE_MS);
     const handle = await (deps.login ?? sessionLogin)({
       ...config,
       trace: sink.trace,
     });
-    const ok = await play({ flows, handle, report, sink }, args, deps).catch(
-      async (error: unknown) => {
-        handle.close();
-        await handle.closed;
-        throw error;
-      },
-    );
+    const ok = await play(
+      { flows, handle, report, settle, sink },
+      args,
+      deps,
+    ).catch(async (error: unknown) => {
+      handle.close();
+      await handle.closed;
+      throw error;
+    });
     Object.assign(report, await sink.finish(args.expect));
     return { code: exitCode(ok, report), report };
   } catch (error) {
