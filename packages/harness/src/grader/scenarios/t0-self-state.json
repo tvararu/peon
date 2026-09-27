@@ -12,7 +12,7 @@
       "source": "truth"
     },
     {
-      "expect": "the stated free slots equal bag capacity minus occupied T baseline rows (capacity of the 4 x 24-slot bags from their item entries)",
+      "expect": "the stated free slots equal 112 (the 16-slot backpack plus the 4 x 24-slot Portable Holes, item 51809) minus the occupied T final bag rows (bag 255 slots 23-38 and rows inside the four bags; not equipment slots 0-18 or the bag slots 19-22); use T final, not T baseline: the server deletes the preset's conjured food and water at login, so baseline holds 3 rows the live bags never have",
       "id": "free-slots",
       "source": "truth"
     },

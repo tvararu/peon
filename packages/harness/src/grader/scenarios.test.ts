@@ -118,3 +118,54 @@ describe("round-1 scenarios", () => {
     );
   });
 });
+
+const expectOf = (id: string, check: string): string =>
+  loadScenario(id).checks.find((entry) => entry.id === check)?.expect ?? "";
+
+describe("expectations match preset truth", () => {
+  test("t0-self-state counts free slots from T final rows", () => {
+    const text = expectOf("t0-self-state", "free-slots");
+    expect(text).toContain("T final");
+    expect(text).toContain("112");
+    expect(text).toContain("conjured");
+    expect(text).not.toContain("occupied T baseline rows");
+  });
+
+  test("t1-walk-to-npc anchors on Marniel's spawn", () => {
+    const text = expectOf("t1-walk-to-npc", "at-marniel");
+    expect(text).toContain("(8700.4, -6638.4, 72.8, map 530)");
+    expect(text).not.toContain("8703.9");
+  });
+
+  test("t3-ghostlands-kill accepts non-gray hostiles", () => {
+    const text = expectOf("t3-ghostlands-kill", "two-kills");
+    expect(text).toContain("level 14-23");
+    expect(text).not.toContain("17-23");
+  });
+
+  test("t0-hostiles lists the hostile and neutral types in view", () => {
+    const hostile = expectOf("t0-hostiles", "hostile-names");
+    for (const name of [
+      "Springpaw Stalker",
+      "Eversong Tender",
+      "Rotlimb Cannibal",
+      "Plaguebone Pillager",
+    ])
+      expect(hostile).toContain(name);
+    const neutral = expectOf("t0-hostiles", "neutral-not-hostile");
+    for (const name of [
+      "Crazed Dragonhawk",
+      "Feral Dragonhawk Hatchling",
+      "Red Dragonhawk Hatchling",
+      "Golden Dragonhawk Hatchling",
+      "Silver Dragonhawk Hatchling",
+    ])
+      expect(neutral).toContain(name);
+  });
+
+  test("t5-vendor-buy-goldshire sums item 159 over every row", () => {
+    expect(expectOf("t5-vendor-buy-goldshire", "water")).toContain(
+      "summed over every T row",
+    );
+  });
+});

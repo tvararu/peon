@@ -2,7 +2,7 @@
   "budget": { "minutes": 6, "tools": 30, "turns": 12 },
   "checks": [
     {
-      "expect": "T item 159 count delta >= +5 (one purchase is 5)",
+      "expect": "T item 159 count, summed over every T row, has delta >= +5 (one purchase is 5; the preset already carries a stack of 20, so a purchase can land in a new row)",
       "id": "water",
       "source": "truth"
     },

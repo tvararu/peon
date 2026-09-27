@@ -2,7 +2,7 @@
   "budget": { "minutes": 10, "tools": 50, "turns": 20 },
   "checks": [
     {
-      "expect": ">= 2 GL combat/kill_credit on creatures of level 17-23 (GL unit level at fight start) that the GL relation field calls hostile",
+      "expect": ">= 2 GL combat/kill_credit on creatures of level 14-23 (GL unit level at fight start; 14 is the lowest level that is not gray to a level-20 character) that the GL relation field calls hostile",
       "id": "two-kills",
       "source": "game_log"
     },
