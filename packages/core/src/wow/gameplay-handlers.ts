@@ -3,6 +3,7 @@ import {
   ATTACK_SWING_ERRORS,
   parseAttackStart,
   parseAttackStop,
+  parseCancelAutoRepeat,
   parseXpGain,
 } from "#wow/protocol/combat";
 import {
@@ -132,6 +133,9 @@ function registerMeleeHandlers(conn: WorldConn): void {
   );
   on(GameOpcode.SMSG_ATTACKSTOP, (r) =>
     conn.combat?.applyAttackStop(parseAttackStop(r)),
+  );
+  on(GameOpcode.SMSG_CANCEL_AUTO_REPEAT, (r) =>
+    conn.combat?.applyCancelAutoRepeat(parseCancelAutoRepeat(r)),
   );
   on(GameOpcode.SMSG_AURA_UPDATE, (r) =>
     conn.combat?.applyAura(parseAuraUpdate(r)),

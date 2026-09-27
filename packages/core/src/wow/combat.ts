@@ -1,16 +1,25 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import { AuraStore, type CombatAura } from "#wow/aura-store";
+import { AuraStore } from "#wow/aura-store";
+import { AutoRepeatTracker } from "#wow/combat-auto-repeat";
 import { CombatCasts } from "#wow/combat-casts";
+import type {
+  CombatEvent,
+  CombatEventType,
+  CombatItem,
+  CombatOutcome,
+  CombatState,
+  CombatUnit,
+  CombatXp,
+} from "#wow/combat-types";
 import { combatUnitOf } from "#wow/combat-unit";
 import type { ControlPose } from "#wow/control";
-import { type CombatCooldown, CooldownStore } from "#wow/cooldown-store";
+import { CooldownStore } from "#wow/cooldown-store";
 import { type EntityLookup, isUnit, type Position } from "#wow/entity-store";
 import {
   type CombatPose,
   MotionStore,
   type ObservedPosition,
   type PositionSource,
-  type UnitMotion,
 } from "#wow/motion-store";
 import type { AuraUpdate, AuraUpdateAll } from "#wow/protocol/aura";
 import {
@@ -18,6 +27,7 @@ import {
   type AttackStop,
   type AttackSwingError,
   buildAttackSwing,
+  type CancelAutoRepeat,
   type XpGain,
 } from "#wow/protocol/combat";
 import type { LevelUpInfo } from "#wow/protocol/experience";
@@ -39,105 +49,16 @@ import type {
 } from "#wow/protocol/spell";
 import type { SpellCatalog, SpellDefinition } from "#wow/spell-catalog";
 
-export type CombatItem = {
-  entry: number;
-  bag: number;
-  slot: number;
-  guid: bigint;
-};
-
-export type CombatCast = {
-  spellId: number;
-  target: bigint | undefined;
-  startedAt: number;
-  durationMs: number;
-  source: "server" | "pending";
-  count: number;
-  cancelRequested?: boolean;
-  item?: CombatItem;
-};
-
-export type CombatOutcome = {
-  kind: "cast" | "attack" | "cancel";
-  status: "sent" | "started" | "succeeded" | "failed" | "interrupted";
-  spellId?: number;
-  target?: bigint;
-  result?: number;
-  reason?: string;
-  error?: AttackSwingError;
-  at: number;
-  hits?: bigint[];
-  misses?: { guid: bigint; reason: number; reflect?: number }[];
-  item?: CombatItem;
-  inventoryResult?: number;
-};
-
-export type CombatXp = {
-  victim: bigint;
-  total: number;
-  kind: "kill" | "other";
-  at: number;
-};
-
-export type CombatUnit = {
-  guid: bigint;
-  name: string | undefined;
-  health: number | undefined;
-  maxHealth: number | undefined;
-  power: number | undefined;
-  maxPower: number | undefined;
-  powerType: number | undefined;
-  baseMana: number | undefined;
-  level: number | undefined;
-  shapeshiftForm?: number;
-  pose: CombatPose | undefined;
-  serverPose: CombatPose | undefined;
-  motion: UnitMotion | undefined;
-};
-
-export type CombatState = {
-  self: CombatUnit;
-  target: CombatUnit | undefined;
-  selectedGuid: bigint | undefined;
-  attacking: boolean;
-  pendingAttack: bigint | undefined;
-  attackTarget: bigint | undefined;
-  casting: CombatCast | undefined;
-  pendingCast: CombatCast | undefined;
-  learned: number[];
-  unknownLearned: number[];
-  cooldowns: CombatCooldown[];
-  auras: CombatAura[];
-  targetAuras: CombatAura[];
-  lastOutcome: CombatOutcome | undefined;
-  lastXp: CombatXp | undefined;
-  lastLevelUp: (LevelUpInfo & { at: number }) | undefined;
-  attackers: bigint[];
-};
-
-export type CombatEventType =
-  | "spellbook"
-  | "cast_sent"
-  | "cast_started"
-  | "cast_succeeded"
-  | "cast_failed"
-  | "cast_interrupted"
-  | "attack_started"
-  | "attack_stopped"
-  | "attacked"
-  | "aura"
-  | "xp"
-  | "level_up"
-  | "learned"
-  | "outcome";
-
-export type CombatEvent = {
-  type: CombatEventType;
-  state: CombatState;
-  reason?: string;
-  spellName?: string;
-  attacker?: bigint;
-};
+export type {
+  CombatCast,
+  CombatEvent,
+  CombatEventType,
+  CombatItem,
+  CombatOutcome,
+  CombatState,
+  CombatUnit,
+  CombatXp,
+} from "#wow/combat-types";
 
 export type CombatDeps = {
   send: (opcode: number, body?: Uint8Array) => void;
@@ -159,6 +80,7 @@ export class CombatRuntime {
   private readonly auras: AuraStore;
   private readonly motions: MotionStore;
   private readonly casts: CombatCasts;
+  private readonly autoRepeat: AutoRepeatTracker;
   private pendingAttack: bigint | undefined;
   private attacking = false;
   private attackTarget: bigint | undefined;
@@ -180,6 +102,7 @@ export class CombatRuntime {
       learned: this.learned,
       cooldowns: this.cooldowns,
     });
+    this.autoRepeat = new AutoRepeatTracker({ ...deps, casts: this.casts });
   }
 
   onEvent(listener: (event: CombatEvent) => void): Unsubscribe {
@@ -211,6 +134,7 @@ export class CombatRuntime {
       attackTarget: this.attackTarget,
       casting: this.casts.casting ? { ...this.casts.casting } : undefined,
       pendingCast: this.casts.pending ? { ...this.casts.pending } : undefined,
+      autoRepeat: this.autoRepeat.state,
       learned: [...this.learned],
       unknownLearned: [...this.learned].filter(
         (id) => !this.deps.catalog?.get(id),
@@ -259,7 +183,9 @@ export class CombatRuntime {
   }
 
   cast(spellId: number, targetGuid: bigint): void {
-    this.lastOutcome = this.casts.send(spellId, targetGuid);
+    this.lastOutcome = this.repeats(spellId)
+      ? this.autoRepeat.send(spellId, targetGuid)
+      : this.casts.send(spellId, targetGuid);
     this.emit("cast_sent");
   }
 
@@ -294,12 +220,27 @@ export class CombatRuntime {
     this.emit("outcome");
   }
 
+  stopAutoRepeat(): void {
+    const outcome = this.autoRepeat.stop();
+    if (!outcome) return;
+    this.lastOutcome = outcome;
+    this.emit("outcome", "auto_repeat_stopped");
+  }
+
+  applyCancelAutoRepeat(_packet: CancelAutoRepeat): void {
+    const outcome = this.autoRepeat.cancelled();
+    if (!outcome) return;
+    this.lastOutcome = outcome;
+    this.emit("outcome", "auto_repeat_cancelled");
+  }
+
   interruptCast(): void {
     if (this.casts.hasUncancelled()) this.cancelCast();
   }
 
   halt(): void {
     this.interruptCast();
+    this.stopAutoRepeat();
     if (this.attacking || this.pendingAttack !== undefined) this.stopAttack();
   }
 
@@ -311,6 +252,7 @@ export class CombatRuntime {
     this.learned.clear();
     this.cooldowns.clear();
     this.casts.clear();
+    this.autoRepeat.clear();
     this.pendingAttack = undefined;
     this.attacking = false;
     this.attackTarget = undefined;
@@ -360,7 +302,9 @@ export class CombatRuntime {
 
   applySpellStart(packet: SpellStart): void {
     if (packet.caster !== this.deps.selfGuid()) return;
-    const outcome = this.casts.start(packet);
+    const outcome = this.repeats(packet.spellId)
+      ? this.autoRepeat.start(packet)
+      : this.casts.start(packet);
     if (!outcome) return;
     this.lastOutcome = outcome;
     this.emit("cast_started");
@@ -368,17 +312,16 @@ export class CombatRuntime {
 
   applySpellGo(packet: SpellGo): void {
     if (packet.caster !== this.deps.selfGuid()) return;
-    this.lastOutcome = this.casts.succeed(packet);
+    this.lastOutcome = this.repeats(packet.spellId)
+      ? this.autoRepeat.shot(packet)
+      : this.casts.succeed(packet);
     this.emit("cast_succeeded");
   }
 
   applyCastFailed(packet: CastFailed): void {
-    const outcome = this.casts.fail(
-      packet.spellId,
-      packet.castCount,
-      packet.result,
-      "failed",
-    );
+    const outcome = (
+      this.repeats(packet.spellId) ? this.autoRepeat : this.casts
+    ).fail(packet.spellId, packet.castCount, packet.result, "failed");
     if (!outcome) return;
     this.lastOutcome = outcome;
     this.emit("cast_failed", `cast_failed:${outcome.reason}`);
@@ -394,12 +337,9 @@ export class CombatRuntime {
 
   applySpellFailure(packet: SpellFailure): void {
     if (packet.caster !== this.deps.selfGuid()) return;
-    const outcome = this.casts.fail(
-      packet.spellId,
-      packet.extraCasts,
-      packet.result,
-      "interrupted",
-    );
+    const outcome = (
+      this.repeats(packet.spellId) ? this.autoRepeat : this.casts
+    ).fail(packet.spellId, packet.extraCasts, packet.result, "interrupted");
     if (!outcome) return;
     this.lastOutcome = outcome;
     this.emit("cast_interrupted", `spell_failure:${outcome.reason}`);
@@ -514,6 +454,10 @@ export class CombatRuntime {
 
   applyMonsterMove(packet: MonsterMove, mapId: number): void {
     this.motions.monsterMove(packet, mapId);
+  }
+
+  private repeats(spellId: number): boolean {
+    return ((this.definition(spellId)?.attributes?.ex2 ?? 0) & 0x20) !== 0;
   }
 
   private unitOf(

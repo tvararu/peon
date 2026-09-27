@@ -51,21 +51,26 @@ export class CombatCasts {
   }
 
   send(spellId: number, targetGuid: bigint): CombatOutcome {
+    if (this.pendingCast || this.currentCast)
+      throw new Error("cast_in_progress");
+    const count = this.sendUntracked(spellId, targetGuid);
+    return this.track(spellId, targetGuid === 0n ? undefined : targetGuid, {
+      count,
+    });
+  }
+
+  sendUntracked(spellId: number, targetGuid: bigint): number {
     if (!Number.isInteger(spellId) || spellId <= 0 || spellId > 0xff_ff_ff_ff)
       throw new Error("invalid_spell");
     if (targetGuid < 0n || targetGuid > 0xffffffffffffffffn)
       throw new Error("invalid_guid");
-    if (this.pendingCast || this.currentCast)
-      throw new Error("cast_in_progress");
     if (!this.deps.learned.has(spellId)) throw new Error("unknown_spell");
     const count = this.nextCount();
     this.deps.send(
       GameOpcode.CMSG_CAST_SPELL,
       buildCastSpell(count, spellId, targetGuid),
     );
-    return this.track(spellId, targetGuid === 0n ? undefined : targetGuid, {
-      count,
-    });
+    return count;
   }
 
   sendItem(spellId: number, item: CombatItem): CombatOutcome {
