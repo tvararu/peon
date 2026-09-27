@@ -1,7 +1,6 @@
 import { existsSync } from "node:fs";
 
-export type DocKind = "instructions" | "evidence";
-export type Doc = { path: string; text: string; kind: DocKind };
+export type Doc = { path: string; text: string };
 export type Finding = {
   path: string;
   line: number;
@@ -22,7 +21,8 @@ const tmpOutputs = [
   "worktree-archive-<date>/",
   "squash.json",
   "qa-changes.json",
-  "tc-<ACCOUNT>",
+  "puppet-<ACCOUNT>",
+  "evals/",
   "factory-account-<ACCOUNT>/",
 ];
 
@@ -74,17 +74,12 @@ const deadRules: Rule[] = [
   },
 ];
 
-const sources: Record<DocKind, string[]> = {
-  evidence: ["docs/evidence/*.md", "docs/evidence/**/README.md"],
-  instructions: [
-    "AGENTS.md",
-    "README.md",
-    "docs/*.md",
-    "packages/factory/src/prompts/*.md",
-    "packages/cli/src/cli/help.ts",
-    ".claude/skills/tuicraft/SKILL.md",
-  ],
-};
+const sources = [
+  "AGENTS.md",
+  "README.md",
+  "docs/*.md",
+  "packages/factory/src/prompts/*.md",
+];
 
 const globTail = /\/[^/]*[*{<].*$/;
 const trailing = /[/.,:;]+$/;
@@ -116,36 +111,27 @@ export function staleFindings(
   doc: Doc,
   exists: Exists = (path) => existsSync(path),
 ): Finding[] {
-  const rules =
-    doc.kind === "instructions"
-      ? [...historyRules, ...deadRules, deadPathRule(exists)]
-      : deadRules;
-  return rules
+  return [...historyRules, ...deadRules, deadPathRule(exists)]
     .flatMap((rule) => findings(doc, rule))
     .sort((a, b) => a.line - b.line);
 }
 
 async function load(root: string): Promise<Doc[]> {
   const docs = new Map<string, Doc>();
-  for (const [kind, patterns] of Object.entries(sources) as [
-    DocKind,
-    string[],
-  ][])
-    for (const pattern of patterns) {
-      let matched = false;
-      for await (const path of new Bun.Glob(pattern).scan({
-        cwd: root,
-        dot: true,
-      })) {
-        matched = true;
-        docs.set(path, {
-          kind,
-          path,
-          text: await Bun.file(`${root}/${path}`).text(),
-        });
-      }
-      if (!matched) throw new Error(`no docs match ${pattern}`);
+  for (const pattern of sources) {
+    let matched = false;
+    for await (const path of new Bun.Glob(pattern).scan({
+      cwd: root,
+      dot: true,
+    })) {
+      matched = true;
+      docs.set(path, {
+        path,
+        text: await Bun.file(`${root}/${path}`).text(),
+      });
     }
+    if (!matched) throw new Error(`no docs match ${pattern}`);
+  }
   return [...docs.values()].sort((a, b) => a.path.localeCompare(b.path));
 }
 

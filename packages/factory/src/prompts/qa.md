@@ -24,8 +24,8 @@ Blocked cards on the project board.
 - Never sign or comment as the maintainer. Never touch existing issues or
   their cards.
 - Never commit, push or open PRs.
-- Use only your own SOAP account and character. Never use the maintainer's
-  or the `mise test:live` accounts.
+- Never create game accounts yourself: eval runs create and delete their
+  own. Never use the maintainer's accounts or characters.
 - Never create Orca worktrees. Never remove this worktree: the reaper does.
 - End with a clean tree and stop.
 
@@ -47,8 +47,8 @@ Blocked cards on the project board.
 
 ## 2. What changed
 
-If `$prev` is not set, test the core loop only. Otherwise map the landed
-commits to their PRs and issues:
+If `$prev` is not set, run the canary only (step 3). Otherwise map the
+landed commits to their PRs and issues:
 
 ```sh
 bun $F qa-changes $prev <sha> > tmp/qa-changes.json
@@ -62,51 +62,47 @@ trailers name its issues and PR; `qa-changes` reads them, and asks GitHub
 `acceptance` or `proof` means the section is missing: read the issue or PR
 itself (`gh issue view`, `gh pr view`).
 
-For each issue, decide from its acceptance criteria whether it changed
-something a user can see (commands, output, TUI, gameplay). Commits with
-`source` `"none"` have no PR: use their `subject` and `body` instead.
+Each issue's acceptance criteria and its PR's Proof say what the change
+claims; the scenarios below check it. Commits with `source` `"none"` have
+no PR: use their `subject` and `body` instead.
 
-## 3. Smoke
+## 3. Pick scenarios
 
 - `mise ci`. A failure on `main` is a bug on its own.
-- `bun packages/cli/src/main.ts --help` exits 0 and matches `packages/cli/src/cli/help.ts`.
+- Changed files: `git diff --name-only $prev <sha>` (none when `$prev` is
+  not set).
+- Up to 3 scenarios, only when a file under `packages/core/` or
+  `packages/harness/` changed: map the changed files and the issues from
+  step 2 to areas with the change-area table in `docs/evals.md`, and take
+  the scenarios for the areas the change touches most.
+- 1 rotating canary, always: the scenario after the one in the canary
+  state file, in `mise eval scenario` order, wrapping at the end; the first
+  one when the file is missing or names an unknown id. Record it before
+  running:
+  ```sh
+  canary=~/.local/state/tuicraft-factory/qa-canary
+  ids=$(mise eval scenario)
+  last=$(cat "$canary" 2>/dev/null || true)
+  next=$(printf '%s\n' $ids $ids | grep -A1 -x -m1 -- "$last" | sed -n 2p)
+  [ -n "$next" ] || next=$(printf '%s\n' $ids | sed -n 1p)
+  printf '%s\n' "$next" > "$canary"
+  ```
+  If the canary is already among the picks, run it once.
 
-## 4. Live scenarios
+## 4. Run and grade
 
-Create your account and character:
-
-```sh
-bun $F soap create eversong10
-```
-
-Presets: `fresh` (level 1), `eversong10` (level 10, Fairbreeze Village),
-`max80` (level 80, Dalaran). The JSON it prints has `.account`,
-`.character` and `.wrapper`, the executable `tmp/tc-<ACCOUNT>`. Run every
-tuicraft command for that character through it (`tmp/tc-<ACCOUNT> start`,
-`tmp/tc-<ACCOUNT> who`): it runs `bun packages/cli/src/main.ts` with the account's own
-config, socket and session log, names the character on stderr, and refuses
-to run if its daemon would log in anyone else. `omp-factory` gives this run
-XDG directories of its own without the default tuicraft config, so plain
-`bun packages/cli/src/main.ts` logs in nobody. Use `.claude/skills/tuicraft/SKILL.md`
-and `docs/manual.md` for commands. Run:
-
-- the core loop: start the daemon, log in, read events, `who`, say and
-  whisper to your own character, nearby entities, stop the daemon;
-- at least one scenario for each landed issue with a user-visible change,
-  built from that issue's acceptance criteria and its PR's Proof section,
-  following the documentation as a new user would; for commits with no PR,
-  a scenario from the commit message.
-
-Filter playerbot chat; invite only factory characters by exact name. Record
-each command and its output. TUI screens: capture them with a detached tmux
-session at a fixed size and `tmux capture-pane -p`. At the end, always stop
-the daemon (`tmp/tc-<ACCOUNT> stop`) and run `bun $F soap delete <ACCOUNT>`,
-which also deletes the wrapper and the account's directories, session log
-included.
+Run each picked scenario, one at a time: `mise eval run <id> --round 0`.
+It creates and deletes its own factory accounts and characters, waits
+while another run holds the same field, and prints its run directory.
+Grade each run against `docs/evals.md`: its verdict, which checks passed
+and failed (server-confirmed only), efficiency and friction. Record the
+grade with `mise eval result <run-dir> <file>` before the next run starts.
+The run directories die with this worktree, so copy the evidence each
+finding needs into its issue.
 
 ## 5. File findings
 
-For each distinct problem:
+For each failed check and each serious friction in any scenario:
 
 1. Search for duplicates in open issues and issues closed in the last 30
    days, with two or three different keyword sets:
@@ -114,15 +110,16 @@ For each distinct problem:
    If one matches, do not file. Skip anything already reported.
 2. File:
    `gh issue create -R tvararu/tuicraft --title "<short symptom>" --label qa --body-file <file>`.
-   The body has: the tested SHA, steps to reproduce, expected and actual
-   behaviour, the exact commands and output, and the PR and issue whose
-   change probably caused it (from step 2's `qa-changes` output), or the
-   commit when it has no PR.
+   The body has: the tested SHA, the scenario id and its verdict, the
+   failed check or the friction, the evidence pasted from the run
+   directory (a game-log excerpt, the truth or witness rows that show it),
+   and the PR and issue whose change probably caused it (from step 2's
+   `qa-changes` output), or the commit when it has no PR.
 
-If `main` is badly broken (it does not build, `mise ci` fails, or login
-fails), file one issue only. Find the first bad commit in `$prev..<sha>`
-with `git bisect run` (skip the live part if the failure reproduces offline)
-and name it in the title and body.
+If `main` is badly broken (it does not build, `mise ci` fails, or no
+scenario gets a character into the world), file one issue only. Find the
+first bad commit in `$prev..<sha>` with `git bisect run` (offline when the
+failure reproduces without the server) and name it in the title and body.
 
 ## 6. Finish
 

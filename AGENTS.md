@@ -6,18 +6,13 @@
   engineering decisions, review, and integration; the user is not a code-review
   gate. Keep existing conventions where useful, but do not pursue cosmetic
   refactors or coverage percentages instead of gameplay.
-- Prioritize agent control and real-server outcomes. Human-facing usability and
-  spatial TUI improvements follow user feedback; they are not prerequisites for
-  the first agent-playable capabilities.
+- Prioritize agent control and real-server outcomes. Human-facing usability
+  follows user feedback; it is not a prerequisite for agent-playable
+  capabilities.
 - Play as soon as a useful loop works, use failures to guide development, and
   continue normal gameplay and leveling on the user's server when the active
   goal allows it. Do not substitute server-data edits for client capabilities.
-- Delegate multi-step live gameplay and gameplay debugging to one omp worker,
-  even when the coordinator has CLI access.
-- Assign one agent exclusive CLI ownership per character. The coordinator must
-  not use that character's CLI while a worker owns it.
-- Transfer ownership explicitly before another agent controls the character.
-  If the coordinator lacks CLI access, delegate even one-off live commands.
+- Delegate multi-step live gameplay and gameplay debugging to one omp worker.
 - omp is the main harness. Orca worktrees spawn agents with `--agent omp`;
   "omp worktree" means `orca-ide worktree create --agent omp`.
 - Match the omp subagent to the work. `sonic` and `scout` run on the fast
@@ -51,10 +46,6 @@ Use `mise` to run tasks (not `bun` directly, not `mise run`):
 - `mise ci --publish` — used by the hk `pre-push` hook: pushes HEAD to a
   temporary `refs/signoff/<sha>` ref so the not-yet-pushed commit can be
   signed off, deletes that ref, and fails the push if signoff fails
-- `mise test:live` — live server tests (`bun test ./packages/cli/test-support/live.ts
-  ./packages/cli/test-support/live-quest.ts
-  ./packages/cli/test-support/live-remote-motion.ts
-  ./packages/cli/test-support/live-vendor.ts`); needs two game accounts via `WOW_*` (see Testing)
 - `mise namigator:build` — build `libnamigator.so` from the pinned upstream
   commit plus the patches in `vendor/namigator/` (in `tmp/namigator/`) and
   install it at `~/.local/share/tuicraft/namigator/<key>/libnamigator.so`,
@@ -70,14 +61,14 @@ Use `mise` to run tasks (not `bun` directly, not `mise run`):
   and for overnight pushes. `pause` disables `work`, `review` and `merge`
   and leaves QA and the reaper running; `default` or `max` ends it. The
   design doc's Pace section has the table
-- `mise build` — compile single binary (`bun build --compile`)
 - `mise harness --profile <path> [flags]` — run the Pi harness
   (`bun packages/harness/src/entry.ts`), the interactive agent that plays
   one character; flags, credentials and commands are in `docs/harness.md`
 - `mise eval <command>` — the harness eval grader CLI
   (`bun packages/harness/src/grader/cli.ts`): `run`, `result`,
   `scenario`, `launch`, `send`, `frame`, `watch`, `truth`, `final-truth`,
-  `leak-check`, `validate`; run it without a command for the usage
+  `leak-check`, `validate`; run it without a command for the usage.
+  Scenarios, grading and which scenario covers what are in `docs/evals.md`
 - `mise test:slowest` — show 10 slowest tests via junit XML
 - `orca-ide worktree create --name <name> --parent-worktree active --comment
   "owner: <agent>, <purpose>" --agent omp` — create a worktree.
@@ -154,41 +145,31 @@ Use `mise` to run tasks (not `bun` directly, not `mise run`):
 - Use coverage to find risk, not as a target or release gate. Keep meaningful
   tests for behavior, protocol boundaries, and failure recovery. Do not add
   tests or restructure code solely to reach a percentage.
-- **Always run `mise test:live` yourself after protocol or
-  daemon changes.** Do not ask the user to run it. Run it on two throwaway
-  accounts of your own, never on anyone else's character. Run
+- **After gameplay or protocol changes, run the closest eval scenario from
+  `docs/evals.md` yourself.** Do not ask the user to run it. Run it on
+  throwaway accounts of your own, never on anyone else's character. Run
   `mise namigator:build` first when the patch set changed; `soap create`
-  refuses without it:
-  `bun packages/factory/src/main.ts soap create fresh --gm 2` (account 1, GM level 2
-  for the `.freeze` and `.tele` checks) and
-  `bun packages/factory/src/main.ts soap create eversong10` (account 2). Set
-  `WOW_ACCOUNT_1`, `WOW_PASSWORD_1`, `WOW_CHARACTER_1`, `WOW_ACCOUNT_2`,
-  `WOW_PASSWORD_2` and `WOW_CHARACTER_2` from the JSON each prints
-  (redirect it to a file under `tmp/` and read fields with `jq`, so the
-  password never reaches a transcript; `soap list` omits passwords), run it
-  as `XDG_CONFIG_HOME=<account 1 .dir>/config mise test:live` (the suite
-  reads the navigation data paths from that config), and delete both with
+  refuses without it. `bun packages/factory/src/main.ts soap create <preset>`
+  prints JSON that includes the password: redirect it to a file under
+  `tmp/` and read fields with `jq`, so the password never reaches a
+  transcript (`soap list` omits passwords), and delete each account with
   `soap delete <ACCOUNT>` afterwards. Unit, type, format, and coverage
-  checks are not live evidence. Do not claim the live suite is passing
-  without a successful run. If the suite fails for infrastructure reasons
-  (server down, SOAP unreachable), defer to the user.
-- Run the CLI as a `soap create` character only through the wrapper it
-  writes, `tmp/tc-<ACCOUNT>` (the JSON's `.wrapper`), never by exporting
+  checks are not live evidence. Do not claim gameplay works without a
+  passing eval run. If the run fails for infrastructure reasons (server
+  down, SOAP unreachable), defer to the user.
+- Run a `soap create` character as a puppet only through the wrapper it
+  writes, `tmp/puppet-<ACCOUNT>` (the JSON's `.wrapper`), never by exporting
   `XDG_*` into your shell. The wrapper sets the account's own config,
-  socket and session log, refuses to run if its daemon would log in another
-  character, prints `tc-<ACCOUNT>: character <name>` on stderr and runs
-  `bun packages/cli/src/main.ts "$@"`. `soap delete` removes it with the account's
-  directories. `omp-factory` starts every omp in a tuicraft worktree other
-  than the main checkout with per-run `XDG_*` directories (config and state
-  in `factory-xdg/` in the worktree's git directory, runtime in
-  `$XDG_RUNTIME_DIR/tuicraft-factory-<hash>`) that link everything in the
-  real ones except `tuicraft`, so plain `bun packages/cli/src/main.ts` there finds no
-  config: `status` says the daemon is not running, and `start` or any
-  daemon command fails with "No config found" after 30 seconds.
+  runtime and state directories, refuses to run if that config logs in
+  another character, prints `puppet-<ACCOUNT>: character <name>` on stderr
+  and runs `bun packages/harness/src/puppet/main.ts "$@"`. `soap delete`
+  removes it with the account's directories. `omp-factory` starts every omp
+  in a tuicraft worktree other than the main checkout with per-run `XDG_*`
+  directories (config and state in `factory-xdg/` in the worktree's git
+  directory, runtime in `$XDG_RUNTIME_DIR/tuicraft-factory-<hash>`) that
+  link everything in the real ones except `tuicraft`, so a run there finds
+  no tuicraft config of its own.
 - Tests are colocated: `foo.ts` → `foo.test.ts` in the same directory.
-  A test that needs a shell's code lives in that shell's package instead:
-  `party-store.test.ts` and `control-replan.test.ts` test core code but
-  import CLI formatters, so they live in `packages/cli/src/ui`
 - Import from `bun:test`: `import { test, expect, describe } from "bun:test"`
 - Run with `mise test`
 - `mise test packages/core/src/lib/errors.test.ts` runs a single file (args pass through to `bun test`)
@@ -200,7 +181,6 @@ Use `mise` to run tasks (not `bun` directly, not `mise run`):
 - `bun test` scans `./tmp/` for test files — never leave `.test.ts` files there
 - macOS `tmpdir()` returns `/var/folders/.../T/`, not `/tmp/` — don't hardcode
   `/tmp/` paths
-- Live tests read `WOW_LANGUAGE` env var (default: 1/Orcish for Horde accounts)
 - `Bun.connect()` returns a promise — connection errors escape `new Promise`
   constructors. Chain `.catch(reject)` on the returned promise, not try/catch
 - `Bun.listen` server-side `socket.end()` doesn't reliably trigger client
@@ -212,7 +192,7 @@ Use `mise` to run tasks (not `bun` directly, not `mise run`):
 - `mock.module()` leaks across test files in Bun, so `config/biome.grit` bans
   it. Use dependency injection: file locations come from a `Paths` value
   (`resolvePaths()` by default), and tests pass `pathsUnder(dir)` from
-  `packages/core/test-support/temp-paths.ts`. Stdlib modules like `node:readline` are injected too
+  `packages/core/test-support/temp-paths.ts`
 - `Bun.sleep(0)` yields one microtask tick (enough for `.then()` chains);
   `Bun.sleep(1)` yields one full event loop turn (needed for filesystem I/O like
   `unlink` to complete) — prefer the minimum needed in tests
@@ -308,8 +288,9 @@ The maintainer must never find stale worktrees or idle agents in Orca.
   when decoding
 - `drainWorldPackets` must catch handler errors — one bad packet breaks all
   subsequent processing
-- Always run `mise test:live` after protocol changes —
-  never claim something works without verifying against the real server
+- Always run the closest eval scenario from `docs/evals.md` after protocol
+  changes — never claim something works without verifying against the real
+  server
 - Live-first testing: validate behavior against the real server, then encode it
   in mock integration tests as a living spec
 - Chat messages must use a valid racial language (LANG_ORCISH=1 for Horde,
@@ -323,12 +304,11 @@ The maintainer must never find stale worktrees or idle agents in Orca.
 - The code is a Bun workspace (`packages/*`): `@tuicraft/core`
   (`packages/core`: `packages/core/src/wow`, the runtime helpers in
   `packages/core/src/lib` and shared test support in
-  `packages/core/test-support`), `@tuicraft/cli` (the CLI,
-  daemon and TUI), `@tuicraft/factory`, `@tuicraft/devtools` and
-  `@tuicraft/harness`. `bun install` (`mise bundle`) must run before
-  any cross-package import resolves.
+  `packages/core/test-support`), `@tuicraft/factory`,
+  `@tuicraft/devtools` and `@tuicraft/harness`. `bun install`
+  (`mise bundle`) must run before any cross-package import resolves.
 - Inside a package, import with its private `#` aliases from its
-  `package.json` `imports` (`"#wow/client"`, `"#daemon/server"`,
+  `package.json` `imports` (`"#wow/client"`, `"#harness/config/lock"`,
   `"#test-support/must"`); relative imports are for siblings and non-code files.
 - Other packages import core only through its `exports`:
   `"@tuicraft/core"` (the barrel, `packages/core/src/wow/index.ts`),
@@ -336,9 +316,8 @@ The maintainer must never find stale worktrees or idle agents in Orca.
   `"@tuicraft/core/lib/<module>"` for the listed helpers and, in tests
   only, `"@tuicraft/core/test-support/<module>"`. Any other subpath
   fails to resolve in Bun and tsc, and biome's `noRestrictedImports`
-  rejects it too. The barrel exports no value that loads the session,
-  so `"@tuicraft/core/session"` stays a lazy `import()` in
-  `packages/cli/src/main.ts`. Export a new core symbol from the barrel
+  rejects it too. The barrel exports no value that loads the session.
+  Export a new core symbol from the barrel
   (or add an `exports` entry) before another package uses it; a test
   that needs a core internal imports it from
   `"@tuicraft/core/test-support/internals"`.
@@ -348,11 +327,8 @@ The maintainer must never find stale worktrees or idle agents in Orca.
 
 ## WorldHandle
 
-- `packages/core/test-support/mock-handle.ts` is the shared WorldHandle mock. The inline mock in
-  `packages/cli/src/daemon/start.test.ts` spreads it and overrides only `closed` and
-  `logout`, so add new WorldHandle methods to the shared mock only
-- `SessionLog.append` expects `LogEntry` (type/sender/message) — non-chat
-  events need `as LogEntry` cast
+- `packages/core/test-support/mock-handle.ts` is the shared WorldHandle mock;
+  add new WorldHandle methods to it
 - `WorldHandle` `on*` hooks are multi-subscriber: each returns an
   unsubscribe function and all of them are backed by `conn.events`
   (`packages/core/src/wow/world-events.ts`, built on `#lib/emitter`). Emit through
@@ -363,8 +339,6 @@ The maintainer must never find stale worktrees or idle agents in Orca.
 - `cleanupSession` clears `conn.events` before socket teardown —
   `entityStore.clear()` in the socket close handler fires disappear for every
   entity, so subscribers must be detached first
-- All event handlers (chat, group, entity) must both push to the ring buffer
-  and call `log.append()` — follow existing handlers when adding new event types
 
 ## Entity Fields
 
@@ -374,8 +348,8 @@ The maintainer must never find stale worktrees or idle agents in Orca.
 
 ## Documentation
 
-- When adding user-visible features, update all four: `packages/cli/src/cli/help.ts`,
-  `docs/manual.md`, `.claude/skills/tuicraft/SKILL.md`, and `README.md`
+- When adding user-visible features, update `docs/harness.md`,
+  `docs/evals.md` and `README.md` where they describe the changed behaviour
 - Docs state the current rule or state in the present tense. History
   belongs in commit messages and `docs/plans/`: don't narrate when, why or
   at whose request a rule changed ("since <date>", "deleted on <date>"),

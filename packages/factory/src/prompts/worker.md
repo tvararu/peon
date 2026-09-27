@@ -97,8 +97,8 @@ Write it before any code, in this order:
    current status line.
 2. Acceptance criteria: numbered, observable, taken from the issue. Treat
    the issue's Validation or Test Plan sections as non-negotiable.
-3. Test plan: unit tests, the live scenario you will run, and the proof you
-   will attach.
+3. Test plan: unit tests, the eval scenarios you will run (or why none
+   apply), and the proof you will attach.
 4. Progress and blockers, updated as you go.
 5. `## Runs`: keep every earlier line and add one for this run:
    `- <run>: <reason>[ at <short PR head>], attempt <k>` or `not counted`,
@@ -117,67 +117,74 @@ to do, push anything you have, run `bun $F status N blocked`, and stop.
 - Fan-out: you may run up to 4 omp subagents (the `task` tool) over the
   whole run for independent slices. Use `sonic` for mechanical slices
   (renames, call-site migration, doc updates). Subagents work in this
-  worktree only and never create worktrees. A subagent that live-tests gets
-  its own SOAP account (below). You integrate their work, run `mise ci` and
-  write the proof yourself.
+  worktree only, never create worktrees and never run eval scenarios or
+  create game accounts. You integrate their work, run `mise ci` and the
+  scenarios, and write the proof yourself.
 - Work that could be reviewed on its own is not a slice. File it as a
   sub-issue as `OpenHubris` without labels (the board's auto-add puts it in
   Backlog; never set its Status), link it from the workpad, and if order
   matters mark this issue blocked by it.
 
-## 5. Live testing on your own account
+## 5. Eval scenarios
 
-Create one account and character for this run:
+A change to gameplay behaviour in core or the harness (anything a
+character does, sees or says in the world) is proven with eval scenarios.
+Docs-only and factory-only changes skip this section.
 
-```sh
-bun $F soap create eversong10
-```
+1. Pick the one or two scenarios closest to the change from the
+   change-area table in `docs/evals.md`. `mise eval scenario` lists every
+   id.
+2. Run each, one at a time: `mise eval run <id> --round 0`. It creates and
+   deletes its own factory accounts and characters, waits while another
+   run holds the same field, and prints its run directory. Running the
+   same id again needs `--replica 2`.
+3. Grade the run against `docs/evals.md`: its verdict, which checks passed
+   and failed (server-confirmed only), efficiency and friction. Record the
+   grade with `mise eval result <run-dir> <file>`.
+4. Copy what the proof needs out of the run directory: it dies with the
+   worktree.
 
-Presets: `fresh` (level 1), `eversong10` (level 10, Fairbreeze Village),
-`max80` (level 80, Dalaran). The JSON it prints has `.account`,
-`.character` and `.wrapper`, the executable `tmp/tc-<ACCOUNT>`. Record all
-three in the workpad. The wrapper is the only way to run tuicraft as that
-character: `tmp/tc-<ACCOUNT> start`, `tmp/tc-<ACCOUNT> status` and so on run
-this worktree's `bun packages/cli/src/main.ts` with the account's own config, socket and
-session log, name the character on stderr, and refuse to run if its daemon
-would log in anyone else.
+A failing verdict on your change is not proof; fix the change and run the
+scenario again.
+
+A character outside a scenario, to look at something by hand: create one
+with `bun $F soap create <preset>`. Presets: `fresh` (level 1),
+`eversong10` (level 10, Fairbreeze Village), `max80` (level 80, Dalaran).
+The JSON it prints has `.account`, `.character` and `.wrapper`, the
+launcher `tmp/puppet-<ACCOUNT>`: the only way to drive that character. It
+runs the harness puppet with the account's own directories, names the
+character on stderr, refuses to run if that config would log in anyone
+else, and takes `start --json`, `send -w <name> <text>`, `read --json`,
+`nearby --json` and `stop`. Record the account in the workpad.
 `omp-factory` gives this run XDG directories of its own without the
-default tuicraft config, so plain `bun packages/cli/src/main.ts` logs in nobody. Never
-use the maintainer's or the live-test accounts. Filter playerbot chat;
-invite only factory characters by exact name. At the end, stop the daemon
-(`tmp/tc-<ACCOUNT> stop`) and always run:
+default tuicraft config, so a plain harness launch logs in nobody. Never
+use the maintainer's accounts or characters. Filter playerbot chat; invite
+only factory characters by exact name. At the end, run
+`tmp/puppet-<ACCOUNT> stop` and always:
 
 ```sh
 bun $F soap delete <ACCOUNT>
 ```
 
-It also deletes the wrapper and the account's directories, session log
-included, so copy what the proof needs first.
+It also deletes the launcher and the account's directories, so copy what
+the proof needs first.
 
 ## 6. Proof
 
 Collect for the PR's Proof section:
 
-- The live commands you ran and their output (daemon transcript excerpts).
+- `mise ci` on the PR head, always.
 - The acceptance checklist, each item marked pass or fail.
-- TUI or harness work: a text capture of the rendered screen after each
-  step: `tmux new-session -d -s proof -x 120 -y 40 '<command>'`, drive it
-  with `tmux send-keys`, and `tmux capture-pane -p -t proof`. Kill the
+- Gameplay changes in core or the harness: for each scenario from step 5,
+  the scenario id, its verdict, the passed and failed checks, and a short
+  excerpt of the run's game log that shows the behaviour.
+- Harness screen changes: a text capture of the rendered screen after
+  each step: `tmux new-session -d -s proof -x 120 -y 40 '<command>'`, drive
+  it with `tmux send-keys`, and `tmux capture-pane -p -t proof`. Kill the
   session afterwards.
-- Refactor-only issues with no visible outcome: say so, name the invariant
-  that stayed the same, and include the output of `mise ci` and
-  `mise test:live` on the PR head.
-- `mise test:live` needs two characters. Never use the fixed `X`/`Y`
-  accounts. Create two more SOAP accounts:
-  `bun $F soap create fresh --gm 2` (account 1: GM level 2 for the
-  `.freeze` and `.tele` checks, away from Fairbreeze Village) and
-  `bun $F soap create eversong10` (account 2). Point the suite at them with
-  `WOW_ACCOUNT_1`, `WOW_PASSWORD_1`, `WOW_CHARACTER_1`, `WOW_ACCOUNT_2`,
-  `WOW_PASSWORD_2` and `WOW_CHARACTER_2`; the JSON from `soap create` has
-  `.account`, `.password`, `.character` and `.dir`. Run it as
-  `XDG_CONFIG_HOME=<account 1 .dir>/config mise test:live`: the suite reads
-  the navigation data paths from that config, and the run's own XDG
-  directories have none. Delete both accounts afterwards.
+- Docs-only and factory-only changes: `mise ci` only.
+- Refactor-only issues with no visible outcome: say so and name the
+  invariant that stayed the same.
 
 ## 7. History and stacks
 
@@ -216,10 +223,11 @@ merger rebases the child itself with
 3. Update the workpad: all criteria with pass/fail, link to the PR.
 4. `bun $F status N in-review`
 5. `orca-ide worktree set --worktree active --issue N --workspace-status in-review --comment "PR #<pr> ready for review"`
-6. Delete your SOAP account (step 5). Check `git status --porcelain` is
-   empty and `git rev-list HEAD --not --remotes` is empty. Stop.
+6. Delete any SOAP account you created (step 5). Check
+   `git status --porcelain` is empty and `git rev-list HEAD --not --remotes`
+   is empty. Stop.
 
 If you cannot finish (time, blocker), push what you have to the factory
 branch, record the state and the blocker in the workpad, comment on the
 issue what the blocker is and what the maintainer needs to do, run
-`bun $F status N blocked`, delete the SOAP account, and stop.
+`bun $F status N blocked`, delete any SOAP account you created, and stop.

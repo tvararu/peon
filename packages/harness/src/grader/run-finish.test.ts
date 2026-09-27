@@ -22,7 +22,7 @@ const AGENT = {
   account: ACC,
   character: "Fevala",
   preset: "eversong10",
-  wrapper: `/wt/tmp/tc-${ACC}`,
+  wrapper: `/wt/tmp/puppet-${ACC}`,
 };
 
 function truth(savedAt: string): string {
@@ -138,11 +138,11 @@ describe("stopHarness", () => {
     const partner = {
       ...AGENT,
       account: PARTNER,
-      wrapper: `/wt/tmp/tc-${PARTNER}`,
+      wrapper: `/wt/tmp/puppet-${PARTNER}`,
     };
     const st = await state(exec, { partner });
     await stopHarness(st);
-    expect(calls).toEqual([[`/wt/tmp/tc-${PARTNER}`, "stop"]]);
+    expect(calls).toEqual([[`/wt/tmp/puppet-${PARTNER}`, "stop"]]);
   });
 });
 

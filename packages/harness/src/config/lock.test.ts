@@ -1,16 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
-import {
-  mkdir,
-  mkdtemp,
-  readFile,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { serializeConfig } from "@tuicraft/core/lib/config";
 import { acquireLock, LockError } from "#harness/config/lock";
 import type { Profile } from "#harness/contract/config";
 
@@ -43,32 +35,8 @@ afterEach(async () => {
   await rm(root, { force: true, recursive: true });
 });
 
-async function liveProcess(
-  pid: number,
-  files: Record<string, string> = {},
-): Promise<void> {
+async function liveProcess(pid: number): Promise<void> {
   await mkdir(join(procDir, String(pid)));
-  for (const [name, text] of Object.entries(files))
-    await writeFile(join(procDir, String(pid), name), text);
-}
-
-async function daemonConfig(
-  account: string,
-  character: string,
-): Promise<string> {
-  const xdg = join(root, `config-${account}-${character}`);
-  await mkdir(join(xdg, "tuicraft"), { recursive: true });
-  const config = {
-    account,
-    character,
-    host: "t1",
-    language: 1,
-    password: "pw",
-    port: 3724,
-    timeout_minutes: 30,
-  };
-  await writeFile(join(xdg, "tuicraft/config.toml"), serializeConfig(config));
-  return xdg;
 }
 
 describe("acquireLock", () => {
@@ -111,7 +79,9 @@ describe("acquireLock", () => {
       stateDir,
     });
     await expect(second).rejects.toBeInstanceOf(LockError);
-    await expect(second).rejects.toMatchObject({ code: "held_by_harness" });
+    await expect(second).rejects.toMatchObject({
+      holder: "pid 111 on h1, run dir /runs/a",
+    });
     expect(JSON.parse(await readFile(first.path, "utf8")).pid).toBe(111);
   });
 
@@ -133,32 +103,6 @@ describe("acquireLock", () => {
       stateDir,
     });
     expect(JSON.parse(await readFile(lock.path, "utf8")).pid).toBe(222);
-  });
-
-  test("refuses when a daemon is logged in as the character", async () => {
-    const xdg = await daemonConfig("facabc0123456", "Fgklibhlflc");
-    await liveProcess(333, {
-      cmdline: "bun\0main.ts\0--daemon\0",
-      environ: `HOME=/nowhere\0XDG_CONFIG_HOME=${xdg}\0`,
-    });
-    await expect(
-      acquireLock({ pid: 222, procDir, profile, runDir: "/r", stateDir }),
-    ).rejects.toMatchObject({ code: "held_by_daemon", holder: "pid 333" });
-  });
-
-  test("ignores a daemon of another character and a non-daemon process", async () => {
-    const xdg = await daemonConfig("OTHERACC", "Other");
-    await liveProcess(333, {
-      cmdline: "bun\0main.ts\0--daemon\0",
-      environ: `XDG_CONFIG_HOME=${xdg}\0`,
-    });
-    await liveProcess(444, {
-      cmdline: "bun\0main.ts\0status\0",
-      environ: `XDG_CONFIG_HOME=${await daemonConfig("FACABC0123456", "Fgklibhlflc")}\0`,
-    });
-    await expect(
-      acquireLock({ pid: 222, procDir, profile, runDir: "/r", stateDir }),
-    ).resolves.toBeDefined();
   });
 
   test("release and releaseSync remove only their own lock", async () => {

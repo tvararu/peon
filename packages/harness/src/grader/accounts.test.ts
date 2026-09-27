@@ -20,7 +20,7 @@ const SESSION = {
   dir: "/wt/tmp/factory-account-FAC0123456789",
   password: "pw-secret-123",
   preset: "eversong10",
-  wrapper: "/wt/tmp/tc-FAC0123456789",
+  wrapper: "/wt/tmp/puppet-FAC0123456789",
 };
 
 const dir = (): Promise<string> => mkdtemp(`${tmpdir()}/accounts-`);
@@ -40,7 +40,7 @@ describe("createAccount", () => {
       account: ACC,
       character: "Fevala",
       preset: "eversong10",
-      wrapper: "/wt/tmp/tc-FAC0123456789",
+      wrapper: "/wt/tmp/puppet-FAC0123456789",
     });
     expect(calls[0]?.argv).toEqual([
       ...SOAP,

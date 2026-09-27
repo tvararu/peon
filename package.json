@@ -6,8 +6,7 @@
     "packages/*"
   ],
   "scripts": {
-    "start": "bun packages/cli/src/main.ts",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p packages/core && tsc --noEmit -p packages/cli && tsc --noEmit -p packages/factory && tsc --noEmit -p packages/devtools && tsc --noEmit -p packages/harness"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p packages/core && tsc --noEmit -p packages/factory && tsc --noEmit -p packages/devtools && tsc --noEmit -p packages/harness"
   },
   "devDependencies": {
     "@types/bun": "latest"

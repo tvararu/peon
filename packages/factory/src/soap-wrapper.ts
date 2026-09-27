@@ -10,7 +10,7 @@ export type XdgEnv = Record<
 export function accountFiles(root: string, account: string): AccountFiles {
   return {
     dir: `${root}/tmp/factory-account-${account}`,
-    wrapper: `${root}/tmp/tc-${account}`,
+    wrapper: `${root}/tmp/puppet-${account}`,
   };
 }
 
@@ -41,7 +41,7 @@ export XDG_RUNTIME_DIR=${quote(env.XDG_RUNTIME_DIR)}
 export XDG_STATE_HOME=${quote(env.XDG_STATE_HOME)}
 
 refuse() {
-  printf 'tc-%s: refusing to run: %s\\n' "$account" "$1" >&2
+  printf 'puppet-%s: refusing to run: %s\\n' "$account" "$1" >&2
   exit 1
 }
 
@@ -55,20 +55,8 @@ logs_in="$(field account)/$(field character)"
 [[ $logs_in == "$account/$character" ]] ||
   refuse "$config logs in $logs_in, not $account/$character"
 
-pidfile=$XDG_RUNTIME_DIR/tuicraft/pid
-if [[ -f $pidfile ]]; then
-  pid=$(<"$pidfile")
-  if [[ $pid =~ ^[0-9]+$ && -r /proc/$pid/cmdline ]] &&
-    tr '\\0' '\\n' <"/proc/$pid/cmdline" | grep -x -- --daemon >/dev/null; then
-    daemon_config=$(tr '\\0' '\\n' <"/proc/$pid/environ" |
-      sed -n 's/^XDG_CONFIG_HOME=//p')
-    [[ $daemon_config == "$XDG_CONFIG_HOME" ]] ||
-      refuse "daemon $pid logged in with the config in \${daemon_config:-the default XDG_CONFIG_HOME}, not $XDG_CONFIG_HOME"
-  fi
-fi
-
-printf 'tc-%s: character %s\\n' "$account" "$character" >&2
-exec bun ${quote(`${root}/packages/cli/src/main.ts`)} "$@"
+printf 'puppet-%s: character %s\\n' "$account" "$character" >&2
+exec bun ${quote(`${root}/packages/harness/src/puppet/main.ts`)} "$@"
 `;
 }
 

@@ -71,7 +71,7 @@ async function sessionProfile(
     dir,
     password: "secretpw",
     preset: "fresh",
-    wrapper: join(root, `tc-${account}`),
+    wrapper: join(root, `puppet-${account}`),
   });
 }
 
