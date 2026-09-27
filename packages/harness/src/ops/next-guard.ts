@@ -10,7 +10,7 @@ const CALL = /^([a-z_]+)\((.*)\)$/;
 const ARG =
   /([a-z_]+): ("(?:[^"\\]|\\.)*"|-?\d+(?:\.\d+)?|true|false)(?:, |$)/y;
 const GUARDED = new Set(["PARTLY", "REFUSED", "FAILED"]);
-const CONTINUES = new Set(["time_limit"]);
+const CONTINUES = new Set(["time_limit", "cancelled"]);
 
 function argValue(raw: string): unknown {
   if (raw === "true" || raw === "false") return raw === "true";

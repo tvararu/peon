@@ -190,6 +190,23 @@ describe("defineGameTool", () => {
     );
   });
 
+  test("a timed PARTLY keeps the same call as its Next", async () => {
+    const { rt } = await createTestRuntime();
+    const run: Run = () =>
+      Promise.resolve(
+        result("PARTLY", {
+          after: emptySocial(),
+          detail: "rested 30 s.",
+          next: 'social(text: "a")',
+          reason: "time_limit",
+        }),
+      );
+    const out = await runTool(probe(run)(rt), { text: "a" });
+    expect(out.text).toBe(
+      'PARTLY time_limit: rested 30 s.\nNext: social(text: "a")',
+    );
+  });
+
   test("a Next that already failed from here asks the human", async () => {
     const { rt } = await createTestRuntime({
       parts: {

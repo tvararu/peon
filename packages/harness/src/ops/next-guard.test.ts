@@ -86,4 +86,16 @@ describe("guardNext", () => {
       rest,
     );
   });
+
+  test("a run stopped by something other than the human may be started again", () => {
+    const stopped = result("FAILED", {
+      after: {},
+      detail: "the recovery was stopped (stopped_by_tool).",
+      next: "recover()",
+      reason: "cancelled",
+    });
+    expect(
+      guardNext(stopped, { args: {}, blocked: () => true, tool: "recover" }),
+    ).toBe(stopped);
+  });
 });
