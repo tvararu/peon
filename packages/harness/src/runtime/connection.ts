@@ -128,10 +128,7 @@ class ConnectionSlot {
     }
     this.set("closing");
     const started = this.init.clock.now();
-    handle.logout();
-    const complete = await closedWithin(handle, LOGOUT_WAIT_MS);
-    if (!complete) handle.close();
-    await handle.closed;
+    const complete = await logOutWithin(handle, LOGOUT_WAIT_MS);
     this.logLogout(complete, this.init.clock.now() - started);
     if (this.state === "closing") this.set("offline");
   }
@@ -229,6 +226,17 @@ class ConnectionSlot {
     });
     this.schedule(index + 1);
   }
+}
+
+export async function logOutWithin(
+  handle: WorldHandle,
+  ms: number,
+): Promise<boolean> {
+  handle.logout();
+  const complete = await closedWithin(handle, ms);
+  if (!complete) handle.close();
+  await handle.closed;
+  return complete;
 }
 
 async function closedWithin(handle: WorldHandle, ms: number): Promise<boolean> {

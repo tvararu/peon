@@ -1,0 +1,115 @@
+import { type PathEnv, resolvePaths } from "@tuicraft/core/lib/paths";
+
+export type PuppetPaths = {
+  configPath: string;
+  runtimeDir: string;
+  socket: string;
+  pid: string;
+};
+
+export type PuppetRequest =
+  | { cmd: "status" }
+  | { cmd: "read" }
+  | { cmd: "nearby" }
+  | { cmd: "whisper"; target: string; text: string }
+  | { cmd: "stop" };
+
+export type PuppetReply =
+  | { ok: true; out: string }
+  | { ok: false; error: string };
+
+export class PuppetNotRunning extends Error {
+  constructor() {
+    super("No puppet is running for this account. Run start --json first.");
+    this.name = "PuppetNotRunning";
+  }
+}
+
+const NOT_LISTENING: readonly string[] = ["ENOENT", "ECONNREFUSED"];
+const CMDS: readonly string[] = ["status", "read", "nearby", "whisper", "stop"];
+
+export function puppetPaths(env: PathEnv = Bun.env): PuppetPaths {
+  const { configPath, runtimeDir } = resolvePaths(env);
+  return {
+    configPath,
+    pid: `${runtimeDir}/puppet.pid`,
+    runtimeDir,
+    socket: `${runtimeDir}/puppet.sock`,
+  };
+}
+
+export function encodeLine(message: PuppetRequest | PuppetReply): string {
+  return `${JSON.stringify(message)}\n`;
+}
+
+export function decodeRequest(line: string): PuppetRequest | undefined {
+  const value = parseObject(line);
+  if (value === undefined || !CMDS.includes(String(value["cmd"])))
+    return undefined;
+  if (value["cmd"] !== "whisper") return value as PuppetRequest;
+  const { target, text } = value;
+  return typeof target === "string" && typeof text === "string"
+    ? { cmd: "whisper", target, text }
+    : undefined;
+}
+
+export function decodeReply(line: string): PuppetReply {
+  const value = parseObject(line);
+  if (value?.["ok"] === true && typeof value["out"] === "string")
+    return { ok: true, out: value["out"] };
+  if (value?.["ok"] === false && typeof value["error"] === "string")
+    return { error: value["error"], ok: false };
+  throw new Error(`The puppet sent an unreadable reply: ${line}`);
+}
+
+function parseObject(line: string): Record<string, unknown> | undefined {
+  try {
+    const value: unknown = JSON.parse(line);
+    return typeof value === "object" && value !== null && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function sendRequest(
+  socketPath: string,
+  request: PuppetRequest,
+): Promise<PuppetReply> {
+  const { promise, resolve, reject } = Promise.withResolvers<PuppetReply>();
+  let buffer = "";
+  Bun.connect({
+    socket: {
+      close: () =>
+        reject(new Error("The puppet closed the connection without a reply.")),
+      data(socket, data) {
+        buffer += data.toString();
+        const end = buffer.indexOf("\n");
+        if (end === -1) return;
+        try {
+          resolve(decodeReply(buffer.slice(0, end)));
+        } catch (error) {
+          reject(error);
+        }
+        socket.end();
+      },
+      error: (_socket, error) => reject(error),
+      open: (socket) => {
+        socket.write(encodeLine(request));
+      },
+    },
+    unix: socketPath,
+  }).catch((error: unknown) =>
+    reject(notRunning(error) ? new PuppetNotRunning() : error),
+  );
+  return promise;
+}
+
+function notRunning(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    NOT_LISTENING.includes(String(error.code))
+  );
+}
