@@ -8,7 +8,7 @@ import {
 } from "#harness/config/flags";
 
 describe("parseFlags", () => {
-  test("gives the design H.8 defaults", () => {
+  test("gives the defaults", () => {
     expect(parseFlags(["--profile", "/p.json"])).toEqual({
       check: false,
       connect: true,
@@ -19,7 +19,7 @@ describe("parseFlags", () => {
       profile: "/p.json",
       runDir: undefined,
       stopReflex: true,
-      thinking: "high",
+      thinking: "off",
       wake: true,
     });
   });

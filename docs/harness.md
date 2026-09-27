@@ -2,7 +2,7 @@
 
 The Pi harness is an interactive terminal agent that plays one World of
 Warcraft 3.3.5a character. A model (by default `openai-codex/gpt-6-luna`
-at high thinking) acts through ten game tools. A human watches the same
+at thinking `off`) acts through ten game tools. A human watches the same
 terminal and can type to the agent at any time. The harness is built on
 `@peon/core` and is the only way to play Peon. The eval scenarios
 that grade it are in [evals.md](evals.md).
@@ -69,7 +69,7 @@ still applies: it refuses the protected accounts and the character
 | `--profile <path>` | required | The character to play: a soap session JSON, a soap ledger JSON, or a Peon `config.toml`. There is no default profile. |
 | `--run-dir <path>` | `~/.local/state/peon-harness/runs/<utc>-<character>` | Where the run files go. The harness refuses a directory that already has `gamelog.jsonl`. |
 | `--model <provider/id>` | `openai-codex/gpt-6-luna` | The model from Pi's bundled catalog. |
-| `--thinking <level>` | `high` | The Pi thinking level. |
+| `--thinking <level>` | `off` | The Pi thinking level. |
 | `--no-connect` | off | Start without a game connection. Use `/connect` later. |
 | `--wake on\|off` | `on` | When off, game events do not start an agent turn. |
 | `--glyphs nerd\|unicode\|ascii` | `nerd`, or `PEON_GLYPHS` | The glyph set of the human UI. The model text never has glyphs. |
