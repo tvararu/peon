@@ -13,7 +13,6 @@ import type { QuestEvent } from "#wow/quests";
 import type { RecoveryEvent } from "#wow/recovery";
 import type { RemoteMotionEvent } from "#wow/remote-motion";
 import type { RewardsEvent } from "#wow/rewards";
-import type { DefenseEvent } from "#wow/self-defense";
 import type { TacticsEvent } from "#wow/tactics";
 import type { TrainerEvent } from "#wow/trainer";
 import type { VendorEvent } from "#wow/vendor";
@@ -37,7 +36,6 @@ export type WorldEvents = {
   remoteMotion: Emitter<[RemoteMotionEvent]>;
   trainer: Emitter<[TrainerEvent]>;
   vendor: Emitter<[VendorEvent]>;
-  defense: Emitter<[DefenseEvent]>;
   destroy: Emitter<[DestroyEvent]>;
   notice: Emitter<[NoticeEvent]>;
 };
@@ -64,7 +62,6 @@ export function createWorldEvents(
     remoteMotion: new Emitter(report),
     trainer: new Emitter(report),
     vendor: new Emitter(report),
-    defense: new Emitter(report),
     destroy: new Emitter(report),
     notice: new Emitter(report),
   };

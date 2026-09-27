@@ -229,7 +229,6 @@ function subscribeAll(init: SubscribeInit): Unsubscribe[] {
     handle.onIgnoreEvent(ignoreFailure),
     handle.onRemoteMotionEvent(ignoreFailure),
     handle.onDestroyEvent(ignoreFailure),
-    handle.onDefenseEvent(ignoreFailure),
   ];
 }
 
