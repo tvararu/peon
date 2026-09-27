@@ -242,9 +242,12 @@ caller of `GetADTHeight` sees the new heights: `FindHeight`, `FindHeights`,
 BVH hit, so a `findHeight` that already succeeded can return a different
 value, and a `findHeights` column that was already non-empty can gain an
 entry (section "Quad-edge points"). The PR #155 review found the new values
-match points 0.02 yards away, so this is a real fix of an edge
-discontinuity. `mise namigator:build` applies it by default (section
-"Ruling: ADT edges by default").
+match nearby points, so this is a real fix of an edge discontinuity. The
+change is not always small: at the Sunstrider chunk-edge point
+(10392.857, −6400.000) the default build gives Z 37.962 and the patched
+build 38.595, between route points at 38.572 and 38.632, so the patch
+removes a 0.63 yard dip. `mise namigator:build` applies it by default
+(section "Ruling: ADT edges by default").
 
 Gating the ADT fallback to `FindHeight`'s own failure path, so that
 `FindHeights` stays unchanged, was built and measured too. It gives
@@ -499,8 +502,8 @@ The evidence is the Fairbreeze Village navigation diagnosis of the same day
 
 `ZoneAndArea`, `navigation.height` and `navigation.stepHeight` also read
 `GetADTHeight`, and the grid does not measure them; heights change only on
-quad edges, by about 0.02 yards per the PR #155 review. The M3a live
-records ran on the old installed library. The live re-proof of the M3a
+quad edges, by up to 0.63 yards where the old edge height dipped. The M3a
+live records ran on the old installed library. The live re-proof of the M3a
 README routes on this build is
 [patched-library-reproof.md](patched-library-reproof.md); the funnel
 corner, replanning and Sunstrider Isle routes are not re-run.

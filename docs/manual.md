@@ -608,8 +608,7 @@ When that column has one floor, the route ends on it. When it has several,
 the route ends on the one floor within 0.25 yards of the creature's observed
 Z; when no floor or more than one floor is that close, the goto refuses with
 `ambiguous ground column at destination (floors …)` like the coordinate form.
-The
-route does not follow the creature. If the creature disappears from the
+The route does not follow the creature. If the creature disappears from the
 entity store while the route is active, for example by leaving visibility
 range, the route stops with `blockedReason=target_lost` and is not replanned.
 
