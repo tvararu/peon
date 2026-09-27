@@ -474,10 +474,15 @@ export async function consoleCommand(
   if (accounts.length === 0)
     throw new Error("console command needs an account");
   for (const account of accounts) await assertOwned(account, deps);
-  const res = await deps.run(command);
-  const at = deps.now().toISOString();
-  const { ok, text } = res;
-  const record = { accounts, at, command, ok, root: deps.cwd, text };
-  await deps.log(`${JSON.stringify(record)}\n`);
+  const record = async ({ ok, text }: SoapResult) => {
+    const at = deps.now().toISOString();
+    const line = { accounts, at, command, ok, root: deps.cwd, text };
+    await deps.log(`${JSON.stringify(line)}\n`);
+  };
+  const res = await deps.run(command).catch(async (error: unknown) => {
+    await record({ ok: false, text: String(error) });
+    throw error;
+  });
+  await record(res);
   return res;
 }

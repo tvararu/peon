@@ -67,6 +67,27 @@ describe("consoleCommand", () => {
     });
   });
 
+  test("logs a failed line when the run throws, then rethrows", async () => {
+    const d = deps([ledger(a)]);
+    d.run = async (command: string) => {
+      d.sent.push(command);
+      throw new Error("The operation timed out.");
+    };
+    await expect(consoleCommand([a], "kick Fgklgoafpfk", d)).rejects.toThrow(
+      "timed out",
+    );
+    expect(d.sent).toEqual(["kick Fgklgoafpfk"]);
+    expect(d.logged).toHaveLength(1);
+    expect(JSON.parse(d.logged[0] ?? "")).toEqual({
+      accounts: [a],
+      at: "2026-09-27T01:02:03.000Z",
+      command: "kick Fgklgoafpfk",
+      ok: false,
+      root,
+      text: "Error: The operation timed out.",
+    });
+  });
+
   test.each([
     ["a non-factory account", ["ADMIN"], [ledger(a)]],
     ["an account with no ledger entry", [a], []],
