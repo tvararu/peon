@@ -1,39 +1,302 @@
 import type {
   ControlEvent,
+  ControlPose,
   EntityEvent,
   NoticeEvent,
   TrainerEvent,
   VendorEvent,
+  VendorOutcome,
 } from "@tuicraft/core";
-import type { Drafts, RuleInput } from "#harness/events/rules";
+import type { LogDraft, LogEvent } from "#harness/contract/log";
+import {
+  type Drafts,
+  guidText,
+  type PoseMemo,
+  type RuleInput,
+  unitIds,
+} from "#harness/events/rules";
 
-export function controlDrafts(_event: ControlEvent, _rc: RuleInput): Drafts {
+const TELEPORTS = new Set(["teleport", "near_teleport", "new_world"]);
+const DRIFT_PASSIVE_YD = 5;
+const VENDOR_SETTLED = new Set<VendorEvent["type"]>([
+  "bought",
+  "sold",
+  "repaired",
+  "refused",
+  "partial",
+  "unanswered",
+]);
+const TRAINER_SETTLED = new Set<TrainerEvent["type"]>([
+  "trained",
+  "refused",
+  "unanswered",
+]);
+const VENDOR_EVENTS: Record<VendorOutcome["action"], LogEvent> = {
+  buy: "vendor/buy",
+  list: "vendor/list",
+  repair: "vendor/repair",
+  sell: "vendor/sell",
+};
+
+type Correction = {
+  before: PoseMemo | undefined;
+  to: PoseMemo | undefined;
+  reason: string;
+};
+
+function tenth(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+function poseMemo(pose: ControlPose | undefined): PoseMemo | undefined {
+  return (
+    pose && {
+      mapId: pose.mapId,
+      x: tenth(pose.x),
+      y: tenth(pose.y),
+      z: tenth(pose.z),
+    }
+  );
+}
+
+function where(pose: PoseMemo | undefined): string {
+  return pose
+    ? `${Math.round(pose.x)}, ${Math.round(pose.y)}`
+    : "an unknown position";
+}
+
+function drift(from: PoseMemo | undefined, to: PoseMemo | undefined): number {
+  if (!(from && to)) return 0;
+  return tenth(Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z));
+}
+
+function correction({ before, to, reason }: Correction): LogDraft {
+  if (TELEPORTS.has(reason)) {
+    const text = `You were moved (${reason}) to ${where(to)}.`;
+    return {
+      class: "passive",
+      data: { reason, to },
+      domain: "control",
+      event: "control/teleport",
+      text,
+    };
+  }
+  const driftYd = drift(before, to);
+  const text = `The server corrected your position by ${driftYd} yd.`;
+  const cls = driftYd > DRIFT_PASSIVE_YD ? "passive" : "log";
+  return {
+    class: cls,
+    data: { driftYd, from: before, reason, to },
+    domain: "control",
+    event: "control/server_correction",
+    text,
+  };
+}
+
+function moveRow(event: ControlEvent, pose: PoseMemo | undefined): LogDraft {
+  const cause = event.reason;
+  if (event.type === "movement_started")
+    return {
+      class: "log",
+      data: { cause, pose },
+      domain: "control",
+      event: "control/move_start",
+      text: "You start to move.",
+    };
+  const text = cause ? `You stop (${cause}).` : "You stop.";
+  return {
+    class: "log",
+    data: { cause, pose },
+    domain: "control",
+    event: "control/move_stop",
+    text,
+  };
+}
+
+function placeRow(rc: RuleInput): LogDraft {
+  const { area, zone } = rc.lookup.place();
+  const name =
+    [area, zone].filter((part) => part !== undefined).join(", ") ||
+    "an unknown area";
+  return {
+    class: "log",
+    data: { area, zone },
+    domain: "control",
+    event: "control/place_changed",
+    text: `You entered ${name}.`,
+  };
+}
+
+export function controlDrafts(event: ControlEvent, rc: RuleInput): Drafts {
+  const before = rc.memo.pose;
+  const pose = poseMemo(event.state.pose);
+  rc.memo.pose = pose ?? before;
+  if (event.type === "server_correction") {
+    const to = poseMemo(event.state.serverPose) ?? pose;
+    return [correction({ before, reason: event.reason ?? "observed", to })];
+  }
+  if (event.type === "movement_started" || event.type === "movement_stopped")
+    return [moveRow(event, pose)];
+  if (event.type === "place_changed") return [placeRow(rc)];
   return [];
 }
 
-export function vendorDrafts(_event: VendorEvent, _rc: RuleInput): Drafts {
-  return [];
+function vendorDeal(outcome: VendorOutcome, rc: RuleInput): LogDraft {
+  const { action, moneyDelta, reason, request, status } = outcome;
+  const itemId = "itemId" in request ? request.itemId : undefined;
+  const count = "count" in request ? request.count : undefined;
+  const name = itemId === undefined ? undefined : rc.lookup.itemName(itemId);
+  const what = [
+    name ?? (itemId === undefined ? undefined : `item ${itemId}`),
+    count === undefined ? undefined : `x${count}`,
+  ];
+  const words = [
+    `Vendor ${action}`,
+    ...what.filter((part) => part !== undefined),
+  ].join(" ");
+  const why = reason ? ` (${reason})` : "";
+  const data = {
+    cost: moneyDelta,
+    count,
+    itemId,
+    name,
+    npc: guidText(request.guid),
+    outcome: status,
+    reason,
+  };
+  return {
+    class: "passive",
+    data,
+    domain: "vendor",
+    event: VENDOR_EVENTS[action],
+    ...unitIds(request.guid, rc),
+    text: `${words}: ${status}${why}.`,
+  };
 }
 
-export function trainerDrafts(_event: TrainerEvent, _rc: RuleInput): Drafts {
-  return [];
+export function vendorDrafts(event: VendorEvent, rc: RuleInput): Drafts {
+  const { lastOutcome, window } = event.state;
+  if (event.type === "listed") {
+    const items = window?.items.length ?? 0;
+    const data = { items, npc: window && guidText(window.guid) };
+    return [
+      {
+        class: "log",
+        data,
+        domain: "vendor",
+        event: "vendor/list",
+        ...unitIds(window?.guid, rc),
+        text: `The vendor lists ${items} items.`,
+      },
+    ];
+  }
+  if (!(lastOutcome && VENDOR_SETTLED.has(event.type))) return [];
+  return [vendorDeal(lastOutcome, rc)];
+}
+
+export function trainerDrafts(event: TrainerEvent, rc: RuleInput): Drafts {
+  const { lastOutcome, offer } = event.state;
+  if (event.type === "listed") {
+    const spells = offer?.spells.length ?? 0;
+    return [
+      {
+        class: "log",
+        data: { spells },
+        domain: "trainer",
+        event: "trainer/list",
+        text: `The trainer lists ${spells} spells.`,
+      },
+    ];
+  }
+  if (!(lastOutcome && TRAINER_SETTLED.has(event.type))) return [];
+  const request = lastOutcome.request;
+  if (request.action !== "train") return [];
+  const why = lastOutcome.reason ? ` (${lastOutcome.reason})` : "";
+  const data = {
+    cost: request.cost,
+    learned: lastOutcome.learnedSpells,
+    npc: guidText(request.guid),
+    outcome: lastOutcome.status,
+    reason: lastOutcome.reason,
+    spellId: request.spellId,
+  };
+  const text = `Train spell ${request.spellId}: ${lastOutcome.status}${why}.`;
+  return [
+    {
+      class: "passive",
+      data,
+      domain: "trainer",
+      event: "trainer/learn",
+      ...unitIds(request.guid, rc),
+      text,
+    },
+  ];
 }
 
 export function entityDrafts(
-  _event: EntityEvent,
-  _rc: RuleInput & { logEntities: boolean },
+  event: EntityEvent,
+  rc: RuleInput & { logEntities: boolean },
 ): Drafts {
-  return [];
+  if (!rc.logEntities || event.type === "update") return [];
+  if (event.type === "disappear") {
+    const text = `${event.name ?? "A unit"} left view.`;
+    return [
+      {
+        class: "log",
+        data: { name: event.name },
+        domain: "entity",
+        event: "entity/disappear",
+        guid: guidText(event.guid),
+        text,
+      },
+    ];
+  }
+  const { entity } = event;
+  const data = {
+    entry: entity.entry,
+    name: entity.name,
+    objectType: entity.objectType,
+  };
+  const text = `${entity.name ?? `Object ${entity.entry}`} came into view.`;
+  return [
+    {
+      class: "log",
+      data,
+      domain: "entity",
+      event: "entity/appear",
+      guid: guidText(entity.guid),
+      text,
+    },
+  ];
 }
 
 export function packetErrorDrafts(
-  _opcode: number,
-  _error: Error,
+  opcode: number,
+  error: Error,
   _rc: RuleInput,
 ): Drafts {
-  return [];
+  const text = `Packet 0x${opcode.toString(16)} failed: ${error.message}`;
+  return [
+    {
+      class: "log",
+      data: { message: error.message, opcode },
+      domain: "packet",
+      event: "packet/error",
+      text,
+    },
+  ];
 }
 
-export function noticeDrafts(_event: NoticeEvent, _rc: RuleInput): Drafts {
-  return [];
+export function noticeDrafts(event: NoticeEvent, _rc: RuleInput): Drafts {
+  const data = { label: event.label, opcode: event.opcode };
+  return [
+    {
+      class: "log",
+      data,
+      domain: "notice",
+      event: "notice/not_implemented",
+      text: event.text,
+      ts: event.at,
+    },
+  ];
 }
