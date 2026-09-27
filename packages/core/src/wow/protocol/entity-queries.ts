@@ -7,10 +7,20 @@ export function buildCreatureQuery(entry: number, guid: bigint): Uint8Array {
   return w.finish();
 }
 
+export type CreatureDetails = {
+  subName: string;
+  creatureType: number;
+  family: number;
+  rank: number;
+};
+
 export type CreatureQueryResult = {
   entry: number;
   name: string | undefined;
+  details: CreatureDetails | undefined;
 };
+
+const DETAIL_BYTES = 16;
 
 export function parseCreatureQueryResponse(
   r: PacketReader,
@@ -18,9 +28,17 @@ export function parseCreatureQueryResponse(
   const raw = r.uint32LE();
   const masked = raw & 0x80_00_00_00;
   const entry = raw & 0x7f_ff_ff_ff;
-  if (masked) return { entry, name: undefined };
+  if (masked) return { entry, name: undefined, details: undefined };
   const name = r.cString();
-  return { entry, name };
+  for (let i = 0; i < 3; i++) r.cString();
+  const subName = r.cString();
+  r.cString();
+  if (r.remaining < DETAIL_BYTES) return { entry, name, details: undefined };
+  r.uint32LE();
+  const creatureType = r.uint32LE();
+  const family = r.uint32LE();
+  const rank = r.uint32LE();
+  return { entry, name, details: { subName, creatureType, family, rank } };
 }
 
 export function buildGameObjectQuery(entry: number, guid: bigint): Uint8Array {

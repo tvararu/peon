@@ -1,8 +1,10 @@
 import { inflateSync } from "node:zlib";
+import type { CreatureInfo, CreatureRank } from "#wow/client-extras";
 import { ObjectType, UpdateFlag } from "#wow/protocol/entity-fields";
 import {
   buildCreatureQuery,
   buildGameObjectQuery,
+  type CreatureQueryResult,
   parseCreatureQueryResponse,
   parseGameObjectQueryResponse,
 } from "#wow/protocol/entity-queries";
@@ -221,6 +223,24 @@ function queryEntityName(
   }
 }
 
+const RANKS: CreatureRank[] = ["normal", "elite", "rare_elite", "boss", "rare"];
+
+function cacheCreatureInfo(conn: WorldConn, result: CreatureQueryResult): void {
+  const { entry, name, details } = result;
+  if (!(name && details)) return;
+  const { subName, creatureType, family, rank } = details;
+  const info: CreatureInfo = {
+    entry,
+    name,
+    subName: subName === "" ? undefined : subName,
+    creatureType,
+    family,
+    rank: RANKS[rank] ?? "normal",
+  };
+  conn.creatureInfoCache ??= new Map();
+  conn.creatureInfoCache.set(entry, info);
+}
+
 export function handleCreatureQueryResponse(
   conn: WorldConn,
   r: PacketReader,
@@ -228,6 +248,7 @@ export function handleCreatureQueryResponse(
   const result = parseCreatureQueryResponse(r);
   conn.pendingNameQueries.delete(`${ObjectType.UNIT}:${result.entry}`);
   if (!result.name) return;
+  cacheCreatureInfo(conn, result);
   conn.creatureNameCache.set(result.entry, result.name);
   for (const entity of conn.entityStore.all()) {
     if (entity.entry === result.entry && !entity.name) {

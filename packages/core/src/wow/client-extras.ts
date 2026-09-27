@@ -41,8 +41,8 @@ export function extrasMethods(conn: WorldConn, rt: Runtimes): Extras {
     onNotice(cb) {
       return conn.events.notice.subscribe(cb);
     },
-    getCreatureInfo() {
-      throw new Error("not_implemented");
+    getCreatureInfo(entry) {
+      return conn.creatureInfoCache?.get(entry);
     },
   };
 }

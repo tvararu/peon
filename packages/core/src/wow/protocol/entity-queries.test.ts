@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { creatureQueryResponse } from "#test-support/creature-query-fixtures";
 import {
   buildCreatureQuery,
   buildGameObjectQuery,
@@ -45,6 +46,33 @@ describe("creature query", () => {
     const r = new PacketReader(buf);
     expect(r.uint32LE()).toBe(999);
     expect(r.uint64LE()).toBe(guid);
+  });
+
+  test("parseCreatureQueryResponse keeps subName, type, family and rank", () => {
+    const packet = creatureQueryResponse({
+      entry: 15_366,
+      name: "Springpaw Stalker",
+      subName: "Pack Leader",
+      creatureType: 1,
+      family: 2,
+      rank: 1,
+    });
+    expect(parseCreatureQueryResponse(new PacketReader(packet))).toEqual({
+      entry: 15_366,
+      name: "Springpaw Stalker",
+      details: { subName: "Pack Leader", creatureType: 1, family: 2, rank: 1 },
+    });
+  });
+
+  test("a response cut after the names keeps the name and no details", () => {
+    const w = new PacketWriter();
+    w.uint32LE(1234);
+    w.cString("Stormwind Guard");
+    expect(parseCreatureQueryResponse(new PacketReader(w.finish()))).toEqual({
+      entry: 1234,
+      name: "Stormwind Guard",
+      details: undefined,
+    });
   });
 });
 

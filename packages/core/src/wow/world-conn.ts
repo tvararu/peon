@@ -1,5 +1,6 @@
 import type { Socket } from "bun";
 import type { ChatMode } from "#wow/client";
+import type { CreatureInfo } from "#wow/client-extras";
 import type { PlaceState } from "#wow/client-place";
 import type { CombatRuntime } from "#wow/combat";
 import type { ControlRuntime } from "#wow/control";
@@ -65,4 +66,5 @@ export type WorldConn = {
   destroy?: ItemDestroyRuntime;
   tactics?: TacticsLoop;
   place?: PlaceState;
+  creatureInfoCache?: Map<number, CreatureInfo>;
 };
