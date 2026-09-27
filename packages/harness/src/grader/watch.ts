@@ -1,6 +1,12 @@
+import { appendFile, mkdir } from "node:fs/promises";
+import { messageOf } from "@tuicraft/core/lib/errors";
+import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
 import type { AgentState, StatusJson } from "#harness/contract/config";
 import type { GameLogEntry, LogEvent } from "#harness/contract/log";
-import { parseJsonOutput } from "#harness/grader/exec";
+import type { Clock } from "#harness/contract/services";
+import { type Exec, parseJsonOutput } from "#harness/grader/exec";
+import { captureFrame } from "#harness/grader/frames";
+import type { Pane } from "#harness/grader/pane";
 import type { TriggerName } from "#harness/grader/scenarios";
 
 export type TriggerRow = {
@@ -115,4 +121,114 @@ export async function readStatus(
   if (!(await handle.exists())) return undefined;
   const json = parseJsonOutput(await handle.text());
   return json === undefined ? undefined : (json as StatusJson);
+}
+
+export type Watcher = { stop: () => Promise<void> };
+
+export const LOG_POLL_MS = 1000;
+export const WITNESS_EVERY_MS = 5000;
+
+const WITNESS_TIMEOUT_MS = 4000;
+
+type WatchInit = {
+  runDir: string;
+  pane: Pane;
+  exec: Exec;
+  clock: Clock;
+  witness?: string;
+  frameEveryMs?: number;
+};
+type Job = () => Promise<void>;
+type WatchJobs = { all: Job; frame: Job; log: Job; sample: Job };
+
+function createSerial(errorLog: string): (job: Job) => Promise<void> {
+  let chain = Promise.resolve();
+  return (job) => {
+    chain = chain
+      .then(job)
+      .catch((err: unknown) =>
+        appendFile(
+          errorLog,
+          `${new Date().toISOString()} ${messageOf(err)}\n`,
+        ).catch(ignoreFailure),
+      );
+    return chain;
+  };
+}
+
+function createJobs({
+  runDir,
+  pane,
+  exec,
+  clock,
+  witness,
+}: WatchInit): WatchJobs {
+  const tail = createLogTail(`${runDir}/gamelog.jsonl`);
+  const frames = { last: undefined as string | undefined, seq: 0 };
+  let answerAt: number | undefined;
+  const log = async (): Promise<void> => {
+    const rows = await tail.read();
+    answerAt = lastAnswerAt(rows, answerAt);
+    const triggers = triggerRows(rows).map(
+      (trigger) => `${JSON.stringify(trigger)}\n`,
+    );
+    if (triggers.length > 0)
+      await appendFile(`${runDir}/triggers.jsonl`, triggers.join(""));
+    const status = await readStatus(`${runDir}/status.json`);
+    if (status === undefined) return;
+    const progress = progressOf({
+      lastAnswerAt: answerAt,
+      now: clock.now(),
+      status,
+    });
+    await Bun.write(`${runDir}/progress.json`, `${JSON.stringify(progress)}\n`);
+  };
+  const frame = async (): Promise<void> => {
+    const shot = await captureFrame({
+      dir: `${runDir}/frames`,
+      last: frames.last,
+      now: clock.now(),
+      pane,
+      seq: frames.seq,
+    });
+    if (shot === undefined) return;
+    frames.last = shot.text;
+    frames.seq += 1;
+  };
+  const sample = async (): Promise<void> => {
+    if (witness === undefined) return;
+    const { code, stdout } = await exec([witness, "nearby", "--json"], {
+      timeoutMs: WITNESS_TIMEOUT_MS,
+    });
+    await appendFile(
+      `${runDir}/witness.jsonl`,
+      `${JSON.stringify({ code, ms: clock.now(), nearby: parseJsonOutput(stdout) ?? null })}\n`,
+    );
+  };
+  const all = async (): Promise<void> => {
+    await mkdir(`${runDir}/frames`, { recursive: true });
+    await mkdir(`${runDir}/grader`, { recursive: true });
+    await log();
+    await sample();
+    await frame();
+  };
+  return { all, frame, log, sample };
+}
+
+export function watchRun(init: WatchInit): Watcher {
+  const jobs = createJobs(init);
+  const serial = createSerial(`${init.runDir}/grader/watch-errors.log`);
+  const timers = [
+    setInterval(() => serial(jobs.log), LOG_POLL_MS),
+    setInterval(() => serial(jobs.frame), init.frameEveryMs ?? FRAME_EVERY_MS),
+    ...(init.witness === undefined
+      ? []
+      : [setInterval(() => serial(jobs.sample), WITNESS_EVERY_MS)]),
+  ];
+  serial(jobs.all).catch(ignoreFailure);
+  const stop = async (): Promise<void> => {
+    for (const timer of timers) clearInterval(timer);
+    await serial(jobs.all);
+  };
+  return { stop };
 }
