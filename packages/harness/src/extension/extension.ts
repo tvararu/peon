@@ -8,6 +8,7 @@ import { installGuards } from "#harness/extension/guards";
 import { installInput } from "#harness/extension/input";
 import { installPrompt } from "#harness/prompt/install";
 import { installTools } from "#harness/tools/install";
+import { installUi } from "#harness/ui/install";
 
 export function wowExtension(rt: HarnessRuntime): ExtensionFactory {
   return (pi) => {
@@ -16,6 +17,7 @@ export function wowExtension(rt: HarnessRuntime): ExtensionFactory {
     installTools(pi, rt);
     installEvents(pi, rt);
     installPrompt(pi, rt);
+    installUi(pi, rt);
     installShutdown(pi, rt);
   };
 }

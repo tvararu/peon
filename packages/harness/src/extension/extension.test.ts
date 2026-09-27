@@ -16,6 +16,7 @@ describe("wowExtension", () => {
         "session_shutdown",
       ]),
     );
+    expect(fake.renderers()).toEqual(["message:wow-event", "entry:wow-human"]);
   });
 });
 
