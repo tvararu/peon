@@ -36,6 +36,20 @@ const GROUPS: readonly (readonly [string, (unit: UnitView) => boolean])[] = [
   ["player", (unit) => unit.kind === "player"],
 ];
 
+const CLASS_PREFIX = /^(?:wait|pick_destination|unreachable|stop): /;
+const NOT_TRIED = `Not tried: ${nextCall("travel", { to: "unstick" })}, another route.`;
+
+function plainStep(step: string): string {
+  return step
+    .replace("Inspect navigation.replan and choose", "Choose")
+    .replaceAll("goto", "travel");
+}
+
+function sentence(text: string): string {
+  const trimmed = text.replace(CLASS_PREFIX, "").trim();
+  return trimmed.endsWith(".") ? trimmed.slice(0, -1) : trimmed;
+}
+
 export function yd(n: number): string {
   if (n === 0) return "0";
   return n < 10 ? n.toFixed(1) : Math.round(n).toString();
@@ -106,6 +120,7 @@ function refusedReport(init: {
   const { goal, leg, after } = init;
   const name = goalName(goal);
   const walked = `Walked ${yd(leg.traveledYd)} yd.`;
+  const tried = `Tried: ${leg.floorRetried ? "planner twice (floor retry)" : "planner once"}.`;
   const ask = askHuman(
     `I cannot reach ${goal.kind === "unit" ? goal.unit.name : name} from here. Is there another way?`,
   );
@@ -131,14 +146,14 @@ function refusedReport(init: {
   if (leg.reason === "no_ground")
     return result("FAILED", {
       after,
-      detail: `the path finder found no ground on the way (UNKNOWN_HEIGHT). ${walked} Tried: planner once.`,
+      detail: `the path finder found no ground on the way (UNKNOWN_HEIGHT). ${walked} ${tried}`,
       next: ask,
       reason: "no_ground",
     });
   return result("FAILED", {
     after,
-    body: leg.nextStep ? [leg.nextStep] : [],
-    detail: `${leg.detail}. ${walked}`,
+    body: leg.nextStep ? [plainStep(leg.nextStep)] : [],
+    detail: `${sentence(leg.detail)}. ${walked} ${tried} ${NOT_TRIED}`,
     next: ask,
     reason: leg.reason ?? "failed",
   });
