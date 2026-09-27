@@ -81,6 +81,13 @@ For protocol proof, run the harness on the character with
 directory's `packets.jsonl` shows each packet the server sent or accepted,
 and `packets.json` counts them by opcode.
 
+To reach the state a live proof needs (a level, items, a quest, a guild),
+use `mise factory soap gm <ACCOUNT> <verb>` on your own account only; it
+refuses accounts created from another worktree and logs every command.
+`soap truth` reads the saved character, so change a level with the puppet
+stopped before you check it there; `learn` and `unlearn` need the
+character online.
+
 Presets, the puppet wrapper and the realm service are described in
 [factory.md](factory.md). A run that fails because the server or SOAP is
 down is an infrastructure failure: report it to the maintainer.

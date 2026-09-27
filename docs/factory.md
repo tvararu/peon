@@ -87,6 +87,36 @@ first. The service URL is `PEON_REALM_SERVICE`, from the environment or
 `soap.env`; it has no default, and these commands fail naming it when it
 is unset.
 
+`soap gm <ACCOUNT> <verb> [args...]` stages state for a worker's live
+proof with a console command over SOAP. It fills in the character name
+itself and runs only on factory accounts whose ledger entry was created
+from the current worktree; every command is appended to
+`~/.local/state/peon-factory/gm.log`. It prints `{account, verb, command,
+ok, text}` and exits 1 when the server refuses. Never use it inside an
+eval; eval staging stays with `soap setup`.
+
+| Verb | Console command |
+|---|---|
+| `level <1-80>` | `character level <C> <n>` |
+| `tele <name>` | `tele name <C> <name>` |
+| `learn <spell>`, `unlearn <spell>` | `player learn\|unlearn <C> <spell>` (online only) |
+| `items <id>:<n>...` | `send items <C> "Peon" "staging" <id>:<n>...` (up to 12 pairs) |
+| `money <copper>` | `send money <C> "Peon" "staging" <copper>` |
+| `mail <subject>` | `send mail <C> "<subject>" "staging"` |
+| `quest <add\|complete\|reward\|remove> <id>` | `quest <op> <id> <C>` |
+| `revive`, `kick`, `combatstop`, `reset-talents` | `revive <C>`, `kick <C>`, `combatstop <C>`, `reset talents <C>` |
+| `achievement <id>` | `achievement add <id> <C>` |
+| `guild-create <name>` | `guild create <C> "<name>"` |
+| `guild-invite <ACCOUNT2> <name>` | `guild invite <C2> "<name>"` |
+| `arena-create <2\|3\|5> <name>` | `arena create <C> "<name>" <type>` |
+| `read <kind>` | `group list`, `mail list`, `pet list`, `character titles`, `character reputation` or `pinfo` on `<C>` |
+
+Numbers are positive integers, subjects and names match
+`^[A-Za-z0-9 ]{1,24}$`, guild and arena names start with `Fac`, and a tele
+name is one token. Console commands cannot choose talents, set reputation
+or fly speed, grant taxi nodes, or kill a character: those commands are
+`Console::No`.
+
 ## Status
 
 | Status | Moved there by | Meaning |
