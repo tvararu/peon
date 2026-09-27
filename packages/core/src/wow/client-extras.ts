@@ -37,7 +37,9 @@ export function extrasMethods(conn: WorldConn, rt: Runtimes): Extras {
       return rt.capabilities();
     },
     onNotice(cb) {
-      return conn.events.notice.subscribe(cb);
+      const off = conn.events.notice.subscribe(cb);
+      for (const event of conn.pendingNotices.splice(0)) cb(event);
+      return off;
     },
     getCreatureInfo(entry) {
       return conn.creatureInfoCache.get(entry);

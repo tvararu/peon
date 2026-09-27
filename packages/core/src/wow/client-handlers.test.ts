@@ -1,8 +1,9 @@
 import { describe, expect, jest, test } from "bun:test";
 import { testStores } from "#test-support/session-fixtures";
 import { MARNIEL, MARNIEL_LIST_INVENTORY } from "#test-support/vendor-fixtures";
-import type { NoticeEvent } from "#wow/client-extras";
+import { extrasMethods, type NoticeEvent } from "#wow/client-extras";
 import {
+  NOTICE_BACKLOG,
   registerGameHandlers,
   registerWorldHandlers,
 } from "#wow/client-handlers";
@@ -10,6 +11,7 @@ import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 import { STUBS } from "#wow/protocol/stubs";
 import { OpcodeDispatch } from "#wow/protocol/world";
+import type { Runtimes } from "#wow/runtime";
 import type { WorldConn } from "#wow/world-conn";
 import { createWorldEvents } from "#wow/world-events";
 
@@ -71,6 +73,7 @@ function stubConn(): WorldConn {
   const conn = {
     dispatch: new OpcodeDispatch(),
     events: createWorldEvents(),
+    pendingNotices: [],
   } as unknown as WorldConn;
   registerWorldHandlers(conn, testStores());
   return conn;
@@ -99,14 +102,36 @@ describe("stub notices", () => {
     ]);
   });
 
-  test("a notice with no subscriber is retried on the next packet", () => {
+  test("a notice with no subscriber replays to the first onNotice subscriber", () => {
     const conn = stubConn();
+    const now = jest.spyOn(Date, "now").mockReturnValue(1000);
+    conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
+    now.mockReturnValue(5000);
+    const { onNotice } = extrasMethods(conn, {} as Runtimes);
+    const first: NoticeEvent[] = [];
+    const second: NoticeEvent[] = [];
+    onNotice((event) => first.push(event));
+    onNotice((event) => second.push(event));
+    conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
+    now.mockRestore();
+    expect(first).toMatchObject([
+      { at: 1000, opcode: GameOpcode.SMSG_WEATHER },
+    ]);
+    expect(second).toEqual([]);
+  });
+
+  test("a full backlog leaves later notices to retry on their next packet", () => {
+    const conn = stubConn();
+    for (let opcode = 0x7_00; opcode < 0x7_00 + NOTICE_BACKLOG; opcode++)
+      conn.dispatch.handle(opcode, weather());
     conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
     const notices: NoticeEvent[] = [];
-    conn.events.notice.subscribe((event) => notices.push(event));
+    extrasMethods(conn, {} as Runtimes).onNotice((event) =>
+      notices.push(event),
+    );
     conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
-    conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
-    expect(notices).toHaveLength(1);
+    expect(notices).toHaveLength(NOTICE_BACKLOG + 1);
+    expect(notices.at(-1)).toMatchObject({ opcode: GameOpcode.SMSG_WEATHER });
   });
 
   test("an opcode nothing handles emits one notice by its name", () => {

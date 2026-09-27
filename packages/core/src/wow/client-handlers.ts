@@ -172,18 +172,23 @@ export function registerGameHandlers(
   registerVendorHandlers(conn, stores);
 }
 
+export const NOTICE_BACKLOG = 64;
+
 export function registerWorldHandlers(
   conn: WorldConn,
   stores: SessionStores,
 ): void {
   registerGameHandlers(conn, stores);
   const notify = (notice: StubNotice): boolean => {
-    if (conn.events.notice.size === 0) return false;
-    conn.events.notice.emit({
-      type: "not_implemented",
+    const event = {
+      type: "not_implemented" as const,
       ...notice,
       at: Date.now(),
-    });
+    };
+    if (conn.events.notice.size > 0) conn.events.notice.emit(event);
+    else if (conn.pendingNotices.length < NOTICE_BACKLOG)
+      conn.pendingNotices.push(event);
+    else return false;
     return true;
   };
   registerStubs(conn.dispatch, notify);

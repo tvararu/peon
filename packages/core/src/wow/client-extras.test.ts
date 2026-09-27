@@ -21,6 +21,7 @@ function extras() {
   const conn = {
     creatureInfoCache: new Map(),
     events: createWorldEvents(),
+    pendingNotices: [],
   } as unknown as WorldConn;
   return { conn, methods: extrasMethods(conn, {} as Runtimes) };
 }

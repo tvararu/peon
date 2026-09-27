@@ -193,9 +193,26 @@ in `STUBS`. `missing`: neither.
 `OpcodeDispatch` counts every inbound opcode that has neither a handler
 nor a waiter (`unhandledCounts()`) and never throws for one. It reports
 each such opcode once as a `not_implemented` notice labelled with its
-`GameOpcode` name. A report made while no notice subscriber exists, such
-as one during login, is retried on the next unhandled packet. The harness
-game log shows these notices as `notice/not_implemented`.
+`GameOpcode` name. A notice made while no one subscribes, such as one
+during login, waits in `conn.pendingNotices` (up to 64), and the first
+`onNotice` subscriber gets them with their original `at`. When the
+backlog is full, the report is retried on the opcode's next packet. The
+harness game log shows these notices as `notice/not_implemented`.
+
+## Packet trace
+
+`ClientConfig.trace` takes a `TraceSink` (`packet-trace.ts`, exported
+from `@peon/core/session`). The session calls `row` once per packet:
+`in` for each drained packet with its `outcome` (`handled`, `unhandled`
+or `error`), `out` for each `sendPacket`, and one `in` row per inner
+`SMSG_COMPRESSED_MOVES` packet with `via: "compressed"` (`skipped` for
+an opcode the handler drops). `size` is the body length. `body` is hex
+and present only when `bodies` is true; `CMSG_AUTH_SESSION` never has
+one. After login the session calls `attach` with a sender for raw
+packets, and when the socket closes (logout, `close` or a dropped
+connection) it calls `close` with `PacketCounts`: `seen` and `unhandled`
+from `OpcodeDispatch.counts()`, and `sent`, keyed by `GameOpcode` name
+(`opcodeName`).
 
 ## Check citations
 
