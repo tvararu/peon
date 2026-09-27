@@ -39,6 +39,7 @@ type Rested = {
   auraConfirmed: boolean;
   startLevels: Levels;
   stalled: boolean;
+  confirmed: Set<number>;
 };
 
 const DEFAULT_UNTIL = 90;
@@ -173,12 +174,18 @@ function noteUsed(rested: Rested, item: Consumable): void {
   });
 }
 
-async function eat(ops: OpsCtx, until: number, rested: Rested): Promise<void> {
+async function eat(
+  ops: OpsCtx,
+  init: { until: number; rested: Rested; again: boolean },
+): Promise<void> {
+  const { until, rested, again } = init;
   for (const item of consumables(ops)) {
     if (reached(levelsOf(ops), until)) break;
-    if (eating(ops, item)) continue;
+    if (eating(ops, item) || (again && !rested.confirmed.has(item.entry)))
+      continue;
     const confirmed = await useOne(ops, item);
     noteUsed(rested, item);
+    if (confirmed) rested.confirmed.add(item.entry);
     rested.auraConfirmed ||= confirmed;
   }
 }
@@ -188,7 +195,7 @@ function rose(now: Levels, best: Levels): boolean {
 }
 
 async function rest(ops: OpsCtx, until: number, rested: Rested): Promise<void> {
-  await eat(ops, until, rested);
+  await eat(ops, { again: false, rested, until });
   let best = levelsOf(ops);
   let stillMs = 0;
   while (!reached(levelsOf(ops), until) && rested.waitedMs < REST_MAX_MS) {
@@ -197,7 +204,8 @@ async function rest(ops: OpsCtx, until: number, rested: Rested): Promise<void> {
     const now = levelsOf(ops);
     stillMs = rose(now, best) ? 0 : stillMs + POLL_MS;
     if (rose(now, best)) best = now;
-    if (rested.used.length > 0) await eat(ops, until, rested);
+    if (rested.confirmed.size > 0)
+      await eat(ops, { again: true, rested, until });
     if (stillMs >= STALL_MS) {
       rested.stalled = true;
       return;
@@ -374,6 +382,7 @@ function precheck(ctx: ToolCtx<RestAfter>, until: number): Report | undefined {
   if (!reached(levels, until)) return;
   const rested: Rested = {
     auraConfirmed: false,
+    confirmed: new Set(),
     stalled: false,
     startLevels: levels,
     used: [],
@@ -406,6 +415,7 @@ async function runRest(
   if (ready) return ready;
   const rested: Rested = {
     auraConfirmed: false,
+    confirmed: new Set(),
     stalled: false,
     startLevels: levelsOf(ctx),
     used: [],

@@ -208,6 +208,31 @@ describe("rest", () => {
     }
   });
 
+  test("does not use food again when its aura never came", async () => {
+    jest.useFakeTimers();
+    try {
+      const t = await createTestRuntime();
+      setSelf(t.handle, { hp: 200, maxHp: 200, maxPower: 300, power: 30 });
+      water(t.handle, 5);
+      let drinks = 0;
+      t.handle.useItem = async () => {
+        drinks += 1;
+      };
+      const res = await ticking(t, (tick) =>
+        setSelf(t.handle, {
+          hp: 200,
+          maxHp: 200,
+          maxPower: 300,
+          power: Math.min(300, 30 + tick * 2),
+        }),
+      );
+      expect(drinks).toBe(1);
+      expect(res.after.auraConfirmed).toBe(false);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test.each([
     {
       detail:
