@@ -1,15 +1,21 @@
+import { appendFileSync } from "node:fs";
+import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { parseArgs } from "node:util";
 import { messageOf } from "@tuicraft/core/lib/errors";
 import type { Clock } from "#harness/contract/services";
 import { bunExec, type Exec } from "#harness/grader/exec";
-import { fieldClashes, liveClash } from "#harness/grader/fields";
+import { awaitField, fieldClashes, liveClash } from "#harness/grader/fields";
 import { captureFrame } from "#harness/grader/frames";
 import { attachPane, harnessCommand, openPane } from "#harness/grader/pane";
 import { type EvalResult, validateResult } from "#harness/grader/result";
 import { runPaths, runScenario } from "#harness/grader/run";
 import { summaryLine, writeJson } from "#harness/grader/run-finish";
-import { loadScenario, ROUND_1 } from "#harness/grader/scenarios";
+import {
+  loadScenario,
+  ROUND_1,
+  type Scenario,
+} from "#harness/grader/scenarios";
 import { finalTruth, leakCheck, readTruth } from "#harness/grader/truth";
 import { watchRun } from "#harness/grader/watch";
 
@@ -26,7 +32,8 @@ export type CliDeps = {
 type Command = (args: string[], deps: CliDeps) => number | Promise<number>;
 
 export const CLI_USAGE = `usage: bun packages/harness/src/grader/cli.ts <command>   (or: mise eval <command>, from the eval worktree root)
-  run <scenario> --round <n> [--replica <n>]        run one scenario replica end to end (steps 1-13)
+  run <scenario> --round <n> [--replica <n>] [--wait]  run one scenario replica end to end (steps 1-13);
+                                                    --wait queues up to 20 min while another run holds the field
   result <run-dir> <file>                           validate a graded result and write <run-dir>/result.json
   scenario [<id>]                                   print one scenario as JSON, or the round-1 ids
   round <id>...                                     refuse a round plan in which two scenarios share a target field
@@ -47,10 +54,54 @@ function usage(deps: CliDeps): number {
   return 2;
 }
 
+async function progressLog(
+  runDir: string,
+  deps: CliDeps,
+): Promise<(line: string) => void> {
+  await mkdir(`${runDir}/grader`, { recursive: true });
+  const file = `${runDir}/grader/progress.log`;
+  return (line) => {
+    deps.err(line);
+    const stamp = new Date(deps.clock.now()).toISOString();
+    appendFileSync(file, `${stamp} ${line}\n`);
+  };
+}
+
+type FieldInit = {
+  deps: CliDeps;
+  runDir: string;
+  scenario: Scenario;
+  wait: boolean | undefined;
+};
+
+async function fieldFree({
+  deps,
+  runDir,
+  scenario,
+  wait,
+}: FieldInit): Promise<boolean> {
+  const round = dirname(runDir);
+  const { clock, sleep } = deps;
+  if (wait !== true) {
+    const clash = await liveClash({ now: clock.now(), round, scenario });
+    if (clash !== undefined) deps.err(clash);
+    return clash === undefined;
+  }
+  const log = await progressLog(runDir, deps);
+  try {
+    await awaitField({ clock, log, round, scenario, sleep });
+    return true;
+  } catch (err) {
+    log(messageOf(err));
+    return false;
+  }
+}
+
 async function run(args: string[], deps: CliDeps): Promise<number> {
   const options = {
     replica: { type: "string" },
     round: { type: "string" },
+    wait: { type: "boolean" },
   } as const;
   const { positionals, values } = parseArgs({
     allowPositionals: true,
@@ -81,15 +132,8 @@ async function run(args: string[], deps: CliDeps): Promise<number> {
     scenario: id,
     worktree: deps.cwd,
   });
-  const clash = await liveClash({
-    now: clock.now(),
-    round: dirname(runDir),
-    scenario,
-  });
-  if (clash !== undefined) {
-    deps.err(clash);
+  if (!(await fieldFree({ deps, runDir, scenario, wait: values.wait })))
     return 1;
-  }
   deps.out(
     await runScenario({
       clock,

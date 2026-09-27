@@ -126,6 +126,42 @@ describe("grader cli", () => {
     expect(calls).toEqual([]);
   });
 
+  test("run --wait queues on the field and logs the wait to progress.log", async () => {
+    const cwd = await mkdtemp(`${tmpdir()}/cli-`);
+    await mkdir(`${cwd}/packages/factory/src`, { recursive: true });
+    await writeFile(`${cwd}/packages/factory/src/main.ts`, "");
+    const other = `${cwd}/tmp/evals/3/t6-die-and-recover-1`;
+    await mkdir(other, { recursive: true });
+    let now = 1_727_384_400_000;
+    await writeFile(
+      `${other}/run.json`,
+      JSON.stringify({ scenario: "t6-die-and-recover", t0: now }),
+    );
+    const { calls, exec } = fakeExec(() => orcaOk({}));
+    const d = deps({
+      clock: { now: () => now },
+      cwd,
+      exec,
+      sleep: async (ms) => {
+        now += ms;
+      },
+    });
+    expect(
+      await main(["run", "t7-halt-resume", "--round", "3", "--wait"], d),
+    ).toBe(1);
+    expect(d.errors.at(-1)).toStartWith(
+      "field fairbreeze-stalkers is still held after 20 min: t6-die-and-recover-1",
+    );
+    const log = await Bun.file(
+      `${cwd}/tmp/evals/3/t7-halt-resume-1/grader/progress.log`,
+    ).text();
+    expect(log).toContain(
+      "waiting for field fairbreeze-stalkers: t6-die-and-recover-1 is still running",
+    );
+    expect(log).toContain("is still held after 20 min");
+    expect(calls).toEqual([]);
+  });
+
   test("round refuses a plan with two scenarios on one field", async () => {
     const d = deps();
     expect(

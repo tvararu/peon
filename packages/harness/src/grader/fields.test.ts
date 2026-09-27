@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { fieldClashes, liveClash } from "#harness/grader/fields";
+import { awaitField, fieldClashes, liveClash } from "#harness/grader/fields";
 import { loadScenario } from "#harness/grader/scenarios";
 
 const NOW = Date.parse("2026-09-27T05:00:00.000Z");
@@ -119,5 +119,84 @@ describe("liveClash", () => {
     expect(
       await liveClash({ now: NOW, round, scenario: halt }),
     ).toBeUndefined();
+  });
+});
+
+describe("awaitField", () => {
+  const halt = loadScenario("t7-halt-resume");
+
+  function fakeTime(onSleep: (now: number) => Promise<void> = async () => {}) {
+    let now = NOW;
+    return {
+      clock: { now: () => now },
+      sleep: async (ms: number) => {
+        now += ms;
+        await onSleep(now);
+      },
+    };
+  }
+
+  test("a free field starts at once and logs nothing", async () => {
+    const round = await mkdtemp(`${tmpdir()}/fields-`);
+    const lines: string[] = [];
+    const time = fakeTime();
+    await awaitField({
+      ...time,
+      log: (line) => lines.push(line),
+      round,
+      scenario: halt,
+    });
+    expect(lines).toEqual([]);
+    expect(time.clock.now()).toBe(NOW);
+  });
+
+  test("it queues until the holder finishes, then starts", async () => {
+    const round = await mkdtemp(`${tmpdir()}/fields-`);
+    await sibling(round, {
+      name: "t6-die-and-recover-1",
+      scenario: "t6-die-and-recover",
+    });
+    const lines: string[] = [];
+    const time = fakeTime(async (now) => {
+      if (now >= NOW + 60_000)
+        await writeFile(
+          `${round}/t6-die-and-recover-1/grader/draft.json`,
+          "{}",
+        );
+    });
+    await awaitField({
+      ...time,
+      log: (line) => lines.push(line),
+      pollMs: 30_000,
+      round,
+      scenario: halt,
+    });
+    expect(time.clock.now()).toBe(NOW + 60_000);
+    expect(lines).toEqual([
+      "waiting for field fairbreeze-stalkers: t6-die-and-recover-1 is still running on field fairbreeze-stalkers; t7-halt-resume shares that field, so run it after that run ends",
+      "field fairbreeze-stalkers is free after 60 s",
+    ]);
+  });
+
+  test("it gives up after the timeout with a clear error", async () => {
+    const round = await mkdtemp(`${tmpdir()}/fields-`);
+    await sibling(round, {
+      name: "t6-die-and-recover-1",
+      scenario: "t6-die-and-recover",
+      t0: NOW,
+    });
+    const time = fakeTime();
+    await expect(
+      awaitField({
+        ...time,
+        log: () => {},
+        pollMs: 60_000,
+        round,
+        scenario: halt,
+        timeoutMs: 5 * 60_000,
+      }),
+    ).rejects.toThrow(
+      "field fairbreeze-stalkers is still held after 5 min: t6-die-and-recover-1 is still running on field fairbreeze-stalkers",
+    );
   });
 });

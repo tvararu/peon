@@ -67,3 +67,46 @@ export async function liveClash({
   }
   return undefined;
 }
+
+export const FIELD_WAIT_MS = 20 * 60_000;
+export const FIELD_POLL_MS = 15_000;
+
+type AwaitInit = {
+  round: string;
+  scenario: Scenario;
+  clock: { now: () => number };
+  sleep: (ms: number) => Promise<void>;
+  log: (line: string) => void;
+  timeoutMs?: number;
+  pollMs?: number;
+};
+
+export async function awaitField({
+  round,
+  scenario,
+  clock,
+  sleep,
+  log,
+  timeoutMs = FIELD_WAIT_MS,
+  pollMs = FIELD_POLL_MS,
+}: AwaitInit): Promise<void> {
+  const start = clock.now();
+  const clashNow = () => liveClash({ now: clock.now(), round, scenario });
+  let clash = await clashNow();
+  if (clash === undefined) return;
+  log(`waiting for field ${scenario.field}: ${clash}`);
+  while (clash !== undefined) {
+    if (clock.now() - start >= timeoutMs)
+      throw new Error(
+        `field ${scenario.field} is still held after ${timeoutMs / 60_000} min: ${clash}`,
+      );
+    await sleep(pollMs);
+    const next = await clashNow();
+    if (next !== undefined && next !== clash)
+      log(`waiting for field ${scenario.field}: ${next}`);
+    clash = next;
+  }
+  log(
+    `field ${scenario.field} is free after ${Math.round((clock.now() - start) / 1000)} s`,
+  );
+}

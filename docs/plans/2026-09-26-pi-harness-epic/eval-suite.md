@@ -1202,7 +1202,10 @@ t6 and both t7 scenarios) never hold panes at the same time: a pane
 takes the longest run whose field is free. `mise eval round <id>...`
 names every pair in a plan that shares a field, and `mise eval run`
 refuses to start while a run of the same round on the same field has
-no draft or result yet. Two sequential waves do not fit: a 25-min wave
+no draft or result yet. `mise eval run --wait` queues instead: it
+polls the field every 15 s, logs the wait to the run's
+`grader/progress.log`, starts once the field is free, and exits 1 with
+the holder named after 20 min. Graders always pass `--wait`. Two sequential waves do not fit: a 25-min wave
 followed by a 20-min one is 45 min before collection starts. The pool
 makespan is at least max(longest pane time, total pane time ÷ panes);
 keep that ≤ 28 min, so a round holds at most about 28 × panes pane-
