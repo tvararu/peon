@@ -110,9 +110,11 @@ packet: login verify, teleports, new world, roots, knockbacks, forced
 speeds and self updates from `SMSG_UPDATE_OBJECT`). Login waits on
 `SelfStore.waitLogin()`, not on a runtime, and the control runtime
 receives self movement by subscribing to `SelfStore`. `WorldConn` holds
-only transport and protocol state. A store
-runs no timer and sends no packet, except the item query that
-`ItemTemplates` waits on; an actuator that sends passes its `send` in.
+only transport and protocol state. A store sends no packet, except the
+item query that `ItemTemplates` waits on, and runs no timer, except the
+deadlines on those waits: `ItemTemplates` bounds its item query and
+`SelfStore.waitLogin()` bounds the login wait. An actuator that sends
+passes its `send` in; request timeouts live in the runtimes.
 Each runtime (`CombatRuntime`, `RewardsRuntime`, `QuestRuntime` and so
 on) takes the stores it reads, re-emits their events and holds the
 policy: validating actions, sending requests, querying logged quests,

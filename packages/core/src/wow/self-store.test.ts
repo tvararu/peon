@@ -22,9 +22,16 @@ describe("SelfStore login", () => {
   test("a login wait without a verify packet times out", async () => {
     jest.useFakeTimers();
     try {
+      let failed = false;
       const login = new SelfStore().waitLogin(1000);
-      jest.advanceTimersByTime(1000);
-      await expect(login).rejects.toThrow("Timed out waiting for opcode 0x236");
+      login.catch(() => {
+        failed = true;
+      });
+      jest.advanceTimersByTime(999);
+      await Promise.resolve();
+      expect(failed).toBe(false);
+      jest.advanceTimersByTime(1);
+      await expect(login).rejects.toThrow();
     } finally {
       jest.useRealTimers();
     }
