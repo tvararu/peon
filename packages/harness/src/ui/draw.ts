@@ -1,5 +1,9 @@
 import type { Theme, ThemeColor } from "@earendil-works/pi-coding-agent";
-import { type Component, truncateToWidth } from "@earendil-works/pi-tui";
+import {
+  type Component,
+  truncateToWidth,
+  visibleWidth,
+} from "@earendil-works/pi-tui";
 import { ChatType, type FactionRelation } from "@peon/core";
 import type { Domain, GameLogEntry, LogEvent } from "#harness/contract/log";
 import type { ToolStatus } from "#harness/contract/result";
@@ -267,6 +271,7 @@ export function money(theme: Theme, copper: number): string {
 }
 
 export function fit(line: string, width: number): string {
+  if (width > 0 && visibleWidth(line) <= width) return line;
   return truncateToWidth(line, width, chrome().ellipsis);
 }
 

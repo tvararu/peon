@@ -10,9 +10,9 @@ export type CopyTiming = {
 
 export const copyTiming: CopyTiming = {
   attempts: 3,
-  pollMs: 250,
+  pollMs: 50,
   sleep: (ms) => Bun.sleep(ms),
-  tries: 20,
+  tries: 100,
 };
 
 const pinfoAccountLine = /Account:\s*([A-Za-z0-9_]+)/;

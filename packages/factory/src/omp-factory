@@ -19,8 +19,6 @@ real_omp() {
 
 mirror() {
   local real=$1 dir=$2 entry name
-  mkdir -p "$dir"
-  chmod 700 "$dir"
   [[ -n $real && -d $real && $real != "$dir" ]] || return 0
   for entry in "$real"/* "$real"/.[!.]* "$real"/..?*; do
     [[ -e $entry || -L $entry ]] || continue
@@ -47,6 +45,8 @@ isolate() {
   hash=$(printf '%s' "$git_dir" | sha256sum)
   runtime=${real:-${TMPDIR:-/tmp}}/peon-factory-${hash:0:12}
   prune "${runtime%/*}"
+  mkdir -p -- "$base/config" "$runtime" "$base/state"
+  chmod 700 -- "$base/config" "$runtime" "$base/state"
   mirror "${XDG_CONFIG_HOME:-$HOME/.config}" "$base/config"
   mirror "$real" "$runtime"
   mirror "${XDG_STATE_HOME:-$HOME/.local/state}" "$base/state"
@@ -57,13 +57,13 @@ isolate() {
 }
 
 peon_worktree() {
-  local main common top
+  local main out common top dir
+  out=$(git rev-parse --path-format=absolute --git-common-dir --show-toplevel \
+    --absolute-git-dir 2>/dev/null) || return 1
+  { read -r common && read -r top && read -r dir; } <<<"$out" || return 1
   main=$(readlink -f "$HOME/code/peon")
-  common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) ||
-    return 1
-  top=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
   [[ $common == "$main/.git" && $top != "$main" ]] || return 1
-  git rev-parse --absolute-git-dir
+  printf '%s\n' "$dir"
 }
 
 role=""
@@ -107,7 +107,7 @@ prefix=${role^^}
 model_var="${prefix}_MODEL"
 thinking_var="${prefix}_THINKING"
 flags=(--max-time "$cap" "${extension[@]}")
-flags+=(--config "$(dirname "$self")/omp-factory.yml")
+flags+=(--config "${self%/*}/omp-factory.yml")
 if [[ -n ${!model_var:-} ]]; then
   flags+=(--model "${!model_var}")
 fi
