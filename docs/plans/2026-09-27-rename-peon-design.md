@@ -73,9 +73,9 @@ in a throwaway clone:
 - `bun packages/factory/src/main.ts` printed its usage. The harness `--help`
   output named `peon config.toml` and `PEON_GLYPHS`.
 
-After #371 there are about 534 occurrences in about 172 files, counted on
-the same commit without the paths #371 deletes. Re-run the dry run on the
-merged tree before opening the PR.
+On the merged tree (`061defad`, after #371) the codemod changed 427
+occurrences in 178 files and moved the 2 reaper units. `--check` found 0
+unprotected occurrences.
 
 ## 4. Cutover
 
