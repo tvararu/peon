@@ -1,7 +1,18 @@
-import { mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  lstat,
+  mkdir,
+  readdir,
+  readlink,
+  rename,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
 import { harnessStateDir } from "#harness/config/flags";
-import type { RunPaths } from "#harness/contract/config";
+import type { RunMeta, RunPaths } from "#harness/contract/config";
 
 export class RunDirError extends Error {}
 
@@ -91,4 +102,24 @@ export async function writeJsonAtomic(
   const temp = `${path}.${process.pid}.${tempCount}.tmp`;
   await writeFile(temp, `${JSON.stringify(value, null, 2)}\n`);
   await rename(temp, path);
+}
+
+export function writeMeta(paths: RunPaths, meta: RunMeta): Promise<void> {
+  return writeJsonAtomic(paths.meta, meta);
+}
+
+export async function linkSession(
+  paths: RunPaths,
+  sessionFile: string,
+): Promise<void> {
+  await rm(paths.session, { force: true });
+  await symlink(sessionFile, paths.session);
+}
+
+export async function finalizeSession(paths: RunPaths): Promise<void> {
+  const link = await lstat(paths.session).catch(ignoreFailure);
+  if (!link?.isSymbolicLink()) return;
+  const target = resolve(paths.dir, await readlink(paths.session));
+  await rm(paths.session);
+  if (await Bun.file(target).exists()) await copyFile(target, paths.session);
 }

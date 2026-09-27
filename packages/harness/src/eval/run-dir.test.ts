@@ -1,15 +1,26 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { RunMeta } from "#harness/contract/config";
 import {
   createRunDir,
+  finalizeSession,
+  linkSession,
   pruneRuns,
   RunDirError,
   runPaths,
   runStamp,
   runsRoot,
   writeJsonAtomic,
+  writeMeta,
 } from "#harness/eval/run-dir";
 
 const now = new Date(Date.UTC(2026, 8, 26, 19, 13, 31, 123));
@@ -107,5 +118,86 @@ describe("writeJsonAtomic", () => {
     ]);
     expect([1, 2]).toContain(JSON.parse(await readFile(path, "utf8")).n);
     expect(await readdir(dir)).toEqual(["status.json"]);
+  });
+});
+
+function meta(dir: string): RunMeta {
+  const flags = {
+    check: false,
+    connect: true,
+    glyphs: undefined,
+    logEntities: false,
+    model: "openai-codex/gpt-6-luna",
+    nowPerCall: false,
+    profile: join(dir, "account.json"),
+    runDir: dir,
+    stopReflex: true,
+    thinking: "high" as const,
+    wake: true,
+  };
+  const files = {
+    gamelog: "gamelog.jsonl",
+    jev: "jev.jsonl",
+    runs: "runs.jsonl",
+    session: "session.jsonl",
+    status: "status.json",
+    tools: "tools.json",
+  };
+  return {
+    account: "TCFRESH1",
+    capabilities: undefined,
+    character: "Fgk",
+    characterGuid: "1",
+    endedAt: undefined,
+    exitReason: undefined,
+    files,
+    flags,
+    gitSha: "abc1234",
+    glyphs: "nerd",
+    model: flags.model,
+    startedAt: 1000,
+    thinking: "high",
+    v: 1,
+  };
+}
+
+describe("writeMeta", () => {
+  test("writes meta.json without any password field", async () => {
+    const paths = runPaths(await home());
+    await writeMeta(paths, meta(paths.dir));
+    const text = await readFile(paths.meta, "utf8");
+    expect(JSON.parse(text)).toMatchObject({
+      account: "TCFRESH1",
+      character: "Fgk",
+      files: { gamelog: "gamelog.jsonl" },
+      v: 1,
+    });
+    expect(text.toLowerCase()).not.toContain("password");
+  });
+});
+
+describe("linkSession and finalizeSession", () => {
+  test("re-points the link and replaces it with a copy at exit", async () => {
+    const dir = await home();
+    const paths = runPaths(dir);
+    const first = join(dir, "pi-a.jsonl");
+    const second = join(dir, "pi-b.jsonl");
+    await writeFile(first, "a\n");
+    await writeFile(second, "b\n");
+    await linkSession(paths, first);
+    await linkSession(paths, second);
+    expect((await lstat(paths.session)).isSymbolicLink()).toBe(true);
+    expect(await readFile(paths.session, "utf8")).toBe("b\n");
+    await finalizeSession(paths);
+    expect((await lstat(paths.session)).isSymbolicLink()).toBe(false);
+    expect(await readFile(paths.session, "utf8")).toBe("b\n");
+  });
+
+  test("removes a link to a file Pi never wrote, and ignores no link", async () => {
+    const paths = runPaths(await home());
+    await finalizeSession(paths);
+    await linkSession(paths, join(paths.dir, "missing.jsonl"));
+    await finalizeSession(paths);
+    expect(await Bun.file(paths.session).exists()).toBe(false);
   });
 });
