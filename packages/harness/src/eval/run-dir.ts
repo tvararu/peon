@@ -1,5 +1,6 @@
 import { renameSync, writeFileSync } from "node:fs";
 import {
+  appendFile,
   copyFile,
   lstat,
   mkdir,
@@ -90,6 +91,9 @@ export async function createRunDir({
     [paths.piSessions, paths.snapshots, paths.workspace].map((sub) =>
       mkdir(sub, { recursive: true }),
     ),
+  );
+  await Promise.all(
+    [paths.runs, paths.jev].map((file) => appendFile(file, "")),
   );
   if (flag === undefined) await pruneRuns(runsRoot(home));
   return paths;

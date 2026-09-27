@@ -27,6 +27,7 @@ type World = {
   seq: number;
   agent: StatusJson["agent"];
   calls: string[][];
+  logs: string[];
 };
 
 async function newWorld(overrides: Partial<World> = {}): Promise<World> {
@@ -44,6 +45,7 @@ async function newWorld(overrides: Partial<World> = {}): Promise<World> {
     char: "Fevala",
     exited: false,
     launchFails: false,
+    logs: [],
     now: Date.parse("2026-09-26T21:00:00.000Z"),
     runDir,
     seq: 0,
@@ -192,7 +194,7 @@ function run(
   return runScenario({
     clock: { now: () => world.now },
     exec: worldExec(world),
-    log: () => {},
+    log: (line) => world.logs.push(line),
     preflight,
     replica: 1,
     round: 1,
@@ -245,6 +247,12 @@ describe("runScenario", () => {
         }),
       ],
     ]);
+    const progress = await Bun.file(
+      `${world.runDir}/grader/progress.log`,
+    ).text();
+    expect(progress).toContain(`run dir ${world.runDir}`);
+    expect(progress).toContain("end done");
+    expect(world.logs[0]).toBe(`run dir ${world.runDir}`);
     expect(draft.checks[0]?.observed).toMatchObject({
       baseline: { level: 10 },
       final: { level: 10 },

@@ -62,7 +62,9 @@ describe("createRunDir", () => {
     });
     expect(paths.dir).toBe(join(runsRoot(dir), "20260926T191331Z-Fgk"));
     expect((await readdir(paths.dir)).sort()).toEqual([
+      "jev.jsonl",
       "pi-sessions",
+      "runs.jsonl",
       "snapshots",
       "workspace",
     ]);

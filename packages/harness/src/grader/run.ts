@@ -1,4 +1,6 @@
+import { appendFileSync } from "node:fs";
 import { appendFile, mkdir } from "node:fs/promises";
+import { resolve } from "node:path";
 import { messageOf } from "@tuicraft/core/lib/errors";
 import type { Clock } from "#harness/contract/services";
 import {
@@ -121,17 +123,32 @@ async function headSha({ exec, worktree }: RunInit): Promise<string> {
   return stdout.trim();
 }
 
-async function prepare(init: RunInit): Promise<Live> {
-  const { runDir, tab } = runPaths({
-    replica: init.replica,
-    round: init.round,
-    scenario: init.scenario.id,
-    worktree: init.worktree,
+function progressLogger(init: RunInit, runDir: string): RunInit["log"] {
+  const file = `${runDir}/grader/progress.log`;
+  return (line) => {
+    init.log(line);
+    appendFileSync(
+      file,
+      `${new Date(init.clock.now()).toISOString()} ${line}\n`,
+    );
+  };
+}
+
+async function prepare(given: RunInit): Promise<Live> {
+  const paths = runPaths({
+    replica: given.replica,
+    round: given.round,
+    scenario: given.scenario.id,
+    worktree: given.worktree,
   });
+  const runDir = resolve(paths.runDir);
+  const { tab } = paths;
   if (await Bun.file(`${runDir}/run.json`).exists())
     throw new Error(`run dir already used: ${runDir}`);
   await mkdir(`${runDir}/frames`, { recursive: true });
   await mkdir(`${runDir}/grader`, { recursive: true });
+  const init = { ...given, log: progressLogger(given, runDir) };
+  init.log(`run dir ${runDir}`);
   const sha = await headSha(init);
   await writeJson(`${runDir}/run.json`, {
     replica: init.replica,
@@ -484,7 +501,7 @@ export async function runScenario(init: RunInit): Promise<string> {
     init.preflight ?? navPreflight(),
   );
   if (run.blockedBy.length > 0) {
-    init.log(`blocked ${run.blockedBy.join(", ")}`);
+    run.init.log(`blocked ${run.blockedBy.join(", ")}`);
     return writeOutcome(run);
   }
   try {
