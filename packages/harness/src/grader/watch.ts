@@ -28,8 +28,10 @@ export type LogTail = { read: () => Promise<GameLogEntry[]> };
 
 export const FRAME_EVERY_MS = 5000;
 
+type EventTrigger = Exclude<TriggerName, "task_landed">;
+
 export const TRIGGER_EVENTS: Readonly<
-  Record<TriggerName, readonly LogEvent[]>
+  Record<EventTrigger, readonly LogEvent[]>
 > = {
   answer_text: ["agent/message"],
   death: ["life/dead"],
@@ -43,7 +45,7 @@ const NEWLINE = 10;
 
 const TRIGGER_BY_EVENT: ReadonlyMap<LogEvent, TriggerName> = new Map(
   (
-    Object.entries(TRIGGER_EVENTS) as [TriggerName, readonly LogEvent[]][]
+    Object.entries(TRIGGER_EVENTS) as [EventTrigger, readonly LogEvent[]][]
   ).flatMap(([trigger, events]) =>
     events.map((event) => [event, trigger] as const),
   ),
@@ -70,14 +72,23 @@ export function createLogTail(file: string): LogTail {
   return { read };
 }
 
-export function triggerRows(entries: readonly GameLogEntry[]): TriggerRow[] {
+export function triggerRows(
+  entries: readonly GameLogEntry[],
+  taskLanded = false,
+): TriggerRow[] {
+  let landed = taskLanded;
   return entries.flatMap((entry) => {
-    const trigger = TRIGGER_BY_EVENT.get(entry.event);
-    return trigger === undefined
-      ? []
-      : [{ ms: entry.ts, seq: entry.seq, text: entry.text, trigger }];
+    const found = TRIGGER_BY_EVENT.get(entry.event);
+    if (found === undefined) return [];
+    const task = found === "steer_landed" && !landed;
+    landed ||= task;
+    const trigger: TriggerName = task ? "task_landed" : found;
+    return [{ ms: entry.ts, seq: entry.seq, text: entry.text, trigger }];
   });
 }
+
+export const hasTask = (rows: readonly TriggerRow[]): boolean =>
+  rows.some((row) => row.trigger === "task_landed");
 
 export function lastAnswerAt(
   entries: readonly GameLogEntry[],
@@ -173,12 +184,13 @@ function createJobs({
   const tail = createLogTail(`${runDir}/gamelog.jsonl`);
   const frames = { last: undefined as string | undefined, seq: 0 };
   let answerAt: number | undefined;
+  let taskLanded = false;
   const log = async (): Promise<void> => {
     const rows = await tail.read();
     answerAt = lastAnswerAt(rows, answerAt);
-    const triggers = triggerRows(rows).map(
-      (trigger) => `${JSON.stringify(trigger)}\n`,
-    );
+    const found = triggerRows(rows, taskLanded);
+    taskLanded ||= hasTask(found);
+    const triggers = found.map((trigger) => `${JSON.stringify(trigger)}\n`);
     if (triggers.length > 0)
       await appendFile(`${runDir}/triggers.jsonl`, triggers.join(""));
     const status = await readStatus(`${runDir}/status.json`);

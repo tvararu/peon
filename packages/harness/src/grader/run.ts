@@ -51,6 +51,7 @@ import {
 import { readTruth } from "#harness/grader/truth";
 import {
   createLogTail,
+  hasTask,
   type LogTail,
   lastAnswer,
   progressOf,
@@ -171,6 +172,7 @@ async function prepare(given: RunInit): Promise<Live> {
   const base = newRunState({
     clock,
     exec,
+    log: init.log,
     replica,
     round,
     runDir,
@@ -255,7 +257,7 @@ async function launch(run: Live): Promise<void> {
 
 async function pollLog(run: Live): Promise<void> {
   const rows = await run.tail.read();
-  run.triggers.push(...triggerRows(rows));
+  run.triggers.push(...triggerRows(rows, hasTask(run.triggers)));
   const answer = lastAnswer(rows);
   if (answer !== undefined) {
     run.answerAt = answer.at;
@@ -309,7 +311,7 @@ async function awaitLanded(run: Live, since: number): Promise<void> {
     await pollLog(run);
     if (
       run.triggers.some(
-        (row) => row.trigger === "steer_landed" && row.ms >= since,
+        (row) => row.trigger === "task_landed" && row.ms >= since,
       )
     )
       return;
@@ -501,6 +503,9 @@ function abortOf(err: unknown): NonNullable<EvalResult["abort"]> {
 
 export async function runScenario(init: RunInit): Promise<string> {
   const run = await prepare(init);
+  run.log(
+    `grader log ${run.runDir}/grader/progress.log; write grader notes and command output under ${run.runDir}/grader/, not tmp/`,
+  );
   run.blockedBy = await blockersOf(
     init.scenario,
     init.preflight ?? heldUntilRemoved,

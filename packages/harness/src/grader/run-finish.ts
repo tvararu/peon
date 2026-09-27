@@ -57,15 +57,17 @@ export type RunState = {
   notes: string[];
   blockedBy: string[];
   steersFired: number;
+  log: (line: string) => void;
 };
 
 export type RunStateInit = Pick<
   RunState,
   "exec" | "clock" | "scenario" | "round" | "replica" | "runDir" | "tab" | "sha"
-> & { truthWaitMs?: number };
+> & { truthWaitMs?: number; log: (line: string) => void };
 
 export function newRunState({
   truthWaitMs = 10_000,
+  log,
   ...init
 }: RunStateInit): RunState {
   return {
@@ -80,6 +82,7 @@ export function newRunState({
     firstToolAt: undefined,
     interventions: [],
     leaks: [],
+    log,
     notes: [],
     pane: undefined,
     partner: undefined,
@@ -107,8 +110,10 @@ async function attempt(
 ): Promise<void> {
   try {
     await job();
+    st.log(`cleanup ${what} done`);
   } catch (err) {
     st.notes.push(`${what}: ${messageOf(err)}`);
+    st.log(`cleanup ${what} failed: ${messageOf(err)}`);
   }
 }
 
@@ -153,7 +158,9 @@ async function deleteAll(st: RunState, accounts: string[]): Promise<void> {
   if (accounts.length === 0) return;
   try {
     st.cleanupFailed = await deleteAccounts({ accounts, exec: st.exec });
+    st.log(`cleanup delete done (${st.cleanupFailed.length} failed)`);
   } catch (err) {
+    st.log(`cleanup delete failed: ${messageOf(err)}`);
     st.cleanupFailed = [...accounts];
     st.notes.push(`delete: ${messageOf(err)}`);
   }
@@ -206,15 +213,16 @@ async function evidenceOf(st: RunState): Promise<EvalEvidence> {
     (names) => names.length,
     () => 0,
   );
-  const final = st.finalSavedAt === undefined ? undefined : "final.json";
+  const present = async (file: string): Promise<string | undefined> =>
+    (await Bun.file(`${st.runDir}/${file}`).exists()) ? file : undefined;
   return {
-    baseline: "baseline.json",
-    final,
+    baseline: await present("baseline.json"),
+    final: st.finalSavedAt === undefined ? undefined : "final.json",
     finalSavedAt: st.finalSavedAt,
     frames,
-    gameLog: "gamelog.jsonl",
+    gameLog: await present("gamelog.jsonl"),
     runDir: st.runDir,
-    session: "session.jsonl",
+    session: await present("session.jsonl"),
   };
 }
 
@@ -286,5 +294,6 @@ export async function writeOutcome(st: RunState): Promise<string> {
     final ? `${st.runDir}/result.json` : `${st.runDir}/grader/draft.json`,
     result,
   );
+  st.log(final ? "result written" : "draft written");
   return summaryLine(result, final ? result.verdict : "draft");
 }

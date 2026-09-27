@@ -254,7 +254,23 @@ describe("runScenario", () => {
     ).text();
     expect(progress).toContain(`run dir ${world.runDir}`);
     expect(progress).toContain("end done");
+    for (const step of [
+      "watcher",
+      "quit",
+      "final truth",
+      "delete",
+      "leak check",
+      "concurrent",
+      "session files",
+    ])
+      expect(progress).toContain(`cleanup ${step} done`);
+    expect(progress).toContain("draft written");
     expect(world.logs[0]).toBe(`run dir ${world.runDir}`);
+    expect(world.logs[1]).toBe(
+      `grader log ${world.runDir}/grader/progress.log; write grader notes and command output under ${world.runDir}/grader/, not tmp/`,
+    );
+    const triggers = await jsonLines(`${world.runDir}/triggers.jsonl`);
+    expect(triggers[0]?.["trigger"]).toBe("task_landed");
     expect(draft.checks[0]?.observed).toMatchObject({
       baseline: { level: 10 },
       final: { level: 10 },
@@ -438,6 +454,7 @@ describe("runScenario", () => {
       "preflight: map-0-navigation is still missing",
     );
     expect(world.calls.some((call) => call[3] === "create")).toBe(false);
+    expect(result.evidence).toEqual({ frames: 0, runDir: world.runDir });
   });
 
   test("a trigger steer that never fired drafts the run as blocked", async () => {

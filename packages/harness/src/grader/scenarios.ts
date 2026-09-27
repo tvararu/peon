@@ -36,7 +36,8 @@ export type TriggerName =
   | "death"
   | "movement_start"
   | "answer_text"
-  | "steer_landed";
+  | "steer_landed"
+  | "task_landed";
 
 export type SteerAt =
   | { kind: "trigger"; trigger: TriggerName; nth?: number; delayMs?: number }

@@ -64,6 +64,21 @@ describe("TRIGGER_EVENTS", () => {
 });
 
 describe("triggerRows", () => {
+  test("tags the first human input as the task and later ones as steers", () => {
+    const rows = [
+      row(1, 100, "human/input", "Kill three cats."),
+      row(2, 200, "human/input", "Stop!"),
+    ];
+    expect(triggerRows(rows).map((entry) => entry.trigger)).toEqual([
+      "task_landed",
+      "steer_landed",
+    ]);
+    expect(triggerRows(rows, true).map((entry) => entry.trigger)).toEqual([
+      "steer_landed",
+      "steer_landed",
+    ]);
+  });
+
   test("keeps only trigger events, with ts, seq and text", () => {
     const rows = [
       row(1, 100, "session/in_world"),

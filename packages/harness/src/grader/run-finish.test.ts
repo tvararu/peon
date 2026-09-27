@@ -77,6 +77,7 @@ async function state(
   const base = newRunState({
     clock: { now: () => NOW },
     exec,
+    log: () => undefined,
     replica: 1,
     round: 1,
     runDir,
