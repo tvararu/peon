@@ -1,11 +1,14 @@
 import {
   type ControlPose,
+  type CycleState,
   type GotoTarget,
   type NavigationState,
   nextStepFor,
+  type TacticsOutcome,
   type WorldHandle,
 } from "@tuicraft/core";
 import { messageOf } from "@tuicraft/core/lib/errors";
+import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
 
 export type GotoEnd = {
   status: "arrived" | "refused" | "stopped";
@@ -107,4 +110,133 @@ export async function awaitGoto(
     return gotoEnd({ from, handle, refusal: blockedReason, status: "stopped" });
   const status = blockedReason === undefined ? "arrived" : "refused";
   return gotoEnd({ from, handle, refusal: blockedReason, status });
+}
+
+export type FightEnd = {
+  outcome: TacticsOutcome | undefined;
+  error: string | undefined;
+};
+export type CycleEnd = { state: CycleState; error: string | undefined };
+
+const JEV_UNAVAILABLE = "jev_unavailable";
+
+type TacticsInit = { guid: bigint; instruction: string; signal: AbortSignal };
+type CycleInit = {
+  guids: bigint[];
+  instruction: string;
+  maxStarts: number;
+  signal: AbortSignal;
+};
+type QuestCycleInit = {
+  questId: number;
+  sources: number[];
+  instruction: string;
+  maxStarts: number | undefined;
+  signal: AbortSignal;
+};
+type CycleWait = {
+  handle: WorldHandle;
+  signal: AbortSignal;
+  start: () => Promise<void>;
+};
+
+function watchFight(handle: WorldHandle, hex: string) {
+  let runId: string | undefined;
+  let outcome: TacticsOutcome | undefined;
+  let done: () => void = ignoreFailure;
+  const ended = new Promise<void>((resolve) => {
+    done = resolve;
+  });
+  const stop = handle.onTacticsEvent((event) => {
+    if (event.type === "started" && event.targetGuid === hex)
+      runId = event.runId;
+    if (runId === undefined || event.runId !== runId) return;
+    if (event.type === "outcome") {
+      outcome = {
+        observation: event.observation,
+        reason: event.reason,
+        status: event.status,
+      };
+      done();
+    }
+    if (event.type === "stopped") {
+      outcome ??= event.state.lastOutcome;
+      done();
+    }
+  });
+  return { ended, outcome: () => outcome, stop };
+}
+
+export async function awaitTactics(
+  handle: WorldHandle,
+  { guid, instruction, signal }: TacticsInit,
+): Promise<FightEnd> {
+  const watch = watchFight(handle, `0x${guid.toString(16)}`);
+  const onAbort = () => handle.halt();
+  signal.addEventListener("abort", onAbort, { once: true });
+  try {
+    await Promise.race([
+      handle.startTactics(guid, instruction, signal),
+      watch.ended,
+    ]);
+    return {
+      error: undefined,
+      outcome: watch.outcome() ?? handle.getTacticsState().lastOutcome,
+    };
+  } catch (error) {
+    return { error: messageOf(error), outcome: watch.outcome() };
+  } finally {
+    watch.stop();
+    signal.removeEventListener("abort", onAbort);
+  }
+}
+
+async function cycleEnd({
+  handle,
+  signal,
+  start,
+}: CycleWait): Promise<CycleEnd> {
+  let unsubscribe: () => void = ignoreFailure;
+  const stopped = new Promise<void>((resolve) => {
+    unsubscribe = handle.onCycleEvent((event) => {
+      if (event.type === "stopped") resolve();
+    });
+  });
+  const onAbort = () => handle.stopCycle();
+  signal.addEventListener("abort", onAbort, { once: true });
+  try {
+    await Promise.race([stopped, start().then(() => stopped)]);
+    return { error: undefined, state: handle.getCycleState() };
+  } catch (error) {
+    return { error: messageOf(error), state: handle.getCycleState() };
+  } finally {
+    unsubscribe();
+    signal.removeEventListener("abort", onAbort);
+  }
+}
+
+export function awaitCycle(
+  handle: WorldHandle,
+  { guids, instruction, maxStarts, signal }: CycleInit,
+): Promise<CycleEnd> {
+  return cycleEnd({
+    handle,
+    signal,
+    start: () => handle.startCycle(guids, instruction, maxStarts),
+  });
+}
+
+export function awaitQuestCycle(
+  handle: WorldHandle,
+  init: QuestCycleInit,
+): Promise<CycleEnd> {
+  const { questId, sources, instruction, maxStarts, signal } = init;
+  const start = () =>
+    handle.startQuestCycle(questId, sources, instruction, maxStarts);
+  return cycleEnd({ handle, signal, start });
+}
+
+export function jevCode({ outcome, error }: FightEnd): string | undefined {
+  if (outcome?.reason === "jev_timeout") return JEV_UNAVAILABLE;
+  return error?.startsWith(JEV_UNAVAILABLE) ? JEV_UNAVAILABLE : undefined;
 }

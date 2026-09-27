@@ -1,11 +1,20 @@
 import { describe, expect, jest, test } from "bun:test";
 import {
   type ControlPose,
+  JevUnavailableError,
   type NavigationState,
   nextStepFor,
+  type TacticsEvent,
 } from "@tuicraft/core";
 import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
-import { awaitGoto, rawRefusal } from "#harness/runs/adapters";
+import {
+  awaitCycle,
+  awaitGoto,
+  awaitQuestCycle,
+  awaitTactics,
+  jevCode,
+  rawRefusal,
+} from "#harness/runs/adapters";
 
 const target = { kind: "point" as const, x: 10, y: 0 };
 const idle: NavigationState = {
@@ -165,5 +174,214 @@ describe("awaitGoto", () => {
     controller.abort(new Error("esc"));
     expect((await waiting).status).toBe("stopped");
     expect(handle.halt).toHaveBeenCalled();
+  });
+});
+
+function started(runId: string, guid: bigint): TacticsEvent {
+  return {
+    framing: "none",
+    instruction: "fight",
+    runId,
+    targetGuid: `0x${guid.toString(16)}`,
+    type: "started",
+  };
+}
+
+describe("awaitTactics", () => {
+  test("ends on the outcome of its own run", async () => {
+    const handle = createMockHandle();
+    handle.startTactics = jest.fn(() => new Promise<void>(() => {}));
+    const waiting = awaitTactics(handle, {
+      guid: 0x2an,
+      instruction: "fight",
+      signal: new AbortController().signal,
+    });
+    handle.triggerTacticsEvent(started("other", 0x3bn));
+    handle.triggerTacticsEvent({
+      reason: "server_kill_credit",
+      runId: "other",
+      status: "completed",
+      type: "outcome",
+    });
+    handle.triggerTacticsEvent(started("t1", 0x2an));
+    handle.triggerTacticsEvent({
+      reason: "server_kill_credit",
+      runId: "t1",
+      status: "completed",
+      type: "outcome",
+    });
+    expect(await waiting).toEqual({
+      error: undefined,
+      outcome: {
+        observation: undefined,
+        reason: "server_kill_credit",
+        status: "completed",
+      },
+    });
+  });
+
+  test("takes the last outcome when stopped comes without one", async () => {
+    const handle = createMockHandle();
+    handle.startTactics = jest.fn(() => new Promise<void>(() => {}));
+    const waiting = awaitTactics(handle, {
+      guid: 0x2an,
+      instruction: "fight",
+      signal: new AbortController().signal,
+    });
+    handle.triggerTacticsEvent(started("t1", 0x2an));
+    const state = {
+      ...handle.getTacticsState(),
+      lastOutcome: { reason: "target_lost", status: "blocked" as const },
+    };
+    handle.triggerTacticsEvent({
+      reason: "halt",
+      runId: "t1",
+      state,
+      type: "stopped",
+    });
+    expect((await waiting).outcome).toEqual({
+      reason: "target_lost",
+      status: "blocked",
+    });
+  });
+
+  test("catches a synchronous throw", async () => {
+    const handle = createMockHandle();
+    handle.startTactics = jest.fn(() => {
+      throw new Error("self_not_alive");
+    });
+    const end = await awaitTactics(handle, {
+      guid: 1n,
+      instruction: "fight",
+      signal: new AbortController().signal,
+    });
+    expect(end).toEqual({ error: "self_not_alive", outcome: undefined });
+  });
+
+  test("catches a rejected start and maps it to jev_unavailable", async () => {
+    const handle = createMockHandle();
+    handle.startTactics = jest.fn(async () => {
+      throw new JevUnavailableError("missing_jev_key");
+    });
+    const end = await awaitTactics(handle, {
+      guid: 1n,
+      instruction: "fight",
+      signal: new AbortController().signal,
+    });
+    expect(end.error).toBe("jev_unavailable: missing_jev_key");
+    expect(jevCode(end)).toBe("jev_unavailable");
+  });
+
+  test("halts on abort", async () => {
+    const handle = createMockHandle();
+    const controller = new AbortController();
+    handle.startTactics = jest.fn(() => new Promise<void>(() => {}));
+    const waiting = awaitTactics(handle, {
+      guid: 1n,
+      instruction: "fight",
+      signal: controller.signal,
+    });
+    controller.abort(new Error("esc"));
+    handle.triggerTacticsEvent(started("t1", 1n));
+    handle.triggerTacticsEvent({
+      reason: "cancelled",
+      runId: "t1",
+      status: "failed",
+      type: "outcome",
+    });
+    await waiting;
+    expect(handle.halt).toHaveBeenCalled();
+  });
+});
+
+describe("jevCode", () => {
+  test("maps jev_timeout and leaves other outcomes", () => {
+    expect(
+      jevCode({
+        error: undefined,
+        outcome: { reason: "jev_timeout", status: "failed" },
+      }),
+    ).toBe("jev_unavailable");
+    expect(
+      jevCode({
+        error: undefined,
+        outcome: { reason: "server_kill_credit", status: "completed" },
+      }),
+    ).toBeUndefined();
+    expect(
+      jevCode({ error: "self_not_alive", outcome: undefined }),
+    ).toBeUndefined();
+  });
+});
+
+describe("awaitCycle", () => {
+  test("ends at the stopped cycle event", async () => {
+    const handle = createMockHandle();
+    const base = handle.getCycleState();
+    handle.startCycle = jest.fn(async () => {});
+    handle.getCycleState = () => ({
+      ...base,
+      active: false,
+      stopCause: "queue_done",
+    });
+    const waiting = awaitCycle(handle, {
+      guids: [1n, 2n],
+      instruction: "fight",
+      maxStarts: 3,
+      signal: new AbortController().signal,
+    });
+    handle.triggerCycleEvent({
+      at: 0,
+      state: handle.getCycleState(),
+      type: "stopped",
+    });
+    expect(await waiting).toMatchObject({
+      error: undefined,
+      state: { active: false, stopCause: "queue_done" },
+    });
+    expect(handle.startCycle).toHaveBeenCalledWith([1n, 2n], "fight", 3);
+  });
+
+  test("returns the error of a rejected start", async () => {
+    const handle = createMockHandle();
+    handle.startCycle = jest.fn(async () => {
+      throw new Error("cycle_empty_queue");
+    });
+    const end = await awaitCycle(handle, {
+      guids: [],
+      instruction: "fight",
+      maxStarts: 1,
+      signal: new AbortController().signal,
+    });
+    expect(end.error).toBe("cycle_empty_queue");
+  });
+
+  test("stops the cycle on abort", async () => {
+    const handle = createMockHandle();
+    const controller = new AbortController();
+    handle.startQuestCycle = jest.fn(() => new Promise<void>(() => {}));
+    handle.stopCycle = jest.fn(() => {
+      handle.triggerCycleEvent({
+        at: 0,
+        state: handle.getCycleState(),
+        type: "stopped",
+      });
+    });
+    const waiting = awaitQuestCycle(handle, {
+      instruction: "fight",
+      maxStarts: undefined,
+      questId: 8325,
+      signal: controller.signal,
+      sources: [15_366],
+    });
+    controller.abort(new Error("human_stop"));
+    await waiting;
+    expect(handle.stopCycle).toHaveBeenCalled();
+    expect(handle.startQuestCycle).toHaveBeenCalledWith(
+      8325,
+      [15_366],
+      "fight",
+      undefined,
+    );
   });
 });
