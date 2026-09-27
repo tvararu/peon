@@ -59,18 +59,32 @@ async function opcodeNames(tree: Tree): Promise<Names> {
 const lineCount = (text: string) =>
   text.split("\n").length - (text.endsWith("\n") ? 1 : 0);
 
-function matchScopes(citation: Citation, text: string, names: Names): Outcome {
-  const scopes = [...new Set(citation.lines.map((l) => scopeText(text, l)))];
-  for (const opcode of citation.opcodes) {
-    for (const name of names[opcode] ?? [opcode]) {
-      if (scopes.some((s) => mentions(s, name))) {
-        return { detail: `names ${name}`, verdict: "ok" };
-      }
-    }
+function scopes(citation: Citation, text: string): [number, string][] {
+  const byScope = new Map<string, number>();
+  for (const line of citation.lines) {
+    const scope = scopeText(text, line);
+    if (!byScope.has(scope)) byScope.set(scope, line);
   }
-  const head = (scopes[0] ?? "").trim().split("\n")[0]?.trim() ?? "";
-  const detail = `${head} names none of ${citation.opcodes.join(", ")}`;
-  return { detail, verdict: "mismatch" };
+  return [...byScope].map(([scope, line]) => [line, scope]);
+}
+
+const namedIn = (scope: string, opcodes: string[], names: Names) =>
+  opcodes
+    .flatMap((opcode) => names[opcode] ?? [opcode])
+    .find((name) => mentions(scope, name));
+
+function matchScopes(citation: Citation, text: string, names: Names): Outcome {
+  const named: string[] = [];
+  for (const [line, scope] of scopes(citation, text)) {
+    const name = namedIn(scope, citation.opcodes, names);
+    if (!name) {
+      const head = scope.trim().split("\n")[0]?.trim() || "a blank line";
+      const detail = `line ${line}: ${head} names none of ${citation.opcodes.join(", ")}`;
+      return { detail, verdict: "mismatch" };
+    }
+    named.push(name);
+  }
+  return { detail: `names ${[...new Set(named)].join(", ")}`, verdict: "ok" };
 }
 
 async function judge(

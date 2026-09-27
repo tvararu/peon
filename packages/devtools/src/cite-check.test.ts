@@ -98,7 +98,18 @@ describe("checkCitations", () => {
     ).toEqual([
       [
         "mismatch",
-        "/*0x042*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_LOGIN_SETTIMESPEED, STATUS_NEVER); names none of CMSG_QUERY_TIME",
+        "line 3: /*0x042*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_LOGIN_SETTIMESPEED, STATUS_NEVER); names none of CMSG_QUERY_TIME",
+      ],
+    ]);
+  });
+
+  test("checks every line of a comma list", async () => {
+    expect(
+      await check("- CMSG_QUERY_TIME: `Server/Protocol/Opcodes.cpp:3,4`\n"),
+    ).toEqual([
+      [
+        "mismatch",
+        "line 3: /*0x042*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_LOGIN_SETTIMESPEED, STATUS_NEVER); names none of CMSG_QUERY_TIME",
       ],
     ]);
   });
@@ -109,7 +120,7 @@ describe("checkCitations", () => {
     ).toEqual([
       [
         "mismatch",
-        "void ByteBuffer::AppendPackedTime(time_t time) names none of SMSG_LOGIN_SETTIMESPEED",
+        "line 1: void ByteBuffer::AppendPackedTime(time_t time) names none of SMSG_LOGIN_SETTIMESPEED",
       ],
     ]);
   });
