@@ -8,8 +8,12 @@ not a target.
 
 - Tests are colocated (`foo.ts` → `foo.test.ts`) and import from
   `bun:test`. `mise test` runs them all; `mise test <file>` runs one.
-- The suite should finish in a few seconds: a test that waits on a real
-  timer or bound takes an injected value or fake timers instead.
+- `mise test` runs files in parallel worker processes, one per core.
+  Files in one worker share its globals and module registry, as they do
+  in a serial `bun test`, and a file never depends on which files share
+  its worker. The suite should finish in a few seconds: a test that
+  waits on a real timer or bound takes an injected value or fake timers
+  instead.
 - Shared setup goes in `packages/<pkg>/test-support/<name>-fixtures.ts`.
   `packages/core/test-support/mock-handle.ts` is the shared `WorldHandle`
   mock: add new `WorldHandle` methods to it.
@@ -20,6 +24,10 @@ not a target.
 - Tests that spawn git use `git()` or `gitEnv()` from
   `packages/factory/test-support/git.ts`, which strip `GIT_*`: an
   inherited `GIT_DIR` makes `git init` write into another repository.
+  The `mise test` tasks run the suite through
+  `packages/devtools/src/git-env-guard.ts`, which exports `GIT_DIR` to a
+  sandbox repository and fails the run if either repository's config
+  changed.
 - Scratch files go in `./tmp/`, never `/tmp/`, and `tmp/` never holds a
   `.test.ts` file, because `bun test` scans it. macOS `tmpdir()` is not
   `/tmp/`, so never hard-code that path. `scratchDir(prefix)` from

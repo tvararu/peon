@@ -18,21 +18,21 @@ hk install --mise
 '''
 
 [tasks.test]
-description = "Run all tests"
+description = "Run all tests in parallel, failing if one writes git config"
 raw = true
-run = "bun test"
+run = "bun packages/devtools/src/git-env-guard.ts bun test --parallel --no-isolate"
 
 [tasks."test:coverage"]
-description = "Run tests with coverage report"
+description = "Run tests in parallel with coverage report"
 raw = true
-run = "bun test --coverage"
+run = "bun packages/devtools/src/git-env-guard.ts bun test --parallel --no-isolate --coverage"
 
 [tasks."test:slowest"]
 description = "Show 10 slowest tests"
 raw = true
 run = '''
-bun test --reporter=junit \
-  --reporter-outfile=tmp/junit.xml && \
+bun packages/devtools/src/git-env-guard.ts bun test --parallel --no-isolate \
+  --reporter=junit --reporter-outfile=tmp/junit.xml && \
 sed -n 's/.*<testcase name="\([^"]*\)".* time="\([^"]*\)".*/\2\t\1/p' \
   tmp/junit.xml | sort -rn | head -10 \
   | awk -F'	' '{printf "%7.1fms  %s\n",$1*1000,$2}'
@@ -71,11 +71,19 @@ description = "Run local typecheck, coverage tests, format, lint and docs checks
 depends = ["typecheck", "test:coverage", "format", "lint", "lint:docs"]
 
 [tasks.typecheck]
-description = "Type-check the whole repo and each package, or one package"
-usage = 'arg "[package]" help="core, factory, devtools or harness; omit to check the repo and every package"'
+description = "Type-check every package and vendor/ in parallel, or one package"
+usage = 'arg "[package]" help="core, factory, devtools or harness; omit to check every package and vendor/"'
 run = '''
 case "${usage_package:-}" in
-  "") exec bun run typecheck ;;
+  "")
+    pids=
+    for project in vendor packages/core packages/factory packages/devtools packages/harness; do
+      bun run tsc --noEmit -p "$project" &
+      pids="$pids $!"
+    done
+    status=0
+    for pid in $pids; do wait "$pid" || status=1; done
+    exit "$status" ;;
   core|factory|devtools|harness) exec bun run tsc --noEmit -p "packages/${usage_package}" ;;
   *) echo "usage: mise typecheck [package]: unknown package '${usage_package}'; valid names: core, factory, devtools, harness" >&2; exit 2 ;;
 esac
