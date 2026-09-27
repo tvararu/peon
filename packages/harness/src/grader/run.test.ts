@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import type { StatusJson } from "#harness/contract/config";
 import type { Domain, GameLogEntry, LogEvent } from "#harness/contract/log";
 import { bunExec, type Exec, type ExecResult } from "#harness/grader/exec";
+import type { Preflight } from "#harness/grader/preflight";
 import { type EvalResult, validateResult } from "#harness/grader/result";
 import { runPaths, runScenario } from "#harness/grader/run";
 import { loadScenario, type Scenario } from "#harness/grader/scenarios";
@@ -179,7 +180,11 @@ function worldExec(world: World): Exec {
   };
 }
 
-function run(world: World, scenario: Scenario = SELF_STATE): Promise<string> {
+function run(
+  world: World,
+  scenario: Scenario = SELF_STATE,
+  preflight: Preflight = async () => true,
+): Promise<string> {
   const sleep = async (ms: number): Promise<void> => {
     world.now += ms;
     await writeStatus(world);
@@ -188,6 +193,7 @@ function run(world: World, scenario: Scenario = SELF_STATE): Promise<string> {
     clock: { now: () => world.now },
     exec: worldExec(world),
     log: () => {},
+    preflight,
     replica: 1,
     round: 1,
     scenario,
@@ -354,6 +360,59 @@ describe("runScenario", () => {
     ).json()) as EvalResult;
     expect(draft.end).toBe("done");
     expect(draft.efficiency.wallSec).toBeGreaterThanOrEqual(60);
+  });
+
+  test("a scenario still blocked at preflight grades blocked and creates no account", async () => {
+    const world = await newWorld();
+    const scenario: Scenario = {
+      ...SELF_STATE,
+      blockedBy: ["map-0-navigation"],
+    };
+    expect(await run(world, scenario, async () => true)).toStartWith(
+      "t0-self-state-1 blocked 0/5 ",
+    );
+    const result = (await Bun.file(
+      `${world.runDir}/result.json`,
+    ).json()) as EvalResult;
+    expect(validateResult(result)).toEqual([]);
+    expect(result.verdict).toBe("blocked");
+    expect(result.blockedBy).toEqual(["map-0-navigation"]);
+    expect(result.verdictReason).toBe(
+      "preflight: map-0-navigation is still missing",
+    );
+    expect(world.calls.some((call) => call[3] === "create")).toBe(false);
+  });
+
+  test("a trigger steer that never fired drafts the run as blocked", async () => {
+    const world = await newWorld();
+    const scenario: Scenario = {
+      ...SELF_STATE,
+      steers: [
+        { at: { kind: "trigger", trigger: "death" }, text: "You died." },
+      ],
+    };
+    await run(world, scenario);
+    const draft = (await Bun.file(
+      `${world.runDir}/grader/draft.json`,
+    ).json()) as EvalResult;
+    expect(validateResult(draft)).toEqual([]);
+    expect(draft.end).toBe("stuck");
+    expect(draft.verdict).toBe("blocked");
+    expect(draft.blockedBy).toEqual(["no_death"]);
+    expect(draft.verdictReason).toStartWith(
+      "no_death: the death steer never fired",
+    );
+  });
+
+  test("a lifted blocker lets the run go ahead", async () => {
+    const world = await newWorld();
+    const scenario: Scenario = {
+      ...SELF_STATE,
+      blockedBy: ["map-0-navigation"],
+    };
+    expect(await run(world, scenario, async () => false)).toStartWith(
+      "t0-self-state-1 draft ",
+    );
   });
 
   test("refuses a run dir that was used before", async () => {

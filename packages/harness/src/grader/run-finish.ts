@@ -54,6 +54,8 @@ export type RunState = {
   cleanupFailed: string[];
   leaks: string[];
   notes: string[];
+  blockedBy: string[];
+  steersFired: number;
 };
 
 export type RunStateInit = Pick<
@@ -69,6 +71,7 @@ export function newRunState({
     ...init,
     abort: undefined,
     agent: undefined,
+    blockedBy: [],
     cleanupFailed: [],
     end: undefined,
     exitMs: undefined,
@@ -79,6 +82,7 @@ export function newRunState({
     notes: [],
     pane: undefined,
     partner: undefined,
+    steersFired: 0,
     taskMs: undefined,
     truthWaitMs,
     watcher: undefined,
@@ -214,6 +218,32 @@ async function evidenceOf(st: RunState): Promise<EvalEvidence> {
   };
 }
 
+type Verdict = Pick<EvalResult, "blockedBy" | "verdict" | "verdictReason">;
+
+function unfiredTrigger(st: RunState): string | undefined {
+  const next = st.scenario.steers[st.steersFired];
+  return next?.at.kind === "trigger" ? next.at.trigger : undefined;
+}
+
+function verdictOf(st: RunState): Verdict {
+  if (st.abort !== undefined)
+    return { verdict: "aborted", verdictReason: st.abort.cause };
+  if (st.blockedBy.length > 0)
+    return {
+      blockedBy: st.blockedBy,
+      verdict: "blocked",
+      verdictReason: `preflight: ${st.blockedBy.join(", ")} is still missing`,
+    };
+  const trigger = st.end === undefined ? undefined : unfiredTrigger(st);
+  if (trigger === undefined)
+    return { verdict: "fail", verdictReason: DRAFT_REASON };
+  return {
+    blockedBy: [`no_${trigger}`],
+    verdict: "blocked",
+    verdictReason: `no_${trigger}: the ${trigger} steer never fired; ${DRAFT_REASON}`,
+  };
+}
+
 async function draftResult(st: RunState): Promise<EvalResult> {
   const now = st.clock.now();
   const taskMs = st.taskMs ?? now;
@@ -222,6 +252,7 @@ async function draftResult(st: RunState): Promise<EvalResult> {
     st.firstToolAt === undefined ? undefined : st.firstToolAt - taskMs;
   const aborted = st.abort !== undefined;
   return {
+    ...verdictOf(st),
     abort: st.abort,
     accounts: accountsOf(st),
     checks: st.scenario.checks.map(stubCheck),
@@ -242,8 +273,6 @@ async function draftResult(st: RunState): Promise<EvalResult> {
     scenario: st.scenario.id,
     sha: st.sha,
     tab: st.tab,
-    verdict: aborted ? "aborted" : "fail",
-    verdictReason: st.abort?.cause ?? DRAFT_REASON,
   };
 }
 
@@ -252,10 +281,10 @@ export async function writeOutcome(st: RunState): Promise<string> {
   const errors = validateResult(JSON.parse(JSON.stringify(result)));
   if (errors.length > 0)
     throw new Error(`the draft result breaks the schema: ${errors.join("; ")}`);
-  const aborted = result.verdict === "aborted";
+  const final = result.verdict === "aborted" || st.blockedBy.length > 0;
   await writeJson(
-    aborted ? `${st.runDir}/result.json` : `${st.runDir}/grader/draft.json`,
+    final ? `${st.runDir}/result.json` : `${st.runDir}/grader/draft.json`,
     result,
   );
-  return summaryLine(result, aborted ? "aborted" : "draft");
+  return summaryLine(result, final ? result.verdict : "draft");
 }

@@ -17,6 +17,11 @@ import {
   readPartner,
   stepPartner,
 } from "#harness/grader/partner";
+import {
+  blockersOf,
+  navPreflight,
+  type Preflight,
+} from "#harness/grader/preflight";
 import type { EvalResult } from "#harness/grader/result";
 import {
   cleanup,
@@ -69,6 +74,7 @@ export type RunInit = {
   round: number;
   replica: number;
   truthWaitMs?: number;
+  preflight?: Preflight;
 };
 
 type Live = RunState & {
@@ -320,6 +326,7 @@ async function steer(run: Live, now: number): Promise<void> {
   run.interventions.push({ kind: "steer", ms: now, text: due.text });
   run.cursor = { index: run.cursor.index + 1, since: now };
   run.lastSteerAt = now;
+  run.steersFired = run.cursor.index;
   run.init.log(`steer ${run.cursor.index}`);
 }
 
@@ -463,6 +470,14 @@ function abortOf(err: unknown): NonNullable<EvalResult["abort"]> {
 
 export async function runScenario(init: RunInit): Promise<string> {
   const run = await prepare(init);
+  run.blockedBy = await blockersOf(
+    init.scenario,
+    init.preflight ?? navPreflight(),
+  );
+  if (run.blockedBy.length > 0) {
+    init.log(`blocked ${run.blockedBy.join(", ")}`);
+    return writeOutcome(run);
+  }
   try {
     await play(run);
   } catch (err) {
