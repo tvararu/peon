@@ -192,21 +192,26 @@ function moreLine({ more, within }: LookAfter): string[] {
   ];
 }
 
-function lastSeenText(unit: UnitView): string {
-  return `last seen ${distanceText(unit)} ${ageText(unit.seenAgoMs)} ago (not in view)`;
+function lastSeenText(unit: UnitView, then: readonly string[]): string {
+  const was = then.length > 0 ? `, then ${then.join(", ")}` : "";
+  return `last seen ${distanceText(unit)} ${ageText(unit.seenAgoMs)} ago${was} (not in view)`;
 }
 
 function rowLine(unit: UnitView): string {
-  const traits = [
-    unit.kind === "player" ? "player" : undefined,
-    unit.relation,
-    unit.roles.length > 0 ? unit.roles.join(" ") : undefined,
+  const volatile = [
     unit.alive ? undefined : "dead",
     unit.lootable ? "lootable" : undefined,
     unit.attackingMe ? "attacking you" : undefined,
     unit.targetsMe && !unit.attackingMe ? "targets you" : undefined,
     unit.tappedByOther ? "tapped by another player" : undefined,
-    unit.inView ? distanceText(unit) : lastSeenText(unit),
+  ].filter((trait) => trait !== undefined);
+  const traits = [
+    unit.kind === "player" ? "player" : undefined,
+    unit.relation,
+    unit.roles.length > 0 ? unit.roles.join(" ") : undefined,
+    ...(unit.inView
+      ? [...volatile, distanceText(unit)]
+      : [lastSeenText(unit, volatile)]),
   ];
   return `- ${unit.ref} ${unit.name} L${unit.level} ${traits.filter((trait) => trait !== undefined).join(", ")}`;
 }

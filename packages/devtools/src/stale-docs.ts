@@ -83,6 +83,10 @@ const sources = [
 
 const globTail = /\/[^/]*[*{<].*$/;
 const trailing = /[/.,:;]+$/;
+const CAPABILITIES = "docs/capabilities.md";
+const SCENARIOS = "packages/harness/src/grader/scenarios";
+const scenarioRef = /`(t\d+-[a-z0-9-]+)`/g;
+const jsonSuffix = /\.json$/;
 
 function deadPathRule(exists: Exists): Rule {
   return {
@@ -116,6 +120,36 @@ export function staleFindings(
     .sort((a, b) => a.line - b.line);
 }
 
+export function capabilityFindings(
+  doc: Doc,
+  scenarios: readonly string[],
+): Finding[] {
+  const listed = new Set(
+    [...doc.text.matchAll(scenarioRef)].map(([, id]) => id),
+  );
+  const unknown = findings(doc, {
+    allow: (match) => scenarios.includes(match.slice(1, -1)),
+    pattern: scenarioRef,
+    reason: "names an eval scenario that does not exist",
+  });
+  const missing = scenarios
+    .filter((id) => !listed.has(id))
+    .map((id) => ({
+      line: 1,
+      match: id,
+      path: doc.path,
+      reason: "leaves out an eval scenario: list it under a capability",
+    }));
+  return [...unknown, ...missing];
+}
+
+async function scenarioIds(root: string): Promise<string[]> {
+  const ids: string[] = [];
+  for await (const file of new Bun.Glob("*.json").scan(`${root}/${SCENARIOS}`))
+    ids.push(file.replace(jsonSuffix, ""));
+  return ids.sort();
+}
+
 async function load(root: string): Promise<Doc[]> {
   const docs = new Map<string, Doc>();
   for (const pattern of sources) {
@@ -137,9 +171,17 @@ async function load(root: string): Promise<Doc[]> {
 
 async function main(): Promise<void> {
   const root = process.cwd();
-  const found = (await load(root)).flatMap((doc) =>
-    staleFindings(doc, (path) => existsSync(`${root}/${path}`)),
-  );
+  const docs = await load(root);
+  const capabilities = docs.find((doc) => doc.path === CAPABILITIES) ?? {
+    path: CAPABILITIES,
+    text: "",
+  };
+  const found = [
+    ...docs.flatMap((doc) =>
+      staleFindings(doc, (path) => existsSync(`${root}/${path}`)),
+    ),
+    ...capabilityFindings(capabilities, await scenarioIds(root)),
+  ];
   for (const f of found)
     console.error(`${f.path}:${f.line}: ${f.reason}: ${f.match}`);
   if (found.length === 0) return;

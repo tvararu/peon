@@ -26,6 +26,8 @@ that lands as one squash commit once `signoff/ci`, `factory/ci` and
 
 - [AGENTS.md](AGENTS.md): the rules every agent follows here.
 - [docs/harness.md](docs/harness.md): the Pi harness, the way to play.
+- [docs/capabilities.md](docs/capabilities.md): what a character can do,
+  the scenario that proves it, and its limits.
 - [docs/evals.md](docs/evals.md): the eval scenarios and how to grade them.
 - [docs/testing.md](docs/testing.md): unit tests, Bun gotchas and live
   test characters.

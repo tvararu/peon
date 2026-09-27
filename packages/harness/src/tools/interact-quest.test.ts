@@ -1,8 +1,10 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import type { QuestLogSlot } from "@peon/core";
 import type { InteractAfter } from "#harness/contract/details";
 import { interactSpec } from "#harness/tools/interact";
+import { ANSWER_MS } from "#harness/tools/interact-quest";
 import { journalTool } from "#harness/tools/journal";
+import { withFakeTimers } from "#test-support/fake-time";
 import { setUnits, toolCtx, unitRow } from "#test-support/ops-fixtures";
 import {
   answer,
@@ -75,6 +77,31 @@ describe("quest handoff", () => {
       next: 'interact(npc: "Marshal McBride")',
       status: "DONE",
     });
+  });
+
+  test("an unanswered accept points at the quest log, not at another accept", async () => {
+    const { t } = await velan();
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", {
+        dialog: detailsDialog(783, THREAT.title, "Speak with Marshal McBride."),
+      });
+    let accepts = 0;
+    t.handle.acceptQuest = () => {
+      accepts += 1;
+      jest.advanceTimersByTime(ANSWER_MS);
+    };
+    const run = withFakeTimers(() =>
+      interactSpec.run(
+        { do: "accept", npc: "Velan Brightoak", what: "1" },
+        toolCtx<InteractAfter>(t),
+      ),
+    );
+    await expect(run).rejects.toMatchObject({
+      next: 'journal(about: "quests")',
+      reason: "no_answer",
+      status: "UNCONFIRMED",
+    });
+    expect(accepts).toBe(1);
   });
 
   test("accept names the ref, distance and bearing of a known ender", async () => {

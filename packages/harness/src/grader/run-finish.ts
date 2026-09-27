@@ -9,6 +9,7 @@ import {
   sessionFile,
 } from "#harness/grader/accounts";
 import { writeConcurrent } from "#harness/grader/concurrent";
+import { conditionsOf } from "#harness/grader/conditions";
 import { observedChecks } from "#harness/grader/draft-fill";
 import { parseGameLog } from "#harness/grader/draft-gamelog";
 import { efficiency, readSessionUsage } from "#harness/grader/efficiency";
@@ -323,6 +324,7 @@ async function draftResult(st: RunState): Promise<DraftResult> {
       st.scenario.checks,
       st.scenario.steers.map((steer) => steer.text),
     ),
+    conditions: await conditionsOf(st.runDir, st.scenario),
     efficiency: efficiency({
       budget: st.scenario.budget,
       exitMs: (st.exitMs ?? now) - taskMs,

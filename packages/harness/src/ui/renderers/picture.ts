@@ -100,11 +100,12 @@ function unitRow(theme: Theme, unit: UnitView): string {
   const tone = unit.alive ? RELATION_TONE[unit.relation] : "dim";
   const name = theme.fg(tone, `${unitGlyph(unit)} ${padRight(unit.name, 22)}`);
   const hp = `${bar({ cells: 8, max: unit.maxHp, theme, tone: healthTone(unit.hpPct / 100), value: unit.hp })}${padLeft(`${unit.hpPct}%`, 5)}`;
-  const tags = [
-    unit.targetsMe ? theme.fg("error", `${glyph("target")} on you`) : "",
-    unit.lootable ? theme.fg("warning", `${glyph("loot")} loot`) : "",
-    unit.inView ? "" : theme.fg("dim", "out of view"),
-  ];
+  const tags = unit.inView
+    ? [
+        unit.targetsMe ? theme.fg("error", `${glyph("target")} on you`) : "",
+        unit.lootable ? theme.fg("warning", `${glyph("loot")} loot`) : "",
+      ]
+    : [theme.fg("dim", "out of view")];
   return `${padRight(unit.ref, 4)} ${name} ${padLeft(`L${unit.level}`, 3)} ${hp} ${padLeft(distanceText(unit), 5)} ${tags.filter(Boolean).join(" ")}`.trimEnd();
 }
 

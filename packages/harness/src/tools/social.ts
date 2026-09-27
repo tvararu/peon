@@ -168,6 +168,7 @@ function chatResult(
       after: after(false),
       detail: `${said}; no echo in 2 s.`,
       next: nextCall("journal", { about: "log", since: "1m" }),
+      reason: "no_answer",
     });
   if (answer.type === ChatType.SYSTEM) {
     const next = askHuman(`Is ${to} the right name?`);
@@ -232,6 +233,7 @@ function inviteOutcome(
       confirmed: false,
       detail: `invited ${to}; no answer in 3 s.`,
       next: waitFor(to),
+      reason: "no_answer",
       status: "UNCONFIRMED",
     };
   }
@@ -265,6 +267,7 @@ function acceptOutcome(
       confirmed: false,
       detail: "accepted the invite; no group list came in 2 s.",
       next: nextCall("look"),
+      reason: "no_answer",
       status: "UNCONFIRMED",
     };
   if (answer.kind === "system") {
@@ -301,6 +304,7 @@ function declineOutcome(
     confirmed: false,
     detail: "declined the invite; the server does not answer a decline.",
     next: "end your turn.",
+    reason: "no_answer",
     status: "UNCONFIRMED",
   };
 }
@@ -315,6 +319,7 @@ function leaveOutcome(
     confirmed: false,
     detail: "asked to leave the group; no answer in 2 s.",
     next: nextCall("look"),
+    reason: "no_answer",
     status: "UNCONFIRMED",
   };
 }

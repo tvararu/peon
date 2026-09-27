@@ -27,6 +27,7 @@ import {
   separation,
   timeoutOutcome,
   unitObservation,
+  withNulls,
 } from "#harness/loops/combat-actions-observation";
 import {
   hunterObservation,
@@ -111,7 +112,7 @@ export class CombatActions {
     const candidates: JevCandidate[] = [WAIT];
     if (!outcome) this.addCandidates(candidates, spells, state);
     return {
-      observation: {
+      observation: withNulls({
         self: unitObservation(state.self),
         target: state.target ? unitObservation(state.target) : null,
         targetRelation: this.deps.relation(context.targetGuid),
@@ -142,7 +143,7 @@ export class CombatActions {
           : null,
         navigation: navigationObservation(this.deps.control.navigationState()),
         rejections: this.rejections.observation(),
-      },
+      }),
       candidates,
       outcome,
     };

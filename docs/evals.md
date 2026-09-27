@@ -80,7 +80,7 @@ Each run writes `tmp/evals/<round>/<scenario>-<replica>/`:
 | `steers.jsonl`, `triggers.jsonl`, `progress.json` | The steers sent, the triggers that fired and the watcher's view of the run. |
 | `witness.jsonl`, `partner-read.jsonl` | What the second character saw and read, when the scenario has one. |
 | `frames/` | Screen frames of the pane. |
-| `grader/draft.json` | The measured draft: checks with what the run observed, efficiency and attempts, with no verdict. |
+| `grader/draft.json` | The measured draft: checks with what the run observed, efficiency, attempts and the run conditions, with no verdict. |
 | `result.json` | The graded result. |
 
 When the run ends `aborted` or `blocked` it writes `result.json` itself.
@@ -88,6 +88,12 @@ Otherwise the grader reads the draft and the evidence, decides each
 check, the friction and the verdict against this document, and writes the
 result with `mise eval result <run-dir> <file>`, which validates it
 against the schema.
+
+The run conditions list what else can make two results differ: the
+model, the thinking level and the harness commit from the harness's
+`meta.json`, the Jev models that answered in `jev.jsonl`, and a hash of
+the scenario. Compare two results only when their conditions match, or
+when the one condition that differs is the thing under test.
 
 ## Add a scenario
 

@@ -123,14 +123,10 @@ function rewardRefusal(
 export const turnInStep: InteractStep = async (init) => {
   const { args, ctx, npc } = init;
   const offer = turnInOffer(init, await openDialog(ctx, npc));
-  const retry = nextCall("interact", {
-    do: "turn_in",
-    npc: npc.unit.ref,
-    what: String(offer.line),
-  });
+  const check = nextCall("journal", { about: "quests" });
   const reward = await rewardOffer(ctx, offer.id);
   if (reward?.kind !== "offer")
-    throw unanswered(npc, `with the reward of ${offer.title}`, retry);
+    throw unanswered(npc, `with the reward of ${offer.title}`, check);
   await nameRewards(ctx.handle, reward, ctx.signal);
   const named = choicesOf(ctx.handle, reward);
   const picking = named.length > 1;
@@ -143,7 +139,7 @@ export const turnInStep: InteractStep = async (init) => {
     packet: () => ctx.handle.chooseQuestReward(picked),
     timeoutMs: ANSWER_MS,
   });
-  if (!rewarded) throw unanswered(npc, `the turn-in of ${offer.title}`, retry);
+  if (!rewarded) throw unanswered(npc, `the turn-in of ${offer.title}`, check);
   const last = rewarded.state.lastReward;
   const got = last?.questId === offer.id ? last : undefined;
   const money =

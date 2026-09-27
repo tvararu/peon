@@ -91,6 +91,18 @@
       },
       "type": "array"
     },
+    "conditions": {
+      "additionalProperties": false,
+      "properties": {
+        "harnessSha": { "type": "string" },
+        "jevModels": { "items": { "type": "string" }, "type": "array" },
+        "model": { "type": "string" },
+        "scenarioSha": { "pattern": "^[0-9a-f]{12}$", "type": "string" },
+        "thinking": { "type": "string" }
+      },
+      "required": ["jevModels", "scenarioSha"],
+      "type": "object"
+    },
     "efficiency": {
       "properties": {
         "budgetRatio": {
