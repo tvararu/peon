@@ -25,8 +25,8 @@ import {
   openDialog,
   type StepInit,
   type TalkExtra,
-  turnInStep,
 } from "#harness/tools/interact-quest";
+import { turnInStep } from "#harness/tools/interact-reward";
 import {
   repairStep,
   trainerExtra,
