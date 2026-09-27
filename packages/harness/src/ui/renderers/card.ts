@@ -91,22 +91,32 @@ function shopRows(theme: Theme, after: InteractAfter): string[] {
   return [...stock, ...spells, ...bought, ...sold, ...learned, ...repair];
 }
 
-function interactBody({ after, theme }: BodyInit<"interact">): string[] {
+function moneyRows(theme: Theme, after: InteractAfter): string[] {
+  const change = after.money;
+  if (!change) return [];
+  const last = `Last: ${money(theme, change.after)}`;
+  if (change.after === change.before) return [theme.fg("muted", last)];
+  const delta = signed(theme, change.before, change.after);
+  if (after.action === "turn_in")
+    return [
+      `${theme.fg("success", `Reward: ${delta}`)} ${theme.fg("muted", `· ${last}`)}`,
+    ];
+  return [theme.fg("muted", `${last} (${delta})`)];
+}
+
+function npcRow(theme: Theme, after: InteractAfter): string[] {
+  if (after.npc.ref === "") return [];
   const roles =
     after.roles.length > 0 ? theme.fg("dim", ` ${after.roles.join(", ")}`) : "";
-  const last = after.money
-    ? [
-        theme.fg(
-          "muted",
-          `Last: ${money(theme, after.money.after)} (${signed(theme, after.money.before, after.money.after)})`,
-        ),
-      ]
-    : [];
+  return [`${unitLabel(theme, after.npc)}${roles}`];
+}
+
+function interactBody({ after, theme }: BodyInit<"interact">): string[] {
   return [
-    `${unitLabel(theme, after.npc)}${roles}`,
+    ...npcRow(theme, after),
     ...offerRows(after),
     ...shopRows(theme, after),
-    ...last,
+    ...moneyRows(theme, after),
   ];
 }
 

@@ -6,6 +6,7 @@ import type {
   LootAfter,
 } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
+import { emptyUnit } from "#harness/tools/define";
 import { hms } from "#harness/ui/draw";
 import { nerd } from "#harness/ui/glyphs";
 import {
@@ -150,6 +151,39 @@ describe("card family", () => {
     expect(text[4]).toBe(
       `Last: ${nerd.silver}49 ${nerd.copper}75 (-${nerd.silver}1 ${nerd.copper}0)`,
     );
+  });
+
+  test("a failed interact with no resolved NPC draws no lone skull", () => {
+    const failed: ToolResult<InteractAfter> = {
+      after: { ...talk, money: undefined, npc: emptyUnit(), offers: [] },
+      body: [],
+      detail: "target_not_observed: could not reach Magistrix Erona (u1).",
+      next: 'travel(to: "u1")',
+      status: "FAILED",
+    };
+    const text = plain(renderResultLines("interact", failed));
+    expect(text.join("\n")).not.toContain(nerd.dead);
+    expect(text.filter((line) => line.trim() === "")).toHaveLength(0);
+  });
+
+  test("the turn-in card shows the money reward, not a zero delta", () => {
+    const turnIn = (before: number, after: number) =>
+      plain(
+        renderResultLines(
+          "interact",
+          done(
+            { ...talk, action: "turn_in", money: { after, before } },
+            "turned in Reclaiming Sunstrider Isle #8325.",
+          ),
+          { options: open },
+        ),
+      );
+    expect(turnIn(0, 30)).toContain(
+      `Reward: +${nerd.copper}30 · Last: ${nerd.copper}30`,
+    );
+    const none = turnIn(0, 0);
+    expect(none).toContain(`Last: ${nerd.copper}0`);
+    expect(none.join("\n")).not.toContain("(+");
   });
 
   test("loot paints items in their quality colour", () => {
