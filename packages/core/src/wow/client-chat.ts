@@ -4,9 +4,25 @@ import {
   buildWhoRequest,
   parseWhoResponse,
 } from "#wow/protocol/chat";
+import { PLAYER_FIELDS } from "#wow/protocol/entity-fields";
 import { ChatType, GameOpcode } from "#wow/protocol/opcodes";
 import type { WorldConn } from "#wow/world-conn";
-import { sendPacket } from "#wow/world-handlers";
+import { selfGuid, sendPacket } from "#wow/world-handlers";
+
+export const NOT_IN_GUILD_TEXT = "You are not in a guild.";
+
+function guildChat(conn: WorldConn, send: () => void): void {
+  const self = conn.entityStore.get(selfGuid(conn));
+  const guildId =
+    self?.rawFields.get(PLAYER_FIELDS.GUILDID.offset) ?? conn.guildId;
+  if (guildId === 0)
+    conn.events.message.emit({
+      type: ChatType.SYSTEM,
+      sender: "",
+      message: NOT_IN_GUILD_TEXT,
+    });
+  else send();
+}
 
 export function chatMethods(conn: WorldConn, lang: number) {
   const chat = (type: number, message: string, target?: string): void =>
@@ -29,8 +45,16 @@ export function chatMethods(conn: WorldConn, lang: number) {
       chat(ChatType.YELL, message);
     },
     sendGuild(message) {
-      conn.lastChatMode = { type: "guild" };
-      chat(ChatType.GUILD, message);
+      guildChat(conn, () => {
+        conn.lastChatMode = { type: "guild" };
+        chat(ChatType.GUILD, message);
+      });
+    },
+    sendOfficer(message) {
+      guildChat(conn, () => {
+        conn.lastChatMode = { type: "officer" };
+        chat(ChatType.OFFICER, message);
+      });
     },
     sendParty(message) {
       conn.lastChatMode = { type: "party" };
@@ -72,6 +96,9 @@ function sendInMode(
     case "guild":
       handle.sendGuild(message);
       break;
+    case "officer":
+      handle.sendOfficer(message);
+      break;
     case "party":
       handle.sendParty(message);
       break;
@@ -96,6 +123,9 @@ export function channelMethods(conn: WorldConn, handle: () => WorldHandle) {
   return {
     getChannel(index) {
       return conn.channels[index - 1];
+    },
+    getReplyTarget() {
+      return conn.lastWhisperFrom;
     },
     async who(opts = {}) {
       sendPacket(conn, GameOpcode.CMSG_WHO, buildWhoRequest(opts));

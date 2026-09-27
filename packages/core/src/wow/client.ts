@@ -166,6 +166,7 @@ export type ChatMode =
   | { type: "say" }
   | { type: "yell" }
   | { type: "guild" }
+  | { type: "officer" }
   | { type: "party" }
   | { type: "raid" }
   | { type: "emote" }
@@ -187,6 +188,7 @@ export type WorldHandle = {
   sendSay: (message: string) => void;
   sendYell: (message: string) => void;
   sendGuild: (message: string) => void;
+  sendOfficer: (message: string) => void;
   sendParty: (message: string) => void;
   sendRaid: (message: string) => void;
   sendEmote: (message: string) => void;
@@ -194,6 +196,7 @@ export type WorldHandle = {
   sendAfk: (message: string) => void;
   sendChannel: (channel: string, message: string) => void;
   getChannel: (index: number) => string | undefined;
+  getReplyTarget: () => string | undefined;
   who: (opts?: {
     name?: string;
     minLevel?: number;

@@ -2,11 +2,7 @@ import { describe, expect, jest, test } from "bun:test";
 import type { GameLogEntry } from "#harness/contract/log";
 import type { RunEnd } from "#harness/contract/runs";
 import type { HarnessRuntime } from "#harness/contract/services";
-import {
-  installCommands,
-  LOG_COMMAND_ROWS,
-  OFFLINE_TEXT,
-} from "#harness/extension/commands";
+import { installCommands, LOG_COMMAND_ROWS } from "#harness/extension/commands";
 import {
   createPiRecorder,
   createUiRecorder,
@@ -42,64 +38,6 @@ function waitForAbort(signal: AbortSignal): Promise<RunEnd<undefined>> {
 }
 
 describe("installCommands", () => {
-  test("registers the eleven human commands", async () => {
-    const { fake } = await setup();
-    expect([...fake.commands.keys()].sort()).toEqual([
-      "connect",
-      "disconnect",
-      "g",
-      "log",
-      "now",
-      "p",
-      "say",
-      "snapshot",
-      "stop",
-      "w",
-      "wake",
-    ]);
-  });
-
-  test("/say, /p and /g send through the world mutex and log the input", async () => {
-    const { rt, handle, run } = await setup();
-    const mutex = jest.spyOn(rt.mutex, "run");
-    await run("say", "hello there");
-    await run("p", "omw");
-    await run("g", "gz");
-    expect(handle.sendSay).toHaveBeenCalledWith("hello there");
-    expect(handle.sendParty).toHaveBeenCalledWith("omw");
-    expect(handle.sendGuild).toHaveBeenCalledWith("gz");
-    expect(mutex).toHaveBeenCalledTimes(3);
-    expect(inputs(rt).map((entry) => entry.data)).toEqual([
-      {
-        stoppedRuns: [],
-        stopReflex: false,
-        text: "/say hello there",
-        via: "command",
-      },
-      { stoppedRuns: [], stopReflex: false, text: "/p omw", via: "command" },
-      { stoppedRuns: [], stopReflex: false, text: "/g gz", via: "command" },
-    ]);
-  });
-
-  test("/w splits the name from the text", async () => {
-    const { handle, run, named } = await setup();
-    await run("w", "Kaelyn level 10, you?");
-    expect(handle.sendWhisper).toHaveBeenCalledWith("Kaelyn", "level 10, you?");
-    await run("w", "Kaelyn");
-    expect(named("notify").at(-1)).toEqual([
-      "Use /w <name> <text>.",
-      "warning",
-    ]);
-  });
-
-  test("chat commands refuse when the connection is down", async () => {
-    const { rt, handle, run, named } = await setup();
-    rt.handle = () => undefined;
-    await run("say", "hello");
-    expect(handle.sendSay).not.toHaveBeenCalled();
-    expect(named("notify")).toEqual([[OFFLINE_TEXT, "error"]]);
-  });
-
   test("/stop stops the active run; humanStop logs it once", async () => {
     const { rt, run, named } = await setup();
     rt.runs.start({

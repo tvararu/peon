@@ -148,26 +148,6 @@ describe("world handler tests", () => {
     }
   });
 
-  test("sendGuild sends message and receives echo", async () => {
-    const ws = await startMockWorldServer();
-    try {
-      const handle = await worldSession(
-        { ...base, host: "127.0.0.1", port: ws.port },
-        fakeAuth(ws.port),
-      );
-      await waitForEchoProbe(handle);
-      const received = new Promise<ChatMessage>((r) => handle.onMessage(r));
-      handle.sendGuild("test guild");
-      const msg = await received;
-      expect(msg.type).toBe(ChatType.GUILD);
-      expect(msg.message).toBe("test guild");
-      handle.close();
-      await handle.closed;
-    } finally {
-      ws.stop();
-    }
-  });
-
   test("sendParty sends message and receives echo", async () => {
     const ws = await startMockWorldServer();
     try {

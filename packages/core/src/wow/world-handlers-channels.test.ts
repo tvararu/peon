@@ -207,7 +207,7 @@ describe("world handler tests", () => {
   });
 
   test("sendInCurrentMode dispatches guild", async () => {
-    const ws = await startMockWorldServer();
+    const ws = await startMockWorldServer({ guildId: 42 });
     try {
       const handle = await worldSession(
         { ...base, host: "127.0.0.1", port: ws.port },

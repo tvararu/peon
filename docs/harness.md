@@ -157,12 +157,23 @@ step. Action tools refuse until the agent reads it.
 | `/stop` | Stops every run and halts the character. |
 | `/connect` | Connects to the game after `--no-connect` or a lost connection. |
 | `/disconnect` | Logs the character out and keeps the harness open. |
-| `/say <text>` | Says the text in game. |
-| `/w <name> <text>` | Whispers a player. |
-| `/p <text>` | Writes to the party. |
-| `/g <text>` | Writes to the guild. |
+| `/s` `/say <text>` | Says the text near the character. |
+| `/y` `/yell <text>` | Yells the text. |
+| `/p` `/party <text>` | Writes to the party. |
+| `/g` `/guild <text>` | Writes to the guild. |
+| `/o` `/officer <text>` | Writes to the guild officers. |
+| `/ra` `/raid <text>` | Writes to the raid. |
+| `/e` `/em` `/me` `/emote <text>` | Does a custom emote, such as `/me waves`. |
+| `/w` `/whisper` `/t` `/tell <name> <text>` | Whispers a player. |
+| `/r` `/reply <text>` | Whispers the last player who whispered the character. |
+| `/1` `/2` `/3` `/4` `/5` `/6` `/7` `/8` `/9 <text>` | Writes to the joined channel with that number. |
 | `/wake on\|off` | Turns game-event wakes on or off. |
 | `/snapshot <label>` | Writes the current world state to `snapshots/<label>.json` in the run directory. |
+
+The chat commands use the game's slash names. With no text, a chat
+command shows its usage. `/r` says so when nobody has whispered the
+character yet, and guild or officer chat from a character with no guild
+shows the game's `You are not in a guild.` line instead of sending.
 
 Pi's own commands (`/new`, `/resume`, `/fork`, `/reload`, `/model`, …)
 also work. The game connection stays open across `/new`, `/resume`,
