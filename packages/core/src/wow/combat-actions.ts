@@ -18,6 +18,14 @@ import {
   unitObservation,
 } from "#wow/combat-actions-observation";
 import {
+  gearReason,
+  isAutoShot,
+  isRangedShot,
+  meleeRange,
+  NO_RANGED_GEAR,
+  RANGED_RANGE_FLAG,
+} from "#wow/combat-actions-ranged";
+import {
   auraReason,
   describeSpell,
   manaReason,
@@ -26,6 +34,7 @@ import {
 } from "#wow/combat-actions-spells";
 import { targetReason, targetRelation } from "#wow/combat-actions-target";
 import { approached, ProgressWatch } from "#wow/combat-progress";
+import type { RangedGear } from "#wow/combat-ranged-gear";
 import { RejectionTracker } from "#wow/combat-rejections";
 import type { ControlRuntime } from "#wow/control";
 import { type EntityLookup, isUnit } from "#wow/entity-store";
@@ -41,6 +50,7 @@ type ActionDeps = {
   entity: EntityLookup;
   factions: () => FactionTemplateCatalog | undefined;
   now: () => number;
+  gear?: () => RangedGear;
 };
 
 type SpellAction = {
@@ -109,6 +119,9 @@ export class CombatActions {
         attacking: state.attacking,
         attackTarget: hex(state.attackTarget),
         pendingAttack: hex(state.pendingAttack),
+        autoRepeat: state.autoRepeat
+          ? { ...state.autoRepeat, target: hex(state.autoRepeat.target) }
+          : null,
         auras: state.auras.map(auraObservation),
         targetAuras: state.targetAuras.map(auraObservation),
         cooldowns: state.cooldowns,
@@ -153,6 +166,10 @@ export class CombatActions {
     }
     if (id === "stop_attack") {
       this.deps.combat.stopAttack();
+      return;
+    }
+    if (id === "stop_auto_shot") {
+      this.deps.combat.stopAutoRepeat();
       return;
     }
     if (id === "stop_moving") {
@@ -221,6 +238,8 @@ export class CombatActions {
     candidates: JevCandidate[],
     state: CombatState,
   ): void {
+    if (state.autoRepeat)
+      candidates.push({ id: "stop_auto_shot", description: "Stop Auto Shot" });
     if (state.attacking || state.pendingAttack)
       candidates.push({ id: "stop_attack", description: "Stop autoattack" });
     else if (this.inMelee(state) && facing(state))
@@ -264,9 +283,22 @@ export class CombatActions {
       };
     const unsupported =
       unsupportedSpell(spell, state.self.shapeshiftForm) ??
-      (hostile && spell.range?.flags !== 0 ? "unsupported_range" : undefined);
+      this.rangeSupport(spell, hostile) ??
+      (isRangedShot(spell)
+        ? gearReason(spell, this.deps.gear?.() ?? NO_RANGED_GEAR)
+        : undefined);
     const reason = unsupported ?? this.spellReason(spell, state, hostile);
     return { id: actionId, spell, target, reason, supported: !unsupported };
+  }
+
+  private rangeSupport(
+    spell: SpellDefinition,
+    hostile: boolean,
+  ): string | undefined {
+    const flags = spell.range?.flags;
+    if (!hostile || flags === 0) return undefined;
+    if (flags === RANGED_RANGE_FLAG && isRangedShot(spell)) return undefined;
+    return "unsupported_range";
   }
 
   private spellReason(
@@ -274,6 +306,8 @@ export class CombatActions {
     state: CombatState,
     hostile: boolean,
   ): string | undefined {
+    if (isAutoShot(spell) && state.autoRepeat?.target === state.target?.guid)
+      return "auto_shot_active";
     if (this.deps.combat.readyAt(spell.id) > this.deps.now()) return "cooldown";
     const reason =
       manaReason(spell, state) ?? auraReason(spell, state, hostile);
@@ -289,7 +323,13 @@ export class CombatActions {
         target.health >= target.maxHealth)
     )
       return "no_observed_healing_needed";
-    if (!hostile) return undefined;
+    return hostile ? this.hostileReason(spell, state) : undefined;
+  }
+
+  private hostileReason(
+    spell: SpellDefinition,
+    state: CombatState,
+  ): string | undefined {
     const distance = separation(state);
     if (distance === undefined) return "unobserved_range";
     const range = spell.range;
@@ -297,6 +337,8 @@ export class CombatActions {
       throw new Error("hostile spell is missing range metadata");
     if (distance < range.minHostile || distance > range.maxHostile)
       return "out_of_range";
+    if (isRangedShot(spell) && distance <= this.meleeRangeOf(state))
+      return "too_close";
     if (!facing(state)) return "not_facing";
     return undefined;
   }
@@ -416,6 +458,8 @@ export class CombatActions {
           "aura_already_present",
           "caster_aura_required",
           "target_aura_required",
+          "too_close",
+          "auto_shot_active",
         ].includes(action.reason)
       )
         return true;
@@ -425,6 +469,15 @@ export class CombatActions {
 
   private canMelee(state: CombatState): boolean {
     return isUnit(this.deps.entity(state.self.guid));
+  }
+
+  private meleeRangeOf(state: CombatState): number {
+    const self = this.deps.entity(state.self.guid);
+    const target = state.target && this.deps.entity(state.target.guid);
+    return meleeRange(
+      isUnit(self) ? self.combatReach : undefined,
+      isUnit(target) ? target.combatReach : undefined,
+    );
   }
 
   private inMelee(state: CombatState): boolean {

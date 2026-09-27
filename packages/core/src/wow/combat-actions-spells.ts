@@ -1,9 +1,15 @@
 import type { CombatState } from "#wow/combat";
+import {
+  isAutoShot,
+  isRangedShot,
+  rangedAura,
+} from "#wow/combat-actions-ranged";
 import type { SpellDefinition, SpellEffect } from "#wow/spell-catalog";
 
 const MOVEMENT_INTERRUPT_FLAG = 0x1;
 const AUTO_REPEAT_ATTRIBUTE_EX2 = 0x20;
 const AURAS = new Set([3, 8, 13, 22, 29, 69, 85]);
+const WEAPON_DAMAGE = 58;
 
 export function requiresStanding(spell: SpellDefinition): boolean {
   if (spell.attributes.ex2 & AUTO_REPEAT_ATTRIBUTE_EX2) return true;
@@ -19,11 +25,15 @@ export function unsupportedSpell(
   spell: SpellDefinition,
   form: number | undefined,
 ): string | undefined {
-  if (spell.attributes.raw & (0x40 | 0x10 | 0x2_00))
+  const ability = isAutoShot(spell) ? 0 : 0x10;
+  if (spell.attributes.raw & (0x40 | ability | 0x2_00))
     return "unsupported_spell_attribute";
   if (spell.attributes.ex & (0x2 | 0x4 | 0x40))
     return "unsupported_channel_or_power";
-  if (spell.equippedItem.itemClass !== -1 || spell.reagents.length > 0)
+  if (
+    (spell.equippedItem.itemClass !== -1 && !isRangedShot(spell)) ||
+    spell.reagents.length > 0
+  )
     return "unsupported_item_requirement";
   if (form === undefined) return "unobserved_shapeshift_form";
   if (form !== 0) return "unsupported_shapeshift_form";
@@ -58,16 +68,24 @@ function unsupportedMechanics(spell: SpellDefinition): string | undefined {
   const effects = spell.effects.filter((effect) => effect.effect !== 0);
   if (effects.length === 0) return "unsupported_empty_effects";
   for (const effect of effects) {
-    const reason = unsupportedEffect(effect);
+    const reason = unsupportedEffect(effect, spell);
     if (reason) return reason;
   }
   return undefined;
 }
 
-function unsupportedEffect(effect: SpellEffect): string | undefined {
-  if (![2, 6, 10].includes(effect.effect))
+function unsupportedEffect(
+  effect: SpellEffect,
+  spell: SpellDefinition,
+): string | undefined {
+  const weaponShot = effect.effect === WEAPON_DAMAGE && isAutoShot(spell);
+  if (!([2, 6, 10].includes(effect.effect) || weaponShot))
     return `unsupported_effect:${effect.effect}`;
-  if (effect.effect === 6 && !AURAS.has(effect.applyAura))
+  if (
+    effect.effect === 6 &&
+    !AURAS.has(effect.applyAura) &&
+    !rangedAura(spell, effect.applyAura)
+  )
     return `unsupported_aura:${effect.applyAura}`;
   if (effect.implicitTargetA === 0 && effect.implicitTargetB === 0)
     return "unspecified_effect_target";
@@ -140,6 +158,9 @@ export function auraReason(
 }
 
 export function describeSpell(spell: SpellDefinition, self: boolean): string {
+  if (isAutoShot(spell))
+    return `Start ${spell.name} on selected creature: repeating ranged weapon shots that use ammo, until stopped or the creature dies; needs line of sight, facing, and ${spell.range?.maxHostile ?? "unknown"} yd or less but outside melee range; no mana`;
+  const castMs = spell.castTime && Math.max(0, spell.castTime.castTimeMs);
   const effects = spell.effects
     .filter((effect) => effect.effect !== 0)
     .map((effect) => ({
@@ -150,5 +171,5 @@ export function describeSpell(spell: SpellDefinition, self: boolean): string {
       perLevel: effect.realPointsPerLevel,
       intervalMs: effect.amplitude,
     }));
-  return `Request ${spell.name} ${spell.rank} on ${self ? "self" : "selected creature"}; mana ${spell.power.costRaw} + ${spell.power.costPercentageOfBaseMana}% base mana; cast ${spell.castTime?.castTimeMs}ms; duration ${spell.duration?.durationMs ?? "unknown"}ms; DBC base effects (server applies scaling/modifiers) ${JSON.stringify(effects)}`;
+  return `Request ${spell.name} ${spell.rank} on ${self ? "self" : "selected creature"}; mana ${spell.power.costRaw} + ${spell.power.costPercentageOfBaseMana}% base mana; cast ${castMs}ms; duration ${spell.duration?.durationMs ?? "unknown"}ms; DBC base effects (server applies scaling/modifiers) ${JSON.stringify(effects)}`;
 }

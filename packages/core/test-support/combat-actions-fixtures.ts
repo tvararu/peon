@@ -1,5 +1,6 @@
 import { CombatRuntime } from "#wow/combat";
 import { CombatActions } from "#wow/combat-actions";
+import type { RangedGear } from "#wow/combat-ranged-gear";
 import { ControlRuntime } from "#wow/control";
 import { EntityStore } from "#wow/entity-store";
 import { ObjectType, UNIT_FIELDS } from "#wow/protocol/entity-fields";
@@ -108,8 +109,9 @@ export function movementCompatibleSpell(): SpellDefinition {
 
 export function setup(
   nowFn: () => number = () => 1000,
-  options: { observeTargetPosition?: boolean } = {},
+  options: { observeTargetPosition?: boolean; gear?: () => RangedGear } = {},
 ) {
+  const sent: { opcode: number; body: Uint8Array | undefined }[] = [];
   const store = new EntityStore();
   const fields = new Map<number, number>([
     [UNIT_FIELDS.HEALTH.offset, 100],
@@ -151,7 +153,9 @@ export function setup(
     selectedGuid: () => 2n,
     selfGuid: () => 1n,
     selfPose: () => control.snapshot().pose,
-    send() {},
+    send: (opcode, body) => {
+      sent.push({ body, opcode });
+    },
   });
   if (options.observeTargetPosition ?? true)
     combat.observePosition(2n, {
@@ -168,7 +172,8 @@ export function setup(
     entity: (guid) => store.get(guid),
     factions: () => undefined,
     now: nowFn,
+    ...(options.gear && { gear: options.gear }),
   });
   actions.activate(context);
-  return { actions, combat, control, fields, store };
+  return { actions, combat, control, fields, sent, store };
 }

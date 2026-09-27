@@ -5,6 +5,7 @@ import type { Capabilities } from "#wow/client-extras";
 import { CombatRuntime } from "#wow/combat";
 import { CombatActions } from "#wow/combat-actions";
 import { defendTarget } from "#wow/combat-defense";
+import { readRangedGear } from "#wow/combat-ranged-gear";
 import { ControlRuntime } from "#wow/control";
 import { approachUnit, type CycleApproach } from "#wow/cycle-approach";
 import { ItemDestroyRuntime } from "#wow/destroy";
@@ -321,6 +322,13 @@ function createCombat(
     entity: (guid) => conn.entityStore.get(guid),
     factions: () => lazy.factions,
     now: () => Date.now(),
+    gear: () =>
+      readRangedGear(
+        runtimeDeps.selfGuid(),
+        runtimeDeps.getEntity,
+        (entry) =>
+          conn.itemTemplates?.label(entry) ?? { name: null, quality: null },
+      ),
   });
   const trainer = new TrainerRuntime({
     ...runtimeDeps,
