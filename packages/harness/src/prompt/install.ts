@@ -58,7 +58,7 @@ function toolNotes(): string {
   return `Tool notes:\n${lines.join("\n")}`;
 }
 
-function lunaPrompt(rt: HarnessRuntime): string {
+export function lunaPrompt(rt: HarnessRuntime): string {
   return `${buildSystemPrompt(promptInit(rt))}\n\n${toolNotes()}`;
 }
 

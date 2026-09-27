@@ -12,6 +12,7 @@ import {
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import type { HarnessRuntime } from "#harness/contract/services";
+import { lunaPrompt } from "#harness/prompt/install";
 
 export type PiRuntimeInit = {
   runtime: HarnessRuntime;
@@ -66,6 +67,7 @@ function sessionFactory(init: PiRuntimeInit): CreateAgentSessionRuntimeFactory {
     const resourceLoaderOptions = {
       ...LOADER,
       extensionFactories: [{ factory: init.extension, name: "wow" }],
+      systemPromptOverride: () => lunaPrompt(init.runtime),
     };
     const services = await createAgentSessionServices({
       agentDir,

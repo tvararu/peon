@@ -86,6 +86,40 @@ describe("createPiRuntime", () => {
     expect(rt.handle()).toBe(handle);
   });
 
+  test("records only the Luna prompt as the system message, on prompt and wake turns", async () => {
+    const { rt } = await createTestRuntime({ flags: { model: FAUX_MODEL } });
+    open = await createFauxSession({ extension: probeTool, rt });
+    open.faux.setResponses([
+      fauxAssistantMessage("one"),
+      fauxAssistantMessage("two"),
+    ]);
+    await open.session.prompt("hi");
+    await open.session.sendCustomMessage(
+      {
+        content: "[game 0s] Kaelyn whispers: hi",
+        customType: "wow-event",
+        display: true,
+      },
+      { triggerTurn: true },
+    );
+    const systems = open.session.sessionManager
+      .getEntries()
+      .flatMap((entry) =>
+        entry.type === "message" && entry.message.role === "system"
+          ? [entry.message]
+          : [],
+      );
+    expect(systems).toHaveLength(1);
+    const [first] = systems;
+    expect(first?.sections?.["preamble"]).toStartWith(
+      `You play World of Warcraft 3.3.5a as ${rt.profile.character}.`,
+    );
+    expect(Object.keys(first?.sections ?? {})).toEqual(["preamble", "cwd"]);
+    const recorded = JSON.stringify(systems);
+    expect(recorded).not.toContain("expert coding assistant");
+    expect(recorded).not.toContain("Show file paths clearly");
+  });
+
   test("refuses a model that is not in the catalog", async () => {
     const { rt } = await createTestRuntime({
       flags: { model: "faux/missing" },
