@@ -28,6 +28,7 @@ import type {
 } from "#harness/contract/services";
 import { OmpCredentialStore, ompDbPath } from "#harness/credentials/omp-store";
 import { credentialStatus, startupCheck } from "#harness/credentials/status";
+import { driveExtension } from "#harness/drive/extension";
 import {
   createRunDir,
   finalizeSession,
@@ -200,6 +201,7 @@ async function play({
     extensionPaths,
     extensions: [
       { factory: worldExtension(rt), name: "world" },
+      { factory: driveExtension(), name: "drive" },
       { factory: withFinish(wowExtension(rt), exit, finish), name: "wow" },
     ],
     runtime: rt,
