@@ -42,7 +42,7 @@ export function harnessCommand({
   profile: string;
   runDir: string;
 }): string {
-  return `exec ${HARNESS_LAUNCH} --profile ${shellQuote(profile)} --run-dir ${shellQuote(runDir)} --glyphs nerd`;
+  return `exec ${HARNESS_LAUNCH} --profile ${shellQuote(profile)} --run-dir ${shellQuote(runDir)} --glyphs nerd --packet-trace headers`;
 }
 
 async function orca(

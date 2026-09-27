@@ -86,7 +86,7 @@ describe("runScenario", () => {
     expect(await Bun.file(`${world.runDir}/account.json`).exists()).toBe(false);
     expect(await leaked(world.runDir)).toBe("");
     expect(world.calls.find((call) => call[2] === "create")).toContain(
-      `exec bun packages/harness/src/entry.ts --profile ${world.runDir}/account.json --run-dir ${world.runDir} --glyphs nerd`,
+      `exec bun packages/harness/src/entry.ts --profile ${world.runDir}/account.json --run-dir ${world.runDir} --glyphs nerd --packet-trace headers`,
     );
   });
 

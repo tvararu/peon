@@ -239,7 +239,7 @@ describe("grader cli", () => {
     ).toBe(0);
     expect(d.lines).toEqual(['{"terminal":"term_launch"}']);
     expect(calls[0]?.argv).toContain(
-      "exec bun packages/harness/src/entry.ts --profile /wt/tmp/evals/1/t0-self-state-1/account.json --run-dir /wt/tmp/evals/1/t0-self-state-1 --glyphs nerd",
+      "exec bun packages/harness/src/entry.ts --profile /wt/tmp/evals/1/t0-self-state-1/account.json --run-dir /wt/tmp/evals/1/t0-self-state-1 --glyphs nerd --packet-trace headers",
     );
   });
 

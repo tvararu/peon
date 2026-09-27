@@ -77,6 +77,7 @@ Each run writes `tmp/evals/<round>/<scenario>-<replica>/`:
 | `baseline.json`, `final.json` | Server truth before the login and after the logout. |
 | `gamelog.jsonl` | The harness game log: every game event, one typed row. |
 | `session.jsonl`, `tools.json`, `runs.jsonl` | The Pi session, tool calls and harness runs, as in [harness.md](harness.md#run-directory). |
+| `packets.jsonl`, `packets.json` | Every game packet's header row and the counts by opcode: the grader starts the harness with `--packet-trace headers` ([harness.md](harness.md#run-directory)). |
 | `steers.jsonl`, `triggers.jsonl`, `progress.json` | The steers sent, the triggers that fired and the watcher's view of the run. |
 | `witness.jsonl`, `partner-read.jsonl` | What the second character saw and read, when the scenario has one. |
 | `frames/` | Screen frames of the pane. |
