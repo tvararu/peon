@@ -252,6 +252,49 @@ review.
     which binds the grader: a grader still does not retry a login
     refusal. Sections 6.H, 8; plan task F5b (`found.md`).
 
+### Decisions taken during the build, not yet ruled by the maintainer
+
+Builders changed the plan's code where it did not pass the checks or did
+not match the real code. The lines below change behaviour, a contract or
+a test; pure formatting and lint reflows are left out. Each line gives
+the plan task, the change and the commit. They wait for the same review
+as the spec settlements.
+
+22. C2a: a `catalogAccess(config, lazy, combat)` helper in `runtime.ts`
+    starts the warm catalog loads and returns `prepareCatalog`,
+    `factions` and `capabilities`, which keeps `createRuntimes` under the
+    50-line cap; the load order is the plan's. `e3881ff`.
+23. C2b: a module-level `nearbySources(conn, rt)` builds the nearby row
+    sources, so `controlMethods` stays under the 50-line cap;
+    `queryNearby` requires its `query` argument, so tests pass `{}`; the
+    shared mock handle reads `getCombatState().attackers?.includes(...)`,
+    because the CLI `attachControl` fixture stubs `getCombatState` as
+    `{}`. `c05f0d1`.
+24. C6b: the plan's `client-place.test.ts` replaces C0's
+    `not_implemented` stub test in that file (the plan listed it as a
+    new file). `adfc353`.
+25. C7a: the `recoverCorpse` stub returns `Promise.reject(new
+    Error("not_implemented"))` instead of an async throw (biome
+    `useAwait`), and the plan's `client-runs.test.ts` replaces C0's stub
+    test. `781118a`.
+26. C9: the "response cut after the names" parser test passes before the
+    change, because `toEqual` treats an undefined key as a missing one;
+    it is kept, since it pins the behaviour after the change. `aa543f1`.
+27. C14: the corner probe uses (8733.333, -6666.666) and calls
+    `nav.height` with no start point. At the plan's (8733.33, -6666.67)
+    the unpatched July build has ground (69.86), so only the route
+    caught the regression; at the new point `findHeights` is empty on the
+    July build and 69.86 on the patched one. `c747d95`.
+28. F5ab: the "a lost connection interrupts the active run" test checks
+    the connection is in `backoff` and ends with `rt.disconnect()`, so
+    F5b's 5 s reconnect timer does not outlive the test. `f72a9ad`.
+29. F5b: `connection.ts` differs from the plan's code after review. A
+    login epoch counter drops and logs out a superseded login, so a
+    login that lands during `/disconnect` does not put the harness back
+    online; `connect()` waits on one shared closing promise instead of
+    treating a close as a lost socket; `disconnect()` emits `offline`
+    once; the closed hook ends in `.catch(ignoreFailure)`. `24a8e2b`.
+
 ## 3. Context
 
 ### 3.1 The problem
@@ -975,3 +1018,34 @@ were not kept.
 | [ui-gallery-nerd.html](2026-09-26-pi-harness-epic/ui-gallery-nerd.html) | The UI gallery drawn with Nerd Font glyphs, in colour |
 | [glyphs.md](2026-09-26-pi-harness-epic/glyphs.md) | The three glyph sets: sources, table, widths, selection, grader use |
 | [t1-service-readme.md](2026-09-26-pi-harness-epic/t1-service-readme.md) | The t1 factory service: rules, reason codes, endpoints, presets, vendors, limits |
+
+## 11. Build and evaluation record
+
+Each build phase and each eval round adds a subsection here: what landed,
+the gate result, and the smoke and live results. Eval rounds use the
+heading `### Round <n>`.
+
+### Phase 1
+
+Phase 1 is the core surface and the harness foundation.
+
+- Tasks landed: 26 (C0, C1, C2a, C2b, C3-C5, C6a, C6b, C7a, C7b,
+  C9-C14, F1, F2, F5aa, F5ab, F5b, F6a, F7a, F7b, F8a), commits
+  `5c488e4` to `c747d95`. None is blocked.
+- Gate: `mise ci:checks` passes at `c747d95` with 2679 tests, 0 failing
+  (2026-09-27).
+- V3 (section 6.H) passes: 3 of 3 tests, stable over 5 runs
+  (`5c5c07b`). A steer typed while a run tool blocks yields after Pi
+  queued it, and the next model request carries only the steer; a
+  "Stop!" steer cancels the run through the reflex before the model
+  runs; `session.abort()` ends the run with reason `esc`. A 50 ms yield
+  delay is enough on Pi 0.87.1, so the H.7 fallback is not needed.
+- Live gate L (`mise test:live`, two throwaway soap accounts): 21 of 21
+  for every task that ran it (C2a, C5, C6b, C9, C10, C11). C2a's first
+  run gave 18 of 21 because Magistrix Erona (entry 15278) was absent at
+  the Sunstrider spawn; a baseline run without the change failed the
+  same way, and the rerun after her respawn gave 21 of 21.
+- Live probes: C6b read zone 3430 Eversong Woods and area 3431
+  Sunstrider Isle at login, then Ghostlands and Tranquillien after
+  `.go`; C7b's `recoverCorpse` reclaimed a corpse after 3 legs at range
+  30.
