@@ -1049,3 +1049,46 @@ Phase 1 is the core surface and the harness foundation.
   Sunstrider Isle at login, then Ghostlands and Tranquillien after
   `.go`; C7b's `recoverCorpse` reclaimed a corpse after 3 legs at range
   30.
+
+### Phase 2a
+
+- Tasks landed: F8d (`e4980f5`).
+- V2 passes, 2 of 2: a hidden `wow-now` custom message on a wake run
+  reaches the model and is not stored in the session.
+- Gate: `mise ci` is green at `e4980f5` with 2681 tests.
+
+### Phase 2b
+
+- Tasks landed: 32, up to `82aa369`. A1c, A1d and F6b are blocked.
+- Gate: `mise ci` is green at `82aa369` with 2947 tests.
+
+### Phase 2c
+
+- A coordinator ruling unblocks A1d. A1c, A1d and F6b land, up to
+  `8afc48f`.
+- BOOT gate passes in an Orca pane: `--check` exits 0 and prints the
+  credential line; the TUI footer shows `gpt-6-luna • high`; Ctrl-D
+  writes `meta.json` with `exitReason` `quit` and removes the lock; no
+  password leaks; `~/.pi` is not created; the compiled binary's
+  `--check` exits 0.
+- Gate: `mise ci` is green at `8afc48f` with 2976 tests.
+
+### Decisions taken during the build, not yet ruled by the maintainer
+
+- A coordinator ownership exception lets the A1d fix add a no-op
+  `registerTool` to `packages/harness/test-support/fake-pi.ts`, which
+  F7a owns (`8b41bbf`).
+- A1d moves the private `scrub` helper and `SECRET` to
+  `packages/harness/src/tools/scrub.ts`, which keeps `define.ts` under
+  the 500-line cap (`1f6fe4f`).
+- L1a's buffered writer timer ends its drain in
+  `.catch(ignoreFailure)`, so a failed drain follows the fire-and-forget
+  rule (`fb5e038`).
+- L12b resolves the session link target against the run dir, because a
+  relative symlink target is relative to the link, not the process cwd
+  (`fdd6393`).
+- L3a moves `start` into a top-level `startRun` helper to satisfy the
+  function-length lint rule (`a16cea0`).
+- The linter sorts P2's `TOOL_TEXT` keys alphabetically, so P3 must
+  iterate the design B.1 tool order, not `Object.keys(TOOL_TEXT)`
+  (`c362fae`).
