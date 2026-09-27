@@ -1,3 +1,4 @@
+import { npcRoles } from "@peon/core";
 import {
   entityType,
   type FlowContext,
@@ -9,32 +10,7 @@ import {
 
 const LIMIT = 5;
 const TYPES = new Set(["unit", "player", "gameobject"]);
-const ROLES = new Set([
-  "gossip",
-  "questgiver",
-  "trainer",
-  "class_trainer",
-  "profession_trainer",
-  "vendor",
-  "vendor_ammo",
-  "vendor_food",
-  "vendor_poison",
-  "vendor_reagent",
-  "repair",
-  "flight_master",
-  "spirit_healer",
-  "spirit_guide",
-  "innkeeper",
-  "banker",
-  "petitioner",
-  "tabard_designer",
-  "battlemaster",
-  "auctioneer",
-  "stable_master",
-  "guild_banker",
-  "spellclick",
-  "mailbox",
-]);
+const ROLES = new Set<string>(npcRoles(0xff_ff_ff_ff));
 
 async function run({ handle, args, settle }: FlowContext): Promise<Json> {
   const kind = args["kind"] ?? "";
