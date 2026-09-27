@@ -1,5 +1,6 @@
 import type { EngageTarget } from "#harness/contract/details";
 import type { VitalsView } from "#harness/contract/views";
+import { manaText } from "#harness/ops/views";
 
 export type StopInit = {
   kills: number;
@@ -118,7 +119,7 @@ export function lowText(
   const pct = (value: number, max: number) =>
     Math.round((value / Math.max(1, max)) * 100);
   if (why === "low_mana")
-    return `${kills} You are at ${pct(vitals.power, vitals.maxPower)}% mana.`;
+    return `${kills} You have ${manaText(vitals) ?? `${pct(vitals.power, vitals.maxPower)}% mana`}.`;
   if (why === "low_health")
     return `${kills} You are at ${pct(vitals.hp, vitals.maxHp)}% HP.`;
   return undefined;

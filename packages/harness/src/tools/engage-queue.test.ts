@@ -6,10 +6,18 @@ import {
   cycleEnds,
   field,
   KILL,
+  LYNX,
   STALKER,
   STALKER_2,
+  stalker,
 } from "#test-support/engage-fixtures";
-import { attackBy, setSelf, toolCtx } from "#test-support/ops-fixtures";
+import {
+  attackBy,
+  setSelf,
+  setUnits,
+  toolCtx,
+  unitRow,
+} from "#test-support/ops-fixtures";
 
 const UNSEEN = 0x99n;
 
@@ -49,12 +57,14 @@ describe("engage pull gate", () => {
   function lowAfterOneKill(
     stopCause: string,
     self: { hp?: number; power?: number },
+    during: (t: Awaited<ReturnType<typeof field>>) => void = () => {},
   ) {
     return async () => {
       const t = await field();
       const base = t.handle.getCycleState();
       t.handle.startCycle = () => {
         setSelf(t.handle, { level: 10, ...self });
+        during(t);
         const stopped = {
           ...base,
           active: false,
@@ -90,11 +100,30 @@ describe("engage pull gate", () => {
   test("a cycle stopped at low mana is PARTLY with the kills and a rest step", async () => {
     const res = await lowAfterOneKill("low_mana", { power: 72 })();
     expect(res).toMatchObject({
-      detail: "1 of 3 kills. You are at 24% mana.",
+      detail: "1 of 3 kills. You have mana 72/300 (24%).",
       next: 'rest(), then engage(count: 2, target: "Springpaw Stalker")',
       reason: "low_mana",
       status: "PARTLY",
     });
+  });
+
+  test("an attacker at the low mana stop is engaged before any rest", async () => {
+    const res = await lowAfterOneKill("low_mana", { power: 72 }, (t) => {
+      setUnits(t.handle, [
+        stalker(STALKER_2, 28),
+        unitRow({
+          distance: 4,
+          guid: LYNX,
+          name: "Springpaw Lynx",
+          x: 4,
+          y: 0,
+        }),
+      ]);
+      attackBy(t.handle, LYNX);
+    })();
+    expect(res).toMatchObject({ reason: "low_mana", status: "PARTLY" });
+    expect(res.next).toMatch(/^engage\(target: "u\d+"\)$/);
+    expect(res.next).not.toContain("rest(");
   });
 
   test("a cycle stopped at low health names the health", async () => {

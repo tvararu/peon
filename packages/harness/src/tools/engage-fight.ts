@@ -389,7 +389,9 @@ function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
     return result("PARTLY", {
       after,
       detail: low,
-      next: `${nextCall("rest")}, then ${engageAgain(scene, Math.max(1, after.wanted - after.kills))}`,
+      next:
+        also ??
+        `${nextCall("rest")}, then ${engageAgain(scene, Math.max(1, after.wanted - after.kills))}`,
       reason: why,
     });
   if (killed > 0)
