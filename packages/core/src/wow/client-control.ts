@@ -9,6 +9,7 @@ import {
   type NavDestination,
   type Navigation,
   type NavPoint,
+  type PlanStart,
   refusalFloors,
 } from "#wow/navigation";
 import { GROUND_ERROR } from "#wow/navigation-collision";
@@ -103,18 +104,28 @@ async function walkTowardTarget(
   }
 }
 
+const STALE_FIX_MS = 10_000;
+
+function planStart(pose: ControlPose, fixAge: number | undefined): PlanStart {
+  const stale =
+    pose.source === "predicted" &&
+    (fixAge ?? Number.POSITIVE_INFINITY) > STALE_FIX_MS;
+  return { stale };
+}
+
 function planDestination(
   navigation: Navigation,
   pose: ControlPose,
   destination: NavDestination,
+  start: PlanStart = {},
 ): { route: GroundRoute; resolved: NavPoint } {
   const { x, y, z } = destination;
   if (z !== undefined)
     return {
-      route: navigation.plan(pose.mapId, pose, { x, y, z }),
+      route: navigation.plan(pose.mapId, pose, { x, y, z }, start),
       resolved: { x, y, z },
     };
-  const route = navigation.planGround(pose.mapId, pose, { x, y });
+  const route = navigation.planGround(pose.mapId, pose, { x, y }, start);
   const end = route.points.at(-1);
   if (end === undefined) throw new Error("navigation_route_empty");
   return { route, resolved: { x, y, z: end.z } };
@@ -122,19 +133,24 @@ function planDestination(
 
 function planUnitFloor(
   navigation: Navigation,
-  pose: ControlPose,
+  { pose, start }: { pose: ControlPose; start: PlanStart },
   destination: NavDestination,
   unitZ: number,
 ): { route: GroundRoute; resolved: NavPoint } {
   try {
-    return planDestination(navigation, pose, destination);
+    return planDestination(navigation, pose, destination, start);
   } catch (error) {
     const near = (refusalFloors(error) ?? []).filter(
       (height) => Math.abs(height - unitZ) <= GROUND_ERROR,
     );
     const [picked] = near;
     if (near.length !== 1 || picked === undefined) throw error;
-    return planDestination(navigation, pose, { ...destination, z: picked });
+    return planDestination(
+      navigation,
+      pose,
+      { ...destination, z: picked },
+      start,
+    );
   }
 }
 
@@ -182,6 +198,7 @@ function routeTo(rt: RouteRuntimes, target: GotoTarget): void {
   let destination = pointOf(target);
   const pose = rt.control.snapshot().pose;
   if (!pose) throw new Error("stop: no_pose");
+  const start = planStart(pose, rt.control.serverFixAge());
   const navigation = rt.navigation();
   const guid = target.kind === "guid" ? target.guid : undefined;
   try {
@@ -194,8 +211,8 @@ function routeTo(rt: RouteRuntimes, target: GotoTarget): void {
     if (destination === undefined) throw new Error("invalid_destination");
     const { route, resolved } =
       unitZ === undefined
-        ? planDestination(navigation, pose, destination)
-        : planUnitFloor(navigation, pose, destination, unitZ);
+        ? planDestination(navigation, pose, destination, start)
+        : planUnitFloor(navigation, { pose, start }, destination, unitZ);
     rt.control.navigate(
       route,
       resolved,

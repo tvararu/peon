@@ -34,12 +34,19 @@ export type NavPoint = { x: number; y: number; z: number };
 export type GroundSample = NavPoint & { orientation: number };
 export type NavDestination = { x: number; y: number; z?: number };
 export type NavigationOptions = { dataPath: string; libraryPath: string };
+export type PlanStart = { stale?: boolean };
 export type Navigation = {
-  plan: (mapId: number, from: NavPoint, to: NavPoint) => GroundRoute;
+  plan: (
+    mapId: number,
+    from: NavPoint,
+    to: NavPoint,
+    start?: PlanStart,
+  ) => GroundRoute;
   planGround: (
     mapId: number,
     from: NavPoint,
     to: { x: number; y: number },
+    start?: PlanStart,
   ) => GroundRoute;
   height: (mapId: number, x: number, y: number, from?: NavPoint) => number;
   stepHeight: (mapId: number, x: number, y: number, from: NavPoint) => number;
@@ -181,16 +188,16 @@ export function createNavigation(
     return map;
   }
   return {
-    plan(mapId, from, to) {
+    plan(mapId, from, to, start) {
       const map = open(mapId, from, to);
       map.loadAdtAt(from.x, from.y);
-      return planRoute(map, settleStart(map, from), to);
+      return planRoute(map, settleStart(map, from, start?.stale), to);
     },
-    planGround(mapId, pose, to) {
+    planGround(mapId, pose, to, start) {
       validateNativeXY(to.x, to.y);
       const map = open(mapId, pose);
       map.loadAdtAt(pose.x, pose.y);
-      const from = settleStart(map, pose);
+      const from = settleStart(map, pose, start?.stale);
       checkStart(map, from);
       map.loadAdtAt(to.x, to.y);
       const z = destinationFloor(map, to.x, to.y);

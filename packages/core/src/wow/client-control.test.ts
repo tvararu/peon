@@ -315,11 +315,12 @@ describe("goTo a creature over several floors", () => {
     const f = creatureAt(72.84);
     const plan = jest.spyOn(f.navigation, "plan");
     expect(() => f.handle.goTo({ guid: 0x99n, kind: "guid" })).toThrow();
-    expect(plan).toHaveBeenCalledWith(530, expect.anything(), {
-      x: f.start.x + 10,
-      y: f.start.y,
-      z: 72.75,
-    });
+    expect(plan).toHaveBeenCalledWith(
+      530,
+      expect.anything(),
+      { x: f.start.x + 10, y: f.start.y, z: 72.75 },
+      { stale: false },
+    );
   });
 
   test("keeps the ambiguous refusal when no floor is near the creature", () => {

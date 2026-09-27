@@ -110,6 +110,11 @@ export class ControlRuntime extends ControlSync {
     this.emit("control_changed", "mode_changed");
   }
 
+  serverFixAge(): number | undefined {
+    const server = this.snapshot().serverPose;
+    return server && this.deps.now() - server.updatedAt;
+  }
+
   navigationState(): NavigationState {
     const { destination, floors } = this.navigation;
     return {

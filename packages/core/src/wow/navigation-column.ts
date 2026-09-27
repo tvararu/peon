@@ -10,17 +10,21 @@ export const FLOOR_MERGE = 0.01;
 
 type Point = { x: number; y: number; z: number };
 
-export function settleStart<P extends Point>(map: NativeMap, from: P): P {
+export function settleStart<P extends Point>(
+  map: NativeMap,
+  from: P,
+  stale = false,
+): P {
   const heights = columnHeights(map, from.x, from.y);
   if (heights.some((height) => Math.abs(height - from.z) <= GROUND_ERROR))
     return from;
   const floors = groundFloors(heights);
-  const floor = floors[0];
-  if (floors.length !== 1 || floor === undefined) return from;
-  const rise = from.z - floor;
-  return rise > GROUND_ERROR && rise <= START_SNAP
-    ? { ...from, z: floor }
-    : from;
+  if (floors.length !== 1 && !stale) return from;
+  const floor = floors.find((height) => {
+    const rise = from.z - height;
+    return rise > GROUND_ERROR && rise <= START_SNAP;
+  });
+  return floor === undefined ? from : { ...from, z: floor };
 }
 
 export function groundFloors(heights: readonly number[]): number[] {
