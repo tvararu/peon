@@ -30,6 +30,7 @@ export function otherInView(scene: Scene): UnitView | undefined {
   const fought = new Set(tally.targets.map((target) => target.ref));
   return unitViews(ops).find(
     (unit) =>
+      unit.inView &&
       unit.alive &&
       !unit.tappedByOther &&
       unit.name === choice.unit?.name &&
@@ -85,6 +86,7 @@ function anotherTarget(scene: Scene): UnitView | undefined {
     otherInView(scene) ??
     unitViews(ops).find(
       (unit) =>
+        unit.inView &&
         unit.alive &&
         unit.level <= cap &&
         unit.attackable &&
