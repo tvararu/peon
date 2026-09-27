@@ -112,3 +112,130 @@ describe("pet_attack", () => {
     expect(offTarget?.ref).toBe("gamelog.jsonl:1");
   });
 });
+
+const QUESTION = "How much health and mana do you have right now?";
+const STOP = "Stop, we're done.";
+const STEERS = [QUESTION, STOP];
+
+const human = (seq: number, text: string, ts?: number) =>
+  row(seq, "human/input", { text }, { text: `Human: ${text}`, ts });
+const said = (seq: number, text: string, ts?: number) =>
+  row(seq, "agent/message", {}, { text, ts });
+const credit = (seq: number, guid: string) =>
+  row(seq, "combat/kill_credit", { name: "Cat", xp: 80 }, { guid });
+const fight = (seq: number, ts?: number) =>
+  row(seq, "fight/start", { name: "Cat" }, { guid: `f${seq}`, ts });
+const world = (seq: number, hp: number, power: number) =>
+  row(seq, "snapshot/world", {
+    self: { hp, maxHp: 200, maxPower: 300, power },
+  });
+
+const t7Log = [
+  human(1, "Grind the cats north of town until I say stop."),
+  said(2, "On it."),
+  credit(3, "c1"),
+  credit(4, "c2"),
+  world(5, 150, 240),
+  human(6, QUESTION),
+  said(7, "Health 150/200 (75%), mana 240/300 (80%)."),
+  credit(8, "c3"),
+  fight(9),
+  human(10, STOP),
+  said(11, "Stopping."),
+  fight(12, T0 + 30_000),
+];
+
+const t7 = (
+  id: string,
+  measure: ScenarioCheck["measure"],
+  source = "game_log",
+) => ({ expect: id, id, measure, source }) as ScenarioCheck;
+
+describe("t7-question-while-acting anchors", () => {
+  test("kept-grinding anchors on the first kill after the answer", async () => {
+    const check = await fill(
+      { gamelog: t7Log, steers: STEERS },
+      t7("kept-grinding", "kill_after_answer"),
+    );
+    expect(check?.ref).toBe("gamelog.jsonl:8");
+    expect(check?.met).toBe(true);
+    expect(check?.observed).toMatchObject({
+      answer: { line: 7 },
+      kill: { guid: "c3", line: 8 },
+    });
+  });
+
+  test("stopped anchors on the first fight after the stop steer", async () => {
+    const check = await fill(
+      { gamelog: t7Log, steers: STEERS },
+      t7("stopped", "no_fight_after_stop"),
+    );
+    expect(check?.ref).toBe("gamelog.jsonl:12");
+    expect(check?.met).toBe(true);
+    expect(check?.observed).toMatchObject({
+      firstFightAfterSec: 20,
+      steer: { line: 10 },
+      within10s: [],
+    });
+  });
+
+  test("a fight within 10 s of the stop does not meet stopped", async () => {
+    const check = await fill(
+      {
+        gamelog: [...t7Log.slice(0, 11), fight(12, T0 + 15_000)],
+        steers: STEERS,
+      },
+      t7("stopped", "no_fight_after_stop"),
+    );
+    expect(check?.met).toBe(false);
+    expect(check?.observed).toMatchObject({ within10s: [{ line: 12 }] });
+  });
+
+  test("answer-time fills from the steer and the answer", async () => {
+    const check = await fill(
+      { gamelog: t7Log, steers: STEERS },
+      t7("answer-time", "answer_time", "session"),
+    );
+    expect(check?.ref).toBe("gamelog.jsonl:7");
+    expect(check?.met).toBe(true);
+    expect(check?.observed).toMatchObject({
+      answer: { line: 7, text: "Health 150/200 (75%), mana 240/300 (80%)." },
+      seconds: 1,
+      steer: { line: 6 },
+    });
+  });
+
+  test("answer-values fills the answer and the truth before it", async () => {
+    const check = await fill(
+      {
+        gamelog: t7Log,
+        jev: [
+          {
+            observation: { self: { health: 149, maxHealth: 200 } },
+            ts: T0 + 6500,
+            type: "request",
+          },
+        ],
+        steers: STEERS,
+      },
+      t7("answer-values", "answer_values"),
+    );
+    expect(check?.ref).toBe("gamelog.jsonl:7");
+    expect(check?.met).toBe(false);
+    expect(check?.observed).toMatchObject({
+      answer: { line: 7 },
+      jev: { self: { health: 149 }, ts: T0 + 6500 },
+      world: { line: 5, self: { hp: 150, power: 240 } },
+    });
+  });
+
+  test("with no answer after the question nothing is anchored", async () => {
+    const check = await fill(
+      { gamelog: t7Log.slice(0, 6), steers: STEERS },
+      t7("kept-grinding", "kill_after_answer"),
+    );
+    expect(check?.met).toBe(false);
+    expect(check?.ref).toBeUndefined();
+    expect(check?.observed).toMatchObject({ answer: null, kill: null });
+  });
+});

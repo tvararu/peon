@@ -311,7 +311,11 @@ async function draftResult(st: RunState): Promise<DraftResult> {
     abort: st.abort,
     accounts: accountsOf(st),
     blockedBy: withGaps(st, verdict.blockedBy),
-    checks: await observedChecks(st.runDir, st.scenario.checks),
+    checks: await observedChecks(
+      st.runDir,
+      st.scenario.checks,
+      st.scenario.steers.map((steer) => steer.text),
+    ),
     efficiency: efficiency({
       budget: st.scenario.budget,
       exitMs: (st.exitMs ?? now) - taskMs,

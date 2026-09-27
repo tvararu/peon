@@ -766,6 +766,12 @@ The partner is driven by the grader with `tmp/tc-<ACC2>` commands.
   the last full GL `snapshot/world` row before T; ≥ 1 more kill after the
   answer (the grind continued); after the stop steer, no new fight within
   10 s.
+- Draft anchors: the question and the stop are the GL `human/input` rows
+  whose `data.text` is the steer text, and the answer is the first
+  `agent/message` after the question. `kept-grinding` anchors on the first
+  `combat/kill_credit` after the answer, `stopped` on the first
+  `fight/start` after the stop, and `answer-time` and `answer-values` on
+  the answer row.
 - Probes: pushed events vs polling, answering without abandoning the task,
   queueing a user message during a running tool.
 

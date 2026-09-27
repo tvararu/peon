@@ -1,6 +1,10 @@
 import {
+  answerTime,
+  answerValues,
+  killAfterAnswer,
   type MeasureContext,
   type Measured,
+  noFightAfterStop,
   petAttack,
 } from "#harness/grader/draft-anchors";
 import type { GameLogRow } from "#harness/grader/draft-gamelog";
@@ -100,8 +104,12 @@ const MEASURES: Record<
   CheckMeasure,
   (rows: readonly GameLogRow[], context: MeasureContext) => Measured
 > = {
+  answer_time: answerTime,
+  answer_values: answerValues,
+  kill_after_answer: killAfterAnswer,
   kill_xp: killXp,
   max_attackers: maxAttackers,
+  no_fight_after_stop: noFightAfterStop,
   pet_attack: petAttack,
 };
 

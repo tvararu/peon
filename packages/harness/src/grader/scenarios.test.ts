@@ -275,7 +275,15 @@ describe("checks measure what they name", () => {
     for (const id of ROUND_1)
       for (const { measure } of loadScenario(id).checks)
         if (measure !== undefined)
-          expect(["kill_xp", "max_attackers", "pet_attack"]).toContain(measure);
+          expect([
+            "answer_time",
+            "answer_values",
+            "kill_after_answer",
+            "kill_xp",
+            "max_attackers",
+            "no_fight_after_stop",
+            "pet_attack",
+          ]).toContain(measure);
   });
 
   test("t3-ghostlands-kill counts only XP from kill credits", () => {
@@ -290,6 +298,21 @@ describe("checks measure what they name", () => {
     expect(check).toMatchObject({ measure: "max_attackers" });
     expect(check?.expect).toContain("at least one GL fight");
     expect(check?.expect).toContain("no fight is not met");
+  });
+
+  test("t7-question-while-acting anchors each check on its steer", () => {
+    const measures = Object.fromEntries(
+      loadScenario("t7-question-while-acting").checks.map((check) => [
+        check.id,
+        check.measure,
+      ]),
+    );
+    expect(measures).toEqual({
+      "answer-time": "answer_time",
+      "answer-values": "answer_values",
+      "kept-grinding": "kill_after_answer",
+      stopped: "no_fight_after_stop",
+    });
   });
 
   test("t7-question-while-acting names its truth stream and tolerance", () => {

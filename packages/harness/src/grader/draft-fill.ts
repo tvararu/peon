@@ -206,7 +206,7 @@ export async function observedChecks(
     const base = { blockedBy, expected: expect, id, met: false, source };
     if (source === "truth")
       return { ...base, observed: observeTruth(pair, expect) };
-    if (source !== "game_log" || rows === null)
+    if (rows === null || (source !== "game_log" && check.measure === undefined))
       return { ...base, observed: null };
     const { line, met, observed } =
       check.measure === undefined
