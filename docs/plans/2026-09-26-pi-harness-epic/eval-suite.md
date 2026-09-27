@@ -156,7 +156,7 @@ Added for the harness:
      still a source of fixes.
 8. **The grader is a human stand-in, not a coach.** It types only the task
    and the scenario's scripted steers. One generic rescue nudge is allowed
-   when the run is stuck ("You seem stuck. What is blocking you?"); it is
+   when the run is stuck ("You seem stuck. Try another way to finish the task."); it is
    counted as an intervention. Any other help invalidates the run (record as
    `aborted`, reason `grader_contamination`).
 9. **Truth for answers.** When the task is a question, the agent's answer is

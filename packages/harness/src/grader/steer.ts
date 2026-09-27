@@ -1,7 +1,8 @@
 import type { SteerAt } from "#harness/grader/scenarios";
 import type { ProgressJson, TriggerRow } from "#harness/grader/watch";
 
-export const RESCUE_NUDGE = "You seem stuck. What is blocking you?";
+export const RESCUE_NUDGE =
+  "You seem stuck. Try another way to finish the task.";
 export const BUDGET_STOP = "Stop now and tell me where you got to.";
 export const DONE_QUIET_MS = 30_000;
 export const STOP_GRACE_MS = 60_000;

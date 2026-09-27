@@ -8,6 +8,7 @@ import {
   type EndView,
   endAction,
   pendingAction,
+  RESCUE_NUDGE,
   stuckAfterMs,
   stuckStopMs,
 } from "#harness/grader/steer";
@@ -358,4 +359,10 @@ describe("pendingAction", () => {
     expect(pendingAction({ ...fired, windowEnd: 50_001 })).toBe(true);
     expect(pendingAction({ ...fired, windowEnd: 50_000 })).toBe(false);
   });
+});
+
+test("the rescue nudge asks for action, not a report", () => {
+  expect(RESCUE_NUDGE).toBe(
+    "You seem stuck. Try another way to finish the task.",
+  );
 });
