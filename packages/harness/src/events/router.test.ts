@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import type { TacticsEvent, WorldHandle } from "@tuicraft/core";
+import {
+  ObjectType,
+  type TacticsEvent,
+  type UnitEntity,
+  type WorldHandle,
+} from "@tuicraft/core";
 import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
 import type { RunEnd, RunRegistry } from "#harness/contract/runs";
 import { routerSetup as setup } from "#test-support/router-fixture";
@@ -202,6 +207,46 @@ describe("createEventRouter", () => {
     expect(log.since(0).filter((row) => row.consumedBy !== undefined)).toEqual(
       [],
     );
+  });
+
+  test("a halted target that dies with no credit wakes the agent", () => {
+    const { log, router, sink } = setup();
+    const handle = createMockHandle();
+    router.attach(handle);
+    handle.triggerCombatEvent({
+      attacker: 0x11n,
+      state: handle.getCombatState(),
+      type: "attacked",
+    });
+    const entity: UnitEntity = {
+      class_: 1,
+      displayId: 0,
+      entry: 15_366,
+      factionTemplate: 14,
+      gender: 0,
+      guid: 0x11n,
+      health: 0,
+      level: 7,
+      maxHealth: 137,
+      maxPower: [],
+      name: "Springpaw Stalker",
+      npcFlags: 0,
+      objectType: ObjectType.UNIT,
+      position: undefined,
+      power: [],
+      race: 0,
+      rawFields: new Map(),
+      scale: 1,
+      target: 0n,
+      unitFlags: 0,
+    };
+    handle.triggerEntityEvent({ changed: ["health"], entity, type: "update" });
+    const died = log.since(0).find((row) => row.event === "combat/target_died");
+    expect(died).toMatchObject({
+      class: "wake",
+      text: "Springpaw Stalker u17 died (no credit to you).",
+    });
+    expect(sink.wake).toHaveBeenCalledWith([died]);
   });
 
   test("delivers nothing without a sink", async () => {

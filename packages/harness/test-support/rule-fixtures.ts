@@ -12,6 +12,7 @@ export function testLookup(over: Partial<RuleLookup> = {}): RuleLookup {
     place: () => ({ area: undefined, zone: undefined }),
     questTitle: () => undefined,
     selfVitals: () => undefined,
+    tapOf: () => undefined,
     unitLevel: () => undefined,
     unitName: () => undefined,
     ...over,

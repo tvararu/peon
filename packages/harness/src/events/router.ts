@@ -29,6 +29,7 @@ import {
   type RuleInput,
   type RuleLookup,
   runDrafts,
+  type Tap,
 } from "#harness/events/rules";
 import {
   chatDrafts,
@@ -42,6 +43,7 @@ import {
   tacticsDrafts,
   vitalsDrafts,
 } from "#harness/events/rules-combat";
+import { deathDrafts } from "#harness/events/rules-death";
 import {
   controlDrafts,
   entityDrafts,
@@ -103,9 +105,19 @@ const NO_LOOKUP: RuleLookup = {
   place: () => ({ area: undefined, zone: undefined }),
   questTitle: () => undefined,
   selfVitals: () => undefined,
+  tapOf: () => undefined,
   unitLevel: () => undefined,
   unitName: () => undefined,
 };
+
+function tapIn(handle: WorldHandle, guid: bigint): Tap | undefined {
+  const row = handle
+    .queryNearby({ all: true })
+    .find((candidate) => candidate.entity.guid === guid);
+  if (!row) return;
+  if (row.tappedByOther) return "other";
+  return row.tapped ? "mine" : "none";
+}
 
 function questTitleIn(
   handle: WorldHandle,
@@ -155,6 +167,7 @@ export function lookupFor(init: LookupInit | undefined): RuleLookup {
         power: power ?? 0,
       };
     },
+    tapOf: (guid) => tapIn(handle, guid),
     unitLevel(guid) {
       const entity = unit(guid);
       return entity && "level" in entity ? entity.level : undefined;
@@ -196,6 +209,7 @@ function subscribeAll(init: SubscribeInit): Unsubscribe[] {
       route((rc) => [
         ...entityDrafts(event, { ...rc, logEntities }),
         ...vitalsDrafts(event, rc),
+        ...deathDrafts(event, rc),
       ]),
     ),
     handle.onControlEvent((event) => route((rc) => controlDrafts(event, rc))),

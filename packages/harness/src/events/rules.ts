@@ -18,6 +18,7 @@ export type SelfVitals = {
   power: number;
   maxPower: number;
 };
+export type Tap = "mine" | "other" | "none";
 export type PlaceNames = { zone: string | undefined; area: string | undefined };
 export type RuleLookup = {
   experience: () => { xp: number | undefined; next: number | undefined };
@@ -26,6 +27,7 @@ export type RuleLookup = {
   place: () => PlaceNames;
   questTitle: (questId: number) => string | undefined;
   selfVitals: () => SelfVitals | undefined;
+  tapOf: (guid: bigint) => Tap | undefined;
   unitLevel: (guid: bigint) => number | undefined;
   unitName: (guid: bigint) => string | undefined;
 };
@@ -44,6 +46,7 @@ export type RuleMemo = {
   questProgress: Map<string, number>;
   questTitles: Map<number, string>;
   runProgressAt: Map<string, number>;
+  watched: Set<bigint>;
   xpAt: number | undefined;
 };
 export type RuleInput = RuleContext & { lookup: RuleLookup; memo: RuleMemo };
@@ -71,6 +74,7 @@ export function createRuleMemo(): RuleMemo {
     questProgress: new Map(),
     questTitles: new Map(),
     runProgressAt: new Map(),
+    watched: new Set(),
     xpAt: undefined,
   };
 }

@@ -14,6 +14,7 @@ import {
   type RuleInput,
   unitIds,
 } from "#harness/events/rules";
+import { watchUnit } from "#harness/events/rules-death";
 
 const LOW_HEALTH = [50, 25];
 const REARM_POINTS = 10;
@@ -37,6 +38,7 @@ function attackedDrafts(event: CombatEvent, rc: RuleInput): Drafts {
     attacker: attacker === undefined ? undefined : guidText(attacker),
     name,
   };
+  if (attacker !== undefined) watchUnit(attacker, rc);
   const cls = rc.runActive ? "log" : "wake";
   return [
     {
@@ -53,6 +55,7 @@ function attackedDrafts(event: CombatEvent, rc: RuleInput): Drafts {
 function attackStartDrafts(event: CombatEvent, rc: RuleInput): Drafts {
   const target = event.state.attackTarget;
   if (target === undefined) return [];
+  watchUnit(target, rc);
   const text = `You attack ${named(target, rc)}.`;
   const data = { name: rc.lookup.unitName(target), target: guidText(target) };
   return [
@@ -235,6 +238,7 @@ function fightClass(rc: RuleInput): LogClass {
 
 function fightStart(runId: string, guid: bigint, rc: RuleInput): Drafts {
   rc.memo.fights.set(runId, { at: rc.now, guid });
+  watchUnit(guid, rc);
   const vitals = rc.lookup.selfVitals();
   const data = {
     hpBefore: vitals?.hp,

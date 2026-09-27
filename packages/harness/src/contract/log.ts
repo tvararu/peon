@@ -47,6 +47,7 @@ export type LogEvent =
   | "combat/cast"
   | "combat/attack_start"
   | "combat/attacked"
+  | "combat/target_died"
   | "xp/gain"
   | "xp/level_up"
   | "quest/accepted"
