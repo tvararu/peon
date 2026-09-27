@@ -76,6 +76,9 @@ Run everything through the `mise.toml` tasks as `mise <task>`, never
   `#lib/ignore-failure` (core) or `@peon/core/lib/ignore-failure`.
 - Prefer Bun APIs over Node's; `node:os` and `node:fs/promises` are fine
   where Bun has no equivalent. Bun loads `.env` itself.
+- Keep dependencies minimal: Pi is the one expected runtime dependency.
+  A new package, mise tool or external program needs a reason in the PR
+  and an entry in [docs/dependencies.md](docs/dependencies.md).
 - Packages: `@peon/core`, `@peon/factory`, `@peon/devtools`,
   `@peon/harness`. Inside a package import through its `#` aliases. Other
   packages reach core only through its `exports` (`@peon/core`,
