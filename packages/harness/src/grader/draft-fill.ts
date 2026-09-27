@@ -74,7 +74,7 @@ const PICKS: readonly [RegExp, Picker][] = [
 const TOTAL_XP = /total XP/i;
 const MONEY = /\bmoney\b/i;
 const NEAR_POINT = /position|\byd\b/;
-const ITEMS = /\bitems?\b|inventory|Arrow/i;
+const ITEMS = /\bitems?\b|inventory|\bcount\b/i;
 
 function picksFor(expect: string): Picker[] {
   return PICKS.filter(
@@ -127,7 +127,8 @@ function itemDeltas(pair: Pair, expect: string): Record<string, ItemRow> {
   for (const id of [...ids].toSorted((a, b) => a - b)) {
     const baseline = before.get(id) ?? 0;
     const final = after.get(id) ?? 0;
-    if (baseline === final && !listed.includes(id)) continue;
+    const named = expect.includes(names.get(id) ?? "\u0000");
+    if (baseline === final && !listed.includes(id) && !named) continue;
     out[id] = { baseline, delta: final - baseline, final, name: names.get(id) };
   }
   return out;

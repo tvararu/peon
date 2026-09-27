@@ -170,13 +170,25 @@ describe("observedChecks on game_log", () => {
     const [check] = await observedChecks(dir, [
       gl("halted", "no movement (control/move_*) after the stop"),
     ]);
-    expect(check?.observed).toMatchObject({ count: 2 });
+    expect(check?.observed).toMatchObject({
+      count: 2,
+      last: { event: "control/move_stop", line: 2 },
+      match: { event: "control/move_start", line: 1 },
+    });
+  });
+
+  test("a slash pair outside the game log domains is not an event", async () => {
+    const dir = await runDir({ "gamelog.jsonl": gamelog });
+    const [check] = await observedChecks(dir, [
+      gl("vitals", "within 5% of GL vitals (T health/power are saved values)"),
+    ]);
+    expect(check?.observed).toBeNull();
   });
 
   test("a check that names no event and a missing game log stay null", async () => {
     const dir = await runDir({});
     const filled = await observedChecks(dir, [
-      gl("vitals", "health within 5% of GL vitals"),
+      gl("vitals", "within 5% of GL vitals (T health/power are saved values)"),
       gl("kill", "GL combat/kill_credit for a Springpaw Stalker"),
     ]);
     expect(filled.map((check) => check.observed)).toEqual([null, null]);
@@ -243,6 +255,18 @@ describe("observedChecks on truth", () => {
           name: "Refreshing Spring Water",
         },
         "20997": { baseline: 0, delta: 1, final: 1, name: "Reward" },
+      },
+    });
+  });
+
+  test("an item named in the check is kept even when its count is unchanged", async () => {
+    const dir = await runDir(files({}));
+    const [check] = await observedChecks(dir, [
+      tr("dagger", "T delta Worn Dagger count < 0"),
+    ]);
+    expect(check?.observed).toEqual({
+      items: {
+        "2092": { baseline: 1, delta: 0, final: 1, name: "Worn Dagger" },
       },
     });
   });

@@ -2,6 +2,32 @@ import { isRecord, parseJsonOutput } from "#harness/grader/exec";
 import type { ScenarioCheck } from "#harness/grader/scenarios";
 
 const EVENT = /\b[a-z]+\/[a-z_]+\*?/g;
+const DOMAINS = new Set([
+  "agent",
+  "aura",
+  "chat",
+  "combat",
+  "control",
+  "entity",
+  "fight",
+  "group",
+  "human",
+  "life",
+  "loot",
+  "money",
+  "nav",
+  "notice",
+  "packet",
+  "quest",
+  "run",
+  "session",
+  "snapshot",
+  "social",
+  "tool",
+  "trainer",
+  "vendor",
+  "xp",
+]);
 const ID = /\b\d{3,}\b/g;
 const ROWS_MAX = 10;
 
@@ -19,12 +45,18 @@ export type GameLogObserved = {
   ids?: number[];
   count: number;
   match: Row | null;
+  last: Row | null;
   rows: Row[];
   related: Row | null;
 };
 
+const domainOf = (event: string): string => event.split("/")[0] ?? event;
+
 export function checkEvents(check: ScenarioCheck): string[] {
-  return check.events ?? [...new Set(check.expect.match(EVENT) ?? [])];
+  const named = (check.expect.match(EVENT) ?? []).filter((event) =>
+    DOMAINS.has(domainOf(event)),
+  );
+  return check.events ?? [...new Set(named)];
 }
 
 export function checkIds(check: ScenarioCheck): number[] {
@@ -51,8 +83,6 @@ function holdsId(value: unknown, ids: readonly number[]): boolean {
   return isRecord(value) && Object.values(value).some((v) => holdsId(v, ids));
 }
 
-const domainOf = (event: string): string => event.split("/")[0] ?? event;
-
 export function observeGameLog(
   rows: readonly Row[],
   check: ScenarioCheck,
@@ -70,6 +100,7 @@ export function observeGameLog(
     count: matched.length,
     events,
     ids: ids.length === 0 ? undefined : ids,
+    last: matched.at(-1) ?? null,
     match: matched[0] ?? null,
     related: rows.findLast((row) => domains.has(domainOf(row.event))) ?? null,
     rows: matched.slice(0, ROWS_MAX),

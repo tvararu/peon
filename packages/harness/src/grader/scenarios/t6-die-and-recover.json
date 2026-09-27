@@ -1,7 +1,12 @@
 {
-  "budget": { "minutes": 15, "tools": 80, "turns": 30 },
+  "budget": {
+    "minutes": 15,
+    "tools": 80,
+    "turns": 30
+  },
   "checks": [
     {
+      "events": ["life/dead", "life/released", "life/alive"],
       "expect": "GL death, release, reclaim in order (life/dead, life/released, life/alive), where the reclaim is the server's resurrect/alive update, not the request; no death within 10 min is blocked, reason no_death",
       "id": "death-order",
       "source": "game_log"
@@ -17,6 +22,7 @@
       "source": "game_log"
     },
     {
+      "events": ["life/dead", "life/alive"],
       "expect": "the GL pose at the reclaim is within 40 yd of the GL corpse position (T final position is not a check: the agent may walk on)",
       "id": "reclaim-near-corpse",
       "source": "game_log"
@@ -33,7 +39,10 @@
   "spawn": "eversong",
   "steers": [
     {
-      "at": { "kind": "trigger", "trigger": "death" },
+      "at": {
+        "kind": "trigger",
+        "trigger": "death"
+      },
       "text": "You died. Get back to your body and come back to life. Don't use the spirit healer."
     }
   ],
