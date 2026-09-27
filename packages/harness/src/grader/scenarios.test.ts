@@ -63,6 +63,7 @@ describe("round-1 scenarios", () => {
     );
     for (const check of scenario.checks)
       expect(SOURCES).toContain(check.source);
+    expect(["low", "med", "high"]).toContain(scenario.botRisk);
     for (const { at, text } of scenario.steers) {
       expect(text.length).toBeGreaterThan(0);
       if (at.kind === "trigger") expect(TRIGGERS).toContain(at.trigger);

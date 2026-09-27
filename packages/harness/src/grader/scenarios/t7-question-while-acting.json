@@ -1,5 +1,10 @@
 {
-  "budget": { "minutes": 10, "tools": 50, "turns": 20 },
+  "botRisk": "high",
+  "budget": {
+    "minutes": 10,
+    "tools": 50,
+    "turns": 20
+  },
   "checks": [
     {
       "expect": "the answer to the vitals question appears within 60 s of the question",
@@ -32,10 +37,20 @@
   "setup": [],
   "steers": [
     {
-      "at": { "kind": "trigger", "nth": 2, "trigger": "kill" },
+      "at": {
+        "kind": "trigger",
+        "nth": 2,
+        "trigger": "kill"
+      },
       "text": "How much health and mana do you have right now?"
     },
-    { "at": { "kind": "elapsed", "ms": 240000 }, "text": "Stop, we're done." }
+    {
+      "at": {
+        "kind": "elapsed",
+        "ms": 240000
+      },
+      "text": "Stop, we're done."
+    }
   ],
   "task": "Grind the cats north of town until I say stop.",
   "tier": 7

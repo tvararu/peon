@@ -1,5 +1,10 @@
 {
-  "budget": { "minutes": 4, "tools": 10, "turns": 5 },
+  "botRisk": "med",
+  "budget": {
+    "minutes": 4,
+    "tools": 10,
+    "turns": 5
+  },
   "checks": [
     {
       "expect": "every creature named as hostile is one of the hostile types near Fairbreeze: Springpaw Stalker, Eversong Tender, Rotlimb Cannibal or Plaguebone Pillager; a name on neither list is recorded as unverifiable in observed and the check is decided on the listed names only",

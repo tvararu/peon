@@ -70,11 +70,12 @@ the new paths.
 | `quests --json` shows the held log only; a rewarded quest is absent from it, not marked. After a relog no loot window is open | [read] `src/cli/help.ts:75`, `taught-surface.md:37`, `:39`; relog [inferred] |
 | Marniel sells item 159 as "x5 for 25 copper" per purchase | [read] `taught-surface.md:47` |
 | `orca-ide terminal read` without `--terminal` acts on the **active** terminal of the current worktree; `send` likely does the same | [measured] `orca-ide terminal read --help`; `send` [inferred] |
-| SOAP is serial, one call at a time, 30-60 ms per call; 500 playerbots on maps 0, 1, 530, 571; no isolation; no world-DB, spawn or respawn changes | [decided] t1 operator; `soapCallMs 40` [measured] `/health` |
+| SOAP is serial, one call at a time, 30-60 ms per call; up to 500 configured playerbots on maps 0, 1, 530, 571; no isolation; no world-DB, spawn or respawn changes | [decided] t1 operator; `soapCallMs 40` [measured] `/health` |
 | Safe concurrent logins: 60 (58 in one burst tested) | [decided]; [measured] `/health.limits` |
 | Presets (9, templates on TCPRESETS): `fresh` (Horde BE priest 1, Sunstrider start 10349.6, -6357.3, 33.4); `eversong10` (Horde BE priest 10, 8735, -6685, 70.5, zone 3430, 5 g, 4 × 24-slot bags); `eversong10-warrior` (Orc warrior 10), `eversong10-mage` (BE mage 10, water), `eversong10-hunter` (BE hunter 10, pet Ravager 10, 1000 Sharp Arrow), all three at the `eversong10` point with 5 g, 4 empty 6-slot bags, 20 Tough Jerky; `elwynn1` (Alliance Human warrior 1, Northshire -8949.95, -132.49, 83.53, map 0); `elwynn10` (Alliance Human priest 10, Goldshire -9455, 55, 56.8, map 0, 5 g, jerky and water); `ghostlands20` (Horde BE priest 20, 7575, -6835, 89.1, map 530 zone 3433, 20 g, bread and milk); `max80` (BE priest 80, Dalaran) | [measured] `GET /presets` notes; green gear [decided] |
 | Every preset has a repair NPC 30-58 yd from its start (vendor table in the t1 README, not read here) | [decided] |
-| Playerbots: realm is PvE; bots attack only PvP-flagged enemy-faction players; they never invite; they do not whisper first but answer whispers; a character with GM level ≥ 1 has full command rights over any bot it whispers; they post in General/Trade/LFG and wave at new players; no per-zone switch; they quest and grind in the eval zones (6 in Eversong, 6 in Elwynn, 20 in Ghostlands when counted) | [decided] t1 operator |
+| Playerbots: realm is PvE; bots attack only PvP-flagged enemy-faction players; they never invite; they do not whisper first but answer whispers; a character with GM level ≥ 1 has full command rights over any bot it whispers; they post in General/Trade/LFG and wave at new players; no per-zone switch; they quest and grind in the eval zones | [decided] t1 operator |
+| Bots in the world vary from run to run: the login message said `Playerbots: The server is configured with 500 bots.` in 7 round-3 runs and `... with 0 bots.` in t3-ghostlands-kill-1 of the same round; `/health` read `charactersInWorld` 107 with `factoryOnline` 2 and `playersOnline` 0 on 2026-09-27. No per-zone count is known | [measured] round-3 `gamelog.jsonl` rows, `soap health` |
 | Offline-impossible setup: `life dead\|ghost` (a death needs a creature after login); anything needing an online character (auras, cooldowns, an open window, a group) | [measured] `life`; rest [inferred] |
 | Northshire: Deputy Willem 823 at -8947.64, -132.32 (≈2 yd from `elwynn1`) starts 783 "A Threat Within"; Marshal McBride 197 at -8902.59, -162.61 (≈56 yd) ends 783 and starts and ends 7 "Kobold Camp Cleanup" (Kobold Vermin, entry 6) | [read] `creature.sql:78020`, `:78048`, `creature_queststarter.sql:38`, `:288`, `creature_questender.sql:39`, `:42`, `quest_template.sql`; distances [inferred, 2D arithmetic] |
 | Goldshire: Innkeeper Farley 295 at -9462.66, 16.19, 57.05 (≈40 yd from `elwynn10`, inside the inn) sells item 159; Priestess Josetta 377 (priest trainer) at -9460.75, 33.13, **63.90** (upstairs, ≈23 yd 2D); Marshal Dughan 240 at -9465.52, 74.01 (≈22 yd) | [read] `creature.sql:78403`, `:78415-78416`, `npc_vendor.sql:220`; distances [inferred] |
@@ -247,11 +248,18 @@ Added for the harness:
   that never flags itself is never attacked by a bot; bots never invite;
   they never whisper first but answer a whisper; they post in General,
   Trade and LFG and wave at new players; they quest and grind in the
-  eval zones (6 in Eversong, 6 in Elwynn, 20 in Ghostlands when
-  counted), so they compete for quest mobs; there is no per-zone switch.
+  eval zones, so they compete for quest mobs; there is no per-zone switch.
+- **Bot count** [measured]: how many bots are in the world changes from
+  run to run, and no per-zone count is known. At preflight the runner
+  reads `soap health` and writes `bots` to `run.json`: `count` is
+  `charactersInWorld` minus `factoryOnline` and `playersOnline`
+  [inferred: `charactersInWorld` includes the bots], with the three
+  raw fields. `bots.risk` is `none` when the count is 0 and otherwise
+  the scenario's catalogue risk (`botRisk` in its JSON); when health
+  cannot be read, `count` is `null` with the error.
   A character with GM level ≥ 1 commands any bot it whispers, which is
   one more reason eval characters never get GM (principle 2).
-- **Playerbot handling** (500 bots share maps 0, 1, 530 and 571 with no
+- **Playerbot handling** (up to 500 configured bots share maps 0, 1, 530 and 571 with no
   isolation [decided]). Kill and quest checks count only the character's
   own server credit, so a bot's kill never passes a check, and a
   bot-tagged mob gives no credit [inferred]. Observation checks use truth
@@ -268,9 +276,8 @@ Added for the harness:
   `botInterference` is `blocked` (reason `playerbots`, or `no_targets`
   when bots cleared the field), not `fail`; three such runs of one
   scenario in a row move it to a quieter place or hour, which is an
-  `eval` fix. Ghostlands has about three times the bots of Eversong or
-  Elwynn [decided counts], so its kill scenarios expect more
-  `no_targets`.
+  `eval` fix. A run whose `run.json` `bots.count` is 0 has no bot
+  interference to claim.
 - **Concurrency.** The server takes 60 logins safely [decided; measured
   `/health.limits.maxLogins`]. A round at 8 panes with a partner each is
   at most 16 eval logins, far below it; the limit binds only if rounds
@@ -574,7 +581,8 @@ The partner is driven by the grader with `tmp/tc-<ACC2>` commands.
   `alive`); T Δ total XP > 0.
 - Probes: target choice by level and relation in a zone the agent has
   never seen, pull discipline, a level-20 spell book in Jev.
-- Bot risk High: 20 bots in Ghostlands when counted [decided].
+- Bot risk High: bots quest and grind in Ghostlands [decided]; the
+  count in the world varies by run (`run.json` `bots`).
 - Note: which creatures near 7575, -6835 are hostile and level 14–23 is
   not verified; round 0 reads it from a witness `nearby --json`.
 

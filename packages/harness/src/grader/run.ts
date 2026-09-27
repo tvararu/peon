@@ -11,6 +11,7 @@ import {
   RunAbort,
   sessionFile,
 } from "#harness/grader/accounts";
+import { recordBots } from "#harness/grader/bots";
 import type { Exec } from "#harness/grader/exec";
 import { harnessCommand, openPane, type Pane } from "#harness/grader/pane";
 import {
@@ -508,6 +509,7 @@ export async function runScenario(init: RunInit): Promise<string> {
   run.log(
     `grader log ${run.runDir}/grader/progress.log; write grader notes and command output under ${run.runDir}/grader/, not tmp/`,
   );
+  await recordBots({ ...run, scenario: init.scenario });
   run.blockedBy = await blockersOf(
     init.scenario,
     init.preflight ?? heldUntilRemoved,

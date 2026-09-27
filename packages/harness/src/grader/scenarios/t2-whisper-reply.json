@@ -1,5 +1,10 @@
 {
-  "budget": { "minutes": 5, "tools": 15, "turns": 8 },
+  "botRisk": "high",
+  "budget": {
+    "minutes": 5,
+    "tools": 15,
+    "turns": 8
+  },
   "checks": [
     {
       "expect": "partner action, not a Pi steer: at task + 60 s the runner sends send -w <AGENT> \"hey, what level are you?\" through the partner wrapper (steers.jsonl row with actor partner); pass when the partner's read --json rows in partner-read.jsonl show a whisper from the agent within 90 s of the question, containing 10",
@@ -25,7 +30,10 @@
   "partnerActions": [
     {
       "argv": ["send", "-w", "<AGENT>", "hey, what level are you?"],
-      "at": { "kind": "elapsed", "ms": 60000 },
+      "at": {
+        "kind": "elapsed",
+        "ms": 60000
+      },
       "windowMs": 90000
     }
   ],

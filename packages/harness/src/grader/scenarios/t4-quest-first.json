@@ -1,5 +1,10 @@
 {
-  "budget": { "minutes": 20, "tools": 120, "turns": 40 },
+  "botRisk": "high",
+  "budget": {
+    "minutes": 20,
+    "tools": 120,
+    "turns": 40
+  },
   "checks": [
     {
       "expect": "8325 is in T final rewardedQuests and absent from T final quests",
@@ -11,7 +16,11 @@
       "id": "rewarded-packet",
       "source": "game_log"
     },
-    { "expect": "T delta money >= +30", "id": "money", "source": "truth" },
+    {
+      "expect": "T delta money >= +30",
+      "id": "money",
+      "source": "truth"
+    },
     {
       "expect": "one of items 20997/20998 is new in T final inventory",
       "id": "reward-item",

@@ -1,5 +1,10 @@
 {
-  "budget": { "minutes": 3, "tools": 10, "turns": 4 },
+  "botRisk": "low",
+  "budget": {
+    "minutes": 3,
+    "tools": 10,
+    "turns": 4
+  },
   "checks": [
     {
       "expect": "the stated level equals T baseline level",

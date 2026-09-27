@@ -1,5 +1,10 @@
 {
-  "budget": { "minutes": 4, "tools": 10, "turns": 5 },
+  "botRisk": "high",
+  "budget": {
+    "minutes": 4,
+    "tools": 10,
+    "turns": 5
+  },
   "checks": [
     {
       "expect": "recall >= 0.8 of unit names against the witness nearby --json rows within 30 yd of the agent's pose at the answer time (players exact names, NPC name match, duplicates collapsed); a missed unit counts only if every witness sample within +-10 s has it within 25 yd",

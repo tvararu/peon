@@ -134,6 +134,15 @@ function soap(world: World, verb: string | undefined): ExecResult {
   if (verb === "create") return ok(JSON.stringify(session));
   if (verb === "truth") return ok(truth(world));
   if (verb === "list") return ok("[]");
+  if (verb === "health")
+    return ok(
+      JSON.stringify({
+        charactersInWorld: 107,
+        factoryOnline: 2,
+        ok: true,
+        playersOnline: 0,
+      }),
+    );
   return ok('{"ok":true}');
 }
 
@@ -232,6 +241,9 @@ describe("runScenario", () => {
     ).json()) as EvalResult;
     expect(validateResult({ ...draft, verdict: "fail" })).toEqual([]);
     expect(draft.verdict).toBeNull();
+    expect(
+      (await Bun.file(`${world.runDir}/run.json`).json()).bots,
+    ).toMatchObject({ count: 105, risk: "low" });
     expect(draft.end).toBe("done");
     expect(draft.tab).toBe("eval-1-t0-self-state-1");
     expect(draft.evidence.finalSavedAt).toBeDefined();

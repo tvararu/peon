@@ -45,6 +45,8 @@ export type SteerAt =
 
 export type PartnerAction = { at: SteerAt; argv: string[]; windowMs: number };
 
+export type BotRisk = "low" | "med" | "high";
+
 export type ScenarioCheck = {
   id: string;
   source: "truth" | "verifier" | "witness" | "game_log" | "session" | "frame";
@@ -71,6 +73,7 @@ export type Scenario = {
   checks: ScenarioCheck[];
   needsWatcher: boolean;
   navBound: boolean;
+  botRisk: BotRisk;
 };
 
 export const ROUND_1: readonly string[] = [

@@ -1,5 +1,10 @@
 {
-  "budget": { "minutes": 6, "tools": 30, "turns": 12 },
+  "botRisk": "med",
+  "budget": {
+    "minutes": 6,
+    "tools": 30,
+    "turns": 12
+  },
   "checks": [
     {
       "expect": "T final position within 5 yd of marniel (8700.4, -6638.4, 72.8, map 530); creature spawn and live nearby agree on this point",
