@@ -178,6 +178,67 @@ describe("travelLeg", () => {
     expect(goTo).toHaveBeenCalledTimes(1);
   });
 
+  test("a point goal without z on two floors retries once on the floor nearest you", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { z: 79.4 });
+    const goTo = driveGoto(t.handle, [
+      {
+        floors: [72.6, 80.1],
+        refuse: "pick_destination: ambiguous ground column at destination",
+      },
+      { arrive: { x: 20, y: 0, z: 80.1 } },
+    ]);
+    const leg = await travelLeg(toolCtx(t), {
+      goal: { kind: "point", x: 20, y: 0 },
+      within: 1,
+    });
+    expect(leg).toMatchObject({ floorRetried: true, status: "arrived" });
+    expect(goTo).toHaveBeenNthCalledWith(2, {
+      kind: "point",
+      x: 20,
+      y: 0,
+      z: 80.1,
+    });
+  });
+
+  test("a point goal with z is never retried on another floor", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { z: 79.4 });
+    const goTo = driveGoto(t.handle, [
+      {
+        floors: [72.6, 80.1],
+        refuse: "pick_destination: ambiguous ground column at destination",
+      },
+    ]);
+    const leg = await travelLeg(toolCtx(t), {
+      goal: { kind: "point", x: 20, y: 0, z: 72.6 },
+      within: 1,
+    });
+    expect(leg).toMatchObject({ floorRetried: false, status: "refused" });
+    expect(goTo).toHaveBeenCalledTimes(1);
+  });
+
+  test("a failed floor retry keeps the refusal and says it retried", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { z: 0 });
+    const goTo = driveGoto(t.handle, [
+      {
+        floors: [72.6, 80.1],
+        refuse: "pick_destination: ambiguous ground column at destination",
+      },
+    ]);
+    const leg = await travelLeg(toolCtx(t), {
+      goal: { kind: "point", x: 20, y: 0 },
+      within: 1,
+    });
+    expect(leg).toMatchObject({
+      floorRetried: true,
+      reason: "ambiguous_floor",
+      status: "refused",
+    });
+    expect(goTo).toHaveBeenCalledTimes(2);
+  });
+
   test("a human stop cancels the leg with the cancel code", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle);

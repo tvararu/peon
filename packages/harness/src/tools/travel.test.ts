@@ -245,8 +245,28 @@ describe("travel", () => {
       reason: "ambiguous_floor",
       status: "REFUSED",
     });
-    expect(res.next).toBe('travel(to: "8764, -6683, 72.6")');
+    expect(res.next).toBe('travel(to: "8764, -6683, 80.1")');
     expect(limitProblem(contentOf(res))).toBeUndefined();
+  });
+
+  test("coordinates on two floors retry on your floor, then offer the other one", async () => {
+    const t = await world();
+    setSelf(t.handle, { x: 0, y: 0, z: 79 });
+    const goTo = driveGoto(t.handle, [
+      {
+        floors: [72.6, 80.1],
+        refuse: "pick_destination: ambiguous ground column at destination",
+      },
+    ]);
+    const res = await travelSpec.run(
+      { to: "8764, -6683" },
+      toolCtx<TravelAfter>(t),
+    );
+    expect(goTo).toHaveBeenCalledTimes(2);
+    expect(res.detail).toBe(
+      "the ground at 8764, -6683 has 2 floors: 72.6, 80.1. Tried: planner twice (floor retry).",
+    );
+    expect(res.next).toBe('travel(to: "8764, -6683, 72.6")');
   });
 
   test("unstick names the refused goal as the next call", async () => {

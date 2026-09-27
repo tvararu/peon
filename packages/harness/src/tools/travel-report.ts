@@ -69,12 +69,16 @@ function coord(n: number): string {
   return String(Math.round(n * 10) / 10);
 }
 
+function byNearest(floors: readonly number[], z: number | undefined): number[] {
+  if (z === undefined) return [...floors];
+  return [...floors].sort((a, b) => Math.abs(a - z) - Math.abs(b - z));
+}
+
 function nearestFloor(
   floors: readonly number[],
   z: number | undefined,
 ): number | undefined {
-  if (z === undefined) return floors[0];
-  return [...floors].sort((a, b) => Math.abs(a - z) - Math.abs(b - z))[0];
+  return byNearest(floors, z)[0];
 }
 
 function unitFloorsReport(
@@ -181,30 +185,44 @@ function otherRefusal(
   });
 }
 
+function pointFloorsReport(init: {
+  ctx: ViewCtx;
+  goal: Extract<Goal, { kind: "point" }>;
+  leg: LegResult;
+  after: TravelAfter;
+  tried: string;
+}): Report {
+  const { ctx, goal, leg, after, tried } = init;
+  const floors = leg.floors ?? [];
+  const byHeight = byNearest(floors, poseView(ctx)?.z);
+  const offer = (leg.floorRetried ? byHeight[1] : undefined) ?? byHeight[0];
+  const retried = leg.floorRetried ? ` ${tried}` : "";
+  return result("REFUSED", {
+    after,
+    detail: `the ground at ${goalName(goal)} has ${floors.length} floors: ${floors.map((floor) => floor.toFixed(1)).join(", ")}.${retried}`,
+    next: nextCall("travel", {
+      to: `${goal.x}, ${goal.y}, ${offer?.toFixed(1) ?? ""}`,
+    }),
+    options: floors,
+    reason: "ambiguous_floor",
+  });
+}
+
 function refusedReport(init: {
+  ctx: ViewCtx;
   goal: Goal;
   leg: LegResult;
   after: TravelAfter;
 }): Report {
-  const { goal, leg, after } = init;
+  const { ctx, goal, leg, after } = init;
   const name = goalName(goal);
   const walked = `Walked ${yd(leg.traveledYd)} yd.`;
   const tried = `Tried: ${leg.floorRetried ? "planner twice (floor retry)" : "planner once"}.`;
   const ask = askHuman(
     `I cannot reach ${goal.kind === "unit" ? goal.unit.name : name} from here. Is there another way?`,
   );
-  if (leg.reason === "ambiguous_floor" && goal.kind === "point") {
-    const floors = leg.floors ?? [];
-    return result("REFUSED", {
-      after,
-      detail: `the ground at ${name} has ${floors.length} floors: ${floors.map((floor) => floor.toFixed(1)).join(", ")}.`,
-      next: nextCall("travel", {
-        to: `${goal.x}, ${goal.y}, ${floors[0]?.toFixed(1) ?? ""}`,
-      }),
-      options: floors,
-      reason: "ambiguous_floor",
-    });
-  }
+  if (leg.reason === "ambiguous_floor" && goal.kind === "point")
+    return pointFloorsReport({ after, ctx, goal, leg, tried });
   if (leg.reason === "ambiguous_floor" && goal.kind === "unit") {
     const floors = unitFloorsReport(goal, leg, after, tried);
     if (floors) return floors;
@@ -252,7 +270,7 @@ export function legReport(init: {
       reason: "interrupted",
     });
   ctx.rt.travel.lastRefusedGoal = to;
-  return refusedReport({ after, goal, leg });
+  return refusedReport({ after, ctx, goal, leg });
 }
 
 export function exploreReport(

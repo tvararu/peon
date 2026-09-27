@@ -98,6 +98,28 @@ describe("explore", () => {
     expect(result.legs).toHaveLength(2);
   });
 
+  test("a leg on two floors walks on the floor nearest your height", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 8735, y: -6685, z: 21.3 });
+    const goTo = driveGoto(t.handle, [
+      {
+        floors: [21.1, 34.8],
+        refuse: "pick_destination: ambiguous ground column at destination",
+      },
+      { arrive: { x: 8755, y: -6685, z: 21.1 } },
+      { arrive: { x: 8775, y: -6685, z: 21.1 } },
+    ]);
+    const result = await explore(toolCtx(t), { direction: "N" });
+    expect(goTo).toHaveBeenNthCalledWith(2, {
+      kind: "point",
+      x: 8755,
+      y: -6685,
+      z: 21.1,
+    });
+    expect(result).toMatchObject({ obstructed: 0, stoppedBy: "distance" });
+    expect(result.legs[0]).toMatchObject({ status: "arrived" });
+  });
+
   test("halves the leg after each refusal and stops after 3 obstructed legs", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle, { x: 0, y: 0 });

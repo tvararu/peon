@@ -156,18 +156,30 @@ function matchFloor(
     : undefined;
 }
 
+function selfFloor(
+  ctx: OpsCtx,
+  goal: Extract<LegGoal, { kind: "point" }>,
+  floors: readonly number[] | undefined,
+) {
+  const z = poseView(ctx)?.z;
+  if (goal.z !== undefined || z === undefined) return;
+  const [floor] = [...(floors ?? [])].sort(
+    (a, b) => Math.abs(a - z) - Math.abs(b - z),
+  );
+  return floor === undefined ? undefined : { x: goal.x, y: goal.y, z: floor };
+}
+
 export async function travelLeg(
   ctx: OpsCtx,
   init: { goal: LegGoal; within: number },
 ): Promise<LegResult> {
   const first = await legOnce(ctx, init.goal, init.within);
-  if (
-    init.goal.kind !== "unit" ||
-    first.status !== "refused" ||
-    first.reason !== "ambiguous_floor"
-  )
+  if (first.status !== "refused" || first.reason !== "ambiguous_floor")
     return first;
-  const point = matchFloor(ctx, init.goal.guid, first.floors);
+  const point =
+    init.goal.kind === "unit"
+      ? matchFloor(ctx, init.goal.guid, first.floors)
+      : selfFloor(ctx, init.goal, first.floors);
   if (!point) return first;
   const second = await legOnce(ctx, { kind: "point", ...point }, init.within);
   return {
