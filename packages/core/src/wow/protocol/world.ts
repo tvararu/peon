@@ -178,10 +178,24 @@ type Waiter = {
 export class OpcodeDispatch {
   private readonly handlers: Map<number, (reader: PacketReader) => void>;
   private readonly waiters: Map<number, Waiter[]>;
+  private readonly unhandled: Map<number, number>;
+  private readonly reported: Set<number>;
+  private report: (opcode: number) => boolean;
 
   constructor() {
     this.handlers = new Map();
     this.waiters = new Map();
+    this.unhandled = new Map();
+    this.reported = new Set();
+    this.report = () => false;
+  }
+
+  onUnhandled(report: (opcode: number) => boolean): void {
+    this.report = report;
+  }
+
+  unhandledCounts(): ReadonlyMap<number, number> {
+    return this.unhandled;
   }
 
   has(opcode: number): boolean {
@@ -223,6 +237,10 @@ export class OpcodeDispatch {
   }
 
   handle(opcode: number, reader: PacketReader) {
+    if (!(this.handlers.has(opcode) || this.waiters.has(opcode))) {
+      this.countUnhandled(opcode);
+      return;
+    }
     const body = reader.fork();
     try {
       this.handlers.get(opcode)?.(reader);
@@ -241,6 +259,12 @@ export class OpcodeDispatch {
       this.removeWaiter(opcode, waiter);
       waiter.resolve(body.fork());
     }
+  }
+
+  private countUnhandled(opcode: number) {
+    this.unhandled.set(opcode, (this.unhandled.get(opcode) ?? 0) + 1);
+    if (this.reported.has(opcode)) return;
+    if (this.report(opcode)) this.reported.add(opcode);
   }
 
   private findWaiter(

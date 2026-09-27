@@ -32,6 +32,7 @@ describe("registerWorldHandlers", () => {
     const dispatch = {
       has: (opcode: number) => counts.has(opcode),
       on: (opcode: number) => counts.set(opcode, (counts.get(opcode) ?? 0) + 1),
+      onUnhandled: () => {},
     };
     const events = { message: { size: 0, emit: () => {} } };
     registerWorldHandlers({ dispatch, events } as unknown as WorldConn);
@@ -108,5 +109,21 @@ describe("stub notices", () => {
     conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
     conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
     expect(notices).toHaveLength(1);
+  });
+
+  test("an opcode nothing handles emits one notice by its name", () => {
+    const conn = stubConn();
+    const notices: NoticeEvent[] = [];
+    conn.events.notice.subscribe((event) => notices.push(event));
+    conn.dispatch.handle(GameOpcode.SMSG_SPELLLOGEXECUTE, weather());
+    conn.dispatch.handle(GameOpcode.SMSG_SPELLLOGEXECUTE, weather());
+    conn.dispatch.handle(0x7_ff, weather());
+    expect(notices).toMatchObject([
+      {
+        opcode: GameOpcode.SMSG_SPELLLOGEXECUTE,
+        text: "[peon] SMSG_SPELLLOGEXECUTE is not yet implemented",
+      },
+      { label: "Opcode 0x7ff", opcode: 0x7_ff },
+    ]);
   });
 });

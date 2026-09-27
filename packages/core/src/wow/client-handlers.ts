@@ -13,7 +13,11 @@ import {
 import { registerMovementHandlers } from "#wow/movement-handlers";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { PacketReader } from "#wow/protocol/packet";
-import { registerStubs } from "#wow/protocol/stubs";
+import {
+  registerStubs,
+  type StubNotice,
+  unhandledNotice,
+} from "#wow/protocol/stubs";
 import type { WorldConn } from "#wow/world-conn";
 import {
   handleDuelComplete,
@@ -161,7 +165,7 @@ export function registerGameHandlers(conn: WorldConn): void {
 
 export function registerWorldHandlers(conn: WorldConn): void {
   registerGameHandlers(conn);
-  registerStubs(conn.dispatch, (notice) => {
+  const notify = (notice: StubNotice): boolean => {
     if (conn.events.notice.size === 0) return false;
     conn.events.notice.emit({
       type: "not_implemented",
@@ -169,5 +173,7 @@ export function registerWorldHandlers(conn: WorldConn): void {
       at: Date.now(),
     });
     return true;
-  });
+  };
+  registerStubs(conn.dispatch, notify);
+  conn.dispatch.onUnhandled((opcode) => notify(unhandledNotice(opcode)));
 }
