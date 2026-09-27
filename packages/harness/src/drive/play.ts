@@ -16,7 +16,7 @@ import {
   readKey,
 } from "#harness/drive/keys";
 import { handBackNote, type Journal, startJournal } from "#harness/drive/note";
-import type { Claim, WorldService } from "#harness/world/service";
+import type { Claim, WorldReads, WorldService } from "#harness/world/service";
 
 export type PlayMode = "talk" | "play";
 export type Consumed = { consume: true } | undefined;
@@ -41,11 +41,17 @@ const KEY_LABEL: Record<string, string> = {
   w: "W",
 };
 
+function targetOf(reads: WorldReads): bigint | undefined {
+  return (
+    reads.getCombatState().selectedGuid ??
+    reads.getControlState().requestedTarget
+  );
+}
+
 export class Play {
   private mode: PlayMode = "talk";
   private claim: Claim | undefined;
   private journal: Journal | undefined;
-  private target: bigint | undefined;
   private targetName: string | undefined;
   private flash = "";
   private readonly held: HeldKeys;
@@ -162,7 +168,7 @@ export class Play {
     const claim = this.claim;
     if (!(session && claim)) return undefined;
     const world: PlayWorld = { act: claim.act, reads: session.reads };
-    const target = session.reads.getCombatState().selectedGuid ?? this.target;
+    const target = targetOf(session.reads);
     if (command.type === "jump")
       return claim.act.jump().then(() => ({ action: "jumped", text: "" }));
     if (command.type === "next_target") return targetNext(world, target);
@@ -178,8 +184,6 @@ export class Play {
       this.targetName = done.target;
     }
     if (done.action) this.journal?.action(done.action);
-    const selected = this.host.world()?.current()?.reads.getCombatState();
-    this.target = selected?.selectedGuid ?? this.target;
     this.render();
   }
 
@@ -215,13 +219,12 @@ export class Play {
   }
 
   private targetText(): string {
-    const combat = this.host.world()?.current()?.reads.getCombatState();
-    if (combat?.selectedGuid === undefined) return "no target";
-    const name =
-      combat.target?.guid === combat.selectedGuid
-        ? combat.target.name
-        : this.targetName;
-    return `target ${name ?? "unnamed"}`;
+    const reads = this.host.world()?.current()?.reads;
+    const guid = reads && targetOf(reads);
+    if (!reads || guid === undefined) return "no target";
+    const name = reads.getEntity(guid)?.name ?? this.targetName ?? "unnamed";
+    const confirmed = reads.getCombatState().selectedGuid === guid;
+    return `target ${name}${confirmed ? "" : " (requested)"}`;
   }
 
   private line(): string {
