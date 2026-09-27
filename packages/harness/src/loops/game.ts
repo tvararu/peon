@@ -186,6 +186,7 @@ function build(handle: WorldHandle, jev: JevPort | undefined) {
   const parts: Parts = { cycle, halt, handle, tactics };
   const unwire = wire(parts);
   const retire = () => {
+    if (!live) return;
     live = false;
     unwire();
     tactics.dispose();
@@ -211,8 +212,16 @@ export function createGame(handle: WorldHandle, jev?: JevPort): Game {
     ...handle,
     ...runs,
     capabilities: () => ({ ...handle.capabilities(), jev: jev !== undefined }),
+    close() {
+      retire();
+      handle.close();
+    },
     getCycleState: () => cycle.snapshot(),
     getTacticsState: () => tactics.snapshot(),
+    logout() {
+      retire();
+      handle.logout();
+    },
     halt() {
       tactics.stop("halt");
       cycle.stop("halt");

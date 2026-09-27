@@ -80,6 +80,10 @@ async function session() {
 function recordActuators(handle: WorldHandle, calls: string[]): WorldHandle {
   return {
     ...handle,
+    logout() {
+      calls.push("logout");
+      handle.logout();
+    },
     setControlLease(lease) {
       calls.push(`lease:${lease}`);
       handle.setControlLease(lease);
@@ -118,9 +122,7 @@ test("a raw move leaves the cycle running until takeControl stops it", async () 
   }
 });
 
-test("a closed session retires an active tactics run without acting through the handle", async () => {
-  const { handle, server } = await session();
-  const calls: string[] = [];
+async function activeTactics(handle: WorldHandle, calls: string[]) {
   const game = createGame(recordActuators(handle, calls), {
     select: hangUntilAborted,
   });
@@ -130,12 +132,39 @@ test("a closed session retires an active tactics run without acting through the 
   });
   const running = game.startTactics(BigInt(TARGET), "Hold this target");
   await requested.promise;
-  expect(game.getTacticsState().status).toBe("active");
-  expect(game.getControlState().owner).toBe("loop");
+  const owner = game.getControlState().owner;
   calls.length = 0;
+  return { game, owner, running };
+}
+
+test("a closed session retires an active tactics run without acting through the handle", async () => {
+  const { handle, server } = await session();
+  const calls: string[] = [];
+  const { game, owner, running } = await activeTactics(handle, calls);
+  expect(owner).toBe("loop");
   server.stop();
   await handle.closed;
   await running;
   expect(game.getTacticsState().status).toBe("idle");
   expect(calls).toEqual([]);
+});
+
+test("logout retires an active tactics run before the core session disposes", async () => {
+  const { handle, server } = await session();
+  const calls: string[] = [];
+  try {
+    const { game, owner, running } = await activeTactics(handle, calls);
+    expect(owner).toBe("loop");
+    game.logout();
+    expect(game.getTacticsState()).toMatchObject({
+      lastStopReason: "disposed",
+      status: "idle",
+    });
+    await running;
+    handle.close();
+    await handle.closed;
+    expect(calls).toEqual(["logout"]);
+  } finally {
+    server.stop();
+  }
 });
