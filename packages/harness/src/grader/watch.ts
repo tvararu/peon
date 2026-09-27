@@ -91,6 +91,13 @@ export function lastAnswerAt(
     );
 }
 
+export function lastAnswer(
+  entries: readonly GameLogEntry[],
+): { at: number; text: string } | undefined {
+  const row = entries.findLast((entry) => entry.event === "agent/message");
+  return row === undefined ? undefined : { at: row.ts, text: row.text };
+}
+
 type ProgressInit = {
   status: StatusJson;
   lastAnswerAt: number | undefined;

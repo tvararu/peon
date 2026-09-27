@@ -5,6 +5,7 @@ import type { StatusJson } from "#harness/contract/config";
 import type { Domain, GameLogEntry, LogEvent } from "#harness/contract/log";
 import {
   createLogTail,
+  lastAnswer,
   lastAnswerAt,
   progressOf,
   readStatus,
@@ -102,6 +103,17 @@ describe("triggerRows", () => {
     ).toBe(250);
     expect(lastAnswerAt([row(1, 100, "xp/gain")], 50)).toBe(50);
     expect(lastAnswerAt([], undefined)).toBeUndefined();
+  });
+
+  test("lastAnswer returns the newest agent message with its text", () => {
+    expect(
+      lastAnswer([
+        row(1, 100, "agent/message", "first"),
+        row(2, 250, "agent/message", "What now?"),
+        row(3, 300, "xp/gain"),
+      ]),
+    ).toEqual({ at: 250, text: "What now?" });
+    expect(lastAnswer([row(1, 100, "xp/gain")])).toBeUndefined();
   });
 });
 

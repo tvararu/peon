@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { Scenario } from "#harness/grader/scenarios";
 import {
+  asksHuman,
   describeAt,
   dueSteer,
   type EndMemory,
@@ -52,6 +53,7 @@ function progress(overrides: Partial<ProgressJson> = {}): ProgressJson {
 
 function view(now: number, overrides: Partial<EndView> = {}): EndView {
   return {
+    answerAsks: false,
     budgetMs: 600_000,
     lastAnswerAt: undefined,
     now,
@@ -245,10 +247,82 @@ describe("endAction", () => {
     ).toEqual({ end: "budget", escape: true, kind: "end" });
   });
 
+  test("a question to the human is not done: one nudge, then a stuck stop", () => {
+    const asked = { answerAsks: true, lastAnswerAt: TASK + 5000 };
+    expect(endAction(view(TASK + 35_000, asked), memory())).toEqual({
+      kind: "wait",
+    });
+    expect(endAction(view(TASK + 184_999, asked), memory())).toEqual({
+      kind: "wait",
+    });
+    expect(endAction(view(TASK + 185_000, asked), memory())).toEqual({
+      kind: "nudge",
+    });
+    const nudged = memory({ nudgedAt: TASK + 185_000 });
+    expect(endAction(view(TASK + 305_000, asked), nudged)).toEqual({
+      kind: "stop",
+      reason: "stuck",
+    });
+  });
+
+  test("a question with progress after it follows the normal done rule", () => {
+    const moved = {
+      answerAsks: true,
+      lastAnswerAt: TASK + 5000,
+      progress: progress({
+        lastProgress: { at: TASK + 6000, event: "nav/route_start" },
+      }),
+    };
+    expect(endAction(view(TASK + 36_000, moved), memory())).toEqual({
+      end: "done",
+      escape: false,
+      kind: "end",
+    });
+  });
+
+  test("a tool call after the nudge is not stuck", () => {
+    const nudged = memory({ nudgedAt: TASK + 185_000 });
+    const working = {
+      answerAsks: true,
+      lastAnswerAt: TASK + 5000,
+      progress: progress({
+        agent: "tool",
+        lastProgress: { at: TASK + 200_000, event: "nav/route_start" },
+        lastToolCallAt: TASK + 190_000,
+      }),
+    };
+    expect(endAction(view(TASK + 305_000, working), nudged)).toEqual({
+      kind: "wait",
+    });
+    const answered = {
+      answerAsks: false,
+      lastAnswerAt: TASK + 310_000,
+      progress: progress({ lastToolCallAt: TASK + 190_000 }),
+    };
+    expect(endAction(view(TASK + 340_000, answered), nudged)).toEqual({
+      end: "done",
+      escape: false,
+      kind: "end",
+    });
+  });
+
   test("aborts when status.json stops changing", () => {
     expect(
       endAction(view(TASK + 40_000, { statusAt: TASK + 9999 }), memory()),
     ).toEqual({ evidence: "status.json not updated for 30 s", kind: "abort" });
+  });
+});
+
+describe("asksHuman", () => {
+  test("the last sentence ending in a question mark asks", () => {
+    expect(
+      asksHuman(
+        "I completed 5 of 8 kills. Repeating it won't help—what would you like me to do?",
+      ),
+    ).toBe(true);
+    expect(asksHuman("Which direction should I try? **")).toBe(true);
+    expect(asksHuman("Did it work? Yes: I killed the cat.")).toBe(false);
+    expect(asksHuman("Done: Marniel is 2 yd away.")).toBe(false);
   });
 });
 

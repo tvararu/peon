@@ -879,7 +879,11 @@ TAB=eval-<ROUND>-<scenario>-<N>
     tests.
 11. **Detect the end.** The run ends at the first of:
     - **done**: the latest assistant message claims completion (or answers
-      a tier-0 question) and no tool call or GL action follows for 30 s;
+      a tier-0 question) and no tool call or GL action follows for 30 s.
+      A message whose last sentence ends with `?` and that no tool call or
+      GL progress follows is a question to the human, not a completion
+      claim: it waits under the stuck rule below (one rescue nudge, then
+      a stuck stop);
     - **budget**: wall time since `taskMs` ≥ scenario time budget → type
       `Stop now and tell me where you got to.` as a steer (Pi queues it
       during a tool run); wait up to 60 s; if the agent is still busy,

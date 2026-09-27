@@ -20,6 +20,7 @@ export type EndView = {
   budgetMs: number;
   progress: ProgressJson | undefined;
   lastAnswerAt: number | undefined;
+  answerAsks: boolean;
   statusAt: number;
   pending: boolean;
 };
@@ -111,12 +112,30 @@ function afterStop(
     : WAIT;
 }
 
-function isDone(
-  { now, progress, lastAnswerAt, pending }: EndView,
-  taskMs: number,
-): boolean {
+const TRAILING_MARKUP = /[\s*_`"'\u201d\u2019)\]]+$/u;
+
+export function asksHuman(answer: string): boolean {
+  return answer.replace(TRAILING_MARKUP, "").endsWith("?");
+}
+
+function waitsOnHuman({
+  answerAsks,
+  lastAnswerAt,
+  progress,
+}: EndView): boolean {
+  if (!answerAsks || lastAnswerAt === undefined) return false;
+  const after = Math.max(
+    progress?.lastProgress?.at ?? 0,
+    progress?.lastToolCallAt ?? 0,
+  );
+  return after <= lastAnswerAt;
+}
+
+function isDone(view: EndView, taskMs: number): boolean {
+  const { now, progress, lastAnswerAt, pending } = view;
   if (
     pending ||
+    waitsOnHuman(view) ||
     lastAnswerAt === undefined ||
     lastAnswerAt < taskMs ||
     progress?.agent !== "idle"

@@ -22,6 +22,7 @@ type World = {
   now: number;
   char: string;
   answers: boolean;
+  reply: string;
   launchFails: boolean;
   exited: boolean;
   seq: number;
@@ -47,6 +48,7 @@ async function newWorld(overrides: Partial<World> = {}): Promise<World> {
     launchFails: false,
     logs: [],
     now: Date.parse("2026-09-26T21:00:00.000Z"),
+    reply: "Level 10, 100% health.",
     runDir,
     seq: 0,
     worktree,
@@ -143,7 +145,7 @@ async function onSend(world: World, text: string): Promise<void> {
   await log(world, "human/input", text);
   if (text === BUDGET_STOP || world.answers) {
     world.agent = "idle";
-    await log(world, "agent/message", "Level 10, 100% health.");
+    await log(world, "agent/message", world.reply);
   }
 }
 
@@ -457,6 +459,19 @@ describe("runScenario", () => {
     expect(draft.verdictReason).toStartWith(
       "no_death: the death steer never fired",
     );
+  });
+
+  test("a question to the human ends stuck after one rescue nudge", async () => {
+    const world = await newWorld({ reply: "What would you like me to do?" });
+    await run(world);
+    const draft = (await Bun.file(
+      `${world.runDir}/grader/draft.json`,
+    ).json()) as EvalResult;
+    expect(draft.end).toBe("stuck");
+    expect(draft.interventions.map((item) => item.kind)).toEqual([
+      "rescue",
+      "budget_stop",
+    ]);
   });
 
   test("a lifted blocker lets the run go ahead", async () => {

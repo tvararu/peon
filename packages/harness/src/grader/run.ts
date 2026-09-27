@@ -36,6 +36,7 @@ import {
 import type { Scenario } from "#harness/grader/scenarios";
 import { startSlots } from "#harness/grader/spawn-slots";
 import {
+  asksHuman,
   BUDGET_STOP,
   describeAt,
   dueSteer,
@@ -51,7 +52,7 @@ import { readTruth } from "#harness/grader/truth";
 import {
   createLogTail,
   type LogTail,
-  lastAnswerAt,
+  lastAnswer,
   progressOf,
   readStatus,
   type TriggerRow,
@@ -85,6 +86,7 @@ type Live = RunState & {
   tail: LogTail;
   triggers: TriggerRow[];
   answerAt: number | undefined;
+  answerAsks: boolean;
   inWorld: string | undefined;
   statusAt: number | undefined;
   cursor: SteerCursor;
@@ -134,6 +136,13 @@ function progressLogger(init: RunInit, runDir: string): RunInit["log"] {
   };
 }
 
+const freshMemory = (taskMs: number): EndMemory => ({
+  nudgedAt: undefined,
+  stopAt: undefined,
+  stopReason: undefined,
+  taskMs,
+});
+
 async function prepare(given: RunInit): Promise<Live> {
   const paths = runPaths({
     replica: given.replica,
@@ -170,15 +179,11 @@ async function prepare(given: RunInit): Promise<Live> {
     tab,
     truthWaitMs,
   });
-  const memory: EndMemory = {
-    nudgedAt: undefined,
-    stopAt: undefined,
-    stopReason: undefined,
-    taskMs: 0,
-  };
+  const memory = freshMemory(0);
   const tail = createLogTail(`${runDir}/gamelog.jsonl`);
   return {
     ...base,
+    answerAsks: false,
     answerAt: undefined,
     cursor: { index: 0, since: 0 },
     init,
@@ -251,7 +256,11 @@ async function launch(run: Live): Promise<void> {
 async function pollLog(run: Live): Promise<void> {
   const rows = await run.tail.read();
   run.triggers.push(...triggerRows(rows));
-  run.answerAt = lastAnswerAt(rows, run.answerAt);
+  const answer = lastAnswer(rows);
+  if (answer !== undefined) {
+    run.answerAt = answer.at;
+    run.answerAsks = asksHuman(answer.text);
+  }
   run.inWorld ??= rows.find((row) => row.event === "session/in_world")?.char;
   const { taskMs } = run;
   if (taskMs !== undefined)
@@ -320,12 +329,7 @@ async function sendTask(run: Live): Promise<void> {
   await awaitLanded(run, taskMs);
   run.cursor = { index: 0, since: taskMs };
   run.partnerTrack = newPartnerTrack(taskMs);
-  run.memory = {
-    nudgedAt: undefined,
-    stopAt: undefined,
-    stopReason: undefined,
-    taskMs,
-  };
+  run.memory = freshMemory(taskMs);
 }
 
 async function steer(run: Live, now: number): Promise<void> {
@@ -386,6 +390,7 @@ async function endView(run: Live, now: number): Promise<EndView> {
   const status = await readStatus(`${run.runDir}/status.json`);
   if (status !== undefined) run.statusAt = status.at;
   return {
+    answerAsks: run.answerAsks,
     budgetMs: run.scenario.budget.minutes * 60_000,
     lastAnswerAt: run.answerAt,
     now,
