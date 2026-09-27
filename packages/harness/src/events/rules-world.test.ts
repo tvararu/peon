@@ -220,6 +220,39 @@ describe("vendorDrafts and trainerDrafts", () => {
     });
   });
 
+  test("a vendor list row carries the item names", () => {
+    const good = (slot: number, itemId: number) => ({
+      buyCount: 1,
+      displayId: 0,
+      extendedCost: 0,
+      itemId,
+      maxDurability: 0,
+      price: 25,
+      slot,
+      stock: null,
+    });
+    const window = {
+      emptyReason: undefined,
+      guid: 0x10n,
+      invalidatedReason: undefined,
+      items: [good(1, 117), good(2, 1179)],
+      openedAt: 0,
+    };
+    const names: Record<number, string> = { 117: "Tough Jerky" };
+    const rc = testRuleInput({
+      lookup: testLookup({ itemName: (itemId) => names[itemId] }),
+    });
+    const event: VendorEvent = {
+      at: 0,
+      state: { ...vendorBase, window },
+      type: "listed",
+    };
+    expect(vendorDrafts(event, rc)[0]).toMatchObject({
+      data: { items: 2, names: ["Tough Jerky", "item 1179"], npc: "10" },
+      text: "The vendor lists 2 items: Tough Jerky, item 1179.",
+    });
+  });
+
   test("a trained spell is passive; a list is log", () => {
     expect(
       trainerDrafts(trainer("trained", true), testRuleInput())[0],

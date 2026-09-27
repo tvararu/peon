@@ -6,6 +6,7 @@ import type {
 } from "@tuicraft/core";
 import type { LogDraft, LogEvent } from "#harness/contract/log";
 import { type Drafts, guidText, type RuleInput } from "#harness/events/rules";
+import { itemIdText } from "#harness/ops/item-names";
 
 export const MONEY_NOTICE_MS = 2000;
 
@@ -121,11 +122,14 @@ function itemRow(push: ItemPush, rc: RuleInput): Drafts {
     source: itemSource(push),
     total: push.totalCount,
   };
-  const text = `You receive ${name ?? `item ${push.itemId}`} x${push.count}.`;
+  const text = `You receive ${name ?? itemIdText(push.itemId)} x${push.count}.`;
   return [{ class: "passive", data, domain: "loot", event: "loot/item", text }];
 }
 
-function lootDrafts({ type, state }: RewardsEvent, rc: RuleInput): Drafts {
+export function lootDrafts(
+  { type, state }: RewardsEvent,
+  rc: RuleInput,
+): Drafts {
   const { lastItemPush, lastRelease, loot } = state;
   if (type === "item_push" && lastItemPush) return itemRow(lastItemPush, rc);
   if (type === "loot_opened" && loot.phase === "open") {
@@ -162,7 +166,7 @@ function lootDrafts({ type, state }: RewardsEvent, rc: RuleInput): Drafts {
   return [];
 }
 
-function moneyDrafts({ state }: RewardsEvent, rc: RuleInput): Drafts {
+export function moneyDrafts({ state }: RewardsEvent, rc: RuleInput): Drafts {
   const after = state.inventory.coinage;
   const before = rc.memo.coinage;
   rc.memo.coinage = after ?? before;

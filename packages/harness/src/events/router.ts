@@ -1,4 +1,10 @@
-import type { TacticsEvent, Unsubscribe, WorldHandle } from "@tuicraft/core";
+import type {
+  RewardsEvent,
+  TacticsEvent,
+  Unsubscribe,
+  VendorEvent,
+  WorldHandle,
+} from "@tuicraft/core";
 import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
 import type { HarnessFlags } from "#harness/contract/config";
 import type {
@@ -44,7 +50,17 @@ import {
   trainerDrafts,
   vendorDrafts,
 } from "#harness/events/rules-world";
-import { questDrafts, rewardsDrafts } from "#harness/events/rules-world-quest";
+import {
+  lootDrafts,
+  moneyDrafts,
+  questDrafts,
+  rewardsDrafts,
+} from "#harness/events/rules-world-quest";
+import {
+  awaitItemNames,
+  ITEM_NAME_WAIT_MS,
+  itemLabelIn,
+} from "#harness/ops/item-names";
 
 export type RouterInit = {
   log: GameLog;
@@ -57,9 +73,12 @@ export type RouterInit = {
 };
 
 type Route = (make: (rc: RuleInput) => Drafts) => void;
+type Named = (itemIds: readonly number[], run: () => void) => boolean;
 type SubscribeInit = {
   handle: WorldHandle;
   route: Route;
+  named: Named;
+  selfGuid: () => bigint;
   jev: (event: TacticsEvent) => void;
   logEntities: boolean;
 };
@@ -88,19 +107,6 @@ const NO_LOOKUP: RuleLookup = {
   unitName: () => undefined,
 };
 
-function itemNameIn(handle: WorldHandle, itemId: number): string | undefined {
-  for (const slot of handle.getInventoryState().slots)
-    if (
-      slot.status === "occupied" &&
-      slot.item.entry === itemId &&
-      slot.item.name
-    )
-      return slot.item.name;
-  const { loot } = handle.getRewardsState();
-  if (loot.phase !== "open" && loot.phase !== "closing") return;
-  return loot.items.find((item) => item.itemId === itemId)?.name ?? undefined;
-}
-
 function questTitleIn(
   handle: WorldHandle,
   questId: number,
@@ -126,6 +132,7 @@ function placeOf(handle: WorldHandle): {
 export function lookupFor(init: LookupInit | undefined): RuleLookup {
   if (!init) return NO_LOOKUP;
   const { handle, attacks } = init;
+  const labelOf = itemLabelIn(handle);
   const unit = (guid: bigint) =>
     handle.getNearbyEntities().find((entity) => entity.guid === guid);
   return {
@@ -133,7 +140,7 @@ export function lookupFor(init: LookupInit | undefined): RuleLookup {
       const { nextLevelXp, xp } = handle.getExperienceState();
       return { next: nextLevelXp, xp };
     },
-    itemName: (itemId) => itemNameIn(handle, itemId),
+    itemName: (itemId) => labelOf(itemId)?.name,
     lastAttacker: () => attacks.lastAttacker(),
     place: () => placeOf(handle),
     questTitle: (questId) => questTitleIn(handle, questId),
@@ -156,12 +163,24 @@ export function lookupFor(init: LookupInit | undefined): RuleLookup {
   };
 }
 
-function subscribeAll({
-  handle,
-  route,
-  jev,
-  logEntities,
-}: SubscribeInit): Unsubscribe[] {
+function routeRewards(init: SubscribeInit, event: RewardsEvent): void {
+  const { named, route } = init;
+  const pushed = event.state.lastItemPush;
+  const own = event.type === "item_push" && pushed?.guid === init.selfGuid();
+  const later = () => route((rc) => lootDrafts(event, rc));
+  if (!own || named([pushed.itemId], later))
+    route((rc) => rewardsDrafts(event, rc));
+  else route((rc) => moneyDrafts(event, rc));
+}
+
+function routeVendor(init: SubscribeInit, event: VendorEvent): void {
+  const now = () => init.route((rc) => vendorDrafts(event, rc));
+  const ids = (event.state.window?.items ?? []).map((good) => good.itemId);
+  if (event.type !== "listed" || init.named(ids, now)) now();
+}
+
+function subscribeAll(init: SubscribeInit): Unsubscribe[] {
+  const { handle, route, jev, logEntities } = init;
   return [
     handle.onMessage((msg) => route((rc) => chatDrafts(msg, rc))),
     handle.onGroupEvent((event) => route((rc) => groupDrafts(event, rc))),
@@ -181,8 +200,8 @@ function subscribeAll({
     ),
     handle.onControlEvent((event) => route((rc) => controlDrafts(event, rc))),
     handle.onQuestEvent((event) => route((rc) => questDrafts(event, rc))),
-    handle.onRewardsEvent((event) => route((rc) => rewardsDrafts(event, rc))),
-    handle.onVendorEvent((event) => route((rc) => vendorDrafts(event, rc))),
+    handle.onRewardsEvent((event) => routeRewards(init, event)),
+    handle.onVendorEvent((event) => routeVendor(init, event)),
     handle.onTrainerEvent((event) => route((rc) => trainerDrafts(event, rc))),
     handle.onPacketError((opcode, error) =>
       route((rc) => packetErrorDrafts(opcode, error, rc)),
@@ -245,13 +264,30 @@ export function createEventRouter(init: RouterInit): EventRouter {
     attach(handle) {
       lookup = lookupFor({ attacks: init.attacks, handle });
       memo = createRuleMemo();
+      const life = new AbortController();
+      const itemName = lookup.itemName;
+      const named: Named = (itemIds, run) => {
+        if (itemIds.every((itemId) => itemName(itemId))) return true;
+        awaitItemNames(itemIds, itemName, {
+          signal: life.signal,
+          timeoutMs: ITEM_NAME_WAIT_MS,
+        })
+          .then(() => {
+            if (!life.signal.aborted) run();
+          })
+          .catch(ignoreFailure);
+        return false;
+      };
       const offs = subscribeAll({
         handle,
         jev,
         logEntities: init.flags.logEntities,
+        named,
         route,
+        selfGuid: () => init.context().selfGuid,
       });
       return () => {
+        life.abort();
         for (const off of offs) off();
       };
     },

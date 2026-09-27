@@ -15,9 +15,11 @@ import {
   type RuleInput,
   unitIds,
 } from "#harness/events/rules";
+import { itemIdText } from "#harness/ops/item-names";
 
 const TELEPORTS = new Set(["teleport", "near_teleport", "new_world"]);
 const DRIFT_PASSIVE_YD = 5;
+const LISTED_NAMES_SHOWN = 8;
 const VENDOR_SETTLED = new Set<VendorEvent["type"]>([
   "bought",
   "sold",
@@ -147,7 +149,7 @@ function vendorDeal(outcome: VendorOutcome, rc: RuleInput): LogDraft {
   const count = "count" in request ? request.count : undefined;
   const name = itemId === undefined ? undefined : rc.lookup.itemName(itemId);
   const what = [
-    name ?? (itemId === undefined ? undefined : `item ${itemId}`),
+    name ?? (itemId === undefined ? undefined : itemIdText(itemId)),
     count === undefined ? undefined : `x${count}`,
   ];
   const words = [
@@ -174,22 +176,32 @@ function vendorDeal(outcome: VendorOutcome, rc: RuleInput): LogDraft {
   };
 }
 
+function vendorList(
+  window: VendorEvent["state"]["window"],
+  rc: RuleInput,
+): LogDraft {
+  const names = (window?.items ?? []).map(
+    ({ itemId }) => rc.lookup.itemName(itemId) ?? itemIdText(itemId),
+  );
+  const shown = names.slice(0, LISTED_NAMES_SHOWN).join(", ");
+  const more =
+    names.length > LISTED_NAMES_SHOWN
+      ? `, +${names.length - LISTED_NAMES_SHOWN} more`
+      : "";
+  const list = names.length > 0 ? `: ${shown}${more}` : "";
+  return {
+    class: "log",
+    data: { items: names.length, names, npc: window && guidText(window.guid) },
+    domain: "vendor",
+    event: "vendor/list",
+    ...unitIds(window?.guid, rc),
+    text: `The vendor lists ${names.length} items${list}.`,
+  };
+}
+
 export function vendorDrafts(event: VendorEvent, rc: RuleInput): Drafts {
   const { lastOutcome, window } = event.state;
-  if (event.type === "listed") {
-    const items = window?.items.length ?? 0;
-    const data = { items, npc: window && guidText(window.guid) };
-    return [
-      {
-        class: "log",
-        data,
-        domain: "vendor",
-        event: "vendor/list",
-        ...unitIds(window?.guid, rc),
-        text: `The vendor lists ${items} items.`,
-      },
-    ];
-  }
+  if (event.type === "listed") return [vendorList(window, rc)];
   if (!(lastOutcome && VENDOR_SETTLED.has(event.type))) return [];
   return [vendorDeal(lastOutcome, rc)];
 }
