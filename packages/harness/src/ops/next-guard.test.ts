@@ -98,4 +98,20 @@ describe("guardNext", () => {
       guardNext(stopped, { args: {}, blocked: () => true, tool: "recover" }),
     ).toBe(stopped);
   });
+
+  test("a quest engage that used up its starts may run again", () => {
+    const capped = result("PARTLY", {
+      after: {},
+      detail: "1 of 8 kills (u9). Stopped: max_starts_reached.",
+      next: 'engage(quest: "8325")',
+      reason: "max_starts_reached",
+    });
+    expect(
+      guardNext(capped, {
+        args: { quest: "8325" },
+        blocked: never,
+        tool: "engage",
+      }),
+    ).toBe(capped);
+  });
 });
