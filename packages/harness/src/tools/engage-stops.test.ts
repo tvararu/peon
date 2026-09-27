@@ -82,7 +82,7 @@ describe("engage stop reasons", () => {
     );
     expect(res).toMatchObject({ reason: "queue_exhausted", status: "REFUSED" });
     expect(res.detail).toStartWith(
-      `0 of 3 kills: ${a} and ${b} killed by another player, ${c} could not be reached. You: HP`,
+      `0 of 3 kills: ${a} and ${b} died; no XP to you (another player's tap or a gray target), ${c} could not be reached. You: HP`,
     );
   });
 

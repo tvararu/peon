@@ -143,8 +143,14 @@ export function nameOf(ctx: ViewCtx, guid: bigint): string {
   );
 }
 
+const NO_XP_KILLS = new Set(["gray", "no_xp_kill"]);
+
 export function isKill(reason: string | undefined): boolean {
-  return reason === KILL_CREDIT;
+  return reason === KILL_CREDIT || NO_XP_KILLS.has(reason ?? "");
+}
+
+export function killXp(reason: string | undefined): number | undefined {
+  return NO_XP_KILLS.has(reason ?? "") ? 0 : undefined;
 }
 
 export function kills(tally: Tally): number {
@@ -165,7 +171,7 @@ export function noteCycle(ctx: ViewCtx, tally: Tally, state: CycleState): void {
         ? record.outcome?.reason
         : (record.cause ?? record.outcome?.reason),
       ref,
-      xp: undefined,
+      xp: killed ? killXp(record.outcome?.reason) : undefined,
     });
   }
 }

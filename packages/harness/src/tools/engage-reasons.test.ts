@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { EngageTarget } from "#harness/contract/details";
 import {
   failText,
+  noXpText,
   plainReason,
   skippedText,
   stopText,
@@ -36,7 +37,11 @@ describe("plainReason", () => {
       "no_supported_combat_actions",
       "no usable attack from here; move into melee range",
     ],
-    ["target_dead_without_server_credit", "killed by another player"],
+    [
+      "target_dead_without_server_credit",
+      "died; no XP to you (another player's tap or a gray target)",
+    ],
+    ["target_dead_tapped_by_other", "killed by another player"],
     ["target_unreachable", "could not be reached"],
     ["server_action_rejected:line_of_sight", "out of line of sight"],
     ["manual_override", "stopped by a manual command"],
@@ -57,7 +62,7 @@ describe("plainReason", () => {
 describe("skippedText", () => {
   test("groups the targets that were not killed by reason", () => {
     expect(skippedText(t7)).toBe(
-      "u20 and u26 killed by another player, u25 could not be reached",
+      "u20 and u26 died; no XP to you (another player's tap or a gray target), u25 could not be reached",
     );
   });
 
@@ -132,7 +137,7 @@ describe("failText", () => {
         why: "queue_exhausted",
       }),
     ).toBe(
-      "0 of 3 kills: u20 and u26 killed by another player, u25 could not be reached.",
+      "0 of 3 kills: u20 and u26 died; no XP to you (another player's tap or a gray target), u25 could not be reached.",
     );
   });
 
@@ -162,5 +167,36 @@ describe("failText", () => {
     ).toBe(
       "Springpaw Stalker was not killed: no usable attack from here; move into melee range.",
     );
+  });
+
+  test("a death without credit names no other player", () => {
+    expect(
+      failText({
+        kills: 0,
+        name: "Risen Hungerer",
+        targets: [],
+        wanted: 1,
+        why: "target_dead_without_server_credit",
+      }),
+    ).toBe(
+      "Risen Hungerer died; no XP to you (another player's tap or a gray target).",
+    );
+  });
+});
+
+describe("noXpText", () => {
+  test("names a gray kill", () => {
+    expect(
+      noXpText([{ ...target("u33", "gray"), outcome: "killed", xp: 0 }]),
+    ).toBe("gray target");
+  });
+
+  test("names a tapped kill without XP", () => {
+    expect(
+      noXpText([
+        { ...target("u33", "gray"), outcome: "killed", xp: 0 },
+        { ...target("u34", "no_xp_kill"), outcome: "killed", xp: 0 },
+      ]),
+    ).toBe("gray target or no kill XP from the server");
   });
 });

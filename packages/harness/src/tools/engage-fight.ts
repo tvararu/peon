@@ -26,6 +26,7 @@ import { result } from "#harness/tools/define";
 import { type FightInit, MIN_HP_PCT } from "#harness/tools/engage-choose";
 import {
   failText,
+  noXpText,
   type StopInit,
   stopText,
 } from "#harness/tools/engage-reasons";
@@ -34,6 +35,7 @@ import {
   isKill,
   killNames,
   kills,
+  killXp,
   nameOf,
   newTally,
   noteCycle,
@@ -147,7 +149,7 @@ async function single(scene: Scene): Promise<ModeEnd> {
     outcome: killed ? "killed" : "lost",
     reason: end.outcome?.reason ?? end.error,
     ref: ops.rt.refs.refOf(guid),
-    xp: undefined,
+    xp: killed ? killXp(end.outcome?.reason) : undefined,
   });
   if (killed && scene.args.loot !== false) await lootCorpseOp(ops, guid);
   return {
@@ -256,6 +258,18 @@ function lootText(tally: Tally): string {
 function gains(scene: Scene): string {
   const { tally } = scene;
   return `${tally.xp > 0 ? ` +${tally.xp} XP.` : ""}${lootText(tally)} ${vitalsLine(scene.ops)}`;
+}
+
+function creditText(tally: Tally, secs: number): string {
+  const killed = tally.targets.filter((target) => target.outcome === "killed");
+  const noXp = killed.filter((target) => target.xp === 0);
+  const why = noXpText(noXp);
+  if (noXp.length === 0)
+    return `killed ${killNames(tally)} in ${secs} s, server kill credit.`;
+  if (noXp.length === killed.length)
+    return `killed ${killNames(tally)}; no XP (${why}).`;
+  const refs = noXp.map((target) => target.ref).join(", ");
+  return `killed ${killNames(tally)} in ${secs} s, server kill credit; no XP for ${refs} (${why}).`;
 }
 
 function killedRefs(tally: Tally): string {
@@ -373,7 +387,7 @@ function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
   if (complete)
     return result("DONE", {
       after,
-      detail: `killed ${killNames(tally)} in ${secs} s, server kill credit.${gains(scene)}`,
+      detail: `${creditText(tally, secs)}${gains(scene)}`,
       next: also,
     });
   const why =

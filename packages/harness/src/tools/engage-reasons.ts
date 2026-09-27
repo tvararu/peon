@@ -11,6 +11,12 @@ export type StopInit = {
 const QUEUE_EXHAUSTED = "queue_exhausted";
 const REJECTED = "server_action_rejected:";
 const LOOT_DENIED = "loot_denied:";
+const NO_CREDIT_CODE = "target_dead_without_server_credit";
+const NO_CREDIT = "died; no XP to you (another player's tap or a gray target)";
+const NO_XP: Record<string, string> = {
+  gray: "gray target",
+  no_xp_kill: "no kill XP from the server",
+};
 const PLAIN: Record<string, string> = {
   died: "you died",
   engaged_by_other: "fighting another player",
@@ -31,7 +37,8 @@ const PLAIN: Record<string, string> = {
   tapped: "tapped by another player",
   tapped_by_other: "tapped by another player",
   target_dead: "already dead",
-  target_dead_without_server_credit: "killed by another player",
+  target_dead_tapped_by_other: "killed by another player",
+  target_dead_without_server_credit: NO_CREDIT,
   target_death_unconfirmed: "its death was not confirmed",
   target_friendly: "not hostile",
   target_lost: "lost from view",
@@ -81,7 +88,16 @@ export function stopText(init: StopInit): string {
   return `${base}${still(wanted - kills)}`;
 }
 
+export function noXpText(targets: readonly EngageTarget[]): string {
+  const words = targets.flatMap((target) => {
+    const known = target.outcome === "killed" && NO_XP[target.reason ?? ""];
+    return known ? [known] : [];
+  });
+  return [...new Set(words)].join(" or ");
+}
+
 export function failText(init: StopInit): string {
+  if (init.why === NO_CREDIT_CODE) return `${init.name} ${NO_CREDIT}.`;
   const skipped = skippedText(init.targets);
   if (init.why === QUEUE_EXHAUSTED)
     return skipped

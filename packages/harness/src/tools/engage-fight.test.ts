@@ -46,6 +46,25 @@ describe("engage fight", () => {
     expect(res.after).toMatchObject({ kills: 1, mode: "single", xp: 108 });
   });
 
+  test("a gray kill is DONE with no XP", async () => {
+    const t = await field();
+    tactics(t.handle, (runId) =>
+      outcome(t.handle, runId, { reason: "gray", status: "completed" }),
+    );
+    const res = await engageSpec.run(
+      { loot: false, target: "Springpaw Stalker" },
+      toolCtx<EngageAfter>(t),
+    );
+    expect(res.status).toBe("DONE");
+    expect(res.detail).toMatch(
+      /^killed Springpaw Stalker \(u\d+\); no XP \(gray target\)\. You: HP/,
+    );
+    expect(res.after).toMatchObject({
+      kills: 1,
+      targets: [{ outcome: "killed", reason: "gray", xp: 0 }],
+    });
+  });
+
   test("death during the fight fails with the recover step", async () => {
     const t = await field();
     tactics(t.handle, () => {

@@ -1,4 +1,5 @@
 import type { CombatRuntime, CombatState } from "#wow/combat";
+import { deathOutcome, engagedWith } from "#wow/combat-actions-credit";
 import {
   MOVE_CANDIDATES,
   MOVE_DIRECTION_BY_ID,
@@ -55,6 +56,7 @@ export class CombatActions {
   private readonly deps: ActionDeps;
   private startedAt = 0;
   private deadAt: number | undefined;
+  private engaged = false;
   private unreachable: { at: number; range: number | undefined } | undefined;
   private readonly progress = new ProgressWatch();
   private readonly rejections = new RejectionTracker();
@@ -69,6 +71,7 @@ export class CombatActions {
     if (reason) throw new Error(reason);
     this.startedAt = this.deps.now();
     this.deadAt = undefined;
+    this.engaged = false;
     this.unreachable = undefined;
     this.progress.reset();
     this.rejections.reset(this.startedAt);
@@ -308,15 +311,14 @@ export class CombatActions {
     const now = this.deps.now();
     const timedOut = timeoutOutcome(state, now);
     if (timedOut) return timedOut;
+    const target = this.deps.entity(context.targetGuid);
     if (state.target?.health === 0) {
       this.deadAt ??= now;
-      if (now - this.deadAt > 5000)
-        return {
-          status: "blocked",
-          reason: "target_dead_without_server_credit",
-        };
-      return undefined;
+      const { engaged } = this;
+      const waitedMs = now - this.deadAt;
+      return deathOutcome({ engaged, state, target, waitedMs });
     }
+    this.engaged ||= engagedWith(state, target);
     const reason = targetReason(this.deps, context.targetGuid, state);
     if (reason) return { status: "blocked", reason };
     const control = this.deps.control.snapshot();

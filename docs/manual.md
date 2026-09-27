@@ -368,6 +368,15 @@ A target out of melee and out of range of every supported spell blocks with
 keeps walking in is not stopped on the way. An unobserved separation never
 counts, and coming back into range resets the bound. In `cycle`, the target is
 skipped with cause `target_unreachable`.
+A fight completes with `server_kill_credit` when the server reports kill XP
+for the target. A gray target (level at or below the 3.3.5a gray level for
+the character's level) that dies while it is tapped by the character, or
+while the character fights it with no tap flags seen, completes at once with
+`gray` and no XP. A target tapped by the character (lootable, or tapped by
+the player) that dies with no kill XP after 5 s completes with `no_xp_kill`.
+After 5 s with no XP, a target tapped by someone else blocks with
+`target_dead_tapped_by_other`, and any other death blocks with
+`target_dead_without_server_credit`.
 Jev may choose directional movement during a fight under a renewable lease:
 `wait` holds the current direction, `stop_moving` releases it, and choosing a
 standing-required spell releases the lease before casting. The observation
