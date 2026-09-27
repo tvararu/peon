@@ -220,7 +220,17 @@ function vendorList(
   };
 }
 
+function noteVendorAction(event: VendorEvent, rc: RuleInput): void {
+  const action = event.state.pending?.action;
+  const noted = rc.memo.vendorAction;
+  if (event.type.endsWith("_requested") && action && action !== "list")
+    rc.memo.vendorAction = { action, charged: false, settledAt: undefined };
+  else if (noted && event.type !== "listed")
+    rc.memo.vendorAction = { ...noted, settledAt: noted.settledAt ?? rc.now };
+}
+
 export function vendorDrafts(event: VendorEvent, rc: RuleInput): Drafts {
+  noteVendorAction(event, rc);
   const { lastOutcome, window } = event.state;
   if (event.type === "listed") return [vendorList(window, rc)];
   if (!(lastOutcome && VENDOR_SETTLED.has(event.type))) return [];

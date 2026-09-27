@@ -203,17 +203,26 @@ export function lootDrafts(
   return [];
 }
 
+function moneyReason(rc: RuleInput): string {
+  const notice = rc.memo.moneyNoticeAt;
+  if (notice !== undefined && rc.now - notice < MONEY_NOTICE_MS) return "loot";
+  const vendor = rc.memo.vendorAction;
+  if (!vendor) return "other";
+  const { action, charged, settledAt } = vendor;
+  if (settledAt !== undefined) rc.memo.vendorAction = undefined;
+  const late = settledAt !== undefined && rc.now - settledAt >= MONEY_NOTICE_MS;
+  if (late || (charged && settledAt !== undefined)) return "other";
+  vendor.charged = true;
+  return `vendor_${action}`;
+}
+
 export function moneyDrafts({ state }: RewardsEvent, rc: RuleInput): Drafts {
   const after = state.inventory.coinage;
   const before = rc.memo.coinage;
   rc.memo.coinage = after ?? before;
   if (after === undefined || before === undefined || after === before)
     return [];
-  const notice = rc.memo.moneyNoticeAt;
-  const reason =
-    notice !== undefined && rc.now - notice < MONEY_NOTICE_MS
-      ? "loot"
-      : "other";
+  const reason = moneyReason(rc);
   const delta = after - before;
   const text = `Money ${delta > 0 ? "+" : ""}${delta} copper (now ${after}).`;
   return [

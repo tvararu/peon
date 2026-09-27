@@ -32,6 +32,11 @@ export type RuleLookup = {
   unitName: (guid: bigint) => string | undefined;
 };
 export type AuraMemo = { spellId: number; name: string | undefined };
+export type VendorMemo = {
+  action: string;
+  charged: boolean;
+  settledAt: number | undefined;
+};
 export type PoseMemo = { mapId: number; x: number; y: number; z: number };
 export type RuleMemo = {
   auras: Map<number, AuraMemo>;
@@ -47,6 +52,7 @@ export type RuleMemo = {
   questProgress: Map<string, number>;
   questTitles: Map<number, string>;
   runProgressAt: Map<string, number>;
+  vendorAction: VendorMemo | undefined;
   watched: Set<bigint>;
   xpAt: number | undefined;
 };
@@ -76,6 +82,7 @@ export function createRuleMemo(): RuleMemo {
     questProgress: new Map(),
     questTitles: new Map(),
     runProgressAt: new Map(),
+    vendorAction: undefined,
     watched: new Set(),
     xpAt: undefined,
   };

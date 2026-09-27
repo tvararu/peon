@@ -4,8 +4,11 @@ import type {
   QuestState,
   RewardsEvent,
   RewardsState,
+  VendorEvent,
+  VendorRequest,
 } from "@tuicraft/core";
 import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+import { vendorDrafts } from "#harness/events/rules-world";
 import {
   MONEY_NOTICE_MS,
   questDrafts,
@@ -16,6 +19,24 @@ import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 const handle = createMockHandle();
 const questBase = handle.getQuestState();
 const rewardsBase: RewardsState = handle.getRewardsState();
+const vendorBase = handle.getVendorState();
+
+function vendorAsk(type: VendorEvent["type"], pending?: VendorRequest) {
+  return { at: 0, state: { ...vendorBase, pending }, type };
+}
+
+const buying: VendorRequest = {
+  action: "buy",
+  answer: undefined,
+  coinageBefore: 50_000,
+  count: 1,
+  guid: 0x10n,
+  itemId: 159,
+  maxPrice: 23,
+  minPrice: 23,
+  requestedAt: 0,
+  slot: 1,
+};
 
 function quest(
   type: QuestEvent["type"],
@@ -251,5 +272,46 @@ describe("rewardsDrafts", () => {
     expect(
       rewardsDrafts(rewards("inventory_observed", {}, 87), later)[0]?.data,
     ).toMatchObject({ delta: -25, reason: "other" });
+  });
+
+  test("money spent at a vendor names the vendor action", () => {
+    const rc = testRuleInput();
+    rewardsDrafts(rewards("inventory_observed", {}, 50_000), rc);
+    vendorDrafts(vendorAsk("buy_requested", buying), rc);
+    expect(
+      rewardsDrafts(rewards("inventory_observed", {}, 49_977), rc)[0]?.data,
+    ).toMatchObject({ delta: -23, reason: "vendor_buy" });
+    vendorDrafts(vendorAsk("bought"), rc);
+    expect(
+      rewardsDrafts(rewards("inventory_observed", {}, 49_900), rc)[0]?.data,
+    ).toMatchObject({ reason: "other" });
+    vendorDrafts(vendorAsk("buy_requested", buying), rc);
+    vendorDrafts(vendorAsk("bought"), rc);
+    expect(
+      rewardsDrafts(rewards("inventory_observed", {}, 49_877), rc)[0]?.data,
+    ).toMatchObject({ reason: "vendor_buy" });
+    vendorDrafts(vendorAsk("buy_requested", buying), rc);
+    vendorDrafts(vendorAsk("bought"), rc);
+    const late = { ...rc, now: rc.now + MONEY_NOTICE_MS };
+    expect(
+      rewardsDrafts(rewards("inventory_observed", {}, 49_854), late)[0]?.data,
+    ).toMatchObject({ reason: "other" });
+    rewardsDrafts(rewards("inventory_observed", {}, 49_900), rc);
+    const selling: VendorRequest = {
+      action: "sell",
+      bag: 255,
+      coinageBefore: 49_900,
+      count: 1,
+      guid: 0x10n,
+      itemGuid: 0x40n,
+      itemId: 4814,
+      requestedAt: 0,
+      slot: 23,
+      stackBefore: 1,
+    };
+    vendorDrafts(vendorAsk("sell_requested", selling), rc);
+    expect(
+      rewardsDrafts(rewards("inventory_observed", {}, 49_950), rc)[0]?.data,
+    ).toMatchObject({ reason: "vendor_sell" });
   });
 });
