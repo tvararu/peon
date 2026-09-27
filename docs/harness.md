@@ -150,6 +150,8 @@ step. Action tools refuse until the agent reads it.
 
 ## Commands
 
+The `/` menu marks these commands `[wow]`.
+
 | Command | What it does |
 |---|---|
 | `/now` | Shows the last `[now]` line exactly as the model got it. |

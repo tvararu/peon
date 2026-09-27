@@ -7,6 +7,7 @@ import type { WorldHandle } from "@peon/core";
 import { messageOf } from "@peon/core/lib/errors";
 import type { HarnessRuntime } from "#harness/contract/services";
 import { humanStop } from "#harness/extension/input";
+import { wowMenuTags } from "#harness/extension/menu";
 import { queryLog } from "#harness/log/query";
 
 type Run = (args: string, ctx: ExtensionCommandContext) => Promise<void>;
@@ -199,6 +200,10 @@ function commands(
 }
 
 export function installCommands(pi: ExtensionAPI, rt: HarnessRuntime): void {
-  for (const [name, command] of Object.entries(commands(pi, rt)))
+  const table = commands(pi, rt);
+  for (const [name, command] of Object.entries(table))
     pi.registerCommand(name, command);
+  pi.on("session_start", (_event, ctx) =>
+    ctx.ui.addAutocompleteProvider(wowMenuTags(table)),
+  );
 }

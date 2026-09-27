@@ -1,4 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
+import type { AutocompleteProviderFactory } from "@earendil-works/pi-coding-agent";
+import { CombinedAutocompleteProvider } from "@earendil-works/pi-tui";
 import type { GameLogEntry } from "#harness/contract/log";
 import type { RunEnd } from "#harness/contract/runs";
 import type { HarnessRuntime } from "#harness/contract/services";
@@ -178,6 +180,31 @@ describe("installCommands", () => {
       ["The game connection is already up.", "info"],
       ["Disconnected. Run /connect to log in again.", "info"],
       ["Connect failed: auth failed", "error"],
+    ]);
+  });
+
+  test("the slash menu tags harness commands [wow] and leaves Pi's alone", async () => {
+    const { fake } = await setup();
+    const { ui, named } = createUiRecorder();
+    await fake.fire("session_start", {}, recorderContext({ ui }));
+    const [[wrap]] = named("addAutocompleteProvider") as [
+      [AutocompleteProviderFactory],
+    ];
+    const pi = new CombinedAutocompleteProvider(
+      [
+        { description: "Quit pi", name: "quit" },
+        { description: "[t] Say text in guild chat", name: "g" },
+        { description: "[t] Log the character in again", name: "connect" },
+      ],
+      ".",
+    );
+    const menu = await wrap(pi).getSuggestions(["/"], 0, 1, {
+      signal: new AbortController().signal,
+    });
+    expect(menu?.items.map((item) => [item.value, item.description])).toEqual([
+      ["quit", "Quit pi"],
+      ["g", "[wow] Say text in guild chat"],
+      ["connect", "[wow] Log the character in again"],
     ]);
   });
 });
