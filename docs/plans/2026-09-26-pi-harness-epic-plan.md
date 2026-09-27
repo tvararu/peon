@@ -8,7 +8,7 @@
 
 **Tech Stack:** Bun 1.4.2, TypeScript strict, `bun:test`, Biome 2.5.14, mise, Pi 0.87.1 (`@earendil-works/pi-agent-core`, `pi-ai`, `pi-coding-agent`, `pi-tui`), `bun:sqlite` (omp credentials), `bun:ffi` (namigator), Orca (`orca-ide`), the factory `soap` CLI and the t1 service.
 
-**Spec:** `docs/plans/2026-09-26-pi-harness-epic-design.md` (approved; sections 1–10, including "Decisions taken during spec review, not yet ruled by the maintainer"). The full design is `docs/plans/2026-09-26-pi-harness-epic/harness-design.md` (sections A–K and its two Verification sections). Names and types: [`contract.md`](2026-09-26-pi-harness-epic-plan/contract.md) (key `contract`). This file is the plan index; the task bodies are in the nine area files in [`2026-09-26-pi-harness-epic-plan/`](2026-09-26-pi-harness-epic-plan/).
+**Spec:** `docs/plans/2026-09-26-pi-harness-epic-design.md` (approved; sections 1–10, including "Spec review settlements" in section 2). The full design is `docs/plans/2026-09-26-pi-harness-epic/harness-design.md` (sections A–K and its two Verification sections). Names and types: [`contract.md`](2026-09-26-pi-harness-epic-plan/contract.md) (key `contract`). This file is the plan index; the task bodies are in the nine area files in [`2026-09-26-pi-harness-epic-plan/`](2026-09-26-pi-harness-epic-plan/).
 
 **Area files:** [`core-a.md`](2026-09-26-pi-harness-epic-plan/core-a.md) (C0–C5, C9–C14), [`core-b.md`](2026-09-26-pi-harness-epic-plan/core-b.md) (C6a–C7b), [`found.md`](2026-09-26-pi-harness-epic-plan/found.md) (F1–F8e), [`log-events.md`](2026-09-26-pi-harness-epic-plan/log-events.md) (L1a–L14), [`ops-tools-a.md`](2026-09-26-pi-harness-epic-plan/ops-tools-a.md) (A1a–A13), [`ops-tools-b.md`](2026-09-26-pi-harness-epic-plan/ops-tools-b.md) (B1–B13), [`ui.md`](2026-09-26-pi-harness-epic-plan/ui.md) (U1a–U11b), [`prompt-docs.md`](2026-09-26-pi-harness-epic-plan/prompt-docs.md) (P1–P6), [`eval-infra.md`](2026-09-26-pi-harness-epic-plan/eval-infra.md) (E1a–E7f). If an area file and `contract.md` disagree, `contract.md` wins, except where a ruling below changes both (the ruling says so).
 
@@ -446,7 +446,7 @@ A coordinator brief asked for these changes after the plan's first commit. They 
 
 ### Spec settlements against the plan
 
-Each settlement of spec §2 ("Decisions taken during spec review, not yet ruled by the maintainer") was traced to the tasks that implement it.
+Each settlement of spec §2 ("Spec review settlements") was traced to the tasks that implement it.
 
 | # | Settlement | Tasks checked | Result |
 |---|---|---|---|

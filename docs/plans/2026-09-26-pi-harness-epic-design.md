@@ -1,7 +1,6 @@
-# Pi Harness Epic Design
-
-Date: 2026-09-26. Status: approved design; implementation on draft PR #367
-(branch `epic/pi-harness`).
+Date: 2026-09-26. Status: implementation complete on draft PR #367 (branch
+`epic/pi-harness`), awaiting the maintainer's review and merge. Eval round
+6 is the last round (R40).
 
 This spec records the decisions, the design and the evaluation plan for the
 Pi harness epic. It summarises and links; the full records are in
@@ -21,38 +20,84 @@ answer the agents' measured CLI pain, a typed game log, rare wakes, a
 round-1 UI with Nerd Font glyphs, and Jev split-second fight runs under the
 steering agent.
 
-Success criteria:
+Success criteria, each with its status at the close of the epic (head
+`7df79a7`):
 
 1. **Migration**: Bun workspaces `core`, `cli`, `factory`, `devtools`,
-   `harness`; `mise ci` green; legacy live suite 21/21. Done: `0282fe4`,
-   live gate 21/21 in 105.7 s.
+   `harness`; `mise ci` green; legacy live suite 21/21. **Met**
+   (measured): `0282fe4`, live gate 21/21 in 105.7 s.
 2. **Harness plays**: `bun packages/harness/src/entry.ts --profile <soap
    JSON>` logs in a throwaway character, and Luna plays through the ten
-   tools of section 6.B in an Orca pane.
+   tools of section 6.B in an Orca pane. **Met** (measured): the BOOT gate
+   (phase 2c), the tool smoke (final gate) and 78 eval runs over rounds
+   1-6.
 3. **Tools answer the pain**: each top-8 pain point (section 3.1) has a
    named tool, guard or log answer; each eval friction item points at one
-   tool, event, panel or core change.
+   tool, event, panel or core change. **Met** (read): section 6.B maps the
+   pain points; every friction item carries one area, and the open ones
+   are in [Future work](#12-future-work).
 4. **Rare wakes**: pushed events average 25 tokens a minute or less
    with the rules of section 6.C. The simulated range over all proposed
-   rule sets is 15-53 tokens a minute (section 3.2).
+   rule sets is 15-53 tokens a minute (section 3.2). **Not measured**:
+   no round counted pushed tokens a minute. Round 6 found stale wakes
+   (cluster 4), and the quiet-wakes brief is future work.
 5. **Grader record**: every checked event is a typed `gamelog.jsonl` row,
-   keyed by character.
+   keyed by character. **Met** (read): graders check typed rows of each
+   run's own `gamelog.jsonl` (decisions 112 and 135).
 6. **UI round 1**: tool renderers, a 4-row unit-frame footer, event cards
-   and a ticker, with `nerd`, `unicode` and `ascii` glyphs.
+   and a ticker, with `nerd`, `unicode` and `ascii` glyphs. **Met**
+   (measured): the U11b pane smoke passes 13 of 13 checks (phase 3b).
+   Stale panel cards and `not_implemented` ticker rows are future work.
 7. **Jev runs**: `engage` runs the core Jev loop (1-5 Hz) as the
    split-second layer; Jev decisions go to the log, not to the model.
-8. **Evals plateau**: rounds in Orca panes iterate until a stop rule of
-   section 8 fires (90 % pass on tiers 0-7 twice, or a 3-round plateau in
-   pass rate and efficiency).
+   **Met** (read): `engage` runs the Jev loop in every kill scenario
+   graded by the rounds, and all of them pass in round 6 (section 11).
+   Jev does not heal at low HP (round 6 cluster 3); that is future work.
+8. **Evals stop**: rounds in Orca panes iterate until a stop rule of
+   section 8 fires. **Met by R40**: the maintainer stopped the loop after
+   eval round 6 at 13 of 13 (1.00), which replaces the 90 %-twice and
+   plateau rules. 24 of the 37 catalogue scenarios did not run.
 9. **Legacy green**: `mise ci` all epic; `mise test:live` at the migration
-   and final gates; no new CLI verbs.
+   and final gates; no new CLI verbs. **Met** (measured): `mise ci` green
+   at every gate; the live suite 21/21 at the migration gate, at every
+   phase 1 task that ran it, at the final gate (`11e717c`) and again at
+   the close (`7df79a7`, 276 `expect()` calls, 104.68 s).
 
 ## 2. Decisions
 
-All rulings are from 2026-09-26, recorded in the coordinator's working
-notes (not kept). Quotes are the maintainer's words as the notes give them
-(he used voice mode). "Framing" marks a coordinator proposal he accepted
-without objection. The R-numbers are stable ids that the records cite.
+The maintainer ruled entries 1-40. The decisions that agents took in his
+place wait for his review, one list per kind
+([below](#decisions-waiting-for-the-maintainers-review)):
+
+| Kind | Lines | Ids |
+|---|---:|---|
+| Spec review settlements | 16 | 1-16 |
+| Contract decisions D1-D16 (by reference to the contract) | 3 | 17-19 |
+| Coordinator and advisor rulings | 11 | 20, 21, 36-44 |
+| Build and eval-fix deviations | 111 | 22-29, 31-34, 45-144 (not 110) |
+
+Ten of them change what a player sees in play. They are worth reading
+first because they alter the design text a player would go by, or they
+change core, which the legacy CLI's `goto` and `cycle` share:
+
+- **20, 122** `engage` refuses a unit tapped by another player and names a free one: that kill would give no loot, XP or quest credit.
+- **62** `engage` walks toward a unit it remembers but cannot see, and refuses `not_in_view` when it is still not there.
+- **64** A coordinate goal on a multi-floor column takes the character's own height, which B.3 forbade.
+- **90** `travel` refuses while something attacks the character and offers `engage` instead.
+- **96** Core: a character with no usable spell now walks in and auto-attacks instead of refusing the fight.
+- **105** Core: a route that loses its height trace retries a corridor and a straight line, so more legacy `goto` routes walk.
+- **127, 137** Core: route floors follow the previous sample within a climb, and single-floor stairs pass; legacy `goto` changes too.
+- **129** `explore` calls `unstick` by itself once, so a stuck character moves without being asked.
+- **130** Core: the cycle checks the 30 % mana and 50 % HP limits before each new pull, in the legacy `cycle` too.
+- **141** `explore` walks past critters and gray units, and `travel` takes a `for` to name what to look for.
+
+### Maintainer rulings
+
+Rulings 1-38 are from 2026-09-26, recorded in the coordinator's working
+notes (not kept); R40 is from 2026-09-27, and R39 came before it. Quotes
+are the maintainer's words as the notes give them (he used voice mode).
+"Framing" marks a coordinator proposal he accepted without objection. The
+R-numbers are stable ids that the records cite.
 
 1. **R1 Core is one domain package for everything WoW.** "There should be
    a domain in tuicraft that handles all the wow bits." Framing: today's
@@ -152,6 +197,14 @@ without objection. The R-numbers are stable ids that the records cite.
     the advisor approves the spec review and the plan; Opus 5.5 medium
     only; record decisions and round results here and in the PR; no time
     limit; do not merge.
+39. **R39 Scope**: "keep the scope to this goal to just what was
+    discussed so that we can wrap it up and eventually merge the PR".
+    Autonomous leveling from 1 to 80 is a long-term project goal outside
+    this epic.
+40. **R40 Stop at round 6** (2026-09-27): "I think just do this one round
+    and then stop at the current pass rate, as it's probably good
+    enough." It replaces the plateau stop rule of section 8: eval round 6
+    (13 of 13) is the last round of this epic.
 
 | Superseded | Replaced by |
 |---|---|
@@ -161,679 +214,184 @@ without objection. The R-numbers are stable ids that the records cite.
 | 09-25 design "monorepo is not a prerequisite" | R1, R13 |
 | K4 default "N1 waits for a ruling" | R27 |
 | Eval suite P1 `soap exec` | t1 service verbs (`5d75de0`) |
+| Section 8 stop rules (90 % twice, or a 3-round plateau); criterion 8 | R40: stop after eval round 6 |
 
-### Decisions taken during spec review, not yet ruled by the maintainer
+### Decisions waiting for the maintainer's review
 
-An agent self-review of this spec settled the points below on
-2026-09-26. The maintainer approved sections A-K (R28-R38), but not these
-settlements. The advisor accepted them on 2026-09-26 in the maintainer's
-place under the goal (entry 38), pending his morning review. Each line
-gives the settlement, the section it changed and the commit. Entries
-17-19 are decisions the plan's contract adds, and entries 20-21 are
-advisor rulings from the plan review; the advisor approved the plan in
-the maintainer's place on 2026-09-26, and these wait for the same
-review.
+The lists below hold every decision that agents took in the maintainer's
+place: agent spec review, the plan's contract, coordinator and advisor
+rulings, and the builders' deviations from the plan or the design. Each
+line gives the settlement and its commit. The bold numbers are stable ids:
+section 11 and the PR comments cite them (for example "decisions 115 to
+134"). Three ids are folded into another line and have no line of their
+own: 30 into 36, 35 into 51 and 110 into 118.
 
-1. `engage` takes a new attacker as its next target while `count` allows
-   another kill, else finishes the kill and names the attacker in
-   `Danger:`; `travel`, `rest` and `recover` stop with `FAILED
-   interrupted` (V.4 #6). Section 6.B, 9.2; `4d3bda3`, `c243144`.
-2. A wake line is `[game <age>] <event>`; a chat wake names the sender
-   exactly, quotes the text and gives the `social` reply call (LU.3 #1).
-   Section 6.C, 9.2; `4d3bda3`.
-3. Passive lines are never prepended to a chat wake (LU.3 #11); they
-   flush at `agent_end`, before the next non-chat wake, and after `[now]`
-   when a human message starts a run. Section 6.C, 9.2; `4d3bda3`.
-4. The wake budget is at most 25 pushed tokens a minute (was about
-   15-25); the simulated range over all rule sets is 15-53. Sections 1
-   (criterion 4) and 6.C; `4d3bda3`.
-5. `<HARNESS_LAUNCH>` is `bun packages/harness/src/entry.ts --profile
-   $RUN/account.json --run-dir $RUN` from the eval worktree root, with
-   the account in the mode-600 file `$RUN/account.json`. Section 8;
-   `4d3bda3`.
-6. `<HARNESS_QUIT>` is Ctrl-D on an empty editor, confirmed with `read
-   --screen`, then two Ctrl-C within 500 ms if Pi still shows. Section 8;
-   `4d3bda3`.
-7. The grader's password scan skips `account.json` and `partner.json`,
-   and the grader deletes both after `soap delete`. Section 8; `4d3bda3`.
-8. A grader does not retry a login refusal: it records `aborted`
-   (`launch_failed`); the README's `status 0x4` failures are put down to
-   a checkout older than `486da85`. Section 8; `4d3bda3`.
-9. Pi tool timeout row: `pi-agent-core` 0.87.1 sets no tool timer; the
-   only one found (`TOOL_TIMEOUT_MS = 120000`) is on a path Luna does not
-   use and would race the yield there; the 120 s yield stays, and the
-   first live run tool must block for 120 s and return (was: open, sit
-   under any timeout). Section 9.2; `4d3bda3`, `c243144`.
-10. Tapped filter: `engage` skips rows with `tappedByOther`, round 1
-    checks the flag live, and a wrong flag is a friction item with area
-    `core` (was: open). Section 9.2; `4d3bda3`.
-11. K4 and N1 read as decided by R27, not by K4's default; the record
-    copies (harness design K4, I.4, N1; nav diagnosis F1 + F2) now say
-    so. Sections 6 (J and K), 7; `4d3bda3`, `30a9cdf`.
-12. The navigation track counts as landed (`fb30883`, `f80b559`,
-    `ac080e5`, `65b26f7`, `98101a9`, `c91f70f`); graders mark as `core`
-    only a movement failure at one of its still-open places (was: every
-    movement failure until it lands). Sections 6.I, 7; `30a9cdf`.
-13. The scenario catalogue holds 37 scenarios (was 38), 7 of them from
-    the t1 revision (was 8). Sections 8, 10 and the eval suite;
-    `c243144`.
-14. R28-R37 are split into one entry per section, and R5's "Superseded"
-    reading is marked as the coordinator's record, not his words.
-    Section 2; `4d3bda3`.
-15. The parse tax is 2,410 of 3,221 CLI episodes (75 %) piped into jq or
-    python (was about 75 % of CLI calls). Section 3.1; `e86494a`.
-16. `9a5010c` (SRP reference-server tests) is on `epic/pi-harness` only,
-    not on `main`. Eval suite; `4d3bda3`.
-17. Contract decision D1: the grader tooling lives in
-    `packages/harness/src/grader/`, not in `packages/devtools`, because
-    devtools cannot import `ui/glyphs.ts`. Sections 4.2, 6.I, 8;
-    `docs/plans/2026-09-26-pi-harness-epic-plan/contract.md` section 5;
-    `9dc0483`.
-18. Contract decision D2: the P6 watcher is tracked in the repository
-    (`grader/watch.ts`, eval-infra task E6b); it writes only into the run
-    dir. Section 8; contract section 5; `9dc0483`.
-19. Contract decisions D3-D16 are as `contract.md` section 5 states them
-    (core surface defaults in C0, reused core types, the creature query
-    surface, `place_changed`, `ToolResult.body`, the `formatContent`
-    line 1, tool stubs, the `extension.ts` insertion lines, a new attacker
-    inside `engage`, no Pi tool timeout, the area-name JSON import, the
-    faux provider API, the `social.text` description and the Truth reader
-    subprocess). Sections 4 and 6; contract section 5; `9dc0483`,
-    `4014bc3`.
-20. The advisor ruled: a named `engage` on a unit with `tappedByOther`
-    returns `REFUSED tapped_by_other` with a `Next:` line (an untapped
-    unit of the same name in view, else `engage()`). A kill on a tapped
-    unit gives no loot, experience or quest credit, and a small model
-    cannot know that. Sections 6.B, 9.2; plan task B12
-    (`ops-tools-b.md`).
-21. The advisor ruled: the harness login's `authWithRetry(config, {
-    maxAttempts: 2 })` (plan task F5b, `defaultLogin`) is accepted as a
-    retry of a transient failure. It is separate from settlement 8,
-    which binds the grader: a grader still does not retry a login
-    refusal. Sections 6.H, 8; plan task F5b (`found.md`).
+#### Spec review settlements
 
-### Decisions taken during the build, not yet ruled by the maintainer
+An agent self-review of this spec settled these on 2026-09-26, after the
+maintainer approved sections A-K (R28-R38). The advisor accepted them in
+his place under the goal (entry 38).
+
+- **1** `engage` takes a new attacker as its next target while `count` allows, else names it in `Danger:`; `travel`, `rest` and `recover` stop `FAILED interrupted`. `4d3bda3`, `c243144`.
+- **2** A wake line is `[game <age>] <event>`; a chat wake names the sender, quotes the text and gives the `social` reply call. `4d3bda3`.
+- **3** Passive lines never go before a chat wake; they flush at `agent_end`, before the next non-chat wake, and after `[now]`. `4d3bda3`.
+- **4** The wake budget is at most 25 pushed tokens a minute (criterion 4); the simulated range is 15-53. `4d3bda3`.
+- **5** `<HARNESS_LAUNCH>` is `entry.ts --profile $RUN/account.json --run-dir $RUN`, with the account in a mode-600 file. `4d3bda3`.
+- **6** `<HARNESS_QUIT>` is Ctrl-D on an empty editor, then two Ctrl-C within 500 ms if Pi still shows. `4d3bda3`.
+- **7** The grader's password scan skips `account.json` and `partner.json`, and the grader deletes both after `soap delete`. `4d3bda3`.
+- **8** A grader never retries a login refusal (`aborted`, `launch_failed`); `status 0x4` failures come from checkouts older than `486da85`. `4d3bda3`.
+- **9** No Pi tool timer applies to Luna's path, so the 120 s yield stays. `4d3bda3`, `c243144`.
+- **10** `engage` skips `tappedByOther` rows, and a wrong flag is a `core` friction item. `4d3bda3`.
+- **11** K4 and N1 read as decided by R27, not by K4's default. `4d3bda3`, `30a9cdf`.
+- **12** The navigation track counts as landed; graders mark `core` only a movement failure at one of its open places. `30a9cdf`.
+- **13** The scenario catalogue holds 37 scenarios, 7 of them from the t1 revision. `c243144`.
+- **14** R28-R37 are one entry per section, and R5's superseded reading is marked as the coordinator's record. `4d3bda3`.
+- **15** The parse tax is 2,410 of 3,221 CLI episodes (75 %) piped into jq or python. `e86494a`.
+- **16** `9a5010c` (SRP reference-server tests) is on `epic/pi-harness` only. `4d3bda3`.
+
+#### Contract decisions D1-D16
+
+The plan's contract
+([contract.md](2026-09-26-pi-harness-epic-plan/contract.md) section 5)
+states D1-D16 in full; the advisor approved the plan in the maintainer's
+place.
+
+- **17** D1: the grader tooling lives in `packages/harness/src/grader/`, because devtools cannot import `ui/glyphs.ts`. `9dc0483`.
+- **18** D2: the P6 watcher is tracked (`grader/watch.ts`, task E6b) and writes only into the run dir. `9dc0483`.
+- **19** D3-D16: as contract section 5 states them (core surface defaults, reused types, creature queries, `place_changed`, `ToolResult.body` and the rest). `9dc0483`, `4014bc3`.
+
+#### Coordinator and advisor rulings
+
+- **20** Advisor: a named `engage` on a `tappedByOther` unit is `REFUSED tapped_by_other` with a `Next:` to another unit (widened by 122). `4c41f3b`.
+- **21** Advisor: the harness login's `authWithRetry(config, { maxAttempts: 2 })` is a transient retry; graders still never retry (8). `1e7fb1f`.
+- **36** Coordinator: one ownership exception lets other tasks extend `test-support/fake-pi.ts` (replaces the A1d-only exception 30). `8b41bbf`, `edf18b0`, `c30fb47`.
+- **37** Coordinator, E7f: quit waits up to 30 s for the server to end the session and logs `session/logout` `complete` or `timeout`. `3eb79bc`.
+- **38** Coordinator, E7f: the grader polls truth every 10 s for up to 90 s until the character is offline, then applies the savedAt rule. `d58fda1`.
+- **39** Coordinator, E7f: `pane.ts` quit waits 35 s (was 3 s) before its double Ctrl-C fallback, which killed the harness mid-logout. `d58fda1`.
+- **40** Coordinator, E7f: a Ctrl-D that Orca refuses because the terminal is gone counts as sent. `546eca7`.
+- **41** Coordinator, E7f: the grader's `scenario` command is the synchronous `showScenario` (lint). `ca293fa`.
+- **42** Coordinator, B5: death on the way ends `FAILED died` with `Next: recover()`, not `FAILED interrupted` as B.3 step 7 says. `3a9e226`.
+- **43** Coordinator, B5: the generic travel refusal gives its code, core's next step and a Tried/Not tried clause. `fc909bd`.
+- **44** Coordinator, B5: a unit goal refused `ambiguous_floor` lists the floors with a `travel` Next; `UNKNOWN_PATH` reads `no_path`. `5a1968f`.
+
+#### Build and eval-fix deviations
 
 Builders changed the plan's code where it did not pass the checks or did
-not match the real code. The lines below change behaviour, a contract or
-a test; pure formatting and lint reflows are left out. Each line gives
-the plan task, the change and the commit. They wait for the same review
-as the spec settlements.
+not match the real code, and eval-fix briefs changed the design. Pure
+formatting and lint reflows are left out. Rn names the eval round whose
+friction the fix answers (R0 is the calibration round).
 
-22. C2a: a `catalogAccess(config, lazy, combat)` helper in `runtime.ts`
-    starts the warm catalog loads and returns `prepareCatalog`,
-    `factions` and `capabilities`, which keeps `createRuntimes` under the
-    50-line cap; the load order is the plan's. `e3881ff`.
-23. C2b: a module-level `nearbySources(conn, rt)` builds the nearby row
-    sources, so `controlMethods` stays under the 50-line cap;
-    `queryNearby` requires its `query` argument, so tests pass `{}`; the
-    shared mock handle reads `getCombatState().attackers?.includes(...)`,
-    because the CLI `attachControl` fixture stubs `getCombatState` as
-    `{}`. `c05f0d1`.
-24. C6b: the plan's `client-place.test.ts` replaces C0's
-    `not_implemented` stub test in that file (the plan listed it as a
-    new file). `adfc353`.
-25. C7a: the `recoverCorpse` stub returns `Promise.reject(new
-    Error("not_implemented"))` instead of an async throw (biome
-    `useAwait`), and the plan's `client-runs.test.ts` replaces C0's stub
-    test. `781118a`.
-26. C9: the "response cut after the names" parser test passes before the
-    change, because `toEqual` treats an undefined key as a missing one;
-    it is kept, since it pins the behaviour after the change. `aa543f1`.
-27. C14: the corner probe uses (8733.333, -6666.666) and calls
-    `nav.height` with no start point. At the plan's (8733.33, -6666.67)
-    the unpatched July build has ground (69.86), so only the route
-    caught the regression; at the new point `findHeights` is empty on the
-    July build and 69.86 on the patched one. `c747d95`.
-28. F5ab: the "a lost connection interrupts the active run" test checks
-    the connection is in `backoff` and ends with `rt.disconnect()`, so
-    F5b's 5 s reconnect timer does not outlive the test. `f72a9ad`.
-29. F5b: `connection.ts` differs from the plan's code after review. A
-    login epoch counter drops and logs out a superseded login, so a
-    login that lands during `/disconnect` does not put the harness back
-    online; `connect()` waits on one shared closing promise instead of
-    treating a close as a lost socket; `disconnect()` emits `offline`
-    once; the closed hook ends in `.catch(ignoreFailure)`. `24a8e2b`.
-30. A1d: a coordinator ownership exception lets the A1d fix add a no-op
-    `registerTool` to `packages/harness/test-support/fake-pi.ts`, which
-    F7a owns. `8b41bbf`.
-31. A1d: the private `scrub` helper and `SECRET` move to
-    `packages/harness/src/tools/scrub.ts`, which keeps `define.ts` under
-    the 500-line cap. `1f6fe4f`.
-32. L1a: the buffered writer timer ends its drain in
-    `.catch(ignoreFailure)`, so a failed drain follows the
-    fire-and-forget rule. `fb5e038`.
-33. L12b: the session link target resolves against the run dir, because
-    a relative symlink target is relative to the link, not the process
-    cwd. `fdd6393`.
-34. L3a: `start` moves into a top-level `startRun` helper to satisfy the
-    function-length lint rule. `a16cea0`.
-35. P2: the linter sorts `TOOL_TEXT` keys alphabetically, so P3 must
-    iterate the design B.1 tool order, not `Object.keys(TOOL_TEXT)`.
-    `c362fae`.
-36. U11a, U10: a blanket coordinator ownership exception replaces the
-    A1d one (decision 30) for `packages/harness/test-support/fake-pi.ts`.
-    U11a's fake records `registerMessageRenderer` and
-    `registerEntryRenderer` calls (`edf18b0`), and U10 adds a no-op
-    `registerCommand` (`c30fb47`).
-37. E7f: harness quit waits up to 30 s for the server to end the
-    session and logs `session/logout` with outcome `complete` or
-    `timeout` and `waitedMs`. Core's `logout()` returns void, so
-    `complete` means the server closed the session within 30 s, which
-    also covers a refusal. `3eb79bc`.
-38. E7f: after the harness exits, the grader polls soap truth every
-    10 s for up to 90 s until the character is offline, and only then
-    applies the savedAt rule. Still online at 90 s is `stale_truth`; an
-    offline read with an old save is `stale_truth` at once, not after
-    three reads. `d58fda1`.
-39. E7f: `pane.ts` quit waits 35 s (was 3 s) for the pane to exit
-    before its double Ctrl-C fallback. A Ctrl-C while Pi waits for the
-    logout is a SIGINT in the cooked terminal and killed the harness
-    mid-logout. `d58fda1`.
-40. E7f: a Ctrl-D that Orca refuses with `terminal_not_writable`,
-    `terminal_exited`, `terminal_gone` or `terminal_handle_stale` counts
-    as sent, and quit goes on to wait for the exit. `546eca7`.
-41. E7f: the grader CLI's `scenario` command is `showScenario` and is
-    synchronous (biome `noShadow` and `useAwait`). `ca293fa`.
-42. B5: death on the way ends as `FAILED died` with `Next: recover()`,
-    not `FAILED interrupted` as design B.3 step 7 says, because B.4,
-    B.10, B.13 and the contract code list use `died`. `3a9e226`.
-43. B5: the generic travel refusal gives its code, core's next step with
-    "goto" read as "travel", and a Tried/Not tried clause; after a floor
-    retry the clause says `planner twice (floor retry)`. The
-    class-prefix regex is a local copy in `travel-report.ts`.
-    `fc909bd`.
-44. B5: a unit goal refused with `ambiguous_floor` is REFUSED, lists the
-    floors and gives a `Next: travel(...)` line at the floor nearest the
-    unit's height. `UNKNOWN_PATH` gives `no_path` from a local table in
-    `travel-report.ts`, so `LegResult.reason` stays
-    `pathfind_find_path_failed`. Destination-side causes say
-    `Not tried: another destination.` from a local copy of core's
-    classifier lists. `5a1968f`.
-45. L4a: an aborted goto calls `finish` before `handle.halt()`, so it
-    returns `stopped`, not `refused` with reason `halt`; the test mock
-    models core's halt. `21e1198`.
-46. L4b: `jevCode` also maps an outcome reason that starts with
-    `jev_unavailable`, because core emits the failed outcome before it
-    rethrows; a cycle whose signal is already aborted stops at its
-    `started` event. `d68bc9d`.
-47. U2: the footer reclaim clause follows [now]: undefined gives no
-    clause, 0 gives "reclaim ready", a positive value gives the
-    countdown. Row 2 no longer repeats GHOST or DEAD. `f2e4218`.
-48. U7: the expanded engage view draws every decision (up to 200, the
-    `EngageAfter` cap), not the plan's last 6. `50219d0`.
-49. B11: the "Other ways:" line keeps its first item lower case, as
-    design B.8 shows. `e2c6e09`.
-50. B3: the loot fallback record keeps the guid as a decimal string, as
-    core `loot-run.ts` does, not the plan's hex. `d705dc7`.
-51. P3: the tool notes follow an explicit `TOOL_ORDER` in
-    `install.ts`, not `Object.keys(TOOL_TEXT)`. `d62a010`.
-52. B7: a request-items dialog whose `completionFlags[0] % 4 === 3`
-    counts as ready, and `turn_in` asks for the reward from it. A reward
-    number past the choices is refused with `reward_needed`; with one or
-    no choice the tool sends index 0. `212805c`.
-53. B8: an unanswered buy or sale is UNCONFIRMED `no_answer`; a
-    sell_junk that sold nothing and got refusals is FAILED with core's
-    reason; PARTLY needs 0 < sold < junk. Both loops stop at the first
-    unanswered request, non-DONE sell_junk results carry a Next line,
-    and buy accepts a stock line number. `ab1adcf`.
-54. B9: repair with nothing damaged reports DONE with `repairCost` 0,
-    not FAILED `error`. `e459c45`.
-55. B10: the rest projection judges only the stats under `until` and
-    compares the projected low with `until`. `9494582`.
-56. B6: the fallback `emptyLoot` has `windowClosed: true` (the A1 stub
-    had false). `b129dc2`.
-57. L9b: the reply hint treats `WHISPER_FOREIGN` as a whisper.
-    `95abfc6`.
-58. U11a: `extension.test.ts` also asserts the two renderer
-    registrations. `e6fca38`.
-59. P5, P6: the harness doc lists the landed `no-spells` footer chip
-    (`8ac5eed`), and the eval bullet lists the grader's eleven commands,
-    adding `run` and `result` (`c77995d`).
-60. F8e: the second pane of the smoke must start only after the first
-    harness exits; a pane started during the first logout is refused by
-    the character lock. `8cb5068`.
-61. U11b: the UI smoke script sets `umask 077` and an EXIT trap that
-    closes the pane, deletes the soap account and removes its scratch
-    dir on an early stop. `11e717c`.
-62. Eval round 0 fix engage-travel: a named `engage` resolves among
-    units in view first (nearest wins). A unit known only from memory
-    gets one travel leg toward its remembered position; if it is still
-    not in view, engage is REFUSED `not_in_view` with an explore Next
-    toward where it was last seen. The explore loop runs only for a
-    name that is not known at all. `0d946c5`.
-63. Eval round 0 fix engage-travel: after the approach, engage starts a
-    fight only on a unit that is in view and alive; otherwise it is
-    FAILED `target_not_observed`. An approach failure never suggests
-    `travel` to the same reference: it suggests `unstick` for
-    `start_off_mesh`, then another unit in view, then the B.3
-    ask-human text. The `not_in_view` and `target_not_observed` texts
-    are new; B.3 and B.4 have none for these cases. `7c54404`.
-64. Eval round 0 fix engage-travel: any point goal without z that is
-    refused `ambiguous_floor` is retried once at the character's
-    observed height, which departs from B.3 step 3 ("a coordinate goal
-    never gets a guessed z"). Explore legs use this path. `7156bd4`.
-65. Eval round 0 fix engage-travel: `ops/next-guard.ts` replaces a Next
-    with an ask-human question when it equals the call that just ended
-    PARTLY, REFUSED or FAILED, or when the repeat guard would block it.
-    A PARTLY `time_limit` rest and a `cancelled` run the human did not
-    stop keep their Next, because they are continuations.
-    `2962605`, `39496aa`.
-66. Eval round 0 fix scenario-data: scenario checks follow preset truth
-    measured on throwaway accounts. `t3-ghostlands-kill` accepts
-    non-gray levels 14 to 23, because no non-elite hostile near
-    Tranquillien is within 3 levels of 20; `t0-self-state` counts free
-    slots from the final bag rows; `t5-vendor-buy-goldshire` sums the
-    water count over every inventory row; `t1-walk-to-npc` and
-    `t0-hostiles` use the measured positions and names. The task texts
-    stay verbatim. `f99b2d7`.
-67. Eval round 1 fix events-lifecycle: the meta gets `endedAt` and
-    `exitReason` before the logout starts and again at the end. The
-    exit reasons `sigterm`, `sighup`, `sigint` and `fatal_error` are
-    new (the design names only `quit`); a SIGINT exits 130, and a
-    SIGTERM or SIGHUP before Pi owns the signals exits 143 or 129.
-    Ctrl-D, `/quit` and two Ctrl-C share one Pi shutdown path and one
-    test. `a1411d2`, `93383a9`.
-68. Eval round 1 fix events-lifecycle: the exit recorder's SIGINT
-    listener stands down while more SIGINT listeners are attached than
-    when Pi took the signals, so Pi's Ctrl-Z ignore handler holds; any
-    later SIGINT listener has the same effect. `3d2cf16`.
-69. Eval round 1 fix events-lifecycle: `exit.begin()` waits one
-    microtask so every listener of the same signal dispatch runs first,
-    instead of registering the capture before Pi's handler, which Pi
-    prepends. `cf0ca65`.
-70. Eval round 1 fix events-lifecycle: `travelLeg` writes the
-    `nav/route_*` rows, so engage, loot and interact approach legs
-    write them too (runId only inside a run). A goal already in range
-    writes no route rows; a floor retry logs the refused first route,
-    and `route_replaced` stands in for the second route's start.
-    `b6c688d`.
-71. Eval round 1 fix item-names: vendor lists, loot results and own
-    item pushes wait up to 2 s for item names before they fall back to
-    `item <id>`. The `vendor/list` row gains a `names` array and lists
-    up to 8 names in its text; the money row of a deferred push is
-    written before its item row. `8235ab6`, `16adbe9`, `e02e2df`.
-72. Eval round 1 fix item-names: buy takes the list number, an exact
-    name or `item <id>` first; a number past the list or an unsold id
-    is refused `no_match`, and a partial name matches only when it is
-    unique. The design names only part of an item name. `d723f24`,
-    `c85e1b0`.
-73. Eval round 1 fix item-names: core's `CombatAura` gains an optional
-    spell name, and the `aura/gain` and `aura/fade` rows gain a `name`
-    field. `1a3ab5a`.
-74. Eval round 1 fix next-hints: "structural" means unsupported map, no
-    path or no ground, which gets the ask-human question; a start-side
-    fault gets `unstick`; travel stays only for transient stops. engage
-    still offers another target in view after a no-path refusal.
-    `b82acbd`.
-75. Eval round 1 fix next-hints: a quest with nothing to kill or
-    collect points at its turn-in NPC, matched by name in the
-    objectives text, because the quest query has no ender. An
-    `engage(quest)` whose objectives are already complete returns DONE
-    "nothing left to kill". `0ff7425`, `8a580fb`.
-76. Eval round 1 fix next-hints: rest eats again when a confirmed food
-    aura ends and runs to the `until` threshold within 110 s; with no
-    health or mana gain for 10 s it stops PARTLY `no_regen` with
-    `Next: look()`. B.7 says `until` or 30 s. `7748dc4`, `665625b`.
-77. Eval round 1 fix next-hints: the next guard also exempts
-    `max_starts_reached` (item 65 exempts `time_limit` and
-    `cancelled`). `152d6ff`.
-78. Eval round 1 fix runner-steers: the t7-halt-resume resume steer
-    fires 20 s after the first answer that follows the stop steer, not
-    25 s after the stop. A failed partner action aborts the run with
-    cause `other`. `de5b654`.
-79. Eval round 1 fix runner-steers: a scenario's `blockedBy` keys are
-    checked before any account is made and grade the run blocked; a run
-    that ends with a trigger steer unfired drafts blocked with reason
-    `no_<trigger>`. `blockedBy` is a plain flag that holds until a
-    brief removes it from the scenario (nav-coverage for
-    t4-alliance-first and t5-vendor-buy-goldshire), and the preflight
-    no longer reads the nav config. `2fdbfbc`, `6b00104`.
-80. Eval round 1 fix runner-steers: t6-die-and-recover uses the
-    `eversong10-warrior` preset at level 1 instead of the priest the
-    suite names; t3-ghostlands-kill sets position z 88.66 through soap
-    setup; t1-walk-to-npc checks that the last move_stop precedes the
-    done message with no later move_start; t7-halt-resume accepts the
-    agent naming the halted target's death and grades a kill by another
-    player n/a with botInterference. `71d92ca`.
-81. Eval round 1 fix runner-steers: runs on a shared spawn get their
-    own start point 4 yd or more apart, within 16 yd of the preset
-    spawn, instead of a pool rule that serialises them. Each run writes
-    `grader/concurrent.json` as `{listedAt, note, runs}`, a lower bound
-    of the other runs in the round. `dad4762`, `5e40c87`.
-82. Eval round 1 fix pushed-batch: a new `combat/target_died` event
-    reports a watched unit that dies without credit to the character.
-    C.1 has no such event; it wakes like `attacked` when no run is
-    active and stays log during a run. `5601aa2`.
-83. Eval round 1 fix pushed-batch: an engage call consumes its own
-    fight start, fight end, kill credit, kill XP and loot rows, so only
-    its result or run-end line reports them. C.1 lists kills inside a
-    multi-kill engage and cycle fight starts as passive. An engage that
-    ends without DONE or PARTLY releases its consumed rows to the next
-    passive flush, and consumed rows stay queued while their run is
-    running. `2c3edf8`, `1483df8`, `67f63d9`.
-84. Eval round 1 fix pushed-batch: emote notices stay in the game log
-    and no longer reach the panel ticker. `b23160d`.
-85. Eval round 2 fix nav-coverage: navigation opens maps lazily by
-    name (0 Azeroth, 1 Kalimdor, 530 Expansion01, 571 Northrend);
-    other ids keep the unsupported map refusal, and a named map with
-    no navmesh file refuses as `unsupported map <id> (no <name>
-    navigation data)`. The navigation capability also needs the
-    current map's navmesh file. `ff0203b`, `cafecd8`, `61a7933`.
-86. Eval round 2 fix nav-coverage: for route planning only, a start up
-    to 1 yd (one climb) above a column's single floor plans from that
-    floor; walkToward keeps its 0.25 yd grounded check. `09e5158`,
-    `a1291a8`.
-87. Eval round 2 fix next-progress: a same-call Next stands until the
-    repeat guard has seen that call end from the same place with an
-    unchanged progress digest and no progress event during the call.
-    The repeat guard also stores a PARTLY, for guardNext only, and
-    `loot_denied:release_only`, `loot_denied:timeout` and
-    `loot_denied:loot_source_unavailable` become continuation codes.
-    `2093167`.
-88. Eval round 2 fix next-progress: engage detail text says each stop
-    reason in plain words (`engage-reasons.ts`) while the status line
-    keeps the machine code. A fight whose every target the helper
-    blocked ends REFUSED with the block code instead of FAILED lost.
-    `ed4a2de`, `a1911b4`.
-89. Eval round 2 fix explore-bearings: explore records refused bearings
-    per start cell and skips them, tries both 45 degree neighbours at
-    full leg length after a no_ground, end_snapped_off or
-    ambiguous_floor refusal, never shrinks a leg, caps the loop at 6
-    leg rounds and stops when less than 1 yd is left. `a1e9f5e`,
-    `e28b04a`, `f708de7`.
-90. Eval round 2 fix explore-bearings: travel refuses `attacked` with
-    an engage Next while any attacker is on the character; a new
-    attacker during a leg keeps the FAILED interrupted status.
-    `d92b70f`.
-91. Eval round 2 fix explore-bearings: the empty look hint is a bare
-    explore and names no bearing; `target_not_observed` says the unit
-    may be dead or despawned and gives a look step; an obstructed
-    explore names the next bearing not refused from its end cell, and
-    the second obstructed explore bearing from one cell asks the
-    human. `7b95c67`, `857a700`, `4f9548c`.
-92. Eval round 2 fix round-hygiene: an answer whose last sentence is a
-    question, with no tool call or progress after it, waits under the
-    stuck rule (one rescue nudge, then a stuck stop) instead of ending
-    done. `63581c8`.
-93. Eval round 2 fix round-hygiene: every kill scenario names its
-    target field. `mise eval round` names each pair in a plan that
-    shares a field, and `mise eval run` refuses to start while a run of
-    the same round on that field has no draft or result and is less
-    than 5 min past its pane time. t0-who-is-near and t2-whisper-reply
-    start on their own slot tables. `34c51fc`, `32df3f8`.
-94. Eval round 2 fix round-hygiene: t6-die-and-recover uses the fresh
-    preset (a level 1 priest with level 1 gear) at the first
-    eversong10-spawn slot with no level write, replacing the warrior
-    of item 80. The first human input of a run logs as `task_landed`.
-    `bb24d6d`, `dc0016d`.
-95. Eval round 2 fix engage-continuity: the cycle and the standalone
-    loot walk to within 4 yd of a corpse before the open, but only when
-    the corpse is dead and flagged lootable. A release-only or
-    unanswered open or take records no loot for that corpse and moves
-    on; a new `RewardsRuntime.abandonOpen` frees the open. Inventory
-    limits still stop the run. `7cdddee`, `b4df16f`.
-96. Eval round 2 fix engage-continuity: a character that can melee but
-    has no usable spell gets movement and auto-attack in melee range,
-    and ends `target_unreachable` only after 5 s without approach
-    progress. `no_supported_combat_actions` stays for a character that
-    cannot melee. Three spell tests that expected the block now expect
-    the approach. `0375545`.
-97. Eval round 2 fix engage-continuity: each queued unit is checked
-    just before its fight and skipped as `target_dead`,
-    `tapped_by_other` or `engaged_by_other` without a fight or a start.
-    A fight refused because its target is already dead gives its start
-    back. The re-pick stays in the harness top-up in `engage-fight.ts`.
-    A unit that fights a party member is also skipped, which is
-    correct for solo play. Luna reads the skips in plain words.
-    `10cace1`, `9a30b2f`, `b4df16f`.
-98. Eval round 2 fix engage-continuity: the rule memo carries the
-    fights already fought into the next cycle of the same run, so the
-    `run/progress` fight count does not fall at a top-up; it resets
-    when a run starts or a cycle starts outside a run. `ae05d0d`.
-99. Eval round 3 fix act-before-ask: the danger line ages a hit from
-    the last HP drop. Before any hit it reads `is coming at you
-    (12 yd)`, a form the harness design does not name. `a721223`.
-100. Eval round 3 fix act-before-ask: repeat calls carry the target
-     distance and the attacker set, and engage on a unit that attacks
-     the character is never blocked. `nextCall` and `askHuman` move to
-     `tools/next-call`. `74bbe0d`.
-101. Eval round 3 fix act-before-ask: under attack, a blocked Next or
-     a repeat refusal that would ask the human becomes engage on the
-     attacker. A positional failure first moves with
-     `travel(to: "explore southeast")`, because travel accepts a
-     direction only with the explore prefix; the guard asks the human
-     only after the same tool also failed from a pose at least
-     `REPEAT_MOVE_YD` away. `bd9b44e`.
-102. Eval round 3 fix quest-handoff: core `WorldHandle` gains
-     `itemLabel`, which returns the cached item label and queries an
-     unknown item, so the harness can name quest reward items. The
-     brief kept quest-handoff in the harness. `9bae34d`.
-103. Eval round 3 fix quest-handoff: accept keeps the details text and
-     the ender on a harness quest record that the journal and
-     `no_offer` use; turn-in reports XP, money and items from the
-     rewarded event. Reward choices show the armor or weapon kind but
-     not the slot, because the core item query does not parse the
-     inventory type. The journal shows the goal text for a quest with
-     no counted objectives. A `turn_in` with no complete quest keeps
-     the old refusal. `no_offer` names the giver when the ender is
-     unknown and the giver is another NPC. `b895c86`, `71a4488`.
-104. Eval round 3 fix quest-handoff: engage and loot add `Quest N
-     complete` for each quest completed during the call and, when no
-     other Next is set, point at the ender or giver, or at a
-     questgiver look. `8d9d498`.
-105. Eval round 3 fix unit-reach: when the strict routes lose a height
-     trace, the planner retries the mesh corridor and then the
-     straight line, and takes the one ground floor within a walkable
-     slope where the trace fails. This applies to every route, not
-     only unit routes, and a lone lost trace on one continuous floor
-     is no longer a refusal. `466760e`.
-106. Eval round 3 fix unit-reach: the cycle plans a goto guid route to
-     every queued target farther than 30 yd and stops within 25 yd
-     before the fight and its bound start. A target with no route is
-     skipped as `target_unreachable` without a start, and a target is
-     vetted again after the walk. `d1d4b02`.
-107. Eval round 3 fix unit-reach: a gray target (all 3.3.5a level
-     bands) that dies tapped by the character, or fought with no tap
-     flags seen, completes as gray; a non-gray target tapped by the
-     character that dies with no XP after 5 s completes as
-     `no_xp_kill`; another player is named only when the tap flags say
-     so. XP 0 lives on the harness target record. `a416721`.
-108. Eval round 3 fix t6-and-grader: t6-die-and-recover heads northeast,
-     not northwest as the brief said, because 58 measured Springpaw
-     Stalker fights put the field 25 to 40 degrees east of north from
-     every eversong10-spawn slot. The eval-suite stalker-field point
-     holds that cluster. `99f83b6`.
-109. Eval round 3 fix t6-and-grader: the rescue nudge asks the agent to
-     try another way to finish the task, not to report what blocks it.
-     `eb914da`.
-110. Eval round 3 fix t6-and-grader: `mise eval run --wait` polls a
-     busy field every 15 s and starts when it frees, or exits 1 naming
-     the holder after 20 min. Waiting is not yet the default. `b57337f`.
-111. Eval round 3 fix t6-and-grader: `wallSec` ends at the answer the
-     done rule accepts, or at the end decision for budget, stuck and
-     abort ends; a new `exitSec` keeps the time to harness exit.
-     `f67f0c1`, `eae7f06`.
-112. Eval round 3 fix t6-and-grader: each draft game_log check gets
-     the first and last matching rows, only known game log domains
-     count as events, each truth check gets only the fields it reads,
-     and the draft verdict is null so an unedited draft does not
-     validate. `7795bd8`, `39a707d`.
-113. Eval round 3 fix t6-and-grader: t3-kill-one-hunter's
-     pet-and-ranged check splits into ranged-cast (spell 75, 3044,
-     1978, 5116 or 13549) and pet-attack, which carries `blockedBy
-     P5:pet_attack` and grades blocked. `01bd061`, `84d654e`.
-114. Eval round 3 fix t6-and-grader: the runner reads soap health at
-     preflight and writes the bot count and a bot risk to `run.json`.
-     `ddcbc4e`.
-115. Eval round 4 fix luna-rules: the session loader builds the Luna
-     prompt, so the recorded system message is the full Luna prompt
-     built at session start (profile character only) and Pi's cwd
-     section, not the one-line preamble the brief gave. The model still
-     gets the filled prompt on each turn. `f7d1cbca`.
-116. Eval round 4 fix luna-rules: the prompt is 465 words, not 450, and
-     drops the `[game]` event list and the per-tool examples of rule 3.
-     Rule 4 has no half-time-budget clause, because Luna does not see
-     its budget, and ends at "while you have an untried direction".
-     Rule 5 walks toward the goal instead of naming a waypoint, because
-     Luna must not invent coordinates. `c79a3136`.
-117. Eval round 4 fix check-truth: total-xp counts only xp/gain rows
-     whose victim has a combat/kill_credit, and one-at-a-time needs a
-     fight; the check id total-xp stays so rounds compare by id. The
-     answer-values truth is the last jev.jsonl observation at or before
-     the answer when it is 2 s old or less, else the last full GL
-     snapshot/world row, within 10 pp. Its draft keeps observed null.
-     `4839ca28`, `8c0cd6fa`.
-118. Eval round 4 fix check-truth: `mise eval run` waits on a busy field
-     by default, which replaces the "not yet the default" in decision
-     110; `--no-wait` keeps the old refusal and `--wait` is still
-     accepted. `57d1891b`, `091c66bb`.
-119. Eval round 4 fix check-truth: a look over 60 yd writes its
-     snapshot/world row at its own `within` radius, and tool/result
-     carries the result text the agent saw, cut at 2000 characters.
-     The design had a fixed 60 yd snapshot and no text. `db07aff1`.
-120. Eval round 4 fix tool-text-polish: recover says "alive again 29 yd
-     from your corpse, at x, y" (the design says "at your corpse"), and
-     travel(to: "corpse") uses the same words. The engage death text
-     says "killed you 11 s into the fight (you walked 60 yd first)",
-     and the kill text counts only fight time. `9e0ea8ad`, `0663aec5`,
-     `f5cc3464`.
-121. Eval round 4 fix tool-text-polish: the `human_waiting` refusal
-     quotes each pending human message in order, each cut at 200
-     characters, instead of "Read it before you act". `3c79716f`,
-     `002d3f9c`.
-122. Eval round 4 fix tool-text-polish: a tapped refusal's Next takes a
-     same-name unit, else the nearest untapped hostile within the level
-     cap, else engage(); design ruling 20 named only the first and the
-     last. `cac86ee8`.
-123. Eval round 4 fix tool-text-polish: tool results print "mana
-     231/607 (38%)" and the `[now]` line "mana 231/607"; the design
-     examples show "mana 61%". The Nearest hostile line and the `[now]`
-     nearest field skip units tapped by another player. `423f81d6`,
-     `4711107f`.
-124. Eval round 4 fix find-and-remember: travel and interact walk to an
-     out-of-view NPC's last-known point and find it again by guid,
-     entry or name, else fail `not_at_last_known` and forget that
-     sighting (`Sightings.forget`, outside the brief's ownership).
-     Sightings of role NPCs and of quest givers and enders do not
-     expire after 30 min, but the empty-look text still says "last 30
-     min". `79756db1`, `8e33d59d`.
-125. Eval round 4 fix find-and-remember: look rows stay nearest first
-     when the list is not cut; only a cut list ranks by relevance, says
-     "most relevant first" and adds a "<n> more:" line. look(name) and
-     look(find: role) list remembered out-of-view units. `09b00cc7`.
-126. Eval round 4 fix find-and-remember: explore walks up to 100 yd per
-     call and turns up to 90 degrees aside from explored cells. A new
-     result "DONE explored N yd north; the ground ahead was explored
-     already." ends it when every bearing ahead is explored. The empty
-     look hint stays conditional text, not a Next. `ea9f7d4e`,
-     `fa597729`.
-127. Eval round 4 fix route-columns-and-pulls: when the native floor
-     pick is not a walkable step, a route keeps the one floor within a
-     climb of the previous sample and refuses only when two floors or
-     none qualify. The rule is off while the route leaves a multi-floor
-     start, and a return trace with no height stays refused.
-     `e9957e13`, `606e668f`.
-128. Eval round 4 fix route-columns-and-pulls: a goto from a predicted
-     pose whose last server fix is more than 10 s old settles onto the
-     floor 0.25 to 1 yd below the predicted z, not the floor nearest
-     the last server z as the brief said. `e51ba337`.
-129. Eval round 4 fix route-columns-and-pulls: unstick first routes to
-     open ground 8 yd away, and a move under 0.5 yd is FAILED stuck
-     with an ask to the human. Explore calls unstick once when every
-     leg fails the same way from the start, so unstick is no longer
-     only model-invoked. `6a63bbf6`, `fb99b053`.
-130. Eval round 4 fix route-columns-and-pulls: the cycle checks the
-     30% mana and 50% HP pull limits (now in core `cycle-gate.ts`)
-     before each new pull, not before a queued attacker, and before the
-     pick is recorded; the stop names an attacker before rest. It skips
-     a queued unit with no entity as `target_unobserved` without a
-     start. A quest run picks the nearest target at any distance and
-     stops out of reach only when the route to a target beyond 50 yd
-     fails. `8f6d3816`, `3839ddcb`, `ff7240d8`, `df23b70b`, `c14e7f86`.
-131. Eval round 4 fix hunter-ranged: only ranged-slot spells gain the
-     slow and sting auras (33, 271), so Frostbolt stays unsupported and
-     wand Shoot keeps its refusal. A pet command or Auto Shot on the
-     target counts as engagement for kill credit, and a pet_attack
-     outcome writes a new combat/pet_attack GL row that the design
-     event table does not list. `31c8a8dd`, `0fedbc7e`, `09ff6b09`.
-132. Eval round 4 fix events-polish: life rows and a recover teleport
-     are consumed by an awaited run that ends without a human cancel,
-     quest progress by a quest engage, loot and money rows within 2 s
-     after a tallied engage by that engage, and quest, trade and quest
-     XP rows by the call window of a DONE or PARTLY interact. The
-     design names only evidence and run ends as consumers. `16ee17e1`.
-133. Eval round 4 fix events-polish: a non-kill xp/gain waits up to 1 s
-     to take its source (exploration with the area name from a new
-     `area_explored` control event, or quest), and every row gives the
-     total after the gain. A loot release with no loot/open first logs
-     an empty loot/open. The router holds a move stop for 250 ms so a
-     route's legs log as one move; the character still halts between
-     legs. `010712f9`, `c4957085`, `a2cb3604`, `114fb0ef`.
-134. Eval round 4 fix ui-polish: `createPiRuntime` puts a silent stub
-     for fd and rg in `<agentDir>/bin` when they are not on PATH, which
-     silences Pi's offline warning; a host fd or rg is never shadowed.
-     `0457d8a5`.
-135. Eval round 5 fix stale-checks: a draft check carries `met: true`
-     when a measure decides it mechanically (pet_attack,
-     kill_after_answer, no_fight_after_stop, answer_time); before, every
-     draft check was `met: false`. Measures run for any check source
-     when a GL exists, so answer-time (source `session`) is filled.
-     pet-attack loses `blockedBy P5:pet_attack` and is met when a
-     combat/pet_attack row targets a kill-credit guid and Jev saw
-     `pet.onTarget`. `dc08b90d`, `2097d1e7`.
-136. Eval round 5 fix stale-checks: in a scenario with steers or
-     partner actions, `wallSec` ends at the later of the accepted
-     answer and the last tool/result or chat/out row at or before the
-     end decision; other scenarios keep the answer rule of decision
-     111. Brief items 1 and 2 (run root outside the worktree, grader
-     lock) are not built: run dirs stay under the eval worktree's
-     `tmp/evals` by the maintainer's ruling. `47d83e6d`.
-137. Eval round 5 fix northshire-route-floors: a route sample on the
-     only ground floor of its column may rise or drop up to
-     CORNER_RISE (1.25 yd, namigator WalkableClimb plus CellHeight),
-     and the corridor collision climb uses the same limit; columns
-     with two or more floors keep the 1 yd gate. The fault was a
-     single-floor stair riser, not a regression from `e9957e13` or
-     `e51ba337`, so the brief's nearest-floor rule and native corner
-     retry are not added. `f095c9d9`.
-138. Eval round 5 fix event-delivery: passive rows that land during a
-     tool call are appended to its result (up to 5 `[game Ns]` lines,
-     then the existing "+N more in the log" line) and marked
-     `consumedBy` and `delivered: true`, which section C.2 did not
-     allow for consumed rows. The GL tool/result text omits that
-     tail. `7cbccd8a`.
-139. Eval round 5 fix event-delivery: exploration XP is never queued
-     for a wake or the flush, whether the agent is idle or streaming,
-     so outside a call the agent does not see it; a combat/attacked
-     wake is dropped at send time when a later fight/end,
-     kill_credit or target_died row has the same guid. `7cbccd8a`.
-140. Eval round 5 fix event-delivery: the ticker shows only the first
-     notice/not_implemented row per opcode per session. Vendor `cost`
-     is the absolute price for every deal (sell and repair too), and a
-     vendor/list is logged only when it differs from the last list for
-     that NPC in the connection. `59201f1d`, `8a4e5909`.
-141. Eval round 5 fix search-and-recover: travel takes an optional
-     `for` (hostile, questgiver, vendor or part of a name), which
-     section B.3 does not list. With no `for`, explore stops only on
-     an attackable, living unit that is not a critter and not gray,
-     and names the gray or critter units it walked past on a `Passed:`
-     line. The core barrel exports `grayLevel`. `b7df9d18`.
-142. Eval round 5 fix search-and-recover: an `ambiguous_ground_column`
-     or `path_corner_disagrees` refusal steps through unstick, a
-     waypoint 25 yd (or half way) toward the goal, then the human;
-     the waypoint is not checked for open ground, and the ladder is
-     keyed on the goal text in a new `TravelMemory.recovery`, not on
-     the human task. `Tried:` and `Not tried:` follow the steps run.
-     `04ba1e17`.
-143. Eval round 5 fix search-and-recover: explore never sends a
-     refused goal point again, tries both side bearings on
-     `path_corner_disagrees`, counts each distinct refused goal as one
-     obstructed leg and stops `obstructed` when no bearing is left.
-     `506b516c`.
-144. Eval round 5 fix search-and-recover: look checks `find` before
-     the schema and tells the agent that a name goes in `name`;
-     `GameToolSpec` gains an optional `prepareArguments`. `7bfd4baf`.
+- **22** C2a: a `catalogAccess` helper starts the warm catalog loads (50-line cap); the load order is the plan's. `e3881ff`.
+- **23** C2b: a module-level `nearbySources` builds the nearby rows; `queryNearby` requires `query`; the shared mock reads `attackers?.includes`. `c05f0d1`.
+- **24** C6b: the plan's `client-place.test.ts` replaces C0's `not_implemented` stub test. `adfc353`.
+- **25** C7a: the `recoverCorpse` stub returns a rejected promise; `client-runs.test.ts` replaces C0's stub test. `781118a`.
+- **26** C9: the "response cut after the names" test passes before the change and stays to pin the behaviour. `aa543f1`.
+- **27** C14: the corner probe uses (8733.333, -6666.666), the point that tells the July build from the patched one. `c747d95`.
+- **28** F5ab: the lost-connection test checks `backoff` and ends with `rt.disconnect()`. `f72a9ad`.
+- **29** F5b: `connection.ts` adds a login epoch, one shared closing promise and a single `offline` emit, so a late login cannot undo `/disconnect`. `24a8e2b`.
+- **31** A1d: `scrub` and `SECRET` move to `tools/scrub.ts` (500-line cap). `1f6fe4f`.
+- **32** L1a: the buffered writer's drain ends in `.catch(ignoreFailure)`. `fb5e038`.
+- **33** L12b: the session link target resolves against the run dir. `fdd6393`.
+- **34** L3a: `start` moves into a top-level `startRun` (function-length lint). `a16cea0`.
+- **45** L4a: an aborted goto returns `stopped`, not `refused` with reason `halt`. `21e1198`.
+- **46** L4b: `jevCode` maps reasons that start with `jev_unavailable`; an aborted cycle stops at `started`. `d68bc9d`.
+- **47** U2: the footer reclaim clause follows `[now]`; row 2 no longer repeats GHOST or DEAD. `f2e4218`.
+- **48** U7: the expanded engage view draws up to 200 decisions, not the last 6. `50219d0`.
+- **49** B11: the "Other ways:" line keeps its first item lower case. `e2c6e09`.
+- **50** B3: the loot fallback keeps the guid as a decimal string, as core does. `d705dc7`.
+- **51** P2, P3: tool notes follow an explicit `TOOL_ORDER`, because the linter sorts `TOOL_TEXT` keys (folds 35). `c362fae`, `d62a010`.
+- **52** B7: `completionFlags[0] % 4 === 3` counts as ready; a reward number past the choices is refused `reward_needed`. `212805c`.
+- **53** B8: an unanswered buy or sale is `UNCONFIRMED no_answer`; sell_junk has FAILED and PARTLY rules; buy takes a line number. `ab1adcf`.
+- **54** B9: repair with nothing damaged is DONE with cost 0, not FAILED. `e459c45`.
+- **55** B10: the rest projection judges only the stats under `until`. `9494582`.
+- **56** B6: the fallback `emptyLoot` has `windowClosed: true`. `b129dc2`.
+- **57** L9b: the reply hint treats `WHISPER_FOREIGN` as a whisper. `95abfc6`.
+- **58** U11a: `extension.test.ts` also asserts the two renderer registrations. `e6fca38`.
+- **59** P5, P6: the harness doc lists the `no-spells` footer chip and the grader's eleven commands. `8ac5eed`, `c77995d`.
+- **60** F8e: the smoke's second pane starts only after the first harness exits (character lock). `8cb5068`.
+- **61** U11b: the UI smoke sets `umask 077` and an EXIT trap that cleans up on an early stop. `11e717c`.
+- **62** R0 engage-travel: a named `engage` resolves units in view first, walks one leg to a remembered unit, else `REFUSED not_in_view`. `0d946c5`.
+- **63** R0 engage-travel: engage fights only a unit in view and alive, else `FAILED target_not_observed`; no Next repeats the failed approach. `7c54404`.
+- **64** R0 engage-travel: a point goal without z refused `ambiguous_floor` retries once at the character's height, against B.3 step 3. `7156bd4`.
+- **65** R0 engage-travel: `ops/next-guard.ts` turns a Next that repeats the failed call into an ask-human question, except continuations. `2962605`, `39496aa`.
+- **66** R0 scenario-data: scenario checks follow measured preset truth (t3-ghostlands-kill accepts levels 14-23); task texts stay verbatim. `f99b2d7`.
+- **67** R1 events-lifecycle: meta gets `endedAt` and `exitReason` before and after logout; new exit reasons `sigterm`, `sighup`, `sigint`, `fatal_error`. `a1411d2`, `93383a9`.
+- **68** R1 events-lifecycle: the exit recorder's SIGINT listener stands down while Pi's later listeners are attached. `3d2cf16`.
+- **69** R1 events-lifecycle: `exit.begin()` waits one microtask so every listener of the signal runs first. `cf0ca65`.
+- **70** R1 events-lifecycle: `travelLeg` writes the `nav/route_*` rows, so every approach leg logs them. `b6c688d`.
+- **71** R1 item-names: vendor lists, loot and item pushes wait up to 2 s for item names; `vendor/list` gains `names`. `8235ab6`, `16adbe9`, `e02e2df`.
+- **72** R1 item-names: buy takes a list number, an exact name or `item <id>`; a partial name must be unique. `d723f24`, `c85e1b0`.
+- **73** R1 item-names: core `CombatAura` gains an optional spell name, and aura rows gain `name`. `1a3ab5a`.
+- **74** R1 next-hints: structural refusals ask the human, start-side faults get `unstick`, and travel is offered only for transient stops. `b82acbd`.
+- **75** R1 next-hints: a quest with nothing to kill points at its turn-in NPC; `engage(quest)` on a complete quest is DONE. `0ff7425`, `8a580fb`.
+- **76** R1 next-hints: rest eats again, runs to `until` within 110 s and stops `PARTLY no_regen` after 10 s without gain (B.7: 30 s). `7748dc4`, `665625b`.
+- **77** R1 next-hints: the next guard also exempts `max_starts_reached`. `152d6ff`.
+- **78** R1 runner-steers: the t7-halt-resume resume steer fires 20 s after the first answer after the stop steer. `de5b654`.
+- **79** R1 runner-steers: `blockedBy` keys grade a run blocked before any account is made; an unfired trigger drafts blocked. `2fdbfbc`, `6b00104`.
+- **80** R1 runner-steers: t3-ghostlands-kill z 88.66, the t1-walk-to-npc stop order check and the t7-halt-resume death rule (t6 preset: see 94). `71d92ca`.
+- **81** R1 runner-steers: runs on a shared spawn start 4 yd or more apart, and each run writes `grader/concurrent.json`. `dad4762`, `5e40c87`.
+- **82** R1 pushed-batch: a new `combat/target_died` event wakes like `attacked` when no run is active. `5601aa2`.
+- **83** R1 pushed-batch: an engage consumes its own fight, kill, XP and loot rows and reports them in its result. `2c3edf8`, `1483df8`, `67f63d9`.
+- **84** R1 pushed-batch: emote notices stay in the game log and leave the ticker. `b23160d`.
+- **85** R2 nav-coverage: navigation opens maps 0, 1, 530 and 571 lazily by name; other maps refuse as unsupported. `ff0203b`, `cafecd8`, `61a7933`.
+- **86** R2 nav-coverage: a route start up to 1 yd above a column's single floor plans from that floor. `09e5158`, `a1291a8`.
+- **87** R2 next-progress: a same-call Next stands until the repeat guard sees no progress; three `loot_denied` codes become continuations. `2093167`.
+- **88** R2 next-progress: engage detail text gives stop reasons in plain words; a fight with every target blocked is REFUSED. `ed4a2de`, `a1911b4`.
+- **89** R2 explore-bearings: explore skips refused bearings per cell, tries both 45 degree neighbours and caps at 6 leg rounds. `a1e9f5e`, `e28b04a`, `f708de7`.
+- **90** R2 explore-bearings: travel refuses `attacked` with an engage Next while an attacker is on the character. `d92b70f`.
+- **91** R2 explore-bearings: the empty look hint is a bare explore; `target_not_observed` gives a look step; a second obstruction asks the human. `7b95c67`, `857a700`, `4f9548c`.
+- **92** R2 round-hygiene: an answer that ends in a question waits under the stuck rule instead of ending done. `63581c8`.
+- **93** R2 round-hygiene: kill scenarios name a target field, and `mise eval run` does not start on a busy field. `34c51fc`, `32df3f8`.
+- **94** R2 round-hygiene: t6-die-and-recover uses the fresh level 1 priest; the first human input logs `task_landed`. `bb24d6d`, `dc0016d`.
+- **95** R2 engage-continuity: loot walks within 4 yd of a lootable corpse, and a release-only open moves on (`abandonOpen`). `7cdddee`, `b4df16f`.
+- **96** R2 engage-continuity: a character that can melee but has no usable spell auto-attacks; `target_unreachable` after 5 s without approach. `0375545`.
+- **97** R2 engage-continuity: each queued unit is checked again before its fight and skipped if dead, tapped or engaged by another. `10cace1`, `9a30b2f`, `b4df16f`.
+- **98** R2 engage-continuity: the fight count carries across the cycles of one run. `ae05d0d`.
+- **99** R3 act-before-ask: the danger line ages a hit from the last HP drop and says "is coming at you" before any hit. `a721223`.
+- **100** R3 act-before-ask: repeat calls carry distance and attackers, and engage on an attacker is never blocked. `74bbe0d`.
+- **101** R3 act-before-ask: under attack a blocked Next becomes engage on the attacker; a positional failure explores before it asks. `bd9b44e`.
+- **102** R3 quest-handoff: core `WorldHandle` gains `itemLabel`, so the harness can name reward items. `9bae34d`.
+- **103** R3 quest-handoff: the harness quest record keeps the details text and the ender; turn-in reports XP, money and items. `b895c86`, `71a4488`.
+- **104** R3 quest-handoff: engage and loot add `Quest N complete` and point at the ender or giver. `8d9d498`.
+- **105** R3 unit-reach: a lost height trace retries the mesh corridor, then the straight line, on one walkable floor, for every route. `466760e`.
+- **106** R3 unit-reach: the cycle walks a route to each target beyond 30 yd and skips a target with no route. `d1d4b02`.
+- **107** R3 unit-reach: a gray kill completes as gray and a non-gray kill with no XP as `no_xp_kill`. `a416721`.
+- **108** R3 t6-and-grader: t6-die-and-recover heads northeast, where 58 measured Springpaw Stalker fights put the field. `99f83b6`.
+- **109** R3 t6-and-grader: the rescue nudge asks for another way to finish, not for a report of the blocker. `eb914da`.
+- **111** R3 t6-and-grader: `wallSec` ends at the accepted answer, and `exitSec` keeps the time to harness exit (widened by 136). `f67f0c1`, `eae7f06`.
+- **112** R3 t6-and-grader: draft checks carry the first and last matching rows, and the draft verdict is null. `7795bd8`, `39a707d`.
+- **113** R3 t6-and-grader: t3-kill-one-hunter splits its check into ranged-cast and pet-attack. `01bd061`, `84d654e`.
+- **114** R3 t6-and-grader: the runner writes the soap bot count and bot risk to `run.json`. `ddcbc4e`.
+- **115** R4 luna-rules: the session loader builds the Luna prompt, so the recorded system message is the full prompt. `f7d1cbca`.
+- **116** R4 luna-rules: the prompt is 465 words, with no event list and no half-budget clause; rule 5 walks toward the goal. `c79a3136`.
+- **117** R4 check-truth: total-xp counts only kill-credited XP; answer-values truth reads jev.jsonl within 2 s, else the snapshot. `4839ca28`, `8c0cd6fa`.
+- **118** R4 check-truth: `mise eval run` waits on a busy field by default, polling every 15 s for up to 20 min; `--no-wait` refuses (folds 110). `b57337f`, `57d1891b`, `091c66bb`.
+- **119** R4 check-truth: a look over 60 yd snapshots at its own radius; `tool/result` carries the text the agent saw. `db07aff1`.
+- **120** R4 tool-text-polish: recover and death texts give distances and fight time ("alive again 29 yd from your corpse"). `9e0ea8ad`, `0663aec5`, `f5cc3464`.
+- **121** R4 tool-text-polish: the `human_waiting` refusal quotes each pending human message. `3c79716f`, `002d3f9c`.
+- **122** R4 tool-text-polish: the tapped refusal's Next falls back to the nearest untapped hostile within the level cap. `cac86ee8`.
+- **123** R4 tool-text-polish: results print mana as values and percent; the nearest hostile skips tapped units. `423f81d6`, `4711107f`.
+- **124** R4 find-and-remember: travel and interact walk to an NPC's last-known point, else `not_at_last_known`; role NPC sightings do not expire. `79756db1`, `8e33d59d`.
+- **125** R4 find-and-remember: look ranks by relevance only when the list is cut, and `look(name)` lists remembered units. `09b00cc7`.
+- **126** R4 find-and-remember: explore walks up to 100 yd, turns up to 90 degrees and ends DONE when all ground ahead is explored. `ea9f7d4e`, `fa597729`.
+- **127** R4 route-columns-and-pulls: a route keeps the one floor within a climb of the previous sample. `e9957e13`, `606e668f`.
+- **128** R4 route-columns-and-pulls: a goto from a stale predicted pose settles 0.25 to 1 yd below the predicted z. `e51ba337`.
+- **129** R4 route-columns-and-pulls: unstick routes to open ground 8 yd away, and explore calls unstick once by itself. `6a63bbf6`, `fb99b053`.
+- **130** R4 route-columns-and-pulls: core `cycle-gate.ts` checks 30 % mana and 50 % HP before each new pull; quest runs pick targets at any distance. `8f6d3816`, `3839ddcb`, `ff7240d8`, `df23b70b`, `c14e7f86`.
+- **131** R4 hunter-ranged: ranged-slot slows count, a pet command or Auto Shot counts as engagement, and `combat/pet_attack` is new. `31c8a8dd`, `0fedbc7e`, `09ff6b09`.
+- **132** R4 events-polish: runs, quest engages and interacts consume their own passive rows. `16ee17e1`.
+- **133** R4 events-polish: non-kill XP names its source (new `area_explored` event), and a route's legs log as one move. `010712f9`, `c4957085`, `a2cb3604`, `114fb0ef`.
+- **134** R4 ui-polish: silent fd and rg stubs stop Pi's offline warning and never shadow host tools. `0457d8a5`.
+- **135** R5 stale-checks: a check that a measure decides carries `met: true`; pet-attack loses its `blockedBy`. `dc08b90d`, `2097d1e7`.
+- **136** R5 stale-checks: steered scenarios end `wallSec` at the last reply; run dirs stay in the eval worktree (maintainer ruling). `47d83e6d`.
+- **137** R5 northshire-route-floors: a sample on a single-floor column may rise or drop 1.25 yd (a stair riser). `f095c9d9`.
+- **138** R5 event-delivery: passive rows that land during a call are appended to its result (up to 5 lines). `7cbccd8a`.
+- **139** R5 event-delivery: exploration XP never wakes the agent, and a stale `attacked` wake is dropped at send time. `7cbccd8a`.
+- **140** R5 event-delivery: the ticker shows each `not_implemented` opcode once; vendor rows log only on change. `59201f1d`, `8a4e5909`.
+- **141** R5 search-and-recover: travel takes an optional `for`; explore stops only on an attackable non-gray unit and lists the rest on `Passed:`. `b7df9d18`.
+- **142** R5 search-and-recover: a route refusal steps through unstick, a 25 yd waypoint, then the human. `04ba1e17`.
+- **143** R5 search-and-recover: explore never resends a refused goal and stops `obstructed` when no bearing is left. `506b516c`.
+- **144** R5 search-and-recover: look tells the agent that a name goes in `name`. `7bfd4baf`.
 
 ## 3. Context
 
@@ -1441,7 +999,8 @@ with no open blocker cluster; plateau when the pass rate moves by at most
 one scenario and median tool calls by under 10 % over 3 rounds; two
 regressions from one fix revert it; hard stop on aborts over 30 % twice or
 Luna usage limits. The suite's "tone down after midnight" rule is
-superseded by R22 revised.
+superseded by R22 revised. R40 replaces the success and plateau rules for
+this epic: eval round 6 is the last round.
 
 **Round 1**: 13 scenarios, one replica each, 6 panes, about 42 minutes (the
 design's luna-usability pass walked an earlier set of 11). The catalogue
@@ -1568,7 +1127,7 @@ the gate result, and the smoke and live results. Eval rounds use the
 heading `### Eval round <n>`.
 
 Decisions taken during the build are listed in section 2, under
-"Decisions taken during the build, not yet ruled by the maintainer".
+"Build and eval-fix deviations" and "Coordinator and advisor rulings".
 
 ### Phase 1
 
@@ -2370,3 +1929,65 @@ Deferred:
   t3-hunter).
 - eval-infra: concurrent graders shared `tmp/eval-r6-t0.log`; use a
   log path local to the run dir (t0-who, t0-self).
+
+### Outcome
+
+The maintainer stopped the eval loop after round 6 (R40), so round 6 is
+the last round of this epic. The pass rate rose in every round:
+
+| Round | Pass rate | Passed |
+|---:|---:|---:|
+| 1 | 0.46 | 6 of 13 |
+| 2 | 0.54 | 7 of 13 |
+| 3 | 0.62 | 8 of 13 |
+| 4 | 0.69 | 9 of 13 |
+| 5 | 0.77 | 10 of 13 |
+| 6 | 1.00 | 13 of 13 |
+
+In round 6 the median run takes 3 tool calls and 22.7 s to the answer,
+and 48 of 49 checks are met; the one miss is a stretch check that is not
+a pass condition. At the close (`7df79a7`) the legacy live suite passes
+21 of 21 on two throwaway accounts (276 `expect()` calls, 104.68 s).
+The implementation is complete on draft PR #367 and waits for the
+maintainer's review and merge. The factory stays off until the merge
+(R17).
+
+## 12. Future work
+
+Autonomous leveling from 1 to 80 is a long-term project goal outside
+this epic (R39). The work below is what the epic leaves open.
+
+**Round 7 briefs, written and not run** (section 11, eval round 6):
+
+- quiet-wakes (log-events): keep `not_implemented` in the game log only, and drop queued wakes whose condition no longer holds.
+- engage-reports (ops-tools-a): engage reports enemy HP and level on death, XP on every summary, attacker-aware Danger, and which reward to take.
+- healer-guard-and-damage-log (core-b): cast a castable self-heal below 35 % HP before asking Jev, and parse the damage and power packets.
+- halt-windows-and-preset (eval-infra): grade t7-halt-resume by its steer windows, give t2-whisper-reply an end rule, and drop conjured items from eversong10.
+
+**Deferred in round 6** (the round-6 cluster record, not committed; the
+same list as section 11, eval round 6):
+
+- ops-tools-b: turn_in captures the chained quest offer (RewardNextQuest) and adds `Next: accept`.
+- ops-tools-b, log-events: the now line and a zero-hit look name the nearest attackable and skip critters; travel flags aggressive grays; clear lootable after an empty loot.
+- prompt-docs: do not engage a target that killed you unless something changed; end a wake turn with one sentence; list every fight; explore away from towns.
+- ui: clear or mark the quest card on reward and accept; aura fade glyph from the gain; journal glyph by `about`; one Bags line.
+- log-events: aura rows resolve the spell name, not the id.
+- core place: resolve the subzone and print the zone once.
+- ops-tools-b: rest drinks or waits on regen at full HP and never eats.
+- ops-tools-a: look find accepts a value that is not a kind as a name match.
+- eval-infra: fix the hunter pet name in eval-suite.md, and check the provider usage where reasoning tokens read 0.
+- eval-infra: give each grader log a path inside its run dir.
+
+**Catalogue scenarios not yet run** (24 of 37, from
+[eval-suite.md](2026-09-26-pi-harness-epic/eval-suite.md)):
+`t0-quest-log`, `t0-where-am-i`, `t1-tour`, `t1-unreachable`,
+`t1-walk-to-coords`, `t2-ask-a-bot`, `t2-follow`, `t2-party-invite`,
+`t3-grind-5`, `t3-kill-one`, `t3-kill-one-mage`, `t3-mana-downtime`,
+`t3-neutral-pull`, `t4-quest-collect`, `t4-quest-pickup`,
+`t5-loot-kill`, `t5-trainer-learn`, `t5-vendor-buy`,
+`t5-vendor-buy-tranquillien`, `t6-death-in-cycle`,
+`t7-change-objective`, `t7-redirect`, `t8-grind-30` and
+`t8-quest-to-level-3`.
+
+**Tier-8 long-horizon runs**: `t8-grind-30` and `t8-quest-to-level-3`
+need the long lane of section 8, which no round ran.

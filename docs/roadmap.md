@@ -24,7 +24,9 @@ milestone section and in the linked records.
 The next slices for 3a, 3b, 5 and 6 are listed in their sections as
 live-verifiable work, ready to become issues. The
 [Pi harness](#epic-the-pi-harness) is an approved epic, not a milestone
-(maintainer decision, 2026-09-26).
+(maintainer decision, 2026-09-26); its implementation is complete on
+draft PR [#367](https://github.com/tvararu/tuicraft/pull/367) and
+awaits the maintainer's review and merge.
 
 ## The ambition
 
@@ -787,10 +789,14 @@ records a spike and Theo's choice of stock Pi as the base for an in-process
 agent harness. The Pi harness is an approved epic (maintainer decision,
 2026-09-26). The
 [epic design](plans/2026-09-26-pi-harness-epic-design.md) records the
-approved design, its decisions and its evaluation plan. The epic runs on
+approved design, its decisions, its evaluation record and the decisions
+that wait for the maintainer's review. The implementation is complete on
 draft PR [#367](https://github.com/tvararu/tuicraft/pull/367), branch
-`epic/pi-harness`, outside the factory until it merges. Nothing in this
-roadmap waits for it, and its milestones are not roadmap milestones.
+`epic/pi-harness`, and awaits the maintainer's review and merge. The
+eval loop ends at its sixth round, which passes 13 of 13 scenarios. The
+factory stays off until the merge. Autonomous leveling from 1 to 80 is a
+long-term project goal outside the epic. Nothing in this roadmap waits
+for it, and its milestones are not roadmap milestones.
 
 ## Working through the milestones
 
