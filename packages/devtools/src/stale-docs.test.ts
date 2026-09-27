@@ -1,24 +1,22 @@
 import { describe, expect, test } from "bun:test";
-import { type DocKind, staleFindings } from "#tools/stale-docs";
+import { staleFindings } from "#tools/stale-docs";
 
-function matches(text: string, kind: DocKind = "instructions"): string[] {
-  return staleFindings({ kind, path: "doc.md", text }).map((f) => f.match);
+function matches(text: string): string[] {
+  return staleFindings({ path: "doc.md", text }).map((f) => f.match);
 }
 
 describe("staleFindings", () => {
   test("reports dated history wrapped across lines at its first line", () => {
     const text =
       "Intro.\nThe maintainer retired the branch on\n2026-09-26: see.";
-    expect(staleFindings({ kind: "instructions", path: "A.md", text })).toEqual(
-      [
-        {
-          line: 2,
-          match: "on 2026-09-26",
-          path: "A.md",
-          reason: "says when something changed: state what holds now",
-        },
-      ],
-    );
+    expect(staleFindings({ path: "A.md", text })).toEqual([
+      {
+        line: 2,
+        match: "on 2026-09-26",
+        path: "A.md",
+        reason: "says when something changed: state what holds now",
+      },
+    ]);
   });
 
   test("flags each history form in instruction docs", () => {
@@ -42,18 +40,14 @@ describe("staleFindings", () => {
     expect(matches(text)).toEqual([]);
   });
 
-  test("evidence docs keep record dates but not tmp paths", () => {
-    const text =
-      "One session on 2026-09-26, accounts deleted after the run.\nJournal: `tmp/m5-final/journal.md`.";
-    expect(matches(text, "evidence")).toEqual(["tmp/m5-final/journal.md"]);
-  });
-
   test("allows bare tmp/, the system /tmp/ and paths a command writes", () => {
     const text = [
       "Use `./tmp/` for scratch, not `/tmp/x`; only in `tmp/` satisfies nothing.",
       "Built into `tmp/namigator/libnamigator.so`.",
       "Patches go to `tmp/worktree-archive-<date>/`.",
       "`bun $F squash-message M > tmp/squash.json`, tmp/qa-changes.json",
+      "The launcher `tmp/puppet-<ACCOUNT>` runs the puppet.",
+      "Runs land in `tmp/evals/<round>/<scenario>-<replica>/`.",
     ].join("\n");
     expect(matches(text)).toEqual([]);
   });
@@ -86,9 +80,7 @@ describe("staleFindings", () => {
       "Runner: `F=~/r/runner/src/factory/main.ts`, `./src/main.ts` and `$root/src/main.ts`.",
     ].join("\n");
     expect(
-      staleFindings({ kind: "instructions", path: "A.md", text }, exists).map(
-        (f) => f.match,
-      ),
+      staleFindings({ path: "A.md", text }, exists).map((f) => f.match),
     ).toEqual([
       "src/wow/client.ts",
       "packages/cli/src/nope.ts",
@@ -96,8 +88,5 @@ describe("staleFindings", () => {
       "src/main.ts",
       "src/main.ts",
     ]);
-    expect(
-      staleFindings({ kind: "evidence", path: "E.md", text }, exists),
-    ).toEqual([]);
   });
 });
