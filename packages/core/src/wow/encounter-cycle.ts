@@ -291,14 +291,8 @@ export class EncounterCycleRuntime {
     for (;;) {
       const recovered = await this.recoverIfDead(signal);
       if (recovered) return this.stop(recovered.cause, recovered.detail);
-      const pick = objective.pick(tried);
+      const pick = this.choose(objective, tried);
       if ("ok" in pick) return this.stop(pick.cause, pick.detail);
-      if (pick.kind === "complete") {
-        this.state.objective = pick.progress;
-        return this.stop("objective_complete");
-      }
-      if (this.state.startsUsed >= this.state.maxStarts)
-        return this.stop("max_starts_reached");
       tried.add(pick.guid);
       const record: CycleTargetRecord = { guid: pick.guid, status: "queued" };
       this.state.queue.push(record);
@@ -311,6 +305,21 @@ export class EncounterCycleRuntime {
       if (failed) record.cause = failed.cause;
       this.emit("target_done");
     }
+  }
+
+  private choose(
+    objective: CycleObjective,
+    tried: ReadonlySet<bigint>,
+  ): CycleStop | { guid: bigint; distance: number } {
+    const pick = objective.pick(tried);
+    if ("ok" in pick) return pick;
+    if (pick.kind === "complete") {
+      this.state.objective = pick.progress;
+      return cycleStop("objective_complete");
+    }
+    if (this.state.startsUsed >= this.state.maxStarts)
+      return cycleStop("max_starts_reached");
+    return this.deps.gate?.(pick.guid) ?? pick;
   }
 
   private async recoverIfDead(
