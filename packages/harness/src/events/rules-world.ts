@@ -51,7 +51,7 @@ function tenth(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
-function poseMemo(pose: ControlPose | undefined): PoseMemo | undefined {
+export function poseMemo(pose: ControlPose | undefined): PoseMemo | undefined {
   return (
     pose && {
       mapId: pose.mapId,

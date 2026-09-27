@@ -2,7 +2,6 @@ import type {
   CombatEvent,
   CycleEvent,
   EntityEvent,
-  RecoveryEvent,
   TacticsEvent,
   TacticsOutcome,
 } from "@tuicraft/core";
@@ -330,68 +329,4 @@ export function cycleDrafts(event: CycleEvent, rc: RuleInput): Drafts {
   const text = `cycle ${event.type.replace("_", " ")} (${fights} of ${maxFights} fights)`;
   const data = { cycle: event.type, fights, maxFights, maxStarts, startsUsed };
   return [{ class: "log", data, domain: "run", event: "run/progress", text }];
-}
-
-function deathDraft(event: RecoveryEvent, rc: RuleInput): LogDraft {
-  const killer = rc.lookup.lastAttacker();
-  const by = killer === undefined ? "" : ` (last hit by ${named(killer, rc)})`;
-  const data = {
-    killer: killer === undefined ? undefined : guidText(killer),
-    killerName: killer === undefined ? undefined : rc.lookup.unitName(killer),
-    pose: event.state.reclaim.pose,
-  };
-  return {
-    class: "wake",
-    data,
-    domain: "life",
-    event: "life/dead",
-    ...unitIds(killer, rc),
-    text: `You died${by}.`,
-  };
-}
-
-function lifeDrafts(event: RecoveryEvent, rc: RuleInput): Drafts {
-  const { life, graveyard } = event.state;
-  const before = rc.memo.life;
-  rc.memo.life = life;
-  if (life === before) return [];
-  if (life === "dead") return [deathDraft(event, rc)];
-  if (life === "ghost") {
-    const text = "You released your spirit. You are a ghost at the graveyard.";
-    return [
-      {
-        class: "wake",
-        data: { graveyard },
-        domain: "life",
-        event: "life/released",
-        text,
-      },
-    ];
-  }
-  if (life !== "alive" || (before !== "dead" && before !== "ghost")) return [];
-  return [
-    {
-      class: "wake",
-      data: { from: before },
-      domain: "life",
-      event: "life/alive",
-      text: "You are alive again.",
-    },
-  ];
-}
-
-export function recoveryDrafts(event: RecoveryEvent, rc: RuleInput): Drafts {
-  if (event.type === "life_observed") return lifeDrafts(event, rc);
-  if (event.type !== "resurrection_offered") return [];
-  const from = event.state.resurrection?.name;
-  const text = `${from ?? "Someone"} offers to resurrect you.`;
-  return [
-    {
-      class: "passive",
-      data: { from },
-      domain: "life",
-      event: "life/resurrect_offer",
-      text,
-    },
-  ];
 }

@@ -5,7 +5,6 @@ import {
   type CombatState,
   type EntityEvent,
   ObjectType,
-  type RecoveryEvent,
   type TacticsEvent,
   type UnitEntity,
 } from "@tuicraft/core";
@@ -13,7 +12,6 @@ import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
 import {
   combatDrafts,
   cycleDrafts,
-  recoveryDrafts,
   tacticsDrafts,
   vitalsDrafts,
 } from "#harness/events/rules-combat";
@@ -21,7 +19,6 @@ import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
 const handle = createMockHandle();
 const combatBase = handle.getCombatState();
-const recoveryBase = handle.getRecoveryState();
 const cycleBase = handle.getCycleState();
 const stalker = testLookup({
   unitLevel: () => 7,
@@ -77,14 +74,6 @@ function self(health: number, guid = 1n): UnitEntity {
 
 function hp(health: number, changed = ["health"]): EntityEvent {
   return { changed, entity: self(health), type: "update" };
-}
-
-function life(state: RecoveryEvent["state"]["life"]): RecoveryEvent {
-  return {
-    at: 0,
-    state: { ...recoveryBase, life: state },
-    type: "life_observed",
-  };
 }
 
 describe("combatDrafts", () => {
@@ -398,62 +387,5 @@ describe("tacticsDrafts and cycleDrafts", () => {
     expect(tacticsDrafts({ ...started, runId: "t2" }, rc)[0]?.class).toBe(
       "log",
     );
-  });
-});
-
-describe("recoveryDrafts", () => {
-  test("wakes on each change of life only", () => {
-    const rc = testRuleInput({
-      lookup: testLookup({
-        lastAttacker: () => 0x2an,
-        unitName: () => "Springpaw Stalker",
-      }),
-    });
-    expect(recoveryDrafts(life("alive"), rc)).toEqual([]);
-    expect(recoveryDrafts(life("dead"), rc)[0]).toMatchObject({
-      class: "wake",
-      data: { killer: "2a", killerName: "Springpaw Stalker" },
-      event: "life/dead",
-      ref: "u42",
-      text: "You died (last hit by Springpaw Stalker u42).",
-    });
-    expect(recoveryDrafts(life("dead"), rc)).toEqual([]);
-    expect(recoveryDrafts(life("ghost"), rc)[0]).toMatchObject({
-      class: "wake",
-      event: "life/released",
-    });
-    expect(recoveryDrafts(life("alive"), rc)[0]).toMatchObject({
-      class: "wake",
-      data: { from: "ghost" },
-      event: "life/alive",
-      text: "You are alive again.",
-    });
-  });
-
-  test("a resurrection offer is passive", () => {
-    const resurrection = {
-      delayMs: undefined,
-      guid: 7n,
-      name: "Bob",
-      readyAt: undefined,
-      receivedAt: 0,
-      reserved: 0,
-      response: "unanswered" as const,
-      sickness: 0,
-    };
-    const event: RecoveryEvent = {
-      at: 0,
-      state: { ...recoveryBase, resurrection },
-      type: "resurrection_offered",
-    };
-    expect(recoveryDrafts(event, testRuleInput())).toEqual([
-      {
-        class: "passive",
-        data: { from: "Bob" },
-        domain: "life",
-        event: "life/resurrect_offer",
-        text: "Bob offers to resurrect you.",
-      },
-    ]);
   });
 });

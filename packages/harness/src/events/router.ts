@@ -39,11 +39,11 @@ import {
 import {
   combatDrafts,
   cycleDrafts,
-  recoveryDrafts,
   tacticsDrafts,
   vitalsDrafts,
 } from "#harness/events/rules-combat";
 import { deathDrafts } from "#harness/events/rules-death";
+import { recoveryDrafts } from "#harness/events/rules-life";
 import {
   controlDrafts,
   entityDrafts,
