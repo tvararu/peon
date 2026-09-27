@@ -7,6 +7,7 @@ import {
   base,
   buildCreateUnitPacket,
   fakeAuth,
+  waitForEchoProbe,
   waitForEntityEvents,
   writeHasPositionMovementBlock,
   writeLivingMovementBlock,
@@ -165,7 +166,7 @@ describe("world handler tests", () => {
         nearW.uint32LE(1);
         writePackedGuid(nearW, 500n);
         ws.inject(GameOpcode.SMSG_UPDATE_OBJECT, nearW.finish());
-        await Bun.sleep(1);
+        await waitForEchoProbe(handle);
 
         handle.close();
         await handle.closed;

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { writeFile } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { observedChecks } from "#harness/grader/draft-fill";
 import type { ScenarioCheck } from "#harness/grader/scenarios";
 
@@ -33,7 +33,7 @@ async function fill(
   { gamelog, jev, steers = [] }: Files,
   check: ScenarioCheck,
 ) {
-  const dir = await mkdtemp(`${tmpdir()}/anchors-`);
+  const dir = scratchDir("anchors");
   await writeFile(`${dir}/gamelog.jsonl`, `${gamelog.join("\n")}\n`);
   if (jev !== undefined)
     await writeFile(

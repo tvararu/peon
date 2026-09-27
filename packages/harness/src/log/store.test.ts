@@ -1,7 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
-import { mkdtemp, readFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import type { LogDraft } from "#harness/contract/log";
 import {
   createBufferedWriter,
@@ -65,7 +65,7 @@ describe("createBufferedWriter", () => {
 
 describe("createJsonlSink", () => {
   test("appends rows to the file on flush and close", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "tc-harness-sink-"));
+    const dir = scratchDir("tc-harness-sink");
     const file = join(dir, "runs.jsonl");
     const sink = createJsonlSink({ file });
     sink.write({ id: "r1" });
@@ -172,7 +172,7 @@ describe("createGameLog", () => {
   });
 
   test("writes rows to the file with marks made before the flush", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "tc-harness-log-"));
+    const dir = scratchDir("tc-harness-log");
     const file = join(dir, "gamelog.jsonl");
     const log = createGameLog({
       char: () => "Fgk",

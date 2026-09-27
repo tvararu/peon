@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import {
   installLibrary,
   type LibraryPaths,
@@ -13,7 +13,7 @@ let root: string;
 let paths: LibraryPaths;
 
 beforeEach(async () => {
-  root = await mkdtemp(`${tmpdir()}/namigator-library-`);
+  root = scratchDir("namigator-library");
   paths = { store: `${root}/store`, vendor: `${root}/vendor` };
   await mkdir(paths.vendor);
   await writeFile(`${paths.vendor}/UPSTREAM`, "54eae69\n");

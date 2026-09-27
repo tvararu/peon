@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm, writeFile } from "node:fs/promises";
 import { serializeConfig } from "@peon/core/lib/config";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import {
   accountAgeHours,
   accountName,
@@ -52,11 +52,9 @@ describe("names", () => {
   });
 
   test("seconds advance when the time digits hold a triple", () => {
-    const { account, character } = newNames(0x6a_aa_00_00 * 1000, () => "12");
+    const { account, character } = newNames(0x6a_b6_e0_00 * 1000, () => "12");
     expect(hasTriple(character)).toBe(false);
-    expect(Number.parseInt(account.slice(3, 11), 16)).toBeGreaterThan(
-      0x6a_aa_00_00,
-    );
+    expect(account).toBe("FAC6AB6E00112");
   });
 
   test("password is 16 alphanumerics", () => {
@@ -172,7 +170,7 @@ describe("navConfig", () => {
   const patched = "/store/0123456789abcdef/libnamigator.so";
 
   test("uses the patched library and copies only the data paths", async () => {
-    const dir = await mkdtemp(`${tmpdir()}/soap-nav-`);
+    const dir = scratchDir("soap-nav");
     try {
       const path = `${dir}/config.toml`;
       await writeFile(

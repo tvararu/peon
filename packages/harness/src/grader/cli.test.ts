@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { type CliDeps, main } from "#harness/grader/cli";
 import { bunExec } from "#harness/grader/exec";
 import type { EvalResult } from "#harness/grader/result";
@@ -67,7 +68,7 @@ describe("grader cli", () => {
   });
 
   test("validate reports schema errors", async () => {
-    const dir = await mkdtemp(`${tmpdir()}/cli-`);
+    const dir = scratchDir("cli");
     await writeFile(`${dir}/r.json`, "{}");
     const d = deps();
     expect(await main(["validate", `${dir}/r.json`], d)).toBe(1);
@@ -77,7 +78,7 @@ describe("grader cli", () => {
   });
 
   test("result writes result.json and prints the summary line", async () => {
-    const dir = await mkdtemp(`${tmpdir()}/cli-`);
+    const dir = scratchDir("cli");
     await writeFile(`${dir}/graded.json`, JSON.stringify(graded));
     const d = deps();
     expect(await main(["result", dir, `${dir}/graded.json`], d)).toBe(0);
@@ -95,7 +96,7 @@ describe("grader cli", () => {
   });
 
   test("run refuses to start outside the eval worktree root", async () => {
-    const d = deps({ cwd: await mkdtemp(`${tmpdir()}/cli-`) });
+    const d = deps({ cwd: scratchDir("cli") });
     expect(await main(["run", "t0-self-state", "--round", "1"], d)).toBe(1);
     expect(d.errors[0]).toBe(
       "run from the eval worktree root (packages/factory/src/main.ts not found)",
@@ -103,7 +104,7 @@ describe("grader cli", () => {
   });
 
   test("run --no-wait refuses while a run on the same field is still going", async () => {
-    const cwd = await mkdtemp(`${tmpdir()}/cli-`);
+    const cwd = scratchDir("cli");
     await mkdir(`${cwd}/packages/factory/src`, { recursive: true });
     await writeFile(`${cwd}/packages/factory/src/main.ts`, "");
     const other = `${cwd}/tmp/evals/3/t7-question-while-acting-1`;
@@ -127,7 +128,7 @@ describe("grader cli", () => {
   });
 
   test("run --wait is still accepted and waits", async () => {
-    const cwd = await mkdtemp(`${tmpdir()}/cli-`);
+    const cwd = scratchDir("cli");
     await mkdir(`${cwd}/packages/factory/src`, { recursive: true });
     await writeFile(`${cwd}/packages/factory/src/main.ts`, "");
     const other = `${cwd}/tmp/evals/3/t6-die-and-recover-1`;
@@ -154,7 +155,7 @@ describe("grader cli", () => {
   });
 
   test("run waits by default: it queues on the field and logs the wait to progress.log", async () => {
-    const cwd = await mkdtemp(`${tmpdir()}/cli-`);
+    const cwd = scratchDir("cli");
     await mkdir(`${cwd}/packages/factory/src`, { recursive: true });
     await writeFile(`${cwd}/packages/factory/src/main.ts`, "");
     const other = `${cwd}/tmp/evals/3/t6-die-and-recover-1`;
@@ -211,7 +212,7 @@ describe("grader cli", () => {
   });
 
   test("leak-check prints file names only", async () => {
-    const dir = await mkdtemp(`${tmpdir()}/cli-`);
+    const dir = scratchDir("cli");
     await writeFile(
       `${dir}/account.json`,
       JSON.stringify({ password: "pw-secret-123" }),
@@ -243,7 +244,7 @@ describe("grader cli", () => {
   });
 
   test("watch runs until the signal and leaves a frame", async () => {
-    const dir = await mkdtemp(`${tmpdir()}/cli-`);
+    const dir = scratchDir("cli");
     const d = deps();
     expect(await main(["watch", dir, "term_watch"], d)).toBe(0);
     expect(await Bun.file(`${dir}/frames/00000-1727384400000.txt`).text()).toBe(

@@ -8,6 +8,8 @@ not a target.
 
 - Tests are colocated (`foo.ts` → `foo.test.ts`) and import from
   `bun:test`. `mise test` runs them all; `mise test <file>` runs one.
+- The suite should finish in a few seconds: a test that waits on a real
+  timer or bound takes an injected value or fake timers instead.
 - Shared setup goes in `packages/<pkg>/test-support/<name>-fixtures.ts`.
   `packages/core/test-support/mock-handle.ts` is the shared `WorldHandle`
   mock: add new `WorldHandle` methods to it.
@@ -20,12 +22,19 @@ not a target.
   inherited `GIT_DIR` makes `git init` write into another repository.
 - Scratch files go in `./tmp/`, never `/tmp/`, and `tmp/` never holds a
   `.test.ts` file, because `bun test` scans it. macOS `tmpdir()` is not
-  `/tmp/`, so never hard-code that path.
+  `/tmp/`, so never hard-code that path. `scratchDir(prefix)` from
+  `packages/core/test-support/scratch.ts` makes a directory in `./tmp/`
+  and removes it after the file's tests.
 
 ## Bun gotchas
 
 - Timers: `jest.useFakeTimers()` and `advanceTimersByTime()` from
-  `bun:test`, inside `try/finally` with `jest.useRealTimers()`.
+  `bun:test`, inside `try/finally` with `jest.useRealTimers()`. Fake
+  timers also fake `Date.now()`, `performance.now()` and `Bun.sleep`, so
+  `Bun.sleep(0)` never resolves under them; `setImmediate` stays real.
+  `packages/harness/test-support/fake-time.ts` and
+  `packages/core/test-support/tactics-fixtures.ts` drive fake time until
+  a promise settles.
 - Await the event rather than sleeping. `Bun.sleep(0)` yields one microtask
   tick (enough for `.then()` chains); `Bun.sleep(1)` yields one event-loop
   turn (needed for filesystem I/O such as `unlink`).

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, writeFile } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { bunExec } from "#harness/grader/exec";
 import { leakCheck } from "#harness/grader/truth";
 import { fakeExec, ok } from "#test-support/fake-exec";
@@ -8,7 +8,7 @@ import { fakeExec, ok } from "#test-support/fake-exec";
 const PASSWORD = "pw-secret-123";
 
 async function runDir(): Promise<string> {
-  const dir = await mkdtemp(`${tmpdir()}/leak-`);
+  const dir = scratchDir("leak");
   await mkdir(`${dir}/frames`);
   await writeFile(
     `${dir}/account.json`,
@@ -70,7 +70,7 @@ describe("leakCheck", () => {
   });
 
   test("returns nothing and runs nothing when no secret file exists", async () => {
-    const dir = await mkdtemp(`${tmpdir()}/leak-`);
+    const dir = scratchDir("leak");
     const { calls, exec } = fakeExec(() => ok());
     expect(
       await leakCheck({

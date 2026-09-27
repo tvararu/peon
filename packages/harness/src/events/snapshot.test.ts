@@ -1,8 +1,8 @@
 import { describe, expect, jest, test } from "bun:test";
-import { mkdtemp, readFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createMockHandle } from "@peon/core/test-support/mock-handle";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import type { RunPaths } from "#harness/contract/config";
 import type {
   SelfView,
@@ -81,7 +81,7 @@ function worldOf(units: UnitView[], hp = 200): SnapshotWorld {
 }
 
 async function setup(start: SnapshotWorld | undefined) {
-  const dir = await mkdtemp(join(tmpdir(), "tc-harness-snap-"));
+  const dir = scratchDir("tc-harness-snap");
   const paths = { snapshots: join(dir, "snapshots") } as RunPaths;
   const clock = { now: () => 0 };
   const log = createGameLog({ char: () => "Fgk", clock, file: undefined });

@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { NamedRewardsState } from "@peon/core";
+import { ITEM_NAME_WAIT_MS } from "#harness/ops/item-names";
 import { lootCorpseOp } from "#harness/ops/loot";
+import { fakeTimed } from "#test-support/fake-time";
 import { toolCtx } from "#test-support/ops-fixtures";
 import {
   createTestRuntime,
@@ -239,7 +241,11 @@ describe("lootCorpseOp", () => {
       }, 80);
       return { ok: true, record: undefined };
     };
-    const result = await lootCorpseOp(toolCtx(t), CORPSE);
+    const { run } = await fakeTimed(
+      () => lootCorpseOp(toolCtx(t), CORPSE),
+      ITEM_NAME_WAIT_MS,
+    );
+    const result = await run;
     expect(result.items).toEqual([
       { count: 1, itemId: 7073, name: "Broken Fang", quality: 0 },
     ]);

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { VendorEvent } from "@peon/core";
 import { createMockHandle } from "@peon/core/test-support/mock-handle";
+import { elapse, withFakeTimers } from "#test-support/fake-time";
 import { routerSetup } from "#test-support/router-fixture";
 
 const LATE_MS = 80;
@@ -108,43 +109,51 @@ const rows = (log: ReturnType<typeof routerSetup>["log"], event: string) =>
 
 describe("router item names", () => {
   test("an item push row waits for a late name", async () => {
-    const { log, router } = routerSetup();
-    const handle = createMockHandle();
-    router.attach(handle);
-    const nameLater = lateBagItem(handle);
-    pushEvent(handle);
-    nameLater();
-    expect(rows(log, "loot/item")).toHaveLength(0);
-    await Bun.sleep(SETTLE_MS);
-    expect(rows(log, "loot/item").map((row) => row.text)).toEqual([
-      "You receive Refreshing Spring Water x5.",
-    ]);
-    expect(rows(log, "loot/item")[0]?.data).toMatchObject({
-      name: "Refreshing Spring Water",
+    await withFakeTimers(async () => {
+      const { log, router } = routerSetup();
+      const handle = createMockHandle();
+      router.attach(handle);
+      const nameLater = lateBagItem(handle);
+      pushEvent(handle);
+      nameLater();
+      await elapse(LATE_MS - 10);
+      expect(rows(log, "loot/item")).toHaveLength(0);
+      await elapse(SETTLE_MS);
+      expect(rows(log, "loot/item").map((row) => row.text)).toEqual([
+        "You receive Refreshing Spring Water x5.",
+      ]);
+      expect(rows(log, "loot/item")[0]?.data).toMatchObject({
+        name: "Refreshing Spring Water",
+      });
     });
   });
 
   test("a vendor list row waits for late names", async () => {
-    const { log, router } = routerSetup();
-    const handle = createMockHandle();
-    router.attach(handle);
-    listVendor(handle);
-    expect(rows(log, "vendor/list")).toHaveLength(0);
-    await Bun.sleep(SETTLE_MS);
-    expect(rows(log, "vendor/list").map((row) => row.text)).toEqual([
-      "The vendor lists 1 items: Refreshing Spring Water.",
-    ]);
+    await withFakeTimers(async () => {
+      const { log, router } = routerSetup();
+      const handle = createMockHandle();
+      router.attach(handle);
+      listVendor(handle);
+      await elapse(LATE_MS - 10);
+      expect(rows(log, "vendor/list")).toHaveLength(0);
+      await elapse(SETTLE_MS);
+      expect(rows(log, "vendor/list").map((row) => row.text)).toEqual([
+        "The vendor lists 1 items: Refreshing Spring Water.",
+      ]);
+    });
   });
 
   test("detach drops rows still waiting for names", async () => {
-    const { log, router } = routerSetup();
-    const handle = createMockHandle();
-    const detach = router.attach(handle);
-    const nameLater = lateBagItem(handle);
-    pushEvent(handle);
-    nameLater();
-    detach();
-    await Bun.sleep(SETTLE_MS);
-    expect(rows(log, "loot/item")).toHaveLength(0);
+    await withFakeTimers(async () => {
+      const { log, router } = routerSetup();
+      const handle = createMockHandle();
+      const detach = router.attach(handle);
+      const nameLater = lateBagItem(handle);
+      pushEvent(handle);
+      nameLater();
+      detach();
+      await elapse(SETTLE_MS);
+      expect(rows(log, "loot/item")).toHaveLength(0);
+    });
   });
 });

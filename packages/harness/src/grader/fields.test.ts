@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, writeFile } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { awaitField, fieldClashes, liveClash } from "#harness/grader/fields";
 import { loadScenario } from "#harness/grader/scenarios";
 
@@ -65,7 +65,7 @@ describe("liveClash", () => {
   const halt = loadScenario("t7-halt-resume");
 
   test("a running sibling on the same field refuses the run", async () => {
-    const round = await mkdtemp(`${tmpdir()}/fields-`);
+    const round = scratchDir("fields");
     await sibling(round, {
       name: "t7-question-while-acting-1",
       scenario: "t7-question-while-acting",
@@ -76,7 +76,7 @@ describe("liveClash", () => {
   });
 
   test("finished, stale and other-field siblings do not refuse it", async () => {
-    const round = await mkdtemp(`${tmpdir()}/fields-`);
+    const round = scratchDir("fields");
     await sibling(round, {
       finished: "grader/draft.json",
       name: "t6-die-and-recover-1",
@@ -103,7 +103,7 @@ describe("liveClash", () => {
   });
 
   test("a scenario with no field never clashes", async () => {
-    const round = await mkdtemp(`${tmpdir()}/fields-`);
+    const round = scratchDir("fields");
     await sibling(round, { name: "t0-hostiles-1", scenario: "t0-hostiles" });
     expect(
       await liveClash({
@@ -115,7 +115,7 @@ describe("liveClash", () => {
   });
 
   test("a missing round dir has no clash", async () => {
-    const round = `${await mkdtemp(`${tmpdir()}/fields-`)}/none`;
+    const round = `${scratchDir("fields")}/none`;
     expect(
       await liveClash({ now: NOW, round, scenario: halt }),
     ).toBeUndefined();
@@ -137,7 +137,7 @@ describe("awaitField", () => {
   }
 
   test("a free field starts at once and logs nothing", async () => {
-    const round = await mkdtemp(`${tmpdir()}/fields-`);
+    const round = scratchDir("fields");
     const lines: string[] = [];
     const time = fakeTime();
     await awaitField({
@@ -151,7 +151,7 @@ describe("awaitField", () => {
   });
 
   test("it queues until the holder finishes, then starts", async () => {
-    const round = await mkdtemp(`${tmpdir()}/fields-`);
+    const round = scratchDir("fields");
     await sibling(round, {
       name: "t6-die-and-recover-1",
       scenario: "t6-die-and-recover",
@@ -179,7 +179,7 @@ describe("awaitField", () => {
   });
 
   test("it gives up after the timeout with a clear error", async () => {
-    const round = await mkdtemp(`${tmpdir()}/fields-`);
+    const round = scratchDir("fields");
     await sibling(round, {
       name: "t6-die-and-recover-1",
       scenario: "t6-die-and-recover",

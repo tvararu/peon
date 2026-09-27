@@ -5,9 +5,12 @@ import {
   installInput,
   isStopReflex,
 } from "#harness/extension/input";
-import { YIELD_DELAY_MS } from "#harness/runtime/yield";
+import { createYieldGate, YIELD_DELAY_MS } from "#harness/runtime/yield";
 import { createFakePi } from "#test-support/fake-pi";
-import { createTestRuntime } from "#test-support/runtime-fixture";
+import {
+  createTestRuntime,
+  type TestRuntimeInit,
+} from "#test-support/runtime-fixture";
 
 function waitForAbort(signal: AbortSignal): Promise<RunEnd<undefined>> {
   const { promise, resolve } = Promise.withResolvers<RunEnd<undefined>>();
@@ -22,8 +25,11 @@ function waitForAbort(signal: AbortSignal): Promise<RunEnd<undefined>> {
   return promise;
 }
 
-async function setup(flags: { stopReflex?: boolean } = {}) {
-  const { rt, handle } = await createTestRuntime({ flags });
+async function setup(
+  flags: { stopReflex?: boolean } = {},
+  parts: TestRuntimeInit["parts"] = {},
+) {
+  const { rt, handle } = await createTestRuntime({ flags, parts });
   const fake = createFakePi();
   installInput(fake.api, rt);
   return { fake, handle, rt };
@@ -91,7 +97,7 @@ describe("installInput", () => {
   });
 
   test("human text while the agent works sets humanWaiting and triggers a yield", async () => {
-    const { fake, rt } = await setup();
+    const { fake, rt } = await setup({}, { yields: createYieldGate() });
     jest.useFakeTimers();
     try {
       let yielded = false;

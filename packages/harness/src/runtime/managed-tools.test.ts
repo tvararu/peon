@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { seedManagedTools } from "#harness/runtime/managed-tools";
 
 let agentDir = "";
 
 beforeEach(async () => {
-  agentDir = await mkdtemp(join(tmpdir(), "harness-tools-"));
+  agentDir = scratchDir("harness-tools");
 });
 
 afterEach(async () => {

@@ -15,7 +15,7 @@ import { resolvePaths } from "@peon/core/lib/paths";
 import { git, gitEnv } from "#test-support/git";
 
 const launcher = `${import.meta.dir}/omp-factory`;
-const fakeOmp = `#!/usr/bin/env bash
+const fakeOmp = `#!/bin/sh
 printf '%s\\n' "\${XDG_CONFIG_HOME:-}" "\${XDG_RUNTIME_DIR:-}" "\${XDG_STATE_HOME:-}" "$@"
 `;
 
@@ -214,12 +214,12 @@ describe("omp-factory", () => {
 
   test("adds no extension when Orca's file is missing", async () => {
     const missing = { ORCA_OMP_STATUS_EXTENSION: `${home}/missing.ts` };
+    const plains: string[][] = [];
     for (const prompt of ["[factory:qa] go", "plain prompt"]) {
       const plain = (await launch(other, prompt)).args;
+      plains.push(plain);
       expect((await launch(other, prompt, missing)).args).toEqual(plain);
     }
-    expect((await launch(other, "plain prompt")).args).toEqual([
-      "plain prompt",
-    ]);
+    expect(plains.at(-1)).toEqual(["plain prompt"]);
   });
 });

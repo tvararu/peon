@@ -1,6 +1,3 @@
-import { mkdtemp } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import {
   type CredentialStore,
   type FauxProviderHandle,
@@ -11,6 +8,7 @@ import type {
   AgentSessionRuntime,
   ExtensionFactory,
 } from "@earendil-works/pi-coding-agent";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import type { HarnessRuntime } from "#harness/contract/services";
 import { createPiRuntime } from "#harness/runtime/pi-runtime";
 
@@ -38,7 +36,7 @@ export async function createFauxSession(init: {
     models: [{ id: "faux-1", reasoning: true }],
     provider: "faux",
   });
-  const agentDir = await mkdtemp(join(tmpdir(), "harness-agent-"));
+  const agentDir = scratchDir("harness-agent");
   const runtime = await createPiRuntime({
     agentDir,
     credentials: emptyCredentials,

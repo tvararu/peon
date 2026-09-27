@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { EventEmitter } from "node:events";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { harnessStateDir, parseFlags } from "#harness/config/flags";
 import { ompDbPath } from "#harness/credentials/omp-store";
 import { EXIT, type MainDeps, main } from "#harness/main";
@@ -16,7 +16,7 @@ let home: string;
 let lines: { out: string[]; err: string[] };
 
 beforeEach(async () => {
-  home = await mkdtemp(join(tmpdir(), "harness-main-"));
+  home = scratchDir("harness-main");
   lines = { err: [], out: [] };
   proc = new EventEmitter();
   exits = [];

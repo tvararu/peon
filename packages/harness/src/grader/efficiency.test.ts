@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import {
   efficiency,
   readSessionUsage,
@@ -93,7 +92,7 @@ describe("sessionUsage", () => {
   });
 
   test("gives zeros for a missing session file", async () => {
-    const dir = await mkdtemp(`${tmpdir()}/session-`);
+    const dir = scratchDir("session");
     expect((await readSessionUsage(`${dir}/session.jsonl`)).turns).toBe(0);
   });
 });

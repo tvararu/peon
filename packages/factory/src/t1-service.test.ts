@@ -135,7 +135,7 @@ describe("createService", () => {
           reject(init.signal?.reason),
         ),
       );
-    const service = createService({ baseUrl: base, fetch, timeoutMs: 5 });
+    const service = createService({ baseUrl: base, fetch, timeoutMs: 1 });
     expect(await reason(service.health())).toBe("timeout");
   });
 

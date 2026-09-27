@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, readFile, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { acquireLock, LockError } from "#harness/config/lock";
 import type { Profile } from "#harness/contract/config";
 
@@ -25,7 +25,7 @@ const profile: Profile = {
 };
 
 beforeEach(async () => {
-  root = await mkdtemp(join(tmpdir(), "harness-lock-"));
+  root = scratchDir("harness-lock");
   procDir = join(root, "proc");
   stateDir = join(root, "state");
   await mkdir(procDir);

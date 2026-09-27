@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import {
   clientPrivateKey,
   clientSeed,
@@ -107,11 +107,15 @@ describe("logout", () => {
 
   test("disconnects when the server never answers", async () => {
     const s = await session(10);
+    jest.useFakeTimers();
     try {
       s.handle.logout();
       await s.requested();
+      expect(s.isClosed()).toBe(false);
+      jest.advanceTimersByTime(10);
       await s.handle.closed;
     } finally {
+      jest.useRealTimers();
       s.server.stop();
     }
   });

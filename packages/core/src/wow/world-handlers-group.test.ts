@@ -336,7 +336,7 @@ describe("world handler tests", () => {
       );
 
       handle.sendRoll(1, 100);
-      await Bun.sleep(1);
+      await ws.waitForCapture((p) => p.opcode === GameOpcode.MSG_RANDOM_ROLL);
 
       const roll = ws.captured.find(
         (p) => p.opcode === GameOpcode.MSG_RANDOM_ROLL,

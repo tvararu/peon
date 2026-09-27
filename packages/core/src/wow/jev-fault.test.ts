@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
+import { drive, settle } from "#test-support/tactics-fixtures";
 import {
   type JevActionRequest,
   type JevActionResult,
@@ -207,21 +208,36 @@ describe("TacticsLoop fault integration", () => {
       { kind: "delay", delayMs: 50 },
       20,
     );
-    const started = loop.start(context);
-    await until((e) => e.type === "discarded" && e.reason === "stale_age");
-    loop.stop("done");
-    await started;
+    jest.useFakeTimers();
+    try {
+      const started = loop.start(context);
+      await drive(
+        until((e) => e.type === "discarded" && e.reason === "stale_age"),
+      );
+      loop.stop("done");
+      await started;
+    } finally {
+      jest.useRealTimers();
+    }
     expect(events[0]).toMatchObject({ type: "started", fault: "delay:50ms" });
     expect(loop.snapshot().fault).toBe("delay:50ms");
   });
 
   test("delayed response with halt during delay yields aborted discard", async () => {
     const { loop, until } = faultLoop({ kind: "delay", delayMs: 50 });
-    const started = loop.start(context);
-    await until((e) => e.type === "request");
-    loop.stop("halt");
-    await started;
-    const discarded = await until((e) => e.type === "discarded");
+    jest.useFakeTimers();
+    let discarded: TacticsEvent;
+    try {
+      const started = loop.start(context);
+      await until((e) => e.type === "request");
+      loop.stop("halt");
+      await started;
+      const settled = until((e) => e.type === "discarded");
+      await drive(settled);
+      discarded = await settled;
+    } finally {
+      jest.useRealTimers();
+    }
     expect(discarded).toMatchObject({
       reason: "aborted",
       actionId: "spell:585:target",
@@ -232,7 +248,7 @@ describe("TacticsLoop fault integration", () => {
   test("a refused key ends the run at once as jev_unavailable", async () => {
     const { loop, events } = faultLoop({ kind: "http", status: 402 });
     const reason = "jev_unavailable: HTTP 402 payment_required";
-    await expect(loop.start(context)).rejects.toThrow(reason);
+    await expect(settle(() => loop.start(context))).rejects.toThrow(reason);
     const transport = events.filter((e) => e.type === "transport");
     expect(transport.map((e) => e.type === "transport" && e.error)).toEqual([
       reason,
@@ -247,7 +263,7 @@ describe("TacticsLoop fault integration", () => {
 
   test("repeated server errors end the run as jev_unavailable", async () => {
     const { loop, events } = faultLoop({ kind: "http", status: 503 });
-    await expect(loop.start(context)).rejects.toThrow(
+    await expect(settle(() => loop.start(context))).rejects.toThrow(
       `jev_unavailable: transport TypeSafe HTTP 503 (${TRANSPORT_LIMIT} in a row)`,
     );
     const transport = events.filter((e) => e.type === "transport");
@@ -258,7 +274,7 @@ describe("TacticsLoop fault integration", () => {
 
   test("repeated network failures end the run as jev_unavailable", async () => {
     const { loop, events } = faultLoop({ kind: "transport" });
-    await expect(loop.start(context)).rejects.toThrow(
+    await expect(settle(() => loop.start(context))).rejects.toThrow(
       "jev_unavailable: transport fetch failed",
     );
     const transport = events.filter((e) => e.type === "transport");
@@ -291,7 +307,7 @@ describe("TacticsLoop fault integration", () => {
       halt: () => {},
       defend: () => "none",
     });
-    await loop.start(context);
+    await settle(() => loop.start(context));
     expect(calls).toBe(TRANSPORT_LIMIT);
     expect(loop.snapshot().lastOutcome).toMatchObject({
       status: "completed",

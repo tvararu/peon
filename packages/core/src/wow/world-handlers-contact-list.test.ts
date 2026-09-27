@@ -6,6 +6,7 @@ import {
   buildContactList,
   buildNameQueryResponse,
   fakeAuth,
+  waitForEchoProbe,
 } from "#test-support/world-handlers-fixtures";
 import { type FriendEvent, type IgnoreEvent, worldSession } from "#wow/client";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -132,7 +133,11 @@ describe("world handler tests", () => {
         );
 
         await eventReady;
-        await Bun.sleep(1);
+        await ws.waitForCapture(
+          (p) =>
+            p.opcode === GameOpcode.CMSG_NAME_QUERY &&
+            new PacketReader(p.body).uint32LE() === 0x99,
+        );
 
         const nameQueries = ws.captured.filter(
           (p) => p.opcode === GameOpcode.CMSG_NAME_QUERY,
@@ -147,7 +152,7 @@ describe("world handler tests", () => {
           GameOpcode.SMSG_NAME_QUERY_RESPONSE,
           buildNameQueryResponse(0x99, "Arthas"),
         );
-        await Bun.sleep(1);
+        await waitForEchoProbe(handle);
 
         const friends = handle.getFriends();
         expect(must(friends[0]).name).toBe("Arthas");
@@ -220,7 +225,11 @@ describe("world handler tests", () => {
         );
 
         await eventReady;
-        await Bun.sleep(1);
+        await ws.waitForCapture(
+          (p) =>
+            p.opcode === GameOpcode.CMSG_NAME_QUERY &&
+            new PacketReader(p.body).uint32LE() === 0xab,
+        );
 
         const nameQueries = ws.captured.filter(
           (p) => p.opcode === GameOpcode.CMSG_NAME_QUERY,
@@ -235,7 +244,7 @@ describe("world handler tests", () => {
           GameOpcode.SMSG_NAME_QUERY_RESPONSE,
           buildNameQueryResponse(0xab, "Spammer"),
         );
-        await Bun.sleep(1);
+        await waitForEchoProbe(handle);
 
         const ignored = handle.getIgnored();
         expect(must(ignored[0]).name).toBe("Spammer");

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { appendFile, mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { appendFile, writeFile } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import type { StatusJson } from "#harness/contract/config";
 import type { Domain, GameLogEntry, LogEvent } from "#harness/contract/log";
 import {
@@ -134,7 +134,7 @@ describe("triggerRows", () => {
 
 describe("createLogTail", () => {
   test("reads only new complete lines", async () => {
-    const file = `${await mkdtemp(`${tmpdir()}/tail-`)}/gamelog.jsonl`;
+    const file = `${scratchDir("tail")}/gamelog.jsonl`;
     const tail = createLogTail(file);
     expect(await tail.read()).toEqual([]);
     await writeFile(file, jsonl([row(1, 100, "session/in_world")]));
@@ -143,7 +143,7 @@ describe("createLogTail", () => {
   });
 
   test("keeps a partial last line for the next read", async () => {
-    const file = `${await mkdtemp(`${tmpdir()}/tail-`)}/gamelog.jsonl`;
+    const file = `${scratchDir("tail")}/gamelog.jsonl`;
     const tail = createLogTail(file);
     const second = JSON.stringify(row(2, 200, "combat/kill_credit"));
     await writeFile(
@@ -156,7 +156,7 @@ describe("createLogTail", () => {
   });
 
   test("reads multi-byte text across reads", async () => {
-    const file = `${await mkdtemp(`${tmpdir()}/tail-`)}/gamelog.jsonl`;
+    const file = `${scratchDir("tail")}/gamelog.jsonl`;
     const tail = createLogTail(file);
     await writeFile(file, jsonl([row(1, 100, "chat/in", "Thélia says «hi»")]));
     expect((await tail.read())[0]?.text).toBe("Thélia says «hi»");
@@ -193,7 +193,7 @@ describe("progressOf", () => {
 
 describe("readStatus", () => {
   test("reads a status file and ignores a missing or half-written one", async () => {
-    const dir = await mkdtemp(`${tmpdir()}/status-`);
+    const dir = scratchDir("status");
     expect(await readStatus(`${dir}/status.json`)).toBeUndefined();
     await writeFile(`${dir}/status.json`, '{"v":1,"at":');
     expect(await readStatus(`${dir}/status.json`)).toBeUndefined();

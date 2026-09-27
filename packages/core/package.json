@@ -11,7 +11,7 @@
     "./test-support/mock-handle": "./test-support/mock-handle.ts",
     "./test-support/mock-world-server": "./test-support/mock-world-server.ts",
     "./test-support/must": "./test-support/must.ts",
-    "./test-support/temp-paths": "./test-support/temp-paths.ts",
+    "./test-support/scratch": "./test-support/scratch.ts",
     "./test-support/world-handlers-fixtures": "./test-support/world-handlers-fixtures.ts"
   },
   "imports": {

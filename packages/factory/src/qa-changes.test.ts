@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { rm } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import {
   type Commit,
   type IssueInfo,
@@ -181,9 +183,8 @@ describe("parseLog", () => {
   });
 
   test("reads trailers from a real commit", async () => {
-    const dir = `${process.cwd()}/tmp/qa-changes-${Date.now()}`;
+    const dir = scratchDir("qa-changes");
     try {
-      await Bun.$`mkdir -p ${dir}`.quiet();
       await git(dir, "init", "-q");
       const identity = [
         "-c",
@@ -200,33 +201,18 @@ describe("parseLog", () => {
         "-q",
         "--allow-empty",
         "-m",
-        "chore: Base",
-      );
-      await git(
-        dir,
-        ...identity,
-        "commit",
-        "-q",
-        "--allow-empty",
-        "-m",
         "feat: X",
         "-m",
         "Why.",
         "-m",
         "Refs: #7, #8\nPR: #9\nCo-authored-by: Theodor Vararu <theo@vararu.org>",
       );
-      const out = await git(
-        dir,
-        "log",
-        "--reverse",
-        `--format=${logFormat()}`,
-        "HEAD~1..HEAD",
-      );
+      const out = await git(dir, "log", `--format=${logFormat()}`, "-1");
       expect(parseLog(out).map((c) => [c.subject, c.refs, c.prs])).toEqual([
         ["feat: X", [7, 8], [9]],
       ]);
     } finally {
-      await Bun.$`rm -rf ${dir}`.quiet();
+      await rm(dir, { force: true, recursive: true });
     }
   });
 });

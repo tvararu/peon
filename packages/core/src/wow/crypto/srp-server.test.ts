@@ -87,12 +87,6 @@ function topByte(n: bigint): number {
   return byteAt(n, WIDTH - 1);
 }
 
-function findB(salt: Uint8Array, index = WIDTH - 1): bigint {
-  for (let b = 1n; ; b++) {
-    if (byteAt(referenceServer(salt, b).B, index) === 0) return b;
-  }
-}
-
 function findA(): bigint {
   for (let a = 1n; ; a++) {
     if (topByte(modPow(g, a, N)) === 0) return a;
@@ -136,7 +130,7 @@ describe("SRP against a reference 3.3.5a server", () => {
 
   test("B whose most significant byte is zero keeps its width", () => {
     const salt = saltWith(0x5a, 0xa5);
-    const { client, server, B } = handshake(salt, findB(salt), 67_890n);
+    const { client, server, B } = handshake(salt, 320n, 67_890n);
     expect(topByte(B)).toBe(0);
     expect(server.M1ok).toBe(true);
     expect(client.K).toEqual(server.K);
@@ -144,7 +138,7 @@ describe("SRP against a reference 3.3.5a server", () => {
 
   test("B whose least significant byte is zero keeps its width", () => {
     const salt = saltWith(0x5a, 0xa5);
-    const { client, server, B } = handshake(salt, findB(salt, 0), 67_890n);
+    const { client, server, B } = handshake(salt, 123n, 67_890n);
     expect(byteAt(B, 0)).toBe(0);
     expect(server.M1ok).toBe(true);
     expect(client.K).toEqual(server.K);
@@ -158,27 +152,26 @@ describe("SRP against a reference 3.3.5a server", () => {
     expect(server.M1ok).toBe(true);
   });
 
-  for (const [name, index] of [
-    ["most significant", WIDTH - 1],
-    ["least significant", 0],
+  for (const [name, index, bs] of [
+    ["most significant", WIDTH - 1, [221n, 623n]],
+    ["least significant", 0, [77n, 316n]],
   ] as const) {
     test(`S with a zero ${name} byte derives the server's session key`, () => {
       const salt = saltWith(0x5a, 0xa5);
-      let matches = 0;
-      for (let b = 1n; b < 3_000n && matches < 2; b++) {
+      for (const b of bs) {
         const { client, server } = handshake(salt, b, 67_890n);
-        if (server.S[index] !== 0) continue;
-        matches++;
+        expect(server.S[index]).toBe(0);
         expect(server.M1ok).toBe(true);
         expect(client.K).toEqual(server.K);
       }
-      expect(matches).toBe(2);
     });
   }
 
   test("every value at once with zero edges", () => {
     const salt = saltWith(0x00, 0x00);
-    const { client, server } = handshake(salt, findB(salt), findA());
+    const { client, server, B } = handshake(salt, 225n, findA());
+    expect(topByte(B)).toBe(0);
+    expect(client.A[WIDTH - 1]).toBe(0);
     expect(server.M1ok).toBe(true);
     expect(client.K).toEqual(server.K);
   });

@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { NamedVendorGood } from "@peon/core";
 import type { InteractAfter } from "#harness/contract/details";
+import { ITEM_NAME_WAIT_MS } from "#harness/ops/item-names";
 import type { Refusal } from "#harness/ops/refusal";
 import { interactSpec } from "#harness/tools/interact";
+import { fakeTimed } from "#test-support/fake-time";
 import { toolCtx } from "#test-support/ops-fixtures";
 import { good, marniel, vendorEvent } from "#test-support/vendor-fixtures";
 
@@ -16,20 +18,31 @@ async function buyWith(what: string | undefined) {
     slots.push(slot);
     vendorEvent(t.handle, "bought");
   };
-  const run = interactSpec.run(
-    { do: "buy", npc: "Marniel Amberlight", what },
-    toolCtx<InteractAfter>(t),
+  const { ms, run } = await fakeTimed(
+    () =>
+      interactSpec.run(
+        { do: "buy", npc: "Marniel Amberlight", what },
+        toolCtx<InteractAfter>(t),
+      ),
+    ITEM_NAME_WAIT_MS * 2,
   );
-  return { run, slots };
+  return { ms, run, slots };
 }
 
 describe("interact vendor item names", () => {
   test("talk waits for late names before listing the stock", async () => {
     const t = await marniel(STOCK, LATE_MS);
-    const res = await interactSpec.run(
-      { npc: "Marniel Amberlight" },
-      toolCtx<InteractAfter>(t),
+    const { ms, run } = await fakeTimed(
+      () =>
+        interactSpec.run(
+          { npc: "Marniel Amberlight" },
+          toolCtx<InteractAfter>(t),
+        ),
+      ITEM_NAME_WAIT_MS * 2,
     );
+    expect(ms).toBeGreaterThanOrEqual(LATE_MS);
+    expect(ms).toBeLessThan(ITEM_NAME_WAIT_MS);
+    const res = await run;
     expect(res.body).toContain(
       "Sells: Tough Jerky 25 copper, Ice Cold Water 25 copper.",
     );
@@ -40,7 +53,8 @@ describe("interact vendor item names", () => {
   });
 
   test("buy without what lists late names and offers a name", async () => {
-    const { run } = await buyWith(undefined);
+    const { ms, run } = await buyWith(undefined);
+    expect(ms).toBeLessThan(ITEM_NAME_WAIT_MS);
     await expect(run).rejects.toMatchObject({
       body: ["1. Tough Jerky 25 copper", "2. Ice Cold Water 25 copper"],
       next: 'interact(do: "buy", npc: "u1", what: "Tough Jerky")',
@@ -70,11 +84,14 @@ describe("interact vendor cancel", () => {
   test("a cancel during the name wait stops talk", async () => {
     const t = await marniel(STOCK, 5000);
     const abort = new AbortController();
-    setTimeout(() => abort.abort(new Error("cancelled")), 50);
-    const run = interactSpec.run(
-      { npc: "Marniel Amberlight" },
-      toolCtx<InteractAfter>(t, abort.signal),
-    );
+    const { ms, run } = await fakeTimed(() => {
+      setTimeout(() => abort.abort(new Error("cancelled")), 50);
+      return interactSpec.run(
+        { npc: "Marniel Amberlight" },
+        toolCtx<InteractAfter>(t, abort.signal),
+      );
+    }, ITEM_NAME_WAIT_MS * 2);
+    expect(ms).toBe(50);
     await expect(run).rejects.toThrow("cancelled");
   });
 });
@@ -87,10 +104,16 @@ describe("interact vendor unresolved names", () => {
       slots.push(slot);
       vendorEvent(t.handle, "bought");
     };
-    const res = await interactSpec.run(
-      { do: "buy", npc: "Marniel Amberlight", what: "item 117" },
-      toolCtx<InteractAfter>(t),
+    const { ms, run } = await fakeTimed(
+      () =>
+        interactSpec.run(
+          { do: "buy", npc: "Marniel Amberlight", what: "item 117" },
+          toolCtx<InteractAfter>(t),
+        ),
+      ITEM_NAME_WAIT_MS * 2,
     );
+    expect(ms).toBeGreaterThanOrEqual(ITEM_NAME_WAIT_MS);
+    const res = await run;
     expect(res.detail).toContain("bought item 117 x5");
     expect(slots).toEqual([1]);
   });
@@ -104,9 +127,13 @@ describe("interact vendor unresolved names", () => {
       slots.push(slot);
       vendorEvent(t.handle, "bought");
     };
-    const run = interactSpec.run(
-      { do: "buy", npc: "Marniel Amberlight", what: "item 117" },
-      toolCtx<InteractAfter>(t),
+    const { run } = await fakeTimed(
+      () =>
+        interactSpec.run(
+          { do: "buy", npc: "Marniel Amberlight", what: "item 117" },
+          toolCtx<InteractAfter>(t),
+        ),
+      ITEM_NAME_WAIT_MS * 2,
     );
     await expect(run).rejects.toMatchObject({ reason: "no_match" });
     expect(slots).toEqual([]);
@@ -120,11 +147,15 @@ async function buyFrom(stock: readonly NamedVendorGood[], what?: string) {
     slots.push(slot);
     vendorEvent(t.handle, "bought");
   };
-  const run = interactSpec.run(
-    { do: "buy", npc: "Marniel Amberlight", what },
-    toolCtx<InteractAfter>(t),
+  const { ms, run } = await fakeTimed(
+    () =>
+      interactSpec.run(
+        { do: "buy", npc: "Marniel Amberlight", what },
+        toolCtx<InteractAfter>(t),
+      ),
+    ITEM_NAME_WAIT_MS * 2,
   );
-  return { run, slots };
+  return { ms, run, slots };
 }
 
 async function refusalOf(stock: readonly NamedVendorGood[], what?: string) {

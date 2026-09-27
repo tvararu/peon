@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { packDbc } from "#test-support/dbc";
+import { scratchDir } from "#test-support/scratch";
 import { loadSpellCatalog } from "#wow/spell-catalog";
 
 const SPELL_FIELDS = 234;
@@ -13,8 +13,8 @@ const RADIUS_FIELDS = 4;
 
 const dirs: string[] = [];
 
-async function emptyDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "spell-catalog-"));
+function emptyDir(): string {
+  const dir = scratchDir("spell-catalog");
   dirs.push(dir);
   return dir;
 }

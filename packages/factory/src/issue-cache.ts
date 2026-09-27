@@ -37,10 +37,11 @@ async function awaitFetch(
   lock: string,
   file: string,
   seen: number | null,
+  pollMs: number,
 ): Promise<{ issues: Issue[] } | { owned: boolean }> {
   const deadline = Date.now() + lockWaitMs;
   while (Date.now() < deadline) {
-    await Bun.sleep(lockPollMs);
+    await Bun.sleep(pollMs);
     const cached = await readCache(file);
     if (cached && cached.at !== seen) return { issues: cached.issues };
     if (await takeLock(lock)) return { owned: true };
@@ -52,6 +53,7 @@ export async function sharedIssues(
   now = Date.now(),
   file = issueCacheFile(),
   fetch: () => Promise<Issue[]> = fetchIssues,
+  pollMs = lockPollMs,
 ): Promise<Issue[]> {
   const cached = await readCache(file);
   if (cached && now - cached.at >= 0 && now - cached.at < issueCacheMs)
@@ -61,7 +63,7 @@ export async function sharedIssues(
   const seen = cached?.at ?? null;
   let owned = await takeLock(lock);
   if (!owned) {
-    const waited = await awaitFetch(lock, file, seen);
+    const waited = await awaitFetch(lock, file, seen, pollMs);
     if ("issues" in waited) return waited.issues;
     owned = waited.owned;
   }
