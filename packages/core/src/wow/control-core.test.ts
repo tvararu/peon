@@ -1,5 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
-import { lastMove, setup } from "#test-support/control-fixtures";
+import { lastMove, oracle, setup } from "#test-support/control-fixtures";
 import { must } from "#test-support/must";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
@@ -69,7 +69,9 @@ describe("ControlRuntime", () => {
   test("directed walk stops at the requested distance without overshooting", async () => {
     jest.useFakeTimers();
     try {
-      const { runtime, sent, advance } = setup({ isPathClear: () => true });
+      const { runtime, sent, advance } = setup({
+        ground: oracle({ pathClear: () => true }),
+      });
       const start = must(runtime.snapshot().pose);
       const walk = runtime.walkToward(
         { x: start.x + 10, y: start.y, z: start.z },
@@ -93,7 +95,9 @@ describe("ControlRuntime", () => {
   test("directed walk stops at a nearer sampled target", async () => {
     jest.useFakeTimers();
     try {
-      const { runtime, advance } = setup({ isPathClear: () => true });
+      const { runtime, advance } = setup({
+        ground: oracle({ pathClear: () => true }),
+      });
       const start = must(runtime.snapshot().pose);
       const walk = runtime.walkToward(
         { x: start.x + 1, y: start.y, z: start.z },
@@ -112,7 +116,9 @@ describe("ControlRuntime", () => {
   test("directed walk halts on abort and cannot cancel a later manual owner", async () => {
     jest.useFakeTimers();
     try {
-      const { runtime, sent, advance } = setup({ isPathClear: () => true });
+      const { runtime, sent, advance } = setup({
+        ground: oracle({ pathClear: () => true }),
+      });
       const start = must(runtime.snapshot().pose);
       const abort = new AbortController();
       const walk = runtime.walkToward(
@@ -141,10 +147,12 @@ describe("ControlRuntime", () => {
       const { runtime, advance } = setup({
         now: () => now,
         ticks: () => now - 10_000,
-        findHeight: (_map, x, _y, from) => {
-          if (x > startX + 0.5 && x < startX + 1.5) return;
-          return from?.z ?? 70.34;
-        },
+        ground: oracle({
+          height: (_map, x, _y, from) => {
+            if (x > startX + 0.5 && x < startX + 1.5) return;
+            return from?.z ?? 70.34;
+          },
+        }),
       });
       const start = must(runtime.snapshot().pose);
       const walk = runtime.walkToward(
@@ -168,8 +176,7 @@ describe("ControlRuntime", () => {
     jest.useFakeTimers();
     try {
       const { runtime, advance } = setup({
-        findHeight: () => 70.34,
-        isPathClear: () => false,
+        ground: oracle({ height: () => 70.34, pathClear: () => false }),
       });
       const start = must(runtime.snapshot().pose);
       const walk = runtime.walkToward(
@@ -194,9 +201,11 @@ describe("ControlRuntime", () => {
     try {
       const originX = 8709.46;
       const { runtime, advance } = setup({
-        findHeight: (_map, x, _y, from) =>
-          from && from.x > originX && x === originX ? 71.34 : 70.34,
-        isPathClear: () => true,
+        ground: oracle({
+          height: (_map, x, _y, from) =>
+            from && from.x > originX && x === originX ? 71.34 : 70.34,
+          pathClear: () => true,
+        }),
       });
       const start = must(runtime.snapshot().pose);
       const walk = runtime.walkToward(
@@ -218,7 +227,9 @@ describe("ControlRuntime", () => {
   test("slow but progressing directed walk outlives the safety lease", async () => {
     jest.useFakeTimers();
     try {
-      const { runtime, advance } = setup({ isPathClear: () => true });
+      const { runtime, advance } = setup({
+        ground: oracle({ pathClear: () => true }),
+      });
       runtime.observeSelf({ runSpeed: 1 });
       const start = must(runtime.snapshot().pose);
       const walk = runtime.walkToward(

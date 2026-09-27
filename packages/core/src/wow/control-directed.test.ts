@@ -35,8 +35,7 @@ describe("ControlRuntime", () => {
         ticks: () => 0,
         now: () => 0,
         selfGuid: () => 1n,
-        findHeight: () => undefined,
-        isPathClear: () => false,
+        ground: { height: () => undefined, pathClear: () => false },
       });
       noSpeed.loginVerified(LOGIN);
       expect(() => noSpeed.move("forward", 1000)).toThrow("missing_speed");

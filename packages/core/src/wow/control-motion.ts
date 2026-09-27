@@ -1,17 +1,27 @@
+import type { MovementDirection } from "#wow/control";
 import type { Position } from "#wow/entity-store";
 import type { NavPoint } from "#wow/navigation";
 import { collisionFree, GROUND_ERROR } from "#wow/navigation-collision";
 import { withinStep } from "#wow/navigation-height";
 import { MovementFlag } from "#wow/protocol/entity-fields";
 
-export type Ground = {
-  findHeight: (
+export type GroundOracle = {
+  height: (
     mapId: number,
     x: number,
     y: number,
     from?: NavPoint,
   ) => number | undefined;
-  isPathClear: (mapId: number, from: NavPoint, to: NavPoint) => boolean;
+  pathClear: (mapId: number, from: NavPoint, to: NavPoint) => boolean;
+};
+
+export const MAX_DURATION_MS = 10_000;
+
+export const DIR_FLAG: Record<MovementDirection, number> = {
+  forward: MovementFlag.FORWARD,
+  backward: MovementFlag.BACKWARD,
+  left: MovementFlag.STRAFE_LEFT,
+  right: MovementFlag.STRAFE_RIGHT,
 };
 
 const STEP_REFUSALS = [
@@ -47,13 +57,14 @@ export function unsupportedReason(flags: number): string | undefined {
 }
 
 export function groundStep(
-  ground: Ground,
+  ground: GroundOracle | undefined,
   pose: Position,
   to: { x: number; y: number },
   directed: boolean,
 ): Step {
+  if (!ground) return { ok: true, z: pose.z };
   const { x, y } = to;
-  const z = finite(ground.findHeight(pose.mapId, x, y, pose));
+  const z = finite(ground.height(pose.mapId, x, y, pose));
   if (z === undefined)
     return { ok: false, reason: blockedStep(ground, pose, x, y) };
   if (!withinStep(pose, { x, y, z })) return { ok: false, reason: "too_steep" };
@@ -64,31 +75,29 @@ export function groundStep(
 }
 
 function blockedStep(
-  ground: Ground,
+  ground: GroundOracle,
   pose: Position,
   x: number,
   y: number,
 ): StepRefusal {
-  const z = finite(ground.findHeight(pose.mapId, pose.x, pose.y, pose));
+  const z = finite(ground.height(pose.mapId, pose.x, pose.y, pose));
   if (z === undefined) return "ground_height_unavailable";
   const start = { x: pose.x, y: pose.y, z };
-  const ray = (a: NavPoint, b: NavPoint) =>
-    ground.isPathClear(pose.mapId, a, b);
+  const ray = (a: NavPoint, b: NavPoint) => ground.pathClear(pose.mapId, a, b);
   return collisionFree(ray, start, { x, y, z })
     ? "height_unresolved"
     : "obstructed";
 }
 
 function directedRefusal(
-  ground: Ground,
+  ground: GroundOracle,
   pose: Position,
   to: NavPoint,
 ): StepRefusal | undefined {
-  const back = finite(ground.findHeight(pose.mapId, pose.x, pose.y, to));
+  const back = finite(ground.height(pose.mapId, pose.x, pose.y, to));
   if (back === undefined || Math.abs(back - pose.z) > GROUND_ERROR)
     return "height_unresolved";
-  const ray = (a: NavPoint, b: NavPoint) =>
-    ground.isPathClear(pose.mapId, a, b);
+  const ray = (a: NavPoint, b: NavPoint) => ground.pathClear(pose.mapId, a, b);
   return collisionFree(ray, pose, to) ? undefined : "obstructed";
 }
 

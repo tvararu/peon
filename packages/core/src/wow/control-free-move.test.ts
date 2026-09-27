@@ -1,13 +1,13 @@
 import { expect, jest, test } from "bun:test";
-import { lastMove, setup } from "#test-support/control-fixtures";
+import { lastMove, oracle, setup } from "#test-support/control-fixtures";
 import { must } from "#test-support/must";
-import type { ControlDeps } from "#wow/control";
+import type { GroundOracle } from "#wow/control-motion";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 const START_X = 8709.46;
 const FORWARD_X = Math.cos(0.5);
 
-function onlyUpTo(limitX: number): ControlDeps["findHeight"] {
+function onlyUpTo(limitX: number): GroundOracle["height"] {
   return (_mapId, x, _y, from) =>
     x <= limitX + 1e-6 ? (from?.z ?? 70.34) : undefined;
 }
@@ -23,21 +23,18 @@ function faked(run: () => void): void {
 
 test("a move whose first step has no ground is refused with its reason and sends nothing", () => {
   faked(() => {
-    const cases: [Partial<ControlDeps>, string][] = [
-      [{ findHeight: () => undefined }, "ground_height_unavailable"],
+    const cases: [Partial<GroundOracle>, string][] = [
+      [{ height: () => undefined }, "ground_height_unavailable"],
+      [{ height: onlyUpTo(START_X), pathClear: () => false }, "obstructed"],
       [
-        { findHeight: onlyUpTo(START_X), isPathClear: () => false },
-        "obstructed",
-      ],
-      [
-        { findHeight: onlyUpTo(START_X), isPathClear: () => true },
+        { height: onlyUpTo(START_X), pathClear: () => true },
         "height_unresolved",
       ],
-      [{ findHeight: (_mapId, x) => 70.34 + (x - START_X) * 3 }, "too_steep"],
-      [{ findHeight: (_mapId, x) => 70.34 - (x - START_X) * 40 }, "too_steep"],
+      [{ height: (_mapId, x) => 70.34 + (x - START_X) * 3 }, "too_steep"],
+      [{ height: (_mapId, x) => 70.34 - (x - START_X) * 40 }, "too_steep"],
     ];
     for (const [ground, reason] of cases) {
-      const { runtime, sent } = setup(ground);
+      const { runtime, sent } = setup({ ground: oracle(ground) });
       const before = must(runtime.snapshot().pose);
       sent.length = 0;
       expect(() => runtime.move("forward", 1000)).toThrow(reason);
@@ -54,8 +51,7 @@ test("a move whose first step has no ground is refused with its reason and sends
 test("a leg stops at its last reachable half-yard step and keeps the reason", () => {
   faked(() => {
     const { runtime, sent, advance } = setup({
-      findHeight: onlyUpTo(START_X + 1.2),
-      isPathClear: () => false,
+      ground: oracle({ height: onlyUpTo(START_X + 1.2) }),
     });
     runtime.move("forward", 1000);
     advance(500);
@@ -72,7 +68,7 @@ test("a leg follows sloped ground a half yard at a time", () => {
   faked(() => {
     const slope = (x: number) => 70.34 + (x - START_X) * 0.5;
     const { runtime, advance } = setup({
-      findHeight: (_mapId, x) => slope(x),
+      ground: oracle({ height: (_mapId, x) => slope(x) }),
     });
     runtime.move("forward", 1000);
     advance(500);
@@ -85,7 +81,9 @@ test("a leg follows sloped ground a half yard at a time", () => {
 
 test("backing away or halting clears a refused start", () => {
   faked(() => {
-    const { runtime, advance } = setup({ findHeight: onlyUpTo(START_X) });
+    const { runtime, advance } = setup({
+      ground: oracle({ height: onlyUpTo(START_X) }),
+    });
     expect(() => runtime.move("forward", 1000)).toThrow("obstructed");
     runtime.halt();
     expect(runtime.snapshot().blockedReason).toBeUndefined();
@@ -94,5 +92,23 @@ test("backing away or halting clears a refused start", () => {
     expect(runtime.snapshot().blockedReason).toBeUndefined();
     advance(500);
     expect(must(runtime.snapshot().pose).x).toBeLessThan(START_X);
+  });
+});
+
+test("without a ground oracle a move reckons at the server z until corrected", () => {
+  faked(() => {
+    const { runtime, sent, advance } = setup({ ground: undefined });
+    runtime.move("forward", 2000);
+    advance(600);
+    const beat = lastMove(sent);
+    expect(beat.opcode).toBe(GameOpcode.MSG_MOVE_HEARTBEAT);
+    expect(beat.x).toBeGreaterThan(START_X + 3 * FORWARD_X);
+    expect(beat.z).toBeCloseTo(70.34, 4);
+    const corrected = { ...must(runtime.snapshot().pose), z: 72.5 };
+    runtime.observeSelf({ position: corrected });
+    expect(runtime.snapshot().moving).toBe(false);
+    runtime.move("forward", 2000);
+    advance(600);
+    expect(lastMove(sent).z).toBeCloseTo(72.5, 4);
   });
 });

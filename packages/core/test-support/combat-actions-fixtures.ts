@@ -136,8 +136,10 @@ export function setup(
     unitFlags: 0x8_00_00,
   });
   const control = new ControlRuntime({
-    findHeight: (_mapId, _x, _y, from) => from?.z,
-    isPathClear: () => false,
+    ground: {
+      height: (_mapId, _x, _y, from) => from?.z,
+      pathClear: () => false,
+    },
     now: nowFn,
     selfGuid: () => 1n,
     send() {},

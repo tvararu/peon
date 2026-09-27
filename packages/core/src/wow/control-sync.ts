@@ -1,18 +1,26 @@
-import { ControlDrive } from "#wow/control-drive";
-import { MOVING_BITS } from "#wow/control-motion";
+import type {
+  ControlDeps,
+  ControlEventType,
+  ControlPose,
+  MovementDirection,
+} from "#wow/control";
+import { MOVING_BITS, unsupportedReason } from "#wow/control-motion";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag, UnitFlag } from "#wow/protocol/entity-fields";
 import {
   buildCanFlyAck,
+  buildRootAck,
   buildSetActiveMover,
   buildSpeedAck,
   buildTeleportAck,
   type ClientControl,
+  type FallData,
   type ForceSpeed,
   type KnockBack,
   type MoveAck,
   type MovementInfo,
   type SpeedAck,
+  type TransportInfo,
 } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
@@ -22,7 +30,92 @@ const UNIT_BLOCK_FLAGS =
   UnitFlag.CONFUSED |
   UnitFlag.FLEEING;
 
-export class ControlSync extends ControlDrive {
+export type Emit = (type: ControlEventType, reason?: string) => void;
+
+export type SyncMotion = {
+  moving: () => boolean;
+  settle: () => void;
+  abort: (reason: string) => void;
+  stop: (reason: string) => void;
+};
+
+export type SelfObservation = {
+  position?: Position;
+  movementFlags?: number;
+  runSpeed?: number;
+  runBackSpeed?: number;
+  target?: bigint;
+  unitFlags?: number;
+};
+
+export type SyncParts = { deps: ControlDeps; emit: Emit; motion: SyncMotion };
+
+export class MovementSync {
+  predicted: ControlPose | undefined;
+  server: ControlPose | undefined;
+  moveFlags = 0;
+  mapId = 0;
+  runSpeed: number | undefined;
+  runBackSpeed: number | undefined;
+  target: bigint | undefined;
+  private readonly deps: ControlDeps;
+  private readonly emit: Emit;
+  private readonly motion: SyncMotion;
+  private extraFlags = 0;
+  private observedFlags = 0;
+  private fall: FallData | undefined;
+  private transport: TransportInfo | undefined;
+  private controlAllowed = true;
+  private rooted = false;
+  private teleporting = false;
+  private unitBlocked = false;
+  private verified = false;
+  private loginWaiters: Array<() => void> = [];
+
+  constructor({ deps, emit, motion }: SyncParts) {
+    this.deps = deps;
+    this.emit = emit;
+    this.motion = motion;
+  }
+
+  pose(): ControlPose | undefined {
+    return this.predicted ?? this.server;
+  }
+
+  requirePose(): ControlPose {
+    const pose = this.pose();
+    if (!pose) throw new Error("no_pose");
+    return { ...pose };
+  }
+
+  speedFor(direction: MovementDirection): number | undefined {
+    return direction === "backward" ? this.runBackSpeed : this.runSpeed;
+  }
+
+  blockReason(): string | undefined {
+    if (this.teleporting) return "teleporting";
+    if (this.rooted) return "rooted";
+    if (!this.controlAllowed) return "no_control";
+    if (this.unitBlocked) return "disable_move";
+    return unsupportedReason(this.observedFlags);
+  }
+
+  movementInfo(): MovementInfo {
+    const pose = this.pose();
+    return {
+      flags: this.moveFlags,
+      extraFlags: this.extraFlags,
+      time: this.deps.ticks(),
+      x: pose?.x ?? 0,
+      y: pose?.y ?? 0,
+      z: pose?.z ?? 0,
+      orientation: pose?.orientation ?? 0,
+      fallTime: 0,
+      fall: this.fall,
+      transport: this.transport,
+    };
+  }
+
   loginVerified(position: Position): void {
     this.mapId = position.mapId;
     this.setServerPose(position);
@@ -39,29 +132,18 @@ export class ControlSync extends ControlDrive {
 
   waitLogin(timeoutMs = 10_000): Promise<void> {
     if (this.verified) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        reject(new Error("Timed out waiting for opcode 0x236"));
-      }, timeoutMs);
-      this.loginWaiters.push(() => {
-        clearTimeout(timer);
-        resolve();
-      });
+    const { promise, resolve, reject } = Promise.withResolvers<void>();
+    const timer = setTimeout(() => {
+      reject(new Error("Timed out waiting for opcode 0x236"));
+    }, timeoutMs);
+    this.loginWaiters.push(() => {
+      clearTimeout(timer);
+      resolve();
     });
+    return promise;
   }
 
-  currentMapId(): number {
-    return this.mapId;
-  }
-
-  observeSelf(input: {
-    position?: Position;
-    movementFlags?: number;
-    runSpeed?: number;
-    runBackSpeed?: number;
-    target?: bigint;
-    unitFlags?: number;
-  }): void {
+  observeSelf(input: SelfObservation): void {
     if (input.runSpeed !== undefined) this.runSpeed = input.runSpeed;
     if (input.runBackSpeed !== undefined)
       this.runBackSpeed = input.runBackSpeed;
@@ -83,8 +165,8 @@ export class ControlSync extends ControlDrive {
         source: "server",
         updatedAt: this.deps.now(),
       };
-      if (this.moving) {
-        this.abortUnsafe("server_correction");
+      if (this.motion.moving()) {
+        this.motion.abort("server_correction");
         this.predicted = undefined;
         this.emit("server_correction", "observed");
         return;
@@ -92,7 +174,7 @@ export class ControlSync extends ControlDrive {
       this.predicted = undefined;
     }
     const unsafe = this.blockReason();
-    if (this.moving && unsafe) this.abortUnsafe(unsafe);
+    if (this.motion.moving() && unsafe) this.motion.abort(unsafe);
   }
 
   observeTarget(target: bigint): void {
@@ -103,7 +185,7 @@ export class ControlSync extends ControlDrive {
 
   teleportAck({ counter, info: dest }: MoveAck): void {
     this.teleporting = false;
-    this.abortUnsafe("teleport");
+    this.motion.abort("teleport");
     this.deps.send(
       GameOpcode.MSG_MOVE_TELEPORT_ACK,
       buildTeleportAck(this.deps.selfGuid(), counter, this.deps.ticks()),
@@ -113,19 +195,19 @@ export class ControlSync extends ControlDrive {
 
   nearTeleport(dest: MovementInfo): void {
     this.teleporting = false;
-    this.abortUnsafe("near_teleport");
+    this.motion.abort("near_teleport");
     this.applyForcedPose(dest, "near_teleport");
   }
 
   handleTransferPending(): void {
     this.teleporting = true;
-    this.abortUnsafe("teleport");
-    this.emitAllowed("teleporting");
+    this.motion.abort("teleport");
+    this.emit("control_changed", "teleporting");
   }
 
   newWorld(position: Position): void {
     this.teleporting = false;
-    this.abortUnsafe("teleport");
+    this.motion.abort("teleport");
     this.mapId = position.mapId;
     this.moveFlags = 0;
     this.observedFlags = 0;
@@ -145,21 +227,21 @@ export class ControlSync extends ControlDrive {
 
   forceRoot(counter: number): void {
     this.rooted = true;
-    this.abortUnsafe("root");
+    this.motion.abort("root");
     this.moveFlags |= MovementFlag.ROOT;
     this.ackRoot(GameOpcode.CMSG_FORCE_MOVE_ROOT_ACK, counter);
-    this.emitAllowed("rooted");
+    this.emit("control_changed", "rooted");
   }
 
   forceUnroot(counter: number): void {
     this.rooted = false;
     this.moveFlags &= ~MovementFlag.ROOT;
     this.ackRoot(GameOpcode.CMSG_FORCE_MOVE_UNROOT_ACK, counter);
-    this.emitAllowed(undefined);
+    this.emit("control_changed", undefined);
   }
 
   knockBack({ counter, fall }: KnockBack): void {
-    this.abortUnsafe("knockback");
+    this.motion.abort("knockback");
     this.observedFlags |= MovementFlag.FALLING;
     this.moveFlags |= MovementFlag.FALLING;
     this.fall = fall;
@@ -171,17 +253,17 @@ export class ControlSync extends ControlDrive {
     const self = this.deps.selfGuid();
     if (guid !== 0n && guid !== self) {
       this.controlAllowed = false;
-      this.abortUnsafe("no_control");
-      this.emitAllowed("no_control");
+      this.motion.abort("no_control");
+      this.emit("control_changed", "no_control");
       return;
     }
     this.controlAllowed = allow;
-    if (!allow) this.abortUnsafe("no_control");
-    this.emitAllowed(allow ? undefined : "no_control");
+    if (!allow) this.motion.abort("no_control");
+    this.emit("control_changed", allow ? undefined : "no_control");
   }
 
   forceSpeed(spec: SpeedAck, { counter, speed }: ForceSpeed): void {
-    this.integrate();
+    this.motion.settle();
     if ("field" in spec && spec.field === "runSpeed") this.runSpeed = speed;
     if ("field" in spec && spec.field === "runBackSpeed")
       this.runBackSpeed = speed;
@@ -189,7 +271,7 @@ export class ControlSync extends ControlDrive {
   }
 
   setCanFly(counter: number, enable: boolean): void {
-    this.abortUnsafe(enable ? "flying" : "unset_can_fly");
+    this.motion.abort(enable ? "flying" : "unset_can_fly");
     if (enable) {
       this.observedFlags |= MovementFlag.CAN_FLY;
       this.moveFlags |= MovementFlag.CAN_FLY;
@@ -201,7 +283,19 @@ export class ControlSync extends ControlDrive {
       GameOpcode.CMSG_MOVE_SET_CAN_FLY_ACK,
       buildCanFlyAck(this.moveAck(counter), enable),
     );
-    this.emitAllowed(enable ? "flying" : undefined);
+    this.emit("control_changed", enable ? "flying" : undefined);
+  }
+
+  private ackRoot(opcode: number, counter: number): void {
+    this.deps.send(opcode, buildRootAck(this.moveAck(counter)));
+  }
+
+  private moveAck(counter: number): MoveAck {
+    return { guid: this.deps.selfGuid(), counter, info: this.movementInfo() };
+  }
+
+  private setServerPose(position: Position): void {
+    this.server = { ...position, source: "server", updatedAt: this.deps.now() };
   }
 
   private applyForcedPose(dest: MovementInfo, reason: string): void {
@@ -226,7 +320,7 @@ export class ControlSync extends ControlDrive {
     const blocked = (unitFlags & UNIT_BLOCK_FLAGS) !== 0;
     if (blocked === this.unitBlocked) return;
     this.unitBlocked = blocked;
-    if (blocked) this.stopMoving("disable_move", false);
-    this.emitAllowed(blocked ? "disable_move" : undefined);
+    if (blocked) this.motion.stop("disable_move");
+    this.emit("control_changed", blocked ? "disable_move" : undefined);
   }
 }
