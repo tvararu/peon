@@ -154,6 +154,9 @@ export function rewardsMethods(conn: WorldConn, rt: Runtimes) {
         rt.combat.snapshot(),
       );
     },
+    itemLabel(entry) {
+      return items.label(entry);
+    },
     getRewardsState() {
       return labelRewards(rewards.snapshot(), (entry) => items.label(entry));
     },

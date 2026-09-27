@@ -236,6 +236,7 @@ export function createMockHandle(): MockHandle {
       cycle.stop("halt");
     }),
     invite: jest.fn(),
+    itemLabel: jest.fn(unanswered),
     joinChannel: jest.fn(),
     leaveChannel: jest.fn(),
     leaveGroup: jest.fn(),

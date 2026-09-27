@@ -56,7 +56,11 @@ import type { FramingVariant } from "#wow/framing";
 import type { FriendEntry, FriendEvent } from "#wow/friend-store";
 import type { GuildEvent, GuildRoster } from "#wow/guild-store";
 import type { IgnoreEntry, IgnoreEvent } from "#wow/ignore-store";
-import type { NamedInventoryState, NamedRewardsState } from "#wow/item-labels";
+import type {
+  ItemLabel,
+  NamedInventoryState,
+  NamedRewardsState,
+} from "#wow/item-labels";
 import { LOGOUT_TIMEOUT_MS, requestLogout } from "#wow/logout";
 import type { NavigationObservation } from "#wow/navigation-observation";
 import type { NearbyQuery, NearbyRow } from "#wow/nearby";
@@ -287,6 +291,7 @@ export type WorldHandle = {
   getInventoryState: () => NamedInventoryState;
   getExperienceState: () => ExperienceState;
   getRewardsState: () => NamedRewardsState;
+  itemLabel: (entry: number) => ItemLabel;
   openLoot: (guid: bigint) => void;
   takeLoot: (slot: number) => void;
   takeLootMoney: () => void;
