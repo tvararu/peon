@@ -35,6 +35,7 @@ function fakeProcess(): ExitProcess {
       exits.push(code);
       proc.emit("exit", code);
     },
+    listenerCount: (event) => proc.listenerCount(event),
     on: (event, listener) => proc.on(event, listener),
   };
 }

@@ -44,6 +44,7 @@ function setup() {
       exits.push(code);
       emitter.emit("exit", code);
     },
+    listenerCount: (event) => emitter.listenerCount(event),
     on: (event, listener) => emitter.on(event, listener),
   };
   let clock = START;
@@ -121,6 +122,20 @@ describe("createExitRecorder", () => {
     expect(t.synced).toHaveLength(1);
     expect(t.synced[0]).toMatchObject({ exitReason: "sigint" });
     expect(typeof t.synced[0]?.endedAt).toBe("number");
+  });
+
+  test("SIGINT while Pi is suspended with its own SIGINT ignore keeps the harness running", () => {
+    const t = setup();
+    t.recorder.piOwnsSignals();
+    const ignoreSigint = () => undefined;
+    t.emitter.on("SIGINT", ignoreSigint);
+    t.emitter.emit("SIGINT");
+    expect(t.exits).toEqual([]);
+    expect(t.synced).toEqual([]);
+    t.emitter.removeListener("SIGINT", ignoreSigint);
+    t.emitter.emit("SIGINT");
+    expect(t.exits).toEqual([EXIT_SIGINT]);
+    expect(t.synced[0]).toMatchObject({ exitReason: "sigint" });
   });
 
   test("a fatal exit without a shutdown writes fatal_error", () => {
