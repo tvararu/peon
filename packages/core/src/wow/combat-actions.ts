@@ -359,7 +359,7 @@ export class CombatActions {
         state.casting ||
         state.pendingAttack ||
         state.attacking ||
-        this.inMelee(state) ||
+        this.canMelee(state) ||
         spells.some((action) => action.supported)
       )
     )
@@ -419,6 +419,10 @@ export class CombatActions {
         return true;
     }
     return false;
+  }
+
+  private canMelee(state: CombatState): boolean {
+    return isUnit(this.deps.entity(state.self.guid));
   }
 
   private inMelee(state: CombatState): boolean {

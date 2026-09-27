@@ -1,20 +1,25 @@
 import { expect, jest, test } from "bun:test";
-import { context, setup, spell } from "#test-support/combat-actions-fixtures";
+import {
+  context,
+  MOVE_IDS,
+  setup,
+  spell,
+} from "#test-support/combat-actions-fixtures";
 import { must } from "#test-support/must";
 import { UNIT_FIELDS } from "#wow/protocol/entity-fields";
 
 test("unknown learned mechanics are explicit and never offered as executable", () => {
   const { actions } = setup();
   const frame = actions.observe(context);
-  expect(frame.candidates.map((candidate) => candidate.id)).toEqual(["wait"]);
+  expect(frame.candidates.map((candidate) => candidate.id)).toEqual([
+    "wait",
+    ...MOVE_IDS,
+  ]);
   expect(frame.observation["unavailable"]).toEqual([
     { id: "spell:17:self", reason: "unknown_metadata" },
   ]);
   expect(() => actions.execute("spell:17:self", context)).toThrow();
-  expect(frame.outcome).toEqual({
-    status: "blocked",
-    reason: "no_supported_combat_actions",
-  });
+  expect(frame.outcome).toBeUndefined();
   expect(JSON.stringify(frame.observation)).toContain("unknown_metadata");
 });
 
@@ -45,7 +50,7 @@ test("unsupported effects are blocked rather than silently dropped from a multi-
   try {
     expect(
       actions.observe(context).candidates.map((candidate) => candidate.id),
-    ).toEqual(["wait"]);
+    ).toEqual(["wait", ...MOVE_IDS]);
     expect(actions.observe(context).observation["unavailable"]).toEqual([
       { id: "spell:17:target", reason: "unsupported_effect:64" },
     ]);
@@ -54,7 +59,7 @@ test("unsupported effects are blocked rather than silently dropped from a multi-
   }
 });
 
-test("unsupported hostile range blocks the kit even during cooldown", () => {
+test("unsupported hostile range leaves only melee even during cooldown", () => {
   const { actions, combat } = setup();
   const data = spell();
   must(data.range).flags = 1;
@@ -62,10 +67,7 @@ test("unsupported hostile range blocks the kit even during cooldown", () => {
   const cooldown = jest.spyOn(combat, "readyAt").mockReturnValue(2500);
   try {
     const frame = actions.observe(context);
-    expect(frame.outcome).toEqual({
-      status: "blocked",
-      reason: "no_supported_combat_actions",
-    });
+    expect(frame.outcome).toBeUndefined();
     expect(frame.observation["unavailable"]).toEqual([
       { id: "spell:17:target", reason: "unsupported_range" },
     ]);
