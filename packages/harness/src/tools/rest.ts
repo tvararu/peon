@@ -43,6 +43,7 @@ type Rested = {
   used: LootLine[];
   waitedMs: number;
   auraConfirmed: boolean;
+  startedAt: number;
   startLevels: Levels;
   stalled: boolean;
   confirmed: Set<number>;
@@ -285,9 +286,10 @@ function stoppedReport(init: {
   ctx: ViewCtx;
   signal: AbortSignal;
   cause: InterruptCause | undefined;
-  after: RestAfter;
+  rested: Rested;
 }): Report {
-  const { ctx, signal, cause, after } = init;
+  const { ctx, signal, cause, rested } = init;
+  const after = afterOf(ctx, rested);
   if (cause?.code === "died")
     return result("FAILED", {
       after,
@@ -295,13 +297,17 @@ function stoppedReport(init: {
       next: nextCall("recover"),
       reason: "died",
     });
-  if (cause?.attacker !== undefined)
+  if (cause?.attacker !== undefined) {
+    const hitAt = ctx.rt.attacks.lastHitAt(cause.attacker);
+    const hit = hitAt !== undefined && hitAt >= rested.startedAt;
+    const verb = hit ? "hit you" : "started attacking you";
     return result("FAILED", {
       after,
-      detail: `${attackerName(ctx, cause.attacker)} hit you while resting (${hpText(ctx)}).`,
+      detail: `${attackerName(ctx, cause.attacker)} ${verb} while resting (${hpText(ctx)}).`,
       next: nextCall("engage", { target: ctx.rt.refs.refOf(cause.attacker) }),
       reason: "interrupted",
     });
+  }
   const code = messageOf(signal.reason, "cancelled");
   if (code === "human_stop" || code === "esc")
     return result("FAILED", {
@@ -357,9 +363,9 @@ async function launch(init: {
       : undefined;
     return runEnd(
       stoppedReport({
-        after: afterOf(ops, rested),
         cause: watch.cause(),
         ctx: ops,
+        rested,
         signal: ops.signal,
       }),
       stop,
@@ -390,6 +396,7 @@ function precheck(ctx: ToolCtx<RestAfter>, until: number): Report | undefined {
     auraConfirmed: false,
     confirmed: new Set(),
     stalled: false,
+    startedAt: ctx.rt.clock.now(),
     startLevels: levels,
     used: [],
     waitedMs: 0,
@@ -423,6 +430,7 @@ async function runRest(
     auraConfirmed: false,
     confirmed: new Set(),
     stalled: false,
+    startedAt: ctx.rt.clock.now(),
     startLevels: levelsOf(ctx),
     used: [],
     waitedMs: 0,
