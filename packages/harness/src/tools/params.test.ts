@@ -4,6 +4,7 @@ import {
   type TSchema,
   validateToolArguments,
 } from "@earendil-works/pi-ai";
+import { lookTool } from "#harness/tools/look";
 import {
   engageParams,
   interactParams,
@@ -16,6 +17,7 @@ import {
   stopParams,
   travelParams,
 } from "#harness/tools/params";
+import { createTestRuntime } from "#test-support/runtime-fixture";
 
 const ALL = {
   engageParams,
@@ -96,5 +98,19 @@ describe("tool parameter schemas", () => {
   test("rest, recover, loot and stop accept an empty call", () => {
     for (const schema of [restParams, recoverParams, lootParams, stopParams])
       expect(check(schema, {})).toEqual({});
+  });
+});
+
+describe("look find names", () => {
+  test("a name in find fails validation with a hint to use name", async () => {
+    const { rt } = await createTestRuntime();
+    const prepare = lookTool(rt).prepareArguments;
+    expect(() => prepare?.({ find: "Magistrix Erona" })).toThrow(
+      'Validation failed for tool "look":\n  - find: find takes a kind (hostile, questgiver, vendor, ...). For a name use name: "Magistrix Erona".',
+    );
+    expect(prepare?.({ find: "vendor", within: 30 })).toEqual({
+      find: "vendor",
+      within: 30,
+    });
   });
 });

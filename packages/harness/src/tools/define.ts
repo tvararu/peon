@@ -238,6 +238,7 @@ export type GameToolSpec<P extends TSchema, K extends ToolName> = {
   ) => Promise<ToolResult<AfterMap[K]>>;
   fallback: () => AfterMap[K];
   maxLines?: number;
+  prepareArguments?: (args: unknown) => Static<P>;
 };
 
 export type GameTool = ToolDefinition<TSchema, ToolDetails>;
@@ -518,6 +519,7 @@ export function defineGameTool<P extends TSchema, K extends ToolName>(
     label: text.label,
     name: spec.name,
     parameters: spec.parameters,
+    ...(spec.prepareArguments && { prepareArguments: spec.prepareArguments }),
     promptGuidelines: text.guidelines,
   });
 }

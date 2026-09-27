@@ -32,7 +32,11 @@ import {
 } from "#harness/tools/define";
 import { byRelevance, MORE_NAMES, relevanceOf } from "#harness/tools/look-rank";
 import { nextCall } from "#harness/tools/next-call";
-import { type LookArgs, lookParams } from "#harness/tools/params";
+import {
+  type LookArgs,
+  lookParams,
+  prepareLookArgs,
+} from "#harness/tools/params";
 
 type Unchanged = { at: number; count: number; digest: string };
 type LookFit = {
@@ -373,5 +377,6 @@ export const lookTool = defineGameTool({
   maxLines: 24,
   name: "look",
   parameters: lookParams,
+  prepareArguments: prepareLookArgs,
   run: (args, ctx) => Promise.resolve(look(args, ctx)),
 });
