@@ -2,18 +2,10 @@ import { type CycleState, DEFAULT_FIGHT_INSTRUCTION } from "@tuicraft/core";
 import type { EngageAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { ViewCtx } from "#harness/contract/services";
-import type { UnitView } from "#harness/contract/views";
 import { dangerView } from "#harness/ops/danger";
 import { ITEM_NAME_WAIT_MS, nameLootLines } from "#harness/ops/item-names";
 import { lootCorpseOp } from "#harness/ops/loot";
-import { ENGAGE_APPROACH_YD } from "#harness/ops/range";
 import { guidHex } from "#harness/ops/refs";
-import { travelLeg } from "#harness/ops/travel-leg";
-import {
-  structuralAsk,
-  structuralReach,
-  type Unreached,
-} from "#harness/ops/unreached";
 import { poseView, unitViews, vitalsView } from "#harness/ops/views";
 import {
   awaitCycle,
@@ -23,6 +15,12 @@ import {
   jevCode,
 } from "#harness/runs/adapters";
 import { result } from "#harness/tools/define";
+import {
+  approach,
+  otherInView,
+  type Scene,
+  unobserved,
+} from "#harness/tools/engage-approach";
 import { type FightInit, MIN_HP_PCT } from "#harness/tools/engage-choose";
 import {
   failText,
@@ -51,9 +49,7 @@ type ModeEnd = {
   jev: string | undefined;
   stopCause: string | undefined;
 };
-type Scene = FightInit & { tally: Tally; how: string };
 
-const APPROACH_WITHIN_YD = 25;
 const TOP_UPS = 3;
 const MISSING_KEY = "missing_jev_key";
 const JEV_UNAVAILABLE = "jev_unavailable";
@@ -61,69 +57,6 @@ const NO_ATTACK = "no_supported_combat_actions";
 
 function instruction(scene: Scene): string {
   return scene.args.how ?? DEFAULT_FIGHT_INSTRUCTION;
-}
-
-function otherInView(scene: Scene): UnitView | undefined {
-  const { choice, ops, tally } = scene;
-  const fought = new Set(tally.targets.map((target) => target.ref));
-  return unitViews(ops).find(
-    (unit) =>
-      unit.alive &&
-      !unit.tappedByOther &&
-      unit.name === choice.unit?.name &&
-      unit.ref !== choice.unit?.ref &&
-      !fought.has(unit.ref),
-  );
-}
-
-function unreachedNext(scene: Scene, leg: Unreached): string {
-  if (leg.reason === "start_off_mesh")
-    return nextCall("travel", { to: "unstick" });
-  const kind = structuralReach(leg);
-  const name = scene.choice.unit?.name ?? "the target";
-  if (kind === "unsupported_map") return structuralAsk(kind, name);
-  const other = otherInView(scene);
-  if (other) return nextCall("engage", { target: other.ref });
-  return askHuman(`I cannot reach ${name} from here. Is there another way?`);
-}
-
-async function approach(scene: Scene): Promise<Report | undefined> {
-  const { choice, ops } = scene;
-  if (
-    !choice.unit ||
-    choice.guid === undefined ||
-    (choice.unit.distance ?? 0) <= ENGAGE_APPROACH_YD
-  )
-    return;
-  const leg = await travelLeg(ops, {
-    goal: { guid: choice.guid, kind: "unit", name: choice.unit.name },
-    within: APPROACH_WITHIN_YD,
-  });
-  if (leg.status === "arrived") return;
-  const reason = leg.reason ?? leg.status;
-  return result("FAILED", {
-    after: afterOf(ops, scene),
-    detail: `could not reach ${choice.unit.name} ${choice.unit.ref}: ${leg.detail}.`,
-    next: unreachedNext(scene, { detail: leg.detail, reason }),
-    reason,
-  });
-}
-
-function unobserved(scene: Scene): Report | undefined {
-  const { choice, ops } = scene;
-  if (choice.mode === "quest" || !choice.unit || choice.guid === undefined)
-    return;
-  const hex = guidHex(choice.guid);
-  if (unitViews(ops).some((unit) => unit.guid === hex && unit.alive)) return;
-  const other = otherInView(scene);
-  return result("FAILED", {
-    after: afterOf(ops, scene),
-    detail: `${choice.unit.name} ${choice.unit.ref} is not in view any more; the fight did not start.`,
-    next: other
-      ? nextCall("engage", { target: other.ref })
-      : nextCall("travel", { to: "explore" }),
-    reason: "target_not_observed",
-  });
 }
 
 async function single(scene: Scene): Promise<ModeEnd> {
@@ -279,6 +212,13 @@ function killedRefs(tally: Tally): string {
     .join(", ");
 }
 
+function fightTime(scene: Scene, secs: number): string {
+  const { walk } = scene;
+  if (!walk) return `${secs} s into the fight`;
+  const fought = Math.max(0, secs - Math.round(walk.ms / 1000));
+  return `${fought} s into the fight (you walked ${Math.round(walk.yd)} yd first)`;
+}
+
 function diedReport(scene: Scene, secs: number): Report {
   const { ops, choice } = scene;
   const killer = ops.rt.attacks.lastAttacker() ?? choice.guid;
@@ -290,7 +230,7 @@ function diedReport(scene: Scene, secs: number): Report {
   const at = pose ? ` at ${Math.round(pose.x)}, ${Math.round(pose.y)}` : "";
   return result("FAILED", {
     after: afterOf(ops, scene),
-    detail: `${who} killed you after ${secs} s. You are dead${at}.`,
+    detail: `${who} killed you ${fightTime(scene, secs)}. You are dead${at}.`,
     next: nextCall("recover"),
     reason: "died",
   });
@@ -421,6 +361,7 @@ export async function fight(init: FightInit): Promise<Report> {
     ...init,
     how: init.args.how ?? DEFAULT_FIGHT_INSTRUCTION,
     tally,
+    walk: undefined,
   };
   const off = watchTally(init.ops, tally);
   const tick = init.ops.handle.onTacticsEvent(() =>

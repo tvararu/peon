@@ -81,7 +81,27 @@ describe("engage fight", () => {
       status: "FAILED",
     });
     expect(res.detail).toMatch(
-      /^Springpaw Stalker \(u\d+\) killed you after 0 s\. You are dead at 0, 0\.$/,
+      /^Springpaw Stalker \(u\d+\) killed you 0 s into the fight\. You are dead at 0, 0\.$/,
+    );
+  });
+
+  test("death after an approach gives the fight time and the walk apart", async () => {
+    const t = await field();
+    setUnits(t.handle, [stalker(STALKER, 45)]);
+    driveGoto(t.handle, [
+      { arrive: { x: 25, y: 0 }, onArrive: () => t.clock.advance(10_000) },
+    ]);
+    tactics(t.handle, () => {
+      t.clock.advance(11_000);
+      attackBy(t.handle, STALKER);
+      die(t.handle);
+    });
+    const res = await engageSpec.run(
+      { target: "Springpaw Stalker" },
+      toolCtx<EngageAfter>(t),
+    );
+    expect(res.detail).toMatch(
+      /^Springpaw Stalker \(u\d+\) killed you 11 s into the fight \(you walked 25 yd first\)\. You are dead at 25, 0\.$/,
     );
   });
 
