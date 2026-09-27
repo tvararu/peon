@@ -19,6 +19,11 @@ function deliverMessage(
   raw: RawChatMessage,
   name: string,
 ): void {
+  if (
+    name &&
+    (raw.type === ChatType.WHISPER || raw.type === ChatType.WHISPER_FOREIGN)
+  )
+    conn.lastWhisperFrom = name;
   conn.events.message.emit({
     type: raw.type,
     sender: name,

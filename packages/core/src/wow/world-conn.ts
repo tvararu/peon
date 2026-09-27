@@ -36,6 +36,7 @@ export type WorldConn = {
   pendingMessages: Map<number, RawChatMessage[]>;
   channels: string[];
   lastChatMode: ChatMode;
+  lastWhisperFrom?: string;
   selfName: string;
   selfClass?: string;
   selfGuidLow: number;

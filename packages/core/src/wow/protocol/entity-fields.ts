@@ -156,6 +156,7 @@ export const UNIT_FIELDS = {
 
 export const PLAYER_FIELDS = {
   FLAGS: { offset: UNIT_END + 0x00_02, size: 1, type: "u32" },
+  GUILDID: { offset: UNIT_END + 0x00_03, size: 1, type: "u32" },
   QUEST_LOG: { offset: UNIT_END + 0x00_0a, size: 125, type: "u32" },
   INV_SLOT_HEAD: { offset: UNIT_END + 0x00_b0, size: 46, type: "u64" },
   PACK_SLOT_1: { offset: UNIT_END + 0x00_de, size: 32, type: "u64" },

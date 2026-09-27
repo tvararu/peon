@@ -208,6 +208,7 @@ export function createMockHandle(): MockHandle {
     getQuestState: jest.fn(() => quests.snapshot()),
     getRecoveryState: jest.fn(() => recovery.snapshot()),
     getRemotePoses: jest.fn((): RemotePose[] => []),
+    getReplyTarget: jest.fn((): string | undefined => undefined),
     getRewardsState: jest.fn(() =>
       labelRewards(rewards.snapshot(), unanswered),
     ),
@@ -364,6 +365,7 @@ export function createMockHandle(): MockHandle {
     sendEmote: jest.fn(),
     sendGuild: jest.fn(),
     sendInCurrentMode: jest.fn(),
+    sendOfficer: jest.fn(),
     sendParty: jest.fn(),
     sendRaid: jest.fn(),
     sendRoll: jest.fn(),
