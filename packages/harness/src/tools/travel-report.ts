@@ -1,0 +1,237 @@
+import { messageOf } from "@tuicraft/core/lib/errors";
+import type { TravelAfter, TravelGoalView } from "#harness/contract/details";
+import type { ToolResult } from "#harness/contract/result";
+import type { OpsCtx, ViewCtx } from "#harness/contract/services";
+import type { Compass, UnitView } from "#harness/contract/views";
+import type { InterruptCause } from "#harness/ops/danger";
+import type { ExploreResult } from "#harness/ops/explore";
+import type { LegResult } from "#harness/ops/travel-leg";
+import { poseView, vitalsView } from "#harness/ops/views";
+import { askHuman, nextCall, result } from "#harness/tools/define";
+
+export type Goal =
+  | { kind: "unit"; guid: bigint; unit: UnitView }
+  | { kind: "point"; x: number; y: number; z: number | undefined }
+  | { kind: "corpse" }
+  | { kind: "explore"; direction: Compass | undefined }
+  | { kind: "unstick" };
+
+export type Report = ToolResult<TravelAfter>;
+
+const WORD: Record<Compass, string> = {
+  E: "east",
+  N: "north",
+  NE: "northeast",
+  NW: "northwest",
+  S: "south",
+  SE: "southeast",
+  SW: "southwest",
+  W: "west",
+};
+const GROUPS: readonly (readonly [string, (unit: UnitView) => boolean])[] = [
+  ["hostile", (unit) => unit.attackable && unit.relation === "hostile"],
+  ["neutral", (unit) => unit.attackable && unit.relation === "neutral"],
+  ["questgiver", (unit) => unit.roles.includes("questgiver")],
+  ["vendor", (unit) => unit.roles.some((role) => role.startsWith("vendor"))],
+  ["player", (unit) => unit.kind === "player"],
+];
+
+export function yd(n: number): string {
+  return n < 10 ? n.toFixed(1) : Math.round(n).toString();
+}
+
+export function secs(ms: number): string {
+  return (ms / 1000).toFixed(1);
+}
+
+export function goalView(goal: Goal): TravelGoalView {
+  if (goal.kind === "unit")
+    return { kind: "unit", name: goal.unit.name, ref: goal.unit.ref };
+  if (goal.kind === "point")
+    return { kind: "point", x: goal.x, y: goal.y, z: goal.z };
+  if (goal.kind === "explore")
+    return { direction: goal.direction, kind: "explore" };
+  if (goal.kind === "unstick")
+    return { kind: "unstick", refusedGoal: undefined };
+  return { kind: "corpse" };
+}
+
+export function goalName(goal: Goal): string {
+  if (goal.kind === "unit") return `${goal.unit.name} (${goal.unit.ref})`;
+  if (goal.kind === "point") return `${goal.x}, ${goal.y}`;
+  return goal.kind;
+}
+
+export function youLine(ctx: ViewCtx): string {
+  const vitals = vitalsView(ctx);
+  const pose = poseView(ctx);
+  const mana =
+    vitals.powerKind === "mana" && vitals.maxPower > 0
+      ? `, mana ${Math.round((vitals.power / vitals.maxPower) * 100)}%`
+      : "";
+  const at = pose ? `, at ${Math.round(pose.x)}, ${Math.round(pose.y)}` : "";
+  return `You: HP ${vitals.hp}/${vitals.maxHp}${mana}${at}.`;
+}
+
+function unitBrief(unit: UnitView): string {
+  return `${unit.ref} ${unit.name} L${unit.level} ${yd(unit.distance ?? 0)} yd ${unit.compass ?? ""}`.trim();
+}
+
+export function newInViewText(units: readonly UnitView[]): string {
+  const sorted = [...units].sort(
+    (a, b) => (a.distance ?? 0) - (b.distance ?? 0),
+  );
+  const parts = GROUPS.flatMap(([label, test]) => {
+    const hits = sorted.filter(test);
+    const [first] = hits;
+    if (!first) return [];
+    const one = `1 ${label} (${unitBrief(first)})`;
+    return [
+      hits.length === 1
+        ? one
+        : `${hits.length} ${label} (nearest ${unitBrief(first)})`,
+    ];
+  });
+  return parts.length === 0
+    ? "Nothing new in view."
+    : `New in view: ${parts.join(", ")}.`;
+}
+
+function refusedReport(init: {
+  goal: Goal;
+  leg: LegResult;
+  after: TravelAfter;
+}): Report {
+  const { goal, leg, after } = init;
+  const name = goalName(goal);
+  const walked = `Walked ${yd(leg.traveledYd)} yd.`;
+  const ask = askHuman(
+    `I cannot reach ${goal.kind === "unit" ? goal.unit.name : name} from here. Is there another way?`,
+  );
+  if (leg.reason === "ambiguous_floor" && goal.kind === "point") {
+    const floors = leg.floors ?? [];
+    return result("REFUSED", {
+      after,
+      detail: `the ground at ${name} has ${floors.length} floors: ${floors.map((floor) => floor.toFixed(1)).join(", ")}.`,
+      next: nextCall("travel", {
+        to: `${goal.x}, ${goal.y}, ${floors[0]?.toFixed(1) ?? ""}`,
+      }),
+      options: floors,
+      reason: "ambiguous_floor",
+    });
+  }
+  if (leg.reason === "start_off_mesh")
+    return result("FAILED", {
+      after,
+      detail: `your own position is not on ground the planner knows (start snapped off). ${walked}`,
+      next: nextCall("travel", { to: "unstick" }),
+      reason: "start_off_mesh",
+    });
+  if (leg.reason === "no_ground")
+    return result("FAILED", {
+      after,
+      detail: `the path finder found no ground on the way (UNKNOWN_HEIGHT). ${walked} Tried: planner once.`,
+      next: ask,
+      reason: "no_ground",
+    });
+  return result("FAILED", {
+    after,
+    body: leg.nextStep ? [leg.nextStep] : [],
+    detail: `${leg.detail}. ${walked}`,
+    next: ask,
+    reason: leg.reason ?? "failed",
+  });
+}
+
+export function legReport(init: {
+  ctx: OpsCtx;
+  to: string;
+  goal: Goal;
+  leg: LegResult;
+  after: TravelAfter;
+}): Report {
+  const { ctx, to, goal, leg, after } = init;
+  if (leg.status === "arrived") {
+    const away =
+      after.remainingYd === undefined
+        ? ""
+        : `${yd(after.remainingYd)} yd away `;
+    return result("DONE", {
+      after,
+      detail: `arrived at ${goalName(goal)}: ${away}after ${yd(leg.traveledYd)} yd in ${secs(after.elapsedMs)} s.`,
+    });
+  }
+  if (leg.status === "cancelled" || leg.status === "interrupted")
+    return result("FAILED", {
+      after,
+      detail: `${leg.detail}. Walked ${yd(leg.traveledYd)} yd.`,
+      next: nextCall("look"),
+      reason: "interrupted",
+    });
+  ctx.rt.travel.lastRefusedGoal = to;
+  return refusedReport({ after, goal, leg });
+}
+
+export function exploreReport(
+  found: ExploreResult,
+  after: TravelAfter,
+): Report {
+  const where = `${yd(found.walkedYd)} yd ${WORD[found.direction]}`;
+  const seen = newInViewText(found.newInView);
+  if (found.stoppedBy === "obstructed")
+    return result("PARTLY", {
+      after,
+      detail: `explored ${where}; ${found.obstructed} legs were blocked. ${seen}`,
+      next: nextCall("travel", { to: "explore" }),
+      reason: "obstructed",
+    });
+  return result("DONE", { after, detail: `explored ${where}. ${seen}` });
+}
+
+export function stopReport(signal: AbortSignal, after: TravelAfter): Report {
+  const code = messageOf(signal.reason, "cancelled");
+  if (code === "human_stop" || code === "esc")
+    return result("FAILED", {
+      after,
+      detail: "the human stopped you. Start nothing new.",
+      next: "end your turn and wait for the human.",
+      reason: "cancelled",
+    });
+  if (code === "connection_lost")
+    return result("FAILED", {
+      after,
+      detail: "the game connection was lost.",
+      next: "ask the human to run /connect.",
+      reason: "interrupted",
+    });
+  return result("FAILED", {
+    after,
+    detail: `the run was stopped (${code}).`,
+    next: nextCall("look"),
+    reason: "cancelled",
+  });
+}
+
+export function interruptReport(
+  ctx: ViewCtx,
+  cause: InterruptCause,
+  after: TravelAfter,
+): Report {
+  if (cause.code === "died")
+    return result("FAILED", {
+      after,
+      detail: `you died on the way. ${cause.detail}`,
+      next: nextCall("recover"),
+      reason: "died",
+    });
+  const ref =
+    cause.attacker === undefined
+      ? undefined
+      : ctx.rt.refs.refOf(cause.attacker);
+  return result("FAILED", {
+    after,
+    detail: `${cause.detail} Walked ${yd(after.traveledYd)} yd.`,
+    next: ref ? nextCall("engage", { target: ref }) : nextCall("look"),
+    reason: "interrupted",
+  });
+}
