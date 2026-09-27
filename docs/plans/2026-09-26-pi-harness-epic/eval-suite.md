@@ -1237,7 +1237,7 @@ command, `pinfo` or a verifier login.
 | # | Scenario | Pane time (budget + 3) | Why first | Needs P6 |
 |---|---|---|---|---|
 | 1 | `t4-quest-first` | 23 | The M5 loop on a small model; long enough to show looping; `rewardedQuests` now grades it directly | no |
-| 2 | `t6-die-and-recover` | 18 | Death recovery was the top "wanted" class in shard-00 (28 of 136, `shards/shard-00.md:12`); its `level 1` setup is now [measured], so no substitute is needed | no |
+| 2 | `t6-die-and-recover` | 18 | Death recovery was the top "wanted" class in shard-00 (28 of 136, `shards/shard-00.md:12`); it runs a `fresh` level-1 character moved to the eversong10 spawn, which keeps its gear [measured] | no |
 | 3 | `t4-alliance-first` | 18 | First Alliance run: map 0, language 7, Northshire; a talk-only quest | no |
 | 4 | `t7-question-while-acting` | 13 | Steering while a tool runs: the Pi-specific risk | no |
 | 5 | `t7-halt-resume` | 13 | Stop semantics across Pi, harness and Jev | yes; without P6 run `t7-change-objective` (18) instead |
