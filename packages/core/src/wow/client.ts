@@ -249,6 +249,7 @@ export type WorldHandle = {
     signal?: AbortSignal,
   ) => Promise<WalkOutcome>;
   selectTarget: (guid: bigint) => void;
+  takeControl: (reason: string) => void;
   halt: () => void;
   onControlEvent: (cb: (event: ControlEvent) => void) => Unsubscribe;
   getRemotePoses: () => RemotePose[];

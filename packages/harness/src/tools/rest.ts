@@ -149,7 +149,10 @@ async function useOne(ops: OpsCtx, item: Consumable): Promise<boolean> {
           item.spellIds.includes(known.spellId),
         ),
       send: async () => {
-        await ops.rt.mutex.run(() => ops.handle.useItem(item.bag, item.slot));
+        await ops.rt.mutex.run(() => {
+          ops.handle.takeControl("manual_override");
+          return ops.handle.useItem(item.bag, item.slot);
+        });
       },
       signal: ops.signal,
       subscribe: (cb) => ops.handle.onCombatEvent(cb),

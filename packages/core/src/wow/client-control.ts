@@ -1,6 +1,6 @@
 import type { GotoTarget, WalkTarget, WorldHandle } from "#wow/client";
 import { targetRelation } from "#wow/combat-actions-target";
-import type { ControlPose, MovementDirection, WalkOutcome } from "#wow/control";
+import type { ControlPose, WalkOutcome } from "#wow/control";
 import type { ApproachDeps } from "#wow/cycle-approach";
 import { bearing, distance2d } from "#wow/geometry";
 import {
@@ -17,24 +17,6 @@ import { observeNavigation } from "#wow/navigation-observation";
 import { type NearbySources, type NearbyUnits, queryNearby } from "#wow/nearby";
 import type { Runtimes } from "#wow/runtime";
 import type { WorldConn } from "#wow/world-conn";
-
-function manualMove(
-  rt: Runtimes,
-  direction: MovementDirection,
-  durationMs: number,
-): void {
-  const state = rt.control.snapshot();
-  if (
-    state.owner !== "manual" ||
-    !state.moving ||
-    state.direction !== direction ||
-    rt.control.walkActive() ||
-    rt.tactics.snapshot().status !== "idle" ||
-    rt.cycle.snapshot().active
-  )
-    rt.steer();
-  rt.control.move(direction, durationMs);
-}
 
 function groundedPoint(
   navigation: Navigation,
@@ -89,7 +71,6 @@ async function walkTowardTarget(
       error instanceof Error ? error.message : "target_unavailable";
     return { status: "stopped", reason, traveled: 0, pose };
   }
-  rt.steer();
   try {
     return await rt.control.walkToward(destination, yards, signal);
   } catch (error) {
@@ -166,13 +147,6 @@ type RouteRuntimes = Pick<
   Runtimes,
   "control" | "navigation" | "observedTarget"
 >;
-
-function navigateTo(rt: Runtimes, target: GotoTarget): void {
-  rt.steer(
-    rt.control.navigationState().active ? "navigation_replaced" : undefined,
-  );
-  routeTo(rt, target);
-}
 
 export function cycleApproach(rt: RouteRuntimes): ApproachDeps {
   return {
@@ -256,15 +230,13 @@ export function controlMethods(conn: WorldConn, rt: Runtimes) {
       return control.snapshot();
     },
     move(direction, durationMs) {
-      manualMove(rt, direction, durationMs);
+      control.move(direction, durationMs);
     },
     face(orientation) {
-      rt.steer();
       control.face(orientation);
     },
     faceGuid(guid) {
       const target = rt.observedTarget(guid);
-      rt.steer();
       const pose = control.snapshot().pose;
       if (!pose) throw new Error("no_pose");
       if (pose.x === target.x && pose.y === target.y)
@@ -275,8 +247,10 @@ export function controlMethods(conn: WorldConn, rt: Runtimes) {
       return walkTowardTarget(rt, target, yards, signal);
     },
     selectTarget(guid) {
-      rt.override();
       control.selectTarget(guid);
+    },
+    takeControl(reason) {
+      rt.takeControl(reason);
     },
     halt() {
       rt.tactics.stop("halt");
@@ -285,7 +259,7 @@ export function controlMethods(conn: WorldConn, rt: Runtimes) {
       rt.halt();
     },
     goTo(target) {
-      navigateTo(rt, target);
+      routeTo(rt, target);
     },
     getNavigationState() {
       return control.navigationState();

@@ -78,7 +78,6 @@ function setup(slots: InventorySlot[], template: ItemTemplate | undefined) {
     templates: {
       lookup: jest.fn(async () => template),
     },
-    override: jest.fn(),
     combat: {
       useItem: (spellId: number, target: unknown) => {
         used.push([spellId, target]);
@@ -98,13 +97,12 @@ test("uses the on-use spell of the observed item in that slot", async () => {
   const s = setup([occupied(29, RIBS)], ribs);
   await useItem(s.deps, 255, 29);
   expect(s.deps.templates.lookup).toHaveBeenCalledWith(2687);
-  expect(s.deps.override).toHaveBeenCalledTimes(1);
   expect(s.used).toEqual([
     [5005, { entry: 2687, bag: 255, slot: 29, guid: RIBS }],
   ]);
 });
 
-test("refuses slots and items it cannot use without taking control", async () => {
+test("refuses slots and items it cannot use", async () => {
   const empty: InventorySlot = {
     bag: 255,
     slot: 28,
@@ -121,8 +119,6 @@ test("refuses slots and items it cannot use without taking control", async () =>
   const missing = setup([occupied(29, RIBS)], undefined);
   await expect(useItem(missing.deps, 255, 29)).rejects.toThrow("unknown_item");
   expect([...s.used, ...passive.used, ...missing.used]).toEqual([]);
-  for (const refused of [s, passive, missing])
-    expect(refused.deps.override).not.toHaveBeenCalled();
 });
 
 test("refuses when the slot changed while the template was queried", async () => {

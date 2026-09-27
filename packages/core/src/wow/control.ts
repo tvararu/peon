@@ -42,8 +42,8 @@ export type WalkOutcome = {
   reason?: string;
 };
 
-export type ControlMode = "none" | "jev";
-export type ControlOwner = ControlMode | "manual";
+export type ControlLease = "loop" | "manual";
+export type ControlOwner = ControlLease | "none";
 
 export type ControlState = {
   selfGuid: bigint;
@@ -114,7 +114,7 @@ export class ControlRuntime {
   private readonly sync: MovementSync;
   private readonly mover: Mover;
   private readonly routes: RouteFollower;
-  private mode: ControlMode = "none";
+  private lease: ControlLease = "manual";
   private requestedTarget: bigint | undefined;
 
   constructor(deps: ControlDeps) {
@@ -128,11 +128,11 @@ export class ControlRuntime {
     };
     const interrupt = (reason: string): void =>
       this.routes.cancelReplan(reason);
-    const mode = (): ControlMode => this.mode;
+    const lease = (): ControlLease => this.lease;
     this.deps = deps;
     this.sync = new MovementSync({ deps, emit, motion });
     this.mover = new Mover({ deps, sync: this.sync, emit, interrupt });
-    const parts = { deps, sync: this.sync, mover: this.mover, emit, mode };
+    const parts = { deps, sync: this.sync, mover: this.mover, emit, lease };
     this.routes = new RouteFollower(parts);
   }
 
@@ -155,7 +155,7 @@ export class ControlRuntime {
       movementAllowed: block === undefined,
       blockedReason: block ?? mover.blockedReason,
       speed: mover.currentSpeed() ?? 0,
-      owner: this.mode === "none" ? mover.owner : this.mode,
+      owner: this.lease === "manual" ? mover.owner : this.lease,
     };
   }
 
@@ -219,11 +219,11 @@ export class ControlRuntime {
     this.sync.setCanFly(counter, enable);
   }
 
-  setMode(mode: ControlMode): void {
-    if (this.mode === mode) return;
-    this.mode = mode;
-    this.mover.stop("mode_changed", true);
-    this.emit("control_changed", "mode_changed");
+  setLease(lease: ControlLease): void {
+    if (this.lease === lease) return;
+    this.lease = lease;
+    this.mover.stop("lease_changed", true);
+    this.emit("control_changed", "lease_changed");
   }
 
   serverFixAge(): number | undefined {
@@ -275,7 +275,7 @@ export class ControlRuntime {
         reason: "abort",
       });
 
-    this.setMode("none");
+    this.setLease("manual");
     this.mover.stop("walk_replaced", true);
     const pose = this.sync.requirePose();
     const separation = distance2d(pose, target);
@@ -335,7 +335,7 @@ export class ControlRuntime {
 
   dispose(): void {
     this.events.clear();
-    this.mode = "none";
+    this.lease = "manual";
     this.mover.abort("close");
   }
 

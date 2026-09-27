@@ -11,7 +11,7 @@ import { startMockWorldServer } from "#test-support/mock-world-server";
 import { must } from "#test-support/must";
 import { writePackedGuid } from "#test-support/world-handlers-fixtures";
 import { type WorldHandle, worldSession } from "#wow/client";
-import { type ControlMode, ControlRuntime } from "#wow/control";
+import { type ControlLease, ControlRuntime } from "#wow/control";
 import type { DbcFile } from "#wow/dbc";
 import * as factionData from "#wow/faction-template";
 import type { JevActionResult, JevSelect } from "#wow/jev";
@@ -317,15 +317,15 @@ describe("gameplay forced-close lifecycle", () => {
       });
     };
     let control: ControlRuntime | undefined;
-    const setMode = ControlRuntime.prototype.setMode;
+    const setLease = ControlRuntime.prototype.setLease;
     const capture = jest
-      .spyOn(ControlRuntime.prototype, "setMode")
+      .spyOn(ControlRuntime.prototype, "setLease")
       .mockImplementation(function (
         this: ControlRuntime,
-        mode: ControlMode,
+        lease: ControlLease,
       ): void {
-        setMode.call(this, mode);
-        if (mode === "jev") control = this;
+        setLease.call(this, lease);
+        if (lease === "loop") control = this;
       });
     openMap = flatMap;
     const send = jest.spyOn(worldHandlers, "sendPacket");
@@ -344,7 +344,7 @@ describe("gameplay forced-close lifecycle", () => {
       expect(f.handle.getTacticsState().status).toBe("active");
       expect(f.handle.getControlState()).toMatchObject({
         moving: true,
-        owner: "jev",
+        owner: "loop",
       });
       expect(
         send.mock.calls.some(

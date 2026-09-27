@@ -95,6 +95,7 @@ export async function awaitGoto(
 ): Promise<GotoEnd> {
   const from = handle.getControlState().pose;
   try {
+    handle.takeControl("manual_override");
     handle.goTo(target);
   } catch (error) {
     return gotoEnd({

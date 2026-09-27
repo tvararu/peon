@@ -44,7 +44,6 @@ function fixture(
 ) {
   const control = setup();
   const navigation = createNavigation(() => ground(columns, over));
-  const steer = jest.fn((reason?: string) => control.runtime.halt(reason));
   const rt = {
     control: control.runtime,
     navigation: () => navigation,
@@ -53,14 +52,13 @@ function fixture(
       if (!target) throw new Error("target_not_observed");
       return target;
     },
-    steer,
   } as unknown as Runtimes;
   const handle = controlMethods({} as WorldConn, rt);
-  return { ...control, handle, navigation, rt, steer };
+  return { ...control, handle, navigation, rt };
 }
 
 describe("cycle approach", () => {
-  test("routes to a far unit without taking over the running cycle", () => {
+  test("routes to a far unit", () => {
     const targets = new Map<bigint, NavPoint>();
     const f = fixture(() => [70.34], {}, targets);
     const start = must(f.runtime.snapshot().pose);
@@ -69,7 +67,6 @@ describe("cycle approach", () => {
     expect(approach.gap(5n)).toBeCloseTo(60);
     expect(approach.gap(6n)).toBeNaN();
     approach.goTo(5n);
-    expect(f.steer).not.toHaveBeenCalled();
     expect(approach.navigation()).toEqual({
       active: true,
       blockedReason: undefined,
@@ -85,7 +82,6 @@ describe("goTo without Z", () => {
       const f = fixture((x) => [70.34 + (x - 8709.46) / 10]);
       const start = must(f.runtime.snapshot().pose);
       f.handle.goTo(point(start.x + 10, start.y));
-      expect(f.steer).toHaveBeenCalled();
       const destination = must(f.runtime.navigationState().destination);
       expect(destination.x).toBe(start.x + 10);
       expect(destination.z).toBeCloseTo(71.34, 4);
@@ -158,7 +154,6 @@ describe("goTo redirect", () => {
       expect(midway.x).toBeGreaterThan(start.x + 6);
       f.events.length = 0;
       f.handle.goTo(point(midway.x, start.y + 10));
-      expect(f.steer).toHaveBeenLastCalledWith("navigation_replaced");
       expect(
         f.events.map((event) => [event.type, event.reason ?? null]),
       ).toContainEqual(["movement_stopped", "navigation_replaced"]);
@@ -185,11 +180,10 @@ describe("goTo redirect", () => {
     }
   });
 
-  test("an idle goto halts with the ordinary reason", () => {
+  test("an idle goto reports no replaced route", () => {
     const f = fixture(() => [70.34]);
     const start = must(f.runtime.snapshot().pose);
     f.handle.goTo(point(start.x + 5, start.y));
-    expect(f.steer).toHaveBeenLastCalledWith(undefined);
     expect(
       f.events.some((event) => event.reason === "navigation_replaced"),
     ).toBe(false);

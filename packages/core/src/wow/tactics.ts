@@ -173,12 +173,6 @@ export class TacticsLoop {
     this.end(reason, false);
   }
 
-  stopAndDefend(reason: string): boolean {
-    const running = this.run !== undefined;
-    this.end(reason, true);
-    return running;
-  }
-
   private end(reason: string, defend: boolean): void {
     const run = this.run;
     if (!run) return;

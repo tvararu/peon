@@ -106,7 +106,11 @@ export function send(
   ctx: ToolCtx<InteractAfter>,
   packet: () => void,
 ): () => Promise<void> {
-  return () => ctx.rt.mutex.run(packet);
+  return () =>
+    ctx.rt.mutex.run(() => {
+      ctx.handle.takeControl("manual_override");
+      packet();
+    });
 }
 
 export function questStep(

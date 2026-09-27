@@ -9,7 +9,7 @@ type DefenseDeps = {
     CombatRuntime,
     "snapshot" | "isAttackingSelf" | "attack" | "halt"
   >;
-  control: Pick<ControlRuntime, "setMode" | "halt">;
+  control: Pick<ControlRuntime, "setLease" | "halt">;
   entity: EntityLookup;
 };
 
@@ -17,7 +17,7 @@ export function defendTarget(
   deps: DefenseDeps,
   targetGuid: bigint,
 ): TacticsDefense {
-  deps.control.setMode("none");
+  deps.control.setLease("manual");
   deps.control.halt();
   const state = deps.combat.snapshot(targetGuid);
   const selfGuid = state.self.guid;

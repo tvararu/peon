@@ -32,11 +32,9 @@ export function trainerMethods(conn: WorldConn, rt: Runtimes) {
       return { ...state, offer: { ...offer, spells } };
     },
     openTrainer(guid) {
-      rt.override();
       trainer.list(guid);
     },
     trainSpell(spellId) {
-      rt.override();
       trainer.train(spellId);
     },
     onTrainerEvent(cb) {

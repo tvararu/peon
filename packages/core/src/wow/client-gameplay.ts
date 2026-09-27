@@ -18,19 +18,15 @@ export function combatMethods(conn: WorldConn, rt: Runtimes) {
       return combat.spellbook();
     },
     cast(spellId, targetGuid) {
-      rt.override();
       combat.cast(spellId, targetGuid);
     },
     attack(targetGuid) {
-      rt.override();
       combat.attack(targetGuid);
     },
     cancelCast() {
-      tactics.stop("manual_override");
       combat.cancelCast();
     },
     stopAttack() {
-      tactics.stop("manual_override");
       combat.stopAttack();
     },
     startTactics(targetGuid, instruction, signal, framing) {
@@ -61,19 +57,15 @@ export function recoveryMethods(conn: WorldConn, rt: Runtimes) {
       recovery.queryCorpse();
     },
     releaseSpirit() {
-      rt.override();
       recovery.releaseSpirit();
     },
     reclaimCorpse() {
-      rt.override();
       recovery.reclaimCorpse();
     },
     activateSpiritHealer(guid) {
-      rt.override();
       recovery.activateSpiritHealer(guid);
     },
     respondResurrection(accept) {
-      rt.override();
       recovery.respondResurrection(accept);
     },
     onRecoveryEvent(cb) {
@@ -89,22 +81,18 @@ export function questMethods(conn: WorldConn, rt: Runtimes) {
       return quests.snapshot();
     },
     talk(guid) {
-      rt.override();
       quests.talk(guid);
     },
     queryQuest(questId) {
       quests.query(questId);
     },
     selectGossipOption(optionId, code) {
-      rt.override();
       quests.selectOption(optionId, code);
     },
     selectQuest(questId) {
-      rt.override();
       quests.selectQuest(questId);
     },
     acceptQuest() {
-      rt.override();
       quests.accept();
     },
     onQuestEvent(cb) {
@@ -117,30 +105,25 @@ export function questRewardMethods(rt: Runtimes) {
   const { quests } = rt;
   return {
     completeQuest(questId) {
-      rt.override();
       quests.complete(questId);
     },
     requestQuestReward() {
-      rt.override();
       quests.requestReward();
     },
     chooseQuestReward(index) {
-      rt.override();
       quests.chooseReward(index);
     },
     abandonQuest(slot) {
-      rt.override();
       quests.abandon(slot);
     },
     cancelInteraction() {
-      rt.override();
       quests.cancel();
     },
   } satisfies Partial<WorldHandle>;
 }
 
 export function rewardsMethods(conn: WorldConn, rt: Runtimes) {
-  const { rewards, items, combat, cycle, tactics } = rt;
+  const { rewards, items, combat } = rt;
   return {
     getInventoryState() {
       return labelInventory(rewards.snapshot().inventory, (entry) =>
@@ -161,43 +144,28 @@ export function rewardsMethods(conn: WorldConn, rt: Runtimes) {
       return labelRewards(rewards.snapshot(), (entry) => items.label(entry));
     },
     openLoot(guid) {
-      rt.override();
       rewards.open(guid);
     },
     takeLoot(slot) {
-      rt.override();
       rewards.take(slot);
     },
     takeLootMoney() {
-      rt.override();
       rewards.takeMoney();
     },
     releaseLoot() {
-      rt.override();
       rewards.close();
     },
     useItem(bag, slot) {
       const inventory = () => rewards.snapshot().inventory;
-      const override = () => {
-        const fought = tactics.stopAndDefend("manual_override");
-        cycle.stop("manual_override");
-        if (fought) combat.interruptCast();
-      };
-      return useItem(
-        { inventory, templates: items, combat, override },
-        bag,
-        slot,
-      );
+      return useItem({ inventory, templates: items, combat }, bag, slot);
     },
     rollLoot(guid, slot, vote) {
-      rt.override();
       rewards.roll(guid, slot, vote);
     },
     onRewardsEvent(cb) {
       return conn.events.rewards.subscribe(cb);
     },
     destroyItem(bag, slot, count) {
-      rt.override();
       rt.destroy.destroy(bag, slot, count);
     },
     getDestroyState() {
@@ -213,7 +181,8 @@ export function cycleMethods(conn: WorldConn, rt: Runtimes) {
   const { cycle } = rt;
   return {
     async startCycle(guids, instruction, maxStarts) {
-      rt.override();
+      rt.takeControl("manual_override");
+      rt.halt();
       await cycle.start({ guids, instruction, maxStarts });
     },
     async startQuestCycle(questId, sources, instruction, maxStarts) {
@@ -223,7 +192,8 @@ export function cycleMethods(conn: WorldConn, rt: Runtimes) {
         questId,
         sources,
       );
-      rt.override();
+      rt.takeControl("manual_override");
+      rt.halt();
       await cycle.start({
         guids: [],
         instruction,

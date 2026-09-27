@@ -26,19 +26,15 @@ export function vendorMethods(conn: WorldConn, rt: Runtimes) {
       return { ...state, window: { ...window, items } };
     },
     openVendor(guid) {
-      rt.override();
       vendor.list(guid);
     },
     sellItem(bag, slot, count) {
-      rt.override();
       vendor.sell(bag, slot, count);
     },
     buyItem(slot, count) {
-      rt.override();
       vendor.buy(slot, count);
     },
     repairAll() {
-      rt.override();
       vendor.repair();
     },
     onVendorEvent(cb) {
