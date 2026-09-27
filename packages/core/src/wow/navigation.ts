@@ -2,9 +2,16 @@ import { bearing, distance2d } from "#wow/geometry";
 import {
   checkCollision,
   GROUND_ERROR,
-  MESH_HEIGHT,
   WALKABLE_CLIMB,
 } from "#wow/navigation-collision";
+import {
+  clearAbove,
+  columnHeights,
+  FLOOR_MERGE,
+  floorError,
+  groundFloors,
+  settleStart,
+} from "#wow/navigation-column";
 import { requireNavigationMapName } from "#wow/navigation-maps";
 import {
   groundError,
@@ -34,7 +41,6 @@ export type Navigation = {
 
 const ADT_STEP = 64;
 const GROUND_STEP = 0.5;
-const FLOOR_MERGE = 0.01;
 const CELL_HEIGHT = 0.25;
 const CORNER_RISE = WALKABLE_CLIMB + CELL_HEIGHT;
 const WALKABLE_SLOPE = Math.tan((50 * Math.PI) / 180);
@@ -164,12 +170,15 @@ export function createNavigation(
   }
   return {
     plan(mapId, from, to) {
-      return planRoute(open(mapId, from, to), from, to);
-    },
-    planGround(mapId, from, to) {
-      validateNativeXY(to.x, to.y);
-      const map = open(mapId, from);
+      const map = open(mapId, from, to);
       map.loadAdtAt(from.x, from.y);
+      return planRoute(map, settleStart(map, from), to);
+    },
+    planGround(mapId, pose, to) {
+      validateNativeXY(to.x, to.y);
+      const map = open(mapId, pose);
+      map.loadAdtAt(pose.x, pose.y);
+      const from = settleStart(map, pose);
       checkStart(map, from);
       map.loadAdtAt(to.x, to.y);
       const z = destinationFloor(map, to.x, to.y);
@@ -372,38 +381,6 @@ function destinationFloor(map: NativeMap, x: number, y: number): number {
   if (floors.length > 1)
     throw floorError("ambiguous ground column at destination", heights);
   return floor;
-}
-
-function groundFloors(heights: readonly number[]): number[] {
-  const floors: number[] = [];
-  for (const height of heights)
-    if (
-      clearAbove(heights, height) &&
-      !floors.some((floor) => Math.abs(floor - height) <= FLOOR_MERGE)
-    )
-      floors.push(height);
-  return floors.sort((a, b) => b - a);
-}
-
-function clearAbove(heights: readonly number[], z: number): boolean {
-  return !heights.some(
-    (height) => height - z > GROUND_ERROR && height - z <= MESH_HEIGHT,
-  );
-}
-
-function floorError(message: string, heights: readonly number[]): Error {
-  const floors = groundFloors(heights);
-  const listed = floors.map((floor) => floor.toFixed(2)).join(", ");
-  return Object.assign(groundError(`${message} (floors ${listed})`), {
-    floors,
-  });
-}
-
-function columnHeights(map: NativeMap, x: number, y: number): number[] {
-  const heights = map.findHeights(x, y);
-  if (heights.length === 0 || !heights.every(Number.isFinite))
-    throw groundError("ground height unavailable");
-  return heights;
 }
 
 function connectedHeight(

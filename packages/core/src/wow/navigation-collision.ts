@@ -7,6 +7,7 @@ import {
 export const GROUND_ERROR = 0.25;
 export const MESH_HEIGHT = 1.6;
 export const WALKABLE_CLIMB = 1;
+export const START_SNAP = WALKABLE_CLIMB;
 
 type Ray = (from: NativePoint, to: NativePoint) => boolean;
 

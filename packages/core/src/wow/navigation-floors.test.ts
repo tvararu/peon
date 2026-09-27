@@ -109,3 +109,36 @@ describe("route refusals from a multi-floor start", () => {
     );
   });
 });
+
+describe("a start pose hovering over its only floor", () => {
+  const flat = () => navigation(native());
+  const multi = () =>
+    navigation(native({ findHeights: (x) => (x === 0 ? [10, 0] : [0]) }));
+
+  test("plans from the floor under a pose up to one climb above it", () => {
+    for (const z of [0.44, 1]) {
+      const route = flat().plan(530, { ...start, z }, { ...end, z: 0 });
+      expect(route.points[0]).toEqual(start);
+      const ground = flat().planGround(530, { ...start, z }, end);
+      expect(ground.points[0]).toEqual(start);
+    }
+  });
+
+  test("keeps a pose within ground error exactly as observed", () => {
+    const route = flat().plan(530, { ...start, z: 0.2 }, { ...end, z: 0 });
+    expect(route.points[0]).toEqual({ ...start, z: 0.2 });
+  });
+
+  test("still refuses a pose far above, below, or over a multi-floor column", () => {
+    const refused = "position disagrees with ground height";
+    expect(() =>
+      flat().plan(530, { ...start, z: 1.5 }, { ...end, z: 0 }),
+    ).toThrow(refused);
+    expect(() =>
+      flat().plan(530, { ...start, z: -0.44 }, { ...end, z: 0 }),
+    ).toThrow(refused);
+    expect(() =>
+      multi().plan(530, { ...start, z: 0.44 }, { ...end, z: 0 }),
+    ).toThrow(refused);
+  });
+});

@@ -138,3 +138,35 @@ test("navigationError stores refusal and navigate clears refusal", () => {
   expect(runtime.navigationState().refusal).toBeUndefined();
   expect(runtime.navigationState().blockedReason).toBeUndefined();
 });
+
+test("a route may start on the floor just under the pose, nowhere else", () => {
+  const { runtime } = setup();
+  const pose = must(runtime.snapshot().pose);
+  const routeFrom = (origin: { x: number; y: number; z: number }) => {
+    const ground: NativeMap = {
+      loadAdtAt() {},
+      findHeights: () => [origin.z],
+      findHeight: () => origin.z,
+      lineOfSight: () => true,
+      findPath: () => [],
+      close() {},
+    };
+    const destination = { ...origin, x: origin.x + 10 };
+    return [
+      new GroundRoute([origin, destination], ground),
+      destination,
+    ] as const;
+  };
+  const floor = { x: pose.x, y: pose.y, z: pose.z - 0.44 };
+  expect(() => runtime.navigate(...routeFrom(floor))).not.toThrow();
+  runtime.halt();
+  const moved = must(runtime.snapshot().pose);
+  for (const origin of [
+    { x: moved.x, y: moved.y, z: moved.z - 1.5 },
+    { x: moved.x, y: moved.y, z: moved.z + 0.44 },
+    { x: moved.x + 0.5, y: moved.y, z: moved.z - 0.44 },
+  ])
+    expect(() => runtime.navigate(...routeFrom(origin))).toThrow(
+      "navigation_origin_changed",
+    );
+});

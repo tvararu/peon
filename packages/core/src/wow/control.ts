@@ -6,7 +6,7 @@ import {
 import type { Ground } from "#wow/control-motion";
 import { ControlSync } from "#wow/control-sync";
 import type { Position } from "#wow/entity-store";
-import { bearing, distance, distance2d } from "#wow/geometry";
+import { bearing, distance2d } from "#wow/geometry";
 import {
   classifyNavigationRefusal,
   type GroundRoute,
@@ -14,6 +14,7 @@ import {
   type NavigationRefusal,
   type NavPoint,
 } from "#wow/navigation";
+import { START_SNAP } from "#wow/navigation-collision";
 import { buildSetSelection } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import {
@@ -145,7 +146,7 @@ export class ControlRuntime extends ControlSync {
     const origin = route.points[0];
     const pose = this.requirePose();
     if (origin === undefined) throw new Error("navigation_route_empty");
-    if (distance(origin, pose) > 1e-6)
+    if (!startsUnder(origin, pose))
       throw new Error("navigation_origin_changed");
     this.session = replan
       ? new RouteSession(replan, route, this.deps.now())
@@ -283,4 +284,11 @@ export class ControlRuntime extends ControlSync {
   private assertDirection(direction: MovementDirection): void {
     if (!(direction in DIR_FLAG)) throw new Error("invalid_direction");
   }
+}
+
+function startsUnder(origin: NavPoint, pose: NavPoint): boolean {
+  const drop = pose.z - origin.z;
+  return (
+    distance2d(origin, pose) <= 1e-6 && drop >= -1e-6 && drop <= START_SNAP
+  );
 }
