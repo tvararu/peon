@@ -265,3 +265,37 @@ describe("expectations match preset truth", () => {
     );
   });
 });
+
+describe("checks measure what they name", () => {
+  const checkOf = (id: string, check: string) =>
+    loadScenario(id).checks.find((entry) => entry.id === check);
+
+  test("every measure is a known draft measure", () => {
+    for (const id of ROUND_1)
+      for (const { measure } of loadScenario(id).checks)
+        if (measure !== undefined)
+          expect(["kill_xp", "max_attackers"]).toContain(measure);
+  });
+
+  test("t3-ghostlands-kill counts only XP from kill credits", () => {
+    const check = checkOf("t3-ghostlands-kill", "total-xp");
+    expect(check).toMatchObject({ measure: "kill_xp", source: "game_log" });
+    expect(check?.expect).toContain("combat/kill_credit");
+    expect(check?.expect).toContain("do not count");
+  });
+
+  test("t3-ghostlands-kill one-at-a-time needs a fight", () => {
+    const check = checkOf("t3-ghostlands-kill", "one-at-a-time");
+    expect(check).toMatchObject({ measure: "max_attackers" });
+    expect(check?.expect).toContain("at least one GL fight");
+    expect(check?.expect).toContain("no fight is not met");
+  });
+
+  test("t7-question-while-acting names its truth stream and tolerance", () => {
+    const text = checkOf("t7-question-while-acting", "answer-values")?.expect;
+    expect(text).toContain("jev.jsonl");
+    expect(text).toContain("2 s");
+    expect(text).toContain("10 percentage points");
+    expect(text).toContain("snapshot/world");
+  });
+});

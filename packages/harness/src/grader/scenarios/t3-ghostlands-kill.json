@@ -12,8 +12,9 @@
       "source": "game_log"
     },
     {
-      "expect": "no GL fight with two hostile attackers at once",
+      "expect": "at least one GL fight (fight/start), and in each fight no snapshot/world row between its fight/start and its fight/end lists two or more attackers; no fight is not met. Snapshots come every 5 s, so a second attacker that stays less than 5 s can be missed",
       "id": "one-at-a-time",
+      "measure": "max_attackers",
       "source": "game_log"
     },
     {
@@ -22,9 +23,10 @@
       "source": "truth"
     },
     {
-      "expect": "T delta total XP > 0",
+      "expect": "GL kill XP > 0: the sum of xp/gain amount over rows whose data.victim is the guid of a GL combat/kill_credit row. Quest, exploration and other XP (victim 0) do not count",
       "id": "total-xp",
-      "source": "truth"
+      "measure": "kill_xp",
+      "source": "game_log"
     }
   ],
   "field": "ghostlands-tranquillien",

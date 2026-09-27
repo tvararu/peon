@@ -1,4 +1,5 @@
 import { observeGameLog, parseGameLog } from "#harness/grader/draft-gamelog";
+import { measureGameLog } from "#harness/grader/draft-measure";
 import type { EvalCheck } from "#harness/grader/result";
 import type { ScenarioCheck } from "#harness/grader/scenarios";
 import type { Truth } from "#harness/grader/truth";
@@ -193,10 +194,20 @@ export async function observedChecks(
       return { ...base, observed: observeTruth(pair, expect) };
     if (source !== "game_log" || rows === null)
       return { ...base, observed: null };
-    const observed = observeGameLog(rows, check);
-    const line = observed?.match?.line;
+    const { line, observed } =
+      check.measure === undefined
+        ? observedRows(rows, check)
+        : measureGameLog(rows, check.measure);
     return line === undefined
       ? { ...base, observed }
       : { ...base, observed, ref: `gamelog.jsonl:${line}` };
   });
+}
+
+function observedRows(
+  rows: ReturnType<typeof parseGameLog>,
+  check: ScenarioCheck,
+): { line?: number; observed: unknown } {
+  const observed = observeGameLog(rows, check);
+  return { line: observed?.match?.line, observed };
 }

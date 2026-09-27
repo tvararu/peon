@@ -47,12 +47,15 @@ export type PartnerAction = { at: SteerAt; argv: string[]; windowMs: number };
 
 export type BotRisk = "low" | "med" | "high";
 
+export type CheckMeasure = "kill_xp" | "max_attackers";
+
 export type ScenarioCheck = {
   id: string;
   source: "truth" | "verifier" | "witness" | "game_log" | "session" | "frame";
   expect: string;
   events?: string[];
   ids?: number[];
+  measure?: CheckMeasure;
   blockedBy?: string;
 };
 
