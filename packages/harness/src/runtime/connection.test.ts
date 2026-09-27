@@ -5,7 +5,11 @@ import type { Profile } from "#harness/contract/config";
 import type { LogDraft } from "#harness/contract/log";
 import type { RunRegistry } from "#harness/contract/runs";
 import type { GameLog, HandleObserver } from "#harness/contract/services";
-import { BACKOFF_MS, createConnection } from "#harness/runtime/connection";
+import {
+  BACKOFF_MS,
+  createConnection,
+  LOGOUT_WAIT_MS,
+} from "#harness/runtime/connection";
 
 const profile: Profile = {
   account: "FACABC0123456",
@@ -21,7 +25,10 @@ const profile: Profile = {
   source: "soap_session",
 };
 
-function setup(login: (n: number) => Promise<WorldHandle>) {
+function setup(
+  login: (n: number) => Promise<WorldHandle>,
+  now: () => number = () => 0,
+) {
   const drafts: LogDraft[] = [];
   const attached: string[] = [];
   const log = {
@@ -36,7 +43,7 @@ function setup(login: (n: number) => Promise<WorldHandle>) {
   });
   let calls = 0;
   const connection = createConnection({
-    clock: { now: () => 0 },
+    clock: { now },
     log,
     login: () => login(++calls),
     observers: [observer("ready"), observer("router")],
@@ -219,5 +226,66 @@ describe("createConnection", () => {
     expect(drafts.some((d) => d.event === "session/lost")).toBe(false);
     expect(connection.handle()).toBe(second);
     expect(connection.connection()).toBe("online");
+  });
+
+  test("disconnect waits for the server to finish the logout and logs it", async () => {
+    jest.useFakeTimers();
+    try {
+      let now = 1000;
+      const handle = { ...createMockHandle(), logout: jest.fn() };
+      const { connection, drafts } = setup(
+        async () => handle,
+        () => now,
+      );
+      await connection.connect();
+      let done = false;
+      const closing = connection.disconnect().then(() => {
+        done = true;
+      });
+      await flush();
+      jest.advanceTimersByTime(20_000);
+      await flush();
+      expect(done).toBe(false);
+      now += 21_500;
+      handle.resolveClosed();
+      await closing;
+      expect(handle.close).not.toHaveBeenCalled();
+      expect(connection.connection()).toBe("offline");
+      const row = drafts.find((d) => d.event === "session/logout");
+      expect(row?.data).toEqual({ outcome: "complete", waitedMs: 21_500 });
+      expect(row?.text).toBe(
+        "Logged out; the server closed the session after 21.5 s.",
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("disconnect closes the socket when the logout takes longer than 30 s", async () => {
+    jest.useFakeTimers();
+    try {
+      let now = 0;
+      const handle = { ...createMockHandle(), logout: jest.fn() };
+      const { connection, drafts } = setup(
+        async () => handle,
+        () => now,
+      );
+      await connection.connect();
+      const closing = connection.disconnect();
+      await flush();
+      jest.advanceTimersByTime(LOGOUT_WAIT_MS - 1);
+      await flush();
+      expect(handle.close).not.toHaveBeenCalled();
+      now = LOGOUT_WAIT_MS;
+      jest.advanceTimersByTime(1);
+      await closing;
+      expect(handle.close).toHaveBeenCalled();
+      expect(connection.connection()).toBe("offline");
+      const row = drafts.find((d) => d.event === "session/logout");
+      expect(row?.data).toEqual({ outcome: "timeout", waitedMs: 30_000 });
+      expect(row?.class).toBe("log");
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

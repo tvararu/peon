@@ -35,7 +35,7 @@ export type Connection = Pick<
 
 export const BACKOFF_MS: readonly number[] = [5000, 15_000, 45_000];
 
-const CLOSE_WAIT_MS = 5000;
+export const LOGOUT_WAIT_MS = 30_000;
 const LOST_TEXT = "Connection lost. The human must run /connect.";
 
 export function defaultLogin(config: ClientConfig): Promise<WorldHandle> {
@@ -127,10 +127,25 @@ class ConnectionSlot {
       return;
     }
     this.set("closing");
+    const started = this.init.clock.now();
     handle.logout();
-    if (!(await closedWithin(handle, CLOSE_WAIT_MS))) handle.close();
+    const complete = await closedWithin(handle, LOGOUT_WAIT_MS);
+    if (!complete) handle.close();
     await handle.closed;
+    this.logLogout(complete, this.init.clock.now() - started);
     if (this.state === "closing") this.set("offline");
+  }
+
+  private logLogout(complete: boolean, waitedMs: number): void {
+    const seconds = (waitedMs / 1000).toFixed(1);
+    this.append({
+      class: "log",
+      data: { outcome: complete ? "complete" : "timeout", waitedMs },
+      event: "session/logout",
+      text: complete
+        ? `Logged out; the server closed the session after ${seconds} s.`
+        : `The server did not finish the logout within ${LOGOUT_WAIT_MS / 1000} s; the harness closed the socket.`,
+    });
   }
 
   private adopt(handle: WorldHandle, epoch: number, attempt: number): void {

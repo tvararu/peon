@@ -30,6 +30,7 @@ export type LogEvent =
   | "session/in_world"
   | "session/connected"
   | "session/lost"
+  | "session/logout"
   | "session/wake_throttled"
   | "control/server_correction"
   | "control/move_start"
