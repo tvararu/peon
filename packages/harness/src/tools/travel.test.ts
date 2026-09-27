@@ -327,7 +327,9 @@ describe("travel", () => {
     };
     const res = await travelSpec.run({ to: "corpse" }, toolCtx<TravelAfter>(t));
     expect(res.status).toBe("DONE");
-    expect(fit(res)).toStartWith("DONE alive again at your corpse");
+    expect(fit(res)).toStartWith(
+      "DONE alive again near your corpse after 0.0 s. You: HP 200/200",
+    );
   });
 
   test("human text yields RUNNING with vitals and pose; the run goes on", async () => {

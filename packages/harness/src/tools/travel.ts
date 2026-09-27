@@ -6,7 +6,7 @@ import type { OpsCtx, ToolCtx } from "#harness/contract/services";
 import { dangerView, watchInterrupts } from "#harness/ops/danger";
 import { explore, parseDirection, unstick } from "#harness/ops/explore";
 import { distanceTo } from "#harness/ops/range";
-import { recoverOp } from "#harness/ops/recover";
+import { aliveWhere, recoverOp } from "#harness/ops/recover";
 import { Refusal } from "#harness/ops/refusal";
 import { resolveUnit, unitRefusal } from "#harness/ops/resolve";
 import { travelLeg } from "#harness/ops/travel-leg";
@@ -151,7 +151,7 @@ async function corpseWork(work: Work): Promise<Report> {
   if (recovered.outcome.ok)
     return result("DONE", {
       after: view,
-      detail: `alive again at your corpse after ${secs(view.elapsedMs)} s. ${youLine(work.ops)}`,
+      detail: `alive again ${aliveWhere(recovered.corpseYd, undefined)} after ${secs(view.elapsedMs)} s. ${youLine(work.ops)}`,
     });
   const healer = recovered.alternatives.some((text) =>
     text.startsWith("spirit healer"),

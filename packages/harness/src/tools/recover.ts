@@ -5,6 +5,7 @@ import type { RunControl, RunEnd } from "#harness/contract/runs";
 import type { OpsCtx, ToolCtx, ViewCtx } from "#harness/contract/services";
 import { type InterruptCause, watchInterrupts } from "#harness/ops/danger";
 import {
+  aliveWhere,
   type RecoverHow,
   type RecoverOpResult,
   recoverOp,
@@ -57,8 +58,9 @@ function afterOf(
   };
 }
 
-function viaText(via: RecoverHow, ctx: ViewCtx): string {
-  if (via === "corpse") return `at your corpse${whereText(ctx)}`;
+function viaText(op: RecoverOpResult, ctx: ViewCtx): string {
+  const { via } = op;
+  if (via === "corpse") return aliveWhere(op.corpseYd, poseView(ctx));
   if (via === "spirit_healer") return `at the spirit healer${whereText(ctx)}`;
   return `where you died${whereText(ctx)}`;
 }
@@ -100,7 +102,7 @@ function report(ctx: ViewCtx, op: RecoverOpResult, durationMs: number): Report {
   if (!op.outcome.ok) return failedReport(op, after);
   return result("DONE", {
     after,
-    detail: `alive again ${viaText(op.via, ctx)} after ${Math.round(durationMs / 1000)} s. HP ${after.hp}/${after.maxHp}.`,
+    detail: `alive again ${viaText(op, ctx)}, after ${Math.round(durationMs / 1000)} s. HP ${after.hp}/${after.maxHp}.`,
   });
 }
 

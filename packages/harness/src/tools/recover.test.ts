@@ -45,8 +45,37 @@ describe("recover", () => {
     const text = contentOf(res);
     expect(limitProblem(text)).toBeUndefined();
     expect(text).toBe(
-      "DONE alive again at your corpse (8766, -6560) after 0 s. HP 108/217.",
+      "DONE alive again near your corpse, at 8766, -6560, after 0 s. HP 108/217.",
     );
+  });
+
+  test("corpse run: the reclaim point says how far the corpse is", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { hp: 0, life: "ghost", maxHp: 217 });
+    t.handle.recoverCorpse = async () => {
+      const ghost = t.handle.getRecoveryState();
+      t.handle.triggerRecoveryEvent({
+        at: 0,
+        state: {
+          ...ghost,
+          reclaim: { ...ghost.reclaim, canRequest: true, distance: 29.3 },
+        },
+        type: "reclaim_requested",
+      });
+      setSelf(t.handle, {
+        hp: 108,
+        life: "alive",
+        maxHp: 217,
+        x: 8763,
+        y: -6695,
+      });
+      return { detail: { legs: 2 }, ok: true, outcome: "reclaimed" };
+    };
+    const res = await recoverSpec.run({}, toolCtx<RecoverAfter>(t));
+    expect(contentOf(res)).toBe(
+      "DONE alive again 29 yd from your corpse, at 8763, -6695, after 0 s. HP 108/217.",
+    );
+    expect(res.after.corpseYd).toBe(29.3);
   });
 
   test("unreachable corpse names the other ways and steps to the healer", async () => {

@@ -6,7 +6,7 @@ import type {
 } from "@tuicraft/core";
 import { messageOf } from "@tuicraft/core/lib/errors";
 import type { OpsCtx } from "#harness/contract/services";
-import type { UnitView } from "#harness/contract/views";
+import type { PoseView, UnitView } from "#harness/contract/views";
 import { TALK_RANGE_YD } from "#harness/ops/range";
 import { settle } from "#harness/ops/settle";
 import { unitViews } from "#harness/ops/views";
@@ -124,27 +124,51 @@ function legsOf(outcome: RecoveryOutcome): number {
   return typeof legs === "number" ? legs : 0;
 }
 
+export function aliveWhere(
+  corpseYd: number | undefined,
+  pose: PoseView | undefined,
+): string {
+  const at = pose ? `, at ${Math.round(pose.x)}, ${Math.round(pose.y)}` : "";
+  return corpseYd === undefined
+    ? `near your corpse${at}`
+    : `${Math.round(corpseYd)} yd from your corpse${at}`;
+}
+
+async function attempt(
+  ctx: OpsCtx,
+  how: RecoverHow,
+  state: RecoveryState,
+): Promise<RecoveryOutcome> {
+  if (how === "accept") return acceptOffer(ctx, state);
+  if (state.life === "dead") {
+    const released = await waitLife(ctx, "ghost", RELEASE_MS, () =>
+      ctx.handle.releaseSpirit(),
+    );
+    if (!released) return { cause: "release_unanswered", ok: false };
+  }
+  return how === "spirit_healer" ? useHealer(ctx) : corpseRun(ctx);
+}
+
 export async function recoverOp(
   ctx: OpsCtx,
   how: RecoverHow,
 ): Promise<RecoverOpResult> {
   const state = ctx.handle.getRecoveryState();
   const alternatives = alternativesFor(ctx, how, state);
-  const done = (outcome: RecoveryOutcome): RecoverOpResult => ({
-    alternatives,
-    corpseYd: ctx.handle.getRecoveryState().reclaim.distance,
-    legs: legsOf(outcome),
-    outcome,
-    via: how,
+  let lastYd = state.reclaim.distance;
+  const off = ctx.handle.onRecoveryEvent((event) => {
+    lastYd = event.state.reclaim.distance ?? lastYd;
   });
-  if (how === "accept") return done(await acceptOffer(ctx, state));
-  if (state.life === "dead") {
-    const released = await waitLife(ctx, "ghost", RELEASE_MS, () =>
-      ctx.handle.releaseSpirit(),
-    );
-    if (!released) return done({ cause: "release_unanswered", ok: false });
+  try {
+    const outcome = await attempt(ctx, how, state);
+    return {
+      alternatives,
+      corpseYd: ctx.handle.getRecoveryState().reclaim.distance ?? lastYd,
+      legs: legsOf(outcome),
+      outcome,
+      via: how,
+    };
+  } finally {
+    off();
   }
-  return done(
-    how === "spirit_healer" ? await useHealer(ctx) : await corpseRun(ctx),
-  );
 }
