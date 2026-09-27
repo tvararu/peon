@@ -1,9 +1,8 @@
 # Protocol coverage
 
 Every `GameOpcode` and what core does with it. `mise test` fails when
-this file is stale; rewrite it with
-`bun packages/core/test-support/protocol-coverage.ts`. How the status
-is decided is in [protocol.md](protocol.md#add-an-opcode).
+this file is stale; rewrite it with `mise protocol:coverage`. How the
+status is decided is in [protocol.md](protocol.md#add-an-opcode).
 
 923 opcodes: 265 handled, 58 stub, 600 missing.
 

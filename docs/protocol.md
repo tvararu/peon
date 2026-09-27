@@ -103,7 +103,7 @@ values path, use it to pick the fields passed to `entityStore.update()`.
 `*_FIELDS` tables for every object type) are generated from
 `../wow_messages/intermediate_representation.json`, keeping the messages
 valid for 3.3.5. Never edit them by hand: rerun
-`bun packages/devtools/src/protocol-tables.ts [<ir.json>]`. The
+`mise protocol:tables [<ir.json>]`. The
 generator's `RENAMED`, `CORE_OPCODES` and `CORE_FIELDS` tables keep the
 core names that differ from wow_messages or that it lacks, and the tests
 fail if a name core already used loses its number or offset.
@@ -120,8 +120,7 @@ Hand-written wire enums live in `protocol/enums.ts` and
 3. Drop the opcode from `STUBS` in `protocol/stubs.ts` if it is listed
    there.
 4. Send a client opcode with `sendPacket` and a `PacketWriter` body.
-5. Rewrite `docs/protocol-coverage.md` with
-   `bun packages/core/test-support/protocol-coverage.ts`.
+5. Rewrite `docs/protocol-coverage.md` with `mise protocol:coverage`.
 6. Prove it on the live server ([testing.md](testing.md#live-characters)).
 
 [protocol-coverage.md](protocol-coverage.md) lists every `GameOpcode`
