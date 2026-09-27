@@ -124,4 +124,16 @@ describe("nameLootLines", () => {
       { count: 2, itemId: 4813, name: "Small Leather Collar", quality: 0 },
     ]);
   });
+
+  test("an aborted signal stops the wait and keeps the id names", async () => {
+    const line = { count: 1, itemId: 5, name: "item 5", quality: null };
+    const lines = await nameLootLines(
+      {
+        handle: createMockHandle(),
+        signal: AbortSignal.abort(new Error("died")),
+      },
+      [line],
+    );
+    expect(lines).toEqual([line]);
+  });
 });

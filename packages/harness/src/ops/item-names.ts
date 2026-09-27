@@ -102,6 +102,8 @@ export async function nameLootLines(
   await awaitItemNames(unnamed, (itemId) => labelOf(itemId)?.name, {
     signal: ctx.signal,
     timeoutMs,
+  }).catch((error: unknown) => {
+    if (!ctx.signal?.aborted) throw error;
   });
   return lines.map((line) => {
     if (!unnamed.includes(line.itemId)) return line;
