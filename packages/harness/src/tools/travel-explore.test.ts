@@ -94,7 +94,7 @@ describe("travel explore", () => {
       toolCtx<TravelAfter>(t),
     );
     expect(res).toMatchObject({
-      next: 'travel(to: "explore northeast")',
+      next: 'travel(to: "explore east")',
       reason: "obstructed",
       status: "PARTLY",
     });
@@ -135,7 +135,9 @@ describe("travel explore", () => {
       toolCtx<TravelAfter>(t),
     );
     expect(res).toMatchObject({
-      next: 'ask the human: "Explore is blocked in more than one direction from here. Can you move me or name a way out?"',
+      detail:
+        "explored 0 yd north; 1 leg was blocked, each by the same fault where you stand (no_path_to). Moving off this spot also failed. Nothing new in view.",
+      next: 'ask the human: "I am stuck. Can you move me?"',
       reason: "obstructed",
       status: "PARTLY",
     });
@@ -152,7 +154,7 @@ describe("travel explore", () => {
       { to: "explore north" },
       toolCtx<TravelAfter>(t),
     );
-    expect(first.next).toBe('travel(to: "explore northeast")');
+    expect(first.next).toBe('travel(to: "explore east")');
     driveGoto(t.handle, blocked);
     const second = await travelSpec.run(
       { to: "explore south" },

@@ -197,7 +197,7 @@ describe("explore", () => {
     expect(result.legs[0]).toMatchObject({ status: "arrived" });
   });
 
-  test("a refused leg keeps its full length and stops after 3 obstructed legs", async () => {
+  test("a refused leg keeps its full length; 3 distinct refused bearings stop the walk", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle, { x: 0, y: 0 });
     const goTo = driveGoto(t.handle, [
@@ -208,17 +208,36 @@ describe("explore", () => {
       obstructed: 3,
       stoppedBy: "obstructed",
       unstuck: "failed",
-      untried: "NE",
+      untried: "E",
       walkedYd: 0,
     });
+    const side = 20 * Math.SQRT1_2;
     expect(goTo.mock.calls.map((call) => call[0]).slice(0, 3)).toEqual([
       { kind: "point", x: 20, y: 0 },
-      { kind: "point", x: 20, y: 0 },
-      { kind: "point", x: 20, y: 0 },
+      { kind: "point", x: side, y: -side },
+      { kind: "point", x: side, y: side },
     ]);
     expect(t.rt.travel.blockedBearings.get(`${MAP_ID}:0:0`)).toEqual(
-      new Set(["N"]),
+      new Set(["N", "NE", "NW"]),
     );
+  });
+
+  test("never re-issues a refused goal; a path corner disagreement tries both sides", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 0, y: 0 });
+    const goTo = driveGoto(t.handle, [
+      { refuse: "stop: path corner disagrees with connected ground" },
+    ]);
+    const result = await explore(toolCtx(t), { direction: "N" });
+    const side = 20 * Math.SQRT1_2;
+    const calls = goTo.mock.calls.map((call) => call[0]);
+    expect(calls).toEqual([
+      { kind: "point", x: 20, y: 0 },
+      { kind: "point", x: side, y: -side },
+      { kind: "point", x: side, y: side },
+    ]);
+    expect(result).toMatchObject({ obstructed: 3, stoppedBy: "obstructed" });
+    expect(result.legs).toHaveLength(3);
   });
 
   test("a ledge tries both side bearings at full length before it counts", async () => {
@@ -238,8 +257,6 @@ describe("explore", () => {
       { kind: "point", x: 20, y: 0 },
       { kind: "point", x: side, y: -side },
       { kind: "point", x: side, y: side },
-      { kind: "point", x: 20, y: 0 },
-      { kind: "point", x: 20, y: 0 },
     ]);
     expect(t.rt.travel.blockedBearings.get(`${MAP_ID}:0:0`)).toEqual(
       new Set(["N", "NE", "NW"]),

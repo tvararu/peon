@@ -311,7 +311,7 @@ function stuckAtStart(found: ExploreResult): string | undefined {
 function obstructedReport(found: ExploreResult, after: TravelAfter): Report {
   const where = `${yd(found.walkedYd)} yd ${WORD[found.direction]}`;
   const seen = newInViewText(found.newInView);
-  const blocked = `explored ${where}; ${found.obstructed} legs were blocked`;
+  const blocked = `explored ${where}; ${found.obstructed === 1 ? "1 leg was" : `${found.obstructed} legs were`} blocked`;
   const stuck = stuckAtStart(found);
   const kind =
     stuck === undefined

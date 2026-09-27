@@ -40,6 +40,7 @@ export const SIDE_REASONS: ReadonlySet<string> = new Set([
   "no_ground",
   "end_snapped_off",
   "ambiguous_floor",
+  "path_corner_disagrees",
 ]);
 const TURNS = [0, 1, -1, 2, -2];
 const WORDS: Record<string, Compass> = {
@@ -201,6 +202,7 @@ type Walk = {
   direction: Compass;
   wanted: (unit: UnitView) => boolean;
   seen: Set<string>;
+  refused: Set<string>;
   legs: LegView[];
   newInView: UnitView[];
   walkedYd: number;
@@ -239,11 +241,20 @@ function unexplored(
   return key === cellKey(from) || !ctx.rt.travel.visitedCells.has(key);
 }
 
+function goalKey(point: { x: number; y: number }): string {
+  return `${point.x.toFixed(1)},${point.y.toFixed(1)}`;
+}
+
+function refusedBefore(walk: Walk, from: PoseView, direction: Compass) {
+  return walk.refused.has(goalKey(ahead(from, direction, legYd(walk))));
+}
+
 function freshBearing(walk: Walk, from: PoseView): Compass | undefined {
   const blocked = blockedFrom(walk.ctx, from);
   return TURNS.map((offset) => turned(walk.direction, offset)).find(
     (direction) =>
       (direction === walk.direction || !blocked.has(direction)) &&
+      !refusedBefore(walk, from, direction) &&
       unexplored(walk.ctx, from, direction, legYd(walk)),
   );
 }
@@ -274,8 +285,10 @@ async function walkBearing(
   const to = poseView(ctx) ?? from;
   walk.walkedYd += Math.hypot(to.x - from.x, to.y - from.y);
   ctx.rt.travel.visitedCells.add(cellKey(to));
-  if (leg.status === "refused" || leg.status === "failed")
+  if (leg.status === "refused" || leg.status === "failed") {
     block(ctx, from, direction);
+    walk.refused.add(goalKey(point));
+  }
   walk.legs.push({
     index: walk.legs.length,
     reason: leg.reason,
@@ -297,6 +310,7 @@ async function sideTries(
   for (const offset of SIDES) {
     const side = turned(bearing, offset);
     if (blockedFrom(walk.ctx, from).has(side)) continue;
+    if (refusedBefore(walk, from, side)) continue;
     if (!unexplored(walk.ctx, from, side, legYd(walk))) continue;
     leg = await walkBearing(walk, poseView(walk.ctx) ?? from, side);
     if (leg.status === "arrived" || stopped(walk, leg)) return leg;
@@ -310,8 +324,9 @@ async function walkLeg(
 ): Promise<ExploreStop | undefined> {
   const from = poseView(walk.ctx) ?? start;
   const bearing = freshBearing(walk, from);
-  if (!bearing) return "explored";
+  if (!bearing) return walk.obstructed > 0 ? "obstructed" : "explored";
   walk.rounds += 1;
+  const before = walk.refused.size;
   const leg = await sideTries(
     walk,
     from,
@@ -322,7 +337,7 @@ async function walkLeg(
   if (stopped(walk, leg)) return "danger";
   if (fresh.some(walk.wanted)) return "new_unit";
   if (leg.status === "arrived") return;
-  walk.obstructed += 1;
+  walk.obstructed += Math.max(1, walk.refused.size - before);
   return walk.obstructed >= EXPLORE_MAX_OBSTRUCTED ? "obstructed" : undefined;
 }
 
@@ -384,6 +399,7 @@ export async function explore(
     legs: [],
     newInView: [],
     obstructed: 0,
+    refused: new Set(),
     rounds: 0,
     seen: new Set(unitViews(ctx).map((unit) => unit.guid)),
     walkedYd: 0,
