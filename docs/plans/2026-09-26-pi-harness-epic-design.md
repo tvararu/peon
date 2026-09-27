@@ -427,6 +427,93 @@ as the spec settlements.
     water count over every inventory row; `t1-walk-to-npc` and
     `t0-hostiles` use the measured positions and names. The task texts
     stay verbatim. `f99b2d7`.
+67. Eval round 1 fix events-lifecycle: the meta gets `endedAt` and
+    `exitReason` before the logout starts and again at the end. The
+    exit reasons `sigterm`, `sighup`, `sigint` and `fatal_error` are
+    new (the design names only `quit`); a SIGINT exits 130, and a
+    SIGTERM or SIGHUP before Pi owns the signals exits 143 or 129.
+    Ctrl-D, `/quit` and two Ctrl-C share one Pi shutdown path and one
+    test. `a1411d2`, `93383a9`.
+68. Eval round 1 fix events-lifecycle: the exit recorder's SIGINT
+    listener stands down while more SIGINT listeners are attached than
+    when Pi took the signals, so Pi's Ctrl-Z ignore handler holds; any
+    later SIGINT listener has the same effect. `3d2cf16`.
+69. Eval round 1 fix events-lifecycle: `exit.begin()` waits one
+    microtask so every listener of the same signal dispatch runs first,
+    instead of registering the capture before Pi's handler, which Pi
+    prepends. `cf0ca65`.
+70. Eval round 1 fix events-lifecycle: `travelLeg` writes the
+    `nav/route_*` rows, so engage, loot and interact approach legs
+    write them too (runId only inside a run). A goal already in range
+    writes no route rows; a floor retry logs the refused first route,
+    and `route_replaced` stands in for the second route's start.
+    `b6c688d`.
+71. Eval round 1 fix item-names: vendor lists, loot results and own
+    item pushes wait up to 2 s for item names before they fall back to
+    `item <id>`. The `vendor/list` row gains a `names` array and lists
+    up to 8 names in its text; the money row of a deferred push is
+    written before its item row. `8235ab6`, `16adbe9`, `e02e2df`.
+72. Eval round 1 fix item-names: buy takes the list number, an exact
+    name or `item <id>` first; a number past the list or an unsold id
+    is refused `no_match`, and a partial name matches only when it is
+    unique. The design names only part of an item name. `d723f24`,
+    `c85e1b0`.
+73. Eval round 1 fix item-names: core's `CombatAura` gains an optional
+    spell name, and the `aura/gain` and `aura/fade` rows gain a `name`
+    field. `1a3ab5a`.
+74. Eval round 1 fix next-hints: "structural" means unsupported map, no
+    path or no ground, which gets the ask-human question; a start-side
+    fault gets `unstick`; travel stays only for transient stops. engage
+    still offers another target in view after a no-path refusal.
+    `b82acbd`.
+75. Eval round 1 fix next-hints: a quest with nothing to kill or
+    collect points at its turn-in NPC, matched by name in the
+    objectives text, because the quest query has no ender. An
+    `engage(quest)` whose objectives are already complete returns DONE
+    "nothing left to kill". `0ff7425`, `8a580fb`.
+76. Eval round 1 fix next-hints: rest eats again when a confirmed food
+    aura ends and runs to the `until` threshold within 110 s; with no
+    health or mana gain for 10 s it stops PARTLY `no_regen` with
+    `Next: look()`. B.7 says `until` or 30 s. `7748dc4`, `665625b`.
+77. Eval round 1 fix next-hints: the next guard also exempts
+    `max_starts_reached` (item 65 exempts `time_limit` and
+    `cancelled`). `152d6ff`.
+78. Eval round 1 fix runner-steers: the t7-halt-resume resume steer
+    fires 20 s after the first answer that follows the stop steer, not
+    25 s after the stop. A failed partner action aborts the run with
+    cause `other`. `de5b654`.
+79. Eval round 1 fix runner-steers: a scenario's `blockedBy` keys are
+    checked before any account is made and grade the run blocked; a run
+    that ends with a trigger steer unfired drafts blocked with reason
+    `no_<trigger>`. `blockedBy` is a plain flag that holds until a
+    brief removes it from the scenario (nav-coverage for
+    t4-alliance-first and t5-vendor-buy-goldshire), and the preflight
+    no longer reads the nav config. `2fdbfbc`, `6b00104`.
+80. Eval round 1 fix runner-steers: t6-die-and-recover uses the
+    `eversong10-warrior` preset at level 1 instead of the priest the
+    suite names; t3-ghostlands-kill sets position z 88.66 through soap
+    setup; t1-walk-to-npc checks that the last move_stop precedes the
+    done message with no later move_start; t7-halt-resume accepts the
+    agent naming the halted target's death and grades a kill by another
+    player n/a with botInterference. `71d92ca`.
+81. Eval round 1 fix runner-steers: runs on a shared spawn get their
+    own start point 4 yd or more apart, within 16 yd of the preset
+    spawn, instead of a pool rule that serialises them. Each run writes
+    `grader/concurrent.json` as `{listedAt, note, runs}`, a lower bound
+    of the other runs in the round. `dad4762`, `5e40c87`.
+82. Eval round 1 fix pushed-batch: a new `combat/target_died` event
+    reports a watched unit that dies without credit to the character.
+    C.1 has no such event; it wakes like `attacked` when no run is
+    active and stays log during a run. `5601aa2`.
+83. Eval round 1 fix pushed-batch: an engage call consumes its own
+    fight start, fight end, kill credit, kill XP and loot rows, so only
+    its result or run-end line reports them. C.1 lists kills inside a
+    multi-kill engage and cycle fight starts as passive. An engage that
+    ends without DONE or PARTLY releases its consumed rows to the next
+    passive flush, and consumed rows stay queued while their run is
+    running. `2c3edf8`, `1483df8`, `67f63d9`.
+84. Eval round 1 fix pushed-batch: emote notices stay in the game log
+    and no longer reach the panel ticker. `b23160d`.
 
 ## 3. Context
 
@@ -1362,3 +1449,114 @@ Deferred:
 - The ghostlands20 preset start z of 88.66 lives on t1 and needs the
   maintainer; the core start snap covers it meanwhile.
 - Harness launch: silence Pi's `fd not found` warning.
+
+### Eval round 2
+
+Head `67f63d9`. Thirteen scenarios, one run each, in the eval worktree.
+
+- Fix briefs landed before the round: events-lifecycle (`cf0ca65`),
+  pushed-batch (`67f63d9`), item-names (`d0d8a14`), runner-steers
+  (`5e40c87`) and next-hints (`665625b`). nav-coverage had not landed;
+  its review verdict is fix.
+- Pass rate 7 of 13 (0.54; round 1 0.46). Abort rate 0 of 13 (round 1
+  0.08). Median tool calls 3 (round 1 4). Median wall time 69.8 s
+  (round 1 65.1 s). Without the two preflight-blocked runs
+  (t4-alliance-first, t5-vendor-buy-goldshire), the medians are 4 tool
+  calls and 115.2 s.
+- t2-whisper-reply, t3-ghostlands-kill and t7-halt-resume went to
+  pass. t4-quest-first and t7-question-while-acting went to fail.
+
+| Scenario | Verdict | Checks | Tool calls | Turns | Wall s | First action s |
+|---|---|---|---|---|---|---|
+| t0-hostiles | pass | 3/3 | 1 | 2 | 57.3 | 2.22 |
+| t0-self-state | pass | 5/5 | 2 | 2 | 56.0 | 3.04 |
+| t0-who-is-near | pass | 3/3 | 1 | 2 | 55.5 | 2.61 |
+| t1-walk-to-npc | pass | 2/2 | 3 | 4 | 67.9 | 2.56 |
+| t2-whisper-reply | pass | 3/3 | 3 | 5 | 171.7 | 2.00 |
+| t3-ghostlands-kill | pass | 4/4 | 26 | 28 | 254.1 | 1.99 |
+| t3-kill-one-hunter | fail | 2/6 | 5 | 6 | 69.8 | 2.20 |
+| t4-alliance-first | blocked | 0/4 | 0 | 0 | 0 | - |
+| t4-quest-first | fail | 1/5 | 4 | 5 | 115.2 | 2.59 |
+| t5-vendor-buy-goldshire | blocked | 0/2 | 0 | 0 | 0 | - |
+| t6-die-and-recover | blocked | 2/4 | 6 | 10 | 373.3 | 2.55 |
+| t7-halt-resume | pass | 3/3 | 19 | 24 | 361.0 | 2.00 |
+| t7-question-while-acting | fail | 3/4 | 24 | 26 | 344.9 | 2.13 |
+
+No run had a tool error. t4-alliance-first and t5-vendor-buy-goldshire
+were blocked by the map 0 preflight and should not have been selected.
+t3-ghostlands-kill passes only under the scenario's kill band of 14 to
+23; the suite says 17 to 23.
+
+Top friction clusters:
+
+1. Eval scheduling and end rules (score about 30, all 13 runs).
+   Concurrent kill scenarios share the Fairbreeze stalker field: the
+   t7-question-while-acting agent killed four t7-halt-resume targets
+   and the t6-die-and-recover target. An answer that asks the human a
+   question ends the run as done after 30 s with no rescue nudge
+   (t4-quest-first, t3-kill-one-hunter). The t6 level-1 write strips
+   the equipped gear. The suite and the scenario files disagree for
+   t3-ghostlands-kill, t1-walk-to-npc and t7-question-while-acting.
+2. Explore walks (score 14): explore picks a bearing that was just
+   refused again, halves its leg on the same bearing, tries no side
+   bearings and keeps walking under attack; the empty `look` hint
+   always says north (t3-kill-one-hunter, t3-ghostlands-kill,
+   t7-question-while-acting).
+3. The core fight loop ends or stalls kill runs (score 12). A loot open
+   on a corpse more than 5 yd away gets `release_only` (AzerothCore
+   `Player.cpp:8045`, verified), which ends the whole kill queue
+   (t4-quest-first, 5 of 8 kills, corpse at 8.8 yd). A level 1 warrior
+   at 0 rage is blocked `no_supported_combat_actions` 2 ms after the
+   fight starts and never swings (t6-die-and-recover). Queued targets
+   are not re-checked for death or tap.
+4. The next guard sends ask-the-human after runs that progressed, and
+   results show raw reason codes such as `loot_denied:release_only`
+   and `queue_exhausted` (score 13; t4-quest-first, t3-kill-one-hunter,
+   t7-question-while-acting, t6-die-and-recover, t7-halt-resume).
+
+Briefs for round 3:
+
+- round-hygiene (eval): the grader end rule for a question to the
+  human, a field key so concurrent kill scenarios do not share a target
+  field, a t6 setup that keeps gear, and suite and scenario agreement.
+- engage-continuity (core-b, because core-a still holds nav-coverage):
+  approach a corpse before the loot open and continue past a failed
+  loot, melee auto-attack at 0 rage, and a re-check of each queued
+  target.
+- explore-bearings (ops-tools-a: `explore.ts`, `travel-report.ts`,
+  `look.ts`): record refused bearings, try side bearings at full leg
+  length, stop for an attacker, and plain hints for an empty look and
+  `target_not_observed`.
+- next-progress (ops-tools-b: `next-guard.ts`, `engage-fight.ts`,
+  `engage-tally.ts`): ask the human only after a repeat with no
+  progress, and plain reason text.
+
+Deferred:
+
+- Prompt: persistence after a lost or tapped target, act on a rescue
+  nudge, no confirming look while idle, pull discipline (a hostile
+  within 20 yd), "about your level" means within 3 levels, and answer
+  own-state questions from the latest result. Do this after the tool
+  fixes land.
+- Events: `xp/gain` 25 s late with no source; the attacked wake
+  delivered after the answer and after the kill; the now-line target
+  not cleared on death; the now line should name the nearest units and
+  the unit the human named. The stale t7-halt-resume fight rows follow
+  from `1483df8` by design.
+- Tools: the `look` name filter is not applied to the Nearest hostile
+  line; `look`, engage and travel use stale last-seen positions
+  differently; mana shows only as a percent; the Bags continuation line
+  has no label.
+- Panel: the dead target `0/0` footer row, rage shown with the mana
+  label, outgoing whisper and system lines shown as `<say>`, the
+  `other` kind tag on items, and a cancelled run card that is not
+  frozen.
+- Core map 0 navigation (nav-coverage in core-a, review verdict fix)
+  still blocks t4-alliance-first and t5-vendor-buy-goldshire.
+- Core hunter support: shots and Auto Shot are rejected and the pet is
+  not controlled (round 1 cluster 5).
+- Core: `SMSG_TEXT_EMOTE` is not decoded, so the t2 bot event sender is
+  unknown.
+- Orchestrator: round selection must skip scenarios whose `blockedBy`
+  is still held.
+- Eval: Pi prints `fd not found` at startup in every pane.
