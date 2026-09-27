@@ -24,6 +24,7 @@ export type EvalCheck = {
   observed: unknown;
   met: boolean;
   botInterference?: boolean;
+  blockedBy?: string;
   ref?: string;
 };
 

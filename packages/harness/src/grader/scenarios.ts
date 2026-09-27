@@ -51,6 +51,7 @@ export type ScenarioCheck = {
   expect: string;
   events?: string[];
   ids?: number[];
+  blockedBy?: string;
 };
 
 export type Scenario = {

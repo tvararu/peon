@@ -268,6 +268,17 @@ function wallEnd(st: RunState, now: number): number {
   return st.endMs ?? st.exitMs ?? now;
 }
 
+function withGaps(
+  st: RunState,
+  keys: readonly string[] = [],
+): string[] | undefined {
+  const gaps = st.scenario.checks.flatMap((check) =>
+    check.blockedBy === undefined ? [] : [check.blockedBy],
+  );
+  const all = [...new Set([...keys, ...gaps])];
+  return all.length > 0 ? all : undefined;
+}
+
 async function draftResult(st: RunState): Promise<DraftResult> {
   const now = st.clock.now();
   const taskMs = st.taskMs ?? now;
@@ -275,10 +286,12 @@ async function draftResult(st: RunState): Promise<DraftResult> {
   const firstActionMs =
     st.firstToolAt === undefined ? undefined : st.firstToolAt - taskMs;
   const aborted = st.abort !== undefined;
+  const verdict = verdictOf(st);
   return {
-    ...verdictOf(st),
+    ...verdict,
     abort: st.abort,
     accounts: accountsOf(st),
+    blockedBy: withGaps(st, verdict.blockedBy),
     checks: await observedChecks(st.runDir, st.scenario.checks),
     efficiency: efficiency({
       budget: st.scenario.budget,

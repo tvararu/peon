@@ -131,6 +131,20 @@ describe("round-1 scenarios", () => {
     );
   });
 
+  test("t3-kill-one-hunter splits ranged casts from the pet attack, which has no event", () => {
+    const checks = loadScenario("t3-kill-one-hunter").checks;
+    expect(checks.map((check) => check.id)).not.toContain("pet-and-ranged");
+    expect(checks.find((check) => check.id === "ranged-cast")).toMatchObject({
+      events: ["combat/cast"],
+      ids: [75, 3044, 1978, 5116],
+      source: "game_log",
+    });
+    expect(checks.find((check) => check.id === "pet-attack")).toMatchObject({
+      blockedBy: "P5:pet_attack",
+      source: "game_log",
+    });
+  });
+
   test("t7 steers fire on the second kill and 20 s after the acknowledgement", () => {
     expect(loadScenario("t7-question-while-acting").steers[0]?.at).toEqual({
       kind: "trigger",

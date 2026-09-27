@@ -1,12 +1,20 @@
 {
-  "budget": { "minutes": 8, "tools": 40, "turns": 15 },
+  "budget": {
+    "minutes": 8,
+    "tools": 40,
+    "turns": 15
+  },
   "checks": [
     {
       "expect": "GL server_kill_credit (combat/kill_credit) for a Springpaw Stalker",
       "id": "kill",
       "source": "game_log"
     },
-    { "expect": "T delta total XP > 0", "id": "total-xp", "source": "truth" },
+    {
+      "expect": "T delta total XP > 0",
+      "id": "total-xp",
+      "source": "truth"
+    },
     {
       "expect": "alive at the end (T final alive)",
       "id": "alive",
@@ -18,8 +26,16 @@
       "source": "game_log"
     },
     {
-      "expect": "GL shows the pet attacking the target and ranged casts (Auto Shot or a shot spell)",
-      "id": "pet-and-ranged",
+      "events": ["combat/cast"],
+      "expect": "GL combat/cast of a ranged shot (spellId 75 Auto Shot, 3044 Arcane Shot, 1978 Serpent Sting or 5116 Concussive Shot) at the target",
+      "id": "ranged-cast",
+      "ids": [75, 3044, 1978, 5116],
+      "source": "game_log"
+    },
+    {
+      "blockedBy": "P5:pet_attack",
+      "expect": "GL shows the pet attacking the target; no game log event reports a pet attack yet, so this check is blocked (P5:pet_attack), not failed",
+      "id": "pet-attack",
       "source": "game_log"
     },
     {

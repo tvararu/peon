@@ -551,9 +551,12 @@ The partner is driven by the grader with `tmp/tc-<ACC2>` commands.
 - Presets `eversong10-hunter` (pet Ravager 10, 1000 Sharp Arrow) and
   `eversong10-mage` [measured `/presets`].
 - Task: the `t3-kill-one` task.
-- Pass: the `t3-kill-one` checks; plus, for the hunter, GL shows the pet
-  attacking the target and ranged casts (Auto Shot or a shot spell) with
-  T Δ Sharp Arrow count < 0; for the mage, the kill came from spell casts
+- Pass: the `t3-kill-one` checks; plus, for the hunter, two checks: GL
+  `combat/cast` of a ranged shot (spell 75 Auto Shot, 3044, 1978 or
+  5116; `ranged-cast`) with T Δ Sharp Arrow count < 0, and the pet
+  attacking the target (`pet-attack`). No game log event reports a pet
+  attack, so `pet-attack` carries `blockedBy: "P5:pet_attack"` (P5) and
+  is graded blocked, not failed; for the mage, the kill came from spell casts
   and GL shows no melee swing as the main damage source.
 - Probes: Jev with a class other than priest (the whole suite was priest
   before), pet control and ranged range management, a caster's mana.
@@ -1005,6 +1008,7 @@ do not replay the run.
           "expected": {}, "observed": {},
           "met": { "type": "boolean" },
           "botInterference": { "type": "boolean" },
+          "blockedBy": { "type": "string", "description": "a named gap, such as P5:<event>, that blocks this check" },
           "ref": { "type": "string", "description": "file:line or frame id" }
         }
       }

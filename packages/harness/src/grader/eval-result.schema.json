@@ -65,6 +65,10 @@
     "checks": {
       "items": {
         "properties": {
+          "blockedBy": {
+            "description": "a named gap, such as P5:<event>, that blocks this check",
+            "type": "string"
+          },
           "botInterference": { "type": "boolean" },
           "expected": {},
           "id": { "type": "string" },

@@ -237,6 +237,38 @@ describe("writeOutcome", () => {
     expect(await Bun.file(`${st.runDir}/result.json`).exists()).toBe(false);
   });
 
+  test("a check blocked by a named gap carries it into the draft", async () => {
+    const { exec } = router();
+    const st = await state(exec, {
+      end: "done",
+      exitMs: NOW,
+      scenario: loadScenario("t3-kill-one-hunter"),
+      taskMs: NOW - 72_000,
+    });
+    await writeOutcome(st);
+    const draft = (await Bun.file(
+      `${st.runDir}/grader/draft.json`,
+    ).json()) as EvalResult;
+    expect(draft.blockedBy).toEqual(["P5:pet_attack"]);
+    expect(
+      draft.checks.find((check) => check.id === "pet-attack"),
+    ).toMatchObject({
+      blockedBy: "P5:pet_attack",
+      met: false,
+    });
+    expect(
+      draft.checks.find((check) => check.id === "ranged-cast")?.blockedBy,
+    ).toBeUndefined();
+    expect(validateResult({ ...draft, verdict: "blocked" })).toEqual([]);
+    expect(
+      validateResult({
+        ...draft,
+        checks: [{ ...draft.checks[0], blockedBy: 3 }],
+        verdict: "blocked",
+      }),
+    ).toContain("$.checks[0].blockedBy: expected string");
+  });
+
   test("measures wall time to the accepted answer and keeps the exit time", async () => {
     const { exec } = router();
     const st = await state(exec, {

@@ -187,8 +187,8 @@ export async function observedChecks(
   };
   const rows = await readGameLog(`${runDir}/gamelog.jsonl`);
   return checks.map((check) => {
-    const { expect, id, source } = check;
-    const base = { expected: expect, id, met: false, source };
+    const { blockedBy, expect, id, source } = check;
+    const base = { blockedBy, expected: expect, id, met: false, source };
     if (source === "truth")
       return { ...base, observed: observeTruth(pair, expect) };
     if (source !== "game_log" || rows === null)
