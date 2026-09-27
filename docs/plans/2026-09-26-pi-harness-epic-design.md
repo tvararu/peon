@@ -396,6 +396,37 @@ as the spec settlements.
 61. U11b: the UI smoke script sets `umask 077` and an EXIT trap that
     closes the pane, deletes the soap account and removes its scratch
     dir on an early stop. `11e717c`.
+62. Eval round 0 fix engage-travel: a named `engage` resolves among
+    units in view first (nearest wins). A unit known only from memory
+    gets one travel leg toward its remembered position; if it is still
+    not in view, engage is REFUSED `not_in_view` with an explore Next
+    toward where it was last seen. The explore loop runs only for a
+    name that is not known at all. `0d946c5`.
+63. Eval round 0 fix engage-travel: after the approach, engage starts a
+    fight only on a unit that is in view and alive; otherwise it is
+    FAILED `target_not_observed`. An approach failure never suggests
+    `travel` to the same reference: it suggests `unstick` for
+    `start_off_mesh`, then another unit in view, then the B.3
+    ask-human text. The `not_in_view` and `target_not_observed` texts
+    are new; B.3 and B.4 have none for these cases. `7c54404`.
+64. Eval round 0 fix engage-travel: any point goal without z that is
+    refused `ambiguous_floor` is retried once at the character's
+    observed height, which departs from B.3 step 3 ("a coordinate goal
+    never gets a guessed z"). Explore legs use this path. `7156bd4`.
+65. Eval round 0 fix engage-travel: `ops/next-guard.ts` replaces a Next
+    with an ask-human question when it equals the call that just ended
+    PARTLY, REFUSED or FAILED, or when the repeat guard would block it.
+    A PARTLY `time_limit` rest and a `cancelled` run the human did not
+    stop keep their Next, because they are continuations.
+    `2962605`, `39496aa`.
+66. Eval round 0 fix scenario-data: scenario checks follow preset truth
+    measured on throwaway accounts. `t3-ghostlands-kill` accepts
+    non-gray levels 14 to 23, because no non-elite hostile near
+    Tranquillien is within 3 levels of 20; `t0-self-state` counts free
+    slots from the final bag rows; `t5-vendor-buy-goldshire` sums the
+    water count over every inventory row; `t1-walk-to-npc` and
+    `t0-hostiles` use the measured positions and names. The task texts
+    stay verbatim. `f99b2d7`.
 
 ## 3. Context
 
@@ -1125,7 +1156,7 @@ were not kept.
 
 Each build phase and each eval round adds a subsection here: what landed,
 the gate result, and the smoke and live results. Eval rounds use the
-heading `### Round <n>`.
+heading `### Eval round <n>`.
 
 Decisions taken during the build are listed in section 2, under
 "Decisions taken during the build, not yet ruled by the maintainer".
@@ -1237,3 +1268,97 @@ Head `11e717c`.
     with Dry Pork Ribs).
   - The gate report received for this record ends after the rest row,
     so the later smoke prompts are not recorded here.
+
+### Eval round 1
+
+Head `39496aa`. Thirteen scenarios, one run each, in the eval worktree.
+
+- Fix briefs landed before the round: engage-travel (`39496aa`) and
+  scenario-data (`4a91967`). item-names and events-lifecycle had not
+  landed.
+- Pass rate 6 of 13 (0.46). Abort rate 1 of 13 (0.08). Median tool
+  calls 4. Median wall time 65.1 s. No earlier round has metrics on
+  disk, so there is no comparison.
+
+| Scenario | Verdict | Checks | Tool calls | Turns | Wall s | First action s |
+|---|---|---|---|---|---|---|
+| t0-hostiles | pass | 3/3 | 1 | 2 | 53.5 | 2.35 |
+| t0-self-state | pass | 5/5 | 2 | 3 | 55.8 | 2.42 |
+| t0-who-is-near | pass | 3/3 | 1 | 2 | 55.7 | 2.46 |
+| t1-walk-to-npc | pass | 2/2 | 2 | 3 | 65.1 | 2.39 |
+| t2-whisper-reply | aborted | 1/3 | 1 | 2 | 57.7 | 1.99 |
+| t3-ghostlands-kill | fail | 2/4 | 3 | 4 | 63.8 | 2.10 |
+| t3-kill-one-hunter | fail | 4/6 | 11 | 12 | 113.5 | 2.38 |
+| t4-alliance-first | fail | 0/4 | 10 | 11 | 81.9 | 2.60 |
+| t4-quest-first | pass | 5/5 | 5 | 6 | 154.0 | 2.17 |
+| t5-vendor-buy-goldshire | fail | 0/2 | 4 | 5 | 63.1 | 2.79 |
+| t6-die-and-recover | blocked | 2/4 | 4 | 5 | 103.4 | 2.25 |
+| t7-halt-resume | fail | 2/3 | 8 | 11 | 224.7 | 2.33 |
+| t7-question-while-acting | pass | 4/4 | 11 | 14 | 325.4 | 3.20 |
+
+No run had a tool error. The only agent misread that decided a verdict
+is t3-ghostlands-kill, where Luna stopped after 2 of 8 directions, and
+that followed the core fault.
+
+Top friction clusters:
+
+1. Core navigation refuses before the character walks. Map 0 has no
+   navmesh (t4-alliance-first, t5-vendor-buy-goldshire: `FAILED
+   unsupported_map_0`), and the ghostlands20 start z is 0.44 yd above
+   the only floor, so every leg is refused (t3-ghostlands-kill). The
+   capability flag still says navigation is available.
+2. Eval runner and scenario defects. The runner never sent the
+   t2-whisper-reply partner whisper and ended the run as done 30 s
+   after the acknowledgement; the t6-die-and-recover priest heals
+   itself and does not die; the t7-question-while-acting steer fired on
+   the first kill.
+3. Pushed event batches: the MOTD with colour codes in the first wake,
+   unsorted game times, 16 quest progress rows for 8 kills, quest ids
+   without titles, and no event when the halted target in
+   t7-halt-resume died to another player.
+4. Wrong Next hints and stale engage progress: `Next: travel(...)`
+   after `unsupported_map_0`, `engage(quest: ...)` after accepting a
+   quest that completes on accept, and `0 of 5 kills` after a kill
+   credit.
+5. Core fight support: hunter shots are rejected as
+   `unsupported_item_requirement` and the pet is not controlled
+   (t3-kill-one-hunter); engage reports `target_unreachable` after
+   about 5 s on a reachable target (t7-halt-resume).
+
+Briefs for round 2:
+
+- nav-coverage (core): the map 0 navmesh and per-map open, a start snap
+  to the single floor, and a per-map capability flag.
+- runner-steers (eval): partner actions, no done while a steer is
+  pending, nth-occurrence triggers, and deterministic scenarios.
+- pushed-batch (events): order, noise, quest titles and a target-died
+  event, built on top of events-lifecycle.
+- next-hints (tools): no travel hint after a structural failure, the
+  complete-on-accept hint, and engage progress from the quest count and
+  kill credit.
+
+Deferred:
+
+- Item names in loot, vendor and engage summaries: in flight as
+  item-names; re-grade next round.
+- Aura names in `aura/gain` and `aura/fade` rows: fold into the
+  item-names follow-up.
+- Panel: the dead target row (`0/0`), the lone skull glyph on a FAILED
+  interact card, the money delta on the turn-in card, and a system
+  glyph for system messages.
+- Core engage fight choice: early `target_unreachable`, the 3-start
+  cap, tapped units, line-of-sight picks, and halt on submit.
+- Core hunter support: ranged shots, Auto Shot, the pet in the Jev
+  observation, and pet attack.
+- Prompt: after a 0 yd move, try unstick once and then ask the human;
+  the nearness scale; engage approaches the target itself; the wake
+  header is the current self state.
+- Tools: `rest` stops at 30 s instead of the `until` threshold; `look`
+  prints mana as current/max, NPC service flags as words and the owned
+  pet as "your pet".
+- Events: damage rows for self and pet.
+- Eval: a 60 yd snapshot that logs every unit `look` returned, and
+  staggered runs for scenarios that share a spawn preset.
+- The ghostlands20 preset start z of 88.66 lives on t1 and needs the
+  maintainer; the core start snap covers it meanwhile.
+- Harness launch: silence Pi's `fd not found` warning.
