@@ -1,7 +1,11 @@
 import type { Unsubscribe, WorldHandle } from "@peon/core";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { HarnessRuntime } from "#harness/contract/services";
-import type { ControlOwner } from "#harness/runtime/control-owner";
+import type {
+  ControlHolder,
+  ControlOwner,
+  Grant,
+} from "#harness/runtime/control-owner";
 import {
   ACT_KEYS,
   type Claim,
@@ -14,6 +18,7 @@ import {
   type WorldService,
   type WorldSession,
 } from "#harness/world/service";
+import { snapshot } from "#harness/world/snapshot";
 
 export type WorldRuntime = Pick<
   HarnessRuntime,
@@ -23,9 +28,14 @@ export type WorldRuntime = Pick<
 export type WorldHub = { service: WorldService; dispose: () => void };
 
 type Live = { handle: WorldHandle; session: WorldSession };
+type LiveClaim = { grant: Grant; lose: () => void };
+
+const DISPOSED = "world_disposed";
 
 export function createWorldService(rt: WorldRuntime): WorldHub {
   const hooks = new Set<Unsubscribe>();
+  const claims = new Set<LiveClaim>();
+  let disposed = false;
   const track = (off: Unsubscribe): Unsubscribe => {
     hooks.add(off);
     return () => {
@@ -42,7 +52,7 @@ export function createWorldService(rt: WorldRuntime): WorldHub {
   };
   const service: WorldService = Object.freeze({
     claim: (owner: ControlOwner, reason: string) =>
-      claim({ owner, reason, rt, track }),
+      disposed ? undefined : claim({ claims, owner, reason, rt, track }),
     connection: rt.connection,
     control: Object.freeze({
       onOwner: (cb: Parameters<WorldService["control"]["onOwner"]>[0]) =>
@@ -51,9 +61,9 @@ export function createWorldService(rt: WorldRuntime): WorldHub {
     }),
     current,
     log: Object.freeze({
-      recent: (n: number) => rt.log.recent(n),
+      recent: (n: number) => snapshot(rt.log.recent(n)),
       subscribe: (cb: Parameters<WorldService["log"]["subscribe"]>[0]) =>
-        track(rt.log.subscribe(cb)),
+        track(rt.log.subscribe((entry) => cb(snapshot(entry)))),
     }),
     onConnection: (cb: Parameters<WorldService["onConnection"]>[0]) =>
       track(rt.onConnection(cb)),
@@ -63,6 +73,11 @@ export function createWorldService(rt: WorldRuntime): WorldHub {
   });
   return {
     dispose() {
+      disposed = true;
+      for (const held of [...claims]) {
+        rt.control.release(held.grant, DISPOSED);
+        held.lose();
+      }
       for (const off of [...hooks]) off();
       hooks.clear();
     },
@@ -105,6 +120,13 @@ function sessions(
   };
 }
 
+function picked<T>(
+  keys: readonly (keyof T & string)[],
+  value: (key: keyof T & string) => unknown,
+): T {
+  return Object.fromEntries(keys.map((key) => [key, value(key)])) as T;
+}
+
 function session(handle: WorldHandle): WorldSession {
   const offs = new Set<Unsubscribe>();
   handle.closed
@@ -113,15 +135,19 @@ function session(handle: WorldHandle): WorldSession {
       offs.clear();
     })
     .catch(ignoreFailure);
-  const reads = picked<WorldReads>(READ_KEYS, (key) =>
-    handle[key].bind(handle),
-  );
-  const events = picked<WorldEvents>(EVENT_KEYS, (key) => (cb: never) => {
-    const off = (handle[key] as (cb: never) => Unsubscribe)(cb);
-    offs.add(off);
-    return () => {
-      offs.delete(off);
-      off();
+  const reads = picked<WorldReads>(READ_KEYS, (key) => {
+    const read = handle[key] as (...args: never[]) => unknown;
+    return (...args: never[]) => snapshot(read(...args));
+  });
+  const events = picked<WorldEvents>(EVENT_KEYS, (key) => {
+    const on = handle[key] as (cb: (event: unknown) => void) => Unsubscribe;
+    return (cb: (event: unknown) => void) => {
+      const off = on((event) => cb(snapshot(event)));
+      offs.add(off);
+      return () => {
+        offs.delete(off);
+        off();
+      };
     };
   });
   return Object.freeze({
@@ -131,58 +157,65 @@ function session(handle: WorldHandle): WorldSession {
   });
 }
 
-function picked<T>(
-  keys: readonly (keyof T & string)[],
-  value: (key: keyof T & string) => unknown,
-): T {
-  return Object.fromEntries(keys.map((key) => [key, value(key)])) as T;
-}
-
 type ClaimInit = {
+  claims: Set<LiveClaim>;
   owner: ControlOwner;
   reason: string;
   rt: WorldRuntime;
   track: (off: Unsubscribe) => Unsubscribe;
 };
 
-function claim({ owner, reason, rt, track }: ClaimInit): Claim | undefined {
-  if (!rt.control.claim(owner, reason).granted) return undefined;
-  let held = true;
-  const lost = new Set<Parameters<Claim["onLost"]>[0]>();
-  const stopWatch = track(
-    rt.control.onChange((change) => {
-      if (change.owner === owner) return;
-      held = false;
+function claim(init: ClaimInit): Claim | undefined {
+  const { claims, owner, reason, rt, track } = init;
+  const granted = rt.control.claim(owner, reason);
+  if (!granted.granted) return undefined;
+  const { grant } = granted;
+  let lost = false;
+  const listeners = new Set<(to: ControlHolder) => void>();
+  const entry: LiveClaim = {
+    grant,
+    lose() {
+      if (lost) return;
+      lost = true;
+      claims.delete(entry);
       stopWatch();
-      for (const cb of lost) cb(change.owner);
-      lost.clear();
+      const to = rt.control.owner();
+      for (const cb of [...listeners]) cb(to);
+      listeners.clear();
+    },
+  };
+  claims.add(entry);
+  const stopWatch = track(
+    rt.control.onChange(() => {
+      if (!rt.control.holds(grant)) entry.lose();
     }),
   );
+  const held = () => !lost && rt.control.holds(grant);
   const send =
     (key: (typeof ACT_KEYS)[number]) =>
     (...args: never[]) =>
       rt.mutex.run(() => {
-        if (!held) throw new Error("not_owner" satisfies WorldRefusal);
+        if (!held()) throw new Error("not_owner" satisfies WorldRefusal);
         const handle = rt.handle();
-        if (!handle) throw new Error("offline" satisfies WorldRefusal);
+        if (!handle || rt.connection() !== "online")
+          throw new Error("offline" satisfies WorldRefusal);
         return (handle[key] as (...args: never[]) => unknown)(...args);
       });
-  const act = Object.freeze(picked<WorldActuators>(ACT_KEYS, send));
   return Object.freeze({
-    act,
-    held: () => held,
-    onLost(cb: Parameters<Claim["onLost"]>[0]) {
-      if (!held) {
+    act: Object.freeze(picked<WorldActuators>(ACT_KEYS, send)),
+    held,
+    onLost(cb: (to: ControlHolder) => void) {
+      if (lost) {
         cb(rt.control.owner());
         return () => undefined;
       }
-      lost.add(cb);
-      return () => lost.delete(cb);
+      listeners.add(cb);
+      return () => listeners.delete(cb);
     },
     owner,
     release() {
-      if (!held) return;
-      rt.control.release(owner, reason);
+      rt.control.release(grant, reason);
+      entry.lose();
     },
   });
 }

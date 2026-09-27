@@ -182,7 +182,7 @@ While the human holds it, action tools refuse with `human_driving`.
 - **Agent.** An action tool claims the character when it starts; the
   agent keeps it, with the runs its tools start, until its turn ends.
 - **Loop.** A run still going when the agent's turn ends belongs to the
-  loop until it ends. Action tools still work beside it, and a new run
+  loop until that run ends; another run ending does not free it. Action tools still work beside it, and a new run
   is refused as `busy` until it ends or the agent stops it.
 
 The rule lives in `packages/harness/src/runtime/control-owner.ts`; the
@@ -231,20 +231,24 @@ Code inside the repository can call `onWorld(pi, use)` from
   online and again after every `/connect` or reconnect; the cleanup it
   returns runs when that connection closes. `session.reads` has the
   core state getters (`getControlState`, `getPlaceState`,
-  `queryNearby`, `getActionBar`, ...), typed read-only. `session.events` has the core
+  `queryNearby`, `getActionBar`, ...). `session.events` has the core
   event subscriptions; they end on their own when the connection
-  closes. A session reaches no writer, `close` or `logout`.
+  closes. Every read, event payload and game-log entry is a detached,
+  frozen copy: changing it throws, and the game's own state never
+  changes through it. A session reaches no writer, `close` or `logout`.
 - **Writes.** Only a claim acts: `world.claim(owner, reason)` asks the
   control rule in [Who controls the character](#who-controls-the-character)
   for `human`, `agent` or `loop`, and returns `undefined` when a higher
   owner holds the character. `claim.act` has `move`, `drive`, `jump`, `face`, `faceGuid`,
   `stopMoving`, `selectTarget`, `cast`, `attack`, `stopAttack`,
   `cancelCast`, `useItem`, `talk`, the loot calls, `sendSay` and
-  `sendWhisper`; each returns a promise. Once another owner takes the
-  character, the claim is lost for good: every send rejects with
-  `not_owner`, and `claim.onLost` fires. A run that ends frees the
-  `loop` owner, so it also ends a `loop` claim. A send while offline rejects
-  with `offline`. `claim.release()` frees the character.
+  `sendWhisper`; each returns a promise. Each claim is its own grant.
+  A later claim by any owner at the same or a higher rank takes the
+  character from it and stops every run, so the claim is lost for good:
+  every send rejects with `not_owner`, and `claim.onLost` fires. A send
+  while the connection is not online rejects with `offline`.
+  `claim.release()` frees the character only while that claim still
+  holds it, and ending the Pi session releases and loses every claim.
 - **Also.** `world.connection()` and `world.onConnection`,
   `world.control.owner()` and `onOwner`, and `world.log.recent(n)` and
   `subscribe` for the game log.

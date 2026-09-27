@@ -54,7 +54,7 @@ describe("acting-tool admission", () => {
 
   test("refuses an action while the human drives; a read still runs", async () => {
     const { rt } = await createTestRuntime();
-    rt.control.claim("human", "drive");
+    const human = rt.control.claim("human", "drive");
     expect((await runTool(probe(said)(rt), {})).details.result).toMatchObject({
       reason: "human_driving",
       status: "REFUSED",
@@ -63,7 +63,7 @@ describe("acting-tool admission", () => {
       "DONE said hi.",
     );
     expect(rt.control.owner()).toBe("human");
-    rt.control.release("human", "hand_back");
+    if (human.granted) rt.control.release(human.grant, "hand_back");
     expect((await runTool(probe(said)(rt), {})).text).toBe("DONE said hi.");
     expect(rt.control.owner()).toBe("agent");
   });

@@ -31,7 +31,7 @@ export function createHarnessRuntime(parts: RuntimeParts): HarnessRuntime {
   });
   const stopAll = (cause: StopCause) =>
     stopEverything(parts.runs, link.handle(), cause);
-  const control = ownership(parts.runs, stopAll);
+  const control = ownership(stopAll);
   const shutdown = () => shutdownAll({ link, parts, stopAll });
   return {
     ...rest,
@@ -43,22 +43,16 @@ export function createHarnessRuntime(parts: RuntimeParts): HarnessRuntime {
   };
 }
 
-function ownership(
-  runs: RunRegistry,
-  stopAll: (cause: StopCause) => RunRecord[],
-): ControlArbiter {
-  const control = createControlArbiter(({ by }) =>
+function ownership(stopAll: (cause: StopCause) => RunRecord[]): ControlArbiter {
+  return createControlArbiter(({ by }) =>
     stopAll(by === "human" ? "human" : "tool"),
   );
-  runs.subscribe((event) => {
-    if (event.type === "ended") control.release("loop", "run_ended");
-  });
-  return control;
 }
 
 function initialSession(wake: boolean): SessionFlags {
   return {
     agent: "idle",
+    agentGrant: undefined,
     humanTexts: [],
     humanWaiting: false,
     lastNow: undefined,

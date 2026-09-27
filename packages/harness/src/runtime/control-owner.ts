@@ -4,6 +4,8 @@ import type { RunRecord } from "#harness/contract/runs";
 export type ControlOwner = "human" | "agent" | "loop";
 export type ControlHolder = ControlOwner | "none";
 
+export type Grant = { readonly owner: ControlOwner; readonly reason: string };
+
 export type OwnerChange = {
   owner: ControlHolder;
   previous: ControlHolder;
@@ -17,13 +19,14 @@ export type Takeover = {
 };
 
 export type Claim =
-  | { granted: true; stopped: RunRecord[] }
+  | { granted: true; grant: Grant; stopped: RunRecord[] }
   | { granted: false; holder: ControlOwner };
 
 export type ControlArbiter = {
   owner: () => ControlHolder;
+  holds: (grant: Grant) => boolean;
   claim: (owner: ControlOwner, reason: string) => Claim;
-  release: (owner: ControlOwner, reason: string) => void;
+  release: (grant: Grant, reason: string) => void;
   onChange: (cb: (change: OwnerChange) => void) => Unsubscribe;
 };
 
@@ -38,29 +41,31 @@ export function createControlArbiter(
   preempt: (takeover: Takeover) => RunRecord[],
 ): ControlArbiter {
   const changes = new Emitter<[OwnerChange]>();
-  let holder: ControlHolder = "none";
-  const move = (owner: ControlHolder, reason: string) => {
-    const previous = holder;
-    if (previous === owner) return;
-    holder = owner;
-    changes.emit({ owner, previous, reason });
+  let current: Grant | undefined;
+  const holder = (): ControlHolder => current?.owner ?? "none";
+  const move = (next: Grant | undefined, reason: string) => {
+    const previous = holder();
+    current = next;
+    changes.emit({ owner: holder(), previous, reason });
   };
   return {
     claim(owner, reason) {
-      if (holder !== "none" && RANK[holder] > RANK[owner])
-        return { granted: false, holder };
-      const displaces =
-        owner === "human" || (holder !== "none" && holder !== owner);
-      const stopped = displaces
-        ? preempt({ by: owner, displaced: holder, reason })
-        : [];
-      move(owner, reason);
-      return { granted: true, stopped };
+      const held = holder();
+      if (held !== "none" && RANK[held] > RANK[owner])
+        return { granted: false, holder: held };
+      const stopped =
+        owner === "human" || current
+          ? preempt({ by: owner, displaced: held, reason })
+          : [];
+      const grant: Grant = Object.freeze({ owner, reason });
+      move(grant, reason);
+      return { grant, granted: true, stopped };
     },
+    holds: (grant) => current === grant,
     onChange: (cb) => changes.subscribe(cb),
-    owner: () => holder,
-    release(owner, reason) {
-      if (holder === owner) move("none", reason);
+    owner: holder,
+    release(grant, reason) {
+      if (current === grant) move(undefined, reason);
     },
   };
 }
