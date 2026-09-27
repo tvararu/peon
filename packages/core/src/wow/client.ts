@@ -1,5 +1,6 @@
 import type { Unsubscribe } from "#lib/emitter";
 import { ignoreFailure } from "#lib/ignore-failure";
+import { actionBarMethods } from "#wow/action-bar";
 import { channelMethods, chatMethods } from "#wow/client-chat";
 import {
   authenticateWorld,
@@ -38,9 +39,9 @@ import type { CombatEvent, CombatState } from "#wow/combat";
 import type {
   ControlEvent,
   ControlState,
-  MovementDirection,
   WalkOutcome,
 } from "#wow/control";
+import type { MovementDirection, MovementInput } from "#wow/control-input";
 import type { GroundOracle } from "#wow/control-motion";
 import type { MovementGuide } from "#wow/control-mover";
 import type { DbcSource } from "#wow/dbc";
@@ -60,6 +61,7 @@ import type {
 import { LOGOUT_TIMEOUT_MS, requestLogout } from "#wow/logout";
 import type { NearbyQuery, NearbyRow } from "#wow/nearby";
 import type { PartyChange, PartyLoot, PartyState } from "#wow/party-store";
+import type { ActionButton } from "#wow/protocol/action-buttons";
 import type { WhoResult } from "#wow/protocol/chat";
 import { Language } from "#wow/protocol/enums";
 import type { ItemTemplate } from "#wow/protocol/item";
@@ -227,6 +229,8 @@ export type WorldHandle = {
   declineGuildInvite: () => void;
   getControlState: () => ControlState;
   move: (direction: MovementDirection, durationMs: number) => void;
+  drive: (input: MovementInput, durationMs: number) => void;
+  jump: () => void;
   face: (orientation: number) => void;
   faceGuid: (guid: bigint) => void;
   walkTowardPoint: (
@@ -307,6 +311,7 @@ export type WorldHandle = {
   onVendorEvent: (cb: (event: VendorEvent) => void) => Unsubscribe;
   capabilities: () => Capabilities;
   getPlaceState: () => PlaceState;
+  getActionBar: () => ActionButton[];
   onNotice: (cb: (event: NoticeEvent) => void) => Unsubscribe;
   getCreatureInfo: (entry: number) => CreatureInfo | undefined;
 };
@@ -341,6 +346,7 @@ function createHandle(session: SessionHandle): WorldHandle {
     ...trainerMethods(conn, rt),
     ...vendorMethods(conn, rt),
     ...placeMethods(stores),
+    ...actionBarMethods(stores),
     ...extrasMethods(conn, rt),
   };
   return handle;

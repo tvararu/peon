@@ -36,7 +36,7 @@ function buildLivingBlock(
     0,
     0,
     0,
-    0,
+    Math.PI,
     0,
   ];
   for (const s of speeds) w.floatLE(s);
@@ -78,6 +78,7 @@ describe("parseMovementBlock", () => {
     const r = new PacketReader(w.finish());
     const m = parseMovementBlock(r);
     expect(m.updateFlags).toBe(UpdateFlag.LIVING | UpdateFlag.SELF);
+    expect(m.turnRate).toBeCloseTo(Math.PI, 5);
     expect(must(m.point).x).toBeCloseTo(10);
     expect(must(m.point).y).toBeCloseTo(20);
     expect(must(m.point).z).toBeCloseTo(30);

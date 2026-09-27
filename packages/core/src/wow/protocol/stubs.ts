@@ -49,7 +49,6 @@ export const STUBS: [opcode: number, label: string][] = [
   [GameOpcode.SMSG_TUTORIAL_FLAGS, "Tutorial flags"],
   [GameOpcode.SMSG_INITIALIZE_FACTIONS, "Factions"],
   [GameOpcode.SMSG_SET_PROFICIENCY, "Proficiency"],
-  [GameOpcode.SMSG_ACTION_BUTTONS, "Action buttons"],
   [GameOpcode.SMSG_TALENTS_INFO, "Talents"],
   [GameOpcode.SMSG_BINDPOINTUPDATE, "Bind point"],
   [GameOpcode.SMSG_POWER_UPDATE, "Power update"],

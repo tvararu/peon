@@ -65,6 +65,12 @@ export function controlMethods(conn: WorldConn, rt: Runtimes) {
     move(direction, durationMs) {
       control.move(direction, durationMs);
     },
+    drive(input, durationMs) {
+      control.drive(input, durationMs);
+    },
+    jump() {
+      control.jump();
+    },
     face(orientation) {
       control.face(orientation);
     },

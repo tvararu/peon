@@ -157,8 +157,7 @@ export class CombatActions {
       throw new Error("action_no_longer_legal");
     if (id === "wait") {
       const control = this.deps.control.snapshot();
-      if (control.moving && control.direction)
-        this.deps.control.move(control.direction, MOVE_LEASE_MS);
+      if (control.moving) this.deps.control.drive(control.input, MOVE_LEASE_MS);
       return;
     }
     if (id === "cancel") {

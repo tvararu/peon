@@ -1,33 +1,31 @@
-import type { ControlDeps, ControlPose, MovementDirection } from "#wow/control";
+import type { ControlDeps, ControlPose } from "#wow/control";
 import {
-  DIR_FLAG,
-  type GroundOracle,
-  groundStep,
-  MOVING_BITS,
-} from "#wow/control-motion";
+  type Air,
+  advanceAir,
+  JUMP_AIRTIME_MS,
+  jumpFall,
+} from "#wow/control-air";
+import {
+  INPUT_BITS,
+  inputFlags,
+  inputSteps,
+  type MovementInput,
+  translationHeading,
+  turnSign,
+} from "#wow/control-input";
+import { type GroundOracle, groundStep } from "#wow/control-motion";
 import type { Emit, MovementSync } from "#wow/control-sync";
 import { normalizeAngle } from "#wow/geometry";
+import { MovementFlag } from "#wow/protocol/entity-fields";
 import { buildMoveMessage } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 export const HEARTBEAT_MS = 500;
 const STEP_MS = 100;
 export const STEP_YARDS = 0.5;
+const TURN_STEP = 0.05;
 const HALT_BLOCKERS = new Set(["obstructed", "height_unresolved", "too_steep"]);
-
-const DIR_START: Record<MovementDirection, number> = {
-  forward: GameOpcode.MSG_MOVE_START_FORWARD,
-  backward: GameOpcode.MSG_MOVE_START_BACKWARD,
-  left: GameOpcode.MSG_MOVE_START_STRAFE_LEFT,
-  right: GameOpcode.MSG_MOVE_START_STRAFE_RIGHT,
-};
-
-const DIR_HEADING: Record<MovementDirection, number> = {
-  forward: 0,
-  backward: Math.PI,
-  left: Math.PI / 2,
-  right: -Math.PI / 2,
-};
+const IDLE: MovementInput = {};
 
 export type GuideStep = { halt: string } | { fail: string } | undefined;
 
@@ -54,7 +52,7 @@ export type MoverParts = {
 
 export class Mover {
   moving = false;
-  direction: MovementDirection | undefined;
+  input: MovementInput = IDLE;
   blockedReason: string | undefined;
   private readonly deps: ControlDeps;
   private readonly ground: GroundOracle | undefined;
@@ -62,8 +60,11 @@ export class Mover {
   private readonly emit: Emit;
   private readonly interrupt: (reason: string) => void;
   private guide: MovementGuide | undefined;
+  private air: Air | undefined;
   private leaseTimer: ReturnType<typeof setTimeout> | undefined;
+  private landTimer: ReturnType<typeof setTimeout> | undefined;
   private heartbeatTimer: ReturnType<typeof setInterval> | undefined;
+  private tickMs = 0;
   private lastIntegrate = 0;
   private lastHeartbeat = 0;
 
@@ -75,21 +76,24 @@ export class Mover {
     this.interrupt = interrupt;
   }
 
+  get airborne(): boolean {
+    return this.air !== undefined;
+  }
+
   guiding(): MovementGuide | undefined {
     return this.guide;
   }
 
   currentSpeed(): number | undefined {
-    return this.direction
-      ? this.sync.speedFor(this.direction)
-      : this.sync.runSpeed;
+    return this.moving ? this.sync.speedFor(this.input) : this.sync.runSpeed;
   }
 
-  guard(direction: MovementDirection): void {
+  guard(input: MovementInput): void {
     const reason = this.sync.blockReason();
     if (reason) throw new Error(reason);
     this.sync.requirePose();
-    if (this.sync.speedFor(direction) === undefined)
+    const translating = translationHeading(input) !== undefined;
+    if (translating && this.sync.speedFor(input) === undefined)
       throw new Error("missing_speed");
   }
 
@@ -104,32 +108,48 @@ export class Mover {
     this.emit("facing_changed");
   }
 
-  start(
-    direction: MovementDirection,
+  change(
+    input: MovementInput,
     durationMs: number,
     guide?: MovementGuide,
   ): void {
-    const pose = this.sync.requirePose();
-    this.sync.predicted = {
-      ...pose,
-      source: "predicted",
-      updatedAt: this.deps.now(),
-    };
+    this.integrate();
+    this.activate();
+    const wasMoving = this.moving;
     this.guide = guide;
-    this.direction = direction;
+    this.applySteps(input);
     this.moving = true;
     this.blockedReason = undefined;
-    this.sync.moveFlags = DIR_FLAG[direction];
-    this.lastIntegrate = this.deps.now();
-    this.lastHeartbeat = this.deps.ticks();
-    this.sendMove(DIR_START[direction]);
     this.lease(durationMs);
-    this.heartbeatTimer = setInterval(
-      () => this.heartbeat(),
-      guide ? STEP_MS : HEARTBEAT_MS,
-    );
-    this.emit("movement_started");
+    this.tick(guide ? STEP_MS : HEARTBEAT_MS);
+    if (!wasMoving) this.emit("movement_started");
     this.emit("control_changed");
+  }
+
+  jump(): void {
+    const reason = this.sync.blockReason();
+    if (reason) throw new Error(reason);
+    if (this.air) throw new Error("airborne");
+    this.integrate();
+    this.activate();
+    const pose = this.sync.requirePose();
+    const offset = this.moving ? translationHeading(this.input) : undefined;
+    const speed = offset === undefined ? 0 : this.currentSpeed();
+    const air: Air = {
+      startedAt: this.deps.now(),
+      startTicks: this.deps.ticks(),
+      startZ: pose.z,
+      groundZ: pose.z,
+      heading: normalizeAngle(pose.orientation + (offset ?? 0)),
+      xySpeed: speed ?? 0,
+    };
+    this.air = air;
+    this.sync.moveFlags |= MovementFlag.FALLING;
+    this.sync.fall = jumpFall(air);
+    this.sendMove(GameOpcode.MSG_MOVE_JUMP);
+    this.armLanding(JUMP_AIRTIME_MS);
+    this.tick(this.guide ? STEP_MS : HEARTBEAT_MS);
+    this.emit("control_changed", "jumped");
   }
 
   lease(durationMs: number): void {
@@ -156,12 +176,16 @@ export class Mover {
 
   abort(reason: string): void {
     this.interrupt(reason);
+    this.dropAir();
     this.end(reason, reason, false);
   }
 
-  refuseBlockedStart(direction: MovementDirection): void {
+  refuseBlockedStart(input: MovementInput): void {
+    const offset = translationHeading(input);
+    if (offset === undefined) return;
+    if (this.moving && translationHeading(this.input) === offset) return;
     const pose = this.sync.requirePose();
-    const heading = pose.orientation + DIR_HEADING[direction];
+    const heading = pose.orientation + offset;
     const to = {
       x: pose.x + Math.cos(heading) * STEP_YARDS,
       y: pose.y + Math.sin(heading) * STEP_YARDS,
@@ -187,45 +211,84 @@ export class Mover {
 
   integrate(): void {
     const predicted = this.sync.predicted;
-    if (!(this.moving && predicted && this.direction)) return;
+    if (!((this.moving || this.air) && predicted)) return;
     const now = this.deps.now();
-    const dt = (now - this.lastIntegrate) / 1000;
+    let from = this.lastIntegrate;
     this.lastIntegrate = now;
-    if (dt <= 0) return;
-    const speed = this.currentSpeed();
-    if (speed === undefined) return;
-    const heading = predicted.orientation + DIR_HEADING[this.direction];
+    if (now <= from) return;
+    const air = this.air;
+    if (air) {
+      const landAt = air.startedAt + JUMP_AIRTIME_MS;
+      const to = Math.min(now, landAt);
+      const turnRate = this.turnRate();
+      advanceAir(this.ground, predicted, air, { from, to, turnRate });
+      if (now < landAt) return;
+      this.land(predicted, air);
+      from = landAt;
+    }
+    if (this.moving && now > from) this.advanceGround(predicted, from, now);
+  }
+
+  private advanceGround(pose: ControlPose, from: number, now: number): void {
+    const dt = (now - from) / 1000;
+    const speed = this.currentSpeed() ?? 0;
     const result = this.guide
-      ? this.guide.advance(predicted, speed * dt, now)
-      : this.advanceFree(predicted, heading, speed * dt, now);
+      ? this.guide.advance(pose, speed * dt, now)
+      : this.advanceFree(pose, speed * dt, this.turnRate() * dt, now);
     if (result && "fail" in result) this.fail(result.fail);
     else if (result) this.halt(result.halt, true);
   }
 
   private advanceFree(
     pose: ControlPose,
-    heading: number,
     advance: number,
+    turn: number,
     now: number,
   ): GuideStep {
-    const { x, y } = pose;
-    for (let moved = 0; moved < advance; ) {
-      moved = Math.min(advance, moved + STEP_YARDS);
-      const next = {
-        x: x + Math.cos(heading) * moved,
-        y: y + Math.sin(heading) * moved,
-        now,
-        directed: false,
-      };
-      const result = this.step(pose, next);
-      if (result) return result;
+    const offset = translationHeading(this.input);
+    const yards = offset === undefined ? 0 : advance;
+    const steps = Math.max(
+      1,
+      Math.ceil(yards / STEP_YARDS),
+      Math.ceil(Math.abs(turn) / TURN_STEP),
+    );
+    for (let i = 0; i < steps; i++) {
+      const facing = pose.orientation + turn / steps;
+      if (offset !== undefined) {
+        const heading = (pose.orientation + facing) / 2 + offset;
+        const next = {
+          x: pose.x + (Math.cos(heading) * yards) / steps,
+          y: pose.y + (Math.sin(heading) * yards) / steps,
+          now,
+          directed: false,
+        };
+        const result = this.step(pose, next);
+        if (result) return result;
+      }
+      pose.orientation = normalizeAngle(facing);
+      pose.source = "predicted";
+      pose.updatedAt = now;
     }
     return undefined;
   }
 
+  private turnRate(): number {
+    return this.moving ? turnSign(this.input) * this.sync.turnRate : 0;
+  }
+
+  private land(pose: ControlPose, air: Air): void {
+    pose.z = air.groundZ;
+    this.sync.moveFlags &= ~MovementFlag.FALLING;
+    this.sync.fallTime = Math.round(JUMP_AIRTIME_MS);
+    this.sendMove(GameOpcode.MSG_MOVE_FALL_LAND);
+    this.dropAir();
+    if (!this.moving) this.clearTicker();
+    this.emit("control_changed", "landed");
+  }
+
   private heartbeat(): void {
     this.integrate();
-    if (!this.moving) return;
+    if (!(this.moving || this.air)) return;
     const now = this.deps.ticks();
     const interval = this.guide?.heartbeatMs ?? HEARTBEAT_MS;
     if (now - this.lastHeartbeat < interval) return;
@@ -253,29 +316,81 @@ export class Mover {
     blocked: string | undefined,
     sendStop: boolean,
   ): void {
-    this.clearTimers();
+    if (this.leaseTimer !== undefined) clearTimeout(this.leaseTimer);
+    this.leaseTimer = undefined;
+    if (!this.air) this.clearTicker();
     const guide = this.guide;
     this.guide = undefined;
     const wasMoving = this.moving;
     this.moving = false;
-    this.direction = undefined;
     this.blockedReason = blocked;
-    this.sync.moveFlags &= ~MOVING_BITS;
+    if (sendStop && wasMoving) this.applySteps(IDLE);
+    this.input = IDLE;
+    this.sync.moveFlags &= ~INPUT_BITS;
     guide?.end(reason);
-    if (sendStop && wasMoving) this.sendMove(GameOpcode.MSG_MOVE_STOP);
     if (wasMoving) this.emit("movement_stopped", reason);
     if (wasMoving) this.emit("control_changed", reason);
   }
 
-  private sendMove(opcode: number): void {
-    const info = this.sync.movementInfo();
-    this.deps.send(opcode, buildMoveMessage(this.deps.selfGuid(), info));
+  private activate(): void {
+    if (this.moving || this.air) return;
+    const now = this.deps.now();
+    this.sync.predicted = {
+      ...this.sync.requirePose(),
+      source: "predicted",
+      updatedAt: now,
+    };
+    this.lastIntegrate = now;
+    this.lastHeartbeat = this.deps.ticks();
   }
 
-  private clearTimers(): void {
-    if (this.leaseTimer !== undefined) clearTimeout(this.leaseTimer);
+  private applySteps(input: MovementInput): void {
+    for (const step of inputSteps(this.input, input)) {
+      this.input = step.input;
+      this.sync.moveFlags =
+        (this.sync.moveFlags & ~INPUT_BITS) | inputFlags(step.input);
+      this.sendMove(step.opcode);
+    }
+  }
+
+  private armLanding(delayMs: number): void {
+    this.landTimer = setTimeout(() => {
+      this.landTimer = undefined;
+      this.heartbeat();
+      const air = this.air;
+      if (!air) return;
+      const left = air.startedAt + JUMP_AIRTIME_MS - this.deps.now();
+      this.armLanding(Math.max(1, Math.ceil(left)));
+    }, Math.ceil(delayMs));
+  }
+
+  private dropAir(): void {
+    if (this.landTimer !== undefined) clearTimeout(this.landTimer);
+    this.landTimer = undefined;
+    if (!this.air) return;
+    this.air = undefined;
+    this.sync.moveFlags &= ~MovementFlag.FALLING;
+    this.sync.fall = undefined;
+    this.sync.fallTime = 0;
+  }
+
+  private tick(periodMs: number): void {
+    if (this.heartbeatTimer !== undefined && this.tickMs === periodMs) return;
+    this.clearTicker();
+    this.tickMs = periodMs;
+    this.heartbeatTimer = setInterval(() => this.heartbeat(), periodMs);
+  }
+
+  private clearTicker(): void {
     if (this.heartbeatTimer !== undefined) clearInterval(this.heartbeatTimer);
-    this.leaseTimer = undefined;
     this.heartbeatTimer = undefined;
+  }
+
+  private sendMove(opcode: number): void {
+    const air = this.air;
+    if (air && this.sync.moveFlags & MovementFlag.FALLING)
+      this.sync.fallTime = this.deps.ticks() - air.startTicks;
+    const info = this.sync.movementInfo();
+    this.deps.send(opcode, buildMoveMessage(this.deps.selfGuid(), info));
   }
 }

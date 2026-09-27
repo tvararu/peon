@@ -119,6 +119,7 @@ function applyCreate(
       movementFlags: entry.movementInfo?.flags,
       runSpeed: entry.runSpeed,
       runBackSpeed: entry.runBackSpeed,
+      turnRate: entry.turnRate,
       target: extra.target,
       unitFlags: extra.unitFlags,
     },
@@ -171,6 +172,7 @@ function applyMovement(
       movementFlags: entry.movementInfo?.flags,
       runSpeed: entry.runSpeed,
       runBackSpeed: entry.runBackSpeed,
+      turnRate: entry.turnRate,
     },
   });
 }

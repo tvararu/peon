@@ -1,3 +1,4 @@
+import { ActionBarStore } from "#wow/action-bar";
 import { PlaceStore } from "#wow/client-place";
 import { CombatStore } from "#wow/combat-store";
 import { DestroyStore } from "#wow/destroy-store";
@@ -21,6 +22,7 @@ export type SessionDeps = {
 };
 
 export type SessionStores = {
+  actionBar: ActionBarStore;
   combat: CombatStore;
   motion: MotionStore;
   rewards: RewardsStore;
@@ -50,6 +52,7 @@ export function createSessionStores(conn: WorldConn): SessionStores {
 export function buildSessionStores(deps: SessionDeps): SessionStores {
   const combat = new CombatStore(deps);
   return {
+    actionBar: new ActionBarStore(),
     combat,
     motion: new MotionStore(deps.now),
     rewards: new RewardsStore(deps),
@@ -65,6 +68,7 @@ export function buildSessionStores(deps: SessionDeps): SessionStores {
 }
 
 export function disposeSessionStores(stores: SessionStores): void {
+  stores.actionBar.dispose();
   stores.combat.clear();
   stores.motion.clear();
   stores.rewards.dispose();

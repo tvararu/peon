@@ -1,10 +1,10 @@
-import type {
-  ControlDeps,
-  ControlEventType,
-  ControlPose,
-  MovementDirection,
-} from "#wow/control";
-import { MOVING_BITS, unsupportedReason } from "#wow/control-motion";
+import type { ControlDeps, ControlEventType, ControlPose } from "#wow/control";
+import {
+  DEFAULT_TURN_RATE,
+  INPUT_BITS,
+  type MovementInput,
+} from "#wow/control-input";
+import { unsupportedReason } from "#wow/control-motion";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag, UnitFlag } from "#wow/protocol/entity-fields";
 import {
@@ -44,6 +44,7 @@ export type SelfObservation = {
   movementFlags?: number;
   runSpeed?: number;
   runBackSpeed?: number;
+  turnRate?: number;
   target?: bigint;
   unitFlags?: number;
 };
@@ -57,13 +58,15 @@ export class MovementSync {
   mapId = 0;
   runSpeed: number | undefined;
   runBackSpeed: number | undefined;
+  turnRate = DEFAULT_TURN_RATE;
+  fall: FallData | undefined;
+  fallTime = 0;
   target: bigint | undefined;
   private readonly deps: ControlDeps;
   private readonly emit: Emit;
   private readonly motion: SyncMotion;
   private extraFlags = 0;
   private observedFlags = 0;
-  private fall: FallData | undefined;
   private transport: TransportInfo | undefined;
   private controlAllowed = true;
   private rooted = false;
@@ -86,8 +89,8 @@ export class MovementSync {
     return { ...pose };
   }
 
-  speedFor(direction: MovementDirection): number | undefined {
-    return direction === "backward" ? this.runBackSpeed : this.runSpeed;
+  speedFor(input: MovementInput): number | undefined {
+    return input.move === "backward" ? this.runBackSpeed : this.runSpeed;
   }
 
   blockReason(): string | undefined {
@@ -108,7 +111,7 @@ export class MovementSync {
       y: pose?.y ?? 0,
       z: pose?.z ?? 0,
       orientation: pose?.orientation ?? 0,
-      fallTime: 0,
+      fallTime: this.fallTime,
       fall: this.fall,
       transport: this.transport,
     };
@@ -128,6 +131,7 @@ export class MovementSync {
     if (input.runSpeed !== undefined) this.runSpeed = input.runSpeed;
     if (input.runBackSpeed !== undefined)
       this.runBackSpeed = input.runBackSpeed;
+    if (input.turnRate !== undefined) this.turnRate = input.turnRate;
     if (input.unitFlags !== undefined) this.setUnitFlags(input.unitFlags);
     if (input.target !== undefined) this.observeTarget(input.target);
     if (input.movementFlags !== undefined) {
@@ -194,6 +198,7 @@ export class MovementSync {
     this.observedFlags = 0;
     this.extraFlags = 0;
     this.fall = undefined;
+    this.fallTime = 0;
     this.transport = undefined;
     this.rooted = false;
     this.setServerPose(position);
@@ -248,6 +253,7 @@ export class MovementSync {
     if ("field" in spec && spec.field === "runSpeed") this.runSpeed = speed;
     if ("field" in spec && spec.field === "runBackSpeed")
       this.runBackSpeed = speed;
+    if ("field" in spec && spec.field === "turnRate") this.turnRate = speed;
     this.deps.send(spec.ack, buildSpeedAck(this.moveAck(counter), speed));
   }
 
@@ -282,7 +288,7 @@ export class MovementSync {
   private applyForcedPose(dest: MovementInfo, reason: string): void {
     this.observedFlags = dest.flags;
     this.extraFlags = dest.extraFlags;
-    this.moveFlags = dest.flags & ~MOVING_BITS;
+    this.moveFlags = dest.flags & ~INPUT_BITS;
     this.fall = dest.fall;
     this.transport = dest.transport;
     this.rooted = (dest.flags & MovementFlag.ROOT) !== 0;

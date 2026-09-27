@@ -12,6 +12,7 @@ type Movement = {
   movementInfo?: MovementInfo;
   runSpeed?: number;
   runBackSpeed?: number;
+  turnRate?: number;
   spline?: CreateSpline;
 };
 

@@ -48,14 +48,14 @@ test("wait holds the current movement direction by refreshing its lease", () => 
   try {
     actions.execute("move_forward", context);
     expect(control.snapshot().moving).toBe(true);
-    const move = jest.spyOn(control, "move");
+    const drive = jest.spyOn(control, "drive");
     try {
       actions.execute("wait", context);
-      expect(move).toHaveBeenCalledWith("forward", 2500);
+      expect(drive).toHaveBeenCalledWith({ move: "forward" }, 2500);
       expect(control.snapshot().moving).toBe(true);
-      expect(control.snapshot().direction).toBe("forward");
+      expect(control.snapshot().input).toEqual({ move: "forward" });
     } finally {
-      move.mockRestore();
+      drive.mockRestore();
     }
   } finally {
     definition.mockRestore();
@@ -65,13 +65,13 @@ test("wait holds the current movement direction by refreshing its lease", () => 
 test("wait is a no-op while stationary", () => {
   const { actions, combat, control } = setup();
   const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
-  const move = jest.spyOn(control, "move");
+  const drive = jest.spyOn(control, "drive");
   try {
     actions.execute("wait", context);
-    expect(move).not.toHaveBeenCalled();
+    expect(drive).not.toHaveBeenCalled();
     expect(control.snapshot().moving).toBe(false);
   } finally {
-    move.mockRestore();
+    drive.mockRestore();
     definition.mockRestore();
   }
 });

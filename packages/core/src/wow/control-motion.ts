@@ -1,4 +1,3 @@
-import type { MovementDirection } from "#wow/control";
 import type { Position } from "#wow/entity-store";
 import {
   collisionFree,
@@ -20,13 +19,6 @@ export type GroundOracle = {
 
 export const MAX_DURATION_MS = 10_000;
 
-export const DIR_FLAG: Record<MovementDirection, number> = {
-  forward: MovementFlag.FORWARD,
-  backward: MovementFlag.BACKWARD,
-  left: MovementFlag.STRAFE_LEFT,
-  right: MovementFlag.STRAFE_RIGHT,
-};
-
 const STEP_REFUSALS = [
   "obstructed",
   "height_unresolved",
@@ -41,12 +33,6 @@ export function isStepRefusal(reason: string): reason is StepRefusal {
 }
 
 export type Step = { ok: true; z: number } | { ok: false; reason: StepRefusal };
-
-export const MOVING_BITS =
-  MovementFlag.FORWARD |
-  MovementFlag.BACKWARD |
-  MovementFlag.STRAFE_LEFT |
-  MovementFlag.STRAFE_RIGHT;
 
 export function unsupportedReason(flags: number): string | undefined {
   if (flags & MovementFlag.ON_TRANSPORT) return "transport";

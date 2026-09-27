@@ -34,9 +34,14 @@ export type {
   ControlEventType,
   ControlPose,
   ControlState,
-  MovementDirection,
   WalkOutcome,
 } from "#wow/control";
+export type {
+  MoveAxis,
+  MovementDirection,
+  MovementInput,
+  SideAxis,
+} from "#wow/control-input";
 export {
   type GroundOracle,
   isStepRefusal,
@@ -106,6 +111,10 @@ export type {
   PartyState,
 } from "#wow/party-store";
 export type { PlayerLife } from "#wow/player-state";
+export type {
+  ActionButton,
+  ActionButtonType,
+} from "#wow/protocol/action-buttons";
 export type { WhoResult } from "#wow/protocol/chat";
 export { ObjectType, UnitFlag } from "#wow/protocol/entity-fields";
 export { ChatType, PartyOperation, PartyResult } from "#wow/protocol/enums";

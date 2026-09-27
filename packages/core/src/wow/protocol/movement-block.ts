@@ -13,6 +13,7 @@ export type MovementData = {
   point?: Point;
   runSpeed?: number;
   runBackSpeed?: number;
+  turnRate?: number;
   movementInfo?: MovementInfo;
   spline?: CreateSpline;
 };
@@ -25,13 +26,16 @@ function readLiving(r: PacketReader): Placement {
   r.skip(4);
   const runSpeed = r.floatLE();
   const runBackSpeed = r.floatLE();
-  r.skip(24);
+  r.skip(16);
+  const turnRate = r.floatLE();
+  r.skip(4);
   const splined = flags & MovementFlag.SPLINE_ENABLED;
   const spline = splined ? parseCreateSpline(r) : undefined;
   return {
     point: { x, y, z, orientation },
     runSpeed,
     runBackSpeed,
+    turnRate,
     movementInfo,
     spline,
   };
