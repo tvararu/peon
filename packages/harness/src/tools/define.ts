@@ -320,7 +320,7 @@ async function admit<P extends TSchema, K extends ToolName>(
     });
   const handle = rt.requireHandle();
   if (ACTING.has(spec.kind) && rt.session.humanWaiting)
-    throw humanWaiting(rt.session.humanText);
+    throw humanWaiting(rt.session.humanTexts);
   if (!(await rt.ready.whenReady(READY_WAIT_MS))) {
     throw new Refusal({
       detail: "the world is still loading.",

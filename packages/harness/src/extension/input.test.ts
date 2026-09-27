@@ -107,13 +107,18 @@ describe("installInput", () => {
       });
       await fake.emit(human("how much health do you have?"));
       expect(rt.session.humanWaiting).toBe(true);
-      expect(rt.session.humanText).toBe("how much health do you have?");
+      expect(rt.session.humanTexts).toEqual(["how much health do you have?"]);
       jest.advanceTimersByTime(YIELD_DELAY_MS - 1);
       await Promise.resolve();
       expect(yielded).toBe(false);
       jest.advanceTimersByTime(1);
       await Promise.resolve();
       expect(yielded).toBe(true);
+      await fake.emit(human("and your mana?"));
+      expect(rt.session.humanTexts).toEqual([
+        "how much health do you have?",
+        "and your mana?",
+      ]);
     } finally {
       jest.useRealTimers();
     }
@@ -140,10 +145,10 @@ describe("installInput", () => {
     await fake.emit({ type: "agent_start" });
     expect(rt.session).toMatchObject({ agent: "streaming", turnToolCalls: 0 });
     rt.session.humanWaiting = true;
-    rt.session.humanText = "rest first";
+    rt.session.humanTexts = ["rest first"];
     await fake.emit({ timestamp: 0, turnIndex: 0, type: "turn_start" });
     expect(rt.session.humanWaiting).toBe(false);
-    expect(rt.session.humanText).toBeUndefined();
+    expect(rt.session.humanTexts).toEqual([]);
     await fake.emit({
       args: {},
       toolCallId: "c1",

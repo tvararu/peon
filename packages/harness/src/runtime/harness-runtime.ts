@@ -40,7 +40,7 @@ export function createHarnessRuntime(parts: RuntimeParts): HarnessRuntime {
 function initialSession(wake: boolean): SessionFlags {
   return {
     agent: "idle",
-    humanText: undefined,
+    humanTexts: [],
     humanWaiting: false,
     lastNow: undefined,
     lastToolCallAt: undefined,
