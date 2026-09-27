@@ -203,16 +203,18 @@ game log shows these notices as `notice/not_implemented`.
 citations in the area notes (`docs/areas/*.md`), or in the files it is
 given; `-` reads stdin, so a PR body can be piped from
 `gh pr view <N> --json body -q .body`. It reads the checkout named by
-`PEON_AZEROTHCORE_DIR`, or `~/code/azerothcore-wotlk-playerbots` on its
-`deployed` branch. It is not part of `mise ci`, because a CI host may
-lack the checkout.
+`PEON_AZEROTHCORE_DIR`, or `~/code/azerothcore-wotlk-playerbots`; keep
+it on the `deployed` branch, which the checker does not verify. It is
+not part of `mise ci`, because a CI host may lack the checkout.
 
 A citation is a `.cpp`, `.cc`, `.h`, `.hpp` or `.inl` path followed by
 `:<line>`, `:<from>-<to>` or a comma list of those. The path may be any
 suffix of the checkout path that names exactly one file. A citation
 binds to every opcode named in its paragraph, list item or table row.
 For each cited line the checker takes the enclosing function, or the
-enclosing class for a header member, or the line itself outside both.
+enclosing class for a header member, or the line itself outside both
+and inside the opcode table (`OpcodeTable::Initialize`, `enum Opcodes`),
+which names every opcode.
 
 | Verdict | Meaning |
 |---|---|
