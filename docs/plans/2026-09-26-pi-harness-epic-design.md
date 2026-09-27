@@ -311,6 +311,91 @@ as the spec settlements.
 35. P2: the linter sorts `TOOL_TEXT` keys alphabetically, so P3 must
     iterate the design B.1 tool order, not `Object.keys(TOOL_TEXT)`.
     `c362fae`.
+36. U11a, U10: a blanket coordinator ownership exception replaces the
+    A1d one (decision 30) for `packages/harness/test-support/fake-pi.ts`.
+    U11a's fake records `registerMessageRenderer` and
+    `registerEntryRenderer` calls (`edf18b0`), and U10 adds a no-op
+    `registerCommand` (`c30fb47`).
+37. E7f: harness quit waits up to 30 s for the server to end the
+    session and logs `session/logout` with outcome `complete` or
+    `timeout` and `waitedMs`. Core's `logout()` returns void, so
+    `complete` means the server closed the session within 30 s, which
+    also covers a refusal. `3eb79bc`.
+38. E7f: after the harness exits, the grader polls soap truth every
+    10 s for up to 90 s until the character is offline, and only then
+    applies the savedAt rule. Still online at 90 s is `stale_truth`; an
+    offline read with an old save is `stale_truth` at once, not after
+    three reads. `d58fda1`.
+39. E7f: `pane.ts` quit waits 35 s (was 3 s) for the pane to exit
+    before its double Ctrl-C fallback. A Ctrl-C while Pi waits for the
+    logout is a SIGINT in the cooked terminal and killed the harness
+    mid-logout. `d58fda1`.
+40. E7f: a Ctrl-D that Orca refuses with `terminal_not_writable`,
+    `terminal_exited`, `terminal_gone` or `terminal_handle_stale` counts
+    as sent, and quit goes on to wait for the exit. `546eca7`.
+41. E7f: the grader CLI's `scenario` command is `showScenario` and is
+    synchronous (biome `noShadow` and `useAwait`). `ca293fa`.
+42. B5: death on the way ends as `FAILED died` with `Next: recover()`,
+    not `FAILED interrupted` as design B.3 step 7 says, because B.4,
+    B.10, B.13 and the contract code list use `died`. `3a9e226`.
+43. B5: the generic travel refusal gives its code, core's next step with
+    "goto" read as "travel", and a Tried/Not tried clause; after a floor
+    retry the clause says `planner twice (floor retry)`. The
+    class-prefix regex is a local copy in `travel-report.ts`.
+    `fc909bd`.
+44. B5: a unit goal refused with `ambiguous_floor` is REFUSED, lists the
+    floors and gives a `Next: travel(...)` line at the floor nearest the
+    unit's height. `UNKNOWN_PATH` gives `no_path` from a local table in
+    `travel-report.ts`, so `LegResult.reason` stays
+    `pathfind_find_path_failed`. Destination-side causes say
+    `Not tried: another destination.` from a local copy of core's
+    classifier lists. `5a1968f`.
+45. L4a: an aborted goto calls `finish` before `handle.halt()`, so it
+    returns `stopped`, not `refused` with reason `halt`; the test mock
+    models core's halt. `21e1198`.
+46. L4b: `jevCode` also maps an outcome reason that starts with
+    `jev_unavailable`, because core emits the failed outcome before it
+    rethrows; a cycle whose signal is already aborted stops at its
+    `started` event. `d68bc9d`.
+47. U2: the footer reclaim clause follows [now]: undefined gives no
+    clause, 0 gives "reclaim ready", a positive value gives the
+    countdown. Row 2 no longer repeats GHOST or DEAD. `f2e4218`.
+48. U7: the expanded engage view draws every decision (up to 200, the
+    `EngageAfter` cap), not the plan's last 6. `50219d0`.
+49. B11: the "Other ways:" line keeps its first item lower case, as
+    design B.8 shows. `e2c6e09`.
+50. B3: the loot fallback record keeps the guid as a decimal string, as
+    core `loot-run.ts` does, not the plan's hex. `d705dc7`.
+51. P3: the tool notes follow an explicit `TOOL_ORDER` in
+    `install.ts`, not `Object.keys(TOOL_TEXT)`. `d62a010`.
+52. B7: a request-items dialog whose `completionFlags[0] % 4 === 3`
+    counts as ready, and `turn_in` asks for the reward from it. A reward
+    number past the choices is refused with `reward_needed`; with one or
+    no choice the tool sends index 0. `212805c`.
+53. B8: an unanswered buy or sale is UNCONFIRMED `no_answer`; a
+    sell_junk that sold nothing and got refusals is FAILED with core's
+    reason; PARTLY needs 0 < sold < junk. Both loops stop at the first
+    unanswered request, non-DONE sell_junk results carry a Next line,
+    and buy accepts a stock line number. `ab1adcf`.
+54. B9: repair with nothing damaged reports DONE with `repairCost` 0,
+    not FAILED `error`. `e459c45`.
+55. B10: the rest projection judges only the stats under `until` and
+    compares the projected low with `until`. `9494582`.
+56. B6: the fallback `emptyLoot` has `windowClosed: true` (the A1 stub
+    had false). `b129dc2`.
+57. L9b: the reply hint treats `WHISPER_FOREIGN` as a whisper.
+    `95abfc6`.
+58. U11a: `extension.test.ts` also asserts the two renderer
+    registrations. `e6fca38`.
+59. P5, P6: the harness doc lists the landed `no-spells` footer chip
+    (`8ac5eed`), and the eval bullet lists the grader's eleven commands,
+    adding `run` and `result` (`c77995d`).
+60. F8e: the second pane of the smoke must start only after the first
+    harness exits; a pane started during the first logout is refused by
+    the character lock. `8cb5068`.
+61. U11b: the UI smoke script sets `umask 077` and an EXIT trap that
+    closes the pane, deletes the soap account and removes its scratch
+    dir on an early stop. `11e717c`.
 
 ## 3. Context
 
@@ -1092,3 +1177,63 @@ Phase 1 is the core surface and the harness foundation.
   password leaks; `~/.pi` is not created; the compiled binary's
   `--check` exits 0.
 - Gate: `mise ci` is green at `8afc48f` with 2976 tests.
+
+### Phase 3
+
+- Tasks landed: about 57, up to `546eca7`.
+- Gate: `mise ci` is green at `546eca7` with 3456 tests.
+- Blocked at the end of the phase: U11a (the fake Pi had no renderer
+  registration), B5 (review found the generic refusal without a
+  Tried/Not tried clause) and E7f (the canary aborted twice with
+  `stale_truth`, because quit closed the socket 5 s after the logout
+  request and AzerothCore logs out after 20 s outside a rested area).
+  U10, U11b, P5, P6 and F8e waited behind U11a.
+- Scheduler flaw: a blocked task's commits landed with later batches
+  from the same area, so B5's code reached the epic branch before its
+  review passed. The scheduler now stops a blocked task's area and does
+  not flush stopped areas.
+
+### Phase 3b
+
+- B5, E7f and U11a are unblocked by the coordinator rulings (decisions
+  36 to 44) and land. U10, U11b, P5, P6 and F8e land after them, up to
+  `11e717c`.
+- Gate: `mise ci` is green at `11e717c` with 3491 tests.
+- Smokes V1, V5, V6 and V7 pass (`smoke-live.md`). The UI pane smoke
+  passes 13 of 13 checks (`smoke-ui.md`).
+
+### Final gate
+
+Head `11e717c`.
+
+- `mise ci:checks` exits 0: typecheck passes for the root and the five
+  packages (core, cli, factory, devtools, harness); test:coverage runs
+  3491 tests across 353 files with 0 failing and 13571 `expect()`
+  calls; format and lint check 756 files with no fixes; lint:docs has
+  no errors.
+- Legacy live suite (`mise test:live`, two throwaway soap accounts,
+  both deleted afterwards): 21 of 21, 267 `expect()` calls, 104.77 s.
+  The pre-epic baseline was 21 of 21, 264 calls, 104.71 s. No rerun
+  was needed. C14 is green.
+- Luna gate 2: not met. The canary `t0-self-state` graded fail, 4 of 5;
+  the one miss comes from a defect in the scenario's truth data, not
+  from Luna. The G2.5 check that a 120 s run returns `RUNNING` was not
+  exercised, because no run lasted 120 s.
+- Tool smoke (one pane, `eversong10`, Jev key and Codex login valid):
+  - "Walk to Marniel Amberlight." passes: `travel DONE`, 1.4 yd away
+    after 57 yd in 9.0 s. No `nav/route_end` row is written:
+    `contract/log.ts` declares the event and nothing emits it.
+  - "Buy some water from her." passes after two refusals: 5 Refreshing
+    Spring Water for 23 copper.
+  - "Head north and kill one Springpaw Stalker." fails without steers:
+    both `travel explore` calls moved 0 yd with every leg refused
+    `ambiguous_floor`, and named `engage` and `travel` to the stalker
+    failed with `surface_change`. It passed only after a steer to the
+    spawn point.
+  - "Loot anything left near you." passes with `REFUSED not_lootable`
+    and a `look(find: "lootable")` next step.
+  - "Rest until you are full." passes trivially at full HP and mana;
+    food use showed in a later session (`rest PARTLY time_limit`, 30 s
+    with Dry Pork Ribs).
+  - The gate report received for this record ends after the rest row,
+    so the later smoke prompts are not recorded here.
