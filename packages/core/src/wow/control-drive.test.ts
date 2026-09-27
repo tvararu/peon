@@ -1,20 +1,15 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
-import { LOGIN, type Sent, setup } from "#test-support/control-fixtures";
+import {
+  decodeMove as decode,
+  LOGIN,
+  type Sent,
+  setup,
+} from "#test-support/control-fixtures";
 import { must } from "#test-support/must";
-import { GRAVITY, JUMP_AIRTIME_MS, JUMP_VELOCITY } from "#wow/control-air";
 import { MovementFlag } from "#wow/protocol/entity-fields";
-import { parseMovementInfo } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import { PacketReader } from "#wow/protocol/packet";
 
-const { FORWARD, BACKWARD, STRAFE_RIGHT, LEFT, RIGHT, FALLING } = MovementFlag;
-
-function decode(packet: Sent | undefined) {
-  const { opcode, body } = must(packet);
-  const r = new PacketReader(body);
-  const guid = r.packedGuidBig();
-  return { opcode, guid, ...parseMovementInfo(r) };
-}
+const { FORWARD, BACKWARD, STRAFE_RIGHT, LEFT, RIGHT } = MovementFlag;
 
 function sentSince(sent: Sent[], from: number) {
   return sent.slice(from).map((packet) => {
@@ -150,109 +145,5 @@ describe("ControlRuntime.drive", () => {
     );
     expect(stop.x).toBeCloseTo(LOGIN.x, 2);
     expect(stop.y).toBeCloseTo(LOGIN.y, 2);
-  });
-});
-
-describe("ControlRuntime.jump", () => {
-  test("a standing jump sends the jump, falling heartbeats and a landing", () => {
-    const { runtime, sent, advance } = setup();
-    sent.length = 0;
-    runtime.jump();
-    const jump = decode(sent.at(-1));
-    expect(jump).toMatchObject({
-      opcode: GameOpcode.MSG_MOVE_JUMP,
-      guid: 0x0764n,
-      flags: FALLING,
-      fallTime: 0,
-    });
-    expect(jump.z).toBeCloseTo(LOGIN.z, 4);
-    const fall = must(jump.fall);
-    expect(fall.zSpeed).toBeCloseTo(-JUMP_VELOCITY, 5);
-    expect(fall.cosAngle).toBeCloseTo(Math.cos(LOGIN.orientation), 5);
-    expect(fall.sinAngle).toBeCloseTo(Math.sin(LOGIN.orientation), 5);
-    expect(fall.xySpeed).toBe(0);
-    expect(runtime.snapshot()).toMatchObject({ airborne: true, moving: false });
-    expect(() => runtime.jump()).toThrow("airborne");
-    advance(500);
-    const beat = decode(sent.at(-1));
-    expect(beat).toMatchObject({
-      opcode: GameOpcode.MSG_MOVE_HEARTBEAT,
-      flags: FALLING,
-      fallTime: 500,
-    });
-    const rise = JUMP_VELOCITY * 0.5 - (GRAVITY * 0.25) / 2;
-    expect(beat.z).toBeCloseTo(LOGIN.z + rise, 3);
-    advance(400);
-    const land = decode(sent.at(-1));
-    expect(land).toMatchObject({
-      opcode: GameOpcode.MSG_MOVE_FALL_LAND,
-      flags: 0,
-      fallTime: 825,
-    });
-    expect(land.z).toBeCloseTo(LOGIN.z, 4);
-    expect(land.fall).toBeUndefined();
-    expect(runtime.snapshot().airborne).toBe(false);
-    const count = sent.length;
-    advance(2000);
-    expect(sent).toHaveLength(count);
-  });
-
-  test("a running jump carries its speed and keeps running after landing", () => {
-    const { runtime, sent, advance } = setup();
-    runtime.drive({ move: "forward" }, 3000);
-    sent.length = 0;
-    runtime.jump();
-    const jump = decode(sent.at(-1));
-    expect(jump.flags).toBe(FORWARD | FALLING);
-    expect(must(jump.fall).xySpeed).toBeCloseTo(7, 5);
-    advance(1000);
-    const opcodes = sent.map((packet) => packet.opcode);
-    expect(opcodes).toContain(GameOpcode.MSG_MOVE_FALL_LAND);
-    const pose = must(runtime.snapshot().pose);
-    expect(pose.x).toBeCloseTo(LOGIN.x + 7 * Math.cos(LOGIN.orientation), 4);
-    expect(pose.z).toBeCloseTo(LOGIN.z, 4);
-    expect(runtime.snapshot()).toMatchObject({ moving: true, airborne: false });
-    advance(500);
-    expect(decode(sent.at(-1))).toMatchObject({
-      opcode: GameOpcode.MSG_MOVE_HEARTBEAT,
-      flags: FORWARD,
-      fallTime: 0,
-    });
-  });
-
-  test("releasing keys mid-air keeps falling until the landing", () => {
-    const { runtime, sent, advance } = setup();
-    runtime.drive({ strafe: "right" }, 3000);
-    runtime.jump();
-    runtime.drive({}, 1);
-    expect(decode(sent.at(-1))).toMatchObject({
-      opcode: GameOpcode.MSG_MOVE_STOP_STRAFE,
-      flags: FALLING,
-    });
-    advance(900);
-    expect(decode(sent.at(-1)).opcode).toBe(GameOpcode.MSG_MOVE_FALL_LAND);
-    const pose = must(runtime.snapshot().pose);
-    const heading = LOGIN.orientation - Math.PI / 2;
-    const flight = (7 * JUMP_AIRTIME_MS) / 1000;
-    expect(pose.x).toBeCloseTo(LOGIN.x + flight * Math.cos(heading), 4);
-    expect(pose.y).toBeCloseTo(LOGIN.y + flight * Math.sin(heading), 4);
-  });
-
-  test("a server position mid-air cancels the jump", () => {
-    const { runtime, sent, advance, events } = setup();
-    runtime.jump();
-    runtime.observeSelf({ position: { ...LOGIN, z: 80 } });
-    expect(runtime.snapshot()).toMatchObject({
-      airborne: false,
-      pose: { z: 80, source: "server" },
-    });
-    expect(events.at(-1)?.type).toBe("server_correction");
-    const count = sent.length;
-    advance(2000);
-    expect(sent).toHaveLength(count);
-    runtime.jump();
-    const again = decode(sent.at(-1));
-    expect(again.opcode).toBe(GameOpcode.MSG_MOVE_JUMP);
-    expect(again.z).toBeCloseTo(80, 4);
   });
 });

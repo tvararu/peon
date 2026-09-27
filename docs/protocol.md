@@ -142,10 +142,14 @@ turn rate (movement block, `SMSG_FORCE_TURN_RATE_CHANGE`; π rad/s by
 default), so heartbeats carry the integrated orientation. `jump()` sends
 `MSG_MOVE_JUMP` with `FALLING`, fall time 0 and the jump fields (z speed
 −7.955547, the horizontal heading's cos and sin, and the horizontal
-speed), then falling heartbeats with the elapsed fall time, and
-`MSG_MOVE_FALL_LAND` with fall time 825 ms at the ground-oracle height.
-Horizontal speed stays fixed in the air, turning continues, and a server
-position mid-air cancels the jump.
+speed), then falling heartbeats with the elapsed fall time along the
+ballistic arc (gravity 19.291105). `MSG_MOVE_FALL_LAND` goes out when the
+descending arc meets the ground-oracle height under it, with the fall
+time at that moment: 825 ms on level ground, later off a ledge, so the
+server sees the real fall height. In the air the horizontal speed stays
+fixed over gaps and steep or missing ground samples, and only a navmesh
+collision stops it; turning continues, and a server position mid-air
+cancels the jump.
 
 ## Entity fields
 

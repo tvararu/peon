@@ -1,10 +1,5 @@
 import type { ControlDeps, ControlPose } from "#wow/control";
-import {
-  type Air,
-  advanceAir,
-  JUMP_AIRTIME_MS,
-  jumpFall,
-} from "#wow/control-air";
+import { AIR_TICK_MS, type Air, advanceAir, jumpFall } from "#wow/control-air";
 import {
   INPUT_BITS,
   inputFlags,
@@ -62,7 +57,6 @@ export class Mover {
   private guide: MovementGuide | undefined;
   private air: Air | undefined;
   private leaseTimer: ReturnType<typeof setTimeout> | undefined;
-  private landTimer: ReturnType<typeof setTimeout> | undefined;
   private heartbeatTimer: ReturnType<typeof setInterval> | undefined;
   private tickMs = 0;
   private lastIntegrate = 0;
@@ -121,7 +115,7 @@ export class Mover {
     this.moving = true;
     this.blockedReason = undefined;
     this.lease(durationMs);
-    this.tick(guide ? STEP_MS : HEARTBEAT_MS);
+    this.tick();
     if (!wasMoving) this.emit("movement_started");
     this.emit("control_changed");
   }
@@ -147,8 +141,7 @@ export class Mover {
     this.sync.moveFlags |= MovementFlag.FALLING;
     this.sync.fall = jumpFall(air);
     this.sendMove(GameOpcode.MSG_MOVE_JUMP);
-    this.armLanding(JUMP_AIRTIME_MS);
-    this.tick(this.guide ? STEP_MS : HEARTBEAT_MS);
+    this.tick();
     this.emit("control_changed", "jumped");
   }
 
@@ -218,13 +211,12 @@ export class Mover {
     if (now <= from) return;
     const air = this.air;
     if (air) {
-      const landAt = air.startedAt + JUMP_AIRTIME_MS;
-      const to = Math.min(now, landAt);
       const turnRate = this.turnRate();
-      advanceAir(this.ground, predicted, air, { from, to, turnRate });
-      if (now < landAt) return;
-      this.land(predicted, air);
-      from = landAt;
+      const span = { from, to: now, turnRate };
+      const landedAt = advanceAir(this.ground, predicted, air, span);
+      if (landedAt === undefined) return;
+      this.land(air, landedAt);
+      from = landedAt;
     }
     if (this.moving && now > from) this.advanceGround(predicted, from, now);
   }
@@ -276,13 +268,13 @@ export class Mover {
     return this.moving ? turnSign(this.input) * this.sync.turnRate : 0;
   }
 
-  private land(pose: ControlPose, air: Air): void {
-    pose.z = air.groundZ;
+  private land(air: Air, landedAt: number): void {
     this.sync.moveFlags &= ~MovementFlag.FALLING;
-    this.sync.fallTime = Math.round(JUMP_AIRTIME_MS);
+    this.sync.fallTime = Math.round(landedAt - air.startedAt);
     this.sendMove(GameOpcode.MSG_MOVE_FALL_LAND);
     this.dropAir();
-    if (!this.moving) this.clearTicker();
+    if (this.moving) this.tick();
+    else this.clearTicker();
     this.emit("control_changed", "landed");
   }
 
@@ -353,20 +345,7 @@ export class Mover {
     }
   }
 
-  private armLanding(delayMs: number): void {
-    this.landTimer = setTimeout(() => {
-      this.landTimer = undefined;
-      this.heartbeat();
-      const air = this.air;
-      if (!air) return;
-      const left = air.startedAt + JUMP_AIRTIME_MS - this.deps.now();
-      this.armLanding(Math.max(1, Math.ceil(left)));
-    }, Math.ceil(delayMs));
-  }
-
   private dropAir(): void {
-    if (this.landTimer !== undefined) clearTimeout(this.landTimer);
-    this.landTimer = undefined;
     if (!this.air) return;
     this.air = undefined;
     this.sync.moveFlags &= ~MovementFlag.FALLING;
@@ -374,7 +353,9 @@ export class Mover {
     this.sync.fallTime = 0;
   }
 
-  private tick(periodMs: number): void {
+  private tick(): void {
+    let periodMs = this.guide ? STEP_MS : HEARTBEAT_MS;
+    if (this.air) periodMs = AIR_TICK_MS;
     if (this.heartbeatTimer !== undefined && this.tickMs === periodMs) return;
     this.clearTicker();
     this.tickMs = periodMs;

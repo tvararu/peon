@@ -111,3 +111,10 @@ export function lastMove(sent: Sent[]): {
     z: parsed.z,
   };
 }
+
+export function decodeMove(packet: Sent | undefined) {
+  const { opcode, body } = must(packet);
+  const r = new PacketReader(body);
+  const guid = r.packedGuidBig();
+  return { guid, opcode, ...parseMovementInfo(r) };
+}
