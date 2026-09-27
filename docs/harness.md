@@ -3,9 +3,9 @@
 The Pi harness is an interactive terminal agent that plays one World of
 Warcraft 3.3.5a character. A model (by default `openai-codex/gpt-6-luna`
 at high thinking) acts through ten game tools. A human watches the same
-terminal and can type to the agent at any time. The harness is a second
-shell over `@tuicraft/core`, beside the `tuicraft` CLI. It adds no CLI
-verb.
+terminal and can type to the agent at any time. The harness is built on
+`@tuicraft/core` and is the only way to play tuicraft. The eval scenarios
+that grade it are in [evals.md](evals.md).
 
 ## Run it
 
@@ -37,6 +37,30 @@ verb.
 
 To check the profile, the lock and the Codex login without a game
 connection, add `--check`. The harness prints one line and exits.
+
+## Play your own character
+
+A tuicraft `config.toml` is a profile too. Write the character you play
+into `~/.config/tuicraft/config.toml` (mode 600, since it holds the
+password):
+
+```
+account = "<account>"
+password = "<password>"
+character = "<character>"
+```
+
+`host` (default `t1`), `port` (3724), `language` (1, Orcish; 7 for
+Alliance), `timeout_minutes` (30), `spell_data_dir`,
+`navigation_data_dir` and `navigation_library` are optional. Then run:
+
+```
+mise harness --profile ~/.config/tuicraft/config.toml
+```
+
+The harness guard in [Credentials and safety](#credentials-and-safety)
+still applies: it refuses the protected accounts and the character
+`Xiara`, whatever the profile.
 
 ## Flags
 
@@ -77,8 +101,7 @@ character.
   no flag to override this.
 - **One owner per character.** A lock file
   `~/.local/state/tuicraft-harness/locks/<ACCOUNT>-<character>.lock`
-  stops a second harness. The harness also refuses a character that a
-  `tuicraft` daemon holds. A lock from a dead process is replaced.
+  stops a second harness. A lock from a dead process is replaced.
 - **Secrets.** No log, run file or tool result holds the password. The
   `social` tool refuses chat text that contains the account name or the
   password.
