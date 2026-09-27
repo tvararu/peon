@@ -50,6 +50,9 @@ function movingHandle() {
   const set = (next: NavigationState) => {
     nav = next;
   };
+  handle.halt = jest.fn(() => {
+    stop({ ...idle, blockedReason: "halt" }, 2);
+  });
   return { handle, set, stop };
 }
 

@@ -73,8 +73,8 @@ function navigationEnd({ handle, signal, pollMs }: WaitInit): Promise<boolean> {
       if (idle(handle.getNavigationState())) finish(false);
     };
     const onAbort = () => {
-      handle.halt();
       finish(true);
+      handle.halt();
     };
     const unsubscribe = handle.onControlEvent((event) => {
       if (event.type === "movement_stopped") check();
