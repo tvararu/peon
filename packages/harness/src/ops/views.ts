@@ -6,8 +6,8 @@ import {
   ObjectType,
   type PlaceState,
   type WorldHandle,
-} from "@tuicraft/core";
-import { messageOf } from "@tuicraft/core/lib/errors";
+} from "@peon/core";
+import { messageOf } from "@peon/core/lib/errors";
 import type {
   HarnessRuntime,
   Sighting,

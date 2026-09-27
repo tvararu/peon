@@ -1,5 +1,5 @@
-import type { GotoTarget } from "@tuicraft/core";
-import { messageOf } from "@tuicraft/core/lib/errors";
+import type { GotoTarget } from "@peon/core";
+import { messageOf } from "@peon/core/lib/errors";
 import type { LegStatus } from "#harness/contract/details";
 import type { OpsCtx } from "#harness/contract/services";
 import type { PoseView } from "#harness/contract/views";

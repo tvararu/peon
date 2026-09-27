@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { VendorEvent } from "@tuicraft/core";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+import type { VendorEvent } from "@peon/core";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import { routerSetup } from "#test-support/router-fixture";
 
 const LATE_MS = 80;

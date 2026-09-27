@@ -32,10 +32,10 @@ describe("puppetPaths", () => {
         XDG_RUNTIME_DIR: "/acc/runtime",
       }),
     ).toEqual({
-      configPath: "/acc/config/tuicraft/config.toml",
-      pid: "/acc/runtime/tuicraft/puppet.pid",
-      runtimeDir: "/acc/runtime/tuicraft",
-      socket: "/acc/runtime/tuicraft/puppet.sock",
+      configPath: "/acc/config/peon/config.toml",
+      pid: "/acc/runtime/peon/puppet.pid",
+      runtimeDir: "/acc/runtime/peon",
+      socket: "/acc/runtime/peon/puppet.sock",
     });
   });
 });

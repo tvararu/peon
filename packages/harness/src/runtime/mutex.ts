@@ -1,4 +1,4 @@
-import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
+import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { WorldMutex } from "#harness/contract/services";
 
 export function createWorldMutex(): WorldMutex {

@@ -1,6 +1,6 @@
 # Roadmap
 
-tuicraft is being rewritten around the Pi harness. This is the sole
+Peon is being rewritten around the Pi harness. This is the sole
 current roadmap.
 
 ## Where things stand

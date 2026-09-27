@@ -113,7 +113,7 @@ describe("tickerLines", () => {
         data: { label, opcode },
         domain: "notice",
         event: "notice/not_implemented",
-        text: `[tuicraft] ${label} is not yet implemented`,
+        text: `[peon] ${label} is not yet implemented`,
       });
     const lines = tickerLines({
       now,
@@ -182,7 +182,7 @@ describe("createTicker", () => {
         data: { label, opcode },
         domain: "notice",
         event: "notice/not_implemented",
-        text: `[tuicraft] ${label} #${seq} is not yet implemented`,
+        text: `[peon] ${label} #${seq} is not yet implemented`,
       });
     const rows = [notice(10, 592, "Spell damage"), row(11, { text: "hit" })];
     const component = createTicker(source(rows, run))(

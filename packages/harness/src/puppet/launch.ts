@@ -1,4 +1,4 @@
-import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
+import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 
 export type PuppetLaunchMessage =
   | { type: "ready" }

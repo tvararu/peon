@@ -5,7 +5,7 @@ import type {
   NpcRole,
   Unsubscribe,
   WorldHandle,
-} from "@tuicraft/core";
+} from "@peon/core";
 import type {
   AgentState,
   ConnectionState,

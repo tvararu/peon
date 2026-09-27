@@ -49,7 +49,7 @@ field() {
   sed -n "s/^$1 = \\"\\(.*\\)\\"$/\\1/p" "$config"
 }
 
-config=$XDG_CONFIG_HOME/tuicraft/config.toml
+config=$XDG_CONFIG_HOME/peon/config.toml
 [[ -f $config ]] || refuse "no config at $config"
 logs_in="$(field account)/$(field character)"
 [[ $logs_in == "$account/$character" ]] ||

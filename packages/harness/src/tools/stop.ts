@@ -1,4 +1,4 @@
-import type { WorldHandle } from "@tuicraft/core";
+import type { WorldHandle } from "@peon/core";
 import type { StopAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { RunRecord } from "#harness/contract/runs";

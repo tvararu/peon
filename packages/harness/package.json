@@ -4,14 +4,14 @@
     "@earendil-works/pi-ai": "0.87.1",
     "@earendil-works/pi-coding-agent": "0.87.1",
     "@earendil-works/pi-tui": "0.87.1",
-    "@tuicraft/core": "workspace:*"
+    "@peon/core": "workspace:*"
   },
   "exports": {},
   "imports": {
     "#harness/*": "./src/*.ts",
     "#test-support/*": "./test-support/*.ts"
   },
-  "name": "@tuicraft/harness",
+  "name": "@peon/harness",
   "private": true,
   "type": "module"
 }

@@ -1,5 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
-import { ChatType, PartyOperation, PartyResult } from "@tuicraft/core";
+import { ChatType, PartyOperation, PartyResult } from "@peon/core";
 import { socialTool } from "#harness/tools/social";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 import { runTool } from "#test-support/tool-harness";

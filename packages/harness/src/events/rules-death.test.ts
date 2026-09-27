@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type EntityEvent, ObjectType, type UnitEntity } from "@tuicraft/core";
+import { type EntityEvent, ObjectType, type UnitEntity } from "@peon/core";
 import type { Tap } from "#harness/events/rules";
 import { deathDrafts, watchUnit } from "#harness/events/rules-death";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";

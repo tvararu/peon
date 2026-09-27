@@ -1,4 +1,4 @@
-import type { WorldHandle } from "@tuicraft/core";
+import type { WorldHandle } from "@peon/core";
 import type { LootLine } from "#harness/contract/details";
 
 export const ITEM_NAME_WAIT_MS = 2000;

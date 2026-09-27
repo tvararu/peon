@@ -27,9 +27,9 @@ flowchart LR
 
 Roles are Orca automations running `omp` through `packages/factory/src/omp-factory`,
 each in a fresh `auto-*` worktree, from the runner clone
-`~/.local/share/tuicraft-factory/runner` (follows `origin/main`; the reaper runs
-`bun install --frozen-lockfile --filter @tuicraft/factory` there, because
-the factory imports `@tuicraft/core`). Orca's
+`~/.local/share/peon-factory/runner` (follows `origin/main`; the reaper runs
+`bun install --frozen-lockfile --filter @peon/factory` there, because
+the factory imports `@peon/core`). Orca's
 `agentCmdOverrides.omp` is `~/.local/bin/omp-factory`, a symlink to the
 runner's wrapper that `bun packages/factory/src/main.ts setup wrapper --apply`
 installs, so the wrapper and its `omp-factory.yml` follow `main`. The wrapper
@@ -52,29 +52,29 @@ automations --apply` is still how automations are created or their other
 fields changed.
 
 `omp-factory` also keeps agents away from the maintainer's character. Every
-omp it starts for a factory role, or in any tuicraft worktree other than the
+omp it starts for a factory role, or in any Peon worktree other than the
 main checkout (which covers the coordinator's `orca-ide worktree create
 --agent omp` launches), gets per-run `XDG_CONFIG_HOME`, `XDG_RUNTIME_DIR`
 and `XDG_STATE_HOME`. Config and state live under `factory-xdg/` in the
 worktree's git directory (`git rev-parse --absolute-git-dir`), which git
 status never shows and worktree removal deletes. The runtime directory is
-`$XDG_RUNTIME_DIR/tuicraft-factory-<hash>`, keyed by the first 12 hex
+`$XDG_RUNTIME_DIR/peon-factory-<hash>`, keyed by the first 12 hex
 digits of the git directory's SHA-256, because sockets such as
 `systemd/private` must fit in 108 bytes and a git directory path grows
 with the worktree name. It holds a `.factory-gitdir` link to its git
-directory, and each launch deletes the `tuicraft-factory-*` directories
+directory, and each launch deletes the `peon-factory-*` directories
 whose git directory is gone. A launch from an already isolated shell
 reuses the same directories. Each links every entry of the real directory
-except `tuicraft` and the other `tuicraft-factory-*` directories, so `gh`,
+except `peon` and the other `peon-factory-*` directories, so `gh`,
 git, `mise` and `systemctl --user` find their usual config, state and
-sockets, while the harness finds no tuicraft config and logs in nobody.
+sockets, while the harness finds no Peon config and logs in nobody.
 The main checkout and other repositories keep the default directories.
 Live characters come from `bun packages/factory/src/main.ts soap create
 <preset>`; `mise eval run` creates and deletes its own this way. Its
 config sets `navigation_library` to the repository's patched build that
 `mise namigator:build` installs, and create refuses when that build is
 missing; the spell and navigation data paths come from
-`~/.config/tuicraft/config.toml`. Create also writes the launcher
+`~/.config/peon/config.toml`. Create also writes the launcher
 `tmp/puppet-<ACCOUNT>`, the soap JSON's `.wrapper`: it exports the
 account's own `XDG_*` directories under `tmp/factory-account-<ACCOUNT>/`,
 refuses to run when that account's config names another account or
@@ -88,14 +88,14 @@ and those directories.
 `eversong10-warrior`, `eversong10-mage`, `eversong10-hunter` (all Horde,
 Eversong), `elwynn1`, `elwynn10` (Alliance, Northshire and Goldshire) and
 `ghostlands20`. Each copies a template character from the `TCPRESETS`
-account with `pdump copy`; a `TUICRAFT_PRESET_<NAME>` key in `soap.env`,
+account with `pdump copy`; a `PEON_PRESET_<NAME>` key in `soap.env`,
 with `-` written as `_`, overrides the template. `pdump copy` can report
 success and create nothing, so create confirms the character with `pinfo`
 and copies again, up to three attempts, before it fails. Alliance presets
 get language 7 (Common) in their config. `soap list` prints the ledger
 without passwords; `--with-passwords` prints them.
 
-Graders reach the t1 service (`TUICRAFT_T1_SERVICE` in the environment or
+Graders reach the t1 service (`PEON_T1_SERVICE` in the environment or
 `soap.env`, default `http://100.73.138.96:7879`) through
 `soap health`, `soap presets`, `soap accounts`, `soap truth <ACCOUNT>`,
 `soap setup <ACCOUNT> <endpoint> [json]` and `soap reset <ACCOUNT>`. The
@@ -212,7 +212,7 @@ has one factory PR.
   trailers and runs `mise ci`. It then picks up to 3 eval scenarios for the
   files changed since the last QA SHA, with the change-area table, plus 1
   rotating canary: the next id in `mise eval scenario` order, wrapping,
-  kept in `~/.local/state/tuicraft-factory/qa-canary`. With no change under
+  kept in `~/.local/state/peon-factory/qa-canary`. With no change under
   `packages/core/` or `packages/harness/` it runs the canary only. It runs
   and grades each serially and files one OpenHubris issue with the `qa`
   label per failed check or serious friction, with the scenario, verdict,
@@ -346,7 +346,7 @@ drift, and a manual precheck or `setup automations` uses the `default`
 caps and schedules.
 
 `default` and `max` write the reaper timer drop-in
-`~/.config/systemd/user/tuicraft-factory-reaper.timer.d/pace.conf`. An
+`~/.config/systemd/user/peon-factory-reaper.timer.d/pace.conf`. An
 empty `On*Sec=` line in systemd clears every trigger of the timer, so the
 drop-in clears both and sets `OnBootSec=` and `OnUnitActiveSec=` to the
 reaper interval: without the boot trigger the timer has no next run after

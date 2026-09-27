@@ -4,7 +4,7 @@ import type {
   CycleTargetRecord,
   QuestQuery,
   TacticsOutcome,
-} from "@tuicraft/core";
+} from "@peon/core";
 import type { EngageAfter } from "#harness/contract/details";
 import { engageSpec } from "#harness/tools/engage";
 import {

@@ -7,8 +7,8 @@ import {
   ObjectType,
   type TacticsEvent,
   type UnitEntity,
-} from "@tuicraft/core";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+} from "@peon/core";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import {
   combatDrafts,
   cycleDrafts,

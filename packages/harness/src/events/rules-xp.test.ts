@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
-import type { CombatEvent, ControlEvent, QuestEvent } from "@tuicraft/core";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+import type { CombatEvent, ControlEvent, QuestEvent } from "@peon/core";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import { combatDrafts } from "#harness/events/rules-combat";
 import { controlDrafts } from "#harness/events/rules-world";
 import { questDrafts } from "#harness/events/rules-world-quest";

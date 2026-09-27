@@ -1,6 +1,6 @@
 import { appendFile, mkdir } from "node:fs/promises";
-import { messageOf } from "@tuicraft/core/lib/errors";
-import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
+import { messageOf } from "@peon/core/lib/errors";
+import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { AgentState, StatusJson } from "#harness/contract/config";
 import type { GameLogEntry, LogEvent } from "#harness/contract/log";
 import type { Clock } from "#harness/contract/services";

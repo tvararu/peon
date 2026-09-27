@@ -59,7 +59,7 @@ describe("docs/harness.md", () => {
       "`Esc`",
       "exit code 3",
       "`TYPESAFE_API_KEY`",
-      "`TUICRAFT_GLYPHS`",
+      "`PEON_GLYPHS`",
     ])
       expect(text).toContain(word);
   });

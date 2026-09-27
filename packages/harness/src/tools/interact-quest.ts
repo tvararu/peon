@@ -3,7 +3,7 @@ import {
   type QuestEvent,
   type QuestState,
   questSlotStatus,
-} from "@tuicraft/core";
+} from "@peon/core";
 import type {
   GossipLine,
   InteractAction,

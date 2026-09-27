@@ -6,9 +6,9 @@ import {
   nextStepFor,
   type TacticsOutcome,
   type WorldHandle,
-} from "@tuicraft/core";
-import { messageOf } from "@tuicraft/core/lib/errors";
-import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
+} from "@peon/core";
+import { messageOf } from "@peon/core/lib/errors";
+import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 
 export type GotoEnd = {
   status: "arrived" | "refused" | "stopped";

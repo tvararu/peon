@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type {
-  NamedTrainerSpell,
-  TrainerEvent,
-  VendorEvent,
-} from "@tuicraft/core";
+import type { NamedTrainerSpell, TrainerEvent, VendorEvent } from "@peon/core";
 import type { InteractAfter } from "#harness/contract/details";
 import { interactSpec } from "#harness/tools/interact";
 import {

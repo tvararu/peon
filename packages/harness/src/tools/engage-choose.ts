@@ -1,4 +1,4 @@
-import { MIN_HP_PCT, MIN_MANA_PCT } from "@tuicraft/core";
+import { MIN_HP_PCT, MIN_MANA_PCT } from "@peon/core";
 import type { EngageAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { RunControl } from "#harness/contract/runs";

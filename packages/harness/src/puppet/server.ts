@@ -1,7 +1,7 @@
 import { rm, writeFile } from "node:fs/promises";
-import type { WorldHandle } from "@tuicraft/core";
-import { messageOf } from "@tuicraft/core/lib/errors";
-import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
+import type { WorldHandle } from "@peon/core";
+import { messageOf } from "@peon/core/lib/errors";
+import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { Socket, UnixSocketListener } from "bun";
 import {
   type ChatEvent,

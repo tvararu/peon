@@ -4,7 +4,7 @@ import type {
   QuestEvent,
   QuestQuery,
   QuestState,
-} from "@tuicraft/core";
+} from "@peon/core";
 import { setSelf, setUnits, unitRow } from "#test-support/ops-fixtures";
 import {
   createTestRuntime,

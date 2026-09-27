@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import type { ClientConfig } from "@tuicraft/core";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+import type { ClientConfig } from "@peon/core";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import { bootPuppet } from "#harness/puppet/boot";
 import {
   type PuppetPaths,

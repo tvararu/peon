@@ -3,8 +3,8 @@ import type {
   ExtensionCommandContext,
   RegisteredCommand,
 } from "@earendil-works/pi-coding-agent";
-import type { WorldHandle } from "@tuicraft/core";
-import { messageOf } from "@tuicraft/core/lib/errors";
+import type { WorldHandle } from "@peon/core";
+import { messageOf } from "@peon/core/lib/errors";
 import type { HarnessRuntime } from "#harness/contract/services";
 import { humanStop } from "#harness/extension/input";
 import { queryLog } from "#harness/log/query";

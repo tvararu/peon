@@ -185,7 +185,7 @@ test("notice, cycle and trainer triggers reach their hooks", () => {
     at: 1,
     label: "Weather change",
     opcode: 1,
-    text: "[tuicraft] Weather change is not yet implemented",
+    text: "[peon] Weather change is not yet implemented",
     type: "not_implemented",
   });
   handle.triggerCycleEvent({

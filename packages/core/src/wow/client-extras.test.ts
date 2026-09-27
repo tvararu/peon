@@ -13,7 +13,7 @@ const notice: NoticeEvent = {
   type: "not_implemented",
   opcode: GameOpcode.SMSG_WEATHER,
   label: "Weather change",
-  text: "[tuicraft] Weather change is not yet implemented",
+  text: "[peon] Weather change is not yet implemented",
   at: 1,
 };
 

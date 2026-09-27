@@ -1,5 +1,5 @@
 {
-  "$id": "tuicraft/eval-result/v1",
+  "$id": "peon/eval-result/v1",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
     "abort": {

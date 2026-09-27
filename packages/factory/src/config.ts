@@ -1,12 +1,12 @@
 import { homedir } from "node:os";
 
-export const repo = { name: "tuicraft", owner: "tvararu" } as const;
+export const repo = { name: "peon", owner: "tvararu" } as const;
 export const repoSlug = `${repo.owner}/${repo.name}`;
 export const maintainer = "tvararu";
 export const bot = "OpenHubris";
 export const maintainerApproval = false;
-export const mainCheckout = `${homedir()}/code/tuicraft`;
-export const runner = `${homedir()}/.local/share/tuicraft-factory/runner`;
+export const mainCheckout = `${homedir()}/code/peon`;
+export const runner = `${homedir()}/.local/share/peon-factory/runner`;
 
 export const board = {
   field: "PVTSSF_lAHOABkwu84BktxOzhjdZBs",
@@ -117,9 +117,9 @@ export const idleHours = 12;
 export const stalledRunQuietHours = 2 / 60;
 
 export function factoryConfigDir(): string {
-  return `${homedir()}/.config/tuicraft-factory`;
+  return `${homedir()}/.config/peon-factory`;
 }
 
 export function factoryStateDir(): string {
-  return `${homedir()}/.local/state/tuicraft-factory`;
+  return `${homedir()}/.local/state/peon-factory`;
 }

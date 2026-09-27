@@ -1,4 +1,4 @@
-import type { QuestDialog, QuestState, WorldHandle } from "@tuicraft/core";
+import type { QuestDialog, QuestState, WorldHandle } from "@peon/core";
 import type { RewardChoice } from "#harness/contract/details";
 import {
   awaitItemNames,

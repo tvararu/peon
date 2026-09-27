@@ -1,6 +1,6 @@
 import type { Theme, ThemeColor } from "@earendil-works/pi-coding-agent";
 import { type Component, truncateToWidth } from "@earendil-works/pi-tui";
-import { ChatType, type FactionRelation } from "@tuicraft/core";
+import { ChatType, type FactionRelation } from "@peon/core";
 import type { Domain, GameLogEntry, LogEvent } from "#harness/contract/log";
 import type { ToolStatus } from "#harness/contract/result";
 import type { Compass } from "#harness/contract/views";

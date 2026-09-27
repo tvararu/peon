@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
-import type { ControlEvent } from "@tuicraft/core";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+import type { ControlEvent } from "@peon/core";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import type { RunEnd } from "#harness/contract/runs";
 import { MOVE_JOIN_MS } from "#harness/events/move-join";
 import { routerSetup } from "#test-support/router-fixture";

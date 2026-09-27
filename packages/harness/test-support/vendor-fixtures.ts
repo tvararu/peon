@@ -1,4 +1,4 @@
-import type { NamedVendorGood, VendorEvent } from "@tuicraft/core";
+import type { NamedVendorGood, VendorEvent } from "@peon/core";
 import { setSelf, setUnits, unitRow } from "#test-support/ops-fixtures";
 import {
   createTestRuntime,

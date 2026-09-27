@@ -1,6 +1,6 @@
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import type { Theme } from "@earendil-works/pi-coding-agent";
-import type { NpcRole } from "@tuicraft/core";
+import type { NpcRole } from "@peon/core";
 import type { AfterMap, ToolDetails } from "#harness/contract/details";
 import type { ToolName, ToolResult } from "#harness/contract/result";
 import type { UnitView } from "#harness/contract/views";

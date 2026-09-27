@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { serializeConfig } from "@tuicraft/core/lib/config";
+import { serializeConfig } from "@peon/core/lib/config";
 import {
   accountAgeHours,
   accountName,
@@ -159,11 +159,11 @@ describe("pinfoAccount", () => {
 describe("parseEnv", () => {
   test("reads KEY=VALUE lines and strips quotes", () => {
     const env = parseEnv(
-      `TUICRAFT_SOAP_URL=http://t1:7878/\n# note\nTUICRAFT_SOAP_USER="TCFACTORY"\n\n`,
+      `PEON_SOAP_URL=http://t1:7878/\n# note\nPEON_SOAP_USER="TCFACTORY"\n\n`,
     );
     expect(env).toEqual({
-      TUICRAFT_SOAP_URL: "http://t1:7878/",
-      TUICRAFT_SOAP_USER: "TCFACTORY",
+      PEON_SOAP_URL: "http://t1:7878/",
+      PEON_SOAP_USER: "TCFACTORY",
     });
   });
 });

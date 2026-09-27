@@ -4,7 +4,7 @@ import type {
   EntityEvent,
   TacticsEvent,
   TacticsOutcome,
-} from "@tuicraft/core";
+} from "@peon/core";
 import type { LogClass, LogDraft } from "#harness/contract/log";
 import {
   type AuraMemo,

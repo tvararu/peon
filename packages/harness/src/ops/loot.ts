@@ -3,8 +3,8 @@ import type {
   NamedLootItem,
   NamedRewardsState,
   RewardsEvent,
-} from "@tuicraft/core";
-import { messageOf } from "@tuicraft/core/lib/errors";
+} from "@peon/core";
+import { messageOf } from "@peon/core/lib/errors";
 import type { LootLine } from "#harness/contract/details";
 import type { OpsCtx } from "#harness/contract/services";
 import { itemIdText, nameLootLines } from "#harness/ops/item-names";

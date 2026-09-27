@@ -1,4 +1,4 @@
-import type { AreaExplored, CombatEvent, QuestEvent } from "@tuicraft/core";
+import type { AreaExplored, CombatEvent, QuestEvent } from "@peon/core";
 import type { LogDraft } from "#harness/contract/log";
 import {
   type Drafts,

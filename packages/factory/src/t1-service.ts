@@ -1,7 +1,7 @@
 import { factoryAccount } from "#factory/soap";
 
 const trailingSlashes = /\/+$/;
-const urlKey = "TUICRAFT_T1_SERVICE";
+const urlKey = "PEON_T1_SERVICE";
 
 export const defaultServiceUrl = "http://100.73.138.96:7879";
 export const factoryCharacter = /^F[a-p]{10}$/;

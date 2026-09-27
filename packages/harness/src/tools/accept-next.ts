@@ -1,4 +1,4 @@
-import { type QuestState, questSlotStatus } from "@tuicraft/core";
+import { type QuestState, questSlotStatus } from "@peon/core";
 import type { ViewCtx } from "#harness/contract/services";
 import type { UnitView } from "#harness/contract/views";
 import { enderIn } from "#harness/ops/quest-memory";

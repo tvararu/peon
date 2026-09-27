@@ -10,7 +10,7 @@ const keyed = (name: string) =>
 
 export function libraryPaths(): LibraryPaths {
   return {
-    store: join(homedir(), ".local/share/tuicraft/namigator"),
+    store: join(homedir(), ".local/share/peon/namigator"),
     vendor: resolve(import.meta.dir, "../../../vendor/namigator"),
   };
 }

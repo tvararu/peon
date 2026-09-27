@@ -4,8 +4,8 @@ import type {
   Unsubscribe,
   VendorEvent,
   WorldHandle,
-} from "@tuicraft/core";
-import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
+} from "@peon/core";
+import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { HarnessFlags } from "#harness/contract/config";
 import type {
   GameLogEntry,

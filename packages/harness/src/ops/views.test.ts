@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { NearbyRow } from "@tuicraft/core";
+import type { NearbyRow } from "@peon/core";
 import { createRefTable } from "#harness/ops/refs";
 import { createSightings } from "#harness/ops/sightings";
 import {

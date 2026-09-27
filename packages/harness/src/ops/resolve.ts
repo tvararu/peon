@@ -1,4 +1,4 @@
-import type { FactionRelation } from "@tuicraft/core";
+import type { FactionRelation } from "@peon/core";
 import type { ToolName } from "#harness/contract/result";
 import type { ViewCtx } from "#harness/contract/services";
 import type { UnitView } from "#harness/contract/views";

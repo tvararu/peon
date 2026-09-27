@@ -10,7 +10,7 @@ const VERB: Readonly<Record<RunKind, string>> = {
 };
 
 export function titleFor(snapshot: NowSnapshot | undefined): string {
-  if (!snapshot) return "tuicraft";
+  if (!snapshot) return "peon";
   const { self, attackers } = snapshot;
   const base = `${self.name} L${self.level}`;
   if (self.life === "dead" || self.life === "ghost")

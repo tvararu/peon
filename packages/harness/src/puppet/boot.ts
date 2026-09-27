@@ -1,6 +1,6 @@
 import { mkdir, rm } from "node:fs/promises";
-import type { ClientConfig, WorldHandle } from "@tuicraft/core";
-import { messageOf } from "@tuicraft/core/lib/errors";
+import type { ClientConfig, WorldHandle } from "@peon/core";
+import { messageOf } from "@peon/core/lib/errors";
 import { loadProfile } from "#harness/config/profile";
 import { type PuppetPaths, sendRequest } from "#harness/puppet/protocol";
 import { listenPuppet, type PuppetServer } from "#harness/puppet/server";

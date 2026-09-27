@@ -1,7 +1,7 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import type { HarnessFlags, Profile, RunPaths } from "#harness/contract/config";
 import type { GameLogEntry } from "#harness/contract/log";
 import type {

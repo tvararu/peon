@@ -1,5 +1,5 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import type { Capabilities, ClientConfig } from "@tuicraft/core";
+import type { Capabilities, ClientConfig } from "@peon/core";
 import type { LogEvent } from "#harness/contract/log";
 import type { ToolStatus } from "#harness/contract/result";
 import type { RunView } from "#harness/contract/views";

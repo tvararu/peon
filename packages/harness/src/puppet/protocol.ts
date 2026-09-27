@@ -1,5 +1,5 @@
 import { basename, dirname } from "node:path";
-import { type PathEnv, resolvePaths } from "@tuicraft/core/lib/paths";
+import { type PathEnv, resolvePaths } from "@peon/core/lib/paths";
 
 export type PuppetPaths = {
   configPath: string;

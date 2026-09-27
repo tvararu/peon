@@ -1,6 +1,6 @@
-# tuicraft
+# Peon
 
-tuicraft is being rewritten around an agent harness that plays World of
+Peon is being rewritten around an agent harness that plays World of
 Warcraft 3.3.5a. More information will follow.
 
 - [AGENTS.md](AGENTS.md): how the repository works and how to contribute.

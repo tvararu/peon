@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { RecoveryEvent, RewardsEvent } from "@tuicraft/core";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+import type { RecoveryEvent, RewardsEvent } from "@peon/core";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import type { RunEnd, RunKind } from "#harness/contract/runs";
 import { routerSetup } from "#test-support/router-fixture";
 

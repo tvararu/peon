@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { QuestLogSlot, QuestState } from "@tuicraft/core";
+import type { QuestLogSlot, QuestState } from "@peon/core";
 import type { ToolResult } from "#harness/contract/result";
 import {
   completeQuestIds,

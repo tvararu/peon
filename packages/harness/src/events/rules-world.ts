@@ -7,7 +7,7 @@ import type {
   VendorEvent,
   VendorOutcome,
   VendorRequest,
-} from "@tuicraft/core";
+} from "@peon/core";
 import type { LogDraft, LogEvent } from "#harness/contract/log";
 import {
   type Drafts,

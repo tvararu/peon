@@ -1,6 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
-import { type Entity, ObjectType, type UnitEntity } from "@tuicraft/core";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+import { type Entity, ObjectType, type UnitEntity } from "@peon/core";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import { createReadyGate, READY_STABLE_MS } from "#harness/runtime/ready";
 import {
   createTestRuntime,

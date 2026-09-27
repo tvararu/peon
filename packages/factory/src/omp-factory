@@ -25,7 +25,7 @@ mirror() {
   for entry in "$real"/* "$real"/.[!.]* "$real"/..?*; do
     [[ -e $entry || -L $entry ]] || continue
     name=${entry##*/}
-    [[ $name == tuicraft || $name == tuicraft-factory-* ]] && continue
+    [[ $name == peon || $name == peon-factory-* ]] && continue
     [[ -e $dir/$name || -L $dir/$name ]] && continue
     ln -sfn -- "$entry" "$dir/$name"
   done
@@ -33,7 +33,7 @@ mirror() {
 
 prune() {
   local dir
-  for dir in "$1"/tuicraft-factory-*/; do
+  for dir in "$1"/peon-factory-*/; do
     [[ -L ${dir}.factory-gitdir && ! -e ${dir}.factory-gitdir ]] || continue
     rm -rf -- "$dir" || true
   done
@@ -45,7 +45,7 @@ isolate() {
     real=${real%/*}
   fi
   hash=$(printf '%s' "$git_dir" | sha256sum)
-  runtime=${real:-${TMPDIR:-/tmp}}/tuicraft-factory-${hash:0:12}
+  runtime=${real:-${TMPDIR:-/tmp}}/peon-factory-${hash:0:12}
   prune "${runtime%/*}"
   mirror "${XDG_CONFIG_HOME:-$HOME/.config}" "$base/config"
   mirror "$real" "$runtime"
@@ -56,9 +56,9 @@ isolate() {
   export XDG_STATE_HOME=$base/state
 }
 
-tuicraft_worktree() {
+peon_worktree() {
   local main common top
-  main=$(readlink -f "$HOME/code/tuicraft")
+  main=$(readlink -f "$HOME/code/peon")
   common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) ||
     return 1
   top=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
@@ -76,7 +76,7 @@ done
 
 omp=$(real_omp)
 
-if git_dir=$(tuicraft_worktree); then
+if git_dir=$(peon_worktree); then
   isolate "$git_dir"
 elif [[ -n $role ]]; then
   isolate "$(git rev-parse --absolute-git-dir 2>/dev/null || printf '%s/tmp' "$PWD")"
@@ -98,7 +98,7 @@ case $role in
   *) cap=1h ;;
 esac
 
-roles_env="${HOME}/.config/tuicraft-factory/roles.env"
+roles_env="${HOME}/.config/peon-factory/roles.env"
 if [[ -f $roles_env ]]; then
   source "$roles_env"
 fi

@@ -1,4 +1,4 @@
-import { messageOf } from "@tuicraft/core/lib/errors";
+import { messageOf } from "@peon/core/lib/errors";
 import { UsageError } from "#harness/config/flags";
 import {
   type PuppetCommand,

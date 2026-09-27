@@ -4,10 +4,10 @@ import type {
 } from "@earendil-works/pi-agent-core";
 import type { Static, TSchema } from "@earendil-works/pi-ai";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
-import type { WorldHandle } from "@tuicraft/core";
-import { JevUnavailableError, nextStepFor } from "@tuicraft/core";
-import { messageOf } from "@tuicraft/core/lib/errors";
-import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
+import type { WorldHandle } from "@peon/core";
+import { JevUnavailableError, nextStepFor } from "@peon/core";
+import { messageOf } from "@peon/core/lib/errors";
+import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { AfterMap, ToolDetails } from "#harness/contract/details";
 import type {
   ResultInit,

@@ -82,7 +82,7 @@ export function isPreset(name: string): name is Preset {
 }
 
 export function presetEnvKey(preset: Preset): string {
-  return `TUICRAFT_PRESET_${preset.toUpperCase().replaceAll("-", "_")}`;
+  return `PEON_PRESET_${preset.toUpperCase().replaceAll("-", "_")}`;
 }
 
 export function templateFor(

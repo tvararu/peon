@@ -3,8 +3,8 @@ import type {
   RecoveryEvent,
   RecoveryOutcome,
   RecoveryState,
-} from "@tuicraft/core";
-import { messageOf } from "@tuicraft/core/lib/errors";
+} from "@peon/core";
+import { messageOf } from "@peon/core/lib/errors";
 import type { OpsCtx } from "#harness/contract/services";
 import type { PoseView, UnitView } from "#harness/contract/views";
 import { TALK_RANGE_YD } from "#harness/ops/range";

@@ -70,7 +70,7 @@ export function registerStubs(
 ): void {
   for (const [opcode, label] of STUBS) {
     if (dispatch.has(opcode)) continue;
-    const text = `[tuicraft] ${label} is not yet implemented`;
+    const text = `[peon] ${label} is not yet implemented`;
     let fired = false;
     dispatch.on(opcode, () => {
       if (!fired) fired = notify({ opcode, label, text });

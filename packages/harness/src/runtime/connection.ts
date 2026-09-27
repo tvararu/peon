@@ -1,7 +1,7 @@
-import type { ClientConfig, Unsubscribe, WorldHandle } from "@tuicraft/core";
-import { messageOf } from "@tuicraft/core/lib/errors";
-import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
-import { authWithRetry, worldSession } from "@tuicraft/core/session";
+import type { ClientConfig, Unsubscribe, WorldHandle } from "@peon/core";
+import { messageOf } from "@peon/core/lib/errors";
+import { ignoreFailure } from "@peon/core/lib/ignore-failure";
+import { authWithRetry, worldSession } from "@peon/core/session";
 import type { ConnectionState, Profile } from "#harness/contract/config";
 import type { LogDraft } from "#harness/contract/log";
 import type { RunRegistry } from "#harness/contract/runs";

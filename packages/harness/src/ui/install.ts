@@ -5,7 +5,7 @@ import type {
   Theme,
 } from "@earendil-works/pi-coding-agent";
 import type { Component, TUI } from "@earendil-works/pi-tui";
-import type { Capabilities } from "@tuicraft/core";
+import type { Capabilities } from "@peon/core";
 import type {
   GameLogEntry,
   HumanLineDetails,

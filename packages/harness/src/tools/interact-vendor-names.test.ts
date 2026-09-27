@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { NamedVendorGood } from "@tuicraft/core";
+import type { NamedVendorGood } from "@peon/core";
 import type { InteractAfter } from "#harness/contract/details";
 import type { Refusal } from "#harness/ops/refusal";
 import { interactSpec } from "#harness/tools/interact";

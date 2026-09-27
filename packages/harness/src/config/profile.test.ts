@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { serializeConfig } from "@tuicraft/core/lib/config";
+import { serializeConfig } from "@peon/core/lib/config";
 import {
   isProtected,
   loadProfile,
@@ -63,7 +63,7 @@ async function sessionProfile(
     account,
     character,
     library: "/patched/libnamigator.so",
-    path: join(dir, "config/tuicraft/config.toml"),
+    path: join(dir, "config/peon/config.toml"),
   });
   return writeJson("session.json", {
     account,
@@ -94,7 +94,7 @@ describe("loadProfile", () => {
       account: "HOMEACC",
       character: "Homechar",
       library: "/unpatched/libnamigator.so",
-      path: join(root, ".config/tuicraft/config.toml"),
+      path: join(root, ".config/peon/config.toml"),
     });
     const profile = await loadProfile(
       await sessionProfile("FACABC0123456", "Fgklibhlflc"),
@@ -110,7 +110,7 @@ describe("loadProfile", () => {
       account: "FACABC0123456",
       character: "Other",
       library: "/lib.so",
-      path: join(dir, "config/tuicraft/config.toml"),
+      path: join(dir, "config/peon/config.toml"),
     });
     const path = await writeJson("s.json", {
       account: "FACABC0123456",
@@ -139,9 +139,7 @@ describe("loadProfile", () => {
     );
     expect(error).toBeInstanceOf(ProfileError);
     expect(error).toMatchObject({ code: "unreadable" });
-    expect(String(error)).toContain(
-      join(root, "gone/config/tuicraft/config.toml"),
-    );
+    expect(String(error)).toContain(join(root, "gone/config/peon/config.toml"));
   });
 
   test("reads a soap ledger entry with navigation paths from home", async () => {
@@ -149,7 +147,7 @@ describe("loadProfile", () => {
       account: "HOMEACC",
       character: "Homechar",
       library: "/home/lib.so",
-      path: join(root, ".config/tuicraft/config.toml"),
+      path: join(root, ".config/peon/config.toml"),
     });
     const path = await writeJson("ledger.json", {
       account: "FACABC0123456",
@@ -166,7 +164,7 @@ describe("loadProfile", () => {
     expect(profile.client.language).toBe(7);
   });
 
-  test("reads a tuicraft config.toml", async () => {
+  test("reads a peon config.toml", async () => {
     const path = join(root, "config.toml");
     await writeToml({
       account: "myacc",

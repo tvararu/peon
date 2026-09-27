@@ -4,8 +4,8 @@ import {
   type TacticsEvent,
   type UnitEntity,
   type WorldHandle,
-} from "@tuicraft/core";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+} from "@peon/core";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import type { RunEnd, RunRegistry } from "#harness/contract/runs";
 import { XP_SOURCE_WAIT_MS } from "#harness/events/rules-xp";
 import { routerSetup as setup } from "#test-support/router-fixture";

@@ -6,7 +6,7 @@ import {
   ObjectType,
   type RemotePose,
   type UnitEntity,
-} from "@tuicraft/core";
+} from "@peon/core";
 
 export type ChatEvent = {
   message: string;

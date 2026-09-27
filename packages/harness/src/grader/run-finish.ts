@@ -1,5 +1,5 @@
 import { readdir, writeFile } from "node:fs/promises";
-import { messageOf } from "@tuicraft/core/lib/errors";
+import { messageOf } from "@peon/core/lib/errors";
 import type { Clock } from "#harness/contract/services";
 import {
   type AccountNames,

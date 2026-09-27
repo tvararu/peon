@@ -4,7 +4,7 @@ import type {
   QuestLogSlot,
   QuestQuery,
   SpellDefinition,
-} from "@tuicraft/core";
+} from "@peon/core";
 import { formatLogRows, JOURNAL_LOG_LIMIT } from "#harness/log/query";
 import { createGameLog, createJsonlSink } from "#harness/log/store";
 import { createRunRegistry } from "#harness/runs/registry";

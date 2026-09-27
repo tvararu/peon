@@ -7,7 +7,7 @@ import {
   type QuestState,
   questSlotStatus,
   type SpellDefinition,
-} from "@tuicraft/core";
+} from "@peon/core";
 import type {
   BagsView,
   EquipSlotName,

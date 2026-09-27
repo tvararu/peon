@@ -1,6 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { ChatType } from "@tuicraft/core";
+import { ChatType } from "@peon/core";
 import type { LogDraft } from "#harness/contract/log";
 import {
   attachCallRows,

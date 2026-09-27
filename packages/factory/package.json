@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@tuicraft/core": "workspace:*"
+    "@peon/core": "workspace:*"
   },
   "exports": {},
   "imports": {
@@ -8,7 +8,7 @@
     "#factory/prompts/*": "./src/prompts/*",
     "#test-support/*": "./test-support/*.ts"
   },
-  "name": "@tuicraft/factory",
+  "name": "@peon/factory",
   "private": true,
   "type": "module"
 }

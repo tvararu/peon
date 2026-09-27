@@ -1,4 +1,4 @@
-import { messageOf } from "@tuicraft/core/lib/errors";
+import { messageOf } from "@peon/core/lib/errors";
 import { SOAP } from "#harness/grader/accounts";
 import { type Exec, isRecord, parseJsonOutput } from "#harness/grader/exec";
 import { writeJson } from "#harness/grader/run-finish";

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { CycleEvent, CycleState } from "@tuicraft/core";
-import { createMockHandle } from "@tuicraft/core/test-support/mock-handle";
+import type { CycleEvent, CycleState } from "@peon/core";
+import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import type { RunRecord } from "#harness/contract/runs";
 import { runDrafts } from "#harness/events/rules";
 import { cycleDrafts } from "#harness/events/rules-combat";

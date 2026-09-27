@@ -1,4 +1,4 @@
-import type { PlayerLife } from "@tuicraft/core";
+import type { PlayerLife } from "@peon/core";
 import type { LogClass, LogDraft, LogEvent } from "#harness/contract/log";
 import type { RunEvent, RunRecord } from "#harness/contract/runs";
 import { runLabel } from "#harness/runs/registry";

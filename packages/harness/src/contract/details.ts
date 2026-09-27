@@ -1,4 +1,4 @@
-import type { ItemKind, NpcRole } from "@tuicraft/core";
+import type { ItemKind, NpcRole } from "@peon/core";
 import type { GameLogEntry } from "#harness/contract/log";
 import type { ToolName, ToolResult } from "#harness/contract/result";
 import type { RunRecord } from "#harness/contract/runs";

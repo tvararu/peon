@@ -54,7 +54,7 @@ describe("staleFindings", () => {
 
   test("flags other tmp paths, deleted notes files and old names", () => {
     const text = [
-      "from `tuicraft:tmp/gameplay-data/raw/`, see tmp/overnight.",
+      "from `peon:tmp/gameplay-data/raw/`, see tmp/overnight.",
       "Read DECISIONS.md and the ovn-7 or `gameplay-*` worktrees.",
       "The factory-worker automation.",
     ].join("\n");
