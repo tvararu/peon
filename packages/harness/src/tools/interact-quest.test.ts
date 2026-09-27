@@ -3,11 +3,12 @@ import type { QuestLogSlot } from "@tuicraft/core";
 import type { InteractAfter } from "#harness/contract/details";
 import { interactSpec } from "#harness/tools/interact";
 import { journalTool } from "#harness/tools/journal";
-import { toolCtx } from "#test-support/ops-fixtures";
+import { setUnits, toolCtx, unitRow } from "#test-support/ops-fixtures";
 import {
   answer,
   detailsDialog,
   listDialog,
+  MCBRIDE,
   offerDialog,
   velan,
 } from "#test-support/quest-fixtures";
@@ -74,6 +75,45 @@ describe("quest handoff", () => {
       next: 'interact(npc: "Marshal McBride")',
       status: "DONE",
     });
+  });
+
+  test("accept names the ref, distance and bearing of a known ender", async () => {
+    const { t } = await velan();
+    setUnits(t.handle, [
+      ...t.handle.queryNearby(),
+      unitRow({
+        distance: 56,
+        guid: MCBRIDE,
+        name: "Marshal McBride",
+        relation: "friendly",
+        roles: ["questgiver"],
+        x: 56,
+        y: 0,
+      }),
+    ]);
+    const ref = t.rt.refs.refOf(MCBRIDE);
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", {
+        dialog: listDialog([{ ...THREAT, icon: 2, level: 1 }]),
+      });
+    t.handle.selectQuest = () =>
+      answer(t.handle, "dialog", {
+        dialog: detailsDialog(783, THREAT.title, "Speak with Marshal McBride."),
+      });
+    t.handle.acceptQuest = () =>
+      answer(
+        t.handle,
+        "accepted",
+        { dialog: undefined, log: { complete: true, slots: [logged(783, 1)] } },
+        783,
+      );
+    const res = await interactSpec.run(
+      { do: "accept", npc: "Velan Brightoak", what: "1" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(res.detail).toBe(
+      `accepted A Threat Within #783. Goal: Speak with Marshal McBride (${ref}, 56 yd N).`,
+    );
   });
 
   test("the journal names the ender of a complete quest", async () => {

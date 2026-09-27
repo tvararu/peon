@@ -132,8 +132,7 @@ describe("interact", () => {
     );
     const ref = t.rt.refs.refOf(MCBRIDE);
     expect(res).toMatchObject({
-      detail:
-        "accepted A Threat Within #783. Goal: Find Marshal McBride. It has nothing to kill or collect.",
+      detail: `accepted A Threat Within #783. Goal: Find Marshal McBride (${ref}, 56 yd N). It has nothing to kill or collect.`,
       next: `interact(do: "turn_in", npc: "${ref}")`,
       status: "DONE",
     });

@@ -1,7 +1,8 @@
 import { type QuestState, questSlotStatus } from "@tuicraft/core";
 import type { ViewCtx } from "#harness/contract/services";
+import type { UnitView } from "#harness/contract/views";
 import { enderIn } from "#harness/ops/quest-memory";
-import { unitViews } from "#harness/ops/views";
+import { knownUnits } from "#harness/ops/views";
 import { nextCall } from "#harness/tools/next-call";
 
 type Accepted = { detail: string; next: string };
@@ -37,6 +38,28 @@ function sentence(text: string): string {
   return STOP.test(text) ? text : `${text}.`;
 }
 
+function whereText(unit: UnitView): string {
+  if (unit.distance === undefined) return unit.ref;
+  const yards = `${Math.round(unit.distance)} yd${unit.compass ? ` ${unit.compass}` : ""}`;
+  return `${unit.ref}, ${unit.inView ? yards : `last seen ${yards}`}`;
+}
+
+function goalNpc(ctx: ViewCtx, goal: string, ender: string | undefined) {
+  const known = knownUnits(ctx).filter((unit) => unit.alive);
+  const wanted = ender?.toLowerCase();
+  return wanted
+    ? known.find((unit) => unit.name.toLowerCase() === wanted)
+    : known.find((unit) => goal !== "" && goal.includes(unit.name));
+}
+
+function withWhere(goal: string, unit: UnitView | undefined): string {
+  if (!unit) return goal;
+  const at = goal.indexOf(unit.name);
+  if (at < 0) return goal;
+  const end = at + unit.name.length;
+  return `${goal.slice(0, end)} (${whereText(unit)})${goal.slice(end)}`;
+}
+
 export function acceptedNext(
   ctx: ViewCtx,
   offer: { id: number; title: string },
@@ -52,13 +75,15 @@ export function acceptedNext(
     objectives: goal,
     title: offer.title,
   });
-  const detail = goal === "" ? accepted : `${accepted} Goal: ${sentence(goal)}`;
+  const npc = goalNpc(ctx, goal, ender);
+  const detail =
+    goal === ""
+      ? accepted
+      : `${accepted} Goal: ${sentence(withWhere(goal, npc))}`;
   if (counted(state, offer.id) !== false)
     return { detail, next: nextCall("engage", { quest: String(offer.id) }) };
   if (ender) return { detail, next: nextCall("interact", { npc: ender }) };
-  const named = unitViews(ctx).find(
-    (unit) => unit.alive && goal !== "" && goal.includes(unit.name),
-  );
+  const named = npc?.inView ? npc : undefined;
   return {
     detail: `${detail} It has nothing to kill or collect.`,
     next: named
