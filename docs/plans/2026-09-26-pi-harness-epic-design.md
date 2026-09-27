@@ -774,6 +774,66 @@ as the spec settlements.
      for fd and rg in `<agentDir>/bin` when they are not on PATH, which
      silences Pi's offline warning; a host fd or rg is never shadowed.
      `0457d8a5`.
+135. Eval round 5 fix stale-checks: a draft check carries `met: true`
+     when a measure decides it mechanically (pet_attack,
+     kill_after_answer, no_fight_after_stop, answer_time); before, every
+     draft check was `met: false`. Measures run for any check source
+     when a GL exists, so answer-time (source `session`) is filled.
+     pet-attack loses `blockedBy P5:pet_attack` and is met when a
+     combat/pet_attack row targets a kill-credit guid and Jev saw
+     `pet.onTarget`. `dc08b90d`, `2097d1e7`.
+136. Eval round 5 fix stale-checks: in a scenario with steers or
+     partner actions, `wallSec` ends at the later of the accepted
+     answer and the last tool/result or chat/out row at or before the
+     end decision; other scenarios keep the answer rule of decision
+     111. Brief items 1 and 2 (run root outside the worktree, grader
+     lock) are not built: run dirs stay under the eval worktree's
+     `tmp/evals` by the maintainer's ruling. `47d83e6d`.
+137. Eval round 5 fix northshire-route-floors: a route sample on the
+     only ground floor of its column may rise or drop up to
+     CORNER_RISE (1.25 yd, namigator WalkableClimb plus CellHeight),
+     and the corridor collision climb uses the same limit; columns
+     with two or more floors keep the 1 yd gate. The fault was a
+     single-floor stair riser, not a regression from `e9957e13` or
+     `e51ba337`, so the brief's nearest-floor rule and native corner
+     retry are not added. `f095c9d9`.
+138. Eval round 5 fix event-delivery: passive rows that land during a
+     tool call are appended to its result (up to 5 `[game Ns]` lines,
+     then the existing "+N more in the log" line) and marked
+     `consumedBy` and `delivered: true`, which section C.2 did not
+     allow for consumed rows. The GL tool/result text omits that
+     tail. `7cbccd8a`.
+139. Eval round 5 fix event-delivery: exploration XP is never queued
+     for a wake or the flush, whether the agent is idle or streaming,
+     so outside a call the agent does not see it; a combat/attacked
+     wake is dropped at send time when a later fight/end,
+     kill_credit or target_died row has the same guid. `7cbccd8a`.
+140. Eval round 5 fix event-delivery: the ticker shows only the first
+     notice/not_implemented row per opcode per session. Vendor `cost`
+     is the absolute price for every deal (sell and repair too), and a
+     vendor/list is logged only when it differs from the last list for
+     that NPC in the connection. `59201f1d`, `8a4e5909`.
+141. Eval round 5 fix search-and-recover: travel takes an optional
+     `for` (hostile, questgiver, vendor or part of a name), which
+     section B.3 does not list. With no `for`, explore stops only on
+     an attackable, living unit that is not a critter and not gray,
+     and names the gray or critter units it walked past on a `Passed:`
+     line. The core barrel exports `grayLevel`. `b7df9d18`.
+142. Eval round 5 fix search-and-recover: an `ambiguous_ground_column`
+     or `path_corner_disagrees` refusal steps through unstick, a
+     waypoint 25 yd (or half way) toward the goal, then the human;
+     the waypoint is not checked for open ground, and the ladder is
+     keyed on the goal text in a new `TravelMemory.recovery`, not on
+     the human task. `Tried:` and `Not tried:` follow the steps run.
+     `04ba1e17`.
+143. Eval round 5 fix search-and-recover: explore never sends a
+     refused goal point again, tries both side bearings on
+     `path_corner_disagrees`, counts each distinct refused goal as one
+     obstructed leg and stops `obstructed` when no bearing is left.
+     `506b516c`.
+144. Eval round 5 fix search-and-recover: look checks `find` before
+     the schema and tells the agent that a name goes in `name`;
+     `GameToolSpec` gains an optional `prepareArguments`. `7bfd4baf`.
 
 ## 3. Context
 
@@ -2192,3 +2252,121 @@ Deferred:
 - coordinator and workflow: find out who removed the eval worktree at
   about 09:04 UTC (the reaper journal shows nothing), and never remove
   it before every grader has returned.
+
+### Eval round 6
+
+Head `7bfd4ba`. Thirteen scenarios, one run each, in the eval worktree.
+
+- Fix briefs landed before the round: stale-checks (`2097d1e`),
+  northshire-route-floors (`f095c9d`), search-and-recover (`7bfd4ba`)
+  and event-delivery (`8a4e590`). Decisions 135 to 144 record what they
+  changed. The round-5 eval worktree removal was the maintainer's, and
+  run dirs stay under the eval worktree's `tmp/evals` (maintainer
+  ruling), so the durable-run-dirs brief landed as stale-checks only.
+  All 13 run dirs were present and re-read.
+- Pass rate 13 of 13 (1.00; round 5 0.77, round 4 0.69). Abort rate 0
+  (round 5 0.08). Median tool calls 3 (round 5 3). Median wall time
+  22.7 s (round 5 28.1 s); scenarios with steers or partner actions
+  now end wall time at the last reply (`47d83e6`). Checks met 48 of
+  49; the one miss is the t4-alliance-first stretch check (the quest 7
+  chain), which is not a pass condition. Every run ended `done` with
+  no rescue nudge.
+- t3-ghostlands-kill (search-and-recover), t4-alliance-first (route
+  floors) and t7-halt-resume go to pass.
+
+| Scenario | Verdict | Checks | Tool calls | Turns | Wall s | First action s |
+|---|---|---|---|---|---|---|
+| t0-hostiles | pass | 3/3 | 1 | 2 | 4.0 | 2.20 |
+| t0-self-state | pass | 5/5 | 1 | 2 | 4.7 | 2.62 |
+| t0-who-is-near | pass | 3/3 | 1 | 2 | 4.3 | 2.36 |
+| t1-walk-to-npc | pass | 2/2 | 2 | 3 | 15.7 | 2.70 |
+| t2-whisper-reply | pass | 3/3 | 1 | 3 | 63.4 | 63.40 |
+| t3-ghostlands-kill | pass | 4/4 | 15 | 16 | 215.0 | 2.80 |
+| t3-kill-one-hunter | pass | 7/7 | 2 | 3 | 22.7 | 2.46 |
+| t4-alliance-first | pass | 3/4 | 4 | 5 | 18.7 | 2.30 |
+| t4-quest-first | pass | 5/5 | 6 | 7 | 106.9 | 3.90 |
+| t5-vendor-buy-goldshire | pass | 2/2 | 3 | 4 | 12.9 | 2.40 |
+| t6-die-and-recover | pass | 4/4 | 14 | 18 | 198.7 | 2.10 |
+| t7-halt-resume | pass | 3/3 | 6 | 9 | 148.6 | 2.60 |
+| t7-question-while-acting | pass | 4/4 | 18 | 20 | 302.7 | 2.30 |
+
+One tool error, in t6-die-and-recover. With every scenario passing, the
+friction left is about efficiency and quality.
+
+Top friction clusters (score is runs times severity: major 3, minor 1):
+
+1. notice/not_implemented rows still fill the panel feed (log-events
+   and ui, score 7; all 13 runs log them, 7 graders filed it). The
+   per-opcode dedupe leaves 11 distinct opcodes, such as Spell damage,
+   Damage dealt, Power update and Achievement criteria.
+2. engage result texts are stale or incomplete (ops-tools-a, score 6;
+   t6, t7-halt, t7-q). FAILED died gives no enemy HP or level gap,
+   PARTLY omits XP (the agent reported 160 XP, true 268), the Danger
+   line says "coming at you" for a unit that attacks, and RUNNING lags
+   kill credit by 2.5 s.
+3. Jev never heals at low HP, and the damage packets are not parsed
+   (core-b, score 4; t6, 2nd round). Jev chose Smite at 6/51 and 2/51
+   HP with Lesser Heal offered, and t6 died twice.
+4. Stale or redundant wakes (log-events, score 3; t6, t7-halt): a
+   low_health wake 83 s late at full HP, a run/ended wake for a
+   superseded recover run, and life/released caused by the agent's own
+   recover run.
+5. Quest reward hints (ops-tools-a and b, score 4; t4-quest,
+   t4-alliance): the engage completion Next omits the reward, so
+   turn_in refuses `reward_needed` once (2nd round), that Next picks
+   mail for a Priest, and turn_in hides a chained quest offer.
+
+Smaller clusters: prompt habits (re-engaging the unit that killed the
+character, an empty final answer after a wake action), unit identity in
+the now line and zero-hit look, eval defects (t7-halt draft ignores the
+steer windows, eversong10 conjured water and food vanish at login),
+stale panel cards, and spell ids in aura rows.
+
+Briefs for round 7:
+
+- quiet-wakes (log-events): keep not_implemented in the GL only, and
+  drop queued wakes whose condition no longer holds at delivery.
+- engage-reports (ops-tools-a): engage says what happened in the fight
+  (enemy HP and level on death, XP on every summary, attacker-aware
+  Danger, RUNNING after kill credit) and which reward to take
+  (`pickReward` by class proficiency).
+- healer-guard-and-damage-log (core-b): cast a castable self-heal
+  below 35% HP before asking Jev, and parse
+  SMSG_ATTACKERSTATEUPDATE, SMSG_SPELLNONMELEEDAMAGELOG and
+  SMSG_POWER_UPDATE into combat/damage and unit power.
+- halt-windows-and-preset (eval-infra): grade t7-halt-resume by its
+  steer windows, give t2-whisper-reply an explicit end rule, and
+  replace conjured items in eversong10 with Refreshing Spring Water
+  and non-conjured food.
+
+Deferred:
+
+- ops-tools-b: turn_in captures the chained quest offer
+  (RewardNextQuest) and adds `Next: accept` (t4-alliance stretch
+  check).
+- ops-tools-b and log-events: the now line and a zero-hit look name
+  the nearest attackable with its relation and skip critters; travel
+  Passed flags aggressive grays within aggro range; clear lootable
+  after an empty loot (t0-hostiles, t4-quest, t3-ghost, t7-q).
+- prompt-docs: after engage FAILED died, do not engage the same target
+  again unless something changed; end a wake-action turn with one
+  sentence to the human; the completion report lists every fight;
+  explore away from towns (t6, t2, t3-ghost).
+- ui: clear or mark the quest card on quest/rewarded and
+  quest/accepted; take the aura fade glyph from the gain's helpful
+  flag; choose the journal glyph by `about`; show one Bags line
+  (t4-quest, t4-alliance, t3-hunter, t0-self).
+- log-events: aura rows resolve the spell name, not the id
+  (t3-hunter).
+- core place: resolve the subzone and print the zone once (t0-who;
+  4th round).
+- ops-tools-b: rest drinks or waits on regen at full HP and never eats
+  (t7-q).
+- ops-tools-a: look find accepts a value that is not a kind as a name
+  match (t6).
+- eval-infra: eval-suite.md names a Ravager pet, but the preset pet is
+  a Bloodmyst Hatchling (t3-hunter); some runs report reasoning tokens
+  as 0 at thinking high, so check the provider usage (t4-quest, t1,
+  t3-hunter).
+- eval-infra: concurrent graders shared `tmp/eval-r6-t0.log`; use a
+  log path local to the run dir (t0-who, t0-self).
