@@ -84,13 +84,20 @@ describe("createExitRecorder", () => {
     expect(t.synced).toEqual([]);
   });
 
-  test("SIGTERM records sigterm and leaves the shutdown to Pi", async () => {
-    const t = setup();
+  function piShutdownOn(t: ReturnType<typeof setup>, signal: string) {
+    let shutdown: Promise<void> | undefined;
     t.recorder.piOwnsSignals();
-    t.emitter.emit("SIGTERM");
+    t.emitter.prependListener(signal, () => {
+      shutdown = t.recorder.begin().then(() => t.recorder.end({}));
+    });
+    t.emitter.emit(signal);
+    return shutdown;
+  }
+
+  test("SIGTERM after Pi prepends its handler writes sigterm from the first write, with no logout notice", async () => {
+    const t = setup();
+    await piShutdownOn(t, "SIGTERM");
     expect(t.exits).toEqual([]);
-    await t.recorder.begin();
-    await t.recorder.end({});
     expect(t.written.map((row) => row.exitReason)).toEqual([
       "sigterm",
       "sigterm",
@@ -98,12 +105,11 @@ describe("createExitRecorder", () => {
     expect(t.notices).toEqual([]);
   });
 
-  test("SIGHUP records sighup", async () => {
+  test("SIGHUP after Pi prepends its handler writes sighup from the first write", async () => {
     const t = setup();
-    t.recorder.piOwnsSignals();
-    t.emitter.emit("SIGHUP");
-    await t.recorder.begin();
+    await piShutdownOn(t, "SIGHUP");
     expect(t.written[0]?.exitReason).toBe("sighup");
+    expect(t.notices).toEqual([]);
   });
 
   test("SIGTERM before Pi listens still ends the process with the meta written", () => {

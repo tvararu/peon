@@ -37,6 +37,8 @@ const SIGNALS: readonly (readonly [string, ExitReason, number])[] = [
   ["SIGHUP", "sighup", 129],
 ];
 
+const afterSignalDispatch = () => Promise.resolve();
+
 export function createExitRecorder(init: ExitInit): ExitRecorder {
   const { proc, now } = init;
   let reason: ExitReason | undefined;
@@ -74,6 +76,7 @@ export function createExitRecorder(init: ExitInit): ExitRecorder {
   proc.on("exit", (code) => final(code === 0 ? "quit" : "fatal_error"));
   return {
     async begin() {
+      await afterSignalDispatch();
       if (reason === undefined) init.notice(LOGOUT_NOTICE);
       await init.write(stamp({}, "quit"));
     },

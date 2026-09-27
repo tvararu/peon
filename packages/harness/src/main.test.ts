@@ -228,16 +228,23 @@ describe("main exit paths write endedAt and exitReason", () => {
     expect(readMeta(runDir)).toMatchObject({ exitReason: "quit" });
   });
 
-  test("SIGTERM: Pi shuts down and the meta says sigterm", async () => {
+  test("SIGTERM: Pi's prepended handler shuts down, the meta says sigterm and no logout notice prints", async () => {
     const { result, runDir } = await playing(async (runtime) => {
+      let shutdown: Promise<void> | undefined;
+      proc.prependListener("SIGTERM", () => {
+        shutdown = runtime.dispose();
+      });
       proc.emit("SIGTERM");
-      await runtime.dispose();
+      await shutdown;
     });
     await result;
     expect(readMeta(runDir)).toMatchObject({
       endedAt: NOW,
       exitReason: "sigterm",
     });
+    expect(lines.out).not.toContain(
+      "Logging out of the game. The harness exits when the server confirms, in up to 30 s.",
+    );
   });
 
   test("SIGINT while the harness logs out: the meta says sigint and the exit code is 130", async () => {
