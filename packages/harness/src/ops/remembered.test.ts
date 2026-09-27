@@ -114,7 +114,8 @@ describe("remembered NPCs", () => {
 
   test("after not_at_last_known the next look no longer lists the old point", async () => {
     const t = await remembered();
-    const look = () => runTool(lookTool(t.rt), { find: "questgiver" });
+    const look = () =>
+      runTool(lookTool.definition(t.rt), { find: "questgiver" });
     expect((await look()).text).toContain("Magistrix Erona");
     driveGoto(t.handle, [{ arrive: { x: 98, y: 0, z: 5 } }]);
     await travelSpec.run({ to: "Magistrix Erona" }, toolCtx<TravelAfter>(t));

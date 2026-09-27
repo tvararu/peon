@@ -8,12 +8,7 @@ import { completeQuestIds, noteQuestsDone } from "#harness/ops/quest-memory";
 import { Refusal } from "#harness/ops/refusal";
 import { manaText, poseView, vitalsView } from "#harness/ops/views";
 import { awaitRun } from "#harness/runs/wait";
-import {
-  defineGameTool,
-  emptyVitals,
-  type GameToolSpec,
-  result,
-} from "#harness/tools/define";
+import { defineGameTool, emptyVitals, result } from "#harness/tools/define";
 import {
   checkHelper,
   chooseTarget,
@@ -22,8 +17,10 @@ import {
   parseQuest,
 } from "#harness/tools/engage-choose";
 import { fight } from "#harness/tools/engage-fight";
+import type { GameToolSpec } from "#harness/tools/game-tool";
 import { nextCall } from "#harness/tools/next-call";
 import { type EngageArgs, engageParams } from "#harness/tools/params";
+import { engageRenderers } from "#harness/ui/renderers/live-run";
 
 type Report = ToolResult<EngageAfter>;
 type Latest = { after: EngageAfter };
@@ -201,12 +198,27 @@ async function runEngage(
   });
 }
 
-export const engageSpec: GameToolSpec<typeof engageParams, "engage"> = {
+export const engageSpec: GameToolSpec<
+  typeof engageParams,
+  "engage",
+  EngageAfter
+> = {
   fallback: emptyEngage,
   kind: "run",
+  minimalArgs: {},
   name: "engage",
   parameters: engageParams,
+  renderers: engageRenderers,
   run: runEngage,
+  text: {
+    description:
+      "Finds a hostile unit, walks to it, fights it and loots it. It waits until the fight ends, up to two minutes. With count or quest it fights more than one unit. It refuses when your health or mana is low or when another unit attacks you.",
+    guidelines: [
+      "Leave target empty to fight the nearest hostile. Use quest to fight for a quest objective.",
+      "If it refuses because your health or mana is low, call rest. Then call engage again.",
+    ],
+    label: "Engage",
+  },
 };
 
 export const engageTool = defineGameTool(engageSpec);

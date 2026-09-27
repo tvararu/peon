@@ -9,6 +9,7 @@ import { vitalsView } from "#harness/ops/views";
 import { defineGameTool, emptyVitals, result } from "#harness/tools/define";
 import { nextCall } from "#harness/tools/next-call";
 import { type StopArgs, stopParams } from "#harness/tools/params";
+import { stopRenderers } from "#harness/ui/renderers/line";
 
 function emptyStop(): StopAfter {
   return { attackers: [], self: emptyVitals(), stopped: [] };
@@ -62,7 +63,17 @@ async function stop(
 export const stopTool = defineGameTool({
   fallback: emptyStop,
   kind: "control",
+  minimalArgs: {},
   name: "stop",
   parameters: stopParams,
+  renderers: stopRenderers,
   run: stop,
+  text: {
+    description:
+      "Stops one running action, or everything when run is empty. It stops movement, attacks and the fight helper. An attacker does not stop when you stop.",
+    guidelines: [
+      "Use stop only when the task changes. Do not use it to wait for an action.",
+    ],
+    label: "Stop",
+  },
 });

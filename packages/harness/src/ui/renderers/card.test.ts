@@ -7,6 +7,9 @@ import type {
 } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import { emptyUnit } from "#harness/tools/define";
+import { interactTool } from "#harness/tools/interact";
+import { journalTool } from "#harness/tools/journal";
+import { lootTool } from "#harness/tools/loot";
 import { hms } from "#harness/ui/draw";
 import { nerd } from "#harness/ui/glyphs";
 import {
@@ -127,10 +130,12 @@ const done = <A>(after: A, detail: string): ToolResult<A> => ({
 describe("card family", () => {
   test("call lines", () => {
     expect(
-      renderCallLine("interact", { do: "turn_in", npc: "u3", what: "2" }),
+      renderCallLine(interactTool, { do: "turn_in", npc: "u3", what: "2" }),
     ).toBe(`${nerd.questgiver} interact u3 turn_in 2`);
-    expect(renderCallLine("loot", {})).toBe(`${nerd.loot} loot nearest corpse`);
-    expect(renderCallLine("journal", { about: "log", since: "r4" })).toBe(
+    expect(renderCallLine(lootTool, {})).toBe(
+      `${nerd.loot} loot nearest corpse`,
+    );
+    expect(renderCallLine(journalTool, { about: "log", since: "r4" })).toBe(
       `${nerd.questLog} journal log r4`,
     );
   });
@@ -138,7 +143,7 @@ describe("card family", () => {
   test("interact talk lists offers and the Last money line", () => {
     const text = plain(
       renderResultLines(
-        "interact",
+        interactTool,
         done(talk, "Magistrix Erona offers 2 quests."),
         { options: open },
       ),
@@ -161,7 +166,7 @@ describe("card family", () => {
       next: 'travel(to: "u1")',
       status: "FAILED",
     };
-    const text = plain(renderResultLines("interact", failed));
+    const text = plain(renderResultLines(interactTool, failed));
     expect(text.join("\n")).not.toContain(nerd.dead);
     expect(text.filter((line) => line.trim() === "")).toHaveLength(0);
   });
@@ -170,7 +175,7 @@ describe("card family", () => {
     const turnIn = (before: number, after: number) =>
       plain(
         renderResultLines(
-          "interact",
+          interactTool,
           done(
             { ...talk, action: "turn_in", money: { after, before } },
             "turned in Reclaiming Sunstrider Isle #8325.",
@@ -188,7 +193,7 @@ describe("card family", () => {
 
   test("loot paints items in their quality colour", () => {
     const lines = renderResultLines(
-      "loot",
+      lootTool,
       done(looted, "looted 2 items and 75 copper."),
     );
     expect(plain(lines)[1]).toBe(`${nerd.lootable} Springpaw Stalker u9`);
@@ -197,7 +202,7 @@ describe("card family", () => {
   });
 
   test("journal log shows the range label, timeline rows and the rest count", () => {
-    const text = plain(renderResultLines("journal", done(log, "1 row.")));
+    const text = plain(renderResultLines(journalTool, done(log, "1 row.")));
     expect(text.slice(1)).toEqual([
       "since r4 started (1m 12s ago)",
       `${hms(at)} ${nerd.death} You died › Springpaw Stalker L7`,
@@ -207,7 +212,7 @@ describe("card family", () => {
 
   test("journal quests is a tracker with turn-in hints", () => {
     const text = plain(
-      renderResultLines("journal", done(quests, "2 quests."), {
+      renderResultLines(journalTool, done(quests, "2 quests."), {
         options: open,
       }),
     );
@@ -219,11 +224,11 @@ describe("card family", () => {
 
   test("card results fit a 40-column pane", () => {
     const all = [
-      renderResultLines("interact", done(talk, "x"), {
+      renderResultLines(interactTool, done(talk, "x"), {
         options: open,
         width: 40,
       }),
-      renderResultLines("journal", done(quests, "x"), {
+      renderResultLines(journalTool, done(quests, "x"), {
         options: open,
         width: 40,
       }),

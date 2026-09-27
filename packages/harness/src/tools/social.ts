@@ -15,6 +15,7 @@ import { settle } from "#harness/ops/settle";
 import { defineGameTool, result } from "#harness/tools/define";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 import { type SocialArgs, socialParams } from "#harness/tools/params";
+import { socialRenderers } from "#harness/ui/renderers/line";
 
 type ChatAction = "say" | "whisper" | "party" | "guild";
 type GroupAction = Exclude<SocialAction, ChatAction>;
@@ -405,7 +406,18 @@ function social(
 export const socialTool = defineGameTool({
   fallback: emptySocial,
   kind: "action",
+  minimalArgs: { text: "hello" },
   name: "social",
   parameters: socialParams,
+  renderers: socialRenderers,
   run: social,
+  text: {
+    description:
+      "Sends one chat message or does one group action: say, whisper, party, guild, invite, accept or decline an invite, or leave the group. It waits up to 2 seconds for the server to confirm it.",
+    guidelines: [
+      'To answer a whisper, set do to "whisper" and to to the exact name from the [game] line.',
+      "Never put an account name or a password in text.",
+    ],
+    label: "Social",
+  },
 });

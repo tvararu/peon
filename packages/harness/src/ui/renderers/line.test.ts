@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { AfterMap } from "#harness/contract/details";
+import type { SocialAfter, StopAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
+import { socialTool } from "#harness/tools/social";
+import { stopTool } from "#harness/tools/stop";
 import { nerd } from "#harness/ui/glyphs";
 import { collapse, detailsOf, headLine } from "#harness/ui/renderers/line";
 import {
@@ -13,7 +15,7 @@ import { painted, plain, testTheme } from "#test-support/ui-fixture";
 
 const theme = testTheme();
 
-const said: ToolResult<AfterMap["social"]> = {
+const said: ToolResult<SocialAfter> = {
   after: {
     action: "whisper",
     confirmed: true,
@@ -29,23 +31,23 @@ const said: ToolResult<AfterMap["social"]> = {
 
 describe("line family", () => {
   test("social call line names the action and the player", () => {
-    expect(renderCallLine("social", { text: "level 10", to: "Kaelyn" })).toBe(
+    expect(renderCallLine(socialTool, { text: "level 10", to: "Kaelyn" })).toBe(
       `${nerd.whisper} social whisper → Kaelyn "level 10"`,
     );
-    expect(renderCallLine("social", { text: "hi" })).toBe(
+    expect(renderCallLine(socialTool, { text: "hi" })).toBe(
       `${nerd.say} social say "hi"`,
     );
   });
 
   test("collapsed social result is one green status line", () => {
-    const lines = renderResultLines("social", said);
+    const lines = renderResultLines(socialTool, said);
     expect(plain(lines)).toEqual([`${nerd.runDone} DONE whispered Kaelyn.`]);
     expect(painted(theme, "success", lines[0] ?? "")).toBe(true);
   });
 
   test("expanded social result adds the echo and evidence rows", () => {
     expect(
-      plain(renderResultLines("social", said, { options: open })).slice(1),
+      plain(renderResultLines(socialTool, said, { options: open })).slice(1),
     ).toEqual(["the server echo confirmed it", "#41 chat/out"]);
   });
 
@@ -59,7 +61,7 @@ describe("line family", () => {
     };
     const text =
       "REFUSED ...\nDanger: Springpaw Stalker u9 is attacking you. You are at 23% HP.";
-    const lines = renderResultLines("social", refused, { text });
+    const lines = renderResultLines(socialTool, refused, { text });
     expect(plain(lines)).toEqual([
       `${nerd.error} REFUSED human_waiting: the human wrote a message.`,
       `${nerd.warning} Danger: Springpaw Stalker u9 is attacking you. You are at 23% HP.`,
@@ -69,7 +71,7 @@ describe("line family", () => {
   });
 
   test("stop call and expanded result list the stopped runs", () => {
-    expect(renderCallLine("stop", {})).toBe(
+    expect(renderCallLine(stopTool, {})).toBe(
       `${nerd.runFailed} stop everything`,
     );
     const record = {
@@ -85,7 +87,7 @@ describe("line family", () => {
       summary: undefined,
       toolCallId: undefined,
     };
-    const stopped: ToolResult<AfterMap["stop"]> = {
+    const stopped: ToolResult<StopAfter> = {
       after: {
         attackers: [],
         self: {
@@ -102,7 +104,7 @@ describe("line family", () => {
       status: "DONE",
     };
     expect(
-      plain(renderResultLines("stop", stopped, { options: open })).slice(1),
+      plain(renderResultLines(stopTool, stopped, { options: open })).slice(1),
     ).toEqual(["r3 engage cancelled stopped_by_tool", "HP 175/217"]);
   });
 

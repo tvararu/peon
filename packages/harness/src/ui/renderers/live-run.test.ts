@@ -7,6 +7,10 @@ import type {
   TravelAfter,
 } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
+import { engageTool } from "#harness/tools/engage";
+import { recoverTool } from "#harness/tools/recover";
+import { restTool } from "#harness/tools/rest";
+import { travelTool } from "#harness/tools/travel";
 import { nerd } from "#harness/ui/glyphs";
 import {
   open,
@@ -107,14 +111,14 @@ const done = <A>(after: A, detail: string): ToolResult<A> => ({
 
 describe("live-run family", () => {
   test("call lines", () => {
-    expect(renderCallLine("travel", { to: "corpse" })).toBe(
+    expect(renderCallLine(travelTool, { to: "corpse" })).toBe(
       `${nerd.route} travel → corpse`,
     );
     expect(
-      renderCallLine("engage", { count: 3, target: "Springpaw Stalker" }),
+      renderCallLine(engageTool, { count: 3, target: "Springpaw Stalker" }),
     ).toBe(`${nerd.combat} engage Springpaw Stalker ×3`);
-    expect(renderCallLine("rest", {})).toBe(`${nerd.idle} rest until 90%`);
-    expect(renderCallLine("recover", {})).toBe(
+    expect(renderCallLine(restTool, {})).toBe(`${nerd.idle} rest until 90%`);
+    expect(renderCallLine(recoverTool, {})).toBe(
       `${nerd.ghost} recover via corpse`,
     );
   });
@@ -125,7 +129,7 @@ describe("live-run family", () => {
       runId: "r4",
       status: "RUNNING",
     };
-    const lines = renderResultLines("travel", running, { options: partial });
+    const lines = renderResultLines(travelTool, running, { options: partial });
     const text = plain(lines);
     expect(text[0]).toBe(
       `${nerd.runRunning} RUNNING r4: walking to your corpse.`,
@@ -137,7 +141,7 @@ describe("live-run family", () => {
 
   test("a finished travel summarises the legs", () => {
     const text = plain(
-      renderResultLines("travel", done(travel, "arrived at your corpse."), {
+      renderResultLines(travelTool, done(travel, "arrived at your corpse."), {
         options: open,
       }),
     );
@@ -150,7 +154,7 @@ describe("live-run family", () => {
 
   test("engage shows target, vitals, cast, the Jev strip and the tally", () => {
     const text = plain(
-      renderResultLines("engage", done(engage, "killed 1 of 3.")),
+      renderResultLines(engageTool, done(engage, "killed 1 of 3.")),
     );
     expect(text).toHaveLength(6);
     expect(text[1]).toContain(`${nerd.hostile} Springpaw Stalker u9 L7`);
@@ -173,7 +177,7 @@ describe("live-run family", () => {
       self: { ...vitals, hp: 0, maxHp: 0, maxPower: 0, power: 0 },
     };
     const text = plain(
-      renderResultLines("engage", done(refused, "killed 1 of 3.")),
+      renderResultLines(engageTool, done(refused, "killed 1 of 3.")),
     );
     expect(text[1]).toBe(`${nerd.target} no current target`);
     expect(text.join("\n")).not.toMatch(/\b0\/0\b/);
@@ -182,7 +186,7 @@ describe("live-run family", () => {
 
   test("expanded engage adds targets, decisions and error codes", () => {
     const text = plain(
-      renderResultLines("engage", done(engage, "killed 1 of 3."), {
+      renderResultLines(engageTool, done(engage, "killed 1 of 3."), {
         options: open,
       }),
     );
@@ -201,7 +205,7 @@ describe("live-run family", () => {
     }));
     const text = plain(
       renderResultLines(
-        "engage",
+        engageTool,
         done({ ...engage, decisions }, "killed 1 of 3."),
         { options: open },
       ),
@@ -213,10 +217,10 @@ describe("live-run family", () => {
 
   test("rest and recover", () => {
     expect(
-      plain(renderResultLines("rest", done(rest, "rested to 95%.")))[2],
+      plain(renderResultLines(restTool, done(rest, "rested to 95%.")))[2],
     ).toBe("used Refreshing Spring Water ×1");
     const text = plain(
-      renderResultLines("recover", done(recover, "you are alive."), {
+      renderResultLines(recoverTool, done(recover, "you are alive."), {
         options: open,
       }),
     );
@@ -228,19 +232,19 @@ describe("live-run family", () => {
 
   test("every live-run result fits a 40-column pane", () => {
     const all = [
-      renderResultLines("travel", done(travel, "arrived."), {
+      renderResultLines(travelTool, done(travel, "arrived."), {
         options: open,
         width: 40,
       }),
-      renderResultLines("engage", done(engage, "killed 1 of 3."), {
+      renderResultLines(engageTool, done(engage, "killed 1 of 3."), {
         options: open,
         width: 40,
       }),
-      renderResultLines("rest", done(rest, "rested."), {
+      renderResultLines(restTool, done(rest, "rested."), {
         options: open,
         width: 40,
       }),
-      renderResultLines("recover", done(recover, "alive."), {
+      renderResultLines(recoverTool, done(recover, "alive."), {
         options: open,
         width: 40,
       }),

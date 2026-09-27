@@ -2,17 +2,14 @@ import { describe, expect, test } from "bun:test";
 import { Type } from "@earendil-works/pi-ai";
 import type { SocialAfter } from "#harness/contract/details";
 import type { RunEnd } from "#harness/contract/runs";
-import {
-  defineGameTool,
-  type GameToolSpec,
-  result,
-  type ToolKind,
-} from "#harness/tools/define";
+import { defineGameTool, result } from "#harness/tools/define";
+import type { GameToolSpec, ToolKind } from "#harness/tools/game-tool";
+import { PROBE } from "#test-support/probe-tool";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 import { runTool } from "#test-support/tool-harness";
 
 const params = Type.Object({ text: Type.Optional(Type.String()) });
-type Run = GameToolSpec<typeof params, "social">["run"];
+type Run = GameToolSpec<typeof params, "social", SocialAfter>["run"];
 
 function emptySocial(): SocialAfter {
   return {
@@ -26,6 +23,7 @@ function emptySocial(): SocialAfter {
 
 function probe(run: Run, kind: ToolKind = "action") {
   return defineGameTool({
+    ...PROBE,
     fallback: emptySocial,
     kind,
     name: "social",
@@ -41,30 +39,34 @@ describe("acting-tool admission", () => {
   test("refuses an action while a human message waits; a read still runs", async () => {
     const { rt } = await createTestRuntime();
     rt.session.humanWaiting = true;
-    expect((await runTool(probe(said)(rt), {})).text).toBe(
+    expect((await runTool(probe(said).definition(rt), {})).text).toBe(
       "REFUSED human_waiting: the human wrote a message. Read it before you act.\nNext: end your turn and read the human's message.",
     );
-    expect((await runTool(probe(said, "read")(rt), {})).text).toBe(
+    expect((await runTool(probe(said, "read").definition(rt), {})).text).toBe(
       "DONE said hi.",
     );
-    expect((await runTool(probe(said, "control")(rt), {})).text).toBe(
-      "DONE said hi.",
-    );
+    expect(
+      (await runTool(probe(said, "control").definition(rt), {})).text,
+    ).toBe("DONE said hi.");
   });
 
   test("refuses an action while the human drives; a read still runs", async () => {
     const { rt } = await createTestRuntime();
     const human = rt.control.claim("human", "drive");
-    expect((await runTool(probe(said)(rt), {})).details.result).toMatchObject({
+    expect(
+      (await runTool(probe(said).definition(rt), {})).details.result,
+    ).toMatchObject({
       reason: "human_driving",
       status: "REFUSED",
     });
-    expect((await runTool(probe(said, "read")(rt), {})).text).toBe(
+    expect((await runTool(probe(said, "read").definition(rt), {})).text).toBe(
       "DONE said hi.",
     );
     expect(rt.control.owner()).toBe("human");
     if (human.granted) rt.control.release(human.grant, "hand_back");
-    expect((await runTool(probe(said)(rt), {})).text).toBe("DONE said hi.");
+    expect((await runTool(probe(said).definition(rt), {})).text).toBe(
+      "DONE said hi.",
+    );
     expect(rt.control.owner()).toBe("agent");
   });
 
@@ -77,7 +79,9 @@ describe("acting-tool admission", () => {
       toolCallId: "t0",
     });
     rt.control.claim("loop", "run_outlived_turn");
-    expect((await runTool(probe(said)(rt), {})).text).toBe("DONE said hi.");
+    expect((await runTool(probe(said).definition(rt), {})).text).toBe(
+      "DONE said hi.",
+    );
     expect(rt.runs.get(run.id)?.status).toBe("running");
     expect(rt.control.owner()).toBe("loop");
   });
@@ -88,15 +92,15 @@ describe("acting-tool admission", () => {
     rt.session.humanTexts = [
       "Get back to your body. Don't use the spirit healer.",
     ];
-    expect((await runTool(probe(said)(rt), {})).text).toBe(
+    expect((await runTool(probe(said).definition(rt), {})).text).toBe(
       "REFUSED human_waiting: the human wrote: \"Get back to your body. Don't use the spirit healer.\" Read it before you act.\nNext: end your turn and read the human's message.",
     );
     rt.session.humanTexts = ["x".repeat(300)];
-    expect((await runTool(probe(said)(rt), {})).text).toContain(
+    expect((await runTool(probe(said).definition(rt), {})).text).toContain(
       `"${"x".repeat(200)}..."`,
     );
     rt.session.humanTexts = ["rest first", "then  sell\nthe fangs"];
-    expect((await runTool(probe(said)(rt), {})).text).toBe(
+    expect((await runTool(probe(said).definition(rt), {})).text).toBe(
       'REFUSED human_waiting: the human wrote 2 messages: "rest first", then "then sell the fangs" Read it before you act.\nNext: end your turn and read the human\'s message.',
     );
   });

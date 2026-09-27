@@ -4,27 +4,13 @@ import {
   type SystemMessage,
 } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import type { ToolName } from "#harness/contract/result";
 import type { HarnessRuntime } from "#harness/contract/services";
 import type { InWorld } from "#harness/contract/views";
-import { TOOL_TEXT } from "#harness/prompt/guidelines";
 import {
   buildSystemPrompt,
   type PromptInit,
 } from "#harness/prompt/system-prompt";
-
-const TOOL_ORDER: readonly ToolName[] = [
-  "look",
-  "travel",
-  "engage",
-  "loot",
-  "interact",
-  "rest",
-  "recover",
-  "social",
-  "journal",
-  "stop",
-];
+import { GAME_TOOLS } from "#harness/tools/registry";
 
 function known(value: string): string | undefined {
   return value === "" || value === "unknown" ? undefined : value;
@@ -52,8 +38,8 @@ function promptInit(rt: HarnessRuntime): PromptInit {
 }
 
 function toolNotes(): string {
-  const lines = TOOL_ORDER.flatMap((tool) =>
-    TOOL_TEXT[tool].guidelines.map((line) => `- ${tool}: ${line}`),
+  const lines = GAME_TOOLS.flatMap(({ name, text }) =>
+    text.guidelines.map((line) => `- ${name}: ${line}`),
   );
   return `Tool notes:\n${lines.join("\n")}`;
 }

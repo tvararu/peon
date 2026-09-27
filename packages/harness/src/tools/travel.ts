@@ -19,12 +19,8 @@ import {
 } from "#harness/ops/unstick";
 import { poseView, selfView, unitViews } from "#harness/ops/views";
 import { awaitRun } from "#harness/runs/wait";
-import {
-  defineGameTool,
-  type GameToolSpec,
-  result,
-  UPDATE_EVERY_MS,
-} from "#harness/tools/define";
+import { defineGameTool, result, UPDATE_EVERY_MS } from "#harness/tools/define";
+import type { GameToolSpec } from "#harness/tools/game-tool";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 import { type TravelArgs, travelParams } from "#harness/tools/params";
 import { noteTravel, noteUnstick } from "#harness/tools/travel-recovery";
@@ -41,6 +37,7 @@ import {
   yd,
   youLine,
 } from "#harness/tools/travel-report";
+import { travelRenderers } from "#harness/ui/renderers/live-run";
 
 type After = (patch: Partial<TravelAfter>) => TravelAfter;
 type Work = { ops: OpsCtx; args: TravelArgs; goal: Goal; after: After };
@@ -379,12 +376,27 @@ async function runTravel(
   });
 }
 
-export const travelSpec: GameToolSpec<typeof travelParams, "travel"> = {
+export const travelSpec: GameToolSpec<
+  typeof travelParams,
+  "travel",
+  TravelAfter
+> = {
   fallback: emptyTravel,
   kind: "run",
+  minimalArgs: { to: "explore" },
   name: "travel",
   parameters: travelParams,
+  renderers: travelRenderers,
   run: runTravel,
+  text: {
+    description:
+      "Walks to a unit, to your corpse or to a point, or explores in a direction. It waits until you arrive or it fails, up to two minutes. Use explore when look does not show a unit that the task needs. Do not use it to fight.",
+    guidelines: [
+      "Never invent coordinates. If a refusal gives floors, use one as the third number.",
+      'If a result says start_off_mesh, call travel with to "unstick". Then try the goal again.',
+    ],
+    label: "Travel",
+  },
 };
 
 export const travelTool = defineGameTool(travelSpec);

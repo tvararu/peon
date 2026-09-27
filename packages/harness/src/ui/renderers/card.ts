@@ -3,11 +3,13 @@ import type {
   BagsView,
   InteractAfter,
   JournalAfter,
+  LootAfter,
   LootLine,
   QuestLine,
   QuestOffer,
 } from "#harness/contract/details";
 import type { GameLogEntry } from "#harness/contract/log";
+import type { ToolRenderers } from "#harness/tools/game-tool";
 import { glyphs } from "#harness/ui/context";
 import {
   argText,
@@ -26,7 +28,6 @@ import {
   resultRenderer,
   unitLabel,
 } from "#harness/ui/renderers/line";
-import type { ToolRenderers } from "#harness/ui/renderers/registry";
 
 const OFFER_GLYPH: Readonly<Record<QuestOffer["state"], GlyphName>> = {
   available: "questAvailable",
@@ -111,7 +112,7 @@ function npcRow(theme: Theme, after: InteractAfter): string[] {
   return [`${unitLabel(theme, after.npc)}${roles}`];
 }
 
-function interactBody({ after, theme }: BodyInit<"interact">): string[] {
+function interactBody({ after, theme }: BodyInit<InteractAfter>): string[] {
   return [
     ...npcRow(theme, after),
     ...offerRows(after),
@@ -129,7 +130,7 @@ function interactCall(args: unknown, theme: Theme): string {
   return callLine({ icon: "questgiver", parts, theme, verb: "interact" });
 }
 
-function lootBody({ after, theme }: BodyInit<"loot">): string[] {
+function lootBody({ after, theme }: BodyInit<LootAfter>): string[] {
   const g = glyphs();
   const corpse = after.corpse
     ? unitLabel(theme, after.corpse)
@@ -221,7 +222,7 @@ function journalRows(theme: Theme, after: JournalAfter): string[] {
   }
 }
 
-function journalBody({ after, theme }: BodyInit<"journal">): string[] {
+function journalBody({ after, theme }: BodyInit<JournalAfter>): string[] {
   return journalRows(theme, after);
 }
 
@@ -235,17 +236,17 @@ function journalCall(args: unknown, theme: Theme): string {
   return callLine({ icon: "questLog", parts, theme, verb: "journal" });
 }
 
-export const interactRenderers: ToolRenderers = {
+export const interactRenderers: ToolRenderers<"interact", InteractAfter> = {
   renderCall: callRenderer(interactCall),
   renderResult: resultRenderer("interact", interactBody),
 };
 
-export const lootRenderers: ToolRenderers = {
+export const lootRenderers: ToolRenderers<"loot", LootAfter> = {
   renderCall: callRenderer(lootCall),
   renderResult: resultRenderer("loot", lootBody),
 };
 
-export const journalRenderers: ToolRenderers = {
+export const journalRenderers: ToolRenderers<"journal", JournalAfter> = {
   renderCall: callRenderer(journalCall),
   renderResult: resultRenderer("journal", journalBody),
 };

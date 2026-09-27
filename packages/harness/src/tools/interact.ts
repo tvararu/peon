@@ -7,12 +7,8 @@ import { notAtLastKnown, seekLastKnown } from "#harness/ops/remembered";
 import { resolveUnit, unitRefusal } from "#harness/ops/resolve";
 import { type LegResult, travelLeg } from "#harness/ops/travel-leg";
 import { reachNext } from "#harness/ops/unreached";
-import {
-  defineGameTool,
-  emptyUnit,
-  type GameToolSpec,
-  result,
-} from "#harness/tools/define";
+import { defineGameTool, emptyUnit, result } from "#harness/tools/define";
+import type { GameToolSpec } from "#harness/tools/game-tool";
 import {
   acceptStep,
   baseAfter,
@@ -40,6 +36,7 @@ import {
 } from "#harness/tools/interact-vendor";
 import { nextCall } from "#harness/tools/next-call";
 import { type InteractArgs, interactParams } from "#harness/tools/params";
+import { interactRenderers } from "#harness/ui/renderers/card";
 
 const SHOP_ROLES = new Set([
   "vendor",
@@ -195,12 +192,27 @@ async function runInteract(
   }
 }
 
-export const interactSpec: GameToolSpec<typeof interactParams, "interact"> = {
+export const interactSpec: GameToolSpec<
+  typeof interactParams,
+  "interact",
+  InteractAfter
+> = {
   fallback: emptyInteract,
   kind: "action",
+  minimalArgs: { npc: "u3" },
   name: "interact",
   parameters: interactParams,
+  renderers: interactRenderers,
   run: runInteract,
+  text: {
+    description:
+      "Walks to an NPC and does one job with it: talk, accept or turn in a quest, gossip, buy, sell junk, train or repair. talk lists what the NPC offers, with a number for each line.",
+    guidelines: [
+      "talk lists what an NPC offers. Your own quest log is journal.",
+      'For buy, what can be a stock line number, part of an item name (for example "water") or "item <id>".',
+    ],
+    label: "Interact",
+  },
 };
 
 export const interactTool = defineGameTool(interactSpec);

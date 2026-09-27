@@ -48,7 +48,7 @@ async function world() {
     snapshots,
   };
   const { handle, rt } = await createTestRuntime({ parts });
-  return { handle, rt, snapshots, tool: lookTool(rt) };
+  return { handle, rt, snapshots, tool: lookTool.definition(rt) };
 }
 
 type World = Awaited<ReturnType<typeof world>>;

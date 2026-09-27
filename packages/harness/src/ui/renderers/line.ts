@@ -1,9 +1,14 @@
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import type { NpcRole } from "@peon/core";
-import type { AfterMap, ToolDetails } from "#harness/contract/details";
+import type {
+  SocialAfter,
+  StopAfter,
+  ToolDetailsFor,
+} from "#harness/contract/details";
 import type { ToolName, ToolResult } from "#harness/contract/result";
 import type { UnitView } from "#harness/contract/views";
+import type { ToolRenderers } from "#harness/tools/game-tool";
 import { glyphs } from "#harness/ui/context";
 import {
   argText,
@@ -15,11 +20,10 @@ import {
   STATUS_TONE,
 } from "#harness/ui/draw";
 import type { GlyphName } from "#harness/ui/glyphs";
-import type { ToolRenderers } from "#harness/ui/renderers/registry";
 
-export type BodyInit<K extends ToolName> = {
-  after: AfterMap[K];
-  result: ToolResult<AfterMap[K]>;
+export type BodyInit<A> = {
+  after: A;
+  result: ToolResult<A>;
   theme: Theme;
   expanded: boolean;
   running: boolean;
@@ -33,7 +37,7 @@ export type CallInit = {
   parts: (string | undefined)[];
 };
 
-type Content = AgentToolResult<ToolDetails>["content"];
+type Content = AgentToolResult<unknown>["content"];
 
 export const MAX_BODY_ROWS = 5;
 
@@ -47,13 +51,13 @@ const ROLE_GLYPH: Partial<Record<NpcRole, GlyphName>> = {
   vendor: "vendor",
 };
 
-export function detailsOf<K extends ToolName>(
-  result: AgentToolResult<ToolDetails>,
-  tool: K,
-): ToolResult<AfterMap[K]> {
+export function detailsOf<N extends ToolName, A>(
+  result: AgentToolResult<ToolDetailsFor<N, A>>,
+  tool: N,
+): ToolResult<A> {
   if (result.details.tool !== tool)
     throw new Error(`renderer for ${tool} got ${result.details.tool}`);
-  return result.details.result as ToolResult<AfterMap[K]>;
+  return result.details.result;
 }
 
 export function unitGlyph(unit: UnitView): string {
@@ -118,16 +122,16 @@ export function collapse(
   ];
 }
 
-export function callRenderer(
+export function callRenderer<N extends ToolName, A>(
   draw: (args: unknown, theme: Theme) => string,
-): ToolRenderers["renderCall"] {
+): ToolRenderers<N, A>["renderCall"] {
   return (args, theme) => drawn(() => [draw(args, theme)]);
 }
 
-export function resultRenderer<K extends ToolName>(
-  tool: K,
-  body: (init: BodyInit<K>) => string[],
-): ToolRenderers["renderResult"] {
+export function resultRenderer<N extends ToolName, A>(
+  tool: N,
+  body: (init: BodyInit<A>) => string[],
+): ToolRenderers<N, A>["renderResult"] {
   return (toolResult, options, theme) => {
     const result = detailsOf(toolResult, tool);
     const running = options.isPartial || result.status === "RUNNING";
@@ -173,7 +177,7 @@ function socialBody({
   result,
   theme,
   expanded,
-}: BodyInit<"social">): string[] {
+}: BodyInit<SocialAfter>): string[] {
   if (!expanded) return [];
   const echo = after.confirmed
     ? "the server echo confirmed it"
@@ -198,7 +202,7 @@ function stopBody({
   result,
   theme,
   expanded,
-}: BodyInit<"stop">): string[] {
+}: BodyInit<StopAfter>): string[] {
   if (!expanded) return [];
   const runs = after.stopped.map(
     (run) =>
@@ -211,12 +215,12 @@ function stopBody({
   return [...runs, vitals, ...attackers, ...evidenceRows(theme, result)];
 }
 
-export const socialRenderers: ToolRenderers = {
+export const socialRenderers: ToolRenderers<"social", SocialAfter> = {
   renderCall: callRenderer(socialCall),
   renderResult: resultRenderer("social", socialBody),
 };
 
-export const stopRenderers: ToolRenderers = {
+export const stopRenderers: ToolRenderers<"stop", StopAfter> = {
   renderCall: callRenderer(stopCall),
   renderResult: resultRenderer("stop", stopBody),
 };

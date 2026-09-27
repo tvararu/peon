@@ -1,6 +1,6 @@
 import type { ItemKind, NpcRole } from "@peon/core";
 import type { GameLogEntry } from "#harness/contract/log";
-import type { ToolName, ToolResult } from "#harness/contract/result";
+import type { ToolResult } from "#harness/contract/result";
 import type { RunRecord } from "#harness/contract/runs";
 import type {
   AttackerView,
@@ -297,22 +297,7 @@ export type StopAfter = {
   attackers: AttackerView[];
 };
 
-export type AfterMap = {
-  look: LookAfter;
-  travel: TravelAfter;
-  engage: EngageAfter;
-  loot: LootAfter;
-  interact: InteractAfter;
-  rest: RestAfter;
-  recover: RecoverAfter;
-  social: SocialAfter;
-  journal: JournalAfter;
-  stop: StopAfter;
+export type ToolDetailsFor<N extends string, A> = {
+  tool: N;
+  result: ToolResult<A>;
 };
-
-export type ToolDetailsFor<K extends ToolName> = {
-  tool: K;
-  result: ToolResult<AfterMap[K]>;
-};
-
-export type ToolDetails = { [K in ToolName]: ToolDetailsFor<K> }[ToolName];

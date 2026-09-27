@@ -37,6 +37,7 @@ import {
   lookParams,
   prepareLookArgs,
 } from "#harness/tools/params";
+import { lookRenderers } from "#harness/ui/renderers/picture";
 
 type Unchanged = { at: number; count: number; digest: string };
 type LookFit = {
@@ -382,8 +383,19 @@ export const lookTool = defineGameTool({
   fallback: emptyLook,
   kind: "read",
   maxLines: 24,
+  minimalArgs: {},
   name: "look",
   parameters: lookParams,
   prepareArguments: prepareLookArgs,
+  renderers: lookRenderers,
   run: (args, ctx) => Promise.resolve(look(args, ctx)),
+  text: {
+    description:
+      "Shows your health, place, target and running action, and the nearest units, each with a short id like u7. It does not move you or act. Use it to start a task and to answer questions about the world.",
+    guidelines: [
+      "Use find to filter. The Nearest line includes units out of view.",
+      "Use within to list every unit near you, for example within: 30.",
+    ],
+    label: "Look",
+  },
 });

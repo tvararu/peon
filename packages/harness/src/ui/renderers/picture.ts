@@ -2,6 +2,7 @@ import type { Theme } from "@earendil-works/pi-coding-agent";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import type { LookAfter } from "#harness/contract/details";
 import type { PoseView, SelfView, UnitView } from "#harness/contract/views";
+import type { ToolRenderers } from "#harness/tools/game-tool";
 import { glyphs } from "#harness/ui/context";
 import {
   argText,
@@ -23,7 +24,6 @@ import {
   unitGlyph,
   unitLabel,
 } from "#harness/ui/renderers/line";
-import type { ToolRenderers } from "#harness/ui/renderers/registry";
 
 type Cell = { col: number; row: number };
 type MapInit = {
@@ -182,7 +182,7 @@ function lookBody({
   theme,
   expanded,
   width,
-}: BodyInit<"look">): string[] {
+}: BodyInit<LookAfter>): string[] {
   const head = [
     vitalsLine(theme, after.self),
     placeLine(theme, after),
@@ -215,7 +215,7 @@ function lookCall(args: unknown, theme: Theme): string {
   return callLine({ icon: "target", parts, theme, verb: "look" });
 }
 
-export const lookRenderers: ToolRenderers = {
+export const lookRenderers: ToolRenderers<"look", LookAfter> = {
   renderCall: callRenderer(lookCall),
   renderResult: resultRenderer("look", lookBody),
 };

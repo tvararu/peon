@@ -10,21 +10,20 @@ import { createAttackLedger } from "#harness/ops/danger";
 import { createRefTable } from "#harness/ops/refs";
 import { Refusal } from "#harness/ops/refusal";
 import { createRepeatGuard } from "#harness/ops/repeat-guard";
-import { TOOL_TEXT } from "#harness/prompt/guidelines";
 import {
   defineGameTool,
-  type GameToolSpec,
   result,
-  type ToolKind,
   TURN_BUDGET,
   UPDATE_EVERY_MS,
 } from "#harness/tools/define";
+import type { GameToolSpec, ToolKind } from "#harness/tools/game-tool";
+import { PROBE } from "#test-support/probe-tool";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 import { runTool } from "#test-support/tool-harness";
 import { nearbyRow, setWorld, unitEntity } from "#test-support/world-fixtures";
 
 const params = Type.Object({ text: Type.Optional(Type.String()) });
-type Run = GameToolSpec<typeof params, "social">["run"];
+type Run = GameToolSpec<typeof params, "social", SocialAfter>["run"];
 
 function emptySocial(): SocialAfter {
   return {
@@ -38,6 +37,7 @@ function emptySocial(): SocialAfter {
 
 function probe(run: Run, kind: ToolKind = "action") {
   return defineGameTool({
+    ...PROBE,
     fallback: emptySocial,
     kind,
     name: "social",
@@ -83,7 +83,7 @@ function toolRows(rt: HarnessRuntime) {
 describe("defineGameTool", () => {
   test("a DONE result starts with the status word and logs the call and the result", async () => {
     const { rt } = await createTestRuntime();
-    const out = await runTool(probe(said)(rt), {});
+    const out = await runTool(probe(said).definition(rt), {});
     expect(out.text).toBe("DONE said hi.");
     expect(out.details).toEqual({
       result: {
@@ -103,12 +103,12 @@ describe("defineGameTool", () => {
 
   test("the tool/result row carries the result text, cut at 2000 characters", async () => {
     const { rt } = await createTestRuntime();
-    const out = await runTool(probe(said)(rt), {});
+    const out = await runTool(probe(said).definition(rt), {});
     const long: Run = () =>
       Promise.resolve(
         result("DONE", { after: emptySocial(), detail: "x".repeat(3000) }),
       );
-    await runTool(probe(long)(rt), {});
+    await runTool(probe(long).definition(rt), {});
     const texts = toolRows(rt)
       .filter((entry) => entry.event === "tool/result")
       .map((entry) => entry.data["text"] as string);
@@ -117,24 +117,24 @@ describe("defineGameTool", () => {
     expect(texts[1]).toStartWith("DONE xxx");
   });
 
-  test("the definition carries TOOL_TEXT and the execution mode", async () => {
+  test("the definition carries the tool text and the execution mode", async () => {
     const { rt } = await createTestRuntime();
-    const tool = probe(said, "read")(rt);
+    const tool = probe(said, "read").definition(rt);
     expect(tool).toMatchObject({
-      description: TOOL_TEXT.social.description,
+      description: PROBE.text.description,
       executionMode: "parallel",
-      label: TOOL_TEXT.social.label,
+      label: PROBE.text.label,
       name: "social",
     });
-    expect(tool.promptGuidelines).toEqual(TOOL_TEXT.social.guidelines);
-    expect(probe(said)(rt).executionMode).toBe("sequential");
+    expect(tool.promptGuidelines).toEqual(PROBE.text.guidelines);
+    expect(probe(said).definition(rt).executionMode).toBe("sequential");
   });
 
   test("refuses over the turn budget without running", async () => {
     const { rt } = await createTestRuntime();
     rt.session.turnToolCalls = TURN_BUDGET;
     const run = jest.fn(said);
-    expect((await runTool(probe(run)(rt), {})).text).toBe(
+    expect((await runTool(probe(run).definition(rt), {})).text).toBe(
       "REFUSED turn_budget: report to the human now.\nNext: end your turn and report to the human.",
     );
     expect(run).not.toHaveBeenCalled();
@@ -142,7 +142,7 @@ describe("defineGameTool", () => {
 
   test("refuses offline", async () => {
     const { rt } = await createTestRuntime({ connect: false });
-    expect((await runTool(probe(said)(rt), {})).text).toBe(
+    expect((await runTool(probe(said).definition(rt), {})).text).toBe(
       "REFUSED offline: the game connection is down.\nNext: ask the human to run /connect.",
     );
   });
@@ -152,7 +152,7 @@ describe("defineGameTool", () => {
       parts: { ready: notReady },
       ready: false,
     });
-    expect((await runTool(probe(said)(rt), {})).text).toBe(
+    expect((await runTool(probe(said).definition(rt), {})).text).toBe(
       "REFUSED not_ready: the world is still loading.\nNext: call look again in a few seconds.",
     );
   });
@@ -165,7 +165,7 @@ describe("defineGameTool", () => {
       },
     });
     const run = tooFar();
-    const tool = probe(run)(rt);
+    const tool = probe(run).definition(rt);
     expect((await runTool(tool, { text: "a" })).text).toBe(
       'REFUSED too_far: the NPC is 40 yd away.\nNext: travel(to: "u3")',
     );
@@ -184,7 +184,7 @@ describe("defineGameTool", () => {
       },
     });
     const run = tooFar();
-    const tool = probe(run)(rt);
+    const tool = probe(run).definition(rt);
     await runTool(tool, { text: "a" });
     setWorld(handle, {
       combat: { attackers: [0x50n] },
@@ -212,7 +212,7 @@ describe("defineGameTool", () => {
           reason: "cut_off",
         }),
       );
-    const tool = probe(run)(rt);
+    const tool = probe(run).definition(rt);
     expect((await runTool(tool, { text: "a" })).text).toBe(
       'PARTLY cut_off: said half.\nNext: social(text: "a")',
     );
@@ -244,7 +244,7 @@ describe("defineGameTool", () => {
         }),
       );
     };
-    const tool = probe(run)(rt);
+    const tool = probe(run).definition(rt);
     await runTool(tool, { text: "a" });
     expect((await runTool(tool, { text: "a" })).text).toBe(
       'PARTLY cut_off: said half.\nNext: social(text: "a")',
@@ -262,7 +262,7 @@ describe("defineGameTool", () => {
           reason: "time_limit",
         }),
       );
-    const out = await runTool(probe(run)(rt), { text: "a" });
+    const out = await runTool(probe(run).definition(rt), { text: "a" });
     expect(out.text).toBe(
       'PARTLY time_limit: rested 30 s.\nNext: social(text: "a")',
     );
@@ -276,6 +276,7 @@ describe("defineGameTool", () => {
       },
     });
     const travel = defineGameTool({
+      ...PROBE,
       fallback: emptySocial,
       kind: "action",
       name: "travel",
@@ -288,9 +289,9 @@ describe("defineGameTool", () => {
           status: "FAILED",
         });
       },
-    } as unknown as GameToolSpec<typeof params, "social">)(rt);
+    }).definition(rt);
     await runTool(travel, { to: "u3" });
-    const out = await runTool(probe(tooFar())(rt), { text: "a" });
+    const out = await runTool(probe(tooFar()).definition(rt), { text: "a" });
     expect(out.text).toBe(
       'REFUSED too_far: the NPC is 40 yd away.\nNext: ask the human: "My social call failed (too_far) and travel already failed from here. What should I do?"',
     );
@@ -307,12 +308,13 @@ describe("defineGameTool", () => {
       throw new Refusal({ detail: "odd.", next: "look()", reason: "odd" });
     });
     const look = defineGameTool({
+      ...PROBE,
       fallback: () => ({}) as LookAfter,
       kind: "read",
       name: "look",
       parameters: params,
       run,
-    })(rt);
+    }).definition(rt);
     await runTool(look, {});
     expect((await runTool(look, {})).text).toStartWith("REFUSED odd:");
     expect(run).toHaveBeenCalledTimes(2);
@@ -321,7 +323,7 @@ describe("defineGameTool", () => {
   test("maps a core throw to a typed refusal", async () => {
     const { rt } = await createTestRuntime();
     const run: Run = () => Promise.reject(new Error("self_not_alive"));
-    expect((await runTool(probe(run)(rt), {})).text).toBe(
+    expect((await runTool(probe(run).definition(rt), {})).text).toBe(
       "REFUSED dead: you are dead.\nNext: recover()",
     );
   });
@@ -340,7 +342,11 @@ describe("defineGameTool", () => {
         }),
       );
     };
-    await runTool(probe(run, "run")(rt), {}, { signal: controller.signal });
+    await runTool(
+      probe(run, "run").definition(rt),
+      {},
+      { signal: controller.signal },
+    );
     expect(handle.halt).toHaveBeenCalled();
   });
 
@@ -354,7 +360,7 @@ describe("defineGameTool", () => {
           reason: "human_stop",
         }),
       );
-    expect((await runTool(probe(run, "run")(rt), {})).text).toBe(
+    expect((await runTool(probe(run, "run").definition(rt), {})).text).toBe(
       "FAILED cancelled: the human stopped you. Start nothing new.\nNext: end your turn and wait for the human.",
     );
   });
@@ -375,7 +381,7 @@ describe("defineGameTool", () => {
         result("DONE", { after: emptySocial(), detail: "arrived." }),
       );
     };
-    const out = await runTool(probe(run, "run")(rt), {});
+    const out = await runTool(probe(run, "run").definition(rt), {});
     expect(
       out.updates.map((details) => [
         details.result.status,
@@ -403,7 +409,7 @@ describe("defineGameTool", () => {
         reason: "lost",
       });
     };
-    const out = await runTool(probe(run, "run")(rt), {});
+    const out = await runTool(probe(run, "run").definition(rt), {});
     expect(out.details.result.after).toMatchObject({ text: "half" });
   });
 
@@ -424,7 +430,7 @@ describe("defineGameTool", () => {
           evidence: [{ domain: "loot", event: "loot/item", seq: row.seq }],
         }),
       );
-    await runTool(probe(run)(rt), {}, { id: "call-9" });
+    await runTool(probe(run).definition(rt), {}, { id: "call-9" });
     expect(rt.log.get(row.seq)?.consumedBy).toBe("call-9");
   });
 
@@ -443,13 +449,14 @@ describe("defineGameTool", () => {
       );
     };
     const interact = defineGameTool({
+      ...PROBE,
       fallback: emptySocial,
       kind: "action",
-      name: "interact" as "social",
+      name: "interact",
       parameters: params,
       run,
     });
-    await runTool(interact(rt), {}, { id: "call-4" });
+    await runTool(interact.definition(rt), {}, { id: "call-4" });
     const row = rt.log
       .since(0)
       .find((entry) => entry.event === "quest/accepted");
@@ -459,7 +466,7 @@ describe("defineGameTool", () => {
   test("never logs the password", async () => {
     const { rt } = await createTestRuntime();
     rt.profile.client.password = "pw1";
-    await runTool(probe(said)(rt), { text: "my password is pw1" });
+    await runTool(probe(said).definition(rt), { text: "my password is pw1" });
     const call = toolRows(rt).find((entry) => entry.event === "tool/call");
     expect(call?.data["args"]).toEqual({ text: "my password is [secret]" });
   });
@@ -475,7 +482,7 @@ describe("defineGameTool", () => {
       combat: { attackers: [0x50n] },
       rows: [nearbyRow(unitEntity({ guid: 0x50n, name: "Springpaw Stalker" }))],
     });
-    expect((await runTool(probe(said)(rt), {})).text).toBe(
+    expect((await runTool(probe(said).definition(rt), {})).text).toBe(
       "DONE said hi.\nDanger: Springpaw Stalker u1 is coming at you (0 yd). You are at 100% HP.",
     );
   });

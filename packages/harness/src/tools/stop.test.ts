@@ -36,7 +36,7 @@ async function world() {
   };
   const { handle, rt } = await createTestRuntime({ parts });
   setWorld(handle, { combat: { self: selfCombat({ health: 190 }) } });
-  return { handle, rt, tool: stopTool(rt) };
+  return { handle, rt, tool: stopTool.definition(rt) };
 }
 
 function startEngage(rt: HarnessRuntime) {
