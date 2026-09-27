@@ -118,6 +118,19 @@ describe("efficiency", () => {
     });
   });
 
+  test("keeps the exit time apart from the wall time to the answer", () => {
+    const result = efficiency({
+      budget: { minutes: 3, tools: 10, turns: 4 },
+      exitMs: 56_000,
+      firstActionMs: 1000,
+      usage: sessionUsage(""),
+      wallMs: 3100,
+    });
+    expect(result.wallSec).toBe(3.1);
+    expect(result.exitSec).toBe(56);
+    expect(result.budgetRatio?.wallSec).toBe(0.02);
+  });
+
   test("leaves out the first-action time when no tool was called", () => {
     const result = efficiency({
       budget: { minutes: 3, tools: 10, turns: 4 },

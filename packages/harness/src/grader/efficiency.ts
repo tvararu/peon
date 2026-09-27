@@ -18,6 +18,7 @@ export type SessionUsage = {
 type EfficiencyInit = {
   usage: SessionUsage;
   wallMs: number;
+  exitMs?: number;
   budget: Scenario["budget"];
   firstActionMs: number | undefined;
 };
@@ -89,6 +90,7 @@ export async function readSessionUsage(file: string): Promise<SessionUsage> {
 export function efficiency({
   usage,
   wallMs,
+  exitMs,
   budget,
   firstActionMs,
 }: EfficiencyInit): EvalEfficiency {
@@ -99,6 +101,7 @@ export function efficiency({
       turns: ratio(usage.turns, budget.turns),
       wallSec: ratio(wallSec, budget.minutes * 60),
     },
+    exitSec: exitMs === undefined ? undefined : exitMs / 1000,
     timeToFirstActionSec:
       firstActionMs === undefined ? undefined : firstActionMs / 1000,
     tokens: { ...usage.tokens },

@@ -454,6 +454,8 @@ async function drive(run: Live): Promise<void> {
     }
     await act(run, endAction(await endView(run, now), run.memory), now);
   }
+  run.endMs = run.clock.now();
+  if (run.end === "done") run.answerMs = run.answerAt;
   run.init.log(`end ${run.end}`);
 }
 

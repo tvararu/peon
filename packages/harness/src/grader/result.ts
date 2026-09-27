@@ -33,6 +33,7 @@ export type EvalEfficiency = {
   toolErrors?: number;
   turns: number;
   wallSec: number;
+  exitSec?: number;
   timeToFirstActionSec?: number;
   tokens: {
     input?: number;

@@ -432,7 +432,7 @@ describe("runScenario", () => {
       `${world.runDir}/grader/draft.json`,
     ).json()) as EvalResult;
     expect(draft.end).toBe("done");
-    expect(draft.efficiency.wallSec).toBeGreaterThanOrEqual(60);
+    expect(draft.efficiency.exitSec).toBeGreaterThanOrEqual(60);
   });
 
   test("a blockedBy key grades blocked with no account until the scenario drops it", async () => {

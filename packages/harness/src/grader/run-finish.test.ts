@@ -234,6 +234,42 @@ describe("writeOutcome", () => {
     expect(await Bun.file(`${st.runDir}/result.json`).exists()).toBe(false);
   });
 
+  test("measures wall time to the accepted answer and keeps the exit time", async () => {
+    const { exec } = router();
+    const st = await state(exec, {
+      answerMs: NOW - 69_000,
+      end: "done",
+      endMs: NOW - 39_000,
+      exitMs: NOW,
+      taskMs: NOW - 72_000,
+    });
+    expect(await writeOutcome(st)).toBe(
+      "t0-self-state-1 draft 0/5 tools=0 wall=3",
+    );
+    const draft = (await Bun.file(
+      `${st.runDir}/grader/draft.json`,
+    ).json()) as EvalResult;
+    expect(draft.efficiency.wallSec).toBe(3);
+    expect(draft.efficiency.exitSec).toBe(72);
+  });
+
+  test("a run that did not end done measures wall time to its end", async () => {
+    const { exec } = router();
+    const st = await state(exec, {
+      answerMs: undefined,
+      end: "budget",
+      endMs: NOW - 10_000,
+      exitMs: NOW,
+      taskMs: NOW - 190_000,
+    });
+    await writeOutcome(st);
+    const draft = (await Bun.file(
+      `${st.runDir}/grader/draft.json`,
+    ).json()) as EvalResult;
+    expect(draft.efficiency.wallSec).toBe(180);
+    expect(draft.efficiency.exitSec).toBe(190);
+  });
+
   test("writes result.json for an aborted run with a leak friction item", async () => {
     const { exec } = router();
     const st = await state(exec, {

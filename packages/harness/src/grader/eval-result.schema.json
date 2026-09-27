@@ -97,6 +97,7 @@
           },
           "type": "object"
         },
+        "exitSec": { "type": "number" },
         "timeToFirstActionSec": { "type": "number" },
         "tokens": {
           "properties": {

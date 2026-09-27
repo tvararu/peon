@@ -46,6 +46,8 @@ export type RunState = {
   pane: Pane | undefined;
   watcher: Watcher | undefined;
   taskMs: number | undefined;
+  answerMs: number | undefined;
+  endMs: number | undefined;
   exitMs: number | undefined;
   firstToolAt: number | undefined;
   end: EvalResult["end"];
@@ -74,9 +76,11 @@ export function newRunState({
     ...init,
     abort: undefined,
     agent: undefined,
+    answerMs: undefined,
     blockedBy: [],
     cleanupFailed: [],
     end: undefined,
+    endMs: undefined,
     exitMs: undefined,
     finalSavedAt: undefined,
     firstToolAt: undefined,
@@ -252,6 +256,11 @@ function verdictOf(st: RunState): Verdict {
   };
 }
 
+function wallEnd(st: RunState, now: number): number {
+  if (st.end === "done" && st.answerMs !== undefined) return st.answerMs;
+  return st.endMs ?? st.exitMs ?? now;
+}
+
 async function draftResult(st: RunState): Promise<EvalResult> {
   const now = st.clock.now();
   const taskMs = st.taskMs ?? now;
@@ -266,9 +275,10 @@ async function draftResult(st: RunState): Promise<EvalResult> {
     checks: await observedChecks(st.runDir, st.scenario.checks),
     efficiency: efficiency({
       budget: st.scenario.budget,
+      exitMs: (st.exitMs ?? now) - taskMs,
       firstActionMs,
       usage,
-      wallMs: (st.exitMs ?? now) - taskMs,
+      wallMs: wallEnd(st, now) - taskMs,
     }),
     end: st.end ?? (aborted ? "abort" : undefined),
     evidence: await evidenceOf(st),

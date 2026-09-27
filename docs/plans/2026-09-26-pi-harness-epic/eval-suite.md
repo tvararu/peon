@@ -151,6 +151,10 @@ Added for the harness:
    - **verdict** (pass/fail/blocked/aborted);
    - **efficiency**: tool calls, agent turns (LLM requests), wall time,
      input/output/cached tokens, and each as a ratio to the scenario budget;
+     `wallSec` runs from the task to the answer the done rule accepts (to
+     the end decision for a budget, stuck or abort end), and `exitSec` to
+     the harness exit, so the 30 s done wait and the logout stay out of
+     the wall time;
    - **UX friction**: what the grader saw the agent struggle with, each item
      categorised and quoted (section 4). A passing run with heavy friction is
      still a source of fixes.
@@ -1006,6 +1010,7 @@ do not replay the run.
         "toolErrors": { "type": "integer" },
         "turns": { "type": "integer" },
         "wallSec": { "type": "number" },
+        "exitSec": { "type": "number" },
         "timeToFirstActionSec": { "type": "number" },
         "tokens": {
           "type": "object",
