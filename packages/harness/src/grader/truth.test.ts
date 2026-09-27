@@ -1,5 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import {
+  type FinalTruth,
   finalTruth,
   parseTruth,
   readTruth,
@@ -8,6 +9,10 @@ import {
 import { failed, fakeExec, ok } from "#test-support/fake-exec";
 
 const ACCOUNT = "FAC6AB817400D";
+
+async function flush(): Promise<void> {
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+}
 
 function reply(
   overrides: Record<string, unknown> = {},
@@ -201,7 +206,7 @@ describe("finalTruth", () => {
     expect(calls).toHaveLength(2);
   });
 
-  test("gives stale_truth after three old saves", async () => {
+  test("gives stale_truth at once for an offline character with an old save", async () => {
     const { calls, exec } = fakeExec(() =>
       ok(JSON.stringify(reply({ savedAt: "2026-09-25T10:00:00.000Z" }))),
     );
@@ -217,7 +222,80 @@ describe("finalTruth", () => {
         "online=false savedAt=2026-09-25T10:00:00.000Z exit=2026-09-26T21:00:00.000Z",
       ok: false,
     });
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(1);
+  });
+
+  test("polls every 10 s until the character goes offline, then checks the save", async () => {
+    jest.useFakeTimers();
+    try {
+      let now = exitMs;
+      const online = reply({
+        online: true,
+        savedAt: "2026-09-26T20:50:00.000Z",
+      });
+      const offline = reply({ savedAt: "2026-09-26T21:00:58.000Z" });
+      const { calls, exec } = fakeExec(() =>
+        ok(JSON.stringify(now - exitMs >= 60_000 ? offline : online)),
+      );
+      let final: FinalTruth | undefined;
+      const pending = finalTruth({
+        account: ACCOUNT,
+        clock: { now: () => now },
+        exec,
+        exitMs,
+      }).then((result) => {
+        final = result;
+      });
+      for (let step = 0; step < 6; step += 1) {
+        await flush();
+        now += 10_000;
+        jest.advanceTimersByTime(10_000);
+      }
+      await pending;
+      expect(calls).toHaveLength(7);
+      expect(final?.ok && final.truth.savedAt).toBe("2026-09-26T21:00:58.000Z");
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("gives stale_truth when the character is still online after 90 s", async () => {
+    jest.useFakeTimers();
+    try {
+      let now = exitMs;
+      const { calls, exec } = fakeExec(() =>
+        ok(
+          JSON.stringify(
+            reply({ online: true, savedAt: "2026-09-26T21:00:30.000Z" }),
+          ),
+        ),
+      );
+      let final: FinalTruth | undefined;
+      const pending = finalTruth({
+        account: ACCOUNT,
+        clock: { now: () => now },
+        exec,
+        exitMs,
+      }).then((result) => {
+        final = result;
+      });
+      for (let step = 0; step < 9; step += 1) {
+        await flush();
+        expect(final).toBeUndefined();
+        now += 10_000;
+        jest.advanceTimersByTime(10_000);
+      }
+      await pending;
+      expect(calls).toHaveLength(10);
+      expect(final).toEqual({
+        cause: "stale_truth",
+        detail:
+          "online=true savedAt=2026-09-26T21:00:30.000Z exit=2026-09-26T21:00:00.000Z",
+        ok: false,
+      });
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test("gives service_down when a read fails", async () => {

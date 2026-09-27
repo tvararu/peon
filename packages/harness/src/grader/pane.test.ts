@@ -161,7 +161,7 @@ describe("attachPane", () => {
       "--for",
       "exit",
       "--timeout-ms",
-      "3000",
+      "35000",
       "--json",
     ]);
     expect(calls.find((call) => call.argv[2] === "read")?.argv).toEqual([

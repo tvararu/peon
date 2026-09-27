@@ -119,7 +119,7 @@ describe("stopHarness", () => {
     const st = await state(exec, { pane: fakePane(["x"]) });
     await stopHarness(st);
     expect(st.abort?.cause).toBe("stale_truth");
-    expect(calls.filter((call) => call[3] === "truth")).toHaveLength(3);
+    expect(calls.filter((call) => call[3] === "truth")).toHaveLength(1);
   });
 
   test("keeps an earlier abort cause", async () => {

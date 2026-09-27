@@ -118,6 +118,7 @@ async function quitPane(st: RunState, pane: Pane): Promise<void> {
 async function verifyFinal(st: RunState, account: string): Promise<void> {
   const final = await finalTruth({
     account,
+    clock: st.clock,
     exec: st.exec,
     exitMs: st.exitMs ?? st.clock.now(),
     waitMs: st.truthWaitMs,

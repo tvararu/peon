@@ -1,5 +1,6 @@
 import { basename, relative } from "node:path";
 import { messageOf } from "@tuicraft/core/lib/errors";
+import type { Clock } from "#harness/contract/services";
 import { type Exec, isRecord, parseJsonOutput } from "#harness/grader/exec";
 
 export type TruthItem = {
@@ -188,20 +189,24 @@ type FinalInit = {
   exec: Exec;
   account: string;
   exitMs: number;
-  retries?: number;
+  clock?: Clock;
+  offlineWithinMs?: number;
   waitMs?: number;
 };
 type Read = { truth: Truth } | { error: string };
+
+export const OFFLINE_WAIT_MS = 90_000;
+
+const SYSTEM_CLOCK: Clock = { now: () => Date.now() };
 
 const delay = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 function isFresh(truth: Truth, exitMs: number): boolean {
-  return !truth.online && Date.parse(truth.savedAt) >= exitMs - STALE_SLACK_MS;
+  return Date.parse(truth.savedAt) >= exitMs - STALE_SLACK_MS;
 }
 
-function staleDetail(truth: Truth | undefined, exitMs: number): string {
-  if (truth === undefined) return "no truth read";
+function staleDetail(truth: Truth, exitMs: number): string {
   return `online=${truth.online} savedAt=${truth.savedAt} exit=${new Date(exitMs).toISOString()}`;
 }
 
@@ -209,22 +214,37 @@ export async function finalTruth({
   exec,
   account,
   exitMs,
-  retries = 3,
+  clock = SYSTEM_CLOCK,
+  offlineWithinMs = OFFLINE_WAIT_MS,
   waitMs = 10_000,
 }: FinalInit): Promise<FinalTruth> {
-  let last: Truth | undefined;
-  for (let attempt = 1; attempt <= retries; attempt += 1) {
-    if (attempt > 1) await delay(waitMs);
+  const deadline = clock.now() + offlineWithinMs;
+  const reads = Math.ceil(offlineWithinMs / waitMs) + 1;
+  for (let attempt = 1; ; attempt += 1) {
     const read: Read = await readTruth(exec, account).then(
       (truth) => ({ truth }),
       (err: unknown) => ({ error: messageOf(err) }),
     );
     if ("error" in read)
       return { cause: "service_down", detail: read.error, ok: false };
-    last = read.truth;
-    if (isFresh(last, exitMs)) return { ok: true, truth: last };
+    const last = read.truth;
+    if (!last.online)
+      return isFresh(last, exitMs)
+        ? { ok: true, truth: last }
+        : {
+            cause: "stale_truth",
+            detail: staleDetail(last, exitMs),
+            ok: false,
+          };
+    const left = deadline - clock.now();
+    if (left <= 0 || attempt >= reads)
+      return {
+        cause: "stale_truth",
+        detail: staleDetail(last, exitMs),
+        ok: false,
+      };
+    await delay(Math.min(waitMs, left));
   }
-  return { cause: "stale_truth", detail: staleDetail(last, exitMs), ok: false };
 }
 
 type LeakInit = { exec: Exec; runDir: string; secretFiles: readonly string[] };

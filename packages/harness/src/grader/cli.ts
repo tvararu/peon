@@ -203,6 +203,7 @@ async function final(
   if (account === undefined || exitMs === undefined) return usage(deps);
   const reply = await finalTruth({
     account,
+    clock: deps.clock,
     exec: deps.exec,
     exitMs: Number(exitMs),
   });

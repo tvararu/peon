@@ -1,7 +1,7 @@
 import { type Exec, isRecord, parseJsonOutput } from "#harness/grader/exec";
 
 export const HARNESS_LAUNCH = "bun packages/harness/src/entry.ts";
-export const QUIT_CONFIRM_MS = 3000;
+export const QUIT_CONFIRM_MS = 35_000;
 
 const ESC = "\u001b";
 const CTRL_C = "\u0003";
