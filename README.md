@@ -31,5 +31,7 @@ that lands as one squash commit once `signoff/ci`, `factory/ci` and
   test characters.
 - [docs/protocol.md](docs/protocol.md): protocol references and gotchas.
 - [docs/factory.md](docs/factory.md): the dev factory.
+- [docs/dependencies.md](docs/dependencies.md): the toolchain and why
+  each dependency stays.
 - [docs/archive/](docs/archive/README.md): earlier designs and plans.
 - [LICENSE](LICENSE): the GNU AGPL 3.0 licence.
