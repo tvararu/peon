@@ -193,7 +193,7 @@ describe("navigation lifecycle", () => {
         return native();
       },
     );
-    expect(() => nav.plan(0, start, end)).toThrow(/unsupported map/);
+    expect(() => nav.plan(36, start, end)).toThrow(/unsupported map/);
     expect(opened).toBe(false);
     nav.close();
   });
@@ -396,7 +396,7 @@ describe("ground destinations", () => {
 
   test("retains lifecycle, domain and map gates", () => {
     const nav = navigation(native());
-    expect(() => nav.planGround(0, start, end)).toThrow(/unsupported map/);
+    expect(() => nav.planGround(36, start, end)).toThrow(/unsupported map/);
     expect(() => nav.planGround(530, start, { x: 1e6, y: 0 })).toThrow(
       /coordinate/,
     );
@@ -483,6 +483,6 @@ describe("ground destinations", () => {
     expect(nav.clear(530, { x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 0 })).toBe(
       false,
     );
-    expect(() => nav.clear(0, start, end)).toThrow(/unsupported map/);
+    expect(() => nav.clear(36, start, end)).toThrow(/unsupported map/);
   });
 });

@@ -5,6 +5,7 @@ import {
   MESH_HEIGHT,
   WALKABLE_CLIMB,
 } from "#wow/navigation-collision";
+import { requireNavigationMapName } from "#wow/navigation-maps";
 import {
   groundError,
   isGroundError,
@@ -31,7 +32,6 @@ export type Navigation = {
   close: () => void;
 };
 
-const EXPANSION01 = 530;
 const ADT_STEP = 64;
 const GROUND_STEP = 0.5;
 const FLOOR_MERGE = 0.01;
@@ -150,17 +150,17 @@ export function createNavigation(
   if (dataPath.length === 0) throw new Error("navigation dataPath is required");
   if (libraryPath.length === 0)
     throw new Error("navigation libraryPath is required");
-  let openedMap: NativeMap | undefined;
+  const opened = new Map<number, NativeMap>();
   let closed = false;
   function open(mapId: number, ...points: NavPoint[]): NativeMap {
     if (closed) throw new Error("navigation is closed");
-    if (mapId !== EXPANSION01)
-      throw new Error(
-        `unsupported map ${mapId} (only Expansion01/${EXPANSION01})`,
-      );
+    const name = requireNavigationMapName(mapId);
     for (const point of points) validateNativePoint(point);
-    openedMap ??= openMap(dataPath, libraryPath, "Expansion01");
-    return openedMap;
+    const existing = opened.get(mapId);
+    if (existing) return existing;
+    const map = openMap(dataPath, libraryPath, name);
+    opened.set(mapId, map);
+    return map;
   }
   return {
     plan(mapId, from, to) {
@@ -196,8 +196,8 @@ export function createNavigation(
     },
     close() {
       closed = true;
-      openedMap?.close();
-      openedMap = undefined;
+      for (const map of opened.values()) map.close();
+      opened.clear();
     },
   };
 }
