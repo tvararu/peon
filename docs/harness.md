@@ -209,6 +209,9 @@ also work. The game connection stays open across `/new`, `/resume`,
 Use a terminal font with Nerd Font glyphs for `--glyphs nerd`. Use
 `unicode` or `ascii` in other terminals.
 
+A proposed redesign of the screen lives at
+[docs/plans/2026-09-27-terminal-ui-design.md](plans/2026-09-27-terminal-ui-design.md).
+
 ## Run directory
 
 | File | Content |
