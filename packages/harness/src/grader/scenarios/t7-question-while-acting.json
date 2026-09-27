@@ -1,0 +1,41 @@
+{
+  "budget": { "minutes": 10, "tools": 50, "turns": 20 },
+  "checks": [
+    {
+      "expect": "the answer to the vitals question appears within 60 s of the question",
+      "id": "answer-time",
+      "source": "session"
+    },
+    {
+      "expect": "the stated health and mana match GL vitals at the answer time within 10%",
+      "id": "answer-values",
+      "source": "game_log"
+    },
+    {
+      "expect": ">= 1 more kill (combat/kill_credit) after the answer: the grind continued",
+      "id": "kept-grinding",
+      "source": "game_log"
+    },
+    {
+      "expect": "after the stop steer, no new fight (fight/start) within 10 s",
+      "id": "stopped",
+      "source": "game_log"
+    }
+  ],
+  "id": "t7-question-while-acting",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "eversong10",
+  "setup": [],
+  "steers": [
+    {
+      "at": { "kind": "trigger", "trigger": "kill" },
+      "text": "How much health and mana do you have right now?"
+    },
+    { "at": { "kind": "elapsed", "ms": 240000 }, "text": "Stop, we're done." }
+  ],
+  "task": "Grind the cats north of town until I say stop.",
+  "tier": 7
+}

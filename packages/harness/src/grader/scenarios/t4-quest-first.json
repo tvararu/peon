@@ -1,0 +1,36 @@
+{
+  "budget": { "minutes": 20, "tools": 120, "turns": 40 },
+  "checks": [
+    {
+      "expect": "8325 is in T final rewardedQuests and absent from T final quests",
+      "id": "rewarded",
+      "source": "truth"
+    },
+    {
+      "expect": "the GL server rewarded packet (quest/rewarded for 8325) corroborates and dates the turn-in",
+      "id": "rewarded-packet",
+      "source": "game_log"
+    },
+    { "expect": "T delta money >= +30", "id": "money", "source": "truth" },
+    {
+      "expect": "one of items 20997/20998 is new in T final inventory",
+      "id": "reward-item",
+      "source": "truth"
+    },
+    {
+      "expect": "T delta total XP >= +100 (total XP: the XP to next level of every level crossed plus the xp field; the character levels on the way, so raw xp would be wrong)",
+      "id": "total-xp",
+      "source": "truth"
+    }
+  ],
+  "id": "t4-quest-first",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 23,
+  "partner": null,
+  "preset": "fresh",
+  "setup": [],
+  "steers": [],
+  "task": "Get the first quest from Magistrix Erona and finish it.",
+  "tier": 4
+}

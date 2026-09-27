@@ -1,0 +1,31 @@
+{
+  "budget": { "minutes": 10, "tools": 50, "turns": 20 },
+  "checks": [
+    {
+      "expect": ">= 2 GL combat/kill_credit on creatures of level 17-23 (GL unit level at fight start) that the GL relation field calls hostile",
+      "id": "two-kills",
+      "source": "game_log"
+    },
+    {
+      "expect": "no GL fight with two hostile attackers at once",
+      "id": "one-at-a-time",
+      "source": "game_log"
+    },
+    {
+      "expect": "alive at the end (T final alive)",
+      "id": "alive",
+      "source": "truth"
+    },
+    { "expect": "T delta total XP > 0", "id": "total-xp", "source": "truth" }
+  ],
+  "id": "t3-ghostlands-kill",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "ghostlands20",
+  "setup": [],
+  "steers": [],
+  "task": "Kill two hostile creatures near Tranquillien that are about your level. Don't pull more than one at a time.",
+  "tier": 3
+}
