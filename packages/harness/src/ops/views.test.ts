@@ -5,6 +5,7 @@ import { createSightings } from "#harness/ops/sightings";
 import {
   compassOf,
   knownUnits,
+  manaText,
   nearestByKind,
   placeView,
   poseView,
@@ -261,5 +262,18 @@ describe("unit views", () => {
     );
     expect(unitMatches(dead, "hostile")).toBe(false);
     expect(unitMatches(dead, "lootable")).toBe(true);
+  });
+});
+
+describe("manaText", () => {
+  test("mana reads as current/max with the percent after it", () => {
+    const vitals = { hp: 1, maxHp: 1, maxPower: 607, power: 231 };
+    expect(manaText({ ...vitals, powerKind: "mana" })).toBe(
+      "mana 231/607 (38%)",
+    );
+    expect(manaText({ ...vitals, powerKind: "rage" })).toBeUndefined();
+    expect(
+      manaText({ ...vitals, maxPower: 0, powerKind: "mana" }),
+    ).toBeUndefined();
   });
 });

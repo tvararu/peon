@@ -110,7 +110,7 @@ function snapshot(over: Partial<NowSnapshot> = {}): NowSnapshot {
 describe("formatNow", () => {
   test("matches the design C.3 example", () => {
     expect(formatNow(snapshot())).toBe(
-      "[now 19:13:31] Fgklibhlflc L10 Priest HP 190/217 (-23 in 5s) mana 88% alive in combat · Eversong Woods, Fairbreeze Village (8813,-6691) server fix 3s · target Springpaw Stalker u9 hostile 23y 35/137 · attackers u9 · running r4 engage 9s · nearest hostile u12 41y, questgiver u3 58y",
+      "[now 19:13:31] Fgklibhlflc L10 Priest HP 190/217 (-23 in 5s) mana 88/100 alive in combat · Eversong Woods, Fairbreeze Village (8813,-6691) server fix 3s · target Springpaw Stalker u9 hostile 23y 35/137 · attackers u9 · running r4 engage 9s · nearest hostile u12 41y, questgiver u3 58y",
     );
   });
 

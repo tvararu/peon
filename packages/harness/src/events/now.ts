@@ -40,8 +40,7 @@ function yards(distance: number | undefined): string {
 function powerText({ power, maxPower, powerKind }: SelfView): string {
   if (powerKind === "none") return "";
   if (powerKind !== "mana") return ` ${powerKind.replace("_", " ")} ${power}`;
-  const pct = maxPower > 0 ? Math.round((power * 100) / maxPower) : 0;
-  return ` mana ${pct}%`;
+  return ` mana ${power}/${maxPower}`;
 }
 
 function selfText({ at, self, hpDelta5s }: NowSnapshot): string {

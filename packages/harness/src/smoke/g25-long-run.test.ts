@@ -54,7 +54,7 @@ test("G2.5: a run tool past 120 s returns RUNNING with the design text and the r
     expect(res.status).toBe("RUNNING");
     expect(res.body).toEqual([]);
     expect(res.detail).toBe(
-      "travel to Magistrix Erona (u1), 0 yd walked, 400 yd to go. You: HP 200/200, mana 100%, at 0, 0.",
+      "travel to Magistrix Erona (u1), 0 yd walked, 400 yd to go. You: HP 200/200, mana 300/300 (100%), at 0, 0.",
     );
     expect(res.next).toBe(
       `end your turn; a [game] message comes when ${id} ends. Or stop(run: "${id}").`,

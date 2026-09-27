@@ -16,7 +16,12 @@ import {
   LOOK_MAX_ROWS,
 } from "#harness/ops/range";
 import { Refusal } from "#harness/ops/refusal";
-import { nowSnapshot, unitMatches, unitViews } from "#harness/ops/views";
+import {
+  manaText,
+  nowSnapshot,
+  unitMatches,
+  unitViews,
+} from "#harness/ops/views";
 import {
   defineGameTool,
   emptyPlace,
@@ -103,10 +108,10 @@ function distanceText({ compass, distance }: UnitView): string {
   return yards > 0 && compass ? `${yards} yd ${compass}` : `${yards} yd`;
 }
 
-function powerText({ maxPower, power, powerKind }: VitalsView): string {
+function powerText(vitals: VitalsView): string {
+  const { maxPower, power, powerKind } = vitals;
   if (powerKind === "none" || maxPower === 0) return "";
-  if (powerKind === "mana")
-    return `mana ${Math.round((power / maxPower) * 100)}%, `;
+  if (powerKind === "mana") return `${manaText(vitals)}, `;
   return `${powerKind.replace("_", " ")} ${power}, `;
 }
 

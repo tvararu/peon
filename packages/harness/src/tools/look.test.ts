@@ -102,7 +102,7 @@ describe("look", () => {
     const { text } = await runTool(tool, {});
     expect(text).toBe(
       [
-        `DONE ${rt.profile.character} L10 Priest, HP 217/217, mana 100%, alive, not in combat. Eversong Woods, Fairbreeze Village (area 4 min old). 8735, -6685, facing N. Pose predicted, server fix 12 s ago.`,
+        `DONE ${rt.profile.character} L10 Priest, HP 217/217, mana 100/100 (100%), alive, not in combat. Eversong Woods, Fairbreeze Village (area 4 min old). 8735, -6685, facing N. Pose predicted, server fix 12 s ago.`,
         "Target: none. Running: nothing.",
         "4 of 4 units within 60 yd, nearest first:",
         "- u1 Fgklibiancf L10 player, friendly, 0 yd",

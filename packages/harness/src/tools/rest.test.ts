@@ -84,7 +84,7 @@ describe("rest", () => {
     expect(limitProblem(text)).toBeUndefined();
     expect(used).toEqual([23]);
     expect(text).toBe(
-      "DONE rested 0 s with Refreshing Spring Water: HP 200/200, mana 95%. 4 food and drink left.",
+      "DONE rested 0 s with Refreshing Spring Water: HP 200/200, mana 285/300 (95%). 4 food and drink left.",
     );
     expect(res.after).toMatchObject({ auraConfirmed: true, idle: false });
   });
@@ -123,7 +123,7 @@ describe("rest", () => {
       expect(res.status).toBe("DONE");
       expect(res.after.durationMs).toBeGreaterThan(30_000);
       expect(res.detail).toMatch(
-        /^rested \d+ s without food or drink: HP 180\/200, mana 100%\.$/,
+        /^rested \d+ s without food or drink: HP 180\/200, mana 300\/300 \(100%\)\.$/,
       );
     } finally {
       jest.useRealTimers();
@@ -170,7 +170,7 @@ describe("rest", () => {
         status: "PARTLY",
       });
       expect(res.detail).toBe(
-        "rested 10 s without food or drink: HP 100/200, mana 50%. Nothing rose for 10 s. Another rest() will not reach 90% without food or drink.",
+        "rested 10 s without food or drink: HP 100/200, mana 150/300 (50%). Nothing rose for 10 s. Another rest() will not reach 90% without food or drink.",
       );
     } finally {
       jest.useRealTimers();
@@ -236,14 +236,14 @@ describe("rest", () => {
   test.each([
     {
       detail:
-        "HP 200/200, mana 80%. Nothing rose for 10 s. Another rest() reaches 90%.",
+        "HP 200/200, mana 240/300 (80%). Nothing rose for 10 s. Another rest() reaches 90%.",
       end: { hp: 200, maxHp: 200, maxPower: 300, power: 240 },
       name: "a full stat does not block a rising one",
       start: { hp: 200, maxHp: 200, maxPower: 300, power: 180 },
     },
     {
       detail:
-        "HP 120/200, mana 100%. Nothing rose for 10 s. Another rest() reaches about 70%.",
+        "HP 120/200, mana 300/300 (100%). Nothing rose for 10 s. Another rest() reaches about 70%.",
       end: { hp: 120, maxHp: 200, maxPower: 300, power: 300 },
       name: "a slow stat projects short of the threshold",
       start: { hp: 100, maxHp: 200, maxPower: 300, power: 300 },
@@ -323,7 +323,7 @@ describe("rest", () => {
     const res = await pending;
     expect(res.status).toBe("RUNNING");
     expect(res.detail).toStartWith(
-      "resting, 0 s so far. You: HP 100/200, mana 100%, at 0, 0.",
+      "resting, 0 s so far. You: HP 100/200, mana 300/300 (100%), at 0, 0.",
     );
     t.rt.runs.cancel(res.runId ?? "", "tool");
   });

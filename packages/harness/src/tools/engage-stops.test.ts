@@ -43,7 +43,7 @@ describe("engage stop reasons", () => {
       status: "REFUSED",
     });
     expect(res.detail).toBe(
-      "Springpaw Stalker was not killed: no usable attack from here; move into melee range. You: HP 200/200, mana 100%.",
+      "Springpaw Stalker was not killed: no usable attack from here; move into melee range. You: HP 200/200, mana 300/300 (100%).",
     );
   });
 
@@ -58,7 +58,7 @@ describe("engage stop reasons", () => {
     );
     expect(res).toMatchObject({ reason: "lost", status: "FAILED" });
     expect(res.detail).toBe(
-      "Springpaw Stalker was not killed: stopped by a manual command. You: HP 200/200, mana 100%.",
+      "Springpaw Stalker was not killed: stopped by a manual command. You: HP 200/200, mana 300/300 (100%).",
     );
   });
 

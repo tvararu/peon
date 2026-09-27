@@ -10,6 +10,7 @@ import { type Resolved, resolveUnit, unitRefusal } from "#harness/ops/resolve";
 import { travelLeg } from "#harness/ops/travel-leg";
 import {
   knownUnits,
+  manaText,
   selfView,
   unitViews,
   vitalsView,
@@ -309,7 +310,7 @@ export function guardPull(ctx: ToolCtx<EngageAfter>, args: EngageArgs): void {
     (vitals.power / vitals.maxPower) * 100 < MIN_MANA_PCT
   )
     throw new Refusal({
-      detail: `you are at ${Math.round((vitals.power / vitals.maxPower) * 100)}% mana; pull at ${MIN_MANA_PCT}% or more.`,
+      detail: `you have ${manaText(vitals)}; pull at ${MIN_MANA_PCT}% or more.`,
       next: rest,
       reason: "low_mana",
     });

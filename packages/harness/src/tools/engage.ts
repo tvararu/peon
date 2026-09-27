@@ -6,7 +6,7 @@ import type { OpsCtx, ToolCtx, ViewCtx } from "#harness/contract/services";
 import { watchInterrupts } from "#harness/ops/danger";
 import { completeQuestIds, noteQuestsDone } from "#harness/ops/quest-memory";
 import { Refusal } from "#harness/ops/refusal";
-import { poseView, vitalsView } from "#harness/ops/views";
+import { manaText, poseView, vitalsView } from "#harness/ops/views";
 import { awaitRun } from "#harness/runs/wait";
 import {
   defineGameTool,
@@ -55,11 +55,8 @@ export function emptyEngage(): EngageAfter {
 function youLine(ctx: ViewCtx): string {
   const vitals = vitalsView(ctx);
   const pose = poseView(ctx);
-  const mana =
-    vitals.powerKind === "mana" && vitals.maxPower > 0
-      ? `, mana ${Math.round((vitals.power / vitals.maxPower) * 100)}%`
-      : "";
-  return `You: HP ${vitals.hp}/${vitals.maxHp}${mana}${pose ? `, at ${Math.round(pose.x)}, ${Math.round(pose.y)}` : ""}.`;
+  const mana = manaText(vitals);
+  return `You: HP ${vitals.hp}/${vitals.maxHp}${mana ? `, ${mana}` : ""}${pose ? `, at ${Math.round(pose.x)}, ${Math.round(pose.y)}` : ""}.`;
 }
 
 function refusalReport(refusal: Refusal, after: EngageAfter): Report {

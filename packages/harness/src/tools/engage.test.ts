@@ -35,7 +35,12 @@ describe("engage", () => {
     setUnits(t.handle, [stalker]);
     await expect(
       engageSpec.run({}, toolCtx<EngageAfter>(t)),
-    ).rejects.toMatchObject({ reason: "low_mana" });
+    ).rejects.toMatchObject({
+      detail: expect.stringMatching(
+        /^you have mana \d+\/\d+ \(\d+%\); pull at 30% or more\.$/,
+      ),
+      reason: "low_mana",
+    });
     expect(t.rt.runs.list()).toHaveLength(0);
   });
 

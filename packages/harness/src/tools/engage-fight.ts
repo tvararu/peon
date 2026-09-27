@@ -6,7 +6,7 @@ import { dangerView } from "#harness/ops/danger";
 import { ITEM_NAME_WAIT_MS, nameLootLines } from "#harness/ops/item-names";
 import { lootCorpseOp } from "#harness/ops/loot";
 import { guidHex } from "#harness/ops/refs";
-import { poseView, unitViews, vitalsView } from "#harness/ops/views";
+import { manaText, poseView, unitViews, vitalsView } from "#harness/ops/views";
 import {
   awaitCycle,
   awaitQuestCycle,
@@ -175,11 +175,8 @@ async function quest(scene: Scene): Promise<ModeEnd> {
 
 function vitalsLine(ctx: ViewCtx): string {
   const vitals = vitalsView(ctx);
-  const mana =
-    vitals.powerKind === "mana" && vitals.maxPower > 0
-      ? `, mana ${Math.round((vitals.power / vitals.maxPower) * 100)}%`
-      : "";
-  return `You: HP ${vitals.hp}/${vitals.maxHp}${mana}.`;
+  const mana = manaText(vitals);
+  return `You: HP ${vitals.hp}/${vitals.maxHp}${mana ? `, ${mana}` : ""}.`;
 }
 
 function lootText(tally: Tally): string {

@@ -123,6 +123,15 @@ export function poseView({ handle, rt }: ViewCtx): PoseView | undefined {
   };
 }
 
+export function manaText({
+  maxPower,
+  power,
+  powerKind,
+}: VitalsView): string | undefined {
+  if (powerKind !== "mana" || maxPower <= 0) return;
+  return `mana ${power}/${maxPower} (${Math.round((power / maxPower) * 100)}%)`;
+}
+
 export function vitalsView({ handle }: ViewCtx): VitalsView {
   const { self } = handle.getCombatState();
   const powerKind = POWER_KINDS[self.powerType ?? -1] ?? "none";

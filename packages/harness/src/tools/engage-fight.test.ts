@@ -41,7 +41,7 @@ describe("engage fight", () => {
     const text = contentOf(res);
     expect(limitProblem(text)).toBeUndefined();
     expect(text).toMatch(
-      /^DONE killed Springpaw Stalker \(u\d+\) in 0 s, server kill credit\. \+108 XP\. Looted Broken Fang x1, 12 copper\. You: HP 200\/200, mana 100%\.$/,
+      /^DONE killed Springpaw Stalker \(u\d+\) in 0 s, server kill credit\. \+108 XP\. Looted Broken Fang x1, 12 copper\. You: HP 200\/200, mana 300\/300 \(100%\)\.$/,
     );
     expect(res.after).toMatchObject({ kills: 1, mode: "single", xp: 108 });
   });
@@ -338,7 +338,7 @@ describe("engage fight", () => {
     const res = await pending;
     expect(res.status).toBe("RUNNING");
     expect(res.detail).toBe(
-      "engage 0 of 1 kills. You: HP 200/200, mana 100%, at 0, 0.",
+      "engage 0 of 1 kills. You: HP 200/200, mana 300/300 (100%), at 0, 0.",
     );
     t.rt.runs.cancel(res.runId ?? "", "tool");
   });

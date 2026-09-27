@@ -7,7 +7,7 @@ import type { InterruptCause } from "#harness/ops/danger";
 import { type ExploreResult, SIDE_REASONS } from "#harness/ops/explore";
 import { FLOOR_MATCH_YD, type LegResult } from "#harness/ops/travel-leg";
 import { structuralAsk, structuralReach } from "#harness/ops/unreached";
-import { poseView, vitalsView } from "#harness/ops/views";
+import { manaText, poseView, vitalsView } from "#harness/ops/views";
 import { result } from "#harness/tools/define";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 
@@ -138,12 +138,9 @@ export function goalName(goal: Goal): string {
 export function youLine(ctx: ViewCtx): string {
   const vitals = vitalsView(ctx);
   const pose = poseView(ctx);
-  const mana =
-    vitals.powerKind === "mana" && vitals.maxPower > 0
-      ? `, mana ${Math.round((vitals.power / vitals.maxPower) * 100)}%`
-      : "";
+  const mana = manaText(vitals);
   const at = pose ? `, at ${Math.round(pose.x)}, ${Math.round(pose.y)}` : "";
-  return `You: HP ${vitals.hp}/${vitals.maxHp}${mana}${at}.`;
+  return `You: HP ${vitals.hp}/${vitals.maxHp}${mana ? `, ${mana}` : ""}${at}.`;
 }
 
 function unitBrief(unit: UnitView): string {

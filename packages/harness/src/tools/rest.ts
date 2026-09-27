@@ -13,7 +13,13 @@ import {
 import { guidHex } from "#harness/ops/refs";
 import { Refusal } from "#harness/ops/refusal";
 import { settle } from "#harness/ops/settle";
-import { poseView, selfView, unitViews, vitalsView } from "#harness/ops/views";
+import {
+  manaText,
+  poseView,
+  selfView,
+  unitViews,
+  vitalsView,
+} from "#harness/ops/views";
 import { awaitRun, YIELD_AFTER_MS } from "#harness/runs/wait";
 import {
   defineGameTool,
@@ -81,8 +87,8 @@ function reached(levels: Levels, until: number): boolean {
 
 function vitalsText(ctx: ViewCtx): string {
   const vitals = vitalsView(ctx);
-  const { mana } = levelsOf(ctx);
-  return `HP ${vitals.hp}/${vitals.maxHp}${mana === undefined ? "" : `, mana ${mana}%`}`;
+  const mana = manaText(vitals);
+  return `HP ${vitals.hp}/${vitals.maxHp}${mana ? `, ${mana}` : ""}`;
 }
 
 function hpText(ctx: ViewCtx): string {

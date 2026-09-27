@@ -343,7 +343,9 @@ describe("travel", () => {
     const res = await pending;
     const id = res.runId ?? "";
     expect(res.status).toBe("RUNNING");
-    expect(res.detail).toContain("You: HP 200/200, mana 100%, at 0, 0.");
+    expect(res.detail).toContain(
+      "You: HP 200/200, mana 300/300 (100%), at 0, 0.",
+    );
     expect(res.body).toEqual([
       "The human wrote a message. Read it before you act.",
     ]);
