@@ -230,6 +230,21 @@ describe("runScenario", () => {
     expect(draft.end).toBe("done");
     expect(draft.tab).toBe("eval-1-t0-self-state-1");
     expect(draft.evidence.finalSavedAt).toBeDefined();
+    const setups = world.calls.filter((call) => call[3] === "setup");
+    expect(setups.map((call) => call.slice(4))).toEqual([
+      [
+        ACC,
+        "position",
+        JSON.stringify({
+          map: 530,
+          o: 1.686,
+          x: 8731,
+          y: -6677,
+          z: 69.76,
+          zone: 3430,
+        }),
+      ],
+    ]);
     expect(draft.checks[0]?.observed).toMatchObject({
       baseline: { level: 10 },
       final: { level: 10 },
@@ -241,6 +256,7 @@ describe("runScenario", () => {
       "final.json",
       "triggers.jsonl",
       "progress.json",
+      "grader/concurrent.json",
     ]) {
       expect(await Bun.file(`${world.runDir}/${file}`).exists()).toBe(true);
     }

@@ -32,6 +32,7 @@ import {
   writeOutcome,
 } from "#harness/grader/run-finish";
 import type { Scenario } from "#harness/grader/scenarios";
+import { startSlots } from "#harness/grader/spawn-slots";
 import {
   BUDGET_STOP,
   describeAt,
@@ -436,12 +437,20 @@ async function play(run: Live): Promise<void> {
   const agent = await create(run, "agent");
   run.agent = agent;
   if (run.scenario.partner !== null) run.partner = await create(run, "partner");
+  const slots = startSlots(run.scenario, run.replica);
   await applySetup({
     account: agent.account,
     exec: run.exec,
     runDir: run.runDir,
-    setup: run.scenario.setup,
+    setup: [...run.scenario.setup, ...(slots ? [slots.agent] : [])],
   });
+  if (run.partner !== undefined && slots !== undefined)
+    await applySetup({
+      account: run.partner.account,
+      exec: run.exec,
+      runDir: run.runDir,
+      setup: [slots.partner],
+    });
   await baseline(run, agent.account);
   await startPartner(run);
   await launch(run);

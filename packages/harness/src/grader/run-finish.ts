@@ -8,6 +8,7 @@ import {
   removeSessionFiles,
   sessionFile,
 } from "#harness/grader/accounts";
+import { writeConcurrent } from "#harness/grader/concurrent";
 import { observedChecks } from "#harness/grader/draft-fill";
 import { efficiency, readSessionUsage } from "#harness/grader/efficiency";
 import type { Exec } from "#harness/grader/exec";
@@ -172,6 +173,7 @@ export async function cleanup(st: RunState): Promise<void> {
   if (pane !== undefined) await attempt(st, "close", () => pane.close());
   await deleteAll(st, accountsOf(st));
   await attempt(st, "leak check", () => checkLeaks(st));
+  await attempt(st, "concurrent", () => writeConcurrent(st.runDir));
   await attempt(st, "session files", () => removeSessionFiles(st.runDir));
   if (st.cleanupFailed.length > 0)
     await writeFile(
