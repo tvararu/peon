@@ -1,4 +1,3 @@
-import { type Paths, resolvePaths } from "#lib/paths";
 export type Config = {
   account: string;
   password: string;
@@ -13,7 +12,7 @@ export type Config = {
 };
 
 const DEFAULTS: Partial<Config> = {
-  host: "t1",
+  host: "localhost",
   language: 1,
   port: 3724,
   timeout_minutes: 30,
@@ -80,42 +79,4 @@ export function serializeConfig(cfg: Config): string {
         : `${k} = ${v}`,
     )
     .join("\n");
-}
-
-export async function readConfig(
-  paths: Paths = resolvePaths(),
-): Promise<Config> {
-  const file = Bun.file(paths.configPath);
-  if (!(await file.exists()))
-    throw new Error(`No config found at ${paths.configPath}.`);
-  return parseConfig(await file.text());
-}
-
-export async function writeConfig(
-  cfg: Config,
-  paths: Paths = resolvePaths(),
-): Promise<void> {
-  const { mkdir, writeFile } = await import("node:fs/promises");
-  await mkdir(paths.configDir, { recursive: true });
-  await writeFile(paths.configPath, `${serializeConfig(cfg)}\n`, {
-    mode: 0o600,
-  });
-}
-
-export function clientConfig(cfg: Config) {
-  return {
-    account: cfg.account.toUpperCase(),
-    character: cfg.character,
-    host: cfg.host,
-    jevApiKey: Bun.env["TYPESAFE_API_KEY"],
-    jevEndpointUrl:
-      Bun.env["JEV_ENDPOINT_URL"] ?? Bun.env["TYPESAFE_ENDPOINT_URL"],
-    jevFault: Bun.env["JEV_FAULT"],
-    language: cfg.language,
-    navigationDataDir: cfg.navigation_data_dir,
-    navigationLibrary: cfg.navigation_library,
-    password: cfg.password.toUpperCase(),
-    port: cfg.port,
-    spellDataDir: cfg.spell_data_dir,
-  };
 }
