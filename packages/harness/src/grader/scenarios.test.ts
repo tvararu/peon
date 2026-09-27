@@ -297,5 +297,8 @@ describe("checks measure what they name", () => {
     expect(text).toContain("2 s");
     expect(text).toContain("10 percentage points");
     expect(text).toContain("snapshot/world");
+    expect(
+      checkOf("t7-question-while-acting", "answer-values")?.events,
+    ).toEqual([]);
   });
 });

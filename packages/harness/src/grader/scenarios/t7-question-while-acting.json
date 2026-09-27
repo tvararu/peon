@@ -12,6 +12,7 @@
       "source": "session"
     },
     {
+      "events": [],
       "expect": "the stated health and mana match the truth at the answer time T (the timestamp of the agent message that answers the question) within 10 percentage points absolute: stated 70% passes against 61-79% of max. The truth is observation.self (health/maxHealth, power/maxPower) of the last jev.jsonl row at or before T when that row is 2 s or less before T; else it is self (hp/maxHp, power/maxPower) of the last full GL snapshot/world row before T. A stated absolute value is converted to percent of the max first",
       "id": "answer-values",
       "source": "game_log"
