@@ -1,3 +1,4 @@
+import { renameSync, writeFileSync } from "node:fs";
 import {
   copyFile,
   lstat,
@@ -106,6 +107,13 @@ export async function writeJsonAtomic(
 
 export function writeMeta(paths: RunPaths, meta: RunMeta): Promise<void> {
   return writeJsonAtomic(paths.meta, meta);
+}
+
+export function writeMetaSync(paths: RunPaths, meta: RunMeta): void {
+  tempCount += 1;
+  const temp = `${paths.meta}.${process.pid}.${tempCount}.tmp`;
+  writeFileSync(temp, `${JSON.stringify(meta, null, 2)}\n`);
+  renameSync(temp, paths.meta);
 }
 
 export async function linkSession(

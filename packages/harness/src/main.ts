@@ -26,6 +26,7 @@ import {
   RunDirError,
   runsRoot,
   writeMeta,
+  writeMetaSync,
 } from "#harness/eval/run-dir";
 import { createToolStats, STATS_EVERY_MS } from "#harness/eval/stats";
 import {
@@ -48,6 +49,11 @@ import { createSightings } from "#harness/ops/sightings";
 import { snapshotWorld } from "#harness/ops/views";
 import { createRunRegistry } from "#harness/runs/registry";
 import { defaultLogin } from "#harness/runtime/connection";
+import {
+  createExitRecorder,
+  type ExitProcess,
+  type ExitRecorder,
+} from "#harness/runtime/exit";
 import { createHarnessRuntime } from "#harness/runtime/harness-runtime";
 import { createWorldMutex } from "#harness/runtime/mutex";
 import { createPiRuntime } from "#harness/runtime/pi-runtime";
@@ -64,6 +70,7 @@ export type MainDeps = {
   out: (line: string) => void;
   err: (line: string) => void;
   interactive: (runtime: AgentSessionRuntime) => Promise<void>;
+  proc: ExitProcess;
 };
 
 type Started = {
@@ -76,10 +83,9 @@ type Started = {
 type Finish = {
   rt: HarnessRuntime;
   paths: RunPaths;
-  meta: RunMeta;
+  exit: ExitRecorder;
   status: StatusWriter;
   lock: Lock;
-  now: () => number;
 };
 
 export async function main(
@@ -109,6 +115,7 @@ function defaultDeps(): MainDeps {
     interactive: runInteractive,
     now: () => Date.now(),
     out: (line) => console.log(line),
+    proc: process,
   };
 }
 
@@ -119,7 +126,7 @@ async function start(flags: HarnessFlags, deps: MainDeps): Promise<number> {
     runDir: flags.runDir ?? runsRoot(deps.home),
     stateDir: harnessStateDir(deps.home),
   });
-  process.once("exit", lock.releaseSync);
+  deps.proc.on("exit", lock.releaseSync);
   const credentials = new OmpCredentialStore({
     dbPath: ompDbPath(deps.home),
     now: deps.now,
@@ -157,18 +164,26 @@ async function play({
   setGlyphs(glyphs);
   const meta = runMeta({ flags, glyphs, profile, startedAt: deps.now() });
   await writeMeta(paths, meta);
+  const exit = createExitRecorder({
+    meta,
+    notice: deps.out,
+    now: deps.now,
+    proc: deps.proc,
+    write: (value) => writeMeta(paths, value),
+    writeSync: (value) => writeMetaSync(paths, value),
+  });
   rt.stats.start({ everyMs: STATS_EVERY_MS, path: paths.tools });
   const status = createStatusWriter({
     path: paths.status,
     snapshot: () => statusSnapshot(rt),
   });
   status.start(STATUS_EVERY_MS);
-  const finish = finisher({ lock, meta, now: deps.now, paths, rt, status });
+  const finish = finisher({ exit, lock, paths, rt, status });
   const agentDir = `${harnessStateDir(deps.home)}/agent`;
   const piRuntime = await createPiRuntime({
     agentDir,
     credentials,
-    extension: withFinish(wowExtension(rt), finish),
+    extension: withFinish(wowExtension(rt), exit, finish),
     runtime: rt,
   });
   await linkSession(
@@ -337,20 +352,16 @@ function gitSha(): string | undefined {
 function finisher({
   rt,
   paths,
-  meta,
+  exit,
   status,
   lock,
-  now,
 }: Finish): () => Promise<void> {
   return async () => {
     await status.stop();
     const world = rt.ready.inWorld();
-    await writeMeta(paths, {
-      ...meta,
+    await exit.end({
       capabilities: world?.capabilities,
       characterGuid: world?.guid,
-      endedAt: now(),
-      exitReason: "quit",
     });
     await finalizeSession(paths);
     await lock.release();
@@ -359,9 +370,13 @@ function finisher({
 
 function withFinish(
   factory: ExtensionFactory,
+  exit: ExitRecorder,
   finish: () => Promise<void>,
 ): ExtensionFactory {
   return async (pi) => {
+    pi.on("session_shutdown", async ({ reason }) => {
+      if (reason === "quit") await exit.begin();
+    });
     await factory(pi);
     pi.on("session_shutdown", async ({ reason }) => {
       if (reason === "quit") await finish();

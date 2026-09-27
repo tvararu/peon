@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { EventEmitter } from "node:events";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -6,6 +7,7 @@ import { join } from "node:path";
 import { harnessStateDir, parseFlags } from "#harness/config/flags";
 import { ompDbPath } from "#harness/credentials/omp-store";
 import { EXIT, type MainDeps, main } from "#harness/main";
+import { EXIT_SIGINT, type ExitProcess } from "#harness/runtime/exit";
 import { codexRow, writeOmpDb } from "#test-support/omp-db";
 
 const NOW = Date.parse("2026-09-26T19:00:00Z");
@@ -16,11 +18,27 @@ let lines: { out: string[]; err: string[] };
 beforeEach(async () => {
   home = await mkdtemp(join(tmpdir(), "harness-main-"));
   lines = { err: [], out: [] };
+  proc = new EventEmitter();
+  exits = [];
 });
 
 afterEach(async () => {
   await rm(home, { force: true, recursive: true });
 });
+
+let proc: EventEmitter;
+let exits: number[];
+
+function fakeProcess(): ExitProcess {
+  return {
+    exit: (code) => {
+      exits.push(code);
+      proc.emit("exit", code);
+    },
+    listenerCount: (event) => proc.listenerCount(event),
+    on: (event, listener) => proc.on(event, listener),
+  };
+}
 
 function deps(): MainDeps {
   return {
@@ -31,6 +49,7 @@ function deps(): MainDeps {
     },
     now: () => NOW,
     out: (line) => lines.out.push(line),
+    proc: fakeProcess(),
   };
 }
 
@@ -169,5 +188,83 @@ describe("main without --check", () => {
       const text = readFileSync(path, "utf8").toLowerCase();
       expect(text).not.toContain("zq-secret-pass");
     }
+  });
+});
+
+describe("main exit paths write endedAt and exitReason", () => {
+  async function playing(
+    interactive: MainDeps["interactive"],
+  ): Promise<{ runDir: string; result: Promise<number> }> {
+    writeOmpDb(ompDbPath(home), [
+      codexRow({ access: "tok", expires: NOW + 3_600_000 }),
+    ]);
+    const runDir = join(home, "run1");
+    const flags = [
+      "--profile",
+      await ledger(),
+      "--run-dir",
+      runDir,
+      "--no-connect",
+    ];
+    return {
+      result: main(parseFlags(flags), { ...deps(), interactive }),
+      runDir,
+    };
+  }
+
+  function readMeta(runDir: string) {
+    return JSON.parse(readFileSync(join(runDir, "meta.json"), "utf8"));
+  }
+
+  test("Ctrl-D, /quit and double Ctrl-C end in Pi's shutdown: quit, with the logout notice", async () => {
+    const { result, runDir } = await playing((runtime) => runtime.dispose());
+    expect(await result).toBe(EXIT.ok);
+    expect(readMeta(runDir)).toMatchObject({ exitReason: "quit" });
+    expect(readMeta(runDir).endedAt).toBe(NOW);
+    expect(lines.out).toContain(
+      "Logging out of the game. The harness exits when the server confirms, in up to 30 s.",
+    );
+    proc.emit("exit", 0);
+    expect(readMeta(runDir)).toMatchObject({ exitReason: "quit" });
+  });
+
+  test("SIGTERM: Pi shuts down and the meta says sigterm", async () => {
+    proc.on("SIGTERM", () => undefined);
+    const { result, runDir } = await playing(async (runtime) => {
+      proc.emit("SIGTERM");
+      await runtime.dispose();
+    });
+    await result;
+    expect(readMeta(runDir)).toMatchObject({
+      endedAt: NOW,
+      exitReason: "sigterm",
+    });
+  });
+
+  test("SIGINT while the harness logs out: the meta says sigint and the exit code is 130", async () => {
+    const { result, runDir } = await playing(async (runtime) => {
+      proc.emit("SIGINT");
+      await runtime.dispose();
+    });
+    await result;
+    expect(exits).toEqual([EXIT_SIGINT]);
+    expect(readMeta(runDir)).toMatchObject({
+      endedAt: NOW,
+      exitReason: "sigint",
+    });
+  });
+
+  test("a fatal error: the process exit writes fatal_error", async () => {
+    const { result, runDir } = await playing(async () => {
+      throw new Error("boom");
+    });
+    expect(result).rejects.toThrow("boom");
+    await result.catch(() => undefined);
+    proc.emit("exit", 1);
+    expect(readMeta(runDir)).toMatchObject({
+      endedAt: NOW,
+      exitReason: "fatal_error",
+    });
+    expect(locks()).toEqual([]);
   });
 });

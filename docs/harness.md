@@ -28,8 +28,11 @@ verb.
    `mise harness` runs `bun packages/harness/src/entry.ts` with the same
    flags. `mise harness --help` shows the mise task, not these flags.
 4. Type a task, for example `Kill one Springpaw Stalker north of town.`
-5. Quit with Ctrl-D on an empty editor, or with two Ctrl-C within half a
-   second. Then delete the character with
+5. Quit with Ctrl-D on an empty editor, with `/quit`, or with two Ctrl-C
+   within half a second. The harness prints `Logging out of the game.`
+   and exits when the server confirms the logout, in up to 30 seconds.
+   Do not press Ctrl-C while it waits: that ends the harness before the
+   logout. Then delete the character with
    `bun packages/factory/src/main.ts soap delete <ACCOUNT>`.
 
 To check the profile, the lock and the Codex login without a game
@@ -168,7 +171,7 @@ Use a terminal font with Nerd Font glyphs for `--glyphs nerd`. Use
 
 | File | Content |
 |---|---|
-| `meta.json` | Version, git sha, account and character (no password), model, thinking, glyph set, flags, start and end, exit reason, capabilities. |
+| `meta.json` | Version, git sha, account and character (no password), model, thinking, glyph set, flags, start and end, exit reason, capabilities. Every exit writes `endedAt` and `exitReason`: `quit` (Ctrl-D, `/quit`, two Ctrl-C), `sigterm`, `sighup`, `sigint` (Ctrl-C during the logout) or `fatal_error`. |
 | `gamelog.jsonl` | Every game event as one typed row (`domain/event`). |
 | `jev.jsonl` | Jev fight requests and decisions. |
 | `session.jsonl` | A link to the current Pi session file in `pi-sessions/`. |
