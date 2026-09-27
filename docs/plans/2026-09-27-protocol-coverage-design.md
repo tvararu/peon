@@ -300,6 +300,22 @@ Area decisions (each area subsection in section 5 lists its own under
   read-only console command until it matches (for the Wintergrasp window)
   is part of the `pvp` harness task.
 
+Process (added at approval):
+
+- **N32 One worktree per plan area.** Workers get one Orca worktree per
+  plan area (the 20 areas of section 5, plus `step0`, the tooling lanes
+  and `rebaseline`), not per code area. Each task names its `codeArea`,
+  the one-word name that seeding and the coverage files use.
+- **N33 Tooling and re-baseline start before the plan.** R0 and the
+  tooling that lands before the first area (section 4.8) are built
+  straight from sections 4 and 6.3 while the plan is written. Step 0 and
+  every wave wait for the plan approval.
+
+Approval: the advisor approved this design in the maintainer's place
+(R14) with four conditions: R0 runs first and edits this design where the
+code moved; plan phases follow the waves of section 5.1; N32; and step 0
+branches from the PR branch (section 6.2).
+
 ## 3. Step 0: the structure
 
 Step 0 makes the fan-out possible. Today every new opcode edits the same
@@ -3749,8 +3765,9 @@ its section 5 written here as rules.
 2. **Tooling before the first area** (section 4.8): `tooling-names`,
    `tooling-tap`, `tooling-probe`, `tooling-cite-check`, then
    `tooling-gm`.
-3. **Step 0** commits 0a to 0e (section 3.16), branched from `main` after
-   the tap has landed, then rebased once.
+3. **Step 0** commits 0a to 0e (section 3.16), branched from
+   `origin/factory/426-protocol-coverage` after the tap has landed, then
+   rebased once.
 4. **Waves** 1 to 4 (section 5.1). Each wave starts with one coordinator
    seed commit (N2); its workers branch from that commit.
 
