@@ -39,8 +39,10 @@ export type TriggerName =
   | "steer_landed";
 
 export type SteerAt =
-  | { kind: "trigger"; trigger: TriggerName }
+  | { kind: "trigger"; trigger: TriggerName; nth?: number; delayMs?: number }
   | { kind: "elapsed"; ms: number };
+
+export type PartnerAction = { at: SteerAt; argv: string[]; windowMs: number };
 
 export type ScenarioCheck = {
   id: string;
@@ -58,6 +60,8 @@ export type Scenario = {
   paneMinutes: number;
   task: string;
   steers: { at: SteerAt; text: string }[];
+  partnerActions?: PartnerAction[];
+  blockedBy?: string[];
   checks: ScenarioCheck[];
   needsWatcher: boolean;
   navBound: boolean;

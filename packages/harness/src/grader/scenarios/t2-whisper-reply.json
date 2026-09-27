@@ -2,7 +2,7 @@
   "budget": { "minutes": 5, "tools": 15, "turns": 8 },
   "checks": [
     {
-      "expect": "grader action, not a Pi steer: at task + 60 s the grader runs <partner wrapper> send -w <AGENT> \"hey, what level are you?\"; pass when the partner's read --json shows a whisper from the agent within 90 s of the question, containing 10",
+      "expect": "partner action, not a Pi steer: at task + 60 s the runner sends send -w <AGENT> \"hey, what level are you?\" through the partner wrapper (steers.jsonl row with actor partner); pass when the partner's read --json rows in partner-read.jsonl show a whisper from the agent within 90 s of the question, containing 10",
       "id": "whisper-back",
       "source": "witness"
     },
@@ -22,6 +22,13 @@
   "needsWatcher": false,
   "paneMinutes": 8,
   "partner": "partner",
+  "partnerActions": [
+    {
+      "argv": ["send", "-w", "<AGENT>", "hey, what level are you?"],
+      "at": { "kind": "elapsed", "ms": 60000 },
+      "windowMs": 90000
+    }
+  ],
   "preset": "eversong10",
   "setup": [],
   "steers": [],

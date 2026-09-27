@@ -1,4 +1,4 @@
-import type { Scenario, SteerAt } from "#harness/grader/scenarios";
+import type { SteerAt } from "#harness/grader/scenarios";
 import type { ProgressJson, TriggerRow } from "#harness/grader/watch";
 
 export const RESCUE_NUDGE = "You seem stuck. What is blocking you?";
@@ -21,6 +21,7 @@ export type EndView = {
   progress: ProgressJson | undefined;
   lastAnswerAt: number | undefined;
   statusAt: number;
+  pending: boolean;
 };
 export type EndAction =
   | { kind: "wait" }
@@ -29,12 +30,23 @@ export type EndAction =
   | { kind: "end"; end: "done" | "budget" | "stuck"; escape: boolean }
   | { kind: "abort"; evidence: string };
 
-type Steer = Scenario["steers"][number];
-type DueInit = {
-  steers: Scenario["steers"];
+type Scheduled = { at: SteerAt };
+type DueInit<T extends Scheduled> = {
+  steers: readonly T[];
   cursor: SteerCursor;
   triggers: readonly TriggerRow[];
   now: number;
+};
+
+export type PendingView = {
+  now: number;
+  steers: number;
+  steerIndex: number;
+  actions: number;
+  actionIndex: number;
+  lastSteerAt: number | undefined;
+  lastAnswerAt: number | undefined;
+  windowEnd: number | undefined;
 };
 
 const WAIT: EndAction = { kind: "wait" };
@@ -48,26 +60,41 @@ export function stuckStopMs(tier: number): number {
   return tier === 0 ? 60_000 : 120_000;
 }
 
-export function dueSteer({
+export function dueSteer<T extends Scheduled>({
   steers,
   cursor,
   triggers,
   now,
-}: DueInit): Steer | undefined {
+}: DueInit<T>): T | undefined {
   const steer = steers[cursor.index];
   if (steer === undefined) return undefined;
   const { at } = steer;
   if (at.kind === "elapsed")
     return now - cursor.since >= at.ms ? steer : undefined;
-  return triggers.some(
+  const hit = triggers.filter(
     (row) => row.trigger === at.trigger && row.ms > cursor.since,
-  )
+  )[(at.nth ?? 1) - 1];
+  return hit !== undefined && now - hit.ms >= (at.delayMs ?? 0)
     ? steer
     : undefined;
 }
 
+export function pendingAction(view: PendingView): boolean {
+  if (view.steerIndex < view.steers || view.actionIndex < view.actions)
+    return true;
+  if (
+    view.lastSteerAt !== undefined &&
+    (view.lastAnswerAt ?? -1) < view.lastSteerAt
+  )
+    return true;
+  return view.windowEnd !== undefined && view.now < view.windowEnd;
+}
+
 export function describeAt(at: SteerAt): string {
-  return at.kind === "trigger" ? at.trigger : `elapsed:${at.ms}`;
+  if (at.kind === "elapsed") return `elapsed:${at.ms}`;
+  const nth = (at.nth ?? 1) > 1 ? `#${at.nth}` : "";
+  const delay = at.delayMs === undefined ? "" : `+${at.delayMs}`;
+  return `${at.trigger}${nth}${delay}`;
 }
 
 function afterStop(
@@ -85,10 +112,11 @@ function afterStop(
 }
 
 function isDone(
-  { now, progress, lastAnswerAt }: EndView,
+  { now, progress, lastAnswerAt, pending }: EndView,
   taskMs: number,
 ): boolean {
   if (
+    pending ||
     lastAnswerAt === undefined ||
     lastAnswerAt < taskMs ||
     progress?.agent !== "idle"

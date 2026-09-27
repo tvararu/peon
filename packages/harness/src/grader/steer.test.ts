@@ -6,6 +6,7 @@ import {
   type EndMemory,
   type EndView,
   endAction,
+  pendingAction,
   stuckAfterMs,
   stuckStopMs,
 } from "#harness/grader/steer";
@@ -54,6 +55,7 @@ function view(now: number, overrides: Partial<EndView> = {}): EndView {
     budgetMs: 600_000,
     lastAnswerAt: undefined,
     now,
+    pending: false,
     progress: progress(),
     statusAt: now,
     tier: 1,
@@ -106,6 +108,42 @@ describe("dueSteer", () => {
     ).toBeUndefined();
   });
 
+  test("an nth trigger steer waits for that many rows after the cursor", () => {
+    const second: Scenario["steers"] = [
+      { at: { kind: "trigger", nth: 2, trigger: "kill" }, text: "HP?" },
+    ];
+    const cursor = { index: 0, since: 1000 };
+    const first = [trig("kill", 900), trig("kill", 2000)];
+    expect(
+      dueSteer({ cursor, now: 9000, steers: second, triggers: first }),
+    ).toBeUndefined();
+    expect(
+      dueSteer({
+        cursor,
+        now: 9000,
+        steers: second,
+        triggers: [...first, trig("kill", 3000)],
+      }),
+    ).toBe(second[0]);
+  });
+
+  test("a delayed trigger steer counts the delay from the matching row", () => {
+    const resume: Scenario["steers"] = [
+      {
+        at: { delayMs: 20_000, kind: "trigger", trigger: "answer_text" },
+        text: "carry on",
+      },
+    ];
+    const cursor = { index: 0, since: 1000 };
+    const rows = [trig("answer_text", 5000)];
+    expect(
+      dueSteer({ cursor, now: 24_999, steers: resume, triggers: rows }),
+    ).toBeUndefined();
+    expect(
+      dueSteer({ cursor, now: 25_000, steers: resume, triggers: rows }),
+    ).toBe(resume[0]);
+  });
+
   test("describeAt names the trigger or the delay", () => {
     expect(steers.map((steer) => describeAt(steer.at))).toEqual([
       "fight_start",
@@ -143,6 +181,13 @@ describe("endAction", () => {
       end: "done",
       escape: false,
       kind: "end",
+    });
+  });
+
+  test("is not done while an action is pending", () => {
+    const answered = { lastAnswerAt: TASK + 5000, pending: true };
+    expect(endAction(view(TASK + 90_000, answered), memory())).toEqual({
+      kind: "wait",
     });
   });
 
@@ -204,5 +249,39 @@ describe("endAction", () => {
     expect(
       endAction(view(TASK + 40_000, { statusAt: TASK + 9999 }), memory()),
     ).toEqual({ evidence: "status.json not updated for 30 s", kind: "abort" });
+  });
+});
+
+describe("pendingAction", () => {
+  const base = {
+    actionIndex: 0,
+    actions: 0,
+    lastAnswerAt: undefined,
+    lastSteerAt: undefined,
+    now: 50_000,
+    steerIndex: 0,
+    steers: 0,
+    windowEnd: undefined,
+  };
+
+  test("nothing scheduled is nothing pending", () => {
+    expect(pendingAction(base)).toBe(false);
+  });
+
+  test("an unfired steer or partner action is pending", () => {
+    expect(pendingAction({ ...base, steerIndex: 1, steers: 2 })).toBe(true);
+    expect(pendingAction({ ...base, actionIndex: 0, actions: 1 })).toBe(true);
+  });
+
+  test("a fired steer stays pending until the agent answers after it", () => {
+    const fired = { ...base, lastSteerAt: 40_000, steerIndex: 1, steers: 1 };
+    expect(pendingAction({ ...fired, lastAnswerAt: 39_000 })).toBe(true);
+    expect(pendingAction({ ...fired, lastAnswerAt: 41_000 })).toBe(false);
+  });
+
+  test("a fired partner action stays pending until its window closes", () => {
+    const fired = { ...base, actionIndex: 1, actions: 1 };
+    expect(pendingAction({ ...fired, windowEnd: 50_001 })).toBe(true);
+    expect(pendingAction({ ...fired, windowEnd: 50_000 })).toBe(false);
   });
 });

@@ -11,6 +11,12 @@ import {
 } from "#harness/grader/accounts";
 import type { Exec } from "#harness/grader/exec";
 import { harnessCommand, openPane, type Pane } from "#harness/grader/pane";
+import {
+  newPartnerTrack,
+  type PartnerTrack,
+  readPartner,
+  stepPartner,
+} from "#harness/grader/partner";
 import type { EvalResult } from "#harness/grader/result";
 import {
   cleanup,
@@ -29,6 +35,7 @@ import {
   type EndMemory,
   type EndView,
   endAction,
+  pendingAction,
   RESCUE_NUDGE,
   type SteerCursor,
 } from "#harness/grader/steer";
@@ -73,6 +80,8 @@ type Live = RunState & {
   statusAt: number | undefined;
   cursor: SteerCursor;
   memory: EndMemory;
+  lastSteerAt: number | undefined;
+  partnerTrack: PartnerTrack;
 };
 
 type PathInit = {
@@ -150,7 +159,9 @@ async function prepare(init: RunInit): Promise<Live> {
     cursor: { index: 0, since: 0 },
     init,
     inWorld: undefined,
+    lastSteerAt: undefined,
     memory,
+    partnerTrack: newPartnerTrack(0),
     statusAt: undefined,
     tail,
     triggers: [],
@@ -284,6 +295,7 @@ async function sendTask(run: Live): Promise<void> {
   run.init.log("task sent");
   await awaitLanded(run, taskMs);
   run.cursor = { index: 0, since: taskMs };
+  run.partnerTrack = newPartnerTrack(taskMs);
   run.memory = {
     nudgedAt: undefined,
     stopAt: undefined,
@@ -307,7 +319,42 @@ async function steer(run: Live, now: number): Promise<void> {
   );
   run.interventions.push({ kind: "steer", ms: now, text: due.text });
   run.cursor = { index: run.cursor.index + 1, since: now };
+  run.lastSteerAt = now;
   run.init.log(`steer ${run.cursor.index}`);
+}
+
+function partnerOf(run: Live) {
+  const { agent, clock, exec, partner, runDir } = run;
+  if (agent === undefined || partner === undefined) return;
+  return { agent, clock, exec, partner, runDir };
+}
+
+async function actPartner(run: Live): Promise<void> {
+  const actions = run.scenario.partnerActions ?? [];
+  const init = partnerOf(run);
+  if (init === undefined || actions.length === 0) return;
+  const before = run.partnerTrack.cursor.index;
+  await stepPartner({
+    ...init,
+    actions,
+    track: run.partnerTrack,
+    triggers: run.triggers,
+  });
+  if (run.partnerTrack.cursor.index > before)
+    run.init.log(`partner action ${run.partnerTrack.cursor.index}`);
+}
+
+function pendingOf(run: Live, now: number): boolean {
+  return pendingAction({
+    actionIndex: run.partnerTrack.cursor.index,
+    actions: run.scenario.partnerActions?.length ?? 0,
+    lastAnswerAt: run.answerAt,
+    lastSteerAt: run.lastSteerAt,
+    now,
+    steerIndex: run.cursor.index,
+    steers: run.scenario.steers.length,
+    windowEnd: run.partnerTrack.windowEnd,
+  });
 }
 
 async function endView(run: Live, now: number): Promise<EndView> {
@@ -317,6 +364,7 @@ async function endView(run: Live, now: number): Promise<EndView> {
     budgetMs: run.scenario.budget.minutes * 60_000,
     lastAnswerAt: run.answerAt,
     now,
+    pending: pendingOf(run, now),
     progress:
       status === undefined
         ? undefined
@@ -368,7 +416,10 @@ async function drive(run: Live): Promise<void> {
     await run.init.sleep(POLL_MS);
     await pollLog(run);
     const now = run.clock.now();
-    if (run.memory.stopAt === undefined) await steer(run, now);
+    if (run.memory.stopAt === undefined) {
+      await steer(run, now);
+      await actPartner(run);
+    }
     await act(run, endAction(await endView(run, now), run.memory), now);
   }
   run.init.log(`end ${run.end}`);
@@ -399,6 +450,9 @@ async function play(run: Live): Promise<void> {
   });
   await sendTask(run);
   await drive(run);
+  const init = partnerOf(run);
+  if (init !== undefined && (run.scenario.partnerActions ?? []).length > 0)
+    await readPartner(init);
 }
 
 function abortOf(err: unknown): NonNullable<EvalResult["abort"]> {

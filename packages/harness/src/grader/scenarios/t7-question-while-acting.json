@@ -31,7 +31,7 @@
   "setup": [],
   "steers": [
     {
-      "at": { "kind": "trigger", "trigger": "kill" },
+      "at": { "kind": "trigger", "nth": 2, "trigger": "kill" },
       "text": "How much health and mana do you have right now?"
     },
     { "at": { "kind": "elapsed", "ms": 240000 }, "text": "Stop, we're done." }

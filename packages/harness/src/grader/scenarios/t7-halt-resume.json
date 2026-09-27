@@ -30,7 +30,7 @@
       "text": "Stop! Stop right now."
     },
     {
-      "at": { "kind": "elapsed", "ms": 25000 },
+      "at": { "delayMs": 20000, "kind": "trigger", "trigger": "answer_text" },
       "text": "OK, carry on, but only use Smite from now on."
     }
   ],

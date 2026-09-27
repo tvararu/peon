@@ -112,6 +112,32 @@ describe("round-1 scenarios", () => {
     ]);
   });
 
+  test("t7 steers fire on the second kill and 20 s after the acknowledgement", () => {
+    expect(loadScenario("t7-question-while-acting").steers[0]?.at).toEqual({
+      kind: "trigger",
+      nth: 2,
+      trigger: "kill",
+    });
+    expect(loadScenario("t7-halt-resume").steers[1]?.at).toEqual({
+      delayMs: 20_000,
+      kind: "trigger",
+      trigger: "answer_text",
+    });
+  });
+
+  test("t2-whisper-reply whispers the agent through the partner at task + 60 s", () => {
+    expect(loadScenario("t2-whisper-reply").partnerActions).toEqual([
+      {
+        argv: ["send", "-w", "<AGENT>", "hey, what level are you?"],
+        at: { kind: "elapsed", ms: 60_000 },
+        windowMs: 90_000,
+      },
+    ]);
+    expect(
+      ids((id) => (loadScenario(id).partnerActions ?? []).length > 0),
+    ).toEqual(["t2-whisper-reply"]);
+  });
+
   test("an unknown id throws and names the known ids", () => {
     expect(() => loadScenario("t9-nope")).toThrow(
       "unknown scenario: t9-nope (known: t4-quest-first,",
