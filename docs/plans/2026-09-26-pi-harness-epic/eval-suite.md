@@ -559,7 +559,7 @@ The partner is driven by the grader with `tmp/tc-<ACC2>` commands.
   `eversong10-mage` [measured `/presets`].
 - Task: the `t3-kill-one` task.
 - Pass: the `t3-kill-one` checks; plus, for the hunter, two checks: GL
-  `combat/cast` of a ranged shot (spell 75 Auto Shot, 3044, 1978 or
+  `combat/cast` of a ranged shot (spell 75 Auto Shot, 3044, 1978, 13549 or
   5116; `ranged-cast`) with T Δ Sharp Arrow count < 0, and the pet
   attacking the target (`pet-attack`). No game log event reports a pet
   attack, so `pet-attack` carries `blockedBy: "P5:pet_attack"` (P5) and

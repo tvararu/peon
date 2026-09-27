@@ -137,7 +137,7 @@ describe("round-1 scenarios", () => {
     expect(checks.map((check) => check.id)).not.toContain("pet-and-ranged");
     expect(checks.find((check) => check.id === "ranged-cast")).toMatchObject({
       events: ["combat/cast"],
-      ids: [75, 3044, 1978, 5116],
+      ids: [75, 3044, 1978, 13_549, 5116],
       source: "game_log",
     });
     expect(checks.find((check) => check.id === "pet-attack")).toMatchObject({

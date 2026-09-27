@@ -28,9 +28,9 @@
     },
     {
       "events": ["combat/cast"],
-      "expect": "GL combat/cast of a ranged shot (spellId 75 Auto Shot, 3044 Arcane Shot, 1978 Serpent Sting or 5116 Concussive Shot) at the target",
+      "expect": "GL combat/cast of a ranged shot (spellId 75 Auto Shot, 3044 Arcane Shot, 1978 or 13549 Serpent Sting, or 5116 Concussive Shot) at the target",
       "id": "ranged-cast",
-      "ids": [75, 3044, 1978, 5116],
+      "ids": [75, 3044, 1978, 13549, 5116],
       "source": "game_log"
     },
     {
