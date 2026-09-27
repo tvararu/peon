@@ -21,6 +21,7 @@ const PRESETS = [
   "fresh",
   "eversong10",
   "eversong10-hunter",
+  "eversong10-warrior",
   "elwynn1",
   "elwynn10",
   "ghostlands20",
@@ -87,6 +88,7 @@ describe("round-1 scenarios", () => {
     expect(loadScenario("t0-who-is-near").partner).toBe("witness");
     expect(loadScenario("t2-whisper-reply").partner).toBe("partner");
     expect(ids((id) => loadScenario(id).setup.length > 0)).toEqual([
+      "t3-ghostlands-kill",
       "t6-die-and-recover",
     ]);
     expect(loadScenario("t6-die-and-recover").setup).toEqual([
@@ -187,6 +189,35 @@ describe("expectations match preset truth", () => {
       "Silver Dragonhawk Hatchling",
     ])
       expect(neutral).toContain(name);
+  });
+
+  test("t6 dies for certain: a level-1 warrior cannot heal itself", () => {
+    expect(loadScenario("t6-die-and-recover").preset).toBe(
+      "eversong10-warrior",
+    );
+  });
+
+  test("t3-ghostlands-kill starts on the only floor at z 88.66", () => {
+    expect(loadScenario("t3-ghostlands-kill").setup).toEqual([
+      {
+        body: { map: 530, o: 4.007, x: 7575, y: -6835, z: 88.66, zone: 3433 },
+        endpoint: "position",
+      },
+    ]);
+  });
+
+  test("t1 judges the stop by move rows, not a 10 s quiet window", () => {
+    const text = expectOf("t1-walk-to-npc", "stopped");
+    expect(text).toContain(
+      "the last control/move_stop comes before the done message",
+    );
+    expect(text).not.toContain("10 s");
+  });
+
+  test("t7-halt accepts a halted target another player killed", () => {
+    const text = expectOf("t7-halt-resume", "halted-target");
+    expect(text).toContain("botInterference");
+    expect(text).toContain("names the death");
   });
 
   test("t5-vendor-buy-goldshire sums item 159 over every row", () => {

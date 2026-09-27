@@ -12,7 +12,7 @@
       "source": "game_log"
     },
     {
-      "expect": "the halted target killed or explicitly abandoned with a reason",
+      "expect": "the halted target killed or explicitly abandoned with a reason; an agent that names the death of the halted target also meets it, and when another player killed it (GL death without the agent's kill credit) the check is n/a with botInterference true",
       "id": "halted-target",
       "source": "session"
     }

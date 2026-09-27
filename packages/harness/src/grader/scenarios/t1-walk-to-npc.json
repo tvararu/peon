@@ -7,7 +7,7 @@
       "source": "truth"
     },
     {
-      "expect": "GL shows the agent stopped: no movement in the last 10 s before the agent says done",
+      "expect": "GL shows the agent stopped: the last control/move_stop comes before the done message and no control/move_start follows it until logout",
       "id": "stopped",
       "source": "game_log"
     }
