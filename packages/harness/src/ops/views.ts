@@ -1,22 +1,35 @@
 import {
   CLASS_NAMES,
+  type CombatAura,
+  type CombatState,
   type NearbyRow,
   ObjectType,
   type PlaceState,
   type WorldHandle,
 } from "@tuicraft/core";
 import { messageOf } from "@tuicraft/core/lib/errors";
-import type { Sighting, ViewCtx } from "#harness/contract/services";
 import type {
+  HarnessRuntime,
+  Sighting,
+  ViewCtx,
+} from "#harness/contract/services";
+import type {
+  AuraView,
+  CastView,
   Compass,
   NearestKind,
+  NowSnapshot,
   PlaceView,
   PoseView,
   PowerKind,
+  RecoveryView,
+  RunView,
   SelfView,
+  SnapshotWorld,
   UnitView,
   VitalsView,
 } from "#harness/contract/views";
+import { dangerView } from "#harness/ops/danger";
 import { guidHex, isUnitEntity } from "#harness/ops/refs";
 
 const COMPASS: readonly Compass[] = [
@@ -277,4 +290,115 @@ export function nearestByKind(
   ctx: ViewCtx,
 ): Partial<Record<NearestKind, UnitView>> {
   return nearestOf(knownUnits(ctx));
+}
+
+function runView(rt: HarnessRuntime): RunView | undefined {
+  const record = rt.runs.active();
+  if (!record) return;
+  const words = Object.values(record.args).filter(
+    (value) => typeof value === "string" || typeof value === "number",
+  );
+  const label = [record.kind, ...words].join(" ");
+  return {
+    elapsedMs: rt.clock.now() - record.startedAt,
+    id: record.id,
+    kind: record.kind,
+    label,
+    progress: record.progress,
+  };
+}
+
+function castView(
+  cast: CombatState["casting"],
+  now: number,
+): CastView | undefined {
+  return cast
+    ? {
+        elapsedMs: now - cast.startedAt,
+        spell: `spell ${cast.spellId}`,
+        totalMs: cast.durationMs,
+      }
+    : undefined;
+}
+
+function auraView(aura: CombatAura, selfGuid: bigint): AuraView {
+  return {
+    mine: aura.caster === selfGuid,
+    name: `spell ${aura.spellId}`,
+    remainingMs: aura.timeLeft,
+    spellId: aura.spellId,
+  };
+}
+
+function targetView(
+  { handle }: ViewCtx,
+  known: readonly UnitView[],
+): UnitView | undefined {
+  const guid =
+    handle.getCombatState().selectedGuid ?? handle.getControlState().target;
+  if (!guid) return;
+  const hex = guidHex(guid);
+  return known.find((unit) => unit.guid === hex);
+}
+
+function recoveryView(
+  { handle, rt }: ViewCtx,
+  known: readonly UnitView[],
+): RecoveryView | undefined {
+  const state = handle.getRecoveryState();
+  if (state.life !== "dead" && state.life !== "ghost") return;
+  const { pose } = handle.getControlState();
+  const corpse =
+    state.corpse.status === "found" && state.corpse.mapId === pose?.mapId
+      ? state.corpse.position
+      : undefined;
+  const dx = corpse && pose ? corpse.x - pose.x : undefined;
+  const dy = corpse && pose ? corpse.y - pose.y : 0;
+  return {
+    corpseCompass: dx === undefined ? undefined : compassOf(Math.atan2(dy, dx)),
+    corpseYd: dx === undefined ? undefined : Math.round(Math.hypot(dx, dy)),
+    reclaimInMs: state.reclaimDelay
+      ? Math.max(0, state.reclaimDelay.readyAt - rt.clock.now())
+      : undefined,
+    spiritHealer: known.find((unit) => unitMatches(unit, "spirit_healer")),
+  };
+}
+
+export function nowSnapshot(rt: HarnessRuntime): NowSnapshot | undefined {
+  const handle = rt.handle();
+  if (!(handle && rt.ready.isReady())) return;
+  const ctx = { handle, rt };
+  const known = knownUnits(ctx);
+  const combat = handle.getCombatState();
+  const now = rt.clock.now();
+  const { selfGuid } = handle.getControlState();
+  return {
+    at: now,
+    attackers: dangerView(ctx).attackers,
+    hpDelta5s: undefined,
+    nearest: nearestOf(known),
+    noProgress: rt.progress.noProgress(),
+    place: placeView(ctx),
+    recovery: recoveryView(ctx, known),
+    run: runView(rt),
+    self: selfView(ctx),
+    selfCast: castView(combat.casting, now),
+    target: targetView(ctx, known),
+    targetAuras: combat.targetAuras.map((aura) => auraView(aura, selfGuid)),
+    wake: rt.session.wake,
+  };
+}
+
+export function snapshotWorld(rt: HarnessRuntime): SnapshotWorld | undefined {
+  const handle = rt.handle();
+  if (!(handle && rt.ready.isReady())) return;
+  const ctx = { handle, rt };
+  const units = unitViews(ctx);
+  return {
+    attackers: dangerView(ctx).attackers,
+    place: placeView(ctx),
+    self: selfView(ctx),
+    target: targetView(ctx, units),
+    units,
+  };
 }
