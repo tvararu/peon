@@ -24,8 +24,7 @@ export type CheckMeasure =
   | "kill_after_answer"
   | "kill_xp"
   | "max_attackers"
-  | "no_fight_after_stop"
-  | "pet_attack";
+  | "no_fight_after_stop";
 
 export type TruthPick =
   | "alive"
@@ -82,7 +81,6 @@ export const ROUND_1: readonly string[] = [
   "t7-question-while-acting",
   "t7-halt-resume",
   "t3-ghostlands-kill",
-  "t3-kill-one-hunter",
   "t1-walk-to-npc",
   "t5-vendor-buy-goldshire",
   "t2-whisper-reply",

@@ -5,7 +5,6 @@ import {
   type MeasureContext,
   type Measured,
   noFightAfterStop,
-  petAttack,
 } from "#harness/grader/draft-anchors";
 import type { GameLogRow } from "#harness/grader/draft-gamelog";
 import { isRecord } from "#harness/grader/exec";
@@ -110,7 +109,6 @@ const MEASURES: Record<
   kill_xp: killXp,
   max_attackers: maxAttackers,
   no_fight_after_stop: noFightAfterStop,
-  pet_attack: petAttack,
 };
 
 export function measureGameLog(

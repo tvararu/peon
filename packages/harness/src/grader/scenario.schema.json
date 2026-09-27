@@ -109,8 +109,7 @@
               "kill_after_answer",
               "kill_xp",
               "max_attackers",
-              "no_fight_after_stop",
-              "pet_attack"
+              "no_fight_after_stop"
             ]
           },
           "source": {

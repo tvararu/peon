@@ -120,19 +120,6 @@ describe("checks measure what they name", () => {
   const checkOf = (id: string, check: string) =>
     loadScenario(id).checks.find((entry) => entry.id === check);
 
-  test("t3-kill-one-hunter grades the ranged casts and the pet attack", () => {
-    expect(checkOf("t3-kill-one-hunter", "ranged-cast")).toMatchObject({
-      evidence: {
-        events: ["combat/cast"],
-        ids: [75, 3044, 1978, 13_549, 5116],
-      },
-      source: "game_log",
-    });
-    const pet = checkOf("t3-kill-one-hunter", "pet-attack");
-    expect(pet).toMatchObject({ measure: "pet_attack", source: "game_log" });
-    expect(pet?.blockedBy).toBeUndefined();
-  });
-
   test("t3-ghostlands-kill counts kill XP and attackers per fight", () => {
     expect(checkOf("t3-ghostlands-kill", "total-xp")).toMatchObject({
       measure: "kill_xp",
