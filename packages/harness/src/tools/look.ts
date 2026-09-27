@@ -1,11 +1,60 @@
-import type { LookAfter } from "#harness/contract/details";
+import type { LookAfter, LookFilter } from "#harness/contract/details";
+import type { ToolResult } from "#harness/contract/result";
+import type { HarnessRuntime, ToolCtx } from "#harness/contract/services";
+import type {
+  NearestKind,
+  NowSnapshot,
+  PlaceView,
+  PoseView,
+  UnitView,
+  VitalsView,
+} from "#harness/contract/views";
+import { dangerView } from "#harness/ops/danger";
+import {
+  LOOK_DEFAULT_ROWS,
+  LOOK_DEFAULT_YD,
+  LOOK_MAX_ROWS,
+} from "#harness/ops/range";
+import { Refusal } from "#harness/ops/refusal";
+import { nowSnapshot, unitMatches, unitViews } from "#harness/ops/views";
 import {
   defineGameTool,
   emptyPlace,
   emptySelf,
-  notBuilt,
+  nextCall,
+  result,
 } from "#harness/tools/define";
-import { lookParams } from "#harness/tools/params";
+import { type LookArgs, lookParams } from "#harness/tools/params";
+
+type Unchanged = { at: number; count: number; digest: string };
+type LookFit = {
+  filter: LookFilter;
+  name: string | undefined;
+  unit: UnitView;
+  within: number;
+};
+
+const UNCHANGED_AFTER = 3;
+const UNCHANGED_WINDOW_MS = 60_000;
+const ALWAYS_NEAREST: readonly NearestKind[] = [
+  "hostile",
+  "lootable",
+  "trainer",
+];
+const unchangedLooks = new WeakMap<HarnessRuntime, Unchanged>();
+const LOOK_FILTERS: readonly LookFilter[] = [
+  "any",
+  "hostile",
+  "attackable",
+  "questgiver",
+  "vendor",
+  "trainer",
+  "repair",
+  "lootable",
+  "player",
+  "corpse",
+  "spirit_healer",
+];
 
 function emptyLook(): LookAfter {
   return {
@@ -25,11 +74,220 @@ function emptyLook(): LookAfter {
   };
 }
 
+function kindOf(filter: LookFilter): NearestKind | undefined {
+  return filter === "any" || filter === "corpse" ? undefined : filter;
+}
+
+function filterMatches(unit: UnitView, filter: LookFilter): boolean {
+  if (filter === "any") return true;
+  if (filter === "corpse") return !unit.alive;
+  return unitMatches(unit, filter);
+}
+
+function fitsLook({ filter, name, unit, within }: LookFit): boolean {
+  if (unit.distance === undefined || unit.distance > within) return false;
+  if (name && !unit.name.toLowerCase().includes(name.toLowerCase()))
+    return false;
+  return filterMatches(unit, filter);
+}
+
+function ageText(ms: number): string {
+  return ms < 60_000
+    ? `${Math.round(ms / 1000)} s`
+    : `${Math.round(ms / 60_000)} min`;
+}
+
+function distanceText({ compass, distance }: UnitView): string {
+  if (distance === undefined) return "distance unknown";
+  const yards = Math.round(distance);
+  return yards > 0 && compass ? `${yards} yd ${compass}` : `${yards} yd`;
+}
+
+function powerText({ maxPower, power, powerKind }: VitalsView): string {
+  if (powerKind === "none" || maxPower === 0) return "";
+  if (powerKind === "mana")
+    return `mana ${Math.round((power / maxPower) * 100)}%, `;
+  return `${powerKind.replace("_", " ")} ${power}, `;
+}
+
+function placeText({ ageMs, area, zone }: PlaceView): string {
+  const where =
+    [zone, area].filter((part) => part !== undefined).join(", ") ||
+    "Zone unknown";
+  return ageMs === undefined
+    ? `${where}.`
+    : `${where} (area ${ageText(ageMs)} old).`;
+}
+
+function poseText(pose: PoseView | undefined): string {
+  if (!pose) return "Position unknown.";
+  const fix =
+    pose.serverFixAgeMs === undefined
+      ? "no server fix yet"
+      : `server fix ${ageText(pose.serverFixAgeMs)} ago`;
+  return `${Math.round(pose.x)}, ${Math.round(pose.y)}, facing ${pose.facing}. Pose ${pose.source}, ${fix}.`;
+}
+
+function selfLine({ place, self }: LookAfter): string {
+  const combat = self.inCombat ? "in combat" : "not in combat";
+  const vitals = `HP ${self.hp}/${self.maxHp}, ${powerText(self)}${self.life}, ${combat}`;
+  return `${self.name} L${self.level} ${self.className}, ${vitals}. ${placeText(place)} ${poseText(self.pose)}`;
+}
+
+function statusLine({ run, target }: LookAfter): string {
+  const aimed = target
+    ? `${target.ref} ${target.name} ${target.hpPct}%`
+    : "none";
+  if (!run) return `Target: ${aimed}. Running: nothing.`;
+  return `Target: ${aimed}. Running: ${run.id} ${run.label} (${ageText(run.elapsedMs)}). It is still running. End your turn to wait.`;
+}
+
+function nounOf(filter: LookFilter): string {
+  return filter === "any" ? "units" : `${filter.replace("_", " ")} units`;
+}
+
+function headerLine({ filter, matched, rows, within }: LookAfter): string {
+  const range = within ?? LOOK_DEFAULT_YD;
+  if (rows.length === 0) return `No ${nounOf(filter)} within ${range} yd.`;
+  return `${rows.length} of ${matched} ${nounOf(filter)} within ${range} yd, nearest first:`;
+}
+
+function rowLine(unit: UnitView): string {
+  const traits = [
+    unit.kind === "player" ? "player" : undefined,
+    unit.relation,
+    unit.roles.length > 0 ? unit.roles.join(" ") : undefined,
+    unit.alive ? undefined : "dead",
+    unit.lootable ? "lootable" : undefined,
+    unit.attackingMe ? "attacking you" : undefined,
+    unit.targetsMe && !unit.attackingMe ? "targets you" : undefined,
+    unit.tappedByOther ? "tapped by another player" : undefined,
+    distanceText(unit),
+  ];
+  return `- ${unit.ref} ${unit.name} L${unit.level} ${traits.filter((trait) => trait !== undefined).join(", ")}`;
+}
+
+function nearestText(kind: NearestKind, unit: UnitView | undefined): string {
+  const label = `Nearest ${kind.replace("_", " ")}:`;
+  if (!unit) return `${label} ${kind === "lootable" ? "none" : "none seen"}.`;
+  const seen = unit.inView ? "seen now" : `seen ${ageText(unit.seenAgoMs)} ago`;
+  return `${label} ${unit.ref} ${unit.name} L${unit.level} ${unit.alive ? "alive" : "dead"}, ${distanceText(unit)} (${seen}).`;
+}
+
+function nearestLine({ filter, nearest }: LookAfter): string {
+  const own = kindOf(filter);
+  const kinds =
+    own && !ALWAYS_NEAREST.includes(own)
+      ? [...ALWAYS_NEAREST, own]
+      : ALWAYS_NEAREST;
+  return kinds.map((kind) => nearestText(kind, nearest[kind])).join(" ");
+}
+
+function lookBody(after: LookAfter): string[] {
+  const calm =
+    after.danger.attackers.length === 0 ? ["No unit is attacking you."] : [];
+  const stale =
+    after.unchanged >= UNCHANGED_AFTER && !after.run
+      ? [
+          `Nothing changed in ${after.unchanged} looks. Act, or end your turn to wait for events.`,
+        ]
+      : [];
+  return [
+    statusLine(after),
+    headerLine(after),
+    ...after.rows.map(rowLine),
+    nearestLine(after),
+    ...calm,
+    ...stale,
+  ];
+}
+
+function lookDigest(rows: readonly UnitView[], snapshot: NowSnapshot): string {
+  const pose = snapshot.self.pose;
+  const where = pose
+    ? `${Math.floor(pose.x / 2)}:${Math.floor(pose.y / 2)}`
+    : "-";
+  const units = rows
+    .map(
+      (unit) => `${unit.ref}:${unit.hpPct}:${Math.round(unit.distance ?? -1)}`,
+    )
+    .join(",");
+  return `${snapshot.self.hp}|${where}|${units}`;
+}
+
+function countUnchanged(rt: HarnessRuntime, digest: string): number {
+  const now = rt.clock.now();
+  const last = unchangedLooks.get(rt);
+  const next =
+    last && last.digest === digest && now - last.at <= UNCHANGED_WINDOW_MS
+      ? { ...last, count: last.count + 1 }
+      : { at: now, count: 1, digest };
+  unchangedLooks.set(rt, next);
+  return next.count;
+}
+
+function lookAfter(
+  args: LookArgs,
+  ctx: ToolCtx<LookAfter>,
+  snapshot: NowSnapshot,
+): LookAfter {
+  const filter = LOOK_FILTERS.find((known) => known === args.find) ?? "any";
+  const units = unitViews(ctx);
+  const within = args.within ?? LOOK_DEFAULT_YD;
+  const matching = units.filter((unit) =>
+    fitsLook({ filter, name: args.name, unit, within }),
+  );
+  const rows = matching.slice(
+    0,
+    args.within === undefined ? LOOK_DEFAULT_ROWS : LOOK_MAX_ROWS,
+  );
+  return {
+    danger: dangerView(ctx),
+    filter,
+    matched: matching.length,
+    name: args.name,
+    nearest: snapshot.nearest,
+    place: snapshot.place,
+    rows,
+    run: snapshot.run,
+    seen: units.length,
+    self: snapshot.self,
+    target: snapshot.target,
+    unchanged: countUnchanged(ctx.rt, lookDigest(rows, snapshot)),
+    within: args.within,
+  };
+}
+
+function noneSeen(after: LookAfter): ToolResult<LookAfter> {
+  const hint = `If your task needs one: ${nextCall("travel", { to: "explore north" })}, or another direction.`;
+  const detail = `0 ${nounOf(after.filter)} seen at any distance in the last 30 min. The client sees about 100 yd around you.`;
+  return result("DONE", { after, body: [hint], detail });
+}
+
+function look(args: LookArgs, ctx: ToolCtx<LookAfter>): ToolResult<LookAfter> {
+  const snapshot = nowSnapshot(ctx.rt);
+  if (!snapshot)
+    throw new Refusal({
+      detail: "the world is still loading.",
+      next: "call look again in a few seconds.",
+      reason: "not_ready",
+    });
+  const after = lookAfter(args, ctx, snapshot);
+  ctx.rt.snapshots.capture("look");
+  const own = kindOf(after.filter);
+  if (after.matched === 0 && own && !after.nearest[own]) return noneSeen(after);
+  return result("DONE", {
+    after,
+    body: lookBody(after),
+    detail: selfLine(after),
+  });
+}
+
 export const lookTool = defineGameTool({
   fallback: emptyLook,
   kind: "read",
   maxLines: 24,
   name: "look",
   parameters: lookParams,
-  run: notBuilt,
+  run: (args, ctx) => Promise.resolve(look(args, ctx)),
 });
