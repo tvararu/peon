@@ -1,3 +1,4 @@
+import { basename, relative } from "node:path";
 import { messageOf } from "@tuicraft/core/lib/errors";
 import { type Exec, isRecord, parseJsonOutput } from "#harness/grader/exec";
 
@@ -224,4 +225,37 @@ export async function finalTruth({
     if (isFresh(last, exitMs)) return { ok: true, truth: last };
   }
   return { cause: "stale_truth", detail: staleDetail(last, exitMs), ok: false };
+}
+
+type LeakInit = { exec: Exec; runDir: string; secretFiles: readonly string[] };
+
+async function passwordIn(file: string): Promise<string> {
+  const handle = Bun.file(file);
+  if (!(await handle.exists())) return "";
+  const json: unknown = await handle.json();
+  const password = isRecord(json) ? json["password"] : undefined;
+  return typeof password === "string" ? password : "";
+}
+
+export async function leakCheck({
+  exec,
+  runDir,
+  secretFiles,
+}: LeakInit): Promise<string[]> {
+  const secrets = (await Promise.all(secretFiles.map(passwordIn))).filter(
+    (secret) => secret.length > 0,
+  );
+  if (secrets.length === 0) return [];
+  const skip = secretFiles.flatMap((file) => ["--glob", `!${basename(file)}`]);
+  const argv = ["rg", "-uu", "-l", "-F", "-f", "-", ...skip, runDir];
+  const { code, stderr, stdout } = await exec(argv, {
+    stdin: `${secrets.join("\n")}\n`,
+  });
+  if (code === 1) return [];
+  if (code !== 0) throw new Error(`rg exited ${code}: ${stderr.trim()}`);
+  return stdout
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => relative(runDir, line))
+    .toSorted();
 }
