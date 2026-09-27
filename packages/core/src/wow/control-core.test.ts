@@ -27,7 +27,6 @@ describe("ControlRuntime", () => {
       runtime.move("forward", 1000);
       expect(lastMove(sent).opcode).toBe(GameOpcode.MSG_MOVE_START_FORWARD);
       expect(runtime.snapshot().pose?.source).toBe("predicted");
-      expect(runtime.snapshot().owner).toBe("manual");
       advance(1000);
       expect(runtime.snapshot().moving).toBe(false);
       const pose = must(runtime.snapshot().pose);
@@ -113,7 +112,7 @@ describe("ControlRuntime", () => {
     }
   });
 
-  test("directed walk halts on abort and cannot cancel a later manual owner", async () => {
+  test("directed walk halts on abort and cannot cancel a later manual move", async () => {
     jest.useFakeTimers();
     try {
       const { runtime, sent, advance } = setup({

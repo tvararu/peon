@@ -4,7 +4,7 @@ import type { TacticsDefense } from "#harness/loops/tactics";
 
 type DefenseDeps = {
   combat: Pick<CombatPort, "snapshot" | "isAttackingSelf" | "attack" | "halt">;
-  control: Pick<ControlPort, "setLease" | "halt">;
+  control: Pick<ControlPort, "halt">;
   entity: EntityLookup;
 };
 
@@ -12,7 +12,6 @@ export function defendTarget(
   deps: DefenseDeps,
   targetGuid: bigint,
 ): TacticsDefense {
-  deps.control.setLease("manual");
   deps.control.halt();
   const state = deps.combat.snapshot(targetGuid);
   const selfGuid = state.self.guid;

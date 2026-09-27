@@ -26,6 +26,7 @@ import type {
   PoseView,
 } from "#harness/contract/views";
 import type { Game } from "#harness/loops/game";
+import type { ControlArbiter } from "#harness/runtime/control-owner";
 
 export type Clock = { now: () => number };
 
@@ -261,6 +262,7 @@ export type HarnessRuntime = {
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   stopAll: (cause: StopCause) => RunRecord[];
+  control: ControlArbiter;
   shutdown: () => Promise<void>;
 };
 
@@ -274,5 +276,6 @@ export type RuntimeParts = Omit<
   | "connect"
   | "disconnect"
   | "stopAll"
+  | "control"
   | "shutdown"
 > & { login: Login };

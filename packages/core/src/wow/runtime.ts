@@ -248,7 +248,6 @@ export function createRuntimes(
   const data = catalogAccess(config, lazy, combat);
   function rawHalt(reason = "halt"): void {
     if (lazy.disposed) return;
-    control.setLease("manual");
     control.halt(reason);
     combat.halt();
   }

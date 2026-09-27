@@ -1,6 +1,5 @@
 import type {
   CombatState,
-  ControlLease,
   ControlState,
   MovementDirection,
   RecoveryState,
@@ -32,7 +31,6 @@ export type ControlPort = {
   move: (direction: MovementDirection, durationMs: number) => void;
   halt: (reason?: string) => void;
   selectTarget: (guid: bigint) => void;
-  setLease: (lease: ControlLease) => void;
 };
 
 export type RewardsPort = {
@@ -75,7 +73,6 @@ export function controlPort(handle: WorldHandle, travel: Travel): ControlPort {
     move: (direction, durationMs) => handle.move(direction, durationMs),
     navigationState: () => travel.getNavigationState(),
     selectTarget: (guid) => handle.selectTarget(guid),
-    setLease: (lease) => handle.setControlLease(lease),
     snapshot: () => handle.getControlState(),
   };
 }

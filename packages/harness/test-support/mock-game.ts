@@ -71,7 +71,6 @@ export function createMockGame(): MockGame {
         active: false,
         blockedReason: undefined,
         destination: undefined,
-        owner: "none",
         refusal: undefined,
         remaining: undefined,
       }),

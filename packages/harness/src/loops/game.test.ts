@@ -74,10 +74,6 @@ function recordActuators(handle: WorldHandle, calls: string[]): WorldHandle {
       calls.push("logout");
       handle.logout();
     },
-    setControlLease(lease) {
-      calls.push(`lease:${lease}`);
-      handle.setControlLease(lease);
-    },
     stopCombat() {
       calls.push("stopCombat");
       handle.stopCombat();
@@ -103,7 +99,7 @@ test("a raw move leaves the cycle running until takeControl stops it", async () 
       stopCause: "manual_override",
     });
     game.move("forward", 1000);
-    expect(game.getControlState().owner).toBe("manual");
+    expect(game.getControlState().moving).toBe(true);
     await running;
   } finally {
     handle.close();
@@ -122,16 +118,14 @@ async function activeTactics(handle: WorldHandle, calls: string[]) {
   });
   const running = game.startTactics(BigInt(TARGET), "Hold this target");
   await requested.promise;
-  const owner = game.getControlState().owner;
   calls.length = 0;
-  return { game, owner, running };
+  return { game, running };
 }
 
 test("a closed session retires an active tactics run without acting through the handle", async () => {
   const { handle, server } = await session();
   const calls: string[] = [];
-  const { game, owner, running } = await activeTactics(handle, calls);
-  expect(owner).toBe("loop");
+  const { game, running } = await activeTactics(handle, calls);
   server.stop();
   await handle.closed;
   await running;
@@ -143,8 +137,7 @@ test("logout retires an active tactics run before the core session disposes", as
   const { handle, server } = await session();
   const calls: string[] = [];
   try {
-    const { game, owner, running } = await activeTactics(handle, calls);
-    expect(owner).toBe("loop");
+    const { game, running } = await activeTactics(handle, calls);
     game.logout();
     expect(game.getTacticsState()).toMatchObject({
       lastStopReason: "disposed",

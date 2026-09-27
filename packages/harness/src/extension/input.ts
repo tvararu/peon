@@ -35,7 +35,11 @@ export function humanStop(init: {
   via: Via;
   text: string;
 }): RunRecord[] {
-  const stopped = init.rt.stopAll("human");
+  const { control } = init.rt;
+  const driving = control.owner() === "human";
+  const claim = control.claim("human", init.via);
+  if (!driving) control.release("human", init.via);
+  const stopped = claim.granted ? claim.stopped : [];
   appendHuman(init.rt, {
     stoppedRuns: stopped.map((run) => run.id),
     stopReflex: true,
@@ -71,6 +75,8 @@ export function installInput(pi: ExtensionAPI, rt: HarnessRuntime): void {
   });
   pi.on("agent_end", () => {
     Object.assign(session, { agent: "idle", tool: undefined });
+    rt.control.release("agent", "turn_ended");
+    if (rt.runs.active()) rt.control.claim("loop", "run_outlived_turn");
   });
   pi.on("message_end", (event) => noteAssistant(rt, event.message));
   pi.registerShortcut("f9", {

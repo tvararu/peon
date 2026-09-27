@@ -1,3 +1,4 @@
+import type { HarnessRuntime } from "#harness/contract/services";
 import { Refusal } from "#harness/ops/refusal";
 
 const QUOTE_MAX = 200;
@@ -14,10 +15,22 @@ function wroteText(texts: readonly string[]): string {
   return `the human wrote ${texts.length} messages: ${texts.map(quote).join(", then ")}`;
 }
 
-export function humanWaiting(texts: readonly string[]): Refusal {
+function humanWaiting(texts: readonly string[]): Refusal {
   return new Refusal({
     detail: `${wroteText(texts)} Read it before you act.`,
     next: "end your turn and read the human's message.",
     reason: "human_waiting",
+  });
+}
+
+export function admitAgent(rt: HarnessRuntime, tool: string): void {
+  if (rt.session.humanWaiting) throw humanWaiting(rt.session.humanTexts);
+  const holder = rt.control.owner();
+  if (holder === "loop") return;
+  if (holder !== "human" && rt.control.claim("agent", tool).granted) return;
+  throw new Refusal({
+    detail: "the human is driving the character.",
+    next: "end your turn and wait for the human to hand back.",
+    reason: "human_driving",
   });
 }

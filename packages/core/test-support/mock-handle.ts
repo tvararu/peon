@@ -50,7 +50,6 @@ export function createMockHandle(): MockHandle {
     direction: undefined,
     movementAllowed: true,
     moving: false,
-    owner: "none",
     pose: undefined,
     requestedTarget: undefined,
     selfGuid: 0n,
@@ -297,7 +296,6 @@ export function createMockHandle(): MockHandle {
     sendSay: jest.fn(),
     sendWhisper: jest.fn(),
     sendYell: jest.fn(),
-    setControlLease: jest.fn(),
     setLastChatMode: jest.fn((mode: ChatMode) => {
       lastChatMode = mode;
     }),

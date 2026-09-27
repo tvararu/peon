@@ -46,12 +46,10 @@ test("ground-route movement samples mesh height and HALT prevents lease renewal"
   }
 });
 
-test("tactical authority survives stationary waits but root stops navigation", () => {
+test("root stops navigation", () => {
   jest.useFakeTimers();
   try {
     const { runtime } = setup();
-    runtime.setLease("loop");
-    expect(runtime.snapshot().owner).toBe("loop");
     const start = must(runtime.snapshot().pose);
     const destination = { x: start.x + 20, y: start.y, z: start.z };
     const ground: NativeMap = {
@@ -69,8 +67,6 @@ test("tactical authority survives stationary waits but root stops navigation", (
     runtime.forceRoot(1);
     expect(runtime.navigationState().active).toBe(false);
     expect(runtime.navigationState().blockedReason).toBe("root");
-    runtime.setLease("manual");
-    expect(runtime.snapshot().owner).toBe("none");
   } finally {
     jest.useRealTimers();
   }
@@ -110,7 +106,6 @@ test("navigationError stores refusal and navigate clears refusal", () => {
     active: false,
     blockedReason: "position disagrees with ground height",
     destination: dest,
-    owner: "none",
     refusal: "wait",
     remaining: undefined,
   });

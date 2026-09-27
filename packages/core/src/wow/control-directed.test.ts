@@ -15,7 +15,6 @@ describe("ControlRuntime", () => {
       runtime.move("forward", 5000);
       runtime.halt();
       expect(runtime.snapshot().moving).toBe(false);
-      expect(runtime.snapshot().owner).toBe("none");
       expect(lastMove(sent).opcode).toBe(GameOpcode.MSG_MOVE_STOP);
       const after = sent.length;
       advance(5000);

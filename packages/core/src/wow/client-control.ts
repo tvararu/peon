@@ -85,9 +85,6 @@ export function controlMethods(conn: WorldConn, rt: Runtimes) {
     stopMoving(reason) {
       control.halt(reason);
     },
-    setControlLease(lease) {
-      control.setLease(lease);
-    },
     observedPosition(guid) {
       return rt.observedTarget(guid);
     },

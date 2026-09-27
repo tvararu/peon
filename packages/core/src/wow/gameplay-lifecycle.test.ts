@@ -109,7 +109,6 @@ describe("gameplay forced-close lifecycle", () => {
       f.handle.move("forward", 10_000);
       expect(f.handle.getControlState()).toMatchObject({
         moving: true,
-        owner: "manual",
       });
       expect(
         send.mock.calls.some(
@@ -122,14 +121,12 @@ describe("gameplay forced-close lifecycle", () => {
       await expect(bounded(f.handle.closed)).resolves.toBeUndefined();
       expect(f.handle.getControlState()).toMatchObject({
         moving: false,
-        owner: "none",
       });
       const duringClose = send.mock.calls.map(([, opcode]) => opcode);
       jest.advanceTimersByTime(60_000);
       await Promise.resolve();
       expect(f.handle.getControlState()).toMatchObject({
         moving: false,
-        owner: "none",
       });
       expect(duringClose).toEqual([]);
       expect(send.mock.calls.map(([, opcode]) => opcode)).toEqual([]);

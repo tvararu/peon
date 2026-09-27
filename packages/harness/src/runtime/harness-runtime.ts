@@ -6,6 +6,10 @@ import type {
 } from "#harness/contract/services";
 import type { Game } from "#harness/loops/game";
 import { type Connection, createConnection } from "#harness/runtime/connection";
+import {
+  type ControlArbiter,
+  createControlArbiter,
+} from "#harness/runtime/control-owner";
 
 export function createHarnessRuntime(parts: RuntimeParts): HarnessRuntime {
   const { login, ...rest } = parts;
@@ -27,14 +31,29 @@ export function createHarnessRuntime(parts: RuntimeParts): HarnessRuntime {
   });
   const stopAll = (cause: StopCause) =>
     stopEverything(parts.runs, link.handle(), cause);
+  const control = ownership(parts.runs, stopAll);
   const shutdown = () => shutdownAll({ link, parts, stopAll });
   return {
     ...rest,
     ...link,
+    control,
     session: initialSession(parts.flags.wake),
     shutdown,
     stopAll,
   };
+}
+
+function ownership(
+  runs: RunRegistry,
+  stopAll: (cause: StopCause) => RunRecord[],
+): ControlArbiter {
+  const control = createControlArbiter(({ by }) =>
+    stopAll(by === "human" ? "human" : "tool"),
+  );
+  runs.subscribe((event) => {
+    if (event.type === "ended") control.release("loop", "run_ended");
+  });
+  return control;
 }
 
 function initialSession(wake: boolean): SessionFlags {

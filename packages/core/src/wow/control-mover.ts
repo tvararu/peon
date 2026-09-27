@@ -55,7 +55,6 @@ export type MoverParts = {
 export class Mover {
   moving = false;
   direction: MovementDirection | undefined;
-  owner: "manual" | "none" = "none";
   blockedReason: string | undefined;
   private readonly deps: ControlDeps;
   private readonly ground: GroundOracle | undefined;
@@ -119,7 +118,6 @@ export class Mover {
     this.guide = guide;
     this.direction = direction;
     this.moving = true;
-    this.owner = "manual";
     this.blockedReason = undefined;
     this.sync.moveFlags = DIR_FLAG[direction];
     this.lastIntegrate = this.deps.now();
@@ -237,7 +235,7 @@ export class Mover {
 
   private halt(reason: string, sendStop: boolean): void {
     const blocked = HALT_BLOCKERS.has(reason) ? reason : undefined;
-    if (!this.moving && this.owner === "none") {
+    if (!this.moving) {
       if (!blocked) this.blockedReason = undefined;
       return;
     }
@@ -259,16 +257,14 @@ export class Mover {
     const guide = this.guide;
     this.guide = undefined;
     const wasMoving = this.moving;
-    const ownerChanged = this.owner !== "none";
     this.moving = false;
     this.direction = undefined;
-    this.owner = "none";
     this.blockedReason = blocked;
     this.sync.moveFlags &= ~MOVING_BITS;
     guide?.end(reason);
     if (sendStop && wasMoving) this.sendMove(GameOpcode.MSG_MOVE_STOP);
     if (wasMoving) this.emit("movement_stopped", reason);
-    if (ownerChanged) this.emit("control_changed", reason);
+    if (wasMoving) this.emit("control_changed", reason);
   }
 
   private sendMove(opcode: number): void {

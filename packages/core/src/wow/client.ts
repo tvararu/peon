@@ -37,7 +37,6 @@ import { type NamedVendorState, vendorMethods } from "#wow/client-vendor";
 import type { CombatEvent, CombatState } from "#wow/combat";
 import type {
   ControlEvent,
-  ControlLease,
   ControlState,
   MovementDirection,
   WalkOutcome,
@@ -237,7 +236,6 @@ export type WorldHandle = {
   ) => Promise<WalkOutcome>;
   selectTarget: (guid: bigint) => void;
   stopMoving: (reason?: string) => void;
-  setControlLease: (lease: ControlLease) => void;
   observedPosition: (guid: bigint) => NavPoint;
   unitRelation: (guid: bigint) => FactionRelation;
   halt: () => void;

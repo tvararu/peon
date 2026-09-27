@@ -10,7 +10,6 @@ function state(overrides: Partial<NavigationState> = {}): NavigationState {
     active: false,
     blockedReason: undefined,
     destination: undefined,
-    owner: "none",
     refusal: undefined,
     remaining: undefined,
     ...overrides,

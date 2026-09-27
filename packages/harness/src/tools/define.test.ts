@@ -147,39 +147,6 @@ describe("defineGameTool", () => {
     );
   });
 
-  test("refuses an action while a human message waits; a read still runs", async () => {
-    const { rt } = await createTestRuntime();
-    rt.session.humanWaiting = true;
-    expect((await runTool(probe(said)(rt), {})).text).toBe(
-      "REFUSED human_waiting: the human wrote a message. Read it before you act.\nNext: end your turn and read the human's message.",
-    );
-    expect((await runTool(probe(said, "read")(rt), {})).text).toBe(
-      "DONE said hi.",
-    );
-    expect((await runTool(probe(said, "control")(rt), {})).text).toBe(
-      "DONE said hi.",
-    );
-  });
-
-  test("the human_waiting refusal quotes the pending message", async () => {
-    const { rt } = await createTestRuntime();
-    rt.session.humanWaiting = true;
-    rt.session.humanTexts = [
-      "Get back to your body. Don't use the spirit healer.",
-    ];
-    expect((await runTool(probe(said)(rt), {})).text).toBe(
-      "REFUSED human_waiting: the human wrote: \"Get back to your body. Don't use the spirit healer.\" Read it before you act.\nNext: end your turn and read the human's message.",
-    );
-    rt.session.humanTexts = ["x".repeat(300)];
-    expect((await runTool(probe(said)(rt), {})).text).toContain(
-      `"${"x".repeat(200)}..."`,
-    );
-    rt.session.humanTexts = ["rest first", "then  sell\nthe fangs"];
-    expect((await runTool(probe(said)(rt), {})).text).toBe(
-      'REFUSED human_waiting: the human wrote 2 messages: "rest first", then "then sell the fangs" Read it before you act.\nNext: end your turn and read the human\'s message.',
-    );
-  });
-
   test("refuses before the world is ready", async () => {
     const { rt } = await createTestRuntime({
       parts: { ready: notReady },

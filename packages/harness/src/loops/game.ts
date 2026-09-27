@@ -179,7 +179,6 @@ function build(handle: WorldHandle, { jev, navigation }: GameOptions) {
   const control = controlPort(handle, travel);
   const halt = () => {
     if (!live) return;
-    control.setLease("manual");
     control.halt();
     combat.halt();
   };

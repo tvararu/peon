@@ -99,7 +99,6 @@ export class CombatActions {
     this.rejections.reset(this.startedAt);
     this.deps.control.halt();
     this.deps.combat.halt();
-    this.deps.control.setLease("loop");
     this.deps.control.selectTarget(context.targetGuid);
   }
 

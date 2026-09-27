@@ -32,8 +32,6 @@ export type {
   AreaExplored,
   ControlEvent,
   ControlEventType,
-  ControlLease,
-  ControlOwner,
   ControlPose,
   ControlState,
   MovementDirection,

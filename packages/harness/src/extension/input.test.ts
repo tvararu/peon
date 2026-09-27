@@ -189,6 +189,66 @@ describe("installInput", () => {
     });
   });
 
+  test("a run that outlives the turn passes to the loop", async () => {
+    const { fake, rt } = await setup();
+    await fake.emit({ type: "agent_start" });
+    rt.control.claim("agent", "travel");
+    rt.runs.start({
+      args: {},
+      kind: "travel",
+      launch: ({ signal }) => waitForAbort(signal),
+      toolCallId: "t1",
+    });
+    await fake.emit({ messages: [], type: "agent_end" });
+    expect(rt.control.owner()).toBe("loop");
+    expect(rt.runs.get("r1")?.status).toBe("running");
+  });
+
+  test("a background run ending frees the body", async () => {
+    const { fake, rt } = await setup();
+    const { promise, resolve } = Promise.withResolvers<RunEnd<undefined>>();
+    rt.runs.start({
+      args: {},
+      kind: "rest",
+      launch: () => promise,
+      toolCallId: "t1",
+    });
+    await fake.emit({ messages: [], type: "agent_end" });
+    expect(rt.control.owner()).toBe("loop");
+    resolve({ status: "succeeded", summary: "rested", value: undefined });
+    await Bun.sleep(0);
+    expect(rt.control.owner()).toBe("none");
+  });
+
+  test("a stop reflex pre-empts the agent and hands the body back free", async () => {
+    const { fake, rt } = await setup();
+    rt.control.claim("agent", "engage");
+    rt.runs.start({
+      args: {},
+      kind: "engage",
+      launch: ({ signal }) => waitForAbort(signal),
+      toolCallId: "t1",
+    });
+    await fake.emit(human("stop"));
+    expect(rt.runs.get("r1")?.reason).toBe("human_stop");
+    expect(rt.control.owner()).toBe("none");
+  });
+
+  test("a stop while the human drives stops everything and keeps the human in control", async () => {
+    const { fake, handle, rt } = await setup();
+    rt.control.claim("human", "drive");
+    rt.runs.start({
+      args: {},
+      kind: "rest",
+      launch: ({ signal }) => waitForAbort(signal),
+      toolCallId: "t1",
+    });
+    await fake.press("f9");
+    expect(rt.runs.get("r1")?.reason).toBe("human_stop");
+    expect(handle.halt).toHaveBeenCalled();
+    expect(rt.control.owner()).toBe("human");
+  });
+
   test("F9 stops every run", async () => {
     const { fake, rt } = await setup();
     rt.runs.start({
