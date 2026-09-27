@@ -30,7 +30,6 @@ import {
 import type { ToolRenderers } from "#harness/ui/renderers/registry";
 
 const STRIP_CELLS = 40;
-const DECISION_ROWS = 6;
 
 const DECISION: Readonly<
   Record<JevDecisionView["kind"], { icon: GlyphName; tone: ThemeColor }>
@@ -211,14 +210,12 @@ function targetLine(t: EngageAfter["targets"][number]): string {
 
 function engageDetail(theme: Theme, after: EngageAfter): string[] {
   const targets = after.targets.map(targetLine);
-  const decisions = after.decisions
-    .slice(-DECISION_ROWS)
-    .map((d) =>
-      theme.fg(
-        "dim",
-        `${glyph(DECISION[d.kind].icon)} ${d.label} ${d.disposition}`,
-      ),
-    );
+  const decisions = after.decisions.map((d) =>
+    theme.fg(
+      "dim",
+      `${glyph(DECISION[d.kind].icon)} ${d.label} ${d.disposition}`,
+    ),
+  );
   const errors = [...after.castErrors, ...after.swingErrors].map((e) =>
     theme.fg("warning", `${e.word} (${e.code}) ×${e.count}`),
   );

@@ -172,6 +172,27 @@ describe("live-run family", () => {
     );
     expect(text).toContain("u9 Springpaw Stalker killed 6s");
     expect(text).toContain("OUT_OF_RANGE (12) ×2");
+    expect(text).toContain(`${nerd.spell} Smite applied`);
+    expect(text).toContain(`${nerd.compassN} step back discarded`);
+  });
+
+  test("expanded engage draws every decision, not only the last few", () => {
+    const decisions = Array.from({ length: 9 }, (_, i) => ({
+      at: i,
+      disposition: "applied" as const,
+      kind: "spell" as const,
+      label: `Smite ${i}`,
+    }));
+    const text = plain(
+      renderResultLines(
+        "engage",
+        done({ ...engage, decisions }, "killed 1 of 3."),
+        { options: open },
+      ),
+    );
+    for (const d of decisions) {
+      expect(text).toContain(`${nerd.spell} ${d.label} applied`);
+    }
   });
 
   test("rest and recover", () => {
