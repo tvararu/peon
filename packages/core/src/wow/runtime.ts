@@ -277,6 +277,7 @@ function createSupportRuntimes(
     rewards,
     recovery,
     control,
+    entity: (guid) => conn.entityStore.get(guid),
     bags: {
       questItems: () =>
         new Set(quests.snapshot().items.map((item) => item.itemId)),

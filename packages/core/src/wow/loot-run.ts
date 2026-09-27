@@ -4,6 +4,7 @@ import { type CycleStop, cycleStop as stop } from "#wow/cycle-stop";
 import type { CycleDeps, CycleLootRecord } from "#wow/encounter-cycle";
 import { type EntityEvent, fieldOf } from "#wow/entity-store";
 import type { EventWaiter } from "#wow/event-waiter";
+import { approachCorpse, type CorpseApproach } from "#wow/loot-approach";
 import { BAG_RESERVE, keepsReserve, slotsNeeded } from "#wow/loot-room";
 import { UNIT_FIELDS } from "#wow/protocol/entity-fields";
 import type { LootItem } from "#wow/protocol/loot";
@@ -16,14 +17,17 @@ import {
 } from "#wow/rewards";
 
 const LOOT_SETTLE_MS = 5000;
+const PER_CORPSE = new Set(["loot_denied:release_only", "loot_denied:timeout"]);
 
-export type LootRun = Pick<CycleDeps, "rewards" | "bags"> & {
-  events: EventWaiter<RewardsEvent>;
-  bodies: EventWaiter<EntityEvent>;
-  signal: AbortSignal;
-};
+export type LootRun = Pick<CycleDeps, "rewards" | "bags"> &
+  CorpseApproach & {
+    events: EventWaiter<RewardsEvent>;
+    bodies: EventWaiter<EntityEvent>;
+  };
 
-type Looted = { ok: true; record: CycleLootRecord | undefined } | CycleStop;
+type Looted =
+  | { ok: true; record: CycleLootRecord | undefined; cause?: string }
+  | CycleStop;
 type Opened = { ok: true; state: RewardsState | undefined } | CycleStop;
 type Corpse = "lootable" | "empty" | CycleStop;
 type Taken = { ok: true; taken: boolean } | CycleStop;
@@ -32,6 +36,20 @@ type Items = { ok: true; taken: number[]; left: number[] } | CycleStop;
 export async function lootCorpse(run: LootRun, guid: bigint): Promise<Looted> {
   const released = await releaseLeftover(run);
   if (!released.ok) return released;
+  await approachCorpse(run, guid);
+  const looted = await lootOpened(run, guid);
+  return looted.ok ? looted : await perCorpse(run, looted);
+}
+
+async function perCorpse(run: LootRun, failed: CycleStop): Promise<Looted> {
+  if (!PER_CORPSE.has(failed.cause)) return failed;
+  const { phase } = run.rewards.snapshot().loot;
+  if (phase === "opening") run.rewards.abandonOpen();
+  if (phase === "open") await closeLoot(run);
+  return { ok: true, record: undefined, cause: failed.cause };
+}
+
+async function lootOpened(run: LootRun, guid: bigint): Promise<Looted> {
   const opened = await openLoot(run, guid);
   if (!opened.ok) return opened;
   if (!opened.state) return { ok: true, record: undefined };

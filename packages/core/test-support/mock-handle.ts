@@ -96,6 +96,7 @@ export function createMockHandle(): MockHandle {
   const cycle = new EncounterCycleRuntime({
     bags: { questItems: () => new Set(), stackSize: async () => undefined },
     control: { face: () => {}, move: () => {}, snapshot: () => controlState },
+    entity: () => undefined,
     now: runtimeDeps.now,
     recovery,
     rewards,

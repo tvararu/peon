@@ -108,3 +108,28 @@ describe("release-only loot opening", () => {
     }
   });
 });
+
+describe("abandoned loot opening", () => {
+  test("an unanswered open can be abandoned so the next corpse opens", () => {
+    const runtime = opening();
+    const events: string[] = [];
+    runtime.onEvent((event) => events.push(event.type));
+    const state = runtime.abandonOpen();
+    expect(state.loot.phase).toBe("closed");
+    expect(state.lastOpenFailure).toMatchObject({
+      guid: cub,
+      reason: "abandoned",
+    });
+    expect(events).toEqual(["loot_open_failed"]);
+    expect(runtime.open(next).loot.phase).toBe("opening");
+  });
+
+  test("abandoning with no open request changes nothing", () => {
+    const runtime = opening();
+    runtime.abandonOpen();
+    const events: string[] = [];
+    runtime.onEvent((event) => events.push(event.type));
+    runtime.abandonOpen();
+    expect(events).toEqual([]);
+  });
+});

@@ -8,6 +8,7 @@ import {
 } from "#test-support/encounter-cycle-fixtures";
 import { createRuns } from "#wow/client-runs";
 import type { ControlPose } from "#wow/control";
+import type { EntityLookup, UnitEntity } from "#wow/entity-store";
 import { createWorldEvents } from "#wow/world-events";
 
 type Fakes = {
@@ -15,6 +16,7 @@ type Fakes = {
   recovery?: ReturnType<typeof fakeRecovery>;
   control?: ReturnType<typeof fakeControl>;
   cycleActive?: () => boolean;
+  entity?: EntityLookup;
 };
 
 const idle = new AbortController().signal;
@@ -32,7 +34,16 @@ function wire(fakes: Fakes) {
     questItems: () => new Set<number>(),
     stackSize: async () => undefined,
   };
-  const deps = { bags, control, cycleActive, events, recovery, rewards: loot };
+  const entity = fakes.entity ?? (() => undefined);
+  const deps = {
+    bags,
+    control,
+    cycleActive,
+    entity,
+    events,
+    recovery,
+    rewards: loot,
+  };
   return { events, runs: createRuns(deps) };
 }
 
@@ -267,4 +278,33 @@ describe("recoverCorpse", () => {
     expect(events.recovery.size).toBe(0);
     expect(events.control.size).toBe(0);
   });
+});
+
+test("a standalone loot walks to a corpse out of reach before the open", async () => {
+  jest.useFakeTimers();
+  try {
+    const control = fakeControl({
+      pose: {
+        mapId: 0,
+        orientation: 0,
+        source: "predicted",
+        updatedAt: 0,
+        x: 0,
+        y: 0,
+        z: 0,
+      },
+    });
+    const { entity } = body(2n, 0, { x: 0, y: 9, z: 0 }) as {
+      entity: UnitEntity;
+    };
+    const loot = fakeLoot({ items: [4] });
+    const { runs } = wire({ control, entity: () => entity, loot });
+    const running = runs.lootCorpse(2n, idle);
+    await advanceUntilSettled(running, 10_000);
+    expect(control.moves().length).toBeGreaterThan(0);
+    expect(await running).toMatchObject({ ok: true });
+    expect(loot.taken()).toEqual([4]);
+  } finally {
+    jest.useRealTimers();
+  }
 });

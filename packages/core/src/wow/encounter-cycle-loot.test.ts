@@ -87,7 +87,7 @@ test("cycle waits for the loot release before completing", async () => {
   });
 });
 
-test("unanswered loot take stops rather than reporting success", async () => {
+test("an unanswered loot take records no loot and the queue continues", async () => {
   jest.useFakeTimers();
   try {
     const runtime = makeCycle({
@@ -98,10 +98,11 @@ test("unanswered loot take stops rather than reporting success", async () => {
       now: () => 0,
     });
     const running = runtime.start({ guids: [2n], instruction: "fight" });
-    await advanceUntilSettled(running, 6000);
+    await advanceUntilSettled(running, 12_000);
     expect(runtime.snapshot()).toMatchObject({
       phase: "stopped",
-      stopCause: "loot_denied:timeout",
+      stopCause: "queue_exhausted",
+      queue: [{ status: "done", loot: "none", cause: "loot_denied:timeout" }],
     });
     expect(runtime.snapshot().lastLoot).toBeUndefined();
   } finally {
@@ -285,17 +286,24 @@ test("a window left open by an earlier stop is released before the next corpse",
   });
 });
 
-test("a failed release-only open stops with its reason", async () => {
-  const loot = fakeLoot({ openFailure: "release_only" });
+test("a release-only open records no loot and the queue continues", async () => {
+  const tactics = fakeTactics([]);
   const runtime = makeCycle({
-    tactics: fakeTactics([]),
-    loot,
+    tactics,
+    loot: fakeLoot({ openFailure: "release_only" }),
     recovery: fakeRecovery({ life: ["alive"] }),
     control: fakeControl(),
     now: () => 0,
   });
-  await runtime.start({ guids: [2n], instruction: "fight" });
-  expect(runtime.snapshot().stopCause).toBe("loot_denied:release_only");
+  await runtime.start({ guids: [2n, 3n], instruction: "fight" });
+  expect(tactics.calls()).toBe(2);
+  expect(runtime.snapshot()).toMatchObject({
+    stopCause: "queue_exhausted",
+    queue: [
+      { status: "done", loot: "none", cause: "loot_denied:release_only" },
+      { status: "done", loot: "none", cause: "loot_denied:release_only" },
+    ],
+  });
 });
 
 test("an open failed by a vanished corpse records no loot and continues", async () => {

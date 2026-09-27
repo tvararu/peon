@@ -3,7 +3,7 @@ import { messageOf } from "#lib/errors";
 import type { ControlEvent, ControlRuntime, ControlState } from "#wow/control";
 import { type CycleRecovery, recoverCorpse } from "#wow/corpse-run";
 import { type CycleStop, cycleStop } from "#wow/cycle-stop";
-import type { EntityEvent } from "#wow/entity-store";
+import type { EntityEvent, EntityLookup } from "#wow/entity-store";
 import { EventWaiter } from "#wow/event-waiter";
 import { JEV_UNAVAILABLE, JevUnavailableError } from "#wow/jev-failure";
 import { lootCorpse } from "#wow/loot-run";
@@ -71,7 +71,7 @@ export type CycleDeps = {
   };
   rewards: Pick<
     RewardsRuntime,
-    "snapshot" | "open" | "take" | "takeMoney" | "close"
+    "snapshot" | "open" | "abandonOpen" | "take" | "takeMoney" | "close"
   >;
   bags: {
     questItems: () => ReadonlySet<number>;
@@ -86,8 +86,9 @@ export type CycleDeps = {
     | "respondResurrection"
   >;
   control: Pick<ControlRuntime, "face" | "move"> & {
-    snapshot: () => Pick<ControlState, "pose" | "speed">;
+    snapshot: () => Pick<ControlState, "pose" | "selfGuid" | "speed">;
   };
+  entity: EntityLookup;
   now: () => number;
 };
 
@@ -375,14 +376,18 @@ export class EncounterCycleRuntime {
       guid: target.guid,
       waiter: new EventWaiter<EntityEvent>(),
     };
+    const motion = new EventWaiter<ControlEvent>();
     this.rewardsEvents = events;
     this.bodyEvents = bodies;
+    this.motionEvents = motion;
     try {
-      const { rewards, bags } = this.deps;
-      const run = { rewards, bags, events, bodies: bodies.waiter, signal };
+      const { rewards, bags, control, entity } = this.deps;
+      const waiters = { events, bodies: bodies.waiter, motion };
+      const run = { rewards, bags, control, entity, ...waiters, signal };
       const result = await lootCorpse(run, target.guid);
       if (!result.ok) return result;
       target.loot = result.record ? "looted" : "none";
+      if (result.cause) target.cause = result.cause;
       if (!result.record) return undefined;
       this.state.lastLoot = result.record;
       this.emit("loot_done");
@@ -390,6 +395,7 @@ export class EncounterCycleRuntime {
     } finally {
       if (this.rewardsEvents === events) this.rewardsEvents = undefined;
       if (this.bodyEvents === bodies) this.bodyEvents = undefined;
+      if (this.motionEvents === motion) this.motionEvents = undefined;
     }
   }
 

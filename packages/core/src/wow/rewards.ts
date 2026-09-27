@@ -230,6 +230,11 @@ export class RewardsRuntime {
     return this.emit("loot_open_requested");
   }
 
+  abandonOpen(): RewardsState {
+    this.failOpen("abandoned");
+    return this.snapshot();
+  }
+
   take(slot: number): RewardsState {
     const window = this.actionWindow();
     const item = window.items.find((offered) => offered.slot === slot);

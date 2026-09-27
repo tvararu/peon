@@ -38,7 +38,11 @@ export function fakeTactics(outcomes: (string | Error)[]) {
 
 export type FakeCorpseLoot = { dead: boolean; lootable: boolean };
 
-export function body(guid: bigint, health: number): EntityEvent {
+export function body(
+  guid: bigint,
+  health: number,
+  position?: { x: number; y: number; z: number },
+): EntityEvent {
   const entity: UnitEntity = {
     class_: 0,
     displayId: 0,
@@ -53,7 +57,7 @@ export function body(guid: bigint, health: number): EntityEvent {
     name: undefined,
     npcFlags: 0,
     objectType: ObjectType.UNIT,
-    position: undefined,
+    position: position ? { ...position, mapId: 0, orientation: 0 } : undefined,
     power: [],
     race: 0,
     rawFields: new Map([[UNIT_FIELDS.HEALTH.offset, health]]),
@@ -77,6 +81,7 @@ export function fakeLoot(config: {
   deferTake?: boolean;
   leftoverWindow?: boolean;
   corpse?: FakeCorpseLoot;
+  silentOpens?: number;
   freeSlots?: number;
   carried?: InventorySlot[];
 }) {
@@ -97,6 +102,7 @@ export function fakeLoot(config: {
   let lastRelease: RewardsState["lastRelease"];
   let lastOpenFailure: RewardsState["lastOpenFailure"];
   const closeRequested = Promise.withResolvers<void>();
+  let silentOpens = config.silentOpens ?? 0;
 
   function lootWindow(): RewardsState["loot"] {
     if (phase === "open" || phase === "closing")
@@ -163,6 +169,10 @@ export function fakeLoot(config: {
   }
 
   return {
+    abandonOpen(): RewardsState {
+      if (phase === "opening") phase = "closed";
+      return state();
+    },
     acknowledgeClose,
     attempted: attempted.promise,
     close(): RewardsState {
@@ -184,6 +194,10 @@ export function fakeLoot(config: {
       if (!corpse.dead) throw new Error(NOT_DEAD);
       if (!corpse.lootable) throw new Error(NOT_LOOTABLE);
       phase = "opening";
+      if (silentOpens > 0) {
+        silentOpens--;
+        return state();
+      }
       queueMicrotask(() => {
         if (config.openFailure !== undefined) {
           emit("loot_release_observed");
@@ -265,7 +279,11 @@ export function fakeControl(
   const faced: number[] = [];
   const moves: { direction: MovementDirection; durationMs: number }[] = [];
   const listeners = new Emitter<[ControlEvent]>();
-  const snapshot = () => ({ pose: pose ? { ...pose } : undefined, speed });
+  const snapshot = () => ({
+    pose: pose ? { ...pose } : undefined,
+    selfGuid: 1n,
+    speed,
+  });
   const stopAfter = (ms: number, reason: string) =>
     setTimeout(() => {
       const state = snapshot() as ControlState;
@@ -313,8 +331,9 @@ const noQuestItems: CycleDeps["bags"] = {
 };
 
 export function makeCycle(
-  deps: Omit<CycleDeps, "rewards" | "bags"> & {
+  deps: Omit<CycleDeps, "rewards" | "bags" | "entity"> & {
     bags?: CycleDeps["bags"];
+    entity?: CycleDeps["entity"];
     loot: CycleDeps["rewards"] & Wired<RewardsEvent>;
     recovery: CycleDeps["recovery"] & Wired<RecoveryEvent>;
     control: CycleDeps["control"] & Wired<ControlEvent>;
@@ -323,6 +342,7 @@ export function makeCycle(
   const runtime = new EncounterCycleRuntime({
     ...deps,
     bags: deps.bags ?? noQuestItems,
+    entity: deps.entity ?? (() => undefined),
     rewards: deps.loot,
   });
   deps.loot.onEvent((event) => runtime.observeRewards(event));

@@ -13,13 +13,13 @@ import type { WorldConn } from "#wow/world-conn";
 import type { WorldEvents } from "#wow/world-events";
 
 export type LootOutcome =
-  | { ok: true; record: CycleLootRecord | undefined }
+  | { ok: true; record: CycleLootRecord | undefined; cause?: string }
   | CycleStop;
 export type RecoveryOutcome = ({ ok: true } & CycleRecovery) | CycleStop;
 
 export type RunDeps = Pick<
   CycleDeps,
-  "rewards" | "bags" | "recovery" | "control"
+  "rewards" | "bags" | "recovery" | "control" | "entity"
 > & {
   events: Pick<WorldEvents, "rewards" | "entity" | "recovery" | "control">;
   cycleActive: () => boolean;
@@ -57,15 +57,19 @@ export function createRuns(deps: RunDeps): Runs {
 async function lootRun({ deps, guid, signal }: LootCall): Promise<LootOutcome> {
   const events = new EventWaiter<RewardsEvent>();
   const bodies = new EventWaiter<EntityEvent>();
+  const motion = new EventWaiter<ControlEvent>();
   const detach = [
     deps.events.rewards.subscribe((event) => events.push(event)),
     deps.events.entity.subscribe((event) => {
       if (entityGuid(event) === guid) bodies.push(event);
     }),
+    deps.events.control.subscribe((event) => motion.push(event)),
   ];
   try {
-    const { rewards, bags } = deps;
-    return await lootCorpse({ rewards, bags, events, bodies, signal }, guid);
+    const { rewards, bags, control, entity } = deps;
+    const waiters = { events, bodies, motion };
+    const run = { rewards, bags, control, entity, ...waiters, signal };
+    return await lootCorpse(run, guid);
   } finally {
     for (const off of detach) off();
   }
@@ -110,5 +114,14 @@ export function runMethods(conn: WorldConn, rt: Runtimes): Runs {
   const cycleActive = () => cycle.snapshot().active;
   const bags = bagsOf(rt);
   const { events } = conn;
-  return createRuns({ bags, control, cycleActive, events, recovery, rewards });
+  const entity = (guid: bigint) => conn.entityStore.get(guid);
+  return createRuns({
+    bags,
+    control,
+    cycleActive,
+    entity,
+    events,
+    recovery,
+    rewards,
+  });
 }

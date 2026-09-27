@@ -258,6 +258,7 @@ test("stale generation loot cleanup keeps the newer listener", async () => {
         return listeners.subscribe(cb);
       },
       snapshot: closed,
+      abandonOpen: closed,
     };
     const runtime = makeCycle({
       tactics: fakeTactics([]),
