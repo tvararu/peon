@@ -158,7 +158,7 @@ describe("chooseTarget", () => {
       target: "Springpaw Stalker",
     });
     await expect(refused).rejects.toMatchObject({
-      next: "engage()",
+      next: `engage(target: "${t.rt.refs.refOf(LYNX)}")`,
       reason: "tapped_by_other",
     });
     await expect(refused).rejects.toHaveProperty(
@@ -167,6 +167,25 @@ describe("chooseTarget", () => {
         /^Springpaw Stalker u\d+ is tapped by another player; killing it gives you no loot, experience or quest credit\.$/,
       ),
     );
+  });
+
+  test("named: a tapped unit with no other hostile in view points at engage()", async () => {
+    const t = await field(10);
+    setUnits(t.handle, [
+      unitRow({
+        distance: 10,
+        entry: 15_366,
+        guid: STALKER,
+        level: 7,
+        name: "Springpaw Stalker",
+        tappedByOther: true,
+        x: 10,
+        y: 0,
+      }),
+    ]);
+    await expect(
+      chooseTarget(toolCtx<EngageAfter>(t), { target: "Springpaw Stalker" }),
+    ).rejects.toMatchObject({ next: "engage()", reason: "tapped_by_other" });
   });
 
   test("named: a tapped unit points at an untapped one of the same name", async () => {

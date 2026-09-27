@@ -137,9 +137,11 @@ async function findUnnamed(ops: OpsCtx): Promise<UnitView> {
 }
 
 function tappedByOther(ctx: ViewCtx, unit: UnitView): Refusal {
-  const free = hostiles(ctx).find(
-    (view) => view.name === unit.name && view.ref !== unit.ref,
+  const cap = selfView(ctx).level + LEVEL_CAP_ABOVE;
+  const others = hostiles(ctx).filter(
+    (view) => view.ref !== unit.ref && view.level <= cap,
   );
+  const free = others.find((view) => view.name === unit.name) ?? others.at(0);
   return new Refusal({
     detail: `${unit.name} ${unit.ref} is tapped by another player; killing it gives you no loot, experience or quest credit.`,
     next: free ? nextCall("engage", { target: free.ref }) : nextCall("engage"),
