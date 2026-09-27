@@ -2,7 +2,7 @@ import type { YieldGate } from "#harness/contract/services";
 
 export const YIELD_DELAY_MS = 50;
 
-export function createYieldGate(): YieldGate {
+export function createYieldGate(delayMs = YIELD_DELAY_MS): YieldGate {
   let waiters: ((why: "human") => void)[] = [];
   return {
     trigger() {
@@ -10,7 +10,7 @@ export function createYieldGate(): YieldGate {
       waiters = [];
       setTimeout(() => {
         for (const resolve of due) resolve("human");
-      }, YIELD_DELAY_MS);
+      }, delayMs);
     },
     wait() {
       const { promise, resolve } = Promise.withResolvers<"human">();

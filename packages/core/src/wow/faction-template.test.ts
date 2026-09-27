@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { packDbc } from "#test-support/dbc";
+import { scratchDir } from "#test-support/scratch";
 import { loadFactionTemplates } from "#wow/faction-template";
 
 const FIELDS = 14;
 const dirs: string[] = [];
 
-async function emptyDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "faction-template-"));
+function emptyDir(): string {
+  const dir = scratchDir("faction-template");
   dirs.push(dir);
   return dir;
 }

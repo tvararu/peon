@@ -1,8 +1,7 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { utimesSync, writeFileSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { rm } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import {
   CredentialExpiredError,
   OmpCredentialStore,
@@ -18,7 +17,7 @@ let home: string;
 let dbPath: string;
 
 beforeEach(async () => {
-  home = await mkdtemp(join(tmpdir(), "harness-omp-"));
+  home = scratchDir("harness-omp");
   dbPath = ompDbPath(home);
 });
 

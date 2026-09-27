@@ -265,7 +265,7 @@ describe("world handler tests", () => {
         w.uint8(0);
         ws.inject(GameOpcode.SMSG_GUILD_EVENT, w.finish());
 
-        await Bun.sleep(50);
+        await waitForEchoProbe(handle);
         expect(events).toHaveLength(0);
 
         handle.close();
@@ -292,7 +292,9 @@ describe("world handler tests", () => {
         handle.guildMotd("Raid tonight");
         handle.acceptGuildInvite();
         handle.declineGuildInvite();
-        await Bun.sleep(1);
+        await ws.waitForCapture(
+          (p) => p.opcode === GameOpcode.CMSG_GUILD_DECLINE,
+        );
 
         const opcodes = ws.captured.map((p) => p.opcode);
         expect(opcodes).toContain(GameOpcode.CMSG_GUILD_INVITE);

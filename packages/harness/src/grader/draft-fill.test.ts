@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { writeFile } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { observedChecks, truthSummary } from "#harness/grader/draft-fill";
 import type { ScenarioCheck } from "#harness/grader/scenarios";
 import type { Truth } from "#harness/grader/truth";
@@ -71,7 +71,7 @@ const row = (seq: number, event: string, data: Record<string, unknown>) =>
   });
 
 async function runDir(files: Record<string, string>): Promise<string> {
-  const dir = await mkdtemp(`${tmpdir()}/fill-`);
+  const dir = scratchDir("fill");
   for (const [name, text] of Object.entries(files))
     await writeFile(`${dir}/${name}`, text);
   return dir;

@@ -13,6 +13,7 @@ import {
   tactics,
   xp,
 } from "#test-support/engage-fixtures";
+import { fakeTimed } from "#test-support/fake-time";
 import { attackBy, contentOf, die, toolCtx } from "#test-support/ops-fixtures";
 
 describe("engage loot names", () => {
@@ -47,11 +48,13 @@ describe("engage loot names", () => {
       outcome(t.handle, runId, KILL);
     });
     lootsFang(t.handle, null);
-    namedLater(t.handle, 7073, "Broken Fang", 60);
-    const res = await engageSpec.run(
-      { target: "Springpaw Stalker" },
-      toolCtx<EngageAfter>(t),
-    );
-    expect(contentOf(res)).toContain("Looted Broken Fang x1, 12 copper.");
+    const { run } = await fakeTimed(() => {
+      namedLater(t.handle, 7073, "Broken Fang", 60);
+      return engageSpec.run(
+        { target: "Springpaw Stalker" },
+        toolCtx<EngageAfter>(t),
+      );
+    }, ITEM_NAME_WAIT_MS);
+    expect(contentOf(await run)).toContain("Looted Broken Fang x1, 12 copper.");
   });
 });

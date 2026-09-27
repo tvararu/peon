@@ -33,6 +33,8 @@ export function codexRow(init: {
 export function writeOmpDb(path: string, rows: readonly OmpDbRow[]): void {
   mkdirSync(dirname(path), { recursive: true });
   const db = new Database(path, { create: true });
+  db.run("pragma synchronous = off");
+  db.run("pragma journal_mode = memory");
   db.run(
     "create table if not exists auth_credentials (id integer primary key, provider text, credential_type text, data text, disabled_cause text, identity_key text, created_at integer, updated_at integer)",
   );

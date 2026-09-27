@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, jest, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { packDbc } from "#test-support/dbc";
+import { scratchDir } from "#test-support/scratch";
 import { catalogAccess } from "#wow/runtime";
 import {
   capabilitiesOf,
@@ -23,7 +23,7 @@ const dirs: string[] = [];
 async function dataDir(
   files: [file: string, fields: number][],
 ): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "runtime-data-"));
+  const dir = scratchDir("runtime-data");
   dirs.push(dir);
   await Promise.all(
     files.map(([file, fields]) =>

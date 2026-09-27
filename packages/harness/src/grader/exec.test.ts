@@ -26,7 +26,7 @@ describe("bunExec", () => {
 
   test("kills a process that runs past the timeout", async () => {
     const started = Date.now();
-    const result = await bunExec(["sleep", "5"], { timeoutMs: 100 });
+    const result = await bunExec(["sleep", "5"], { timeoutMs: 5 });
     expect(result.code).not.toBe(0);
     expect(Date.now() - started).toBeLessThan(3000);
   });

@@ -2,9 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import {
   awaitItemNames,
+  ITEM_NAME_WAIT_MS,
   itemLabelIn,
   nameLootLines,
 } from "#harness/ops/item-names";
+import { fakeMsUntilSettled, withFakeTimers } from "#test-support/fake-time";
 
 function lateNames(afterMs: number, names: Record<number, string>) {
   let ready = false;
@@ -16,17 +18,26 @@ function lateNames(afterMs: number, names: Record<number, string>) {
 
 describe("awaitItemNames", () => {
   test("returns once every name has resolved", async () => {
-    const nameOf = lateNames(60, { 117: "Tough Jerky" });
-    const started = performance.now();
-    await awaitItemNames([117], nameOf, { timeoutMs: 2000 });
-    expect(nameOf(117)).toBe("Tough Jerky");
-    expect(performance.now() - started).toBeLessThan(1000);
+    await withFakeTimers(async () => {
+      const nameOf = lateNames(60, { 117: "Tough Jerky" });
+      const waiting = awaitItemNames([117], nameOf, {
+        timeoutMs: ITEM_NAME_WAIT_MS,
+      });
+      const ms = await fakeMsUntilSettled(waiting, ITEM_NAME_WAIT_MS);
+      expect(nameOf(117)).toBe("Tough Jerky");
+      expect(ms).toBeGreaterThanOrEqual(60);
+      expect(ms).toBeLessThan(ITEM_NAME_WAIT_MS / 2);
+    });
   });
 
   test("gives up after the bound", async () => {
-    const started = performance.now();
-    await awaitItemNames([117], () => undefined, { timeoutMs: 100 });
-    expect(performance.now() - started).toBeGreaterThanOrEqual(90);
+    await withFakeTimers(async () => {
+      const waiting = awaitItemNames([117], () => undefined, {
+        timeoutMs: ITEM_NAME_WAIT_MS,
+      });
+      const ms = await fakeMsUntilSettled(waiting, ITEM_NAME_WAIT_MS * 2);
+      expect(ms).toBeGreaterThanOrEqual(ITEM_NAME_WAIT_MS);
+    });
   });
 
   test("does not wait when nothing is pending", async () => {
@@ -36,14 +47,16 @@ describe("awaitItemNames", () => {
   });
 
   test("returns without throwing when the signal aborts", async () => {
-    const abort = new AbortController();
-    setTimeout(() => abort.abort(new Error("stop")), 30);
-    const started = performance.now();
-    await awaitItemNames([117], () => undefined, {
-      signal: abort.signal,
-      timeoutMs: 2000,
+    await withFakeTimers(async () => {
+      const abort = new AbortController();
+      setTimeout(() => abort.abort(new Error("stop")), 30);
+      const waiting = awaitItemNames([117], () => undefined, {
+        signal: abort.signal,
+        timeoutMs: ITEM_NAME_WAIT_MS,
+      });
+      expect(await fakeMsUntilSettled(waiting, ITEM_NAME_WAIT_MS)).toBe(30);
+      await waiting;
     });
-    expect(performance.now() - started).toBeLessThan(500);
   });
 
   test("returns at once when the signal is already aborted", async () => {
@@ -93,45 +106,48 @@ describe("itemLabelIn", () => {
 
 describe("nameLootLines", () => {
   test("fills names and qualities that arrive late", async () => {
-    const handle = createMockHandle();
-    const inventory = handle.getInventoryState();
-    let named = false;
-    setTimeout(() => {
-      named = true;
-    }, 60);
-    handle.getInventoryState = () => ({
-      ...inventory,
-      slots: [
-        {
-          bag: 255,
-          guid: 0x90n,
-          item: {
-            contained: undefined,
-            count: 2,
-            durability: undefined,
-            entry: 4813,
-            flags: 0,
+    await withFakeTimers(async () => {
+      const handle = createMockHandle();
+      const inventory = handle.getInventoryState();
+      let named = false;
+      setTimeout(() => {
+        named = true;
+      }, 60);
+      handle.getInventoryState = () => ({
+        ...inventory,
+        slots: [
+          {
+            bag: 255,
             guid: 0x90n,
-            maxDurability: undefined,
-            name: named ? "Small Leather Collar" : null,
-            owner: undefined,
-            quality: named ? 0 : null,
-            randomPropertyId: 0,
+            item: {
+              contained: undefined,
+              count: 2,
+              durability: undefined,
+              entry: 4813,
+              flags: 0,
+              guid: 0x90n,
+              maxDurability: undefined,
+              name: named ? "Small Leather Collar" : null,
+              owner: undefined,
+              quality: named ? 0 : null,
+              randomPropertyId: 0,
+            },
+            region: "backpack",
+            slot: 23,
+            status: "occupied",
           },
-          region: "backpack",
-          slot: 23,
-          status: "occupied",
-        },
-      ],
+        ],
+      });
+      const naming = nameLootLines(
+        { handle, signal: undefined },
+        [{ count: 2, itemId: 4813, name: "item 4813", quality: null }],
+        ITEM_NAME_WAIT_MS,
+      );
+      await fakeMsUntilSettled(naming, ITEM_NAME_WAIT_MS);
+      expect(await naming).toEqual([
+        { count: 2, itemId: 4813, name: "Small Leather Collar", quality: 0 },
+      ]);
     });
-    const lines = await nameLootLines(
-      { handle, signal: undefined },
-      [{ count: 2, itemId: 4813, name: "item 4813", quality: null }],
-      2000,
-    );
-    expect(lines).toEqual([
-      { count: 2, itemId: 4813, name: "Small Leather Collar", quality: 0 },
-    ]);
   });
 
   test("an aborted signal stops the wait and keeps the id names", async () => {

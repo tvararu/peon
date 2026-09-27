@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { writeFile } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { readBots, recordBots } from "#harness/grader/bots";
 import { loadScenario } from "#harness/grader/scenarios";
 import { failed, fakeExec, ok } from "#test-support/fake-exec";
@@ -55,7 +55,7 @@ describe("readBots", () => {
 
 describe("recordBots", () => {
   test("adds the bot count to run.json and logs it", async () => {
-    const dir = await mkdtemp(`${tmpdir()}/bots-`);
+    const dir = scratchDir("bots");
     await writeFile(`${dir}/run.json`, JSON.stringify({ replica: 1, t0: 5 }));
     const lines: string[] = [];
     const { exec } = fakeExec(() => health(107));

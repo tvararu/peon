@@ -1,7 +1,7 @@
-import { expect, test } from "bun:test";
+import { expect, jest, test } from "bun:test";
 import { context } from "#test-support/combat-actions-fixtures";
 import { ARCANE_SHOT, AUTO_SHOT, hunter } from "#test-support/hunter-fixtures";
-import { fixture, judgment } from "#test-support/tactics-fixtures";
+import { drive, fixture, judgment } from "#test-support/tactics-fixtures";
 import { ObjectType, UNIT_FIELDS } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
@@ -36,11 +36,13 @@ test("fake Jev sends the pet in, starts Auto Shot, then fires Arcane Shot", asyn
       return judgment(plan[offered.length - 1] ?? "wait");
     },
   });
+  jest.useFakeTimers();
   const running = f.tactics.start(context);
   try {
-    await done.promise;
+    await drive(done.promise);
   } finally {
     f.tactics.dispose();
+    jest.useRealTimers();
     await running;
   }
   expect(offered[0]).toContain("pet_attack");

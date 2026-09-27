@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, readFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import type { StatusJson } from "#harness/contract/config";
 import type { RunEnd } from "#harness/contract/runs";
 import { createStatusWriter, statusSnapshot } from "#harness/eval/status";
@@ -10,9 +10,9 @@ import { createRunRegistry } from "#harness/runs/registry";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 
 async function fileAppears(path: string): Promise<void> {
-  for (let tries = 0; tries < 200; tries += 1) {
+  for (let tries = 0; tries < 1000; tries += 1) {
     if (await Bun.file(path).exists()) return;
-    await Bun.sleep(5);
+    await Bun.sleep(1);
   }
   throw new Error(`${path} never appeared`);
 }
@@ -60,10 +60,7 @@ describe("statusSnapshot", () => {
 
 describe("createStatusWriter", () => {
   test("writes status.json on each tick and the last state at stop", async () => {
-    const path = join(
-      await mkdtemp(join(tmpdir(), "tc-harness-status-")),
-      "status.json",
-    );
+    const path = join(scratchDir("tc-harness-status"), "status.json");
     let calls = 0;
     const snapshot = (): StatusJson => {
       calls += 1;
@@ -80,7 +77,7 @@ describe("createStatusWriter", () => {
       };
     };
     const writer = createStatusWriter({ path, snapshot });
-    writer.start(5);
+    writer.start(1);
     await fileAppears(path);
     await writer.stop();
     expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({

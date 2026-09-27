@@ -1,8 +1,8 @@
 import { describe, expect, jest, test } from "bun:test";
-import { mkdir, mkdtemp, readlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, readlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import type { HarnessFlags } from "#harness/contract/config";
 import type { DeliverySink } from "#harness/contract/services";
 import {
@@ -39,7 +39,7 @@ function fakePi() {
 }
 
 async function setup(flags: Partial<HarnessFlags> = {}) {
-  const dir = await mkdtemp(join(tmpdir(), "tc-harness-install-"));
+  const dir = scratchDir("tc-harness-install");
   const clock = { now: () => 1000 };
   const log = createGameLog({ char: () => "Fgk", clock, file: undefined });
   const paths = testPaths(dir);

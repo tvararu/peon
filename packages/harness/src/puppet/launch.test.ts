@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { afterEach, describe, expect, jest, test } from "bun:test";
+import { rm, writeFile } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { launchPuppet } from "#harness/puppet/launch";
 
 let dir: string;
@@ -8,7 +8,7 @@ let dir: string;
 afterEach(() => rm(dir, { force: true, recursive: true }));
 
 async function entry(source: string): Promise<string> {
-  dir = await mkdtemp(`${tmpdir()}/puppet-launch-`);
+  dir = scratchDir("launch");
   const path = `${dir}/entry.ts`;
   await writeFile(path, source);
   return path;
@@ -21,6 +21,18 @@ async function alive(pidFile: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+async function written(pidFile: string): Promise<void> {
+  while (
+    (await Bun.file(pidFile)
+      .text()
+      .catch(() => "")) === ""
+  ) {
+    const turn = Promise.withResolvers<void>();
+    setImmediate(turn.resolve);
+    await turn.promise;
   }
 }
 
@@ -59,9 +71,16 @@ describe("launchPuppet", () => {
       `await Bun.write(import.meta.dir + "/pid", String(process.pid));
        setTimeout(() => {}, 5000);`,
     );
-    await expect(launchPuppet({ entry: path, timeoutMs: 300 })).rejects.toThrow(
-      "0.3 s",
-    );
-    expect(await alive(`${dir}/pid`)).toBe(false);
+    const pidFile = `${dir}/pid`;
+    jest.useFakeTimers();
+    try {
+      const launched = launchPuppet({ entry: path, timeoutMs: 300 });
+      await written(pidFile);
+      jest.advanceTimersByTime(300);
+      await expect(launched).rejects.toThrow("0.3 s");
+    } finally {
+      jest.useRealTimers();
+    }
+    expect(await alive(pidFile)).toBe(false);
   });
 });

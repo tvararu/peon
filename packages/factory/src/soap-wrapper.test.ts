@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import { serializeConfig } from "@peon/core/lib/config";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import {
   accountFiles,
   removeAccountFiles,
@@ -12,7 +12,7 @@ import {
 
 const account = "FAC6AB6E05F5A";
 const character = "Fgklgoafpfk";
-const fakeBun = `#!/usr/bin/env bash
+const fakeBun = `#!/bin/sh
 printf '%s\\n' "$XDG_CONFIG_HOME" "$XDG_RUNTIME_DIR" "$XDG_STATE_HOME" "$@"
 `;
 
@@ -55,7 +55,7 @@ async function run(): Promise<{ code: number; out: string; err: string }> {
 }
 
 beforeEach(async () => {
-  root = await mkdtemp(`${tmpdir()}/soap wrapper '`);
+  root = scratchDir("soap wrapper '");
   await mkdir(`${root}/bin`);
   await writeFile(`${root}/bin/bun`, fakeBun, { mode: 0o755 });
   wrapper = await writeWrapper({ account, character, root });

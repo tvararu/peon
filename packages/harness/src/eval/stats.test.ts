@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, readFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { createToolStats } from "#harness/eval/stats";
 
 async function fileAppears(path: string): Promise<void> {
-  for (let tries = 0; tries < 200; tries += 1) {
+  for (let tries = 0; tries < 1000; tries += 1) {
     if (await Bun.file(path).exists()) return;
-    await Bun.sleep(5);
+    await Bun.sleep(1);
   }
   throw new Error(`${path} never appeared`);
 }
@@ -65,10 +65,10 @@ describe("createToolStats", () => {
   });
 
   test("a tick writes tools.json, and stop writes the last state", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "tc-harness-stats-"));
+    const dir = scratchDir("tc-harness-stats");
     const path = join(dir, "tools.json");
     const stats = createToolStats({ now: () => 7 });
-    stats.start({ everyMs: 5, path });
+    stats.start({ everyMs: 1, path });
     await fileAppears(path);
     expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({
       tools: {},

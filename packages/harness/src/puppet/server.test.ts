@@ -203,8 +203,8 @@ describe("puppet server over the socket", () => {
   });
 
   test("stop closes the socket when the server does not finish the logout in time", async () => {
-    const { handle, paths, server } = await setup({ logoutWaitMs: 50 });
-    expect(await ask(paths, { cmd: "stop" })).toContain("0.05 s");
+    const { handle, paths, server } = await setup({ logoutWaitMs: 1 });
+    expect(await ask(paths, { cmd: "stop" })).toContain("0.001 s");
     await handle.closed;
     await server.done;
     expect(await exists(paths.socket)).toBe(false);

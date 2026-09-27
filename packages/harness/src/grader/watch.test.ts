@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { appendFile, mkdtemp, readdir, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { appendFile, readdir, writeFile } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import type { StatusJson } from "#harness/contract/config";
 import type { Domain, GameLogEntry, LogEvent } from "#harness/contract/log";
 import { watchRun } from "#harness/grader/watch";
@@ -39,7 +39,7 @@ async function lines(file: string): Promise<unknown[]> {
 }
 
 async function runDir(): Promise<string> {
-  const dir = await mkdtemp(`${tmpdir()}/watch-`);
+  const dir = scratchDir("watch");
   const status: StatusJson = {
     agent: "tool",
     at: 2500,

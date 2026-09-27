@@ -1,5 +1,5 @@
-import { appendFile, mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { appendFile } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import type { StatusJson } from "#harness/contract/config";
 import type { Domain, GameLogEntry, LogEvent } from "#harness/contract/log";
 import { bunExec, type Exec, type ExecResult } from "#harness/grader/exec";
@@ -31,7 +31,7 @@ export type World = {
 };
 
 export async function newWorld(overrides: Partial<World> = {}): Promise<World> {
-  const worktree = await mkdtemp(`${tmpdir()}/run-`);
+  const worktree = scratchDir("run");
   const { runDir } = runPaths({
     replica: 1,
     round: 1,
@@ -90,7 +90,7 @@ async function writeStatus(world: World): Promise<void> {
     tool: undefined,
     v: 1,
   };
-  await writeFile(`${world.runDir}/status.json`, JSON.stringify(status));
+  await Bun.write(`${world.runDir}/status.json`, JSON.stringify(status));
 }
 
 function truth(world: World): string {

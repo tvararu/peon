@@ -1,14 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import {
-  lstat,
-  mkdir,
-  mkdtemp,
-  readdir,
-  readFile,
-  writeFile,
-} from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { lstat, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import type { RunMeta } from "#harness/contract/config";
 import {
   createRunDir,
@@ -26,7 +19,7 @@ import {
 const now = new Date(Date.UTC(2026, 8, 26, 19, 13, 31, 123));
 
 async function home() {
-  return mkdtemp(join(tmpdir(), "tc-harness-home-"));
+  return scratchDir("tc-harness-home");
 }
 
 describe("runStamp and runPaths", () => {

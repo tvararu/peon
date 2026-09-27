@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { samePatch } from "#factory/patch";
 import { git } from "#test-support/git";
 
@@ -8,9 +8,9 @@ const identity = ["-c", "user.name=t", "-c", "user.email=t@example.com"];
 
 async function commitFile(dir: string, text: string, msg: string) {
   await Bun.write(`${dir}/f.txt`, text);
-  await git(dir, "add", "f.txt");
-  await git(dir, ...identity, "commit", "-q", "-m", msg);
-  return (await git(dir, "rev-parse", "HEAD")).trim();
+  const out = await git(dir, ...identity, "commit", "-a", "-m", msg);
+  const [, sha = ""] = /\s([0-9a-f]{7,})\]/.exec(out) ?? [];
+  return sha;
 }
 
 const lines = (n: number) =>
@@ -18,10 +18,12 @@ const lines = (n: number) =>
 
 describe("samePatch", () => {
   test("a rebase that only moves context keeps the patch; a new change does not", async () => {
-    const dir = await mkdtemp(`${tmpdir()}/same-patch-`);
+    const dir = scratchDir("same-patch");
     const inRepo = (args: string[]) => git(dir, ...args);
     try {
       await git(dir, "init", "-q", "-b", "main");
+      await Bun.write(`${dir}/f.txt`, "");
+      await git(dir, "add", "f.txt");
       const base = await commitFile(dir, `${lines(10)}\n`, "chore: Base");
       await git(dir, "switch", "-q", "-c", "pr");
       const old = await commitFile(
@@ -56,7 +58,7 @@ describe("samePatch", () => {
           .same,
       ).toBe(false);
     } finally {
-      await Bun.$`rm -rf ${dir}`.quiet();
+      await rm(dir, { force: true, recursive: true });
     }
   });
 });

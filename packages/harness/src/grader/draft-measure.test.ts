@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { writeFile } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { observedChecks } from "#harness/grader/draft-fill";
 import type { ScenarioCheck } from "#harness/grader/scenarios";
 
@@ -29,7 +29,7 @@ const row = (
   });
 
 async function fill(lines: string[], check: ScenarioCheck) {
-  const dir = await mkdtemp(`${tmpdir()}/measure-`);
+  const dir = scratchDir("measure");
   await writeFile(`${dir}/gamelog.jsonl`, `${lines.join("\n")}\n`);
   const [filled] = await observedChecks(dir, [check]);
   return filled;

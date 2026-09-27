@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readdir, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, readdir, writeFile } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { bunExec, type Exec } from "#harness/grader/exec";
 import { type EvalResult, validateResult } from "#harness/grader/result";
 import {
@@ -71,7 +71,8 @@ async function state(
   exec: Exec,
   overrides: Partial<RunState> = {},
 ): Promise<RunState> {
-  const runDir = await mkdtemp(`${tmpdir()}/finish-`);
+  const runDir = `${scratchDir("finish")}/run`;
+  await mkdir(runDir);
   await mkdir(`${runDir}/grader`);
   await mkdir(`${runDir}/frames`);
   const base = newRunState({

@@ -278,7 +278,7 @@ describe("rest", () => {
       }),
     ]);
     const pending = restSpec.run({}, toolCtx<RestAfter>(t));
-    await Bun.sleep(5);
+    await Bun.sleep(0);
     attackBy(t.handle, STALKER);
     const res = await pending;
     expect(res).toMatchObject({ reason: "interrupted", status: "FAILED" });

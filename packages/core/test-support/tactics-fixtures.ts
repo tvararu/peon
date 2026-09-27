@@ -1,3 +1,5 @@
+import { jest } from "bun:test";
+import { flushMicrotasks } from "#test-support/microtasks";
 import type { JevActionResult } from "#wow/jev";
 import {
   type TacticsContext,
@@ -85,4 +87,29 @@ export function fixture(over: Partial<TacticsDeps> = {}) {
     stopped: stopped.promise,
     tactics,
   };
+}
+
+export async function drive(until: Promise<unknown>): Promise<void> {
+  let reached = false;
+  void until.then(() => {
+    reached = true;
+  });
+  await flushMicrotasks();
+  for (let timers = 0; !reached; timers++) {
+    if (timers === 1000 || jest.getTimerCount() === 0)
+      throw new Error(`drive: stuck after ${timers} timers`);
+    jest.advanceTimersToNextTimer();
+    await flushMicrotasks();
+  }
+}
+
+export async function settle<T>(run: () => Promise<T>): Promise<T> {
+  jest.useFakeTimers();
+  try {
+    const pending = run();
+    await drive(pending.catch(() => undefined));
+    return await pending;
+  } finally {
+    jest.useRealTimers();
+  }
 }

@@ -157,9 +157,16 @@ describe("world handler tests", () => {
         handle.onMessage((msg) => messages.push(msg));
 
         handle.sendSay("hello");
-        await Bun.sleep(50);
+        await ws.waitForCapture(
+          (p) => p.opcode === GameOpcode.CMSG_MESSAGE_CHAT,
+        );
+        ws.inject(
+          GameOpcode.SMSG_FRIEND_STATUS,
+          buildFriendStatus({ result: 0x10, guid: 0x42n }),
+        );
+        await waitForEchoProbe(handle);
 
-        expect(messages).toHaveLength(0);
+        expect(messages.map((msg) => msg.message)).toEqual(["probe"]);
 
         handle.close();
         await handle.closed;
@@ -177,7 +184,7 @@ describe("world handler tests", () => {
         );
 
         handle.addIgnore("Spammer");
-        await Bun.sleep(1);
+        await ws.waitForCapture((p) => p.opcode === GameOpcode.CMSG_ADD_IGNORE);
 
         const addPackets = ws.captured.filter(
           (p) => p.opcode === GameOpcode.CMSG_ADD_IGNORE,
@@ -221,10 +228,10 @@ describe("world handler tests", () => {
           GameOpcode.SMSG_NAME_QUERY_RESPONSE,
           buildNameQueryResponse(0xff, "Spammer"),
         );
-        await Bun.sleep(1);
+        await waitForEchoProbe(handle);
 
         handle.removeIgnore("Spammer");
-        await Bun.sleep(1);
+        await ws.waitForCapture((p) => p.opcode === GameOpcode.CMSG_DEL_IGNORE);
 
         const delPackets = ws.captured.filter(
           (p) => p.opcode === GameOpcode.CMSG_DEL_IGNORE,

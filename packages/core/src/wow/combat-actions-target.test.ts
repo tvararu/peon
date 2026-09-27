@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { packDbc } from "#test-support/dbc";
+import { scratchDir } from "#test-support/scratch";
 import type { CombatState } from "#wow/combat";
 import { targetReason, targetRelation } from "#wow/combat-actions-target";
 import { EntityStore } from "#wow/entity-store";
@@ -34,7 +34,7 @@ let dir = "";
 let catalog: FactionTemplateCatalog;
 
 beforeAll(async () => {
-  dir = await mkdtemp(join(tmpdir(), "combat-target-"));
+  dir = scratchDir("combat-target");
   await Bun.write(
     join(dir, "FactionTemplate.dbc"),
     packDbc(14, [

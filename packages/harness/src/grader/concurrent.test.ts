@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, writeFile } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { LOWER_BOUND_NOTE, writeConcurrent } from "#harness/grader/concurrent";
 
 async function runDir(
@@ -20,7 +20,7 @@ async function runDir(
 
 describe("writeConcurrent", () => {
   test("lists the other runs' characters as a timestamped lower bound", async () => {
-    const round = await mkdtemp(`${tmpdir()}/round-`);
+    const round = scratchDir("round");
     const own = await runDir(round, "t0-self-state-1", { "names.json": "Own" });
     await runDir(round, "t0-who-is-near-1", {
       "names.json": "Agent",

@@ -1,16 +1,15 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { strayMessage, strayWorktree } from "#factory/repo-guard";
-import { git } from "#test-support/git";
 
-let counter = 0;
+const core = "[core]\n\trepositoryformatversion = 0\n\tbare = false\n";
 let repo = "";
 
 beforeEach(async () => {
-  counter += 1;
-  repo = `${process.cwd()}/tmp/repo-guard-${Date.now()}-${counter}`;
-  await mkdir(repo, { recursive: true });
-  await git(repo, "init", "-q");
+  repo = scratchDir("repo-guard");
+  await mkdir(`${repo}/.git`);
+  await writeFile(`${repo}/.git/config`, core);
 });
 
 afterEach(async () => {
@@ -23,7 +22,7 @@ describe("strayWorktree", () => {
   });
 
   test("returns the value when core.worktree is set", async () => {
-    await git(repo, "config", "core.worktree", "/wt/run-26");
+    await writeFile(`${repo}/.git/config`, `${core}\tworktree = /wt/run-26\n`);
     expect(await strayWorktree(repo)).toBe("/wt/run-26");
   });
 

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { serializeConfig } from "@peon/core/lib/config";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import {
   isProtected,
   loadProfile,
@@ -12,7 +12,7 @@ import {
 let root: string;
 
 beforeEach(async () => {
-  root = await mkdtemp(join(tmpdir(), "harness-profile-"));
+  root = scratchDir("harness-profile");
 });
 
 afterEach(async () => {

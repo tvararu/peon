@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, readdir } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readdir } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { captureFrame, tagFrame } from "#harness/grader/frames";
 import { nerd } from "#harness/ui/glyphs";
 import { fakePane } from "#test-support/fake-pane";
@@ -19,7 +19,7 @@ describe("tagFrame", () => {
 
 describe("captureFrame", () => {
   test("saves a changed screen as <seq>-<ms>.txt", async () => {
-    const dir = await mkdtemp(`${tmpdir()}/frames-`);
+    const dir = scratchDir("frames");
     const frame = await captureFrame({
       dir,
       last: undefined,
@@ -39,7 +39,7 @@ describe("captureFrame", () => {
   });
 
   test("skips a screen equal to the last frame", async () => {
-    const dir = await mkdtemp(`${tmpdir()}/frames-`);
+    const dir = scratchDir("frames");
     const frame = await captureFrame({
       dir,
       last: "<self> you",

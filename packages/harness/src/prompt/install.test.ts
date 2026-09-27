@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import {
@@ -21,6 +20,7 @@ import {
   SessionManager,
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import type { HarnessRuntime, ReadyGate } from "#harness/contract/services";
 import type { InWorld } from "#harness/contract/views";
 import { installPrompt } from "#harness/prompt/install";
@@ -178,7 +178,7 @@ describe("installPrompt", () => {
   });
 
   test("a wake turn gets the Luna prompt too", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "harness-prompt-"));
+    const dir = scratchDir("harness-prompt");
     const { rt } = await createTestRuntime({
       parts: { ready: readyWith(WORLD) },
     });

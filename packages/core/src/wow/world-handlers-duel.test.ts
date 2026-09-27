@@ -100,7 +100,7 @@ describe("world handler tests", () => {
       nameResp.uint32LE(1);
       ws.inject(GameOpcode.SMSG_NAME_QUERY_RESPONSE, nameResp.finish());
 
-      await Bun.sleep(1);
+      await waitForEchoProbe(handle);
 
       const requested = new PacketWriter();
       requested.uint64LE(42n);

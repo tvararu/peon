@@ -1,9 +1,12 @@
-import { expect, test } from "bun:test";
+import { expect, jest, test } from "bun:test";
+import { flushMicrotasks } from "#test-support/microtasks";
 import {
   context,
+  drive,
   fixture,
   frame,
   judgment,
+  settle,
 } from "#test-support/tactics-fixtures";
 import type { JevActionResult } from "#wow/jev";
 import type { TacticsFrame } from "#wow/tactics";
@@ -31,7 +34,7 @@ function scripted(replies: readonly ("timeout" | "ok")[], killAfter: number) {
 
 test("one timeout is discarded and the next request fights on to the kill", async () => {
   const f = scripted(["timeout", "ok"], 1);
-  await f.tactics.start(context);
+  await settle(() => f.tactics.start(context));
   await f.stopped;
   expect(f.actions).toEqual(["smite"]);
   expect(f.events.filter((event) => event.type === "request")).toHaveLength(2);
@@ -50,7 +53,7 @@ test("one timeout is discarded and the next request fights on to the kill", asyn
 
 test("three timeouts in a row stop with jev_timeout and defend", async () => {
   const f = scripted(["timeout", "timeout", "timeout", "ok"], 1);
-  await f.tactics.start(context);
+  await settle(() => f.tactics.start(context));
   await f.stopped;
   expect(f.actions).toEqual([]);
   expect(f.events.filter((event) => event.type === "request")).toHaveLength(3);
@@ -74,7 +77,7 @@ test("an answered request resets the consecutive timeout count", async () => {
     ["timeout", "timeout", "ok", "timeout", "timeout", "ok"],
     2,
   );
-  await f.tactics.start(context);
+  await settle(() => f.tactics.start(context));
   await f.stopped;
   expect(f.actions).toEqual(["smite", "smite"]);
   expect(f.tactics.snapshot()).toMatchObject({
@@ -99,14 +102,19 @@ test("a reply that arrives after its timeout is discarded, not executed mid-figh
       return answered.promise;
     },
   });
-  const running = f.tactics.start(context);
-  await second.promise;
-  late.resolve(judgment("smite"));
-  await Bun.sleep(0);
-  expect(f.actions).toEqual([]);
-  answered.resolve(judgment("wait"));
-  await running;
-  await f.stopped;
+  jest.useFakeTimers();
+  try {
+    const running = f.tactics.start(context);
+    await drive(second.promise);
+    late.resolve(judgment("smite"));
+    await flushMicrotasks();
+    expect(f.actions).toEqual([]);
+    answered.resolve(judgment("wait"));
+    await drive(f.stopped);
+    await running;
+  } finally {
+    jest.useRealTimers();
+  }
   expect(f.actions).toEqual(["wait"]);
   expect(f.events).toContainEqual(
     expect.objectContaining({

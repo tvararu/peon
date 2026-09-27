@@ -300,7 +300,7 @@ describe("world handler tests", () => {
         );
 
         handle.addFriend("Arthas");
-        await Bun.sleep(1);
+        await ws.waitForCapture((p) => p.opcode === GameOpcode.CMSG_ADD_FRIEND);
 
         const addPackets = ws.captured.filter(
           (p) => p.opcode === GameOpcode.CMSG_ADD_FRIEND,
@@ -349,10 +349,10 @@ describe("world handler tests", () => {
           GameOpcode.SMSG_NAME_QUERY_RESPONSE,
           buildNameQueryResponse(0xff, "Arthas"),
         );
-        await Bun.sleep(1);
+        await waitForEchoProbe(handle);
 
         handle.removeFriend("Arthas");
-        await Bun.sleep(1);
+        await ws.waitForCapture((p) => p.opcode === GameOpcode.CMSG_DEL_FRIEND);
 
         const delPackets = ws.captured.filter(
           (p) => p.opcode === GameOpcode.CMSG_DEL_FRIEND,

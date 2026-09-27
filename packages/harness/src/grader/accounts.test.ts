@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readdir, stat, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import {
   applySetup,
   createAccount,
@@ -23,11 +23,11 @@ const SESSION = {
   wrapper: "/wt/tmp/puppet-FAC0123456789",
 };
 
-const dir = (): Promise<string> => mkdtemp(`${tmpdir()}/accounts-`);
+const dir = (): string => scratchDir("accounts");
 
 describe("createAccount", () => {
   test("keeps the session in a mode-600 file and the names in names.json", async () => {
-    const runDir = await dir();
+    const runDir = dir();
     const { calls, exec } = fakeExec(() => ok(`${JSON.stringify(SESSION)}\n`));
     const names = await createAccount({
       exec,
@@ -59,7 +59,7 @@ describe("createAccount", () => {
   });
 
   test("writes partner files for the partner role", async () => {
-    const runDir = await dir();
+    const runDir = dir();
     const { exec } = fakeExec(() => ok(JSON.stringify(SESSION)));
     await createAccount({
       exec,
@@ -81,7 +81,7 @@ describe("createAccount", () => {
       owner: "o",
       preset: "eversong10-hunter",
       role: "agent",
-      runDir: await dir(),
+      runDir: dir(),
     }).catch((err: unknown) => err);
     expect(error).toBeInstanceOf(RunAbort);
     expect((error as RunAbort).abortCause).toBe("soap_create");
@@ -100,7 +100,7 @@ describe("createAccount", () => {
         owner: "o",
         preset: "eversong10",
         role: "agent",
-        runDir: await dir(),
+        runDir: dir(),
       }),
     ).rejects.toThrow("soap_create: soap create returned no factory account");
   });
@@ -108,7 +108,7 @@ describe("createAccount", () => {
 
 describe("applySetup", () => {
   test("runs each setup call and logs each reply", async () => {
-    const runDir = await dir();
+    const runDir = dir();
     const { calls, exec } = fakeExec(() =>
       ok(
         '{\n  "changed": { "level": 1, "xp": 0 },\n  "char": "Fevala",\n  "ok": true\n}\n',
@@ -148,7 +148,7 @@ describe("applySetup", () => {
       applySetup({
         account: ACC,
         exec,
-        runDir: await dir(),
+        runDir: dir(),
         setup: [{ body: { level: 1 }, endpoint: "level" }],
       }),
     ).rejects.toThrow("setup_failed: level: character_online");
@@ -185,7 +185,7 @@ describe("deleteAccounts", () => {
 
 describe("quarantine and removeSessionFiles", () => {
   test("moves leaked files into a mode-700 quarantine dir", async () => {
-    const runDir = await dir();
+    const runDir = dir();
     await mkdir(`${runDir}/frames`);
     await writeFile(`${runDir}/frames/00001-5.txt`, "leak");
     await quarantine({ files: ["frames/00001-5.txt"], runDir });
@@ -197,7 +197,7 @@ describe("quarantine and removeSessionFiles", () => {
   });
 
   test("removes the session files and tolerates missing ones", async () => {
-    const runDir = await dir();
+    const runDir = dir();
     await writeFile(sessionFile(runDir, "agent"), "{}");
     await removeSessionFiles(runDir);
     expect(await readdir(runDir)).toEqual([]);

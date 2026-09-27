@@ -1,4 +1,5 @@
 import { expect, jest, test } from "bun:test";
+import { hasSettled } from "#test-support/microtasks";
 import { CombatCasts } from "#wow/combat-casts";
 import { CooldownStore } from "#wow/cooldown-store";
 import type { InventorySlot, InventoryState } from "#wow/inventory";
@@ -159,7 +160,15 @@ test("an unanswered template query times out and can be asked again", async () =
     send: (opcode) => sent.push(opcode),
     timeoutMs: 5,
   });
-  await expect(templates.lookup(2687)).rejects.toThrow("item_query_timeout");
+  jest.useFakeTimers();
+  try {
+    const unanswered = templates.lookup(2687);
+    jest.advanceTimersByTime(5);
+    expect(await hasSettled(unanswered)).toBe(true);
+    await expect(unanswered).rejects.toThrow("item_query_timeout");
+  } finally {
+    jest.useRealTimers();
+  }
   const retry = templates.lookup(2687);
   templates.receive({ entry: 2687, template: ribs });
   expect(await retry).toEqual(ribs);

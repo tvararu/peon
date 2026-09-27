@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { native } from "#test-support/navigation-fixtures";
+import { scratchDir } from "#test-support/scratch";
 import { createNavigation, type NavPoint } from "#wow/navigation";
 import { hasNavigationData, navigationMapName } from "#wow/navigation-maps";
 import type { NativeMap } from "#wow/navigation-native";
@@ -11,7 +11,7 @@ const start: NavPoint = { x: 0, y: 0, z: 0 };
 const end: NavPoint = { x: 10, y: 0, z: 0 };
 
 async function withData<T>(names: string[], run: (dir: string) => T) {
-  const dir = await mkdtemp(join(tmpdir(), "nav-maps-"));
+  const dir = scratchDir("nav-maps");
   try {
     for (const name of names) await writeFile(join(dir, `${name}.map`), "");
     return run(dir);

@@ -1,7 +1,6 @@
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createMockHandle } from "@peon/core/test-support/mock-handle";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import type { HarnessFlags, Profile, RunPaths } from "#harness/contract/config";
 import type { GameLogEntry } from "#harness/contract/log";
 import type {
@@ -153,7 +152,7 @@ function defaultParts({
     jevLog: memorySink(),
     log,
     mutex: createWorldMutex(),
-    paths: testPaths(mkdtempSync(join(tmpdir(), "harness-run-"))),
+    paths: testPaths(scratchDir("harness-run")),
     profile: testProfile(),
     progress: {
       ...detached,
@@ -199,7 +198,7 @@ function defaultParts({
       recovery: undefined,
       visitedCells: new Set(),
     },
-    yields: createYieldGate(),
+    yields: createYieldGate(0),
   };
 }
 

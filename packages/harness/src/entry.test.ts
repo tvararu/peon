@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { scratchDir } from "@peon/core/test-support/scratch";
 import { ompDbPath } from "#harness/credentials/omp-store";
 import { codexRow, writeOmpDb } from "#test-support/omp-db";
 
@@ -11,7 +11,7 @@ const ENTRY = join(import.meta.dir, "entry.ts");
 let home: string;
 
 beforeEach(async () => {
-  home = await mkdtemp(join(tmpdir(), "harness-entry-"));
+  home = scratchDir("harness-entry");
 });
 
 afterEach(async () => {
