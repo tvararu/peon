@@ -126,16 +126,12 @@ async function legWork(
 async function unstickWork(work: Work): Promise<Report> {
   try {
     const moved = await unstick(work.ops);
-    const toward =
-      moved.toward === "last_good_pose"
-        ? "back toward the last place that planned"
-        : "away from the nearest object";
     return result("DONE", {
       after: work.after({
         goal: { kind: "unstick", refusedGoal: moved.refusedGoal },
         traveledYd: moved.movedYd,
       }),
-      detail: `moved ${yd(moved.movedYd)} yd ${toward}.`,
+      detail: `moved ${yd(moved.movedYd)} yd.`,
       next: moved.refusedGoal
         ? nextCall("travel", { to: moved.refusedGoal })
         : nextCall("look"),

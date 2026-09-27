@@ -5,6 +5,7 @@ import { travelSpec } from "#harness/tools/travel";
 import {
   attackBy,
   contentOf,
+  die,
   driveGoto,
   limitProblem,
   MAP_ID,
@@ -87,10 +88,10 @@ describe("travel", () => {
       toolCtx<TravelAfter>(t),
     );
     expect(res).toMatchObject({ reason: "no_ground", status: "FAILED" });
-    expect(res.next).toStartWith(
-      'ask the human: "I cannot reach Marniel Amberlight',
-    );
-    expect(limitProblem(contentOf(res))).toBeUndefined();
+    expect(fit(res).split("\n")).toEqual([
+      "FAILED no_ground: the path finder found no ground on the way (UNKNOWN_HEIGHT). Walked 0 yd. Tried: planner once.",
+      'Next: ask the human: "I cannot reach Marniel Amberlight from here. Is there another way?"',
+    ]);
   });
 
   test("coordinates on two floors refuse with the floors and a ready call", async () => {
@@ -135,7 +136,25 @@ describe("travel", () => {
       toolCtx<TravelAfter>(t),
     );
     expect(res).toMatchObject({ next: 'travel(to: "u4")', status: "DONE" });
-    expect(fit(res)).toStartWith("DONE moved 4.8 yd");
+    expect(fit(res)).toBe('DONE moved 4.8 yd.\nNext: travel(to: "u4")');
+  });
+
+  test("a failed unstick asks the human to move you", async () => {
+    const t = await world();
+    t.handle.walkToward = jest.fn(async () => {
+      throw new Error("the walk was blocked");
+    });
+    const res = await travelSpec.run(
+      { to: "unstick" },
+      toolCtx<TravelAfter>(t),
+    );
+    expect(res).toMatchObject({
+      detail: "the walk was blocked",
+      next: 'ask the human: "I am stuck. Can you move me?"',
+      reason: "unstick_failed",
+      status: "FAILED",
+    });
+    expect(limitProblem(contentOf(res))).toBeUndefined();
   });
 
   test("explore north reports what came into view", async () => {
@@ -153,6 +172,26 @@ describe("travel", () => {
     expect(res.status).toBe("DONE");
     expect(fit(res)).toMatch(
       /^DONE explored 20 yd north\. New in view: 1 hostile \(u\d+ Springpaw Stalker L7 22 yd/,
+    );
+  });
+
+  test("three blocked explore legs end PARTLY obstructed", async () => {
+    const t = await world();
+    driveGoto(t.handle, [
+      { refuse: "unreachable: no path to the destination" },
+    ]);
+    const res = await travelSpec.run(
+      { to: "explore north" },
+      toolCtx<TravelAfter>(t),
+    );
+    expect(res).toMatchObject({
+      next: 'travel(to: "explore")',
+      reason: "obstructed",
+      status: "PARTLY",
+    });
+    expect(res.after.legs).toHaveLength(3);
+    expect(fit(res)).toStartWith(
+      "PARTLY obstructed: explored 0 yd north; 3 legs were blocked. Nothing new in view.",
     );
   });
 
@@ -219,6 +258,25 @@ describe("travel", () => {
     expect(res).toMatchObject({ reason: "interrupted", status: "FAILED" });
     expect(res.next).toMatch(/^engage\(target: "u\d+"\)$/);
     expect(limitProblem(contentOf(res))).toBeUndefined();
+  });
+
+  test("death on the way fails with the recover step", async () => {
+    const t = await world();
+    driveGoto(t.handle, [{ hold: true }]);
+    const pending = travelSpec.run(
+      { to: "Marniel Amberlight" },
+      toolCtx<TravelAfter>(t),
+    );
+    await Bun.sleep(0);
+    die(t.handle);
+    const res = await pending;
+    expect(res).toMatchObject({
+      detail: "you died on the way.",
+      next: "recover()",
+      reason: "died",
+      status: "FAILED",
+    });
+    expect(fit(res)).toStartWith("FAILED died: you died on the way.\n");
   });
 
   test("a human stop ends the run as cancelled", async () => {

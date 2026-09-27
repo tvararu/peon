@@ -37,6 +37,7 @@ const GROUPS: readonly (readonly [string, (unit: UnitView) => boolean])[] = [
 ];
 
 export function yd(n: number): string {
+  if (n === 0) return "0";
   return n < 10 ? n.toFixed(1) : Math.round(n).toString();
 }
 
@@ -220,7 +221,7 @@ export function interruptReport(
   if (cause.code === "died")
     return result("FAILED", {
       after,
-      detail: `you died on the way. ${cause.detail}`,
+      detail: "you died on the way.",
       next: nextCall("recover"),
       reason: "died",
     });
