@@ -6,9 +6,9 @@
   engineering decisions, review, and integration; the user is not a code-review
   gate. Keep existing conventions where useful, but do not pursue cosmetic
   refactors or coverage percentages instead of gameplay.
-- Prioritize agent control and real-server outcomes. Human-facing usability and
-  spatial TUI improvements follow user feedback; they are not prerequisites for
-  the first agent-playable capabilities.
+- Prioritize agent control and real-server outcomes. Human-facing usability
+  follows user feedback; it is not a prerequisite for agent-playable
+  capabilities.
 - Play as soon as a useful loop works, use failures to guide development, and
   continue normal gameplay and leveling on the user's server when the active
   goal allows it. Do not substitute server-data edits for client capabilities.
@@ -192,7 +192,7 @@ Use `mise` to run tasks (not `bun` directly, not `mise run`):
 - `mock.module()` leaks across test files in Bun, so `config/biome.grit` bans
   it. Use dependency injection: file locations come from a `Paths` value
   (`resolvePaths()` by default), and tests pass `pathsUnder(dir)` from
-  `packages/core/test-support/temp-paths.ts`. Stdlib modules like `node:readline` are injected too
+  `packages/core/test-support/temp-paths.ts`
 - `Bun.sleep(0)` yields one microtask tick (enough for `.then()` chains);
   `Bun.sleep(1)` yields one full event loop turn (needed for filesystem I/O like
   `unlink` to complete) — prefer the minimum needed in tests
@@ -305,8 +305,8 @@ The maintainer must never find stale worktrees or idle agents in Orca.
   (`packages/core`: `packages/core/src/wow`, the runtime helpers in
   `packages/core/src/lib` and shared test support in
   `packages/core/test-support`), `@tuicraft/factory`,
-  `@tuicraft/devtools` and `@tuicraft/harness`. `bun install` (`mise bundle`) must run before
-  any cross-package import resolves.
+  `@tuicraft/devtools` and `@tuicraft/harness`. `bun install`
+  (`mise bundle`) must run before any cross-package import resolves.
 - Inside a package, import with its private `#` aliases from its
   `package.json` `imports` (`"#wow/client"`, `"#harness/config/lock"`,
   `"#test-support/must"`); relative imports are for siblings and non-code files.
@@ -316,8 +316,8 @@ The maintainer must never find stale worktrees or idle agents in Orca.
   `"@tuicraft/core/lib/<module>"` for the listed helpers and, in tests
   only, `"@tuicraft/core/test-support/<module>"`. Any other subpath
   fails to resolve in Bun and tsc, and biome's `noRestrictedImports`
-  rejects it too. The barrel exports no value that loads the session;
-  `worldSession` and auth come from `"@tuicraft/core/session"`. Export a new core symbol from the barrel
+  rejects it too. The barrel exports no value that loads the session.
+  Export a new core symbol from the barrel
   (or add an `exports` entry) before another package uses it; a test
   that needs a core internal imports it from
   `"@tuicraft/core/test-support/internals"`.
@@ -329,8 +329,6 @@ The maintainer must never find stale worktrees or idle agents in Orca.
 
 - `packages/core/test-support/mock-handle.ts` is the shared WorldHandle mock;
   add new WorldHandle methods to it
-- `SessionLog.append` expects `LogEntry` (type/sender/message) — non-chat
-  events need `as LogEntry` cast
 - `WorldHandle` `on*` hooks are multi-subscriber: each returns an
   unsubscribe function and all of them are backed by `conn.events`
   (`packages/core/src/wow/world-events.ts`, built on `#lib/emitter`). Emit through
@@ -341,8 +339,6 @@ The maintainer must never find stale worktrees or idle agents in Orca.
 - `cleanupSession` clears `conn.events` before socket teardown —
   `entityStore.clear()` in the socket close handler fires disappear for every
   entity, so subscribers must be detached first
-- All event handlers (chat, group, entity) must both push to the ring buffer
-  and call `log.append()` — follow existing handlers when adding new event types
 
 ## Entity Fields
 
