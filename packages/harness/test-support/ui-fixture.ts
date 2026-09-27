@@ -156,7 +156,13 @@ export function nowFixture(over: Partial<NowSnapshot> = {}): NowSnapshot {
   return {
     at: 1_790_000_000_000,
     attackers: [
-      { guid: target.guid, hitAgoMs: 2000, name: target.name, ref: target.ref },
+      {
+        distance: target.distance,
+        guid: target.guid,
+        hitAgoMs: 2000,
+        name: target.name,
+        ref: target.ref,
+      },
     ],
     hpDelta5s: -12,
     nearest: { hostile: target },

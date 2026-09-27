@@ -99,6 +99,7 @@ export type AttackerView = {
   ref: string;
   guid: string;
   name: string;
+  distance: number | undefined;
   hitAgoMs: number | undefined;
 };
 

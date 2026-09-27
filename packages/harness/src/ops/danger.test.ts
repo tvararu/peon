@@ -9,10 +9,29 @@ import { createRefTable } from "#harness/ops/refs";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 import {
   nearbyRow,
+  SELF_GUID,
   selfCombat,
   setWorld,
   unitEntity,
 } from "#test-support/world-fixtures";
+
+type Handle = Awaited<ReturnType<typeof world>>["handle"];
+
+function selfHealth(handle: Handle, health: number): void {
+  handle.triggerEntityEvent({
+    changed: ["health"],
+    entity: unitEntity({ guid: SELF_GUID, health, maxHealth: 217 }),
+    type: "update",
+  });
+}
+
+function stalkerAt(handle: Handle, dx: number, health = 217): void {
+  const stalker = unitEntity({ dx, guid: 0x50n, name: "Springpaw Stalker" });
+  setWorld(handle, {
+    combat: { attackers: [0x50n], self: selfCombat({ health }) },
+    rows: [nearbyRow(stalker)],
+  });
+}
 
 async function world(now: { t: number }) {
   const clock = { now: () => now.t };
@@ -25,7 +44,7 @@ async function world(now: { t: number }) {
 }
 
 describe("createAttackLedger", () => {
-  test("records attacked events that name the attacker", async () => {
+  test("an attack start names the attacker but is not a hit", async () => {
     const now = { t: 1000 };
     const { attacks, handle } = await world(now);
     handle.triggerCombatEvent({
@@ -33,12 +52,33 @@ describe("createAttackLedger", () => {
       state: handle.getCombatState(),
       type: "attacked",
     });
-    handle.triggerCombatEvent({
-      state: handle.getCombatState(),
-      type: "attack_started",
-    });
-    expect(attacks.lastHitAt(0x50n)).toBe(1000);
+    expect(attacks.lastHitAt(0x50n)).toBeUndefined();
     expect(attacks.lastAttacker()).toBe(0x50n);
+  });
+
+  test("an HP drop is a hit by every current attacker", async () => {
+    const now = { t: 1000 };
+    const { attacks, handle } = await world(now);
+    stalkerAt(handle, 3);
+    selfHealth(handle, 217);
+    now.t = 2000;
+    selfHealth(handle, 200);
+    expect(attacks.lastHitAt(0x50n)).toBe(2000);
+    now.t = 3000;
+    selfHealth(handle, 210);
+    expect(attacks.lastHitAt(0x50n)).toBe(2000);
+  });
+
+  test("ignores HP changes of other units", async () => {
+    const { attacks, handle } = await world({ t: 0 });
+    stalkerAt(handle, 3);
+    for (const health of [100, 50])
+      handle.triggerEntityEvent({
+        changed: ["health"],
+        entity: unitEntity({ guid: 0x77n, health }),
+        type: "update",
+      });
+    expect(attacks.lastHitAt(0x50n)).toBeUndefined();
   });
 
   test("ignores attacked events without an attacker (before C5)", async () => {
@@ -52,11 +92,9 @@ describe("createAttackLedger", () => {
 
   test("a new attach resets the ledger", async () => {
     const { attacks, handle } = await world({ t: 0 });
-    handle.triggerCombatEvent({
-      attacker: 0x50n,
-      state: handle.getCombatState(),
-      type: "attacked",
-    });
+    stalkerAt(handle, 3);
+    selfHealth(handle, 217);
+    selfHealth(handle, 200);
     attacks.attach(handle);
     expect(attacks.lastHitAt(0x50n)).toBeUndefined();
   });
@@ -66,21 +104,20 @@ describe("dangerView and dangerLine", () => {
   test("the design example", async () => {
     const now = { t: 1000 };
     const { handle, rt } = await world(now);
-    const stalker = unitEntity({ guid: 0x50n, name: "Springpaw Stalker" });
-    setWorld(handle, {
-      combat: { attackers: [0x50n], self: selfCombat({ health: 89 }) },
-      rows: [nearbyRow(stalker)],
-    });
-    handle.triggerCombatEvent({
-      attacker: 0x50n,
-      state: handle.getCombatState(),
-      type: "attacked",
-    });
+    stalkerAt(handle, 0, 89);
+    selfHealth(handle, 120);
+    selfHealth(handle, 89);
     now.t = 4000;
     const view = dangerView({ handle, rt });
     expect(view).toEqual({
       attackers: [
-        { guid: "50", hitAgoMs: 3000, name: "Springpaw Stalker", ref: "u1" },
+        {
+          distance: 0,
+          guid: "50",
+          hitAgoMs: 3000,
+          name: "Springpaw Stalker",
+          ref: "u1",
+        },
       ],
       hpPct: 41,
     });
@@ -89,10 +126,50 @@ describe("dangerView and dangerLine", () => {
     );
   });
 
-  test("drops the brackets when no hit was seen", () => {
+  test("an attack start with no hit yet says the attacker is coming", async () => {
+    const now = { t: 1000 };
+    const { handle, rt } = await world(now);
+    stalkerAt(handle, 12);
+    handle.triggerCombatEvent({
+      attacker: 0x50n,
+      state: handle.getCombatState(),
+      type: "attacked",
+    });
+    now.t = 5000;
+    expect(dangerLine(dangerView({ handle, rt }))).toBe(
+      "Danger: Springpaw Stalker u1 is coming at you (12 yd). You are at 100% HP.",
+    );
+  });
+
+  test("the hit age counts from the latest HP drop", async () => {
+    const now = { t: 0 };
+    const { handle, rt } = await world(now);
+    stalkerAt(handle, 2, 90);
+    handle.triggerCombatEvent({
+      attacker: 0x50n,
+      state: handle.getCombatState(),
+      type: "attacked",
+    });
+    selfHealth(handle, 186);
+    for (const [at, health] of [
+      [2000, 170],
+      [20_000, 130],
+      [34_000, 90],
+    ] as const) {
+      now.t = at;
+      selfHealth(handle, health);
+    }
+    now.t = 36_000;
+    expect(dangerLine(dangerView({ handle, rt }))).toBe(
+      "Danger: Springpaw Stalker u1 is attacking you (hit you 2 s ago). You are at 41% HP.",
+    );
+  });
+
+  test("drops the brackets when no hit and no distance are known", () => {
     const view = {
       attackers: [
         {
+          distance: undefined,
           guid: "50",
           hitAgoMs: undefined,
           name: "Springpaw Stalker",
@@ -102,12 +179,13 @@ describe("dangerView and dangerLine", () => {
       hpPct: 88,
     };
     expect(dangerLine(view)).toBe(
-      "Danger: Springpaw Stalker u9 is attacking you. You are at 88% HP.",
+      "Danger: Springpaw Stalker u9 is coming at you. You are at 88% HP.",
     );
   });
 
   test("counts the other attackers", () => {
     const attacker = (ref: string) => ({
+      distance: 3,
       guid: ref,
       hitAgoMs: 1000,
       name: "Mana Wyrm",
@@ -131,6 +209,7 @@ describe("dangerView and dangerLine", () => {
     const one = {
       attackers: [
         {
+          distance: 12,
           guid: "50",
           hitAgoMs: undefined,
           name: "Springpaw Stalker",
@@ -140,9 +219,10 @@ describe("dangerView and dangerLine", () => {
       hpPct: 88,
     };
     expect(dangerLine(one, { still: true })).toBe(
-      "Danger: Springpaw Stalker u9 is still attacking you. You are at 88% HP.",
+      "Danger: Springpaw Stalker u9 is still coming at you (12 yd). You are at 88% HP.",
     );
     const attacker = (ref: string) => ({
+      distance: 3,
       guid: ref,
       hitAgoMs: 1000,
       name: "Mana Wyrm",

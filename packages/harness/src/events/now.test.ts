@@ -66,7 +66,13 @@ function snapshot(over: Partial<NowSnapshot> = {}): NowSnapshot {
   return {
     at,
     attackers: [
-      { guid: "9", hitAgoMs: 3000, name: "Springpaw Stalker", ref: "u9" },
+      {
+        distance: 4,
+        guid: "9",
+        hitAgoMs: 3000,
+        name: "Springpaw Stalker",
+        ref: "u9",
+      },
     ],
     hpDelta5s: -23,
     nearest: {

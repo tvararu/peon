@@ -220,7 +220,7 @@ describe("look", () => {
     const { text } = await runTool(tool, {});
     expect(text).not.toContain("No unit is attacking you.");
     expect(text.split("\n").at(-1)).toBe(
-      "Danger: Springpaw Stalker u5 is attacking you. You are at 100% HP.",
+      "Danger: Springpaw Stalker u5 is coming at you (78 yd). You are at 100% HP.",
     );
   });
 });

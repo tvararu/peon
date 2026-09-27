@@ -425,7 +425,7 @@ describe("defineGameTool", () => {
       rows: [nearbyRow(unitEntity({ guid: 0x50n, name: "Springpaw Stalker" }))],
     });
     expect((await runTool(probe(said)(rt), {})).text).toBe(
-      "DONE said hi.\nDanger: Springpaw Stalker u1 is attacking you. You are at 100% HP.",
+      "DONE said hi.\nDanger: Springpaw Stalker u1 is coming at you (0 yd). You are at 100% HP.",
     );
   });
 });

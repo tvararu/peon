@@ -110,7 +110,7 @@ describe("stop", () => {
     const out = await runTool(tool, {});
     expect(out.text.split("\n")).toEqual([
       "DONE nothing was running. Not moving, not attacking. HP 190/217.",
-      "Danger: Springpaw Stalker u1 is still attacking you. You are at 88% HP.",
+      "Danger: Springpaw Stalker u1 is still coming at you (0 yd). You are at 88% HP.",
     ]);
     expect(out.details.result.after).toMatchObject({
       attackers: [{ ref: "u1" }],

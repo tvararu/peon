@@ -1,4 +1,4 @@
-import type { CombatEvent } from "@tuicraft/core";
+import type { CombatEvent, EntityEvent, WorldHandle } from "@tuicraft/core";
 import type {
   AttackLedger,
   Clock,
@@ -8,18 +8,46 @@ import type {
 import type { AttackerView, DangerView } from "#harness/contract/views";
 import { guidHex } from "#harness/ops/refs";
 
+function selfHealthOf(
+  handle: WorldHandle,
+  event: EntityEvent,
+): number | undefined {
+  if (event.type !== "update" || !event.changed.includes("health")) return;
+  const { entity } = event;
+  if (!("health" in entity)) return;
+  const { selfGuid } = handle.getControlState();
+  return entity.guid === selfGuid ? entity.health : undefined;
+}
+
 export function createAttackLedger(clock: Clock): AttackLedger {
   const hits = new Map<bigint, number>();
   let last: bigint | undefined;
+  let health: number | undefined;
+  const onHealth = (handle: WorldHandle, now: number | undefined) => {
+    if (now === undefined) return;
+    const dropped = health !== undefined && now < health;
+    health = now;
+    if (!dropped) return;
+    for (const guid of handle.getCombatState().attackers)
+      hits.set(guid, clock.now());
+  };
   return {
     attach(handle) {
       hits.clear();
       last = undefined;
-      return handle.onCombatEvent((event) => {
-        if (event.type !== "attacked" || event.attacker === undefined) return;
-        hits.set(event.attacker, clock.now());
-        last = event.attacker;
-      });
+      health = handle.getCombatState().self.health;
+      const offs = [
+        handle.onCombatEvent((event) => {
+          if (event.type !== "attacked" || event.attacker === undefined) return;
+          last = event.attacker;
+        }),
+        handle.onEntityEvent((event) =>
+          onHealth(handle, selfHealthOf(handle, event)),
+        ),
+      ];
+      return () => {
+        for (const off of offs) off();
+      };
     },
     lastAttacker: () => last,
     lastHitAt: (guid) => hits.get(guid),
@@ -33,11 +61,19 @@ export function nameOf({ handle, rt }: ViewCtx, guid: bigint): string {
   return entity?.name ?? rt.sightings.get(guid)?.name ?? "an unknown unit";
 }
 
+function distanceOf({ handle }: ViewCtx, guid: bigint): number | undefined {
+  const distance = handle
+    .queryNearby({ all: true })
+    .find((row) => row.entity.guid === guid)?.distance;
+  return typeof distance === "number" ? distance : undefined;
+}
+
 function attackerView(ctx: ViewCtx, guid: bigint): AttackerView {
   const { rt } = ctx;
   const hitAt = rt.attacks.lastHitAt(guid);
   const hitAgoMs = hitAt === undefined ? undefined : rt.clock.now() - hitAt;
   return {
+    distance: distanceOf(ctx, guid),
     guid: guidHex(guid),
     hitAgoMs,
     name: nameOf(ctx, guid),
@@ -65,11 +101,13 @@ export function dangerLine(
   const still = opts.still ? "still " : "";
   if (attackers.length > 1)
     return `Danger: ${first.name} ${first.ref} and ${attackers.length - 1} more are ${still}attacking you. ${hp}`;
-  const ago =
-    first.hitAgoMs === undefined
-      ? ""
-      : ` (hit you ${Math.round(first.hitAgoMs / 1000)} s ago)`;
-  return `Danger: ${first.name} ${first.ref} is ${still}attacking you${ago}. ${hp}`;
+  if (first.hitAgoMs === undefined) {
+    const yd =
+      first.distance === undefined ? "" : ` (${Math.round(first.distance)} yd)`;
+    return `Danger: ${first.name} ${first.ref} is ${still}coming at you${yd}. ${hp}`;
+  }
+  const ago = Math.round(first.hitAgoMs / 1000);
+  return `Danger: ${first.name} ${first.ref} is ${still}attacking you (hit you ${ago} s ago). ${hp}`;
 }
 
 export type InterruptRules = {
