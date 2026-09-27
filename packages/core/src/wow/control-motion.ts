@@ -1,6 +1,7 @@
 import type { Position } from "#wow/entity-store";
-import { type NavPoint, withinStep } from "#wow/navigation";
+import type { NavPoint } from "#wow/navigation";
 import { collisionFree, GROUND_ERROR } from "#wow/navigation-collision";
+import { withinStep } from "#wow/navigation-height";
 import { MovementFlag } from "#wow/protocol/entity-fields";
 
 export type Ground = {

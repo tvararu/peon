@@ -7,11 +7,17 @@ import {
 import {
   clearAbove,
   columnHeights,
-  FLOOR_MERGE,
   floorError,
   groundFloors,
   settleStart,
 } from "#wow/navigation-column";
+import {
+  CELL_HEIGHT,
+  connectedHeight,
+  stepHeight,
+  traceHeight,
+  uniqueHeight,
+} from "#wow/navigation-height";
 import { requireNavigationMapName } from "#wow/navigation-maps";
 import {
   groundError,
@@ -42,16 +48,19 @@ export type Navigation = {
 
 const ADT_STEP = 64;
 const GROUND_STEP = 0.5;
-const CELL_HEIGHT = 0.25;
 const CORNER_RISE = WALKABLE_CLIMB + CELL_HEIGHT;
-const WALKABLE_SLOPE = Math.tan((50 * Math.PI) / 180);
-const SAFE_DROP = 13;
 const ROUTE_AMBIGUITY = "ambiguous ground column at route";
 const START_EXIT_AMBIGUITY = "ambiguous ground column leaving start";
 
-type GroundWalk = { points: NavPoint[]; leavingStart: boolean; climb: number };
+type GroundWalk = {
+  points: NavPoint[];
+  leavingStart: boolean;
+  rules: RouteRules;
+};
 type GroundStep = { point: NavPoint; heights: number[] };
-type StepRules = { climb: number; ambiguity: string };
+export type RouteRules = { climb: number; columnFallback: boolean };
+type StepRules = RouteRules & { ambiguity: string };
+const STRICT: RouteRules = { climb: 0, columnFallback: false };
 
 export type NavigationRefusal =
   | "wait"
@@ -85,15 +94,15 @@ export class GroundRoute {
   readonly points: readonly NavPoint[];
   readonly length: number;
   private readonly map: NativeMap;
-  private readonly climb: number;
+  private readonly rules: RouteRules;
   private readonly distances: number[];
 
-  constructor(points: readonly NavPoint[], map: NativeMap, climb = 0) {
+  constructor(points: readonly NavPoint[], map: NativeMap, rules = STRICT) {
     if (points.length === 0) throw new Error("ground route has no points");
     this.map = map;
-    this.climb = climb;
+    this.rules = rules;
     this.points = Object.freeze(
-      groundPath(map, points, climb).map((point) => Object.freeze(point)),
+      groundPath(map, points, rules).map((point) => Object.freeze(point)),
     );
     this.distances = [0];
     let length = 0;
@@ -125,7 +134,7 @@ export class GroundRoute {
       y: start.y + (end.y - start.y) * ratio,
     };
     const { point } = groundPoint(this.map, start, at, {
-      climb: this.climb,
+      ...this.rules,
       ambiguity: ROUTE_AMBIGUITY,
     });
     if (travel === 0) Object.assign(point, this.points[0]);
@@ -251,13 +260,39 @@ function planRoute(map: NativeMap, from: NavPoint, to: NavPoint): GroundRoute {
   const corridor = points.map((point) => ({ ...point }));
   corridor[0] = { ...from };
   if (corridor.length > 1) corridor[corridor.length - 1] = { ...to };
-  return new GroundRoute(corridor, map, WALKABLE_CLIMB);
+  const rules = { climb: WALKABLE_CLIMB, columnFallback: false };
+  try {
+    return new GroundRoute(corridor, map, rules);
+  } catch (error) {
+    if (!(isGroundError(error) && lostHeight(error))) throw error;
+    return columnRoute(map, [corridor, [from, to]], error);
+  }
+}
+
+function columnRoute(
+  map: NativeMap,
+  candidates: readonly (readonly NavPoint[])[],
+  refusal: Error,
+): GroundRoute {
+  for (const [index, points] of candidates.entries()) {
+    const climb = index === 0 ? WALKABLE_CLIMB : 0;
+    try {
+      return new GroundRoute(points, map, { climb, columnFallback: true });
+    } catch (error) {
+      if (!isGroundError(error)) throw error;
+    }
+  }
+  throw refusal;
+}
+
+function lostHeight(error: Error): boolean {
+  return error.message.includes("UNKNOWN_HEIGHT");
 }
 
 function groundPath(
   map: NativeMap,
   corners: readonly NavPoint[],
-  climb: number,
+  rules: RouteRules,
 ): NavPoint[] {
   const first = corners[0];
   if (first === undefined) throw new Error("ground route has no points");
@@ -265,10 +300,10 @@ function groundPath(
   map.loadAdtAt(first.x, first.y);
   const leavingStart = groundFloors(checkStart(map, first)).length > 1;
   const ambiguity = leavingStart ? START_EXIT_AMBIGUITY : ROUTE_AMBIGUITY;
-  const initial = groundPoint(map, first, first, { climb, ambiguity }).point;
+  const initial = groundPoint(map, first, first, { ...rules, ambiguity }).point;
   if (Math.abs(initial.z - first.z) > GROUND_ERROR)
     throw groundError("start is not on connected ground");
-  const walk: GroundWalk = { points: [{ ...first }], leavingStart, climb };
+  const walk: GroundWalk = { points: [{ ...first }], leavingStart, rules };
   for (let i = 1; i < corners.length; i++) {
     const from = corners[i - 1];
     const to = corners[i];
@@ -305,7 +340,7 @@ function stepCorner(
       y: from.y + (to.y - from.y) * ratio,
     };
     const { point, heights } = groundPoint(map, tail, at, {
-      climb: walk.climb,
+      ...walk.rules,
       ambiguity: walk.leavingStart ? START_EXIT_AMBIGUITY : ROUTE_AMBIGUITY,
     });
     walk.points.push(point);
@@ -336,12 +371,13 @@ function groundPoint(
   map: NativeMap,
   from: NavPoint,
   { x, y }: { x: number; y: number },
-  { climb, ambiguity }: StepRules,
+  { climb, ambiguity, columnFallback }: StepRules,
 ): GroundStep {
   map.loadAdtAt(x, y);
-  const point = { x, y, z: map.findHeight(from, x, y) };
+  const ahead = { x, y };
+  const point = { x, y, z: traceHeight(map, from, ahead, columnFallback) };
   const heights = checkRouteGround(map, point, from, ambiguity);
-  const back = map.findHeight(point, from.x, from.y);
+  const back = traceHeight(map, point, from, columnFallback);
   if (!Number.isFinite(back) || Math.abs(back - from.z) > GROUND_ERROR)
     throw groundError("ground corridor changes surface");
   checkCollision(map, from, point, climb);
@@ -398,94 +434,6 @@ function destinationFloor(map: NativeMap, x: number, y: number): number {
   if (floors.length > 1)
     throw floorError("ambiguous ground column at destination", heights);
   return floor;
-}
-
-function connectedHeight(
-  map: NativeMap,
-  x: number,
-  y: number,
-  from: NavPoint,
-): number {
-  const h = probeHeight(map, x, y, from);
-  if (Number.isFinite(h)) return h;
-  return continuousHeight(map, x, y, from.z) ?? uniqueHeight(map, x, y);
-}
-
-function stepHeight(
-  map: NativeMap,
-  x: number,
-  y: number,
-  from: NavPoint,
-): number {
-  const reachable = reachableHeight(map, x, y, from);
-  if (reachable !== undefined) return reachable;
-  const h = probeHeight(map, x, y, from);
-  if (Number.isFinite(h)) return h;
-  return uniqueHeight(map, x, y);
-}
-
-function probeHeight(
-  map: NativeMap,
-  x: number,
-  y: number,
-  from: NavPoint,
-): number {
-  try {
-    return map.findHeight(from, x, y);
-  } catch {
-    return Number.NaN;
-  }
-}
-
-function uniqueHeight(map: NativeMap, x: number, y: number): number {
-  const first = groundHeights(map, x, y)[0];
-  if (first === undefined) throw groundError("ground height unavailable");
-  return first;
-}
-
-function continuousHeight(
-  map: NativeMap,
-  x: number,
-  y: number,
-  referenceZ: number,
-): number | undefined {
-  const matches = map
-    .findHeights(x, y)
-    .filter(
-      (height) =>
-        Number.isFinite(height) &&
-        Math.abs(height - referenceZ) <= GROUND_ERROR,
-    );
-  return matches.length === 1 ? matches[0] : undefined;
-}
-
-export function withinStep(from: NavPoint, to: NavPoint): boolean {
-  const reach = CELL_HEIGHT + distance2d(from, to) * WALKABLE_SLOPE;
-  const rise = to.z - from.z;
-  return rise <= reach && rise >= -Math.max(reach, SAFE_DROP);
-}
-
-function reachableHeight(
-  map: NativeMap,
-  x: number,
-  y: number,
-  from: NavPoint,
-): number | undefined {
-  let best: number | undefined;
-  for (const z of map.findHeights(x, y)) {
-    if (!withinStep(from, { x, y, z })) continue;
-    if (best === undefined || z > best) best = z;
-  }
-  return best;
-}
-
-function groundHeights(map: NativeMap, x: number, y: number): number[] {
-  const heights = columnHeights(map, x, y);
-  const first = heights[0];
-  if (first === undefined) throw groundError("ground height unavailable");
-  if (heights.some((height) => Math.abs(height - first) > FLOOR_MERGE))
-    throw groundError("ambiguous ground column");
-  return heights;
 }
 
 function loadCorridor(map: NativeMap, from: NavPoint, to: NavPoint): void {

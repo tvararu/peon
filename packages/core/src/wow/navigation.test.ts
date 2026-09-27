@@ -46,11 +46,12 @@ describe("grounded navigation", () => {
   test("rejects an interior disconnected corridor despite valid funnel endpoints", () => {
     const map = native({
       findHeight: (from, x) => {
-        if (from.x < 5 && x >= 5) throw new Error("UNKNOWN_HEIGHT");
-        return 0;
+        if (from.x < 5 && x >= 5) throw groundError("UNKNOWN_HEIGHT");
+        return x >= 5 ? 3 : 0;
       },
+      findHeights: (x) => [x >= 5 ? 3 : 0],
     });
-    expect(() => navigation(map).plan(530, start, end)).toThrow(
+    expect(() => navigation(map).plan(530, start, { ...end, z: 3 })).toThrow(
       /UNKNOWN_HEIGHT/,
     );
   });
