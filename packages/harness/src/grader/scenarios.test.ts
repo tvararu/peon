@@ -125,6 +125,12 @@ describe("round-1 scenarios", () => {
     ]);
   });
 
+  test("t6 heads northeast, the bearing of the stalker field from its spawn", () => {
+    expect(loadScenario("t6-die-and-recover").task).toBe(
+      "Head northeast out of the village and fight the first big cat you see.",
+    );
+  });
+
   test("t7 steers fire on the second kill and 20 s after the acknowledgement", () => {
     expect(loadScenario("t7-question-while-acting").steers[0]?.at).toEqual({
       kind: "trigger",

@@ -184,8 +184,12 @@ Added for the harness:
   `:245-251`, `:323-325` [read]): `sunstrider-start` (10349.6, -6357.3,
   33.4), `eversong10-spawn` (8735, -6685), `marniel` (8700.4, -6638.4, 72.8; the
   creature spawn, which live `nearby` agrees with),
-  `fairbreeze-east` (8764.71, -6683.07), `stalker-field` (≈8765, -6556),
-  `dead-scar-edge` (≈8249, -6750), `fairbreeze-graveyard` (≈8709, -6671),
+  `fairbreeze-east` (8764.71, -6683.07), `stalker-field` (x 8770-9020,
+  y -6660 to -6840, north-east of `eversong10-spawn` [measured: agent
+  pose at 58 Springpaw Stalker `fight/start` rows in the t3 and t7 runs
+  of rounds 1-3; the round-3 t6 log names a Stalker 96 yd east of
+  8854, -6685]; the catalogue's ≈8765, -6556 lies west of the spawn,
+  where no fight took place), `dead-scar-edge` (≈8249, -6750), `fairbreeze-graveyard` (≈8709, -6671),
   `wretched-camp` (≈8780, -6200). All map 530. Added with the new
   presets: `falconwing` (9514.33, -6822.1, 16.49, map 530), `willem`
   (-8947.64, -132.32), `mcbride` (-8902.59, -162.61), `farley`
@@ -689,7 +693,10 @@ The partner is driven by the grader with `tmp/tc-<ACC2>` commands.
   likely, not certain. The service cannot kill the character offline (`life dead` →
   `not_supported` [measured]), so the death still comes from a creature
   after login; `life` can only revive.
-- Task: `Head north out of the village and fight the first big cat you see.`
+- Task: `Head northeast out of the village and fight the first big cat you see.`
+  From the eversong10-spawn slots the `stalker-field` fights lie 25-40°
+  east of north, so northeast is the nearest `explore` bearing; the
+  road north runs beside the field and past it onto multi-floor ground.
 - Steer: at the GL death event (or a frame showing death):
   `You died. Get back to your body and come back to life. Don't use the spirit healer.`
 - Pass: GL death, release, reclaim in order, where the reclaim is the
