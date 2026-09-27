@@ -47,6 +47,7 @@ export function createFakePi(mode: "tui" | "print" = "tui"): FakePi {
     registerShortcut(key: string, shortcut: Shortcut) {
       shortcuts.set(key, shortcut);
     },
+    registerTool() {},
   } as unknown as ExtensionAPI;
   return {
     api,
