@@ -111,6 +111,7 @@ export class RouteFollower {
   private active: RouteGuide | undefined;
   private session: RouteSession | undefined;
   private replanTimer: ReturnType<typeof setTimeout> | undefined;
+  private disposed = false;
   private navigation: NavigationState = {
     active: false,
     blockedReason: undefined,
@@ -221,7 +222,7 @@ export class RouteFollower {
         reason === "arrived" ? undefined : classifyNavigationRefusal(reason),
       replan: session?.snapshot(),
     };
-    if (replan)
+    if (replan && !this.disposed)
       this.replanTimer = setTimeout(
         () => this.replanNow(),
         REPLAN_LIMITS.delayMs,
@@ -229,6 +230,9 @@ export class RouteFollower {
   }
 
   dispose(): void {
+    if (this.disposed) return;
+    if (this.active) this.handle.stopMoving("close");
+    this.disposed = true;
     for (const off of this.detach) off();
     if (this.replanTimer !== undefined) clearTimeout(this.replanTimer);
     this.replanTimer = undefined;
