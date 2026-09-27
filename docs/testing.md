@@ -48,7 +48,7 @@ character.
 
 1. `mise namigator:build` when the patch set in `vendor/namigator/`
    changed; `soap create` refuses without the build.
-2. `bun packages/factory/src/main.ts soap create <preset>`, redirected to a
+2. `mise factory soap create <preset>`, redirected to a
    file under `tmp/`. The JSON holds the password, so read fields with
    `jq` and never print it.
 3. Drive the character only through the wrapper the JSON names

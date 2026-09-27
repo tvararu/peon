@@ -35,9 +35,7 @@ async function run(args: string[]) {
 test("a usage error prints the usage and exits 2", async () => {
   const result = await run(["--account", "X"]);
   expect(result.code).toBe(2);
-  expect(result.stderr).toContain(
-    "Usage: bun packages/harness/src/entry.ts --profile <path>",
-  );
+  expect(result.stderr).toContain("Usage: mise harness --profile <path>");
 });
 
 test("--check runs the pre-flight through the dynamic import and exits 0", async () => {

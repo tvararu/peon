@@ -105,22 +105,22 @@ run = 'biome check --write ${usage_path}'
 description = "Check current docs for dated history and dead references"
 run = "bun packages/devtools/src/stale-docs.ts"
 
-[tasks."factory:pace"]
-description = "Show the factory pace, or set it to pause, default or max"
-usage = '''
-arg "[level]" help="pause, default or max; omit to show the live schedules"
-'''
-run = 'bun packages/factory/src/main.ts pace ${usage_level:-}'
+[tasks.factory]
+description = "Run the dev factory CLI (docs/factory.md); run it bare for its commands"
+raw = true
+quiet = true
+run = "bun packages/factory/src/main.ts"
 
 [tasks.harness]
-description = "Run the Pi harness; pass harness flags after the task name (docs/harness.md)"
+description = "Run the Pi harness (docs/harness.md); pass harness flags after the task name"
 raw = true
 quiet = true
 run = "bun packages/harness/src/entry.ts"
 
 [tasks.eval]
-description = "Run the eval grader CLI: run a scenario, grade, read truth, check leaks"
+description = "Run the eval grader CLI (docs/evals.md); run it bare for its commands"
 raw = true
+quiet = true
 run = "bun packages/harness/src/grader/cli.ts"
 
 [tasks."namigator:build"]

@@ -30,14 +30,14 @@ flowchart LR
 Roles are Orca automations. Each runs `omp` in a fresh `auto-*` worktree
 from the runner clone `~/.local/share/peon-factory/runner`, which follows
 `origin/main`. Prompts are in `packages/factory/src/prompts/`. Every role
-starts with `bun packages/factory/src/main.ts precheck <role>` and stops on
+starts with the runner clone's `main.ts precheck <role>` and stops on
 exit 1. The reaper syncs each automation's prompt from `main` every pass;
-`bun packages/factory/src/main.ts setup automations --apply` creates
+`mise factory setup automations --apply` creates
 automations or changes their other fields.
 
 Orca's `agentCmdOverrides.omp` is `~/.local/bin/omp-factory`, a symlink to
 the runner's `packages/factory/src/omp-factory`, installed by
-`bun packages/factory/src/main.ts setup wrapper --apply`. It passes
+`mise factory setup wrapper --apply`. It passes
 `omp-factory.yml` as `--config` to factory roles (memory, autolearn and git
 integration off) and passes Orca's status extension when it exists.
 
@@ -50,7 +50,7 @@ finds no Peon config.
 
 ## Game accounts
 
-`bun packages/factory/src/main.ts soap create <preset>` creates a live
+`mise factory soap create <preset>` creates a live
 character on a fresh account; `soap delete <ACCOUNT>` removes it, `soap
 list` prints the ledger (`--with-passwords` adds passwords). `mise eval
 run` creates and deletes its own. Create needs the patched navigation
@@ -95,7 +95,7 @@ Moving a card to Ready is the release step. No agent @-mentions anyone;
 Blocked is the maintainer's inbox. An issue with an open blocked-by issue
 is never picked up or landed.
 
-`bun packages/factory/src/main.ts status <issue> [<status>]` prints or sets
+`mise factory status <issue> [<status>]` prints or sets
 a card's Status (`backlog`, `triage`, `blocked`, `ready`, `in-progress`,
 `in-review`, `done`) and refuses `ready` without an open `factory/<N>-…` PR.
 
@@ -107,7 +107,7 @@ the marker:
 - `<!-- factory:claim <run> <sha> -->`: a reviewer's claim on one head;
   live for 1 h.
 - `<!-- factory:landing <run> -->`: the merger's landing claim; live for
-  1 h, oldest wins (`bun packages/factory/src/main.ts landings`).
+  1 h, oldest wins (`mise factory landings`).
 - `<!-- factory:bounce <sha> -->`: the merger bounced this head.
 - `<!-- factory:rebase <sha> -->`: the merger rebased to this head and the
   patch changed; needs a fresh review, not a bounce.
@@ -189,7 +189,7 @@ PR: #<pr>
 Co-authored-by: Theodor Vararu <theo@vararu.org>
 ```
 
-`bun packages/factory/src/main.ts squash-message <pr>` builds it and fails
+`mise factory squash-message <pr>` builds it and fails
 on a bad title, missing why, or no closed issue. Revert with one
 `git revert <sha>`.
 
@@ -203,7 +203,7 @@ retargets the child to `main` and the merger runs
 
 ## Pace
 
-`mise factory:pace [pause|default|max]` sets schedules and caps; with no
+`mise factory pace [pause|default|max]` sets schedules and caps; with no
 argument it shows them and reports drift.
 
 | | default | max |

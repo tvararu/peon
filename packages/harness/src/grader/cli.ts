@@ -31,7 +31,7 @@ export type CliDeps = {
 
 type Command = (args: string[], deps: CliDeps) => number | Promise<number>;
 
-export const CLI_USAGE = `usage: bun packages/harness/src/grader/cli.ts <command>   (or: mise eval <command>, from the eval worktree root)
+export const CLI_USAGE = `usage: mise eval <command>
   run <scenario> --round <n> [--replica <n>] [--no-wait]  run one scenario replica end to end (steps 1-13);
                                                     it queues up to 20 min while another run holds the field;
                                                     --no-wait exits 1 at once instead

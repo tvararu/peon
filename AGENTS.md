@@ -31,9 +31,8 @@ PR with green `signoff/ci`, `factory/ci` and `factory/review` statuses.
   4. After approval: run `mise ci` on the PR head, post `factory/ci` and
      `factory/review` on it (`gh api repos/tvararu/peon/statuses/<sha> -f
      state=success -f context=factory/<ci|review> -f description=...`),
-     then squash-merge with the message from `bun
-     packages/factory/src/main.ts squash-message <PR>` (`gh pr merge
-     --squash --match-head-commit`).
+     then squash-merge with the message from `mise factory squash-message
+     <PR>` (`gh pr merge --squash --match-head-commit`).
   Never post the statuses or merge before the maintainer's review.
 - **Factory**: Orca automations work cards the maintainer moves to Ready on
   the project board (tvararu/1). Workers open PRs, reviewers post the
@@ -44,7 +43,8 @@ PR with green `signoff/ci`, `factory/ci` and `factory/review` statuses.
 
 ## Commands
 
-Run tasks with `mise <task>` (not `bun` or `mise run`).
+Run everything through the `mise.toml` tasks as `mise <task>`, never
+`bun <script>` or `mise run`.
 
 - `mise bundle`: install dependencies and git hooks.
 - `mise test [file]`, `mise test:coverage`, `mise test:slowest`.
@@ -57,9 +57,9 @@ Run tasks with `mise <task>` (not `bun` or `mise run`).
 - `mise eval <command>`: the eval grader ([docs/evals.md](docs/evals.md)).
 - `mise namigator:build`: build the patched `libnamigator.so` that
   `soap create` needs.
-- `bun packages/factory/src/main.ts <command>`: the factory CLI (`soap`,
-  `status`, `squash-message`, `pace`, `reap`, ...); run it bare for usage.
-- `mise factory:pace [pause|default|max]`: show or set the factory pace.
+- `mise factory <command>`: the factory CLI (`soap`, `status`,
+  `squash-message`, `pace [pause|default|max]`, ...); run it bare for its
+  commands. Factory prompts call the runner clone's copy directly.
 - In `mise.toml`, write tasks that hold regexes or backslashes as `'''`
   literal strings; `"""` processes escapes.
 

@@ -16,7 +16,7 @@ that grade it are in [evals.md](evals.md).
 
    ```
    umask 077
-   bun packages/factory/src/main.ts soap create eversong10 > "$XDG_RUNTIME_DIR/char.json"
+   mise factory soap create eversong10 > "$XDG_RUNTIME_DIR/char.json"
    ```
 
 3. Start the harness from the repository root:
@@ -33,7 +33,7 @@ that grade it are in [evals.md](evals.md).
    and exits when the server confirms the logout, in up to 30 seconds.
    Do not press Ctrl-C while it waits: that ends the harness before the
    logout. Then delete the character with
-   `bun packages/factory/src/main.ts soap delete <ACCOUNT>`.
+   `mise factory soap delete <ACCOUNT>`.
 
 To check the profile, the lock and the Codex login without a game
 connection, add `--check`. The harness prints one line and exits.

@@ -7,7 +7,7 @@ export class UsageError extends Error {}
 
 export const DEFAULT_MODEL = "openai-codex/gpt-6-luna";
 
-export const USAGE = `Usage: bun packages/harness/src/entry.ts --profile <path> [options]
+export const USAGE = `Usage: mise harness --profile <path> [options]
 
   --profile <path>        soap session JSON, soap ledger JSON or Peon config.toml (required)
   --run-dir <path>        run directory (default: <state>/runs/<utc>-<character>)

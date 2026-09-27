@@ -19,7 +19,7 @@ that lands as one squash commit once `signoff/ci`, `factory/ci` and
 - **Factory.** Asynchronous: Orca automations pick up issues the
   maintainer moves to Ready on the project board. Workers open pull
   requests, reviewers check them and a merger lands them, while QA and a
-  reaper run in the background. `mise factory:pace pause` stops it.
+  reaper run in the background. `mise factory pace pause` stops it.
   See [docs/factory.md](docs/factory.md).
 
 ## Documentation

@@ -23,7 +23,7 @@ const commands: Record<string, Command> = {
   status: runStatus,
 };
 
-const usage = `usage: bun packages/factory/src/main.ts <command>
+const usage = `usage: mise factory <command>
 
   pace [default|max]                      show or set the factory pace
   precheck <role> [--dry-run]             exit 0 when the role has work
