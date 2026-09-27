@@ -18,6 +18,7 @@ const PING = opcodeNumber("CMSG_PING") ?? -1;
 const PONG = opcodeNumber("SMSG_PONG") ?? -1;
 const MAILBOX = opcodeNumber("SMSG_SHOW_MAILBOX") ?? -1;
 const GOSSIP = opcodeNumber("SMSG_GOSSIP_MESSAGE") ?? -1;
+const LOGOUT = opcodeNumber("CMSG_LOGOUT_REQUEST") ?? -1;
 const stops: (() => void)[] = [];
 
 afterEach(() => {
@@ -176,7 +177,7 @@ describe("runProbe", () => {
   });
 
   test("records a failing flow, still logs out and exits 1", async () => {
-    const { deps, handles } = await setup();
+    const { deps, handles, ws } = await setup();
     const steps = [{ args: { entry: "1" }, flow: "talk" }];
     const { code, report } = await runProbe(args({ steps }), deps);
     expect(code).toBe(1);
@@ -188,17 +189,22 @@ describe("runProbe", () => {
       },
     ]);
     await handles[0]?.closed;
+    expect(ws.captured.some((p) => p.opcode === LOGOUT)).toBe(true);
   });
 
   test("runs flows in order with sends", async () => {
     const { deps } = await setup();
     const steps: ProbeStep[] = [
       { args: {}, flow: "login" },
+      { body: "0700000000000000", opcode: PING },
       { args: { kind: "unit" }, flow: "nearest" },
     ];
     const { code, report } = await runProbe(args({ steps }), deps);
     expect(code).toBe(0);
     expect(report.flows.map((f) => f.flow)).toEqual(["login", "nearest"]);
+    expect(report.sent).toEqual([
+      { at: expect.any(Number), opcode: "CMSG_PING", size: 8 },
+    ]);
     expect(report.flows[1]).toMatchObject({
       result: { kind: "unit", rows: [] },
     });
