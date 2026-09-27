@@ -294,6 +294,23 @@ as the spec settlements.
     online; `connect()` waits on one shared closing promise instead of
     treating a close as a lost socket; `disconnect()` emits `offline`
     once; the closed hook ends in `.catch(ignoreFailure)`. `24a8e2b`.
+30. A1d: a coordinator ownership exception lets the A1d fix add a no-op
+    `registerTool` to `packages/harness/test-support/fake-pi.ts`, which
+    F7a owns. `8b41bbf`.
+31. A1d: the private `scrub` helper and `SECRET` move to
+    `packages/harness/src/tools/scrub.ts`, which keeps `define.ts` under
+    the 500-line cap. `1f6fe4f`.
+32. L1a: the buffered writer timer ends its drain in
+    `.catch(ignoreFailure)`, so a failed drain follows the
+    fire-and-forget rule. `fb5e038`.
+33. L12b: the session link target resolves against the run dir, because
+    a relative symlink target is relative to the link, not the process
+    cwd. `fdd6393`.
+34. L3a: `start` moves into a top-level `startRun` helper to satisfy the
+    function-length lint rule. `a16cea0`.
+35. P2: the linter sorts `TOOL_TEXT` keys alphabetically, so P3 must
+    iterate the design B.1 tool order, not `Object.keys(TOOL_TEXT)`.
+    `c362fae`.
 
 ## 3. Context
 
@@ -1025,6 +1042,9 @@ Each build phase and each eval round adds a subsection here: what landed,
 the gate result, and the smoke and live results. Eval rounds use the
 heading `### Round <n>`.
 
+Decisions taken during the build are listed in section 2, under
+"Decisions taken during the build, not yet ruled by the maintainer".
+
 ### Phase 1
 
 Phase 1 is the core surface and the harness foundation.
@@ -1072,23 +1092,3 @@ Phase 1 is the core surface and the harness foundation.
   password leaks; `~/.pi` is not created; the compiled binary's
   `--check` exits 0.
 - Gate: `mise ci` is green at `8afc48f` with 2976 tests.
-
-### Decisions taken during the build, not yet ruled by the maintainer
-
-- A coordinator ownership exception lets the A1d fix add a no-op
-  `registerTool` to `packages/harness/test-support/fake-pi.ts`, which
-  F7a owns (`8b41bbf`).
-- A1d moves the private `scrub` helper and `SECRET` to
-  `packages/harness/src/tools/scrub.ts`, which keeps `define.ts` under
-  the 500-line cap (`1f6fe4f`).
-- L1a's buffered writer timer ends its drain in
-  `.catch(ignoreFailure)`, so a failed drain follows the fire-and-forget
-  rule (`fb5e038`).
-- L12b resolves the session link target against the run dir, because a
-  relative symlink target is relative to the link, not the process cwd
-  (`fdd6393`).
-- L3a moves `start` into a top-level `startRun` helper to satisfy the
-  function-length lint rule (`a16cea0`).
-- The linter sorts P2's `TOOL_TEXT` keys alphabetically, so P3 must
-  iterate the design B.1 tool order, not `Object.keys(TOOL_TEXT)`
-  (`c362fae`).
