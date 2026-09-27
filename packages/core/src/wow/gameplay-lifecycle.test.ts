@@ -14,7 +14,7 @@ import { type WorldHandle, worldSession } from "#wow/client";
 import { type ControlMode, ControlRuntime } from "#wow/control";
 import type { DbcFile } from "#wow/dbc";
 import * as factionData from "#wow/faction-template";
-import * as jev from "#wow/jev";
+import type { JevActionResult, JevSelect } from "#wow/jev";
 import * as navigation from "#wow/navigation";
 import type { NativeMap } from "#wow/navigation-native";
 import {
@@ -114,6 +114,10 @@ function units(targetX: number): Uint8Array {
   return writer.finish();
 }
 
+const unexpectedProvider: JevSelect = () =>
+  Promise.reject(new Error("fixture provider not called"));
+let provider = unexpectedProvider;
+
 async function fixture(targetX: number): Promise<Fixture> {
   const server = await startMockWorldServer({ loginMapId: 530 });
   let stopped = false;
@@ -136,8 +140,8 @@ async function fixture(targetX: number): Promise<Fixture> {
           port: server.port,
           navigationDataDir: "fixture-navigation",
           navigationLibrary: "fixture-native",
-          spellDataDir: "fixture-spells",
-          jevApiKey: "fixture-provider-not-called",
+          dbc: () => Promise.reject(new Error("fixture spells unread")),
+          jev: { select: (request, options) => provider(request, options) },
         },
         {
           sessionKey,
@@ -306,20 +310,18 @@ describe("gameplay forced-close lifecycle", () => {
         ),
       );
     const requested = Promise.withResolvers<void>();
-    const provider = jest
-      .spyOn(jev, "selectJevAction")
-      .mockImplementation((_request, options) => {
-        requested.resolve();
-        return new Promise<jev.JevActionResult>((_resolve, reject) => {
-          if (options.signal.aborted) reject(options.signal.reason);
-          else
-            options.signal.addEventListener(
-              "abort",
-              () => reject(options.signal.reason),
-              { once: true },
-            );
-        });
+    provider = (_request, options) => {
+      requested.resolve();
+      return new Promise<JevActionResult>((_resolve, reject) => {
+        if (options.signal.aborted) reject(options.signal.reason);
+        else
+          options.signal.addEventListener(
+            "abort",
+            () => reject(options.signal.reason),
+            { once: true },
+          );
       });
+    };
     let control: ControlRuntime | undefined;
     const setMode = ControlRuntime.prototype.setMode;
     const capture = jest
@@ -389,7 +391,7 @@ describe("gameplay forced-close lifecycle", () => {
         jest.useRealTimers();
         send.mockRestore();
         capture.mockRestore();
-        provider.mockRestore();
+        provider = unexpectedProvider;
         factions.mockRestore();
         spells.mockRestore();
         nav.mockRestore();

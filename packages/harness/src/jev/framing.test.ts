@@ -1,10 +1,11 @@
 import { expect, test } from "bun:test";
+import type { JevActionRequest } from "@peon/core";
+import { selectJevAction } from "#harness/jev/select";
 import {
   jsonResponse,
   request,
   validPayload,
 } from "#test-support/jev-fixtures";
-import { type JevActionRequest, selectJevAction } from "#wow/jev";
 
 test("none framing variant produces byte-identical body to request without framing", async () => {
   let baselineBody = "";
@@ -12,22 +13,22 @@ test("none framing variant produces byte-identical body to request without frami
 
   await selectJevAction(request, {
     apiKey: "ts_test_key",
-    signal: new AbortController().signal,
     fetch: async (_, init) => {
       baselineBody = String(init?.body);
       return jsonResponse(200, validPayload);
     },
+    signal: new AbortController().signal,
   });
 
   await selectJevAction(
     { ...request, framing: "none" },
     {
       apiKey: "ts_test_key",
-      signal: new AbortController().signal,
       fetch: async (_, init) => {
         noneBody = String(init?.body);
         return jsonResponse(200, validPayload);
       },
+      signal: new AbortController().signal,
     },
   );
 
@@ -40,18 +41,18 @@ test("minimal framing variant includes observed level in state.framing", async (
   let capturedBody = "";
   const req: JevActionRequest = {
     ...request,
-    observation: { self: { level: 10 } },
-    framing: "minimal",
     characterClass: "Priest",
+    framing: "minimal",
+    observation: { self: { level: 10 } },
   };
 
   await selectJevAction(req, {
     apiKey: "ts_test_key",
-    signal: new AbortController().signal,
     fetch: async (_, init) => {
       capturedBody = String(init?.body);
       return jsonResponse(200, validPayload);
     },
+    signal: new AbortController().signal,
   });
 
   const parsed = JSON.parse(capturedBody);
@@ -68,18 +69,18 @@ test("mechanics framing variant includes mechanics description in state.framing"
   let capturedBody = "";
   const req: JevActionRequest = {
     ...request,
-    observation: { self: { level: 12 } },
-    framing: "mechanics",
     characterClass: "Priest",
+    framing: "mechanics",
+    observation: { self: { level: 12 } },
   };
 
   await selectJevAction(req, {
     apiKey: "ts_test_key",
-    signal: new AbortController().signal,
     fetch: async (_, init) => {
       capturedBody = String(init?.body);
       return jsonResponse(200, validPayload);
     },
+    signal: new AbortController().signal,
   });
 
   const parsed = JSON.parse(capturedBody);
@@ -92,12 +93,12 @@ test("uses endpointUrl option when provided", async () => {
   let capturedUrl = "";
   await selectJevAction(request, {
     apiKey: "ts_test_key",
-    signal: new AbortController().signal,
     endpointUrl: "http://localhost:9999/custom",
     fetch: async (input) => {
       capturedUrl = String(input);
       return jsonResponse(200, validPayload);
     },
+    signal: new AbortController().signal,
   });
   expect(capturedUrl).toBe("http://localhost:9999/custom");
 });

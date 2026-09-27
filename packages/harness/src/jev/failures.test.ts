@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
+import { type JevActionOptions, selectJevAction } from "#harness/jev/select";
 import {
   jsonResponse,
   request,
   validPayload,
 } from "#test-support/jev-fixtures";
-import { type JevActionOptions, selectJevAction } from "#wow/jev";
 
 test("HTTP rejection remains a failure without retry", async () => {
   let calls = 0;
@@ -16,8 +16,8 @@ test("HTTP rejection remains a failure without retry", async () => {
   await expect(
     selectJevAction(request, {
       apiKey: "ts_test_key",
-      signal: new AbortController().signal,
       fetch,
+      signal: new AbortController().signal,
     }),
   ).rejects.toThrow("TypeSafe HTTP 529");
   expect(calls).toBe(1);
@@ -33,8 +33,8 @@ test("network rejection remains a failure without retry", async () => {
   await expect(
     selectJevAction(request, {
       apiKey: "ts_test_key",
-      signal: new AbortController().signal,
       fetch,
+      signal: new AbortController().signal,
     }),
   ).rejects.toThrow("ECONNRESET");
   expect(calls).toBe(1);
@@ -58,8 +58,8 @@ test("abort propagates and does not retry", async () => {
 
   const pending = selectJevAction(request, {
     apiKey: "ts_test_key",
-    signal: controller.signal,
     fetch,
+    signal: controller.signal,
   });
   controller.abort();
   await expect(pending).rejects.toMatchObject({ name: "AbortError" });
@@ -76,8 +76,8 @@ test("late 2xx after abort is not a successful Choice", async () => {
   await expect(
     selectJevAction(request, {
       apiKey: "ts_test_key",
-      signal: controller.signal,
       fetch,
+      signal: controller.signal,
     }),
   ).rejects.toMatchObject({ name: "AbortError" });
 });
@@ -92,8 +92,8 @@ test("missing API key fails without a network call", async () => {
   await expect(
     selectJevAction(request, {
       apiKey: "",
-      signal: new AbortController().signal,
       fetch,
+      signal: new AbortController().signal,
     }),
   ).rejects.toThrow("Missing TypeSafe API key");
   expect(calls).toBe(0);
@@ -104,7 +104,6 @@ test("missing probability keys and non-unit totals fail", async () => {
     await expect(
       selectJevAction(request, {
         apiKey: "ts_test_key",
-        signal: new AbortController().signal,
         fetch: async () =>
           jsonResponse(200, {
             ...validPayload,
@@ -112,6 +111,7 @@ test("missing probability keys and non-unit totals fail", async () => {
               action: { ...validPayload.answers.action, probabilities },
             },
           }),
+        signal: new AbortController().signal,
       }),
     ).rejects.toThrow("Malformed TypeSafe Choice response");
   }
@@ -121,7 +121,6 @@ test("rejected probability totals retain the response failure boundary", async (
   await expect(
     selectJevAction(request, {
       apiKey: "ts_test_key",
-      signal: new AbortController().signal,
       fetch: async () =>
         jsonResponse(200, {
           ...validPayload,
@@ -132,6 +131,7 @@ test("rejected probability totals retain the response failure boundary", async (
             },
           },
         }),
+      signal: new AbortController().signal,
     }),
   ).rejects.toMatchObject({
     cause: { field: "probabilities.total", total: 0.5 },
@@ -153,8 +153,8 @@ test("JSON read failures retain raw causes without serializing them", async () =
   await expect(
     selectJevAction(request, {
       apiKey: "ts_test_key",
-      signal: new AbortController().signal,
       fetch: async () => response,
+      signal: new AbortController().signal,
     }),
-  ).rejects.toMatchObject({ cause: { field: "json", error: raw } });
+  ).rejects.toMatchObject({ cause: { error: raw, field: "json" } });
 });

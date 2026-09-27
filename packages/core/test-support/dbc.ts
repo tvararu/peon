@@ -1,3 +1,5 @@
+import type { DbcSource } from "#wow/dbc";
+
 export function packDbc(
   fieldCount: number,
   rows: number[][],
@@ -26,4 +28,12 @@ export function packDbc(
   }
   buf.set(strings, offset);
   return buf;
+}
+
+export function dbcFiles(files: ReadonlyMap<string, Uint8Array>): DbcSource {
+  return async (file) => {
+    const bytes = files.get(file);
+    if (!bytes) throw new Error(`missing ${file}`);
+    return bytes;
+  };
 }

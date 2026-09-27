@@ -47,6 +47,7 @@ import type {
   NavigationState,
   WalkOutcome,
 } from "#wow/control";
+import type { DbcSource } from "#wow/dbc";
 import type { DestroyEvent, DestroyState } from "#wow/destroy";
 import type { CycleEvent, CycleState } from "#wow/encounter-cycle";
 import type { Entity, EntityEvent } from "#wow/entity-store";
@@ -60,6 +61,7 @@ import type {
   NamedInventoryState,
   NamedRewardsState,
 } from "#wow/item-labels";
+import type { JevPort } from "#wow/jev";
 import { LOGOUT_TIMEOUT_MS, requestLogout } from "#wow/logout";
 import type { NavigationObservation } from "#wow/navigation-observation";
 import type { NearbyQuery, NearbyRow } from "#wow/nearby";
@@ -90,12 +92,10 @@ export type ClientConfig = {
   logoutTimeoutMs?: number;
   language?: number;
   cachedSessionKey?: Uint8Array;
-  spellDataDir?: string;
+  dbc?: DbcSource;
   navigationDataDir?: string;
   navigationLibrary?: string;
-  jevApiKey?: string;
-  jevEndpointUrl?: string;
-  jevFault?: string;
+  jev?: JevPort;
 };
 
 import type { AuthResult } from "#wow/auth";

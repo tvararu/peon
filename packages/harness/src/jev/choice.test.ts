@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
+import { type JevActionOptions, selectJevAction } from "#harness/jev/select";
 import {
   jsonResponse,
   request,
   validPayload,
 } from "#test-support/jev-fixtures";
-import { type JevActionOptions, selectJevAction } from "#wow/jev";
 
 test("valid closed-set Choice preserves the judgment", async () => {
   const signal = new AbortController().signal;
@@ -23,8 +23,8 @@ test("valid closed-set Choice preserves the judgment", async () => {
 
   const result = await selectJevAction(request, {
     apiKey: "ts_test_key",
-    signal,
     fetch,
+    signal,
   });
 
   expect(calls).toBe(1);
@@ -42,10 +42,10 @@ test("valid closed-set Choice preserves the judgment", async () => {
   });
   expect(result).toMatchObject({
     choice: "smite",
-    probabilities: { smite: 0.7, wait: 0.3 },
     confidence: 0.4,
-    model: "jev-1.13.0",
     inputTokens: 318,
+    model: "jev-1.13.0",
+    probabilities: { smite: 0.7, wait: 0.3 },
   });
   expect(result.elapsedMs).toBeGreaterThanOrEqual(0);
   expect(JSON.stringify(result).includes("ts_test_key")).toBe(false);
@@ -58,10 +58,10 @@ test("unknown Choice id cannot escape as success", async () => {
       ...validPayload,
       answers: {
         action: {
-          type: "choice",
           choice: "frostbolt",
-          probabilities: { frostbolt: 1, smite: 0, wait: 0 },
           confidence: 0.9,
+          probabilities: { frostbolt: 1, smite: 0, wait: 0 },
+          type: "choice",
         },
       },
     });
@@ -69,8 +69,8 @@ test("unknown Choice id cannot escape as success", async () => {
   await expect(
     selectJevAction(request, {
       apiKey: "ts_test_key",
-      signal: new AbortController().signal,
       fetch,
+      signal: new AbortController().signal,
     }),
   ).rejects.toThrow("Unknown TypeSafe Choice id: frostbolt");
 });
@@ -78,28 +78,28 @@ test("unknown Choice id cannot escape as success", async () => {
 test("malformed Choice payload cannot escape as success", async () => {
   const noulFetch: NonNullable<JevActionOptions["fetch"]> = async () =>
     jsonResponse(200, {
+      answers: { action: { noul: 0.2, type: "noul" } },
       model: "jev-1.13.0",
-      answers: { action: { type: "noul", noul: 0.2 } },
       usage: { input_tokens: 10, output_tokens: 1 },
     });
   const textFetch: NonNullable<JevActionOptions["fetch"]> = async () =>
     new Response("not-json", {
-      status: 200,
       headers: { "Content-Type": "text/plain" },
+      status: 200,
     });
 
   await expect(
     selectJevAction(request, {
       apiKey: "ts_test_key",
-      signal: new AbortController().signal,
       fetch: noulFetch,
+      signal: new AbortController().signal,
     }),
   ).rejects.toThrow("Malformed TypeSafe Choice response");
   await expect(
     selectJevAction(request, {
       apiKey: "ts_test_key",
-      signal: new AbortController().signal,
       fetch: textFetch,
+      signal: new AbortController().signal,
     }),
   ).rejects.toThrow("Malformed TypeSafe Choice response");
 });
@@ -109,16 +109,16 @@ test("malformed Choice distributions cannot escape as success", async () => {
   const run = async (action: unknown) =>
     selectJevAction(request, {
       apiKey: "ts_test_key",
-      signal: new AbortController().signal,
       fetch: async () =>
         jsonResponse(200, { ...validPayload, answers: { action } }),
+      signal: new AbortController().signal,
     });
 
   await expect(run({ ...base, probabilities: {} })).rejects.toThrow(
     "Malformed TypeSafe Choice response",
   );
   await expect(
-    run({ ...base, probabilities: { smite: 0.7, wait: 0.3, frostbolt: 0 } }),
+    run({ ...base, probabilities: { frostbolt: 0, smite: 0.7, wait: 0.3 } }),
   ).rejects.toThrow("Malformed TypeSafe Choice response");
   await expect(
     run({ ...base, probabilities: { smite: -0.2, wait: 1.2 } }),
@@ -134,18 +134,18 @@ test("low-confidence complete distribution remains a judgment", async () => {
       ...validPayload,
       answers: {
         action: {
-          type: "choice",
           choice: "wait",
-          probabilities: { smite: 0.48, wait: 0.52 },
           confidence: 0.05,
+          probabilities: { smite: 0.48, wait: 0.52 },
+          type: "choice",
         },
       },
     });
 
   const result = await selectJevAction(request, {
     apiKey: "ts_test_key",
-    signal: new AbortController().signal,
     fetch,
+    signal: new AbortController().signal,
   });
   expect(result.choice).toBe("wait");
   expect(result.confidence).toBe(0.05);

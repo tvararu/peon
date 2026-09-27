@@ -19,12 +19,12 @@ export type LazyState = {
   navigation?: Navigation;
 };
 
-type SpellData = Pick<ClientConfig, "spellDataDir">;
+type SpellData = Pick<ClientConfig, "dbc">;
 type NavigationData = Pick<
   ClientConfig,
   "navigationDataDir" | "navigationLibrary"
 >;
-type Configured = NavigationData & Pick<ClientConfig, "jevApiKey">;
+type Configured = NavigationData & Pick<ClientConfig, "jev">;
 type CatalogSink = Pick<CombatRuntime, "setCatalog">;
 
 export function loadCatalog(
@@ -32,15 +32,12 @@ export function loadCatalog(
   lazy: LazyState,
   combat: CatalogSink,
 ): Promise<void> {
-  if (!config.spellDataDir)
-    return Promise.reject(new Error("missing_spell_data"));
-  lazy.catalogPromise ??= loadSpellCatalog(config.spellDataDir).then(
-    (catalog) => {
-      if (lazy.disposed) return;
-      combat.setCatalog(catalog);
-      lazy.spellsLoaded = true;
-    },
-  );
+  if (!config.dbc) return Promise.reject(new Error("missing_spell_data"));
+  lazy.catalogPromise ??= loadSpellCatalog(config.dbc).then((catalog) => {
+    if (lazy.disposed) return;
+    combat.setCatalog(catalog);
+    lazy.spellsLoaded = true;
+  });
   return lazy.catalogPromise;
 }
 
@@ -48,13 +45,10 @@ export function loadFactions(
   config: SpellData,
   lazy: LazyState,
 ): Promise<void> {
-  if (!config.spellDataDir)
-    return Promise.reject(new Error("missing_spell_data"));
-  lazy.factionPromise ??= loadFactionTemplates(config.spellDataDir).then(
-    (data) => {
-      if (!lazy.disposed) lazy.factions = data;
-    },
-  );
+  if (!config.dbc) return Promise.reject(new Error("missing_spell_data"));
+  lazy.factionPromise ??= loadFactionTemplates(config.dbc).then((data) => {
+    if (!lazy.disposed) lazy.factions = data;
+  });
   return lazy.factionPromise;
 }
 
@@ -76,7 +70,7 @@ export function warmCatalogs(
   lazy: LazyState,
   combat: CatalogSink,
 ): void {
-  if (!config.spellDataDir) return;
+  if (!config.dbc) return;
   loadCatalog(config, lazy, combat).catch(ignoreFailure);
   loadFactions(config, lazy).catch(ignoreFailure);
 }
@@ -90,7 +84,7 @@ export function capabilitiesOf(
     factions: lazy.factions !== undefined,
     spells: lazy.spellsLoaded === true,
     navigation: navigationOn(config, mapId),
-    jev: Boolean(config.jevApiKey),
+    jev: config.jev !== undefined,
   };
 }
 

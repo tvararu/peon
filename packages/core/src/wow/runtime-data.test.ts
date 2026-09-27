@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
-import { packDbc } from "#test-support/dbc";
+import { dbcFiles, packDbc } from "#test-support/dbc";
 import { scratchDir } from "#test-support/scratch";
 import { catalogAccess } from "#wow/runtime";
 import {
@@ -20,17 +20,16 @@ const EMPTY_DBCS: [file: string, fields: number][] = [
 ];
 const dirs: string[] = [];
 
-async function dataDir(
-  files: [file: string, fields: number][],
-): Promise<string> {
+function dataDir(): string {
   const dir = scratchDir("runtime-data");
   dirs.push(dir);
-  await Promise.all(
-    files.map(([file, fields]) =>
-      Bun.write(join(dir, file), packDbc(fields, [])),
-    ),
-  );
   return dir;
+}
+
+function emptyDbcs(files: [file: string, fields: number][]) {
+  return dbcFiles(
+    new Map(files.map(([file, fields]) => [file, packDbc(fields, [])])),
+  );
 }
 
 afterEach(async () => {
@@ -49,13 +48,13 @@ describe("capabilitiesOf", () => {
     });
   });
 
-  test("navigation needs both paths and jev needs the key", () => {
+  test("navigation needs both paths and jev needs a provider", () => {
     const lazy: LazyState = { disposed: false };
     expect(capabilitiesOf({ navigationDataDir: "d" }, lazy).navigation).toBe(
       false,
     );
     const full = {
-      jevApiKey: "k",
+      jev: { select: () => Promise.reject(new Error("unused")) },
       navigationDataDir: "d",
       navigationLibrary: "l",
     };
@@ -66,7 +65,7 @@ describe("capabilitiesOf", () => {
   });
 
   test("navigation on the current map needs that map's navmesh", async () => {
-    const dir = await dataDir([]);
+    const dir = dataDir();
     await Bun.write(join(dir, "Expansion01.map"), "");
     const lazy: LazyState = { disposed: false };
     const config = { navigationDataDir: dir, navigationLibrary: "l" };
@@ -77,7 +76,7 @@ describe("capabilitiesOf", () => {
   });
 
   test("runtime capabilities follow the current pose's map", async () => {
-    const dir = await dataDir([]);
+    const dir = dataDir();
     await Bun.write(join(dir, "Expansion01.map"), "");
     let mapId: number | undefined = 530;
     const control = {
@@ -100,7 +99,7 @@ describe("capabilitiesOf", () => {
 });
 
 describe("warmCatalogs", () => {
-  test("does nothing without a spell data dir", () => {
+  test("does nothing without a spell data source", () => {
     const lazy: LazyState = { disposed: false };
     warmCatalogs({}, lazy, { setCatalog: jest.fn() });
     expect(lazy.catalogPromise).toBeUndefined();
@@ -110,7 +109,7 @@ describe("warmCatalogs", () => {
   test("loads both catalogs at once and marks each one loaded", async () => {
     const lazy: LazyState = { disposed: false };
     const combat = { setCatalog: jest.fn() };
-    warmCatalogs({ spellDataDir: await dataDir(EMPTY_DBCS) }, lazy, combat);
+    warmCatalogs({ dbc: emptyDbcs(EMPTY_DBCS) }, lazy, combat);
     await Promise.all([lazy.catalogPromise, lazy.factionPromise]);
     expect(capabilitiesOf({}, lazy)).toMatchObject({
       factions: true,
@@ -122,8 +121,8 @@ describe("warmCatalogs", () => {
   test("a missing spell file leaves spells unloaded and factions loaded", async () => {
     const lazy: LazyState = { disposed: false };
     const combat = { setCatalog: jest.fn() };
-    const dir = await dataDir([["FactionTemplate.dbc", 14]]);
-    warmCatalogs({ spellDataDir: dir }, lazy, combat);
+    const dbc = emptyDbcs([["FactionTemplate.dbc", 14]]);
+    warmCatalogs({ dbc }, lazy, combat);
     await lazy.factionPromise;
     await expect(lazy.catalogPromise).rejects.toThrow(/Spell\.dbc/);
     expect(capabilitiesOf({}, lazy)).toMatchObject({

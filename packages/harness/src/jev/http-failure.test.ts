@@ -1,13 +1,13 @@
 import { expect, test } from "bun:test";
+import { JevTransportError, JevUnavailableError } from "@peon/core";
+import { selectJevAction } from "#harness/jev/select";
 import { jsonResponse, request } from "#test-support/jev-fixtures";
-import { selectJevAction } from "#wow/jev";
-import { JevTransportError, JevUnavailableError } from "#wow/jev-failure";
 
 function answering(response: () => Response) {
   return selectJevAction(request, {
     apiKey: "ts_test_key",
-    signal: new AbortController().signal,
     fetch: async () => response(),
+    signal: new AbortController().signal,
   });
 }
 

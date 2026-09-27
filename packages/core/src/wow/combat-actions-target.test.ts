@@ -1,8 +1,5 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { rm } from "node:fs/promises";
-import { join } from "node:path";
-import { packDbc } from "#test-support/dbc";
-import { scratchDir } from "#test-support/scratch";
+import { beforeAll, describe, expect, test } from "bun:test";
+import { dbcFiles, packDbc } from "#test-support/dbc";
 import type { CombatState } from "#wow/combat";
 import { targetReason, targetRelation } from "#wow/combat-actions-target";
 import { EntityStore } from "#wow/entity-store";
@@ -30,25 +27,17 @@ function template(
   return row;
 }
 
-let dir = "";
 let catalog: FactionTemplateCatalog;
 
 beforeAll(async () => {
-  dir = scratchDir("combat-target");
-  await Bun.write(
-    join(dir, "FactionTemplate.dbc"),
-    packDbc(14, [
-      template(TEMPLATES.self, 10, { our: PLAYER_MASK }),
-      template(TEMPLATES.hostile, 20, { hostile: PLAYER_MASK }),
-      template(TEMPLATES.neutral, 30, {}),
-      template(TEMPLATES.friendly, 40, { friendly: PLAYER_MASK }),
-    ]),
-  );
-  catalog = await loadFactionTemplates(dir);
-});
-
-afterAll(async () => {
-  await rm(dir, { recursive: true, force: true });
+  const templates = packDbc(14, [
+    template(TEMPLATES.self, 10, { our: PLAYER_MASK }),
+    template(TEMPLATES.hostile, 20, { hostile: PLAYER_MASK }),
+    template(TEMPLATES.neutral, 30, {}),
+    template(TEMPLATES.friendly, 40, { friendly: PLAYER_MASK }),
+  ]);
+  const source = dbcFiles(new Map([["FactionTemplate.dbc", templates]]));
+  catalog = await loadFactionTemplates(source);
 });
 
 const state = {

@@ -1,5 +1,6 @@
 import {
   type DbcFile,
+  type DbcSource,
   DbcTable,
   f32,
   i32,
@@ -137,14 +138,14 @@ export class SpellCatalog {
 }
 
 export async function loadSpellCatalog(
-  directory: string,
+  source: DbcSource,
 ): Promise<SpellCatalog> {
   const [spell, range, cast, duration, radius] = await Promise.all([
-    openDbc(directory, LAYOUT.spell),
-    openDbc(directory, LAYOUT.range),
-    openDbc(directory, LAYOUT.cast),
-    openDbc(directory, LAYOUT.duration),
-    openDbc(directory, LAYOUT.radius),
+    openDbc(source, LAYOUT.spell),
+    openDbc(source, LAYOUT.range),
+    openDbc(source, LAYOUT.cast),
+    openDbc(source, LAYOUT.duration),
+    openDbc(source, LAYOUT.radius),
   ]);
   return new SpellCatalog({ spell, range, cast, duration, radius });
 }

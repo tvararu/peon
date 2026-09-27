@@ -13,18 +13,15 @@ export type DbcFile = {
   byId: Map<number, number>;
 };
 
+export type DbcSource = (file: string) => Promise<Uint8Array>;
+
 const utf8 = new TextDecoder("utf-8");
-const TRAILING_SLASH = /\/$/;
 
 export async function openDbc(
-  directory: string,
+  source: DbcSource,
   spec: DbcSpec,
 ): Promise<DbcFile> {
-  const path = `${directory.replace(TRAILING_SLASH, "")}/${spec.file}`;
-  const handle = Bun.file(path);
-  if (!(await handle.exists()))
-    throw new Error(`missing ${spec.file} in ${directory}`);
-  return parseDbc(spec, new Uint8Array(await handle.arrayBuffer()));
+  return parseDbc(spec, await source(spec.file));
 }
 
 type DbcHeader = {

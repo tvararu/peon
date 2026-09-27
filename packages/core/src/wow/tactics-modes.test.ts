@@ -25,7 +25,7 @@ test("preparation failure rejects start and leaves an explicit final failure", a
 test("missing credentials cannot enter preparation", async () => {
   let prepared = false;
   const f = fixture({
-    apiKey: undefined,
+    select: undefined,
     prepare: async () => {
       prepared = true;
     },
