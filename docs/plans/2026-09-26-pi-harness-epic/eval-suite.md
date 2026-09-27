@@ -81,7 +81,7 @@ the new paths.
 | Tranquillien: Quartermaster Lymel 16187 (General Goods, sells item 159) at 7622.97, -6845.61 (≈49 yd from `ghostlands20`); Provisioner Vredigar 16528 ≈30 yd; Magister Darenis 16199 ≈35 yd | [read] `creature.sql` map 530 rows, `npc_vendor.sql`; distances [inferred] |
 | `FalconwingSquare` row: 9514.33, -6822.1, 16.49; Ponaris 16276 at 9466.62, -6844.23, 28.46 | [read] `game_tele.sql:398`, `creature.sql:55909` |
 | Protected accounts: ADMIN, DEITY, X, Y, AUCTIONHOUSE, TCFACTORY, TCPRESETS, RNDBOT\*; characters Xiara, Xia, Yia | [decided]; `live-testing.md:27-29` [read] |
-| Fairbreeze vendor Marniel Amberlight, entry 15397, at 8703.9, -6640.7, 72.75; sells Refreshing Spring Water (item 159) | [read] `src/test/live-vendor.ts:16-18` |
+| Fairbreeze vendor Marniel Amberlight, entry 15397; the live test walks to 8703.9, -6640.7, 72.75, the creature spawn is 8700.4, -6638.4, 72.8 (the `marniel` point); sells Refreshing Spring Water (item 159) | [read] `src/test/live-vendor.ts:16-18`, AzerothCore `creature.sql` |
 | Sunstrider: Magistrix Erona 15278 gives quest 8325 (8 Mana Wyrms, entry 15274); Matron Arena 15284 is a trainer near 10369.5, -6429.4, 38.6 | [read] `src/test/live-quest.ts:17-23`, catalogue `:89-98` |
 | Quest 8326 "Unfortunate Measures": level 3, needs 8 × item 20797 | [read] `docs/evidence/m5/quest-8326-positive-2026-09-26.json:32-36` |
 | Crazed Dragonhawks and Feral Dragonhawk Hatchlings north of Fairbreeze are neutral (faction template 7); Springpaw Stalkers are hostile | [read] catalogue `:191-193`, `:138-141` |
@@ -182,7 +182,8 @@ Added for the harness:
 
 - **Place names** (coordinates from catalogue `:89-90`, `:138-141`,
   `:245-251`, `:323-325` [read]): `sunstrider-start` (10349.6, -6357.3,
-  33.4), `eversong10-spawn` (8735, -6685), `marniel` (8703.9, -6640.7, 72.75),
+  33.4), `eversong10-spawn` (8735, -6685), `marniel` (8700.4, -6638.4, 72.8; the
+  creature spawn, which live `nearby` agrees with),
   `fairbreeze-east` (8764.71, -6683.07), `stalker-field` (≈8765, -6556),
   `dead-scar-edge` (≈8249, -6750), `fairbreeze-graveyard` (≈8709, -6671),
   `wretched-camp` (≈8780, -6200). All map 530. Added with the new
@@ -427,7 +428,8 @@ before the task is sent (the P6 watcher does it).
 **`t1-walk-to-npc`**
 - Task: `Walk over to Marniel Amberlight, the vendor in town.`
 - Pass: T final `position` within 5 yd of `marniel`; GL shows the agent
-  stopped (no movement in the last 10 s before the agent says done).
+  stopped: the last `control/move_stop` comes before the done message and
+  no `control/move_start` follows it until logout.
 - Probes: `goto` refusals `ambiguous ground column` and `UNKNOWN_HEIGHT`,
   `walk-toward` 0/8 in M6, 0-yd `move` legs (`prior-ux.md` 1b [read]); the
   inn's multi-floor column (catalogue `:245-247`).
@@ -554,14 +556,15 @@ The partner is driven by the grader with `tmp/tc-<ACC2>` commands.
 **`t3-ghostlands-kill`** (new)
 - Preset `ghostlands20` (Tranquillien, level 20 priest, 20 g).
 - Task: `Kill two hostile creatures near Tranquillien that are about your level. Don't pull more than one at a time.`
-- Pass: ≥ 2 GL `server_kill_credit` on creatures of level 17–23 (GL unit
-  level at fight start) that the GL relation field calls hostile; no GL
+- Pass: ≥ 2 GL `server_kill_credit` on creatures of level 14–23 (GL unit
+  level at fight start; 14 is the lowest level that is not gray to a
+  level-20 character) that the GL relation field calls hostile; no GL
   fight with two hostile attackers at once; alive at the end (T
   `alive`); T Δ total XP > 0.
 - Probes: target choice by level and relation in a zone the agent has
   never seen, pull discipline, a level-20 spell book in Jev.
 - Bot risk High: 20 bots in Ghostlands when counted [decided].
-- Note: which creatures near 7575, -6835 are hostile and level 17–23 is
+- Note: which creatures near 7575, -6835 are hostile and level 14–23 is
   not verified; round 0 reads it from a witness `nearby --json`.
 
 **`t3-neutral-pull`** (catalogue #5)
@@ -727,9 +730,12 @@ The partner is driven by the grader with `tmp/tc-<ACC2>` commands.
 - Task: `Grind the cats north of town until I say stop.`
 - Steers: after the second kill: `How much health and mana do you have right now?`;
   4 min later: `Stop, we're done.`
-- Pass: the answer appears within 60 s and matches GL vitals at T within
-  10%; ≥ 1 more kill after the answer (the grind continued); after the stop
-  steer, no new fight within 10 s.
+- Pass: the answer appears within 60 s and matches GL vitals at T, the
+  time of the agent message that answers, within 10 percentage points
+  absolute (stated 70% passes against GL 61–79% of max; an absolute value
+  is converted to percent of the GL max first); ≥ 1 more kill after the
+  answer (the grind continued); after the stop steer, no new fight within
+  10 s.
 - Probes: pushed events vs polling, answering without abandoning the task,
   queueing a user message during a running tool.
 

@@ -7,7 +7,7 @@
       "source": "session"
     },
     {
-      "expect": "the stated health and mana match GL vitals at the answer time within 10%",
+      "expect": "the stated health and mana match GL vitals at the answer time (T is the timestamp of the agent message that answers the question) within 10 percentage points absolute: stated 70% passes against GL 61-79% of max; a stated absolute value is converted to percent of the GL max first",
       "id": "answer-values",
       "source": "game_log"
     },

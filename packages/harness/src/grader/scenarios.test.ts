@@ -232,6 +232,12 @@ describe("expectations match preset truth", () => {
     expect(text).toContain("names the death");
   });
 
+  test("t7-question-while-acting states when and how close the vitals must be", () => {
+    const text = expectOf("t7-question-while-acting", "answer-values");
+    expect(text).toContain("at the answer time");
+    expect(text).toContain("10 percentage points");
+  });
+
   test("t5-vendor-buy-goldshire sums item 159 over every row", () => {
     expect(expectOf("t5-vendor-buy-goldshire", "water")).toContain(
       "summed over every T row",
