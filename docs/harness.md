@@ -230,8 +230,13 @@ long you drove, how far the character moved and whether that end pose
 came from the server or the client's prediction, the targets you
 picked, the slots and interactions you used, the game-log lines while
 you drove (runs your takeover stopped, casts, kills, loot, quests,
-chat), and the current HP, mana and target. The note does not start a
-turn; the agent reads it on its next one. The mode is an ordinary Pi
+chat), and the current HP, mana and target. Spell names there
+and on the indicator come from the game files and say so, next to the
+spell id. If the game connection closes while you drive, or the
+harness quits, the takeover ends at once: the held keys are dropped,
+the character is freed and the note says why. After a reconnect you
+are in TALK and the agent holds nothing until someone claims it. The
+note does not start a turn; the agent reads it on its next one. The mode is an ordinary Pi
 extension in `packages/harness/src/drive/` that uses the world service
 below.
 

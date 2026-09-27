@@ -21,9 +21,6 @@ export function driveExtension(
     let world: WorldService | undefined;
     let ctx: ExtensionContext | undefined;
     let offInput: (() => void) | undefined;
-    const offWorld = onWorld(pi, (service) => {
-      world = service;
-    });
     const play = new Play({
       abort: () => ctx?.abort(),
       busy: () => (ctx ? !ctx.isIdle() : false),
@@ -36,6 +33,12 @@ export function driveExtension(
       ui: () => ctx?.ui,
       world: () => world,
     });
+    let offSession: (() => void) | undefined;
+    const offWorld = onWorld(pi, (service) => {
+      world = service;
+      offSession?.();
+      offSession = play.watch(service);
+    });
     pi.on("session_start", (_event, started) => {
       if (!started.hasUI) return;
       ctx = started;
@@ -45,6 +48,7 @@ export function driveExtension(
     pi.on("session_shutdown", () => {
       offInput?.();
       offWorld();
+      offSession?.();
       play.dispose();
       ctx = undefined;
     });

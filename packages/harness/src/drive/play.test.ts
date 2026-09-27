@@ -32,10 +32,21 @@ async function setup(busy = false) {
     }),
     world: () => world,
   });
-  return { aborted: () => aborted, claims, handle, notes, play, rt, widget };
+  return {
+    aborted: () => aborted,
+    claims,
+    handle,
+    notes,
+    play,
+    rt,
+    widget,
+    world,
+  };
 }
 
-const flush = () => Bun.sleep(0);
+async function flush(): Promise<void> {
+  for (let tick = 0; tick < 50; tick++) await Promise.resolve();
+}
 
 describe("Play", () => {
   test("F1 claims the human once and holds it across keys and TALK", async () => {
@@ -106,6 +117,60 @@ describe("Play", () => {
     expect(notes[0]).toContain("Cast Smite succeeded.");
     expect(notes[0]).not.toContain("You start to move.");
     expect(widget.at(-1)).toBeUndefined();
+  });
+
+  test("an action pressed just before Esc lands in that takeover's note, not the next", async () => {
+    const { handle, notes, play, rt } = await setup();
+    const gate = Promise.withResolvers<void>();
+    rt.mutex.run(() => gate.promise);
+    play.input(F1);
+    play.input(" ");
+    play.input(ESC);
+    expect(notes).toHaveLength(0);
+    gate.resolve();
+    await flush();
+    expect(handle.jump).toHaveBeenCalledTimes(1);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toContain("Human actions: jumped.");
+    play.input(F1);
+    play.input(ESC);
+    await flush();
+    await flush();
+    expect(notes[1]).not.toContain("jumped");
+  });
+
+  test("taking over again while a hand-back finishes keeps the new takeover", async () => {
+    const { play, rt } = await setup();
+    const gate = Promise.withResolvers<void>();
+    play.input(F1);
+    rt.mutex.run(() => gate.promise);
+    play.input(ESC);
+    play.input(F1);
+    gate.resolve();
+    await flush();
+    expect(play.current()).toBe("play");
+    expect(play.holding()).toBe(true);
+    expect(rt.control.owner()).toBe("human");
+  });
+
+  test("a closed connection ends the takeover and frees the character", async () => {
+    const { notes, play, rt, widget, world } = await setup();
+    play.watch(world);
+    play.input(F1);
+    play.input("w");
+    await rt.disconnect();
+    await flush();
+    await flush();
+    expect(rt.control.owner()).toBe("none");
+    expect(play.current()).toBe("talk");
+    expect(play.holding()).toBe(false);
+    expect(widget.at(-1)).toBeUndefined();
+    expect(notes[0]).toContain(
+      "control returned to the agent because the game connection closed.",
+    );
+    await rt.connect();
+    expect(play.input("w")).toBeUndefined();
+    expect(rt.control.owner()).toBe("none");
   });
 
   test("F9 is left to the stop shortcut and drops the held keys", async () => {

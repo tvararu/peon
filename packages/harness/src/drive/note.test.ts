@@ -66,6 +66,23 @@ describe("handBackNote", () => {
       "Movement: no pose was observed.",
     );
   });
+
+  test("tells no target from a selected target whose name was not observed", () => {
+    const self = BACK.self ?? ({} as never);
+    expect(
+      handBackNote({ ...BACK, self: { ...self, target: { name: undefined } } }),
+    ).toContain("target selected, name not observed.");
+    expect(
+      handBackNote({ ...BACK, self: { ...self, target: { name: "Kel" } } }),
+    ).toContain("target Kel.");
+    expect(handBackNote(BACK)).toContain("no target.");
+  });
+
+  test("says why control returned when the drive did not end with Esc", () => {
+    expect(handBackNote(BACK, "the game connection closed")).toStartWith(
+      "[human] The human drove the character for 42 s; control returned to the agent because the game connection closed.",
+    );
+  });
 });
 
 describe("nextHostile", () => {

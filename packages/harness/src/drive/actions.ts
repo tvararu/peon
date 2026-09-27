@@ -71,19 +71,25 @@ function spellTarget(
   return self;
 }
 
+export function spellLabel(id: number, name: string | undefined): string {
+  return name
+    ? `${name} (spell ${id}; name from the game files)`
+    : `spell ${id}`;
+}
+
 async function castSpell(
   world: PlayWorld,
   id: number,
   target: bigint | undefined,
 ): Promise<Done> {
   const spell = world.reads.spellDefinition(id);
-  const name = spell?.name ?? `spell ${id}`;
+  const name = spellLabel(id, spell?.name);
   const self = world.reads.getControlState().selfGuid;
   const aim = spellTarget(spell, self, target);
   if (aim === undefined) return { text: `${name} needs a target.` };
   if (aim !== self) await world.act.faceGuid(aim);
   await world.act.cast(id, aim);
-  return { action: `cast ${name}`, text: `Cast ${name} sent.` };
+  return { action: `cast ${name}`, text: `Cast sent: ${name}.` };
 }
 
 async function useItem(world: PlayWorld, entry: number): Promise<Done> {

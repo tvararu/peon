@@ -1,4 +1,5 @@
 import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
+import type { Unsubscribe } from "@peon/core";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import {
   type Done,
@@ -54,6 +55,7 @@ export class Play {
   private journal: Journal | undefined;
   private targetName: string | undefined;
   private flash = "";
+  private readonly pending = new Set<Promise<void>>();
   private readonly held: HeldKeys;
 
   private readonly host: PlayHost;
@@ -101,11 +103,19 @@ export class Play {
     this.render();
   }
 
+  watch(world: WorldService): Unsubscribe {
+    return world.onSession(() => () => {
+      this.handBack("the game connection closed").catch(ignoreFailure);
+    });
+  }
+
   dispose(): void {
     this.held.clear();
     this.journal?.dispose();
+    this.journal = undefined;
     this.claim?.release();
     this.claim = undefined;
+    this.mode = "talk";
     this.host.ui()?.setWidget(WIDGET, undefined);
   }
 
@@ -118,7 +128,10 @@ export class Play {
       this.journal = undefined;
       return;
     }
-    this.claim.onLost(() => this.lost());
+    const claim = this.claim;
+    claim.onLost(() => {
+      if (this.claim === claim) this.lost();
+    });
     if (this.host.busy()) this.host.abort();
   }
 
@@ -156,11 +169,12 @@ export class Play {
     }
     const act = this.act(command);
     if (!act) return;
-    act
-      .then((done) => this.done(done))
-      .catch((error: Error) =>
-        this.done({ text: `Refused: ${error.message}.` }),
-      );
+    const { journal } = this;
+    const settled = act
+      .catch((error: Error) => ({ text: `Refused: ${error.message}.` }))
+      .then((done) => this.done(done, journal));
+    this.pending.add(settled);
+    settled.finally(() => this.pending.delete(settled)).catch(ignoreFailure);
   }
 
   private act(command: PlayCommand): Promise<Done> | undefined {
@@ -177,13 +191,12 @@ export class Play {
     return undefined;
   }
 
-  private done(done: Done): void {
+  private done(done: Done, journal: Journal | undefined): void {
+    if (done.target) journal?.target(done.target);
+    if (done.action) journal?.action(done.action);
+    if (journal !== this.journal) return;
     this.flash = done.text;
-    if (done.target) {
-      this.journal?.target(done.target);
-      this.targetName = done.target;
-    }
-    if (done.action) this.journal?.action(done.action);
+    if (done.target) this.targetName = done.target;
     this.render();
   }
 
@@ -193,19 +206,21 @@ export class Play {
     this.render();
   }
 
-  private async handBack(): Promise<void> {
+  private async handBack(ended?: string): Promise<void> {
     const { claim, journal } = this;
+    const inFlight = [...this.pending];
     this.held.clear();
     this.mode = "talk";
     this.claim = undefined;
     this.journal = undefined;
-    if (!claim) return this.render();
+    this.render();
+    if (!claim) return;
+    await Promise.allSettled(inFlight);
     await claim.act.drive({}, 1).catch(ignoreFailure);
     const back = journal?.finish(this.host.world()?.current()?.reads);
     journal?.dispose();
     claim.release();
-    this.render();
-    if (back) this.host.handBack(handBackNote(back));
+    if (back) this.host.handBack(handBackNote(back, ended));
   }
 
   private render(): void {

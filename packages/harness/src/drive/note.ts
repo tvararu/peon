@@ -25,7 +25,7 @@ type SelfNow = {
   power: number | undefined;
   maxPower: number | undefined;
   powerType: number | undefined;
-  target: string | undefined;
+  target: { name: string | undefined } | undefined;
 };
 
 export type HandBack = {
@@ -85,7 +85,10 @@ function selfNow(reads: WorldReads): SelfNow {
     maxPower: self.maxPower,
     power: self.power,
     powerType: self.powerType,
-    target: selectedGuid === undefined ? undefined : target?.name,
+    target:
+      selectedGuid === undefined
+        ? undefined
+        : { name: target?.guid === selectedGuid ? target.name : undefined },
   };
 }
 
@@ -116,7 +119,9 @@ function ratio(value: number | undefined, max: number | undefined): string {
 function status(self: SelfNow | undefined): string {
   if (!self) return "Now: offline.";
   const power = self.powerType === 0 ? "mana" : "power";
-  const target = self.target ? `, target ${self.target}` : ", no target";
+  const target = self.target
+    ? `, target ${self.target.name ?? "selected, name not observed"}`
+    : ", no target";
   return `Now: HP ${ratio(self.health, self.maxHealth)}, ${power} ${ratio(self.power, self.maxPower)}${target}.`;
 }
 
@@ -142,9 +147,12 @@ function logLines(raw: readonly string[]): string[] {
   ];
 }
 
-export function handBackNote(back: HandBack): string {
+export function handBackNote(back: HandBack, ended?: string): string {
+  const how = ended
+    ? `; control returned to the agent because ${ended}`
+    : " and handed control back";
   return [
-    `[human] The human drove the character for ${seconds(back.durationMs)} and handed control back.`,
+    `[human] The human drove the character for ${seconds(back.durationMs)}${how}.`,
     ...back.stopped.map((line) => `Taking over stopped: ${line}`),
     moved(back.from, back.to),
     ...(back.targets.length > 0
