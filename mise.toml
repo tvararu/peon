@@ -141,6 +141,12 @@ description = "Build and symlink to /usr/local/bin"
 depends = ["build"]
 run = "ln -sf $PWD/dist/tuicraft /usr/local/bin/tuicraft"
 
+[tasks.harness]
+description = "Run the Pi harness; pass harness flags after the task name (docs/harness.md)"
+raw = true
+quiet = true
+run = "bun packages/harness/src/entry.ts"
+
 [tasks."evidence:encounter"]
 description = "Distil an encounter record from the session log"
 raw = true
