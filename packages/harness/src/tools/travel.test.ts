@@ -125,21 +125,41 @@ describe("travel", () => {
 
   const ASK =
     'Next: ask the human: "I cannot reach Marniel Amberlight from here. Is there another way?"';
-  const NOT_TRIED = 'Not tried: travel(to: "unstick"), another route.';
+  const HERE = 'Not tried: travel(to: "unstick"), another route.';
+  const THERE = "Not tried: another destination.";
 
   test.each([
     {
-      code: "no_path_to",
+      code: "no_path",
       lines: [
-        `FAILED no_path_to: no path to the destination. Walked 0 yd. Tried: planner once. ${NOT_TRIED}`,
+        `FAILED no_path: no route on the navigation mesh reaches the destination (UNKNOWN_PATH). Walked 0 yd. Tried: planner once. ${THERE}`,
+        "The navigation mesh cannot reach this destination. Choose another destination; do not retry this one.",
         ASK,
       ],
-      refuse: "unreachable: no path to the destination",
+      refuse: "unreachable: pathfind_find_path failed (UNKNOWN_PATH)",
+    },
+    {
+      code: "surface_change",
+      lines: [
+        `FAILED surface_change: ground corridor changes surface. Walked 0 yd. Tried: planner once. ${HERE}`,
+        "The route's ground changes to another surface on the way, such as a ramp onto a platform. Choose a nearer waypoint on the same floor or another destination; do not repeat this travel unchanged.",
+        ASK,
+      ],
+      refuse: "stop: ground corridor changes surface",
+    },
+    {
+      code: "path_corner_disagrees",
+      lines: [
+        `FAILED path_corner_disagrees: path corner disagrees with connected ground. Walked 0 yd. Tried: planner once. ${HERE}`,
+        "A turn of the route is where the mesh and the ground heights do not agree, such as the edge of a step or a slope. Choose a nearer waypoint on open ground or another destination; do not repeat this travel unchanged.",
+        ASK,
+      ],
+      refuse: "stop: path corner disagrees with connected ground",
     },
     {
       code: "ground_corridor_collision",
       lines: [
-        `FAILED ground_corridor_collision: ground corridor collision. Walked 0 yd. Tried: planner once. ${NOT_TRIED}`,
+        `FAILED ground_corridor_collision: ground corridor collision. Walked 0 yd. Tried: planner once. ${HERE}`,
         "A straight part of the route hits an object or a wall. Choose a nearer waypoint in open ground or another destination; do not repeat this travel unchanged.",
         ASK,
       ],
@@ -156,6 +176,55 @@ describe("travel", () => {
       );
       expect(res).toMatchObject({ reason: code, status: "FAILED" });
       expect(fit(res).split("\n")).toEqual([...lines]);
+    },
+  );
+
+  test.each([
+    {
+      height: "none is within 0.25 yd of Marniel Amberlight's height 0.0",
+      next: 'travel(to: "36, 0, 72.6")',
+      z: 0,
+    },
+    {
+      height: "none is within 0.25 yd of Marniel Amberlight's height 77.0",
+      next: 'travel(to: "36, 0, 80.1")',
+      z: 77,
+    },
+  ])(
+    "a unit on two floors with no match refuses with the floors ($next)",
+    async ({ height, next, z }) => {
+      const t = await world();
+      setUnits(t.handle, [
+        unitRow({
+          distance: 36,
+          guid: 0x10n,
+          name: "Marniel Amberlight",
+          relation: "friendly",
+          x: 36,
+          y: 0,
+          z,
+        }),
+      ]);
+      const goTo = driveGoto(t.handle, [
+        {
+          floors: [72.6, 80.1],
+          refuse: "pick_destination: ambiguous ground column at destination",
+        },
+      ]);
+      const res = await travelSpec.run(
+        { to: "Marniel Amberlight" },
+        toolCtx<TravelAfter>(t),
+      );
+      expect(goTo).toHaveBeenCalledTimes(1);
+      expect(res).toMatchObject({
+        options: [72.6, 80.1],
+        reason: "ambiguous_floor",
+        status: "REFUSED",
+      });
+      expect(fit(res).split("\n")).toEqual([
+        `REFUSED ambiguous_floor: the ground at Marniel Amberlight (u1) has 2 floors: 72.6, 80.1, and ${height}. Tried: planner once. ${THERE}`,
+        `Next: ${next}`,
+      ]);
     },
   );
 

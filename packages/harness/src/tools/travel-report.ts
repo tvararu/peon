@@ -5,7 +5,7 @@ import type { OpsCtx, ViewCtx } from "#harness/contract/services";
 import type { Compass, UnitView } from "#harness/contract/views";
 import type { InterruptCause } from "#harness/ops/danger";
 import type { ExploreResult } from "#harness/ops/explore";
-import type { LegResult } from "#harness/ops/travel-leg";
+import { FLOOR_MATCH_YD, type LegResult } from "#harness/ops/travel-leg";
 import { poseView, vitalsView } from "#harness/ops/views";
 import { askHuman, nextCall, result } from "#harness/tools/define";
 
@@ -37,7 +37,22 @@ const GROUPS: readonly (readonly [string, (unit: UnitView) => boolean])[] = [
 ];
 
 const CLASS_PREFIX = /^(?:wait|pick_destination|unreachable|stop): /;
-const NOT_TRIED = `Not tried: ${nextCall("travel", { to: "unstick" })}, another route.`;
+const NOT_TRIED_HERE = `Not tried: ${nextCall("travel", { to: "unstick" })}, another route.`;
+const NOT_TRIED_THERE = "Not tried: another destination.";
+const DESTINATION_SIDE = [
+  "UNKNOWN_PATH",
+  "end snapped off",
+  "native path omits destination",
+  "ambiguous ground column at destination",
+  "destination is not on a ground floor",
+];
+const PLAIN: readonly (readonly [string, string, string])[] = [
+  [
+    "UNKNOWN_PATH",
+    "no_path",
+    "no route on the navigation mesh reaches the destination (UNKNOWN_PATH)",
+  ],
+];
 
 function plainStep(step: string): string {
   return step
@@ -48,6 +63,41 @@ function plainStep(step: string): string {
 function sentence(text: string): string {
   const trimmed = text.replace(CLASS_PREFIX, "").trim();
   return trimmed.endsWith(".") ? trimmed.slice(0, -1) : trimmed;
+}
+
+function coord(n: number): string {
+  return String(Math.round(n * 10) / 10);
+}
+
+function nearestFloor(
+  floors: readonly number[],
+  z: number | undefined,
+): number | undefined {
+  if (z === undefined) return floors[0];
+  return [...floors].sort((a, b) => Math.abs(a - z) - Math.abs(b - z))[0];
+}
+
+function unitFloorsReport(
+  goal: Extract<Goal, { kind: "unit" }>,
+  leg: LegResult,
+  after: TravelAfter,
+  tried: string,
+): Report | undefined {
+  const floors = leg.floors ?? [];
+  const { x, y, z } = goal.unit;
+  const floor = nearestFloor(floors, z);
+  if (x === undefined || y === undefined || floor === undefined) return;
+  const at = z === undefined ? "" : ` ${z.toFixed(1)}`;
+  const height = `none is within ${FLOOR_MATCH_YD} yd of ${goal.unit.name}'s height${at}`;
+  return result("REFUSED", {
+    after,
+    detail: `the ground at ${goalName(goal)} has ${floors.length} floors: ${floors.map((one) => one.toFixed(1)).join(", ")}, and ${height}. ${tried} ${NOT_TRIED_THERE}`,
+    next: nextCall("travel", {
+      to: `${coord(x)}, ${coord(y)}, ${floor.toFixed(1)}`,
+    }),
+    options: floors,
+    reason: "ambiguous_floor",
+  });
 }
 
 export function yd(n: number): string {
@@ -112,6 +162,25 @@ export function newInViewText(units: readonly UnitView[]): string {
     : `New in view: ${parts.join(", ")}.`;
 }
 
+function otherRefusal(
+  leg: LegResult,
+  after: TravelAfter,
+  done: string,
+  ask: string,
+): Report {
+  const plain = PLAIN.find(([text]) => leg.detail.includes(text));
+  const notTried = DESTINATION_SIDE.some((text) => leg.detail.includes(text))
+    ? NOT_TRIED_THERE
+    : NOT_TRIED_HERE;
+  return result("FAILED", {
+    after,
+    body: leg.nextStep ? [plainStep(leg.nextStep)] : [],
+    detail: `${plain?.[2] ?? sentence(leg.detail)}. ${done} ${notTried}`,
+    next: ask,
+    reason: plain?.[1] ?? leg.reason ?? "failed",
+  });
+}
+
 function refusedReport(init: {
   goal: Goal;
   leg: LegResult;
@@ -136,6 +205,10 @@ function refusedReport(init: {
       reason: "ambiguous_floor",
     });
   }
+  if (leg.reason === "ambiguous_floor" && goal.kind === "unit") {
+    const floors = unitFloorsReport(goal, leg, after, tried);
+    if (floors) return floors;
+  }
   if (leg.reason === "start_off_mesh")
     return result("FAILED", {
       after,
@@ -150,13 +223,7 @@ function refusedReport(init: {
       next: ask,
       reason: "no_ground",
     });
-  return result("FAILED", {
-    after,
-    body: leg.nextStep ? [plainStep(leg.nextStep)] : [],
-    detail: `${sentence(leg.detail)}. ${walked} ${tried} ${NOT_TRIED}`,
-    next: ask,
-    reason: leg.reason ?? "failed",
-  });
+  return otherRefusal(leg, after, `${walked} ${tried}`, ask);
 }
 
 export function legReport(init: {
