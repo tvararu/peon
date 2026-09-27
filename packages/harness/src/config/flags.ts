@@ -12,7 +12,7 @@ export const USAGE = `Usage: mise harness --profile <path> [options]
   --profile <path>        soap session JSON, soap ledger JSON or Peon config.toml (required)
   --run-dir <path>        run directory (default: <state>/runs/<utc>-<character>)
   --model <provider/id>   model (default: ${DEFAULT_MODEL})
-  --thinking <level>      off|minimal|low|medium|high|xhigh|max (default: high)
+  --thinking <level>      off|minimal|low|medium|high|xhigh|max (default: off)
   --no-connect            do not log in at start; use /connect
   --wake on|off           let game events start a turn (default: on)
   --glyphs <name>         nerd|unicode|ascii (default: nerd, or PEON_GLYPHS)
@@ -81,7 +81,7 @@ function readArgs(argv: readonly string[]) {
 }
 
 function thinkingOf(value: string | undefined): ThinkingLevel {
-  if (value === undefined) return "high";
+  if (value === undefined) return "off";
   const level = THINKING.find((known) => known === value);
   if (!level)
     throw new UsageError(

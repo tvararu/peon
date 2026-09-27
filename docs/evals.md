@@ -61,7 +61,8 @@ mise eval run <id> --round <n>
 `mise eval scenario` lists the round-1 scenario ids;
 `mise eval scenario <id>` prints one scenario. The scenario files are in
 `packages/harness/src/grader/scenarios/`. The run creates the accounts, sets them up, takes
-the baseline truth, opens the harness in a pane, types the task and the
+the baseline truth, opens the harness in a pane with its default model and
+thinking level, types the task and the
 steers, ends on done, budget, stuck or abort, takes the final truth,
 deletes the accounts and scans the run directory for a leaked password.
 It waits up to 20 minutes while another run holds the same field;
