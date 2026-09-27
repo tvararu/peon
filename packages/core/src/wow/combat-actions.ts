@@ -18,6 +18,11 @@ import {
   unitObservation,
 } from "#wow/combat-actions-observation";
 import {
+  hunterObservation,
+  petCandidate,
+  petOf,
+} from "#wow/combat-actions-pet";
+import {
   gearReason,
   isAutoShot,
   isRangedShot,
@@ -119,9 +124,7 @@ export class CombatActions {
         attacking: state.attacking,
         attackTarget: hex(state.attackTarget),
         pendingAttack: hex(state.pendingAttack),
-        autoRepeat: state.autoRepeat
-          ? { ...state.autoRepeat, target: hex(state.autoRepeat.target) }
-          : null,
+        ...hunterObservation(state, this.deps.entity, context.targetGuid),
         auras: state.auras.map(auraObservation),
         targetAuras: state.targetAuras.map(auraObservation),
         cooldowns: state.cooldowns,
@@ -170,6 +173,15 @@ export class CombatActions {
     }
     if (id === "stop_auto_shot") {
       this.deps.combat.stopAutoRepeat();
+      return;
+    }
+    if (id === "pet_attack") {
+      const pet = petOf(
+        this.deps.entity,
+        this.deps.combat.snapshot().self.guid,
+      );
+      if (!pet) throw new Error("action_no_longer_legal");
+      this.deps.combat.petAttack(pet.guid, context.targetGuid);
       return;
     }
     if (id === "stop_moving") {
@@ -238,6 +250,12 @@ export class CombatActions {
     candidates: JevCandidate[],
     state: CombatState,
   ): void {
+    const pet = petCandidate(
+      petOf(this.deps.entity, state.self.guid),
+      state,
+      this.deps.now(),
+    );
+    if (pet) candidates.push(pet);
     if (state.autoRepeat)
       candidates.push({ id: "stop_auto_shot", description: "Stop Auto Shot" });
     if (state.attacking || state.pendingAttack)
@@ -337,7 +355,7 @@ export class CombatActions {
       throw new Error("hostile spell is missing range metadata");
     if (distance < range.minHostile || distance > range.maxHostile)
       return "out_of_range";
-    if (isRangedShot(spell) && distance <= this.meleeRangeOf(state))
+    if (isRangedShot(spell) && distance <= meleeRange(this.deps.entity, state))
       return "too_close";
     if (!facing(state)) return "not_facing";
     return undefined;
@@ -469,15 +487,6 @@ export class CombatActions {
 
   private canMelee(state: CombatState): boolean {
     return isUnit(this.deps.entity(state.self.guid));
-  }
-
-  private meleeRangeOf(state: CombatState): number {
-    const self = this.deps.entity(state.self.guid);
-    const target = state.target && this.deps.entity(state.target.guid);
-    return meleeRange(
-      isUnit(self) ? self.combatReach : undefined,
-      isUnit(target) ? target.combatReach : undefined,
-    );
   }
 
   private inMelee(state: CombatState): boolean {

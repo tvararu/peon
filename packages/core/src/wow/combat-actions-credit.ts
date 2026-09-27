@@ -37,6 +37,8 @@ export function engagedWith(
     return true;
   if ([state.casting, state.pendingCast].some((cast) => cast?.target === guid))
     return true;
+  if (state.autoRepeat?.target === guid || state.petCommand?.target === guid)
+    return true;
   return (
     isUnit(target) &&
     target.target === state.self.guid &&

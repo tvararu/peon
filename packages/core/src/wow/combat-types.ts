@@ -38,6 +38,8 @@ export type CombatOutcome = {
   inventoryResult?: number;
 };
 
+export type CombatPetCommand = { pet: bigint; target: bigint; at: number };
+
 export type CombatXp = {
   victim: bigint;
   total: number;
@@ -71,6 +73,7 @@ export type CombatState = {
   casting: CombatCast | undefined;
   pendingCast: CombatCast | undefined;
   autoRepeat: CombatAutoRepeat | undefined;
+  petCommand: CombatPetCommand | undefined;
   learned: number[];
   unknownLearned: number[];
   cooldowns: CombatCooldown[];

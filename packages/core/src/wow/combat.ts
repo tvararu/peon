@@ -7,6 +7,7 @@ import type {
   CombatEventType,
   CombatItem,
   CombatOutcome,
+  CombatPetCommand,
   CombatState,
   CombatUnit,
   CombatXp,
@@ -34,6 +35,7 @@ import type { LevelUpInfo } from "#wow/protocol/experience";
 import type { InventoryChangeFailure } from "#wow/protocol/inventory";
 import type { CreateSpline, MonsterMove } from "#wow/protocol/monster-move";
 import { GameOpcode } from "#wow/protocol/opcodes";
+import { buildPetAttack } from "#wow/protocol/pet";
 import type {
   CastFailed,
   CooldownNotice,
@@ -55,6 +57,7 @@ export type {
   CombatEventType,
   CombatItem,
   CombatOutcome,
+  CombatPetCommand,
   CombatState,
   CombatUnit,
   CombatXp,
@@ -86,6 +89,7 @@ export class CombatRuntime {
   private attackTarget: bigint | undefined;
   private lastOutcome: CombatOutcome | undefined;
   private lastXp: CombatXp | undefined;
+  private petCommand: CombatPetCommand | undefined;
   private lastLevelUp: CombatState["lastLevelUp"];
 
   constructor(deps: CombatDeps) {
@@ -135,6 +139,7 @@ export class CombatRuntime {
       casting: this.casts.casting ? { ...this.casts.casting } : undefined,
       pendingCast: this.casts.pending ? { ...this.casts.pending } : undefined,
       autoRepeat: this.autoRepeat.state,
+      petCommand: this.petCommand,
       learned: [...this.learned],
       unknownLearned: [...this.learned].filter(
         (id) => !this.deps.catalog?.get(id),
@@ -208,6 +213,12 @@ export class CombatRuntime {
     this.emit("outcome");
   }
 
+  petAttack(pet: bigint, target: bigint): void {
+    this.deps.send(GameOpcode.CMSG_PET_ACTION, buildPetAttack(pet, target));
+    this.petCommand = { at: this.deps.now(), pet, target };
+    this.emit("outcome", "pet_attack");
+  }
+
   cancelCast(): void {
     this.lastOutcome = this.casts.cancel();
     this.emit("outcome");
@@ -253,6 +264,7 @@ export class CombatRuntime {
     this.cooldowns.clear();
     this.casts.clear();
     this.autoRepeat.clear();
+    this.petCommand = undefined;
     this.pendingAttack = undefined;
     this.attacking = false;
     this.attackTarget = undefined;

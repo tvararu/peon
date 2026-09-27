@@ -38,6 +38,7 @@ const KINDS: Record<string, JevDecisionView["kind"]> = {
   face: "face",
   item: "item",
   move: "move",
+  pet: "attack",
   spell: "spell",
   use: "item",
 };
@@ -69,7 +70,7 @@ function noteCombat(tally: Tally, event: CombatEvent): void {
     bump(tally.swingErrors, event.reason);
 }
 
-function decisionKind(actionId: string): JevDecisionView["kind"] {
+export function decisionKind(actionId: string): JevDecisionView["kind"] {
   const head = ACTION_HEAD.exec(actionId.toLowerCase())?.[0] ?? "";
   return KINDS[head] ?? "wait";
 }

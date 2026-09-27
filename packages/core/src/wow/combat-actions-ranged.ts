@@ -1,4 +1,6 @@
+import type { CombatState } from "#wow/combat";
 import type { RangedGear } from "#wow/combat-ranged-gear";
+import { type EntityLookup, isUnit } from "#wow/entity-store";
 import type { SpellDefinition } from "#wow/spell-catalog";
 
 const USES_RANGED_SLOT = 0x2;
@@ -37,13 +39,16 @@ export function rangedAura(spell: SpellDefinition, aura: number): boolean {
   return isRangedShot(spell) && RANGED_AURAS.has(aura);
 }
 
-export function meleeRange(
-  selfReach: number | undefined,
-  targetReach: number | undefined,
-): number {
-  const reach = (value: number | undefined) =>
-    Math.max(value ?? MIN_MELEE_REACH, MIN_MELEE_REACH);
-  return Math.max(5, reach(selfReach) + reach(targetReach) + 4 / 3);
+export function meleeRange(entity: EntityLookup, state: CombatState): number {
+  const reach = (guid: bigint | undefined) => {
+    const unit = guid === undefined ? undefined : entity(guid);
+    const value = isUnit(unit) ? unit.combatReach : undefined;
+    return Math.max(value ?? MIN_MELEE_REACH, MIN_MELEE_REACH);
+  };
+  return Math.max(
+    5,
+    reach(state.self.guid) + reach(state.target?.guid) + 4 / 3,
+  );
 }
 
 export function gearReason(
