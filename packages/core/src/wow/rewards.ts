@@ -129,8 +129,10 @@ export class RewardsRuntime {
     this.store = store;
     this.deps = deps;
     store.onEvent((event) => {
+      this.retime(event);
       this.events.emit(event);
-      this.react(event);
+      if (event.type === "loot_removed" || event.type === "loot_money_cleared")
+        this.releaseIfEmpty();
     });
   }
 
@@ -204,7 +206,7 @@ export class RewardsRuntime {
     this.stopReleaseOnlyTimer();
   }
 
-  private react({ type, state }: RewardsEvent): void {
+  private retime({ type, state }: RewardsEvent): void {
     if (
       type === "loot_error" ||
       type === "loot_opened" ||
@@ -213,8 +215,6 @@ export class RewardsRuntime {
       this.stopReleaseOnlyTimer();
     else if (type === "loot_release_observed" && state.loot.phase === "opening")
       this.startReleaseOnlyTimer(state.loot.guid);
-    else if (type === "loot_removed" || type === "loot_money_cleared")
-      this.releaseIfEmpty();
   }
 
   private active(): void {

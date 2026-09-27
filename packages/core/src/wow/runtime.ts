@@ -139,7 +139,11 @@ function createTactics(
   });
 }
 
-function wireEvents(conn: WorldConn, parts: RuntimeParts): Unsubscribe {
+function wireEvents(
+  conn: WorldConn,
+  stores: SessionStores,
+  parts: RuntimeParts,
+): Unsubscribe {
   const {
     control,
     combat,
@@ -161,7 +165,7 @@ function wireEvents(conn: WorldConn, parts: RuntimeParts): Unsubscribe {
     }),
     combat.onEvent((event) => {
       events.combat.emit(event);
-      if (event.type === "learned") trainer.observe();
+      if (event.type === "learned") stores.trainer.observe();
     }),
     tactics.onEvent((event) => events.tactics.emit(event)),
     recovery.onEvent((event) => {
@@ -190,6 +194,9 @@ function wireEvents(conn: WorldConn, parts: RuntimeParts): Unsubscribe {
         items.label(good.itemId);
     }),
     destroy.onEvent((event) => events.destroy.emit(event)),
+    stores.place.onEvent((event) =>
+      events.control.emit({ ...event, state: control.snapshot() }),
+    ),
   ];
   return () => {
     for (const off of detach) off();
@@ -259,13 +266,11 @@ function createSupportRuntimes(
 > {
   const { control, tactics, approach, combat } = parts;
   const runtimeDeps = sessionDeps(conn);
-  const recovery = new RecoveryRuntime({
+  const recovery = new RecoveryRuntime(stores.recovery, {
     ...runtimeDeps,
     pose: () => control.snapshot().pose,
   });
-  conn.recovery = recovery;
-  const quests = new QuestRuntime(runtimeDeps);
-  conn.quests = quests;
+  const quests = new QuestRuntime(stores.quests, runtimeDeps);
   const rewards = new RewardsRuntime(stores.rewards, runtimeDeps);
   const { items } = stores;
   const cycle = new EncounterCycleRuntime({
@@ -288,10 +293,8 @@ function createSupportRuntimes(
     now: runtimeDeps.now,
   });
   conn.cycle = cycle;
-  const vendor = new VendorRuntime(runtimeDeps);
-  conn.vendor = vendor;
-  const destroy = new ItemDestroyRuntime(runtimeDeps);
-  conn.destroy = destroy;
+  const vendor = new VendorRuntime(stores.vendor, runtimeDeps);
+  const destroy = new ItemDestroyRuntime(stores.destroy, runtimeDeps);
   return { recovery, quests, rewards, items, cycle, vendor, destroy };
 }
 
@@ -319,11 +322,10 @@ function createCombat(
         stores.items.label(entry),
       ),
   });
-  const trainer = new TrainerRuntime({
+  const trainer = new TrainerRuntime(stores.trainer, {
     ...runtimeDeps,
-    learned: () => combat.snapshot().learned,
+    learned: () => stores.combat.learned(),
   });
-  conn.trainer = trainer;
   return { combat, actions, trainer };
 }
 
@@ -417,7 +419,7 @@ export function createRuntimes(
     }),
     trainer,
   };
-  const unwire = wireEvents(conn, parts);
+  const unwire = wireEvents(conn, stores, parts);
   const observedTarget = bind(conn, parts);
   return {
     ...parts,

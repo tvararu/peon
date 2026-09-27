@@ -168,13 +168,13 @@ function deliverEntityEvent(
   stores: SessionStores,
   event: EntityEvent,
 ): void {
-  conn.recovery?.observeEntity(event);
+  stores.recovery.observeEntity(event);
   stores.rewards.observeEntity(event);
   stores.items.observeEntity(event);
   conn.cycle?.observeEntity(event);
-  conn.trainer?.observe();
-  conn.vendor?.observeEntity(event);
-  conn.destroy?.observeInventory();
+  stores.trainer.observe();
+  stores.vendor.observeEntity(event);
+  stores.destroy.observeInventory();
   conn.events.entity.emit(event);
 }
 

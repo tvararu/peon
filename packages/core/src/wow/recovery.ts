@@ -1,18 +1,12 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type { ControlPose } from "#wow/control";
-import { type EntityEvent, type EntityLookup, isUnit } from "#wow/entity-store";
-import {
-  type PlayerLife,
-  type PlayerLifeState,
-  readLife,
-} from "#wow/player-state";
+import { type EntityLookup, isUnit } from "#wow/entity-store";
+import type { PlayerLifeState } from "#wow/player-state";
 import {
   buildReclaimCorpse,
   buildRepopRequest,
   buildResurrectResponse,
   buildSpiritHealerActivate,
-  type CorpseQuery,
-  type CorpseReclaimDelay,
   type DeathReleaseLocation,
   type ResurrectRequest,
   type SpiritHealerConfirm,
@@ -20,7 +14,7 @@ import {
 import { NpcFlag, ObjectType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { Vec3 } from "#wow/protocol/packet";
-import { reclaimGate } from "#wow/recovery-reclaim";
+import { dead, type RecoveryStore } from "#wow/recovery-store";
 
 export type RecoveryDeps = {
   send: (opcode: number, body?: Uint8Array) => void;
@@ -133,188 +127,69 @@ export type RecoveryEvent = {
   state: RecoveryState;
 };
 
-function copyCorpse(corpse: RecoveryCorpse): RecoveryCorpse {
-  return corpse.status === "found"
-    ? { ...corpse, position: { ...corpse.position } }
-    : { ...corpse };
-}
-
-function copyGraveyard(
-  value: DeathReleaseLocation | undefined,
-): DeathReleaseLocation | undefined {
-  if (!value) return undefined;
-  return value.kind === "location"
-    ? { ...value, position: { ...value.position } }
-    : { ...value };
-}
-
-function dead(life: PlayerLife): boolean {
-  return life === "dead" || life === "ghost";
-}
-
 export class RecoveryRuntime {
+  private readonly store: RecoveryStore;
   private readonly deps: RecoveryDeps;
   private readonly events = new Emitter<[RecoveryEvent]>();
   private disposed = false;
-  private unavailable = false;
-  private epoch = 0;
-  private lastLife: PlayerLife;
-  private corpse: RecoveryCorpse = { status: "unknown" };
-  private queryPending: { epoch: number; requestedAt: number } | undefined;
-  private delay: RecoveryDelay | undefined;
-  private graveyard: DeathReleaseLocation | undefined;
-  private request: RecoveryRequest | undefined;
-  private spiritHealerPending:
-    | {
-        action: "spirit-healer";
-        status: "unanswered";
-        epoch: number;
-        requestedAt: number;
-        guid: bigint;
-      }
-    | undefined;
-  private spiritHealerCleared: SpiritHealerCleared | undefined;
-  private spiritHealerConfirm: RecoverySpiritHealerConfirm | undefined;
-  private offer:
-    | {
-        packet: ResurrectRequest;
-        receivedAt: number;
-        response: ResurrectionResponse;
-      }
-    | undefined;
 
-  constructor(deps: RecoveryDeps) {
+  constructor(store: RecoveryStore, deps: RecoveryDeps) {
+    this.store = store;
     this.deps = deps;
-    this.lastLife = this.life().life;
+    store.onEvent((event) => this.events.emit(event));
   }
 
   onEvent(listener: (event: RecoveryEvent) => void): Unsubscribe {
-    if (this.disposed) return () => undefined;
+    if (this.disposed || this.store.disposed) return () => undefined;
     return this.events.subscribe(listener);
   }
 
   snapshot(): RecoveryState {
-    const life = this.life();
-    const request = this.request ?? this.spiritHealerPending;
-    return {
-      ...life,
-      selfGuid: this.deps.selfGuid(),
-      epoch: this.epoch,
-      corpse: copyCorpse(this.corpse),
-      query: this.queryPending
-        ? {
-            ...this.queryPending,
-            status:
-              this.queryPending.epoch === this.epoch ? "unanswered" : "stale",
-          }
-        : undefined,
-      reclaimDelay: this.delay ? { ...this.delay } : undefined,
-      reclaim: reclaimGate({
-        life: life.life,
-        corpse: this.corpse,
-        delay: this.delay,
-        pose: this.deps.pose(),
-        now: this.deps.now(),
-      }),
-      graveyard: copyGraveyard(this.graveyard),
-      resurrection: this.resurrectionState(),
-      request: request ? { ...request } : undefined,
-      spiritHealerCleared: this.spiritHealerCleared
-        ? { ...this.spiritHealerCleared }
-        : undefined,
-      spiritHealerConfirm: this.spiritHealerConfirm
-        ? { ...this.spiritHealerConfirm }
-        : undefined,
-      disposed: this.disposed,
-    };
-  }
-
-  observeEntity(event: EntityEvent): void {
-    if (this.disposed) return;
-    if (event.type === "disappear") {
-      if (event.guid !== this.deps.selfGuid()) return;
-      this.unavailable = true;
-      this.newEpoch();
-      this.lastLife = "unknown";
-      this.emit("recovery_invalidated");
-      return;
-    }
-    if (event.entity.guid !== this.deps.selfGuid()) return;
-    if (event.type === "appear") this.unavailable = false;
-    this.observeLife();
+    return this.store.snapshot();
   }
 
   queryCorpse(): RecoveryState {
     this.active();
-    this.observeLife();
-    if (this.queryPending)
+    this.store.observeLife();
+    if (this.store.pendingQuery)
       throw new Error("Previous corpse query remains unanswered");
-    const requestedAt = this.deps.now();
     this.deps.send(GameOpcode.MSG_CORPSE_QUERY);
-    this.queryPending = { epoch: this.epoch, requestedAt };
-    if (!this.spiritHealerPending) {
-      this.request = {
-        action: "query",
-        status: "unanswered",
-        epoch: this.epoch,
-        requestedAt,
-      };
-    }
-    return this.emit("corpse_query_requested");
+    return this.store.requestQuery();
   }
 
   releaseSpirit(): RecoveryState {
     this.active();
-    this.observeLife();
-    if (this.life().life !== "dead")
+    this.store.observeLife();
+    if (this.store.life().life !== "dead")
       throw new Error("Release requires authoritative dead state");
-    const requestedAt = this.deps.now();
     this.deps.send(GameOpcode.CMSG_REPOP_REQUEST, buildRepopRequest(0));
-    this.request = {
-      action: "release",
-      status: "unanswered",
-      epoch: this.epoch,
-      requestedAt,
-    };
-    return this.emit("release_requested");
+    return this.store.requestRelease();
   }
 
   reclaimCorpse(): RecoveryState {
     this.active();
-    this.observeLife();
-    const gate = reclaimGate({
-      life: this.life().life,
-      corpse: this.corpse,
-      delay: this.delay,
-      pose: this.deps.pose(),
-      now: this.deps.now(),
-    });
+    this.store.observeLife();
+    const gate = this.store.reclaim();
     if (!gate.canRequest)
       throw new Error(`Cannot request reclaim: ${gate.reason}`);
-    const requestedAt = this.deps.now();
     this.deps.send(GameOpcode.CMSG_RECLAIM_CORPSE, buildReclaimCorpse(0n));
-    this.request = {
-      action: "reclaim",
-      status: "unanswered",
-      epoch: this.epoch,
-      requestedAt,
-      timing: gate.remainingMs === undefined ? "unknown" : "known",
-    };
-    return this.emit("reclaim_requested");
+    return this.store.requestReclaim(
+      gate.remainingMs === undefined ? "unknown" : "known",
+    );
   }
 
   activateSpiritHealer(guid: bigint): RecoveryState {
     this.active();
-    this.observeLife();
-    if (this.life().life !== "ghost")
+    this.store.observeLife();
+    if (this.store.life().life !== "ghost")
       throw new Error("Spirit-healer activation requires observed ghost state");
-    const pending = this.spiritHealerPending;
+    const pending = this.store.pendingSpiritHealer;
     if (
       pending &&
       this.deps.now() - pending.requestedAt >= SPIRIT_HEALER_TIMEOUT_MS
     )
       this.clearSpiritHealer("timeout");
-    if (this.spiritHealerPending)
+    if (this.store.pendingSpiritHealer)
       throw new Error(
         "Previous spirit-healer request remains unanswered; retry after 10 s or halt",
       );
@@ -326,47 +201,27 @@ export class RecoveryRuntime {
       (healer.npcFlags & NpcFlag.SPIRIT_HEALER) === 0
     )
       throw new Error("Observed creature is not a spirit healer");
-    const requestedAt = this.deps.now();
     this.deps.send(
       GameOpcode.CMSG_SPIRIT_HEALER_ACTIVATE,
       buildSpiritHealerActivate(guid),
     );
-    this.spiritHealerPending = {
-      action: "spirit-healer",
-      status: "unanswered",
-      epoch: this.epoch,
-      requestedAt,
-      guid,
-    };
-    this.request = this.spiritHealerPending;
-    return this.emit("spirit_healer_requested");
+    return this.store.requestSpiritHealer(guid);
   }
 
   clearSpiritHealer(reason: SpiritHealerCleared["reason"]): void {
-    const pending = this.spiritHealerPending;
-    if (this.disposed || !pending) return;
-    const { guid, requestedAt } = pending;
-    this.spiritHealerCleared = {
-      guid,
-      requestedAt,
-      clearedAt: this.deps.now(),
-      reason,
-    };
-    this.spiritHealerPending = undefined;
-    if (this.request === pending) this.request = undefined;
-    this.emit("spirit_healer_cleared");
+    if (this.disposed) return;
+    this.store.clearSpiritHealer(reason);
   }
 
   respondResurrection(accept: boolean): RecoveryState {
     this.active();
-    this.observeLife();
-    if (!dead(this.life().life))
+    this.store.observeLife();
+    if (!dead(this.store.life().life))
       throw new Error(
         "Resurrection response requires observed dead or ghost state",
       );
-    const offer = this.resurrectionState();
-    if (!(offer && this.offer))
-      throw new Error("No current resurrection offer");
+    const offer = this.store.resurrection();
+    if (!offer) throw new Error("No current resurrection offer");
     if (offer.response !== "unanswered")
       throw new Error("Resurrection offer already answered");
     if (
@@ -375,150 +230,22 @@ export class RecoveryRuntime {
       this.deps.now() < offer.readyAt
     )
       throw new Error("Resurrection offer delay has not elapsed");
-    const requestedAt = this.deps.now();
     this.deps.send(
       GameOpcode.CMSG_RESURRECT_RESPONSE,
       buildResurrectResponse(offer.guid, accept),
     );
-    this.offer.response = accept ? "accept_requested" : "decline_requested";
-    this.request = {
-      action: "resurrection",
-      status: "unanswered",
-      epoch: this.epoch,
-      requestedAt,
-      guid: offer.guid,
-      accept,
-      timing: offer.readyAt === undefined ? "unknown" : "known",
-    };
-    return this.emit("resurrection_response_requested");
-  }
-
-  receiveCorpse(response: CorpseQuery): void {
-    if (this.disposed) return;
-    this.observeLife();
-    const pending = this.queryPending;
-    this.queryPending = undefined;
-    if (!pending || pending.epoch !== this.epoch || this.unavailable) {
-      this.emit("corpse_query_discarded");
-      return;
-    }
-    const observedAt = this.deps.now();
-    this.corpse = response.found
-      ? {
-          status: "found",
-          mapId: response.mapId,
-          corpseMapId: response.corpseMapId,
-          position: { ...response.position },
-          unknown: response.unknown,
-          observedAt,
-        }
-      : { status: "absent", observedAt };
-    if (this.request?.action === "query") {
-      this.request = this.spiritHealerPending;
-    }
-    this.emit("corpse_observed");
-  }
-
-  receiveReclaimDelay({ delayMs }: CorpseReclaimDelay): void {
-    if (this.disposed) return;
-    this.observeLife();
-    if (this.unavailable) return;
-    const receivedAt = this.deps.now();
-    this.delay = { delayMs, receivedAt, readyAt: receivedAt + delayMs };
-    this.emit("reclaim_delay_observed");
-  }
-
-  receiveGraveyard(location: DeathReleaseLocation): void {
-    if (this.disposed) return;
-    this.observeLife();
-    if (this.unavailable) return;
-    this.graveyard = location;
-    this.emit("graveyard_observed");
-  }
-
-  receiveResurrectRequest(packet: ResurrectRequest): void {
-    if (this.disposed) return;
-    this.observeLife();
-    if (this.unavailable || this.life().life === "alive") return;
-    this.offer = {
-      packet,
-      receivedAt: this.deps.now(),
-      response: "unanswered",
-    };
-    this.emit("resurrection_offered");
-  }
-
-  receiveSpiritHealerConfirm(packet: SpiritHealerConfirm): void {
-    if (this.disposed) return;
-    this.observeLife();
-    if (this.unavailable || !dead(this.life().life)) return;
-    this.spiritHealerConfirm = { ...packet, receivedAt: this.deps.now() };
-    this.emit("spirit_healer_confirm_observed");
+    return this.store.requestResurrection(offer, accept);
   }
 
   dispose(): void {
     this.disposed = true;
     this.events.clear();
-    this.unavailable = true;
-    this.queryPending = undefined;
-    this.newEpoch();
-    this.lastLife = "unknown";
   }
 
   private active(): void {
-    if (this.disposed) throw new Error("Recovery runtime disposed");
+    if (this.disposed || this.store.disposed)
+      throw new Error("Recovery runtime disposed");
     if (!this.deps.selfGuid())
       throw new Error("Authenticated player GUID is unknown");
-  }
-
-  private life(): PlayerLifeState {
-    if (this.unavailable || this.disposed)
-      return { life: "unknown", health: undefined, flags: undefined };
-    return readLife(this.deps.selfGuid(), this.deps.getEntity);
-  }
-
-  private observeLife(): void {
-    const life = this.life().life;
-    if (life === this.lastLife) return;
-    if (
-      (this.lastLife === "alive" && dead(life)) ||
-      (dead(this.lastLife) && life === "alive")
-    )
-      this.newEpoch();
-    if (this.request?.action === "release" && life === "ghost")
-      this.request = undefined;
-    if (life === "alive") {
-      this.spiritHealerPending = undefined;
-      if (this.request?.action === "spirit-healer") this.request = undefined;
-    }
-    this.lastLife = life;
-    this.emit("life_observed");
-  }
-  private newEpoch(): void {
-    this.epoch++;
-    this.corpse = { status: "unknown" };
-    this.delay = undefined;
-    this.graveyard = undefined;
-    this.offer = undefined;
-    this.request = undefined;
-    this.spiritHealerPending = undefined;
-    this.spiritHealerConfirm = undefined;
-  }
-
-  private resurrectionState(): RecoveryResurrection | undefined {
-    if (!this.offer) return undefined;
-    const { packet, receivedAt, response } = this.offer;
-    const readyAt =
-      packet.delayMs === undefined
-        ? this.delay?.readyAt
-        : receivedAt + packet.delayMs;
-    const name = packet.name || this.deps.getEntity(packet.guid)?.name || "";
-    return { ...packet, name, receivedAt, readyAt, response };
-  }
-
-  private emit(type: RecoveryEvent["type"]): RecoveryState {
-    const state = this.snapshot();
-    this.events.emit({ type, at: this.deps.now(), state });
-    return state;
   }
 }

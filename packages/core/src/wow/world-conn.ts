@@ -1,10 +1,8 @@
 import type { Socket } from "bun";
 import type { ChatMode } from "#wow/client";
 import type { CreatureInfo } from "#wow/client-extras";
-import type { PlaceState } from "#wow/client-place";
 import type { ControlRuntime } from "#wow/control";
 import type { Arc4 } from "#wow/crypto/arc4";
-import type { ItemDestroyRuntime } from "#wow/destroy";
 import type { EncounterCycleRuntime } from "#wow/encounter-cycle";
 import type { EntityStore } from "#wow/entity-store";
 import type { FriendStore } from "#wow/friend-store";
@@ -13,12 +11,8 @@ import type { IgnoreStore } from "#wow/ignore-store";
 import type { PartyStore } from "#wow/party-store";
 import type { ChatMessage as RawChatMessage } from "#wow/protocol/chat";
 import type { AccumulatorBuffer, OpcodeDispatch } from "#wow/protocol/world";
-import type { QuestRuntime } from "#wow/quests";
-import type { RecoveryRuntime } from "#wow/recovery";
 import type { RemoteMotion } from "#wow/remote-motion";
 import type { TacticsLoop } from "#wow/tactics";
-import type { TrainerRuntime } from "#wow/trainer";
-import type { VendorRuntime } from "#wow/vendor";
 import type { WorldEvents } from "#wow/world-events";
 
 export type WorldConn = {
@@ -54,13 +48,7 @@ export type WorldConn = {
   duelArbiter: bigint;
   events: WorldEvents;
   control?: ControlRuntime;
-  recovery?: RecoveryRuntime;
-  quests?: QuestRuntime;
   cycle?: EncounterCycleRuntime;
-  trainer?: TrainerRuntime;
-  vendor?: VendorRuntime;
-  destroy?: ItemDestroyRuntime;
   tactics?: TacticsLoop;
-  place?: PlaceState;
   creatureInfoCache?: Map<number, CreatureInfo>;
 };

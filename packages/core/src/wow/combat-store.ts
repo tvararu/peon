@@ -109,6 +109,10 @@ export class CombatStore {
     return this.catalog?.get(id);
   }
 
+  learned(): number[] {
+    return [...this.learnedSpells];
+  }
+
   spellbook(): SpellDefinition[] {
     const catalog = this.catalog;
     if (!catalog) throw new Error("missing_spell_data");

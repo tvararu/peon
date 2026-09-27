@@ -25,7 +25,7 @@ import type { SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
 import { selfGuid, sendPacket } from "#wow/world-handlers";
 
-type EntityStores = Pick<SessionStores, "motion">;
+type EntityStores = Pick<SessionStores, "motion" | "quests">;
 
 type TypeFields = Partial<UnitFieldsResult> & Partial<GameObjectFieldsResult>;
 type Entry<T extends UpdateEntry["type"]> = Extract<UpdateEntry, { type: T }>;
@@ -37,7 +37,7 @@ export function handleUpdateObject(
 ): void {
   const entries = parseUpdateObject(r, conn.control?.currentMapId() ?? 0);
   for (const entry of entries) applyEntry(conn, stores, entry);
-  conn.quests?.observeQuestLog();
+  stores.quests.observeQuestLog();
 }
 
 function applyEntry(
@@ -84,7 +84,7 @@ function typeFields(
 
 function applyCreate(
   conn: WorldConn,
-  { motion }: EntityStores,
+  { motion, quests }: EntityStores,
   entry: Entry<"create">,
 ): void {
   const { guid, objectType, fields, position } = entry;
@@ -101,7 +101,7 @@ function applyCreate(
   });
   const self = selfGuid(conn);
   const created = guid === self ? conn.entityStore.get(self) : undefined;
-  if (created) conn.quests?.observeSelfCreate(created);
+  if (created) quests.observeSelfCreate(created);
   if (position) {
     motion.observe(guid, position, entry.spline);
     conn.remoteMotion.observe(guid, {
@@ -182,11 +182,15 @@ export function handleCompressedUpdateObject(
   );
 }
 
-export function handleDestroyObject(conn: WorldConn, r: PacketReader): void {
+export function handleDestroyObject(
+  conn: WorldConn,
+  stores: Pick<SessionStores, "quests">,
+  r: PacketReader,
+): void {
   const guid = r.uint64LE();
   r.skip(1);
   conn.entityStore.destroy(guid);
-  conn.quests?.observeQuestLog();
+  stores.quests.observeQuestLog();
 }
 
 function lookupCachedName(

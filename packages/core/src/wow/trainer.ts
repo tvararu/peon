@@ -1,18 +1,14 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import { type EntityLookup, fieldOf, isUnit } from "#wow/entity-store";
-import { readInventory } from "#wow/inventory";
-import { readLife, readSelfField } from "#wow/player-state";
+import { type EntityLookup, isUnit } from "#wow/entity-store";
+import { readLife } from "#wow/player-state";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import {
   buildTrainerBuySpell,
   buildTrainerList,
-  type TrainerBuyFailure,
-  type TrainerBuyResult,
   type TrainerList,
   type TrainerOfferedSpell,
-  trainerFailureName,
 } from "#wow/protocol/trainer";
-import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
+import { stateOf, type TrainerStore } from "#wow/trainer-store";
 
 export type TrainerDeps = {
   send: (opcode: number, body?: Uint8Array) => void;
@@ -81,59 +77,29 @@ export type TrainerEvent = {
   state: TrainerState;
 };
 
-type Learner = {
-  level: number | undefined;
-  professionPoints: number | undefined;
-  learned: readonly number[];
-};
-
-function stateOf(
-  spell: TrainerOfferedSpell,
-  { level, professionPoints, learned }: Learner,
-): TrainerSpellState {
-  if (spell.usable === 2 || learned.includes(spell.spellId)) return "known";
-  if (spell.usable === 0)
-    return professionPoints !== undefined && professionPoints < spell.firstRank
-      ? "no_profession_slot"
-      : "available";
-  return level !== undefined && level < spell.requiredLevel
-    ? "too_low"
-    : "unavailable";
-}
-
 export class TrainerRuntime {
   private readonly events = new Emitter<[TrainerEvent]>();
+  private readonly store: TrainerStore;
   private readonly deps: TrainerDeps;
   private disposed = false;
-  private offer: (TrainerList & { receivedAt: number }) | undefined;
-  private pending: TrainerRequest | undefined;
-  private lastOutcome: TrainerOutcome | undefined;
   private timer: ReturnType<typeof setTimeout> | undefined;
 
-  constructor(deps: TrainerDeps) {
+  constructor(store: TrainerStore, deps: TrainerDeps) {
+    this.store = store;
     this.deps = deps;
+    store.onEvent((event) => {
+      this.react(event);
+      this.events.emit(event);
+    });
   }
 
   onEvent(listener: (event: TrainerEvent) => void): Unsubscribe {
-    if (this.disposed) return () => undefined;
+    if (this.disposed || this.store.disposed) return () => undefined;
     return this.events.subscribe(listener);
   }
 
   snapshot(): TrainerState {
-    const learner = this.learner();
-    return {
-      offer: this.offer && {
-        ...this.offer,
-        spells: this.offer.spells.map((spell) => ({
-          ...spell,
-          state: stateOf(spell, learner),
-        })),
-      },
-      pending: this.pending ? { ...this.pending } : undefined,
-      lastOutcome: this.lastOutcome ? { ...this.lastOutcome } : undefined,
-      level: learner.level,
-      coinage: this.coinage(),
-    };
+    return this.store.snapshot();
   }
 
   list(guid: bigint): TrainerState {
@@ -142,159 +108,61 @@ export class TrainerRuntime {
     if (!(isUnit(trainer) && trainer.npcFlags & NPC_FLAG_TRAINER))
       throw new Error("Creature is not an observed trainer");
     this.deps.send(GameOpcode.CMSG_TRAINER_LIST, buildTrainerList(guid));
-    return this.request({ action: "list", guid, requestedAt: this.deps.now() });
+    return this.store.begin({
+      action: "list",
+      guid,
+      requestedAt: this.deps.now(),
+    });
   }
 
   train(spellId: number): TrainerState {
     this.ready();
-    const offer = this.offer;
+    const { offer } = this.store;
     if (!offer) throw new Error("No listed trainer");
     const spell = offer.spells.find((s) => s.spellId === spellId);
     if (!spell) throw new Error("Spell is not offered by this trainer");
-    const state = stateOf(spell, this.learner());
+    const state = stateOf(spell, this.store.learner());
     if (state !== "available") throw new Error(`Spell is ${state}`);
     this.deps.send(
       GameOpcode.CMSG_TRAINER_BUY_SPELL,
       buildTrainerBuySpell(offer.guid, spellId),
     );
-    return this.request({
+    return this.store.begin({
       action: "train",
       guid: offer.guid,
       spellId,
       cost: spell.cost,
-      coinageBefore: this.coinage(),
+      coinageBefore: this.store.coinage(),
       learnedBefore: [...this.deps.learned()],
       succeeded: false,
       requestedAt: this.deps.now(),
     });
   }
 
-  receiveList(list: TrainerList): void {
-    if (this.disposed) return;
-    this.offer = { ...list, receivedAt: this.deps.now() };
-    if (this.pending?.action === "list" && this.pending.guid === list.guid)
-      this.settle("confirmed", undefined);
-    else this.emit("listed");
-  }
-
-  receiveSucceeded({ guid, spellId }: TrainerBuyResult): void {
-    const pending = this.pending;
-    if (this.disposed || pending?.action !== "train") return;
-    if (pending.guid !== guid || pending.spellId !== spellId) return;
-    pending.succeeded = true;
-    this.observe();
-  }
-
-  receiveFailed({ guid, spellId, reason }: TrainerBuyFailure): void {
-    const pending = this.pending;
-    if (this.disposed || pending?.action !== "train") return;
-    if (pending.guid === guid && pending.spellId === spellId)
-      this.settle("refused", trainerFailureName(reason));
-  }
-
-  observe(): void {
-    const pending = this.pending;
-    if (this.disposed || pending?.action !== "train" || !pending.succeeded)
-      return;
-    const coinage = this.coinage();
-    const paid =
-      pending.cost === 0 ||
-      (coinage !== undefined &&
-        pending.coinageBefore !== undefined &&
-        pending.coinageBefore - coinage >= pending.cost);
-    if (paid && this.newlyLearned(pending).length > 0)
-      this.settle("confirmed", undefined);
-  }
-
   dispose(): void {
     this.disposed = true;
     clearTimeout(this.timer);
     this.events.clear();
-    this.offer = undefined;
-    this.pending = undefined;
-    this.lastOutcome = undefined;
   }
 
-  private newlyLearned(request: TrainerRequest): number[] {
-    if (request.action !== "train") return [];
-    return this.deps
-      .learned()
-      .filter((id) => !request.learnedBefore.includes(id));
-  }
-
-  private request(request: TrainerRequest): TrainerState {
-    this.pending = request;
-    this.timer = setTimeout(
-      () => this.settle("unanswered", "server_unanswered"),
-      TRAINER_ANSWER_MS,
-    );
-    return this.emit(`${request.action}_requested`);
-  }
-
-  private settle(status: TrainerOutcome["status"], reason?: string): void {
-    const request = this.pending;
-    if (!request) return;
-    clearTimeout(this.timer);
-    this.timer = undefined;
-    const coinageAfter = this.coinage();
-    const before =
-      request.action === "train" ? request.coinageBefore : coinageAfter;
-    this.lastOutcome = {
-      action: request.action,
-      status,
-      reason,
-      request,
-      learnedSpells: this.newlyLearned(request),
-      coinageAfter,
-      moneyDelta:
-        coinageAfter === undefined || before === undefined
-          ? undefined
-          : coinageAfter - before,
-      observedAt: this.deps.now(),
-    };
-    this.pending = undefined;
-    if (status === "confirmed")
-      this.emit(request.action === "list" ? "listed" : "trained");
-    else this.emit(status);
+  private react(event: TrainerEvent): void {
+    if (event.type.endsWith("_requested")) {
+      clearTimeout(this.timer);
+      this.timer = setTimeout(() => this.store.expire(), TRAINER_ANSWER_MS);
+    } else if (!event.state.pending) {
+      clearTimeout(this.timer);
+      this.timer = undefined;
+    }
   }
 
   private ready(): void {
-    if (this.disposed) throw new Error("Trainer runtime disposed");
+    if (this.disposed || this.store.disposed)
+      throw new Error("Trainer runtime disposed");
     const self = this.deps.selfGuid();
     if (!self) throw new Error("Authenticated player GUID is unknown");
     if (readLife(self, this.deps.getEntity).life !== "alive")
       throw new Error("Training requires authoritative alive state");
-    if (this.pending)
+    if (this.store.pending)
       throw new Error("Previous trainer request remains unanswered");
-  }
-
-  private learner(): Learner {
-    const self = this.deps.selfGuid();
-    return {
-      level: this.level(),
-      professionPoints: readSelfField(
-        self,
-        this.deps.getEntity(self),
-        PLAYER_FIELDS.CHARACTER_POINTS2.offset,
-      ),
-      learned: this.deps.learned(),
-    };
-  }
-
-  private level(): number | undefined {
-    return fieldOf(
-      this.deps.getEntity(this.deps.selfGuid()),
-      UNIT_FIELDS.LEVEL.offset,
-    );
-  }
-
-  private coinage(): number | undefined {
-    return readInventory(this.deps.selfGuid(), this.deps.getEntity).coinage;
-  }
-
-  private emit(type: TrainerEvent["type"]): TrainerState {
-    const state = this.snapshot();
-    this.events.emit({ type, at: this.deps.now(), state });
-    return state;
   }
 }

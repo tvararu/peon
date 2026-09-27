@@ -6,6 +6,7 @@ import {
   type MotionFixture,
   motionFixture,
 } from "#test-support/remote-motion-fixtures";
+import { MARNIEL, MARNIEL_LIST_INVENTORY } from "#test-support/vendor-fixtures";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { InventoryResult } from "#wow/protocol/inventory";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -126,6 +127,56 @@ describe("loot packets over the wire", () => {
         LESSER_HEALING_POTION_RESPONSE,
       );
       expect(f.handle.itemLabel(858).name).toBe("Lesser Healing Potion");
+    });
+  });
+});
+
+function words(...values: number[]): Uint8Array {
+  const w = new PacketWriter();
+  for (const value of values) w.uint32LE(value);
+  return w.finish();
+}
+
+describe("quest, recovery, vendor and place packets over the wire", () => {
+  test("kill progress, a reclaim delay and a vendor list land in their stores", async () => {
+    await session(async (f) => {
+      f.setNow(20_000);
+      await f.inject(
+        GameOpcode.SMSG_QUESTUPDATE_ADD_KILL,
+        words(8326, 15_274, 3, 8, 0, 0),
+      );
+      await f.inject(GameOpcode.SMSG_CORPSE_RECLAIM_DELAY, words(30_000));
+      await f.inject(GameOpcode.SMSG_LIST_INVENTORY, MARNIEL_LIST_INVENTORY);
+      expect(f.handle.getQuestState().lastProgress).toMatchObject({
+        data: { currentCount: 3, questId: 8326, requiredCount: 8 },
+        kind: "kill",
+      });
+      expect(f.handle.getRecoveryState().reclaimDelay).toEqual({
+        delayMs: 30_000,
+        readyAt: 50_000,
+        receivedAt: 20_000,
+      });
+      expect(f.handle.getVendorState().window?.guid).toBe(MARNIEL);
+      expect(f.errors).toEqual([]);
+    });
+  });
+
+  test("a new zone updates the place and raises a control event", async () => {
+    await session(async (f) => {
+      const types: string[] = [];
+      f.handle.onControlEvent((event) => types.push(event.type));
+      await f.inject(
+        GameOpcode.SMSG_INIT_WORLD_STATES,
+        Uint8Array.of(...words(530, 3430, 3431), 0, 0),
+      );
+      await f.inject(GameOpcode.SMSG_EXPLORATION_EXPERIENCE, words(3431, 25));
+      expect(f.handle.getPlaceState()).toMatchObject({
+        areaId: 3431,
+        mapId: 530,
+        zoneId: 3430,
+      });
+      expect(types).toEqual(["place_changed", "area_explored"]);
+      expect(f.errors).toEqual([]);
     });
   });
 });

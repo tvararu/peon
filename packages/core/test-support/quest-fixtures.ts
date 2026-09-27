@@ -1,11 +1,13 @@
 import { must } from "#test-support/must";
+import { questParts, testStores } from "#test-support/session-fixtures";
 import { EntityStore } from "#wow/entity-store";
 import { registerQuestHandlers } from "#wow/gameplay-handlers";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 import { OpcodeDispatch } from "#wow/protocol/world";
-import { type QuestEvent, QuestRuntime } from "#wow/quests";
+import type { QuestStore } from "#wow/quest-store";
+import type { QuestEvent, QuestRuntime } from "#wow/quests";
 import type { WorldConn } from "#wow/world-conn";
 
 export const self = 1n;
@@ -18,7 +20,7 @@ export function setup() {
   const sent: { opcode: number; body: Uint8Array | undefined }[] = [];
   const events: QuestEvent[] = [];
   let failSend = false;
-  const runtime = new QuestRuntime({
+  const { runtime, store } = questParts({
     getEntity: (guid) => entities.get(guid),
     now: () => 1000,
     selfGuid: () => self,
@@ -28,8 +30,8 @@ export function setup() {
     },
   });
   runtime.onEvent((event) => events.push(event));
-  runtime.observeSelfCreate(must(entities.get(self)));
-  runtime.observeQuestLog();
+  store.observeSelfCreate(must(entities.get(self)));
+  store.observeQuestLog();
   return {
     entities,
     events,
@@ -38,16 +40,20 @@ export function setup() {
     },
     runtime,
     sent,
+    store,
   };
 }
 
 export function packet(
-  runtime: QuestRuntime,
+  store: QuestStore,
   opcode: number,
   data: Uint8Array,
 ): void {
   const dispatch = new OpcodeDispatch();
-  registerQuestHandlers({ dispatch, quests: runtime } as unknown as WorldConn);
+  registerQuestHandlers({ dispatch } as unknown as WorldConn, {
+    ...testStores(),
+    quests: store,
+  });
   dispatch.handle(opcode, new PacketReader(data));
 }
 
@@ -109,10 +115,14 @@ export function dialog(
   return w.finish();
 }
 
-export function show(runtime: QuestRuntime, kind: "details" | "offer"): void {
+export function show(
+  runtime: QuestRuntime,
+  store: QuestStore,
+  kind: "details" | "offer",
+): void {
   runtime.talk(giver);
   packet(
-    runtime,
+    store,
     kind === "details"
       ? GameOpcode.SMSG_QUESTGIVER_QUEST_DETAILS
       : GameOpcode.SMSG_QUESTGIVER_OFFER_REWARD,

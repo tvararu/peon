@@ -20,10 +20,10 @@ const full: InventoryChangeFailure = {
 
 describe("quest rewards refused by full bags", () => {
   test("the refusal becomes the quest's last error and survives the reoffer", () => {
-    const { runtime, events } = setup();
-    show(runtime, "offer");
+    const { runtime, events, store } = setup();
+    show(runtime, store, "offer");
     runtime.chooseReward(0);
-    runtime.receiveInventoryFailure(full);
+    store.receiveInventoryFailure(full);
     expect(runtime.snapshot().lastError).toEqual({
       kind: "inventory",
       at: 1000,
@@ -32,7 +32,7 @@ describe("quest rewards refused by full bags", () => {
       name: "inventory_full",
     });
     expect(events.at(-1)).toMatchObject({ type: "error", questId });
-    packet(runtime, GameOpcode.SMSG_QUESTGIVER_OFFER_REWARD, dialog("offer"));
+    packet(store, GameOpcode.SMSG_QUESTGIVER_OFFER_REWARD, dialog("offer"));
     expect(runtime.snapshot()).toMatchObject({
       dialog: { kind: "offer" },
       pending: undefined,
@@ -43,10 +43,10 @@ describe("quest rewards refused by full bags", () => {
   });
 
   test("an acceptance blocked by bags is recorded the same way", () => {
-    const { runtime } = setup();
-    show(runtime, "details");
+    const { runtime, store } = setup();
+    show(runtime, store, "details");
     runtime.accept();
-    runtime.receiveInventoryFailure({ ...full, result: 4 });
+    store.receiveInventoryFailure({ ...full, result: 4 });
     expect(runtime.snapshot().lastError).toMatchObject({
       kind: "inventory",
       name: "bag_full",
@@ -54,11 +54,11 @@ describe("quest rewards refused by full bags", () => {
   });
 
   test("inventory errors from other actions are not quest errors", () => {
-    const { runtime } = setup();
-    runtime.receiveInventoryFailure(full);
-    show(runtime, "offer");
-    runtime.receiveInventoryFailure(full);
-    runtime.receiveInventoryFailure({ kind: "ok", result: 0 });
+    const { runtime, store } = setup();
+    store.receiveInventoryFailure(full);
+    show(runtime, store, "offer");
+    store.receiveInventoryFailure(full);
+    store.receiveInventoryFailure({ kind: "ok", result: 0 });
     expect(runtime.snapshot().lastError).toBeUndefined();
   });
 });

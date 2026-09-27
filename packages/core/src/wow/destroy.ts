@@ -1,16 +1,8 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
+import type { DestroyStore } from "#wow/destroy-store";
 import type { EntityLookup } from "#wow/entity-store";
-import {
-  type InventorySlot,
-  type InventoryState,
-  readInventory,
-} from "#wow/inventory";
 import { readLife } from "#wow/player-state";
-import {
-  buildDestroyItem,
-  type InventoryChangeFailure,
-  inventoryResultName,
-} from "#wow/protocol/inventory";
+import { buildDestroyItem } from "#wow/protocol/inventory";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 export type DestroyDeps = {
@@ -52,53 +44,49 @@ export type DestroyEvent = {
   state: DestroyState;
 };
 
-type Occupied = Extract<InventorySlot, { status: "occupied" }>;
-
-function stackAt(inventory: InventoryState, request: DestroyRequest): number {
-  const held = inventory.slots.find(
-    (slot): slot is Occupied =>
-      slot.status === "occupied" &&
-      slot.bag === request.bag &&
-      slot.slot === request.slot,
-  );
-  return held?.guid === request.itemGuid ? (held.item.count ?? 1) : 0;
-}
-
 export class ItemDestroyRuntime {
   private readonly events = new Emitter<[DestroyEvent]>();
+  private readonly store: DestroyStore;
   private readonly deps: DestroyDeps;
   private disposed = false;
-  private pending: DestroyRequest | undefined;
-  private lastOutcome: DestroyOutcome | undefined;
   private timer: ReturnType<typeof setTimeout> | undefined;
 
-  constructor(deps: DestroyDeps) {
+  constructor(store: DestroyStore, deps: DestroyDeps) {
+    this.store = store;
     this.deps = deps;
+    store.onEvent((event) => {
+      clearTimeout(this.timer);
+      this.timer =
+        event.type === "requested"
+          ? setTimeout(() => this.store.expire(), DESTROY_ANSWER_MS)
+          : undefined;
+      this.events.emit(event);
+    });
   }
 
   onEvent(listener: (event: DestroyEvent) => void): Unsubscribe {
-    if (this.disposed) return () => undefined;
+    if (this.disposed || this.store.disposed) return () => undefined;
     return this.events.subscribe(listener);
   }
 
   snapshot(): DestroyState {
-    return {
-      pending: this.pending ? { ...this.pending } : undefined,
-      lastOutcome: this.lastOutcome ? { ...this.lastOutcome } : undefined,
-    };
+    return this.store.snapshot();
   }
 
   destroy(bag: number, slot: number, count?: number): DestroyState {
     const self = this.deps.selfGuid();
-    if (this.disposed) throw new Error("Destroy runtime disposed");
+    if (this.disposed || this.store.disposed)
+      throw new Error("Destroy runtime disposed");
     if (!self) throw new Error("Authenticated player GUID is unknown");
     if (readLife(self, this.deps.getEntity).life !== "alive")
       throw new Error("Destroy requires authoritative alive state");
-    if (this.pending)
+    if (this.store.pending)
       throw new Error("Previous destroy request remains unanswered");
-    const held = this.inventory().slots.find(
-      (candidate) => candidate.bag === bag && candidate.slot === slot,
-    );
+    const held = this.store
+      .inventory()
+      .slots.find(
+        (candidate) => candidate.bag === bag && candidate.slot === slot,
+      );
     if (held?.status !== "occupied" || held.region === "equipment")
       throw new Error(`No carried bag item at bag ${bag} slot ${slot}`);
     const stackBefore = held.item.count ?? 1;
@@ -112,7 +100,7 @@ export class ItemDestroyRuntime {
       GameOpcode.CMSG_DESTROYITEM,
       buildDestroyItem(bag, slot, whole ? 0 : destroyed),
     );
-    this.pending = {
+    return this.store.begin({
       bag,
       slot,
       itemGuid: held.guid,
@@ -120,58 +108,12 @@ export class ItemDestroyRuntime {
       count: destroyed,
       stackBefore,
       requestedAt: this.deps.now(),
-    };
-    this.timer = setTimeout(
-      () => this.settle("unanswered", "server_unanswered"),
-      DESTROY_ANSWER_MS,
-    );
-    return this.emit("requested");
-  }
-
-  receiveInventoryFailure(packet: InventoryChangeFailure): void {
-    if (this.disposed || !this.pending || packet.kind !== "error") return;
-    this.settle("refused", inventoryResultName(packet.result));
-  }
-
-  observeInventory(): void {
-    const pending = this.pending;
-    if (this.disposed || !pending) return;
-    const left = stackAt(this.inventory(), pending);
-    if (left === pending.stackBefore - pending.count)
-      this.settle("confirmed", undefined);
+    });
   }
 
   dispose(): void {
     this.disposed = true;
     clearTimeout(this.timer);
     this.events.clear();
-    this.pending = undefined;
-    this.lastOutcome = undefined;
-  }
-
-  private settle(status: DestroyOutcome["status"], reason?: string): void {
-    const request = this.pending;
-    if (!request) return;
-    clearTimeout(this.timer);
-    this.timer = undefined;
-    this.lastOutcome = {
-      status,
-      reason,
-      request,
-      stackAfter: stackAt(this.inventory(), request),
-      observedAt: this.deps.now(),
-    };
-    this.pending = undefined;
-    this.emit(status === "confirmed" ? "destroyed" : status);
-  }
-
-  private inventory(): InventoryState {
-    return readInventory(this.deps.selfGuid(), this.deps.getEntity);
-  }
-
-  private emit(type: DestroyEvent["type"]): DestroyState {
-    const state = this.snapshot();
-    this.events.emit({ type, at: this.deps.now(), state });
-    return state;
   }
 }

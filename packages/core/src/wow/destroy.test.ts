@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import { bytes } from "#test-support/hex";
-import { DESTROY_ANSWER_MS, ItemDestroyRuntime } from "#wow/destroy";
+import { destroyParts } from "#test-support/session-fixtures";
+import { DESTROY_ANSWER_MS } from "#wow/destroy";
 import type { Entity } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -54,7 +55,7 @@ function fixture() {
     [SHIRT, item(SHIRT, 53, 1)],
   ]);
   const sent: { opcode: number; body: Uint8Array | undefined }[] = [];
-  const runtime = new ItemDestroyRuntime({
+  const { runtime, store } = destroyParts({
     send: (opcode, body) => sent.push({ opcode, body }),
     now: () => 1000,
     selfGuid: () => 1n,
@@ -69,9 +70,9 @@ function fixture() {
         ...current,
         rawFields: new Map([...current.rawFields, [field, value]]),
       });
-    runtime.observeInventory();
+    store.observeInventory();
   };
-  return { runtime, sent, set, types };
+  return { runtime, store, sent, set, types };
 }
 
 describe("destroying a carried item", () => {
@@ -124,7 +125,7 @@ describe("destroying a carried item", () => {
     try {
       const f = fixture();
       f.runtime.destroy(255, 23);
-      f.runtime.receiveInventoryFailure({
+      f.store.receiveInventoryFailure({
         kind: "error",
         result: 24,
         item1: 0n,
@@ -142,6 +143,36 @@ describe("destroying a carried item", () => {
       expect(f.runtime.snapshot().lastOutcome).toMatchObject({
         status: "unanswered",
         reason: "server_unanswered",
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("a destroy started from a refusal listener keeps its answer timeout", () => {
+    jest.useFakeTimers();
+    try {
+      const f = fixture();
+      let retried = false;
+      f.runtime.onEvent((event) => {
+        if (event.type !== "refused" || retried) return;
+        retried = true;
+        f.runtime.destroy(255, 23);
+      });
+      f.runtime.destroy(255, 23);
+      f.store.receiveInventoryFailure({
+        kind: "error",
+        result: 24,
+        item1: 0n,
+        item2: 0n,
+        bagType: 0,
+        detail: { kind: "none" },
+      });
+      expect(f.runtime.snapshot().pending).toBeDefined();
+      jest.advanceTimersByTime(DESTROY_ANSWER_MS);
+      expect(f.runtime.snapshot()).toMatchObject({
+        lastOutcome: { status: "unanswered" },
+        pending: undefined,
       });
     } finally {
       jest.useRealTimers();

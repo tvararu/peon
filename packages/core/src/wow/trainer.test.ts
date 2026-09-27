@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
+import { trainerParts } from "#test-support/session-fixtures";
 import {
   ARENA_TRAINER_LIST,
   BOUGHT_FORTITUDE,
@@ -16,7 +17,7 @@ import {
   parseTrainerList,
 } from "#wow/protocol/trainer";
 import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
-import { TRAINER_ANSWER_MS, TrainerRuntime } from "#wow/trainer";
+import { TRAINER_ANSWER_MS } from "#wow/trainer";
 
 const COINAGE = 0x4_92;
 
@@ -40,7 +41,7 @@ function fixture(npcFlags = 51) {
     entities.update(1n, {}, new Map([[offset, value]]));
   const learned = [585, 2050];
   const sent: { opcode: number; body: Uint8Array | undefined }[] = [];
-  const runtime = new TrainerRuntime({
+  const { runtime, store } = trainerParts({
     send: (opcode, body) => sent.push({ opcode, body }),
     now: () => 1000,
     selfGuid: () => 1n,
@@ -51,13 +52,13 @@ function fixture(npcFlags = 51) {
   runtime.onEvent((event) => types.push(event.type));
   const listed = () => {
     runtime.list(MATRON_ARENA);
-    runtime.receiveList(parseTrainerList(new PacketReader(ARENA_TRAINER_LIST)));
+    store.receiveList(parseTrainerList(new PacketReader(ARENA_TRAINER_LIST)));
   };
   const coinage = (value: number) => {
     set(COINAGE, value);
-    runtime.observe();
+    store.observe();
   };
-  return { runtime, set, learned, sent, types, listed, coinage };
+  return { runtime, store, set, learned, sent, types, listed, coinage };
 }
 
 describe("trainer offer", () => {
@@ -86,9 +87,7 @@ describe("trainer offer", () => {
 
   test("a list opened from gossip needs no request, and non-trainers are refused", () => {
     const f = fixture(0x03);
-    f.runtime.receiveList(
-      parseTrainerList(new PacketReader(ARENA_TRAINER_LIST)),
-    );
+    f.store.receiveList(parseTrainerList(new PacketReader(ARENA_TRAINER_LIST)));
     expect(f.runtime.snapshot().offer?.guid).toBe(MATRON_ARENA);
     expect(f.types).toEqual(["listed"]);
     expect(() => f.runtime.list(MATRON_ARENA)).toThrow(
@@ -110,7 +109,7 @@ describe("trainer offer", () => {
       requiredSkillValue: 0,
       requiredSpells: [0, 0, 0],
     };
-    f.runtime.receiveList({
+    f.store.receiveList({
       guid: MATRON_ARENA,
       trainerType: 2,
       spells: [
@@ -143,12 +142,12 @@ describe("learning a spell", () => {
     const f = fixture();
     f.listed();
     f.runtime.train(1243);
-    f.runtime.receiveSucceeded(
+    f.store.receiveSucceeded(
       parseTrainerBuySucceeded(new PacketReader(BOUGHT_FORTITUDE)),
     );
     expect(f.runtime.snapshot().pending?.action).toBe("train");
     f.learned.push(1243);
-    f.runtime.observe();
+    f.store.observe();
     expect(f.runtime.snapshot().pending).toBeDefined();
     f.coinage(91);
     const state = f.runtime.snapshot();
@@ -179,7 +178,7 @@ describe("learning a spell", () => {
       const f = fixture();
       f.listed();
       f.runtime.train(1243);
-      f.runtime.receiveFailed(
+      f.store.receiveFailed(
         parseTrainerBuyFailed(new PacketReader(FORTITUDE_NO_MONEY)),
       );
       expect(f.runtime.snapshot().lastOutcome).toMatchObject({
@@ -192,6 +191,25 @@ describe("learning a spell", () => {
       expect(f.runtime.snapshot().lastOutcome).toMatchObject({
         status: "unanswered",
         reason: "server_unanswered",
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("a request started from a settle listener keeps its answer timeout", () => {
+    jest.useFakeTimers();
+    try {
+      const f = fixture();
+      f.runtime.onEvent((event) => {
+        if (event.type === "listed") f.runtime.train(1243);
+      });
+      f.listed();
+      expect(f.runtime.snapshot().pending?.action).toBe("train");
+      jest.advanceTimersByTime(TRAINER_ANSWER_MS);
+      expect(f.runtime.snapshot()).toMatchObject({
+        lastOutcome: { action: "train", status: "unanswered" },
+        pending: undefined,
       });
     } finally {
       jest.useRealTimers();
