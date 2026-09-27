@@ -189,6 +189,7 @@ describe("explore", () => {
       stoppedBy: "distance",
     });
     expect(result.walkedYd).toBeCloseTo(40, 0);
+    expect(result.legs).toHaveLength(3);
   });
 
   test("without a direction it skips a bearing refused from this cell", async () => {

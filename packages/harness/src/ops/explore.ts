@@ -28,6 +28,7 @@ export const EXPLORE_MAX_YD = 40;
 export const EXPLORE_MAX_OBSTRUCTED = 3;
 const CELL_YD = 20;
 const LEG_YD = 20;
+const LEG_WITHIN_YD = 1;
 const MAX_ROUNDS = 6;
 const SIDES = [1, -1];
 export const SIDE_REASONS: ReadonlySet<string> = new Set([
@@ -187,7 +188,7 @@ async function walkBearing(
   );
   const leg = await travelLeg(ctx, {
     goal: { kind: "point", ...point },
-    within: 1,
+    within: LEG_WITHIN_YD,
   });
   const to = poseView(ctx) ?? from;
   walk.walkedYd += Math.hypot(to.x - from.x, to.y - from.y);
@@ -261,7 +262,7 @@ export async function explore(
   let stoppedBy: ExploreStop | undefined;
   while (
     !stoppedBy &&
-    walk.walkedYd < EXPLORE_MAX_YD &&
+    EXPLORE_MAX_YD - walk.walkedYd >= LEG_WITHIN_YD &&
     walk.rounds < MAX_ROUNDS
   )
     stoppedBy = await walkLeg(walk, start);
