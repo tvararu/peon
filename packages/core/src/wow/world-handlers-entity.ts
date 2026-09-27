@@ -25,7 +25,7 @@ import type { SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
 import { selfGuid, sendPacket } from "#wow/world-handlers";
 
-type EntityStores = Pick<SessionStores, "motion" | "quests">;
+type EntityStores = Pick<SessionStores, "motion" | "quests" | "self">;
 
 type TypeFields = Partial<UnitFieldsResult> & Partial<GameObjectFieldsResult>;
 type Entry<T extends UpdateEntry["type"]> = Extract<UpdateEntry, { type: T }>;
@@ -35,7 +35,7 @@ export function handleUpdateObject(
   stores: EntityStores,
   r: PacketReader,
 ): void {
-  const entries = parseUpdateObject(r, conn.control?.currentMapId() ?? 0);
+  const entries = parseUpdateObject(r, stores.self.mapId);
   for (const entry of entries) applyEntry(conn, stores, entry);
   stores.quests.observeQuestLog();
 }
@@ -50,7 +50,7 @@ function applyEntry(
       applyCreate(conn, stores, entry);
       return;
     case "values":
-      applyValues(conn, entry);
+      applyValues(conn, stores, entry);
       return;
     case "movement":
       applyMovement(conn, stores, entry);
@@ -84,7 +84,7 @@ function typeFields(
 
 function applyCreate(
   conn: WorldConn,
-  { motion, quests }: EntityStores,
+  { motion, quests, self: selfStore }: EntityStores,
   entry: Entry<"create">,
 ): void {
   const { guid, objectType, fields, position } = entry;
@@ -112,17 +112,24 @@ function applyCreate(
   }
   if (!name) queryEntityName(conn, guid, objectType, object.entry);
   if (guid !== self && (entry.updateFlags & UpdateFlag.SELF) === 0) return;
-  conn.control?.observeSelf({
-    position,
-    movementFlags: entry.movementInfo?.flags,
-    runSpeed: entry.runSpeed,
-    runBackSpeed: entry.runBackSpeed,
-    target: extra.target,
-    unitFlags: extra.unitFlags,
+  selfStore.receive({
+    type: "observed",
+    observation: {
+      position,
+      movementFlags: entry.movementInfo?.flags,
+      runSpeed: entry.runSpeed,
+      runBackSpeed: entry.runBackSpeed,
+      target: extra.target,
+      unitFlags: extra.unitFlags,
+    },
   });
 }
 
-function applyValues(conn: WorldConn, entry: Entry<"values">): void {
+function applyValues(
+  conn: WorldConn,
+  { self }: EntityStores,
+  entry: Entry<"values">,
+): void {
   const entity = conn.entityStore.get(entry.guid);
   if (!entity) return;
   const object = extractObjectFields(entry.fields, entity.rawFields);
@@ -134,15 +141,18 @@ function applyValues(conn: WorldConn, entry: Entry<"values">): void {
   conn.entityStore.update(entry.guid, merged, entry.fields);
   if (changed.has("health")) conn.remoteMotion.observeVitals(entry.guid);
   if (entry.guid === selfGuid(conn))
-    conn.control?.observeSelf({
-      target: extra.target,
-      unitFlags: extra.unitFlags,
+    self.receive({
+      type: "observed",
+      observation: {
+        target: extra.target,
+        unitFlags: extra.unitFlags,
+      },
     });
 }
 
 function applyMovement(
   conn: WorldConn,
-  { motion }: EntityStores,
+  { motion, self }: EntityStores,
   entry: Entry<"movement">,
 ): void {
   if (!entry.position) return;
@@ -154,11 +164,14 @@ function applyMovement(
   conn.entityStore.setPosition(entry.guid, entry.position);
   motion.observe(entry.guid, entry.position, entry.spline);
   if (entry.guid !== selfGuid(conn)) return;
-  conn.control?.observeSelf({
-    position: entry.position,
-    movementFlags: entry.movementInfo?.flags,
-    runSpeed: entry.runSpeed,
-    runBackSpeed: entry.runBackSpeed,
+  self.receive({
+    type: "observed",
+    observation: {
+      position: entry.position,
+      movementFlags: entry.movementInfo?.flags,
+      runSpeed: entry.runSpeed,
+      runBackSpeed: entry.runBackSpeed,
+    },
   });
 }
 
@@ -261,7 +274,6 @@ function cacheCreatureInfo(conn: WorldConn, result: CreatureQueryResult): void {
     family,
     rank: RANKS[rank] ?? "normal",
   };
-  conn.creatureInfoCache ??= new Map();
   conn.creatureInfoCache.set(entry, info);
 }
 

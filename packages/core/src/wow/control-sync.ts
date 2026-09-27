@@ -69,8 +69,6 @@ export class MovementSync {
   private rooted = false;
   private teleporting = false;
   private unitBlocked = false;
-  private verified = false;
-  private loginWaiters: Array<() => void> = [];
 
   constructor({ deps, emit, motion }: SyncParts) {
     this.deps = deps;
@@ -120,27 +118,10 @@ export class MovementSync {
     this.mapId = position.mapId;
     this.setServerPose(position);
     this.predicted = undefined;
-    this.verified = true;
-    const waiters = this.loginWaiters;
-    this.loginWaiters = [];
-    for (const waiter of waiters) waiter();
     this.deps.send(
       GameOpcode.CMSG_SET_ACTIVE_MOVER,
       buildSetActiveMover(this.deps.selfGuid()),
     );
-  }
-
-  waitLogin(timeoutMs = 10_000): Promise<void> {
-    if (this.verified) return Promise.resolve();
-    const { promise, resolve, reject } = Promise.withResolvers<void>();
-    const timer = setTimeout(() => {
-      reject(new Error("Timed out waiting for opcode 0x236"));
-    }, timeoutMs);
-    this.loginWaiters.push(() => {
-      clearTimeout(timer);
-      resolve();
-    });
-    return promise;
   }
 
   observeSelf(input: SelfObservation): void {

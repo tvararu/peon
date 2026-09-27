@@ -31,7 +31,6 @@ export type RecoveryStoreDeps = {
   now: () => number;
   selfGuid: () => bigint;
   getEntity: EntityLookup;
-  pose: () => ControlPose | undefined;
 };
 
 export type RecoverySpiritHealerRequest = {
@@ -61,9 +60,11 @@ export function dead(life: PlayerLife): boolean {
   return life === "dead" || life === "ghost";
 }
 
+export type RecoveryChange = Omit<RecoveryEvent, "state">;
+
 export class RecoveryStore {
   private readonly deps: RecoveryStoreDeps;
-  private readonly events = new Emitter<[RecoveryEvent]>();
+  private readonly events = new Emitter<[RecoveryChange]>();
   private isDisposed = false;
   private unavailable = false;
   private epoch = 0;
@@ -89,7 +90,7 @@ export class RecoveryStore {
     this.lastLife = this.life().life;
   }
 
-  onEvent(listener: (event: RecoveryEvent) => void): Unsubscribe {
+  onEvent(listener: (change: RecoveryChange) => void): Unsubscribe {
     if (this.isDisposed) return () => undefined;
     return this.events.subscribe(listener);
   }
@@ -106,7 +107,7 @@ export class RecoveryStore {
     return this.spiritHealerPending;
   }
 
-  snapshot(): RecoveryState {
+  snapshot(pose?: ControlPose): RecoveryState {
     const life = this.life();
     const request = this.request ?? this.spiritHealerPending;
     return {
@@ -122,7 +123,7 @@ export class RecoveryStore {
           }
         : undefined,
       reclaimDelay: this.delay ? { ...this.delay } : undefined,
-      reclaim: this.reclaim(),
+      reclaim: this.reclaim(pose),
       graveyard: copyGraveyard(this.graveyard),
       resurrection: this.resurrection(),
       request: request ? { ...request } : undefined,
@@ -136,12 +137,12 @@ export class RecoveryStore {
     };
   }
 
-  reclaim(): RecoveryReclaim {
+  reclaim(pose: ControlPose | undefined): RecoveryReclaim {
     return reclaimGate({
       life: this.life().life,
       corpse: this.corpse,
       delay: this.delay,
-      pose: this.deps.pose(),
+      pose,
       now: this.deps.now(),
     });
   }
@@ -161,7 +162,7 @@ export class RecoveryStore {
     this.observeLife();
   }
 
-  requestQuery(): RecoveryState {
+  requestQuery(): void {
     const requestedAt = this.deps.now();
     this.queryPending = { epoch: this.epoch, requestedAt };
     if (!this.spiritHealerPending) {
@@ -172,20 +173,20 @@ export class RecoveryStore {
         requestedAt,
       };
     }
-    return this.emit("corpse_query_requested");
+    this.emit("corpse_query_requested");
   }
 
-  requestRelease(): RecoveryState {
+  requestRelease(): void {
     this.request = {
       action: "release",
       status: "unanswered",
       epoch: this.epoch,
       requestedAt: this.deps.now(),
     };
-    return this.emit("release_requested");
+    this.emit("release_requested");
   }
 
-  requestReclaim(timing: "known" | "unknown"): RecoveryState {
+  requestReclaim(timing: "known" | "unknown"): void {
     this.request = {
       action: "reclaim",
       status: "unanswered",
@@ -193,10 +194,10 @@ export class RecoveryStore {
       requestedAt: this.deps.now(),
       timing,
     };
-    return this.emit("reclaim_requested");
+    this.emit("reclaim_requested");
   }
 
-  requestSpiritHealer(guid: bigint): RecoveryState {
+  requestSpiritHealer(guid: bigint): void {
     this.spiritHealerPending = {
       action: "spirit-healer",
       status: "unanswered",
@@ -205,13 +206,10 @@ export class RecoveryStore {
       guid,
     };
     this.request = this.spiritHealerPending;
-    return this.emit("spirit_healer_requested");
+    this.emit("spirit_healer_requested");
   }
 
-  requestResurrection(
-    offer: RecoveryResurrection,
-    accept: boolean,
-  ): RecoveryState {
+  requestResurrection(offer: RecoveryResurrection, accept: boolean): void {
     if (this.offer)
       this.offer.response = accept ? "accept_requested" : "decline_requested";
     this.request = {
@@ -223,7 +221,7 @@ export class RecoveryStore {
       accept,
       timing: offer.readyAt === undefined ? "unknown" : "known",
     };
-    return this.emit("resurrection_response_requested");
+    this.emit("resurrection_response_requested");
   }
 
   clearSpiritHealer(reason: SpiritHealerCleared["reason"]): void {
@@ -359,9 +357,7 @@ export class RecoveryStore {
     this.spiritHealerConfirm = undefined;
   }
 
-  private emit(type: RecoveryEvent["type"]): RecoveryState {
-    const state = this.snapshot();
-    this.events.emit({ type, at: this.deps.now(), state });
-    return state;
+  private emit(type: RecoveryEvent["type"]): void {
+    this.events.emit({ type, at: this.deps.now() });
   }
 }

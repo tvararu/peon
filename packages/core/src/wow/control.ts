@@ -163,10 +163,6 @@ export class ControlRuntime {
     this.sync.loginVerified(position);
   }
 
-  waitLogin(timeoutMs?: number): Promise<void> {
-    return this.sync.waitLogin(timeoutMs);
-  }
-
   currentMapId(): number {
     return this.sync.mapId;
   }

@@ -42,7 +42,7 @@ export function extrasMethods(conn: WorldConn, rt: Runtimes): Extras {
       return conn.events.notice.subscribe(cb);
     },
     getCreatureInfo(entry) {
-      return conn.creatureInfoCache?.get(entry);
+      return conn.creatureInfoCache.get(entry);
     },
   };
 }

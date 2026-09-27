@@ -30,7 +30,6 @@ export function testStores(deps: Partial<SessionDeps> = {}): SessionStores {
   return buildSessionStores({
     getEntity: () => undefined,
     now: () => 0,
-    pose: () => undefined,
     selfGuid: () => 0n,
     send: () => undefined,
     ...deps,

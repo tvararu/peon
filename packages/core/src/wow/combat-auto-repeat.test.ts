@@ -5,7 +5,7 @@ import {
   HUNTER_SPELLS,
   hunterSpells,
 } from "#test-support/hunter-fixtures";
-import { combatParts } from "#test-support/session-fixtures";
+import { combatParts, testStores } from "#test-support/session-fixtures";
 import { writePackedGuid } from "#test-support/world-handlers-fixtures";
 import type { CombatEvent } from "#wow/combat";
 import { registerCombatHandlers } from "#wow/gameplay-handlers";
@@ -168,7 +168,11 @@ test("a rejected Auto Shot clears the auto-repeat with the server reason", () =>
 test("the SMSG_CANCEL_AUTO_REPEAT handler reads the wire packet", () => {
   const { combat, combatStore, motion } = setup();
   const conn = { dispatch: new OpcodeDispatch() } as unknown as WorldConn;
-  registerCombatHandlers(conn, { combat: combatStore, motion });
+  registerCombatHandlers(conn, {
+    ...testStores(),
+    combat: combatStore,
+    motion,
+  });
   combat.cast(AUTO_SHOT, 2n);
   conn.dispatch.handle(
     GameOpcode.SMSG_SPELL_START,

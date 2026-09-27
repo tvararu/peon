@@ -1,9 +1,7 @@
 import type { Socket } from "bun";
 import type { ChatMode } from "#wow/client";
 import type { CreatureInfo } from "#wow/client-extras";
-import type { ControlRuntime } from "#wow/control";
 import type { Arc4 } from "#wow/crypto/arc4";
-import type { EncounterCycleRuntime } from "#wow/encounter-cycle";
 import type { EntityStore } from "#wow/entity-store";
 import type { FriendStore } from "#wow/friend-store";
 import type { GuildStore } from "#wow/guild-store";
@@ -12,7 +10,6 @@ import type { PartyStore } from "#wow/party-store";
 import type { ChatMessage as RawChatMessage } from "#wow/protocol/chat";
 import type { AccumulatorBuffer, OpcodeDispatch } from "#wow/protocol/world";
 import type { RemoteMotion } from "#wow/remote-motion";
-import type { TacticsLoop } from "#wow/tactics";
 import type { WorldEvents } from "#wow/world-events";
 
 export type WorldConn = {
@@ -47,8 +44,5 @@ export type WorldConn = {
   pendingRequest: "group" | "duel" | null;
   duelArbiter: bigint;
   events: WorldEvents;
-  control?: ControlRuntime;
-  cycle?: EncounterCycleRuntime;
-  tactics?: TacticsLoop;
-  creatureInfoCache?: Map<number, CreatureInfo>;
+  creatureInfoCache: Map<number, CreatureInfo>;
 };

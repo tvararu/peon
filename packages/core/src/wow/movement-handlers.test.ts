@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { testStores } from "#test-support/session-fixtures";
 import { ControlRuntime } from "#wow/control";
+import { feedControl } from "#wow/control-feed";
 import { EntityStore } from "#wow/entity-store";
 import { registerMovementHandlers } from "#wow/movement-handlers";
 import { ObjectType } from "#wow/protocol/entity-fields";
@@ -28,12 +29,18 @@ describe("handleNearTeleport", () => {
     return w.finish();
   }
 
-  function fakeConn(control: unknown, store: EntityStore): WorldConn {
+  function loginBody(): Uint8Array {
+    const w = new PacketWriter();
+    w.uint32LE(530);
+    for (const value of [8709.46, -6671.76, 70.34, 0.5]) w.floatLE(value);
+    return w.finish();
+  }
+
+  function fakeConn(store: EntityStore): WorldConn {
     return {
       dispatch: new OpcodeDispatch(),
       selfGuidLow: 0x07_64,
       selfGuidHigh: 0,
-      control,
       entityStore: store,
       remoteMotion: new RemoteMotion({
         now: () => 0,
@@ -59,16 +66,16 @@ describe("handleNearTeleport", () => {
         pathClear: () => false,
       },
     });
-    runtime.loginVerified({
-      mapId: 530,
-      x: 8709.46,
-      y: -6671.76,
-      z: 70.34,
-      orientation: 0.5,
-    });
+    const stores = testStores();
+    stores.self.onEvent((event) => feedControl(runtime, event));
+    const conn = fakeConn(store);
+    registerMovementHandlers(conn, stores);
+    conn.dispatch.handle(
+      GameOpcode.SMSG_LOGIN_VERIFY_WORLD,
+      new PacketReader(loginBody()),
+    );
+    expect(runtime.snapshot().pose?.mapId).toBe(530);
     sent.length = 0;
-    const conn = fakeConn(runtime, store);
-    registerMovementHandlers(conn, testStores());
     expect(conn.dispatch.has(GameOpcode.MSG_MOVE_TELEPORT)).toBe(true);
     conn.dispatch.handle(
       GameOpcode.MSG_MOVE_TELEPORT,
@@ -91,16 +98,16 @@ describe("handleNearTeleport", () => {
       position: { mapId: 530, x: 1, y: 2, z: 3, orientation: 0 },
     });
     let handled = 0;
-    const conn = fakeConn(
-      {
-        currentMapId: () => 530,
-        nearTeleport: () => {
-          handled++;
-        },
-      },
-      store,
+    const stores = testStores();
+    const conn = fakeConn(store);
+    registerMovementHandlers(conn, stores);
+    conn.dispatch.handle(
+      GameOpcode.SMSG_LOGIN_VERIFY_WORLD,
+      new PacketReader(loginBody()),
     );
-    registerMovementHandlers(conn, testStores());
+    stores.self.onEvent(() => {
+      handled++;
+    });
     conn.dispatch.handle(
       GameOpcode.MSG_MOVE_TELEPORT,
       new PacketReader(nearTeleportBody(0x99)),

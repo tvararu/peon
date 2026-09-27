@@ -106,6 +106,7 @@ export async function authenticateWorld(
 
 export async function selectCharacter(
   conn: WorldConn,
+  stores: Pick<SessionStores, "self">,
   config: ClientConfig,
 ): Promise<void> {
   sendPacket(conn, GameOpcode.CMSG_CHAR_ENUM);
@@ -131,8 +132,7 @@ export async function selectCharacter(
   w.uint32LE(char.guidLow);
   w.uint32LE(char.guidHigh);
   sendPacket(conn, GameOpcode.CMSG_PLAYER_LOGIN, w.finish());
-  if (!conn.control) throw new Error("no_control");
-  await conn.control.waitLogin();
+  await stores.self.waitLogin();
 }
 
 export function startPingLoop(
@@ -156,7 +156,6 @@ function routeEntityEvent(
     conn.remoteMotion.forget(event.guid);
     stores.motion.forget(event.guid);
     stores.combat.forget(event.guid);
-    conn.control?.observeDisappear(event.guid);
   }
   const deliver = () => deliverEntityEvent(conn, stores, event);
   if (conn.dispatchingOpcode === undefined) deliver();
@@ -171,7 +170,6 @@ function deliverEntityEvent(
   stores.recovery.observeEntity(event);
   stores.rewards.observeEntity(event);
   stores.items.observeEntity(event);
-  conn.cycle?.observeEntity(event);
   stores.trainer.observe();
   stores.vendor.observeEntity(event);
   stores.destroy.observeInventory();
@@ -206,6 +204,7 @@ export function createWorldConn(): WorldConn {
       emit: (event) => conn.events.remoteMotion.emit(event),
     }),
     creatureNameCache: new Map(),
+    creatureInfoCache: new Map(),
     gameObjectNameCache: new Map(),
     pendingNameQueries: new Set(),
     friendStore: new FriendStore(),
