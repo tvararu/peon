@@ -6,7 +6,8 @@ import {
   waitForEchoProbe,
 } from "#test-support/world-handlers-fixtures";
 import { type ChatMessage, worldSession } from "#wow/client";
-import { ChannelNotify, ChatType, GameOpcode } from "#wow/protocol/opcodes";
+import { ChannelNotify, ChatType } from "#wow/protocol/enums";
+import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 describe("world handler tests", () => {

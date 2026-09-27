@@ -1,4 +1,4 @@
-import { GroupUpdateFlag } from "#wow/protocol/opcodes";
+import { GroupUpdateFlag } from "#wow/protocol/enums";
 import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 export function buildGroupInvite(name: string): Uint8Array {

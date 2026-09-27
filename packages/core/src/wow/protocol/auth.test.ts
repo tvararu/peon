@@ -12,7 +12,7 @@ import {
   parseRealmList,
   parseReconnectChallengeResponse,
 } from "#wow/protocol/auth";
-import { ChallengeResult } from "#wow/protocol/opcodes";
+import { ChallengeResult } from "#wow/protocol/enums";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 test("buildLogonChallenge produces correct packet", () => {

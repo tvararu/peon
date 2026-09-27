@@ -16,7 +16,8 @@ import {
   UpdateFlag,
   UpdateType,
 } from "#wow/protocol/entity-fields";
-import { ChannelNotify, ChatType, GameOpcode } from "#wow/protocol/opcodes";
+import { ChannelNotify, ChatType } from "#wow/protocol/enums";
+import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 const ENCRYPT_KEY = "C2B3723CC6AED9B5343C53EE2F4367CE";

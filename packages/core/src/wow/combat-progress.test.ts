@@ -2,7 +2,7 @@ import { expect, jest, test } from "bun:test";
 import { context, setup, spell } from "#test-support/combat-actions-fixtures";
 import type { CombatState } from "#wow/combat";
 import { NO_PROGRESS_MS, ProgressWatch } from "#wow/combat-progress";
-import { UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 function idleFight() {
   let time = 1000;

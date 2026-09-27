@@ -1,7 +1,7 @@
 import type { CombatState } from "#wow/combat";
 import type { EntityLookup } from "#wow/entity-store";
 import { readSelfField } from "#wow/player-state";
-import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 export type ExperienceState = {
   level: number | undefined;

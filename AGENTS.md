@@ -52,6 +52,9 @@ Run everything through the `mise.toml` tasks as `mise <task>`, never
   `mise lint[:fix] [path]`, `mise lint:docs`.
 - `mise ci`: all the checks (`mise ci:checks`), then a `signoff/ci` status
   for a clean, pushed HEAD. The `pre-push` hook runs `mise ci --publish`.
+- `mise protocol:tables [ir]`, `mise protocol:coverage`: regenerate the
+  opcode and update-field tables and the coverage inventory
+  ([docs/protocol.md](docs/protocol.md#add-an-opcode)).
 - `mise harness --profile <path>`: the Pi harness
   ([docs/harness.md](docs/harness.md)).
 - `mise eval <command>`: the eval grader ([docs/evals.md](docs/evals.md)).

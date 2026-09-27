@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { Entity, UnitEntity } from "#wow/entity-store";
-import { ObjectType, UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import { ObjectType } from "#wow/protocol/entity-fields";
 import type { QuestQueryResponse } from "#wow/protocol/quest-query";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import {
   OBJECTIVE_REACH,
   pickObjectiveTarget,

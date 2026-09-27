@@ -1,6 +1,7 @@
 import type { CombatState } from "#wow/combat";
 import { type Entity, fieldOf, isUnit } from "#wow/entity-store";
-import { UNIT_FIELDS, UnitFlag } from "#wow/protocol/entity-fields";
+import { UnitFlag } from "#wow/protocol/entity-fields";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { TacticsFrame } from "#wow/tactics";
 
 export const GRAY_KILL = "gray";

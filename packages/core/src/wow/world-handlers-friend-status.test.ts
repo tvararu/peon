@@ -10,7 +10,8 @@ import {
   waitForEchoProbe,
 } from "#test-support/world-handlers-fixtures";
 import { type ChatMessage, type FriendEvent, worldSession } from "#wow/client";
-import { ChatType, GameOpcode } from "#wow/protocol/opcodes";
+import { ChatType } from "#wow/protocol/enums";
+import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 
 describe("world handler tests", () => {

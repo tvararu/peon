@@ -245,4 +245,43 @@ describe("OpcodeDispatch", () => {
     d.handle(0x42, new PacketReader(new Uint8Array(0)));
     expect(seen).toEqual(["first"]);
   });
+
+  test("counts an opcode with no handler or waiter and reports it once", () => {
+    const d = new OpcodeDispatch();
+    const reported: number[] = [];
+    d.onUnhandled((opcode) => reported.push(opcode) > 0);
+    for (const opcode of [0x50, 0x50, 0x51, 0x50])
+      d.handle(opcode, new PacketReader(new Uint8Array(0)));
+    expect(reported).toEqual([0x50, 0x51]);
+    expect([...d.unhandledCounts()]).toEqual([
+      [0x50, 3],
+      [0x51, 1],
+    ]);
+  });
+
+  test("reports a held-back opcode on the next unhandled packet", () => {
+    const d = new OpcodeDispatch();
+    let taken = false;
+    const reported: number[] = [];
+    d.onUnhandled((opcode) => {
+      reported.push(opcode);
+      return taken;
+    });
+    d.handle(0x50, new PacketReader(new Uint8Array(0)));
+    d.handle(0x51, new PacketReader(new Uint8Array(0)));
+    taken = true;
+    d.handle(0x52, new PacketReader(new Uint8Array(0)));
+    d.handle(0x50, new PacketReader(new Uint8Array(0)));
+    expect(reported).toEqual([0x50, 0x50, 0x50, 0x51, 0x52]);
+  });
+
+  test("counts nothing for an opcode a handler or waiter takes", async () => {
+    const d = new OpcodeDispatch();
+    d.on(0x42, () => {});
+    const waited = d.expect(0x43);
+    d.handle(0x42, new PacketReader(new Uint8Array(0)));
+    d.handle(0x43, new PacketReader(new Uint8Array(0)));
+    await waited;
+    expect(d.unhandledCounts().size).toBe(0);
+  });
 });

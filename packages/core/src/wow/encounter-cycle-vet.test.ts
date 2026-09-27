@@ -8,7 +8,8 @@ import {
   makeCycle,
 } from "#test-support/encounter-cycle-fixtures";
 import type { UnitEntity } from "#wow/entity-store";
-import { UNIT_FIELDS, UnitFlag } from "#wow/protocol/entity-fields";
+import { UnitFlag } from "#wow/protocol/entity-fields";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 const OTHER_PLAYER = 0x2an;
 

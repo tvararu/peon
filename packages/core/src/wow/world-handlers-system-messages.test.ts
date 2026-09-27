@@ -7,7 +7,8 @@ import {
   waitForEchoProbe,
 } from "#test-support/world-handlers-fixtures";
 import { type ChatMessage, worldSession } from "#wow/client";
-import { ChatType, GameOpcode } from "#wow/protocol/opcodes";
+import { ChatType } from "#wow/protocol/enums";
+import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 import type { WorldConn } from "#wow/world-conn";
 import { createWorldEvents } from "#wow/world-events";

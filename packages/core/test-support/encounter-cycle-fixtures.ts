@@ -9,7 +9,8 @@ import type {
 import { type CycleDeps, EncounterCycleRuntime } from "#wow/encounter-cycle";
 import type { EntityEvent, UnitEntity } from "#wow/entity-store";
 import type { InventorySlot } from "#wow/inventory";
-import { ObjectType, UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import { ObjectType } from "#wow/protocol/entity-fields";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { RecoveryEvent } from "#wow/recovery";
 import {
   NOT_DEAD,

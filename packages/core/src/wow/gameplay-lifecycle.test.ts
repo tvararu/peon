@@ -19,13 +19,13 @@ import * as navigation from "#wow/navigation";
 import type { NativeMap } from "#wow/navigation-native";
 import {
   ObjectType,
-  UNIT_FIELDS,
   UpdateFlag,
   UpdateType,
 } from "#wow/protocol/entity-fields";
 import { writeMovementInfo } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketWriter } from "#wow/protocol/packet";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import * as spellData from "#wow/spell-catalog";
 import * as worldHandlers from "#wow/world-handlers";
 

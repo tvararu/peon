@@ -7,6 +7,7 @@ import {
   buildRandomRoll,
 } from "#wow/protocol/chat";
 import { buildDuelAccepted, buildDuelCancelled } from "#wow/protocol/duel";
+import { ChatType } from "#wow/protocol/enums";
 import {
   buildGroupAccept,
   buildGroupDecline,
@@ -24,7 +25,7 @@ import {
   buildGuildQuery,
   buildGuildRemove,
 } from "#wow/protocol/guild";
-import { ChatType, GameOpcode } from "#wow/protocol/opcodes";
+import { GameOpcode } from "#wow/protocol/opcodes";
 import {
   buildAddFriend,
   buildAddIgnore,

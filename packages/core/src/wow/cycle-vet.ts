@@ -4,7 +4,8 @@ import {
   fieldOf,
   isUnit,
 } from "#wow/entity-store";
-import { UNIT_FIELDS, UnitFlag } from "#wow/protocol/entity-fields";
+import { UnitFlag } from "#wow/protocol/entity-fields";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 const DYNFLAG_TAPPED = 0x4;
 const DYNFLAG_TAPPED_BY_PLAYER = 0x8;

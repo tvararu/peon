@@ -1,7 +1,7 @@
 import { jest } from "bun:test";
 import { context, setup, spell } from "#test-support/combat-actions-fixtures";
 import type { RangedGear } from "#wow/combat-ranged-gear";
-import { UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { SpellDefinition, SpellEffect } from "#wow/spell-catalog";
 
 export const AUTO_SHOT = 75;

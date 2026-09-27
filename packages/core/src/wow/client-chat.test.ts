@@ -10,9 +10,10 @@ import {
 } from "#test-support/world-handlers-fixtures";
 import { type ChatMessage, type WorldHandle, worldSession } from "#wow/client";
 import { NOT_IN_GUILD_TEXT } from "#wow/client-chat";
-import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/entity-fields";
-import { ChatType, GameOpcode } from "#wow/protocol/opcodes";
+import { ChatType } from "#wow/protocol/enums";
+import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketWriter } from "#wow/protocol/packet";
+import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 type Server = { inject: (opcode: number, body: Uint8Array) => void };
 

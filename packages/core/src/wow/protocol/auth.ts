@@ -4,7 +4,7 @@ import {
   leBytesToBigInt,
   type SRPResult,
 } from "#wow/crypto/srp";
-import { AuthOpcode } from "#wow/protocol/opcodes";
+import { AuthOpcode } from "#wow/protocol/enums";
 import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 export type LogonChallengeResult = {

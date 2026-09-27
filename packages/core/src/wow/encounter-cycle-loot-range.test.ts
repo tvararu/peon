@@ -12,7 +12,7 @@ import {
 import type { ControlPose } from "#wow/control";
 import type { UnitEntity } from "#wow/entity-store";
 import { distance } from "#wow/geometry";
-import { UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 const START: ControlPose = {
   mapId: 0,

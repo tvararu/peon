@@ -13,13 +13,13 @@ import {
 } from "#test-support/world-handlers-fixtures";
 import { worldSession } from "#wow/client";
 import { type PlayerLifeState, readLife } from "#wow/player-state";
+import { GameOpcode } from "#wow/protocol/opcodes";
+import { PacketWriter } from "#wow/protocol/packet";
 import {
   OBJECT_FIELDS,
   PLAYER_FIELDS,
   UNIT_FIELDS,
-} from "#wow/protocol/entity-fields";
-import { GameOpcode } from "#wow/protocol/opcodes";
-import { PacketWriter } from "#wow/protocol/packet";
+} from "#wow/protocol/update-fields";
 
 describe("world handler tests", () => {
   describe("entity handling", () => {

@@ -1,13 +1,13 @@
 import { type Entity, type EntityLookup, fieldOf } from "#wow/entity-store";
 import { readSelfField } from "#wow/player-state";
+import { ObjectType } from "#wow/protocol/entity-fields";
+import { joinGuid } from "#wow/protocol/packet";
 import {
   CONTAINER_FIELDS,
   ITEM_FIELDS,
   OBJECT_FIELDS,
-  ObjectType,
   PLAYER_FIELDS,
-} from "#wow/protocol/entity-fields";
-import { joinGuid } from "#wow/protocol/packet";
+} from "#wow/protocol/update-fields";
 
 export type InventoryItem = {
   guid: bigint;

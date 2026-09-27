@@ -113,6 +113,15 @@ run = 'biome check --write ${usage_path}'
 description = "Check current docs for dated history and dead references"
 run = "bun packages/devtools/src/stale-docs.ts"
 
+[tasks."protocol:tables"]
+description = "Regenerate GameOpcode and the update-field tables from the wow_messages IR"
+usage = 'arg "[ir]" help="intermediate_representation.json; defaults to ~/code/wow_messages/intermediate_representation.json"'
+run = 'bun packages/devtools/src/protocol-tables.ts ${usage_ir:-}'
+
+[tasks."protocol:coverage"]
+description = "Rewrite docs/protocol-coverage.md from the registered opcode handlers"
+run = "bun packages/core/test-support/protocol-coverage.ts"
+
 [tasks.factory]
 description = "Run the dev factory CLI (docs/factory.md); run it bare for its commands"
 raw = true
