@@ -1,6 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
 import { type ChatMessage, ChatType } from "@peon/core";
-import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import type { RunEnd } from "#harness/contract/runs";
 import { createWakeGuard } from "#harness/events/guard";
 import { createEventRouter } from "#harness/events/router";
@@ -11,6 +10,7 @@ import {
 } from "#harness/events/rules-chat";
 import { createGameLog, createJsonlSink } from "#harness/log/store";
 import { createRunRegistry } from "#harness/runs/registry";
+import { createMockGame } from "#test-support/mock-game";
 import { testRuleInput } from "#test-support/rule-fixtures";
 
 function msg(
@@ -279,7 +279,7 @@ describe("router with chat rules", () => {
     });
     const sink = { human: jest.fn(), passive: jest.fn(), wake: jest.fn() };
     router.setSink(sink);
-    const handle = createMockHandle();
+    const handle = createMockGame();
     router.attach(handle);
     runs.start({
       args: {},

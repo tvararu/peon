@@ -5,19 +5,19 @@ import {
   type CombatState,
   type EntityEvent,
   ObjectType,
-  type TacticsEvent,
   type UnitEntity,
 } from "@peon/core";
-import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import {
   combatDrafts,
   cycleDrafts,
   tacticsDrafts,
   vitalsDrafts,
 } from "#harness/events/rules-combat";
+import type { TacticsEvent } from "#harness/loops/tactics";
+import { createMockGame } from "#test-support/mock-game";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
-const handle = createMockHandle();
+const handle = createMockGame();
 const combatBase = handle.getCombatState();
 const cycleBase = handle.getCycleState();
 const stalker = testLookup({

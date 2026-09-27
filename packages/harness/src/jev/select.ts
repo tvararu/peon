@@ -1,11 +1,8 @@
-import {
-  buildFraming,
-  type JevActionRequest,
-  type JevActionResult,
-  JevTransportError,
-} from "@peon/core";
 import { abortReason, isAbort } from "@peon/core/lib/abort";
 import { messageOf } from "@peon/core/lib/errors";
+import type { JevActionRequest, JevActionResult } from "#harness/jev/contract";
+import { JevTransportError } from "#harness/jev/failure";
+import { buildFraming } from "#harness/jev/framing";
 import { httpFailure } from "#harness/jev/http-failure";
 
 const SYSTEMONE_URL = "https://api.typesafe.ai/v1/systemone";

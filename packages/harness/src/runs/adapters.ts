@@ -1,14 +1,14 @@
 import {
   type ControlPose,
-  type CycleState,
   type GotoTarget,
   type NavigationState,
   nextStepFor,
-  type TacticsOutcome,
-  type WorldHandle,
 } from "@peon/core";
 import { messageOf } from "@peon/core/lib/errors";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
+import type { CycleState } from "#harness/loops/encounter-cycle";
+import type { Game } from "#harness/loops/game";
+import type { TacticsOutcome } from "#harness/loops/tactics";
 
 export type GotoEnd = {
   status: "arrived" | "refused" | "stopped";
@@ -24,9 +24,9 @@ export const GOTO_POLL_MS = 500;
 const CATEGORIES = ["wait", "pick_destination", "unreachable", "stop"];
 
 type GotoInit = { target: GotoTarget; signal: AbortSignal; pollMs?: number };
-type WaitInit = { handle: WorldHandle; signal: AbortSignal; pollMs: number };
+type WaitInit = { handle: Game; signal: AbortSignal; pollMs: number };
 type EndInit = {
-  handle: WorldHandle;
+  handle: Game;
   from: ControlPose | undefined;
   status: GotoEnd["status"];
   refusal: string | undefined;
@@ -90,7 +90,7 @@ function navigationEnd({ handle, signal, pollMs }: WaitInit): Promise<boolean> {
 }
 
 export async function awaitGoto(
-  handle: WorldHandle,
+  handle: Game,
   { target, signal, pollMs = GOTO_POLL_MS }: GotoInit,
 ): Promise<GotoEnd> {
   const from = handle.getControlState().pose;
@@ -136,12 +136,12 @@ type QuestCycleInit = {
   signal: AbortSignal;
 };
 type CycleWait = {
-  handle: WorldHandle;
+  handle: Game;
   signal: AbortSignal;
   start: () => Promise<void>;
 };
 
-function watchFight(handle: WorldHandle, hex: string) {
+function watchFight(handle: Game, hex: string) {
   let runId: string | undefined;
   let outcome: TacticsOutcome | undefined;
   let done: () => void = ignoreFailure;
@@ -169,7 +169,7 @@ function watchFight(handle: WorldHandle, hex: string) {
 }
 
 export async function awaitTactics(
-  handle: WorldHandle,
+  handle: Game,
   { guid, instruction, signal }: TacticsInit,
 ): Promise<FightEnd> {
   const watch = watchFight(handle, `0x${guid.toString(16)}`);
@@ -218,7 +218,7 @@ async function cycleEnd({
 }
 
 export function awaitCycle(
-  handle: WorldHandle,
+  handle: Game,
   { guids, instruction, maxStarts, signal }: CycleInit,
 ): Promise<CycleEnd> {
   return cycleEnd({
@@ -229,7 +229,7 @@ export function awaitCycle(
 }
 
 export function awaitQuestCycle(
-  handle: WorldHandle,
+  handle: Game,
   init: QuestCycleInit,
 ): Promise<CycleEnd> {
   const { questId, sources, instruction, maxStarts, signal } = init;

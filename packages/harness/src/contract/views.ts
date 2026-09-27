@@ -1,10 +1,6 @@
-import type {
-  Capabilities,
-  FactionRelation,
-  NpcRole,
-  PlayerLife,
-} from "@peon/core";
+import type { FactionRelation, NpcRole, PlayerLife } from "@peon/core";
 import type { RunKind } from "#harness/contract/runs";
+import type { GameCapabilities } from "#harness/loops/game";
 
 export type Compass = "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW";
 
@@ -171,6 +167,6 @@ export type InWorld = {
   zoneId: number | undefined;
   zone: string | undefined;
   pose: { mapId: number; x: number; y: number; z: number };
-  capabilities: Capabilities;
+  capabilities: GameCapabilities;
   at: number;
 };

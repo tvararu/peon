@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import {
   awaitItemNames,
   ITEM_NAME_WAIT_MS,
@@ -7,6 +6,7 @@ import {
   nameLootLines,
 } from "#harness/ops/item-names";
 import { fakeMsUntilSettled, withFakeTimers } from "#test-support/fake-time";
+import { createMockGame } from "#test-support/mock-game";
 
 function lateNames(afterMs: number, names: Record<number, string>) {
   let ready = false;
@@ -71,7 +71,7 @@ describe("awaitItemNames", () => {
 
 describe("itemLabelIn", () => {
   test("reads names from the vendor window", () => {
-    const handle = createMockHandle();
+    const handle = createMockGame();
     const state = handle.getVendorState();
     handle.getVendorState = () => ({
       ...state,
@@ -107,7 +107,7 @@ describe("itemLabelIn", () => {
 describe("nameLootLines", () => {
   test("fills names and qualities that arrive late", async () => {
     await withFakeTimers(async () => {
-      const handle = createMockHandle();
+      const handle = createMockGame();
       const inventory = handle.getInventoryState();
       let named = false;
       setTimeout(() => {
@@ -154,7 +154,7 @@ describe("nameLootLines", () => {
     const line = { count: 1, itemId: 5, name: "item 5", quality: null };
     const lines = await nameLootLines(
       {
-        handle: createMockHandle(),
+        handle: createMockGame(),
         signal: AbortSignal.abort(new Error("died")),
       },
       [line],

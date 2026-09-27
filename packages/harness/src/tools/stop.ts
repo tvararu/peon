@@ -1,8 +1,8 @@
-import type { WorldHandle } from "@peon/core";
 import type { StopAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { RunRecord } from "#harness/contract/runs";
 import type { HarnessRuntime, ToolCtx } from "#harness/contract/services";
+import type { Game } from "#harness/loops/game";
 import { dangerView } from "#harness/ops/danger";
 import { Refusal } from "#harness/ops/refusal";
 import { vitalsView } from "#harness/ops/views";
@@ -14,7 +14,7 @@ function emptyStop(): StopAfter {
   return { attackers: [], self: emptyVitals(), stopped: [] };
 }
 
-function haltAll(handle: WorldHandle): void {
+function haltAll(handle: Game): void {
   handle.halt();
   handle.stopCycle();
   handle.stopAttack();

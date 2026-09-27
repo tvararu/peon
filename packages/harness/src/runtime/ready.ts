@@ -1,12 +1,8 @@
-import {
-  type Capabilities,
-  CLASS_NAMES,
-  type UnitEntity,
-  type WorldHandle,
-} from "@peon/core";
+import { CLASS_NAMES, type UnitEntity } from "@peon/core";
 import type { Profile } from "#harness/contract/config";
 import type { Clock, GameLog, ReadyGate } from "#harness/contract/services";
 import type { InWorld } from "#harness/contract/views";
+import type { Game, GameCapabilities } from "#harness/loops/game";
 import { guidHex } from "#harness/ops/refs";
 
 export type ReadyInit = {
@@ -19,7 +15,7 @@ export type ReadyInit = {
 export const READY_STABLE_MS = 1000;
 
 const POLL_MS = 100;
-const NO_CAPABILITIES: Capabilities = {
+const NO_CAPABILITIES: GameCapabilities = {
   factions: false,
   jev: false,
   navigation: false,
@@ -52,7 +48,7 @@ class Gate implements ReadyGate {
     this.init = init;
   }
 
-  attach = (handle: WorldHandle) => {
+  attach = (handle: Game) => {
     this.world = undefined;
     const watch = { count: -1, stablePolls: 0 };
     const timer = setInterval(() => this.poll(handle, watch), POLL_MS);
@@ -85,7 +81,7 @@ class Gate implements ReadyGate {
   };
 
   private poll(
-    handle: WorldHandle,
+    handle: Game,
     watch: { count: number; stablePolls: number },
   ): void {
     if (this.world) return;
@@ -114,11 +110,7 @@ class Gate implements ReadyGate {
   }
 }
 
-function inWorldOf(
-  handle: WorldHandle,
-  profile: Profile,
-  now: number,
-): InWorld {
+function inWorldOf(handle: Game, profile: Profile, now: number): InWorld {
   const { selfGuid, pose } = handle.getControlState();
   const self = handle
     .getNearbyEntities()

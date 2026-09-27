@@ -5,7 +5,6 @@ import type {
   Theme,
 } from "@earendil-works/pi-coding-agent";
 import type { Component, TUI } from "@earendil-works/pi-tui";
-import type { Capabilities } from "@peon/core";
 import type {
   GameLogEntry,
   HumanLineDetails,
@@ -13,6 +12,7 @@ import type {
 } from "#harness/contract/log";
 import type { HarnessRuntime } from "#harness/contract/services";
 import type { NowSnapshot } from "#harness/contract/views";
+import type { GameCapabilities } from "#harness/loops/game";
 import { nowSnapshot } from "#harness/ops/views";
 import { renderEventCard, renderHumanLine } from "#harness/ui/cards";
 import { glyphSetName } from "#harness/ui/context";
@@ -49,7 +49,7 @@ const CHIPS = [
 ] as const;
 
 function missingOf(
-  capabilities: Capabilities | undefined,
+  capabilities: GameCapabilities | undefined,
 ): FooterChrome["missing"] {
   if (!capabilities) return [];
   return CHIPS.filter(([key]) => !capabilities[key]).map(([, chip]) => chip);

@@ -17,6 +17,8 @@ not a target.
 - Shared setup goes in `packages/<pkg>/test-support/<name>-fixtures.ts`.
   `packages/core/test-support/mock-handle.ts` is the shared `WorldHandle`
   mock: add new `WorldHandle` methods to it.
+  `packages/harness/test-support/mock-game.ts` extends it with the
+  harness loops (tactics, the encounter cycle and the corpse runs).
 - `mock.module()` leaks across files in Bun, so `config/biome.grit` bans
   it. Inject dependencies instead: file locations come from a `Paths`
   value that `resolvePaths(env, host)` builds, and tests pass their own
@@ -41,7 +43,7 @@ not a target.
   timers also fake `Date.now()`, `performance.now()` and `Bun.sleep`, so
   `Bun.sleep(0)` never resolves under them; `setImmediate` stays real.
   `packages/harness/test-support/fake-time.ts` and
-  `packages/core/test-support/tactics-fixtures.ts` drive fake time until
+  `packages/harness/test-support/tactics-fixtures.ts` drive fake time until
   a promise settles.
 - Await the event rather than sleeping. `Bun.sleep(0)` yields one microtask
   tick (enough for `.then()` chains); `Bun.sleep(1)` yields one event-loop

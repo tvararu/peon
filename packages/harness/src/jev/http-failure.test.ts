@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { JevTransportError, JevUnavailableError } from "@peon/core";
+import { JevTransportError, JevUnavailableError } from "#harness/jev/failure";
 import { selectJevAction } from "#harness/jev/select";
 import { jsonResponse, request } from "#test-support/jev-fixtures";
 

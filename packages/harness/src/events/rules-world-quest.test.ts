@@ -7,16 +7,16 @@ import type {
   VendorEvent,
   VendorRequest,
 } from "@peon/core";
-import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import { vendorDrafts } from "#harness/events/rules-world";
 import {
   MONEY_NOTICE_MS,
   questDrafts,
   rewardsDrafts,
 } from "#harness/events/rules-world-quest";
+import { createMockGame } from "#test-support/mock-game";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
-const handle = createMockHandle();
+const handle = createMockGame();
 const questBase = handle.getQuestState();
 const rewardsBase: RewardsState = handle.getRewardsState();
 const vendorBase = handle.getVendorState();

@@ -1,4 +1,4 @@
-import { JevTransportError, JevUnavailableError } from "@peon/core";
+import { JevTransportError, JevUnavailableError } from "#harness/jev/failure";
 
 const REFUSED: Record<number, string> = {
   401: "unauthorized",

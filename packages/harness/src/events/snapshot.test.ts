@@ -1,7 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import { scratchDir } from "@peon/core/test-support/scratch";
 import type { RunPaths } from "#harness/contract/config";
 import type {
@@ -14,6 +13,7 @@ import {
   SNAPSHOT_EVERY_MS,
 } from "#harness/events/snapshot";
 import { createGameLog } from "#harness/log/store";
+import { createMockGame } from "#test-support/mock-game";
 
 const self: SelfView = {
   className: "Priest",
@@ -167,7 +167,7 @@ describe("createWorldSnapshots", () => {
     const { rows, snapshots } = await setup(worldOf([]));
     jest.useFakeTimers();
     try {
-      const detach = snapshots.attach(createMockHandle());
+      const detach = snapshots.attach(createMockGame());
       jest.advanceTimersByTime(SNAPSHOT_EVERY_MS * 2);
       detach();
       jest.advanceTimersByTime(SNAPSHOT_EVERY_MS * 2);

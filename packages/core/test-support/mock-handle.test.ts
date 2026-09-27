@@ -147,12 +147,10 @@ test("default requestGuildRoster returns undefined", async () => {
   await expect(handle.requestGuildRoster()).resolves.toBeUndefined();
 });
 
-test("new surface stubs return neutral values", async () => {
+test("new surface stubs return neutral values", () => {
   const handle = createMockHandle();
-  const { signal } = new AbortController();
   expect(handle.capabilities()).toEqual({
     factions: false,
-    jev: false,
     navigation: false,
     spells: false,
   });
@@ -165,21 +163,12 @@ test("new surface stubs return neutral values", async () => {
     zoneId: undefined,
   });
   expect(handle.getCreatureInfo(1)).toBeUndefined();
-  await expect(handle.lootCorpse(1n, signal)).resolves.toEqual({
-    ok: true,
-    record: undefined,
-  });
-  await expect(handle.recoverCorpse(signal)).resolves.toEqual({
-    cause: "mock_recover_unavailable",
-    ok: false,
-  });
 });
 
-test("notice, cycle and trainer triggers reach their hooks", () => {
+test("notice and trainer triggers reach their hooks", () => {
   const handle = createMockHandle();
   const seen: string[] = [];
   handle.onNotice((event) => seen.push(event.label));
-  handle.onCycleEvent((event) => seen.push(event.type));
   handle.onTrainerEvent((event) => seen.push(event.type));
   handle.triggerNotice({
     at: 1,
@@ -187,11 +176,6 @@ test("notice, cycle and trainer triggers reach their hooks", () => {
     opcode: 1,
     text: "[peon] Weather change is not yet implemented",
     type: "not_implemented",
-  });
-  handle.triggerCycleEvent({
-    at: 1,
-    state: handle.getCycleState(),
-    type: "stopped",
   });
   handle.triggerTrainerEvent({
     at: 1,
@@ -204,7 +188,7 @@ test("notice, cycle and trainer triggers reach their hooks", () => {
     },
     type: "listed",
   });
-  expect(seen).toEqual(["Weather change", "stopped", "listed"]);
+  expect(seen).toEqual(["Weather change", "listed"]);
 });
 
 test("mock queryNearby marks attackers from the combat state", () => {

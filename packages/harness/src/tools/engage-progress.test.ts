@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import type { QuestQuery } from "@peon/core";
+import type { EngageAfter } from "#harness/contract/details";
 import type {
   CycleState,
   CycleTargetRecord,
-  QuestQuery,
-  TacticsOutcome,
-} from "@peon/core";
-import type { EngageAfter } from "#harness/contract/details";
+} from "#harness/loops/encounter-cycle";
+import type { TacticsOutcome } from "#harness/loops/tactics";
 import { engageSpec } from "#harness/tools/engage";
 import {
   setSelf,

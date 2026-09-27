@@ -8,24 +8,13 @@ import {
   sessionKey,
 } from "#test-support/fixtures";
 import { startMockWorldServer } from "#test-support/mock-world-server";
-import { must } from "#test-support/must";
+import { unitsPacket } from "#test-support/unit-packets";
 import { writePackedGuid } from "#test-support/world-handlers-fixtures";
 import { type WorldHandle, worldSession } from "#wow/client";
-import { type ControlLease, ControlRuntime } from "#wow/control";
-import type { DbcFile } from "#wow/dbc";
-import * as factionData from "#wow/faction-template";
-import type { JevActionResult, JevSelect } from "#wow/jev";
 import type { NativeMap } from "#wow/navigation-native";
-import {
-  ObjectType,
-  UpdateFlag,
-  UpdateType,
-} from "#wow/protocol/entity-fields";
-import { writeMovementInfo } from "#wow/protocol/movement";
+import { UpdateType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketWriter } from "#wow/protocol/packet";
-import { UNIT_FIELDS } from "#wow/protocol/update-fields";
-import * as spellData from "#wow/spell-catalog";
 import * as worldHandlers from "#wow/world-handlers";
 
 const realSetTimeout = globalThis.setTimeout;
@@ -62,61 +51,6 @@ async function disposeFixture(f: Fixture | undefined): Promise<void> {
   await bounded(f.handle.closed);
 }
 
-function writeFields(writer: PacketWriter, fields: Map<number, number>): void {
-  const sorted = [...fields.entries()].sort(([a], [b]) => a - b);
-  const blocks = Math.floor(must(sorted.at(-1))[0] / 32) + 1;
-  const masks = new Array<number>(blocks).fill(0);
-  for (const [offset] of sorted) {
-    const slot = Math.floor(offset / 32);
-    masks[slot] = must(masks[slot]) | (1 << (offset % 32));
-  }
-  writer.uint8(blocks);
-  for (const mask of masks) writer.uint32LE(mask);
-  for (const [, value] of sorted) writer.uint32LE(value);
-}
-
-function writeUnit(writer: PacketWriter, guid: number, x: number): void {
-  const self = guid === selfGuid;
-  writer.uint8(UpdateType.CREATE_OBJECT2);
-  writer.packedGuid(guid, 0);
-  writer.uint8(self ? ObjectType.PLAYER : ObjectType.UNIT);
-  writer.uint16LE(UpdateFlag.LIVING | (self ? UpdateFlag.SELF : 0));
-  writeMovementInfo(writer, {
-    flags: 0,
-    extraFlags: 0,
-    time: 1,
-    x,
-    y: 2,
-    z: 3,
-    orientation: 0,
-    fallTime: 0,
-  });
-  for (const speed of [2.5, 7, 4.5, 4.7, 2.5, 3.14, 7, 4.5, 3.14])
-    writer.floatLE(speed);
-  writeFields(
-    writer,
-    new Map([
-      [UNIT_FIELDS.HEALTH.offset, 100],
-      [UNIT_FIELDS.MAXHEALTH.offset, 100],
-      [UNIT_FIELDS.FLAGS.offset, self ? 0 : 0x8_00_00],
-      [UNIT_FIELDS.TARGET.offset, self ? 0 : selfGuid],
-      [UNIT_FIELDS.COMBATREACH.offset, 0x3f_c0_00_00],
-    ]),
-  );
-}
-
-function units(targetX: number): Uint8Array {
-  const writer = new PacketWriter();
-  writer.uint32LE(2);
-  writeUnit(writer, selfGuid, 1);
-  writeUnit(writer, targetGuid, targetX);
-  return writer.finish();
-}
-
-const unexpectedProvider: JevSelect = () =>
-  Promise.reject(new Error("fixture provider not called"));
-let provider = unexpectedProvider;
-
 async function fixture(targetX: number): Promise<Fixture> {
   const server = await startMockWorldServer({ loginMapId: 530 });
   let stopped = false;
@@ -139,7 +73,6 @@ async function fixture(targetX: number): Promise<Fixture> {
           port: server.port,
           navigation: { covers: () => true, open: () => openMap() },
           dbc: () => Promise.reject(new Error("fixture spells unread")),
-          jev: { select: (request, options) => provider(request, options) },
         },
         {
           sessionKey,
@@ -153,7 +86,10 @@ async function fixture(targetX: number): Promise<Fixture> {
     handle.onMessage((message) => {
       if (message.message === "gameplay-lifecycle-ready") ready.resolve();
     });
-    server.inject(GameOpcode.SMSG_UPDATE_OBJECT, units(targetX));
+    server.inject(
+      GameOpcode.SMSG_UPDATE_OBJECT,
+      unitsPacket(selfGuid, targetGuid, targetX),
+    );
     handle.sendSay("gameplay-lifecycle-ready");
     await bounded(ready.promise);
     return {
@@ -183,27 +119,6 @@ function flatMap(): NativeMap {
     findPath: (from, to) => [from, to],
     close() {},
   };
-}
-
-function emptyDbc(name: string, fields: number): DbcFile {
-  return {
-    name,
-    fields,
-    records: new DataView(new ArrayBuffer(0)),
-    strings: Uint8Array.of(0),
-    recordCount: 0,
-    byId: new Map(),
-  };
-}
-
-function emptySpells(): spellData.SpellCatalog {
-  return new spellData.SpellCatalog({
-    spell: emptyDbc("Spell.dbc", 234),
-    range: emptyDbc("SpellRange.dbc", 40),
-    cast: emptyDbc("SpellCastTimes.dbc", 4),
-    duration: emptyDbc("SpellDuration.dbc", 4),
-    radius: emptyDbc("SpellRadius.dbc", 16),
-  });
 }
 
 describe("gameplay forced-close lifecycle", () => {
@@ -269,7 +184,6 @@ describe("gameplay forced-close lifecycle", () => {
         owner: "none",
       });
       expect(f.handle.getNavigationState().active).toBe(false);
-      expect(f.handle.getTacticsState().status).toBe("idle");
       const duringClose = send.mock.calls.map(([, opcode]) => opcode);
       jest.advanceTimersByTime(60_000);
       await Promise.resolve();
@@ -278,7 +192,6 @@ describe("gameplay forced-close lifecycle", () => {
         owner: "none",
       });
       expect(f.handle.getNavigationState().active).toBe(false);
-      expect(f.handle.getTacticsState().status).toBe("idle");
       expect(duringClose).toEqual([]);
       expect(send.mock.calls.map(([, opcode]) => opcode)).toEqual([]);
     } finally {
@@ -287,102 +200,6 @@ describe("gameplay forced-close lifecycle", () => {
       } finally {
         jest.useRealTimers();
         send.mockRestore();
-        openMap = missingMap;
-      }
-    }
-  });
-
-  test("server close cannot halt-packet through an active Jev owner or its pending provider work", async () => {
-    const spells = jest
-      .spyOn(spellData, "loadSpellCatalog")
-      .mockResolvedValue(emptySpells());
-    const factions = jest
-      .spyOn(factionData, "loadFactionTemplates")
-      .mockResolvedValue(
-        new factionData.FactionTemplateCatalog(
-          emptyDbc("FactionTemplate.dbc", 14),
-        ),
-      );
-    const requested = Promise.withResolvers<void>();
-    provider = (_request, options) => {
-      requested.resolve();
-      return new Promise<JevActionResult>((_resolve, reject) => {
-        if (options.signal.aborted) reject(options.signal.reason);
-        else
-          options.signal.addEventListener(
-            "abort",
-            () => reject(options.signal.reason),
-            { once: true },
-          );
-      });
-    };
-    let control: ControlRuntime | undefined;
-    const setLease = ControlRuntime.prototype.setLease;
-    const capture = jest
-      .spyOn(ControlRuntime.prototype, "setLease")
-      .mockImplementation(function (
-        this: ControlRuntime,
-        lease: ControlLease,
-      ): void {
-        setLease.call(this, lease);
-        if (lease === "loop") control = this;
-      });
-    openMap = flatMap;
-    const send = jest.spyOn(worldHandlers, "sendPacket");
-    let f: Fixture | undefined;
-    try {
-      jest.useFakeTimers();
-      f = await fixture(3);
-      const running = f.handle.startTactics(
-        BigInt(targetGuid),
-        "Hold this observed hostile target",
-      );
-      await bounded(requested.promise);
-      capture.mockRestore();
-      if (!control) throw new Error("Jev activation did not acquire control");
-      control.move("forward", 10_000);
-      expect(f.handle.getTacticsState().status).toBe("active");
-      expect(f.handle.getControlState()).toMatchObject({
-        moving: true,
-        owner: "loop",
-      });
-      expect(
-        send.mock.calls.some(
-          ([, opcode]) => opcode === GameOpcode.MSG_MOVE_START_FORWARD,
-        ),
-      ).toBe(true);
-      send.mockClear();
-      send.mockImplementation(() => {});
-      f.stop();
-      await expect(bounded(f.handle.closed)).resolves.toBeUndefined();
-      await expect(bounded(running)).resolves.toBeUndefined();
-      expect(f.handle.getControlState()).toMatchObject({
-        moving: false,
-        owner: "none",
-      });
-      expect(f.handle.getNavigationState().active).toBe(false);
-      expect(f.handle.getTacticsState().status).toBe("idle");
-      const duringClose = send.mock.calls.map(([, opcode]) => opcode);
-      jest.advanceTimersByTime(60_000);
-      await Promise.resolve();
-      expect(f.handle.getControlState()).toMatchObject({
-        moving: false,
-        owner: "none",
-      });
-      expect(f.handle.getNavigationState().active).toBe(false);
-      expect(f.handle.getTacticsState().status).toBe("idle");
-      expect(duringClose).toEqual([]);
-      expect(send.mock.calls.map(([, opcode]) => opcode)).toEqual([]);
-    } finally {
-      try {
-        await disposeFixture(f);
-      } finally {
-        jest.useRealTimers();
-        send.mockRestore();
-        capture.mockRestore();
-        provider = unexpectedProvider;
-        factions.mockRestore();
-        spells.mockRestore();
         openMap = missingMap;
       }
     }

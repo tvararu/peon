@@ -6,7 +6,6 @@ export type Capabilities = {
   factions: boolean;
   spells: boolean;
   navigation: boolean;
-  jev: boolean;
 };
 
 export type NoticeEvent = {

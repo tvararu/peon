@@ -10,7 +10,6 @@ import type {
 import type { NoticeEvent } from "#wow/client-extras";
 import { type CombatEvent, CombatRuntime } from "#wow/combat";
 import type { ControlEvent, ControlState } from "#wow/control";
-import { type CycleEvent, EncounterCycleRuntime } from "#wow/encounter-cycle";
 import type { Entity, EntityEvent } from "#wow/entity-store";
 import type { FriendEntry, FriendEvent } from "#wow/friend-store";
 import type { GuildEvent, GuildRoster } from "#wow/guild-store";
@@ -23,12 +22,11 @@ import { type QuestEvent, QuestRuntime } from "#wow/quests";
 import { type RecoveryEvent, RecoveryRuntime } from "#wow/recovery";
 import type { RemotePose } from "#wow/remote-motion";
 import { type RewardsEvent, RewardsRuntime } from "#wow/rewards";
-import type { TacticsEvent, TacticsState } from "#wow/tactics";
 import type { TrainerEvent } from "#wow/trainer";
 import { type VendorEvent, VendorRuntime } from "#wow/vendor";
 import { createWorldEvents } from "#wow/world-events";
 
-type MockHandle = WorldHandle & {
+export type MockHandle = WorldHandle & {
   triggerMessage: (msg: ChatMessage) => void;
   triggerGroupEvent: (event: GroupEvent) => void;
   triggerDuelEvent: (event: DuelEvent) => void;
@@ -38,13 +36,11 @@ type MockHandle = WorldHandle & {
   triggerGuildEvent: (event: GuildEvent) => void;
   triggerControlEvent: (event: ControlEvent) => void;
   triggerCombatEvent: (event: CombatEvent) => void;
-  triggerTacticsEvent: (event: TacticsEvent) => void;
   triggerRecoveryEvent: (event: RecoveryEvent) => void;
   triggerQuestEvent: (event: QuestEvent) => void;
   triggerRewardsEvent: (event: RewardsEvent) => void;
   triggerVendorEvent: (event: VendorEvent) => void;
   triggerNotice: (event: NoticeEvent) => void;
-  triggerCycleEvent: (event: CycleEvent) => void;
   triggerTrainerEvent: (event: TrainerEvent) => void;
   resolveClosed: () => void;
 };
@@ -82,38 +78,9 @@ export function createMockHandle(): MockHandle {
   const quests = new QuestRuntime(stores.quests, runtimeDeps);
   const rewards = new RewardsRuntime(stores.rewards, runtimeDeps);
   const vendor = new VendorRuntime(stores.vendor, runtimeDeps);
-  const tacticsState: TacticsState = {
-    instruction: "",
-    lastDecision: undefined,
-    lastDiscardReason: undefined,
-    lastOutcome: undefined,
-    lastRequest: undefined,
-    lastResult: undefined,
-    runId: undefined,
-    status: "idle",
-    targetGuid: undefined,
-    timeouts: { consecutive: 0, limit: 3, total: 0 },
-  };
-  const cycle = new EncounterCycleRuntime({
-    bags: { questItems: () => new Set(), stackSize: async () => undefined },
-    control: { face: () => {}, move: () => {}, snapshot: () => controlState },
-    entity: () => undefined,
-    now: runtimeDeps.now,
-    recovery,
-    rewards,
-    tactics: {
-      snapshot: () => tacticsState,
-      start: (_context, signal) =>
-        new Promise<void>((resolve) =>
-          signal?.addEventListener("abort", () => resolve(), { once: true }),
-        ),
-      stop: () => {},
-    },
-  });
   const unanswered = () => ({ name: null, quality: null });
 
   const events = createWorldEvents();
-  cycle.onEvent((event) => events.cycle.emit(event));
   let closeResolve: () => void;
   const closed = new Promise<void>((r) => {
     closeResolve = r;
@@ -121,6 +88,7 @@ export function createMockHandle(): MockHandle {
   let lastChatMode: ChatMode = { type: "say" };
 
   const handle: MockHandle = {
+    abandonLoot: jest.fn(),
     abandonQuest: jest.fn(),
     acceptGuildInvite: jest.fn(),
     acceptInvite: jest.fn(),
@@ -134,7 +102,6 @@ export function createMockHandle(): MockHandle {
     cancelInteraction: jest.fn(),
     capabilities: jest.fn(() => ({
       factions: false,
-      jev: false,
       navigation: false,
       spells: false,
     })),
@@ -152,11 +119,11 @@ export function createMockHandle(): MockHandle {
     getCombatState: jest.fn(() => combat.snapshot()),
     getControlState: jest.fn((): ControlState => controlState),
     getCreatureInfo: jest.fn(() => undefined),
-    getCycleState: jest.fn(() => cycle.snapshot()),
     getDestroyState: jest.fn(() => ({
       lastOutcome: undefined,
       pending: undefined,
     })),
+    getEntity: jest.fn((): Entity | undefined => undefined),
     getExperienceState: jest.fn(() => ({
       lastLevelUp: undefined,
       lastXp: undefined,
@@ -169,6 +136,7 @@ export function createMockHandle(): MockHandle {
     getInventoryState: jest.fn(() =>
       labelInventory(rewards.snapshot().inventory, unanswered),
     ),
+    getItemTemplate: jest.fn(async () => undefined),
     getLastChatMode: jest.fn(() => lastChatMode),
     getNavigationState: jest.fn(() => ({
       active: false,
@@ -195,8 +163,8 @@ export function createMockHandle(): MockHandle {
     getRewardsState: jest.fn(() =>
       labelRewards(rewards.snapshot(), unanswered),
     ),
+    getSelfClass: jest.fn((): string | undefined => undefined),
     getSpellbook: jest.fn(async () => []),
-    getTacticsState: jest.fn(() => tacticsState),
     getTrainerState: jest.fn(async () => ({
       coinage: undefined,
       lastOutcome: undefined,
@@ -216,17 +184,19 @@ export function createMockHandle(): MockHandle {
     guildMotd: jest.fn(),
     guildPromote: jest.fn(),
     guildRemove: jest.fn(),
-    halt: jest.fn(() => {
-      cycle.stop("halt");
-    }),
+    halt: jest.fn(),
     invite: jest.fn(),
+    isAttackingSelf: jest.fn(() => false),
     itemLabel: jest.fn(unanswered),
     joinChannel: jest.fn(),
     leaveChannel: jest.fn(),
     leaveGroup: jest.fn(),
+    loadCatalogs: jest.fn(async () => {}),
     logout: jest.fn(() => closeResolve()),
-    lootCorpse: jest.fn(async () => ({ ok: true as const, record: undefined })),
     move: jest.fn(),
+    observedPosition: jest.fn((): never => {
+      throw new Error("target_not_observed");
+    }),
     observeNavigation: jest.fn(() =>
       observeNavigation(handle.getNavigationState()),
     ),
@@ -235,9 +205,6 @@ export function createMockHandle(): MockHandle {
     },
     onControlEvent(cb) {
       return events.control.subscribe(cb);
-    },
-    onCycleEvent(cb) {
-      return events.cycle.subscribe(cb);
     },
     onDestroyEvent(cb) {
       return events.destroy.subscribe(cb);
@@ -281,9 +248,6 @@ export function createMockHandle(): MockHandle {
     onRewardsEvent(cb) {
       return events.rewards.subscribe(cb);
     },
-    onTacticsEvent(cb) {
-      return events.tactics.subscribe(cb);
-    },
     onTrainerEvent(cb) {
       return events.trainer.subscribe(cb);
     },
@@ -293,6 +257,7 @@ export function createMockHandle(): MockHandle {
     openLoot: jest.fn(),
     openTrainer: jest.fn(),
     openVendor: jest.fn(),
+    petAttack: jest.fn(),
     queryCorpse: jest.fn(),
     queryNearby: jest.fn((query?: NearbyQuery) =>
       queryNearby(
@@ -313,10 +278,6 @@ export function createMockHandle(): MockHandle {
     ),
     queryQuest: jest.fn(),
     reclaimCorpse: jest.fn(),
-    recoverCorpse: jest.fn(async () => ({
-      cause: "mock_recover_unavailable",
-      ok: false as const,
-    })),
     releaseLoot: jest.fn(),
     releaseSpirit: jest.fn(),
     removeFriend: jest.fn(),
@@ -348,23 +309,17 @@ export function createMockHandle(): MockHandle {
     sendSay: jest.fn(),
     sendWhisper: jest.fn(),
     sendYell: jest.fn(),
+    setControlLease: jest.fn(),
     setLastChatMode: jest.fn((mode: ChatMode) => {
       lastChatMode = mode;
     }),
     setLeader: jest.fn(),
-    startCycle: jest.fn(
-      (guids: bigint[], instruction: string, maxStarts?: number) =>
-        cycle.start({ guids, instruction, maxStarts }),
-    ),
-    startQuestCycle: jest.fn(async () => {}),
-    startTactics: jest.fn(async () => {}),
+    spellDefinition: jest.fn(() => undefined),
+    spellReadyAt: jest.fn(() => 0),
     stopAttack: jest.fn(),
-    stopCycle: jest.fn(() => {
-      cycle.stop("manual_override");
-    }),
-    takeControl: jest.fn((reason: string) => {
-      cycle.stop(reason);
-    }),
+    stopAutoRepeat: jest.fn(),
+    stopCombat: jest.fn(),
+    stopMoving: jest.fn(),
     takeLoot: jest.fn(),
     takeLootMoney: jest.fn(),
     talk: jest.fn(),
@@ -374,9 +329,6 @@ export function createMockHandle(): MockHandle {
     },
     triggerControlEvent(event) {
       events.control.emit(event);
-    },
-    triggerCycleEvent(event) {
-      events.cycle.emit(event);
     },
     triggerDuelEvent(event) {
       events.duel.emit(event);
@@ -411,9 +363,6 @@ export function createMockHandle(): MockHandle {
     triggerRewardsEvent(event) {
       events.rewards.emit(event);
     },
-    triggerTacticsEvent(event) {
-      events.tactics.emit(event);
-    },
     triggerTrainerEvent(event) {
       events.trainer.emit(event);
     },
@@ -421,6 +370,7 @@ export function createMockHandle(): MockHandle {
       events.vendor.emit(event);
     },
     uninvite: jest.fn(),
+    unitRelation: jest.fn(() => "unknown" as const),
     useItem: jest.fn(async () => {}),
     walkToward: jest.fn(async () => {
       throw new Error("mock_walk_unavailable");

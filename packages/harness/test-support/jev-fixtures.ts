@@ -1,4 +1,4 @@
-import type { JevActionRequest } from "@peon/core";
+import type { JevActionRequest } from "#harness/jev/contract";
 
 export const request: JevActionRequest = {
   candidates: [

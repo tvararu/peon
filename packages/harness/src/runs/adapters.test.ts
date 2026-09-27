@@ -1,12 +1,11 @@
 import { describe, expect, jest, test } from "bun:test";
 import {
   type ControlPose,
-  JevUnavailableError,
   type NavigationState,
   nextStepFor,
-  type TacticsEvent,
 } from "@peon/core";
-import { createMockHandle } from "@peon/core/test-support/mock-handle";
+import { JevUnavailableError } from "#harness/jev/failure";
+import type { TacticsEvent } from "#harness/loops/tactics";
 import {
   awaitCycle,
   awaitGoto,
@@ -15,6 +14,7 @@ import {
   jevCode,
   rawRefusal,
 } from "#harness/runs/adapters";
+import { createMockGame } from "#test-support/mock-game";
 
 const target = { kind: "point" as const, x: 10, y: 0 };
 const idle: NavigationState = {
@@ -39,7 +39,7 @@ function pose(x: number): ControlPose {
 }
 
 function movingHandle() {
-  const handle = createMockHandle();
+  const handle = createMockGame();
   const base = handle.getControlState();
   let nav: NavigationState = idle;
   let at = pose(0);
@@ -79,7 +79,7 @@ describe("rawRefusal", () => {
 
 describe("awaitGoto", () => {
   test("returns refused with floors when goTo throws", async () => {
-    const handle = createMockHandle();
+    const handle = createMockGame();
     const raw = "ambiguous ground column at destination";
     handle.goTo = jest.fn(() => {
       throw new Error(`pick_destination: ${raw}`);
@@ -189,7 +189,7 @@ function started(runId: string, guid: bigint): TacticsEvent {
 
 describe("awaitTactics", () => {
   test("ends on the outcome of its own run", async () => {
-    const handle = createMockHandle();
+    const handle = createMockGame();
     handle.startTactics = jest.fn(() => new Promise<void>(() => {}));
     const waiting = awaitTactics(handle, {
       guid: 0x2an,
@@ -221,7 +221,7 @@ describe("awaitTactics", () => {
   });
 
   test("takes the last outcome when stopped comes without one", async () => {
-    const handle = createMockHandle();
+    const handle = createMockGame();
     handle.startTactics = jest.fn(() => new Promise<void>(() => {}));
     const waiting = awaitTactics(handle, {
       guid: 0x2an,
@@ -246,7 +246,7 @@ describe("awaitTactics", () => {
   });
 
   test("catches a synchronous throw", async () => {
-    const handle = createMockHandle();
+    const handle = createMockGame();
     handle.startTactics = jest.fn(() => {
       throw new Error("self_not_alive");
     });
@@ -259,7 +259,7 @@ describe("awaitTactics", () => {
   });
 
   test("catches a rejected start and maps it to jev_unavailable", async () => {
-    const handle = createMockHandle();
+    const handle = createMockGame();
     handle.startTactics = jest.fn(async () => {
       throw new JevUnavailableError("missing_jev_key");
     });
@@ -273,7 +273,7 @@ describe("awaitTactics", () => {
   });
 
   test("maps a Jev failure that ends the fight to jev_unavailable", async () => {
-    const handle = createMockHandle();
+    const handle = createMockGame();
     handle.startTactics = jest.fn(async () => {
       handle.triggerTacticsEvent(started("t1", 1n));
       handle.triggerTacticsEvent({
@@ -295,7 +295,7 @@ describe("awaitTactics", () => {
   });
 
   test("halts on abort", async () => {
-    const handle = createMockHandle();
+    const handle = createMockGame();
     const controller = new AbortController();
     handle.startTactics = jest.fn(() => new Promise<void>(() => {}));
     const waiting = awaitTactics(handle, {
@@ -338,7 +338,7 @@ describe("jevCode", () => {
 
 describe("awaitCycle", () => {
   test("ends at the stopped cycle event", async () => {
-    const handle = createMockHandle();
+    const handle = createMockGame();
     const base = handle.getCycleState();
     handle.startCycle = jest.fn(async () => {});
     handle.getCycleState = () => ({
@@ -365,7 +365,7 @@ describe("awaitCycle", () => {
   });
 
   test("returns the error of a rejected start", async () => {
-    const handle = createMockHandle();
+    const handle = createMockGame();
     handle.startCycle = jest.fn(async () => {
       throw new Error("cycle_empty_queue");
     });
@@ -379,7 +379,7 @@ describe("awaitCycle", () => {
   });
 
   test("stops a cycle whose signal is already aborted", async () => {
-    const handle = createMockHandle();
+    const handle = createMockGame();
     const controller = new AbortController();
     controller.abort(new Error("human_stop"));
     handle.startCycle = jest.fn(async () => {
@@ -407,7 +407,7 @@ describe("awaitCycle", () => {
   });
 
   test("stops the cycle on abort", async () => {
-    const handle = createMockHandle();
+    const handle = createMockGame();
     const controller = new AbortController();
     handle.startQuestCycle = jest.fn(() => new Promise<void>(() => {}));
     handle.stopCycle = jest.fn(() => {

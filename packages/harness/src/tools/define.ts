@@ -4,8 +4,7 @@ import type {
 } from "@earendil-works/pi-agent-core";
 import type { Static, TSchema } from "@earendil-works/pi-ai";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
-import type { WorldHandle } from "@peon/core";
-import { JevUnavailableError, nextStepFor } from "@peon/core";
+import { nextStepFor } from "@peon/core";
 import { messageOf } from "@peon/core/lib/errors";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { AfterMap, ToolDetails } from "#harness/contract/details";
@@ -27,6 +26,8 @@ import type {
   VitalsView,
 } from "#harness/contract/views";
 import { attachCallRows } from "#harness/events/delivery";
+import { JevUnavailableError } from "#harness/jev/failure";
+import type { Game } from "#harness/loops/game";
 import { dangerLine, dangerView } from "#harness/ops/danger";
 import { guardCall } from "#harness/ops/next-guard";
 import { Refusal } from "#harness/ops/refusal";
@@ -254,7 +255,7 @@ type Call<P extends TSchema, K extends ToolName> = {
 };
 
 type Closing<A> = {
-  handle: WorldHandle | undefined;
+  handle: Game | undefined;
   ms: number;
   outcome: ToolResult<A>;
   text: string;
@@ -300,7 +301,7 @@ function openCall<P extends TSchema, K extends ToolName>({
 
 function repeatCall<P extends TSchema, K extends ToolName>(
   { args, rt, spec }: Call<P, K>,
-  handle: WorldHandle,
+  handle: Game,
 ): RepeatCall {
   return {
     args,
@@ -313,7 +314,7 @@ function repeatCall<P extends TSchema, K extends ToolName>(
 
 async function admit<P extends TSchema, K extends ToolName>(
   call: Call<P, K>,
-): Promise<WorldHandle> {
+): Promise<Game> {
   const { rt, spec } = call;
   if (rt.session.turnToolCalls > TURN_BUDGET)
     throw new Refusal({
@@ -363,7 +364,7 @@ function pushUpdate<P extends TSchema, K extends ToolName>(
 
 function toolCtx<P extends TSchema, K extends ToolName>(
   call: Call<P, K>,
-  handle: WorldHandle,
+  handle: Game,
 ): ToolCtx<AfterMap[K]> {
   const signal = call.signal ?? new AbortController().signal;
   return {
@@ -378,7 +379,7 @@ function toolCtx<P extends TSchema, K extends ToolName>(
 
 async function invoke<P extends TSchema, K extends ToolName>(
   call: Call<P, K>,
-  handle: WorldHandle,
+  handle: Game,
 ): Promise<ToolResult<AfterMap[K]>> {
   const { rt, signal, spec } = call;
   const esc = () => {
@@ -417,7 +418,7 @@ function withHumanStop<A>(outcome: ToolResult<A>): ToolResult<A> {
 
 function remember<P extends TSchema, K extends ToolName>(
   call: Call<P, K>,
-  handle: WorldHandle,
+  handle: Game,
   outcome: ToolResult<AfterMap[K]>,
 ): void {
   const { args, rt, spec } = call;

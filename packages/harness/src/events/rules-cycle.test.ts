@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import type { CycleEvent, CycleState } from "@peon/core";
-import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import type { RunRecord } from "#harness/contract/runs";
 import { runDrafts } from "#harness/events/rules";
 import { cycleDrafts } from "#harness/events/rules-combat";
+import type { CycleEvent, CycleState } from "#harness/loops/encounter-cycle";
+import { createMockGame } from "#test-support/mock-game";
 import { testRuleInput } from "#test-support/rule-fixtures";
 
-const base = createMockHandle().getCycleState();
+const base = createMockGame().getCycleState();
 
 function step(
   type: CycleEvent["type"],

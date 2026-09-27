@@ -1,8 +1,6 @@
 import type { GotoTarget, WalkTarget, WorldHandle } from "#wow/client";
-import { targetRelation } from "#wow/combat-actions-target";
 import type { ControlPose, WalkOutcome } from "#wow/control";
-import type { ApproachDeps } from "#wow/cycle-approach";
-import { bearing, distance2d } from "#wow/geometry";
+import { bearing } from "#wow/geometry";
 import {
   classifyNavigationRefusal,
   type GroundRoute,
@@ -16,6 +14,7 @@ import { GROUND_ERROR } from "#wow/navigation-collision";
 import { observeNavigation } from "#wow/navigation-observation";
 import { type NearbySources, type NearbyUnits, queryNearby } from "#wow/nearby";
 import type { Runtimes } from "#wow/runtime";
+import { targetRelation } from "#wow/unit-relation";
 import type { WorldConn } from "#wow/world-conn";
 
 function groundedPoint(
@@ -148,26 +147,6 @@ type RouteRuntimes = Pick<
   "control" | "navigation" | "observedTarget"
 >;
 
-export function cycleApproach(rt: RouteRuntimes): ApproachDeps {
-  return {
-    gap(guid) {
-      const pose = rt.control.snapshot().pose;
-      if (!pose) return Number.NaN;
-      try {
-        return distance2d(pose, rt.observedTarget(guid));
-      } catch {
-        return Number.NaN;
-      }
-    },
-    goTo: (guid) => routeTo(rt, { guid, kind: "guid" }),
-    halt: (reason) => rt.control.halt(reason),
-    navigation() {
-      const { active, blockedReason, replan } = rt.control.navigationState();
-      return { active: active || replan?.pending === true, blockedReason };
-    },
-  };
-}
-
 function routeTo(rt: RouteRuntimes, target: GotoTarget): void {
   let destination = pointOf(target);
   const pose = rt.control.snapshot().pose;
@@ -205,12 +184,17 @@ function routeTo(rt: RouteRuntimes, target: GotoTarget): void {
   }
 }
 
-function nearbySources(conn: WorldConn, rt: Runtimes): NearbySources {
-  const control = rt.control.snapshot();
+function unitRelationOf(conn: WorldConn, rt: Runtimes) {
   const entity = (guid: bigint) => conn.entityStore.get(guid);
   const deps = { entity, factions: rt.factions };
+  const self = rt.control.snapshot().selfGuid;
+  return (guid: bigint) => targetRelation(deps, guid, self);
+}
+
+function nearbySources(conn: WorldConn, rt: Runtimes): NearbySources {
+  const control = rt.control.snapshot();
   const units: NearbyUnits = {
-    relation: (guid) => targetRelation(deps, guid, control.selfGuid),
+    relation: unitRelationOf(conn, rt),
     attackingMe: (guid) => rt.combat.isAttackingSelf(guid),
   };
   return {
@@ -249,12 +233,19 @@ export function controlMethods(conn: WorldConn, rt: Runtimes) {
     selectTarget(guid) {
       control.selectTarget(guid);
     },
-    takeControl(reason) {
-      rt.takeControl(reason);
+    stopMoving(reason) {
+      control.halt(reason);
+    },
+    setControlLease(lease) {
+      control.setLease(lease);
+    },
+    observedPosition(guid) {
+      return rt.observedTarget(guid);
+    },
+    unitRelation(guid) {
+      return unitRelationOf(conn, rt)(guid);
     },
     halt() {
-      rt.tactics.stop("halt");
-      rt.cycle.stop("halt");
       rt.recovery.clearSpiritHealer("halt");
       rt.halt();
     },

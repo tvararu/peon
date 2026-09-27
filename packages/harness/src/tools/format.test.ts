@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { JevUnavailableError } from "@peon/core";
 import type { ToolResult } from "#harness/contract/result";
+import { JevUnavailableError } from "#harness/jev/failure";
 import {
   coreErrorResult,
   emptySelf,

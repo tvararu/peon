@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { RecoveryEvent, RecoveryState } from "@peon/core";
-import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import { recoveryDrafts } from "#harness/events/rules-life";
+import { createMockGame } from "#test-support/mock-game";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
-const recoveryBase = createMockHandle().getRecoveryState();
+const recoveryBase = createMockGame().getRecoveryState();
 
 function recovery(
   type: RecoveryEvent["type"],

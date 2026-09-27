@@ -136,6 +136,9 @@ export function socialMethods(conn: WorldConn) {
     getNearbyEntities() {
       return conn.entityStore.all();
     },
+    getEntity(guid) {
+      return conn.entityStore.get(guid);
+    },
     getFriends() {
       return conn.friendStore.all();
     },

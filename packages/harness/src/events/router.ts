@@ -1,10 +1,4 @@
-import type {
-  RewardsEvent,
-  TacticsEvent,
-  Unsubscribe,
-  VendorEvent,
-  WorldHandle,
-} from "@peon/core";
+import type { RewardsEvent, Unsubscribe, VendorEvent } from "@peon/core";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { HarnessFlags } from "#harness/contract/config";
 import type {
@@ -61,6 +55,8 @@ import {
   rewardsDrafts,
 } from "#harness/events/rules-world-quest";
 import { flushPendingXp, XP_SOURCE_WAIT_MS } from "#harness/events/rules-xp";
+import type { Game } from "#harness/loops/game";
+import type { TacticsEvent } from "#harness/loops/tactics";
 import {
   awaitItemNames,
   ITEM_NAME_WAIT_MS,
@@ -80,14 +76,14 @@ export type RouterInit = {
 type Route = (make: (rc: RuleInput) => Drafts) => void;
 type Named = (itemIds: readonly number[], run: () => void) => boolean;
 type SubscribeInit = {
-  handle: WorldHandle;
+  handle: Game;
   route: Route;
   named: Named;
   selfGuid: () => bigint;
   jev: (event: TacticsEvent) => void;
   logEntities: boolean;
 };
-type LookupInit = { handle: WorldHandle; attacks: AttackLedger };
+type LookupInit = { handle: Game; attacks: AttackLedger };
 
 const HUMAN_EVENTS = new Set<LogEvent>([
   "packet/error",
@@ -113,7 +109,7 @@ const NO_LOOKUP: RuleLookup = {
   unitName: () => undefined,
 };
 
-function tapIn(handle: WorldHandle, guid: bigint): Tap | undefined {
+function tapIn(handle: Game, guid: bigint): Tap | undefined {
   const row = handle
     .queryNearby({ all: true })
     .find((candidate) => candidate.entity.guid === guid);
@@ -122,17 +118,14 @@ function tapIn(handle: WorldHandle, guid: bigint): Tap | undefined {
   return row.tapped ? "mine" : "none";
 }
 
-function questTitleIn(
-  handle: WorldHandle,
-  questId: number,
-): string | undefined {
+function questTitleIn(handle: Game, questId: number): string | undefined {
   const query = handle
     .getQuestState()
     .queries.find((candidate) => candidate.questId === questId);
   return query?.status === "known" ? query.data.title : undefined;
 }
 
-function placeOf(handle: WorldHandle): {
+function placeOf(handle: Game): {
   zone: string | undefined;
   area: string | undefined;
 } {

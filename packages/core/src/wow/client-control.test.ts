@@ -2,7 +2,7 @@ import { describe, expect, jest, test } from "bun:test";
 import { setup } from "#test-support/control-fixtures";
 import { must } from "#test-support/must";
 import type { GotoTarget } from "#wow/client";
-import { controlMethods, cycleApproach } from "#wow/client-control";
+import { controlMethods } from "#wow/client-control";
 import { EntityStore } from "#wow/entity-store";
 import type { FactionTemplateCatalog } from "#wow/faction-template";
 import { createNavigation, type NavPoint } from "#wow/navigation";
@@ -57,21 +57,18 @@ function fixture(
   return { ...control, handle, navigation, rt };
 }
 
-describe("cycle approach", () => {
-  test("routes to a far unit", () => {
+describe("goTo a unit", () => {
+  test("routes to a far observed unit and reports its position", () => {
     const targets = new Map<bigint, NavPoint>();
     const f = fixture(() => [70.34], {}, targets);
     const start = must(f.runtime.snapshot().pose);
     targets.set(5n, { x: start.x + 60, y: start.y, z: 70.34 });
-    const approach = cycleApproach(f.rt);
-    expect(approach.gap(5n)).toBeCloseTo(60);
-    expect(approach.gap(6n)).toBeNaN();
-    approach.goTo(5n);
-    expect(approach.navigation()).toEqual({
+    expect(f.handle.observedPosition(5n)).toEqual(must(targets.get(5n)));
+    f.handle.goTo({ guid: 5n, kind: "guid" });
+    expect(f.runtime.navigationState()).toMatchObject({
       active: true,
-      blockedReason: undefined,
+      target: 5n,
     });
-    expect(f.runtime.navigationState().target).toBe(5n);
   });
 });
 

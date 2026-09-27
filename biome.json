@@ -178,7 +178,11 @@
       }
     },
     {
-      "includes": ["packages/core/src/wow/**", "packages/*/test-support/**"],
+      "includes": [
+        "packages/core/src/wow/**",
+        "packages/harness/src/loops/**",
+        "packages/*/test-support/**"
+      ],
       "linter": {
         "rules": {
           "suspicious": {
@@ -195,7 +199,13 @@
           }
         }
       },
-      "includes": ["packages/core/src/wow/**"]
+      "includes": [
+        "packages/core/src/wow/**",
+        "packages/harness/src/jev/contract.ts",
+        "packages/harness/src/jev/failure.ts",
+        "packages/harness/src/jev/framing.ts",
+        "packages/harness/src/loops/**"
+      ]
     },
     {
       "includes": ["packages/core/src/wow/protocol/opcodes.ts"],

@@ -1,10 +1,10 @@
-import type { WorldHandle } from "@peon/core";
 import type { RunRecord, RunRegistry, StopCause } from "#harness/contract/runs";
 import type {
   HarnessRuntime,
   RuntimeParts,
   SessionFlags,
 } from "#harness/contract/services";
+import type { Game } from "#harness/loops/game";
 import { type Connection, createConnection } from "#harness/runtime/connection";
 
 export function createHarnessRuntime(parts: RuntimeParts): HarnessRuntime {
@@ -54,7 +54,7 @@ function initialSession(wake: boolean): SessionFlags {
 
 function stopEverything(
   runs: RunRegistry,
-  handle: WorldHandle | undefined,
+  handle: Game | undefined,
   cause: StopCause,
 ): RunRecord[] {
   const stopped = runs.cancelAll(cause);

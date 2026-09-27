@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import type { VendorEvent } from "@peon/core";
-import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import { elapse, withFakeTimers } from "#test-support/fake-time";
+import { createMockGame } from "#test-support/mock-game";
 import { routerSetup } from "#test-support/router-fixture";
 
 const LATE_MS = 80;
 const SETTLE_MS = 300;
 
-function lateBagItem(handle: ReturnType<typeof createMockHandle>) {
+function lateBagItem(handle: ReturnType<typeof createMockGame>) {
   const inventory = handle.getInventoryState();
   let named = false;
   const slot = () => ({
@@ -37,7 +37,7 @@ function lateBagItem(handle: ReturnType<typeof createMockHandle>) {
     }, LATE_MS);
 }
 
-function pushEvent(handle: ReturnType<typeof createMockHandle>) {
+function pushEvent(handle: ReturnType<typeof createMockGame>) {
   const state = handle.getRewardsState();
   handle.triggerRewardsEvent({
     at: 0,
@@ -62,7 +62,7 @@ function pushEvent(handle: ReturnType<typeof createMockHandle>) {
   });
 }
 
-function listVendor(handle: ReturnType<typeof createMockHandle>) {
+function listVendor(handle: ReturnType<typeof createMockGame>) {
   const base = handle.getVendorState();
   let named = false;
   const good = {
@@ -111,7 +111,7 @@ describe("router item names", () => {
   test("an item push row waits for a late name", async () => {
     await withFakeTimers(async () => {
       const { log, router } = routerSetup();
-      const handle = createMockHandle();
+      const handle = createMockGame();
       router.attach(handle);
       const nameLater = lateBagItem(handle);
       pushEvent(handle);
@@ -131,7 +131,7 @@ describe("router item names", () => {
   test("a vendor list row waits for late names", async () => {
     await withFakeTimers(async () => {
       const { log, router } = routerSetup();
-      const handle = createMockHandle();
+      const handle = createMockGame();
       router.attach(handle);
       listVendor(handle);
       await elapse(LATE_MS - 10);
@@ -146,7 +146,7 @@ describe("router item names", () => {
   test("detach drops rows still waiting for names", async () => {
     await withFakeTimers(async () => {
       const { log, router } = routerSetup();
-      const handle = createMockHandle();
+      const handle = createMockGame();
       const detach = router.attach(handle);
       const nameLater = lateBagItem(handle);
       pushEvent(handle);

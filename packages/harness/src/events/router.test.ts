@@ -1,13 +1,10 @@
 import { describe, expect, jest, test } from "bun:test";
-import {
-  ObjectType,
-  type TacticsEvent,
-  type UnitEntity,
-  type WorldHandle,
-} from "@peon/core";
-import { createMockHandle } from "@peon/core/test-support/mock-handle";
+import { ObjectType, type UnitEntity } from "@peon/core";
 import type { RunEnd, RunRegistry } from "#harness/contract/runs";
 import { XP_SOURCE_WAIT_MS } from "#harness/events/rules-xp";
+import type { Game } from "#harness/loops/game";
+import type { TacticsEvent } from "#harness/loops/tactics";
+import { createMockGame } from "#test-support/mock-game";
 import { routerSetup as setup } from "#test-support/router-fixture";
 
 async function endRun(runs: RunRegistry, awaited: boolean): Promise<string> {
@@ -32,7 +29,7 @@ async function endRun(runs: RunRegistry, awaited: boolean): Promise<string> {
 describe("createEventRouter", () => {
   test("attach subscribes all 20 hooks and detach removes them", () => {
     const { router } = setup();
-    const handle = createMockHandle();
+    const handle = createMockGame();
     const hooks = Object.keys(handle).filter((key) => /^on[A-Z]/.test(key));
     const live = new Set<string>();
     const spied: Record<string, unknown> = {};
@@ -41,7 +38,7 @@ describe("createEventRouter", () => {
         live.add(name);
         return () => live.delete(name);
       };
-    const detach = router.attach({ ...handle, ...spied } as WorldHandle);
+    const detach = router.attach({ ...handle, ...spied } as Game);
     expect(hooks).toHaveLength(20);
     expect([...live].sort()).toEqual([...hooks].sort());
     detach();
@@ -94,7 +91,7 @@ describe("createEventRouter", () => {
 
   test("sends Jev request, result and applied rows to jev.jsonl only", () => {
     const { jevRows, log, router } = setup();
-    const handle = createMockHandle();
+    const handle = createMockGame();
     router.attach(handle);
     handle.triggerTacticsEvent({
       candidates: [],
@@ -136,7 +133,7 @@ describe("createEventRouter", () => {
   test("rows an engage run summarises are consumed by its call", () => {
     jest.useFakeTimers();
     const { log, router, runs } = setup();
-    const handle = createMockHandle();
+    const handle = createMockGame();
     router.attach(handle);
     const run = runs.start<number>({
       args: {},
@@ -193,7 +190,7 @@ describe("createEventRouter", () => {
 
   test("a stopped engage gives its rows back, since its result has no tally", async () => {
     const { log, router, runs } = setup();
-    const handle = createMockHandle();
+    const handle = createMockGame();
     router.attach(handle);
     const run = runs.start<number>({
       args: {},
@@ -226,7 +223,7 @@ describe("createEventRouter", () => {
 
   test("the same rows outside an engage run stay unconsumed", () => {
     const { log, router, runs } = setup();
-    const handle = createMockHandle();
+    const handle = createMockGame();
     router.attach(handle);
     runs.start<number>({
       args: {},
@@ -248,7 +245,7 @@ describe("createEventRouter", () => {
 
   test("a halted target that dies with no credit wakes the agent", () => {
     const { log, router, sink } = setup();
-    const handle = createMockHandle();
+    const handle = createMockGame();
     router.attach(handle);
     handle.triggerCombatEvent({
       attacker: 0x11n,

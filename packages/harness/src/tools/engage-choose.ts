@@ -1,9 +1,9 @@
-import { MIN_HP_PCT, MIN_MANA_PCT } from "@peon/core";
 import type { EngageAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { RunControl } from "#harness/contract/runs";
 import type { OpsCtx, ToolCtx, ViewCtx } from "#harness/contract/services";
 import type { UnitView } from "#harness/contract/views";
+import { MIN_HP_PCT, MIN_MANA_PCT } from "#harness/loops/cycle-gate";
 import { dangerView, type InterruptCause } from "#harness/ops/danger";
 import { compassWord, explore } from "#harness/ops/explore";
 import { Refusal } from "#harness/ops/refusal";

@@ -1,7 +1,7 @@
-import type { WorldHandle } from "@peon/core";
 import type { ToolName, ToolResult } from "#harness/contract/result";
 import type { HarnessRuntime, ViewCtx } from "#harness/contract/services";
 import type { Compass } from "#harness/contract/views";
+import type { Game } from "#harness/loops/game";
 import { dangerView } from "#harness/ops/danger";
 import { compassWord } from "#harness/ops/explore";
 import { compassTo } from "#harness/ops/range";
@@ -119,7 +119,7 @@ function guardScene(
 export function guardCall<A>(
   init: {
     args: unknown;
-    handle: WorldHandle | undefined;
+    handle: Game | undefined;
     rt: HarnessRuntime;
     startedAt: number;
     tool: ToolName;

@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import type { CombatEvent, ControlEvent, QuestEvent } from "@peon/core";
-import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import { combatDrafts } from "#harness/events/rules-combat";
 import { controlDrafts } from "#harness/events/rules-world";
 import { questDrafts } from "#harness/events/rules-world-quest";
 import { XP_SOURCE_WAIT_MS } from "#harness/events/rules-xp";
+import { createMockGame } from "#test-support/mock-game";
 import { routerSetup } from "#test-support/router-fixture";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
-const handle = createMockHandle();
+const handle = createMockGame();
 
 function gained(total: number, at = 10): CombatEvent {
   const lastXp = { at, kind: "other" as const, total, victim: 0n };
@@ -87,7 +87,7 @@ describe("xp/gain with no named source", () => {
 
   test("is written as other once the source wait ends", () => {
     const { log, router } = routerSetup();
-    const world = createMockHandle();
+    const world = createMockGame();
     router.attach(world);
     world.triggerCombatEvent(gained(40));
     expect(log.since(0).filter((row) => row.event === "xp/gain")).toEqual([]);
