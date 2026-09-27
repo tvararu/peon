@@ -285,6 +285,37 @@ describe("travel", () => {
     expect(fit(res)).toBe('DONE moved 4.8 yd.\nNext: travel(to: "u4")');
   });
 
+  test("an unstick that moves 0 yd fails as stuck without the refused route", async () => {
+    const t = await world();
+    t.rt.travel.lastRefusedGoal = "u4";
+    t.handle.walkToward = jest.fn(async () => ({
+      pose: {
+        mapId: MAP_ID,
+        orientation: 0,
+        source: "server" as const,
+        updatedAt: 0,
+        x: 0,
+        y: 0,
+        z: 0,
+      },
+      status: "completed" as const,
+      traveled: 0,
+    }));
+    driveGoto(t.handle, [
+      { refuse: "unreachable: pathfind_find_path failed (UNKNOWN_PATH)" },
+    ]);
+    const res = await travelSpec.run(
+      { to: "unstick" },
+      toolCtx<TravelAfter>(t),
+    );
+    expect(res).toMatchObject({
+      next: 'ask the human: "I am stuck. Can you move me?"',
+      reason: "stuck",
+      status: "FAILED",
+    });
+    expect(contentOf(res)).not.toContain("u4");
+  });
+
   test("a failed unstick asks the human to move you", async () => {
     const t = await world();
     t.handle.walkToward = jest.fn(async () => {

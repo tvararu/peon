@@ -211,10 +211,11 @@ describe("explore", () => {
     expect(result).toMatchObject({
       obstructed: 3,
       stoppedBy: "obstructed",
+      unstuck: "failed",
       untried: "NE",
       walkedYd: 0,
     });
-    expect(goTo.mock.calls.map((call) => call[0])).toEqual([
+    expect(goTo.mock.calls.map((call) => call[0]).slice(0, 3)).toEqual([
       { kind: "point", x: 20, y: 0 },
       { kind: "point", x: 20, y: 0 },
       { kind: "point", x: 20, y: 0 },
@@ -411,20 +412,84 @@ describe("unstick", () => {
     });
   });
 
-  test("with no good pose it walks away from the nearest object", async () => {
+  test("with no good pose it routes to open ground away from the nearest object", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle, { x: 0, y: 0 });
     setUnits(t.handle, [
       objectRow({ distance: 2, guid: 0x30n, name: "Signpost", x: 2, y: 0 }),
     ]);
-    const walk = walked(t.handle, 5);
-    const ctx = toolCtx(t);
-    const result = await unstick(ctx);
-    expect(walk).toHaveBeenCalledWith(
-      { kind: "point", x: -5, y: 0, z: 0 },
-      UNSTICK_MAX_YD,
-      ctx.signal,
-    );
-    expect(result.toward).toBe("away_from_object");
+    const walk = walked(t.handle, 0);
+    const goTo = driveGoto(t.handle, [{ arrive: { x: -8, y: 0 } }]);
+    const result = await unstick(toolCtx(t));
+    expect(goTo).toHaveBeenCalledWith({ kind: "point", x: -8, y: 0 });
+    expect(walk).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ movedYd: 8, toward: "open_ground" });
+  });
+
+  test("samples the other bearings when the first route is refused", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 0, y: 0 });
+    walked(t.handle, 0);
+    const goTo = driveGoto(t.handle, [
+      { refuse: "unreachable: pathfind_find_path failed (UNKNOWN_PATH)" },
+      { arrive: { x: -5.7, y: -5.7 } },
+    ]);
+    const result = await unstick(toolCtx(t));
+    expect(goTo).toHaveBeenCalledTimes(2);
+    expect(result.movedYd).toBeCloseTo(8, 0);
+  });
+
+  test("reports 0 yd when no bearing and no walk moves you", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 0, y: 0 });
+    walked(t.handle, 0);
+    const goTo = driveGoto(t.handle, [
+      { refuse: "unreachable: pathfind_find_path failed (UNKNOWN_PATH)" },
+    ]);
+    const result = await unstick(toolCtx(t));
+    expect(goTo).toHaveBeenCalledTimes(8);
+    expect(result.movedYd).toBe(0);
+  });
+});
+
+describe("explore from a faulted start", () => {
+  test("moves off a start that refuses every leg the same way, then explores", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 0, y: 0 });
+    const fault = "unreachable: pathfind_find_path failed (UNKNOWN_PATH)";
+    const goTo = driveGoto(t.handle, [
+      { refuse: fault },
+      { refuse: fault },
+      { refuse: fault },
+      { arrive: { x: -8, y: 0 } },
+      {
+        arrive: { x: -8 + 10 * Math.SQRT2, y: -10 * Math.SQRT2 },
+        onArrive: () => setUnits(t.handle, [stalker]),
+      },
+    ]);
+    const result = await explore(toolCtx(t), { direction: "N" });
+    expect(goTo.mock.calls[3]?.[0]).toEqual({ kind: "point", x: -8, y: 0 });
+    expect(goTo.mock.calls[4]?.[0]).toEqual({
+      kind: "point",
+      x: -8 + 10 * Math.SQRT2,
+      y: -10 * Math.SQRT2,
+    });
+    expect(result).toMatchObject({ stoppedBy: "new_unit", unstuck: "moved" });
+    expect(result.walkedYd).toBeCloseTo(28, 0);
+  });
+
+  test("keeps the obstruction when moving off the start fails", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 0, y: 0 });
+    walked(t.handle, 0);
+    driveGoto(t.handle, [
+      { refuse: "unreachable: pathfind_find_path failed (UNKNOWN_PATH)" },
+    ]);
+    const result = await explore(toolCtx(t), { direction: "N" });
+    expect(result).toMatchObject({
+      stoppedBy: "obstructed",
+      unstuck: "failed",
+      walkedYd: 0,
+    });
   });
 });

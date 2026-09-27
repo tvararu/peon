@@ -327,8 +327,11 @@ function obstructedReport(found: ExploreResult, after: TravelAfter): Report {
   if (stuck !== undefined && !SIDE_REASONS.has(stuck))
     return result("PARTLY", {
       after,
-      detail: `${blocked}, each by the same fault where you stand (${stuck}). ${seen}`,
-      next: nextCall("travel", { to: "unstick" }),
+      detail: `${blocked}, each by the same fault where you stand (${stuck}).${found.unstuck === "failed" ? " Moving off this spot also failed." : ""} ${seen}`,
+      next:
+        found.unstuck === "failed"
+          ? askHuman("I am stuck. Can you move me?")
+          : nextCall("travel", { to: "unstick" }),
       reason: "obstructed",
     });
   return result("PARTLY", {

@@ -63,7 +63,7 @@ describe("travel after a structural failure", () => {
     expect(contentOf(res)).not.toContain("travel(");
   });
 
-  test("every explore leg refused the same way from the start points at unstick", async () => {
+  test("every explore leg refused the same way from the start tries to move off, then asks", async () => {
     const t = await world();
     driveGoto(t.handle, [
       { refuse: "wait: position disagrees with ground height" },
@@ -73,12 +73,12 @@ describe("travel after a structural failure", () => {
       toolCtx<TravelAfter>(t),
     );
     expect(res).toMatchObject({
-      next: 'travel(to: "unstick")',
+      next: 'ask the human: "I am stuck. Can you move me?"',
       reason: "obstructed",
       status: "PARTLY",
     });
     expect(res.detail).toBe(
-      "explored 0 yd north; 3 legs were blocked, each by the same fault where you stand (position_disagrees_with). Nothing new in view.",
+      "explored 0 yd north; 3 legs were blocked, each by the same fault where you stand (position_disagrees_with). Moving off this spot also failed. Nothing new in view.",
     );
   });
 });

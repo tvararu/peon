@@ -4,7 +4,13 @@ import type { ToolStatus } from "#harness/contract/result";
 import type { RunControl, RunEnd, RunStatus } from "#harness/contract/runs";
 import type { OpsCtx, ToolCtx } from "#harness/contract/services";
 import { dangerView, watchInterrupts } from "#harness/ops/danger";
-import { explore, parseDirection, unstick } from "#harness/ops/explore";
+import {
+  explore,
+  MIN_UNSTICK_YD,
+  parseDirection,
+  UNSTICK_SAMPLE_YD,
+  unstick,
+} from "#harness/ops/explore";
 import { distanceTo } from "#harness/ops/range";
 import { aliveWhere, recoverOp } from "#harness/ops/recover";
 import { Refusal } from "#harness/ops/refusal";
@@ -152,6 +158,13 @@ async function rememberedWork(
 async function unstickWork(work: Work): Promise<Report> {
   try {
     const moved = await unstick(work.ops);
+    if (moved.movedYd < MIN_UNSTICK_YD)
+      return result("FAILED", {
+        after: work.after({ traveledYd: moved.movedYd }),
+        detail: `moved ${yd(moved.movedYd)} yd; no way to open ground within ${UNSTICK_SAMPLE_YD} yd planned or walked from here.`,
+        next: askHuman("I am stuck. Can you move me?"),
+        reason: "stuck",
+      });
     return result("DONE", {
       after: work.after({
         goal: { kind: "unstick", refusedGoal: moved.refusedGoal },
