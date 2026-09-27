@@ -51,6 +51,7 @@ export const READ_KEYS = [
   "getCreatureInfo",
   "isAttackingSelf",
   "getSelfClass",
+  "getActionBar",
 ] as const satisfies readonly (keyof WorldHandle)[];
 
 export const EVENT_KEYS = [
@@ -69,6 +70,8 @@ export const EVENT_KEYS = [
 
 export const ACT_KEYS = [
   "move",
+  "drive",
+  "jump",
   "face",
   "faceGuid",
   "stopMoving",
@@ -133,8 +136,6 @@ export type WorldService = {
     recent: (n: number) => readonly Frozen<GameLogEntry>[];
   };
 };
-
-export type { ConnectionState, ControlHolder, ControlOwner, GameLogEntry };
 
 export const WORLD_READY = "peon:world/1:ready";
 export const WORLD_REQUEST = "peon:world/1:request";

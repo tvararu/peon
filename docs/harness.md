@@ -231,13 +231,13 @@ Code inside the repository can call `onWorld(pi, use)` from
   online and again after every `/connect` or reconnect; the cleanup it
   returns runs when that connection closes. `session.reads` has the
   core state getters (`getControlState`, `getPlaceState`,
-  `queryNearby`, ...), typed read-only. `session.events` has the core
+  `queryNearby`, `getActionBar`, ...), typed read-only. `session.events` has the core
   event subscriptions; they end on their own when the connection
   closes. A session reaches no writer, `close` or `logout`.
 - **Writes.** Only a claim acts: `world.claim(owner, reason)` asks the
   control rule in [Who controls the character](#who-controls-the-character)
   for `human`, `agent` or `loop`, and returns `undefined` when a higher
-  owner holds the character. `claim.act` has `move`, `face`, `faceGuid`,
+  owner holds the character. `claim.act` has `move`, `drive`, `jump`, `face`, `faceGuid`,
   `stopMoving`, `selectTarget`, `cast`, `attack`, `stopAttack`,
   `cancelCast`, `useItem`, `talk`, the loot calls, `sendSay` and
   `sendWhisper`; each returns a promise. Once another owner takes the

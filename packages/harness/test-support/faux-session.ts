@@ -42,11 +42,11 @@ export async function createFauxSession(init: {
   const runtime = await createPiRuntime({
     agentDir,
     credentials: emptyCredentials,
+    extensionPaths: init.extensionPaths,
     extensions: [
       { factory: worldExtension(init.rt), name: "world" },
       { factory: init.extension, name: "wow" },
     ],
-    extensionPaths: init.extensionPaths,
     providers: [faux.provider],
     runtime: init.rt,
   });

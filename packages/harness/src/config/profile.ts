@@ -223,8 +223,10 @@ function extensionsOf(table: unknown, path: string): string[] {
       ? table.extensions
       : [];
   if (
-    !Array.isArray(value) ||
-    !value.every((entry) => typeof entry === "string" && entry.length > 0)
+    !(
+      Array.isArray(value) &&
+      value.every((entry) => typeof entry === "string" && entry.length > 0)
+    )
   )
     throw new ProfileError(
       "unknown_format",

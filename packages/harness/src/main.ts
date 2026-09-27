@@ -70,8 +70,8 @@ import { createPiRuntime } from "#harness/runtime/pi-runtime";
 import { createReadyGate } from "#harness/runtime/ready";
 import { createYieldGate } from "#harness/runtime/yield";
 import { setGlyphs } from "#harness/ui/context";
-import { worldExtension } from "#harness/world/extension";
 import { type GlyphSetName, resolveGlyphSet } from "#harness/ui/glyphs";
+import { worldExtension } from "#harness/world/extension";
 
 export const EXIT = { credential: 3, ok: 0, refused: 2, usage: 2 } as const;
 
