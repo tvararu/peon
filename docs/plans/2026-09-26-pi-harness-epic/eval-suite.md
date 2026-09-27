@@ -948,7 +948,15 @@ TAB=eval-<ROUND>-<scenario>-<N>
     from the Pi session JSONL (assistant messages = turns; tool-call
     entries = tool calls; usage fields = tokens) and the harness tool
     stats; write friction items from what the frames and transcript show;
-    write `$RUN/result.json` (section 4). Return one line:
+    write `$RUN/result.json` (section 4). The runner's
+    `grader/draft.json` starts each check with what it reads: a game_log
+    check gets the first `gamelog.jsonl` row of the event it names (and
+    of the ids in its text or its `ids`), with `ref` and the last row of
+    that domain, or `null`; a truth check gets only the truth fields it
+    reads (quest lists, level and xp with the total-XP delta from the
+    level table, money, item deltas, the 2D distance to the point it
+    names). The draft verdict is `null`, so an unedited draft fails
+    `mise eval result`. Return one line:
     `<scenario>-<N> <verdict> <checksPassed>/<checks> tools=<n> wall=<s>`.
 
 Grading must finish in ≤ 5 minutes after cleanup. Graders read files, they

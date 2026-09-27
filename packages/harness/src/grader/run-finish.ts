@@ -195,7 +195,10 @@ export async function cleanup(st: RunState): Promise<void> {
     );
 }
 
-export function summaryLine(result: EvalResult, label: string): string {
+export function summaryLine(
+  result: Pick<DraftResult, "checks" | "efficiency" | "replica" | "scenario">,
+  label: string,
+): string {
   const met = result.checks.filter((check) => check.met).length;
   const { toolCalls, wallSec } = result.efficiency;
   return `${result.scenario}-${result.replica} ${label} ${met}/${result.checks.length} tools=${toolCalls} wall=${Math.round(wallSec)}`;
@@ -230,7 +233,11 @@ async function evidenceOf(st: RunState): Promise<EvalEvidence> {
   };
 }
 
-type Verdict = Pick<EvalResult, "blockedBy" | "verdict" | "verdictReason">;
+export type DraftResult = Omit<EvalResult, "verdict"> & {
+  verdict: EvalResult["verdict"] | null;
+};
+
+type Verdict = Pick<DraftResult, "blockedBy" | "verdict" | "verdictReason">;
 
 function unfiredTrigger(st: RunState): string | undefined {
   const next = st.scenario.steers[st.steersFired];
@@ -248,7 +255,7 @@ function verdictOf(st: RunState): Verdict {
     };
   const trigger = st.end === undefined ? undefined : unfiredTrigger(st);
   if (trigger === undefined)
-    return { verdict: "fail", verdictReason: DRAFT_REASON };
+    return { verdict: null, verdictReason: DRAFT_REASON };
   return {
     blockedBy: [`no_${trigger}`],
     verdict: "blocked",
@@ -261,7 +268,7 @@ function wallEnd(st: RunState, now: number): number {
   return st.endMs ?? st.exitMs ?? now;
 }
 
-async function draftResult(st: RunState): Promise<EvalResult> {
+async function draftResult(st: RunState): Promise<DraftResult> {
   const now = st.clock.now();
   const taskMs = st.taskMs ?? now;
   const usage = await readSessionUsage(`${st.runDir}/session.jsonl`);
@@ -296,7 +303,9 @@ async function draftResult(st: RunState): Promise<EvalResult> {
 
 export async function writeOutcome(st: RunState): Promise<string> {
   const result = await draftResult(st);
-  const errors = validateResult(JSON.parse(JSON.stringify(result)));
+  const errors = validateResult(JSON.parse(JSON.stringify(result))).filter(
+    (error) => result.verdict !== null || !error.startsWith("$.verdict:"),
+  );
   if (errors.length > 0)
     throw new Error(`the draft result breaks the schema: ${errors.join("; ")}`);
   const final = result.verdict === "aborted" || st.blockedBy.length > 0;
@@ -305,5 +314,5 @@ export async function writeOutcome(st: RunState): Promise<string> {
     result,
   );
   st.log(final ? "result written" : "draft written");
-  return summaryLine(result, final ? result.verdict : "draft");
+  return summaryLine(result, final ? (result.verdict ?? "draft") : "draft");
 }

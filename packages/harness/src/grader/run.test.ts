@@ -230,7 +230,8 @@ describe("runScenario", () => {
     const draft = (await Bun.file(
       `${world.runDir}/grader/draft.json`,
     ).json()) as EvalResult;
-    expect(validateResult(draft)).toEqual([]);
+    expect(validateResult({ ...draft, verdict: "fail" })).toEqual([]);
+    expect(draft.verdict).toBeNull();
     expect(draft.end).toBe("done");
     expect(draft.tab).toBe("eval-1-t0-self-state-1");
     expect(draft.evidence.finalSavedAt).toBeDefined();

@@ -215,7 +215,10 @@ describe("writeOutcome", () => {
     const draft = (await Bun.file(
       `${st.runDir}/grader/draft.json`,
     ).json()) as EvalResult;
-    expect(validateResult(draft)).toEqual([]);
+    expect(draft.verdict).toBeNull();
+    expect(validateResult(draft)).toEqual([
+      "$.verdict: expected one of pass|fail|blocked|aborted",
+    ]);
     expect(draft.checks.map((check) => check.id)).toEqual([
       "level",
       "money",
