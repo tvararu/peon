@@ -1,5 +1,4 @@
 {
-  "blockedBy": ["map-0-navigation"],
   "budget": { "minutes": 15, "tools": 80, "turns": 30 },
   "checks": [
     {
