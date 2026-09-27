@@ -153,7 +153,10 @@ Added for the harness:
    - **efficiency**: tool calls, agent turns (LLM requests), wall time,
      input/output/cached tokens, and each as a ratio to the scenario budget;
      `wallSec` runs from the task to the answer the done rule accepts (to
-     the end decision for a budget, stuck or abort end), and `exitSec` to
+     the end decision for a budget, stuck or abort end; in a scenario with
+     steers or partner actions, to the last GL `tool/result` or `chat/out`
+     row before the end decision when that is later, so a whisper reply
+     after the first answer counts), and `exitSec` to
      the harness exit, so the 30 s done wait and the logout stay out of
      the wall time;
    - **UX friction**: what the grader saw the agent struggle with, each item

@@ -327,6 +327,57 @@ describe("writeOutcome", () => {
     expect(draft.efficiency.exitSec).toBe(190);
   });
 
+  test("a partner scenario measures wall time to the whisper reply after the first answer", async () => {
+    const { exec } = router();
+    const taskMs = NOW - 120_000;
+    const st = await state(exec, {
+      answerMs: taskMs + 7134,
+      end: "done",
+      endMs: taskMs + 90_000,
+      exitMs: NOW,
+      scenario: loadScenario("t2-whisper-reply"),
+      taskMs,
+    });
+    const gl = (event: string, ts: number) =>
+      JSON.stringify({ data: {}, event, seq: ts, text: event, ts });
+    await Bun.write(
+      `${st.runDir}/gamelog.jsonl`,
+      `${[
+        gl("agent/message", taskMs + 7134),
+        gl("chat/in", taskMs + 60_500),
+        gl("tool/result", taskMs + 62_000),
+        gl("chat/out", taskMs + 62_800),
+        gl("tool/result", taskMs + 95_000),
+      ].join("\n")}\n`,
+    );
+    await writeOutcome(st);
+    const draft = (await Bun.file(
+      `${st.runDir}/grader/draft.json`,
+    ).json()) as EvalResult;
+    expect(draft.efficiency.wallSec).toBe(62.8);
+  });
+
+  test("a scenario with no steers or partner actions keeps the answer as wall end", async () => {
+    const { exec } = router();
+    const taskMs = NOW - 72_000;
+    const st = await state(exec, {
+      answerMs: taskMs + 3000,
+      end: "done",
+      endMs: taskMs + 33_000,
+      exitMs: NOW,
+      taskMs,
+    });
+    await Bun.write(
+      `${st.runDir}/gamelog.jsonl`,
+      `${JSON.stringify({ data: {}, event: "tool/result", seq: 1, text: "", ts: taskMs + 9000 })}\n`,
+    );
+    await writeOutcome(st);
+    const draft = (await Bun.file(
+      `${st.runDir}/grader/draft.json`,
+    ).json()) as EvalResult;
+    expect(draft.efficiency.wallSec).toBe(3);
+  });
+
   test("writes result.json for an aborted run with a leak friction item", async () => {
     const { exec } = router();
     const st = await state(exec, {

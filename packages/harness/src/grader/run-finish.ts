@@ -10,6 +10,7 @@ import {
 } from "#harness/grader/accounts";
 import { writeConcurrent } from "#harness/grader/concurrent";
 import { observedChecks } from "#harness/grader/draft-fill";
+import { parseGameLog } from "#harness/grader/draft-gamelog";
 import { efficiency, readSessionUsage } from "#harness/grader/efficiency";
 import type { Exec } from "#harness/grader/exec";
 import type { Pane } from "#harness/grader/pane";
@@ -263,9 +264,27 @@ function verdictOf(st: RunState): Verdict {
   };
 }
 
-function wallEnd(st: RunState, now: number): number {
-  if (st.end === "done" && st.answerMs !== undefined) return st.answerMs;
-  return st.endMs ?? st.exitMs ?? now;
+const REPLY_EVENTS = new Set(["tool/result", "chat/out"]);
+
+const hasLaterInput = ({ partnerActions, steers }: Scenario): boolean =>
+  steers.length > 0 || (partnerActions?.length ?? 0) > 0;
+
+async function lastReplyAt(st: RunState, until: number): Promise<number> {
+  const handle = Bun.file(`${st.runDir}/gamelog.jsonl`);
+  if (!(await handle.exists())) return 0;
+  const replies = parseGameLog(await handle.text()).flatMap(({ event, ts }) =>
+    REPLY_EVENTS.has(event) && typeof ts === "number" && ts <= until
+      ? [ts]
+      : [],
+  );
+  return Math.max(0, ...replies);
+}
+
+async function wallEnd(st: RunState, now: number): Promise<number> {
+  const endMs = st.endMs ?? st.exitMs ?? now;
+  if (st.end !== "done" || st.answerMs === undefined) return endMs;
+  if (!hasLaterInput(st.scenario)) return st.answerMs;
+  return Math.max(st.answerMs, await lastReplyAt(st, endMs));
 }
 
 function withGaps(
@@ -298,7 +317,7 @@ async function draftResult(st: RunState): Promise<DraftResult> {
       exitMs: (st.exitMs ?? now) - taskMs,
       firstActionMs,
       usage,
-      wallMs: wallEnd(st, now) - taskMs,
+      wallMs: (await wallEnd(st, now)) - taskMs,
     }),
     end: st.end ?? (aborted ? "abort" : undefined),
     evidence: await evidenceOf(st),
