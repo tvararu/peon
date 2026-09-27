@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { packDbc } from "#test-support/dbc";
+import { catalogAccess } from "#wow/runtime";
 import {
   capabilitiesOf,
   type LazyState,
@@ -73,6 +74,28 @@ describe("capabilitiesOf", () => {
     expect(capabilitiesOf(config, lazy, 0).navigation).toBe(false);
     expect(capabilitiesOf(config, lazy, 36).navigation).toBe(false);
     expect(capabilitiesOf({}, lazy, 530).navigation).toBe(false);
+  });
+
+  test("runtime capabilities follow the current pose's map", async () => {
+    const dir = await dataDir([]);
+    await Bun.write(join(dir, "Expansion01.map"), "");
+    let mapId: number | undefined = 530;
+    const control = {
+      snapshot: () => ({ pose: mapId === undefined ? undefined : { mapId } }),
+    } as unknown as Parameters<typeof catalogAccess>[3];
+    const access = catalogAccess(
+      { navigationDataDir: dir, navigationLibrary: "l" } as Parameters<
+        typeof catalogAccess
+      >[0],
+      { disposed: false },
+      {} as Parameters<typeof catalogAccess>[2],
+      control,
+    );
+    expect(access.capabilities().navigation).toBe(true);
+    mapId = 0;
+    expect(access.capabilities().navigation).toBe(false);
+    mapId = undefined;
+    expect(access.capabilities().navigation).toBe(true);
   });
 });
 

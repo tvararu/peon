@@ -161,7 +161,7 @@ Rules:
 - `walk-toward` returns one JSON object with `status`, `traveled`, and `pose`.
 - A stopped result also contains `reason` and makes the CLI exit with status 1.
 - `completed` is a predicted endpoint. It is not server confirmation.
-- Ground sampling requires compatible navigation data for the current map (0, 1, 530 or 571, whichever the data directory holds); other maps refuse with `unsupported map <id>`. A start up to 1 yd above the only floor of its column plans from that floor.
+- Ground sampling requires compatible navigation data for the current map (0, 1, 530 or 571, whichever the data directory holds); other maps, and those four without their data, refuse with `unsupported map <id>`. A start up to 1 yd above the only floor of its column plans from that floor.
 - `target` takes one unsigned 64-bit GUID in `0x` hexadecimal or decimal. `0` and `0x0` clear the target.
 - Invalid direction, duration, facing, or GUID fails locally. The character does not move or retarget.
 - A valid GUID can still be stale. `target` sends it without checking entity age. Refresh `nearby --json` before acting. `requestedTarget` is sent intent; `target` is the last server observation. Equal values do not prove a fresh acknowledgment.

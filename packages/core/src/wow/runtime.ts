@@ -386,7 +386,7 @@ function manualControl(
   };
 }
 
-function catalogAccess(
+export function catalogAccess(
   config: ClientConfig,
   lazy: LazyState,
   combat: CombatRuntime,

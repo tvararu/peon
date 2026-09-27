@@ -70,9 +70,10 @@ Add optional data paths to the existing account config:
 
 The ground planner opens a map when `navigation_data_dir` holds its
 Namigator data (`<name>.map` and `Nav/<name>/`): map 0 `Azeroth`, 1
-`Kalimdor`, 530 `Expansion01` and 571 `Northrend`. Other maps, and a map
-without its data, are refused as `unsupported map <id>`, and the
-navigation capability is false there. A start pose up to 1 yd above the
+`Kalimdor`, 530 `Expansion01` and 571 `Northrend`. Other maps are refused
+as `unsupported map <id> (no navigation map name)`, and one of these maps
+without its `<name>.map` file as `unsupported map <id> (no <name>
+navigation data)`. The navigation capability is false on both. A start pose up to 1 yd above the
 only floor of its column plans from that floor. Unsupported or ambiguous
 geometry fails explicitly.
 

@@ -17,6 +17,7 @@ import {
   groundError,
   isGroundError,
   type NativeMap,
+  NavigationDataMissing,
   openNativeMap,
   validateNativePoint,
   validateNativeXY,
@@ -162,9 +163,9 @@ export function createNavigation(
     if (closed) throw new Error("navigation is closed");
     const name = requireNavigationMapName(mapId);
     for (const point of points) validateNativePoint(point);
-    const existing = opened.get(mapId);
-    if (existing) return existing;
-    const map = openMap(dataPath, libraryPath, name);
+    const map =
+      opened.get(mapId) ??
+      openAvailable(mapId, name, () => openMap(dataPath, libraryPath, name));
     opened.set(mapId, map);
     return map;
   }
@@ -209,6 +210,22 @@ export function createNavigation(
       opened.clear();
     },
   };
+}
+
+function openAvailable(
+  mapId: number,
+  name: string,
+  openMap: () => NativeMap,
+): NativeMap {
+  try {
+    return openMap();
+  } catch (error) {
+    if (error instanceof NavigationDataMissing)
+      throw new Error(`unsupported map ${mapId} (no ${name} navigation data)`, {
+        cause: error,
+      });
+    throw error;
+  }
 }
 
 function planRoute(map: NativeMap, from: NavPoint, to: NavPoint): GroundRoute {

@@ -10,6 +10,16 @@ import type { NativeMap } from "#wow/navigation-native";
 const start: NavPoint = { x: 0, y: 0, z: 0 };
 const end: NavPoint = { x: 10, y: 0, z: 0 };
 
+async function withData<T>(names: string[], run: (dir: string) => T) {
+  const dir = await mkdtemp(join(tmpdir(), "nav-maps-"));
+  try {
+    for (const name of names) await writeFile(join(dir, `${name}.map`), "");
+    return run(dir);
+  } finally {
+    await rm(dir, { force: true, recursive: true });
+  }
+}
+
 function opener() {
   const opened: string[] = [];
   const closed: string[] = [];
@@ -43,6 +53,17 @@ describe("navigation maps", () => {
     expect(closed.sort()).toEqual(["Azeroth", "Expansion01"]);
   });
 
+  test("refuses a named map without its map file as unsupported, without the path", () =>
+    withData(["Azeroth"], (dir) => {
+      const nav = createNavigation({
+        dataPath: dir,
+        libraryPath: join(dir, "Azeroth.map"),
+      });
+      expect(() => nav.plan(1, start, end)).toThrow(
+        new Error("unsupported map 1 (no Kalimdor navigation data)"),
+      );
+    }));
+
   test("refuses a map without a name before native construction", () => {
     const { open, opened } = opener();
     const nav = createNavigation(
@@ -53,13 +74,11 @@ describe("navigation maps", () => {
     expect(opened).toEqual([]);
   });
 
-  test("reports navigation data only for a named map with a map file", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "nav-maps-"));
-    await writeFile(join(dir, "Azeroth.map"), "");
-    expect(hasNavigationData(dir, 0)).toBe(true);
-    expect(hasNavigationData(dir, 530)).toBe(false);
-    expect(hasNavigationData(dir, 36)).toBe(false);
-    expect(hasNavigationData(`${dir}/`, 0)).toBe(true);
-    await rm(dir, { force: true, recursive: true });
-  });
+  test("reports navigation data only for a named map with a map file", () =>
+    withData(["Azeroth"], (dir) => {
+      expect(hasNavigationData(dir, 0)).toBe(true);
+      expect(hasNavigationData(dir, 530)).toBe(false);
+      expect(hasNavigationData(dir, 36)).toBe(false);
+      expect(hasNavigationData(`${dir}/`, 0)).toBe(true);
+    }));
 });

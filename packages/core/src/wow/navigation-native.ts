@@ -152,6 +152,8 @@ const NAMIGATOR_FFI = {
   },
 } satisfies Record<string, FFIFunction>;
 
+export class NavigationDataMissing extends Error {}
+
 export function openNativeMap(
   dataPath: string,
   libraryPath: string,
@@ -161,7 +163,7 @@ export function openNativeMap(
     throw new Error(`navigation library not found: ${libraryPath}`);
   const mapFile = `${dataPath.replace(TRAILING_SLASH, "")}/${mapName}.map`;
   if (!existsSync(mapFile))
-    throw new Error(`navigation data not found: ${mapFile}`);
+    throw new NavigationDataMissing(`navigation data not found: ${mapFile}`);
   const data = cstr(dataPath);
   const name = cstr(mapName);
   const library = dlopen(libraryPath, NAMIGATOR_FFI);
