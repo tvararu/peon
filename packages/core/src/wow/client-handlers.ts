@@ -1,4 +1,7 @@
-import { handleInitWorldStates } from "#wow/client-place";
+import {
+  handleExplorationExperience,
+  handleInitWorldStates,
+} from "#wow/client-place";
 import {
   registerCombatHandlers,
   registerLootHandlers,
@@ -138,6 +141,9 @@ function registerObjectHandlers(conn: WorldConn): void {
   );
   on(GameOpcode.SMSG_GUILD_INVITE, (r) => handleGuildInvitePacket(conn, r));
   on(GameOpcode.SMSG_INIT_WORLD_STATES, (r) => handleInitWorldStates(conn, r));
+  on(GameOpcode.SMSG_EXPLORATION_EXPERIENCE, (r) =>
+    handleExplorationExperience(conn, r),
+  );
 }
 
 export function registerGameHandlers(conn: WorldConn): void {

@@ -163,4 +163,28 @@ describe("areaName", () => {
     expect(areaName(12)).toBe("Elwynn Forest");
     expect(areaName(0)).toBeUndefined();
   });
+
+  test("reports an explored area with its name and XP", async () => {
+    const { server, handle } = await session();
+    try {
+      const { promise, resolve } = Promise.withResolvers<ControlEvent>();
+      handle.onControlEvent((event) => {
+        if (event.type === "area_explored") resolve(event);
+      });
+      const w = new PacketWriter();
+      w.uint32LE(3488);
+      w.uint32LE(63);
+      server.inject(GameOpcode.SMSG_EXPLORATION_EXPERIENCE, w.finish());
+      expect((await promise).explored).toEqual({
+        area: areaName(3488),
+        areaId: 3488,
+        xp: 63,
+      });
+      expect(areaName(3488)).toBeString();
+    } finally {
+      handle.close();
+      await handle.closed;
+      server.stop();
+    }
+  });
 });

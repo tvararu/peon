@@ -59,6 +59,21 @@ export function handleInitWorldStates(conn: WorldConn, r: PacketReader): void {
   });
 }
 
+export function handleExplorationExperience(
+  conn: WorldConn,
+  r: PacketReader,
+): void {
+  const areaId = r.uint32LE();
+  const xp = r.uint32LE();
+  const { control } = conn;
+  if (!control) return;
+  conn.events.control.emit({
+    type: "area_explored",
+    state: control.snapshot(),
+    explored: { areaId, area: areaName(areaId), xp },
+  });
+}
+
 export function placeMethods(conn: WorldConn, _rt: Runtimes): PlaceMethods {
   return {
     getPlaceState() {

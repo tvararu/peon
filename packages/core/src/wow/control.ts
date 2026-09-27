@@ -75,12 +75,20 @@ export type ControlEventType =
   | "server_correction"
   | "control_changed"
   | "control_error"
-  | "place_changed";
+  | "place_changed"
+  | "area_explored";
+
+export type AreaExplored = {
+  areaId: number;
+  area: string | undefined;
+  xp: number;
+};
 
 export type ControlEvent = {
   type: ControlEventType;
   state: ControlState;
   reason?: string;
+  explored?: AreaExplored;
 };
 
 export type ControlSend = (opcode: number, body?: Uint8Array) => void;
