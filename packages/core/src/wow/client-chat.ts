@@ -1,5 +1,4 @@
 import type { ChatMode, WorldHandle } from "#wow/client";
-import { readSelfField } from "#wow/player-state";
 import {
   buildChatMessage,
   buildWhoRequest,
@@ -13,13 +12,9 @@ import { selfGuid, sendPacket } from "#wow/world-handlers";
 export const NOT_IN_GUILD_TEXT = "You are not in a guild.";
 
 function guildChat(conn: WorldConn, send: () => void): void {
-  const guid = selfGuid(conn);
+  const self = conn.entityStore.get(selfGuid(conn));
   const guildId =
-    readSelfField(
-      guid,
-      conn.entityStore.get(guid),
-      PLAYER_FIELDS.GUILDID.offset,
-    ) ?? conn.guildId;
+    self?.rawFields.get(PLAYER_FIELDS.GUILDID.offset) ?? conn.guildId;
   if (guildId === 0)
     conn.events.message.emit({
       type: ChatType.SYSTEM,

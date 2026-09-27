@@ -33,7 +33,6 @@ export function readSelfField(
   const visible =
     offset === UNIT_FIELDS.HEALTH.offset ||
     offset === PLAYER_FIELDS.FLAGS.offset ||
-    offset === PLAYER_FIELDS.GUILDID.offset ||
     offset === PLAYER_FIELDS.COINAGE.offset ||
     offset === PLAYER_FIELDS.XP.offset ||
     offset === PLAYER_FIELDS.NEXT_LEVEL_XP.offset ||

@@ -10,7 +10,7 @@ import {
 } from "#test-support/world-handlers-fixtures";
 import { type ChatMessage, type WorldHandle, worldSession } from "#wow/client";
 import { NOT_IN_GUILD_TEXT } from "#wow/client-chat";
-import { PLAYER_FIELDS } from "#wow/protocol/entity-fields";
+import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/entity-fields";
 import { ChatType, GameOpcode } from "#wow/protocol/opcodes";
 import { PacketWriter } from "#wow/protocol/packet";
 
@@ -45,10 +45,10 @@ function next(handle: WorldHandle, send: () => void): Promise<ChatMessage> {
   return promise;
 }
 
-async function setGuildId(
+async function updateSelf(
   handle: WorldHandle,
   ws: Server,
-  guildId: number,
+  fields: Map<number, number>,
   create: boolean,
 ): Promise<void> {
   const w = new PacketWriter();
@@ -59,9 +59,13 @@ async function setGuildId(
     w.uint8(4);
     w.uint16LE(0);
   }
-  writeUpdateMask(w, new Map([[PLAYER_FIELDS.GUILDID.offset, guildId]]));
+  writeUpdateMask(w, fields);
   ws.inject(GameOpcode.SMSG_UPDATE_OBJECT, w.finish());
   await waitForEchoProbe(handle);
+}
+
+function guildIdField(guildId: number): Map<number, number> {
+  return new Map([[PLAYER_FIELDS.GUILDID.offset, guildId]]);
 }
 
 describe("chatMethods", () => {
@@ -96,11 +100,29 @@ describe("chatMethods", () => {
 
   test("the character's guild id field wins over the login guild id", async () => {
     await session({}, async (handle, ws) => {
-      await setGuildId(handle, ws, 7, true);
+      await updateSelf(handle, ws, guildIdField(7), true);
       const joined = await next(handle, () => handle.sendGuild("hi guild"));
       expect(joined.type).toBe(ChatType.GUILD);
-      await setGuildId(handle, ws, 0, false);
+      await updateSelf(handle, ws, guildIdField(0), false);
       const left = await next(handle, () => handle.sendGuild("still here?"));
+      expect([left.type, left.message]).toEqual([
+        ChatType.SYSTEM,
+        NOT_IN_GUILD_TEXT,
+      ]);
+    });
+  });
+
+  test("a self create without the guild id field keeps the login guild id", async () => {
+    await session({ guildId: 42 }, async (handle, ws) => {
+      const health = new Map([[UNIT_FIELDS.HEALTH.offset, 100]]);
+      await updateSelf(handle, ws, health, true);
+      const guild = await next(handle, () => handle.sendGuild("still guilded"));
+      expect([guild.type, guild.message]).toEqual([
+        ChatType.GUILD,
+        "still guilded",
+      ]);
+      await updateSelf(handle, ws, guildIdField(0), false);
+      const left = await next(handle, () => handle.sendOfficer("gone?"));
       expect([left.type, left.message]).toEqual([
         ChatType.SYSTEM,
         NOT_IN_GUILD_TEXT,
