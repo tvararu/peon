@@ -10,6 +10,13 @@ import { structuralAsk, structuralReach } from "#harness/ops/unreached";
 import { manaText, poseView, vitalsView } from "#harness/ops/views";
 import { result } from "#harness/tools/define";
 import { askHuman, nextCall } from "#harness/tools/next-call";
+import {
+  arrivedNext,
+  ladderNext,
+  notTriedText,
+  recoveryFor,
+  triedText,
+} from "#harness/tools/travel-recovery";
 
 export type Goal =
   | { kind: "unit"; guid: bigint; unit: UnitView }
@@ -40,7 +47,6 @@ const GROUPS: readonly (readonly [string, (unit: UnitView) => boolean])[] = [
 
 const PASSED_SHOWN = 3;
 const CLASS_PREFIX = /^(?:wait|pick_destination|unreachable|stop): /;
-const NOT_TRIED_HERE = `Not tried: ${nextCall("travel", { to: "unstick" })}, another route.`;
 const NOT_TRIED_THERE = "Not tried: another destination.";
 const NO_MAP_DATA =
   "This map has no navigation data, so no travel can work here.";
@@ -186,22 +192,43 @@ export function newInViewText(units: readonly UnitView[]): string {
     : `New in view: ${parts.join(", ")}.`;
 }
 
-function otherRefusal(
-  leg: LegResult,
-  after: TravelAfter,
-  done: string,
-  ask: string,
-): Report {
+function goalPoint(goal: Goal): {
+  x: number | undefined;
+  y: number | undefined;
+} {
+  if (goal.kind === "unit") return { x: goal.unit.x, y: goal.unit.y };
+  if (goal.kind === "point") return { x: goal.x, y: goal.y };
+  return { x: undefined, y: undefined };
+}
+
+function otherRefusal(init: {
+  ctx: ViewCtx;
+  goal: Goal;
+  to: string;
+  leg: LegResult;
+  after: TravelAfter;
+  walked: string;
+  planner: string;
+}): Report {
+  const { ctx, goal, to, leg, after, walked, planner } = init;
   const plain = PLAIN.find(([text]) => leg.detail.includes(text));
-  const notTried = DESTINATION_SIDE.some((text) => leg.detail.includes(text))
-    ? NOT_TRIED_THERE
-    : NOT_TRIED_HERE;
+  const there = DESTINATION_SIDE.some((text) => leg.detail.includes(text));
+  const reason = plain?.[1] ?? leg.reason ?? "failed";
+  const recovery = recoveryFor(ctx, to, goalLabel(goal));
+  const ask = askHuman(
+    `I cannot reach ${recovery.name} from here. Is there another way?`,
+  );
+  const done = there
+    ? `${walked} Tried: ${planner}. ${NOT_TRIED_THERE}`
+    : `${walked} ${triedText(recovery, planner)} ${notTriedText(recovery)}`;
   return result("FAILED", {
     after,
     body: leg.nextStep ? [plainStep(leg.nextStep)] : [],
-    detail: `${plain?.[2] ?? sentence(leg.detail)}. ${done} ${notTried}`,
-    next: ask,
-    reason: plain?.[1] ?? leg.reason ?? "failed",
+    detail: `${plain?.[2] ?? sentence(leg.detail)}. ${done}`,
+    next: there
+      ? ask
+      : ladderNext({ ask, ctx, goal: goalPoint(goal), reason, recovery }),
+    reason,
   });
 }
 
@@ -250,18 +277,25 @@ function earlyRefusal(
     });
 }
 
+function goalLabel(goal: Goal): string {
+  return goal.kind === "unit" ? goal.unit.name : goalName(goal);
+}
+
 function refusedReport(init: {
   ctx: ViewCtx;
   goal: Goal;
+  to: string;
   leg: LegResult;
   after: TravelAfter;
 }): Report {
-  const { ctx, goal, leg, after } = init;
-  const name = goalName(goal);
+  const { ctx, goal, to, leg, after } = init;
   const walked = `Walked ${yd(leg.traveledYd)} yd.`;
-  const tried = `Tried: ${leg.floorRetried ? "planner twice (floor retry)" : "planner once"}.`;
+  const planner = leg.floorRetried
+    ? "planner twice (floor retry)"
+    : "planner once";
+  const tried = `Tried: ${planner}.`;
   const ask = askHuman(
-    `I cannot reach ${goal.kind === "unit" ? goal.unit.name : name} from here. Is there another way?`,
+    `I cannot reach ${goalLabel(goal)} from here. Is there another way?`,
   );
   if (leg.reason === "ambiguous_floor" && goal.kind === "point")
     return pointFloorsReport({ after, ctx, goal, leg, tried });
@@ -282,13 +316,10 @@ function refusedReport(init: {
     return result("FAILED", {
       after,
       detail: `${sentence(leg.detail)}. ${walked} ${tried} ${NO_MAP_DATA}`,
-      next: structuralAsk(
-        "unsupported_map",
-        goal.kind === "unit" ? goal.unit.name : name,
-      ),
+      next: structuralAsk("unsupported_map", goalLabel(goal)),
       reason: leg.reason ?? "unsupported_map",
     });
-  return otherRefusal(leg, after, `${walked} ${tried}`, ask);
+  return otherRefusal({ after, ctx, goal, leg, planner, to, walked });
 }
 
 export function legReport(init: {
@@ -307,6 +338,7 @@ export function legReport(init: {
     return result("DONE", {
       after,
       detail: `arrived at ${goalName(goal)}: ${away}after ${yd(leg.traveledYd)} yd in ${secs(after.elapsedMs)} s.`,
+      next: arrivedNext(ctx, to),
     });
   }
   if (leg.status === "cancelled" || leg.status === "interrupted")
@@ -317,7 +349,7 @@ export function legReport(init: {
       reason: "interrupted",
     });
   ctx.rt.travel.lastRefusedGoal = to;
-  return refusedReport({ after, ctx, goal, leg });
+  return refusedReport({ after, ctx, goal, leg, to });
 }
 
 function stuckAtStart(found: ExploreResult): string | undefined {

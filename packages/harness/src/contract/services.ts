@@ -193,6 +193,14 @@ export type ExploreMark = {
   y: number;
 };
 
+export type TravelRecovery = {
+  goal: string;
+  name: string;
+  unstuck: boolean;
+  waypoint: string | undefined;
+  waypointTried: boolean;
+};
+
 export type TravelMemory = {
   blockedBearings: Map<string, Set<Compass>>;
   exploreOrigin: { mapId: number; x: number; y: number } | undefined;
@@ -200,6 +208,7 @@ export type TravelMemory = {
   lastGoodPose: PoseView | undefined;
   lastRefusedGoal: string | undefined;
   obstructedExplores: Map<string, Set<Compass>>;
+  recovery: TravelRecovery | undefined;
   visitedCells: Set<string>;
 };
 

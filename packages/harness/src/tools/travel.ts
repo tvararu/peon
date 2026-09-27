@@ -27,6 +27,7 @@ import {
 } from "#harness/tools/define";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 import { type TravelArgs, travelParams } from "#harness/tools/params";
+import { noteTravel, noteUnstick } from "#harness/tools/travel-recovery";
 import {
   exploreReport,
   type Goal,
@@ -156,6 +157,7 @@ async function rememberedWork(
 }
 
 async function unstickWork(work: Work): Promise<Report> {
+  noteUnstick(work.ops);
   try {
     const moved = await unstick(work.ops);
     if (moved.movedYd < MIN_UNSTICK_YD)
@@ -341,6 +343,7 @@ async function runTravel(
 ): Promise<Report> {
   const goal = parseGoal(ctx, args.to);
   refuseUnderAttack(ctx);
+  noteTravel(ctx, args.to);
   if (goal.kind === "corpse" && selfView(ctx).life === "alive")
     throw new Refusal({
       detail: "you are alive; there is no corpse to reach.",

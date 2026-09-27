@@ -275,6 +275,7 @@ function travelMemory(): TravelMemory {
     lastGoodPose: undefined,
     lastRefusedGoal: undefined,
     obstructedExplores: new Map(),
+    recovery: undefined,
     visitedCells: new Set<string>(),
   };
 }

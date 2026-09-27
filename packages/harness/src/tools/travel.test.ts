@@ -117,7 +117,7 @@ describe("travel", () => {
 
   const ASK =
     'Next: ask the human: "I cannot reach Marniel Amberlight from here. Is there another way?"';
-  const HERE = 'Not tried: travel(to: "unstick"), another route.';
+  const HERE = 'Not tried: travel(to: "unstick"), a waypoint toward the goal.';
   const THERE = "Not tried: another destination.";
 
   test.each([
@@ -144,7 +144,7 @@ describe("travel", () => {
       lines: [
         `FAILED path_corner_disagrees: path corner disagrees with connected ground. Walked 0 yd. Tried: planner once. ${HERE}`,
         "A turn of the route is where the mesh and the ground heights do not agree, such as the edge of a step or a slope. Choose a nearer waypoint on open ground or another destination; do not repeat this travel unchanged.",
-        ASK,
+        'Next: travel(to: "unstick")',
       ],
       refuse: "stop: path corner disagrees with connected ground",
     },
