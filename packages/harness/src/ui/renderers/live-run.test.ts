@@ -164,6 +164,22 @@ describe("live-run family", () => {
     );
   });
 
+  test("engage drops the target row of a dead unit and empty vitals", () => {
+    const dead = unitFixture({ alive: false, hp: 0, lootable: true });
+    const refused = {
+      ...engage,
+      cast: undefined,
+      current: dead,
+      self: { ...vitals, hp: 0, maxHp: 0, maxPower: 0, power: 0 },
+    };
+    const text = plain(
+      renderResultLines("engage", done(refused, "killed 1 of 3.")),
+    );
+    expect(text[1]).toBe(`${nerd.target} no current target`);
+    expect(text.join("\n")).not.toMatch(/\b0\/0\b/);
+    expect(text.join("\n")).not.toContain(nerd.self);
+  });
+
   test("expanded engage adds targets, decisions and error codes", () => {
     const text = plain(
       renderResultLines("engage", done(engage, "killed 1 of 3."), {

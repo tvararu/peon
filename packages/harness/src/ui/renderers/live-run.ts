@@ -69,7 +69,8 @@ function goalText(goal: TravelGoalView): string {
   }
 }
 
-function vitalsRow(theme: Theme, vitals: VitalsView): string {
+function vitalsRow(theme: Theme, vitals: VitalsView): string[] {
+  if (vitals.maxHp <= 0) return [];
   const g = glyphs();
   const hp = bar({
     cells: 12,
@@ -82,11 +83,14 @@ function vitalsRow(theme: Theme, vitals: VitalsView): string {
     vitals.powerKind === "none"
       ? ""
       : `  ${g.mana} ${bar({ cells: 12, max: vitals.maxPower, theme, tone: "mdLink", value: vitals.power })} ${vitals.power}/${vitals.maxPower}`;
-  return `${theme.fg("accent", g.self)} ${g.health} ${hp} ${vitals.hp}/${vitals.maxHp}${power}`;
+  return [
+    `${theme.fg("accent", g.self)} ${g.health} ${hp} ${vitals.hp}/${vitals.maxHp}${power}`,
+  ];
 }
 
 function unitRow(theme: Theme, unit: UnitView | undefined): string {
-  if (!unit) return theme.fg("dim", `${glyph("target")} no current target`);
+  if (!unit?.alive || unit.maxHp <= 0)
+    return theme.fg("dim", `${glyph("target")} no current target`);
   const hp = bar({
     cells: 12,
     max: unit.maxHp,
@@ -229,7 +233,7 @@ function engageDetail(theme: Theme, after: EngageAfter): string[] {
 function engageBody({ after, theme, expanded }: BodyInit<"engage">): string[] {
   const rows = [
     unitRow(theme, after.current),
-    vitalsRow(theme, after.self),
+    ...vitalsRow(theme, after.self),
     ...castRow(theme, after.cast),
     strip(theme, after.decisions),
     tally(theme, after),

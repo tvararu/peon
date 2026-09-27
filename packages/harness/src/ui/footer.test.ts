@@ -15,6 +15,7 @@ import {
   plain,
   selfFixture,
   testTheme,
+  unitFixture,
   WIDTHS,
 } from "#test-support/ui-fixture";
 
@@ -81,6 +82,26 @@ describe("footerLines", () => {
     expect(row).toContain(`${nerd.corpse} 57.3y ${nerd.compassSW}`);
     expect(row).toContain(`reclaim in ${nerd.clock} 12s`);
     expect(row).not.toContain("GHOST");
+  });
+
+  test("a dead or vanished target clears the target row", () => {
+    for (const target of [
+      unitFixture({ alive: false, hp: 0 }),
+      unitFixture({ hp: 0, maxHp: 0 }),
+    ]) {
+      const [, row] = plain(
+        footerLines({
+          chrome,
+          snapshot: nowFixture({ target }),
+          theme,
+          width: 160,
+        }),
+      );
+      expect(row).toContain(`${nerd.target} no target`);
+      expect(row).not.toContain("Springpaw Stalker");
+      expect(row).not.toContain("Shadow Word: Pain");
+      expect(row).not.toMatch(/\b0\/\d+/);
+    }
   });
 
   test("the reclaim clause follows the [now] recovery facts", () => {

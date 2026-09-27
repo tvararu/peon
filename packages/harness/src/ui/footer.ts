@@ -199,8 +199,15 @@ function unitHead(unit: UnitView, theme: Theme): Segment {
   };
 }
 
+function liveTarget(snapshot: NowSnapshot): UnitView | undefined {
+  const unit = snapshot.target;
+  return unit?.alive && unit.maxHp > 0 ? unit : undefined;
+}
+
 function auraSegment(snapshot: NowSnapshot, theme: Theme): Segment {
-  const aura = snapshot.targetAuras.find((a) => a.mine);
+  const aura = liveTarget(snapshot)
+    ? snapshot.targetAuras.find((a) => a.mine)
+    : undefined;
   if (!aura) return { drop: 6, variants: [""] };
   const left =
     aura.remainingMs === undefined ? "" : ` ${span(aura.remainingMs)}`;
@@ -237,7 +244,7 @@ function castSegment(snapshot: NowSnapshot, theme: Theme): Segment {
 
 function targetSegments(snapshot: NowSnapshot, theme: Theme): Segment[] {
   const g = glyphs();
-  const unit = snapshot.target;
+  const unit = liveTarget(snapshot);
   if (!unit)
     return [
       {
