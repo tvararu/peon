@@ -170,6 +170,7 @@ export class RouteFollower {
     replan?: Replanner,
     target?: bigint,
   ): void {
+    if (this.disposed) throw new Error("session_closed");
     guard(this.handle.getControlState());
     this.handle.stopMoving("navigation_replaced");
     const origin = route.points[0];

@@ -28,6 +28,11 @@ export type Travel = {
   ) => Promise<WalkOutcome>;
 };
 
+export type TravelSession = Travel & {
+  dispose: () => void;
+  close: () => void;
+};
+
 export type SessionNavigation = {
   source: NavigationSource;
   navigation: Navigation;
@@ -53,7 +58,7 @@ export function navigationCovers(
 export function createTravel(
   handle: WorldHandle,
   session: SessionNavigation | undefined,
-): Travel & { dispose: () => void } {
+): TravelSession {
   const now = () => Date.now();
   const routes = new RouteFollower({ handle, now });
   const navigation = () => {
@@ -61,14 +66,25 @@ export function createTravel(
     return session.navigation;
   };
   const deps = { handle, navigation, now, routes };
-  const close = () => session?.navigation.close();
-  handle.closed.then(close, close);
+  let retired = false;
+  const open = () => {
+    if (retired) throw new Error("session_closed");
+  };
   return {
-    dispose: () => routes.dispose(),
+    close: () => session?.navigation.close(),
+    dispose() {
+      retired = true;
+      routes.dispose();
+    },
     getNavigationState: () => routes.state(),
-    goTo: (target) => routeTo(deps, target),
+    goTo(target) {
+      open();
+      routeTo(deps, target);
+    },
     observeNavigation: () => observeNavigation(routes.state()),
-    walkToward: (target, yards, signal) =>
-      walkTowardTarget(deps, target, yards, signal),
+    async walkToward(target, yards, signal) {
+      open();
+      return await walkTowardTarget(deps, target, yards, signal);
+    },
   };
 }

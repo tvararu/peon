@@ -38,6 +38,7 @@ import {
   navigationCovers,
   type SessionNavigation,
   type Travel,
+  type TravelSession,
 } from "#harness/navigation/travel";
 
 export type GameCapabilities = Capabilities & {
@@ -207,21 +208,28 @@ function build(handle: WorldHandle, { jev, navigation }: GameOptions) {
     cycle.dispose();
     travel.dispose();
   };
-  return { parts, retire, runs, travel };
+  const shutDown = () => {
+    retire();
+    travel.close();
+  };
+  return { parts, retire, runs, shutDown, travel };
 }
 
 function retiring(
   handle: WorldHandle,
   retire: () => void,
+  travel: TravelSession,
 ): Pick<WorldHandle, "close" | "logout"> {
   return {
     close() {
       retire();
       handle.close();
+      travel.close();
     },
     logout() {
       retire();
       handle.logout();
+      travel.close();
     },
   };
 }
@@ -247,9 +255,9 @@ export function createGame(
   handle: WorldHandle,
   options: GameOptions = {},
 ): Game {
-  const { parts, runs, retire, travel } = build(handle, options);
+  const { parts, runs, retire, shutDown, travel } = build(handle, options);
   const { tactics, cycle, halt } = parts;
-  handle.closed.then(retire, retire);
+  handle.closed.then(shutDown, shutDown);
   const takeControl = (reason: string) => {
     cycle.stop(reason);
     tactics.stop(reason);
@@ -264,7 +272,7 @@ export function createGame(
     ...runs,
     capabilities: () => gameCapabilities(handle, options),
     ...travelApi(travel),
-    ...retiring(handle, retire),
+    ...retiring(handle, retire, travel),
     getCycleState: () => cycle.snapshot(),
     getTacticsState: () => tactics.snapshot(),
     halt() {
