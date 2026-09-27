@@ -122,6 +122,11 @@ run = 'bun packages/devtools/src/protocol-tables.ts ${usage_ir:-}'
 description = "Rewrite docs/protocol-coverage.md from the registered opcode handlers"
 run = "bun packages/core/test-support/protocol-coverage.ts"
 
+[tasks."protocol:cite-check"]
+description = "Check the AzerothCore path:line citations in docs/areas or the named files"
+usage = 'arg "[path]" var=#true help="markdown files, or - for stdin; defaults to docs/areas/*.md"'
+run = 'bun packages/devtools/src/cite-check.ts ${usage_path:-}'
+
 [tasks.factory]
 description = "Run the dev factory CLI (docs/factory.md); run it bare for its commands"
 raw = true
