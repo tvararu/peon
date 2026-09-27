@@ -41,6 +41,8 @@ export type RuleMemo = {
   lowHealth: Map<number, boolean>;
   moneyNoticeAt: number | undefined;
   pose: PoseMemo | undefined;
+  questProgress: Map<string, number>;
+  questTitles: Map<number, string>;
   runProgressAt: Map<string, number>;
   xpAt: number | undefined;
 };
@@ -66,6 +68,8 @@ export function createRuleMemo(): RuleMemo {
     lowHealth: new Map(),
     moneyNoticeAt: undefined,
     pose: undefined,
+    questProgress: new Map(),
+    questTitles: new Map(),
     runProgressAt: new Map(),
     xpAt: undefined,
   };

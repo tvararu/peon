@@ -41,12 +41,46 @@ function objective(
     };
 }
 
-function progressRow(
+function dialogTitles(dialog: QuestState["dialog"]): [number, string][] {
+  if (dialog?.kind === "gossip" || dialog?.kind === "list")
+    return dialog.data.quests.map((entry) => [entry.questId, entry.title]);
+  if (dialog) return [[dialog.data.questId, dialog.data.title]];
+  return [];
+}
+
+function noteTitles(event: QuestEvent, rc: RuleInput): void {
+  for (const [questId, title] of dialogTitles(event.state.dialog))
+    if (title) rc.memo.questTitles.set(questId, title);
+}
+
+function repeated(questId: number, step: Objective, rc: RuleInput): boolean {
+  const key = `${questId}:${step.objective}`;
+  if (rc.memo.questProgress.get(key) === step.count) return true;
+  rc.memo.questProgress.set(key, step.count);
+  return false;
+}
+
+function forget(questId: number, rc: RuleInput): void {
+  for (const key of rc.memo.questProgress.keys())
+    if (key.startsWith(`${questId}:`)) rc.memo.questProgress.delete(key);
+}
+
+function progressRows(
   event: QuestEvent,
+  base: { questId: number },
+  label: string,
+  rc: RuleInput,
+): Drafts {
+  const step = objective(event.state.lastProgress);
+  if (step && repeated(base.questId, step, rc)) return [];
+  return [progressRow(step, base, label)];
+}
+
+function progressRow(
+  step: Objective | undefined,
   base: Record<string, unknown>,
   label: string,
 ): LogDraft {
-  const step = objective(event.state.lastProgress);
   const text = step
     ? `${label}: ${step.count}/${step.required}.`
     : `${label}: progress.`;
@@ -74,13 +108,16 @@ function rewardRow(
 }
 
 export function questDrafts(event: QuestEvent, rc: RuleInput): Drafts {
+  noteTitles(event, rc);
   const { questId } = event;
   if (questId === undefined) return [];
-  const title = rc.lookup.questTitle(questId);
+  const title =
+    rc.lookup.questTitle(questId) ?? rc.memo.questTitles.get(questId);
   const label = title ?? `quest ${questId}`;
   const base = { questId, title };
   switch (event.type) {
     case "accepted":
+      forget(questId, rc);
       return [
         questRow({
           data: base,
@@ -97,7 +134,7 @@ export function questDrafts(event: QuestEvent, rc: RuleInput): Drafts {
         }),
       ];
     case "progress":
-      return [progressRow(event, base, label)];
+      return progressRows(event, base, label, rc);
     case "rewarded":
       return [rewardRow(event, base, label)];
     default:

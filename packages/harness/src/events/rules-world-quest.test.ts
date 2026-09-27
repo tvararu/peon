@@ -101,6 +101,59 @@ describe("questDrafts", () => {
     ).toBe("Unfortunate Measures: progress.");
   });
 
+  test("a repeated progress count is one row", () => {
+    const rc = testRuleInput();
+    const kill = (currentCount: number, at: number) => ({
+      at,
+      data: {
+        currentCount,
+        encodedNpcOrGoId: 15_274,
+        guid: 0x2an,
+        npcOrGoId: 15_274,
+        questId: 8325,
+        requiredCount: 8,
+      },
+      kind: "kill" as const,
+    });
+    const rows = [kill(1, 10), kill(1, 11), kill(2, 20), kill(2, 21)].flatMap(
+      (lastProgress) => questDrafts(quest("progress", { lastProgress }), rc),
+    );
+    expect(rows.map((row) => row.text)).toEqual([
+      "quest 8325: 1/8.",
+      "quest 8325: 2/8.",
+    ]);
+    questDrafts(quest("accepted"), rc);
+    expect(
+      questDrafts(quest("progress", { lastProgress: kill(1, 30) }), rc),
+    ).toHaveLength(1);
+  });
+
+  test("names a quest from the dialog that offered it", () => {
+    const rc = testRuleInput();
+    const details = {
+      data: { questId: 8325, title: "Reclaiming Sunstrider Isle" },
+      kind: "details" as const,
+    } as unknown as QuestState["dialog"];
+    expect(questDrafts(quest("dialog", { dialog: details }), rc)).toEqual([]);
+    expect(
+      questDrafts(quest("accepted", { dialog: undefined }), rc)[0],
+    ).toMatchObject({
+      data: { questId: 8325, title: "Reclaiming Sunstrider Isle" },
+      text: "Quest accepted: Reclaiming Sunstrider Isle (#8325).",
+    });
+    const list = {
+      data: { quests: [{ questId: 783, title: "A Threat Within" }] },
+      kind: "list" as const,
+    } as unknown as QuestState["dialog"];
+    questDrafts(
+      { ...quest("dialog", { dialog: list }), questId: undefined },
+      rc,
+    );
+    expect(
+      questDrafts({ ...quest("completed"), questId: 783 }, rc)[0]?.text,
+    ).toBe("Quest complete: A Threat Within (#783). Turn it in.");
+  });
+
   test("drops events without a quest id and other types", () => {
     expect(
       questDrafts({ ...quest("accepted"), questId: undefined }, titled),
