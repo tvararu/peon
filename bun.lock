@@ -16,6 +16,9 @@
     },
     "packages/devtools": {
       "name": "@peon/devtools",
+      "dependencies": {
+        "@peon/core": "workspace:*",
+      },
     },
     "packages/factory": {
       "name": "@peon/factory",
