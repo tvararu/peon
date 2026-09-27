@@ -211,19 +211,25 @@ A citation is a `.cpp`, `.cc`, `.h`, `.hpp` or `.inl` path followed by
 `:<line>`, `:<from>-<to>` or a comma list of those. The path may be any
 suffix of the checkout path that names exactly one file. A citation
 binds to every opcode named in its paragraph, list item or table row.
-For each cited line the checker takes the enclosing function, or the
-enclosing class for a header member, or the line itself outside both
-and inside the opcode table (`OpcodeTable::Initialize`, `enum Opcodes`),
-which names every opcode.
+For each cited line the checker takes a scope:
+
+- inside a function, the outermost enclosing function;
+- inside a class but no function, such as a header member, the
+  innermost enclosing class;
+- outside any function or type, the line itself;
+- inside the opcode table (`OpcodeTable::Initialize`, `enum Opcodes`),
+  the line itself, because the table names every opcode.
+
+Every distinct scope of a range or comma list must name a bound opcode.
 
 | Verdict | Meaning |
 |---|---|
-| `ok` | the file and lines exist, and the scope names a bound opcode, its `WorldSession` handler from `Opcodes.cpp` or its `WorldPackets` class |
+| `ok` | the file and lines exist, and each scope names a bound opcode, its `WorldSession` handler from `Opcodes.cpp` or its `WorldPackets` class |
 | `unbound` | no opcode in the block; only the file and lines are checked |
 | `missing` | no file in the checkout ends with the path |
 | `ambiguous` | more than one file ends with the path |
 | `out_of_range` | a line is past the end of the file |
-| `mismatch` | the scope names none of the bound opcodes |
+| `mismatch` | a scope names none of the bound opcodes; the detail gives its first cited line |
 
 The last four fail the command. A helper that writes part of a body but
 does not name the opcode, such as `ByteBuffer::AppendPackedTime`, gets
