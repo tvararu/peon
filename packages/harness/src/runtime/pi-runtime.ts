@@ -13,6 +13,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { HarnessRuntime } from "#harness/contract/services";
 import { lunaPrompt } from "#harness/prompt/install";
+import { seedManagedTools } from "#harness/runtime/managed-tools";
 
 export type PiRuntimeInit = {
   runtime: HarnessRuntime;
@@ -44,6 +45,7 @@ export async function createPiRuntime(
   const { workspace, piSessions } = init.runtime.paths;
   await mkdir(workspace, { recursive: true });
   await mkdir(piSessions, { recursive: true });
+  await seedManagedTools(init.agentDir);
   const sessionManager = SessionManager.create(workspace, piSessions);
   return createAgentSessionRuntime(sessionFactory(init), {
     agentDir: init.agentDir,

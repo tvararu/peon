@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { fauxAssistantMessage, Type } from "@earendil-works/pi-ai";
 import type { ExtensionFactory } from "@earendil-works/pi-coding-agent";
 import { createPiRuntime, splitModel } from "#harness/runtime/pi-runtime";
@@ -133,5 +134,28 @@ describe("createPiRuntime", () => {
       }),
     ).rejects.toThrow("The model faux/missing is not in the Pi catalog.");
     expect(existsSync(rt.paths.workspace)).toBe(true);
+  });
+
+  test("seeds fd and rg so Pi prints no fd not found warning", async () => {
+    const { rt } = await createTestRuntime({
+      flags: { model: "faux/missing" },
+    });
+    await createPiRuntime({
+      agentDir: rt.paths.dir,
+      credentials: emptyCredentials,
+      extension: probeTool,
+      runtime: rt,
+    }).catch(() => undefined);
+    for (const [bin, names] of [
+      ["fd", ["fd", "fdfind"]],
+      ["rg", ["rg"]],
+    ] as const)
+      expect(
+        existsSync(join(rt.paths.dir, "bin", bin)) ||
+          names.some((name) => Bun.which(name) !== null),
+      ).toBe(true);
+    expect(existsSync(join(rt.paths.dir, "bin", "fd"))).toBe(
+      Bun.which("fd") === null && Bun.which("fdfind") === null,
+    );
   });
 });
