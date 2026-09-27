@@ -174,6 +174,7 @@ export type ToolStats = {
 
 export type SessionFlags = {
   humanWaiting: boolean;
+  humanText: string | undefined;
   turnToolCalls: number;
   agent: AgentState;
   tool: string | undefined;

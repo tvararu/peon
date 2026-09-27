@@ -33,6 +33,7 @@ import { repeatRefusal } from "#harness/ops/repeat-guard";
 import { repeatScene } from "#harness/ops/repeat-scene";
 import { poseView } from "#harness/ops/views";
 import { TOOL_TEXT } from "#harness/prompt/guidelines";
+import { humanWaiting } from "#harness/tools/human-waiting";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 import { scrub } from "#harness/tools/scrub";
 export const TURN_BUDGET = 40;
@@ -318,13 +319,8 @@ async function admit<P extends TSchema, K extends ToolName>(
       reason: "turn_budget",
     });
   const handle = rt.requireHandle();
-  if (ACTING.has(spec.kind) && rt.session.humanWaiting) {
-    throw new Refusal({
-      detail: "the human wrote a message. Read it before you act.",
-      next: "end your turn and read the human's message.",
-      reason: "human_waiting",
-    });
-  }
+  if (ACTING.has(spec.kind) && rt.session.humanWaiting)
+    throw humanWaiting(rt.session.humanText);
   if (!(await rt.ready.whenReady(READY_WAIT_MS))) {
     throw new Refusal({
       detail: "the world is still loading.",

@@ -161,6 +161,20 @@ describe("defineGameTool", () => {
     );
   });
 
+  test("the human_waiting refusal quotes the pending message", async () => {
+    const { rt } = await createTestRuntime();
+    rt.session.humanWaiting = true;
+    rt.session.humanText =
+      "Get back to your body. Don't use the spirit healer.";
+    expect((await runTool(probe(said)(rt), {})).text).toBe(
+      "REFUSED human_waiting: the human wrote: \"Get back to your body. Don't use the spirit healer.\" Read it before you act.\nNext: end your turn and read the human's message.",
+    );
+    rt.session.humanText = "x".repeat(300);
+    expect((await runTool(probe(said)(rt), {})).text).toContain(
+      `"${"x".repeat(200)}..."`,
+    );
+  });
+
   test("refuses before the world is ready", async () => {
     const { rt } = await createTestRuntime({
       parts: { ready: notReady },

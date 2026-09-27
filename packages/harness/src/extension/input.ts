@@ -57,6 +57,7 @@ export function installInput(pi: ExtensionAPI, rt: HarnessRuntime): void {
   });
   pi.on("turn_start", () => {
     session.humanWaiting = false;
+    session.humanText = undefined;
   });
   pi.on("tool_execution_start", (event) => {
     Object.assign(session, {
@@ -91,6 +92,7 @@ function onInput(rt: HarnessRuntime, event: InputEvent): InputEventResult {
     });
   if (rt.session.agent !== "idle") {
     rt.session.humanWaiting = true;
+    rt.session.humanText = event.text;
     rt.yields.trigger();
   }
   return { action: "continue" };
