@@ -22,6 +22,7 @@ import { questGoal, questTitle } from "#harness/ops/quest-memory";
 import { defineGameTool, result } from "#harness/tools/define";
 import { nextCall } from "#harness/tools/next-call";
 import { type JournalArgs, journalParams } from "#harness/tools/params";
+import { journalRenderers } from "#harness/ui/renderers/card";
 
 type KnownQuest = Extract<QuestQuery, { status: "known" }>["data"];
 type LoggedSlot = QuestLogSlot & { questId: number };
@@ -305,7 +306,18 @@ export const journalTool = defineGameTool({
   fallback: emptyJournal,
   kind: "read",
   maxLines: 24,
+  minimalArgs: { about: "quests" },
   name: "journal",
   parameters: journalParams,
+  renderers: journalRenderers,
   run: journal,
+  text: {
+    description:
+      "Reads your own records: your quest log, your bags and equipped items, the spells you know, or the game log of what happened earlier. It does not move you or act.",
+    guidelines: [
+      "log is history. It never loses events when you read it.",
+      "Use bags to name an equipped item, for example the item in your main hand.",
+    ],
+    label: "Journal",
+  },
 });

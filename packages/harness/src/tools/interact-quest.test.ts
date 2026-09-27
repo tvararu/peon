@@ -145,7 +145,9 @@ describe("quest handoff", () => {
 
   test("the journal names the ender of a complete quest", async () => {
     const { t } = await acceptThreat();
-    const out = await runTool(journalTool(t.rt), { about: "quests" });
+    const out = await runTool(journalTool.definition(t.rt), {
+      about: "quests",
+    });
     expect(out.text).toContain(
       "#783 A Threat Within: Speak with Marshal McBride; complete. Turn in to Marshal McBride.",
     );

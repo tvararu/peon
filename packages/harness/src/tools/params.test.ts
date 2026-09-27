@@ -104,7 +104,7 @@ describe("tool parameter schemas", () => {
 describe("look find names", () => {
   test("a name in find fails validation with a hint to use name", async () => {
     const { rt } = await createTestRuntime();
-    const prepare = lookTool(rt).prepareArguments;
+    const prepare = lookTool.definition(rt).prepareArguments;
     expect(() => prepare?.({ find: "Magistrix Erona" })).toThrow(
       'Validation failed for tool "look":\n  - find: find takes a kind (hostile, questgiver, vendor, ...). For a name use name: "Magistrix Erona".',
     );

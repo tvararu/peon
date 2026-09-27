@@ -1,35 +1,22 @@
 import { describe, expect, test } from "bun:test";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import type { ToolName } from "#harness/contract/result";
-import type { GameTool } from "#harness/tools/define";
+import type {
+  ExtensionAPI,
+  ToolDefinition,
+} from "@earendil-works/pi-coding-agent";
 import { installTools } from "#harness/tools/install";
-import { gameTools } from "#harness/tools/registry";
-import { rendererFor } from "#harness/ui/renderers/registry";
+import { GAME_TOOLS } from "#harness/tools/registry";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 
 type Handler = (event: unknown) => unknown;
 
-const ORDER: ToolName[] = [
-  "look",
-  "travel",
-  "engage",
-  "loot",
-  "interact",
-  "rest",
-  "recover",
-  "social",
-  "journal",
-  "stop",
-];
-
 function fakePi() {
-  const tools: GameTool[] = [];
+  const tools: ToolDefinition[] = [];
   const handlers = new Map<string, Handler[]>();
   const api = {
     on(name: string, handler: Handler) {
       handlers.set(name, [...(handlers.get(name) ?? []), handler]);
     },
-    registerTool(tool: GameTool) {
+    registerTool(tool: ToolDefinition) {
       tools.push(tool);
     },
   };
@@ -69,29 +56,26 @@ const miss = (toolName: string) =>
     `Validation failed for tool "${toolName}":\n  - to: must be string`,
   );
 
-describe("gameTools", () => {
-  test("returns the ten tools in design order; look and journal run in parallel", async () => {
+describe("installTools", () => {
+  test("registers every listed tool in order with its renderers; look and journal run in parallel", async () => {
     const { rt } = await createTestRuntime();
-    const tools = gameTools(rt);
-    expect(tools.map((tool) => tool.name)).toEqual(ORDER);
+    const { pi, tools } = fakePi();
+    installTools(pi, rt);
+    expect(tools.map((tool) => tool.name)).toEqual(
+      GAME_TOOLS.map((tool) => tool.name),
+    );
+    GAME_TOOLS.forEach((listed, index) => {
+      expect<unknown>(tools[index]?.renderCall).toBe(
+        listed.renderers.renderCall,
+      );
+      expect<unknown>(tools[index]?.renderResult).toBe(
+        listed.renderers.renderResult,
+      );
+    });
     const parallel = tools
       .filter((tool) => tool.executionMode === "parallel")
       .map((tool) => tool.name);
     expect(parallel).toEqual(["look", "journal"]);
-  });
-});
-
-describe("installTools", () => {
-  test("registers every tool with its renderer family", async () => {
-    const { rt } = await createTestRuntime();
-    const { pi, tools } = fakePi();
-    installTools(pi, rt);
-    expect(tools.map((tool) => tool.name)).toEqual(ORDER);
-    for (const tool of tools) {
-      const renderers = rendererFor(tool.name as ToolName);
-      expect(tool.renderCall).toBe(renderers.renderCall);
-      expect(tool.renderResult).toBe(renderers.renderResult);
-    }
   });
 
   test("appends the minimal valid call from the second miss in a row", async () => {

@@ -155,8 +155,13 @@ radii or names from the game files, is labelled as reference data or an
 inference whenever a surface shows it.
 
 The system prompt is in `packages/harness/src/prompt/system-prompt.ts`.
-The tool descriptions and usage lines are in
-`packages/harness/src/prompt/guidelines.ts`.
+Each tool is one module in `packages/harness/src/tools/` built with
+`defineGameTool`: its name, kind, parameters, description and usage
+lines, minimal valid call, renderers, fallback and run. The `GAME_TOOLS`
+list in `packages/harness/src/tools/registry.ts` registers them, orders
+the tool notes in the prompt and supplies the minimal valid call that a
+tool result gets after two schema failures in a row. A new tool is one
+module, one entry in that list and its name in `ToolName`.
 
 ## Stopping the agent
 

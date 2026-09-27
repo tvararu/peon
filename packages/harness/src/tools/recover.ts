@@ -13,13 +13,11 @@ import {
 import { Refusal } from "#harness/ops/refusal";
 import { poseView, selfView, vitalsView } from "#harness/ops/views";
 import { awaitRun } from "#harness/runs/wait";
-import {
-  defineGameTool,
-  type GameToolSpec,
-  result,
-} from "#harness/tools/define";
+import { defineGameTool, result } from "#harness/tools/define";
+import type { GameToolSpec } from "#harness/tools/game-tool";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 import { type RecoverArgs, recoverParams } from "#harness/tools/params";
+import { recoverRenderers } from "#harness/ui/renderers/live-run";
 
 type Report = ToolResult<RecoverAfter>;
 
@@ -251,12 +249,26 @@ async function runRecover(
   });
 }
 
-export const recoverSpec: GameToolSpec<typeof recoverParams, "recover"> = {
+export const recoverSpec: GameToolSpec<
+  typeof recoverParams,
+  "recover",
+  RecoverAfter
+> = {
   fallback: emptyRecover,
   kind: "run",
+  minimalArgs: {},
   name: "recover",
   parameters: recoverParams,
+  renderers: recoverRenderers,
   run: runRecover,
+  text: {
+    description:
+      "Brings you back to life after a death. It releases your spirit, walks your ghost to your corpse and takes the corpse back. It can also use a spirit healer or accept a resurrection. It waits until you are alive or it fails.",
+    guidelines: [
+      "Use recover at once when a result says that you are dead. Do not use travel as a ghost.",
+    ],
+    label: "Recover",
+  },
 };
 
 export const recoverTool = defineGameTool(recoverSpec);

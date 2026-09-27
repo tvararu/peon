@@ -1,5 +1,4 @@
-import type { HarnessRuntime } from "#harness/contract/services";
-import type { GameTool } from "#harness/tools/define";
+import type { ToolName } from "#harness/contract/result";
 import { engageTool } from "#harness/tools/engage";
 import { interactTool } from "#harness/tools/interact";
 import { journalTool } from "#harness/tools/journal";
@@ -11,7 +10,7 @@ import { socialTool } from "#harness/tools/social";
 import { stopTool } from "#harness/tools/stop";
 import { travelTool } from "#harness/tools/travel";
 
-const TOOLS = [
+export const GAME_TOOLS = [
   lookTool,
   travelTool,
   engageTool,
@@ -22,8 +21,10 @@ const TOOLS = [
   socialTool,
   journalTool,
   stopTool,
-];
+] as const;
 
-export function gameTools(rt: HarnessRuntime): GameTool[] {
-  return TOOLS.map((make) => make(rt));
-}
+type Listed = (typeof GAME_TOOLS)[number]["name"];
+
+export const ALL_TOOLS_LISTED: [Exclude<ToolName, Listed>] extends [never]
+  ? true
+  : never = true;

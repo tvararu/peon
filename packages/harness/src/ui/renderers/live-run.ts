@@ -3,10 +3,13 @@ import type {
   EngageAfter,
   JevDecisionView,
   LegView,
+  RecoverAfter,
+  RestAfter,
   TravelAfter,
   TravelGoalView,
 } from "#harness/contract/details";
 import type { CastView, UnitView, VitalsView } from "#harness/contract/views";
+import type { ToolRenderers } from "#harness/tools/game-tool";
 import { glyphs } from "#harness/ui/context";
 import {
   argText,
@@ -27,7 +30,6 @@ import {
   resultRenderer,
   unitLabel,
 } from "#harness/ui/renderers/line";
-import type { ToolRenderers } from "#harness/ui/renderers/registry";
 
 const STRIP_CELLS = 40;
 
@@ -154,7 +156,7 @@ function travelBody({
   theme,
   running,
   expanded,
-}: BodyInit<"travel">): string[] {
+}: BodyInit<TravelAfter>): string[] {
   const goal = `${glyph("mapPin")} ${goalText(after.goal)}`;
   if (running) return [travelProgress(theme, after), goal];
   const summary = `walked ${yards(after.traveledYd)} in ${seconds(after.elapsedMs)} · ${after.legs.length} legs`;
@@ -230,7 +232,11 @@ function engageDetail(theme: Theme, after: EngageAfter): string[] {
   return [...targets, ...decisions, ...errors, ...timeouts];
 }
 
-function engageBody({ after, theme, expanded }: BodyInit<"engage">): string[] {
+function engageBody({
+  after,
+  theme,
+  expanded,
+}: BodyInit<EngageAfter>): string[] {
   const rows = [
     unitRow(theme, after.current),
     ...vitalsRow(theme, after.self),
@@ -250,7 +256,7 @@ function restCall(args: unknown, theme: Theme): string {
   });
 }
 
-function restBody({ after, theme, expanded }: BodyInit<"rest">): string[] {
+function restBody({ after, theme, expanded }: BodyInit<RestAfter>): string[] {
   const g = glyphs();
   const hp = `${g.health} ${bar({ cells: 12, max: 100, theme, tone: healthTone(after.hpPct / 100), value: after.hpPct })} ${after.hpPct}%`;
   const mana =
@@ -282,7 +288,7 @@ function recoverBody({
   after,
   theme,
   expanded,
-}: BodyInit<"recover">): string[] {
+}: BodyInit<RecoverAfter>): string[] {
   const g = glyphs();
   const state = after.alive
     ? theme.fg("success", `${g.health} alive`)
@@ -309,22 +315,22 @@ function recoverBody({
   return [head, ...pose, ...hp, ...other];
 }
 
-export const travelRenderers: ToolRenderers = {
+export const travelRenderers: ToolRenderers<"travel", TravelAfter> = {
   renderCall: callRenderer(travelCall),
   renderResult: resultRenderer("travel", travelBody),
 };
 
-export const engageRenderers: ToolRenderers = {
+export const engageRenderers: ToolRenderers<"engage", EngageAfter> = {
   renderCall: callRenderer(engageCall),
   renderResult: resultRenderer("engage", engageBody),
 };
 
-export const restRenderers: ToolRenderers = {
+export const restRenderers: ToolRenderers<"rest", RestAfter> = {
   renderCall: callRenderer(restCall),
   renderResult: resultRenderer("rest", restBody),
 };
 
-export const recoverRenderers: ToolRenderers = {
+export const recoverRenderers: ToolRenderers<"recover", RecoverAfter> = {
   renderCall: callRenderer(recoverCall),
   renderResult: resultRenderer("recover", recoverBody),
 };

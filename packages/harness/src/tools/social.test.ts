@@ -6,7 +6,7 @@ import { runTool } from "#test-support/tool-harness";
 
 async function world() {
   const { handle, rt } = await createTestRuntime();
-  return { handle, rt, tool: socialTool(rt) };
+  return { handle, rt, tool: socialTool.definition(rt) };
 }
 
 async function withFakeTimers<T>(body: () => Promise<T>): Promise<T> {

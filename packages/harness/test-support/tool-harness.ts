@@ -1,21 +1,23 @@
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { ToolDetails } from "#harness/contract/details";
-import type { GameTool } from "#harness/tools/define";
+import type { Static, TSchema } from "@earendil-works/pi-ai";
+import type {
+  ExtensionContext,
+  ToolDefinition,
+} from "@earendil-works/pi-coding-agent";
 
-export type ToolRun = {
-  details: ToolDetails;
+export type ToolRun<D> = {
+  details: D;
   text: string;
-  updates: ToolDetails[];
+  updates: D[];
 };
 export type RunInit = { id?: string; signal?: AbortSignal };
 
-export async function runTool(
-  tool: GameTool,
-  args: Record<string, unknown>,
+export async function runTool<P extends TSchema, D>(
+  tool: ToolDefinition<P, D>,
+  args: Static<P>,
   init: RunInit = {},
-): Promise<ToolRun> {
-  const updates: ToolDetails[] = [];
-  const onUpdate = (partial: { details: ToolDetails }) => {
+): Promise<ToolRun<D>> {
+  const updates: D[] = [];
+  const onUpdate = (partial: { details: D }) => {
     updates.push(partial.details);
   };
   const out = await tool.execute(

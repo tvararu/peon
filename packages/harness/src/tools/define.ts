@@ -6,7 +6,7 @@ import type { Static, TSchema } from "@earendil-works/pi-ai";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { messageOf } from "@peon/core/lib/errors";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
-import type { AfterMap, ToolDetails } from "#harness/contract/details";
+import type { ToolDetailsFor } from "#harness/contract/details";
 import type {
   ResultInit,
   ToolName,
@@ -34,8 +34,12 @@ import { Refusal } from "#harness/ops/refusal";
 import { repeatRefusal } from "#harness/ops/repeat-guard";
 import { repeatScene } from "#harness/ops/repeat-scene";
 import { poseView } from "#harness/ops/views";
-import { TOOL_TEXT } from "#harness/prompt/guidelines";
 import { coverRows } from "#harness/tools/covered";
+import type {
+  GameToolModule,
+  GameToolSpec,
+  ToolKind,
+} from "#harness/tools/game-tool";
 import { admitAgent } from "#harness/tools/human-admission";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 import { scrub } from "#harness/tools/scrub";
@@ -227,30 +231,13 @@ export function emptyUnit(): UnitView {
   };
 }
 
-export type ToolKind = "read" | "action" | "run" | "control";
-
-export type GameToolSpec<P extends TSchema, K extends ToolName> = {
-  name: K;
-  kind: ToolKind;
-  parameters: P;
-  run: (
-    args: Static<P>,
-    ctx: ToolCtx<AfterMap[K]>,
-  ) => Promise<ToolResult<AfterMap[K]>>;
-  fallback: () => AfterMap[K];
-  maxLines?: number;
-  prepareArguments?: (args: unknown) => Static<P>;
-};
-
-export type GameTool = ToolDefinition<TSchema, ToolDetails>;
-
-type Call<P extends TSchema, K extends ToolName> = {
+type Call<P extends TSchema, N extends ToolName, A> = {
   args: Static<P>;
-  onUpdate: AgentToolUpdateCallback<ToolDetails> | undefined;
+  onUpdate: AgentToolUpdateCallback<ToolDetailsFor<N, A>> | undefined;
   rt: HarnessRuntime;
   signal: AbortSignal | undefined;
-  spec: GameToolSpec<P, K>;
-  state: { current: AfterMap[K]; updatedAt: number | undefined };
+  spec: GameToolSpec<P, N, A>;
+  state: { current: A; updatedAt: number | undefined };
   toolCallId: string;
 };
 
@@ -269,19 +256,19 @@ const HUMAN_STOP: Mapped = {
   status: "FAILED",
 };
 
-function detailsOf<K extends ToolName>(
-  tool: K,
-  outcome: ToolResult<AfterMap[K]>,
-): ToolDetails {
-  return { result: outcome, tool } as ToolDetails;
+function detailsOf<N extends ToolName, A>(
+  tool: N,
+  outcome: ToolResult<A>,
+): ToolDetailsFor<N, A> {
+  return { result: outcome, tool };
 }
 
-function openCall<P extends TSchema, K extends ToolName>({
+function openCall<P extends TSchema, N extends ToolName, A>({
   args,
   rt,
   spec,
   toolCallId,
-}: Call<P, K>): void {
+}: Call<P, N, A>): void {
   rt.session.turnToolCalls += 1;
   const data = {
     args: scrub(args, rt.profile.client.password),
@@ -299,8 +286,8 @@ function openCall<P extends TSchema, K extends ToolName>({
   rt.stats.call(spec.name);
 }
 
-function repeatCall<P extends TSchema, K extends ToolName>(
-  { args, rt, spec }: Call<P, K>,
+function repeatCall<P extends TSchema, N extends ToolName, A>(
+  { args, rt, spec }: Call<P, N, A>,
   handle: Game,
 ): RepeatCall {
   return {
@@ -312,8 +299,8 @@ function repeatCall<P extends TSchema, K extends ToolName>(
   };
 }
 
-async function admit<P extends TSchema, K extends ToolName>(
-  call: Call<P, K>,
+async function admit<P extends TSchema, N extends ToolName, A>(
+  call: Call<P, N, A>,
 ): Promise<Game> {
   const { rt, spec } = call;
   if (rt.session.turnToolCalls > TURN_BUDGET)
@@ -340,12 +327,12 @@ async function admit<P extends TSchema, K extends ToolName>(
   throw repeatRefusal({ hit, tool: spec.name });
 }
 
-function pushUpdate<P extends TSchema, K extends ToolName>(
-  call: Call<P, K>,
-  partial: ToolResult<AfterMap[K]>,
+function pushUpdate<P extends TSchema, N extends ToolName, A>(
+  call: Call<P, N, A>,
+  partial: ToolResult<A>,
 ): void {
   const { rt, spec, state } = call;
-  const running: ToolResult<AfterMap[K]> = { ...partial, status: "RUNNING" };
+  const running: ToolResult<A> = { ...partial, status: "RUNNING" };
   const now = rt.clock.now();
   state.current = running.after;
   if (state.updatedAt !== undefined && now - state.updatedAt < UPDATE_EVERY_MS)
@@ -361,10 +348,10 @@ function pushUpdate<P extends TSchema, K extends ToolName>(
   });
 }
 
-function toolCtx<P extends TSchema, K extends ToolName>(
-  call: Call<P, K>,
+function toolCtx<P extends TSchema, N extends ToolName, A>(
+  call: Call<P, N, A>,
   handle: Game,
-): ToolCtx<AfterMap[K]> {
+): ToolCtx<A> {
   const signal = call.signal ?? new AbortController().signal;
   return {
     handle,
@@ -376,10 +363,10 @@ function toolCtx<P extends TSchema, K extends ToolName>(
   };
 }
 
-async function invoke<P extends TSchema, K extends ToolName>(
-  call: Call<P, K>,
+async function invoke<P extends TSchema, N extends ToolName, A>(
+  call: Call<P, N, A>,
   handle: Game,
-): Promise<ToolResult<AfterMap[K]>> {
+): Promise<ToolResult<A>> {
   const { rt, signal, spec } = call;
   const esc = () => {
     rt.stopAll("esc");
@@ -397,9 +384,9 @@ function fromRefusal<A>(refusal: Refusal, after: A): ToolResult<A> {
   return { after, body, detail, next, options, reason, status };
 }
 
-async function outcomeOf<P extends TSchema, K extends ToolName>(
-  call: Call<P, K>,
-): Promise<ToolResult<AfterMap[K]>> {
+async function outcomeOf<P extends TSchema, N extends ToolName, A>(
+  call: Call<P, N, A>,
+): Promise<ToolResult<A>> {
   try {
     return await invoke(call, await admit(call));
   } catch (error) {
@@ -415,10 +402,10 @@ function withHumanStop<A>(outcome: ToolResult<A>): ToolResult<A> {
     : outcome;
 }
 
-function remember<P extends TSchema, K extends ToolName>(
-  call: Call<P, K>,
+function remember<P extends TSchema, N extends ToolName, A>(
+  call: Call<P, N, A>,
   handle: Game,
-  outcome: ToolResult<AfterMap[K]>,
+  outcome: ToolResult<A>,
 ): void {
   const { args, rt, spec } = call;
   const digest = rt.progress.digest(handle);
@@ -440,9 +427,9 @@ function remember<P extends TSchema, K extends ToolName>(
   });
 }
 
-function closeCall<P extends TSchema, K extends ToolName>(
-  call: Call<P, K>,
-  { handle, ms, outcome, text: said }: Closing<AfterMap[K]>,
+function closeCall<P extends TSchema, N extends ToolName, A>(
+  call: Call<P, N, A>,
+  { handle, ms, outcome, text: said }: Closing<A>,
 ): void {
   const { rt, spec, toolCallId } = call;
   const { reason, status } = outcome;
@@ -469,9 +456,9 @@ function closeCall<P extends TSchema, K extends ToolName>(
     rt.log.mark(row.seq, { consumedBy: toolCallId });
 }
 
-async function runCall<P extends TSchema, K extends ToolName>(
-  call: Call<P, K>,
-): Promise<AgentToolResult<ToolDetails>> {
+async function runCall<P extends TSchema, N extends ToolName, A>(
+  call: Call<P, N, A>,
+): Promise<AgentToolResult<ToolDetailsFor<N, A>>> {
   const { rt, spec, toolCallId } = call;
   const startedAt = rt.clock.now();
   openCall(call);
@@ -498,16 +485,18 @@ async function runCall<P extends TSchema, K extends ToolName>(
   };
 }
 
-export function defineGameTool<P extends TSchema, K extends ToolName>(
-  spec: GameToolSpec<P, K>,
-): (rt: HarnessRuntime) => GameTool {
-  const text = TOOL_TEXT[spec.name];
-  const executionMode = spec.kind === "read" ? "parallel" : "sequential";
-  return (rt) => ({
+export function defineGameTool<P extends TSchema, N extends ToolName, A>(
+  spec: GameToolSpec<P, N, A>,
+): GameToolModule<N, P, A> {
+  const { kind, name, renderers, text } = spec;
+  const executionMode = kind === "read" ? "parallel" : "sequential";
+  const definition = (
+    rt: HarnessRuntime,
+  ): ToolDefinition<P, ToolDetailsFor<N, A>> => ({
     description: text.description,
     execute: (toolCallId, args, signal, onUpdate) =>
       runCall({
-        args: args as Static<P>,
+        args,
         onUpdate,
         rt,
         signal,
@@ -517,9 +506,19 @@ export function defineGameTool<P extends TSchema, K extends ToolName>(
       }),
     executionMode,
     label: text.label,
-    name: spec.name,
+    name,
     parameters: spec.parameters,
     ...(spec.prepareArguments && { prepareArguments: spec.prepareArguments }),
     promptGuidelines: text.guidelines,
+    ...renderers,
   });
+  return {
+    definition,
+    kind,
+    minimalCall: nextCall(name, spec.minimalArgs),
+    name,
+    register: (pi, rt) => pi.registerTool(definition(rt)),
+    renderers,
+    text,
+  };
 }

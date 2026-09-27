@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { visibleWidth } from "@earendil-works/pi-tui";
 import type { LookAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
+import { lookTool } from "#harness/tools/look";
 import { nerd } from "#harness/ui/glyphs";
 import {
   closed,
@@ -62,12 +63,16 @@ const result = (look: LookAfter): ToolResult<LookAfter> => ({
 describe("picture family (look)", () => {
   test("call line shows the filter", () => {
     expect(
-      renderCallLine("look", { find: "hostile", name: "Stalker", within: 30 }),
+      renderCallLine(lookTool, {
+        find: "hostile",
+        name: "Stalker",
+        within: 30,
+      }),
     ).toBe(`${nerd.target} look hostile "Stalker" ≤30y`);
   });
 
   test("collapsed: status, vitals, place and danger", () => {
-    const lines = renderResultLines("look", result(after));
+    const lines = renderResultLines(lookTool, result(after));
     const text = plain(lines);
     expect(text).toHaveLength(4);
     expect(text[0]).toBe(`${nerd.runDone} DONE 2 units within 60 yd.`);
@@ -83,20 +88,20 @@ describe("picture family (look)", () => {
 
   test("without danger the third line names the nearest hostile", () => {
     const calm = { ...after, danger: { attackers: [], hpPct: 81 } };
-    expect(plain(renderResultLines("look", result(calm)))[3]).toBe(
+    expect(plain(renderResultLines(lookTool, result(calm)))[3]).toBe(
       `nearest hostile ${nerd.hostile} Springpaw Stalker u9 L7 4y${nerd.compassNE}`,
     );
   });
 
   test("the unchanged badge counts repeated looks", () => {
     expect(
-      plain(renderResultLines("look", result({ ...after, unchanged: 3 })))[2],
+      plain(renderResultLines(lookTool, result({ ...after, unchanged: 3 })))[2],
     ).toContain(`${nerd.clock} unchanged ×3`);
   });
 
   test("expanded at 100 columns lists rows without a map", () => {
     const text = plain(
-      renderResultLines("look", result(after), { options: open, width: 100 }),
+      renderResultLines(lookTool, result(after), { options: open, width: 100 }),
     );
     expect(text[4]).toStartWith(`u9   ${nerd.hostile} Springpaw Stalker`);
     expect(text[5]).toStartWith(`u3   ${nerd.vendor} Innkeeper Delaniel`);
@@ -105,7 +110,7 @@ describe("picture family (look)", () => {
   });
 
   test("expanded at 140 columns draws the mini-map beside the rows", () => {
-    const lines = renderResultLines("look", result(after), {
+    const lines = renderResultLines(lookTool, result(after), {
       options: open,
       width: 140,
     });
@@ -119,7 +124,7 @@ describe("picture family (look)", () => {
 
   test("collapsed output stays within every width", () => {
     for (const width of [30, 60, 90]) {
-      for (const line of renderResultLines("look", result(after), {
+      for (const line of renderResultLines(lookTool, result(after), {
         options: closed,
         width,
       })) {

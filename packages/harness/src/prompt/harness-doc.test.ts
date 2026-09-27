@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { USAGE } from "#harness/config/flags";
 import { installCommands } from "#harness/extension/commands";
-import { TOOL_TEXT } from "#harness/prompt/guidelines";
+import { GAME_TOOLS } from "#harness/tools/registry";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 
 const DOC = `${import.meta.dir}/../../../../docs/harness.md`;
@@ -48,7 +48,9 @@ describe("docs/harness.md", () => {
   test("names every tool", async () => {
     const text = await doc();
     expect(
-      Object.keys(TOOL_TEXT).filter((tool) => !text.includes(`\`${tool}\``)),
+      GAME_TOOLS.map((tool) => tool.name).filter(
+        (name) => !text.includes(`\`${name}\``),
+      ),
     ).toEqual([]);
   });
 

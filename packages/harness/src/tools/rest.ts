@@ -22,13 +22,11 @@ import {
   vitalsView,
 } from "#harness/ops/views";
 import { awaitRun, YIELD_AFTER_MS } from "#harness/runs/wait";
-import {
-  defineGameTool,
-  type GameToolSpec,
-  result,
-} from "#harness/tools/define";
+import { defineGameTool, result } from "#harness/tools/define";
+import type { GameToolSpec } from "#harness/tools/game-tool";
 import { nextCall } from "#harness/tools/next-call";
 import { type RestArgs, restParams } from "#harness/tools/params";
+import { restRenderers } from "#harness/ui/renderers/live-run";
 
 type Report = ToolResult<RestAfter>;
 type Consumable = {
@@ -467,12 +465,22 @@ async function runRest(
   });
 }
 
-export const restSpec: GameToolSpec<typeof restParams, "rest"> = {
+export const restSpec: GameToolSpec<typeof restParams, "rest", RestAfter> = {
   fallback: emptyRest,
   kind: "run",
+  minimalArgs: {},
   name: "rest",
   parameters: restParams,
+  renderers: restRenderers,
   run: runRest,
+  text: {
+    description:
+      "Eats and drinks from your bags until your health and mana reach a percent, and eats again when the food ends. It stops at that percent, after 110 seconds, when nothing increases for 10 seconds, or when a unit attacks you. It refuses in combat and when you are dead.",
+    guidelines: [
+      "Rest before a fight when your health is under 50% or your mana is under 30%.",
+    ],
+    label: "Rest",
+  },
 };
 
 export const restTool = defineGameTool(restSpec);

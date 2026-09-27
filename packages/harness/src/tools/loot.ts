@@ -10,13 +10,11 @@ import { resolveUnit, unitRefusal } from "#harness/ops/resolve";
 import { travelLeg } from "#harness/ops/travel-leg";
 import { reachNext } from "#harness/ops/unreached";
 import { unitViews } from "#harness/ops/views";
-import {
-  defineGameTool,
-  type GameToolSpec,
-  result,
-} from "#harness/tools/define";
+import { defineGameTool, result } from "#harness/tools/define";
+import type { GameToolSpec } from "#harness/tools/game-tool";
 import { nextCall } from "#harness/tools/next-call";
 import { type LootArgs, lootParams } from "#harness/tools/params";
+import { lootRenderers } from "#harness/ui/renderers/card";
 
 type Corpse = { unit: UnitView; guid: bigint };
 
@@ -154,12 +152,22 @@ async function runLoot(
   return noteQuestsDone(ctx, before, report(ctx, corpse, op));
 }
 
-export const lootSpec: GameToolSpec<typeof lootParams, "loot"> = {
+export const lootSpec: GameToolSpec<typeof lootParams, "loot", LootAfter> = {
   fallback: emptyLoot,
   kind: "action",
+  minimalArgs: {},
   name: "loot",
   parameters: lootParams,
+  renderers: lootRenderers,
   run: runLoot,
+  text: {
+    description:
+      "Takes every item and the money from one corpse, one slot at a time. It walks to the corpse first. Leave target empty to loot the nearest lootable corpse within 30 yards.",
+    guidelines: [
+      "engage loots each kill already. Use loot only for a corpse that engage did not loot.",
+    ],
+    label: "Loot",
+  },
 };
 
 export const lootTool = defineGameTool(lootSpec);

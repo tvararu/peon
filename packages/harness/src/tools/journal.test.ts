@@ -31,7 +31,7 @@ async function world() {
   const { handle, rt } = await createTestRuntime({
     parts: { clock, log, runs },
   });
-  return { handle, rt, tool: journalTool(rt) };
+  return { handle, rt, tool: journalTool.definition(rt) };
 }
 
 function slot(
