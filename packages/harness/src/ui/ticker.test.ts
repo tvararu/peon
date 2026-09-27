@@ -175,6 +175,30 @@ describe("createTicker", () => {
     expect(plain(component.render(120))[5]).toContain("a new row");
   });
 
+  test("shows one not-implemented line per opcode for the session", () => {
+    const notice = (seq: number, opcode: number, label: string) =>
+      row(seq, {
+        class: "log",
+        data: { label, opcode },
+        domain: "notice",
+        event: "notice/not_implemented",
+        text: `[tuicraft] ${label} #${seq} is not yet implemented`,
+      });
+    const rows = [notice(10, 592, "Spell damage"), row(11, { text: "hit" })];
+    const component = createTicker(source(rows, run))(
+      createFakeTui().tui,
+      theme,
+    );
+    expect(plain(component.render(160)).join("\n")).toContain(
+      "Spell damage #10",
+    );
+    rows.splice(0, rows.length, row(20, { text: "cast" }));
+    rows.push(notice(21, 592, "Spell damage"), notice(22, 1135, "Achievement"));
+    const text = plain(component.render(160)).join("\n");
+    expect(text).not.toContain("Spell damage #21");
+    expect(text).toContain("Achievement #22");
+  });
+
   test("reads the time from the source clock, not the wall clock", () => {
     let at = now;
     const component = createTicker({ ...source(entries, run), now: () => at })(

@@ -25,6 +25,7 @@ export type TickerInit = {
   width: number;
   theme: Theme;
   now: number;
+  noticed?: Map<unknown, number>;
 };
 
 export const TICKER_ROWS = 6;
@@ -53,11 +54,21 @@ const EMOTE_OPCODES: ReadonlySet<unknown> = new Set([
   SMSG_TEXT_EMOTE,
 ]);
 
-function visible(entry: GameLogEntry): boolean {
+function firstNotice(
+  entry: GameLogEntry,
+  noticed: Map<unknown, number>,
+): boolean {
+  const opcode = entry.data["opcode"];
+  if (EMOTE_OPCODES.has(opcode)) return false;
+  const first = noticed.get(opcode) ?? entry.seq;
+  noticed.set(opcode, first);
+  return first === entry.seq;
+}
+
+function visible(entry: GameLogEntry, noticed: Map<unknown, number>): boolean {
   if (HIDDEN.has(entry.event)) return false;
-  return !(
-    entry.event === "notice/not_implemented" &&
-    EMOTE_OPCODES.has(entry.data["opcode"])
+  return (
+    entry.event !== "notice/not_implemented" || firstNotice(entry, noticed)
   );
 }
 
@@ -90,8 +101,11 @@ export function tickerLines({
   width,
   theme,
   now,
+  noticed = new Map(),
 }: TickerInit): string[] {
-  const shown = source.recent(SCAN_ROWS).filter(visible);
+  const shown = source
+    .recent(SCAN_ROWS)
+    .filter((entry) => visible(entry, noticed));
   const events = shown
     .slice(-EVENT_ROWS)
     .map((entry) => eventRow(entry, theme, now));
@@ -108,6 +122,7 @@ export function createTicker(
 ): (tui: TUI, theme: Theme) => Component {
   return (_tui, theme) => {
     let last: { key: string; lines: string[] } | undefined;
+    const noticed = new Map<unknown, number>();
     return {
       invalidate: () => {
         last = undefined;
@@ -125,7 +140,10 @@ export function createTicker(
           run?.progress,
         ].join("|");
         if (last?.key !== key)
-          last = { key, lines: tickerLines({ now, source, theme, width }) };
+          last = {
+            key,
+            lines: tickerLines({ noticed, now, source, theme, width }),
+          };
         return last.lines;
       },
     };
