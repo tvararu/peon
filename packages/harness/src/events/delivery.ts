@@ -5,10 +5,21 @@ import type {
   HumanLineDetails,
   WowEventDetails,
 } from "#harness/contract/log";
-import type { DeliverySink, HarnessRuntime } from "#harness/contract/services";
+import type {
+  DeliverySink,
+  GameLog,
+  HarnessRuntime,
+} from "#harness/contract/services";
 import { WAKE_MIN_GAP_MS } from "#harness/events/guard";
 
 export const PASSIVE_FLUSH_CAP = 20;
+export const CALL_ROWS_CAP = 5;
+
+const FIGHT_OVER = new Set<GameLogEntry["event"]>([
+  "fight/end",
+  "combat/kill_credit",
+  "combat/target_died",
+]);
 
 export type Delivery = DeliverySink & {
   flush: () => void;
@@ -70,6 +81,47 @@ function capped(passive: GameLogEntry[]): {
   return { more: passive.length - shown.length, shown };
 }
 
+function moreText(more: number): string {
+  return more > 0 ? `\n+${more} more in the log (journal about "log").` : "";
+}
+
+export function attachCallRows(
+  log: GameLog,
+  toolCallId: string,
+  now: number,
+): string {
+  const rows = log.since(0);
+  const start = rows.findLastIndex(
+    (row) => row.event === "tool/call" && row.data["toolCallId"] === toolCallId,
+  );
+  if (start < 0) return "";
+  const fresh = rows
+    .slice(start + 1)
+    .filter(
+      (row) =>
+        row.class === "passive" &&
+        row.consumedBy === undefined &&
+        row.delivered !== true,
+    );
+  if (fresh.length === 0) return "";
+  for (const row of fresh)
+    log.mark(row.seq, { consumedBy: toolCallId, delivered: true });
+  const shown = formatWake(fresh.slice(0, CALL_ROWS_CAP), now);
+  return `\n${shown}${moreText(fresh.length - CALL_ROWS_CAP)}`;
+}
+
+function quiet(entry: GameLogEntry): boolean {
+  return entry.event === "xp/gain" && entry.data["source"] === "exploration";
+}
+
+function fightOver(rt: HarnessRuntime, entry: GameLogEntry): boolean {
+  if (entry.event !== "combat/attacked" || entry.guid === undefined)
+    return false;
+  return rt.log
+    .since(entry.seq)
+    .some((row) => row.guid === entry.guid && FIGHT_OVER.has(row.event));
+}
+
 function heldByRun(rt: HarnessRuntime, entry: GameLogEntry): boolean {
   const run = entry.runId ? rt.runs.get(entry.runId) : undefined;
   return run?.status === "running";
@@ -99,8 +151,7 @@ function send({ pi, rt, kind, wakes, passive }: Send): void {
   const { more, shown } = capped(passive);
   const entries = [...wakes, ...shown];
   if (entries.length === 0) return;
-  const tail =
-    more > 0 ? `\n+${more} more in the log (journal about "log").` : "";
+  const tail = moreText(more);
   const details: WowEventDetails = { entries, kind };
   const content = `${formatWake(entries, rt.clock.now())}${tail}`;
   const options =
@@ -126,7 +177,7 @@ export function createDelivery({ pi, rt }: DeliveryInit): Delivery {
   const sendWakes = () => {
     clearTimeout(timer);
     timer = undefined;
-    const wakes = drain(rt, wakeSeqs);
+    const wakes = drain(rt, wakeSeqs).filter((entry) => !fightOver(rt, entry));
     if (wakes.length === 0) return;
     lastWakeAt = rt.clock.now();
     send({ kind: "wake", passive: passiveFor(wakes), pi, rt, wakes });
@@ -155,7 +206,7 @@ export function createDelivery({ pi, rt }: DeliveryInit): Delivery {
       pi.appendEntry<HumanLineDetails>("wow-human", { entry });
     },
     passive(entry) {
-      passiveSeqs.push(entry.seq);
+      if (!quiet(entry)) passiveSeqs.push(entry.seq);
     },
     takePassive() {
       const { shown } = capped(drain(rt, passiveSeqs));

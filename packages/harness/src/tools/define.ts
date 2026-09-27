@@ -26,6 +26,7 @@ import type {
   UnitView,
   VitalsView,
 } from "#harness/contract/views";
+import { attachCallRows } from "#harness/events/delivery";
 import { dangerLine, dangerView } from "#harness/ops/danger";
 import { guardCall } from "#harness/ops/next-guard";
 import { Refusal } from "#harness/ops/refusal";
@@ -489,8 +490,9 @@ async function runCall<P extends TSchema, K extends ToolName>(
   });
   closeCall(call, { handle, ms, outcome, text });
   coverRows(rt.log, { status: outcome.status, tool: spec.name, toolCallId });
+  const tail = attachCallRows(rt.log, toolCallId, rt.clock.now());
   return {
-    content: [{ text, type: "text" }],
+    content: [{ text: `${text}${tail}`, type: "text" }],
     details: detailsOf(spec.name, outcome),
   };
 }

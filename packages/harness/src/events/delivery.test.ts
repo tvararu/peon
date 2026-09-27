@@ -2,7 +2,11 @@ import { describe, expect, jest, test } from "bun:test";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { ChatType } from "@tuicraft/core";
 import type { LogDraft } from "#harness/contract/log";
-import { createDelivery, formatWake } from "#harness/events/delivery";
+import {
+  attachCallRows,
+  createDelivery,
+  formatWake,
+} from "#harness/events/delivery";
 import { WAKE_MIN_GAP_MS } from "#harness/events/guard";
 import { createGameLog } from "#harness/log/store";
 import { createTestRuntime } from "#test-support/runtime-fixture";
@@ -311,5 +315,138 @@ describe("createDelivery", () => {
     expect(delivery.takePassive()).toEqual([line]);
     expect(log.get(line.seq)?.delivered).toBe(true);
     expect(delivery.takePassive()).toEqual([]);
+  });
+});
+
+describe("attachCallRows", () => {
+  const call = (toolCallId: string): LogDraft => ({
+    class: "log",
+    data: { toolCallId },
+    domain: "tool",
+    event: "tool/call",
+    text: "travel called",
+  });
+
+  test("a passive row from the run goes into its result, not the next wake", async () => {
+    const { delivery, log, pi, tick } = await setup();
+    const before = log.append(passiveDraft("You gain 5 XP."));
+    delivery.passive(before);
+    log.append(call("c1"));
+    const explored = log.append({
+      ...passiveDraft("You gain 55 XP (exploring Ghostlands)."),
+      data: { source: "exploration" },
+    });
+    delivery.passive(explored);
+    const told = log.append({
+      ...passiveDraft("You gain 90 XP."),
+      consumedBy: "c1",
+    });
+    tick(2000);
+    expect(attachCallRows(log, "c1", 102_000)).toBe(
+      "\n[game 2s] You gain 55 XP (exploring Ghostlands).",
+    );
+    expect(log.get(explored.seq)).toMatchObject({
+      consumedBy: "c1",
+      delivered: true,
+    });
+    expect(log.get(told.seq)?.delivered).toBe(false);
+    delivery.wake([log.append(wakeDraft("r4 travel ended: DONE arrived."))]);
+    expect(content(pi.sent[0]).split("\n")).toEqual([
+      "[game 2s] You gain 5 XP.",
+      "[game 0s] r4 travel ended: DONE arrived.",
+    ]);
+    delivery.flush();
+    expect(pi.sent).toHaveLength(1);
+  });
+
+  test("shows 5 rows, then a count", async () => {
+    const { log } = await setup();
+    log.append(call("c1"));
+    const rows = Array.from({ length: 7 }, (_, i) =>
+      log.append(passiveDraft(`line ${i + 1}`)),
+    );
+    expect(attachCallRows(log, "c1", 100_000).split("\n")).toEqual([
+      "",
+      "[game 0s] line 1",
+      "[game 0s] line 2",
+      "[game 0s] line 3",
+      "[game 0s] line 4",
+      "[game 0s] line 5",
+      '+2 more in the log (journal about "log").',
+    ]);
+    expect(rows.map((row) => log.get(row.seq)?.consumedBy)).toEqual(
+      Array.from({ length: 7 }, () => "c1"),
+    );
+  });
+
+  test("adds nothing without rows, or without the call", async () => {
+    const { log } = await setup();
+    log.append(passiveDraft("You gain 5 XP."));
+    expect(attachCallRows(log, "c1", 100_000)).toBe("");
+    log.append(call("c1"));
+    log.append(wakeDraft("r4 travel ended"));
+    expect(attachCallRows(log, "c1", 100_000)).toBe("");
+  });
+});
+
+describe("late wakes", () => {
+  const attacked = (guid: string): LogDraft => ({
+    class: "wake",
+    data: { attacker: guid },
+    delivered: false,
+    domain: "combat",
+    event: "combat/attacked",
+    guid,
+    text: `Starving Ghostclaw ${guid} attacks you.`,
+  });
+  const ended = (guid: string): LogDraft => ({
+    class: "log",
+    data: { target: guid },
+    domain: "fight",
+    event: "fight/end",
+    guid,
+    text: "Fight ended.",
+  });
+
+  test("drops an attack whose fight ended before the agent was free", async () => {
+    const { delivery, log, pi, rt } = await setup();
+    rt.session.agent = "tool";
+    const stale = log.append(attacked("f1"));
+    const live = log.append(attacked("f2"));
+    delivery.wake([stale, live]);
+    log.append(ended("f1"));
+    rt.session.agent = "idle";
+    delivery.flush();
+    expect(pi.sent.map(content)).toEqual([
+      "[game 0s] Starving Ghostclaw f2 attacks you.",
+    ]);
+    expect(log.get(stale.seq)?.delivered).toBe(false);
+  });
+
+  test("drops every attack once its fight ended, with no wake at all", async () => {
+    const { delivery, log, pi, rt } = await setup();
+    rt.session.agent = "streaming";
+    const stale = log.append(attacked("f1"));
+    delivery.wake([stale]);
+    log.append({ ...ended("f1"), event: "combat/kill_credit" });
+    delivery.passive(log.append(passiveDraft("You gain 63 XP.")));
+    rt.session.agent = "idle";
+    delivery.flush();
+    expect(pi.sent.map((sent) => sent.options)).toEqual([
+      { triggerTurn: false },
+    ]);
+  });
+
+  test("never pushes exploration XP outside a tool result", async () => {
+    const { delivery, log, pi } = await setup();
+    const explored = log.append({
+      ...passiveDraft("You gain 55 XP (exploring Ghostlands)."),
+      data: { source: "exploration" },
+    });
+    delivery.passive(explored);
+    delivery.flush();
+    delivery.wake([log.append(wakeDraft("r4 travel ended"))]);
+    expect(pi.sent.map(content)).toEqual(["[game 0s] r4 travel ended"]);
+    expect(log.get(explored.seq)?.delivered).toBe(false);
   });
 });
