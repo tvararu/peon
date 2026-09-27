@@ -38,7 +38,7 @@ type Failure = {
   times: number;
 };
 
-function stable(value: unknown): string {
+export function stable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
   if (value && typeof value === "object") {
     const entries = Object.entries(value).filter(
@@ -84,15 +84,20 @@ function untriedOf(failures: Map<string, Failure>): string[] {
 export function createRepeatGuard(clock: Clock): RepeatGuard {
   const failures = new Map<string, Failure>();
   let hitCount = 0;
-  const blocks = (failure: Failure, call: RepeatCall) =>
+  const blocking = (failure: Failure, call: RepeatCall) =>
     clock.now() - failure.at <= REPEAT_TTL_MS &&
     failure.digest === call.digest &&
     !moved(failure.pose, call.pose);
+  const stored = (call: RepeatCall) =>
+    call.tool === "look" ? undefined : failures.get(keyOf(call));
   return {
+    blocks(call) {
+      const failure = stored(call);
+      return failure !== undefined && blocking(failure, call);
+    },
     check(call) {
-      const failure =
-        call.tool === "look" ? undefined : failures.get(keyOf(call));
-      if (!(failure && blocks(failure, call))) return;
+      const failure = stored(call);
+      if (!(failure && blocking(failure, call))) return;
       hitCount += 1;
       failure.times += 1;
       return {

@@ -173,6 +173,51 @@ describe("defineGameTool", () => {
     expect(run).toHaveBeenCalledTimes(1);
   });
 
+  test("a Next that repeats the call that just stopped asks the human", async () => {
+    const { rt } = await createTestRuntime();
+    const run: Run = () =>
+      Promise.resolve(
+        result("PARTLY", {
+          after: emptySocial(),
+          detail: "said half.",
+          next: 'social(text: "a")',
+          reason: "cut_off",
+        }),
+      );
+    const out = await runTool(probe(run)(rt), { text: "a" });
+    expect(out.text).toBe(
+      'PARTLY cut_off: said half.\nNext: ask the human: "My social call stopped (cut_off) and repeating it will not help. What should I do?"',
+    );
+  });
+
+  test("a Next that already failed from here asks the human", async () => {
+    const { rt } = await createTestRuntime({
+      parts: {
+        progress: fixedProgress(),
+        repeats: createRepeatGuard({ now: () => 0 }),
+      },
+    });
+    const travel = defineGameTool({
+      fallback: emptySocial,
+      kind: "action",
+      name: "travel",
+      parameters: Type.Object({ to: Type.String() }),
+      run: (): never => {
+        throw new Refusal({
+          detail: "no ground.",
+          next: 'ask the human: "Another way?"',
+          reason: "no_ground",
+          status: "FAILED",
+        });
+      },
+    } as unknown as GameToolSpec<typeof params, "social">)(rt);
+    await runTool(travel, { to: "u3" });
+    const out = await runTool(probe(tooFar())(rt), { text: "a" });
+    expect(out.text).toBe(
+      'REFUSED too_far: the NPC is 40 yd away.\nNext: ask the human: "My social call failed (too_far) and travel already failed from here. What should I do?"',
+    );
+  });
+
   test("look is never blocked by the repeat guard", async () => {
     const { rt } = await createTestRuntime({
       parts: {

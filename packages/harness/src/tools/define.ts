@@ -27,6 +27,7 @@ import type {
   VitalsView,
 } from "#harness/contract/views";
 import { dangerLine, dangerView } from "#harness/ops/danger";
+import { guardCall } from "#harness/ops/next-guard";
 import { Refusal } from "#harness/ops/refusal";
 import { repeatRefusal } from "#harness/ops/repeat-guard";
 import { poseView } from "#harness/ops/views";
@@ -478,8 +479,9 @@ async function runCall<P extends TSchema, K extends ToolName>(
   const { rt, spec } = call;
   const startedAt = rt.clock.now();
   openCall(call);
-  const outcome = withHumanStop(await outcomeOf(call));
+  const raw = withHumanStop(await outcomeOf(call));
   const handle = rt.handle();
+  const outcome = guardCall({ ...call, handle, tool: spec.name }, raw);
   closeCall(call, { handle, ms: rt.clock.now() - startedAt, outcome });
   const danger = handle
     ? dangerLine(dangerView({ handle, rt }), { still: spec.kind === "control" })

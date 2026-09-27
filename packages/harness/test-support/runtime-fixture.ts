@@ -166,6 +166,7 @@ function defaultParts({
     ready: readyDouble(forceReady),
     refs: memoryRefs(),
     repeats: {
+      blocks: () => false,
       check: () => undefined,
       hits: () => 0,
       record: () => {},
