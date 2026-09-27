@@ -200,6 +200,7 @@ async function cycleEnd({
   const stopped = new Promise<void>((resolve) => {
     unsubscribe = handle.onCycleEvent((event) => {
       if (event.type === "stopped") resolve();
+      if (event.type === "started" && signal.aborted) handle.stopCycle();
     });
   });
   const onAbort = () => handle.stopCycle();
@@ -237,6 +238,8 @@ export function awaitQuestCycle(
 }
 
 export function jevCode({ outcome, error }: FightEnd): string | undefined {
-  if (outcome?.reason === "jev_timeout") return JEV_UNAVAILABLE;
+  const reason = outcome?.reason;
+  if (reason === "jev_timeout" || reason?.startsWith(JEV_UNAVAILABLE))
+    return JEV_UNAVAILABLE;
   return error?.startsWith(JEV_UNAVAILABLE) ? JEV_UNAVAILABLE : undefined;
 }

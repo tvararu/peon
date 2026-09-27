@@ -272,6 +272,28 @@ describe("awaitTactics", () => {
     expect(jevCode(end)).toBe("jev_unavailable");
   });
 
+  test("maps a Jev failure that ends the fight to jev_unavailable", async () => {
+    const handle = createMockHandle();
+    handle.startTactics = jest.fn(async () => {
+      handle.triggerTacticsEvent(started("t1", 1n));
+      handle.triggerTacticsEvent({
+        reason: "jev_unavailable: HTTP 503 server",
+        runId: "t1",
+        status: "failed",
+        type: "outcome",
+      });
+      await Bun.sleep(0);
+      throw new JevUnavailableError("HTTP 503 server");
+    });
+    const end = await awaitTactics(handle, {
+      guid: 1n,
+      instruction: "fight",
+      signal: new AbortController().signal,
+    });
+    expect(end.outcome?.reason).toBe("jev_unavailable: HTTP 503 server");
+    expect(jevCode(end)).toBe("jev_unavailable");
+  });
+
   test("halts on abort", async () => {
     const handle = createMockHandle();
     const controller = new AbortController();
@@ -354,6 +376,34 @@ describe("awaitCycle", () => {
       signal: new AbortController().signal,
     });
     expect(end.error).toBe("cycle_empty_queue");
+  });
+
+  test("stops a cycle whose signal is already aborted", async () => {
+    const handle = createMockHandle();
+    const controller = new AbortController();
+    controller.abort(new Error("human_stop"));
+    handle.startCycle = jest.fn(async () => {
+      handle.triggerCycleEvent({
+        at: 0,
+        state: handle.getCycleState(),
+        type: "started",
+      });
+    });
+    handle.stopCycle = jest.fn(() => {
+      handle.triggerCycleEvent({
+        at: 0,
+        state: handle.getCycleState(),
+        type: "stopped",
+      });
+    });
+    const end = await awaitCycle(handle, {
+      guids: [1n],
+      instruction: "fight",
+      maxStarts: 1,
+      signal: controller.signal,
+    });
+    expect(end.error).toBeUndefined();
+    expect(handle.stopCycle).toHaveBeenCalled();
   });
 
   test("stops the cycle on abort", async () => {
