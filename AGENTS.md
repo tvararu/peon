@@ -20,6 +20,10 @@
   If the coordinator lacks CLI access, delegate even one-off live commands.
 - omp is the main harness. Orca worktrees spawn agents with `--agent omp`;
   "omp worktree" means `orca-ide worktree create --agent omp`.
+- Match the omp subagent to the work. `sonic` and `scout` run on the fast
+  `smol` model: give `sonic` mechanical edits and data collection, and
+  `scout` read-only code searches. Keep `task` for work that needs
+  judgement, and `reviewer` for independent review.
 
 ## Commands
 
