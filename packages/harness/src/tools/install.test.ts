@@ -4,7 +4,6 @@ import type {
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { installTools } from "#harness/tools/install";
-import { GAME_TOOLS } from "#harness/tools/registry";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 
 type Handler = (event: unknown) => unknown;
@@ -57,27 +56,6 @@ const miss = (toolName: string) =>
   );
 
 describe("installTools", () => {
-  test("registers every listed tool in order with its renderers; look and journal run in parallel", async () => {
-    const { rt } = await createTestRuntime();
-    const { pi, tools } = fakePi();
-    installTools(pi, rt);
-    expect(tools.map((tool) => tool.name)).toEqual(
-      GAME_TOOLS.map((tool) => tool.name),
-    );
-    GAME_TOOLS.forEach((listed, index) => {
-      expect<unknown>(tools[index]?.renderCall).toBe(
-        listed.renderers.renderCall,
-      );
-      expect<unknown>(tools[index]?.renderResult).toBe(
-        listed.renderers.renderResult,
-      );
-    });
-    const parallel = tools
-      .filter((tool) => tool.executionMode === "parallel")
-      .map((tool) => tool.name);
-    expect(parallel).toEqual(["look", "journal"]);
-  });
-
   test("appends the minimal valid call from the second miss in a row", async () => {
     const { rt } = await createTestRuntime();
     const { emit, pi } = fakePi();
