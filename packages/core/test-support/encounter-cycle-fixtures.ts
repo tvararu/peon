@@ -68,6 +68,13 @@ export function body(
   return { changed: ["health", "rawFields"], entity, type: "update" };
 }
 
+export function lootableCorpse(entity: UnitEntity): UnitEntity {
+  entity.health = 0;
+  entity.rawFields.set(UNIT_FIELDS.HEALTH.offset, 0);
+  entity.rawFields.set(UNIT_FIELDS.DYNAMIC_FLAGS.offset, 1);
+  return entity;
+}
+
 export function fakeLoot(config: {
   items?: number[];
   money?: number;

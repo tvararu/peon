@@ -5,6 +5,7 @@ import {
   body,
   fakeControl,
   fakeLoot,
+  lootableCorpse,
 } from "#test-support/encounter-cycle-fixtures";
 import { createRuns } from "#wow/client-runs";
 import type { ControlPose } from "#wow/control";
@@ -297,6 +298,7 @@ test("a standalone loot walks to a corpse out of reach before the open", async (
     const { entity } = body(2n, 0, { x: 0, y: 9, z: 0 }) as {
       entity: UnitEntity;
     };
+    lootableCorpse(entity);
     const loot = fakeLoot({ items: [4] });
     const { runs } = wire({ control, entity: () => entity, loot });
     const running = runs.lootCorpse(2n, idle);

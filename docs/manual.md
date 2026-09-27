@@ -473,7 +473,8 @@ once Jev is back to fight the same target again.
 Before each fight the loop skips a queued unit that is dead, tapped by
 another player or fighting another player (queue cause `target_dead`,
 `tapped_by_other` or `engaged_by_other`); a skip uses no start. Before a
-loot open it walks to within 4 yards of the corpse. A release-only or
+loot open it walks to within 4 yards of a dead, lootable corpse, and it
+does not walk to a corpse with no loot. A release-only or
 unanswered loot open or take records no loot for that corpse (queue
 `loot: "none"`, cause `loot_denied:release_only` or
 `loot_denied:timeout`) and the loop continues.

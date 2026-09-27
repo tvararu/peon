@@ -36,7 +36,6 @@ type Items = { ok: true; taken: number[]; left: number[] } | CycleStop;
 export async function lootCorpse(run: LootRun, guid: bigint): Promise<Looted> {
   const released = await releaseLeftover(run);
   if (!released.ok) return released;
-  await approachCorpse(run, guid);
   const looted = await lootOpened(run, guid);
   return looted.ok ? looted : await perCorpse(run, looted);
 }
@@ -144,7 +143,7 @@ async function reserveStop(
 }
 
 async function awaitCorpse(run: LootRun, guid: bigint): Promise<Corpse> {
-  const first = tryOpen(run, guid);
+  const first = await tryOpen(run, guid);
   if (first !== NOT_DEAD) return first;
   const died = (update: EntityEvent) =>
     update.type === "disappear" ||
@@ -152,11 +151,22 @@ async function awaitCorpse(run: LootRun, guid: bigint): Promise<Corpse> {
   const event = await run.bodies.find(died, LOOT_SETTLE_MS, run.signal);
   if (!event) return stop("target_death_unconfirmed");
   if (event.type === "disappear") return "empty";
-  const second = tryOpen(run, guid);
+  const second = await tryOpen(run, guid);
   return second === NOT_DEAD ? stop(`loot_denied:${NOT_DEAD}`) : second;
 }
 
-function tryOpen(run: LootRun, guid: bigint): Corpse | typeof NOT_DEAD {
+function lootable(run: LootRun, guid: bigint): boolean {
+  const body = run.entity(guid);
+  if (!body) return false;
+  const flags = fieldOf(body, UNIT_FIELDS.DYNAMIC_FLAGS.offset) ?? 0;
+  return fieldOf(body, UNIT_FIELDS.HEALTH.offset) === 0 && (flags & 1) !== 0;
+}
+
+async function tryOpen(
+  run: LootRun,
+  guid: bigint,
+): Promise<Corpse | typeof NOT_DEAD> {
+  if (lootable(run, guid)) await approachCorpse(run, guid);
   const refused = request(() => run.rewards.open(guid));
   if (!refused) return "lootable";
   if (refused.cause === `loot_denied:${NOT_LOOTABLE}`) return "empty";
