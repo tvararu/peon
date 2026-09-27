@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import type { QuestDialog, QuestEvent, QuestState } from "@tuicraft/core";
+import type {
+  QuestDialog,
+  QuestEvent,
+  QuestQuery,
+  QuestState,
+} from "@tuicraft/core";
 import type { InteractAfter } from "#harness/contract/details";
 import { interactSpec } from "#harness/tools/interact";
 import {
@@ -16,7 +21,10 @@ import {
   type MockHandle,
 } from "#test-support/runtime-fixture";
 
+type KnownQuest = Extract<QuestQuery, { status: "known" }>["data"];
+
 const VELAN = 0x30n;
+const MCBRIDE = 0x31n;
 const NO_REWARDS = {
   arenaPoints: 0,
   choices: [],
@@ -131,6 +139,24 @@ function requestDialog(
   };
 }
 
+function talkQuery(questId: number, objectives: string): QuestQuery {
+  const none = {
+    count: 0,
+    encodedNpcOrGoId: 0,
+    itemDropId: 0,
+    npcOrGoId: 0,
+    unknownSourceCount: 0,
+  };
+  const data = {
+    objectives,
+    questId,
+    requiredItems: [],
+    targets: [none, none, none, none],
+    title: "A Threat Within",
+  } as unknown as KnownQuest;
+  return { data, questId, receivedAt: 0, status: "known" };
+}
+
 function answer(
   handle: MockHandle,
   type: QuestEvent["type"],
@@ -237,6 +263,73 @@ describe("interact", () => {
       reason: "unsupported_map_0",
       status: "FAILED",
     });
+  });
+
+  test("accept of a quest with nothing to kill or collect points at the NPC it names", async () => {
+    const { t } = await velan();
+    setUnits(t.handle, [
+      ...t.handle.queryNearby(),
+      unitRow({
+        distance: 56,
+        guid: MCBRIDE,
+        name: "Marshal McBride",
+        relation: "friendly",
+        roles: ["questgiver", "gossip"],
+        x: 56,
+        y: 0,
+      }),
+    ]);
+    const threat = { questId: 783, title: "A Threat Within" };
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", {
+        dialog: listDialog([{ ...threat, icon: 2, level: 1 }]),
+      });
+    t.handle.selectQuest = () =>
+      answer(t.handle, "dialog", { dialog: detailsDialog(783, threat.title) });
+    t.handle.acceptQuest = () =>
+      answer(
+        t.handle,
+        "accepted",
+        { queries: [talkQuery(783, "Speak with Marshal McBride.")] },
+        783,
+      );
+    const res = await interactSpec.run(
+      { do: "accept", npc: "Velan Brightoak", what: "1" },
+      toolCtx<InteractAfter>(t),
+    );
+    const ref = t.rt.refs.refOf(MCBRIDE);
+    expect(res).toMatchObject({
+      detail:
+        "accepted A Threat Within #783. It has nothing to kill or collect: Speak with Marshal McBride.",
+      next: `interact(do: "turn_in", npc: "${ref}")`,
+      status: "DONE",
+    });
+  });
+
+  test("accept of a talk quest whose NPC is not in view looks for questgivers", async () => {
+    const { t } = await velan();
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", {
+        dialog: listDialog([
+          { icon: 2, level: 1, questId: 783, title: "A Threat Within" },
+        ]),
+      });
+    t.handle.selectQuest = () =>
+      answer(t.handle, "dialog", {
+        dialog: detailsDialog(783, "A Threat Within"),
+      });
+    t.handle.acceptQuest = () =>
+      answer(
+        t.handle,
+        "accepted",
+        { queries: [talkQuery(783, "Speak with Marshal McBride.")] },
+        783,
+      );
+    const res = await interactSpec.run(
+      { do: "accept", npc: "Velan Brightoak", what: "1" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(res.next).toBe('look(find: "questgiver")');
   });
 
   test("accept without what refuses with the numbered offers", async () => {

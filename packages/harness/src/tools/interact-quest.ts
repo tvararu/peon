@@ -17,6 +17,7 @@ import type { ToolCtx } from "#harness/contract/services";
 import type { UnitView } from "#harness/contract/views";
 import { Refusal } from "#harness/ops/refusal";
 import { settle } from "#harness/ops/settle";
+import { acceptedNext } from "#harness/tools/accept-next";
 import { nextCall, result } from "#harness/tools/define";
 import type { InteractArgs } from "#harness/tools/params";
 
@@ -279,8 +280,7 @@ export const acceptStep: InteractStep = async ({ args, ctx, npc }) => {
   if (!accepted) throw unanswered(npc, `the accept of ${offer.title}`, retry);
   return result("DONE", {
     after: { ...baseAfter(ctx, npc, "accept"), dialogOpened: true, offers },
-    detail: `accepted ${offer.title} #${offer.id}.`,
-    next: nextCall("engage", { quest: String(offer.id) }),
+    ...acceptedNext(ctx, offer),
   });
 };
 
