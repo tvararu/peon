@@ -186,6 +186,23 @@ describe("createRepeatGuard", () => {
     expect(guard.check(call())).toBeUndefined();
   });
 
+  test.each(["look", "journal"] as const)(
+    "an unanswered call is blocked until a %s checks the result",
+    (tool) => {
+      const guard = guardAt({ t: 0 });
+      const accept = call({ args: { do: "accept", npc: "u3", what: "1" } });
+      guard.record({
+        ...accept,
+        result: outcome("UNCONFIRMED", "no_answer", 'journal(about: "quests")'),
+      });
+      guard.record({ ...call(), result: outcome("REFUSED", "too_far") });
+      expect(guard.check(accept)).toBeDefined();
+      guard.record({ ...call({ args: {}, tool }), result: outcome("DONE") });
+      expect(guard.check(accept)).toBeUndefined();
+      expect(guard.check(call())).toBeDefined();
+    },
+  );
+
   test("look is never blocked", () => {
     const guard = guardAt({ t: 0 });
     guard.record({

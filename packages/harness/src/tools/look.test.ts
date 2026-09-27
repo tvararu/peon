@@ -394,6 +394,34 @@ describe("look", () => {
     );
   });
 
+  test("a unit that left view reports its last state as past, not current", async () => {
+    const t = await world();
+    const corpse = nearbyRow(
+      unitEntity({
+        dy: 20,
+        guid: 0x91n,
+        health: 0,
+        level: 7,
+        name: "Springpaw Lynx",
+      }),
+      { lootable: true, relation: "hostile" },
+    );
+    place(t.handle, eversong([corpse, stalker()]));
+    const seen = (await runTool(t.tool, { name: "Lynx" })).text;
+    expect(seen).toMatch(
+      /- u\d+ Springpaw Lynx L7 hostile, dead, lootable, 20 yd W$/m,
+    );
+    place(t.handle, eversong());
+    const remembered = (await runTool(t.tool, { name: "Lynx", within: 100 }))
+      .text;
+    expect(remembered).toMatch(
+      /- u\d+ Springpaw Lynx L7 hostile, last seen 20 yd W 0 s ago, then dead, lootable \(not in view\)$/m,
+    );
+    expect(remembered).toContain(
+      "Nearest hostile: u6 Springpaw Stalker L7, last seen 78 yd N 0 s ago, then alive.",
+    );
+  });
+
   test("three unchanged looks add the loop note", async () => {
     const { handle, tool } = await world();
     place(handle, eversong());

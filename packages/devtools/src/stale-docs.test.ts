@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { staleFindings } from "#tools/stale-docs";
+import { capabilityFindings, staleFindings } from "#tools/stale-docs";
 
 function matches(text: string): string[] {
   return staleFindings({ path: "doc.md", text }).map((f) => f.match);
@@ -87,6 +87,30 @@ describe("staleFindings", () => {
       "src/factory/main.ts",
       "src/main.ts",
       "src/main.ts",
+    ]);
+  });
+});
+
+describe("capabilityFindings", () => {
+  const scenarios = ["t0-hostiles", "t1-walk-to-npc", "t3-ghostlands-kill"];
+
+  test("an index naming every scenario, and only real ones, is clean", () => {
+    const text =
+      "| Look | `t0-hostiles` |\n| Walk | `t1-walk-to-npc` |\n| Fight | `t3-ghostlands-kill` |";
+    expect(capabilityFindings({ path: "c.md", text }, scenarios)).toEqual([]);
+  });
+
+  test("reports a retired scenario where it is named and a new one that is missing", () => {
+    const text = "| Look | `t0-hostiles` |\n| Fight | `t3-kill-one-hunter` |";
+    expect(
+      capabilityFindings({ path: "c.md", text }, scenarios).map((f) => [
+        f.line,
+        f.match,
+      ]),
+    ).toEqual([
+      [2, "`t3-kill-one-hunter`"],
+      [1, "t1-walk-to-npc"],
+      [1, "t3-ghostlands-kill"],
     ]);
   });
 });

@@ -63,3 +63,25 @@ export function outcomeObservation(
   const { kind, status, spellId, result, reason, error, at } = outcome;
   return { kind, status, spellId, result, reason, error, at };
 }
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Object.getPrototypeOf(value) === Object.prototype
+  );
+}
+
+function nulled(value: unknown): unknown {
+  if (value === undefined) return null;
+  if (Array.isArray(value)) return value.map(nulled);
+  return isPlainRecord(value) ? withNulls(value) : value;
+}
+
+export function withNulls(
+  record: Readonly<Record<string, unknown>>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(record).map(([key, value]) => [key, nulled(value)]),
+  );
+}

@@ -250,11 +250,11 @@ export function pickRefusal(
 export function unanswered(
   npc: NpcTarget,
   what: string,
-  retry: string,
+  next: string,
 ): Refusal {
   return new Refusal({
     detail: `${npcLabel(npc)} did not answer ${what} in time.`,
-    next: retry,
+    next,
     reason: "no_answer",
     status: "UNCONFIRMED",
   });
@@ -266,11 +266,7 @@ export const acceptStep: InteractStep = async ({ args, ctx, npc }) => {
   const available = offers.filter((known) => known.state === "available");
   const offer = findOffer(available, args.what);
   if (!offer) throw pickRefusal(npc, available, "accept");
-  const retry = nextCall("interact", {
-    do: "accept",
-    npc: npc.unit.ref,
-    what: String(offer.line),
-  });
+  const check = nextCall("journal", { about: "quests" });
   if (dialog?.kind !== "details") {
     const details = await questStep(ctx, {
       match: (event) =>
@@ -278,7 +274,7 @@ export const acceptStep: InteractStep = async ({ args, ctx, npc }) => {
       packet: () => ctx.handle.selectQuest(offer.id),
     });
     if (!details)
-      throw unanswered(npc, `with the text of ${offer.title}`, retry);
+      throw unanswered(npc, `with the text of ${offer.title}`, check);
   }
   const shown = ctx.handle.getQuestState().dialog;
   const objectives =
@@ -290,7 +286,7 @@ export const acceptStep: InteractStep = async ({ args, ctx, npc }) => {
     packet: () => ctx.handle.acceptQuest(),
     timeoutMs: ANSWER_MS,
   });
-  if (!accepted) throw unanswered(npc, `the accept of ${offer.title}`, retry);
+  if (!accepted) throw unanswered(npc, `the accept of ${offer.title}`, check);
   return result("DONE", {
     after: { ...baseAfter(ctx, npc, "accept"), dialogOpened: true, offers },
     ...acceptedNext(ctx, offer, { giver: npc.unit.name, objectives }),

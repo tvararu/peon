@@ -137,6 +137,22 @@ streams its progress. When the human types, or after 120 seconds, the
 tool returns `RUNNING`, the run continues, and a `[game]` message tells
 the agent when it ends.
 
+`UNCONFIRMED` means the game did not answer in time, so the action may or
+may not have happened. It never permits a blind resend: a quest accept or
+turn-in, a buy or sale, a chat line or a group action that goes
+unanswered carries the reason `no_answer`, and its `Next:` step reads the
+result instead (`journal`, `look`) or waits. The harness refuses the same
+call again until a `look` or `journal` has checked.
+
+**One knowledge model.** The tools, the screen and Jev may present facts
+differently but never know different things. A unit out of view is shown
+as last seen, with the state it had then (`last seen 40 yd N 2 min ago,
+then dead, lootable`), never as if it were current. A fact the client
+never observed reaches Jev as `null`, not a missing key. Data the client
+derives rather than observes, such as navmesh terrain, inferred aggro
+radii or names from the game files, is labelled as reference data or an
+inference whenever a surface shows it.
+
 The system prompt is in `packages/harness/src/prompt/system-prompt.ts`.
 The tool descriptions and usage lines are in
 `packages/harness/src/prompt/guidelines.ts`.

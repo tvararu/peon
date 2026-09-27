@@ -63,7 +63,7 @@ describe("social", () => {
       runTool(tool, { do: "party", text: "pull now" }),
     );
     expect(out.text).toBe(
-      'UNCONFIRMED said to your party: "pull now"; no echo in 2 s.\nNext: journal(about: "log", since: "1m")',
+      'UNCONFIRMED no_answer: said to your party: "pull now"; no echo in 2 s.\nNext: journal(about: "log", since: "1m")',
     );
   });
 
@@ -145,7 +145,7 @@ describe("social", () => {
       runTool(tool, { do: "invite", to: "Kaelyn" }),
     );
     expect(out.text).toBe(
-      "UNCONFIRMED invited Kaelyn; no answer in 3 s.\nNext: end your turn; a [game] message comes if Kaelyn answers.",
+      "UNCONFIRMED no_answer: invited Kaelyn; no answer in 3 s.\nNext: end your turn; a [game] message comes if Kaelyn answers.",
     );
   });
 

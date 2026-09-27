@@ -17,3 +17,11 @@ test("a retained goto creature target serializes as a hex GUID for Jev", () => {
     target: "0xf130003d2108604d",
   });
 });
+
+test("a fact the client never observed reaches Jev as null, not a missing key", () => {
+  const { actions } = setup(() => 1000, { observeTargetPosition: false });
+  const sent = JSON.parse(JSON.stringify(actions.observe(context).observation));
+
+  expect(sent.target).toMatchObject({ health: 100, pose: null });
+  expect(sent.attackTarget).toBeNull();
+});

@@ -110,11 +110,20 @@ export type EvalEvidence = {
   finalSavedAt?: string;
 };
 
+export type EvalConditions = {
+  model?: string;
+  thinking?: string;
+  harnessSha?: string;
+  jevModels: string[];
+  scenarioSha: string;
+};
+
 export type EvalResult = {
   scenario: string;
   round: number;
   replica: number;
   sha: string;
+  conditions?: EvalConditions;
   tab?: string;
   accounts?: string[];
   verdict: EvalVerdict;
