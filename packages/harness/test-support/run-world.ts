@@ -128,7 +128,7 @@ function soap(world: World, verb: string | undefined): ExecResult {
     dir: `${world.worktree}/tmp/factory-account-${ACC}`,
     password: PASSWORD,
     preset: "eversong10",
-    wrapper: `${world.worktree}/tmp/tc-${ACC}`,
+    wrapper: `${world.worktree}/tmp/puppet-${ACC}`,
   };
   if (verb === "create") return ok(JSON.stringify(session));
   if (verb === "truth") return ok(truth(world));
@@ -181,7 +181,7 @@ async function orca(world: World, args: string[]): Promise<ExecResult> {
 function worldExec(world: World): Exec {
   return async (argv, opts) => {
     world.calls.push([...argv]);
-    if (argv[0]?.endsWith(`/tmp/tc-${ACC}`))
+    if (argv[0]?.endsWith(`/tmp/puppet-${ACC}`))
       return argv[1] === "read"
         ? ok('[{"type":"whisper","sender":"Fevala","message":"10"}]')
         : ok('{"ok":true}');

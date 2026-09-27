@@ -172,7 +172,7 @@ describe("runScenario", () => {
         },
       ],
     };
-    const wrapper = `${world.worktree}/tmp/tc-${ACC}`;
+    const wrapper = `${world.worktree}/tmp/puppet-${ACC}`;
     await run(world, scenario);
     const sent = world.calls.find(
       (call) => call[0] === wrapper && call[1] === "send",

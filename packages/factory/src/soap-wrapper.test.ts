@@ -36,13 +36,8 @@ async function writeAccountConfig(name: string, char: string): Promise<void> {
   );
 }
 
-async function daemonPid(pid: number): Promise<void> {
-  await mkdir(`${env.XDG_RUNTIME_DIR}/tuicraft`, { recursive: true });
-  await writeFile(`${env.XDG_RUNTIME_DIR}/tuicraft/pid`, String(pid));
-}
-
 async function run(): Promise<{ code: number; out: string; err: string }> {
-  const proc = Bun.spawn([wrapper, "status", "--json"], {
+  const proc = Bun.spawn([wrapper, "read", "--json"], {
     env: {
       ...Bun.env,
       PATH: `${root}/bin:${Bun.env["PATH"]}`,
@@ -59,15 +54,6 @@ async function run(): Promise<{ code: number; out: string; err: string }> {
   return { code, err, out };
 }
 
-function sleeper(configHome: string) {
-  return Bun.spawn(["bash", "-c", "read -r -t 30 _", "--daemon"], {
-    env: { ...Bun.env, XDG_CONFIG_HOME: configHome },
-    stderr: "ignore",
-    stdin: "pipe",
-    stdout: "ignore",
-  });
-}
-
 beforeEach(async () => {
   root = await mkdtemp(`${tmpdir()}/soap wrapper '`);
   await mkdir(`${root}/bin`);
@@ -78,18 +64,18 @@ beforeEach(async () => {
 
 afterEach(() => rm(root, { force: true, recursive: true }));
 
-describe("tc wrapper", () => {
-  test("runs the worktree CLI as the account's character", async () => {
+describe("puppet wrapper", () => {
+  test("runs the worktree puppet as the account's character", async () => {
     await writeAccountConfig(account, character);
     const { code, out, err } = await run();
     expect(code).toBe(0);
-    expect(err).toBe(`tc-${account}: character ${character}\n`);
+    expect(err).toBe(`puppet-${account}: character ${character}\n`);
     expect(out.trimEnd().split("\n")).toEqual([
       env.XDG_CONFIG_HOME,
       env.XDG_RUNTIME_DIR,
       env.XDG_STATE_HOME,
-      `${root}/packages/cli/src/main.ts`,
-      "status",
+      `${root}/packages/harness/src/puppet/main.ts`,
+      "read",
       "--json",
     ]);
   });
@@ -117,31 +103,6 @@ describe("tc wrapper", () => {
     expect(out).toBe("");
     expect(err).toContain("no config at");
   });
-
-  test("refuses a live daemon that logged in with another config", async () => {
-    await writeAccountConfig(account, character);
-    const other = sleeper("/home/someone/.config");
-    try {
-      await daemonPid(other.pid);
-      const { code, out, err } = await run();
-      expect(code).not.toBe(0);
-      expect(out).toBe("");
-      expect(err).toContain(`daemon ${other.pid} logged in with`);
-    } finally {
-      other.kill();
-    }
-  });
-
-  test("accepts a live daemon that logged in with the account's config", async () => {
-    await writeAccountConfig(account, character);
-    const own = sleeper(env.XDG_CONFIG_HOME);
-    try {
-      await daemonPid(own.pid);
-      expect((await run()).code).toBe(0);
-    } finally {
-      own.kill();
-    }
-  });
 });
 
 describe("removeAccountFiles", () => {
@@ -150,7 +111,9 @@ describe("removeAccountFiles", () => {
     const sibling = "FAC6AB6E05F5B";
     await writeWrapper({ account: sibling, character, root });
     await removeAccountFiles(root, account);
-    expect((await readdir(`${root}/tmp`)).sort()).toEqual([`tc-${sibling}`]);
+    expect((await readdir(`${root}/tmp`)).sort()).toEqual([
+      `puppet-${sibling}`,
+    ]);
     await removeAccountFiles(root, account);
   });
 });

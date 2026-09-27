@@ -7,7 +7,7 @@ import { watchRun } from "#harness/grader/watch";
 import { fakeExec, ok } from "#test-support/fake-exec";
 import { fakePane } from "#test-support/fake-pane";
 
-const WITNESS = "/wt/tmp/tc-FAC0000000002";
+const WITNESS = "/wt/tmp/puppet-FAC0000000002";
 
 function row(
   seq: number,
