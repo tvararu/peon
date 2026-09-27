@@ -8,6 +8,12 @@ const CTRL_C = "\u0003";
 const CTRL_D = "\u0004";
 const ORCA_TIMEOUT_MS = 30_000;
 const SAFE_WORD = /^[\w./:@%+=,-]+$/;
+const GONE: ReadonlySet<string> = new Set([
+  "terminal_exited",
+  "terminal_gone",
+  "terminal_handle_stale",
+  "terminal_not_writable",
+]);
 
 export type Pane = {
   id: string;
@@ -108,6 +114,14 @@ export async function openPane({
   return attachPane({ exec, id: handle });
 }
 
+async function sendQuit(exec: Exec, id: string): Promise<void> {
+  const reply = await orca(exec, ["send", "--terminal", id, "--text", CTRL_D]);
+  if (succeeded(reply) || GONE.has(String(errorCode(reply)))) return;
+  throw new Error(
+    `orca-ide terminal send failed (${reply.code}): ${reply.text}`,
+  );
+}
+
 export function attachPane({ exec, id }: { exec: Exec; id: string }): Pane {
   const send = async (
     text: string,
@@ -144,7 +158,7 @@ export function attachPane({ exec, id }: { exec: Exec; id: string }): Pane {
     return Array.isArray(tail) && tail.length > 0;
   };
   const quit = async (): Promise<void> => {
-    await send(CTRL_D);
+    await sendQuit(exec, id);
     if (await waitExit(QUIT_CONFIRM_MS)) return;
     if (!(await showsPi())) return;
     await Promise.all([send(CTRL_C), send(CTRL_C)]);

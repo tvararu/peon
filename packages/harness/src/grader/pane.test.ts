@@ -189,6 +189,30 @@ describe("attachPane", () => {
     expect(texts).toEqual(["\u0004"]);
   });
 
+  test("quit treats a Ctrl-D the exiting pane refused as sent", async () => {
+    const notWritable = JSON.stringify({
+      error: {
+        code: "terminal_not_writable",
+        message: "terminal_not_writable",
+      },
+      ok: false,
+    });
+    const { calls, exec } = fakeExec((argv) => {
+      if (argv[2] === "send") return failed(1, "", notWritable);
+      if (argv[2] === "wait") return ok(EXITED);
+      return orcaOk({ handle: HANDLE });
+    });
+    await attachPane({ exec, id: HANDLE }).quit();
+    expect(calls.map((call) => call.argv[2])).toEqual(["send", "wait"]);
+  });
+
+  test("quit still fails when Orca refuses the Ctrl-D for another reason", async () => {
+    const { exec } = fakeExec(() => failed(1, "boom"));
+    await expect(attachPane({ exec, id: HANDLE }).quit()).rejects.toThrow(
+      "orca-ide terminal send failed (1): boom",
+    );
+  });
+
   test("waitExit is false on a timeout and true on exit", async () => {
     const timeout = fakeExec(() => failed(1, "", TIMEOUT));
     const exited = fakeExec(() => ok(EXITED));
