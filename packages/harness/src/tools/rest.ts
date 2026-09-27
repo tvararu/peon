@@ -183,18 +183,19 @@ function afterOf(ctx: ViewCtx, rested: Rested): RestAfter {
 }
 
 function projection(rested: Rested, now: Levels, until: number): string {
-  const gainHp = now.hp - rested.startLevels.hp;
-  const gainMana =
-    now.mana === undefined || rested.startLevels.mana === undefined
-      ? gainHp
-      : now.mana - rested.startLevels.mana;
-  const low = Math.min(
-    now.hp + gainHp,
-    now.mana === undefined ? 100 : now.mana + gainMana,
-  );
-  if (Math.min(gainHp, gainMana) <= 0)
+  const start = rested.startLevels;
+  const stats = [
+    { from: start.hp, level: now.hp },
+    ...(now.mana === undefined ? [] : [{ from: start.mana, level: now.mana }]),
+  ];
+  const short = stats
+    .filter((stat) => stat.level < until)
+    .map((stat) => ({ gain: stat.level - (stat.from ?? stat.level), ...stat }));
+  if (short.some((stat) => stat.gain <= 0))
     return ` Another rest() will not reach ${until}% without food or drink.`;
-  return ` Another rest() reaches about ${Math.min(100, low)}%.`;
+  const low = Math.min(...short.map((stat) => stat.level + stat.gain));
+  if (low >= until) return ` Another rest() reaches ${until}%.`;
+  return ` Another rest() reaches about ${low}%.`;
 }
 
 function doneReport(ctx: ViewCtx, rested: Rested, until: number): Report {

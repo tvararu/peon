@@ -117,6 +117,41 @@ describe("rest", () => {
     }
   });
 
+  test.each([
+    {
+      detail: "HP 200/200, mana 80%. Another rest() reaches 90%.",
+      end: { hp: 200, maxHp: 200, maxPower: 300, power: 240 },
+      name: "a full stat does not block a rising one",
+      start: { hp: 200, maxHp: 200, maxPower: 300, power: 180 },
+    },
+    {
+      detail: "HP 120/200, mana 100%. Another rest() reaches about 70%.",
+      end: { hp: 120, maxHp: 200, maxPower: 300, power: 300 },
+      name: "a slow stat projects short of the threshold",
+      start: { hp: 100, maxHp: 200, maxPower: 300, power: 300 },
+    },
+  ])("with no food, $name", async ({ detail, end, start }) => {
+    jest.useFakeTimers();
+    try {
+      const t = await createTestRuntime();
+      setSelf(t.handle, start);
+      let done = false;
+      const pending = restSpec.run({}, toolCtx<RestAfter>(t)).finally(() => {
+        done = true;
+      });
+      for (let tick = 0; tick < 40 && !done; tick += 1) {
+        if (tick === 5) setSelf(t.handle, end);
+        jest.advanceTimersByTime(1000);
+        await flush();
+      }
+      const res = await pending;
+      expect(res).toMatchObject({ reason: "time_limit", status: "PARTLY" });
+      expect(res.detail).toBe(`rested 30 s without food or drink: ${detail}`);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test("an attacker stops the rest with an engage step", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle, { hp: 100, maxHp: 200 });
