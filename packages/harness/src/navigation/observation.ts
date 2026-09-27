@@ -1,5 +1,5 @@
-import type { NavigationState } from "#wow/control";
-import { classifyNavigationRefusal } from "#wow/navigation";
+import { classifyNavigationRefusal } from "#harness/navigation/planner";
+import type { NavigationState } from "#harness/navigation/route-follower";
 
 export type NavigationObservation = NavigationState & {
   nextStep: string | null;

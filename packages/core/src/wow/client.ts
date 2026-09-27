@@ -40,15 +40,17 @@ import type {
   ControlLease,
   ControlState,
   MovementDirection,
-  NavigationState,
   WalkOutcome,
 } from "#wow/control";
+import type { GroundOracle } from "#wow/control-motion";
+import type { MovementGuide } from "#wow/control-mover";
 import type { DbcSource } from "#wow/dbc";
 import type { DestroyEvent, DestroyState } from "#wow/destroy";
 import type { Entity, EntityEvent } from "#wow/entity-store";
 import type { ExperienceState } from "#wow/experience";
 import type { FactionRelation } from "#wow/faction-template";
 import type { FriendEntry, FriendEvent } from "#wow/friend-store";
+import type { NavPoint } from "#wow/ground-step";
 import type { GuildEvent, GuildRoster } from "#wow/guild-store";
 import type { IgnoreEntry, IgnoreEvent } from "#wow/ignore-store";
 import type {
@@ -57,9 +59,6 @@ import type {
   NamedRewardsState,
 } from "#wow/item-labels";
 import { LOGOUT_TIMEOUT_MS, requestLogout } from "#wow/logout";
-import type { NavPoint } from "#wow/navigation";
-import type { NavigationSource } from "#wow/navigation-native";
-import type { NavigationObservation } from "#wow/navigation-observation";
 import type { NearbyQuery, NearbyRow } from "#wow/nearby";
 import type { PartyChange, PartyLoot, PartyState } from "#wow/party-store";
 import type { WhoResult } from "#wow/protocol/chat";
@@ -90,7 +89,7 @@ export type ClientConfig = {
   language?: number;
   cachedSessionKey?: Uint8Array;
   dbc?: DbcSource;
-  navigation?: NavigationSource;
+  ground?: GroundOracle;
 };
 
 import type { AuthResult } from "#wow/auth";
@@ -165,12 +164,6 @@ export type ChatMode =
   | { type: "emote" }
   | { type: "whisper"; target: string }
   | { type: "channel"; channel: string };
-export type WalkTarget =
-  | { kind: "guid"; guid: bigint }
-  | { kind: "point"; x: number; y: number; z: number };
-export type GotoTarget =
-  | { kind: "guid"; guid: bigint }
-  | { kind: "point"; x: number; y: number; z?: number };
 
 export type WorldHandle = {
   closed: Promise<void>;
@@ -237,8 +230,8 @@ export type WorldHandle = {
   move: (direction: MovementDirection, durationMs: number) => void;
   face: (orientation: number) => void;
   faceGuid: (guid: bigint) => void;
-  walkToward: (
-    target: WalkTarget,
+  walkTowardPoint: (
+    target: NavPoint,
     yards: number,
     signal?: AbortSignal,
   ) => Promise<WalkOutcome>;
@@ -266,9 +259,8 @@ export type WorldHandle = {
   stopAutoRepeat: () => void;
   petAttack: (petGuid: bigint, targetGuid: bigint) => void;
   stopCombat: () => void;
-  goTo: (target: GotoTarget) => void;
-  getNavigationState: () => NavigationState;
-  observeNavigation: () => NavigationObservation;
+  follow: (guide: MovementGuide, facing: number, durationMs: number) => void;
+  onMovementStop: (cb: (reason: string) => void) => Unsubscribe;
   onCombatEvent: (cb: (event: CombatEvent) => void) => Unsubscribe;
   getRecoveryState: () => RecoveryState;
   queryCorpse: () => void;

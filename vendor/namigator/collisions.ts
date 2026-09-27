@@ -1,8 +1,8 @@
-import { createNavigation } from "../../packages/core/src/wow/navigation";
+import { createNavigation } from "../../packages/harness/src/navigation/planner";
 import type {
   NativeMap,
   NativePoint,
-} from "../../packages/core/src/wow/navigation-native";
+} from "../../packages/harness/src/navigation/native";
 import { navigationSource } from "../../packages/harness/src/navigation/maps";
 
 const LOW = 0.25;

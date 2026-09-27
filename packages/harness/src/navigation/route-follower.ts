@@ -1,37 +1,54 @@
-import type {
-  ControlDeps,
-  ControlLease,
-  ControlPose,
-  NavigationState,
-} from "#wow/control";
-import { MAX_DURATION_MS } from "#wow/control-motion";
-import type { Guide, GuideStep, Mover } from "#wow/control-mover";
-import type { Emit, MovementSync } from "#wow/control-sync";
-import { distance2d } from "#wow/geometry";
+import {
+  type ControlOwner,
+  type ControlPose,
+  type ControlState,
+  distance2d,
+  type GuideStep,
+  MAX_DURATION_MS,
+  type MovementGuide,
+  type NavPoint,
+  type Unsubscribe,
+  type WorldHandle,
+} from "@peon/core";
+import { START_SNAP } from "#harness/navigation/collision";
 import {
   classifyNavigationRefusal,
   type GroundRoute,
   type NavDestination,
   type NavigationRefusal,
-  type NavPoint,
-} from "#wow/navigation";
-import { START_SNAP } from "#wow/navigation-collision";
+} from "#harness/navigation/planner";
 import {
   REPLAN_LIMITS,
   type Replanner,
+  type ReplanState,
   RouteSession,
   replannable,
-} from "#wow/route-session";
+} from "#harness/navigation/route-session";
 
 const ROUTE_HEARTBEAT_MS = 100;
 
-export type RouteParts = {
-  deps: ControlDeps;
-  sync: MovementSync;
-  mover: Mover;
-  emit: Emit;
-  lease: () => ControlLease;
+export type NavigationState = {
+  active: boolean;
+  destination: NavDestination | undefined;
+  remaining: number | undefined;
+  owner: ControlOwner;
+  blockedReason: string | undefined;
+  refusal: NavigationRefusal | undefined;
+  target?: bigint;
+  replan?: ReplanState;
+  floors?: number[];
 };
+
+export type RouteHandle = Pick<
+  WorldHandle,
+  | "getControlState"
+  | "follow"
+  | "stopMoving"
+  | "onMovementStop"
+  | "onEntityEvent"
+>;
+
+export type RouteParts = { handle: RouteHandle; now: () => number };
 
 export type RouteRefusal = {
   refusal?: NavigationRefusal;
@@ -41,22 +58,22 @@ export type RouteRefusal = {
 
 type RouteLeg = {
   route: GroundRoute;
-  sync: MovementSync;
   follower: RouteFollower;
+  speed: () => number;
 };
 
-class RouteGuide implements Guide {
+class RouteGuide implements MovementGuide {
   readonly heartbeatMs = ROUTE_HEARTBEAT_MS;
   readonly route: GroundRoute;
   distance = 0;
   sampleFailure = false;
-  private readonly sync: MovementSync;
   private readonly follower: RouteFollower;
+  private readonly speed: () => number;
 
-  constructor({ route, sync, follower }: RouteLeg) {
+  constructor({ route, follower, speed }: RouteLeg) {
     this.route = route;
-    this.sync = sync;
     this.follower = follower;
+    this.speed = speed;
   }
 
   advance(pose: ControlPose, yards: number, now: number): GuideStep {
@@ -78,9 +95,7 @@ class RouteGuide implements Guide {
   }
 
   leaseMs(): number {
-    const { route, sync } = this;
-    const speed = sync.runSpeed ?? Number.NaN;
-    const ms = ((route.length - this.distance) / speed) * 1000;
+    const ms = ((this.route.length - this.distance) / this.speed()) * 1000;
     return Math.max(1, Math.min(MAX_DURATION_MS, ms));
   }
 
@@ -90,29 +105,31 @@ class RouteGuide implements Guide {
 }
 
 export class RouteFollower {
-  private readonly deps: ControlDeps;
-  private readonly sync: MovementSync;
-  private readonly mover: Mover;
-  private readonly emit: Emit;
-  private readonly lease: () => ControlLease;
+  private readonly handle: RouteHandle;
+  private readonly now: () => number;
+  private readonly detach: Unsubscribe[];
   private active: RouteGuide | undefined;
   private session: RouteSession | undefined;
   private replanTimer: ReturnType<typeof setTimeout> | undefined;
+  private disposed = false;
   private navigation: NavigationState = {
     active: false,
-    destination: undefined,
-    remaining: undefined,
-    owner: "none",
     blockedReason: undefined,
+    destination: undefined,
+    owner: "none",
     refusal: undefined,
+    remaining: undefined,
   };
 
-  constructor({ deps, sync, mover, emit, lease }: RouteParts) {
-    this.deps = deps;
-    this.sync = sync;
-    this.mover = mover;
-    this.emit = emit;
-    this.lease = lease;
+  constructor({ handle, now }: RouteParts) {
+    this.handle = handle;
+    this.now = now;
+    this.detach = [
+      handle.onMovementStop((reason) => this.cancelReplan(reason)),
+      handle.onEntityEvent((event) => {
+        if (event.type === "disappear") this.observeDisappear(event.guid);
+      }),
+    ];
   }
 
   following(): boolean {
@@ -134,18 +151,17 @@ export class RouteFollower {
     detail: RouteRefusal = {},
   ): void {
     const { refusal, target, floors } = detail;
-    this.mover.abort(reason);
+    this.handle.stopMoving(reason);
     this.navigation = {
       active: false,
-      destination: destination ? { ...destination } : undefined,
-      remaining: undefined,
-      owner: "none",
       blockedReason: reason,
+      destination: destination ? { ...destination } : undefined,
+      owner: "none",
       refusal: refusal ?? classifyNavigationRefusal(reason),
+      remaining: undefined,
       target,
       ...(floors ? { floors: [...floors] } : {}),
     };
-    this.emit("control_error", reason);
   }
 
   navigate(
@@ -154,22 +170,24 @@ export class RouteFollower {
     replan?: Replanner,
     target?: bigint,
   ): void {
-    this.mover.guard("forward");
-    this.mover.stop("navigation_replaced", true);
+    if (this.disposed) throw new Error("session_closed");
+    guard(this.handle.getControlState());
+    this.handle.stopMoving("navigation_replaced");
     const origin = route.points[0];
-    const pose = this.sync.requirePose();
+    const pose = this.handle.getControlState().pose;
+    if (!pose) throw new Error("no_pose");
     if (origin === undefined) throw new Error("navigation_route_empty");
     if (!startsUnder(origin, pose))
       throw new Error("navigation_origin_changed");
     this.session = replan
-      ? new RouteSession(replan, route, this.deps.now())
+      ? new RouteSession(replan, route, this.now())
       : undefined;
     this.start(route, destination, target);
   }
 
   observeDisappear(guid: bigint): void {
     if (this.navigation.target !== guid) return;
-    if (this.active) this.mover.stop("target_lost", true);
+    if (this.active) this.handle.stopMoving("target_lost");
     else this.cancelReplan("target_lost");
   }
 
@@ -177,8 +195,8 @@ export class RouteFollower {
     if (this.replanTimer === undefined) return;
     clearTimeout(this.replanTimer);
     this.replanTimer = undefined;
-    this.session?.settle(this.deps.now());
-    this.finishReplan(reason, false);
+    this.session?.settle(this.now());
+    this.finishReplan(reason);
   }
 
   progressed(remaining: number): void {
@@ -193,23 +211,32 @@ export class RouteFollower {
       session !== undefined &&
       reason !== "arrived" &&
       replannable(reason, guide.sampleFailure);
-    session?.walked(guide.distance, this.deps.now());
+    session?.walked(guide.distance, this.now());
     if (replan) session?.interrupted(reason);
     else this.session = undefined;
     this.navigation = {
       ...this.navigation,
       active: false,
-      owner: "none",
       blockedReason: reason === "arrived" ? undefined : reason,
+      owner: "none",
       refusal:
         reason === "arrived" ? undefined : classifyNavigationRefusal(reason),
       replan: session?.snapshot(),
     };
-    if (replan)
+    if (replan && !this.disposed)
       this.replanTimer = setTimeout(
         () => this.replanNow(),
         REPLAN_LIMITS.delayMs,
       );
+  }
+
+  dispose(): void {
+    if (this.disposed) return;
+    this.cancelReplan("close");
+    this.disposed = true;
+    for (const off of this.detach) off();
+    if (this.replanTimer !== undefined) clearTimeout(this.replanTimer);
+    this.replanTimer = undefined;
   }
 
   private start(
@@ -220,32 +247,39 @@ export class RouteFollower {
     if (route.length === 0) {
       this.navigation = {
         active: false,
-        destination,
-        remaining: 0,
-        owner: "none",
         blockedReason: undefined,
+        destination,
+        owner: "none",
         refusal: undefined,
+        remaining: 0,
         replan: this.session?.snapshot(),
         target,
       };
       this.session = undefined;
       return;
     }
-    this.mover.face(route.sample(0).orientation);
-    const guide = new RouteGuide({ route, sync: this.sync, follower: this });
+    const state = this.handle.getControlState();
+    const speed = () => speedOf(this.handle.getControlState());
+    const guide = new RouteGuide({ follower: this, route, speed });
     this.active = guide;
     this.navigation = {
       active: true,
-      destination: { ...destination },
-      remaining: route.length,
-      owner: this.lease(),
       blockedReason: undefined,
+      destination: { ...destination },
+      owner: state.owner === "loop" ? "loop" : "manual",
       refusal: undefined,
+      remaining: route.length,
       replan: this.session?.snapshot(),
       target,
     };
-    const ms = (route.length / (this.sync.runSpeed ?? Number.NaN)) * 1000;
-    this.mover.start("forward", Math.min(MAX_DURATION_MS, ms), guide);
+    const ms = (route.length / speedOf(state)) * 1000;
+    const facing = route.sample(0).orientation;
+    try {
+      this.handle.follow(guide, facing, Math.min(MAX_DURATION_MS, ms));
+    } catch (error) {
+      this.active = undefined;
+      throw error;
+    }
   }
 
   private replanNow(): void {
@@ -253,40 +287,48 @@ export class RouteFollower {
     const session = this.session;
     const destination = this.navigation.destination;
     if (!(session && destination)) return;
-    session.settle(this.deps.now());
-    const { x, y, z } = this.sync.requirePose();
-    const origin = { x, y, z };
-    const limit = this.sync.blockReason() ?? session.limitReached(origin);
-    if (limit) {
-      this.finishReplan(limit, true);
+    session.settle(this.now());
+    const state = this.handle.getControlState();
+    const { pose } = state;
+    const origin = pose && { x: pose.x, y: pose.y, z: pose.z };
+    const blocked = state.movementAllowed ? undefined : state.blockedReason;
+    const limit =
+      blocked ?? (origin ? session.limitReached(origin) : "no_pose");
+    if (limit || !origin) {
+      this.finishReplan(limit ?? "no_pose");
       return;
     }
-    let route: GroundRoute;
     try {
-      route = session.replan(origin);
+      const route = session.replan(origin);
+      session.planned(route);
+      this.start(route, destination, this.navigation.target);
     } catch (error) {
       const raw = error instanceof Error ? error.message : "replan_failed";
-      this.finishReplan(`replan_refused: ${raw}`, true);
-      return;
+      this.finishReplan(`replan_refused: ${raw}`);
     }
-    session.planned(route);
-    this.emit("control_changed", "replanned");
-    this.start(route, destination, this.navigation.target);
   }
 
-  private finishReplan(reason: string, error: boolean): void {
+  private finishReplan(reason: string): void {
     const session = this.session;
     this.session = undefined;
     this.navigation = {
       ...this.navigation,
       active: false,
-      owner: "none",
       blockedReason: reason,
+      owner: "none",
       refusal: classifyNavigationRefusal(reason),
       replan: session?.snapshot(),
     };
-    if (error) this.emit("control_error", reason);
   }
+}
+
+function guard(state: ControlState): void {
+  if (!state.movementAllowed) throw new Error(state.blockedReason);
+  if (!state.pose) throw new Error("no_pose");
+}
+
+function speedOf(state: ControlState): number {
+  return state.speed > 0 ? state.speed : Number.NaN;
 }
 
 function startsUnder(origin: NavPoint, pose: NavPoint): boolean {

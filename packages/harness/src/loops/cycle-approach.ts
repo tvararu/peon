@@ -1,4 +1,5 @@
 import { distance2d, type WorldHandle } from "@peon/core";
+import type { Travel } from "#harness/navigation/travel";
 
 export const CYCLE_APPROACH_YD = 30;
 export const CYCLE_WITHIN_YD = 25;
@@ -44,7 +45,10 @@ export async function approachUnit(
   }
 }
 
-export function handleApproach(handle: WorldHandle): ApproachDeps {
+export function handleApproach(
+  handle: WorldHandle,
+  travel: Travel,
+): ApproachDeps {
   return {
     gap(guid) {
       const pose = handle.getControlState().pose;
@@ -55,10 +59,10 @@ export function handleApproach(handle: WorldHandle): ApproachDeps {
         return Number.NaN;
       }
     },
-    goTo: (guid) => handle.goTo({ guid, kind: "guid" }),
+    goTo: (guid) => travel.goTo({ guid, kind: "guid" }),
     halt: (reason) => handle.stopMoving(reason),
     navigation() {
-      const { active, blockedReason, replan } = handle.getNavigationState();
+      const { active, blockedReason, replan } = travel.getNavigationState();
       return { active: active || replan?.pending === true, blockedReason };
     },
   };

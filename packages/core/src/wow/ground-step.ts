@@ -1,20 +1,20 @@
-import {
-  groundError,
-  type NativeMap,
-  type NativePoint,
-} from "#wow/navigation-native";
+import { distance2d } from "#wow/geometry";
+
+export type NavPoint = { x: number; y: number; z: number };
 
 export const GROUND_ERROR = 0.25;
 export const MESH_HEIGHT = 1.6;
 export const WALKABLE_CLIMB = 1;
-export const START_SNAP = WALKABLE_CLIMB;
+export const CELL_HEIGHT = 0.25;
+export const WALKABLE_SLOPE = Math.tan((50 * Math.PI) / 180);
+const SAFE_DROP = 13;
 
-type Ray = (from: NativePoint, to: NativePoint) => boolean;
+type Ray = (from: NavPoint, to: NavPoint) => boolean;
 
 export function collisionFree(
   ray: Ray,
-  from: NativePoint,
-  to: NativePoint,
+  from: NavPoint,
+  to: NavPoint,
   climb = 0,
 ): boolean {
   const lowFrom = { ...from, z: from.z + GROUND_ERROR };
@@ -30,8 +30,8 @@ export function collisionFree(
 
 function stepClear(
   ray: Ray,
-  lowFrom: NativePoint,
-  lowTo: NativePoint,
+  lowFrom: NavPoint,
+  lowTo: NavPoint,
   climb: number,
 ): boolean {
   const rise = lowTo.z - lowFrom.z;
@@ -41,14 +41,8 @@ function stepClear(
   return ray(lowFrom, riser) && ray(riser, lowTo);
 }
 
-export function checkCollision(
-  map: NativeMap,
-  from: NativePoint,
-  to: NativePoint,
-  climb: number,
-): void {
-  const ray = (a: NativePoint, b: NativePoint) =>
-    (a.x === b.x && a.y === b.y && a.z === b.z) || map.lineOfSight(a, b);
-  if (!collisionFree(ray, from, to, climb))
-    throw groundError("ground corridor collision");
+export function withinStep(from: NavPoint, to: NavPoint): boolean {
+  const reach = CELL_HEIGHT + distance2d(from, to) * WALKABLE_SLOPE;
+  const rise = to.z - from.z;
+  return rise <= reach && rise >= -Math.max(reach, SAFE_DROP);
 }

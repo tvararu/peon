@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { collisionFree, type NavPoint } from "@peon/core";
+import { GroundRoute } from "#harness/navigation/planner";
 import { native, navigation } from "#test-support/navigation-fixtures";
-import { GroundRoute, type NavPoint } from "#wow/navigation";
-import { collisionFree } from "#wow/navigation-collision";
 
 type Box = { minX: number; maxX: number; top: number };
 
@@ -18,7 +18,7 @@ function solid(...boxes: Box[]) {
   };
 }
 
-const platform = (top: number): Box => ({ minX: -10, maxX: 0.4, top });
+const platform = (top: number): Box => ({ maxX: 0.4, minX: -10, top });
 
 describe("collisionFree", () => {
   test("probes low, head-height and vertical rays", () => {
@@ -57,13 +57,13 @@ describe("collisionFree", () => {
   });
 
   test("refuses an obstacle on the higher floor or level ground", () => {
-    const post = { minX: 0.1, maxX: 0.2, top: 1 };
+    const post = { maxX: 0.2, minX: 0.1, top: 1 };
     const ray = solid(platform(0.6), post);
     const upper = { x: 0, y: 0, z: 0.6 };
     const lower = { x: 0.5, y: 0, z: 0 };
     expect(collisionFree(ray, upper, lower, 1)).toBe(false);
     expect(collisionFree(ray, lower, upper, 1)).toBe(false);
-    const wall = solid({ minX: 0.2, maxX: 0.3, top: 0.5 });
+    const wall = solid({ maxX: 0.3, minX: 0.2, top: 0.5 });
     const level = { x: 0.5, y: 0, z: 0 };
     expect(collisionFree(wall, { x: 0, y: 0, z: 0 }, level, 1)).toBe(false);
   });

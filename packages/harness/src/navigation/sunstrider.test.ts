@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
-import { createNavigation, type Navigation } from "@peon/core";
 import { navigationSource } from "#harness/navigation/maps";
+import { createNavigation, type Navigation } from "#harness/navigation/planner";
 
 const dataPath = process.env["NAV_DATA"] ?? "";
 const libraryPath = process.env["NAV_LIB"] ?? "";

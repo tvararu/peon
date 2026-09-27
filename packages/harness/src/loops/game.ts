@@ -33,8 +33,18 @@ import {
   TacticsLoop,
   type TacticsState,
 } from "#harness/loops/tactics";
+import {
+  createTravel,
+  navigationCovers,
+  type SessionNavigation,
+  type Travel,
+  type TravelSession,
+} from "#harness/navigation/travel";
 
-export type GameCapabilities = Capabilities & { jev: boolean };
+export type GameCapabilities = Capabilities & {
+  jev: boolean;
+  navigation: boolean;
+};
 
 export type Loops = Runs & {
   startTactics: (
@@ -63,7 +73,10 @@ export type Loops = Runs & {
 };
 
 export type Game = Omit<WorldHandle, "capabilities"> &
-  Loops & { capabilities: () => GameCapabilities };
+  Loops &
+  Travel & { capabilities: () => GameCapabilities };
+
+export type GameOptions = { jev?: JevPort; navigation?: SessionNavigation };
 
 type Parts = {
   handle: WorldHandle;
@@ -97,6 +110,7 @@ function wire({ handle, tactics, cycle }: Parts): Unsubscribe {
 
 type Ports = {
   handle: WorldHandle;
+  travel: Travel;
   combat: CombatPort;
   control: ControlPort;
   entity: EntityLookup;
@@ -135,10 +149,10 @@ function createTactics(ports: Ports, jev: JevPort | undefined): TacticsLoop {
 }
 
 function cycleDeps(ports: Ports, tactics: TacticsLoop): CycleDeps {
-  const { handle, control, entity } = ports;
+  const { handle, travel, control, entity } = ports;
   return {
     approach: (guid, signal) =>
-      approachUnit(handleApproach(handle), guid, signal),
+      approachUnit(handleApproach(handle, travel), guid, signal),
     bags: {
       questItems: () =>
         new Set(handle.getQuestState().items.map((item) => item.itemId)),
@@ -158,10 +172,11 @@ function cycleDeps(ports: Ports, tactics: TacticsLoop): CycleDeps {
   };
 }
 
-function build(handle: WorldHandle, jev: JevPort | undefined) {
+function build(handle: WorldHandle, { jev, navigation }: GameOptions) {
   let live = true;
+  const travel = createTravel(handle, navigation);
   const combat = combatPort(handle);
-  const control = controlPort(handle);
+  const control = controlPort(handle, travel);
   const halt = () => {
     if (!live) return;
     control.setLease("manual");
@@ -169,7 +184,7 @@ function build(handle: WorldHandle, jev: JevPort | undefined) {
     combat.halt();
   };
   const entity = (guid: bigint) => handle.getEntity(guid);
-  const ports = { combat, control, entity, halt, handle };
+  const ports = { combat, control, entity, halt, handle, travel };
   const tactics = createTactics(ports, jev);
   const deps = cycleDeps(ports, tactics);
   const cycle = new EncounterCycleRuntime(deps);
@@ -191,14 +206,58 @@ function build(handle: WorldHandle, jev: JevPort | undefined) {
     unwire();
     tactics.dispose();
     cycle.dispose();
+    travel.dispose();
   };
-  return { parts, retire, runs };
+  const shutDown = () => {
+    retire();
+    travel.close();
+  };
+  return { parts, retire, runs, shutDown, travel };
 }
 
-export function createGame(handle: WorldHandle, jev?: JevPort): Game {
-  const { parts, runs, retire } = build(handle, jev);
+function retiring(
+  handle: WorldHandle,
+  retire: () => void,
+  travel: TravelSession,
+): Pick<WorldHandle, "close" | "logout"> {
+  return {
+    close() {
+      retire();
+      handle.close();
+      travel.close();
+    },
+    logout() {
+      retire();
+      handle.logout();
+      travel.close();
+    },
+  };
+}
+
+function travelApi(travel: Travel): Travel {
+  const { getNavigationState, goTo, observeNavigation, walkToward } = travel;
+  return { getNavigationState, goTo, observeNavigation, walkToward };
+}
+
+function gameCapabilities(
+  handle: WorldHandle,
+  { jev, navigation }: GameOptions,
+): GameCapabilities {
+  const mapId = handle.getControlState().pose?.mapId;
+  return {
+    ...handle.capabilities(),
+    jev: jev !== undefined,
+    navigation: navigationCovers(navigation, mapId),
+  };
+}
+
+export function createGame(
+  handle: WorldHandle,
+  options: GameOptions = {},
+): Game {
+  const { parts, runs, retire, shutDown, travel } = build(handle, options);
   const { tactics, cycle, halt } = parts;
-  handle.closed.then(retire, retire);
+  handle.closed.then(shutDown, shutDown);
   const takeControl = (reason: string) => {
     cycle.stop(reason);
     tactics.stop(reason);
@@ -211,17 +270,11 @@ export function createGame(handle: WorldHandle, jev?: JevPort): Game {
   return {
     ...handle,
     ...runs,
-    capabilities: () => ({ ...handle.capabilities(), jev: jev !== undefined }),
-    close() {
-      retire();
-      handle.close();
-    },
+    capabilities: () => gameCapabilities(handle, options),
+    ...travelApi(travel),
+    ...retiring(handle, retire, travel),
     getCycleState: () => cycle.snapshot(),
     getTacticsState: () => tactics.snapshot(),
-    logout() {
-      retire();
-      handle.logout();
-    },
     halt() {
       tactics.stop("halt");
       cycle.stop("halt");

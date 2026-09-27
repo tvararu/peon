@@ -181,6 +181,7 @@
       "includes": [
         "packages/core/src/wow/**",
         "packages/harness/src/loops/**",
+        "packages/harness/src/navigation/**",
         "packages/*/test-support/**"
       ],
       "linter": {

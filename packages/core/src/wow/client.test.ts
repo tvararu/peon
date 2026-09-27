@@ -12,7 +12,6 @@ import { startMockWorldServer } from "#test-support/mock-world-server";
 import type { AuthResult } from "#wow/auth";
 import { authHandshake } from "#wow/auth";
 import { worldSession } from "#wow/client";
-import type { NativeMap } from "#wow/navigation-native";
 import {
   ObjectType,
   UpdateFlag,
@@ -38,22 +37,6 @@ function fakeAuth(port: number): AuthResult {
     realmId: 1,
   };
 }
-
-const NAVIGATION = {
-  navigation: {
-    covers: () => true,
-    open: (): NativeMap => ({
-      loadAdtAt() {},
-      findHeights: (x) => (x > 2 ? [8] : [3]),
-      findHeight: () => {
-        throw new Error("pathfind_find_height failed (UNKNOWN_HEIGHT)");
-      },
-      findPath: (from, to) => [from, to],
-      lineOfSight: () => true,
-      close() {},
-    }),
-  },
-};
 
 function observedObject(x: number, y: number, z: number): Uint8Array {
   const packet = new PacketWriter();
@@ -198,7 +181,7 @@ describe("session lifecycle", () => {
     });
     try {
       const handle = await worldSession(
-        { ...base, ...NAVIGATION, host: "127.0.0.1", port: server.port },
+        { ...base, host: "127.0.0.1", port: server.port },
         fakeAuth(server.port),
       );
       try {
@@ -260,7 +243,7 @@ describe("session lifecycle", () => {
     });
     try {
       const handle = await worldSession(
-        { ...base, ...NAVIGATION, host: "127.0.0.1", port: server.port },
+        { ...base, host: "127.0.0.1", port: server.port },
         fakeAuth(server.port),
       );
       try {
@@ -296,94 +279,6 @@ describe("session lifecycle", () => {
     }
   });
 
-  test("walk-toward reports ungrounded destination without cancelling manual motion", async () => {
-    const server = await startMockWorldServer({
-      loginMapId: 530,
-      coalesceSelfCreate: true,
-    });
-    try {
-      const handle = await worldSession(
-        { ...base, ...NAVIGATION, host: "127.0.0.1", port: server.port },
-        fakeAuth(server.port),
-      );
-      try {
-        handle.move("forward", 1000);
-        const outcome = await handle.walkToward(
-          { kind: "point", x: 4, y: 2, z: 3 },
-          2,
-        );
-        expect(outcome).toMatchObject({
-          status: "stopped",
-          traveled: 0,
-          reason: "destination_not_grounded",
-        });
-        expect(handle.getControlState().moving).toBe(true);
-      } finally {
-        handle.close();
-        await handle.closed;
-      }
-    } finally {
-      server.stop();
-    }
-  });
-
-  test("walk-toward refuses an observed GUID without navigation before any motion packet", async () => {
-    const server = await startMockWorldServer({
-      loginMapId: 530,
-      coalesceSelfCreate: true,
-    });
-    try {
-      const handle = await worldSession(
-        { ...base, host: "127.0.0.1", port: server.port },
-        fakeAuth(server.port),
-      );
-      try {
-        const appeared = Promise.withResolvers<void>();
-        handle.onEntityEvent((event) => {
-          if (event.type === "appear" && event.entity.guid === 0x99n)
-            appeared.resolve();
-        });
-        server.inject(GameOpcode.SMSG_UPDATE_OBJECT, observedObject(1, 12, 3));
-        await appeared.promise;
-        const speed = new PacketWriter();
-        speed.packedGuid(0x42, 0);
-        speed.uint32LE(1);
-        speed.uint8(0);
-        speed.floatLE(7);
-        server.inject(GameOpcode.SMSG_FORCE_RUN_SPEED_CHANGE, speed.finish());
-        await server.waitForCapture(
-          (packet) =>
-            packet.opcode === GameOpcode.CMSG_FORCE_RUN_SPEED_CHANGE_ACK,
-        );
-        const sentBefore = server.captured.length;
-        const result = await handle.walkToward(
-          { kind: "guid", guid: 0x99n },
-          3,
-        );
-        expect(result).toMatchObject({
-          status: "stopped",
-          reason: "missing_navigation",
-          traveled: 0,
-          pose: { source: "server" },
-        });
-        const motion = server.captured
-          .slice(sentBefore)
-          .filter(
-            (packet) =>
-              packet.opcode === GameOpcode.MSG_MOVE_SET_FACING ||
-              packet.opcode === GameOpcode.MSG_MOVE_START_FORWARD,
-          );
-        expect(motion).toEqual([]);
-        expect(handle.getControlState().moving).toBe(false);
-      } finally {
-        handle.close();
-        await handle.closed;
-      }
-    } finally {
-      server.stop();
-    }
-  });
-
   test("world transfer invalidates quest authority before another self CREATE", async () => {
     const worldServer = await startMockWorldServer({
       coalesceSelfCreate: true,
@@ -409,27 +304,6 @@ describe("session lifecycle", () => {
           (event) => event.type === "accepted" || event.type === "removed",
         ),
       ).toBe(false);
-      handle.close();
-      await handle.closed;
-    } finally {
-      worldServer.stop();
-    }
-  });
-
-  test("goTo classifies refusals for wait, pick_destination, and stop", async () => {
-    const worldServer = await startMockWorldServer({
-      loginMapId: 530,
-      coalesceSelfCreate: true,
-    });
-    try {
-      const handle = await worldSession(
-        { ...base, host: "127.0.0.1", port: worldServer.port },
-        fakeAuth(worldServer.port),
-      );
-      expect(() =>
-        handle.goTo({ kind: "point", x: Number.NaN, y: 0, z: 0 }),
-      ).toThrow("stop: invalid_destination");
-
       handle.close();
       await handle.closed;
     } finally {

@@ -9,12 +9,8 @@ import {
 } from "#test-support/fixtures";
 import { startMockWorldServer } from "#test-support/mock-world-server";
 import { unitsPacket } from "#test-support/unit-packets";
-import { writePackedGuid } from "#test-support/world-handlers-fixtures";
 import { type WorldHandle, worldSession } from "#wow/client";
-import type { NativeMap } from "#wow/navigation-native";
-import { UpdateType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import { PacketWriter } from "#wow/protocol/packet";
 import * as worldHandlers from "#wow/world-handlers";
 
 const realSetTimeout = globalThis.setTimeout;
@@ -71,7 +67,6 @@ async function fixture(targetX: number): Promise<Fixture> {
           clientSeed,
           host: "127.0.0.1",
           port: server.port,
-          navigation: { covers: () => true, open: () => openMap() },
           dbc: () => Promise.reject(new Error("fixture spells unread")),
         },
         {
@@ -104,72 +99,18 @@ async function fixture(targetX: number): Promise<Fixture> {
   }
 }
 
-function missingMap(): NativeMap {
-  throw new Error("navigation library not found: fixture-native");
-}
-
-let openMap = missingMap;
-
-function flatMap(): NativeMap {
-  return {
-    loadAdtAt() {},
-    findHeights: () => [3],
-    findHeight: () => 3,
-    lineOfSight: () => true,
-    findPath: (from, to) => [from, to],
-    close() {},
-  };
-}
-
 describe("gameplay forced-close lifecycle", () => {
-  test("an out-of-range update for the navigated creature stops its route as target_lost", async () => {
-    openMap = flatMap;
-    let f: Fixture | undefined;
-    try {
-      f = await fixture(60);
-      const handle = f.handle;
-      const stopped = Promise.withResolvers<string | undefined>();
-      handle.onControlEvent((event) => {
-        if (event.type === "movement_stopped") stopped.resolve(event.reason);
-      });
-      handle.goTo({ guid: BigInt(targetGuid), kind: "guid" });
-      expect(handle.getNavigationState()).toMatchObject({
-        active: true,
-        target: BigInt(targetGuid),
-      });
-      const outOfRange = new PacketWriter();
-      outOfRange.uint32LE(1);
-      outOfRange.uint8(UpdateType.OUT_OF_RANGE);
-      outOfRange.uint32LE(1);
-      writePackedGuid(outOfRange, BigInt(targetGuid));
-      f.inject(GameOpcode.SMSG_UPDATE_OBJECT, outOfRange.finish());
-      expect(await bounded(stopped.promise)).toBe("target_lost");
-      expect(handle.getNavigationState()).toMatchObject({
-        active: false,
-        blockedReason: "target_lost",
-        refusal: "stop",
-      });
-    } finally {
-      try {
-        await disposeFixture(f);
-      } finally {
-        openMap = missingMap;
-      }
-    }
-  });
-  test("server close silently retires an active route owner and its timers", async () => {
-    openMap = flatMap;
+  test("server close silently retires an active mover and its timers", async () => {
     const send = jest.spyOn(worldHandlers, "sendPacket");
     let f: Fixture | undefined;
     try {
       jest.useFakeTimers();
       f = await fixture(21);
-      f.handle.goTo({ kind: "point", x: 21, y: 2, z: 3 });
+      f.handle.move("forward", 10_000);
       expect(f.handle.getControlState()).toMatchObject({
         moving: true,
         owner: "manual",
       });
-      expect(f.handle.getNavigationState().active).toBe(true);
       expect(
         send.mock.calls.some(
           ([, opcode]) => opcode === GameOpcode.MSG_MOVE_START_FORWARD,
@@ -183,7 +124,6 @@ describe("gameplay forced-close lifecycle", () => {
         moving: false,
         owner: "none",
       });
-      expect(f.handle.getNavigationState().active).toBe(false);
       const duringClose = send.mock.calls.map(([, opcode]) => opcode);
       jest.advanceTimersByTime(60_000);
       await Promise.resolve();
@@ -191,7 +131,6 @@ describe("gameplay forced-close lifecycle", () => {
         moving: false,
         owner: "none",
       });
-      expect(f.handle.getNavigationState().active).toBe(false);
       expect(duringClose).toEqual([]);
       expect(send.mock.calls.map(([, opcode]) => opcode)).toEqual([]);
     } finally {
@@ -200,7 +139,6 @@ describe("gameplay forced-close lifecycle", () => {
       } finally {
         jest.useRealTimers();
         send.mockRestore();
-        openMap = missingMap;
       }
     }
   });

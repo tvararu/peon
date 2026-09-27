@@ -1,15 +1,15 @@
-import { distance2d } from "#wow/geometry";
-import type { GroundRoute, NavPoint } from "#wow/navigation";
+import { distance2d, type NavPoint } from "@peon/core";
+import type { GroundRoute } from "#harness/navigation/planner";
 
 export type Replanner = (origin: NavPoint) => GroundRoute;
 
 export const REPLAN_LIMITS = {
-  plans: 4,
+  delayMs: 250,
+  displacement: 2,
   elapsedMs: 60_000,
+  plans: 4,
   traveledFactor: 2,
   traveledFloor: 20,
-  displacement: 2,
-  delayMs: 250,
 };
 
 export type ReplanState = {
@@ -84,17 +84,17 @@ export class RouteSession {
 
   snapshot(): ReplanState {
     return {
-      plans: this.plans,
-      traveled: this.traveled,
       elapsedMs: this.elapsedMs,
       interruptions: [...this.interruptions],
-      pending: this.pending,
       limits: {
-        plans: REPLAN_LIMITS.plans,
-        elapsedMs: REPLAN_LIMITS.elapsedMs,
-        traveled: this.maxTraveled,
         displacement: REPLAN_LIMITS.displacement,
+        elapsedMs: REPLAN_LIMITS.elapsedMs,
+        plans: REPLAN_LIMITS.plans,
+        traveled: this.maxTraveled,
       },
+      pending: this.pending,
+      plans: this.plans,
+      traveled: this.traveled,
     };
   }
 }

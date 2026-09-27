@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import type { NavPoint } from "@peon/core";
 import { native, navigation } from "#test-support/navigation-fixtures";
-import type { NavPoint } from "#wow/navigation";
 
 const floor = 44.6;
 const start: NavPoint = { x: 0, y: 0, z: floor };

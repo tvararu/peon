@@ -151,7 +151,6 @@ test("new surface stubs return neutral values", () => {
   const handle = createMockHandle();
   expect(handle.capabilities()).toEqual({
     factions: false,
-    navigation: false,
     spells: false,
   });
   expect(handle.getPlaceState()).toEqual({

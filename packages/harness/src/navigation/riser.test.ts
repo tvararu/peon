@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import type { NavPoint } from "@peon/core";
 import { native, navigation } from "#test-support/navigation-fixtures";
-import type { NavPoint } from "#wow/navigation";
 
 const riser = 4;
 
@@ -36,10 +36,10 @@ function route(step: Step, blocked = false) {
 
 describe("a stair riser just past the walkable climb", () => {
   const northshire = {
-    low: 80.71,
     column: [81.77, 80.7],
-    pick: 81.77,
     high: 81.77,
+    low: 80.71,
+    pick: 81.77,
   };
 
   test("climbs onto the only floor of a column over a covered surface", () => {
@@ -55,26 +55,26 @@ describe("a stair riser just past the walkable climb", () => {
 
   test("keeps the floor of the previous sample over a far lower floor", () => {
     const planned = route({
-      low: 83.3,
       column: [83.5, 70.1],
-      pick: 70.1,
       high: 83.5,
+      low: 83.3,
+      pick: 70.1,
     });
     expect(planned.sample(5).z).toBe(83.5);
   });
 
   test("refuses a pick onto a surface with no headroom", () => {
-    const step = { low: 83.7, column: [83.9, 83.5], pick: 83.5, high: 83.5 };
+    const step = { column: [83.9, 83.5], high: 83.5, low: 83.7, pick: 83.5 };
     expect(() => route(step)).toThrow("ambiguous ground column at route");
   });
 
   test("refuses a rise past the climb in a column with two floors", () => {
-    const step = { low: 82.65, column: [83.8, 81.5], pick: 83.8, high: 83.8 };
+    const step = { column: [83.8, 81.5], high: 83.8, low: 82.65, pick: 83.8 };
     expect(() => route(step)).toThrow("ambiguous ground column at route");
   });
 
   test("refuses a riser taller than the mesh step", () => {
-    const step = { low: 80.4, column: [81.77, 80.4], pick: 81.77, high: 81.77 };
+    const step = { column: [81.77, 80.4], high: 81.77, low: 80.4, pick: 81.77 };
     expect(() => route(step, true)).toThrow("ambiguous ground column at route");
   });
 });

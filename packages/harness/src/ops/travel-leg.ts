@@ -1,8 +1,8 @@
-import type { GotoTarget } from "@peon/core";
 import { messageOf } from "@peon/core/lib/errors";
 import type { LegStatus } from "#harness/contract/details";
 import type { OpsCtx } from "#harness/contract/services";
 import type { PoseView } from "#harness/contract/views";
+import type { GotoTarget } from "#harness/navigation/goto";
 import {
   logRouteEnd,
   logRouteReplaced,

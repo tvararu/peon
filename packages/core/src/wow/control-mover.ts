@@ -31,7 +31,7 @@ const DIR_HEADING: Record<MovementDirection, number> = {
 
 export type GuideStep = { halt: string } | { fail: string } | undefined;
 
-export type Guide = {
+export type MovementGuide = {
   readonly heartbeatMs: number;
   advance: (pose: ControlPose, yards: number, now: number) => GuideStep;
   leaseMs: (now: number) => number;
@@ -62,7 +62,7 @@ export class Mover {
   private readonly sync: MovementSync;
   private readonly emit: Emit;
   private readonly interrupt: (reason: string) => void;
-  private guide: Guide | undefined;
+  private guide: MovementGuide | undefined;
   private leaseTimer: ReturnType<typeof setTimeout> | undefined;
   private heartbeatTimer: ReturnType<typeof setInterval> | undefined;
   private lastIntegrate = 0;
@@ -76,7 +76,7 @@ export class Mover {
     this.interrupt = interrupt;
   }
 
-  guiding(): Guide | undefined {
+  guiding(): MovementGuide | undefined {
     return this.guide;
   }
 
@@ -105,7 +105,11 @@ export class Mover {
     this.emit("facing_changed");
   }
 
-  start(direction: MovementDirection, durationMs: number, guide?: Guide): void {
+  start(
+    direction: MovementDirection,
+    durationMs: number,
+    guide?: MovementGuide,
+  ): void {
     const pose = this.sync.requirePose();
     this.sync.predicted = {
       ...pose,

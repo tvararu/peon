@@ -1,9 +1,12 @@
-import { bearing, distance2d } from "#wow/geometry";
 import {
-  checkCollision,
+  bearing,
+  CELL_HEIGHT,
+  distance2d,
   GROUND_ERROR,
+  type NavPoint,
   WALKABLE_CLIMB,
-} from "#wow/navigation-collision";
+} from "@peon/core";
+import { checkCollision } from "#harness/navigation/collision";
 import {
   clearAbove,
   columnHeights,
@@ -11,23 +14,21 @@ import {
   floorError,
   groundFloors,
   settleStart,
-} from "#wow/navigation-column";
+} from "#harness/navigation/column";
 import {
-  CELL_HEIGHT,
   connectedHeight,
   stepHeight,
   traceHeight,
   uniqueHeight,
-} from "#wow/navigation-height";
+} from "#harness/navigation/height";
 import {
   groundError,
   isGroundError,
   type NativeMap,
   validateNativePoint,
   validateNativeXY,
-} from "#wow/navigation-native";
+} from "#harness/navigation/native";
 
-export type NavPoint = { x: number; y: number; z: number };
 export type GroundSample = NavPoint & { orientation: number };
 export type NavDestination = { x: number; y: number; z?: number };
 export type PlanStart = { stale?: boolean };
@@ -176,6 +177,23 @@ export function createNavigation(
     return map;
   }
   return {
+    clear(mapId, from, to) {
+      const map = open(mapId, from, to);
+      map.loadAdtAt(to.x, to.y);
+      return map.lineOfSight(from, to);
+    },
+    close() {
+      closed = true;
+      for (const map of opened.values()) map.close();
+      opened.clear();
+    },
+    height(mapId, x, y, from) {
+      validateNativeXY(x, y);
+      const map = open(mapId, ...(from ? [from] : []));
+      if (from) map.loadAdtAt(from.x, from.y);
+      map.loadAdtAt(x, y);
+      return from ? connectedHeight(map, x, y, from) : uniqueHeight(map, x, y);
+    },
     plan(mapId, from, to, start) {
       const map = open(mapId, from, to);
       map.loadAdtAt(from.x, from.y);
@@ -191,29 +209,12 @@ export function createNavigation(
       const z = destinationFloor(map, to.x, to.y);
       return planRoute(map, from, { x: to.x, y: to.y, z });
     },
-    height(mapId, x, y, from) {
-      validateNativeXY(x, y);
-      const map = open(mapId, ...(from ? [from] : []));
-      if (from) map.loadAdtAt(from.x, from.y);
-      map.loadAdtAt(x, y);
-      return from ? connectedHeight(map, x, y, from) : uniqueHeight(map, x, y);
-    },
     stepHeight(mapId, x, y, from) {
       validateNativeXY(x, y);
       const map = open(mapId, from);
       map.loadAdtAt(from.x, from.y);
       map.loadAdtAt(x, y);
       return stepHeight(map, x, y, from);
-    },
-    clear(mapId, from, to) {
-      const map = open(mapId, from, to);
-      map.loadAdtAt(to.x, to.y);
-      return map.lineOfSight(from, to);
-    },
-    close() {
-      closed = true;
-      for (const map of opened.values()) map.close();
-      opened.clear();
     },
   };
 }
@@ -288,7 +289,7 @@ function groundPath(
   }).point;
   if (Math.abs(initial.z - first.z) > GROUND_ERROR)
     throw groundError("start is not on connected ground");
-  const walk: GroundWalk = { points: [{ ...first }], leavingStart, rules };
+  const walk: GroundWalk = { leavingStart, points: [{ ...first }], rules };
   for (let i = 1; i < corners.length; i++) {
     const from = corners[i - 1];
     const to = corners[i];
@@ -370,7 +371,7 @@ function groundPoint(
   if (!Number.isFinite(back) || Math.abs(back - from.z) > GROUND_ERROR)
     throw groundError("ground corridor changes surface");
   checkCollision(map, from, point, climb);
-  return { point, heights };
+  return { heights, point };
 }
 
 function returnHeight(

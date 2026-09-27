@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import type { NavPoint } from "@peon/core";
+import { groundError } from "#harness/navigation/native";
+import { createNavigation, GroundRoute } from "#harness/navigation/planner";
 import { native, navigation } from "#test-support/navigation-fixtures";
-import { createNavigation, GroundRoute, type NavPoint } from "#wow/navigation";
-import { groundError } from "#wow/navigation-native";
 
 const start: NavPoint = { x: 0, y: 0, z: 0 };
 const end: NavPoint = { x: 10, y: 0, z: 0 };
@@ -90,11 +91,11 @@ describe("grounded navigation", () => {
     const corner = (z: number, column: number[]) =>
       navigation(
         native({
-          findPath: (from, to) => [from, { x: 5, y: 5, z }, to],
           findHeights: (x, y) => {
             if (x === 5 && y === 5) return column;
             return y === 0 && x > 4 && x < 6 ? [0, 1] : [0];
           },
+          findPath: (from, to) => [from, { x: 5, y: 5, z }, to],
         }),
       );
     expect(corner(1.25, [0]).plan(530, start, end).length).toBeCloseTo(14.142);
@@ -154,19 +155,19 @@ describe("grounded navigation", () => {
   test("follows turns with horizontal distance and clamps at the endpoint", () => {
     const to = { x: 10, y: 10, z: 0 };
     const map = native({
-      findPath: (from, target) => [from, end, target],
       findHeight: (_from, x, y) => {
         if (y > 0 && x < 10) throw groundError("blocked direct corridor");
         return 0;
       },
+      findPath: (from, target) => [from, end, target],
     });
     const route = navigation(map).plan(530, start, to);
     expect(route.length).toBeCloseTo(20);
     expect(route.sample(15)).toEqual({
+      orientation: Math.PI / 2,
       x: 10,
       y: 5,
       z: 0,
-      orientation: Math.PI / 2,
     });
     expect(route.sample(100)).toMatchObject(to);
   });
@@ -189,12 +190,12 @@ describe("navigation lifecycle", () => {
   test("closed navigation and routes cannot query freed native state", () => {
     let closed = false;
     const map = native({
+      close: () => {
+        closed = true;
+      },
       findHeight: () => {
         if (closed) throw new Error("navigation map is closed");
         return 0;
-      },
-      close: () => {
-        closed = true;
       },
     });
     const nav = navigation(map);
@@ -228,27 +229,27 @@ test("out-of-domain coordinates are rejected before map creation or native calls
 describe("validated direct corridor selection", () => {
   test("uses fully grounded direct travel instead of an ungroundable funnel corner", () => {
     const map = native({
-      findPath: (from, to) => [from, { x: 5, y: 5, z: 0 }, to],
       findHeight: (_from, x, y) => {
         if (x === 5 && y === 5) throw groundError("UNKNOWN_HEIGHT");
         return 0;
       },
+      findPath: (from, to) => [from, { x: 5, y: 5, z: 0 }, to],
     });
     const route = navigation(map).plan(530, start, end);
     expect(route.length).toBe(10);
-    expect(route.sample(5)).toEqual({ x: 5, y: 0, z: 0, orientation: 0 });
+    expect(route.sample(5)).toEqual({ orientation: 0, x: 5, y: 0, z: 0 });
     expect(route.sample(route.length)).toMatchObject(end);
   });
 
   test("a rejected ambiguous direct column can be avoided by a validated detour", () => {
     const map = native({
+      findHeights: (x, y) => (x >= 4 && x <= 6 && y === 0 ? [0, 1] : [0]),
       findPath: (from, to) => [
         from,
         { x: 0, y: 2, z: 0 },
         { x: 10, y: 2, z: 0 },
         to,
       ],
-      findHeights: (x, y) => (x >= 4 && x <= 6 && y === 0 ? [0, 1] : [0]),
     });
     const route = navigation(map).plan(530, start, end);
     expect(route.length).toBe(14);
@@ -271,17 +272,17 @@ describe("validated direct corridor selection", () => {
 
   test("does not swallow native lifecycle failures to attempt another corridor", () => {
     const map = native({
+      findHeight: (_from, x, y) => {
+        if (x >= 4 && x <= 6 && y === 0)
+          throw new Error("navigation map is closed");
+        return 0;
+      },
       findPath: (from, to) => [
         from,
         { x: 0, y: 2, z: 0 },
         { x: 10, y: 2, z: 0 },
         to,
       ],
-      findHeight: (_from, x, y) => {
-        if (x >= 4 && x <= 6 && y === 0)
-          throw new Error("navigation map is closed");
-        return 0;
-      },
     });
     expect(() => navigation(map).plan(530, start, end)).toThrow(
       "navigation map is closed",
@@ -429,13 +430,13 @@ describe("ground destinations", () => {
   test("primes the origin tile before the connected height query", () => {
     const loaded: [number, number][] = [];
     const map = native({
-      loadAdtAt: (x, y) => {
-        loaded.push([x, y]);
-      },
       findHeight: () => {
         throw groundError("pathfind_find_height failed (UNKNOWN_HEIGHT)");
       },
       findHeights: () => [70.34],
+      loadAdtAt: (x, y) => {
+        loaded.push([x, y]);
+      },
     });
     const nav = navigation(map);
     expect(nav.height(530, 10, 0, { x: 0, y: 0, z: 70.336 })).toBeCloseTo(

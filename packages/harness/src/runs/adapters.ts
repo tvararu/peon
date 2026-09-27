@@ -1,14 +1,12 @@
-import {
-  type ControlPose,
-  type GotoTarget,
-  type NavigationState,
-  nextStepFor,
-} from "@peon/core";
+import type { ControlPose } from "@peon/core";
 import { messageOf } from "@peon/core/lib/errors";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { CycleState } from "#harness/loops/encounter-cycle";
 import type { Game } from "#harness/loops/game";
 import type { TacticsOutcome } from "#harness/loops/tactics";
+import type { GotoTarget } from "#harness/navigation/goto";
+import { nextStepFor } from "#harness/navigation/observation";
+import type { NavigationState } from "#harness/navigation/route-follower";
 
 export type GotoEnd = {
   status: "arrived" | "refused" | "stopped";

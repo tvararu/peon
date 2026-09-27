@@ -4,9 +4,9 @@ import {
   type CombatState,
   type CombatUnit,
   distance,
-  type NavigationState,
 } from "@peon/core";
 import type { TacticsFrame } from "#harness/loops/tactics";
+import type { NavigationState } from "#harness/navigation/route-follower";
 
 export function timeoutOutcome(
   state: CombatState,

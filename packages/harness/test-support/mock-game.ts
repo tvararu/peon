@@ -1,4 +1,5 @@
 import { jest } from "bun:test";
+import type { WalkOutcome } from "@peon/core";
 import { Emitter } from "@peon/core/lib/emitter";
 import {
   createMockHandle,
@@ -11,6 +12,8 @@ import {
 import type { Game } from "#harness/loops/game";
 import { recoveryPort, rewardsPort } from "#harness/loops/ports";
 import type { TacticsEvent, TacticsState } from "#harness/loops/tactics";
+import { observeNavigation } from "#harness/navigation/observation";
+import type { NavigationState } from "#harness/navigation/route-follower";
 
 export type MockGame = Omit<MockHandle, "capabilities"> &
   Game & {
@@ -55,7 +58,7 @@ export function createMockGame(): MockGame {
   const tactics = new Emitter<[TacticsEvent]>();
   const cycles = new Emitter<[CycleEvent]>();
   cycle.onEvent((event) => cycles.emit(event));
-  return Object.assign(handle, {
+  const game: MockGame = Object.assign(handle, {
     capabilities: jest.fn(() => ({
       factions: false,
       jev: false,
@@ -63,11 +66,25 @@ export function createMockGame(): MockGame {
       spells: false,
     })),
     getCycleState: jest.fn(() => cycle.snapshot()),
+    getNavigationState: jest.fn(
+      (): NavigationState => ({
+        active: false,
+        blockedReason: undefined,
+        destination: undefined,
+        owner: "none",
+        refusal: undefined,
+        remaining: undefined,
+      }),
+    ),
     getTacticsState: jest.fn(() => tacticsState),
+    goTo: jest.fn(),
     halt: jest.fn(() => {
       cycle.stop("halt");
     }),
     lootCorpse: jest.fn(async () => ({ ok: true as const, record: undefined })),
+    observeNavigation: jest.fn(() =>
+      observeNavigation(game.getNavigationState()),
+    ),
     onCycleEvent: (cb: (event: CycleEvent) => void) => cycles.subscribe(cb),
     onTacticsEvent: (cb: (event: TacticsEvent) => void) =>
       tactics.subscribe(cb),
@@ -93,5 +110,9 @@ export function createMockGame(): MockGame {
     triggerTacticsEvent(event: TacticsEvent) {
       tactics.emit(event);
     },
+    walkToward: jest.fn(async (): Promise<WalkOutcome> => {
+      throw new Error("mock_walk_unavailable");
+    }),
   });
+  return game;
 }

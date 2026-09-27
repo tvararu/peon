@@ -3,6 +3,7 @@ import { ControlRuntime, EntityStore } from "@peon/core/test-support/internals";
 import { combatParts } from "@peon/core/test-support/session-fixtures";
 import { CombatActions } from "#harness/loops/combat-actions";
 import type { RangedGear } from "#harness/loops/combat-ranged-gear";
+import { routedControl } from "#test-support/navigation-fixtures";
 
 export const context = {
   instruction: "Defeat the selected creature",
@@ -43,7 +44,7 @@ export function setup(
     target: 1n,
     unitFlags: 0x8_00_00,
   });
-  const control = new ControlRuntime({
+  const runtime = new ControlRuntime({
     ground: {
       height: (_mapId, _x, _y, from) => from?.z,
       pathClear: () => false,
@@ -53,6 +54,8 @@ export function setup(
     send() {},
     ticks: () => 0,
   });
+  const { control, routes } = routedControl(runtime, nowFn);
+
   control.observeSelf({
     position: { mapId: 530, orientation: 0, x: 0, y: 0, z: 0 },
     runBackSpeed: 4,
@@ -90,5 +93,15 @@ export function setup(
     ...(options.gear && { gear: options.gear }),
   });
   actions.activate(context);
-  return { actions, combat, combatStore, control, fields, motion, sent, store };
+  return {
+    actions,
+    combat,
+    combatStore,
+    control,
+    fields,
+    motion,
+    routes,
+    sent,
+    store,
+  };
 }

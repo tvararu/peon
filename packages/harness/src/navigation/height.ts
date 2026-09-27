@@ -1,13 +1,14 @@
-import { distance2d } from "#wow/geometry";
-import { GROUND_ERROR } from "#wow/navigation-collision";
-import { columnHeights, FLOOR_MERGE } from "#wow/navigation-column";
-import { groundError, type NativeMap } from "#wow/navigation-native";
+import {
+  CELL_HEIGHT,
+  distance2d,
+  GROUND_ERROR,
+  WALKABLE_SLOPE,
+  withinStep,
+} from "@peon/core";
+import { columnHeights, FLOOR_MERGE } from "#harness/navigation/column";
+import { groundError, type NativeMap } from "#harness/navigation/native";
 
 type Point = { x: number; y: number; z: number };
-
-export const CELL_HEIGHT = 0.25;
-const WALKABLE_SLOPE = Math.tan((50 * Math.PI) / 180);
-const SAFE_DROP = 13;
 
 export function connectedHeight(
   map: NativeMap,
@@ -66,12 +67,6 @@ export function continuousHeight(
         Math.abs(height - referenceZ) <= GROUND_ERROR,
     );
   return matches.length === 1 ? matches[0] : undefined;
-}
-
-export function withinStep(from: Point, to: Point): boolean {
-  const reach = CELL_HEIGHT + distance2d(from, to) * WALKABLE_SLOPE;
-  const rise = to.z - from.z;
-  return rise <= reach && rise >= -Math.max(reach, SAFE_DROP);
 }
 
 export function reachableHeight(

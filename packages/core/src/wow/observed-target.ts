@@ -1,6 +1,6 @@
 import type { CombatUnit } from "#wow/combat";
 import type { Entity } from "#wow/entity-store";
-import type { NavPoint } from "#wow/navigation";
+import type { NavPoint } from "#wow/ground-step";
 
 export function observedTargetPosition(
   entity: Entity | undefined,

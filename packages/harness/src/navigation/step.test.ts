@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { withinStep } from "@peon/core";
+import { groundError } from "#harness/navigation/native";
 import { native, navigation } from "#test-support/navigation-fixtures";
-import { withinStep } from "#wow/navigation-height";
-import { groundError } from "#wow/navigation-native";
 
 describe("step height", () => {
   test("a reachable collision surface wins over a navmesh height floating above it", () => {

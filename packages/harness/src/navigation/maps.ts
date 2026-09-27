@@ -1,10 +1,10 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { NativeMap, NavigationSource } from "@peon/core";
 import {
   NavigationDataMissing,
   openNativeMap,
 } from "#harness/navigation/namigator";
+import type { NativeMap, NavigationSource } from "#harness/navigation/native";
 
 export type NavigationFiles = { dataDir: string; library: string };
 

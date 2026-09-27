@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { createNavigation, type NativeMap } from "@peon/core";
 import { scratchDir } from "@peon/core/test-support/scratch";
 import { navigationMapName, navigationSource } from "#harness/navigation/maps";
+import type { NativeMap } from "#harness/navigation/native";
+import { createNavigation } from "#harness/navigation/planner";
 
 const start = { x: 0, y: 0, z: 0 };
 const end = { x: 10, y: 0, z: 0 };

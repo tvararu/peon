@@ -5,7 +5,6 @@ import type { WorldConn } from "#wow/world-conn";
 export type Capabilities = {
   factions: boolean;
   spells: boolean;
-  navigation: boolean;
 };
 
 export type NoticeEvent = {
