@@ -7,7 +7,7 @@ import type { ControlRuntime } from "#wow/control";
 import type { Arc4 } from "#wow/crypto/arc4";
 import type { ItemDestroyRuntime } from "#wow/destroy";
 import type { EncounterCycleRuntime } from "#wow/encounter-cycle";
-import type { EntityStore } from "#wow/entity-store";
+import type { EntityEvent, EntityStore } from "#wow/entity-store";
 import type { FriendStore } from "#wow/friend-store";
 import type { GuildStore } from "#wow/guild-store";
 import type { IgnoreStore } from "#wow/ignore-store";
@@ -44,6 +44,7 @@ export type WorldConn = {
   partyMembers: Map<string, { guidLow: number; guidHigh: number }>;
   party: PartyStore;
   entityStore: EntityStore;
+  pendingEntityEvents: EntityEvent[];
   remoteMotion: RemoteMotion;
   creatureNameCache: Map<number, string>;
   gameObjectNameCache: Map<number, string>;

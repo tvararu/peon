@@ -176,6 +176,28 @@ describe("WorldHandle event subscriptions", () => {
     }
   });
 
+  test("entity events arrive after the whole packet is applied", async () => {
+    const { server, handle } = await session();
+    try {
+      const seen: bigint[][] = [];
+      const appeared = Promise.withResolvers<void>();
+      handle.onEntityEvent((event) => {
+        if (event.type !== "appear") return;
+        seen.push(handle.getNearbyEntities().map((entity) => entity.guid));
+        if (event.entity.guid === 0x99n) appeared.resolve();
+      });
+      server.inject(GameOpcode.SMSG_UPDATE_OBJECT, observedObjects(0x98, 0x99));
+      await appeared.promise;
+      expect(seen).toHaveLength(2);
+      for (const guids of seen)
+        expect(guids).toEqual(expect.arrayContaining([0x98n, 0x99n]));
+    } finally {
+      handle.close();
+      await handle.closed;
+      server.stop();
+    }
+  });
+
   test("connection teardown detaches subscribers before clearing entities", async () => {
     const { server, handle } = await session();
     const events: EntityEvent[] = [];

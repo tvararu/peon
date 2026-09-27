@@ -47,9 +47,22 @@ function drainWorldPackets(conn: WorldConn): void {
         conn.events.packetError.emit(opcode, err);
       }
     } finally {
+      flushEntityEvents(conn, opcode);
       conn.dispatchingOpcode = undefined;
     }
   }
+}
+
+function flushEntityEvents(conn: WorldConn, opcode: number): void {
+  const queue = conn.pendingEntityEvents;
+  for (const event of queue) {
+    try {
+      deliverEntityEvent(conn, event);
+    } catch (err) {
+      if (err instanceof Error) conn.events.packetError.emit(opcode, err);
+    }
+  }
+  queue.length = 0;
 }
 
 function reportListenerError(conn: WorldConn, error: unknown): void {
@@ -139,6 +152,11 @@ function routeEntityEvent(conn: WorldConn, event: EntityEvent): void {
     conn.combat?.forget(event.guid);
     conn.control?.observeDisappear(event.guid);
   }
+  if (conn.dispatchingOpcode === undefined) deliverEntityEvent(conn, event);
+  else conn.pendingEntityEvents.push(event);
+}
+
+function deliverEntityEvent(conn: WorldConn, event: EntityEvent): void {
   conn.recovery?.observeEntity(event);
   conn.rewards?.observeEntity(event);
   conn.itemTemplates?.observeEntity(event);
@@ -164,6 +182,7 @@ export function createWorldConn(): WorldConn {
     partyMembers: new Map(),
     party: new PartyStore(),
     entityStore: new EntityStore(),
+    pendingEntityEvents: [],
     remoteMotion: new RemoteMotion({
       now: () => Date.now(),
       eligible: (guid) =>
