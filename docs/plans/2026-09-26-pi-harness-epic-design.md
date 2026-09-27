@@ -514,6 +514,59 @@ as the spec settlements.
     running. `2c3edf8`, `1483df8`, `67f63d9`.
 84. Eval round 1 fix pushed-batch: emote notices stay in the game log
     and no longer reach the panel ticker. `b23160d`.
+85. Eval round 2 fix nav-coverage: navigation opens maps lazily by
+    name (0 Azeroth, 1 Kalimdor, 530 Expansion01, 571 Northrend);
+    other ids keep the unsupported map refusal, and a named map with
+    no navmesh file refuses as `unsupported map <id> (no <name>
+    navigation data)`. The navigation capability also needs the
+    current map's navmesh file. `ff0203b`, `cafecd8`, `61a7933`.
+86. Eval round 2 fix nav-coverage: for route planning only, a start up
+    to 1 yd (one climb) above a column's single floor plans from that
+    floor; walkToward keeps its 0.25 yd grounded check. `09e5158`,
+    `a1291a8`.
+87. Eval round 2 fix next-progress: a same-call Next stands until the
+    repeat guard has seen that call end from the same place with an
+    unchanged progress digest and no progress event during the call.
+    The repeat guard also stores a PARTLY, for guardNext only, and
+    `loot_denied:release_only`, `loot_denied:timeout` and
+    `loot_denied:loot_source_unavailable` become continuation codes.
+    `2093167`.
+88. Eval round 2 fix next-progress: engage detail text says each stop
+    reason in plain words (`engage-reasons.ts`) while the status line
+    keeps the machine code. A fight whose every target the helper
+    blocked ends REFUSED with the block code instead of FAILED lost.
+    `ed4a2de`, `a1911b4`.
+89. Eval round 2 fix explore-bearings: explore records refused bearings
+    per start cell and skips them, tries both 45 degree neighbours at
+    full leg length after a no_ground, end_snapped_off or
+    ambiguous_floor refusal, never shrinks a leg, caps the loop at 6
+    leg rounds and stops when less than 1 yd is left. `a1e9f5e`,
+    `e28b04a`, `f708de7`.
+90. Eval round 2 fix explore-bearings: travel refuses `attacked` with
+    an engage Next while any attacker is on the character; a new
+    attacker during a leg keeps the FAILED interrupted status.
+    `d92b70f`.
+91. Eval round 2 fix explore-bearings: the empty look hint is a bare
+    explore and names no bearing; `target_not_observed` says the unit
+    may be dead or despawned and gives a look step; an obstructed
+    explore names the next bearing not refused from its end cell, and
+    the second obstructed explore bearing from one cell asks the
+    human. `7b95c67`, `857a700`, `4f9548c`.
+92. Eval round 2 fix round-hygiene: an answer whose last sentence is a
+    question, with no tool call or progress after it, waits under the
+    stuck rule (one rescue nudge, then a stuck stop) instead of ending
+    done. `63581c8`.
+93. Eval round 2 fix round-hygiene: every kill scenario names its
+    target field. `mise eval round` names each pair in a plan that
+    shares a field, and `mise eval run` refuses to start while a run of
+    the same round on that field has no draft or result and is less
+    than 5 min past its pane time. t0-who-is-near and t2-whisper-reply
+    start on their own slot tables. `34c51fc`, `32df3f8`.
+94. Eval round 2 fix round-hygiene: t6-die-and-recover uses the fresh
+    preset (a level 1 priest with level 1 gear) at the first
+    eversong10-spawn slot with no level write, replacing the warrior
+    of item 80. The first human input of a run logs as `task_landed`.
+    `bb24d6d`, `dc0016d`.
 
 ## 3. Context
 
@@ -1560,3 +1613,134 @@ Deferred:
 - Orchestrator: round selection must skip scenarios whose `blockedBy`
   is still held.
 - Eval: Pi prints `fd not found` at startup in every pane.
+
+### Eval round 3
+
+Head `32df3f8`. Thirteen scenarios, one run each, in the eval worktree.
+
+- Fix briefs landed before the round: nav-coverage (`214f317`),
+  round-hygiene (`32df3f8`), explore-bearings (`e28b04a`) and
+  next-progress (`a1911b4`). engage-continuity (core-b) had not
+  landed; its review verdict is fix, because the live suite was not
+  run on its head.
+- Pass rate 8 of 13 (0.62; round 2 0.54, round 1 0.46). Abort rate 0
+  of 13 (round 2 0). Median tool calls 7 (round 2 3). Median wall time
+  145.7 s (round 2 69.8 s). The medians rose because no run was
+  preflight-blocked this round and t4-alliance-first and
+  t5-vendor-buy-goldshire now play; round 2 without its two blocked
+  runs had medians of 4 tool calls and 115.2 s.
+- t4-quest-first and t5-vendor-buy-goldshire went to pass (t5 for the
+  first time, after map 0 navigation). t3-ghostlands-kill went to
+  fail. t4-alliance-first went from blocked to fail.
+  t6-die-and-recover ended stuck and stays blocked; it has had 0
+  deaths in 3 rounds.
+
+| Scenario | Verdict | Checks | Tool calls | Turns | Wall s | First action s |
+|---|---|---|---|---|---|---|
+| t0-hostiles | pass | 3/3 | 1 | 2 | 59.2 | 2.21 |
+| t0-self-state | pass | 5/5 | 2 | 3 | 55.3 | 1.98 |
+| t0-who-is-near | pass | 3/3 | 1 | 2 | 55.9 | 2.07 |
+| t1-walk-to-npc | pass | 2/2 | 3 | 4 | 67.7 | 2.29 |
+| t2-whisper-reply | pass | 3/3 | 2 | 4 | 172.5 | 1.99 |
+| t3-ghostlands-kill | fail | 3/4 | 31 | 32 | 263.6 | 2.03 |
+| t3-kill-one-hunter | fail | 4/6 | 7 | 10 | 157.9 | 2.04 |
+| t4-alliance-first | fail | 0/4 | 7 | 8 | 73.1 | 2.60 |
+| t4-quest-first | pass | 5/5 | 8 | 9 | 145.7 | 2.09 |
+| t5-vendor-buy-goldshire | pass | 2/2 | 4 | 5 | 71.8 | 3.98 |
+| t6-die-and-recover | blocked | 2/4 | 33 | 36 | 479.1 | 1.99 |
+| t7-halt-resume | pass | 3/3 | 13 | 16 | 331.5 | 3.05 |
+| t7-question-while-acting | fail | 3/4 | 14 | 16 | 354.7 | 2.25 |
+
+No run had a tool error. The failures:
+
+- t3-ghostlands-kill: the agent pulled a pack, and engage reported
+  three gray kills as `killed by another player` on a server with 0
+  bots.
+- t3-kill-one-hunter: Jev has no hunter shots and no pet, and the
+  guards sent the agent to the human while a stalker attacked it.
+- t4-alliance-first: the accept result lost the objective "Speak with
+  Marshal McBride", no event names the ender, and the `no_offer` Next
+  pointed back at the same NPC.
+- t7-question-while-acting: the agent answered mana 61% from a RUNNING
+  snapshot; the truth was 50.7%.
+- t6-die-and-recover: engage on a unit refused `no_ground` in 1 ms,
+  because the unit route has no ground fallback, and the next guard
+  then told the agent to ask the human.
+
+Top friction clusters (all confirmed against the run dirs):
+
+1. Engage cannot reach or credit a target (core, score 16; t6,
+   t7-halt-resume, t3-kill-one-hunter, t3-ghostlands-kill). The unit
+   route refuses `no_ground` with no ground fallback, follow-on queued
+   targets start the 5 s approach watchdog with no route, a melee-only
+   fight stops at 25 yd, and gray kills give no kill XP row, so they
+   are refused as another player's kill.
+2. The harness sends the agent to the human while it can still act
+   (ops-tools, score 14; t6, t3-kill-one-hunter, t7-halt-resume). The
+   next guard rewrites Next to ask the human after a positional failure
+   or under attack, the repeat guard ignores target movement, and the
+   danger line gives a hit age from the attack start.
+3. The quest flow loses objectives, the ender and rewards (ops-tools,
+   score 13; t4-alliance-first, t4-quest-first). The accept result
+   reads the dialog after the core cleared it, the turn-in result
+   reads money 12 ms before the update, and reward choices show item
+   ids.
+4. Eval infrastructure defects (score about 12). t6 "head north" leads
+   onto ambiguous floors away from the stalker field, the field lock
+   exits instead of queueing (three runs started 5 to 15 min late),
+   the rescue nudge asks for a report, draft game_log checks come out
+   null, and wall time includes the done wait and logout.
+
+Briefs for round 4:
+
+- unit-reach (core-a): route to a unit with the explore ground
+  fallback, route each follow-on target before its watchdog starts,
+  and credit tapped-by-me and gray kills with 0 XP. It must rebase
+  around engage-continuity and not touch the loot files.
+- act-before-ask (ops-tools-b): never send the agent to the human while
+  a unit attacks it or while a move can still help; the repeat guard
+  counts target movement; the danger line ages hits from HP loss.
+- quest-handoff (ops-tools-a): keep the objectives text on accept, name
+  the ender in results and the journal, point `no_offer` elsewhere, and
+  report turn-in rewards and reward choices by name.
+- t6-and-grader (eval-infra): a t6 task bearing that leads to the
+  field, `--wait` on the field lock, a rescue nudge that asks for
+  action, draft fixes, a split hunter pet check, wall time to the
+  accepted answer, and the bot count in `run.json`.
+
+Deferred:
+
+- Core hunter support: Auto Shot, shot spells (the item-requirement
+  check for an equipped ranged weapon and ammo) and pet attack in Jev.
+  t3-kill-one-hunter fails pet-and-ranged and arrows-used for the third
+  round; this needs its own feature brief.
+- Core: after engage-continuity `dce9a61` lands, check again that a
+  melee-only engage still stops at 25 yd (t3-kill-one-hunter). The
+  harness `APPROACH_WITHIN_YD` of 25 in `engage-fight.ts` may need a
+  melee-only path.
+- Tools: explore legs of about 20 yd cost 13 to 19 calls (t6,
+  t3-ghostlands-kill); continue until a hostile in the level band comes
+  into view, or accept a distance.
+- Tools: the `look` 6-row cap hides role NPCs. Add vendor, innkeeper
+  and questgiver to the Nearest line and list the omitted names.
+- Tools: before a pull, engage names other hostiles within 15 yd of the
+  target.
+- Tools: an engage RUNNING interrupt offers `look` for current vitals.
+- Prompt: act on the first matching unit a result reports; change
+  position once before asking the human; call `look` before answering
+  a right-now state question; pull discipline; the gray formula and
+  the meaning of "about your level"; travel by name before `look`; the
+  `[now]` line is current truth.
+- Events: `xp/gain` gives the total after the gain and names the
+  source; the `run/progress` kill count updates on kill credit;
+  throttled vitals while halted; drop stale queued events after a
+  final answer; money change reason vendor; no repeated vendor list
+  rows; the `[system]` Accepting Whisper line is log-only.
+- Panel: card and footer mismatches (XP, mana, `money 0 (+0)`), the
+  dead target left in the footer, whisper and system glyphs, the spell
+  id instead of its name in the cast widget, the dead glyph on Next
+  lines, and `not_implemented` warnings at login.
+- Core: decode `SMSG_TEXT_EMOTE`, take the sub-area name from the pose
+  instead of printing the zone twice, and add damage-dealt events.
+- Eval: `session.jsonl` records Pi's default system prompt, not the
+  Luna prompt that `install.ts` sends.
