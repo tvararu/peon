@@ -382,7 +382,13 @@ describe("tacticsDrafts and cycleDrafts", () => {
     expect(done).toEqual([
       {
         class: "log",
-        data: { cycle: "target_done", maxStarts: 3, startsUsed: 1 },
+        data: {
+          cycle: "target_done",
+          fights: 1,
+          maxFights: 3,
+          maxStarts: 3,
+          startsUsed: 1,
+        },
         domain: "run",
         event: "run/progress",
         text: "cycle target done (1 of 3 fights)",

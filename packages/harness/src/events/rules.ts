@@ -37,6 +37,7 @@ export type RuleMemo = {
   auras: Map<number, AuraMemo>;
   coinage: number | undefined;
   cycleActive: boolean;
+  cycleFights: { base: number; used: number };
   fights: Map<string, { at: number; guid: bigint }>;
   levelAt: number | undefined;
   life: PlayerLife | undefined;
@@ -65,6 +66,7 @@ export function createRuleMemo(): RuleMemo {
     auras: new Map(),
     coinage: undefined,
     cycleActive: false,
+    cycleFights: { base: 0, used: 0 },
     fights: new Map(),
     levelAt: undefined,
     life: undefined,
@@ -139,6 +141,7 @@ function endDraft(record: RunRecord): LogDraft {
 export function runDrafts({ type, record }: RunEvent, rc: RuleInput): Drafts {
   if (type === "progress") return progressDrafts(record, rc);
   if (type === "ended") return [endDraft(record)];
+  rc.memo.cycleFights = { base: 0, used: 0 };
   const text = `${record.id} started: ${runLabel(record)}`;
   return [runRow({ cls: "log", event: "run/started", record, text })];
 }

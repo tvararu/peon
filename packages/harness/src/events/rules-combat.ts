@@ -309,14 +309,26 @@ export function tacticsDrafts(event: TacticsEvent, rc: RuleInput): Drafts {
   return fightEnd(event.runId, outcome, rc);
 }
 
+function countFights(event: CycleEvent, rc: RuleInput) {
+  const count = rc.memo.cycleFights;
+  if (event.type === "started" || event.type === "resumed") {
+    if (!rc.runActive) count.used = 0;
+    count.base = count.used;
+  }
+  const { maxStarts, startsUsed } = event.state;
+  count.used = Math.max(count.used, count.base + startsUsed);
+  return { fights: count.used, maxFights: count.base + maxStarts };
+}
+
 export function cycleDrafts(event: CycleEvent, rc: RuleInput): Drafts {
   if (event.type === "started" || event.type === "resumed")
     rc.memo.cycleActive = true;
   if (event.type === "stopped") rc.memo.cycleActive = false;
+  const { fights, maxFights } = countFights(event, rc);
   if (!CYCLE_STEPS.has(event.type)) return [];
   const { maxStarts, startsUsed } = event.state;
-  const text = `cycle ${event.type.replace("_", " ")} (${startsUsed} of ${maxStarts} fights)`;
-  const data = { cycle: event.type, maxStarts, startsUsed };
+  const text = `cycle ${event.type.replace("_", " ")} (${fights} of ${maxFights} fights)`;
+  const data = { cycle: event.type, fights, maxFights, maxStarts, startsUsed };
   return [{ class: "log", data, domain: "run", event: "run/progress", text }];
 }
 
