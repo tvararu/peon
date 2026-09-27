@@ -21,7 +21,7 @@ export const TOOL_TEXT: Readonly<Record<ToolName, ToolText>> = {
       "Walks to an NPC and does one job with it: talk, accept or turn in a quest, gossip, buy, sell junk, train or repair. talk lists what the NPC offers, with a number for each line.",
     guidelines: [
       "talk lists what an NPC offers. Your own quest log is journal.",
-      'For buy, what can be part of an item name, for example "water".',
+      'For buy, what can be a stock line number, part of an item name (for example "water") or "item <id>".',
     ],
     label: "Interact",
   },

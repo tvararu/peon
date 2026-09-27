@@ -119,11 +119,11 @@ function exactGood(
   goods: readonly NamedVendorGood[],
   text: string,
 ): NamedVendorGood | null | undefined {
-  const byLine = LINE_NUMBER.test(text) ? goods[Number(text) - 1] : undefined;
-  if (byLine) return byLine;
+  if (LINE_NUMBER.test(text)) return goods[Number(text) - 1] ?? null;
   const id = ITEM_ID.exec(text)?.[1];
-  if (id === undefined) return undefined;
-  return goods.find((good) => good.itemId === Number(id)) ?? null;
+  if (id !== undefined)
+    return goods.find((good) => good.itemId === Number(id)) ?? null;
+  return goods.find((good) => nameOf(good).toLowerCase() === text);
 }
 
 function pickGood(

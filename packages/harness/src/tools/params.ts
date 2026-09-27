@@ -126,7 +126,7 @@ export const interactParams = Type.Object({
   what: Type.Optional(
     Type.String({
       description:
-        'Line number or title from the talk list, gossip option number, or part of an item name to buy ("water").',
+        'Line number or title from the talk list, gossip option number, or for buy a stock line number, part of an item name ("water") or "item <id>".',
     }),
   ),
 });
