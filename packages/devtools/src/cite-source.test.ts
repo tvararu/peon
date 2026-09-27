@@ -22,6 +22,19 @@ void ByteBuffer::AppendPackedTime(time_t time)
 }
 `;
 
+const localType = `void Player::SendInitialPackets()
+{
+    struct Local
+    {
+        void Run()
+        {
+            Send();
+        }
+    };
+    data.Initialize(SMSG_LOGIN_SETTIMESPEED);
+}
+`;
+
 const header = `namespace WorldPackets
 {
     namespace Query
@@ -62,6 +75,12 @@ describe("scopeText", () => {
     expect(text).toContain("void Player::SendInitialPackets()");
     expect(text).toContain("SMSG_LOGIN_SETTIMESPEED");
     expect(text).not.toContain("AppendPackedTime");
+  });
+
+  test("takes the outer function around a nested member function", () => {
+    const text = scopeText(localType, 7);
+    expect(text).toContain("void Player::SendInitialPackets()");
+    expect(text).toContain("SMSG_LOGIN_SETTIMESPEED");
   });
 
   test("covers the signature line above the brace", () => {
