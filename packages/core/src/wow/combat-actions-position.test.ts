@@ -237,8 +237,7 @@ test("an attacking creature whose faction relation is unknown can be engaged", (
     now: () => 1000,
     ticks: () => 0,
     selfGuid: () => 1n,
-    findHeight: () => undefined,
-    isPathClear: () => false,
+    ground: { height: () => undefined, pathClear: () => false },
   });
   control.observeSelf({
     position: { mapId: 530, x: 0, y: 0, z: 0, orientation: 0 },

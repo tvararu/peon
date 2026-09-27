@@ -7,6 +7,7 @@ import { CombatActions } from "#wow/combat-actions";
 import { defendTarget } from "#wow/combat-defense";
 import { readRangedGear } from "#wow/combat-ranged-gear";
 import { ControlRuntime } from "#wow/control";
+import type { GroundOracle } from "#wow/control-motion";
 import { approachUnit, type CycleApproach } from "#wow/cycle-approach";
 import { pullGate } from "#wow/cycle-gate";
 import { ItemDestroyRuntime } from "#wow/destroy";
@@ -73,18 +74,16 @@ type RuntimeParts = {
   destroy: ItemDestroyRuntime;
 };
 
-function createControl(
-  conn: WorldConn,
-  getNavigation: () => Navigation,
-): ControlRuntime {
-  return new ControlRuntime({
-    send: (opcode, body) => sendPacket(conn, opcode, body ?? new Uint8Array()),
-    ticks: () => Date.now() - conn.startTime,
-    now: () => Date.now(),
-    selfGuid: () => selfGuid(conn),
-    findHeight: (mapId, x, y, from) => {
-      const navigation = getNavigation();
+function groundOracle(
+  config: ClientConfig,
+  lazy: LazyState,
+): GroundOracle | undefined {
+  if (!capabilitiesOf(config, lazy).navigation) return undefined;
+  const getNavigation = (): Navigation => loadNavigation(config, lazy);
+  return {
+    height: (mapId, x, y, from) => {
       try {
+        const navigation = getNavigation();
         return from
           ? navigation.stepHeight(mapId, x, y, from)
           : navigation.height(mapId, x, y);
@@ -92,13 +91,26 @@ function createControl(
         return Number.NaN;
       }
     },
-    isPathClear: (mapId, from, to) => {
+    pathClear: (mapId, from, to) => {
       try {
         return getNavigation().clear(mapId, from, to);
       } catch {
         return false;
       }
     },
+  };
+}
+
+function createControl(
+  conn: WorldConn,
+  ground: GroundOracle | undefined,
+): ControlRuntime {
+  return new ControlRuntime({
+    send: (opcode, body) => sendPacket(conn, opcode, body ?? new Uint8Array()),
+    ticks: () => Date.now() - conn.startTime,
+    now: () => Date.now(),
+    selfGuid: () => selfGuid(conn),
+    ground,
   });
 }
 
@@ -415,7 +427,7 @@ export function createRuntimes(
 ): Runtimes {
   const lazy: LazyState = { disposed: false };
   const getNavigation = (): Navigation => loadNavigation(config, lazy);
-  conn.control = createControl(conn, getNavigation);
+  conn.control = createControl(conn, groundOracle(config, lazy));
   const control = conn.control;
   const runtimeDeps = runtimeDepsFor(conn);
   const { combat, actions, trainer } = createCombat(

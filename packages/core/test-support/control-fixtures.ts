@@ -5,6 +5,7 @@ import {
   type ControlEvent,
   ControlRuntime,
 } from "#wow/control";
+import type { GroundOracle } from "#wow/control-motion";
 import {
   type MovementInfo,
   parseMovementInfo,
@@ -40,6 +41,14 @@ export function info(over: Partial<MovementInfo> = {}): MovementInfo {
   };
 }
 
+export function oracle(over: Partial<GroundOracle> = {}): GroundOracle {
+  return {
+    height: (_mapId, _x, _y, from) => from?.z ?? 70.34,
+    pathClear: () => false,
+    ...over,
+  };
+}
+
 export function setup(over: Partial<ControlDeps> = {}): {
   runtime: ControlRuntime;
   sent: Sent[];
@@ -50,8 +59,7 @@ export function setup(over: Partial<ControlDeps> = {}): {
   const events: ControlEvent[] = [];
   let now = 10_000;
   const deps: ControlDeps = {
-    findHeight: (_mapId, _x, _y, from) => from?.z ?? 70.34,
-    isPathClear: () => false,
+    ground: oracle(),
     now: () => now,
     selfGuid: () => 0x0764n,
     send: (opcode, body) =>
@@ -89,6 +97,7 @@ export function lastMove(sent: Sent[]): {
   flags: number;
   x: number;
   y: number;
+  z: number;
 } {
   const packet = must(sent.at(-1));
   const r = new PacketReader(packet.body);
@@ -99,5 +108,6 @@ export function lastMove(sent: Sent[]): {
     opcode: packet.opcode,
     x: parsed.x,
     y: parsed.y,
+    z: parsed.z,
   };
 }
