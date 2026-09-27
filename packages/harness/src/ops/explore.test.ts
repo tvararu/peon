@@ -86,16 +86,79 @@ describe("explore", () => {
     expect(t.rt.travel.visitedCells.has(`${MAP_ID}:1:0`)).toBe(true);
   });
 
-  test("stops after 40 yd when nothing new comes into view", async () => {
+  test("keeps walking up to 100 yd when nothing new comes into view", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle, { x: 0, y: 0 });
-    driveGoto(t.handle, [
-      { arrive: { x: 20, y: 0 } },
-      { arrive: { x: 40, y: 0 } },
-    ]);
+    const goTo = driveGoto(
+      t.handle,
+      [20, 40, 60, 80, 100].map((x) => ({ arrive: { x, y: 0 } })),
+    );
     const result = await explore(toolCtx(t), { direction: "N" });
-    expect(result).toMatchObject({ stoppedBy: "distance", walkedYd: 40 });
-    expect(result.legs).toHaveLength(2);
+    expect(result).toMatchObject({ stoppedBy: "distance", walkedYd: 100 });
+    expect(result.legs).toHaveLength(5);
+    expect(goTo.mock.calls.at(-1)?.[0]).toEqual({
+      kind: "point",
+      x: 100,
+      y: 0,
+    });
+    expect(t.rt.travel.explores).toEqual([
+      { direction: "N", mapId: MAP_ID, x: 0, y: 0 },
+    ]);
+  });
+
+  test("without a direction it avoids a bearing whose cells were explored farther out", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 0, y: 0 });
+    for (const cell of [2, 3, 4, 5])
+      t.rt.travel.visitedCells.add(`${MAP_ID}:${cell}:0`);
+    driveGoto(t.handle, [
+      {
+        arrive: { x: 14, y: -14 },
+        onArrive: () => setUnits(t.handle, [stalker]),
+      },
+    ]);
+    const result = await explore(toolCtx(t), { direction: undefined });
+    expect(result.direction).toBe("NE");
+  });
+
+  test("without a direction it heads away from the explore start", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 100, y: 0 });
+    t.rt.travel.exploreOrigin = { mapId: MAP_ID, x: 0, y: 0 };
+    const { pose } = t.handle.getControlState();
+    if (pose) pose.orientation = Math.PI;
+    driveGoto(t.handle, [
+      {
+        arrive: { x: 120, y: 0 },
+        onArrive: () => setUnits(t.handle, [stalker]),
+      },
+    ]);
+    const result = await explore(toolCtx(t), { direction: undefined });
+    expect(result.direction).toBe("N");
+  });
+
+  test("without a direction it turns away from a crowd of friendly NPCs", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 0, y: 0 });
+    const guards = [0x40n, 0x41n, 0x42n].map((guid) =>
+      unitRow({
+        distance: 30,
+        guid,
+        name: "Guard",
+        relation: "friendly",
+        x: 30,
+        y: 0,
+      }),
+    );
+    setUnits(t.handle, guards);
+    driveGoto(t.handle, [
+      {
+        arrive: { x: 14, y: -14 },
+        onArrive: () => setUnits(t.handle, [...guards, stalker]),
+      },
+    ]);
+    const result = await explore(toolCtx(t), { direction: undefined });
+    expect(result.direction).toBe("NE");
   });
 
   test("a leg on two floors walks on the floor nearest your height", async () => {
@@ -175,7 +238,10 @@ describe("explore", () => {
     const goTo = driveGoto(t.handle, [
       { refuse: "unreachable: end snapped off the navigation mesh" },
       { arrive: { x: side, y: -side } },
-      { arrive: { x: side + 20, y: -side } },
+      {
+        arrive: { x: side + 20, y: -side },
+        onArrive: () => setUnits(t.handle, [stalker]),
+      },
     ]);
     const result = await explore(toolCtx(t), { direction: "N" });
     expect(goTo.mock.calls.map((call) => call[0])).toEqual([
@@ -186,7 +252,7 @@ describe("explore", () => {
     expect(result).toMatchObject({
       direction: "N",
       obstructed: 0,
-      stoppedBy: "distance",
+      stoppedBy: "new_unit",
     });
     expect(result.walkedYd).toBeCloseTo(40, 0);
     expect(result.legs).toHaveLength(3);

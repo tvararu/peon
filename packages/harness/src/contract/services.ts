@@ -185,8 +185,17 @@ export type SessionFlags = {
   unreadWhispers: number;
 };
 
+export type ExploreMark = {
+  direction: Compass;
+  mapId: number;
+  x: number;
+  y: number;
+};
+
 export type TravelMemory = {
   blockedBearings: Map<string, Set<Compass>>;
+  exploreOrigin: { mapId: number; x: number; y: number } | undefined;
+  explores: ExploreMark[];
   lastGoodPose: PoseView | undefined;
   lastRefusedGoal: string | undefined;
   obstructedExplores: Map<string, Set<Compass>>;

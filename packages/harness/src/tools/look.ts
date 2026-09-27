@@ -10,6 +10,7 @@ import type {
   VitalsView,
 } from "#harness/contract/views";
 import { dangerView } from "#harness/ops/danger";
+import { compassWord, exploreSummary } from "#harness/ops/explore";
 import {
   LOOK_DEFAULT_ROWS,
   LOOK_DEFAULT_YD,
@@ -318,10 +319,32 @@ function lookAfter(
   };
 }
 
-function noneSeen(after: LookAfter): ToolResult<LookAfter> {
-  const hint = `If your task needs one: ${nextCall("travel", { to: "explore" })}.`;
+const KILLABLE: readonly LookFilter[] = ["hostile", "attackable"];
+
+function exploreHint(ctx: ToolCtx<LookAfter>, filter: LookFilter): string[] {
+  const summary = exploreSummary(ctx);
+  const to = summary?.next ? `explore ${compassWord(summary.next)}` : "explore";
+  const walk = nextCall("travel", { to });
+  const hint = KILLABLE.includes(filter)
+    ? `If your task needs one: ${nextCall("engage")} explores for one and fights it, or ${walk} looks first.`
+    : `If your task needs one: ${walk}.`;
+  if (!summary || summary.tried.length === 0) return [hint];
+  return [
+    `You explored ${summary.tried.join(", ")} up to ${summary.farthestYd} yd from here.`,
+    hint,
+  ];
+}
+
+function noneSeen(
+  ctx: ToolCtx<LookAfter>,
+  after: LookAfter,
+): ToolResult<LookAfter> {
   const detail = `0 ${nounOf(after.filter)} seen at any distance in the last 30 min. The client sees about 100 yd around you.`;
-  return result("DONE", { after, body: [hint], detail });
+  return result("DONE", {
+    after,
+    body: exploreHint(ctx, after.filter),
+    detail,
+  });
 }
 
 function look(args: LookArgs, ctx: ToolCtx<LookAfter>): ToolResult<LookAfter> {
@@ -335,7 +358,8 @@ function look(args: LookArgs, ctx: ToolCtx<LookAfter>): ToolResult<LookAfter> {
   const after = lookAfter(args, ctx, snapshot);
   ctx.rt.snapshots.capture("look", args.within);
   const own = kindOf(after.filter);
-  if (after.matched === 0 && own && !after.nearest[own]) return noneSeen(after);
+  if (after.matched === 0 && own && !after.nearest[own])
+    return noneSeen(ctx, after);
   return result("DONE", {
     after,
     body: lookBody(after),

@@ -1,6 +1,6 @@
 import { ObjectType } from "@tuicraft/core";
 import type { LegView } from "#harness/contract/details";
-import type { OpsCtx } from "#harness/contract/services";
+import type { OpsCtx, ViewCtx } from "#harness/contract/services";
 import type { Compass, PoseView, UnitView } from "#harness/contract/views";
 import { dangerView } from "#harness/ops/danger";
 import { Refusal } from "#harness/ops/refusal";
@@ -25,12 +25,15 @@ export type ExploreResult = {
 };
 
 export const UNSTICK_MAX_YD = 5;
-export const EXPLORE_MAX_YD = 40;
+export const EXPLORE_MAX_YD = 100;
 export const EXPLORE_MAX_OBSTRUCTED = 3;
 const CELL_YD = 20;
 const LEG_YD = 20;
 const LEG_WITHIN_YD = 1;
-const MAX_ROUNDS = 6;
+const MAX_ROUNDS = 8;
+const AHEAD_YD = [20, 40, 60, 80, 100];
+const AWAY_BUCKET_YD = 20;
+const NEAR_CELLS_YD = 250;
 const SIDES = [1, -1];
 export const SIDE_REASONS: ReadonlySet<string> = new Set([
   "no_ground",
@@ -99,7 +102,7 @@ function needPose(ctx: OpsCtx): PoseView {
   return pose;
 }
 
-function blockedFrom(ctx: OpsCtx, at: PoseView): Set<Compass> {
+function blockedFrom(ctx: ViewCtx, at: PoseView): Set<Compass> {
   return ctx.rt.travel.blockedBearings.get(cellKey(at)) ?? new Set();
 }
 
@@ -134,21 +137,96 @@ function untriedFrom(
   );
 }
 
+function visitedAhead(ctx: ViewCtx, pose: PoseView, direction: Compass) {
+  return AHEAD_YD.filter((yards) =>
+    ctx.rt.travel.visitedCells.has(
+      cellKey({ mapId: pose.mapId, ...ahead(pose, direction, yards) }),
+    ),
+  ).length;
+}
+
+function awayFromStart(ctx: ViewCtx, pose: PoseView, direction: Compass) {
+  const origin = ctx.rt.travel.exploreOrigin;
+  const from = origin?.mapId === pose.mapId ? origin : pose;
+  const to = ahead(pose, direction, EXPLORE_MAX_YD);
+  return Math.round(Math.hypot(to.x - from.x, to.y - from.y) / AWAY_BUCKET_YD);
+}
+
+function friendlyToward(units: readonly UnitView[], direction: Compass) {
+  return units.filter(
+    (unit) =>
+      unit.kind === "creature" &&
+      unit.relation === "friendly" &&
+      unit.compass === direction,
+  ).length;
+}
+
+function bestDirection(
+  ctx: ViewCtx,
+  pose: PoseView,
+  skip: ReadonlySet<Compass>,
+): Compass | undefined {
+  const units = unitViews(ctx);
+  const [best] = SEARCH.map((offset) => turned(pose.facing, offset))
+    .filter((direction) => !skip.has(direction))
+    .map((direction, order) => ({
+      away: awayFromStart(ctx, pose, direction),
+      direction,
+      friendly: friendlyToward(units, direction),
+      order,
+      visited: visitedAhead(ctx, pose, direction),
+    }))
+    .sort(
+      (a, b) =>
+        a.visited - b.visited ||
+        b.away - a.away ||
+        a.friendly - b.friendly ||
+        a.order - b.order,
+    );
+  return best?.direction;
+}
+
 function pickDirection(ctx: OpsCtx, pose: PoseView): Compass {
-  const blocked = blockedFrom(ctx, pose);
-  const open = SEARCH.map((offset) => turned(pose.facing, offset)).filter(
-    (direction) => !blocked.has(direction),
+  return bestDirection(ctx, pose, blockedFrom(ctx, pose)) ?? pose.facing;
+}
+
+function cellCenter(key: string): { mapId: number; x: number; y: number } {
+  const [mapId = 0, cx = 0, cy = 0] = key.split(":").map(Number);
+  return { mapId, x: (cx + 0.5) * CELL_YD, y: (cy + 0.5) * CELL_YD };
+}
+
+export type ExploreSummary = {
+  tried: Compass[];
+  farthestYd: number;
+  next: Compass | undefined;
+};
+
+export function exploreSummary(ctx: ViewCtx): ExploreSummary | undefined {
+  const pose = poseView(ctx);
+  if (!pose) return;
+  const near = (at: { mapId: number; x: number; y: number }, yards: number) =>
+    at.mapId === pose.mapId &&
+    Math.hypot(at.x - pose.x, at.y - pose.y) <= yards;
+  const tried = [
+    ...new Set(
+      ctx.rt.travel.explores
+        .filter((mark) => near(mark, EXPLORE_MAX_YD))
+        .map((mark) => mark.direction),
+    ),
+  ];
+  const farthestYd = Math.max(
+    0,
+    ...[...ctx.rt.travel.visitedCells]
+      .map(cellCenter)
+      .filter((center) => near(center, NEAR_CELLS_YD))
+      .map((center) => Math.hypot(center.x - pose.x, center.y - pose.y)),
   );
-  return (
-    open.find(
-      (direction) =>
-        !ctx.rt.travel.visitedCells.has(
-          cellKey({ mapId: pose.mapId, ...ahead(pose, direction, CELL_YD) }),
-        ),
-    ) ??
-    open[0] ??
-    pose.facing
-  );
+  const skip = new Set([...blockedFrom(ctx, pose), ...tried]);
+  return {
+    farthestYd: Math.round(farthestYd),
+    next: bestDirection(ctx, pose, skip),
+    tried,
+  };
 }
 
 function interesting(unit: UnitView): boolean {
@@ -269,6 +347,19 @@ export async function explore(
     wanted: init.wanted ?? interesting,
   };
   ctx.rt.travel.visitedCells.add(cellKey(start));
+  const origin = ctx.rt.travel.exploreOrigin;
+  if (origin?.mapId !== start.mapId)
+    ctx.rt.travel.exploreOrigin = {
+      mapId: start.mapId,
+      x: start.x,
+      y: start.y,
+    };
+  ctx.rt.travel.explores.push({
+    direction: walk.direction,
+    mapId: start.mapId,
+    x: start.x,
+    y: start.y,
+  });
   let stoppedBy: ExploreStop | undefined;
   while (
     !stoppedBy &&

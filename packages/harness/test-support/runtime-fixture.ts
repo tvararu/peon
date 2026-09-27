@@ -190,6 +190,8 @@ function defaultParts({
     stats: statsDouble(),
     travel: {
       blockedBearings: new Map(),
+      exploreOrigin: undefined,
+      explores: [],
       lastGoodPose: undefined,
       lastRefusedGoal: undefined,
       obstructedExplores: new Map(),

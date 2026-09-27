@@ -20,6 +20,7 @@ import type {
   Clock,
   HarnessRuntime,
   QuestMemory,
+  TravelMemory,
 } from "#harness/contract/services";
 import { OmpCredentialStore, ompDbPath } from "#harness/credentials/omp-store";
 import { credentialStatus, startupCheck } from "#harness/credentials/status";
@@ -243,13 +244,6 @@ function composeRuntime({
     paths,
     world: () => snapshotWorld(built(late.rt)),
   });
-  const travel = {
-    blockedBearings: new Map(),
-    lastGoodPose: undefined,
-    lastRefusedGoal: undefined,
-    obstructedExplores: new Map(),
-    visitedCells: new Set<string>(),
-  };
   const quests: QuestMemory = new Map();
   const shared = {
     attacks,
@@ -264,13 +258,25 @@ function composeRuntime({
     router,
     runs,
     snapshots,
-    travel,
+    travel: travelMemory(),
   };
   late.rt = createHarnessRuntime({
     ...shared,
     ...services({ clock, log, profile, quests }),
   });
   return late.rt;
+}
+
+function travelMemory(): TravelMemory {
+  return {
+    blockedBearings: new Map(),
+    exploreOrigin: undefined,
+    explores: [],
+    lastGoodPose: undefined,
+    lastRefusedGoal: undefined,
+    obstructedExplores: new Map(),
+    visitedCells: new Set<string>(),
+  };
 }
 
 function services({

@@ -179,8 +179,28 @@ describe("look", () => {
     const { handle, tool } = await world();
     place(handle, eversong());
     expect((await runTool(tool, { find: "hostile" })).text).toBe(
-      'DONE 0 hostile units seen at any distance in the last 30 min. The client sees about 100 yd around you.\nIf your task needs one: travel(to: "explore").',
+      'DONE 0 hostile units seen at any distance in the last 30 min. The client sees about 100 yd around you.\nIf your task needs one: engage() explores for one and fights it, or travel(to: "explore north") looks first.',
     );
+  });
+
+  test("the empty hint names the bearings explored and one not yet tried", async () => {
+    const { handle, rt, tool } = await world();
+    place(handle, eversong());
+    const at = { mapId: 530, x: 8735, y: -6685 };
+    rt.travel.exploreOrigin = at;
+    rt.travel.explores.push(
+      { ...at, direction: "N" },
+      { ...at, direction: "E" },
+    );
+    for (const yards of [20, 40, 60, 80, 100])
+      rt.travel.visitedCells.add(
+        `530:${Math.floor((at.x + yards) / 20)}:${Math.floor(at.y / 20)}`,
+      );
+    const lines = (await runTool(tool, { find: "trainer" })).text.split("\n");
+    expect(lines.slice(1)).toEqual([
+      "You explored N, E up to 95 yd from here.",
+      'If your task needs one: travel(to: "explore northwest").',
+    ]);
   });
 
   test("a filter with a match out of range names the nearest one", async () => {
