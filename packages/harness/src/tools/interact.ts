@@ -5,6 +5,7 @@ import { INTERACT_APPROACH_YD, TALK_RANGE_YD } from "#harness/ops/range";
 import { Refusal } from "#harness/ops/refusal";
 import { resolveUnit, unitRefusal } from "#harness/ops/resolve";
 import { travelLeg } from "#harness/ops/travel-leg";
+import { reachNext } from "#harness/ops/unreached";
 import {
   defineGameTool,
   emptyUnit,
@@ -154,7 +155,7 @@ async function approach(
   if (leg.status !== "arrived")
     throw new Refusal({
       detail: `could not reach ${npcLabel(npc)}: ${leg.detail}.`,
-      next: nextCall("travel", { to: npc.unit.ref }),
+      next: reachNext(leg, npc.unit),
       reason: leg.reason ?? leg.status,
       status: "FAILED",
     });

@@ -157,6 +157,19 @@ describe("engage fight", () => {
     );
   });
 
+  test("a map without navigation data asks the human, not another target", async () => {
+    const t = await field();
+    setUnits(t.handle, [stalker(STALKER, 45), stalker(STALKER_2, 48)]);
+    driveGoto(t.handle, [
+      { refuse: "stop: unsupported map 0 (only Expansion01/530)" },
+    ]);
+    const res = await engageSpec.run(
+      { target: "Springpaw Stalker" },
+      toolCtx<EngageAfter>(t),
+    );
+    expect(res.next).toMatch(/^ask the human: "This map has no navigation/);
+  });
+
   test("a start off the mesh points at unstick", async () => {
     const t = await field();
     setUnits(t.handle, [stalker(STALKER, 45)]);

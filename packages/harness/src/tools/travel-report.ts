@@ -6,6 +6,7 @@ import type { Compass, UnitView } from "#harness/contract/views";
 import type { InterruptCause } from "#harness/ops/danger";
 import type { ExploreResult } from "#harness/ops/explore";
 import { FLOOR_MATCH_YD, type LegResult } from "#harness/ops/travel-leg";
+import { structuralAsk, structuralReach } from "#harness/ops/unreached";
 import { poseView, vitalsView } from "#harness/ops/views";
 import { askHuman, nextCall, result } from "#harness/tools/define";
 
@@ -39,6 +40,8 @@ const GROUPS: readonly (readonly [string, (unit: UnitView) => boolean])[] = [
 const CLASS_PREFIX = /^(?:wait|pick_destination|unreachable|stop): /;
 const NOT_TRIED_HERE = `Not tried: ${nextCall("travel", { to: "unstick" })}, another route.`;
 const NOT_TRIED_THERE = "Not tried: another destination.";
+const NO_MAP_DATA =
+  "This map has no navigation data, so no travel can work here.";
 const DESTINATION_SIDE = [
   "UNKNOWN_PATH",
   "end snapped off",
@@ -241,6 +244,16 @@ function refusedReport(init: {
       next: ask,
       reason: "no_ground",
     });
+  if (structuralReach(leg) === "unsupported_map")
+    return result("FAILED", {
+      after,
+      detail: `${sentence(leg.detail)}. ${walked} ${tried} ${NO_MAP_DATA}`,
+      next: structuralAsk(
+        "unsupported_map",
+        goal.kind === "unit" ? goal.unit.name : name,
+      ),
+      reason: leg.reason ?? "unsupported_map",
+    });
   return otherRefusal(leg, after, `${walked} ${tried}`, ask);
 }
 
@@ -273,19 +286,51 @@ export function legReport(init: {
   return refusedReport({ after, ctx, goal, leg });
 }
 
+function stuckAtStart(found: ExploreResult): string | undefined {
+  const reasons = new Set(found.legs.map((leg) => leg.reason));
+  const [reason] = reasons;
+  if (found.walkedYd > 0 || reasons.size !== 1 || reason === undefined) return;
+  return reason;
+}
+
+function obstructedReport(found: ExploreResult, after: TravelAfter): Report {
+  const where = `${yd(found.walkedYd)} yd ${WORD[found.direction]}`;
+  const seen = newInViewText(found.newInView);
+  const blocked = `explored ${where}; ${found.obstructed} legs were blocked`;
+  const stuck = stuckAtStart(found);
+  const kind =
+    stuck === undefined
+      ? undefined
+      : structuralReach({ detail: "", reason: stuck });
+  if (kind === "unsupported_map")
+    return result("PARTLY", {
+      after,
+      detail: `${blocked}. ${NO_MAP_DATA} ${seen}`,
+      next: structuralAsk(kind),
+      reason: "obstructed",
+    });
+  if (stuck !== undefined)
+    return result("PARTLY", {
+      after,
+      detail: `${blocked}, each by the same fault where you stand (${stuck}). ${seen}`,
+      next: nextCall("travel", { to: "unstick" }),
+      reason: "obstructed",
+    });
+  return result("PARTLY", {
+    after,
+    detail: `${blocked}. ${seen}`,
+    next: nextCall("travel", { to: "explore" }),
+    reason: "obstructed",
+  });
+}
+
 export function exploreReport(
   found: ExploreResult,
   after: TravelAfter,
 ): Report {
   const where = `${yd(found.walkedYd)} yd ${WORD[found.direction]}`;
   const seen = newInViewText(found.newInView);
-  if (found.stoppedBy === "obstructed")
-    return result("PARTLY", {
-      after,
-      detail: `explored ${where}; ${found.obstructed} legs were blocked. ${seen}`,
-      next: nextCall("travel", { to: "explore" }),
-      reason: "obstructed",
-    });
+  if (found.stoppedBy === "obstructed") return obstructedReport(found, after);
   return result("DONE", { after, detail: `explored ${where}. ${seen}` });
 }
 

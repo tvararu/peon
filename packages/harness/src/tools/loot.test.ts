@@ -134,6 +134,23 @@ describe("loot", () => {
     expect(res.status).toBe("DONE");
   });
 
+  test("a corpse on a map without navigation data asks the human", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle);
+    setUnits(t.handle, [corpseRow(12, true)]);
+    driveGoto(t.handle, [
+      { refuse: "stop: unsupported map 0 (only Expansion01/530)" },
+    ]);
+    await expect(
+      lootSpec.run({ target: "Springpaw Stalker" }, toolCtx<LootAfter>(t)),
+    ).rejects.toMatchObject({
+      next: expect.stringMatching(
+        /^ask the human: "This map has no navigation data/,
+      ),
+      reason: "unsupported_map_0",
+    });
+  });
+
   test("a named corpse without the lootable flag refuses", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle);

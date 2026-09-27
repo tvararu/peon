@@ -223,6 +223,22 @@ describe("interact", () => {
     });
   });
 
+  test("an NPC on a map without navigation data asks the human, not travel", async () => {
+    const { t } = await velan(40);
+    driveGoto(t.handle, [
+      { refuse: "stop: unsupported map 0 (only Expansion01/530)" },
+    ]);
+    const refusal = interactSpec.run(
+      { npc: "Velan Brightoak" },
+      toolCtx<InteractAfter>(t),
+    );
+    await expect(refusal).rejects.toMatchObject({
+      next: 'ask the human: "This map has no navigation data, so I cannot walk to Velan Brightoak. Can you move me there?"',
+      reason: "unsupported_map_0",
+      status: "FAILED",
+    });
+  });
+
   test("accept without what refuses with the numbered offers", async () => {
     const { t } = await velan();
     t.handle.talk = () =>

@@ -9,6 +9,11 @@ import { lootCorpseOp } from "#harness/ops/loot";
 import { ENGAGE_APPROACH_YD } from "#harness/ops/range";
 import { guidHex } from "#harness/ops/refs";
 import { travelLeg } from "#harness/ops/travel-leg";
+import {
+  structuralAsk,
+  structuralReach,
+  type Unreached,
+} from "#harness/ops/unreached";
 import { poseView, unitViews, vitalsView } from "#harness/ops/views";
 import {
   awaitCycle,
@@ -60,13 +65,15 @@ function otherInView(scene: Scene): UnitView | undefined {
   );
 }
 
-function unreachedNext(scene: Scene, reason: string | undefined): string {
-  if (reason === "start_off_mesh") return nextCall("travel", { to: "unstick" });
+function unreachedNext(scene: Scene, leg: Unreached): string {
+  if (leg.reason === "start_off_mesh")
+    return nextCall("travel", { to: "unstick" });
+  const kind = structuralReach(leg);
+  const name = scene.choice.unit?.name ?? "the target";
+  if (kind === "unsupported_map") return structuralAsk(kind, name);
   const other = otherInView(scene);
   if (other) return nextCall("engage", { target: other.ref });
-  return askHuman(
-    `I cannot reach ${scene.choice.unit?.name ?? "the target"} from here. Is there another way?`,
-  );
+  return askHuman(`I cannot reach ${name} from here. Is there another way?`);
 }
 
 async function approach(scene: Scene): Promise<Report | undefined> {
@@ -86,7 +93,7 @@ async function approach(scene: Scene): Promise<Report | undefined> {
   return result("FAILED", {
     after: afterOf(ops, scene),
     detail: `could not reach ${choice.unit.name} ${choice.unit.ref}: ${leg.detail}.`,
-    next: unreachedNext(scene, reason),
+    next: unreachedNext(scene, { detail: leg.detail, reason }),
     reason,
   });
 }

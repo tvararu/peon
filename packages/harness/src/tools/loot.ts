@@ -7,6 +7,7 @@ import { LOOT_APPROACH_YD, LOOT_WALK_MAX_YD } from "#harness/ops/range";
 import { Refusal } from "#harness/ops/refusal";
 import { resolveUnit, unitRefusal } from "#harness/ops/resolve";
 import { travelLeg } from "#harness/ops/travel-leg";
+import { reachNext } from "#harness/ops/unreached";
 import { unitViews } from "#harness/ops/views";
 import {
   defineGameTool,
@@ -84,7 +85,7 @@ async function approach(
   if (leg.status !== "arrived")
     throw new Refusal({
       detail: `could not reach ${label(corpse.unit)}: ${leg.detail}.`,
-      next: walkTo,
+      next: reachNext(leg, corpse.unit),
       reason: leg.reason ?? leg.status,
       status: "FAILED",
     });

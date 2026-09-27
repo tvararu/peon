@@ -333,6 +333,7 @@ describe("travel", () => {
     const t = await world();
     driveGoto(t.handle, [
       { refuse: "unreachable: no path to the destination" },
+      { refuse: "stop: ground corridor collision" },
     ]);
     const res = await travelSpec.run(
       { to: "explore north" },
