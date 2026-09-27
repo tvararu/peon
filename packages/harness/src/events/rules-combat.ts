@@ -69,6 +69,24 @@ function attackStartDrafts(event: CombatEvent, rc: RuleInput): Drafts {
   ];
 }
 
+function petAttackDrafts(event: CombatEvent, rc: RuleInput): Drafts {
+  const command = event.state.petCommand;
+  if (event.reason !== "pet_attack" || !command) return [];
+  const { pet, target } = command;
+  watchUnit(target, rc);
+  const name = rc.lookup.unitName(target);
+  const data = { name, pet: guidText(pet), target: guidText(target) };
+  return [
+    {
+      class: "log",
+      data,
+      domain: "combat",
+      event: "combat/pet_attack",
+      text: `You send your pet at ${named(target, rc)}.`,
+    },
+  ];
+}
+
 function castDrafts(event: CombatEvent): Drafts {
   const outcome = event.state.lastOutcome;
   const result = event.type.slice("cast_".length);
@@ -133,6 +151,8 @@ export function combatDrafts(event: CombatEvent, rc: RuleInput): Drafts {
       return attackedDrafts(event, rc);
     case "attack_started":
       return attackStartDrafts(event, rc);
+    case "outcome":
+      return petAttackDrafts(event, rc);
     case "cast_succeeded":
     case "cast_failed":
     case "cast_interrupted":

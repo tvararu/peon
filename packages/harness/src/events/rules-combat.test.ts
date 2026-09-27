@@ -100,6 +100,34 @@ describe("combatDrafts", () => {
     ).toBe("log");
   });
 
+  test("a pet attack command is a log row naming the target", () => {
+    const rc = testRuleInput({ lookup: stalker });
+    const petCommand = {
+      at: 0,
+      pet: 0xf1_40_00_00_00_00_00_aan,
+      target: 0x2an,
+    };
+    expect(
+      combatDrafts(
+        combat("outcome", { petCommand }, { reason: "pet_attack" }),
+        rc,
+      ),
+    ).toEqual([
+      {
+        class: "log",
+        data: {
+          name: "Springpaw Stalker",
+          pet: "f1400000000000aa",
+          target: "2a",
+        },
+        domain: "combat",
+        event: "combat/pet_attack",
+        text: "You send your pet at Springpaw Stalker u42.",
+      },
+    ]);
+    expect(combatDrafts(combat("outcome", { petCommand }), rc)).toEqual([]);
+  });
+
   test("attack start and casts are log rows", () => {
     const rc = testRuleInput({ lookup: stalker });
     expect(
