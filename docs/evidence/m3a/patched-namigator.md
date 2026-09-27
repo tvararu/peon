@@ -508,3 +508,7 @@ README routes on this build is
 [patched-library-reproof.md](patched-library-reproof.md); the funnel
 corner, replanning and Sunstrider Isle routes are not re-run.
 
+After a rebuild, `NAV_DATA=<nav dir> bun vendor/namigator/check.ts
+<libnamigator.so>` checks that the spawn corner (8733.333, −6666.666) has
+ground and that the `eversong10` spawn plans to Halis Dawnstrider; it exits
+1 on the unpatched build.
