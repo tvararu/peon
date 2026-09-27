@@ -12,6 +12,7 @@ import type {
   LootLine,
 } from "#harness/contract/details";
 import type { OpsCtx, ViewCtx } from "#harness/contract/services";
+import { itemIdText } from "#harness/ops/item-names";
 import { guidHex } from "#harness/ops/refs";
 import { unitViews, vitalsView } from "#harness/ops/views";
 import type { Choice } from "#harness/tools/engage-choose";
@@ -91,7 +92,7 @@ function noteLabels(ctx: ViewCtx, tally: Tally): void {
   if (loot.phase !== "open") return;
   for (const item of loot.items)
     tally.labels.set(item.itemId, {
-      name: item.name ?? `item ${item.itemId}`,
+      name: item.name ?? itemIdText(item.itemId),
       quality: item.quality,
     });
 }
@@ -109,7 +110,7 @@ function notePush(
   tally.loot.push({
     count: pushed.count,
     itemId: pushed.itemId,
-    name: label?.name ?? `item ${pushed.itemId}`,
+    name: label?.name ?? itemIdText(pushed.itemId),
     quality: label?.quality ?? null,
   });
 }

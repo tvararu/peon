@@ -54,6 +54,43 @@ function openWindow(handle: MockHandle): NamedRewardsState {
   };
 }
 
+function fangItem() {
+  return {
+    count: 1,
+    displayId: 0,
+    itemId: 7073,
+    name: "Broken Fang" as string | null,
+    quality: 0 as number | null,
+    randomPropertyId: 0,
+    randomSuffix: 0,
+    slot: 0,
+    slotType: 0,
+  };
+}
+
+function bagFang(named: boolean) {
+  return {
+    bag: 255,
+    guid: 0x99n,
+    item: {
+      contained: undefined,
+      count: 1,
+      durability: undefined,
+      entry: 7073,
+      flags: 0,
+      guid: 0x99n,
+      maxDurability: undefined,
+      name: named ? "Broken Fang" : null,
+      owner: undefined,
+      quality: named ? 0 : null,
+      randomPropertyId: 0,
+    },
+    region: "backpack" as const,
+    slot: 23,
+    status: "occupied" as const,
+  };
+}
+
 describe("lootCorpseOp", () => {
   test("core path: names from the window, counts from pushes, money from notices", async () => {
     const t = await createTestRuntime();
@@ -167,5 +204,44 @@ describe("lootCorpseOp", () => {
     const result = await lootCorpseOp(toolCtx(t), CORPSE);
     expect(result.outcome).toEqual({ cause: "loot_open_failed", ok: false });
     expect(released).toBe(false);
+  });
+
+  test("core path: names that arrive after the loot fill the lines", async () => {
+    const t = await createTestRuntime();
+    const open = openWindow(t.handle);
+    const unnamed = {
+      ...open,
+      loot: {
+        ...open.loot,
+        items: [{ ...fangItem(), name: null, quality: null }],
+      },
+    };
+    const inventory = t.handle.getInventoryState();
+    let named = false;
+    t.handle.getInventoryState = () => ({
+      ...inventory,
+      slots: [bagFang(named)],
+    });
+    t.handle.lootCorpse = async () => {
+      t.handle.getRewardsState = () => unnamed;
+      t.handle.triggerRewardsEvent({
+        at: 0,
+        state: unnamed,
+        type: "loot_opened",
+      });
+      t.handle.triggerRewardsEvent({
+        at: 0,
+        state: { ...unnamed, lastItemPush: push(7073, 1) },
+        type: "item_push",
+      });
+      setTimeout(() => {
+        named = true;
+      }, 80);
+      return { ok: true, record: undefined };
+    };
+    const result = await lootCorpseOp(toolCtx(t), CORPSE);
+    expect(result.items).toEqual([
+      { count: 1, itemId: 7073, name: "Broken Fang", quality: 0 },
+    ]);
   });
 });

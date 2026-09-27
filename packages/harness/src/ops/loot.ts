@@ -7,6 +7,7 @@ import type {
 import { messageOf } from "@tuicraft/core/lib/errors";
 import type { LootLine } from "#harness/contract/details";
 import type { OpsCtx } from "#harness/contract/services";
+import { itemIdText, nameLootLines } from "#harness/ops/item-names";
 import { settle } from "#harness/ops/settle";
 
 export type LootOpResult = {
@@ -24,7 +25,7 @@ function readLabels(state: NamedRewardsState, into: Map<number, Label>): void {
   if (state.loot.phase !== "open" && state.loot.phase !== "closing") return;
   for (const item of state.loot.items)
     into.set(item.itemId, {
-      name: item.name ?? `item ${item.itemId}`,
+      name: item.name ?? itemIdText(item.itemId),
       quality: item.quality,
     });
 }
@@ -141,7 +142,7 @@ export async function lootCorpseOp(
       addLine(items, {
         count: pushed.count,
         itemId: pushed.itemId,
-        name: label?.name ?? `item ${pushed.itemId}`,
+        name: label?.name ?? itemIdText(pushed.itemId),
         quality: label?.quality ?? null,
       });
     }
@@ -153,7 +154,7 @@ export async function lootCorpseOp(
     return {
       copper,
       freeSlots: ctx.handle.getInventoryState().freeSlots,
-      items,
+      items: await nameLootLines(ctx, items),
       outcome,
     };
   } finally {
