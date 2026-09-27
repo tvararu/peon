@@ -50,7 +50,18 @@ function, and all are backed by `conn.events`
 (`packages/core/src/wow/world-events.ts`, built on `#lib/emitter`). Emit
 with `conn.events.<name>.emit(...)`, never a setter. A listener that throws
 during packet dispatch is reported through `onPacketError` with the
-opcode; elsewhere the error is rethrown once delivery finishes.
+opcode; elsewhere the error is rethrown once delivery finishes. An error
+thrown by an `onPacketError` listener is dropped, so it never stops packet
+draining.
+
+`OpcodeDispatch.handle` runs the opcode's registered handler first, then
+resolves the oldest `expect` waiter whose `match` accepts the packet. Each
+waiter gets its own reader at the start of the body, and a timeout removes
+only its own waiter. A flow that awaits a reply reads state the handler
+already applied; it never reruns the handler. A `match` that throws counts
+as a non-match. When the handler throws, the waiter the packet matches, or
+the oldest waiter if a `match` could not read the body, is rejected with
+the handler's error instead.
 
 `cleanupSession` clears `conn.events` before socket teardown, because
 `entityStore.clear()` in the close handler fires a disappear for every

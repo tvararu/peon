@@ -89,29 +89,78 @@ test("OpcodeDispatch expect resolves on matching opcode", async () => {
   expect(result.uint8()).toBe(0x42);
 });
 
-test("OpcodeDispatch expect takes priority over persistent handler", async () => {
+test("OpcodeDispatch runs the handler before resolving a waiter at the body start", async () => {
   const dispatch = new OpcodeDispatch();
-  let persistentCalled = false;
-  dispatch.on(0x03, () => {
-    persistentCalled = true;
+  const order: string[] = [];
+  dispatch.on(0x03, (r) => {
+    order.push(`handler ${r.uint8()}`);
   });
-  const promise = dispatch.expect(0x03);
+  const promise = dispatch.expect(0x03).then((r) => {
+    order.push(`waiter ${r.uint8()}`);
+  });
   dispatch.handle(0x03, new PacketReader(new Uint8Array([0xff])));
-  const result = await promise;
-  expect(result.uint8()).toBe(0xff);
-  expect(persistentCalled).toBe(false);
+  await promise;
+  expect(order).toEqual(["handler 255", "waiter 255"]);
 });
 
-test("OpcodeDispatch expect rejects after timeout", async () => {
+test("OpcodeDispatch resolves overlapping waiters on one opcode in order", async () => {
+  const dispatch = new OpcodeDispatch();
+  const first = dispatch.expect(0x04);
+  const second = dispatch.expect(0x04);
+  dispatch.handle(0x04, new PacketReader(new Uint8Array([1])));
+  dispatch.handle(0x04, new PacketReader(new Uint8Array([2])));
+  expect((await first).uint8()).toBe(1);
+  expect((await second).uint8()).toBe(2);
+});
+
+test("OpcodeDispatch timeout removes only its own waiter", async () => {
   jest.useFakeTimers();
   try {
     const dispatch = new OpcodeDispatch();
-    const promise = dispatch.expect(0xff, 50);
+    const early = dispatch.expect(0xff, { timeoutMs: 50 });
+    const late = dispatch.expect(0xff, { timeoutMs: 500 });
     jest.advanceTimersByTime(50);
-    await expect(promise).rejects.toThrow("Timed out waiting for opcode 0xff");
+    await expect(early).rejects.toThrow("Timed out waiting for opcode 0xff");
+    dispatch.handle(0xff, new PacketReader(new Uint8Array([7])));
+    expect((await late).uint8()).toBe(7);
   } finally {
     jest.useRealTimers();
   }
+});
+
+test("OpcodeDispatch leaves a waiter queued when its match rejects the packet", async () => {
+  const dispatch = new OpcodeDispatch();
+  const wantsTwo = dispatch.expect(0x05, { match: (r) => r.uint8() === 2 });
+  const any = dispatch.expect(0x05);
+  dispatch.handle(0x05, new PacketReader(new Uint8Array([1])));
+  dispatch.handle(0x05, new PacketReader(new Uint8Array([2])));
+  expect((await any).uint8()).toBe(1);
+  expect((await wantsTwo).uint8()).toBe(2);
+});
+
+test("OpcodeDispatch rejects the waiter when the handler throws and keeps the next one queued", async () => {
+  const dispatch = new OpcodeDispatch();
+  dispatch.on(0x06, (r) => {
+    if (r.uint8() === 0) throw new Error("malformed body");
+  });
+  const failed = dispatch.expect(0x06);
+  const next = dispatch.expect(0x06);
+  expect(() =>
+    dispatch.handle(0x06, new PacketReader(new Uint8Array([0]))),
+  ).toThrow("malformed body");
+  await expect(failed).rejects.toThrow("malformed body");
+  dispatch.handle(0x06, new PacketReader(new Uint8Array([3])));
+  expect((await next).uint8()).toBe(3);
+});
+
+test("OpcodeDispatch treats a throwing match as a non-match", async () => {
+  const dispatch = new OpcodeDispatch();
+  const wantsId = dispatch.expect(0x07, { match: (r) => r.uint32LE() === 9 });
+  expect(() =>
+    dispatch.handle(0x07, new PacketReader(new Uint8Array([9]))),
+  ).not.toThrow();
+  dispatch.handle(0x07, new PacketReader(new Uint8Array([9, 0, 0, 0])));
+  expect((await wantsId).uint32LE()).toBe(9);
 });
 
 test("AccumulatorBuffer accumulates and drains", () => {
