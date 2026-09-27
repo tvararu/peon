@@ -68,6 +68,10 @@ export function body(
   return { changed: ["health", "rawFields"], entity, type: "update" };
 }
 
+export function liveUnit(guid: bigint): UnitEntity {
+  return (body(guid, 10) as { entity: UnitEntity }).entity;
+}
+
 export function lootableCorpse(entity: UnitEntity): UnitEntity {
   entity.health = 0;
   entity.rawFields.set(UNIT_FIELDS.HEALTH.offset, 0);
@@ -349,7 +353,7 @@ export function makeCycle(
   const runtime = new EncounterCycleRuntime({
     ...deps,
     bags: deps.bags ?? noQuestItems,
-    entity: deps.entity ?? (() => undefined),
+    entity: deps.entity ?? liveUnit,
     rewards: deps.loot,
   });
   deps.loot.onEvent((event) => runtime.observeRewards(event));

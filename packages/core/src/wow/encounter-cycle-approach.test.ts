@@ -4,6 +4,7 @@ import {
   body,
   fakeControl,
   fakeLoot,
+  liveUnit,
   makeCycle,
 } from "#test-support/encounter-cycle-fixtures";
 import type { UnitEntity } from "#wow/entity-store";
@@ -65,7 +66,7 @@ test("skips a queued target without a route and keeps its start", async () => {
 
 test("names the death of a target that died during the walk", async () => {
   const log: string[] = [];
-  let corpse: UnitEntity | undefined;
+  let corpse: UnitEntity | undefined = liveUnit(1n);
   const runtime = makeCycle({
     approach: async () => {
       corpse = (body(1n, 0) as { entity: UnitEntity }).entity;

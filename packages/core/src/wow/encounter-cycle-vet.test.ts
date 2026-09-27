@@ -124,3 +124,16 @@ test("a fight refused because the target is already dead is not counted", async 
     queue: [{ status: "skipped", cause: "target_dead" }, { status: "done" }],
   });
 });
+
+test("a queued unit that left view is skipped before any fight starts", async () => {
+  const { fought, runtime, start } = run([unit(3n)], [2n, 3n], 2);
+  await start;
+  expect(fought).toEqual([3n]);
+  expect(runtime.snapshot()).toMatchObject({
+    startsUsed: 1,
+    queue: [
+      { guid: 2n, status: "skipped", cause: "target_unobserved" },
+      { guid: 3n, status: "done" },
+    ],
+  });
+});

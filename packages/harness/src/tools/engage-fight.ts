@@ -104,8 +104,14 @@ function nextTargets(scene: Scene, tried: ReadonlySet<bigint>): bigint[] {
         unit.alive && !unit.tappedByOther && unit.name === choice.unit?.name,
     )
     .map((unit) => ops.rt.refs.guidOf(unit.ref));
+  const seen = new Set(
+    unitViews(ops).flatMap((unit) => {
+      const guid = ops.rt.refs.guidOf(unit.ref);
+      return unit.alive && guid !== undefined ? [guid] : [];
+    }),
+  );
   const ordered = [...attackers, choice.guid, ...same].flatMap((guid) =>
-    guid === undefined ? [] : [guid],
+    guid === undefined || !seen.has(guid) ? [] : [guid],
   );
   return [...new Set(ordered)].filter((guid) => !tried.has(guid));
 }

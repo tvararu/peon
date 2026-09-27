@@ -21,6 +21,7 @@ export function vetTarget(
   guid: bigint,
 ): string | undefined {
   const unit = entity(guid);
+  if (unit === undefined) return "target_unobserved";
   if (!isUnit(unit)) return undefined;
   if (unit.health === 0) return "target_dead";
   if (tappedByOther(unit)) return "tapped_by_other";
