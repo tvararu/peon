@@ -1,6 +1,5 @@
 import { PlaceStore } from "#wow/client-place";
 import { CombatStore } from "#wow/combat-store";
-import type { ControlPose } from "#wow/control";
 import { DestroyStore } from "#wow/destroy-store";
 import type { EntityLookup } from "#wow/entity-store";
 import { ItemTemplates } from "#wow/item-use";
@@ -8,6 +7,7 @@ import { MotionStore } from "#wow/motion-store";
 import { QuestStore } from "#wow/quest-store";
 import { RecoveryStore } from "#wow/recovery-store";
 import { RewardsStore } from "#wow/rewards-store";
+import { SelfStore } from "#wow/self-store";
 import { TrainerStore } from "#wow/trainer-store";
 import { VendorStore } from "#wow/vendor-store";
 import type { WorldConn } from "#wow/world-conn";
@@ -31,6 +31,7 @@ export type SessionStores = {
   trainer: TrainerStore;
   destroy: DestroyStore;
   place: PlaceStore;
+  self: SelfStore;
 };
 
 export function sessionDeps(conn: WorldConn): SessionDeps {
@@ -43,15 +44,10 @@ export function sessionDeps(conn: WorldConn): SessionDeps {
 }
 
 export function createSessionStores(conn: WorldConn): SessionStores {
-  return buildSessionStores({
-    ...sessionDeps(conn),
-    pose: () => conn.control?.snapshot().pose,
-  });
+  return buildSessionStores(sessionDeps(conn));
 }
 
-export function buildSessionStores(
-  deps: SessionDeps & { pose: () => ControlPose | undefined },
-): SessionStores {
+export function buildSessionStores(deps: SessionDeps): SessionStores {
   const combat = new CombatStore(deps);
   return {
     combat,
@@ -64,6 +60,7 @@ export function buildSessionStores(
     trainer: new TrainerStore({ ...deps, learned: () => combat.learned() }),
     destroy: new DestroyStore(deps),
     place: new PlaceStore(),
+    self: new SelfStore(),
   };
 }
 
@@ -78,4 +75,5 @@ export function disposeSessionStores(stores: SessionStores): void {
   stores.trainer.dispose();
   stores.destroy.dispose();
   stores.place.dispose();
+  stores.self.dispose();
 }

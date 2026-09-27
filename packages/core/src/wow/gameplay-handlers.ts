@@ -77,7 +77,7 @@ import type { QuestDialog } from "#wow/quests-requests";
 import type { SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
 
-type CombatStores = Pick<SessionStores, "combat" | "motion">;
+type CombatStores = Pick<SessionStores, "combat" | "motion" | "self">;
 
 export function registerCombatHandlers(
   conn: WorldConn,
@@ -131,7 +131,7 @@ function registerSpellHandlers(
 
 function registerMeleeHandlers(
   conn: WorldConn,
-  { combat, motion }: CombatStores,
+  { combat, motion, self }: CombatStores,
 ): void {
   const on = (opcode: number, handle: (r: PacketReader) => void) =>
     conn.dispatch.on(opcode, handle);
@@ -157,7 +157,7 @@ function registerMeleeHandlers(
   );
   on(GameOpcode.SMSG_MONSTER_MOVE, (r) => {
     const move = parseMonsterMove(r);
-    const mapId = conn.control?.currentMapId() ?? 0;
+    const mapId = self.mapId;
     const orientation = conn.entityStore.get(move.guid)?.position?.orientation;
     conn.entityStore.setPosition(move.guid, {
       mapId,

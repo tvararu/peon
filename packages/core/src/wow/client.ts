@@ -393,7 +393,7 @@ export function worldSession(
 
     async function login(): Promise<void> {
       await authenticateWorld(conn, config, auth);
-      await selectCharacter(conn, config);
+      await selectCharacter(conn, stores, config);
       pingInterval = startPingLoop(conn, config.pingIntervalMs ?? 30_000);
       const lang = config.language ?? Language.COMMON;
       done = true;

@@ -136,7 +136,10 @@ export class RecoveryRuntime {
   constructor(store: RecoveryStore, deps: RecoveryDeps) {
     this.store = store;
     this.deps = deps;
-    store.onEvent((event) => this.events.emit(event));
+    store.onEvent(({ type, at }) => {
+      if (this.events.size > 0)
+        this.events.emit({ type, at, state: this.snapshot() });
+    });
   }
 
   onEvent(listener: (event: RecoveryEvent) => void): Unsubscribe {
@@ -145,7 +148,7 @@ export class RecoveryRuntime {
   }
 
   snapshot(): RecoveryState {
-    return this.store.snapshot();
+    return this.store.snapshot(this.deps.pose());
   }
 
   queryCorpse(): RecoveryState {
@@ -154,7 +157,8 @@ export class RecoveryRuntime {
     if (this.store.pendingQuery)
       throw new Error("Previous corpse query remains unanswered");
     this.deps.send(GameOpcode.MSG_CORPSE_QUERY);
-    return this.store.requestQuery();
+    this.store.requestQuery();
+    return this.snapshot();
   }
 
   releaseSpirit(): RecoveryState {
@@ -163,19 +167,21 @@ export class RecoveryRuntime {
     if (this.store.life().life !== "dead")
       throw new Error("Release requires authoritative dead state");
     this.deps.send(GameOpcode.CMSG_REPOP_REQUEST, buildRepopRequest(0));
-    return this.store.requestRelease();
+    this.store.requestRelease();
+    return this.snapshot();
   }
 
   reclaimCorpse(): RecoveryState {
     this.active();
     this.store.observeLife();
-    const gate = this.store.reclaim();
+    const gate = this.store.reclaim(this.deps.pose());
     if (!gate.canRequest)
       throw new Error(`Cannot request reclaim: ${gate.reason}`);
     this.deps.send(GameOpcode.CMSG_RECLAIM_CORPSE, buildReclaimCorpse(0n));
-    return this.store.requestReclaim(
+    this.store.requestReclaim(
       gate.remainingMs === undefined ? "unknown" : "known",
     );
+    return this.snapshot();
   }
 
   activateSpiritHealer(guid: bigint): RecoveryState {
@@ -205,7 +211,8 @@ export class RecoveryRuntime {
       GameOpcode.CMSG_SPIRIT_HEALER_ACTIVATE,
       buildSpiritHealerActivate(guid),
     );
-    return this.store.requestSpiritHealer(guid);
+    this.store.requestSpiritHealer(guid);
+    return this.snapshot();
   }
 
   clearSpiritHealer(reason: SpiritHealerCleared["reason"]): void {
@@ -234,7 +241,8 @@ export class RecoveryRuntime {
       GameOpcode.CMSG_RESURRECT_RESPONSE,
       buildResurrectResponse(offer.guid, accept),
     );
-    return this.store.requestResurrection(offer, accept);
+    this.store.requestResurrection(offer, accept);
+    return this.snapshot();
   }
 
   dispose(): void {

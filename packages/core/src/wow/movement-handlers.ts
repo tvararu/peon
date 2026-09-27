@@ -7,7 +7,6 @@ import {
   parseTeleportAck,
   parseWorldPosition,
   SPEED_ACKS,
-  type SpeedAck,
 } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { PacketReader } from "#wow/protocol/packet";
@@ -19,7 +18,7 @@ import type { SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
 import { selfGuid } from "#wow/world-handlers";
 
-type MovementStores = Pick<SessionStores, "motion" | "quests">;
+type MovementStores = Pick<SessionStores, "motion" | "quests" | "self">;
 
 function handleNearTeleport(
   conn: WorldConn,
@@ -36,16 +35,7 @@ function handleNearTeleport(
     );
     return;
   }
-  conn.control?.nearTeleport(parseMovementInfo(r));
-}
-
-function handleTeleportAckRequest(conn: WorldConn, r: PacketReader): void {
-  conn.control?.teleportAck(parseTeleportAck(r));
-}
-
-function handleTransferPending(conn: WorldConn): void {
-  conn.control?.handleTransferPending();
-  conn.remoteMotion.beginTransfer();
+  stores.self.receive({ type: "near_teleport", info: parseMovementInfo(r) });
 }
 
 function handleNewWorld(
@@ -53,81 +43,68 @@ function handleNewWorld(
   stores: MovementStores,
   r: PacketReader,
 ): void {
-  conn.control?.newWorld(parseWorldPosition(r));
+  stores.self.receive({ type: "new_world", position: parseWorldPosition(r) });
   stores.quests.resetInteraction();
   conn.entityStore.clear();
   conn.remoteMotion.endTransfer();
   stores.quests.observeQuestLog();
 }
 
-function handleForceMoveRoot(conn: WorldConn, r: PacketReader): void {
-  conn.control?.forceRoot(parseMoveCounter(r).counter);
-}
-
-function handleForceMoveUnroot(conn: WorldConn, r: PacketReader): void {
-  conn.control?.forceUnroot(parseMoveCounter(r).counter);
-}
-
-function handleMoveKnockBack(conn: WorldConn, r: PacketReader): void {
-  conn.control?.knockBack(parseKnockBack(r));
-}
-
-function handleClientControlUpdate(conn: WorldConn, r: PacketReader): void {
-  conn.control?.clientControl(parseClientControl(r));
-}
-
-function handleForceSpeedChange(
-  conn: WorldConn,
-  r: PacketReader,
-  spec: SpeedAck,
-): void {
-  conn.control?.forceSpeed(spec, parseForceSpeed(r, spec));
-}
-
-function handleCanFly(conn: WorldConn, r: PacketReader, enable: boolean): void {
-  conn.control?.setCanFly(parseMoveCounter(r).counter, enable);
-}
-
 export function registerMovementHandlers(
   conn: WorldConn,
   stores: MovementStores,
 ): void {
-  conn.dispatch.on(GameOpcode.SMSG_LOGIN_VERIFY_WORLD, (r) => {
+  const { self } = stores;
+  const on = (opcode: number, handle: (r: PacketReader) => void) =>
+    conn.dispatch.on(opcode, handle);
+  on(GameOpcode.SMSG_LOGIN_VERIFY_WORLD, (r) => {
     const position = parseWorldPosition(r);
-    conn.control?.loginVerified(position);
+    self.receive({ type: "login_verified", position });
     conn.remoteMotion.mapChanged(position.mapId);
   });
-  conn.dispatch.on(GameOpcode.MSG_MOVE_TELEPORT, (r) =>
-    handleNearTeleport(conn, stores, r),
+  on(GameOpcode.MSG_MOVE_TELEPORT, (r) => handleNearTeleport(conn, stores, r));
+  on(GameOpcode.MSG_MOVE_TELEPORT_ACK, (r) =>
+    self.receive({ type: "teleport_ack", ack: parseTeleportAck(r) }),
   );
-  conn.dispatch.on(GameOpcode.MSG_MOVE_TELEPORT_ACK, (r) =>
-    handleTeleportAckRequest(conn, r),
+  on(GameOpcode.SMSG_TRANSFER_PENDING, () => {
+    self.receive({ type: "transfer_pending" });
+    conn.remoteMotion.beginTransfer();
+  });
+  on(GameOpcode.SMSG_NEW_WORLD, (r) => handleNewWorld(conn, stores, r));
+  on(GameOpcode.SMSG_FORCE_MOVE_ROOT, (r) =>
+    self.receive({ type: "force_root", counter: parseMoveCounter(r).counter }),
   );
-  conn.dispatch.on(GameOpcode.SMSG_TRANSFER_PENDING, () =>
-    handleTransferPending(conn),
+  on(GameOpcode.SMSG_FORCE_MOVE_UNROOT, (r) =>
+    self.receive({
+      type: "force_unroot",
+      counter: parseMoveCounter(r).counter,
+    }),
   );
-  conn.dispatch.on(GameOpcode.SMSG_NEW_WORLD, (r) =>
-    handleNewWorld(conn, stores, r),
+  on(GameOpcode.SMSG_MOVE_KNOCK_BACK, (r) =>
+    self.receive({ type: "knock_back", knock: parseKnockBack(r) }),
   );
-  conn.dispatch.on(GameOpcode.SMSG_FORCE_MOVE_ROOT, (r) =>
-    handleForceMoveRoot(conn, r),
+  on(GameOpcode.SMSG_CLIENT_CONTROL_UPDATE, (r) =>
+    self.receive({ type: "client_control", control: parseClientControl(r) }),
   );
-  conn.dispatch.on(GameOpcode.SMSG_FORCE_MOVE_UNROOT, (r) =>
-    handleForceMoveUnroot(conn, r),
-  );
-  conn.dispatch.on(GameOpcode.SMSG_MOVE_KNOCK_BACK, (r) =>
-    handleMoveKnockBack(conn, r),
-  );
-  conn.dispatch.on(GameOpcode.SMSG_CLIENT_CONTROL_UPDATE, (r) =>
-    handleClientControlUpdate(conn, r),
-  );
-  conn.dispatch.on(GameOpcode.SMSG_MOVE_SET_CAN_FLY, (r) =>
-    handleCanFly(conn, r, true),
-  );
-  conn.dispatch.on(GameOpcode.SMSG_MOVE_UNSET_CAN_FLY, (r) =>
-    handleCanFly(conn, r, false),
-  );
+  for (const enable of [true, false])
+    on(
+      enable
+        ? GameOpcode.SMSG_MOVE_SET_CAN_FLY
+        : GameOpcode.SMSG_MOVE_UNSET_CAN_FLY,
+      (r) =>
+        self.receive({
+          type: "can_fly",
+          counter: parseMoveCounter(r).counter,
+          enable,
+        }),
+    );
   for (const spec of SPEED_ACKS)
-    conn.dispatch.on(spec.smsg, (r) => handleForceSpeedChange(conn, r, spec));
+    on(spec.smsg, (r) =>
+      self.receive({
+        type: "force_speed",
+        spec,
+        force: parseForceSpeed(r, spec),
+      }),
+    );
   registerRemoteMotionHandlers(conn, stores);
 }

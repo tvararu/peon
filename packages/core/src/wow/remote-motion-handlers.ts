@@ -12,7 +12,7 @@ import type { WorldConn } from "#wow/world-conn";
 
 export function observeRemoteMovement(
   conn: WorldConn,
-  { motion }: Pick<SessionStores, "motion">,
+  { motion, self }: Pick<SessionStores, "motion" | "self">,
   { opcode, guid }: { opcode: number; guid: bigint },
   r: PacketReader,
 ): void {
@@ -29,7 +29,7 @@ export function observeRemoteMovement(
   }
   const { info, transition } = body;
   const position = {
-    mapId: conn.control?.currentMapId() ?? 0,
+    mapId: self.mapId,
     x: info.x,
     y: info.y,
     z: info.z,
@@ -59,7 +59,7 @@ export function handleCompressedMoves(conn: WorldConn, r: PacketReader): void {
 
 export function registerRemoteMotionHandlers(
   conn: WorldConn,
-  stores: Pick<SessionStores, "motion">,
+  stores: Pick<SessionStores, "motion" | "self">,
 ): void {
   for (const opcode of REMOTE_MOVEMENT_OPCODES) {
     if (opcode === GameOpcode.MSG_MOVE_TELEPORT) continue;

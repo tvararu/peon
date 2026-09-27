@@ -86,9 +86,10 @@ and fires `appear`. `clear` removes everything before it fires any
 Entity events raised while a packet is dispatched are queued and delivered
 in order after that packet's handler returns, so listeners see the
 packet's combat, control and movement state already applied. Per-GUID
-cleanup (`remoteMotion.forget`, `combat.forget`,
-`control.observeDisappear`) still runs as soon as the store removes the
-entity, before the packet can re-create the GUID. Events raised outside
+cleanup (`remoteMotion.forget`, the combat and motion stores' `forget`,
+and the control runtime's own entity-store subscription) still runs as
+soon as the store removes the entity, before the packet can re-create
+the GUID. Events raised outside
 dispatch are delivered immediately.
 
 ## Session stores
@@ -103,9 +104,17 @@ inventory errors, rolls), `ItemTemplates` (item query cache),
 `QuestStore` (dialog, quest log, queries, progress), `RecoveryStore`
 (life, corpse, graveyard, resurrection offers), `VendorStore`,
 `TrainerStore` and `DestroyStore` (window or offer, pending request,
-settled outcome) and `PlaceStore` (map, zone and area). A store
-runs no timer and sends no packet, except the item query that
-`ItemTemplates` waits on; an actuator that sends passes its `send` in.
+settled outcome), `PlaceStore` (map, zone and area) and `SelfStore`
+(login state and the current map, plus an event for every self-movement
+packet: login verify, teleports, new world, roots, knockbacks, forced
+speeds and self updates from `SMSG_UPDATE_OBJECT`). Login waits on
+`SelfStore.waitLogin()`, not on a runtime, and the control runtime
+receives self movement by subscribing to `SelfStore`. `WorldConn` holds
+only transport and protocol state. A store sends no packet, except the
+item query that `ItemTemplates` waits on, and runs no timer, except the
+deadlines on those waits: `ItemTemplates` bounds its item query and
+`SelfStore.waitLogin()` bounds the login wait. An actuator that sends
+passes its `send` in; request timeouts live in the runtimes.
 Each runtime (`CombatRuntime`, `RewardsRuntime`, `QuestRuntime` and so
 on) takes the stores it reads, re-emits their events and holds the
 policy: validating actions, sending requests, querying logged quests,

@@ -5,7 +5,7 @@ import {
   type MotionFixture,
   motionFixture,
 } from "#test-support/remote-motion-fixtures";
-import { combatParts } from "#test-support/session-fixtures";
+import { combatParts, testStores } from "#test-support/session-fixtures";
 import { writePackedGuid } from "#test-support/world-handlers-fixtures";
 import { registerCombatHandlers } from "#wow/gameplay-handlers";
 import { ObjectType } from "#wow/protocol/entity-fields";
@@ -126,7 +126,11 @@ describe("registerCombatHandlers", () => {
       selfPose: () => undefined,
     });
     const conn = { dispatch: new OpcodeDispatch() } as unknown as WorldConn;
-    registerCombatHandlers(conn, { combat: combatStore, motion });
+    registerCombatHandlers(conn, {
+      ...testStores(),
+      combat: combatStore,
+      motion,
+    });
     combat.attack(2n);
     conn.dispatch.handle(
       GameOpcode.SMSG_ATTACKSWING_NOTINRANGE,

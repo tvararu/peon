@@ -7,6 +7,7 @@ import { CombatActions } from "#wow/combat-actions";
 import { defendTarget } from "#wow/combat-defense";
 import { readRangedGear } from "#wow/combat-ranged-gear";
 import { ControlRuntime } from "#wow/control";
+import { feedControl } from "#wow/control-feed";
 import type { GroundOracle } from "#wow/control-motion";
 import { approachUnit, type CycleApproach } from "#wow/cycle-approach";
 import { pullGate } from "#wow/cycle-gate";
@@ -139,6 +140,23 @@ function createTactics(
   });
 }
 
+function wireStores(
+  conn: WorldConn,
+  stores: SessionStores,
+  { control, cycle }: Pick<RuntimeParts, "control" | "cycle">,
+): Unsubscribe[] {
+  return [
+    stores.place.onEvent((event) =>
+      conn.events.control.emit({ ...event, state: control.snapshot() }),
+    ),
+    stores.self.onEvent((event) => feedControl(control, event)),
+    conn.entityStore.onEvent((event) => {
+      if (event.type === "disappear") control.observeDisappear(event.guid);
+    }),
+    conn.events.entity.subscribe((event) => cycle.observeEntity(event)),
+  ];
+}
+
 function wireEvents(
   conn: WorldConn,
   stores: SessionStores,
@@ -194,9 +212,7 @@ function wireEvents(
         items.label(good.itemId);
     }),
     destroy.onEvent((event) => events.destroy.emit(event)),
-    stores.place.onEvent((event) =>
-      events.control.emit({ ...event, state: control.snapshot() }),
-    ),
+    ...wireStores(conn, stores, parts),
   ];
   return () => {
     for (const off of detach) off();
@@ -292,7 +308,6 @@ function createSupportRuntimes(
     },
     now: runtimeDeps.now,
   });
-  conn.cycle = cycle;
   const vendor = new VendorRuntime(stores.vendor, runtimeDeps);
   const destroy = new ItemDestroyRuntime(stores.destroy, runtimeDeps);
   return { recovery, quests, rewards, items, cycle, vendor, destroy };
@@ -384,8 +399,7 @@ export function createRuntimes(
 ): Runtimes {
   const lazy: LazyState = { disposed: false };
   const getNavigation = (): Navigation => loadNavigation(config, lazy);
-  conn.control = createControl(conn, groundOracle(config, lazy));
-  const control = conn.control;
+  const control = createControl(conn, groundOracle(config, lazy));
   const { combat, actions, trainer } = createCombat(
     conn,
     stores,
@@ -406,7 +420,6 @@ export function createRuntimes(
     halt: rawHalt,
     defense: { combat, control },
   });
-  conn.tactics = tactics;
   const parts: RuntimeParts = {
     control,
     combat,

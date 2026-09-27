@@ -18,12 +18,16 @@ const notice: NoticeEvent = {
 };
 
 function extras() {
-  const conn = { events: createWorldEvents() } as unknown as WorldConn;
+  const conn = {
+    creatureInfoCache: new Map(),
+    events: createWorldEvents(),
+  } as unknown as WorldConn;
   return { conn, methods: extrasMethods(conn, {} as Runtimes) };
 }
 
 function creatureConn(): WorldConn {
   return {
+    creatureInfoCache: new Map(),
     creatureNameCache: new Map(),
     entityStore: new EntityStore(),
     events: createWorldEvents(),
@@ -49,7 +53,10 @@ describe("extrasMethods", () => {
       navigation: true,
       jev: false,
     };
-    const conn = { events: createWorldEvents() } as unknown as WorldConn;
+    const conn = {
+      creatureInfoCache: new Map(),
+      events: createWorldEvents(),
+    } as unknown as WorldConn;
     const rt = { capabilities: () => flags } as unknown as Runtimes;
     expect(extrasMethods(conn, rt).capabilities()).toEqual(flags);
   });
