@@ -1,0 +1,312 @@
+import { describe, expect, test } from "bun:test";
+import { appendFile, mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import type { StatusJson } from "#harness/contract/config";
+import type { Domain, GameLogEntry, LogEvent } from "#harness/contract/log";
+import { bunExec, type Exec, type ExecResult } from "#harness/grader/exec";
+import { type EvalResult, validateResult } from "#harness/grader/result";
+import { runPaths, runScenario } from "#harness/grader/run";
+import { loadScenario, type Scenario } from "#harness/grader/scenarios";
+import { BUDGET_STOP } from "#harness/grader/steer";
+import { failed, ok, orcaOk } from "#test-support/fake-exec";
+
+const ACC = "FAC0123456789";
+const PASSWORD = "pw-secret-123";
+const SELF_STATE = loadScenario("t0-self-state");
+const EDITOR = ["", "─".repeat(40), "", "─".repeat(40), "gpt-6-luna • high"];
+
+type World = {
+  worktree: string;
+  runDir: string;
+  now: number;
+  char: string;
+  answers: boolean;
+  launchFails: boolean;
+  exited: boolean;
+  seq: number;
+  agent: StatusJson["agent"];
+  calls: string[][];
+  task: string;
+};
+
+async function newWorld(overrides: Partial<World> = {}): Promise<World> {
+  const worktree = await mkdtemp(`${tmpdir()}/run-`);
+  const { runDir } = runPaths({
+    replica: 1,
+    round: 1,
+    scenario: "t0-self-state",
+    worktree,
+  });
+  const base: World = {
+    agent: "idle",
+    answers: true,
+    calls: [],
+    char: "Fevala",
+    exited: false,
+    launchFails: false,
+    now: Date.parse("2026-09-26T21:00:00.000Z"),
+    runDir,
+    seq: 0,
+    task: SELF_STATE.task,
+    worktree,
+  };
+  return { ...base, ...overrides };
+}
+
+async function log(world: World, event: LogEvent, text: string): Promise<void> {
+  world.seq += 1;
+  const entry: GameLogEntry = {
+    char: world.char,
+    class: "passive",
+    data: {},
+    domain: event.split("/")[0] as Domain,
+    event,
+    seq: world.seq,
+    text,
+    ts: world.now,
+    v: 1,
+  };
+  await appendFile(
+    `${world.runDir}/gamelog.jsonl`,
+    `${JSON.stringify(entry)}\n`,
+  );
+}
+
+async function writeStatus(world: World): Promise<void> {
+  const lastProgress =
+    world.agent === "tool"
+      ? { at: world.now, event: "nav/route_start" as const }
+      : undefined;
+  const status: StatusJson = {
+    agent: world.agent,
+    at: world.now,
+    connection: "online",
+    lastProgress,
+    lastToolCallAt: undefined,
+    ready: true,
+    run: undefined,
+    tool: undefined,
+    v: 1,
+  };
+  await writeFile(`${world.runDir}/status.json`, JSON.stringify(status));
+}
+
+function truth(world: World): string {
+  const savedAt = world.exited
+    ? new Date(world.now).toISOString()
+    : "2026-09-25T10:00:00.000Z";
+  const position = { map: 530, o: 0, x: 8735, y: -6685, z: 70.5, zone: 3430 };
+  return JSON.stringify({
+    account: ACC,
+    alive: true,
+    class: 5,
+    deathState: "alive",
+    guid: 1,
+    health: 100,
+    inventory: [],
+    level: 10,
+    money: 50_000,
+    name: "Fevala",
+    ok: true,
+    online: false,
+    position,
+    quests: [],
+    race: 10,
+    rewardedQuests: [],
+    savedAt,
+    spells: [],
+    xp: 0,
+  });
+}
+
+function soap(world: World, verb: string | undefined): ExecResult {
+  const session = {
+    account: ACC,
+    character: "Fevala",
+    dir: `${world.worktree}/tmp/factory-account-${ACC}`,
+    password: PASSWORD,
+    preset: "eversong10",
+    wrapper: `${world.worktree}/tmp/tc-${ACC}`,
+  };
+  if (verb === "create") return ok(JSON.stringify(session));
+  if (verb === "truth") return ok(truth(world));
+  if (verb === "list") return ok("[]");
+  return ok('{"ok":true}');
+}
+
+async function onSend(world: World, text: string): Promise<void> {
+  if (text === "\u0004") {
+    world.exited = true;
+    return;
+  }
+  await log(world, "human/input", text);
+  if (text === BUDGET_STOP || (text === world.task && world.answers)) {
+    world.agent = "idle";
+    await log(world, "agent/message", "Level 10, 100% health.");
+  }
+}
+
+async function orca(world: World, args: string[]): Promise<ExecResult> {
+  const [sub] = args;
+  if (sub === "create") {
+    if (world.launchFails) return failed(1, "orca runtime not reachable");
+    await log(world, "session/in_world", "in world");
+    await writeStatus(world);
+    return orcaOk({ handle: "term_run" });
+  }
+  if (sub === "read") return orcaOk({ tail: world.exited ? [] : EDITOR });
+  if (sub === "send") {
+    await onSend(world, args[args.indexOf("--text") + 1] ?? "");
+    return orcaOk({});
+  }
+  if (sub === "wait")
+    return world.exited
+      ? ok('{"ok":true,"result":{"wait":{"satisfied":true}}}')
+      : failed(1, "", '{"ok":false,"error":{"code":"timeout"}}');
+  return orcaOk({});
+}
+
+function worldExec(world: World): Exec {
+  return async (argv, opts) => {
+    world.calls.push([...argv]);
+    if (argv[0] === "git") return ok("3af5aa3\n");
+    if (argv[0] === "rg") return bunExec(argv, opts);
+    if (argv[0] === "orca-ide") return orca(world, argv.slice(2));
+    if (argv[1] === "packages/factory/src/main.ts") return soap(world, argv[3]);
+    return failed(127, `unexpected ${argv.join(" ")}`);
+  };
+}
+
+function run(world: World, scenario: Scenario = SELF_STATE): Promise<string> {
+  const sleep = async (ms: number): Promise<void> => {
+    world.now += ms;
+    await writeStatus(world);
+  };
+  return runScenario({
+    clock: { now: () => world.now },
+    exec: worldExec(world),
+    log: () => {},
+    replica: 1,
+    round: 1,
+    scenario,
+    sleep,
+    truthWaitMs: 1,
+    worktree: world.worktree,
+  });
+}
+
+async function leaked(dir: string): Promise<string> {
+  return (await bunExec(["rg", "-uu", "-l", "-F", PASSWORD, dir])).stdout;
+}
+
+const deleted = (world: World): boolean =>
+  world.calls.some((call) => call[3] === "delete" && call[4] === ACC);
+
+describe("runScenario", () => {
+  test("a finished run leaves a valid draft, a deleted account and no password", async () => {
+    const world = await newWorld();
+    expect(await run(world)).toMatch(
+      /^t0-self-state-1 draft 0\/5 tools=0 wall=\d+$/,
+    );
+    const draft = (await Bun.file(
+      `${world.runDir}/grader/draft.json`,
+    ).json()) as EvalResult;
+    expect(validateResult(draft)).toEqual([]);
+    expect(draft.end).toBe("done");
+    expect(draft.tab).toBe("eval-1-t0-self-state-1");
+    expect(draft.evidence.finalSavedAt).toBeDefined();
+    for (const file of [
+      "run.json",
+      "names.json",
+      "baseline.json",
+      "final.json",
+      "triggers.jsonl",
+      "progress.json",
+    ]) {
+      expect(await Bun.file(`${world.runDir}/${file}`).exists()).toBe(true);
+    }
+    expect(deleted(world)).toBe(true);
+    expect(await Bun.file(`${world.runDir}/account.json`).exists()).toBe(false);
+    expect(await leaked(world.runDir)).toBe("");
+    expect(world.calls.find((call) => call[2] === "create")).toContain(
+      `exec bun packages/harness/src/entry.ts --profile ${world.runDir}/account.json --run-dir ${world.runDir} --glyphs nerd`,
+    );
+  });
+
+  test("a launch failure aborts, still deletes the account and removes account.json", async () => {
+    const world = await newWorld({ launchFails: true });
+    expect(await run(world)).toStartWith("t0-self-state-1 aborted 0/5 ");
+    const result = (await Bun.file(
+      `${world.runDir}/result.json`,
+    ).json()) as EvalResult;
+    expect(result.abort?.cause).toBe("launch_failed");
+    expect(result.abort?.evidence).toContain("orca runtime not reachable");
+    expect(validateResult(result)).toEqual([]);
+    expect(deleted(world)).toBe(true);
+    expect(await Bun.file(`${world.runDir}/account.json`).exists()).toBe(false);
+  });
+
+  test("a wrong character aborts and quits the harness", async () => {
+    const world = await newWorld({ char: "Xiara" });
+    await run(world);
+    const result = (await Bun.file(
+      `${world.runDir}/result.json`,
+    ).json()) as EvalResult;
+    expect(result.abort).toEqual({
+      cause: "wrong_character",
+      evidence: "session/in_world names Xiara, names.json names Fevala",
+    });
+    expect(
+      world.calls.some((call) => call[2] === "send" && call.includes("\u0004")),
+    ).toBe(true);
+    expect(world.calls.some((call) => call.includes(SELF_STATE.task))).toBe(
+      false,
+    );
+    expect(deleted(world)).toBe(true);
+  });
+
+  test("a run past its budget gets the stop steer and ends as budget", async () => {
+    const world = await newWorld({ agent: "tool", answers: false });
+    await run(world);
+    const draft = (await Bun.file(
+      `${world.runDir}/grader/draft.json`,
+    ).json()) as EvalResult;
+    expect(draft.end).toBe("budget");
+    expect(draft.interventions.map((item) => item.kind)).toEqual([
+      "budget_stop",
+    ]);
+    expect(draft.interventions[0]?.text).toBe(BUDGET_STOP);
+  });
+
+  test("an elapsed steer is typed and recorded", async () => {
+    const world = await newWorld();
+    const scenario: Scenario = {
+      ...SELF_STATE,
+      steers: [{ at: { kind: "elapsed", ms: 4000 }, text: "How is it going?" }],
+    };
+    await run(world, scenario);
+    const steers = (await Bun.file(`${world.runDir}/steers.jsonl`).text())
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    expect(steers).toEqual([
+      {
+        ms: expect.any(Number),
+        text: "How is it going?",
+        trigger: "elapsed:4000",
+      },
+    ]);
+    const draft = (await Bun.file(
+      `${world.runDir}/grader/draft.json`,
+    ).json()) as EvalResult;
+    expect(draft.interventions.map((item) => item.kind)).toEqual(["steer"]);
+  });
+
+  test("refuses a run dir that was used before", async () => {
+    const world = await newWorld();
+    await run(world);
+    await expect(run(world)).rejects.toThrow(
+      `run dir already used: ${world.runDir}`,
+    );
+  });
+});
