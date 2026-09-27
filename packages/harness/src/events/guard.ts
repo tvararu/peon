@@ -1,5 +1,6 @@
-import type { GameLogEntry, LogClass } from "#harness/contract/log";
-import type { Clock } from "#harness/contract/services";
+import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
+import type { GameLogEntry, LogClass, LogDraft } from "#harness/contract/log";
+import type { Clock, HarnessRuntime } from "#harness/contract/services";
 
 export type WakeCandidate = Pick<GameLogEntry, "class" | "data" | "event">;
 export type WakeGuard = { admit: (entry: WakeCandidate) => LogClass };
@@ -64,6 +65,55 @@ export function createWakeGuard(clock: Clock): WakeGuard {
       if (!bucket.take(now)) return "passive";
       if (key !== undefined) senders.set(key, now);
       return "wake";
+    },
+  };
+}
+
+export const STUCK_CHECK_MS = 30_000;
+
+export type StuckWatch = { start: () => void; stop: () => void };
+
+type StuckInit = { rt: HarnessRuntime; everyMs?: number };
+
+function stuckDraft(untried: string[], idleMs: number): LogDraft {
+  const minutes = Math.round(idleMs / 60_000);
+  const list = untried.length > 0 ? ` Untried: ${untried.join(", ")}.` : "";
+  const text = `No progress for ${minutes} min.${list} Tell the human what blocks you.`;
+  return {
+    class: "wake",
+    data: { idleMs, untried },
+    delivered: false,
+    domain: "agent",
+    event: "agent/stuck",
+    text,
+  };
+}
+
+export function createStuckWatch({
+  rt,
+  everyMs = STUCK_CHECK_MS,
+}: StuckInit): StuckWatch {
+  let humanAt: number | undefined;
+  let timer: ReturnType<typeof setInterval> | undefined;
+  let unsubscribe: () => void = ignoreFailure;
+  const check = () => {
+    if (humanAt === undefined) return;
+    const since = Math.max(humanAt, rt.progress.lastProgress()?.at ?? humanAt);
+    const idleMs = rt.clock.now() - since;
+    if (idleMs < STUCK_WAKE_MS) return;
+    humanAt = undefined;
+    rt.log.append(stuckDraft(rt.progress.noProgress()?.untried ?? [], idleMs));
+  };
+  return {
+    start() {
+      unsubscribe = rt.log.subscribe((entry) => {
+        if (entry.event === "human/input") humanAt = entry.ts;
+      });
+      timer = setInterval(check, everyMs);
+    },
+    stop() {
+      clearInterval(timer);
+      unsubscribe();
     },
   };
 }
