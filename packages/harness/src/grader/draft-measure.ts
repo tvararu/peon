@@ -1,10 +1,13 @@
+import {
+  type MeasureContext,
+  type Measured,
+  petAttack,
+} from "#harness/grader/draft-anchors";
 import type { GameLogRow } from "#harness/grader/draft-gamelog";
 import { isRecord } from "#harness/grader/exec";
 import type { CheckMeasure } from "#harness/grader/scenarios";
 
 const ROWS_MAX = 10;
-
-export type Measured = { observed: unknown; line?: number };
 
 const field = (row: GameLogRow, key: string): unknown =>
   isRecord(row.data) ? row.data[key] : undefined;
@@ -93,9 +96,19 @@ function maxAttackers(rows: readonly GameLogRow[]): Measured {
   };
 }
 
+const MEASURES: Record<
+  CheckMeasure,
+  (rows: readonly GameLogRow[], context: MeasureContext) => Measured
+> = {
+  kill_xp: killXp,
+  max_attackers: maxAttackers,
+  pet_attack: petAttack,
+};
+
 export function measureGameLog(
   rows: readonly GameLogRow[],
   measure: CheckMeasure,
+  context: MeasureContext,
 ): Measured {
-  return measure === "kill_xp" ? killXp(rows) : maxAttackers(rows);
+  return MEASURES[measure](rows, context);
 }

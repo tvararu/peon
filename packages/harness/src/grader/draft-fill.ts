@@ -1,5 +1,6 @@
 import { observeGameLog, parseGameLog } from "#harness/grader/draft-gamelog";
 import { measureGameLog } from "#harness/grader/draft-measure";
+import { parseJsonOutput } from "#harness/grader/exec";
 import type { EvalCheck } from "#harness/grader/result";
 import type { ScenarioCheck } from "#harness/grader/scenarios";
 import type { Truth } from "#harness/grader/truth";
@@ -178,15 +179,28 @@ async function readGameLog(file: string) {
   return (await handle.exists()) ? parseGameLog(await handle.text()) : null;
 }
 
+async function readJev(file: string): Promise<unknown[] | null> {
+  const handle = Bun.file(file);
+  if (!(await handle.exists())) return null;
+  return (await handle.text())
+    .split("\n")
+    .flatMap((line) => (line.length === 0 ? [] : [parseJsonOutput(line)]));
+}
+
 export async function observedChecks(
   runDir: string,
   checks: readonly ScenarioCheck[],
+  steers: readonly string[] = [],
 ): Promise<EvalCheck[]> {
   const pair = {
     baseline: await readTruthFile(`${runDir}/baseline.json`),
     final: await readTruthFile(`${runDir}/final.json`),
   };
   const rows = await readGameLog(`${runDir}/gamelog.jsonl`);
+  const context = {
+    jev: await readJev(`${runDir}/jev.jsonl`),
+    steers: [...steers],
+  };
   return checks.map((check) => {
     const { blockedBy, expect, id, source } = check;
     const base = { blockedBy, expected: expect, id, met: false, source };
@@ -194,20 +208,21 @@ export async function observedChecks(
       return { ...base, observed: observeTruth(pair, expect) };
     if (source !== "game_log" || rows === null)
       return { ...base, observed: null };
-    const { line, observed } =
+    const { line, met, observed } =
       check.measure === undefined
         ? observedRows(rows, check)
-        : measureGameLog(rows, check.measure);
+        : measureGameLog(rows, check.measure, context);
+    const filled = { ...base, met: met ?? false, observed };
     return line === undefined
-      ? { ...base, observed }
-      : { ...base, observed, ref: `gamelog.jsonl:${line}` };
+      ? filled
+      : { ...filled, ref: `gamelog.jsonl:${line}` };
   });
 }
 
 function observedRows(
   rows: ReturnType<typeof parseGameLog>,
   check: ScenarioCheck,
-): { line?: number; observed: unknown } {
+): { line?: number; met?: boolean; observed: unknown } {
   const observed = observeGameLog(rows, check);
   return { line: observed?.match?.line, observed };
 }

@@ -239,21 +239,27 @@ describe("writeOutcome", () => {
 
   test("a check blocked by a named gap carries it into the draft", async () => {
     const { exec } = router();
+    const hunter = loadScenario("t3-kill-one-hunter");
     const st = await state(exec, {
       end: "done",
       exitMs: NOW,
-      scenario: loadScenario("t3-kill-one-hunter"),
+      scenario: {
+        ...hunter,
+        checks: hunter.checks.map((check) =>
+          check.id === "pet-attack" ? { ...check, blockedBy: "P9:gap" } : check,
+        ),
+      },
       taskMs: NOW - 72_000,
     });
     await writeOutcome(st);
     const draft = (await Bun.file(
       `${st.runDir}/grader/draft.json`,
     ).json()) as EvalResult;
-    expect(draft.blockedBy).toEqual(["P5:pet_attack"]);
+    expect(draft.blockedBy).toEqual(["P9:gap"]);
     expect(
       draft.checks.find((check) => check.id === "pet-attack"),
     ).toMatchObject({
-      blockedBy: "P5:pet_attack",
+      blockedBy: "P9:gap",
       met: false,
     });
     expect(
@@ -267,6 +273,22 @@ describe("writeOutcome", () => {
         verdict: "blocked",
       }),
     ).toContain("$.checks[0].blockedBy: expected string");
+  });
+
+  test("the hunter draft is not blocked by the pet attack", async () => {
+    const { exec } = router();
+    const st = await state(exec, {
+      end: "done",
+      exitMs: NOW,
+      scenario: loadScenario("t3-kill-one-hunter"),
+      taskMs: NOW - 72_000,
+    });
+    await writeOutcome(st);
+    const draft = (await Bun.file(
+      `${st.runDir}/grader/draft.json`,
+    ).json()) as EvalResult;
+    expect(draft.blockedBy).toBeUndefined();
+    expect(draft.verdict).toBeNull();
   });
 
   test("measures wall time to the accepted answer and keeps the exit time", async () => {

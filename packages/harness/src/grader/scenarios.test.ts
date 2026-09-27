@@ -132,7 +132,7 @@ describe("round-1 scenarios", () => {
     );
   });
 
-  test("t3-kill-one-hunter splits ranged casts from the pet attack, which has no event", () => {
+  test("t3-kill-one-hunter grades the pet attack on the kill target", () => {
     const checks = loadScenario("t3-kill-one-hunter").checks;
     expect(checks.map((check) => check.id)).not.toContain("pet-and-ranged");
     expect(checks.find((check) => check.id === "ranged-cast")).toMatchObject({
@@ -140,10 +140,11 @@ describe("round-1 scenarios", () => {
       ids: [75, 3044, 1978, 13_549, 5116],
       source: "game_log",
     });
-    expect(checks.find((check) => check.id === "pet-attack")).toMatchObject({
-      blockedBy: "P5:pet_attack",
-      source: "game_log",
-    });
+    const pet = checks.find((check) => check.id === "pet-attack");
+    expect(pet).toMatchObject({ measure: "pet_attack", source: "game_log" });
+    expect(pet?.blockedBy).toBeUndefined();
+    expect(pet?.expect).toContain("combat/pet_attack");
+    expect(pet?.expect).toContain("pet.onTarget");
   });
 
   test("t7 steers fire on the second kill and 20 s after the acknowledgement", () => {
@@ -274,7 +275,7 @@ describe("checks measure what they name", () => {
     for (const id of ROUND_1)
       for (const { measure } of loadScenario(id).checks)
         if (measure !== undefined)
-          expect(["kill_xp", "max_attackers"]).toContain(measure);
+          expect(["kill_xp", "max_attackers", "pet_attack"]).toContain(measure);
   });
 
   test("t3-ghostlands-kill counts only XP from kill credits", () => {

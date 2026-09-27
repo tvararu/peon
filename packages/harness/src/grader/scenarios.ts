@@ -47,7 +47,7 @@ export type PartnerAction = { at: SteerAt; argv: string[]; windowMs: number };
 
 export type BotRisk = "low" | "med" | "high";
 
-export type CheckMeasure = "kill_xp" | "max_attackers";
+export type CheckMeasure = "kill_xp" | "max_attackers" | "pet_attack";
 
 export type ScenarioCheck = {
   id: string;
