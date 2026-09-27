@@ -30,7 +30,7 @@ const CELL_YD = 20;
 const LEG_YD = 20;
 const MAX_ROUNDS = 6;
 const SIDES = [1, -1];
-const SIDE_REASONS = new Set([
+export const SIDE_REASONS: ReadonlySet<string> = new Set([
   "no_ground",
   "end_snapped_off",
   "ambiguous_floor",

@@ -1,0 +1,175 @@
+import { describe, expect, test } from "bun:test";
+import type { TravelAfter } from "#harness/contract/details";
+import type { ToolResult } from "#harness/contract/result";
+import { travelSpec } from "#harness/tools/travel";
+import {
+  attackBy,
+  contentOf,
+  driveGoto,
+  limitProblem,
+  MAP_ID,
+  setSelf,
+  setUnits,
+  toolCtx,
+  unitRow,
+} from "#test-support/ops-fixtures";
+import { createTestRuntime } from "#test-support/runtime-fixture";
+
+const MARNIEL = unitRow({
+  distance: 36,
+  guid: 0x10n,
+  name: "Marniel Amberlight",
+  relation: "friendly",
+  roles: ["vendor"],
+  x: 36,
+  y: 0,
+});
+const STALKER = unitRow({
+  distance: 22,
+  guid: 0x20n,
+  level: 7,
+  name: "Springpaw Stalker",
+  x: 40,
+  y: 0,
+});
+
+function fit(res: ToolResult<TravelAfter>): string {
+  const text = contentOf(res);
+  return limitProblem(text) ?? text;
+}
+
+async function world() {
+  const t = await createTestRuntime();
+  setSelf(t.handle, { x: 0, y: 0 });
+  setUnits(t.handle, [MARNIEL]);
+  return t;
+}
+
+describe("travel explore", () => {
+  test("explore north reports what came into view", async () => {
+    const t = await world();
+    driveGoto(t.handle, [
+      {
+        arrive: { x: 20, y: 0 },
+        onArrive: () => setUnits(t.handle, [MARNIEL, STALKER]),
+      },
+    ]);
+    const res = await travelSpec.run(
+      { to: "explore north" },
+      toolCtx<TravelAfter>(t),
+    );
+    expect(res.status).toBe("DONE");
+    expect(fit(res)).toMatch(
+      /^DONE explored 20 yd north\. New in view: 1 hostile \(u\d+ Springpaw Stalker L7 22 yd/,
+    );
+  });
+
+  test("three blocked explore legs end PARTLY obstructed", async () => {
+    const t = await world();
+    driveGoto(t.handle, [
+      { refuse: "unreachable: no path to the destination" },
+      { refuse: "stop: ground corridor collision" },
+    ]);
+    const res = await travelSpec.run(
+      { to: "explore north" },
+      toolCtx<TravelAfter>(t),
+    );
+    expect(res).toMatchObject({
+      next: 'travel(to: "explore northeast")',
+      reason: "obstructed",
+      status: "PARTLY",
+    });
+    expect(res.after.legs).toHaveLength(3);
+    expect(fit(res)).toStartWith(
+      "PARTLY obstructed: explored 0 yd north; 3 legs were blocked. Nothing new in view.",
+    );
+  });
+
+  test("a ledge on three bearings names an untried bearing", async () => {
+    const t = await world();
+    driveGoto(t.handle, [
+      { refuse: "unreachable: pathfind_find_path failed (UNKNOWN_HEIGHT)" },
+    ]);
+    const res = await travelSpec.run(
+      { to: "explore north" },
+      toolCtx<TravelAfter>(t),
+    );
+    expect(res).toMatchObject({
+      next: 'travel(to: "explore east")',
+      reason: "obstructed",
+      status: "PARTLY",
+    });
+  });
+
+  test("with every bearing blocked from here it asks the human", async () => {
+    const t = await world();
+    t.rt.travel.blockedBearings.set(
+      `${MAP_ID}:0:0`,
+      new Set(["NE", "E", "SE", "S", "SW", "W", "NW"]),
+    );
+    driveGoto(t.handle, [
+      { refuse: "unreachable: no path to the destination" },
+      { refuse: "stop: ground corridor collision" },
+    ]);
+    const res = await travelSpec.run(
+      { to: "explore north" },
+      toolCtx<TravelAfter>(t),
+    );
+    expect(res).toMatchObject({
+      next: 'ask the human: "Every direction from here is blocked. Can you move me or name a way out?"',
+      reason: "obstructed",
+      status: "PARTLY",
+    });
+  });
+
+  test("a unit that left view says so and looks for it", async () => {
+    const t = await world();
+    setUnits(t.handle, [MARNIEL, STALKER]);
+    driveGoto(t.handle, [{ refuse: "stop: target_not_observed" }]);
+    const res = await travelSpec.run(
+      { to: "Springpaw Stalker" },
+      toolCtx<TravelAfter>(t),
+    );
+    expect(res).toMatchObject({
+      detail:
+        "Springpaw Stalker is no longer in view; it may be dead or despawned.",
+      next: 'look(find: "Springpaw Stalker")',
+      reason: "target_not_observed",
+      status: "FAILED",
+    });
+  });
+
+  test("an attacker on you refuses travel before any run", async () => {
+    const t = await world();
+    setUnits(t.handle, [MARNIEL, STALKER]);
+    attackBy(t.handle, 0x20n);
+    const ref = t.rt.refs.refOf(0x20n);
+    await expect(
+      travelSpec.run({ to: "explore north" }, toolCtx<TravelAfter>(t)),
+    ).rejects.toMatchObject({
+      detail: `Springpaw Stalker ${ref} is attacking you.`,
+      next: `engage(target: "${ref}")`,
+      reason: "attacked",
+    });
+    expect(t.rt.runs.list()).toHaveLength(0);
+  });
+
+  test("a new attacker stops an explore within the leg", async () => {
+    const t = await world();
+    setUnits(t.handle, [MARNIEL, STALKER]);
+    const goTo = driveGoto(t.handle, [{ hold: true }]);
+    const pending = travelSpec.run(
+      { to: "explore north" },
+      toolCtx<TravelAfter>(t),
+    );
+    await Bun.sleep(0);
+    attackBy(t.handle, 0x20n);
+    const res = await pending;
+    expect(goTo).toHaveBeenCalledTimes(1);
+    expect(res).toMatchObject({
+      next: `engage(target: "${t.rt.refs.refOf(0x20n)}")`,
+      reason: "interrupted",
+      status: "FAILED",
+    });
+  });
+});

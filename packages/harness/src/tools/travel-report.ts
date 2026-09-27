@@ -4,7 +4,7 @@ import type { ToolResult } from "#harness/contract/result";
 import type { OpsCtx, ViewCtx } from "#harness/contract/services";
 import type { Compass, UnitView } from "#harness/contract/views";
 import type { InterruptCause } from "#harness/ops/danger";
-import type { ExploreResult } from "#harness/ops/explore";
+import { type ExploreResult, SIDE_REASONS } from "#harness/ops/explore";
 import { FLOOR_MATCH_YD, type LegResult } from "#harness/ops/travel-leg";
 import { structuralAsk, structuralReach } from "#harness/ops/unreached";
 import { poseView, vitalsView } from "#harness/ops/views";
@@ -211,6 +211,28 @@ function pointFloorsReport(init: {
   });
 }
 
+function earlyRefusal(
+  goal: Goal,
+  leg: LegResult,
+  after: TravelAfter,
+  walked: string,
+): Report | undefined {
+  if (leg.reason === "target_not_observed" && goal.kind === "unit")
+    return result("FAILED", {
+      after,
+      detail: `${goal.unit.name} is no longer in view; it may be dead or despawned.`,
+      next: nextCall("look", { find: goal.unit.name }),
+      reason: "target_not_observed",
+    });
+  if (leg.reason === "start_off_mesh")
+    return result("FAILED", {
+      after,
+      detail: `your own position is not on ground the planner knows (start snapped off). ${walked}`,
+      next: nextCall("travel", { to: "unstick" }),
+      reason: "start_off_mesh",
+    });
+}
+
 function refusedReport(init: {
   ctx: ViewCtx;
   goal: Goal;
@@ -230,13 +252,8 @@ function refusedReport(init: {
     const floors = unitFloorsReport(goal, leg, after, tried);
     if (floors) return floors;
   }
-  if (leg.reason === "start_off_mesh")
-    return result("FAILED", {
-      after,
-      detail: `your own position is not on ground the planner knows (start snapped off). ${walked}`,
-      next: nextCall("travel", { to: "unstick" }),
-      reason: "start_off_mesh",
-    });
+  const early = earlyRefusal(goal, leg, after, walked);
+  if (early) return early;
   if (leg.reason === "no_ground")
     return result("FAILED", {
       after,
@@ -309,7 +326,7 @@ function obstructedReport(found: ExploreResult, after: TravelAfter): Report {
       next: structuralAsk(kind),
       reason: "obstructed",
     });
-  if (stuck !== undefined)
+  if (stuck !== undefined && !SIDE_REASONS.has(stuck))
     return result("PARTLY", {
       after,
       detail: `${blocked}, each by the same fault where you stand (${stuck}). ${seen}`,
@@ -319,7 +336,11 @@ function obstructedReport(found: ExploreResult, after: TravelAfter): Report {
   return result("PARTLY", {
     after,
     detail: `${blocked}. ${seen}`,
-    next: nextCall("travel", { to: "explore" }),
+    next: found.untried
+      ? nextCall("travel", { to: `explore ${WORD[found.untried]}` })
+      : askHuman(
+          "Every direction from here is blocked. Can you move me or name a way out?",
+        ),
     reason: "obstructed",
   });
 }
