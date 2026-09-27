@@ -155,10 +155,24 @@ describe("Play", () => {
   });
 
   test("a closed connection ends the takeover and frees the character", async () => {
-    const { notes, play, rt, widget, world } = await setup();
+    const { handle, notes, play, rt, widget, world } = await setup();
+    const pose = (x: number) => ({
+      mapId: 530,
+      orientation: 0,
+      source: "server" as const,
+      updatedAt: 0,
+      x,
+      y: 0,
+      z: 0,
+    });
+    Object.assign(handle.getControlState(), { pose: pose(0) });
     play.watch(world);
     play.input(F1);
     play.input("w");
+    handle.triggerControlEvent({
+      state: { ...handle.getControlState(), pose: pose(12) },
+      type: "movement_stopped",
+    });
     await rt.disconnect();
     await flush();
     await flush();
@@ -169,6 +183,7 @@ describe("Play", () => {
     expect(notes[0]).toContain(
       "control returned to the agent because the game connection closed.",
     );
+    expect(notes[0]).toContain("Moved 12 yd, from 0, 0 to 12, 0");
     await rt.connect();
     expect(play.input("w")).toBeUndefined();
     expect(rt.control.owner()).toBe("none");

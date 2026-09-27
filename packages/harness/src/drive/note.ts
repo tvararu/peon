@@ -17,7 +17,7 @@ const KEPT = [
   "control/teleport",
 ];
 
-type Pose = Frozen<ControlPose>;
+export type Pose = Frozen<ControlPose>;
 
 type SelfNow = {
   health: number | undefined;
@@ -42,7 +42,7 @@ export type HandBack = {
 export type Journal = {
   target: (name: string) => void;
   action: (text: string) => void;
-  finish: (reads: WorldReads | undefined) => HandBack;
+  finish: (reads: WorldReads | undefined, lastPose?: Pose) => HandBack;
   dispose: Unsubscribe;
 };
 
@@ -61,7 +61,7 @@ export function startJournal(world: WorldService, now: () => number): Journal {
   return {
     action: (text) => actions.push(text),
     dispose,
-    finish: (reads) => ({
+    finish: (reads, lastPose) => ({
       actions,
       durationMs: now() - startedAt,
       from,
@@ -69,7 +69,7 @@ export function startJournal(world: WorldService, now: () => number): Journal {
       self: reads && selfNow(reads),
       stopped,
       targets,
-      to: reads?.getControlState().pose,
+      to: reads?.getControlState().pose ?? lastPose,
     }),
     target(name) {
       if (targets.at(-1) !== name) targets.push(name);

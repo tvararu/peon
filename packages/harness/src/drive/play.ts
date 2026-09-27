@@ -16,7 +16,12 @@ import {
   playCommand,
   readKey,
 } from "#harness/drive/keys";
-import { handBackNote, type Journal, startJournal } from "#harness/drive/note";
+import {
+  handBackNote,
+  type Journal,
+  type Pose,
+  startJournal,
+} from "#harness/drive/note";
 import type { Claim, WorldReads, WorldService } from "#harness/world/service";
 
 export type PlayMode = "talk" | "play";
@@ -104,8 +109,17 @@ export class Play {
   }
 
   watch(world: WorldService): Unsubscribe {
-    return world.onSession(() => () => {
-      this.handBack("the game connection closed").catch(ignoreFailure);
+    return world.onSession((session) => {
+      const last = { pose: session.reads.getControlState().pose };
+      const off = session.events.onControlEvent((event) => {
+        last.pose = event.state.pose ?? last.pose;
+      });
+      return () => {
+        off();
+        this.handBack("the game connection closed", last.pose).catch(
+          ignoreFailure,
+        );
+      };
     });
   }
 
@@ -206,7 +220,7 @@ export class Play {
     this.render();
   }
 
-  private async handBack(ended?: string): Promise<void> {
+  private async handBack(ended?: string, lastPose?: Pose): Promise<void> {
     const { claim, journal } = this;
     const inFlight = [...this.pending];
     this.held.clear();
@@ -217,7 +231,7 @@ export class Play {
     if (!claim) return;
     await Promise.allSettled(inFlight);
     await claim.act.drive({}, 1).catch(ignoreFailure);
-    const back = journal?.finish(this.host.world()?.current()?.reads);
+    const back = journal?.finish(this.host.world()?.current()?.reads, lastPose);
     journal?.dispose();
     claim.release();
     if (back) this.host.handBack(handBackNote(back, ended));
