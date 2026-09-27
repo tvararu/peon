@@ -19,7 +19,7 @@ import type { SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
 import { selfGuid } from "#wow/world-handlers";
 
-type MovementStores = Pick<SessionStores, "motion">;
+type MovementStores = Pick<SessionStores, "motion" | "quests">;
 
 function handleNearTeleport(
   conn: WorldConn,
@@ -48,12 +48,16 @@ function handleTransferPending(conn: WorldConn): void {
   conn.remoteMotion.beginTransfer();
 }
 
-function handleNewWorld(conn: WorldConn, r: PacketReader): void {
+function handleNewWorld(
+  conn: WorldConn,
+  stores: MovementStores,
+  r: PacketReader,
+): void {
   conn.control?.newWorld(parseWorldPosition(r));
-  conn.quests?.resetInteraction();
+  stores.quests.resetInteraction();
   conn.entityStore.clear();
   conn.remoteMotion.endTransfer();
-  conn.quests?.observeQuestLog();
+  stores.quests.observeQuestLog();
 }
 
 function handleForceMoveRoot(conn: WorldConn, r: PacketReader): void {
@@ -102,7 +106,9 @@ export function registerMovementHandlers(
   conn.dispatch.on(GameOpcode.SMSG_TRANSFER_PENDING, () =>
     handleTransferPending(conn),
   );
-  conn.dispatch.on(GameOpcode.SMSG_NEW_WORLD, (r) => handleNewWorld(conn, r));
+  conn.dispatch.on(GameOpcode.SMSG_NEW_WORLD, (r) =>
+    handleNewWorld(conn, stores, r),
+  );
   conn.dispatch.on(GameOpcode.SMSG_FORCE_MOVE_ROOT, (r) =>
     handleForceMoveRoot(conn, r),
   );

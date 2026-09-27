@@ -75,13 +75,13 @@ export function createMockHandle(): MockHandle {
     selectedGuid: () => undefined,
     selfPose: () => undefined,
   });
-  const recovery = new RecoveryRuntime({
+  const recovery = new RecoveryRuntime(stores.recovery, {
     ...runtimeDeps,
     pose: () => undefined,
   });
-  const quests = new QuestRuntime(runtimeDeps);
+  const quests = new QuestRuntime(stores.quests, runtimeDeps);
   const rewards = new RewardsRuntime(stores.rewards, runtimeDeps);
-  const vendor = new VendorRuntime(runtimeDeps);
+  const vendor = new VendorRuntime(stores.vendor, runtimeDeps);
   const tacticsState: TacticsState = {
     instruction: "",
     lastDecision: undefined,

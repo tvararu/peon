@@ -17,8 +17,6 @@ import {
 } from "#wow/protocol/update-fields";
 import { OpcodeDispatch } from "#wow/protocol/world";
 import { type QuestEvent, QuestRuntime } from "#wow/quests";
-import { TrainerRuntime } from "#wow/trainer";
-import { VendorRuntime } from "#wow/vendor";
 import type { WorldConn } from "#wow/world-conn";
 
 export function questCapture(self: bigint) {
@@ -28,49 +26,27 @@ export function questCapture(self: bigint) {
   const bodies: string[] = [];
   const events: QuestEvent[] = [];
   let clock = 1000;
-  const runtime = new QuestRuntime({
-    getEntity: (guid) => entities.get(guid),
+  const deps = {
+    getEntity: (guid: bigint) => entities.get(guid),
     now: () => clock,
     selfGuid: () => self,
-    send: (opcode, body) => {
+    send: (opcode: number, body?: Uint8Array) => {
       sent.push(opcode);
       bodies.push(Buffer.from(body ?? []).toString("hex"));
     },
-  });
+  };
+  const stores = testStores(deps);
+  const store = stores.quests;
+  const runtime = new QuestRuntime(store, deps);
   runtime.onEvent((event) => events.push(event));
-  runtime.observeSelfCreate(must(entities.get(self)));
-  runtime.observeQuestLog();
-  const trainer = new TrainerRuntime({
-    getEntity: (guid) => entities.get(guid),
-    learned: () => [],
-    now: () => clock,
-    selfGuid: () => self,
-    send: () => undefined,
-  });
-  const vendor = new VendorRuntime({
-    getEntity: (guid) => entities.get(guid),
-    now: () => clock,
-    selfGuid: () => self,
-    send: () => undefined,
-  });
+  store.observeSelfCreate(must(entities.get(self)));
+  store.observeQuestLog();
   const dispatch = new OpcodeDispatch();
-  const conn = {
-    dispatch,
-    quests: runtime,
-    trainer,
-    vendor,
-  } as unknown as WorldConn;
-  registerQuestHandlers(conn);
-  registerLootHandlers(
-    conn,
-    testStores({
-      getEntity: (guid) => entities.get(guid),
-      now: () => clock,
-      selfGuid: () => self,
-    }),
-  );
-  registerTrainerHandlers(conn);
-  registerVendorHandlers(conn);
+  const conn = { dispatch } as unknown as WorldConn;
+  registerQuestHandlers(conn, stores);
+  registerLootHandlers(conn, stores);
+  registerTrainerHandlers(conn, stores);
+  registerVendorHandlers(conn, stores);
   const packet = (opcode: number, hex: string) =>
     dispatch.handle(opcode, new PacketReader(hexBytes(hex)));
   const logQuest = (questId: number, flags: number, counters = 0) => {
@@ -81,7 +57,7 @@ export function questCapture(self: bigint) {
       {},
       new Map(values.map((value, i) => [base + i, value])),
     );
-    runtime.observeQuestLog();
+    store.observeQuestLog();
   };
   const carry = (item: bigint, slot: number, itemId: number, count: number) => {
     if (!entities.get(item))
@@ -107,7 +83,7 @@ export function questCapture(self: bigint) {
       {},
       new Map(guidWords(item).map((word, i) => [pack + i, word])),
     );
-    runtime.observeQuestLog();
+    store.observeQuestLog();
   };
   const advance = (ms: number) => {
     clock += ms;
@@ -123,7 +99,8 @@ export function questCapture(self: bigint) {
     packet,
     runtime,
     sent,
-    trainer,
-    vendor,
+    store,
+    trainer: stores.trainer,
+    vendor: stores.vendor,
   };
 }

@@ -99,13 +99,18 @@ the protocol state stores before any handler is registered, and
 A handler parses its packet and writes a store: `CombatStore` (spellbook,
 cooldowns, auras, casts, attacks, XP), `MotionStore` (observed unit
 positions and splines), `RewardsStore` (loot window, item pushes,
-inventory errors, rolls) and `ItemTemplates` (item query cache). A store
+inventory errors, rolls), `ItemTemplates` (item query cache),
+`QuestStore` (dialog, quest log, queries, progress), `RecoveryStore`
+(life, corpse, graveyard, resurrection offers), `VendorStore`,
+`TrainerStore` and `DestroyStore` (window or offer, pending request,
+settled outcome) and `PlaceStore` (map, zone and area). A store
 runs no timer and sends no packet, except the item query that
 `ItemTemplates` waits on; an actuator that sends passes its `send` in.
-Runtimes such as `CombatRuntime` and `RewardsRuntime` take the stores
-they read, subscribe to their events, and hold the policy: sending
-requests, validating actions, releasing an emptied loot window and timing
-out a release-only open. Session cleanup disposes the runtimes, then the
+Each runtime (`CombatRuntime`, `RewardsRuntime`, `QuestRuntime` and so
+on) takes the stores it reads, re-emits their events and then reacts to
+them, and holds the policy: validating actions, sending requests,
+querying logged quests, timing out unanswered requests and releasing an
+emptied loot window. Session cleanup disposes the runtimes, then the
 stores.
 
 ## Entity fields

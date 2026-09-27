@@ -76,7 +76,7 @@ import type { RecoveryEvent, RecoveryState } from "#wow/recovery";
 import type { RemoteMotionEvent, RemotePose } from "#wow/remote-motion";
 import type { RewardsEvent } from "#wow/rewards";
 import { createRuntimes, type Runtimes } from "#wow/runtime";
-import { createSessionStores } from "#wow/session-stores";
+import { createSessionStores, type SessionStores } from "#wow/session-stores";
 import type { SpellDefinition } from "#wow/spell-catalog";
 import type { TacticsEvent, TacticsState } from "#wow/tactics";
 import type { TrainerEvent } from "#wow/trainer";
@@ -340,13 +340,14 @@ export type WorldHandle = {
 
 type SessionHandle = {
   conn: WorldConn;
+  stores: SessionStores;
   rt: Runtimes;
   lang: number;
   lifecycle: Pick<WorldHandle, "closed" | "close" | "logout">;
 };
 
 function createHandle(session: SessionHandle): WorldHandle {
-  const { conn, rt, lang, lifecycle } = session;
+  const { conn, stores, rt, lang, lifecycle } = session;
   const handle: WorldHandle = {
     ...lifecycle,
     onMessage(cb) {
@@ -367,7 +368,7 @@ function createHandle(session: SessionHandle): WorldHandle {
     ...cycleMethods(conn, rt),
     ...trainerMethods(conn, rt),
     ...vendorMethods(conn, rt),
-    ...placeMethods(conn, rt),
+    ...placeMethods(stores),
     ...runMethods(conn, rt),
     ...extrasMethods(conn, rt),
   };
@@ -410,7 +411,7 @@ export function worldSession(
         requestLogout(conn, closed, timeoutMs).then(close).catch(ignoreFailure);
       };
       const lifecycle = { close, closed, logout };
-      resolve(createHandle({ conn, lang, lifecycle, rt }));
+      resolve(createHandle({ conn, stores, lang, lifecycle, rt }));
     }
 
     login().catch((err) => {

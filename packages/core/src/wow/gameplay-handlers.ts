@@ -168,11 +168,14 @@ function registerMeleeHandlers(
   });
 }
 
-export function registerQuestHandlers(conn: WorldConn): void {
+export function registerQuestHandlers(
+  conn: WorldConn,
+  stores: SessionStores,
+): void {
   const on = (opcode: number, handle: (r: PacketReader) => void) =>
     conn.dispatch.on(opcode, handle);
   const dialog = (opcode: number, read: (r: PacketReader) => QuestDialog) =>
-    on(opcode, (r) => conn.quests?.openDialog(read(r)));
+    on(opcode, (r) => stores.quests.openDialog(read(r)));
   dialog(GameOpcode.SMSG_GOSSIP_MESSAGE, (r) => ({
     kind: "gossip",
     data: parseGossipMessage(r),
@@ -193,75 +196,81 @@ export function registerQuestHandlers(conn: WorldConn): void {
     kind: "offer",
     data: parseQuestgiverOfferReward(r),
   }));
-  on(GameOpcode.SMSG_GOSSIP_COMPLETE, () => conn.quests?.closeDialog());
+  on(GameOpcode.SMSG_GOSSIP_COMPLETE, () => stores.quests.closeDialog());
   on(GameOpcode.SMSG_QUEST_QUERY_RESPONSE, (r) =>
-    conn.quests?.receiveQuery(parseQuestQueryResponse(r)),
+    stores.quests.receiveQuery(parseQuestQueryResponse(r)),
   );
   on(GameOpcode.SMSG_SHOW_BANK, (r) =>
-    conn.quests?.receiveWindow(r.uint64LE(), "bank"),
+    stores.quests.receiveWindow(r.uint64LE(), "bank"),
   );
   on(GameOpcode.SMSG_SHOWTAXINODES, (r) => {
     r.uint32LE();
-    conn.quests?.receiveWindow(r.uint64LE(), "taxi");
+    stores.quests.receiveWindow(r.uint64LE(), "taxi");
   });
-  registerQuestProgressHandlers(conn);
+  registerQuestProgressHandlers(conn, stores);
 }
 
-function registerQuestProgressHandlers(conn: WorldConn): void {
+function registerQuestProgressHandlers(
+  conn: WorldConn,
+  stores: SessionStores,
+): void {
   const on = (opcode: number, handle: (r: PacketReader) => void) =>
     conn.dispatch.on(opcode, handle);
   on(GameOpcode.SMSG_QUESTGIVER_QUEST_COMPLETE, (r) =>
-    conn.quests?.receiveReward(parseQuestgiverQuestComplete(r)),
+    stores.quests.receiveReward(parseQuestgiverQuestComplete(r)),
   );
   on(GameOpcode.SMSG_QUESTGIVER_STATUS, (r) =>
-    conn.quests?.receiveStatus(parseQuestgiverStatus(r)),
+    stores.quests.receiveStatus(parseQuestgiverStatus(r)),
   );
   on(GameOpcode.SMSG_QUESTUPDATE_ADD_KILL, (r) =>
-    conn.quests?.receiveProgress({
+    stores.quests.receiveProgress({
       kind: "kill",
       data: parseQuestUpdateAddKill(r),
     }),
   );
   on(GameOpcode.SMSG_QUESTUPDATE_ADD_ITEM, (r) =>
-    conn.quests?.receiveProgress({
+    stores.quests.receiveProgress({
       kind: "item",
       data: parseQuestUpdateAddItem(r),
     }),
   );
   on(GameOpcode.SMSG_QUESTUPDATE_COMPLETE, (r) =>
-    conn.quests?.receiveProgress({
+    stores.quests.receiveProgress({
       kind: "complete",
       ...parseQuestUpdateComplete(r),
     }),
   );
   on(GameOpcode.SMSG_QUESTGIVER_QUEST_INVALID, (r) =>
-    conn.quests?.receiveError({ kind: "invalid", ...parseQuestInvalid(r) }),
+    stores.quests.receiveError({ kind: "invalid", ...parseQuestInvalid(r) }),
   );
   on(GameOpcode.SMSG_QUESTGIVER_QUEST_FAILED, (r) =>
-    conn.quests?.receiveError({ kind: "quest_failed", ...parseQuestFailed(r) }),
+    stores.quests.receiveError({
+      kind: "quest_failed",
+      ...parseQuestFailed(r),
+    }),
   );
   on(GameOpcode.SMSG_QUESTUPDATE_FAILED, (r) =>
-    conn.quests?.receiveError({ kind: "failed", ...parseQuestUpdateFailed(r) }),
+    stores.quests.receiveError({
+      kind: "failed",
+      ...parseQuestUpdateFailed(r),
+    }),
   );
   on(GameOpcode.SMSG_QUESTUPDATE_FAILEDTIMER, (r) =>
-    conn.quests?.receiveError({
+    stores.quests.receiveError({
       kind: "timer_failed",
       ...parseQuestUpdateFailedTimer(r),
     }),
   );
   on(GameOpcode.SMSG_QUESTLOG_FULL, () =>
-    conn.quests?.receiveError({ kind: "log_full" }),
+    stores.quests.receiveError({ kind: "log_full" }),
   );
 }
 
 export function registerLootHandlers(
   conn: WorldConn,
-  {
-    combat,
-    rewards,
-    items,
-  }: Pick<SessionStores, "combat" | "rewards" | "items">,
+  stores: SessionStores,
 ): void {
+  const { combat, rewards, items } = stores;
   const on = (opcode: number, handle: (r: PacketReader) => void) =>
     conn.dispatch.on(opcode, handle);
   on(GameOpcode.SMSG_LOOT_RESPONSE, (r) =>
@@ -292,72 +301,81 @@ export function registerLootHandlers(
   on(GameOpcode.SMSG_ITEM_PUSH_RESULT, (r) => {
     const push = parseItemPushResult(r);
     rewards.receiveItemPush(push);
-    conn.quests?.receiveItemPush(push);
+    stores.quests.receiveItemPush(push);
   });
   on(GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE, (r) => {
     const packet = parseInventoryChangeFailure(r);
     rewards.receiveInventoryFailure(packet);
     combat.applyInventoryFailure(packet);
-    conn.vendor?.receiveInventoryFailure(packet);
-    conn.quests?.receiveInventoryFailure(packet);
-    conn.destroy?.receiveInventoryFailure(packet);
+    stores.vendor.receiveInventoryFailure(packet);
+    stores.quests.receiveInventoryFailure(packet);
+    stores.destroy.receiveInventoryFailure(packet);
   });
   on(GameOpcode.SMSG_ITEM_QUERY_SINGLE_RESPONSE, (r) =>
     items.receive(parseItemQueryResponse(r)),
   );
 }
 
-export function registerTrainerHandlers(conn: WorldConn): void {
+export function registerTrainerHandlers(
+  conn: WorldConn,
+  stores: SessionStores,
+): void {
   const on = (opcode: number, handle: (r: PacketReader) => void) =>
     conn.dispatch.on(opcode, handle);
   on(GameOpcode.SMSG_TRAINER_LIST, (r) => {
     const list = parseTrainerList(r);
-    conn.quests?.receiveWindow(list.guid, "trainer");
-    conn.trainer?.receiveList(list);
+    stores.quests.receiveWindow(list.guid, "trainer");
+    stores.trainer.receiveList(list);
   });
   on(GameOpcode.SMSG_TRAINER_BUY_SUCCEEDED, (r) =>
-    conn.trainer?.receiveSucceeded(parseTrainerBuySucceeded(r)),
+    stores.trainer.receiveSucceeded(parseTrainerBuySucceeded(r)),
   );
   on(GameOpcode.SMSG_TRAINER_BUY_FAILED, (r) =>
-    conn.trainer?.receiveFailed(parseTrainerBuyFailed(r)),
+    stores.trainer.receiveFailed(parseTrainerBuyFailed(r)),
   );
 }
 
-export function registerVendorHandlers(conn: WorldConn): void {
+export function registerVendorHandlers(
+  conn: WorldConn,
+  stores: SessionStores,
+): void {
   const on = (opcode: number, handle: (r: PacketReader) => void) =>
     conn.dispatch.on(opcode, handle);
   on(GameOpcode.SMSG_LIST_INVENTORY, (r) => {
     const list = parseListInventory(r);
-    conn.quests?.receiveWindow(list.guid, "vendor");
-    conn.vendor?.receiveInventory(list);
+    stores.quests.receiveWindow(list.guid, "vendor");
+    stores.vendor.receiveInventory(list);
   });
   on(GameOpcode.SMSG_SELL_ITEM, (r) =>
-    conn.vendor?.receiveSellFailure(parseSellItemFailure(r)),
+    stores.vendor.receiveSellFailure(parseSellItemFailure(r)),
   );
   on(GameOpcode.SMSG_BUY_ITEM, (r) =>
-    conn.vendor?.receiveBuyItem(parseBuyItem(r)),
+    stores.vendor.receiveBuyItem(parseBuyItem(r)),
   );
   on(GameOpcode.SMSG_BUY_FAILED, (r) =>
-    conn.vendor?.receiveBuyFailure(parseBuyFailed(r)),
+    stores.vendor.receiveBuyFailure(parseBuyFailed(r)),
   );
 }
 
-export function registerRecoveryHandlers(conn: WorldConn): void {
+export function registerRecoveryHandlers(
+  conn: WorldConn,
+  stores: SessionStores,
+): void {
   const on = (opcode: number, handle: (r: PacketReader) => void) =>
     conn.dispatch.on(opcode, handle);
   on(GameOpcode.MSG_CORPSE_QUERY, (r) =>
-    conn.recovery?.receiveCorpse(parseCorpseQuery(r)),
+    stores.recovery.receiveCorpse(parseCorpseQuery(r)),
   );
   on(GameOpcode.SMSG_CORPSE_RECLAIM_DELAY, (r) =>
-    conn.recovery?.receiveReclaimDelay(parseCorpseReclaimDelay(r)),
+    stores.recovery.receiveReclaimDelay(parseCorpseReclaimDelay(r)),
   );
   on(GameOpcode.SMSG_DEATH_RELEASE_LOC, (r) =>
-    conn.recovery?.receiveGraveyard(parseDeathReleaseLocation(r)),
+    stores.recovery.receiveGraveyard(parseDeathReleaseLocation(r)),
   );
   on(GameOpcode.SMSG_RESURRECT_REQUEST, (r) =>
-    conn.recovery?.receiveResurrectRequest(parseResurrectRequest(r)),
+    stores.recovery.receiveResurrectRequest(parseResurrectRequest(r)),
   );
   on(GameOpcode.SMSG_SPIRIT_HEALER_CONFIRM, (r) =>
-    conn.recovery?.receiveSpiritHealerConfirm(parseSpiritHealerConfirm(r)),
+    stores.recovery.receiveSpiritHealerConfirm(parseSpiritHealerConfirm(r)),
   );
 }

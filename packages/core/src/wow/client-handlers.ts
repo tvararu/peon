@@ -126,7 +126,9 @@ function registerObjectHandlers(conn: WorldConn, stores: SessionStores): void {
   on(GameOpcode.SMSG_COMPRESSED_UPDATE_OBJECT, (r) =>
     handleCompressedUpdateObject(conn, stores, r),
   );
-  on(GameOpcode.SMSG_DESTROY_OBJECT, (r) => handleDestroyObject(conn, r));
+  on(GameOpcode.SMSG_DESTROY_OBJECT, (r) =>
+    handleDestroyObject(conn, stores, r),
+  );
   on(GameOpcode.SMSG_CREATURE_QUERY_RESPONSE, (r) =>
     handleCreatureQueryResponse(conn, r),
   );
@@ -145,9 +147,11 @@ function registerObjectHandlers(conn: WorldConn, stores: SessionStores): void {
     handleGuildCommandResult(conn, r),
   );
   on(GameOpcode.SMSG_GUILD_INVITE, (r) => handleGuildInvitePacket(conn, r));
-  on(GameOpcode.SMSG_INIT_WORLD_STATES, (r) => handleInitWorldStates(conn, r));
+  on(GameOpcode.SMSG_INIT_WORLD_STATES, (r) =>
+    handleInitWorldStates(stores, r),
+  );
   on(GameOpcode.SMSG_EXPLORATION_EXPERIENCE, (r) =>
-    handleExplorationExperience(conn, r),
+    handleExplorationExperience(stores, r),
   );
 }
 
@@ -160,11 +164,11 @@ export function registerGameHandlers(
   registerObjectHandlers(conn, stores);
   registerMovementHandlers(conn, stores);
   registerCombatHandlers(conn, stores);
-  registerQuestHandlers(conn);
+  registerQuestHandlers(conn, stores);
   registerLootHandlers(conn, stores);
-  registerRecoveryHandlers(conn);
-  registerTrainerHandlers(conn);
-  registerVendorHandlers(conn);
+  registerRecoveryHandlers(conn, stores);
+  registerTrainerHandlers(conn, stores);
+  registerVendorHandlers(conn, stores);
 }
 
 export function registerWorldHandlers(

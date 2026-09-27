@@ -1,11 +1,12 @@
+import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type { WorldHandle } from "#wow/client";
+import type { AreaExplored } from "#wow/control";
 import type { PacketReader } from "#wow/protocol/packet";
 import {
   type InitWorldStates,
   parseInitWorldStates,
 } from "#wow/protocol/world-states";
-import type { Runtimes } from "#wow/runtime";
-import type { WorldConn } from "#wow/world-conn";
+import type { SessionStores } from "#wow/session-stores";
 import areaNames from "./data/area-names.json" with { type: "json" };
 
 export type PlaceState = {
@@ -47,37 +48,63 @@ function samePlace(last: PlaceState | undefined, next: PlaceState): boolean {
   return sameMap && last.zoneId === next.zoneId && last.areaId === next.areaId;
 }
 
-export function handleInitWorldStates(conn: WorldConn, r: PacketReader): void {
-  const place = placeOf(parseInitWorldStates(r), Date.now());
-  const changed = !samePlace(conn.place, place);
-  conn.place = place;
-  const { control } = conn;
-  if (!(changed && control)) return;
-  conn.events.control.emit({
-    type: "place_changed",
-    state: control.snapshot(),
-  });
+export type PlaceEvent =
+  | { type: "place_changed" }
+  | { type: "area_explored"; explored: AreaExplored };
+
+export class PlaceStore {
+  private readonly events = new Emitter<[PlaceEvent]>();
+  private place: PlaceState | undefined;
+
+  onEvent(listener: (event: PlaceEvent) => void): Unsubscribe {
+    return this.events.subscribe(listener);
+  }
+
+  snapshot(): PlaceState {
+    return { ...(this.place ?? EMPTY) };
+  }
+
+  receiveWorldStates(parsed: InitWorldStates, at: number): void {
+    const place = placeOf(parsed, at);
+    const changed = !samePlace(this.place, place);
+    this.place = place;
+    if (changed) this.events.emit({ type: "place_changed" });
+  }
+
+  receiveExploration(areaId: number, xp: number): void {
+    this.events.emit({
+      type: "area_explored",
+      explored: { areaId, area: areaName(areaId), xp },
+    });
+  }
+
+  dispose(): void {
+    this.events.clear();
+    this.place = undefined;
+  }
+}
+
+export function handleInitWorldStates(
+  { place }: Pick<SessionStores, "place">,
+  r: PacketReader,
+): void {
+  place.receiveWorldStates(parseInitWorldStates(r), Date.now());
 }
 
 export function handleExplorationExperience(
-  conn: WorldConn,
+  { place }: Pick<SessionStores, "place">,
   r: PacketReader,
 ): void {
   const areaId = r.uint32LE();
-  const xp = r.uint32LE();
-  const { control } = conn;
-  if (!control) return;
-  conn.events.control.emit({
-    type: "area_explored",
-    state: control.snapshot(),
-    explored: { areaId, area: areaName(areaId), xp },
-  });
+  place.receiveExploration(areaId, r.uint32LE());
 }
 
-export function placeMethods(conn: WorldConn, _rt: Runtimes): PlaceMethods {
+export function placeMethods(
+  stores: Pick<SessionStores, "place">,
+): PlaceMethods {
   return {
     getPlaceState() {
-      return { ...(conn.place ?? EMPTY) };
+      return stores.place.snapshot();
     },
   };
 }

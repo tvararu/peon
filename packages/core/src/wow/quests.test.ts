@@ -59,9 +59,9 @@ function setSlot(
 
 describe("quest interaction authority", () => {
   test("only offered quests and options can be selected, and a sent action consumes the menu", () => {
-    const { runtime, sent } = setup();
+    const { runtime, sent, store } = setup();
     runtime.talk(giver);
-    packet(runtime, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
+    packet(store, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
     expect(() => runtime.selectQuest(43)).toThrow("quest_not_offered");
     expect(() => runtime.selectOption(6)).toThrow("option_not_offered");
     runtime.selectOption(5);
@@ -75,14 +75,10 @@ describe("quest interaction authority", () => {
   });
 
   test("changing giver rejects a delayed old dialog and does not authorize an old quest", () => {
-    const { runtime } = setup();
-    show(runtime, "details");
+    const { runtime, store } = setup();
+    show(runtime, store, "details");
     runtime.talk(3n);
-    packet(
-      runtime,
-      GameOpcode.SMSG_QUESTGIVER_QUEST_DETAILS,
-      dialog("details"),
-    );
+    packet(store, GameOpcode.SMSG_QUESTGIVER_QUEST_DETAILS, dialog("details"));
     expect(runtime.snapshot().dialog).toBeUndefined();
     expect(runtime.snapshot().lastError?.kind).toBe("stale_dialog");
     expect(() => runtime.accept()).toThrow("quest_details_not_open");
@@ -99,41 +95,37 @@ describe("quest interaction authority", () => {
   });
 
   test("completion request requires an offered quest rather than log membership", () => {
-    const { runtime, entities, sent } = setup();
+    const { runtime, entities, sent, store } = setup();
     setSlot(entities, 0, [questId, 1]);
-    runtime.observeQuestLog();
+    store.observeQuestLog();
     expect(() => runtime.complete(questId)).toThrow("quest_not_offered");
     runtime.talk(giver);
-    packet(runtime, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
+    packet(store, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
     runtime.complete(questId);
     expect(sent.at(-1)?.opcode).toBe(GameOpcode.CMSG_QUESTGIVER_COMPLETE_QUEST);
     expect(runtime.snapshot().lastReward).toBeUndefined();
   });
 
   test("request-items preserves server requirements without inventing inventory counts", () => {
-    const { runtime } = setup();
+    const { runtime, store } = setup();
     runtime.talk(giver);
     packet(
-      runtime,
+      store,
       GameOpcode.SMSG_QUESTGIVER_REQUEST_ITEMS,
       requestItems(false),
     );
     expect(() => runtime.requestReward()).toThrow("quest_requirements_unmet");
-    packet(
-      runtime,
-      GameOpcode.SMSG_QUESTGIVER_REQUEST_ITEMS,
-      requestItems(true),
-    );
+    packet(store, GameOpcode.SMSG_QUESTGIVER_REQUEST_ITEMS, requestItems(true));
     runtime.requestReward();
     expect(runtime.snapshot().lastIntent?.action).toBe("requestReward");
     expect(runtime.snapshot().lastReward).toBeUndefined();
   });
 
   test("reward index is constrained to the actual offer and sent choice is not reward evidence", () => {
-    const { runtime, events } = setup();
+    const { runtime, events, store } = setup();
     runtime.talk(giver);
     packet(
-      runtime,
+      store,
       GameOpcode.SMSG_QUESTGIVER_OFFER_REWARD,
       dialog("offer", giver, questId, 2),
     );
@@ -142,7 +134,7 @@ describe("quest interaction authority", () => {
     expect(runtime.snapshot().lastReward).toBeUndefined();
     expect(() => runtime.chooseReward(0)).toThrow("reward_offer_not_open");
     packet(
-      runtime,
+      store,
       GameOpcode.SMSG_QUESTGIVER_QUEST_COMPLETE,
       words(questId, 100, 20, 0, 0, 0),
     );
@@ -153,12 +145,12 @@ describe("quest interaction authority", () => {
 
 describe("authoritative quest-log transitions", () => {
   test("sent acceptance, log addition, objective progress, completion and removal are distinct", () => {
-    const { runtime, entities, events } = setup();
-    show(runtime, "details");
+    const { runtime, entities, events, store } = setup();
+    show(runtime, store, "details");
     runtime.accept();
     expect(events.some((event) => event.type === "accepted")).toBe(false);
     setSlot(entities, 0, [questId]);
-    runtime.observeQuestLog();
+    store.observeQuestLog();
     expect(
       events.some(
         (event) => event.type === "accepted" && event.questId === questId,
@@ -166,29 +158,29 @@ describe("authoritative quest-log transitions", () => {
     ).toBe(true);
     events.length = 0;
     setSlot(entities, 0, [questId, 0, 2]);
-    runtime.observeQuestLog();
+    store.observeQuestLog();
     expect(events.map((event) => event.type)).toContain("progress");
     expect(events.map((event) => event.type)).not.toContain("completed");
     setSlot(entities, 0, [questId, 1, 2]);
-    runtime.observeQuestLog();
+    store.observeQuestLog();
     expect(events.map((event) => event.type)).toContain("completed");
     runtime.abandon(0);
     expect(runtime.snapshot().log.slots[0]?.questId).toBe(questId);
     expect(events.map((event) => event.type)).not.toContain("removed");
     setSlot(entities, 0, [0]);
-    runtime.observeQuestLog();
+    store.observeQuestLog();
     expect(events.map((event) => event.type)).toContain("removed");
     expect(runtime.snapshot().lastReward).toBeUndefined();
   });
 
   test("a slot swap is not acceptance or removal and failed flags remain distinct", () => {
-    const { runtime, entities, events } = setup();
+    const { entities, events, store } = setup();
     setSlot(entities, 0, [questId]);
-    runtime.observeQuestLog();
+    store.observeQuestLog();
     events.length = 0;
     setSlot(entities, 0, [0]);
     setSlot(entities, 1, [questId, 2]);
-    runtime.observeQuestLog();
+    store.observeQuestLog();
     expect(events.map((event) => event.type)).not.toContain("accepted");
     expect(events.map((event) => event.type)).not.toContain("removed");
     expect(events.map((event) => event.type)).toContain("failed");
@@ -196,13 +188,13 @@ describe("authoritative quest-log transitions", () => {
   });
 
   test("missing self and partial CREATE never turn unknown fields into empty log facts", () => {
-    const { runtime, entities, events } = setup();
+    const { runtime, entities, events, store } = setup();
     entities.create(self, ObjectType.PLAYER, {});
-    runtime.observeQuestLog();
+    store.observeQuestLog();
     expect(runtime.snapshot().log.complete).toBe(false);
     expect(runtime.snapshot().log.slots[0]?.questId).toBeUndefined();
     setSlot(entities, 0, [questId, 0, 0x00_02_00_01, 0x00_04_00_03]);
-    runtime.observeQuestLog();
+    store.observeQuestLog();
     expect(runtime.snapshot().log.slots[0]?.counters).toEqual([1, 2, 3, 4]);
     expect(events.some((event) => event.type === "accepted")).toBe(false);
     expect(() => runtime.abandon(1)).toThrow("quest_slot_unknown");
@@ -211,16 +203,16 @@ describe("authoritative quest-log transitions", () => {
   });
 
   test("losing entity authority is not removal and recovering a log is not new acceptance", () => {
-    const { runtime, entities, events } = setup();
+    const { entities, events, store } = setup();
     setSlot(entities, 0, [questId]);
-    runtime.observeQuestLog();
+    store.observeQuestLog();
     events.length = 0;
     entities.create(self, ObjectType.PLAYER, {});
-    runtime.observeQuestLog();
+    store.observeQuestLog();
     entities.create(self, ObjectType.PLAYER, { createComplete: true });
-    runtime.observeSelfCreate(must(entities.get(self)));
+    store.observeSelfCreate(must(entities.get(self)));
     setSlot(entities, 0, [questId]);
-    runtime.observeQuestLog();
+    store.observeQuestLog();
     expect(
       events.some(
         (event) => event.type === "removed" || event.type === "accepted",
@@ -231,15 +223,11 @@ describe("authoritative quest-log transitions", () => {
 
 describe("quest packet and lifecycle failures", () => {
   test("a confirmed world reset revokes the old giver and does not fabricate a quest outcome", () => {
-    const { runtime, events } = setup();
-    show(runtime, "details");
+    const { runtime, events, store } = setup();
+    show(runtime, store, "details");
     runtime.accept();
-    runtime.resetInteraction();
-    packet(
-      runtime,
-      GameOpcode.SMSG_QUESTGIVER_QUEST_DETAILS,
-      dialog("details"),
-    );
+    store.resetInteraction();
+    packet(store, GameOpcode.SMSG_QUESTGIVER_QUEST_DETAILS, dialog("details"));
     expect(() => runtime.accept()).toThrow("quest_details_not_open");
     expect(runtime.snapshot().unresolved).toMatchObject([{ action: "accept" }]);
     expect(
@@ -251,18 +239,18 @@ describe("quest packet and lifecycle failures", () => {
   });
 
   test("explicit cancel recovers a silent request only after server close", () => {
-    const { runtime, events } = setup();
+    const { runtime, events, store } = setup();
     runtime.talk(giver);
     runtime.cancel();
     expect(runtime.snapshot().unresolved).toMatchObject([{ action: "talk" }]);
-    packet(runtime, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
+    packet(store, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
     expect(runtime.snapshot().dialog).toBeUndefined();
     expect(() => runtime.talk(3n)).toThrow("quest_reply_unanswered");
-    packet(runtime, GameOpcode.SMSG_QUESTGIVER_QUEST_INVALID, words(7));
-    packet(runtime, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
+    packet(store, GameOpcode.SMSG_QUESTGIVER_QUEST_INVALID, words(7));
+    packet(store, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
     expect(runtime.snapshot().dialog).toBeUndefined();
     expect(() => runtime.talk(3n)).toThrow("quest_reply_unanswered");
-    packet(runtime, GameOpcode.SMSG_GOSSIP_COMPLETE, new Uint8Array());
+    packet(store, GameOpcode.SMSG_GOSSIP_COMPLETE, new Uint8Array());
     runtime.talk(3n);
     expect(runtime.snapshot().pending?.guid).toBe(3n);
     expect(
@@ -273,16 +261,16 @@ describe("quest packet and lifecycle failures", () => {
   });
 
   test("a later server reply settles earlier dialog-only intents but never an accept", () => {
-    const { runtime } = setup();
+    const { runtime, store } = setup();
     const unresolved = () =>
       runtime.snapshot().unresolved.map((i) => `${i.action}:${i.reason}`);
-    show(runtime, "details");
+    show(runtime, store, "details");
     runtime.accept();
     runtime.cancel();
-    packet(runtime, GameOpcode.SMSG_GOSSIP_COMPLETE, new Uint8Array());
+    packet(store, GameOpcode.SMSG_GOSSIP_COMPLETE, new Uint8Array());
     runtime.talk(giver);
-    runtime.resetInteraction();
-    packet(runtime, GameOpcode.SMSG_GOSSIP_COMPLETE, new Uint8Array());
+    store.resetInteraction();
+    packet(store, GameOpcode.SMSG_GOSSIP_COMPLETE, new Uint8Array());
     expect(unresolved()).toEqual(["accept:cancelled", "talk:reset"]);
     runtime.talk(giver);
     runtime.cancel();
@@ -291,54 +279,46 @@ describe("quest packet and lifecycle failures", () => {
       "talk:reset",
       "talk:cancelled",
     ]);
-    packet(runtime, GameOpcode.SMSG_GOSSIP_COMPLETE, new Uint8Array());
+    packet(store, GameOpcode.SMSG_GOSSIP_COMPLETE, new Uint8Array());
     expect(unresolved()).toEqual(["accept:cancelled"]);
     runtime.talk(giver);
-    runtime.resetInteraction();
+    store.resetInteraction();
     runtime.talk(giver);
-    packet(runtime, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
+    packet(store, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
     expect(unresolved()).toEqual(["accept:cancelled"]);
   });
 
   test("unanswered requests cannot be overwritten and old menus cannot satisfy a quest-specific request", () => {
-    const { runtime } = setup();
+    const { runtime, store } = setup();
     runtime.talk(giver);
     expect(() => runtime.talk(giver)).toThrow("quest_reply_unanswered");
-    packet(runtime, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
+    packet(store, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
     runtime.selectQuest(questId);
-    packet(runtime, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
+    packet(store, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
     expect(runtime.snapshot().dialog).toBeUndefined();
-    packet(
-      runtime,
-      GameOpcode.SMSG_QUESTGIVER_QUEST_DETAILS,
-      dialog("details"),
-    );
+    packet(store, GameOpcode.SMSG_QUESTGIVER_QUEST_DETAILS, dialog("details"));
     runtime.accept();
-    packet(
-      runtime,
-      GameOpcode.SMSG_QUESTGIVER_QUEST_DETAILS,
-      dialog("details"),
-    );
+    packet(store, GameOpcode.SMSG_QUESTGIVER_QUEST_DETAILS, dialog("details"));
     expect(() => runtime.accept()).toThrow("quest_details_not_open");
   });
 
   test("a reward for A must precede authorization of the same giver's next quest B", () => {
-    const { runtime } = setup();
-    show(runtime, "offer");
+    const { runtime, store } = setup();
+    show(runtime, store, "offer");
     runtime.chooseReward(0);
     packet(
-      runtime,
+      store,
       GameOpcode.SMSG_QUESTGIVER_QUEST_DETAILS,
       dialog("details", giver, 43),
     );
     expect(runtime.snapshot().dialog).toBeUndefined();
     packet(
-      runtime,
+      store,
       GameOpcode.SMSG_QUESTGIVER_QUEST_COMPLETE,
       words(questId, 100, 20, 0, 0, 0),
     );
     packet(
-      runtime,
+      store,
       GameOpcode.SMSG_QUESTGIVER_QUEST_DETAILS,
       dialog("details", giver, 43),
     );
@@ -347,35 +327,35 @@ describe("quest packet and lifecycle failures", () => {
   });
 
   test("a same-quest reward reoffer permits retry without claiming reward success", () => {
-    const { runtime } = setup();
-    show(runtime, "offer");
+    const { runtime, store } = setup();
+    show(runtime, store, "offer");
     runtime.chooseReward(0);
-    packet(runtime, GameOpcode.SMSG_QUESTGIVER_OFFER_REWARD, dialog("offer"));
+    packet(store, GameOpcode.SMSG_QUESTGIVER_OFFER_REWARD, dialog("offer"));
     runtime.chooseReward(0);
     expect(runtime.snapshot().lastReward).toBeUndefined();
   });
 
   test("charmed CREATE cannot gain omitted-ID authority from a later uncharm", () => {
-    const { runtime, entities, events } = setup();
+    const { runtime, entities, events, store } = setup();
     entities.create(self, ObjectType.PLAYER, { createComplete: true });
     entities.update(self, {}, new Map([[UNIT_FIELDS.CHARMEDBY.offset, 99]]));
-    runtime.observeSelfCreate(must(entities.get(self)));
-    runtime.observeQuestLog();
+    store.observeSelfCreate(must(entities.get(self)));
+    store.observeQuestLog();
     expect(runtime.snapshot().log.slots[0]?.questId).toBeUndefined();
     entities.update(self, {}, new Map([[UNIT_FIELDS.CHARMEDBY.offset, 0]]));
-    runtime.observeQuestLog();
+    store.observeQuestLog();
     expect(runtime.snapshot().log.slots[0]?.questId).toBeUndefined();
     expect(runtime.snapshot().log.slots[0]?.flags).toBe(0);
     setSlot(entities, 0, [questId]);
-    runtime.observeQuestLog();
+    store.observeQuestLog();
     expect(runtime.snapshot().log.slots[0]?.questId).toBe(questId);
     expect(events.some((event) => event.type === "accepted")).toBe(false);
   });
 
   test("snapshot mutations cannot inject an offered quest or alter log authority", () => {
-    const { runtime } = setup();
+    const { runtime, store } = setup();
     runtime.talk(giver);
-    packet(runtime, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
+    packet(store, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
     const snapshot = runtime.snapshot();
     if (snapshot.dialog?.kind === "gossip")
       must(snapshot.dialog.data.quests[0]).questId = 999;
@@ -385,8 +365,8 @@ describe("quest packet and lifecycle failures", () => {
   });
 
   test("transport failure does not publish sent intent or consume a valid menu", () => {
-    const { runtime, fail, events } = setup();
-    show(runtime, "details");
+    const { runtime, fail, events, store } = setup();
+    show(runtime, store, "details");
     events.length = 0;
     fail();
     expect(() => runtime.accept()).toThrow("socket_closed");
@@ -395,30 +375,30 @@ describe("quest packet and lifecycle failures", () => {
   });
 
   test("server invalid and quest-log-full replies expose errors, never acceptance", () => {
-    const { runtime, events } = setup();
-    show(runtime, "details");
+    const { runtime, events, store } = setup();
+    show(runtime, store, "details");
     runtime.accept();
-    packet(runtime, GameOpcode.SMSG_QUESTGIVER_QUEST_INVALID, words(7));
+    packet(store, GameOpcode.SMSG_QUESTGIVER_QUEST_INVALID, words(7));
     expect(runtime.snapshot().lastError).toMatchObject({
       kind: "invalid",
       reason: 7,
     });
-    packet(runtime, GameOpcode.SMSG_QUESTLOG_FULL, new Uint8Array());
+    packet(store, GameOpcode.SMSG_QUESTLOG_FULL, new Uint8Array());
     expect(runtime.snapshot().lastError?.kind).toBe("log_full");
     expect(events.some((event) => event.type === "accepted")).toBe(false);
   });
 
   test("kill notifications retain sign-magnitude targets, empty item updates carry no count", () => {
-    const { runtime } = setup();
+    const { runtime, store } = setup();
     const w = new PacketWriter();
     w.rawBytes(words(questId, 0x80_00_01_41, 1, 3));
     w.uint64LE(9n);
-    packet(runtime, GameOpcode.SMSG_QUESTUPDATE_ADD_KILL, w.finish());
+    packet(store, GameOpcode.SMSG_QUESTUPDATE_ADD_KILL, w.finish());
     expect(runtime.snapshot().lastProgress).toMatchObject({
       kind: "kill",
       data: { npcOrGoId: -321, currentCount: 1, requiredCount: 3 },
     });
-    packet(runtime, GameOpcode.SMSG_QUESTUPDATE_ADD_ITEM, new Uint8Array());
+    packet(store, GameOpcode.SMSG_QUESTUPDATE_ADD_ITEM, new Uint8Array());
     expect(runtime.snapshot().lastProgress).toMatchObject({
       kind: "item",
       data: { kind: "notification" },
@@ -429,19 +409,15 @@ describe("quest packet and lifecycle failures", () => {
   });
 
   test("server close revokes acceptance and disposal prevents further actions and events", () => {
-    const { runtime, events } = setup();
-    show(runtime, "details");
-    packet(runtime, GameOpcode.SMSG_GOSSIP_COMPLETE, new Uint8Array());
+    const { runtime, events, store } = setup();
+    show(runtime, store, "details");
+    packet(store, GameOpcode.SMSG_GOSSIP_COMPLETE, new Uint8Array());
     expect(() => runtime.accept()).toThrow("quest_details_not_open");
-    packet(
-      runtime,
-      GameOpcode.SMSG_QUESTGIVER_QUEST_DETAILS,
-      dialog("details"),
-    );
+    packet(store, GameOpcode.SMSG_QUESTGIVER_QUEST_DETAILS, dialog("details"));
     expect(() => runtime.accept()).toThrow("quest_details_not_open");
     runtime.dispose();
     const count = events.length;
-    packet(runtime, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
+    packet(store, GameOpcode.SMSG_GOSSIP_MESSAGE, menu());
     expect(() => runtime.talk(giver)).toThrow("quests_disposed");
     expect(events.length).toBe(count);
   });

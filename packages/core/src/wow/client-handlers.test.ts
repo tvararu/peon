@@ -51,25 +51,16 @@ describe("registerWorldHandlers", () => {
 
   test("routes a vendor list to both the quest request and the vendor window", () => {
     const dispatch = new OpcodeDispatch();
-    const receiveInventory = jest.fn();
-    const receiveWindow = jest.fn();
+    const stores = testStores();
+    const receiveWindow = jest.spyOn(stores.quests, "receiveWindow");
     const events = { message: { size: 0, emit: () => {} } };
-    registerWorldHandlers(
-      {
-        dispatch,
-        events,
-        quests: { receiveWindow },
-        vendor: { receiveInventory },
-      } as unknown as WorldConn,
-      testStores(),
-    );
+    registerWorldHandlers({ dispatch, events } as unknown as WorldConn, stores);
     dispatch.handle(
       GameOpcode.SMSG_LIST_INVENTORY,
       new PacketReader(MARNIEL_LIST_INVENTORY),
     );
     expect(receiveWindow.mock.calls).toEqual([[MARNIEL, "vendor"]]);
-    expect(receiveInventory).toHaveBeenCalledTimes(1);
-    expect(receiveInventory.mock.calls[0]?.[0]).toMatchObject({
+    expect(stores.vendor.snapshot().window).toMatchObject({
       guid: MARNIEL,
       emptyReason: undefined,
     });

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
+import { vendorParts } from "#test-support/session-fixtures";
 import {
   BOUGHT_WATER,
   BUY_FAILED_NO_MONEY,
@@ -20,7 +21,7 @@ import {
   parseListInventory,
   parseSellItemFailure,
 } from "#wow/protocol/vendor";
-import { VENDOR_ANSWER_MS, type VendorEvent, VendorRuntime } from "#wow/vendor";
+import { VENDOR_ANSWER_MS, type VendorEvent } from "#wow/vendor";
 
 const ROBE = 0x4000_0000_000f_2da9n;
 const STONE = 0x4000_0000_000f_2daan;
@@ -88,7 +89,7 @@ function fixture(npcFlags = 0x10_81) {
   ]);
   const sent: { opcode: number; body: Uint8Array | undefined }[] = [];
   const events: VendorEvent[] = [];
-  const runtime = new VendorRuntime({
+  const { runtime, store } = vendorParts({
     send: (opcode, body) => sent.push({ opcode, body }),
     now: () => 1000,
     selfGuid: () => 1n,
@@ -101,16 +102,16 @@ function fixture(npcFlags = 0x10_81) {
     const rawFields = new Map([...current.rawFields, [field, value]]);
     const target = { ...current, rawFields };
     entities.set(guid, target);
-    runtime.observeEntity({ type: "update", entity: target, changed: [] });
+    store.observeEntity({ type: "update", entity: target, changed: [] });
   };
   const listed = () => {
     runtime.list(MARNIEL);
-    runtime.receiveInventory(
+    store.receiveInventory(
       parseListInventory(new PacketReader(MARNIEL_LIST_INVENTORY)),
     );
   };
   const types = () => events.map((event) => event.type);
-  return { runtime, self, entities, sent, events, set, listed, types };
+  return { runtime, store, self, entities, sent, events, set, listed, types };
 }
 
 describe("vendor listing", () => {
@@ -121,7 +122,7 @@ describe("vendor listing", () => {
       { opcode: GameOpcode.CMSG_LIST_INVENTORY, body: LIST_MARNIEL },
     ]);
     expect(() => f.runtime.list(MARNIEL)).toThrow("remains unanswered");
-    f.runtime.receiveInventory(
+    f.store.receiveInventory(
       parseListInventory(new PacketReader(MARNIEL_LIST_INVENTORY)),
     );
     const state = f.runtime.snapshot();
@@ -144,7 +145,7 @@ describe("vendor listing", () => {
   test("an out-of-range vendor is refused by name", () => {
     const f = fixture();
     f.runtime.list(MARNIEL);
-    f.runtime.receiveSellFailure(
+    f.store.receiveSellFailure(
       parseSellItemFailure(new PacketReader(SELL_FAILED_NO_VENDOR)),
     );
     expect(f.runtime.snapshot()).toMatchObject({
@@ -160,7 +161,7 @@ describe("vendor listing", () => {
 
   test("a gossip-opened list opens the window without a request", () => {
     const f = fixture();
-    f.runtime.receiveInventory(
+    f.store.receiveInventory(
       parseListInventory(new PacketReader(MARNIEL_LIST_INVENTORY)),
     );
     expect(f.runtime.snapshot().window?.guid).toBe(MARNIEL);
@@ -170,7 +171,7 @@ describe("vendor listing", () => {
   test("the vendor disappearing invalidates the window", () => {
     const f = fixture();
     f.listed();
-    f.runtime.observeEntity({ type: "disappear", guid: MARNIEL });
+    f.store.observeEntity({ type: "disappear", guid: MARNIEL });
     expect(f.runtime.snapshot().window?.invalidatedReason).toBe(
       "vendor_unavailable",
     );
@@ -216,7 +217,7 @@ describe("selling", () => {
     const f = fixture();
     f.listed();
     f.runtime.sell(255, 24);
-    f.runtime.receiveSellFailure(
+    f.store.receiveSellFailure(
       parseSellItemFailure(new PacketReader(SELL_FAILED_HEARTHSTONE)),
     );
     expect(f.runtime.snapshot().lastOutcome).toMatchObject({
@@ -247,7 +248,7 @@ describe("buying", () => {
     });
     f.set(1n, COINAGE, 49_977);
     expect(f.runtime.snapshot().pending?.action).toBe("buy");
-    f.runtime.receiveBuyItem(parseBuyItem(new PacketReader(BOUGHT_WATER)));
+    f.store.receiveBuyItem(parseBuyItem(new PacketReader(BOUGHT_WATER)));
     expect(f.runtime.snapshot().lastOutcome).toMatchObject({
       action: "buy",
       status: "confirmed",
@@ -274,7 +275,7 @@ describe("buying", () => {
       buyCount: 1,
     };
     f.runtime.list(MARNIEL);
-    f.runtime.receiveInventory({
+    f.store.receiveInventory({
       guid: MARNIEL,
       items: [
         { ...good, extendedCost: 0 },
@@ -287,14 +288,14 @@ describe("buying", () => {
       minPrice: 0,
       maxPrice: 2,
     });
-    f.runtime.receiveBuyItem({
+    f.store.receiveBuyItem({
       vendorGuid: MARNIEL,
       slot: 1,
       stock: null,
       count: 3,
     });
     f.runtime.buy(2, 3);
-    f.runtime.receiveBuyItem({
+    f.store.receiveBuyItem({
       vendorGuid: MARNIEL,
       slot: 2,
       stock: null,
@@ -310,7 +311,7 @@ describe("buying", () => {
     const f = fixture();
     f.listed();
     f.runtime.buy(15, 3);
-    f.runtime.receiveBuyFailure(
+    f.store.receiveBuyFailure(
       parseBuyFailed(new PacketReader(BUY_FAILED_NO_MONEY)),
     );
     expect(f.runtime.snapshot().lastOutcome).toMatchObject({
@@ -319,7 +320,7 @@ describe("buying", () => {
       request: { minPrice: 57_000, maxPrice: 57_002 },
     });
     f.runtime.buy(2);
-    f.runtime.receiveInventoryFailure({
+    f.store.receiveInventoryFailure({
       kind: "error",
       result: 50,
       item1: 0n,
