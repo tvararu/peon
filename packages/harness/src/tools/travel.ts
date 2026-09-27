@@ -13,13 +13,12 @@ import { travelLeg } from "#harness/ops/travel-leg";
 import { poseView, selfView, unitViews } from "#harness/ops/views";
 import { awaitRun } from "#harness/runs/wait";
 import {
-  askHuman,
   defineGameTool,
   type GameToolSpec,
-  nextCall,
   result,
   UPDATE_EVERY_MS,
 } from "#harness/tools/define";
+import { askHuman, nextCall } from "#harness/tools/next-call";
 import { type TravelArgs, travelParams } from "#harness/tools/params";
 import {
   exploreReport,

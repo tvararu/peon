@@ -85,6 +85,48 @@ describe("createRepeatGuard", () => {
     expect(guard.check(call({ pose: pose(REPEAT_MOVE_YD) }))).toBeUndefined();
   });
 
+  test("a target that closed in by 10 yd does not block engage", () => {
+    const guard = guardAt({ t: 0 });
+    const fight = (targetYd: number) =>
+      call({
+        args: { target: "u15" },
+        scene: { combat: "", targetAttacking: false, targetYd },
+        tool: "engage",
+      });
+    guard.record({
+      ...fight(25),
+      result: outcome("FAILED", "range:no_supported_combat_actions"),
+    });
+    expect(guard.check(fight(25 - REPEAT_MOVE_YD + 0.5))).toBeDefined();
+    expect(guard.check(fight(15))).toBeUndefined();
+    expect(guard.blocks(fight(15))).toBe(false);
+  });
+
+  test("a changed combat state clears the block", () => {
+    const guard = guardAt({ t: 0 });
+    const at = (combat: string) =>
+      call({
+        args: { target: "u15" },
+        scene: { combat, targetAttacking: false, targetYd: 25 },
+        tool: "engage",
+      });
+    guard.record({ ...at(""), result: outcome("FAILED", "no_ground") });
+    expect(guard.check(at(""))).toBeDefined();
+    expect(guard.check(at("f"))).toBeUndefined();
+  });
+
+  test("engage on a unit that attacks the character is never blocked", () => {
+    const guard = guardAt({ t: 0 });
+    const fight = call({
+      args: { target: "u15" },
+      scene: { combat: "f", targetAttacking: true, targetYd: 3.5 },
+      tool: "engage",
+    });
+    guard.record({ ...fight, result: outcome("FAILED", "no_ground") });
+    expect(guard.check(fight)).toBeUndefined();
+    expect(guard.blocks(fight)).toBe(false);
+  });
+
   test("a changed progress digest clears the block", () => {
     const guard = guardAt({ t: 0 });
     guard.record({

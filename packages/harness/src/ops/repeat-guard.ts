@@ -4,6 +4,7 @@ import type {
   RepeatCall,
   RepeatGuard,
   RepeatHit,
+  RepeatScene,
 } from "#harness/contract/services";
 import type { PoseView } from "#harness/contract/views";
 import { Refusal } from "#harness/ops/refusal";
@@ -50,6 +51,7 @@ type Failure = {
   next: string | undefined;
   pose: PoseView | undefined;
   reason: string;
+  scene: RepeatScene | undefined;
   times: number;
 };
 
@@ -96,6 +98,18 @@ function moved(a: PoseView | undefined, b: PoseView | undefined): boolean {
   );
 }
 
+function sceneMoved(
+  a: RepeatScene | undefined,
+  b: RepeatScene | undefined,
+): boolean {
+  if (!(a && b)) return false;
+  const closed =
+    a.targetYd !== undefined &&
+    b.targetYd !== undefined &&
+    Math.abs(a.targetYd - b.targetYd) >= REPEAT_MOVE_YD;
+  return closed || a.combat !== b.combat;
+}
+
 function storable(
   result: ToolResult<unknown>,
 ): result is ToolResult<unknown> & { reason: string } {
@@ -124,9 +138,11 @@ export function createRepeatGuard(clock: Clock): RepeatGuard {
   const failures = new Map<string, Failure>();
   let hitCount = 0;
   const blocking = (failure: Failure, call: RepeatCall) =>
+    !(call.tool === "engage" && call.scene?.targetAttacking) &&
     clock.now() - failure.at <= REPEAT_TTL_MS &&
     failure.digest === call.digest &&
-    !moved(failure.pose, call.pose);
+    !moved(failure.pose, call.pose) &&
+    !sceneMoved(failure.scene, call.scene);
   const stored = (call: RepeatCall) =>
     call.tool === "look" ? undefined : failures.get(keyOf(call));
   return {
@@ -158,6 +174,7 @@ export function createRepeatGuard(clock: Clock): RepeatGuard {
         partly: result.status === "PARTLY",
         pose: call.pose,
         reason: result.reason,
+        scene: call.scene,
         times: times + 1,
       };
       failures.set(keyOf(call), failure);

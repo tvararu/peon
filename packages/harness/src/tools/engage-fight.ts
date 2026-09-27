@@ -22,7 +22,7 @@ import {
   type CycleEnd,
   jevCode,
 } from "#harness/runs/adapters";
-import { askHuman, nextCall, result } from "#harness/tools/define";
+import { result } from "#harness/tools/define";
 import { type FightInit, MIN_HP_PCT } from "#harness/tools/engage-choose";
 import {
   failText,
@@ -40,6 +40,7 @@ import {
   type Tally,
   watchTally,
 } from "#harness/tools/engage-tally";
+import { askHuman, nextCall } from "#harness/tools/next-call";
 
 type Report = ToolResult<EngageAfter>;
 type ModeEnd = {

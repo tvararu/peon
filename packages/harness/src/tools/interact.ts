@@ -10,7 +10,6 @@ import {
   defineGameTool,
   emptyUnit,
   type GameToolSpec,
-  nextCall,
   result,
 } from "#harness/tools/define";
 import {
@@ -38,6 +37,7 @@ import {
   sellJunkStep,
   vendorExtra,
 } from "#harness/tools/interact-vendor";
+import { nextCall } from "#harness/tools/next-call";
 import { type InteractArgs, interactParams } from "#harness/tools/params";
 
 const SHOP_ROLES = new Set([

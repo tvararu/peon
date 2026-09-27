@@ -21,9 +21,9 @@ import {
   defineGameTool,
   emptyPlace,
   emptySelf,
-  nextCall,
   result,
 } from "#harness/tools/define";
+import { nextCall } from "#harness/tools/next-call";
 import { type LookArgs, lookParams } from "#harness/tools/params";
 
 type Unchanged = { at: number; count: number; digest: string };

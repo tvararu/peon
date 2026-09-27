@@ -7,6 +7,7 @@ import {
   parseCall,
   stable,
 } from "#harness/ops/repeat-guard";
+import { repeatScene } from "#harness/ops/repeat-scene";
 import { poseView } from "#harness/ops/views";
 
 const GUARDED = new Set(["PARTLY", "REFUSED", "FAILED"]);
@@ -59,9 +60,11 @@ export function guardCall<A>(
     args: init.args as Record<string, unknown>,
     blocked: (call) =>
       here !== undefined &&
+      handle !== undefined &&
       rt.repeats.blocks({
         ...here,
         args: call.args,
+        scene: repeatScene({ handle, rt }, call.args),
         tool: call.tool as ToolName,
       }),
     progressed: (rt.progress.lastProgress()?.at ?? -1) >= startedAt,

@@ -6,7 +6,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import type { ToolName } from "#harness/contract/result";
 import type { HarnessRuntime } from "#harness/contract/services";
-import { nextCall } from "#harness/tools/define";
+import { nextCall } from "#harness/tools/next-call";
 import { gameTools } from "#harness/tools/registry";
 import { rendererFor } from "#harness/ui/renderers/registry";
 

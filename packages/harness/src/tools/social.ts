@@ -12,12 +12,8 @@ import type { ToolResult } from "#harness/contract/result";
 import type { HarnessRuntime, ToolCtx } from "#harness/contract/services";
 import { Refusal } from "#harness/ops/refusal";
 import { settle } from "#harness/ops/settle";
-import {
-  askHuman,
-  defineGameTool,
-  nextCall,
-  result,
-} from "#harness/tools/define";
+import { defineGameTool, result } from "#harness/tools/define";
+import { askHuman, nextCall } from "#harness/tools/next-call";
 import { type SocialArgs, socialParams } from "#harness/tools/params";
 
 type ChatAction = "say" | "whisper" | "party" | "guild";

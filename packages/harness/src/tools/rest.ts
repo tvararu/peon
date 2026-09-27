@@ -18,9 +18,9 @@ import { awaitRun, YIELD_AFTER_MS } from "#harness/runs/wait";
 import {
   defineGameTool,
   type GameToolSpec,
-  nextCall,
   result,
 } from "#harness/tools/define";
+import { nextCall } from "#harness/tools/next-call";
 import { type RestArgs, restParams } from "#harness/tools/params";
 
 type Report = ToolResult<RestAfter>;

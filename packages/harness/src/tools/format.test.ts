@@ -2,15 +2,14 @@ import { describe, expect, test } from "bun:test";
 import { JevUnavailableError } from "@tuicraft/core";
 import type { ToolResult } from "#harness/contract/result";
 import {
-  askHuman,
   coreErrorResult,
   emptySelf,
   formatContent,
   MAX_CONTENT_BYTES,
   MAX_CONTENT_LINES,
-  nextCall,
   result,
 } from "#harness/tools/define";
+import { askHuman, nextCall } from "#harness/tools/next-call";
 
 const plain = { danger: undefined, maxLines: MAX_CONTENT_LINES };
 

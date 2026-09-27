@@ -18,7 +18,8 @@ import type { UnitView } from "#harness/contract/views";
 import { Refusal } from "#harness/ops/refusal";
 import { settle } from "#harness/ops/settle";
 import { acceptedNext } from "#harness/tools/accept-next";
-import { nextCall, result } from "#harness/tools/define";
+import { result } from "#harness/tools/define";
+import { nextCall } from "#harness/tools/next-call";
 import type { InteractArgs } from "#harness/tools/params";
 
 export type NpcTarget = { unit: UnitView; guid: bigint };

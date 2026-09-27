@@ -1,4 +1,4 @@
-import { askHuman, nextCall } from "#harness/tools/define";
+import { askHuman, nextCall } from "#harness/tools/next-call";
 
 export type Unreached = { reason: string | undefined; detail: string };
 export type Structural = "unsupported_map" | "no_path" | "no_ground";

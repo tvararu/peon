@@ -1,7 +1,7 @@
 import { type QuestState, questSlotStatus } from "@tuicraft/core";
 import type { ViewCtx } from "#harness/contract/services";
 import { unitViews } from "#harness/ops/views";
-import { nextCall } from "#harness/tools/define";
+import { nextCall } from "#harness/tools/next-call";
 
 type Accepted = { detail: string; next: string };
 

@@ -7,7 +7,7 @@ import type { InteractAfter, TrainerLine } from "#harness/contract/details";
 import type { ToolCtx } from "#harness/contract/services";
 import { Refusal } from "#harness/ops/refusal";
 import { settle } from "#harness/ops/settle";
-import { nextCall, result } from "#harness/tools/define";
+import { result } from "#harness/tools/define";
 import {
   ANSWER_MS,
   baseAfter,
@@ -20,6 +20,7 @@ import {
   shortMoney,
   type TalkExtra,
 } from "#harness/tools/interact-quest";
+import { nextCall } from "#harness/tools/next-call";
 
 const SPELLS_SHOWN = 6;
 const TRAINER_ROLES = new Set([

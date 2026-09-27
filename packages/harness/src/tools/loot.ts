@@ -12,9 +12,9 @@ import { unitViews } from "#harness/ops/views";
 import {
   defineGameTool,
   type GameToolSpec,
-  nextCall,
   result,
 } from "#harness/tools/define";
+import { nextCall } from "#harness/tools/next-call";
 import { type LootArgs, lootParams } from "#harness/tools/params";
 
 type Corpse = { unit: UnitView; guid: bigint };

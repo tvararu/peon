@@ -11,7 +11,6 @@ import {
   defineGameTool,
   emptyVitals,
   type GameToolSpec,
-  nextCall,
   result,
 } from "#harness/tools/define";
 import {
@@ -22,6 +21,7 @@ import {
   parseQuest,
 } from "#harness/tools/engage-choose";
 import { fight } from "#harness/tools/engage-fight";
+import { nextCall } from "#harness/tools/next-call";
 import { type EngageArgs, engageParams } from "#harness/tools/params";
 
 type Report = ToolResult<EngageAfter>;

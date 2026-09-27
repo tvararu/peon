@@ -13,12 +13,11 @@ import { Refusal } from "#harness/ops/refusal";
 import { poseView, selfView, vitalsView } from "#harness/ops/views";
 import { awaitRun } from "#harness/runs/wait";
 import {
-  askHuman,
   defineGameTool,
   type GameToolSpec,
-  nextCall,
   result,
 } from "#harness/tools/define";
+import { askHuman, nextCall } from "#harness/tools/next-call";
 import { type RecoverArgs, recoverParams } from "#harness/tools/params";
 
 type Report = ToolResult<RecoverAfter>;

@@ -6,12 +6,8 @@ import type { HarnessRuntime, ToolCtx } from "#harness/contract/services";
 import { dangerView } from "#harness/ops/danger";
 import { Refusal } from "#harness/ops/refusal";
 import { vitalsView } from "#harness/ops/views";
-import {
-  defineGameTool,
-  emptyVitals,
-  nextCall,
-  result,
-} from "#harness/tools/define";
+import { defineGameTool, emptyVitals, result } from "#harness/tools/define";
+import { nextCall } from "#harness/tools/next-call";
 import { type StopArgs, stopParams } from "#harness/tools/params";
 
 function emptyStop(): StopAfter {

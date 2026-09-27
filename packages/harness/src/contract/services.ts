@@ -98,11 +98,18 @@ export type ProgressTracker = HandleObserver & {
   count: () => number;
 };
 
+export type RepeatScene = {
+  combat: string;
+  targetAttacking: boolean;
+  targetYd: number | undefined;
+};
+
 export type RepeatCall = {
   tool: ToolName;
   args: unknown;
   pose: PoseView | undefined;
   digest: string;
+  scene?: RepeatScene;
 };
 
 export type RepeatHit = { reason: string; times: number; untried: string[] };

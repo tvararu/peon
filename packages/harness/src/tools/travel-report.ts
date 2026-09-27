@@ -8,7 +8,8 @@ import { type ExploreResult, SIDE_REASONS } from "#harness/ops/explore";
 import { FLOOR_MATCH_YD, type LegResult } from "#harness/ops/travel-leg";
 import { structuralAsk, structuralReach } from "#harness/ops/unreached";
 import { poseView, vitalsView } from "#harness/ops/views";
-import { askHuman, nextCall, result } from "#harness/tools/define";
+import { result } from "#harness/tools/define";
+import { askHuman, nextCall } from "#harness/tools/next-call";
 
 export type Goal =
   | { kind: "unit"; guid: bigint; unit: UnitView }

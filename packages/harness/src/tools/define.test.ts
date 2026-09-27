@@ -173,6 +173,27 @@ describe("defineGameTool", () => {
     expect(run).toHaveBeenCalledTimes(1);
   });
 
+  test("a repeat runs again once a unit starts attacking", async () => {
+    const { handle, rt } = await createTestRuntime({
+      parts: {
+        progress: fixedProgress(),
+        refs: createRefTable(),
+        repeats: createRepeatGuard({ now: () => 0 }),
+      },
+    });
+    const run = tooFar();
+    const tool = probe(run)(rt);
+    await runTool(tool, { text: "a" });
+    setWorld(handle, {
+      combat: { attackers: [0x50n] },
+      rows: [nearbyRow(unitEntity({ guid: 0x50n, name: "Springpaw Stalker" }))],
+    });
+    expect((await runTool(tool, { text: "a" })).text).toStartWith(
+      "REFUSED too_far:",
+    );
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
   test("a Next that repeats the call keeps it until a repeat makes no progress", async () => {
     const { rt } = await createTestRuntime({
       parts: {

@@ -14,7 +14,7 @@ import {
   unitViews,
   vitalsView,
 } from "#harness/ops/views";
-import { askHuman, nextCall } from "#harness/tools/define";
+import { askHuman, nextCall } from "#harness/tools/next-call";
 import type { EngageArgs } from "#harness/tools/params";
 
 export type EngageMode = EngageAfter["mode"];

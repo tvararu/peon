@@ -5,7 +5,7 @@ import type { UnitView } from "#harness/contract/views";
 import { parseRef } from "#harness/ops/refs";
 import { Refusal } from "#harness/ops/refusal";
 import { knownUnits } from "#harness/ops/views";
-import { nextCall } from "#harness/tools/define";
+import { nextCall } from "#harness/tools/next-call";
 
 export type UnitQuery = {
   text: string;

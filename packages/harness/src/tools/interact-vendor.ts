@@ -16,7 +16,7 @@ import {
 } from "#harness/ops/item-names";
 import { Refusal } from "#harness/ops/refusal";
 import { settle } from "#harness/ops/settle";
-import { nextCall, result } from "#harness/tools/define";
+import { result } from "#harness/tools/define";
 import {
   ANSWER_MS,
   baseAfter,
@@ -29,6 +29,7 @@ import {
   shortMoney,
   type TalkExtra,
 } from "#harness/tools/interact-quest";
+import { nextCall } from "#harness/tools/next-call";
 
 const STOCK_SHOWN = 8;
 const VENDOR_ROLES = new Set([

@@ -30,8 +30,10 @@ import { dangerLine, dangerView } from "#harness/ops/danger";
 import { guardCall } from "#harness/ops/next-guard";
 import { Refusal } from "#harness/ops/refusal";
 import { repeatRefusal } from "#harness/ops/repeat-guard";
+import { repeatScene } from "#harness/ops/repeat-scene";
 import { poseView } from "#harness/ops/views";
 import { TOOL_TEXT } from "#harness/prompt/guidelines";
+import { askHuman, nextCall } from "#harness/tools/next-call";
 import { scrub } from "#harness/tools/scrub";
 export const TURN_BUDGET = 40;
 export const READY_WAIT_MS = 10_000;
@@ -123,21 +125,6 @@ export function formatContent(
   return [headLine(outcome), ...fitBody(outcome.body, room), ...tail].join(
     "\n",
   );
-}
-
-export function nextCall(
-  tool: ToolName,
-  args: Record<string, string | number | boolean> = {},
-): string {
-  const parts = Object.entries(args).map(
-    ([key, value]) =>
-      `${key}: ${typeof value === "string" ? JSON.stringify(value) : String(value)}`,
-  );
-  return `${tool}(${parts.join(", ")})`;
-}
-
-export function askHuman(question: string): string {
-  return `ask the human: "${question}"`;
 }
 
 function mapped<A>(fields: Mapped, after: A): ToolResult<A> {
@@ -313,6 +300,7 @@ function repeatCall<P extends TSchema, K extends ToolName>(
     args,
     digest: rt.progress.digest(handle),
     pose: poseView({ handle, rt }),
+    scene: repeatScene({ handle, rt }, args),
     tool: spec.name,
   };
 }
@@ -439,6 +427,7 @@ function remember<P extends TSchema, K extends ToolName>(
     digest,
     pose: poseView({ handle, rt }),
     result: outcome,
+    scene: repeatScene({ handle, rt }, args),
     tool: spec.name,
   });
   rt.progress.afterAction({
