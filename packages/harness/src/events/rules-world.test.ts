@@ -199,6 +199,38 @@ describe("vendorDrafts and trainerDrafts", () => {
     expect(vendorDrafts(vendor("buy_requested", bought), rc)).toEqual([]);
   });
 
+  test("a stack purchase names the items it gives", () => {
+    const rc = testRuleInput({
+      lookup: testLookup({ itemName: () => "Refreshing Spring Water" }),
+    });
+    const good = {
+      buyCount: 5,
+      displayId: 0,
+      extendedCost: 0,
+      itemId: 159,
+      maxDurability: 0,
+      price: 25,
+      slot: 1,
+      stock: null,
+    };
+    const window = {
+      emptyReason: undefined,
+      guid: 0x10n,
+      invalidatedReason: undefined,
+      items: [good],
+      openedAt: 0,
+    };
+    const event: VendorEvent = {
+      at: 0,
+      state: { ...vendorBase, lastOutcome: bought, window },
+      type: "bought",
+    };
+    expect(vendorDrafts(event, rc)[0]).toMatchObject({
+      data: { count: 1, items: 5 },
+      text: "Vendor buy Refreshing Spring Water x1 (5 items): confirmed.",
+    });
+  });
+
   test("a vendor list is a log row", () => {
     const window = {
       emptyReason: undefined,

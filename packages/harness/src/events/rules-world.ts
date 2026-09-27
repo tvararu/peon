@@ -6,6 +6,7 @@ import type {
   TrainerEvent,
   VendorEvent,
   VendorOutcome,
+  VendorRequest,
 } from "@tuicraft/core";
 import type { LogDraft, LogEvent } from "#harness/contract/log";
 import {
@@ -143,14 +144,33 @@ export function controlDrafts(event: ControlEvent, rc: RuleInput): Drafts {
   return [];
 }
 
-function vendorDeal(outcome: VendorOutcome, rc: RuleInput): LogDraft {
+type VendorWindow = VendorEvent["state"]["window"];
+
+function stackItems(
+  request: VendorRequest,
+  window: VendorWindow,
+): number | undefined {
+  if (request.action !== "buy") return;
+  const good = window?.items.find(
+    (item) => item.slot === request.slot && item.itemId === request.itemId,
+  );
+  return good && good.buyCount > 1 ? good.buyCount * request.count : undefined;
+}
+
+function vendorDeal(
+  outcome: VendorOutcome,
+  window: VendorWindow,
+  rc: RuleInput,
+): LogDraft {
   const { action, moneyDelta, reason, request, status } = outcome;
   const itemId = "itemId" in request ? request.itemId : undefined;
   const count = "count" in request ? request.count : undefined;
+  const items = stackItems(request, window);
   const name = itemId === undefined ? undefined : rc.lookup.itemName(itemId);
   const what = [
     name ?? (itemId === undefined ? undefined : itemIdText(itemId)),
     count === undefined ? undefined : `x${count}`,
+    items === undefined ? undefined : `(${items} items)`,
   ];
   const words = [
     `Vendor ${action}`,
@@ -161,6 +181,7 @@ function vendorDeal(outcome: VendorOutcome, rc: RuleInput): LogDraft {
     cost: moneyDelta,
     count,
     itemId,
+    items,
     name,
     npc: guidText(request.guid),
     outcome: status,
@@ -203,7 +224,7 @@ export function vendorDrafts(event: VendorEvent, rc: RuleInput): Drafts {
   const { lastOutcome, window } = event.state;
   if (event.type === "listed") return [vendorList(window, rc)];
   if (!(lastOutcome && VENDOR_SETTLED.has(event.type))) return [];
-  return [vendorDeal(lastOutcome, rc)];
+  return [vendorDeal(lastOutcome, window, rc)];
 }
 
 export function trainerDrafts(event: TrainerEvent, rc: RuleInput): Drafts {
