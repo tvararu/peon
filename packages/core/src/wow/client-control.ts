@@ -1,7 +1,8 @@
 import type { GotoTarget, WalkTarget, WorldHandle } from "#wow/client";
 import { targetRelation } from "#wow/combat-actions-target";
 import type { ControlPose, MovementDirection, WalkOutcome } from "#wow/control";
-import { bearing } from "#wow/geometry";
+import type { ApproachDeps } from "#wow/cycle-approach";
+import { bearing, distance2d } from "#wow/geometry";
 import {
   classifyNavigationRefusal,
   type GroundRoute,
@@ -145,10 +146,39 @@ function pointOf(target: GotoTarget): NavDestination | undefined {
   return z === undefined ? { x, y } : { x, y, z };
 }
 
+type RouteRuntimes = Pick<
+  Runtimes,
+  "control" | "navigation" | "observedTarget"
+>;
+
 function navigateTo(rt: Runtimes, target: GotoTarget): void {
   rt.steer(
     rt.control.navigationState().active ? "navigation_replaced" : undefined,
   );
+  routeTo(rt, target);
+}
+
+export function cycleApproach(rt: RouteRuntimes): ApproachDeps {
+  return {
+    gap(guid) {
+      const pose = rt.control.snapshot().pose;
+      if (!pose) return Number.NaN;
+      try {
+        return distance2d(pose, rt.observedTarget(guid));
+      } catch {
+        return Number.NaN;
+      }
+    },
+    goTo: (guid) => routeTo(rt, { guid, kind: "guid" }),
+    halt: (reason) => rt.control.halt(reason),
+    navigation() {
+      const { active, blockedReason, replan } = rt.control.navigationState();
+      return { active: active || replan?.pending === true, blockedReason };
+    },
+  };
+}
+
+function routeTo(rt: RouteRuntimes, target: GotoTarget): void {
   let destination = pointOf(target);
   const pose = rt.control.snapshot().pose;
   if (!pose) throw new Error("stop: no_pose");

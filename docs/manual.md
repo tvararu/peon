@@ -419,6 +419,11 @@ At least one nonzero GUID is required. Starting a new cycle replaces any
 running cycle; `halt` stops it.
 Choose the queued creature GUIDs from a current `nearby --json` result. The
 cycle never acquires targets itself.
+Before each fight, a target more than 30 yd away gets a ground route to it
+(the `goto` _guid_ planner), and the route stops within 25 yd; the fight and
+its `target_unreachable` bound start only after that. A target with no route,
+or whose route stops on a refusal, is skipped with cause
+`target_unreachable` without using a start.
 A target that dies, is unreachable, or fails to fight is skipped with a
 recorded cause instead of stopping the loop. A mid-fight death runs bounded
 recovery: release, one corpse query, then up to 40 `face` + `move forward`

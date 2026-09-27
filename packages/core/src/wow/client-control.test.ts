@@ -2,7 +2,7 @@ import { describe, expect, jest, test } from "bun:test";
 import { setup } from "#test-support/control-fixtures";
 import { must } from "#test-support/must";
 import type { GotoTarget } from "#wow/client";
-import { controlMethods } from "#wow/client-control";
+import { controlMethods, cycleApproach } from "#wow/client-control";
 import { EntityStore } from "#wow/entity-store";
 import type { FactionTemplateCatalog } from "#wow/faction-template";
 import { createNavigation, type NavPoint } from "#wow/navigation";
@@ -59,8 +59,27 @@ function fixture(
     steer,
   } as unknown as Runtimes;
   const handle = controlMethods({} as WorldConn, rt);
-  return { ...control, handle, navigation, steer };
+  return { ...control, handle, navigation, rt, steer };
 }
+
+describe("cycle approach", () => {
+  test("routes to a far unit without taking over the running cycle", () => {
+    const targets = new Map<bigint, NavPoint>();
+    const f = fixture(() => [70.34], {}, targets);
+    const start = must(f.runtime.snapshot().pose);
+    targets.set(5n, { x: start.x + 60, y: start.y, z: 70.34 });
+    const approach = cycleApproach(f.rt);
+    expect(approach.gap(5n)).toBeCloseTo(60);
+    expect(approach.gap(6n)).toBeNaN();
+    approach.goTo(5n);
+    expect(f.steer).not.toHaveBeenCalled();
+    expect(approach.navigation()).toEqual({
+      active: true,
+      blockedReason: undefined,
+    });
+    expect(f.runtime.navigationState().target).toBe(5n);
+  });
+});
 
 describe("goTo without Z", () => {
   test("derives destination height from a unique column and walks there", () => {

@@ -2,6 +2,7 @@ import { Emitter, type Unsubscribe } from "#lib/emitter";
 import { messageOf } from "#lib/errors";
 import type { ControlEvent, ControlRuntime, ControlState } from "#wow/control";
 import { type CycleRecovery, recoverCorpse } from "#wow/corpse-run";
+import type { CycleApproach } from "#wow/cycle-approach";
 import { type CycleStop, cycleStop } from "#wow/cycle-stop";
 import { vetTarget } from "#wow/cycle-vet";
 import type { EntityEvent, EntityLookup } from "#wow/entity-store";
@@ -90,6 +91,7 @@ export type CycleDeps = {
     snapshot: () => Pick<ControlState, "pose" | "selfGuid" | "speed">;
   };
   entity: EntityLookup;
+  approach?: CycleApproach;
   now: () => number;
 };
 
@@ -318,10 +320,18 @@ export class EncounterCycleRuntime {
     record: CycleTargetRecord,
     signal: AbortSignal,
   ): Promise<CycleStop | undefined> {
-    const { tactics, entity, control } = this.deps;
+    const { tactics, entity, control, approach } = this.deps;
     this.state.phase = "fighting";
-    const refused = vetTarget(entity, control.snapshot().selfGuid, record.guid);
+    const vet = () =>
+      vetTarget(entity, control.snapshot().selfGuid, record.guid);
+    const refused = vet();
     if (refused) return skip(record, refused, undefined);
+    if (approach) {
+      const unreached = await approach(record.guid, signal);
+      signal.throwIfAborted();
+      const cause = vet() ?? unreached;
+      if (cause) return skip(record, cause, undefined);
+    }
     this.state.startsUsed++;
     const context = {
       targetGuid: record.guid,

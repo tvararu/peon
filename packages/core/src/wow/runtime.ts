@@ -1,10 +1,12 @@
 import type { Unsubscribe } from "#lib/emitter";
 import type { ClientConfig } from "#wow/client";
+import { cycleApproach } from "#wow/client-control";
 import type { Capabilities } from "#wow/client-extras";
 import { CombatRuntime } from "#wow/combat";
 import { CombatActions } from "#wow/combat-actions";
 import { defendTarget } from "#wow/combat-defense";
 import { ControlRuntime } from "#wow/control";
+import { approachUnit, type CycleApproach } from "#wow/cycle-approach";
 import { ItemDestroyRuntime } from "#wow/destroy";
 import { EncounterCycleRuntime } from "#wow/encounter-cycle";
 import type { EntityLookup } from "#wow/entity-store";
@@ -255,12 +257,14 @@ type RuntimeDeps = {
 function createSupportRuntimes(
   conn: WorldConn,
   runtimeDeps: RuntimeDeps,
-  parts: Pick<RuntimeParts, "control" | "tactics">,
+  parts: Pick<RuntimeParts, "control" | "tactics"> & {
+    approach: CycleApproach;
+  },
 ): Pick<
   RuntimeParts,
   "recovery" | "quests" | "rewards" | "items" | "cycle" | "vendor" | "destroy"
 > {
-  const { control, tactics } = parts;
+  const { control, tactics, approach } = parts;
   const recovery = new RecoveryRuntime({
     ...runtimeDeps,
     pose: () => control.snapshot().pose,
@@ -273,6 +277,7 @@ function createSupportRuntimes(
   const items = new ItemTemplates(runtimeDeps);
   conn.itemTemplates = items;
   const cycle = new EncounterCycleRuntime({
+    approach,
     tactics,
     rewards,
     recovery,
@@ -402,6 +407,39 @@ export function catalogAccess(
   };
 }
 
+function preparer(
+  config: ClientConfig,
+  lazy: LazyState,
+  data: Pick<Runtimes, "prepareCatalog">,
+): (signal: AbortSignal) => Promise<void> {
+  return async (signal) => {
+    signal.throwIfAborted();
+    await data.prepareCatalog();
+    signal.throwIfAborted();
+    await loadFactions(config, lazy);
+    signal.throwIfAborted();
+  };
+}
+
+function lateApproach(getNavigation: () => Navigation) {
+  let routes: Parameters<typeof cycleApproach>[0] | undefined;
+  const approach: CycleApproach = async (guid, signal) =>
+    routes && approachUnit(cycleApproach(routes), guid, signal);
+  return {
+    approach,
+    bind(conn: WorldConn, parts: Pick<RuntimeParts, "control" | "combat">) {
+      const observedTarget = (guid: bigint) =>
+        findObservedTarget(conn, parts, guid);
+      routes = {
+        control: parts.control,
+        navigation: getNavigation,
+        observedTarget,
+      };
+      return observedTarget;
+    },
+  };
+}
+
 export function createRuntimes(
   conn: WorldConn,
   config: ClientConfig,
@@ -418,6 +456,7 @@ export function createRuntimes(
     control,
   );
   const data = catalogAccess(config, lazy, combat, control);
+  const { approach, bind } = lateApproach(getNavigation);
   function haltMovement(reason: string): void {
     if (lazy.disposed) return;
     control.setMode("none");
@@ -430,13 +469,7 @@ export function createRuntimes(
   }
   const tactics = createTactics(conn, config, {
     actions,
-    async prepare(signal) {
-      signal.throwIfAborted();
-      await data.prepareCatalog();
-      signal.throwIfAborted();
-      await loadFactions(config, lazy);
-      signal.throwIfAborted();
-    },
+    prepare: preparer(config, lazy, data),
     halt: rawHalt,
     defense: { combat, control },
   });
@@ -445,16 +478,21 @@ export function createRuntimes(
     control,
     combat,
     tactics,
-    ...createSupportRuntimes(conn, runtimeDeps, { control, tactics }),
+    ...createSupportRuntimes(conn, runtimeDeps, {
+      approach,
+      control,
+      tactics,
+    }),
     trainer,
   };
   const parts = { ...base, defense: createDefense(conn, config, base) };
   const unwire = wireEvents(conn, parts);
+  const observedTarget = bind(conn, parts);
   return {
     ...parts,
     ...data,
     navigation: getNavigation,
-    observedTarget: (guid) => findObservedTarget(conn, parts, guid),
+    observedTarget,
     halt: () => rawHalt(),
     ...manualControl(parts, rawHalt, haltMovement),
     dispose(sendStop: boolean): void {
