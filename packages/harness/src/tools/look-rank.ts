@@ -1,5 +1,6 @@
 import type { ViewCtx } from "#harness/contract/services";
 import type { UnitView } from "#harness/contract/views";
+import { critter } from "#harness/ops/explore-wanted";
 import { questGoal } from "#harness/ops/quest-memory";
 import { guidHex } from "#harness/ops/refs";
 import { staticRole } from "#harness/ops/sightings";
@@ -44,10 +45,6 @@ export function relevanceOf(ctx: ViewCtx): Relevance {
     questNpcs: questNpcs(ctx),
     said: saidText(ctx),
   };
-}
-
-function critter(unit: UnitView): boolean {
-  return unit.kind === "creature" && unit.level <= 1 && unit.roles.length === 0;
 }
 
 function rankOf(unit: UnitView, relevance: Relevance): number {

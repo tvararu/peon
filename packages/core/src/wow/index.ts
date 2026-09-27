@@ -30,6 +30,7 @@ export type {
   CombatState,
   CombatUnit,
 } from "#wow/combat";
+export { grayLevel } from "#wow/combat-actions-credit";
 export type {
   AreaExplored,
   ControlEvent,

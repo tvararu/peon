@@ -5,6 +5,7 @@ import type { RunControl, RunEnd, RunStatus } from "#harness/contract/runs";
 import type { OpsCtx, ToolCtx } from "#harness/contract/services";
 import { dangerView, watchInterrupts } from "#harness/ops/danger";
 import { explore, parseDirection } from "#harness/ops/explore";
+import { exploreWanted, passedUnits } from "#harness/ops/explore-wanted";
 import { distanceTo } from "#harness/ops/range";
 import { aliveWhere, recoverOp } from "#harness/ops/recover";
 import { Refusal } from "#harness/ops/refusal";
@@ -214,9 +215,10 @@ async function doWork(work: Work): Promise<Report> {
     return legWork({ ...work, goal });
   if (goal.kind === "unstick") return unstickWork(work);
   if (goal.kind === "corpse") return corpseWork(work);
-  const found = await explore(work.ops, { direction: goal.direction });
+  const wanted = exploreWanted(work.ops, work.args.for);
+  const found = await explore(work.ops, { direction: goal.direction, wanted });
   return exploreReport(
-    found,
+    { ...found, passed: passedUnits(work.ops, found.newInView, wanted) },
     work.after({
       legs: found.legs,
       newInView: found.newInView,

@@ -64,6 +64,123 @@ describe("travel explore", () => {
     );
   });
 
+  test("explore walks past critters and gray mobs to a hostile worth fighting", async () => {
+    const t = await world();
+    const larva = unitRow({
+      distance: 20,
+      guid: 0x30n,
+      level: 1,
+      name: "Larva",
+      relation: "neutral",
+      x: 20,
+      y: 20,
+    });
+    const gray = unitRow({
+      distance: 22,
+      guid: 0x31n,
+      level: 4,
+      name: "Old Wolf",
+      x: 40,
+      y: 10,
+    });
+    const boar = unitRow({
+      distance: 30,
+      guid: 0x32n,
+      level: 15,
+      name: "Bristleback",
+      x: 110,
+      y: 0,
+    });
+    driveGoto(t.handle, [
+      {
+        arrive: { x: 20, y: 0 },
+        onArrive: () => setUnits(t.handle, [MARNIEL, larva, gray]),
+      },
+      { arrive: { x: 40, y: 0 } },
+      { arrive: { x: 60, y: 0 } },
+      {
+        arrive: { x: 80, y: 0 },
+        onArrive: () => setUnits(t.handle, [MARNIEL, larva, gray, boar]),
+      },
+      { arrive: { x: 100, y: 0 } },
+    ]);
+    const res = await travelSpec.run(
+      { to: "explore north" },
+      toolCtx<TravelAfter>(t),
+    );
+    const [larvaRef, grayRef, boarRef] = [0x30n, 0x31n, 0x32n].map((guid) =>
+      t.rt.refs.refOf(guid),
+    );
+    expect(res.after.traveledYd).toBe(80);
+    expect(fit(res)).toBe(
+      `DONE explored 80 yd north. New in view: 1 hostile (${boarRef} Bristleback L15 30 yd N). Passed: 2 gray or critter units (${larvaRef} Larva L1, ${grayRef} Old Wolf L4).`,
+    );
+  });
+
+  test("explore for a questgiver walks past hostiles", async () => {
+    const t = await world();
+    const boar = unitRow({
+      distance: 30,
+      guid: 0x32n,
+      level: 12,
+      name: "Bristleback",
+      x: 30,
+      y: 0,
+    });
+    const giver = unitRow({
+      distance: 25,
+      guid: 0x33n,
+      name: "Marshal McBride",
+      relation: "friendly",
+      roles: ["questgiver"],
+      x: 65,
+      y: 0,
+    });
+    driveGoto(t.handle, [
+      {
+        arrive: { x: 20, y: 0 },
+        onArrive: () => setUnits(t.handle, [MARNIEL, boar]),
+      },
+      {
+        arrive: { x: 40, y: 0 },
+        onArrive: () => setUnits(t.handle, [MARNIEL, boar, giver]),
+      },
+    ]);
+    const res = await travelSpec.run(
+      { for: "questgiver", to: "explore north" },
+      toolCtx<TravelAfter>(t),
+    );
+    expect(res.after.traveledYd).toBe(40);
+    expect(res.detail).toStartWith("explored 40 yd north.");
+  });
+
+  test("explore for a name stops only on that unit", async () => {
+    const t = await world();
+    const boar = unitRow({
+      distance: 30,
+      guid: 0x32n,
+      level: 12,
+      name: "Bristleback",
+      x: 30,
+      y: 0,
+    });
+    driveGoto(t.handle, [
+      {
+        arrive: { x: 20, y: 0 },
+        onArrive: () => setUnits(t.handle, [MARNIEL, boar]),
+      },
+      { arrive: { x: 40, y: 0 } },
+      { arrive: { x: 60, y: 0 } },
+      { arrive: { x: 80, y: 0 } },
+      { arrive: { x: 100, y: 0 } },
+    ]);
+    const res = await travelSpec.run(
+      { for: "Kobold Vermin", to: "explore north" },
+      toolCtx<TravelAfter>(t),
+    );
+    expect(res.after.traveledYd).toBe(100);
+  });
+
   test("explore into explored ground names a bearing still unexplored", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle, { x: 10, y: 10 });

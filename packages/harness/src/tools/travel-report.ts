@@ -38,6 +38,7 @@ const GROUPS: readonly (readonly [string, (unit: UnitView) => boolean])[] = [
   ["player", (unit) => unit.kind === "player"],
 ];
 
+const PASSED_SHOWN = 3;
 const CLASS_PREFIX = /^(?:wait|pick_destination|unreachable|stop): /;
 const NOT_TRIED_HERE = `Not tried: ${nextCall("travel", { to: "unstick" })}, another route.`;
 const NOT_TRIED_THERE = "Not tried: another destination.";
@@ -145,6 +146,24 @@ export function youLine(ctx: ViewCtx): string {
 
 function unitBrief(unit: UnitView): string {
   return `${unit.ref} ${unit.name} L${unit.level} ${yd(unit.distance ?? 0)} yd ${unit.compass ?? ""}`.trim();
+}
+
+type Found = ExploreResult & { passed?: readonly UnitView[] };
+
+function passedText(passed: readonly UnitView[]): string {
+  if (passed.length === 0) return "";
+  const shown = passed
+    .slice(0, PASSED_SHOWN)
+    .map((unit) => `${unit.ref} ${unit.name} L${unit.level}`);
+  const more = passed.length > PASSED_SHOWN ? ", ..." : "";
+  return ` Passed: ${passed.length} gray or critter ${passed.length === 1 ? "unit" : "units"} (${shown.join(", ")}${more}).`;
+}
+
+function seenText(found: Found): string {
+  const passed = found.passed ?? [];
+  const skip = new Set(passed.map((unit) => unit.guid));
+  const fresh = found.newInView.filter((unit) => !skip.has(unit.guid));
+  return `${newInViewText(fresh)}${passedText(passed)}`;
 }
 
 export function newInViewText(units: readonly UnitView[]): string {
@@ -308,9 +327,9 @@ function stuckAtStart(found: ExploreResult): string | undefined {
   return reason;
 }
 
-function obstructedReport(found: ExploreResult, after: TravelAfter): Report {
+function obstructedReport(found: Found, after: TravelAfter): Report {
   const where = `${yd(found.walkedYd)} yd ${WORD[found.direction]}`;
-  const seen = newInViewText(found.newInView);
+  const seen = seenText(found);
   const blocked = `explored ${where}; ${found.obstructed === 1 ? "1 leg was" : `${found.obstructed} legs were`} blocked`;
   const stuck = stuckAtStart(found);
   const kind =
@@ -347,12 +366,9 @@ function obstructedReport(found: ExploreResult, after: TravelAfter): Report {
   });
 }
 
-export function exploreReport(
-  found: ExploreResult,
-  after: TravelAfter,
-): Report {
+export function exploreReport(found: Found, after: TravelAfter): Report {
   const where = `${yd(found.walkedYd)} yd ${WORD[found.direction]}`;
-  const seen = newInViewText(found.newInView);
+  const seen = seenText(found);
   if (found.stoppedBy === "obstructed") return obstructedReport(found, after);
   if (found.stoppedBy === "explored")
     return result("DONE", {
