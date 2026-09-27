@@ -251,6 +251,17 @@ describe("unit views", () => {
     expect(nearest.vendor).toBeUndefined();
   });
 
+  test("nearestByKind skips units another player tapped for hostile and attackable", async () => {
+    const tapped = nearbyRow(
+      unitEntity({ dx: 10, guid: 0x53n, level: 7, name: "Springpaw Lynx" }),
+      { attackable: true, relation: "hostile", tappedByOther: true },
+    );
+    const { ctx } = await world([tapped, stalker(40)]);
+    const nearest = nearestByKind(ctx);
+    expect(nearest.hostile?.name).toBe("Springpaw Stalker");
+    expect(nearest.attackable).toBeUndefined();
+  });
+
   test("unitMatches needs a living unit for hostile", async () => {
     const { ctx } = await world();
     const dead = unitView(

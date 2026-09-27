@@ -178,6 +178,44 @@ describe("look", () => {
     );
   });
 
+  test("a tapped unit is marked in its row and skipped for Nearest hostile", async () => {
+    const { handle, tool } = await world();
+    const tapped = nearbyRow(
+      unitEntity({ dx: 20, guid: 0x26n, level: 7, name: "Springpaw Lynx" }),
+      { attackable: true, relation: "hostile", tappedByOther: true },
+    );
+    place(handle, eversong([tapped, stalker()]));
+    const { details, text } = await runTool(tool, {
+      find: "hostile",
+      within: 100,
+    });
+    const lines = text.split("\n");
+    expect(lines.slice(2, 5)).toEqual([
+      "2 of 2 hostile units within 100 yd, nearest first:",
+      "- u5 Springpaw Lynx L7 hostile, tapped by another player, 20 yd N",
+      "- u6 Springpaw Stalker L7 hostile, 78 yd N",
+    ]);
+    expect(lines[5]).toStartWith(
+      "Nearest hostile: u6 Springpaw Stalker L7 alive, 78 yd N (seen now).",
+    );
+    expect(
+      details.tool === "look" && details.result.after.nearest.attackable?.ref,
+    ).toBeUndefined();
+  });
+
+  test("Nearest hostile says none seen when every hostile is tapped", async () => {
+    const { handle, tool } = await world();
+    const tapped = nearbyRow(
+      unitEntity({ dx: 20, guid: 0x26n, level: 7, name: "Springpaw Lynx" }),
+      { relation: "hostile", tappedByOther: true },
+    );
+    place(handle, eversong([tapped]));
+    const lines = (await runTool(tool, {})).text.split("\n");
+    expect(lines).toContain(
+      "Nearest hostile: none seen. Nearest lootable: none. Nearest trainer: none seen.",
+    );
+  });
+
   test("name filters by part of a name", async () => {
     const { handle, tool } = await world();
     place(handle, eversong([stalker()]));

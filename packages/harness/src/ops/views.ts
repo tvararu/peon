@@ -69,6 +69,10 @@ const NEAREST_KINDS: readonly NearestKind[] = [
   "player",
   "spirit_healer",
 ];
+const FIGHT_KINDS: ReadonlySet<NearestKind> = new Set([
+  "attackable",
+  "hostile",
+]);
 const KIND_TESTS: Readonly<Record<NearestKind, (unit: UnitView) => boolean>> = {
   attackable: (unit) => unit.attackable && unit.alive,
   hostile: (unit) => unit.relation === "hostile" && unit.alive,
@@ -289,7 +293,11 @@ export function nearestOf(
 ): Partial<Record<NearestKind, UnitView>> {
   const nearest: Partial<Record<NearestKind, UnitView>> = {};
   for (const kind of NEAREST_KINDS) {
-    const unit = known.find((candidate) => unitMatches(candidate, kind));
+    const unit = known.find(
+      (candidate) =>
+        unitMatches(candidate, kind) &&
+        !(FIGHT_KINDS.has(kind) && candidate.tappedByOther),
+    );
     if (unit) nearest[kind] = unit;
   }
   return nearest;
