@@ -1,4 +1,4 @@
-import { DEFAULT_FIGHT_INSTRUCTION } from "@tuicraft/core";
+import { type CycleState, DEFAULT_FIGHT_INSTRUCTION } from "@tuicraft/core";
 import type { EngageAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { ViewCtx } from "#harness/contract/services";
@@ -25,6 +25,11 @@ import {
 import { askHuman, nextCall, result } from "#harness/tools/define";
 import { type FightInit, MIN_HP_PCT } from "#harness/tools/engage-choose";
 import {
+  failText,
+  type StopInit,
+  stopText,
+} from "#harness/tools/engage-reasons";
+import {
   afterOf,
   isKill,
   killNames,
@@ -38,6 +43,7 @@ import {
 
 type Report = ToolResult<EngageAfter>;
 type ModeEnd = {
+  blocked: boolean;
   error: string | undefined;
   jev: string | undefined;
   stopCause: string | undefined;
@@ -48,6 +54,7 @@ const APPROACH_WITHIN_YD = 25;
 const TOP_UPS = 3;
 const MISSING_KEY = "missing_jev_key";
 const JEV_UNAVAILABLE = "jev_unavailable";
+const NO_ATTACK = "no_supported_combat_actions";
 
 function instruction(scene: Scene): string {
   return scene.args.how ?? DEFAULT_FIGHT_INSTRUCTION;
@@ -120,7 +127,12 @@ async function single(scene: Scene): Promise<ModeEnd> {
   const { choice, ops, tally } = scene;
   const guid = choice.guid;
   if (guid === undefined)
-    return { error: "no_target", jev: undefined, stopCause: undefined };
+    return {
+      blocked: false,
+      error: "no_target",
+      jev: undefined,
+      stopCause: undefined,
+    };
   const startedAt = ops.rt.clock.now();
   const end = await awaitTactics(ops.handle, {
     guid,
@@ -137,7 +149,12 @@ async function single(scene: Scene): Promise<ModeEnd> {
     xp: undefined,
   });
   if (killed && scene.args.loot !== false) await lootCorpseOp(ops, guid);
-  return { error: end.error, jev: jevCode(end), stopCause: undefined };
+  return {
+    blocked: end.outcome?.status === "blocked",
+    error: end.error,
+    jev: jevCode(end),
+    stopCause: undefined,
+  };
 }
 
 function nextTargets(scene: Scene, tried: ReadonlySet<bigint>): bigint[] {
@@ -157,10 +174,22 @@ function nextTargets(scene: Scene, tried: ReadonlySet<bigint>): bigint[] {
   return [...new Set(ordered)].filter((guid) => !tried.has(guid));
 }
 
+function allBlocked(state: CycleState): boolean {
+  const ended = state.queue.filter((record) => record.status !== "queued");
+  return (
+    ended.length > 0 &&
+    ended.every(
+      (record) =>
+        record.status === "skipped" || record.outcome?.status === "blocked",
+    )
+  );
+}
+
 async function cycle(scene: Scene): Promise<ModeEnd> {
   const { choice, ops, tally } = scene;
   const tried = new Set<bigint>();
   let end: CycleEnd | undefined;
+  let blocked = true;
   for (
     let round = 0;
     round <= TOP_UPS && kills(tally) < choice.wanted && !ops.signal.aborted;
@@ -176,11 +205,13 @@ async function cycle(scene: Scene): Promise<ModeEnd> {
       signal: ops.signal,
     });
     noteCycle(ops, tally, end.state);
+    blocked &&= allBlocked(end.state);
     if (end.error !== undefined || end.state.stopCause !== "queue_exhausted")
       break;
   }
   const stopCause = end?.state.stopCause;
   return {
+    blocked: end !== undefined && blocked,
     error: end?.error,
     jev: stopCause === JEV_UNAVAILABLE ? JEV_UNAVAILABLE : undefined,
     stopCause,
@@ -199,6 +230,7 @@ async function quest(scene: Scene): Promise<ModeEnd> {
   noteCycle(ops, tally, end.state);
   const stopCause = end.state.stopCause;
   return {
+    blocked: allBlocked(end.state),
     error: end.error,
     jev: stopCause === JEV_UNAVAILABLE ? JEV_UNAVAILABLE : undefined,
     stopCause,
@@ -311,6 +343,15 @@ function againCall(scene: Scene, left: number): string {
   return low ? `${nextCall("rest")}, then ${again}` : again;
 }
 
+function blockedNext(scene: Scene, why: string): string | undefined {
+  const { choice, ops } = scene;
+  if (why !== NO_ATTACK || choice.guid === undefined) return;
+  const hex = guidHex(choice.guid);
+  const unit = unitViews(ops).find((view) => view.guid === hex && view.alive);
+  if (!unit) return;
+  return `${nextCall("travel", { to: unit.ref })}, then ${nextCall("engage", { target: unit.ref })}`;
+}
+
 function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
   const { choice, tally } = scene;
   const after = afterOf(scene.ops, scene);
@@ -336,18 +377,26 @@ function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
     });
   const why =
     end.stopCause ?? end.error ?? tally.targets.at(-1)?.reason ?? "stopped";
+  const stop: StopInit = {
+    kills: after.kills,
+    name,
+    targets: tally.targets,
+    wanted: after.wanted,
+    why,
+  };
   if (killed > 0)
     return result("PARTLY", {
       after,
-      detail: `${after.kills} of ${after.wanted} kills (${refs}). Stopped: ${why}.${gains(scene)}`,
+      detail: `${after.kills} of ${after.wanted} kills (${refs}). Stopped: ${stopText(stop)}.${gains(scene)}`,
       next: also ?? againCall(scene, Math.max(1, after.wanted - after.kills)),
       reason: why,
     });
-  return result("FAILED", {
+  return result(end.blocked ? "REFUSED" : "FAILED", {
     after,
-    detail: `${name} was not killed (${why}). ${vitalsLine(scene.ops)}`,
-    next: also ?? nextCall("look", { find: "hostile" }),
-    reason: "lost",
+    detail: `${failText(stop)} ${vitalsLine(scene.ops)}`,
+    next:
+      also ?? blockedNext(scene, why) ?? nextCall("look", { find: "hostile" }),
+    reason: end.blocked ? why : "lost",
   });
 }
 

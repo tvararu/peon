@@ -99,7 +99,7 @@ describe("engage fight", () => {
       status: "PARTLY",
     });
     expect(res.detail).toMatch(
-      /^2 of 3 kills \(u\d+, u\d+\)\. Stopped: queue_exhausted\./,
+      /^2 of 3 kills \(u\d+, u\d+\)\. Stopped: no more Springpaw Stalker in view; 1 kill still needed\./,
     );
   });
 

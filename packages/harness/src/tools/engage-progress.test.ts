@@ -144,7 +144,7 @@ describe("engage progress", () => {
     expect(details).not.toContain("engage 0 of 0 kills.");
     expect(details.at(-1)).toBe("engage 1 of 8 kills.");
     expect(res.detail).toStartWith(
-      `1 of 8 kills (${t.rt.refs.refOf(STALKER)}). Stopped: max_starts_reached.`,
+      `1 of 8 kills (${t.rt.refs.refOf(STALKER)}). Stopped: the fight limit for one call was reached; 7 kills still needed.`,
     );
     expect(res.next).toBe('engage(quest: "8325")');
   });
