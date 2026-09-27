@@ -32,8 +32,9 @@ export type CliDeps = {
 type Command = (args: string[], deps: CliDeps) => number | Promise<number>;
 
 export const CLI_USAGE = `usage: bun packages/harness/src/grader/cli.ts <command>   (or: mise eval <command>, from the eval worktree root)
-  run <scenario> --round <n> [--replica <n>] [--wait]  run one scenario replica end to end (steps 1-13);
-                                                    --wait queues up to 20 min while another run holds the field
+  run <scenario> --round <n> [--replica <n>] [--no-wait]  run one scenario replica end to end (steps 1-13);
+                                                    it queues up to 20 min while another run holds the field;
+                                                    --no-wait exits 1 at once instead
   result <run-dir> <file>                           validate a graded result and write <run-dir>/result.json
   scenario [<id>]                                   print one scenario as JSON, or the round-1 ids
   round <id>...                                     refuse a round plan in which two scenarios share a target field
@@ -71,7 +72,7 @@ type FieldInit = {
   deps: CliDeps;
   runDir: string;
   scenario: Scenario;
-  wait: boolean | undefined;
+  wait: boolean;
 };
 
 async function fieldFree({
@@ -82,7 +83,7 @@ async function fieldFree({
 }: FieldInit): Promise<boolean> {
   const round = dirname(runDir);
   const { clock, sleep } = deps;
-  if (wait !== true) {
+  if (!wait) {
     const clash = await liveClash({ now: clock.now(), round, scenario });
     if (clash !== undefined) deps.err(clash);
     return clash === undefined;
@@ -101,9 +102,10 @@ async function run(args: string[], deps: CliDeps): Promise<number> {
   const options = {
     replica: { type: "string" },
     round: { type: "string" },
-    wait: { type: "boolean" },
+    wait: { default: true, type: "boolean" },
   } as const;
   const { positionals, values } = parseArgs({
+    allowNegative: true,
     allowPositionals: true,
     args,
     options,

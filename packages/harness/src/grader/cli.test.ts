@@ -104,7 +104,7 @@ describe("grader cli", () => {
     );
   });
 
-  test("run refuses while a run on the same field is still going", async () => {
+  test("run --no-wait refuses while a run on the same field is still going", async () => {
     const cwd = await mkdtemp(`${tmpdir()}/cli-`);
     await mkdir(`${cwd}/packages/factory/src`, { recursive: true });
     await writeFile(`${cwd}/packages/factory/src/main.ts`, "");
@@ -119,14 +119,16 @@ describe("grader cli", () => {
     );
     const { calls, exec } = fakeExec(() => orcaOk({}));
     const d = deps({ cwd, exec });
-    expect(await main(["run", "t7-halt-resume", "--round", "3"], d)).toBe(1);
+    expect(
+      await main(["run", "t7-halt-resume", "--round", "3", "--no-wait"], d),
+    ).toBe(1);
     expect(d.errors[0]).toStartWith(
       "t7-question-while-acting-1 is still running on field fairbreeze-stalkers",
     );
     expect(calls).toEqual([]);
   });
 
-  test("run --wait queues on the field and logs the wait to progress.log", async () => {
+  test("run waits by default: it queues on the field and logs the wait to progress.log", async () => {
     const cwd = await mkdtemp(`${tmpdir()}/cli-`);
     await mkdir(`${cwd}/packages/factory/src`, { recursive: true });
     await writeFile(`${cwd}/packages/factory/src/main.ts`, "");
@@ -146,9 +148,7 @@ describe("grader cli", () => {
         now += ms;
       },
     });
-    expect(
-      await main(["run", "t7-halt-resume", "--round", "3", "--wait"], d),
-    ).toBe(1);
+    expect(await main(["run", "t7-halt-resume", "--round", "3"], d)).toBe(1);
     expect(d.errors.at(-1)).toStartWith(
       "field fairbreeze-stalkers is still held after 20 min: t6-die-and-recover-1",
     );
