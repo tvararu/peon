@@ -1,4 +1,8 @@
-import { type CycleState, DEFAULT_FIGHT_INSTRUCTION } from "@tuicraft/core";
+import {
+  type CycleState,
+  DEFAULT_FIGHT_INSTRUCTION,
+  MIN_HP_PCT,
+} from "@tuicraft/core";
 import type { EngageAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { ViewCtx } from "#harness/contract/services";
@@ -21,9 +25,10 @@ import {
   type Scene,
   unobserved,
 } from "#harness/tools/engage-approach";
-import { type FightInit, MIN_HP_PCT } from "#harness/tools/engage-choose";
+import type { FightInit } from "#harness/tools/engage-choose";
 import {
   failText,
+  lowText,
   noXpText,
   type StopInit,
   stopText,
@@ -286,7 +291,7 @@ function attackerNext(scene: Scene): string | undefined {
   return first ? nextCall("engage", { target: first.ref }) : undefined;
 }
 
-function againCall(scene: Scene, left: number): string {
+function engageAgain(scene: Scene, left: number): string {
   const { questId } = scene.choice;
   if (scene.choice.mode === "quest" && questId !== undefined)
     return nextCall("engage", { quest: String(questId) });
@@ -295,10 +300,13 @@ function againCall(scene: Scene, left: number): string {
     "engage",
     name === undefined ? { count: left } : { count: left, target: name },
   );
-  const again =
-    name === undefined || otherInView(scene)
-      ? call
-      : `${nextCall("travel", { to: "explore" })}, then ${call}`;
+  return name === undefined || otherInView(scene)
+    ? call
+    : `${nextCall("travel", { to: "explore" })}, then ${call}`;
+}
+
+function againCall(scene: Scene, left: number): string {
+  const again = engageAgain(scene, left);
   const vitals = vitalsView(scene.ops);
   const low = vitals.maxHp > 0 && (vitals.hp / vitals.maxHp) * 100 < MIN_HP_PCT;
   return low ? `${nextCall("rest")}, then ${again}` : again;
@@ -345,6 +353,14 @@ function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
     wanted: after.wanted,
     why,
   };
+  const low = lowText(why, after, vitalsView(scene.ops));
+  if (low)
+    return result("PARTLY", {
+      after,
+      detail: low,
+      next: `${nextCall("rest")}, then ${engageAgain(scene, Math.max(1, after.wanted - after.kills))}`,
+      reason: why,
+    });
   if (killed > 0)
     return result("PARTLY", {
       after,

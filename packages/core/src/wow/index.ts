@@ -41,6 +41,7 @@ export type {
   WalkOutcome,
 } from "#wow/control";
 export type { CycleRecovery } from "#wow/corpse-run";
+export { MIN_HP_PCT, MIN_MANA_PCT } from "#wow/cycle-gate";
 export type { CycleStop } from "#wow/cycle-stop";
 export type {
   DestroyEvent,

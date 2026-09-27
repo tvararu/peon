@@ -8,6 +8,7 @@ import { defendTarget } from "#wow/combat-defense";
 import { readRangedGear } from "#wow/combat-ranged-gear";
 import { ControlRuntime } from "#wow/control";
 import { approachUnit, type CycleApproach } from "#wow/cycle-approach";
+import { pullGate } from "#wow/cycle-gate";
 import { ItemDestroyRuntime } from "#wow/destroy";
 import { EncounterCycleRuntime } from "#wow/encounter-cycle";
 import type { EntityLookup } from "#wow/entity-store";
@@ -258,14 +259,14 @@ type RuntimeDeps = {
 function createSupportRuntimes(
   conn: WorldConn,
   runtimeDeps: RuntimeDeps,
-  parts: Pick<RuntimeParts, "control" | "tactics"> & {
+  parts: Pick<RuntimeParts, "control" | "tactics" | "combat"> & {
     approach: CycleApproach;
   },
 ): Pick<
   RuntimeParts,
   "recovery" | "quests" | "rewards" | "items" | "cycle" | "vendor" | "destroy"
 > {
-  const { control, tactics, approach } = parts;
+  const { control, tactics, approach, combat } = parts;
   const recovery = new RecoveryRuntime({
     ...runtimeDeps,
     pose: () => control.snapshot().pose,
@@ -279,6 +280,7 @@ function createSupportRuntimes(
   conn.itemTemplates = items;
   const cycle = new EncounterCycleRuntime({
     approach,
+    gate: pullGate(() => combat.snapshot()),
     tactics,
     rewards,
     recovery,
@@ -488,6 +490,7 @@ export function createRuntimes(
     tactics,
     ...createSupportRuntimes(conn, runtimeDeps, {
       approach,
+      combat,
       control,
       tactics,
     }),

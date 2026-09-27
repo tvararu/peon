@@ -1,4 +1,5 @@
 import type { EngageTarget } from "#harness/contract/details";
+import type { VitalsView } from "#harness/contract/views";
 
 export type StopInit = {
   kills: number;
@@ -24,6 +25,8 @@ const PLAIN: Record<string, string> = {
     "the last corpse despawned or left view",
   "loot_denied:release_only": "the last corpse was out of loot range",
   "loot_denied:timeout": "the last corpse did not open for looting",
+  low_health: "your health is too low for another pull",
+  low_mana: "your mana is too low for another pull",
   manual_override: "stopped by a manual command",
   max_starts_reached: "the fight limit for one call was reached",
   no_supported_combat_actions:
@@ -104,4 +107,19 @@ export function failText(init: StopInit): string {
       ? `0 of ${init.wanted} kills: ${skipped}.`
       : `${init.name} was not killed: no more ${init.name} in view.`;
   return `${init.name} was not killed: ${plainReason(init.why)}.`;
+}
+
+export function lowText(
+  why: string,
+  done: { kills: number; wanted: number },
+  vitals: VitalsView,
+): string | undefined {
+  const kills = `${done.kills} of ${done.wanted} kills.`;
+  const pct = (value: number, max: number) =>
+    Math.round((value / Math.max(1, max)) * 100);
+  if (why === "low_mana")
+    return `${kills} You are at ${pct(vitals.power, vitals.maxPower)}% mana.`;
+  if (why === "low_health")
+    return `${kills} You are at ${pct(vitals.hp, vitals.maxHp)}% HP.`;
+  return undefined;
 }

@@ -3,6 +3,7 @@ import { messageOf } from "#lib/errors";
 import type { ControlEvent, ControlRuntime, ControlState } from "#wow/control";
 import { type CycleRecovery, recoverCorpse } from "#wow/corpse-run";
 import type { CycleApproach } from "#wow/cycle-approach";
+import type { PullGate } from "#wow/cycle-gate";
 import { type CycleStop, cycleStop } from "#wow/cycle-stop";
 import { vetTarget } from "#wow/cycle-vet";
 import type { EntityEvent, EntityLookup } from "#wow/entity-store";
@@ -92,6 +93,7 @@ export type CycleDeps = {
   };
   entity: EntityLookup;
   approach?: CycleApproach;
+  gate?: PullGate;
   now: () => number;
 };
 
@@ -320,12 +322,14 @@ export class EncounterCycleRuntime {
     record: CycleTargetRecord,
     signal: AbortSignal,
   ): Promise<CycleStop | undefined> {
-    const { tactics, entity, control, approach } = this.deps;
+    const { tactics, entity, control, approach, gate } = this.deps;
     this.state.phase = "fighting";
     const vet = () =>
       vetTarget(entity, control.snapshot().selfGuid, record.guid);
     const refused = vet();
     if (refused) return skip(record, refused, undefined);
+    const low = gate?.(record.guid);
+    if (low) return low;
     if (approach) {
       const unreached = await approach(record.guid, signal);
       signal.throwIfAborted();

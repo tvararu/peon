@@ -1,3 +1,4 @@
+import { MIN_HP_PCT, MIN_MANA_PCT } from "@tuicraft/core";
 import type { EngageAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { RunControl } from "#harness/contract/runs";
@@ -40,8 +41,6 @@ export type FightInit = {
 export type FightRun = (init: FightInit) => Promise<ToolResult<EngageAfter>>;
 
 export const LEVEL_CAP_ABOVE = 3;
-export const MIN_HP_PCT = 50;
-export const MIN_MANA_PCT = 30;
 export const EXPLORE_TRIES = 3;
 const REMEMBERED_WITHIN_YD = 10;
 const QUEST_ID = /^#?(\d+)$/;
