@@ -1145,6 +1145,10 @@ heading `### Eval round <n>`.
 Decisions taken during the build are listed in section 2, under
 "Build and eval-fix deviations" and "Coordinator and advisor rulings".
 
+t1 fixed the `ghostlands20` template (`Tplghost`) start z to 88.66 on
+2026-09-27, so the per-run `t3-ghostlands-kill` position correction is
+removed.
+
 ### Phase 1
 
 Phase 1 is the core surface and the harness foundation.

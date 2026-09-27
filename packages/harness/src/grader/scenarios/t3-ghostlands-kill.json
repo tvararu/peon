@@ -36,19 +36,7 @@
   "paneMinutes": 13,
   "partner": null,
   "preset": "ghostlands20",
-  "setup": [
-    {
-      "body": {
-        "map": 530,
-        "o": 4.007,
-        "x": 7575,
-        "y": -6835,
-        "z": 88.66,
-        "zone": 3433
-      },
-      "endpoint": "position"
-    }
-  ],
+  "setup": [],
   "steers": [],
   "task": "Kill two hostile creatures near Tranquillien that are about your level. Don't pull more than one at a time.",
   "tier": 3

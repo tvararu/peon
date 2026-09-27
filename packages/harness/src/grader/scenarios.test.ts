@@ -88,9 +88,7 @@ describe("round-1 scenarios", () => {
     ]);
     expect(loadScenario("t0-who-is-near").partner).toBe("witness");
     expect(loadScenario("t2-whisper-reply").partner).toBe("partner");
-    expect(ids((id) => loadScenario(id).setup.length > 0)).toEqual([
-      "t3-ghostlands-kill",
-    ]);
+    expect(ids((id) => loadScenario(id).setup.length > 0)).toEqual([]);
   });
 
   test("every kill scenario names its target field", () => {
@@ -229,15 +227,6 @@ describe("expectations match preset truth", () => {
     expect(scenario.preset).toBe("fresh");
     expect(scenario.setup).toEqual([]);
     expect(scenario.spawn).toBe("eversong");
-  });
-
-  test("t3-ghostlands-kill starts on the only floor at z 88.66", () => {
-    expect(loadScenario("t3-ghostlands-kill").setup).toEqual([
-      {
-        body: { map: 530, o: 4.007, x: 7575, y: -6835, z: 88.66, zone: 3433 },
-        endpoint: "position",
-      },
-    ]);
   });
 
   test("t1 judges the stop by move rows, not a 10 s quiet window", () => {
