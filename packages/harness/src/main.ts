@@ -239,6 +239,7 @@ function composeRuntime({
     world: () => snapshotWorld(built(late.rt)),
   });
   const travel = {
+    blockedBearings: new Map(),
     lastGoodPose: undefined,
     lastRefusedGoal: undefined,
     visitedCells: new Set<string>(),

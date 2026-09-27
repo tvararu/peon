@@ -187,6 +187,7 @@ function defaultParts({
     } satisfies WorldSnapshots,
     stats: statsDouble(),
     travel: {
+      blockedBearings: new Map(),
       lastGoodPose: undefined,
       lastRefusedGoal: undefined,
       visitedCells: new Set(),

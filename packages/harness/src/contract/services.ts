@@ -21,7 +21,12 @@ import type {
   ToolStatus,
 } from "#harness/contract/result";
 import type { RunRecord, RunRegistry, StopCause } from "#harness/contract/runs";
-import type { InWorld, NoProgress, PoseView } from "#harness/contract/views";
+import type {
+  Compass,
+  InWorld,
+  NoProgress,
+  PoseView,
+} from "#harness/contract/views";
 
 export type Clock = { now: () => number };
 
@@ -172,6 +177,7 @@ export type SessionFlags = {
 };
 
 export type TravelMemory = {
+  blockedBearings: Map<string, Set<Compass>>;
   lastGoodPose: PoseView | undefined;
   lastRefusedGoal: string | undefined;
   visitedCells: Set<string>;

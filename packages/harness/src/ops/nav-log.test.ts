@@ -193,7 +193,9 @@ describe("nav rows from travelLeg", () => {
       "nav/route_replaced",
       "nav/refused",
     ] as const;
-    expect(rows.map((row) => row.event)).toEqual([...leg, ...leg, ...leg]);
+    expect(rows.map((row) => row.event)).toEqual(
+      Array.from({ length: 5 }, () => leg).flat(),
+    );
     expect(rows.every((row) => row.runId === run.id)).toBe(true);
     expect(rows[1]?.data).toMatchObject({
       floors: [10, 14],

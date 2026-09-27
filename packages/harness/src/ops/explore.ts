@@ -20,6 +20,7 @@ export type ExploreResult = {
   obstructed: number;
   newInView: UnitView[];
   stoppedBy: ExploreStop;
+  untried: Compass | undefined;
 };
 
 export const UNSTICK_MAX_YD = 5;
@@ -27,7 +28,13 @@ export const EXPLORE_MAX_YD = 40;
 export const EXPLORE_MAX_OBSTRUCTED = 3;
 const CELL_YD = 20;
 const LEG_YD = 20;
-const MAX_LEGS = 6;
+const MAX_ROUNDS = 6;
+const SIDES = [1, -1];
+const SIDE_REASONS = new Set([
+  "no_ground",
+  "end_snapped_off",
+  "ambiguous_floor",
+]);
 const MIN_UNSTICK_YD = 0.5;
 const RING: readonly Compass[] = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 const SEARCH = [0, 1, -1, 2, -2, 3, -3, 4];
@@ -90,19 +97,48 @@ function needPose(ctx: OpsCtx): PoseView {
   return pose;
 }
 
+function blockedFrom(ctx: OpsCtx, at: PoseView): Set<Compass> {
+  return ctx.rt.travel.blockedBearings.get(cellKey(at)) ?? new Set();
+}
+
+function block(ctx: OpsCtx, at: PoseView, direction: Compass): void {
+  const key = cellKey(at);
+  const blocked = ctx.rt.travel.blockedBearings.get(key) ?? new Set();
+  blocked.add(direction);
+  ctx.rt.travel.blockedBearings.set(key, blocked);
+}
+
+function turned(direction: Compass, offset: number): Compass {
+  const index = RING.indexOf(direction) + offset;
+  return RING[(index + RING.length) % RING.length] ?? direction;
+}
+
+function untriedFrom(
+  ctx: OpsCtx,
+  pose: PoseView,
+  from: Compass,
+): Compass | undefined {
+  const blocked = blockedFrom(ctx, pose);
+  return SEARCH.map((offset) => turned(from, offset)).find(
+    (direction) => !blocked.has(direction),
+  );
+}
+
 function pickDirection(ctx: OpsCtx, pose: PoseView): Compass {
-  const start = RING.indexOf(pose.facing);
-  for (const offset of SEARCH) {
-    const direction = RING[(start + offset + RING.length) % RING.length];
-    if (
-      direction &&
-      !ctx.rt.travel.visitedCells.has(
-        cellKey({ mapId: pose.mapId, ...ahead(pose, direction, CELL_YD) }),
-      )
-    )
-      return direction;
-  }
-  return pose.facing;
+  const blocked = blockedFrom(ctx, pose);
+  const open = SEARCH.map((offset) => turned(pose.facing, offset)).filter(
+    (direction) => !blocked.has(direction),
+  );
+  return (
+    open.find(
+      (direction) =>
+        !ctx.rt.travel.visitedCells.has(
+          cellKey({ mapId: pose.mapId, ...ahead(pose, direction, CELL_YD) }),
+        ),
+    ) ??
+    open[0] ??
+    pose.facing
+  );
 }
 
 function interesting(unit: UnitView): boolean {
@@ -118,7 +154,7 @@ type Walk = {
   newInView: UnitView[];
   walkedYd: number;
   obstructed: number;
-  stepYd: number;
+  rounds: number;
 };
 
 function freshUnits(walk: Walk): UnitView[] {
@@ -130,37 +166,24 @@ function freshUnits(walk: Walk): UnitView[] {
   return fresh;
 }
 
-function stopAfter(
-  walk: Walk,
-  leg: LegResult,
-  fresh: readonly UnitView[],
-): ExploreStop | undefined {
-  if (
+function stopped(walk: Walk, leg: LegResult): boolean {
+  return (
     leg.status === "cancelled" ||
     leg.status === "interrupted" ||
     dangerView(walk.ctx).attackers.length > 0
-  )
-    return "danger";
-  if (fresh.some(walk.wanted)) return "new_unit";
-  if (leg.status === "arrived") {
-    walk.stepYd = LEG_YD;
-    return;
-  }
-  walk.obstructed += 1;
-  walk.stepYd /= 2;
-  return walk.obstructed >= EXPLORE_MAX_OBSTRUCTED ? "obstructed" : undefined;
+  );
 }
 
-async function walkLeg(
+async function walkBearing(
   walk: Walk,
-  start: PoseView,
-): Promise<ExploreStop | undefined> {
+  from: PoseView,
+  direction: Compass,
+): Promise<LegResult> {
   const { ctx } = walk;
-  const from = poseView(ctx) ?? start;
   const point = ahead(
     from,
-    walk.direction,
-    Math.min(walk.stepYd, EXPLORE_MAX_YD - walk.walkedYd),
+    direction,
+    Math.min(LEG_YD, EXPLORE_MAX_YD - walk.walkedYd),
   );
   const leg = await travelLeg(ctx, {
     goal: { kind: "point", ...point },
@@ -169,13 +192,50 @@ async function walkLeg(
   const to = poseView(ctx) ?? from;
   walk.walkedYd += Math.hypot(to.x - from.x, to.y - from.y);
   ctx.rt.travel.visitedCells.add(cellKey(to));
+  if (leg.status === "refused" || leg.status === "failed")
+    block(ctx, from, direction);
   walk.legs.push({
     index: walk.legs.length,
     reason: leg.reason,
     status: leg.status,
     traveledYd: leg.traveledYd,
   });
-  return stopAfter(walk, leg, freshUnits(walk));
+  return leg;
+}
+
+async function sideTries(
+  walk: Walk,
+  from: PoseView,
+  first: LegResult,
+): Promise<LegResult> {
+  let leg = first;
+  for (const offset of SIDES) {
+    if (leg.status === "arrived" || stopped(walk, leg)) return leg;
+    if (!SIDE_REASONS.has(leg.reason ?? "")) return leg;
+    const side = turned(walk.direction, offset);
+    if (blockedFrom(walk.ctx, from).has(side)) continue;
+    leg = await walkBearing(walk, poseView(walk.ctx) ?? from, side);
+  }
+  return leg;
+}
+
+async function walkLeg(
+  walk: Walk,
+  start: PoseView,
+): Promise<ExploreStop | undefined> {
+  const from = poseView(walk.ctx) ?? start;
+  walk.rounds += 1;
+  const leg = await sideTries(
+    walk,
+    from,
+    await walkBearing(walk, from, walk.direction),
+  );
+  const fresh = freshUnits(walk);
+  if (stopped(walk, leg)) return "danger";
+  if (fresh.some(walk.wanted)) return "new_unit";
+  if (leg.status === "arrived") return;
+  walk.obstructed += 1;
+  return walk.obstructed >= EXPLORE_MAX_OBSTRUCTED ? "obstructed" : undefined;
 }
 
 export async function explore(
@@ -192,8 +252,8 @@ export async function explore(
     legs: [],
     newInView: [],
     obstructed: 0,
+    rounds: 0,
     seen: new Set(unitViews(ctx).map((unit) => unit.guid)),
-    stepYd: LEG_YD,
     walkedYd: 0,
     wanted: init.wanted ?? interesting,
   };
@@ -202,7 +262,7 @@ export async function explore(
   while (
     !stoppedBy &&
     walk.walkedYd < EXPLORE_MAX_YD &&
-    walk.legs.length < MAX_LEGS
+    walk.rounds < MAX_ROUNDS
   )
     stoppedBy = await walkLeg(walk, start);
   const { direction, legs, newInView, obstructed, walkedYd } = walk;
@@ -212,6 +272,7 @@ export async function explore(
     newInView,
     obstructed,
     stoppedBy: stoppedBy ?? "distance",
+    untried: untriedFrom(ctx, poseView(ctx) ?? start, direction),
     walkedYd,
   };
 }

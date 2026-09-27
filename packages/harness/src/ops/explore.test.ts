@@ -120,7 +120,7 @@ describe("explore", () => {
     expect(result.legs[0]).toMatchObject({ status: "arrived" });
   });
 
-  test("halves the leg after each refusal and stops after 3 obstructed legs", async () => {
+  test("a refused leg keeps its full length and stops after 3 obstructed legs", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle, { x: 0, y: 0 });
     const goTo = driveGoto(t.handle, [
@@ -130,13 +130,79 @@ describe("explore", () => {
     expect(result).toMatchObject({
       obstructed: 3,
       stoppedBy: "obstructed",
+      untried: "NE",
       walkedYd: 0,
     });
     expect(goTo.mock.calls.map((call) => call[0])).toEqual([
       { kind: "point", x: 20, y: 0 },
-      { kind: "point", x: 10, y: 0 },
-      { kind: "point", x: 5, y: 0 },
+      { kind: "point", x: 20, y: 0 },
+      { kind: "point", x: 20, y: 0 },
     ]);
+    expect(t.rt.travel.blockedBearings.get(`${MAP_ID}:0:0`)).toEqual(
+      new Set(["N"]),
+    );
+  });
+
+  test("a ledge tries both side bearings at full length before it counts", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 0, y: 0 });
+    const goTo = driveGoto(t.handle, [
+      { refuse: "unreachable: pathfind_find_path failed (UNKNOWN_HEIGHT)" },
+    ]);
+    const result = await explore(toolCtx(t), { direction: "N" });
+    expect(result).toMatchObject({
+      obstructed: 3,
+      stoppedBy: "obstructed",
+      untried: "E",
+    });
+    const side = 20 * Math.SQRT1_2;
+    expect(goTo.mock.calls.map((call) => call[0])).toEqual([
+      { kind: "point", x: 20, y: 0 },
+      { kind: "point", x: side, y: -side },
+      { kind: "point", x: side, y: side },
+      { kind: "point", x: 20, y: 0 },
+      { kind: "point", x: 20, y: 0 },
+    ]);
+    expect(t.rt.travel.blockedBearings.get(`${MAP_ID}:0:0`)).toEqual(
+      new Set(["N", "NE", "NW"]),
+    );
+  });
+
+  test("a side bearing that arrives keeps the original bearing for the next leg", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 0, y: 0 });
+    const side = 20 * Math.SQRT1_2;
+    const goTo = driveGoto(t.handle, [
+      { refuse: "unreachable: end snapped off the navigation mesh" },
+      { arrive: { x: side, y: -side } },
+      { arrive: { x: side + 20, y: -side } },
+    ]);
+    const result = await explore(toolCtx(t), { direction: "N" });
+    expect(goTo.mock.calls.map((call) => call[0])).toEqual([
+      { kind: "point", x: 20, y: 0 },
+      { kind: "point", x: side, y: -side },
+      { kind: "point", x: 34.1, y: -14.1 },
+    ]);
+    expect(result).toMatchObject({
+      direction: "N",
+      obstructed: 0,
+      stoppedBy: "distance",
+    });
+    expect(result.walkedYd).toBeCloseTo(40, 0);
+  });
+
+  test("without a direction it skips a bearing refused from this cell", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 0, y: 0 });
+    t.rt.travel.blockedBearings.set(`${MAP_ID}:0:0`, new Set(["N"]));
+    driveGoto(t.handle, [
+      {
+        arrive: { x: 14, y: -14 },
+        onArrive: () => setUnits(t.handle, [stalker]),
+      },
+    ]);
+    const result = await explore(toolCtx(t), { direction: undefined });
+    expect(result.direction).toBe("NE");
   });
 
   test("without a direction it turns to the nearest unvisited cell", async () => {
