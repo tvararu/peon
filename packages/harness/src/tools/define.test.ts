@@ -461,6 +461,34 @@ describe("defineGameTool", () => {
     expect(rt.log.get(row.seq)?.consumedBy).toBe("call-9");
   });
 
+  test("an interact call consumes the quest rows it reported", async () => {
+    const { rt } = await createTestRuntime();
+    const run: Run = () => {
+      rt.log.append({
+        class: "passive",
+        data: {},
+        domain: "quest",
+        event: "quest/accepted",
+        text: "Quest accepted.",
+      });
+      return Promise.resolve(
+        result("DONE", { after: emptySocial(), detail: "accepted." }),
+      );
+    };
+    const interact = defineGameTool({
+      fallback: emptySocial,
+      kind: "action",
+      name: "interact" as "social",
+      parameters: params,
+      run,
+    });
+    await runTool(interact(rt), {}, { id: "call-4" });
+    const row = rt.log
+      .since(0)
+      .find((entry) => entry.event === "quest/accepted");
+    expect(row?.consumedBy).toBe("call-4");
+  });
+
   test("never logs the password", async () => {
     const { rt } = await createTestRuntime();
     rt.profile.client.password = "pw1";

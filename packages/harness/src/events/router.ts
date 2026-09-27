@@ -239,7 +239,7 @@ function deliver(sink: DeliverySink, entry: GameLogEntry): void {
   if (entry.class === "passive") sink.passive(entry);
 }
 
-function summarised(draft: LogDraft): boolean {
+function summarised(draft: LogDraft, run: RunRecord): boolean {
   switch (draft.event) {
     case "fight/start":
     case "fight/end":
@@ -251,6 +251,9 @@ function summarised(draft: LogDraft): boolean {
       return draft.data["source"] === "loot";
     case "money/change":
       return draft.data["reason"] === "loot";
+    case "quest/progress":
+    case "quest/completed":
+      return run.args["quest"] !== undefined;
     default:
       return false;
   }
@@ -261,27 +264,48 @@ function consumer(
   run: RunRecord | undefined,
 ): string | undefined {
   if (draft.class !== "passive" || run?.kind !== "engage") return;
-  return summarised(draft) ? (run.toolCallId ?? run.id) : undefined;
+  return summarised(draft, run) ? (run.toolCallId ?? run.id) : undefined;
 }
 
-function stamped(draft: LogDraft, runs: RunRegistry): LogDraft {
-  const run = draft.runId ? runs.get(draft.runId) : runs.active();
+function stamped(draft: LogDraft, run: RunRecord | undefined): LogDraft {
   const delivered = draft.class === "log" ? undefined : false;
   const consumedBy = consumer(draft, run);
   return { ...draft, consumedBy, delivered, runId: draft.runId ?? run?.id };
 }
 
 const TALLIED = new Set<RunRecord["status"]>(["succeeded", "partly"]);
+export const RUN_TAIL_MS = 2000;
+
+function reportedEnd(entry: GameLogEntry, record: RunRecord): boolean {
+  if (entry.domain === "life") return true;
+  return record.kind === "recover" && entry.event === "control/teleport";
+}
 
 function createHeldRows(log: GameLog) {
   const held = new Map<string, number[]>();
+  const seen = new Map<string, GameLogEntry[]>();
+  const cover = (record: RunRecord) => {
+    const rows = seen.get(record.id) ?? [];
+    seen.delete(record.id);
+    if (!record.awaited || record.status === "cancelled") return;
+    const by = record.toolCallId ?? record.id;
+    for (const row of rows)
+      if (reportedEnd(row, record)) log.mark(row.seq, { consumedBy: by });
+  };
   return {
     hold(entry: GameLogEntry) {
-      if (entry.consumedBy === undefined || entry.runId === undefined) return;
+      if (entry.runId === undefined) return;
+      if (entry.consumedBy === undefined) {
+        const rows = seen.get(entry.runId) ?? [];
+        if (entry.domain === "life" || entry.event === "control/teleport")
+          seen.set(entry.runId, [...rows, entry]);
+        return;
+      }
       held.set(entry.runId, [...(held.get(entry.runId) ?? []), entry.seq]);
     },
     settle({ type, record }: RunEvent) {
       if (type !== "ended") return;
+      cover(record);
       const seqs = held.get(record.id) ?? [];
       held.delete(record.id);
       if (TALLIED.has(record.status)) return;
@@ -316,13 +340,23 @@ type WriterInit = Pick<RouterInit, "guard" | "log" | "runs">;
 function createWriter({ guard, log, runs }: WriterInit) {
   const held = createHeldRows(log);
   const moves = createMoveJoin();
+  let ended: { record: RunRecord; at: number } | undefined;
+  const runOf = (draft: LogDraft, now: number) => {
+    if (draft.runId) return runs.get(draft.runId);
+    const active = runs.active();
+    if (active || !ended || now - ended.at > RUN_TAIL_MS) return active;
+    const { record } = ended;
+    const tail = TALLIED.has(record.status) && consumer(draft, record);
+    return tail ? record : undefined;
+  };
   const admit = (draft: LogDraft, rc: RuleContext): LogClass => {
     const wanted = draft.class === "wake" && !rc.wake ? "passive" : draft.class;
     return wanted === "log" ? "log" : guard.admit({ ...draft, class: wanted });
   };
   const write = (draft: LogDraft, rc: RuleContext) => {
     const cls = admit(draft, rc);
-    held.hold(log.append(stamped({ ...draft, class: cls }, runs)));
+    const run = runOf({ ...draft, class: cls }, rc.now);
+    held.hold(log.append(stamped({ ...draft, class: cls }, run)));
     if (draft.class === "wake" && rc.wake && cls !== "wake")
       log.append(throttled(draft, cls));
   };
@@ -333,8 +367,11 @@ function createWriter({ guard, log, runs }: WriterInit) {
       if (!moves.take(draft, runId, (late) => write(late, rc)))
         write(draft, rc);
     },
-    settle(event: RunEvent) {
-      if (event.type === "ended") moves.flush();
+    settle(event: RunEvent, now: number) {
+      if (event.type === "ended") {
+        moves.flush();
+        ended = { at: now, record: event.record };
+      }
       held.settle(event);
     },
   };
@@ -373,7 +410,7 @@ export function createEventRouter(init: RouterInit): EventRouter {
     if (sink) deliver(sink, entry);
   });
   runs.subscribe((event) => {
-    writer.settle(event);
+    writer.settle(event, init.context().now);
     route((rc) => runDrafts(event, rc));
   });
   return {

@@ -33,6 +33,7 @@ import { repeatRefusal } from "#harness/ops/repeat-guard";
 import { repeatScene } from "#harness/ops/repeat-scene";
 import { poseView } from "#harness/ops/views";
 import { TOOL_TEXT } from "#harness/prompt/guidelines";
+import { coverRows } from "#harness/tools/covered";
 import { humanWaiting } from "#harness/tools/human-waiting";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 import { scrub } from "#harness/tools/scrub";
@@ -469,7 +470,7 @@ function closeCall<P extends TSchema, K extends ToolName>(
 async function runCall<P extends TSchema, K extends ToolName>(
   call: Call<P, K>,
 ): Promise<AgentToolResult<ToolDetails>> {
-  const { rt, spec } = call;
+  const { rt, spec, toolCallId } = call;
   const startedAt = rt.clock.now();
   openCall(call);
   const raw = withHumanStop(await outcomeOf(call));
@@ -487,6 +488,7 @@ async function runCall<P extends TSchema, K extends ToolName>(
     maxLines: spec.maxLines ?? MAX_CONTENT_LINES,
   });
   closeCall(call, { handle, ms, outcome, text });
+  coverRows(rt.log, { status: outcome.status, tool: spec.name, toolCallId });
   return {
     content: [{ text, type: "text" }],
     details: detailsOf(spec.name, outcome),
