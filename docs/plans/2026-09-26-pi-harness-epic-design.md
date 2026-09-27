@@ -1,6 +1,6 @@
 Date: 2026-09-26. Status: implementation complete on draft PR #367 (branch
-`epic/pi-harness`), awaiting the maintainer's review and merge. Eval round
-6 is the last round (R40).
+`epic/pi-harness`), awaiting the maintainer's merge. He accepted every
+decision taken in his place (R41). Eval round 6 is the last round (R40).
 
 This spec records the decisions, the design and the evaluation plan for the
 Pi harness epic. It summarises and links; the full records are in
@@ -65,9 +65,9 @@ Success criteria, each with its status at the close of the epic (head
 
 ## 2. Decisions
 
-The maintainer ruled entries 1-40. The decisions that agents took in his
-place wait for his review, one list per kind
-([below](#decisions-waiting-for-the-maintainers-review)):
+The maintainer ruled entries 1-41. The decisions that agents took in his
+place are listed one list per kind, and R41 accepts all of them
+([below](#decisions-taken-in-the-maintainers-place-accepted-by-r41)):
 
 | Kind | Lines | Ids |
 |---|---:|---|
@@ -94,8 +94,9 @@ change core, which the legacy CLI's `goto` and `cycle` share:
 ### Maintainer rulings
 
 Rulings 1-38 are from 2026-09-26, recorded in the coordinator's working
-notes (not kept); R40 is from 2026-09-27, and R39 came before it. Quotes
-are the maintainer's words as the notes give them (he used voice mode).
+notes (not kept); R40 and R41 are from 2026-09-27, and R39 came before
+them. Quotes are the maintainer's words as the notes give them (he used
+voice mode).
 "Framing" marks a coordinator proposal he accepted without objection. The
 R-numbers are stable ids that the records cite.
 
@@ -205,6 +206,12 @@ R-numbers are stable ids that the records cite.
     and then stop at the current pass rate, as it's probably good
     enough." It replaces the plateau stop rule of section 8: eval round 6
     (13 of 13) is the last round of this epic.
+41. **R41 Accept the decisions** (2026-09-27): "These are all fine I
+    think". He reviewed the decisions taken in his place and accepts every
+    one listed under "Decisions taken in the maintainer's place": the spec
+    review settlements, contract D1-D16, the coordinator and advisor
+    rulings, and the build and eval-fix deviations, including 64 and 129,
+    which depart from B.3 and K2.
 
 | Superseded | Replaced by |
 |---|---|
@@ -215,8 +222,10 @@ R-numbers are stable ids that the records cite.
 | K4 default "N1 waits for a ruling" | R27 |
 | Eval suite P1 `soap exec` | t1 service verbs (`5d75de0`) |
 | Section 8 stop rules (90 % twice, or a 3-round plateau); criterion 8 | R40: stop after eval round 6 |
+| B.3 `travel` never guesses a z for a coordinate goal | Decision 64 (R41) |
+| K2 `unstick` only when the model invokes it | Decision 129 (R41) |
 
-### Decisions waiting for the maintainer's review
+### Decisions taken in the maintainer's place (accepted by R41)
 
 The lists below hold every decision that agents took in the maintainer's
 place: agent spec review, the plan's contract, coordinator and advisor
@@ -224,7 +233,8 @@ rulings, and the builders' deviations from the plan or the design. Each
 line gives the settlement and its commit. The bold numbers are stable ids:
 section 11 and the PR comments cite them (for example "decisions 115 to
 134"). Three ids are folded into another line and have no line of their
-own: 30 into 36, 35 into 51 and 110 into 118.
+own: 30 into 36, 35 into 51 and 110 into 118. The maintainer
+reviewed them and accepted every one (R41, 2026-09-27).
 
 #### Spec review settlements
 
@@ -634,6 +644,9 @@ first; each tool is then a thin composition.
   snapped off` gives `FAILED start_off_mesh` and `Next: travel(to:
   "unstick")`, a model-invoked step of at most 5 yd. Explore legs are
   planned points, never straight walks.
+- Decision 64, accepted by R41, supersedes the B.3 z rule above: a
+  coordinate goal on a multi-floor column takes the character's own
+  height.
 - `engage` picks the nearest hostile at most 3 levels above the character,
   refuses under 50 % HP or 30 % mana (mana classes only), runs
   `startTactics`, `startCycle` or `startQuestCycle`, loots each kill, and
@@ -890,6 +903,9 @@ action refused with `Next: stop(run: "r4")`; `engage` guards as stated,
 tuned by round 1; no `--allow-protected` flag. K4 (the navigation
 library) is decided by R27, not by its default: the navigation track
 delivers G8 and N1 (section 7).
+
+Decision 129, accepted by R41, supersedes the K2 default above: `explore`
+calls `unstick` by itself once.
 
 ## 7. Navigation track (R27)
 
