@@ -153,6 +153,16 @@ test("OpcodeDispatch rejects the waiter when the handler throws and keeps the ne
   expect((await next).uint8()).toBe(3);
 });
 
+test("OpcodeDispatch treats a throwing match as a non-match", async () => {
+  const dispatch = new OpcodeDispatch();
+  const wantsId = dispatch.expect(0x07, { match: (r) => r.uint32LE() === 9 });
+  expect(() =>
+    dispatch.handle(0x07, new PacketReader(new Uint8Array([9]))),
+  ).not.toThrow();
+  dispatch.handle(0x07, new PacketReader(new Uint8Array([9, 0, 0, 0])));
+  expect((await wantsId).uint32LE()).toBe(9);
+});
+
 test("AccumulatorBuffer accumulates and drains", () => {
   const buf = new AccumulatorBuffer();
   buf.append(new Uint8Array([1, 2, 3]));

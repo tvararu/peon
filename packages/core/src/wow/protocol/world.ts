@@ -227,18 +227,36 @@ export class OpcodeDispatch {
     try {
       this.handlers.get(opcode)?.(reader);
     } catch (error) {
-      this.takeWaiter(opcode, body)?.reject(error);
+      const { waiter, unreadable } = this.findWaiter(opcode, body);
+      const failed =
+        waiter ?? (unreadable ? this.waiters.get(opcode)?.[0] : undefined);
+      if (failed) {
+        this.removeWaiter(opcode, failed);
+        failed.reject(error);
+      }
       throw error;
     }
-    this.takeWaiter(opcode, body)?.resolve(body.fork());
+    const { waiter } = this.findWaiter(opcode, body);
+    if (waiter) {
+      this.removeWaiter(opcode, waiter);
+      waiter.resolve(body.fork());
+    }
   }
 
-  private takeWaiter(opcode: number, body: PacketReader): Waiter | undefined {
-    const waiter = this.waiters
-      .get(opcode)
-      ?.find((w) => !w.match || w.match(body.fork()));
-    if (waiter) this.removeWaiter(opcode, waiter);
-    return waiter;
+  private findWaiter(
+    opcode: number,
+    body: PacketReader,
+  ): { waiter?: Waiter; unreadable: boolean } {
+    let unreadable = false;
+    const waiter = this.waiters.get(opcode)?.find((w) => {
+      try {
+        return !w.match || w.match(body.fork());
+      } catch {
+        unreadable = true;
+        return false;
+      }
+    });
+    return { unreadable, waiter };
   }
 
   private removeWaiter(opcode: number, waiter: Waiter) {

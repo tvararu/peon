@@ -182,6 +182,32 @@ describe("world handler tests", () => {
       }
     });
 
+    test("requestGuildRoster fails at once on a truncated guild query response", async () => {
+      const ws = await startMockWorldServer({ guildId: 42 });
+      try {
+        const handle = await worldSession(
+          { ...base, host: "127.0.0.1", port: ws.port },
+          fakeAuth(ws.port),
+        );
+        await waitForEchoProbe(handle);
+
+        const rosterPromise = handle.requestGuildRoster();
+        await ws.waitForCapture(
+          (p) => p.opcode === GameOpcode.CMSG_GUILD_QUERY,
+        );
+
+        ws.inject(GameOpcode.SMSG_GUILD_ROSTER, buildGuildRosterPacket());
+        ws.inject(GameOpcode.SMSG_GUILD_QUERY_RESPONSE, new Uint8Array([42]));
+
+        await expect(rosterPromise).rejects.toBeInstanceOf(RangeError);
+
+        handle.close();
+        await handle.closed;
+      } finally {
+        ws.stop();
+      }
+    });
+
     test("SMSG_GUILD_EVENT signed_on fires guild event", async () => {
       const ws = await startMockWorldServer();
       try {
