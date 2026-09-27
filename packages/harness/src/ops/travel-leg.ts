@@ -3,6 +3,11 @@ import { messageOf } from "@tuicraft/core/lib/errors";
 import type { LegStatus } from "#harness/contract/details";
 import type { OpsCtx } from "#harness/contract/services";
 import type { PoseView } from "#harness/contract/views";
+import {
+  logRouteEnd,
+  logRouteReplaced,
+  logRouteStart,
+} from "#harness/ops/nav-log";
 import { distanceTo } from "#harness/ops/range";
 import { guidHex } from "#harness/ops/refs";
 import { poseView, unitViews } from "#harness/ops/views";
@@ -104,6 +109,7 @@ async function legOnce(
   ctx: OpsCtx,
   goal: LegGoal,
   within: number,
+  announce = true,
 ): Promise<LegResult> {
   const start = poseView(ctx);
   const before = remainingTo(ctx, goal);
@@ -125,6 +131,7 @@ async function legOnce(
   };
   const off = ctx.handle.onControlEvent(check);
   const timer = setInterval(check, WITHIN_POLL_MS);
+  if (announce) logRouteStart(ctx, goal);
   try {
     const end = await awaitGoto(ctx.handle, {
       signal: AbortSignal.any([ctx.signal, near.signal]),
@@ -132,6 +139,7 @@ async function legOnce(
     });
     const leg = fromEnd(ctx, end, near.signal.aborted && !ctx.signal.aborted);
     if (leg.status === "arrived" && start) ctx.rt.travel.lastGoodPose = start;
+    logRouteEnd(ctx, goal, leg);
     return leg;
   } finally {
     off();
@@ -181,7 +189,9 @@ export async function travelLeg(
       ? matchFloor(ctx, init.goal.guid, first.floors)
       : selfFloor(ctx, init.goal, first.floors);
   if (!point) return first;
-  const second = await legOnce(ctx, { kind: "point", ...point }, init.within);
+  const retry: LegGoal = { kind: "point", ...point };
+  logRouteReplaced(ctx, init.goal, retry, first);
+  const second = await legOnce(ctx, retry, init.within, false);
   return {
     ...second,
     floorRetried: true,
