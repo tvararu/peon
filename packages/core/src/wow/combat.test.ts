@@ -448,3 +448,11 @@ test("a dead or stopped attacker leaves attackers", () => {
   combat.applyAttackStop({ attacker: 0x20n, victim: 1n, dead: 0 });
   expect(combat.snapshot().attackers).toEqual([]);
 });
+
+test("a bad cast request is named before an in-progress cast", () => {
+  const { combat } = setup();
+  combat.cast(17, 2n);
+  expect(() => combat.cast(0, 2n)).toThrow("invalid_spell");
+  expect(() => combat.cast(99, 2n)).toThrow("unknown_spell");
+  expect(() => combat.cast(17, 2n)).toThrow("cast_in_progress");
+});
