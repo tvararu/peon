@@ -40,6 +40,7 @@ export const READY_WAIT_MS = 10_000;
 export const UPDATE_EVERY_MS = 500;
 export const MAX_CONTENT_LINES = 12;
 export const MAX_CONTENT_BYTES = 700;
+const LOGGED_TEXT_MAX = 2000;
 
 type Mapped = Pick<
   ToolResult<unknown>,
@@ -252,6 +253,7 @@ type Closing<A> = {
   handle: WorldHandle | undefined;
   ms: number;
   outcome: ToolResult<A>;
+  text: string;
 };
 
 const ACTING: ReadonlySet<ToolKind> = new Set(["action", "run"]);
@@ -441,7 +443,7 @@ function remember<P extends TSchema, K extends ToolName>(
 
 function closeCall<P extends TSchema, K extends ToolName>(
   call: Call<P, K>,
-  { handle, ms, outcome }: Closing<AfterMap[K]>,
+  { handle, ms, outcome, text: said }: Closing<AfterMap[K]>,
 ): void {
   const { rt, spec, toolCallId } = call;
   const { reason, status } = outcome;
@@ -452,7 +454,13 @@ function closeCall<P extends TSchema, K extends ToolName>(
     : `${spec.name} ${status}`;
   rt.log.append({
     class: "log",
-    data: { ms, reason, status, toolCallId },
+    data: {
+      ms,
+      reason,
+      status,
+      text: said.slice(0, LOGGED_TEXT_MAX),
+      toolCallId,
+    },
     domain: "tool",
     event: "tool/result",
     text,
@@ -474,7 +482,7 @@ async function runCall<P extends TSchema, K extends ToolName>(
     { ...call, handle, startedAt, tool: spec.name },
     raw,
   );
-  closeCall(call, { handle, ms: rt.clock.now() - startedAt, outcome });
+  const ms = rt.clock.now() - startedAt;
   const danger = handle
     ? dangerLine(dangerView({ handle, rt }), { still: spec.kind === "control" })
     : undefined;
@@ -482,6 +490,7 @@ async function runCall<P extends TSchema, K extends ToolName>(
     danger,
     maxLines: spec.maxLines ?? MAX_CONTENT_LINES,
   });
+  closeCall(call, { handle, ms, outcome, text });
   return {
     content: [{ text, type: "text" }],
     details: detailsOf(spec.name, outcome),

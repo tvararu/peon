@@ -132,7 +132,9 @@ describe("look", () => {
     expect(
       details.tool === "look" && details.result.after.nearest.hostile?.ref,
     ).toBe("u5");
-    expect(snapshots.capture).toHaveBeenCalledWith("look");
+    expect(snapshots.capture).toHaveBeenCalledWith("look", undefined);
+    await runTool(tool, { within: 100 });
+    expect(snapshots.capture).toHaveBeenLastCalledWith("look", 100);
   });
 
   test("a filter with nothing seen at any distance answers without a Next line", async () => {

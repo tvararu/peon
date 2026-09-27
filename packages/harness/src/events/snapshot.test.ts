@@ -119,6 +119,25 @@ describe("createWorldSnapshots", () => {
     expect(row?.text).toBe("world: HP 200/200, 2 units within 60 yd");
   });
 
+  test("a look with a wider radius writes the units within that radius", async () => {
+    const { rows, snapshots } = await setup(
+      worldOf([
+        unit("u2", 40),
+        unit("u1", 10),
+        unit("u3", 80),
+        unit("u4", 120),
+      ]),
+    );
+    snapshots.capture("look", 100);
+    snapshots.capture("look", 30);
+    const [wide, narrow] = rows();
+    expect(
+      ((wide?.data["units"] ?? []) as { ref: string }[]).map((u) => u.ref),
+    ).toEqual(["u1", "u2", "u3"]);
+    expect(wide?.text).toBe("world: HP 200/200, 3 units within 100 yd");
+    expect(narrow?.text).toBe("world: HP 200/200, 2 units within 60 yd");
+  });
+
   test("a tick writes a heartbeat unless units or vitals changed", async () => {
     const { rows, set, snapshots } = await setup(worldOf([unit("u1", 10)]));
     snapshots.capture("tick");

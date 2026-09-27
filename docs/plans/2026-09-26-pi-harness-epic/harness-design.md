@@ -1006,7 +1006,8 @@ Also always logged (graders, the P6 watcher and the budget read them):
 - `run/started`, `run/progress` (≤ 1 per 5 s), `run/ended`,
   `run/cancelled`.
 - `tool/call {toolCallId, name, args}`, `tool/result {toolCallId, status,
-  reason, ms}`, `tool/validation_error` (if the `tool_result` hook sees
+  reason, ms, text}` (text: the result the agent saw, cut at 2000
+  characters), `tool/validation_error` (if the `tool_result` hook sees
   it, V4; else graders count Pi's `Validation failed` results in the
   session JSONL).
 - `human/input {text, stopReflex, stoppedRuns}`, `agent/message {text}`
@@ -1016,7 +1017,8 @@ Also always logged (graders, the P6 watcher and the budget read them):
   must surface).
 - `aura/gain`, `aura/fade` (Food/Drink checks in `t3-mana-downtime`).
 - `snapshot/world` (class `log`): self vitals, pose with source and age,
-  target, attackers, place, and up to 30 units within 60 yd (guid, entry,
+  target, attackers, place, and up to 30 units within 60 yd, or within
+  the `look` radius when a `look` asks for more (guid, entry,
   name, relation, level, HP, alive, distance, targetingMe). Written at
   every `look`, and every 5 s only when the notable set or self vitals
   changed by ≥ 5 %; else a 5 s `{unchanged: true}` heartbeat. `t0-hostiles`

@@ -101,6 +101,22 @@ describe("defineGameTool", () => {
     expect(rt.session.turnToolCalls).toBe(1);
   });
 
+  test("the tool/result row carries the result text, cut at 2000 characters", async () => {
+    const { rt } = await createTestRuntime();
+    const out = await runTool(probe(said)(rt), {});
+    const long: Run = () =>
+      Promise.resolve(
+        result("DONE", { after: emptySocial(), detail: "x".repeat(3000) }),
+      );
+    await runTool(probe(long)(rt), {});
+    const texts = toolRows(rt)
+      .filter((entry) => entry.event === "tool/result")
+      .map((entry) => entry.data["text"] as string);
+    expect(texts[0]).toBe(out.text);
+    expect(texts[1]).toHaveLength(2000);
+    expect(texts[1]).toStartWith("DONE xxx");
+  });
+
   test("the definition carries TOOL_TEXT and the execution mode", async () => {
     const { rt } = await createTestRuntime();
     const tool = probe(said, "read")(rt);

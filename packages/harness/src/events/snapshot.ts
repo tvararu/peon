@@ -31,12 +31,12 @@ type SnapshotInit = {
   everyMs?: number;
 };
 
-function nearby(units: readonly UnitView[]): UnitView[] {
+function nearby(
+  units: readonly UnitView[],
+  range = SNAPSHOT_RANGE_YD,
+): UnitView[] {
   return units
-    .filter(
-      (unit) =>
-        unit.distance !== undefined && unit.distance <= SNAPSHOT_RANGE_YD,
-    )
+    .filter((unit) => unit.distance !== undefined && unit.distance <= range)
     .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0))
     .slice(0, SNAPSHOT_UNITS);
 }
@@ -87,10 +87,14 @@ function differs(before: SnapshotWorld, after: SnapshotWorld): boolean {
   );
 }
 
-function fullRow(world: SnapshotWorld, cause: "look" | "tick"): LogDraft {
-  const units = nearby(world.units).map(unitRow);
+function fullRow(
+  world: SnapshotWorld,
+  cause: "look" | "tick",
+  range: number,
+): LogDraft {
+  const units = nearby(world.units, range).map(unitRow);
   const { attackers, place, self, target } = world;
-  const text = `world: HP ${self.hp}/${self.maxHp}, ${units.length} units within ${SNAPSHOT_RANGE_YD} yd`;
+  const text = `world: HP ${self.hp}/${self.maxHp}, ${units.length} units within ${range} yd`;
   const data = { attackers, cause, place, self, target, units };
   return {
     class: "log",
@@ -108,13 +112,14 @@ export function createWorldSnapshots({
   everyMs = SNAPSHOT_EVERY_MS,
 }: SnapshotInit): WorldSnapshots {
   let last: SnapshotWorld | undefined;
-  const capture = (cause: "look" | "tick") => {
+  const capture = (cause: "look" | "tick", withinYd?: number) => {
     const current = world();
     if (!current) return;
     const changed =
       cause === "look" || last === undefined || differs(last, current);
     if (changed) last = current;
-    log.append(changed ? fullRow(current, cause) : HEARTBEAT);
+    const range = Math.max(SNAPSHOT_RANGE_YD, withinYd ?? 0);
+    log.append(changed ? fullRow(current, cause, range) : HEARTBEAT);
   };
   return {
     attach() {

@@ -273,7 +273,7 @@ function look(args: LookArgs, ctx: ToolCtx<LookAfter>): ToolResult<LookAfter> {
       reason: "not_ready",
     });
   const after = lookAfter(args, ctx, snapshot);
-  ctx.rt.snapshots.capture("look");
+  ctx.rt.snapshots.capture("look", args.within);
   const own = kindOf(after.filter);
   if (after.matched === 0 && own && !after.nearest[own]) return noneSeen(after);
   return result("DONE", {

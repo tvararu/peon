@@ -128,7 +128,7 @@ export type AttackLedger = HandleObserver & {
 };
 
 export type WorldSnapshots = HandleObserver & {
-  capture: (cause: "look" | "tick") => void;
+  capture: (cause: "look" | "tick", withinYd?: number) => void;
   write: (label: string) => Promise<string>;
 };
 
