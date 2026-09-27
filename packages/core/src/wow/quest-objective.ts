@@ -1,7 +1,8 @@
 import { type CycleStop, cycleStop } from "#wow/cycle-stop";
-import { type Entity, fieldOf, isUnit } from "#wow/entity-store";
+import { tappedByOther } from "#wow/cycle-vet";
+import { type Entity, isUnit } from "#wow/entity-store";
 import { distance } from "#wow/geometry";
-import { ObjectType, UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import { ObjectType } from "#wow/protocol/entity-fields";
 import type { Vec3 } from "#wow/protocol/packet";
 import type { QuestQueryResponse } from "#wow/protocol/quest-query";
 import type { QuestLog } from "#wow/quest-slots";
@@ -10,8 +11,6 @@ export const OBJECTIVE_REACH = 50;
 
 const LOG_COMPLETE = 1;
 const LOG_FAILED = 2;
-const DYNFLAG_TAPPED = 0x4;
-const DYNFLAG_TAPPED_BY_PLAYER = 0x8;
 
 export type ObjectiveKill = { entry: number; index: number; required: number };
 export type ObjectiveItem = { itemId: number; required: number };
@@ -90,11 +89,6 @@ function wantedEntries(progress: ObjectiveProgress, sources: number[]) {
     if (kill.current === undefined || kill.current < kill.required)
       entries.add(kill.entry);
   return entries;
-}
-
-function tappedByOther(entity: Entity): boolean {
-  const flags = fieldOf(entity, UNIT_FIELDS.DYNAMIC_FLAGS.offset) ?? 0;
-  return (flags & DYNFLAG_TAPPED) !== 0 && !(flags & DYNFLAG_TAPPED_BY_PLAYER);
 }
 
 export function pickObjectiveTarget(args: {

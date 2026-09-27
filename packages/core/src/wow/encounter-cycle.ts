@@ -3,6 +3,7 @@ import { messageOf } from "#lib/errors";
 import type { ControlEvent, ControlRuntime, ControlState } from "#wow/control";
 import { type CycleRecovery, recoverCorpse } from "#wow/corpse-run";
 import { type CycleStop, cycleStop } from "#wow/cycle-stop";
+import { vetTarget } from "#wow/cycle-vet";
 import type { EntityEvent, EntityLookup } from "#wow/entity-store";
 import { EventWaiter } from "#wow/event-waiter";
 import { JEV_UNAVAILABLE, JevUnavailableError } from "#wow/jev-failure";
@@ -317,8 +318,10 @@ export class EncounterCycleRuntime {
     record: CycleTargetRecord,
     signal: AbortSignal,
   ): Promise<CycleStop | undefined> {
-    const { tactics } = this.deps;
+    const { tactics, entity, control } = this.deps;
     this.state.phase = "fighting";
+    const refused = vetTarget(entity, control.snapshot().selfGuid, record.guid);
+    if (refused) return skip(record, refused, undefined);
     this.state.startsUsed++;
     const context = {
       targetGuid: record.guid,
@@ -330,8 +333,9 @@ export class EncounterCycleRuntime {
       signal.throwIfAborted();
       if (error instanceof JevUnavailableError)
         return cycleStop(JEV_UNAVAILABLE, { reason: error.detail });
-      const outcome = tactics.snapshot().lastOutcome;
-      return skip(record, messageOf(error, "fight_failed"), outcome);
+      const cause = messageOf(error, "fight_failed");
+      if (cause === "target_dead") this.state.startsUsed--;
+      return skip(record, cause, tactics.snapshot().lastOutcome);
     }
     signal.throwIfAborted();
     const outcome = tactics.snapshot().lastOutcome;

@@ -23,8 +23,17 @@ const START: ControlPose = {
 };
 
 function corpseAt(x: number) {
-  const { entity } = body(2n, 0, { x, y: 0, z: 0 }) as { entity: UnitEntity };
-  return (guid: bigint) => (guid === 2n ? entity : undefined);
+  const { entity } = body(2n, 10, { x, y: 0, z: 0 }) as { entity: UnitEntity };
+  const tactics = fakeTactics([]);
+  const start = tactics.start;
+  tactics.start = (context, signal) => {
+    entity.health = 0;
+    return start(context, signal);
+  };
+  return {
+    entity: (guid: bigint) => (guid === 2n ? entity : undefined),
+    tactics,
+  };
 }
 
 function tracked(corpseX: number) {
@@ -42,11 +51,10 @@ function tracked(corpseX: number) {
     return open(guid);
   };
   const runtime = makeCycle({
-    tactics: fakeTactics([]),
+    ...corpseAt(corpseX),
     loot,
     recovery: fakeRecovery({ life: ["alive"] }),
     control,
-    entity: corpseAt(corpseX),
     now: () => 0,
   });
   return { control, loot, order, runtime };
