@@ -69,6 +69,7 @@ describe("triggerRows", () => {
       row(2, 200, "fight/start", "fight Springpaw Stalker"),
       row(3, 300, "control/move_start"),
       row(4, 400, "xp/gain"),
+      row(5, 500, "nav/route_start", "route to Marniel Amberlight"),
     ];
     expect(triggerRows(rows)).toEqual([
       {
@@ -81,6 +82,12 @@ describe("triggerRows", () => {
         ms: 300,
         seq: 3,
         text: "control/move_start",
+        trigger: "movement_start",
+      },
+      {
+        ms: 500,
+        seq: 5,
+        text: "route to Marniel Amberlight",
         trigger: "movement_start",
       },
     ]);
