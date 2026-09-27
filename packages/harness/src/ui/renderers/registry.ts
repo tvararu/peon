@@ -3,6 +3,7 @@ import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { ToolDetails } from "#harness/contract/details";
 import type { ToolName } from "#harness/contract/result";
 import { socialRenderers, stopRenderers } from "#harness/ui/renderers/line";
+import { lookRenderers } from "#harness/ui/renderers/picture";
 
 export type ToolRenderers = Pick<
   ToolDefinition<TSchema, ToolDetails>,
@@ -13,7 +14,7 @@ const RENDERERS: Readonly<Record<ToolName, ToolRenderers>> = {
   engage: {},
   interact: {},
   journal: {},
-  look: {},
+  look: lookRenderers,
   loot: {},
   recover: {},
   rest: {},
