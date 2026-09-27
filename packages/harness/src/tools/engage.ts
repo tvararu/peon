@@ -8,7 +8,6 @@ import { Refusal } from "#harness/ops/refusal";
 import { poseView, vitalsView } from "#harness/ops/views";
 import { awaitRun } from "#harness/runs/wait";
 import {
-  askHuman,
   defineGameTool,
   emptyVitals,
   type GameToolSpec,
@@ -22,23 +21,13 @@ import {
   guardPull,
   parseQuest,
 } from "#harness/tools/engage-choose";
+import { fight } from "#harness/tools/engage-fight";
 import { type EngageArgs, engageParams } from "#harness/tools/params";
 
 type Report = ToolResult<EngageAfter>;
 type Latest = { after: EngageAfter };
 
-function notBuilt(): Promise<Report> {
-  return Promise.reject(
-    new Refusal({
-      detail: "this part of the harness is not built yet.",
-      next: askHuman("This action is not built yet. What should I do instead?"),
-      reason: "not_implemented",
-      status: "FAILED",
-    }),
-  );
-}
-
-const FIGHT: FightRun = notBuilt;
+const FIGHT: FightRun = fight;
 const HUMAN_WROTE = "The human wrote a message. Read it before you act.";
 
 export function emptyEngage(): EngageAfter {
