@@ -1,7 +1,7 @@
 import { type QuestState, questSlotStatus } from "@tuicraft/core";
 import type { ToolResult } from "#harness/contract/result";
 import type { ViewCtx } from "#harness/contract/services";
-import { nextCall } from "#harness/tools/define";
+import { nextCall } from "#harness/tools/next-call";
 
 type Goal = { objectives: string; ender: string | undefined };
 

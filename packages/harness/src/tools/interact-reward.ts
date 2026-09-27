@@ -7,7 +7,7 @@ import {
   turnInTarget,
 } from "#harness/ops/quest-memory";
 import { Refusal } from "#harness/ops/refusal";
-import { nextCall, result } from "#harness/tools/define";
+import { result } from "#harness/tools/define";
 import {
   ANSWER_MS,
   baseAfter,
@@ -29,6 +29,7 @@ import {
   nameRewards,
   rewardText,
 } from "#harness/tools/interact-reward-text";
+import { nextCall } from "#harness/tools/next-call";
 
 async function rewardOffer(
   ctx: ToolCtx<InteractAfter>,

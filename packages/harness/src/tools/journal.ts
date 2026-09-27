@@ -19,7 +19,8 @@ import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
 import { formatLogRows, queryLog } from "#harness/log/query";
 import { questGoal, questTitle } from "#harness/ops/quest-memory";
-import { defineGameTool, nextCall, result } from "#harness/tools/define";
+import { defineGameTool, result } from "#harness/tools/define";
+import { nextCall } from "#harness/tools/next-call";
 import { type JournalArgs, journalParams } from "#harness/tools/params";
 
 type KnownQuest = Extract<QuestQuery, { status: "known" }>["data"];
