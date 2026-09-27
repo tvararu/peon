@@ -9,6 +9,7 @@ import {
 import {
   driveGoto,
   MAP_ID,
+  moveTo,
   objectRow,
   setSelf,
   setUnits,
@@ -28,6 +29,23 @@ const stalker = unitRow({
   x: 40,
   y: 0,
 });
+
+function followGoals(handle: MockHandle) {
+  const goTo = driveGoto(handle, [
+    {
+      onArrive: () => {
+        const target = goTo.mock.calls.at(-1)?.[0];
+        if (target?.kind === "point") moveTo(handle, target);
+      },
+    },
+  ]);
+  return goTo;
+}
+
+function cellOf(target: unknown): string {
+  const { x, y } = target as { x: number; y: number };
+  return `${MAP_ID}:${Math.floor(x / 20)}:${Math.floor(y / 20)}`;
+}
 
 function walked(handle: MockHandle, traveled: number) {
   const walk = jest.fn(async () => ({
@@ -303,6 +321,61 @@ describe("explore", () => {
     ]);
     const result = await explore(toolCtx(t), { direction: undefined });
     expect(result.direction).toBe("NE");
+  });
+});
+
+describe("explore past explored cells", () => {
+  test("turns aside instead of walking into cells explored before", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 0, y: 0 });
+    const seeded = [3, 4, 5].map((cell) => `${MAP_ID}:${cell}:0`);
+    for (const cell of seeded) t.rt.travel.visitedCells.add(cell);
+    const goTo = followGoals(t.handle);
+    const result = await explore(toolCtx(t), { direction: "N" });
+    const cells = goTo.mock.calls.map((call) => cellOf(call[0]));
+    expect(cells.filter((cell) => seeded.includes(cell))).toEqual([]);
+    const side = 20 * Math.SQRT1_2;
+    expect(goTo.mock.calls.at(2)?.[0]).toEqual({
+      kind: "point",
+      x: 40 + side,
+      y: -side,
+    });
+    expect(result).toMatchObject({ direction: "N", stoppedBy: "distance" });
+    expect(result.walkedYd).toBeCloseTo(100, 0);
+  });
+
+  test("a side bearing tried after a refusal skips explored cells too", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 0, y: 0 });
+    t.rt.travel.visitedCells.add(`${MAP_ID}:0:-1`);
+    const side = 20 * Math.SQRT1_2;
+    const goTo = driveGoto(t.handle, [
+      { refuse: "unreachable: end snapped off the navigation mesh" },
+      {
+        arrive: { x: side, y: side },
+        onArrive: () => setUnits(t.handle, [stalker]),
+      },
+    ]);
+    await explore(toolCtx(t), { direction: "N" });
+    expect(goTo.mock.calls.slice(0, 2).map((call) => call[0])).toEqual([
+      { kind: "point", x: 20, y: 0 },
+      { kind: "point", x: side, y: side },
+    ]);
+  });
+
+  test("stops without a leg when every bearing ahead was explored", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 10, y: 10 });
+    for (const cell of ["1:0", "1:-1", "1:1", "0:-1", "0:1"])
+      t.rt.travel.visitedCells.add(`${MAP_ID}:${cell}`);
+    const goTo = followGoals(t.handle);
+    const result = await explore(toolCtx(t), { direction: "N" });
+    expect(goTo).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      stoppedBy: "explored",
+      untried: "SE",
+      walkedYd: 0,
+    });
   });
 });
 

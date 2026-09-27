@@ -64,6 +64,25 @@ describe("travel explore", () => {
     );
   });
 
+  test("explore into explored ground names a bearing still unexplored", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 10, y: 10 });
+    for (const cell of ["1:0", "1:-1", "1:1", "0:-1", "0:1"])
+      t.rt.travel.visitedCells.add(`${MAP_ID}:${cell}`);
+    driveGoto(t.handle, [{}]);
+    const res = await travelSpec.run(
+      { to: "explore north" },
+      toolCtx<TravelAfter>(t),
+    );
+    expect(res).toMatchObject({
+      next: 'travel(to: "explore southeast")',
+      status: "DONE",
+    });
+    expect(res.detail).toStartWith(
+      "explored 0 yd north; the ground ahead was explored already.",
+    );
+  });
+
   test("three blocked explore legs end PARTLY obstructed", async () => {
     const t = await world();
     driveGoto(t.handle, [

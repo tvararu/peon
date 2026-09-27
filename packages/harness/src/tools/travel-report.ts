@@ -351,6 +351,16 @@ export function exploreReport(
   const where = `${yd(found.walkedYd)} yd ${WORD[found.direction]}`;
   const seen = newInViewText(found.newInView);
   if (found.stoppedBy === "obstructed") return obstructedReport(found, after);
+  if (found.stoppedBy === "explored")
+    return result("DONE", {
+      after,
+      detail: `explored ${where}; the ground ahead was explored already. ${seen}`,
+      next: found.untried
+        ? nextCall("travel", { to: `explore ${WORD[found.untried]}` })
+        : askHuman(
+            "Everything around here is explored. Where should I look next?",
+          ),
+    });
   return result("DONE", { after, detail: `explored ${where}. ${seen}` });
 }
 

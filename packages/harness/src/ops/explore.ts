@@ -12,7 +12,12 @@ export type UnstickResult = {
   toward: "last_good_pose" | "away_from_object";
   refusedGoal: string | undefined;
 };
-export type ExploreStop = "new_unit" | "danger" | "obstructed" | "distance";
+export type ExploreStop =
+  | "new_unit"
+  | "danger"
+  | "obstructed"
+  | "explored"
+  | "distance";
 export type ExploreResult = {
   direction: Compass;
   walkedYd: number;
@@ -43,6 +48,7 @@ export const SIDE_REASONS: ReadonlySet<string> = new Set([
 const MIN_UNSTICK_YD = 0.5;
 const RING: readonly Compass[] = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 const SEARCH = [0, 1, -1, 2, -2, 3, -3, 4];
+const TURNS = [0, 1, -1, 2, -2];
 const WORDS: Record<string, Compass> = {
   east: "E",
   north: "N",
@@ -262,17 +268,48 @@ function stopped(walk: Walk, leg: LegResult): boolean {
   );
 }
 
+function legYd(walk: Walk): number {
+  return Math.min(LEG_YD, EXPLORE_MAX_YD - walk.walkedYd);
+}
+
+function unexplored(
+  ctx: ViewCtx,
+  from: PoseView,
+  direction: Compass,
+  yards: number,
+): boolean {
+  const key = cellKey({ mapId: from.mapId, ...ahead(from, direction, yards) });
+  return key === cellKey(from) || !ctx.rt.travel.visitedCells.has(key);
+}
+
+function freshBearing(walk: Walk, from: PoseView): Compass | undefined {
+  const blocked = blockedFrom(walk.ctx, from);
+  return TURNS.map((offset) => turned(walk.direction, offset)).find(
+    (direction) =>
+      (direction === walk.direction || !blocked.has(direction)) &&
+      unexplored(walk.ctx, from, direction, legYd(walk)),
+  );
+}
+
+function unexploredFrom(
+  ctx: ViewCtx,
+  pose: PoseView,
+  from: Compass,
+): Compass | undefined {
+  const blocked = blockedFrom(ctx, pose);
+  return SEARCH.map((offset) => turned(from, offset)).find(
+    (direction) =>
+      !blocked.has(direction) && unexplored(ctx, pose, direction, LEG_YD),
+  );
+}
+
 async function walkBearing(
   walk: Walk,
   from: PoseView,
   direction: Compass,
 ): Promise<LegResult> {
   const { ctx } = walk;
-  const point = ahead(
-    from,
-    direction,
-    Math.min(LEG_YD, EXPLORE_MAX_YD - walk.walkedYd),
-  );
+  const point = ahead(from, direction, legYd(walk));
   const leg = await travelLeg(ctx, {
     goal: { kind: "point", ...point },
     within: LEG_WITHIN_YD,
@@ -294,14 +331,16 @@ async function walkBearing(
 async function sideTries(
   walk: Walk,
   from: PoseView,
+  bearing: Compass,
   first: LegResult,
 ): Promise<LegResult> {
   if (first.status === "arrived" || stopped(walk, first)) return first;
   if (!SIDE_REASONS.has(first.reason ?? "")) return first;
   let leg = first;
   for (const offset of SIDES) {
-    const side = turned(walk.direction, offset);
+    const side = turned(bearing, offset);
     if (blockedFrom(walk.ctx, from).has(side)) continue;
+    if (!unexplored(walk.ctx, from, side, legYd(walk))) continue;
     leg = await walkBearing(walk, poseView(walk.ctx) ?? from, side);
     if (leg.status === "arrived" || stopped(walk, leg)) return leg;
   }
@@ -313,11 +352,14 @@ async function walkLeg(
   start: PoseView,
 ): Promise<ExploreStop | undefined> {
   const from = poseView(walk.ctx) ?? start;
+  const bearing = freshBearing(walk, from);
+  if (!bearing) return "explored";
   walk.rounds += 1;
   const leg = await sideTries(
     walk,
     from,
-    await walkBearing(walk, from, walk.direction),
+    bearing,
+    await walkBearing(walk, from, bearing),
   );
   const fresh = freshUnits(walk);
   if (stopped(walk, leg)) return "danger";
@@ -377,7 +419,10 @@ export async function explore(
     obstructedHere:
       stoppedBy === "obstructed" ? noteObstructed(ctx, end, direction) : 0,
     stoppedBy: stoppedBy ?? "distance",
-    untried: untriedFrom(ctx, end, direction),
+    untried:
+      stoppedBy === "explored"
+        ? unexploredFrom(ctx, end, direction)
+        : untriedFrom(ctx, end, direction),
     walkedYd,
   };
 }
