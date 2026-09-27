@@ -4,7 +4,6 @@ import type {
   RecoveryOutcome,
   RecoveryState,
 } from "@peon/core";
-import { messageOf } from "@peon/core/lib/errors";
 import type { OpsCtx } from "#harness/contract/services";
 import type { PoseView, UnitView } from "#harness/contract/views";
 import { TALK_RANGE_YD } from "#harness/ops/range";
@@ -110,15 +109,6 @@ async function useHealer(ctx: OpsCtx): Promise<RecoveryOutcome> {
     : { cause: "spirit_healer_unanswered", ok: false };
 }
 
-async function corpseRun(ctx: OpsCtx): Promise<RecoveryOutcome> {
-  try {
-    return await ctx.handle.recoverCorpse(ctx.signal);
-  } catch (error) {
-    if (messageOf(error) !== "not_implemented") throw error;
-    return { cause: "not_implemented", ok: false };
-  }
-}
-
 function legsOf(outcome: RecoveryOutcome): number {
   const legs = outcome.detail?.["legs"];
   return typeof legs === "number" ? legs : 0;
@@ -146,7 +136,9 @@ async function attempt(
     );
     if (!released) return { cause: "release_unanswered", ok: false };
   }
-  return how === "spirit_healer" ? useHealer(ctx) : corpseRun(ctx);
+  return how === "spirit_healer"
+    ? useHealer(ctx)
+    : ctx.handle.recoverCorpse(ctx.signal);
 }
 
 export async function recoverOp(

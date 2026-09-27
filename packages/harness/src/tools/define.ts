@@ -523,11 +523,3 @@ export function defineGameTool<P extends TSchema, K extends ToolName>(
     promptGuidelines: text.guidelines,
   });
 }
-
-export function notBuilt(): never {
-  throw new Refusal({
-    detail: "this tool is not built yet.",
-    next: askHuman("This tool is not built yet. What should I do instead?"),
-    reason: "not_implemented",
-  });
-}

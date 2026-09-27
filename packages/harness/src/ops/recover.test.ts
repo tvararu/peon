@@ -50,21 +50,6 @@ describe("recoverOp", () => {
     ]);
   });
 
-  test("ghost before C7b: no release, cause not_implemented", async () => {
-    const t = await createTestRuntime();
-    setSelf(t.handle, { life: "ghost" });
-    let releases = 0;
-    t.handle.releaseSpirit = () => {
-      releases += 1;
-    };
-    t.handle.recoverCorpse = () => {
-      throw new Error("not_implemented");
-    };
-    const result = await recoverOp(toolCtx(t), "corpse");
-    expect(releases).toBe(0);
-    expect(result.outcome).toEqual({ cause: "not_implemented", ok: false });
-  });
-
   test("spirit healer within talk range: activates it and waits for life", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle, { life: "ghost" });
