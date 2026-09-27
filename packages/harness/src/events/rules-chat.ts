@@ -48,6 +48,7 @@ const VERBS = new Map<number, string>([
 const QUIET_SYSTEM =
   /not yet implemented|^\[debug\]|^(This server|Playerbots:|Individual Progression|Joined channel|Left channel|Welcome)/;
 const REGEX_SPECIALS = /[.*+?^${}()|[\]\\]/g;
+const COLOUR_CODES = /\|c[0-9a-fA-F]{8}|\|r|\|H[^|]*\|h|\|h/g;
 
 type GroupRow = {
   cls: LogClass;
@@ -84,7 +85,12 @@ function chatOut(data: Record<string, unknown>, text: string): LogDraft {
   return { class: "log", data, domain: "chat", event: "chat/out", text };
 }
 
-export function chatDrafts(msg: ChatMessage, rc: RuleInput): Drafts {
+function stripColourCodes(text: string): string {
+  return text.replace(COLOUR_CODES, "");
+}
+
+export function chatDrafts(raw: ChatMessage, rc: RuleInput): Drafts {
+  const msg = { ...raw, message: stripColourCodes(raw.message) };
   const { channel, message, sender, type } = msg;
   const base = { channel, sender, text: message, type };
   if (type === ChatType.WHISPER_INFORM)

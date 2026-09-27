@@ -120,6 +120,37 @@ describe("chatDrafts", () => {
       text: "[system] Bob has invited you to a group.",
     });
   });
+
+  test("server banner lines stay in the log when colour codes wrap them", () => {
+    for (const message of [
+      "|cff00ff00Individual Progression: |cffccccccenabled|r",
+      "|cff00ff00This server runs with |cff00ccffmod-playerbots|r |cffcccccchttps://github.com/mod-playerbots/mod-playerbots|r",
+      "|cff00ff00Playerbots:|r The server is configured with 500 bots.",
+      "This server is running the |cff4CFF00Loot aoe|r module.",
+    ])
+      expect(one(msg(ChatType.SYSTEM, "", message))?.class).toBe("log");
+  });
+
+  test("strips colour codes and link wrappers from chat text", () => {
+    expect(
+      one(
+        msg(
+          ChatType.WHISPER,
+          "Kaelyn",
+          "sell me |cff9d9d9d|Hitem:4814:0:0:0|h[Discolored Fang]|h|r pls",
+        ),
+      ),
+    ).toMatchObject({
+      data: { text: "sell me [Discolored Fang] pls" },
+      text: 'Whisper from Kaelyn: "sell me [Discolored Fang] pls"',
+    });
+    expect(
+      one(msg(ChatType.SYSTEM, "", "|cffff0000Bob|r has invited you.")),
+    ).toMatchObject({
+      class: "passive",
+      text: "[system] Bob has invited you.",
+    });
+  });
 });
 
 describe("groupDrafts", () => {
