@@ -10,6 +10,7 @@ import {
 import { worldSession } from "#wow/client";
 import {
   opcodeName,
+  opcodeNumber,
   type PacketCounts,
   type TraceRow,
   type TraceSender,
@@ -85,6 +86,20 @@ describe("opcodeName", () => {
   test("names a known opcode and hex-labels an unknown one", () => {
     expect(opcodeName(GameOpcode.SMSG_WEATHER)).toBe("SMSG_WEATHER");
     expect(opcodeName(0x7_ff)).toBe("0x7ff");
+  });
+});
+
+describe("opcodeNumber", () => {
+  test("reads a GameOpcode name or 0x hex and refuses anything else", () => {
+    expect(opcodeNumber("CMSG_GOSSIP_HELLO")).toBe(
+      GameOpcode.CMSG_GOSSIP_HELLO,
+    );
+    expect(opcodeNumber("0x1DC")).toBe(0x1_dc);
+    expect(opcodeNumber("0x7ff")).toBe(0x7_ff);
+    expect(opcodeNumber("CMSG_NOT_A_THING")).toBeUndefined();
+    expect(opcodeNumber("1dc")).toBeUndefined();
+    expect(opcodeNumber("0x10000")).toBeUndefined();
+    expect(opcodeNumber("toString")).toBeUndefined();
   });
 });
 

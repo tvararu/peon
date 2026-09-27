@@ -48,6 +48,14 @@ export function opcodeName(opcode: number): string {
   return NAMES.get(opcode) ?? `0x${opcode.toString(16).padStart(3, "0")}`;
 }
 
+const NUMBERS = new Map<string, number>(Object.entries(GameOpcode));
+const HEX_OPCODE = /^0x[0-9a-f]{1,4}$/i;
+
+export function opcodeNumber(text: string): number | undefined {
+  if (HEX_OPCODE.test(text)) return Number.parseInt(text.slice(2), 16);
+  return NUMBERS.get(text);
+}
+
 export function createTap(sink: TraceSink | undefined): PacketTap | undefined {
   return sink && { sent: new Map(), sink };
 }
