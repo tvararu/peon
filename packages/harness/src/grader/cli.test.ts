@@ -128,6 +128,33 @@ describe("grader cli", () => {
     expect(calls).toEqual([]);
   });
 
+  test("run --wait is still accepted and waits", async () => {
+    const cwd = await mkdtemp(`${tmpdir()}/cli-`);
+    await mkdir(`${cwd}/packages/factory/src`, { recursive: true });
+    await writeFile(`${cwd}/packages/factory/src/main.ts`, "");
+    const other = `${cwd}/tmp/evals/3/t6-die-and-recover-1`;
+    await mkdir(other, { recursive: true });
+    let now = 1_727_384_400_000;
+    await writeFile(
+      `${other}/run.json`,
+      JSON.stringify({ scenario: "t6-die-and-recover", t0: now }),
+    );
+    const d = deps({
+      clock: { now: () => now },
+      cwd,
+      exec: fakeExec(() => orcaOk({})).exec,
+      sleep: async (ms) => {
+        now += ms;
+      },
+    });
+    expect(
+      await main(["run", "t7-halt-resume", "--round", "3", "--wait"], d),
+    ).toBe(1);
+    expect(d.errors.at(-1)).toStartWith(
+      "field fairbreeze-stalkers is still held",
+    );
+  });
+
   test("run waits by default: it queues on the field and logs the wait to progress.log", async () => {
     const cwd = await mkdtemp(`${tmpdir()}/cli-`);
     await mkdir(`${cwd}/packages/factory/src`, { recursive: true });
