@@ -219,8 +219,10 @@ function rowLine(unit: UnitView): string {
 function nearestText(kind: NearestKind, unit: UnitView | undefined): string {
   const label = `Nearest ${kind.replace("_", " ")}:`;
   if (!unit) return `${label} ${kind === "lootable" ? "none" : "none seen"}.`;
-  const seen = unit.inView ? "seen now" : `seen ${ageText(unit.seenAgoMs)} ago`;
-  return `${label} ${unit.ref} ${unit.name} L${unit.level} ${unit.alive ? "alive" : "dead"}, ${distanceText(unit)} (${seen}).`;
+  const life = unit.alive ? "alive" : "dead";
+  if (!unit.inView)
+    return `${label} ${unit.ref} ${unit.name} L${unit.level}, last seen ${distanceText(unit)} ${ageText(unit.seenAgoMs)} ago, then ${life}.`;
+  return `${label} ${unit.ref} ${unit.name} L${unit.level} ${life}, ${distanceText(unit)} (seen now).`;
 }
 
 function nearestLine({ filter, nearest }: LookAfter): string {
