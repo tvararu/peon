@@ -165,8 +165,8 @@ async function play(
   const unwatch = watch(session);
   const ok = await runSteps(session, args.steps);
   await session.sink.waitFor(args.until, args.waitMs);
-  unwatch();
   await logOut(session.handle, deps.logoutMs ?? LOGOUT_MS);
+  unwatch();
   return ok;
 }
 
