@@ -9,7 +9,7 @@ export const DEFAULT_MODEL = "openai-codex/gpt-6-luna";
 
 export const USAGE = `Usage: bun packages/harness/src/entry.ts --profile <path> [options]
 
-  --profile <path>        soap session JSON, soap ledger JSON or peon config.toml (required)
+  --profile <path>        soap session JSON, soap ledger JSON or Peon config.toml (required)
   --run-dir <path>        run directory (default: <state>/runs/<utc>-<character>)
   --model <provider/id>   model (default: ${DEFAULT_MODEL})
   --thinking <level>      off|minimal|low|medium|high|xhigh|max (default: high)

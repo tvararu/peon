@@ -113,7 +113,7 @@ async function parseProfile({
     return { config: await ledgerConfig(json, home), source: "soap_ledger" };
   throw new ProfileError(
     "unknown_format",
-    `${path} is not a soap session, a soap ledger entry or a peon config.toml.`,
+    `${path} is not a soap session, a soap ledger entry or a Peon config.toml.`,
   );
 }
 

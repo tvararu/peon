@@ -102,7 +102,8 @@ Use `mise` to run tasks (not `bun` directly, not `mise run`):
 
 - omp memory is on for this repo (`.omp/config.yml`: Mnemopi, shared bank
   `tuicraft`, no transcript auto-save, no LLM calls); factory runs turn it
-  off through `packages/factory/src/omp-factory.yml`.
+  off through `packages/factory/src/omp-factory.yml`. The bank keeps the
+  project's old name, because every stored memory is keyed to it.
 - Automatic recall only fires on a close match, so call `recall` with your
   task's topic when you start. Recalled memory is background; AGENTS.md and
   the maintainer's instructions win when they conflict.

@@ -164,7 +164,7 @@ describe("loadProfile", () => {
     expect(profile.client.language).toBe(7);
   });
 
-  test("reads a peon config.toml", async () => {
+  test("reads a Peon config.toml", async () => {
     const path = join(root, "config.toml");
     await writeToml({
       account: "myacc",

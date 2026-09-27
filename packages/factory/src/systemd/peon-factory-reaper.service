@@ -1,5 +1,5 @@
 [Unit]
-Description=peon factory worktree reaper
+Description=Peon factory worktree reaper
 
 [Service]
 Type=oneshot
