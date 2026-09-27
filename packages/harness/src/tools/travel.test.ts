@@ -415,6 +415,40 @@ describe("travel", () => {
     expect(limitProblem(contentOf(res))).toBeUndefined();
   });
 
+  test("an attacker on you refuses travel before any run", async () => {
+    const t = await world();
+    setUnits(t.handle, [MARNIEL, STALKER]);
+    attackBy(t.handle, 0x20n);
+    const ref = t.rt.refs.refOf(0x20n);
+    await expect(
+      travelSpec.run({ to: "explore north" }, toolCtx<TravelAfter>(t)),
+    ).rejects.toMatchObject({
+      detail: `Springpaw Stalker ${ref} is attacking you.`,
+      next: `engage(target: "${ref}")`,
+      reason: "attacked",
+    });
+    expect(t.rt.runs.list()).toHaveLength(0);
+  });
+
+  test("a new attacker stops an explore within the leg", async () => {
+    const t = await world();
+    setUnits(t.handle, [MARNIEL, STALKER]);
+    const goTo = driveGoto(t.handle, [{ hold: true }]);
+    const pending = travelSpec.run(
+      { to: "explore north" },
+      toolCtx<TravelAfter>(t),
+    );
+    await Bun.sleep(0);
+    attackBy(t.handle, 0x20n);
+    const res = await pending;
+    expect(goTo).toHaveBeenCalledTimes(1);
+    expect(res).toMatchObject({
+      next: `engage(target: "${t.rt.refs.refOf(0x20n)}")`,
+      reason: "interrupted",
+      status: "FAILED",
+    });
+  });
+
   test("a root interrupts the run with the look step", async () => {
     const t = await world();
     driveGoto(t.handle, [{ hold: true }]);

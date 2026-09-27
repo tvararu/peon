@@ -3,7 +3,7 @@ import type { TravelAfter } from "#harness/contract/details";
 import type { ToolStatus } from "#harness/contract/result";
 import type { RunControl, RunEnd, RunStatus } from "#harness/contract/runs";
 import type { OpsCtx, ToolCtx } from "#harness/contract/services";
-import { watchInterrupts } from "#harness/ops/danger";
+import { dangerView, watchInterrupts } from "#harness/ops/danger";
 import { explore, parseDirection, unstick } from "#harness/ops/explore";
 import { distanceTo } from "#harness/ops/range";
 import { recoverOp } from "#harness/ops/recover";
@@ -283,11 +283,22 @@ function emptyTravel(): TravelAfter {
   };
 }
 
+function refuseUnderAttack(ctx: ToolCtx<TravelAfter>): void {
+  const [attacker] = dangerView(ctx).attackers;
+  if (!attacker) return;
+  throw new Refusal({
+    detail: `${attacker.name} ${attacker.ref} is attacking you.`,
+    next: nextCall("engage", { target: attacker.ref }),
+    reason: "attacked",
+  });
+}
+
 async function runTravel(
   args: TravelArgs,
   ctx: ToolCtx<TravelAfter>,
 ): Promise<Report> {
   const goal = parseGoal(ctx, args.to);
+  refuseUnderAttack(ctx);
   if (goal.kind === "corpse" && selfView(ctx).life === "alive")
     throw new Refusal({
       detail: "you are alive; there is no corpse to reach.",
