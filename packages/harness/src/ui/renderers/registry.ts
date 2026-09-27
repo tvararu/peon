@@ -2,6 +2,11 @@ import type { TSchema } from "@earendil-works/pi-ai";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { ToolDetails } from "#harness/contract/details";
 import type { ToolName } from "#harness/contract/result";
+import {
+  interactRenderers,
+  journalRenderers,
+  lootRenderers,
+} from "#harness/ui/renderers/card";
 import { socialRenderers, stopRenderers } from "#harness/ui/renderers/line";
 import {
   engageRenderers,
@@ -18,10 +23,10 @@ export type ToolRenderers = Pick<
 
 const RENDERERS: Readonly<Record<ToolName, ToolRenderers>> = {
   engage: engageRenderers,
-  interact: {},
-  journal: {},
+  interact: interactRenderers,
+  journal: journalRenderers,
   look: lookRenderers,
-  loot: {},
+  loot: lootRenderers,
   recover: recoverRenderers,
   rest: restRenderers,
   social: socialRenderers,
