@@ -1,7 +1,9 @@
-# Plans index
+# Archive
 
-Design and plan documents, oldest first. The sole roadmap is
-[../roadmap.md](../roadmap.md); nothing here is a list of tasks to execute.
+Design and plan documents written before the project became Peon, oldest
+first, kept for their protocol and design reasoning. None of them is a
+list of tasks to execute, and the statuses below are as they stood when
+the archive was made; the roadmap they mention no longer exists.
 
 - **Current**: linked from the roadmap, or the dev-factory and Pi-harness
   designs. Still read as context for active work.
@@ -62,6 +64,12 @@ Design and plan documents, oldest first. The sole roadmap is
 | [2026-09-25-dev-factory-research.md](2026-09-25-dev-factory-research.md) | Historical | Verbatim research reports behind the dev factory design |
 | [2026-09-25-pi-harness-design.md](2026-09-25-pi-harness-design.md) | Current | Embed the Pi agent runtime in tuicraft; linked from the roadmap |
 | [2026-09-25-pi-harness-spike/](2026-09-25-pi-harness-spike/README.md) | Current | Throwaway prototype code referenced by the Pi harness design |
-
-The factory lands each pull request as one squash commit.
-Squash commits carry Refs, PR and Co-authored-by trailers.
+| [2026-09-26-action-results-design.md](2026-09-26-action-results-design.md) | Historical | Typed action results for the Pi harness (slice S6) |
+| [2026-09-26-pi-harness-epic-design.md](2026-09-26-pi-harness-epic-design.md) | Current | Pi harness epic spec, including the approved Luna system prompt that `system-prompt.test.ts` checks |
+| [2026-09-26-pi-harness-epic/](2026-09-26-pi-harness-epic/eval-suite.md) | Current | Epic working notes; `eval-suite.md` is the full eval design linked from `docs/evals.md` |
+| [2026-09-26-pi-harness-epic-plan.md](2026-09-26-pi-harness-epic-plan.md) | Historical | Pi harness epic implementation plan and its slice files |
+| [2026-09-26-project-board-design.md](2026-09-26-project-board-design.md) | Current | Board Status field replaces the factory's workflow labels |
+| [2026-09-26-scenario-catalogue-design.md](2026-09-26-scenario-catalogue-design.md) | Historical | Live scenario catalogue and runner |
+| [2026-09-27-remove-cli-design.md](2026-09-27-remove-cli-design.md) | Historical | Remove the CLI, daemon and TUI |
+| [2026-09-27-remove-cli-plan.md](2026-09-27-remove-cli-plan.md) | Historical | CLI removal implementation plan |
+| [2026-09-27-rename-peon-design.md](2026-09-27-rename-peon-design.md) | Historical | Rename tuicraft to Peon |

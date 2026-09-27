@@ -144,7 +144,7 @@ async function main(): Promise<void> {
     console.error(`${f.path}:${f.line}: ${f.reason}: ${f.match}`);
   if (found.length === 0) return;
   console.error(
-    `${found.length} stale passage(s); see "Documentation" in AGENTS.md`,
+    `${found.length} stale passage(s); see "Docs and memory" in AGENTS.md`,
   );
   process.exitCode = 1;
 }
