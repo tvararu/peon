@@ -145,6 +145,37 @@ describe("stopHarness", () => {
     await stopHarness(st);
     expect(calls).toEqual([[`/wt/tmp/puppet-${PARTNER}`, "stop"]]);
   });
+
+  test("stops the partner while the agent is still logging out", async () => {
+    const order: string[] = [];
+    const partnerStopped = Promise.withResolvers<void>();
+    const { exec: base } = router();
+    const exec: Exec = (argv, execOpts) => {
+      if (argv[1] === "stop") {
+        order.push("partner stop");
+        partnerStopped.resolve();
+      }
+      return base(argv, execOpts);
+    };
+    const pane = {
+      ...fakePane(["x"]),
+      quit: async () => {
+        order.push("quit start");
+        await partnerStopped.promise;
+        order.push("quit end");
+      },
+    };
+    const partner = {
+      ...AGENT,
+      account: PARTNER,
+      wrapper: `/wt/tmp/puppet-${PARTNER}`,
+    };
+    const st = await state(exec, { pane, partner });
+    await stopHarness(st);
+    expect(order).toEqual(["quit start", "partner stop", "quit end"]);
+    expect(st.exitMs).toBe(NOW);
+    expect(st.abort).toBeUndefined();
+  });
 });
 
 describe("cleanup", () => {

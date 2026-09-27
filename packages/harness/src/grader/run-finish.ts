@@ -146,15 +146,22 @@ async function verifyFinal(st: RunState, account: string): Promise<void> {
   st.finalSavedAt = final.truth.savedAt;
 }
 
+async function quitAgent(st: RunState, pane: Pane): Promise<void> {
+  await attempt(st, "quit", () => quitPane(st, pane));
+  st.exitMs = st.clock.now();
+}
+
 export async function stopHarness(st: RunState): Promise<void> {
   const { agent, pane, partner, watcher } = st;
   if (watcher !== undefined) await attempt(st, "watcher", () => watcher.stop());
-  if (pane !== undefined) await attempt(st, "quit", () => quitPane(st, pane));
-  if (pane !== undefined) st.exitMs = st.clock.now();
-  if (partner !== undefined)
-    await attempt(st, "partner stop", () =>
-      st.exec([partner.wrapper, "stop"], { timeoutMs: PARTNER_STOP_MS }),
-    );
+  await Promise.all([
+    pane === undefined ? undefined : quitAgent(st, pane),
+    partner === undefined
+      ? undefined
+      : attempt(st, "partner stop", () =>
+          st.exec([partner.wrapper, "stop"], { timeoutMs: PARTNER_STOP_MS }),
+        ),
+  ]);
   if (pane !== undefined && agent !== undefined)
     await attempt(st, "final truth", () => verifyFinal(st, agent.account));
 }
