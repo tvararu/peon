@@ -3,7 +3,8 @@ import { CombatActions } from "#wow/combat-actions";
 import type { RangedGear } from "#wow/combat-ranged-gear";
 import { ControlRuntime } from "#wow/control";
 import { EntityStore } from "#wow/entity-store";
-import { ObjectType, UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import { ObjectType } from "#wow/protocol/entity-fields";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { SpellDefinition } from "#wow/spell-catalog";
 
 export const context = {

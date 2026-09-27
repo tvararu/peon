@@ -8,7 +8,7 @@ import {
   parseRandomRoll,
   parseServerBroadcast,
 } from "#wow/protocol/chat";
-import { ChannelNotify } from "#wow/protocol/opcodes";
+import { ChannelNotify } from "#wow/protocol/enums";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 describe("parseChannelNotify", () => {

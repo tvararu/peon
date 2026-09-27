@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { must } from "#test-support/must";
 import {
+  GroupUpdateFlag,
+  PartyOperation,
+  PartyResult,
+} from "#wow/protocol/enums";
+import {
   buildGroupAccept,
   buildGroupDecline,
   buildGroupDisband,
@@ -14,11 +19,6 @@ import {
   parsePartyCommandResult,
   parsePartyMemberStats,
 } from "#wow/protocol/group";
-import {
-  GroupUpdateFlag,
-  PartyOperation,
-  PartyResult,
-} from "#wow/protocol/opcodes";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 describe("buildGroupInvite", () => {

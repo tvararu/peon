@@ -14,7 +14,8 @@ import {
   type NearbyUnits,
   queryNearby,
 } from "#wow/nearby";
-import { ObjectType, UNIT_FIELDS, UnitFlag } from "#wow/protocol/entity-fields";
+import { ObjectType, UnitFlag } from "#wow/protocol/entity-fields";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { RemotePose } from "#wow/remote-motion";
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };

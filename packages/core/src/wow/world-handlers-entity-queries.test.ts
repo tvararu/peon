@@ -15,9 +15,9 @@ import {
   writeUpdateMask,
 } from "#test-support/world-handlers-fixtures";
 import { worldSession } from "#wow/client";
-import { GAMEOBJECT_FIELDS, OBJECT_FIELDS } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketWriter } from "#wow/protocol/packet";
+import { GAMEOBJECT_FIELDS, OBJECT_FIELDS } from "#wow/protocol/update-fields";
 
 describe("world handler tests", () => {
   describe("entity handling", () => {

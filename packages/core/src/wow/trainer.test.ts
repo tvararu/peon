@@ -7,11 +7,7 @@ import {
   MATRON_ARENA,
 } from "#test-support/trainer-fixtures";
 import { EntityStore } from "#wow/entity-store";
-import {
-  ObjectType,
-  PLAYER_FIELDS,
-  UNIT_FIELDS,
-} from "#wow/protocol/entity-fields";
+import { ObjectType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 import {
@@ -19,6 +15,7 @@ import {
   parseTrainerBuySucceeded,
   parseTrainerList,
 } from "#wow/protocol/trainer";
+import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 import { TRAINER_ANSWER_MS, TrainerRuntime } from "#wow/trainer";
 
 const COINAGE = 0x4_92;

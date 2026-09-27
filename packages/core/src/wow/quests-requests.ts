@@ -1,5 +1,4 @@
 import { type Entity, fieldOf } from "#wow/entity-store";
-import { UNIT_FIELDS } from "#wow/protocol/entity-fields";
 import {
   buildGossipHello,
   buildGossipSelectOption,
@@ -18,6 +17,7 @@ import {
   type QuestgiverQuestList,
   type QuestgiverRequestItems,
 } from "#wow/protocol/questgiver";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { QuestLog } from "#wow/quest-slots";
 
 export type QuestDialog =

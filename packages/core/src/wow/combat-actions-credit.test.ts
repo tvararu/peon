@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { context, setup } from "#test-support/combat-actions-fixtures";
 import { grayLevel } from "#wow/combat-actions-credit";
-import { UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 const TAPPED = 0x4;
 const TAPPED_BY_PLAYER = 0x8;

@@ -11,7 +11,7 @@ import {
   parseRealmList,
   parseReconnectChallengeResponse,
 } from "#wow/protocol/auth";
-import { AuthOpcode } from "#wow/protocol/opcodes";
+import { AuthOpcode } from "#wow/protocol/enums";
 import { PacketReader } from "#wow/protocol/packet";
 import { AccumulatorBuffer } from "#wow/protocol/world";
 

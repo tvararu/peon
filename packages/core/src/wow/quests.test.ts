@@ -11,13 +11,10 @@ import {
   show,
 } from "#test-support/quest-fixtures";
 import type { EntityStore } from "#wow/entity-store";
-import {
-  ObjectType,
-  PLAYER_FIELDS,
-  UNIT_FIELDS,
-} from "#wow/protocol/entity-fields";
+import { ObjectType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
+import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 import { readQuestLog } from "#wow/quest-slots";
 
 function requestItems(canComplete: boolean): Uint8Array {

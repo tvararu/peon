@@ -7,7 +7,7 @@ import {
 import { type InventoryState, readInventory } from "#wow/inventory";
 import { LootRolls, type RewardsRolls } from "#wow/loot-rolls";
 import { readLife } from "#wow/player-state";
-import { ObjectType, UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import { ObjectType } from "#wow/protocol/entity-fields";
 import {
   type InventoryChangeFailure,
   InventoryResult,
@@ -24,6 +24,7 @@ import {
   type LootResponse,
 } from "#wow/protocol/loot";
 import { GameOpcode } from "#wow/protocol/opcodes";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 export type RewardsDeps = {
   send: (opcode: number, body?: Uint8Array) => void;

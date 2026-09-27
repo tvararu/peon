@@ -4,7 +4,7 @@ import {
   MOVE_IDS,
   setup,
 } from "#test-support/combat-actions-fixtures";
-import { UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 function warrior(targetX: number) {
   let now = 1000;

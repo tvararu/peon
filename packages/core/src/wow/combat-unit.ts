@@ -1,7 +1,7 @@
 import type { CombatDeps, CombatUnit } from "#wow/combat";
 import { type Entity, fieldOf, isUnit } from "#wow/entity-store";
 import type { CombatPose, MotionStore } from "#wow/motion-store";
-import { UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 type UnitSources = { deps: CombatDeps; motions: MotionStore };
 

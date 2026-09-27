@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { must } from "#test-support/must";
-import { GAMEOBJECT_FIELDS, OBJECT_FIELDS, UNIT_FIELDS } from "./entity-fields";
 import {
   extractGameObjectFields,
   extractObjectFields,
   extractUnitFields,
 } from "./extract-fields";
+import { GAMEOBJECT_FIELDS, OBJECT_FIELDS, UNIT_FIELDS } from "./update-fields";
 
 function floatBits(value: number): number {
   const buf = new ArrayBuffer(4);

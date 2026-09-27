@@ -6,8 +6,8 @@ import { type EntityEvent, fieldOf } from "#wow/entity-store";
 import type { EventWaiter } from "#wow/event-waiter";
 import { approachCorpse, type CorpseApproach } from "#wow/loot-approach";
 import { BAG_RESERVE, keepsReserve, slotsNeeded } from "#wow/loot-room";
-import { UNIT_FIELDS } from "#wow/protocol/entity-fields";
 import type { LootItem } from "#wow/protocol/loot";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import {
   NOT_DEAD,
   NOT_LOOTABLE,

@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { readRangedGear } from "#wow/combat-ranged-gear";
 import type { Entity } from "#wow/entity-store";
 import type { ItemLabel } from "#wow/item-labels";
-import { ObjectType, PLAYER_FIELDS } from "#wow/protocol/entity-fields";
+import { ObjectType } from "#wow/protocol/entity-fields";
+import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
 
 const BOW = 2504;
 const ARROW = 2512;

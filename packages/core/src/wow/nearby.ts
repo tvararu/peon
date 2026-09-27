@@ -4,7 +4,8 @@ import type { FactionRelation } from "#wow/faction-template";
 import { bearing, distance2d, normalizeAngle } from "#wow/geometry";
 import type { ObservedPosition, PositionSource } from "#wow/motion-store";
 import { type NpcRole, npcRoles } from "#wow/npc-roles";
-import { UNIT_FIELDS, UnitFlag } from "#wow/protocol/entity-fields";
+import { UnitFlag } from "#wow/protocol/entity-fields";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { RemotePose } from "#wow/remote-motion";
 
 export const NEARBY_DEFAULT_RANGE = 100;

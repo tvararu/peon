@@ -2,8 +2,9 @@ import { expect, jest, test } from "bun:test";
 import { context } from "#test-support/combat-actions-fixtures";
 import { ARCANE_SHOT, AUTO_SHOT, hunter } from "#test-support/hunter-fixtures";
 import { drive, fixture, judgment } from "#test-support/tactics-fixtures";
-import { ObjectType, UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import { ObjectType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 const PET = 0xf1_40_00_00_00_00_00_aan;
 

@@ -9,7 +9,8 @@ import {
 } from "#test-support/world-handlers-fixtures";
 import { type ChatMessage, worldSession } from "#wow/client";
 import type { NoticeEvent } from "#wow/client-extras";
-import { ChatType, GameOpcode } from "#wow/protocol/opcodes";
+import { ChatType } from "#wow/protocol/enums";
+import { GameOpcode } from "#wow/protocol/opcodes";
 
 describe("world handler tests", () => {
   test("handles SMSG_TIME_SYNC_REQ", async () => {

@@ -2,7 +2,6 @@ import { Emitter, type Unsubscribe } from "#lib/emitter";
 import { type EntityLookup, fieldOf, isUnit } from "#wow/entity-store";
 import { readInventory } from "#wow/inventory";
 import { readLife, readSelfField } from "#wow/player-state";
-import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import {
   buildTrainerBuySpell,
@@ -13,6 +12,7 @@ import {
   type TrainerOfferedSpell,
   trainerFailureName,
 } from "#wow/protocol/trainer";
+import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 export type TrainerDeps = {
   send: (opcode: number, body?: Uint8Array) => void;

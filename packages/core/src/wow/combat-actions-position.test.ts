@@ -10,7 +10,8 @@ import { CombatActions } from "#wow/combat-actions";
 import { ControlRuntime } from "#wow/control";
 import { EntityStore } from "#wow/entity-store";
 import type { FactionTemplateCatalog } from "#wow/faction-template";
-import { ObjectType, UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import { ObjectType } from "#wow/protocol/entity-fields";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 test("transient cooldown and cancellation waits do not block an encounter", () => {
   const { actions, combat } = setup();

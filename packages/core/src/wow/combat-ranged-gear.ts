@@ -1,7 +1,7 @@
 import { type EntityLookup, fieldOf } from "#wow/entity-store";
 import { type InventorySlot, readInventory } from "#wow/inventory";
 import type { ItemLabel } from "#wow/item-labels";
-import { PLAYER_FIELDS } from "#wow/protocol/entity-fields";
+import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
 
 export type RangedItem = {
   entry: number;

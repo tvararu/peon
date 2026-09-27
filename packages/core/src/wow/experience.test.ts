@@ -3,9 +3,10 @@ import { captured8325, hexBytes } from "#test-support/quest-8325-packets";
 import { EntityStore } from "#wow/entity-store";
 import { readExperience } from "#wow/experience";
 import { parseXpGain } from "#wow/protocol/combat";
-import { ObjectType, PLAYER_FIELDS } from "#wow/protocol/entity-fields";
+import { ObjectType } from "#wow/protocol/entity-fields";
 import { parseLevelUpInfo } from "#wow/protocol/experience";
 import { PacketReader } from "#wow/protocol/packet";
+import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
 
 const self = 0x9f_bn;
 

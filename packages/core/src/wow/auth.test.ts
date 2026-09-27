@@ -21,7 +21,7 @@ import {
   ReconnectRequiredError,
 } from "#wow/auth";
 import { bigIntToLeBytes } from "#wow/crypto/srp";
-import { AuthOpcode } from "#wow/protocol/opcodes";
+import { AuthOpcode } from "#wow/protocol/enums";
 import { PacketWriter } from "#wow/protocol/packet";
 
 const base = {

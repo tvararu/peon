@@ -96,12 +96,12 @@ export type {
 export type { PlayerLife } from "#wow/player-state";
 export type { WhoResult } from "#wow/protocol/chat";
 export { ObjectType } from "#wow/protocol/entity-fields";
+export { ChatType, PartyOperation, PartyResult } from "#wow/protocol/enums";
 export {
   formatGuildCommandError,
   GuildMemberStatus,
 } from "#wow/protocol/guild";
 export { ROLL_VOTES, type RollVote } from "#wow/protocol/loot";
-export { ChatType, PartyOperation, PartyResult } from "#wow/protocol/opcodes";
 export type {
   QuestDisplayItem,
   QuestRewards,

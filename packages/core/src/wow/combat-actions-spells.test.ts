@@ -6,7 +6,7 @@ import {
   spell,
 } from "#test-support/combat-actions-fixtures";
 import { must } from "#test-support/must";
-import { UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 test("unknown learned mechanics are explicit and never offered as executable", () => {
   const { actions } = setup();

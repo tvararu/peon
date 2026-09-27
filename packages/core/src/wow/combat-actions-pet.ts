@@ -2,8 +2,8 @@ import type { CombatState } from "#wow/combat";
 import { hex } from "#wow/combat-actions-observation";
 import { type EntityLookup, fieldOf, isUnit } from "#wow/entity-store";
 import type { JevCandidate } from "#wow/jev";
-import { UNIT_FIELDS } from "#wow/protocol/entity-fields";
 import { joinGuid } from "#wow/protocol/packet";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 const COMMAND_REPEAT_MS = 2000;
 

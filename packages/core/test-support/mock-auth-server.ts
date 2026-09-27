@@ -11,7 +11,7 @@ import {
 } from "#test-support/fixtures";
 import { must } from "#test-support/must";
 import { bigIntToLeBytes } from "#wow/crypto/srp";
-import { AuthOpcode } from "#wow/protocol/opcodes";
+import { AuthOpcode } from "#wow/protocol/enums";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 function handleChallenge(socket: Socket) {

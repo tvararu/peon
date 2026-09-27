@@ -8,7 +8,7 @@ import {
   parseNameQueryResponse,
   parseWhoResponse,
 } from "#wow/protocol/chat";
-import { ChatType, Language } from "#wow/protocol/opcodes";
+import { ChatType, Language } from "#wow/protocol/enums";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 describe("parseChatMessage", () => {

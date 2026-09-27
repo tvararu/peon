@@ -2,9 +2,10 @@ import { expect, test } from "bun:test";
 import { context } from "#test-support/combat-actions-fixtures";
 import { hunter } from "#test-support/hunter-fixtures";
 import { engagedWith } from "#wow/combat-actions-credit";
-import { ObjectType, UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import { ObjectType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 const PET = 0xf1_40_00_00_00_00_00_aan;
 

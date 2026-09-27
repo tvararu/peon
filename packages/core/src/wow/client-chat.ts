@@ -4,8 +4,9 @@ import {
   buildWhoRequest,
   parseWhoResponse,
 } from "#wow/protocol/chat";
-import { PLAYER_FIELDS } from "#wow/protocol/entity-fields";
-import { ChatType, GameOpcode } from "#wow/protocol/opcodes";
+import { ChatType } from "#wow/protocol/enums";
+import { GameOpcode } from "#wow/protocol/opcodes";
+import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
 import type { WorldConn } from "#wow/world-conn";
 import { selfGuid, sendPacket } from "#wow/world-handlers";
 

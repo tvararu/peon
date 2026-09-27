@@ -1,5 +1,6 @@
 import { type Entity, type EntityLookup, fieldOf } from "#wow/entity-store";
-import { ObjectType, PLAYER_FIELDS } from "#wow/protocol/entity-fields";
+import { ObjectType } from "#wow/protocol/entity-fields";
+import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
 
 export type QuestLogSlot = {
   slot: number;

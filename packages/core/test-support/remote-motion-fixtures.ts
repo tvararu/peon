@@ -11,13 +11,13 @@ import {
 import { type WorldHandle, worldSession } from "#wow/client";
 import {
   ObjectType,
-  UNIT_FIELDS,
   UpdateFlag,
   UpdateType,
 } from "#wow/protocol/entity-fields";
 import { type MovementInfo, writeMovementInfo } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketWriter } from "#wow/protocol/packet";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { RemoteMotionEvent, RemotePose } from "#wow/remote-motion";
 
 export const PEER = 0x9ffn;

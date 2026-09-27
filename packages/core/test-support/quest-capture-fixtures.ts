@@ -7,13 +7,13 @@ import {
   registerTrainerHandlers,
   registerVendorHandlers,
 } from "#wow/gameplay-handlers";
+import { ObjectType } from "#wow/protocol/entity-fields";
+import { PacketReader } from "#wow/protocol/packet";
 import {
   ITEM_FIELDS,
   OBJECT_FIELDS,
-  ObjectType,
   PLAYER_FIELDS,
-} from "#wow/protocol/entity-fields";
-import { PacketReader } from "#wow/protocol/packet";
+} from "#wow/protocol/update-fields";
 import { OpcodeDispatch } from "#wow/protocol/world";
 import { type QuestEvent, QuestRuntime } from "#wow/quests";
 import { TrainerRuntime } from "#wow/trainer";
@@ -82,7 +82,7 @@ export function questCapture(self: bigint) {
       Number(guid & 0xff_ff_ff_ffn),
       Number(guid >> 32n),
     ];
-    const fields = new Map([
+    const fields = new Map<number, number>([
       [OBJECT_FIELDS.ENTRY.offset, itemId],
       [ITEM_FIELDS.STACK_COUNT.offset, count],
     ]);

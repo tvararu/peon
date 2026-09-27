@@ -11,11 +11,11 @@ import {
 import { type ChatMessage, type GroupEvent, worldSession } from "#wow/client";
 import {
   ChatType,
-  GameOpcode,
   GroupUpdateFlag,
   PartyOperation,
   PartyResult,
-} from "#wow/protocol/opcodes";
+} from "#wow/protocol/enums";
+import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 describe("world handler tests", () => {

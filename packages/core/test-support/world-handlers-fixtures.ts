@@ -10,12 +10,9 @@ import { must } from "#test-support/must";
 import type { AuthResult } from "#wow/auth";
 import type { DuelEvent, GroupEvent, WorldHandle } from "#wow/client";
 import type { EntityEvent } from "#wow/entity-store";
-import {
-  OBJECT_FIELDS,
-  UNIT_FIELDS,
-  UpdateFlag,
-} from "#wow/protocol/entity-fields";
+import { UpdateFlag } from "#wow/protocol/entity-fields";
 import { PacketWriter } from "#wow/protocol/packet";
+import { OBJECT_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 export const base = {
   account: FIXTURE_ACCOUNT,

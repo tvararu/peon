@@ -1,4 +1,4 @@
-import { ChannelNotify, ChatType, HighGuid } from "#wow/protocol/opcodes";
+import { ChannelNotify, ChatType, HighGuid } from "#wow/protocol/enums";
 import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 export type ChatMessage = {
