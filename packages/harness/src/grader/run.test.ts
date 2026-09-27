@@ -185,7 +185,7 @@ function worldExec(world: World): Exec {
 function run(
   world: World,
   scenario: Scenario = SELF_STATE,
-  preflight: Preflight = async () => true,
+  preflight?: Preflight,
 ): Promise<string> {
   const sleep = async (ms: number): Promise<void> => {
     world.now += ms;
@@ -195,7 +195,7 @@ function run(
     clock: { now: () => world.now },
     exec: worldExec(world),
     log: (line) => world.logs.push(line),
-    preflight,
+    ...(preflight === undefined ? {} : { preflight }),
     replica: 1,
     round: 1,
     scenario,
@@ -390,13 +390,13 @@ describe("runScenario", () => {
     expect(draft.efficiency.wallSec).toBeGreaterThanOrEqual(60);
   });
 
-  test("a scenario still blocked at preflight grades blocked and creates no account", async () => {
+  test("a blockedBy key grades blocked with no account until the scenario drops it", async () => {
     const world = await newWorld();
     const scenario: Scenario = {
       ...SELF_STATE,
       blockedBy: ["map-0-navigation"],
     };
-    expect(await run(world, scenario, async () => true)).toStartWith(
+    expect(await run(world, scenario)).toStartWith(
       "t0-self-state-1 blocked 0/5 ",
     );
     const result = (await Bun.file(

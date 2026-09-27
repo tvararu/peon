@@ -21,7 +21,7 @@ import {
 } from "#harness/grader/partner";
 import {
   blockersOf,
-  navPreflight,
+  heldUntilRemoved,
   type Preflight,
 } from "#harness/grader/preflight";
 import type { EvalResult } from "#harness/grader/result";
@@ -498,7 +498,7 @@ export async function runScenario(init: RunInit): Promise<string> {
   const run = await prepare(init);
   run.blockedBy = await blockersOf(
     init.scenario,
-    init.preflight ?? navPreflight(),
+    init.preflight ?? heldUntilRemoved,
   );
   if (run.blockedBy.length > 0) {
     run.init.log(`blocked ${run.blockedBy.join(", ")}`);
