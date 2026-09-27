@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { visibleWidth } from "@earendil-works/pi-tui";
+import { ChatType } from "@tuicraft/core";
 import type { GameLogEntry } from "#harness/contract/log";
 import { setGlyphs } from "#harness/ui/context";
 import {
@@ -106,6 +107,29 @@ describe("draw helpers", () => {
     expect(entryTone(entry({ domain: "run", event: "run/started" }))).toBe(
       "muted",
     );
+  });
+
+  test("entry style: chat rows take the glyph of their chat type", () => {
+    const chat = (type: number, event: "chat/in" | "chat/out" = "chat/in") =>
+      entryGlyph(entry({ class: "passive", data: { type }, event }));
+    expect(chat(ChatType.WHISPER)).toBe(nerd.whisper);
+    expect(chat(ChatType.WHISPER_INFORM, "chat/out")).toBe(nerd.whisper);
+    expect(chat(ChatType.SYSTEM)).toBe(nerd.system);
+    expect(chat(ChatType.PARTY)).toBe(nerd.partyChat);
+    expect(chat(ChatType.GUILD)).toBe(nerd.guild);
+    expect(chat(ChatType.SAY)).toBe(nerd.say);
+    expect(
+      entryGlyph(entry({ class: "wake", data: { type: ChatType.PARTY } })),
+    ).toBe(nerd.partyChat);
+  });
+
+  test("entry style: coming back to life is not a spirit healer", () => {
+    expect(entryGlyph(entry({ domain: "life", event: "life/alive" }))).toBe(
+      nerd.health,
+    );
+    expect(
+      entryGlyph(entry({ domain: "life", event: "life/resurrect_offer" })),
+    ).toBe(nerd.spiritHealer);
   });
 
   test("the glyph set follows setGlyphs", () => {

@@ -221,7 +221,7 @@ describe("live-run family", () => {
       }),
     );
     expect(text[1]).toBe(
-      `${nerd.spiritHealer} alive via corpse in 41s · 3 legs · ${nerd.corpse} 0.8y`,
+      `${nerd.health} alive via corpse in 41s · 3 legs · ${nerd.corpse} 0.8y`,
     );
     expect(text).toContain("other ways: spirit_healer");
   });

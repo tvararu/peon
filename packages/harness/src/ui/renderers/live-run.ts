@@ -285,7 +285,7 @@ function recoverBody({
 }: BodyInit<"recover">): string[] {
   const g = glyphs();
   const state = after.alive
-    ? theme.fg("success", `${g.spiritHealer} alive`)
+    ? theme.fg("success", `${g.health} alive`)
     : theme.fg("error", `${g.ghost} still dead`);
   const corpse =
     after.corpseYd === undefined

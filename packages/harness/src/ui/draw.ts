@@ -1,6 +1,6 @@
 import type { Theme, ThemeColor } from "@earendil-works/pi-coding-agent";
 import { type Component, truncateToWidth } from "@earendil-works/pi-tui";
-import type { FactionRelation } from "@tuicraft/core";
+import { ChatType, type FactionRelation } from "@tuicraft/core";
 import type { Domain, GameLogEntry, LogEvent } from "#harness/contract/log";
 import type { ToolStatus } from "#harness/contract/result";
 import type { Compass } from "#harness/contract/views";
@@ -130,7 +130,7 @@ const EVENT_GLYPH: Partial<Record<LogEvent, GlyphName>> = {
   "combat/attacked": "damageIn",
   "combat/cast": "cast",
   "combat/kill_credit": "kill",
-  "life/alive": "spiritHealer",
+  "life/alive": "health",
   "life/low_health": "health",
   "life/released": "ghost",
   "life/resurrect_offer": "spiritHealer",
@@ -180,10 +180,38 @@ export function glyph(name: GlyphName): string {
   return glyphs()[name];
 }
 
+const CHAT_GLYPH: ReadonlyMap<unknown, GlyphName> = new Map([
+  [ChatType.SYSTEM, "system"],
+  [ChatType.BG_SYSTEM_NEUTRAL, "system"],
+  [ChatType.BG_SYSTEM_ALLIANCE, "system"],
+  [ChatType.BG_SYSTEM_HORDE, "system"],
+  [ChatType.WHISPER, "whisper"],
+  [ChatType.WHISPER_FOREIGN, "whisper"],
+  [ChatType.WHISPER_INFORM, "whisper"],
+  [ChatType.MONSTER_WHISPER, "whisper"],
+  [ChatType.RAID_BOSS_WHISPER, "whisper"],
+  [ChatType.PARTY, "partyChat"],
+  [ChatType.PARTY_LEADER, "partyChat"],
+  [ChatType.RAID, "partyChat"],
+  [ChatType.RAID_LEADER, "partyChat"],
+  [ChatType.RAID_WARNING, "partyChat"],
+  [ChatType.GUILD, "guild"],
+  [ChatType.OFFICER, "guild"],
+]);
+
+function chatGlyph(entry: GameLogEntry): GlyphName | undefined {
+  if (entry.domain !== "chat") return;
+  const byType = CHAT_GLYPH.get(entry.data["type"]);
+  if (byType) return byType;
+  return entry.event === "chat/in" && entry.class === "wake"
+    ? "whisper"
+    : undefined;
+}
+
 export function entryGlyph(entry: GameLogEntry): string {
-  if (entry.event === "chat/in" && entry.class === "wake")
-    return glyph("whisper");
-  return glyph(EVENT_GLYPH[entry.event] ?? DOMAIN_GLYPH[entry.domain]);
+  return glyph(
+    chatGlyph(entry) ?? EVENT_GLYPH[entry.event] ?? DOMAIN_GLYPH[entry.domain],
+  );
 }
 
 export function entryTone(entry: GameLogEntry): ThemeColor {
