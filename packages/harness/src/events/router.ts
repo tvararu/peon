@@ -13,7 +13,7 @@ import type {
   LogDraft,
   LogEvent,
 } from "#harness/contract/log";
-import type { RunRecord, RunRegistry } from "#harness/contract/runs";
+import type { RunEvent, RunRecord, RunRegistry } from "#harness/contract/runs";
 import type {
   AttackLedger,
   DeliverySink,
@@ -268,6 +268,25 @@ function stamped(draft: LogDraft, runs: RunRegistry): LogDraft {
   return { ...draft, consumedBy, delivered, runId: draft.runId ?? run?.id };
 }
 
+const TALLIED = new Set<RunRecord["status"]>(["succeeded", "partly"]);
+
+function createHeldRows(log: GameLog) {
+  const held = new Map<string, number[]>();
+  return {
+    hold(entry: GameLogEntry) {
+      if (entry.consumedBy === undefined || entry.runId === undefined) return;
+      held.set(entry.runId, [...(held.get(entry.runId) ?? []), entry.seq]);
+    },
+    settle({ type, record }: RunEvent) {
+      if (type !== "ended") return;
+      const seqs = held.get(record.id) ?? [];
+      held.delete(record.id);
+      if (TALLIED.has(record.status)) return;
+      for (const seq of seqs) log.mark(seq, { consumedBy: undefined });
+    },
+  };
+}
+
 function throttled(draft: LogDraft, cls: LogClass): LogDraft {
   const text = `Wake held back: ${draft.event} became ${cls}.`;
   return {
@@ -284,13 +303,14 @@ export function createEventRouter(init: RouterInit): EventRouter {
   let sink: DeliverySink | undefined;
   let lookup = lookupFor(undefined);
   let memo = createRuleMemo();
+  const held = createHeldRows(log);
   const admit = (draft: LogDraft, rc: RuleContext): LogClass => {
     const wanted = draft.class === "wake" && !rc.wake ? "passive" : draft.class;
     return wanted === "log" ? "log" : guard.admit({ ...draft, class: wanted });
   };
   const record = (draft: LogDraft, rc: RuleContext) => {
     const cls = admit(draft, rc);
-    log.append(stamped({ ...draft, class: cls }, runs));
+    held.hold(log.append(stamped({ ...draft, class: cls }, runs)));
     if (draft.class === "wake" && rc.wake && cls !== "wake")
       log.append(throttled(draft, cls));
   };
@@ -303,7 +323,10 @@ export function createEventRouter(init: RouterInit): EventRouter {
   log.subscribe((entry) => {
     if (sink) deliver(sink, entry);
   });
-  runs.subscribe((event) => route((rc) => runDrafts(event, rc)));
+  runs.subscribe((event) => {
+    held.settle(event);
+    route((rc) => runDrafts(event, rc));
+  });
   return {
     attach(handle) {
       lookup = lookupFor({ attacks: init.attacks, handle });

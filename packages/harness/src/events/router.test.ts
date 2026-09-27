@@ -187,6 +187,39 @@ describe("createEventRouter", () => {
     ]);
   });
 
+  test("a stopped engage gives its rows back, since its result has no tally", async () => {
+    const { log, router, runs } = setup();
+    const handle = createMockHandle();
+    router.attach(handle);
+    const run = runs.start<number>({
+      args: {},
+      kind: "engage",
+      launch: ({ signal }) =>
+        new Promise((resolve) => {
+          signal.addEventListener("abort", () =>
+            resolve({ status: "failed", summary: "FAILED stopped", value: 0 }),
+          );
+        }),
+      toolCallId: "call-9",
+    });
+    handle.triggerCombatEvent({
+      state: {
+        ...handle.getCombatState(),
+        lastXp: { at: 1, kind: "kill", total: 90, victim: 0x2an },
+      },
+      type: "xp",
+    });
+    const consumed = () =>
+      log
+        .since(0)
+        .filter((row) => row.event === "xp/gain")
+        .map((row) => row.consumedBy);
+    expect(consumed()).toEqual(["call-9"]);
+    runs.cancel(run.id, "human");
+    await run.done;
+    expect(consumed()).toEqual([undefined]);
+  });
+
   test("the same rows outside an engage run stay unconsumed", () => {
     const { log, router, runs } = setup();
     const handle = createMockHandle();
