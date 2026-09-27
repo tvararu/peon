@@ -51,6 +51,44 @@ async function world() {
   return { handle, rt, snapshots, tool: lookTool(rt) };
 }
 
+type World = Awaited<ReturnType<typeof world>>;
+
+function questLog({ handle, rt }: World, questId: number, ender: string) {
+  rt.quests.set(questId, {
+    ender,
+    giver: "Deputy Willem",
+    objectives: `Speak with ${ender}.`,
+    title: "A Threat Within",
+  });
+  const state = handle.getQuestState();
+  const counters: [number, number, number, number] = [0, 0, 0, 0];
+  handle.getQuestState = () => ({
+    ...state,
+    log: {
+      complete: true,
+      slots: [{ counters, expiresAtSeconds: 0, flags: 0, questId, slot: 0 }],
+    },
+  });
+}
+
+function crowd(last: UnitInit): NearbyRow[] {
+  const rabbits = [5, 10, 15, 20, 25].map((dx, i) =>
+    nearbyRow(unitEntity({ dx, guid: BigInt(0x60 + i), name: "Rabbit" }), {
+      relation: "neutral",
+    }),
+  );
+  return [
+    selfRow(),
+    ...rabbits,
+    nearbyRow(unitEntity({ dx: 30, guid: 0x70n, level: 5, name: "Stallion" }), {
+      relation: "neutral",
+    }),
+    friendly({ dx: 40, guid: 0x71n, level: 22, name: "Stormwind Guard" }),
+    friendly({ dx: 45, guid: 0x72n, level: 10, name: "Fgkliba", player: true }),
+    friendly(last),
+  ];
+}
+
 const friendly = (init: UnitInit, roles: NpcRole[] = []) =>
   nearbyRow(unitEntity(init), { relation: "friendly", roles });
 const stalker = () =>
@@ -226,6 +264,114 @@ describe("look", () => {
       "1 of 1 units within 100 yd, nearest first:",
       "- u5 Springpaw Stalker L7 hostile, 78 yd N",
     ]);
+  });
+
+  test("a cut list keeps the ender of an active quest and names the rest", async () => {
+    const t = await world();
+    questLog(t, 783, "Marshal McBride");
+    place(
+      t.handle,
+      crowd({ dx: 57, guid: 0x73n, level: 20, name: "Marshal McBride" }),
+    );
+    const lines = (await runTool(t.tool, {})).text.split("\n");
+    expect(lines[2]).toBe("6 of 9 units within 60 yd, most relevant first:");
+    expect(lines[3]).toMatch(/^- u\d+ Marshal McBride L20 friendly, 57 yd N$/);
+    expect(lines.slice(4, 9).map((line) => line.split(" ")[2])).toEqual([
+      "Stallion",
+      "Stormwind",
+      "Fgkliba",
+      "Rabbit",
+      "Rabbit",
+    ]);
+    expect(lines[9]).toMatch(
+      /^3 more: u\d+ Rabbit 15 yd N, u\d+ Rabbit 20 yd N, u\d+ Rabbit 25 yd N\. Use look\(within: 60\) to list all\.$/,
+    );
+  });
+
+  test("a unit the human named outranks nearer ones", async () => {
+    const t = await world();
+    t.rt.log.append({
+      class: "log",
+      data: { text: "Walk to Marniel Amberlight please" },
+      domain: "human",
+      event: "human/input",
+      text: "Human: Walk to Marniel Amberlight please",
+    });
+    place(
+      t.handle,
+      crowd({ dx: 58, guid: 0x73n, level: 15, name: "Marniel Amberlight" }),
+    );
+    const lines = (await runTool(t.tool, {})).text.split("\n");
+    expect(lines[3]).toMatch(
+      /^- u\d+ Marniel Amberlight L15 friendly, 58 yd N$/,
+    );
+  });
+
+  test("an attacker and hostiles come before questgivers and vendors", async () => {
+    const t = await world();
+    const extra = [
+      friendly({ dx: 50, guid: 0x80n, level: 30, name: "Velan Brightoak" }, [
+        "questgiver",
+      ]),
+      nearbyRow(
+        unitEntity({ dx: 55, guid: 0x81n, level: 7, name: "Springpaw Lynx" }),
+        {
+          relation: "hostile",
+        },
+      ),
+    ];
+    place(
+      t.handle,
+      [
+        ...crowd({ dx: 59, guid: 0x82n, level: 7, name: "Springpaw Stalker" }),
+        ...extra,
+      ],
+      {
+        attackers: [0x82n],
+      },
+    );
+    const names = (await runTool(t.tool, {})).text
+      .split("\n")
+      .slice(3, 6)
+      .map((line) => line.split(" ").slice(2, 4).join(" "));
+    expect(names).toEqual([
+      "Springpaw Stalker",
+      "Springpaw Lynx",
+      "Velan Brightoak",
+    ]);
+  });
+
+  test("a questgiver that left view is reported by name and by role at any distance", async () => {
+    const t = await world();
+    const erona = friendly(
+      {
+        dx: -75,
+        dy: 75,
+        entry: 15_402,
+        guid: 0x90n,
+        level: 12,
+        name: "Magistrix Erona",
+      },
+      ["questgiver"],
+    );
+    place(t.handle, eversong([erona]));
+    await runTool(t.tool, {});
+    place(t.handle, eversong());
+    const byName = (
+      await runTool(t.tool, { name: "Erona", within: 100 })
+    ).text.split("\n");
+    expect(byName.slice(2)).toEqual([
+      "No units within 100 yd.",
+      expect.stringMatching(
+        /^- u\d+ Magistrix Erona L12 friendly, questgiver, last seen 106 yd SW 0 s ago \(not in view\)$/,
+      ),
+      expect.stringMatching(/^Nearest hostile/),
+      "No unit is attacking you.",
+    ]);
+    const byRole = (await runTool(t.tool, { find: "questgiver" })).text;
+    expect(byRole).toMatch(
+      /- u\d+ Magistrix Erona L12 friendly, questgiver, last seen 106 yd SW/,
+    );
   });
 
   test("three unchanged looks add the loop note", async () => {

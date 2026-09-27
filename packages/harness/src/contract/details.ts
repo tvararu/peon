@@ -38,6 +38,8 @@ export type LookAfter = {
   name: string | undefined;
   within: number | undefined;
   rows: UnitView[];
+  more: UnitView[];
+  remembered: UnitView[];
   matched: number;
   seen: number;
   nearest: Partial<Record<NearestKind, UnitView>>;

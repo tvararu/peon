@@ -17,6 +17,7 @@ import {
 } from "#harness/ops/range";
 import { Refusal } from "#harness/ops/refusal";
 import {
+  knownUnits,
   manaText,
   nowSnapshot,
   unitMatches,
@@ -28,6 +29,7 @@ import {
   emptySelf,
   result,
 } from "#harness/tools/define";
+import { byRelevance, MORE_NAMES, relevanceOf } from "#harness/tools/look-rank";
 import { nextCall } from "#harness/tools/next-call";
 import { type LookArgs, lookParams } from "#harness/tools/params";
 
@@ -45,6 +47,14 @@ const ALWAYS_NEAREST: readonly NearestKind[] = [
   "hostile",
   "lootable",
   "trainer",
+];
+const REMEMBERED_ROWS = 3;
+const REMEMBERED_FILTERS: readonly LookFilter[] = [
+  "questgiver",
+  "vendor",
+  "trainer",
+  "repair",
+  "spirit_healer",
 ];
 const unchangedLooks = new WeakMap<HarnessRuntime, Unchanged>();
 const LOOK_FILTERS: readonly LookFilter[] = [
@@ -66,9 +76,11 @@ function emptyLook(): LookAfter {
     danger: { attackers: [], hpPct: 100 },
     filter: "any",
     matched: 0,
+    more: [],
     name: undefined,
     nearest: {},
     place: emptyPlace(),
+    remembered: [],
     rows: [],
     run: undefined,
     seen: 0,
@@ -151,10 +163,32 @@ function nounOf(filter: LookFilter): string {
   return filter === "any" ? "units" : `${filter.replace("_", " ")} units`;
 }
 
-function headerLine({ filter, matched, rows, within }: LookAfter): string {
+function headerLine({
+  filter,
+  matched,
+  more,
+  rows,
+  within,
+}: LookAfter): string {
   const range = within ?? LOOK_DEFAULT_YD;
   if (rows.length === 0) return `No ${nounOf(filter)} within ${range} yd.`;
-  return `${rows.length} of ${matched} ${nounOf(filter)} within ${range} yd, nearest first:`;
+  const order = more.length > 0 ? "most relevant first" : "nearest first";
+  return `${rows.length} of ${matched} ${nounOf(filter)} within ${range} yd, ${order}:`;
+}
+
+function moreLine({ more, within }: LookAfter): string[] {
+  if (more.length === 0) return [];
+  const named = more
+    .slice(0, MORE_NAMES)
+    .map((unit) => `${unit.ref} ${unit.name} ${distanceText(unit)}`)
+    .join(", ");
+  return [
+    `${more.length} more: ${named}. Use ${nextCall("look", { within: within ?? LOOK_DEFAULT_YD })} to list all.`,
+  ];
+}
+
+function lastSeenText(unit: UnitView): string {
+  return `last seen ${distanceText(unit)} ${ageText(unit.seenAgoMs)} ago (not in view)`;
 }
 
 function rowLine(unit: UnitView): string {
@@ -167,7 +201,7 @@ function rowLine(unit: UnitView): string {
     unit.attackingMe ? "attacking you" : undefined,
     unit.targetsMe && !unit.attackingMe ? "targets you" : undefined,
     unit.tappedByOther ? "tapped by another player" : undefined,
-    distanceText(unit),
+    unit.inView ? distanceText(unit) : lastSeenText(unit),
   ];
   return `- ${unit.ref} ${unit.name} L${unit.level} ${traits.filter((trait) => trait !== undefined).join(", ")}`;
 }
@@ -201,6 +235,8 @@ function lookBody(after: LookAfter): string[] {
     statusLine(after),
     headerLine(after),
     ...after.rows.map(rowLine),
+    ...moreLine(after),
+    ...after.remembered.map(rowLine),
     nearestLine(after),
     ...calm,
     ...stale,
@@ -231,6 +267,21 @@ function countUnchanged(rt: HarnessRuntime, digest: string): number {
   return next.count;
 }
 
+function rememberedRows(
+  ctx: ToolCtx<LookAfter>,
+  { filter, name }: { filter: LookFilter; name: string | undefined },
+): UnitView[] {
+  const role = REMEMBERED_FILTERS.includes(filter);
+  if (!(name || role)) return [];
+  return knownUnits(ctx)
+    .filter(
+      (unit) =>
+        !unit.inView &&
+        fitsLook({ filter, name, unit, within: Number.MAX_SAFE_INTEGER }),
+    )
+    .slice(0, REMEMBERED_ROWS);
+}
+
 function lookAfter(
   args: LookArgs,
   ctx: ToolCtx<LookAfter>,
@@ -242,7 +293,9 @@ function lookAfter(
   const matching = units.filter((unit) =>
     fitsLook({ filter, name: args.name, unit, within }),
   );
-  const rows = matching.slice(
+  const cut = args.within === undefined && matching.length > LOOK_DEFAULT_ROWS;
+  const ordered = cut ? byRelevance(matching, relevanceOf(ctx)) : matching;
+  const rows = ordered.slice(
     0,
     args.within === undefined ? LOOK_DEFAULT_ROWS : LOOK_MAX_ROWS,
   );
@@ -250,9 +303,11 @@ function lookAfter(
     danger: dangerView(ctx),
     filter,
     matched: matching.length,
+    more: cut ? ordered.slice(LOOK_DEFAULT_ROWS) : [],
     name: args.name,
     nearest: snapshot.nearest,
     place: snapshot.place,
+    remembered: rememberedRows(ctx, { filter, name: args.name }),
     rows,
     run: snapshot.run,
     seen: units.length,
