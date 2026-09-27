@@ -3,6 +3,12 @@ import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { ToolDetails } from "#harness/contract/details";
 import type { ToolName } from "#harness/contract/result";
 import { socialRenderers, stopRenderers } from "#harness/ui/renderers/line";
+import {
+  engageRenderers,
+  recoverRenderers,
+  restRenderers,
+  travelRenderers,
+} from "#harness/ui/renderers/live-run";
 import { lookRenderers } from "#harness/ui/renderers/picture";
 
 export type ToolRenderers = Pick<
@@ -11,16 +17,16 @@ export type ToolRenderers = Pick<
 >;
 
 const RENDERERS: Readonly<Record<ToolName, ToolRenderers>> = {
-  engage: {},
+  engage: engageRenderers,
   interact: {},
   journal: {},
   look: lookRenderers,
   loot: {},
-  recover: {},
-  rest: {},
+  recover: recoverRenderers,
+  rest: restRenderers,
   social: socialRenderers,
   stop: stopRenderers,
-  travel: {},
+  travel: travelRenderers,
 };
 
 export function rendererFor(tool: ToolName): ToolRenderers {
