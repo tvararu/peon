@@ -13,7 +13,7 @@ export type AccountNames = {
   preset: string;
 };
 
-const FILES = {
+export const FILES = {
   agent: { names: "names.json", session: "account.json" },
   partner: { names: "partner-names.json", session: "partner.json" },
 } as const;

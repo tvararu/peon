@@ -173,7 +173,9 @@ export async function cleanup(st: RunState): Promise<void> {
   if (pane !== undefined) await attempt(st, "close", () => pane.close());
   await deleteAll(st, accountsOf(st));
   await attempt(st, "leak check", () => checkLeaks(st));
-  await attempt(st, "concurrent", () => writeConcurrent(st.runDir));
+  await attempt(st, "concurrent", () =>
+    writeConcurrent(st.runDir, new Date(st.clock.now()).toISOString()),
+  );
   await attempt(st, "session files", () => removeSessionFiles(st.runDir));
   if (st.cleanupFailed.length > 0)
     await writeFile(

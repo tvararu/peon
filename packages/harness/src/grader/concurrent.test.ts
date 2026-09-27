@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { writeConcurrent } from "#harness/grader/concurrent";
+import { LOWER_BOUND_NOTE, writeConcurrent } from "#harness/grader/concurrent";
 
 async function runDir(
   round: string,
@@ -19,7 +19,7 @@ async function runDir(
 }
 
 describe("writeConcurrent", () => {
-  test("lists the characters of the other runs in the round", async () => {
+  test("lists the other runs' characters as a timestamped lower bound", async () => {
     const round = await mkdtemp(`${tmpdir()}/round-`);
     const own = await runDir(round, "t0-self-state-1", { "names.json": "Own" });
     await runDir(round, "t0-who-is-near-1", {
@@ -27,10 +27,14 @@ describe("writeConcurrent", () => {
       "partner-names.json": "Witness",
     });
     await runDir(round, "t4-quest-first-1", {});
-    await writeConcurrent(own);
-    expect(await Bun.file(`${own}/grader/concurrent.json`).json()).toEqual([
-      { character: "Agent", role: "agent", run: "t0-who-is-near-1" },
-      { character: "Witness", role: "partner", run: "t0-who-is-near-1" },
-    ]);
+    await writeConcurrent(own, "2026-09-27T05:00:00.000Z");
+    expect(await Bun.file(`${own}/grader/concurrent.json`).json()).toEqual({
+      listedAt: "2026-09-27T05:00:00.000Z",
+      note: LOWER_BOUND_NOTE,
+      runs: [
+        { character: "Agent", role: "agent", run: "t0-who-is-near-1" },
+        { character: "Witness", role: "partner", run: "t0-who-is-near-1" },
+      ],
+    });
   });
 });
