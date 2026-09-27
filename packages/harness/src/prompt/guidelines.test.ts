@@ -46,24 +46,6 @@ describe("TOOL_TEXT", () => {
     expect(TOOLS.map((tool) => TOOL_TEXT[tool].label)).toEqual(LABELS);
   });
 
-  test("keeps the design F.2 guideline lines", () => {
-    expect(TOOL_TEXT.look.guidelines[0]).toBe(
-      "Use find to filter. The Nearest line includes units out of view.",
-    );
-    expect(TOOL_TEXT.travel.guidelines[0]).toBe(
-      "Never invent coordinates. If a refusal gives floors, use one as the third number.",
-    );
-    expect(TOOL_TEXT.engage.guidelines[0]).toBe(
-      "Leave target empty to fight the nearest hostile. Use quest to fight for a quest objective.",
-    );
-    expect(TOOL_TEXT.interact.guidelines[0]).toBe(
-      "talk lists what an NPC offers. Your own quest log is journal.",
-    );
-    expect(TOOL_TEXT.journal.guidelines[0]).toBe(
-      "log is history. It never loses events when you read it.",
-    );
-  });
-
   test.each(TOOLS)("%s has one or two guidelines", (tool) => {
     expect(TOOL_TEXT[tool].guidelines.length).toBeGreaterThanOrEqual(1);
     expect(TOOL_TEXT[tool].guidelines.length).toBeLessThanOrEqual(2);

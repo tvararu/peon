@@ -30,7 +30,7 @@ async function endRun(runs: RunRegistry, awaited: boolean): Promise<string> {
 }
 
 describe("createEventRouter", () => {
-  test("attach subscribes all 21 hooks and detach removes them", () => {
+  test("attach subscribes all 20 hooks and detach removes them", () => {
     const { router } = setup();
     const handle = createMockHandle();
     const hooks = Object.keys(handle).filter((key) => /^on[A-Z]/.test(key));
@@ -42,7 +42,7 @@ describe("createEventRouter", () => {
         return () => live.delete(name);
       };
     const detach = router.attach({ ...handle, ...spied } as WorldHandle);
-    expect(hooks).toHaveLength(21);
+    expect(hooks).toHaveLength(20);
     expect([...live].sort()).toEqual([...hooks].sort());
     detach();
     expect(live.size).toBe(0);

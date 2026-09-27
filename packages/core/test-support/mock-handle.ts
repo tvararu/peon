@@ -22,7 +22,6 @@ import { type QuestEvent, QuestRuntime } from "#wow/quests";
 import { type RecoveryEvent, RecoveryRuntime } from "#wow/recovery";
 import type { RemotePose } from "#wow/remote-motion";
 import { type RewardsEvent, RewardsRuntime } from "#wow/rewards";
-import { SelfDefense } from "#wow/self-defense";
 import type { TacticsEvent, TacticsState } from "#wow/tactics";
 import type { TrainerEvent } from "#wow/trainer";
 import { type VendorEvent, VendorRuntime } from "#wow/vendor";
@@ -111,22 +110,7 @@ export function createMockHandle(): MockHandle {
   });
   const unanswered = () => ({ name: null, quality: null });
 
-  const defense = new SelfDefense({
-    alive: () => true,
-    attack: () => {},
-    attackers: () => [],
-    face: () => {},
-    jev: () => false,
-    now: runtimeDeps.now,
-    owner: () => undefined,
-    tactics: {
-      snapshot: () => tacticsState,
-      start: async () => {},
-      stop: () => {},
-    },
-  });
   const events = createWorldEvents();
-  defense.onEvent((event) => events.defense.emit(event));
   cycle.onEvent((event) => events.cycle.emit(event));
   let closeResolve: () => void;
   const closed = new Promise<void>((r) => {
@@ -142,7 +126,6 @@ export function createMockHandle(): MockHandle {
     activateSpiritHealer: jest.fn(),
     addFriend: jest.fn(),
     addIgnore: jest.fn(),
-    armDefense: jest.fn((instruction: string) => defense.arm(instruction)),
     attack: jest.fn(),
     buyItem: jest.fn(),
     cancelCast: jest.fn(),
@@ -161,7 +144,6 @@ export function createMockHandle(): MockHandle {
     declineGuildInvite: jest.fn(),
     declineInvite: jest.fn(),
     destroyItem: jest.fn(),
-    disarmDefense: jest.fn(() => defense.disarm("command")),
     face: jest.fn(),
     faceGuid: jest.fn(),
     getChannel: jest.fn(),
@@ -169,7 +151,6 @@ export function createMockHandle(): MockHandle {
     getControlState: jest.fn((): ControlState => controlState),
     getCreatureInfo: jest.fn(() => undefined),
     getCycleState: jest.fn(() => cycle.snapshot()),
-    getDefenseState: jest.fn(() => defense.snapshot()),
     getDestroyState: jest.fn(() => ({
       lastOutcome: undefined,
       pending: undefined,
@@ -255,9 +236,6 @@ export function createMockHandle(): MockHandle {
     },
     onCycleEvent(cb) {
       return events.cycle.subscribe(cb);
-    },
-    onDefenseEvent(cb) {
-      return events.defense.subscribe(cb);
     },
     onDestroyEvent(cb) {
       return events.destroy.subscribe(cb);
@@ -350,10 +328,6 @@ export function createMockHandle(): MockHandle {
       closeResolve();
     },
     respondResurrection: jest.fn(),
-    resumeCycle: jest.fn(
-      (instruction: string | undefined, maxStarts: number | undefined) =>
-        cycle.resume({ instruction, maxStarts }),
-    ),
     rollLoot: jest.fn(),
     selectGossipOption: jest.fn(),
     selectQuest: jest.fn(),

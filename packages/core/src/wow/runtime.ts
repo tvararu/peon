@@ -13,7 +13,6 @@ import { ItemDestroyRuntime } from "#wow/destroy";
 import { EncounterCycleRuntime } from "#wow/encounter-cycle";
 import type { EntityLookup } from "#wow/entity-store";
 import type { FactionTemplateCatalog } from "#wow/faction-template";
-import { bearing } from "#wow/geometry";
 import { ItemTemplates } from "#wow/item-use";
 import { type JevSelect, selectJevAction } from "#wow/jev";
 import { createFaultSelect, faultMarker, parseJevFault } from "#wow/jev-fault";
@@ -31,7 +30,6 @@ import {
   loadNavigation,
   warmCatalogs,
 } from "#wow/runtime-data";
-import { SelfDefense } from "#wow/self-defense";
 import { TacticsLoop } from "#wow/tactics";
 import { TrainerRuntime } from "#wow/trainer";
 import { VendorRuntime } from "#wow/vendor";
@@ -49,7 +47,6 @@ export type Runtimes = {
   cycle: EncounterCycleRuntime;
   trainer: TrainerRuntime;
   vendor: VendorRuntime;
-  defense: SelfDefense;
   destroy: ItemDestroyRuntime;
   prepareCatalog: () => Promise<void>;
   factions: () => FactionTemplateCatalog | undefined;
@@ -73,7 +70,6 @@ type RuntimeParts = {
   cycle: EncounterCycleRuntime;
   trainer: TrainerRuntime;
   vendor: VendorRuntime;
-  defense: SelfDefense;
   destroy: ItemDestroyRuntime;
 };
 
@@ -185,10 +181,6 @@ function wireEvents(conn: WorldConn, parts: RuntimeParts): Unsubscribe {
     cycle.onEvent((event) => events.cycle.emit(event)),
     trainer.onEvent((event) => events.trainer.emit(event)),
     vendor.onEvent((event) => events.vendor.emit(event)),
-    parts.defense.onEvent((event) => events.defense.emit(event)),
-    combat.onEvent((event) => {
-      if (event.type === "attacked") parts.defense.tick();
-    }),
     destroy.onEvent((event) => events.destroy.emit(event)),
   ];
   return () => {
@@ -232,7 +224,6 @@ function disposeParts(
     destroy,
   } = parts;
   options.unwire();
-  parts.defense.dispose();
   if (options.sendStop) options.halt();
   lazy.disposed = true;
   control.dispose();
@@ -349,44 +340,12 @@ function runtimeDepsFor(conn: WorldConn): RuntimeDeps {
   };
 }
 
-function createDefense(
-  conn: WorldConn,
-  config: ClientConfig,
-  parts: Omit<RuntimeParts, "defense">,
-): SelfDefense {
-  const { combat, control, tactics, cycle, recovery } = parts;
-  return new SelfDefense({
-    attackers: () => combat.attackers(),
-    attack: (guid) => combat.attack(guid),
-    face(guid) {
-      const pose = control.snapshot().pose;
-      if (!pose) throw new Error("no_pose");
-      control.face(bearing(pose, findObservedTarget(conn, parts, guid)));
-    },
-    tactics: {
-      start: (context) => tactics.start(context),
-      stop: (reason) => tactics.stop(reason),
-      snapshot: () => tactics.snapshot(),
-    },
-    owner() {
-      if (cycle.snapshot().active) return "cycle";
-      if (tactics.snapshot().status !== "idle") return "tactics";
-      const owner = control.snapshot().owner;
-      return owner === "none" ? undefined : owner;
-    },
-    alive: () => recovery.snapshot().life === "alive",
-    jev: () => Boolean(config.jevApiKey),
-    now: () => Date.now(),
-  });
-}
-
 function manualControl(
   parts: RuntimeParts,
   halt: (reason?: string) => void,
   haltMovement: (reason: string) => void,
 ): Pick<Runtimes, "override" | "steer"> {
   function takeOver(): void {
-    parts.defense.yieldTo("manual_override");
     parts.cycle.stop("manual_override");
     parts.tactics.stop("manual_override");
   }
@@ -484,7 +443,7 @@ export function createRuntimes(
     defense: { combat, control },
   });
   conn.tactics = tactics;
-  const base = {
+  const parts: RuntimeParts = {
     control,
     combat,
     tactics,
@@ -496,7 +455,6 @@ export function createRuntimes(
     }),
     trainer,
   };
-  const parts = { ...base, defense: createDefense(conn, config, base) };
   const unwire = wireEvents(conn, parts);
   const observedTarget = bind(conn, parts);
   return {

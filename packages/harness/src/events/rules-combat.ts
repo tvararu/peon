@@ -286,7 +286,7 @@ export function tacticsDrafts(event: TacticsEvent, rc: RuleInput): Drafts {
 
 function countFights(event: CycleEvent, rc: RuleInput) {
   const count = rc.memo.cycleFights;
-  if (event.type === "started" || event.type === "resumed") {
+  if (event.type === "started") {
     if (!rc.runActive) count.used = 0;
     count.base = count.used;
   }
@@ -296,8 +296,7 @@ function countFights(event: CycleEvent, rc: RuleInput) {
 }
 
 export function cycleDrafts(event: CycleEvent, rc: RuleInput): Drafts {
-  if (event.type === "started" || event.type === "resumed")
-    rc.memo.cycleActive = true;
+  if (event.type === "started") rc.memo.cycleActive = true;
   if (event.type === "stopped") rc.memo.cycleActive = false;
   const { fights, maxFights } = countFights(event, rc);
   if (!CYCLE_STEPS.has(event.type)) return [];
