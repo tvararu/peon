@@ -47,9 +47,9 @@ runs overlapped. It is not wall time. Coordinator tokens are not in these
 numbers. Two of the 29 scripts were side runs for the maintainer
 (`soap-wishlist` and `wow-agent-prior-art`); they are in the totals.
 
-**Where the numbers come from.** The task-output files under
-`/tmp/claude-1001/.../tasks/*.output` do not hold the usage blocks. The
-usage blocks are in the `<task-notification>` messages in the
+**Where the numbers come from.** The task-output files
+(`tasks/*.output` in the Claude Code temp directory) do not hold the
+usage blocks. The usage blocks are in the `<task-notification>` messages in the
 coordinator's transcript (`~/.claude/projects/<project>/<session>.jsonl`).
 [`workflows/tally.ts`](workflows/tally.ts)
 reads the transcript for each `Workflow` launch, its task id, its run id
@@ -157,7 +157,7 @@ of the build scheduler (`pi-epic-build`, args `phase`, `targets`,
 | 09-26 20:01 | `wf_762ba8c5-036` | pi-epic-migration-docfix | Reviewer's AGENTS.md findings | 1/1 | 0.09 M | 1 min | 11 | `810650e` |
 | 09-26 20:10 | `wf_53ba8862-798` | pi-epic-t1-integration | SRP test, soap presets, t1 service client | 5/5 | 0.66 M | 27 min | 172 | 3 commits, 2531 tests |
 | 09-26 20:22 | `wf_76eada92-d4d` | pi-epic-nav-track | Navigation fixes F1 to F4 and re-proof | 4/4 | 0.66 M | 52 min | 190 | Head `c91f70f`; 13 of 13 M3a routes |
-| 09-26 20:53 | `wf_67873861-b09` | pi-epic-spec | Write and self-review the spec | 3/3 | 0.63 M | 24 min | 134 | `071f3cf` |
+| 09-26 20:53 | `wf_67873861-b09` | pi-epic-spec | Write and self-review the spec | 3/3 | 0.63 M | 24 min | 134 | Spec `071f3cf`, citation fix `e86494a`, roadmap `4827620` |
 | 09-26 20:58 | `wf_341c37a1-7b9` | pi-epic-plan | Contract, 9 area files, plan, 2 verifiers | 14/14 | 5.43 M | 120 min | 1460 | `9dc0483`, 127 tasks |
 | 09-26 21:19 | `wf_03d12b19-3b4` | pi-epic-spec-pending-decisions | Record the 16 self-review settlements | 1/1 | 0.10 M | 1 min | 8 | `3af5aa3` |
 | 09-26 22:58 | `wf_ce0d7454-72c` | pi-epic-plan-fixups | Check the plan against the settlements | 2/2 | 0.47 M | 23 min | 159 | Fixes committed; advisor approval next |
