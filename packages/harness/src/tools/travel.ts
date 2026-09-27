@@ -4,19 +4,18 @@ import type { ToolStatus } from "#harness/contract/result";
 import type { RunControl, RunEnd, RunStatus } from "#harness/contract/runs";
 import type { OpsCtx, ToolCtx } from "#harness/contract/services";
 import { dangerView, watchInterrupts } from "#harness/ops/danger";
-import {
-  explore,
-  MIN_UNSTICK_YD,
-  parseDirection,
-  UNSTICK_SAMPLE_YD,
-  unstick,
-} from "#harness/ops/explore";
+import { explore, parseDirection } from "#harness/ops/explore";
 import { distanceTo } from "#harness/ops/range";
 import { aliveWhere, recoverOp } from "#harness/ops/recover";
 import { Refusal } from "#harness/ops/refusal";
 import { notAtLastKnown, seekLastKnown } from "#harness/ops/remembered";
 import { resolveUnit, unitRefusal } from "#harness/ops/resolve";
 import { travelLeg } from "#harness/ops/travel-leg";
+import {
+  MIN_UNSTICK_YD,
+  UNSTICK_SAMPLE_YD,
+  unstick,
+} from "#harness/ops/unstick";
 import { poseView, selfView, unitViews } from "#harness/ops/views";
 import { awaitRun } from "#harness/runs/wait";
 import {

@@ -1,11 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { Compass, PoseView } from "#harness/contract/views";
-import {
-  explore,
-  parseDirection,
-  UNSTICK_MAX_YD,
-  unstick,
-} from "#harness/ops/explore";
+import { explore, parseDirection } from "#harness/ops/explore";
+import { UNSTICK_MAX_YD, unstick } from "#harness/ops/unstick";
 import {
   driveGoto,
   MAP_ID,

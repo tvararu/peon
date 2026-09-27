@@ -1,18 +1,13 @@
-import { ObjectType } from "@tuicraft/core";
 import type { LegView } from "#harness/contract/details";
 import type { OpsCtx, ViewCtx } from "#harness/contract/services";
 import type { Compass, PoseView, UnitView } from "#harness/contract/views";
+import { ahead, RING, SEARCH, turned } from "#harness/ops/compass";
 import { dangerView } from "#harness/ops/danger";
-import { Refusal } from "#harness/ops/refusal";
 import { type LegResult, travelLeg } from "#harness/ops/travel-leg";
 import { structuralReach } from "#harness/ops/unreached";
+import { MIN_UNSTICK_YD, needPose, unstick } from "#harness/ops/unstick";
 import { poseView, unitViews } from "#harness/ops/views";
 
-export type UnstickResult = {
-  movedYd: number;
-  toward: "last_good_pose" | "open_ground" | "away_from_object";
-  refusedGoal: string | undefined;
-};
 export type ExploreStop =
   | "new_unit"
   | "danger"
@@ -31,7 +26,6 @@ export type ExploreResult = {
   unstuck: "moved" | "failed" | undefined;
 };
 
-export const UNSTICK_MAX_YD = 5;
 export const EXPLORE_MAX_YD = 100;
 export const EXPLORE_MAX_OBSTRUCTED = 3;
 const CELL_YD = 20;
@@ -47,10 +41,6 @@ export const SIDE_REASONS: ReadonlySet<string> = new Set([
   "end_snapped_off",
   "ambiguous_floor",
 ]);
-export const MIN_UNSTICK_YD = 0.5;
-export const UNSTICK_SAMPLE_YD = 8;
-const RING: readonly Compass[] = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-const SEARCH = [0, 1, -1, 2, -2, 3, -3, 4];
 const TURNS = [0, 1, -1, 2, -2];
 const WORDS: Record<string, Compass> = {
   east: "E",
@@ -62,18 +52,7 @@ const WORDS: Record<string, Compass> = {
   southwest: "SW",
   west: "W",
 };
-const DIAGONAL = Math.SQRT1_2;
 const EXPLORE_PREFIX = /^explore\s*/;
-const STEP: Record<Compass, { dx: number; dy: number }> = {
-  E: { dx: 0, dy: -1 },
-  N: { dx: 1, dy: 0 },
-  NE: { dx: DIAGONAL, dy: -DIAGONAL },
-  NW: { dx: DIAGONAL, dy: DIAGONAL },
-  S: { dx: -1, dy: 0 },
-  SE: { dx: -DIAGONAL, dy: -DIAGONAL },
-  SW: { dx: -DIAGONAL, dy: DIAGONAL },
-  W: { dx: 0, dy: 1 },
-};
 
 export function compassWord(compass: Compass): string {
   return (
@@ -89,26 +68,6 @@ export function parseDirection(text: string): Compass | undefined {
 
 function cellKey(at: { mapId: number; x: number; y: number }): string {
   return `${at.mapId}:${Math.floor(at.x / CELL_YD)}:${Math.floor(at.y / CELL_YD)}`;
-}
-
-function ahead(
-  pose: PoseView,
-  direction: Compass,
-  yards: number,
-): { x: number; y: number } {
-  const step = STEP[direction];
-  return { x: pose.x + step.dx * yards, y: pose.y + step.dy * yards };
-}
-
-function needPose(ctx: OpsCtx): PoseView {
-  const pose = poseView(ctx);
-  if (!pose)
-    throw new Refusal({
-      detail: "your position is not known yet.",
-      next: "look()",
-      reason: "no_pose",
-    });
-  return pose;
 }
 
 function blockedFrom(ctx: ViewCtx, at: PoseView): Set<Compass> {
@@ -128,11 +87,6 @@ function noteObstructed(ctx: OpsCtx, at: PoseView, direction: Compass): number {
   tried.add(direction);
   ctx.rt.travel.obstructedExplores.set(key, tried);
   return tried.size;
-}
-
-function turned(direction: Compass, offset: number): Compass {
-  const index = RING.indexOf(direction) + offset;
-  return RING[(index + RING.length) % RING.length] ?? direction;
 }
 
 function untriedFrom(
@@ -395,6 +349,27 @@ async function walkLegs(walk: Walk, start: PoseView) {
   return stoppedBy;
 }
 
+async function walkOffFault(
+  walk: Walk,
+  first: ExploreStop | undefined,
+): Promise<{
+  stoppedBy: ExploreStop | undefined;
+  unstuck: ExploreResult["unstuck"];
+}> {
+  if (first !== "obstructed" || !startFault(walk))
+    return { stoppedBy: first, unstuck: undefined };
+  const { ctx } = walk;
+  const moved = await unstick(ctx, turned(walk.direction, 4)).then(
+    (done) => done.movedYd,
+    () => 0,
+  );
+  if (moved < MIN_UNSTICK_YD) return { stoppedBy: first, unstuck: "failed" };
+  walk.walkedYd += moved;
+  walk.obstructed = 0;
+  walk.rounds = 0;
+  return { stoppedBy: await walkLegs(walk, needPose(ctx)), unstuck: "moved" };
+}
+
 export async function explore(
   ctx: OpsCtx,
   init: {
@@ -428,21 +403,10 @@ export async function explore(
     x: start.x,
     y: start.y,
   });
-  let stoppedBy = await walkLegs(walk, start);
-  let unstuck: ExploreResult["unstuck"];
-  if (stoppedBy === "obstructed" && startFault(walk)) {
-    const moved = await unstick(ctx, turned(walk.direction, 4)).then(
-      (done) => done.movedYd,
-      () => 0,
-    );
-    unstuck = moved >= MIN_UNSTICK_YD ? "moved" : "failed";
-    if (unstuck === "moved") {
-      walk.walkedYd += moved;
-      walk.obstructed = 0;
-      walk.rounds = 0;
-      stoppedBy = await walkLegs(walk, needPose(ctx));
-    }
-  }
+  const { stoppedBy, unstuck } = await walkOffFault(
+    walk,
+    await walkLegs(walk, start),
+  );
   const { direction, legs, newInView, obstructed, walkedYd } = walk;
   const end = poseView(ctx) ?? start;
   return {
@@ -460,106 +424,4 @@ export async function explore(
         : untriedFrom(ctx, end, direction),
     walkedYd,
   };
-}
-
-function nearestObject(ctx: OpsCtx) {
-  const [nearest] = ctx.handle
-    .queryNearby()
-    .filter(
-      (row) =>
-        row.entity.objectType === ObjectType.GAMEOBJECT &&
-        row.position &&
-        row.distance !== null,
-    )
-    .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0));
-  return nearest?.position;
-}
-
-function awayVector(ctx: OpsCtx, pose: PoseView): { dx: number; dy: number } {
-  const from = nearestObject(ctx);
-  const back = STEP[pose.facing];
-  const dx = from ? pose.x - from.x : -back.dx;
-  const dy = from ? pose.y - from.y : -back.dy;
-  const length = Math.hypot(dx, dy) || 1;
-  return { dx: dx / length, dy: dy / length };
-}
-
-function compassOf({ dx, dy }: { dx: number; dy: number }): Compass {
-  const index = Math.round(Math.atan2(-dy, dx) / (Math.PI / 4));
-  return RING[(index + RING.length) % RING.length] ?? "N";
-}
-
-function awayPoint(
-  ctx: OpsCtx,
-  pose: PoseView,
-): { x: number; y: number; z: number } {
-  const { dx, dy } = awayVector(ctx, pose);
-  return {
-    x: pose.x + dx * UNSTICK_MAX_YD,
-    y: pose.y + dy * UNSTICK_MAX_YD,
-    z: pose.z,
-  };
-}
-
-function movedFrom(ctx: OpsCtx, pose: PoseView): number {
-  const now = poseView(ctx) ?? pose;
-  return Math.hypot(now.x - pose.x, now.y - pose.y);
-}
-
-async function openGround(
-  ctx: OpsCtx,
-  pose: PoseView,
-  first: Compass,
-): Promise<number> {
-  for (const offset of SEARCH) {
-    const point = ahead(pose, turned(first, offset), UNSTICK_SAMPLE_YD);
-    const leg = await travelLeg(ctx, {
-      goal: { kind: "point", ...point },
-      within: LEG_WITHIN_YD,
-    });
-    const moved = movedFrom(ctx, pose);
-    if (
-      moved >= MIN_UNSTICK_YD ||
-      leg.status === "cancelled" ||
-      leg.status === "interrupted"
-    )
-      return moved;
-  }
-  return 0;
-}
-
-export async function unstick(
-  ctx: OpsCtx,
-  away?: Compass,
-): Promise<UnstickResult> {
-  const pose = needPose(ctx);
-  const good = ctx.rt.travel.lastGoodPose;
-  const refusedGoal = ctx.rt.travel.lastRefusedGoal;
-  const back =
-    good && good.mapId === pose.mapId
-      ? Math.hypot(good.x - pose.x, good.y - pose.y)
-      : 0;
-  if (good && back >= MIN_UNSTICK_YD) {
-    const outcome = await ctx.handle.walkToward(
-      { kind: "point", x: good.x, y: good.y, z: good.z },
-      Math.min(UNSTICK_MAX_YD, back),
-      ctx.signal,
-    );
-    if (outcome.traveled >= MIN_UNSTICK_YD)
-      return {
-        movedYd: outcome.traveled,
-        refusedGoal,
-        toward: "last_good_pose",
-      };
-  }
-  const first = away ?? compassOf(awayVector(ctx, pose));
-  const routed = await openGround(ctx, pose, first);
-  if (routed >= MIN_UNSTICK_YD)
-    return { movedYd: routed, refusedGoal, toward: "open_ground" };
-  const outcome = await ctx.handle.walkToward(
-    { kind: "point", ...awayPoint(ctx, pose) },
-    UNSTICK_MAX_YD,
-    ctx.signal,
-  );
-  return { movedYd: outcome.traveled, refusedGoal, toward: "away_from_object" };
 }
