@@ -163,7 +163,7 @@ describe("engage fight", () => {
       status: "FAILED",
     });
     expect(res.detail).toMatch(
-      /^Springpaw Stalker u\d+ is not in view any more; the fight did not start\.$/,
+      /^Springpaw Stalker u\d+ is not in view any more; it may have died or despawned\. You walked 20 yd; the fight did not start\.$/,
     );
   });
 

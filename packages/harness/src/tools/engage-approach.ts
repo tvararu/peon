@@ -9,9 +9,9 @@ import {
   structuralReach,
   type Unreached,
 } from "#harness/ops/unreached";
-import { unitViews } from "#harness/ops/views";
+import { selfView, unitViews } from "#harness/ops/views";
 import { result } from "#harness/tools/define";
-import type { FightInit } from "#harness/tools/engage-choose";
+import { type FightInit, LEVEL_CAP_ABOVE } from "#harness/tools/engage-choose";
 import { afterOf, type Tally } from "#harness/tools/engage-tally";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 
@@ -49,6 +49,87 @@ function unreachedNext(scene: Scene, leg: Unreached): string {
   return askHuman(`I cannot reach ${name} from here. Is there another way?`);
 }
 
+type Loss = { reason: string; what: string };
+
+const LOST = "target_lost";
+const LOSSES = {
+  dead: {
+    reason: "target_dead",
+    what: "died before you reached it; another unit killed it",
+  },
+  gone: {
+    reason: "target_not_observed",
+    what: "is not in view any more; it may have died or despawned",
+  },
+  tapped: {
+    reason: "tapped_by_other",
+    what: "was tapped by another player; killing it gives you no loot, experience or quest credit",
+  },
+} satisfies Record<string, Loss>;
+
+function lossOf(scene: Scene): Loss | undefined {
+  const { choice, ops } = scene;
+  if (choice.guid === undefined) return;
+  const hex = guidHex(choice.guid);
+  const unit = unitViews(ops).find((view) => view.guid === hex);
+  if (!unit) return LOSSES.gone;
+  if (!unit.alive) return LOSSES.dead;
+  if (unit.tappedByOther && choice.mode !== "cycle") return LOSSES.tapped;
+}
+
+function anotherTarget(scene: Scene): UnitView | undefined {
+  const { choice, ops, tally } = scene;
+  const fought = new Set(tally.targets.map((target) => target.ref));
+  const cap = selfView(ops).level + LEVEL_CAP_ABOVE;
+  return (
+    otherInView(scene) ??
+    unitViews(ops).find(
+      (unit) =>
+        unit.alive &&
+        unit.level <= cap &&
+        unit.attackable &&
+        unit.relation === "hostile" &&
+        !unit.tappedByOther &&
+        unit.ref !== choice.unit?.ref &&
+        !fought.has(unit.ref),
+    )
+  );
+}
+
+function againNext(scene: Scene, other: UnitView): string {
+  const { wanted } = scene.choice;
+  return wanted > 1
+    ? nextCall("engage", { count: wanted, target: other.name })
+    : nextCall("engage", { target: other.ref });
+}
+
+function lossReport(scene: Scene, loss: Loss): Report {
+  const { choice, ops, walk } = scene;
+  const who = `${choice.unit?.name} ${choice.unit?.ref}`;
+  const tail = walk
+    ? ` You walked ${Math.round(walk.yd)} yd; the fight did not start.`
+    : " The fight did not start.";
+  const other = anotherTarget(scene);
+  return result("FAILED", {
+    after: afterOf(ops, scene),
+    detail: `${who} ${loss.what}.${tail}`,
+    next: other
+      ? againNext(scene, other)
+      : nextCall("travel", { to: "explore" }),
+    reason: loss.reason,
+  });
+}
+
+function watchLoss(scene: Scene): { signal: AbortSignal; off: () => void } {
+  const lost = new AbortController();
+  const off = scene.ops.handle.onEntityEvent((event) => {
+    const guid = event.type === "disappear" ? event.guid : event.entity.guid;
+    if (guid !== scene.choice.guid || lost.signal.aborted) return;
+    if (lossOf(scene)) lost.abort(new Error(LOST));
+  });
+  return { off, signal: lost.signal };
+}
+
 export async function approach(scene: Scene): Promise<Report | undefined> {
   const { choice, ops } = scene;
   if (
@@ -58,12 +139,18 @@ export async function approach(scene: Scene): Promise<Report | undefined> {
   )
     return;
   const startedAt = ops.rt.clock.now();
-  const leg = await travelLeg(ops, {
-    goal: { guid: choice.guid, kind: "unit", name: choice.unit.name },
-    within: APPROACH_WITHIN_YD,
-  });
+  const watch = watchLoss(scene);
+  const leg = await travelLeg(
+    { ...ops, signal: AbortSignal.any([ops.signal, watch.signal]) },
+    {
+      goal: { guid: choice.guid, kind: "unit", name: choice.unit.name },
+      within: APPROACH_WITHIN_YD,
+    },
+  ).finally(watch.off);
   scene.walk = { ms: ops.rt.clock.now() - startedAt, yd: leg.traveledYd };
   if (leg.status === "arrived") return;
+  const loss = watch.signal.aborted && !ops.signal.aborted && lossOf(scene);
+  if (loss) return lossReport(scene, loss);
   const reason = leg.reason ?? leg.status;
   return result("FAILED", {
     after: afterOf(ops, scene),
@@ -74,18 +161,9 @@ export async function approach(scene: Scene): Promise<Report | undefined> {
 }
 
 export function unobserved(scene: Scene): Report | undefined {
-  const { choice, ops } = scene;
+  const { choice } = scene;
   if (choice.mode === "quest" || !choice.unit || choice.guid === undefined)
     return;
-  const hex = guidHex(choice.guid);
-  if (unitViews(ops).some((unit) => unit.guid === hex && unit.alive)) return;
-  const other = otherInView(scene);
-  return result("FAILED", {
-    after: afterOf(ops, scene),
-    detail: `${choice.unit.name} ${choice.unit.ref} is not in view any more; the fight did not start.`,
-    next: other
-      ? nextCall("engage", { target: other.ref })
-      : nextCall("travel", { to: "explore" }),
-    reason: "target_not_observed",
-  });
+  const loss = lossOf(scene);
+  return loss ? lossReport(scene, loss) : undefined;
 }
