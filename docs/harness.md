@@ -188,3 +188,26 @@ Use a terminal font with Nerd Font glyphs for `--glyphs nerd`. Use
 | 0 | Normal exit, or `--check` passed. |
 | 2 | Bad flags, a bad or protected profile, or a held lock. |
 | 3 | No Codex login, or the login expires in less than 10 minutes. |
+| 1 | A fatal error. `meta.json` says `fatal_error`. |
+| 130 | SIGINT, for example Ctrl-C while the harness waits for the logout. `meta.json` says `sigint`. |
+
+## Live smoke: the 120-second yield
+
+Check that a run tool which lasts more than 120 seconds gives control
+back to the agent. Use a throwaway character that stands far from its
+goal, for example `eversong10`.
+
+1. Start the harness as in [Run it](#run-it).
+2. Type a task that walks for more than two minutes: a travel to
+   coordinates at least 900 yards away on ground the character can
+   reach, for example `Travel to <x>, <y>.` `travel` does not take
+   place names. `rest` stops after 30 seconds, so it cannot show the
+   yield.
+3. Do not type while the run goes on. After 120 seconds the tool result
+   starts with `RUNNING r<n>:` and gives HP, mana and position. Its
+   next step is `end your turn; a [game] message comes when r<n> ends.
+   Or stop(run: "r<n>").`
+4. The agent ends its turn. When the run ends, a `[game]` message
+   wakes it.
+5. `gamelog.jsonl` has `nav/route_start` and `nav/route_end` rows (or
+   `nav/refused`) with the run id, and `runs.jsonl` has the run.
