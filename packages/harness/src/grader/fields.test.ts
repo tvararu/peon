@@ -40,6 +40,20 @@ describe("fieldClashes", () => {
     ]);
   });
 
+  test("three scenarios on one field name every pair", () => {
+    expect(
+      fieldClashes([
+        "t7-halt-resume",
+        "t7-question-while-acting",
+        "t6-die-and-recover",
+      ]),
+    ).toEqual([
+      "t7-halt-resume and t7-question-while-acting share field fairbreeze-stalkers",
+      "t7-halt-resume and t6-die-and-recover share field fairbreeze-stalkers",
+      "t7-question-while-acting and t6-die-and-recover share field fairbreeze-stalkers",
+    ]);
+  });
+
   test("scenarios on different fields go together", () => {
     expect(
       fieldClashes(["t7-halt-resume", "t4-quest-first", "t3-ghostlands-kill"]),

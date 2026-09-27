@@ -6,16 +6,13 @@ const STALE_GRACE_MS = 5 * 60_000;
 const FINISHED = ["result.json", "grader/draft.json"];
 
 export function fieldClashes(ids: readonly string[]): string[] {
-  const first = new Map<string, string>();
+  const seen = new Map<string, string[]>();
   return ids.flatMap((id) => {
     const { field } = loadScenario(id);
     if (field === undefined) return [];
-    const earlier = first.get(field);
-    if (earlier === undefined) {
-      first.set(field, id);
-      return [];
-    }
-    return [`${earlier} and ${id} share field ${field}`];
+    const earlier = seen.get(field) ?? [];
+    seen.set(field, [...earlier, id]);
+    return earlier.map((other) => `${other} and ${id} share field ${field}`);
   });
 }
 
