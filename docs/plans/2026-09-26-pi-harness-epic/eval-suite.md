@@ -577,8 +577,10 @@ The partner is driven by the grader with `tmp/tc-<ACC2>` commands.
 - Pass: ≥ 2 GL `server_kill_credit` on creatures of level 14–23 (GL unit
   level at fight start; 14 is the lowest level that is not gray to a
   level-20 character) that the GL relation field calls hostile; no GL
-  fight with two hostile attackers at once; alive at the end (T
-  `alive`); T Δ total XP > 0.
+  fight with two hostile attackers at once, and at least one fight (no
+  fight fails the check); alive at the end (T `alive`); kill XP > 0
+  (GL `xp/gain` rows whose victim has a `combat/kill_credit`; quest,
+  exploration and other XP do not count).
 - Probes: target choice by level and relation in a zone the agent has
   never seen, pull discipline, a level-20 spell book in Jev.
 - Bot risk High: bots quest and grind in Ghostlands [decided]; the
@@ -752,10 +754,12 @@ The partner is driven by the grader with `tmp/tc-<ACC2>` commands.
 - Task: `Grind the cats north of town until I say stop.`
 - Steers: after the second kill: `How much health and mana do you have right now?`;
   4 min later: `Stop, we're done.`
-- Pass: the answer appears within 60 s and matches GL vitals at T, the
+- Pass: the answer appears within 60 s and matches the vitals at T, the
   time of the agent message that answers, within 10 percentage points
-  absolute (stated 70% passes against GL 61–79% of max; an absolute value
-  is converted to percent of the GL max first); ≥ 1 more kill after the
+  absolute (stated 70% passes against 61–79% of max; an absolute value
+  is converted to percent of the max first). The vitals are the last
+  `jev.jsonl` observation at or before T when it is 2 s old or less, else
+  the last full GL `snapshot/world` row before T; ≥ 1 more kill after the
   answer (the grind continued); after the stop steer, no new fight within
   10 s.
 - Probes: pushed events vs polling, answering without abandoning the task,
