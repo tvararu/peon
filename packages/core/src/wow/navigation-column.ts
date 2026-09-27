@@ -2,6 +2,7 @@ import {
   GROUND_ERROR,
   MESH_HEIGHT,
   START_SNAP,
+  WALKABLE_CLIMB,
 } from "#wow/navigation-collision";
 import { groundError, type NativeMap } from "#wow/navigation-native";
 
@@ -31,6 +32,22 @@ export function groundFloors(heights: readonly number[]): number[] {
     )
       floors.push(height);
   return floors.sort((a, b) => b - a);
+}
+
+export function continuousFloor(
+  heights: readonly number[],
+  traced: number,
+  fromZ: number,
+): number {
+  const floors = groundFloors(heights);
+  if (floors.length < 2) return traced;
+  if (Math.abs(traced - fromZ) <= WALKABLE_CLIMB && clearAbove(heights, traced))
+    return traced;
+  const near = floors.filter(
+    (floor) => Math.abs(floor - fromZ) <= WALKABLE_CLIMB,
+  );
+  const [only] = near;
+  return near.length === 1 && only !== undefined ? only : traced;
 }
 
 export function clearAbove(heights: readonly number[], z: number): boolean {

@@ -7,6 +7,7 @@ import {
 import {
   clearAbove,
   columnHeights,
+  continuousFloor,
   floorError,
   groundFloors,
   settleStart,
@@ -59,7 +60,7 @@ type GroundWalk = {
 };
 type GroundStep = { point: NavPoint; heights: number[] };
 export type RouteRules = { climb: number; columnFallback: boolean };
-type StepRules = RouteRules & { ambiguity: string };
+type StepRules = RouteRules & { ambiguity: string; continuity: boolean };
 const STRICT: RouteRules = { climb: 0, columnFallback: false };
 
 export type NavigationRefusal =
@@ -136,6 +137,7 @@ export class GroundRoute {
     const { point } = groundPoint(this.map, start, at, {
       ...this.rules,
       ambiguity: ROUTE_AMBIGUITY,
+      continuity: true,
     });
     if (travel === 0) Object.assign(point, this.points[0]);
     return {
@@ -300,7 +302,11 @@ function groundPath(
   map.loadAdtAt(first.x, first.y);
   const leavingStart = groundFloors(checkStart(map, first)).length > 1;
   const ambiguity = leavingStart ? START_EXIT_AMBIGUITY : ROUTE_AMBIGUITY;
-  const initial = groundPoint(map, first, first, { ...rules, ambiguity }).point;
+  const initial = groundPoint(map, first, first, {
+    ...rules,
+    ambiguity,
+    continuity: !leavingStart,
+  }).point;
   if (Math.abs(initial.z - first.z) > GROUND_ERROR)
     throw groundError("start is not on connected ground");
   const walk: GroundWalk = { points: [{ ...first }], leavingStart, rules };
@@ -342,6 +348,7 @@ function stepCorner(
     const { point, heights } = groundPoint(map, tail, at, {
       ...walk.rules,
       ambiguity: walk.leavingStart ? START_EXIT_AMBIGUITY : ROUTE_AMBIGUITY,
+      continuity: !walk.leavingStart,
     });
     walk.points.push(point);
     walk.leavingStart &&= groundFloors(heights).length > 1;
@@ -371,17 +378,31 @@ function groundPoint(
   map: NativeMap,
   from: NavPoint,
   { x, y }: { x: number; y: number },
-  { climb, ambiguity, columnFallback }: StepRules,
+  { climb, ambiguity, columnFallback, continuity }: StepRules,
 ): GroundStep {
   map.loadAdtAt(x, y);
-  const ahead = { x, y };
-  const point = { x, y, z: traceHeight(map, from, ahead, columnFallback) };
+  const traced = traceHeight(map, from, { x, y }, columnFallback);
+  const z = continuity
+    ? continuousFloor(columnHeights(map, x, y), traced, from.z)
+    : traced;
+  const point = { x, y, z };
   const heights = checkRouteGround(map, point, from, ambiguity);
-  const back = traceHeight(map, point, from, columnFallback);
+  const back = returnHeight(map, point, from, { columnFallback, continuity });
   if (!Number.isFinite(back) || Math.abs(back - from.z) > GROUND_ERROR)
     throw groundError("ground corridor changes surface");
   checkCollision(map, from, point, climb);
   return { point, heights };
+}
+
+function returnHeight(
+  map: NativeMap,
+  point: NavPoint,
+  from: NavPoint,
+  rules: Pick<StepRules, "columnFallback" | "continuity">,
+): number {
+  const back = traceHeight(map, point, from, rules.columnFallback);
+  if (!rules.continuity || Math.abs(back - from.z) <= GROUND_ERROR) return back;
+  return continuousFloor(columnHeights(map, from.x, from.y), back, point.z);
 }
 
 function checkRouteGround(

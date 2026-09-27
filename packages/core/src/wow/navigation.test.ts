@@ -77,12 +77,13 @@ describe("grounded navigation", () => {
     expect(() => navigation(map).plan(530, start, end)).toThrow(/ambiguous/);
   });
 
-  test("rejects a connected trace that drops to a lower floor", () => {
+  test("keeps the continuing floor when a connected trace drops to a lower one", () => {
     const map = native({
       findHeight: (_from, x) => (x >= 4 && x <= 6 ? -5 : 0),
       findHeights: (x) => (x >= 4 && x <= 6 ? [0, -5] : [0]),
     });
-    expect(() => navigation(map).plan(530, start, end)).toThrow(/ambiguous/);
+    const route = navigation(map).plan(530, start, end);
+    expect(route.points.every((point) => point.z === 0)).toBe(true);
   });
 
   test("accepts a mesh corner up to one climb and cell above the ground", () => {
