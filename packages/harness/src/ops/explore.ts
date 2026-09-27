@@ -21,6 +21,7 @@ export type ExploreResult = {
   newInView: UnitView[];
   stoppedBy: ExploreStop;
   untried: Compass | undefined;
+  obstructedHere: number;
 };
 
 export const UNSTICK_MAX_YD = 5;
@@ -107,6 +108,14 @@ function block(ctx: OpsCtx, at: PoseView, direction: Compass): void {
   const blocked = ctx.rt.travel.blockedBearings.get(key) ?? new Set();
   blocked.add(direction);
   ctx.rt.travel.blockedBearings.set(key, blocked);
+}
+
+function noteObstructed(ctx: OpsCtx, at: PoseView, direction: Compass): number {
+  const key = cellKey(at);
+  const tried = ctx.rt.travel.obstructedExplores.get(key) ?? new Set();
+  tried.add(direction);
+  ctx.rt.travel.obstructedExplores.set(key, tried);
+  return tried.size;
 }
 
 function turned(direction: Compass, offset: number): Compass {
@@ -267,13 +276,16 @@ export async function explore(
   )
     stoppedBy = await walkLeg(walk, start);
   const { direction, legs, newInView, obstructed, walkedYd } = walk;
+  const end = poseView(ctx) ?? start;
   return {
     direction,
     legs,
     newInView,
     obstructed,
+    obstructedHere:
+      stoppedBy === "obstructed" ? noteObstructed(ctx, end, direction) : 0,
     stoppedBy: stoppedBy ?? "distance",
-    untried: untriedFrom(ctx, poseView(ctx) ?? start, direction),
+    untried: untriedFrom(ctx, end, direction),
     walkedYd,
   };
 }

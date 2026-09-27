@@ -180,6 +180,7 @@ export type TravelMemory = {
   blockedBearings: Map<string, Set<Compass>>;
   lastGoodPose: PoseView | undefined;
   lastRefusedGoal: string | undefined;
+  obstructedExplores: Map<string, Set<Compass>>;
   visitedCells: Set<string>;
 };
 

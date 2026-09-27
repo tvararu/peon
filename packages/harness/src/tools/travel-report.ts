@@ -336,11 +336,12 @@ function obstructedReport(found: ExploreResult, after: TravelAfter): Report {
   return result("PARTLY", {
     after,
     detail: `${blocked}. ${seen}`,
-    next: found.untried
-      ? nextCall("travel", { to: `explore ${WORD[found.untried]}` })
-      : askHuman(
-          "Every direction from here is blocked. Can you move me or name a way out?",
-        ),
+    next:
+      found.untried && found.obstructedHere < 2
+        ? nextCall("travel", { to: `explore ${WORD[found.untried]}` })
+        : askHuman(
+            "Explore is blocked in more than one direction from here. Can you move me or name a way out?",
+          ),
     reason: "obstructed",
   });
 }

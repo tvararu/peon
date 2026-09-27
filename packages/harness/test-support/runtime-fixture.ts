@@ -190,6 +190,7 @@ function defaultParts({
       blockedBearings: new Map(),
       lastGoodPose: undefined,
       lastRefusedGoal: undefined,
+      obstructedExplores: new Map(),
       visitedCells: new Set(),
     },
     yields: createYieldGate(),

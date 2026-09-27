@@ -116,10 +116,36 @@ describe("travel explore", () => {
       toolCtx<TravelAfter>(t),
     );
     expect(res).toMatchObject({
-      next: 'ask the human: "Every direction from here is blocked. Can you move me or name a way out?"',
+      next: 'ask the human: "Explore is blocked in more than one direction from here. Can you move me or name a way out?"',
       reason: "obstructed",
       status: "PARTLY",
     });
+  });
+
+  test("a second explore bearing blocked from the same cell asks the human", async () => {
+    const t = await world();
+    const blocked = [
+      { refuse: "unreachable: no path to the destination" },
+      { refuse: "stop: ground corridor collision" },
+    ];
+    driveGoto(t.handle, blocked);
+    const first = await travelSpec.run(
+      { to: "explore north" },
+      toolCtx<TravelAfter>(t),
+    );
+    expect(first.next).toBe('travel(to: "explore northeast")');
+    driveGoto(t.handle, blocked);
+    const second = await travelSpec.run(
+      { to: "explore south" },
+      toolCtx<TravelAfter>(t),
+    );
+    expect(second).toMatchObject({
+      next: 'ask the human: "Explore is blocked in more than one direction from here. Can you move me or name a way out?"',
+      reason: "obstructed",
+    });
+    expect(t.rt.travel.obstructedExplores.get(`${MAP_ID}:0:0`)).toEqual(
+      new Set(["N", "S"]),
+    );
   });
 
   test("a unit that left view says so and looks for it", async () => {

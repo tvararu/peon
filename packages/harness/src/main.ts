@@ -242,6 +242,7 @@ function composeRuntime({
     blockedBearings: new Map(),
     lastGoodPose: undefined,
     lastRefusedGoal: undefined,
+    obstructedExplores: new Map(),
     visitedCells: new Set<string>(),
   };
   const shared = {
