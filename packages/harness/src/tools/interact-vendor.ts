@@ -1,4 +1,8 @@
-import type { NamedVendorGood, VendorEvent } from "@tuicraft/core";
+import type {
+  NamedInventorySlot,
+  NamedVendorGood,
+  VendorEvent,
+} from "@tuicraft/core";
 import type {
   InteractAfter,
   LootLine,
@@ -31,6 +35,8 @@ const VENDOR_ROLES = new Set([
 ]);
 const JUNK_QUALITY = 0;
 const BAG_REGIONS = new Set(["backpack", "bag_item"]);
+const NO_ANSWER = "no_answer";
+const LINE_NUMBER = /^\d+$/;
 
 function vendorStep(
   ctx: ToolCtx<InteractAfter>,
@@ -56,6 +62,11 @@ export async function openVendorWindow(
   return listed?.type === "listed"
     ? ctx.handle.getVendorState().window?.items
     : undefined;
+}
+
+function stopReason(answer: VendorEvent | undefined): string {
+  if (answer?.type !== "refused") return NO_ANSWER;
+  return answer.state.lastOutcome?.reason ?? "refused";
 }
 
 function nameOf(good: NamedVendorGood): string {
@@ -112,6 +123,8 @@ function pickGood(
       reason: "what_needed",
     });
   const text = what.trim().toLowerCase();
+  const byLine = LINE_NUMBER.test(text) ? goods[Number(text) - 1] : undefined;
+  if (byLine) return byLine;
   const matches = goods.filter((good) =>
     nameOf(good).toLowerCase().includes(text),
   );
@@ -156,9 +169,7 @@ export const buyStep: InteractStep = async ({ args, ctx, npc }) => {
       settled: ["bought", "refused", "partial", "unanswered"],
     });
     if (answer?.type === "bought") bought += 1;
-    else
-      refusal =
-        answer?.state.lastOutcome?.reason ?? answer?.type ?? "no_answer";
+    else refusal = stopReason(answer);
   }
   const change = moneyChange(ctx, before);
   const spent = change ? change.before - change.after : good.price * bought;
@@ -183,6 +194,13 @@ export const buyStep: InteractStep = async ({ args, ctx, npc }) => {
       next: nextCall("journal", { about: "bags" }),
       reason: refusal,
     });
+  if (refusal === NO_ANSWER)
+    return result("UNCONFIRMED", {
+      after,
+      detail: `${npcLabel(npc)} did not answer the purchase in 5 s.`,
+      next: nextCall("journal", { about: "bags" }),
+      reason: NO_ANSWER,
+    });
   return result("FAILED", {
     after,
     detail: `${npcLabel(npc)} refused the sale (${refusal}).`,
@@ -191,8 +209,10 @@ export const buyStep: InteractStep = async ({ args, ctx, npc }) => {
   });
 };
 
-export const sellJunkStep: InteractStep = async ({ ctx, npc }) => {
-  const junk = ctx.handle
+type JunkSlot = Extract<NamedInventorySlot, { status: "occupied" }>;
+
+function junkSlots(ctx: ToolCtx<InteractAfter>): JunkSlot[] {
+  return ctx.handle
     .getInventoryState()
     .slots.flatMap((slot) =>
       slot.status === "occupied" &&
@@ -201,6 +221,37 @@ export const sellJunkStep: InteractStep = async ({ ctx, npc }) => {
         ? [slot]
         : [],
     );
+}
+
+async function sellAll(
+  ctx: ToolCtx<InteractAfter>,
+  junk: readonly JunkSlot[],
+): Promise<{ refusal: string | undefined; sold: LootLine[] }> {
+  const sold: LootLine[] = [];
+  let refusal: string | undefined;
+  for (const slot of junk) {
+    const answer = await vendorStep(ctx, {
+      packet: () => ctx.handle.sellItem(slot.bag, slot.slot),
+      settled: ["sold", "refused", "partial", "unanswered"],
+    });
+    if (answer?.type === "sold") {
+      sold.push({
+        count: slot.item.count ?? 1,
+        itemId: slot.item.entry ?? 0,
+        name: slot.item.name ?? "item",
+        quality: slot.item.quality,
+      });
+      continue;
+    }
+    const reason = stopReason(answer);
+    if (reason === NO_ANSWER) return { refusal: reason, sold };
+    refusal ??= reason;
+  }
+  return { refusal, sold };
+}
+
+export const sellJunkStep: InteractStep = async ({ ctx, npc }) => {
+  const junk = junkSlots(ctx);
   const after = baseAfter(ctx, npc, "sell_junk");
   if (junk.length === 0)
     return result("DONE", {
@@ -209,26 +260,33 @@ export const sellJunkStep: InteractStep = async ({ ctx, npc }) => {
     });
   if (!(await openVendorWindow(ctx, npc))) throw noWindow(npc);
   const before = ctx.handle.getInventoryState().coinage;
-  const sold: LootLine[] = [];
-  for (const slot of junk) {
-    const answer = await vendorStep(ctx, {
-      packet: () => ctx.handle.sellItem(slot.bag, slot.slot),
-      settled: ["sold", "refused", "partial", "unanswered"],
-    });
-    if (answer?.type === "sold")
-      sold.push({
-        count: slot.item.count ?? 1,
-        itemId: slot.item.entry ?? 0,
-        name: slot.item.name ?? "item",
-        quality: slot.item.quality,
-      });
-  }
+  const { refusal, sold } = await sellAll(ctx, junk);
   const change = moneyChange(ctx, before);
   const gain = change ? change.after - change.before : 0;
-  const status = sold.length === junk.length ? "DONE" : "PARTLY";
-  return result(status, {
+  const done = {
     after: { ...after, money: change, sold },
     detail: `sold ${sold.length} of ${junk.length} junk items for ${shortMoney(gain)}${moneyText(change)}.`,
-    reason: status === "DONE" ? undefined : "sell_refused",
+  };
+  if (refusal === undefined) return result("DONE", done);
+  const next = nextCall("journal", { about: "bags" });
+  if (sold.length > 0)
+    return result("PARTLY", {
+      ...done,
+      detail: `${done.detail} Then: ${refusal}.`,
+      next,
+      reason: refusal,
+    });
+  if (refusal === NO_ANSWER)
+    return result("UNCONFIRMED", {
+      after: done.after,
+      detail: `${npcLabel(npc)} did not answer the sale in 5 s.`,
+      next,
+      reason: NO_ANSWER,
+    });
+  return result("FAILED", {
+    after: done.after,
+    detail: `${npcLabel(npc)} refused to buy your junk (${refusal}).`,
+    next,
+    reason: refusal,
   });
 };

@@ -108,6 +108,37 @@ async function marniel(goods: readonly NamedVendorGood[]) {
   return t;
 }
 
+function junkSlot(slot: number, name: string) {
+  return {
+    bag: 255,
+    guid: BigInt(0x90 + slot),
+    item: {
+      contained: undefined,
+      count: 1,
+      durability: undefined,
+      entry: 7000 + slot,
+      flags: 0,
+      guid: BigInt(0x90 + slot),
+      maxDurability: undefined,
+      name,
+      owner: undefined,
+      quality: 0,
+      randomPropertyId: 0,
+    },
+    region: "backpack" as const,
+    slot,
+    status: "occupied" as const,
+  };
+}
+
+async function junkSeller(names: readonly string[]) {
+  const t = await marniel([]);
+  const inventory = t.handle.getInventoryState();
+  const slots = names.map((name, index) => junkSlot(23 + index, name));
+  t.handle.getInventoryState = () => ({ ...inventory, slots });
+  return t;
+}
+
 describe("interact vendor", () => {
   test("buy matches part of a name and settles on the purchase", async () => {
     const t = await marniel([
@@ -221,5 +252,91 @@ describe("interact vendor", () => {
     expect(res.after.sold).toEqual([
       { count: 2, itemId: 7073, name: "Broken Fang", quality: 0 },
     ]);
+  });
+
+  test("a buy by stock line number picks that line", async () => {
+    const t = await marniel([
+      good(1, 159, "Refreshing Spring Water"),
+      good(2, 4540, "Tough Hunk of Bread"),
+    ]);
+    const slots: number[] = [];
+    t.handle.buyItem = (slot) => {
+      slots.push(slot);
+      vendorEvent(t.handle, "bought");
+    };
+    const res = await interactSpec.run(
+      { do: "buy", npc: "Marniel Amberlight", what: "2" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(res.status).toBe("DONE");
+    expect(slots).toEqual([2]);
+  });
+
+  test("an unanswered buy is unconfirmed and stops buying", async () => {
+    const t = await marniel([good(1, 159, "Refreshing Spring Water")]);
+    let calls = 0;
+    t.handle.buyItem = () => {
+      calls += 1;
+      vendorEvent(t.handle, "unanswered");
+    };
+    const res = await interactSpec.run(
+      { count: 3, do: "buy", npc: "Marniel Amberlight", what: "water" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(res).toMatchObject({
+      next: 'journal(about: "bags")',
+      reason: "no_answer",
+      status: "UNCONFIRMED",
+    });
+    expect(calls).toBe(1);
+  });
+
+  test("sell_junk with every sale refused fails with the reason", async () => {
+    const t = await junkSeller(["Broken Fang", "Torn Hide"]);
+    t.handle.sellItem = () => vendorEvent(t.handle, "refused", "cant_sell");
+    const res = await interactSpec.run(
+      { do: "sell_junk", npc: "Marniel Amberlight" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(res).toMatchObject({
+      next: 'journal(about: "bags")',
+      reason: "cant_sell",
+      status: "FAILED",
+    });
+  });
+
+  test("sell_junk stops at the first unanswered sale", async () => {
+    const t = await junkSeller(["Broken Fang", "Torn Hide"]);
+    let calls = 0;
+    t.handle.sellItem = () => {
+      calls += 1;
+      vendorEvent(t.handle, "unanswered");
+    };
+    const res = await interactSpec.run(
+      { do: "sell_junk", npc: "Marniel Amberlight" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(res).toMatchObject({ reason: "no_answer", status: "UNCONFIRMED" });
+    expect(calls).toBe(1);
+  });
+
+  test("sell_junk is partly done when some sales are refused", async () => {
+    const t = await junkSeller(["Broken Fang", "Torn Hide"]);
+    let calls = 0;
+    t.handle.sellItem = () => {
+      calls += 1;
+      if (calls === 1) vendorEvent(t.handle, "sold");
+      else vendorEvent(t.handle, "refused", "cant_sell");
+    };
+    const res = await interactSpec.run(
+      { do: "sell_junk", npc: "Marniel Amberlight" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(res).toMatchObject({
+      next: 'journal(about: "bags")',
+      reason: "cant_sell",
+      status: "PARTLY",
+    });
+    expect(res.after.sold).toHaveLength(1);
   });
 });
