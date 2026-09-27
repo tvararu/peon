@@ -180,6 +180,57 @@ describe("createDelivery", () => {
     expect(log.get(consumed.seq)?.delivered).toBe(false);
   });
 
+  test("a row consumed by a running engage survives a flush and returns if the run stops", async () => {
+    const { delivery, log, pi, rt } = await setup();
+    const run = rt.runs.start<number>({
+      args: {},
+      kind: "engage",
+      launch: ({ signal }) =>
+        new Promise((resolve) => {
+          signal.addEventListener("abort", () =>
+            resolve({ status: "cancelled", summary: "stopped", value: 0 }),
+          );
+        }),
+      toolCallId: "call-9",
+    });
+    const row = log.append({
+      ...passiveDraft("You gain 90 XP."),
+      consumedBy: "call-9",
+      runId: run.id,
+    });
+    delivery.passive(row);
+    delivery.flush();
+    expect(pi.sent).toEqual([]);
+    rt.runs.cancel(run.id, "human");
+    await run.done;
+    log.mark(row.seq, { consumedBy: undefined });
+    delivery.flush();
+    expect(pi.sent.map(content)).toEqual(["[game 0s] You gain 90 XP."]);
+    expect(log.get(row.seq)?.delivered).toBe(true);
+  });
+
+  test("a row an engage tallied leaves the queue once the run ends", async () => {
+    const { delivery, log, pi, rt } = await setup();
+    const run = rt.runs.start<number>({
+      args: {},
+      kind: "engage",
+      launch: () =>
+        Promise.resolve({ status: "succeeded", summary: "1 kill", value: 1 }),
+      toolCallId: "call-9",
+    });
+    const row = log.append({
+      ...passiveDraft("You gain 90 XP."),
+      consumedBy: "call-9",
+      runId: run.id,
+    });
+    delivery.passive(row);
+    await run.done;
+    delivery.flush();
+    log.mark(row.seq, { consumedBy: undefined });
+    delivery.flush();
+    expect(pi.sent).toEqual([]);
+  });
+
   test("joins wakes inside the 5 s gap", async () => {
     const { delivery, log, pi, tick } = await setup();
     delivery.wake([log.append(wakeDraft("first"))]);

@@ -70,11 +70,22 @@ function capped(passive: GameLogEntry[]): {
   return { more: passive.length - shown.length, shown };
 }
 
+function heldByRun(rt: HarnessRuntime, entry: GameLogEntry): boolean {
+  const run = entry.runId ? rt.runs.get(entry.runId) : undefined;
+  return run?.status === "running";
+}
+
 function drain(rt: HarnessRuntime, seqs: number[]): GameLogEntry[] {
-  return seqs.splice(0).flatMap((seq) => {
+  const kept: number[] = [];
+  const ready = seqs.splice(0).flatMap((seq) => {
     const entry = rt.log.get(seq);
-    return entry && entry.consumedBy === undefined ? [entry] : [];
+    if (!entry) return [];
+    if (entry.consumedBy === undefined) return [entry];
+    if (heldByRun(rt, entry)) kept.push(seq);
+    return [];
   });
+  seqs.push(...kept);
+  return ready;
 }
 
 function markDelivered(
