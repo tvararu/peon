@@ -14,8 +14,5 @@ export function native(over: Partial<NativeMap> = {}): NativeMap {
 }
 
 export function navigation(map: NativeMap) {
-  return createNavigation(
-    { dataPath: "fixture", libraryPath: "fixture" },
-    () => map,
-  );
+  return createNavigation(() => map);
 }

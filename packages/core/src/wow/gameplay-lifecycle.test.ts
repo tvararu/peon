@@ -15,7 +15,6 @@ import { type ControlMode, ControlRuntime } from "#wow/control";
 import type { DbcFile } from "#wow/dbc";
 import * as factionData from "#wow/faction-template";
 import type { JevActionResult, JevSelect } from "#wow/jev";
-import * as navigation from "#wow/navigation";
 import type { NativeMap } from "#wow/navigation-native";
 import {
   ObjectType,
@@ -138,8 +137,7 @@ async function fixture(targetX: number): Promise<Fixture> {
           clientSeed,
           host: "127.0.0.1",
           port: server.port,
-          navigationDataDir: "fixture-navigation",
-          navigationLibrary: "fixture-native",
+          navigation: { covers: () => true, open: () => openMap() },
           dbc: () => Promise.reject(new Error("fixture spells unread")),
           jev: { select: (request, options) => provider(request, options) },
         },
@@ -169,6 +167,12 @@ async function fixture(targetX: number): Promise<Fixture> {
     throw error;
   }
 }
+
+function missingMap(): NativeMap {
+  throw new Error("navigation library not found: fixture-native");
+}
+
+let openMap = missingMap;
 
 function flatMap(): NativeMap {
   return {
@@ -204,12 +208,7 @@ function emptySpells(): spellData.SpellCatalog {
 
 describe("gameplay forced-close lifecycle", () => {
   test("an out-of-range update for the navigated creature stops its route as target_lost", async () => {
-    const createNavigation = navigation.createNavigation;
-    const nav = jest
-      .spyOn(navigation, "createNavigation")
-      .mockImplementation((options) =>
-        createNavigation(options, () => flatMap()),
-      );
+    openMap = flatMap;
     let f: Fixture | undefined;
     try {
       f = await fixture(60);
@@ -239,17 +238,12 @@ describe("gameplay forced-close lifecycle", () => {
       try {
         await disposeFixture(f);
       } finally {
-        nav.mockRestore();
+        openMap = missingMap;
       }
     }
   });
   test("server close silently retires an active route owner and its timers", async () => {
-    const createNavigation = navigation.createNavigation;
-    const nav = jest
-      .spyOn(navigation, "createNavigation")
-      .mockImplementation((options) =>
-        createNavigation(options, () => flatMap()),
-      );
+    openMap = flatMap;
     const send = jest.spyOn(worldHandlers, "sendPacket");
     let f: Fixture | undefined;
     try {
@@ -293,7 +287,7 @@ describe("gameplay forced-close lifecycle", () => {
       } finally {
         jest.useRealTimers();
         send.mockRestore();
-        nav.mockRestore();
+        openMap = missingMap;
       }
     }
   });
@@ -333,12 +327,7 @@ describe("gameplay forced-close lifecycle", () => {
         setMode.call(this, mode);
         if (mode === "jev") control = this;
       });
-    const createNavigation = navigation.createNavigation;
-    const nav = jest
-      .spyOn(navigation, "createNavigation")
-      .mockImplementation((options) =>
-        createNavigation(options, () => flatMap()),
-      );
+    openMap = flatMap;
     const send = jest.spyOn(worldHandlers, "sendPacket");
     let f: Fixture | undefined;
     try {
@@ -394,7 +383,7 @@ describe("gameplay forced-close lifecycle", () => {
         provider = unexpectedProvider;
         factions.mockRestore();
         spells.mockRestore();
-        nav.mockRestore();
+        openMap = missingMap;
       }
     }
   });

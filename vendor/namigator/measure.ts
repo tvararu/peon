@@ -1,4 +1,5 @@
 import { createNavigation } from "../../packages/core/src/wow/navigation";
+import { navigationSource } from "../../packages/harness/src/navigation/maps";
 
 const [libraryPath, originArg, ...rest] = process.argv.slice(2);
 const dataPath = process.env["NAV_DATA"];
@@ -24,10 +25,7 @@ if (rest[0] === "grid") {
     destinations.push({ x, y });
   }
 }
-const nav = createNavigation({
-  dataPath,
-  libraryPath,
-});
+const nav = createNavigation(navigationSource({ dataDir: dataPath, library: libraryPath }).open);
 const results = destinations.map(({ x, y }) => {
   try {
     const route = nav.planGround(mapId, origin, { x, y });

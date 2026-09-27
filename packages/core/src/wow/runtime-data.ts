@@ -7,7 +7,6 @@ import {
   loadFactionTemplates,
 } from "#wow/faction-template";
 import { createNavigation, type Navigation } from "#wow/navigation";
-import { hasNavigationData } from "#wow/navigation-maps";
 import { loadSpellCatalog } from "#wow/spell-catalog";
 
 export type LazyState = {
@@ -20,10 +19,7 @@ export type LazyState = {
 };
 
 type SpellData = Pick<ClientConfig, "dbc">;
-type NavigationData = Pick<
-  ClientConfig,
-  "navigationDataDir" | "navigationLibrary"
->;
+type NavigationData = Pick<ClientConfig, "navigation">;
 type Configured = NavigationData & Pick<ClientConfig, "jev">;
 type CatalogSink = Pick<CombatRuntime, "setCatalog">;
 
@@ -56,12 +52,9 @@ export function loadNavigation(
   config: NavigationData,
   lazy: LazyState,
 ): Navigation {
-  if (!(config.navigationDataDir && config.navigationLibrary))
-    throw new Error("missing_navigation");
-  lazy.navigation ??= createNavigation({
-    dataPath: config.navigationDataDir,
-    libraryPath: config.navigationLibrary,
-  });
+  const source = config.navigation;
+  if (!source) throw new Error("missing_navigation");
+  lazy.navigation ??= createNavigation((mapId) => source.open(mapId));
   return lazy.navigation;
 }
 
@@ -89,7 +82,7 @@ export function capabilitiesOf(
 }
 
 function navigationOn(config: NavigationData, mapId?: number): boolean {
-  const { navigationDataDir: dir, navigationLibrary: library } = config;
-  if (!(dir && library)) return false;
-  return mapId === undefined || hasNavigationData(dir, mapId);
+  const source = config.navigation;
+  if (!source) return false;
+  return mapId === undefined || source.covers(mapId);
 }

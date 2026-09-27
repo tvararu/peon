@@ -19,13 +19,10 @@ import {
   traceHeight,
   uniqueHeight,
 } from "#wow/navigation-height";
-import { requireNavigationMapName } from "#wow/navigation-maps";
 import {
   groundError,
   isGroundError,
   type NativeMap,
-  NavigationDataMissing,
-  openNativeMap,
   validateNativePoint,
   validateNativeXY,
 } from "#wow/navigation-native";
@@ -33,7 +30,6 @@ import {
 export type NavPoint = { x: number; y: number; z: number };
 export type GroundSample = NavPoint & { orientation: number };
 export type NavDestination = { x: number; y: number; z?: number };
-export type NavigationOptions = { dataPath: string; libraryPath: string };
 export type PlanStart = { stale?: boolean };
 export type Navigation = {
   plan: (
@@ -168,22 +164,14 @@ export class GroundRoute {
 }
 
 export function createNavigation(
-  options: NavigationOptions,
-  openMap = openNativeMap,
+  openMap: (mapId: number) => NativeMap,
 ): Navigation {
-  const { dataPath, libraryPath } = options;
-  if (dataPath.length === 0) throw new Error("navigation dataPath is required");
-  if (libraryPath.length === 0)
-    throw new Error("navigation libraryPath is required");
   const opened = new Map<number, NativeMap>();
   let closed = false;
   function open(mapId: number, ...points: NavPoint[]): NativeMap {
     if (closed) throw new Error("navigation is closed");
-    const name = requireNavigationMapName(mapId);
     for (const point of points) validateNativePoint(point);
-    const map =
-      opened.get(mapId) ??
-      openAvailable(mapId, name, () => openMap(dataPath, libraryPath, name));
+    const map = opened.get(mapId) ?? openMap(mapId);
     opened.set(mapId, map);
     return map;
   }
@@ -228,22 +216,6 @@ export function createNavigation(
       opened.clear();
     },
   };
-}
-
-function openAvailable(
-  mapId: number,
-  name: string,
-  openMap: () => NativeMap,
-): NativeMap {
-  try {
-    return openMap();
-  } catch (error) {
-    if (error instanceof NavigationDataMissing)
-      throw new Error(`unsupported map ${mapId} (no ${name} navigation data)`, {
-        cause: error,
-      });
-    throw error;
-  }
 }
 
 function planRoute(map: NativeMap, from: NavPoint, to: NavPoint): GroundRoute {

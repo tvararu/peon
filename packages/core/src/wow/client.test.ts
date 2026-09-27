@@ -1,4 +1,4 @@
-import { describe, expect, jest, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
   clientPrivateKey,
   clientSeed,
@@ -12,7 +12,7 @@ import { startMockWorldServer } from "#test-support/mock-world-server";
 import type { AuthResult } from "#wow/auth";
 import { authHandshake } from "#wow/auth";
 import { worldSession } from "#wow/client";
-import * as navigation from "#wow/navigation";
+import type { NativeMap } from "#wow/navigation-native";
 import {
   ObjectType,
   UpdateFlag,
@@ -40,27 +40,20 @@ function fakeAuth(port: number): AuthResult {
 }
 
 const NAVIGATION = {
-  navigationDataDir: "fixture-navigation",
-  navigationLibrary: "fixture-native",
+  navigation: {
+    covers: () => true,
+    open: (): NativeMap => ({
+      loadAdtAt() {},
+      findHeights: (x) => (x > 2 ? [8] : [3]),
+      findHeight: () => {
+        throw new Error("pathfind_find_height failed (UNKNOWN_HEIGHT)");
+      },
+      findPath: (from, to) => [from, to],
+      lineOfSight: () => true,
+      close() {},
+    }),
+  },
 };
-
-function flatNavigation() {
-  const create = navigation.createNavigation;
-  return jest
-    .spyOn(navigation, "createNavigation")
-    .mockImplementation((options) =>
-      create(options, () => ({
-        loadAdtAt() {},
-        findHeights: (x) => (x > 2 ? [8] : [3]),
-        findHeight: () => {
-          throw new Error("pathfind_find_height failed (UNKNOWN_HEIGHT)");
-        },
-        findPath: (from, to) => [from, to],
-        lineOfSight: () => true,
-        close() {},
-      })),
-    );
-}
 
 function observedObject(x: number, y: number, z: number): Uint8Array {
   const packet = new PacketWriter();
@@ -199,7 +192,6 @@ describe("session lifecycle", () => {
   });
 
   test("manual reissue extends the same direction without stopping", async () => {
-    const nav = flatNavigation();
     const server = await startMockWorldServer({
       loginMapId: 530,
       coalesceSelfCreate: true,
@@ -225,12 +217,10 @@ describe("session lifecycle", () => {
       }
     } finally {
       server.stop();
-      nav.mockRestore();
     }
   });
 
   test("manual move takes control from an active encounter cycle", async () => {
-    const nav = flatNavigation();
     const server = await startMockWorldServer({
       loginMapId: 530,
       coalesceSelfCreate: true,
@@ -256,7 +246,6 @@ describe("session lifecycle", () => {
       }
     } finally {
       server.stop();
-      nav.mockRestore();
     }
   });
   test("face-guid turns toward a currently observed object and refuses a lost GUID", async () => {
@@ -293,7 +282,6 @@ describe("session lifecycle", () => {
   });
 
   test("turning and moving keep auto-attack running until halt", async () => {
-    const nav = flatNavigation();
     const server = await startMockWorldServer({
       loginMapId: 530,
       coalesceSelfCreate: true,
@@ -333,12 +321,10 @@ describe("session lifecycle", () => {
       }
     } finally {
       server.stop();
-      nav.mockRestore();
     }
   });
 
   test("walk-toward reports ungrounded destination without cancelling manual motion", async () => {
-    const nav = flatNavigation();
     const server = await startMockWorldServer({
       loginMapId: 530,
       coalesceSelfCreate: true,
@@ -366,7 +352,6 @@ describe("session lifecycle", () => {
       }
     } finally {
       server.stop();
-      nav.mockRestore();
     }
   });
 

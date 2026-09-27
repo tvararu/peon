@@ -43,10 +43,7 @@ function fixture(
   targets = new Map<bigint, NavPoint>(),
 ) {
   const control = setup();
-  const navigation = createNavigation(
-    { dataPath: "data", libraryPath: "lib" },
-    () => ground(columns, over),
-  );
+  const navigation = createNavigation(() => ground(columns, over));
   const steer = jest.fn((reason?: string) => control.runtime.halt(reason));
   const rt = {
     control: control.runtime,

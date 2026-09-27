@@ -1,10 +1,11 @@
 import { homedir } from "node:os";
-import type { ClientConfig } from "@peon/core";
+import type { ClientConfig, NavigationSource } from "@peon/core";
 import { type Config, parseConfig } from "@peon/core/lib/config";
 import { messageOf } from "@peon/core/lib/errors";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { Profile, ProfileSource } from "#harness/contract/config";
 import { jevPort } from "#harness/jev/port";
+import { navigationSource } from "#harness/navigation/maps";
 import { dbcDirectory } from "#harness/runtime/dbc-directory";
 
 export type ProfileErrorCode =
@@ -85,11 +86,16 @@ export function clientConfig(cfg: Config): ClientConfig {
     host: cfg.host,
     jev: jevPort(Bun.env),
     language: cfg.language,
-    navigationDataDir: cfg.navigation_data_dir,
-    navigationLibrary: cfg.navigation_library,
+    navigation: navigationOf(cfg),
     password: cfg.password.toUpperCase(),
     port: cfg.port,
   };
+}
+
+function navigationOf(cfg: Config): NavigationSource | undefined {
+  const { navigation_data_dir: dataDir, navigation_library: library } = cfg;
+  if (!(dataDir && library)) return undefined;
+  return navigationSource({ dataDir, library });
 }
 
 function protectedAccount(account: string): boolean {
