@@ -96,3 +96,42 @@ dispatch are delivered immediately.
 `extractObjectFields`, `extractUnitFields` and `extractGameObjectFields`
 return `_changed: string[]`. Destructure it out on the create path; on the
 values path, use it to pick the fields passed to `entityStore.update()`.
+
+## Add an opcode
+
+`protocol/opcodes.ts` (`GameOpcode`) and `protocol/update-fields.ts` (the
+`*_FIELDS` tables for every object type) are generated from
+`../wow_messages/intermediate_representation.json`, keeping the messages
+valid for 3.3.5. Never edit them by hand: rerun
+`bun packages/devtools/src/protocol-tables.ts [<ir.json>]`. The
+generator's `RENAMED`, `CORE_OPCODES` and `CORE_FIELDS` tables keep the
+core names that differ from wow_messages or that it lacks, and the tests
+fail if a name core already used loses its number or offset.
+Hand-written wire enums live in `protocol/enums.ts` and
+`protocol/entity-fields.ts`.
+
+1. Parse the body in `protocol/<domain>.ts` from a `PacketReader`, with a
+   colocated test built from a captured or reference packet. Parsers pick
+   the update fields they read; the generated tables only name them.
+2. Register one handler with `conn.dispatch.on` in the domain's
+   `register*Handlers` function. A second handler for an opcode throws, so
+   compose in the owner. A flow that awaits a reply uses
+   `conn.dispatch.expect` and reads the state the handler applied.
+3. Drop the opcode from `STUBS` in `protocol/stubs.ts` if it is listed
+   there.
+4. Send a client opcode with `sendPacket` and a `PacketWriter` body.
+5. Rewrite `docs/protocol-coverage.md` with
+   `bun packages/core/test-support/protocol-coverage.ts`.
+6. Prove it on the live server ([testing.md](testing.md#live-characters)).
+
+[protocol-coverage.md](protocol-coverage.md) lists every `GameOpcode`
+with its direction and status. `handled`: the world handlers register a
+real handler for it, or core source outside the opcode table and
+`STUBS` names it (a sent client opcode, an awaited reply). `stub`: it is
+in `STUBS`. `missing`: neither.
+
+`OpcodeDispatch` counts every inbound opcode that has neither a handler
+nor a waiter (`unhandledCounts()`) and never throws for one. It reports
+each such opcode once as a `not_implemented` notice labelled with its
+`GameOpcode` name, retried on the next packet while no notice subscriber
+exists; the harness game log shows it as `notice/not_implemented`.
