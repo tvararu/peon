@@ -73,9 +73,9 @@ Namigator data (`<name>.map` and `Nav/<name>/`): map 0 `Azeroth`, 1
 `Kalimdor`, 530 `Expansion01` and 571 `Northrend`. Other maps are refused
 as `unsupported map <id> (no navigation map name)`, and one of these maps
 without its `<name>.map` file as `unsupported map <id> (no <name>
-navigation data)`. The navigation capability is false on both. A start pose up to 1 yd above the
-only floor of its column plans from that floor. Unsupported or ambiguous
-geometry fails explicitly.
+navigation data)`. The navigation capability is false on both. A start
+pose up to 1 yd above the only floor of its column plans from that floor.
+Unsupported or ambiguous geometry fails explicitly.
 
 Set `TYPESAFE_API_KEY` in the daemon environment, not in the account config.
 Restart the daemon after changing data paths or its environment. Chat and
