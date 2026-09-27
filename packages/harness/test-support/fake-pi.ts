@@ -21,6 +21,7 @@ export type FakePi = {
   ui: FakeUi;
   ctx: ExtensionContext;
   events: () => string[];
+  renderers: () => string[];
   emit: (
     event: { type: string } & Record<string, unknown>,
   ) => Promise<unknown[]>;
@@ -33,6 +34,7 @@ export type FakePi = {
 export function createFakePi(mode: "tui" | "print" = "tui"): FakePi {
   const handlers = new Map<string, Handler[]>();
   const shortcuts = new Map<string, Shortcut>();
+  const renderers: string[] = [];
   const ui: FakeUi = { editor: "", inputs: [], notes: [] };
   const ctx = fakeContext(ui, mode);
   const api = {
@@ -43,6 +45,12 @@ export function createFakePi(mode: "tui" | "print" = "tui"): FakePi {
           event,
           (handlers.get(event) ?? []).filter((h) => h !== handler),
         );
+    },
+    registerEntryRenderer(customType: string) {
+      renderers.push(`entry:${customType}`);
+    },
+    registerMessageRenderer(customType: string) {
+      renderers.push(`message:${customType}`);
     },
     registerShortcut(key: string, shortcut: Shortcut) {
       shortcuts.set(key, shortcut);
@@ -63,6 +71,7 @@ export function createFakePi(mode: "tui" | "print" = "tui"): FakePi {
     press: async (key) => {
       await shortcuts.get(key)?.handler(ctx);
     },
+    renderers: () => [...renderers],
     typeRaw: (data) => ui.inputs.map((input) => input(data)),
     ui,
   };
