@@ -408,7 +408,8 @@ function returnHeight(
   rules: Pick<StepRules, "columnFallback" | "continuity">,
 ): number {
   const back = traceHeight(map, point, from, rules.columnFallback);
-  if (!rules.continuity || Math.abs(back - from.z) <= GROUND_ERROR) return back;
+  const settled = !(rules.continuity && Number.isFinite(back));
+  if (settled || Math.abs(back - from.z) <= GROUND_ERROR) return back;
   return continuousFloor(columnHeights(map, from.x, from.y), back, point.z);
 }
 
