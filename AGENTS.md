@@ -67,6 +67,13 @@ Use `mise` to run tasks (not `bun` directly, not `mise run`):
   and leaves QA and the reaper running; `default` or `max` ends it. The
   design doc's Pace section has the table
 - `mise build` — compile single binary (`bun build --compile`)
+- `mise harness --profile <path> [flags]` — run the Pi harness
+  (`bun packages/harness/src/entry.ts`), the interactive agent that plays
+  one character; flags, credentials and commands are in `docs/harness.md`
+- `mise eval <command>` — the harness eval grader CLI
+  (`bun packages/harness/src/grader/cli.ts`): `run`, `result`,
+  `scenario`, `launch`, `send`, `frame`, `watch`, `truth`, `final-truth`,
+  `leak-check`, `validate`; run it without a command for the usage
 - `mise test:slowest` — show 10 slowest tests via junit XML
 - `orca-ide worktree create --name <name> --parent-worktree active --comment
   "owner: <agent>, <purpose>" --agent omp` — create a worktree.

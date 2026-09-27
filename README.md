@@ -431,6 +431,24 @@ taken. `loot` lists pending rolls with their item, slot, time left and allowed
 votes; `loot-roll <guid> <slot> need|greed|pass` answers one, and `loot` then
 shows the other votes and the winner, whose bags receive the item.
 
+## Pi harness
+
+The Pi harness is an interactive agent that plays one character. A model
+(by default `openai-codex/gpt-6-luna`) acts through ten game tools, and
+you steer it by typing in the same terminal. It needs a Codex login in
+omp and a character profile, for example a throwaway soap account:
+
+```
+umask 077
+bun packages/factory/src/main.ts soap create eversong10 > "$XDG_RUNTIME_DIR/char.json"
+mise harness --profile "$XDG_RUNTIME_DIR/char.json"
+```
+
+Type `stop`, press `F9` or use `/stop` to halt everything. Flags,
+credentials, commands and the screen are in
+[docs/harness.md](docs/harness.md). Evals run the harness in Orca panes
+and grade it on server truth with `mise eval`.
+
 ## Roadmap
 
 See [docs/roadmap.md](docs/roadmap.md) for current direction. That document is
