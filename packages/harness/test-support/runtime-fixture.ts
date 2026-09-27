@@ -169,6 +169,7 @@ function defaultParts({
       blocks: () => false,
       check: () => undefined,
       hits: () => 0,
+      positionalPoses: () => [],
       record: () => {},
     } satisfies RepeatGuard,
     router: { ...detached, setSink: () => {} } satisfies EventRouter,

@@ -117,6 +117,7 @@ export type RepeatHit = { reason: string; times: number; untried: string[] };
 export type RepeatGuard = {
   check: (call: RepeatCall) => RepeatHit | undefined;
   blocks: (call: RepeatCall) => boolean;
+  positionalPoses: (tool: ToolName) => PoseView[];
   record: (call: RepeatCall & { result: ToolResult<unknown> }) => void;
   hits: () => number;
 };

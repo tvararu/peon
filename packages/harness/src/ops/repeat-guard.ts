@@ -25,9 +25,18 @@ export const CONTINUES: readonly string[] = [
   "loot_denied:loot_source_unavailable",
 ];
 export const REPEAT_MOVE_YD = 2;
+export const POSITIONAL: ReadonlySet<string> = new Set([
+  "no_ground",
+  "ambiguous_floor",
+  "unreachable",
+  "target_unreachable",
+  "not_in_view",
+  "obstructed",
+]);
 
 const REPEAT_TTL_MS = 300_000;
 const UNTRIED_MAX = 3;
+const POSES_MAX = 4;
 const CLEARING: ReadonlySet<ToolName> = new Set([
   "travel",
   "engage",
@@ -91,7 +100,10 @@ function keyOf({ args, tool }: { args: unknown; tool: string }): string {
   return `${tool}:${stable(args)}`;
 }
 
-function moved(a: PoseView | undefined, b: PoseView | undefined): boolean {
+export function moved(
+  a: PoseView | undefined,
+  b: PoseView | undefined,
+): boolean {
   if (!(a && b)) return a !== b;
   return (
     a.mapId !== b.mapId || Math.hypot(a.x - b.x, a.y - b.y) >= REPEAT_MOVE_YD
@@ -136,6 +148,7 @@ function untriedOf(failures: Map<string, Failure>, key: string): string[] {
 
 export function createRepeatGuard(clock: Clock): RepeatGuard {
   const failures = new Map<string, Failure>();
+  const positional = new Map<ToolName, { at: number; pose: PoseView }[]>();
   let hitCount = 0;
   const blocking = (failure: Failure, call: RepeatCall) =>
     !(call.tool === "engage" && call.scene?.targetAttacking) &&
@@ -162,9 +175,21 @@ export function createRepeatGuard(clock: Clock): RepeatGuard {
       };
     },
     hits: () => hitCount,
+    positionalPoses: (tool) =>
+      (positional.get(tool) ?? [])
+        .filter((failure) => clock.now() - failure.at <= REPEAT_TTL_MS)
+        .map((failure) => failure.pose),
     record(call) {
       const { result } = call;
+      if (result.status === "DONE") positional.delete(call.tool);
       if (result.status === "DONE" && CLEARING.has(call.tool)) failures.clear();
+      if (storable(result) && POSITIONAL.has(result.reason) && call.pose) {
+        const kept = (positional.get(call.tool) ?? []).slice(1 - POSES_MAX);
+        positional.set(call.tool, [
+          ...kept,
+          { at: clock.now(), pose: call.pose },
+        ]);
+      }
       if (call.tool === "look" || !storable(result)) return;
       const times = failures.get(keyOf(call))?.times ?? 0;
       const failure = {

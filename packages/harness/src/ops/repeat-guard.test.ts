@@ -127,6 +127,32 @@ describe("createRepeatGuard", () => {
     expect(guard.blocks(fight)).toBe(false);
   });
 
+  test("remembers where a tool failed for a positional reason", () => {
+    const now = { t: 0 };
+    const guard = guardAt(now);
+    const fight = call({ args: { target: "u43" }, tool: "engage" });
+    expect(guard.positionalPoses("engage")).toEqual([]);
+    guard.record({ ...fight, result: outcome("FAILED", "too_far") });
+    expect(guard.positionalPoses("engage")).toEqual([]);
+    guard.record({ ...fight, result: outcome("FAILED", "no_ground") });
+    guard.record({
+      ...call({ args: { to: "explore southeast" }, tool: "travel" }),
+      result: outcome("DONE"),
+    });
+    guard.record({
+      ...fight,
+      pose: pose(5),
+      result: outcome("FAILED", "no_ground"),
+    });
+    expect(guard.positionalPoses("engage")).toEqual([pose(0), pose(5)]);
+    expect(guard.positionalPoses("travel")).toEqual([]);
+    now.t = 300_001;
+    expect(guard.positionalPoses("engage")).toEqual([]);
+    guard.record({ ...fight, result: outcome("FAILED", "no_ground") });
+    guard.record({ ...fight, result: outcome("DONE") });
+    expect(guard.positionalPoses("engage")).toEqual([]);
+  });
+
   test("a changed progress digest clears the block", () => {
     const guard = guardAt({ t: 0 });
     guard.record({
