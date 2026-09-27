@@ -7,7 +7,11 @@ import { scratchDir } from "@peon/core/test-support/scratch";
 import { harnessStateDir, parseFlags } from "#harness/config/flags";
 import { ompDbPath } from "#harness/credentials/omp-store";
 import { EXIT, type MainDeps, main } from "#harness/main";
-import { EXIT_SIGINT, type ExitProcess } from "#harness/runtime/exit";
+import {
+  EXIT_SIGINT,
+  type ExitProcess,
+  LOGOUT_NOTICE,
+} from "#harness/runtime/exit";
 import { codexRow, writeOmpDb } from "#test-support/omp-db";
 
 const NOW = Date.parse("2026-09-26T19:00:00Z");
@@ -221,9 +225,7 @@ describe("main exit paths write endedAt and exitReason", () => {
     expect(await result).toBe(EXIT.ok);
     expect(readMeta(runDir)).toMatchObject({ exitReason: "quit" });
     expect(readMeta(runDir).endedAt).toBe(NOW);
-    expect(lines.out).toContain(
-      "Logging out of the game. The harness exits when the server confirms, in up to 30 s.",
-    );
+    expect(lines.out).toContain(LOGOUT_NOTICE);
     proc.emit("exit", 0);
     expect(readMeta(runDir)).toMatchObject({ exitReason: "quit" });
   });
@@ -242,9 +244,7 @@ describe("main exit paths write endedAt and exitReason", () => {
       endedAt: NOW,
       exitReason: "sigterm",
     });
-    expect(lines.out).not.toContain(
-      "Logging out of the game. The harness exits when the server confirms, in up to 30 s.",
-    );
+    expect(lines.out).not.toContain(LOGOUT_NOTICE);
   });
 
   test("SIGINT while the harness logs out: the meta says sigint and the exit code is 130", async () => {

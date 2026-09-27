@@ -82,7 +82,7 @@ function connect(rt: HarnessRuntime): Run {
       return ctx.ui.notify("The game connection is already up.", "info");
     try {
       await rt.connect();
-      ctx.ui.notify("Connected to the game.", "info");
+      ctx.ui.notify("Ready to work! Connected to the game.", "info");
     } catch (error) {
       ctx.ui.notify(`Connect failed: ${messageOf(error)}`, "error");
     }

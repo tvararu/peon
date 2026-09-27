@@ -29,8 +29,9 @@ that grade it are in [evals.md](evals.md).
    flags. `mise harness --help` shows the mise task, not these flags.
 4. Type a task, for example `Kill one Springpaw Stalker north of town.`
 5. Quit with Ctrl-D on an empty editor, with `/quit`, or with two Ctrl-C
-   within half a second. The harness prints `Logging out of the game.`
-   and exits when the server confirms the logout, in up to 30 seconds.
+   within half a second. The harness prints `Work complete. Logging out
+   of the game.` and exits when the server confirms the logout, in up to
+   30 seconds.
    Do not press Ctrl-C while it waits: that ends the harness before the
    logout. Then delete the character with
    `mise factory soap delete <ACCOUNT>`.
@@ -199,7 +200,11 @@ also work. The game connection stays open across `/new`, `/resume`,
   Press `ctrl+o` to expand a result. Run tools redraw their progress
   while they work.
 - **Title and working line.** The tab title shows danger, for example
-  `ATTACKED`. The working line shows the run in game words.
+  `AGGRO`. The working line shows the run in game words, or `Work,
+  work…` while the agent works with no run.
+- **Voice lines.** `/connect` answers `Ready to work!`. These lines, the
+  title and the working line are for the human; the model never sees
+  them.
 
 Use a terminal font with Nerd Font glyphs for `--glyphs nerd`. Use
 `unicode` or `ascii` in other terminals.
