@@ -6,6 +6,7 @@ import {
   attackBy,
   contentOf,
   die,
+  driveGoto,
   limitProblem,
   setSelf,
   setUnits,
@@ -251,13 +252,83 @@ describe("engage fight", () => {
     );
     expect(limitProblem(contentOf(res))).toBeUndefined();
     expect(res).toMatchObject({
-      next: 'engage(count: 1, target: "Springpaw Stalker")',
+      next: 'travel(to: "explore"), then engage(count: 1, target: "Springpaw Stalker")',
       reason: "queue_exhausted",
       status: "PARTLY",
     });
     expect(res.detail).toMatch(
       /^2 of 3 kills \(u\d+, u\d+\)\. Stopped: queue_exhausted\./,
     );
+  });
+
+  test("a target that left view is never fought", async () => {
+    const t = await field();
+    setUnits(t.handle, [stalker(STALKER, 45)]);
+    driveGoto(t.handle, [
+      { arrive: { x: 20, y: 0 }, onArrive: () => setUnits(t.handle, []) },
+    ]);
+    let started = 0;
+    t.handle.startTactics = async () => {
+      started += 1;
+    };
+    const res = await engageSpec.run(
+      { target: "Springpaw Stalker" },
+      toolCtx<EngageAfter>(t),
+    );
+    expect(started).toBe(0);
+    expect(res).toMatchObject({
+      next: 'travel(to: "explore")',
+      reason: "target_not_observed",
+      status: "FAILED",
+    });
+    expect(res.detail).toMatch(
+      /^Springpaw Stalker u\d+ is not in view any more; the fight did not start\.$/,
+    );
+  });
+
+  test("an unreachable target points at another one in view", async () => {
+    const t = await field();
+    setUnits(t.handle, [stalker(STALKER, 45), stalker(STALKER_2, 48)]);
+    driveGoto(t.handle, [{ refuse: "stop: ground corridor changes surface" }]);
+    const res = await engageSpec.run(
+      { target: "Springpaw Stalker" },
+      toolCtx<EngageAfter>(t),
+    );
+    const other = t.rt.refs.refOf(STALKER_2);
+    expect(res).toMatchObject({
+      next: `engage(target: "${other}")`,
+      reason: "surface_change",
+      status: "FAILED",
+    });
+  });
+
+  test("an unreachable target with no other in view asks the human", async () => {
+    const t = await field();
+    setUnits(t.handle, [stalker(STALKER, 45)]);
+    driveGoto(t.handle, [{ refuse: "stop: ground corridor changes surface" }]);
+    const res = await engageSpec.run(
+      { target: "Springpaw Stalker" },
+      toolCtx<EngageAfter>(t),
+    );
+    expect(res.next).toBe(
+      'ask the human: "I cannot reach Springpaw Stalker from here. Is there another way?"',
+    );
+  });
+
+  test("a start off the mesh points at unstick", async () => {
+    const t = await field();
+    setUnits(t.handle, [stalker(STALKER, 45)]);
+    driveGoto(t.handle, [
+      { refuse: "stop: start snapped off the requested ground position" },
+    ]);
+    const res = await engageSpec.run(
+      { target: "Springpaw Stalker" },
+      toolCtx<EngageAfter>(t),
+    );
+    expect(res).toMatchObject({
+      next: 'travel(to: "unstick")',
+      reason: "start_off_mesh",
+    });
   });
 
   test("an item quest with no known source refuses with the ask for a creature", async () => {

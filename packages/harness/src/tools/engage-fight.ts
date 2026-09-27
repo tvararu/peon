@@ -2,9 +2,11 @@ import { DEFAULT_FIGHT_INSTRUCTION } from "@tuicraft/core";
 import type { EngageAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { ViewCtx } from "#harness/contract/services";
+import type { UnitView } from "#harness/contract/views";
 import { dangerView } from "#harness/ops/danger";
 import { lootCorpseOp } from "#harness/ops/loot";
 import { ENGAGE_APPROACH_YD } from "#harness/ops/range";
+import { guidHex } from "#harness/ops/refs";
 import { travelLeg } from "#harness/ops/travel-leg";
 import { poseView, unitViews, vitalsView } from "#harness/ops/views";
 import {
@@ -44,6 +46,28 @@ function instruction(scene: Scene): string {
   return scene.args.how ?? DEFAULT_FIGHT_INSTRUCTION;
 }
 
+function otherInView(scene: Scene): UnitView | undefined {
+  const { choice, ops, tally } = scene;
+  const fought = new Set(tally.targets.map((target) => target.ref));
+  return unitViews(ops).find(
+    (unit) =>
+      unit.alive &&
+      !unit.tappedByOther &&
+      unit.name === choice.unit?.name &&
+      unit.ref !== choice.unit?.ref &&
+      !fought.has(unit.ref),
+  );
+}
+
+function unreachedNext(scene: Scene, reason: string | undefined): string {
+  if (reason === "start_off_mesh") return nextCall("travel", { to: "unstick" });
+  const other = otherInView(scene);
+  if (other) return nextCall("engage", { target: other.ref });
+  return askHuman(
+    `I cannot reach ${scene.choice.unit?.name ?? "the target"} from here. Is there another way?`,
+  );
+}
+
 async function approach(scene: Scene): Promise<Report | undefined> {
   const { choice, ops } = scene;
   if (
@@ -57,11 +81,29 @@ async function approach(scene: Scene): Promise<Report | undefined> {
     within: APPROACH_WITHIN_YD,
   });
   if (leg.status === "arrived") return;
+  const reason = leg.reason ?? leg.status;
   return result("FAILED", {
     after: afterOf(ops, scene),
     detail: `could not reach ${choice.unit.name} ${choice.unit.ref}: ${leg.detail}.`,
-    next: nextCall("travel", { to: choice.unit.ref }),
-    reason: leg.reason ?? leg.status,
+    next: unreachedNext(scene, reason),
+    reason,
+  });
+}
+
+function unobserved(scene: Scene): Report | undefined {
+  const { choice, ops } = scene;
+  if (choice.mode === "quest" || !choice.unit || choice.guid === undefined)
+    return;
+  const hex = guidHex(choice.guid);
+  if (unitViews(ops).some((unit) => unit.guid === hex && unit.alive)) return;
+  const other = otherInView(scene);
+  return result("FAILED", {
+    after: afterOf(ops, scene),
+    detail: `${choice.unit.name} ${choice.unit.ref} is not in view any more; the fight did not start.`,
+    next: other
+      ? nextCall("engage", { target: other.ref })
+      : nextCall("travel", { to: "explore" }),
+    reason: "target_not_observed",
   });
 }
 
@@ -244,10 +286,14 @@ function attackerNext(scene: Scene): string | undefined {
 
 function againCall(scene: Scene, left: number): string {
   const name = scene.choice.unit?.name;
-  const again = nextCall(
+  const call = nextCall(
     "engage",
     name === undefined ? { count: left } : { count: left, target: name },
   );
+  const again =
+    name === undefined || otherInView(scene)
+      ? call
+      : `${nextCall("travel", { to: "explore" })}, then ${call}`;
   const vitals = vitalsView(scene.ops);
   const low = vitals.maxHp > 0 && (vitals.hp / vitals.maxHp) * 100 < MIN_HP_PCT;
   return low ? `${nextCall("rest")}, then ${again}` : again;
@@ -302,7 +348,7 @@ export async function fight(init: FightInit): Promise<Report> {
     init.progress(afterOf(init.ops, scene)),
   );
   try {
-    const blocked = await approach(scene);
+    const blocked = (await approach(scene)) ?? unobserved(scene);
     if (blocked) return blocked;
     const modes = { cycle, quest, single };
     const end = await modes[init.choice.mode](scene);
