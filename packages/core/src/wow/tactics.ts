@@ -41,14 +41,13 @@ export type TacticsFrame = {
 };
 
 export type TacticsDeps = {
-  apiKey: string | undefined;
   prepare: (context: TacticsContext, signal: AbortSignal) => Promise<void>;
   activate: (context: TacticsContext) => void;
   observe: (context: TacticsContext) => TacticsFrame;
   execute: (actionId: string, context: TacticsContext) => void;
   halt: () => void;
   defend: (context: TacticsContext) => TacticsDefense;
-  select: JevSelect;
+  select: JevSelect | undefined;
   now?: () => number;
   maxResultAgeMs?: number;
   minIntervalMs?: number;
@@ -106,7 +105,7 @@ export type TacticsEvent =
 type Run = {
   runId: string;
   context: TacticsContext & { framing: FramingVariant };
-  apiKey: string;
+  select: JevSelect;
   abort: AbortController;
   detach: () => void;
   timeouts: number;
@@ -150,10 +149,10 @@ export class TacticsLoop {
 
   async start(context: TacticsContext, signal?: AbortSignal): Promise<void> {
     this.stop("replaced");
-    const apiKey = this.deps.apiKey;
-    if (!apiKey) throw new JevUnavailableError("missing_jev_key");
+    const select = this.deps.select;
+    if (!select) throw new JevUnavailableError("missing_jev_key");
     if (signal?.aborted) throw abortReason(signal);
-    const run = this.begin(context, apiKey, signal);
+    const run = this.begin(context, select, signal);
     try {
       await this.activate(run);
     } catch (error) {
@@ -220,14 +219,14 @@ export class TacticsLoop {
 
   private begin(
     context: TacticsContext,
-    apiKey: string,
+    select: JevSelect,
     external: AbortSignal | undefined,
   ): Run {
     const framing = context.framing ?? "none";
     const run: Run = {
       runId: crypto.randomUUID(),
       context: { ...context, framing },
-      apiKey,
+      select,
       abort: new AbortController(),
       detach: () => external?.removeEventListener("abort", onExternal),
       timeouts: 0,
@@ -372,7 +371,7 @@ export class TacticsLoop {
     if (!this.live(run)) throw abortReason(run.abort.signal);
     const abort = new AbortController();
     const signal = AbortSignal.any([run.abort.signal, abort.signal]);
-    const pending = this.deps.select(request, { apiKey: run.apiKey, signal });
+    const pending = run.select(request, { signal });
     this.track(pending.then((result) => this.late(run, result, signal)));
     try {
       return await bounded(pending, signal, this.requestTimeoutMs, TIMEOUT);

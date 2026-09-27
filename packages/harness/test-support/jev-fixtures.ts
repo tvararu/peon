@@ -1,4 +1,4 @@
-import type { JevActionRequest } from "#wow/jev";
+import type { JevActionRequest } from "@peon/core";
 
 export const request: JevActionRequest = {
   candidates: [

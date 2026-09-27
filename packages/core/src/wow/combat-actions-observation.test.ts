@@ -1,9 +1,7 @@
 import { expect, test } from "bun:test";
 import { context, setup } from "#test-support/combat-actions-fixtures";
-import { jsonResponse, validPayload } from "#test-support/jev-fixtures";
-import { type JevActionOptions, selectJevAction } from "#wow/jev";
 
-test("a retained goto creature target reaches Jev as a hex GUID", async () => {
+test("a retained goto creature target serializes as a hex GUID for Jev", () => {
   const { actions, control } = setup();
   control.navigationError(
     { x: 5, y: 0 },
@@ -11,32 +9,9 @@ test("a retained goto creature target reaches Jev as a hex GUID", async () => {
     { target: 0xf130003d2108604dn },
   );
   const frame = actions.observe(context);
-  let body = "";
-  const fetch: NonNullable<JevActionOptions["fetch"]> = async (_url, init) => {
-    body = String(init?.body);
-    const probabilities = Object.fromEntries(
-      frame.candidates.map(({ id }) => [id, id === "wait" ? 1 : 0]),
-    );
-    return jsonResponse(200, {
-      ...validPayload,
-      answers: {
-        action: {
-          choice: "wait",
-          confidence: 1,
-          probabilities,
-          type: "choice",
-        },
-      },
-    });
-  };
+  const sent = JSON.parse(JSON.stringify(frame.observation));
 
-  const result = await selectJevAction(
-    { ...frame, instruction: context.instruction },
-    { apiKey: "ts_test_key", fetch, signal: new AbortController().signal },
-  );
-
-  expect(result.choice).toBe("wait");
-  expect(JSON.parse(body).state.navigation).toMatchObject({
+  expect(sent.navigation).toMatchObject({
     active: false,
     refusal: "stop",
     target: "0xf130003d2108604d",

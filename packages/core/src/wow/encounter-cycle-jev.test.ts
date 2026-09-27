@@ -6,16 +6,15 @@ import {
   makeCycle,
 } from "#test-support/encounter-cycle-fixtures";
 import type { CycleDeps } from "#wow/encounter-cycle";
-import { type JevSelect, selectJevAction } from "#wow/jev";
-import { createFaultSelect, parseJevFault } from "#wow/jev-fault";
+import type { JevSelect } from "#wow/jev";
+import { JevUnavailableError } from "#wow/jev-failure";
 import { TacticsLoop } from "#wow/tactics";
 
 const smite = { id: "spell:585:target", description: "Smite" };
 
-function jevTactics(select: JevSelect, apiKey = "key") {
+function jevTactics(select: JevSelect | undefined) {
   let hit = false;
   return new TacticsLoop({
-    apiKey,
     minIntervalMs: 0,
     select,
     prepare: async () => {},
@@ -47,10 +46,10 @@ function cycleWith(tactics: CycleDeps["tactics"]) {
   });
 }
 
-test("an injected HTTP 402 stops the cycle and keeps the queue", async () => {
-  const fault = parseJevFault("http:402");
-  if (!fault) throw new Error("fault not parsed");
-  const select = createFaultSelect(fault, selectJevAction);
+test("a refused Jev key stops the cycle and keeps the queue", async () => {
+  const select: JevSelect = async () => {
+    throw new JevUnavailableError("HTTP 402 payment_required");
+  };
   const runtime = cycleWith(jevTactics(select));
 
   await expect(
@@ -70,7 +69,7 @@ test("an injected HTTP 402 stops the cycle and keeps the queue", async () => {
 });
 
 test("a missing Jev key stops the cycle instead of skipping every target", async () => {
-  const runtime = cycleWith(jevTactics(selectJevAction, ""));
+  const runtime = cycleWith(jevTactics(undefined));
   await expect(
     runtime.start({ guids: [1n, 2n], instruction: "fight" }),
   ).rejects.toThrow("jev_unavailable: missing_jev_key");

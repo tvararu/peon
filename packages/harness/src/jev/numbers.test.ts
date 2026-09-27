@@ -1,15 +1,14 @@
 import { expect, test } from "bun:test";
+import { selectJevAction } from "#harness/jev/select";
 import {
   jsonResponse,
   request,
   validPayload,
 } from "#test-support/jev-fixtures";
-import { selectJevAction } from "#wow/jev";
 
 test("rounded probabilities do not require exact floating point equality", async () => {
   const result = await selectJevAction(request, {
     apiKey: "ts_test_key",
-    signal: new AbortController().signal,
     fetch: async () =>
       jsonResponse(200, {
         ...validPayload,
@@ -20,6 +19,7 @@ test("rounded probabilities do not require exact floating point equality", async
           },
         },
       }),
+    signal: new AbortController().signal,
   });
   expect(result.probabilities).toEqual({ smite: 0.7, wait: 0.300_000_01 });
 });
@@ -34,8 +34,8 @@ test("token counts must be nonnegative safe integers", async () => {
     await expect(
       selectJevAction(request, {
         apiKey: "ts_test_key",
-        signal: new AbortController().signal,
         fetch: async () => jsonResponse(200, { ...validPayload, usage }),
+        signal: new AbortController().signal,
       }),
     ).rejects.toThrow("Malformed TypeSafe Choice response");
   }
@@ -52,9 +52,9 @@ test("nonfinite numeric values fail the response boundary", async () => {
     await expect(
       selectJevAction(request, {
         apiKey: "ts_test_key",
-        signal: new AbortController().signal,
         fetch: async () =>
           jsonResponse(200, { ...validPayload, answers: { action } }),
+        signal: new AbortController().signal,
       }),
     ).rejects.toThrow("Malformed TypeSafe Choice response");
   }
@@ -67,11 +67,11 @@ test("already aborted requests never reach the provider", async () => {
   await expect(
     selectJevAction(request, {
       apiKey: "ts_test_key",
-      signal: controller.signal,
       fetch: async () => {
         calls += 1;
         return jsonResponse(200, validPayload);
       },
+      signal: controller.signal,
     }),
   ).rejects.toMatchObject({ name: "AbortError" });
   expect(calls).toBe(0);
@@ -80,7 +80,6 @@ test("already aborted requests never reach the provider", async () => {
 test("probabilities within tolerance are renormalised", async () => {
   const result = await selectJevAction(request, {
     apiKey: "ts_test_key",
-    signal: new AbortController().signal,
     fetch: async () =>
       jsonResponse(200, {
         ...validPayload,
@@ -92,6 +91,7 @@ test("probabilities within tolerance are renormalised", async () => {
           },
         },
       }),
+    signal: new AbortController().signal,
   });
   expect(result.choice).toBe("smite");
   const smite = result.probabilities["smite"];
@@ -106,7 +106,6 @@ test("probability totals outside renormalisation tolerance are rejected", async 
   await expect(
     selectJevAction(request, {
       apiKey: "ts_test_key",
-      signal: new AbortController().signal,
       fetch: async () =>
         jsonResponse(200, {
           ...validPayload,
@@ -117,6 +116,7 @@ test("probability totals outside renormalisation tolerance are rejected", async 
             },
           },
         }),
+      signal: new AbortController().signal,
     }),
   ).rejects.toMatchObject({
     cause: { field: "probabilities.total", total: 0.9 },

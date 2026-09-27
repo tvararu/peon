@@ -86,7 +86,9 @@ describe("loadProfile", () => {
     expect(profile.character).toBe("Fgklibhlflc");
     expect(profile.client.password).toBe("SECRETPW");
     expect(profile.client.host).toBe("t1");
-    expect(profile.client.spellDataDir).toBe("/spells");
+    await expect(profile.client.dbc?.("Spell.dbc")).rejects.toThrow(
+      "missing Spell.dbc in /spells",
+    );
   });
 
   test("takes the navigation library from the session's config, not from home", async () => {

@@ -44,6 +44,7 @@ export type {
 export type { CycleRecovery } from "#wow/corpse-run";
 export { MIN_HP_PCT, MIN_MANA_PCT } from "#wow/cycle-gate";
 export type { CycleStop } from "#wow/cycle-stop";
+export type { DbcSource } from "#wow/dbc";
 export type {
   DestroyEvent,
   DestroyRequest,
@@ -65,7 +66,11 @@ export type {
 } from "#wow/entity-store";
 export type { ExperienceState } from "#wow/experience";
 export type { FactionRelation } from "#wow/faction-template";
-export { type FramingVariant, parseFramingVariant } from "#wow/framing";
+export {
+  buildFraming,
+  type FramingVariant,
+  parseFramingVariant,
+} from "#wow/framing";
 export type { FriendEntry, FriendEvent } from "#wow/friend-store";
 export type { GuildEvent, GuildMember, GuildRoster } from "#wow/guild-store";
 export type { IgnoreEntry, IgnoreEvent } from "#wow/ignore-store";
@@ -80,7 +85,14 @@ export {
   type NamedLootItem,
   type NamedRewardsState,
 } from "#wow/item-labels";
-export { JevUnavailableError } from "#wow/jev-failure";
+export type {
+  JevActionRequest,
+  JevActionResult,
+  JevCandidate,
+  JevPort,
+  JevSelect,
+} from "#wow/jev";
+export { JevTransportError, JevUnavailableError } from "#wow/jev-failure";
 export {
   type NavigationObservation,
   nextStepFor,

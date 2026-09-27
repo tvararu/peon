@@ -1,4 +1,4 @@
-import { type DbcFile, DbcTable, openDbc, u32 } from "#wow/dbc";
+import { type DbcFile, type DbcSource, DbcTable, openDbc, u32 } from "#wow/dbc";
 
 export type FactionRelation = "friendly" | "hostile" | "neutral" | "unknown";
 
@@ -48,9 +48,9 @@ export class FactionTemplateCatalog {
 }
 
 export async function loadFactionTemplates(
-  directory: string,
+  source: DbcSource,
 ): Promise<FactionTemplateCatalog> {
-  return new FactionTemplateCatalog(await openDbc(directory, LAYOUT));
+  return new FactionTemplateCatalog(await openDbc(source, LAYOUT));
 }
 
 function idList(file: DbcFile, row: number, start: number): number[] {

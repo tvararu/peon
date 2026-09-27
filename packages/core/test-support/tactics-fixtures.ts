@@ -44,7 +44,6 @@ export function fixture(over: Partial<TacticsDeps> = {}) {
     activate: () => {
       activations += 1;
     },
-    apiKey: "ts_test_key",
     defend: () => {
       defenses += 1;
       return "auto_attack";

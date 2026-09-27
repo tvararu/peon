@@ -15,8 +15,6 @@ import { EncounterCycleRuntime } from "#wow/encounter-cycle";
 import type { EntityLookup } from "#wow/entity-store";
 import type { FactionTemplateCatalog } from "#wow/faction-template";
 import { ItemTemplates } from "#wow/item-use";
-import { type JevSelect, selectJevAction } from "#wow/jev";
-import { createFaultSelect, faultMarker, parseJevFault } from "#wow/jev-fault";
 import type { Navigation, NavPoint } from "#wow/navigation";
 import { observedTargetPosition } from "#wow/observed-target";
 import { ObjectType } from "#wow/protocol/entity-fields";
@@ -125,18 +123,10 @@ function createTactics(
   },
 ): TacticsLoop {
   const { actions } = hooks;
-  const fault = parseJevFault(config.jevFault);
-  const baseSelect: JevSelect = (request, options) =>
-    selectJevAction(request, {
-      ...options,
-      endpointUrl: config.jevEndpointUrl,
-    });
-  const select = fault ? createFaultSelect(fault, baseSelect) : baseSelect;
   return new TacticsLoop({
-    apiKey: config.jevApiKey,
-    fault: fault && faultMarker(fault),
+    fault: config.jev?.fault,
     characterClass: () => conn.selfClass,
-    select,
+    select: config.jev?.select,
     prepare: (_context, signal) => hooks.prepare(signal),
     activate: (context) => actions.activate(context),
     observe: (context) => actions.observe(context),

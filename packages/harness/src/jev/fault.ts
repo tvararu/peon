@@ -1,4 +1,4 @@
-import type { JevSelect } from "#wow/jev";
+import type { JevHttpSelect } from "#harness/jev/select";
 
 export type JevFault = (
   | { kind: "delay"; delayMs: number }
@@ -23,7 +23,7 @@ function parseKind(spec: string): JevFault | undefined {
   const [kind, value] = spec.split(":");
   const number = Number(value);
   if (kind === "delay" && Number.isSafeInteger(number) && number >= 0)
-    return { kind, delayMs: number };
+    return { delayMs: number, kind };
   const status = Number.isInteger(number) && number >= 400 && number <= 599;
   if (kind === "http" && status) return { kind, status: number };
   if (spec === "transport") return { kind: "transport" };
@@ -39,8 +39,8 @@ export function faultMarker(fault: JevFault): string {
 
 export function createFaultSelect(
   fault: JevFault,
-  baseSelect: JevSelect,
-): JevSelect {
+  baseSelect: JevHttpSelect,
+): JevHttpSelect {
   const faulty = faultySelect(fault, baseSelect);
   if (fault.request === undefined) return faulty;
   let requests = 0;
@@ -51,7 +51,10 @@ export function createFaultSelect(
   };
 }
 
-function faultySelect(fault: JevFault, baseSelect: JevSelect): JevSelect {
+function faultySelect(
+  fault: JevFault,
+  baseSelect: JevHttpSelect,
+): JevHttpSelect {
   if (fault.kind === "http") {
     const fetch = async () => new Response(null, { status: fault.status });
     return (request, options) => baseSelect(request, { ...options, fetch });

@@ -1,8 +1,5 @@
-import { afterEach, describe, expect, test } from "bun:test";
-import { rm } from "node:fs/promises";
-import { join } from "node:path";
-import { packDbc } from "#test-support/dbc";
-import { scratchDir } from "#test-support/scratch";
+import { describe, expect, test } from "bun:test";
+import { dbcFiles, packDbc } from "#test-support/dbc";
 import { loadSpellCatalog } from "#wow/spell-catalog";
 
 const SPELL_FIELDS = 234;
@@ -10,14 +7,6 @@ const RANGE_FIELDS = 40;
 const CAST_FIELDS = 4;
 const DURATION_FIELDS = 4;
 const RADIUS_FIELDS = 4;
-
-const dirs: string[] = [];
-
-function emptyDir(): string {
-  const dir = scratchDir("spell-catalog");
-  dirs.push(dir);
-  return dir;
-}
 
 function fbits(value: number): number {
   const view = new DataView(new ArrayBuffer(4));
@@ -46,10 +35,10 @@ type FixtureTables = Partial<
   Record<"spell" | "range" | "cast" | "duration" | "radius", Uint8Array>
 >;
 
-async function writeTables(
-  dir: string,
+function writeTables(
+  dir: Map<string, Uint8Array>,
   tables: FixtureTables,
-): Promise<string> {
+): void {
   const names = {
     "Spell.dbc": tables.spell,
     "SpellRange.dbc": tables.range,
@@ -58,9 +47,8 @@ async function writeTables(
     "SpellRadius.dbc": tables.radius,
   };
   for (const [name, bytes] of Object.entries(names)) {
-    if (bytes) await Bun.write(join(dir, name), bytes);
+    if (bytes) dir.set(name, bytes);
   }
-  return dir;
 }
 
 function companionSet() {
@@ -81,22 +69,16 @@ function companionSet() {
   };
 }
 
-afterEach(async () => {
-  await Promise.all(
-    dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })),
-  );
-});
-
 describe("loadSpellCatalog", () => {
   test("fails when Spell.dbc is missing", async () => {
-    const dir = await emptyDir();
+    const dir = new Map<string, Uint8Array>();
     const extras = companionSet();
-    await writeTables(dir, extras);
-    await expect(loadSpellCatalog(dir)).rejects.toThrow(/Spell\.dbc/);
+    writeTables(dir, extras);
+    await expect(loadSpellCatalog(dbcFiles(dir))).rejects.toThrow(/Spell\.dbc/);
   });
 
   test("fails on non-WDBC magic", async () => {
-    const dir = await emptyDir();
+    const dir = new Map<string, Uint8Array>();
     const extras = companionSet();
     const bad = packDbc(
       SPELL_FIELDS,
@@ -104,61 +86,63 @@ describe("loadSpellCatalog", () => {
       new Uint8Array([0]),
     );
     bad[0] = 0x41;
-    await writeTables(dir, { ...extras, spell: bad });
-    await expect(loadSpellCatalog(dir)).rejects.toThrow(/WDBC/);
+    writeTables(dir, { ...extras, spell: bad });
+    await expect(loadSpellCatalog(dbcFiles(dir))).rejects.toThrow(/WDBC/);
   });
 
   test("fails when the record payload is truncated", async () => {
-    const dir = await emptyDir();
+    const dir = new Map<string, Uint8Array>();
     const extras = companionSet();
     const full = packDbc(
       SPELL_FIELDS,
       [spellRow({ 0: 1 })],
       new Uint8Array([0]),
     );
-    await writeTables(dir, { ...extras, spell: full.subarray(0, 40) });
-    await expect(loadSpellCatalog(dir)).rejects.toThrow(/truncated/);
+    writeTables(dir, { ...extras, spell: full.subarray(0, 40) });
+    await expect(loadSpellCatalog(dbcFiles(dir))).rejects.toThrow(/truncated/);
   });
 
   test("fails on unsupported Spell field count", async () => {
-    const dir = await emptyDir();
+    const dir = new Map<string, Uint8Array>();
     const extras = companionSet();
     const wrong = packDbc(
       10,
       [new Array<number>(10).fill(0)],
       new Uint8Array([0]),
     );
-    await writeTables(dir, { ...extras, spell: wrong });
-    await expect(loadSpellCatalog(dir)).rejects.toThrow(/234/);
+    writeTables(dir, { ...extras, spell: wrong });
+    await expect(loadSpellCatalog(dbcFiles(dir))).rejects.toThrow(/234/);
   });
 
   test("fails on unsupported SpellRange layout", async () => {
-    const dir = await emptyDir();
+    const dir = new Map<string, Uint8Array>();
     const extras = companionSet();
     extras.range = packDbc(4, [[1, 0, 0, 0]], new Uint8Array([0]));
-    await writeTables(dir, {
+    writeTables(dir, {
       ...extras,
       spell: packDbc(SPELL_FIELDS, [spellRow({ 0: 1 })], new Uint8Array([0])),
     });
-    await expect(loadSpellCatalog(dir)).rejects.toThrow(/SpellRange/);
+    await expect(loadSpellCatalog(dbcFiles(dir))).rejects.toThrow(/SpellRange/);
   });
 
   test("fails when a companion table is missing", async () => {
-    const dir = await emptyDir();
+    const dir = new Map<string, Uint8Array>();
     const extras = companionSet();
-    await writeTables(dir, {
+    writeTables(dir, {
       spell: packDbc(SPELL_FIELDS, [spellRow({ 0: 1 })], new Uint8Array([0])),
       range: extras.range,
       cast: extras.cast,
       duration: extras.duration,
     });
-    await expect(loadSpellCatalog(dir)).rejects.toThrow(/SpellRadius\.dbc/);
+    await expect(loadSpellCatalog(dbcFiles(dir))).rejects.toThrow(
+      /SpellRadius\.dbc/,
+    );
   });
 });
 
 describe("SpellCatalog.get", () => {
   test("returns undefined for an id absent from Spell.dbc", async () => {
-    const dir = await emptyDir();
+    const dir = new Map<string, Uint8Array>();
     const extras = companionSet();
     const names = stringTable(["Nope"]);
     const spell = packDbc(
@@ -166,14 +150,14 @@ describe("SpellCatalog.get", () => {
       [spellRow({ 0: 99, 136: names.at[1] ?? 0 })],
       names.block,
     );
-    await writeTables(dir, { ...extras, spell });
-    const catalog = await loadSpellCatalog(dir);
+    writeTables(dir, { ...extras, spell });
+    const catalog = await loadSpellCatalog(dbcFiles(dir));
     expect(catalog.get(133)).toBeUndefined();
     expect(catalog.get(99)?.name).toBe("Nope");
   });
 
   test("joins signed, float, and locale fields without converting costs", async () => {
-    const dir = await emptyDir();
+    const dir = new Map<string, Uint8Array>();
     const names = stringTable(["Fireball", "Rank 1"]);
     const extras = companionSet();
     extras.range = packDbc(
@@ -227,8 +211,8 @@ describe("SpellCatalog.get", () => {
       ],
       names.block,
     );
-    await writeTables(dir, { ...extras, spell });
-    const catalog = await loadSpellCatalog(dir);
+    writeTables(dir, { ...extras, spell });
+    const catalog = await loadSpellCatalog(dbcFiles(dir));
     const def = catalog.get(133);
     expect(def).toBeDefined();
     if (!def) return;
@@ -261,7 +245,7 @@ describe("SpellCatalog.get", () => {
   });
 
   test("keeps rage cost tenths and does not invent learned-only filtering", async () => {
-    const dir = await emptyDir();
+    const dir = new Map<string, Uint8Array>();
     const names = stringTable(["Heroic Strike"]);
     const extras = companionSet();
     extras.range = packDbc(
@@ -286,26 +270,28 @@ describe("SpellCatalog.get", () => {
       ],
       names.block,
     );
-    await writeTables(dir, { ...extras, spell });
-    const catalog = await loadSpellCatalog(dir);
+    writeTables(dir, { ...extras, spell });
+    const catalog = await loadSpellCatalog(dbcFiles(dir));
     expect(catalog.get(78)?.power.costRaw).toBe(150);
     expect(catalog.get(78)?.power.type).toBe(1);
   });
 
   test("treats duration index 0 as no duration row", async () => {
-    const dir = await emptyDir();
+    const dir = new Map<string, Uint8Array>();
     const extras = companionSet();
     const spell = packDbc(
       SPELL_FIELDS,
       [spellRow({ 0: 585, 40: 0 })],
       new Uint8Array([0]),
     );
-    await writeTables(dir, { ...extras, spell });
-    expect((await loadSpellCatalog(dir)).get(585)?.duration).toBeUndefined();
+    writeTables(dir, { ...extras, spell });
+    expect(
+      (await loadSpellCatalog(dbcFiles(dir))).get(585)?.duration,
+    ).toBeUndefined();
   });
 
   test("exposes aura-state and aura-spell requirements and exclusions", async () => {
-    const dir = await emptyDir();
+    const dir = new Map<string, Uint8Array>();
     const extras = companionSet();
     const spell = packDbc(
       SPELL_FIELDS,
@@ -324,8 +310,10 @@ describe("SpellCatalog.get", () => {
       ],
       new Uint8Array([0]),
     );
-    await writeTables(dir, { ...extras, spell });
-    const aura = (await loadSpellCatalog(dir)).get(24_275)?.auraRequirements;
+    writeTables(dir, { ...extras, spell });
+    const aura = (await loadSpellCatalog(dbcFiles(dir))).get(
+      24_275,
+    )?.auraRequirements;
     expect(aura).toEqual({
       casterAuraState: 2,
       targetAuraState: 16,
