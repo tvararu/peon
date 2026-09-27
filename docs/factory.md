@@ -57,6 +57,9 @@ run` creates and deletes its own. Create needs the patched navigation
 library from `mise namigator:build`. The account's config connects to the
 `host` and `port` in `~/.config/peon/config.toml` (default
 `localhost:3724`) and copies its navigation data paths.
+Account names hold the creation second and one random byte, so two
+creates in the same second can pick the same name; create then retries
+with fresh names, up to eight times.
 
 Presets: `fresh`, `eversong10`, `max80`, `eversong10-warrior`,
 `eversong10-mage`, `eversong10-hunter`, `ghostlands20` (Horde), `elwynn1`,
