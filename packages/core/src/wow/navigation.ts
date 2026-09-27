@@ -269,7 +269,7 @@ function planRoute(map: NativeMap, from: NavPoint, to: NavPoint): GroundRoute {
   const corridor = points.map((point) => ({ ...point }));
   corridor[0] = { ...from };
   if (corridor.length > 1) corridor[corridor.length - 1] = { ...to };
-  const rules = { climb: WALKABLE_CLIMB, columnFallback: false };
+  const rules = { climb: CORNER_RISE, columnFallback: false };
   try {
     return new GroundRoute(corridor, map, rules);
   } catch (error) {
@@ -284,7 +284,7 @@ function columnRoute(
   refusal: Error,
 ): GroundRoute {
   for (const [index, points] of candidates.entries()) {
-    const climb = index === 0 ? WALKABLE_CLIMB : 0;
+    const climb = index === 0 ? CORNER_RISE : 0;
     try {
       return new GroundRoute(points, map, { climb, columnFallback: true });
     } catch (error) {
@@ -427,10 +427,9 @@ function checkRouteGround(
   if (others.length === heights.length)
     throw groundError("position disagrees with ground height");
   if (others.length === 0) return heights;
-  if (
-    !clearAbove(heights, point.z) ||
-    Math.abs(point.z - from.z) > WALKABLE_CLIMB
-  )
+  const climb =
+    groundFloors(heights).length === 1 ? CORNER_RISE : WALKABLE_CLIMB;
+  if (!clearAbove(heights, point.z) || Math.abs(point.z - from.z) > climb)
     throw groundError(ambiguity);
   return heights;
 }
