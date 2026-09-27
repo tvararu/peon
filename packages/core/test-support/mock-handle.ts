@@ -46,8 +46,9 @@ export type MockHandle = WorldHandle & {
 
 export function createMockHandle(): MockHandle {
   const controlState: ControlState = {
+    airborne: false,
     blockedReason: undefined,
-    direction: undefined,
+    input: {},
     movementAllowed: true,
     moving: false,
     pose: undefined,
@@ -110,9 +111,11 @@ export function createMockHandle(): MockHandle {
     declineGuildInvite: jest.fn(),
     declineInvite: jest.fn(),
     destroyItem: jest.fn(),
+    drive: jest.fn(),
     face: jest.fn(),
     faceGuid: jest.fn(),
     follow: jest.fn(),
+    getActionBar: jest.fn(() => []),
     getChannel: jest.fn(),
     getCombatState: jest.fn(() => combat.snapshot()),
     getControlState: jest.fn((): ControlState => controlState),
@@ -178,6 +181,7 @@ export function createMockHandle(): MockHandle {
     isAttackingSelf: jest.fn(() => false),
     itemLabel: jest.fn(unanswered),
     joinChannel: jest.fn(),
+    jump: jest.fn(),
     leaveChannel: jest.fn(),
     leaveGroup: jest.fn(),
     loadCatalogs: jest.fn(async () => {}),

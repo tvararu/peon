@@ -104,7 +104,9 @@ inventory errors, rolls), `ItemTemplates` (item query cache),
 `QuestStore` (dialog, quest log, queries, progress), `RecoveryStore`
 (life, corpse, graveyard, resurrection offers), `VendorStore`,
 `TrainerStore` and `DestroyStore` (window or offer, pending request,
-settled outcome), `PlaceStore` (map, zone and area) and `SelfStore`
+settled outcome), `PlaceStore` (map, zone and area), `ActionBarStore`
+(the 144 slots of `SMSG_ACTION_BUTTONS`: a 24-bit action id and an 8-bit
+spell, item, macro or equipment-set type) and `SelfStore`
 (login state and the current map, plus an event for every self-movement
 packet: login verify, teleports, new world, roots, knockbacks, forced
 speeds and self updates from `SMSG_UPDATE_OBJECT`). Login waits on
@@ -123,6 +125,31 @@ each store event a runtime first arms, clears or retimes its request
 timers, then publishes the event, then runs follow-up actions such as
 the loot release; a listener that starts a request from the event keeps
 its own timeout. Session cleanup disposes the runtimes, then the stores.
+
+## Self movement
+
+`ControlRuntime.drive(input, ms)` holds a movement input set: `move`
+(forward or backward), `strafe` and `turn` (left or right). Applying a
+new set sends one packet per changed axis, in that order, as the client
+does on a key change: `MSG_MOVE_START_<axis>` on press, and
+`MSG_MOVE_STOP`, `MSG_MOVE_STOP_STRAFE` or `MSG_MOVE_STOP_TURN` on
+release. The same set again only re-arms the 1 ms–10 s lease, so a caller
+holds keys by repeating them; lease expiry or `drive({})` releases every
+axis. `move(direction, ms)` is the one-axis form. Dead reckoning moves at
+the run speed (backward speed when backing up), along a 45° diagonal when
+a strafe combines with forward or backward, and turns at the server's
+turn rate (movement block, `SMSG_FORCE_TURN_RATE_CHANGE`; π rad/s by
+default), so heartbeats carry the integrated orientation. `jump()` sends
+`MSG_MOVE_JUMP` with `FALLING`, fall time 0 and the jump fields (z speed
+−7.955547, the horizontal heading's cos and sin, and the horizontal
+speed), then falling heartbeats with the elapsed fall time along the
+ballistic arc (gravity 19.291105). `MSG_MOVE_FALL_LAND` goes out when the
+descending arc meets the ground-oracle height under it, with the fall
+time at that moment: 825 ms on level ground, later off a ledge, so the
+server sees the real fall height. In the air the horizontal speed stays
+fixed over gaps and steep or missing ground samples, and only a navmesh
+collision stops it; turning continues, and a server position mid-air
+cancels the jump.
 
 ## Entity fields
 

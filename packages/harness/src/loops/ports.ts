@@ -2,6 +2,7 @@ import type {
   CombatState,
   ControlState,
   MovementDirection,
+  MovementInput,
   RecoveryState,
   RewardsState,
   SpellDefinition,
@@ -29,6 +30,7 @@ export type ControlPort = {
   navigationState: () => NavigationState;
   face: (orientation: number) => void;
   move: (direction: MovementDirection, durationMs: number) => void;
+  drive: (input: MovementInput, durationMs: number) => void;
   halt: (reason?: string) => void;
   selectTarget: (guid: bigint) => void;
 };
@@ -68,6 +70,7 @@ export function combatPort(handle: WorldHandle): CombatPort {
 
 export function controlPort(handle: WorldHandle, travel: Travel): ControlPort {
   return {
+    drive: (input, durationMs) => handle.drive(input, durationMs),
     face: (orientation) => handle.face(orientation),
     halt: (reason) => handle.stopMoving(reason),
     move: (direction, durationMs) => handle.move(direction, durationMs),

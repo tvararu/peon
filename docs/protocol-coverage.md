@@ -4,7 +4,7 @@ Every `GameOpcode` and what core does with it. `mise test` fails when
 this file is stale; rewrite it with `mise protocol:coverage`. How the
 status is decided is in [protocol.md](protocol.md#add-an-opcode).
 
-923 opcodes: 265 handled, 58 stub, 600 missing.
+923 opcodes: 266 handled, 57 stub, 600 missing.
 
 | Opcode | Name | Direction | Status |
 |---|---|---|---|
@@ -221,7 +221,7 @@ status is decided is in [protocol.md](protocol.md#add-an-opcode).
 | `0x125` | `CMSG_SET_FACTION_ATWAR` | client | missing |
 | `0x127` | `SMSG_SET_PROFICIENCY` | server | stub |
 | `0x128` | `CMSG_SET_ACTION_BUTTON` | client | missing |
-| `0x129` | `SMSG_ACTION_BUTTONS` | server | stub |
+| `0x129` | `SMSG_ACTION_BUTTONS` | server | handled |
 | `0x12a` | `SMSG_INITIAL_SPELLS` | server | handled |
 | `0x12b` | `SMSG_LEARNED_SPELL` | server | handled |
 | `0x12c` | `SMSG_SUPERCEDED_SPELL` | server | handled |

@@ -69,6 +69,7 @@ export const SPEED_ACKS = [
   {
     smsg: GameOpcode.SMSG_FORCE_TURN_RATE_CHANGE,
     ack: GameOpcode.CMSG_FORCE_TURN_RATE_CHANGE_ACK,
+    field: "turnRate",
   },
   {
     smsg: GameOpcode.SMSG_FORCE_FLIGHT_SPEED_CHANGE,

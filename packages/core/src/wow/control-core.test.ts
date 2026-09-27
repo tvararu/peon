@@ -287,7 +287,7 @@ describe("ControlRuntime", () => {
         GameOpcode.MSG_MOVE_START_STRAFE_LEFT,
       ]);
       expect(runtime.snapshot().moving).toBe(true);
-      expect(runtime.snapshot().direction).toBe("left");
+      expect(runtime.snapshot().input).toEqual({ strafe: "left" });
       const switched = must(runtime.snapshot().pose);
       expect(switched.x).toBeCloseTo(mid.x, 5);
       expect(switched.y).toBeCloseTo(mid.y, 5);

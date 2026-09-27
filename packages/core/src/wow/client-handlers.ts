@@ -153,6 +153,7 @@ function registerObjectHandlers(conn: WorldConn, stores: SessionStores): void {
   on(GameOpcode.SMSG_EXPLORATION_EXPERIENCE, (r) =>
     handleExplorationExperience(stores, r),
   );
+  on(GameOpcode.SMSG_ACTION_BUTTONS, (r) => stores.actionBar.receive(r));
 }
 
 export function registerGameHandlers(

@@ -1,9 +1,13 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import {
-  DIR_FLAG,
-  type GroundOracle,
-  MAX_DURATION_MS,
-} from "#wow/control-motion";
+  assertInput,
+  inputOf,
+  isIdle,
+  type MovementDirection,
+  type MovementInput,
+  sameInput,
+} from "#wow/control-input";
+import { type GroundOracle, MAX_DURATION_MS } from "#wow/control-motion";
 import { type MovementGuide, Mover } from "#wow/control-mover";
 import { MovementSync, type SelfObservation } from "#wow/control-sync";
 import { DirectedWalk } from "#wow/control-walk";
@@ -21,7 +25,7 @@ import {
 } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
-export type MovementDirection = "forward" | "backward" | "left" | "right";
+const FORWARD: MovementInput = { move: "forward" };
 
 export type ControlPose = Position & {
   source: "server" | "predicted";
@@ -42,7 +46,8 @@ export type ControlState = {
   target: bigint | undefined;
   requestedTarget: bigint | undefined;
   moving: boolean;
-  direction: MovementDirection | undefined;
+  input: MovementInput;
+  airborne: boolean;
   movementAllowed: boolean;
   blockedReason: string | undefined;
   speed: number;
@@ -97,7 +102,7 @@ export class ControlRuntime {
     const emit = (type: ControlEventType, reason?: string): void =>
       this.emit(type, reason);
     const motion = {
-      moving: () => this.mover.moving,
+      moving: () => this.mover.moving || this.mover.airborne,
       settle: () => this.mover.integrate(),
       abort: (reason: string) => this.mover.abort(reason),
       stop: (reason: string) => this.mover.stop(reason, false),
@@ -127,7 +132,8 @@ export class ControlRuntime {
       target: sync.target,
       requestedTarget: this.requestedTarget,
       moving: mover.moving,
-      direction: mover.direction,
+      input: mover.input,
+      airborne: mover.airborne,
       movementAllowed: block === undefined,
       blockedReason: block ?? mover.blockedReason,
       speed: mover.currentSpeed() ?? 0,
@@ -191,9 +197,9 @@ export class ControlRuntime {
   }
 
   follow(guide: MovementGuide, facing: number, durationMs: number): void {
-    this.mover.guard("forward");
+    this.mover.guard(FORWARD);
     this.mover.face(facing);
-    this.mover.start("forward", durationMs, guide);
+    this.mover.change(FORWARD, durationMs, guide);
   }
 
   walkActive(): boolean {
@@ -206,7 +212,7 @@ export class ControlRuntime {
     signal?: AbortSignal,
   ): Promise<WalkOutcome> {
     this.assertWalkable(target, yards);
-    this.mover.guard("forward");
+    this.mover.guard(FORWARD);
     if (signal?.aborted)
       return Promise.resolve({
         status: "stopped",
@@ -233,24 +239,35 @@ export class ControlRuntime {
       signal,
     };
     const walk = new DirectedWalk({ mover: this.mover, sync: this.sync, plan });
-    this.mover.start("forward", MAX_DURATION_MS, walk);
+    this.mover.change(FORWARD, MAX_DURATION_MS, walk);
     return walk.outcome;
   }
 
   move(direction: MovementDirection, durationMs: number): void {
-    this.assertDirection(direction);
+    this.drive(inputOf(direction), durationMs);
+  }
+
+  drive(input: MovementInput, durationMs: number): void {
+    assertInput(input);
     this.assertDuration(durationMs);
     const { mover } = this;
     if (mover.guiding()) mover.stop("manual_move", true);
-    if (mover.moving && mover.direction === direction) {
-      mover.guard(direction);
+    if (isIdle(input)) {
+      mover.stop("released", true);
+      return;
+    }
+    mover.guard(input);
+    if (mover.moving && sameInput(mover.input, input)) {
       mover.lease(durationMs);
       return;
     }
-    mover.guard(direction);
-    mover.refuseBlockedStart(direction);
-    if (mover.moving) mover.stop("direction_change", true);
-    mover.start(direction, durationMs);
+    mover.refuseBlockedStart(input);
+    mover.change(input, durationMs);
+  }
+
+  jump(): void {
+    if (this.mover.guiding()) this.mover.stop("manual_move", true);
+    this.mover.jump();
   }
 
   face(orientation: number): void {
@@ -295,7 +312,7 @@ export class ControlRuntime {
       throw new Error("invalid_destination");
     if (!Number.isFinite(yards) || yards <= 0 || yards > 20)
       throw new Error("invalid_distance");
-    const speed = this.sync.speedFor("forward");
+    const speed = this.sync.speedFor(FORWARD);
     if (speed === undefined || !Number.isFinite(speed) || speed <= 0)
       throw new Error("missing_speed");
   }
@@ -308,9 +325,5 @@ export class ControlRuntime {
     ) {
       throw new Error("invalid_duration");
     }
-  }
-
-  private assertDirection(direction: MovementDirection): void {
-    if (!(direction in DIR_FLAG)) throw new Error("invalid_direction");
   }
 }
