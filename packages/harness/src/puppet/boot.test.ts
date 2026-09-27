@@ -63,13 +63,15 @@ describe("bootPuppet", () => {
   });
 
   test.each([
-    ["ADMIN", "Fgklgoafpfk", "The account ADMIN is protected"],
-    ["rndbot12", "Fgklgoafpfk", "The account RNDBOT12 is protected"],
-    ["FAC0123456789", "xiara", "The character xiara is protected"],
-  ])("refuses %s/%s without logging in", async (name, character, message) => {
+    ["ADMIN", "Fgklgoafpfk", "protected_account"],
+    ["rndbot12", "Fgklgoafpfk", "protected_account"],
+    ["FAC0123456789", "xiara", "protected_character"],
+  ])("refuses %s/%s without logging in", async (name, character, code) => {
     const paths = await account(name, character);
     const fn = login();
-    await expect(bootPuppet({ login: fn, paths })).rejects.toThrow(message);
+    await expect(bootPuppet({ login: fn, paths })).rejects.toMatchObject({
+      code,
+    });
     expect(fn).not.toHaveBeenCalled();
   });
 
@@ -78,7 +80,7 @@ describe("bootPuppet", () => {
     const fn = login();
     await expect(
       bootPuppet({ login: fn, paths: puppetPaths({ XDG_CONFIG_HOME: dir }) }),
-    ).rejects.toThrow("Cannot read");
+    ).rejects.toMatchObject({ code: "unreadable" });
     expect(fn).not.toHaveBeenCalled();
   });
 

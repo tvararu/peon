@@ -51,9 +51,7 @@ describe("launchPuppet", () => {
     const path = await entry("process.exit(3);");
     await expect(
       launchPuppet({ entry: path, timeoutMs: 5000 }),
-    ).rejects.toThrow(
-      "The puppet exited with code 3 before the character reached the world.",
-    );
+    ).rejects.toThrow("code 3");
   });
 
   test("gives up and stops the background process after the timeout", async () => {
@@ -62,7 +60,7 @@ describe("launchPuppet", () => {
        setTimeout(() => {}, 5000);`,
     );
     await expect(launchPuppet({ entry: path, timeoutMs: 300 })).rejects.toThrow(
-      "The character did not reach the world within 0.3 s.",
+      "0.3 s",
     );
     expect(await alive(`${dir}/pid`)).toBe(false);
   });

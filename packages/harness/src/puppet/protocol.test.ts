@@ -12,6 +12,7 @@ import {
 import { staleSocket } from "#test-support/puppet-fixtures";
 
 let dir: string | undefined;
+const cwd = process.cwd();
 
 afterEach(async () => {
   if (dir) await rm(dir, { force: true, recursive: true });
@@ -96,6 +97,14 @@ describe("sendRequest", () => {
     await expect(sendRequest(socket, { cmd: "read" })).rejects.toThrow(
       PuppetNotRunning,
     );
+  });
+
+  test("names a missing puppet when the runtime dir does not exist", async () => {
+    const socket = `${await tempDir()}/gone/puppet.sock`;
+    await expect(sendRequest(socket, { cmd: "read" })).rejects.toThrow(
+      PuppetNotRunning,
+    );
+    expect(process.cwd()).toBe(cwd);
   });
 
   test("names a missing puppet when the socket is stale", async () => {

@@ -1,3 +1,4 @@
+import { basename, dirname } from "node:path";
 import { type PathEnv, resolvePaths } from "@tuicraft/core/lib/paths";
 
 export type PuppetPaths = {
@@ -78,32 +79,53 @@ export function sendRequest(
   request: PuppetRequest,
 ): Promise<PuppetReply> {
   const { promise, resolve, reject } = Promise.withResolvers<PuppetReply>();
+  const failed = (error: unknown) =>
+    reject(notRunning(error) ? new PuppetNotRunning() : error);
   let buffer = "";
-  Bun.connect({
-    socket: {
-      close: () =>
-        reject(new Error("The puppet closed the connection without a reply.")),
-      data(socket, data) {
-        buffer += data.toString();
-        const end = buffer.indexOf("\n");
-        if (end === -1) return;
-        try {
-          resolve(decodeReply(buffer.slice(0, end)));
-        } catch (error) {
-          reject(error);
-        }
-        socket.end();
-      },
-      error: (_socket, error) => reject(error),
-      open: (socket) => {
-        socket.write(encodeLine(request));
-      },
-    },
-    unix: socketPath,
-  }).catch((error: unknown) =>
-    reject(notRunning(error) ? new PuppetNotRunning() : error),
-  );
+  try {
+    inSocketDir(socketPath, (name) =>
+      Bun.connect({
+        socket: {
+          close: () =>
+            reject(
+              new Error("The puppet closed the connection without a reply."),
+            ),
+          data(socket, data) {
+            buffer += data.toString();
+            const end = buffer.indexOf("\n");
+            if (end === -1) return;
+            try {
+              resolve(decodeReply(buffer.slice(0, end)));
+            } catch (error) {
+              reject(error);
+            }
+            socket.end();
+          },
+          error: (_socket, error) => reject(error),
+          open: (socket) => {
+            socket.write(encodeLine(request));
+          },
+        },
+        unix: name,
+      }),
+    ).catch(failed);
+  } catch (error) {
+    failed(error);
+  }
   return promise;
+}
+
+export function inSocketDir<T>(
+  socketPath: string,
+  use: (name: string) => T,
+): T {
+  const previous = process.cwd();
+  process.chdir(dirname(socketPath));
+  try {
+    return use(basename(socketPath));
+  } finally {
+    process.chdir(previous);
+  }
 }
 
 function notRunning(error: unknown): boolean {

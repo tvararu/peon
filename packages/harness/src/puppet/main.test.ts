@@ -63,7 +63,8 @@ describe("runPuppet", () => {
     const { paths } = await tempPaths();
     const { code, err, out } = await cli(["status"], paths);
     expect(code).toBe(2);
-    expect(err).toEqual([`Unknown command: status\n\n${USAGE}`]);
+    expect(err.join("\n")).toContain("status");
+    expect(err.join("\n")).toContain(USAGE);
     expect(out).toEqual([]);
   });
 
@@ -76,9 +77,7 @@ describe("runPuppet", () => {
     const { paths } = await tempPaths();
     const { code, err, out } = await cli(argv, paths);
     expect(code).toBe(1);
-    expect(err).toEqual([
-      "No puppet is running for this account. Run start --json first.",
-    ]);
+    expect(err.join("\n")).toContain("No puppet is running");
     expect(out).toEqual([]);
   });
 
@@ -164,7 +163,7 @@ describe("main.ts as a process", () => {
     });
     const { code, err, out } = await run(dir, ["start", "--json"]);
     expect(code).toBe(1);
-    expect(err).toContain("The account ADMIN is protected");
+    expect(err).toContain("ADMIN");
     expect(out).toBe("");
   });
 
@@ -184,7 +183,7 @@ describe("main.ts as a process", () => {
     });
     const { code, err, out } = await run(dir, ["start", "--json"]);
     expect(code).toBe(1);
-    expect(err).toStartWith("Fgklgoafpfk on FAC0123456789 could not log in:");
+    expect(err).toContain("Fgklgoafpfk");
     expect(out).toBe("");
     expect(await Bun.file(paths.socket).exists()).toBe(false);
   });

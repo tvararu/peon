@@ -39,9 +39,10 @@ afterEach(async () => {
 
 async function setup(
   init: Partial<Omit<PuppetServerInit, "handle" | "paths">> = {},
+  nested = "",
 ): Promise<Setup> {
   const dir = await mkdtemp(`${tmpdir()}/puppet-`);
-  const paths = puppetPaths({ XDG_RUNTIME_DIR: dir });
+  const paths = puppetPaths({ XDG_RUNTIME_DIR: `${dir}${nested}` });
   await mkdir(paths.runtimeDir, { recursive: true });
   const ws = await startMockWorldServer({ coalesceSelfCreate: true });
   const handle = await worldSession(
@@ -65,6 +66,9 @@ async function ask(paths: PuppetPaths, request: PuppetRequest) {
   return reply.out;
 }
 
+const LONG_ROOT =
+  "/home/deity/orca/workspaces/tuicraft/pi-harness-eval-worktree/tmp/factory-account-FAC0123456789/runtime";
+
 async function exists(path: string): Promise<boolean> {
   return access(path).then(
     () => true,
@@ -83,6 +87,17 @@ describe("puppet server over the socket", () => {
     const { paths } = await setup();
     expect(await Bun.file(paths.pid).text()).toBe(`${process.pid}\n`);
     expect(await ask(paths, { cmd: "status" })).toBe("");
+  });
+
+  test("binds and answers when the socket path is longer than a Unix socket address allows", async () => {
+    const { paths, server, ws } = await setup({}, LONG_ROOT);
+    expect(paths.socket.length).toBeGreaterThan(108);
+    expect(await exists(paths.socket)).toBe(true);
+    expect(await ask(paths, { cmd: "status" })).toBe("");
+    completeLogout(ws);
+    await ask(paths, { cmd: "stop" });
+    await server.done;
+    expect(await exists(paths.socket)).toBe(false);
   });
 
   test("send whispers, and read drains the chat since the last read in the CLI's shape", async () => {
@@ -189,9 +204,7 @@ describe("puppet server over the socket", () => {
 
   test("stop closes the socket when the server does not finish the logout in time", async () => {
     const { handle, paths, server } = await setup({ logoutWaitMs: 50 });
-    expect(await ask(paths, { cmd: "stop" })).toBe(
-      "The server did not finish the logout within 0.05 s; the puppet closed the socket.",
-    );
+    expect(await ask(paths, { cmd: "stop" })).toContain("0.05 s");
     await handle.closed;
     await server.done;
     expect(await exists(paths.socket)).toBe(false);

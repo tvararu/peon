@@ -13,6 +13,7 @@ import {
 import {
   decodeRequest,
   encodeLine,
+  inSocketDir,
   type PuppetPaths,
   type PuppetReply,
   type PuppetRequest,
@@ -64,22 +65,24 @@ class Puppet {
   }
 
   async listen(): Promise<void> {
-    this.listener = Bun.listen<{ buffer: string }>({
-      socket: {
-        data: (socket, data) => {
-          socket.data.buffer += data.toString();
-          const end = socket.data.buffer.indexOf("\n");
-          if (end === -1) return;
-          this.reply(socket, socket.data.buffer.slice(0, end)).catch(
-            ignoreFailure,
-          );
+    this.listener = inSocketDir(this.paths.socket, (name) =>
+      Bun.listen<{ buffer: string }>({
+        socket: {
+          data: (socket, data) => {
+            socket.data.buffer += data.toString();
+            const end = socket.data.buffer.indexOf("\n");
+            if (end === -1) return;
+            this.reply(socket, socket.data.buffer.slice(0, end)).catch(
+              ignoreFailure,
+            );
+          },
+          open(socket) {
+            socket.data = { buffer: "" };
+          },
         },
-        open(socket) {
-          socket.data = { buffer: "" };
-        },
-      },
-      unix: this.paths.socket,
-    });
+        unix: name,
+      }),
+    );
     await writeFile(this.paths.pid, `${process.pid}\n`);
     this.handle.closed
       .then(() => (this.loggingOut ? undefined : this.finish()))
@@ -138,7 +141,11 @@ class Puppet {
     if (this.ended) return;
     this.ended = true;
     this.unsubscribe();
-    this.listener?.stop();
+    const { listener } = this;
+    if (listener)
+      await Promise.resolve()
+        .then(() => inSocketDir(this.paths.socket, () => listener.stop()))
+        .catch(ignoreFailure);
     await Promise.all([
       rm(this.paths.socket, { force: true }),
       rm(this.paths.pid, { force: true }),
