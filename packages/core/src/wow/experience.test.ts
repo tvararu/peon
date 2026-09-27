@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { must } from "#test-support/must";
 import { captured8325, hexBytes } from "#test-support/quest-8325-packets";
 import { EntityStore } from "#wow/entity-store";
 import { readExperience } from "#wow/experience";
@@ -34,11 +33,15 @@ describe("experience notices captured from the live server", () => {
     const entities = new EntityStore();
     entities.create(self, ObjectType.PLAYER, { createComplete: true });
     entities.create(2n, ObjectType.PLAYER, { createComplete: true });
-    for (const guid of [self, 2n]) {
-      const fields = must(entities.get(guid)).rawFields;
-      fields.set(PLAYER_FIELDS.XP.offset, 180);
-      fields.set(PLAYER_FIELDS.NEXT_LEVEL_XP.offset, 400);
-    }
+    for (const guid of [self, 2n])
+      entities.update(
+        guid,
+        {},
+        new Map([
+          [PLAYER_FIELDS.XP.offset, 180],
+          [PLAYER_FIELDS.NEXT_LEVEL_XP.offset, 400],
+        ]),
+      );
     const combat = { lastLevelUp: undefined, lastXp: undefined };
     const lookup = (guid: bigint) => entities.get(guid);
     expect(readExperience(self, lookup, combat)).toMatchObject({

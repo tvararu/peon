@@ -9,7 +9,7 @@ export type Position = {
   orientation: number;
 };
 
-export type BaseEntity = {
+type BaseFields = {
   guid: bigint;
   objectType: ObjectType;
   entry: number;
@@ -20,7 +20,7 @@ export type BaseEntity = {
   name: string | undefined;
 };
 
-export type UnitEntity = BaseEntity & {
+type UnitFields = BaseFields & {
   objectType: typeof ObjectType.UNIT | typeof ObjectType.PLAYER;
   health: number;
   maxHealth: number;
@@ -40,7 +40,7 @@ export type UnitEntity = BaseEntity & {
   maxPower: number[];
 };
 
-export type GameObjectEntity = BaseEntity & {
+type GameObjectFields = BaseFields & {
   objectType: typeof ObjectType.GAMEOBJECT;
   displayId: number;
   flags: number;
@@ -48,7 +48,22 @@ export type GameObjectEntity = BaseEntity & {
   bytes1: number;
 };
 
+type View<T> = {
+  readonly [K in keyof T]: T[K] extends Map<infer K2, infer V>
+    ? ReadonlyMap<K2, V>
+    : T[K] extends (infer E)[]
+      ? readonly E[]
+      : T[K] extends object | undefined
+        ? Readonly<T[K]>
+        : T[K];
+};
+
+export type BaseEntity = View<BaseFields>;
+export type UnitEntity = View<UnitFields>;
+export type GameObjectEntity = View<GameObjectFields>;
 export type Entity = UnitEntity | GameObjectEntity | BaseEntity;
+
+type StoredEntity = UnitFields | GameObjectFields | BaseFields;
 
 export type EntityLookup = (guid: bigint) => Entity | undefined;
 
@@ -69,11 +84,24 @@ export function fieldOf(
 }
 
 export type EntityEvent =
-  | { type: "appear"; entity: Entity }
-  | { type: "disappear"; guid: bigint; name?: string }
-  | { type: "update"; entity: Entity; changed: string[] };
+  | { readonly type: "appear"; readonly entity: Entity }
+  | {
+      readonly type: "disappear";
+      readonly guid: bigint;
+      readonly name?: string;
+    }
+  | {
+      readonly type: "update";
+      readonly entity: Entity;
+      readonly changed: readonly string[];
+    };
 
-function createBase(guid: bigint, objectType: ObjectType): BaseEntity {
+export function snapshotEntityEvent(event: EntityEvent): EntityEvent {
+  if (event.type === "disappear") return event;
+  return { ...event, entity: structuredClone(event.entity) };
+}
+
+function createBase(guid: bigint, objectType: ObjectType): BaseFields {
   return {
     guid,
     objectType,
@@ -88,7 +116,7 @@ function createBase(guid: bigint, objectType: ObjectType): BaseEntity {
 function createUnit(
   guid: bigint,
   objectType: typeof ObjectType.UNIT | typeof ObjectType.PLAYER,
-): UnitEntity {
+): UnitFields {
   return {
     ...createBase(guid, objectType),
     objectType,
@@ -108,7 +136,7 @@ function createUnit(
   };
 }
 
-function createGameObject(guid: bigint): GameObjectEntity {
+function createGameObject(guid: bigint): GameObjectFields {
   return {
     ...createBase(guid, ObjectType.GAMEOBJECT),
     objectType: ObjectType.GAMEOBJECT,
@@ -120,31 +148,24 @@ function createGameObject(guid: bigint): GameObjectEntity {
 }
 
 type EntityFields = Partial<
-  Omit<UnitEntity, "objectType"> & Omit<GameObjectEntity, "objectType">
+  Omit<UnitFields, "objectType"> & Omit<GameObjectFields, "objectType">
 >;
 
 export class EntityStore {
-  private readonly entities: Map<bigint, Entity>;
-  private readonly byType: Map<number, Set<bigint>>;
+  private readonly entities = new Map<bigint, StoredEntity>();
+  private readonly byType = new Map<number, Set<bigint>>();
   private readonly events = new Emitter<[EntityEvent]>();
-
-  constructor() {
-    this.entities = new Map();
-    this.byType = new Map();
-  }
 
   onEvent(cb: (event: EntityEvent) => void): Unsubscribe {
     return this.events.subscribe(cb);
   }
 
   create(guid: bigint, objectType: ObjectType, fields: EntityFields): void {
-    const existing = this.entities.get(guid);
-    if (existing) {
-      this.byType.get(existing.objectType)?.delete(guid);
+    const existing = this.remove(guid);
+    if (existing)
       this.events.emit({ type: "disappear", guid, name: existing.name });
-    }
 
-    let entity: Entity;
+    let entity: StoredEntity;
     if (objectType === ObjectType.UNIT || objectType === ObjectType.PLAYER) {
       entity = Object.assign(createUnit(guid, objectType), fields);
     } else if (objectType === ObjectType.GAMEOBJECT) {
@@ -165,7 +186,11 @@ export class EntityStore {
     this.events.emit({ type: "appear", entity });
   }
 
-  update(guid: bigint, fields: Record<string, unknown>): void {
+  update(
+    guid: bigint,
+    fields: Record<string, unknown>,
+    rawFields?: ReadonlyMap<number, number>,
+  ): void {
     const entity = this.entities.get(guid);
     if (!entity) return;
 
@@ -180,6 +205,11 @@ export class EntityStore {
         rec[key] = value;
       }
     }
+    if (rawFields) {
+      for (const [offset, value] of rawFields)
+        entity.rawFields.set(offset, value);
+      changed.push("rawFields");
+    }
 
     if (changed.length > 0) {
       this.events.emit({ type: "update", entity, changed });
@@ -187,21 +217,17 @@ export class EntityStore {
   }
 
   destroy(guid: bigint): void {
-    const entity = this.entities.get(guid);
-    if (!entity) return;
-
-    this.entities.delete(guid);
-    this.byType.get(entity.objectType)?.delete(guid);
-
-    this.events.emit({ type: "disappear", guid, name: entity.name });
+    const entity = this.remove(guid);
+    if (entity)
+      this.events.emit({ type: "disappear", guid, name: entity.name });
   }
 
   clear(): void {
-    for (const [guid, entity] of this.entities) {
-      this.events.emit({ type: "disappear", guid, name: entity.name });
-    }
+    const removed = [...this.entities.values()];
     this.entities.clear();
     this.byType.clear();
+    for (const { guid, name } of removed)
+      this.events.emit({ type: "disappear", guid, name });
   }
 
   get(guid: bigint): Entity | undefined {
@@ -235,5 +261,13 @@ export class EntityStore {
     if (!entity) return;
     entity.position = pos;
     this.events.emit({ type: "update", entity, changed: ["position"] });
+  }
+
+  private remove(guid: bigint): StoredEntity | undefined {
+    const entity = this.entities.get(guid);
+    if (!entity) return undefined;
+    this.entities.delete(guid);
+    this.byType.get(entity.objectType)?.delete(guid);
+    return entity;
   }
 }

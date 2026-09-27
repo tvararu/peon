@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import { context, setup } from "#test-support/combat-actions-fixtures";
-import { must } from "#test-support/must";
 import { grayLevel } from "#wow/combat-actions-credit";
 import { UNIT_FIELDS } from "#wow/protocol/entity-fields";
 
@@ -16,13 +15,18 @@ function fight(init: {
 }) {
   let time = 1000;
   const f = setup(() => time);
-  must(f.store.get(1n)).rawFields.set(UNIT_FIELDS.LEVEL.offset, init.own);
-  const target = must(f.store.get(2n));
-  target.rawFields.set(UNIT_FIELDS.LEVEL.offset, init.level);
+  f.store.update(1n, {}, new Map([[UNIT_FIELDS.LEVEL.offset, init.own]]));
+  f.store.update(2n, {}, new Map([[UNIT_FIELDS.LEVEL.offset, init.level]]));
   if (init.engaged === false) f.store.update(2n, { target: 0n, unitFlags: 0 });
   f.actions.observe(context);
-  target.rawFields.set(UNIT_FIELDS.HEALTH.offset, 0);
-  target.rawFields.set(UNIT_FIELDS.DYNAMIC_FLAGS.offset, init.flags ?? 0);
+  f.store.update(
+    2n,
+    {},
+    new Map([
+      [UNIT_FIELDS.HEALTH.offset, 0],
+      [UNIT_FIELDS.DYNAMIC_FLAGS.offset, init.flags ?? 0],
+    ]),
+  );
   return {
     at(ms: number) {
       time = 1000 + ms;

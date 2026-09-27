@@ -295,10 +295,10 @@ test("a standalone loot walks to a corpse out of reach before the open", async (
         z: 0,
       },
     });
-    const { entity } = body(2n, 0, { x: 0, y: 9, z: 0 }) as {
+    const { entity: live } = body(2n, 0, { x: 0, y: 9, z: 0 }) as {
       entity: UnitEntity;
     };
-    lootableCorpse(entity);
+    const entity = lootableCorpse(live);
     const loot = fakeLoot({ items: [4] });
     const { runs } = wire({ control, entity: () => entity, loot });
     const running = runs.lootCorpse(2n, idle);

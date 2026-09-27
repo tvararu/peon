@@ -67,6 +67,30 @@ the handler's error instead.
 `entityStore.clear()` in the close handler fires a disappear for every
 entity and subscribers must be detached first.
 
+## Entity views and events
+
+`EntityStore` getters, entity events and nearby rows hand out the stored
+objects as read-only views: the types are deeply readonly and nothing is
+copied. Only the store writes an entity, through `create`, `update` (which
+merges raw update fields), `setName`, `setPosition`, `destroy` and
+`clear`. A view reflects later packets, so a consumer that keeps entity
+data across an `await`, a timer or another event stores
+`snapshotEntityEvent(event)`, a detached copy.
+
+`disappear` fires only after the entity has left every store index, so
+`get` and `all` no longer return it. A create over an existing GUID
+removes the old entity, fires its `disappear`, then inserts the new one
+and fires `appear`. `clear` removes everything before it fires any
+`disappear`.
+
+Entity events raised while a packet is dispatched are queued and delivered
+in order after that packet's handler returns, so listeners see the
+packet's combat, control and movement state already applied. Per-GUID
+cleanup (`remoteMotion.forget`, `combat.forget`,
+`control.observeDisappear`) still runs as soon as the store removes the
+entity, before the packet can re-create the GUID. Events raised outside
+dispatch are delivered immediately.
+
 ## Entity fields
 
 `extractObjectFields`, `extractUnitFields` and `extractGameObjectFields`

@@ -5,7 +5,6 @@ import {
   setup,
   spell,
 } from "#test-support/combat-actions-fixtures";
-import { must } from "#test-support/must";
 import { CombatRuntime } from "#wow/combat";
 import { CombatActions } from "#wow/combat-actions";
 import { ControlRuntime } from "#wow/control";
@@ -70,7 +69,7 @@ test("root blocks movement but not a supported stationary spell", () => {
 
 test("dead target waits for real credit and offers no attack or spell", () => {
   const { actions, combat, store } = setup();
-  must(store.get(2n)).rawFields.set(UNIT_FIELDS.HEALTH.offset, 0);
+  store.update(2n, {}, new Map([[UNIT_FIELDS.HEALTH.offset, 0]]));
   const definition = jest.spyOn(combat, "definition").mockReturnValue(spell());
   try {
     const frame = actions.observe(context);

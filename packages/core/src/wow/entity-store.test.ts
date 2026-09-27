@@ -4,6 +4,7 @@ import {
   type EntityEvent,
   EntityStore,
   type GameObjectEntity,
+  snapshotEntityEvent,
   type UnitEntity,
 } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
@@ -328,5 +329,55 @@ describe("EntityStore", () => {
     if (event1.type === "appear") {
       expect(event1.entity.objectType).toBe(ObjectType.GAMEOBJECT);
     }
+  });
+
+  test("disappear fires only after the entity has left every index", () => {
+    const store = new EntityStore();
+    const seen: string[] = [];
+    store.onEvent((event) => {
+      if (event.type !== "disappear") return;
+      const units = store.getByType(ObjectType.UNIT).map((e) => e.guid);
+      const present =
+        store.get(event.guid) !== undefined ||
+        units.includes(event.guid) ||
+        store.all().some((e) => e.guid === event.guid);
+      seen.push(`${event.guid}:${present}`);
+    });
+    store.create(1n, ObjectType.UNIT, {});
+    store.create(1n, ObjectType.UNIT, {});
+    store.destroy(1n);
+    store.create(2n, ObjectType.UNIT, {});
+    store.create(3n, ObjectType.UNIT, {});
+    store.clear();
+    expect(seen).toEqual(["1:false", "1:false", "2:false", "3:false"]);
+  });
+
+  test("update merges raw fields into the stored view", () => {
+    const store = new EntityStore();
+    const events: EntityEvent[] = [];
+    store.onEvent((e) => events.push(e));
+    store.create(1n, ObjectType.UNIT, { rawFields: new Map([[1, 10]]) });
+    const view = must(store.get(1n));
+    store.update(1n, { health: 5 }, new Map([[2, 20]]));
+    expect([...view.rawFields]).toEqual([
+      [1, 10],
+      [2, 20],
+    ]);
+    expect(events.at(-1)).toMatchObject({ changed: ["health", "rawFields"] });
+  });
+
+  test("an event snapshot keeps its values after later updates", () => {
+    const store = new EntityStore();
+    const snapshots: EntityEvent[] = [];
+    store.onEvent((e) => snapshots.push(snapshotEntityEvent(e)));
+    store.create(1n, ObjectType.UNIT, { rawFields: new Map([[1, 10]]) });
+    store.update(1n, { power: [5] }, new Map([[1, 0]]));
+    store.setPosition(1n, { mapId: 0, x: 1, y: 2, z: 3, orientation: 0 });
+    const [appear] = snapshots;
+    expect(appear?.type === "appear" && appear.entity).toMatchObject({
+      power: [0, 0, 0, 0, 0, 0, 0],
+      position: undefined,
+      rawFields: new Map([[1, 10]]),
+    });
   });
 });

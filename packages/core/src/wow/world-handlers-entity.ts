@@ -61,8 +61,8 @@ function applyEntry(conn: WorldConn, entry: UpdateEntry): void {
 
 function typeFields(
   objectType: ObjectType,
-  fields: Map<number, number>,
-  previous?: Map<number, number>,
+  fields: ReadonlyMap<number, number>,
+  previous?: ReadonlyMap<number, number>,
 ): TypeFields {
   if (objectType === ObjectType.UNIT || objectType === ObjectType.PLAYER)
     return extractUnitFields(fields, previous);
@@ -116,11 +116,7 @@ function applyValues(conn: WorldConn, entry: Entry<"values">): void {
   const merged = Object.fromEntries(
     Object.entries({ ...object, ...extra }).filter(([key]) => changed.has(key)),
   );
-  for (const [k, v] of entry.fields) entity.rawFields.set(k, v);
-  conn.entityStore.update(entry.guid, {
-    ...merged,
-    rawFields: entity.rawFields,
-  });
+  conn.entityStore.update(entry.guid, merged, entry.fields);
   if (changed.has("health")) conn.remoteMotion.observeVitals(entry.guid);
   if (entry.guid === selfGuid(conn))
     conn.control?.observeSelf({

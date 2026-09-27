@@ -3,7 +3,7 @@ import type { ControlEvent } from "#wow/control";
 import { type CycleRecovery, recoverCorpse } from "#wow/corpse-run";
 import { type CycleStop, cycleStop } from "#wow/cycle-stop";
 import type { CycleDeps, CycleLootRecord } from "#wow/encounter-cycle";
-import type { EntityEvent } from "#wow/entity-store";
+import { type EntityEvent, snapshotEntityEvent } from "#wow/entity-store";
 import { EventWaiter } from "#wow/event-waiter";
 import { lootCorpse } from "#wow/loot-run";
 import type { RecoveryEvent } from "#wow/recovery";
@@ -61,7 +61,7 @@ async function lootRun({ deps, guid, signal }: LootCall): Promise<LootOutcome> {
   const detach = [
     deps.events.rewards.subscribe((event) => events.push(event)),
     deps.events.entity.subscribe((event) => {
-      if (entityGuid(event) === guid) bodies.push(event);
+      if (entityGuid(event) === guid) bodies.push(snapshotEntityEvent(event));
     }),
     deps.events.control.subscribe((event) => motion.push(event)),
   ];

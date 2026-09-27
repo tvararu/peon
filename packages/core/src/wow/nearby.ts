@@ -17,7 +17,7 @@ export type NearbyPositionKind = "observed" | "predicted";
 
 export type NearbyRow = {
   entity: Entity;
-  position: Position | undefined;
+  position: Readonly<Position> | undefined;
   positionSource: NearbyPositionSource | null;
   positionKind: NearbyPositionKind | null;
   positionObservedAt: number | null;

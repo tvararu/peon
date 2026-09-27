@@ -73,10 +73,10 @@ export function liveUnit(guid: bigint): UnitEntity {
 }
 
 export function lootableCorpse(entity: UnitEntity): UnitEntity {
-  entity.health = 0;
-  entity.rawFields.set(UNIT_FIELDS.HEALTH.offset, 0);
-  entity.rawFields.set(UNIT_FIELDS.DYNAMIC_FLAGS.offset, 1);
-  return entity;
+  const rawFields = new Map(entity.rawFields);
+  rawFields.set(UNIT_FIELDS.HEALTH.offset, 0);
+  rawFields.set(UNIT_FIELDS.DYNAMIC_FLAGS.offset, 1);
+  return { ...entity, health: 0, rawFields };
 }
 
 export function fakeLoot(config: {

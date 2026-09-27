@@ -6,7 +6,7 @@ import {
   LIST_ARENA,
   MATRON_ARENA,
 } from "#test-support/trainer-fixtures";
-import type { Entity } from "#wow/entity-store";
+import { EntityStore } from "#wow/entity-store";
 import {
   ObjectType,
   PLAYER_FIELDS,
@@ -23,30 +23,24 @@ import { TRAINER_ANSWER_MS, TrainerRuntime } from "#wow/trainer";
 
 const COINAGE = 0x4_92;
 
-function entity(guid: bigint, objectType: ObjectType, fields: number[][]) {
-  return {
-    guid,
-    objectType,
-    entry: 0,
-    scale: 1,
-    position: undefined,
-    rawFields: new Map(fields.map(([k = 0, v = 0]) => [k, v])),
-    name: undefined,
-    createComplete: true,
-  } as Entity;
-}
-
 function fixture(npcFlags = 51) {
-  const self = entity(1n, ObjectType.PLAYER, [
-    [0x18, 51],
-    [UNIT_FIELDS.LEVEL.offset, 1],
-    [COINAGE, 100],
-  ]);
-  const arena = { ...entity(MATRON_ARENA, ObjectType.UNIT, []), npcFlags };
-  const entities = new Map<bigint, Entity>([
-    [1n, self],
-    [MATRON_ARENA, arena],
-  ]);
+  const entities = new EntityStore();
+  entities.create(1n, ObjectType.PLAYER, {
+    scale: 1,
+    createComplete: true,
+    rawFields: new Map([
+      [0x18, 51],
+      [UNIT_FIELDS.LEVEL.offset, 1],
+      [COINAGE, 100],
+    ]),
+  });
+  entities.create(MATRON_ARENA, ObjectType.UNIT, {
+    scale: 1,
+    createComplete: true,
+    npcFlags,
+  });
+  const set = (offset: number, value: number) =>
+    entities.update(1n, {}, new Map([[offset, value]]));
   const learned = [585, 2050];
   const sent: { opcode: number; body: Uint8Array | undefined }[] = [];
   const runtime = new TrainerRuntime({
@@ -63,10 +57,10 @@ function fixture(npcFlags = 51) {
     runtime.receiveList(parseTrainerList(new PacketReader(ARENA_TRAINER_LIST)));
   };
   const coinage = (value: number) => {
-    self.rawFields.set(COINAGE, value);
+    set(COINAGE, value);
     runtime.observe();
   };
-  return { runtime, self, learned, sent, types, listed, coinage };
+  return { runtime, set, learned, sent, types, listed, coinage };
 }
 
 describe("trainer offer", () => {
@@ -88,7 +82,7 @@ describe("trainer offer", () => {
       action: "list",
       status: "confirmed",
     });
-    f.self.rawFields.set(UNIT_FIELDS.LEVEL.offset, 6);
+    f.set(UNIT_FIELDS.LEVEL.offset, 6);
     const at6 = f.runtime.snapshot().offer?.spells;
     expect(at6?.find((s) => s.spellId === 591)?.state).toBe("unavailable");
   });
@@ -139,7 +133,7 @@ describe("trainer offer", () => {
       "Spell is no_profession_slot",
     );
     expect(f.sent).toHaveLength(sent);
-    f.self.rawFields.set(PLAYER_FIELDS.CHARACTER_POINTS2.offset, 1);
+    f.set(PLAYER_FIELDS.CHARACTER_POINTS2.offset, 1);
     expect(states()).toEqual([
       [25_245, "available"],
       [25_246, "available"],

@@ -96,10 +96,12 @@ function fixture(npcFlags = 0x10_81) {
   });
   runtime.onEvent((event) => events.push(event));
   const set = (guid: bigint, field: number, value: number) => {
-    const target = entities.get(guid);
-    target?.rawFields.set(field, value);
-    if (target)
-      runtime.observeEntity({ type: "update", entity: target, changed: [] });
+    const current = entities.get(guid);
+    if (!current) return;
+    const rawFields = new Map([...current.rawFields, [field, value]]);
+    const target = { ...current, rawFields };
+    entities.set(guid, target);
+    runtime.observeEntity({ type: "update", entity: target, changed: [] });
   };
   const listed = () => {
     runtime.list(MARNIEL);

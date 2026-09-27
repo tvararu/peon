@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { bytes } from "#test-support/hex";
 import { must } from "#test-support/must";
-import type { Entity } from "#wow/entity-store";
+import { type Entity, EntityStore } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { parseInventoryChangeFailure } from "#wow/protocol/inventory";
 import {
@@ -32,16 +32,25 @@ function entity(
 }
 
 function fixture() {
-  const self = entity(1n, ObjectType.PLAYER, [
-    [0x18, 100],
-    [0x4_92, 10],
-  ]);
-  const target = entity(2n, ObjectType.UNIT, [[0x4f, 1]]);
-  const entities = new Map([
-    [1n, self],
-    [2n, target],
-    [3n, entity(3n, ObjectType.UNIT, [[0x4f, 1]])],
-  ]);
+  const entities = new EntityStore();
+  const add = (created: Entity) =>
+    entities.create(created.guid, created.objectType, {
+      scale: created.scale,
+      createComplete: created.createComplete,
+      rawFields: new Map(created.rawFields),
+    });
+  add(
+    entity(1n, ObjectType.PLAYER, [
+      [0x18, 100],
+      [0x4_92, 10],
+    ]),
+  );
+  add(entity(2n, ObjectType.UNIT, [[0x4f, 1]]));
+  add(entity(3n, ObjectType.UNIT, [[0x4f, 1]]));
+  const self = must(entities.get(1n));
+  const target = must(entities.get(2n));
+  const set = (guid: bigint, offset: number, value: number) =>
+    entities.update(guid, {}, new Map([[offset, value]]));
   const sent: { opcode: number; body: Uint8Array | undefined }[] = [];
   const events: RewardsEvent[] = [];
   const runtime = new RewardsRuntime({
@@ -53,7 +62,17 @@ function fixture() {
     getEntity: (guid) => entities.get(guid),
   });
   const unsubscribe = runtime.onEvent((event) => events.push(event));
-  return { runtime, self, target, entities, sent, events, unsubscribe };
+  return {
+    runtime,
+    self,
+    target,
+    add,
+    set,
+    entities,
+    sent,
+    events,
+    unsubscribe,
+  };
 }
 
 const loot = `
@@ -93,15 +112,15 @@ describe("authoritative loot runtime", () => {
 
   test("requires actual corpse eligibility and only takes offered owner/allow slots", () => {
     const f = fixture();
-    f.self.rawFields.set(0x96, 0x10);
+    f.set(1n, 0x96, 0x10);
     expect(() => f.runtime.open(2n)).toThrow();
-    f.self.rawFields.set(0x96, 0);
-    f.target.createComplete = false;
+    f.set(1n, 0x96, 0);
+    f.entities.update(2n, { createComplete: false });
     expect(() => f.runtime.open(2n)).toThrow();
-    f.target.createComplete = true;
-    f.target.rawFields.set(0x4f, 0);
+    f.entities.update(2n, { createComplete: true });
+    f.set(2n, 0x4f, 0);
     expect(() => f.runtime.open(2n)).toThrow();
-    f.target.rawFields.set(0x4f, 1);
+    f.set(2n, 0x4f, 1);
     f.runtime.open(2n);
     f.runtime.receiveLootResponse(
       parseLootResponse(new PacketReader(bytes(loot))),
@@ -149,8 +168,8 @@ describe("authoritative loot runtime", () => {
       [8, 1],
       [14, 3],
     ]);
-    f.entities.set(5n, item);
-    f.self.rawFields.set(0x1_72, 5);
+    f.add(item);
+    f.set(1n, 0x1_72, 5);
     f.runtime.observeEntity({ type: "appear", entity: item });
     expect(
       f.runtime.snapshot().inventory.slots.find((slot) => slot.slot === 23),
@@ -166,7 +185,7 @@ describe("authoritative loot runtime", () => {
 
   test("observes a child item introduced by a later equipped-bag create", () => {
     const f = fixture();
-    f.self.rawFields.set(0x1_6a, 8);
+    f.set(1n, 0x1_6a, 8);
     f.runtime.observeEntity({ type: "appear", entity: f.self });
     expect(
       f.runtime
@@ -181,7 +200,7 @@ describe("authoritative loot runtime", () => {
       [0x40, 1],
       [0x42, 5],
     ]);
-    f.entities.set(8n, bag);
+    f.add(bag);
     f.runtime.observeEntity({ type: "appear", entity: bag });
     expect(
       f.runtime
@@ -198,7 +217,7 @@ describe("authoritative loot runtime", () => {
       [8, 8],
       [14, 3],
     ]);
-    f.entities.set(5n, item);
+    f.add(item);
     f.runtime.observeEntity({ type: "appear", entity: item });
     expect(
       f.events
@@ -213,7 +232,7 @@ describe("authoritative loot runtime", () => {
     const f = fixture();
     f.runtime.observeEntity({ type: "appear", entity: f.self });
     f.unsubscribe();
-    f.self.rawFields.set(0x1_72, 5);
+    f.set(1n, 0x1_72, 5);
     f.runtime.observeEntity({
       type: "update",
       entity: f.self,
@@ -226,7 +245,7 @@ describe("authoritative loot runtime", () => {
       [8, 1],
       [14, 3],
     ]);
-    f.entities.set(5n, item);
+    f.add(item);
     f.runtime.observeEntity({ type: "appear", entity: item });
     expect(
       f.events.at(-1)?.state.inventory.slots.find((slot) => slot.slot === 23),
@@ -270,7 +289,7 @@ describe("authoritative loot runtime", () => {
       alone: true,
     });
     expect(f.runtime.snapshot().inventory.coinage).toBe(10);
-    f.self.rawFields.set(0x4_92, 19);
+    f.set(1n, 0x4_92, 19);
     f.runtime.observeEntity({
       type: "update",
       entity: f.self,

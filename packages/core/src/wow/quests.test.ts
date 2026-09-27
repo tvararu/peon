@@ -51,9 +51,13 @@ function setSlot(
     high?: number,
   ],
 ): void {
-  const fields = must(entities.get(self)).rawFields;
-  for (const [i, value] of [id, state, low, high, 0].entries())
-    fields.set(PLAYER_FIELDS.QUEST_LOG.offset + slot * 5 + i, value);
+  const base = PLAYER_FIELDS.QUEST_LOG.offset + slot * 5;
+  const values = [id, state, low, high, 0];
+  entities.update(
+    self,
+    {},
+    new Map(values.map((value, i) => [base + i, value])),
+  );
 }
 
 describe("quest interaction authority", () => {
@@ -357,12 +361,11 @@ describe("quest packet and lifecycle failures", () => {
   test("charmed CREATE cannot gain omitted-ID authority from a later uncharm", () => {
     const { runtime, entities, events } = setup();
     entities.create(self, ObjectType.PLAYER, { createComplete: true });
-    const entity = must(entities.get(self));
-    entity.rawFields.set(UNIT_FIELDS.CHARMEDBY.offset, 99);
-    runtime.observeSelfCreate(entity);
+    entities.update(self, {}, new Map([[UNIT_FIELDS.CHARMEDBY.offset, 99]]));
+    runtime.observeSelfCreate(must(entities.get(self)));
     runtime.observeQuestLog();
     expect(runtime.snapshot().log.slots[0]?.questId).toBeUndefined();
-    entity.rawFields.set(UNIT_FIELDS.CHARMEDBY.offset, 0);
+    entities.update(self, {}, new Map([[UNIT_FIELDS.CHARMEDBY.offset, 0]]));
     runtime.observeQuestLog();
     expect(runtime.snapshot().log.slots[0]?.questId).toBeUndefined();
     expect(runtime.snapshot().log.slots[0]?.flags).toBe(0);

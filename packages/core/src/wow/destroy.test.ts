@@ -63,7 +63,12 @@ function fixture() {
   const types: string[] = [];
   runtime.onEvent((event) => types.push(event.type));
   const set = (guid: bigint, field: number, value: number) => {
-    entities.get(guid)?.rawFields.set(field, value);
+    const current = entities.get(guid);
+    if (current)
+      entities.set(guid, {
+        ...current,
+        rawFields: new Map([...current.rawFields, [field, value]]),
+      });
     runtime.observeInventory();
   };
   return { runtime, sent, set, types };

@@ -1,11 +1,27 @@
 import { describe, expect, test } from "bun:test";
+import { must } from "#test-support/must";
 import type { ControlPose } from "#wow/control";
-import type { Entity, Position, UnitEntity } from "#wow/entity-store";
+import {
+  type Entity,
+  EntityStore,
+  type Position,
+  type UnitEntity,
+} from "#wow/entity-store";
 import type { FactionRelation } from "#wow/faction-template";
-import { type NearbySources, type NearbyUnits, queryNearby } from "#wow/nearby";
+import {
+  type NearbyRow,
+  type NearbySources,
+  type NearbyUnits,
+  queryNearby,
+} from "#wow/nearby";
 import { ObjectType, UNIT_FIELDS, UnitFlag } from "#wow/protocol/entity-fields";
 import type { RemotePose } from "#wow/remote-motion";
 
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+type IsReadonly<T> =
+  (<U>() => U extends T ? 1 : 2) extends <U>() => U extends Mutable<T> ? 1 : 2
+    ? false
+    : true;
 const SELF = 1n;
 const NOW = 5000;
 
@@ -69,7 +85,7 @@ function pose(x: number, y: number, orientation = 0): ControlPose {
 
 function sources(
   selfPose: ControlPose | undefined,
-  entities: Entity[],
+  entities: readonly Entity[],
   remotePoses: RemotePose[] = [],
 ): NearbySources {
   return {
@@ -118,6 +134,17 @@ describe("queryNearby", () => {
     expect(other?.distance).toBe(4);
     expect(other?.originSource).toBe("self_entity");
     expect(other?.originUpdatedAt).toBeNull();
+  });
+
+  test("an unobserved row lends the stored position read-only, uncopied", () => {
+    const store = new EntityStore();
+    store.create(2n, ObjectType.UNIT, { position: at(4, 0) });
+    const [row] = queryNearby(sources(pose(0, 0), store.all()));
+    expect(row?.positionSource).toBe("update_object");
+    expect(row?.position).toBe(must(store.get(2n)).position);
+    const readonlyPosition: IsReadonly<NonNullable<NearbyRow["position"]>> =
+      true;
+    expect(readonlyPosition).toBe(true);
   });
 
   test("leaves entities on another map or without position unmeasured", () => {
