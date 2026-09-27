@@ -148,4 +148,34 @@ describe("destroying a carried item", () => {
       jest.useRealTimers();
     }
   });
+
+  test("a destroy started from a refusal listener keeps its answer timeout", () => {
+    jest.useFakeTimers();
+    try {
+      const f = fixture();
+      let retried = false;
+      f.runtime.onEvent((event) => {
+        if (event.type !== "refused" || retried) return;
+        retried = true;
+        f.runtime.destroy(255, 23);
+      });
+      f.runtime.destroy(255, 23);
+      f.store.receiveInventoryFailure({
+        kind: "error",
+        result: 24,
+        item1: 0n,
+        item2: 0n,
+        bagType: 0,
+        detail: { kind: "none" },
+      });
+      expect(f.runtime.snapshot().pending).toBeDefined();
+      jest.advanceTimersByTime(DESTROY_ANSWER_MS);
+      expect(f.runtime.snapshot()).toMatchObject({
+        lastOutcome: { status: "unanswered" },
+        pending: undefined,
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

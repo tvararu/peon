@@ -55,12 +55,12 @@ export class ItemDestroyRuntime {
     this.store = store;
     this.deps = deps;
     store.onEvent((event) => {
-      this.events.emit(event);
       clearTimeout(this.timer);
       this.timer =
         event.type === "requested"
           ? setTimeout(() => this.store.expire(), DESTROY_ANSWER_MS)
           : undefined;
+      this.events.emit(event);
     });
   }
 

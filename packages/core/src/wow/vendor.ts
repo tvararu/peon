@@ -121,8 +121,8 @@ export class VendorRuntime {
     this.store = store;
     this.deps = deps;
     store.onEvent((event) => {
-      this.events.emit(event);
       this.react(event);
+      this.events.emit(event);
     });
   }
 

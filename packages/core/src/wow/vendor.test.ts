@@ -390,3 +390,22 @@ describe("repairing", () => {
     expect(f.types().slice(-1)).toEqual(["unanswered"]);
   });
 });
+
+describe("reentrant requests", () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  test("a purchase started from the listed event keeps its answer timeout", () => {
+    const f = fixture();
+    f.runtime.onEvent((event) => {
+      if (event.type === "listed") f.runtime.buy(2);
+    });
+    f.listed();
+    expect(f.runtime.snapshot().pending?.action).toBe("buy");
+    jest.advanceTimersByTime(VENDOR_ANSWER_MS);
+    expect(f.runtime.snapshot()).toMatchObject({
+      lastOutcome: { action: "buy", status: "unanswered" },
+      pending: undefined,
+    });
+  });
+});

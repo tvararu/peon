@@ -196,4 +196,23 @@ describe("learning a spell", () => {
       jest.useRealTimers();
     }
   });
+
+  test("a request started from a settle listener keeps its answer timeout", () => {
+    jest.useFakeTimers();
+    try {
+      const f = fixture();
+      f.runtime.onEvent((event) => {
+        if (event.type === "listed") f.runtime.train(1243);
+      });
+      f.listed();
+      expect(f.runtime.snapshot().pending?.action).toBe("train");
+      jest.advanceTimersByTime(TRAINER_ANSWER_MS);
+      expect(f.runtime.snapshot()).toMatchObject({
+        lastOutcome: { action: "train", status: "unanswered" },
+        pending: undefined,
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

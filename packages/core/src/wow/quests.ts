@@ -177,8 +177,8 @@ export class QuestRuntime {
         `quest_cancel_unanswered: waiting for the server to close the dialog; it expires as no_reply after ${QUEST_REPLY_TIMEOUT_MS / 1000}s`,
       );
     this.deps.send(GameOpcode.CMSG_QUESTGIVER_CANCEL);
-    this.store.requestCancel();
     this.arm();
+    this.store.requestCancel();
   }
 
   dispose(): void {
@@ -214,7 +214,7 @@ export class QuestRuntime {
     const { pending } = this.store;
     if (pending) throw unansweredError(pending, this.deps.now());
     this.deps.send(opcode, body);
-    this.store.requestIntent(intent);
     this.arm();
+    this.store.requestIntent(intent);
   }
 }
