@@ -138,6 +138,21 @@ test("OpcodeDispatch leaves a waiter queued when its match rejects the packet", 
   expect((await wantsTwo).uint8()).toBe(2);
 });
 
+test("OpcodeDispatch rejects the waiter when the handler throws and keeps the next one queued", async () => {
+  const dispatch = new OpcodeDispatch();
+  dispatch.on(0x06, (r) => {
+    if (r.uint8() === 0) throw new Error("malformed body");
+  });
+  const failed = dispatch.expect(0x06);
+  const next = dispatch.expect(0x06);
+  expect(() =>
+    dispatch.handle(0x06, new PacketReader(new Uint8Array([0]))),
+  ).toThrow("malformed body");
+  await expect(failed).rejects.toThrow("malformed body");
+  dispatch.handle(0x06, new PacketReader(new Uint8Array([3])));
+  expect((await next).uint8()).toBe(3);
+});
+
 test("AccumulatorBuffer accumulates and drains", () => {
   const buf = new AccumulatorBuffer();
   buf.append(new Uint8Array([1, 2, 3]));

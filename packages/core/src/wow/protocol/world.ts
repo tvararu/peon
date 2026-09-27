@@ -172,6 +172,7 @@ export type ExpectOptions = {
 type Waiter = {
   match?: (reader: PacketReader) => boolean;
   resolve: (reader: PacketReader) => void;
+  reject: (error: unknown) => void;
 };
 
 export class OpcodeDispatch {
@@ -212,6 +213,10 @@ export class OpcodeDispatch {
         clearTimeout(timer);
         resolve(reader);
       },
+      reject: (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
     };
     this.waiters.set(opcode, [...(this.waiters.get(opcode) ?? []), waiter]);
     return promise;
@@ -221,15 +226,19 @@ export class OpcodeDispatch {
     const body = reader.fork();
     try {
       this.handlers.get(opcode)?.(reader);
-    } finally {
-      const waiter = this.waiters
-        .get(opcode)
-        ?.find((w) => !w.match || w.match(body.fork()));
-      if (waiter) {
-        this.removeWaiter(opcode, waiter);
-        waiter.resolve(body.fork());
-      }
+    } catch (error) {
+      this.takeWaiter(opcode, body)?.reject(error);
+      throw error;
     }
+    this.takeWaiter(opcode, body)?.resolve(body.fork());
+  }
+
+  private takeWaiter(opcode: number, body: PacketReader): Waiter | undefined {
+    const waiter = this.waiters
+      .get(opcode)
+      ?.find((w) => !w.match || w.match(body.fork()));
+    if (waiter) this.removeWaiter(opcode, waiter);
+    return waiter;
   }
 
   private removeWaiter(opcode: number, waiter: Waiter) {
