@@ -49,7 +49,7 @@ export const presetSpecs = {
     template: "Tplghost",
     x: 7575,
     y: -6835,
-    z: 89.1,
+    z: 88.66,
   },
   max80: {
     faction: "horde",
