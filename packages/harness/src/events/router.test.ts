@@ -89,11 +89,19 @@ describe("createEventRouter", () => {
     expect(sink.human).toHaveBeenCalledWith(throttled[0]);
   });
 
-  test("sends Jev request, result and applied rows to jev.jsonl only", () => {
+  test("logs every tactics event to jev.jsonl, stopped without its state", () => {
     const { jevRows, log, router } = setup();
     const handle = createMockGame();
     router.attach(handle);
     handle.triggerTacticsEvent({
+      framing: "none",
+      instruction: "fight",
+      runId: "t1",
+      targetGuid: "0x1",
+      type: "started",
+    });
+    handle.triggerTacticsEvent({
+      call: 1,
       candidates: [],
       framing: "none",
       instruction: "fight",
@@ -103,18 +111,45 @@ describe("createEventRouter", () => {
       type: "request",
     });
     handle.triggerTacticsEvent({
-      actionId: "a1",
-      ageMs: 5,
+      call: 1,
+      error: "jev_timeout",
       runId: "t1",
-      type: "applied",
+      type: "transport",
     });
-    expect(jevRows).toHaveLength(2);
-    expect(jevRows[0]).toMatchObject({
+    handle.triggerTacticsEvent({
+      reason: "failed",
+      runId: "t1",
+      state: {
+        instruction: "fight",
+        lastDecision: undefined,
+        lastDiscardReason: undefined,
+        lastOutcome: undefined,
+        lastRequest: undefined,
+        lastResult: undefined,
+        runId: "t1",
+        status: "idle",
+        targetGuid: 1n,
+        timeouts: { consecutive: 0, limit: 3, total: 0 },
+      },
+      type: "stopped",
+    });
+    expect(jevRows.map((row) => (row as { type: string }).type)).toEqual([
+      "started",
+      "request",
+      "transport",
+      "stopped",
+    ]);
+    expect(jevRows[2]).toMatchObject({ call: 1, ts: 1_000_000 });
+    expect(jevRows[3]).toEqual({
+      reason: "failed",
       runId: "t1",
       ts: 1_000_000,
-      type: "request",
+      type: "stopped",
     });
-    expect(log.count()).toBe(0);
+    expect(log.since(0).map((row) => row.event)).toEqual([
+      "fight/start",
+      "fight/end",
+    ]);
   });
 
   test("delivers wake rows that other modules append", () => {

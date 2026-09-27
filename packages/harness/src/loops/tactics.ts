@@ -5,6 +5,7 @@ import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type {
   JevActionResult,
   JevCandidate,
+  JevExchange,
   JevSelect,
 } from "#harness/jev/contract";
 import { JevTransportError, JevUnavailableError } from "#harness/jev/failure";
@@ -61,6 +62,7 @@ export type TacticsDeps = {
 };
 
 type TacticsRequest = {
+  call: number;
   observation: Readonly<Record<string, unknown>>;
   candidates: readonly JevCandidate[];
   instruction: string;
@@ -99,11 +101,24 @@ export type TacticsEvent =
     }
   | { type: "activated"; runId: string }
   | ({ type: "request"; runId: string } & TacticsRequest)
-  | ({ type: "result"; runId: string } & JevActionResult)
-  | { type: "applied"; runId: string; actionId: string; ageMs: number }
-  | { type: "discarded"; runId: string; reason: string; actionId?: string }
+  | ({ type: "exchange"; runId: string; call: number } & JevExchange)
+  | ({ type: "result"; runId: string; call: number } & JevActionResult)
+  | {
+      type: "applied";
+      runId: string;
+      call: number;
+      actionId: string;
+      ageMs: number;
+    }
+  | {
+      type: "discarded";
+      runId: string;
+      call: number;
+      reason: string;
+      actionId?: string;
+    }
   | ({ type: "outcome"; runId: string } & TacticsOutcome)
-  | { type: "transport"; runId: string; error: string }
+  | { type: "transport"; runId: string; call?: number; error: string }
   | { type: "stopped"; runId: string; reason: string; state: TacticsState };
 
 type Run = {
@@ -114,10 +129,12 @@ type Run = {
   detach: () => void;
   timeouts: number;
   transportFailures: number;
+  calls: number;
 };
 
 type Decision = {
   run: Run;
+  call: number;
   candidates: readonly JevCandidate[];
   sentAtMs: number;
   result: JevActionResult;
@@ -229,6 +246,7 @@ export class TacticsLoop {
       detach: () => external?.removeEventListener("abort", onExternal),
       timeouts: 0,
       transportFailures: 0,
+      calls: 0,
     };
     const onExternal = () => {
       if (this.live(run)) this.stop("aborted");
@@ -308,8 +326,10 @@ export class TacticsLoop {
       const candidates = withWait(frame.candidates);
       const sentAtMs = this.now();
       if (candidates.some((candidate) => candidate.id !== WAIT.id)) {
-        const result = await this.attempt(run, { ...frame, candidates });
-        if (result) this.commit({ run, result, candidates, sentAtMs });
+        run.calls += 1;
+        const call = run.calls;
+        const result = await this.attempt(run, { ...frame, candidates }, call);
+        if (result) this.commit({ run, call, result, candidates, sentAtMs });
       }
       if (this.live(run)) {
         const delay = Math.max(0, this.minIntervalMs - (this.now() - sentAtMs));
@@ -321,9 +341,10 @@ export class TacticsLoop {
   private async attempt(
     run: Run,
     frame: TacticsFrame,
+    call: number,
   ): Promise<JevActionResult | undefined> {
     try {
-      const result = await this.select(run, frame);
+      const result = await this.select(run, frame, call);
       run.timeouts = 0;
       run.transportFailures = 0;
       this.state.timeouts.consecutive = 0;
@@ -333,7 +354,7 @@ export class TacticsLoop {
       this.retry(run, error);
       const reason = messageOf(error);
       this.state.lastDiscardReason = reason;
-      this.emit({ type: "transport", runId: run.runId, error: reason });
+      this.emit({ type: "transport", runId: run.runId, call, error: reason });
       return undefined;
     }
   }
@@ -355,8 +376,10 @@ export class TacticsLoop {
   private async select(
     run: Run,
     frame: TacticsFrame,
+    call: number,
   ): Promise<JevActionResult> {
     const request: TacticsRequest = structuredClone({
+      call,
       observation: frame.observation,
       candidates: frame.candidates,
       instruction: run.context.instruction,
@@ -369,8 +392,13 @@ export class TacticsLoop {
     if (!this.live(run)) throw abortReason(run.abort.signal);
     const abort = new AbortController();
     const signal = AbortSignal.any([run.abort.signal, abort.signal]);
-    const pending = run.select(request, { signal });
-    this.track(pending.then((result) => this.late(run, result, signal)));
+    const { runId } = run;
+    const pending = run.select(request, {
+      record: (exchange) =>
+        this.emit({ type: "exchange", runId, call, ...exchange }),
+      signal,
+    });
+    this.track(pending.then((result) => this.late(run, call, result, signal)));
     try {
       return await bounded(pending, signal, this.requestTimeoutMs, TIMEOUT);
     } finally {
@@ -386,27 +414,34 @@ export class TacticsLoop {
     });
   }
 
-  private late(run: Run, result: JevActionResult, signal: AbortSignal): void {
+  private late(
+    run: Run,
+    call: number,
+    result: JevActionResult,
+    signal: AbortSignal,
+  ): void {
     if (this.live(run) && !signal.aborted) return;
-    this.emit({ type: "result", runId: run.runId, ...result });
+    const { runId } = run;
+    this.emit({ type: "result", runId, call, ...result });
     this.emit({
       type: "discarded",
-      runId: run.runId,
+      runId,
+      call,
       reason: "aborted",
       actionId: result.choice,
     });
   }
 
-  private commit({ run, result, candidates, sentAtMs }: Decision): void {
+  private commit({ run, call, result, candidates, sentAtMs }: Decision): void {
     if (!this.live(run)) return;
     this.state.lastResult = structuredClone(result);
-    this.emit({ type: "result", runId: run.runId, ...result });
+    this.emit({ type: "result", runId: run.runId, call, ...result });
     if (!this.live(run)) return;
     const ageMs = this.now() - sentAtMs;
     const choice = result.choice;
     const rejected = judge(choice, ageMs, this.maxResultAgeMs, candidates);
     if (rejected) {
-      this.discard(run, rejected, choice);
+      this.discard(run, call, rejected, choice);
       return;
     }
     const current = this.deps.observe(run.context);
@@ -417,33 +452,44 @@ export class TacticsLoop {
       return;
     }
     if (!offers(withWait(current.candidates), choice)) {
-      this.discard(run, "unavailable", choice);
+      this.discard(run, call, "unavailable", choice);
       return;
     }
     try {
       this.deps.execute(choice, run.context);
     } catch (error) {
-      this.discard(run, messageOf(error), choice);
+      this.discard(run, call, messageOf(error), choice);
       return;
     }
-    if (this.live(run)) this.applied(run, choice, ageMs);
+    if (this.live(run)) this.applied(run, call, choice, ageMs);
   }
 
-  private applied(run: Run, actionId: string, ageMs: number): void {
+  private applied(
+    run: Run,
+    call: number,
+    actionId: string,
+    ageMs: number,
+  ): void {
     this.state.lastDecision = {
       actionId,
       disposition: "applied",
       reason: "ok",
     };
     this.state.lastDiscardReason = undefined;
-    this.emit({ type: "applied", runId: run.runId, actionId, ageMs });
+    const { runId } = run;
+    this.emit({ type: "applied", runId, call, actionId, ageMs });
   }
 
-  private discard(run: Run, reason: string, actionId: string): void {
+  private discard(
+    run: Run,
+    call: number,
+    reason: string,
+    actionId: string,
+  ): void {
     if (!this.live(run)) return;
     this.state.lastDiscardReason = reason;
     this.state.lastDecision = { actionId, disposition: "discarded", reason };
-    this.emit({ type: "discarded", runId: run.runId, reason, actionId });
+    this.emit({ type: "discarded", runId: run.runId, call, reason, actionId });
   }
 }
 

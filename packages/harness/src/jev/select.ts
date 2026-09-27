@@ -1,18 +1,25 @@
 import { abortReason, isAbort } from "@peon/core/lib/abort";
 import { messageOf } from "@peon/core/lib/errors";
-import type { JevActionRequest, JevActionResult } from "#harness/jev/contract";
+import type {
+  JevActionRequest,
+  JevActionResult,
+  JevExchange,
+} from "#harness/jev/contract";
 import { JevTransportError } from "#harness/jev/failure";
 import { buildFraming } from "#harness/jev/framing";
 import { httpFailure } from "#harness/jev/http-failure";
 
 const SYSTEMONE_URL = "https://api.typesafe.ai/v1/systemone";
 const DEFAULT_MODEL = "jev-latest";
+const INSTRUCTIONS =
+  "Which currently legal action best serves `standingInstruction`?";
 
 export type JevActionOptions = {
   apiKey: string;
   signal: AbortSignal;
   model?: string;
   endpointUrl?: string;
+  record?: (exchange: JevExchange) => void;
   fetch?: (
     input: string | URL | Request,
     init?: RequestInit,
@@ -24,6 +31,9 @@ export type JevHttpSelect = (
   options: JevActionOptions,
 ) => Promise<JevActionResult>;
 
+type Envelope = Pick<JevExchange, "framing" | "instructions" | "model">;
+type Reply = Pick<JevExchange, "error" | "response" | "status">;
+
 export async function selectJevAction(
   request: JevActionRequest,
   options: JevActionOptions,
@@ -32,26 +42,43 @@ export async function selectJevAction(
   if (options.signal.aborted) throw abortReason(options.signal);
   const allowed = new Set(request.candidates.map((candidate) => candidate.id));
   if (allowed.size === 0) throw new Error("No TypeSafe Choice candidates");
+  const envelope = envelopeOf(request, options.model);
   const started = performance.now();
-  const payload = await post(buildBody(request, options.model), options);
+  const record = (reply: Reply) =>
+    options.record?.({
+      ...envelope,
+      elapsedMs: performance.now() - started,
+      ...reply,
+    });
+  const body = buildBody(request, envelope);
+  const payload = await post(body, options, record);
   if (options.signal.aborted) throw abortReason(options.signal);
   return parseChoice(payload, allowed, performance.now() - started);
 }
 
-function buildBody(request: JevActionRequest, model = DEFAULT_MODEL): string {
-  const criteria = Object.fromEntries(
-    request.candidates.map(({ id, description }) => [id, description]),
-  );
+function envelopeOf(
+  request: JevActionRequest,
+  model = DEFAULT_MODEL,
+): Envelope {
   const framing =
     request.framing &&
     buildFraming(request.framing, request.observation, request.characterClass);
+  const envelope = { instructions: INSTRUCTIONS, model };
+  return framing === undefined ? envelope : { ...envelope, framing };
+}
+
+function buildBody(
+  request: JevActionRequest,
+  { framing, instructions, model }: Envelope,
+): string {
+  const criteria = Object.fromEntries(
+    request.candidates.map(({ id, description }) => [id, description]),
+  );
   const state = {
     ...request.observation,
     standingInstruction: request.instruction,
     ...(framing === undefined ? {} : { framing }),
   };
-  const instructions =
-    "Which currently legal action best serves `standingInstruction`?";
   return JSON.stringify({
     model,
     questions: { action: { criteria, instructions, type: "choice" } },
@@ -59,7 +86,11 @@ function buildBody(request: JevActionRequest, model = DEFAULT_MODEL): string {
   });
 }
 
-async function post(body: string, options: JevActionOptions): Promise<unknown> {
+async function post(
+  body: string,
+  options: JevActionOptions,
+  record: (reply: Reply) => void,
+): Promise<unknown> {
   const http = options.fetch ?? globalThis.fetch;
   const headers = {
     Authorization: `Bearer ${options.apiKey}`,
@@ -74,17 +105,35 @@ async function post(body: string, options: JevActionOptions): Promise<unknown> {
       signal: options.signal,
     });
   } catch (error) {
+    record({ error: messageOf(error) });
     if (options.signal.aborted || isAbort(error))
       throw abortReason(options.signal, error);
     throw new JevTransportError(messageOf(error), { cause: error });
   }
-  if (options.signal.aborted) throw abortReason(options.signal);
-  if (!response.ok) throw await httpFailure(response);
+  const { ok, status } = response;
+  let text: string;
   try {
-    return await response.json();
+    text = await response.text();
   } catch (error) {
+    record({ error: messageOf(error), status });
     if (options.signal.aborted) throw abortReason(options.signal);
+    if (!ok) throw httpFailure(status, undefined);
     throw responseError("json", { error });
+  }
+  const parsed = parseJson(text);
+  record(text === "" ? { status } : { response: parsed.value, status });
+  if (options.signal.aborted) throw abortReason(options.signal);
+  if (!ok) throw httpFailure(status, parsed.value);
+  if (parsed.error !== undefined)
+    throw responseError("json", { error: parsed.error });
+  return parsed.value;
+}
+
+function parseJson(text: string): { value: unknown; error?: unknown } {
+  try {
+    return { value: JSON.parse(text) };
+  } catch (error) {
+    return { error, value: text };
   }
 }
 

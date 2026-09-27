@@ -138,14 +138,14 @@ test("rejected probability totals retain the response failure boundary", async (
   });
 });
 
-test("JSON read failures retain raw causes without serializing them", async () => {
+test("body read failures retain raw causes without serializing them", async () => {
   const raw = {
     toJSON: () => {
       throw new Error("Raw cause serialized");
     },
   };
   const response = jsonResponse(200, {});
-  Object.defineProperty(response, "json", {
+  Object.defineProperty(response, "text", {
     value: async () => {
       throw raw;
     },

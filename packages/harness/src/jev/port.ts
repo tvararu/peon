@@ -18,7 +18,7 @@ export function jevPort(env: JevEnv): JevPort | undefined {
     : selectJevAction;
   return {
     fault: fault && faultMarker(fault),
-    select: (request, { signal }) =>
-      base(request, { apiKey, endpointUrl, signal }),
+    select: (request, { record, signal }) =>
+      base(request, { apiKey, endpointUrl, record, signal }),
   };
 }

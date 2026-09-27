@@ -91,12 +91,6 @@ const HUMAN_EVENTS = new Set<LogEvent>([
   "session/lost",
   "session/wake_throttled",
 ]);
-const JEV_EVENTS = new Set<TacticsEvent["type"]>([
-  "request",
-  "result",
-  "applied",
-]);
-
 const NO_LOOKUP: RuleLookup = {
   experience: () => ({ next: undefined, xp: undefined }),
   itemName: () => undefined,
@@ -196,8 +190,8 @@ function subscribeAll(init: SubscribeInit): Unsubscribe[] {
     handle.onDuelEvent((event) => route((rc) => duelDrafts(event, rc))),
     handle.onCombatEvent((event) => route((rc) => combatDrafts(event, rc))),
     handle.onTacticsEvent((event) => {
-      if (JEV_EVENTS.has(event.type)) jev(event);
-      else route((rc) => tacticsDrafts(event, rc));
+      jev(event);
+      route((rc) => tacticsDrafts(event, rc));
     }),
     handle.onCycleEvent((event) => route((rc) => cycleDrafts(event, rc))),
     handle.onRecoveryEvent((event) => route((rc) => recoveryDrafts(event, rc))),
@@ -395,8 +389,12 @@ export function createEventRouter(init: RouterInit): EventRouter {
     for (const draft of make(rc)) writer.record(draft, rc);
     armXp(rc.memo, route);
   };
-  const jev = (event: TacticsEvent) =>
-    init.jevLog.write({ ...event, ts: init.context().now });
+  const jev = (event: TacticsEvent) => {
+    const { runId, type } = event;
+    const row =
+      event.type === "stopped" ? { reason: event.reason, runId, type } : event;
+    init.jevLog.write({ ...row, ts: init.context().now });
+  };
   log.subscribe((entry) => {
     writer.observe(entry);
     if (sink) deliver(sink, entry);

@@ -6,27 +6,16 @@ const REFUSED: Record<number, string> = {
   403: "forbidden",
 };
 
-export async function httpFailure(response: Response): Promise<Error> {
-  const { status } = response;
+export function httpFailure(status: number, body: unknown): Error {
   const refused = REFUSED[status];
   if (refused !== undefined) {
-    const kind = (await errorType(response)) ?? refused;
-    return new JevUnavailableError(`HTTP ${status} ${kind}`);
+    const kind = field(field(body, "detail"), "error_type");
+    const named = typeof kind === "string" && kind !== "" ? kind : refused;
+    return new JevUnavailableError(`HTTP ${status} ${named}`);
   }
   const message = `TypeSafe HTTP ${status}`;
   if (status === 429 || status >= 500) return new JevTransportError(message);
   return new Error(message);
-}
-
-async function errorType(response: Response): Promise<string | undefined> {
-  try {
-    const body: unknown = await response.json();
-    const detail = field(body, "detail");
-    const kind = field(detail, "error_type");
-    return typeof kind === "string" && kind !== "" ? kind : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 function field(value: unknown, key: string): unknown {
