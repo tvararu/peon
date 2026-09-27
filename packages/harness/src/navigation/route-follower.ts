@@ -231,7 +231,7 @@ export class RouteFollower {
 
   dispose(): void {
     if (this.disposed) return;
-    if (this.active) this.handle.stopMoving("close");
+    this.cancelReplan("close");
     this.disposed = true;
     for (const off of this.detach) off();
     if (this.replanTimer !== undefined) clearTimeout(this.replanTimer);

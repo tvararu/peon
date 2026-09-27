@@ -61,11 +61,10 @@ export function createTravel(
     return session.navigation;
   };
   const deps = { handle, navigation, now, routes };
+  const close = () => session?.navigation.close();
+  handle.closed.then(close, close);
   return {
-    dispose() {
-      routes.dispose();
-      session?.navigation.close();
-    },
+    dispose: () => routes.dispose(),
     getNavigationState: () => routes.state(),
     goTo: (target) => routeTo(deps, target),
     observeNavigation: () => observeNavigation(routes.state()),
