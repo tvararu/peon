@@ -6,6 +6,7 @@ import type { HarnessRuntime } from "#harness/contract/services";
 import { installEvents } from "#harness/events/install";
 import { installGuards } from "#harness/extension/guards";
 import { installInput } from "#harness/extension/input";
+import { installPrompt } from "#harness/prompt/install";
 import { installTools } from "#harness/tools/install";
 
 export function wowExtension(rt: HarnessRuntime): ExtensionFactory {
@@ -14,6 +15,7 @@ export function wowExtension(rt: HarnessRuntime): ExtensionFactory {
     installGuards(pi, rt);
     installTools(pi, rt);
     installEvents(pi, rt);
+    installPrompt(pi, rt);
     installShutdown(pi, rt);
   };
 }
