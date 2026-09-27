@@ -56,9 +56,10 @@ export function formatWake(
   entries: readonly GameLogEntry[],
   now: number,
 ): string {
-  const wakes = entries.filter((entry) => entry.class === "wake");
-  const others = entries.filter((entry) => entry.class !== "wake");
-  return [...wakes, ...others].map((entry) => wakeLine(entry, now)).join("\n");
+  return entries
+    .toSorted((a, b) => a.ts - b.ts || a.seq - b.seq)
+    .map((entry) => wakeLine(entry, now))
+    .join("\n");
 }
 
 function capped(passive: GameLogEntry[]): {

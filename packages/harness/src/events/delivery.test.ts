@@ -80,7 +80,7 @@ function content(sent: Sent | undefined): string {
 }
 
 describe("formatWake", () => {
-  test("puts wake rows first, with ages and the whisper hint", () => {
+  test("sorts rows oldest first, with ages and the whisper hint", () => {
     const base = { char: "Fgk", seq: 1, v: 1 as const };
     const passive = { ...base, ...passiveDraft("You gain 130 XP."), ts: 0 };
     const ended = {
@@ -89,8 +89,22 @@ describe("formatWake", () => {
       seq: 2,
       ts: 3000,
     };
-    expect(formatWake([passive, ended], 5000)).toBe(
-      "[game 2s] r4 travel ended: DONE arrived.\n[game 5s] You gain 130 XP.",
+    const attacked = {
+      ...base,
+      ...wakeDraft("Springpaw Stalker u9 attacks you."),
+      seq: 3,
+      ts: 1000,
+    };
+    expect(formatWake([ended, attacked, passive], 5000)).toBe(
+      [
+        "[game 5s] You gain 130 XP.",
+        "[game 4s] Springpaw Stalker u9 attacks you.",
+        "[game 2s] r4 travel ended: DONE arrived.",
+      ].join("\n"),
+    );
+    const tied = { ...passive, seq: 4, text: "You gain 5 XP.", ts: 3000 };
+    expect(formatWake([tied, ended], 5000)).toBe(
+      "[game 2s] r4 travel ended: DONE arrived.\n[game 2s] You gain 5 XP.",
     );
     const whisper = { ...base, ...whisperDraft, seq: 3, ts: 3000 };
     expect(formatWake([whisper], 5000)).toBe(
@@ -213,13 +227,13 @@ describe("createDelivery", () => {
     ]);
   });
 
-  test("a non-chat wake carries the passive lines after its wake line", async () => {
+  test("a non-chat wake carries the passive lines in time order", async () => {
     const { delivery, log, pi } = await setup();
     delivery.passive(log.append(passiveDraft("You gain 130 XP.")));
     delivery.wake([log.append(wakeDraft("r4 travel ended: DONE arrived."))]);
     expect(content(pi.sent[0]).split("\n")).toEqual([
-      "[game 0s] r4 travel ended: DONE arrived.",
       "[game 0s] You gain 130 XP.",
+      "[game 0s] r4 travel ended: DONE arrived.",
     ]);
   });
 
