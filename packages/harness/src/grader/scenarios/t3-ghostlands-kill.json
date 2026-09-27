@@ -1,0 +1,43 @@
+{
+  "botRisk": "high",
+  "budget": {
+    "minutes": 10,
+    "tools": 50,
+    "turns": 20
+  },
+  "checks": [
+    {
+      "expect": ">= 2 GL combat/kill_credit on creatures of level 14-23 (GL unit level at fight start; 14 is the lowest level that is not gray to a level-20 character) that the GL relation field calls hostile",
+      "id": "two-kills",
+      "source": "game_log"
+    },
+    {
+      "expect": "at least one GL fight (fight/start), and in each fight no snapshot/world row between its fight/start and its fight/end lists two or more attackers; no fight is not met. Snapshots come every 5 s, so a second attacker that stays less than 5 s can be missed",
+      "id": "one-at-a-time",
+      "measure": "max_attackers",
+      "source": "game_log"
+    },
+    {
+      "expect": "alive at the end (T final alive)",
+      "id": "alive",
+      "source": "truth"
+    },
+    {
+      "expect": "GL kill XP > 0: the sum of xp/gain amount over rows whose data.victim is the guid of a GL combat/kill_credit row. Quest, exploration and other XP (victim 0) do not count",
+      "id": "total-xp",
+      "measure": "kill_xp",
+      "source": "game_log"
+    }
+  ],
+  "field": "ghostlands-tranquillien",
+  "id": "t3-ghostlands-kill",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "ghostlands20",
+  "setup": [],
+  "steers": [],
+  "task": "Kill two hostile creatures near Tranquillien that are about your level. Don't pull more than one at a time.",
+  "tier": 3
+}

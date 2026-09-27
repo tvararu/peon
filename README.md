@@ -92,8 +92,8 @@ To run live integration tests against a real server, `mise test:live` needs
 two game accounts in `WOW_ACCOUNT_1`, `WOW_PASSWORD_1`, `WOW_CHARACTER_1`,
 `WOW_ACCOUNT_2`, `WOW_PASSWORD_2` and `WOW_CHARACTER_2` (`WOW_HOST`,
 `WOW_PORT` and `WOW_LANGUAGE` are optional). Use throwaway accounts made with
-`bun src/factory/main.ts soap create fresh --gm 2` and
-`bun src/factory/main.ts soap create eversong10`, and delete them with
+`bun packages/factory/src/main.ts soap create fresh --gm 2` and
+`bun packages/factory/src/main.ts soap create eversong10`, and delete them with
 `soap delete <ACCOUNT>` afterwards; see [AGENTS.md](AGENTS.md#testing) and
 [the manual](docs/manual.md#testing). To keep the variables in a file, copy
 the example config:
@@ -138,6 +138,7 @@ tuicraft cancel-cast        # interrupt the current cast
 tuicraft stop-attack       # stop auto-attack
 tuicraft fight 0xabc [--json] # Jev tactics; optional --framing none|minimal|mechanics
 tuicraft fight 0xabc conserve mana # extra words are the instruction
+# a hunter's fight also uses Auto Shot, ranged shots (weapon and ammo) and pet_attack
 tuicraft tactics [--json]  # outcome, target, vitals and last XP of the last run
 tuicraft cycle 0xa 0xb --max 3 --instruction stay alive # explicit GUID queue from nearby; no auto-acquire
 tuicraft cycle --resume --instruction "kite" # resume the remaining queue after halt
@@ -146,7 +147,7 @@ tuicraft cycling               # readable phase, kill credit, loot and stop reas
 tuicraft defend on             # opt-in: fight back when attacked while idle; halt disarms
 tuicraft defense --json        # self-defence state
 tuicraft goto 1 2 [3]      # ground route; Z from the one ground floor when omitted, else pick one of the refusal's floors; refused at or leaving start: move to open ground first; redirects an active route; bounded replan after a mid-walk refusal
-tuicraft goto 0xabc        # once to an observed creature; target_lost if it disappears, unreachable is never retried
+tuicraft goto 0xabc        # once to an observed creature, on the floor within 0.25 yd of its Z; target_lost if it disappears, unreachable is never retried
 tuicraft navigation --json # route state, refusal and conservative next step
 tuicraft recovery        # observed life and corpse-reclaim conditions
 tuicraft query-corpse      # request corpse information
@@ -431,6 +432,24 @@ taken. `loot` lists pending rolls with their item, slot, time left and allowed
 votes; `loot-roll <guid> <slot> need|greed|pass` answers one, and `loot` then
 shows the other votes and the winner, whose bags receive the item.
 
+## Pi harness
+
+The Pi harness is an interactive agent that plays one character. A model
+(by default `openai-codex/gpt-6-luna`) acts through ten game tools, and
+you steer it by typing in the same terminal. It needs a Codex login in
+omp and a character profile, for example a throwaway soap account:
+
+```
+umask 077
+bun packages/factory/src/main.ts soap create eversong10 > "$XDG_RUNTIME_DIR/char.json"
+mise harness --profile "$XDG_RUNTIME_DIR/char.json"
+```
+
+Type `stop`, press `F9` or use `/stop` to halt everything. Flags,
+credentials, commands and the screen are in
+[docs/harness.md](docs/harness.md). Evals run the harness in Orca panes
+and grade it on server truth with `mise eval`.
+
 ## Roadmap
 
 See [docs/roadmap.md](docs/roadmap.md) for current direction. That document is
@@ -510,7 +529,7 @@ that the official game client does.
 | Feature           | Status |
 | ----------------- | ------ |
 | Bounded walk / face / target | ✅     |
-| Pathfinding / navigation     | Ground routes on map 530 |
+| Pathfinding / navigation     | Ground routes on maps 0, 1, 530, 571 with Namigator data |
 | Spells / auras    | Learned-spell casts, observed auras |
 | Combat log        | ❌     |
 | Loot              | Bounded creature offers, group loot rolls |

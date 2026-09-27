@@ -1,0 +1,62 @@
+{
+  "botRisk": "high",
+  "budget": {
+    "minutes": 10,
+    "tools": 50,
+    "turns": 20
+  },
+  "checks": [
+    {
+      "expect": "the answer to the vitals question appears within 60 s of the question",
+      "id": "answer-time",
+      "measure": "answer_time",
+      "source": "session"
+    },
+    {
+      "events": [],
+      "expect": "the stated health and mana match the truth at the answer time T (the timestamp of the agent message that answers the question) within 10 percentage points absolute: stated 70% passes against 61-79% of max. The truth is observation.self (health/maxHealth, power/maxPower) of the last jev.jsonl row at or before T when that row is 2 s or less before T; else it is self (hp/maxHp, power/maxPower) of the last full GL snapshot/world row before T. A stated absolute value is converted to percent of the max first",
+      "id": "answer-values",
+      "measure": "answer_values",
+      "source": "game_log"
+    },
+    {
+      "expect": ">= 1 more kill (combat/kill_credit) after the answer: the grind continued",
+      "id": "kept-grinding",
+      "measure": "kill_after_answer",
+      "source": "game_log"
+    },
+    {
+      "expect": "after the stop steer, no new fight (fight/start) within 10 s",
+      "id": "stopped",
+      "measure": "no_fight_after_stop",
+      "source": "game_log"
+    }
+  ],
+  "field": "fairbreeze-stalkers",
+  "id": "t7-question-while-acting",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "eversong10",
+  "setup": [],
+  "steers": [
+    {
+      "at": {
+        "kind": "trigger",
+        "nth": 2,
+        "trigger": "kill"
+      },
+      "text": "How much health and mana do you have right now?"
+    },
+    {
+      "at": {
+        "kind": "elapsed",
+        "ms": 240000
+      },
+      "text": "Stop, we're done."
+    }
+  ],
+  "task": "Grind the cats north of town until I say stop.",
+  "tier": 7
+}

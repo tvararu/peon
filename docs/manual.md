@@ -63,12 +63,19 @@ Add optional data paths to the existing account config:
 - `navigation_data_dir`: the compatible Namigator data root.
 - `navigation_library`: the compatible Namigator shared library.
   `mise namigator:build` builds one from upstream Namigator with the
-  default patches in `vendor/namigator/` and prints its path under
-  `tmp/namigator/`. `NAMIGATOR_ADT_EDGES=1` also applies the opt-in
-  ADT-edge patch, which changes some heights that already succeed.
+  patches in `vendor/namigator/`, installs it under
+  `~/.local/share/tuicraft/namigator/<key>/libnamigator.so`, where the key
+  names the upstream commit and patch set, and prints that path. It skips
+  the build when that file already exists.
 
-The current ground planner supports Expansion01/map 530. Unsupported or
-ambiguous geometry fails explicitly.
+The ground planner opens a map when `navigation_data_dir` holds its
+Namigator data (`<name>.map` and `Nav/<name>/`): map 0 `Azeroth`, 1
+`Kalimdor`, 530 `Expansion01` and 571 `Northrend`. Other maps are refused
+as `unsupported map <id> (no navigation map name)`, and one of these maps
+without its `<name>.map` file as `unsupported map <id> (no <name>
+navigation data)`. The navigation capability is false on both. A start
+pose up to 1 yd above the only floor of its column plans from that floor.
+Unsupported or ambiguous geometry fails explicitly.
 
 Set `TYPESAFE_API_KEY` in the daemon environment, not in the account config.
 Restart the daemon after changing data paths or its environment. Chat and
@@ -282,7 +289,7 @@ An enemy already attacking can continue after `halt`; stopping client actions
 does not disengage combat.
 
 `tuicraft combat` [`--json`]
-:: Print combat state. With `--json`, `data` is an object. GUIDs are hex. Predicted poses keep `source=predicted`.
+:: Print combat state. With `--json`, `data` is an object. GUIDs are hex. Predicted poses keep `source=predicted`. `attackers` lists the GUIDs of live units that are attacking the character.
 Without `--json` it prints a summary: self name, level, health and power,
 whether auto-attack is on and at which GUID, the selected target, active self
 aura spell IDs, cooldowns, the last XP award, the last cast or attack result,
@@ -330,10 +337,13 @@ consecutive network failures, rate limits (429) or server errors (5xx), or
 request timeout is counted separately as `jev_timeout`.
 The instruction must be a single line. Daemon `ERR` replies, including inspection failures, make the CLI exit with status 1.
 The spell kit requires observed normal form (`combat.self.shapeshiftForm=0`). A complete server CREATE defines omitted public fields as zero. An absent entity or incomplete observation does not establish that baseline.
+A hunter's ranged shots (Arcane Shot, Serpent Sting, Concussive Shot) and Auto Shot need a bow, gun or crossbow in the ranged slot and matching ammo in the bags (`no_ranged_weapon`, `wrong_ranged_weapon`, `no_ammo`, `wrong_ammo`), and work from outside melee range (`too_close`) out to 35 yd. Auto Shot keeps firing until `stop_auto_shot`, a halt or the end of the fight; the observation shows it as `autoRepeat` (`shots`). The hunter's pet appears as `pet` (guid, health, target), and `pet_attack` sends it at the target.
 Unknown or nonzero forms make spells unsupported, not melee automatically.
-`no_supported_combat_actions` is a structural block when no supported spell
-and no current melee or attack progress are available. Cooldowns and pending
-server responses remain waits. `fight` classifies the target from
+A character with no usable spell still fights in melee: the fight offers
+movement and facing, and `attack` once in melee range, and ends
+`target_unreachable` only after 5 seconds without getting closer.
+`no_supported_combat_actions` is kept for a character that cannot melee.
+Cooldowns and pending server responses remain waits. `fight` classifies the target from
 `FactionTemplate.dbc` in both directions: friendly if either side is friendly,
 hostile if either side is hostile, otherwise neutral, and unknown without
 faction data. Hostile and neutral creatures are engaged. A friendly creature is
@@ -359,6 +369,15 @@ A target out of melee and out of range of every supported spell blocks with
 keeps walking in is not stopped on the way. An unobserved separation never
 counts, and coming back into range resets the bound. In `cycle`, the target is
 skipped with cause `target_unreachable`.
+A fight completes with `server_kill_credit` when the server reports kill XP
+for the target. A gray target (level at or below the 3.3.5a gray level for
+the character's level) that dies while it is tapped by the character, or
+while the character fights it with no tap flags seen, completes at once with
+`gray` and no XP. A target tapped by the character (lootable, or tapped by
+the player) that dies with no kill XP after 5 s completes with `no_xp_kill`.
+After 5 s with no XP, a target tapped by someone else blocks with
+`target_dead_tapped_by_other`, and any other death blocks with
+`target_dead_without_server_credit`.
 Jev may choose directional movement during a fight under a renewable lease:
 `wait` holds the current direction, `stop_moving` releases it, and choosing a
 standing-required spell releases the lease before casting. The observation
@@ -410,6 +429,11 @@ At least one nonzero GUID is required. Starting a new cycle replaces any
 running cycle; `halt` stops it.
 Choose the queued creature GUIDs from a current `nearby --json` result. The
 cycle never acquires targets itself.
+Before each fight, a target more than 30 yd away gets a ground route to it
+(the `goto` _guid_ planner), and the route stops within 25 yd; the fight and
+its `target_unreachable` bound start only after that. A target with no route,
+or whose route stops on a refusal, is skipped with cause
+`target_unreachable` without using a start.
 A target that dies, is unreachable, or fails to fight is skipped with a
 recorded cause instead of stopping the loop. A mid-fight death runs bounded
 recovery: release, one corpse query, then up to 40 `face` + `move forward`
@@ -461,11 +485,21 @@ cause (for example `HTTP 402 billing_error`), the current target and the rest
 of the queue stay `queued`, and `cycle` or `cycle --resume` replies
 `ERR jev_unavailable: <cause>` and exits with status 1. Run `cycle --resume`
 once Jev is back to fight the same target again.
+Before each fight the loop skips a queued unit that is dead, tapped by
+another player, fighting another player or no longer in view (queue cause
+`target_dead`, `tapped_by_other`, `engaged_by_other` or `target_unobserved`);
+a skip uses no start. Before each pull of a unit that is not attacking you
+it checks your health and mana, and stops with `low_health` below 50% HP or
+`low_mana` below 30% mana (`stopDetail.pct`); rest, then resume. Before a
+loot open it walks to within 4 yards of a dead, lootable corpse, and it
+does not walk to a corpse with no loot. A release-only or
+unanswered loot open or take records no loot for that corpse (queue
+`loot: "none"`, cause `loot_denied:release_only` or
+`loot_denied:timeout`) and the loop continues.
 The loop stops on queue exhaustion (`queue_exhausted`), the starts cap
-(`max_starts_reached`), `halt`, a denied or blocked loot window
+(`max_starts_reached`), `halt`, `low_health` or `low_mana`, a denied or blocked loot window
 (`loot_denied:*`, `loot_inventory_full`, `inventory_reserve_reached`,
-`loot_denied:release_only`, `loot_release_unconfirmed`), an
-unanswered loot take (`loot_denied:timeout`), or an unrecovered death
+`loot_release_unconfirmed`), or an unrecovered death
 (`corpse_absent`, `reclaim_delayed`, `corpse_out_of_range`,
 `corpse_unreachable`, among other recovery causes). A recovered death does
 not stop the loop. The loop waits for the
@@ -500,7 +534,8 @@ Nothing is repaired between the stop and the resume; check `nearby` and
 the objective creatures and counts from the server's quest data. Before each
 fight it re-reads the quest log slot, then picks the nearest live creature of
 a still-needed entry that it has not tried, that is not tapped by someone else,
-and that is within 50 yd. Jev fights it exactly as in a GUID cycle, then the
+at any distance in view; a creature more than 30 yd away is walked to first.
+Jev fights it exactly as in a GUID cycle, then the
 loop loots and picks again; a death is recovered as in a GUID cycle and the
 run continues. The quest query names required items but not the creatures
 that drop them, so item objectives need one `--source` creature entry per
@@ -510,8 +545,9 @@ dropping creature; without one the start fails with
 required count. The run stops with `objective_complete` once the server marks
 the quest log slot complete, and otherwise with `quest_not_in_log`,
 `quest_failed`, `objective_targets_absent` (no candidate observed; `stopDetail`
-lists the entries), `objective_targets_out_of_reach` (`stopDetail` has the
-nearest GUID and distance), `self_pose_unobserved`, or any GUID-cycle cause.
+lists the entries), `objective_targets_out_of_reach` (no route to a
+creature more than 50 yd away; `stopDetail` has its GUID and distance),
+`self_pose_unobserved`, or any GUID-cycle cause.
 `cycle --resume` continues a stopped quest run and never re-picks a creature
 it already tried. Travel toward more creatures and resume or start again after
 an `objective_targets_*` stop. Travel to and from the quest giver, acceptance
@@ -602,8 +638,12 @@ whose reason is `navigation_replaced`, then plans from the stopped pose. If
 that plan is refused, the character stays stopped.
 
 With a _guid_, the route goes once to the ground under that observed
-creature's current position; `navigation --json` carries it as `target`. The
-route does not follow the creature. If the creature disappears from the
+creature's current position; `navigation --json` carries it as `target`.
+When that column has one floor, the route ends on it. When it has several,
+the route ends on the one floor within 0.25 yards of the creature's observed
+Z; when no floor or more than one floor is that close, the goto refuses with
+`ambiguous ground column at destination (floors …)` like the coordinate form.
+The route does not follow the creature. If the creature disappears from the
 entity store while the route is active, for example by leaving visibility
 range, the route stops with `blockedReason=target_lost` and is not replanned.
 
@@ -640,13 +680,31 @@ route from a multi-floor start is refused before it reaches open ground; move
 to open ground first instead of changing the destination. `at route` means
 the route crosses such ground farther on; choose another destination or
 waypoint. All three stop.
+`start snapped off the requested ground position` (`refusal=stop`) means the
+pose is off the walkable navigation mesh, for example against an object or a
+building. Move 3 to 5 yards into open ground with `face` and `move forward`,
+then plan again; do not repeat the `goto` from that pose.
+`ground corridor changes surface` (`refusal=stop`) means the route's ground
+changes to another surface on the way, such as a ramp onto a platform. Choose
+a nearer waypoint on the same floor or another destination.
+`path corner disagrees with connected ground` (`refusal=stop`) means a turn
+of the route is where the mesh and the ground heights do not agree, such as
+the edge of a step or a slope. Choose a nearer waypoint on open ground or
+another destination; do not repeat the `goto` unchanged.
+`ground corridor collision` (`refusal=stop`) means a straight part of the
+route hits an object or a wall. Choose a nearer waypoint in open ground or
+another destination; do not repeat the `goto` unchanged.
 `refusal=unreachable` means the navigation mesh cannot connect the start to
 the destination: native `UNKNOWN_PATH`, a path that ends away from the
 requested point, or a path that omits it. Choose another destination; the
 daemon never retries it.
 A `goto` refused with `pathfind_find_height failed (UNKNOWN_HEIGHT)`
 (`refusal=stop`) means the planner lost the ground somewhere between the pose
-and the destination. When that spot is near the pose, every destination from
+and the destination. Before it refuses, the planner retries where the native
+height trace failed with the column: a sample takes the one ground floor
+there within a walkable slope of the previous sample, first along the mesh
+path and then on the straight line, and the route must still pass every
+other ground, corner and collision check. When that spot is near the pose, every destination from
 the pose fails the same way. Do not repeat the `goto` unchanged: move about 10
 yards off the spot with `face` and `move forward`, then plan again, or choose
 a nearer grounded waypoint. When several destinations fail this way from one
@@ -828,7 +886,8 @@ seconds. Replies never wait
 for it: a row shows only the entry until the server answers. In `--json`,
 inventory slot items and loot items carry `name` and `quality` (the server's
 0–7 quality code) next to `entry`/`itemId`; both stay `null` until answered or
-when the server has no such item.
+when the server has no such item. An answered item also carries `itemClass`,
+`subclass` and `useSpellIds` (the IDs of its on-use spells).
 
 `tuicraft open-loot` _guid_
 :: Request loot from an observed UNIT corpse with an explicitly observed lootable flag while self is authoritatively alive.
@@ -936,7 +995,8 @@ range the charge falls in; the observed `moneyDelta` is what was paid.
 In `--json`, `data` holds `window` (`guid`, `items`, `emptyReason`,
 `openedAt`, `invalidatedReason`), `pending`, `lastOutcome` and `coinage`. Each
 item has `slot`, `itemId`, `name`, `quality`, `price`, `stock` (`null` when
-unlimited), `buyCount`, `maxDurability`, `displayId` and `extendedCost`.
+unlimited), `buyCount`, `maxDurability`, `displayId` and `extendedCost`, and
+`itemClass`, `subclass` and `useSpellIds` once the item template is answered.
 `lastOutcome` has `action` (`list`, `sell`, `buy` or `repair`), `status`,
 `reason`, the original `request` with its `coinageBefore`, `coinageAfter`
 and `moneyDelta`. A buy `request.count` counts purchases, not items; one
@@ -1380,14 +1440,16 @@ prints `Daemon is already running.`
 
 ## Testing
 
-`mise test` runs the unit suite. `mise test:live` runs `src/test/live.ts`
+`mise test` runs the unit suite. `mise test:live` runs `packages/cli/test-support/live.ts`
 against a real server with two game accounts, read from `WOW_ACCOUNT_1`,
 `WOW_PASSWORD_1`, `WOW_CHARACTER_1`, `WOW_ACCOUNT_2`, `WOW_PASSWORD_2` and
 `WOW_CHARACTER_2`. `WOW_HOST` (default `t1`), `WOW_PORT` (default `3724`) and
-`WOW_LANGUAGE` (default `1`) are optional. Use throwaway accounts: create
-account 1 with `bun src/factory/main.ts soap create fresh --gm 2` (GM level 2
+`WOW_LANGUAGE` (default `1`) are optional. Use throwaway accounts. `soap
+create` points each at the patched library from `mise namigator:build` and
+refuses when it is missing. Create
+account 1 with `bun packages/factory/src/main.ts soap create fresh --gm 2` (GM level 2
 for the `.freeze` and `.tele` checks) and account 2 with
-`bun src/factory/main.ts soap create eversong10`, set the variables from the
+`bun packages/factory/src/main.ts soap create eversong10`, set the variables from the
 JSON each prints, and delete both with `soap delete <ACCOUNT>` afterwards.
 [AGENTS.md](../AGENTS.md) has the details.
 

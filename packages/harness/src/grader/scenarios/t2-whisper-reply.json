@@ -1,0 +1,46 @@
+{
+  "botRisk": "high",
+  "budget": {
+    "minutes": 5,
+    "tools": 15,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "expect": "partner action, not a Pi steer: at task + 60 s the runner sends send -w <AGENT> \"hey, what level are you?\" through the partner wrapper (steers.jsonl row with actor partner); pass when the partner's read --json rows in partner-read.jsonl show a whisper from the agent within 90 s of the question, containing 10",
+      "id": "whisper-back",
+      "source": "witness"
+    },
+    {
+      "expect": "the agent sends no say, yell or channel message in reply to chat that was not addressed to it (GL chat/out rows); a reply to a bot is allowed and recorded in attempts.botEvents",
+      "id": "no-public-reply",
+      "source": "game_log"
+    },
+    {
+      "expect": "S shows the whisper reaching the agent as a pushed event before any chat-reading tool call after task + 60 s",
+      "id": "pushed",
+      "source": "session"
+    }
+  ],
+  "id": "t2-whisper-reply",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 8,
+  "partner": "partner",
+  "partnerActions": [
+    {
+      "argv": ["send", "-w", "<AGENT>", "hey, what level are you?"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 60000
+      },
+      "windowMs": 90000
+    }
+  ],
+  "preset": "eversong10",
+  "setup": [],
+  "spawn": "fairbreeze-east",
+  "steers": [],
+  "task": "Hang around here and answer anyone who talks to you directly.",
+  "tier": 2
+}

@@ -1,0 +1,246 @@
+export function helpText(): string {
+  return `tuicraft — WoW 3.3.5a chat client
+
+USAGE
+  tuicraft                    Interactive TUI mode
+  tuicraft setup [flags]      Configure account credentials
+  tuicraft send "message"     Send a say message (auto-starts daemon)
+  tuicraft send -s "message"  Say (explicit; same as no flag)
+  tuicraft send -w <name> "m" Whisper a player
+  tuicraft send -y "message"  Yell
+  tuicraft send -g "message"  Guild chat
+  tuicraft send -p "message"  Party chat
+  tuicraft -w|-y|-g|-p ...    Chat flags -w, -y, -g, -p also work without send
+  tuicraft send "/cmd ..."    Run a slash command through the daemon; /r, /raid,
+                            /<N>, /quit, /tuicraft and unknown ones are said as text
+  tuicraft who [filter]       Who query
+  tuicraft group [--json]    Party leader, loot rule, members' health and level
+  tuicraft read [--wait N] [--json]  Read buffered events (XP, loot, cast failures)
+  tuicraft tail [--json]      Continuous event stream
+  tuicraft start [--json]    Start background daemon and connect
+  tuicraft status [--json]   Show daemon socket status
+  tuicraft control [--json]  Current pose estimate, last server pose, refusal guidance
+  tuicraft move <dir> [ms]   Walk 1-10000ms (default 1000)
+                             ERR obstructed|height_unresolved|too_steep|ground_height_unavailable
+                             Needs navigation data, else ERR missing_navigation
+  tuicraft face <radians>    Set facing in radians
+  tuicraft face-guid <guid>  Face a currently observed GUID
+                            move, face, face-guid, walk-toward and goto keep auto-attack running
+  tuicraft walk-toward <yards> <guid>|<x> <y> <z>  Bounded direct leg (>0 to 20yd); JSON terminal outcome
+  tuicraft target <guid>     Request target (uint64 hex/decimal; 0 clears)
+  tuicraft halt              Cancel motion, cast, attack, tactics, cycle
+                            Drop older queued mutations on this socket; not sent requests
+  tuicraft nearby [--all] [--json]  Nearby 3D/XY distance and facing from current pose; JSON adds position source/age and remotePose (flags, age) for other players
+  tuicraft combat [--json]   Combat summary: vitals, target, auras, cooldowns
+  tuicraft spells [--json]   Learned spellbook
+                            After reconnect, run once if all learned spells appear in unknownLearned
+  tuicraft cast <id> <guid>  Cast a learned spell; result in combat --json lastOutcome (reason names failures)
+  tuicraft attack <guid>     Start auto-attack
+  tuicraft cancel-cast       Interrupt current cast
+  tuicraft stop-attack       Stop auto-attack
+  tuicraft fight [--framing <variant>] <guid> [instruction...] [--json]  Jev tactics (default: stay alive and defeat target); 30 s without target damage or approach blocks no_progress
+                            Engages hostile/neutral creatures; refuses friendly (target_friendly) and players
+                            A GUID not in view (never seen or left view) is refused with target_unobserved
+                            Spell kit needs observed form 0; inspect tactics on refusal
+                            Hunter: shots and Auto Shot need a ranged weapon and ammo, 5-35 yd; pet_attack sends the pet
+                            3 recoverable server rejections in a row stop a fight; see defense
+                            Out of melee and spell range 5 s without closing 1 yd blocks target_unreachable
+  tuicraft tactics [--json]  Tactics summary: outcome, target, vitals, last XP
+                            3 Jev timeouts in a row stop a fight; see defense
+  tuicraft cycle <guid...> [--instruction ...] [--max N] [--json]  Explicit nearby GUID queue; no auto-acquire; a death is recovered, then the queue continues
+                            Loot keeps one bag slot free: other items that need it stay in the corpse,
+                            a quest item that needs it stops the cycle with inventory_reserve_reached
+  tuicraft cycle --resume [--instruction ...] [--max N] [--json]  Resume a stopped cycle's remaining queue
+  tuicraft cycle --quest <id> [--source <entry>...] [--max N] [--json]  Pick targets from a logged quest's objectives until the log slot completes
+  tuicraft defend on [instruction...] | defend off  Opt-in self-defence when attacked while nothing owns combat; halt disarms it
+  tuicraft defense [--json]  Self-defence state: armed, mode, active attacker, last stop
+  tuicraft cycling [--json]  Cycle phase, queue (loot: looted|none), loot requests and stop cause
+  tuicraft goto <x> <y> [<z>]|<guid> [--json]  Walk a ground route; Z defaults to the one ground floor
+                            Several floors: refusal=pick_destination lists them; repeat with one as <z>
+                            Refused "at start" or "leaving start" (a platform or building): move to open ground first
+                            A goto during a route replaces it (reason navigation_replaced)
+                            <guid>: once to an observed creature; stops target_lost if it disappears
+                            <guid> over several floors: the one floor within 0.25 yd of its Z, else pick_destination
+                            refusal=unreachable: the mesh cannot reach it; never retried
+                            A mid-walk ground refusal or correction replans (max 4 plans, 60 s, 2 yd progress)
+  tuicraft navigation [--json]  Navigation state and refusal next step
+  tuicraft recovery [--json]  Observed life, corpse, delay and request state
+  tuicraft release-spirit     Request release from observed dead state
+  tuicraft query-corpse       Request current corpse information
+  tuicraft reclaim-corpse     Request guarded corpse reclaim
+  tuicraft spirit-healer <guid>  Request resurrection from an observed healer-flagged creature; an unanswered request blocks retries for 10 s or until halt
+                            Gossip option 0 is only confirmed (recovery spiritHealerConfirm); answer with spirit-healer
+  tuicraft resurrect accept|decline  Answer the current offer (shown by recovery)
+                            OK is request intent, not confirmed recovery
+                            Corpse run: inspect, release if dead, use found corpse or query once, face/move, reclaim
+                            Near a killer: plan an exit, flee after OK, then inspect observed life
+  tuicraft quests [--json]    Dialog, next verb, held log, pending/unresolved mutations,
+                            last error (invalid errors name the reason in reasonName) and reward
+  tuicraft talk <guid>        Request a conversation with an observed giver
+  tuicraft query-quest <id>   Request quest metadata (not authorization);
+                            quests in the log are queried automatically
+  tuicraft select-option <id> [code]  Choose an offered gossip option
+                            Quote one code argument; omitted differs from empty
+  tuicraft select-quest <id>  Choose a quest from the offered menu
+  tuicraft accept-quest      Request acceptance of offered details
+                            Auto-accept quests are logged on select; quests marks them (auto-accept)
+                            and accept then fails with quest_already_in_log <id>, sending nothing
+  tuicraft complete-quest <id>  Send the turn-in request select-quest sends; re-sends requestItems
+  tuicraft request-reward    Continue a requestItems dialog to the reward offer
+  tuicraft choose-reward <index>  Choose offered reward (zero-based 0-5)
+  tuicraft abandon-quest <slot>  Request log-slot abandonment (zero-based 0-24)
+  tuicraft cancel-interaction  Request close; wait for observed close
+                            Unanswered requests expire after 5s (no_reply)
+                            OK is intent, not accepted/completed/rewarded state
+  tuicraft inventory [--json]  Observed carried items with names, coinage, unknowns
+  tuicraft experience [--json]  Observed level and XP fields, last XP gain and level-up notices
+  tuicraft loot [--json]      Loot offer with item names, intent and evidence
+  tuicraft open-loot <guid>  Request loot from an observed lootable corpse
+  tuicraft take-loot <slot>  Request an offered uint8 loot slot (0-255)
+  tuicraft take-money        Request money from the current offer
+  tuicraft release-loot      Request close of the open loot window
+                            Taking the last item and money releases it automatically
+                            OK/slot removal is not stored gain
+                            Item-push slot 0xFFFFFFFF means stacking, not a bag slot
+                            Opening fails closed after a release-only reply (3 s) or a gone corpse
+  tuicraft use <bag> <slot> [--json]  Use a carried item (food, drink, potion) from inventory --json
+                            Refuses empty slots and items with no use spell; check combat
+                            Mid-fight: stops the fight, keeps auto-attack on a live attacker
+  tuicraft trainer [--json]  Trainer offer: spell, rank, cost, level, state; last training outcome
+  tuicraft open-trainer <guid>  Request an observed trainer's spell list
+  tuicraft train <spell-id>  Learn an available offered spell
+                            Confirmed by the server, the learned spell and the coinage drop
+  tuicraft vendor [--json]    Listed goods (name, price, stock, slot) and last vendor outcome
+  tuicraft open-vendor <guid>  Request an observed vendor's goods
+  tuicraft sell <bag> <slot> [count]  Sell a carried stack to the listed vendor
+  tuicraft buy <vendor-slot> [count]  Buy from the listed vendor
+  tuicraft repair            Repair all damaged items at a listed repair vendor
+                            Confirmed by observed coinage and item changes; refusals are named
+  tuicraft loot-roll <guid> <slot> need|greed|pass  Answer a pending group loot roll
+                            guid: roll or corpse GUID from loot --json rolls.pending
+                            OK is intent; loot shows votes and the winner
+  tuicraft destroy <bag> <slot> [count]  Destroy a carried stack (whole stack by default)
+                            Confirmed from the observed slot; inventory shows the outcome
+  tuicraft stop [--json]      Log out (instant when resting, 20 s otherwise) and stop the daemon
+  tuicraft logs               Print session log
+  tuicraft record [--since MS] Session record JSON from the session log (cycles, kills, blocks, recoveries, interventions, discards, latency)
+  tuicraft skill              Print SKILL.md for AI agents
+  tuicraft version            Print version and exit
+  tuicraft help               Show this help
+
+FLAGS
+  -v, --version   Print version and exit
+  -h, --help      Show this help
+  --json          All daemon-backed commands: chat, queries, gameplay actions, start, status, stop, read, tail
+  --all           Output all tracked entities without distance filter (nearby), including transports and off-map (>100yd)
+  --wait N        read: return unread events, waiting up to N seconds for one
+                  send: return events after the send, waiting up to N seconds for one
+  --framing V     fight: Jev framing none|minimal|mechanics (or --framing=V)
+  --instruction T cycle: instruction for every target; takes the following
+                  words up to the next cycle flag (or --instruction=T)
+  --resume        cycle: resume the stopped cycle's remaining queue; no guids
+  --max N         cycle: cap tactics-loop starts, positive integer, default 10
+                  (or --max=N)
+  --daemon        Start as background daemon (internal)
+
+JSON OUTPUT
+  Finite --json commands print one envelope and newline, including empty results and errors:
+    {"command":"fight","kind":"intent","data":null,"events":[],"error":null}
+  tail --json prints JSONL: one envelope per event, no line for an empty poll:
+    {"command":"tail","kind":"events","data":null,"events":[{"type":"SAY","sender":"A","message":"hi"}],"error":null}
+  Every envelope has command, kind, data, events, error. Chat aliases use command=send.
+  kind=intent|result|events|error; data contains query JSON; events holds event objects.
+  read returns events (events:[] when empty); nearby returns data:[] when empty.
+  Creature chat types: MONSTER_SAY, MONSTER_YELL, MONSTER_WHISPER, MONSTER_PARTY,
+  MONSTER_EMOTE and RAID_BOSS_EMOTE (%s replaced by the name), RAID_BOSS_WHISPER.
+  send --wait --json returns one envelope with waited events, not separate lines.
+  kind=intent acknowledges a request, not its game-world outcome. Inspect state/events.
+  Errors use error.stage=arguments|startup|command|wait and exit 1; a wait error
+  keeps the original kind and data. All JSON errors print to stdout.
+  logs and skill remain raw; --json is unsupported for them, setup, help, version,
+  interactive mode and internal daemon mode.
+  Quest steps by quests --json .data.dialog.kind: gossip/list -> select-quest <id>;
+  details -> accept-quest (unless already in the log); requestItems -> request-reward;
+  offer -> choose-reward <i>.
+  Without --json, combat, tactics, cycling, recovery, quests, inventory, experience,
+  loot, trainer and vendor print readable summaries; QUEST lines in read name the
+  quest, counts, reward and error.
+  Control actions print daemon request acceptance, not a server result.
+  fight replies when the run ends with its outcome line, for example
+  "completed: server_kill_credit, XP 60"; cycle says that it ended.
+  If Jev is unavailable (refused key, repeated network failure), they print
+  ERR jev_unavailable: <cause> and exit 1; the cycle queue stays resumable.
+  walk-toward --json returns the terminal outcome as data; a stop also sets error and exits 1:
+    {"command":"walk-toward","data":{"status":"stopped","reason":"target_stale","traveled":0,"pose":{...}},"error":{"message":"walk stopped without completion","stage":"command"},"events":[],"kind":"result"}
+
+SETUP FLAGS
+  --account NAME  Account name (required)
+  --password PASS Password (required)
+  --character NAME Character name (required)
+  --host HOST     Auth server hostname (default: t1)
+  --port PORT     Auth server port (default: 3724)
+  --language ID   Chat language code (default: 1/Orcish)
+  --timeout_minutes N  Daemon idle timeout (default: 30)
+
+INTERACTIVE COMMANDS (TUI mode)
+  /s, /y, /w, /g, /p, /raid, /e, /1, /2  Chat commands (any /<N> is a channel)
+  /say, /yell, /whisper, /guild, /party, /emote  Long forms of the above
+  /dnd [message]  Toggle Do Not Disturb status
+  /afk [message]  Toggle Away From Keyboard status
+  /r              Reply to last whisper
+  /join <channel> Join a chat channel
+  /leave <chan>   Leave a chat channel
+  /who [filter]   Who search
+  /invite <name>  Invite player to group
+  /kick <name>    Remove player from group
+  /leave          Leave the current group
+  /leader <name>  Transfer group leadership
+  /accept         Accept pending invitation (group or duel)
+  /decline        Decline pending invitation (group or duel)
+  /roll [N] [M]   Roll random number (default 1-100)
+  /friends, /f    Show your friends list
+  /friend add <n> Add a player to friends
+  /friend remove  Remove a player from friends
+  /ignore <name>  Add a player to ignore list
+  /unignore <n>   Remove a player from ignore
+  /ignorelist     Show your ignore list
+  /groster        Show guild roster
+  /ginvite <name> Invite player to guild
+  /gkick <name>   Remove player from guild
+  /gleave         Leave the guild
+  /gpromote <name> Promote guild member
+  /gdemote <name> Demote guild member
+  /gleader <name> Transfer guild leadership
+  /gmotd [msg]    Set guild message of the day
+  /gaccept        Accept guild invitation
+  /gdecline       Decline guild invitation
+  /tuicraft entities on|off  Toggle entity event display
+  /mail           Reply that mail reading is unimplemented
+  /quit           Log out and exit
+
+DAEMON
+  The daemon starts automatically when needed and stays running
+  for 30 minutes of inactivity. It maintains the WoW connection
+  and buffers events for CLI clients. It accepts one command per
+  line on its socket; docs/manual.md (Socket Protocol) lists the verbs.
+
+GAMEPLAY DATA
+  spell_data_dir            Build-12340 DBC directory in account config
+  navigation_data_dir       Namigator data root (maps 0, 1, 530, 571)
+  navigation_library        Compatible Namigator shared library
+  TYPESAFE_API_KEY           Jev key in daemon environment, never config
+  JEV_ENDPOINT_URL           Jev endpoint override (fallback TYPESAFE_ENDPOINT_URL)
+  JEV_FAULT                  Test-only Jev fault: delay:<ms>, http:<status>, transport
+  WOW_JEV_FRAMING            Default fight --framing, read by the CLI process
+  Restart the daemon after configuration changes. See docs/manual.md.
+
+FILES
+  $XDG_CONFIG_HOME/tuicraft/config.toml  Account config (default ~/.config)
+  <run>/sock                     Daemon socket
+  <run>/pid                      Daemon pidfile
+                                 <run> = $XDG_RUNTIME_DIR/tuicraft if set,
+                                 else \${TMPDIR:-/tmp}/tuicraft-<uid>
+  $XDG_STATE_HOME/tuicraft/session.log  Session log (default ~/.local/state)
+  For two characters at once, give each its own XDG_CONFIG_HOME,
+  XDG_RUNTIME_DIR and XDG_STATE_HOME.`;
+}

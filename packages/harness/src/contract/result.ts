@@ -1,0 +1,37 @@
+export type ToolName =
+  | "look"
+  | "travel"
+  | "engage"
+  | "loot"
+  | "interact"
+  | "rest"
+  | "recover"
+  | "social"
+  | "journal"
+  | "stop";
+
+export type ToolStatus =
+  | "DONE"
+  | "PARTLY"
+  | "RUNNING"
+  | "UNCONFIRMED"
+  | "REFUSED"
+  | "FAILED";
+
+export type Evidence = { seq: number; domain: string; event: string };
+
+export type ToolResult<A> = {
+  status: ToolStatus;
+  reason?: string;
+  detail: string;
+  body: string[];
+  next?: string;
+  options?: unknown;
+  after: A;
+  runId?: string;
+  evidence?: Evidence[];
+};
+
+export type ResultInit<A> = Omit<ToolResult<A>, "status" | "body"> & {
+  body?: string[];
+};

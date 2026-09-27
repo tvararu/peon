@@ -1,0 +1,223 @@
+{
+  "$id": "tuicraft/eval-result/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "abort": {
+      "properties": {
+        "cause": {
+          "enum": [
+            "soap_create",
+            "server_down",
+            "disconnect",
+            "credential_expired",
+            "rate_limited",
+            "jev_unavailable",
+            "launch_failed",
+            "wrong_character",
+            "grader_contamination",
+            "service_down",
+            "stale_truth",
+            "setup_failed",
+            "other"
+          ]
+        },
+        "evidence": { "type": "string" }
+      },
+      "type": "object"
+    },
+    "accounts": {
+      "items": { "pattern": "^FAC[0-9A-F]{10}$", "type": "string" },
+      "type": "array"
+    },
+    "attempts": {
+      "properties": {
+        "blockedTargets": { "type": "integer" },
+        "botEvents": {
+          "items": {
+            "properties": {
+              "agentResponded": { "type": "boolean" },
+              "bot": { "type": "string" },
+              "kind": {
+                "enum": [
+                  "whisper",
+                  "invite",
+                  "duel",
+                  "trade",
+                  "took_target",
+                  "other"
+                ]
+              },
+              "ms": { "type": "integer" }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "deaths": { "type": "integer" },
+        "jevTimeouts": { "type": "integer" },
+        "kills": { "type": "integer" },
+        "refusals": { "type": "integer" },
+        "stops": { "type": "integer" }
+      },
+      "type": "object"
+    },
+    "blockedBy": { "items": { "type": "string" }, "type": "array" },
+    "checks": {
+      "items": {
+        "properties": {
+          "blockedBy": {
+            "description": "a named gap, such as P5:<event>, that blocks this check",
+            "type": "string"
+          },
+          "botInterference": { "type": "boolean" },
+          "expected": {},
+          "id": { "type": "string" },
+          "met": { "type": "boolean" },
+          "observed": {},
+          "ref": { "description": "file:line or frame id", "type": "string" },
+          "source": {
+            "enum": [
+              "truth",
+              "verifier",
+              "witness",
+              "game_log",
+              "session",
+              "frame"
+            ]
+          }
+        },
+        "required": ["id", "source", "expected", "observed", "met"],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "efficiency": {
+      "properties": {
+        "budgetRatio": {
+          "properties": {
+            "toolCalls": { "type": "number" },
+            "turns": { "type": "number" },
+            "wallSec": { "type": "number" }
+          },
+          "type": "object"
+        },
+        "exitSec": { "type": "number" },
+        "timeToFirstActionSec": { "type": "number" },
+        "tokens": {
+          "properties": {
+            "cachedInput": { "type": "integer" },
+            "input": { "type": "integer" },
+            "output": { "type": "integer" },
+            "reasoning": { "type": "integer" }
+          },
+          "type": "object"
+        },
+        "toolCalls": { "type": "integer" },
+        "toolCallsByName": {
+          "additionalProperties": { "type": "integer" },
+          "type": "object"
+        },
+        "toolErrors": { "type": "integer" },
+        "turns": { "type": "integer" },
+        "wallSec": { "type": "number" }
+      },
+      "required": ["toolCalls", "turns", "wallSec", "tokens"],
+      "type": "object"
+    },
+    "end": { "enum": ["done", "budget", "stuck", "abort"] },
+    "evidence": {
+      "properties": {
+        "baseline": { "type": "string" },
+        "final": { "type": "string" },
+        "finalSavedAt": { "type": "string" },
+        "frames": { "type": "integer" },
+        "gameLog": { "type": "string" },
+        "runDir": { "type": "string" },
+        "session": { "type": "string" }
+      },
+      "type": "object"
+    },
+    "friction": {
+      "items": {
+        "properties": {
+          "area": {
+            "enum": ["tool", "event", "prompt", "panel", "core", "eval"]
+          },
+          "category": {
+            "enum": [
+              "wrong-tool",
+              "missing-tool",
+              "missing-observation",
+              "stale-observation",
+              "misread-result",
+              "hallucinated-state",
+              "false-success-claim",
+              "repeated-call",
+              "poll-loop",
+              "unit-or-geometry-math",
+              "refusal-confusion",
+              "ignored-event",
+              "event-noise",
+              "slow-to-act",
+              "gave-up-early",
+              "ignored-steer",
+              "answered-playerbot",
+              "panel-misleading",
+              "prompt-confusion",
+              "crash-or-error",
+              "credential-leak",
+              "other"
+            ]
+          },
+          "count": { "minimum": 1, "type": "integer" },
+          "quote": { "maxLength": 600, "type": "string" },
+          "ref": {
+            "description": "session.jsonl:<line> | gamelog.jsonl:<line> | frames/<file>",
+            "type": "string"
+          },
+          "severity": { "enum": ["blocker", "major", "minor"] },
+          "suggestedFix": { "type": "string" },
+          "target": {
+            "description": "tool, event, panel or core module name",
+            "type": "string"
+          }
+        },
+        "required": ["category", "severity", "quote", "ref", "area"],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "interventions": {
+      "items": {
+        "properties": {
+          "kind": { "enum": ["steer", "rescue", "budget_stop"] },
+          "ms": { "type": "integer" },
+          "text": { "type": "string" }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "notes": { "maxLength": 1500, "type": "string" },
+    "replica": { "minimum": 1, "type": "integer" },
+    "round": { "minimum": 0, "type": "integer" },
+    "scenario": { "pattern": "^t[0-8]-[a-z0-9-]+$", "type": "string" },
+    "sha": { "pattern": "^[0-9a-f]{7,40}$", "type": "string" },
+    "tab": { "type": "string" },
+    "verdict": { "enum": ["pass", "fail", "blocked", "aborted"] },
+    "verdictReason": { "type": "string" }
+  },
+  "required": [
+    "scenario",
+    "round",
+    "replica",
+    "sha",
+    "verdict",
+    "checks",
+    "efficiency",
+    "friction",
+    "interventions",
+    "evidence"
+  ],
+  "type": "object"
+}

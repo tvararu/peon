@@ -1,0 +1,59 @@
+{
+  "botRisk": "high",
+  "budget": {
+    "minutes": 8,
+    "tools": 40,
+    "turns": 15
+  },
+  "checks": [
+    {
+      "expect": "GL server_kill_credit (combat/kill_credit) for a Springpaw Stalker",
+      "id": "kill",
+      "source": "game_log"
+    },
+    {
+      "expect": "T delta total XP > 0",
+      "id": "total-xp",
+      "source": "truth"
+    },
+    {
+      "expect": "alive at the end (T final alive)",
+      "id": "alive",
+      "source": "truth"
+    },
+    {
+      "expect": "the kill came through the Jev fight tool (engage), not only manual casts (GL tool/call rows)",
+      "id": "through-engage",
+      "source": "game_log"
+    },
+    {
+      "events": ["combat/cast"],
+      "expect": "GL combat/cast of a ranged shot (spellId 75 Auto Shot, 3044 Arcane Shot, 1978 or 13549 Serpent Sting, or 5116 Concussive Shot) at the target",
+      "id": "ranged-cast",
+      "ids": [75, 3044, 1978, 13549, 5116],
+      "source": "game_log"
+    },
+    {
+      "expect": "the pet attacked the kill target: a GL combat/pet_attack row whose data.target is the guid of a GL combat/kill_credit row, and a jev.jsonl request row whose observation.pet.onTarget is true for that target",
+      "id": "pet-attack",
+      "measure": "pet_attack",
+      "source": "game_log"
+    },
+    {
+      "expect": "T delta Sharp Arrow count < 0",
+      "id": "arrows-used",
+      "source": "truth"
+    }
+  ],
+  "field": "fairbreeze-stalkers",
+  "id": "t3-kill-one-hunter",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "eversong10-hunter",
+  "setup": [],
+  "steers": [],
+  "task": "Go kill one of the Springpaw Stalkers north of town.",
+  "tier": 3
+}

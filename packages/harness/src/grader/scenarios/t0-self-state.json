@@ -1,0 +1,45 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 3,
+    "tools": 10,
+    "turns": 4
+  },
+  "checks": [
+    {
+      "expect": "the stated level equals T baseline level",
+      "id": "level",
+      "source": "truth"
+    },
+    {
+      "expect": "the stated money equals T baseline money to the copper",
+      "id": "money",
+      "source": "truth"
+    },
+    {
+      "expect": "the stated free slots equal 112 (the 16-slot backpack plus the 4 x 24-slot Portable Holes, item 51809) minus the occupied T final bag rows (bag 255 slots 23-38 and rows inside the four bags; not equipment slots 0-18 or the bag slots 19-22); use T final, not T baseline: the server deletes the preset's conjured food and water at login, so baseline holds 3 rows the live bags never have",
+      "id": "free-slots",
+      "source": "truth"
+    },
+    {
+      "expect": "the stated main-hand item equals the T baseline item in bag 255 slot 15",
+      "id": "main-hand",
+      "source": "truth"
+    },
+    {
+      "expect": "the stated health and mana are within 5% of GL vitals at the answer time (T health/power are the saved values, not the values at the answer)",
+      "id": "vitals",
+      "source": "game_log"
+    }
+  ],
+  "id": "t0-self-state",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 6,
+  "partner": null,
+  "preset": "eversong10",
+  "setup": [],
+  "steers": [],
+  "task": "Quick status: level, health, mana, money, free bag slots, and what's in your main hand?",
+  "tier": 0
+}

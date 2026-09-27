@@ -1,0 +1,30 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 6,
+    "tools": 30,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "expect": "T item 159 count, summed over every T row, has delta >= +5 (one purchase is 5; the preset already carries a stack of 20, so a purchase can land in a new row)",
+      "id": "water",
+      "source": "truth"
+    },
+    {
+      "expect": "T delta money equals minus the GL price x purchases (vendor/buy rows)",
+      "id": "money",
+      "source": "truth"
+    }
+  ],
+  "id": "t5-vendor-buy-goldshire",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "elwynn10",
+  "setup": [],
+  "steers": [],
+  "task": "Buy some water from the innkeeper.",
+  "tier": 5
+}

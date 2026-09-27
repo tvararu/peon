@@ -1,0 +1,317 @@
+import { describe, expect, test } from "bun:test";
+import type { ControlPose } from "#wow/control";
+import type { Entity, Position, UnitEntity } from "#wow/entity-store";
+import type { FactionRelation } from "#wow/faction-template";
+import { type NearbySources, type NearbyUnits, queryNearby } from "#wow/nearby";
+import { ObjectType, UNIT_FIELDS, UnitFlag } from "#wow/protocol/entity-fields";
+import type { RemotePose } from "#wow/remote-motion";
+
+const SELF = 1n;
+const NOW = 5000;
+
+function entity(guid: bigint, position?: Position): Entity {
+  return {
+    entry: 0,
+    guid,
+    name: undefined,
+    objectType: ObjectType.UNIT,
+    position,
+    rawFields: new Map(),
+    scale: 1,
+  } as Entity;
+}
+
+function unit(guid: bigint, over: Partial<UnitEntity> = {}): UnitEntity {
+  return {
+    class_: 0,
+    displayId: 0,
+    entry: 1,
+    factionTemplate: 0,
+    gender: 0,
+    guid,
+    health: 100,
+    level: 1,
+    maxHealth: 100,
+    maxPower: [],
+    name: undefined,
+    npcFlags: 0,
+    objectType: ObjectType.UNIT,
+    position: at(1, 0),
+    power: [],
+    race: 0,
+    rawFields: new Map(),
+    scale: 1,
+    target: 0n,
+    unitFlags: 0,
+    ...over,
+  };
+}
+
+function dynamic(flags: number): Map<number, number> {
+  return new Map([[UNIT_FIELDS.DYNAMIC_FLAGS.offset, flags]]);
+}
+
+function at(x: number, y: number, z = 0, mapId = 0): Position {
+  return { mapId, orientation: 0, x, y, z };
+}
+
+function pose(x: number, y: number, orientation = 0): ControlPose {
+  return {
+    mapId: 0,
+    orientation,
+    source: "predicted",
+    updatedAt: 42,
+    x,
+    y,
+    z: 0,
+  };
+}
+
+function sources(
+  selfPose: ControlPose | undefined,
+  entities: Entity[],
+  remotePoses: RemotePose[] = [],
+): NearbySources {
+  return {
+    control: { pose: selfPose, selfGuid: SELF },
+    entities,
+    now: NOW,
+    observedPosition: () => undefined,
+    remotePoses,
+  };
+}
+
+describe("queryNearby", () => {
+  test("measures 3d distance, bearing and signed turn from the pose", () => {
+    const [row] = queryNearby(
+      sources(pose(0, 0, Math.PI / 2), [entity(2n, at(3, 0, 4))]),
+    );
+    expect(row?.horizontalDistance).toBe(3);
+    expect(row?.distance).toBe(5);
+    expect(row?.bearingRadians).toBe(0);
+    expect(row?.turnRadians).toBeCloseTo(-Math.PI / 2);
+    expect(row?.originSource).toBe("predicted");
+    expect(row?.originUpdatedAt).toBe(42);
+  });
+
+  test("normalises bearing to [0, 2π)", () => {
+    const [row] = queryNearby(sources(pose(0, 0), [entity(2n, at(0, -5))]));
+    expect(row?.bearingRadians).toBeCloseTo((3 * Math.PI) / 2);
+    expect(row?.turnRadians).toBeCloseTo(-Math.PI / 2);
+  });
+
+  test("self row is first at distance 0 and carries the pose", () => {
+    const rows = queryNearby(
+      sources(pose(10, 10), [entity(2n, at(11, 10)), entity(SELF, at(0, 0))]),
+    );
+    expect(rows.map((r) => r.self)).toEqual([true, false]);
+    expect(rows[0]?.distance).toBe(0);
+    expect(rows[0]?.horizontalDistance).toBe(0);
+    expect(rows[0]?.bearingRadians).toBeNull();
+    expect(rows[0]?.position).toMatchObject({ x: 10, y: 10 });
+  });
+
+  test("falls back to the self entity position when there is no pose", () => {
+    const [, other] = queryNearby(
+      sources(undefined, [entity(SELF, at(0, 0)), entity(2n, at(4, 0))]),
+    );
+    expect(other?.distance).toBe(4);
+    expect(other?.originSource).toBe("self_entity");
+    expect(other?.originUpdatedAt).toBeNull();
+  });
+
+  test("leaves entities on another map or without position unmeasured", () => {
+    const rows = queryNearby(
+      sources(pose(0, 0), [entity(2n, at(1, 0, 0, 1)), entity(3n)]),
+      { all: true },
+    );
+    for (const row of rows) {
+      expect(row.distance).toBeNull();
+      expect(row.horizontalDistance).toBeNull();
+      expect(row.turnRadians).toBeNull();
+    }
+  });
+
+  test("sorts by distance, then guid, with unmeasured rows last", () => {
+    const rows = queryNearby(
+      sources(pose(0, 0), [
+        entity(9n),
+        entity(5n, at(2, 0)),
+        entity(4n, at(2, 0)),
+        entity(3n, at(1, 0)),
+        entity(8n, at(1, 0, 0, 1)),
+      ]),
+      { all: true },
+    );
+    expect(rows.map((r) => r.entity.guid)).toEqual([3n, 4n, 5n, 8n, 9n]);
+  });
+
+  test("default range drops rows beyond 100 yd, off-map or without position", () => {
+    const entities = [
+      entity(2n, at(100, 0)),
+      entity(3n, at(100.01, 0)),
+      entity(4n, at(1, 0, 0, 1)),
+      entity(5n),
+    ];
+    const near = queryNearby(sources(pose(0, 0), entities));
+    expect(near.map((r) => r.entity.guid)).toEqual([2n]);
+    const all = queryNearby(sources(pose(0, 0), entities), { all: true });
+    expect(all).toHaveLength(4);
+  });
+
+  test("without any origin nothing is filtered", () => {
+    const rows = queryNearby(sources(undefined, [entity(2n, at(1000, 0))]));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.originSource).toBeNull();
+  });
+
+  test("attaches the remote pose by guid and stamps every row with now", () => {
+    const remote: RemotePose = {
+      guid: 2n,
+      position: at(3, 0),
+      receivedAt: 4000,
+      source: "observer",
+    };
+    const rows = queryNearby(
+      sources(
+        pose(0, 0),
+        [entity(2n, at(3, 0)), entity(3n, at(4, 0))],
+        [remote],
+      ),
+    );
+    expect(rows.map((r) => r.remotePose)).toEqual([remote, undefined]);
+    expect(rows.map((r) => r.preparedAt)).toEqual([NOW, NOW]);
+  });
+
+  test("rows carry neutral standing, roles and loot flags until filled", () => {
+    const [row] = queryNearby(sources(pose(0, 0), [entity(2n, at(1, 0))]));
+    expect(row).toMatchObject({
+      relation: "unknown",
+      attackable: false,
+      attackingMe: false,
+      roles: [],
+      lootable: false,
+      tapped: false,
+      tappedByOther: false,
+    });
+    expect(row?.targetOf).toBeUndefined();
+  });
+});
+
+describe("loot flags", () => {
+  test("read lootable and tapped from UNIT_DYNAMIC_FLAGS", () => {
+    const rows = queryNearby(
+      sources(pose(0, 0), [
+        unit(2n, { rawFields: dynamic(0x1) }),
+        unit(3n, { position: at(2, 0), rawFields: dynamic(0x4) }),
+        unit(4n, { position: at(3, 0), rawFields: dynamic(0x4 | 0x8) }),
+      ]),
+    );
+    expect(
+      rows.map((row) => [row.lootable, row.tapped, row.tappedByOther]),
+    ).toEqual([
+      [true, false, false],
+      [false, true, true],
+      [false, true, false],
+    ]);
+  });
+
+  test("an unobserved unit and a game object are neither lootable nor tapped", () => {
+    const post = {
+      ...entity(6n, at(2, 0)),
+      objectType: ObjectType.GAMEOBJECT,
+      rawFields: dynamic(0x1 | 0x4),
+    };
+    const rows = queryNearby(sources(pose(0, 0), [unit(5n), post]));
+    expect(
+      rows.map((row) => [row.lootable, row.tapped, row.tappedByOther]),
+    ).toEqual([
+      [false, false, false],
+      [false, false, false],
+    ]);
+  });
+});
+
+describe("npc roles", () => {
+  test("units carry roles from their NPC flags; game objects none", () => {
+    const post = { ...entity(7n, at(2, 0)), objectType: ObjectType.GAMEOBJECT };
+    const rows = queryNearby(
+      sources(pose(0, 0), [unit(6n, { npcFlags: 0x2 | 0x80 }), post]),
+    );
+    expect(rows.map((row) => row.roles)).toEqual([
+      ["questgiver", "vendor"],
+      [],
+    ]);
+  });
+});
+
+describe("unit standing", () => {
+  const relations = new Map<bigint, FactionRelation>([
+    [2n, "hostile"],
+    [3n, "friendly"],
+    [4n, "neutral"],
+    [5n, "hostile"],
+  ]);
+  const units: NearbyUnits = {
+    attackingMe: (guid) => guid === 2n,
+    relation: (guid) => relations.get(guid) ?? "unknown",
+  };
+  const standing = [
+    unit(2n, { target: SELF }),
+    unit(3n, { position: at(2, 0) }),
+    unit(4n, { position: at(3, 0), unitFlags: UnitFlag.NOT_SELECTABLE }),
+    unit(5n, { health: 0, position: at(4, 0) }),
+  ];
+
+  test("fills relation, attackable, attackingMe and targetOf from the units source", () => {
+    const rows = queryNearby({ ...sources(pose(0, 0), standing), units });
+    expect(
+      rows.map((row) => [
+        row.relation,
+        row.attackable,
+        row.attackingMe,
+        row.targetOf,
+      ]),
+    ).toEqual([
+      ["hostile", true, true, SELF],
+      ["friendly", false, false, undefined],
+      ["neutral", false, false, undefined],
+      ["hostile", false, false, undefined],
+    ]);
+  });
+
+  test("without a units source every relation stays unknown, never neutral", () => {
+    const [row] = queryNearby(
+      sources(pose(0, 0), [unit(2n, { target: SELF })]),
+    );
+    expect(row).toMatchObject({
+      attackable: false,
+      attackingMe: false,
+      relation: "unknown",
+      targetOf: SELF,
+    });
+  });
+
+  test("the self row and game objects keep neutral standing", () => {
+    const post = { ...entity(9n, at(5, 0)), objectType: ObjectType.GAMEOBJECT };
+    const always: NearbyUnits = {
+      attackingMe: () => true,
+      relation: () => "hostile",
+    };
+    const rows = queryNearby({
+      ...sources(pose(0, 0), [unit(SELF, { position: at(0, 0) }), post]),
+      units: always,
+    });
+    expect(
+      rows.map((row) => [
+        row.self,
+        row.relation,
+        row.attackable,
+        row.attackingMe,
+      ]),
+    ).toEqual([
+      [true, "unknown", false, false],
+      [false, "unknown", false, false],
+    ]);
+  });
+});

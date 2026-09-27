@@ -1,10 +1,11 @@
-import { createNavigation } from "wow/navigation";
+import { createNavigation } from "../../packages/core/src/wow/navigation";
 
 const [libraryPath, originArg, ...rest] = process.argv.slice(2);
 const dataPath = process.env["NAV_DATA"];
+const mapId = Number(process.env["NAV_MAP"] ?? 530);
 if (!libraryPath || !originArg || !dataPath) {
   console.error(
-    "usage: NAV_DATA=<nav dir> measure.ts <libnamigator.so> <x,y,z> (grid <radius> <step> | <x,y>...)",
+    "usage: NAV_DATA=<nav dir> [NAV_MAP=<map id>] measure.ts <libnamigator.so> <x,y,z> (grid <radius> <step> | <x,y>...)",
   );
   process.exit(2);
 }
@@ -29,7 +30,7 @@ const nav = createNavigation({
 });
 const results = destinations.map(({ x, y }) => {
   try {
-    const route = nav.planGround(530, origin, { x, y });
+    const route = nav.planGround(mapId, origin, { x, y });
     const hash = Bun.hash(JSON.stringify(route.points)).toString(16);
     return { x, y, result: "OK", points: route.points.length, hash };
   } catch (error) {
