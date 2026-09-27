@@ -47,22 +47,10 @@ function cycleWith(tactics: CycleDeps["tactics"]) {
   });
 }
 
-test("an injected HTTP 402 stops the cycle and keeps the queue resumable", async () => {
+test("an injected HTTP 402 stops the cycle and keeps the queue", async () => {
   const fault = parseJevFault("http:402");
   if (!fault) throw new Error("fault not parsed");
-  let jevBack = false;
-  const faulted = createFaultSelect(fault, selectJevAction);
-  const select: JevSelect = (request, options) =>
-    jevBack
-      ? Promise.resolve({
-          choice: smite.id,
-          probabilities: { [smite.id]: 1 },
-          confidence: 1,
-          model: "jev-test",
-          inputTokens: 1,
-          elapsedMs: 1,
-        })
-      : faulted(request, options);
+  const select = createFaultSelect(fault, selectJevAction);
   const runtime = cycleWith(jevTactics(select));
 
   await expect(
@@ -78,15 +66,6 @@ test("an injected HTTP 402 stops the cycle and keeps the queue resumable", async
     "queued",
     "queued",
     "queued",
-  ]);
-
-  jevBack = true;
-  await runtime.resume({});
-  expect(runtime.snapshot().stopCause).toBe("queue_exhausted");
-  expect(runtime.snapshot().queue.map((r) => r.status)).toEqual([
-    "done",
-    "done",
-    "done",
   ]);
 });
 

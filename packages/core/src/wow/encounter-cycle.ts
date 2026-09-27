@@ -51,7 +51,6 @@ export type CycleState = {
   stopCause: string | undefined;
   stopDetail: Record<string, unknown> | undefined;
   startedAt: number | undefined;
-  resumes: number;
   lastLoot: CycleLootRecord | undefined;
   lastRecovery: (CycleRecovery & { at: number }) | undefined;
   objective: ObjectiveProgress | undefined;
@@ -63,7 +62,6 @@ export type CycleObjective = {
 export type CycleEvent = {
   type:
     | "started"
-    | "resumed"
     | "target_done"
     | "loot_done"
     | "recovery"
@@ -125,7 +123,6 @@ export class EncounterCycleRuntime {
     stopCause: undefined,
     stopDetail: undefined,
     startedAt: undefined,
-    resumes: 0,
     lastLoot: undefined,
     lastRecovery: undefined,
     objective: undefined,
@@ -187,51 +184,19 @@ export class EncounterCycleRuntime {
       stopCause: undefined,
       stopDetail: undefined,
       startedAt: this.deps.now(),
-      resumes: 0,
       lastLoot: undefined,
       lastRecovery: undefined,
       objective: args.objective?.progress(),
     };
     this.objective = args.objective;
-    await this.launch("started");
+    await this.launch();
   }
 
-  async resume(args: {
-    instruction?: string;
-    maxStarts?: number;
-  }): Promise<void> {
-    if (this.disposed) throw new Error("cycle_disposed");
-    if (this.state.active) throw new Error("cycle_active");
-    const { queue, currentIndex } = this.state;
-    const next = queue.findIndex(
-      (record, index) => index >= currentIndex && record.status === "queued",
-    );
-    const recoverOnly = next === -1 && queue.length > 0 && this.selfDead();
-    if (next === -1 && !recoverOnly && !this.objective)
-      throw new Error("cycle_nothing_to_resume");
-    const maxStarts = args.maxStarts ?? this.state.maxStarts;
-    if (!Number.isInteger(maxStarts) || maxStarts < 1)
-      throw new Error("cycle_invalid_max");
-    this.state = {
-      ...this.state,
-      active: true,
-      phase: "fighting",
-      currentIndex: next === -1 ? queue.length : next,
-      instruction: args.instruction ?? this.state.instruction,
-      maxStarts,
-      startsUsed: 0,
-      stopCause: undefined,
-      stopDetail: undefined,
-      resumes: this.state.resumes + 1,
-    };
-    await this.launch("resumed");
-  }
-
-  private async launch(type: "started" | "resumed"): Promise<void> {
+  private async launch(): Promise<void> {
     this.run?.abort();
     const run = new AbortController();
     this.run = run;
-    this.emit(type);
+    this.emit("started");
     try {
       if (this.objective) await this.pursue(this.objective, run.signal);
       else await this.drive(run.signal);

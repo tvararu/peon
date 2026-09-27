@@ -118,27 +118,6 @@ test("the start budget stops an objective run before another fight", async () =>
   expect(runtime.snapshot().stopCause).toBe("max_starts_reached");
 });
 
-test("resuming an objective run continues picking without retrying old targets", async () => {
-  const { runtime, tactics } = cycle(["ok", "ok"]);
-  const { source, tried } = objective([
-    target(1n),
-    cycleStop("objective_targets_out_of_reach", { distance: 60 }),
-    target(2n),
-    { kind: "complete", progress: progress(2) },
-  ]);
-  await runtime.start({
-    guids: [],
-    instruction: "fight",
-    maxStarts: 5,
-    objective: source,
-  });
-  expect(runtime.snapshot().stopCause).toBe("objective_targets_out_of_reach");
-  await runtime.resume({});
-  expect(tactics.calls()).toBe(2);
-  expect(tried.at(-1)).toEqual([1n, 2n]);
-  expect(runtime.snapshot().stopCause).toBe("objective_complete");
-});
-
 test("a loot stop still reports the server progress of the last kill", async () => {
   const { runtime } = cycle(["ok"], 4);
   const { source } = objective([target(2n)]);
