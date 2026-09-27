@@ -230,6 +230,10 @@ describe("runScenario", () => {
     expect(draft.end).toBe("done");
     expect(draft.tab).toBe("eval-1-t0-self-state-1");
     expect(draft.evidence.finalSavedAt).toBeDefined();
+    expect(draft.checks[0]?.observed).toMatchObject({
+      baseline: { level: 10 },
+      final: { level: 10 },
+    });
     for (const file of [
       "run.json",
       "names.json",

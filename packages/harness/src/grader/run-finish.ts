@@ -8,18 +8,18 @@ import {
   removeSessionFiles,
   sessionFile,
 } from "#harness/grader/accounts";
+import { observedChecks } from "#harness/grader/draft-fill";
 import { efficiency, readSessionUsage } from "#harness/grader/efficiency";
 import type { Exec } from "#harness/grader/exec";
 import type { Pane } from "#harness/grader/pane";
 import {
-  type EvalCheck,
   type EvalEvidence,
   type EvalIntervention,
   type EvalResult,
   type FrictionItem,
   validateResult,
 } from "#harness/grader/result";
-import type { Scenario, ScenarioCheck } from "#harness/grader/scenarios";
+import type { Scenario } from "#harness/grader/scenarios";
 import { finalTruth, leakCheck } from "#harness/grader/truth";
 import type { Watcher } from "#harness/grader/watch";
 
@@ -186,10 +186,6 @@ export function summaryLine(result: EvalResult, label: string): string {
   return `${result.scenario}-${result.replica} ${label} ${met}/${result.checks.length} tools=${toolCalls} wall=${Math.round(wallSec)}`;
 }
 
-function stubCheck({ expect, id, source }: ScenarioCheck): EvalCheck {
-  return { expected: expect, id, met: false, observed: null, source };
-}
-
 function leakFriction(file: string): FrictionItem {
   const quote = `a password was found in ${file}; the file is in quarantine/`;
   return {
@@ -255,7 +251,7 @@ async function draftResult(st: RunState): Promise<EvalResult> {
     ...verdictOf(st),
     abort: st.abort,
     accounts: accountsOf(st),
-    checks: st.scenario.checks.map(stubCheck),
+    checks: await observedChecks(st.runDir, st.scenario.checks),
     efficiency: efficiency({
       budget: st.scenario.budget,
       firstActionMs,
