@@ -21,6 +21,7 @@ Sibling checkouts next to this repository:
   (`../wowser/src/lib/auth/`) and realm-list parsing
   (`../wowser/src/lib/realms/handler.js`). Its SRP uses `Math.random`;
   ours does not.
+- `../WoWee`: a C++ 3.3.5a client, for reference.
 - `../namigator` and `../namigator-rs`: pathfinding and line of sight from
   the game's MPQ files, and its Rust bindings (a clean API reference for
   `find_path`, `line_of_sight`, `find_height`, `load_adt`).
