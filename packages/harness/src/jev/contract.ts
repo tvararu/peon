@@ -22,9 +22,19 @@ export type JevActionResult = {
   elapsedMs: number;
 };
 
+export type JevExchange = {
+  model: string;
+  instructions: string;
+  framing?: string;
+  status?: number;
+  elapsedMs: number;
+  response?: unknown;
+  error?: string;
+};
+
 export type JevSelect = (
   request: JevActionRequest,
-  options: { signal: AbortSignal },
+  options: { signal: AbortSignal; record?: (exchange: JevExchange) => void },
 ) => Promise<JevActionResult>;
 
 export type JevPort = {
