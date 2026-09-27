@@ -46,6 +46,7 @@ export function createFakePi(mode: "tui" | "print" = "tui"): FakePi {
           (handlers.get(event) ?? []).filter((h) => h !== handler),
         );
     },
+    registerCommand() {},
     registerEntryRenderer(customType: string) {
       renderers.push(`entry:${customType}`);
     },

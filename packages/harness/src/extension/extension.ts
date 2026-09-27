@@ -4,6 +4,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import type { HarnessRuntime } from "#harness/contract/services";
 import { installEvents } from "#harness/events/install";
+import { installCommands } from "#harness/extension/commands";
 import { installGuards } from "#harness/extension/guards";
 import { installInput } from "#harness/extension/input";
 import { installPrompt } from "#harness/prompt/install";
@@ -18,6 +19,7 @@ export function wowExtension(rt: HarnessRuntime): ExtensionFactory {
     installEvents(pi, rt);
     installPrompt(pi, rt);
     installUi(pi, rt);
+    installCommands(pi, rt);
     installShutdown(pi, rt);
   };
 }
