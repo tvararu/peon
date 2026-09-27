@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { messageOf } from "@peon/core/lib/errors";
@@ -19,6 +20,7 @@ export const USAGE = `Usage: mise harness --profile <path> [options]
   --stop-reflex on|off    stop all actions when a short message starts with "stop" (default: on)
   --now-per-call          send the [now] line before every model request
   --log-entities          write raw entity rows to the game log
+  --extension <path>      load a Pi extension file; repeat for more (after the profile's extensions)
   --check                 check the profile, the lock and the Codex login, then exit`;
 
 const THINKING: readonly ThinkingLevel[] = [
@@ -33,6 +35,7 @@ const THINKING: readonly ThinkingLevel[] = [
 
 const OPTIONS = {
   check: { type: "boolean" },
+  extension: { multiple: true, type: "string" },
   glyphs: { type: "string" },
   "log-entities": { type: "boolean" },
   model: { type: "string" },
@@ -55,6 +58,7 @@ export function parseFlags(argv: readonly string[]): HarnessFlags {
   return {
     check: values.check ?? false,
     connect: !values["no-connect"],
+    extensions: (values.extension ?? []).map((path) => resolve(path)),
     glyphs: values.glyphs,
     logEntities: values["log-entities"] ?? false,
     model: values.model ?? DEFAULT_MODEL,

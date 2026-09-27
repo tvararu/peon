@@ -31,6 +31,7 @@ describe("createHarnessRuntime", () => {
     const { rt } = await createTestRuntime({ flags: { wake: false } });
     expect(rt.session).toEqual({
       agent: "idle",
+      agentGrant: undefined,
       humanTexts: [],
       humanWaiting: false,
       lastNow: undefined,

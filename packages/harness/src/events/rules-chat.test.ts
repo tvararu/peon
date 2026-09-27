@@ -262,6 +262,7 @@ describe("router with chat rules", () => {
       flags: {
         check: false,
         connect: true,
+        extensions: [],
         glyphs: undefined,
         logEntities: false,
         model: "m",

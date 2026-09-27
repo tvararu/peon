@@ -82,7 +82,8 @@ still applies: it refuses the protected accounts and the character
 | `--stop-reflex on\|off` | `on` | When on, a short human message that starts with stop, halt, freeze or hold stops every action before the model reads it. |
 | `--now-per-call` | off | Adds the `[now]` line before every model call, not only at the start of a turn. |
 | `--log-entities` | off | Writes raw entity rows to the game log. |
-| `--check` | off | Checks the profile, the lock and the Codex login, then exits with code 0. |
+| `--extension <path>` | none | Loads a Pi extension file; repeat it for more. See [Extensions](#extensions). |
+| `--check` | off | Checks the profile, the extension paths, the lock and the Codex login, then exits with code 0. |
 
 The harness reads no `WOW_*` variable. Only `--profile` selects the
 character.
@@ -181,11 +182,76 @@ While the human holds it, action tools refuse with `human_driving`.
 - **Agent.** An action tool claims the character when it starts; the
   agent keeps it, with the runs its tools start, until its turn ends.
 - **Loop.** A run still going when the agent's turn ends belongs to the
-  loop until it ends. Action tools still work beside it, and a new run
+  loop until that run ends; another run ending does not free it. Action tools still work beside it, and a new run
   is refused as `busy` until it ends or the agent stops it.
 
 The rule lives in `packages/harness/src/runtime/control-owner.ts`; the
 core client only moves and fights when told to.
+
+## Extensions
+
+The harness loads Pi extension files (`.ts` or `.js`, default export
+`(pi: ExtensionAPI) => void`) besides its own. List them in the profile
+as `extensions = ["..."]` in a `config.toml`, or as a top-level
+`"extensions"` array in a soap session or ledger JSON, and add more with
+`--extension <path>`. The profile's come first, then the flags', in
+order. A relative path resolves against the directory of the profile
+that lists it, or against the current directory for a flag. The
+harness refuses to start when a path does not exist, and reads no
+`extensions` from `~/.config/peon/config.toml` under a ledger profile.
+Pi reports an extension that fails to load on screen.
+
+An extension reaches the game through the world service, which the
+harness's `world` extension publishes on `pi.events`:
+
+```ts
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { WorldService } from "@peon/harness/world";
+
+export default function (pi: ExtensionAPI) {
+  let world: WorldService | undefined;
+  const take = (data: unknown) => {
+    world ??= data as WorldService;
+  };
+  pi.events.on("peon:world/1:ready", take);
+  pi.events.emit("peon:world/1:request", take);
+}
+```
+
+`peon:world/1:ready` carries the service when the harness loads it;
+`peon:world/1:request` takes a callback and calls it with the service.
+Subscribe, then request, and the service arrives whichever loads first.
+Code inside the repository can call `onWorld(pi, use)` from
+`@peon/harness/world`, which does the same. The service has
+`version: 1`, and the types live in
+`packages/harness/src/world/service.ts`.
+
+- **Reads.** `world.current()` is the live session or `undefined`
+  offline. `world.onSession(attach)` calls `attach(session)` now if
+  online and again after every `/connect` or reconnect; the cleanup it
+  returns runs when that connection closes. `session.reads` has the
+  core state getters (`getControlState`, `getPlaceState`,
+  `queryNearby`, `getActionBar`, ...). `session.events` has the core
+  event subscriptions; they end on their own when the connection
+  closes. Every read, event payload and game-log entry is a detached,
+  frozen copy: changing it throws, and the game's own state never
+  changes through it. A session reaches no writer, `close` or `logout`.
+- **Writes.** Only a claim acts: `world.claim(owner, reason)` asks the
+  control rule in [Who controls the character](#who-controls-the-character)
+  for `human`, `agent` or `loop`, and returns `undefined` when a higher
+  owner holds the character. `claim.act` has `move`, `drive`, `jump`, `face`, `faceGuid`,
+  `stopMoving`, `selectTarget`, `cast`, `attack`, `stopAttack`,
+  `cancelCast`, `useItem`, `talk`, the loot calls, `sendSay` and
+  `sendWhisper`; each returns a promise. Each claim is its own grant.
+  A later claim by any owner at the same or a higher rank takes the
+  character from it and stops every run, so the claim is lost for good:
+  every send rejects with `not_owner`, and `claim.onLost` fires. A send
+  while the connection is not online rejects with `offline`.
+  `claim.release()` frees the character only while that claim still
+  holds it, and ending the Pi session releases and loses every claim.
+- **Also.** `world.connection()` and `world.onConnection`,
+  `world.control.owner()` and `onOwner`, and `world.log.recent(n)` and
+  `subscribe` for the game log.
 
 ## Commands
 

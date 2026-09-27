@@ -6,6 +6,7 @@ import {
   isStopReflex,
 } from "#harness/extension/input";
 import { createYieldGate, YIELD_DELAY_MS } from "#harness/runtime/yield";
+import { admitAgent } from "#harness/tools/human-admission";
 import { createFakePi } from "#test-support/fake-pi";
 import {
   createTestRuntime,
@@ -192,7 +193,7 @@ describe("installInput", () => {
   test("a run that outlives the turn passes to the loop", async () => {
     const { fake, rt } = await setup();
     await fake.emit({ type: "agent_start" });
-    rt.control.claim("agent", "travel");
+    admitAgent(rt, "travel");
     rt.runs.start({
       args: {},
       kind: "travel",
@@ -218,6 +219,22 @@ describe("installInput", () => {
     resolve({ status: "succeeded", summary: "rested", value: undefined });
     await Bun.sleep(0);
     expect(rt.control.owner()).toBe("none");
+  });
+
+  test("a run's end frees only the loop grant it was handed, not a newer claim", async () => {
+    const { fake, rt } = await setup();
+    const { promise, resolve } = Promise.withResolvers<RunEnd<undefined>>();
+    rt.runs.start({
+      args: {},
+      kind: "rest",
+      launch: () => promise,
+      toolCallId: "t1",
+    });
+    await fake.emit({ messages: [], type: "agent_end" });
+    const probe = rt.control.claim("loop", "probe");
+    resolve({ status: "succeeded", summary: "rested", value: undefined });
+    await Bun.sleep(0);
+    expect(probe.granted && rt.control.holds(probe.grant)).toBe(true);
   });
 
   test("a stop reflex pre-empts the agent and hands the body back free", async () => {

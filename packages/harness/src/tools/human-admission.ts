@@ -25,9 +25,15 @@ function humanWaiting(texts: readonly string[]): Refusal {
 
 export function admitAgent(rt: HarnessRuntime, tool: string): void {
   if (rt.session.humanWaiting) throw humanWaiting(rt.session.humanTexts);
-  const holder = rt.control.owner();
+  const { control, session } = rt;
+  const holder = control.owner();
   if (holder === "loop") return;
-  if (holder !== "human" && rt.control.claim("agent", tool).granted) return;
+  if (session.agentGrant && control.holds(session.agentGrant)) return;
+  const claim = holder === "human" ? undefined : control.claim("agent", tool);
+  if (claim?.granted) {
+    session.agentGrant = claim.grant;
+    return;
+  }
   throw new Refusal({
     detail: "the human is driving the character.",
     next: "end your turn and wait for the human to hand back.",

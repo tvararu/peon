@@ -6,7 +6,9 @@
     "@earendil-works/pi-tui": "0.87.1",
     "@peon/core": "workspace:*"
   },
-  "exports": {},
+  "exports": {
+    "./world": "./src/world/service.ts"
+  },
   "imports": {
     "#harness/*": "./src/*.ts",
     "#test-support/*": "./test-support/*.ts"

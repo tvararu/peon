@@ -10,6 +10,7 @@ import { createRunRegistry } from "#harness/runs/registry";
 export const testFlags: HarnessFlags = {
   check: false,
   connect: true,
+  extensions: [],
   glyphs: undefined,
   logEntities: false,
   model: "openai-codex/gpt-6-luna",

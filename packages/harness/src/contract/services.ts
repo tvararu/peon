@@ -26,7 +26,7 @@ import type {
   PoseView,
 } from "#harness/contract/views";
 import type { Game } from "#harness/loops/game";
-import type { ControlArbiter } from "#harness/runtime/control-owner";
+import type { ControlArbiter, Grant } from "#harness/runtime/control-owner";
 
 export type Clock = { now: () => number };
 
@@ -174,6 +174,7 @@ export type ToolStats = {
 };
 
 export type SessionFlags = {
+  agentGrant: Grant | undefined;
   humanWaiting: boolean;
   humanTexts: readonly string[];
   turnToolCalls: number;

@@ -35,11 +35,7 @@ export function humanStop(init: {
   via: Via;
   text: string;
 }): RunRecord[] {
-  const { control } = init.rt;
-  const driving = control.owner() === "human";
-  const claim = control.claim("human", init.via);
-  if (!driving) control.release("human", init.via);
-  const stopped = claim.granted ? claim.stopped : [];
+  const stopped = stopAsHuman(init.rt, init.via);
   appendHuman(init.rt, {
     stoppedRuns: stopped.map((run) => run.id),
     stopReflex: true,
@@ -75,13 +71,36 @@ export function installInput(pi: ExtensionAPI, rt: HarnessRuntime): void {
   });
   pi.on("agent_end", () => {
     Object.assign(session, { agent: "idle", tool: undefined });
-    rt.control.release("agent", "turn_ended");
-    if (rt.runs.active()) rt.control.claim("loop", "run_outlived_turn");
+    handToLoop(rt);
   });
   pi.on("message_end", (event) => noteAssistant(rt, event.message));
   pi.registerShortcut("f9", {
     description: "Stop every action now.",
     handler: () => void humanStop({ rt, text: "F9", via: "key" }),
+  });
+}
+
+function stopAsHuman(rt: HarnessRuntime, via: Via): RunRecord[] {
+  const { control } = rt;
+  if (control.owner() === "human") return rt.stopAll("human");
+  const claim = control.claim("human", via);
+  if (!claim.granted) return [];
+  control.release(claim.grant, via);
+  return claim.stopped;
+}
+
+function handToLoop(rt: HarnessRuntime): void {
+  const { control, runs, session } = rt;
+  if (session.agentGrant) control.release(session.agentGrant, "turn_ended");
+  session.agentGrant = undefined;
+  const run = runs.active();
+  if (!run || control.owner() !== "none") return;
+  const claim = control.claim("loop", "run_outlived_turn");
+  if (!claim.granted) return;
+  const off = runs.subscribe((event) => {
+    if (event.type !== "ended" || event.record.id !== run.id) return;
+    off();
+    control.release(claim.grant, "run_ended");
   });
 }
 

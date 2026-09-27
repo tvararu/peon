@@ -19,9 +19,12 @@ export type PiRuntimeInit = {
   runtime: HarnessRuntime;
   credentials: CredentialStore;
   agentDir: string;
-  extension: ExtensionFactory;
+  extensions: readonly InlineExtension[];
+  extensionPaths?: readonly string[];
   providers?: readonly Provider[];
 };
+
+export type InlineExtension = { name: string; factory: ExtensionFactory };
 
 export type ModelRef = { provider: string; id: string };
 
@@ -68,7 +71,8 @@ function sessionFactory(init: PiRuntimeInit): CreateAgentSessionRuntimeFactory {
     });
     const resourceLoaderOptions = {
       ...LOADER,
-      extensionFactories: [{ factory: init.extension, name: "wow" }],
+      additionalExtensionPaths: [...(init.extensionPaths ?? [])],
+      extensionFactories: [...init.extensions],
       systemPromptOverride: () => lunaPrompt(init.runtime),
     };
     const services = await createAgentSessionServices({
