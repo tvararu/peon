@@ -199,6 +199,22 @@ describe("Play", () => {
     expect(targetOf(reads())).toBe(4n);
   });
 
+  test("the takeover ends as soon as the connection starts closing", async () => {
+    const { handle, notes, play, rt, world } = await setup();
+    const logout = Promise.withResolvers<void>();
+    Object.assign(handle, { logout: () => logout.promise });
+    play.watch(world);
+    play.input(F1);
+    const closing = rt.disconnect();
+    await flush();
+    expect(rt.connection()).toBe("closing");
+    expect(rt.control.owner()).toBe("none");
+    expect(notes).toHaveLength(1);
+    handle.resolveClosed();
+    logout.resolve();
+    await closing;
+  });
+
   test("F9 is left to the stop shortcut and drops the held keys", async () => {
     const { play } = await setup();
     play.input(F1);

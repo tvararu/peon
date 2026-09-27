@@ -109,18 +109,30 @@ export class Play {
   }
 
   watch(world: WorldService): Unsubscribe {
-    return world.onSession((session) => {
-      const last = { pose: session.reads.getControlState().pose };
+    let lastPose: Pose | undefined;
+    const end = () => {
+      if (this.claim)
+        this.handBack("the game connection closed", lastPose).catch(
+          ignoreFailure,
+        );
+    };
+    const offSession = world.onSession((session) => {
+      lastPose = session.reads.getControlState().pose;
       const off = session.events.onControlEvent((event) => {
-        last.pose = event.state.pose ?? last.pose;
+        lastPose = event.state.pose ?? lastPose;
       });
       return () => {
         off();
-        this.handBack("the game connection closed", last.pose).catch(
-          ignoreFailure,
-        );
+        end();
       };
     });
+    const offConnection = world.onConnection((state) => {
+      if (state !== "online") end();
+    });
+    return () => {
+      offSession();
+      offConnection();
+    };
   }
 
   dispose(): void {
