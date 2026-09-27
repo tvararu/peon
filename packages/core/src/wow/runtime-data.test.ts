@@ -63,6 +63,17 @@ describe("capabilitiesOf", () => {
       navigation: true,
     });
   });
+
+  test("navigation on the current map needs that map's navmesh", async () => {
+    const dir = await dataDir([]);
+    await Bun.write(join(dir, "Expansion01.map"), "");
+    const lazy: LazyState = { disposed: false };
+    const config = { navigationDataDir: dir, navigationLibrary: "l" };
+    expect(capabilitiesOf(config, lazy, 530).navigation).toBe(true);
+    expect(capabilitiesOf(config, lazy, 0).navigation).toBe(false);
+    expect(capabilitiesOf(config, lazy, 36).navigation).toBe(false);
+    expect(capabilitiesOf({}, lazy, 530).navigation).toBe(false);
+  });
 });
 
 describe("warmCatalogs", () => {

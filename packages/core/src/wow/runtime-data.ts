@@ -7,6 +7,7 @@ import {
   loadFactionTemplates,
 } from "#wow/faction-template";
 import { createNavigation, type Navigation } from "#wow/navigation";
+import { hasNavigationData } from "#wow/navigation-maps";
 import { loadSpellCatalog } from "#wow/spell-catalog";
 
 export type LazyState = {
@@ -83,11 +84,18 @@ export function warmCatalogs(
 export function capabilitiesOf(
   config: Configured,
   lazy: LazyState,
+  mapId?: number,
 ): Capabilities {
   return {
     factions: lazy.factions !== undefined,
     spells: lazy.spellsLoaded === true,
-    navigation: Boolean(config.navigationDataDir && config.navigationLibrary),
+    navigation: navigationOn(config, mapId),
     jev: Boolean(config.jevApiKey),
   };
+}
+
+function navigationOn(config: NavigationData, mapId?: number): boolean {
+  const { navigationDataDir: dir, navigationLibrary: library } = config;
+  if (!(dir && library)) return false;
+  return mapId === undefined || hasNavigationData(dir, mapId);
 }

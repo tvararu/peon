@@ -390,12 +390,14 @@ function catalogAccess(
   config: ClientConfig,
   lazy: LazyState,
   combat: CombatRuntime,
+  control: Pick<ControlRuntime, "snapshot">,
 ): Pick<Runtimes, "prepareCatalog" | "factions" | "capabilities"> {
   warmCatalogs(config, lazy, combat);
   return {
     prepareCatalog: () => loadCatalog(config, lazy, combat),
     factions: () => lazy.factions,
-    capabilities: () => capabilitiesOf(config, lazy),
+    capabilities: () =>
+      capabilitiesOf(config, lazy, control.snapshot().pose?.mapId),
   };
 }
 
@@ -414,7 +416,7 @@ export function createRuntimes(
     lazy,
     control,
   );
-  const data = catalogAccess(config, lazy, combat);
+  const data = catalogAccess(config, lazy, combat, control);
   function haltMovement(reason: string): void {
     if (lazy.disposed) return;
     control.setMode("none");
