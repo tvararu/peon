@@ -218,13 +218,14 @@ async function sideTries(
   from: PoseView,
   first: LegResult,
 ): Promise<LegResult> {
+  if (first.status === "arrived" || stopped(walk, first)) return first;
+  if (!SIDE_REASONS.has(first.reason ?? "")) return first;
   let leg = first;
   for (const offset of SIDES) {
-    if (leg.status === "arrived" || stopped(walk, leg)) return leg;
-    if (!SIDE_REASONS.has(leg.reason ?? "")) return leg;
     const side = turned(walk.direction, offset);
     if (blockedFrom(walk.ctx, from).has(side)) continue;
     leg = await walkBearing(walk, poseView(walk.ctx) ?? from, side);
+    if (leg.status === "arrived" || stopped(walk, leg)) return leg;
   }
   return leg;
 }

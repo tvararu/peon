@@ -192,6 +192,25 @@ describe("explore", () => {
     expect(result.legs).toHaveLength(3);
   });
 
+  test("a side refused for another reason still tries the other side", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 0, y: 0 });
+    const side = 20 * Math.SQRT1_2;
+    const goTo = driveGoto(t.handle, [
+      { refuse: "unreachable: pathfind_find_path failed (UNKNOWN_HEIGHT)" },
+      { refuse: "unreachable: pathfind_find_path failed (UNKNOWN_PATH)" },
+      { arrive: { x: side, y: side } },
+      { arrive: { x: side + 20, y: side } },
+    ]);
+    const result = await explore(toolCtx(t), { direction: "N" });
+    expect(goTo.mock.calls.map((call) => call[0]).slice(0, 3)).toEqual([
+      { kind: "point", x: 20, y: 0 },
+      { kind: "point", x: side, y: -side },
+      { kind: "point", x: side, y: side },
+    ]);
+    expect(result).toMatchObject({ direction: "N", obstructed: 0 });
+  });
+
   test("without a direction it skips a bearing refused from this cell", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle, { x: 0, y: 0 });
