@@ -4,7 +4,7 @@ import type { FactionRelation } from "#wow/faction-template";
 import { bearing, distance2d, normalizeAngle } from "#wow/geometry";
 import type { ObservedPosition, PositionSource } from "#wow/motion-store";
 import { type NpcRole, npcRoles } from "#wow/npc-roles";
-import { UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import { UNIT_FIELDS, UnitFlag } from "#wow/protocol/entity-fields";
 import type { RemotePose } from "#wow/remote-motion";
 
 export const NEARBY_DEFAULT_RANGE = 100;
@@ -95,12 +95,43 @@ function lootFlags(entity: Entity): LootFlags {
   return { lootable, tapped, tappedByOther: tapped && !mine };
 }
 
-function traits(entity: Entity): Traits {
+const ATTACK_BLOCK =
+  UnitFlag.NON_ATTACKABLE |
+  UnitFlag.PLAYER_CONTROLLED |
+  UnitFlag.NOT_ATTACKABLE_1 |
+  UnitFlag.IMMUNE_TO_PC |
+  UnitFlag.NON_ATTACKABLE_2 |
+  UnitFlag.TAXI_FLIGHT |
+  UnitFlag.NOT_SELECTABLE;
+
+type Standing = Pick<NearbyRow, "relation" | "attackable" | "attackingMe">;
+
+function standing(
+  entity: Entity,
+  self: boolean,
+  units: NearbyUnits | undefined,
+): Standing {
+  if (self || !(units && isUnit(entity)))
+    return { relation: "unknown", attackable: false, attackingMe: false };
+  const relation = units.relation(entity.guid);
+  const open = (entity.unitFlags & ATTACK_BLOCK) === 0;
+  const opposed = relation === "hostile" || relation === "neutral";
+  const attackable = entity.health > 0 && open && opposed;
+  return { relation, attackable, attackingMe: units.attackingMe(entity.guid) };
+}
+
+function targetOf(entity: Entity): bigint | undefined {
+  return isUnit(entity) && entity.target !== 0n ? entity.target : undefined;
+}
+
+function traits(
+  entity: Entity,
+  self: boolean,
+  units: NearbyUnits | undefined,
+): Traits {
   return {
-    relation: "unknown",
-    attackable: false,
-    attackingMe: false,
-    targetOf: undefined,
+    ...standing(entity, self, units),
+    targetOf: targetOf(entity),
     roles: isUnit(entity) ? npcRoles(entity.npcFlags) : [],
     ...lootFlags(entity),
   };
@@ -231,7 +262,7 @@ export function queryNearby(
       preparedAt: now,
       remotePose: poses.get(entity.guid),
       self: isSelf,
-      ...traits(entity),
+      ...traits(entity, isSelf, sources.units),
     };
   });
 

@@ -319,6 +319,11 @@ export function createMockHandle(): MockHandle {
           now: Date.now(),
           observedPosition: (guid) => combat.observedPosition(guid),
           remotePoses: handle.getRemotePoses(),
+          units: {
+            attackingMe: (guid) =>
+              handle.getCombatState().attackers?.includes(guid) === true,
+            relation: () => "unknown",
+          },
         },
         query,
       ),

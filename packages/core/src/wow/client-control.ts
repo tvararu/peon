@@ -1,4 +1,5 @@
 import type { GotoTarget, WalkTarget, WorldHandle } from "#wow/client";
+import { targetRelation } from "#wow/combat-actions-target";
 import type { ControlPose, MovementDirection, WalkOutcome } from "#wow/control";
 import { bearing } from "#wow/geometry";
 import {
@@ -11,7 +12,7 @@ import {
 } from "#wow/navigation";
 import { GROUND_ERROR } from "#wow/navigation-collision";
 import { observeNavigation } from "#wow/navigation-observation";
-import { queryNearby } from "#wow/nearby";
+import { type NearbySources, type NearbyUnits, queryNearby } from "#wow/nearby";
 import type { Runtimes } from "#wow/runtime";
 import type { WorldConn } from "#wow/world-conn";
 
@@ -183,6 +184,24 @@ function navigateTo(rt: Runtimes, target: GotoTarget): void {
   }
 }
 
+function nearbySources(conn: WorldConn, rt: Runtimes): NearbySources {
+  const control = rt.control.snapshot();
+  const entity = (guid: bigint) => conn.entityStore.get(guid);
+  const deps = { entity, factions: rt.factions };
+  const units: NearbyUnits = {
+    relation: (guid) => targetRelation(deps, guid, control.selfGuid),
+    attackingMe: (guid) => rt.combat.isAttackingSelf(guid),
+  };
+  return {
+    control,
+    entities: conn.entityStore.all(),
+    now: Date.now(),
+    observedPosition: (guid) => rt.combat.observedPosition(guid),
+    remotePoses: conn.remoteMotion.all(),
+    units,
+  };
+}
+
 export function controlMethods(conn: WorldConn, rt: Runtimes) {
   const { control } = rt;
   return {
@@ -235,16 +254,7 @@ export function controlMethods(conn: WorldConn, rt: Runtimes) {
       return conn.remoteMotion.all();
     },
     queryNearby(query) {
-      return queryNearby(
-        {
-          control: control.snapshot(),
-          entities: conn.entityStore.all(),
-          now: Date.now(),
-          observedPosition: (guid) => rt.combat.observedPosition(guid),
-          remotePoses: conn.remoteMotion.all(),
-        },
-        query,
-      );
+      return queryNearby(nearbySources(conn, rt), query);
     },
     onRemoteMotionEvent(cb) {
       return conn.events.remoteMotion.subscribe(cb);

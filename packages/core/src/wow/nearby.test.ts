@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import type { ControlPose } from "#wow/control";
 import type { Entity, Position, UnitEntity } from "#wow/entity-store";
-import { type NearbySources, queryNearby } from "#wow/nearby";
-import { ObjectType, UNIT_FIELDS } from "#wow/protocol/entity-fields";
+import type { FactionRelation } from "#wow/faction-template";
+import { type NearbySources, type NearbyUnits, queryNearby } from "#wow/nearby";
+import { ObjectType, UNIT_FIELDS, UnitFlag } from "#wow/protocol/entity-fields";
 import type { RemotePose } from "#wow/remote-motion";
 
 const SELF = 1n;
@@ -240,6 +241,77 @@ describe("npc roles", () => {
     expect(rows.map((row) => row.roles)).toEqual([
       ["questgiver", "vendor"],
       [],
+    ]);
+  });
+});
+
+describe("unit standing", () => {
+  const relations = new Map<bigint, FactionRelation>([
+    [2n, "hostile"],
+    [3n, "friendly"],
+    [4n, "neutral"],
+    [5n, "hostile"],
+  ]);
+  const units: NearbyUnits = {
+    attackingMe: (guid) => guid === 2n,
+    relation: (guid) => relations.get(guid) ?? "unknown",
+  };
+  const standing = [
+    unit(2n, { target: SELF }),
+    unit(3n, { position: at(2, 0) }),
+    unit(4n, { position: at(3, 0), unitFlags: UnitFlag.NOT_SELECTABLE }),
+    unit(5n, { health: 0, position: at(4, 0) }),
+  ];
+
+  test("fills relation, attackable, attackingMe and targetOf from the units source", () => {
+    const rows = queryNearby({ ...sources(pose(0, 0), standing), units });
+    expect(
+      rows.map((row) => [
+        row.relation,
+        row.attackable,
+        row.attackingMe,
+        row.targetOf,
+      ]),
+    ).toEqual([
+      ["hostile", true, true, SELF],
+      ["friendly", false, false, undefined],
+      ["neutral", false, false, undefined],
+      ["hostile", false, false, undefined],
+    ]);
+  });
+
+  test("without a units source every relation stays unknown, never neutral", () => {
+    const [row] = queryNearby(
+      sources(pose(0, 0), [unit(2n, { target: SELF })]),
+    );
+    expect(row).toMatchObject({
+      attackable: false,
+      attackingMe: false,
+      relation: "unknown",
+      targetOf: SELF,
+    });
+  });
+
+  test("the self row and game objects keep neutral standing", () => {
+    const post = { ...entity(9n, at(5, 0)), objectType: ObjectType.GAMEOBJECT };
+    const always: NearbyUnits = {
+      attackingMe: () => true,
+      relation: () => "hostile",
+    };
+    const rows = queryNearby({
+      ...sources(pose(0, 0), [unit(SELF, { position: at(0, 0) }), post]),
+      units: always,
+    });
+    expect(
+      rows.map((row) => [
+        row.self,
+        row.relation,
+        row.attackable,
+        row.attackingMe,
+      ]),
+    ).toEqual([
+      [true, "unknown", false, false],
+      [false, "unknown", false, false],
     ]);
   });
 });

@@ -206,3 +206,36 @@ test("notice, cycle and trainer triggers reach their hooks", () => {
   });
   expect(seen).toEqual(["Weather change", "stopped", "listed"]);
 });
+
+test("mock queryNearby marks attackers from the combat state", () => {
+  const handle = createMockHandle();
+  const npc = {
+    class_: 0,
+    displayId: 0,
+    entry: 1,
+    factionTemplate: 0,
+    gender: 0,
+    guid: 7n,
+    health: 100,
+    level: 1,
+    maxHealth: 100,
+    maxPower: [],
+    name: "Wolf",
+    npcFlags: 0,
+    objectType: ObjectType.UNIT,
+    position: undefined,
+    power: [],
+    race: 0,
+    rawFields: new Map(),
+    scale: 1,
+    target: 0n,
+    unitFlags: 0,
+  } satisfies UnitEntity;
+  const base = handle.getCombatState();
+  handle.getNearbyEntities = () => [npc];
+  handle.getCombatState = () => ({ ...base, attackers: [7n] });
+  expect(handle.queryNearby()[0]).toMatchObject({
+    attackingMe: true,
+    relation: "unknown",
+  });
+});
