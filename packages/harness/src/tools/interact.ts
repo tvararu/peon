@@ -188,7 +188,10 @@ async function runInteract(
   try {
     return await step({ args, ctx, npc });
   } finally {
-    await ctx.rt.mutex.run(() => ctx.handle.cancelInteraction());
+    await ctx.rt.mutex.run(() => {
+      ctx.handle.takeControl("manual_override");
+      ctx.handle.cancelInteraction();
+    });
   }
 }
 

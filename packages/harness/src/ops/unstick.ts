@@ -94,6 +94,7 @@ export async function unstick(
   away?: Compass,
 ): Promise<UnstickResult> {
   const pose = needPose(ctx);
+  ctx.handle.takeControl("manual_override");
   const good = ctx.rt.travel.lastGoodPose;
   const refusedGoal = ctx.rt.travel.lastRefusedGoal;
   const back =

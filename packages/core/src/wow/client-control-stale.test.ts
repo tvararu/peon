@@ -26,7 +26,6 @@ function walked() {
     observedTarget: () => {
       throw new Error("target_not_observed");
     },
-    steer: (reason?: string) => control.runtime.halt(reason),
   } as unknown as Runtimes;
   const handle = controlMethods({} as WorldConn, rt);
   const start = must(control.runtime.snapshot().pose);

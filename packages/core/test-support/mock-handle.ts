@@ -362,6 +362,9 @@ export function createMockHandle(): MockHandle {
     stopCycle: jest.fn(() => {
       cycle.stop("manual_override");
     }),
+    takeControl: jest.fn((reason: string) => {
+      cycle.stop(reason);
+    }),
     takeLoot: jest.fn(),
     takeLootMoney: jest.fn(),
     talk: jest.fn(),

@@ -32,7 +32,11 @@ function waitLife(
   return settle<RecoveryEvent>({
     match: (event) =>
       event.type === "life_observed" && event.state.life === life,
-    send: () => ctx.rt.mutex.run(send),
+    send: () =>
+      ctx.rt.mutex.run(() => {
+        ctx.handle.takeControl("manual_override");
+        send();
+      }),
     signal: ctx.signal,
     subscribe: (cb) => ctx.handle.onRecoveryEvent(cb),
     timeoutMs,

@@ -50,8 +50,8 @@ test("tactical authority survives stationary waits but root stops navigation", (
   jest.useFakeTimers();
   try {
     const { runtime } = setup();
-    runtime.setMode("jev");
-    expect(runtime.snapshot().owner).toBe("jev");
+    runtime.setLease("loop");
+    expect(runtime.snapshot().owner).toBe("loop");
     const start = must(runtime.snapshot().pose);
     const destination = { x: start.x + 20, y: start.y, z: start.z };
     const ground: NativeMap = {
@@ -69,7 +69,7 @@ test("tactical authority survives stationary waits but root stops navigation", (
     runtime.forceRoot(1);
     expect(runtime.navigationState().active).toBe(false);
     expect(runtime.navigationState().blockedReason).toBe("root");
-    runtime.setMode("none");
+    runtime.setLease("manual");
     expect(runtime.snapshot().owner).toBe("none");
   } finally {
     jest.useRealTimers();

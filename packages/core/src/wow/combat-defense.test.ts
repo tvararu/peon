@@ -48,8 +48,8 @@ function setup(over: {
         },
       },
       control: {
-        setMode: (mode) => {
-          sent.push(`mode:${mode}`);
+        setLease: (lease) => {
+          sent.push(`lease:${lease}`);
         },
         halt: () => {
           sent.push("control_halt");
@@ -65,7 +65,7 @@ function setup(over: {
 test("a live creature attacking the character gets auto-attack", () => {
   expect(setup({ mobHealth: 50, attackingSelf: true })).toEqual({
     defense: "auto_attack",
-    sent: ["mode:none", "control_halt", "attack:2"],
+    sent: ["lease:manual", "control_halt", "attack:2"],
   });
 });
 
@@ -77,13 +77,13 @@ test("a creature targeting the character in combat counts as attacking", () => {
 test("an existing swing on the target is kept without resending", () => {
   expect(
     setup({ mobHealth: 50, attackingSelf: true, attacking: true }).sent,
-  ).toEqual(["mode:none", "control_halt"]);
+  ).toEqual(["lease:manual", "control_halt"]);
 });
 
 test("without a live attacker the character is released and flagged", () => {
   expect(setup({ mobHealth: 0, attackingSelf: true })).toEqual({
     defense: "uncontrolled_in_combat",
-    sent: ["mode:none", "control_halt", "combat_halt"],
+    sent: ["lease:manual", "control_halt", "combat_halt"],
   });
   expect(setup({ mobHealth: 50, selfFlags: 0 }).defense).toBe("none");
 });

@@ -53,8 +53,7 @@ export type Runtimes = {
   navigation: () => Navigation;
   observedTarget: (guid: bigint) => NavPoint;
   halt: () => void;
-  override: (reason?: string) => void;
-  steer: (reason?: string) => void;
+  takeControl: (reason: string) => void;
   dispose: (sendStop: boolean) => void;
 };
 
@@ -328,27 +327,6 @@ function createCombat(
   return { combat, actions, trainer };
 }
 
-function manualControl(
-  parts: RuntimeParts,
-  halt: (reason?: string) => void,
-  haltMovement: (reason: string) => void,
-): Pick<Runtimes, "override" | "steer"> {
-  function takeOver(): void {
-    parts.cycle.stop("manual_override");
-    parts.tactics.stop("manual_override");
-  }
-  return {
-    override(reason): void {
-      takeOver();
-      halt(reason);
-    },
-    steer(reason = "halt"): void {
-      takeOver();
-      haltMovement(reason);
-    },
-  };
-}
-
 export function catalogAccess(
   config: ClientConfig,
   lazy: LazyState,
@@ -414,14 +392,10 @@ export function createRuntimes(
   );
   const data = catalogAccess(config, lazy, combat, control);
   const { approach, bind } = lateApproach(getNavigation);
-  function haltMovement(reason: string): void {
-    if (lazy.disposed) return;
-    control.setMode("none");
-    control.halt(reason);
-  }
   function rawHalt(reason = "halt"): void {
     if (lazy.disposed) return;
-    haltMovement(reason);
+    control.setLease("manual");
+    control.halt(reason);
     combat.halt();
   }
   const tactics = createTactics(conn, config, {
@@ -451,7 +425,10 @@ export function createRuntimes(
     navigation: getNavigation,
     observedTarget,
     halt: () => rawHalt(),
-    ...manualControl(parts, rawHalt, haltMovement),
+    takeControl(reason): void {
+      parts.cycle.stop(reason);
+      parts.tactics.stop(reason);
+    },
     dispose(sendStop: boolean): void {
       if (lazy.disposed) return;
       disposeParts(parts, lazy, { sendStop, halt: rawHalt, unwire });

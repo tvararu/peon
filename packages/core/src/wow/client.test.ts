@@ -220,7 +220,7 @@ describe("session lifecycle", () => {
     }
   });
 
-  test("manual move takes control from an active encounter cycle", async () => {
+  test("a raw move leaves the cycle running until takeControl stops it", async () => {
     const server = await startMockWorldServer({
       loginMapId: 530,
       coalesceSelfCreate: true,
@@ -234,10 +234,13 @@ describe("session lifecycle", () => {
         const running = handle.startCycle([0x99n], "stay alive", 1);
         expect(handle.getCycleState().active).toBe(true);
         handle.move("forward", 1000);
+        expect(handle.getCycleState().active).toBe(true);
+        handle.takeControl("manual_override");
         expect(handle.getCycleState()).toMatchObject({
           active: false,
           stopCause: "manual_override",
         });
+        handle.move("forward", 1000);
         expect(handle.getControlState().owner).toBe("manual");
         await running;
       } finally {

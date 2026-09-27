@@ -1,6 +1,6 @@
 import type {
   ControlDeps,
-  ControlMode,
+  ControlLease,
   ControlPose,
   NavigationState,
 } from "#wow/control";
@@ -30,7 +30,7 @@ export type RouteParts = {
   sync: MovementSync;
   mover: Mover;
   emit: Emit;
-  mode: () => ControlMode;
+  lease: () => ControlLease;
 };
 
 export type RouteRefusal = {
@@ -94,7 +94,7 @@ export class RouteFollower {
   private readonly sync: MovementSync;
   private readonly mover: Mover;
   private readonly emit: Emit;
-  private readonly mode: () => ControlMode;
+  private readonly lease: () => ControlLease;
   private active: RouteGuide | undefined;
   private session: RouteSession | undefined;
   private replanTimer: ReturnType<typeof setTimeout> | undefined;
@@ -107,12 +107,12 @@ export class RouteFollower {
     refusal: undefined,
   };
 
-  constructor({ deps, sync, mover, emit, mode }: RouteParts) {
+  constructor({ deps, sync, mover, emit, lease }: RouteParts) {
     this.deps = deps;
     this.sync = sync;
     this.mover = mover;
     this.emit = emit;
-    this.mode = mode;
+    this.lease = lease;
   }
 
   following(): boolean {
@@ -233,13 +233,12 @@ export class RouteFollower {
     }
     this.mover.face(route.sample(0).orientation);
     const guide = new RouteGuide({ route, sync: this.sync, follower: this });
-    const mode = this.mode();
     this.active = guide;
     this.navigation = {
       active: true,
       destination: { ...destination },
       remaining: route.length,
-      owner: mode === "none" ? "manual" : mode,
+      owner: this.lease(),
       blockedReason: undefined,
       refusal: undefined,
       replan: this.session?.snapshot(),

@@ -104,7 +104,6 @@ type UseDeps = {
   inventory: () => InventoryState;
   templates: Pick<ItemTemplates, "lookup">;
   combat: Pick<CombatRuntime, "useItem">;
-  override: () => void;
 };
 
 export async function useItem(
@@ -123,7 +122,6 @@ export async function useItem(
   if (!spell) throw new Error("no_use_spell");
   if (occupiedSlot(deps.inventory(), bag, slot).guid !== occupied.guid)
     throw new Error("slot_changed");
-  deps.override();
   deps.combat.useItem(spell.id, { entry, bag, slot, guid: occupied.guid });
 }
 
