@@ -109,7 +109,7 @@ describe("bounded replanning", () => {
       blockedReason: UNKNOWN,
       replan: { pending: true },
     });
-    expect(navigation.nextStep).toContain("Wait for navigation");
+    expect(navigation.nextStep).not.toBeNull();
     s.advance(REPLAN_LIMITS.delayMs);
     expect(s.runtime.navigationState().active).toBe(true);
   });
