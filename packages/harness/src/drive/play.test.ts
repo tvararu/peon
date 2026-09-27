@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { RunEnd } from "#harness/contract/runs";
-import { Play, WIDGET } from "#harness/drive/play";
+import { Play, targetOf, WIDGET } from "#harness/drive/play";
 import { Refusal } from "#harness/ops/refusal";
 import { admitAgent } from "#harness/tools/human-admission";
 import { createWorldService } from "#harness/world/hub";
+import type { WorldReads } from "#harness/world/service";
 import { manualTimers } from "#test-support/drive-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 
@@ -171,6 +172,16 @@ describe("Play", () => {
     await rt.connect();
     expect(play.input("w")).toBeUndefined();
     expect(rt.control.owner()).toBe("none");
+  });
+
+  test("keys aim at the target the human last asked for over a stale server selection", () => {
+    const reads = (requestedTarget?: bigint) =>
+      ({
+        getCombatState: () => ({ selectedGuid: 4n }),
+        getControlState: () => ({ requestedTarget }),
+      }) as unknown as WorldReads;
+    expect(targetOf(reads(9n))).toBe(9n);
+    expect(targetOf(reads())).toBe(4n);
   });
 
   test("F9 is left to the stop shortcut and drops the held keys", async () => {

@@ -42,10 +42,10 @@ const KEY_LABEL: Record<string, string> = {
   w: "W",
 };
 
-function targetOf(reads: WorldReads): bigint | undefined {
+export function targetOf(reads: WorldReads): bigint | undefined {
   return (
-    reads.getCombatState().selectedGuid ??
-    reads.getControlState().requestedTarget
+    reads.getControlState().requestedTarget ??
+    reads.getCombatState().selectedGuid
   );
 }
 
