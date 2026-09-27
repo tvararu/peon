@@ -86,6 +86,7 @@ export function notAtLastKnown(ops: OpsCtx, unit: UnitView): Refusal {
     last.distance === undefined
       ? ""
       : `${Math.round(last.distance)} yd${last.compass ? ` ${last.compass}` : ""} of you, `;
+  ops.rt.sightings.forget(BigInt(`0x${unit.guid}`));
   return new Refusal({
     detail: `${last.name} ${last.ref} is not where it was last seen (${where}${ageText(last.seenAgoMs)} ago).`,
     next: lastKnownLook(last),

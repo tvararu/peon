@@ -4,6 +4,7 @@ import { pinnedBy } from "#harness/ops/remembered";
 import { createSightings, SIGHTING_TTL_MS } from "#harness/ops/sightings";
 import { unitViews } from "#harness/ops/views";
 import { interactSpec } from "#harness/tools/interact";
+import { lookTool } from "#harness/tools/look";
 import { travelSpec } from "#harness/tools/travel";
 import {
   driveGoto,
@@ -14,6 +15,7 @@ import {
 } from "#test-support/ops-fixtures";
 import { answer } from "#test-support/quest-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
+import { runTool } from "#test-support/tool-harness";
 
 const ERONA = 0x40n;
 const RESPAWNED = 0x41n;
@@ -108,6 +110,16 @@ describe("remembered NPCs", () => {
     expect(res.detail).toMatch(
       /^Magistrix Erona u\d+ is not where it was last seen \(8 yd N of you, 3 min ago\)\./,
     );
+  });
+
+  test("after not_at_last_known the next look no longer lists the old point", async () => {
+    const t = await remembered();
+    const look = () => runTool(lookTool(t.rt), { find: "questgiver" });
+    expect((await look()).text).toContain("Magistrix Erona");
+    driveGoto(t.handle, [{ arrive: { x: 98, y: 0, z: 5 } }]);
+    await travelSpec.run({ to: "Magistrix Erona" }, toolCtx<TravelAfter>(t));
+    expect(t.rt.sightings.get(ERONA)).toBeUndefined();
+    expect((await look()).text).not.toContain("Magistrix Erona");
   });
 
   test("interact with a questgiver out of view walks to it and talks", async () => {

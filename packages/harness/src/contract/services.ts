@@ -81,6 +81,7 @@ export type Sightings = HandleObserver & {
   note: (row: NearbyRow) => void;
   get: (guid: bigint) => Sighting | undefined;
   all: () => Sighting[];
+  forget: (guid: bigint) => void;
   prune: (now: number) => void;
 };
 

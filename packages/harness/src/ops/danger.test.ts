@@ -258,6 +258,7 @@ describe("dangerView and dangerLine", () => {
     const sightings: Sightings = {
       all: () => [wyrm],
       attach: () => () => {},
+      forget: () => {},
       get: (guid) => (guid === 0x60n ? wyrm : undefined),
       note: () => {},
       prune: () => {},

@@ -96,6 +96,9 @@ export function createSightings(
           fromEntity(event.entity, seen.get(event.entity.guid), clock.now()),
         );
       }),
+    forget: (guid) => {
+      seen.delete(guid);
+    },
     get(guid) {
       const sighting = seen.get(guid);
       return sighting && fresh(sighting) ? sighting : undefined;

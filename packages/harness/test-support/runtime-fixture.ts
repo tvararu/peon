@@ -178,6 +178,7 @@ function defaultParts({
     sightings: {
       ...detached,
       all: () => [],
+      forget: () => {},
       get: () => undefined,
       note: () => {},
       prune: () => {},
