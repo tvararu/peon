@@ -107,6 +107,30 @@ function offerDialog(questId: number, title: string): QuestDialog {
   };
 }
 
+function requestDialog(
+  questId: number,
+  title: string,
+  flags: number,
+): QuestDialog {
+  return {
+    data: {
+      closeOnCancel: 0,
+      completionFlags: [flags, 4, 8, 16],
+      emote: 0,
+      flags: 0,
+      guid: VELAN,
+      items: [],
+      questId,
+      requestText: "",
+      requiredMoney: 0,
+      suggestedPlayers: 0,
+      title,
+      unknown: 0,
+    },
+    kind: "requestItems",
+  };
+}
+
 function answer(
   handle: MockHandle,
   type: QuestEvent["type"],
@@ -265,6 +289,108 @@ describe("interact", () => {
       detail: "turned in Thinning the Ranks #8325.",
       status: "DONE",
     });
+  });
+
+  test("talk reads a completed request-items dialog as ready to turn in", async () => {
+    const { t } = await velan();
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", {
+        dialog: requestDialog(8326, "Unfortunate Measures", 3),
+      });
+    const res = await interactSpec.run(
+      { npc: "Velan Brightoak" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(res.after.offers).toMatchObject([{ id: 8326, state: "ready" }]);
+    expect(res.body).toContain(
+      "Ready to turn in: 1. Unfortunate Measures #8326. Not a vendor or trainer.",
+    );
+  });
+
+  test("talk reads an unfinished request-items dialog as incomplete", async () => {
+    const { t } = await velan();
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", {
+        dialog: requestDialog(8326, "Unfortunate Measures", 0),
+      });
+    const res = await interactSpec.run(
+      { npc: "Velan Brightoak" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(res.after.offers).toMatchObject([{ id: 8326, state: "incomplete" }]);
+  });
+
+  test("turn_in from a completed request-items dialog asks for the reward", async () => {
+    const { t } = await velan();
+    const sent: string[] = [];
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", {
+        dialog: requestDialog(8326, "Unfortunate Measures", 3),
+      });
+    t.handle.completeQuest = () => {
+      sent.push("complete");
+    };
+    t.handle.requestQuestReward = () => {
+      sent.push("request");
+      answer(t.handle, "dialog", {
+        dialog: offerDialog(8326, "Unfortunate Measures"),
+      });
+    };
+    t.handle.chooseQuestReward = (index) => {
+      sent.push(`choose ${index}`);
+      answer(t.handle, "rewarded", {}, 8326);
+    };
+    const res = await interactSpec.run(
+      { do: "turn_in", npc: "Velan Brightoak", reward: 1 },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(sent).toEqual(["request", "choose 0"]);
+    expect(res).toMatchObject({
+      detail: "turned in Unfortunate Measures #8326.",
+      status: "DONE",
+    });
+  });
+
+  test("turn_in refuses an unfinished request-items quest", async () => {
+    const { t } = await velan();
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", {
+        dialog: requestDialog(8326, "Unfortunate Measures", 0),
+      });
+    await expect(
+      interactSpec.run(
+        { do: "turn_in", npc: "Velan Brightoak" },
+        toolCtx<InteractAfter>(t),
+      ),
+    ).rejects.toMatchObject({ reason: "not_complete" });
+  });
+
+  test("turn_in refuses a reward number past the choices", async () => {
+    const { t } = await velan();
+    const chosen: number[] = [];
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", {
+        dialog: requestDialog(8326, "Unfortunate Measures", 3),
+      });
+    t.handle.requestQuestReward = () =>
+      answer(t.handle, "dialog", {
+        dialog: offerDialog(8326, "Unfortunate Measures"),
+      });
+    t.handle.chooseQuestReward = (index) => {
+      chosen.push(index);
+    };
+    await expect(
+      interactSpec.run(
+        { do: "turn_in", npc: "Velan Brightoak", reward: 3 },
+        toolCtx<InteractAfter>(t),
+      ),
+    ).rejects.toMatchObject({
+      body: ["1. item 2046 x1", "2. item 2047 x1"],
+      detail:
+        "reward 3 is not one of the 2 choices; pick a reward for Unfortunate Measures.",
+      reason: "reward_needed",
+    });
+    expect(chosen).toEqual([]);
   });
 
   test("an NPC out of talk range is walked to first", async () => {

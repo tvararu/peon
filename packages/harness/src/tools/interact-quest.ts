@@ -147,9 +147,19 @@ function menuState(
   return slot && questSlotStatus(slot) === "complete" ? "ready" : "incomplete";
 }
 
-function singleState(kind: QuestDialog["kind"]): QuestOffer["state"] {
-  if (kind === "details") return "available";
-  if (kind === "offer") return "ready";
+const COMPLETABLE_BITS = 4;
+const COMPLETABLE = 3;
+
+function completable(dialog: QuestDialog): boolean {
+  return (
+    dialog.kind === "requestItems" &&
+    dialog.data.completionFlags[0] % COMPLETABLE_BITS === COMPLETABLE
+  );
+}
+
+function singleState(dialog: QuestDialog): QuestOffer["state"] {
+  if (dialog.kind === "details") return "available";
+  if (dialog.kind === "offer" || completable(dialog)) return "ready";
   return "incomplete";
 }
 
@@ -171,7 +181,7 @@ export function offersOf(
       id: dialog.data.questId,
       level: undefined,
       line: 1,
-      state: singleState(dialog.kind),
+      state: singleState(dialog),
       title: dialog.data.title,
     },
   ];
@@ -278,12 +288,17 @@ async function rewardOffer(
   ctx: ToolCtx<InteractAfter>,
   questId: number,
 ): Promise<QuestDialog | undefined> {
-  const shown = await questStep(ctx, {
-    match: (event) =>
-      event.type === "dialog" &&
-      ["offer", "requestItems"].includes(event.state.dialog?.kind ?? ""),
-    packet: () => ctx.handle.completeQuest(questId),
-  });
+  const open = ctx.handle.getQuestState().dialog;
+  const pending =
+    open?.kind === "requestItems" && open.data.questId === questId;
+  const shown =
+    pending ||
+    (await questStep(ctx, {
+      match: (event) =>
+        event.type === "dialog" &&
+        ["offer", "requestItems"].includes(event.state.dialog?.kind ?? ""),
+      packet: () => ctx.handle.completeQuest(questId),
+    }));
   if (!shown) return;
   if (ctx.handle.getQuestState().dialog?.kind === "requestItems")
     await questStep(ctx, {
@@ -327,12 +342,17 @@ function rewardRefusal(
   npc: NpcTarget,
   offer: QuestOffer,
   choices: readonly RewardChoice[],
+  asked: number | undefined,
 ): Refusal {
+  const wrong =
+    asked === undefined
+      ? ""
+      : `reward ${asked} is not one of the ${choices.length} choices; `;
   return new Refusal({
     body: choices.map(
       (choice) => `${choice.index}. ${choice.name} x${choice.count}`,
     ),
-    detail: `pick a reward for ${offer.title}.`,
+    detail: `${wrong}pick a reward for ${offer.title}.`,
     next: nextCall("interact", {
       do: "turn_in",
       npc: npc.unit.ref,
@@ -356,12 +376,17 @@ export const turnInStep: InteractStep = async (init) => {
   if (reward?.kind !== "offer")
     throw unanswered(npc, `with the reward of ${offer.title}`, retry);
   const rewardChoices = choicesOf(reward);
-  if (rewardChoices.length > 1 && args.reward === undefined)
-    throw rewardRefusal(npc, offer, rewardChoices);
+  const picking = rewardChoices.length > 1;
+  if (
+    picking &&
+    (args.reward === undefined || args.reward > rewardChoices.length)
+  )
+    throw rewardRefusal(npc, offer, rewardChoices, args.reward);
   const before = ctx.handle.getInventoryState().coinage;
   const rewarded = await questStep(ctx, {
     match: (event) => event.type === "rewarded" && event.questId === offer.id,
-    packet: () => ctx.handle.chooseQuestReward((args.reward ?? 1) - 1),
+    packet: () =>
+      ctx.handle.chooseQuestReward(picking ? (args.reward ?? 1) - 1 : 0),
     timeoutMs: ANSWER_MS,
   });
   if (!rewarded) throw unanswered(npc, `the turn-in of ${offer.title}`, retry);
