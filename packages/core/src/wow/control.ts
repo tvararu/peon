@@ -35,9 +35,6 @@ export type WalkOutcome = {
   reason?: string;
 };
 
-export type ControlLease = "loop" | "manual";
-export type ControlOwner = ControlLease | "none";
-
 export type ControlState = {
   selfGuid: bigint;
   pose: ControlPose | undefined;
@@ -49,7 +46,6 @@ export type ControlState = {
   movementAllowed: boolean;
   blockedReason: string | undefined;
   speed: number;
-  owner: ControlOwner;
 };
 
 export type ControlEventType =
@@ -95,7 +91,6 @@ export class ControlRuntime {
   private readonly sync: MovementSync;
   private readonly mover: Mover;
   private readonly stops = new Emitter<[string]>();
-  private lease: ControlLease = "manual";
   private requestedTarget: bigint | undefined;
 
   constructor(deps: ControlDeps) {
@@ -136,7 +131,6 @@ export class ControlRuntime {
       movementAllowed: block === undefined,
       blockedReason: block ?? mover.blockedReason,
       speed: mover.currentSpeed() ?? 0,
-      owner: this.lease === "manual" ? mover.owner : this.lease,
     };
   }
 
@@ -196,13 +190,6 @@ export class ControlRuntime {
     this.sync.setCanFly(counter, enable);
   }
 
-  setLease(lease: ControlLease): void {
-    if (this.lease === lease) return;
-    this.lease = lease;
-    this.mover.stop("lease_changed", true);
-    this.emit("control_changed", "lease_changed");
-  }
-
   follow(guide: MovementGuide, facing: number, durationMs: number): void {
     this.mover.guard("forward");
     this.mover.face(facing);
@@ -228,7 +215,6 @@ export class ControlRuntime {
         reason: "abort",
       });
 
-    this.setLease("manual");
     this.mover.stop("walk_replaced", true);
     const pose = this.sync.requirePose();
     const separation = distance2d(pose, target);
@@ -288,7 +274,6 @@ export class ControlRuntime {
 
   dispose(): void {
     this.events.clear();
-    this.lease = "manual";
     this.mover.abort("close");
     this.stops.clear();
   }

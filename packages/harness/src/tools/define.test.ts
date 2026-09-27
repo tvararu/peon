@@ -161,6 +161,21 @@ describe("defineGameTool", () => {
     );
   });
 
+  test("refuses an action while the human drives; a read still runs", async () => {
+    const { rt } = await createTestRuntime();
+    rt.control.claim("human", "drive");
+    expect((await runTool(probe(said)(rt), {})).text).toBe(
+      "REFUSED human_driving: the human is driving the character.\nNext: end your turn and wait for the human to hand back.",
+    );
+    expect((await runTool(probe(said, "read")(rt), {})).text).toBe(
+      "DONE said hi.",
+    );
+    expect(rt.control.owner()).toBe("human");
+    rt.control.release("human", "hand_back");
+    expect((await runTool(probe(said)(rt), {})).text).toBe("DONE said hi.");
+    expect(rt.control.owner()).toBe("agent");
+  });
+
   test("the human_waiting refusal quotes the pending message", async () => {
     const { rt } = await createTestRuntime();
     rt.session.humanWaiting = true;

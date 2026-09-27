@@ -189,6 +189,59 @@ describe("installInput", () => {
     });
   });
 
+  test("a run that outlives the turn passes to the loop until the agent takes over", async () => {
+    const { fake, handle, rt } = await setup();
+    await fake.emit({ type: "agent_start" });
+    rt.control.claim("agent", "travel");
+    rt.runs.start({
+      args: {},
+      kind: "travel",
+      launch: ({ signal }) => waitForAbort(signal),
+      toolCallId: "t1",
+    });
+    await fake.emit({ messages: [], type: "agent_end" });
+    expect(rt.control.owner()).toBe("loop");
+    await fake.emit({ type: "agent_start" });
+    expect(rt.control.claim("agent", "engage").granted).toBe(true);
+    expect(rt.runs.get("r1")).toMatchObject({
+      reason: "stopped_by_tool",
+      status: "cancelled",
+    });
+    expect(handle.halt).toHaveBeenCalled();
+    await fake.emit({ messages: [], type: "agent_end" });
+    expect(rt.control.owner()).toBe("none");
+  });
+
+  test("a background run ending frees the body", async () => {
+    const { fake, rt } = await setup();
+    const { promise, resolve } = Promise.withResolvers<RunEnd<undefined>>();
+    rt.runs.start({
+      args: {},
+      kind: "rest",
+      launch: () => promise,
+      toolCallId: "t1",
+    });
+    await fake.emit({ messages: [], type: "agent_end" });
+    expect(rt.control.owner()).toBe("loop");
+    resolve({ status: "succeeded", summary: "rested", value: undefined });
+    await Bun.sleep(0);
+    expect(rt.control.owner()).toBe("none");
+  });
+
+  test("a stop reflex pre-empts the agent and hands the body back free", async () => {
+    const { fake, rt } = await setup();
+    rt.control.claim("agent", "engage");
+    rt.runs.start({
+      args: {},
+      kind: "engage",
+      launch: ({ signal }) => waitForAbort(signal),
+      toolCallId: "t1",
+    });
+    await fake.emit(human("stop"));
+    expect(rt.runs.get("r1")?.reason).toBe("human_stop");
+    expect(rt.control.owner()).toBe("none");
+  });
+
   test("F9 stops every run", async () => {
     const { fake, rt } = await setup();
     rt.runs.start({

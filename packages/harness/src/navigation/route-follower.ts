@@ -1,5 +1,4 @@
 import {
-  type ControlOwner,
   type ControlPose,
   type ControlState,
   distance2d,
@@ -31,7 +30,6 @@ export type NavigationState = {
   active: boolean;
   destination: NavDestination | undefined;
   remaining: number | undefined;
-  owner: ControlOwner;
   blockedReason: string | undefined;
   refusal: NavigationRefusal | undefined;
   target?: bigint;
@@ -116,7 +114,6 @@ export class RouteFollower {
     active: false,
     blockedReason: undefined,
     destination: undefined,
-    owner: "none",
     refusal: undefined,
     remaining: undefined,
   };
@@ -156,7 +153,6 @@ export class RouteFollower {
       active: false,
       blockedReason: reason,
       destination: destination ? { ...destination } : undefined,
-      owner: "none",
       refusal: refusal ?? classifyNavigationRefusal(reason),
       remaining: undefined,
       target,
@@ -218,7 +214,6 @@ export class RouteFollower {
       ...this.navigation,
       active: false,
       blockedReason: reason === "arrived" ? undefined : reason,
-      owner: "none",
       refusal:
         reason === "arrived" ? undefined : classifyNavigationRefusal(reason),
       replan: session?.snapshot(),
@@ -249,7 +244,6 @@ export class RouteFollower {
         active: false,
         blockedReason: undefined,
         destination,
-        owner: "none",
         refusal: undefined,
         remaining: 0,
         replan: this.session?.snapshot(),
@@ -266,7 +260,6 @@ export class RouteFollower {
       active: true,
       blockedReason: undefined,
       destination: { ...destination },
-      owner: state.owner === "loop" ? "loop" : "manual",
       refusal: undefined,
       remaining: route.length,
       replan: this.session?.snapshot(),
@@ -315,7 +308,6 @@ export class RouteFollower {
       ...this.navigation,
       active: false,
       blockedReason: reason,
-      owner: "none",
       refusal: classifyNavigationRefusal(reason),
       replan: session?.snapshot(),
     };

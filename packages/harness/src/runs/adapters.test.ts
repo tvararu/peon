@@ -19,7 +19,6 @@ const idle: NavigationState = {
   active: false,
   blockedReason: undefined,
   destination: undefined,
-  owner: "none",
   refusal: undefined,
   remaining: undefined,
 };
@@ -44,7 +43,7 @@ function movingHandle() {
   handle.getNavigationState = () => nav;
   handle.getControlState = () => ({ ...base, pose: at });
   handle.goTo = jest.fn(() => {
-    nav = { ...idle, active: true, owner: "none" };
+    nav = { ...idle, active: true };
   });
   const stop = (next: NavigationState, x: number) => {
     nav = next;
