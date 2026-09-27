@@ -1,5 +1,14 @@
+import type {
+  AgentToolResult,
+  AgentToolUpdateCallback,
+} from "@earendil-works/pi-agent-core";
+import type { Static, TSchema } from "@earendil-works/pi-ai";
+import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type { WorldHandle } from "@tuicraft/core";
 import { JevUnavailableError, nextStepFor } from "@tuicraft/core";
 import { messageOf } from "@tuicraft/core/lib/errors";
+import { ignoreFailure } from "@tuicraft/core/lib/ignore-failure";
+import type { AfterMap, ToolDetails } from "#harness/contract/details";
 import type {
   ResultInit,
   ToolName,
@@ -7,12 +16,21 @@ import type {
   ToolStatus,
 } from "#harness/contract/result";
 import type {
+  HarnessRuntime,
+  RepeatCall,
+  ToolCtx,
+} from "#harness/contract/services";
+import type {
   PlaceView,
   SelfView,
   UnitView,
   VitalsView,
 } from "#harness/contract/views";
-
+import { dangerLine, dangerView } from "#harness/ops/danger";
+import { Refusal } from "#harness/ops/refusal";
+import { repeatRefusal } from "#harness/ops/repeat-guard";
+import { poseView } from "#harness/ops/views";
+import { TOOL_TEXT } from "#harness/prompt/guidelines";
 export const TURN_BUDGET = 40;
 export const READY_WAIT_MS = 10_000;
 export const UPDATE_EVERY_MS = 500;
@@ -213,4 +231,301 @@ export function emptyUnit(): UnitView {
     y: undefined,
     z: undefined,
   };
+}
+
+export type ToolKind = "read" | "action" | "run" | "control";
+
+export type GameToolSpec<P extends TSchema, K extends ToolName> = {
+  name: K;
+  kind: ToolKind;
+  parameters: P;
+  run: (
+    args: Static<P>,
+    ctx: ToolCtx<AfterMap[K]>,
+  ) => Promise<ToolResult<AfterMap[K]>>;
+  fallback: () => AfterMap[K];
+  maxLines?: number;
+};
+
+export type GameTool = ToolDefinition<TSchema, ToolDetails>;
+
+type Call<P extends TSchema, K extends ToolName> = {
+  args: Static<P>;
+  onUpdate: AgentToolUpdateCallback<ToolDetails> | undefined;
+  rt: HarnessRuntime;
+  signal: AbortSignal | undefined;
+  spec: GameToolSpec<P, K>;
+  state: { current: AfterMap[K]; updatedAt: number | undefined };
+  toolCallId: string;
+};
+
+type Closing<A> = {
+  handle: WorldHandle | undefined;
+  ms: number;
+  outcome: ToolResult<A>;
+};
+
+const ACTING: ReadonlySet<ToolKind> = new Set(["action", "run"]);
+const SECRET = "[secret]";
+const HUMAN_STOP: Mapped = {
+  detail: "the human stopped you. Start nothing new.",
+  next: "end your turn and wait for the human.",
+  reason: "cancelled",
+  status: "FAILED",
+};
+
+function detailsOf<K extends ToolName>(
+  tool: K,
+  outcome: ToolResult<AfterMap[K]>,
+): ToolDetails {
+  return { result: outcome, tool } as ToolDetails;
+}
+
+function scrub(value: unknown, secret: string): unknown {
+  if (secret.length === 0) return value;
+  if (typeof value === "string") return value.replaceAll(secret, SECRET);
+  if (Array.isArray(value)) return value.map((item) => scrub(item, secret));
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, scrub(item, secret)]),
+    );
+  return value;
+}
+
+function openCall<P extends TSchema, K extends ToolName>({
+  args,
+  rt,
+  spec,
+  toolCallId,
+}: Call<P, K>): void {
+  rt.session.turnToolCalls += 1;
+  const data = {
+    args: scrub(args, rt.profile.client.password),
+    name: spec.name,
+    toolCallId,
+  };
+  rt.log.append({
+    class: "log",
+    data,
+    domain: "tool",
+    event: "tool/call",
+    text: `${spec.name} called`,
+    tool: spec.name,
+  });
+  rt.stats.call(spec.name);
+}
+
+function repeatCall<P extends TSchema, K extends ToolName>(
+  { args, rt, spec }: Call<P, K>,
+  handle: WorldHandle,
+): RepeatCall {
+  return {
+    args,
+    digest: rt.progress.digest(handle),
+    pose: poseView({ handle, rt }),
+    tool: spec.name,
+  };
+}
+
+async function admit<P extends TSchema, K extends ToolName>(
+  call: Call<P, K>,
+): Promise<WorldHandle> {
+  const { rt, spec } = call;
+  if (rt.session.turnToolCalls > TURN_BUDGET)
+    throw new Refusal({
+      detail: "report to the human now.",
+      next: "end your turn and report to the human.",
+      reason: "turn_budget",
+    });
+  const handle = rt.requireHandle();
+  if (ACTING.has(spec.kind) && rt.session.humanWaiting) {
+    throw new Refusal({
+      detail: "the human wrote a message. Read it before you act.",
+      next: "end your turn and read the human's message.",
+      reason: "human_waiting",
+    });
+  }
+  if (!(await rt.ready.whenReady(READY_WAIT_MS))) {
+    throw new Refusal({
+      detail: "the world is still loading.",
+      next: "call look again in a few seconds.",
+      reason: "not_ready",
+    });
+  }
+  const hit =
+    spec.name === "look"
+      ? undefined
+      : rt.repeats.check(repeatCall(call, handle));
+  if (!hit) return handle;
+  rt.stats.repeatHit(spec.name);
+  throw repeatRefusal({ hit, tool: spec.name });
+}
+
+function pushUpdate<P extends TSchema, K extends ToolName>(
+  call: Call<P, K>,
+  partial: ToolResult<AfterMap[K]>,
+): void {
+  const { rt, spec, state } = call;
+  const running: ToolResult<AfterMap[K]> = { ...partial, status: "RUNNING" };
+  const now = rt.clock.now();
+  state.current = running.after;
+  if (state.updatedAt !== undefined && now - state.updatedAt < UPDATE_EVERY_MS)
+    return;
+  state.updatedAt = now;
+  const text = formatContent(running, {
+    danger: undefined,
+    maxLines: spec.maxLines ?? MAX_CONTENT_LINES,
+  });
+  call.onUpdate?.({
+    content: [{ text, type: "text" }],
+    details: detailsOf(spec.name, running),
+  });
+}
+
+function toolCtx<P extends TSchema, K extends ToolName>(
+  call: Call<P, K>,
+  handle: WorldHandle,
+): ToolCtx<AfterMap[K]> {
+  const signal = call.signal ?? new AbortController().signal;
+  return {
+    handle,
+    progress: ignoreFailure,
+    rt: call.rt,
+    signal,
+    toolCallId: call.toolCallId,
+    update: (partial) => pushUpdate(call, partial),
+  };
+}
+
+async function invoke<P extends TSchema, K extends ToolName>(
+  call: Call<P, K>,
+  handle: WorldHandle,
+): Promise<ToolResult<AfterMap[K]>> {
+  const { rt, signal, spec } = call;
+  const esc = () => {
+    rt.stopAll("esc");
+  };
+  signal?.addEventListener("abort", esc, { once: true });
+  try {
+    return await spec.run(call.args, toolCtx(call, handle));
+  } finally {
+    signal?.removeEventListener("abort", esc);
+  }
+}
+
+function fromRefusal<A>(refusal: Refusal, after: A): ToolResult<A> {
+  const { body, detail, next, options, reason, status } = refusal;
+  return { after, body, detail, next, options, reason, status };
+}
+
+async function outcomeOf<P extends TSchema, K extends ToolName>(
+  call: Call<P, K>,
+): Promise<ToolResult<AfterMap[K]>> {
+  try {
+    return await invoke(call, await admit(call));
+  } catch (error) {
+    return error instanceof Refusal
+      ? fromRefusal(error, call.state.current)
+      : coreErrorResult(error, call.state.current);
+  }
+}
+
+function withHumanStop<A>(outcome: ToolResult<A>): ToolResult<A> {
+  return outcome.reason === "human_stop"
+    ? { ...outcome, ...HUMAN_STOP }
+    : outcome;
+}
+
+function remember<P extends TSchema, K extends ToolName>(
+  call: Call<P, K>,
+  handle: WorldHandle,
+  outcome: ToolResult<AfterMap[K]>,
+): void {
+  const { args, rt, spec } = call;
+  const digest = rt.progress.digest(handle);
+  const untried = outcome.next ? [outcome.next] : [];
+  rt.repeats.record({
+    args,
+    digest,
+    pose: poseView({ handle, rt }),
+    result: outcome,
+    tool: spec.name,
+  });
+  rt.progress.afterAction({
+    digest,
+    reason: outcome.reason,
+    status: outcome.status,
+    tool: spec.name,
+    untried,
+  });
+}
+
+function closeCall<P extends TSchema, K extends ToolName>(
+  call: Call<P, K>,
+  { handle, ms, outcome }: Closing<AfterMap[K]>,
+): void {
+  const { rt, spec, toolCallId } = call;
+  const { reason, status } = outcome;
+  if (handle) remember(call, handle, outcome);
+  rt.stats.result({ ms, reason, status, tool: spec.name });
+  const text = reason
+    ? `${spec.name} ${status} ${reason}`
+    : `${spec.name} ${status}`;
+  rt.log.append({
+    class: "log",
+    data: { ms, reason, status, toolCallId },
+    domain: "tool",
+    event: "tool/result",
+    text,
+    tool: spec.name,
+  });
+  for (const row of outcome.evidence ?? [])
+    rt.log.mark(row.seq, { consumedBy: toolCallId });
+}
+
+async function runCall<P extends TSchema, K extends ToolName>(
+  call: Call<P, K>,
+): Promise<AgentToolResult<ToolDetails>> {
+  const { rt, spec } = call;
+  const startedAt = rt.clock.now();
+  openCall(call);
+  const outcome = withHumanStop(await outcomeOf(call));
+  const handle = rt.handle();
+  closeCall(call, { handle, ms: rt.clock.now() - startedAt, outcome });
+  const danger = handle
+    ? dangerLine(dangerView({ handle, rt }), { still: spec.kind === "control" })
+    : undefined;
+  const text = formatContent(outcome, {
+    danger,
+    maxLines: spec.maxLines ?? MAX_CONTENT_LINES,
+  });
+  return {
+    content: [{ text, type: "text" }],
+    details: detailsOf(spec.name, outcome),
+  };
+}
+
+export function defineGameTool<P extends TSchema, K extends ToolName>(
+  spec: GameToolSpec<P, K>,
+): (rt: HarnessRuntime) => GameTool {
+  const text = TOOL_TEXT[spec.name];
+  const executionMode = spec.kind === "read" ? "parallel" : "sequential";
+  return (rt) => ({
+    description: text.description,
+    execute: (toolCallId, args, signal, onUpdate) =>
+      runCall({
+        args: args as Static<P>,
+        onUpdate,
+        rt,
+        signal,
+        spec,
+        state: { current: spec.fallback(), updatedAt: undefined },
+        toolCallId,
+      }),
+    executionMode,
+    label: text.label,
+    name: spec.name,
+    parameters: spec.parameters,
+    promptGuidelines: text.guidelines,
+  });
 }
