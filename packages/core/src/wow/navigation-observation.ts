@@ -54,6 +54,14 @@ const CONTAINED_STEPS: readonly (readonly [string, string])[] = [
     "ground corridor changes surface",
     "The route's ground changes to another surface on the way, such as a ramp onto a platform. Choose a nearer waypoint on the same floor or another destination; do not repeat this goto unchanged.",
   ],
+  [
+    "path corner disagrees with connected ground",
+    "A turn of the route is where the mesh and the ground heights do not agree, such as the edge of a step or a slope. Choose a nearer waypoint on open ground or another destination; do not repeat this goto unchanged.",
+  ],
+  [
+    "ground corridor collision",
+    "A straight part of the route hits an object or a wall. Choose a nearer waypoint in open ground or another destination; do not repeat this goto unchanged.",
+  ],
 ];
 
 export function nextStepFor(reason: string | undefined): string | null {

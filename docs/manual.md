@@ -653,6 +653,13 @@ then plan again; do not repeat the `goto` from that pose.
 `ground corridor changes surface` (`refusal=stop`) means the route's ground
 changes to another surface on the way, such as a ramp onto a platform. Choose
 a nearer waypoint on the same floor or another destination.
+`path corner disagrees with connected ground` (`refusal=stop`) means a turn
+of the route is where the mesh and the ground heights do not agree, such as
+the edge of a step or a slope. Choose a nearer waypoint on open ground or
+another destination; do not repeat the `goto` unchanged.
+`ground corridor collision` (`refusal=stop`) means a straight part of the
+route hits an object or a wall. Choose a nearer waypoint in open ground or
+another destination; do not repeat the `goto` unchanged.
 `refusal=unreachable` means the navigation mesh cannot connect the start to
 the destination: native `UNKNOWN_PATH`, a path that ends away from the
 requested point, or a path that omits it. Choose another destination; the

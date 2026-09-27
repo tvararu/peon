@@ -74,6 +74,20 @@ describe("nextStepFor", () => {
     expect(hint).toContain("nearer waypoint on the same floor");
   });
 
+  test("a path corner that disagrees with the ground names a nearer waypoint", () => {
+    const hint = nextStepFor("path corner disagrees with connected ground");
+    expect(hint).toContain("mesh and the ground");
+    expect(hint).toContain("nearer waypoint on open ground");
+    expect(hint).toContain("do not repeat this goto unchanged");
+  });
+
+  test("a corridor collision names open ground, not a retry", () => {
+    const hint = nextStepFor("ground corridor collision");
+    expect(hint).toContain("hits an object or a wall");
+    expect(hint).toContain("nearer waypoint in open ground");
+    expect(hint).toContain("do not repeat this goto unchanged");
+  });
+
   test("other or missing reasons have no hint", () => {
     expect(nextStepFor(undefined)).toBeNull();
     expect(nextStepFor("rooted")).toBeNull();
