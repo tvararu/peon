@@ -68,5 +68,5 @@ agent show only after the next login.
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
 | `SMSG_INITIALIZE_FACTIONS` | `live` | probe flow `login` on a `fresh` character, exit 0; one received with 128 slots, and its 6 visible factions match `soap gm read reputation` | `Reputation/ReputationMgr.cpp:211-244` |
-| `SMSG_SET_FACTION_STANDING` | `live` | probe flow `login` with `soap gm quest reward 8325`, exit 0; list id 55 changed by 250 while `soap gm read reputation` showed Silvermoon City go from 4000 to 4250 | `Reputation/ReputationMgr.cpp:178-209` |
+| `SMSG_SET_FACTION_STANDING` | `live` | probe flow `login` with `soap gm quest reward 8325`: list id 55 changed by 250 while `soap gm read reputation` showed Silvermoon City go from 4000 to 4250; the `quest reward 9148` run below, exit 0, also received and handled one | `Reputation/ReputationMgr.cpp:178-209` |
 | `SMSG_SET_FACTION_VISIBLE` | `live` | probe flow `login` with `soap gm quest reward 9148`, exit 0; list id 56 shown, and `soap gm read reputation` then listed Tranquillien as visible at 250 | `Reputation/ReputationMgr.cpp:252-261` |
