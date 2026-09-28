@@ -24,6 +24,7 @@ or the page names one that does not exist.
 | Hear what an NPC says when talked to | `t1-quests-read-greeting` | |
 | Follow a guard's directions to a marked point | `t1-quests-guard-directions` | |
 | Buy from a vendor | `t5-vendor-buy-goldshire` | |
+| Buy back an item sold by mistake | `t5-buyback-vendor` | Only items sold this session. |
 | Die, then come back to life | `t6-die-and-recover` | |
 | Stop on command and resume | `t7-halt-resume` | |
 | Answer a question while an action runs | `t7-question-while-acting` | |

@@ -126,7 +126,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | `travel` | Walks to a unit (`to: o<n>` reaches a game object), the corpse or a point, uses the hearthstone (`to: hearth`), explores in a direction, or unsticks. |
 | `engage` | Chooses a target, walks to it, fights it with Jev and loots it. |
 | `loot` | Loots one corpse, one slot at a time. |
-| `interact` | Talks to an NPC (`npc: o<n>` talks to a quest-giver object): quests, gossip, buy, sell junk, train, repair, bind at an inn. |
+| `interact` | Talks to an NPC (`npc: o<n>` talks to a quest-giver object): quests, gossip, buy, sell junk, buyback, train, repair, bind at an inn. |
 | `rest` | Eats and drinks until health and mana reach a percent. |
 | `recover` | Comes back to life: corpse run, spirit healer or a resurrection offer. |
 | `social` | One chat message or one group action. |

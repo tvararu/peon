@@ -84,7 +84,7 @@ Each act settles as `ok`, `refused` with the server's reason, or
 
 ## Capabilities row
 
-Proposed in economy-2.
+Buy back an item sold by mistake (`t5-buyback-vendor`): `interact do: "buyback"` rebuys the named item from the vendor's buyback list, and `journal about: "bags"` ends with a Buyback line of item, count and price. Only items sold this session.
 
 ## Proof
 
