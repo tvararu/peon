@@ -13,6 +13,7 @@ export type PuppetRequest =
   | { cmd: "status" }
   | { cmd: "read" }
   | { cmd: "nearby" }
+  | { cmd: "events" }
   | { cmd: "whisper"; target: string; text: string }
   | { cmd: "call"; method: string; args: unknown[] }
   | { cmd: "stop" };
@@ -33,6 +34,7 @@ const CMDS: readonly string[] = [
   "status",
   "read",
   "nearby",
+  "events",
   "whisper",
   "call",
   "stop",

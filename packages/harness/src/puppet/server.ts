@@ -35,6 +35,26 @@ export type PuppetServer = {
 
 export const CHAT_CAPACITY = 1000;
 
+type EventRow = { at: number; event: unknown; hook: string };
+
+function plainJson(value: unknown): unknown {
+  return JSON.parse(
+    JSON.stringify(value, (_key, field: unknown) =>
+      typeof field === "bigint" ? field.toString() : field,
+    ) ?? "null",
+  );
+}
+
+function gameEventsJson(events: EventRow[]): string {
+  return JSON.stringify({
+    command: "events",
+    data: null,
+    error: null,
+    events,
+    kind: "events",
+  });
+}
+
 export async function listenPuppet(
   init: PuppetServerInit,
 ): Promise<PuppetServer> {
@@ -49,7 +69,8 @@ class Puppet {
   private readonly paths: PuppetPaths;
   private readonly waitMs: number;
   private readonly chat: ChatEvent[] = [];
-  private readonly unsubscribe: () => void;
+  private readonly events: EventRow[] = [];
+  private readonly unsubscribe: (() => void)[];
   private listener: UnixSocketListener<{ buffer: string }> | undefined;
   private loggingOut: Promise<string> | undefined;
   private ended = false;
@@ -59,10 +80,25 @@ class Puppet {
     this.paths = init.paths;
     this.waitMs = init.logoutWaitMs ?? LOGOUT_WAIT_MS;
     const capacity = init.chatCapacity ?? CHAT_CAPACITY;
-    this.unsubscribe = init.handle.onMessage((msg) => {
-      this.chat.push(chatEventObj(msg));
-      if (this.chat.length > capacity) this.chat.shift();
-    });
+    const { handle } = init;
+    const keep = (hook: string) => (event: unknown) => {
+      this.events.push({ at: Date.now(), event: plainJson(event), hook });
+      if (this.events.length > capacity) this.events.shift();
+    };
+    this.unsubscribe = [
+      handle.onMessage((msg) => {
+        this.chat.push(chatEventObj(msg));
+        if (this.chat.length > capacity) this.chat.shift();
+      }),
+      handle.onGroupEvent(keep("group")),
+      handle.onGuildEvent(keep("guild")),
+      handle.onDuelEvent(keep("duel")),
+      handle.onNotice(keep("notice")),
+      handle.onPacketError((opcode, error) =>
+        keep("packetError")({ error: messageOf(error), opcode }),
+      ),
+      handle.onAreaEvent(keep("area")),
+    ];
   }
 
   async listen(): Promise<void> {
@@ -116,6 +152,8 @@ class Puppet {
     if (this.loggingOut) return { error: "The puppet is stopping.", ok: false };
     if (request.cmd === "read")
       return { ok: true, out: eventsJson("read", this.chat.splice(0)) };
+    if (request.cmd === "events")
+      return { ok: true, out: gameEventsJson(this.events.splice(0)) };
     if (request.cmd === "nearby")
       return {
         ok: true,
@@ -149,7 +187,7 @@ class Puppet {
   private async finish(): Promise<void> {
     if (this.ended) return;
     this.ended = true;
-    this.unsubscribe();
+    for (const off of this.unsubscribe) off();
     const { listener } = this;
     if (listener)
       await Promise.resolve()

@@ -7,6 +7,7 @@ describe("parsePuppetArgs", () => {
     [["start", "--json"], { kind: "start" }],
     [["read", "--json"], { kind: "read" }],
     [["nearby", "--json"], { kind: "nearby" }],
+    [["events", "--json"], { kind: "events" }],
     [["stop"], { kind: "stop" }],
     [
       ["call", "invite", '["Fabc"]'],
@@ -34,6 +35,8 @@ describe("parsePuppetArgs", () => {
     [["read"]],
     [["read", "--json", "--wait", "5"]],
     [["nearby", "--json", "all"]],
+    [["events"]],
+    [["events", "--json", "all"]],
     [["stop", "--json"]],
     [["send", "hello"]],
     [["send", "-w", "Fevala"]],

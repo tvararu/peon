@@ -6,6 +6,7 @@ export type PuppetCommand =
   | { kind: "send"; target: string; text: string }
   | { kind: "read" }
   | { kind: "nearby" }
+  | { kind: "events" }
   | { kind: "call"; method: string; args: unknown[] }
   | { kind: "stop" };
 
@@ -15,10 +16,13 @@ export const USAGE = `Usage: bun packages/harness/src/puppet/main.ts <command>
   send -w <name> <text>   whisper <text> to <name>
   read --json             print the chat events since the last read
   nearby --json           print the units and objects around the character
+  events --json           print the group, guild, duel, notice, packet error
+                          and area events since the last events
   call <method> [json-array]  call an allowed handle method with those arguments
   stop                    log the character out and end the puppet`;
 
 const EXACT: Record<string, { args: string; command: PuppetCommand }> = {
+  events: { args: "--json", command: { kind: "events" } },
   nearby: { args: "--json", command: { kind: "nearby" } },
   read: { args: "--json", command: { kind: "read" } },
   start: { args: "--json", command: { kind: "start" } },

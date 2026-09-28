@@ -71,6 +71,7 @@ describe("runPuppet", () => {
   test.each([
     [["read", "--json"]],
     [["nearby", "--json"]],
+    [["events", "--json"]],
     [["send", "-w", "Fevala", "hi"]],
     [["stop"]],
     [["call", "invite", '["Fabc"]']],
@@ -106,6 +107,17 @@ describe("runPuppet", () => {
     expect(code).toBe(0);
     expect(out).toHaveLength(1);
     expect(seen).toEqual(['{"args":["Fabc"],"cmd":"call","method":"invite"}']);
+  });
+
+  test("events --json sends the events request and prints its reply", async () => {
+    const { paths } = await tempPaths();
+    const reply =
+      '{"command":"events","data":null,"error":null,"events":[],"kind":"events"}';
+    const seen = fakePuppet(paths, { ok: true, out: reply });
+    const { code, out } = await cli(["events", "--json"], paths);
+    expect(code).toBe(0);
+    expect(out).toEqual([reply]);
+    expect(seen).toEqual(['{"cmd":"events"}']);
   });
 
   test("a call with a bad argument exits 2 before it reaches the puppet", async () => {

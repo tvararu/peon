@@ -64,7 +64,7 @@ async function setup(
   return { handle, paths, server, ws };
 }
 
-async function mockSetup(): Promise<{
+async function mockSetup(chatCapacity?: number): Promise<{
   handle: MockHandle;
   paths: PuppetPaths;
 }> {
@@ -73,7 +73,11 @@ async function mockSetup(): Promise<{
   await mkdir(paths.runtimeDir, { recursive: true });
   const handle = createMockHandle();
   cleanups.push(() => rm(dir, { force: true, recursive: true }));
-  const server = await listenPuppet({ handle, paths });
+  const server = await listenPuppet({
+    handle,
+    paths,
+    ...(chatCapacity === undefined ? {} : { chatCapacity }),
+  });
   cleanups.push(() => server.stop());
   return { handle, paths };
 }
@@ -292,5 +296,98 @@ describe("puppet call", () => {
     ws.inject(GameOpcode.SMSG_LOGOUT_COMPLETE, new Uint8Array(0));
     expect(await stopping).toBe("Logged out.");
     await server.done;
+  });
+});
+
+type EventRow = { at: number; hook: string; event: unknown };
+
+async function drain(paths: PuppetPaths): Promise<EventRow[]> {
+  return JSON.parse(await ask(paths, { cmd: "events" })).events;
+}
+
+function emitPacketError(handle: MockHandle, opcode: number, error: Error) {
+  const subscribe = handle.onPacketError as Mock<MockHandle["onPacketError"]>;
+  for (const [cb] of subscribe.mock.calls) cb(opcode, error);
+}
+
+function emitArea(handle: MockHandle, area: string, event: object): void {
+  const trigger = handle.triggerAreaEvent as (
+    area: string,
+    event: object,
+  ) => void;
+  trigger(area, event);
+}
+
+describe("puppet events", () => {
+  test("drains group, notice and packet error events in arrival order with their hooks", async () => {
+    const { handle, paths } = await mockSetup();
+    const before = Date.now();
+    handle.triggerGroupEvent({ from: "Fabc", type: "invite_received" });
+    handle.triggerNotice({
+      at: 5,
+      label: "SMSG_X",
+      opcode: 291,
+      text: "not handled",
+      type: "not_implemented",
+    });
+    emitPacketError(handle, 502, new Error("short packet"));
+    handle.triggerDuelEvent({ challenger: "Fabc", type: "duel_requested" });
+    handle.triggerGuildEvent({ name: "Fabc", type: "joined" });
+    const rows = await drain(paths);
+    expect(rows.map(({ hook, event }) => ({ event, hook }))).toEqual([
+      { event: { from: "Fabc", type: "invite_received" }, hook: "group" },
+      {
+        event: {
+          at: 5,
+          label: "SMSG_X",
+          opcode: 291,
+          text: "not handled",
+          type: "not_implemented",
+        },
+        hook: "notice",
+      },
+      { event: { error: "short packet", opcode: 502 }, hook: "packetError" },
+      { event: { challenger: "Fabc", type: "duel_requested" }, hook: "duel" },
+      { event: { name: "Fabc", type: "joined" }, hook: "guild" },
+    ]);
+    for (const row of rows) expect(row.at).toBeGreaterThanOrEqual(before);
+    expect(await ask(paths, { cmd: "events" })).toBe(
+      '{"command":"events","data":null,"error":null,"events":[],"kind":"events"}',
+    );
+  });
+
+  test("keeps only the newest rows once the buffer is full", async () => {
+    const { handle, paths } = await mockSetup(2);
+    for (const name of ["one", "two", "three"])
+      handle.triggerGroupEvent({ name, type: "leader_changed" });
+    const rows = await drain(paths);
+    expect(rows.map(({ event }) => event)).toEqual([
+      { name: "two", type: "leader_changed" },
+      { name: "three", type: "leader_changed" },
+    ]);
+  });
+
+  test("an area event keeps its area and prints a bigint guid as a decimal string", async () => {
+    const { handle, paths } = await mockSetup();
+    emitArea(handle, "alpha", { guid: 0x0700000000000123n, type: "ticked" });
+    const rows = await drain(paths);
+    expect(rows.map(({ hook, event }) => ({ event, hook }))).toEqual([
+      {
+        event: {
+          area: "alpha",
+          event: { guid: "504403158265495843", type: "ticked" },
+        },
+        hook: "area",
+      },
+    ]);
+  });
+
+  test("events leaves the chat buffer to read", async () => {
+    const { handle, paths } = await mockSetup();
+    handle.triggerMessage({ message: "hi", sender: "Fabc", type: 1 });
+    handle.triggerGroupEvent({ type: "kicked" });
+    expect((await drain(paths)).map(({ hook }) => hook)).toEqual(["group"]);
+    const read = JSON.parse(await ask(paths, { cmd: "read" }));
+    expect(read.events).toHaveLength(1);
   });
 });
