@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { VendorEvent } from "@peon/core";
-import { elapse, withFakeTimers } from "#test-support/fake-time";
+import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
 import { createMockGame } from "#test-support/mock-game";
 import { routerSetup } from "#test-support/router-fixture";
 

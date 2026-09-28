@@ -42,7 +42,7 @@ not a target.
   `bun:test`, inside `try/finally` with `jest.useRealTimers()`. Fake
   timers also fake `Date.now()`, `performance.now()` and `Bun.sleep`, so
   `Bun.sleep(0)` never resolves under them; `setImmediate` stays real.
-  `packages/harness/test-support/fake-time.ts` and
+  `packages/core/test-support/fake-time.ts` and
   `packages/harness/test-support/tactics-fixtures.ts` drive fake time until
   a promise settles.
 - Await the event rather than sleeping. `Bun.sleep(0)` yields one microtask

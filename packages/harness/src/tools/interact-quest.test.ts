@@ -1,10 +1,10 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { QuestLogSlot } from "@peon/core";
+import { withFakeTimers } from "@peon/core/test-support/fake-time";
 import type { InteractAfter } from "#harness/contract/details";
 import { interactSpec } from "#harness/tools/interact";
 import { ANSWER_MS } from "#harness/tools/interact-quest";
 import { journalTool } from "#harness/tools/journal";
-import { withFakeTimers } from "#test-support/fake-time";
 import { setUnits, toolCtx, unitRow } from "#test-support/ops-fixtures";
 import {
   answer,
