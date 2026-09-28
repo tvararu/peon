@@ -74,7 +74,7 @@ export type CombatlogState = {
 };
 
 export type CombatlogEvent =
-  | ({ type: "entry" } & CombatlogEntry)
+  | ({ type: "entry" } & Omit<CombatlogEntry, "crit"> & { crit?: number })
   | { type: "combo_points"; target: bigint | undefined; points: number }
   | ({ type: "kill" } & CombatlogKill);
 
@@ -239,7 +239,8 @@ export class CombatlogStore {
       this.entries.splice(0, this.entries.length - RING);
     if (sourceOurs || targetOurs) this.count(entry, sourceOurs, targetOurs);
     this.markAttacker(entry);
-    this.events.emit({ type: "entry", ...entry });
+    const { crit, ...plain } = entry;
+    this.events.emit({ type: "entry", ...plain, ...(crit ? { crit: 1 } : {}) });
   }
 
   private count(

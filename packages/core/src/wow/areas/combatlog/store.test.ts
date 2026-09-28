@@ -139,6 +139,23 @@ describe("CombatlogStore scope", () => {
       },
     ]);
   });
+
+  test("a crit keeps its boolean in state and emits a plain number", () => {
+    const { events, store } = setup();
+    store.receive([hit(ME, BOAR, 10, { crit: true }), hit(ME, BOAR, 4)]);
+    expect(store.snapshot().entries.map((entry) => entry.crit)).toEqual([
+      true,
+      undefined,
+    ]);
+    expect(
+      events.map((event) => ("crit" in event ? event.crit : "none")),
+    ).toEqual([1, "none"]);
+    expect(
+      events.every((event) =>
+        Object.values(event).every((value) => typeof value !== "boolean"),
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("CombatlogStore fight window", () => {
