@@ -1,0 +1,37 @@
+import type { AreaOpcodes } from "#wow/areas/contract";
+
+export const COMBATLOG_OPCODES = {
+  owns: [
+    "SMSG_ATTACKERSTATEUPDATE",
+    "SMSG_SPELLNONMELEEDAMAGELOG",
+    "SMSG_PARTYKILLLOG",
+    "SMSG_UPDATE_COMBO_POINTS",
+    "SMSG_POWER_UPDATE",
+    "SMSG_SPELLHEALLOG",
+    "SMSG_SPELLENERGIZELOG",
+    "SMSG_PERIODICAURALOG",
+    "SMSG_SPELLLOGMISS",
+    "SMSG_SPELLORDAMAGE_IMMUNE",
+    "SMSG_SPELLDAMAGESHIELD",
+    "SMSG_ENVIRONMENTAL_DAMAGE_LOG",
+    "SMSG_SPELLINSTAKILLLOG",
+    "SMSG_SPELLDISPELLOG",
+    "SMSG_DISPEL_FAILED",
+    "SMSG_SPELLSTEALLOG",
+    "SMSG_SPELLLOGEXECUTE",
+    "SMSG_PROCRESIST",
+    "SMSG_FEIGN_DEATH_RESISTED",
+    "SMSG_HEALTH_UPDATE",
+  ],
+  uses: [],
+  stubs: [
+    ["SMSG_ATTACKERSTATEUPDATE", "Damage dealt"],
+    ["SMSG_SPELLHEALLOG", "Heal received"],
+    ["SMSG_SPELLNONMELEEDAMAGELOG", "Spell damage"],
+    ["SMSG_ENVIRONMENTAL_DAMAGE_LOG", "Environmental damage"],
+    ["SMSG_POWER_UPDATE", "Power update"],
+    ["SMSG_HEALTH_UPDATE", "Health update"],
+  ],
+  dead: ["SMSG_PROCRESIST", "SMSG_FEIGN_DEATH_RESISTED", "SMSG_HEALTH_UPDATE"],
+  unseen: [],
+} as const satisfies AreaOpcodes;

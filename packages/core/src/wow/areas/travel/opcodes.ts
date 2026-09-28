@@ -1,0 +1,25 @@
+import type { AreaOpcodes } from "#wow/areas/contract";
+
+export const TRAVEL_OPCODES = {
+  owns: [
+    "SMSG_BINDPOINTUPDATE",
+    "SMSG_PLAYERBOUND",
+    "SMSG_BINDER_CONFIRM",
+    "CMSG_BINDER_ACTIVATE",
+    "CMSG_TAXINODE_STATUS_QUERY",
+    "SMSG_TAXINODE_STATUS",
+    "CMSG_TAXIQUERYAVAILABLENODES",
+    "CMSG_ENABLETAXI",
+    "SMSG_NEW_TAXI_PATH",
+    "CMSG_SET_TAXI_BENCHMARK_MODE",
+    "CMSG_ACTIVATETAXI",
+    "CMSG_ACTIVATETAXIEXPRESS",
+    "SMSG_ACTIVATETAXIREPLY",
+    "CMSG_MOVE_SPLINE_DONE",
+    "SMSG_FLIGHT_SPLINE_SYNC",
+  ],
+  uses: [],
+  stubs: [["SMSG_BINDPOINTUPDATE", "Bind point"]],
+  dead: ["SMSG_FLIGHT_SPLINE_SYNC"],
+  unseen: [],
+} as const satisfies AreaOpcodes;
