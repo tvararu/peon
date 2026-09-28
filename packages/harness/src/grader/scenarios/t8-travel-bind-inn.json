@@ -10,7 +10,7 @@
       "evidence": {
         "events": ["travel/home_set"]
       },
-      "expect": "GL has a travel/home_set row whose data names area 3665 (Falconwing Square, the inn of Marniel Amberlight at 8700.4, -6638.4, map 530)",
+      "expect": "GL has a travel/home_set row whose data names area 3462 (Fairbreeze Village, the inn of Marniel Amberlight at 8700.4, -6638.4, map 530)",
       "id": "home-set",
       "source": "game_log"
     },
@@ -35,6 +35,6 @@
   "preset": "eversong10",
   "setup": [],
   "steers": [],
-  "task": "Make this inn your home: find the innkeeper Marniel Amberlight in Falconwing Square and bind there with interact do bind.",
+  "task": "Make this inn your home: find the innkeeper Marniel Amberlight in Fairbreeze Village and bind there with interact do bind.",
   "tier": 8
 }
