@@ -263,4 +263,100 @@ describe("ObjectsStore page text", () => {
       rig.dispose();
     }
   });
+
+  test("a chain that reaches a cached page appends the cached pages (QueryHandler.cpp:391)", async () => {
+    const rig = areaRig("objects");
+    try {
+      const second = rig.handle.act.readPage(2937);
+      rig.inject(
+        GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
+        objectsPageTextQueryResponseBody(2937, "Second page.", 0),
+      );
+      await second;
+      const first = rig.handle.act.readPage(2936);
+      rig.inject(
+        GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
+        objectsPageTextQueryResponseBody(2936, "First page.", 2937),
+      );
+      await expect(first).resolves.toEqual({
+        firstPageId: 2936,
+        pages: [
+          { pageId: 2936, text: "First page." },
+          { pageId: 2937, text: "Second page." },
+        ],
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("one reply completes every open chain that waits for it (QueryHandler.cpp:391)", async () => {
+    const rig = areaRig("objects");
+    try {
+      const first = rig.handle.act.readPage(2936);
+      const second = rig.handle.act.readPage(2937);
+      const events: unknown[] = [];
+      rig.stores.areas.objects.onEvent((event) => events.push(event));
+      rig.inject(
+        GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
+        objectsPageTextQueryResponseBody(2936, "First page.", 2937),
+      );
+      rig.inject(
+        GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
+        objectsPageTextQueryResponseBody(2937, "Second page.", 0),
+      );
+      rig.inject(
+        GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
+        objectsPageTextQueryResponseBody(2937, "Second page.", 0),
+      );
+      await expect(first).resolves.toEqual({
+        firstPageId: 2936,
+        pages: [
+          { pageId: 2936, text: "First page." },
+          { pageId: 2937, text: "Second page." },
+        ],
+      });
+      await expect(second).resolves.toEqual({
+        firstPageId: 2937,
+        pages: [{ pageId: 2937, text: "Second page." }],
+      });
+      expect(events.length).toBe(2);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a page shown before its template arrives is reported once the template lands (GameObject.cpp:1632)", () => {
+    const SHRINE = 0xf1_10_2c_14_00_00_52_80n;
+    const rig = areaRig("objects", {
+      getEntity: (guid) =>
+        guid === SHRINE
+          ? ({ entry: 192_709, guid, objectType: 5 } as never)
+          : undefined,
+    });
+    try {
+      const events: unknown[] = [];
+      rig.stores.areas.objects.onEvent((event) => events.push(event));
+      rig.inject(
+        GameOpcode.SMSG_GAMEOBJECT_PAGETEXT,
+        objectsGameObjectPageTextBody(SHRINE),
+      );
+      expect(events).toEqual([]);
+      rig.inject(
+        GameOpcode.SMSG_GAMEOBJECT_QUERY_RESPONSE,
+        objectsGameObjectQueryResponseBody({
+          data: [0, 0, 0, 0, 0, 0, 0, 2936],
+          displayId: 3012,
+          entry: 192_709,
+          name: "The Schools of Arcane Magic - Abjuration",
+          type: 10,
+        }),
+      );
+      expect(events).toEqual([
+        { type: "page_shown", guid: SHRINE, pageId: 2936 },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
 });

@@ -90,9 +90,12 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
   if (!row) throw new Error("objects-use found no matching object.");
   const { distance, traveled } = await walkTo(handle, target);
   const used: Json[] = [];
+  const shown: Json[] = [];
   const off = handle.objects.onEvent((event) => {
     if (event.type === "used")
       used.push({ entry: event.entry, guid: hex(event.guid), how: event.how });
+    if (event.type === "page_shown")
+      shown.push({ guid: hex(event.guid), pageId: event.pageId });
   });
   const sent = outcomeJson(handle.objects.act.use(row.entity.guid) as Outcome);
   await Bun.sleep(seconds * 1000);
@@ -104,6 +107,7 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
     object: summary(row),
     pendingUse: pending ? { ...pending, guid: hex(pending.guid) } : null,
     sent,
+    shown,
     traveled: Math.round(traveled * 10) / 10,
     used,
   };

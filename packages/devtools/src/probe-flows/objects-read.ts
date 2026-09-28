@@ -24,9 +24,11 @@ async function run({ handle, args }: FlowContext): Promise<Json> {
   await Bun.sleep(seconds * 1000);
   off();
   return {
-    read: JSON.parse(JSON.stringify(read, (_, v) =>
-      typeof v === "bigint" ? `0x${v.toString(16)}` : v,
-    )) as Json,
+    read: JSON.parse(
+      JSON.stringify(read, (_, v) =>
+        typeof v === "bigint" ? `0x${v.toString(16)}` : v,
+      ),
+    ) as Json,
     shown,
   };
 }

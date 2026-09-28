@@ -64,6 +64,7 @@ export class ObjectsStore {
   private readonly pages = new Map<number, PageText[]>();
   private readonly chained = new Map<number, PageText[]>();
   private readonly nexts = new Map<number, number>();
+  private readonly pendingShown = new Set<bigint>();
 
   constructor(deps: SessionDeps, core: CoreStores) {
     this.deps = deps;
@@ -95,6 +96,12 @@ export class ObjectsStore {
   template(reply: GameObjectQueryResult): void {
     if (reply.name === undefined) return;
     this.templates.set(reply.entry, gameObjectTemplate(reply));
+    for (const guid of [...this.pendingShown]) {
+      const object = this.object(guid);
+      if (object?.entry !== reply.entry) continue;
+      this.pendingShown.delete(guid);
+      this.shown({ guid });
+    }
   }
 
   loadingTriggers(): void {
@@ -149,47 +156,58 @@ export class ObjectsStore {
   }
 
   chain(firstPageId: number): PageText[] {
-    const kept = this.pages.get(firstPageId) ?? [];
+    const kept = this.pages.get(firstPageId);
+    if (kept) return [...kept];
     const open = this.chained.get(firstPageId);
     if (open) return open;
-    const pages = [...kept];
+    const pages: PageText[] = [];
     this.chained.set(firstPageId, pages);
     return pages;
   }
 
-  chainFor(reply: PageTextReply): number | undefined {
-    if (this.chained.has(reply.pageId)) {
-      const open = this.chained.get(reply.pageId);
-      if (open && open.length === 0) return reply.pageId;
-    }
+  chainsFor(reply: PageTextReply): number[] {
+    const firsts: number[] = [];
+    const open = this.chained.get(reply.pageId);
+    if (open && open.length === 0) firsts.push(reply.pageId);
     for (const [first, pages] of this.chained) {
+      if (first === reply.pageId) continue;
       if (pages.length > 0 && this.nexts.get(first) === reply.pageId)
-        return first;
+        firsts.push(first);
     }
-    return undefined;
+    return firsts;
   }
 
   page(reply: PageTextReply): void {
     if (this.pages.has(reply.pageId)) return;
-    const first = this.chainFor(reply);
-    if (first === undefined) return;
-    const pages = this.chained.get(first);
-    if (!pages) return;
-    pages.push({ pageId: reply.pageId, text: reply.text });
-    this.nexts.set(first, reply.nextPageId);
-    if (
-      reply.nextPageId === 0 ||
-      pages.length >= PAGE_READ_MAX_PAGES ||
-      this.pages.has(reply.nextPageId)
-    )
-      this.markRead({ firstPageId: first, pages });
+    const firsts = this.chainsFor(reply);
+    if (firsts.length === 0) return;
+    for (const first of firsts) {
+      const pages = this.chained.get(first);
+      if (!pages) continue;
+      pages.push({ pageId: reply.pageId, text: reply.text });
+      this.nexts.set(first, reply.nextPageId);
+      if (reply.nextPageId === 0 || pages.length >= PAGE_READ_MAX_PAGES) {
+        this.markRead({ firstPageId: first, pages });
+        continue;
+      }
+      const suffix = this.pages.get(reply.nextPageId);
+      if (suffix) {
+        pages.push(...suffix);
+        this.markRead({ firstPageId: first, pages });
+      }
+    }
   }
 
   shown({ guid }: { guid: bigint }): void {
     const object = this.object(guid);
-    const pageId = object && this.templates.get(object.entry)?.pageId;
-    if (!pageId) return;
-    this.events.emit({ guid, pageId, type: "page_shown" });
+    if (!object) return;
+    const template = this.templates.get(object.entry);
+    if (!template) {
+      this.pendingShown.add(guid);
+      return;
+    }
+    if (!template.pageId) return;
+    this.events.emit({ guid, pageId: template.pageId, type: "page_shown" });
   }
 
   markRead(chain: PageChain): void {

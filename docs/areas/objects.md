@@ -51,8 +51,9 @@ pages, timing out after 5 s.
   `page_unanswered`.
 - `SMSG_GAMEOBJECT_PAGETEXT` is one object guid of 8 bytes
   (`Entities/GameObject/GameObject.cpp:1630-1634`). The area looks up the
-  object's template page id and emits `page_shown`. A type-10 goober with
-  a page id answers the use with this packet.
+  object's template page id and emits `page_shown`; when the template has
+  not arrived yet it keeps the guid and emits once it lands. A type-10
+  goober with a page id answers the use with this packet.
 - The guid of `SMSG_GAMEOBJECT_DESPAWN_ANIM` is not always a game
   object's.
   - A dynamic object sends the despawn animation with its own guid when
@@ -115,4 +116,4 @@ No verb for area triggers: core sends them while the character walks.
 | `CMSG_GAMEOBJ_REPORT_USE` | `accepted` | the same run sent the report use right after the use, with no disconnect and no error packet; builder tests cover the 8-byte body against `Handlers/SpellHandler.cpp:350-376` | `Handlers/SpellHandler.cpp:350-376` |
 | `CMSG_PAGE_TEXT_QUERY` | `live` | probe flow `objects-read` (`--arg page=2936`) on a `fresh` character, exit 0; the client sent one `CMSG_PAGE_TEXT_QUERY` and the server answered `SMSG_PAGE_TEXT_QUERY_RESPONSE` with the shrine text starting "You have discovered the location of the shrine!" | `Handlers/QueryHandler.cpp:361-366` |
 | `SMSG_PAGE_TEXT_QUERY_RESPONSE` | `live` | the same run read page 2936 in one packet; a second run with `--arg page=2147483647` answered "Item page missing." with next page 0 | `Handlers/QueryHandler.cpp:367-392` |
-| `SMSG_GAMEOBJECT_PAGETEXT` | `accepted` | the `CMSG_GAMEOBJ_USE` proof run on entry 192709 captured the server's `SMSG_GAMEOBJECT_PAGETEXT` in the trace; builder tests cover the 8-byte guid body against `Entities/GameObject/GameObject.cpp:1630-1634` | `Entities/GameObject/GameObject.cpp:1630-1634` |
+| `SMSG_GAMEOBJECT_PAGETEXT` | `live` | probe flow `objects-use` (`--arg entry=180516`, the Shrine of Dath'Remar, a type-10 goober with page 2936) on a `fresh` character moved with `soap gm tele ShrineOfDathRemar`, exit 0; the flow reported `shown` with guid 0xf11002c124000887 and page 2936 | `Entities/GameObject/GameObject.cpp:1630-1634` |
