@@ -14,6 +14,7 @@ export type PuppetRequest =
   | { cmd: "read" }
   | { cmd: "nearby" }
   | { cmd: "whisper"; target: string; text: string }
+  | { cmd: "call"; method: string; args: unknown[] }
   | { cmd: "stop" };
 
 export type PuppetReply =
@@ -28,7 +29,14 @@ export class PuppetNotRunning extends Error {
 }
 
 const NOT_LISTENING: readonly string[] = ["ENOENT", "ECONNREFUSED"];
-const CMDS: readonly string[] = ["status", "read", "nearby", "whisper", "stop"];
+const CMDS: readonly string[] = [
+  "status",
+  "read",
+  "nearby",
+  "whisper",
+  "call",
+  "stop",
+];
 
 export function puppetPaths(env: PathEnv = Bun.env): PuppetPaths {
   const host = { home: homedir(), tmp: tmpdir(), uid: process.getuid?.() ?? 0 };
@@ -49,6 +57,12 @@ export function decodeRequest(line: string): PuppetRequest | undefined {
   const value = parseObject(line);
   if (value === undefined || !CMDS.includes(String(value["cmd"])))
     return undefined;
+  if (value["cmd"] === "call") {
+    const { method, args } = value;
+    return typeof method === "string" && Array.isArray(args)
+      ? { args, cmd: "call", method }
+      : undefined;
+  }
   if (value["cmd"] !== "whisper") return value as PuppetRequest;
   const { target, text } = value;
   return typeof target === "string" && typeof text === "string"

@@ -141,6 +141,7 @@ by itself; a person can run the same commands through the launcher.
 | `send -w <name> <text>` | the `t2-whisper-reply` partner action | Whispers, and exits 0 on success. |
 | `read --json` | partner, after the run (`partner-read.jsonl`) | Prints one JSON envelope whose `events` array holds the chat events since start, then drains them. |
 | `nearby --json` | witness, sampled into `witness.jsonl` | Prints one JSON envelope whose `data` array holds the nearby unit rows. |
+| `call <method> [json-array]` | area workers, to drive a partner | Calls one allow-listed `WorldHandle` method from `puppet/calls.ts` with the JSON array as its arguments (a guid is a decimal string). Prints a result envelope naming the method, or exits 1 when the method throws. |
 | `stop` | the run's finish | Logs out, waits for the server logout, and the process exits. |
 
 ## Which scenarios to run

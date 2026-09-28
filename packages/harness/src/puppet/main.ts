@@ -54,10 +54,7 @@ async function run(
     init.out(resultJson("start", { socket: "responsive", started: !running }));
     return 0;
   }
-  const request: PuppetRequest =
-    command.kind === "send"
-      ? { cmd: "whisper", target: command.target, text: command.text }
-      : { cmd: command.kind };
+  const request = requestFor(command);
   const reply = await sendRequest(init.paths.socket, request);
   if (!reply.ok) {
     init.err(reply.error);
@@ -65,6 +62,16 @@ async function run(
   }
   if (reply.out !== "") init.out(reply.out);
   return 0;
+}
+
+function requestFor(
+  command: Exclude<PuppetCommand, { kind: "start" }>,
+): PuppetRequest {
+  if (command.kind === "send")
+    return { cmd: "whisper", target: command.target, text: command.text };
+  if (command.kind === "call")
+    return { args: command.args, cmd: "call", method: command.method };
+  return { cmd: command.kind };
 }
 
 if (import.meta.main)

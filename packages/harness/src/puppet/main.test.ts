@@ -73,6 +73,7 @@ describe("runPuppet", () => {
     [["nearby", "--json"]],
     [["send", "-w", "Fevala", "hi"]],
     [["stop"]],
+    [["call", "invite", '["Fabc"]']],
   ])("%p with no puppet running exits 1 and says so", async (argv) => {
     const { paths } = await tempPaths();
     const { code, err, out } = await cli(argv, paths);
@@ -93,6 +94,27 @@ describe("runPuppet", () => {
     expect(seen).toEqual([
       '{"cmd":"whisper","target":"Fevala","text":"hey, what level?"}',
     ]);
+  });
+
+  test("call sends the method and its raw arguments", async () => {
+    const { paths } = await tempPaths();
+    const seen = fakePuppet(paths, {
+      ok: true,
+      out: '{"command":"call","data":{"method":"invite"},"error":null,"events":[],"kind":"result"}',
+    });
+    const { code, out } = await cli(["call", "invite", '["Fabc"]'], paths);
+    expect(code).toBe(0);
+    expect(out).toHaveLength(1);
+    expect(seen).toEqual(['{"args":["Fabc"],"cmd":"call","method":"invite"}']);
+  });
+
+  test("a call with a bad argument exits 2 before it reaches the puppet", async () => {
+    const { paths } = await tempPaths();
+    const seen = fakePuppet(paths, { ok: true, out: "" });
+    const { code, err } = await cli(["call", "selectTarget", "[42]"], paths);
+    expect(code).toBe(2);
+    expect(err.join("\n")).toContain("selectTarget");
+    expect(seen).toEqual([]);
   });
 
   test("a refused request exits 1 with the puppet's message", async () => {

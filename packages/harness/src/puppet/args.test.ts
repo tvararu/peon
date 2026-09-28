@@ -8,6 +8,11 @@ describe("parsePuppetArgs", () => {
     [["read", "--json"], { kind: "read" }],
     [["nearby", "--json"], { kind: "nearby" }],
     [["stop"], { kind: "stop" }],
+    [
+      ["call", "invite", '["Fabc"]'],
+      { args: ["Fabc"], kind: "call", method: "invite" },
+    ],
+    [["call", "leaveGroup"], { args: [], kind: "call", method: "leaveGroup" }],
   ])("%p", (argv, command) => {
     expect(parsePuppetArgs(argv)).toEqual(command);
   });
@@ -34,6 +39,10 @@ describe("parsePuppetArgs", () => {
     [["send", "-w", "Fevala"]],
     [["send", "-w", "", "hi"]],
     [["send", "-y", "hi"]],
+    [["call"]],
+    [["call", "walk"]],
+    [["call", "invite", "Fabc"]],
+    [["call", "invite", '["Fabc"]', "extra"]],
   ])("refuses %p", (argv) => {
     expect(() => parsePuppetArgs(argv)).toThrow(UsageError);
   });

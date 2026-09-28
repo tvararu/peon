@@ -3,6 +3,7 @@ import type { WorldHandle } from "@peon/core";
 import { messageOf } from "@peon/core/lib/errors";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { Socket, UnixSocketListener } from "bun";
+import { decodeCall, PUPPET_CALLS } from "#harness/puppet/calls";
 import {
   type ChatEvent,
   chatEventObj,
@@ -124,7 +125,15 @@ class Puppet {
       this.handle.sendWhisper(request.target, request.text);
       return { ok: true, out: "OK" };
     }
+    if (request.cmd === "call") return this.call(request.method, request.args);
     return { ok: true, out: "" };
+  }
+
+  private call(method: string, raw: unknown[]): PuppetReply {
+    const call = decodeCall(method, JSON.stringify(raw));
+    if ("error" in call) return { error: call.error, ok: false };
+    PUPPET_CALLS[call.method]?.run(this.handle, call.args);
+    return { ok: true, out: resultJson("call", { method: call.method }) };
   }
 
   private logOut(): Promise<string> {

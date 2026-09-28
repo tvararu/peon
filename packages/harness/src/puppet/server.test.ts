@@ -1,9 +1,13 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, type Mock, test } from "bun:test";
 import { access, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import type { WorldHandle } from "@peon/core";
 import { worldSession } from "@peon/core/session";
 import { GameOpcode } from "@peon/core/test-support/internals";
+import {
+  createMockHandle,
+  type MockHandle,
+} from "@peon/core/test-support/mock-handle";
 import { startMockWorldServer } from "@peon/core/test-support/mock-world-server";
 import {
   base,
@@ -58,6 +62,20 @@ async function setup(
   await waitForEchoProbe(handle);
   const server = await listenPuppet({ handle, paths, ...init });
   return { handle, paths, server, ws };
+}
+
+async function mockSetup(): Promise<{
+  handle: MockHandle;
+  paths: PuppetPaths;
+}> {
+  const dir = await mkdtemp(`${tmpdir()}/puppet-`);
+  const paths = puppetPaths({ XDG_RUNTIME_DIR: dir });
+  await mkdir(paths.runtimeDir, { recursive: true });
+  const handle = createMockHandle();
+  cleanups.push(() => rm(dir, { force: true, recursive: true }));
+  const server = await listenPuppet({ handle, paths });
+  cleanups.push(() => server.stop());
+  return { handle, paths };
 }
 
 async function ask(paths: PuppetPaths, request: PuppetRequest) {
@@ -215,5 +233,64 @@ describe("puppet server over the socket", () => {
     ws.stop();
     await server.done;
     expect(await exists(paths.socket)).toBe(false);
+  });
+});
+
+describe("puppet call", () => {
+  test("calls the handle method with the decoded arguments and names it", async () => {
+    const { handle, paths } = await mockSetup();
+    expect(
+      await ask(paths, { args: ["Fabc"], cmd: "call", method: "invite" }),
+    ).toBe(
+      '{"command":"call","data":{"method":"invite"},"error":null,"events":[],"kind":"result"}',
+    );
+    expect(handle.invite).toHaveBeenCalledWith("Fabc");
+  });
+
+  test("passes a guid argument to the handle as a bigint", async () => {
+    const { handle, paths } = await mockSetup();
+    await ask(paths, { args: ["42"], cmd: "call", method: "selectTarget" });
+    expect(handle.selectTarget).toHaveBeenCalledWith(42n);
+  });
+
+  test("refuses a method outside the allow-list without calling anything", async () => {
+    const { handle, paths } = await mockSetup();
+    const reply = await sendRequest(paths.socket, {
+      args: [],
+      cmd: "call",
+      method: "logout",
+    });
+    expect(reply.ok).toBe(false);
+    expect(handle.logout).not.toHaveBeenCalled();
+  });
+
+  test("a method that throws replies ok: false with its message", async () => {
+    const { handle, paths } = await mockSetup();
+    (handle.invite as Mock<(name: string) => void>).mockImplementation(() => {
+      throw new Error("Not in the world.");
+    });
+    expect(
+      await sendRequest(paths.socket, {
+        args: ["Fabc"],
+        cmd: "call",
+        method: "invite",
+      }),
+    ).toEqual({ error: "Not in the world.", ok: false });
+  });
+
+  test("a call during logout replies that the puppet is stopping", async () => {
+    const { paths, server, ws } = await setup();
+    const stopping = ask(paths, { cmd: "stop" });
+    await ws.waitForCapture((p) => p.opcode === GameOpcode.CMSG_LOGOUT_REQUEST);
+    expect(
+      await sendRequest(paths.socket, {
+        args: ["Fabc"],
+        cmd: "call",
+        method: "invite",
+      }),
+    ).toEqual({ error: "The puppet is stopping.", ok: false });
+    ws.inject(GameOpcode.SMSG_LOGOUT_COMPLETE, new Uint8Array(0));
+    expect(await stopping).toBe("Logged out.");
+    await server.done;
   });
 });

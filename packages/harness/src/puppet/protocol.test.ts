@@ -6,6 +6,7 @@ import {
   decodeRequest,
   encodeLine,
   PuppetNotRunning,
+  type PuppetRequest,
   puppetPaths,
   sendRequest,
 } from "#harness/puppet/protocol";
@@ -46,8 +47,20 @@ describe("request and reply lines", () => {
     expect(decodeRequest(encodeLine(request).trimEnd())).toEqual(request);
   });
 
+  test("a call request survives its line", () => {
+    const request: PuppetRequest = {
+      args: ["Fabc"],
+      cmd: "call",
+      method: "invite",
+    };
+    expect(decodeRequest(encodeLine(request).trimEnd())).toEqual(request);
+  });
+
   test.each([
     "not json",
+    '{"cmd":"call","method":7,"args":[]}',
+    '{"cmd":"call","method":"invite","args":"Fabc"}',
+    '{"cmd":"call","args":[]}',
     "[]",
     '{"cmd":"walk"}',
     '{"cmd":"whisper","target":"Fevala"}',
