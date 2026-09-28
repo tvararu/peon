@@ -121,4 +121,15 @@ describe("look at objects", () => {
     const { text } = await runTool(tool, { find: "object", name: "zzz" });
     expect(text).toContain("No objects within 60 yd.");
   });
+
+  test("within narrows the object range", async () => {
+    const { tool } = await world();
+    const { details, text } = await runTool(tool, {
+      find: "object",
+      within: 10,
+    });
+    expect(text).toContain("No objects within 10 yd.");
+    const after = details.tool === "look" ? details.result.after : undefined;
+    expect(after?.rows).toEqual([]);
+  });
 });

@@ -70,7 +70,7 @@ pages, timing out after 5 s.
   (`Handlers/SpellHandler.cpp:329-347`). A harness run on
   a throwaway `elwynn1` character teleported to NorthshireVineyards listed 161557
   Milly's Harvest as `o1` 8 yd N and walked `travel to: o1` to 4.3 yd
-  away (run `tmp/o7/run1`).
+  away.
 - `CMSG_GAMEOBJ_REPORT_USE` follows the gossip: `interact npc: "o<n>"`
   talks to a type-2 quest giver by sending the use to the object guid,
   which runs the object's greeting (`Handlers/SpellHandler.cpp:350-376`).

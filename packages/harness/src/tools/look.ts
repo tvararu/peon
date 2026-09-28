@@ -11,6 +11,7 @@ import type { HarnessRuntime, ToolCtx } from "#harness/contract/services";
 import type { NowSnapshot, UnitView } from "#harness/contract/views";
 import { dangerView, nameOf } from "#harness/ops/danger";
 import { compassWord, exploreSummary } from "#harness/ops/explore";
+import { LOOK_DEFAULT_YD } from "#harness/ops/range";
 import { guidHex } from "#harness/ops/refs";
 import { Refusal } from "#harness/ops/refusal";
 import { nowSnapshot } from "#harness/ops/views";
@@ -140,7 +141,11 @@ function objectAfter(
         ? row.name.toLowerCase().includes(args.name.toLowerCase())
         : true,
     )
-    .filter((row) => row.distance === undefined || row.distance <= 60);
+    .filter(
+      (row) =>
+        row.distance === undefined ||
+        row.distance <= (args.within ?? LOOK_DEFAULT_YD),
+    );
   const near = rows.map(objectUnit);
   const digest = near
     .map((row) => `${row.ref}:${Math.round(row.distance ?? -1)}`)
@@ -236,7 +241,7 @@ function look(args: LookArgs, ctx: ToolCtx<LookAfter>): ToolResult<LookAfter> {
         after,
         body: [
           statusLine(after),
-          "No objects within 60 yd.",
+          `No objects within ${after.within ?? LOOK_DEFAULT_YD} yd.`,
           nearestLine(after),
           ...(after.danger.attackers.length === 0
             ? ["No unit is attacking you."]
