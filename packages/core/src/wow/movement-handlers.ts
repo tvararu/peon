@@ -18,7 +18,10 @@ import type { SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
 import { selfGuid } from "#wow/world-handlers";
 
-type MovementStores = Pick<SessionStores, "motion" | "quests" | "self">;
+type MovementStores = Pick<
+  SessionStores,
+  "areas" | "motion" | "quests" | "self"
+>;
 
 function handleNearTeleport(
   conn: WorldConn,
