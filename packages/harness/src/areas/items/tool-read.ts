@@ -54,9 +54,14 @@ export async function runAmmo(
     "backpack",
     "bag_item",
   ]);
-  const outcome_ = await rt.mutex.run(() =>
-    handle.items.act.setAmmo(found.held.item.entry ?? 0),
-  );
+  const entry = found.held.item.entry;
+  if (entry === undefined)
+    throw new Refusal({
+      detail: `${found.label} is not identified yet; look at your bags and try again.`,
+      next: BAGS,
+      reason: "unknown_item",
+    });
+  const outcome_ = await rt.mutex.run(() => handle.items.act.setAmmo(entry));
   if (outcome_.last?.status !== "confirmed")
     throw moveRefusal(handle, found.held.guid, outcome_);
   return result("DONE", {

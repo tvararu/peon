@@ -10,7 +10,7 @@ import { expectSendKind } from "#test-support/tool-harness";
 
 type Occupied = {
   bag: number;
-  entry: number;
+  entry: number | undefined;
   guid: bigint;
   name: string;
   slot: number;
@@ -399,6 +399,19 @@ describe("gear tool", () => {
     );
     expect(acts.setAmmo).toHaveBeenCalledWith(2512);
     expect(contentOf(res)).toMatch(/^DONE Rough Arrow loaded\./);
+  });
+
+  test("ammo refuses a slot whose entry is still unknown before any send", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, [
+      { bag: 255, entry: undefined, guid: SHIRT, name: "Arrows", slot: 26 },
+    ]);
+    const acts = itemActs(t.handle);
+    const res = await gearSpec
+      .run({ do: "ammo", item: "bag 255 slot 26" }, toolCtx(t))
+      .catch((error) => error);
+    expect(res).toMatchObject({ reason: "unknown_item" });
+    expect(acts.setAmmo).not.toHaveBeenCalled();
   });
 
   test("an unknown item refuses before any send", async () => {

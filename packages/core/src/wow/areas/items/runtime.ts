@@ -256,7 +256,7 @@ async function split(
   ]);
 }
 
-function setAmmo(env: Env, entry: number): Promise<MoveState> {
+async function setAmmo(env: Env, entry: number): Promise<MoveState> {
   const inventory = ready(env, "ammo");
   if (!Number.isInteger(entry) || entry < 0)
     throw new Error(`ammo entry ${entry} is not a non-negative integer`);
@@ -284,7 +284,7 @@ function setAmmo(env: Env, entry: number): Promise<MoveState> {
           stackBefore: 0,
         }
       : { held: held as HeldSlot };
-  return run(env, request(env, "ammo", shape), [
+  return await run(env, request(env, "ammo", shape), [
     GameOpcode.CMSG_SET_AMMO,
     buildSetAmmo(entry),
   ]);
