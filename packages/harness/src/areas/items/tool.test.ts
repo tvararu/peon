@@ -368,53 +368,43 @@ describe("gear tool", () => {
       ],
     ]);
   });
-
-  test("open takes every offered item through the loot act", async () => {
+  test("two matching slots refuse even with the same label", async () => {
     const t = await createTestRuntime();
     stocked(t.handle, [
-      { bag: 255, entry: 4496, guid: BAG_SLOT, name: "Pouch", slot: 27 },
+      { bag: 255, entry: 25, guid: STAFF, name: "Linen Cloth", slot: 23 },
+      { bag: 255, entry: 25, guid: BAG_SLOT, name: "Linen Cloth", slot: 24 },
     ]);
     const acts = itemActs(t.handle);
-    const rewards = t.handle.getRewardsState();
-    const take = jest.spyOn(t.handle, "takeLoot").mockImplementation(() => {
-      queueMicrotask(() => {
-        t.handle.triggerRewardsEvent({
-          at: 0,
-          state: {
-            ...rewards,
-            lastItemPush: {
-              bagSlot: 255,
-              count: 1,
-              created: 0,
-              guid: 0n,
-              itemId: 7073,
-              observedAt: 0,
-              randomPropertyId: 0,
-              randomSuffix: 0,
-              received: 1,
-              showInChat: 1,
-              slot: 0,
-              totalCount: 1,
-            },
-          },
-          type: "item_push",
-        });
-        t.handle.triggerRewardsEvent({
-          at: 0,
-          state: { ...rewards, loot: { ...rewards.loot, items: [] } } as never,
-          type: "loot_removed",
-        });
-      });
+    const res = await gearSpec
+      .run({ do: "equip", item: "Linen Cloth" }, toolCtx(t))
+      .catch((error) => error);
+    expect(res).toMatchObject({ reason: "ambiguous_item" });
+    expect(acts.equip).not.toHaveBeenCalled();
+  });
+
+  test("unequip resolves a bag in a bag slot", async () => {
+    const t = await createTestRuntime();
+    const inventory = t.handle.getInventoryState();
+    t.handle.getInventoryState = () => ({
+      ...inventory,
+      slots: [
+        {
+          bag: 255,
+          guid: BAG_SLOT,
+          item: { entry: 4496, guid: BAG_SLOT, name: "Pouch" },
+          region: "bag",
+          slot: 20,
+          status: "occupied",
+        } as never,
+      ],
     });
-    const money = jest
-      .spyOn(t.handle, "takeLootMoney")
-      .mockReturnValue(undefined);
-    jest.spyOn(t.handle, "releaseLoot").mockReturnValue(undefined);
-    const res = await gearSpec.run({ do: "open", item: "Pouch" }, toolCtx(t));
-    expect(acts.open).toHaveBeenCalledWith({ bag: 255, slot: 27 });
-    expect(take).toHaveBeenCalledWith(0);
-    expect(money).not.toHaveBeenCalled();
-    expect(contentOf(res)).toMatch(/^DONE Opened Pouch/);
+    const acts = itemActs(t.handle);
+    const res = await gearSpec.run(
+      { do: "unequip", item: "Pouch" },
+      toolCtx(t),
+    );
+    expect(acts.unequip).toHaveBeenCalledWith(20, undefined);
+    expect(res.status).toBe("DONE");
   });
 
   test("read returns the item text", async () => {

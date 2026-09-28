@@ -117,6 +117,11 @@ on-use spells it read before.
   The `open` act asks the rewards store to open that guid first, so the
   loot window lands in `core.rewards`, and closes it with a failure after
   a refusal or 5 seconds with no answer.
+- The gear tool snapshots the offered loot slots before taking them:
+  receiving a slot removal shrinks the live window. It waits for each
+  requested slot to disappear and for its matching item-push receipt
+  before releasing the window. AzerothCore sends the removal before
+  `SendNewItem` (`Entities/Player/Player.cpp:13896-13921`).
 - `CMSG_READ_ITEM` carries the bag and slot
   (`Server/Packets/ItemPackets.cpp:65-69`). `SMSG_READ_ITEM_OK` and
   `SMSG_READ_ITEM_FAILED` carry only the item guid

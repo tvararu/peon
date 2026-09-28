@@ -1,4 +1,4 @@
-import type { LootItem, RewardsEvent, RewardsOpenLoot } from "@peon/core";
+import type { RewardsEvent, RewardsOpenLoot } from "@peon/core";
 import type { GearAfter } from "#harness/areas/items/tool";
 import type { LootLine } from "#harness/contract/details";
 import type { ToolCtx } from "#harness/contract/services";
@@ -18,8 +18,10 @@ export function takeMatched(
     return false;
   if (event.type === "loot_removed") {
     const { loot } = event.state;
-    if (loot.phase !== "open" && loot.phase !== "closing") return false;
-    return !loot.items.some((offered) => offered.slot === slot);
+    if (loot.phase !== "open" && loot.phase !== "closing") return undefined;
+    return loot.items.some((offered) => offered.slot === slot)
+      ? undefined
+      : true;
   }
   if (event.type === "loot_release_observed") return false;
   return undefined;
@@ -70,27 +72,34 @@ export async function takeOffered(
     if (event.type === "money_notice" && notice) copper += notice.money;
   });
   try {
-    for (const item of lootItems(loot)) {
+    for (const item of [...loot.items]) {
       if (item.slotType !== 0 && item.slotType !== 4) continue;
+      if (!loot.items.some((offered) => offered.slot === item.slot)) continue;
+      let removed = false;
+      let received = 0;
+      let failed = false;
       const settled_ = await settle({
-        match: (event: RewardsEvent) =>
-          takeMatched(event, item.slot) !== undefined,
+        match: (event: RewardsEvent) => {
+          const matched = takeMatched(event, item.slot);
+          if (matched === false) failed = true;
+          if (matched === true) removed = true;
+          const pushed = event.state.lastItemPush;
+          if (event.type === "item_push" && pushed?.itemId === item.itemId)
+            received += pushed.count;
+          return failed || (removed && received >= item.count);
+        },
         send: () => rt.mutex.run(() => handle.takeLoot(item.slot)),
         signal,
         subscribe: (cb) => (handle as Handle).onRewardsEvent(cb),
         timeoutMs: TAKE_SETTLE_MS,
       });
-      if (!settled_) return { copper, taken };
+      if (!settled_ || failed) return { copper, taken };
     }
     await takeMoney(ctx);
     return { copper, taken };
   } finally {
     off();
   }
-}
-
-function lootItems(loot: RewardsOpenLoot): readonly LootItem[] {
-  return loot.items;
 }
 
 async function takeMoney(ctx: GearCtx): Promise<void> {

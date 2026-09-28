@@ -277,7 +277,7 @@ async function runUnequip(
   bag: string | undefined,
 ): Promise<ToolResult<GearAfter>> {
   const { handle, rt } = ctx;
-  const found = named(handle.getInventoryState(), item, ["equipment"]);
+  const found = named(handle.getInventoryState(), item, ["equipment", "bag"]);
   const from = { bag: found.held.bag, slot: found.held.slot };
   const outcome_ = await rt.mutex.run(() =>
     handle.items.act.unequip(

@@ -107,7 +107,7 @@ export function named(
       next: BAGS,
       reason: "no_such_item",
     });
-  if (new Set(near.map((slot) => labelOf(slot))).size > 1)
+  if (near.length > 1)
     throw new Refusal({
       detail: `"${text}" matches more than one item; name one bag and slot.`,
       next: BAGS,
