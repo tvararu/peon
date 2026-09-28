@@ -254,7 +254,7 @@ export function buildSpeedAck(ack: MoveAck, speed: number): Uint8Array {
   return w.finish();
 }
 
-export function buildCanFlyAck(ack: MoveAck, applied: boolean): Uint8Array {
+export function buildFlagAck(ack: MoveAck, applied: boolean): Uint8Array {
   const w = new PacketWriter();
   writeMoveAck(w, ack);
   w.uint32LE(applied ? 1 : 0);

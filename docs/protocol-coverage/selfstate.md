@@ -6,13 +6,13 @@ columns are explained in [the index](../protocol-coverage.md).
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
 | `0x040` | `SMSG_TRANSFER_ABORTED` | server | missing |  |
-| `0x0de` | `SMSG_MOVE_WATER_WALK` | server | missing |  |
-| `0x0df` | `SMSG_MOVE_LAND_WALK` | server | missing |  |
+| `0x0de` | `SMSG_MOVE_WATER_WALK` | server | handled |  |
+| `0x0df` | `SMSG_MOVE_LAND_WALK` | server | handled |  |
 | `0x0f2` | `SMSG_MOVE_FEATHER_FALL` | server | missing |  |
 | `0x0f3` | `SMSG_MOVE_NORMAL_FALL` | server | missing |  |
-| `0x0f4` | `SMSG_MOVE_SET_HOVER` | server | missing |  |
-| `0x0f5` | `SMSG_MOVE_UNSET_HOVER` | server | missing |  |
-| `0x0f6` | `CMSG_MOVE_HOVER_ACK` | client | missing |  |
+| `0x0f4` | `SMSG_MOVE_SET_HOVER` | server | handled | not seen live |
+| `0x0f5` | `SMSG_MOVE_UNSET_HOVER` | server | handled |  |
+| `0x0f6` | `CMSG_MOVE_HOVER_ACK` | client | handled |  |
 | `0x101` | `CMSG_STANDSTATECHANGE` | client | missing |  |
 | `0x16e` | `SMSG_MOUNTRESULT` | server | dead |  |
 | `0x171` | `CMSG_MOUNTSPECIAL_ANIM` | client | missing |  |
@@ -26,7 +26,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x2ca` | `CMSG_MOVE_FALL_RESET` | client | missing |  |
 | `0x2ce` | `CMSG_MOVE_TIME_SKIPPED` | client | missing |  |
 | `0x2cf` | `CMSG_MOVE_FEATHER_FALL_ACK` | client | missing |  |
-| `0x2d0` | `CMSG_MOVE_WATER_WALK_ACK` | client | missing |  |
+| `0x2d0` | `CMSG_MOVE_WATER_WALK_ACK` | client | handled |  |
 | `0x340` | `CMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY_ACK` | client | dead |  |
 | `0x375` | `CMSG_CANCEL_MOUNT_AURA` | client | missing |  |
 | `0x37a` | `SMSG_FORCED_DEATH_UPDATE` | server | dead |  |

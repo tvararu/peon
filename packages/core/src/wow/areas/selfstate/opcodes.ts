@@ -51,5 +51,5 @@ export const SELFSTATE_OPCODES = {
     "CMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY_ACK",
     "SMSG_PAUSE_MIRROR_TIMER",
   ],
-  unseen: [],
+  unseen: ["SMSG_MOVE_SET_HOVER"],
 } as const satisfies AreaOpcodes;

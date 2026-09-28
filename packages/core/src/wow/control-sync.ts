@@ -8,7 +8,7 @@ import { unsupportedReason } from "#wow/control-motion";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag, UnitFlag } from "#wow/protocol/entity-fields";
 import {
-  buildCanFlyAck,
+  buildFlagAck,
   buildRootAck,
   buildSetActiveMover,
   buildSpeedAck,
@@ -23,12 +23,21 @@ import {
   type TransportInfo,
 } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
+import type { MoveFlag } from "#wow/self-store";
 
 const UNIT_BLOCK_FLAGS =
   UnitFlag.DISABLE_MOVE |
   UnitFlag.STUNNED |
   UnitFlag.CONFUSED |
   UnitFlag.FLEEING;
+
+const FLAG_ACKS: Readonly<Record<MoveFlag, { bit: number; ack: number }>> = {
+  water_walk: {
+    bit: MovementFlag.WATERWALKING,
+    ack: GameOpcode.CMSG_MOVE_WATER_WALK_ACK,
+  },
+  hover: { bit: MovementFlag.HOVER, ack: GameOpcode.CMSG_MOVE_HOVER_ACK },
+};
 
 export type Emit = (type: ControlEventType, reason?: string) => void;
 
@@ -268,9 +277,21 @@ export class MovementSync {
     }
     this.deps.send(
       GameOpcode.CMSG_MOVE_SET_CAN_FLY_ACK,
-      buildCanFlyAck(this.moveAck(counter), enable),
+      buildFlagAck(this.moveAck(counter), enable),
     );
     this.emit("control_changed", enable ? "flying" : undefined);
+  }
+
+  moveFlag(flag: MoveFlag, enable: boolean, counter: number): void {
+    const { bit, ack } = FLAG_ACKS[flag];
+    if (enable) {
+      this.observedFlags |= bit;
+      this.moveFlags |= bit;
+    } else {
+      this.observedFlags &= ~bit;
+      this.moveFlags &= ~bit;
+    }
+    this.deps.send(ack, buildFlagAck(this.moveAck(counter), enable));
   }
 
   private ackRoot(opcode: number, counter: number): void {

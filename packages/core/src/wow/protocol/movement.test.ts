@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { must } from "#test-support/must";
 import { MovementFlag, MovementFlagExtra } from "#wow/protocol/entity-fields";
 import {
-  buildCanFlyAck,
+  buildFlagAck,
   buildMoveMessage,
   buildRootAck,
   buildSetActiveMover,
@@ -242,10 +242,10 @@ function moveCounter(guid: bigint, counter: number): PacketWriter {
   return w;
 }
 
-describe("buildCanFlyAck", () => {
+describe("buildFlagAck", () => {
   test("appends the applied flag after movement info", () => {
     const r = new PacketReader(
-      buildCanFlyAck({ guid: 0x0764n, counter: 2, info: base }, true),
+      buildFlagAck({ guid: 0x0764n, counter: 2, info: base }, true),
     );
     expect(parseMoveCounter(r)).toEqual({ guid: 0x0764n, counter: 2 });
     parseMovementInfo(r);

@@ -36,6 +36,9 @@ export function feedControl(control: ControlRuntime, event: SelfEvent): void {
     case "can_fly":
       control.setCanFly(event.counter, event.enable);
       return;
+    case "move_flag":
+      control.moveFlag(event.flag, event.enable, event.counter);
+      return;
     case "observed":
       control.observeSelf(event.observation);
       return;
