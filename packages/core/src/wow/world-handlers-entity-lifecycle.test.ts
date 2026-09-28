@@ -17,6 +17,7 @@ import { type PlayerLifeState, readLife } from "#wow/player-state";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketWriter } from "#wow/protocol/packet";
 import {
+  GAMEOBJECT_FIELDS,
   OBJECT_FIELDS,
   PLAYER_FIELDS,
   UNIT_FIELDS,
@@ -361,6 +362,62 @@ describe("world handler tests", () => {
         expect(typeEvent).toBeDefined();
         if (nameEvent?.type === "update") {
           expect(nameEvent.entity.name).toBe("Mailbox");
+        }
+
+        handle.close();
+        await handle.closed;
+      } finally {
+        ws.stop();
+      }
+    });
+
+    test("a partial CREATED_BY update keeps the unchanged GUID half", async () => {
+      const ws = await startMockWorldServer();
+      try {
+        const handle = await worldSession(
+          { ...base, host: "127.0.0.1", port: ws.port },
+          fakeAuth(ws.port),
+        );
+
+        const appearReady = waitForEntityEvents(handle, 1);
+        const createW = new PacketWriter();
+        createW.uint32LE(1);
+        createW.uint8(2);
+        writePackedGuid(createW, 700n);
+        createW.uint8(5);
+        writeHasPositionMovementBlock(createW, [50, 60, 70, 0.5]);
+        writeUpdateMask(
+          createW,
+          new Map([
+            [OBJECT_FIELDS.ENTRY.offset, 9999],
+            [GAMEOBJECT_FIELDS.CREATED_BY.offset, 0x2a],
+            [GAMEOBJECT_FIELDS.CREATED_BY.offset + 1, 0x7],
+          ]),
+        );
+        ws.inject(GameOpcode.SMSG_UPDATE_OBJECT, createW.finish());
+        await appearReady;
+
+        const updateReady = waitForEntityEvents(handle, 1);
+        const w = new PacketWriter();
+        w.uint32LE(1);
+        w.uint8(0);
+        writePackedGuid(w, 700n);
+        writeUpdateMask(
+          w,
+          new Map([[GAMEOBJECT_FIELDS.CREATED_BY.offset, 0x2b]]),
+        );
+        ws.inject(GameOpcode.SMSG_UPDATE_OBJECT, w.finish());
+
+        const [update] = await updateReady;
+        const updateEvent = must(update);
+        expect(updateEvent.type).toBe("update");
+        if (updateEvent.type === "update") {
+          expect(updateEvent.changed).toContain("createdBy");
+          expect(
+            (updateEvent.entity as unknown as Record<string, unknown>)[
+              "createdBy"
+            ],
+          ).toBe(0x7_0000_002bn);
         }
 
         handle.close();
