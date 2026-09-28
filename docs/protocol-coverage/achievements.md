@@ -7,9 +7,9 @@ columns are explained in [the index](../protocol-coverage.md).
 |---|---|---|---|---|
 | `0x373` | `SMSG_TITLE_EARNED` | server | missing |  |
 | `0x374` | `CMSG_SET_TITLE` | client | missing |  |
-| `0x468` | `SMSG_ACHIEVEMENT_EARNED` | server | stub |  |
-| `0x46a` | `SMSG_CRITERIA_UPDATE` | server | stub |  |
-| `0x47d` | `SMSG_ALL_ACHIEVEMENT_DATA` | server | stub |  |
-| `0x498` | `SMSG_SERVER_FIRST_ACHIEVEMENT` | server | stub |  |
-| `0x49e` | `SMSG_CRITERIA_DELETED` | server | missing |  |
-| `0x49f` | `SMSG_ACHIEVEMENT_DELETED` | server | missing |  |
+| `0x468` | `SMSG_ACHIEVEMENT_EARNED` | server | handled |  |
+| `0x46a` | `SMSG_CRITERIA_UPDATE` | server | handled |  |
+| `0x47d` | `SMSG_ALL_ACHIEVEMENT_DATA` | server | handled |  |
+| `0x498` | `SMSG_SERVER_FIRST_ACHIEVEMENT` | server | handled | not seen live |
+| `0x49e` | `SMSG_CRITERIA_DELETED` | server | handled | not seen live |
+| `0x49f` | `SMSG_ACHIEVEMENT_DELETED` | server | handled | not seen live |

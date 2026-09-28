@@ -12,12 +12,11 @@ export const ACHIEVEMENTS_OPCODES = {
     "CMSG_SET_TITLE",
   ],
   uses: [],
-  stubs: [
-    ["SMSG_SERVER_FIRST_ACHIEVEMENT", "Server first achievement"],
-    ["SMSG_ACHIEVEMENT_EARNED", "Achievement earned"],
-    ["SMSG_CRITERIA_UPDATE", "Achievement criteria"],
-    ["SMSG_ALL_ACHIEVEMENT_DATA", "Achievement data"],
-  ],
+  stubs: [],
   dead: [],
-  unseen: [],
+  unseen: [
+    "SMSG_SERVER_FIRST_ACHIEVEMENT",
+    "SMSG_CRITERIA_DELETED",
+    "SMSG_ACHIEVEMENT_DELETED",
+  ],
 } as const satisfies AreaOpcodes;
