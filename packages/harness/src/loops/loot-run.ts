@@ -57,6 +57,9 @@ export async function lootObject(
   run: ObjectLootRun,
   guid: bigint,
 ): Promise<ObjectLooted> {
+  const current = run.rewards.snapshot().loot;
+  if (current.phase === "open" && current.guid === guid)
+    return takeOffer(run, run.rewards.snapshot());
   const released = await releaseLeftover(run);
   if (!released.ok) return released;
   const opened = await openObjectLoot(run, guid);

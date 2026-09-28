@@ -136,6 +136,18 @@ describe("use tool", () => {
     });
   });
 
+  test("a plain use past interaction distance refuses too_far", async () => {
+    const t = await world(8, "generic");
+    const outcome = await useSpec.run({ object: "o1" }, toolCtx(t)).then(
+      () => ({ reason: "resolved" }),
+      (error: unknown) => error,
+    );
+    expect(outcome).toMatchObject({
+      next: 'travel(to: "o1")',
+      reason: "too_far",
+    });
+  });
+
   test("a kind outside the usable set refuses not_usable", async () => {
     const t = await world(2, "unusable");
     setWorld(t.handle, {
@@ -171,34 +183,49 @@ describe("use tool", () => {
     expect(outcome).toMatchObject({ reason: "locked" });
   });
 
-  test("a far but large-object use stays server-decidable", async () => {
+  test("a far open stays server-decidable through the cast margin", async () => {
     const t = await world(10);
-    const outcome = await useSpec.run({ object: "o1" }, toolCtx(t)).then(
-      () => ({ reason: "resolved" }),
-      (error: unknown) => error,
-    );
+    const outcome = await useSpec
+      .run({ do: "open", object: "o1" }, toolCtx(t))
+      .then(
+        () => ({ reason: "resolved" }),
+        (error: unknown) => error,
+      );
     expect(outcome).not.toMatchObject({ reason: "too_far" });
   });
 
-  test("an unlocked chest opens its rewards window before the use", async () => {
+  test("an unlocked chest without an open spell refuses no_open_spell", async () => {
     const t = await world(2, "unlocked");
-    const order: string[] = [];
     t.handle.objects.act.openLockSpell = async () => ({
       need: 0,
       ok: false as const,
       reason: "locked" as const,
       skill: 0,
     });
+    const acts = t.handle.objects.act;
+    const sends: string[] = [];
+    acts.use = ((guid: bigint) => {
+      sends.push("use");
+      return { ok: true as const, record: { entry: 161_557, guid } };
+    }) as typeof acts.use;
+    const outcome = await useSpec
+      .run({ do: "open", object: "o1" }, toolCtx(t))
+      .then(
+        () => ({ reason: "resolved" }),
+        (error: unknown) => error,
+      );
+    expect(outcome).toMatchObject({ reason: "no_open_spell" });
+    expect(sends).toEqual([]);
+  });
+
+  test("an unlocked chest opens through its opening spell, not GAMEOBJ_USE", async () => {
+    const t = await world(2, "unlocked");
+    t.handle.objects.act.openLockSpell = async () => ({
+      by: "spell",
+      spellId: 3365,
+    });
+    const acts = t.handle.objects.act;
     const baseRewards = t.handle.getRewardsState();
-    const waiting = {
-      ...baseRewards,
-      loot: {
-        guid: CRATE,
-        invalidatedReason: undefined,
-        phase: "opening" as const,
-        requestedAt: 0,
-      },
-    };
     const opened = {
       ...baseRewards,
       loot: {
@@ -211,41 +238,49 @@ describe("use tool", () => {
         phase: "open" as const,
       },
     };
-    t.handle.openLoot = (() => {
-      order.push("open");
-      t.handle.getRewardsState = () => waiting;
-      t.handle.triggerRewardsEvent({
-        at: 0,
-        state: opened,
-        type: "loot_opened",
-      });
-    }) as typeof t.handle.openLoot;
-    const releasedState = {
+    const closedLoot = { phase: "closed" as const };
+    const closed = {
       ...baseRewards,
-      lastRelease: { guid: CRATE, observedAt: 0, status: 1 },
-      loot: { phase: "closed" as const },
+      lastRelease: { guid: CRATE, observedAt: 0, status: 1 as const },
+      loot: closedLoot,
     };
+    const order: string[] = [];
+    const opening = {
+      ...baseRewards,
+      loot: { guid: CRATE, phase: "opening" as const, requestedAt: 0 },
+    };
+    acts.open = ((_guid: bigint, spellId: number) => {
+      order.push(`open:${spellId}`);
+      t.handle.getRewardsState = (() =>
+        opening) as typeof t.handle.getRewardsState;
+      queueMicrotask(() => {
+        t.handle.getRewardsState = (() =>
+          opened) as typeof t.handle.getRewardsState;
+        t.handle.triggerRewardsEvent({
+          at: 0,
+          state: opened,
+          type: "loot_opened",
+        });
+      });
+      return { ok: true as const };
+    }) as typeof acts.open;
+    t.handle.getRewardsState = (() =>
+      closed) as typeof t.handle.getRewardsState;
     t.handle.releaseLoot = (() => {
+      t.handle.getRewardsState = (() =>
+        closed) as typeof t.handle.getRewardsState;
       t.handle.triggerRewardsEvent({
         at: 0,
-        state: releasedState,
+        state: closed,
         type: "loot_release_observed",
       });
     }) as typeof t.handle.releaseLoot;
-    const acts = t.handle.objects.act;
-    const realUse = acts.use.bind(acts);
-    acts.use = ((guid: bigint) => {
-      order.push("use");
-      if (order[0] !== "open")
-        throw new Error("use sent before the rewards window opened");
-      return realUse(guid);
-    }) as typeof acts.use;
     const outcome = (await useSpec.run(
       { do: "open", object: "o1" },
       toolCtx(t),
     )) as { status: string };
-    expect(order).toEqual(["open", "use"]);
     expect(outcome.status).toBe("DONE");
+    expect(order).toEqual(["open:3365"]);
   });
 
   test("a default goober with a page reads instead of using", async () => {

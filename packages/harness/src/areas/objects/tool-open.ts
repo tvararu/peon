@@ -43,11 +43,15 @@ export function findObject(ctx: UseCtx, object: string): ObjectRow {
 }
 
 export function checkReach(row: ObjectRow): void {
-  if (
-    row.distance === undefined ||
-    row.distance <= reachYd(row) + REACH_MARGIN_YD
-  )
-    return;
+  refuseWhenFar(row, reachYd(row));
+}
+
+export function checkCastReach(row: ObjectRow): void {
+  refuseWhenFar(row, reachYd(row) + REACH_MARGIN_YD);
+}
+
+function refuseWhenFar(row: ObjectRow, limit: number): void {
+  if (row.distance === undefined || row.distance <= limit) return;
   throw new Refusal({
     detail: `${row.name} (${row.ref}) is ${row.distance} yd away; walk to it first.`,
     next: nextCall("travel", { to: row.ref }),
@@ -121,12 +125,30 @@ async function openUnlocked(
   ctx: UseCtx,
   row: ObjectRow,
 ): Promise<ToolResult<UseAfter>> {
+  const choice = await ctx.handle.objects.act.openLockSpell(row.entry);
+  if ("by" in choice) {
+    if (choice.by === "item") return openLocked(ctx, row);
+    return openCast(ctx, row, choice.spellId);
+  }
+  if (choice.reason === "no_lock_data")
+    throw undiscoveredLock(ctx.handle, row.entry);
+  throw new Refusal({
+    detail:
+      `the server opens ${row.name} (${row.ref}) only through an opening spell, ` +
+      "and none is known to this character; learn one first.",
+    next: nextCall("journal", { about: "spells" }),
+    reason: "no_open_spell",
+  });
+}
+
+async function openCast(
+  ctx: UseCtx,
+  row: ObjectRow,
+  spellId: number,
+): Promise<ToolResult<UseAfter>> {
   const { handle, rt } = ctx;
-  const choice = await handle.objects.act.openLockSpell(row.entry);
-  if ("by" in choice) return openLocked(ctx, row);
   if (handle.getRewardsState().loot.phase === "open") await releaseStale(ctx);
   return withLootWatch(ctx, row, async () => {
-    await rt.mutex.run(() => handle.openLoot(row.guid));
     const useOutcome = await rt.mutex.run(() =>
       handle.objects.act.use(row.guid),
     );
@@ -136,6 +158,29 @@ async function openUnlocked(
         next: nextCall("look", { find: "object" }),
         reason: "not_usable",
       });
+    await castOpen(ctx, row, spellId);
+  });
+}
+
+async function castOpen(
+  ctx: UseCtx,
+  row: ObjectRow,
+  spellId: number,
+): Promise<void> {
+  const opened = await ctx.rt.mutex.run(() =>
+    ctx.handle.objects.act.open(row.guid, spellId),
+  );
+  if (opened.ok) return;
+  if (opened.reason === "loot_open")
+    throw new Refusal({
+      detail: "another loot window is open; close it first.",
+      next: nextCall("loot", {}),
+      reason: "loot_open",
+    });
+  throw new Refusal({
+    detail: `${row.name} (${row.ref}) cannot be opened.`,
+    next: nextCall("look", { find: "object" }),
+    reason: "not_usable",
   });
 }
 
@@ -160,7 +205,7 @@ async function openLocked(
   ctx: UseCtx,
   row: ObjectRow,
 ): Promise<ToolResult<UseAfter>> {
-  const { handle, rt } = ctx;
+  const { handle } = ctx;
   const choice = await handle.objects.act.openLockSpell(row.entry);
   if (!("by" in choice)) {
     if (choice.reason === "no_lock_data")
@@ -173,34 +218,7 @@ async function openLocked(
       next: nextCall("use", { do: "open", key: "key", object: row.ref }),
       reason: "locked",
     });
-  if (handle.getRewardsState().loot.phase === "open") await releaseStale(ctx);
-  return withLootWatch(ctx, row, async () => {
-    const useOutcome = await rt.mutex.run(() =>
-      handle.objects.act.use(row.guid),
-    );
-    if (!("ok" in useOutcome))
-      throw new Refusal({
-        detail: `${row.name} (${row.ref}) cannot be used.`,
-        next: nextCall("look", { find: "object" }),
-        reason: "not_usable",
-      });
-    const opened = await rt.mutex.run(() =>
-      handle.objects.act.open(row.guid, choice.spellId),
-    );
-    if (!opened.ok) {
-      if (opened.reason === "loot_open")
-        throw new Refusal({
-          detail: "another loot window is open; close it first.",
-          next: nextCall("loot", {}),
-          reason: "loot_open",
-        });
-      throw new Refusal({
-        detail: `${row.name} (${row.ref}) cannot be opened.`,
-        next: nextCall("look", { find: "object" }),
-        reason: "not_usable",
-      });
-    }
-  });
+  return openCast(ctx, row, choice.spellId);
 }
 
 async function openWithKey(

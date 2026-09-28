@@ -52,6 +52,28 @@ describe("lootObject", () => {
     expect(await looted).toMatchObject({ ok: true });
   });
 
+  test("a window already open for the object is looted, not released", async () => {
+    const loot = fakeLoot({ items: [0], leftoverWindow: true });
+    const { run } = await fakeTimed(
+      () => lootObject(objectRun(loot), 2n),
+      6000,
+    );
+    expect(await run).toMatchObject({
+      ok: true,
+      record: { guid: "2", slotsLeft: [], slotsTaken: [0] },
+    });
+  });
+
+  test("a window open for another guid is released before waiting", async () => {
+    const loot = fakeLoot({ items: [0], leftoverWindow: true });
+    const { run } = await fakeTimed(
+      () => lootObject(objectRun(loot), 3n),
+      6000,
+    );
+    expect(await run).toEqual({ cause: "loot_denied:timeout", ok: false });
+    expect(loot.snapshot().loot.phase).toBe("closed");
+  });
+
   test("a failed open stops with the failure reason", async () => {
     const loot = fakeLoot({ openFailure: "cast_failed" });
     const run = objectRun(loot);

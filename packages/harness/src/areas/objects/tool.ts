@@ -1,5 +1,6 @@
 import { type Static, StringEnum, Type } from "@earendil-works/pi-ai";
 import {
+  checkCastReach,
   checkReach,
   checkUsable,
   findObject,
@@ -67,9 +68,10 @@ export async function useObject(
   ctx: UseCtx,
 ): Promise<ToolResult<UseAfter>> {
   const row = findObject(ctx, args.object);
-  checkReach(row);
-  checkUsable(row);
   const do_ = (args.do ?? "use") as UseDo;
+  if (do_ === "open" || do_ === "read") checkCastReach(row);
+  else checkReach(row);
+  checkUsable(row);
   if (do_ === "open") return await openObjectFlow(ctx, row, args.key);
   if (do_ === "read") return await readObjectFlow(ctx, row);
   const template = ctx.handle.objects.state().templates.get(row.entry);
