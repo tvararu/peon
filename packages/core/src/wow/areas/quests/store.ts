@@ -81,8 +81,10 @@ export class QuestsStore {
     this.pois = new Map();
   }
 
-  queryPois(ids: readonly number[]): void {
-    this.pois = requestPois(this.pois, ids, this.now());
+  queryPois(ids: readonly number[]): number[] {
+    const { pois, requested } = requestPois(this.pois, ids, this.now());
+    this.pois = pois;
+    return requested;
   }
 
   receivePoiResponse(replies: readonly QuestPoiReply[]): void {

@@ -20,7 +20,9 @@ with the quest-giver NPC flag or a quest-giver game object coming into
 view with no mark, an update that gives a unit the flag, or a quest
 mark. The runtime also queues a `CMSG_QUEST_POI_QUERY` when a quest is
 accepted, when the quest log changes, or through `queryPoi(ids)`, in
-packets of at most 25 ids with duplicates removed. A quest with no POIs
+packets of at most 25 ids with duplicates removed. It queries only ids
+above 0 with no entry or a `no_reply` entry, so cached and in-flight
+quests are not asked again. A quest with no POIs
 becomes `none`; an id with no reply after `REPLY_TIMEOUT_MS` (5000)
 becomes `no_reply`, and the next log change queries it once more. The
 acts are `queryGiverStatus(guid)`, which sends the single query

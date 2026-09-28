@@ -4,15 +4,22 @@ export type PoiStatus = "pending" | "known" | "none" | "no_reply";
 export type PoiEntry = { status: PoiStatus; pois: QuestPoi[]; at: number };
 export type Pois = ReadonlyMap<number, PoiEntry>;
 export type PoisChange = { pois: Pois; settled: number[] };
+export type PoisRequest = { pois: Pois; requested: number[] };
 
 export function requestPois(
   pois: Pois,
   ids: readonly number[],
   at: number,
-): Pois {
+): PoisRequest {
   const next = new Map(pois);
-  for (const id of ids) next.set(id, { status: "pending", pois: [], at });
-  return next;
+  const requested: number[] = [];
+  for (const id of ids) {
+    const status = next.get(id)?.status;
+    if (id <= 0 || (status !== undefined && status !== "no_reply")) continue;
+    next.set(id, { status: "pending", pois: [], at });
+    requested.push(id);
+  }
+  return { pois: next, requested };
 }
 
 export function receivePoiResponse(

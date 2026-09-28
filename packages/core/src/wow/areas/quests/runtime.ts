@@ -125,21 +125,15 @@ function poiQueue(
       );
     }
   }
-  function flush(requested: readonly number[]): void {
-    const queue: number[] = [];
-    for (const id of requested)
-      if (store.snapshot().pois.get(id)?.status === "pending") queue.push(id);
-    for (let i = 0; i < queue.length; i += MAX_POI_QUERY_IDS)
-      sendBatch(queue.slice(i, i + MAX_POI_QUERY_IDS));
-  }
   function onReplyTimeout(id: number): void {
     pending.delete(id);
     if (store.snapshot().pois.get(id)?.status === "pending")
       store.expirePois([id]);
   }
   function request(ids: readonly number[]): void {
-    store.queryPois(ids);
-    flush(ids);
+    const queue = store.queryPois(ids);
+    for (let i = 0; i < queue.length; i += MAX_POI_QUERY_IDS)
+      sendBatch(queue.slice(i, i + MAX_POI_QUERY_IDS));
   }
   return {
     request,

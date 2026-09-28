@@ -315,6 +315,88 @@ describe("quests runtime", () => {
     });
   });
 
+  const poiQueries = (rig: ReturnType<typeof setup>["rig"]) =>
+    rig.sent
+      .filter((p) => p.opcode === GameOpcode.CMSG_QUEST_POI_QUERY)
+      .map((p) => {
+        const reader = new PacketReader(p.body ?? new Uint8Array());
+        const count = reader.uint32LE();
+        return Array.from({ length: count }, () => reader.uint32LE());
+      });
+
+  const withLog = (
+    rig: ReturnType<typeof setup>["rig"],
+    questIds: readonly number[],
+  ) => {
+    const state = rig.stores.quests.state();
+    jest.spyOn(rig.stores.quests, "snapshot").mockReturnValue({
+      ...state,
+      log: {
+        complete: true,
+        slots: questIds.map((questId, slot) => ({
+          slot,
+          questId,
+          flags: 0,
+          counters: [0, 0, 0, 0],
+          expiresAtSeconds: 0,
+        })),
+      },
+    });
+  };
+
+  const known8325 = () =>
+    questsQuestPoiQueryResponseBody([
+      {
+        questId: 8325,
+        pois: [
+          {
+            poiId: 1,
+            objectiveIndex: -1,
+            mapId: 530,
+            areaId: 462,
+            floorId: 0,
+            unk3: 1,
+            unk4: 0,
+            points: [{ x: 10_319, y: -6383 }],
+          },
+        ],
+      },
+    ]);
+
+  test("a log change queries only new and no_reply quests, never empty slots", () => {
+    withRig(({ quest, rig, tick }) => {
+      quest("accepted");
+      rig.inject(GameOpcode.SMSG_QUEST_POI_QUERY_RESPONSE, known8325());
+      withLog(rig, [8325, 0, 9999]);
+      quest("log");
+      quest("log");
+      expect(poiQueries(rig)).toEqual([[8325], [9999]]);
+      expect(rig.handle.state().pois.get(8325)?.status).toBe("known");
+      tick(6000);
+      quest("log");
+      expect(poiQueries(rig)).toEqual([[8325], [9999], [9999]]);
+    });
+  });
+
+  test("an accepted quest then its log change sends one query", () => {
+    withRig(({ quest, rig }) => {
+      withLog(rig, [8325]);
+      quest("accepted");
+      quest("log");
+      expect(poiQueries(rig)).toEqual([[8325]]);
+    });
+  });
+
+  test("queryPoi returns a known entry without querying it again", () => {
+    withRig(({ quest, rig }) => {
+      quest("accepted");
+      rig.inject(GameOpcode.SMSG_QUEST_POI_QUERY_RESPONSE, known8325());
+      const [entry] = rig.handle.act.queryPoi([8325]);
+      expect(entry?.status).toBe("known");
+      expect(entry?.pois[0]?.objectiveIndex).toBe(-1);
+      expect(poiQueries(rig)).toEqual([[8325]]);
+    });
+  });
   test("the timeout equals QUEST_REPLY_TIMEOUT_MS", () => {
     expect(REPLY_TIMEOUT_MS).toBe(QUEST_REPLY_TIMEOUT_MS);
   });
