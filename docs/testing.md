@@ -48,7 +48,9 @@ not a target.
 - A test of a loop that polls, settles or runs to a time limit, such as a
   probe flow, runs inside `withFakeTimers`: `elapse(ms)` moves the world
   on, `fakeAwait` and `fakeMsUntilSettled` drive the loop to its result,
-  and a time-limit test asserts the fake milliseconds it took.
+  and a time-limit test asserts the fake milliseconds it took. A test
+  that drives a real socket or process, such as `probe-run.test.ts`,
+  injects small bounds instead: fake timers and real I/O do not mix.
 - Under fake timers, `await expect(promise).rejects` can hang the test
   when the promise rejects after a fake `Bun.sleep`; use
   `fakeRejection(promise, limitMs)`, which returns the error message.
