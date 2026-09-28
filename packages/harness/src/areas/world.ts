@@ -30,7 +30,7 @@ type LooseAct = (...args: unknown[]) => unknown;
 type ActsOf<K> = K extends AreaName
   ? AreaActsOf<K>
   : Readonly<Record<string, LooseAct>>;
-export type RegistryActs<R extends WorldRegistry> = {
+type RegistryActs<R extends WorldRegistry> = {
   readonly [K in keyof R]: {
     readonly [A in R[K]["worldActs"][number]]: A extends keyof ActsOf<K>
       ? Sender<ActsOf<K>[A]>
