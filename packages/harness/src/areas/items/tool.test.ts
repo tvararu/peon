@@ -426,8 +426,15 @@ describe("gear tool", () => {
     items.act = {
       ...items.act,
       equipTo: async () => {
-        stocked(t.handle, [{ ...first, slot: 15 }, { ...twin, slot: 24 }]);
-        const worn = t.handle.getInventoryState().slots.find((slot) => slot.status === "occupied" && slot.guid === first.guid);
+        stocked(t.handle, [
+          { ...first, slot: 15 },
+          { ...twin, slot: 24 },
+        ]);
+        const worn = t.handle
+          .getInventoryState()
+          .slots.find(
+            (slot) => slot.status === "occupied" && slot.guid === first.guid,
+          );
         if (worn) (worn as { region: string }).region = "equipment";
         return outcome("confirmed", 25);
       },
@@ -521,10 +528,12 @@ describe("gear tool", () => {
     ]);
     const acts = itemActs(t.handle);
     const res = await gearSpec
-      .run({ do: "equip", item: "Gnarled Staff", slot: "nose" }, toolCtx(t)).catch((error) => error);
+      .run({ do: "equip", item: "Gnarled Staff", slot: "nose" }, toolCtx(t))
+      .catch((error) => error);
     expect(res).toMatchObject({ reason: "no_such_slot" });
     expect(acts.equipTo).not.toHaveBeenCalled();
   });
 
-  test("a sending tool is kind action", async () => expectSendKind(gearTool, { do: "equip", item: "x" }));
+  test("a sending tool is kind action", async () =>
+    expectSendKind(gearTool, { do: "equip", item: "x" }));
 });

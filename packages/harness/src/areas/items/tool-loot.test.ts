@@ -1,5 +1,10 @@
 import { describe, expect, jest, test } from "bun:test";
-import type { LootItem, NamedRewardsState, RewardsEvent, RewardsOpenLoot } from "@peon/core";
+import type {
+  LootItem,
+  NamedRewardsState,
+  RewardsEvent,
+  RewardsOpenLoot,
+} from "@peon/core";
 import { fakeTimed } from "@peon/core/test-support/fake-time";
 import { gearSpec } from "#harness/areas/items/tool";
 import { TAKE_SETTLE_MS } from "#harness/areas/items/tool-loot";
@@ -174,7 +179,8 @@ describe("gear tool open ends", () => {
     const window = pouch(t, [offered(0, 7073)]);
     window.money = 25;
     const rewards = t.handle.getRewardsState();
-    t.handle.getRewardsState = () => ({ ...rewards, loot: window }) as unknown as NamedRewardsState;
+    t.handle.getRewardsState = () =>
+      ({ ...rewards, loot: window }) as unknown as NamedRewardsState;
     takeAsServer(t, window);
     const cleared = Promise.withResolvers<void>();
     const release = jest.spyOn(t.handle, "releaseLoot");
@@ -202,7 +208,8 @@ describe("gear tool open ends", () => {
     const t = await createTestRuntime();
     const window = pouch(t, [offered(0, 7073)]);
     const rewards = t.handle.getRewardsState();
-    t.handle.getRewardsState = () => ({ ...rewards, loot: window }) as unknown as NamedRewardsState;
+    t.handle.getRewardsState = () =>
+      ({ ...rewards, loot: window }) as unknown as NamedRewardsState;
     const release = jest.spyOn(t.handle, "releaseLoot");
     jest.spyOn(t.handle, "takeLoot").mockImplementation(() => {
       queueMicrotask(() => emit(t, window, "loot_error"));
@@ -216,7 +223,8 @@ describe("gear tool open ends", () => {
     const t = await createTestRuntime();
     const silent = pouch(t, [offered(0, 7073)]);
     const rewards = t.handle.getRewardsState();
-    t.handle.getRewardsState = () => ({ ...rewards, loot: silent }) as unknown as NamedRewardsState;
+    t.handle.getRewardsState = () =>
+      ({ ...rewards, loot: silent }) as unknown as NamedRewardsState;
     const release = jest.spyOn(t.handle, "releaseLoot");
     jest.spyOn(t.handle, "takeLoot").mockReturnValue(undefined);
     const { run } = await fakeTimed(
@@ -232,7 +240,8 @@ describe("gear tool open ends", () => {
     const t = await createTestRuntime();
     const window = pouch(t, [offered(0, 2589), offered(1, 2589)]);
     const rewards = t.handle.getRewardsState();
-    t.handle.getRewardsState = () => ({ ...rewards, loot: window }) as unknown as NamedRewardsState;
+    t.handle.getRewardsState = () =>
+      ({ ...rewards, loot: window }) as unknown as NamedRewardsState;
     const seen: string[] = [];
     jest.spyOn(t.handle, "takeLoot").mockImplementation((slot: number) => {
       seen.push(`take ${slot}`);
