@@ -1,6 +1,6 @@
 import { appendFile } from "node:fs/promises";
 import type { Clock } from "#harness/contract/services";
-import type { AccountNames } from "#harness/grader/accounts";
+import type { AccountNames, Role } from "#harness/grader/accounts";
 import { type Exec, parseJsonOutput } from "#harness/grader/exec";
 import type { PartnerAction } from "#harness/grader/scenarios";
 import { describeAt, dueSteer, type SteerCursor } from "#harness/grader/steer";
@@ -17,15 +17,22 @@ export type PartnerTrack = {
   readAt: number | undefined;
 };
 
-type PartnerInit = {
+export type Partner = {
+  role: Exclude<Role, "agent">;
+  kind: "partner" | "witness";
+  names: AccountNames;
+};
+
+type ReadInit = {
   exec: Exec;
   clock: Clock;
   runDir: string;
-  agent: AccountNames;
-  partner: AccountNames;
+  partner: Partner;
 };
 
-type StepInit = PartnerInit & {
+type StepInit = Omit<ReadInit, "partner"> & {
+  agent: AccountNames;
+  partners: readonly Partner[];
   actions: readonly PartnerAction[];
   track: PartnerTrack;
   triggers: readonly TriggerRow[];
@@ -48,35 +55,55 @@ export function expandArgv(
   );
 }
 
+export function actorOf(partners: readonly Partner[]): Partner {
+  const partner = partners[0];
+  if (partner === undefined) throw new Error("the scenario has no partner");
+  return partner;
+}
+
+export function readersOf(
+  partners: readonly Partner[],
+  actions: readonly PartnerAction[],
+): Partner[] {
+  return actions.length === 0 || partners.length === 0
+    ? []
+    : [actorOf(partners)];
+}
+
 export async function readPartner({
   exec,
   clock,
   runDir,
   partner,
-}: PartnerInit): Promise<void> {
-  const { code, stdout } = await exec([partner.wrapper, "read", "--json"], {
-    timeoutMs: READ_TIMEOUT_MS,
-  });
+}: ReadInit): Promise<void> {
+  const { code, stdout } = await exec(
+    [partner.names.wrapper, "read", "--json"],
+    { timeoutMs: READ_TIMEOUT_MS },
+  );
   const row = {
     code,
     events: parseJsonOutput(stdout) ?? null,
     ms: clock.now(),
   };
-  await appendFile(`${runDir}/partner-read.jsonl`, `${JSON.stringify(row)}\n`);
+  await appendFile(
+    `${runDir}/${partner.role}-read.jsonl`,
+    `${JSON.stringify(row)}\n`,
+  );
 }
 
 async function fire(init: StepInit, action: PartnerAction): Promise<void> {
-  const { agent, clock, exec, partner, runDir, track } = init;
+  const { agent, clock, exec, partners, runDir, track } = init;
+  const partner = actorOf(partners);
   const argv = expandArgv(action.argv, {
     agent: agent.character,
-    partner: partner.character,
+    partner: partner.names.character,
   });
   const ms = clock.now();
-  const { code, stderr } = await exec([partner.wrapper, ...argv], {
+  const { code, stderr } = await exec([partner.names.wrapper, ...argv], {
     timeoutMs: ACTION_TIMEOUT_MS,
   });
   const row = {
-    actor: "partner",
+    actor: partner.role,
     code,
     ms,
     text: argv.join(" "),
@@ -85,14 +112,14 @@ async function fire(init: StepInit, action: PartnerAction): Promise<void> {
   await appendFile(`${runDir}/steers.jsonl`, `${JSON.stringify(row)}\n`);
   if (code !== 0)
     throw new Error(
-      `partner ${argv[0]} exited ${code}: ${stderr.trim().split("\n").at(-1) ?? ""}`,
+      `${partner.role} ${argv[0]} exited ${code}: ${stderr.trim().split("\n").at(-1) ?? ""}`,
     );
   track.cursor = { index: track.cursor.index + 1, since: ms };
   track.windowEnd = ms + action.windowMs;
 }
 
 export async function stepPartner(init: StepInit): Promise<void> {
-  const { actions, clock, track, triggers } = init;
+  const { actions, clock, partners, track, triggers } = init;
   const now = clock.now();
   const due = dueSteer({
     cursor: track.cursor,
@@ -105,5 +132,6 @@ export async function stepPartner(init: StepInit): Promise<void> {
   if (track.readAt !== undefined && now - track.readAt < PARTNER_READ_EVERY_MS)
     return;
   track.readAt = now;
-  await readPartner(init);
+  for (const partner of readersOf(partners, actions))
+    await readPartner({ ...init, partner });
 }

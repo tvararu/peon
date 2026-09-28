@@ -6,7 +6,7 @@ import {
   deleteAccounts,
   quarantine,
   removeSessionFiles,
-  sessionFile,
+  sessionFiles,
 } from "#harness/grader/accounts";
 import { writeConcurrent } from "#harness/grader/concurrent";
 import { conditionsOf } from "#harness/grader/conditions";
@@ -15,6 +15,7 @@ import { parseGameLog } from "#harness/grader/draft-gamelog";
 import { efficiency, readSessionUsage } from "#harness/grader/efficiency";
 import type { Exec } from "#harness/grader/exec";
 import type { Pane } from "#harness/grader/pane";
+import type { Partner } from "#harness/grader/partner";
 import {
   type EvalEvidence,
   type EvalIntervention,
@@ -22,6 +23,7 @@ import {
   type FrictionItem,
   validateResult,
 } from "#harness/grader/result";
+import { stopPartner } from "#harness/grader/run-partners";
 import type { Scenario } from "#harness/grader/scenarios";
 import { finalTruth, leakCheck } from "#harness/grader/truth";
 import type { Watcher } from "#harness/grader/watch";
@@ -30,7 +32,6 @@ export const EXIT_WAIT_MS = 20_000;
 export const DRAFT_REASON =
   "draft: the grader decides the checks, friction and verdict";
 
-const PARTNER_STOP_MS = 60_000;
 const NOTES_MAX = 1500;
 
 export type RunState = {
@@ -44,7 +45,7 @@ export type RunState = {
   sha: string;
   truthWaitMs: number;
   agent: AccountNames | undefined;
-  partner: AccountNames | undefined;
+  partners: Partner[];
   pane: Pane | undefined;
   watcher: Watcher | undefined;
   taskMs: number | undefined;
@@ -91,7 +92,7 @@ export function newRunState({
     log,
     notes: [],
     pane: undefined,
-    partner: undefined,
+    partners: [],
     steersFired: 0,
     taskMs: undefined,
     truthWaitMs,
@@ -104,9 +105,10 @@ export async function writeJson(file: string, value: unknown): Promise<void> {
 }
 
 export function accountsOf(st: RunState): string[] {
-  return [st.agent?.account, st.partner?.account].filter(
-    (account): account is string => account !== undefined,
-  );
+  return [
+    ...(st.agent === undefined ? [] : [st.agent.account]),
+    ...st.partners.map(({ names }) => names.account),
+  ];
 }
 
 async function attempt(
@@ -153,15 +155,13 @@ async function quitAgent(st: RunState, pane: Pane): Promise<void> {
 }
 
 export async function stopHarness(st: RunState): Promise<void> {
-  const { agent, pane, partner, watcher } = st;
+  const { agent, pane, partners, watcher } = st;
   if (watcher !== undefined) await attempt(st, "watcher", () => watcher.stop());
   await Promise.all([
     pane === undefined ? undefined : quitAgent(st, pane),
-    partner === undefined
-      ? undefined
-      : attempt(st, "partner stop", () =>
-          st.exec([partner.wrapper, "stop"], { timeoutMs: PARTNER_STOP_MS }),
-        ),
+    ...partners.map((partner) =>
+      attempt(st, `${partner.role} stop`, () => stopPartner(st.exec, partner)),
+    ),
   ]);
   if (pane !== undefined && agent !== undefined)
     await attempt(st, "final truth", () => verifyFinal(st, agent.account));
@@ -180,10 +180,7 @@ async function deleteAll(st: RunState, accounts: string[]): Promise<void> {
 }
 
 async function checkLeaks(st: RunState): Promise<void> {
-  const secretFiles = [
-    sessionFile(st.runDir, "agent"),
-    sessionFile(st.runDir, "partner"),
-  ];
+  const secretFiles = sessionFiles(st.runDir);
   st.leaks = await leakCheck({ exec: st.exec, runDir: st.runDir, secretFiles });
   await quarantine({ files: st.leaks, runDir: st.runDir });
 }

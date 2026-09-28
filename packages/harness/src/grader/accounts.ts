@@ -179,7 +179,12 @@ export async function quarantine({
     );
 }
 
+export function sessionFiles(runDir: string): string[] {
+  return (Object.keys(FILES) as Role[]).map((role) =>
+    sessionFile(runDir, role),
+  );
+}
+
 export async function removeSessionFiles(runDir: string): Promise<void> {
-  await rm(sessionFile(runDir, "agent"), { force: true });
-  await rm(sessionFile(runDir, "partner"), { force: true });
+  for (const file of sessionFiles(runDir)) await rm(file, { force: true });
 }

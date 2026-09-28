@@ -136,12 +136,15 @@ describe("stopHarness", () => {
 
   test("without a pane it only stops the partner", async () => {
     const { calls, exec } = router();
-    const partner = {
+    const names = {
       ...AGENT,
       account: PARTNER,
       wrapper: `/wt/tmp/puppet-${PARTNER}`,
     };
-    const st = await state(exec, { partner });
+    const partners = [
+      { kind: "partner" as const, names, role: "partner" as const },
+    ];
+    const st = await state(exec, { partners });
     await stopHarness(st);
     expect(calls).toEqual([[`/wt/tmp/puppet-${PARTNER}`, "stop"]]);
   });
@@ -165,12 +168,15 @@ describe("stopHarness", () => {
         order.push("quit end");
       },
     };
-    const partner = {
+    const names = {
       ...AGENT,
       account: PARTNER,
       wrapper: `/wt/tmp/puppet-${PARTNER}`,
     };
-    const st = await state(exec, { pane, partner });
+    const partners = [
+      { kind: "partner" as const, names, role: "partner" as const },
+    ];
+    const st = await state(exec, { pane, partners });
     await stopHarness(st);
     expect(order).toEqual(["quit start", "partner stop", "quit end"]);
     expect(st.exitMs).toBe(NOW);
