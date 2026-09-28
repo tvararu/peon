@@ -11,6 +11,6 @@ export const LOOTING_OPCODES = {
   ],
   uses: [],
   stubs: [],
-  dead: [],
-  unseen: [],
+  dead: ["SMSG_LOOT_ITEM_NOTIFY"],
+  unseen: ["CMSG_OPT_OUT_OF_LOOT"],
 } as const satisfies AreaOpcodes;

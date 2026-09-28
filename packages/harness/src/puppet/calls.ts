@@ -28,6 +28,10 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   sendRaid: { args: ["string"], run: (h, a) => h.sendRaid(text(a, 0)) },
   sendSay: { args: ["string"], run: (h, a) => h.sendSay(text(a, 0)) },
   setLeader: { args: ["string"], run: (h, a) => h.setLeader(text(a, 0)) },
+  setPassOnLoot: {
+    args: [["off", "on"]],
+    run: (h, a) => h.looting.act.setPassOnLoot(a[0] === "on"),
+  },
   uninvite: { args: ["string"], run: (h, a) => h.uninvite(text(a, 0)) },
 };
 

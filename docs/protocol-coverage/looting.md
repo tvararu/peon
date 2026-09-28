@@ -6,8 +6,8 @@ columns are explained in [the index](../protocol-coverage.md).
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
 | `0x07a` | `CMSG_LOOT_METHOD` | client | missing |  |
-| `0x164` | `SMSG_LOOT_ITEM_NOTIFY` | server | missing |  |
+| `0x164` | `SMSG_LOOT_ITEM_NOTIFY` | server | dead |  |
 | `0x2a3` | `CMSG_LOOT_MASTER_GIVE` | client | missing |  |
 | `0x2a4` | `SMSG_LOOT_MASTER_LIST` | server | missing |  |
-| `0x3f9` | `SMSG_LOOT_LIST` | server | missing |  |
-| `0x409` | `CMSG_OPT_OUT_OF_LOOT` | client | missing |  |
+| `0x3f9` | `SMSG_LOOT_LIST` | server | handled |  |
+| `0x409` | `CMSG_OPT_OUT_OF_LOOT` | client | handled | not seen live |
