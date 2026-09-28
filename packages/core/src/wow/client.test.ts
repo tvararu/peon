@@ -19,7 +19,7 @@ import {
   UpdateType,
 } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import { PacketWriter } from "#wow/protocol/packet";
+import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 import type { QuestEvent } from "#wow/quests";
 
 const base = {
@@ -147,7 +147,19 @@ describe("session lifecycle", () => {
         { ...base, host: "127.0.0.1", port: ws.port, pingIntervalMs: 1 },
         fakeAuth(ws.port),
       );
-      await ws.waitForCapture((p) => p.opcode === GameOpcode.CMSG_PING);
+      const ping = await ws.waitForCapture(
+        (p) => p.opcode === GameOpcode.CMSG_PING,
+      );
+      expect(new PacketReader(ping.body).uint32LE()).toBe(1);
+      await new Promise<void>((resolve) => {
+        const off = handle.login.onEvent((event) => {
+          if (event.type !== "pong") return;
+          off();
+          resolve();
+        });
+      });
+      expect(handle.login.state().link.lastSeq).toBeGreaterThanOrEqual(1);
+      expect(handle.login.state().link.rttMs).toBeGreaterThanOrEqual(0);
       handle.close();
       await handle.closed;
     } finally {

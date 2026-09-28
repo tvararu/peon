@@ -385,7 +385,7 @@ export function worldSession(
     async function login(): Promise<void> {
       await authenticateWorld(conn, config, auth);
       await selectCharacter(conn, stores, config);
-      pingInterval = startPingLoop(conn, config.pingIntervalMs ?? 30_000);
+      pingInterval = startPingLoop(conn, stores.areas.login, config);
       const lang = config.language ?? Language.COMMON;
       done = true;
       config.trace?.attach?.((opcode, body) => sendPacket(conn, opcode, body));

@@ -71,3 +71,9 @@ export function loginLearnedDanceMovesBody(): Uint8Array {
   w.uint32LE(0);
   return w.finish();
 }
+
+export function loginPongBody(init: { seq: number }): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.seq);
+  return w.finish();
+}

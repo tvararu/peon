@@ -5,14 +5,17 @@ import {
   loginClientCacheVersionBody,
   loginFeatureSystemStatusBody,
   loginLearnedDanceMovesBody,
+  loginPongBody,
   loginTutorialFlagsBody,
 } from "#test-support/areas/login";
 import {
+  buildKeepAlive,
   parseAccountDataTimes,
   parseAddonInfo,
   parseClientCacheVersion,
   parseFeatureSystemStatus,
   parseLearnedDanceMoves,
+  parsePong,
   parseTutorialFlags,
 } from "#wow/areas/login/protocol";
 import { PacketReader } from "#wow/protocol/packet";
@@ -147,5 +150,21 @@ describe("the fixed login bodies", () => {
     expect(() =>
       parseFeatureSystemStatus(new PacketReader(new Uint8Array(1))),
     ).toThrow();
+  });
+});
+
+describe("link packets", () => {
+  test("SMSG_PONG echoes the ping sequence as one u32 (WorldSocket.cpp:799-801)", () => {
+    const r = new PacketReader(loginPongBody({ seq: 0x01_02_03_04 }));
+    expect(parsePong(r)).toEqual({ seq: 0x01_02_03_04 });
+    expect(r.remaining).toBe(0);
+  });
+
+  test("a short SMSG_PONG throws", () => {
+    expect(() => parsePong(new PacketReader(new Uint8Array(3)))).toThrow();
+  });
+
+  test("CMSG_KEEP_ALIVE is empty (WorldSocket.cpp:452-462)", () => {
+    expect(buildKeepAlive()).toEqual(new Uint8Array(0));
   });
 });

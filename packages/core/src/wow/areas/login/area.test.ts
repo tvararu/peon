@@ -6,6 +6,7 @@ import {
   loginClientCacheVersionBody,
   loginFeatureSystemStatusBody,
   loginLearnedDanceMovesBody,
+  loginPongBody,
   loginTutorialFlagsBody,
 } from "#test-support/areas/login";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -69,6 +70,7 @@ describe("login area wiring", () => {
         cacheVersion: 3,
         danceMoves: [0, 0],
         features: { complaints: 2, voice: 0 },
+        link: { lastPongAt: undefined, lastSeq: 0, rttMs: undefined },
         tutorials: FLAGS,
       });
       expect(seen).toEqual([
@@ -99,6 +101,24 @@ describe("login area wiring", () => {
         count: 0,
         keyed: 0,
       });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_PONG answers the pending ping and emits pong", () => {
+    const rig = areaRig("login", { now: () => 1030 });
+    try {
+      const seen: unknown[] = [];
+      rig.handle.onEvent((event) => seen.push(event));
+      rig.stores.areas.login.nextPing(1000);
+      rig.inject(GameOpcode.SMSG_PONG, loginPongBody({ seq: 1 }));
+      expect(rig.handle.state().link).toEqual({
+        lastPongAt: 1030,
+        lastSeq: 1,
+        rttMs: 30,
+      });
+      expect(seen).toEqual([{ rttMs: 30, seq: 1, type: "pong" }]);
     } finally {
       rig.dispose();
     }

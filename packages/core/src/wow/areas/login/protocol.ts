@@ -22,6 +22,7 @@ export type AccountDataTimes = {
 };
 export type FeatureSystemStatus = { complaints: number; voice: number };
 export type LearnedDanceMoves = { moves: readonly [number, number] };
+export type Pong = { seq: number };
 
 function startsEntry(r: PacketReader): boolean {
   if (r.remaining < 2) return false;
@@ -88,4 +89,12 @@ export function parseLearnedDanceMoves(r: PacketReader): LearnedDanceMoves {
   const first = r.uint32LE();
   const second = r.uint32LE();
   return { moves: [first, second] };
+}
+
+export function parsePong(r: PacketReader): Pong {
+  return { seq: r.uint32LE() };
+}
+
+export function buildKeepAlive(): Uint8Array {
+  return new Uint8Array(0);
 }

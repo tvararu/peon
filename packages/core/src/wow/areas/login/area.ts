@@ -6,16 +6,18 @@ import {
   parseClientCacheVersion,
   parseFeatureSystemStatus,
   parseLearnedDanceMoves,
+  parsePong,
   parseTutorialFlags,
 } from "#wow/areas/login/protocol";
+import { loginRuntime } from "#wow/areas/login/runtime";
 import { LoginStore } from "#wow/areas/login/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 export const loginArea = defineArea({
   name: "login",
   opcodes: LOGIN_OPCODES,
-  eventTypes: ["login_noise", "account_data_times"],
-  store: () => new LoginStore(),
+  eventTypes: ["login_noise", "account_data_times", "pong"],
+  store: (deps) => new LoginStore(deps.now),
   register: (wire, store) => {
     wire.on(GameOpcode.SMSG_ADDON_INFO, (r) =>
       store.receiveAddonInfo(parseAddonInfo(r)),
@@ -35,5 +37,7 @@ export const loginArea = defineArea({
     wire.on(GameOpcode.SMSG_LEARNED_DANCE_MOVES, (r) =>
       store.receiveLearnedDanceMoves(parseLearnedDanceMoves(r)),
     );
+    wire.on(GameOpcode.SMSG_PONG, (r) => store.receivePong(parsePong(r)));
   },
+  runtime: loginRuntime,
 });

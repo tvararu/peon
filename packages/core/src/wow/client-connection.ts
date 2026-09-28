@@ -1,3 +1,4 @@
+import type { LoginStore } from "#wow/areas/login/store";
 import type { AuthResult } from "#wow/auth";
 import type { ClientConfig } from "#wow/client";
 import { Arc4 } from "#wow/crypto/arc4";
@@ -143,14 +144,16 @@ export async function selectCharacter(
 
 export function startPingLoop(
   conn: WorldConn,
-  intervalMs: number,
+  login: LoginStore,
+  config: Pick<ClientConfig, "pingIntervalMs">,
 ): ReturnType<typeof setInterval> {
   return setInterval(() => {
+    const { seq, latencyMs } = login.nextPing(Date.now());
     const w = new PacketWriter();
-    w.uint32LE(0);
-    w.uint32LE(0);
+    w.uint32LE(seq);
+    w.uint32LE(latencyMs);
     sendPacket(conn, GameOpcode.CMSG_PING, w.finish());
-  }, intervalMs);
+  }, config.pingIntervalMs ?? 30_000);
 }
 
 function routeEntityEvent(

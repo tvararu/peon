@@ -8,6 +8,12 @@ area emits `login_noise` once, on the first dance-moves packet (the last
 of the world-entry set), and `account_data_times` on each account-data
 times packet. The harness writes no row for either.
 
+The area also keeps the link health. Core sends `CMSG_PING` every 30 s
+with a sequence that counts up from 1 and the last round trip as its
+latency; the area matches each `SMSG_PONG` to its ping, keeps the round
+trip in `state().link` and emits `pong`, for which the harness writes no
+row. `act.keepAlive()` sends `CMSG_KEEP_ALIVE`.
+
 ## Wire notes
 
 - `SMSG_ADDON_INFO` has no entry count. Per addon the server writes a
@@ -43,9 +49,20 @@ times packet. The harness writes no row for either.
   `SMSG_LEARNED_DANCE_MOVES` is two `uint32` 0
   (`Handlers/CharacterHandler.cpp:882-885`).
 
+- `SMSG_PONG` is one `uint32`, the first field of the ping it answers
+  (`Server/WorldSocket.cpp:799-801`). `CMSG_PING` is a `uint32` sequence
+  and a `uint32` latency, which the server stores for the session
+  (`Server/WorldSocket.cpp:748-749,791`). At most 8 pings stay pending;
+  the oldest is dropped.
+- A ping less than 27 s after the previous one counts as over-speed, and
+  the server kicks the client after `MaxOverspeedPings` of them in a row
+  (`Server/WorldSocket.cpp:762-777`), so the ping interval stays at 30 s.
+- `CMSG_KEEP_ALIVE` has an empty body. The socket layer resets the
+  session's idle timer and sends nothing back
+  (`Server/WorldSocket.cpp:452-462`).
+
 ## Left out
 
-- `SMSG_PONG` and `CMSG_KEEP_ALIVE`: built by `session-2`.
 - `SMSG_CHARACTER_LOGIN_FAILED`, `CMSG_PLAYER_LOGOUT`,
   `CMSG_LOGOUT_CANCEL` and `SMSG_LOGOUT_CANCEL_ACK`: built by
   `session-5`.
@@ -64,3 +81,5 @@ No verb (N23).
 | `SMSG_ACCOUNT_DATA_TIMES` | `live` | probe flow `login`, exit 0; no `not_implemented` notice; mask 0xEA | `Server/WorldSession.cpp:1057-1066` |
 | `SMSG_FEATURE_SYSTEM_STATUS` | `live` | probe flow `login`, exit 0; no `not_implemented` notice | `Handlers/CharacterHandler.cpp:836-839` |
 | `SMSG_LEARNED_DANCE_MOVES` | `live` | probe flow `login`, exit 0; no `not_implemented` notice | `Handlers/CharacterHandler.cpp:882-885` |
+| `SMSG_PONG` | `live` | probe flow `login --wait 70`, exit 0; no `not_implemented` notice; pongs echo sequences 1 and 2 | `Server/WorldSocket.cpp:799-801` |
+| `CMSG_KEEP_ALIVE` | `accepted` | probe `--send CMSG_KEEP_ALIVE --wait 40`, exit 0; the session stays up and a later pong arrives | `Server/WorldSocket.cpp:452-462` |

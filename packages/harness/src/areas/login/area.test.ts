@@ -20,7 +20,16 @@ const TIMES: AreaEvent = {
   event: { mask: 0xea, type: "account_data_times" },
 };
 
+const PONG: AreaEvent = {
+  area: "login",
+  event: { rttMs: 40, seq: 3, type: "pong" },
+};
+
 describe("login harness rules", () => {
+  test("pong writes no row, not even a fallback", () => {
+    expect(areaDrafts(areaRuleSet(), PONG, testRuleInput())).toEqual([]);
+  });
+
   test("login_noise writes no row, not even a fallback", () => {
     expect(areaDrafts(areaRuleSet(), NOISE, testRuleInput())).toEqual([]);
   });
