@@ -48,6 +48,7 @@ These have tools or code but no scenario that checks them live:
 - Reading a shrine plaque (`t0-objects-read-shrine`, the agent reads the page but quotes the placard line, not the page's opening sentence).
 - Completing an exploration quest by walking into its area trigger (`t4-objects-explore-fargodeep`, the agent never reaches trigger 88: the accept points at `engage`, which fails explore quests, and compass exploring does not find the mine).
 - A sustained levelling run across several quests and zones.
+- Set the action bar (`t4-spells-action-bar`, no server truth for the bar).
 - Walking to a quest objective's region from `journal` (`t4-quests-poi-walk`):
   the agent takes the quest but walks by other means and never reads the
   region from `journal`.

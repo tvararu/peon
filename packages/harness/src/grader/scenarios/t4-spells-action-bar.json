@@ -1,0 +1,25 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 6,
+    "tools": 10,
+    "turns": 6
+  },
+  "checks": [
+    {
+      "expect": "the session shows the character sending both buttons: a spell tool call with do bar, slot 1 and Fireball, and a spell tool call with do bar, slot 12 and the hearthstone (item 6948 or its name), each not ending REFUSED. The server sends no reply and no truth field holds the action bar, so this check reads the session only",
+      "id": "both-buttons-sent",
+      "source": "session"
+    }
+  ],
+  "id": "t4-spells-action-bar",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "eversong10-mage",
+  "setup": [],
+  "steers": [],
+  "task": "Put Fireball on action bar slot 1 and your hearthstone on slot 12.",
+  "tier": 4
+}
