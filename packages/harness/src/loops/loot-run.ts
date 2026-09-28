@@ -302,7 +302,9 @@ function takeOutcome(event: RewardsEvent, slot?: number): Taken | undefined {
   return undefined;
 }
 
-async function closeLoot(run: Pick<ObjectLootRun, "rewards" | "events" | "signal">): Promise<{ ok: true } | CycleStop> {
+async function closeLoot(
+  run: Pick<ObjectLootRun, "rewards" | "events" | "signal">,
+): Promise<{ ok: true } | CycleStop> {
   const refused = request(() => run.rewards.close());
   if (refused) return refused;
   for (;;) {

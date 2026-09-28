@@ -74,7 +74,8 @@ export async function useObject(
   if (do_ === "read") return await readObjectFlow(ctx, row);
   const template = ctx.handle.objects.state().templates.get(row.entry);
   const type = template?.type ?? row.type;
-  if (type === 9 && template?.pageId !== undefined)
+  if (type === 3) return await openObjectFlow(ctx, row, args.key);
+  if (template?.pageId !== undefined && (type === 9 || type === 10))
     return readObjectFlow(ctx, row);
   const outcome = ctx.handle.objects.act.use(row.guid);
   if (!("ok" in outcome))

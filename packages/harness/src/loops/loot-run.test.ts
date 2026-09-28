@@ -19,7 +19,12 @@ function objectRun(loot: ReturnType<typeof fakeLoot>) {
 
 describe("lootObject", () => {
   test("takes the items and money of the window the server opens for the object", async () => {
-    const loot = fakeLoot({ coinageAfter: 20, coinageBefore: 0, items: [0, 1], money: 20 });
+    const loot = fakeLoot({
+      coinageAfter: 20,
+      coinageBefore: 0,
+      items: [0, 1],
+      money: 20,
+    });
     const run = objectRun(loot);
     const looted = lootObject(run, 2n);
     loot.open(2n);

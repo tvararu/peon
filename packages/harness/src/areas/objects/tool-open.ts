@@ -18,6 +18,8 @@ import { nextCall } from "#harness/tools/next-call";
 
 export const OPEN_SETTLE_MS = 5000;
 
+const REACH_MARGIN_YD = 6;
+
 const USABLE: Record<number, true> = {
   0: true,
   1: true,
@@ -41,7 +43,11 @@ export function findObject(ctx: UseCtx, object: string): ObjectRow {
 }
 
 export function checkReach(row: ObjectRow): void {
-  if (row.distance === undefined || row.distance <= reachYd(row)) return;
+  if (
+    row.distance === undefined ||
+    row.distance <= reachYd(row) + REACH_MARGIN_YD
+  )
+    return;
   throw new Refusal({
     detail: `${row.name} (${row.ref}) is ${row.distance} yd away; walk to it first.`,
     next: nextCall("travel", { to: row.ref }),
@@ -111,19 +117,43 @@ export function openObjectFlow(
   return openUnlocked(ctx, row);
 }
 
-function openUnlocked(
+async function openUnlocked(
   ctx: UseCtx,
   row: ObjectRow,
 ): Promise<ToolResult<UseAfter>> {
-  const { handle } = ctx;
-  const outcome = handle.objects.act.use(row.guid);
-  if (!("ok" in outcome))
-    throw new Refusal({
-      detail: `${row.name} (${row.ref}) cannot be used.`,
-      next: nextCall("look", { find: "object" }),
-      reason: "not_usable",
-    });
-  return lootWindow(ctx, row, `Opened ${row.name}`);
+  const { handle, rt } = ctx;
+  const choice = await handle.objects.act.openLockSpell(row.entry);
+  if ("by" in choice) return openLocked(ctx, row);
+  if (handle.getRewardsState().loot.phase === "open") await releaseStale(ctx);
+  return withLootWatch(ctx, row, async () => {
+    await rt.mutex.run(() => handle.openLoot(row.guid));
+    const useOutcome = await rt.mutex.run(() =>
+      handle.objects.act.use(row.guid),
+    );
+    if (!("ok" in useOutcome))
+      throw new Refusal({
+        detail: `${row.name} (${row.ref}) cannot be used.`,
+        next: nextCall("look", { find: "object" }),
+        reason: "not_usable",
+      });
+  });
+}
+
+async function withLootWatch(
+  ctx: UseCtx,
+  row: ObjectRow,
+  send: () => Promise<void>,
+): Promise<ToolResult<UseAfter>> {
+  const waiter = new EventWaiter<RewardsEvent>();
+  const off = ctx.handle.onRewardsEvent((event) => waiter.push(event));
+  const watch = watchLoot(ctx);
+  try {
+    await send();
+    return await lootWindow(ctx, row, `Opened ${row.name}`, { waiter, watch });
+  } finally {
+    watch.stop();
+    off();
+  }
 }
 
 async function openLocked(
@@ -144,30 +174,33 @@ async function openLocked(
       reason: "locked",
     });
   if (handle.getRewardsState().loot.phase === "open") await releaseStale(ctx);
-  const useOutcome = await rt.mutex.run(() => handle.objects.act.use(row.guid));
-  if (!("ok" in useOutcome))
-    throw new Refusal({
-      detail: `${row.name} (${row.ref}) cannot be used.`,
-      next: nextCall("look", { find: "object" }),
-      reason: "not_usable",
-    });
-  const opened = await rt.mutex.run(() =>
-    handle.objects.act.open(row.guid, choice.spellId),
-  );
-  if (!opened.ok) {
-    if (opened.reason === "loot_open")
+  return withLootWatch(ctx, row, async () => {
+    const useOutcome = await rt.mutex.run(() =>
+      handle.objects.act.use(row.guid),
+    );
+    if (!("ok" in useOutcome))
       throw new Refusal({
-        detail: "another loot window is open; close it first.",
-        next: nextCall("loot", {}),
-        reason: "loot_open",
+        detail: `${row.name} (${row.ref}) cannot be used.`,
+        next: nextCall("look", { find: "object" }),
+        reason: "not_usable",
       });
-    throw new Refusal({
-      detail: `${row.name} (${row.ref}) cannot be opened.`,
-      next: nextCall("look", { find: "object" }),
-      reason: "not_usable",
-    });
-  }
-  return lootWindow(ctx, row, `Opened ${row.name}`);
+    const opened = await rt.mutex.run(() =>
+      handle.objects.act.open(row.guid, choice.spellId),
+    );
+    if (!opened.ok) {
+      if (opened.reason === "loot_open")
+        throw new Refusal({
+          detail: "another loot window is open; close it first.",
+          next: nextCall("loot", {}),
+          reason: "loot_open",
+        });
+      throw new Refusal({
+        detail: `${row.name} (${row.ref}) cannot be opened.`,
+        next: nextCall("look", { find: "object" }),
+        reason: "not_usable",
+      });
+    }
+  });
 }
 
 async function openWithKey(
@@ -192,33 +225,36 @@ async function openWithKey(
       reason: "no_item",
     });
   if (handle.getRewardsState().loot.phase === "open") await releaseStale(ctx);
-  const useOutcome = await rt.mutex.run(() => handle.objects.act.use(row.guid));
-  if (!("ok" in useOutcome))
-    throw new Refusal({
-      detail: `${row.name} (${row.ref}) cannot be used.`,
-      next: nextCall("look", { find: "object" }),
-      reason: "not_usable",
-    });
-  const outcome = await rt.mutex.run(() =>
-    handle.objects.act.useItemOn(held.item.entry as number, row.guid),
-  );
-  if (!outcome.ok) {
-    const reasons: Record<string, string> = {
-      loot_open: "another loot window is open; close it first.",
-      no_item: `no key named ${key} is in the bags.`,
-      no_use_spell: `${held.item.name ?? key} has no use spell.`,
-      unknown: `${row.name} (${row.ref}) cannot be used.`,
-    };
-    throw new Refusal({
-      detail: reasons[outcome.reason] ?? `${row.name} cannot be opened.`,
-      next:
-        outcome.reason === "no_item"
-          ? nextCall("journal", { about: "bags" })
-          : nextCall("look", { find: "object" }),
-      reason: outcome.reason,
-    });
-  }
-  return lootWindow(ctx, row, `Opened ${row.name}`);
+  return withLootWatch(ctx, row, async () => {
+    const useOutcome = await rt.mutex.run(() =>
+      handle.objects.act.use(row.guid),
+    );
+    if (!("ok" in useOutcome))
+      throw new Refusal({
+        detail: `${row.name} (${row.ref}) cannot be used.`,
+        next: nextCall("look", { find: "object" }),
+        reason: "not_usable",
+      });
+    const outcome = await rt.mutex.run(() =>
+      handle.objects.act.useItemOn(held.item.entry as number, row.guid),
+    );
+    if (!outcome.ok) {
+      const reasons: Record<string, string> = {
+        loot_open: "another loot window is open; close it first.",
+        no_item: `no key named ${key} is in the bags.`,
+        no_use_spell: `${held.item.name ?? key} has no use spell.`,
+        unknown: `${row.name} (${row.ref}) cannot be used.`,
+      };
+      throw new Refusal({
+        detail: reasons[outcome.reason] ?? `${row.name} cannot be opened.`,
+        next:
+          outcome.reason === "no_item"
+            ? nextCall("journal", { about: "bags" })
+            : nextCall("look", { find: "object" }),
+        reason: outcome.reason,
+      });
+    }
+  });
 }
 
 async function releaseStale(ctx: UseCtx): Promise<void> {
@@ -265,13 +301,30 @@ function namedLines(
 type Watch = {
   offered: Offered[];
   pushed: LootLine[];
+  taken: number[];
   stop: () => void;
 };
+
+function recordRemoved(
+  offered: readonly Offered[],
+  remaining: readonly { slot: number }[],
+  taken: number[],
+): void {
+  for (const item of offered)
+    if (
+      !(
+        taken.includes(item.slot) ||
+        remaining.some((line) => line.slot === item.slot)
+      )
+    )
+      taken.push(item.slot);
+}
 
 function watchLoot(ctx: UseCtx): Watch {
   const { handle } = ctx;
   const offered: Offered[] = [];
   const pushed: LootLine[] = [];
+  const taken: number[] = [];
   const taps = handle.onRewardsEvent((event) => {
     const state = event.state;
     if (event.type === "loot_opened" && state.loot.phase === "open")
@@ -281,6 +334,8 @@ function watchLoot(ctx: UseCtx): Watch {
           itemId: item.itemId,
           slot: item.slot,
         });
+    if (event.type === "loot_removed" && state.loot.phase === "open")
+      recordRemoved(offered, state.loot.items, taken);
     const push = state.lastItemPush;
     if (event.type === "item_push" && push)
       pushed.push({
@@ -290,7 +345,7 @@ function watchLoot(ctx: UseCtx): Watch {
         quality: null,
       });
   });
-  return { offered, pushed, stop: taps };
+  return { offered, pushed, stop: taps, taken };
 }
 
 function objectLootRun(ctx: UseCtx, waiter: EventWaiter<RewardsEvent>) {
@@ -318,6 +373,32 @@ function objectLootRun(ctx: UseCtx, waiter: EventWaiter<RewardsEvent>) {
     },
     signal: ctx.signal,
   };
+}
+
+async function partlyResult(
+  ctx: UseCtx,
+  row: ObjectRow,
+  verb: string,
+  watch: Watch,
+): Promise<ToolResult<UseAfter>> {
+  const { handle } = ctx;
+  if (handle.getRewardsState().loot.phase === "open") handle.releaseLoot();
+  const lines = await nameLootLines(ctx, watch.pushed);
+  const taken = namedLines(watch.offered, watch.taken, lines);
+  const left = Math.max(watch.offered.length - taken.length, 0);
+  const { detail } = openedDetail(verb, taken, 0, left);
+  return result("PARTLY", {
+    after: {
+      do: "open",
+      object: row.ref,
+      opened: true,
+      taken: taken.map((line) => `${line.count} x ${line.name}`),
+      text: undefined,
+    },
+    detail,
+    next: nextCall("journal", { about: "bags" }),
+    reason: "bags_full",
+  });
 }
 
 function settleRefusal(row: ObjectRow, cause: string): Refusal {
@@ -351,56 +432,75 @@ function openedDetail(
   };
 }
 
+async function openedResult(
+  ctx: UseCtx,
+  row: ObjectRow,
+  verb: string,
+  loot: {
+    watch: Watch;
+    record:
+      | { slotsTaken: number[]; slotsLeft: number[]; moneyTaken: number }
+      | undefined;
+  },
+): Promise<ToolResult<UseAfter>> {
+  const { watch, record } = loot;
+  const lines = await nameLootLines(ctx, watch.pushed);
+  const named = namedLines(watch.offered, record?.slotsTaken ?? [], lines);
+  const left = record?.slotsLeft ?? [];
+  const taken = named.filter((line) =>
+    (record?.slotsTaken ?? []).some(
+      (slot) =>
+        watch.offered.find((item) => item.slot === slot)?.itemId ===
+        line.itemId,
+    ),
+  );
+  const { detail, status } = openedDetail(
+    verb,
+    taken,
+    record?.moneyTaken ?? 0,
+    left.length,
+  );
+  return result(status, {
+    after: {
+      do: "open",
+      object: row.ref,
+      opened: true,
+      taken: taken.map((line) => `${line.count} x ${line.name}`),
+      text: undefined,
+    },
+    detail,
+    ...(left.length > 0
+      ? { next: nextCall("journal", { about: "bags" }), reason: "bags_full" }
+      : {}),
+  });
+}
+
 async function lootWindow(
   ctx: UseCtx,
   row: ObjectRow,
   verb: string,
+  observed?: { waiter: EventWaiter<RewardsEvent>; watch: Watch },
 ): Promise<ToolResult<UseAfter>> {
   const { handle, rt } = ctx;
-  const waiter = new EventWaiter<RewardsEvent>();
-  const off = handle.onRewardsEvent((event) => waiter.push(event));
-  const watch = watchLoot(ctx);
+  const owned = observed?.waiter ?? new EventWaiter<RewardsEvent>();
+  const off = observed
+    ? () => undefined
+    : handle.onRewardsEvent((event) => owned.push(event));
+  const watch = observed?.watch ?? watchLoot(ctx);
   try {
     const outcome = await rt.mutex.run(() =>
-      lootObject(objectLootRun(ctx, waiter), row.guid),
-    );
-    const lines = await nameLootLines(ctx, watch.pushed);
-    const named = namedLines(
-      watch.offered,
-      outcome.ok ? (outcome.record?.slotsTaken ?? []) : [],
-      lines,
+      lootObject(objectLootRun(ctx, owned), row.guid),
     );
     if (!outcome.ok) {
+      if (
+        outcome.cause === "inventory_reserve_reached" ||
+        outcome.cause === "loot_inventory_full"
+      )
+        return partlyResult(ctx, row, verb, watch);
       handle.abandonLoot();
       throw settleRefusal(row, outcome.cause);
     }
-    const left = outcome.record?.slotsLeft ?? [];
-    const taken = named.filter((line) =>
-      (outcome.record?.slotsTaken ?? []).some(
-        (slot) =>
-          watch.offered.find((item) => item.slot === slot)?.itemId ===
-          line.itemId,
-      ),
-    );
-    const { detail, status } = openedDetail(
-      verb,
-      taken,
-      outcome.record?.moneyTaken ?? 0,
-      left.length,
-    );
-    return result(status, {
-      after: {
-        do: "open",
-        object: row.ref,
-        opened: true,
-        taken: taken.map((line) => `${line.count} x ${line.name}`),
-        text: undefined,
-      },
-      detail,
-      ...(left.length > 0
-        ? { next: nextCall("journal", { about: "bags" }), reason: "bags_full" }
-        : {}),
-    });
+    return openedResult(ctx, row, verb, { record: outcome.record, watch });
   } finally {
     watch.stop();
     off();
