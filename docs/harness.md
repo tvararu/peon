@@ -124,7 +124,7 @@ A result that is not `DONE` ends with a `Next:` step.
 |---|---|
 | `look` | Self, place, target, the running action, and the nearest units with short ids like `u7`; `find: object` lists game objects as `o<n>` with kind and quest, locked and busy flags. |
 | `travel` | Walks to a unit (`to: o<n>` reaches a game object), the corpse or a point, uses the hearthstone (`to: hearth`), explores in a direction, or unsticks. |
-| `engage` | Chooses a target, walks to it, fights it with Jev and loots it. |
+| `engage` | Chooses a target, walks to it, fights it with Jev and loots it; the result line gives damage dealt and taken, avoided swings and refused spells. |
 | `loot` | Loots one corpse, one slot at a time. |
 | `interact` | Talks to an NPC (`npc: o<n>` talks to a quest-giver object): quests, gossip, buy, sell junk, buyback, train, repair, bind at an inn. |
 | `rest` | Eats and drinks until health and mana reach a percent. |
