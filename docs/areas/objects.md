@@ -58,6 +58,24 @@ and reads shrines, plaques and books.
   object's template page id and emits `page_shown`; when the template has
   not arrived yet it keeps the guid and emits once it lands. A type-10
   goober with a page id answers the use with this packet.
+- The quest loop treats an object as an objective in two ways. A quest
+  target with a negative `npcOrGoId` is an object objective with the
+  quest log counter at its index. A required item that no creature is
+  named for is matched to the game objects whose template lists it among
+  the quest items the server writes in the query reply
+  (`Handlers/QueryHandler.cpp:205-211`). The loop only picks an object
+  that carries `GO_DYNFLAG_LO_ACTIVATE`, which the server sets per player
+  while the object serves an open quest (`Entities/GameObject/GameObject.cpp:2799-2811`).
+  It walks to 3 yd, opens a chest with the spell of `openLockSpell` (a use
+  first, then the cast, as `use do: open` does) and takes the loot with
+  `lootObject`; any other usable object gets one use and a wait of 3 s
+  for a quest update. An object whose visit fails is not tried again in
+  that run. A live run on an `elwynn10` character raised to level 60,
+  with quest 3904 staged by `soap gm quest add` and a teleport to the
+  vineyard, looted 8 crates through the loop and `soap truth` showed the
+  quest complete (status 1, item counts `[8, 0, 0, 0, 0, 0]`). The same run at
+  level 20 looted 6 crates and then died to the vineyard thugs, whose hits
+  interrupt the cast: the loop does not fight back.
 - The guid of `SMSG_GAMEOBJECT_DESPAWN_ANIM` is not always a game
   object's.
   - A dynamic object sends the despawn animation with its own guid when
