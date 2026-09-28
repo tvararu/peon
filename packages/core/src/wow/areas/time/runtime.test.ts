@@ -1,7 +1,11 @@
 import { describe, expect, jest, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import { timeQueryResponseBody } from "#test-support/areas/time";
+import type { AreaRuntimeCtx } from "#wow/areas/contract";
+import { timeRuntime } from "#wow/areas/time/runtime";
+import { type TimeEvent, TimeStore } from "#wow/areas/time/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
+import type { CoreStores } from "#wow/session-stores";
 
 const HOME = { mapId: 530, x: 1, y: 2, z: 3, orientation: 0 };
 const REPLY = timeQueryResponseBody({
@@ -65,12 +69,22 @@ describe("time runtime", () => {
     }
   });
 
-  test("dispose rejects a pending query with the abort reason and stops the login query", async () => {
+  test("dispose rejects a pending query with the abort reason", async () => {
     const rig = areaRig("time");
     const pending = rig.handle.act.query();
     rig.dispose();
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
-    rig.stores.self.receive({ type: "login_verified", position: HOME });
-    expect(queries(rig.sent)).toHaveLength(1);
+  });
+
+  test("dispose releases the login_verified subscription", () => {
+    const off = jest.fn();
+    const onEvent = jest.fn(() => off);
+    const core = { self: { onEvent } } as unknown as CoreStores;
+    const ctx = {} as AreaRuntimeCtx<TimeEvent>;
+    const runtime = timeRuntime(ctx, new TimeStore(() => 0), core);
+    expect(onEvent).toHaveBeenCalledTimes(1);
+    expect(off).not.toHaveBeenCalled();
+    runtime.dispose();
+    expect(off).toHaveBeenCalledTimes(1);
   });
 });
