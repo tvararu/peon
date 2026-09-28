@@ -184,23 +184,31 @@ type Waiter = {
 
 export class OpcodeDispatch {
   private readonly handlers: Map<number, (reader: PacketReader) => void>;
+  private readonly peeks: Map<number, ((reader: PacketReader) => void)[]>;
   private readonly waiters: Map<number, Waiter[]>;
   private readonly unhandled: Map<number, number>;
   private readonly seen: Map<number, number>;
   private readonly reported: Set<number>;
   private report: (opcode: number) => boolean;
+  private peekError: (opcode: number, error: unknown) => void;
 
   constructor() {
     this.handlers = new Map();
+    this.peeks = new Map();
     this.waiters = new Map();
     this.unhandled = new Map();
     this.seen = new Map();
     this.reported = new Set();
     this.report = () => false;
+    this.peekError = () => undefined;
   }
 
   onUnhandled(report: (opcode: number) => boolean): void {
     this.report = report;
+  }
+
+  onPeekError(report: (opcode: number, error: unknown) => void): void {
+    this.peekError = report;
   }
 
   unhandledCounts(): ReadonlyMap<number, number> {
@@ -221,6 +229,12 @@ export class OpcodeDispatch {
         `Opcode 0x${opcode.toString(16)} already has a handler; compose in its owner`,
       );
     this.handlers.set(opcode, handler);
+  }
+
+  peek(opcode: number, read: (reader: PacketReader) => void): void {
+    if (!this.handlers.has(opcode))
+      throw new Error("peek needs an owner; own the opcode instead");
+    this.peeks.set(opcode, [...(this.peeks.get(opcode) ?? []), read]);
   }
 
   expect(
@@ -272,6 +286,13 @@ export class OpcodeDispatch {
     if (waiter) {
       this.removeWaiter(opcode, waiter);
       waiter.resolve(body.fork());
+    }
+    for (const read of this.peeks.get(opcode) ?? []) {
+      try {
+        read(body.fork());
+      } catch (error) {
+        this.peekError(opcode, error);
+      }
     }
     return "handled";
   }
