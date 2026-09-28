@@ -148,7 +148,7 @@ The runtime sends the completed query once at login.
 
 ## Capabilities row
 
-No verb yet: `quests-2` shows the marks in `look`.
+See which NPCs have a quest or a quest to turn in (`t4-quests-find-giver`, pass round 11 replica 2: `quests/marks` named Magistrix Erona available before the first `interact`, quest 8325 taken).
 
 ## Proof
 
