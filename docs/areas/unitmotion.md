@@ -16,9 +16,13 @@ speed messages reach the store from the remote-motion handlers, because
 area sources never name those opcodes. The harness writes no log rows
 for these events.
 
-Every creature death clears hover and disabled gravity on the dead unit
-(`Entities/Creature/Creature.cpp:2002-2003`), so each kill emits two
-`flag` events with `on` false. The probe flow `unitmotion-kill` attacks
+Every creature death clears hover twice and disabled gravity once on
+the dead unit: `Unit::setDeathState` clears hover
+(`Entities/Unit/Unit.cpp:11113`, called at
+`Entities/Creature/Creature.cpp:1975`), then the creature clears hover
+and gravity again (`Entities/Creature/Creature.cpp:2002-2003`). Each
+kill so emits three `flag` events with `on` false: hover, hover and
+disable_gravity. The probe flow `unitmotion-kill` attacks
 the nearest hostile creature until it dies and lists the flags its death
 cleared.
 
