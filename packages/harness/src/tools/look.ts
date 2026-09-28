@@ -2,6 +2,7 @@ import {
   type ObjectRow,
   objectLine,
   objectRows,
+  objectUnit,
 } from "#harness/areas/objects/reads";
 import { unitThreat } from "#harness/areas/threat/reads";
 import type { LookAfter, LookFilter } from "#harness/contract/details";
@@ -126,38 +127,6 @@ function withThreat(
     const threat = unit && unitThreat(state, unit, self, named);
     return threat ? { ...row, ...threat } : row;
   });
-}
-
-function objectUnit(row: ObjectRow): UnitView {
-  return {
-    aggro: undefined,
-    alive: true,
-    attackable: false,
-    attackingMe: false,
-    compass: row.compass as UnitView["compass"],
-    distance: row.distance,
-    entry: row.entry,
-    fightingMe: undefined,
-    guid: row.guid.toString(16),
-    hp: 1,
-    hpPct: 100,
-    inView: true,
-    kind: "creature",
-    level: 0,
-    lootable: false,
-    maxHp: 1,
-    myThreatPct: undefined,
-    name: row.name,
-    ref: row.ref,
-    relation: "neutral",
-    roles: row.quest ? ["questgiver"] : [],
-    seenAgoMs: 0,
-    tappedByOther: false,
-    targetsMe: false,
-    x: row.x,
-    y: row.y,
-    z: row.z,
-  };
 }
 
 function objectAfter(

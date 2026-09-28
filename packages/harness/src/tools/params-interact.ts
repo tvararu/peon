@@ -24,7 +24,10 @@ export const interactParams = Type.Object({
       { description: "Default talk: list what this NPC offers." },
     ),
   ),
-  npc: Type.String({ description: "NPC unit id (u3) or the NPC's name." }),
+  npc: Type.String({
+    description:
+      "NPC unit id (u3) or the NPC's name, or a quest-giver object id (o1) or name.",
+  }),
   reward: Type.Optional(
     Type.Integer({
       description: "Reward choice number for turn_in.",

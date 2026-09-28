@@ -7,6 +7,7 @@ import {
   ObjectType,
 } from "@peon/core";
 import type { ViewCtx } from "#harness/contract/services";
+import type { UnitView } from "#harness/contract/views";
 import { compassOf } from "#harness/ops/views";
 
 const OBJECT_REF = /^o[1-9]\d*$/;
@@ -145,6 +146,37 @@ function objectRow(
   };
 }
 
+export function objectUnit(row: ObjectRow): UnitView {
+  return {
+    aggro: undefined,
+    alive: true,
+    attackable: false,
+    attackingMe: false,
+    compass: row.compass as UnitView["compass"],
+    distance: row.distance,
+    entry: row.entry,
+    fightingMe: undefined,
+    guid: row.guid.toString(16),
+    hp: 1,
+    hpPct: 100,
+    inView: true,
+    kind: "creature",
+    level: 0,
+    lootable: false,
+    maxHp: 1,
+    myThreatPct: undefined,
+    name: row.name,
+    ref: row.ref,
+    relation: "neutral",
+    roles: row.quest || row.type === 2 ? ["questgiver"] : [],
+    seenAgoMs: 0,
+    tappedByOther: false,
+    targetsMe: false,
+    x: row.x,
+    y: row.y,
+    z: row.z,
+  };
+}
 export function reachYd(row: ObjectRow): number {
   return Math.max((REACH_YD[row.type] ?? 5.5) - 1, 1);
 }

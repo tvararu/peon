@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { TravelAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
+import { createRefTable } from "#harness/ops/refs";
 import { travelSpec, travelTool } from "#harness/tools/travel";
 import {
   attackBy,
@@ -17,7 +18,6 @@ import {
   unitRow,
 } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
-import { createRefTable } from "#harness/ops/refs";
 import { expectSendKind } from "#test-support/tool-harness";
 
 const MARNIEL = unitRow({
@@ -470,7 +470,26 @@ describe("travel", () => {
     expect(fit(res)).toMatch(/^DONE arrived at Milly's Harvest \(o1\): /);
     await expectSendKind(travelTool, { to: "Milly's Harvest" });
   });
-
+  test("a unit name wins over an object name", async () => {
+    const t = await world();
+    setUnits(t.handle, [
+      ...t.handle.queryNearby(),
+      objectRow({
+        distance: 10,
+        guid: 0xf110_0000_0000_0071n,
+        name: "Marniel's Cache",
+        x: 10,
+        y: 0,
+      }),
+    ]);
+    t.rt.refs.refOf(0xf110_0000_0000_0071n);
+    driveGoto(t.handle, [{ arrive: { x: 33, y: 0 } }]);
+    const res = await travelSpec.run(
+      { to: "Marniel" },
+      toolCtx<TravelAfter>(t),
+    );
+    expect(fit(res)).toMatch(/^DONE arrived at Marniel Amberlight \(u1\): /);
+  });
   test("a human stop ends the run as cancelled", async () => {
     const t = await world();
     driveGoto(t.handle, [{ hold: true }]);

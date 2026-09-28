@@ -136,7 +136,10 @@ export async function openDialog(
 ): Promise<QuestDialog | undefined> {
   const opened = await questStep(ctx, {
     match: (event) => event.type === "dialog" || event.type === "window",
-    packet: () => ctx.handle.talk(npc.guid),
+    packet: () =>
+      npc.unit.ref.startsWith("o")
+        ? ctx.handle.objects.act.use(npc.guid)
+        : ctx.handle.talk(npc.guid),
   });
   return opened?.type === "dialog"
     ? ctx.handle.getQuestState().dialog

@@ -1,3 +1,8 @@
+import {
+  isObjectRef,
+  objectUnit,
+  resolveObjectRef,
+} from "#harness/areas/objects/reads";
 import type { InteractAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
@@ -137,11 +142,29 @@ const STEPS = new Map<string, InteractStep>([
   ["repair", repairStep],
 ]);
 
+function objectTalk(ctx: ToolCtx<InteractAfter>, text: string): NpcTarget {
+  const row = resolveObjectRef(ctx, text);
+  if (!row) {
+    const resolved = resolveUnit(ctx, { alive: true, text });
+    if (resolved.kind !== "unit")
+      throw unitRefusal({ param: "npc", resolved, tool: "interact" });
+    return { guid: resolved.guid, unit: resolved.unit };
+  }
+  if (row.type !== 2)
+    throw new Refusal({
+      detail: `${row.name} (${row.ref}) is not a quest giver; it cannot talk.`,
+      next: nextCall("look", { find: "object" }),
+      reason: "not_quest_giver",
+    });
+  return { guid: row.guid, unit: objectUnit(row) };
+}
+
 function findNpc(ctx: ToolCtx<InteractAfter>, text: string): NpcTarget {
+  if (isObjectRef(text)) return objectTalk(ctx, text);
   const resolved = resolveUnit(ctx, { alive: true, text });
-  if (resolved.kind !== "unit")
-    throw unitRefusal({ param: "npc", resolved, tool: "interact" });
-  return { guid: resolved.guid, unit: resolved.unit };
+  if (resolved.kind === "unit")
+    return { guid: resolved.guid, unit: resolved.unit };
+  return objectTalk(ctx, text);
 }
 
 function unreached(npc: NpcTarget, leg: LegResult): Refusal {

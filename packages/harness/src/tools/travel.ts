@@ -1,8 +1,8 @@
 import { messageOf } from "@peon/core/lib/errors";
 import {
   isObjectRef,
-  type ObjectRow,
   objectRows,
+  objectUnit,
   reachYd,
   resolveObjectRef,
 } from "#harness/areas/objects/reads";
@@ -10,7 +10,6 @@ import type { TravelAfter } from "#harness/contract/details";
 import type { ToolStatus } from "#harness/contract/result";
 import type { RunControl, RunEnd, RunStatus } from "#harness/contract/runs";
 import type { OpsCtx, ToolCtx } from "#harness/contract/services";
-import type { UnitView } from "#harness/contract/views";
 import { dangerView, watchInterrupts } from "#harness/ops/danger";
 import { explore, parseDirection } from "#harness/ops/explore";
 import { exploreWanted, passedUnits } from "#harness/ops/explore-wanted";
@@ -88,47 +87,20 @@ function parseGoal(ctx: ToolCtx<TravelAfter>, to: string): Goal {
       y: Number(coords[2]),
       z: coords[3] === undefined ? undefined : Number(coords[3]),
     };
-  const object = isObjectRef(text)
-    ? resolveObjectRef(ctx, text)
-    : resolveObjectRef(ctx, text);
-  if (object)
-    return { guid: object.guid, kind: "unit", unit: objectUnit(object) };
+  if (isObjectRef(text)) {
+    const object = resolveObjectRef(ctx, text);
+    if (object)
+      return { guid: object.guid, kind: "unit", unit: objectUnit(object) };
+  }
   const resolved = resolveUnit(ctx, { text });
+  if (resolved.kind === "not_seen") {
+    const object = resolveObjectRef(ctx, text);
+    if (object)
+      return { guid: object.guid, kind: "unit", unit: objectUnit(object) };
+  }
   if (resolved.kind !== "unit")
     throw unitRefusal({ param: "to", resolved, tool: "travel" });
   return { guid: resolved.guid, kind: "unit", unit: resolved.unit };
-}
-
-function objectUnit(row: ObjectRow): UnitView {
-  return {
-    aggro: undefined,
-    alive: true,
-    attackable: false,
-    attackingMe: false,
-    compass: row.compass as UnitView["compass"],
-    distance: row.distance,
-    entry: row.entry,
-    fightingMe: undefined,
-    guid: row.guid.toString(16),
-    hp: 1,
-    hpPct: 100,
-    inView: true,
-    kind: "creature",
-    level: 0,
-    lootable: false,
-    maxHp: 1,
-    myThreatPct: undefined,
-    name: row.name,
-    ref: row.ref,
-    relation: "neutral",
-    roles: [],
-    seenAgoMs: 0,
-    tappedByOther: false,
-    targetsMe: false,
-    x: row.x,
-    y: row.y,
-    z: row.z,
-  };
 }
 
 function reachOf(ctx: OpsCtx, guid: bigint): number | undefined {
