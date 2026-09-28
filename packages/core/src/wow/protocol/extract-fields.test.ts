@@ -250,11 +250,22 @@ describe("extractGameObjectFields", () => {
     expect(result.faction).toBe(1735);
   });
 
-  test("extracts dynamic", () => {
-    const raw = new Map([[GAMEOBJECT_FIELDS.DYNAMIC.offset, 0x01]]);
+  test("reads CREATED_BY as one guid (update-fields.ts:330)", () => {
+    const raw = new Map([
+      [GAMEOBJECT_FIELDS.CREATED_BY.offset, 0x00_00_00_2a],
+      [GAMEOBJECT_FIELDS.CREATED_BY.offset + 1, 0x00_00_00_01],
+    ]);
     const result = extractGameObjectFields(raw);
-    expect(result.dynamic).toBe(0x01);
-    expect(result._changed).toContain("dynamic");
+    expect(result.createdBy).toBe(0x1_0000_002an);
+    expect(result._changed).toContain("createdBy");
+  });
+
+  test("splits DYNAMIC into u16 flags and signed i16 path progress (GameObject.cpp:2843-2844)", () => {
+    const raw = new Map([[GAMEOBJECT_FIELDS.DYNAMIC.offset, 0xff_ff_00_08]]);
+    const result = extractGameObjectFields(raw);
+    expect(result.dynFlags).toBe(8);
+    expect(result.pathProgress).toBe(-1);
+    expect(result._changed).toEqual(["dynFlags", "pathProgress"]);
   });
 
   test("empty map returns empty changed", () => {

@@ -48,11 +48,23 @@ export function buildGameObjectQuery(entry: number, guid: bigint): Uint8Array {
   return w.finish();
 }
 
-export type GameObjectQueryResult = {
-  entry: number;
-  name: string | undefined;
-  gameObjectType: number | undefined;
-};
+const TEMPLATE_DATA_WORDS = 24;
+const TEMPLATE_QUEST_ITEMS = 6;
+
+export type GameObjectQueryResult =
+  | { entry: number; name: undefined; gameObjectType: undefined }
+  | {
+      entry: number;
+      gameObjectType: number;
+      displayId: number;
+      name: string;
+      iconName: string;
+      castBarCaption: string;
+      unk1: string;
+      data: number[];
+      size: number;
+      questItems: number[];
+    };
 
 export function parseGameObjectQueryResponse(
   r: PacketReader,
@@ -62,7 +74,27 @@ export function parseGameObjectQueryResponse(
   const entry = raw & 0x7f_ff_ff_ff;
   if (masked) return { entry, name: undefined, gameObjectType: undefined };
   const gameObjectType = r.uint32LE();
-  r.uint32LE();
+  const displayId = r.uint32LE();
   const name = r.cString();
-  return { entry, name, gameObjectType };
+  for (let i = 0; i < 3; i++) r.cString();
+  const iconName = r.cString();
+  const castBarCaption = r.cString();
+  const unk1 = r.cString();
+  const data = Array.from({ length: TEMPLATE_DATA_WORDS }, () => r.uint32LE());
+  const size = r.floatLE();
+  const questItems = Array.from({ length: TEMPLATE_QUEST_ITEMS }, () =>
+    r.uint32LE(),
+  );
+  return {
+    entry,
+    gameObjectType,
+    displayId,
+    name,
+    iconName,
+    castBarCaption,
+    unk1,
+    data,
+    size,
+    questItems,
+  };
 }

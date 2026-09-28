@@ -1,8 +1,13 @@
 # objects
 
-The `objects` area sends area triggers as the character moves and keeps
-the messages the server answers them with. World-service code reads it
-through `session.areas.objects.state()`: `triggers` holds the state of the
+The `objects` area keeps the game object templates the server sends,
+sends area triggers as the character moves and keeps the messages the
+server answers them with. World-service code reads it through
+`session.areas.objects.state()`: `templates` maps each entry to its
+template (type, display, names, the 24 data words, size, the quest items
+that are set, and the lock id, page id and quest id read from the data
+words by type, as `GameObjectTemplate::GetLockId` does,
+`Entities/GameObject/GameObjectData.h:428-457`); `triggers` holds the state of the
 `AreaTrigger.dbc` catalog, the current map, the triggers the character
 stands in and the triggers it has sent this session; `lastMessage` holds
 the last trigger message and when it arrived. The area emits
@@ -11,6 +16,29 @@ the last trigger message and when it arrived. The area emits
 
 ## Wire notes
 
+- `SMSG_GAMEOBJECT_QUERY_RESPONSE` carries 24 `uint32` data words
+  (`Handlers/QueryHandler.cpp:202`), then a `float` size and six
+  `uint32` quest items (`Handlers/QueryHandler.cpp:203-211`). wow_messages
+  declares six data words
+  (`wow_message_parser/wowm/world/queries/smsg_gameobject_query_response.wowm:51`),
+  which would misread the size and every quest item; the parser follows
+  AzerothCore. A probe of entry 161557 on an `elwynn10` character read
+  lock 43 and loot 10119. A missing entry comes back as the entry with the
+  top bit set and nothing else (`Handlers/QueryHandler.cpp:220`). The
+  legacy entity handler still owns the opcode for names; the area reads
+  it with a peek.
+  - `MAX_GAMEOBJECT_DATA` is 24 (`src/server/shared/SharedDefines.h:1603`).
+- `GAMEOBJECT_DYNAMIC` is a `uint16` of dynamic flags and then a signed
+  `int16` path progress (`Entities/GameObject/GameObject.cpp:2843-2844`).
+  `GAMEOBJECT_CREATED_BY` is a guid over two fields. The area reads both
+  from an object's raw fields with `objectFields(entity)`.
+- `SMSG_PAGE_TEXT_QUERY_RESPONSE` answers one `CMSG_PAGE_TEXT_QUERY` with
+  the whole page chain, one packet per page
+  (`Handlers/QueryHandler.cpp:367`, `:391`).
+- The guid of `SMSG_GAMEOBJECT_DESPAWN_ANIM` is not always a game
+  object's.
+  - A dynamic object sends the despawn animation with its own guid when
+    it is removed (`Entities/DynamicObject/DynamicObject.cpp:182`).
 - `CMSG_AREATRIGGER` is one `uint32`, the trigger id
   (`Handlers/MiscHandler.cpp:691-697`). The server ignores it while the
   character is on a taxi flight (`Handlers/MiscHandler.cpp:699-704`) and

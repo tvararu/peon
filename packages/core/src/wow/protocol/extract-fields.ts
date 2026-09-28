@@ -213,7 +213,9 @@ export type GameObjectFieldsResult = {
   flags?: number;
   state?: number;
   bytes1?: number;
-  dynamic?: number;
+  createdBy?: bigint;
+  dynFlags?: number;
+  pathProgress?: number;
   faction?: number;
   level?: number;
   _changed: string[];
@@ -225,13 +227,13 @@ const GO_U32_FIELDS: [
 ][] = [
   ["DISPLAYID", "displayId"],
   ["FLAGS", "flags"],
-  ["DYNAMIC", "dynamic"],
   ["FACTION", "faction"],
   ["LEVEL", "level"],
 ];
 
 export function extractGameObjectFields(
   raw: ReadonlyMap<number, number>,
+  fallback?: ReadonlyMap<number, number>,
 ): GameObjectFieldsResult {
   const changed: string[] = [];
   const result: GameObjectFieldsResult = { _changed: changed };
@@ -249,6 +251,19 @@ export function extractGameObjectFields(
     result.state = b & 0xff;
     result.bytes1 = b;
     changed.push("state", "bytes1");
+  }
+
+  const createdBy = readU64(raw, GAMEOBJECT_FIELDS.CREATED_BY.offset, fallback);
+  if (createdBy !== undefined) {
+    result.createdBy = createdBy;
+    changed.push("createdBy");
+  }
+
+  const dynamic = raw.get(GAMEOBJECT_FIELDS.DYNAMIC.offset);
+  if (dynamic !== undefined) {
+    result.dynFlags = dynamic & 0xff_ff;
+    result.pathProgress = dynamic >> 16;
+    changed.push("dynFlags", "pathProgress");
   }
 
   return result;

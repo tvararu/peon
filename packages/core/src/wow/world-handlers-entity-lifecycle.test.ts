@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { objectsGameObjectQueryResponseBody } from "#test-support/areas/objects";
 import { startMockWorldServer } from "#test-support/mock-world-server";
 import { must } from "#test-support/must";
 import {
@@ -339,12 +340,15 @@ describe("world handler tests", () => {
 
         const updateReady = waitForEntityEvents(handle, 2);
 
-        const goResp = new PacketWriter();
-        goResp.uint32LE(9999);
-        goResp.uint32LE(19);
-        goResp.uint32LE(0);
-        goResp.cString("Mailbox");
-        ws.inject(GameOpcode.SMSG_GAMEOBJECT_QUERY_RESPONSE, goResp.finish());
+        ws.inject(
+          GameOpcode.SMSG_GAMEOBJECT_QUERY_RESPONSE,
+          objectsGameObjectQueryResponseBody({
+            displayId: 0,
+            entry: 9999,
+            name: "Mailbox",
+            type: 19,
+          }),
+        );
 
         const events = await updateReady;
         const nameEvent = events.find(

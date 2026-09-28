@@ -14,7 +14,7 @@ export const OBJECTS_OPCODES = {
     "SMSG_FISH_NOT_HOOKED",
     "SMSG_FISH_ESCAPED",
   ],
-  uses: [],
+  uses: ["SMSG_GAMEOBJECT_QUERY_RESPONSE"],
   stubs: [],
   dead: [],
   unseen: [],

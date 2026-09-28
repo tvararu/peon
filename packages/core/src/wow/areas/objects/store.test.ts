@@ -1,12 +1,19 @@
 import { describe, expect, test } from "bun:test";
+import { areaRig } from "#test-support/area-rig";
+import {
+  objectsGameObjectQueryMissingBody,
+  objectsGameObjectQueryResponseBody,
+} from "#test-support/areas/objects";
 import { testStores } from "#test-support/session-fixtures";
 import { ObjectsStore } from "#wow/areas/objects/store";
+import { lockId } from "#wow/areas/objects/templates";
 import {
   type AreaTrigger,
   AreaTriggerCatalog,
 } from "#wow/areas/objects/trigger-catalog";
 import type { Entity } from "#wow/entity-store";
 import { UnitFlag } from "#wow/protocol/entity-fields";
+import { GameOpcode } from "#wow/protocol/opcodes";
 import type { SessionDeps } from "#wow/session-stores";
 
 const SELF = 0x42n;
@@ -104,5 +111,48 @@ describe("ObjectsStore triggers", () => {
     store.triggersFailed();
     expect(store.snapshot().triggers.catalog).toBe("failed");
     expect(store.move(INSIDE)).toEqual([]);
+  });
+});
+
+describe("ObjectsStore templates", () => {
+  test("keeps each game object template the server sends (QueryHandler.cpp:194-211, gameobject_template.sql:6262)", () => {
+    const rig = areaRig("objects");
+    try {
+      rig.inject(
+        GameOpcode.SMSG_GAMEOBJECT_QUERY_RESPONSE,
+        objectsGameObjectQueryResponseBody({
+          data: [43, 10_119, 0, 1],
+          displayId: 3012,
+          entry: 161_557,
+          name: "Milly's Harvest",
+          questItems: [11_119],
+          size: 1,
+          type: 3,
+        }),
+      );
+      const template = rig.handle.state().templates.get(161_557);
+      expect(template && lockId(template)).toBe(43);
+      expect(template).toMatchObject({
+        lockId: 43,
+        name: "Milly's Harvest",
+        questItems: [11_119],
+        type: 3,
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("the masked reply for a missing entry stores nothing (QueryHandler.cpp:220)", () => {
+    const rig = areaRig("objects");
+    try {
+      rig.inject(
+        GameOpcode.SMSG_GAMEOBJECT_QUERY_RESPONSE,
+        objectsGameObjectQueryMissingBody(161_557),
+      );
+      expect(rig.handle.state().templates.size).toBe(0);
+    } finally {
+      rig.dispose();
+    }
   });
 });

@@ -1,15 +1,21 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type { AreaTriggerMessage } from "#wow/areas/objects/protocol";
+import {
+  type GameObjectTemplate,
+  gameObjectTemplate,
+} from "#wow/areas/objects/templates";
 import type { AreaTriggerCatalog } from "#wow/areas/objects/trigger-catalog";
 import {
   type TriggerPoint,
   TriggerWatch,
 } from "#wow/areas/objects/trigger-watch";
 import { UnitFlag } from "#wow/protocol/entity-fields";
+import type { GameObjectQueryResult } from "#wow/protocol/entity-queries";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export type TriggerCatalogState = "none" | "loading" | "ready" | "failed";
 export type ObjectsState = {
+  templates: ReadonlyMap<number, GameObjectTemplate>;
   triggers: {
     catalog: TriggerCatalogState;
     map: number | undefined;
@@ -30,6 +36,7 @@ export class ObjectsStore {
   private last: TriggerPoint | undefined;
   private readonly sent = new Set<number>();
   private lastMessage: ObjectsState["lastMessage"];
+  private readonly templates = new Map<number, GameObjectTemplate>();
 
   constructor(deps: SessionDeps, _core: CoreStores) {
     this.deps = deps;
@@ -37,6 +44,7 @@ export class ObjectsStore {
 
   snapshot(): ObjectsState {
     return {
+      templates: this.templates,
       triggers: {
         catalog: this.catalog,
         map: this.last?.mapId,
@@ -49,6 +57,11 @@ export class ObjectsStore {
 
   onEvent(cb: (event: ObjectsEvent) => void): Unsubscribe {
     return this.events.subscribe(cb);
+  }
+
+  template(reply: GameObjectQueryResult): void {
+    if (reply.name === undefined) return;
+    this.templates.set(reply.entry, gameObjectTemplate(reply));
   }
 
   loadingTriggers(): void {
