@@ -3,11 +3,13 @@ import {
   reputationInitializeFactionsBody,
   reputationSetFactionStandingBody,
   reputationSetFactionVisibleBody,
+  reputationSetForcedReactionsBody,
 } from "#test-support/areas/reputation";
 import {
   parseInitializeFactions,
   parseSetFactionStanding,
   parseSetFactionVisible,
+  parseSetForcedReactions,
 } from "#wow/areas/reputation/protocol";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
@@ -81,5 +83,42 @@ describe("reputation parsers", () => {
     expect(parseSetFactionVisible(new PacketReader(body))).toEqual({
       repListId: 67,
     });
+  });
+
+  test("SMSG_SET_FORCED_REACTIONS reads an empty list (ReputationMgr.cpp:165-176)", () => {
+    const body = reputationSetForcedReactionsBody([]);
+    expect(body.byteLength).toBe(4);
+    expect(parseSetForcedReactions(new PacketReader(body))).toEqual({
+      reactions: [],
+    });
+  });
+
+  test("SMSG_SET_FORCED_REACTIONS reads u32 Faction.dbc ids and u32 ranks in 8-byte entries (ReputationMgr.cpp:167-173)", () => {
+    const body = reputationSetForcedReactionsBody([
+      { factionId: 1015, rank: 4 },
+      { factionId: 70_000, rank: 0 },
+    ]);
+    expect(body.byteLength).toBe(20);
+    expect(parseSetForcedReactions(new PacketReader(body))).toEqual({
+      reactions: [
+        { factionId: 1015, rank: 4 },
+        { factionId: 70_000, rank: 0 },
+      ],
+    });
+  });
+
+  test("SMSG_SET_FORCED_REACTIONS refuses wowm's 6-byte u16 faction entries", () => {
+    const w = new PacketWriter();
+    w.uint32LE(2);
+    for (const [faction, rank] of [
+      [1015, 4],
+      [76, 0],
+    ] as const) {
+      w.uint16LE(faction);
+      w.uint32LE(rank);
+    }
+    expect(() =>
+      parseSetForcedReactions(new PacketReader(w.finish())),
+    ).toThrow();
   });
 });

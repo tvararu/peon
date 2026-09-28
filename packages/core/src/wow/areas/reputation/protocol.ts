@@ -43,3 +43,21 @@ export function parseSetFactionVisible(r: PacketReader): SetFactionVisible {
   const repListId = r.uint32LE();
   return { repListId };
 }
+
+export type ForcedReaction = { factionId: number; rank: number };
+export type SetForcedReactions = { reactions: ForcedReaction[] };
+
+export function parseSetForcedReactions(r: PacketReader): SetForcedReactions {
+  const count = r.uint32LE();
+  if (r.remaining < count * 8)
+    throw new Error(
+      `SMSG_SET_FORCED_REACTIONS: ${count} entries need ${count * 8} bytes, ${r.remaining} left`,
+    );
+  const reactions: ForcedReaction[] = [];
+  for (let i = 0; i < count; i++) {
+    const factionId = r.uint32LE();
+    const rank = r.uint32LE();
+    reactions.push({ factionId, rank });
+  }
+  return { reactions };
+}

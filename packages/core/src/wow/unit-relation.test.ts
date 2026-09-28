@@ -6,11 +6,22 @@ import {
   loadFactionTemplates,
 } from "#wow/faction-template";
 import { ObjectType, UnitFlag } from "#wow/protocol/entity-fields";
-import { targetRelation } from "#wow/unit-relation";
+import {
+  type ReputationRelationView,
+  reputationReaction,
+  targetRelation,
+} from "#wow/unit-relation";
 
 const SELF = 1n;
 const PLAYER_MASK = 1;
-const TEMPLATES = { self: 1, hostile: 2, neutral: 3, friendly: 4 } as const;
+const TEMPLATES = {
+  self: 1,
+  hostile: 2,
+  neutral: 3,
+  friendly: 4,
+  guard: 5,
+} as const;
+const GUARD_FACTION = 50;
 
 function template(
   id: number,
@@ -34,6 +45,7 @@ beforeAll(async () => {
     template(TEMPLATES.hostile, 20, { hostile: PLAYER_MASK }),
     template(TEMPLATES.neutral, 30, {}),
     template(TEMPLATES.friendly, 40, { friendly: PLAYER_MASK }),
+    template(TEMPLATES.guard, GUARD_FACTION, { friendly: PLAYER_MASK }),
   ]);
   const source = dbcFiles(new Map([["FactionTemplate.dbc", templates]]));
   catalog = await loadFactionTemplates(source);
@@ -45,6 +57,7 @@ function world(
     objectType?: ObjectType;
     attacking?: boolean;
     factions?: FactionTemplateCatalog;
+    reputation?: ReputationRelationView;
   } = {},
 ) {
   const store = new EntityStore();
@@ -63,6 +76,7 @@ function world(
   return {
     entity: (guid: bigint) => store.get(guid),
     factions: () => ("factions" in options ? options.factions : catalog),
+    ...(options.reputation && { reputation: options.reputation }),
   };
 }
 
@@ -75,5 +89,124 @@ describe("targetRelation", () => {
     );
     expect(targetRelation(world(99), 2n, SELF)).toBe("unknown");
     expect(targetRelation(world(TEMPLATES.neutral), 3n, SELF)).toBe("unknown");
+  });
+});
+
+function view(
+  init: {
+    forced?: Record<number, number>;
+    ranks?: Record<number, number>;
+    atWar?: readonly number[];
+  } = {},
+): ReputationRelationView {
+  return {
+    atWar: (faction) => init.atWar?.includes(faction) ?? false,
+    forcedRank: (faction) => init.forced?.[faction],
+    reputationRank: (faction) => init.ranks?.[faction],
+  };
+}
+
+const relationWith = (
+  factionTemplate: number,
+  reputation: ReputationRelationView,
+  objectType?: ObjectType,
+) =>
+  targetRelation(world(factionTemplate, { objectType, reputation }), 2n, SELF);
+
+describe("targetRelation with reputation (Unit.cpp:6830-7016)", () => {
+  test("a forced rank for the target's faction wins over the template masks (Unit.cpp:6843-6855, 6960-6963)", () => {
+    expect(relationWith(TEMPLATES.hostile, view({ forced: { 20: 4 } }))).toBe(
+      "friendly",
+    );
+    expect(
+      relationWith(
+        TEMPLATES.guard,
+        view({ forced: { 50: 0 }, ranks: { 50: 7 } }),
+      ),
+    ).toBe("hostile");
+  });
+
+  test("a reputation faction answers with the character's rank, capped at Neutral at war (Unit.cpp:6973-6984)", () => {
+    expect(relationWith(TEMPLATES.guard, view({ ranks: { 50: 0 } }))).toBe(
+      "hostile",
+    );
+    expect(relationWith(TEMPLATES.guard, view({ ranks: { 50: 5 } }))).toBe(
+      "friendly",
+    );
+    expect(
+      relationWith(TEMPLATES.guard, view({ atWar: [50], ranks: { 50: 5 } })),
+    ).toBe("neutral");
+    expect(relationWith(TEMPLATES.hostile, view({ ranks: { 20: 5 } }))).toBe(
+      "friendly",
+    );
+  });
+
+  test("ranks map as Unit::IsHostileTo and IsFriendlyTo (Unit.cpp:7008-7016)", () => {
+    const relations = [0, 1, 2, 3, 4, 5, 6, 7].map((rank) =>
+      relationWith(TEMPLATES.neutral, view({ forced: { 30: rank } })),
+    );
+    expect(relations).toEqual([
+      "hostile",
+      "hostile",
+      "neutral",
+      "neutral",
+      "friendly",
+      "friendly",
+      "friendly",
+      "friendly",
+    ]);
+  });
+
+  test("a player target keeps the template rule", () => {
+    const reputation = view({ forced: { 20: 4 }, ranks: { 50: 0 } });
+    expect(relationWith(TEMPLATES.hostile, reputation, ObjectType.PLAYER)).toBe(
+      "hostile",
+    );
+    expect(relationWith(TEMPLATES.guard, reputation, ObjectType.PLAYER)).toBe(
+      "friendly",
+    );
+  });
+
+  test("a faction without a reputation rank keeps the template rule", () => {
+    const empty = view();
+    expect(relationWith(TEMPLATES.hostile, empty)).toBe("hostile");
+    expect(relationWith(TEMPLATES.guard, empty)).toBe("friendly");
+    expect(relationWith(TEMPLATES.neutral, empty)).toBe("neutral");
+    expect(relationWith(99, view({ forced: { 99: 4 } }))).toBe("unknown");
+  });
+});
+
+describe("reputationReaction", () => {
+  test("maps a template to its faction and answers forced rank, then capped reputation rank", () => {
+    expect(
+      reputationReaction(view(), catalog, TEMPLATES.guard),
+    ).toBeUndefined();
+    expect(
+      reputationReaction(view({ ranks: { 50: 6 } }), catalog, TEMPLATES.guard),
+    ).toBe(6);
+    expect(
+      reputationReaction(
+        view({ atWar: [50], ranks: { 50: 6 } }),
+        catalog,
+        TEMPLATES.guard,
+      ),
+    ).toBe(3);
+    expect(
+      reputationReaction(
+        view({ atWar: [50], ranks: { 50: 1 } }),
+        catalog,
+        TEMPLATES.guard,
+      ),
+    ).toBe(1);
+    expect(
+      reputationReaction(
+        view({ forced: { 50: 2 }, ranks: { 50: 6 } }),
+        catalog,
+        TEMPLATES.guard,
+      ),
+    ).toBe(2);
+    expect(
+      reputationReaction(view({ forced: { 50: 2 } }), catalog, 99),
+    ).toBeUndefined();
   });
 });

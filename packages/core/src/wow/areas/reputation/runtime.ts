@@ -1,14 +1,18 @@
 import { ignoreFailure } from "#lib/ignore-failure";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import { loadFactionCatalog } from "#wow/areas/reputation/catalog";
+import { reputationRelationView } from "#wow/areas/reputation/relation";
 import type {
   ReputationEvent,
   ReputationStore,
 } from "#wow/areas/reputation/store";
 import type { Entity } from "#wow/entity-store";
 import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
+import type { ReputationRelationView } from "#wow/unit-relation";
 
-export type ReputationActs = Readonly<Record<never, never>>;
+export type ReputationActs = {
+  relationView: () => ReputationRelationView;
+};
 
 function readCharacter(store: ReputationStore, entity: Entity): void {
   const bytes0 = entity.rawFields.get(UNIT_FIELDS.BYTES_0.offset);
@@ -36,5 +40,6 @@ export function reputationRuntime(
     const entity = event.type === "disappear" ? undefined : event.entity;
     if (entity && entity.guid === ctx.selfGuid()) readCharacter(store, entity);
   });
-  return { act: {}, dispose: off };
+  const view = reputationRelationView(store);
+  return { act: { relationView: () => view }, dispose: off };
 }

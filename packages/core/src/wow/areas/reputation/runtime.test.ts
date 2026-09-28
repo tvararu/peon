@@ -4,6 +4,7 @@ import {
   REPUTATION_FACTIONS,
   reputationDbcSource,
   reputationInitializeFactionsBody,
+  reputationSetForcedReactionsBody,
 } from "#test-support/areas/reputation";
 import { flushMicrotasks } from "#test-support/microtasks";
 import type { DbcSource } from "#wow/dbc";
@@ -139,6 +140,28 @@ describe("reputation runtime", () => {
       });
       expect(silvermoon()?.standing).toBe(250);
       expect(rig.handle.state().watched).toBeUndefined();
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("relationView answers forced ranks, reputation ranks and war from the store", async () => {
+    const { rig } = await started(reputationDbcSource(REPUTATION_FACTIONS));
+    try {
+      rig.events.entity.emit({
+        entity: player(ME, [bytes0(10, 8)]),
+        type: "appear",
+      });
+      rig.inject(
+        GameOpcode.SMSG_SET_FORCED_REACTIONS,
+        reputationSetForcedReactionsBody([{ factionId: 87, rank: 4 }]),
+      );
+      const view = rig.handle.act.relationView();
+      expect(view.forcedRank(87)).toBe(4);
+      expect(view.forcedRank(911)).toBeUndefined();
+      expect(view.reputationRank(911)).toBe(4);
+      expect(view.reputationRank(589)).toBeUndefined();
+      expect(view.atWar(911)).toBe(false);
     } finally {
       rig.dispose();
     }

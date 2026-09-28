@@ -39,6 +39,18 @@ export function reputationSetFactionVisibleBody(repListId: number): Uint8Array {
   return w.finish();
 }
 
+export function reputationSetForcedReactionsBody(
+  reactions: readonly { factionId: number; rank: number }[],
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(reactions.length);
+  for (const reaction of reactions) {
+    w.uint32LE(reaction.factionId);
+    w.uint32LE(reaction.rank);
+  }
+  return w.finish();
+}
+
 export type FactionDbcRow = {
   id: number;
   repListId: number;

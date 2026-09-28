@@ -6,6 +6,7 @@ import {
   reputationInitializeFactionsBody,
   reputationSetFactionStandingBody,
   reputationSetFactionVisibleBody,
+  reputationSetForcedReactionsBody,
 } from "#test-support/areas/reputation";
 import { flushMicrotasks } from "#test-support/microtasks";
 import type { ReputationEvent } from "#wow/areas/reputation/store";
@@ -91,6 +92,7 @@ describe("reputation area wiring", () => {
             watched: false,
           },
         ],
+        forced: [],
         watched: undefined,
       });
     } finally {
@@ -111,6 +113,47 @@ describe("reputation area wiring", () => {
       expect(
         rig.handle.state().factions.map((row) => [row.repListId, row.visible]),
       ).toEqual([[BLOODSAIL, true]]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_SET_FORCED_REACTIONS replaces the forced list and reports the change (ReputationMgr.cpp:165-176)", async () => {
+    const { rig, seen } = await rigWithEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_SET_FORCED_REACTIONS,
+        reputationSetForcedReactionsBody([]),
+      );
+      rig.inject(
+        GameOpcode.SMSG_SET_FORCED_REACTIONS,
+        reputationSetForcedReactionsBody([
+          { factionId: 87, rank: 4 },
+          { factionId: 911, rank: 0 },
+        ]),
+      );
+      rig.inject(
+        GameOpcode.SMSG_SET_FORCED_REACTIONS,
+        reputationSetForcedReactionsBody([{ factionId: 911, rank: 0 }]),
+      );
+      expect(seen).toEqual([
+        {
+          added: [
+            { factionId: 87, name: "Bloodsail Buccaneers", rank: 4 },
+            { factionId: 911, name: "Silvermoon City", rank: 0 },
+          ],
+          removed: [],
+          type: "forced_changed",
+        },
+        {
+          added: [],
+          removed: [{ factionId: 87, name: "Bloodsail Buccaneers", rank: 4 }],
+          type: "forced_changed",
+        },
+      ]);
+      expect(rig.handle.state().forced).toEqual([
+        { factionId: 911, name: "Silvermoon City", rank: 0 },
+      ]);
     } finally {
       rig.dispose();
     }

@@ -35,7 +35,11 @@ async function walkTowardPoint(
 
 function unitRelationOf(conn: WorldConn, rt: Runtimes) {
   const entity = (guid: bigint) => conn.entityStore.get(guid);
-  const deps = { entity, factions: rt.factions };
+  const deps = {
+    entity,
+    factions: rt.factions,
+    reputation: rt.areas.runtimes.reputation.act.relationView(),
+  };
   const self = rt.control.snapshot().selfGuid;
   return (guid: bigint) => targetRelation(deps, guid, self);
 }

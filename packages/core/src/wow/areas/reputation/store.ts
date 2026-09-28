@@ -9,6 +9,7 @@ import type {
   InitializeFactions,
   SetFactionStanding,
   SetFactionVisible,
+  SetForcedReactions,
 } from "#wow/areas/reputation/protocol";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
@@ -42,8 +43,15 @@ export type ReputationRow = {
   changedAt: number | undefined;
 };
 
+export type ForcedReactionRow = {
+  factionId: number;
+  name: string | undefined;
+  rank: number;
+};
+
 export type ReputationState = {
   factions: readonly ReputationRow[];
+  forced: readonly ForcedReactionRow[];
   watched: number | undefined;
   catalog: boolean;
 };
@@ -64,6 +72,11 @@ export type ReputationEvent =
     }
   | { type: "visible"; repListId: number; name: string | undefined }
   | {
+      type: "forced_changed";
+      added: readonly ForcedReactionRow[];
+      removed: readonly ForcedReactionRow[];
+    }
+  | {
       type: "watched_changed";
       repListId: number | undefined;
       name: string | undefined;
@@ -79,6 +92,7 @@ type Stored = {
 export class ReputationStore {
   private readonly events = new Emitter<[ReputationEvent]>();
   private readonly factions = new Map<number, Stored>();
+  private forced = new Map<number, number>();
   private readonly now: () => number;
   private catalog: FactionCatalog | undefined;
   private character: { raceMask: number; classMask: number } | undefined;
@@ -91,6 +105,7 @@ export class ReputationStore {
   snapshot(): ReputationState {
     return {
       factions: this.list(),
+      forced: this.forcedRows(this.forced),
       watched: this.watched,
       catalog: this.catalog !== undefined,
     };
@@ -144,6 +159,45 @@ export class ReputationStore {
     });
   }
 
+  setForced(packet: SetForcedReactions): void {
+    const next = new Map(
+      packet.reactions.map(({ factionId, rank }) => [factionId, rank]),
+    );
+    const added = new Map(
+      [...next].filter(([id, rank]) => this.forced.get(id) !== rank),
+    );
+    const removed = new Map(
+      [...this.forced].filter(([id, rank]) => next.get(id) !== rank),
+    );
+    this.forced = next;
+    if (added.size === 0 && removed.size === 0) return;
+    this.events.emit({
+      type: "forced_changed",
+      added: this.forcedRows(added),
+      removed: this.forcedRows(removed),
+    });
+  }
+
+  forcedRank(factionId: number): number | undefined {
+    return this.forced.get(factionId);
+  }
+
+  factionRank(factionId: number): number | undefined {
+    const repListId = this.catalog?.byFactionId(factionId)?.repListId;
+    if (repListId === undefined) return undefined;
+    return this.rankAt(repListId, this.factions.get(repListId)?.delta ?? 0);
+  }
+
+  factionAtWar(factionId: number): boolean {
+    const repListId = this.catalog?.byFactionId(factionId)?.repListId;
+    const stored =
+      repListId === undefined ? undefined : this.factions.get(repListId);
+    return (
+      stored !== undefined &&
+      (this.flagsOf(stored) & FACTION_FLAGS.AT_WAR) !== 0
+    );
+  }
+
   receiveWatched(value: number): void {
     const next = value === NO_WATCHED ? undefined : value;
     if (next === this.watched) return;
@@ -176,6 +230,7 @@ export class ReputationStore {
 
   clear(): void {
     this.factions.clear();
+    this.forced = new Map();
     this.watched = undefined;
     this.character = undefined;
   }
@@ -233,6 +288,16 @@ export class ReputationStore {
       this.catalog?.canBeSetAtWar(faction)
     )
       stored.inferred.set(FACTION_FLAGS.AT_WAR, false);
+  }
+
+  private forcedRows(reactions: Map<number, number>): ForcedReactionRow[] {
+    return [...reactions]
+      .sort(([a], [b]) => a - b)
+      .map(([factionId, rank]) => ({
+        factionId,
+        name: this.catalog?.byFactionId(factionId)?.name,
+        rank,
+      }));
   }
 
   private stored(repListId: number): Stored {

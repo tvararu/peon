@@ -229,10 +229,106 @@ describe("reputation store", () => {
     expect(store.snapshot()).toEqual({
       catalog: true,
       factions: [],
+      forced: [],
       watched: undefined,
     });
     store.dispose();
     store.setVisible({ repListId: BLOODSAIL });
     expect(seen).toHaveLength(before);
+  });
+
+  test("SMSG_SET_FORCED_REACTIONS replaces the list and reports what it added and removed", async () => {
+    const { seen, store } = await setup();
+    store.setForced({
+      reactions: [
+        { factionId: 87, rank: 4 },
+        { factionId: 911, rank: 0 },
+      ],
+    });
+    store.setForced({
+      reactions: [
+        { factionId: 911, rank: 5 },
+        { factionId: 1015, rank: 3 },
+      ],
+    });
+    expect(seen.slice(1)).toEqual([
+      {
+        added: [
+          { factionId: 87, name: "Bloodsail Buccaneers", rank: 4 },
+          { factionId: 911, name: "Silvermoon City", rank: 0 },
+        ],
+        removed: [],
+        type: "forced_changed",
+      },
+      {
+        added: [
+          { factionId: 911, name: "Silvermoon City", rank: 5 },
+          { factionId: 1015, name: undefined, rank: 3 },
+        ],
+        removed: [
+          { factionId: 87, name: "Bloodsail Buccaneers", rank: 4 },
+          { factionId: 911, name: "Silvermoon City", rank: 0 },
+        ],
+        type: "forced_changed",
+      },
+    ]);
+    expect(store.forcedRank(911)).toBe(5);
+    expect(store.forcedRank(1015)).toBe(3);
+    expect(store.forcedRank(87)).toBeUndefined();
+    expect(store.snapshot().forced).toEqual([
+      { factionId: 911, name: "Silvermoon City", rank: 5 },
+      { factionId: 1015, name: undefined, rank: 3 },
+    ]);
+  });
+
+  test("an unchanged forced list in another order raises no event", async () => {
+    const { seen, store } = await setup();
+    store.setForced({ reactions: [] });
+    store.setForced({
+      reactions: [
+        { factionId: 87, rank: 4 },
+        { factionId: 911, rank: 0 },
+      ],
+    });
+    store.setForced({
+      reactions: [
+        { factionId: 911, rank: 0 },
+        { factionId: 87, rank: 4 },
+      ],
+    });
+    expect(
+      seen.filter((event) => event.type === "forced_changed"),
+    ).toHaveLength(1);
+  });
+
+  test("a new faction list keeps the forced reactions and clear drops them", async () => {
+    const { store } = await setup();
+    store.setForced({ reactions: [{ factionId: 87, rank: 4 }] });
+    store.initialize({ entries: [] });
+    expect(store.forcedRank(87)).toBe(4);
+    store.clear();
+    expect(store.forcedRank(87)).toBeUndefined();
+    expect(store.snapshot().forced).toEqual([]);
+  });
+
+  test("factionRank and factionAtWar read a Faction.dbc id through its list id", async () => {
+    const { store } = await setup();
+    expect(store.factionRank(911)).toBe(4);
+    expect(store.factionRank(87)).toBe(2);
+    expect(store.factionRank(589)).toBeUndefined();
+    expect(store.factionRank(999)).toBeUndefined();
+    expect(store.factionAtWar(87)).toBe(false);
+    store.setStanding(standing(BLOODSAIL, -700));
+    expect(store.factionRank(87)).toBe(1);
+    expect(store.factionAtWar(87)).toBe(true);
+    store.initialize({ entries: [] });
+    expect(store.factionRank(911)).toBe(4);
+    expect(store.factionAtWar(911)).toBe(false);
+  });
+
+  test("with no catalog no faction has a reputation rank", async () => {
+    const { store } = await setup({ catalog: false });
+    expect(store.factionRank(911)).toBeUndefined();
+    expect(store.factionAtWar(911)).toBe(false);
   });
 });
