@@ -2,6 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   spellsChannelStartBody,
   spellsChannelUpdateBody,
+  spellsModifyCooldownBody,
+  spellsSpellModifierBody,
+  spellsUnlearnSpellsBody,
 } from "#test-support/areas/spells";
 import {
   buildActionBarToggles,
@@ -11,6 +14,9 @@ import {
   buildSetActionButton,
   parseChannelStart,
   parseChannelUpdate,
+  parseModifyCooldown,
+  parseSpellModifier,
+  parseUnlearnSpells,
 } from "#wow/areas/spells/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 
@@ -106,6 +112,54 @@ describe("spells action bar builders", () => {
   test("CMSG_SET_ACTIONBAR_TOGGLES is one u8 mask (MiscHandler.cpp:952-965)", () => {
     const reader = new PacketReader(buildActionBarToggles(15));
     expect(reader.uint8()).toBe(15);
+    expect(reader.remaining).toBe(0);
+  });
+});
+
+describe("spells spellbook parsers", () => {
+  test("SMSG_SEND_UNLEARN_SPELLS reads a u32 count and that many spell ids (Player.cpp:2885-2922)", () => {
+    const reader = new PacketReader(spellsUnlearnSpellsBody([116, 205]));
+    expect(parseUnlearnSpells(reader)).toEqual([116, 205]);
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("SMSG_SEND_UNLEARN_SPELLS with count 0 is an empty list (Player.cpp:2888-2921)", () => {
+    const reader = new PacketReader(spellsUnlearnSpellsBody([]));
+    expect(parseUnlearnSpells(reader)).toEqual([]);
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("a spell modifier reads u8 bit, u8 op and int32 value (Player.cpp:10125-10127, CharacterHandler.cpp:1244-1247)", () => {
+    const reader = new PacketReader(
+      spellsSpellModifierBody({ eff: 33, op: 10, value: 15 }),
+    );
+    expect(parseSpellModifier(reader)).toEqual({ bit: 33, op: 10, value: 15 });
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("a spell modifier value is signed (Player.cpp:10127)", () => {
+    const body = spellsSpellModifierBody({ eff: 0, op: 14, value: -10 });
+    expect([...body.slice(2)]).toEqual([0xf6, 0xff, 0xff, 0xff]);
+    expect(parseSpellModifier(new PacketReader(body))).toEqual({
+      bit: 0,
+      op: 14,
+      value: -10,
+    });
+  });
+
+  test("SMSG_MODIFY_COOLDOWN reads u32 spell, u64 guid and int32 ms (Player.cpp:11284-11287)", () => {
+    const body = spellsModifyCooldownBody({
+      cooldown: -2000,
+      guid: ME,
+      spellId: 51_505,
+    });
+    expect(body).toHaveLength(16);
+    const reader = new PacketReader(body);
+    expect(parseModifyCooldown(reader)).toEqual({
+      deltaMs: -2000,
+      guid: ME,
+      spellId: 51_505,
+    });
     expect(reader.remaining).toBe(0);
   });
 });

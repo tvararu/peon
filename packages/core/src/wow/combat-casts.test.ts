@@ -166,3 +166,21 @@ describe("CombatCasts channels", () => {
     expect(() => casts.send(send, BOLT, MOB)).toThrow("channelling");
   });
 });
+
+describe("CombatCasts cooldown shift", () => {
+  test("shiftCooldown moves the spell's cooldown in the cooldown store", () => {
+    const now = 1000;
+    const cooldowns = new CooldownStore(
+      () => now,
+      () => undefined,
+    );
+    const casts = new CombatCasts({
+      cooldowns,
+      learned: new Set([BOLT]),
+      now: () => now,
+    });
+    cooldowns.observe(BOLT, 6000);
+    casts.shiftCooldown(BOLT, -2000);
+    expect(cooldowns.readyAt(BOLT)).toBe(5000);
+  });
+});

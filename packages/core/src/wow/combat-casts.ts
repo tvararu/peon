@@ -95,6 +95,10 @@ export class CombatCasts {
     return channel;
   }
 
+  shiftCooldown(spellId: number, deltaMs: number): void {
+    this.deps.cooldowns.shift(spellId, deltaMs);
+  }
+
   hasUncancelled(): boolean {
     const channel = this.channel;
     return Boolean(

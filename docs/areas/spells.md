@@ -36,6 +36,17 @@ outside 0-255 with `invalid_mask`. `state().barToggles` is the mask the
 server last set on the character, and stays undefined until a self
 update carries it.
 
+`state().inactiveRanks` lists the lower spell ranks the server marks as
+superseded; each `SMSG_SEND_UNLEARN_SPELLS` replaces the list.
+`state().modifiers.flat` and `state().modifiers.pct` hold the talent and
+aura spell-modifier totals, keyed by modifier op and then by the effect
+mask bit. The server sends the total for one op and bit, so the latest
+packet replaces the value, and a total of 0 removes the bit. When
+`SMSG_MODIFY_COOLDOWN` names the character, the cast tracker moves that
+spell's cooldown by the signed delta and marks it as the server's; the
+area makes no cooldown for a spell that has none. None of these emits
+an event.
+
 ## Wire notes
 
 - `MSG_CHANNEL_START` is the packed guid of the caster, the `uint32`
@@ -120,8 +131,35 @@ update carries it.
   The legacy `action-bar.ts` handler reads it.
 - The login packets carry the saved bar
   (`Entities/Player/Player.cpp:11797`).
+- `SMSG_SEND_UNLEARN_SPELLS` is a `uint32` count and that many `uint32`
+  spell ids (`Entities/Player/Player.cpp:2885-2922`,
+  `wow_message_parser/wowm/world/spell/smsg_send_unlearn_spells.wowm`).
+  Login sends it after the initial spells
+  (`Entities/Player/Player.cpp:11795`).
+- `SMSG_SET_FLAT_SPELL_MODIFIER` and `SMSG_SET_PCT_SPELL_MODIFIER` are a
+  `uint8` effect mask bit, a `uint8` op and an `int32` total
+  (`Entities/Player/Player.cpp:10103-10130`). Login resends every
+  non-zero total (`Handlers/CharacterHandler.cpp:1218-1250`); a change
+  at run time sends the new total, also when it is 0.
+- `SMSG_MODIFY_COOLDOWN` is a `uint32` spell, the full `uint64` guid of
+  the player (`Entities/Object/ObjectGuid.cpp:70-73`) and an `int32`
+  change in milliseconds (`Entities/Player/Player.cpp:11275-11288`). The
+  server sends it only for a spell that has a cooldown. Its senders are
+  level-80 scripts (`scripts/Spells/spell_shaman.cpp:1024`,
+  `Spells/Auras/SpellAuras.cpp:1811-1826`).
 - The client direction of `MSG_CHANNEL_START` and `MSG_CHANNEL_UPDATE`
   is `Handle_NULL` (`Server/Protocol/Opcodes.cpp:444-445`).
+
+Disagreements (AzerothCore wins):
+
+- The flat and percent spell modifier value is an `int32`
+  (`Entities/Player/Player.cpp:10127`); wow_messages has a `u32`
+  (`wow_message_parser/wowm/world/spell/smsg_set_flat_spell_modifier.wowm`,
+  `wow_message_parser/wowm/world/spell/smsg_set_pct_spell_modifier.wowm`).
+- `SMSG_MODIFY_COOLDOWN` carries signed milliseconds
+  (`Entities/Player/Player.cpp:11284-11287`); wow_messages has
+  `Milliseconds`, which is unsigned
+  (`wow_message_parser/wowm/world/spell/smsg_modify_cooldown.wowm`).
 
 Disagreements for opcodes later tasks build (AzerothCore wins):
 
@@ -136,19 +174,12 @@ Disagreements for opcodes later tasks build (AzerothCore wins):
   guid, cast count, spell and result (`Spells/Spell.cpp:5334-5339`).
   wow_messages has a plain guid and the spell
   (`wow_message_parser/wowm/world/spell/smsg_spell_failed_other.wowm`).
-- The flat and percent spell modifier value is an `int32`
-  (`Entities/Player/Player.cpp:10127`).
-- `SMSG_MODIFY_COOLDOWN` carries signed milliseconds
-  (`Entities/Player/Player.cpp:11284-11287`).
 - `CMSG_UPDATE_MISSILE_TRAJECTORY` ends with a `uint8` move stop and an
   optional movement packet (`Handlers/MiscHandler.cpp:1735`,
   `Handlers/MiscHandler.cpp:1758-1765`).
 
 ## Left out
 
-- `SMSG_SEND_UNLEARN_SPELLS`, `SMSG_SET_FLAT_SPELL_MODIFIER`,
-  `SMSG_SET_PCT_SPELL_MODIFIER`, `SMSG_MODIFY_COOLDOWN`: built by
-  spells-5.
 - `SMSG_PLAY_SPELL_VISUAL`, `SMSG_PLAY_SPELL_IMPACT`: built by spells-6.
 - `SMSG_SPELL_FAILED_OTHER`: built by spells-2.
 - `SMSG_TOTEM_CREATED`, `CMSG_TOTEM_DESTROYED`: built by spells-8.
@@ -175,6 +206,10 @@ Stop a channel (proposed; spells-12b).
 | `CMSG_SET_ACTION_BUTTON` | `live` | probe flow `spells-bar` on an `eversong10-mage`, exit 0 twice: `--arg slot=0 --arg spell=133` and `--arg slot=11 --arg item=6948` each sent one 5-byte packet; the server sent no reply, and the next login's `SMSG_ACTION_BUTTONS` held slot 0 `85000000` and slot 11 `241b0080` | `Handlers/MiscHandler.cpp:899-938` |
 | `CMSG_SET_ACTIONBAR_TOGGLES` | `live` | probe flow `spells-bar` on an `eversong10-mage`, exit 0: `--arg toggles=15` sent body `0f` and the self update 23 ms later set field 1197 to 0x000f0000; `--arg toggles=7` logged in with 0x000f0000 saved, sent `07`, and the self update set 0x00070000, so `state().barToggles` read 7 | `Handlers/MiscHandler.cpp:952-965` |
 | `SMSG_ACTION_BUTTONS` | `live` | `mise protocol:probe --flow login --expect SMSG_ACTION_BUTTONS --bodies` after the two button writes, exit 0: state 1, slots 0 and 1 `85000000` (spell 133), slot 11 `241b0080` (item 6948), and 577 bytes in all (1 + 144 × 4); the legacy handler read it | `Entities/Player/Player.cpp:5732-5758` |
+| `SMSG_SEND_UNLEARN_SPELLS` | `live` | `mise protocol:probe --flow login --expect SMSG_SEND_UNLEARN_SPELLS --expect SMSG_SET_PCT_SPELL_MODIFIER --expect SMSG_SET_FLAT_SPELL_MODIFIER --bodies` on a `ghostlands20` account, exit 0, nothing missing: one packet after the initial spells, body `00000000` (no inactive rank), outcome `handled` | `Entities/Player/Player.cpp:2885-2922` |
+| `SMSG_SET_FLAT_SPELL_MODIFIER` | `live` | the same login probe: 4 packets, outcome `handled`, among them `4a1c1e000000` (bit 74, op 28, 30) and `320b3850ffff` (bit 50, op 11, -45000); at logout the server sent both bits again with total 0 (`4a1c00000000`, `320b00000000`) | `Entities/Player/Player.cpp:10103-10130` |
+| `SMSG_SET_PCT_SPELL_MODIFIER` | `live` | the same login probe: 44 packets, outcome `handled`, among them `000805000000` (bit 0, op 8, 5) and `0402ecffffff` (bit 4, op 2, -20) | `Handlers/CharacterHandler.cpp:1218-1250` |
+| `SMSG_MODIFY_COOLDOWN` | `mock` | `packages/core/src/wow/areas/spells/store-spellbook.test.ts` "SMSG_MODIFY_COOLDOWN for self moves the server cooldown by the signed delta"; not seen live (its senders are level-80 scripts) | `Entities/Player/Player.cpp:11284-11287` |
 | `SMSG_SPELL_UPDATE_CHAIN_TARGETS` | `dead` | no send site in AzerothCore `src/` or `modules/`; only the opcode table names it | `Server/Protocol/Opcodes.cpp:947` |
 | `SMSG_RESYNC_RUNES` | `dead` | built only in `Player::ResyncRunes`, whose only call, in `Spell::EffectActivateRune`, is commented out | `Entities/Player/Player.cpp:13746-13756` |
 | `SMSG_ADD_RUNE_POWER` | `dead` | built only in `Player::AddRunePower`, which has no caller | `Entities/Player/Player.cpp:13758-13763` |

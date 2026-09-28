@@ -50,6 +50,11 @@ export class CooldownStore {
       );
   }
 
+  shift(spellId: number, deltaMs: number): void {
+    const entry = this.spells.get(spellId);
+    if (entry) this.spells.set(spellId, server(entry.until + deltaMs));
+  }
+
   release(id: number): void {
     this.spells.delete(id);
     const category = this.cooldownOf(id)?.category;

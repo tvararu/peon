@@ -46,3 +46,34 @@ export function spellsActionButtonsBody(init: {
   for (let slot = 0; slot < 144; slot++) w.uint32LE(init.buttons[slot] ?? 0);
   return w.finish();
 }
+
+export function spellsUnlearnSpellsBody(spells: readonly number[]): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(spells.length);
+  for (const spellId of spells) w.uint32LE(spellId);
+  return w.finish();
+}
+
+export function spellsSpellModifierBody(init: {
+  eff: number;
+  op: number;
+  value: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(init.eff);
+  w.uint8(init.op);
+  w.uint32LE(init.value >>> 0);
+  return w.finish();
+}
+
+export function spellsModifyCooldownBody(init: {
+  spellId: number;
+  guid: bigint;
+  cooldown: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.spellId);
+  w.uint64LE(init.guid);
+  w.uint32LE(init.cooldown >>> 0);
+  return w.finish();
+}
