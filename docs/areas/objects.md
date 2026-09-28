@@ -1,18 +1,21 @@
 # objects
 
 The `objects` area keeps the game object templates the server sends,
-sends area triggers as the character moves and keeps the messages the
-server answers them with. World-service code reads it through
-`session.areas.objects.state()`: `templates` maps each entry to its
-template (type, display, names, the 24 data words, size, the quest items
-that are set, and the lock id, page id and quest id read from the data
-words by type, as `GameObjectTemplate::GetLockId` does,
-`Entities/GameObject/GameObjectData.h:428-457`); `triggers` holds the state of the
-`AreaTrigger.dbc` catalog, the current map, the triggers the character
-stands in and the triggers it has sent this session; `lastMessage` holds
-the last trigger message and when it arrived. The area emits
-`trigger_sent` and `trigger_message` events, and its act
-`enterTrigger(id)` sends one trigger by hand.
+uses game objects and sends area triggers as the character moves, and
+keeps the messages the server answers them with. World-service code
+reads it through `session.areas.objects.state()`: `templates` maps each
+entry to its template (type, display, names, the 24 data words, size,
+the quest items that are set, and the lock id, page id and quest id
+read from the data words by type, as
+`GameObjectTemplate::GetLockId` does,
+`Entities/GameObject/GameObjectData.h:428-457`); `pendingUse` holds the
+guid and entry of the last use and when it was sent, expiring after 5
+s; `triggers` holds the state of the `AreaTrigger.dbc` catalog, the
+current map, the triggers the character stands in and the triggers it
+has sent this session; `lastMessage` holds the last trigger message
+and when it arrived. The area emits `used`, `trigger_sent` and
+`trigger_message` events, and its acts `use(guid)` uses one object by
+hand and `enterTrigger(id)` sends one trigger by hand.
 
 ## Wire notes
 
@@ -39,10 +42,15 @@ the last trigger message and when it arrived. The area emits
   object's.
   - A dynamic object sends the despawn animation with its own guid when
     it is removed (`Entities/DynamicObject/DynamicObject.cpp:182`).
-- `CMSG_AREATRIGGER` is one `uint32`, the trigger id
-  (`Handlers/MiscHandler.cpp:691-697`). The server ignores it while the
-  character is on a taxi flight (`Handlers/MiscHandler.cpp:699-704`) and
-  when the character is not in the trigger.
+- `CMSG_GAMEOBJ_USE` is one `ObjectGuid` (`Handlers/SpellHandler.cpp:329-347`).
+  The server drops the use in silence when the object is too far; a
+  type-2 quest giver answers by preparing and sending its gossip menu.
+- `CMSG_GAMEOBJ_REPORT_USE` is one packed guid. The server ignores an
+  unselectable or too-far object, runs the object's SmartAI greeting,
+  then updates the use-object achievement criteria
+  (`Handlers/SpellHandler.cpp:350-376`). A type-10 goober with a page
+  id answers the use with `SMSG_GAMEOBJECT_PAGETEXT`, one guid of 8
+  bytes (`Entities/GameObject/GameObject.cpp:1630-1634`).
 - `SMSG_AREA_TRIGGER_MESSAGE` is a `uint32` length and then a C string.
   The server writes one packet per line, with the length of that line
   plus one, but the string runs from that line to the end of the whole
@@ -75,7 +83,6 @@ character back through a portal.
 
 ## Left out
 
-- `CMSG_GAMEOBJ_USE` and `CMSG_GAMEOBJ_REPORT_USE`: built by `objects-2`.
 - `CMSG_PAGE_TEXT_QUERY`, `SMSG_PAGE_TEXT_QUERY_RESPONSE` and
   `SMSG_GAMEOBJECT_PAGETEXT`: built by `objects-3`.
 - `SMSG_GAMEOBJECT_CUSTOM_ANIM`, `SMSG_GAMEOBJECT_DESPAWN_ANIM`,
@@ -89,5 +96,5 @@ No verb for area triggers: core sends them while the character walks.
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
-| `CMSG_AREATRIGGER` | `live` | probe flow `objects-trigger` (`--arg to=` the centre of trigger 88) on an `elwynn10` character moved with `soap gm tele FargodeepMine` and given quest 62 while online, exit 0; the watcher sent trigger 88 once, the server answered `SMSG_QUESTUPDATE_COMPLETE`. A second run into trigger 78 at level 10 was answered with `SMSG_TRANSFER_PENDING` and `SMSG_NEW_WORLD` to map 36 | `Handlers/MiscHandler.cpp:691-697` |
-| `SMSG_AREA_TRIGGER_MESSAGE` | `live` | probe flow `objects-trigger` (`--arg to=` the centre of trigger 78) on a level 1 `elwynn1` character moved with `soap gm tele TheDeadmines`, exit 0; the watcher sent trigger 78 and the flow reported the message "You must be at least level 10 to enter." | `Server/WorldSession.cpp:288-298` |
+| `CMSG_GAMEOBJ_USE` | `live` | probe flow `objects-use` (`--arg entry=192709`, "The Schools of Arcane Magic - Abjuration", a type-10 goober with a page id) on a `fresh` character moved with `soap gm tele DalaranVisitorCenter`, exit 0; the flow walked to 2.0 yd, sent the use with the report use, and the server answered `SMSG_GAMEOBJECT_PAGETEXT` 4 ms later plus `SMSG_CRITERIA_UPDATE` | `Handlers/SpellHandler.cpp:336-346`, `Entities/GameObject/GameObject.cpp:1630-1634` |
+| `CMSG_GAMEOBJ_REPORT_USE` | `accepted` | the same run sent the report use right after the use, with no disconnect and no error packet; builder tests cover the 8-byte body against `Handlers/SpellHandler.cpp:350-376` | `Handlers/SpellHandler.cpp:350-376` |

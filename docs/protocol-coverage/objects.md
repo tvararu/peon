@@ -7,7 +7,7 @@ columns are explained in [the index](../protocol-coverage.md).
 |---|---|---|---|---|
 | `0x05a` | `CMSG_PAGE_TEXT_QUERY` | client | missing |  |
 | `0x05b` | `SMSG_PAGE_TEXT_QUERY_RESPONSE` | server | missing |  |
-| `0x0b1` | `CMSG_GAMEOBJ_USE` | client | missing |  |
+| `0x0b1` | `CMSG_GAMEOBJ_USE` | client | handled |  |
 | `0x0b3` | `SMSG_GAMEOBJECT_CUSTOM_ANIM` | server | missing |  |
 | `0x0b4` | `CMSG_AREATRIGGER` | client | handled |  |
 | `0x1c8` | `SMSG_FISH_NOT_HOOKED` | server | missing |  |
@@ -15,4 +15,4 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x1df` | `SMSG_GAMEOBJECT_PAGETEXT` | server | missing |  |
 | `0x215` | `SMSG_GAMEOBJECT_DESPAWN_ANIM` | server | missing |  |
 | `0x2b8` | `SMSG_AREA_TRIGGER_MESSAGE` | server | handled |  |
-| `0x481` | `CMSG_GAMEOBJ_REPORT_USE` | client | missing |  |
+| `0x481` | `CMSG_GAMEOBJ_REPORT_USE` | client | handled |  |
