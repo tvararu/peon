@@ -27,8 +27,20 @@
   "paneMinutes": 13,
   "partner": null,
   "preset": "fresh",
-  "setup": [],
+  "setup": [
+    {
+      "body": {
+        "map": 530,
+        "o": 0.9776,
+        "x": 10400.1,
+        "y": -5956.19,
+        "z": 40.7994,
+        "zone": 3430
+      },
+      "endpoint": "position"
+    }
+  ],
   "steers": [],
-  "task": "The Shrine of Dath'Remar stands about 400 yards west of where you start on Sunstrider Isle. Explore west to it, read it, and tell me its first sentence.",
+  "task": "You stand near the Shrine of Dath'Remar on Sunstrider Isle. Read the shrine and tell me its first sentence.",
   "tier": 0
 }
