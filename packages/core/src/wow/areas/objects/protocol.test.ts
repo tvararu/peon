@@ -2,12 +2,32 @@ import { describe, expect, test } from "bun:test";
 import {
   objectsAreaTriggerBody,
   objectsAreaTriggerMessageBody,
+  objectsGameObjUseBody,
 } from "#test-support/areas/objects";
 import {
   buildAreaTrigger,
+  buildGameObjReportUse,
+  buildGameObjUse,
   parseAreaTriggerMessage,
 } from "#wow/areas/objects/protocol";
 import { PacketReader } from "#wow/protocol/packet";
+
+const SHRINE = 0xf1_10_2c_14_00_00_52_80n;
+
+describe("objects use packets", () => {
+  test("CMSG_GAMEOBJ_USE writes the object guid as one u64 (SpellHandler.cpp:328-347)", () => {
+    expect(buildGameObjUse(SHRINE)).toEqual(objectsGameObjUseBody(SHRINE));
+    expect(new PacketReader(buildGameObjUse(SHRINE)).uint64LE()).toBe(SHRINE);
+    expect(buildGameObjUse(SHRINE).length).toBe(8);
+  });
+
+  test("CMSG_GAMEOBJ_REPORT_USE writes the object guid as one u64 (SpellHandler.cpp:349-376)", () => {
+    expect(buildGameObjReportUse(SHRINE)).toEqual(
+      objectsGameObjUseBody(SHRINE),
+    );
+    expect(buildGameObjReportUse(SHRINE).length).toBe(8);
+  });
+});
 
 const LEVEL = "You must be at least level 10 to enter.";
 

@@ -13,3 +13,15 @@ export function parseAreaTriggerMessage(r: PacketReader): AreaTriggerMessage {
   const text = r.cString();
   return { text };
 }
+
+export function buildGameObjUse(guid: bigint): Uint8Array {
+  const w = new PacketWriter(8);
+  w.uint64LE(guid);
+  return w.finish();
+}
+
+export function buildGameObjReportUse(guid: bigint): Uint8Array {
+  const w = new PacketWriter(8);
+  w.uint64LE(guid);
+  return w.finish();
+}

@@ -50,10 +50,15 @@ export function objectsGameObjectQueryMissingBody(entry: number): Uint8Array {
   w.uint32LE(entry | 0x80_00_00_00);
   return w.finish();
 }
-
 export function objectsAreaTriggerBody(triggerId: number): Uint8Array {
   const w = new PacketWriter();
   w.uint32LE(triggerId);
+  return w.finish();
+}
+
+export function objectsGameObjUseBody(guid: bigint): Uint8Array {
+  const w = new PacketWriter(8);
+  w.uint64LE(guid);
   return w.finish();
 }
 

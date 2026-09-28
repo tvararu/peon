@@ -9,7 +9,7 @@ import { GameOpcode } from "#wow/protocol/opcodes";
 export const objectsArea = defineArea({
   name: "objects",
   opcodes: OBJECTS_OPCODES,
-  eventTypes: ["trigger_sent", "trigger_message"],
+  eventTypes: ["used", "trigger_sent", "trigger_message"],
   store: (deps, core) => new ObjectsStore(deps, core),
   register: (wire, store) => {
     wire.on(GameOpcode.SMSG_AREA_TRIGGER_MESSAGE, (r) =>

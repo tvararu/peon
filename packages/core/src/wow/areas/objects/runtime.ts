@@ -1,13 +1,26 @@
 import { ignoreFailure } from "#lib/ignore-failure";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
-import { buildAreaTrigger } from "#wow/areas/objects/protocol";
-import type { ObjectsEvent, ObjectsStore } from "#wow/areas/objects/store";
+import {
+  buildAreaTrigger,
+  buildGameObjReportUse,
+  buildGameObjUse,
+} from "#wow/areas/objects/protocol";
+import type {
+  ObjectsEvent,
+  ObjectsStore,
+  UseRecord,
+  UseRefusal,
+} from "#wow/areas/objects/store";
 import { loadAreaTriggers } from "#wow/areas/objects/trigger-catalog";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { SelfEvent } from "#wow/self-store";
 import type { CoreStores } from "#wow/session-stores";
 
-export type ObjectsActs = { enterTrigger: (triggerId: number) => void };
+export type ObjectsActs = {
+  enterTrigger: (triggerId: number) => void;
+  use: (guid: bigint) => UseOutcome;
+};
+export type UseOutcome = { ok: true; record: UseRecord } | UseRefusal;
 
 const ARRIVALS = new Set(["teleport", "near_teleport", "new_world"]);
 
@@ -37,6 +50,13 @@ export function objectsRuntime(
     ctx.send(GameOpcode.CMSG_AREATRIGGER, buildAreaTrigger(triggerId));
     store.noteSent(triggerId, core.self.mapId);
   }
+  function use(guid: bigint) {
+    const record = store.sendUse(guid);
+    if ("ok" in record) return record;
+    ctx.send(GameOpcode.CMSG_GAMEOBJ_USE, buildGameObjUse(guid));
+    ctx.send(GameOpcode.CMSG_GAMEOBJ_REPORT_USE, buildGameObjReportUse(guid));
+    return { ok: true as const, record };
+  }
   function arrival(event: SelfEvent): void {
     if (event.type === "login_verified" || event.type === "new_world")
       store.arrive(event.position);
@@ -53,7 +73,7 @@ export function objectsRuntime(
   });
   const offSelf = core.self.onEvent(arrival);
   return {
-    act: { enterTrigger },
+    act: { enterTrigger, use },
     dispose: () => {
       offControl();
       offSelf();
