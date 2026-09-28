@@ -263,18 +263,28 @@ export type QuestLine = {
   turnIn: string | undefined;
 };
 
+export type BagRow = {
+  name: string;
+  count: number;
+  quality: number | null;
+  bag: number;
+  slot: number;
+  kind: ItemKind;
+  entry: number | undefined;
+  canWear: boolean | undefined;
+  requiredLevel: number | undefined;
+  upgrade: { itemLevel: number; wornItemLevel: number } | undefined;
+  durability: { current: number; max: number } | undefined;
+  secondsLeft: number | undefined;
+  loadedAmmo: boolean;
+};
+
 export type BagsView = {
   copper: number | undefined;
   freeSlots: number | undefined;
   equipped: { slot: EquipSlotName; name: string; quality: number | null }[];
-  items: {
-    name: string;
-    count: number;
-    quality: number | null;
-    bag: number;
-    slot: number;
-    kind: ItemKind;
-  }[];
+  items: BagRow[];
+  ammo: { name: string; entry: number } | undefined;
 };
 
 export type SpellLine = {

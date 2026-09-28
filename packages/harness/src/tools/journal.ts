@@ -1,5 +1,5 @@
 import {
-  itemKind,
+  type ItemTemplate,
   type NamedInventorySlot,
   type NamedInventoryState,
   type QuestLogSlot,
@@ -9,6 +9,7 @@ import {
   type SpellDefinition,
 } from "@peon/core";
 import type {
+  BagRow,
   BagsView,
   EquipSlotName,
   JournalAfter,
@@ -20,6 +21,12 @@ import type { ToolCtx } from "#harness/contract/services";
 import { formatLogRows, queryLog } from "#harness/log/query";
 import { questGoal, questTitle } from "#harness/ops/quest-memory";
 import { defineGameTool, result } from "#harness/tools/define";
+import {
+  type BagMarkCtx,
+  bagItemName,
+  bagRow,
+  secondsText,
+} from "#harness/tools/journal-bags";
 import { nextCall } from "#harness/tools/next-call";
 import { type JournalArgs, journalParams } from "#harness/tools/params-journal";
 import { journalRenderers } from "#harness/ui/renderers/card";
@@ -29,7 +36,6 @@ type LoggedSlot = QuestLogSlot & { questId: number };
 type Occupied = Extract<NamedInventorySlot, { status: "occupied" }>;
 type Ctx = ToolCtx<JournalAfter>;
 
-const ITEMS_PER_LINE = 6;
 const STOP = /[.!?]$/;
 const QUEST_STATUS = {
   complete: "complete",
@@ -157,32 +163,57 @@ function questsResult(ctx: Ctx): ToolResult<JournalAfter> {
     detail,
   });
 }
-
-function itemName(slot: Occupied): string {
-  return slot.item.name ?? `item ${slot.item.entry ?? 0}`;
-}
-
-function bagsView(inventory: NamedInventoryState): BagsView {
+async function bagsView(
+  inventory: NamedInventoryState,
+  getItemTemplate: Ctx["handle"]["getItemTemplate"],
+  playerClass: string | undefined,
+  playerLevel: number | undefined,
+): Promise<BagsView> {
   const occupied = inventory.slots.filter(
     (slot): slot is Occupied => slot.status === "occupied",
   );
   const equipped = occupied.flatMap((slot) => {
     const name = EQUIP_SLOTS[slot.slot];
     return slot.region === "equipment" && name
-      ? [{ name: itemName(slot), quality: slot.item.quality, slot: name }]
+      ? [{ name: bagItemName(slot), quality: slot.item.quality, slot: name }]
       : [];
   });
+  const entries = [
+    ...new Set(
+      occupied.flatMap((slot) =>
+        slot.item.entry === undefined ? [] : [slot.item.entry],
+      ),
+    ),
+  ];
+  const found = await Promise.all(
+    entries.map(async (entry) => ({
+      entry,
+      template: await getItemTemplate(entry).catch(() => undefined),
+    })),
+  );
+  const templates: Record<number, ItemTemplate | undefined> = {};
+  for (const row of found) templates[row.entry] = row.template;
+  const mark: BagMarkCtx = { inventory, playerClass, playerLevel, templates };
   const items = occupied
     .filter((slot) => BAG_REGIONS.has(slot.region))
-    .map((slot) => ({
-      bag: slot.bag,
-      count: slot.item.count ?? 1,
-      kind: itemKind(slot.item),
-      name: itemName(slot),
-      quality: slot.item.quality,
-      slot: slot.slot,
-    }));
+    .map((slot) =>
+      bagRow(
+        slot,
+        slot.item.entry === undefined ? undefined : templates[slot.item.entry],
+        mark,
+      ),
+    );
+  const ammoEntry = inventory.ammoId;
+  const ammoSlot =
+    ammoEntry === undefined
+      ? undefined
+      : occupied.find((slot) => slot.item.entry === ammoEntry);
+  const ammoName = ammoSlot ? bagItemName(ammoSlot) : undefined;
   return {
+    ammo:
+      ammoEntry !== undefined && ammoName !== undefined
+        ? { entry: ammoEntry, name: ammoName }
+        : undefined,
     copper: inventory.coinage,
     equipped,
     freeSlots: inventory.freeSlots,
@@ -210,22 +241,44 @@ function equippedLine({ equipped }: BagsView): string {
   return `Equipped: ${worn || "nothing"}.`;
 }
 
-function itemLines({ items }: BagsView): string[] {
-  const counts = new Map<string, number>();
-  for (const item of items)
-    counts.set(item.name, (counts.get(item.name) ?? 0) + item.count);
-  const words = [...counts].map(([name, count]) => `${name} x${count}`);
-  if (words.length === 0) return ["Bags: no items."];
-  const lines: string[] = [];
-  for (let start = 0; start < words.length; start += ITEMS_PER_LINE)
-    lines.push(words.slice(start, start + ITEMS_PER_LINE).join(", "));
-  return lines.map((line, index) =>
-    index === 0 ? `Bags: ${line}.` : `Bags (continued): ${line}.`,
-  );
+function itemLine(item: BagRow): string {
+  const marks: string[] = [];
+  if (item.canWear === true)
+    marks.push(
+      item.upgrade === undefined
+        ? "can wear"
+        : `can wear, upgrade (item level ${item.upgrade.itemLevel}, worn ${item.upgrade.wornItemLevel})`,
+    );
+  if (item.canWear === false)
+    marks.push(
+      item.requiredLevel === undefined
+        ? "cannot wear (class)"
+        : `cannot wear (needs level ${item.requiredLevel})`,
+    );
+  if (item.durability !== undefined)
+    marks.push(`durability ${item.durability.current}/${item.durability.max}`);
+  if (item.secondsLeft !== undefined) marks.push(secondsText(item.secondsLeft));
+  if (item.loadedAmmo) marks.push("loaded ammo");
+  const head = `bag ${item.bag} slot ${item.slot}: ${item.name} x${item.count} (item ${item.entry ?? 0})`;
+  return marks.length > 0 ? `${head}: ${marks.join(", ")}.` : `${head}.`;
 }
 
-function bagsResult({ handle }: Ctx): ToolResult<JournalAfter> {
-  const bags = bagsView(handle.getInventoryState());
+function itemLines(bags: BagsView): string[] {
+  const lines = bags.items.map(itemLine);
+  if (bags.ammo !== undefined)
+    lines.push(`Ammo: ${bags.ammo.name} (item ${bags.ammo.entry}).`);
+  if (lines.length === 0) return ["Bags: no items."];
+  return lines;
+}
+
+async function bagsResult({ handle }: Ctx): Promise<ToolResult<JournalAfter>> {
+  const inventory = handle.getInventoryState();
+  const bags = await bagsView(
+    inventory,
+    handle.getItemTemplate,
+    handle.getSelfClass(),
+    handle.getExperienceState().level,
+  );
   const detail = `Money: ${moneyText(bags.copper)}. ${bags.freeSlots ?? "unknown"} free bag slots.`;
   return result("DONE", {
     after: { about: "bags", bags },
@@ -298,7 +351,7 @@ function journal(
 ): Promise<ToolResult<JournalAfter>> {
   if (args.about === "spells") return spellsResult(ctx);
   if (args.about === "quests") return Promise.resolve(questsResult(ctx));
-  if (args.about === "bags") return Promise.resolve(bagsResult(ctx));
+  if (args.about === "bags") return bagsResult(ctx);
   return Promise.resolve(logResult(args, ctx));
 }
 
