@@ -163,6 +163,24 @@ describe("reputation/at_war", () => {
       text: "Booty Bay reputation -100: Hostile 2800/3000.",
     });
   });
+
+  test("a rank change on a faction already at war keeps the rank row", () => {
+    const [row] = rules()(
+      standing({
+        after: -2500,
+        atWar: true,
+        before: -3100,
+        factionId: 21,
+        name: "Booty Bay",
+        rank: 2,
+        rankChanged: true,
+      }),
+    );
+    expect(row).toMatchObject({
+      name: "rank",
+      text: "You are now Unfriendly with Booty Bay.",
+    });
+  });
 });
 
 describe("reputation/discovered", () => {

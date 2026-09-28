@@ -22,6 +22,15 @@ const RANK_NAMES = [
 ] as const;
 const POINTS_IN_RANK = [36_000, 3000, 3000, 3000, 6000, 12_000, 21_000, 1000];
 
+function rankOf(standing: number): number {
+  let limit = 43_000;
+  for (let rank = POINTS_IN_RANK.length - 1; rank >= 0; rank--) {
+    limit -= POINTS_IN_RANK[rank] ?? 0;
+    if (standing >= limit) return rank;
+  }
+  return 0;
+}
+
 function rankName(rank: number): string {
   return RANK_NAMES[rank] ?? `rank ${rank}`;
 }
@@ -59,7 +68,7 @@ function dataOf(e: Of<"standing_changed">): Record<string, unknown> {
 }
 
 function onStanding(e: Of<"standing_changed">): AreaDraft[] {
-  if (e.atWar && e.rankChanged)
+  if (e.atWar && e.rankChanged && e.rank !== undefined && rankOf(e.before) > 1)
     return [
       {
         class: "log",
