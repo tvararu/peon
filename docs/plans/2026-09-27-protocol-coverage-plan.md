@@ -649,7 +649,7 @@ The table lists every existing file that an area task edits outside its own area
 | `core:` protocol/inventory.ts | items-3a (A) | yes |
 | `core:` protocol/item.ts | items-1 (A) → objects-4 (A) → talents-5a (C) | yes |
 | `core:` protocol/monster-move.ts | vehicles-1 (C) | yes |
-| `core:` protocol/movement-block.ts | remote-motion-1 (A) → vehicles-1 (C) → vehicles-6 (C) | yes |
+| `core:` protocol/movement-block.ts, with `movement-block-speeds.test.ts` and the `Movement` type block of `protocol/update-object.ts` as riders (BR-remote-motion-1-1, BR-remote-motion-1-2) | remote-motion-1 (A) → vehicles-1 (C) → vehicles-6 (C) | yes |
 | `core:` protocol/movement.ts | self-state-1 (A) → self-state-3 (A) → self-state-12 (C) | yes |
 | `core:` protocol/spell.ts | objects-4 (A) | yes |
 | `core:` protocol/vendor.ts | guild-16 (D) | yes |
@@ -752,6 +752,7 @@ The coordinator appends one line per handover: `COORD-<n>: <file> from <task> to
 - `SEED-1`: `core:` client.ts to session-2; chain session-2 → session-6 (D) (SR1-session-6).
 - `SEED-1`: `core:` logout.ts to session-5; no next holder (SR1-session-6).
 - `SEED-1`: `core:` protocol/movement-block.ts to remote-motion-1; chain remote-motion-1 → vehicles-1 (C) → vehicles-6 (C) (SR1-remote-motion-1).
+- BR-remote-motion-1-1, BR-remote-motion-1-2: `core:` `movement-block-speeds.test.ts` and the `Movement` type block of `protocol/update-object.ts` ride the `protocol/movement-block.ts` lease of remote-motion-1 and follow its chain.
 - `SEED-1`: `core:` world-handlers-entity.ts (the holder creates `world-handlers-entity.test.ts`) to remote-motion-1; no next holder (SR1-remote-motion-1).
 - `SEED-1`: `core:` remote-motion-handlers.ts (the holder creates `remote-motion-handlers.test.ts`) to remote-motion-1; chain remote-motion-1 → remote-motion-4 (B) → remote-motion-6 (D) (SR1-remote-motion-1).
 - `SEED-1`: `h:` tools/look.ts and its siblings `tools/look-find.ts`, `tools/look-rows.ts` and `tools/look-self.ts` (each its own lease with this chain), with the look blocks of `contract/details.ts` and the look lines of `docs/harness.md` as riders, to threat-3b; chain threat-3b → objects-7 → quests-2 → travel-5 → self-state-11b → spells-13 (B), then the later holders of the row (SR1-threat-7, SR1-objects-5, SR1-quests-1, SR1-travel-2, SR1-self-state-14).
