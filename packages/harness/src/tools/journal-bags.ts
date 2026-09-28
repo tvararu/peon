@@ -146,7 +146,7 @@ export function bagRow(
       mark.inventory.ammoId !== undefined &&
       mark.inventory.ammoId === slot.item.entry,
     requiredLevel: undefined,
-    secondsLeft: slot.item.duration,
+    secondsLeft: slot.item.duration || undefined,
     upgrade: undefined,
   };
   if (slot.item.entry === undefined || template === undefined) return none;
