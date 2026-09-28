@@ -1,7 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { TravelAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
-import { travelSpec } from "#harness/tools/travel";
+import { travelSpec, travelTool } from "#harness/tools/travel";
 import {
   attackBy,
   contentOf,
@@ -9,6 +9,7 @@ import {
   driveGoto,
   limitProblem,
   MAP_ID,
+  objectRow,
   setLife,
   setSelf,
   setUnits,
@@ -16,6 +17,8 @@ import {
   unitRow,
 } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
+import { createRefTable } from "#harness/ops/refs";
+import { expectSendKind } from "#test-support/tool-harness";
 
 const MARNIEL = unitRow({
   distance: 36,
@@ -33,7 +36,7 @@ function fit(res: ToolResult<TravelAfter>): string {
 }
 
 async function world() {
-  const t = await createTestRuntime();
+  const t = await createTestRuntime({ parts: { refs: createRefTable() } });
   setSelf(t.handle, { x: 0, y: 0 });
   setUnits(t.handle, [MARNIEL]);
   return t;
@@ -444,6 +447,28 @@ describe("travel", () => {
       status: "FAILED",
     });
     expect(fit(res)).toStartWith("FAILED died: you died on the way.\n");
+  });
+  test("walks to a game object and stops in interaction range", async () => {
+    const t = await world();
+    setUnits(t.handle, [
+      ...t.handle.queryNearby(),
+      objectRow({
+        distance: 36,
+        guid: 0xf110_0000_0000_0070n,
+        name: "Milly's Harvest",
+        x: 36,
+        y: 0,
+      }),
+    ]);
+    t.rt.refs.refOf(0xf110_0000_0000_0070n);
+    driveGoto(t.handle, [{ arrive: { x: 34, y: 0 } }]);
+    const res = await travelSpec.run(
+      { to: "Milly's Harvest" },
+      toolCtx<TravelAfter>(t),
+    );
+    expect(res.status).toBe("DONE");
+    expect(fit(res)).toMatch(/^DONE arrived at Milly's Harvest \(o1\): /);
+    await expectSendKind(travelTool, { to: "Milly's Harvest" });
   });
 
   test("a human stop ends the run as cancelled", async () => {
