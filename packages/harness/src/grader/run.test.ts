@@ -236,6 +236,38 @@ describe("runScenario", () => {
     });
   });
 
+  test("two partners start with a header trace, and each is stopped and deleted", async () => {
+    const world = await newWorld();
+    const scenario: Scenario = {
+      ...SELF_STATE,
+      partners: [
+        { preset: "eversong10", role: "partner" },
+        { preset: "eversong10", role: "witness" },
+      ],
+    };
+    await run(world, scenario);
+    const wrapper = `${world.worktree}/tmp/puppet-${ACC}`;
+    const of = (verb: string) =>
+      world.calls.filter((call) => call[0] === wrapper && call[1] === verb);
+    expect(of("start")).toEqual(
+      [1, 2].map(() => [
+        wrapper,
+        "start",
+        "--json",
+        "--packet-trace",
+        "headers",
+      ]),
+    );
+    expect(of("stop")).toHaveLength(2);
+    expect(of("nearby").length).toBeGreaterThan(0);
+    expect(
+      world.calls.filter((call) => call[3] === "delete" && call[4] === ACC),
+    ).toHaveLength(3);
+    for (const file of ["partner1-names.json", "partner2-names.json"])
+      expect(await Bun.file(`${world.runDir}/${file}`).exists()).toBe(true);
+    expect(await leaked(world.runDir)).toBe("");
+  });
+
   test("a blockedBy key grades blocked with no account until the scenario drops it", async () => {
     const world = await newWorld();
     const scenario: Scenario = {

@@ -79,7 +79,7 @@ Each run writes `tmp/evals/<round>/<scenario>-<replica>/`:
 | `session.jsonl`, `tools.json`, `runs.jsonl` | The Pi session, tool calls and harness runs, as in [harness.md](harness.md#run-directory). |
 | `packets.jsonl`, `packets.json` | Every game packet's header row and the counts by opcode: the grader starts the harness with `--packet-trace headers` ([harness.md](harness.md#run-directory)). |
 | `steers.jsonl`, `triggers.jsonl`, `progress.json` | The steers sent, the triggers that fired and the watcher's view of the run. |
-| `witness.jsonl`, `partner-read.jsonl` | What the second character saw and read, when the scenario has one. |
+| `witness.jsonl`, `partner-read.jsonl`, `partner<N>-read.jsonl` | What the second character saw and read, when the scenario has one; with `partners`, partner `N` reads into `partner<N>-read.jsonl`. |
 | `frames/` | Screen frames of the pane. |
 | `grader/draft.json` | The measured draft: checks with what the run observed, efficiency, attempts and the run conditions, with no verdict. |
 | `result.json` | The graded result. |
@@ -104,7 +104,9 @@ against `packages/harness/src/grader/scenario.schema.json`; an invalid
 file stops the grader with its file name and the schema errors. To add a
 scenario, drop the file in and add its id to `ROUND_1` in
 `packages/harness/src/grader/scenarios.ts`. A test fails while a file
-sits in no round or a round names an id with no file.
+sits in no round or a round names an id with no file. A scenario that
+needs more than one second character sets `partners` instead of
+`partner` ([The second character](#the-second-character)).
 
 Each check has an `id`, a `source` and an `expect` text, which is for the
 grader to read. The draft fills the check's `observed` from its typed
@@ -135,9 +137,23 @@ its JSON. The launcher sets the account's own config and runtime
 directories and runs the puppet with its arguments. The grader drives it
 by itself; a person can run the same commands through the launcher.
 
+A scenario sets `partner` (`"partner"`, `"witness"` or `null`) for one
+second character on the scenario's preset, or sets `partner` to `null`
+and lists up to four `partners` as `{ "role": "partner" | "witness",
+"preset": "<preset>" }`. The grader creates them in order as `partner1`
+to `partner4` (`partner<N>-names.json`), puts them all on the partner start
+point when the run has one, starts each one with `--packet-trace headers` and stops and
+deletes every one at the end. The first `witness` is the one sampled
+into `witness.jsonl`. A partner action runs on the partner its `actor`
+names (1-based; the default is the single partner or partner 1), and its
+`argv` replaces `<AGENT>` with the agent's character, `<PARTNER1>` to
+`<PARTNER4>` with each partner's character and `<PARTNER>` with the
+first. The grader reads each partner that has an action with `read
+--json` while the actions run and once at the end.
+
 | Command | Used by | Behaviour |
 |---|---|---|
-| `start --json [--packet-trace off\|headers\|bodies]` | partner, witness; area workers add the trace | Starts the puppet process and returns once the character is in the world. A trace other than `off` (the default) writes `packets.jsonl` and `packets.json` to the account's state directory, `tmp/factory-account-<ACCOUNT>/state/peon/`, which `soap delete` removes; `packets.jsonl` appends across starts. When a puppet is already running, the reply has `started: false` and the flag has no effect. |
+| `start --json [--packet-trace off\|headers\|bodies]` | partner, witness (the grader passes `--packet-trace headers`) | Starts the puppet process and returns once the character is in the world. A trace other than `off` (the default) writes `packets.jsonl` and `packets.json` to the account's state directory, `tmp/factory-account-<ACCOUNT>/state/peon/`, which `soap delete` removes; `packets.jsonl` appends across starts. When a puppet is already running, the reply has `started: false` and the flag has no effect. |
 | `send -w <name> <text>` | the `t2-whisper-reply` partner action | Whispers, and exits 0 on success. |
 | `read --json` | partner, after the run (`partner-read.jsonl`) | Prints one JSON envelope whose `events` array holds the chat events since start, then drains them. |
 | `nearby --json` | witness, sampled into `witness.jsonl` | Prints one JSON envelope whose `data` array holds the nearby unit rows. |

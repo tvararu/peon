@@ -14,7 +14,16 @@ export type SteerAt =
   | { kind: "trigger"; trigger: TriggerName; nth?: number; delayMs?: number }
   | { kind: "elapsed"; ms: number };
 
-export type PartnerAction = { at: SteerAt; argv: string[]; windowMs: number };
+export type PartnerAction = {
+  at: SteerAt;
+  argv: string[];
+  windowMs: number;
+  actor?: number;
+};
+
+export type ScenarioPartner = { role: "partner" | "witness"; preset: string };
+
+export const MAX_PARTNERS = 4;
 
 export type BotRisk = "low" | "med" | "high";
 
@@ -72,6 +81,7 @@ export type Scenario = {
   task: string;
   steers: { at: SteerAt; text: string }[];
   partnerActions?: PartnerAction[];
+  partners?: ScenarioPartner[];
   blockedBy?: string[];
   field?: string;
   spawn?: string;
@@ -100,11 +110,32 @@ const DIR = `${import.meta.dir}/scenarios`;
 const JSON_FILE = /\.json$/;
 const SCHEMA = schema as unknown as Schema;
 
+function partnerErrors({
+  partner,
+  partnerActions = [],
+  partners,
+}: Scenario): string[] {
+  const count = partners?.length ?? (partner === null ? 0 : 1);
+  const errors = partnerActions.flatMap(({ actor }, index) =>
+    actor !== undefined && actor > count
+      ? [`$.partnerActions[${index}].actor: no partner ${actor}`]
+      : [],
+  );
+  if (partners === undefined) return errors;
+  if (partner !== null)
+    errors.push("$.partners: set partner or partners, not both");
+  if (partners.length === 0) errors.push("$.partners: at least 1 partner");
+  if (partners.length > MAX_PARTNERS)
+    errors.push(`$.partners: at most ${MAX_PARTNERS} partners`);
+  return errors;
+}
+
 export function parseScenario(file: string, value: unknown): Scenario {
   const errors = schemaErrors(SCHEMA, value);
   const stem = file.replace(JSON_FILE, "");
   if (errors.length === 0 && (value as Scenario).id !== stem)
     errors.push(`$.id: expected ${stem}`);
+  if (errors.length === 0) errors.push(...partnerErrors(value as Scenario));
   if (errors.length > 0)
     throw new Error(`invalid scenario ${file}: ${errors.join("; ")}`);
   return value as Scenario;

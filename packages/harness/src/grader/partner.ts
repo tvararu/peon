@@ -48,16 +48,25 @@ export function newPartnerTrack(since: number): PartnerTrack {
 
 export function expandArgv(
   argv: readonly string[],
-  { agent, partner }: { agent: string; partner: string },
+  { agent, partners }: { agent: string; partners: readonly string[] },
 ): string[] {
   return argv.map((arg) =>
-    arg.replaceAll("<AGENT>", agent).replaceAll("<PARTNER>", partner),
+    partners.reduce(
+      (text, name, index) => text.replaceAll(`<PARTNER${index + 1}>`, name),
+      arg
+        .replaceAll("<AGENT>", agent)
+        .replaceAll("<PARTNER>", partners[0] ?? "<PARTNER>"),
+    ),
   );
 }
 
-export function actorOf(partners: readonly Partner[]): Partner {
-  const partner = partners[0];
-  if (partner === undefined) throw new Error("the scenario has no partner");
+export function actorOf(
+  partners: readonly Partner[],
+  { actor = 1 }: Pick<PartnerAction, "actor">,
+): Partner {
+  const partner = partners[actor - 1];
+  if (partner === undefined)
+    throw new Error(`the scenario has no partner ${actor}`);
   return partner;
 }
 
@@ -65,9 +74,9 @@ export function readersOf(
   partners: readonly Partner[],
   actions: readonly PartnerAction[],
 ): Partner[] {
-  return actions.length === 0 || partners.length === 0
-    ? []
-    : [actorOf(partners)];
+  if (partners.length === 0) return [];
+  const actors = new Set(actions.map((action) => actorOf(partners, action)));
+  return partners.filter((partner) => actors.has(partner));
 }
 
 export async function readPartner({
@@ -93,10 +102,10 @@ export async function readPartner({
 
 async function fire(init: StepInit, action: PartnerAction): Promise<void> {
   const { agent, clock, exec, partners, runDir, track } = init;
-  const partner = actorOf(partners);
+  const partner = actorOf(partners, action);
   const argv = expandArgv(action.argv, {
     agent: agent.character,
-    partner: partner.names.character,
+    partners: partners.map(({ names }) => names.character),
   });
   const ms = clock.now();
   const { code, stderr } = await exec([partner.names.wrapper, ...argv], {

@@ -100,6 +100,63 @@ describe("scenario files", () => {
   });
 });
 
+describe("multi-partner scenarios", () => {
+  const base = loadScenario("t2-whisper-reply");
+  const two = {
+    ...base,
+    partner: null,
+    partnerActions: [
+      {
+        ...base.partnerActions?.[0],
+        actor: 2,
+        argv: ["send", "-w", "<PARTNER1>", "hi"],
+      },
+    ],
+    partners: [
+      { preset: "eversong10", role: "partner" as const },
+      { preset: "eversong10-warrior", role: "witness" as const },
+    ],
+  };
+
+  test("a scenario with two partners loads", () => {
+    expect(parseScenario("t2-whisper-reply.json", two).partners).toEqual(
+      two.partners,
+    );
+  });
+
+  test("a scenario with both partner and partners is refused", () => {
+    expect(() =>
+      parseScenario("t2-whisper-reply.json", { ...two, partner: "partner" }),
+    ).toThrow("$.partners: set partner or partners, not both");
+  });
+
+  test("five partners are refused", () => {
+    const partners = Array.from({ length: 5 }, () => ({
+      preset: "eversong10",
+      role: "partner",
+    }));
+    expect(() =>
+      parseScenario("t2-whisper-reply.json", { ...two, partners }),
+    ).toThrow("$.partners: at most 4 partners");
+  });
+
+  test("an action names an actor the scenario has", () => {
+    const [action] = two.partnerActions;
+    expect(() =>
+      parseScenario("t2-whisper-reply.json", {
+        ...two,
+        partnerActions: [{ ...action, actor: 3 }],
+      }),
+    ).toThrow("$.partnerActions[0].actor: no partner 3");
+    expect(() =>
+      parseScenario("t2-whisper-reply.json", {
+        ...two,
+        partnerActions: [{ ...action, actor: 0 }],
+      }),
+    ).toThrow("$.partnerActions[0].actor: below minimum 1");
+  });
+});
+
 describe("round-1 scenarios", () => {
   test.each([...ROUND_1])("%s is well formed", (id) => {
     const scenario = loadScenario(id);

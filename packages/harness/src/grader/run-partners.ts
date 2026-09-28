@@ -27,9 +27,22 @@ type PartnersInit = {
   partners: Partner[];
 };
 
+const NUMBERED = ["partner1", "partner2", "partner3", "partner4"] as const;
+
 export function partnerSpecs(scenario: Scenario): PartnerSpec[] {
-  if (scenario.partner === null) return [];
-  return [{ kind: scenario.partner, preset: scenario.preset, role: "partner" }];
+  const { partner, partners } = scenario;
+  if (partners !== undefined)
+    return partners.map(({ preset, role }, index) => {
+      const numbered = NUMBERED[index];
+      if (numbered === undefined)
+        throw new Error(
+          `${scenario.id} has more than ${NUMBERED.length} partners`,
+        );
+      return { kind: role, preset, role: numbered };
+    });
+  return partner === null
+    ? []
+    : [{ kind: partner, preset: scenario.preset, role: "partner" }];
 }
 
 export async function createPartners(
@@ -57,9 +70,10 @@ export async function startPartners({
   partners,
 }: Omit<PartnersInit, "runDir">): Promise<void> {
   for (const { names, role } of partners) {
-    const { code, stderr } = await exec([names.wrapper, "start", "--json"], {
-      timeoutMs: PARTNER_START_MS,
-    });
+    const { code, stderr } = await exec(
+      [names.wrapper, "start", "--json", "--packet-trace", "headers"],
+      { timeoutMs: PARTNER_START_MS },
+    );
     if (code !== 0)
       throw new RunAbort(
         "launch_failed",

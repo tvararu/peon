@@ -160,6 +160,10 @@
       "items": {
         "additionalProperties": false,
         "properties": {
+          "actor": {
+            "minimum": 1,
+            "type": "integer"
+          },
           "argv": {
             "items": {
               "type": "string"
@@ -221,6 +225,24 @@
         "required": ["argv", "at", "windowMs"],
         "type": "object"
       },
+      "type": "array"
+    },
+    "partners": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "preset": {
+            "type": "string"
+          },
+          "role": {
+            "enum": ["partner", "witness"]
+          }
+        },
+        "required": ["preset", "role"],
+        "type": "object"
+      },
+      "maxItems": 4,
+      "minItems": 1,
       "type": "array"
     },
     "preset": {
