@@ -19,7 +19,7 @@ export const TRAVEL_OPCODES = {
     "SMSG_FLIGHT_SPLINE_SYNC",
   ],
   uses: [],
-  stubs: [["SMSG_BINDPOINTUPDATE", "Bind point"]],
+  stubs: [],
   dead: ["SMSG_FLIGHT_SPLINE_SYNC"],
   unseen: [],
 } as const satisfies AreaOpcodes;
