@@ -901,3 +901,9 @@ issue.
 | SR1-objects-16 | objects-7 files: "`docs/harness.md` (the `look`, `travel` and `interact` lines only)" | Contract 2.6 lets a task only append a row for a new tool to `docs/harness.md`, and the plan "Leases" table has no row for that file, so an edit to an existing tool's line is outside ownership (contract 0.9). A lease on an existing tool module also covers that tool's lines in `docs/harness.md`, as D13 does for `contract/details.ts`. objects-7 edits only the `look`, `travel` and `interact` lines. Amends contract 2.7 (the D13 sentence) and D13 | not yet ruled by the maintainer |
 
 ## COMPLETE
+
+## Build rulings
+
+| Id | Issue | Ruling | Status |
+|---|---|---|---|
+| BR-objects-1-1 | Two legacy fixtures, `world-handlers-entity-lifecycle.test.ts:342-347` and `world-handlers-entity-queries.test.ts:259-264`, build an `SMSG_GAMEOBJECT_QUERY_RESPONSE` body AzerothCore never writes, and pin opcodes objects-1 now owns | objects-1 may update both fixtures to bodies built from the AzerothCore writer | ruled by the maintainer (P2-4) |

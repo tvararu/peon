@@ -1125,3 +1125,9 @@ self-state-9 and -10a). No wave-1 task meets them.
 | SR1-self-state-17 | Contract issue 8 in its general form: design 3.11 asks for docs prose on a user-visible change, and contract 2.6 allows no `docs/harness.md` edit except a new tool's row (self-state-11b changes `look` and `[now]`) | Refused for wave 1. self-state-11b does not edit `docs/harness.md`. The wave integration tidy writes the `look` and `[now]` prose; issue 8 for the `recover` and `spell` rows stays open for SEED-2 and SEED-3 | not yet ruled by the maintainer |
 
 ## COMPLETE
+
+## Build rulings
+
+| Id | Issue | Ruling | Status |
+|---|---|---|---|
+| BR-self-state-2-1 | self-state-2 adds `"feather_fall" \| "gravity_off"` to `MoveFlag` in `self-store.ts`, which is not in its plan body; SR1-self-state-7 gives `self-store.ts` to -1, -4, -3 only | self-state-2 holds the `self-store.ts` lease for the `MoveFlag` members only, between self-state-1 and self-state-4 | ruled by the maintainer (P2-4) |

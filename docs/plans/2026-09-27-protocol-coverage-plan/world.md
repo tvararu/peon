@@ -1533,3 +1533,9 @@ from another task.
 Not yet ruled by the maintainer.
 
 ## COMPLETE
+
+## Build rulings
+
+| Id | Issue | Ruling | Status |
+|---|---|---|---|
+| BR-world-2-1 | `client-handlers.test.ts` and `protocol-coverage.test.ts:160` use `SMSG_WEATHER` as their example stub, and world-2 handles it | The coordinator moves those tests to `SMSG_WARDEN_DATA` in its own commit ("test: Use the Warden stub as the example notice") | ruled by the maintainer (P2-4) |

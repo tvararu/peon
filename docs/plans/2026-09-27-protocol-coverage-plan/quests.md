@@ -1170,3 +1170,9 @@ Ruling: the limit stands as the task states. quests-9 gets no
 Not yet ruled by the maintainer.
 
 ## COMPLETE
+
+## Build rulings
+
+| Id | Issue | Ruling | Status |
+|---|---|---|---|
+| BR-quests-1-1 | quests-1 needs `packages/harness/src/world/hub.test.ts` (a step 0 file) to send a typed entity event, because the quests runtime reads the entity of every appear event | The coordinator lands the edit as its own commit ("test: Send a typed entity event in the hub test"), and quests-1 drops it | ruled by the maintainer (P2-4) |
