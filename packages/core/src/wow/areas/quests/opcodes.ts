@@ -24,5 +24,5 @@ export const QUESTS_OPCODES = {
   uses: ["SMSG_QUESTGIVER_STATUS"],
   stubs: [],
   dead: ["SMSG_QUEST_FORCE_REMOVE"],
-  unseen: [],
+  unseen: ["SMSG_GOSSIP_POI"],
 } as const satisfies AreaOpcodes;
