@@ -923,4 +923,15 @@ those fields.
 
 None. This unit owns no opcode.
 
+## Build rulings
+
+- **BR-T-10-1.** Coordinator ruling for T-10 (not yet ruled by the
+  maintainer): T-10 may edit `packages/harness/src/grader/result.ts`
+  (`EvalCheck.source` becomes `ScenarioCheck["source"]`),
+  `packages/harness/src/grader/eval-result.schema.json` (adds `"console"`
+  to the check source enum) and
+  `packages/harness/src/grader/result.test.ts` (the expected enum
+  message), because its console checks need them and typecheck fails
+  without them. The contract 2.2 row T-10 gains these three files.
+
 ## COMPLETE

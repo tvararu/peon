@@ -1010,7 +1010,7 @@ baseline round of the plan index (round 0), not an R0 step.
 | T-7 partner verbs | `tooling-partner` | `packages/harness/src/puppet/calls.ts` | one-time: `puppet/args.ts`, `puppet/protocol.ts`, `puppet/server.ts` (`call`, `events`, `raw`, `start --packet-trace`); `docs/evals.md` ("The second character" table rows) | before SEED-2 |
 | T-8 truth picks | `tooling-truth` | none | `grader/truth.ts`, `grader/scenarios.ts` (`TruthPick`), `grader/scenario.schema.json`, `grader/draft-fill.ts`; `docs/evals.md` (the `evidence` table) | with the first eval that needs a pick |
 | T-9 multi-partner evals | `tooling-partner` | none | `grader/scenarios.ts` (`partners`), `grader/scenario.schema.json`, `grader/accounts.ts`, `grader/run.ts`, `grader/partner.ts`; `docs/evals.md` | with the first `group` or `instances` eval |
-| T-10 console-read check source | `tooling-truth` | none | `grader/scenario.schema.json` (`source: "console"`), `grader/draft-fill.ts`, a reader over `soap gm read`; `docs/evals.md` | with the first eval that needs group, guild or pet state |
+| T-10 console-read check source | `tooling-truth` | none | `grader/scenario.schema.json` (`source: "console"`), `grader/draft-fill.ts`, a reader over `soap gm read`, `grader/result.ts`, `grader/eval-result.schema.json`, `grader/result.test.ts` (BR-T-10-1); `docs/evals.md` | with the first eval that needs group, guild or pet state |
 
 Overlaps, all serialised by landing order: `soap.ts` (T-1, then T-5);
 `client.ts`, `client-handlers.ts`, `protocol/world.ts` (T-2, then S0-1,
