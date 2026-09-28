@@ -17,7 +17,7 @@ describe("objects area trigger packets", () => {
     expect([...buildAreaTrigger(88)]).toEqual([88, 0, 0, 0]);
   });
 
-  test("SMSG_AREA_TRIGGER_MESSAGE reads a single-line message (WorldSession.cpp:287-298)", () => {
+  test("SMSG_AREA_TRIGGER_MESSAGE reads a single-line message (WorldSession.cpp:288-298)", () => {
     const body = objectsAreaTriggerMessageBody(LEVEL);
     expect(parseAreaTriggerMessage(new PacketReader(body))).toEqual({
       text: LEVEL,
