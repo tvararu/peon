@@ -5,5 +5,5 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x1a3` | `CMSG_BUY_ITEM_IN_SLOT` | client | missing |  |
-| `0x290` | `CMSG_BUYBACK_ITEM` | client | missing |  |
+| `0x1a3` | `CMSG_BUY_ITEM_IN_SLOT` | client | handled |  |
+| `0x290` | `CMSG_BUYBACK_ITEM` | client | handled |  |

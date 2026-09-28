@@ -327,3 +327,57 @@ describe("item update fields", () => {
     expect(view([]).ammoId).toBeUndefined();
   });
 });
+
+describe("buyback slots", () => {
+  const SLOT_74 = 324 + 2 * 74;
+  const PRICE_1 = 1201;
+  const SOLD_AT_1 = 1213;
+
+  test("reads buyback slot 74 with its price and sale time, outside the carried slots (update-fields.ts:264, 307-308)", () => {
+    const sold = 0x40_00_00_00_00_00_00_07n;
+    const before = view([entity(1n, ObjectType.PLAYER, [])]);
+    const state = view([
+      entity(1n, ObjectType.PLAYER, [
+        [SLOT_74, Number(sold & 0xff_ff_ff_ffn)],
+        [SLOT_74 + 1, Number(sold >> 32n)],
+        [PRICE_1, 35],
+        [SOLD_AT_1, 108_123],
+      ]),
+    ]);
+    expect(state.buyback).toEqual([
+      {
+        bag: 255,
+        guid: sold,
+        price: 35,
+        region: "buyback",
+        slot: 74,
+        soldAt: 108_123,
+      },
+    ]);
+    expect(state.slots.some((slot) => slot.slot === 74)).toBe(false);
+    expect(state.status).toBe("complete");
+    expect(state.freeSlots).toBe(before.freeSlots);
+  });
+
+  test("lists no buyback slot while the slots are empty or unknown", () => {
+    expect(view([entity(1n, ObjectType.PLAYER, [])]).buyback).toEqual([]);
+    expect(view([entity(1n, ObjectType.PLAYER, [], false)]).buyback).toEqual(
+      [],
+    );
+    expect(view([]).buyback).toEqual([]);
+  });
+
+  test("reads the price and sale time of slot 85 from the twelfth field", () => {
+    const state = view([
+      entity(1n, ObjectType.PLAYER, [
+        [324 + 2 * 85, 9],
+        [324 + 2 * 85 + 1, 0],
+        [PRICE_1 + 11, 12],
+        [SOLD_AT_1 + 11, 34],
+      ]),
+    ]);
+    expect(state.buyback).toMatchObject([
+      { guid: 9n, price: 12, slot: 85, soldAt: 34 },
+    ]);
+  });
+});

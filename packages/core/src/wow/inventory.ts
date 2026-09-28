@@ -47,7 +47,8 @@ export type InventoryRegion =
   | "backpack"
   | "keyring"
   | "currency"
-  | "bag_item";
+  | "bag_item"
+  | "buyback";
 export type InventoryAddress = {
   bag: number;
   slot: number;
@@ -59,6 +60,12 @@ export type InventorySlot = InventoryAddress &
     | { status: "empty" }
     | { status: "occupied"; guid: bigint; item: InventoryItem }
   );
+export type BuybackSlot = InventoryAddress & {
+  region: "buyback";
+  guid: bigint;
+  price: number | undefined;
+  soldAt: number | undefined;
+};
 export type InventoryBag = {
   slot: number;
   guid: bigint | undefined;
@@ -86,6 +93,7 @@ export type InventoryState = {
   bags: InventoryBag[];
   freeSlots: number | undefined;
   issues: InventoryIssue[];
+  buyback?: BuybackSlot[] | undefined;
   ammoId?: number | undefined;
 };
 
@@ -128,6 +136,8 @@ const ROOTS = [
     region: "currency",
   },
 ] as const;
+
+const BUYBACK = { first: 74, count: 12 } as const;
 
 function guid(
   low: number | undefined,
@@ -308,6 +318,25 @@ function roots(context: ReadContext, self: Entity): InventorySlot[] {
   return result;
 }
 
+function buyback(self: Entity): BuybackSlot[] {
+  const read = (offset: number) => fieldOf(self, offset);
+  const result: BuybackSlot[] = [];
+  for (let i = 0; i < BUYBACK.count; i++) {
+    const offset = PLAYER_FIELDS.FIELD_INV.offset + (BUYBACK.first + i) * 2;
+    const held = guid(read(offset), read(offset + 1));
+    if (!held) continue;
+    result.push({
+      bag: 255,
+      slot: BUYBACK.first + i,
+      region: "buyback",
+      guid: held,
+      price: read(PLAYER_FIELDS.BUYBACK_PRICE_1.offset + i),
+      soldAt: read(PLAYER_FIELDS.BUYBACK_TIMESTAMP_1.offset + i),
+    });
+  }
+  return result;
+}
+
 function bag(
   context: ReadContext,
   root: InventorySlot,
@@ -415,6 +444,7 @@ export function readInventory(
       bags: [],
       freeSlots: undefined,
       issues: [],
+      buyback: [],
       ammoId: undefined,
     };
   const context: ReadContext = {
@@ -442,6 +472,7 @@ export function readInventory(
     bags,
     freeSlots: freeSlots(slots, bags, context.issues),
     issues: context.issues,
+    buyback: buyback(self),
     ammoId: fieldOf(self, PLAYER_FIELDS.AMMO_ID.offset),
   };
 }
