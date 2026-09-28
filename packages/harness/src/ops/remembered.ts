@@ -18,6 +18,7 @@ const ROLE_FINDS: readonly NearestKind[] = [
   "vendor",
   "trainer",
   "repair",
+  "innkeeper",
   "spirit_healer",
 ];
 

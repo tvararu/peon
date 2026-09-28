@@ -8,6 +8,7 @@ const LOOK_KINDS = [
   "vendor",
   "trainer",
   "repair",
+  "innkeeper",
   "lootable",
   "player",
   "corpse",

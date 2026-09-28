@@ -18,6 +18,7 @@ const NEAREST_ORDER: readonly NearestKind[] = [
   "vendor",
   "trainer",
   "repair",
+  "innkeeper",
   "lootable",
   "player",
   "spirit_healer",

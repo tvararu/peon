@@ -65,6 +65,7 @@ const NEAREST_KINDS: readonly NearestKind[] = [
   "vendor",
   "trainer",
   "repair",
+  "innkeeper",
   "lootable",
   "player",
   "spirit_healer",
@@ -76,6 +77,7 @@ const FIGHT_KINDS: ReadonlySet<NearestKind> = new Set([
 const KIND_TESTS: Readonly<Record<NearestKind, (unit: UnitView) => boolean>> = {
   attackable: (unit) => unit.attackable && unit.alive,
   hostile: (unit) => unit.relation === "hostile" && unit.alive,
+  innkeeper: (unit) => unit.roles.includes("innkeeper"),
   lootable: (unit) => unit.lootable,
   player: (unit) => unit.kind === "player",
   questgiver: (unit) => unit.roles.includes("questgiver"),

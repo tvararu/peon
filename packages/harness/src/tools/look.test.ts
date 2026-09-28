@@ -395,6 +395,23 @@ describe("look", () => {
     );
   });
 
+  test("find innkeeper lists innkeepers, also one that left view", async () => {
+    const t = await world();
+    const inn = friendly(
+      { dx: 20, guid: 0x92n, level: 15, name: "Innkeeper Delaniel" },
+      ["innkeeper", "vendor"],
+    );
+    place(t.handle, eversong([inn]));
+    const seen = (await runTool(t.tool, { find: "innkeeper" })).text;
+    expect(seen).toMatch(/- u\d+ Innkeeper Delaniel L15 friendly, innkeeper/);
+    expect(seen).not.toContain("Marniel Amberlight");
+    place(t.handle, eversong());
+    const gone = (await runTool(t.tool, { find: "innkeeper" })).text;
+    expect(gone).toMatch(
+      /- u\d+ Innkeeper Delaniel L15 friendly, .*last seen .* \(not in view\)/,
+    );
+  });
+
   test("a unit that left view reports its last state as past, not current", async () => {
     const t = await world();
     const corpse = nearbyRow(

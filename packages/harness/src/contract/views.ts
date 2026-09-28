@@ -98,6 +98,7 @@ export type NearestKind =
   | "vendor"
   | "trainer"
   | "repair"
+  | "innkeeper"
   | "lootable"
   | "player"
   | "spirit_healer";

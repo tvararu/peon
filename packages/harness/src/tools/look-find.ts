@@ -29,6 +29,7 @@ const REMEMBERED_FILTERS: readonly LookFilter[] = [
   "vendor",
   "trainer",
   "repair",
+  "innkeeper",
   "spirit_healer",
 ];
 const LOOK_FILTERS: readonly LookFilter[] = [
@@ -39,6 +40,7 @@ const LOOK_FILTERS: readonly LookFilter[] = [
   "vendor",
   "trainer",
   "repair",
+  "innkeeper",
   "lootable",
   "player",
   "corpse",

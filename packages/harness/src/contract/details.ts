@@ -24,6 +24,7 @@ export type LookFilter =
   | "vendor"
   | "trainer"
   | "repair"
+  | "innkeeper"
   | "lootable"
   | "player"
   | "corpse"
