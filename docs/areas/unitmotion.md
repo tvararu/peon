@@ -16,6 +16,12 @@ speed messages reach the store from the remote-motion handlers, because
 area sources never name those opcodes. The harness writes no log rows
 for these events.
 
+Every creature death clears hover and disabled gravity on the dead unit
+(`Entities/Creature/Creature.cpp:2002-2003`), so each kill emits two
+`flag` events with `on` false. The probe flow `unitmotion-kill` attacks
+the nearest hostile creature until it dies and lists the flags its death
+cleared.
+
 ## Wire notes
 
 - Every living unit's create block carries nine speeds after the
@@ -48,10 +54,9 @@ for these events.
 
 ## Left out
 
-The parser reads all 25 owned opcodes; no handler is registered yet.
+The parser reads all 25 owned opcodes; only the two death toggles have
+a handler.
 
-- `SMSG_SPLINE_MOVE_UNSET_HOVER` and `SMSG_SPLINE_MOVE_GRAVITY_ENABLE`:
-  built by `remote-motion-2`.
 - `SMSG_SPLINE_SET_WALK_SPEED`, `SMSG_SPLINE_SET_RUN_SPEED`,
   `SMSG_SPLINE_SET_RUN_BACK_SPEED`, `SMSG_SPLINE_SET_SWIM_SPEED`,
   `SMSG_SPLINE_SET_SWIM_BACK_SPEED`, `SMSG_SPLINE_SET_FLIGHT_SPEED` and
@@ -76,3 +81,5 @@ No verb (N23).
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
+| `SMSG_SPLINE_MOVE_UNSET_HOVER` | `live` | probe flow `unitmotion-kill` (`--expect` 0x308, 0x4D4) on an `eversong10-warrior` moved to East Sanctum with `soap gm tele EastSanctum`, exit 0; the Angershade kill traced 0x308 twice as `handled`, and the flow saw `hover` cleared | `Entities/Unit/Unit.cpp:16273` |
+| `SMSG_SPLINE_MOVE_GRAVITY_ENABLE` | `live` | the same `unitmotion-kill` run, exit 0; 0x4D4 traced once as `handled`, and the flow saw `disable_gravity` cleared | `Entities/Unit/Unit.cpp:16118` |
