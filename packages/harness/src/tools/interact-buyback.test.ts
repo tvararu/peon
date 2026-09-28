@@ -6,6 +6,7 @@ type BuybackEvent = AreaEventOf<"buyback">;
 
 import { interactSpec, interactTool } from "#harness/tools/interact";
 import { contentOf, toolCtx } from "#test-support/ops-fixtures";
+import type { TestRuntime } from "#test-support/runtime-fixture";
 import { expectSendKind } from "#test-support/tool-harness";
 import { coinage, marniel } from "#test-support/vendor-fixtures";
 
@@ -18,11 +19,10 @@ const SOLD = {
   soldAt: 10,
 };
 
-function buybackList(t: { handle: { buyback: { state: () => unknown } } }) {
-  const state = t.handle.buyback.state();
-  t.handle.buyback.state = () => ({
-    ...state,
-    list: [SOLD],
+function buybackList(t: TestRuntime) {
+  const state = { ...t.handle.buyback.state(), list: [SOLD] };
+  Object.assign(t.handle, {
+    buyback: { ...t.handle.buyback, state: () => state },
   });
   t.handle.itemLabel = ((entry: number) =>
     entry === 2589
@@ -30,14 +30,8 @@ function buybackList(t: { handle: { buyback: { state: () => unknown } } }) {
       : undefined) as typeof t.handle.itemLabel;
 }
 
-function buybackEvent(
-  t: { handle: { triggerAreaEvent: (...args: never[]) => void } },
-  event: BuybackEvent,
-) {
-  (t.handle.triggerAreaEvent as (area: string, event: unknown) => void)(
-    "buyback",
-    event,
-  );
+function buybackEvent(t: TestRuntime, event: BuybackEvent) {
+  t.handle.triggerAreaEvent("buyback", event);
 }
 
 describe("interact buyback", () => {
