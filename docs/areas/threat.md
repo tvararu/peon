@@ -19,7 +19,10 @@ and "your threat" as the character's share of the top entry. The danger
 view counts every creature with the character on its list as an
 attacker, so a caster that never melees is counted, and a creature that
 switches its victim to the character interrupts a run that stops on a
-new attacker.
+new attacker. `engage` treats a `target_broken` for its target as a lost
+target while it walks to it: the approach ends with
+`target_not_observed`. The fight itself does not watch for target
+breaks yet.
 
 ## Wire notes
 
