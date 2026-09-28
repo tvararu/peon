@@ -47,8 +47,9 @@ the run `aborted` with the cause `grader_contamination`.
 **Safety.** Eval characters are throwaway `soap create` characters that
 never get a GM level. After the baseline, no service write, console
 command or harness restart touches the character unless the scenario is
-about it. The one console command the grader runs by itself is a `console`
-check's read, after the final truth. Passwords never reach a transcript or a result file.
+about it. The one console command the grader runs by itself is a
+`console` check's read, after the final truth. Passwords never reach a
+transcript or a result file.
 
 ## Run a scenario
 
@@ -124,7 +125,7 @@ grader to read. The draft fills the check's `observed` from its typed
 | `point` | `truth` checks | An `{ "x", "y" }` point: the final position and its 2D distance to the point, instead of the other truth fields. |
 | `events` | `game_log` checks | The game-log rows of these events (`domain/name`; a trailing `*` matches a prefix): the count, the first and last match, the first 10 rows and the last row of the same domains. |
 | `ids` | `game_log` checks | Only the rows of those events whose data holds one of these numbers. |
-| `console` | `console` checks | A `{ "read", "arg", "match" }` read: after the final truth the grader runs `soap gm <ACCOUNT> read <read> [arg]` (`read` is one of `group`, `mail`, `pet`, `titles`, `reputation`, `pinfo`, `guild`, `arena`) and records the reply in `console.jsonl`. `match` is a regular expression, with `^` and `$` at line ends, over the reply text. The draft shows the verb, the exit code, the text and whether `match` matched; the check is met when it matched and the command exited 0. A missing row shows a `reason`. The grader never runs a verb other than `read`. Console text follows the server's strings, so use this source only when no truth field and no game-log row can grade the check. |
+| `console` | `console` checks | A `{ "read", "arg", "match" }` read: after the final truth the grader runs `soap gm <ACCOUNT> read <read> [arg]` (`read` is one of `group`, `mail`, `pet`, `titles`, `reputation`, `pinfo`, `guild`, `arena`; `guild` needs the guild name and `arena` the team id as `arg`, and the others take none) and records the reply in `console.jsonl`. `match` is a regular expression, with `^` and `$` at line ends, over the reply text. The draft shows the verb, the exit code, the text and whether `match` matched; the check is met when it matched and the command exited 0. A missing row shows a `reason`. The grader never runs a verb other than `read`. Console text follows the server's strings, so use this source only when no truth field and no game-log row can grade the check. |
 | `who` | `truth` and `console` checks | Whose character the other fields read: `agent` (the default), `partner` for the single partner, or `partner1` to `partner4` with `partners`. The scenario must have that character. When its baseline or final truth file is missing, a `truth` check adds a `reason` that names the missing file. |
 
 A `measure` names a computed measure in
