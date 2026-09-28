@@ -144,6 +144,7 @@ export const ROUND_1: readonly string[] = [
   "t4-quests-find-giver",
   "t0-objects-read-shrine",
   "t4-objects-explore-fargodeep",
+  "t4-quests-poi-walk",
 ];
 
 const DIR = `${import.meta.dir}/scenarios`;

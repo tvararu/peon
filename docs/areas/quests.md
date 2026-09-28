@@ -148,7 +148,7 @@ The runtime sends the completed query once at login.
 
 ## Capabilities row
 
-See which NPCs have a quest or a quest to turn in (`t4-quests-find-giver`, pass round 11 replica 2: `quests/marks` named Magistrix Erona available before the first `interact`, quest 8325 taken).
+See which NPCs have a quest or a quest to turn in (`t4-quests-find-giver`, pass round 11 replica 2: `quests/marks` named Magistrix Erona available before the first `interact`, quest 8325 taken). Walk to where a quest's objective is (`t4-quests-poi-walk`): `journal about: "quests"` names the nearest objective region on the character's map with a `travel` call to its centroid, and the turn-in region once the quest is complete.
 
 ## Proof
 

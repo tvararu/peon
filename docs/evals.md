@@ -178,7 +178,7 @@ two scenarios closest to it. Every scenario appears in at least one row.
 |---|---|
 | Navigation and movement (`travel`, routes, namigator) | `t1-walk-to-npc` |
 | Combat and Jev (`engage`, spells) | `t3-ghostlands-kill`, `t7-halt-resume` |
-| Quest marks, objective regions, greetings and sharing (look, journal, interact, group) | `t4-quests-find-giver` |
+| Quest marks, objective regions, greetings and sharing (look, journal, interact, group) | `t4-quests-find-giver`, `t4-quests-poi-walk` |
 | Quests (`interact` quest dialogs, quest log, rewards) | `t4-quest-first`, `t4-alliance-first` |
 | Vendors and money | `t5-vendor-buy-goldshire` |
 | Chat and whispers (`social`, pushed chat events) | `t2-whisper-reply` |
