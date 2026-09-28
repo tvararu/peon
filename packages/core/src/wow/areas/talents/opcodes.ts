@@ -11,7 +11,7 @@ export const TALENTS_OPCODES = {
     "SMSG_TALENTS_INVOLUNTARILY_RESET",
   ],
   uses: [],
-  stubs: [["SMSG_TALENTS_INFO", "Talents"]],
-  dead: [],
+  stubs: [],
+  dead: ["CMSG_UNLEARN_TALENTS", "SMSG_TALENTS_INVOLUNTARILY_RESET"],
   unseen: [],
 } as const satisfies AreaOpcodes;
