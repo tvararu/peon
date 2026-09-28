@@ -9,9 +9,9 @@
     {
       "evidence": {
         "events": ["aura/gain", "aura/fade", "combat/cast"],
-        "ids": [168]
+        "ids": [168, 7300]
       },
-      "expect": "GL has an aura/gain row for spell 168 (Frost Armor) followed by an aura/fade row for spell 168, and no combat/cast row lies between them, so the aura went away by a cancel and not by a recast or a timeout",
+      "expect": "GL has an aura/gain row for Frost Armor (spell 168, or 7300 for rank 2, which a level 10 mage casts) followed by an aura/fade row for the same spell, and no combat/cast row for it lies between them, so the aura went away by a cancel and not by a recast or a timeout",
       "id": "aura-cycle",
       "source": "game_log"
     },
