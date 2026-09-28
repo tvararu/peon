@@ -19,6 +19,7 @@ import {
   type Pois,
   type PoisChange,
   receivePoiResponse,
+  refreshAbsentPois,
   requestPois,
 } from "#wow/areas/quests/store-poi";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
@@ -85,6 +86,10 @@ export class QuestsStore {
     const { pois, requested } = requestPois(this.pois, ids, this.now());
     this.pois = pois;
     return requested;
+  }
+
+  refreshAbsentPois(ids: readonly number[]): void {
+    this.pois = refreshAbsentPois(this.pois, ids);
   }
 
   receivePoiResponse(replies: readonly QuestPoiReply[]): void {

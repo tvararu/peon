@@ -397,6 +397,39 @@ describe("quests runtime", () => {
       expect(poiQueries(rig)).toEqual([[8325]]);
     });
   });
+
+  test("a quest answered with no POIs before acceptance is queried again on accept", () => {
+    withRig(({ quest, rig }) => {
+      rig.handle.act.queryPoi([8325]);
+      rig.inject(
+        GameOpcode.SMSG_QUEST_POI_QUERY_RESPONSE,
+        questsQuestPoiQueryResponseBody([{ questId: 8325, pois: [] }]),
+      );
+      quest("accepted");
+      expect(poiQueries(rig)).toEqual([[8325], [8325]]);
+      expect(rig.handle.state().pois.get(8325)?.status).toBe("pending");
+    });
+  });
+
+  test("a none quest is queried again only when it first appears in the log", () => {
+    withRig(({ quest, rig }) => {
+      rig.handle.act.queryPoi([9999]);
+      const none9999 = questsQuestPoiQueryResponseBody([
+        { questId: 9999, pois: [] },
+      ]);
+      rig.inject(GameOpcode.SMSG_QUEST_POI_QUERY_RESPONSE, none9999);
+      withLog(rig, [9999]);
+      quest("log");
+      rig.inject(GameOpcode.SMSG_QUEST_POI_QUERY_RESPONSE, none9999);
+      quest("log");
+      expect(poiQueries(rig)).toEqual([[9999], [9999]]);
+      withLog(rig, []);
+      quest("log");
+      withLog(rig, [9999]);
+      quest("log");
+      expect(poiQueries(rig)).toEqual([[9999], [9999], [9999]]);
+    });
+  });
   test("the timeout equals QUEST_REPLY_TIMEOUT_MS", () => {
     expect(REPLY_TIMEOUT_MS).toBe(QUEST_REPLY_TIMEOUT_MS);
   });

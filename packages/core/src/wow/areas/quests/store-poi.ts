@@ -41,6 +41,16 @@ export function receivePoiResponse(
   return { pois: next, settled };
 }
 
+export function refreshAbsentPois(pois: Pois, ids: readonly number[]): Pois {
+  let next: Map<number, PoiEntry> | undefined;
+  for (const id of ids) {
+    if (id <= 0 || pois.get(id)?.status !== "none") continue;
+    if (next === undefined) next = new Map(pois);
+    next.delete(id);
+  }
+  return next ?? pois;
+}
+
 export function expirePois(
   pois: Pois,
   pending: readonly number[],

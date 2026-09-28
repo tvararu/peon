@@ -143,6 +143,48 @@ function poiQueue(
     },
   };
 }
+type LogEntry = { ids: number[]; entered: number[] };
+
+function logEntry(
+  slots: readonly { questId?: number }[],
+  seen: ReadonlySet<number>,
+): LogEntry {
+  const ids: number[] = [];
+  for (const slot of slots)
+    if (slot.questId !== undefined && slot.questId > 0) ids.push(slot.questId);
+  return { ids, entered: ids.filter((id) => !seen.has(id)) };
+}
+
+type QuestPoiHooks = {
+  seenInLog: Set<number>;
+  store: QuestsStore;
+  core: CoreStores;
+  pois: PoiQueue;
+};
+
+function trackPoiEntry(event: QuestEvent, hooks: QuestPoiHooks): void {
+  const { seenInLog, store, core, pois } = hooks;
+  if (event.type === "accepted" && event.questId !== undefined) {
+    store.refreshAbsentPois([event.questId]);
+    pois.request([event.questId]);
+    seenInLog.add(event.questId);
+    return;
+  }
+  if (event.type === "log") {
+    const { ids, entered } = logEntry(
+      core.quests.snapshot().log.slots,
+      seenInLog,
+    );
+    if (entered.length > 0) store.refreshAbsentPois(entered);
+    seenInLog.clear();
+    for (const id of ids) seenInLog.add(id);
+    pois.request(ids);
+    return;
+  }
+  if (event.type === "removed" && event.questId !== undefined)
+    seenInLog.delete(event.questId);
+}
+
 export function questsRuntime(
   ctx: AreaRuntimeCtx<QuestsEvent>,
   store: QuestsStore,
@@ -171,16 +213,10 @@ export function questsRuntime(
       ctx.send(GameOpcode.CMSG_QUEST_POI_QUERY, buildQuestPoiQuery(batch)),
     store,
   );
+  const seenInLog = new Set<number>();
   const offQuest = ctx.listen("quest", (event) => {
     if (LOG_CHANGES.has(event.type)) query.schedule();
-    if (event.type === "accepted" && event.questId !== undefined)
-      pois.request([event.questId]);
-    else if (event.type === "log") {
-      const ids: number[] = [];
-      for (const slot of core.quests.snapshot().log.slots)
-        if (slot.questId !== undefined) ids.push(slot.questId);
-      pois.request(ids);
-    }
+    trackPoiEntry(event, { seenInLog, store, core, pois });
   });
   const queryGiverStatus = (guid: bigint): boolean => {
     if (!known.has(guid)) return false;
