@@ -55,13 +55,13 @@ describe("spells harness rules", () => {
       },
     ];
     const rules = areaRuleSet();
-    const [started, startedEndless, ended] = events.map(
-      (event) => areaDrafts(rules, event, testRuleInput())[0]!,
+    const rows = events.map(
+      (event) => areaDrafts(rules, event, testRuleInput())[0],
     );
-    expect(started!.event).toBe("spells/channel_start");
-    expect(started!.text).toBe("Channelling spell 5143.");
-    expect(startedEndless!.text).toBe("Channelling spell 5143.");
-    expect(ended!.event).toBe("spells/channel_end");
-    expect(ended!.text).toBe("spell 5143 ended (cancelled).");
+    expect(rows).toMatchObject([
+      { event: "spells/channel_start", text: "Channelling spell 5143." },
+      { event: "spells/channel_start", text: "Channelling spell 5143." },
+      { event: "spells/channel_end", text: "spell 5143 ended (cancelled)." },
+    ]);
   });
 });
