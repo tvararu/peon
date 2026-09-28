@@ -85,8 +85,10 @@ export function questsNpcTextUpdateBody(
   for (let i = 0; i < NPC_TEXT_OPTIONS; i++) {
     const option = options?.[i];
     w.floatLE(option?.probability ?? 0);
-    w.cString(options ? (option?.text0 ?? "") : "Greetings $N");
-    w.cString(options ? (option?.text1 ?? "") : "Greetings $N");
+    const text0 = options ? (option?.text0 ?? "") : "Greetings $N";
+    const text1 = options ? (option?.text1 ?? "") : "Greetings $N";
+    w.cString(text0 || text1);
+    w.cString(text1 || text0);
     w.uint32LE(option?.language ?? 0);
     for (let j = 0; j < NPC_TEXT_EMOTES; j++) {
       w.uint32LE(option?.emotes[j]?.delay ?? 0);

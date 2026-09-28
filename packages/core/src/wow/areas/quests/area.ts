@@ -27,10 +27,10 @@ export const questsArea = defineArea({
       store.receivePoiResponse(parseQuestPoiResponse(r)),
     );
     wire.on(GameOpcode.SMSG_NPC_TEXT_UPDATE, (r) =>
-      store.receiveNpcText(parseNpcTextUpdate(r), undefined),
+      store.receiveNpcText(parseNpcTextUpdate(r)),
     );
     wire.on(GameOpcode.SMSG_GOSSIP_POI, (r) =>
-      store.receiveGossipPoi(parseGossipPoi(r), undefined),
+      store.receiveGossipPoi(parseGossipPoi(r)),
     );
   },
   runtime: questsRuntime,

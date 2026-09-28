@@ -65,8 +65,11 @@ export class QuestsStore {
   private texts: NpcTexts = new Map();
   private gossipPoi: GossipPoiEntry | undefined;
 
-  constructor(deps: SessionDeps, _core: CoreStores) {
+  private readonly core: CoreStores;
+
+  constructor(deps: SessionDeps, core: CoreStores) {
     this.now = deps.now;
+    this.core = core;
   }
 
   snapshot(): QuestsState {
@@ -105,29 +108,28 @@ export class QuestsStore {
     return greetingOf(this.texts.get(textId));
   }
 
-  pendingTextGuid(textId: number): bigint | undefined {
-    return this.texts.get(textId)?.guid;
-  }
-
   requestNpcText(textId: number, guid: bigint): boolean {
     const next = requestText(this.texts, textId, guid, this.now());
     this.texts = next.texts;
     return next.send;
   }
 
-  receiveNpcText(text: NpcText, guid: bigint | undefined): void {
+  receiveNpcText(text: NpcText): void {
+    const guid = this.texts.get(text.textId)?.guid;
     const next = receiveText(this.texts, text, guid, this.now());
     this.texts = next.texts;
     this.events.emit(next.change);
   }
 
   npcTextNoReply(textId: number): void {
+    if (this.texts.get(textId)?.status !== "pending") return;
     const next = textNoReply(this.texts, textId, this.now());
     this.texts = next.texts;
     this.events.emit(next.change);
   }
 
-  receiveGossipPoi(poi: GossipPoi, from: bigint | undefined): void {
+  receiveGossipPoi(poi: GossipPoi): void {
+    const from = this.core.quests.snapshot().giver;
     const next = receivePoi(poi, from, this.now());
     this.gossipPoi = next.entry;
     this.events.emit(next.change);

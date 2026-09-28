@@ -163,6 +163,7 @@ describe("quests NPC text and gossip POI parsers", () => {
       ...EMPTY_OPTION,
       probability: 0.5,
       text0: "Hail, $C.",
+      text1: "Hail, $C.",
     });
     expect(text.options[7]).toEqual(EMPTY_OPTION);
   });

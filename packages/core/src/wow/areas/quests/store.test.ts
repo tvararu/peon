@@ -7,11 +7,9 @@ import {
   questsQuestgiverStatusMultipleBody,
   questsQuestPoiQueryResponseBody,
 } from "#test-support/areas/quests";
-import { parseGossipPoi, parseNpcTextUpdate } from "#wow/areas/quests/protocol";
 import type { QuestsEvent } from "#wow/areas/quests/store";
 import { markOf } from "#wow/areas/quests/store-marks";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import { PacketReader } from "#wow/protocol/packet";
 
 const ERONA = 0xf1_30_00_3f_d1_00_1a_2bn;
 const JESSE = 0xf1_30_00_3e_a7_00_1a_30n;
@@ -303,17 +301,19 @@ describe("quests npc text", () => {
     }
   });
 
-  test("a reply overwrite is stored with its guid", () => {
-    const parsed = parseNpcTextUpdate(
-      new PacketReader(questsNpcTextUpdateBody(ERONA_TEXT, [option("Hail.")])),
-    );
-    expect(parsed.textId).toBe(ERONA_TEXT);
-    expect(parsed.options).toHaveLength(8);
+  test("a text reply keeps the giver guid of its pending query", () => {
     const { rig } = rigWithEvents();
     try {
-      rig.stores.areas.quests.receiveNpcText(parsed, GUARD);
+      rig.stores.areas.quests.requestNpcText(ERONA_TEXT, GUARD);
+      rig.inject(
+        GameOpcode.SMSG_NPC_TEXT_UPDATE,
+        questsNpcTextUpdateBody(ERONA_TEXT, [option("Hail.")]),
+      );
       expect(rig.stores.areas.quests.greeting(ERONA_TEXT)).toBe("Hail.");
-      expect(rig.handle.state().texts.get(ERONA_TEXT)?.guid).toBe(GUARD);
+      expect(rig.handle.state().texts.get(ERONA_TEXT)).toMatchObject({
+        guid: GUARD,
+        status: "known",
+      });
     } finally {
       rig.dispose();
     }
@@ -324,19 +324,18 @@ describe("quests gossip POI", () => {
   test("an injected POI is set with the giver open at arrival", () => {
     const { rig, seen } = rigWithEvents();
     try {
-      const poi = parseGossipPoi(
-        new PacketReader(
-          questsGossipPoiBody({
-            flags: 99,
-            x: -8867.5,
-            y: 673.25,
-            icon: 7,
-            importance: 6,
-            name: "The Gilded Rose",
-          }),
-        ),
+      rig.stores.quests.requestIntent({ action: "talk", guid: GUARD });
+      rig.inject(
+        GameOpcode.SMSG_GOSSIP_POI,
+        questsGossipPoiBody({
+          flags: 99,
+          x: -8867.5,
+          y: 673.25,
+          icon: 7,
+          importance: 6,
+          name: "The Gilded Rose",
+        }),
       );
-      rig.stores.areas.quests.receiveGossipPoi(poi, GUARD);
       expect(rig.handle.state().gossipPoi).toEqual({
         flags: 99,
         x: -8867.5,
