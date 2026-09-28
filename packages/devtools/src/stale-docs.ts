@@ -79,6 +79,7 @@ const sources = [
   "AGENTS.md",
   "README.md",
   "docs/*.md",
+  "docs/areas/*.md",
   "packages/factory/src/prompts/*.md",
 ];
 

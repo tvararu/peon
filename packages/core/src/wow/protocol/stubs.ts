@@ -43,7 +43,6 @@ export const STUBS: [opcode: number, label: string][] = [
   [GameOpcode.SMSG_ARENA_TEAM_COMMAND_RESULT, "Arena command result"],
   [GameOpcode.SMSG_WEATHER, "Weather change"],
   [GameOpcode.SMSG_WARDEN_DATA, "Warden anti-cheat"],
-  [GameOpcode.SMSG_LOGIN_SETTIMESPEED, "Game time"],
   [GameOpcode.SMSG_ACCOUNT_DATA_TIMES, "Account data"],
   [GameOpcode.SMSG_FEATURE_SYSTEM_STATUS, "System features"],
   [GameOpcode.SMSG_TUTORIAL_FLAGS, "Tutorial flags"],

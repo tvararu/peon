@@ -1,7 +1,9 @@
-import { expect, test } from "bun:test";
+import { expect, jest, test } from "bun:test";
 import type { AreaEvent } from "#wow/areas/compose";
+import { TIME_QUERY_TIMEOUT_MS } from "#wow/areas/time/runtime";
 import type { UnitEntity } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
+import { GameOpcode } from "#wow/protocol/opcodes";
 import { createMockHandle } from "./mock-handle";
 
 test("resolveClosed resolves closed promise", async () => {
@@ -242,4 +244,40 @@ test("triggerAreaEvent reaches onAreaEvent until it unsubscribes", () => {
 
 test("sent starts empty", () => {
   expect(createMockHandle().sent).toEqual([]);
+});
+
+test("handle.time exposes state, onEvent and query", async () => {
+  jest.useFakeTimers();
+  const handle = createMockHandle();
+  try {
+    expect(handle.time.state().dailyResetInSec).toBeUndefined();
+    const pending = handle.time.act.query();
+    const settled = pending.then(
+      () => "resolved",
+      (error: Error) => error.message,
+    );
+    expect(handle.sent).toEqual([
+      { body: new Uint8Array(), opcode: GameOpcode.CMSG_QUERY_TIME },
+    ]);
+    jest.advanceTimersByTime(TIME_QUERY_TIMEOUT_MS);
+    expect(await settled).toBe("timeout");
+  } finally {
+    handle.close();
+    jest.useRealTimers();
+  }
+});
+
+test("triggerAreaEvent for time reaches onAreaEvent and handle.time.onEvent", () => {
+  const handle = createMockHandle();
+  const areaSeen: AreaEvent[] = [];
+  const timeSeen: string[] = [];
+  handle.onAreaEvent((event) => areaSeen.push(event));
+  handle.time.onEvent((event) => timeSeen.push(event.type));
+  const reply = {
+    state: handle.time.state(),
+    type: "query_reply",
+  } as const;
+  handle.triggerAreaEvent("time", reply);
+  expect(areaSeen).toEqual([{ area: "time", event: reply }]);
+  expect(timeSeen).toEqual(["query_reply"]);
 });

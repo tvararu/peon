@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { timeQueryResponseBody } from "#test-support/areas/time";
 import {
   clientPrivateKey,
   clientSeed,
@@ -306,6 +307,45 @@ describe("session lifecycle", () => {
       ).toBe(false);
       handle.close();
       await handle.closed;
+    } finally {
+      worldServer.stop();
+    }
+  });
+
+  test("login queries the time once and close rejects a pending query", async () => {
+    const worldServer = await startMockWorldServer();
+    try {
+      const handle = await worldSession(
+        { ...base, host: "127.0.0.1", port: worldServer.port },
+        fakeAuth(worldServer.port),
+      );
+      await worldServer.waitForCapture(
+        (p) => p.opcode === GameOpcode.CMSG_QUERY_TIME,
+      );
+      expect(
+        worldServer.captured.filter(
+          (p) => p.opcode === GameOpcode.CMSG_QUERY_TIME,
+        ),
+      ).toHaveLength(1);
+      const areaEvents: string[] = [];
+      const timeEvents: string[] = [];
+      handle.onAreaEvent(({ event }) => areaEvents.push(event.type));
+      handle.time.onEvent((event) => timeEvents.push(event.type));
+      const answered = handle.time.act.query();
+      worldServer.inject(
+        GameOpcode.SMSG_QUERY_TIME_RESPONSE,
+        timeQueryResponseBody({
+          serverTime: 1_790_000_000,
+          dailyResetInSec: 3600,
+        }),
+      );
+      expect((await answered).dailyResetInSec).toBe(3600);
+      const pending = handle.time.act.query();
+      handle.close();
+      await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      await handle.closed;
+      expect(areaEvents).toEqual(["query_reply"]);
+      expect(timeEvents).toEqual(["query_reply"]);
     } finally {
       worldServer.stop();
     }
