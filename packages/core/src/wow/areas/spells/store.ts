@@ -4,6 +4,7 @@ import type {
   ChannelUpdate,
   ModifyCooldown,
   SpellModifier,
+  SpellVisual,
 } from "#wow/areas/spells/protocol";
 import type { CombatChannel } from "#wow/combat-casts";
 import type { SpellFailure } from "#wow/protocol/spell";
@@ -29,7 +30,8 @@ export type SpellsEvent =
       durationMs: number | undefined;
       target: bigint | undefined;
     }
-  | { type: "channel_end"; spellId: number; reason: ChannelEndReason };
+  | { type: "channel_end"; spellId: number; reason: ChannelEndReason }
+  | { type: "spell_visual"; guid: bigint; kit: number; impact: boolean };
 
 const END_TOLERANCE_MS = 400;
 const CHANNEL_SPELL = UNIT_FIELDS.CHANNEL_SPELL.offset;
@@ -136,6 +138,15 @@ export class SpellsStore {
   modifyCooldown(packet: ModifyCooldown): void {
     if (packet.guid !== this.deps.selfGuid()) return;
     this.core.combat.casts.shiftCooldown(packet.spellId, packet.deltaMs);
+  }
+
+  spellVisual(packet: SpellVisual, impact: boolean): void {
+    this.events.emit({
+      type: "spell_visual",
+      guid: packet.guid,
+      kit: packet.kit,
+      impact,
+    });
   }
 
   selfFields(fields: ReadonlyMap<number, number>): void {

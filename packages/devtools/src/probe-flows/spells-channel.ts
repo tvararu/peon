@@ -99,6 +99,13 @@ async function waitFor(
 function eventJson(event: SpellsEvent): Json {
   if (event.type === "channel_end")
     return { reason: event.reason, spellId: event.spellId, type: event.type };
+  if (event.type === "spell_visual")
+    return {
+      guid: hex(event.guid),
+      impact: event.impact,
+      kit: event.kit,
+      type: event.type,
+    };
   return {
     durationMs: event.durationMs ?? null,
     spellId: event.spellId,

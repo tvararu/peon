@@ -47,6 +47,12 @@ spell's cooldown by the signed delta and marks it as the server's; the
 area makes no cooldown for a spell that has none. None of these emits
 an event.
 
+`SMSG_PLAY_SPELL_VISUAL` and `SMSG_PLAY_SPELL_IMPACT` emit
+`spell_visual` with the unit's guid, the visual kit and `impact` set for
+the impact packet. The area keeps no state for them, and the harness
+writes no log row. A trainer purchase sends both: the visual names the
+trainer and the impact names the character.
+
 ## Wire notes
 
 - `MSG_CHANNEL_START` is the packed guid of the caster, the `uint32`
@@ -150,6 +156,20 @@ an event.
   (`Entities/Object/ObjectGuid.cpp:70-73`).
 - The shaman T10 two-piece proc also changes a cooldown
   (`scripts/Spells/spell_shaman.cpp:1024`).
+- `SMSG_PLAY_SPELL_VISUAL` and `SMSG_PLAY_SPELL_IMPACT` are the full
+  `uint64` guid of the unit and a `uint32` `SpellVisualKit.dbc` index
+  (`Entities/Unit/Unit.cpp:14752-14758`,
+  `Entities/Unit/Unit.cpp:14760-14766`,
+  `Entities/Unit/Unit.cpp:14768-14778`,
+  `wow_message_parser/wowm/world/spell/smsg_play_spell_visual.wowm`,
+  `wow_message_parser/wowm/world/spell/smsg_play_spell_impact.wowm`).
+- A trainer purchase sends the visual 179 from the trainer and the impact
+  362 on the player (`Creature/Trainer.cpp:111-112`); eating and drinking
+  send a visual from the player (`Entities/Player/Player.cpp:1871`,
+  `Entities/Player/Player.cpp:1876`).
+- The trainer sends both to the units that see it, so a purchase made
+  before the trainer is in view brings neither
+  (`Entities/Unit/Unit.cpp:14757`).
 - The client direction of `MSG_CHANNEL_START` and `MSG_CHANNEL_UPDATE`
   is `Handle_NULL` (`Server/Protocol/Opcodes.cpp:444-445`).
 
@@ -183,7 +203,6 @@ Disagreements for opcodes later tasks build (AzerothCore wins):
 
 ## Left out
 
-- `SMSG_PLAY_SPELL_VISUAL`, `SMSG_PLAY_SPELL_IMPACT`: built by spells-6.
 - `SMSG_SPELL_FAILED_OTHER`: built by spells-2.
 - `SMSG_TOTEM_CREATED`, `CMSG_TOTEM_DESTROYED`: built by spells-8.
 - `CMSG_UNLEARN_SKILL`: built by spells-7.
@@ -213,6 +232,8 @@ Stop a channel (proposed; spells-12b).
 | `SMSG_SET_FLAT_SPELL_MODIFIER` | `live` | the same login probe: 4 packets, outcome `handled`, among them `4a1c1e000000` (bit 74, op 28, 30) and `320b3850ffff` (bit 50, op 11, -45000); at logout the server sent both bits again with total 0 (`4a1c00000000`, `320b00000000`) | `Entities/Player/Player.cpp:10103-10130` |
 | `SMSG_SET_PCT_SPELL_MODIFIER` | `live` | the same login probe: 44 packets, outcome `handled`, among them `000805000000` (bit 0, op 8, 5) and `0402ecffffff` (bit 4, op 2, -20) | `Handlers/CharacterHandler.cpp:1218-1250` |
 | `SMSG_MODIFY_COOLDOWN` | `mock` | `packages/core/src/wow/areas/spells/store-spellbook.test.ts` "SMSG_MODIFY_COOLDOWN for self moves the server cooldown by the signed delta"; not seen live (its senders are level-80 scripts) | `Entities/Player/Player.cpp:11284-11287` |
+| `SMSG_PLAY_SPELL_VISUAL` | `live` | `mise protocol:probe --flow nearest --arg kind=trainer --send CMSG_TRAINER_BUY_SPELL --body 0e25008d3f0030f191000000 --expect SMSG_PLAY_SPELL_VISUAL --expect SMSG_PLAY_SPELL_IMPACT --bodies` on an `eversong10-mage` at level 12 next to the Falconwing Square mage trainer, exit 0: after the buy of spell 145, body `0e25008d3f0030f1b3000000` (the trainer's guid, kit 179), outcome `handled` | `Entities/Unit/Unit.cpp:14752-14758` |
+| `SMSG_PLAY_SPELL_IMPACT` | `live` | the same probe: in the same millisecond, body `1e0e0000000000006a010000` (the character's guid, kit 362), outcome `handled`, then `SMSG_LEARNED_SPELL` and `SMSG_TRAINER_BUY_SUCCEEDED` | `Entities/Unit/Unit.cpp:14768-14778` |
 | `SMSG_SPELL_UPDATE_CHAIN_TARGETS` | `dead` | no send site in AzerothCore `src/` or `modules/`; only the opcode table names it | `Server/Protocol/Opcodes.cpp:947` |
 | `SMSG_RESYNC_RUNES` | `dead` | built only in `Player::ResyncRunes`, whose only call, in `Spell::EffectActivateRune`, is commented out | `Entities/Player/Player.cpp:13746-13756` |
 | `SMSG_ADD_RUNE_POWER` | `dead` | built only in `Player::AddRunePower`, which has no caller | `Entities/Player/Player.cpp:13758-13763` |

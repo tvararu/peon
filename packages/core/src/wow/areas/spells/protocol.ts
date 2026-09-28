@@ -52,6 +52,14 @@ export function parseModifyCooldown(r: PacketReader): ModifyCooldown {
   return { spellId, guid, deltaMs };
 }
 
+export type SpellVisual = { guid: bigint; kit: number };
+
+export function parseSpellVisual(r: PacketReader): SpellVisual {
+  const guid = r.uint64LE();
+  const kit = r.uint32LE();
+  return { guid, kit };
+}
+
 export function buildCancelChannelling(spellId: number): Uint8Array {
   const w = new PacketWriter();
   w.uint32LE(spellId);

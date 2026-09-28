@@ -77,3 +77,15 @@ export function spellsModifyCooldownBody(init: {
   w.uint32LE(init.cooldown >>> 0);
   return w.finish();
 }
+
+export function spellsPlaySpellVisualBody(init: {
+  guid: bigint;
+  kit: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.guid);
+  w.uint32LE(init.kit);
+  return w.finish();
+}
+
+export const spellsPlaySpellImpactBody = spellsPlaySpellVisualBody;

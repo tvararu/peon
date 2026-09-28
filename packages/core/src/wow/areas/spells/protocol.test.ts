@@ -3,6 +3,7 @@ import {
   spellsChannelStartBody,
   spellsChannelUpdateBody,
   spellsModifyCooldownBody,
+  spellsPlaySpellVisualBody,
   spellsSpellModifierBody,
   spellsUnlearnSpellsBody,
 } from "#test-support/areas/spells";
@@ -16,6 +17,7 @@ import {
   parseChannelUpdate,
   parseModifyCooldown,
   parseSpellModifier,
+  parseSpellVisual,
   parseUnlearnSpells,
 } from "#wow/areas/spells/protocol";
 import { PacketReader } from "#wow/protocol/packet";
@@ -160,6 +162,16 @@ describe("spells spellbook parsers", () => {
       guid: ME,
       spellId: 51_505,
     });
+    expect(reader.remaining).toBe(0);
+  });
+});
+
+describe("spells visual parser", () => {
+  test("SMSG_PLAY_SPELL_VISUAL and SMSG_PLAY_SPELL_IMPACT read a u64 guid and a u32 kit (Unit.cpp:14752-14778)", () => {
+    const body = spellsPlaySpellVisualBody({ guid: MOB, kit: 179 });
+    expect(body).toHaveLength(12);
+    const reader = new PacketReader(body);
+    expect(parseSpellVisual(reader)).toEqual({ guid: MOB, kit: 179 });
     expect(reader.remaining).toBe(0);
   });
 });

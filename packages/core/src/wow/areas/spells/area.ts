@@ -5,6 +5,7 @@ import {
   parseChannelUpdate,
   parseModifyCooldown,
   parseSpellModifier,
+  parseSpellVisual,
   parseUnlearnSpells,
 } from "#wow/areas/spells/protocol";
 import { spellsRuntime } from "#wow/areas/spells/runtime";
@@ -15,7 +16,7 @@ import { parseSpellFailure } from "#wow/protocol/spell";
 export const spellsArea = defineArea({
   name: "spells",
   opcodes: SPELLS_OPCODES,
-  eventTypes: ["channel_start", "channel_end"],
+  eventTypes: ["channel_start", "channel_end", "spell_visual"],
   store: (deps, core) => new SpellsStore(deps, core),
   register: (wire, store) => {
     wire.on(GameOpcode.MSG_CHANNEL_START, (r) =>
@@ -35,6 +36,12 @@ export const spellsArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_MODIFY_COOLDOWN, (r) =>
       store.modifyCooldown(parseModifyCooldown(r)),
+    );
+    wire.on(GameOpcode.SMSG_PLAY_SPELL_VISUAL, (r) =>
+      store.spellVisual(parseSpellVisual(r), false),
+    );
+    wire.on(GameOpcode.SMSG_PLAY_SPELL_IMPACT, (r) =>
+      store.spellVisual(parseSpellVisual(r), true),
     );
     wire.peek(GameOpcode.SMSG_SPELL_FAILURE, (r) =>
       store.spellFailure(parseSpellFailure(r)),
