@@ -860,4 +860,16 @@ timer pair that world-1 adds to `time` under a lease belongs to the
   causes the failure, so every commit on the branch passes on its own.
   Not yet ruled by the maintainer.
 
+- **BR-S0-5-2.** Coordinator ruling on the D17 t3 gate (not yet ruled by
+  the maintainer): a `t3-ghostlands-kill` failure whose cause is a gray or
+  low-level mob (the agent targets it, or it joins a pull or attacks
+  during travel) belongs to the round 0 baseline cause family, not a new
+  failure cause: `engage-choose.ts` has no lower level bound and the
+  round 0 run already fought a gray mob (see
+  `/home/deity/.local/state/peon-protocol-build/evals/r0-cluster.md`). It
+  counts as a new cause only when the task under test changes combat,
+  targeting, travel, aggro or snapshot-attacker code. S0-5 changes none
+  of these (it adds the time area and one `CMSG_QUERY_TIME` at login), so
+  its t3 runs meet the gate. Not yet ruled by the maintainer.
+
 ## COMPLETE
