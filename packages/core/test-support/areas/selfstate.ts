@@ -24,3 +24,48 @@ export function selfstateMoveSetHoverBody(init: MoveCounterBody): Uint8Array {
 export function selfstateMoveUnsetHoverBody(init: MoveCounterBody): Uint8Array {
   return moveCounterBody(init);
 }
+
+export type MirrorTimerBody = {
+  timer: number;
+  valueMs: number;
+  maxMs: number;
+  scale: number;
+  paused: number;
+  spellId: number;
+};
+
+export function selfstateStartMirrorTimerBody({
+  timer,
+  valueMs,
+  maxMs,
+  scale,
+  paused,
+  spellId,
+}: MirrorTimerBody): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(timer);
+  w.uint32LE(valueMs);
+  w.uint32LE(maxMs);
+  w.uint32LE(scale >>> 0);
+  w.uint8(paused);
+  w.uint32LE(spellId);
+  return w.finish();
+}
+
+export function selfstateStopMirrorTimerBody(timer: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(timer);
+  return w.finish();
+}
+
+export function selfstateStandstateUpdateBody(state: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(state);
+  return w.finish();
+}
+
+export function selfstatePreResurrectBody(guid: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(guid);
+  return w.finish();
+}
