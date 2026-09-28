@@ -727,6 +727,8 @@ The table lists every existing file that an area task edits outside its own area
 
 The coordinator appends one line per handover: `COORD-<n>: <file> from <task> to <task>`, when the holder lands. The `SEED-1` lines below assign each wave-1 lease to its first holder and state its chain; a chain is the planned order, not a record of handovers. A lease on a legacy file also covers its colocated `.test.ts` file of the same stem (contract 2.7). If `SEED-1` splits `tools/params.ts` by tool and `tools/look.ts` by view, the seed commit maps each line to the sibling file of the same tool or view. The order follows the phase-A task order of section "Tasks of Phase A" and the pilot rule, with the conflicts resolved as listed after the lines. The `SR1-<unit>-<n>` ids are the seed rulings in the unit files. All lines are accepted by the maintainer (P2-5).
 
+Part 2, wave 1 (coordinator ruling, P2-17): a lease passes to the next task of its chain when the holder's landing commit reaches the wave branch, and that landing is the handover record. The `COORD-<n>` lines are not written for these handovers.
+
 - `SEED-1`: `core:` protocol/item.ts to items-1; chain items-1 → objects-4 → talents-5a (C) (SR1-items-1, SR1-objects-12).
 - `SEED-1`: `core:` item-use.ts to items-1; no next holder (SR1-items-1).
 - `SEED-1`: `core:` inventory.ts to items-2; chain items-2 → economy-1 → economy-9 (C). Under economy-1 the lease also covers a new `inventory-regions.ts` if the file would pass 500 non-blank lines (SR1-items-1, SR1-economy-4).
