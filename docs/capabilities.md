@@ -29,6 +29,7 @@ or the page names one that does not exist.
 | Move an item into a bag | `t8-items-move` | |
 | Split a stack | `t8-items-split` | |
 | Open a container and keep its contents | `t8-items-open` | |
+| Read a letter in its bags | `t8-items-read` | The Dusty Unsent Letter's page text is empty on this server. |
 
 ## Not shown by any scenario
 

@@ -1,0 +1,38 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 6,
+    "tools": 10,
+    "turns": 5
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["items/read"],
+        "ids": [889]
+      },
+      "expect": "GL has an items/read row for item 889 (A Dusty Unsent Letter)",
+      "id": "read-row",
+      "source": "game_log"
+    }
+  ],
+  "id": "t8-items-read",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "eversong10",
+  "setup": [
+    {
+      "body": {
+        "count": 1,
+        "item": 889
+      },
+      "endpoint": "items/add"
+    }
+  ],
+  "spawn": "eversong",
+  "steers": [],
+  "task": "Read the letter in your bags and tell me what it says.",
+  "tier": 8
+}
