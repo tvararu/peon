@@ -189,7 +189,7 @@ describe("runProbe", () => {
       },
     ]);
     await handles[0]?.closed;
-    expect(ws.captured.some((p) => p.opcode === LOGOUT)).toBe(true);
+    expect(await ws.waitForCapture((p) => p.opcode === LOGOUT)).toBeDefined();
   });
 
   test("runs flows in order with sends", async () => {
