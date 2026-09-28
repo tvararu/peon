@@ -1,5 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { Unsubscribe, WorldHandle } from "@peon/core";
+import type { AreaClaimActs, AreaViews } from "#harness/areas/world";
 import type { ConnectionState } from "#harness/contract/config";
 import type { GameLogEntry } from "#harness/contract/log";
 import type {
@@ -25,7 +26,7 @@ type Reader<F> = F extends (...args: infer A) => infer R
   ? (...args: A) => Frozen<R>
   : never;
 
-type Sender<F> = F extends (...args: infer A) => infer R
+export type Sender<F> = F extends (...args: infer A) => infer R
   ? (...args: A) => Promise<Awaited<R>>
   : never;
 
@@ -66,6 +67,7 @@ export const EVENT_KEYS = [
   "onMessage",
   "onGroupEvent",
   "onNotice",
+  "onAreaEvent",
 ] as const satisfies readonly (keyof WorldHandle)[];
 
 export const ACT_KEYS = [
@@ -101,6 +103,7 @@ export type WorldActuators = {
 };
 
 export type WorldSession = {
+  readonly areas: AreaViews;
   readonly reads: WorldReads;
   readonly events: WorldEvents;
   readonly closed: Promise<void>;
@@ -111,6 +114,7 @@ export type WorldRefusal = "not_owner" | "offline";
 export type Claim = {
   readonly owner: ControlOwner;
   readonly act: WorldActuators;
+  readonly areas: AreaClaimActs;
   held: () => boolean;
   onLost: (cb: (to: ControlHolder) => void) => Unsubscribe;
   release: () => void;

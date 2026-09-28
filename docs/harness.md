@@ -289,13 +289,18 @@ Code inside the repository can call `onWorld(pi, use)` from
   closes. Every read, event payload and game-log entry is a detached,
   frozen copy: changing it throws, and the game's own state never
   changes through it. A session reaches no writer, `close` or `logout`.
+  `session.areas.<area>` has `state()`, a frozen copy of that code
+  area's state, and `onEvent(cb)`, which also ends when the connection
+  closes.
 - **Writes.** Only a claim acts: `world.claim(owner, reason)` asks the
   control rule in [Who controls the character](#who-controls-the-character)
   for `human`, `agent` or `loop`, and returns `undefined` when a higher
   owner holds the character. `claim.act` has `move`, `drive`, `jump`, `face`, `faceGuid`,
   `stopMoving`, `selectTarget`, `cast`, `attack`, `stopAttack`,
   `cancelCast`, `useItem`, `talk`, the loot calls, `sendSay` and
-  `sendWhisper`; each returns a promise. Each claim is its own grant.
+  `sendWhisper`; each returns a promise. `claim.areas.<area>` has only the
+  acts that the area's harness module lists in `worldActs`, under the
+  same rules. Each claim is its own grant.
   A later claim by any owner at the same or a higher rank takes the
   character from it and stops every run, so the claim is lost for good:
   every send rejects with `not_owner`, and `claim.onLost` fires. A send
