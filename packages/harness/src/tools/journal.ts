@@ -342,7 +342,7 @@ function shortItem(bag: number, item: BagRow): string {
   return marks.length > 0 ? `${head} (${marks.join(", ")})` : head;
 }
 
-function compactLines(bags: BagsView): string[] {
+function compactLines(bags: BagsView, sold: string | undefined): string[] {
   const groups: Record<number, BagRow[]> = {};
   for (const item of bags.items) {
     const rows = groups[item.bag] ?? [];
@@ -357,6 +357,7 @@ function compactLines(bags: BagsView): string[] {
     );
   if (bags.ammo !== undefined)
     lines.push(`Ammo: ${bags.ammo.name} (item ${bags.ammo.entry}).`);
+  if (sold !== undefined) lines.push(sold);
   if (lines.length === 0) return ["Bags: no items."];
   return lines;
 }
@@ -384,7 +385,7 @@ function itemLines(bags: BagsView, sold: string | undefined): string[] {
   if (lines.length === 0 && sold === undefined) return ["Bags: no items."];
   if (sold !== undefined && lines.length <= BAG_LINE_BUDGET) lines.push(sold);
   if (lines.length === 0) return ["Bags: no items."];
-  if (lines.length > BAG_LINE_BUDGET) return compactLines(bags);
+  if (lines.length > BAG_LINE_BUDGET) return compactLines(bags, sold);
   return lines;
 }
 

@@ -256,6 +256,41 @@ describe("journal bags marks", () => {
         );
   });
 
+  test("bags keeps the buyback line when more than 21 item rows trigger compact", async () => {
+    const { handle, tool } = await world();
+    const inventory = handle.getInventoryState();
+    const slots: NamedInventorySlot[] = [];
+    for (let at = 0; at < 22; at++)
+      slots.push({
+        bag: 19,
+        guid: BigInt(at + 1),
+        item: bagItem(BigInt(at + 1), 3000 + at, `Bag Item ${at}`, 1),
+        region: "bag_item",
+        slot: at,
+        status: "occupied",
+      });
+    handle.getInventoryState = () => ({ ...inventory, slots });
+    handle.getItemTemplate = (entry) => Promise.resolve(template(entry, {})[1]);
+    leveled(handle);
+    const sold = {
+      ...handle.buyback.state(),
+      list: [
+        { count: 1, entry: 2589, guid: 0x77n, price: 35, slot: 74, soldAt: 10 },
+      ],
+    };
+    Object.assign(handle, {
+      buyback: { ...handle.buyback, state: () => sold },
+    });
+    handle.itemLabel = (() => ({
+      name: "Linen Cloth",
+      quality: 1,
+    })) as typeof handle.itemLabel;
+    const out = await runTool(tool, { about: "bags" });
+    const lines = out.text.split("\n");
+    expect(lines.some((line) => line.startsWith("bag 19: "))).toBe(true);
+    expect(lines.at(-1)).toBe("Buyback: Linen Cloth x1 for 35 copper.");
+  });
+
   test("bags names the level only for a level restriction", async () => {
     const { handle, tool } = await world();
     const inventory = handle.getInventoryState();
