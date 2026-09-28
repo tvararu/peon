@@ -1539,3 +1539,4 @@ Not yet ruled by the maintainer.
 | Id | Issue | Ruling | Status |
 |---|---|---|---|
 | BR-world-2-1 | `client-handlers.test.ts` and `protocol-coverage.test.ts:160` use `SMSG_WEATHER` as their example stub, and world-2 handles it | The coordinator moves those tests to `SMSG_WARDEN_DATA` in its own commit ("test: Use the Warden stub as the example notice") | ruled by the maintainer (P2-4) |
+| BR-world-8a-1 | Review of world-8a: an `at_war` row needs the war flag before the change, which the core `standing_changed` event does not carry | world-8a may edit `packages/core/src/wow/areas/reputation/store.ts` and its tests to add `wasAtWar` to `standing_changed` | coordinator ruling (P2-17) |
