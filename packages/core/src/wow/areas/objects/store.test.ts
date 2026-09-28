@@ -7,7 +7,7 @@ import {
   objectsPageTextQueryResponseBody,
 } from "#test-support/areas/objects";
 import { testStores } from "#test-support/session-fixtures";
-import { ObjectsStore } from "#wow/areas/objects/store";
+import { ObjectsStore, PAGE_READ_MAX_PAGES } from "#wow/areas/objects/store";
 import { lockId } from "#wow/areas/objects/templates";
 import {
   type AreaTrigger,
@@ -285,6 +285,37 @@ describe("ObjectsStore page text", () => {
           { pageId: 2937, text: "Second page." },
         ],
       });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("an appended cached suffix stops at the page cap (QueryHandler.cpp:391)", async () => {
+    const rig = areaRig("objects");
+    try {
+      const cached = rig.handle.act.readPage(2);
+      for (let pageId = 2; pageId <= PAGE_READ_MAX_PAGES + 1; pageId++)
+        rig.inject(
+          GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
+          objectsPageTextQueryResponseBody(
+            pageId,
+            `Page ${pageId}.`,
+            pageId + 1,
+          ),
+        );
+      await expect(cached).resolves.toMatchObject({
+        pages: { length: PAGE_READ_MAX_PAGES },
+      });
+      const first = rig.handle.act.readPage(1);
+      rig.inject(
+        GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
+        objectsPageTextQueryResponseBody(1, "Page 1.", 2),
+      );
+      const chain = Array.from({ length: PAGE_READ_MAX_PAGES }, (_, index) => ({
+        pageId: index + 1,
+        text: `Page ${index + 1}.`,
+      }));
+      await expect(first).resolves.toEqual({ firstPageId: 1, pages: chain });
     } finally {
       rig.dispose();
     }

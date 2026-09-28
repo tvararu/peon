@@ -192,7 +192,7 @@ export class ObjectsStore {
       }
       const suffix = this.pages.get(reply.nextPageId);
       if (suffix) {
-        pages.push(...suffix);
+        pages.push(...suffix.slice(0, PAGE_READ_MAX_PAGES - pages.length));
         this.markRead({ firstPageId: first, pages });
       }
     }
