@@ -51,11 +51,7 @@ describe("selfstate-mount flow", () => {
 
   test("casts the spell, then reports the height the dismount brings", () =>
     withFakeTimers(async () => {
-      const { cancelAura, ctx } = context("458", [
-        undefined,
-        MOUNTED,
-        WALKING,
-      ]);
+      const { cancelAura, ctx } = context("458", [undefined, MOUNTED, WALKING]);
       expect(await fakeAwait(flow.run(ctx), 3000)).toMatchObject({
         after: WALKING,
         before: null,
@@ -65,5 +61,21 @@ describe("selfstate-mount flow", () => {
       });
       expect(ctx.handle.cast).toHaveBeenCalledWith(458, 0n);
       expect(cancelAura).toHaveBeenCalledWith(458);
+    }));
+  test("fails when no collision height arrives after the cast", () =>
+    withFakeTimers(async () => {
+      const { cancelAura, ctx } = context("458", []);
+      expect(await fakeRejection(flow.run(ctx), 3000)).toContain(
+        "no SMSG_MOVE_SET_COLLISION_HGT after casting 458",
+      );
+      expect(cancelAura).toHaveBeenCalledWith(458);
+    }));
+
+  test("fails when the height from before the cast never changes", () =>
+    withFakeTimers(async () => {
+      const { ctx } = context("458", new Array(40).fill(MOUNTED));
+      expect(await fakeRejection(flow.run(ctx), 3000)).toContain(
+        "no SMSG_MOVE_SET_COLLISION_HGT after casting 458",
+      );
     }));
 });

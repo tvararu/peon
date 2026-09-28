@@ -20,11 +20,16 @@ async function run({ handle, settle, args }: FlowContext): Promise<Json> {
     await handle.loadCatalogs();
     const before = handle.selfstate.state().collisionHeight ?? null;
     handle.cast(spell, 0n);
-    const mounted = await settle(
-      () => handle.selfstate.state().collisionHeight,
-    );
+    const mounted = await settle(() => {
+      const height = handle.selfstate.state().collisionHeight;
+      return height === before ? undefined : height;
+    });
     const cancel = handle.spells.act.cancelAura(spell);
     const cancelStatus = cancel.ok ? "ok" : cancel.reason;
+    if (mounted === undefined)
+      throw new Error(
+        `selfstate-mount saw no SMSG_MOVE_SET_COLLISION_HGT after casting ${spell}.`,
+      );
     const after =
       (await settle(() => {
         const height = handle.selfstate.state().collisionHeight;
