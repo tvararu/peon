@@ -161,6 +161,8 @@ own fork, so it can never break the owner or leave a wait unresolved.
 
 Gate R rulings: GR-1, GR-4, GR-18, GR-26, GR-27, GR-29 to GR-31, GR-33, GR-36, GR-40 to GR-42 (plan index).
 
+Build rulings: BR-S0-1b-1 (section "Build rulings").
+
 **Design:** 3.2 to 3.9, tests 1 to 5, 7 to 9, 11 to 14, 17 of 3.15.
 **Contract:** 1.1 to 1.8, 1.12. **codeArea:** step0.
 
@@ -438,6 +440,8 @@ opcodes the server uses get names before any worker needs them.
 ## Task S0-3: Harness area mechanism
 
 Gate R rulings: GR-2, GR-3, GR-34, GR-37, GR-41 (plan index).
+
+Build rulings: BR-S0-1b-1 (section "Build rulings").
 
 **Design:** 3.10 "Log types", "Router", "Harness area contract", "Tools"
 (N10, N11, N12), tests 20, 21, 23 to 25 and 27 of 3.15. **Contract:**
@@ -836,5 +840,24 @@ handles `CMSG_QUERY_TIME` when logged in (`Opcodes.cpp:593`) and answers
 with `SMSG_QUERY_TIME_RESPONSE` (`Handlers/QueryHandler.cpp:84`). The UI
 timer pair that world-1 adds to `time` under a lease belongs to the
 `world` unit, not to this one.
+
+## Build rulings
+
+- **BR-S0-1b-1.** Issue: contract 1.8 adds `onAreaEvent` to `MockHandle`,
+  and `createMockGame()` spreads the handle
+  (`packages/harness/test-support/mock-game.ts:61` [M]), so the hook
+  filter in `packages/harness/src/events/router.test.ts:33-35` [M] counts
+  21 keys and "attach subscribes all 20 hooks and detach removes them"
+  fails at `router.test.ts:44` [M]. The router subscribes `onAreaEvent`
+  only in S0-3 (design 3.15 test 23, design 3.16 commit 0c, contract 1.1
+  row S0-3), and `router.test.ts` belongs to S0-3. Ruling: S0-1b makes one
+  edit outside its files. It adds `&& key !== "onAreaEvent"` to the
+  filter at `router.test.ts:34` [M], keeps `toHaveLength(20)`, and changes
+  nothing else in that file. This amends contract 1.1 for that one line
+  only; the S0-1b commit then stages 22 paths. S0-3 step 4 removes the
+  exclusion when it replaces the pinned 20 with the derived list, so that
+  list includes `onAreaEvent`. The fix stays in the S0-1b commit, which
+  causes the failure, so every commit on the branch passes on its own.
+  Not yet ruled by the maintainer.
 
 ## COMPLETE
