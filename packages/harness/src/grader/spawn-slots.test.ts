@@ -21,7 +21,8 @@ describe("startSlots", () => {
           seen.add(key);
         }
       }
-    expect(seen.size).toBe(2 * 2 * 14);
+    const spawned = ROUND_1.filter((id) => spawnOf(loadScenario(id)));
+    expect(seen.size).toBe(2 * 2 * spawned.length);
   });
 
   test("points stay a few yards from their spawn, on its map and zone", () => {
