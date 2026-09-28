@@ -24,6 +24,7 @@ or the page names one that does not exist.
 | Die, then come back to life | `t6-die-and-recover` | |
 | Stop on command and resume | `t7-halt-resume` | |
 | Answer a question while an action runs | `t7-question-while-acting` | |
+| Wear better gear and put a bag on | `t8-items-equip-upgrade` | |
 
 ## Not shown by any scenario
 
