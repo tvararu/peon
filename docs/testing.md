@@ -45,6 +45,13 @@ not a target.
   `packages/core/test-support/fake-time.ts` and
   `packages/harness/test-support/tactics-fixtures.ts` drive fake time until
   a promise settles.
+- A test of a loop that polls, settles or runs to a time limit, such as a
+  probe flow, runs inside `withFakeTimers`: `elapse(ms)` moves the world
+  on, `fakeAwait` and `fakeMsUntilSettled` drive the loop to its result,
+  and a time-limit test asserts the fake milliseconds it took.
+- Under fake timers, `await expect(promise).rejects` can hang the test
+  when the promise rejects after a fake `Bun.sleep`; use
+  `fakeRejection(promise, limitMs)`, which returns the error message.
 - Await the event rather than sleeping. `Bun.sleep(0)` yields one microtask
   tick (enough for `.then()` chains); `Bun.sleep(1)` yields one event-loop
   turn (needed for filesystem I/O such as `unlink`).
