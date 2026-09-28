@@ -6,6 +6,6 @@ columns are explained in [the index](../protocol-coverage.md).
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
 | `0x102` | `CMSG_EMOTE` | client | missing |  |
-| `0x103` | `SMSG_EMOTE` | server | stub |  |
+| `0x103` | `SMSG_EMOTE` | server | handled |  |
 | `0x104` | `CMSG_TEXT_EMOTE` | client | missing |  |
-| `0x105` | `SMSG_TEXT_EMOTE` | server | stub |  |
+| `0x105` | `SMSG_TEXT_EMOTE` | server | handled |  |
