@@ -1,11 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import {
+  threatAiReactionBody,
+  threatBreakTargetBody,
+  threatClearTargetBody,
   threatHighestThreatUpdateBody,
   threatThreatClearBody,
   threatThreatRemoveBody,
   threatThreatUpdateBody,
 } from "#test-support/areas/threat";
 import {
+  parseAiReaction,
+  parseBreakTarget,
+  parseClearTarget,
   parseThreatClear,
   parseThreatRemove,
   parseThreatUpdate,
@@ -89,5 +95,69 @@ describe("threat parsers", () => {
     expect(parseThreatClear(new PacketReader(body))).toEqual({
       unit: CREATURE,
     });
+  });
+});
+
+describe("reaction and target break parsers", () => {
+  test("SMSG_AI_REACTION reads the full guid and HOSTILE (Creature.cpp:2477-2487)", () => {
+    const body = threatAiReactionBody({ reaction: 2, unit: CREATURE });
+    const reader = new PacketReader(body);
+    expect(parseAiReaction(reader)).toEqual({
+      code: 2,
+      reaction: "hostile",
+      unit: CREATURE,
+    });
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("SMSG_AI_REACTION reads the AzerothCore byte layout", () => {
+    const body = new Uint8Array([
+      0xbc, 0x0a, 0x00, 0xea, 0x3e, 0x00, 0x30, 0xf1, 0, 0, 0, 0,
+    ]);
+    expect(parseAiReaction(new PacketReader(body))).toEqual({
+      code: 0,
+      reaction: "alert",
+      unit: CREATURE,
+    });
+  });
+
+  test("SMSG_AI_REACTION names every value of AiReaction (SharedDefines.h:3471-3478)", () => {
+    const names = [0, 1, 2, 3, 4].map(
+      (code) =>
+        parseAiReaction(
+          new PacketReader(threatAiReactionBody({ reaction: code, unit: PET })),
+        ).reaction,
+    );
+    expect(names).toEqual([
+      "alert",
+      "friendly",
+      "hostile",
+      "afraid",
+      "destroy",
+    ]);
+  });
+
+  test("SMSG_AI_REACTION keeps an unknown code without throwing", () => {
+    const body = threatAiReactionBody({ reaction: 9, unit: CREATURE });
+    expect(parseAiReaction(new PacketReader(body))).toEqual({
+      code: 9,
+      reaction: "unknown",
+      unit: CREATURE,
+    });
+  });
+
+  test("SMSG_BREAK_TARGET reads a packed creature guid (Unit.cpp:15842-15847)", () => {
+    const body = threatBreakTargetBody({ unit: CREATURE });
+    const reader = new PacketReader(body);
+    expect(parseBreakTarget(reader)).toEqual({ unit: CREATURE });
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("SMSG_CLEAR_TARGET reads the caster's full guid (SpellEffects.cpp:5019-5024)", () => {
+    const body = threatClearTargetBody({ caster: CREATURE });
+    expect(body.length).toBe(8);
+    const reader = new PacketReader(body);
+    expect(parseClearTarget(reader)).toEqual({ caster: CREATURE });
+    expect(reader.remaining).toBe(0);
   });
 });

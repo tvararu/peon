@@ -46,3 +46,25 @@ export function threatThreatClearBody(init: { unit: bigint }): Uint8Array {
   w.packedGuidBig(init.unit);
   return w.finish();
 }
+
+export function threatAiReactionBody(init: {
+  unit: bigint;
+  reaction: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.unit);
+  w.uint32LE(init.reaction);
+  return w.finish();
+}
+
+export function threatBreakTargetBody(init: { unit: bigint }): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.unit);
+  return w.finish();
+}
+
+export function threatClearTargetBody(init: { caster: bigint }): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.caster);
+  return w.finish();
+}

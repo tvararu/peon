@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { testStores } from "#test-support/session-fixtures";
 import { type ThreatEvent, ThreatStore } from "#wow/areas/threat/store";
+import type { Entity } from "#wow/entity-store";
+import { ObjectType } from "#wow/protocol/entity-fields";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { SessionDeps } from "#wow/session-stores";
 
 const UNIT = 0xf1_30_00_3e_ea_00_0a_bcn;
@@ -9,22 +12,41 @@ const ME = 0x2an;
 const PARTNER = 0x2bn;
 const PET = 0xf1_40_00_00_01_00_00_07n;
 
-function setup(start = 1000) {
+function selfWithSummon(pet: bigint | undefined): Entity {
+  const rawFields = new Map<number, number>();
+  if (pet !== undefined) {
+    rawFields.set(UNIT_FIELDS.SUMMON.offset, Number(pet & 0xff_ff_ff_ffn));
+    rawFields.set(UNIT_FIELDS.SUMMON.offset + 1, Number(pet >> 32n));
+  }
+  return {
+    entry: 0,
+    guid: ME,
+    name: undefined,
+    objectType: ObjectType.OBJECT,
+    position: undefined,
+    rawFields,
+    scale: 1,
+  };
+}
+
+function setup(start = 1000, self?: Entity) {
   let t = start;
   const deps: SessionDeps = {
-    getEntity: () => undefined,
+    getEntity: (guid) => (guid === ME ? self : undefined),
     now: () => t,
     selfGuid: () => ME,
     send: () => undefined,
     updateEntity: () => undefined,
   };
-  const store = new ThreatStore(deps, testStores(deps));
+  const core = testStores(deps);
+  const store = new ThreatStore(deps, core);
   const seen: ThreatEvent[] = [];
   store.onEvent((event) => seen.push(event));
   return {
     advance: (ms: number) => {
       t += ms;
     },
+    core,
     seen,
     store,
   };
@@ -36,7 +58,11 @@ function table(store: ThreatStore, unit = UNIT) {
 
 describe("ThreatStore", () => {
   test("starts with no tables", () => {
-    expect(setup().store.snapshot()).toEqual({ tables: [] });
+    expect(setup().store.snapshot()).toEqual({
+      petReaction: undefined,
+      reactions: [],
+      tables: [],
+    });
   });
 
   test("a highest update sets the victim and a later update keeps it", () => {
@@ -262,5 +288,111 @@ describe("ThreatStore", () => {
     store.dispose();
     store.clearTable({ unit: UNIT });
     expect(seen).toEqual([]);
+  });
+});
+
+describe("ThreatStore reactions and target breaks", () => {
+  test("keeps the last reaction of each unit and emits reaction", () => {
+    const { store, seen, advance } = setup();
+    store.reaction({ code: 0, reaction: "alert", unit: UNIT });
+    advance(500);
+    store.reaction({ code: 2, reaction: "hostile", unit: UNIT });
+    store.reaction({ code: 9, reaction: "unknown", unit: OTHER });
+    expect(store.snapshot().reactions).toEqual([
+      { at: 1500, code: 2, reaction: "hostile", unit: UNIT },
+      { at: 1500, code: 9, reaction: "unknown", unit: OTHER },
+    ]);
+    expect(store.snapshot().petReaction).toBeUndefined();
+    expect(seen).toEqual([
+      { code: 0, pet: false, reaction: "alert", type: "reaction", unit: UNIT },
+      {
+        code: 2,
+        pet: false,
+        reaction: "hostile",
+        type: "reaction",
+        unit: UNIT,
+      },
+      {
+        code: 9,
+        pet: false,
+        reaction: "unknown",
+        type: "reaction",
+        unit: OTHER,
+      },
+    ]);
+  });
+
+  test("a reaction from the pet in the character's summon field sets petReaction", () => {
+    const { store, seen } = setup(1000, selfWithSummon(PET));
+    store.reaction({ code: 2, reaction: "hostile", unit: PET });
+    expect(store.snapshot().petReaction).toEqual({ at: 1000, pet: PET });
+    expect(store.snapshot().reactions).toEqual([
+      { at: 1000, code: 2, reaction: "hostile", unit: PET },
+    ]);
+    expect(seen).toEqual([
+      { code: 2, pet: true, reaction: "hostile", type: "reaction", unit: PET },
+    ]);
+  });
+
+  test("with no summon field the last pet command names the pet", () => {
+    const { store, seen, core } = setup(1000, selfWithSummon(undefined));
+    store.reaction({ code: 2, reaction: "hostile", unit: PET });
+    expect(store.snapshot().petReaction).toBeUndefined();
+    core.combat.petCommanded(PET, UNIT);
+    store.reaction({ code: 2, reaction: "hostile", unit: PET });
+    expect(store.snapshot().petReaction).toEqual({ at: 1000, pet: PET });
+    expect(seen.map((event) => event.type === "reaction" && event.pet)).toEqual(
+      [false, true],
+    );
+  });
+
+  test("the summon field wins over an older pet command", () => {
+    const other = 0xf1_40_00_00_01_00_00_08n;
+    const { store, core } = setup(1000, selfWithSummon(PET));
+    core.combat.petCommanded(other, UNIT);
+    store.reaction({ code: 2, reaction: "hostile", unit: other });
+    expect(store.snapshot().petReaction).toBeUndefined();
+  });
+
+  test("0x152 and 0x3BF emit target_broken and change no state", () => {
+    const { store, seen } = setup();
+    store.breakTarget({ unit: UNIT });
+    store.clearTarget({ caster: OTHER });
+    expect(seen).toEqual([
+      { hostileOnly: false, type: "target_broken", unit: UNIT },
+      { hostileOnly: true, type: "target_broken", unit: OTHER },
+    ]);
+    expect(store.snapshot()).toEqual({
+      petReaction: undefined,
+      reactions: [],
+      tables: [],
+    });
+  });
+
+  test("forget of the pet drops the pet reaction", () => {
+    const { store } = setup(1000, selfWithSummon(PET));
+    store.reaction({ code: 2, reaction: "hostile", unit: PET });
+    store.forget(PET);
+    expect(store.snapshot()).toMatchObject({
+      petReaction: undefined,
+      reactions: [],
+    });
+  });
+
+  test("forget drops that unit's reaction and clear drops every reaction", () => {
+    const { store } = setup(1000, selfWithSummon(PET));
+    store.reaction({ code: 2, reaction: "hostile", unit: UNIT });
+    store.reaction({ code: 2, reaction: "hostile", unit: OTHER });
+    store.reaction({ code: 2, reaction: "hostile", unit: PET });
+    store.forget(UNIT);
+    expect(store.snapshot().reactions.map((row) => row.unit)).toEqual([
+      OTHER,
+      PET,
+    ]);
+    store.clear();
+    expect(store.snapshot()).toMatchObject({
+      petReaction: undefined,
+      reactions: [],
+    });
   });
 });

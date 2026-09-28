@@ -13,5 +13,5 @@ export const THREAT_OPCODES = {
   uses: ["SMSG_NEW_WORLD"],
   stubs: [],
   dead: [],
-  unseen: [],
+  unseen: ["SMSG_BREAK_TARGET", "SMSG_CLEAR_TARGET"],
 } as const satisfies AreaOpcodes;

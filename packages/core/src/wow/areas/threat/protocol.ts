@@ -35,3 +35,36 @@ export function parseThreatClear(r: PacketReader): ThreatClear {
   const unit = r.packedGuidBig();
   return { unit };
 }
+
+const AI_REACTIONS = [
+  "alert",
+  "friendly",
+  "hostile",
+  "afraid",
+  "destroy",
+] as const;
+
+export type AiReaction = (typeof AI_REACTIONS)[number] | "unknown";
+export type AiReactionPacket = {
+  unit: bigint;
+  reaction: AiReaction;
+  code: number;
+};
+export type BreakTarget = { unit: bigint };
+export type ClearTarget = { caster: bigint };
+
+export function parseAiReaction(r: PacketReader): AiReactionPacket {
+  const unit = r.uint64LE();
+  const code = r.uint32LE();
+  return { unit, reaction: AI_REACTIONS[code] ?? "unknown", code };
+}
+
+export function parseBreakTarget(r: PacketReader): BreakTarget {
+  const unit = r.packedGuidBig();
+  return { unit };
+}
+
+export function parseClearTarget(r: PacketReader): ClearTarget {
+  const caster = r.uint64LE();
+  return { caster };
+}

@@ -5,9 +5,9 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x13c` | `SMSG_AI_REACTION` | server | missing |  |
-| `0x152` | `SMSG_BREAK_TARGET` | server | missing |  |
-| `0x3bf` | `SMSG_CLEAR_TARGET` | server | missing |  |
+| `0x13c` | `SMSG_AI_REACTION` | server | handled |  |
+| `0x152` | `SMSG_BREAK_TARGET` | server | handled | not seen live |
+| `0x3bf` | `SMSG_CLEAR_TARGET` | server | handled | not seen live |
 | `0x482` | `SMSG_HIGHEST_THREAT_UPDATE` | server | handled |  |
 | `0x483` | `SMSG_THREAT_UPDATE` | server | handled |  |
 | `0x484` | `SMSG_THREAT_REMOVE` | server | handled |  |
