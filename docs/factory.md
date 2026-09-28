@@ -106,16 +106,26 @@ eval; eval staging stays with `soap setup`.
 | `quest <add\|complete\|reward\|remove> <id>` | `quest <op> <id> <C>` |
 | `revive`, `kick`, `combatstop`, `reset-talents` | `revive <C>`, `kick <C>`, `combatstop <C>`, `reset talents <C>` |
 | `achievement <id>` | `achievement add <id> <C>` |
-| `guild-create <name>` | `guild create <C> "<name>"` |
+| `guild-create <name>` | `guild create <C> "<name>"` (online only) |
 | `guild-invite <ACCOUNT2> <name>` | `guild invite <C2> "<name>"` |
-| `arena-create <2\|3\|5> <name>` | `arena create <C> "<name>" <type>` |
+| `arena-create <2\|3\|5> <name>` | `arena create <C> "<name>" <type>` (online only) |
+| `reset-achievements` | `reset achievements <C>` |
+| `deserter-bg <n><s\|m\|h>` (at most 1h) | `deserter bg add <C> <duration>` |
+| `rename\|customize\|changefaction\|changerace <name>` | `character rename\|customize\|changefaction\|changerace <name>` on a second character of the account |
+| `guild-delete <name>` | `guild delete "<name>"` |
+| `arena-disband <teamId>` | `arena disband <teamId>` after `arena info` shows a `Fac` team that `<C>` captains |
 | `read <kind>` | `group list`, `mail list`, `pet list`, `character titles`, `character reputation` or `pinfo` on `<C>` |
+| `read characters`, `read bf-queue` | `lookup player account <ACCOUNT>`, `bf queue 1` (Wintergrasp) |
+| `read guild <name>`, `read arena <teamId>`, `read arena-lookup <name>` | `guild info "<name>"`, `arena info <teamId>`, `arena lookup <name>` |
 
 Numbers are positive integers, subjects and names match
-`^[A-Za-z0-9 ]{1,24}$`, guild and arena names start with `Fac`, and a tele
-name is one token. Console commands cannot choose talents, set reputation
-or fly speed, grant taxi nodes, or kill a character: those commands are
-`Console::No`.
+`^[A-Za-z0-9 ]{1,24}$`, guild names and new arena team names start with
+`Fac`, and a tele name is one token. The four character-screen verbs first
+run `lookup player account` and refuse a name that is not on the account
+or is the ledger's own character; the flag applies at that character's
+next login. Only the `read` verbs read state. Console commands cannot
+choose talents, set reputation or fly speed, grant taxi nodes, or kill a
+character: those commands are `Console::No`.
 
 ## Status
 

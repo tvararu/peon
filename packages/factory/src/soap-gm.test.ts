@@ -37,6 +37,16 @@ describe("planGm templates", () => {
     [["read", "titles"], `character titles ${c}`],
     [["read", "reputation"], `character reputation ${c}`],
     [["read", "pinfo"], `pinfo ${c}`],
+    [["deserter-bg", "1m"], `deserter bg add ${c} 1m`],
+    [["deserter-bg", "1h"], `deserter bg add ${c} 1h`],
+    [["deserter-bg", "3600s"], `deserter bg add ${c} 3600s`],
+    [["reset-achievements"], `reset achievements ${c}`],
+    [["guild-delete", "Fac", "Probe"], `guild delete "Fac Probe"`],
+    [["read", "guild", "FacProbe"], `guild info "FacProbe"`],
+    [["read", "arena", "7"], "arena info 7"],
+    [["read", "arena-lookup", "FacProbe"], "arena lookup FacProbe"],
+    [["read", "bf-queue"], "bf queue 1"],
+    [["read", "characters"], `lookup player account ${account}`],
   ])("%p", ([verb = "", ...args], command) => {
     expect(planGm(account, verb, args)).toEqual({
       accounts: [account],
@@ -90,6 +100,23 @@ describe("planGm refusals", () => {
     ["arena name without Fac", "arena-create", ["2", "Team"]],
     ["read unknown kind", "read", ["bank"]],
     ["read no kind", "read", []],
+    ["deserter 2h", "deserter-bg", ["2h"]],
+    ["deserter 10d", "deserter-bg", ["10d"]],
+    ["deserter 61m", "deserter-bg", ["61m"]],
+    ["deserter 0s", "deserter-bg", ["0s"]],
+    ["deserter without a unit", "deserter-bg", ["60"]],
+    ["reset-achievements with a target", "reset-achievements", ["Theo"]],
+    ["guild-delete Stormwind", "guild-delete", ["Stormwind"]],
+    ["guild-delete with a quote", "guild-delete", ['Fac"Probe']],
+    ["read guild without Fac", "read", ["guild", "Stormwind"]],
+    ["read arena not a number", "read", ["arena", "FacProbe"]],
+    ["read arena-lookup with a quote", "read", ["arena-lookup", 'Fac"P']],
+    ["read bf-queue 2", "read", ["bf-queue", "2"]],
+    ["read characters of another account", "read", ["characters", other]],
+    ["arena-disband not a number", "arena-disband", ["FacProbe"]],
+    ["rename with a digit", "rename", ["Fgkl1"]],
+    ["rename with a space", "rename", ["Fgk", "lgo"]],
+    ["customize with no name", "customize", []],
   ])("%s", (_name, verb, args) => {
     expect(() => planGm(account, verb, args as string[])).toThrow();
   });
@@ -143,5 +170,101 @@ describe("runGm", () => {
     const d = deps({ ok: true, text: "" });
     await expect(runGm([], d)).rejects.toThrow(/usage: soap gm/);
     await expect(runGm([account], d)).rejects.toThrow(/usage: soap gm/);
+  });
+});
+
+describe("runGm two-step verbs", () => {
+  const second = "Fsecond";
+  const lookup = `lookup player account ${account}`;
+  const characters = [
+    `Characters at account ${account} (Id: 4711)`,
+    `  ${c} (GUID 5001) - Blood Elf - Paladin - 1`,
+    `  ${second} (GUID 5002)`,
+    "",
+  ].join("\r\n");
+  const arenaInfo = (name: string, captain: string) =>
+    [
+      `Arena team: "${name}"[7] - Rating: 0 - Type: 2x2`,
+      `Name:"${captain}"[guid:5001] - PR: 0 - Captain`,
+      "",
+    ].join("\r\n");
+
+  function scripted(replies: Record<string, SoapResult>) {
+    const lines: string[] = [];
+    const calls: string[] = [];
+    const targets: string[][] = [];
+    return {
+      calls,
+      lines,
+      run: async (accounts: string[], command: string) => {
+        targets.push(accounts);
+        calls.push(command);
+        return replies[command] ?? { ok: true, text: "done" };
+      },
+      targets,
+      write: (line: string) => lines.push(line),
+    };
+  }
+
+  test.each([
+    ["rename", `character rename ${second}`],
+    ["customize", `character customize ${second}`],
+    ["changefaction", `character changefaction ${second}`],
+    ["changerace", `character changerace ${second}`],
+  ])("%s reads the account's characters first", async (verb, command) => {
+    const d = scripted({ [lookup]: { ok: true, text: characters } });
+    expect(await runGm([account, verb, second], d)).toBe(0);
+    expect(d.calls).toEqual([lookup, command]);
+    expect(d.targets).toEqual([[account], [account]]);
+    expect(JSON.parse(d.lines[0] ?? "")).toMatchObject({ command, ok: true });
+  });
+
+  test("rename takes the name in any case and sends the server's", async () => {
+    const d = scripted({ [lookup]: { ok: true, text: characters } });
+    expect(await runGm([account, "rename", "FSECOND"], d)).toBe(0);
+    expect(d.calls).toEqual([lookup, `character rename ${second}`]);
+  });
+
+  test.each([
+    ["the ledger's own character", c],
+    ["a name absent from the reply", "Fother"],
+  ])("rename refuses %s", async (_name, name2) => {
+    const d = scripted({ [lookup]: { ok: true, text: characters } });
+    await expect(runGm([account, "rename", name2], d)).rejects.toThrow();
+    expect(d.calls).toEqual([lookup]);
+    expect(d.lines).toEqual([]);
+  });
+
+  test("rename refuses when the lookup finds no players", async () => {
+    const d = scripted({ [lookup]: { ok: false, text: "No players found!" } });
+    await expect(runGm([account, "rename", second], d)).rejects.toThrow();
+    expect(d.calls).toEqual([lookup]);
+  });
+
+  test("arena-disband reads the team first", async () => {
+    const d = scripted({
+      "arena info 7": { ok: true, text: arenaInfo("FacProbe", c) },
+    });
+    expect(await runGm([account, "arena-disband", "7"], d)).toBe(0);
+    expect(d.calls).toEqual(["arena info 7", "arena disband 7"]);
+  });
+
+  test.each([
+    ["a team not named Fac", arenaInfo("Kings", c)],
+    ["a team another character captains", arenaInfo("FacProbe", "Other")],
+    ["a reply without a header", "nothing"],
+  ])("arena-disband refuses %s", async (_name, text) => {
+    const d = scripted({ "arena info 7": { ok: true, text } });
+    await expect(runGm([account, "arena-disband", "7"], d)).rejects.toThrow();
+    expect(d.calls).toEqual(["arena info 7"]);
+    expect(d.lines).toEqual([]);
+  });
+
+  test("arena-disband refuses a missing team", async () => {
+    const d = scripted({
+      "arena info 7": { ok: false, text: "Arena team [7] not found" },
+    });
+    await expect(runGm([account, "arena-disband", "7"], d)).rejects.toThrow();
+    expect(d.calls).toEqual(["arena info 7"]);
   });
 });
