@@ -15,9 +15,12 @@
       "source": "game_log"
     },
     {
-      "expect": "the session shows one stop tool call after the steer, ending DONE with a Channelling line naming the channel, and no spell cast call between the steer and that stop call",
-      "id": "stop-answered",
-      "source": "session"
+      "evidence": {
+        "events": ["spells/channel_end", "combat/cast"]
+      },
+      "expect": "GL has a spells/channel_end row with reason cancelled after the stop steer and no combat/cast row between the steer and that end, so the channel ended by the reflex stop and not by a recast",
+      "id": "reflex-stopped",
+      "source": "game_log"
     }
   ],
   "field": "fairbreeze-stalkers",
