@@ -21,7 +21,6 @@ or the page names one that does not exist.
 | Kill creatures at its level, one at a time, with Jev choosing the actions | `t3-ghostlands-kill` | Needs Jev: after repeated failed Jev calls the fight ends as `jev_unavailable`. A hunter can end up in melee range, because `travel` stops 3 yd from a unit, so no scenario proves ranged hunter play. |
 | Take a quest, do it and turn it in | `t4-quest-first`, `t4-alliance-first` | An accept or a turn-in the server does not answer is `UNCONFIRMED`; the agent checks the quest log before it tries again. |
 | See which NPCs have a quest or a quest to turn in | `t4-quests-find-giver` | |
-| Walk to where a quest's objective is | `t4-quests-poi-walk` | The region is the POI centroid on the character's map. |
 | Buy from a vendor | `t5-vendor-buy-goldshire` | |
 | Die, then come back to life | `t6-die-and-recover` | |
 | Stop on command and resume | `t7-halt-resume` | |
@@ -46,6 +45,9 @@ These have tools or code but no scenario that checks them live:
 - Reading a shrine plaque (`t0-objects-read-shrine`, the agent reads the page but quotes the placard line, not the page's opening sentence).
 - Completing an exploration quest by walking into its area trigger (`t4-objects-explore-fargodeep`, the agent never reaches trigger 88: the accept points at `engage`, which fails explore quests, and compass exploring does not find the mine).
 - A sustained levelling run across several quests and zones.
+- Walking to a quest objective's region from `journal` (`t4-quests-poi-walk`):
+  the agent takes the quest but walks by other means and never reads the
+  region from `journal`.
 
 Peon has no tool for mail, trade, the auction house, flight paths or
 mounts.
