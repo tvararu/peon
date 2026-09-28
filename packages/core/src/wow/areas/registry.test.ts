@@ -51,6 +51,8 @@ const VALUE_IMPORTS = [
   /^#wow\/geometry$/,
   /^#wow\/dbc$/,
   /^#wow\/data\/[\w-]+$/,
+  /^#wow\/inventory$/,
+  /^#wow\/player-state$/,
 ];
 const BANNED_NAMES = /\b(WorldHandle|SessionStores|WorldEvents)\b/;
 const IMPORT = /(?:import|export)\s+(type\s+)?([^;]*?)\s*from\s*"([^"]+)"/gs;
