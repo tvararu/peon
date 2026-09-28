@@ -62,7 +62,7 @@ dead row out of `dead`, the first task of that code area adds it there
 `packages/core/src/wow/protocol/opcodes.ts`]; S0-2 adds it (contract
 1.11). No task of this unit edits `protocol-tables.ts` or `opcodes.ts`.
 
-## Plan decisions (not yet ruled by the maintainer)
+## Plan decisions (accepted by the maintainer (P2-5))
 
 1. **One store per code area.** Design 5.22 names four stores
    (`BattlegroundStore`, `PvpSelfStore`, `ArenaStore`,
@@ -133,7 +133,7 @@ dead row out of `dead`, the first task of that code area adds it there
 ## Contract issues
 
 These are gaps found while planning. The contract is not changed. Each
-workaround is a decision **not yet ruled by the maintainer**.
+workaround is a decision **accepted by the maintainer (P2-5)**.
 
 1. **`nearby.ts` has no lease.** See plan decision 7. pvp-11d first tries
    the harness-side rule; it needs `nearby.ts` only if that fails.

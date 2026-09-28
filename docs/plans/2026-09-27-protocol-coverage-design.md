@@ -144,7 +144,7 @@ sets. The R-numbers are stable ids.
 Also given by the goal: when wow_messages and the AzerothCore code that
 writes or reads a packet disagree, AzerothCore wins.
 
-### Decisions not yet ruled by the maintainer
+### Decisions accepted by the maintainer (P2-5)
 
 This design takes these decisions on its own. Each is "not yet ruled by
 the maintainer" until the advisor approves it (R14), and the maintainer
@@ -4044,8 +4044,12 @@ where the code moved.
 
 ### 7.2 Open questions for the maintainer
 
-Each has a default that the build uses until he rules; each default is
-"not yet ruled by the maintainer".
+The maintainer ruled these on 2026-09-28. Each default below stands,
+except: question 3, every class preset, a fishing preset and a hunter
+pet are built at the start of wave 3; question 6, evals may join content
+the server fills with bots but never act on a bot directly; question 8,
+workers may bid on and buy out `AUCTIONHOUSE` auctions of items under 1
+gold, a few per task.
 
 1. **Flight verb shape** (`travel`): `travel to:"fly <destination>"`
    (default), `interact do:"fly"`, or a `fly` tool.
@@ -4399,7 +4403,7 @@ Per area at the tip (handled / stub / missing / dead): achievements
 talents 1/0/4/2, threat 7/0/0/0, time 3/0/2/0, travel 4/0/10/1,
 unitmotion 2/0/23/0.
 
-### 8.7 Decisions not yet ruled by the maintainer
+### 8.7 Decisions accepted by the maintainer (P2-5)
 
 The advisor approves the design and the plan in the maintainer's place
 (R14). Every decision in this section is not yet ruled by the

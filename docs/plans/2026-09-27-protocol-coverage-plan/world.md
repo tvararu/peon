@@ -1285,7 +1285,7 @@ so the caller gets a reason instead of nothing.
 
 These two design tasks own no opcode. The plan does not schedule them
 and leaves them out of the plan JSON; the coordinator may add them later.
-Each decision is **not yet ruled by the maintainer**.
+Each decision is **accepted by the maintainer (P2-5)**.
 
 - **world-9, a `faction` tool** (design 5.17 V3 option b). The design
   builds it only by choice ("not built by default"), and contract 1.9's
@@ -1316,7 +1316,7 @@ file that a wave-1 task (world-3, world-5, world-1, world-2, world-7,
 world-8a, world-8b) meets, before `SEED-1` (plan index "Contract issues
 awaiting a ruling"). Each ruling stands in for the contract or design
 text it names until the coordinator applies that text; the builder
-follows the ruling. Each ruling is **not yet ruled by the maintainer**.
+follows the ruling. Each ruling is **accepted by the maintainer (P2-5)**.
 
 Left alone: world-6 (wave 3), world-4 (wave 4), and the unscheduled
 world-9 and world-10 ("Optional tasks not scheduled"). No issue of this

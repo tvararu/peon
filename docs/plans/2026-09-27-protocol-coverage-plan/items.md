@@ -1153,7 +1153,7 @@ of this file that a wave-1 task (items-1 to items-5c, items-8) meets.
 Precedence: the design, then the plan index with the contract and the
 Gate R rulings, then this file. Contract issue 3 (`SMSG_EQUIPMENT_SET_SAVED`)
 is met only by items-9 (phase 3), so it is left for the `SEED-3` pass.
-Each ruling is **not yet ruled by the maintainer**.
+Each ruling is **accepted by the maintainer (P2-5)**.
 
 ### SR1-items-1: the wave-1 leases
 

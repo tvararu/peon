@@ -46,7 +46,7 @@ that reaches one of these files without its lease stops as `blocked`.
 | harness `tools/travel*.ts` | vehicles-8 | the `ride` value of `travel` | travel-6 |
 | harness `areas/pets/tool.ts` | vehicles-9, only if the `pet` tool refuses to cast from a vehicle bar | the vehicle-bar case | pets-10 |
 
-### Create-block reads (a plan decision, not yet ruled by the maintainer)
+### Create-block reads (a plan decision, accepted by the maintainer (P2-5))
 
 The vehicle id (`UPDATEFLAG_VEHICLE`) and a transport's path progress
 (`UPDATEFLAG_TRANSPORT`) arrive only in create blocks. The legacy owner of
@@ -61,7 +61,7 @@ coordinator refuses it, vehicles-1 and vehicles-6 stop `blocked` on the
 compressed path. The cost is a second parse of every update packet [I];
 the builder measures it with `mise test:slowest` and reports it.
 
-### Control access (a plan decision, not yet ruled by the maintainer)
+### Control access (a plan decision, accepted by the maintainer (P2-5))
 
 An area may not import control (contract 1.12), and `runtime.ts` is frozen.
 Control already takes every self event through

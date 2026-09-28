@@ -513,7 +513,7 @@ partner's `raw` sends and trace).
 - [ ] **Step 7: Implement `runtime.ts`** (`TradeActs = { requestTrade,
   answerTrade, cancelTrade }`, `tradeRuntime`) and wire `area.ts`. The
   60 s auto-busy is a runtime timer cleared on any answer and on
-  dispose. A decision **not yet ruled by the maintainer**: design 5.19
+  dispose. A decision **accepted by the maintainer (P2-5)**: design 5.19
   names it a harness rule, but a harness module has no timer (contract
   1.9), so the core runtime holds it. Run the tests and the checks.
 - [ ] **Step 8: Probe flow.** `probe-flows/trade-window.ts` on character
@@ -1602,7 +1602,7 @@ wins one.
 **Phase:** 4 (wave 4). **codeArea:** `auction`. **Size:** L.
 
 Built only if the coordinator keeps the auction verbs (design 5.19
-"Decisions", not yet ruled by the maintainer). Without it the `auction`
+"Decisions", accepted by the maintainer (P2-5)). Without it the `auction`
 area adds no verb and needs no eval (R9).
 
 **Files:**

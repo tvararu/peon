@@ -66,7 +66,7 @@ not the branch.
 These are gaps found while planning. The contract is not changed here;
 each needs a coordinator ruling or a `COORD-<n>` edit before the task that
 meets it starts. Until issues 1, 3 and 4 are ruled, T-7a, T-9a and T-10
-stop `blocked` on their first edit (contract 0.9). Each is **not yet ruled by the maintainer**.
+stop `blocked` on their first edit (contract 0.9). Each is **accepted by the maintainer (P2-5)**.
 Ruled at Gate R: issues 1 to 7 are GR-8 to GR-14 in the plan index ("Gate R rulings").
 
 1. **T-7 needs four more puppet files.** `start --packet-trace` cannot
@@ -317,7 +317,7 @@ only unless a second character exists on the account: a second character
 comes from the `session` area's character create flow, or from a
 `pdump copy` onto the same account (`packages/factory/src/soap-copy.ts:65`
 already runs `pdump copy <template> <account> <character>`), which is
-a proposal, **not yet ruled by the maintainer**. Delete the account with
+a proposal, **accepted by the maintainer (P2-5)**. Delete the account with
 `mise factory soap delete <ACCOUNT>`.
 
 **Commit:**
