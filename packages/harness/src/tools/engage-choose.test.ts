@@ -131,6 +131,73 @@ describe("chooseTarget", () => {
     );
   });
 
+  test("unnamed: a gray unit is passed for one that gives XP", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { level: 20 });
+    setUnits(t.handle, [
+      unitRow({
+        distance: 10,
+        guid: 0x30n,
+        level: 9,
+        name: "Mistbat",
+        x: 10,
+        y: 0,
+      }),
+      unitRow({
+        distance: 25,
+        guid: 0x31n,
+        level: 15,
+        name: "Wraith",
+        x: 25,
+        y: 0,
+      }),
+    ]);
+    const choice = await chooseTarget(toolCtx<EngageAfter>(t), {});
+    expect(choice).toMatchObject({ guid: 0x31n, named: false });
+  });
+
+  test("unnamed: only gray units in view refuses not_seen and names them", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { level: 20 });
+    setUnits(t.handle, [
+      unitRow({
+        distance: 10,
+        guid: 0x30n,
+        level: 9,
+        name: "Mistbat",
+        x: 10,
+        y: 0,
+      }),
+    ]);
+    driveGoto(t.handle, [{ arrive: { x: 0, y: 0 } }]);
+    const refused = chooseTarget(toolCtx<EngageAfter>(t), {});
+    await expect(refused).rejects.toMatchObject({ reason: "not_seen" });
+    await expect(refused).rejects.toHaveProperty(
+      "detail",
+      expect.stringMatching(
+        /^only gray units in view \(Mistbat u\d+ L9\); they give no XP or kill credit\.$/,
+      ),
+    );
+  });
+
+  test("unnamed: a gray attacker is still fought", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { level: 20 });
+    setUnits(t.handle, [
+      unitRow({
+        distance: 5,
+        guid: 0x30n,
+        level: 9,
+        name: "Mistbat",
+        x: 5,
+        y: 0,
+      }),
+    ]);
+    attackBy(t.handle, 0x30n);
+    const choice = await chooseTarget(toolCtx<EngageAfter>(t), {});
+    expect(choice.guid).toBe(0x30n);
+  });
+
   test("a named target skips the level cap", async () => {
     const t = await field(1);
     const choice = await chooseTarget(toolCtx<EngageAfter>(t), {

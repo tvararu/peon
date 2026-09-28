@@ -21,6 +21,7 @@ import {
   die,
   driveGoto,
   limitProblem,
+  setSelf,
   setUnits,
   toolCtx,
   unitRow,
@@ -159,6 +160,79 @@ describe("engage fight", () => {
     expect(res.detail).toMatch(
       /^2 of 3 kills \(u\d+, u\d+\)\. Stopped: no more Springpaw Stalker in view; 1 kill still needed\./,
     );
+  });
+
+  test("a gray kill in a cycle names the no-XP kill and drops target", async () => {
+    const t = await field();
+    cycleEnds(
+      t.handle,
+      [
+        {
+          guid: STALKER,
+          loot: "none",
+          outcome: { reason: "gray", status: "completed" },
+          status: "done",
+        },
+      ],
+      "queue_exhausted",
+    );
+    const res = await engageSpec.run({ count: 2 }, toolCtx<EngageAfter>(t));
+    expect(res.status).toBe("PARTLY");
+    const ref = t.rt.refs.refOf(STALKER);
+    expect(res.detail).toMatch(
+      new RegExp(
+        `^1 of 2 kills \\(${ref}\\); no XP for ${ref} \\(gray target\\)\\. Stopped:`,
+      ),
+    );
+    expect(res.next).toBe("engage(count: 1)");
+  });
+
+  test("an unnamed cycle does not refill with a gray same-name unit", async () => {
+    const t = await field();
+    setSelf(t.handle, { level: 20 });
+    setUnits(t.handle, [
+      unitRow({
+        distance: 22,
+        entry: 15_366,
+        guid: STALKER,
+        level: 9,
+        name: "Springpaw Stalker",
+        x: 22,
+        y: 0,
+      }),
+      unitRow({
+        distance: 28,
+        entry: 15_366,
+        guid: STALKER_2,
+        level: 9,
+        name: "Springpaw Stalker",
+        x: 28,
+        y: 0,
+      }),
+    ]);
+    const calls: bigint[][] = [];
+    const base = t.handle.getCycleState();
+    t.handle.startCycle = (guids) => {
+      calls.push([...guids]);
+      const records: CycleTargetRecord[] = [
+        { guid: STALKER, loot: "none", outcome: KILL, status: "done" },
+      ];
+      const stopped = {
+        ...base,
+        active: false,
+        phase: "stopped" as const,
+        queue: records,
+        stopCause: "queue_exhausted",
+      };
+      queueMicrotask(() => {
+        t.handle.getCycleState = () => stopped;
+        t.handle.triggerCycleEvent({ at: 0, state: stopped, type: "stopped" });
+      });
+      return Promise.resolve();
+    };
+    const res = await engageSpec.run({ count: 2 }, toolCtx<EngageAfter>(t));
+    expect(calls.flat()).not.toContain(STALKER_2);
+    expect(res.next ?? "").not.toContain("target");
   });
 
   test("a target that left view is never fought", async () => {

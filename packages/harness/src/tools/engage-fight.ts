@@ -1,6 +1,7 @@
 import type { EngageAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { ViewCtx } from "#harness/contract/services";
+import { grayLevel } from "#harness/loops/combat-actions-credit";
 import { MIN_HP_PCT } from "#harness/loops/cycle-gate";
 import type { CycleState } from "#harness/loops/encounter-cycle";
 import { DEFAULT_FIGHT_INSTRUCTION } from "#harness/loops/tactics";
@@ -8,7 +9,13 @@ import { dangerView } from "#harness/ops/danger";
 import { ITEM_NAME_WAIT_MS, nameLootLines } from "#harness/ops/item-names";
 import { lootCorpseOp } from "#harness/ops/loot";
 import { guidHex } from "#harness/ops/refs";
-import { manaText, poseView, unitViews, vitalsView } from "#harness/ops/views";
+import {
+  manaText,
+  poseView,
+  selfView,
+  unitViews,
+  vitalsView,
+} from "#harness/ops/views";
 import {
   awaitCycle,
   awaitQuestCycle,
@@ -105,10 +112,15 @@ function nextTargets(scene: Scene, tried: ReadonlySet<bigint>): bigint[] {
   const attackers = dangerView(ops).attackers.map((attacker) =>
     ops.rt.refs.guidOf(attacker.ref),
   );
+  const ignoreGray = !choice.named && choice.unit?.kind === "creature";
+  const grayAt = ignoreGray ? grayLevel(selfView(ops).level) : -1;
   const same = unitViews(ops)
     .filter(
       (unit) =>
-        unit.alive && !unit.tappedByOther && unit.name === choice.unit?.name,
+        unit.alive &&
+        !unit.tappedByOther &&
+        unit.name === choice.unit?.name &&
+        (!ignoreGray || unit.level > grayAt),
     )
     .map((unit) => ops.rt.refs.guidOf(unit.ref));
   const seen = new Set(
@@ -197,6 +209,15 @@ function lootText(tally: Tally): string {
   const parts = tally.loot.map((line) => `${line.name} x${line.count}`);
   if (tally.copper > 0) parts.push(`${tally.copper} copper`);
   return parts.length === 0 ? "" : ` Looted ${parts.join(", ")}.`;
+}
+
+function noXpNote(tally: Tally): string {
+  const noXp = tally.targets.filter(
+    (target) => target.outcome === "killed" && target.xp === 0,
+  );
+  return noXp.length === 0
+    ? ""
+    : `; no XP for ${noXp.map((target) => target.ref).join(", ")} (${noXpText(noXp)})`;
 }
 
 function gains(scene: Scene): string {
@@ -298,6 +319,7 @@ function engageAgain(scene: Scene, left: number): string {
   const { questId } = scene.choice;
   if (scene.choice.mode === "quest" && questId !== undefined)
     return nextCall("engage", { quest: String(questId) });
+  if (!scene.choice.named) return nextCall("engage", { count: left });
   const name = scene.choice.unit?.name;
   const call = nextCall(
     "engage",
@@ -395,7 +417,7 @@ function outcomeReport(scene: Scene, end: ModeEnd, secs: number): Report {
   if (killed > 0)
     return result("PARTLY", {
       after,
-      detail: `${after.kills} of ${after.wanted} kills (${refs}). Stopped: ${stopText(stop)}.${gains(scene)}`,
+      detail: `${after.kills} of ${after.wanted} kills (${refs})${noXpNote(tally)}. Stopped: ${stopText(stop)}.${gains(scene)}`,
       next:
         also ??
         toFar ??
