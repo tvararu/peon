@@ -41,9 +41,35 @@ const SCENARIO: Scenario = {
 
 const accountOf = (n: number): string => `FAC000000000${n}`;
 
-function soapWorld(opts: { failCreate?: number } = {}) {
+function truthOf(account: string, online: boolean): string {
+  return JSON.stringify({
+    account,
+    alive: true,
+    class: 1,
+    deathState: "alive",
+    guid: 2,
+    health: 100,
+    inventory: [],
+    level: 10,
+    money: 0,
+    name: account,
+    ok: true,
+    online,
+    position: { map: 530, o: 0, x: 1, y: 2, z: 3, zone: 3430 },
+    quests: [],
+    race: 10,
+    rewardedQuests: [],
+    savedAt: new Date(NOW).toISOString(),
+    spells: [],
+    xp: 0,
+  });
+}
+
+function soapWorld(opts: { failCreate?: number; online?: string } = {}) {
   let created = 0;
   return fakeExec((argv) => {
+    if (argv[3] === "truth")
+      return ok(truthOf(argv[4] ?? "", argv[4] === opts.online));
     if (argv[3] === "create") {
       created += 1;
       if (created === opts.failCreate) return failed(1, "pdump copy failed");
@@ -178,6 +204,60 @@ describe("two partners", () => {
     expect(await Bun.file(`${st.runDir}/partner1-read.jsonl`).exists()).toBe(
       false,
     );
+  });
+});
+
+describe("partner truth", () => {
+  const steps = (calls: { argv: string[] }[]) =>
+    calls.flatMap(({ argv }) => {
+      if (argv[3] === "truth") return [`truth ${argv[4]}`];
+      const verb = argv[1];
+      return verb === "start" || verb === "stop"
+        ? [`${verb} ${argv[0]?.slice(-13)}`]
+        : [];
+    });
+
+  test("is read once before each start and once after each stop", async () => {
+    const { calls, exec } = soapWorld();
+    const st = runState(exec);
+    await createPartners(
+      { ...st, log: st.log, owner: st.tab },
+      partnerSpecs(SCENARIO),
+    );
+    await startPartners(st);
+    await stopHarness(st);
+    const [one, two] = [accountOf(1), accountOf(2)];
+    expect(steps(calls)).toEqual([
+      `truth ${one}`,
+      `start ${one}`,
+      `truth ${two}`,
+      `start ${two}`,
+      `stop ${one}`,
+      `stop ${two}`,
+      `truth ${one}`,
+      `truth ${two}`,
+    ]);
+    for (const [role, account] of [
+      ["partner1", one],
+      ["partner2", two],
+    ])
+      for (const when of ["baseline", "final"])
+        expect(
+          (await Bun.file(`${st.runDir}/${role}-${when}.json`).json()).account,
+        ).toBe(account);
+    expect(st.notes).toEqual([]);
+  });
+
+  test("a partner online at baseline aborts before its start", async () => {
+    const { calls, exec } = soapWorld({ online: accountOf(1) });
+    const st = runState(exec);
+    await createPartners(
+      { ...st, log: st.log, owner: st.tab },
+      partnerSpecs(SCENARIO),
+    );
+    const error = await startPartners(st).catch((err: unknown) => err);
+    expect(String(error)).toContain("partner1 baseline truth says");
+    expect(steps(calls)).toEqual([`truth ${accountOf(1)}`]);
   });
 });
 

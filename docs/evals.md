@@ -75,6 +75,7 @@ Each run writes `tmp/evals/<round>/<scenario>-<replica>/`:
 |---|---|
 | `run.json` | The scenario, round, replica, head sha, start time and bot count. |
 | `baseline.json`, `final.json` | Server truth before the login and after the logout. |
+| `partner-baseline.json`, `partner-final.json`, `partner<N>-baseline.json`, `partner<N>-final.json` | Each second character's server truth before its start and after its stop; with `partners`, partner `N` writes `partner<N>-...`. A final truth that stays stale or online writes no file and adds a note. |
 | `gamelog.jsonl` | The harness game log: every game event, one typed row. |
 | `session.jsonl`, `tools.json`, `runs.jsonl` | The Pi session, tool calls and harness runs, as in [harness.md](harness.md#run-directory). |
 | `packets.jsonl`, `packets.json` | Every game packet's header row and the counts by opcode: the grader starts the harness with `--packet-trace headers` ([harness.md](harness.md#run-directory)). |
@@ -120,6 +121,7 @@ grader to read. The draft fills the check's `observed` from its typed
 | `point` | `truth` checks | An `{ "x", "y" }` point: the final position and its 2D distance to the point, instead of the other truth fields. |
 | `events` | `game_log` checks | The game-log rows of these events (`domain/name`; a trailing `*` matches a prefix): the count, the first and last match, the first 10 rows and the last row of the same domains. |
 | `ids` | `game_log` checks | Only the rows of those events whose data holds one of these numbers. |
+| `who` | `truth` checks | Whose truth the other fields read: `agent` (the default), `partner` for the single partner, or `partner1` to `partner4` with `partners`. The scenario must have that character. When its baseline or final file is missing, the draft adds a `reason` that names the missing file. |
 
 A `measure` names a computed measure in
 `packages/harness/src/grader/draft-measure.ts` (for example `kill_xp` or

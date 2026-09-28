@@ -7,6 +7,7 @@ import type {
   ScenarioCheck,
   TruthDelta,
   TruthPick,
+  TruthWho,
 } from "#harness/grader/scenarios";
 import type { Truth, TruthItem } from "#harness/grader/truth";
 import { totalXp } from "#harness/grader/xp-table";
@@ -219,6 +220,35 @@ async function readTruthFile(file: string): Promise<Truth | null> {
   return (await handle.exists()) ? ((await handle.json()) as Truth) : null;
 }
 
+const truthFiles = (who: TruthWho) =>
+  who === "agent"
+    ? ["baseline.json", "final.json"]
+    : [`${who}-baseline.json`, `${who}-final.json`];
+
+type WhoTruth = { pair: Pair; reason?: string };
+
+async function readWho(runDir: string, who: TruthWho): Promise<WhoTruth> {
+  const [baseline = "", final = ""] = truthFiles(who);
+  const pair = {
+    baseline: await readTruthFile(`${runDir}/${baseline}`),
+    final: await readTruthFile(`${runDir}/${final}`),
+  };
+  const missing = [
+    ...(pair.baseline === null ? [baseline] : []),
+    ...(pair.final === null ? [final] : []),
+  ];
+  if (who === "agent" || missing.length === 0) return { pair };
+  const verb = missing.length === 1 ? "is" : "are";
+  return { pair, reason: `${missing.join(" and ")} ${verb} missing` };
+}
+
+function observeWho({ pair, reason }: WhoTruth, evidence?: CheckEvidence) {
+  const observed = observeTruth(pair, evidence);
+  return reason === undefined
+    ? observed
+    : { ...(observed as Picked | null), reason };
+}
+
 async function readGameLog(file: string) {
   const handle = Bun.file(file);
   return (await handle.exists()) ? parseGameLog(await handle.text()) : null;
@@ -237,10 +267,12 @@ export async function observedChecks(
   checks: readonly ScenarioCheck[],
   steers: readonly string[] = [],
 ): Promise<EvalCheck[]> {
-  const pair = {
-    baseline: await readTruthFile(`${runDir}/baseline.json`),
-    final: await readTruthFile(`${runDir}/final.json`),
-  };
+  const truths = new Map<TruthWho, WhoTruth>();
+  for (const { evidence, source } of checks) {
+    const who = evidence?.who ?? "agent";
+    if (source === "truth" && !truths.has(who))
+      truths.set(who, await readWho(runDir, who));
+  }
   const rows = await readGameLog(`${runDir}/gamelog.jsonl`);
   const context = {
     jev: await readJev(`${runDir}/jev.jsonl`),
@@ -249,8 +281,13 @@ export async function observedChecks(
   return checks.map((check) => {
     const { blockedBy, evidence, expect, id, source } = check;
     const base = { blockedBy, expected: expect, id, met: false, source };
-    if (source === "truth")
-      return { ...base, observed: observeTruth(pair, evidence) };
+    if (source === "truth") {
+      const truth = truths.get(evidence?.who ?? "agent");
+      return {
+        ...base,
+        observed: truth === undefined ? null : observeWho(truth, evidence),
+      };
+    }
     if (rows === null || (source !== "game_log" && check.measure === undefined))
       return { ...base, observed: null };
     const { line, met, observed } =

@@ -52,6 +52,14 @@ export type TruthPick =
 
 export type TruthDelta = "money" | "totalXp";
 
+export type TruthWho =
+  | "agent"
+  | "partner"
+  | "partner1"
+  | "partner2"
+  | "partner3"
+  | "partner4";
+
 export type CheckEvidence = {
   truth?: TruthPick[];
   delta?: TruthDelta[];
@@ -59,6 +67,7 @@ export type CheckEvidence = {
   point?: { x: number; y: number };
   events?: string[];
   ids?: number[];
+  who?: TruthWho;
 };
 
 export type ScenarioCheck = {
@@ -110,17 +119,29 @@ const DIR = `${import.meta.dir}/scenarios`;
 const JSON_FILE = /\.json$/;
 const SCHEMA = schema as unknown as Schema;
 
-function partnerErrors({
-  partner,
-  partnerActions = [],
-  partners,
-}: Scenario): string[] {
+function whoErrors({ checks, partner, partners }: Scenario): string[] {
+  const roles = new Set<string>([
+    "agent",
+    ...(partners?.map((_, index) => `partner${index + 1}`) ??
+      (partner === null ? [] : ["partner"])),
+  ]);
+  return checks.flatMap(({ evidence }, index) => {
+    const who = evidence?.who;
+    return who === undefined || roles.has(who)
+      ? []
+      : [`$.checks[${index}].evidence.who: the scenario has no ${who}`];
+  });
+}
+
+function partnerErrors(scenario: Scenario): string[] {
+  const { partner, partnerActions = [], partners } = scenario;
   const count = partners?.length ?? (partner === null ? 0 : 1);
   const errors = partnerActions.flatMap(({ actor }, index) =>
     actor !== undefined && actor > count
       ? [`$.partnerActions[${index}].actor: no partner ${actor}`]
       : [],
   );
+  errors.push(...whoErrors(scenario));
   if (partners === undefined) return errors;
   if (partner !== null)
     errors.push("$.partners: set partner or partners, not both");

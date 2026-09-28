@@ -1,3 +1,4 @@
+import { messageOf } from "@peon/core/lib/errors";
 import type { Clock } from "#harness/contract/services";
 import {
   type AccountNames,
@@ -14,6 +15,7 @@ import {
   stepPartner,
 } from "#harness/grader/partner";
 import type { Scenario } from "#harness/grader/scenarios";
+import { readTruth } from "#harness/grader/truth";
 import type { TriggerRow } from "#harness/grader/watch";
 
 const PARTNER_START_MS = 120_000;
@@ -65,11 +67,37 @@ export async function placePartners(
     await applySetup({ account: names.account, exec, runDir, setup: [step] });
 }
 
-export async function startPartners({
-  exec,
-  partners,
-}: Omit<PartnersInit, "runDir">): Promise<void> {
-  for (const { names, role } of partners) {
+export const partnerTruthFile = (
+  runDir: string,
+  { role }: Pick<Partner, "role">,
+  when: "baseline" | "final",
+): string => `${runDir}/${role}-${when}.json`;
+
+async function partnerBaseline(
+  { exec, runDir }: PartnersInit,
+  partner: Partner,
+): Promise<void> {
+  const truth = await readTruth(exec, partner.names.account).catch(
+    (err: unknown) => {
+      throw new RunAbort("service_down", messageOf(err), { cause: err });
+    },
+  );
+  await Bun.write(
+    partnerTruthFile(runDir, partner, "baseline"),
+    `${JSON.stringify(truth, null, 2)}\n`,
+  );
+  if (truth.online)
+    throw new RunAbort(
+      "other",
+      `${partner.role} baseline truth says the character is online`,
+    );
+}
+
+export async function startPartners(init: PartnersInit): Promise<void> {
+  const { exec, partners } = init;
+  for (const partner of partners) {
+    await partnerBaseline(init, partner);
+    const { names, role } = partner;
     const { code, stderr } = await exec(
       [names.wrapper, "start", "--json", "--packet-trace", "headers"],
       { timeoutMs: PARTNER_START_MS },

@@ -23,7 +23,7 @@ import {
   type FrictionItem,
   validateResult,
 } from "#harness/grader/result";
-import { stopPartner } from "#harness/grader/run-partners";
+import { partnerTruthFile, stopPartner } from "#harness/grader/run-partners";
 import type { Scenario } from "#harness/grader/scenarios";
 import { finalTruth, leakCheck } from "#harness/grader/truth";
 import type { Watcher } from "#harness/grader/watch";
@@ -154,17 +154,51 @@ async function quitAgent(st: RunState, pane: Pane): Promise<void> {
   st.exitMs = st.clock.now();
 }
 
+async function stopOne(st: RunState, partner: Partner): Promise<number> {
+  const stopMs = st.clock.now();
+  await attempt(st, `${partner.role} stop`, () =>
+    stopPartner(st.exec, partner),
+  );
+  return stopMs;
+}
+
+async function partnerFinal(
+  st: RunState,
+  partner: Partner,
+  exitMs: number,
+): Promise<void> {
+  if (
+    !(await Bun.file(partnerTruthFile(st.runDir, partner, "baseline")).exists())
+  )
+    return;
+  const final = await finalTruth({
+    account: partner.names.account,
+    clock: st.clock,
+    exec: st.exec,
+    exitMs,
+    waitMs: st.truthWaitMs,
+  });
+  if (final.ok)
+    await writeJson(partnerTruthFile(st.runDir, partner, "final"), final.truth);
+  else
+    st.notes.push(
+      `${partner.role} final truth: ${final.cause} ${final.detail}`,
+    );
+}
+
 export async function stopHarness(st: RunState): Promise<void> {
   const { agent, pane, partners, watcher } = st;
   if (watcher !== undefined) await attempt(st, "watcher", () => watcher.stop());
-  await Promise.all([
+  const [, ...stops] = await Promise.all([
     pane === undefined ? undefined : quitAgent(st, pane),
-    ...partners.map((partner) =>
-      attempt(st, `${partner.role} stop`, () => stopPartner(st.exec, partner)),
-    ),
+    ...partners.map((partner) => stopOne(st, partner)),
   ]);
   if (pane !== undefined && agent !== undefined)
     await attempt(st, "final truth", () => verifyFinal(st, agent.account));
+  for (const [index, partner] of partners.entries())
+    await attempt(st, `${partner.role} final truth`, () =>
+      partnerFinal(st, partner, stops[index] ?? st.clock.now()),
+    );
 }
 
 async function deleteAll(st: RunState, accounts: string[]): Promise<void> {

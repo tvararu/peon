@@ -157,6 +157,51 @@ describe("multi-partner scenarios", () => {
   });
 });
 
+describe("who on a truth check", () => {
+  const base = loadScenario("t2-whisper-reply");
+  const check = (who: string) => ({
+    evidence: { truth: ["inventory"], who },
+    expect: "the partner holds the item",
+    id: "partner-holds",
+    source: "truth",
+  });
+  const withWho = (who: string, over: Record<string, unknown> = {}) => ({
+    ...base,
+    checks: [check(who)],
+    ...over,
+  });
+  const two = {
+    partner: null,
+    partnerActions: [],
+    partners: [
+      { preset: "eversong10", role: "partner" },
+      { preset: "eversong10", role: "partner" },
+    ],
+  };
+
+  test("who names the agent or a partner the scenario has", () => {
+    const [loaded] = parseScenario(
+      "t2-whisper-reply.json",
+      withWho("partner"),
+    ).checks;
+    expect(loaded?.evidence?.who).toBe("partner");
+    expect(() =>
+      parseScenario("t2-whisper-reply.json", withWho("partner2", two)),
+    ).not.toThrow();
+  });
+
+  test("who names no partner the scenario lacks", () => {
+    const refused = (who: string, over: Record<string, unknown> = {}) =>
+      expect(() =>
+        parseScenario("t2-whisper-reply.json", withWho(who, over)),
+      ).toThrow(`$.checks[0].evidence.who: the scenario has no ${who}`);
+    refused("partner3", two);
+    refused("partner", two);
+    refused("partner1");
+    refused("partner", { partner: null, partnerActions: [] });
+  });
+});
+
 describe("round-1 scenarios", () => {
   test.each([...ROUND_1])("%s is well formed", (id) => {
     const scenario = loadScenario(id);

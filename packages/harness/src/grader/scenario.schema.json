@@ -98,6 +98,16 @@
                   ]
                 },
                 "type": "array"
+              },
+              "who": {
+                "enum": [
+                  "agent",
+                  "partner",
+                  "partner1",
+                  "partner2",
+                  "partner3",
+                  "partner4"
+                ]
               }
             },
             "type": "object"

@@ -492,6 +492,30 @@ describe("observedChecks on truth", () => {
     });
   });
 
+  test("a who check shows that partner's truth or why it is missing", async () => {
+    const water = truth().inventory.slice(0, 1);
+    const dir = await runDir({
+      ...files({}),
+      "partner-baseline.json": JSON.stringify(truth({ inventory: [] })),
+      "partner-final.json": JSON.stringify(truth({ inventory: water })),
+      "partner2-baseline.json": JSON.stringify(truth()),
+    });
+    const [traded, missing] = await observedChecks(dir, [
+      tr("traded", { truth: ["inventory"], who: "partner" }),
+      tr("paid", { truth: ["money"], who: "partner2" }),
+    ]);
+    expect(traded?.observed).toEqual({
+      baseline: { inventory: [] },
+      final: { inventory: water },
+    });
+    expect(missing?.met).toBe(false);
+    expect(missing?.observed).toEqual({
+      baseline: { money: 50_000 },
+      final: null,
+      reason: "partner2-final.json is missing",
+    });
+  });
+
   test("a check that selects no truth field gets the whole summary", async () => {
     const dir = await runDir(files({ money: 50_030 }));
     const [check] = await observedChecks(dir, [tr("state")]);

@@ -149,6 +149,41 @@ describe("stopHarness", () => {
     expect(calls).toEqual([[`/wt/tmp/puppet-${PARTNER}`, "stop"]]);
   });
 
+  test("reads a partner's final truth after its stop when it has a baseline", async () => {
+    const { calls, exec } = router();
+    const names = { ...AGENT, account: PARTNER, wrapper: `/wt/${PARTNER}` };
+    const partners = [
+      { kind: "partner" as const, names, role: "partner" as const },
+    ];
+    const st = await state(exec, { partners });
+    await writeFile(`${st.runDir}/partner-baseline.json`, truth("x"));
+    await stopHarness(st);
+    expect(calls).toEqual([
+      [`/wt/${PARTNER}`, "stop"],
+      ["bun", "packages/factory/src/main.ts", "soap", "truth", PARTNER],
+    ]);
+    const final = await Bun.file(`${st.runDir}/partner-final.json`).json();
+    expect(final.savedAt).toBe(new Date(NOW).toISOString());
+  });
+
+  test("a stale partner final truth is a note, not an abort", async () => {
+    const { exec } = router({ savedAt: "2026-09-25T10:00:00.000Z" });
+    const names = { ...AGENT, account: PARTNER, wrapper: `/wt/${PARTNER}` };
+    const partners = [
+      { kind: "witness" as const, names, role: "partner2" as const },
+    ];
+    const st = await state(exec, { partners });
+    await writeFile(`${st.runDir}/partner2-baseline.json`, truth("x"));
+    await stopHarness(st);
+    expect(st.abort).toBeUndefined();
+    expect(st.notes).toEqual([
+      expect.stringContaining("partner2 final truth: stale_truth"),
+    ]);
+    expect(await Bun.file(`${st.runDir}/partner2-final.json`).exists()).toBe(
+      false,
+    );
+  });
+
   test("stops the partner while the agent is still logging out", async () => {
     const order: string[] = [];
     const partnerStopped = Promise.withResolvers<void>();
