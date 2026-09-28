@@ -4,13 +4,13 @@ import { lootText, takeOffered } from "#harness/areas/items/tool-loot";
 import {
   BACKPACK,
   BAGS,
-  bagNumber,
   destination,
   equipSlot,
   type Found,
   labelOf,
   named,
   type Occupied,
+  position,
   slotsOf,
 } from "#harness/areas/items/tool-resolve";
 import type { LootLine } from "#harness/contract/details";
@@ -180,6 +180,7 @@ function slotName(position_: { bag: number; slot: number }): string {
 }
 
 type EquipRender = {
+  guid: bigint | undefined;
   label: string;
   to: { bag: number; slot: number } | undefined;
   worn: string | undefined;
@@ -189,7 +190,11 @@ type EquipRender = {
 
 function equippedText(render: EquipRender): string {
   const held = slotsOf(render.after).find(
-    (entry) => entry.region === "equipment" && labelOf(entry) === render.label,
+    (entry) =>
+      entry.region === "equipment" &&
+      (render.guid === undefined
+        ? labelOf(entry) === render.label
+        : entry.guid === render.guid),
   );
   let where = "worn";
   if (held) where = slotName({ bag: held.bag, slot: held.slot });
@@ -263,6 +268,7 @@ async function runEquip(
     }),
     detail: equippedText({
       after,
+      guid: found.held.guid,
       label: found.label,
       movedTo,
       to,
@@ -279,11 +285,12 @@ async function runUnequip(
   const { handle, rt } = ctx;
   const found = named(handle.getInventoryState(), item, ["equipment", "bag"]);
   const from = { bag: found.held.bag, slot: found.held.slot };
+  const at =
+    bag === undefined ? undefined : position(bag, "name a destination");
   const outcome_ = await rt.mutex.run(() =>
-    handle.items.act.unequip(
-      found.held.slot,
-      bag === undefined ? undefined : bagNumber(bag),
-    ),
+    at === undefined
+      ? handle.items.act.unequip(found.held.slot, undefined)
+      : handle.items.act.move(from, at),
   );
   if (outcome_.last?.status !== "confirmed")
     throw moveRefusal(handle, found.held.guid, outcome_);
@@ -364,15 +371,22 @@ async function runOpen(
   ]);
   const from = { bag: found.held.bag, slot: found.held.slot };
   const loot = await rt.mutex.run(() => handle.items.act.open(from));
-  const { copper, taken } = await takeOffered(ctx, loot);
-  const left = loot.items.filter(
-    (offered) => !taken.some((line) => line.itemId === offered.itemId),
+  const offered = loot.items.filter(
+    (line) => line.slotType === 0 || line.slotType === 4,
   );
+  const { copper, taken } = await takeOffered(ctx, loot);
+  const live = handle.getRewardsState().loot;
+  const left =
+    live.phase === "open" || live.phase === "closing"
+      ? offered.filter((line) =>
+          live.items.some((rest) => rest.slot === line.slot),
+        ).length
+      : 0;
   const detail =
-    left.length > 0
-      ? `Opened ${found.label}: ${lootText(taken, copper) || "nothing"}; ${left.length} item(s) left behind.`
+    left > 0
+      ? `Opened ${found.label}: ${lootText(taken, copper) || "nothing"}; ${left} item(s) left behind.`
       : `Opened ${found.label}${taken.length + copper > 0 ? `: ${lootText(taken, copper)}` : " (empty)"}.`;
-  if (left.length > 0)
+  if (left > 0)
     return result("PARTLY", {
       after: afterOf(found, from, {
         copper,

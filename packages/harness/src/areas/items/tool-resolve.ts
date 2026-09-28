@@ -198,7 +198,14 @@ export function destination(
   if (text === undefined)
     return firstFree(handle, () => true, "the bags are full.", "bags_full");
   const trimmed = text.trim().toLowerCase();
-  if (trimmed === "bags" || trimmed === "backpack")
+  if (trimmed === "bags")
+    return firstFree(
+      handle,
+      (slot) => slot.bag === BACKPACK || slot.bag >= FIRST_BAG,
+      "the bags are full.",
+      "bags_full",
+    );
+  if (trimmed === "backpack")
     return firstFree(
       handle,
       (slot) => slot.bag === BACKPACK,

@@ -368,7 +368,77 @@ describe("gear tool", () => {
       ],
     ]);
   });
-  test("two matching slots refuse even with the same label", async () => {
+
+  test("to bags searches every carried bag", async () => {
+    const t = await createTestRuntime();
+    stocked(
+      t.handle,
+      [{ bag: 255, entry: 6948, guid: WATER, name: "Hearthstone", slot: 25 }],
+      [empty(19, 2)],
+    );
+    const acts = itemActs(t.handle);
+    await gearSpec.run(
+      { do: "move", item: "Hearthstone", to: "bags" },
+      toolCtx(t),
+    );
+    expect(acts.move).toHaveBeenCalledWith(
+      { bag: 255, slot: 25 },
+      { bag: 19, slot: 2 },
+    );
+  });
+
+  test("unequip to a bag and slot moves there", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, [
+      { bag: 255, entry: 36, guid: SHIRT, name: "Brown Linen Shirt", slot: 3 },
+    ]);
+    const acts = itemActs(t.handle);
+    const res = await gearSpec.run(
+      { do: "unequip", item: "Brown Linen Shirt", to: "bag 19 slot 0" },
+      toolCtx(t),
+    );
+    expect(acts.move).toHaveBeenCalledWith(
+      { bag: 255, slot: 3 },
+      { bag: 19, slot: 0 },
+    );
+    expect(acts.unequip).not.toHaveBeenCalled();
+    expect(res.status).toBe("DONE");
+  });
+
+  test("equip finds the worn item by guid", async () => {
+    const t = await createTestRuntime();
+    const first = {
+      bag: 19,
+      entry: 25,
+      guid: STAFF,
+      name: "Gnarled Staff",
+      slot: 3,
+    };
+    const twin = {
+      bag: 255,
+      entry: 25,
+      guid: BAG_SLOT,
+      name: "Gnarled Staff",
+      slot: 24,
+    };
+    stocked(t.handle, [first, twin]);
+    const items = t.handle.items as unknown as { act: Record<string, unknown> };
+    items.act = {
+      ...items.act,
+      equipTo: async () => {
+        stocked(t.handle, [{ ...first, slot: 15 }, { ...twin, slot: 24 }]);
+        const worn = t.handle.getInventoryState().slots.find((slot) => slot.status === "occupied" && slot.guid === first.guid);
+        if (worn) (worn as { region: string }).region = "equipment";
+        return outcome("confirmed", 25);
+      },
+    };
+    const res = await gearSpec.run(
+      { do: "equip", item: "bag 19 slot 3", slot: "main_hand" },
+      toolCtx(t),
+    );
+    expect(contentOf(res)).toMatch(/^DONE Wearing Gnarled Staff \(main hand\)/);
+  });
+  test("two matching slots refuse even with the same id", async () => {
     const t = await createTestRuntime();
     stocked(t.handle, [
       { bag: 255, entry: 25, guid: STAFF, name: "Linen Cloth", slot: 23 },
@@ -451,13 +521,10 @@ describe("gear tool", () => {
     ]);
     const acts = itemActs(t.handle);
     const res = await gearSpec
-      .run({ do: "equip", item: "Gnarled Staff", slot: "nose" }, toolCtx(t))
-      .catch((error) => error);
+      .run({ do: "equip", item: "Gnarled Staff", slot: "nose" }, toolCtx(t)).catch((error) => error);
     expect(res).toMatchObject({ reason: "no_such_slot" });
     expect(acts.equipTo).not.toHaveBeenCalled();
   });
 
-  test("a sending tool is kind action", async () => {
-    await expectSendKind(gearTool, { do: "equip", item: "x" });
-  });
+  test("a sending tool is kind action", async () => expectSendKind(gearTool, { do: "equip", item: "x" }));
 });
