@@ -20,7 +20,11 @@ the last trigger message and when it arrived. The area emits
   plus one, but the string runs from that line to the end of the whole
   message (`Server/WorldSession.cpp:288-298`). A packet of a message with
   more than one line therefore holds more bytes than its length says. The
-  parser reads to the NUL and ignores the length.
+  parser reads to the NUL and ignores the length. wow_messages declares
+  the body as one `SizedCString`
+  (`wow_message_parser/wowm/world/gameobject/smsg_area_trigger_message.wowm:3-5`),
+  whose length covers the whole string, so it agrees with AzerothCore
+  only for a message of one line.
 
 The catalog reads `AreaTrigger.dbc` from the configured `spell_data_dir`
 (ten fields of four bytes: id, map, x, y, z, radius, length, width,
@@ -57,5 +61,5 @@ No verb for area triggers: core sends them while the character walks.
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
-| `CMSG_AREATRIGGER` | `live` | probe flow `objects-trigger` (`--arg to=` the centre of trigger 88) on an `elwynn10` character moved with `soap gm tele FargodeepMine` and given quest 62 while online, exit 0; the watcher sent trigger 88 once, the server answered `SMSG_QUESTUPDATE_COMPLETE`, and `soap truth` showed quest 62 complete and explored. A second run into trigger 78 at level 10 was answered with `SMSG_TRANSFER_PENDING` and `SMSG_NEW_WORLD` to map 36 | `Handlers/MiscHandler.cpp:691-697` |
+| `CMSG_AREATRIGGER` | `live` | probe flow `objects-trigger` (`--arg to=` the centre of trigger 88) on an `elwynn10` character moved with `soap gm tele FargodeepMine` and given quest 62 while online, exit 0; the watcher sent trigger 88 once, the server answered `SMSG_QUESTUPDATE_COMPLETE`. A second run into trigger 78 at level 10 was answered with `SMSG_TRANSFER_PENDING` and `SMSG_NEW_WORLD` to map 36 | `Handlers/MiscHandler.cpp:691-697` |
 | `SMSG_AREA_TRIGGER_MESSAGE` | `live` | probe flow `objects-trigger` (`--arg to=` the centre of trigger 78) on a level 1 `elwynn1` character moved with `soap gm tele TheDeadmines`, exit 0; the watcher sent trigger 78 and the flow reported the message "You must be at least level 10 to enter." | `Server/WorldSession.cpp:288-298` |
