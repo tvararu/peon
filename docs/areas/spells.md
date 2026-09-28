@@ -53,6 +53,20 @@ the impact packet. The area keeps no state for them, and the harness
 writes no log row. A trainer purchase sends both: the visual names the
 trainer and the impact names the character.
 
+The harness `spell` tool drives these acts. `do: "cast"` casts a known
+spell by name or id on the character or on a `u<n>` unit through
+`handle.cast`, takes the highest visible rank of a name, and is `DONE`
+on the cast's success or a channel start, `FAILED` with the core reason,
+or `UNCONFIRMED` when nothing answers within the cast time plus 3 s.
+`do: "cancel_aura"` calls `act.cancelAura` and is `DONE` when the next
+aura update removes the aura within 2 s; an aura with an effect that
+applies `SPELL_AURA_MOUNTED` (`Spells/Auras/SpellAuraDefines.h:141`) is
+refused with `use_dismount`. `do: "bar"` writes slot 1-144 as wire slot
+0-143 with `act.setActionButton`, and a call with neither spell nor item
+clears the slot. `journal about: "spells"` lists up to four cancellable
+auras and four filled bar slots before the spellbook, and leaves out the
+ranks in `inactiveRanks`.
+
 ## Wire notes
 
 - `MSG_CHANNEL_START` is the packed guid of the caster, the `uint32`
@@ -214,7 +228,7 @@ Disagreements for opcodes later tasks build (AzerothCore wins):
 
 ## Capabilities row
 
-Stop a channel (proposed; spells-12b).
+Cancel one of its own buffs (`t4-spells-cancel-aura`; harmful and passive auras cannot be cancelled). The action bar (`t4-spells-action-bar`) is not proven: no truth pick reads the bar, so the verdict stays `blocked`. Stop a channel (proposed; spells-12b).
 
 ## Proof
 
@@ -223,9 +237,9 @@ Stop a channel (proposed; spells-12b).
 | `MSG_CHANNEL_START` | `live` | probe flow `spells-channel` (`--arg spell=5143`, modes `finish`, `cancel` and `hit`, `--expect` 0x139, 0x13a) on an `eversong10-mage` moved to East Sanctum with `soap gm tele EastSanctum`, exit 0 each; received after `SMSG_SPELL_GO` with duration 3000 | `Spells/Spell.cpp:5362-5385` |
 | `MSG_CHANNEL_UPDATE` | `live` | probe flow `spells-channel`, exit 0: mode `finish` got 0 about 3000 ms after the start (`finished`); mode `cancel` got 0 right after the cancel, then `SMSG_SPELL_FAILURE` (`cancelled`); mode `hit` got 1606 after a melee hit, then 0 at the moved end (`finished`) | `Spells/Spell.cpp:5342-5359` |
 | `CMSG_CANCEL_CHANNELLING` | `live` | probe flow `spells-channel` mode `cancel`, exit 0; sent 1 s into the channel, and `MSG_CHANNEL_UPDATE` 0 and `SMSG_SPELL_FAILURE` followed | `Handlers/SpellHandler.cpp:653-684` |
-| `CMSG_CANCEL_AURA` | `live` | probe flow `spells-aura` (`--arg spell=168`, `--expect` 0x496) on an `eversong10-mage`, exit 0 on two runs: Frost Armor applied in slot 0 with flags 0x3b, `CMSG_CANCEL_AURA` body `a8000000` sent, and the next `SMSG_AURA_UPDATE` (body `03ed0d0000000000`) cleared slot 0 within 16 ms | `Handlers/SpellHandler.cpp:568-601` |
+| `CMSG_CANCEL_AURA` | `live` | probe flow `spells-aura` (`--arg spell=168`, `--expect` 0x496) on an `eversong10-mage`, exit 0 on two runs: Frost Armor applied in slot 0 with flags 0x3b, `CMSG_CANCEL_AURA` body `a8000000` sent, and the next `SMSG_AURA_UPDATE` (body `03ed0d0000000000`) cleared slot 0 within 16 ms; eval `t4-spells-cancel-aura` (pass) sent it through `spell do:"cancel_aura"` on Frost Armor rank 2 (spell 7300) and the aura faded | `Handlers/SpellHandler.cpp:568-601` |
 | `CMSG_CANCEL_GROWTH_AURA` | `accepted` | `mise protocol:probe --send CMSG_CANCEL_GROWTH_AURA --wait 3`, exit 0: empty body sent, no error packet, and the session ran on to a normal logout | `Handlers/SpellHandler.cpp:642-644` |
-| `CMSG_SET_ACTION_BUTTON` | `live` | probe flow `spells-bar` on an `eversong10-mage`, exit 0 twice: `--arg slot=0 --arg spell=133` and `--arg slot=11 --arg item=6948` each sent one 5-byte packet; the server sent no reply, and the next login's `SMSG_ACTION_BUTTONS` held slot 0 `85000000` and slot 11 `241b0080` | `Handlers/MiscHandler.cpp:899-938` |
+| `CMSG_SET_ACTION_BUTTON` | `live` | probe flow `spells-bar` on an `eversong10-mage`, exit 0 twice: `--arg slot=0 --arg spell=133` and `--arg slot=11 --arg item=6948` each sent one 5-byte packet; the server sent no reply, and the next login's `SMSG_ACTION_BUTTONS` held slot 0 `85000000` and slot 11 `241b0080`; eval `t4-spells-action-bar` (verdict `blocked`, no server truth for the bar) sent two through `spell do:"bar"` | `Handlers/MiscHandler.cpp:899-938` |
 | `CMSG_SET_ACTIONBAR_TOGGLES` | `live` | probe flow `spells-bar` on an `eversong10-mage`, exit 0: `--arg toggles=15` sent body `0f` and the self update 23 ms later set field 1197 to 0x000f0000; `--arg toggles=7` logged in with 0x000f0000 saved, sent `07`, and the self update set 0x00070000, so `state().barToggles` read 7 | `Handlers/MiscHandler.cpp:952-965` |
 | `SMSG_ACTION_BUTTONS` | `live` | `mise protocol:probe --flow login --expect SMSG_ACTION_BUTTONS --bodies` after the two button writes, exit 0: state 1, slots 0 and 1 `85000000` (spell 133), slot 11 `241b0080` (item 6948), and 577 bytes in all (1 + 144 × 4); the legacy handler read it | `Entities/Player/Player.cpp:5732-5758` |
 | `SMSG_SEND_UNLEARN_SPELLS` | `live` | `mise protocol:probe --flow login --expect SMSG_SEND_UNLEARN_SPELLS --expect SMSG_SET_PCT_SPELL_MODIFIER --expect SMSG_SET_FLAT_SPELL_MODIFIER --bodies` on a `ghostlands20` account, exit 0, nothing missing: one packet after the initial spells, body `00000000` (no inactive rank), outcome `handled` | `Entities/Player/Player.cpp:2885-2922` |
