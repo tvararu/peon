@@ -163,7 +163,7 @@ on-use spells it read before.
 
 ## Left out
 
-- `CMSG_SET_AMMO`: built by `items-8`.
+
 - `SMSG_ITEM_COOLDOWN`, `SMSG_ITEM_TIME_UPDATE`,
   `SMSG_ITEM_ENCHANT_TIME_UPDATE`, `SMSG_DURABILITY_DAMAGE_DEATH` and
   `SMSG_SET_PROFICIENCY`: built by `items-6`.
@@ -180,7 +180,7 @@ on-use spells it read before.
 
 ## Capabilities row
 
-The `gear` tool wears, takes off, moves, splits, opens and reads items. The game log writes `items/equipped`, `items/unequipped`, `items/moved` and `items/split` for confirmed moves, `items/refused` and `items/unanswered` as wake rows, `items/upgrade` when a received item level beats the worn one, and `items/read` for reads and item text. The harness never equips on its own.
+The `gear` tool wears, takes off, moves, splits, opens, reads and loads ammo. The game log writes `items/equipped`, `items/unequipped`, `items/moved` and `items/split` for confirmed moves, `items/refused` and `items/unanswered` as wake rows, `items/upgrade` when a received item level beats the worn one, and `items/read` for reads and item text, and `items/ammo` when ammo is loaded. The harness never equips on its own.
 
 ## Proof
 
@@ -198,3 +198,4 @@ The `gear` tool wears, takes off, moves, splits, opens and reads items. The game
 | `SMSG_READ_ITEM_FAILED` | `live` | probe flow `items-open` (`do=read`) on the level-20 Venomous Tome, exit 0: `SMSG_INVENTORY_CHANGE_FAILURE` result 1 naming the tome comes first, then this packet with its guid, and the read settles `failed` (`cant_equip_level_i`) | `Handlers/ItemHandler.cpp:567` |
 | `CMSG_ITEM_TEXT_QUERY` | `live` | probe flow `items-open` (`do=text`), exit 0: the query carries the letter's guid | `Handlers/ItemHandler.cpp:1461-1465` |
 | `SMSG_ITEM_TEXT_QUERY_RESPONSE` | `live` | probe flow `items-open` (`do=text`), exit 0: `0`, the letter's guid and its empty text, and the act returns the text | `Handlers/ItemHandler.cpp:1468-1474` |
+| `CMSG_SET_AMMO` | `eval` | `t8-items-ammo` verdict `pass`: `CMSG_SET_AMMO` with entry 2512 (Rough Arrow) and the `items/ammo` game-log row | `Handlers/ItemHandler.cpp:1014-1039` |

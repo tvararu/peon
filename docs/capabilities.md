@@ -30,6 +30,7 @@ or the page names one that does not exist.
 | Split a stack | `t8-items-split` | |
 | Open a container and keep its contents | `t8-items-open` | |
 | Read a letter in its bags | `t8-items-read` | The Dusty Unsent Letter's page text is empty on this server. |
+| Load arrows for a ranged weapon | `t8-items-ammo` | |
 
 ## Not shown by any scenario
 

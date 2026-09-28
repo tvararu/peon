@@ -140,6 +140,7 @@ export const ROUND_1: readonly string[] = [
   "t8-items-split",
   "t8-items-open",
   "t8-items-read",
+  "t8-items-ammo",
 ];
 
 const DIR = `${import.meta.dir}/scenarios`;
