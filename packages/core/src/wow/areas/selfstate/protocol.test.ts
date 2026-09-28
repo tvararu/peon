@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { must } from "#test-support/must";
 import {
   selfstateForcePitchRateChangeBody,
   selfstateMoveSetCollisionHeightBody,
@@ -10,6 +9,7 @@ import {
   selfstateStopMirrorTimerBody,
   selfstateTransferAbortedBody,
 } from "#test-support/areas/selfstate";
+import { must } from "#test-support/must";
 import {
   buildStandStateChange,
   MIRROR_TIMERS,
