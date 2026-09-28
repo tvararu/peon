@@ -78,6 +78,34 @@ pages, timing out after 5 s.
   whose length covers the whole string, so it agrees with AzerothCore
   only for a message of one line.
 
+`CMSG_GAMEOBJ_USE` doubles as the knock before an open-lock cast: the
+probe sends it first (as the playerbot does,
+`modules/mod-playerbots/src/Bot/PlayerbotAI.cpp:3738-3748`), then
+`CMSG_CAST_SPELL` with the object target. The cast is a `uint8` cast
+count, a `uint32` spell id, a `uint8` cast flag and then the targets the
+server reads (`Handlers/SpellHandler.cpp:383`): a `uint32` mask, then a
+packed guid for a unit or game object target, a packed guid for an item
+target, and a zero packed transport guid plus three `f32` for a
+destination (the targets the cast handler reads,
+`Handlers/SpellHandler.cpp:441-445`). `CMSG_USE_ITEM` is bag, slot,
+cast count, spell id, item guid, glyph index and cast flags, then the
+same targets (`Handlers/SpellHandler.cpp:67-73`, `:193`). One
+`writeSpellTargets` writer serves both bodies; a `bigint` still writes
+today's unit bytes.
+
+The target mask order (object guid, then item guid, then source and
+destination locations) is the order the target reader consumes
+(`Spells/Spell.cpp:163-200`).
+
+The open-lock choice reads the lock table (format
+`"niiiiiiiiiiiiiiiiiiiiiiiixxxxxxxx"`,
+`src/server/shared/DataStores/DBCfmt.h:85`) into lock cases and picks
+the spell with the effect-33 `miscValue` the lock index needs, the lock's
+own spell for a spell case, or the key item the character carries
+(`Entities/GameObject/GameObject.cpp:3035-3092`,
+`Spells/Spell.cpp:8707-8760`). Skill values come from the self skill
+info fields (`Entities/Player/Player.cpp:5631-5646`).
+
 The catalog reads `AreaTrigger.dbc` from the configured `spell_data_dir`
 (ten fields of four bytes: id, map, x, y, z, radius, length, width,
 height, orientation, in the order the server loads its `areatrigger`
