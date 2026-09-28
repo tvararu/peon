@@ -7,7 +7,7 @@ import {
 import { PlaceStore } from "#wow/client-place";
 import { CombatStore } from "#wow/combat-store";
 import { DestroyStore } from "#wow/destroy-store";
-import type { EntityLookup } from "#wow/entity-store";
+import type { EntityLookup, EntityStore } from "#wow/entity-store";
 import { ItemTemplates } from "#wow/item-use";
 import { MotionStore } from "#wow/motion-store";
 import { QuestStore } from "#wow/quest-store";
@@ -24,6 +24,7 @@ export type SessionDeps = {
   now: () => number;
   selfGuid: () => bigint;
   getEntity: EntityLookup;
+  updateEntity: EntityStore["update"];
 };
 
 export type CoreStores = {
@@ -49,6 +50,8 @@ export function sessionDeps(conn: WorldConn): SessionDeps {
     now: () => Date.now(),
     selfGuid: () => selfGuid(conn),
     getEntity: (guid) => conn.entityStore.get(guid),
+    updateEntity: (guid, fields, rawFields) =>
+      conn.entityStore.update(guid, fields, rawFields),
   };
 }
 

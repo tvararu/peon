@@ -64,6 +64,7 @@ function session(port: TestPort = testPort()) {
       now: port.now,
       selfGuid: port.selfGuid,
       send: port.send,
+      updateEntity: () => undefined,
     },
     FIXTURE_MODULES,
     core,
@@ -151,6 +152,7 @@ describe("inert build", () => {
         now: () => 0,
         selfGuid: () => 0n,
         send,
+        updateEntity: () => undefined,
       };
       const fixtures = buildModuleStores(deps, FIXTURE_MODULES, core);
       createModuleRuntimes(port, FIXTURE_MODULES, fixtures, core);

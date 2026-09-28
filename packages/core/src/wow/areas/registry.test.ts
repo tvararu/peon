@@ -198,6 +198,7 @@ function registered(module: LooseModule) {
     now: () => 0,
     selfGuid: () => 0n,
     send: () => undefined,
+    updateEntity: () => undefined,
   };
   module.register(wire, module.store(deps, testStores()));
   return { on, peek };

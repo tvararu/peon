@@ -32,6 +32,7 @@ export function testStores(deps: Partial<SessionDeps> = {}): SessionStores {
     now: () => 0,
     selfGuid: () => 0n,
     send: () => undefined,
+    updateEntity: () => undefined,
     ...deps,
   });
 }
