@@ -121,5 +121,12 @@ export function questsGossipPoiBody(poi: QuestsGossipPoi): Uint8Array {
   w.uint32LE(poi.icon);
   w.uint32LE(poi.importance);
   w.cString(poi.name);
+
+export function questsQueryQuestsCompletedResponseBody(
+  ids: readonly number[],
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(ids.length);
+  for (const id of ids) w.uint32LE(id);
   return w.finish();
 }

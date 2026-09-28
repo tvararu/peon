@@ -151,3 +151,33 @@ export function buildNpcTextQuery(textId: number, guid: bigint): Uint8Array {
   w.uint64LE(guid);
   return w.finish();
 }
+
+export const QUEST_LOG_SIZE = 25;
+
+export function parseQuestsCompleted(r: PacketReader): Set<number> {
+  const count = r.uint32LE();
+  const ids = new Set<number>();
+  for (let i = 0; i < count; i++) ids.add(r.uint32LE());
+  return ids;
+}
+
+export function buildQuestgiverHello(guid: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(guid);
+  return w.finish();
+}
+
+function isLogSlot(slot: number): boolean {
+  return Number.isInteger(slot) && slot >= 0 && slot < QUEST_LOG_SIZE;
+}
+
+export function buildQuestLogSwapQuest(
+  a: number,
+  b: number,
+): Uint8Array | undefined {
+  if (a === b || !isLogSlot(a) || !isLogSlot(b)) return undefined;
+  const w = new PacketWriter();
+  w.uint8(a);
+  w.uint8(b);
+  return w.finish();
+}

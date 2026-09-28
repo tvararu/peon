@@ -1,18 +1,23 @@
 import { describe, expect, test } from "bun:test";
+
 import {
   questsGossipPoiBody,
   questsNpcTextUpdateBody,
+  questsQueryQuestsCompletedResponseBody,
   questsQuestgiverStatusMultipleBody,
   questsQuestPoiQueryResponseBody,
 } from "#test-support/areas/quests";
 import {
   buildNpcTextQuery,
+  buildQuestgiverHello,
   buildQuestgiverStatusQuery,
+  buildQuestLogSwapQuest,
   buildQuestPoiQuery,
   parseGossipPoi,
   parseNpcTextUpdate,
   parseQuestgiverStatusMultiple,
   parseQuestPoiResponse,
+  parseQuestsCompleted,
 } from "#wow/areas/quests/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 
@@ -201,5 +206,41 @@ describe("quests NPC text and gossip POI parsers", () => {
     expect(reader.uint32LE()).toBe(8281);
     expect(reader.uint64LE()).toBe(GUARD);
     expect(reader.remaining).toBe(0);
+  });
+});
+
+describe("quests log extras", () => {
+  test("SMSG_QUERY_QUESTS_COMPLETED_RESPONSE reads the rewarded quest ids (QuestHandler.cpp:627-636)", () => {
+    const reader = new PacketReader(
+      questsQueryQuestsCompletedResponseBody([8325, 8326, 9_999_999]),
+    );
+    expect(parseQuestsCompleted(reader)).toEqual(
+      new Set([8325, 8326, 9_999_999]),
+    );
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("SMSG_QUERY_QUESTS_COMPLETED_RESPONSE with a count of 0 gives no ids", () => {
+    const reader = new PacketReader(questsQueryQuestsCompletedResponseBody([]));
+    expect(parseQuestsCompleted(reader)).toEqual(new Set());
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("CMSG_QUESTGIVER_HELLO is the 8-byte giver guid (QuestHandler.cpp:79-83)", () => {
+    const body = buildQuestgiverHello(ERONA);
+    expect(body).toHaveLength(8);
+    expect(new PacketReader(body).uint64LE()).toBe(ERONA);
+  });
+
+  test("CMSG_QUESTLOG_SWAP_QUEST is two uint8 slots (QuestPackets.cpp:107-111)", () => {
+    expect(buildQuestLogSwapQuest(0, 24)).toEqual(new Uint8Array([0, 24]));
+  });
+
+  test("CMSG_QUESTLOG_SWAP_QUEST refuses slots the server ignores (QuestHandler.cpp:386-388)", () => {
+    expect(buildQuestLogSwapQuest(3, 3)).toBeUndefined();
+    expect(buildQuestLogSwapQuest(0, 25)).toBeUndefined();
+    expect(buildQuestLogSwapQuest(25, 1)).toBeUndefined();
+    expect(buildQuestLogSwapQuest(-1, 1)).toBeUndefined();
+    expect(buildQuestLogSwapQuest(0.5, 1)).toBeUndefined();
   });
 });
