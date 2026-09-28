@@ -23,7 +23,9 @@ import {
   type TransportInfo,
 } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import type { MoveFlag } from "#wow/self-store";
+import type { MoveFlag, TransferAbortedInput } from "#wow/self-store";
+
+export const TRANSFER_ABORT_TIMEOUT_MS = 10_000;
 
 const UNIT_BLOCK_FLAGS =
   UnitFlag.DISABLE_MOVE |
@@ -102,6 +104,7 @@ export class MovementSync {
   private rooted = false;
   private teleporting = false;
   private unitBlocked = false;
+  private transferAbortTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor({ deps, emit, motion }: SyncParts) {
     this.deps = deps;
@@ -199,6 +202,7 @@ export class MovementSync {
   }
 
   teleportAck({ counter, info: dest }: MoveAck): void {
+    this.cancelTransferAbortWatch();
     this.teleporting = false;
     this.motion.abort("teleport");
     this.deps.send(
@@ -209,18 +213,38 @@ export class MovementSync {
   }
 
   nearTeleport(dest: MovementInfo): void {
+    this.cancelTransferAbortWatch();
     this.teleporting = false;
     this.motion.abort("near_teleport");
     this.applyForcedPose(dest, "near_teleport");
   }
 
   handleTransferPending(): void {
+    this.cancelTransferAbortWatch();
     this.teleporting = true;
     this.motion.abort("teleport");
     this.emit("control_changed", "teleporting");
   }
 
+  transferAborted(_abort: TransferAbortedInput): void {
+    if (!this.teleporting) return;
+    this.cancelTransferAbortWatch();
+    this.transferAbortTimer = setTimeout(() => {
+      this.transferAbortTimer = undefined;
+      this.teleporting = false;
+      this.motion.stop("transfer_aborted");
+      this.emit("control_changed", undefined);
+    }, TRANSFER_ABORT_TIMEOUT_MS);
+  }
+
+  private cancelTransferAbortWatch(): void {
+    if (this.transferAbortTimer !== undefined)
+      clearTimeout(this.transferAbortTimer);
+    this.transferAbortTimer = undefined;
+  }
+
   newWorld(position: Position): void {
+    this.cancelTransferAbortWatch();
     this.teleporting = false;
     this.motion.abort("teleport");
     this.mapId = position.mapId;

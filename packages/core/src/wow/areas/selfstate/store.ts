@@ -8,9 +8,11 @@ import {
   mirrorTimerName,
   type StandStateName,
   standStateName,
+  type TransferAborted,
 } from "#wow/areas/selfstate/protocol";
 import type { MoveCounter } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
+import type { TransferAbortedInput } from "#wow/self-store";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export type MirrorTimer = {
@@ -28,13 +30,16 @@ export type SelfstateState = {
   readonly standState: StandStateName | undefined;
   readonly timers: MirrorTimers;
   readonly ghostPending: boolean;
+  readonly lastTransferAbort: TransferAbort | undefined;
 };
+export type TransferAbort = TransferAborted & { readonly at: number };
 export type SelfstateEvent =
   | {
       type: "stand_changed";
       from: StandStateName | undefined;
       to: StandStateName;
     }
+  | ({ type: "transfer_aborted" } & TransferAbort)
   | {
       type: "mirror_timer";
       timer: MirrorTimerName;
@@ -52,6 +57,7 @@ export class SelfstateStore {
   private standState: StandStateName | undefined;
   private timers: MirrorTimers = {};
   private ghostPending = false;
+  private lastTransferAbort: TransferAbort | undefined;
 
   constructor(deps: SessionDeps, core: CoreStores) {
     this.deps = deps;
@@ -63,6 +69,7 @@ export class SelfstateStore {
       standState: this.standState,
       timers: { ...this.timers },
       ghostPending: this.ghostPending,
+      lastTransferAbort: this.lastTransferAbort,
     };
   }
 
@@ -127,6 +134,13 @@ export class SelfstateStore {
     const { [name]: _, ...rest } = this.timers;
     this.timers = rest;
     this.events.emit({ type: "mirror_timer", timer: name, change: "stopped" });
+  }
+
+  receiveTransferAborted({ arg, mapId, reason }: TransferAbortedInput): void {
+    const abort: TransferAbort = { arg, at: this.deps.now(), mapId, reason };
+    this.lastTransferAbort = abort;
+    this.events.emit({ ...abort, type: "transfer_aborted" });
+    this.core.self.receive({ ...abort, type: "transfer_aborted" });
   }
 
   receivePreResurrect(guid: bigint): void {

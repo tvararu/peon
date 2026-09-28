@@ -5,6 +5,7 @@ import {
   selfstateStandstateUpdateBody,
   selfstateStartMirrorTimerBody,
   selfstateStopMirrorTimerBody,
+  selfstateTransferAbortedBody,
 } from "#test-support/areas/selfstate";
 import {
   buildStandStateChange,
@@ -14,7 +15,9 @@ import {
   parsePreResurrect,
   parseStandState,
   parseStopMirrorTimer,
+  parseTransferAborted,
   STAND_STATES,
+  TRANSFER_ABORT_REASONS,
 } from "#wow/areas/selfstate/protocol";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
@@ -142,5 +145,51 @@ describe("selfstate protocol", () => {
       ],
       skipped: [GameOpcode.SMSG_MOVE_SET_COLLISION_HGT],
     });
+  });
+});
+
+describe("SMSG_TRANSFER_ABORTED (AC Entities/Player/Player.cpp:11956-11972)", () => {
+  test("reasons 7, 8 and 9 carry a u8 arg after the map and reason", () => {
+    expect(TRANSFER_ABORT_REASONS.insuf_expan_lvl).toBe(7);
+    expect(TRANSFER_ABORT_REASONS.difficulty).toBe(8);
+    expect(TRANSFER_ABORT_REASONS.unique_message).toBe(9);
+    const bodies = [36, 574, 631].map((mapId, i) =>
+      selfstateTransferAbortedBody({ arg: 1, mapId, reason: 7 + i }),
+    );
+    expect(bodies.map(hex)).toEqual([
+      "240000000701",
+      "3e0200000801",
+      "770200000901",
+    ]);
+    const last = bodies[2];
+    if (!last) throw new Error("missing body");
+    expect(parseTransferAborted(read(last))).toEqual({
+      arg: 1,
+      mapId: 631,
+      reason: 9,
+    });
+  });
+
+  test("reason 5 ends after the reason byte", () => {
+    const body = selfstateTransferAbortedBody({ mapId: 36, reason: 5 });
+    expect(hex(body)).toBe("2400000005");
+    const r = read(body);
+    expect(parseTransferAborted(r)).toEqual({
+      arg: undefined,
+      mapId: 36,
+      reason: 5,
+    });
+    expect(r.remaining).toBe(0);
+  });
+
+  test("too_many_instances is reason 4 with no arg (AC Maps/MapMgr.cpp:230-244)", () => {
+    expect(TRANSFER_ABORT_REASONS.too_many_instances).toBe(4);
+    const r = read(selfstateTransferAbortedBody({ mapId: 36, reason: 4 }));
+    expect(parseTransferAborted(r)).toEqual({
+      arg: undefined,
+      mapId: 36,
+      reason: 4,
+    });
+    expect(r.remaining).toBe(0);
   });
 });

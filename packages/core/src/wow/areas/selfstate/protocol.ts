@@ -111,3 +111,37 @@ export function buildStandStateChange(state: StandStateName): Uint8Array {
   w.uint32LE(STAND_STATES[state]);
   return w.finish();
 }
+
+export const TRANSFER_ABORT_REASONS = {
+  none: 0,
+  error: 1,
+  max_players: 2,
+  not_found: 3,
+  too_many_instances: 4,
+  zone_in_combat: 6,
+  insuf_expan_lvl: 7,
+  difficulty: 8,
+  unique_message: 9,
+  too_many_realm_instances: 10,
+  need_group: 11,
+  not_found1: 12,
+  not_found2: 13,
+  not_found3: 14,
+  realm_only: 15,
+  map_not_allowed: 16,
+} as const;
+export type TransferAbortReasonName = keyof typeof TRANSFER_ABORT_REASONS;
+
+export type TransferAborted = {
+  mapId: number;
+  reason: number;
+  arg: number | undefined;
+};
+
+export function parseTransferAborted(r: PacketReader): TransferAborted {
+  const mapId = r.uint32LE();
+  const reason = r.uint8();
+  const arg =
+    reason === 7 || reason === 8 || reason === 9 ? r.uint8() : undefined;
+  return { arg, mapId, reason };
+}

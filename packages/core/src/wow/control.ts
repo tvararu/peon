@@ -24,7 +24,7 @@ import {
   type SpeedAck,
 } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import type { MoveFlag } from "#wow/self-store";
+import type { MoveFlag, TransferAbortedInput } from "#wow/self-store";
 
 const FORWARD: MovementInput = { move: "forward" };
 
@@ -168,6 +168,10 @@ export class ControlRuntime {
 
   handleTransferPending(): void {
     this.sync.handleTransferPending();
+  }
+
+  transferAborted(abort: TransferAbortedInput): void {
+    this.sync.transferAborted(abort);
   }
 
   newWorld(position: Position): void {

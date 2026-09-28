@@ -226,3 +226,54 @@ describe("ControlRuntime.moveFlag (AC Handlers/MiscHandler.cpp:1505-1520)", () =
     }
   });
 });
+
+describe("ControlRuntime.transferAborted (AC Handlers/MovementHandler.cpp:91-97)", () => {
+  test("after handleTransferPending, a transfer abort arms a watchdog that clears teleporting", () => {
+    jest.useFakeTimers();
+    try {
+      const { runtime, advance } = setup();
+      runtime.handleTransferPending();
+      expect(runtime.snapshot().blockedReason).toBe("teleporting");
+      runtime.transferAborted({ arg: undefined, mapId: 36, reason: 4 });
+      expect(runtime.snapshot().blockedReason).toBe("teleporting");
+      advance(10_000);
+      expect(runtime.snapshot().blockedReason).toBeUndefined();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("a new_world first cancels the abort watchdog", () => {
+    jest.useFakeTimers();
+    try {
+      const { runtime, sent, advance } = setup();
+      runtime.handleTransferPending();
+      runtime.transferAborted({ arg: undefined, mapId: 36, reason: 4 });
+      runtime.newWorld({
+        mapId: 36,
+        orientation: 0,
+        x: 0,
+        y: 0,
+        z: 0,
+      });
+      advance(10_000);
+      expect(
+        sent.some((p) => p.opcode === GameOpcode.MSG_MOVE_WORLDPORT_ACK),
+      ).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("an abort with no pending transfer arms nothing", () => {
+    jest.useFakeTimers();
+    try {
+      const { runtime, advance } = setup();
+      runtime.transferAborted({ arg: undefined, mapId: 36, reason: 4 });
+      advance(10_000);
+      expect(runtime.snapshot().blockedReason).toBeUndefined();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});

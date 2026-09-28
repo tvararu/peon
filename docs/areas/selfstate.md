@@ -97,7 +97,14 @@ sleep or kneel and settles `ok` on the reply, `refused` with
 
 ## Left out
 
-- `SMSG_TRANSFER_ABORTED`: built by `self-state-4`.
+- `SMSG_TRANSFER_ABORTED` is a `uint32` map, a `uint8` reason and a
+  `uint8` arg only for reasons 7, 8 and 9
+  (`Entities/Player/Player.cpp:11956-11972`). The store keeps it as
+  `lastTransferAbort` and fires one `transfer_aborted` area event, which
+  reaches control through `core.self.receive`. After
+  `handleTransferPending`, an abort arms a 10 s watchdog that clears
+  `teleporting` when no `new_world` or near teleport arrives; a
+  `new_world` first cancels it.
 - `SMSG_MOVE_SET_COLLISION_HGT`, `CMSG_MOVE_SET_COLLISION_HGT_ACK`,
   `SMSG_FORCE_PITCH_RATE_CHANGE`, `CMSG_FORCE_PITCH_RATE_CHANGE_ACK`,
   `CMSG_MOVE_TIME_SKIPPED` and `CMSG_MOVE_FALL_RESET`: built by
@@ -141,3 +148,4 @@ tasks.
 | `SMSG_FORCED_DEATH_UPDATE` | `dead` | registered as `STATUS_NEVER` and no AzerothCore code writes it | `Server/Protocol/Opcodes.cpp:1021` |
 | `CMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY_ACK` | `dead` | registered as `STATUS_NEVER` with `Handle_NULL` | `Server/Protocol/Opcodes.cpp:963` |
 | `SMSG_PAUSE_MIRROR_TIMER` | `dead` | registered as `STATUS_NEVER`; its packet class is never constructed | `Server/Packets/MiscPackets.cpp:113` |
+| `SMSG_TRANSFER_ABORTED` | `mock` | `store.test.ts` transfer-aborted tests; GM tele bypasses `PlayerCannotEnter`, so the server never refused the entry (not seen live) | `Entities/Player/Player.cpp:11956-11972` |

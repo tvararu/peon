@@ -15,6 +15,9 @@ export function feedControl(control: ControlRuntime, event: SelfEvent): void {
     case "transfer_pending":
       control.handleTransferPending();
       return;
+    case "transfer_aborted":
+      control.transferAborted(event);
+      return;
     case "new_world":
       control.newWorld(event.position);
       return;

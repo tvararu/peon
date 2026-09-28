@@ -5,7 +5,7 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x040` | `SMSG_TRANSFER_ABORTED` | server | missing |  |
+| `0x040` | `SMSG_TRANSFER_ABORTED` | server | handled | not seen live |
 | `0x0de` | `SMSG_MOVE_WATER_WALK` | server | handled |  |
 | `0x0df` | `SMSG_MOVE_LAND_WALK` | server | handled |  |
 | `0x0f2` | `SMSG_MOVE_FEATHER_FALL` | server | handled |  |

@@ -14,6 +14,7 @@ import {
   selfstateStandstateUpdateBody,
   selfstateStartMirrorTimerBody,
   selfstateStopMirrorTimerBody,
+  selfstateTransferAbortedBody,
 } from "#test-support/areas/selfstate";
 import type { SelfstateEvent } from "#wow/areas/selfstate/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -310,6 +311,48 @@ describe("selfstate store", () => {
       );
       expect(rig.handle.state().ghostPending).toBe(true);
       expect(events).toEqual([{ type: "ghost_pending" }]);
+    } finally {
+      rig.dispose();
+    }
+  });
+});
+
+describe("selfstate transfer aborted", () => {
+  test("SMSG_TRANSFER_ABORTED records the abort and emits transfer_aborted (AC Entities/Player/Player.cpp:11956-11972)", () => {
+    const { rig, events } = rigWithAreaEvents(() => 9000);
+    try {
+      rig.inject(
+        GameOpcode.SMSG_TRANSFER_ABORTED,
+        selfstateTransferAbortedBody({ mapId: 36, reason: 4 }),
+      );
+      expect(rig.handle.state().lastTransferAbort).toEqual({
+        arg: undefined,
+        at: 9000,
+        mapId: 36,
+        reason: 4,
+      });
+      expect(events).toContainEqual({
+        arg: undefined,
+        at: 9000,
+        mapId: 36,
+        reason: 4,
+        type: "transfer_aborted",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_TRANSFER_ABORTED fires one area event with the arg reason (AC Entities/Player/Player.cpp:11964-11970)", () => {
+    const { rig, events } = rigWithAreaEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_TRANSFER_ABORTED,
+        selfstateTransferAbortedBody({ arg: 2, mapId: 631, reason: 8 }),
+      );
+      expect(events).toEqual([
+        { arg: 2, at: 0, mapId: 631, reason: 8, type: "transfer_aborted" },
+      ]);
     } finally {
       rig.dispose();
     }

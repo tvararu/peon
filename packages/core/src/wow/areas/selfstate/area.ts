@@ -7,6 +7,7 @@ import {
   parsePreResurrect,
   parseStandState,
   parseStopMirrorTimer,
+  parseTransferAborted,
 } from "#wow/areas/selfstate/protocol";
 import { selfstateRuntime } from "#wow/areas/selfstate/runtime";
 import { SelfstateStore } from "#wow/areas/selfstate/store";
@@ -37,6 +38,9 @@ export const selfstateArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_PRE_RESURRECT, (r) =>
       store.receivePreResurrect(parsePreResurrect(r)),
+    );
+    wire.on(GameOpcode.SMSG_TRANSFER_ABORTED, (r) =>
+      store.receiveTransferAborted(parseTransferAborted(r)),
     );
   },
   runtime: (ctx, store) => selfstateRuntime(ctx, store),

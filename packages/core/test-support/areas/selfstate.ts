@@ -117,3 +117,21 @@ export function selfstateMultipleMovesBody(
   w.rawBytes(body);
   return w.finish();
 }
+
+export type TransferAbortedBody = {
+  mapId: number;
+  reason: number;
+  arg?: number;
+};
+
+export function selfstateTransferAbortedBody({
+  mapId,
+  reason,
+  arg,
+}: TransferAbortedBody): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(mapId);
+  w.uint8(reason);
+  if (arg !== undefined) w.uint8(arg);
+  return w.finish();
+}
