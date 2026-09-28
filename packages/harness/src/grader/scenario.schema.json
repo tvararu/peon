@@ -230,7 +230,8 @@
                       "movement_start",
                       "answer_text",
                       "steer_landed",
-                      "task_landed"
+                      "task_landed",
+                      "channel_start"
                     ]
                   }
                 },
@@ -332,7 +333,8 @@
                       "movement_start",
                       "answer_text",
                       "steer_landed",
-                      "task_landed"
+                      "task_landed",
+                      "channel_start"
                     ]
                   }
                 },

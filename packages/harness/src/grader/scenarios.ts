@@ -8,7 +8,8 @@ export type TriggerName =
   | "movement_start"
   | "answer_text"
   | "steer_landed"
-  | "task_landed";
+  | "task_landed"
+  | "channel_start";
 
 export type SteerAt =
   | { kind: "trigger"; trigger: TriggerName; nth?: number; delayMs?: number }

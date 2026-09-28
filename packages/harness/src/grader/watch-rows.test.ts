@@ -54,6 +54,7 @@ describe("TRIGGER_EVENTS", () => {
   test("follows the design I.2 table", () => {
     expect(TRIGGER_EVENTS).toEqual({
       answer_text: ["agent/message"],
+      channel_start: ["spells/channel_start"],
       death: ["life/dead"],
       fight_start: ["fight/start"],
       kill: ["combat/kill_credit"],
