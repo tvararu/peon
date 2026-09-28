@@ -29,17 +29,25 @@ The runtime sends one `CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY` 500 ms
 after the last trigger, and at most once every 2 s. A trigger is a unit
 with the quest-giver NPC flag or a quest-giver game object coming into
 view with no mark, an update that gives a unit the flag, or a quest
-mark. The runtime also queues a `CMSG_QUEST_POI_QUERY` when a quest is
-accepted, when the quest log changes, or through `queryPoi(ids)`, in
-packets of at most 25 ids with duplicates removed. It queries only ids
-above 0 with no entry or a `no_reply` entry, so cached and in-flight
-quests are not asked again. A quest with no POIs
+mark, or a quest accepted, removed, completed or failed. A giver that leaves
+view loses its mark. The runtime also queues a `CMSG_QUEST_POI_QUERY`
+when a quest is accepted, when the quest log changes, or through
+`queryPoi(ids)`, in packets of at most 25 ids with duplicates removed.
+It queries only ids above 0 with no entry or a `no_reply` entry, so
+cached and in-flight quests are not asked again. A quest with no POIs
 becomes `none`; an id with no reply after `REPLY_TIMEOUT_MS` (5000)
 becomes `no_reply`, and the next log change queries it once more. The
 acts are `queryGiverStatus(guid)`, which sends the single query
 for a creature or game object in view, `queryGiverStatuses()`, which
 sends the multiple query at once, and `queryPoi(ids)`, which returns the
-known entries.
+known entries. `queryCompleted()` sends one
+`CMSG_QUERY_QUESTS_COMPLETED` and refuses while a query waits for its
+reply; the reply replaces `completed` (`{ ids, at }`) and emits
+`completed` with `{ count }`, and a rewarded quest joins the ids in
+silence. `questgiverHello(guid)` sends the 8-byte hello,
+`autoLaunch()` sends the empty auto-launch, and `swapLogSlots(a, b)`
+sends two `uint8` slots and refuses equal slots and slots of 25 or more.
+The runtime sends the completed query once at login.
 
 ## Wire notes
 
@@ -54,6 +62,23 @@ known entries.
   nothing is in view yet.
 - `CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY` has no body, and the server
   answers it with the list (`Handlers/QuestHandler.cpp:620-623`).
+- `CMSG_QUERY_QUESTS_COMPLETED` has no body, and the server answers
+  with the rewarded ids (`Handlers/QuestHandler.cpp:625-637`).
+- `SMSG_QUERY_QUESTS_COMPLETED_RESPONSE` is a `uint32` count, then one
+  `uint32` quest id per rewarded quest
+  (`Handlers/QuestHandler.cpp:627-636`).
+- `CMSG_QUESTGIVER_HELLO` is the 8-byte giver guid
+  (`Handlers/QuestHandler.cpp:79-83`). A nearby quest giver answers with
+  a gossip or quest dialog (`Handlers/QuestHandler.cpp:96-108`).
+- `CMSG_QUESTGIVER_QUEST_AUTOLAUNCH` has no body and its handler does
+  nothing (`Server/Packets/QuestPackets.h:163-166`,
+  `Handlers/QuestHandler.cpp:525-527`,
+  `Server/Protocol/Opcodes.cpp:522`).
+- `CMSG_QUESTLOG_SWAP_QUEST` is two `uint8` log slots; the server ignores
+  equal slots and slots of 25 or more, the quest log size
+  (`Server/Packets/QuestPackets.cpp:107-111`,
+  `Handlers/QuestHandler.cpp:386-388`,
+  `Server/Protocol/Opcodes.cpp:534`).
 - `CMSG_QUESTGIVER_STATUS_QUERY` is the 8-byte giver guid
   (`Handlers/QuestHandler.cpp:36-40`). The reply is
   `SMSG_QUESTGIVER_STATUS`, the guid and a `uint8` status
@@ -103,9 +128,19 @@ known entries.
 ## Left out
 
 - `SMSG_QUEST_FORCE_REMOVE` is dead: see Proof.
+- The hello reply reaches `QuestStore` with no pending intent, so it
+  records `stale_dialog` (`quest-store.ts:278-283`). No verb sends hello;
+  `interact do:talk` keeps `CMSG_GOSSIP_HELLO`, which reaches the same
+  gossip path (`Server/Protocol/Opcodes.cpp:510`,
+  `Handlers/NPCHandler.cpp:139`).
+- `CMSG_QUEST_POI_QUERY` and `SMSG_QUEST_POI_QUERY_RESPONSE`: `live` in
+  the Proof table below; built by `quests-3`.
+- `CMSG_NPC_TEXT_QUERY`, `SMSG_NPC_TEXT_UPDATE` and `SMSG_GOSSIP_POI`:
+  `live` in the Proof table below; built by `quests-5`.
 - `CMSG_QUESTGIVER_HELLO`, `CMSG_QUESTGIVER_QUEST_AUTOLAUNCH`,
   `CMSG_QUESTLOG_SWAP_QUEST`, `CMSG_QUERY_QUESTS_COMPLETED` and
-  `SMSG_QUERY_QUESTS_COMPLETED_RESPONSE`: built by `quests-9`.
+  `SMSG_QUERY_QUESTS_COMPLETED_RESPONSE`: `live`/`accepted` in the Proof
+  table below; built by `quests-9`.
 - `CMSG_PUSHQUESTTOPARTY` and `MSG_QUEST_PUSH_RESULT`: built by
   `quests-7a`.
 - `SMSG_QUEST_CONFIRM_ACCEPT` and `CMSG_QUEST_CONFIRM_ACCEPT`: built by
@@ -128,3 +163,8 @@ No verb yet: `quests-2` shows the marks in `look`.
 | `SMSG_NPC_TEXT_UPDATE` | `live` | probe flow `quests-text`, exit 0; Magistrix Erona's greeting (title text id 16703) and the `Greetings $N` fallback for id 999999 | `Handlers/QueryHandler.cpp:286-355` |
 | `SMSG_GOSSIP_POI` | `mock` | not seen live: no guard with entry 1423 or 68 in view at three staged Stormwind positions; the packet test builds the body from the writer | `Entities/Creature/GossipDef.cpp:247-270` |
 | `SMSG_QUEST_FORCE_REMOVE` | `dead` | no file in `src/` or `modules/` names it outside the opcode enum and table, which marks it `STATUS_NEVER` | `Server/Protocol/Opcodes.cpp:673` |
+| `CMSG_QUESTGIVER_HELLO` | `live` | probe flow `quests-extras` on a `fresh` character with quests 8324 and 8326 active, teleported to map 530 near Magistrix Erona (entry 15278): the 8-byte hello drew `SMSG_GOSSIP_MESSAGE` and `QuestStore` recorded `stale_dialog` | `Handlers/QuestHandler.cpp:79-108` |
+| `CMSG_QUESTGIVER_QUEST_AUTOLAUNCH` | `accepted` | probe flow `quests-extras`, exit 0: the empty packet drew no error packet and the session stayed up | `Handlers/QuestHandler.cpp:525-527` |
+| `CMSG_QUESTLOG_SWAP_QUEST` | `live` | probe flow `quests-extras`: slots 0 and 1 held quests 8324 and 8326 before, 8326 and 8324 after | `Server/Packets/QuestPackets.cpp:107-111` |
+| `CMSG_QUERY_QUESTS_COMPLETED` | `live` | probe flow `quests-extras`, exit 0: the login query drew `SMSG_QUERY_QUESTS_COMPLETED_RESPONSE`, and `soap truth rewardedQuests` agreed (`[]`) | `Handlers/QuestHandler.cpp:625-637` |
+| `SMSG_QUERY_QUESTS_COMPLETED_RESPONSE` | `live` | probe flow `quests-extras`, exit 0: an empty list (count 0) on a character with no rewarded quests | `Handlers/QuestHandler.cpp:627-636` |
