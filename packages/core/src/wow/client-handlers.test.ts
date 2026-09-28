@@ -127,14 +127,14 @@ describe("stub notices", () => {
     const notices: NoticeEvent[] = [];
     conn.events.message.subscribe((msg) => chat.push(msg.message));
     conn.events.notice.subscribe((event) => notices.push(event));
-    conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
+    conn.dispatch.handle(GameOpcode.SMSG_WARDEN_DATA, weather());
     expect(chat).toEqual([]);
     expect(notices).toMatchObject([
       {
         type: "not_implemented",
-        opcode: GameOpcode.SMSG_WEATHER,
-        label: "Weather change",
-        text: "[peon] Weather change is not yet implemented",
+        opcode: GameOpcode.SMSG_WARDEN_DATA,
+        label: "Warden anti-cheat",
+        text: "[peon] Warden anti-cheat is not yet implemented",
       },
     ]);
   });
@@ -142,17 +142,17 @@ describe("stub notices", () => {
   test("a notice with no subscriber replays to the first onNotice subscriber", () => {
     const conn = stubConn();
     const now = jest.spyOn(Date, "now").mockReturnValue(1000);
-    conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
+    conn.dispatch.handle(GameOpcode.SMSG_WARDEN_DATA, weather());
     now.mockReturnValue(5000);
     const { onNotice } = extrasMethods(conn, {} as Runtimes);
     const first: NoticeEvent[] = [];
     const second: NoticeEvent[] = [];
     onNotice((event) => first.push(event));
     onNotice((event) => second.push(event));
-    conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
+    conn.dispatch.handle(GameOpcode.SMSG_WARDEN_DATA, weather());
     now.mockRestore();
     expect(first).toMatchObject([
-      { at: 1000, opcode: GameOpcode.SMSG_WEATHER },
+      { at: 1000, opcode: GameOpcode.SMSG_WARDEN_DATA },
     ]);
     expect(second).toEqual([]);
   });
@@ -161,14 +161,16 @@ describe("stub notices", () => {
     const conn = stubConn();
     for (let opcode = 0x7_00; opcode < 0x7_00 + NOTICE_BACKLOG; opcode++)
       conn.dispatch.handle(opcode, weather());
-    conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
+    conn.dispatch.handle(GameOpcode.SMSG_WARDEN_DATA, weather());
     const notices: NoticeEvent[] = [];
     extrasMethods(conn, {} as Runtimes).onNotice((event) =>
       notices.push(event),
     );
-    conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
+    conn.dispatch.handle(GameOpcode.SMSG_WARDEN_DATA, weather());
     expect(notices).toHaveLength(NOTICE_BACKLOG + 1);
-    expect(notices.at(-1)).toMatchObject({ opcode: GameOpcode.SMSG_WEATHER });
+    expect(notices.at(-1)).toMatchObject({
+      opcode: GameOpcode.SMSG_WARDEN_DATA,
+    });
   });
 
   test("an opcode nothing handles emits one notice by its name", () => {
