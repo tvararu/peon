@@ -59,9 +59,12 @@ function line(row: Row): string {
   return `${name}: ${rank}${progress}${suffix}.`;
 }
 
-function watchedLine(state: ReputationState): string | undefined {
-  if (state.watched === undefined) return undefined;
-  const row = state.factions.find((entry) => entry.repListId === state.watched);
+function watchedLine(
+  rows: Row[],
+  watched: number | undefined,
+): string | undefined {
+  if (watched === undefined) return undefined;
+  const row = rows.find((entry) => entry.repListId === watched);
   if (row === undefined) return undefined;
   return `Watched: ${row.name ?? `Faction ${row.repListId}`}.`;
 }
@@ -75,7 +78,7 @@ export function reputationLines(
     return state.factions.length === 0
       ? ["The server has not listed any factions for you yet."]
       : [`No faction matches "${find ?? ""}".`];
-  const watched = watchedLine(state);
+  const watched = watchedLine(rows, state.watched);
   const room = watched === undefined ? BUDGET : BUDGET - 1;
   const head = rows.slice(0, room - 1);
   const more = rows.length - head.length;

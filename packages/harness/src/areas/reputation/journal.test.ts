@@ -87,6 +87,20 @@ describe("reputationLines", () => {
     ]);
   });
 
+  test("leaves out the watched line when that faction is not visible", () => {
+    const hidden = row({ changedAt: 20, visible: false, watched: true });
+    expect(reputationLines(state([hidden, booty], { watched: 55 }))).toEqual([
+      "Booty Bay: Neutral 0/3000, at war.",
+    ]);
+  });
+
+  test("leaves out the watched line when find filters that faction out", () => {
+    const factions = [row({ changedAt: 20, watched: true }), booty];
+    expect(reputationLines(state(factions, { watched: 55 }), "booty")).toEqual([
+      "Booty Bay: Neutral 0/3000, at war.",
+    ]);
+  });
+
   test("find filters by faction name, ignoring case", () => {
     const factions = [booty, row({ changedAt: 20 })];
     expect(reputationLines(state(factions), "silver")).toEqual([

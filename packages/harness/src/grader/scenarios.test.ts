@@ -318,4 +318,13 @@ describe("checks measure what they name", () => {
       stopped: "no_fight_after_stop",
     });
   });
+
+  test("t4-reputation-gain accepts the faction by id when Faction.dbc is absent", () => {
+    expect(checkOf("t4-reputation-gain", "reputation-rows")).toMatchObject({
+      evidence: {
+        events: ["reputation/changed", "reputation/rank"],
+        ids: [55],
+      },
+    });
+  });
 });
