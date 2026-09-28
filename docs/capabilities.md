@@ -32,7 +32,6 @@ or the page names one that does not exist.
 | Open a container and keep its contents | `t8-items-open` | |
 | Read a letter in its bags | `t8-items-read` | The Dusty Unsent Letter's page text is empty on this server. |
 | Load arrows for a ranged weapon | `t8-items-ammo` | |
-| Walk into an area trigger so the server answers | `t4-objects-explore-fargodeep` | Not shown: the agent never reaches trigger 88 (see below). |
 
 
 ## Not shown by any scenario
