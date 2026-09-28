@@ -112,7 +112,7 @@ grader to read. The draft fills the check's `observed` from its typed
 
 | `evidence` field | For | The draft shows |
 |---|---|---|
-| `truth` | `truth` checks | Baseline and final of the listed fields: `alive` (with `deathState`), `inventory`, `level`, `money`, `quests` (with `rewardedQuests`) and `totalXp` (with `level` and `xp`). With no `truth`, `items` or `point`, the whole truth summary. |
+| `truth` | `truth` checks | Baseline and final of the listed fields: `alive` (with `deathState`), `inventory`, `equipment` (the `inventory` rows of `bag` 255 and `slot` 0-18), `bank` (the rows of `bag` -1 and of `bag` 255 `slot` 39-73), `spells` (sorted), `level`, `money`, `quests` (with `rewardedQuests`) and `totalXp` (with `level` and `xp`). With no `truth`, `items` or `point`, the whole truth summary. |
 | `delta` | `truth` checks | Final minus baseline of `money` or `totalXp`. |
 | `items` | `truth` checks | Baseline, final and delta counts, summed over every row, of each listed item id and of every item whose count changed. |
 | `point` | `truth` checks | An `{ "x", "y" }` point: the final position and its 2D distance to the point, instead of the other truth fields. |

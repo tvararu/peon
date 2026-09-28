@@ -83,10 +83,13 @@
                 "items": {
                   "enum": [
                     "alive",
+                    "bank",
+                    "equipment",
                     "inventory",
                     "level",
                     "money",
                     "quests",
+                    "spells",
                     "totalXp"
                   ]
                 },

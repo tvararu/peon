@@ -28,10 +28,13 @@ export type CheckMeasure =
 
 export type TruthPick =
   | "alive"
+  | "bank"
+  | "equipment"
   | "inventory"
   | "level"
   | "money"
   | "quests"
+  | "spells"
   | "totalXp";
 
 export type TruthDelta = "money" | "totalXp";

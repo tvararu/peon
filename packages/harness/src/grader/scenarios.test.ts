@@ -62,6 +62,31 @@ describe("scenario files", () => {
     }
   });
 
+  test("a truth check may pick spells, equipment and bank", () => {
+    const scenario = loadScenario("t0-self-state");
+    const check = {
+      evidence: { truth: ["spells", "equipment", "bank"] },
+      expect: "gear",
+      id: "gear",
+      source: "truth",
+    };
+    const loaded = parseScenario("t0-self-state.json", {
+      ...scenario,
+      checks: [check],
+    });
+    expect(loaded.checks[0]?.evidence?.truth).toEqual([
+      "spells",
+      "equipment",
+      "bank",
+    ]);
+    expect(() =>
+      parseScenario("t0-self-state.json", {
+        ...scenario,
+        checks: [{ ...check, evidence: { truth: ["talents"] } }],
+      }),
+    ).toThrow("invalid scenario t0-self-state.json: $.checks[0].evidence");
+  });
+
   test("an unknown id throws and names the known ids", () => {
     expect(() => loadScenario("t9-nope")).toThrow(
       "unknown scenario: t9-nope (known: t4-quest-first,",

@@ -331,6 +331,80 @@ describe("observedChecks on truth", () => {
     expect(check?.observed).toBeNull();
   });
 
+  test("a spells check gets the sorted spell lists", async () => {
+    const dir = await runDir(files({ spells: [2050, 585, 139] }));
+    const [check] = await observedChecks(dir, [
+      tr("spells", { truth: ["spells"] }),
+    ]);
+    expect(check?.observed).toEqual({
+      baseline: { spells: [585] },
+      final: { spells: [139, 585, 2050] },
+    });
+  });
+
+  const held = (bag: number, slot: number, item: number) => ({
+    bag,
+    count: 1,
+    item,
+    name: `Item ${item}`,
+    slot,
+  });
+  const gear = {
+    inventory: [
+      held(255, 0, 37_594),
+      held(255, 18, 5976),
+      held(255, 19, 51_809),
+      held(255, 23, 6948),
+      held(255, 39, 2589),
+      held(255, 66, 2592),
+      held(255, 73, 4500),
+      held(255, 74, 117),
+      held(255, 86, 30_633),
+      held(0, 0, 159),
+      held(-1, 4, 2770),
+    ],
+  };
+  test("an equipment check gets only the bag 255 rows of slot 0-18", async () => {
+    const dir = await runDir(files(gear));
+    const [check] = await observedChecks(dir, [
+      tr("gear", { truth: ["equipment"] }),
+    ]);
+    expect(check?.observed).toEqual({
+      baseline: {
+        equipment: [
+          {
+            bag: 255,
+            count: 1,
+            item: 2092,
+            name: "Worn Dagger",
+            slot: 15,
+          },
+        ],
+      },
+      final: {
+        equipment: [held(255, 0, 37_594), held(255, 18, 5976)],
+      },
+    });
+  });
+
+  test("a bank check gets the bank bag rows and bag 255 slots 39-73", async () => {
+    const dir = await runDir(files(gear));
+    const [check] = await observedChecks(dir, [
+      tr("bank", { truth: ["bank"] }),
+    ]);
+    expect(check?.observed).toEqual({
+      baseline: { bank: [] },
+      final: {
+        bank: [
+          held(255, 39, 2589),
+          held(255, 66, 2592),
+          held(255, 73, 4500),
+          held(-1, 4, 2770),
+        ],
+      },
+    });
+  });
+
   test("a check that selects no truth field gets the whole summary", async () => {
     const dir = await runDir(files({ money: 50_030 }));
     const [check] = await observedChecks(dir, [tr("state")]);

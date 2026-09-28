@@ -8,7 +8,7 @@ import type {
   TruthDelta,
   TruthPick,
 } from "#harness/grader/scenarios";
-import type { Truth } from "#harness/grader/truth";
+import type { Truth, TruthItem } from "#harness/grader/truth";
 import { totalXp } from "#harness/grader/xp-table";
 
 export type TruthSummary = Pick<
@@ -46,23 +46,50 @@ type Pair = { baseline: Truth | null; final: Truth | null };
 type Picked = Record<string, unknown>;
 type Picker = (truth: Truth) => Picked;
 
+const CHARACTER_BAG = 255;
+const BANK_BAG = -1;
+const EQUIPMENT_SLOTS = { first: 0, last: 18 };
+const BANK_SLOTS = { first: 39, last: 73 };
+
+const inSlots = (slot: number, { first, last }: typeof BANK_SLOTS) =>
+  slot >= first && slot <= last;
+
+const rowsOf = (rows: readonly TruthItem[]) =>
+  rows.map(({ bag, count, item, name, slot }) => ({
+    bag,
+    count,
+    item,
+    name,
+    slot,
+  }));
+
 const PICKS: Readonly<Record<TruthPick, Picker>> = {
   alive: ({ alive, deathState }) => ({ alive, deathState }),
-  inventory: ({ inventory }) => ({
-    inventory: inventory.map(({ bag, count, item, name, slot }) => ({
-      bag,
-      count,
-      item,
-      name,
-      slot,
-    })),
+  bank: ({ inventory }) => ({
+    bank: rowsOf(
+      inventory.filter(
+        ({ bag, slot }) =>
+          bag === BANK_BAG ||
+          (bag === CHARACTER_BAG && inSlots(slot, BANK_SLOTS)),
+      ),
+    ),
   }),
+  equipment: ({ inventory }) => ({
+    equipment: rowsOf(
+      inventory.filter(
+        ({ bag, slot }) =>
+          bag === CHARACTER_BAG && inSlots(slot, EQUIPMENT_SLOTS),
+      ),
+    ),
+  }),
+  inventory: ({ inventory }) => ({ inventory: rowsOf(inventory) }),
   level: ({ level }) => ({ level }),
   money: ({ money }) => ({ money }),
   quests: ({ quests, rewardedQuests }) => ({
     quests: quests.map(({ quest, status }) => ({ quest, status })),
     rewardedQuests,
   }),
+  spells: ({ spells }) => ({ spells: spells.toSorted((a, b) => a - b) }),
   totalXp: ({ level, xp }) => ({ level, totalXp: totalXp(level, xp), xp }),
 };
 
