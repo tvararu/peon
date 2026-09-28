@@ -4098,4 +4098,536 @@ Each has a default that the build uses until he rules; each default is
 - Which base-data NPC, object and quest ids match the live world; each
   worker confirms them live before a scenario pins them.
 
+## 8. Build record
+
+The overnight build of 2026-09-27 to 2026-09-28. Snapshot: about 06:50
+UTC, branch tip `800e35c2`, 113 commits over `main`. The wave 1 run
+`wf_b3719fee-765` is running at the snapshot, so 8.4 is a snapshot. Times
+are UTC committer times.
+
+### 8.1 Timeline
+
+| Time (UTC) | Event |
+|---|---|
+| 09-27 ~20:30 | Research done (8 researchers, 2 verify stages). Issue #426 opened, out of Ready. |
+| ~20:45 | Design run `wf_66a1ef0d-a6a` starts in worktree `ribboneel`. |
+| ~21:45 | `wf_66a1ef0d-a6a` stops: 10 of 24 design agents refuse the task. Relaunch as `wf_076184aa-88d`; the 10 finished designs are kept. |
+| ~22:00 to ~22:10 | Item 6 merges #421, #422, #425, #428, #429. The code gate (R3, R11) opens. |
+| 23:03 | `25886a44` design. Draft PR #430 opens. |
+| 23:06 | `9f5a1f22` design approval (advisor, R14, four conditions). |
+| 23:14 | R0 re-baseline report (early build `wf_c41106f3-236`, N33). |
+| 23:17 to 23:56 | T-1 to T-5 land, head `02b83919`. |
+| 09-28 00:04 | `91780c8e` re-baseline applied. |
+| 00:57 | `c60663ef` plan (263 tasks in the index, run `wf_ff6acc11-18c`). Advisor approves with conditions (R14). |
+| 01:03 | `5ddd356c` contract amendments applied to the design. |
+| 01:12 | `f3cb40a9` Gate R rulings GR-1 to GR-42. Phase 0 build `wf_ad3b03c0-1d2` (tooling check `wf_b66dd71d-d38` before it). |
+| 01:17 to 02:26 | 17 phase 0 tasks land. S0-5 and T-10 block; S0-4 is held with S0-5. |
+| 01:37 | `26d91c7a` wave 1 seed rulings (SR1, 191 ids). |
+| 01:41 to 01:53 | Eval round 0 at `26d91c7a`. |
+| 03:20 | `ec70604e` ruling BR-S0-5-2. |
+| 03:21 | S0-4, S0-5, T-10 land (T-10 with BR-T-10-1, `564566a3`), run `wf_5bfc77ef-c76`. Phase 0: 20 of 20. |
+| 03:38 to 03:44 | SEED-1 (`ae999799`..`61904581`), wave 1 run `wf_1f5fe44d-3fa`. |
+| ~04:45 | threat-1 pilot spends over an hour on seven live probes. Run stopped and resumed with a two-try cap on rare live attempts. |
+| ~05:25 | Resumed wave 1 run ends with 0 of 73 landed: the probe logs in without game data. Ruling BR-threat-1-1, fix run `wf_3d1bc31d-a66`. |
+| 05:31 | `baeb751f` probe fix. 05:36 `23f8d0e5` threat-1 lands. |
+| ~05:40 | Wave 1 relaunched for all units as `wf_b3719fee-765`. |
+| 05:47 to 06:48 | 26 more wave 1 tasks land. Last: `800e35c2` (items-3a). |
+
+### 8.2 What landed
+
+Design and phase R: design `25886a44`, `9f5a1f22`; R0 `91780c8e`; plan
+`c60663ef`, `5ddd356c`, `f3cb40a9`, `26d91c7a`.
+
+Phase 0, 20 of 20:
+
+| Task | Title | Commits |
+|---|---|---|
+| T-1 | tooling-names: soap create name retry | `4811fd0f`, `17016b6c` |
+| T-2 | tooling-tap: packet trace, counters, notice replay | `f2480411`, `0d4ef73b`, `2ffed845`, `d13a8dff` |
+| T-3 | tooling-probe: `mise protocol:probe` | `95905bf2`, `d29f6d39`, `89f48904`, `1115bd60`, `213ab572`, `cf48ee12`, `1d2ac2d6`, `02b83919` |
+| T-4 | tooling-cite-check: `mise protocol:cite-check` | `a3dacf5c`, `54d5c0b6`, `08159776`, `e26ec62a`, `60ff1ced`, `f7279d06`, `aaa18efb` |
+| T-5 | tooling-gm: `mise factory soap gm` | `7b8342d5`, `10a071ed`, `e24c88da` |
+| T-6 | soap gm extensions (N31, N30) | `ee679239` |
+| T-7a | Puppet call and calls.ts | `c4acbbe7` |
+| T-7b | Puppet events --json | `ec4935d4` |
+| T-7c | Puppet raw and start --packet-trace | `1265500a` |
+| T-8a | Truth picks over existing fields | `e2505728` |
+| T-8b | Truth fields from a live fixture | `3a65d48d` |
+| T-9a | Multi-partner evals | `ea099e28`, `da5682ce` |
+| T-9b | Partner truth checks | `3d3d5efe` |
+| T-10 | Console-read check source | `1a113a63`, `a8583420`, `3e3b00b4`, `7f929557`, `564566a3` (BR-T-10-1) |
+| S0-1a | OpcodeDispatch.peek | `ad335529` |
+| S0-1b | Core area mechanism and hub edits | `d655f889` (BR-S0-1b-1), `f0fad20d` |
+| S0-2 | Coverage split and absent opcode names | `b5748bd7` |
+| S0-3 | Harness area mechanism | `2e3b6e82` |
+| S0-4 | World service areas | `b4fc871e`, `5f5d089b` |
+| S0-5 | Worked example `time` | `7b9bdaaa`, `571b79b7`, `fcd39e06`, `ec70604e` (BR-S0-5-2) |
+
+`ebe956c8` (test: Cast the rig's area stores through unknown) sits
+between phase 0 and SEED-1. No report names it; its owner could not be
+determined.
+
+Wave 1, 27 of 73 tasks. SEED-1 (coordinator, 11 commits `ae999799` to
+`61904581`) seeds 19 code areas and splits `look.ts` and `params.ts` by
+tool.
+
+| Unit | Task | Title | Commits |
+|---|---|---|---|
+| threat | threat-1 | Threat tables (pilot) | `787329ae`, `7c3b9714`, `fd4aa82a`, `baeb751f` (BR-threat-1-1), `23f8d0e5` |
+| threat | threat-2 | Reactions and target breaks | `9fbe2555`, `10e6a18a` |
+| threat | threat-3a | Threat rows in the game log | `9b981979` |
+| threat | threat-3b | Threat in look and the danger view | `2bbafe44` |
+| items | items-1 | Read the full item template | `e7a68132` |
+| items | items-2 | Item enchant, timer, charge and ammo fields | `0b65fd74` |
+| items | items-3a | Equip, unequip, move and split in core | `800e35c2` |
+| objects | objects-5 | Area triggers and trigger messages | `29dff7dd`, `7f86c4af`, `bb7615d5`, `168151af` |
+| spells | spells-1 | Channels | `31f2557c` |
+| spells | spells-3 | Aura cancel | `b624bd52` |
+| group | group-4a | Loot owner and loot opt-out | `d8a901dd` |
+| group | group-4b | Set the loot method | `01267454` |
+| talents | talents-1 | Talent info and talent fields | `7a9ff6e3` |
+| instances | instances-1 | Difficulty and instance notices | `0b4e6843` |
+| travel | travel-1 | Bind point store and bind act | `6af850a7` |
+| remote-motion | remote-motion-1 | Spline parser, unit movement store, nine speeds | `e8503243`, `cf15b05f`, `96e538db` |
+| remote-motion | remote-motion-2 | Creature death toggles | `ef62e23b`, `79d2d706` |
+| world | world-3 | Reputation state | `32835338`, `a84cc663` |
+| world | world-5 | Forced reactions and reputation hostility | `ee4a8187` |
+| pets | pets-1 | Pet bar and pet info | `3c772038`, `cccb8b65` |
+| pets | pets-2 | Pet commands and stances | `5e6978f4` |
+| session | session-1 | Login noise | `a2ccfa90` |
+| session | session-2 | Ping sequence and keep-alive | `6aeb79bc` |
+| social | social-1 | Achievement stream | `41d750f8` |
+| social | social-2 | Receive emotes | `9c659682` |
+| combat-log | combat-log-1 | Combat log store, melee and spell damage | `fa523642`, `aebd7b88`, `4f915401` |
+| combat-log | combat-log-6a | Kill log and combo points | `e74a763f`, `79f32255`, `b877fe1a`, `bfb67144` |
+
+Every landed task has a review with verdict pass. threat-1, S0-4 and
+S0-5 pass after fix rounds. T-10 passes after BR-T-10-1 clears its fix
+verdict.
+
+### 8.3 Live proof
+
+Evidence is the builder reports and the proof tables in
+`docs/areas/*.md`. Each task deletes the throwaway accounts it creates.
+
+Phase 0:
+
+- T-1: soap create and delete round trip. The collision retry is unit
+  proof only.
+- T-2: one harness run with `--packet-trace headers` (373 rows in 88.6 s).
+- T-3: probe runs, exit 0. T-4: cite-check against AzerothCore
+  `deployed` (`9d4e36d81`). T-5: `soap gm ... level 5`, checked with
+  `soap truth`. T-6: each new verb offline, exit 0.
+- T-7c: invite, accept and leave between two puppets; it carries the
+  live proof for T-7a and T-7b.
+- T-8a: `soap truth` rows on a `max80` account. T-8b: a live truth
+  fixture.
+- T-9a, T-9b, T-10, S0-1a, S0-1b, S0-2, S0-4: unit proof by plan. The
+  first eval that uses each is its live proof; none has run.
+- S0-3: eval gates `t1-walk-to-npc` 2/2 and `t7-halt-resume` 3/3.
+- S0-5: probe `--flow login` sees `SMSG_LOGIN_SETTIMESPEED` and
+  `SMSG_QUERY_TIME_RESPONSE`, `counts.sent.CMSG_QUERY_TIME: 1`.
+
+Wave 1 (probe flows unless noted, exit 0):
+
+| Task | Live evidence |
+|---|---|
+| threat-1 | `threat-fight` at East Sanctum: `SMSG_HIGHEST_THREAT_UPDATE` x3, `SMSG_THREAT_UPDATE` x3, `SMSG_THREAT_CLEAR` x1, `SMSG_THREAT_REMOVE` from the trace |
+| threat-2 | `threat-fight`: `SMSG_AI_REACTION` x5, once per new victim. Exit code not recorded; `missing: []`, `packetErrors: []` |
+| threat-3a | Evals `t3-ghostlands-kill` 4/4, `t7-halt-resume` 3/3. Flood guard: 57 threat packets, 8 `threat/engaged` rows, 0 fallback rows |
+| threat-3b | Evals `t0-hostiles` 3/3, `t3-ghostlands-kill` 1/4 (gray mobs). No live `look` line with threat words; row text is test proof only |
+| items-1 | `--send CMSG_ITEM_QUERY_SINGLE` x4: 12 responses, 0 unread bytes |
+| items-2 | `items-snapshot`: ammo 2515, duration 7200, enchantments, signed charges |
+| items-3a | `items-move`: `CMSG_AUTOEQUIP_ITEM`, `CMSG_AUTOEQUIP_ITEM_SLOT`, `CMSG_SWAP_ITEM`, `CMSG_SWAP_INV_ITEM`, `CMSG_AUTOSTORE_BAG_ITEM`, `CMSG_SPLIT_ITEM`, each checked in truth |
+| objects-5 | `objects-trigger`: `CMSG_AREATRIGGER` (trigger 88), `SMSG_AREA_TRIGGER_MESSAGE` (trigger 78) |
+| spells-1 | `spells-channel` (spell 5143): `MSG_CHANNEL_START`, `MSG_CHANNEL_UPDATE`, `CMSG_CANCEL_CHANNELLING` |
+| spells-3 | `spells-aura` (spell 168), two runs: `CMSG_CANCEL_AURA`; `CMSG_CANCEL_GROWTH_AURA` accepted (N24) |
+| group-4a | `looting-kill`: `SMSG_LOOT_LIST`. `CMSG_OPT_OUT_OF_LOOT` sent with no error, effect not seen. Eval `t3-ghostlands-kill` 2/4 (gray mobs) |
+| group-4b | Two puppets in a party: `CMSG_LOOT_METHOD` |
+| talents-1 | `login --expect SMSG_TALENTS_INFO` on three presets |
+| instances-1 | `MSG_SET_DUNGEON_DIFFICULTY`, `SMSG_INSTANCE_DIFFICULTY`, `SMSG_UPDATE_INSTANCE_OWNERSHIP`; `SMSG_RAID_GROUP_ONLY` in the Deadmines |
+| travel-1 | `travel-bind`: `SMSG_BINDPOINTUPDATE`, `SMSG_PLAYERBOUND`, `SMSG_BINDER_CONFIRM`, `CMSG_BINDER_ACTIVATE` |
+| remote-motion-1 | No opcode registered. Eval `t0-who-is-near` 3/3 |
+| remote-motion-2 | `unitmotion-kill`: `SMSG_SPLINE_MOVE_UNSET_HOVER`, `SMSG_SPLINE_MOVE_GRAVITY_ENABLE`. Eval `t3-ghostlands-kill` 1/4 (gray mobs) |
+| world-3 | `SMSG_INITIALIZE_FACTIONS`, `SMSG_SET_FACTION_STANDING`, `SMSG_SET_FACTION_VISIBLE`, checked against `soap gm read reputation` |
+| world-5 | `SMSG_SET_FORCED_REACTIONS` with the empty list; the non-empty list is test proof |
+| pets-1 | `pets-bar`: `SMSG_PET_SPELLS`, `CMSG_REQUEST_PET_INFO`, `SMSG_PET_LEARNED_SPELL`, `SMSG_PET_UNLEARNED_SPELL` |
+| pets-2 | `pets-command --arg do=stop`: `CMSG_PET_STOP_ATTACK` |
+| session-1 | `login`: `SMSG_ADDON_INFO`, `SMSG_CLIENTCACHE_VERSION`, `SMSG_TUTORIAL_FLAGS`, `SMSG_ACCOUNT_DATA_TIMES`, `SMSG_FEATURE_SYSTEM_STATUS`, `SMSG_LEARNED_DANCE_MOVES` |
+| session-2 | `login --wait 70`: `SMSG_PONG` echoes sequences 1 and 2; `CMSG_KEEP_ALIVE` accepted |
+| social-1 | `achievements-level`: `SMSG_ALL_ACHIEVEMENT_DATA`, `SMSG_CRITERIA_UPDATE`, `SMSG_ACHIEVEMENT_EARNED` |
+| social-2 | `SMSG_EMOTE`, `SMSG_TEXT_EMOTE` (`/dance`) |
+| combat-log-1 | `combatlog-fight`: `SMSG_ATTACKERSTATEUPDATE`, `SMSG_SPELLNONMELEEDAMAGELOG`. Evals `t7-halt-resume` 3/3, `t3-ghostlands-kill` 2/4 |
+| combat-log-6a | `combatlog-fight`: `SMSG_PARTYKILLLOG` |
+
+Opcodes marked "not seen live" (R22 mock proof), 14 at `800e35c2`.
+Citations are AzerothCore writer lines:
+
+| Area | Opcode | AzerothCore citation | Note |
+|---|---|---|---|
+| achievements | `SMSG_SERVER_FIRST_ACHIEVEMENT` | `Achievements/AchievementMgr.cpp:744-752` | |
+| achievements | `SMSG_CRITERIA_DELETED` | `Achievements/AchievementMgr.cpp:2195-2197` | |
+| achievements | `SMSG_ACHIEVEMENT_DELETED` | `Achievements/AchievementMgr.cpp:499-501` | |
+| combatlog | `SMSG_UPDATE_COMBO_POINTS` | `Entities/Unit/Unit.cpp:12851-12857` | no rogue or druid preset (7.2 question 3) |
+| instances | `MSG_SET_RAID_DIFFICULTY` | `Server/Packets/InstancePackets.cpp:56-63` | |
+| instances | `SMSG_UPDATE_LAST_INSTANCE` | `Entities/Player/PlayerStorage.cpp:6796-6798` | |
+| instances | `SMSG_RAID_INSTANCE_MESSAGE` | `Entities/Player/Player.cpp:11975-12008` | |
+| instances | `SMSG_CORPSE_NOT_IN_INSTANCE` | `Maps/MapMgr.cpp:206-211` | a ghost cannot be staged |
+| looting | `CMSG_OPT_OUT_OF_LOOT` | `Handlers/GroupHandler.cpp:1143-1152` | sent live, effect not seen |
+| pets | `SMSG_PET_ACTION_FEEDBACK` | `Entities/Unit/Unit.cpp:12556-12564` | |
+| pets | `SMSG_PET_ACTION_SOUND` | `Server/Packets/PetPackets.cpp:54-59` | |
+| pets | `SMSG_PET_DISMISS_SOUND` | `Server/Packets/PetPackets.cpp:61-68` | |
+| threat | `SMSG_BREAK_TARGET` | `Entities/Unit/Unit.cpp:15842-15847` | |
+| threat | `SMSG_CLEAR_TARGET` | `Spells/SpellEffects.cpp:5019-5024` | |
+
+The unlanded self-state-1 adds one more: `SMSG_MOVE_SET_HOVER`
+(`Entities/Unit/Unit.cpp:16261-16268`).
+
+### 8.4 Not landed and blocked
+
+In progress in `wf_b3719fee-765` at the snapshot:
+
+| Task | State |
+|---|---|
+| quests-1 | Built (`6a66ab35`, not pushed), live proof done. No review yet. |
+| objects-1 | Built, uncommitted. Stops on two legacy fixtures outside its files (`world-handlers-entity-lifecycle.test.ts:342-347`, `world-handlers-entity-queries.test.ts:259-264`) that build an `SMSG_GAMEOBJECT_QUERY_RESPONSE` body AzerothCore never writes. Asks the coordinator to land a fixture fix or rule the files into objects-1. |
+| self-state-1 | Built (`29c69dc4`, not pushed), live proof done. No review yet. |
+| world-1 | Review pass (06:43), not on the PR branch. |
+| spells-4 | Review pass (06:49), not on the PR branch. |
+| world-2 | Building, no live proof yet. |
+| threat-3c | Building. |
+| session-5 | Building; round 11 Muse eval briefs exist. |
+
+Not started in wave 1 (38): items-3b, items-4, items-5a, items-5b,
+items-5c, items-8, objects-2, objects-3, objects-4, objects-7,
+objects-8, objects-10, objects-11, quests-2, quests-3, quests-4,
+quests-5, quests-6, quests-9, travel-5, self-state-2, self-state-3,
+self-state-4, self-state-5, self-state-11a, self-state-11b,
+combat-log-6b, combat-log-7a, combat-log-7b, spells-5, spells-6,
+spells-12a, spells-12b, world-7, world-8a, world-8b, economy-1,
+economy-2. Waves 2 to 4 (169 tasks) are not started. Whether the
+running run holds other tasks without a report file could not be
+determined.
+
+Blocked tasks:
+
+| Task | Block | Cleared by |
+|---|---|---|
+| S0-5 | D17 t3 gate: gray mobs joined a pull in two runs | BR-S0-5-2, landed |
+| T-10 | Three grader files outside its contract row | BR-T-10-1, landed |
+| S0-4 | Reviewed, held back with S0-5 | Landed after S0-5 |
+| S0-1b | Router hook count test | BR-S0-1b-1 |
+| threat-1 | Fix round blocked by the probe game-data bug | BR-threat-1-1 (`baeb751f`), landed |
+| wave 1 run `wf_1f5fe44d-3fa` | Ended 0 of 73 on the same probe bug | Relaunch as `wf_b3719fee-765` |
+
+### 8.5 Eval rounds
+
+Model under test: `openai-codex/gpt-6-luna`, thinking off. Muse (omp,
+Muse Spark 1.3) grades round 0 and the round 11 session runs; builders
+grade the rest, validated by `mise eval result`.
+
+| Round | Harness | Scenario | Rep | Verdict | Checks | Grader | Task |
+|---|---|---|---|---|---|---|---|
+| 0 | `26d91c7a` | t1-walk-to-npc | 1 | pass | 2/2 | Muse | baseline |
+| 0 | `26d91c7a` | t0-hostiles | 1 | pass | 3/3 | Muse | baseline |
+| 0 | `26d91c7a` | t7-halt-resume | 1 | pass | 3/3 | Muse | baseline |
+| 0 | `26d91c7a` | t3-ghostlands-kill | 1 | fail | 3/4 | Muse | baseline |
+| 10 | `339e2bc5` | t1-walk-to-npc | 1 | pass | 2/2 | builder | S0-3 |
+| 10 | `339e2bc5` | t7-halt-resume | 1 | pass | 3/3 | builder | S0-3 |
+| 10 | `571b79b7` | t1-walk-to-npc | 2 | pass | 2/2 | builder | S0-5 |
+| 10 | `571b79b7` | t7-halt-resume | 2 | pass | 3/3 | builder | S0-5 |
+| 10 | `571b79b7` | t3-ghostlands-kill | 1 | fail | 2/4 | builder | S0-5 (gray attackers) |
+| 10 | `571b79b7` | t3-ghostlands-kill | 2 | fail | 3/4 | builder | S0-5 (gray L12 joined) |
+| 10 | `1e7ac3cd` | t7-halt-resume | 1 | pass | 3/3 | builder | combat-log-1 |
+| 10 | `1e7ac3cd` | t3-ghostlands-kill | 1 | fail | 2/4 | builder | combat-log-1 (all gray) |
+| 11 | session-1 | t1-walk-to-npc | 1 | pass | 2/2 | Muse | session-1 |
+| 11 | session-1 | t3-ghostlands-kill | 1 | pass | 4/4 | Muse | session-1 |
+| 11 | session-1 | t7-halt-resume | 1 | pass | 3/3 | Muse | session-1 |
+| 11 | session-2 | t1-walk-to-npc | 2 | pass | 2/2 | Muse | session-2 |
+| 11 | session-2 | t3-ghostlands-kill | 2 | fail | 3/4 | Muse | session-2 (gray kill, gave up early) |
+| 11 | session-2 | t7-halt-resume | 2 | pass | 3/3 | Muse | session-2 |
+| 11 | `4516bcaa` | t3-ghostlands-kill | 1 | fail | 2/4 | builder | group-4a (all gray) |
+| 11 | `fcfb5a81` | t0-who-is-near | 1 | pass | 3/3 | builder | remote-motion-1 |
+| 11 | `1b149d59` | t3-ghostlands-kill | 1 | fail | 1/4 | builder | remote-motion-2 (all gray) |
+| 11 | `1ac816fe` | t3-ghostlands-kill | 1 | pass | 4/4 | builder | threat-3a |
+| 11 | `1ac816fe` | t7-halt-resume | 1 | pass | 3/3 | builder | threat-3a |
+| 11 | `3ad15286` | t0-hostiles | 1 | pass | 3/3 | builder | threat-3b |
+| 11 | `3ad15286` | t3-ghostlands-kill | 2 | fail | 1/4 | builder | threat-3b (gray mobs) |
+
+Round and replica numbers repeat across tasks because each worktree
+keeps its own `tmp/evals/`. The round 11 session rows name the task; the
+sha is in each run's `result.json`.
+
+Every `t1-walk-to-npc` and `t7-halt-resume` run passes.
+`t3-ghostlands-kill` passes 2 of 10 runs, and every fail is the round 0
+gray-mob cause (BR-S0-5-2), as judged by the builder or Muse. The
+session-1 t3 pass also shows one stale re-engage of a dead target, a
+cause the baseline did not show; it does not change the verdict.
+
+The round 0 cluster finding: `engage` with no target picks a gray mob.
+`hostiles()` in `packages/harness/src/tools/engage-choose.ts:104-128` has
+no lower level bound, so a level 20 character engages a level 9
+Mistbat. The fight ends "completed (gray)" with no kill credit, `isKill`
+(`engage-tally.ts:144-148`) still counts it, and the agent claims two
+kills with one credit. `nextTargets` refills with gray units and
+`engageAgain` names the gray target. The fix is deferred to the
+maintainer and is not item 4 scope; its brief is not committed.
+
+### 8.6 Coverage counts
+
+| | Opcodes | Handled | Stub | Missing | Dead |
+|---|---|---|---|---|---|
+| `main` | 923 | 266 | 57 | 600 | 0 |
+| `800e35c2` | 933 | 339 | 38 | 532 | 24 |
+| Change | +10 | +73 | -19 | -68 | +24 |
+
+The tip counts are summed from the rows of `docs/protocol-coverage/*.md`
+(the index has no count line, N4); `mise protocol:coverage` was not run.
+The 10 new names are the absent opcode names S0-2 adds:
+`CMSG_FORCE_PITCH_RATE_CHANGE_ACK`, `CMSG_SET_FACTION_CHEAT`,
+`CMSG_STABLE_REVIVE_PET`, `SMSG_DESTRUCTIBLE_BUILDING_DAMAGE`,
+`SMSG_EQUIPMENT_SET_SAVED`, `SMSG_LEARNED_DANCE_MOVES`,
+`SMSG_PLAY_TIME_WARNING`, `SMSG_SPLINE_SET_PITCH_RATE`,
+`TC9_CMSG_PREPARE_FOR_REDIRECT`, `TC9_SMSG_READY_FOR_REDIRECT`. 14
+handled opcodes carry "not seen live".
+
+Per area at the tip (handled / stub / missing / dead): achievements
+6/0/2/0, ambience 0/4/8/3, buyback 0/0/2/0, combatlog 4/3/10/3, core
+265/28/322/0, emotes 2/0/2/0, instances 8/0/11/0, items 6/2/27/0, login
+8/0/4/0, looting 3/0/2/1, objects 2/0/9/0, pets 8/0/22/5, quests
+0/0/17/1, reputation 4/0/3/0, selfstate 0/0/34/5, spells 6/1/18/3,
+talents 1/0/4/2, threat 7/0/0/0, time 3/0/2/0, travel 4/0/10/1,
+unitmotion 2/0/23/0.
+
+### 8.7 Decisions not yet ruled by the maintainer
+
+The advisor approves the design and the plan in the maintainer's place
+(R14). Every decision in this section is not yet ruled by the
+maintainer.
+
+| Group | Count | Where |
+|---|---|---|
+| Design N1 to N33 | 33 | section 2 of this design |
+| Contract amendments in the design | 12 | section 2 of this design |
+| Contract D1 to D27 | 27 | `2026-09-27-protocol-coverage-plan/contract.md` section 4 |
+| Gate R rulings GR-1 to GR-42 | 42 | `2026-09-27-protocol-coverage-plan.md`, "Gate R rulings" |
+| Seed rulings SR1 | 191 | the unit files under `2026-09-27-protocol-coverage-plan/` |
+| Build rulings BR | 6 | `step0.md`, `tooling.md`, `threat.md`, `remote-motion.md` in the plan folder |
+| Open ruling requests in reviews | 9 | the task reviews (list below) |
+| Open questions | 12 | section 7.2 of this design |
+
+Design N1 to N33:
+
+- N1 Structure winner: design B (full area modules) plus 20 grafts G1-G20
+  from designs A and C (area event emitter, `opcodes.ts` ownership
+  declaration, peek, rig, flood guard, and more).
+- N2 Seeding per wave: the coordinator seeds each wave's code areas in
+  one commit; workers never edit a registry.
+- N3 `peek`: an area reads an opcode another module owns through
+  `OpcodeDispatch.peek`.
+- N4 Coverage split: a fixed index plus one generated file per area and
+  `core.md`; counts print on stdout.
+- N5 World service: `session.areas.<area>` reads and `claim.areas.<area>`
+  acts; every area act needs a claim.
+- N6 `time` login query: one `CMSG_QUERY_TIME` after every login.
+- N7 Area scenarios append to `ROUND_1`.
+- N8 One `biome.json` override sorts the area registry keys.
+- N9 Code-area names are one lowercase word.
+- N10 Tool kind on call records replaces the per-tool name sets.
+- N11 An area draft may carry `progress: true`.
+- N12 Fallback area rows are hidden from `journal(about: "log")` by
+  default.
+- N13 Six unreachable senders are dead.
+- N14 Legacy leases: one legacy file per area task at a time.
+- N15 Packet trace in core with counters and notice replay.
+- N16 Committed probe `mise protocol:probe`.
+- N17 `mise factory soap gm` with a fixed allow-list and a log.
+- N18 Every eval run passes `--packet-trace headers`.
+- N19 Soap name-collision retry.
+- N20 Citation checker `mise protocol:cite-check`, outside `mise ci`.
+- N21 No layout comparator.
+- N22 Cheap passive tasks of later areas move into wave 1.
+- N23 Read-surface areas (`threat`, `combatlog`, `unitmotion`, `session`)
+  get no eval; they rerun the closest scenario.
+- N24 "Accepted, no effect" client opcodes: builder test plus a live send
+  the server accepts.
+- N25 Client opcodes whose live send leaves server rows or log lines stay
+  mock only.
+- N26 Scenario ids `t<tier>-<area>-<slug>`.
+- N27 Fourteen new tools (10 to 24 tools, R20).
+- N28 Owners of shared pieces (spell-target writer, inventory failure
+  correlation, and more).
+- N29 Core guards refuse destructive or leaking acts.
+- N30 Area verbs and policies (for example `travel to:"fly"`).
+- N31 Staging extensions to `soap gm`.
+- N32 One worktree per plan area.
+- N33 Tooling and re-baseline start before the plan.
+
+Contract amendments in the design: D1, D4, D5, D8, D10, D12, D14, D17,
+D20, D21, D24, D25, each the contract decision of the same id.
+
+Contract D1 to D27:
+
+- D1 `AreaRuntimeCtx` carries `signal: AbortSignal`.
+- D2 `defineArea` defaults `A` to an empty record.
+- D3 Fixture citations live in `docs/areas/<area>.md`, not in tests.
+- D4 Context and port carry `dbc`.
+- D5 Context and port carry `legacy` views from S0-1.
+- D6 `looseModule` is the single cast site.
+- D7 Export names `<area>Area`, `<AREA>_OPCODES`, `<area>Harness`,
+  `<camelTool>Tool`.
+- D8 `areaRig` routes `expect` through its real dispatch.
+- D9 `ToolKind` moves to `contract/result.ts`.
+- D10 Packed-time reader in `protocol/packed-time.ts`.
+- D11 `#wow/dbc` and `#wow/data/*` join the area import allow-list.
+- D12 A lease is held by one task, not one unit.
+- D13 A tool-module lease covers its `After` block, views and harness doc
+  lines.
+- D14 Scenario tiers are fixed when the plan lists them.
+- D15 A scenario and its three doc and round entries land in one commit.
+- D16 An unpassed scenario is listed under "Not shown by any scenario".
+- D17 Live gates: t1 passes, t7 passes or fails only from the stale wake,
+  no new failure cause against R0.
+- D18 Coordinator commits are labelled `SEED-<n>` and `COORD-<n>`.
+- D19 Every unit branch is `proto/area-<unit>`.
+- D20 A `world-conn.ts` change is a `COORD-<n>` commit.
+- D21 The `session` lease on `protocol/world.ts` covers the
+  `SMSG_CHAR_ENUM` parser only.
+- D22 README tool sentences change once per wave, by the coordinator.
+- D23 Harness `areas/world.ts` owns `AreaViews`, `AreaClaimActs`,
+  `WorldActName`.
+- D24 `areaRig` takes `init.register` for legacy owners.
+- D25 One kind per tool; a tool with a sending `do` value is `action`
+  (`trade` is `run`).
+- D26 No code-area name is a file stem under `areas/`.
+- D27 The new public names the contract adds.
+
+Gate R rulings GR-1 to GR-42:
+
+- GR-1 S0-1a adds `onPeekError`; S0-1b wires it.
+- GR-2 S0-3 may change one import in `human-admission.test.ts`.
+- GR-3 S0-3 may add `kind` to `next-guard.test.ts` literals.
+- GR-4 The stub-shadow and 57-pair tests land in S0-1b.
+- GR-5 S0-2 keeps "Add an opcode" and adds "Add an area".
+- GR-6 S0-5 deletes the `Game time` line from `STUBS`.
+- GR-7 The coordinator rewords the `protocol:coverage` task description.
+- GR-8 T-7 gets one-time edits to four puppet files.
+- GR-9 Lanes use `proto/area-<lane>` branches.
+- GR-10 T-9a first moves partner code to `grader/run-partners.ts`.
+- GR-11 T-10 creates `grader/console-read.ts`; contract 0.7 gains one
+  exemption.
+- GR-12 The live `soap truth` fixture sits inline in `truth.test.ts`.
+- GR-13 T-6 adds `guild-delete` and `arena-disband`.
+- GR-14 T-9b builds the partner-truth check.
+- GR-15 The `pdump copy` second character is refused.
+- GR-16 T-6 may split out `soap-gm-verbs.ts`.
+- GR-17 T-7b casts one fixture area event.
+- GR-18 Phase 0 uses T-2's landed names.
+- GR-19 S0-5 reads its own `CMSG_QUERY_TIME` from `counts.sent`.
+- GR-20 `handled` in a trace is not evidence of area ownership.
+- GR-21 Cite-check binds citations to the opcodes named in their block.
+- GR-22 T-7c wraps the harness trace sink to send `raw`.
+- GR-23 T-6 builds on T-5 as landed.
+- GR-24 Console reads print one JSON line; T-10 writes `console.jsonl`.
+- GR-25 T-2 to T-5 edits beyond their rows are accepted as landed.
+- GR-26 to GR-42: D1, D2, D3, D4, D5, D6, D7, D8, D9, D10, D11, D17,
+  D19, D23, D24, D26, D27 stand.
+
+Seed rulings SR1 (191 ids) per unit:
+
+| Unit | Count | Unit | Count |
+|---|---|---|---|
+| combat-log | 11 | quests | 13 |
+| economy | 12 | remote-motion | 9 |
+| group | 12 | self-state | 17 |
+| instances | 8 | session | 11 |
+| items | 12 | social | 6 |
+| objects | 16 | spells | 17 |
+| pets | 12 | talents | 5 |
+| threat | 10 | travel | 11 |
+| world | 9 | | |
+
+Build rulings:
+
+- BR-S0-1b-1: S0-1b excludes `onAreaEvent` from the router hook count
+  test (one line outside its files); S0-3 removes the exclusion.
+- BR-S0-5-2: a `t3-ghostlands-kill` failure from a gray or low-level mob
+  is the round 0 baseline cause, unless the task changes combat,
+  targeting, travel, aggro or snapshot-attacker code.
+- BR-T-10-1: T-10 may edit `grader/result.ts`,
+  `grader/eval-result.schema.json` and `grader/result.test.ts`.
+- BR-threat-1-1: fix the probe to load game data (coordinator commit
+  `baeb751f`), since every later live proof needs it.
+- BR-remote-motion-1-1: remote-motion-1 may edit
+  `protocol/update-object.ts` (the `Speeds` import and field).
+- BR-remote-motion-1-2: the nine-speed test goes in a new sibling
+  `movement-block-speeds.test.ts` (the old file is at 499 lines).
+
+Open ruling requests in reviews (no ruling yet):
+
+- items-3a F1: `items-world.ts` forks `area-rig.ts` because `RigInit` has
+  no `getEntity`; add `getEntity` in a COORD commit?
+- pets-2 N1: client opcode `CMSG_PET_ACTION` in `uses`. pets-2 N2:
+  `withPet` copies the rig for the same `getEntity` reason.
+- group-4b: rule on a self path for `setLootMethod` before group-9b.
+- combat-log-1: its t3 fail changes attacker code, so BR-S0-5-2 does not
+  apply automatically; the builder asks the coordinator to confirm its
+  reading.
+- threat-3b: the same case (snapshot-attacker code); the reviewer accepts
+  the builder's D17 argument.
+- objects-1: the two legacy fixtures (8.4).
+- S0-3 review: contract 1.9 signatures differ from the landed code (for
+  example `expectSendKind(tool, args, game?)`); amend contract 1.9 or
+  record a ruling.
+- T-9a review: T-9a edits `grader/run-finish.ts` outside its row (partner
+  state moves to `run-partners.ts`); the coordinator should acknowledge
+  it.
+- Builder "Deviations" sections (for example self-state-1, spells-4)
+  record further choices, each not yet ruled.
+
+The 12 open questions of 7.2 each run on their default: flight verb
+`travel to:"fly <destination>"`; swimming in item 4 (`selfstate`); no
+extra class presets, so totems, runes, warlock pets, combo points,
+dispels and fishing stay not seen live; evals use packet evidence, not
+new realm truth fields; degraded modes for talent, LFG, faction and
+social DBCs; no eval depends on playerbots; guilds and arena teams write
+rows and are removed (N30), the rest is mock (N25); no bids on
+`AUCTIONHOUSE` auctions; transports in item 4, last in NS2; no live
+Warden `MODULE_FAILED`; every area act needs a claim; the step 0
+structural decisions (N2, N3, N4, N6, N7, N8) as built.
+
+### 8.8 Incidents and lessons
+
+1. Design run `wf_66a1ef0d-a6a`: 10 of 24 design agents refuse the
+   scripted task because they read the maintainer's last chat question
+   as the request. Relaunch `wf_076184aa-88d` quotes the goal as
+   authority. Lesson: every workflow prompt starts with the authority
+   preamble.
+2. threat-1 pilot: over an hour on seven live probes for rare threat
+   opcodes. A coordinator message forks the agent, and stopping the fork
+   also interrupts the original. The run is stopped and resumed from its
+   run id (`wf_1f5fe44d-3fa`) with a two-try cap. Lessons: never message
+   a workflow subagent; to steer, stop, edit the prompt and resume from
+   the run id; builders cap rare live attempts at two tries (about 10
+   minutes), then R22 proof.
+3. threat-1 fix round: `mise protocol:probe` logs in without game data
+   (`probe-account.ts` drops `spell_data_dir`), so every unit reads as
+   not attackable. The resumed wave 1 run ends 0 of 73. BR-threat-1-1
+   (`baeb751f`, `wf_3d1bc31d-a66`) fixes it.
+4. BR-S0-5-2 and BR-T-10-1 unblock S0-5, S0-4 and T-10
+   (`wf_5bfc77ef-c76`).
+
+Standing coordinator lessons: every `agent()` call is Opus 5.5 at medium
+effort; eval babysitting runs on omp with Muse Spark 1.3 at xhigh,
+non-interactive, with a named result file. Scrub the restricted
+reference name from every diff and PR body; the one allowed hit is the
+`docs/protocol.md` reference line (R5). A docs-only push must pass
+`mise lint:docs`. The first build task diffs the post-item-6 tool
+surface against the plan. The item 6 watcher fires on any open-PR
+change; re-arm it after each event. Use a distinct account prefix for
+live captures when item 6 evals share the server. Commit and push docs
+before any slow advisor call. Treat rate-limit or usage errors as the
+R16 trigger, and keep the morning summary current after every
+milestone.
+
 ## COMPLETE
