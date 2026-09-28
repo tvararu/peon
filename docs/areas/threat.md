@@ -54,7 +54,7 @@ No verb (N23).
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
-| `SMSG_HIGHEST_THREAT_UPDATE` | `live` | probe flow `threat-fight`, exit 0; the victim switched between the pet and the character, as the creature's target field showed | `Combat/ThreatManager.cpp:880-898` |
-| `SMSG_THREAT_UPDATE` | `live` | probe flow `threat-fight`, exit 0 | `Combat/ThreatManager.cpp:880-898` |
-| `SMSG_THREAT_REMOVE` | `live` | probe flow `threat-fight`, exit 0 | `Combat/ThreatManager.cpp:872-878` |
-| `SMSG_THREAT_CLEAR` | `live` | probe flow `threat-fight`, exit 0 | `Combat/ThreatManager.cpp:865-870` |
+| `SMSG_HIGHEST_THREAT_UPDATE` | `live` | probe tap with the committed flow `threat-fight`, which exits 1 with "no hostile creature within 35 yards" because `mise protocol:probe` logs in with no faction data; two creatures attacked at login, and one named the pet and the other the character as its victim | `Combat/ThreatManager.cpp:880-898` |
+| `SMSG_THREAT_UPDATE` | `live` | probe tap of a nearby player's fight, parsed and handled; no run of the committed flow `threat-fight` produces it | `Combat/ThreatManager.cpp:880-898` |
+| `SMSG_THREAT_REMOVE` | `live` | probe tap: when the character died, one creature removed the pet and the other the character | `Combat/ThreatManager.cpp:872-878` |
+| `SMSG_THREAT_CLEAR` | `live` | probe tap of a nearby player's fight, parsed and handled; no run of the committed flow `threat-fight` produces it | `Combat/ThreatManager.cpp:865-870` |
