@@ -25,6 +25,7 @@ or the page names one that does not exist.
 | Stop on command and resume | `t7-halt-resume` | |
 | Answer a question while an action runs | `t7-question-while-acting` | |
 | Wear better gear and put a bag on | `t8-items-equip-upgrade` | |
+| Take off worn gear and keep it in bags | `t8-items-unequip` | |
 
 ## Not shown by any scenario
 
