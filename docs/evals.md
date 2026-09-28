@@ -47,9 +47,9 @@ the run `aborted` with the cause `grader_contamination`.
 **Safety.** Eval characters are throwaway `soap create` characters that
 never get a GM level. After the baseline, no service write, console
 command or harness restart touches the character unless the scenario is
-about it. The one console command the grader runs by itself is a
-`console` check's read, after the final truth. Passwords never reach a
-transcript or a result file.
+about it. The one console command the grader runs by itself is a `console`
+check's read, after the final truth. Passwords never reach a transcript or
+a result file.
 
 ## Run a scenario
 
