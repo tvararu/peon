@@ -98,7 +98,8 @@ dispatch are delivered immediately.
 `createSessionStores` (`packages/core/src/wow/session-stores.ts`) builds
 the protocol state stores before any handler is registered, and
 `registerWorldHandlers(conn, stores)` takes them as a required argument.
-A handler parses its packet and writes a store: `CombatStore` (spellbook,
+A handler parses its packet and writes a store. The core stores
+(`CoreStores`) are `CombatStore` (spellbook,
 cooldowns, auras, casts, attacks, XP), `MotionStore` (observed unit
 positions and splines), `RewardsStore` (loot window, item pushes,
 inventory errors, rolls), `ItemTemplates` (item query cache),
@@ -126,6 +127,11 @@ each store event a runtime first arms, clears or retimes its request
 timers, then publishes the event, then runs follow-up actions such as
 the loot release; a listener that starts a request from the event keeps
 its own timeout. Session cleanup disposes the runtimes, then the stores.
+
+Area stores live under `stores.areas`, one per code area listed in
+`areas/registry.ts`, each built by its area's `store` next to the core
+stores. An area handler writes its own store only; the area's runtime
+holds its acts and timeouts ([Add an area](#add-an-area)).
 
 ## Self movement
 
@@ -171,24 +177,36 @@ fail if a name core already used loses its number or offset.
 Hand-written wire enums live in `protocol/enums.ts` and
 `protocol/entity-fields.ts`.
 
+These steps are for the legacy owners in `protocol/<domain>.ts` and
+their `register*Handlers` functions. New opcode work goes in a code
+area ([Add an area](#add-an-area)).
+
 1. Parse the body in `protocol/<domain>.ts` from a `PacketReader`, with a
    colocated test built from a captured or reference packet. Parsers pick
    the update fields they read; the generated tables only name them.
-2. Register one handler with `conn.dispatch.on` in the domain's
-   `register*Handlers` function. A second handler for an opcode throws, so
-   compose in the owner. A flow that awaits a reply uses
-   `conn.dispatch.expect` and reads the state the handler applied.
-3. Drop the opcode from `STUBS` in `protocol/stubs.ts` if it is listed
-   there.
+2. New work owns its opcodes in an area and registers them through the
+   area's `register`. An opcode has one owner: a second `on` for it
+   throws. A reader that needs an opcode another module owns uses
+   `peek`, which runs after the owner on a fresh reader and never replaces
+   it, and lists the opcode in its area's `uses`. A legacy owner registers
+   with `conn.dispatch.on` in its `register*Handlers` function. A flow
+   that awaits a reply uses `conn.dispatch.expect` and reads the state the
+   handler applied.
+3. Drop the opcode from `STUBS` in `protocol/stubs.ts`, or from the
+   owning area's `stubs`, if it is listed there.
 4. Send a client opcode with `sendPacket` and a `PacketWriter` body.
-5. Rewrite `docs/protocol-coverage.md` with `mise protocol:coverage`.
+5. Rewrite the coverage files with `mise protocol:coverage`: the owning
+   area's `docs/protocol-coverage/<area>.md`, or
+   [core.md](protocol-coverage/core.md) for an opcode no area owns.
 6. Prove it on the live server ([testing.md](testing.md#live-characters)).
 
-[protocol-coverage.md](protocol-coverage.md) lists every `GameOpcode`
-with its direction and status. `handled`: the world handlers register a
-real handler for it, or core source outside the opcode table and
-`STUBS` names it (a sent client opcode, an awaited reply). `stub`: it is
-in `STUBS`. `missing`: neither.
+[protocol-coverage.md](protocol-coverage.md) explains the coverage
+files, which list every `GameOpcode` with its direction, status and live
+proof. `dead`: in the owning area's `dead`. `stub`: in `STUBS` or in the
+owning area's `stubs`. `handled`: the world handlers register a real
+handler for it, or core source outside the opcode table and `STUBS`
+names it (a sent client opcode, an awaited reply). `missing`: none of
+these.
 
 `OpcodeDispatch` counts every inbound opcode that has neither a handler
 nor a waiter (`unhandledCounts()`) and never throws for one. It reports
@@ -198,6 +216,58 @@ during login, waits in `conn.pendingNotices` (up to 64), and the first
 `onNotice` subscriber gets them with their original `at`. When the
 backlog is full, the report is retried on the opcode's next packet. The
 harness game log shows these notices as `notice/not_implemented`.
+
+## Add an area
+
+New protocol work lives in a code area: one directory under
+`packages/core/src/wow/areas/`, listed in `areas/registry.ts`. The seed of
+an area creates the directory, its `opcodes.ts`, an empty `area.ts`, both
+registry lines, the harness module and its coverage file; the worker then
+fills them in. Paths below are relative to `packages/core/src/wow/`,
+`packages/core/`, `packages/harness/src/` or the repository root, as the
+first column says.
+
+| Path | When | Holds |
+|---|---|---|
+| core `areas/<area>/opcodes.ts` | always | `owns`, `uses`, `stubs`, `dead` and `unseen`; the worker deletes its own `stubs` lines as it handles them |
+| core `areas/<area>/protocol.ts` and test | always | parsers, `PacketWriter` builders and wire enums, tested with packets built from the AzerothCore writer |
+| core `areas/<area>/store.ts` and test | always | state, events, `snapshot`, `onEvent`, `dispose` and the `receive*` methods handlers call |
+| core `areas/<area>/runtime.ts` and test | when the area sends or waits | acts, `expect` and `until` waits, request timeouts, `listen` subscriptions |
+| core `areas/<area>/area.ts` | always | `defineArea({ name, opcodes, eventTypes, store, register, runtime })` |
+| core `areas/<area>/<part>.ts` | before a file reaches 500 non-blank lines | a split by responsibility |
+| `test-support/areas/<area>.ts` in core | when tests share packets | packet builders |
+| harness `areas/<area>/area.ts` and test | when the area needs wake or passive rows, journal rows, login-time state or world acts | `defineHarnessArea(...)` |
+| harness `areas/<area>/tool.ts` and test | when the area adds a tool | a `defineGameTool` module |
+| harness `grader/scenarios/t<tier>-<area>-<slug>.json` | when the area adds an agent verb | the eval scenario |
+| `docs/areas/<area>.md` | always | wire facts where AzerothCore and wow_messages differ, what is left out and why, the proposed capabilities row and the proof table |
+| `docs/protocol-coverage/<area>.md` | always | generated by `mise protocol:coverage` |
+
+An area never imports another area, and reaches core state only through
+its runtime context and the core stores its `store` and `runtime` are
+given. It never edits the registries, the area contract
+and composition files, the world handle, `protocol/stubs.ts`, the
+`OpcodeDispatch` class, the shared test fakes or this file.
+
+The worker loop:
+
+1. Read the area's `opcodes.ts` and its brief.
+2. Write parsers from the AzerothCore writer; AzerothCore wins over
+   wow_messages. Build test packets in `test-support/areas/<area>.ts` and
+   test with `areaRig(name, init?)` from `test-support/area-rig.ts`,
+   which registers the one area on a real `OpcodeDispatch` and returns
+   `{ dispatch, stores, handle, sent, events, inject, dispose }`.
+3. Add the store, events, runtime and acts. Delete the area's own
+   `stubs` lines for what it now handles.
+4. Run `mise protocol:coverage`, then `mise ci`.
+5. Prove it live on throwaway accounts from `mise factory soap create`,
+   driven through their `tmp/puppet-<ACCOUNT>` wrapper, the probe or the
+   harness ([testing.md](testing.md#live-characters)). An opcode the
+   server cannot be made to send goes in `unseen`, with an `areaRig` or
+   mock world server test built from the AzerothCore writer and the
+   writer's `path:line` in the proof table; coverage prints it
+   `not seen live`.
+6. If the area adds an agent verb, add the tool, its eval scenario, the
+   `docs/capabilities.md` and `docs/evals.md` rows, and run the scenario.
 
 ## Packet trace
 

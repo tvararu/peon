@@ -37,6 +37,19 @@ function field(objectType: string, name: string, offset: number, tag: string) {
   };
 }
 
+const ABSENT: [name: string, opcode: number][] = [
+  ["SMSG_DESTRUCTIBLE_BUILDING_DAMAGE", 0x0_32],
+  ["CMSG_SET_FACTION_CHEAT", 0x1_26],
+  ["SMSG_EQUIPMENT_SET_SAVED", 0x1_37],
+  ["CMSG_STABLE_REVIVE_PET", 0x2_74],
+  ["SMSG_PLAY_TIME_WARNING", 0x2_f5],
+  ["SMSG_LEARNED_DANCE_MOVES", 0x4_55],
+  ["CMSG_FORCE_PITCH_RATE_CHANGE_ACK", 0x4_5d],
+  ["SMSG_SPLINE_SET_PITCH_RATE", 0x4_5e],
+  ["TC9_CMSG_PREPARE_FOR_REDIRECT", 0x5_1f],
+  ["TC9_SMSG_READY_FOR_REDIRECT", 0x5_20],
+];
+
 function ir(parts: Partial<Ir>): Ir {
   return { world: { messages: [] }, wrath_update_mask: [], ...parts };
 }
@@ -77,6 +90,15 @@ describe("gameOpcodes", () => {
     expect(opcodes.get("SMSG_MESSAGE_CHAT")).toBe(0x96);
     expect(opcodes.has("SMSG_MESSAGECHAT")).toBe(false);
     expect(opcodes.get("SMSG_HEALTH_UPDATE")).toBe(0x4_7f);
+  });
+
+  test("names the absent opcodes AzerothCore uses", () => {
+    const opcodes = gameOpcodes(ir({}));
+    expect(
+      Object.fromEntries(
+        [...opcodes].filter(([name]) => ABSENT.some(([a]) => a === name)),
+      ),
+    ).toEqual(Object.fromEntries(ABSENT));
   });
 
   test("refuses two names for one opcode", () => {
