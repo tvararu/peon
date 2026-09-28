@@ -4,7 +4,6 @@ import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx, ViewCtx } from "#harness/contract/services";
 import { dangerView } from "#harness/ops/danger";
 import { Refusal } from "#harness/ops/refusal";
-import { settle } from "#harness/ops/settle";
 import { poseView, selfView } from "#harness/ops/views";
 import { result } from "#harness/tools/define";
 import { nextCall } from "#harness/tools/next-call";
@@ -12,6 +11,7 @@ import { nextCall } from "#harness/tools/next-call";
 export const HEARTHSTONE_ITEM = 6948;
 export const HEARTHSTONE_SPELL = 8690;
 export const HEARTH_WAIT_MS = 30_000;
+export const FINISH_GRACE_MS = 10_000;
 
 const BAG_REGIONS: Record<string, true> = { backpack: true, bag_item: true };
 
@@ -29,42 +29,70 @@ function findStone(ctx: ViewCtx): Hearth | undefined {
   return undefined;
 }
 
-type Wait = { done: "arrived" } | { done: "started" } | { done: "interrupted" };
+type Wait =
+  | { done: "arrived" }
+  | { done: "interrupted" }
+  | { done: "send_failed" }
+  | { done: "finished" };
+
+type Arrival = { closed: boolean; finished: boolean; started: boolean };
 
 function waitForArrival(
   ctx: ToolCtx<TravelAfter>,
   stone: Hearth,
 ): Promise<Wait | undefined> {
-  return settle<Wait>({
-    match: (event) => event.done !== "started",
-    send: () => {
-      void ctx.rt.mutex.run(() => {
-        ctx.handle.takeControl("manual_override");
-        return ctx.handle.useItem(stone.bag, stone.slot);
-      });
-    },
-    signal: ctx.signal,
-    subscribe: (cb) => {
-      const offControl = ctx.handle.onControlEvent((event: ControlEvent) => {
-        if (event.type === "server_correction" && ARRIVALS[event.reason ?? ""])
-          cb({ done: "arrived" });
-        else if (
-          event.type === "control_changed" &&
-          event.reason === "teleporting"
-        )
-          cb({ done: "started" });
-      });
-      const offCombat = ctx.handle.onCombatEvent((event: CombatEvent) => {
-        if (event.type === "cast_interrupted" || event.type === "cast_failed")
-          cb({ done: "interrupted" });
-      });
-      return () => {
+  const seen: Arrival = { closed: false, finished: false, started: false };
+  const outcome = Promise.withResolvers<Wait | undefined>();
+  const close = (value: Wait | undefined): void => {
+    if (seen.closed) return;
+    seen.closed = true;
+    outcome.resolve(value);
+  };
+  const timer = setTimeout(() => close(undefined), HEARTH_WAIT_MS);
+  const grace = setTimeout(() => {
+    if (!seen.finished || seen.started) return;
+    close({ done: "finished" });
+  }, FINISH_GRACE_MS);
+  const abort = (): void => close(undefined);
+  ctx.signal?.throwIfAborted();
+  ctx.signal?.addEventListener("abort", abort, { once: true });
+  const offControl = ctx.handle.onControlEvent((event: ControlEvent) => {
+    if (seen.closed) return;
+    if (event.type === "server_correction" && ARRIVALS[event.reason ?? ""])
+      close({ done: "arrived" });
+    else if (event.type === "control_changed" && event.reason === "teleporting")
+      seen.started = true;
+  });
+  const offCombat = ctx.handle.onCombatEvent((event: CombatEvent) => {
+    if (seen.closed) return;
+    const cast = event.state.lastOutcome;
+    if (cast?.kind !== "cast" || cast.spellId !== HEARTHSTONE_SPELL) return;
+    if (event.type === "cast_interrupted" || event.type === "cast_failed")
+      close({ done: "interrupted" });
+    else if (event.type === "cast_succeeded") {
+      seen.finished = true;
+      grace.refresh();
+    }
+  });
+  void ctx.rt.mutex
+    .run(() => {
+      ctx.handle.takeControl("manual_override");
+      return ctx.handle.useItem(stone.bag, stone.slot);
+    })
+    .then(
+      () => undefined,
+      () => close({ done: "send_failed" }),
+    )
+    .finally(() => {
+      void outcome.promise.finally(() => {
+        clearTimeout(timer);
+        clearTimeout(grace);
         offControl();
         offCombat();
-      };
-    },
-    timeoutMs: HEARTH_WAIT_MS,
-  });
+        ctx.signal?.removeEventListener("abort", abort);
+      });
+    });
+  return outcome.promise;
 }
 
 const ARRIVALS: Record<string, true> = {
@@ -130,7 +158,14 @@ export async function hearthWork(
     });
   const done = await waitForArrival(ctx, stone);
   const view = after({ goal: { kind: "hearth" } });
-  if (done?.done === "interrupted")
+  if (done?.done === "send_failed")
+    return result("REFUSED", {
+      after: view,
+      detail: "your hearthstone would not start; check journal bags for one.",
+      next: nextCall("journal", { about: "bags" }),
+      reason: "use_failed",
+    });
+  if (done?.done === "interrupted" || done?.done === "finished")
     return result("REFUSED", {
       after: view,
       detail: "your hearth was interrupted before you arrived.",

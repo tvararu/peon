@@ -246,7 +246,8 @@ async function doWork(work: Work): Promise<Report> {
     return legWork({ ...work, goal });
   if (goal.kind === "unstick") return unstickWork(work);
   if (goal.kind === "corpse") return corpseWork(work);
-  if (goal.kind === "hearth") return hearthWork(work.ctx, work.after);
+  if (goal.kind === "hearth")
+    return hearthWork({ ...work.ctx, signal: work.ops.signal }, work.after);
   const wanted = exploreWanted(work.ops, work.args.for);
   const found = await explore(work.ops, { direction: goal.direction, wanted });
   return exploreReport(

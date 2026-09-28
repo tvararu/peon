@@ -4,7 +4,11 @@ import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
 import type { TravelAfter } from "#harness/contract/details";
 import { createRefTable } from "#harness/ops/refs";
 import { travelSpec } from "#harness/tools/travel";
-import { HEARTH_WAIT_MS, hearthWork } from "#harness/tools/travel-hearth";
+import {
+  FINISH_GRACE_MS,
+  HEARTH_WAIT_MS,
+  hearthWork,
+} from "#harness/tools/travel-hearth";
 import {
   attackBy,
   contentOf,
@@ -16,6 +20,7 @@ import {
   createTestRuntime,
   type MockHandle,
 } from "#test-support/runtime-fixture";
+import { combatEvent } from "#test-support/spell-tool-fixtures";
 
 const HOME = { areaId: 87, mapId: 530, x: -9464, y: 62, z: 56 };
 const HEARTHSTONE = 6948;
@@ -79,6 +84,22 @@ function arriveOnUse(handle: MockHandle, reason: string): void {
   });
 }
 
+function blankAfter(patch: Partial<TravelAfter>): TravelAfter {
+  return {
+    elapsedMs: 0,
+    floorRetried: false,
+    floors: undefined,
+    goal: { kind: "hearth" },
+    legs: [],
+    newInView: [],
+    pose: undefined,
+    remainingYd: undefined,
+    totalYd: undefined,
+    traveledYd: 0,
+    ...patch,
+  };
+}
+
 describe("travel hearth", () => {
   test("refuses while the hearthstone spell is on cooldown", async () => {
     const t = await world();
@@ -132,11 +153,13 @@ describe("travel hearth", () => {
   test("a cast that ends without a teleport is refused as interrupted", async () => {
     const t = await world();
     jest.spyOn(t.handle, "useItem").mockImplementation(() => {
-      t.handle.triggerCombatEvent({
-        reason: "interrupted",
-        state: t.handle.getCombatState(),
-        type: "cast_interrupted",
-      });
+      t.handle.triggerCombatEvent(
+        combatEvent(
+          t.handle.getCombatState(),
+          "cast_interrupted",
+          HEARTH_SPELL,
+        ),
+      );
       return Promise.resolve();
     });
     const res = await travelSpec.run({ to: "hearth" }, toolCtx<TravelAfter>(t));
@@ -147,24 +170,84 @@ describe("travel hearth", () => {
   test("no teleport and no interrupt in time is unconfirmed", async () => {
     const t = await world();
     const ctx = toolCtx<TravelAfter>(t);
-    const after = (patch: Partial<TravelAfter>): TravelAfter => ({
-      elapsedMs: 0,
-      floorRetried: false,
-      floors: undefined,
-      goal: { kind: "hearth" },
-      legs: [],
-      newInView: [],
-      pose: undefined,
-      remainingYd: undefined,
-      totalYd: undefined,
-      traveledYd: 0,
-      ...patch,
-    });
-    const run = withFakeTimers(() => hearthWork(ctx, after));
+    const run = withFakeTimers(() => hearthWork(ctx, blankAfter));
     await withFakeTimers(() => elapse(HEARTH_WAIT_MS)).catch(() => undefined);
     const res = await run;
     expect(t.handle.useItem).toHaveBeenCalledTimes(1);
     expect(res.status).toBe("UNCONFIRMED");
     expect(res.reason).toBe("no_teleport");
+  });
+
+  test("a use the client rejects is a refusal, not a throw", async () => {
+    const t = await world();
+    jest
+      .spyOn(t.handle, "useItem")
+      .mockRejectedValue(new Error("not connected"));
+    const res = await travelSpec.run({ to: "hearth" }, toolCtx<TravelAfter>(t));
+    expect(res.status).toBe("REFUSED");
+    expect(res.reason).toBe("use_failed");
+  });
+
+  test("a new attacker during the wait interrupts the run with engage", async () => {
+    const t = await world();
+    const pending = travelSpec.run({ to: "hearth" }, toolCtx<TravelAfter>(t));
+    await Bun.sleep(0);
+    attackBy(t.handle, 0x20n);
+    const res = await pending;
+    expect(t.handle.useItem).toHaveBeenCalledTimes(1);
+    expect(res).toMatchObject({ reason: "interrupted", status: "FAILED" });
+    expect(res.next).toMatch(/^engage\(target: "u\d+"\)$/);
+  });
+
+  test("a finished cast without a teleport is refused as interrupted", async () => {
+    const t = await world();
+    jest.spyOn(t.handle, "useItem").mockImplementation(() => {
+      t.handle.triggerCombatEvent(
+        combatEvent(t.handle.getCombatState(), "cast_succeeded", HEARTH_SPELL),
+      );
+      return Promise.resolve();
+    });
+    const ctx = toolCtx<TravelAfter>(t);
+    await withFakeTimers(async () => {
+      const pending = hearthWork(ctx, blankAfter);
+      await elapse(FINISH_GRACE_MS);
+      const res = await pending;
+      expect(res.status).toBe("REFUSED");
+      expect(res.reason).toBe("interrupted");
+    });
+  });
+
+  test("a teleport that follows the finished cast still arrives", async () => {
+    const t = await world();
+    jest.spyOn(t.handle, "useItem").mockImplementation(() => {
+      t.handle.triggerCombatEvent(
+        combatEvent(t.handle.getCombatState(), "cast_succeeded", HEARTH_SPELL),
+      );
+      moveTo(t.handle, { x: -9456, y: 62 });
+      fire(t.handle, "new_world", "server_correction");
+      return Promise.resolve();
+    });
+    const res = await travelSpec.run({ to: "hearth" }, toolCtx<TravelAfter>(t));
+    expect(res.status).toBe("DONE");
+  });
+
+  test("a far teleport that has started is waited for past the finished cast", async () => {
+    const t = await world();
+    jest.spyOn(t.handle, "useItem").mockImplementation(() => {
+      t.handle.triggerCombatEvent(
+        combatEvent(t.handle.getCombatState(), "cast_succeeded", HEARTH_SPELL),
+      );
+      fire(t.handle, "teleporting", "control_changed");
+      return Promise.resolve();
+    });
+    const ctx = toolCtx<TravelAfter>(t);
+    await withFakeTimers(async () => {
+      const pending = hearthWork(ctx, blankAfter);
+      await elapse(HEARTH_WAIT_MS - 1);
+      moveTo(t.handle, { x: -9456, y: 62 });
+      fire(t.handle, "new_world", "server_correction");
+      const res = await pending;
+      expect(res.status).toBe("DONE");
+    });
   });
 });
