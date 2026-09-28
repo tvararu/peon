@@ -373,5 +373,6 @@ export class Mover {
       this.sync.fallTime = this.deps.ticks() - air.startTicks;
     const info = this.sync.movementInfo();
     this.deps.send(opcode, buildMoveMessage(this.deps.selfGuid(), info));
+    this.emit("pose_sent");
   }
 }

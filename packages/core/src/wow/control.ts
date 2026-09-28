@@ -63,7 +63,8 @@ export type ControlEventType =
   | "control_changed"
   | "control_error"
   | "place_changed"
-  | "area_explored";
+  | "area_explored"
+  | "pose_sent";
 
 export type AreaExplored = {
   areaId: number;

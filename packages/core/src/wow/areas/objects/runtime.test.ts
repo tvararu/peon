@@ -1,0 +1,213 @@
+import { describe, expect, test } from "bun:test";
+import { areaRig } from "#test-support/area-rig";
+import {
+  objectsAreaTriggerBody,
+  objectsAreaTriggerDbc,
+  objectsAreaTriggerMessageBody,
+} from "#test-support/areas/objects";
+import { dbcFiles } from "#test-support/dbc";
+import type { AreaTrigger } from "#wow/areas/objects/trigger-catalog";
+import type { ControlEventType, ControlState } from "#wow/control";
+import type { Position } from "#wow/entity-store";
+import { GameOpcode } from "#wow/protocol/opcodes";
+
+const FARGODEEP: AreaTrigger = {
+  id: 88,
+  map: 0,
+  x: -9843.54,
+  y: 127.525,
+  z: 5.37,
+  radius: 10,
+  length: 0,
+  width: 0,
+  height: 0,
+  orientation: 0,
+};
+const DEADMINES: AreaTrigger = {
+  ...FARGODEEP,
+  id: 78,
+  x: -11_208.5,
+  y: 1685.34,
+  z: 25.76,
+  radius: 7,
+};
+const INSIDE: Position = {
+  mapId: 0,
+  x: -9843.54,
+  y: 120.525,
+  z: 5.37,
+  orientation: 0,
+};
+const OUTSIDE: Position = { ...INSIDE, y: 100 };
+const LEVEL = "You must be at least level 10 to enter.";
+
+function state(pose: Position): ControlState {
+  return {
+    selfGuid: 1n,
+    pose: { ...pose, source: "predicted", updatedAt: 0 },
+    serverPose: undefined,
+    target: undefined,
+    requestedTarget: undefined,
+    moving: true,
+    input: {},
+    airborne: false,
+    movementAllowed: true,
+    blockedReason: undefined,
+    speed: 7,
+  };
+}
+
+async function rigWith(triggers?: readonly AreaTrigger[]) {
+  const dbc =
+    triggers &&
+    dbcFiles(new Map([["AreaTrigger.dbc", objectsAreaTriggerDbc(triggers)]]));
+  const rig = areaRig("objects", { dbc });
+  for (let i = 0; i < 20; i++) {
+    if (rig.handle.state().triggers.catalog !== "loading") break;
+    await Bun.sleep(0);
+  }
+  const control = (type: ControlEventType, pose: Position, reason?: string) =>
+    rig.events.control.emit({ type, state: state(pose), reason });
+  const triggersSent = () =>
+    rig.sent.filter((p) => p.opcode === GameOpcode.CMSG_AREATRIGGER);
+  return { control, rig, triggersSent };
+}
+
+describe("objects runtime area triggers", () => {
+  test("a pose_sent that enters trigger 88 sends CMSG_AREATRIGGER once", async () => {
+    const { rig, control, triggersSent } = await rigWith([FARGODEEP]);
+    try {
+      const events: unknown[] = [];
+      rig.handle.onEvent((event) => events.push(event));
+      expect(rig.handle.state().triggers.catalog).toBe("ready");
+      control("pose_sent", OUTSIDE);
+      control("pose_sent", INSIDE);
+      control("pose_sent", { ...INSIDE, y: 124 });
+      expect(triggersSent()).toEqual([
+        {
+          opcode: GameOpcode.CMSG_AREATRIGGER,
+          body: objectsAreaTriggerBody(88),
+        },
+      ]);
+      expect(events).toEqual([{ type: "trigger_sent", triggerId: 88, map: 0 }]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a teleport into a trigger marks it inside without a send", async () => {
+    const { rig, control, triggersSent } = await rigWith([FARGODEEP]);
+    try {
+      control("pose_sent", OUTSIDE);
+      control("server_correction", INSIDE, "teleport");
+      control("pose_sent", INSIDE);
+      expect(triggersSent()).toEqual([]);
+      expect(rig.handle.state().triggers.inside).toEqual([88]);
+      control("pose_sent", OUTSIDE);
+      control("pose_sent", INSIDE);
+      expect(triggersSent()).toHaveLength(1);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("new_world and login_verified mark the arrival point inside", async () => {
+    const { rig, control, triggersSent } = await rigWith([
+      FARGODEEP,
+      DEADMINES,
+    ]);
+    try {
+      rig.stores.self.receive({ type: "login_verified", position: INSIDE });
+      control("pose_sent", INSIDE);
+      const deadmines = { ...INSIDE, x: -11_208.5, y: 1685.34, z: 25.76 };
+      rig.stores.self.receive({ type: "new_world", position: deadmines });
+      control("pose_sent", deadmines);
+      expect(triggersSent()).toEqual([]);
+      expect(rig.handle.state().triggers.inside).toEqual([78]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a server correction that is not a teleport does not mark the trigger", async () => {
+    const { rig, control, triggersSent } = await rigWith([FARGODEEP]);
+    try {
+      control("pose_sent", OUTSIDE);
+      control("server_correction", INSIDE, "observed");
+      control("pose_sent", INSIDE);
+      expect(triggersSent()).toHaveLength(1);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("enterTrigger sends the trigger and names the current map", async () => {
+    const { rig, triggersSent } = await rigWith();
+    try {
+      rig.stores.self.receive({
+        type: "login_verified",
+        position: { ...INSIDE, mapId: 36 },
+      });
+      const events: unknown[] = [];
+      rig.handle.onEvent((event) => events.push(event));
+      rig.handle.act.enterTrigger(78);
+      expect(triggersSent()).toEqual([
+        {
+          opcode: GameOpcode.CMSG_AREATRIGGER,
+          body: objectsAreaTriggerBody(78),
+        },
+      ]);
+      expect(events).toEqual([
+        { type: "trigger_sent", triggerId: 78, map: 36 },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("without AreaTrigger.dbc the watcher stays off", async () => {
+    const { rig, control, triggersSent } = await rigWith();
+    try {
+      control("pose_sent", OUTSIDE);
+      control("pose_sent", INSIDE);
+      expect(triggersSent()).toEqual([]);
+      expect(rig.handle.state().triggers.catalog).toBe("none");
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a missing AreaTrigger.dbc marks the catalog failed", async () => {
+    const rig = areaRig("objects", { dbc: dbcFiles(new Map()) });
+    try {
+      for (let i = 0; i < 20; i++) await Bun.sleep(0);
+      expect(rig.handle.state().triggers.catalog).toBe("failed");
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_AREA_TRIGGER_MESSAGE keeps the text and emits trigger_message", async () => {
+    const { rig } = await rigWith();
+    try {
+      const events: unknown[] = [];
+      rig.handle.onEvent((event) => events.push(event));
+      rig.inject(
+        GameOpcode.SMSG_AREA_TRIGGER_MESSAGE,
+        objectsAreaTriggerMessageBody(LEVEL),
+      );
+      expect(rig.handle.state().lastMessage?.text).toBe(LEVEL);
+      expect(events).toEqual([{ type: "trigger_message", text: LEVEL }]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("dispose stops the watcher", async () => {
+    const { rig, control, triggersSent } = await rigWith([FARGODEEP]);
+    control("pose_sent", OUTSIDE);
+    rig.dispose();
+    control("pose_sent", INSIDE);
+    expect(triggersSent()).toEqual([]);
+  });
+});

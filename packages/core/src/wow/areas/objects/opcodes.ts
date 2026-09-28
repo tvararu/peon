@@ -15,7 +15,7 @@ export const OBJECTS_OPCODES = {
     "SMSG_FISH_ESCAPED",
   ],
   uses: [],
-  stubs: [["SMSG_AREA_TRIGGER_MESSAGE", "Area trigger message"]],
+  stubs: [],
   dead: [],
   unseen: [],
 } as const satisfies AreaOpcodes;
