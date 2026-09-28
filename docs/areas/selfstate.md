@@ -26,6 +26,14 @@ The act `setStandState` sends `CMSG_STANDSTATECHANGE` for stand, sit,
 sleep or kneel and settles `ok` on the reply, `refused` with
 `invalid_state` for any other state, or `no_answer` after 2 s.
 
+The harness area turns the breath and transfer events into game-log rows:
+a started breath timer wakes the agent with `selfstate/under_water` and
+the seconds left, the stop logs `selfstate/surfaced`, `breath_low` wakes
+it to surface, and a refused transfer wakes it with
+`selfstate/transfer_aborted`, naming the map id and the reason in words.
+`stand_changed` and `ghost_pending` write no row, and reattaching with a
+draining breath timer rewrites the under-water row.
+
 ## Wire notes
 
 - For a player the server does not set water walk or hover itself: it
