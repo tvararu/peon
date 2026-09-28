@@ -14,17 +14,17 @@ one `kill` event per kill and one `combo_points` event per combo point
 update. The harness writes two quiet `log` rows from them and no row for
 any other event:
 
-- `combatlog/immune` when a spell of the character or its pet meets an
+- `combatlog/immune` when a spell or swing of the character meets an
   immune unit: an `immune` entry, a `miss` entry with outcome `immune`
   or `immune2`, or a swing with outcome `immune` (spell 0 in the row).
   The text names the unit and the spell id, such as `Mottled Boar u5 is
   immune to spell 122.` It is written once per creature entry and spell
   in a session, or once per unit and spell for a unit that is not a
   creature.
-- `combatlog/killing_blow` when another player or a pet kills the
-  character's target (`ourTarget` 1, `bySelf` 0, `killerKind` `player`
-  or `pet`). A kill by the character writes no row here; its
-  `combat/kill_credit` row covers it.
+- `combatlog/killing_blow` when another player kills the character's
+  target (`ourTarget` 1, `bySelf` 0, `killerKind` `player`). A kill by
+  the character writes no row here; its `combat/kill_credit` row covers
+  it.
 
 A power update
 goes to the unit in the entity store, not to the combat log.
@@ -170,4 +170,4 @@ Both kill logs were kills by the character, which write no row. A
 creature took the third kill, and the server sends no kill log for a
 creature killer (`Entities/Unit/Unit.cpp:13581-13584`). No
 `combatlog/immune` or `combatlog/killing_blow` row has been seen live:
-the area test writes both rows from entries built from the writers.
+the area test writes both rows from hand-built entries.
