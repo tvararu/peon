@@ -1,0 +1,45 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 15,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["spells/channel_end"]
+      },
+      "expect": "GL has a spells/channel_end row with reason cancelled within 2 s of the stop steer, so the channel ended by the stop and not by finishing",
+      "id": "channel-cancelled",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["combat/cast"]
+      },
+      "expect": "GL shows no combat/cast row for the 5 s after the steer, so no new cast cut the channel short",
+      "id": "no-cast-after",
+      "source": "game_log"
+    }
+  ],
+  "field": "fairbreeze-stalkers",
+  "id": "t4-spells-stop-channel",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "eversong10-mage",
+  "setup": [],
+  "steers": [
+    {
+      "at": {
+        "kind": "trigger",
+        "trigger": "channel_start"
+      },
+      "text": "Stop! Stop right now."
+    }
+  ],
+  "task": "Kill a Springpaw Stalker with Arcane Missiles, using the spell tool.",
+  "tier": 4
+}

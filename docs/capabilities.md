@@ -35,6 +35,7 @@ or the page names one that does not exist.
 | Read a letter in its bags | `t8-items-read` | The Dusty Unsent Letter's page text is empty on this server. |
 | Load arrows for a ranged weapon | `t8-items-ammo` | |
 | Cancel one of its own buffs | `t4-spells-cancel-aura` | Harmful and passive auras cannot be cancelled. |
+| Stop a channelled spell with stop | `t4-spells-stop-channel` | Stop also ends a channel. |
 
 ## Not shown by any scenario
 

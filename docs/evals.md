@@ -191,5 +191,5 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Items and gear (`gear`, `journal` bags) | `t8-items-equip-upgrade`, `t8-items-unequip`, `t8-items-move`, `t8-items-split`, `t8-items-open`, `t8-items-read`, `t8-items-ammo` |
 | Game objects (`use`) | `t0-objects-read-shrine` |
 | Game objects (area triggers) | `t4-objects-explore-fargodeep` |
-| Spells (spell tool, stop on channels) | `t4-spells-cancel-aura`, `t4-spells-action-bar` |
+| Spells (spell tool, stop on channels) | `t4-spells-cancel-aura`, `t4-spells-action-bar`, `t4-spells-stop-channel` |
 | Reputation and hostility (journal reputation, reputation rows, unit relations) | `t4-reputation-gain`, `t0-hostiles` |

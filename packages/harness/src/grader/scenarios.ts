@@ -150,6 +150,7 @@ export const ROUND_1: readonly string[] = [
   "t4-spells-cancel-aura",
   "t4-spells-action-bar",
   "t4-reputation-gain",
+  "t4-spells-stop-channel",
 ];
 
 const DIR = `${import.meta.dir}/scenarios`;
