@@ -12,6 +12,10 @@ once the way a player who skips it would; `nextCinematicCamera` exists
 for the probe only and is never sent in play. Movies the server starts
 are recorded, and core sends no reply.
 
+In the harness, the completed intro cinematic and a movie the server
+starts are passive log rows; a cinematic that did not complete writes
+no row.
+
 ## Wire notes
 
 - `SMSG_UPDATE_WORLD_STATE` and `SMSG_INIT_WORLD_STATES` write the state

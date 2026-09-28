@@ -19,6 +19,14 @@ Names, base values and ranks come from `Faction.dbc` in the configured
 data directory. Without that file the area keeps the server's deltas as
 the standing and knows no name or rank.
 
+In the harness, a standing change inside a rank logs the delta and the
+place in the rank ("Silvermoon City reputation +250: Friendly
+1250/6000."), a new rank logs the rank reached, and a fall to Hostile
+or below on a faction now at war warns that its guards will attack the
+character. A faction made visible is logged as discovered, and a forced
+reaction wakes the agent outside a run. `initialized` and
+`watched_changed` write no row.
+
 ## Wire notes
 
 - `SMSG_INITIALIZE_FACTIONS` is a `uint32` count (always 128), then per
