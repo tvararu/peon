@@ -32,6 +32,7 @@ or the page names one that does not exist.
 | Open a container and keep its contents | `t8-items-open` | |
 | Read a letter in its bags | `t8-items-read` | The Dusty Unsent Letter's page text is empty on this server. |
 | Load arrows for a ranged weapon | `t8-items-ammo` | |
+| Walk into an area trigger so the server answers | `t4-objects-explore-fargodeep` | Not shown: the agent never reaches trigger 88 (see below). |
 
 
 ## Not shown by any scenario
@@ -43,6 +44,7 @@ These have tools or code but no scenario that checks them live:
 - Group play: inviting, joining, leaving a group, and fighting as a group.
 - Ranged combat as a hunter.
 - Reading a shrine plaque (`t0-objects-read-shrine`, the agent reads the page but quotes the placard line, not the page's opening sentence).
+- Completing an exploration quest by walking into its area trigger (`t4-objects-explore-fargodeep`, the agent never reaches trigger 88: the accept points at `engage`, which fails explore quests, and compass exploring does not find the mine).
 - A sustained levelling run across several quests and zones.
 
 Peon has no tool for mail, trade, the auction house, flight paths or
