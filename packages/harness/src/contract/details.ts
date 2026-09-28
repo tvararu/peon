@@ -282,7 +282,12 @@ export type BagRow = {
 export type BagsView = {
   copper: number | undefined;
   freeSlots: number | undefined;
-  equipped: { slot: EquipSlotName; name: string; quality: number | null }[];
+  equipped: {
+    slot: EquipSlotName;
+    name: string;
+    quality: number | null;
+    durability: { current: number; max: number } | undefined;
+  }[];
   items: BagRow[];
   ammo: { name: string; entry: number } | undefined;
 };

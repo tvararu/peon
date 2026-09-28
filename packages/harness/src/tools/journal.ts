@@ -42,6 +42,23 @@ const QUEST_STATUS = {
   failed: "failed",
   "in progress": "incomplete",
 } as const;
+function equippedRow(slot: Occupied, name: EquipSlotName) {
+  const current = slot.item.durability;
+  const observed = slot.item.maxDurability;
+  const durability =
+    current === undefined ||
+    observed === undefined ||
+    observed <= 0 ||
+    current >= observed / 4
+      ? undefined
+      : { current, max: observed };
+  return {
+    durability,
+    name: bagItemName(slot),
+    quality: slot.item.quality,
+    slot: name,
+  };
+}
 const BAG_REGIONS: ReadonlySet<string> = new Set(["backpack", "bag_item"]);
 const EQUIP_SLOTS: readonly EquipSlotName[] = [
   "head",
@@ -174,8 +191,8 @@ async function bagsView(
   );
   const equipped = occupied.flatMap((slot) => {
     const name = EQUIP_SLOTS[slot.slot];
-    return slot.region === "equipment" && name
-      ? [{ name: bagItemName(slot), quality: slot.item.quality, slot: name }]
+    return slot.region === "equipment" && name !== undefined
+      ? [equippedRow(slot, name)]
       : [];
   });
   const entries = [
@@ -236,7 +253,11 @@ function moneyText(copper: number | undefined): string {
 
 function equippedLine({ equipped }: BagsView): string {
   const worn = equipped
-    .map((item) => `${item.slot.replace("_", " ")} ${item.name}`)
+    .map((item) =>
+      item.durability === undefined
+        ? `${item.slot.replace("_", " ")} ${item.name}`
+        : `${item.slot.replace("_", " ")} ${item.name} (durability ${item.durability.current}/${item.durability.max})`,
+    )
     .join(", ");
   return `Equipped: ${worn || "nothing"}.`;
 }
@@ -272,7 +293,7 @@ function shortItem(bag: number, item: BagRow): string {
   if (item.durability !== undefined) marks.push("low dura");
   if (item.secondsLeft !== undefined) marks.push(secondsText(item.secondsLeft));
   if (item.loadedAmmo) marks.push("ammo");
-  const head = `bag ${bag} slot ${item.slot} ${item.name} x${item.count}`;
+  const head = `bag ${bag} slot ${item.slot} ${item.name} x${item.count} (item ${item.entry ?? 0})`;
   return marks.length > 0 ? `${head} (${marks.join(", ")})` : head;
 }
 

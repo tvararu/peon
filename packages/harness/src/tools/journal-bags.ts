@@ -102,31 +102,54 @@ function classWears(
   return Math.floor(allowableClass / 2 ** (id - 1)) % 2 === 1;
 }
 
-function wear(
-  template: ItemTemplate,
-  mark: BagMarkCtx,
-): {
-  canWear: boolean | undefined;
-  requiredLevel: number | undefined;
-} {
+function lowMark(
+  current: number | undefined,
+  observed: number | undefined,
+): { current: number; max: number } | undefined {
+  if (
+    current === undefined ||
+    observed === undefined ||
+    observed <= 0 ||
+    current >= observed / 4
+  )
+    return undefined;
+  return { current, max: observed };
+}
+
+type WearBlock =
+  | { reason: "fits"; canWear: true; requiredLevel: number | undefined }
+  | { reason: "class"; canWear: false; requiredLevel: undefined }
+  | { reason: "level"; canWear: false; requiredLevel: number }
+  | {
+      reason: "unknown";
+      canWear: undefined;
+      requiredLevel: number | undefined;
+    };
+
+function wear(template: ItemTemplate, mark: BagMarkCtx): WearBlock {
   if ((SLOTS_BY_TYPE[template.inventoryType] ?? []).length === 0)
-    return { canWear: undefined, requiredLevel: undefined };
+    return { canWear: undefined, reason: "unknown", requiredLevel: undefined };
   const id = classId(mark.playerClass);
   const fits = classWears(template.allowableClass, id);
   if (mark.playerLevel === undefined || fits === undefined)
     return {
       canWear: undefined,
+      reason: "unknown",
       requiredLevel: template.requiredLevel || undefined,
     };
   if (!fits)
-    return {
-      canWear: false,
-      requiredLevel: template.requiredLevel || undefined,
-    };
-  return {
-    canWear: mark.playerLevel >= template.requiredLevel,
-    requiredLevel: template.requiredLevel || undefined,
-  };
+    return { canWear: false, reason: "class", requiredLevel: undefined };
+  return mark.playerLevel >= template.requiredLevel
+    ? {
+        canWear: true,
+        reason: "fits",
+        requiredLevel: template.requiredLevel || undefined,
+      }
+    : {
+        canWear: false,
+        reason: "level",
+        requiredLevel: template.requiredLevel,
+      };
 }
 
 export function bagRow(
@@ -146,17 +169,11 @@ export function bagRow(
   const current = slot.item.durability;
   const fallback = template?.maxDurability;
   const observed = slot.item.maxDurability ?? fallback;
-  const low =
-    current !== undefined &&
-    observed !== undefined &&
-    observed > 0 &&
-    current < observed / 4
-      ? { current, max: observed }
-      : undefined;
+  const durability = lowMark(current, observed);
   const none = {
     ...base,
     canWear: undefined,
-    durability: low,
+    durability,
     loadedAmmo:
       mark.inventory.ammoId !== undefined &&
       mark.inventory.ammoId === slot.item.entry,
@@ -165,7 +182,7 @@ export function bagRow(
     upgrade: undefined,
   };
   if (slot.item.entry === undefined || template === undefined) return none;
-  const { canWear, requiredLevel } = wear(template, mark);
+  const block = wear(template, mark);
   const worn = wornLevel(mark, template.inventoryType);
   const mine =
     template.inventoryType === 18
@@ -173,10 +190,10 @@ export function bagRow(
       : template.itemLevel;
   return {
     ...none,
-    canWear,
-    requiredLevel,
+    canWear: block.canWear,
+    requiredLevel: block.requiredLevel,
     upgrade:
-      canWear === true && worn !== undefined && mine > worn
+      block.canWear === true && worn !== undefined && mine > worn
         ? { itemLevel: mine, wornItemLevel: worn }
         : undefined,
   };

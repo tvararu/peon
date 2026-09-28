@@ -251,6 +251,85 @@ describe("journal bags marks", () => {
     expect(lines.length).toBeLessThanOrEqual(24);
     for (const row of slots)
       if (row.status === "occupied")
-        expect(out.text).toContain(`bag ${row.bag} slot ${row.slot}`);
+        expect(out.text).toContain(
+          `bag ${row.bag} slot ${row.slot} ${row.item.name} x1 (item ${row.item.entry})`,
+        );
+  });
+
+  test("bags names the level only for a level restriction", async () => {
+    const { handle, tool } = await world();
+    const inventory = handle.getInventoryState();
+    const slots: NamedInventorySlot[] = [
+      {
+        bag: 255,
+        guid: 2n,
+        item: bagItem(2n, 35, "Robe of the Magi", 1),
+        region: "backpack",
+        slot: 23,
+        status: "occupied",
+      },
+      {
+        bag: 255,
+        guid: 3n,
+        item: bagItem(3n, 36, "Heavy Mace", 1),
+        region: "backpack",
+        slot: 24,
+        status: "occupied",
+      },
+    ];
+    const queries: Record<number, ItemTemplate> = {
+      35: template(35, {
+        allowableClass: 0x80,
+        inventoryType: 20,
+        requiredLevel: 20,
+      })[1],
+      36: template(36, { inventoryType: 13, requiredLevel: 20 })[1],
+    };
+    handle.getInventoryState = () => ({
+      ...inventory,
+      coinage: 12_345,
+      freeSlots: 14,
+      slots,
+    });
+    handle.getItemTemplate = (entry) => Promise.resolve(queries[entry]);
+    leveled(handle);
+    const out = await runTool(tool, { about: "bags" });
+    expect(out.text.split("\n").slice(2)).toEqual([
+      "bag 255 slot 23: Robe of the Magi x1 (item 35): cannot wear (class).",
+      "bag 255 slot 24: Heavy Mace x1 (item 36): cannot wear (needs level 20).",
+    ]);
+  });
+
+  test("bags marks low durability on equipped gear", async () => {
+    const { handle, tool } = await world();
+    const inventory = handle.getInventoryState();
+    const slots: NamedInventorySlot[] = [
+      {
+        bag: 255,
+        guid: 2n,
+        item: {
+          ...bagItem(2n, 25, "Worn Shortsword", 1),
+          durability: 5,
+          maxDurability: 40,
+        },
+        region: "equipment",
+        slot: 15,
+        status: "occupied",
+      },
+    ];
+    handle.getInventoryState = () => ({
+      ...inventory,
+      coinage: 12_345,
+      freeSlots: 16,
+      slots,
+    });
+    handle.getItemTemplate = () => Promise.resolve(undefined);
+    const out = await runTool(tool, { about: "bags" });
+    expect(out.text.split("\n")[1]).toBe(
+      "Equipped: main hand Worn Shortsword (durability 5/40).",
+    );
+    expect(out.details.result.after).toMatchObject({
+      bags: { equipped: [{ durability: { current: 5, max: 40 } }] },
+    });
   });
 });
