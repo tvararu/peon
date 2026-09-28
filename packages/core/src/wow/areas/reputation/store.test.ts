@@ -95,6 +95,7 @@ describe("reputation store", () => {
         rankChanged: false,
         repListId: SILVERMOON,
         type: "standing_changed",
+        wasAtWar: false,
       },
       {
         after: 9000,
@@ -107,6 +108,7 @@ describe("reputation store", () => {
         rankChanged: true,
         repListId: SILVERMOON,
         type: "standing_changed",
+        wasAtWar: false,
       },
     ]);
     expect(row(store, SILVERMOON)?.visible).toBe(true);
@@ -117,10 +119,20 @@ describe("reputation store", () => {
   test("a drop to Hostile infers AT_WAR and a rise clears it where war can be set (ReputationMgr.cpp:430-436)", async () => {
     const { seen, store } = await setup();
     store.setStanding(standing(BLOODSAIL, -700));
-    expect(seen.at(-1)).toMatchObject({ after: -3200, atWar: true, rank: 1 });
+    expect(seen.at(-1)).toMatchObject({
+      after: -3200,
+      atWar: true,
+      rank: 1,
+      wasAtWar: false,
+    });
     expect(row(store, BLOODSAIL)?.atWar).toBe(true);
     store.setStanding(standing(BLOODSAIL, 0, true));
-    expect(seen.at(-1)).toMatchObject({ after: -2500, atWar: false, rank: 2 });
+    expect(seen.at(-1)).toMatchObject({
+      after: -2500,
+      atWar: false,
+      rank: 2,
+      wasAtWar: true,
+    });
     expect(row(store, BLOODSAIL)?.atWar).toBe(false);
     store.setStanding(standing(SILVERMOON, -9500));
     expect(seen.at(-1)).toMatchObject({ after: -6500, atWar: false, rank: 0 });
@@ -212,6 +224,7 @@ describe("reputation store", () => {
       rankChanged: false,
       repListId: SILVERMOON,
       type: "standing_changed",
+      wasAtWar: false,
     });
     expect(row(store, SILVERMOON)).toMatchObject({
       rank: undefined,

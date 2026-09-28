@@ -21,9 +21,9 @@ the standing and knows no name or rank.
 
 In the harness, a standing change inside a rank logs the delta and the
 place in the rank ("Silvermoon City reputation +250: Friendly
-1250/6000."), a new rank logs the rank reached, and a fall to Hostile
-or below on a faction now at war warns that its guards will attack the
-character. A faction made visible is logged as discovered, and a forced
+1250/6000."), a new rank logs the rank reached, and a standing change
+that puts a faction at war (the event's `wasAtWar` is false and `atWar`
+true) warns that its guards will attack the character. A faction made visible is logged as discovered, and a forced
 reaction wakes the agent outside a run. `initialized` and
 `watched_changed` write no row.
 

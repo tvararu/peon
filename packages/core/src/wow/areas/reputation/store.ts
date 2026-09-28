@@ -69,6 +69,7 @@ export type ReputationEvent =
       rankChanged: boolean;
       increased: boolean;
       atWar: boolean;
+      wasAtWar: boolean;
     }
   | { type: "visible"; repListId: number; name: string | undefined }
   | {
@@ -248,6 +249,7 @@ export class ReputationStore {
     const stored = this.stored(repListId);
     const oldRank = this.rankAt(repListId, stored.delta);
     const before = this.full(repListId, stored.delta);
+    const wasAtWar = (this.flagsOf(stored) & FACTION_FLAGS.AT_WAR) !== 0;
     stored.delta = delta;
     stored.changedAt = this.now();
     const rank = this.rankAt(repListId, delta);
@@ -265,6 +267,7 @@ export class ReputationStore {
         oldRank !== undefined && rank !== undefined && oldRank !== rank,
       increased,
       atWar: (this.flagsOf(stored) & FACTION_FLAGS.AT_WAR) !== 0,
+      wasAtWar,
     });
   }
 

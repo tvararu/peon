@@ -30,6 +30,7 @@ function standing(over: Partial<Standing> = {}): Standing {
     rankChanged: false,
     repListId: 55,
     type: "standing_changed",
+    wasAtWar: false,
     ...over,
   };
 }
@@ -156,11 +157,48 @@ describe("reputation/at_war", () => {
         factionId: 21,
         name: "Booty Bay",
         rank: 1,
+        wasAtWar: true,
       }),
     );
     expect(row).toMatchObject({
       name: "changed",
       text: "Booty Bay reputation -100: Hostile 2800/3000.",
+    });
+  });
+
+  test("a war flag set without a rank change still warns of its guards", () => {
+    const [row] = rules()(
+      standing({
+        after: -3200,
+        atWar: true,
+        before: -3100,
+        factionId: 21,
+        name: "Booty Bay",
+        rank: 1,
+      }),
+    );
+    expect(row).toMatchObject({
+      name: "at_war",
+      text: "You are now at war with Booty Bay; its guards will attack you.",
+    });
+  });
+
+  test("a drop to Hostile on a faction already at war is a rank row", () => {
+    const [row] = rules()(
+      standing({
+        after: -3100,
+        atWar: true,
+        before: -2900,
+        factionId: 21,
+        name: "Booty Bay",
+        rank: 1,
+        rankChanged: true,
+        wasAtWar: true,
+      }),
+    );
+    expect(row).toMatchObject({
+      name: "rank",
+      text: "You are now Hostile with Booty Bay.",
     });
   });
 
@@ -174,6 +212,7 @@ describe("reputation/at_war", () => {
         name: "Booty Bay",
         rank: 2,
         rankChanged: true,
+        wasAtWar: true,
       }),
     );
     expect(row).toMatchObject({
