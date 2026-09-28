@@ -69,7 +69,7 @@ export function areaRig<K extends AreaName>(
   registerModules(dispatch, [module], own);
   const lifetime = createModuleRuntimes(port, [module], own, stores);
   const handles = areaHandles(
-    own as AreaStores,
+    own as unknown as AreaStores,
     lifetime.runtimes as AreaRuntimes,
     () => events.area,
   );
