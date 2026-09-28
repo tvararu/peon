@@ -10,7 +10,10 @@ import { formatLogRows, JOURNAL_LOG_LIMIT } from "#harness/log/query";
 import { createGameLog, createJsonlSink } from "#harness/log/store";
 import { createRunRegistry } from "#harness/runs/registry";
 import { journalTool } from "#harness/tools/journal";
-import { createTestRuntime } from "#test-support/runtime-fixture";
+import {
+  createTestRuntime,
+  type MockHandle,
+} from "#test-support/runtime-fixture";
 import { runTool } from "#test-support/tool-harness";
 
 type KnownQuest = Extract<QuestQuery, { status: "known" }>["data"];
@@ -129,6 +132,16 @@ function template(
   ];
 }
 
+function leveled(handle: MockHandle) {
+  handle.getSelfClass = () => "Warrior";
+  handle.getExperienceState = () => ({
+    lastLevelUp: undefined,
+    lastXp: undefined,
+    level: 10,
+    nextLevelXp: undefined,
+    xp: undefined,
+  });
+}
 
 describe("journal", () => {
   test("quests lists the log with ids, objectives and status", async () => {
@@ -265,8 +278,16 @@ describe("journal", () => {
     const queries: Record<number, ItemTemplate> = {
       25: template(25, { inventoryType: 13, itemLevel: 2 })[1],
       36: template(36, { inventoryType: 13, itemLevel: 5 })[1],
-      37: template(37, { inventoryType: 13, itemLevel: 6, requiredLevel: 20 })[1],
-      38: template(38, { allowableClass: 0x80, inventoryType: 4, itemLevel: 6 })[1],
+      37: template(37, {
+        inventoryType: 13,
+        itemLevel: 6,
+        requiredLevel: 20,
+      })[1],
+      38: template(38, {
+        allowableClass: 0x80,
+        inventoryType: 4,
+        itemLevel: 6,
+      })[1],
     };
     handle.getInventoryState = () => ({
       ...inventory,
@@ -275,14 +296,7 @@ describe("journal", () => {
       slots,
     });
     handle.getItemTemplate = (entry) => Promise.resolve(queries[entry]);
-    handle.getSelfClass = () => "Warrior";
-    handle.getExperienceState = () => ({
-      lastLevelUp: undefined,
-      lastXp: undefined,
-      level: 10,
-      nextLevelXp: undefined,
-      xp: undefined,
-    });
+    leveled(handle);
     const out = await runTool(tool, { about: "bags" });
     expect(out.text.split("\n").slice(2)).toEqual([
       "bag 255 slot 23: Sturdy Axe x1 (item 36): can wear, upgrade (item level 5, worn 2).",
@@ -298,7 +312,11 @@ describe("journal", () => {
       {
         bag: 255,
         guid: 1n,
-        item: { ...bagItem(1n, 25, "Worn Shield", 1), durability: 5, maxDurability: 40 },
+        item: {
+          ...bagItem(1n, 25, "Worn Shield", 1),
+          durability: 5,
+          maxDurability: 40,
+        },
         region: "equipment",
         slot: 14,
         status: "occupied",
@@ -322,8 +340,8 @@ describe("journal", () => {
     ];
     const queries: Record<number, ItemTemplate> = {
       25: template(25, {})[1],
-      5332: template(5332, {})[1],
       2512: template(2512, {})[1],
+      5332: template(5332, {})[1],
     };
     handle.getInventoryState = () => ({
       ...inventory,

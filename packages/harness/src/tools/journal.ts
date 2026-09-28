@@ -263,11 +263,44 @@ function itemLine(item: BagRow): string {
   return marks.length > 0 ? `${head}: ${marks.join(", ")}.` : `${head}.`;
 }
 
+const BAG_LINE_BUDGET = 21;
+
+function shortItem(bag: number, item: BagRow): string {
+  const marks: string[] = [];
+  if (item.upgrade !== undefined) marks.push("upgrade");
+  else if (item.canWear === true) marks.push("wear");
+  if (item.durability !== undefined) marks.push("low dura");
+  if (item.secondsLeft !== undefined) marks.push(secondsText(item.secondsLeft));
+  if (item.loadedAmmo) marks.push("ammo");
+  const head = `bag ${bag} slot ${item.slot} ${item.name} x${item.count}`;
+  return marks.length > 0 ? `${head} (${marks.join(", ")})` : head;
+}
+
+function compactLines(bags: BagsView): string[] {
+  const groups: Record<number, BagRow[]> = {};
+  for (const item of bags.items) {
+    const rows = groups[item.bag] ?? [];
+    rows.push(item);
+    groups[item.bag] = rows;
+  }
+  const lines = Object.entries(groups)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(
+      ([bag, rows]) =>
+        `bag ${bag}: ${rows.map((item) => shortItem(Number(bag), item)).join("; ")}.`,
+    );
+  if (bags.ammo !== undefined)
+    lines.push(`Ammo: ${bags.ammo.name} (item ${bags.ammo.entry}).`);
+  if (lines.length === 0) return ["Bags: no items."];
+  return lines;
+}
+
 function itemLines(bags: BagsView): string[] {
   const lines = bags.items.map(itemLine);
   if (bags.ammo !== undefined)
     lines.push(`Ammo: ${bags.ammo.name} (item ${bags.ammo.entry}).`);
   if (lines.length === 0) return ["Bags: no items."];
+  if (lines.length > BAG_LINE_BUDGET) return compactLines(bags);
   return lines;
 }
 

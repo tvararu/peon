@@ -72,11 +72,14 @@ on-use spells it read before.
 - Item 5806 Fool's Stout is a timed item: a copy added to a hunter's
   bags read `duration` 7200 live. The `eversong10-hunter` preset loads
   ammo 2515 Sharp Arrow.
-- A bags row is wearable when the character's class bit is set in the
-  template's allowable class (`Entities/Player/PlayerStorage.cpp:2397`)
-  and the character's level is at least the required level
+- A bags row is wearable when the template names an equip slot
+  (`Entities/Player/PlayerStorage.cpp:129-245`; inventory type 0 names
+  none) and the character's class bit is set in the template's allowable
+  class (`Entities/Player/PlayerStorage.cpp:2397`) and the character's
+  level is at least the required level
   (`Entities/Player/PlayerStorage.cpp:2448`). A wearable row whose item
-  level beats the worn item's is an `upgrade`, by item level only.
+  level beats the worn item's is an `upgrade`, by item level only; a bag
+  row compares slot counts against the best equipped bag.
 - A bags row shows `durability C/M` when the observed durability is
   below a quarter of the maximum, and `<time> left` while
   `ITEM_FIELD_DURATION` is nonzero (seconds remaining,
