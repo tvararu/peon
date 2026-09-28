@@ -816,6 +816,12 @@ forces this change with TS7053].
   agent's history. The fallback draft carries `data.fallback: true`, and
   the journal filter hides such rows. A harness rule opts an area into the
   journal. `domain:<area>` queries still find them [M, `log/query.ts:80-82`].
+- **PLAY hand-back note.** The note keeps a game-log row only when its
+  event starts with a prefix in `KEPT` [M, `drive/note.ts:7-18,56-60`],
+  which lists core prefixes only, so no area row reaches it by default,
+  and fallback rows never should. An area whose rule-made rows a driving
+  human needs (trade, mail, raid) adds one `<area>/` prefix to `KEPT`, as
+  a shared edit.
 - **Flood guard.** A rule may return `[]` for a high-rate event. The first
   area with a high-rate opcode (`threat`, `combatlog`) counts rows per
   fight and journal rows per turn in its live proof.
@@ -873,6 +879,9 @@ export type HarnessArea<K extends AreaName, W extends keyof AreaActsOf<K> & stri
   handles as arguments, so `world.test.ts` passes a fixture registry with
   an act that is not listed.
 - The change is additive: `version: 1` and `isWorld` stay [M].
+- `docs/harness.md` "Extensions" lists the `claim.act` keys and the
+  session reads by name [M, `docs/harness.md:281-297` at `71fba0ab`]; 0d
+  adds `session.areas` and `claim.areas` there.
 - **Cost.** A claim goes through `rt.control.claim`, which preempts runs
   when anyone holds control, and is refused below a higher owner [M,
   `runtime/control-owner.ts`]. So an extension that wants only
@@ -884,7 +893,8 @@ export type HarnessArea<K extends AreaName, W extends keyof AreaActsOf<K> & stri
 **Tools.**
 
 - An area tool is `packages/harness/src/areas/<area>/tool.ts`, built with
-  `defineGameTool` [M, `tools/game-tool.ts:22-44`]. It keeps its own
+  `defineGameTool` [M, `tools/define.ts:488-524`; the spec and module
+  types are `tools/game-tool.ts:22-44`]. It keeps its own
   `After` type and renderers in its module: `callRenderer`,
   `resultRenderer` and `callLine` are generic exports of
   `ui/renderers/line.ts`, and `ToolDetailsFor<N, A>` is generic [M,
@@ -906,7 +916,10 @@ export type HarnessArea<K extends AreaName, W extends keyof AreaActsOf<K> & stri
   `VERIFYING` go away [M, `ops/progress.ts:20`,
   `ops/repeat-guard.ts:40-49`]. The sets must not be derived from
   `GAME_TOOLS`: that makes a value cycle through `tools/define.ts` and
-  `ops/repeat-guard.ts` [M for the imports].
+  `ops/repeat-guard.ts` [M for the imports]. `tools/define.ts` is at 494
+  non-blank lines [M, R0], so step 0c keeps its net addition there under
+  six lines or first splits the admission code (`admit`, `repeatCall`)
+  into a sibling module.
 - A tool that starts a background run needs a `RunKind` member and a
   `VERB` entry [M, `contract/runs.ts:1`, `ui/status-line.ts:5`]. A tool
   whose facts also reach the router as `wake` or `passive` rows needs a
@@ -921,13 +934,16 @@ export type HarnessArea<K extends AreaName, W extends keyof AreaActsOf<K> & stri
   ten tools") to drop the count. No test pins ten on `main` [M:
   `prompt/guidelines.test.ts` was deleted by #428];
   `prompt/harness-doc.test.ts` requires each tool name in that doc [M].
-- **Condition.** This tool model rests on a closed `ToolName`. #424's body
-  names a later slice for extension-provided or MCP-exposed tools [M, `gh
-  issue view 424`]. All five item 6 issues (#419, #420, #423, #424, #427)
-  are closed [M], but whether that slice is still planned could not be
-  determined. The re-baseline task (section 6) re-reads the tool files;
-  if an extension can register a game tool, area tools use that path and
-  this subsection is rewritten.
+- **Condition.** This tool model rests on a closed `ToolName` [M, R0:
+  `contract/result.ts:1-11` at `71fba0ab`]. #424's body names a later
+  slice for extension-provided or MCP-exposed tools ("item 6, slice 4")
+  [M, `gh issue view 424`], but no issue exists for it, and the item 6
+  handover lists the MCP adapter as a follow-up that needs the
+  maintainer's decision [M, R0]. The only `pi.registerTool` call is
+  `tools/define.ts:520`, reached through `GAME_TOOLS`; a tool that an
+  extension registers with Pi directly is not a game tool. If the
+  maintainer later opens that slice, area tools move to its path and this
+  subsection is rewritten.
 
 **Evals.**
 
@@ -978,6 +994,7 @@ The seed commit has already created the directory, `opcodes.ts`, an empty
 |---|---|
 | Parse-only area | none |
 | Plus harness rules or world acts | none |
+| Plus rule-made rows the PLAY hand-back note shows | `KEPT` in `drive/note.ts` (1 line) |
 | Plus a new tool | `ToolName` (1 line), `GAME_TOOLS` (1 line), `docs/harness.md` (the tool name and one line) |
 | Plus a tool whose facts also reach the router | `COVERS` |
 | Plus a tool that starts a background run | `RunKind`, `VERB` |
@@ -1186,7 +1203,8 @@ Harness:
 Live:
 
 28. The `time` proof of section 3.13.
-29. `t1-walk-to-npc` and `t7-halt-resume` pass unchanged. Every item 6
+29. `t1-walk-to-npc` and `t7-halt-resume` pass unchanged (a single
+    `t7-halt-resume` failure is rerun first; see 6.6). Every item 6
     issue gated on both [M, issues #423, #424, #427], and step 0 edits the
     router, the log contract and the world service they pass through.
 30. `mise ci` green on the step-0 head.
@@ -1198,9 +1216,9 @@ Live:
 | 0a core mechanism | `areas/contract.ts`, `compose.ts`, `port.ts`, `registry.ts`, `typecheck-fixture.ts`, tests, `test-support/area-rig.ts`; `OpcodeDispatch.peek`; one-time edits to `session-stores.ts`, `world-events.ts`, `client-handlers.ts`, `client.ts`, `runtime.ts`, `index.ts`, `mock-handle.ts`, `protocol/stubs.ts`, `packages/core/package.json`, `biome.json` (two overrides) | ~24 | ~800 new, ~130 changed |
 | 0b coverage and names | `protocol-coverage.ts` and test, the index and per-area files, `CORE_OPCODES` and regenerated `protocol/opcodes.ts`, `stale-docs.ts`, `docs/protocol.md` "Add an area", "Session stores" and the one reference-list entry that R5 specifies | ~10 | ~220 plus moved rows |
 | 0c harness mechanism | `harness/src/areas/contract.ts`, `registry.ts`, `rules.ts` and tests; edits to `contract/log.ts`, `ui/draw.ts`, `events/router.ts` and test, `log/query.ts`, `ops/progress.ts`, `ops/repeat-guard.ts`, `contract/services.ts`, `tools/define.ts`, `docs/harness.md` | ~16 | ~450 |
-| 0d world service | `harness/src/areas/world.ts` and test, `world/service.ts`, `world/hub.ts` and test | ~5 | ~150 |
+| 0d world service | `harness/src/areas/world.ts` and test, `world/service.ts`, `world/hub.ts` and test, `docs/harness.md` "Extensions" (`session.areas`, `claim.areas`) | ~6 | ~160 |
 | 0e worked example | `time` core (8 files), harness (2), `docs/areas/time.md` | ~11 | ~500 |
-| **Total** | | **~66** | **~2,250** |
+| **Total** | | **~67** | **~2,260** |
 
 All of it lands as commits in the draft PR, after item 6 fully merged,
 in the order 0a to 0e, then the wave 1 seed commit. The proof tooling of
@@ -3752,9 +3770,10 @@ its section 5 written here as rules.
 
 - Everything lands on `factory/426-protocol-coverage` as commits of one
   draft PR (R1). Today the PR holds the design and the plan (R13).
-- No code before item 6 fully merges (R3, R11). At `71fba0ab` no PR is
-  open and all five item 6 issues are closed [M, `gh issue view`], so the
-  gate looks met; the re-baseline task (6.3) confirms it.
+- No code before item 6 fully merges (R3, R11). R0 confirmed the gate at
+  `71fba0ab`: #421, #422, #425, #428 and #429 merged, all five item 6
+  issues closed, and no PR open except #430 [M, `gh pr view`,
+  `gh pr list`].
 - The PR lands in the maintainer's hands as one squash, with the usual
   `signoff/ci`, `factory/ci` and `factory/review` statuses posted only
   after his review (AGENTS.md "Ways of working").
@@ -3876,7 +3895,12 @@ where the code moved.
 
 - After each wave lands, one eval round runs the wave's scenarios plus the
   item 6 gates (`t1-walk-to-npc`, `t7-halt-resume`) and the regression
-  scenarios the areas name (`t3-ghostlands-kill`, `t0-hostiles`).
+  scenarios the areas name (`t3-ghostlands-kill`, `t0-hostiles`). Known
+  baseline, reported by the item 6 handover and not measured by R0:
+  `t3-ghostlands-kill` fails on `main` before item 4 (no kill credit, only
+  gray mobs), so it counts as a regression only when its failure changes;
+  `t7-halt-resume` failed once from a stale `life/low_health` wake, so one
+  failure is rerun before it counts.
 - A round: fix briefs from the last round get a fixer, a reviewer and a
   serialised landing; the prep step recreates the eval worktree if it is
   missing, and run directories stay in that worktree; the scenarios run in
@@ -3915,7 +3939,7 @@ where the code moved.
 | Fallback rows flood the journal | the agent's history fills with noise | fallback rows are quiet (N12); the `threat` pilot measures rows per fight and per turn |
 | Area acts need a world-service claim | an extension that only reads time or searches the auction house preempts the agent's runs | stated in 3.10; whether non-moving acts may skip the claim is for the item 6 owner |
 | 16 of the 58 opcodes seen live rest only on deleted logs | 9 of the 11 "seen" remote-motion opcodes have no surviving evidence | every area proves its opcodes again with the tap; nothing relies on the old counts |
-| The item 6 tool surface may still change (an extension-tools slice) | the tool cost model of 3.10 and 3.11 is wrong | the re-baseline task re-reads the tool files first |
+| The item 6 tool surface may change later (the MCP adapter, an unplanned follow-up awaiting the maintainer) | the tool cost model of 3.10 and 3.11 is wrong | R0 confirmed `ToolName` closed at `71fba0ab`; if the maintainer opens the slice, the coordinator rewrites 3.10 "Tools" before the next wave |
 | Type-check cost grows with 45 areas | slower `mise typecheck` | measure at step 0 and at each wave |
 | The step-0 type plan needs casts | a wrong cast hides a type error | casts only at the correlated sites; `compose.test.ts` pins the built shapes; step 0 typechecks with two areas |
 | Hostility, login and control changes touch every session | a regression in basic play | the item 6 gates and the regression evals run before each wave lands |
