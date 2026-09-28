@@ -72,6 +72,7 @@ function mirrorTimer(
         text: "You can breathe again.",
       },
     ];
+  if (event.value.paused || event.value.scale >= 0) return [];
   return [underWater(event.value.valueMs)];
 }
 
@@ -81,7 +82,7 @@ export const selfstateHarness = defineHarnessArea({
   rules: () => ({
     attach: (state: SelfState, rc: RuleInput) => {
       const timer = state.timers.breath;
-      if (!timer) return [];
+      if (!timer || timer.paused || timer.scale >= 0) return [];
       const left = timer.valueMs + timer.scale * (rc.now - timer.at);
       return left > 0 ? [underWater(left)] : [];
     },

@@ -128,6 +128,29 @@ describe("selfstate harness rules", () => {
     );
   });
 
+  test.each([
+    ["paused", { paused: true }],
+    ["refilling", { scale: 10 }],
+  ])("a started %s breath timer writes no under-water row", (_, change) => {
+    const rows = drafts({
+      change: "started",
+      timer: "breath",
+      type: "mirror_timer",
+      value: { ...BREATH, ...change },
+    });
+    expect(rows).toEqual([]);
+  });
+
+  test.each([
+    ["paused", { paused: true }],
+    ["refilling", { scale: 10 }],
+  ])("attach with a %s breath timer writes no row", (_, change) => {
+    const rows = attached({
+      ...IDLE,
+      timers: { breath: { ...BREATH, ...change, at: NOW - 20_000 } },
+    });
+    expect(rows).toEqual([]);
+  });
   test("attach with a draining breath timer writes one row with the time left", () => {
     const rows = attached({
       ...IDLE,
