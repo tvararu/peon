@@ -1,6 +1,24 @@
 import { describe, expect, test } from "bun:test";
+import { AREA_NAMES } from "@peon/core";
 import { decodeCall, PUPPET_CALLS } from "#harness/puppet/calls";
 import { createMockGame } from "#test-support/mock-game";
+
+function areaActs(game: object, area: string): object | undefined {
+  const view: unknown = Reflect.get(game, area);
+  if (typeof view !== "object" || view === null || !("act" in view)) return;
+  const acts = view.act;
+  return typeof acts === "object" && acts !== null ? acts : undefined;
+}
+
+function callable(game: object, method: string): boolean {
+  if (typeof Reflect.get(game, method) === "function") return true;
+  return AREA_NAMES.some((area) => {
+    const acts = areaActs(game, area);
+    return (
+      acts !== undefined && typeof Reflect.get(acts, method) === "function"
+    );
+  });
+}
 
 describe("decodeCall", () => {
   test("keeps the method and its string arguments", () => {
@@ -57,10 +75,16 @@ describe("PUPPET_CALLS", () => {
     expect(keys).toEqual([...keys].sort());
   });
 
-  test("names only functions on the game handle", () => {
-    const game = createMockGame() as unknown as Record<string, unknown>;
+  test("names only functions or area acts on the game handle", () => {
+    const game = createMockGame();
     for (const method of Object.keys(PUPPET_CALLS))
-      expect(typeof game[method]).toBe("function");
+      expect(callable(game, method)).toBe(true);
+  });
+
+  test("reaches the inert acts of the mock game's area handles", () => {
+    const game = createMockGame();
+    expect(AREA_NAMES.every((area) => areaActs(game, area))).toBe(true);
+    expect(callable(game, "query")).toBe(true);
   });
 
   test("runs the handle method with the decoded arguments", () => {
