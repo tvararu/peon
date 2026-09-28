@@ -17,7 +17,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x1e3` | `CMSG_QUEST_POI_QUERY` | client | handled |  |
 | `0x1e4` | `SMSG_QUEST_POI_QUERY_RESPONSE` | server | handled |  |
 | `0x21e` | `SMSG_QUEST_FORCE_REMOVE` | server | dead |  |
-| `0x224` | `SMSG_GOSSIP_POI` | server | handled | not seen live |
+| `0x224` | `SMSG_GOSSIP_POI` | server | handled |  |
 | `0x276` | `MSG_QUEST_PUSH_RESULT` | both | missing |  |
 | `0x417` | `CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY` | client | handled |  |
 | `0x418` | `SMSG_QUESTGIVER_STATUS_MULTIPLE` | server | handled |  |
