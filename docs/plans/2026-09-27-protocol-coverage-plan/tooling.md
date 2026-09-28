@@ -34,22 +34,29 @@ an eval on new server state. It owns no opcode. Every task has
 
 ## State at plan time
 
-[M, `git log origin/main..origin/factory/426-protocol-coverage` at
-`02b83919`.] Whether each landed task is complete against its plan body
-is confirmed by the coordinator at Gate 0.
+[M, `git log --oneline 9f5a1f22..c60663ef` and the diffs, read at
+`5ddd356c`.] T-1 to T-5 have landed on
+`factory/426-protocol-coverage`. The plan index compares each with its
+plan body and with what step 0 and T-6 to T-10 consume from it ("Gate R
+rulings", GR-18 to GR-25). "Beyond the plan body" lists the files a
+task edited that its section below and contract 2.2 do not name (GR-25).
 
-| Task | Lane | State |
-|---|---|---|
-| T-1 | `tooling-names` | landed: `4811fd0f` (`fix: Retry soap create on a name collision`), `17016b6c` (`docs: Describe the soap create name retry`) |
-| T-2 | `tooling-tap` | landed: `f2480411` (`feat: Add a packet trace and counts to core`), `0d4ef73b` (`fix: Replay notices made before a subscriber`), `2ffed845` (`feat: Add --packet-trace to the harness`), `d13a8dff` (`chore: Trace packet headers in every eval run`) |
-| T-3 | `tooling-probe` | landed: `95905bf2` to `02b83919` (`chore: Add mise protocol:probe` and follow-ups) |
-| T-4 | `tooling-cite-check` | landed: `a3dacf5c` (`chore: Add the AzerothCore citation checker`) to `aaa18efb` |
-| T-5 | `tooling-gm` | landed: `7b8342d5` (`chore: Add soap gm staging over SOAP`), `10a071ed`, `e24c88da` |
-| T-6 to T-10 | `tooling-gm`, `tooling-partner`, `tooling-truth` | not started |
+| Task | Lane | State | Commits | Beyond the plan body |
+|---|---|---|---|---|
+| T-1 | `tooling-names` | landed | `4811fd0f` (`fix: Retry soap create on a name collision`), `17016b6c` (`docs: Describe the soap create name retry`) | none |
+| T-2 | `tooling-tap` | landed | `f2480411` (`feat: Add a packet trace and counts to core`), `0d4ef73b` (`fix: Replay notices made before a subscriber`), `2ffed845` (`feat: Add --packet-trace to the harness`), `d13a8dff` (`chore: Trace packet headers in every eval run`) | `contract/config.ts`, `eval/run-dir.ts`, harness `main.ts`, harness `test-support/router-fixture.ts` and `runtime-fixture.ts`, `docs/testing.md`, `docs/evals.md`; `world-conn.ts` has `trace` and `pendingNotices`, no `outbound` or `skipped` (GR-18) |
+| T-3 | `tooling-probe` | landed | `95905bf2` (`chore: Read opcode names and hex in core`), `d29f6d39` (`chore: Add mise protocol:probe`), `89f48904`, `1115bd60`, `213ab572`, `cf48ee12`, `1d2ac2d6`, `02b83919` | `probe-args.ts`, `probe-account.ts`, `probe-run.ts`, `probe-sink.ts`, `probe-flows.ts` and their tests; core `packet-trace.ts` and `session.ts` (`opcodeNumber`); `packages/devtools/package.json`, `bun.lock`, `AGENTS.md`, `docs/protocol.md` ("Probe the server"), `stale-docs.ts` (`probe/` as a tool output) |
+| T-4 | `tooling-cite-check` | landed | `a3dacf5c` (`chore: Add the AzerothCore citation checker`), `54d5c0b6`, `08159776`, `e26ec62a`, `60ff1ced`, `f7279d06`, `aaa18efb` | `AGENTS.md`, `docs/dependencies.md`, `docs/protocol.md` ("Check citations") |
+| T-5 | `tooling-gm` | landed | `7b8342d5` (`chore: Add soap gm staging over SOAP`), `10a071ed` (`docs: Describe soap gm`), `e24c88da` (`chore: Log soap gm commands whose request throws`) | factory `main.ts`, `soap-console.test.ts`, `docs/testing.md`; `gm.log` is written by `consoleCommand` in `soap.ts` (GR-23) |
+| T-6 to T-10 | `tooling-gm`, `tooling-partner`, `tooling-truth` | not started | none | none |
 
-The worktrees `proto-tooling-cite`, `proto-tooling-trace` and
-`proto-tooling-factory` and their branches remain from the landed lanes.
-The coordinator removes them at Gate R (plan index, "Phase R").
+Branches as they are: no `proto/*` or tooling branch exists locally or
+on `origin`, and no tooling worktree exists [M, `git branch -a`,
+`git ls-remote --heads origin`, `git worktree list`]. The worktrees
+`proto-tooling-cite`, `proto-tooling-trace` and
+`proto-tooling-factory` of the landed lanes are gone, so each later lane
+starts a new worktree `proto-<lane>` on branch `proto/area-<lane>`
+(GR-9).
 
 Branch contents are not fixed names. A later task reads the landed file,
 not the branch.
@@ -60,6 +67,7 @@ These are gaps found while planning. The contract is not changed here;
 each needs a coordinator ruling or a `COORD-<n>` edit before the task that
 meets it starts. Until issues 1, 3 and 4 are ruled, T-7a, T-9a and T-10
 stop `blocked` on their first edit (contract 0.9). Each is **not yet ruled by the maintainer**.
+Ruled at Gate R: issues 1 to 7 are GR-8 to GR-14 in the plan index ("Gate R rulings").
 
 1. **T-7 needs four more puppet files.** `start --packet-trace` cannot
    reach the login through `puppet/args.ts`, `protocol.ts` and
@@ -212,6 +220,8 @@ not re-plan its steps.
 
 ## T-6 tooling-gm: `soap gm` extensions (N31, N30)
 
+Gate R rulings: GR-9, GR-13, GR-15, GR-16, GR-23 (plan index).
+
 Adds the staging verbs that later areas need beyond design 4.3: the
 character-screen verbs for `session` (design 5.18), the deserter and
 achievement resets for `instances`, `pvp` and `social`, the read-only
@@ -325,6 +335,8 @@ removed with the same tool.
 
 ## T-7a tooling-partner: puppet `call` and `calls.ts`
 
+Gate R rulings: GR-8, GR-9 (plan index).
+
 Lets a worker or an eval drive a partner character's `WorldHandle`
 methods, so group, guild, trade and duel opcodes have a live counterpart
 (design 4.4).
@@ -421,6 +433,8 @@ methods with checked arguments.
 
 ## T-7b tooling-partner: puppet `events --json`
 
+Gate R rulings: GR-8, GR-17 (plan index).
+
 **Files:**
 - Modify (one-time): `packages/harness/src/puppet/args.ts`,
   `args.test.ts`, `protocol.ts`, `protocol.test.ts`, `server.ts`,
@@ -473,6 +487,8 @@ error and area events the way read drains chat.
 ```
 
 ## T-7c tooling-partner: puppet `raw` and `start --packet-trace`
+
+Gate R rulings: GR-8, GR-22 (plan index).
 
 **Files:**
 - Modify (one-time): `packages/harness/src/puppet/args.ts`,
@@ -618,6 +634,8 @@ carries, but the grader could not pick them out.
 
 ## T-8b tooling-truth: truth fields from a live fixture
 
+Gate R ruling: GR-12 (plan index).
+
 **Files:**
 - Modify: `packages/harness/src/grader/truth.ts` (`Truth`, `TruthItem`,
   `parseTruth`) and `truth.test.ts` (the fixture, inline)
@@ -672,6 +690,8 @@ optional, so a service that does not return them still parses.
 ---
 
 ## T-9a tooling-partner: multi-partner evals
+
+Gate R ruling: GR-10 (plan index).
 
 **Files:**
 - Create: `packages/harness/src/grader/run-partners.ts` and
@@ -757,6 +777,8 @@ single partner slot keeps working for the existing scenarios.
 
 ## T-9b tooling-partner: partner truth checks
 
+Gate R ruling: GR-14 (plan index).
+
 **Files:**
 - Modify: `packages/harness/src/grader/run-partners.ts` and test
   (partner baseline truth)
@@ -812,6 +834,8 @@ so the grader now reads its truth before and after the run.
 ---
 
 ## T-10 tooling-truth: console-read check source
+
+Gate R rulings: GR-11, GR-24 (plan index).
 
 **Files:**
 - Create: `packages/harness/src/grader/console-read.ts` and test

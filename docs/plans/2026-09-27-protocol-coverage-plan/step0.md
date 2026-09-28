@@ -72,7 +72,8 @@ types. A dependency on `S0-1` means S0-1b.
 ## Contract gaps found while planning
 
 Each gap is reported to the coordinator (contract precedence 3). The plan
-works around it as stated; nobody invents a second name.
+works around it as stated; nobody invents a second name. Ruled at Gate R:
+G1 to G7 are GR-1 to GR-7 in the plan index ("Gate R rulings").
 
 | # | Gap | Evidence | Plan |
 |---|---|---|---|
@@ -87,6 +88,8 @@ works around it as stated; nobody invents a second name.
 ---
 
 ## Task S0-1a: `OpcodeDispatch.peek`
+
+Gate R rulings: GR-1, GR-18 (plan index).
 
 **Design:** 3.6, test 10 of 3.15. **Contract:** 1.6 (`protocol/world.ts`).
 **codeArea:** step0.
@@ -155,6 +158,8 @@ own fork, so it can never break the owner or leave a wait unresolved.
 ---
 
 ## Task S0-1b: Core area mechanism and hub edits
+
+Gate R rulings: GR-1, GR-4, GR-18, GR-26, GR-27, GR-29 to GR-31, GR-33, GR-36, GR-40 to GR-42 (plan index).
 
 **Design:** 3.2 to 3.9, tests 1 to 5, 7 to 9, 11 to 14, 17 of 3.15.
 **Contract:** 1.1 to 1.8, 1.12. **codeArea:** step0.
@@ -318,6 +323,8 @@ again.
 
 ## Task S0-2: Coverage split and absent opcode names
 
+Gate R rulings: GR-5, GR-7 (plan index).
+
 **Design:** 3.9 "Coverage", 3.12 "Absent opcodes", 3.14, tests 18 and
 19 of 3.15. **Contract:** 1.11. **codeArea:** step0.
 
@@ -429,6 +436,8 @@ opcodes the server uses get names before any worker needs them.
 ---
 
 ## Task S0-3: Harness area mechanism
+
+Gate R rulings: GR-2, GR-3, GR-34, GR-37, GR-41 (plan index).
 
 **Design:** 3.10 "Log types", "Router", "Harness area contract", "Tools"
 (N10, N11, N12), tests 20, 21, 23 to 25 and 27 of 3.15. **Contract:**
@@ -561,6 +570,8 @@ the journal, and the guards read the tool kind instead of name lists.
 
 ## Task S0-4: World service areas
 
+Gate R ruling: GR-39 (plan index).
+
 **Design:** 3.10 "World service (N5)", test 26 of 3.15. **Contract:**
 1.9 "World service", [D23]. **codeArea:** step0.
 
@@ -627,6 +638,8 @@ limited to each area's listed world acts.
 ---
 
 ## Task S0-5: Worked example `time`
+
+Gate R rulings: GR-6, GR-19 to GR-21, GR-28, GR-32, GR-33, GR-35, GR-37 (plan index).
 
 **Design:** 3.13, N6, tests 15, 16, 19 (the `time` rows), 22, 26 (the
 `time` case), 27, 28, 29 and 30 of 3.15. **Contract:** 1.10, 1.5 (the
