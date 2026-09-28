@@ -5,10 +5,10 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x0ac` | `CMSG_OPEN_ITEM` | client | missing |  |
-| `0x0ad` | `CMSG_READ_ITEM` | client | missing |  |
-| `0x0ae` | `SMSG_READ_ITEM_OK` | server | missing |  |
-| `0x0af` | `SMSG_READ_ITEM_FAILED` | server | missing |  |
+| `0x0ac` | `CMSG_OPEN_ITEM` | client | handled |  |
+| `0x0ad` | `CMSG_READ_ITEM` | client | handled |  |
+| `0x0ae` | `SMSG_READ_ITEM_OK` | server | handled |  |
+| `0x0af` | `SMSG_READ_ITEM_FAILED` | server | handled |  |
 | `0x0b0` | `SMSG_ITEM_COOLDOWN` | server | missing |  |
 | `0x10a` | `CMSG_AUTOEQUIP_ITEM` | client | handled |  |
 | `0x10b` | `CMSG_AUTOSTORE_BAG_ITEM` | client | handled |  |
@@ -23,8 +23,8 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x1d7` | `SMSG_ENCHANTMENTLOG` | server | missing |  |
 | `0x1ea` | `SMSG_ITEM_TIME_UPDATE` | server | missing |  |
 | `0x1eb` | `SMSG_ITEM_ENCHANT_TIME_UPDATE` | server | missing |  |
-| `0x243` | `CMSG_ITEM_TEXT_QUERY` | client | missing |  |
-| `0x244` | `SMSG_ITEM_TEXT_QUERY_RESPONSE` | server | missing |  |
+| `0x243` | `CMSG_ITEM_TEXT_QUERY` | client | handled |  |
+| `0x244` | `SMSG_ITEM_TEXT_QUERY_RESPONSE` | server | handled |  |
 | `0x268` | `CMSG_SET_AMMO` | client | missing |  |
 | `0x2bd` | `SMSG_DURABILITY_DAMAGE_DEATH` | server | missing |  |
 | `0x2c4` | `CMSG_ITEM_NAME_QUERY` | client | missing |  |

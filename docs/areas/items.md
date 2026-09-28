@@ -107,11 +107,35 @@ on-use spells it read before.
   (shirt), 2284 Rat Cloth Cloak (required level 10) and 20 of 159
   Refreshing Spring Water.
 
+- `CMSG_OPEN_ITEM` carries the bag and slot
+  (`Handlers/SpellHandler.cpp:214-216`). The server opens only an item
+  with `ITEM_FLAG_HAS_LOOT` or a wrapped item, and refuses others with
+  `EQUIP_ERR_CANT_DO_RIGHT_NOW` naming the item
+  (`Handlers/SpellHandler.cpp:244-248`). It answers with the item's loot
+  window: `SMSG_LOOT_RESPONSE` names the item guid
+  (`Handlers/SpellHandler.cpp:284`, `Entities/Player/Player.cpp:8381-8384`).
+  The `open` act asks the rewards store to open that guid first, so the
+  loot window lands in `core.rewards`, and closes it with a failure after
+  a refusal or 5 seconds with no answer.
+- `CMSG_READ_ITEM` carries the bag and slot
+  (`Server/Packets/ItemPackets.cpp:65-69`). `SMSG_READ_ITEM_OK` and
+  `SMSG_READ_ITEM_FAILED` carry only the item guid
+  (`Handlers/ItemHandler.cpp:559-571`). On a refusal the server sends
+  `SMSG_INVENTORY_CHANGE_FAILURE` naming the item before
+  `SMSG_READ_ITEM_FAILED` (`Handlers/ItemHandler.cpp:565-571`), so the
+  read settles `failed` with the failure's reason. An item with no page
+  text draws `EQUIP_ERR_ITEM_NOT_FOUND` with no item
+  (`Handlers/ItemHandler.cpp:574-575`).
+- `SMSG_ITEM_TEXT_QUERY_RESPONSE` is `0`, the item guid and the text for
+  a carried item, or `1` alone (`Handlers/ItemHandler.cpp:1468-1479`).
+  The `1` answer names no guid, so it settles the oldest waiting query.
+- Items used for the open and read proof: 5335 A Sack of Coins (has
+  loot, no lock), 889 A Dusty Unsent Letter (page text, no required
+  level) and 38579 Venomous Tome (page text, required level 20, so a
+  level 10 character's read fails with `cant_equip_level_i`).
+
 ## Left out
 
-- `CMSG_OPEN_ITEM`, `CMSG_READ_ITEM`, `SMSG_READ_ITEM_OK`,
-  `SMSG_READ_ITEM_FAILED`, `CMSG_ITEM_TEXT_QUERY` and
-  `SMSG_ITEM_TEXT_QUERY_RESPONSE`: built by `items-4`.
 - `CMSG_SET_AMMO`: built by `items-8`.
 - `SMSG_ITEM_COOLDOWN`, `SMSG_ITEM_TIME_UPDATE`,
   `SMSG_ITEM_ENCHANT_TIME_UPDATE`, `SMSG_DURABILITY_DAMAGE_DEATH` and
@@ -141,3 +165,9 @@ No verb yet; `items-5a` adds the `gear` tool and its row.
 | `CMSG_SWAP_INV_ITEM` | `live` | probe flow `items-move` (`do=move`, `to=31`), exit 0: the Honey Bread moves from backpack slot 23 to 31 in truth and the act settles `confirmed` | `Server/Packets/ItemPackets.cpp:29-33` |
 | `CMSG_AUTOSTORE_BAG_ITEM` | `live` | probe flow `items-move` (`do=unequip`), exit 0: the shirt in slot 3 moves to the backpack in truth and the act settles `confirmed` | `Server/Packets/ItemPackets.cpp:108-113` |
 | `CMSG_SPLIT_ITEM` | `live` | probe flow `items-move` (`do=split`, `count=5`), exit 0: the stack of 20 water in slot 30 leaves 15, a new stack of 5 is in slot 32 in truth, and the act settles `confirmed` | `Server/Packets/ItemPackets.cpp:20-27` |
+| `CMSG_OPEN_ITEM` | `live` | probe flow `items-open` (`do=open`) on an `eversong10` character, exit 0: the item-guid `SMSG_LOOT_RESPONSE` for A Sack of Coins opens the loot window with 1140 copper and one item, and the act resolves with it | `Handlers/SpellHandler.cpp:214-216` |
+| `CMSG_READ_ITEM` | `live` | probe flow `items-open` (`do=read`), exit 0: the server answers for the letter and the Venomous Tome | `Server/Packets/ItemPackets.cpp:65-69` |
+| `SMSG_READ_ITEM_OK` | `live` | probe flow `items-open` (`do=read`) on A Dusty Unsent Letter, exit 0: the guid is the letter's and the read settles `ok` | `Handlers/ItemHandler.cpp:562` |
+| `SMSG_READ_ITEM_FAILED` | `live` | probe flow `items-open` (`do=read`) on the level-20 Venomous Tome, exit 0: `SMSG_INVENTORY_CHANGE_FAILURE` result 1 naming the tome comes first, then this packet with its guid, and the read settles `failed` (`cant_equip_level_i`) | `Handlers/ItemHandler.cpp:567` |
+| `CMSG_ITEM_TEXT_QUERY` | `live` | probe flow `items-open` (`do=text`), exit 0: the query carries the letter's guid | `Handlers/ItemHandler.cpp:1461-1465` |
+| `SMSG_ITEM_TEXT_QUERY_RESPONSE` | `live` | probe flow `items-open` (`do=text`), exit 0: `0`, the letter's guid and its empty text, and the act returns the text | `Handlers/ItemHandler.cpp:1468-1474` |

@@ -23,6 +23,7 @@ import {
   buildSwapItem,
   type ItemPosition,
 } from "#wow/areas/items/protocol";
+import { type ReadActs, readActs } from "#wow/areas/items/runtime-reads";
 import { wornItemLevel } from "#wow/areas/items/slots";
 import type { ItemsEvent, ItemsStore } from "#wow/areas/items/store";
 import type { InventoryState } from "#wow/inventory";
@@ -42,7 +43,7 @@ export type ItemsActs = {
     to: ItemPosition,
     count: number,
   ) => Promise<MoveState>;
-};
+} & ReadActs;
 
 const SETTLED = new Set<ItemsEvent["type"]>([
   "moved",
@@ -293,6 +294,7 @@ export function itemsRuntime(
       unequip: (slot, toBag) => unequip(env, slot, toBag),
       move: (from, to) => move(env, from, to),
       split: (from, to, count) => split(env, from, to, count),
+      ...readActs(env),
     },
     dispose: () => {
       for (const off of offs) off();

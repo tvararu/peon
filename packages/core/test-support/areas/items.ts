@@ -212,3 +212,29 @@ export function itemsTemplate(init: Partial<ItemTemplate>): ItemTemplate {
     ...init,
   };
 }
+
+export function itemsReadItemResultBody(guid: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(guid);
+  return w.finish();
+}
+
+export function itemsItemTextQueryResponseBody(
+  found: { guid: bigint; text: string } | undefined,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(found ? 0 : 1);
+  if (!found) return w.finish();
+  w.uint64LE(found.guid);
+  w.cString(found.text);
+  return w.finish();
+}
+
+export function itemsLootResponseBody(guid: bigint, money: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(guid);
+  w.uint8(1);
+  w.uint32LE(money);
+  w.uint8(0);
+  return w.finish();
+}
