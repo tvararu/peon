@@ -5,7 +5,13 @@ import type { Scenario } from "#harness/grader/scenarios";
 
 export const SOAP = ["bun", "packages/factory/src/main.ts", "soap"] as const;
 
-export type Role = "agent" | "partner";
+export type Role =
+  | "agent"
+  | "partner"
+  | "partner1"
+  | "partner2"
+  | "partner3"
+  | "partner4";
 export type AccountNames = {
   account: string;
   character: string;
@@ -16,7 +22,11 @@ export type AccountNames = {
 export const FILES = {
   agent: { names: "names.json", session: "account.json" },
   partner: { names: "partner-names.json", session: "partner.json" },
-} as const;
+  partner1: { names: "partner1-names.json", session: "partner1.json" },
+  partner2: { names: "partner2-names.json", session: "partner2.json" },
+  partner3: { names: "partner3-names.json", session: "partner3.json" },
+  partner4: { names: "partner4-names.json", session: "partner4.json" },
+} as const satisfies Record<Role, { names: string; session: string }>;
 
 const FACTORY_ACCOUNT = /^FAC[0-9A-F]{10}$/;
 const CREATE_TIMEOUT_MS = 120_000;
@@ -179,7 +189,12 @@ export async function quarantine({
     );
 }
 
+export function sessionFiles(runDir: string): string[] {
+  return (Object.keys(FILES) as Role[]).map((role) =>
+    sessionFile(runDir, role),
+  );
+}
+
 export async function removeSessionFiles(runDir: string): Promise<void> {
-  await rm(sessionFile(runDir, "agent"), { force: true });
-  await rm(sessionFile(runDir, "partner"), { force: true });
+  for (const file of sessionFiles(runDir)) await rm(file, { force: true });
 }

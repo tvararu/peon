@@ -1,5 +1,14 @@
 import { expect, test } from "bun:test";
+import { AREAS } from "#wow/areas/registry";
 import {
+  AREA_NAMES,
+  type AreaActsOf,
+  type AreaEvent,
+  type AreaEventOf,
+  type AreaHandle,
+  type AreaHandles,
+  type AreaName,
+  type AreaState,
   type Capabilities,
   type CombatAura,
   type CombatEventType,
@@ -25,6 +34,12 @@ import {
 } from "#wow/index";
 
 type HarnessNames = {
+  areaActs: AreaActsOf<AreaName>;
+  areaEvent: AreaEvent;
+  areaEventOf: AreaEventOf<AreaName>;
+  areaHandle: AreaHandle<AreaName>;
+  areaHandles: AreaHandles;
+  areaState: AreaState<AreaName>;
   capabilities: Capabilities;
   aura: CombatAura;
   combatEvent: CombatEventType;
@@ -52,4 +67,8 @@ test("the barrel carries every name the harness imports", () => {
   expect(Object.keys(names)).toEqual([]);
   expect(typeof itemKind).toBe("function");
   expect(typeof npcRoles).toBe("function");
+});
+
+test("the barrel names every registered area", () => {
+  expect<readonly string[]>(AREA_NAMES).toEqual(Object.keys(AREAS));
 });

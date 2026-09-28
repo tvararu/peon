@@ -22,7 +22,7 @@ import { awaitRun } from "#harness/runs/wait";
 import { defineGameTool, result, UPDATE_EVERY_MS } from "#harness/tools/define";
 import type { GameToolSpec } from "#harness/tools/game-tool";
 import { askHuman, nextCall } from "#harness/tools/next-call";
-import { type TravelArgs, travelParams } from "#harness/tools/params";
+import { type TravelArgs, travelParams } from "#harness/tools/params-travel";
 import { noteTravel, noteUnstick } from "#harness/tools/travel-recovery";
 import {
   exploreReport,

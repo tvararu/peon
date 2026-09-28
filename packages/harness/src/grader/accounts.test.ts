@@ -74,6 +74,31 @@ describe("createAccount", () => {
     ]);
   });
 
+  test("roles partner1 and partner2 get their own files", async () => {
+    const runDir = dir();
+    const { exec } = fakeExec(() => ok(JSON.stringify(SESSION)));
+    for (const role of ["partner1", "partner2"] as const)
+      await createAccount({
+        exec,
+        owner: "eval-1-t9-raid-convert-1",
+        preset: "eversong10",
+        role,
+        runDir,
+      });
+    expect((await readdir(runDir)).toSorted()).toEqual([
+      "partner1-names.json",
+      "partner1.json",
+      "partner2-names.json",
+      "partner2.json",
+    ]);
+    expect(sessionFile(runDir, "partner2")).toBe(`${runDir}/partner2.json`);
+    await removeSessionFiles(runDir);
+    expect((await readdir(runDir)).toSorted()).toEqual([
+      "partner1-names.json",
+      "partner2-names.json",
+    ]);
+  });
+
   test("aborts as soap_create when soap create fails", async () => {
     const { exec } = fakeExec(() => failed(1, "pdump copy failed 3 times"));
     const error = await createAccount({

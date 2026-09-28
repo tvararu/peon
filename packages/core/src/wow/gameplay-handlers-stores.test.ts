@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { itemsInventoryChangeFailureBody } from "#test-support/areas/items";
 import { LESSER_HEALING_POTION_RESPONSE } from "#test-support/item-query-fixtures";
 import {
   createObject,
@@ -6,11 +7,15 @@ import {
   type MotionFixture,
   motionFixture,
 } from "#test-support/remote-motion-fixtures";
+import { testStores } from "#test-support/session-fixtures";
 import { MARNIEL, MARNIEL_LIST_INVENTORY } from "#test-support/vendor-fixtures";
+import { registerLootHandlers } from "#wow/gameplay-handlers";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { InventoryResult } from "#wow/protocol/inventory";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import { PacketWriter } from "#wow/protocol/packet";
+import { PacketReader, PacketWriter } from "#wow/protocol/packet";
+import { OpcodeDispatch } from "#wow/protocol/world";
+import type { WorldConn } from "#wow/world-conn";
 
 const SELF = 0x42n;
 const MOB = 0xf130003d29021c28n;
@@ -177,6 +182,113 @@ describe("quest, recovery, vendor and place packets over the wire", () => {
       });
       expect(types).toEqual(["place_changed", "area_explored"]);
       expect(f.errors).toEqual([]);
+    });
+  });
+});
+
+const DOOMED = 0x40_00_00_00_00_00_00_07n;
+const NOT_IN_COMBAT = 60;
+
+function legacy() {
+  const stores = testStores({ now: () => 1000, selfGuid: () => SELF });
+  const dispatch = new OpcodeDispatch();
+  registerLootHandlers({ dispatch } as unknown as WorldConn, stores);
+  const fail = (result: number, item1 = 0n) =>
+    dispatch.handle(
+      GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE,
+      new PacketReader(itemsInventoryChangeFailureBody({ item1, result })),
+    );
+  const destroy = () =>
+    stores.destroy.begin({
+      bag: 255,
+      count: 1,
+      itemGuid: DOOMED,
+      itemId: 6948,
+      requestedAt: 0,
+      slot: 15,
+      stackBefore: 1,
+    });
+  const buy = () =>
+    stores.vendor.begin({
+      action: "buy",
+      answer: undefined,
+      coinageBefore: undefined,
+      count: 1,
+      guid: MARNIEL,
+      itemId: 159,
+      maxPrice: 25,
+      minPrice: 25,
+      requestedAt: 0,
+      slot: 1,
+    });
+  return { buy, destroy, fail, stores };
+}
+
+describe("SMSG_INVENTORY_CHANGE_FAILURE reaches the request it names", () => {
+  test("a failure naming the destroyed item settles the destroy and leaves the buy pending", () => {
+    const { buy, destroy, fail, stores } = legacy();
+    destroy();
+    buy();
+    fail(NOT_IN_COMBAT, DOOMED);
+    expect(stores.destroy.snapshot().lastOutcome).toMatchObject({
+      status: "refused",
+    });
+    expect(stores.vendor.pending?.action).toBe("buy");
+  });
+
+  test("a failure with no item settles nothing while two requests wait", () => {
+    const { buy, destroy, fail, stores } = legacy();
+    destroy();
+    buy();
+    stores.quests.requestIntent({
+      action: "accept",
+      guid: MARNIEL,
+      questId: 7,
+    });
+    fail(InventoryResult.INVENTORY_FULL);
+    expect(stores.destroy.pending?.itemGuid).toBe(DOOMED);
+    expect(stores.vendor.pending?.action).toBe("buy");
+    expect(stores.quests.snapshot().lastError).toBeUndefined();
+  });
+
+  test("a failure with no item settles the buy when it waits alone", () => {
+    const { buy, fail, stores } = legacy();
+    buy();
+    fail(InventoryResult.INVENTORY_FULL);
+    expect(stores.vendor.pending).toBeUndefined();
+    expect(stores.vendor.snapshot().lastOutcome).toMatchObject({
+      reason: "inventory_full",
+      status: "refused",
+    });
+  });
+
+  test("a no-change notice settles no legacy store and records no error", () => {
+    const { buy, destroy, fail, stores } = legacy();
+    destroy();
+    fail(InventoryResult.NONE, DOOMED);
+    expect(stores.destroy.pending?.itemGuid).toBe(DOOMED);
+    stores.destroy.expire();
+    buy();
+    stores.rewards.requestTake(MOB, 0);
+    fail(InventoryResult.NONE);
+    expect(stores.vendor.pending?.action).toBe("buy");
+    expect(stores.rewards.pending?.action).toBe("take");
+    expect(stores.rewards.snapshot().lastInventoryError).toBeUndefined();
+  });
+
+  test("the rewards store records every error but drops its take only when it owns the failure", () => {
+    const { destroy, fail, stores } = legacy();
+    destroy();
+    stores.rewards.requestTake(MOB, 0);
+    fail(NOT_IN_COMBAT, DOOMED);
+    expect(stores.rewards.pending?.action).toBe("take");
+    expect(stores.rewards.snapshot().lastInventoryError).toMatchObject({
+      packet: { item1: DOOMED },
+    });
+    fail(InventoryResult.INVENTORY_FULL);
+    expect(stores.rewards.pending).toBeUndefined();
+    expect(stores.rewards.snapshot().lastInventoryError).toMatchObject({
+      inventoryFull: true,
     });
   });
 });

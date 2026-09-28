@@ -15,6 +15,13 @@ export class ActionBarStore {
     return this.buttons.map((button) => ({ ...button }));
   }
 
+  set(slot: number, button: Omit<ActionButton, "slot"> | undefined): void {
+    const rest = this.buttons.filter((b) => b.slot !== slot);
+    this.buttons = button
+      ? [...rest, { ...button, slot }].sort((a, b) => a.slot - b.slot)
+      : rest;
+  }
+
   receive(r: PacketReader): void {
     const parsed = parseActionButtons(r);
     this.buttons = parsed.behavior === "clear" ? [] : parsed.buttons;

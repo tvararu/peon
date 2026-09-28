@@ -1,3 +1,4 @@
+import { traceOut } from "#wow/packet-trace";
 import {
   parseDuelComplete,
   parseDuelCountdown,
@@ -28,6 +29,7 @@ export function sendPacket(
 ): void {
   if (!conn.socket) throw new Error("World socket is not connected");
   conn.socket.write(buildOutgoingPacket(opcode, body, conn.arc4));
+  traceOut(conn.trace, { body, opcode });
 }
 
 export function selfGuid(conn: WorldConn): bigint {

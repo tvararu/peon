@@ -1,4 +1,6 @@
 import type { Unsubscribe } from "#lib/emitter";
+import { type AreaLifetime, createAreaRuntimes } from "#wow/areas/compose";
+import { areaPort } from "#wow/areas/port";
 import type { ClientConfig } from "#wow/client";
 import type { Capabilities } from "#wow/client-extras";
 import { CombatRuntime } from "#wow/combat";
@@ -37,6 +39,7 @@ export type Runtimes = {
   trainer: TrainerRuntime;
   vendor: VendorRuntime;
   destroy: ItemDestroyRuntime;
+  areas: AreaLifetime;
   prepareCatalog: () => Promise<void>;
   loadCatalogs: () => Promise<void>;
   factions: () => FactionTemplateCatalog | undefined;
@@ -258,14 +261,18 @@ export function createRuntimes(
     trainer,
   };
   const unwire = wireEvents(conn, stores, parts);
+  const port = areaPort(conn, config.dbc);
+  const areas = createAreaRuntimes(port, stores.areas, stores);
   return {
     ...parts,
     ...data,
+    areas,
     observedTarget: (guid) => findObservedTarget(conn, parts, guid),
     halt: () => rawHalt(),
     dispose(sendStop: boolean): void {
       if (lazy.disposed) return;
       disposeParts(parts, lazy, { sendStop, halt: rawHalt, unwire });
+      areas.dispose();
     },
   };
 }

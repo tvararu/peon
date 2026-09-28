@@ -8,13 +8,23 @@ export type TriggerName =
   | "movement_start"
   | "answer_text"
   | "steer_landed"
-  | "task_landed";
+  | "task_landed"
+  | "channel_start";
 
 export type SteerAt =
   | { kind: "trigger"; trigger: TriggerName; nth?: number; delayMs?: number }
   | { kind: "elapsed"; ms: number };
 
-export type PartnerAction = { at: SteerAt; argv: string[]; windowMs: number };
+export type PartnerAction = {
+  at: SteerAt;
+  argv: string[];
+  windowMs: number;
+  actor?: number;
+};
+
+export type ScenarioPartner = { role: "partner" | "witness"; preset: string };
+
+export const MAX_PARTNERS = 4;
 
 export type BotRisk = "low" | "med" | "high";
 
@@ -28,13 +38,40 @@ export type CheckMeasure =
 
 export type TruthPick =
   | "alive"
+  | "bank"
+  | "durability"
+  | "equipment"
+  | "hearth"
   | "inventory"
   | "level"
+  | "mail"
   | "money"
   | "quests"
+  | "reputation"
+  | "spells"
   | "totalXp";
 
 export type TruthDelta = "money" | "totalXp";
+
+export type TruthWho =
+  | "agent"
+  | "partner"
+  | "partner1"
+  | "partner2"
+  | "partner3"
+  | "partner4";
+
+export type ConsoleVerb =
+  | "group"
+  | "mail"
+  | "pet"
+  | "titles"
+  | "reputation"
+  | "pinfo"
+  | "guild"
+  | "arena";
+
+export type ConsoleRead = { read: ConsoleVerb; arg?: string; match: string };
 
 export type CheckEvidence = {
   truth?: TruthPick[];
@@ -43,11 +80,20 @@ export type CheckEvidence = {
   point?: { x: number; y: number };
   events?: string[];
   ids?: number[];
+  who?: TruthWho;
+  console?: ConsoleRead;
 };
 
 export type ScenarioCheck = {
   id: string;
-  source: "truth" | "verifier" | "witness" | "game_log" | "session" | "frame";
+  source:
+    | "truth"
+    | "verifier"
+    | "witness"
+    | "game_log"
+    | "session"
+    | "frame"
+    | "console";
   expect: string;
   evidence?: CheckEvidence;
   measure?: CheckMeasure;
@@ -65,6 +111,7 @@ export type Scenario = {
   task: string;
   steers: { at: SteerAt; text: string }[];
   partnerActions?: PartnerAction[];
+  partners?: ScenarioPartner[];
   blockedBy?: string[];
   field?: string;
   spawn?: string;
@@ -93,11 +140,85 @@ const DIR = `${import.meta.dir}/scenarios`;
 const JSON_FILE = /\.json$/;
 const SCHEMA = schema as unknown as Schema;
 
+function whoErrors({ checks, partner, partners }: Scenario): string[] {
+  const roles = new Set<string>([
+    "agent",
+    ...(partners?.map((_, index) => `partner${index + 1}`) ??
+      (partner === null ? [] : ["partner"])),
+  ]);
+  return checks.flatMap(({ evidence }, index) => {
+    const who = evidence?.who;
+    return who === undefined || roles.has(who)
+      ? []
+      : [`$.checks[${index}].evidence.who: the scenario has no ${who}`];
+  });
+}
+
+function regexError(match: string): string | undefined {
+  try {
+    new RegExp(match, "m");
+    return undefined;
+  } catch (err) {
+    return (err as Error).message;
+  }
+}
+
+const ARG_READS: ReadonlySet<ConsoleVerb> = new Set(["arena", "guild"]);
+
+function consoleErrors({ checks }: Scenario): string[] {
+  return checks.flatMap(({ evidence, source }, index) => {
+    const at = `$.checks[${index}]`;
+    const read = evidence?.console;
+    if (read === undefined)
+      return source === "console"
+        ? [`${at}: a console check needs evidence.console`]
+        : [];
+    const error = regexError(read.match);
+    const wantsArg = ARG_READS.has(read.read);
+    return [
+      ...(source === "console"
+        ? []
+        : [`${at}.evidence.console: only on a console check`]),
+      ...(error === undefined
+        ? []
+        : [`${at}.evidence.console.match: invalid regex: ${error}`]),
+      ...(wantsArg === (read.arg !== undefined)
+        ? []
+        : [
+            `${at}.evidence.console.arg: read ${read.read} ${wantsArg ? "needs" : "takes no"} arg`,
+          ]),
+    ];
+  });
+}
+
+function partnerErrors(scenario: Scenario): string[] {
+  const { partner, partnerActions = [], partners } = scenario;
+  const count = partners?.length ?? (partner === null ? 0 : 1);
+  const errors = partnerActions.flatMap(({ actor }, index) =>
+    actor !== undefined && actor > count
+      ? [`$.partnerActions[${index}].actor: no partner ${actor}`]
+      : [],
+  );
+  errors.push(...whoErrors(scenario));
+  if (partners === undefined) return errors;
+  if (partner !== null)
+    errors.push("$.partners: set partner or partners, not both");
+  if (partners.length === 0) errors.push("$.partners: at least 1 partner");
+  if (partners.length > MAX_PARTNERS)
+    errors.push(`$.partners: at most ${MAX_PARTNERS} partners`);
+  return errors;
+}
+
 export function parseScenario(file: string, value: unknown): Scenario {
   const errors = schemaErrors(SCHEMA, value);
   const stem = file.replace(JSON_FILE, "");
   if (errors.length === 0 && (value as Scenario).id !== stem)
     errors.push(`$.id: expected ${stem}`);
+  if (errors.length === 0)
+    errors.push(
+      ...partnerErrors(value as Scenario),
+      ...consoleErrors(value as Scenario),
+    );
   if (errors.length > 0)
     throw new Error(`invalid scenario ${file}: ${errors.join("; ")}`);
   return value as Scenario;

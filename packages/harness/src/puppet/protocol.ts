@@ -7,13 +7,19 @@ export type PuppetPaths = {
   runtimeDir: string;
   socket: string;
   pid: string;
+  stateDir: string;
+  packets: string;
+  packetCounts: string;
 };
 
 export type PuppetRequest =
   | { cmd: "status" }
   | { cmd: "read" }
   | { cmd: "nearby" }
+  | { cmd: "events" }
   | { cmd: "whisper"; target: string; text: string }
+  | { cmd: "call"; method: string; args: unknown[] }
+  | { cmd: "raw"; opcode: number; body: string }
   | { cmd: "stop" };
 
 export type PuppetReply =
@@ -28,16 +34,29 @@ export class PuppetNotRunning extends Error {
 }
 
 const NOT_LISTENING: readonly string[] = ["ENOENT", "ECONNREFUSED"];
-const CMDS: readonly string[] = ["status", "read", "nearby", "whisper", "stop"];
+const CMDS: readonly string[] = [
+  "status",
+  "read",
+  "nearby",
+  "events",
+  "whisper",
+  "call",
+  "raw",
+  "stop",
+];
+export const HEX_BODY = /^(?:[0-9a-f]{2})*$/i;
 
 export function puppetPaths(env: PathEnv = Bun.env): PuppetPaths {
   const host = { home: homedir(), tmp: tmpdir(), uid: process.getuid?.() ?? 0 };
-  const { configPath, runtimeDir } = resolvePaths(env, host);
+  const { configPath, runtimeDir, stateDir } = resolvePaths(env, host);
   return {
     configPath,
+    packetCounts: `${stateDir}/packets.json`,
+    packets: `${stateDir}/packets.jsonl`,
     pid: `${runtimeDir}/puppet.pid`,
     runtimeDir,
     socket: `${runtimeDir}/puppet.sock`,
+    stateDir,
   };
 }
 
@@ -49,6 +68,20 @@ export function decodeRequest(line: string): PuppetRequest | undefined {
   const value = parseObject(line);
   if (value === undefined || !CMDS.includes(String(value["cmd"])))
     return undefined;
+  if (value["cmd"] === "call") {
+    const { method, args } = value;
+    return typeof method === "string" && Array.isArray(args)
+      ? { args, cmd: "call", method }
+      : undefined;
+  }
+  if (value["cmd"] === "raw") {
+    const { opcode, body } = value;
+    return Number.isInteger(opcode) &&
+      typeof body === "string" &&
+      HEX_BODY.test(body)
+      ? { body, cmd: "raw", opcode: opcode as number }
+      : undefined;
+  }
   if (value["cmd"] !== "whisper") return value as PuppetRequest;
   const { target, text } = value;
   return typeof target === "string" && typeof text === "string"

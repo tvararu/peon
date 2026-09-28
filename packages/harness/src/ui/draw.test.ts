@@ -132,6 +132,19 @@ describe("draw helpers", () => {
     ).toBe(nerd.spiritHealer);
   });
 
+  test("entry style: an area row takes its area's glyph, else system", () => {
+    const areas = { alpha: { glyph: "guild" as const }, beta: {} };
+    const row = (domain: string) =>
+      Object.assign(entry({}), { domain, event: `${domain}/ping` });
+    expect(entryGlyph(row("alpha"), areas)).toBe(nerd.guild);
+    expect(entryGlyph(row("beta"), areas)).toBe(nerd.system);
+    expect(entryGlyph(row("gamma"), areas)).toBe(nerd.system);
+    expect(entryGlyph(row("alpha"))).toBe(nerd.system);
+    expect(
+      entryGlyph(entry({ domain: "loot", event: "loot/open" }), areas),
+    ).toBe(nerd.loot);
+  });
+
   test("the glyph set follows setGlyphs", () => {
     setGlyphs("ascii");
     expect(entryGlyph(entry({ domain: "life", event: "life/dead" }))).toBe(

@@ -12,7 +12,8 @@ the whole catalogue are in
 **Server-confirmed checks only.** A check passes on server truth
 (`soap truth`, the saved character row), a witness character's
 observation, a server packet in the harness game log (a kill credit, an
-item push, a quest-log counter), or a verifier login. Never on the agent's
+item push, a quest-log counter), a verifier login, or, as a fallback, a
+read-only GM console command at the end of the run. Never on the agent's
 claim, a tool `DONE` or an intent result. When the task is a question, the
 answer is graded against truth at the time of the answer, not at the end.
 
@@ -46,7 +47,9 @@ the run `aborted` with the cause `grader_contamination`.
 **Safety.** Eval characters are throwaway `soap create` characters that
 never get a GM level. After the baseline, no service write, console
 command or harness restart touches the character unless the scenario is
-about it. Passwords never reach a transcript or a result file.
+about it. The one console command the grader runs by itself is a `console`
+check's read, after the final truth. Passwords never reach a transcript or
+a result file.
 
 ## Run a scenario
 
@@ -75,10 +78,13 @@ Each run writes `tmp/evals/<round>/<scenario>-<replica>/`:
 |---|---|
 | `run.json` | The scenario, round, replica, head sha, start time and bot count. |
 | `baseline.json`, `final.json` | Server truth before the login and after the logout. |
+| `partner-baseline.json`, `partner-final.json`, `partner<N>-baseline.json`, `partner<N>-final.json` | Each second character's server truth before its start and after its stop; with `partners`, partner `N` writes `partner<N>-...`. A final truth that stays stale or online writes no file and adds a note. |
 | `gamelog.jsonl` | The harness game log: every game event, one typed row. |
+| `console.jsonl` | One row per `console` check: its `id`, whose character (`who`) and `account`, the read `verb` and `arg`, the exit `code` and the reply `text`. |
 | `session.jsonl`, `tools.json`, `runs.jsonl` | The Pi session, tool calls and harness runs, as in [harness.md](harness.md#run-directory). |
+| `packets.jsonl`, `packets.json` | Every game packet's header row and the counts by opcode: the grader starts the harness with `--packet-trace headers` ([harness.md](harness.md#run-directory)). |
 | `steers.jsonl`, `triggers.jsonl`, `progress.json` | The steers sent, the triggers that fired and the watcher's view of the run. |
-| `witness.jsonl`, `partner-read.jsonl` | What the second character saw and read, when the scenario has one. |
+| `witness.jsonl`, `partner-read.jsonl`, `partner<N>-read.jsonl` | What the second character saw and read, when the scenario has one; with `partners`, partner `N` reads into `partner<N>-read.jsonl`. |
 | `frames/` | Screen frames of the pane. |
 | `grader/draft.json` | The measured draft: checks with what the run observed, efficiency, attempts and the run conditions, with no verdict. |
 | `result.json` | The graded result. |
@@ -103,7 +109,9 @@ against `packages/harness/src/grader/scenario.schema.json`; an invalid
 file stops the grader with its file name and the schema errors. To add a
 scenario, drop the file in and add its id to `ROUND_1` in
 `packages/harness/src/grader/scenarios.ts`. A test fails while a file
-sits in no round or a round names an id with no file.
+sits in no round or a round names an id with no file. A scenario that
+needs more than one second character sets `partners` instead of
+`partner` ([The second character](#the-second-character)).
 
 Each check has an `id`, a `source` and an `expect` text, which is for the
 grader to read. The draft fills the check's `observed` from its typed
@@ -111,12 +119,14 @@ grader to read. The draft fills the check's `observed` from its typed
 
 | `evidence` field | For | The draft shows |
 |---|---|---|
-| `truth` | `truth` checks | Baseline and final of the listed fields: `alive` (with `deathState`), `inventory`, `level`, `money`, `quests` (with `rewardedQuests`) and `totalXp` (with `level` and `xp`). With no `truth`, `items` or `point`, the whole truth summary. |
+| `truth` | `truth` checks | Baseline and final of the listed fields: `alive` (with `deathState`), `inventory`, `equipment` (the `inventory` rows of `bag` 255 and `slot` 0-18), `bank` (the rows of `bag` -1 and of `bag` 255 `slot` 39-73), `spells` (sorted), `level`, `money`, `quests` (with `rewardedQuests`), `totalXp` (with `level` and `xp`), `hearth` (`map`, `zone`, `x`, `y`, `z`), `reputation` (`faction`, `standing`, `flags` rows, sorted by faction), `mail` (`id`, `subject`, `money`, `items` rows, sorted by id; `items` is the attached item count) and `durability`. With `inventory`, `equipment` or `bank`, `durability` adds `durability` and `maxDurability` to their rows; alone, it lists the rows whose `maxDurability` is above 0. `hearth`, `reputation` and `mail` are `null` when the truth reply has no such field. With no `truth`, `items` or `point`, the whole truth summary. |
 | `delta` | `truth` checks | Final minus baseline of `money` or `totalXp`. |
 | `items` | `truth` checks | Baseline, final and delta counts, summed over every row, of each listed item id and of every item whose count changed. |
 | `point` | `truth` checks | An `{ "x", "y" }` point: the final position and its 2D distance to the point, instead of the other truth fields. |
 | `events` | `game_log` checks | The game-log rows of these events (`domain/name`; a trailing `*` matches a prefix): the count, the first and last match, the first 10 rows and the last row of the same domains. |
 | `ids` | `game_log` checks | Only the rows of those events whose data holds one of these numbers. |
+| `console` | `console` checks | A `{ "read", "arg", "match" }` read: after the final truth the grader runs `soap gm <ACCOUNT> read <read> [arg]` (`read` is one of `group`, `mail`, `pet`, `titles`, `reputation`, `pinfo`, `guild`, `arena`; `guild` needs the guild name and `arena` the team id as `arg`, and the others take none) and records the reply in `console.jsonl`. `match` is a regular expression, with `^` and `$` at line ends, over the reply text. The draft shows the verb, the exit code, the text and whether `match` matched; the check is met when it matched and the command exited 0. A missing row shows a `reason`. The grader never runs a verb other than `read`. Console text follows the server's strings, so use this source only when no truth field and no game-log row can grade the check. |
+| `who` | `truth` and `console` checks | Whose character the other fields read: `agent` (the default), `partner` for the single partner, or `partner1` to `partner4` with `partners`. The scenario must have that character. When its baseline or final truth file is missing, a `truth` check adds a `reason` that names the missing file. |
 
 A `measure` names a computed measure in
 `packages/harness/src/grader/draft-measure.ts` (for example `kill_xp` or
@@ -134,12 +144,29 @@ its JSON. The launcher sets the account's own config and runtime
 directories and runs the puppet with its arguments. The grader drives it
 by itself; a person can run the same commands through the launcher.
 
+A scenario sets `partner` (`"partner"`, `"witness"` or `null`) for one
+second character on the scenario's preset, or sets `partner` to `null`
+and lists up to four `partners` as `{ "role": "partner" | "witness",
+"preset": "<preset>" }`. The grader creates them in order as `partner1`
+to `partner4` (`partner<N>-names.json`), puts them all on the partner start
+point when the run has one, starts each one with `--packet-trace headers` and stops and
+deletes every one at the end. The first `witness` is the one sampled
+into `witness.jsonl`. A partner action runs on the partner its `actor`
+names (1-based; the default is the single partner or partner 1), and its
+`argv` replaces `<AGENT>` with the agent's character, `<PARTNER1>` to
+`<PARTNER4>` with each partner's character and `<PARTNER>` with the
+first. The grader reads each partner that has an action with `read
+--json` while the actions run and once at the end.
+
 | Command | Used by | Behaviour |
 |---|---|---|
-| `start --json` | partner, witness | Starts the puppet process and returns once the character is in the world. |
+| `start --json [--packet-trace off\|headers\|bodies]` | partner, witness (the grader passes `--packet-trace headers`) | Starts the puppet process and returns once the character is in the world. A trace other than `off` (the default) writes `packets.jsonl` and `packets.json` to the account's state directory, `tmp/factory-account-<ACCOUNT>/state/peon/`, which `soap delete` removes; `packets.jsonl` appends across starts. When a puppet is already running, the reply has `started: false` and the flag has no effect. |
 | `send -w <name> <text>` | the `t2-whisper-reply` partner action | Whispers, and exits 0 on success. |
 | `read --json` | partner, after the run (`partner-read.jsonl`) | Prints one JSON envelope whose `events` array holds the chat events since start, then drains them. |
 | `nearby --json` | witness, sampled into `witness.jsonl` | Prints one JSON envelope whose `data` array holds the nearby unit rows. |
+| `events --json` | area workers, to read what a partner was told | Prints one JSON envelope whose `events` array holds the game events since the last `events` as `{ at, event, hook }` rows, then drains them. `hook` is `group`, `guild`, `duel`, `notice`, `packetError` or `area`; an area row's `event` is `{ area, event }`, a packet error's is `{ error, opcode }`, and a bigint is a decimal string. Keeps the newest 1000 rows. Chat stays with `read`. |
+| `call <method> [json-array]` | area workers, to drive a partner | Calls one allow-listed `WorldHandle` method from `puppet/calls.ts` with the JSON array as its arguments (a guid is a decimal string). Prints a result envelope naming the method, or exits 1 when the method throws. |
+| `raw <OPCODE> [hex]` | area workers, to send a client opcode that no handle method sends | Sends one packet: `OPCODE` is a `CMSG_` or `MSG_` name or `0x` hex, and `hex` an even-length body (empty by default). Needs a puppet started with `--packet-trace`. Prints a result envelope with the opcode name and body `size`. |
 | `stop` | the run's finish | Logs out, waits for the server logout, and the process exits. |
 
 ## Which scenarios to run

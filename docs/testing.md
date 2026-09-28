@@ -42,9 +42,18 @@ not a target.
   `bun:test`, inside `try/finally` with `jest.useRealTimers()`. Fake
   timers also fake `Date.now()`, `performance.now()` and `Bun.sleep`, so
   `Bun.sleep(0)` never resolves under them; `setImmediate` stays real.
-  `packages/harness/test-support/fake-time.ts` and
+  `packages/core/test-support/fake-time.ts` and
   `packages/harness/test-support/tactics-fixtures.ts` drive fake time until
   a promise settles.
+- A test of a loop that polls, settles or runs to a time limit, such as a
+  probe flow, runs inside `withFakeTimers`: `elapse(ms)` moves the world
+  on, `fakeAwait` and `fakeMsUntilSettled` drive the loop to its result,
+  and a time-limit test asserts the fake milliseconds it took. A test
+  that drives a real socket or process, such as `probe-run.test.ts`,
+  injects small bounds instead: fake timers and real I/O do not mix.
+- Under fake timers, `await expect(promise).rejects` can hang the test
+  when the promise rejects after a fake `Bun.sleep`; use
+  `fakeRejection(promise, limitMs)`, which returns the error message.
 - Await the event rather than sleeping. `Bun.sleep(0)` yields one microtask
   tick (enough for `.then()` chains); `Bun.sleep(1)` yields one event-loop
   turn (needed for filesystem I/O such as `unlink`).
@@ -76,6 +85,31 @@ character.
    when that config logs in another character.
 4. `soap delete <ACCOUNT>` afterwards.
 
+For protocol proof, run the harness on the character with
+`--packet-trace headers` ([harness.md](harness.md#flags)): the run
+directory's `packets.jsonl` shows each packet the server sent or accepted,
+and `packets.json` counts them by opcode.
+
+For one opcode or one short flow, `mise protocol:probe <ACCOUNT>` is
+cheaper than a harness run ([protocol.md](protocol.md#probe-the-server)).
+It logs the account in with its own config, sends what `--send` names or
+runs a `--flow`, waits, logs out and prints one JSON report of what
+arrived; `--expect` makes it exit 3 when an opcode never came. It refuses
+while the account's puppet runs, so stop the puppet first.
+
+To reach the state a live proof needs (a level, items, a quest, a guild),
+use `mise factory soap gm <ACCOUNT> <verb>` on your own account only; it
+refuses accounts created from another worktree and logs every command.
+`soap truth` reads the saved character, so change a level with the puppet
+stopped before you check it there; `learn` and `unlearn` need the
+character online.
+
 Presets, the puppet wrapper and the realm service are described in
 [factory.md](factory.md). A run that fails because the server or SOAP is
 down is an infrastructure failure: report it to the maintainer.
+
+When the live server cannot be made to send an opcode, the proof is a
+mock-world-server test with a packet built from the AzerothCore code that
+writes it. The proof cites that writer as `path:line`; check the
+citations with `mise protocol:cite-check`
+([protocol.md](protocol.md#check-citations)).

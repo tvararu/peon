@@ -1,3 +1,6 @@
+import { ignoreFailure } from "#lib/ignore-failure";
+import { parseCharacterLoginFailed } from "#wow/areas/login/protocol";
+import type { LoginStore } from "#wow/areas/login/store";
 import type { AuthResult } from "#wow/auth";
 import type { ClientConfig } from "#wow/client";
 import { Arc4 } from "#wow/crypto/arc4";
@@ -5,6 +8,7 @@ import { type EntityEvent, EntityStore, isUnit } from "#wow/entity-store";
 import { FriendStore } from "#wow/friend-store";
 import { GuildStore } from "#wow/guild-store";
 import { IgnoreStore } from "#wow/ignore-store";
+import { type TraceOutcome, traceIn, traceOut } from "#wow/packet-trace";
 import { PartyStore } from "#wow/party-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -39,10 +43,13 @@ function drainWorldPackets(conn: WorldConn): void {
     if (conn.buf.length < bodySize) break;
 
     const { opcode } = conn.pendingHeader;
+    const body = conn.buf.drain(bodySize);
+    const at = Date.now();
+    let outcome: TraceOutcome = "error";
     conn.pendingHeader = undefined;
     conn.dispatchingOpcode = opcode;
     try {
-      conn.dispatch.handle(opcode, new PacketReader(conn.buf.drain(bodySize)));
+      outcome = conn.dispatch.handle(opcode, new PacketReader(body));
     } catch (err) {
       if (err instanceof Error) {
         conn.events.packetError.emit(opcode, err);
@@ -50,6 +57,7 @@ function drainWorldPackets(conn: WorldConn): void {
     } finally {
       flushEntityEvents(conn, opcode);
       conn.dispatchingOpcode = undefined;
+      traceIn(conn.trace, { at, body, opcode, outcome });
     }
   }
 }
@@ -90,17 +98,68 @@ export async function authenticateWorld(
   });
   if (!conn.socket) throw new Error("World socket is not connected");
   conn.socket.write(buildOutgoingPacket(GameOpcode.CMSG_AUTH_SESSION, body));
+  traceOut(conn.trace, { body, opcode: GameOpcode.CMSG_AUTH_SESSION });
   conn.arc4 = new Arc4(auth.sessionKey);
 
-  const resp = await conn.dispatch.expect(GameOpcode.SMSG_AUTH_RESPONSE);
-  const status = resp.uint8();
-  if (status !== 0x0c) {
-    const names: Record<number, string> = {
-      13: "system error",
-      21: "account in use",
-    };
-    const label = names[status] ?? `status 0x${status.toString(16)}`;
-    throw new Error(`World auth failed: ${label}`);
+  await awaitAdmission(conn);
+}
+
+const AUTH_OK = 0x0c;
+const AUTH_WAIT_QUEUE = 0x1b;
+const AUTH_QUEUE_CAP_MS = 600_000;
+const AUTH_FAILURES = [
+  "failed",
+  "rejected",
+  "bad server proof",
+  "unavailable",
+  "system error",
+  "billing error",
+  "billing expired",
+  "version mismatch",
+  "unknown account",
+  "incorrect password",
+  "session expired",
+  "server shutting down",
+  "already logging in",
+  "login server not found",
+  "wait queue",
+  "banned",
+  "already online",
+  "no time",
+  "db busy",
+  "suspended",
+  "parental control",
+  "locked enforced",
+];
+
+function queuePosition(resp: PacketReader): number {
+  if (resp.remaining > 5) resp.skip(4 + 1 + 4 + 1);
+  return resp.uint32LE();
+}
+
+async function awaitAdmission(conn: WorldConn): Promise<void> {
+  const deadline = Date.now() + AUTH_QUEUE_CAP_MS;
+  let position: number | undefined;
+  while (true) {
+    const timeoutMs =
+      position === undefined ? undefined : Math.max(deadline - Date.now(), 0);
+    const resp = await conn.dispatch
+      .expect(GameOpcode.SMSG_AUTH_RESPONSE, { timeoutMs })
+      .catch((error: unknown) => {
+        if (position === undefined) throw error;
+        throw new Error(
+          `World auth failed: still queued at position ${position} after ${AUTH_QUEUE_CAP_MS / 1000} s`,
+        );
+      });
+    const status = resp.uint8();
+    if (status === AUTH_OK) return;
+    if (status !== AUTH_WAIT_QUEUE) {
+      const label =
+        AUTH_FAILURES[status - AUTH_OK - 1] ??
+        `status 0x${status.toString(16)}`;
+      throw new Error(`World auth failed: ${label}`);
+    }
+    position = queuePosition(resp);
   }
 }
 
@@ -131,20 +190,31 @@ export async function selectCharacter(
   const w = new PacketWriter();
   w.uint32LE(char.guidLow);
   w.uint32LE(char.guidHigh);
+  const refused = conn.dispatch
+    .expect(GameOpcode.SMSG_CHARACTER_LOGIN_FAILED)
+    .then((r) => {
+      const { reason } = parseCharacterLoginFailed(r);
+      throw new Error(`Character login failed: ${reason.replaceAll("_", " ")}`);
+    });
+  refused.catch(ignoreFailure);
+  const loggedIn = stores.self.waitLogin();
+  loggedIn.catch(ignoreFailure);
   sendPacket(conn, GameOpcode.CMSG_PLAYER_LOGIN, w.finish());
-  await stores.self.waitLogin();
+  await Promise.race([loggedIn, refused]);
 }
 
 export function startPingLoop(
   conn: WorldConn,
-  intervalMs: number,
+  login: LoginStore,
+  config: Pick<ClientConfig, "pingIntervalMs">,
 ): ReturnType<typeof setInterval> {
   return setInterval(() => {
+    const { seq, latencyMs } = login.nextPing(Date.now());
     const w = new PacketWriter();
-    w.uint32LE(0);
-    w.uint32LE(0);
+    w.uint32LE(seq);
+    w.uint32LE(latencyMs);
     sendPacket(conn, GameOpcode.CMSG_PING, w.finish());
-  }, intervalMs);
+  }, config.pingIntervalMs ?? 30_000);
 }
 
 function routeEntityEvent(
@@ -214,6 +284,7 @@ export function createWorldConn(): WorldConn {
     pendingRequest: null,
     duelArbiter: 0n,
     events: createWorldEvents((error) => reportListenerError(conn, error)),
+    pendingNotices: [],
   };
   conn.friendStore.onEvent((event) => conn.events.friend.emit(event));
   conn.ignoreStore.onEvent((event) => conn.events.ignore.emit(event));

@@ -1,6 +1,11 @@
 import type { Unsubscribe } from "#lib/emitter";
 import { ignoreFailure } from "#lib/ignore-failure";
 import { actionBarMethods } from "#wow/action-bar";
+import {
+  type AreaEvent,
+  type AreaHandles,
+  areaHandles,
+} from "#wow/areas/compose";
 import { channelMethods, chatMethods } from "#wow/client-chat";
 import {
   authenticateWorld,
@@ -56,6 +61,7 @@ import type {
 } from "#wow/item-labels";
 import { LOGOUT_TIMEOUT_MS, requestLogout } from "#wow/logout";
 import type { NearbyQuery, NearbyRow } from "#wow/nearby";
+import { closeTap, createTap, type TraceSink } from "#wow/packet-trace";
 import type { PartyChange, PartyLoot, PartyState } from "#wow/party-store";
 import type { ActionButton } from "#wow/protocol/action-buttons";
 import type { WhoResult } from "#wow/protocol/chat";
@@ -72,6 +78,7 @@ import type { SpellDefinition } from "#wow/spell-catalog";
 import type { TrainerEvent } from "#wow/trainer";
 import type { VendorEvent } from "#wow/vendor";
 import type { WorldConn } from "#wow/world-conn";
+import { sendPacket } from "#wow/world-handlers";
 
 export type ClientConfig = {
   host: string;
@@ -87,6 +94,7 @@ export type ClientConfig = {
   cachedSessionKey?: Uint8Array;
   dbc?: DbcSource;
   ground?: GroundOracle;
+  trace?: TraceSink;
 };
 
 import type { AuthResult } from "#wow/auth";
@@ -162,7 +170,7 @@ export type ChatMode =
   | { type: "whisper"; target: string }
   | { type: "channel"; channel: string };
 
-export type WorldHandle = {
+export type CoreHandle = {
   closed: Promise<void>;
   close: () => void;
   logout: () => void;
@@ -312,6 +320,11 @@ export type WorldHandle = {
   getCreatureInfo: (entry: number) => CreatureInfo | undefined;
 };
 
+export type WorldHandle = CoreHandle &
+  AreaHandles & {
+    onAreaEvent: (cb: (event: AreaEvent) => void) => Unsubscribe;
+  };
+
 type SessionHandle = {
   conn: WorldConn;
   stores: SessionStores;
@@ -344,6 +357,10 @@ function createHandle(session: SessionHandle): WorldHandle {
     ...placeMethods(stores),
     ...actionBarMethods(stores),
     ...extrasMethods(conn, rt),
+    ...areaHandles(stores.areas, rt.areas.runtimes, () => conn.events.area),
+    onAreaEvent(cb) {
+      return conn.events.area.subscribe(cb);
+    },
   };
   return handle;
 }
@@ -354,6 +371,7 @@ export function worldSession(
 ): Promise<WorldHandle> {
   return new Promise((resolve, reject) => {
     const conn = createWorldConn();
+    conn.trace = createTap(config.trace);
     const stores = createSessionStores(conn);
     routeEntityEvents(conn, stores);
     const rt = createRuntimes(conn, stores, config);
@@ -367,9 +385,10 @@ export function worldSession(
     async function login(): Promise<void> {
       await authenticateWorld(conn, config, auth);
       await selectCharacter(conn, stores, config);
-      pingInterval = startPingLoop(conn, config.pingIntervalMs ?? 30_000);
+      pingInterval = startPingLoop(conn, stores.areas.login, config);
       const lang = config.language ?? Language.COMMON;
       done = true;
+      config.trace?.attach?.((opcode, body) => sendPacket(conn, opcode, body));
       const close = (): void => {
         clearInterval(pingInterval);
         cleanupSession(conn, session, true);
@@ -400,6 +419,7 @@ export function worldSession(
         clearInterval(pingInterval);
         cleanupSession(conn, session, false);
         conn.entityStore.clear();
+        closeTap(conn.trace, conn.dispatch);
         if (!done) reject(new Error("World connection closed"));
         closedResolve();
       },

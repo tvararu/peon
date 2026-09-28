@@ -19,7 +19,7 @@ import {
 import { fight } from "#harness/tools/engage-fight";
 import type { GameToolSpec } from "#harness/tools/game-tool";
 import { nextCall } from "#harness/tools/next-call";
-import { type EngageArgs, engageParams } from "#harness/tools/params";
+import { type EngageArgs, engageParams } from "#harness/tools/params-engage";
 import { engageRenderers } from "#harness/ui/renderers/live-run";
 
 type Report = ToolResult<EngageAfter>;

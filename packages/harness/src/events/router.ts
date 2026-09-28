@@ -1,5 +1,11 @@
 import type { RewardsEvent, Unsubscribe, VendorEvent } from "@peon/core";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
+import {
+  type AreaRuleSet,
+  areaDrafts,
+  areaRuleSet,
+  attachDrafts,
+} from "#harness/areas/rules";
 import type { HarnessFlags } from "#harness/contract/config";
 import type {
   GameLogEntry,
@@ -64,6 +70,7 @@ import {
 } from "#harness/ops/item-names";
 
 export type RouterInit = {
+  areaRules?: AreaRuleSet;
   log: GameLog;
   jevLog: JsonlSink;
   runs: RunRegistry;
@@ -76,6 +83,7 @@ export type RouterInit = {
 type Route = (make: (rc: RuleInput) => Drafts) => void;
 type Named = (itemIds: readonly number[], run: () => void) => boolean;
 type SubscribeInit = {
+  areaRules: AreaRuleSet;
   handle: Game;
   route: Route;
   named: Named;
@@ -183,8 +191,11 @@ function routeVendor(init: SubscribeInit, event: VendorEvent): void {
 }
 
 function subscribeAll(init: SubscribeInit): Unsubscribe[] {
-  const { handle, route, jev, logEntities } = init;
+  const { areaRules, handle, route, jev, logEntities } = init;
   return [
+    handle.onAreaEvent((event) =>
+      route((rc) => areaDrafts(areaRules, event, rc)),
+    ),
     handle.onMessage((msg) => route((rc) => chatDrafts(msg, rc))),
     handle.onGroupEvent((event) => route((rc) => groupDrafts(event, rc))),
     handle.onDuelEvent((event) => route((rc) => duelDrafts(event, rc))),
@@ -380,6 +391,7 @@ function namedFor(
 
 export function createEventRouter(init: RouterInit): EventRouter {
   const { log, runs } = init;
+  const areaRules = init.areaRules ?? areaRuleSet();
   let sink: DeliverySink | undefined;
   let lookup = lookupFor(undefined);
   let memo = createRuleMemo();
@@ -407,8 +419,10 @@ export function createEventRouter(init: RouterInit): EventRouter {
     attach(handle) {
       lookup = lookupFor({ attacks: init.attacks, handle });
       memo = createRuleMemo();
+      route((rc) => attachDrafts(areaRules, handle, rc));
       const life = new AbortController();
       const offs = subscribeAll({
+        areaRules,
         handle,
         jev,
         logEntities: init.flags.logEntities,

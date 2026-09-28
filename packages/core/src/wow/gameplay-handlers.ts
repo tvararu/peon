@@ -15,7 +15,12 @@ import {
 } from "#wow/protocol/death";
 import { parseLevelUpInfo } from "#wow/protocol/experience";
 import { parseGossipMessage } from "#wow/protocol/gossip";
-import { parseInventoryChangeFailure } from "#wow/protocol/inventory";
+import {
+  type InventoryChangeFailure,
+  isNoChange,
+  ownsInventoryFailure,
+  parseInventoryChangeFailure,
+} from "#wow/protocol/inventory";
 import { parseItemQueryResponse } from "#wow/protocol/item";
 import {
   parseItemPushResult,
@@ -266,11 +271,35 @@ function registerQuestProgressHandlers(
   );
 }
 
+function receiveInventoryFailure(
+  stores: SessionStores,
+  packet: InventoryChangeFailure,
+): void {
+  const { combat, rewards, vendor, quests, destroy } = stores;
+  if (isNoChange(packet)) {
+    combat.applyInventoryFailure(packet);
+    return;
+  }
+  const claims = [rewards, vendor, quests, destroy].map((store) =>
+    store.inventoryClaim(),
+  );
+  const owns = (index: number) => {
+    const mine = claims[index];
+    const others = claims.filter((_, other) => other !== index);
+    return mine !== undefined && ownsInventoryFailure(packet, mine, others);
+  };
+  rewards.receiveInventoryFailure(packet, owns(0));
+  combat.applyInventoryFailure(packet);
+  if (owns(1)) vendor.receiveInventoryFailure(packet);
+  if (owns(2)) quests.receiveInventoryFailure(packet);
+  if (owns(3)) destroy.receiveInventoryFailure(packet);
+}
+
 export function registerLootHandlers(
   conn: WorldConn,
   stores: SessionStores,
 ): void {
-  const { combat, rewards, items } = stores;
+  const { rewards, items } = stores;
   const on = (opcode: number, handle: (r: PacketReader) => void) =>
     conn.dispatch.on(opcode, handle);
   on(GameOpcode.SMSG_LOOT_RESPONSE, (r) =>
@@ -303,14 +332,9 @@ export function registerLootHandlers(
     rewards.receiveItemPush(push);
     stores.quests.receiveItemPush(push);
   });
-  on(GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE, (r) => {
-    const packet = parseInventoryChangeFailure(r);
-    rewards.receiveInventoryFailure(packet);
-    combat.applyInventoryFailure(packet);
-    stores.vendor.receiveInventoryFailure(packet);
-    stores.quests.receiveInventoryFailure(packet);
-    stores.destroy.receiveInventoryFailure(packet);
-  });
+  on(GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE, (r) =>
+    receiveInventoryFailure(stores, parseInventoryChangeFailure(r)),
+  );
   on(GameOpcode.SMSG_ITEM_QUERY_SINGLE_RESPONSE, (r) =>
     items.receive(parseItemQueryResponse(r)),
   );

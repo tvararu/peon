@@ -14,6 +14,7 @@ import type {
 } from "#harness/contract/config";
 import type { GameLogEntry, LogDraft, LogEvent } from "#harness/contract/log";
 import type {
+  ToolKind,
   ToolName,
   ToolResult,
   ToolStatus,
@@ -89,6 +90,7 @@ export type ProgressTracker = HandleObserver & {
   digest: (handle: Game) => string;
   afterAction: (init: {
     tool: ToolName;
+    kind: ToolKind;
     status: ToolStatus;
     reason: string | undefined;
     digest: string;
@@ -107,6 +109,7 @@ export type RepeatScene = {
 
 export type RepeatCall = {
   tool: ToolName;
+  kind: ToolKind;
   args: unknown;
   pose: PoseView | undefined;
   digest: string;
@@ -117,7 +120,7 @@ export type RepeatHit = { reason: string; times: number; untried: string[] };
 
 export type RepeatGuard = {
   check: (call: RepeatCall) => RepeatHit | undefined;
-  blocks: (call: RepeatCall) => boolean;
+  blocks: (call: Omit<RepeatCall, "kind">) => boolean;
   positionalPoses: (tool: ToolName) => PoseView[];
   record: (call: RepeatCall & { result: ToolResult<unknown> }) => void;
   hits: () => number;

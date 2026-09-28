@@ -58,6 +58,16 @@ function router(opts: { savedAt?: string; listed?: string[] } = {}): Router {
     if (argv[0] === "rg") return bunExec(argv, execOpts);
     if (argv[3] === "truth")
       return ok(truth(opts.savedAt ?? new Date(NOW).toISOString()));
+    if (argv[3] === "gm")
+      return ok(
+        JSON.stringify({
+          account: argv[4],
+          command: "group list Fevala",
+          ok: true,
+          text: "Group type: Party and consists of 2 players.",
+          verb: "read",
+        }),
+      );
     if (argv[3] === "list")
       return ok(
         JSON.stringify((opts.listed ?? []).map((account) => ({ account }))),
@@ -136,14 +146,75 @@ describe("stopHarness", () => {
 
   test("without a pane it only stops the partner", async () => {
     const { calls, exec } = router();
-    const partner = {
+    const names = {
       ...AGENT,
       account: PARTNER,
       wrapper: `/wt/tmp/puppet-${PARTNER}`,
     };
-    const st = await state(exec, { partner });
+    const partners = [
+      { kind: "partner" as const, names, role: "partner" as const },
+    ];
+    const st = await state(exec, { partners });
     await stopHarness(st);
     expect(calls).toEqual([[`/wt/tmp/puppet-${PARTNER}`, "stop"]]);
+  });
+
+  test("reads a partner's final truth after its stop when it has a baseline", async () => {
+    const { calls, exec } = router();
+    const names = { ...AGENT, account: PARTNER, wrapper: `/wt/${PARTNER}` };
+    const partners = [
+      { kind: "partner" as const, names, role: "partner" as const },
+    ];
+    const st = await state(exec, { partners });
+    await writeFile(`${st.runDir}/partner-baseline.json`, truth("x"));
+    await stopHarness(st);
+    expect(calls).toEqual([
+      [`/wt/${PARTNER}`, "stop"],
+      ["bun", "packages/factory/src/main.ts", "soap", "truth", PARTNER],
+    ]);
+    const final = await Bun.file(`${st.runDir}/partner-final.json`).json();
+    expect(final.savedAt).toBe(new Date(NOW).toISOString());
+  });
+
+  test("a stale partner final truth is a note, not an abort", async () => {
+    const { exec } = router({ savedAt: "2026-09-25T10:00:00.000Z" });
+    const names = { ...AGENT, account: PARTNER, wrapper: `/wt/${PARTNER}` };
+    const partners = [
+      { kind: "witness" as const, names, role: "partner2" as const },
+    ];
+    const st = await state(exec, { partners });
+    await writeFile(`${st.runDir}/partner2-baseline.json`, truth("x"));
+    await stopHarness(st);
+    expect(st.abort).toBeUndefined();
+    expect(st.notes).toEqual([
+      expect.stringContaining("partner2 final truth: stale_truth"),
+    ]);
+    expect(await Bun.file(`${st.runDir}/partner2-final.json`).exists()).toBe(
+      false,
+    );
+  });
+
+  test("reads a console check after the final truth", async () => {
+    const { calls, exec } = router();
+    const scenario = {
+      ...loadScenario("t0-self-state"),
+      checks: [
+        {
+          evidence: { console: { match: "Party", read: "group" as const } },
+          expect: "in a party",
+          id: "in-party",
+          source: "console" as const,
+        },
+      ],
+    };
+    const st = await state(exec, { pane: fakePane(["x"]), scenario });
+    await stopHarness(st);
+    expect(calls.map((call) => call.slice(3))).toEqual([
+      ["truth", ACC],
+      ["gm", ACC, "read", "group"],
+    ]);
+    const row = await Bun.file(`${st.runDir}/console.jsonl`).json();
+    expect(row).toMatchObject({ code: 0, id: "in-party", verb: "group" });
   });
 
   test("stops the partner while the agent is still logging out", async () => {
@@ -165,12 +236,15 @@ describe("stopHarness", () => {
         order.push("quit end");
       },
     };
-    const partner = {
+    const names = {
       ...AGENT,
       account: PARTNER,
       wrapper: `/wt/tmp/puppet-${PARTNER}`,
     };
-    const st = await state(exec, { pane, partner });
+    const partners = [
+      { kind: "partner" as const, names, role: "partner" as const },
+    ];
+    const st = await state(exec, { pane, partners });
     await stopHarness(st);
     expect(order).toEqual(["quit start", "partner stop", "quit end"]);
     expect(st.exitMs).toBe(NOW);

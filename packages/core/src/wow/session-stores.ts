@@ -1,8 +1,13 @@
 import { ActionBarStore } from "#wow/action-bar";
+import {
+  type AreaStores,
+  buildAreaStores,
+  disposeAreaStores,
+} from "#wow/areas/compose";
 import { PlaceStore } from "#wow/client-place";
 import { CombatStore } from "#wow/combat-store";
 import { DestroyStore } from "#wow/destroy-store";
-import type { EntityLookup } from "#wow/entity-store";
+import type { EntityLookup, EntityStore } from "#wow/entity-store";
 import { ItemTemplates } from "#wow/item-use";
 import { MotionStore } from "#wow/motion-store";
 import { QuestStore } from "#wow/quest-store";
@@ -19,9 +24,10 @@ export type SessionDeps = {
   now: () => number;
   selfGuid: () => bigint;
   getEntity: EntityLookup;
+  updateEntity: EntityStore["update"];
 };
 
-export type SessionStores = {
+export type CoreStores = {
   actionBar: ActionBarStore;
   combat: CombatStore;
   motion: MotionStore;
@@ -36,12 +42,16 @@ export type SessionStores = {
   self: SelfStore;
 };
 
+export type SessionStores = CoreStores & { readonly areas: AreaStores };
+
 export function sessionDeps(conn: WorldConn): SessionDeps {
   return {
     send: (opcode, body) => sendPacket(conn, opcode, body ?? new Uint8Array()),
     now: () => Date.now(),
     selfGuid: () => selfGuid(conn),
     getEntity: (guid) => conn.entityStore.get(guid),
+    updateEntity: (guid, fields, rawFields) =>
+      conn.entityStore.update(guid, fields, rawFields),
   };
 }
 
@@ -50,6 +60,11 @@ export function createSessionStores(conn: WorldConn): SessionStores {
 }
 
 export function buildSessionStores(deps: SessionDeps): SessionStores {
+  const core = buildCoreStores(deps);
+  return { ...core, areas: buildAreaStores(deps, core) };
+}
+
+function buildCoreStores(deps: SessionDeps): CoreStores {
   const combat = new CombatStore(deps);
   return {
     actionBar: new ActionBarStore(),
@@ -80,4 +95,5 @@ export function disposeSessionStores(stores: SessionStores): void {
   stores.destroy.dispose();
   stores.place.dispose();
   stores.self.dispose();
+  disposeAreaStores(stores.areas);
 }

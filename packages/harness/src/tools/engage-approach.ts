@@ -21,6 +21,7 @@ export type Scene = FightInit & {
   tally: Tally;
   how: string;
   walk: Walk | undefined;
+  broken?: true;
 };
 
 const APPROACH_WITHIN_YD = 25;
@@ -71,6 +72,7 @@ const LOSSES = {
 function lossOf(scene: Scene): Loss | undefined {
   const { choice, ops } = scene;
   if (choice.guid === undefined) return;
+  if (scene.broken) return LOSSES.gone;
   const hex = guidHex(choice.guid);
   const unit = unitViews(ops).find((view) => view.guid === hex);
   if (!unit) return LOSSES.gone;
@@ -124,11 +126,24 @@ function lossReport(scene: Scene, loss: Loss): Report {
 
 function watchLoss(scene: Scene): { signal: AbortSignal; off: () => void } {
   const lost = new AbortController();
-  const off = scene.ops.handle.onEntityEvent((event) => {
-    const guid = event.type === "disappear" ? event.guid : event.entity.guid;
+  const check = (guid: bigint) => {
     if (guid !== scene.choice.guid || lost.signal.aborted) return;
     if (lossOf(scene)) lost.abort(new Error(LOST));
-  });
+  };
+  const offs = [
+    scene.ops.handle.onEntityEvent((event) =>
+      check(event.type === "disappear" ? event.guid : event.entity.guid),
+    ),
+    scene.ops.handle.threat.onEvent((event) => {
+      if (event.type !== "target_broken" || event.unit !== scene.choice.guid)
+        return;
+      scene.broken = true;
+      check(event.unit);
+    }),
+  ];
+  const off = () => {
+    for (const each of offs) each();
+  };
   return { off, signal: lost.signal };
 }
 

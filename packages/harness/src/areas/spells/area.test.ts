@@ -1,0 +1,58 @@
+import { describe, expect, test } from "bun:test";
+import type { AreaEvent } from "@peon/core";
+import { areaDrafts, areaRuleSet, fallbackDraft } from "#harness/areas/rules";
+import { testRuleInput } from "#test-support/rule-fixtures";
+
+const ME = 0x2an;
+const TRAINER = 0xf1_30_00_3e_d7_00_1a_2bn;
+const MOB = 0xf1_30_00_3e_ea_00_0a_bcn;
+
+describe("spells harness rules", () => {
+  test("a spell visual or impact writes no row", () => {
+    const events: AreaEvent[] = [
+      {
+        area: "spells",
+        event: { guid: TRAINER, impact: false, kit: 179, type: "spell_visual" },
+      },
+      {
+        area: "spells",
+        event: { guid: ME, impact: true, kit: 362, type: "spell_visual" },
+      },
+    ];
+    const rules = areaRuleSet();
+    for (const event of events)
+      expect(areaDrafts(rules, event, testRuleInput())).toEqual([]);
+  });
+
+  test("a channel start or end still writes its quiet fallback row", () => {
+    const events: AreaEvent[] = [
+      {
+        area: "spells",
+        event: {
+          durationMs: 3000,
+          spellId: 5143,
+          target: MOB,
+          type: "channel_start",
+        },
+      },
+      {
+        area: "spells",
+        event: {
+          durationMs: undefined,
+          spellId: 5143,
+          target: undefined,
+          type: "channel_start",
+        },
+      },
+      {
+        area: "spells",
+        event: { reason: "cancelled", spellId: 5143, type: "channel_end" },
+      },
+    ];
+    const rules = areaRuleSet();
+    for (const event of events)
+      expect(areaDrafts(rules, event, testRuleInput())).toEqual([
+        fallbackDraft(event),
+      ]);
+  });
+});

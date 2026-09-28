@@ -8,34 +8,59 @@ import type { PacketReader } from "#wow/protocol/packet";
 
 type Point = { x: number; y: number; z: number; orientation: number };
 
+export const CREATE_SPEED_ORDER = [
+  "walk",
+  "run",
+  "run_back",
+  "swim",
+  "swim_back",
+  "flight",
+  "flight_back",
+  "turn",
+  "pitch",
+] as const;
+export type SpeedKind = (typeof CREATE_SPEED_ORDER)[number];
+export type Speeds = Readonly<Record<SpeedKind, number>>;
+
 export type MovementData = {
   updateFlags: number;
   point?: Point;
   runSpeed?: number;
   runBackSpeed?: number;
   turnRate?: number;
+  speeds?: Speeds;
   movementInfo?: MovementInfo;
   spline?: CreateSpline;
 };
 
 type Placement = Omit<MovementData, "updateFlags">;
 
+function readSpeeds(r: PacketReader): Speeds {
+  return {
+    walk: r.floatLE(),
+    run: r.floatLE(),
+    run_back: r.floatLE(),
+    swim: r.floatLE(),
+    swim_back: r.floatLE(),
+    flight: r.floatLE(),
+    flight_back: r.floatLE(),
+    turn: r.floatLE(),
+    pitch: r.floatLE(),
+  };
+}
+
 function readLiving(r: PacketReader): Placement {
   const movementInfo = parseMovementInfo(r);
   const { flags, x, y, z, orientation } = movementInfo;
-  r.skip(4);
-  const runSpeed = r.floatLE();
-  const runBackSpeed = r.floatLE();
-  r.skip(16);
-  const turnRate = r.floatLE();
-  r.skip(4);
+  const speeds = readSpeeds(r);
   const splined = flags & MovementFlag.SPLINE_ENABLED;
   const spline = splined ? parseCreateSpline(r) : undefined;
   return {
     point: { x, y, z, orientation },
-    runSpeed,
-    runBackSpeed,
-    turnRate,
+    runSpeed: speeds.run,
+    runBackSpeed: speeds.run_back,
+    turnRate: speeds.turn,
+    speeds,
     movementInfo,
     spline,
   };

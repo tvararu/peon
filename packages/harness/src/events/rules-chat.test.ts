@@ -267,6 +267,7 @@ describe("router with chat rules", () => {
         logEntities: false,
         model: "m",
         nowPerCall: false,
+        packetTrace: "off",
         profile: "p",
         runDir: undefined,
         stopReflex: true,

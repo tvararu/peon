@@ -19,7 +19,7 @@ import { settle } from "#harness/ops/settle";
 import { acceptedNext } from "#harness/tools/accept-next";
 import { result } from "#harness/tools/define";
 import { nextCall } from "#harness/tools/next-call";
-import type { InteractArgs } from "#harness/tools/params";
+import type { InteractArgs } from "#harness/tools/params-interact";
 
 export type NpcTarget = { unit: UnitView; guid: bigint };
 export type StepInit = {

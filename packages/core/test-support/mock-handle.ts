@@ -1,5 +1,13 @@
 import { jest } from "bun:test";
 import { testStores } from "#test-support/session-fixtures";
+import {
+  type AreaEvent,
+  type AreaEventOf,
+  type AreaName,
+  areaHandles,
+  createAreaRuntimes,
+} from "#wow/areas/compose";
+import { type SentPacket, testPort } from "#wow/areas/port";
 import type {
   ChatMessage,
   ChatMode,
@@ -23,7 +31,6 @@ import type { RemotePose } from "#wow/remote-motion";
 import { type RewardsEvent, RewardsRuntime } from "#wow/rewards";
 import type { TrainerEvent } from "#wow/trainer";
 import { type VendorEvent, VendorRuntime } from "#wow/vendor";
-import { createWorldEvents } from "#wow/world-events";
 
 export type MockHandle = WorldHandle & {
   triggerMessage: (msg: ChatMessage) => void;
@@ -41,6 +48,11 @@ export type MockHandle = WorldHandle & {
   triggerVendorEvent: (event: VendorEvent) => void;
   triggerNotice: (event: NoticeEvent) => void;
   triggerTrainerEvent: (event: TrainerEvent) => void;
+  triggerAreaEvent: <K extends AreaName>(
+    area: K,
+    event: AreaEventOf<K>,
+  ) => void;
+  sent: readonly SentPacket[];
   resolveClosed: () => void;
 };
 
@@ -58,13 +70,15 @@ export function createMockHandle(): MockHandle {
     speed: 0,
     target: undefined,
   };
+  const port = testPort();
   const runtimeDeps = {
     getEntity: () => undefined,
     now: () => 0,
     selfGuid: () => 0n,
-    send: () => {},
+    send: port.send,
   };
   const stores = testStores(runtimeDeps);
+  const areas = createAreaRuntimes(port, stores.areas, stores);
   const combat = new CombatRuntime(stores, {
     ...runtimeDeps,
     selectedGuid: () => undefined,
@@ -79,7 +93,7 @@ export function createMockHandle(): MockHandle {
   const vendor = new VendorRuntime(stores.vendor, runtimeDeps);
   const unanswered = () => ({ name: null, quality: null });
 
-  const events = createWorldEvents();
+  const events = port.events();
   let closeResolve: () => void;
   const closed = new Promise<void>((r) => {
     closeResolve = r;
@@ -87,6 +101,7 @@ export function createMockHandle(): MockHandle {
   let lastChatMode: ChatMode = { type: "say" };
 
   const handle: MockHandle = {
+    ...areaHandles(stores.areas, areas.runtimes, () => events.area),
     abandonLoot: jest.fn(),
     abandonQuest: jest.fn(),
     acceptGuildInvite: jest.fn(),
@@ -190,6 +205,9 @@ export function createMockHandle(): MockHandle {
     observedPosition: jest.fn((): never => {
       throw new Error("target_not_observed");
     }),
+    onAreaEvent(cb) {
+      return events.area.subscribe(cb);
+    },
     onCombatEvent(cb) {
       return events.combat.subscribe(cb);
     },
@@ -300,6 +318,7 @@ export function createMockHandle(): MockHandle {
     sendSay: jest.fn(),
     sendWhisper: jest.fn(),
     sendYell: jest.fn(),
+    sent: port.sent,
     setLastChatMode: jest.fn((mode: ChatMode) => {
       lastChatMode = mode;
     }),
@@ -314,6 +333,9 @@ export function createMockHandle(): MockHandle {
     takeLootMoney: jest.fn(),
     talk: jest.fn(),
     trainSpell: jest.fn(),
+    triggerAreaEvent(area, event) {
+      events.area.emit({ area, event } as unknown as AreaEvent);
+    },
     triggerCombatEvent(event) {
       events.combat.emit(event);
     },

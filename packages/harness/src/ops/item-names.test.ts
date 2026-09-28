@@ -1,11 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
+  fakeMsUntilSettled,
+  withFakeTimers,
+} from "@peon/core/test-support/fake-time";
+import {
   awaitItemNames,
   ITEM_NAME_WAIT_MS,
   itemLabelIn,
   nameLootLines,
 } from "#harness/ops/item-names";
-import { fakeMsUntilSettled, withFakeTimers } from "#test-support/fake-time";
 import { createMockGame } from "#test-support/mock-game";
 
 function lateNames(afterMs: number, names: Record<number, string>) {

@@ -1,0 +1,99 @@
+import type { LookAfter, LookFilter } from "#harness/contract/details";
+import type { NearestKind, UnitView } from "#harness/contract/views";
+import { LOOK_DEFAULT_YD } from "#harness/ops/range";
+import { kindOf } from "#harness/tools/look-find";
+import { MORE_NAMES } from "#harness/tools/look-rank";
+import { nextCall } from "#harness/tools/next-call";
+
+const ALWAYS_NEAREST: readonly NearestKind[] = [
+  "hostile",
+  "lootable",
+  "trainer",
+];
+
+export function ageText(ms: number): string {
+  return ms < 60_000
+    ? `${Math.round(ms / 1000)} s`
+    : `${Math.round(ms / 60_000)} min`;
+}
+
+function distanceText({ compass, distance }: UnitView): string {
+  if (distance === undefined) return "distance unknown";
+  const yards = Math.round(distance);
+  return yards > 0 && compass ? `${yards} yd ${compass}` : `${yards} yd`;
+}
+
+export function nounOf(filter: LookFilter): string {
+  return filter === "any" ? "units" : `${filter.replace("_", " ")} units`;
+}
+
+export function headerLine({
+  filter,
+  matched,
+  more,
+  rows,
+  within,
+}: LookAfter): string {
+  const range = within ?? LOOK_DEFAULT_YD;
+  if (rows.length === 0) return `No ${nounOf(filter)} within ${range} yd.`;
+  const order = more.length > 0 ? "most relevant first" : "nearest first";
+  return `${rows.length} of ${matched} ${nounOf(filter)} within ${range} yd, ${order}:`;
+}
+
+export function moreLine({ more, within }: LookAfter): string[] {
+  if (more.length === 0) return [];
+  const named = more
+    .slice(0, MORE_NAMES)
+    .map((unit) => `${unit.ref} ${unit.name} ${distanceText(unit)}`)
+    .join(", ");
+  return [
+    `${more.length} more: ${named}. Use ${nextCall("look", { within: within ?? LOOK_DEFAULT_YD })} to list all.`,
+  ];
+}
+
+function lastSeenText(unit: UnitView, then: readonly string[]): string {
+  const was = then.length > 0 ? `, then ${then.join(", ")}` : "";
+  return `last seen ${distanceText(unit)} ${ageText(unit.seenAgoMs)} ago${was} (not in view)`;
+}
+
+export function rowLine(unit: UnitView): string {
+  const volatile = [
+    unit.alive ? undefined : "dead",
+    unit.lootable ? "lootable" : undefined,
+    unit.attackingMe ? "attacking you" : undefined,
+    unit.targetsMe && !unit.attackingMe ? "targets you" : undefined,
+    unit.fightingMe ? "fighting you" : undefined,
+    unit.aggro === undefined ? undefined : `aggro on ${unit.aggro}`,
+    unit.myThreatPct === undefined
+      ? undefined
+      : `your threat ${unit.myThreatPct}%`,
+    unit.tappedByOther ? "tapped by another player" : undefined,
+  ].filter((trait) => trait !== undefined);
+  const traits = [
+    unit.kind === "player" ? "player" : undefined,
+    unit.relation,
+    unit.roles.length > 0 ? unit.roles.join(" ") : undefined,
+    ...(unit.inView
+      ? [...volatile, distanceText(unit)]
+      : [lastSeenText(unit, volatile)]),
+  ];
+  return `- ${unit.ref} ${unit.name} L${unit.level} ${traits.filter((trait) => trait !== undefined).join(", ")}`;
+}
+
+function nearestText(kind: NearestKind, unit: UnitView | undefined): string {
+  const label = `Nearest ${kind.replace("_", " ")}:`;
+  if (!unit) return `${label} ${kind === "lootable" ? "none" : "none seen"}.`;
+  const life = unit.alive ? "alive" : "dead";
+  if (!unit.inView)
+    return `${label} ${unit.ref} ${unit.name} L${unit.level}, last seen ${distanceText(unit)} ${ageText(unit.seenAgoMs)} ago, then ${life}.`;
+  return `${label} ${unit.ref} ${unit.name} L${unit.level} ${life}, ${distanceText(unit)} (seen now).`;
+}
+
+export function nearestLine({ filter, nearest }: LookAfter): string {
+  const own = kindOf(filter);
+  const kinds =
+    own && !ALWAYS_NEAREST.includes(own)
+      ? [...ALWAYS_NEAREST, own]
+      : ALWAYS_NEAREST;
+  return kinds.map((kind) => nearestText(kind, nearest[kind])).join(" ");
+}

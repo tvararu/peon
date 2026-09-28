@@ -17,7 +17,6 @@ export const NO_PROGRESS_AT = 3;
 export const STUCK_LOG_AT = 6;
 
 const MOVE_YD = 5;
-const READS: ReadonlySet<ToolName> = new Set(["look", "journal"]);
 const RUN_ENDS: ReadonlySet<LogEvent> = new Set(["run/ended", "run/cancelled"]);
 const PROGRESS_EVENTS: ReadonlySet<LogEvent> = new Set([
   "combat/kill_credit",
@@ -59,7 +58,7 @@ function progressed(state: State, at: number, event: LogEvent): void {
 function observeEntry(state: State, entry: GameLogEntry): void {
   if (entry.event === "run/started") state.run = "running";
   if (RUN_ENDS.has(entry.event)) state.run = "ended";
-  if (PROGRESS_EVENTS.has(entry.event))
+  if (entry.progress || PROGRESS_EVENTS.has(entry.event))
     progressed(state, entry.ts, entry.event);
 }
 
@@ -154,7 +153,7 @@ function afterAction(
   action: Action,
   deps: { clock: Clock; log: GameLog },
 ): void {
-  if (READS.has(action.tool)) return;
+  if (action.kind === "read") return;
   const key = `${action.digest}|${action.reason ?? "-"}`;
   noteRefusal(state, action);
   if (action.untried.length > 0) state.untried = action.untried;

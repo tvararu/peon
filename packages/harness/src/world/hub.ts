@@ -1,5 +1,12 @@
 import type { Unsubscribe, WorldHandle } from "@peon/core";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
+import { HARNESS_AREAS } from "#harness/areas/registry";
+import {
+  type AreaClaimActs,
+  areaActs,
+  areaViews,
+  type WorldRegistry,
+} from "#harness/areas/world";
 import type { HarnessRuntime } from "#harness/contract/services";
 import type {
   ControlHolder,
@@ -32,7 +39,10 @@ type LiveClaim = { grant: Grant; lose: () => void };
 
 const DISPOSED = "world_disposed";
 
-export function createWorldService(rt: WorldRuntime): WorldHub {
+export function createWorldService(
+  rt: WorldRuntime,
+  registry: WorldRegistry = HARNESS_AREAS,
+): WorldHub {
   const hooks = new Set<Unsubscribe>();
   const claims = new Set<LiveClaim>();
   let disposed = false;
@@ -47,12 +57,15 @@ export function createWorldService(rt: WorldRuntime): WorldHub {
   const current = (): WorldSession | undefined => {
     const handle = rt.handle();
     if (!handle) return undefined;
-    if (live?.handle !== handle) live = { handle, session: session(handle) };
+    if (live?.handle !== handle)
+      live = { handle, session: session(handle, registry) };
     return live.session;
   };
   const service: WorldService = Object.freeze({
     claim: (owner: ControlOwner, reason: string) =>
-      disposed ? undefined : claim({ claims, owner, reason, rt, track }),
+      disposed
+        ? undefined
+        : claim({ claims, owner, reason, registry, rt, track }),
     connection: rt.connection,
     control: Object.freeze({
       onOwner: (cb: Parameters<WorldService["control"]["onOwner"]>[0]) =>
@@ -127,7 +140,7 @@ function picked<T>(
   return Object.fromEntries(keys.map((key) => [key, value(key)])) as T;
 }
 
-function session(handle: WorldHandle): WorldSession {
+function session(handle: WorldHandle, registry: WorldRegistry): WorldSession {
   const offs = new Set<Unsubscribe>();
   handle.closed
     .then(() => {
@@ -151,22 +164,34 @@ function session(handle: WorldHandle): WorldSession {
     };
   });
   return Object.freeze({
+    areas: areaViews(registry, handle, (off) => offs.add(off)),
     closed: handle.closed,
     events: Object.freeze(events),
     reads: Object.freeze(reads),
   });
 }
 
+function onlineHandle(rt: WorldRuntime, held: () => boolean) {
+  return (): WorldHandle => {
+    if (!held()) throw new Error("not_owner" satisfies WorldRefusal);
+    const handle = rt.handle();
+    if (!handle || rt.connection() !== "online")
+      throw new Error("offline" satisfies WorldRefusal);
+    return handle;
+  };
+}
+
 type ClaimInit = {
   claims: Set<LiveClaim>;
   owner: ControlOwner;
   reason: string;
+  registry: WorldRegistry;
   rt: WorldRuntime;
   track: (off: Unsubscribe) => Unsubscribe;
 };
 
 function claim(init: ClaimInit): Claim | undefined {
-  const { claims, owner, reason, rt, track } = init;
+  const { claims, owner, reason, registry, rt, track } = init;
   const granted = rt.control.claim(owner, reason);
   if (!granted.granted) return undefined;
   const { grant } = granted;
@@ -191,18 +216,21 @@ function claim(init: ClaimInit): Claim | undefined {
     }),
   );
   const held = () => !lost && rt.control.holds(grant);
+  const online = onlineHandle(rt, held);
   const send =
     (key: (typeof ACT_KEYS)[number]) =>
     (...args: never[]) =>
-      rt.mutex.run(() => {
-        if (!held()) throw new Error("not_owner" satisfies WorldRefusal);
-        const handle = rt.handle();
-        if (!handle || rt.connection() !== "online")
-          throw new Error("offline" satisfies WorldRefusal);
-        return (handle[key] as (...args: never[]) => unknown)(...args);
-      });
+      rt.mutex.run(() =>
+        (online()[key] as (...args: never[]) => unknown)(...args),
+      );
+  const guard = async <T>(act: () => Promise<T>): Promise<T> =>
+    await rt.mutex.run(() => {
+      online();
+      return act();
+    });
   return Object.freeze({
     act: Object.freeze(picked<WorldActuators>(ACT_KEYS, send)),
+    areas: areaActs(registry, rt.handle, guard) as AreaClaimActs,
     held,
     onLost(cb: (to: ControlHolder) => void) {
       if (lost) {

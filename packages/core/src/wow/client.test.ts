@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { timeQueryResponseBody } from "#test-support/areas/time";
 import {
   clientPrivateKey,
   clientSeed,
@@ -18,7 +19,7 @@ import {
   UpdateType,
 } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import { PacketWriter } from "#wow/protocol/packet";
+import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 import type { QuestEvent } from "#wow/quests";
 
 const base = {
@@ -92,7 +93,7 @@ describe("session lifecycle", () => {
     }
   });
 
-  test("rejects with named message for system error (0x0d)", async () => {
+  test("rejects with named message for auth failed (0x0d)", async () => {
     const ws = await startMockWorldServer({ authStatus: 0x0d });
     try {
       await expect(
@@ -100,13 +101,13 @@ describe("session lifecycle", () => {
           { ...base, host: "127.0.0.1", port: ws.port },
           fakeAuth(ws.port),
         ),
-      ).rejects.toThrow("World auth failed: system error");
+      ).rejects.toThrow("World auth failed: failed");
     } finally {
       ws.stop();
     }
   });
 
-  test("rejects with named message for account in use (0x15)", async () => {
+  test("rejects with named message for unknown account (0x15)", async () => {
     const ws = await startMockWorldServer({ authStatus: 0x15 });
     try {
       await expect(
@@ -114,7 +115,7 @@ describe("session lifecycle", () => {
           { ...base, host: "127.0.0.1", port: ws.port },
           fakeAuth(ws.port),
         ),
-      ).rejects.toThrow("World auth failed: account in use");
+      ).rejects.toThrow("World auth failed: unknown account");
     } finally {
       ws.stop();
     }
@@ -146,7 +147,19 @@ describe("session lifecycle", () => {
         { ...base, host: "127.0.0.1", port: ws.port, pingIntervalMs: 1 },
         fakeAuth(ws.port),
       );
-      await ws.waitForCapture((p) => p.opcode === GameOpcode.CMSG_PING);
+      const ping = await ws.waitForCapture(
+        (p) => p.opcode === GameOpcode.CMSG_PING,
+      );
+      expect(new PacketReader(ping.body).uint32LE()).toBe(1);
+      await new Promise<void>((resolve) => {
+        const off = handle.login.onEvent((event) => {
+          if (event.type !== "pong") return;
+          off();
+          resolve();
+        });
+      });
+      expect(handle.login.state().link.lastSeq).toBeGreaterThanOrEqual(1);
+      expect(handle.login.state().link.rttMs).toBeGreaterThanOrEqual(0);
       handle.close();
       await handle.closed;
     } finally {
@@ -306,6 +319,45 @@ describe("session lifecycle", () => {
       ).toBe(false);
       handle.close();
       await handle.closed;
+    } finally {
+      worldServer.stop();
+    }
+  });
+
+  test("login queries the time once and close rejects a pending query", async () => {
+    const worldServer = await startMockWorldServer();
+    try {
+      const handle = await worldSession(
+        { ...base, host: "127.0.0.1", port: worldServer.port },
+        fakeAuth(worldServer.port),
+      );
+      await worldServer.waitForCapture(
+        (p) => p.opcode === GameOpcode.CMSG_QUERY_TIME,
+      );
+      expect(
+        worldServer.captured.filter(
+          (p) => p.opcode === GameOpcode.CMSG_QUERY_TIME,
+        ),
+      ).toHaveLength(1);
+      const areaEvents: string[] = [];
+      const timeEvents: string[] = [];
+      handle.onAreaEvent(({ event }) => areaEvents.push(event.type));
+      handle.time.onEvent((event) => timeEvents.push(event.type));
+      const answered = handle.time.act.query();
+      worldServer.inject(
+        GameOpcode.SMSG_QUERY_TIME_RESPONSE,
+        timeQueryResponseBody({
+          serverTime: 1_790_000_000,
+          dailyResetInSec: 3600,
+        }),
+      );
+      expect((await answered).dailyResetInSec).toBe(3600);
+      const pending = handle.time.act.query();
+      handle.close();
+      await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      await handle.closed;
+      expect(areaEvents).toEqual(["query_reply"]);
+      expect(timeEvents).toEqual(["query_reply"]);
     } finally {
       worldServer.stop();
     }

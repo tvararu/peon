@@ -285,3 +285,88 @@ describe("OpcodeDispatch", () => {
     expect(d.unhandledCounts().size).toBe(0);
   });
 });
+
+describe("OpcodeDispatch.peek", () => {
+  const body = (value: number) => {
+    const w = new PacketWriter();
+    w.uint32LE(value);
+    return new PacketReader(w.finish());
+  };
+
+  test("runs after the owner", () => {
+    const d = new OpcodeDispatch();
+    const order: string[] = [];
+    d.on(0x60, () => order.push("owner"));
+    d.peek(0x60, () => order.push("peek"));
+    d.handle(0x60, body(1));
+    expect(order).toEqual(["owner", "peek"]);
+  });
+
+  test("reads a fresh fork after the owner consumed the body", () => {
+    const d = new OpcodeDispatch();
+    const read: number[] = [];
+    d.on(0x61, (r) => read.push(r.uint32LE()));
+    d.peek(0x61, (r) => read.push(r.uint32LE()));
+    d.handle(0x61, body(0x12_34_56_78));
+    expect(read).toEqual([0x12_34_56_78, 0x12_34_56_78]);
+  });
+
+  test("runs after the waiter step and the waiter still reads the body", async () => {
+    const d = new OpcodeDispatch();
+    const order: string[] = [];
+    d.on(0x62, (r) => order.push(`owner ${r.uint32LE()}`));
+    d.peek(0x62, (r) => order.push(`peek ${r.uint32LE()}`));
+    const waited = d.expect(0x62, {
+      match: () => order.push("waiter") > 0,
+    });
+    expect(d.handle(0x62, body(7))).toBe("handled");
+    expect((await waited).uint32LE()).toBe(7);
+    expect(order).toEqual(["owner 7", "waiter", "peek 7"]);
+  });
+
+  test("never runs when the owner throws", async () => {
+    const d = new OpcodeDispatch();
+    const peeked: number[] = [];
+    d.on(0x63, () => {
+      throw new Error("malformed body");
+    });
+    d.peek(0x63, (r) => peeked.push(r.uint32LE()));
+    const waited = d.expect(0x63);
+    expect(() => d.handle(0x63, body(1))).toThrow("malformed body");
+    await expect(waited).rejects.toThrow("malformed body");
+    expect(peeked).toEqual([]);
+  });
+
+  test("reports a throwing peek and still runs the next one", async () => {
+    const d = new OpcodeDispatch();
+    const reported: [number, unknown][] = [];
+    const failure = new Error("bad peek");
+    const peeked: number[] = [];
+    d.onPeekError((opcode, error) => reported.push([opcode, error]));
+    d.on(0x64, () => {});
+    d.peek(0x64, () => {
+      throw failure;
+    });
+    d.peek(0x64, (r) => peeked.push(r.uint32LE()));
+    const waited = d.expect(0x64);
+    expect(d.handle(0x64, body(5))).toBe("handled");
+    expect((await waited).uint32LE()).toBe(5);
+    expect(reported).toEqual([[0x64, failure]]);
+    expect(peeked).toEqual([5]);
+  });
+
+  test("refuses an opcode with no owner", () => {
+    const d = new OpcodeDispatch();
+    expect(() => d.peek(0x65, () => {})).toThrow(
+      "peek needs an owner; own the opcode instead",
+    );
+  });
+
+  test("leaves has() to owners", () => {
+    const d = new OpcodeDispatch();
+    d.on(0x66, () => {});
+    d.peek(0x66, () => {});
+    expect(d.has(0x66)).toBe(true);
+    expect(d.has(0x67)).toBe(false);
+  });
+});

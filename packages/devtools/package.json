@@ -1,4 +1,7 @@
 {
+  "dependencies": {
+    "@peon/core": "workspace:*"
+  },
   "exports": {},
   "imports": {
     "#tools/*": "./src/*.ts"

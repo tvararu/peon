@@ -1,0 +1,30 @@
+import type { AreaOpcodes } from "#wow/areas/contract";
+
+export const AMBIENCE_OPCODES = {
+  owns: [
+    "SMSG_UPDATE_WORLD_STATE",
+    "SMSG_WEATHER",
+    "CMSG_ZONEUPDATE",
+    "SMSG_TRIGGER_CINEMATIC",
+    "CMSG_NEXT_CINEMATIC_CAMERA",
+    "CMSG_COMPLETE_CINEMATIC",
+    "SMSG_TRIGGER_MOVIE",
+    "SMSG_PLAY_SOUND",
+    "SMSG_PLAY_MUSIC",
+    "SMSG_PLAY_OBJECT_SOUND",
+    "SMSG_OVERRIDE_LIGHT",
+    "SMSG_SET_PHASE_SHIFT",
+    "CMSG_COMPLETE_MOVIE",
+    "SMSG_TOGGLE_XP_GAIN",
+    "SMSG_CAMERA_SHAKE",
+  ],
+  uses: [],
+  stubs: [
+    ["SMSG_WEATHER", "Weather change"],
+    ["SMSG_SET_PHASE_SHIFT", "Phase shift"],
+    ["SMSG_PLAY_SOUND", "Sound effect"],
+    ["SMSG_PLAY_MUSIC", "Music"],
+  ],
+  dead: ["CMSG_COMPLETE_MOVIE", "SMSG_TOGGLE_XP_GAIN", "SMSG_CAMERA_SHAKE"],
+  unseen: [],
+} as const satisfies AreaOpcodes;

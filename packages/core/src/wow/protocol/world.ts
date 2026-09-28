@@ -169,6 +169,13 @@ export type ExpectOptions = {
   match?: (reader: PacketReader) => boolean;
 };
 
+export type DispatchOutcome = "handled" | "unhandled";
+
+export type DispatchCounts = {
+  seen: ReadonlyMap<number, number>;
+  unhandled: ReadonlyMap<number, number>;
+};
+
 type Waiter = {
   match?: (reader: PacketReader) => boolean;
   resolve: (reader: PacketReader) => void;
@@ -177,25 +184,39 @@ type Waiter = {
 
 export class OpcodeDispatch {
   private readonly handlers: Map<number, (reader: PacketReader) => void>;
+  private readonly peeks: Map<number, ((reader: PacketReader) => void)[]>;
   private readonly waiters: Map<number, Waiter[]>;
   private readonly unhandled: Map<number, number>;
+  private readonly seen: Map<number, number>;
   private readonly reported: Set<number>;
   private report: (opcode: number) => boolean;
+  private peekError: (opcode: number, error: unknown) => void;
 
   constructor() {
     this.handlers = new Map();
+    this.peeks = new Map();
     this.waiters = new Map();
     this.unhandled = new Map();
+    this.seen = new Map();
     this.reported = new Set();
     this.report = () => false;
+    this.peekError = () => undefined;
   }
 
   onUnhandled(report: (opcode: number) => boolean): void {
     this.report = report;
   }
 
+  onPeekError(report: (opcode: number, error: unknown) => void): void {
+    this.peekError = report;
+  }
+
   unhandledCounts(): ReadonlyMap<number, number> {
     return this.unhandled;
+  }
+
+  counts(): DispatchCounts {
+    return { seen: this.seen, unhandled: this.unhandled };
   }
 
   has(opcode: number): boolean {
@@ -208,6 +229,12 @@ export class OpcodeDispatch {
         `Opcode 0x${opcode.toString(16)} already has a handler; compose in its owner`,
       );
     this.handlers.set(opcode, handler);
+  }
+
+  peek(opcode: number, read: (reader: PacketReader) => void): void {
+    if (!this.handlers.has(opcode))
+      throw new Error("peek needs an owner; own the opcode instead");
+    this.peeks.set(opcode, [...(this.peeks.get(opcode) ?? []), read]);
   }
 
   expect(
@@ -236,10 +263,11 @@ export class OpcodeDispatch {
     return promise;
   }
 
-  handle(opcode: number, reader: PacketReader) {
+  handle(opcode: number, reader: PacketReader): DispatchOutcome {
+    this.seen.set(opcode, (this.seen.get(opcode) ?? 0) + 1);
     if (!(this.handlers.has(opcode) || this.waiters.has(opcode))) {
       this.countUnhandled(opcode);
-      return;
+      return "unhandled";
     }
     const body = reader.fork();
     try {
@@ -259,6 +287,14 @@ export class OpcodeDispatch {
       this.removeWaiter(opcode, waiter);
       waiter.resolve(body.fork());
     }
+    for (const read of this.peeks.get(opcode) ?? []) {
+      try {
+        read(body.fork());
+      } catch (error) {
+        this.peekError(opcode, error);
+      }
+    }
+    return "handled";
   }
 
   private countUnhandled(opcode: number) {

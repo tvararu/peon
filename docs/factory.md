@@ -57,6 +57,9 @@ run` creates and deletes its own. Create needs the patched navigation
 library from `mise namigator:build`. The account's config connects to the
 `host` and `port` in `~/.config/peon/config.toml` (default
 `localhost:3724`) and copies its navigation data paths.
+Account names hold the creation second and one random byte, so two
+creates in the same second can pick the same name; create then retries
+with fresh names, up to eight times.
 
 Presets: `fresh`, `eversong10`, `max80`, `eversong10-warrior`,
 `eversong10-mage`, `eversong10-hunter`, `ghostlands20` (Horde), `elwynn1`,
@@ -83,6 +86,46 @@ accepted, and setup refuses an online character, so stop its puppet
 first. The service URL is `PEON_REALM_SERVICE`, from the environment or
 `soap.env`; it has no default, and these commands fail naming it when it
 is unset.
+
+`soap gm <ACCOUNT> <verb> [args...]` stages state for a worker's live
+proof with a console command over SOAP. It fills in the character name
+itself and runs only on factory accounts whose ledger entry was created
+from the current worktree; every command is appended to
+`~/.local/state/peon-factory/gm.log`. It prints `{account, verb, command,
+ok, text}` and exits 1 when the server refuses. Never use it inside an
+eval; eval staging stays with `soap setup`.
+
+| Verb | Console command |
+|---|---|
+| `level <1-80>` | `character level <C> <n>` |
+| `tele <name>` | `tele name <C> <name>` |
+| `learn <spell>`, `unlearn <spell>` | `player learn\|unlearn <C> <spell>` (online only) |
+| `items <id>:<n>...` | `send items <C> "Peon" "staging" <id>:<n>...` (up to 12 pairs) |
+| `money <copper>` | `send money <C> "Peon" "staging" <copper>` |
+| `mail <subject>` | `send mail <C> "<subject>" "staging"` |
+| `quest <add\|complete\|reward\|remove> <id>` | `quest <op> <id> <C>` |
+| `revive`, `kick`, `combatstop`, `reset-talents` | `revive <C>`, `kick <C>`, `combatstop <C>`, `reset talents <C>` |
+| `achievement <id>` | `achievement add <id> <C>` |
+| `guild-create <name>` | `guild create <C> "<name>"` (online only) |
+| `guild-invite <ACCOUNT2> <name>` | `guild invite <C2> "<name>"` |
+| `arena-create <2\|3\|5> <name>` | `arena create <C> "<name>" <type>` (online only) |
+| `reset-achievements` | `reset achievements <C>` |
+| `deserter-bg <n><s\|m\|h>` (at most 1h) | `deserter bg add <C> <duration>` |
+| `rename\|customize\|changefaction\|changerace <name>` | `character rename\|customize\|changefaction\|changerace <name>` on a second character of the account |
+| `guild-delete <name>` | `guild delete "<name>"` |
+| `arena-disband <teamId>` | `arena disband <teamId>` after `arena info` shows a `Fac` team that `<C>` captains |
+| `read <kind>` | `group list`, `mail list`, `pet list`, `character titles`, `character reputation` or `pinfo` on `<C>` |
+| `read characters`, `read bf-queue` | `lookup player account <ACCOUNT>`, `bf queue 1` (Wintergrasp) |
+| `read guild <name>`, `read arena <teamId>`, `read arena-lookup <name>` | `guild info "<name>"`, `arena info <teamId>`, `arena lookup <name>` |
+
+Numbers are positive integers, subjects and names match
+`^[A-Za-z0-9 ]{1,24}$`, guild names and new arena team names start with
+`Fac`, and a tele name is one token. The four character-screen verbs first
+run `lookup player account` and refuse a name that is not on the account
+or is the ledger's own character; the flag applies at that character's
+next login. Only the `read` verbs read state. Console commands cannot
+choose talents, set reputation or fly speed, grant taxi nodes, or kill a
+character: those commands are `Console::No`.
 
 ## Status
 

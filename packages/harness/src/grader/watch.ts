@@ -34,6 +34,7 @@ export const TRIGGER_EVENTS: Readonly<
   Record<EventTrigger, readonly LogEvent[]>
 > = {
   answer_text: ["agent/message"],
+  channel_start: ["spells/channel_start"],
   death: ["life/dead"],
   fight_start: ["fight/start"],
   kill: ["combat/kill_credit"],

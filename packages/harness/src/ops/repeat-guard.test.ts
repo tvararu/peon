@@ -27,6 +27,7 @@ function call(over: Partial<RepeatCall> = {}): RepeatCall {
   return {
     args: { npc: "u3" },
     digest: "d1",
+    kind: "action",
     pose: pose(0),
     tool: "interact",
     ...over,
@@ -171,23 +172,34 @@ describe("createRepeatGuard", () => {
     expect(guard.check(call())).toBeUndefined();
   });
 
-  test("a DONE of another action clears every failure, a DONE of look does not", () => {
+  test("a DONE of an action or run clears every failure, a read or control does not", () => {
     const guard = guardAt({ t: 0 });
     guard.record({ ...call(), result: outcome("REFUSED", "too_far") });
-    guard.record({
-      ...call({ args: {}, tool: "look" }),
-      result: outcome("DONE"),
-    });
+    for (const [tool, kind] of [
+      ["look", "read"],
+      ["social", "read"],
+      ["stop", "control"],
+    ] as const)
+      guard.record({
+        ...call({ args: {}, kind, tool }),
+        result: outcome("DONE"),
+      });
     expect(guard.check(call())).toBeDefined();
     guard.record({
-      ...call({ args: {}, tool: "rest" }),
+      ...call({ args: {}, kind: "run", tool: "journal" }),
+      result: outcome("DONE"),
+    });
+    expect(guard.check(call())).toBeUndefined();
+    guard.record({ ...call(), result: outcome("REFUSED", "too_far") });
+    guard.record({
+      ...call({ args: {}, kind: "action", tool: "look" }),
       result: outcome("DONE"),
     });
     expect(guard.check(call())).toBeUndefined();
   });
 
-  test.each(["look", "journal"] as const)(
-    "an unanswered call is blocked until a %s checks the result",
+  test.each(["look", "journal", "social"] as const)(
+    "an unanswered call is blocked until a read tool %s checks the result",
     (tool) => {
       const guard = guardAt({ t: 0 });
       const accept = call({ args: { do: "accept", npc: "u3", what: "1" } });
@@ -197,7 +209,15 @@ describe("createRepeatGuard", () => {
       });
       guard.record({ ...call(), result: outcome("REFUSED", "too_far") });
       expect(guard.check(accept)).toBeDefined();
-      guard.record({ ...call({ args: {}, tool }), result: outcome("DONE") });
+      guard.record({
+        ...call({ args: {}, kind: "control", tool: "stop" }),
+        result: outcome("DONE"),
+      });
+      expect(guard.check(accept)).toBeDefined();
+      guard.record({
+        ...call({ args: {}, kind: "read", tool }),
+        result: outcome("DONE"),
+      });
       expect(guard.check(accept)).toBeUndefined();
       expect(guard.check(call())).toBeDefined();
     },
@@ -205,11 +225,9 @@ describe("createRepeatGuard", () => {
 
   test("look is never blocked", () => {
     const guard = guardAt({ t: 0 });
-    guard.record({
-      ...call({ args: {}, tool: "look" }),
-      result: outcome("FAILED", "error"),
-    });
-    expect(guard.check(call({ args: {}, tool: "look" }))).toBeUndefined();
+    const look = call({ args: {}, kind: "read", tool: "look" });
+    guard.record({ ...look, result: outcome("FAILED", "error") });
+    expect(guard.check(look)).toBeUndefined();
   });
 
   test("a failure stops blocking after 5 minutes", () => {

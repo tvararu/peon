@@ -71,8 +71,11 @@ describe("runPuppet", () => {
   test.each([
     [["read", "--json"]],
     [["nearby", "--json"]],
+    [["events", "--json"]],
     [["send", "-w", "Fevala", "hi"]],
     [["stop"]],
+    [["call", "invite", '["Fabc"]']],
+    [["raw", "CMSG_PING"]],
   ])("%p with no puppet running exits 1 and says so", async (argv) => {
     const { paths } = await tempPaths();
     const { code, err, out } = await cli(argv, paths);
@@ -95,6 +98,38 @@ describe("runPuppet", () => {
     ]);
   });
 
+  test("call sends the method and its raw arguments", async () => {
+    const { paths } = await tempPaths();
+    const seen = fakePuppet(paths, {
+      ok: true,
+      out: '{"command":"call","data":{"method":"invite"},"error":null,"events":[],"kind":"result"}',
+    });
+    const { code, out } = await cli(["call", "invite", '["Fabc"]'], paths);
+    expect(code).toBe(0);
+    expect(out).toHaveLength(1);
+    expect(seen).toEqual(['{"args":["Fabc"],"cmd":"call","method":"invite"}']);
+  });
+
+  test("events --json sends the events request and prints its reply", async () => {
+    const { paths } = await tempPaths();
+    const reply =
+      '{"command":"events","data":null,"error":null,"events":[],"kind":"events"}';
+    const seen = fakePuppet(paths, { ok: true, out: reply });
+    const { code, out } = await cli(["events", "--json"], paths);
+    expect(code).toBe(0);
+    expect(out).toEqual([reply]);
+    expect(seen).toEqual(['{"cmd":"events"}']);
+  });
+
+  test("a call with a bad argument exits 2 before it reaches the puppet", async () => {
+    const { paths } = await tempPaths();
+    const seen = fakePuppet(paths, { ok: true, out: "" });
+    const { code, err } = await cli(["call", "selectTarget", "[42]"], paths);
+    expect(code).toBe(2);
+    expect(err.join("\n")).toContain("selectTarget");
+    expect(seen).toEqual([]);
+  });
+
   test("a refused request exits 1 with the puppet's message", async () => {
     const { paths } = await tempPaths();
     fakePuppet(paths, { error: "The puppet is stopping.", ok: false });
@@ -108,8 +143,35 @@ describe("runPuppet", () => {
     const { code, launch, out } = await cli(["start", "--json"], paths);
     expect(code).toBe(0);
     expect(launch).toHaveBeenCalledTimes(1);
+    expect(launch).toHaveBeenCalledWith("off");
     expect(out).toEqual([
       '{"command":"start","data":{"socket":"responsive","started":true},"error":null,"events":[],"kind":"result"}',
+    ]);
+  });
+
+  test("start --packet-trace hands the mode to the launch", async () => {
+    const { paths } = await tempPaths();
+    const { code, launch } = await cli(
+      ["start", "--json", "--packet-trace", "headers"],
+      paths,
+    );
+    expect(code).toBe(0);
+    expect(launch).toHaveBeenCalledWith("headers");
+  });
+
+  test("raw sends the opcode number and the body", async () => {
+    const { paths } = await tempPaths();
+    const reply =
+      '{"command":"raw","data":{"opcode":"CMSG_PING","size":8},"error":null,"events":[],"kind":"result"}';
+    const seen = fakePuppet(paths, { ok: true, out: reply });
+    const { code, out } = await cli(
+      ["raw", "CMSG_PING", "0100000000000000"],
+      paths,
+    );
+    expect(code).toBe(0);
+    expect(out).toEqual([reply]);
+    expect(seen).toEqual([
+      '{"body":"0100000000000000","cmd":"raw","opcode":476}',
     ]);
   });
 
@@ -143,6 +205,7 @@ describe("main.ts as a process", () => {
         ...Bun.env,
         XDG_CONFIG_HOME: `${dir}/config`,
         XDG_RUNTIME_DIR: `${dir}/runtime`,
+        XDG_STATE_HOME: `${dir}/state`,
       },
       stderr: "pipe",
       stdout: "pipe",

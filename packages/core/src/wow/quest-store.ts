@@ -2,14 +2,21 @@ import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type { Entity, EntityLookup } from "#wow/entity-store";
 import { readInventory } from "#wow/inventory";
 import { ObjectType } from "#wow/protocol/entity-fields";
-import type { InventoryChangeFailure } from "#wow/protocol/inventory";
+import type {
+  InventoryChangeFailure,
+  InventoryClaim,
+} from "#wow/protocol/inventory";
 import type { ItemPushResult } from "#wow/protocol/loot";
 import type { QuestQueryResponse } from "#wow/protocol/quest-query";
 import type {
   QuestgiverQuestComplete,
   QuestgiverStatus,
 } from "#wow/protocol/questgiver";
-import { inventoryQuestError, type QuestError } from "#wow/quest-errors";
+import {
+  inventoryQuestClaim,
+  inventoryQuestError,
+  type QuestError,
+} from "#wow/quest-errors";
 import {
   itemObjectives,
   type QuestItemObjective,
@@ -354,6 +361,10 @@ export class QuestStore {
       this.shown = undefined;
     }
     this.emit("error", "packet", error.questId);
+  }
+
+  inventoryClaim(): InventoryClaim | undefined {
+    return inventoryQuestClaim(this.waiting);
   }
 
   receiveInventoryFailure(packet: InventoryChangeFailure): void {

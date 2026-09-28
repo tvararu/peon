@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { NamedRewardsState } from "@peon/core";
+import { fakeTimed } from "@peon/core/test-support/fake-time";
 import { ITEM_NAME_WAIT_MS } from "#harness/ops/item-names";
 import { lootCorpseOp } from "#harness/ops/loot";
-import { fakeTimed } from "#test-support/fake-time";
 import { toolCtx } from "#test-support/ops-fixtures";
 import {
   createTestRuntime,

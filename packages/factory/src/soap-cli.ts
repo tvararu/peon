@@ -10,6 +10,7 @@ import {
   parseEnv,
   sweep,
 } from "#factory/soap";
+import { runGm } from "#factory/soap-gm";
 import { isPreset, presets } from "#factory/soap-presets";
 import {
   runService,
@@ -22,6 +23,7 @@ const usage = `usage: soap create <${presets.join("|")}> [--owner <label>] [--gm
        soap delete <ACCOUNT>
        soap sweep [--hours N]
        soap list [--with-passwords]
+       soap gm <ACCOUNT> <verb> [args...]
 ${serviceUsage}`;
 
 const options = {
@@ -100,6 +102,7 @@ function isServiceCommand(command: string | undefined): boolean {
 
 async function dispatch(args: string[]): Promise<number> {
   if (isServiceCommand(args[0])) return runService(args, await serviceDeps());
+  if (args[0] === "gm") return runGm(args.slice(1));
   const { values, positionals } = parseArgs({
     allowPositionals: true,
     args,

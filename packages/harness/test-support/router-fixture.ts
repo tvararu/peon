@@ -15,6 +15,7 @@ export const testFlags: HarnessFlags = {
   logEntities: false,
   model: "openai-codex/gpt-6-luna",
   nowPerCall: false,
+  packetTrace: "off",
   profile: "profile.json",
   runDir: undefined,
   stopReflex: true,

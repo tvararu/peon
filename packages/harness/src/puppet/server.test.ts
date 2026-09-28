@@ -1,9 +1,13 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, jest, type Mock, test } from "bun:test";
 import { access, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import type { WorldHandle } from "@peon/core";
 import { worldSession } from "@peon/core/session";
 import { GameOpcode } from "@peon/core/test-support/internals";
+import {
+  createMockHandle,
+  type MockHandle,
+} from "@peon/core/test-support/mock-handle";
 import { startMockWorldServer } from "@peon/core/test-support/mock-world-server";
 import {
   base,
@@ -58,6 +62,22 @@ async function setup(
   await waitForEchoProbe(handle);
   const server = await listenPuppet({ handle, paths, ...init });
   return { handle, paths, server, ws };
+}
+
+async function mockSetup(
+  init: Partial<Omit<PuppetServerInit, "handle" | "paths">> = {},
+): Promise<{
+  handle: MockHandle;
+  paths: PuppetPaths;
+}> {
+  const dir = await mkdtemp(`${tmpdir()}/puppet-`);
+  const paths = puppetPaths({ XDG_RUNTIME_DIR: dir });
+  await mkdir(paths.runtimeDir, { recursive: true });
+  const handle = createMockHandle();
+  cleanups.push(() => rm(dir, { force: true, recursive: true }));
+  const server = await listenPuppet({ handle, paths, ...init });
+  cleanups.push(() => server.stop());
+  return { handle, paths };
 }
 
 async function ask(paths: PuppetPaths, request: PuppetRequest) {
@@ -215,5 +235,225 @@ describe("puppet server over the socket", () => {
     ws.stop();
     await server.done;
     expect(await exists(paths.socket)).toBe(false);
+  });
+});
+
+describe("puppet call", () => {
+  test("calls the handle method with the decoded arguments and names it", async () => {
+    const { handle, paths } = await mockSetup();
+    expect(
+      await ask(paths, { args: ["Fabc"], cmd: "call", method: "invite" }),
+    ).toBe(
+      '{"command":"call","data":{"method":"invite"},"error":null,"events":[],"kind":"result"}',
+    );
+    expect(handle.invite).toHaveBeenCalledWith("Fabc");
+  });
+
+  test("passes a guid argument to the handle as a bigint", async () => {
+    const { handle, paths } = await mockSetup();
+    await ask(paths, { args: ["42"], cmd: "call", method: "selectTarget" });
+    expect(handle.selectTarget).toHaveBeenCalledWith(42n);
+  });
+
+  test("refuses a method outside the allow-list without calling anything", async () => {
+    const { handle, paths } = await mockSetup();
+    const reply = await sendRequest(paths.socket, {
+      args: [],
+      cmd: "call",
+      method: "logout",
+    });
+    expect(reply.ok).toBe(false);
+    expect(handle.logout).not.toHaveBeenCalled();
+  });
+
+  test("a method that throws replies ok: false with its message", async () => {
+    const { handle, paths } = await mockSetup();
+    (handle.invite as Mock<(name: string) => void>).mockImplementation(() => {
+      throw new Error("Not in the world.");
+    });
+    expect(
+      await sendRequest(paths.socket, {
+        args: ["Fabc"],
+        cmd: "call",
+        method: "invite",
+      }),
+    ).toEqual({ error: "Not in the world.", ok: false });
+  });
+
+  test("a call during logout replies that the puppet is stopping", async () => {
+    const { paths, server, ws } = await setup();
+    const stopping = ask(paths, { cmd: "stop" });
+    await ws.waitForCapture((p) => p.opcode === GameOpcode.CMSG_LOGOUT_REQUEST);
+    expect(
+      await sendRequest(paths.socket, {
+        args: ["Fabc"],
+        cmd: "call",
+        method: "invite",
+      }),
+    ).toEqual({ error: "The puppet is stopping.", ok: false });
+    ws.inject(GameOpcode.SMSG_LOGOUT_COMPLETE, new Uint8Array(0));
+    expect(await stopping).toBe("Logged out.");
+    await server.done;
+  });
+});
+
+type EventRow = { at: number; hook: string; event: unknown };
+
+async function drain(paths: PuppetPaths): Promise<EventRow[]> {
+  return JSON.parse(await ask(paths, { cmd: "events" })).events;
+}
+
+function emitPacketError(handle: MockHandle, opcode: number, error: Error) {
+  const subscribe = handle.onPacketError as Mock<MockHandle["onPacketError"]>;
+  for (const [cb] of subscribe.mock.calls) cb(opcode, error);
+}
+
+function emitArea(handle: MockHandle, area: string, event: object): void {
+  const trigger = handle.triggerAreaEvent as (
+    area: string,
+    event: object,
+  ) => void;
+  trigger(area, event);
+}
+
+describe("puppet events", () => {
+  test("drains group, notice and packet error events in arrival order with their hooks", async () => {
+    const { handle, paths } = await mockSetup();
+    const before = Date.now();
+    handle.triggerGroupEvent({ from: "Fabc", type: "invite_received" });
+    handle.triggerNotice({
+      at: 5,
+      label: "SMSG_X",
+      opcode: 291,
+      text: "not handled",
+      type: "not_implemented",
+    });
+    emitPacketError(handle, 502, new Error("short packet"));
+    handle.triggerDuelEvent({ challenger: "Fabc", type: "duel_requested" });
+    handle.triggerGuildEvent({ name: "Fabc", type: "joined" });
+    const rows = await drain(paths);
+    expect(rows.map(({ hook, event }) => ({ event, hook }))).toEqual([
+      { event: { from: "Fabc", type: "invite_received" }, hook: "group" },
+      {
+        event: {
+          at: 5,
+          label: "SMSG_X",
+          opcode: 291,
+          text: "not handled",
+          type: "not_implemented",
+        },
+        hook: "notice",
+      },
+      { event: { error: "short packet", opcode: 502 }, hook: "packetError" },
+      { event: { challenger: "Fabc", type: "duel_requested" }, hook: "duel" },
+      { event: { name: "Fabc", type: "joined" }, hook: "guild" },
+    ]);
+    for (const row of rows) expect(row.at).toBeGreaterThanOrEqual(before);
+    expect(await ask(paths, { cmd: "events" })).toBe(
+      '{"command":"events","data":null,"error":null,"events":[],"kind":"events"}',
+    );
+  });
+
+  test("keeps only the newest rows once the buffer is full", async () => {
+    const { handle, paths } = await mockSetup({ chatCapacity: 2 });
+    for (const name of ["one", "two", "three"])
+      handle.triggerGroupEvent({ name, type: "leader_changed" });
+    const rows = await drain(paths);
+    expect(rows.map(({ event }) => event)).toEqual([
+      { name: "two", type: "leader_changed" },
+      { name: "three", type: "leader_changed" },
+    ]);
+  });
+
+  test("an area event keeps its area and prints a bigint guid as a decimal string", async () => {
+    const { handle, paths } = await mockSetup();
+    emitArea(handle, "alpha", { guid: 0x0700000000000123n, type: "ticked" });
+    const rows = await drain(paths);
+    expect(rows.map(({ hook, event }) => ({ event, hook }))).toEqual([
+      {
+        event: {
+          area: "alpha",
+          event: { guid: "504403158265495843", type: "ticked" },
+        },
+        hook: "area",
+      },
+    ]);
+  });
+
+  test("events leaves the chat buffer to read", async () => {
+    const { handle, paths } = await mockSetup();
+    handle.triggerMessage({ message: "hi", sender: "Fabc", type: 1 });
+    handle.triggerGroupEvent({ type: "kicked" });
+    expect((await drain(paths)).map(({ hook }) => hook)).toEqual(["group"]);
+    const read = JSON.parse(await ask(paths, { cmd: "read" }));
+    expect(read.events).toHaveLength(1);
+  });
+});
+
+describe("puppet raw", () => {
+  test("sends the opcode and the body bytes through the trace's sender", async () => {
+    const send = jest.fn();
+    const { paths } = await mockSetup({ send });
+    expect(
+      await ask(paths, {
+        body: "0100000000000000",
+        cmd: "raw",
+        opcode: GameOpcode.CMSG_PING,
+      }),
+    ).toBe(
+      '{"command":"raw","data":{"opcode":"CMSG_PING","size":8},"error":null,"events":[],"kind":"result"}',
+    );
+    expect(send).toHaveBeenCalledWith(
+      GameOpcode.CMSG_PING,
+      new Uint8Array([1, 0, 0, 0, 0, 0, 0, 0]),
+    );
+  });
+
+  test("an empty body sends zero bytes", async () => {
+    const send = jest.fn();
+    const { paths } = await mockSetup({ send });
+    const out = JSON.parse(
+      await ask(paths, {
+        body: "",
+        cmd: "raw",
+        opcode: GameOpcode.MSG_RAID_READY_CHECK,
+      }),
+    );
+    expect(out.data).toEqual({ opcode: "MSG_RAID_READY_CHECK", size: 0 });
+    expect(send).toHaveBeenCalledWith(
+      GameOpcode.MSG_RAID_READY_CHECK,
+      new Uint8Array(0),
+    );
+  });
+
+  test("refuses raw when the puppet has no packet trace", async () => {
+    const { paths } = await mockSetup();
+    expect(
+      await sendRequest(paths.socket, {
+        body: "",
+        cmd: "raw",
+        opcode: GameOpcode.CMSG_PING,
+      }),
+    ).toEqual({
+      error: "Start the puppet with --packet-trace to send raw packets.",
+      ok: false,
+    });
+  });
+
+  test("replies the sender's failure", async () => {
+    const send = jest.fn(() => {
+      throw new Error("the session gave the puppet no packet sender.");
+    });
+    const { paths } = await mockSetup({ send });
+    expect(
+      await sendRequest(paths.socket, {
+        body: "",
+        cmd: "raw",
+        opcode: GameOpcode.CMSG_PING,
+      }),
+    ).toEqual({
+      error: "the session gave the puppet no packet sender.",
+      ok: false,
+    });
   });
 });

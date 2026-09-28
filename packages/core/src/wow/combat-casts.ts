@@ -1,3 +1,4 @@
+import { buildCancelChannelling } from "#wow/areas/spells/protocol";
 import type { CombatCast, CombatItem, CombatOutcome } from "#wow/combat";
 import type { CooldownStore } from "#wow/cooldown-store";
 import { buildUseItem } from "#wow/protocol/item";
@@ -13,6 +14,18 @@ import { spellCastReason } from "#wow/protocol/spell-cast-result";
 
 export type Send = (opcode: number, body?: Uint8Array) => void;
 
+export type CombatChannel = {
+  spellId: number;
+  target: bigint | undefined;
+  startedAt: number;
+  durationMs: number | undefined;
+  remainingMs: number | undefined;
+  endsAt: number | undefined;
+  cancelRequested?: boolean;
+};
+
+const CHANNEL_GRACE_MS = 2000;
+
 type CastDeps = {
   now: () => number;
   learned: ReadonlySet<number>;
@@ -25,6 +38,7 @@ export class CombatCasts {
   private pendingCast: CombatCast | undefined;
   private currentCast: CombatCast | undefined;
   private lastCast: CombatCast | undefined;
+  private currentChannel: CombatChannel | undefined;
 
   constructor(deps: CastDeps) {
     this.deps = deps;
@@ -38,10 +52,59 @@ export class CombatCasts {
     return this.currentCast;
   }
 
+  get channel(): CombatChannel | undefined {
+    const channel = this.currentChannel;
+    if (
+      channel?.endsAt !== undefined &&
+      this.deps.now() > channel.endsAt + CHANNEL_GRACE_MS
+    )
+      return undefined;
+    return channel;
+  }
+
+  beginChannel(init: {
+    spellId: number;
+    target: bigint | undefined;
+    durationMs: number | undefined;
+  }): CombatChannel {
+    const now = this.deps.now();
+    const cast =
+      this.lastCast?.spellId === init.spellId ? this.lastCast : undefined;
+    this.currentChannel = {
+      spellId: init.spellId,
+      target: init.target ?? cast?.target,
+      startedAt: now,
+      durationMs: init.durationMs,
+      remainingMs: init.durationMs,
+      endsAt: init.durationMs === undefined ? undefined : now + init.durationMs,
+    };
+    return this.currentChannel;
+  }
+
+  updateChannel(remainingMs: number): CombatChannel | undefined {
+    const channel = this.currentChannel;
+    if (!channel) return undefined;
+    channel.remainingMs = remainingMs;
+    channel.endsAt = this.deps.now() + remainingMs;
+    return channel;
+  }
+
+  endChannel(): CombatChannel | undefined {
+    const channel = this.currentChannel;
+    this.currentChannel = undefined;
+    return channel;
+  }
+
+  shiftCooldown(spellId: number, deltaMs: number): void {
+    this.deps.cooldowns.shift(spellId, deltaMs);
+  }
+
   hasUncancelled(): boolean {
+    const channel = this.channel;
     return Boolean(
       (this.currentCast && !this.currentCast.cancelRequested) ||
-        (this.pendingCast && !this.pendingCast.cancelRequested),
+        (this.pendingCast && !this.pendingCast.cancelRequested) ||
+        (channel && !channel.cancelRequested),
     );
   }
 
@@ -49,10 +112,12 @@ export class CombatCasts {
     this.pendingCast = undefined;
     this.currentCast = undefined;
     this.lastCast = undefined;
+    this.currentChannel = undefined;
   }
 
   send(send: Send, spellId: number, targetGuid: bigint): CombatOutcome {
     this.validate(spellId, targetGuid);
+    if (this.channel) throw new Error("channelling");
     if (this.pendingCast || this.currentCast)
       throw new Error("cast_in_progress");
     const count = this.sendUntracked(send, spellId, targetGuid);
@@ -80,6 +145,7 @@ export class CombatCasts {
   }
 
   sendItem(send: Send, spellId: number, item: CombatItem): CombatOutcome {
+    if (this.channel) throw new Error("channelling");
     if (this.hasUncancelled()) throw new Error("cast_in_progress");
     this.pendingCast = undefined;
     this.currentCast = undefined;
@@ -125,7 +191,7 @@ export class CombatCasts {
 
   cancel(send: Send): CombatOutcome {
     const spellId = this.currentCast?.spellId ?? this.pendingCast?.spellId;
-    if (spellId === undefined) throw new Error("not_casting");
+    if (spellId === undefined) return this.cancelChannel(send);
     send(GameOpcode.CMSG_CANCEL_CAST, buildCancelCast(spellId));
     if (this.currentCast) this.currentCast.cancelRequested = true;
     if (this.pendingCast) this.pendingCast.cancelRequested = true;
@@ -133,6 +199,24 @@ export class CombatCasts {
       kind: "cancel",
       status: "sent",
       spellId,
+      at: this.deps.now(),
+    };
+  }
+
+  private cancelChannel(send: Send): CombatOutcome {
+    const channel = this.channel;
+    if (!channel) throw new Error("not_casting");
+    send(
+      GameOpcode.CMSG_CANCEL_CHANNELLING,
+      buildCancelChannelling(channel.spellId),
+    );
+    channel.cancelRequested = true;
+    if (this.lastCast?.spellId === channel.spellId)
+      this.lastCast.cancelRequested = true;
+    return {
+      kind: "cancel",
+      status: "sent",
+      spellId: channel.spellId,
       at: this.deps.now(),
     };
   }

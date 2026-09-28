@@ -1,8 +1,10 @@
 import { describe, expect, jest, test } from "bun:test";
 import { testStores } from "#test-support/session-fixtures";
 import { MARNIEL, MARNIEL_LIST_INVENTORY } from "#test-support/vendor-fixtures";
-import type { NoticeEvent } from "#wow/client-extras";
+import { areaStubs, stubOwners } from "#wow/areas/compose";
+import { extrasMethods, type NoticeEvent } from "#wow/client-extras";
 import {
+  NOTICE_BACKLOG,
   registerGameHandlers,
   registerWorldHandlers,
 } from "#wow/client-handlers";
@@ -10,6 +12,7 @@ import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 import { STUBS } from "#wow/protocol/stubs";
 import { OpcodeDispatch } from "#wow/protocol/world";
+import type { Runtimes } from "#wow/runtime";
 import type { WorldConn } from "#wow/world-conn";
 import { createWorldEvents } from "#wow/world-events";
 
@@ -20,10 +23,18 @@ describe("registerGameHandlers", () => {
     const names = new Map<number, string>(
       Object.entries(GameOpcode).map(([name, value]) => [value, name]),
     );
-    const shadowed = STUBS.filter(([opcode]) => dispatch.has(opcode)).map(
-      ([opcode]) => names.get(opcode),
-    );
+    const owners = stubOwners();
+    const shadowed = [...STUBS, ...areaStubs()]
+      .filter(([opcode]) => dispatch.has(opcode))
+      .map(
+        ([opcode]) => `${names.get(opcode)} (${owners.get(opcode) ?? "core"})`,
+      );
     expect(shadowed).toEqual([]);
+  });
+
+  test("runs on a connection that holds only a dispatch", () => {
+    const conn = { dispatch: new OpcodeDispatch() } as unknown as WorldConn;
+    expect(() => registerGameHandlers(conn, testStores())).not.toThrow();
   });
 });
 
@@ -34,6 +45,10 @@ describe("registerWorldHandlers", () => {
       has: (opcode: number) => counts.has(opcode),
       on: (opcode: number) => counts.set(opcode, (counts.get(opcode) ?? 0) + 1),
       onUnhandled: () => {},
+      onPeekError: () => {},
+      peek: (opcode: number) => {
+        if (!counts.has(opcode)) throw new Error("peek needs an owner");
+      },
     };
     const events = { message: { size: 0, emit: () => {} } };
     registerWorldHandlers(
@@ -67,10 +82,35 @@ describe("registerWorldHandlers", () => {
   });
 });
 
+describe("registerWorldHandlers on a coverage connection", () => {
+  test("runs with only a dispatch and events", () => {
+    const conn = {
+      dispatch: new OpcodeDispatch(),
+      events: createWorldEvents(),
+    } as unknown as WorldConn;
+    expect(() => registerWorldHandlers(conn, testStores())).not.toThrow();
+  });
+
+  test("reports a failing peek as a packet error", () => {
+    const conn = stubConn();
+    const errors: [number, Error][] = [];
+    conn.events.packetError.subscribe((opcode, error) =>
+      errors.push([opcode, error]),
+    );
+    conn.dispatch.on(0x7_fe, () => undefined);
+    conn.dispatch.peek(0x7_fe, () => {
+      throw new Error("peek broke");
+    });
+    conn.dispatch.handle(0x7_fe, weather());
+    expect(errors).toEqual([[0x7_fe, new Error("peek broke")]]);
+  });
+});
+
 function stubConn(): WorldConn {
   const conn = {
     dispatch: new OpcodeDispatch(),
     events: createWorldEvents(),
+    pendingNotices: [],
   } as unknown as WorldConn;
   registerWorldHandlers(conn, testStores());
   return conn;
@@ -99,14 +139,36 @@ describe("stub notices", () => {
     ]);
   });
 
-  test("a notice with no subscriber is retried on the next packet", () => {
+  test("a notice with no subscriber replays to the first onNotice subscriber", () => {
     const conn = stubConn();
+    const now = jest.spyOn(Date, "now").mockReturnValue(1000);
+    conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
+    now.mockReturnValue(5000);
+    const { onNotice } = extrasMethods(conn, {} as Runtimes);
+    const first: NoticeEvent[] = [];
+    const second: NoticeEvent[] = [];
+    onNotice((event) => first.push(event));
+    onNotice((event) => second.push(event));
+    conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
+    now.mockRestore();
+    expect(first).toMatchObject([
+      { at: 1000, opcode: GameOpcode.SMSG_WEATHER },
+    ]);
+    expect(second).toEqual([]);
+  });
+
+  test("a full backlog leaves later notices to retry on their next packet", () => {
+    const conn = stubConn();
+    for (let opcode = 0x7_00; opcode < 0x7_00 + NOTICE_BACKLOG; opcode++)
+      conn.dispatch.handle(opcode, weather());
     conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
     const notices: NoticeEvent[] = [];
-    conn.events.notice.subscribe((event) => notices.push(event));
+    extrasMethods(conn, {} as Runtimes).onNotice((event) =>
+      notices.push(event),
+    );
     conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
-    conn.dispatch.handle(GameOpcode.SMSG_WEATHER, weather());
-    expect(notices).toHaveLength(1);
+    expect(notices).toHaveLength(NOTICE_BACKLOG + 1);
+    expect(notices.at(-1)).toMatchObject({ opcode: GameOpcode.SMSG_WEATHER });
   });
 
   test("an opcode nothing handles emits one notice by its name", () => {

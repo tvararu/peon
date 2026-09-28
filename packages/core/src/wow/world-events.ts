@@ -1,5 +1,6 @@
 import { Emitter } from "#lib/emitter";
 import { ignoreFailure } from "#lib/ignore-failure";
+import type { AreaEvent } from "#wow/areas/compose";
 import type { ChatMessage, DuelEvent, GroupEvent } from "#wow/client";
 import type { NoticeEvent } from "#wow/client-extras";
 import type { CombatEvent } from "#wow/combat";
@@ -16,7 +17,7 @@ import type { RewardsEvent } from "#wow/rewards";
 import type { TrainerEvent } from "#wow/trainer";
 import type { VendorEvent } from "#wow/vendor";
 
-export type WorldEvents = {
+export type CoreEvents = {
   message: Emitter<[ChatMessage]>;
   group: Emitter<[GroupEvent]>;
   entity: Emitter<[EntityEvent]>;
@@ -36,6 +37,8 @@ export type WorldEvents = {
   destroy: Emitter<[DestroyEvent]>;
   notice: Emitter<[NoticeEvent]>;
 };
+
+export type WorldEvents = CoreEvents & { area: Emitter<[AreaEvent]> };
 
 export function createWorldEvents(
   report?: (error: unknown) => void,
@@ -59,6 +62,7 @@ export function createWorldEvents(
     vendor: new Emitter(report),
     destroy: new Emitter(report),
     notice: new Emitter(report),
+    area: new Emitter(report),
   };
 }
 

@@ -464,3 +464,18 @@ test("a bad cast request is named before an in-progress cast", () => {
   expect(() => combat.cast(99, 2n)).toThrow("unknown_spell");
   expect(() => combat.cast(17, 2n)).toThrow("cast_in_progress");
 });
+
+describe("combat halt with a channel", () => {
+  test("halt cancels a running channel with CMSG_CANCEL_CHANNELLING", () => {
+    const { combat, combatStore, sent } = setup();
+    combatStore.casts.beginChannel({
+      durationMs: 3000,
+      spellId: 17,
+      target: 2n,
+    });
+    combat.halt();
+    expect(sent).toContain(GameOpcode.CMSG_CANCEL_CHANNELLING);
+    expect(sent).not.toContain(GameOpcode.CMSG_CANCEL_CAST);
+    expect(combatStore.casts.channel?.cancelRequested).toBe(true);
+  });
+});

@@ -110,7 +110,7 @@ describe("validateResult", () => {
   test("rejects a check source that was removed", () => {
     const checks = [{ ...valid.checks[0], source: "pinfo" }];
     expect(validateResult({ ...valid, checks })).toEqual([
-      "$.checks[0].source: expected one of truth|verifier|witness|game_log|session|frame",
+      "$.checks[0].source: expected one of truth|verifier|witness|game_log|session|frame|console",
     ]);
   });
 

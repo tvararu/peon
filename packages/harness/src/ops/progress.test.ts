@@ -25,6 +25,7 @@ function tracker() {
 function action(over: Partial<Action> = {}): Action {
   return {
     digest: "d",
+    kind: "run",
     reason: "no_ground",
     status: "REFUSED",
     tool: "travel",
@@ -58,20 +59,23 @@ describe("createProgressTracker", () => {
     expect(progress.count()).toBe(0);
   });
 
-  test("look and journal neither add nor reset", () => {
+  test("a read tool neither adds nor resets, whatever its name", () => {
     const { progress } = tracker();
     progress.afterAction(action());
     progress.afterAction(action());
-    for (let i = 0; i < 5; i++)
+    for (const tool of ["look", "journal", "social"] as const)
       progress.afterAction(
         action({
           digest: "x",
+          kind: "read",
           reason: undefined,
           status: "DONE",
-          tool: "look",
+          tool,
         }),
       );
     expect(progress.count()).toBe(1);
+    progress.afterAction(action({ kind: "control", tool: "stop" }));
+    expect(progress.count()).toBe(2);
   });
 
   test("logs agent/stuck once at STUCK_LOG_AT", () => {
@@ -101,6 +105,29 @@ describe("createProgressTracker", () => {
       at: 500,
       event: "combat/kill_credit",
     });
+  });
+
+  test("a row marked progress resets the count, whatever its event", () => {
+    const { log, now, progress } = tracker();
+    for (let i = 0; i < 4; i++) progress.afterAction(action());
+    now.t = 700;
+    log.append({
+      class: "log",
+      data: {},
+      domain: "chat",
+      event: "chat/in",
+      progress: true,
+      text: "Mail sent.",
+    });
+    log.append({
+      class: "log",
+      data: {},
+      domain: "chat",
+      event: "chat/in",
+      text: "Mail listed.",
+    });
+    expect(progress.count()).toBe(0);
+    expect(progress.lastProgress()).toEqual({ at: 700, event: "chat/in" });
   });
 
   test("run rows change the digest", async () => {

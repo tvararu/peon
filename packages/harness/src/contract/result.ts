@@ -10,6 +10,8 @@ export type ToolName =
   | "journal"
   | "stop";
 
+export type ToolKind = "read" | "action" | "run" | "control";
+
 export type ToolStatus =
   | "DONE"
   | "PARTLY"

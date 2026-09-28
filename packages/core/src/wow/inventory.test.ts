@@ -251,3 +251,133 @@ describe("carried inventory authority", () => {
     });
   });
 });
+
+describe("item update fields", () => {
+  const self = (fields: [number, number][] = []) =>
+    entity(1n, ObjectType.PLAYER, [[0x1_72, 3], ...fields]);
+  const packItem = (fields: [number, number][]) =>
+    entity(3n, ObjectType.ITEM, [[3, 200], [6, 1], [8, 1], [14, 1], ...fields]);
+  const itemOf = (entities: Entity[]) => {
+    const found = view(entities).slots.find((slot) => slot.slot === 23);
+    return found?.status === "occupied" ? found.item : undefined;
+  };
+
+  test("reads timed items", () => {
+    const item = itemOf([
+      self(),
+      packItem([
+        [10, 0x2a],
+        [12, 0x2b],
+        [15, 3600],
+        [16, 0xff_ff_ff_ff],
+        [17, 2],
+      ]),
+    ]);
+    expect(item).toMatchObject({
+      creator: 0x2an,
+      giftCreator: 0x2bn,
+      duration: 3600,
+      spellCharges: [-1, 2, 0, 0, 0],
+    });
+  });
+
+  test("reads the 12 enchantment slots", () => {
+    const item = itemOf([
+      self(),
+      packItem([
+        [22, 1900],
+        [25, 2684],
+        [26, 1800],
+        [27, 5],
+        [55, 3000],
+        [56, 60],
+        [57, 7],
+      ]),
+    ]);
+    expect(item?.enchantments).toEqual([
+      { slot: 0, id: 1900, duration: 0, charges: 0 },
+      { slot: 1, id: 2684, duration: 1800, charges: 5 },
+      { slot: 11, id: 3000, duration: 60, charges: 7 },
+    ]);
+  });
+
+  test("names the flag bits", () => {
+    const item = itemOf([
+      self(),
+      packItem([[21, 0x1 | 0x8 | 0x2_00 | 0x10_00]]),
+    ]);
+    expect(item?.flags).toBe(0x1 | 0x8 | 0x2_00 | 0x10_00);
+    expect(item?.flagBits).toEqual({
+      soulbound: true,
+      wrapped: true,
+      readable: true,
+      refundable: true,
+    });
+    expect(itemOf([self(), packItem([[21, 0x1]])])?.flagBits).toEqual({
+      soulbound: true,
+      wrapped: false,
+      readable: false,
+      refundable: false,
+    });
+  });
+
+  test("reads the loaded ammo", () => {
+    expect(view([self([[0x4_ae, 2512]]), packItem([])]).ammoId).toBe(2512);
+    expect(view([self(), packItem([])]).ammoId).toBe(0);
+    expect(view([]).ammoId).toBeUndefined();
+  });
+});
+
+describe("buyback slots", () => {
+  const SLOT_74 = 324 + 2 * 74;
+  const PRICE_1 = 1201;
+  const SOLD_AT_1 = 1213;
+
+  test("reads buyback slot 74 with its price and sale time, outside the carried slots (update-fields.ts:264, 307-308)", () => {
+    const sold = 0x40_00_00_00_00_00_00_07n;
+    const before = view([entity(1n, ObjectType.PLAYER, [])]);
+    const state = view([
+      entity(1n, ObjectType.PLAYER, [
+        [SLOT_74, Number(sold & 0xff_ff_ff_ffn)],
+        [SLOT_74 + 1, Number(sold >> 32n)],
+        [PRICE_1, 35],
+        [SOLD_AT_1, 108_123],
+      ]),
+    ]);
+    expect(state.buyback).toEqual([
+      {
+        bag: 255,
+        guid: sold,
+        price: 35,
+        region: "buyback",
+        slot: 74,
+        soldAt: 108_123,
+      },
+    ]);
+    expect(state.slots.some((slot) => slot.slot === 74)).toBe(false);
+    expect(state.status).toBe("complete");
+    expect(state.freeSlots).toBe(before.freeSlots);
+  });
+
+  test("lists no buyback slot while the slots are empty or unknown", () => {
+    expect(view([entity(1n, ObjectType.PLAYER, [])]).buyback).toEqual([]);
+    expect(view([entity(1n, ObjectType.PLAYER, [], false)]).buyback).toEqual(
+      [],
+    );
+    expect(view([]).buyback).toEqual([]);
+  });
+
+  test("reads the price and sale time of slot 85 from the twelfth field", () => {
+    const state = view([
+      entity(1n, ObjectType.PLAYER, [
+        [324 + 2 * 85, 9],
+        [324 + 2 * 85 + 1, 0],
+        [PRICE_1 + 11, 12],
+        [SOLD_AT_1 + 11, 34],
+      ]),
+    ]);
+    expect(state.buyback).toMatchObject([
+      { guid: 9n, price: 12, slot: 85, soldAt: 34 },
+    ]);
+  });
+});

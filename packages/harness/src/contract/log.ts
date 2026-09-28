@@ -1,6 +1,8 @@
+import type { AreaName } from "@peon/core";
+
 export type LogClass = "wake" | "passive" | "log";
 
-export type Domain =
+export type CoreDomain =
   | "session"
   | "control"
   | "nav"
@@ -26,7 +28,9 @@ export type Domain =
   | "snapshot"
   | "entity";
 
-export type LogEvent =
+export type Domain = CoreDomain | AreaName;
+
+export type CoreLogEvent =
   | "session/in_world"
   | "session/connected"
   | "session/lost"
@@ -96,6 +100,8 @@ export type LogEvent =
   | "entity/appear"
   | "entity/disappear";
 
+export type LogEvent = CoreLogEvent | `${AreaName}/${string}`;
+
 export type GameLogEntry = {
   v: 1;
   seq: number;
@@ -110,6 +116,7 @@ export type GameLogEntry = {
   tool?: string;
   ref?: string;
   guid?: string;
+  progress?: true;
   text: string;
   data: Record<string, unknown>;
 };

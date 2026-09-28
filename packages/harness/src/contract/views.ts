@@ -78,6 +78,9 @@ export type UnitView = {
   z: number | undefined;
   seenAgoMs: number;
   inView: boolean;
+  fightingMe?: boolean;
+  aggro?: string;
+  myThreatPct?: number;
 };
 
 export type NearestKind =

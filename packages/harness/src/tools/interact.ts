@@ -35,7 +35,10 @@ import {
   vendorExtra,
 } from "#harness/tools/interact-vendor";
 import { nextCall } from "#harness/tools/next-call";
-import { type InteractArgs, interactParams } from "#harness/tools/params";
+import {
+  type InteractArgs,
+  interactParams,
+} from "#harness/tools/params-interact";
 import { interactRenderers } from "#harness/ui/renderers/card";
 
 const SHOP_ROLES = new Set([

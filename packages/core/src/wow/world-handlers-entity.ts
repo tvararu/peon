@@ -25,7 +25,7 @@ import type { SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
 import { selfGuid, sendPacket } from "#wow/world-handlers";
 
-type EntityStores = Pick<SessionStores, "motion" | "quests" | "self">;
+type EntityStores = Pick<SessionStores, "areas" | "motion" | "quests" | "self">;
 
 type TypeFields = Partial<UnitFieldsResult> & Partial<GameObjectFieldsResult>;
 type Entry<T extends UpdateEntry["type"]> = Extract<UpdateEntry, { type: T }>;
@@ -84,7 +84,7 @@ function typeFields(
 
 function applyCreate(
   conn: WorldConn,
-  { motion, quests, self: selfStore }: EntityStores,
+  { areas, motion, quests, self: selfStore }: EntityStores,
   entry: Entry<"create">,
 ): void {
   const { guid, objectType, fields, position } = entry;
@@ -99,6 +99,7 @@ function applyCreate(
     rawFields: new Map(fields),
     createComplete: true,
   });
+  seedUnitMotion(areas, entry);
   const self = selfGuid(conn);
   const created = guid === self ? conn.entityStore.get(self) : undefined;
   if (created) quests.observeSelfCreate(created);
@@ -151,11 +152,23 @@ function applyValues(
     });
 }
 
+function seedUnitMotion(
+  areas: SessionStores["areas"],
+  entry: Entry<"create"> | Entry<"movement">,
+): void {
+  if (!entry.speeds) return;
+  areas.unitmotion.seed(entry.guid, {
+    flags: entry.movementInfo?.flags ?? 0,
+    speeds: entry.speeds,
+  });
+}
+
 function applyMovement(
   conn: WorldConn,
-  { motion, self }: EntityStores,
+  { areas, motion, self }: EntityStores,
   entry: Entry<"movement">,
 ): void {
+  if (conn.entityStore.get(entry.guid)) seedUnitMotion(areas, entry);
   if (!entry.position) return;
   conn.remoteMotion.observe(entry.guid, {
     position: entry.position,

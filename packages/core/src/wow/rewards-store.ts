@@ -5,6 +5,7 @@ import { LootRolls } from "#wow/loot-rolls";
 import { readLife } from "#wow/player-state";
 import {
   type InventoryChangeFailure,
+  type InventoryClaim,
   InventoryResult,
 } from "#wow/protocol/inventory";
 import type {
@@ -265,7 +266,13 @@ export class RewardsStore {
     this.emit("item_push");
   }
 
-  receiveInventoryFailure(packet: InventoryChangeFailure): void {
+  inventoryClaim(): InventoryClaim | undefined {
+    return this.request?.action === "take"
+      ? { itemGuid: undefined }
+      : undefined;
+  }
+
+  receiveInventoryFailure(packet: InventoryChangeFailure, owned = true): void {
     if (this.isDisposed) return;
     if (packet.kind === "ok") {
       this.lastInventoryError = undefined;
@@ -280,7 +287,7 @@ export class RewardsStore {
         packet.result === InventoryResult.BAG_FULL3,
       observedAt: this.deps.now(),
     };
-    if (this.request?.action === "take") this.request = undefined;
+    if (owned && this.request?.action === "take") this.request = undefined;
     this.emit("inventory_error");
   }
 

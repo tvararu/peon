@@ -7,19 +7,13 @@ import {
   type AccountNames,
   applySetup,
   createAccount,
-  type Role,
   RunAbort,
   sessionFile,
 } from "#harness/grader/accounts";
 import { recordBots } from "#harness/grader/bots";
 import type { Exec } from "#harness/grader/exec";
 import { harnessCommand, openPane, type Pane } from "#harness/grader/pane";
-import {
-  newPartnerTrack,
-  type PartnerTrack,
-  readPartner,
-  stepPartner,
-} from "#harness/grader/partner";
+import { newPartnerTrack, type PartnerTrack } from "#harness/grader/partner";
 import {
   blockersOf,
   heldUntilRemoved,
@@ -34,6 +28,15 @@ import {
   writeJson,
   writeOutcome,
 } from "#harness/grader/run-finish";
+import {
+  actPartners,
+  createPartners,
+  partnerSpecs,
+  placePartners,
+  readPartners,
+  startPartners,
+  witnessOf,
+} from "#harness/grader/run-partners";
 import type { Scenario } from "#harness/grader/scenarios";
 import { startSlots } from "#harness/grader/spawn-slots";
 import {
@@ -68,7 +71,6 @@ export const SUBMIT_TIMEOUT_MS = 10_000;
 
 const EDITOR_RULE = /─{20,}/;
 const LANDED_POLL_MS = 1000;
-const PARTNER_START_MS = 120_000;
 
 export type RunInit = {
   exec: Exec;
@@ -205,15 +207,15 @@ function paneOf(run: Live): Pane {
   return run.pane;
 }
 
-async function create(run: Live, role: Role): Promise<AccountNames> {
+async function createAgent(run: Live): Promise<AccountNames> {
   const names = await createAccount({
     exec: run.exec,
     owner: run.tab,
     preset: run.scenario.preset,
-    role,
+    role: "agent",
     runDir: run.runDir,
   });
-  run.init.log(`${role} ${names.account} ${names.character}`);
+  run.init.log(`agent ${names.account} ${names.character}`);
   return names;
 }
 
@@ -224,19 +226,6 @@ async function baseline(run: Live, account: string): Promise<void> {
   await writeJson(`${run.runDir}/baseline.json`, truth);
   if (truth.online)
     throw new RunAbort("other", "baseline truth says the character is online");
-}
-
-async function startPartner(run: Live): Promise<void> {
-  if (run.partner === undefined) return;
-  const { code, stderr } = await run.exec(
-    [run.partner.wrapper, "start", "--json"],
-    { timeoutMs: PARTNER_START_MS },
-  );
-  if (code !== 0)
-    throw new RunAbort(
-      "launch_failed",
-      `partner start exited ${code}: ${stderr.trim()}`,
-    );
 }
 
 async function launch(run: Live): Promise<void> {
@@ -355,24 +344,8 @@ async function steer(run: Live, now: number): Promise<void> {
   run.init.log(`steer ${run.cursor.index}`);
 }
 
-function partnerOf(run: Live) {
-  const { agent, clock, exec, partner, runDir } = run;
-  if (agent === undefined || partner === undefined) return;
-  return { agent, clock, exec, partner, runDir };
-}
-
 async function actPartner(run: Live): Promise<void> {
-  const actions = run.scenario.partnerActions ?? [];
-  const init = partnerOf(run);
-  if (init === undefined || actions.length === 0) return;
-  const before = run.partnerTrack.cursor.index;
-  await stepPartner({
-    ...init,
-    actions,
-    track: run.partnerTrack,
-    triggers: run.triggers,
-  });
-  if (run.partnerTrack.cursor.index > before)
+  if (await actPartners(run, run.partnerTrack, run.triggers))
     run.init.log(`partner action ${run.partnerTrack.cursor.index}`);
 }
 
@@ -461,9 +434,12 @@ async function drive(run: Live): Promise<void> {
 }
 
 async function play(run: Live): Promise<void> {
-  const agent = await create(run, "agent");
+  const agent = await createAgent(run);
   run.agent = agent;
-  if (run.scenario.partner !== null) run.partner = await create(run, "partner");
+  await createPartners(
+    { ...run, log: run.init.log, owner: run.tab },
+    partnerSpecs(run.scenario),
+  );
   const slots = startSlots(run.scenario, run.replica);
   await applySetup({
     account: agent.account,
@@ -471,31 +447,21 @@ async function play(run: Live): Promise<void> {
     runDir: run.runDir,
     setup: [...run.scenario.setup, ...(slots ? [slots.agent] : [])],
   });
-  if (run.partner !== undefined && slots !== undefined)
-    await applySetup({
-      account: run.partner.account,
-      exec: run.exec,
-      runDir: run.runDir,
-      setup: [slots.partner],
-    });
+  await placePartners(run, slots?.partner);
   await baseline(run, agent.account);
-  await startPartner(run);
+  await startPartners(run);
   await launch(run);
   await waitReady(run);
-  const witness =
-    run.scenario.partner === "witness" ? run.partner?.wrapper : undefined;
   run.watcher = watchRun({
     clock: run.clock,
     exec: run.exec,
     pane: paneOf(run),
     runDir: run.runDir,
-    witness,
+    witness: witnessOf(run.partners),
   });
   await sendTask(run);
   await drive(run);
-  const init = partnerOf(run);
-  if (init !== undefined && (run.scenario.partnerActions ?? []).length > 0)
-    await readPartner(init);
+  await readPartners(run);
 }
 
 function abortOf(err: unknown): NonNullable<EvalResult["abort"]> {

@@ -12,6 +12,8 @@ import type {
 
 export const LOGIN_TIMEOUT_MS = 10_000;
 
+export type MoveFlag = "water_walk" | "hover";
+
 export type SelfEvent =
   | { type: "login_verified"; position: Position }
   | { type: "near_teleport"; info: MovementInfo }
@@ -24,6 +26,7 @@ export type SelfEvent =
   | { type: "client_control"; control: ClientControl }
   | { type: "force_speed"; spec: SpeedAck; force: ForceSpeed }
   | { type: "can_fly"; counter: number; enable: boolean }
+  | { type: "move_flag"; flag: MoveFlag; enable: boolean; counter: number }
   | { type: "observed"; observation: SelfObservation };
 
 export class SelfStore {

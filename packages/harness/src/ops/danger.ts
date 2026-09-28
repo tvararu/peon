@@ -1,4 +1,5 @@
 import type { CombatEvent, EntityEvent, WorldHandle } from "@peon/core";
+import { engagedWith } from "#harness/areas/threat/reads";
 import type {
   AttackLedger,
   Clock,
@@ -81,13 +82,21 @@ function attackerView(ctx: ViewCtx, guid: bigint): AttackerView {
   };
 }
 
+function attackersOf(handle: WorldHandle): bigint[] {
+  const { attackers } = handle.getCombatState();
+  const { selfGuid } = handle.getControlState();
+  const engaged = engagedWith(handle.threat.state(), selfGuid);
+  return [...new Set([...attackers, ...engaged])];
+}
+
 export function dangerView(ctx: ViewCtx): DangerView {
-  const { attackers, self } = ctx.handle.getCombatState();
+  const { self } = ctx.handle.getCombatState();
   const { health, maxHealth } = self;
   const hpPct =
     health !== undefined && maxHealth
       ? Math.round((health / maxHealth) * 100)
       : 100;
+  const attackers = attackersOf(ctx.handle);
   return { attackers: attackers.map((guid) => attackerView(ctx, guid)), hpPct };
 }
 
@@ -151,6 +160,13 @@ function onAttacked({ ctx, event, fire, known, rules }: AttackWatch): void {
   const guid =
     event.attacker ??
     event.state.attackers.find((candidate) => !known.has(candidate));
+  noteAttacker({ ctx, fire, known, rules }, guid);
+}
+
+function noteAttacker(
+  { ctx, fire, known, rules }: Omit<AttackWatch, "event">,
+  guid: bigint | undefined,
+): void {
   if (guid === undefined || known.has(guid)) return;
   known.add(guid);
   if (rules.newAttacker)
@@ -167,7 +183,7 @@ export function watchInterrupts(
 ): InterruptWatch {
   const { handle, signal } = ctx;
   const controller = new AbortController();
-  const known = new Set(handle.getCombatState().attackers);
+  const known = new Set(attackersOf(handle));
   let cause: InterruptCause | undefined;
   const fire: Fire = (next) => {
     if (controller.signal.aborted) return;
@@ -179,6 +195,13 @@ export function watchInterrupts(
     handle.onCombatEvent((event) =>
       onAttacked({ ctx, event, fire, known, rules }),
     ),
+    handle.threat.onEvent((event) => {
+      if (
+        event.type === "victim_changed" &&
+        event.to === handle.getControlState().selfGuid
+      )
+        noteAttacker({ ctx, fire, known, rules }, event.unit);
+    }),
     handle.onControlEvent((event) => {
       if (rules.rooted && event.state.blockedReason === "rooted") fire(ROOTED);
     }),

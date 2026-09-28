@@ -41,6 +41,31 @@
           "evidence": {
             "additionalProperties": false,
             "properties": {
+              "console": {
+                "additionalProperties": false,
+                "properties": {
+                  "arg": {
+                    "type": "string"
+                  },
+                  "match": {
+                    "type": "string"
+                  },
+                  "read": {
+                    "enum": [
+                      "group",
+                      "mail",
+                      "pet",
+                      "titles",
+                      "reputation",
+                      "pinfo",
+                      "guild",
+                      "arena"
+                    ]
+                  }
+                },
+                "required": ["match", "read"],
+                "type": "object"
+              },
               "delta": {
                 "items": {
                   "enum": ["money", "totalXp"]
@@ -83,14 +108,31 @@
                 "items": {
                   "enum": [
                     "alive",
+                    "bank",
+                    "durability",
+                    "equipment",
+                    "hearth",
                     "inventory",
                     "level",
+                    "mail",
                     "money",
                     "quests",
+                    "reputation",
+                    "spells",
                     "totalXp"
                   ]
                 },
                 "type": "array"
+              },
+              "who": {
+                "enum": [
+                  "agent",
+                  "partner",
+                  "partner1",
+                  "partner2",
+                  "partner3",
+                  "partner4"
+                ]
               }
             },
             "type": "object"
@@ -119,7 +161,8 @@
               "witness",
               "game_log",
               "session",
-              "frame"
+              "frame",
+              "console"
             ]
           }
         },
@@ -153,6 +196,10 @@
       "items": {
         "additionalProperties": false,
         "properties": {
+          "actor": {
+            "minimum": 1,
+            "type": "integer"
+          },
           "argv": {
             "items": {
               "type": "string"
@@ -183,7 +230,8 @@
                       "movement_start",
                       "answer_text",
                       "steer_landed",
-                      "task_landed"
+                      "task_landed",
+                      "channel_start"
                     ]
                   }
                 },
@@ -214,6 +262,24 @@
         "required": ["argv", "at", "windowMs"],
         "type": "object"
       },
+      "type": "array"
+    },
+    "partners": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "preset": {
+            "type": "string"
+          },
+          "role": {
+            "enum": ["partner", "witness"]
+          }
+        },
+        "required": ["preset", "role"],
+        "type": "object"
+      },
+      "maxItems": 4,
+      "minItems": 1,
       "type": "array"
     },
     "preset": {
@@ -267,7 +333,8 @@
                       "movement_start",
                       "answer_text",
                       "steer_landed",
-                      "task_landed"
+                      "task_landed",
+                      "channel_start"
                     ]
                   }
                 },

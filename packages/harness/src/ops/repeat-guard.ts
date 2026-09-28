@@ -1,4 +1,4 @@
-import type { ToolName, ToolResult } from "#harness/contract/result";
+import type { ToolKind, ToolName, ToolResult } from "#harness/contract/result";
 import type {
   Clock,
   RepeatCall,
@@ -37,17 +37,9 @@ export const POSITIONAL: ReadonlySet<string> = new Set([
 const REPEAT_TTL_MS = 300_000;
 const UNTRIED_MAX = 3;
 const POSES_MAX = 4;
-const CLEARING: ReadonlySet<ToolName> = new Set([
-  "travel",
-  "engage",
-  "loot",
-  "interact",
-  "rest",
-  "recover",
-  "social",
-]);
-const VERIFYING: ReadonlySet<ToolName> = new Set(["look", "journal"]);
 const UNANSWERED = "no_answer";
+
+type Probe = Omit<RepeatCall, "kind">;
 
 export type CallShape = { tool: string; args: Record<string, unknown> };
 
@@ -148,9 +140,9 @@ function untriedOf(failures: Map<string, Failure>, key: string): string[] {
   return [...new Set(nexts)].slice(0, UNTRIED_MAX);
 }
 
-function forgetOnDone(failures: Map<string, Failure>, tool: ToolName): void {
-  if (CLEARING.has(tool)) failures.clear();
-  if (!VERIFYING.has(tool)) return;
+function forgetOnDone(failures: Map<string, Failure>, kind: ToolKind): void {
+  if (kind === "action" || kind === "run") failures.clear();
+  if (kind !== "read") return;
   for (const [key, failure] of failures)
     if (failure.reason === UNANSWERED) failures.delete(key);
 }
@@ -159,13 +151,13 @@ export function createRepeatGuard(clock: Clock): RepeatGuard {
   const failures = new Map<string, Failure>();
   const positional = new Map<ToolName, { at: number; pose: PoseView }[]>();
   let hitCount = 0;
-  const blocking = (failure: Failure, call: RepeatCall) =>
+  const blocking = (failure: Failure, call: Probe) =>
     !(call.tool === "engage" && call.scene?.targetAttacking) &&
     clock.now() - failure.at <= REPEAT_TTL_MS &&
     failure.digest === call.digest &&
     !moved(failure.pose, call.pose) &&
     !sceneMoved(failure.scene, call.scene);
-  const stored = (call: RepeatCall) =>
+  const stored = (call: Probe) =>
     call.tool === "look" ? undefined : failures.get(keyOf(call));
   return {
     blocks(call) {
@@ -190,7 +182,7 @@ export function createRepeatGuard(clock: Clock): RepeatGuard {
         .map((failure) => failure.pose),
     record(call) {
       const { result } = call;
-      if (result.status === "DONE") forgetOnDone(failures, call.tool);
+      if (result.status === "DONE") forgetOnDone(failures, call.kind);
       if (result.status === "DONE") positional.delete(call.tool);
       if (storable(result) && POSITIONAL.has(result.reason) && call.pose) {
         const kept = (positional.get(call.tool) ?? []).slice(1 - POSES_MAX);

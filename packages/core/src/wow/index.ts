@@ -1,4 +1,14 @@
 export type { Unsubscribe } from "#lib/emitter";
+export {
+  AREA_NAMES,
+  type AreaActsOf,
+  type AreaEvent,
+  type AreaEventOf,
+  type AreaHandle,
+  type AreaHandles,
+  type AreaName,
+  type AreaState,
+} from "#wow/areas/compose";
 export type { CombatAura } from "#wow/aura-store";
 export type { AuthResult } from "#wow/auth";
 export type {
@@ -118,6 +128,10 @@ export type {
 export type { WhoResult } from "#wow/protocol/chat";
 export { ObjectType, UnitFlag } from "#wow/protocol/entity-fields";
 export { ChatType, PartyOperation, PartyResult } from "#wow/protocol/enums";
+export {
+  extractGameObjectFields,
+  type GameObjectFieldsResult,
+} from "#wow/protocol/extract-fields";
 export {
   formatGuildCommandError,
   GuildMemberStatus,

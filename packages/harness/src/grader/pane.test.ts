@@ -23,14 +23,14 @@ const EXITED = JSON.stringify({
 });
 
 describe("harnessCommand", () => {
-  test("execs the harness with the profile, the run dir and nerd glyphs", () => {
+  test("execs the harness with the profile, the run dir, nerd glyphs and a header trace", () => {
     expect(
       harnessCommand({
         profile: "/wt/tmp/evals/1/t0-self-state-1/account.json",
         runDir: "/wt/tmp/evals/1/t0-self-state-1",
       }),
     ).toBe(
-      `exec ${HARNESS_LAUNCH} --profile /wt/tmp/evals/1/t0-self-state-1/account.json --run-dir /wt/tmp/evals/1/t0-self-state-1 --glyphs nerd`,
+      `exec ${HARNESS_LAUNCH} --profile /wt/tmp/evals/1/t0-self-state-1/account.json --run-dir /wt/tmp/evals/1/t0-self-state-1 --glyphs nerd --packet-trace headers`,
     );
   });
 

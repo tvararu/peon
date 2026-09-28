@@ -9,6 +9,29 @@ export type TruthItem = {
   item: number;
   name: string;
   count: number;
+  durability?: number;
+  maxDurability?: number;
+};
+
+export type TruthHearth = {
+  map: number;
+  zone: number;
+  x: number;
+  y: number;
+  z: number;
+};
+
+export type TruthReputation = {
+  faction: number;
+  standing: number;
+  flags: number;
+};
+
+export type TruthMail = {
+  id: number;
+  subject: string;
+  money: number;
+  items: number;
 };
 
 export type TruthQuest = {
@@ -46,6 +69,9 @@ export type Truth = {
   quests: TruthQuest[];
   rewardedQuests: number[];
   spells: number[];
+  hearth?: TruthHearth;
+  reputation?: TruthReputation[];
+  mail?: TruthMail[];
 };
 
 export type FinalTruth =
@@ -104,14 +130,55 @@ function record(value: unknown, where: string): Json {
   return value;
 }
 
+function optional<T>(
+  json: Json,
+  key: string,
+  read: (key: string) => T,
+): Record<string, T> {
+  return json[key] === undefined ? {} : { [key]: read(key) };
+}
+
 function itemOf(value: unknown, where: string): TruthItem {
-  const f = fields(record(value, where), where);
+  const json = record(value, where);
+  const f = fields(json, where);
   return {
     bag: f.num("bag"),
     count: f.num("count"),
     item: f.num("item"),
     name: f.str("name"),
     slot: f.num("slot"),
+    ...optional(json, "durability", f.num),
+    ...optional(json, "maxDurability", f.num),
+  };
+}
+
+function hearthOf(json: Json): TruthHearth {
+  const f = fields(json, "truth.hearth");
+  return {
+    map: f.num("map"),
+    x: f.num("x"),
+    y: f.num("y"),
+    z: f.num("z"),
+    zone: f.num("zone"),
+  };
+}
+
+function reputationOf(value: unknown, where: string): TruthReputation {
+  const f = fields(record(value, where), where);
+  return {
+    faction: f.num("faction"),
+    flags: f.num("flags"),
+    standing: f.num("standing"),
+  };
+}
+
+function mailOf(value: unknown, where: string): TruthMail {
+  const f = fields(record(value, where), where);
+  return {
+    id: f.num("id"),
+    items: f.num("items"),
+    money: f.num("money"),
+    subject: f.str("subject"),
   };
 }
 
@@ -172,6 +239,13 @@ export function parseTruth(json: unknown): Truth {
     savedAt: f.str("savedAt"),
     spells: f.nums("spells"),
     xp: f.num("xp"),
+    ...optional(reply, "hearth", (key) => hearthOf(f.obj(key))),
+    ...optional(reply, "reputation", (key) =>
+      f.arr(key).map((row, i) => reputationOf(row, `truth.${key}[${i}]`)),
+    ),
+    ...optional(reply, "mail", (key) =>
+      f.arr(key).map((row, i) => mailOf(row, `truth.${key}[${i}]`)),
+    ),
   };
 }
 

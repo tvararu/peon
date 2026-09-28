@@ -344,6 +344,12 @@ export class CombatStore {
     }
   }
 
+  noteHostileDamage(guid: bigint): void {
+    if (this.incomingAttackers.has(guid)) return;
+    this.incomingAttackers.add(guid);
+    this.emit("attacked", undefined, guid);
+  }
+
   applyAttackStop(packet: AttackStop): void {
     if (packet.attacker === this.deps.selfGuid()) {
       this.pendingAttack = undefined;

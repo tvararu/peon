@@ -1,5 +1,6 @@
 import {
   type InventoryChangeFailure,
+  type InventoryClaim,
   inventoryResultName,
 } from "#wow/protocol/inventory";
 import type { QuestIntent, QuestWindow } from "#wow/quests-requests";
@@ -23,13 +24,20 @@ export type QuestError = {
   name?: string;
 };
 
+const takesItems = (pending: QuestIntent | undefined) =>
+  pending?.action === "chooseReward" || pending?.action === "accept";
+
+export function inventoryQuestClaim(
+  pending: QuestIntent | undefined,
+): InventoryClaim | undefined {
+  return takesItems(pending) ? { itemGuid: undefined } : undefined;
+}
+
 export function inventoryQuestError(
   pending: QuestIntent | undefined,
   packet: InventoryChangeFailure,
 ): Omit<QuestError, "at"> | undefined {
-  if (packet.kind !== "error") return;
-  if (pending?.action !== "chooseReward" && pending?.action !== "accept")
-    return;
+  if (packet.kind !== "error" || !pending || !takesItems(pending)) return;
   return {
     kind: "inventory",
     questId: pending.questId,

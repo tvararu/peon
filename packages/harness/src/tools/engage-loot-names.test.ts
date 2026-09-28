@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { fakeTimed } from "@peon/core/test-support/fake-time";
 import type { EngageAfter } from "#harness/contract/details";
 import { ITEM_NAME_WAIT_MS } from "#harness/ops/item-names";
 import { engageSpec } from "#harness/tools/engage";
@@ -13,7 +14,6 @@ import {
   tactics,
   xp,
 } from "#test-support/engage-fixtures";
-import { fakeTimed } from "#test-support/fake-time";
 import { attackBy, contentOf, die, toolCtx } from "#test-support/ops-fixtures";
 
 describe("engage loot names", () => {

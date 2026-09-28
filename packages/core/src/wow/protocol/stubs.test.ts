@@ -4,6 +4,8 @@ import { PacketReader } from "#wow/protocol/packet";
 import { registerStubs, STUBS, type StubNotice } from "#wow/protocol/stubs";
 import { OpcodeDispatch } from "#wow/protocol/world";
 
+const WEATHER = [[GameOpcode.SMSG_WEATHER, "Weather change"]] as const;
+
 describe("registerStubs", () => {
   test("leaves world states to the place handler", () => {
     expect(STUBS.map(([opcode]) => opcode)).not.toContain(
@@ -14,7 +16,7 @@ describe("registerStubs", () => {
   test("registers SMSG opcodes that aren't already handled", () => {
     const d = new OpcodeDispatch();
     d.on(GameOpcode.SMSG_MESSAGE_CHAT, () => {});
-    registerStubs(d, () => true);
+    registerStubs(d, () => true, WEATHER);
 
     expect(d.has(GameOpcode.SMSG_WEATHER)).toBe(true);
   });
@@ -34,10 +36,14 @@ describe("registerStubs", () => {
   test("notifies on first receipt only", () => {
     const d = new OpcodeDispatch();
     const messages: string[] = [];
-    registerStubs(d, (notice) => {
-      messages.push(notice.text);
-      return true;
-    });
+    registerStubs(
+      d,
+      (notice) => {
+        messages.push(notice.text);
+        return true;
+      },
+      WEATHER,
+    );
 
     d.handle(GameOpcode.SMSG_WEATHER, new PacketReader(new Uint8Array(0)));
     d.handle(GameOpcode.SMSG_WEATHER, new PacketReader(new Uint8Array(0)));
@@ -50,11 +56,15 @@ describe("registerStubs", () => {
     const d = new OpcodeDispatch();
     const messages: string[] = [];
     let ready = false;
-    registerStubs(d, (notice) => {
-      if (!ready) return false;
-      messages.push(notice.text);
-      return true;
-    });
+    registerStubs(
+      d,
+      (notice) => {
+        if (!ready) return false;
+        messages.push(notice.text);
+        return true;
+      },
+      WEATHER,
+    );
 
     d.handle(GameOpcode.SMSG_WEATHER, new PacketReader(new Uint8Array(0)));
     expect(messages).toHaveLength(0);
@@ -71,10 +81,14 @@ describe("registerStubs", () => {
   test("the notice names the opcode, the label and the old text", () => {
     const d = new OpcodeDispatch();
     const notices: StubNotice[] = [];
-    registerStubs(d, (notice) => {
-      notices.push(notice);
-      return true;
-    });
+    registerStubs(
+      d,
+      (notice) => {
+        notices.push(notice);
+        return true;
+      },
+      WEATHER,
+    );
     d.handle(GameOpcode.SMSG_WEATHER, new PacketReader(new Uint8Array(0)));
     expect(notices).toEqual([
       {

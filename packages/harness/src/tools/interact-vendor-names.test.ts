@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { NamedVendorGood } from "@peon/core";
+import { fakeTimed } from "@peon/core/test-support/fake-time";
 import type { InteractAfter } from "#harness/contract/details";
 import { ITEM_NAME_WAIT_MS } from "#harness/ops/item-names";
 import type { Refusal } from "#harness/ops/refusal";
 import { interactSpec } from "#harness/tools/interact";
-import { fakeTimed } from "#test-support/fake-time";
 import { toolCtx } from "#test-support/ops-fixtures";
 import { good, marniel, vendorEvent } from "#test-support/vendor-fixtures";
 

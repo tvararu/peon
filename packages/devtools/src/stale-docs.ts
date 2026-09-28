@@ -24,6 +24,7 @@ const tmpOutputs = [
   "puppet-<ACCOUNT>",
   "evals/",
   "factory-account-<ACCOUNT>/",
+  "probe/",
 ];
 
 const tmpPrefix = /^(?:\.\/)?tmp\//;
@@ -78,6 +79,7 @@ const sources = [
   "AGENTS.md",
   "README.md",
   "docs/*.md",
+  "docs/areas/*.md",
   "packages/factory/src/prompts/*.md",
 ];
 

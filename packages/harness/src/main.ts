@@ -50,6 +50,7 @@ import { createEventRouter } from "#harness/events/router";
 import type { RuleContext } from "#harness/events/rules";
 import { createWorldSnapshots } from "#harness/events/snapshot";
 import { wowExtension } from "#harness/extension/extension";
+import { createPacketTrace, type PacketTrace } from "#harness/log/packet-trace";
 import { createGameLog, createJsonlSink } from "#harness/log/store";
 import { createAttackLedger } from "#harness/ops/danger";
 import { createProgressTracker } from "#harness/ops/progress";
@@ -95,6 +96,7 @@ type Started = {
 };
 type Finish = {
   rt: HarnessRuntime;
+  trace: PacketTrace;
   paths: RunPaths;
   exit: ExitRecorder;
   status: StatusWriter;
@@ -170,7 +172,8 @@ async function play({
     home: deps.home,
     now: new Date(deps.now()),
   });
-  const rt = composeRuntime({ flags, paths, profile });
+  const trace = createPacketTrace({ mode: flags.packetTrace, paths });
+  const rt = composeRuntime({ flags, paths, profile, trace });
   const glyphs = resolveGlyphSet(
     flags.glyphs,
     Bun.env["PEON_GLYPHS"],
@@ -193,7 +196,7 @@ async function play({
     snapshot: () => statusSnapshot(rt),
   });
   status.start(STATUS_EVERY_MS);
-  const finish = finisher({ exit, lock, paths, rt, status });
+  const finish = finisher({ exit, lock, paths, rt, status, trace });
   const agentDir = `${harnessStateDir(deps.home)}/agent`;
   const piRuntime = await createPiRuntime({
     agentDir,
@@ -224,10 +227,12 @@ function composeRuntime({
   flags,
   paths,
   profile,
+  trace,
 }: {
   flags: HarnessFlags;
   paths: RunPaths;
   profile: Profile;
+  trace: PacketTrace;
 }): HarnessRuntime {
   const clock: Clock = { now: () => Date.now() };
   const log = createGameLog({
@@ -265,7 +270,7 @@ function composeRuntime({
     flags,
     jevLog,
     log,
-    login: defaultLogin,
+    login: (player: Profile) => defaultLogin(player, trace),
     paths,
     profile,
     quests,
@@ -348,6 +353,8 @@ function runMeta({
   const files = {
     gamelog: "gamelog.jsonl",
     jev: "jev.jsonl",
+    packetCounts: "packets.json",
+    packets: "packets.jsonl",
     runs: "runs.jsonl",
     session: "session.jsonl",
     status: "status.json",
@@ -388,9 +395,11 @@ function finisher({
   exit,
   status,
   lock,
+  trace,
 }: Finish): () => Promise<void> {
   return async () => {
     await status.stop();
+    await trace.flush();
     const world = rt.ready.inWorld();
     await exit.end({
       capabilities: world?.capabilities,

@@ -2,7 +2,9 @@ import { rm, writeFile } from "node:fs/promises";
 import type { WorldHandle } from "@peon/core";
 import { messageOf } from "@peon/core/lib/errors";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
+import { opcodeName, type TraceSender } from "@peon/core/session";
 import type { Socket, UnixSocketListener } from "bun";
+import { decodeCall, PUPPET_CALLS } from "#harness/puppet/calls";
 import {
   type ChatEvent,
   chatEventObj,
@@ -25,6 +27,7 @@ export type PuppetServerInit = {
   paths: PuppetPaths;
   logoutWaitMs?: number;
   chatCapacity?: number;
+  send?: TraceSender;
 };
 
 export type PuppetServer = {
@@ -33,6 +36,26 @@ export type PuppetServer = {
 };
 
 export const CHAT_CAPACITY = 1000;
+
+type EventRow = { at: number; event: unknown; hook: string };
+
+function plainJson(value: unknown): unknown {
+  return JSON.parse(
+    JSON.stringify(value, (_key, field: unknown) =>
+      typeof field === "bigint" ? field.toString() : field,
+    ) ?? "null",
+  );
+}
+
+function gameEventsJson(events: EventRow[]): string {
+  return JSON.stringify({
+    command: "events",
+    data: null,
+    error: null,
+    events,
+    kind: "events",
+  });
+}
 
 export async function listenPuppet(
   init: PuppetServerInit,
@@ -47,8 +70,10 @@ class Puppet {
   private readonly handle: WorldHandle;
   private readonly paths: PuppetPaths;
   private readonly waitMs: number;
+  private readonly send: TraceSender | undefined;
   private readonly chat: ChatEvent[] = [];
-  private readonly unsubscribe: () => void;
+  private readonly events: EventRow[] = [];
+  private readonly unsubscribe: (() => void)[];
   private listener: UnixSocketListener<{ buffer: string }> | undefined;
   private loggingOut: Promise<string> | undefined;
   private ended = false;
@@ -57,11 +82,27 @@ class Puppet {
     this.handle = init.handle;
     this.paths = init.paths;
     this.waitMs = init.logoutWaitMs ?? LOGOUT_WAIT_MS;
+    this.send = init.send;
     const capacity = init.chatCapacity ?? CHAT_CAPACITY;
-    this.unsubscribe = init.handle.onMessage((msg) => {
-      this.chat.push(chatEventObj(msg));
-      if (this.chat.length > capacity) this.chat.shift();
-    });
+    const { handle } = init;
+    const keep = (hook: string) => (event: unknown) => {
+      this.events.push({ at: Date.now(), event: plainJson(event), hook });
+      if (this.events.length > capacity) this.events.shift();
+    };
+    this.unsubscribe = [
+      handle.onMessage((msg) => {
+        this.chat.push(chatEventObj(msg));
+        if (this.chat.length > capacity) this.chat.shift();
+      }),
+      handle.onGroupEvent(keep("group")),
+      handle.onGuildEvent(keep("guild")),
+      handle.onDuelEvent(keep("duel")),
+      handle.onNotice(keep("notice")),
+      handle.onPacketError((opcode, error) =>
+        keep("packetError")({ error: messageOf(error), opcode }),
+      ),
+      handle.onAreaEvent(keep("area")),
+    ];
   }
 
   async listen(): Promise<void> {
@@ -115,6 +156,8 @@ class Puppet {
     if (this.loggingOut) return { error: "The puppet is stopping.", ok: false };
     if (request.cmd === "read")
       return { ok: true, out: eventsJson("read", this.chat.splice(0)) };
+    if (request.cmd === "events")
+      return { ok: true, out: gameEventsJson(this.events.splice(0)) };
     if (request.cmd === "nearby")
       return {
         ok: true,
@@ -124,7 +167,30 @@ class Puppet {
       this.handle.sendWhisper(request.target, request.text);
       return { ok: true, out: "OK" };
     }
+    if (request.cmd === "call") return this.call(request.method, request.args);
+    if (request.cmd === "raw") return this.raw(request.opcode, request.body);
     return { ok: true, out: "" };
+  }
+
+  private call(method: string, raw: unknown[]): PuppetReply {
+    const call = decodeCall(method, JSON.stringify(raw));
+    if ("error" in call) return { error: call.error, ok: false };
+    PUPPET_CALLS[call.method]?.run(this.handle, call.args);
+    return { ok: true, out: resultJson("call", { method: call.method }) };
+  }
+
+  private raw(opcode: number, hex: string): PuppetReply {
+    if (!this.send)
+      return {
+        error: "Start the puppet with --packet-trace to send raw packets.",
+        ok: false,
+      };
+    const body = Uint8Array.from(Buffer.from(hex, "hex"));
+    this.send(opcode, body);
+    return {
+      ok: true,
+      out: resultJson("raw", { opcode: opcodeName(opcode), size: body.length }),
+    };
   }
 
   private logOut(): Promise<string> {
@@ -140,7 +206,7 @@ class Puppet {
   private async finish(): Promise<void> {
     if (this.ended) return;
     this.ended = true;
-    this.unsubscribe();
+    for (const off of this.unsubscribe) off();
     const { listener } = this;
     if (listener)
       await Promise.resolve()

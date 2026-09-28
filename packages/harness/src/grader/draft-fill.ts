@@ -1,3 +1,4 @@
+import { fillConsole, readConsoleLog } from "#harness/grader/draft-console";
 import { observeGameLog, parseGameLog } from "#harness/grader/draft-gamelog";
 import { measureGameLog } from "#harness/grader/draft-measure";
 import { parseJsonOutput } from "#harness/grader/exec";
@@ -7,8 +8,9 @@ import type {
   ScenarioCheck,
   TruthDelta,
   TruthPick,
+  TruthWho,
 } from "#harness/grader/scenarios";
-import type { Truth } from "#harness/grader/truth";
+import type { Truth, TruthItem } from "#harness/grader/truth";
 import { totalXp } from "#harness/grader/xp-table";
 
 export type TruthSummary = Pick<
@@ -44,32 +46,91 @@ export function truthSummary(truth: Truth): TruthSummary {
 
 type Pair = { baseline: Truth | null; final: Truth | null };
 type Picked = Record<string, unknown>;
-type Picker = (truth: Truth) => Picked;
+type Picker = (truth: Truth, worn: boolean) => Picked;
+
+const CHARACTER_BAG = 255;
+const BANK_BAG = -1;
+const EQUIPMENT_SLOTS = { first: 0, last: 18 };
+const BANK_SLOTS = { first: 39, last: 73 };
+
+const inSlots = (slot: number, { first, last }: typeof BANK_SLOTS) =>
+  slot >= first && slot <= last;
+
+const ROW_PICKS: readonly TruthPick[] = ["bank", "equipment", "inventory"];
+
+const rowsOf = (rows: readonly TruthItem[], worn: boolean) =>
+  rows.map(({ bag, count, durability, item, maxDurability, name, slot }) => ({
+    bag,
+    count,
+    item,
+    name,
+    slot,
+    ...(worn ? { durability, maxDurability } : {}),
+  }));
+
+const byKey = <T>(rows: readonly T[] | undefined, key: (row: T) => number) =>
+  rows?.toSorted((a, b) => key(a) - key(b)) ?? null;
 
 const PICKS: Readonly<Record<TruthPick, Picker>> = {
   alive: ({ alive, deathState }) => ({ alive, deathState }),
-  inventory: ({ inventory }) => ({
-    inventory: inventory.map(({ bag, count, item, name, slot }) => ({
-      bag,
-      count,
-      item,
-      name,
-      slot,
-    })),
+  bank: ({ inventory }, worn) => ({
+    bank: rowsOf(
+      inventory.filter(
+        ({ bag, slot }) =>
+          bag === BANK_BAG ||
+          (bag === CHARACTER_BAG && inSlots(slot, BANK_SLOTS)),
+      ),
+      worn,
+    ),
   }),
+  durability: ({ inventory }) => ({
+    durability: rowsOf(
+      inventory.filter(({ maxDurability = 0 }) => maxDurability > 0),
+      true,
+    ),
+  }),
+  equipment: ({ inventory }, worn) => ({
+    equipment: rowsOf(
+      inventory.filter(
+        ({ bag, slot }) =>
+          bag === CHARACTER_BAG && inSlots(slot, EQUIPMENT_SLOTS),
+      ),
+      worn,
+    ),
+  }),
+  hearth: ({ hearth }) => ({ hearth: hearth ?? null }),
+  inventory: ({ inventory }, worn) => ({ inventory: rowsOf(inventory, worn) }),
   level: ({ level }) => ({ level }),
+  mail: ({ mail }) => ({ mail: byKey(mail, ({ id }) => id) }),
   money: ({ money }) => ({ money }),
   quests: ({ quests, rewardedQuests }) => ({
     quests: quests.map(({ quest, status }) => ({ quest, status })),
     rewardedQuests,
   }),
+  reputation: ({ reputation }) => ({
+    reputation: byKey(reputation, ({ faction }) => faction),
+  }),
+  spells: ({ spells }) => ({ spells: spells.toSorted((a, b) => a - b) }),
   totalXp: ({ level, xp }) => ({ level, totalXp: totalXp(level, xp), xp }),
 };
 
-const pickAll = (truth: Truth | null, picks: readonly Picker[]) =>
+const pickAll = (
+  truth: Truth | null,
+  picks: readonly Picker[],
+  worn = false,
+) =>
   truth === null
     ? null
-    : Object.assign({}, ...picks.map((pick) => pick(truth)));
+    : Object.assign({}, ...picks.map((pick) => pick(truth, worn)));
+
+function pickersOf(fields: readonly TruthPick[]) {
+  const worn = fields.includes("durability");
+  const onRows = worn && fields.some((field) => ROW_PICKS.includes(field));
+  const named = onRows
+    ? fields.filter((field) => field !== "durability")
+    : fields;
+  return { picks: named.map((field) => PICKS[field]), worn };
+}
 
 function delta(pair: Pair, fields: readonly TruthDelta[]): Picked | undefined {
   const { baseline, final } = pair;
@@ -144,13 +205,13 @@ export function observeTruth(
     return positionObserved(pair, evidence.point);
   const items =
     evidence.items === undefined ? undefined : itemDeltas(pair, evidence.items);
-  const picks = (evidence.truth ?? []).map((field) => PICKS[field]);
+  const { picks, worn } = pickersOf(evidence.truth ?? []);
   if (picks.length === 0 && items !== undefined) return { items };
   const all = picks.length === 0 ? [truthSummary as Picker] : picks;
   return {
-    baseline: pickAll(pair.baseline, all),
+    baseline: pickAll(pair.baseline, all, worn),
     delta: delta(pair, evidence.delta ?? []),
-    final: pickAll(pair.final, all),
+    final: pickAll(pair.final, all, worn),
     items,
   };
 }
@@ -158,6 +219,35 @@ export function observeTruth(
 async function readTruthFile(file: string): Promise<Truth | null> {
   const handle = Bun.file(file);
   return (await handle.exists()) ? ((await handle.json()) as Truth) : null;
+}
+
+const truthFiles = (who: TruthWho) =>
+  who === "agent"
+    ? ["baseline.json", "final.json"]
+    : [`${who}-baseline.json`, `${who}-final.json`];
+
+type WhoTruth = { pair: Pair; reason?: string };
+
+async function readWho(runDir: string, who: TruthWho): Promise<WhoTruth> {
+  const [baseline = "", final = ""] = truthFiles(who);
+  const pair = {
+    baseline: await readTruthFile(`${runDir}/${baseline}`),
+    final: await readTruthFile(`${runDir}/${final}`),
+  };
+  const missing = [
+    ...(pair.baseline === null ? [baseline] : []),
+    ...(pair.final === null ? [final] : []),
+  ];
+  if (who === "agent" || missing.length === 0) return { pair };
+  const verb = missing.length === 1 ? "is" : "are";
+  return { pair, reason: `${missing.join(" and ")} ${verb} missing` };
+}
+
+function observeWho({ pair, reason }: WhoTruth, evidence?: CheckEvidence) {
+  const observed = observeTruth(pair, evidence);
+  return reason === undefined
+    ? observed
+    : { ...(observed as Picked | null), reason };
 }
 
 async function readGameLog(file: string) {
@@ -178,11 +268,14 @@ export async function observedChecks(
   checks: readonly ScenarioCheck[],
   steers: readonly string[] = [],
 ): Promise<EvalCheck[]> {
-  const pair = {
-    baseline: await readTruthFile(`${runDir}/baseline.json`),
-    final: await readTruthFile(`${runDir}/final.json`),
-  };
+  const truths = new Map<TruthWho, WhoTruth>();
+  for (const { evidence, source } of checks) {
+    const who = evidence?.who ?? "agent";
+    if (source === "truth" && !truths.has(who))
+      truths.set(who, await readWho(runDir, who));
+  }
   const rows = await readGameLog(`${runDir}/gamelog.jsonl`);
+  const consoleLog = await readConsoleLog(runDir);
   const context = {
     jev: await readJev(`${runDir}/jev.jsonl`),
     steers: [...steers],
@@ -190,19 +283,36 @@ export async function observedChecks(
   return checks.map((check) => {
     const { blockedBy, evidence, expect, id, source } = check;
     const base = { blockedBy, expected: expect, id, met: false, source };
-    if (source === "truth")
-      return { ...base, observed: observeTruth(pair, evidence) };
-    if (rows === null || (source !== "game_log" && check.measure === undefined))
-      return { ...base, observed: null };
-    const { line, met, observed } =
-      check.measure === undefined
-        ? observedRows(rows, check)
-        : measureGameLog(rows, check.measure, context);
-    const filled = { ...base, met: met ?? false, observed };
-    return line === undefined
-      ? filled
-      : { ...filled, ref: `gamelog.jsonl:${line}` };
+    if (source === "truth") {
+      const truth = truths.get(evidence?.who ?? "agent");
+      return {
+        ...base,
+        observed: truth === undefined ? null : observeWho(truth, evidence),
+      };
+    }
+    if (source === "console")
+      return { ...base, ...fillConsole(consoleLog, check) };
+    return { ...base, ...observedLog(rows, check, context) };
   });
+}
+
+type LogContext = Parameters<typeof measureGameLog>[2];
+
+function observedLog(
+  rows: ReturnType<typeof parseGameLog> | null,
+  check: ScenarioCheck,
+  context: LogContext,
+): { met: boolean; observed: unknown; ref?: string } {
+  if (rows === null || (check.source !== "game_log" && !check.measure))
+    return { met: false, observed: null };
+  const { line, met, observed } =
+    check.measure === undefined
+      ? observedRows(rows, check)
+      : measureGameLog(rows, check.measure, context);
+  const filled = { met: met ?? false, observed };
+  return line === undefined
+    ? filled
+    : { ...filled, ref: `gamelog.jsonl:${line}` };
 }
 
 function observedRows(

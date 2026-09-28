@@ -1,11 +1,25 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import type { Entity, EntityEvent, UnitEntity } from "@peon/core";
 import { createWorldService } from "#harness/world/hub";
-import type { WorldSession } from "#harness/world/service";
+import { EVENT_KEYS, isWorld, type WorldSession } from "#harness/world/service";
 import { createMockGame, type MockGame } from "#test-support/mock-game";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 
 const APPEAR = { type: "appear" } as EntityEvent;
+
+const CLOCK = { clock: { area: "clock", worldActs: ["sync"] } } as const;
+type ClockActs = { clock: { sync: () => Promise<unknown> } };
+
+function withClock(game: MockGame) {
+  const sync = mock(async () => "synced");
+  return Object.assign(game, {
+    clock: {
+      act: { sync },
+      onEvent: () => () => undefined,
+      state: () => ({ speed: 0.01 }),
+    },
+  }).clock.act.sync;
+}
 
 async function setup() {
   const first = createMockGame();
@@ -22,7 +36,12 @@ async function setup() {
       },
     },
   });
-  return { first, rt, second, world: createWorldService(rt).service };
+  return {
+    first,
+    rt,
+    second,
+    world: createWorldService(rt, CLOCK).service,
+  };
 }
 
 describe("createWorldService sessions", () => {
@@ -179,5 +198,44 @@ describe("createWorldService snapshots", () => {
     const [recent] = world.log.recent(1);
     expect(recent).toEqual(entry);
     expect(Object.isFrozen(recent?.data)).toBe(true);
+  });
+});
+
+describe("createWorldService areas", () => {
+  test("claim.areas sends a listed act and refuses not_owner once the claim is lost", async () => {
+    const { first, rt, world } = await setup();
+    const sync = withClock(first);
+    await rt.connect();
+    const claim = world.claim("loop", "probe");
+    const areas = claim?.areas as unknown as ClockActs;
+    expect(await areas.clock.sync()).toBe("synced");
+    world.claim("agent", "probe");
+    await expect(areas.clock.sync()).rejects.toThrow("not_owner");
+    expect(sync).toHaveBeenCalledTimes(1);
+  });
+
+  test("claim.areas refuses offline with no session", async () => {
+    const { first, world } = await setup();
+    const sync = withClock(first);
+    const claim = world.claim("loop", "probe");
+    const areas = claim?.areas as unknown as ClockActs;
+    await expect(areas.clock.sync()).rejects.toThrow("offline");
+    expect(sync).not.toHaveBeenCalled();
+  });
+
+  test("session.areas reads frozen area state and the service stays version 1", async () => {
+    const { first, rt, world } = await setup();
+    withClock(first);
+    await rt.connect();
+    const session = world.current() as WorldSession;
+    const areas = session.areas as unknown as {
+      clock: { state: () => { speed: number } };
+    };
+    expect(areas.clock.state()).toEqual({ speed: 0.01 });
+    expect(Object.isFrozen(areas.clock.state())).toBe(true);
+    expect(EVENT_KEYS).toContain("onAreaEvent");
+    expect(typeof session.events.onAreaEvent).toBe("function");
+    expect(world.version).toBe(1);
+    expect(isWorld(world)).toBe(true);
   });
 });

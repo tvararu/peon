@@ -16,7 +16,7 @@ import { awaitRun } from "#harness/runs/wait";
 import { defineGameTool, result } from "#harness/tools/define";
 import type { GameToolSpec } from "#harness/tools/game-tool";
 import { askHuman, nextCall } from "#harness/tools/next-call";
-import { type RecoverArgs, recoverParams } from "#harness/tools/params";
+import { type RecoverArgs, recoverParams } from "#harness/tools/params-recover";
 import { recoverRenderers } from "#harness/ui/renderers/live-run";
 
 type Report = ToolResult<RecoverAfter>;

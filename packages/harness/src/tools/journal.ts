@@ -21,7 +21,7 @@ import { formatLogRows, queryLog } from "#harness/log/query";
 import { questGoal, questTitle } from "#harness/ops/quest-memory";
 import { defineGameTool, result } from "#harness/tools/define";
 import { nextCall } from "#harness/tools/next-call";
-import { type JournalArgs, journalParams } from "#harness/tools/params";
+import { type JournalArgs, journalParams } from "#harness/tools/params-journal";
 import { journalRenderers } from "#harness/ui/renderers/card";
 
 type KnownQuest = Extract<QuestQuery, { status: "known" }>["data"];

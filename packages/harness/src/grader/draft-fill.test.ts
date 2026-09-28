@@ -331,6 +331,191 @@ describe("observedChecks on truth", () => {
     expect(check?.observed).toBeNull();
   });
 
+  test("a spells check gets the sorted spell lists", async () => {
+    const dir = await runDir(files({ spells: [2050, 585, 139] }));
+    const [check] = await observedChecks(dir, [
+      tr("spells", { truth: ["spells"] }),
+    ]);
+    expect(check?.observed).toEqual({
+      baseline: { spells: [585] },
+      final: { spells: [139, 585, 2050] },
+    });
+  });
+
+  const held = (bag: number, slot: number, item: number) => ({
+    bag,
+    count: 1,
+    item,
+    name: `Item ${item}`,
+    slot,
+  });
+  const gear = {
+    inventory: [
+      held(255, 0, 37_594),
+      held(255, 18, 5976),
+      held(255, 19, 51_809),
+      held(255, 23, 6948),
+      held(255, 39, 2589),
+      held(255, 66, 2592),
+      held(255, 73, 4500),
+      held(255, 74, 117),
+      held(255, 86, 30_633),
+      held(0, 0, 159),
+      held(-1, 4, 2770),
+    ],
+  };
+  test("an equipment check gets only the bag 255 rows of slot 0-18", async () => {
+    const dir = await runDir(files(gear));
+    const [check] = await observedChecks(dir, [
+      tr("gear", { truth: ["equipment"] }),
+    ]);
+    expect(check?.observed).toEqual({
+      baseline: {
+        equipment: [
+          {
+            bag: 255,
+            count: 1,
+            item: 2092,
+            name: "Worn Dagger",
+            slot: 15,
+          },
+        ],
+      },
+      final: {
+        equipment: [held(255, 0, 37_594), held(255, 18, 5976)],
+      },
+    });
+  });
+
+  test("a bank check gets the bank bag rows and bag 255 slots 39-73", async () => {
+    const dir = await runDir(files(gear));
+    const [check] = await observedChecks(dir, [
+      tr("bank", { truth: ["bank"] }),
+    ]);
+    expect(check?.observed).toEqual({
+      baseline: { bank: [] },
+      final: {
+        bank: [
+          held(255, 39, 2589),
+          held(255, 66, 2592),
+          held(255, 73, 4500),
+          held(-1, 4, 2770),
+        ],
+      },
+    });
+  });
+
+  test("hearth, reputation and mail picks show baseline and final", async () => {
+    const hearth = { map: 530, x: 10_349.6, y: -6357.29, z: 33.4, zone: 3431 };
+    const dir = await runDir(
+      files({
+        hearth,
+        mail: [
+          { id: 1404, items: 0, money: 150, subject: "Peon" },
+          { id: 1403, items: 1, money: 0, subject: "Peon" },
+        ],
+        reputation: [
+          { faction: 1156, flags: 16, standing: 0 },
+          { faction: 21, flags: 64, standing: 2500 },
+        ],
+      }),
+    );
+    const [check] = await observedChecks(dir, [
+      tr("home", { truth: ["hearth", "reputation", "mail"] }),
+    ]);
+    expect(check?.observed).toEqual({
+      baseline: { hearth: null, mail: null, reputation: null },
+      final: {
+        hearth,
+        mail: [
+          { id: 1403, items: 1, money: 0, subject: "Peon" },
+          { id: 1404, items: 0, money: 150, subject: "Peon" },
+        ],
+        reputation: [
+          { faction: 21, flags: 64, standing: 2500 },
+          { faction: 1156, flags: 16, standing: 0 },
+        ],
+      },
+    });
+  });
+
+  const worn = (
+    slot: number,
+    item: number,
+    durability: number,
+    max: number,
+  ) => ({
+    ...held(255, slot, item),
+    durability,
+    maxDurability: max,
+  });
+  const wear = {
+    inventory: [
+      worn(4, 9749, 12, 50),
+      worn(3, 53, 0, 0),
+      worn(23, 2092, 5, 20),
+    ],
+  };
+  test("durability adds per-item durability to inventory and equipment rows", async () => {
+    const dir = await runDir(files(wear));
+    const [check, plain] = await observedChecks(dir, [
+      tr("repair", { truth: ["inventory", "equipment", "durability"] }),
+      tr("plain", { truth: ["equipment"] }),
+    ]);
+    const final = [worn(4, 9749, 12, 50), worn(3, 53, 0, 0)];
+    expect(check?.observed).toMatchObject({
+      final: {
+        equipment: final,
+        inventory: [...final, worn(23, 2092, 5, 20)],
+      },
+    });
+    expect(plain?.observed).toEqual({
+      baseline: {
+        equipment: [
+          { bag: 255, count: 1, item: 2092, name: "Worn Dagger", slot: 15 },
+        ],
+      },
+      final: { equipment: [held(255, 4, 9749), held(255, 3, 53)] },
+    });
+  });
+
+  test("durability alone lists the rows that can wear", async () => {
+    const dir = await runDir(files(wear));
+    const [check] = await observedChecks(dir, [
+      tr("repair", { truth: ["durability"] }),
+    ]);
+    expect(check?.observed).toEqual({
+      baseline: { durability: [] },
+      final: {
+        durability: [worn(4, 9749, 12, 50), worn(23, 2092, 5, 20)],
+      },
+    });
+  });
+
+  test("a who check shows that partner's truth or why it is missing", async () => {
+    const water = truth().inventory.slice(0, 1);
+    const dir = await runDir({
+      ...files({}),
+      "partner-baseline.json": JSON.stringify(truth({ inventory: [] })),
+      "partner-final.json": JSON.stringify(truth({ inventory: water })),
+      "partner2-baseline.json": JSON.stringify(truth()),
+    });
+    const [traded, missing] = await observedChecks(dir, [
+      tr("traded", { truth: ["inventory"], who: "partner" }),
+      tr("paid", { truth: ["money"], who: "partner2" }),
+    ]);
+    expect(traded?.observed).toEqual({
+      baseline: { inventory: [] },
+      final: { inventory: water },
+    });
+    expect(missing?.met).toBe(false);
+    expect(missing?.observed).toEqual({
+      baseline: { money: 50_000 },
+      final: null,
+      reason: "partner2-final.json is missing",
+    });
+  });
+
   test("a check that selects no truth field gets the whole summary", async () => {
     const dir = await runDir(files({ money: 50_030 }));
     const [check] = await observedChecks(dir, [tr("state")]);

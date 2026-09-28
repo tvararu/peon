@@ -3,6 +3,10 @@ import type {
   ExtensionContext,
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
+import type { ToolName } from "#harness/contract/result";
+import type { GameToolModule } from "#harness/tools/game-tool";
+import { createMockGame, type MockGame } from "#test-support/mock-game";
+import { createTestRuntime } from "#test-support/runtime-fixture";
 
 export type ToolRun<D> = {
   details: D;
@@ -31,4 +35,21 @@ export async function runTool<P extends TSchema, D>(
     .map((part) => (part.type === "text" ? part.text : ""))
     .join("\n");
   return { details: out.details, text, updates };
+}
+
+export async function expectSendKind<N extends ToolName, P extends TSchema, A>(
+  tool: GameToolModule<N, P, A>,
+  args: Static<P>,
+  game: MockGame = createMockGame(),
+): Promise<void> {
+  const { rt } = await createTestRuntime({
+    parts: { login: async () => game },
+  });
+  const before = game.sent.length;
+  await runTool(tool.definition(rt), args);
+  const sent = game.sent.length - before;
+  if (sent > 0 && (tool.kind === "read" || tool.kind === "control"))
+    throw new Error(
+      `${tool.name} is kind ${tool.kind} but sent ${sent} packet(s); a sending tool is kind action or run`,
+    );
 }

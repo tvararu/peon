@@ -24,6 +24,7 @@ import {
   type SpeedAck,
 } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
+import type { MoveFlag } from "#wow/self-store";
 
 const FORWARD: MovementInput = { move: "forward" };
 
@@ -63,7 +64,8 @@ export type ControlEventType =
   | "control_changed"
   | "control_error"
   | "place_changed"
-  | "area_explored";
+  | "area_explored"
+  | "pose_sent";
 
 export type AreaExplored = {
   areaId: number;
@@ -194,6 +196,10 @@ export class ControlRuntime {
 
   setCanFly(counter: number, enable: boolean): void {
     this.sync.setCanFly(counter, enable);
+  }
+
+  moveFlag(flag: MoveFlag, enable: boolean, counter: number): void {
+    this.sync.moveFlag(flag, enable, counter);
   }
 
   follow(guide: MovementGuide, facing: number, durationMs: number): void {

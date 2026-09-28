@@ -2,7 +2,7 @@
 
 The Pi harness is an interactive terminal agent that plays one World of
 Warcraft 3.3.5a character. A model (by default `openai-codex/gpt-6-luna`
-at thinking `off`) acts through ten game tools. A human watches the same
+at thinking `off`) acts through its game tools. A human watches the same
 terminal and can type to the agent at any time. The harness is built on
 `@peon/core` and is the only way to play Peon. The eval scenarios
 that grade it are in [evals.md](evals.md).
@@ -82,6 +82,7 @@ still applies: it refuses the protected accounts and the character
 | `--stop-reflex on\|off` | `on` | When on, a short human message that starts with stop, halt, freeze or hold stops every action before the model reads it. |
 | `--now-per-call` | off | Adds the `[now]` line before every model call, not only at the start of a turn. |
 | `--log-entities` | off | Writes raw entity rows to the game log. |
+| `--packet-trace off\|headers\|bodies` | `off` | `headers` writes one row per game packet to `packets.jsonl`; `bodies` adds each packet body in hex, including whisper and chat text. The login packet never has a body. The eval grader runs every eval with `headers`. |
 | `--extension <path>` | none | Loads a Pi extension file; repeat it for more. See [Extensions](#extensions). |
 | `--check` | off | Checks the profile, the extension paths, the lock and the Codex login, then exits with code 0. |
 
@@ -115,7 +116,7 @@ character.
 
 ## Tools
 
-The model uses only these ten tools. Each result starts with a status
+The model uses only these game tools. Each result starts with a status
 word (`DONE`, `PARTLY`, `RUNNING`, `UNCONFIRMED`, `REFUSED`, `FAILED`).
 A result that is not `DONE` ends with a `Next:` step.
 
@@ -288,13 +289,18 @@ Code inside the repository can call `onWorld(pi, use)` from
   closes. Every read, event payload and game-log entry is a detached,
   frozen copy: changing it throws, and the game's own state never
   changes through it. A session reaches no writer, `close` or `logout`.
+  `session.areas.<area>` has `state()`, a frozen copy of that code
+  area's state, and `onEvent(cb)`, which also ends when the connection
+  closes.
 - **Writes.** Only a claim acts: `world.claim(owner, reason)` asks the
   control rule in [Who controls the character](#who-controls-the-character)
   for `human`, `agent` or `loop`, and returns `undefined` when a higher
   owner holds the character. `claim.act` has `move`, `drive`, `jump`, `face`, `faceGuid`,
   `stopMoving`, `selectTarget`, `cast`, `attack`, `stopAttack`,
   `cancelCast`, `useItem`, `talk`, the loot calls, `sendSay` and
-  `sendWhisper`; each returns a promise. Each claim is its own grant.
+  `sendWhisper`; each returns a promise. `claim.areas.<area>` has only the
+  acts that the area's harness module lists in `worldActs`, under the
+  same rules. Each claim is its own grant.
   A later claim by any owner at the same or a higher rank takes the
   character from it and stops every run, so the claim is lost for good:
   every send rejects with `not_owner`, and `claim.onLost` fires. A send
@@ -379,6 +385,8 @@ A proposed redesign of the screen lives at
 | `tools.json` | Calls, status words, validation errors, repeat refusals and timings per tool. |
 | `runs.jsonl` | One row per run when it ends. |
 | `status.json` | Agent state, active run and last progress, written every second. |
+| `packets.json` | Packet counts by opcode name (`seen` and `unhandled` from the server, `sent` by the client) summed over every game session, and `sessions`. Written when each session closes, whatever `--packet-trace` says. |
+| `packets.jsonl` | With `--packet-trace headers` or `bodies`: one row per packet with `at`, `dir` (`in` or `out`), `opcode` (name, or hex when unnamed), `size` (body bytes), `outcome` for `in` rows (`handled`, `unhandled`, `error`, or `skipped` for a dropped inner move), `via: "compressed"` for a packet inside `SMSG_COMPRESSED_MOVES`, and `body` with `bodies`. Rows are appended at most once a second. |
 | `snapshots/` | Files from `/snapshot`. |
 | `workspace/` | The empty working directory of Pi. |
 

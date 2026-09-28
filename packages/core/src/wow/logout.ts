@@ -6,6 +6,18 @@ import { sendPacket } from "#wow/world-handlers";
 export const LOGOUT_TIMEOUT_MS = 30_000;
 
 export type LogoutOutcome = "complete" | "refused" | "timeout" | "closed";
+export type LogoutRefusal =
+  | "in_combat"
+  | "duel_or_frozen"
+  | "falling"
+  | "unknown";
+export type LogoutResult = { outcome: LogoutOutcome; reason?: LogoutRefusal };
+
+const REFUSALS: Record<number, LogoutRefusal> = {
+  1: "in_combat",
+  2: "duel_or_frozen",
+  3: "falling",
+};
 
 export function parseLogoutResponse(r: PacketReader): {
   result: number;
@@ -18,19 +30,23 @@ export function requestLogout(
   conn: WorldConn,
   closed: Promise<void>,
   timeoutMs: number,
-): Promise<LogoutOutcome> {
-  const { promise, resolve } = Promise.withResolvers<LogoutOutcome>();
-  const timer = setTimeout(() => resolve("timeout"), timeoutMs);
+): Promise<LogoutResult> {
+  const { promise, resolve } = Promise.withResolvers<LogoutResult>();
+  const timer = setTimeout(() => resolve({ outcome: "timeout" }), timeoutMs);
   promise.then(() => clearTimeout(timer));
-  closed.then(() => resolve("closed"));
+  closed.then(() => resolve({ outcome: "closed" }));
   conn.dispatch.on(GameOpcode.SMSG_LOGOUT_RESPONSE, (r) => {
-    if (parseLogoutResponse(r).result !== 0) resolve("refused");
+    const { result } = parseLogoutResponse(r);
+    if (result !== 0)
+      resolve({ outcome: "refused", reason: REFUSALS[result] ?? "unknown" });
   });
-  conn.dispatch.on(GameOpcode.SMSG_LOGOUT_COMPLETE, () => resolve("complete"));
+  conn.dispatch.on(GameOpcode.SMSG_LOGOUT_COMPLETE, () =>
+    resolve({ outcome: "complete" }),
+  );
   try {
     sendPacket(conn, GameOpcode.CMSG_LOGOUT_REQUEST);
   } catch {
-    resolve("closed");
+    resolve({ outcome: "closed" });
   }
   return promise;
 }
