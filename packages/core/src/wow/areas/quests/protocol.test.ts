@@ -1,11 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import {
+  questsGossipPoiBody,
+  questsNpcTextUpdateBody,
   questsQuestgiverStatusMultipleBody,
   questsQuestPoiQueryResponseBody,
 } from "#test-support/areas/quests";
 import {
+  buildNpcTextQuery,
   buildQuestgiverStatusQuery,
   buildQuestPoiQuery,
+  parseGossipPoi,
+  parseNpcTextUpdate,
   parseQuestgiverStatusMultiple,
   parseQuestPoiResponse,
 } from "#wow/areas/quests/protocol";
@@ -113,5 +118,87 @@ describe("quests parsers", () => {
     expect(reader.uint32LE()).toBe(9999);
     const many = Array.from({ length: 26 }, (_, i) => 8000 + i);
     expect(() => buildQuestPoiQuery(many)).toThrow(RangeError);
+  });
+});
+
+const GUARD = 0xf1_30_00_05_8f_00_2b_11n;
+const NO_EMOTES = [
+  { delay: 0, emote: 0 },
+  { delay: 0, emote: 0 },
+  { delay: 0, emote: 0 },
+];
+const EMPTY_OPTION = {
+  probability: 0,
+  text0: "",
+  text1: "",
+  language: 0,
+  emotes: NO_EMOTES,
+};
+
+describe("quests NPC text and gossip POI parsers", () => {
+  test("SMSG_NPC_TEXT_UPDATE reads the id and exactly 8 options (QueryHandler.cpp:325-352)", () => {
+    const greeting = {
+      probability: 1,
+      text0: "Welcome to Sunstrider Isle, $N.",
+      text1: "Welcome to Sunstrider Isle, $N.",
+      language: 7,
+      emotes: [
+        { delay: 0, emote: 1 },
+        { delay: 500, emote: 2 },
+        { delay: 0, emote: 0 },
+      ],
+    };
+    const reader = new PacketReader(
+      questsNpcTextUpdateBody(8281, [
+        greeting,
+        { ...EMPTY_OPTION, probability: 0.5, text0: "Hail, $C." },
+      ]),
+    );
+    const text = parseNpcTextUpdate(reader);
+    expect(reader.remaining).toBe(0);
+    expect(text.textId).toBe(8281);
+    expect(text.options).toHaveLength(8);
+    expect(text.options[0]).toEqual(greeting);
+    expect(text.options[1]).toEqual({
+      ...EMPTY_OPTION,
+      probability: 0.5,
+      text0: "Hail, $C.",
+    });
+    expect(text.options[7]).toEqual(EMPTY_OPTION);
+  });
+
+  test("SMSG_NPC_TEXT_UPDATE for an unknown id is 8 zero-probability 'Greetings $N' options (QueryHandler.cpp:289-305)", () => {
+    const reader = new PacketReader(questsNpcTextUpdateBody(999_999));
+    const text = parseNpcTextUpdate(reader);
+    expect(reader.remaining).toBe(0);
+    expect(text.textId).toBe(999_999);
+    expect(text.options).toEqual(
+      Array.from({ length: 8 }, () => ({
+        ...EMPTY_OPTION,
+        text0: "Greetings $N",
+        text1: "Greetings $N",
+      })),
+    );
+  });
+
+  test("SMSG_GOSSIP_POI reads flags, x, y, icon, importance and name (GossipDef.cpp:262-267)", () => {
+    const poi = {
+      flags: 99,
+      x: -8867.5,
+      y: 673.25,
+      icon: 7,
+      importance: 6,
+      name: "The Gilded Rose",
+    };
+    const reader = new PacketReader(questsGossipPoiBody(poi));
+    expect(parseGossipPoi(reader)).toEqual(poi);
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("CMSG_NPC_TEXT_QUERY is the u32 text id then the u64 guid (QueryHandler.cpp:279-283)", () => {
+    const reader = new PacketReader(buildNpcTextQuery(8281, GUARD));
+    expect(reader.uint32LE()).toBe(8281);
+    expect(reader.uint64LE()).toBe(GUARD);
+    expect(reader.remaining).toBe(0);
   });
 });

@@ -65,8 +65,59 @@ export function questsQuestPoiQueryResponseBody(
   return w.finish();
 }
 
+export type QuestsNpcTextOption = {
+  probability: number;
+  text0: string;
+  text1: string;
+  language: number;
+  emotes: readonly { delay: number; emote: number }[];
+};
+
+const NPC_TEXT_OPTIONS = 8;
+const NPC_TEXT_EMOTES = 3;
+
+export function questsNpcTextUpdateBody(
+  textId: number,
+  options?: readonly QuestsNpcTextOption[],
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(textId);
+  for (let i = 0; i < NPC_TEXT_OPTIONS; i++) {
+    const option = options?.[i];
+    w.floatLE(option?.probability ?? 0);
+    w.cString(options ? (option?.text0 ?? "") : "Greetings $N");
+    w.cString(options ? (option?.text1 ?? "") : "Greetings $N");
+    w.uint32LE(option?.language ?? 0);
+    for (let j = 0; j < NPC_TEXT_EMOTES; j++) {
+      w.uint32LE(option?.emotes[j]?.delay ?? 0);
+      w.uint32LE(option?.emotes[j]?.emote ?? 0);
+    }
+  }
+  return w.finish();
+}
+
 function signed(v: number): Uint8Array {
   const buf = new Uint8Array(4);
   new DataView(buf.buffer).setInt32(0, v, true);
   return buf;
+}
+
+export type QuestsGossipPoi = {
+  flags: number;
+  x: number;
+  y: number;
+  icon: number;
+  importance: number;
+  name: string;
+};
+
+export function questsGossipPoiBody(poi: QuestsGossipPoi): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(poi.flags);
+  w.floatLE(poi.x);
+  w.floatLE(poi.y);
+  w.uint32LE(poi.icon);
+  w.uint32LE(poi.importance);
+  w.cString(poi.name);
+  return w.finish();
 }
