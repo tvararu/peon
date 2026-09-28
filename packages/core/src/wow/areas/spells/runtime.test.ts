@@ -4,12 +4,14 @@ import {
   spellsChannelStartBody,
   spellsChannelUpdateBody,
 } from "#test-support/areas/spells";
+import { spell } from "#test-support/spell-fixtures";
 import type { SpellsEvent } from "#wow/areas/spells/store";
 import type { UnitEntity } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 import { UNIT_FIELDS } from "#wow/protocol/update-fields";
+import type { SpellCatalog, SpellDefinition } from "#wow/spell-catalog";
 
 const ME = 0x2an;
 const MOB = 0xf1_30_00_3e_ea_00_0a_bcn;
@@ -159,6 +161,223 @@ describe("spells runtime", () => {
         type: "channel_end",
       });
       expect(rig.stores.combat.casts.channel).toBeUndefined();
+    } finally {
+      rig.dispose();
+    }
+  });
+});
+
+const FROST_ARMOR = 168;
+const SELF_BUFF_FLAGS = 0x39;
+const AFLAG_NEGATIVE = 0x80;
+const SPELL_ATTR0_PASSIVE = 0x40;
+const SPELL_ATTR0_NO_AURA_CANCEL = 0x80_00_00_00;
+const SPELL_ATTR1_IS_CHANNELED = 0x4;
+
+type AuraRig = ReturnType<typeof areaRig<"spells">>;
+
+function definition(
+  id: number,
+  attributes: { raw?: number; ex?: number },
+): SpellDefinition {
+  return {
+    ...spell(),
+    attributes: { ex: attributes.ex ?? 0, ex2: 0, raw: attributes.raw ?? 0 },
+    id,
+  };
+}
+
+function withCatalog(rig: AuraRig, defs: SpellDefinition[]): void {
+  const byId = new Map(defs.map((def) => [def.id, def]));
+  rig.stores.combat.setCatalog({
+    get: (id: number) => byId.get(id),
+  } as unknown as SpellCatalog);
+}
+
+function withAura(rig: AuraRig, spellId: number, flags = SELF_BUFF_FLAGS) {
+  rig.stores.combat.applyAura({
+    flags,
+    level: 10,
+    removed: false,
+    slot: 3,
+    spellId,
+    stacks: 1,
+    unit: ME,
+  });
+}
+
+function sentSpell(rig: AuraRig): number {
+  return new PacketReader(rig.sent[0]?.body ?? new Uint8Array()).uint32LE();
+}
+
+describe("spells aura cancel", () => {
+  test("cancelAura sends one CMSG_CANCEL_AURA for an own positive buff (SpellHandler.cpp:568-601)", () => {
+    const rig = areaRig("spells", { selfGuid: ME });
+    try {
+      withCatalog(rig, [definition(FROST_ARMOR, {})]);
+      withAura(rig, FROST_ARMOR);
+      expect(rig.handle.act.cancelAura(FROST_ARMOR)).toEqual({ ok: true });
+      expect(rig.sent.map((p) => p.opcode)).toEqual([
+        GameOpcode.CMSG_CANCEL_AURA,
+      ]);
+      expect(sentSpell(rig)).toBe(FROST_ARMOR);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("cancelAura with no spell data still sends for a positive aura", () => {
+    const rig = areaRig("spells", { selfGuid: ME });
+    try {
+      withAura(rig, FROST_ARMOR);
+      expect(rig.handle.act.cancelAura(FROST_ARMOR)).toEqual({ ok: true });
+      expect(sentSpell(rig)).toBe(FROST_ARMOR);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test.each([1.5, 0, -3, Number.NaN])(
+    "cancelAura(%p) refuses with invalid_spell",
+    (id) => {
+      const rig = areaRig("spells", { selfGuid: ME });
+      try {
+        expect(rig.handle.act.cancelAura(id)).toEqual({
+          ok: false,
+          reason: "invalid_spell",
+        });
+        expect(rig.sent).toEqual([]);
+      } finally {
+        rig.dispose();
+      }
+    },
+  );
+
+  test("cancelAura refuses a spell the character has no aura of", () => {
+    const rig = areaRig("spells", { selfGuid: ME });
+    try {
+      withAura(rig, 1459);
+      expect(rig.handle.act.cancelAura(FROST_ARMOR)).toEqual({
+        ok: false,
+        reason: "not_aura",
+      });
+      expect(rig.sent).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("cancelAura refuses an aura another unit wears", () => {
+    const rig = areaRig("spells", { selfGuid: ME });
+    try {
+      rig.stores.combat.applyAura({
+        flags: SELF_BUFF_FLAGS,
+        level: 10,
+        removed: false,
+        slot: 0,
+        spellId: FROST_ARMOR,
+        stacks: 1,
+        unit: MOB,
+      });
+      expect(rig.handle.act.cancelAura(FROST_ARMOR)).toEqual({
+        ok: false,
+        reason: "not_aura",
+      });
+      expect(rig.sent).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test.each([
+    ["an AFLAG_NEGATIVE aura (SpellAuraDefines.h:34)", {}, AFLAG_NEGATIVE],
+    [
+      "a passive spell (SharedDefines.h:376)",
+      { raw: SPELL_ATTR0_PASSIVE },
+      SELF_BUFF_FLAGS,
+    ],
+    [
+      "a SPELL_ATTR0_NO_AURA_CANCEL spell (SharedDefines.h:401)",
+      { raw: SPELL_ATTR0_NO_AURA_CANCEL },
+      SELF_BUFF_FLAGS,
+    ],
+  ] as const)(
+    "cancelAura refuses %s with not_cancellable",
+    (_, attributes, flags) => {
+      const rig = areaRig("spells", { selfGuid: ME });
+      try {
+        withCatalog(rig, [definition(FROST_ARMOR, attributes)]);
+        withAura(rig, FROST_ARMOR, flags);
+        expect(rig.handle.act.cancelAura(FROST_ARMOR)).toEqual({
+          ok: false,
+          reason: "not_cancellable",
+        });
+        expect(rig.sent).toEqual([]);
+      } finally {
+        rig.dispose();
+      }
+    },
+  );
+
+  test("cancelAura on the running channel cancels the channel (SpellHandler.cpp:584-590)", () => {
+    const { rig } = setup();
+    try {
+      withCatalog(rig, [
+        definition(MISSILES, { ex: SPELL_ATTR1_IS_CHANNELED }),
+      ]);
+      expect(rig.handle.act.cancelAura(MISSILES)).toEqual({ ok: true });
+      expect(rig.sent.map((p) => p.opcode)).toEqual([
+        GameOpcode.CMSG_CANCEL_CHANNELLING,
+      ]);
+      expect(sentSpell(rig)).toBe(MISSILES);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("cancelAura on a channelled spell that is not running refuses with not_channelling", () => {
+    const rig = areaRig("spells", { selfGuid: ME });
+    try {
+      withCatalog(rig, [
+        definition(MISSILES, { ex: SPELL_ATTR1_IS_CHANNELED }),
+      ]);
+      expect(rig.handle.act.cancelAura(MISSILES)).toEqual({
+        ok: false,
+        reason: "not_channelling",
+      });
+      expect(rig.sent).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("cancelAura refuses a NO_AURA_CANCEL channel before it cancels it (SpellHandler.cpp:577-581)", () => {
+    const { rig } = setup();
+    try {
+      withCatalog(rig, [
+        definition(MISSILES, {
+          ex: SPELL_ATTR1_IS_CHANNELED,
+          raw: SPELL_ATTR0_NO_AURA_CANCEL,
+        }),
+      ]);
+      expect(rig.handle.act.cancelAura(MISSILES)).toEqual({
+        ok: false,
+        reason: "not_cancellable",
+      });
+      expect(rig.sent).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("cancelGrowthAura sends one empty CMSG_CANCEL_GROWTH_AURA (SpellHandler.cpp:642-644)", () => {
+    const rig = areaRig("spells", { selfGuid: ME });
+    try {
+      expect(rig.handle.act.cancelGrowthAura()).toEqual({ ok: true });
+      expect(rig.sent.map((p) => p.opcode)).toEqual([
+        GameOpcode.CMSG_CANCEL_GROWTH_AURA,
+      ]);
+      expect(rig.sent[0]?.body ?? new Uint8Array()).toHaveLength(0);
     } finally {
       rig.dispose();
     }

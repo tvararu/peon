@@ -4,7 +4,9 @@ import {
   spellsChannelUpdateBody,
 } from "#test-support/areas/spells";
 import {
+  buildCancelAura,
   buildCancelChannelling,
+  buildCancelGrowthAura,
   parseChannelStart,
   parseChannelUpdate,
 } from "#wow/areas/spells/protocol";
@@ -13,6 +15,7 @@ import { PacketReader } from "#wow/protocol/packet";
 const ME = 0x2an;
 const MOB = 0xf1_30_00_3e_ea_00_0a_bcn;
 const ARCANE_MISSILES = 5143;
+const FROST_ARMOR = 168;
 
 describe("spells channel parsers", () => {
   test("MSG_CHANNEL_START reads caster, spell and duration (Spell.cpp:5362-5385)", () => {
@@ -59,5 +62,17 @@ describe("spells channel builders", () => {
     const reader = new PacketReader(buildCancelChannelling(ARCANE_MISSILES));
     expect(reader.uint32LE()).toBe(ARCANE_MISSILES);
     expect(reader.remaining).toBe(0);
+  });
+});
+
+describe("spells aura builders", () => {
+  test("CMSG_CANCEL_AURA is one uint32 spell id (SpellHandler.cpp:568-601)", () => {
+    const reader = new PacketReader(buildCancelAura(FROST_ARMOR));
+    expect(reader.uint32LE()).toBe(FROST_ARMOR);
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("CMSG_CANCEL_GROWTH_AURA has an empty body (SpellHandler.cpp:642-644)", () => {
+    expect(buildCancelGrowthAura()).toHaveLength(0);
   });
 });

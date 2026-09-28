@@ -11,6 +11,17 @@ remaining time and expected end) and stops it with
 `channel_start` and `channel_end`; `channel_end` gives the reason
 `finished`, `interrupted` or `cancelled`.
 
+`act.cancelAura(spellId)` drops one of the character's own auras with
+`CMSG_CANCEL_AURA`. It refuses, and sends nothing, what the server would
+drop in silence: `invalid_spell` for an id that is not a positive
+integer, `not_cancellable` for a spell with `SPELL_ATTR0_NO_AURA_CANCEL`,
+a passive spell or an aura with `AFLAG_NEGATIVE`, and `not_aura` when
+the character wears no aura of the spell. A channelled spell id cancels
+the running channel through `cancelChannel` (`not_channelling` when that
+spell is not the channel). The attribute checks need the spell data;
+without it the act checks only the aura flags. `act.cancelGrowthAura()`
+sends the empty `CMSG_CANCEL_GROWTH_AURA`.
+
 ## Wire notes
 
 - `MSG_CHANNEL_START` is the packed guid of the caster, the `uint32`
@@ -51,6 +62,25 @@ remaining time and expected end) and stops it with
   `wow_message_parser/wowm/world/chat/cmsg_cancel_channelling.wowm`).
   The server ignores it when the spell is not the current channel or has
   `SPELL_ATTR0_NO_AURA_CANCEL`.
+- `CMSG_CANCEL_AURA` is one `uint32` spell id
+  (`Handlers/SpellHandler.cpp:568-601`,
+  `wow_message_parser/wowm/world/spell/cmsg_cancel_aura.wowm`). The
+  server ignores an unknown spell or one that forbids a cancel,
+  interrupts a channelled spell only when it is the current channel,
+  and ignores a spell that is not positive or is passive.
+- The bits the area checks: `SPELL_ATTR0_NO_AURA_CANCEL` 0x80000000
+  (`SharedDefines.h:401`), `SPELL_ATTR0_PASSIVE` 0x40
+  (`SharedDefines.h:376`), `AFLAG_NEGATIVE` 0x80 on the aura for "not
+  positive" (`Spells/Auras/SpellAuraDefines.h:34`), and
+  `SPELL_ATTR1_IS_CHANNELED` 0x4 or `SPELL_ATTR1_IS_SELF_CHANNELED` 0x40
+  for "channelled" (`Spells/SpellInfo.cpp:1301-1304`).
+- A cancelled aura comes back as `SMSG_AURA_UPDATE` for its slot
+  (`Spells/Auras/SpellAuras.cpp:225-240`).
+- A removal writes only the slot and a 0 spell id
+  (`Spells/Auras/SpellAuras.cpp:191-195`).
+- `CMSG_CANCEL_GROWTH_AURA` has no body and the server does nothing with
+  it (`Handlers/SpellHandler.cpp:642-644`,
+  `wow_message_parser/wowm/world/spell/cmsg_cancel_growth_aura.wowm`).
 - The client direction of `MSG_CHANNEL_START` and `MSG_CHANNEL_UPDATE`
   is `Handle_NULL` (`Server/Protocol/Opcodes.cpp:444-445`).
 
@@ -70,7 +100,6 @@ Disagreements for opcodes later tasks build (AzerothCore wins):
 
 ## Left out
 
-- `CMSG_CANCEL_AURA`, `CMSG_CANCEL_GROWTH_AURA`: built by spells-3.
 - `CMSG_SET_ACTION_BUTTON`, `CMSG_SET_ACTIONBAR_TOGGLES`,
   `SMSG_ACTION_BUTTONS`: built by spells-4.
 - `SMSG_SEND_UNLEARN_SPELLS`, `SMSG_SET_FLAT_SPELL_MODIFIER`,
@@ -97,6 +126,8 @@ Stop a channel (proposed; spells-12b).
 | `MSG_CHANNEL_START` | `live` | probe flow `spells-channel` (`--arg spell=5143`, modes `finish`, `cancel` and `hit`, `--expect` 0x139, 0x13a) on an `eversong10-mage` moved to East Sanctum with `soap gm tele EastSanctum`, exit 0 each; received after `SMSG_SPELL_GO` with duration 3000 | `Spells/Spell.cpp:5362-5385` |
 | `MSG_CHANNEL_UPDATE` | `live` | probe flow `spells-channel`, exit 0: mode `finish` got 0 about 3000 ms after the start (`finished`); mode `cancel` got 0 right after the cancel, then `SMSG_SPELL_FAILURE` (`cancelled`); mode `hit` got 1606 after a melee hit, then 0 at the moved end (`finished`) | `Spells/Spell.cpp:5342-5359` |
 | `CMSG_CANCEL_CHANNELLING` | `live` | probe flow `spells-channel` mode `cancel`, exit 0; sent 1 s into the channel, and `MSG_CHANNEL_UPDATE` 0 and `SMSG_SPELL_FAILURE` followed | `Handlers/SpellHandler.cpp:653-684` |
+| `CMSG_CANCEL_AURA` | `live` | probe flow `spells-aura` (`--arg spell=168`, `--expect` 0x496) on an `eversong10-mage`, exit 0 on two runs: Frost Armor applied in slot 0 with flags 0x3b, `CMSG_CANCEL_AURA` body `a8000000` sent, and the next `SMSG_AURA_UPDATE` (body `03ed0d0000000000`) cleared slot 0 within 16 ms | `Handlers/SpellHandler.cpp:568-601` |
+| `CMSG_CANCEL_GROWTH_AURA` | `accepted` | `mise protocol:probe --send CMSG_CANCEL_GROWTH_AURA --wait 3`, exit 0: empty body sent, no error packet, and the session ran on to a normal logout | `Handlers/SpellHandler.cpp:642-644` |
 | `SMSG_SPELL_UPDATE_CHAIN_TARGETS` | `dead` | no send site in AzerothCore `src/` or `modules/`; only the opcode table names it | `Server/Protocol/Opcodes.cpp:947` |
 | `SMSG_RESYNC_RUNES` | `dead` | built only in `Player::ResyncRunes`, whose only call, in `Spell::EffectActivateRune`, is commented out | `Entities/Player/Player.cpp:13746-13756` |
 | `SMSG_ADD_RUNE_POWER` | `dead` | built only in `Player::AddRunePower`, which has no caller | `Entities/Player/Player.cpp:13758-13763` |

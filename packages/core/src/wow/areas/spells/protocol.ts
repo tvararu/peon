@@ -31,3 +31,13 @@ export function buildCancelChannelling(spellId: number): Uint8Array {
   w.uint32LE(spellId);
   return w.finish();
 }
+
+export function buildCancelAura(spellId: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(spellId);
+  return w.finish();
+}
+
+export function buildCancelGrowthAura(): Uint8Array {
+  return new PacketWriter().finish();
+}

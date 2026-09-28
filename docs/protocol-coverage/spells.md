@@ -7,7 +7,7 @@ columns are explained in [the index](../protocol-coverage.md).
 |---|---|---|---|---|
 | `0x128` | `CMSG_SET_ACTION_BUTTON` | client | missing |  |
 | `0x129` | `SMSG_ACTION_BUTTONS` | server | handled |  |
-| `0x136` | `CMSG_CANCEL_AURA` | client | missing |  |
+| `0x136` | `CMSG_CANCEL_AURA` | client | handled |  |
 | `0x139` | `MSG_CHANNEL_START` | both | handled |  |
 | `0x13a` | `MSG_CHANNEL_UPDATE` | both | handled |  |
 | `0x13b` | `CMSG_CANCEL_CHANNELLING` | client | handled |  |
@@ -17,7 +17,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x266` | `SMSG_SET_FLAT_SPELL_MODIFIER` | server | missing |  |
 | `0x267` | `SMSG_SET_PCT_SPELL_MODIFIER` | server | missing |  |
 | `0x27a` | `CMSG_FAR_SIGHT` | client | missing |  |
-| `0x29b` | `CMSG_CANCEL_GROWTH_AURA` | client | missing |  |
+| `0x29b` | `CMSG_CANCEL_GROWTH_AURA` | client | handled |  |
 | `0x2a6` | `SMSG_SPELL_FAILED_OTHER` | server | missing |  |
 | `0x2bf` | `CMSG_SET_ACTIONBAR_TOGGLES` | client | missing |  |
 | `0x330` | `SMSG_SPELL_UPDATE_CHAIN_TARGETS` | server | dead |  |
