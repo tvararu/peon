@@ -9,6 +9,8 @@ import {
 
 const ERONA = "15278";
 
+const PONG_WAIT_MS = 35_000;
+
 type LogRow = { slot: number; questId: number };
 
 function logSlots(handle: WorldHandle): LogRow[] {
@@ -29,13 +31,29 @@ async function run({ handle, settle }: FlowContext): Promise<Json> {
     others(handle).find((entry) => entry.entity.entry === Number(ERONA)),
   );
   quests.act.questgiverHello(row?.entity.guid ?? 0n);
+  const lastSeq = handle.login.state().link.lastSeq;
   quests.act.autoLaunch();
   const logged = await settle(() =>
     handle.getQuestState().lastError?.kind === "stale_dialog"
       ? handle.getQuestState().lastError
       : undefined,
   );
-  const ping = logged !== undefined;
+  const pinged = await new Promise<{ rttMs: number; seq: number } | false>(
+    (resolve) => {
+      const off = handle.onAreaEvent((area) => {
+        if (area.area !== "login" || area.event.type !== "pong") return;
+        if (area.event.seq > lastSeq) {
+          clearTimeout(timer);
+          off();
+          resolve({ rttMs: area.event.rttMs, seq: area.event.seq });
+        }
+      });
+      const timer = setTimeout(() => {
+        off();
+        resolve(false);
+      }, PONG_WAIT_MS);
+    },
+  );
   const before = logSlots(handle);
   const first = before[0];
   const second = before[1];
@@ -59,7 +77,7 @@ async function run({ handle, settle }: FlowContext): Promise<Json> {
     completed: [...(quests.state().completed?.ids ?? [])].sort((a, b) => a - b),
     giver: row ? summary(row) : null,
     helloSent: row !== undefined,
-    ping,
+    ping: pinged,
     staleDialog: logged !== undefined,
     swapped,
   };
@@ -69,5 +87,5 @@ export const flow: ProbeFlow = {
   name: "quests-extras",
   run,
   usage:
-    "--flow quests-extras: send CMSG_QUESTGIVER_HELLO to Magistrix Erona (entry 15278), CMSG_QUESTGIVER_QUEST_AUTOLAUNCH, swap log slots 0 and 1, and print the quest log before and after plus the completed ids. The hello reaches QuestStore with no pending intent, so it records stale_dialog (SR1-quests-13).",
+    "--flow quests-extras: send CMSG_QUESTGIVER_HELLO to Magistrix Erona (entry 15278), CMSG_QUESTGIVER_QUEST_AUTOLAUNCH, wait for the next SMSG_PONG and report it as ping, swap log slots 0 and 1, and print the quest log before and after plus the completed ids. The hello reaches QuestStore with no pending intent, so it records stale_dialog (SR1-quests-13).",
 };
