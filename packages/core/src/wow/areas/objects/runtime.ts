@@ -4,10 +4,13 @@ import {
   buildAreaTrigger,
   buildGameObjReportUse,
   buildGameObjUse,
+  buildPageTextQuery,
 } from "#wow/areas/objects/protocol";
 import type {
   ObjectsEvent,
   ObjectsStore,
+  PageChain,
+  UnansweredPage,
   UseRecord,
   UseRefusal,
 } from "#wow/areas/objects/store";
@@ -19,8 +22,12 @@ import type { CoreStores } from "#wow/session-stores";
 export type ObjectsActs = {
   enterTrigger: (triggerId: number) => void;
   use: (guid: bigint) => UseOutcome;
+  readPage: (pageId: number) => Promise<PageChain | UnansweredPage>;
 };
 export type UseOutcome = { ok: true; record: UseRecord } | UseRefusal;
+
+export const PAGE_READ_TIMEOUT_MS = 5000;
+export const PAGE_READ_MAX_PAGES = 30;
 
 const ARRIVALS = new Set(["teleport", "near_teleport", "new_world"]);
 
@@ -57,6 +64,33 @@ export function objectsRuntime(
     ctx.send(GameOpcode.CMSG_GAMEOBJ_REPORT_USE, buildGameObjReportUse(guid));
     return { ok: true as const, record };
   }
+  async function readPage(
+    firstPageId: number,
+  ): Promise<PageChain | UnansweredPage> {
+    const pages = store.chain(firstPageId);
+    if (pages.length > 0) return { firstPageId, pages: [...pages] };
+    const settled = ctx.until(
+      (event) =>
+        (event.type === "page_read" && event.firstPageId === firstPageId) ||
+        (event.type === "page_unanswered" && event.pageId === firstPageId),
+      { timeoutMs: PAGE_READ_TIMEOUT_MS },
+    );
+    ctx.send(
+      GameOpcode.CMSG_PAGE_TEXT_QUERY,
+      buildPageTextQuery(firstPageId, ctx.selfGuid() ?? 0n),
+    );
+    try {
+      const event = await settled;
+      if (event.type === "page_read")
+        return { firstPageId: event.firstPageId, pages: [...event.pages] };
+      if (event.type === "page_unanswered") return { pageId: firstPageId };
+      store.unanswered(firstPageId);
+      return { pageId: firstPageId };
+    } catch {
+      store.unanswered(firstPageId);
+      return { pageId: firstPageId };
+    }
+  }
   function arrival(event: SelfEvent): void {
     if (event.type === "login_verified" || event.type === "new_world")
       store.arrive(event.position);
@@ -73,7 +107,7 @@ export function objectsRuntime(
   });
   const offSelf = core.self.onEvent(arrival);
   return {
-    act: { enterTrigger, use },
+    act: { enterTrigger, readPage, use },
     dispose: () => {
       offControl();
       offSelf();

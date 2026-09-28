@@ -5,8 +5,10 @@ import {
   objectsAreaTriggerDbc,
   objectsAreaTriggerMessageBody,
   objectsGameObjUseBody,
+  objectsPageTextQueryResponseBody,
 } from "#test-support/areas/objects";
 import { dbcFiles } from "#test-support/dbc";
+import { elapse, withFakeTimers } from "#test-support/fake-time";
 import { EntityStore } from "#test-support/internals";
 import { testStores } from "#test-support/session-fixtures";
 import { createModuleRuntimes, looseModule } from "#wow/areas/compose";
@@ -321,5 +323,117 @@ describe("objects runtime area triggers", () => {
     rig.dispose();
     control("pose_sent", INSIDE);
     expect(triggersSent()).toEqual([]);
+  });
+});
+
+describe("objects runtime page text", () => {
+  test("readPage resolves once with the chained pages (QueryHandler.cpp:367, :391)", async () => {
+    const { rig } = await rigWith();
+    try {
+      const events: unknown[] = [];
+      rig.handle.onEvent((event) => events.push(event));
+      const pending = rig.handle.act.readPage(2936);
+      expect(rig.sent.map((packet) => packet.opcode)).toEqual([
+        GameOpcode.CMSG_PAGE_TEXT_QUERY,
+      ]);
+      rig.inject(
+        GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
+        objectsPageTextQueryResponseBody(2936, "First page.", 2937),
+      );
+      rig.inject(
+        GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
+        objectsPageTextQueryResponseBody(2937, "Second page.", 0),
+      );
+      const outcome = await pending;
+      expect(outcome).toEqual({
+        firstPageId: 2936,
+        pages: [
+          { pageId: 2936, text: "First page." },
+          { pageId: 2937, text: "Second page." },
+        ],
+      });
+      expect(events).toEqual([{ type: "page_read", ...outcome }]);
+      expect(rig.sent.length).toBe(1);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("readPage sends nothing for a cached chain (QueryHandler.cpp:367)", async () => {
+    const { rig } = await rigWith();
+    try {
+      const first = rig.handle.act.readPage(2936);
+      rig.inject(
+        GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
+        objectsPageTextQueryResponseBody(2936, "First page.", 0),
+      );
+      await first;
+      const before = rig.sent.length;
+      await expect(rig.handle.act.readPage(2936)).resolves.toEqual({
+        firstPageId: 2936,
+        pages: [{ pageId: 2936, text: "First page." }],
+      });
+      expect(rig.sent.length).toBe(before);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("readPage of a missing chain stops at the missing reply (QueryHandler.cpp:374-379)", async () => {
+    const { rig } = await rigWith();
+    try {
+      const pending = rig.handle.act.readPage(2_147_483_647);
+      rig.inject(
+        GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
+        objectsPageTextQueryResponseBody(
+          2_147_483_647,
+          "Item page missing.",
+          0,
+        ),
+      );
+      await expect(pending).resolves.toEqual({
+        firstPageId: 2_147_483_647,
+        pages: [{ pageId: 2_147_483_647, text: "Item page missing." }],
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("readPage reads thirty sequential pages then stops (QueryHandler.cpp:367)", async () => {
+    const { rig } = await rigWith();
+    try {
+      const pending = rig.handle.act.readPage(100);
+      for (let pageId = 100; pageId < 130; pageId++)
+        rig.inject(
+          GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
+          objectsPageTextQueryResponseBody(
+            pageId,
+            `Page ${pageId}.`,
+            pageId + 1,
+          ),
+        );
+      const outcome = await pending;
+      expect(outcome).toMatchObject({ firstPageId: 100 });
+      expect("pages" in outcome && outcome.pages).toHaveLength(30);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("readPage without a reply times out after 5 s and emits page_unanswered", async () => {
+    await withFakeTimers(async () => {
+      const rig = areaRig("objects");
+      try {
+        const events: unknown[] = [];
+        rig.handle.onEvent((event) => events.push(event));
+        const pending = rig.handle.act.readPage(2936);
+        await elapse(5000);
+        await expect(pending).resolves.toEqual({ pageId: 2936 });
+        expect(events).toEqual([{ type: "page_unanswered", pageId: 2936 }]);
+      } finally {
+        rig.dispose();
+      }
+    });
   });
 });

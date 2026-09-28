@@ -1,21 +1,24 @@
 # objects
 
 The `objects` area keeps the game object templates the server sends,
-uses game objects and sends area triggers as the character moves, and
-keeps the messages the server answers them with. World-service code
-reads it through `session.areas.objects.state()`: `templates` maps each
-entry to its template (type, display, names, the 24 data words, size,
-the quest items that are set, and the lock id, page id and quest id
-read from the data words by type, as
-`GameObjectTemplate::GetLockId` does,
+uses game objects and sends area triggers as the character moves, keeps
+the messages the server answers them with, and reads the page text of
+books, plaques and shrines. World-service code reads it through
+`session.areas.objects.state()`: `templates` maps each entry to its
+template (type, display, names, the 24 data words, size, the quest items
+that are set, and the lock id, page id and quest id read from the data
+words by type, as `GameObjectTemplate::GetLockId` does,
 `Entities/GameObject/GameObjectData.h:428-457`); `pendingUse` holds the
 guid and entry of the last use and when it was sent, expiring after 5
-s; `triggers` holds the state of the `AreaTrigger.dbc` catalog, the
-current map, the triggers the character stands in and the triggers it
-has sent this session; `lastMessage` holds the last trigger message
-and when it arrived. The area emits `used`, `trigger_sent` and
-`trigger_message` events, and its acts `use(guid)` uses one object by
-hand and `enterTrigger(id)` sends one trigger by hand.
+s; `pages` caches each read page chain by its first page id; `triggers`
+holds the state of the `AreaTrigger.dbc` catalog, the current map, the
+triggers the character stands in and the triggers it has sent this
+session; `lastMessage` holds the last trigger message and when it
+arrived. The area emits `used`, `trigger_sent`, `trigger_message`,
+`page_read`, `page_shown` and `page_unanswered` events, and its acts
+`use(guid)` uses one object by hand, `enterTrigger(id)` sends one
+trigger by hand, and `readPage(pageId)` resolves once with the chained
+pages, timing out after 5 s.
 
 ## Wire notes
 
@@ -35,9 +38,21 @@ hand and `enterTrigger(id)` sends one trigger by hand.
   `int16` path progress (`Entities/GameObject/GameObject.cpp:2843-2844`).
   `GAMEOBJECT_CREATED_BY` is a guid over two fields. The area reads both
   from an object's raw fields with `objectFields(entity)`.
+- `CMSG_PAGE_TEXT_QUERY` is a `uint32` page id and then a `uint64` guid
+  the server skips (`Handlers/QueryHandler.cpp:361-366`).
 - `SMSG_PAGE_TEXT_QUERY_RESPONSE` answers one `CMSG_PAGE_TEXT_QUERY` with
   the whole page chain, one packet per page
-  (`Handlers/QueryHandler.cpp:367`, `:391`).
+  (`Handlers/QueryHandler.cpp:367`, `:391`): each packet is a `uint32`
+  page id, a C string and a `uint32` next page id. A missing page answers
+  "Item page missing." with next page 0
+  (`Handlers/QueryHandler.cpp:374-379`). The area keeps each chain under
+  its first page id, reads at most 30 pages, and emits `page_read`;
+  without a reply `readPage` times out after 5 s and emits
+  `page_unanswered`.
+- `SMSG_GAMEOBJECT_PAGETEXT` is one object guid of 8 bytes
+  (`Entities/GameObject/GameObject.cpp:1630-1634`). The area looks up the
+  object's template page id and emits `page_shown`. A type-10 goober with
+  a page id answers the use with this packet.
 - The guid of `SMSG_GAMEOBJECT_DESPAWN_ANIM` is not always a game
   object's.
   - A dynamic object sends the despawn animation with its own guid when
@@ -83,8 +98,6 @@ character back through a portal.
 
 ## Left out
 
-- `CMSG_PAGE_TEXT_QUERY`, `SMSG_PAGE_TEXT_QUERY_RESPONSE` and
-  `SMSG_GAMEOBJECT_PAGETEXT`: built by `objects-3`.
 - `SMSG_GAMEOBJECT_CUSTOM_ANIM`, `SMSG_GAMEOBJECT_DESPAWN_ANIM`,
   `SMSG_FISH_NOT_HOOKED` and `SMSG_FISH_ESCAPED`: built by `objects-6`.
 
@@ -100,3 +113,6 @@ No verb for area triggers: core sends them while the character walks.
 | `SMSG_AREA_TRIGGER_MESSAGE` | `live` | probe flow `objects-trigger` (`--arg to=` the centre of trigger 78) on a level 1 `elwynn1` character moved with `soap gm tele TheDeadmines`, exit 0; the watcher sent trigger 78 and the flow reported the message "You must be at least level 10 to enter." | `Server/WorldSession.cpp:288-298` |
 | `CMSG_GAMEOBJ_USE` | `live` | probe flow `objects-use` (`--arg entry=192709`, "The Schools of Arcane Magic - Abjuration", a type-10 goober with a page id) on a `fresh` character moved with `soap gm tele DalaranVisitorCenter`, exit 0; the flow walked to 2.0 yd, sent the use with the report use, and the server answered `SMSG_GAMEOBJECT_PAGETEXT` 4 ms later plus `SMSG_CRITERIA_UPDATE` | `Handlers/SpellHandler.cpp:336-346`, `Entities/GameObject/GameObject.cpp:1630-1634` |
 | `CMSG_GAMEOBJ_REPORT_USE` | `accepted` | the same run sent the report use right after the use, with no disconnect and no error packet; builder tests cover the 8-byte body against `Handlers/SpellHandler.cpp:350-376` | `Handlers/SpellHandler.cpp:350-376` |
+| `CMSG_PAGE_TEXT_QUERY` | `live` | probe flow `objects-read` (`--arg page=2936`) on a `fresh` character, exit 0; the client sent one `CMSG_PAGE_TEXT_QUERY` and the server answered `SMSG_PAGE_TEXT_QUERY_RESPONSE` with the shrine text starting "You have discovered the location of the shrine!" | `Handlers/QueryHandler.cpp:361-366` |
+| `SMSG_PAGE_TEXT_QUERY_RESPONSE` | `live` | the same run read page 2936 in one packet; a second run with `--arg page=2147483647` answered "Item page missing." with next page 0 | `Handlers/QueryHandler.cpp:367-392` |
+| `SMSG_GAMEOBJECT_PAGETEXT` | `accepted` | the `CMSG_GAMEOBJ_USE` proof run on entry 192709 captured the server's `SMSG_GAMEOBJECT_PAGETEXT` in the trace; builder tests cover the 8-byte guid body against `Entities/GameObject/GameObject.cpp:1630-1634` | `Entities/GameObject/GameObject.cpp:1630-1634` |

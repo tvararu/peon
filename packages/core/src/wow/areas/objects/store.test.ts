@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
+  objectsGameObjectPageTextBody,
   objectsGameObjectQueryMissingBody,
   objectsGameObjectQueryResponseBody,
+  objectsPageTextQueryResponseBody,
 } from "#test-support/areas/objects";
 import { testStores } from "#test-support/session-fixtures";
 import { ObjectsStore } from "#wow/areas/objects/store";
@@ -151,6 +153,112 @@ describe("ObjectsStore templates", () => {
         objectsGameObjectQueryMissingBody(161_557),
       );
       expect(rig.handle.state().templates.size).toBe(0);
+    } finally {
+      rig.dispose();
+    }
+  });
+});
+
+describe("ObjectsStore page text", () => {
+  test("one query answers a two-page chain with one packet per page (QueryHandler.cpp:367, :391)", async () => {
+    const rig = areaRig("objects");
+    try {
+      const pending = rig.handle.act.readPage(2936);
+      expect(rig.sent.map((packet) => packet.opcode)).toEqual([
+        GameOpcode.CMSG_PAGE_TEXT_QUERY,
+      ]);
+      const events: unknown[] = [];
+      rig.stores.areas.objects.onEvent((event) => events.push(event));
+      rig.inject(
+        GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
+        objectsPageTextQueryResponseBody(2936, "First page.", 2937),
+      );
+      rig.inject(
+        GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
+        objectsPageTextQueryResponseBody(2937, "Second page.", 0),
+      );
+      await expect(pending).resolves.toEqual({
+        firstPageId: 2936,
+        pages: [
+          { pageId: 2936, text: "First page." },
+          { pageId: 2937, text: "Second page." },
+        ],
+      });
+      expect(events).toEqual([
+        {
+          type: "page_read",
+          firstPageId: 2936,
+          pages: [
+            { pageId: 2936, text: "First page." },
+            { pageId: 2937, text: "Second page." },
+          ],
+        },
+      ]);
+      expect(rig.handle.state().pages.get(2936)).toEqual([
+        { pageId: 2936, text: "First page." },
+        { pageId: 2937, text: "Second page." },
+      ]);
+      expect(rig.sent.length).toBe(1);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a cached chain sends nothing (QueryHandler.cpp:367)", async () => {
+    const rig = areaRig("objects");
+    try {
+      const first = rig.handle.act.readPage(2936);
+      rig.inject(
+        GameOpcode.SMSG_PAGE_TEXT_QUERY_RESPONSE,
+        objectsPageTextQueryResponseBody(2936, "First page.", 0),
+      );
+      await first;
+      const events: unknown[] = [];
+      rig.stores.areas.objects.onEvent((event) => events.push(event));
+      const before = rig.sent.length;
+      await expect(rig.handle.act.readPage(2936)).resolves.toEqual({
+        firstPageId: 2936,
+        pages: [{ pageId: 2936, text: "First page." }],
+      });
+      expect(rig.sent.length).toBe(before);
+      expect(events).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a shown page reports the object guid and the template page id (GameObject.cpp:1632)", () => {
+    const SHRINE = 0xf1_10_2c_14_00_00_52_80n;
+    const rig = areaRig("objects", {
+      getEntity: (guid) =>
+        guid === SHRINE
+          ? ({
+              entry: 192_709,
+              guid,
+              objectType: 5,
+            } as never)
+          : undefined,
+    });
+    try {
+      rig.inject(
+        GameOpcode.SMSG_GAMEOBJECT_QUERY_RESPONSE,
+        objectsGameObjectQueryResponseBody({
+          data: [0, 0, 0, 0, 0, 0, 0, 2936],
+          displayId: 3012,
+          entry: 192_709,
+          name: "The Schools of Arcane Magic - Abjuration",
+          type: 10,
+        }),
+      );
+      const events: unknown[] = [];
+      rig.stores.areas.objects.onEvent((event) => events.push(event));
+      rig.inject(
+        GameOpcode.SMSG_GAMEOBJECT_PAGETEXT,
+        objectsGameObjectPageTextBody(SHRINE),
+      );
+      expect(events).toEqual([
+        { type: "page_shown", guid: SHRINE, pageId: 2936 },
+      ]);
     } finally {
       rig.dispose();
     }

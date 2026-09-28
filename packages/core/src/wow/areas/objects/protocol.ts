@@ -25,3 +25,30 @@ export function buildGameObjReportUse(guid: bigint): Uint8Array {
   w.uint64LE(guid);
   return w.finish();
 }
+
+export type PageTextReply = {
+  pageId: number;
+  text: string;
+  nextPageId: number;
+};
+
+export type GameObjectPageText = { guid: bigint };
+
+export function buildPageTextQuery(pageId: number, guid: bigint): Uint8Array {
+  const w = new PacketWriter(12);
+  w.uint32LE(pageId);
+  w.uint64LE(guid);
+  return w.finish();
+}
+
+export function parsePageText(r: PacketReader): PageTextReply {
+  const pageId = r.uint32LE();
+  const text = r.cString();
+  const nextPageId = r.uint32LE();
+  return { pageId, text, nextPageId };
+}
+
+export function parseGameObjectPageText(r: PacketReader): GameObjectPageText {
+  const guid = r.uint64LE();
+  return { guid };
+}

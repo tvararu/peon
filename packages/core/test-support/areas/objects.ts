@@ -62,6 +62,24 @@ export function objectsGameObjUseBody(guid: bigint): Uint8Array {
   return w.finish();
 }
 
+export function objectsPageTextQueryResponseBody(
+  pageId: number,
+  text: string,
+  nextPageId: number,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(pageId);
+  w.cString(text);
+  w.uint32LE(nextPageId);
+  return w.finish();
+}
+
+export function objectsGameObjectPageTextBody(guid: bigint): Uint8Array {
+  const w = new PacketWriter(8);
+  w.uint64LE(guid);
+  return w.finish();
+}
+
 const floatBits = new DataView(new ArrayBuffer(4));
 
 function bitsOf(value: number): number {
