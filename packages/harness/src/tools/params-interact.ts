@@ -20,6 +20,7 @@ export const interactParams = Type.Object({
         "sell_junk",
         "train",
         "repair",
+        "bind",
       ],
       { description: "Default talk: list what this NPC offers." },
     ),

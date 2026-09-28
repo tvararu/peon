@@ -141,7 +141,8 @@ export type InteractAction =
   | "buy"
   | "sell_junk"
   | "train"
-  | "repair";
+  | "repair"
+  | "bind";
 
 export type QuestOffer = {
   line: number;

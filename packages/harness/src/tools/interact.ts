@@ -14,6 +14,7 @@ import { type LegResult, travelLeg } from "#harness/ops/travel-leg";
 import { reachNext } from "#harness/ops/unreached";
 import { defineGameTool, emptyUnit, result } from "#harness/tools/define";
 import type { GameToolSpec } from "#harness/tools/game-tool";
+import { bindStep } from "#harness/tools/interact-bind";
 import {
   acceptStep,
   baseAfter,
@@ -145,6 +146,7 @@ const STEPS = new Map<string, InteractStep>([
   ["sell_junk", sellJunkStep],
   ["train", trainStep],
   ["repair", repairStep],
+  ["bind", bindStep],
 ]);
 
 function objectTalk(ctx: ToolCtx<InteractAfter>, text: string): NpcTarget {
