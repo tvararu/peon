@@ -24,7 +24,12 @@ any other event:
 - `combatlog/killing_blow` when another player kills the character's
   target (`ourTarget` 1, `bySelf` 0, `killerKind` `player`). A kill by
   the character writes no row here; its `combat/kill_credit` row covers
-  it.
+  it. The server's `SMSG_PARTYKILLLOG` names the loot recipient as the
+  killer and goes only to that player or its group
+  (`Entities/Unit/Unit.cpp:13593`, `Entities/Unit/Unit.cpp:13611`), so
+  the row fires only when a member of the character's group gets the
+  kill credit; a stranger who kills the character's target is never
+  seen.
 
 A power update
 goes to the unit in the entity store, not to the combat log.
@@ -167,7 +172,8 @@ game log rows (240 `log`, 3 `passive`) over 12 agent turns, about 20 rows
 per turn. The run received 25 `SMSG_ATTACKERSTATEUPDATE`, 15
 `SMSG_SPELLNONMELEEDAMAGELOG` and 2 `SMSG_PARTYKILLLOG`, all `handled`.
 Both kill logs were kills by the character, which write no row. A
-creature took the third kill, and the server sends no kill log for a
-creature killer (`Entities/Unit/Unit.cpp:13581-13584`). No
+creature took the third kill, and no player earned the kill, so the
+reward was not allowed (`Entities/Unit/Unit.cpp:13551-13557`) and the
+server sent no kill log (`Entities/Unit/Unit.cpp:13581`). No
 `combatlog/immune` or `combatlog/killing_blow` row has been seen live:
 the area test writes both rows from hand-built entries.
