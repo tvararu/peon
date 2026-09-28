@@ -1,0 +1,40 @@
+{
+  "botRisk": "med",
+  "budget": {
+    "minutes": 6,
+    "tools": 30,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["travel/home_set"]
+      },
+      "expect": "GL has a travel/home_set row whose data names area 3665 (Falconwing Square, the inn of Marniel Amberlight at 8700.4, -6638.4, map 530)",
+      "id": "home-set",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "point": {
+          "x": 8700.4,
+          "y": -6638.4
+        },
+        "truth": ["hearth"]
+      },
+      "expect": "T final hearth within 15 yd of marniel (8700.4, -6638.4, map 530); creature spawn and live nearby agree on this point",
+      "id": "hearth-at-inn",
+      "source": "truth"
+    }
+  ],
+  "id": "t8-travel-bind-inn",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "eversong10",
+  "setup": [],
+  "steers": [],
+  "task": "Make this inn your home: find the innkeeper Marniel Amberlight in Falconwing Square and bind there with interact do bind.",
+  "tier": 8
+}

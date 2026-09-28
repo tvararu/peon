@@ -1,0 +1,60 @@
+{
+  "botRisk": "med",
+  "budget": {
+    "minutes": 6,
+    "tools": 30,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "evidence": {
+        "point": {
+          "x": 8700.4,
+          "y": -6638.4
+        }
+      },
+      "expect": "T final position within 15 yd of the home (8700.4, -6638.4, map 530) set by the hearth setup step",
+      "id": "at-home",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "items": [6948],
+        "truth": ["inventory"]
+      },
+      "expect": "the Hearthstone (item 6948) is still in T final inventory",
+      "id": "stone-kept",
+      "source": "truth"
+    }
+  ],
+  "id": "t8-travel-hearth-home",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "eversong10",
+  "setup": [
+    {
+      "body": {
+        "map": 530,
+        "x": 8700.4,
+        "y": -6638.4,
+        "z": 72.8,
+        "zone": 3665
+      },
+      "endpoint": "hearth"
+    },
+    {
+      "body": {
+        "map": 530,
+        "x": 9000,
+        "y": -6000,
+        "z": 70
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Use your hearthstone to go home: travel to hearth.",
+  "tier": 8
+}
