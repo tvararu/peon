@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { lootingLootListBody } from "#test-support/areas/looting";
-import { buildOptOutOfLoot, parseLootList } from "#wow/areas/looting/protocol";
+import {
+  buildLootMethod,
+  buildOptOutOfLoot,
+  LOOT_METHOD_NAMES,
+  LOOT_THRESHOLD_NAMES,
+  parseLootList,
+} from "#wow/areas/looting/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 
 const CREATURE = 0xf1_30_00_3d_28_01_28_c6n;
@@ -50,5 +56,31 @@ describe("looting parsers", () => {
   test("CMSG_OPT_OUT_OF_LOOT writes u32 1 to pass and 0 to stop (GroupHandler.cpp:1143-1152)", () => {
     expect(buildOptOutOfLoot(true)).toEqual(new Uint8Array([1, 0, 0, 0]));
     expect(buildOptOutOfLoot(false)).toEqual(new Uint8Array([0, 0, 0, 0]));
+  });
+
+  test("CMSG_LOOT_METHOD writes u32 method, u64 master and u32 threshold (GroupHandler.cpp:518-521)", () => {
+    expect(buildLootMethod(2, 0xdcen, 2)).toEqual(
+      new Uint8Array([2, 0, 0, 0, 0xce, 0x0d, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0]),
+    );
+    expect(buildLootMethod(3, 0n, 4)).toEqual(
+      new Uint8Array([3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0]),
+    );
+  });
+
+  test("loot method names follow LootMgr.h:56-63 and thresholds start at uncommon (SharedDefines.h:315-323)", () => {
+    expect(LOOT_METHOD_NAMES).toEqual([
+      "free_for_all",
+      "round_robin",
+      "master_loot",
+      "group_loot",
+      "need_before_greed",
+    ]);
+    expect(LOOT_THRESHOLD_NAMES).toEqual([
+      "uncommon",
+      "rare",
+      "epic",
+      "legendary",
+      "artifact",
+    ]);
   });
 });

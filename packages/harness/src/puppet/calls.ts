@@ -28,6 +28,35 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   sendRaid: { args: ["string"], run: (h, a) => h.sendRaid(text(a, 0)) },
   sendSay: { args: ["string"], run: (h, a) => h.sendSay(text(a, 0)) },
   setLeader: { args: ["string"], run: (h, a) => h.setLeader(text(a, 0)) },
+  setLootMethod: {
+    args: [
+      [
+        "free_for_all",
+        "round_robin",
+        "master_loot",
+        "group_loot",
+        "need_before_greed",
+      ] satisfies Parameters<
+        WorldHandle["looting"]["act"]["setLootMethod"]
+      >[0]["method"][],
+      [
+        "uncommon",
+        "rare",
+        "epic",
+        "legendary",
+        "artifact",
+      ] satisfies Parameters<
+        WorldHandle["looting"]["act"]["setLootMethod"]
+      >[0]["threshold"][],
+      "string",
+    ],
+    run: (h, a) =>
+      h.looting.act.setLootMethod({
+        master: text(a, 2),
+        method: a[0] as never,
+        threshold: a[1] as never,
+      }),
+  },
   setPassOnLoot: {
     args: [["off", "on"]],
     run: (h, a) => h.looting.act.setPassOnLoot(a[0] === "on"),
