@@ -136,6 +136,7 @@ export const ROUND_1: readonly string[] = [
   "t0-self-state",
   "t8-items-equip-upgrade",
   "t8-items-unequip",
+  "t8-items-move",
 ];
 
 const DIR = `${import.meta.dir}/scenarios`;

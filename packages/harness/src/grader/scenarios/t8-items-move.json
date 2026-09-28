@@ -1,0 +1,39 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 6,
+    "tools": 10,
+    "turns": 5
+  },
+  "checks": [
+    {
+      "evidence": {
+        "items": [6948],
+        "truth": ["inventory"]
+      },
+      "expect": "T final has item 6948 (Hearthstone) in a row inside the bag in bag slot 19: truth counts equipped bags from 0, so the row has bag 0 (docs/areas/items.md)",
+      "id": "hearth-in-bag",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["items/moved"],
+        "ids": [6948]
+      },
+      "expect": "GL has an items/moved row for item 6948",
+      "id": "moved-row",
+      "source": "game_log"
+    }
+  ],
+  "id": "t8-items-move",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "eversong10",
+  "setup": [],
+  "spawn": "eversong",
+  "steers": [],
+  "task": "Move your hearthstone into bag 19, your first bag.",
+  "tier": 8
+}
