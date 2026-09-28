@@ -1,22 +1,32 @@
 # quests
 
 The `quests` area keeps the quest-giver marks the server sends for the
-givers in view. World-service code reads them through
+givers in view, and the map regions where each logged quest's objectives
+are done. World-service code reads them through
 `session.areas.quests.state().marks`: one entry per giver guid with the
 dialog status, when it arrived and whether it came from the multiple
 packet or a single status reply. `markOf(status)` names a status as
 `available`, `available_low`, `available_repeatable`, `reward`,
 `incomplete` or `none`. The area emits a `marks` event only when a
-giver's status changes, appears or goes away.
+giver's status changes, appears or goes away. POIs live in
+`state().pois`: one entry per quest id with `pending`, `known`, `none`
+or `no_reply` and the `QuestPoi` list, matched by quest id because the
+server answers in `unordered_set` order. A `poi` event fires per settled
+quest.
 
 The runtime sends one `CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY` 500 ms
 after the last trigger, and at most once every 2 s. A trigger is a unit
 with the quest-giver NPC flag or a quest-giver game object coming into
 view with no mark, an update that gives a unit the flag, or a quest
-accepted, removed, completed or failed. A giver that leaves view loses its
-mark. The acts are `queryGiverStatus(guid)`, which sends the single query
-for a creature or game object in view, and `queryGiverStatuses()`, which
-sends the multiple query at once.
+mark. The runtime also queues a `CMSG_QUEST_POI_QUERY` when a quest is
+accepted, when the quest log changes, or through `queryPoi(ids)`, in
+packets of at most 25 ids with duplicates removed. A quest with no POIs
+becomes `none`; an id with no reply after `REPLY_TIMEOUT_MS` (5000)
+becomes `no_reply`, and the next log change queries it once more. The
+acts are `queryGiverStatus(guid)`, which sends the single query
+for a creature or game object in view, `queryGiverStatuses()`, which
+sends the multiple query at once, and `queryPoi(ids)`, which returns the
+known entries.
 
 ## Wire notes
 
@@ -40,6 +50,17 @@ sends the multiple query at once.
   (`Handlers/QuestHandler.cpp:44-48`).
 - The status values are AzerothCore's `QuestGiverStatus` enum 0-10
   (`Quests/QuestDef.h:110-126`).
+- The POI reply is a `uint32` count, then per quest the `uint32` quest id
+  and the `uint32` POI count, then per POI the `uint32` POI index, the
+  `int32` objective index, the `uint32` map, area, floor, `Unk3` and
+  `Unk4` fields, the `uint32` point count and the `int32` point x and y
+  (`Handlers/QueryHandler.cpp:427-479`). A quest with no POIs, or one
+  not in the log, comes back with a POI count of 0
+  (`Handlers/QueryHandler.cpp:434-438,471-476`). The client query is a
+  `uint32` count and the `uint32` quest ids
+  (`Handlers/QueryHandler.cpp:411-420`); the server drops a count above
+  25 with no reply, and 25 is `MAX_QUEST_LOG_SIZE`
+  (`Quests/QuestDef.h:33`).
 - `SMSG_QUEST_POI_QUERY_RESPONSE` writes the objective index and the
   point coordinates as `int32` (`Handlers/QueryHandler.cpp:452,462-463`);
   wowm has `u32`
@@ -57,8 +78,6 @@ sends the multiple query at once.
 ## Left out
 
 - `SMSG_QUEST_FORCE_REMOVE` is dead: see Proof.
-- `CMSG_QUEST_POI_QUERY` and `SMSG_QUEST_POI_QUERY_RESPONSE`: built by
-  `quests-3`.
 - `CMSG_NPC_TEXT_QUERY`, `SMSG_NPC_TEXT_UPDATE` and `SMSG_GOSSIP_POI`:
   built by `quests-5`.
 - `CMSG_QUESTGIVER_HELLO`, `CMSG_QUESTGIVER_QUEST_AUTOLAUNCH`,
@@ -80,4 +99,6 @@ No verb yet: `quests-2` shows the marks in `look`.
 | `CMSG_QUESTGIVER_STATUS_QUERY` | `live` | probe flow `quests-marks` on a `fresh` character (`--expect` 0x418, 0x183), exit 0; the 8-byte query for Magistrix Erona drew `SMSG_QUESTGIVER_STATUS` with status 8, and 10 after `soap setup quest/add 8325` | `Handlers/QuestHandler.cpp:36-77` |
 | `CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY` | `live` | probe flow `quests-marks`, exit 0; the debounced query after the givers came into view and the act's query each drew a 103-byte list of 11 givers | `Handlers/QuestHandler.cpp:620-623` |
 | `SMSG_QUESTGIVER_STATUS_MULTIPLE` | `live` | probe flow `quests-marks`, exit 0; an empty list at login, then 11 givers with Erona at 8, and at 10 after `soap setup quest/add 8325` | `Entities/Player/Player.cpp:7906-7951` |
+| `CMSG_QUEST_POI_QUERY` | `live` | probe flow `quests-poi` on a `fresh` character with quest 8325 staged offline (`--expect SMSG_QUEST_POI_QUERY_RESPONSE`), exit 0; the 8-byte query for [8325] drew the 180-byte reply | `Handlers/QueryHandler.cpp:411-420` |
+| `SMSG_QUEST_POI_QUERY_RESPONSE` | `live` | probe flow `quests-poi`, exit 0; quest 8325 parsed `known` with 2 POIs, objective index -1 and 12 points matching base data (`data/sql/base/db_world/quest_poi.sql`, `data/sql/base/db_world/quest_poi_points.sql`); the character stands at (10349, -6357) inside the point cloud | `Handlers/QueryHandler.cpp:427-479` |
 | `SMSG_QUEST_FORCE_REMOVE` | `dead` | no file in `src/` or `modules/` names it outside the opcode enum and table, which marks it `STATUS_NEVER` | `Server/Protocol/Opcodes.cpp:673` |

@@ -1,5 +1,9 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import type { GiverStatus } from "#wow/areas/quests/protocol";
+import type {
+  GiverStatus,
+  QuestPoi,
+  QuestPoiReply,
+} from "#wow/areas/quests/protocol";
 import {
   forget,
   type GiverMark,
@@ -10,27 +14,42 @@ import {
   receiveMultiple,
   receiveSingle,
 } from "#wow/areas/quests/store-marks";
+import {
+  expirePois,
+  type Pois,
+  type PoisChange,
+  receivePoiResponse,
+  requestPois,
+} from "#wow/areas/quests/store-poi";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
-export type QuestsState = { marks: Marks };
-export type QuestsEvent = {
-  type: "marks";
-  source: MarkSource;
-  changed: readonly bigint[];
-  givers: readonly GiverMark[];
+export type PoiEntryView = {
+  questId: number;
+  status: "known" | "none";
+  pois: QuestPoi[];
 };
+export type QuestsState = { marks: Marks; pois: Pois };
+export type QuestsEvent =
+  | {
+      type: "marks";
+      source: MarkSource;
+      changed: readonly bigint[];
+      givers: readonly GiverMark[];
+    }
+  | { type: "poi"; questIds: readonly number[]; pois: readonly PoiEntryView[] };
 
 export class QuestsStore {
   private readonly events = new Emitter<[QuestsEvent]>();
   private readonly now: () => number;
   private marks: Marks = new Map();
+  private pois: Pois = new Map();
 
   constructor(deps: SessionDeps, _core: CoreStores) {
     this.now = deps.now;
   }
 
   snapshot(): QuestsState {
-    return { marks: new Map(this.marks) };
+    return { marks: new Map(this.marks), pois: new Map(this.pois) };
   }
 
   onEvent(cb: (event: QuestsEvent) => void): Unsubscribe {
@@ -59,6 +78,29 @@ export class QuestsStore {
   dispose(): void {
     this.events.clear();
     this.marks = new Map();
+    this.pois = new Map();
+  }
+
+  queryPois(ids: readonly number[]): void {
+    this.pois = requestPois(this.pois, ids, this.now());
+  }
+
+  receivePoiResponse(replies: readonly QuestPoiReply[]): void {
+    this.applyPois(receivePoiResponse(this.pois, replies, this.now()));
+  }
+
+  expirePois(pending: readonly number[]): void {
+    this.applyPois(expirePois(this.pois, pending, this.now()));
+  }
+
+  poiOf(ids: readonly number[]): PoiEntryView[] {
+    const out: PoiEntryView[] = [];
+    for (const id of ids) {
+      const entry = this.pois.get(id);
+      if (entry && entry.status !== "pending" && entry.status !== "no_reply")
+        out.push({ questId: id, status: entry.status, pois: entry.pois });
+    }
+    return out;
   }
 
   private applyMarks(change: MarksChange, source: MarkSource): void {
@@ -69,6 +111,16 @@ export class QuestsStore {
       source,
       changed: change.changed,
       givers: giversOf(this.marks),
+    });
+  }
+
+  private applyPois(change: PoisChange): void {
+    this.pois = change.pois;
+    if (change.settled.length === 0) return;
+    this.events.emit({
+      type: "poi",
+      questIds: change.settled,
+      pois: this.poiOf(change.settled),
     });
   }
 }

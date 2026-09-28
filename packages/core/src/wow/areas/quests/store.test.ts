@@ -3,6 +3,7 @@ import { areaRig } from "#test-support/area-rig";
 import {
   questsQuestgiverStatusBody,
   questsQuestgiverStatusMultipleBody,
+  questsQuestPoiQueryResponseBody,
 } from "#test-support/areas/quests";
 import type { QuestsEvent } from "#wow/areas/quests/store";
 import { markOf } from "#wow/areas/quests/store-marks";
@@ -158,5 +159,93 @@ describe("quests marks", () => {
       "reward",
       "none",
     ]);
+  });
+});
+
+describe("quests pois", () => {
+  const reply = (questId: number, objectiveIndex: number) =>
+    questsQuestPoiQueryResponseBody([
+      {
+        questId,
+        pois: [
+          {
+            poiId: 1,
+            objectiveIndex,
+            mapId: 530,
+            areaId: 462,
+            floorId: 0,
+            unk3: 1,
+            unk4: 0,
+            points: [{ x: 10_319, y: -6383 }],
+          },
+        ],
+      },
+    ]);
+
+  test("the reply is matched by quest id and an empty list becomes none", () => {
+    const rig = areaRig("quests", { now: () => 1000 });
+    const seen: QuestsEvent[] = [];
+    rig.handle.onEvent((event) => seen.push(event));
+    try {
+      rig.stores.areas.quests.queryPois([8325, 9999]);
+      rig.inject(
+        GameOpcode.SMSG_QUEST_POI_QUERY_RESPONSE,
+        questsQuestPoiQueryResponseBody([
+          { questId: 9999, pois: [] },
+          {
+            questId: 8325,
+            pois: [
+              {
+                poiId: 1,
+                objectiveIndex: -1,
+                mapId: 530,
+                areaId: 462,
+                floorId: 0,
+                unk3: 1,
+                unk4: 0,
+                points: [{ x: 10_319, y: -6383 }],
+              },
+            ],
+          },
+        ]),
+      );
+      const pois = rig.handle.state().pois;
+      expect(pois.get(8325)?.status).toBe("known");
+      expect(pois.get(9999)?.status).toBe("none");
+      expect(seen).toHaveLength(1);
+      expect(seen[0]?.type).toBe("poi");
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("expirePois marks a pending id no_reply and stays silent the second time", () => {
+    const rig = areaRig("quests", { now: () => 1000 });
+    const seen: QuestsEvent[] = [];
+    rig.handle.onEvent((event) => seen.push(event));
+    try {
+      rig.stores.areas.quests.queryPois([8325]);
+      rig.stores.areas.quests.expirePois([8325]);
+      expect(rig.handle.state().pois.get(8325)?.status).toBe("no_reply");
+      expect(seen).toHaveLength(1);
+      rig.stores.areas.quests.expirePois([8325]);
+      expect(seen).toHaveLength(1);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a reply for an unknown id is stored, and a later reply replaces it", () => {
+    const rig = areaRig("quests", { now: () => 1000 });
+    try {
+      rig.inject(GameOpcode.SMSG_QUEST_POI_QUERY_RESPONSE, reply(8325, -1));
+      expect(rig.handle.state().pois.get(8325)?.status).toBe("known");
+      rig.inject(GameOpcode.SMSG_QUEST_POI_QUERY_RESPONSE, reply(8325, 0));
+      expect(rig.handle.state().pois.get(8325)?.pois[0]?.objectiveIndex).toBe(
+        0,
+      );
+    } finally {
+      rig.dispose();
+    }
   });
 });

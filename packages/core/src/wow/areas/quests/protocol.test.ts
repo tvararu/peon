@@ -1,8 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { questsQuestgiverStatusMultipleBody } from "#test-support/areas/quests";
+import {
+  questsQuestgiverStatusMultipleBody,
+  questsQuestPoiQueryResponseBody,
+} from "#test-support/areas/quests";
 import {
   buildQuestgiverStatusQuery,
+  buildQuestPoiQuery,
   parseQuestgiverStatusMultiple,
+  parseQuestPoiResponse,
 } from "#wow/areas/quests/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 
@@ -34,5 +39,79 @@ describe("quests parsers", () => {
     const body = buildQuestgiverStatusQuery(ERONA);
     expect(body).toHaveLength(8);
     expect(new PacketReader(body).uint64LE()).toBe(ERONA);
+  });
+
+  test("SMSG_QUEST_POI_QUERY_RESPONSE reads signed objective index and points (QueryHandler.cpp:452,462-463)", () => {
+    const reader = new PacketReader(
+      questsQuestPoiQueryResponseBody([
+        {
+          questId: 8325,
+          pois: [
+            {
+              poiId: 0,
+              objectiveIndex: -1,
+              mapId: 530,
+              areaId: 462,
+              floorId: 0,
+              unk3: 1,
+              unk4: 0,
+              points: [
+                { x: 10_319, y: -6383 },
+                { x: 10_385, y: -6316 },
+              ],
+            },
+          ],
+        },
+      ]),
+    );
+    expect(parseQuestPoiResponse(reader)).toEqual([
+      {
+        questId: 8325,
+        pois: [
+          {
+            poiId: 0,
+            objectiveIndex: -1,
+            mapId: 530,
+            areaId: 462,
+            floorId: 0,
+            unk3: 1,
+            unk4: 0,
+            points: [
+              { x: 10_319, y: -6383 },
+              { x: 10_385, y: -6316 },
+            ],
+          },
+        ],
+      },
+    ]);
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("SMSG_QUEST_POI_QUERY_RESPONSE answers a quest with no POIs in an empty list (QueryHandler.cpp:434-438,471-476)", () => {
+    const reader = new PacketReader(
+      questsQuestPoiQueryResponseBody([{ questId: 9999, pois: [] }]),
+    );
+    expect(parseQuestPoiResponse(reader)).toEqual([
+      { questId: 9999, pois: [] },
+    ]);
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("CMSG_QUEST_POI_QUERY writes u32 count and ids (QueryHandler.cpp:411-420)", () => {
+    const body = buildQuestPoiQuery([8325]);
+    const reader = new PacketReader(body);
+    expect(reader.uint32LE()).toBe(1);
+    expect(reader.uint32LE()).toBe(8325);
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("CMSG_QUEST_POI_QUERY drops duplicate ids and refuses more than 25", () => {
+    const body = buildQuestPoiQuery([8325, 8325, 9999]);
+    const reader = new PacketReader(body);
+    expect(reader.uint32LE()).toBe(2);
+    expect(reader.uint32LE()).toBe(8325);
+    expect(reader.uint32LE()).toBe(9999);
+    const many = Array.from({ length: 26 }, (_, i) => 8000 + i);
+    expect(() => buildQuestPoiQuery(many)).toThrow(RangeError);
   });
 });

@@ -1,6 +1,10 @@
 import { describe, expect, jest, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
-import { questsQuestgiverStatusMultipleBody } from "#test-support/areas/quests";
+import {
+  questsQuestgiverStatusMultipleBody,
+  questsQuestPoiQueryResponseBody,
+} from "#test-support/areas/quests";
+import { REPLY_TIMEOUT_MS } from "#wow/areas/quests/runtime";
 import type {
   EntityEvent,
   GameObjectEntity,
@@ -10,6 +14,7 @@ import { ObjectType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 import type { QuestEvent } from "#wow/quests";
+import { QUEST_REPLY_TIMEOUT_MS } from "#wow/quests-requests";
 
 const ERONA = 0xf1_30_00_3f_d1_00_1a_2bn;
 const JESSE = 0xf1_30_00_3e_a7_00_1a_30n;
@@ -270,5 +275,47 @@ describe("quests runtime", () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  test("an accepted quest event queries its POIs at once", () => {
+    withRig(({ quest, rig, tick }) => {
+      quest("accepted");
+      const sent = rig.sent.filter(
+        (p) => p.opcode === GameOpcode.CMSG_QUEST_POI_QUERY,
+      );
+      expect(sent).toHaveLength(1);
+      expect(
+        new PacketReader(sent[0]?.body ?? new Uint8Array()).uint32LE(),
+      ).toBe(1);
+      expect(rig.handle.state().pois.get(8325)?.status).toBe("pending");
+      tick(6000);
+      expect(rig.handle.state().pois.get(8325)?.status).toBe("no_reply");
+    });
+  });
+
+  test("queryPoi returns the known entries and refreshes a no_reply id once more", () => {
+    withRig(({ quest, rig, tick }) => {
+      quest("accepted");
+      tick(6000);
+      const before = rig.sent.filter(
+        (p) => p.opcode === GameOpcode.CMSG_QUEST_POI_QUERY,
+      ).length;
+      expect(rig.handle.act.queryPoi([8325])).toEqual([]);
+      const after = rig.sent.filter(
+        (p) => p.opcode === GameOpcode.CMSG_QUEST_POI_QUERY,
+      ).length;
+      expect(after).toBe(before + 1);
+      rig.inject(
+        GameOpcode.SMSG_QUEST_POI_QUERY_RESPONSE,
+        questsQuestPoiQueryResponseBody([{ questId: 8325, pois: [] }]),
+      );
+      expect(rig.stores.areas.quests.poiOf([8325])).toEqual([
+        { questId: 8325, status: "none", pois: [] },
+      ]);
+    });
+  });
+
+  test("the timeout equals QUEST_REPLY_TIMEOUT_MS", () => {
+    expect(REPLY_TIMEOUT_MS).toBe(QUEST_REPLY_TIMEOUT_MS);
   });
 });
