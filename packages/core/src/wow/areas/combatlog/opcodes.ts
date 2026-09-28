@@ -25,9 +25,7 @@ export const COMBATLOG_OPCODES = {
   ],
   uses: [],
   stubs: [
-    ["SMSG_ATTACKERSTATEUPDATE", "Damage dealt"],
     ["SMSG_SPELLHEALLOG", "Heal received"],
-    ["SMSG_SPELLNONMELEEDAMAGELOG", "Spell damage"],
     ["SMSG_ENVIRONMENTAL_DAMAGE_LOG", "Environmental damage"],
     ["SMSG_POWER_UPDATE", "Power update"],
     ["SMSG_HEALTH_UPDATE", "Health update"],
