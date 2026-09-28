@@ -22,6 +22,7 @@ or the page names one that does not exist.
 | Take a quest, do it and turn it in | `t4-quest-first`, `t4-alliance-first` | An accept or a turn-in the server does not answer is `UNCONFIRMED`; the agent checks the quest log before it tries again. |
 | See which NPCs have a quest or a quest to turn in | `t4-quests-find-giver` | |
 | Hear what an NPC says when talked to | `t1-quests-read-greeting` | |
+| Follow a guard's directions to a marked point | `t1-quests-guard-directions` | |
 | Buy from a vendor | `t5-vendor-buy-goldshire` | |
 | Die, then come back to life | `t6-die-and-recover` | |
 | Stop on command and resume | `t7-halt-resume` | |
