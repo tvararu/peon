@@ -20,9 +20,9 @@
         "events": ["items/ammo"],
         "ids": [2512]
       },
+      "expect": "GL has an items/ammo row for item 2512 (Rough Arrow loaded)",
       "id": "ammo-row",
-      "source": "game_log",
-      "expect": "GL has an items/ammo row for item 2512 (Rough Arrow loaded)"
+      "source": "game_log"
     }
   ],
   "id": "t8-items-ammo",
@@ -42,6 +42,6 @@
   ],
   "spawn": "eversong-west",
   "steers": [],
-  "task": "Load the new arrows into the quiver.",
+  "task": "Load the Rough Arrows into the quiver.",
   "tier": 8
 }
