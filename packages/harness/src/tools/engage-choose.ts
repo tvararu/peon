@@ -17,7 +17,7 @@ import {
   vitalsView,
 } from "#harness/ops/views";
 import { askHuman, nextCall } from "#harness/tools/next-call";
-import type { EngageArgs } from "#harness/tools/params";
+import type { EngageArgs } from "#harness/tools/params-engage";
 
 export type EngageMode = EngageAfter["mode"];
 export type Choice = {

@@ -14,7 +14,7 @@ import { Refusal } from "#harness/ops/refusal";
 import { settle } from "#harness/ops/settle";
 import { defineGameTool, result } from "#harness/tools/define";
 import { askHuman, nextCall } from "#harness/tools/next-call";
-import { type SocialArgs, socialParams } from "#harness/tools/params";
+import { type SocialArgs, socialParams } from "#harness/tools/params-social";
 import { socialRenderers } from "#harness/ui/renderers/line";
 
 type ChatAction = "say" | "whisper" | "party" | "guild";

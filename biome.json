@@ -243,7 +243,8 @@
       "includes": [
         "packages/core/src/wow/index.ts",
         "packages/core/src/wow/session.ts",
-        "packages/core/test-support/internals.ts"
+        "packages/core/test-support/internals.ts",
+        "packages/harness/src/tools/params.ts"
       ],
       "linter": {
         "rules": {

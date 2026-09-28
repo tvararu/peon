@@ -13,7 +13,7 @@ import { unitViews } from "#harness/ops/views";
 import { defineGameTool, result } from "#harness/tools/define";
 import type { GameToolSpec } from "#harness/tools/game-tool";
 import { nextCall } from "#harness/tools/next-call";
-import { type LootArgs, lootParams } from "#harness/tools/params";
+import { type LootArgs, lootParams } from "#harness/tools/params-loot";
 import { lootRenderers } from "#harness/ui/renderers/card";
 
 type Corpse = { unit: UnitView; guid: bigint };

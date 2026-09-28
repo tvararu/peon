@@ -8,7 +8,7 @@ import { Refusal } from "#harness/ops/refusal";
 import { vitalsView } from "#harness/ops/views";
 import { defineGameTool, emptyVitals, result } from "#harness/tools/define";
 import { nextCall } from "#harness/tools/next-call";
-import { type StopArgs, stopParams } from "#harness/tools/params";
+import { type StopArgs, stopParams } from "#harness/tools/params-stop";
 import { stopRenderers } from "#harness/ui/renderers/line";
 
 function emptyStop(): StopAfter {
