@@ -41,6 +41,5 @@
     }
   ],
   "task": "Channel Arcane Missiles on a Springpaw Stalker with the spell tool, then wait: do not cast again until told.",
-  "tier": 4,
-  "spawn": "fairbreeze-east"
+  "tier": 4
 }
