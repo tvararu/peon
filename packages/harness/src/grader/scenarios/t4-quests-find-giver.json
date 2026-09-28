@@ -8,9 +8,7 @@
   "checks": [
     {
       "evidence": {
-        "truth": [
-          "quests"
-        ]
+        "truth": ["quests"]
       },
       "expect": "8325 is in T final quests",
       "id": "took-quest",
@@ -18,9 +16,7 @@
     },
     {
       "evidence": {
-        "events": [
-          "quests/marks"
-        ]
+        "events": ["quests/marks"]
       },
       "expect": "GL has a quests/marks row before the first interact call",
       "id": "marks-row",
@@ -36,13 +32,13 @@
   "preset": "fresh",
   "setup": [
     {
-      "endpoint": "position",
       "body": {
         "map": 530,
         "x": 10322,
         "y": -6357,
         "z": 29.82
-      }
+      },
+      "endpoint": "position"
     }
   ],
   "steers": [],
