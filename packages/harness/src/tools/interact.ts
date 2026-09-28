@@ -15,6 +15,7 @@ import { reachNext } from "#harness/ops/unreached";
 import { defineGameTool, emptyUnit, result } from "#harness/tools/define";
 import type { GameToolSpec } from "#harness/tools/game-tool";
 import { bindStep } from "#harness/tools/interact-bind";
+import { buybackStep } from "#harness/tools/interact-buyback";
 import {
   acceptStep,
   baseAfter,
@@ -147,6 +148,7 @@ const STEPS = new Map<string, InteractStep>([
   ["train", trainStep],
   ["repair", repairStep],
   ["bind", bindStep],
+  ["buyback", buybackStep],
 ]);
 
 function objectTalk(ctx: ToolCtx<InteractAfter>, text: string): NpcTarget {

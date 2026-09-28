@@ -21,6 +21,7 @@ export const interactParams = Type.Object({
         "train",
         "repair",
         "bind",
+        "buyback",
       ],
       { description: "Default talk: list what this NPC offers." },
     ),
