@@ -208,6 +208,45 @@ describe("CombatlogStore fight window", () => {
     expect(store.snapshot().dropped).toBe(1);
   });
 
+  test("closeFight ends a quiet fight once and emits its totals", () => {
+    const { advance, events, store } = setup();
+    store.receive([hit(ME, BOAR, 10), hit(BOAR, ME, 4, { outcome: "dodge" })]);
+    advance(5999);
+    store.closeFight();
+    expect(events.filter((event) => event.type === "fight_closed")).toEqual([]);
+    advance(1);
+    store.closeFight();
+    store.closeFight();
+    expect(events.filter((event) => event.type === "fight_closed")).toEqual([
+      {
+        crits: 0,
+        dealt: 10,
+        healed: 0,
+        lastAt: 1000,
+        misses: { dodge: 1 },
+        startedAt: 1000,
+        taken: 4,
+        type: "fight_closed",
+      },
+    ]);
+    expect(store.snapshot().fight).toBeUndefined();
+    expect(store.snapshot().lastFight).toMatchObject({ dealt: 10, taken: 4 });
+  });
+
+  test("an entry after the quiet gap closes the old fight before it counts", () => {
+    const { advance, events, store } = setup();
+    store.receive([hit(ME, BOAR, 10)]);
+    advance(7000);
+    store.receive([hit(ME, WOLF, 6)]);
+    expect(events.map((event) => event.type)).toEqual([
+      "entry",
+      "fight_closed",
+      "entry",
+    ]);
+    expect(events[1]).toMatchObject({ dealt: 10, startedAt: 1000 });
+    expect(store.snapshot().fight).toMatchObject({ dealt: 6 });
+  });
+
   test("totals sum dealt, taken, misses by outcome and crits", () => {
     const { store } = setup();
     store.receive([
@@ -428,5 +467,55 @@ describe("entry builders", () => {
       spellId: 133,
       target: BOAR,
     });
+  });
+});
+
+describe("CombatlogStore immunities", () => {
+  const immune = (source: bigint, target: bigint, spellId: number) =>
+    ({
+      amount: 0,
+      kind: "immune",
+      source,
+      spellId,
+      target,
+    }) satisfies Omit<CombatlogEntry, "at">;
+
+  test("records the creature entry and spell the character was refused, once", () => {
+    const { advance, store } = setup();
+    store.receive([immune(ME, BOAR, 122)]);
+    advance(500);
+    store.receive([immune(ME, BOAR, 122), immune(ME, WOLF, 122)]);
+    expect(store.snapshot().immunities).toEqual([
+      { at: 1000, entry: 0x3e_ea, spellId: 122 },
+      { at: 1500, entry: 0x3e_eb, spellId: 122 },
+    ]);
+  });
+
+  test("melee immunity, a player target and another source record nothing", () => {
+    const { store } = setup();
+    store.receive([
+      hit(ME, BOAR, 0, { outcome: "immune" }),
+      immune(ME, PLAYER, 122),
+      immune(BOAR, ME, 133),
+      immune(ME, BOAR, 0),
+    ]);
+    expect(store.snapshot().immunities).toEqual([]);
+  });
+
+  test("a miss with the immune outcome counts as immunity", () => {
+    const { store } = setup();
+    store.receive([
+      {
+        amount: 0,
+        kind: "miss",
+        outcome: "immune",
+        source: ME,
+        spellId: 8921,
+        target: BOAR,
+      },
+    ]);
+    expect(store.snapshot().immunities).toEqual([
+      { at: 1000, entry: 0x3e_ea, spellId: 8921 },
+    ]);
   });
 });

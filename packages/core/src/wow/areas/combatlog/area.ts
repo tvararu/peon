@@ -6,6 +6,7 @@ import {
   parsePowerUpdate,
   parseSpellDamage,
 } from "#wow/areas/combatlog/protocol";
+import { combatlogRuntime } from "#wow/areas/combatlog/runtime";
 import {
   CombatlogStore,
   meleeEntry,
@@ -17,8 +18,9 @@ import { GameOpcode } from "#wow/protocol/opcodes";
 export const combatlogArea = defineArea({
   name: "combatlog",
   opcodes: COMBATLOG_OPCODES,
-  eventTypes: ["entry", "combo_points", "kill"],
+  eventTypes: ["entry", "combo_points", "kill", "fight_closed"],
   store: (deps, core) => new CombatlogStore(deps, core),
+  runtime: (ctx, store) => combatlogRuntime(ctx, store),
   register: (wire, store) => {
     wire.on(GameOpcode.SMSG_ATTACKERSTATEUPDATE, (r) =>
       store.receive([meleeEntry(parseAttackerState(r))]),

@@ -1,0 +1,105 @@
+import type { AreaState } from "@peon/core";
+
+type Entry = AreaState<"combatlog">["entries"][number];
+
+export type Sums = {
+  dealt: number;
+  taken: number;
+  healed: number;
+  avoided: Record<string, number>;
+  immune: number[];
+  immuneCount: number;
+};
+
+export type FightFigures = {
+  dealt: number;
+  taken: number;
+  healed: number;
+  misses: Readonly<Record<string, number>>;
+};
+
+const DAMAGE = new Set<Entry["kind"]>([
+  "melee",
+  "spell_damage",
+  "periodic_damage",
+  "damage_shield",
+  "environmental",
+  "instakill",
+]);
+const HEALS = new Set<Entry["kind"]>(["heal", "periodic_heal"]);
+const AVOIDED = new Set([
+  "miss",
+  "dodge",
+  "parry",
+  "block",
+  "evade",
+  "deflect",
+]);
+const IMMUNE_OUTCOMES = new Set(["immune", "immune2"]);
+
+function isImmune(entry: Entry): boolean {
+  if (entry.kind === "immune") return true;
+  return entry.kind === "miss" && IMMUNE_OUTCOMES.has(entry.outcome ?? "");
+}
+
+type Own = (guid: bigint) => boolean;
+
+function noteAmounts(sums: Sums, entry: Entry, self: bigint, ours: Own): void {
+  if (DAMAGE.has(entry.kind)) {
+    if (ours(entry.source) && !ours(entry.target)) sums.dealt += entry.amount;
+    if (entry.target === self) sums.taken += entry.amount;
+  }
+  if (HEALS.has(entry.kind) && entry.target === self)
+    sums.healed += entry.amount;
+}
+
+function noteOwnCasts(sums: Sums, entry: Entry): void {
+  const outcome = entry.outcome ?? "";
+  if (AVOIDED.has(outcome))
+    sums.avoided[outcome] = (sums.avoided[outcome] ?? 0) + 1;
+  const spellId = entry.spellId ?? 0;
+  if (!(isImmune(entry) && spellId > 0)) return;
+  sums.immuneCount++;
+  if (!sums.immune.includes(spellId)) sums.immune.push(spellId);
+}
+
+export function sumsSince(
+  entries: readonly Entry[],
+  since: number,
+  self: bigint,
+  ours: Own,
+): Sums {
+  const sums: Sums = {
+    avoided: {},
+    dealt: 0,
+    healed: 0,
+    immune: [],
+    immuneCount: 0,
+    taken: 0,
+  };
+  for (const entry of entries) {
+    if (entry.at < since) continue;
+    noteAmounts(sums, entry, self, ours);
+    if (ours(entry.source)) noteOwnCasts(sums, entry);
+  }
+  return sums;
+}
+
+function plural(word: string, count: number): string {
+  if (count === 1) return word;
+  return word.endsWith("s") ? `${word}es` : `${word}s`;
+}
+
+export function missText(misses: Readonly<Record<string, number>>): string {
+  return Object.entries(misses)
+    .map(([word, count]) => `${count} ${plural(word, count)}`)
+    .join(", ");
+}
+
+export function fightText(figures: FightFigures): string {
+  const { dealt, healed, misses, taken } = figures;
+  const healing = healed > 0 ? `, healed ${healed}` : "";
+  const missed = missText(misses);
+  const tail = missed === "" ? "" : ` (${missed})`;
+  return `Fight over: dealt ${dealt}, took ${taken}${healing}${tail}.`;
+}

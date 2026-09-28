@@ -1,4 +1,5 @@
 import type { AreaEventOf } from "@peon/core";
+import { fightText } from "#harness/areas/combatlog/totals";
 import type { AreaDraft } from "#harness/areas/contract";
 import { defineHarnessArea } from "#harness/areas/contract";
 import { guidText, type RuleInput } from "#harness/events/rules";
@@ -84,12 +85,33 @@ function onKill(e: Of<"kill">, rc: RuleInput): AreaDraft[] {
   ];
 }
 
+function onFightClosed(e: Of<"fight_closed">): AreaDraft[] {
+  const { crits, dealt, healed, lastAt, misses, startedAt, taken } = e;
+  return [
+    {
+      class: "log",
+      data: {
+        crits,
+        dealt,
+        durationMs: lastAt - startedAt,
+        healed,
+        misses,
+        taken,
+      },
+      name: "fight",
+      text: fightText({ dealt, healed, misses, taken }),
+    },
+  ];
+}
+
 function combatlogRows(e: CombatlogEvent, seen: Set<string>, rc: RuleInput) {
   switch (e.type) {
     case "entry":
       return onEntry(e, seen, rc);
     case "kill":
       return onKill(e, rc);
+    case "fight_closed":
+      return onFightClosed(e);
     default:
       return [];
   }

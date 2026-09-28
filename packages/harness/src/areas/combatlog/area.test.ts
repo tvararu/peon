@@ -57,6 +57,20 @@ function kill(over: Partial<CombatlogEvent> = {}): CombatlogEvent {
   } as CombatlogEvent;
 }
 
+function closed(over: Partial<CombatlogEvent> = {}): CombatlogEvent {
+  return {
+    crits: 1,
+    dealt: 312,
+    healed: 0,
+    lastAt: 19_000,
+    misses: { dodge: 1, resist: 1 },
+    startedAt: 10_000,
+    taken: 145,
+    type: "fight_closed",
+    ...over,
+  } as CombatlogEvent;
+}
+
 function session() {
   const rules = areaRuleSet();
   const rc = input();
@@ -175,6 +189,26 @@ describe("combatlog harness rules", () => {
     ]);
   });
 
+  test("a closed fight writes one combatlog/fight row with its totals", () => {
+    const rows = session();
+    expect(rows(closed())).toEqual([
+      {
+        class: "log",
+        data: {
+          crits: 1,
+          dealt: 312,
+          durationMs: 9000,
+          healed: 0,
+          misses: { dodge: 1, resist: 1 },
+          taken: 145,
+        },
+        domain: "combatlog",
+        event: "combatlog/fight",
+        text: "Fight over: dealt 312, took 145 (1 dodge, 1 resist).",
+      },
+    ]);
+  });
+
   test("the router writes the rows of area events from the handle", () => {
     const { log, router } = routerSetup({ selfGuid: ME });
     const handle = createMockGame();
@@ -183,9 +217,11 @@ describe("combatlog harness rules", () => {
     handle.triggerAreaEvent("combatlog", immuneSpell);
     handle.triggerAreaEvent("combatlog", entry());
     handle.triggerAreaEvent("combatlog", kill());
+    handle.triggerAreaEvent("combatlog", closed());
     expect(log.since(0).map((row) => [row.class, row.event])).toEqual([
       ["log", "combatlog/immune"],
       ["log", "combatlog/killing_blow"],
+      ["log", "combatlog/fight"],
     ]);
   });
 });
