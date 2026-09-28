@@ -17,6 +17,7 @@ export function combatlogRuntime(
   };
   const off = store.onEvent((event) => {
     if (event.type !== "entry") return;
+    if (!(store.isOurs(event.source) || store.isOurs(event.target))) return;
     stop();
     timer = setTimeout(() => {
       timer = undefined;

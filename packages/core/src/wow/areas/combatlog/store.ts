@@ -401,7 +401,7 @@ export class CombatlogStore {
     this.core.combat.noteHostileDamage(entry.source);
   }
 
-  private isOurs(guid: bigint): boolean {
+  isOurs(guid: bigint): boolean {
     const self = this.deps.selfGuid();
     return guid === self || this.isOwned(guid);
   }

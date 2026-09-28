@@ -7,6 +7,7 @@ import { GameOpcode } from "#wow/protocol/opcodes";
 
 const ME = 0x2an;
 const BOAR = 0xf1_30_00_3e_ea_00_0a_bcn;
+const WOLF = 0xf1_30_00_3e_eb_00_0a_bdn;
 
 function swing(attacker: bigint, target: bigint, amount: number): Uint8Array {
   return combatlogAttackerStateBody({
@@ -47,6 +48,21 @@ describe("combatlog runtime fight close", () => {
         ]);
         await pass(20_000);
         expect(closed).toHaveLength(1);
+      } finally {
+        rig.dispose();
+      }
+    });
+  });
+
+  test("entries between other units do not move the close time", async () => {
+    await withFakeTimers(async () => {
+      const { closed, pass, rig } = setup();
+      try {
+        rig.inject(GameOpcode.SMSG_ATTACKERSTATEUPDATE, swing(ME, BOAR, 10));
+        await pass(3000);
+        rig.inject(GameOpcode.SMSG_ATTACKERSTATEUPDATE, swing(WOLF, BOAR, 4));
+        await pass(3010);
+        expect(closed).toMatchObject([{ dealt: 10, lastAt: 1000 }]);
       } finally {
         rig.dispose();
       }
