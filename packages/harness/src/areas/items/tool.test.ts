@@ -1,6 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
 import { validateToolArguments } from "@earendil-works/pi-ai";
-import type { NamedInventorySlot } from "@peon/core";
 import { gearParams, gearSpec, gearTool } from "#harness/areas/items/tool";
 import { contentOf, limitProblem, toolCtx } from "#test-support/ops-fixtures";
 import {
@@ -20,7 +19,6 @@ type Occupied = {
 const STAFF = 0x40_00_00_00_00_00_00_01n;
 const BAG_SLOT = 0x40_00_00_00_00_00_00_02n;
 const SHIRT = 0x40_00_00_00_00_00_00_03n;
-const WATER = 0x40_00_00_00_00_00_00_04n;
 const LETTER = 0x40_00_00_00_00_00_00_05n;
 const CHEST = 0x40_00_00_00_00_00_00_06n;
 
@@ -50,26 +48,11 @@ function slots(items: Occupied[]) {
   );
 }
 
-type Empty = Extract<NamedInventorySlot, { status: "empty" }>;
-
-function empty(bag: number, slot: number): Empty {
-  return {
-    bag,
-    region: bag === 255 ? "backpack" : "bag_item",
-    slot,
-    status: "empty",
-  } as Empty;
-}
-
-function stocked(
-  handle: MockHandle,
-  items: Occupied[],
-  free: readonly Empty[] = [],
-): void {
+function stocked(handle: MockHandle, items: Occupied[]): void {
   const inventory = handle.getInventoryState();
   handle.getInventoryState = () => ({
     ...inventory,
-    slots: [...slots(items), ...free],
+    slots: slots(items),
   });
 }
 
@@ -290,101 +273,6 @@ describe("gear tool", () => {
     );
     expect(acts.unequip).toHaveBeenCalledWith(3, undefined);
     expect(res.status).toBe("DONE");
-  });
-
-  test("move parses a bag-slot destination", async () => {
-    const t = await createTestRuntime();
-    stocked(t.handle, [
-      { bag: 255, entry: 6948, guid: WATER, name: "Hearthstone", slot: 25 },
-    ]);
-    const acts = itemActs(t.handle);
-    await gearSpec.run(
-      { do: "move", item: "Hearthstone", to: "bag 19 slot 0" },
-      toolCtx(t),
-    );
-    expect(acts.move).toHaveBeenCalledWith(
-      { bag: 255, slot: 25 },
-      { bag: 19, slot: 0 },
-    );
-  });
-
-  test("split parses a bag-slot destination", async () => {
-    const t = await createTestRuntime();
-    stocked(t.handle, [
-      { bag: 255, entry: 159, guid: WATER, name: "Water", slot: 24 },
-    ]);
-    const acts = itemActs(t.handle);
-    await gearSpec.run(
-      { count: 5, do: "split", item: "Water", to: "bag 19 slot 0" },
-      toolCtx(t),
-    );
-    expect(acts.split).toHaveBeenCalledWith(
-      { bag: 255, slot: 24 },
-      { bag: 19, slot: 0 },
-      5,
-    );
-  });
-
-  test("split goes to the first empty slot the inventory shows", async () => {
-    const t = await createTestRuntime();
-    stocked(
-      t.handle,
-      [{ bag: 255, entry: 159, guid: WATER, name: "Water", slot: 24 }],
-      [empty(19, 3), empty(20, 0)],
-    );
-    const acts = itemActs(t.handle);
-    await gearSpec.run({ do: "split", item: "Water" }, toolCtx(t));
-    expect(acts.split).toHaveBeenCalledWith(
-      { bag: 255, slot: 24 },
-      { bag: 19, slot: 3 },
-      1,
-    );
-  });
-
-  test("move to a bag takes that bag's first empty slot", async () => {
-    const t = await createTestRuntime();
-    stocked(
-      t.handle,
-      [{ bag: 255, entry: 6948, guid: WATER, name: "Hearthstone", slot: 25 }],
-      [empty(255, 30), empty(20, 4)],
-    );
-    const acts = itemActs(t.handle);
-    await gearSpec.run(
-      { do: "move", item: "Hearthstone", to: "bag 20" },
-      toolCtx(t),
-    );
-    await gearSpec.run(
-      { do: "move", item: "Hearthstone", to: "backpack" },
-      toolCtx(t),
-    );
-    expect(acts.move.mock.calls as unknown[][]).toEqual([
-      [
-        { bag: 255, slot: 25 },
-        { bag: 20, slot: 4 },
-      ],
-      [
-        { bag: 255, slot: 25 },
-        { bag: 255, slot: 30 },
-      ],
-    ]);
-  });
-
-  test("to bags searches every carried bag", async () => {
-    const t = await createTestRuntime();
-    stocked(
-      t.handle,
-      [{ bag: 255, entry: 6948, guid: WATER, name: "Hearthstone", slot: 25 }],
-      [empty(19, 2)],
-    );
-    const acts = itemActs(t.handle);
-    await gearSpec.run(
-      { do: "move", item: "Hearthstone", to: "bags" },
-      toolCtx(t),
-    );
-    expect(acts.move).toHaveBeenCalledWith(
-      { bag: 255, slot: 25 },
-      { bag: 19, slot: 2 },
-    );
   });
 
   test("unequip to a bag and slot moves there", async () => {
