@@ -239,6 +239,12 @@ commit (design 6.4). This covers the shared test fakes
 puppet protocol files), both area registries, `world-conn.ts` and the
 step-0 hub files.
 
+Wave 1 of part 2 amends the first bullet (coordinator ruling, P2-17): a
+task may also edit a file its own unit owns (section 2.5) that its plan
+body does not name, such as an earlier task's probe flow or the area's
+doc, when the change serves the task. It still stops `blocked` for any
+file another unit owns, a shared file or a legacy file without a lease.
+
 ### 0.10 Task ids
 
 | Id | Meaning |
