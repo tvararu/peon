@@ -14,7 +14,7 @@ const REASON_WORDS: Record<number, string> = {
   6: "an encounter in progress",
   7: "a missing expansion",
   8: "an unavailable difficulty",
-  9: "a sealed instance",
+  9: "the Death Knight starting area, which you cannot leave yet",
   10: "no instance slot free",
   11: "a required group",
   12: "instance not found",
