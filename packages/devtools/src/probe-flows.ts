@@ -48,7 +48,7 @@ export function settleWithin(ms: number): Settle {
     const deadline = Date.now() + ms;
     let value = read();
     while (value === undefined && Date.now() < deadline) {
-      await Bun.sleep(SETTLE_POLL_MS);
+      await Bun.sleep(Math.min(SETTLE_POLL_MS, deadline - Date.now()));
       value = read();
     }
     return value;

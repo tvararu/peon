@@ -48,7 +48,7 @@ async function setup(after?: (ws: World) => void): Promise<Setup> {
     const client = {
       ...base,
       host: "127.0.0.1",
-      logoutTimeoutMs: 50,
+      logoutTimeoutMs: 5,
       port: ws.port,
       trace,
     };
@@ -58,7 +58,7 @@ async function setup(after?: (ws: World) => void): Promise<Setup> {
     return handle;
   };
   return {
-    deps: { login, logoutMs: 100, root, settleMs: 200 },
+    deps: { login, logoutMs: 100, root, settleMs: 20 },
     handles,
     root,
     ws,
@@ -72,7 +72,7 @@ function args(extra: Partial<ProbeArgs>): ProbeArgs {
     expect: [],
     steps: [],
     until: [],
-    waitMs: 200,
+    waitMs: 20,
     ...extra,
   };
 }
@@ -144,7 +144,7 @@ describe("runProbe", () => {
     const out = `${root}/custom`;
     const steps = [{ body: "0700000000000000", opcode: PING }];
     const { report } = await runProbe(
-      args({ out, steps, until: [PONG] }),
+      args({ out, steps, until: [PONG], waitMs: 5000 }),
       deps,
     );
     expect(report.trace.rows).toBe(`${out}/packets.jsonl`);
