@@ -134,7 +134,7 @@ an event.
 - `SMSG_SEND_UNLEARN_SPELLS` is a `uint32` count and that many `uint32`
   spell ids (`Entities/Player/Player.cpp:2885-2922`,
   `wow_message_parser/wowm/world/spell/smsg_send_unlearn_spells.wowm`).
-  Login sends it after the initial spells
+- Login sends the unlearn list after the initial spells
   (`Entities/Player/Player.cpp:11795`).
 - `SMSG_SET_FLAT_SPELL_MODIFIER` and `SMSG_SET_PCT_SPELL_MODIFIER` are a
   `uint8` effect mask bit, a `uint8` op and an `int32` total
@@ -142,11 +142,14 @@ an event.
   non-zero total (`Handlers/CharacterHandler.cpp:1218-1250`); a change
   at run time sends the new total, also when it is 0.
 - `SMSG_MODIFY_COOLDOWN` is a `uint32` spell, the full `uint64` guid of
-  the player (`Entities/Object/ObjectGuid.cpp:70-73`) and an `int32`
-  change in milliseconds (`Entities/Player/Player.cpp:11275-11288`). The
-  server sends it only for a spell that has a cooldown. Its senders are
-  level-80 scripts (`scripts/Spells/spell_shaman.cpp:1024`,
-  `Spells/Auras/SpellAuras.cpp:1811-1826`).
+  the player and an `int32` change in milliseconds
+  (`Entities/Player/Player.cpp:11276-11288`). The server sends it only
+  for a spell that has a cooldown. Its senders are level-80 scripts
+  (`Spells/Auras/SpellAuras.cpp:1811-1826`).
+- A guid written with `<<` is the full `uint64`
+  (`Entities/Object/ObjectGuid.cpp:70-73`).
+- The shaman T10 two-piece proc also changes a cooldown
+  (`scripts/Spells/spell_shaman.cpp:1024`).
 - The client direction of `MSG_CHANNEL_START` and `MSG_CHANNEL_UPDATE`
   is `Handle_NULL` (`Server/Protocol/Opcodes.cpp:444-445`).
 
