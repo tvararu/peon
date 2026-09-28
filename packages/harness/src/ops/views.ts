@@ -144,7 +144,9 @@ export function vitalsView({ handle }: ViewCtx): VitalsView {
   const { self } = handle.getCombatState();
   const powerKind = POWER_KINDS[self.powerType ?? -1] ?? "none";
   const scale = TENTHS.has(powerKind) ? 10 : 1;
+  const points = handle.combatlog.state().comboPoints?.points ?? 0;
   return {
+    ...(points > 0 ? { comboPoints: points } : {}),
     hp: self.health ?? 0,
     maxHp: self.maxHealth ?? 0,
     maxPower: Math.round((self.maxPower ?? 0) / scale),

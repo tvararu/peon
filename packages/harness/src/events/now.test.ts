@@ -211,3 +211,17 @@ describe("formatNow breath", () => {
     expect(formatNow(snapshot())).not.toContain("breath");
   });
 });
+
+describe("formatNow combo points", () => {
+  test("shows CP after the power when the character holds any", () => {
+    const line = formatNow(snapshot({ self: { ...self, comboPoints: 3 } }));
+    expect(line).toContain("mana 88/100 CP 3 alive");
+  });
+
+  test("shows nothing at zero or without the field", () => {
+    expect(formatNow(snapshot())).not.toContain("CP");
+    expect(
+      formatNow(snapshot({ self: { ...self, comboPoints: 0 } })),
+    ).not.toContain("CP");
+  });
+});

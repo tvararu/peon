@@ -29,6 +29,7 @@ export type VitalsView = {
   power: number;
   maxPower: number;
   powerKind: PowerKind;
+  comboPoints?: number;
 };
 
 export type Posture = "sitting" | "kneeling" | "sleeping";

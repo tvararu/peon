@@ -116,6 +116,34 @@ describe("poseView and vitalsView", () => {
   });
 });
 
+describe("vitalsView combo points", () => {
+  const points = (n: number | undefined) => ({
+    comboPoints: n === undefined ? undefined : { points: n, target: 0x30n },
+    dropped: 0,
+    entries: [],
+    fight: undefined,
+    immunities: [],
+    kills: [],
+    lastFight: undefined,
+  });
+
+  test("shows the combo points held on the target when above zero", async () => {
+    const { ctx, handle } = await world();
+    jest.spyOn(handle.combatlog, "state").mockReturnValue(points(3));
+    expect(vitalsView(ctx).comboPoints).toBe(3);
+    expect(selfView(ctx).comboPoints).toBe(3);
+  });
+
+  test("leaves the field out with none or a zero count", async () => {
+    const { ctx, handle } = await world();
+    const state = jest.spyOn(handle.combatlog, "state");
+    for (const held of [undefined, 0]) {
+      state.mockReturnValue(points(held));
+      expect(vitalsView(ctx)).not.toHaveProperty("comboPoints");
+    }
+  });
+});
+
 describe("selfView and placeView", () => {
   test("self reads class from the self entity and name from the profile", async () => {
     const { ctx, rt } = await world();

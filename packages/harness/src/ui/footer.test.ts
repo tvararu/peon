@@ -74,6 +74,21 @@ describe("footerLines", () => {
     );
   });
 
+  test("the self row shows the combo points above zero and drops the word at zero", () => {
+    const rowFor = (comboPoints: number | undefined) =>
+      plain(
+        footerLines({
+          chrome,
+          snapshot: nowFixture({ self: selfFixture({ comboPoints }) }),
+          theme,
+          width: 220,
+        }),
+      )[0];
+    expect(rowFor(3)).toContain("CP 3");
+    expect(rowFor(0)).not.toContain("CP");
+    expect(rowFor(undefined)).not.toContain("CP");
+  });
+
   test("a ghost sees the corpse row instead of a target", () => {
     const [self, row] = plain(
       footerLines({ chrome, snapshot: ghost, theme, width: 160 }),
