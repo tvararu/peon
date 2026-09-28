@@ -21,7 +21,7 @@ export const QUESTS_OPCODES = {
     "CMSG_QUEST_CONFIRM_ACCEPT",
     "SMSG_QUEST_FORCE_REMOVE",
   ],
-  uses: [],
+  uses: ["SMSG_QUESTGIVER_STATUS"],
   stubs: [],
   dead: ["SMSG_QUEST_FORCE_REMOVE"],
   unseen: [],

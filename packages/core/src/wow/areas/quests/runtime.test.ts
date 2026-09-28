@@ -1,0 +1,274 @@
+import { describe, expect, jest, test } from "bun:test";
+import { areaRig } from "#test-support/area-rig";
+import { questsQuestgiverStatusMultipleBody } from "#test-support/areas/quests";
+import type {
+  EntityEvent,
+  GameObjectEntity,
+  UnitEntity,
+} from "#wow/entity-store";
+import { ObjectType } from "#wow/protocol/entity-fields";
+import { GameOpcode } from "#wow/protocol/opcodes";
+import { PacketReader } from "#wow/protocol/packet";
+import type { QuestEvent } from "#wow/quests";
+
+const ERONA = 0xf1_30_00_3f_d1_00_1a_2bn;
+const JESSE = 0xf1_30_00_3e_a7_00_1a_30n;
+const CHEST = 0xf1_10_00_00_2c_00_00_07n;
+const PLAYER = 0x2bn;
+
+function unit(
+  guid: bigint,
+  npcFlags: number,
+  objectType:
+    | typeof ObjectType.UNIT
+    | typeof ObjectType.PLAYER = ObjectType.UNIT,
+): UnitEntity {
+  return {
+    class_: 1,
+    displayId: 1,
+    entry: 15_297,
+    factionTemplate: 1604,
+    gender: 1,
+    guid,
+    health: 100,
+    level: 10,
+    maxHealth: 100,
+    maxPower: [0, 0, 0, 0, 0, 0, 0],
+    name: "Magistrix Erona",
+    npcFlags,
+    objectType,
+    position: undefined,
+    power: [0, 0, 0, 0, 0, 0, 0],
+    race: 0,
+    rawFields: new Map(),
+    scale: 1,
+    target: 0n,
+    unitFlags: 0,
+  };
+}
+
+function gameObject(
+  guid: bigint,
+  bytes1: number,
+  gameObjectType = 0,
+): GameObjectEntity {
+  return {
+    bytes1,
+    displayId: 1,
+    entry: 180_000,
+    flags: 0,
+    gameObjectType,
+    guid,
+    name: undefined,
+    objectType: ObjectType.GAMEOBJECT,
+    position: undefined,
+    rawFields: new Map(),
+    scale: 1,
+  };
+}
+
+function withRig(run: (r: ReturnType<typeof setup>) => void) {
+  jest.useFakeTimers();
+  const r = setup();
+  try {
+    run(r);
+  } finally {
+    r.rig.dispose();
+    jest.useRealTimers();
+  }
+}
+
+function setup() {
+  const rig = areaRig("quests");
+  const multiples = () =>
+    rig.sent.filter(
+      (p) => p.opcode === GameOpcode.CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY,
+    );
+  const singles = () =>
+    rig.sent.filter(
+      (p) => p.opcode === GameOpcode.CMSG_QUESTGIVER_STATUS_QUERY,
+    );
+  const entity = (event: EntityEvent) => rig.events.entity.emit(event);
+  const quest = (type: QuestEvent["type"]) =>
+    rig.events.quest.emit({
+      questId: 8325,
+      source: "packet",
+      state: rig.stores.quests.state(),
+      type,
+    });
+  const tick = (ms: number) => jest.advanceTimersByTime(ms);
+  return { entity, multiples, quest, rig, singles, tick };
+}
+
+describe("quests runtime", () => {
+  test("a quest giver coming into view sends one multiple query, 500 ms after the last trigger", () => {
+    withRig(({ entity, multiples, tick }) => {
+      entity({ entity: unit(ERONA, 0x3), type: "appear" });
+      tick(300);
+      entity({ entity: unit(JESSE, 0x2), type: "appear" });
+      tick(499);
+      expect(multiples()).toEqual([]);
+      tick(1);
+      expect(multiples()).toEqual([
+        {
+          body: new Uint8Array(),
+          opcode: GameOpcode.CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY,
+        },
+      ]);
+    });
+  });
+
+  test("the multiple query goes out at most once every 2 s", () => {
+    withRig(({ entity, multiples, tick }) => {
+      entity({ entity: unit(ERONA, 0x2), type: "appear" });
+      tick(500);
+      entity({ entity: unit(JESSE, 0x2), type: "appear" });
+      tick(1999);
+      expect(multiples()).toHaveLength(1);
+      tick(1);
+      expect(multiples()).toHaveLength(2);
+      tick(10_000);
+      expect(multiples()).toHaveLength(2);
+    });
+  });
+
+  test("a quest-giver object, by its type byte or its queried type, also triggers the query", () => {
+    withRig(({ entity, multiples, tick }) => {
+      entity({ entity: gameObject(CHEST, 2 << 8), type: "appear" });
+      tick(500);
+      expect(multiples()).toHaveLength(1);
+      tick(2000);
+      entity({ entity: gameObject(JESSE, 0), type: "appear" });
+      tick(500);
+      expect(multiples()).toHaveLength(1);
+      entity({
+        changed: ["gameObjectType"],
+        entity: gameObject(JESSE, 0, 2),
+        type: "update",
+      });
+      tick(500);
+      expect(multiples()).toHaveLength(2);
+    });
+  });
+
+  test("no query for a unit without the giver flag, a player, or a giver that has a mark", () => {
+    withRig(({ entity, multiples, rig, tick }) => {
+      rig.inject(
+        GameOpcode.SMSG_QUESTGIVER_STATUS_MULTIPLE,
+        questsQuestgiverStatusMultipleBody([{ guid: ERONA, status: 8 }]),
+      );
+      entity({ entity: unit(ERONA, 0x2), type: "appear" });
+      entity({ entity: unit(JESSE, 0x1), type: "appear" });
+      entity({
+        entity: unit(PLAYER, 0x2, ObjectType.PLAYER),
+        type: "appear",
+      });
+      tick(5000);
+      expect(multiples()).toEqual([]);
+    });
+  });
+
+  test("an update that adds the giver flag triggers the query; other updates do not", () => {
+    withRig(({ entity, multiples, tick }) => {
+      entity({ entity: unit(JESSE, 0x1), type: "appear" });
+      entity({ changed: ["health"], entity: unit(JESSE, 0x1), type: "update" });
+      entity({
+        changed: ["npcFlags"],
+        entity: unit(JESSE, 0x1),
+        type: "update",
+      });
+      tick(5000);
+      expect(multiples()).toEqual([]);
+      entity({
+        changed: ["npcFlags"],
+        entity: unit(JESSE, 0x3),
+        type: "update",
+      });
+      tick(500);
+      expect(multiples()).toHaveLength(1);
+      tick(2000);
+      entity({
+        changed: ["npcFlags"],
+        entity: unit(JESSE, 0x3),
+        type: "update",
+      });
+      tick(5000);
+      expect(multiples()).toHaveLength(1);
+    });
+  });
+
+  test("accepted, removed, completed and failed quest events trigger the query", () => {
+    withRig(({ multiples, quest, tick }) => {
+      for (const type of [
+        "accepted",
+        "removed",
+        "completed",
+        "failed",
+      ] as const) {
+        quest(type);
+        tick(2500);
+      }
+      expect(multiples()).toHaveLength(4);
+      for (const type of ["progress", "dialog", "rewarded"] as const) {
+        quest(type);
+        tick(2500);
+      }
+      expect(multiples()).toHaveLength(4);
+    });
+  });
+
+  test("a giver leaving view loses its mark", () => {
+    withRig(({ entity, rig }) => {
+      rig.inject(
+        GameOpcode.SMSG_QUESTGIVER_STATUS_MULTIPLE,
+        questsQuestgiverStatusMultipleBody([
+          { guid: ERONA, status: 8 },
+          { guid: JESSE, status: 5 },
+        ]),
+      );
+      entity({ guid: ERONA, type: "disappear" });
+      expect([...rig.handle.state().marks.keys()]).toEqual([JESSE]);
+    });
+  });
+
+  test("queryGiverStatus sends the single query only for a known creature or object", () => {
+    withRig(({ entity, rig, singles }) => {
+      entity({ entity: unit(ERONA, 0x2), type: "appear" });
+      entity({ entity: gameObject(CHEST, 0), type: "appear" });
+      entity({
+        entity: unit(PLAYER, 0x2, ObjectType.PLAYER),
+        type: "appear",
+      });
+      expect(rig.handle.act.queryGiverStatus(PLAYER)).toBe(false);
+      expect(rig.handle.act.queryGiverStatus(JESSE)).toBe(false);
+      expect(rig.handle.act.queryGiverStatus(ERONA)).toBe(true);
+      expect(rig.handle.act.queryGiverStatus(CHEST)).toBe(true);
+      entity({ guid: ERONA, type: "disappear" });
+      expect(rig.handle.act.queryGiverStatus(ERONA)).toBe(false);
+      expect(singles().map((p) => new PacketReader(p.body).uint64LE())).toEqual(
+        [ERONA, CHEST],
+      );
+      expect(singles().every((p) => p.body.length === 8)).toBe(true);
+    });
+  });
+
+  test("queryGiverStatuses sends the multiple query at once", () => {
+    withRig(({ multiples, rig }) => {
+      rig.handle.act.queryGiverStatuses();
+      expect(multiples()).toHaveLength(1);
+    });
+  });
+
+  test("dispose drops a pending query", () => {
+    jest.useFakeTimers();
+    const { entity, multiples, rig, tick } = setup();
+    try {
+      entity({ entity: unit(ERONA, 0x2), type: "appear" });
+      rig.dispose();
+      tick(5000);
+      expect(multiples()).toEqual([]);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
