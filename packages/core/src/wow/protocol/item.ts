@@ -1,4 +1,8 @@
 import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
+import {
+  type SpellTarget,
+  writeSpellTargets,
+} from "#wow/protocol/spell-targets";
 
 export const ItemSpellTrigger = { ON_USE: 0 } as const;
 
@@ -102,6 +106,7 @@ export type ItemUseRequest = {
   castCount: number;
   spellId: number;
   itemGuid: bigint;
+  target?: SpellTarget;
 };
 
 export function buildItemQuery(entry: number): Uint8Array {
@@ -272,6 +277,6 @@ export function buildUseItem(request: ItemUseRequest): Uint8Array {
   w.uint64LE(request.itemGuid);
   w.uint32LE(0);
   w.uint8(0);
-  w.uint32LE(0);
+  writeSpellTargets(w, request.target ?? { kind: "none" });
   return w.finish();
 }

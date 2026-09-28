@@ -34,6 +34,20 @@ describe("buildCastSpell", () => {
   });
 });
 
+describe("buildCastSpell targets (Spells/Spell.cpp:163-200)", () => {
+  test("object target writes the game object mask and a packed guid", () => {
+    expect([
+      ...buildCastSpell(1, 133, {
+        guid: 0xf1_10_2c_14_00_00_52_80n,
+        kind: "object",
+      }),
+    ]).toEqual([
+      0x01, 0x85, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0xf3, 0x80,
+      0x52, 0x14, 0x2c, 0x10, 0xf1,
+    ]);
+  });
+});
+
 describe("buildCancelCast", () => {
   test("writes unused counter then spell 20600", () => {
     expect([...buildCancelCast(20_600)]).toEqual([

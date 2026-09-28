@@ -239,6 +239,7 @@ describe("SpellCatalog.get", () => {
     expect(def.effects[0]?.basePoints).toBe(-1);
     expect(def.effects[0]?.realPointsPerLevel).toBeCloseTo(0.25);
     expect(def.effects[0]?.amplitude).toBe(1000);
+    expect(def.effects[0]?.miscValue).toBe(0);
     expect(def.effects[0]?.radius?.min).toBeCloseTo(5);
     expect(def.effects[0]?.radius?.perLevel).toBeCloseTo(0.5);
     expect(def.effects[0]?.radius?.max).toBeCloseTo(25);

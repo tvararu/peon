@@ -1,4 +1,5 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
+import type { LockCatalog } from "#wow/areas/objects/lock-catalog";
 import type {
   AreaTriggerMessage,
   PageTextReply,
@@ -19,6 +20,7 @@ import type { CoreStores, SessionDeps } from "#wow/session-stores";
 const GAMEOBJECT_TYPE = 5;
 export const PAGE_READ_MAX_PAGES = 30;
 export type TriggerCatalogState = "none" | "loading" | "ready" | "failed";
+export type LockCatalogState = "none" | "loading" | "ready" | "failed";
 export type PendingUse = {
   guid: bigint;
   entry: number;
@@ -42,8 +44,18 @@ export type ObjectsState = {
   };
   lastMessage: { text: string; at: number } | undefined;
 };
+export type OpenUseRecord = UseRecord & {
+  how: "use" | "cast";
+  spellId?: number;
+};
 export type ObjectsEvent =
-  | { type: "used"; guid: bigint; entry: number; how: "use" }
+  | {
+      type: "used";
+      guid: bigint;
+      entry: number;
+      how: "use" | "cast";
+      spellId?: number;
+    }
   | { type: "trigger_sent"; triggerId: number; map: number }
   | { type: "trigger_message"; text: string }
   | { type: "page_read"; firstPageId: number; pages: readonly PageText[] }
@@ -55,6 +67,11 @@ export class ObjectsStore {
   private readonly deps: SessionDeps;
   private readonly core: CoreStores;
   private catalog: TriggerCatalogState = "none";
+  private locksState: LockCatalogState = "none";
+  private locks: LockCatalog | undefined;
+  private lockWaiters: {
+    resolve: (catalog: LockCatalog | undefined) => void;
+  }[] = [];
   private watch: TriggerWatch | undefined;
   private last: TriggerPoint | undefined;
   private readonly sent = new Set<number>();
@@ -108,6 +125,48 @@ export class ObjectsStore {
     this.catalog = "loading";
   }
 
+  loadingLocks(): void {
+    this.locksState = "loading";
+  }
+
+  locksFailed(): void {
+    this.locksState = "failed";
+  }
+
+  useLocks(catalog: LockCatalog): void {
+    this.locksState = "ready";
+    this.locks = catalog;
+    const waiters = this.lockWaiters;
+    this.lockWaiters = [];
+    for (const waiter of waiters) waiter.resolve(catalog);
+  }
+
+  lockOf(entry: number) {
+    return this.templates.get(entry)?.lockId;
+  }
+
+  lockEntry(lockId: number) {
+    return this.locks?.get(lockId);
+  }
+
+  waitLocks(): Promise<LockCatalog | undefined> {
+    if (this.locksState === "ready") return Promise.resolve(this.locks);
+    if (this.locksState === "failed" || this.locksState === "none")
+      return Promise.resolve(undefined);
+    return new Promise<LockCatalog | undefined>((resolve) => {
+      this.lockWaiters.push({ resolve });
+    });
+  }
+
+  locksReady(): boolean {
+    return this.locksState === "ready";
+  }
+
+  recordOpen(object: UseRecord, spellId: number): void {
+    this.pending = { ...object, sentAt: this.deps.now() };
+    this.events.emit({ ...object, how: "cast", spellId, type: "used" });
+  }
+
   triggersFailed(): void {
     this.catalog = "failed";
   }
@@ -126,6 +185,10 @@ export class ObjectsStore {
   arrive(point: TriggerPoint): void {
     this.last = point;
     this.watch?.arrive(point);
+  }
+
+  entity(guid: bigint) {
+    return this.deps.getEntity(guid);
   }
 
   object(guid: bigint): UseRecord | undefined {

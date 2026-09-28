@@ -108,6 +108,24 @@ describe("CMSG_USE_ITEM", () => {
   });
 });
 
+describe("CMSG_USE_ITEM targets (Handlers/SpellHandler.cpp:193)", () => {
+  test("object target writes the game object mask after the cast flags", () => {
+    const body = buildUseItem({
+      bag: 255,
+      castCount: 3,
+      itemGuid: 0x4000_0000_000f_17a9n,
+      slot: 29,
+      spellId: 5005,
+      target: { guid: 0xf1_10_2c_14_00_00_52_80n, kind: "object" },
+    });
+    expect([...body]).toEqual([
+      0xff, 0x1d, 0x03, 0x8d, 0x13, 0x00, 0x00, 0xa9, 0x17, 0x0f, 0x00, 0x00,
+      0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00,
+      0xf3, 0x80, 0x52, 0x14, 0x2c, 0x10, 0xf1,
+    ]);
+  });
+});
+
 describe("item template query", () => {
   test("asks for one entry", () => {
     expect([...buildItemQuery(2687)]).toEqual([0x7f, 0x0a, 0x00, 0x00]);
