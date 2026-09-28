@@ -254,6 +254,12 @@ export type EquipSlotName =
   | "ranged"
   | "tabard";
 
+export type QuestRegionView = {
+  kind: "objective" | "turn_in";
+  label: string;
+  to: string;
+};
+
 export type QuestLine = {
   id: number;
   title: string;
@@ -261,6 +267,7 @@ export type QuestLine = {
   status: "incomplete" | "complete" | "failed";
   objectives: { text: string; count: number; required: number }[];
   turnIn: string | undefined;
+  region?: QuestRegionView | { none: true } | undefined;
 };
 
 export type BagRow = {

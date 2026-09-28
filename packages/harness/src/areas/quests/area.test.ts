@@ -12,6 +12,12 @@ const ERONA = 0xf1_30_00_3b_a3_00_00_10n;
 const JULIA = 0xf1_30_00_3b_a4_00_00_11n;
 const ARCANIST = 0xf1_30_00_3b_a5_00_00_12n;
 
+describe("quests harness area", () => {
+  test("the area claims the giver and POI acts", () => {
+    expect(questsHarness.worldActs).toEqual(["queryGiverStatuses", "queryPoi"]);
+  });
+});
+
 const NAMES = new Map<bigint, string>([
   [ERONA, "Magistrix Erona"],
   [JULIA, "Julia Sunstriker"],

@@ -117,5 +117,5 @@ export const questsHarness = defineHarnessArea({
         e.type === "marks" ? onMarks(e, mem, rc) : [quiet(e)],
     };
   },
-  worldActs: ["queryGiverStatuses"],
+  worldActs: ["queryGiverStatuses", "queryPoi"],
 });

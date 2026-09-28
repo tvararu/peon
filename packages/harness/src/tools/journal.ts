@@ -8,6 +8,7 @@ import {
   questSlotStatus,
   type SpellDefinition,
 } from "@peon/core";
+import { questRegion } from "#harness/areas/quests/reads";
 import type {
   BagRow,
   BagsView,
@@ -125,7 +126,8 @@ type ShownQuest = QuestLine & { goal: string };
 function questLine(ctx: Ctx, state: QuestState, slot: LoggedSlot): ShownQuest {
   const quest = knownQuest(state, slot.questId);
   const goal = questGoal(ctx, slot.questId);
-  return {
+  const status = QUEST_STATUS[questSlotStatus(slot)];
+  const shown = {
     goal: goal.objectives.replace(STOP, ""),
     id: slot.questId,
     level: quest?.level,
@@ -133,9 +135,18 @@ function questLine(ctx: Ctx, state: QuestState, slot: LoggedSlot): ShownQuest {
       ...killObjectives(slot, quest),
       ...itemObjectives(state, slot.questId),
     ],
-    status: QUEST_STATUS[questSlotStatus(slot)],
+    status,
     title: questTitle(ctx, slot.questId),
     turnIn: goal.ender,
+  };
+  const pose = ctx.handle.getControlState().pose ?? undefined;
+  return {
+    ...shown,
+    region: questRegion(
+      { id: shown.id, status },
+      ctx.handle.quests.state().pois,
+      pose,
+    ),
   };
 }
 
@@ -151,6 +162,7 @@ function questText({
   id,
   level,
   objectives,
+  region,
   status,
   title,
   turnIn,
@@ -162,7 +174,10 @@ function questText({
   const empty = status === "complete" ? "" : "no counted objectives";
   const goals = counts || goal || empty;
   const shown = goals === "" ? `${status}.` : `${goals}; ${status}.`;
-  return `#${id} ${title}${levelText}: ${shown}${turnInText(status, turnIn)}`;
+  let where = "";
+  if (region !== undefined)
+    where = "none" in region ? " no map region." : ` ${region.label}.`;
+  return `#${id} ${title}${levelText}: ${shown}${turnInText(status, turnIn)}${where}`;
 }
 
 function questsResult(ctx: Ctx): ToolResult<JournalAfter> {
@@ -173,11 +188,17 @@ function questsResult(ctx: Ctx): ToolResult<JournalAfter> {
   );
   const shown = logged.map((slot) => questLine(ctx, state, slot));
   const quests = shown.map(({ goal: _goal, ...line }) => line);
+  const first = shown.find(
+    (line) => line.region !== undefined && !("none" in line.region),
+  );
+  const to =
+    first?.region && "to" in first.region ? first.region.to : undefined;
   const detail = `${quests.length} quests. This is your quest log. To see what an NPC offers, use interact.`;
   return result("DONE", {
     after: { about: "quests", quests },
     body: shown.map(questText),
     detail,
+    next: to === undefined ? undefined : nextCall("travel", { to }),
   });
 }
 async function bagsView(
