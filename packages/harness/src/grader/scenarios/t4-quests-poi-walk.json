@@ -8,9 +8,18 @@
   "checks": [
     {
       "evidence": {
-        "point": { "x": 10358, "y": -6370 }
+        "events": ["quest/accepted"],
+        "ids": [8325]
       },
-      "expect": "final position within 40 yd of the 8326 turn-in centroid (10358, -6370) from the live SMSG_QUEST_POI_QUERY_RESPONSE capture",
+      "expect": "the agent accepts 8325 from Magistrix Erona (GL quest/accepted for 8325)",
+      "id": "took-quest",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "point": { "x": 10309, "y": -6294 }
+      },
+      "expect": "final position within 40 yd of the 8325 objective-0 centroid (10309, -6294) from the live SMSG_QUEST_POI_QUERY_RESPONSE capture",
       "id": "walked-to-region",
       "source": "truth"
     },
@@ -18,7 +27,7 @@
       "evidence": {
         "events": ["tool/call"]
       },
-      "expect": "a journal call is in the game log",
+      "expect": "a journal call is in the game log (the grader confirms its tool/call row names journal before grading it met)",
       "id": "journal-called",
       "source": "game_log"
     }
@@ -30,13 +39,8 @@
   "paneMinutes": 13,
   "partner": null,
   "preset": "fresh",
-  "setup": [
-    {
-      "body": { "quest": 8326 },
-      "endpoint": "quest/add"
-    }
-  ],
+  "setup": [],
   "steers": [],
-  "task": "Go to where your quest's objective is, then stop.",
+  "task": "Take the first quest from Magistrix Erona in front of you, go to where its objective is, then stop.",
   "tier": 4
 }
