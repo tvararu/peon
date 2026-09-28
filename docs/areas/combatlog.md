@@ -91,8 +91,9 @@ last two items, which are not disagreements.
 
 - `SMSG_PARTYKILLLOG` writes the killer and the victim as two full
   `u64` guids (`Entities/Unit/Unit.cpp:13583-13585`). The killer is the
-  player that gets the kill: the owner of a pet or charmed killer, or the
-  loot recipient (`Entities/Unit/Unit.cpp:13548`), so this server never
+  player that gets the kill: the owner of a pet or charmed killer
+  (`Entities/Unit/Unit.cpp:13548`), or the loot recipient or a member of
+  its group (`Entities/Unit/Unit.cpp:13560-13571`), so this server never
   names a pet or a creature as the killer. The server sends the log to
   that player alone, or to the player's group.
 - `SMSG_UPDATE_COMBO_POINTS` writes the target as a packed guid, a single
