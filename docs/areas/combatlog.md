@@ -27,7 +27,7 @@ The harness writes no log row for an entry.
 ## Wire notes
 
 AzerothCore wins over wow_messages in each of these disagreements. The
-layouts the area reads now are in the first and last items.
+layouts the area reads now are in the first and second items.
 
 - `SMSG_ATTACKERSTATEUPDATE` writes one absorb `u32` and one resist
   `u32` per sub-damage when their flags are set
