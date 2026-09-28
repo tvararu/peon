@@ -8,7 +8,9 @@
   "checks": [
     {
       "evidence": {
-        "truth": ["quests"]
+        "truth": [
+          "quests"
+        ]
       },
       "expect": "8325 is in T final quests",
       "id": "took-quest",
@@ -16,7 +18,9 @@
     },
     {
       "evidence": {
-        "events": ["quests/marks"]
+        "events": [
+          "quests/marks"
+        ]
       },
       "expect": "GL has a quests/marks row before the first interact call",
       "id": "marks-row",
@@ -30,7 +34,17 @@
   "paneMinutes": 13,
   "partner": null,
   "preset": "fresh",
-  "setup": [],
+  "setup": [
+    {
+      "endpoint": "position",
+      "body": {
+        "map": 530,
+        "x": 10322,
+        "y": -6357,
+        "z": 29.82
+      }
+    }
+  ],
   "steers": [],
   "task": "Find someone nearby who has a quest for you and take it.",
   "tier": 4

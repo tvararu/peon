@@ -78,7 +78,7 @@ export function rememberedRows(
 }
 
 const GIVER_RANK: Record<QuestMark, number> = {
-  available: 1,
+  available: 0,
   available_low: 3,
   available_repeatable: 3,
   incomplete: 3,

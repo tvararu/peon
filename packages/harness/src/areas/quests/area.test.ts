@@ -74,6 +74,12 @@ describe("quests marks rule", () => {
     ).toEqual([]);
   });
 
+  test("the same giver turning its offer into a turn-in writes no row", () => {
+    const rule = rules();
+    rule(marks([ERONA, 8, "available"]));
+    expect(rule(marks([ERONA, 10, "reward"]))).toEqual([]);
+  });
+
   test("a turn-in that appears or a quest that goes writes a new row", () => {
     const rule = rules();
     rule(marks([ERONA, 8, "available"]));
@@ -101,5 +107,17 @@ describe("quests marks rule", () => {
     expect(rows[0]?.text).toBe(
       "No quest giver in view has a quest for you or a quest to turn in.",
     );
+  });
+
+  test("quest events other than marks write the quiet fallback row", () => {
+    const rows = rules()({ count: 3, type: "completed" });
+    expect(rows).toEqual([
+      {
+        class: "log",
+        data: { count: 3, fallback: true, type: "completed" },
+        name: "completed",
+        text: "quests completed",
+      },
+    ]);
   });
 });

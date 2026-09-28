@@ -23,10 +23,6 @@ const WORDS: Record<Mark, string> = {
   reward: "has a quest to turn in",
 };
 
-function keyOf(giver: Marks["givers"][number]): string {
-  return `${guidText(giver.guid)}:${giver.mark}`;
-}
-
 function offered(givers: Marks["givers"]): Marks["givers"] {
   return givers.filter((giver) => OFFERED[giver.mark] === true);
 }
@@ -47,12 +43,34 @@ function row(
   };
 }
 
+function scalar(value: unknown): unknown {
+  if (typeof value === "bigint") return value.toString(10);
+  const plain =
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean";
+  return plain ? value : undefined;
+}
+
+function quiet(event: QuestsEvent): AreaDraft {
+  const fields = Object.entries(event).flatMap(([key, value]) => {
+    const kept = scalar(value);
+    return kept === undefined ? [] : [[key, kept] as const];
+  });
+  return {
+    class: "log",
+    data: { ...Object.fromEntries(fields), fallback: true },
+    name: event.type,
+    text: `quests ${event.type}`,
+  };
+}
+
 function onMarks(
   e: Marks,
   mem: { seen: Set<string> },
   rc: RuleInput,
 ): AreaDraft[] {
-  const now = new Set(offered(e.givers).map(keyOf));
+  const now = new Set(offered(e.givers).map((giver) => guidText(giver.guid)));
   const same =
     now.size === mem.seen.size && [...now].every((key) => mem.seen.has(key));
   mem.seen = now;
@@ -96,7 +114,7 @@ export const questsHarness = defineHarnessArea({
     const mem = { seen: new Set<string>() };
     return {
       event: (e: QuestsEvent, rc: RuleInput) =>
-        e.type === "marks" ? onMarks(e, mem, rc) : [],
+        e.type === "marks" ? onMarks(e, mem, rc) : [quiet(e)],
     };
   },
   worldActs: ["queryGiverStatuses"],

@@ -129,10 +129,10 @@ describe("look at quest marks", () => {
     await expectSendKind(lookTool, {});
   });
 
-  test("find questgiver lists a turn-in and an offer first, then by distance", async () => {
+  test("find questgiver shares one tier for offers and turn-ins, then distance", async () => {
     const { handle, tool } = await world([
-      [JULIA, 9],
-      [ERONA, 8],
+      [ERONA, 10],
+      [JULIA, 8],
     ]);
     place(handle, crowd());
     const { details, text } = await runTool(tool, { find: "questgiver" });
@@ -140,10 +140,10 @@ describe("look at quest marks", () => {
     expect(lines[2]).toBe(
       "2 of 2 questgiver units within 60 yd, nearest first:",
     );
-    expect(lines[3]).toMatch(/^- u\d+ Julia Sunstriker /);
-    expect(lines[4]).toMatch(/^- u\d+ Velan Brightoak /);
+    expect(lines[3]).toMatch(/^- u\d+ Velan Brightoak /);
+    expect(lines[4]).toMatch(/^- u\d+ Julia Sunstriker /);
     const after = details.tool === "look" ? details.result.after : undefined;
-    expect(after?.rows.map((row) => row.guid)).toEqual(["23", "22"]);
+    expect(after?.rows.map((row) => row.guid)).toEqual(["22", "23"]);
     await expectSendKind(lookTool, { find: "questgiver" });
   });
 
