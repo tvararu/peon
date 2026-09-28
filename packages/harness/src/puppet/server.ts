@@ -2,6 +2,7 @@ import { rm, writeFile } from "node:fs/promises";
 import type { WorldHandle } from "@peon/core";
 import { messageOf } from "@peon/core/lib/errors";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
+import { opcodeName, type TraceSender } from "@peon/core/session";
 import type { Socket, UnixSocketListener } from "bun";
 import { decodeCall, PUPPET_CALLS } from "#harness/puppet/calls";
 import {
@@ -26,6 +27,7 @@ export type PuppetServerInit = {
   paths: PuppetPaths;
   logoutWaitMs?: number;
   chatCapacity?: number;
+  send?: TraceSender;
 };
 
 export type PuppetServer = {
@@ -68,6 +70,7 @@ class Puppet {
   private readonly handle: WorldHandle;
   private readonly paths: PuppetPaths;
   private readonly waitMs: number;
+  private readonly send: TraceSender | undefined;
   private readonly chat: ChatEvent[] = [];
   private readonly events: EventRow[] = [];
   private readonly unsubscribe: (() => void)[];
@@ -79,6 +82,7 @@ class Puppet {
     this.handle = init.handle;
     this.paths = init.paths;
     this.waitMs = init.logoutWaitMs ?? LOGOUT_WAIT_MS;
+    this.send = init.send;
     const capacity = init.chatCapacity ?? CHAT_CAPACITY;
     const { handle } = init;
     const keep = (hook: string) => (event: unknown) => {
@@ -164,6 +168,7 @@ class Puppet {
       return { ok: true, out: "OK" };
     }
     if (request.cmd === "call") return this.call(request.method, request.args);
+    if (request.cmd === "raw") return this.raw(request.opcode, request.body);
     return { ok: true, out: "" };
   }
 
@@ -172,6 +177,20 @@ class Puppet {
     if ("error" in call) return { error: call.error, ok: false };
     PUPPET_CALLS[call.method]?.run(this.handle, call.args);
     return { ok: true, out: resultJson("call", { method: call.method }) };
+  }
+
+  private raw(opcode: number, hex: string): PuppetReply {
+    if (!this.send)
+      return {
+        error: "Start the puppet with --packet-trace to send raw packets.",
+        ok: false,
+      };
+    const body = Uint8Array.from(Buffer.from(hex, "hex"));
+    this.send(opcode, body);
+    return {
+      ok: true,
+      out: resultJson("raw", { opcode: opcodeName(opcode), size: body.length }),
+    };
   }
 
   private logOut(): Promise<string> {

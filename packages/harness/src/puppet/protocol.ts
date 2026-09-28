@@ -7,6 +7,9 @@ export type PuppetPaths = {
   runtimeDir: string;
   socket: string;
   pid: string;
+  stateDir: string;
+  packets: string;
+  packetCounts: string;
 };
 
 export type PuppetRequest =
@@ -16,6 +19,7 @@ export type PuppetRequest =
   | { cmd: "events" }
   | { cmd: "whisper"; target: string; text: string }
   | { cmd: "call"; method: string; args: unknown[] }
+  | { cmd: "raw"; opcode: number; body: string }
   | { cmd: "stop" };
 
 export type PuppetReply =
@@ -37,17 +41,22 @@ const CMDS: readonly string[] = [
   "events",
   "whisper",
   "call",
+  "raw",
   "stop",
 ];
+export const HEX_BODY = /^(?:[0-9a-f]{2})*$/i;
 
 export function puppetPaths(env: PathEnv = Bun.env): PuppetPaths {
   const host = { home: homedir(), tmp: tmpdir(), uid: process.getuid?.() ?? 0 };
-  const { configPath, runtimeDir } = resolvePaths(env, host);
+  const { configPath, runtimeDir, stateDir } = resolvePaths(env, host);
   return {
     configPath,
+    packetCounts: `${stateDir}/packets.json`,
+    packets: `${stateDir}/packets.jsonl`,
     pid: `${runtimeDir}/puppet.pid`,
     runtimeDir,
     socket: `${runtimeDir}/puppet.sock`,
+    stateDir,
   };
 }
 
@@ -63,6 +72,14 @@ export function decodeRequest(line: string): PuppetRequest | undefined {
     const { method, args } = value;
     return typeof method === "string" && Array.isArray(args)
       ? { args, cmd: "call", method }
+      : undefined;
+  }
+  if (value["cmd"] === "raw") {
+    const { opcode, body } = value;
+    return Number.isInteger(opcode) &&
+      typeof body === "string" &&
+      HEX_BODY.test(body)
+      ? { body, cmd: "raw", opcode: opcode as number }
       : undefined;
   }
   if (value["cmd"] !== "whisper") return value as PuppetRequest;

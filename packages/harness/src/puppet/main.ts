@@ -1,5 +1,6 @@
 import { messageOf } from "@peon/core/lib/errors";
 import { UsageError } from "#harness/config/flags";
+import type { PacketTraceMode } from "#harness/contract/config";
 import {
   type PuppetCommand,
   parsePuppetArgs,
@@ -17,7 +18,7 @@ import {
 export type PuppetCliInit = {
   argv: readonly string[];
   paths: PuppetPaths;
-  launch: () => Promise<void>;
+  launch: (packetTrace: PacketTraceMode) => Promise<void>;
   out: (text: string) => void;
   err: (text: string) => void;
 };
@@ -50,7 +51,7 @@ async function run(
       () => true,
       () => false,
     );
-    if (!running) await init.launch();
+    if (!running) await init.launch(command.packetTrace);
     init.out(resultJson("start", { socket: "responsive", started: !running }));
     return 0;
   }
@@ -71,6 +72,8 @@ function requestFor(
     return { cmd: "whisper", target: command.target, text: command.text };
   if (command.kind === "call")
     return { args: command.args, cmd: "call", method: command.method };
+  if (command.kind === "raw")
+    return { body: command.body, cmd: "raw", opcode: command.opcode };
   return { cmd: command.kind };
 }
 
@@ -78,7 +81,8 @@ if (import.meta.main)
   process.exitCode = await runPuppet({
     argv: Bun.argv.slice(2),
     err: console.error,
-    launch: () => launchPuppet({ entry: `${import.meta.dir}/serve.ts` }),
+    launch: (packetTrace) =>
+      launchPuppet({ entry: `${import.meta.dir}/serve.ts`, packetTrace }),
     out: console.log,
     paths: puppetPaths(),
   });

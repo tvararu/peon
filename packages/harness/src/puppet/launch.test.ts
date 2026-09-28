@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import { rm, writeFile } from "node:fs/promises";
 import { scratchDir } from "@peon/core/test-support/scratch";
-import { launchPuppet } from "#harness/puppet/launch";
+import type { PacketTraceMode } from "#harness/contract/config";
+import { launchPuppet, packetTraceOf } from "#harness/puppet/launch";
 
 let dir: string;
 
@@ -82,5 +83,41 @@ describe("launchPuppet", () => {
       jest.useRealTimers();
     }
     expect(await alive(pidFile)).toBe(false);
+  });
+
+  test("passes the packet trace mode to the background process", async () => {
+    const path = await entry(
+      `await Bun.write(import.meta.dir + "/argv", JSON.stringify(Bun.argv.slice(2)));
+       process.send({ type: "ready" });`,
+    );
+    await launchPuppet({
+      entry: path,
+      packetTrace: "headers",
+      timeoutMs: 5000,
+    });
+    expect(JSON.parse(await Bun.file(`${dir}/argv`).text())).toEqual([
+      "--packet-trace",
+      "headers",
+    ]);
+  });
+
+  test("passes no arguments when the packet trace is off", async () => {
+    const path = await entry(
+      `await Bun.write(import.meta.dir + "/argv", JSON.stringify(Bun.argv.slice(2)));
+       process.send({ type: "ready" });`,
+    );
+    await launchPuppet({ entry: path, timeoutMs: 5000 });
+    expect(JSON.parse(await Bun.file(`${dir}/argv`).text())).toEqual([]);
+  });
+});
+
+describe("packetTraceOf", () => {
+  test.each<[string[], PacketTraceMode]>([
+    [[], "off"],
+    [["--packet-trace", "headers"], "headers"],
+    [["--packet-trace", "bodies"], "bodies"],
+    [["--packet-trace", "loud"], "off"],
+  ])("%p is %p", (argv, mode) => {
+    expect(packetTraceOf(argv)).toBe(mode);
   });
 });

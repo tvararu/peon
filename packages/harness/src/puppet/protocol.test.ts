@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { GameOpcode } from "@peon/core/test-support/internals";
 import {
   decodeReply,
   decodeRequest,
@@ -26,17 +27,21 @@ async function tempDir(): Promise<string> {
 }
 
 describe("puppetPaths", () => {
-  test("puts the socket and pid in the account's runtime dir", () => {
+  test("puts the socket and pid in the runtime dir and the trace in the state dir", () => {
     expect(
       puppetPaths({
         XDG_CONFIG_HOME: "/acc/config",
         XDG_RUNTIME_DIR: "/acc/runtime",
+        XDG_STATE_HOME: "/acc/state",
       }),
     ).toEqual({
       configPath: "/acc/config/peon/config.toml",
+      packetCounts: "/acc/state/peon/packets.json",
+      packets: "/acc/state/peon/packets.jsonl",
       pid: "/acc/runtime/peon/puppet.pid",
       runtimeDir: "/acc/runtime/peon",
       socket: "/acc/runtime/peon/puppet.sock",
+      stateDir: "/acc/state/peon",
     });
   });
 });
@@ -62,8 +67,22 @@ describe("request and reply lines", () => {
     expect(decodeRequest(encodeLine(request).trimEnd())).toEqual(request);
   });
 
+  test("a raw request survives its line", () => {
+    const request: PuppetRequest = {
+      body: "0100",
+      cmd: "raw",
+      opcode: GameOpcode.CMSG_PING,
+    };
+    expect(decodeRequest(encodeLine(request).trimEnd())).toEqual(request);
+  });
+
   test.each([
     "not json",
+    '{"cmd":"raw","opcode":"CMSG_PING","body":""}',
+    '{"cmd":"raw","opcode":1.5,"body":""}',
+    '{"cmd":"raw","opcode":476,"body":"0"}',
+    '{"cmd":"raw","opcode":476,"body":"zz"}',
+    '{"cmd":"raw","opcode":476}',
     '{"cmd":"call","method":7,"args":[]}',
     '{"cmd":"call","method":"invite","args":"Fabc"}',
     '{"cmd":"call","args":[]}',

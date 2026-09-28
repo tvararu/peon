@@ -75,6 +75,7 @@ describe("runPuppet", () => {
     [["send", "-w", "Fevala", "hi"]],
     [["stop"]],
     [["call", "invite", '["Fabc"]']],
+    [["raw", "CMSG_PING"]],
   ])("%p with no puppet running exits 1 and says so", async (argv) => {
     const { paths } = await tempPaths();
     const { code, err, out } = await cli(argv, paths);
@@ -142,8 +143,35 @@ describe("runPuppet", () => {
     const { code, launch, out } = await cli(["start", "--json"], paths);
     expect(code).toBe(0);
     expect(launch).toHaveBeenCalledTimes(1);
+    expect(launch).toHaveBeenCalledWith("off");
     expect(out).toEqual([
       '{"command":"start","data":{"socket":"responsive","started":true},"error":null,"events":[],"kind":"result"}',
+    ]);
+  });
+
+  test("start --packet-trace hands the mode to the launch", async () => {
+    const { paths } = await tempPaths();
+    const { code, launch } = await cli(
+      ["start", "--json", "--packet-trace", "headers"],
+      paths,
+    );
+    expect(code).toBe(0);
+    expect(launch).toHaveBeenCalledWith("headers");
+  });
+
+  test("raw sends the opcode number and the body", async () => {
+    const { paths } = await tempPaths();
+    const reply =
+      '{"command":"raw","data":{"opcode":"CMSG_PING","size":8},"error":null,"events":[],"kind":"result"}';
+    const seen = fakePuppet(paths, { ok: true, out: reply });
+    const { code, out } = await cli(
+      ["raw", "CMSG_PING", "0100000000000000"],
+      paths,
+    );
+    expect(code).toBe(0);
+    expect(out).toEqual([reply]);
+    expect(seen).toEqual([
+      '{"body":"0100000000000000","cmd":"raw","opcode":476}',
     ]);
   });
 
@@ -177,6 +205,7 @@ describe("main.ts as a process", () => {
         ...Bun.env,
         XDG_CONFIG_HOME: `${dir}/config`,
         XDG_RUNTIME_DIR: `${dir}/runtime`,
+        XDG_STATE_HOME: `${dir}/state`,
       },
       stderr: "pipe",
       stdout: "pipe",

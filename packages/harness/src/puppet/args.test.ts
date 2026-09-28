@@ -1,10 +1,27 @@
 import { describe, expect, test } from "bun:test";
+import { GameOpcode } from "@peon/core/test-support/internals";
 import { UsageError } from "#harness/config/flags";
 import { type PuppetCommand, parsePuppetArgs } from "#harness/puppet/args";
 
 describe("parsePuppetArgs", () => {
   test.each<[string[], PuppetCommand]>([
-    [["start", "--json"], { kind: "start" }],
+    [["start", "--json"], { kind: "start", packetTrace: "off" }],
+    [
+      ["start", "--json", "--packet-trace", "headers"],
+      { kind: "start", packetTrace: "headers" },
+    ],
+    [
+      ["raw", "CMSG_PING", "0100000000000000"],
+      { body: "0100000000000000", kind: "raw", opcode: GameOpcode.CMSG_PING },
+    ],
+    [
+      ["raw", "0x1DC", "ABcd"],
+      { body: "abcd", kind: "raw", opcode: GameOpcode.CMSG_PING },
+    ],
+    [
+      ["raw", "MSG_RAID_READY_CHECK"],
+      { body: "", kind: "raw", opcode: GameOpcode.MSG_RAID_READY_CHECK },
+    ],
     [["read", "--json"], { kind: "read" }],
     [["nearby", "--json"], { kind: "nearby" }],
     [["events", "--json"], { kind: "events" }],
@@ -32,6 +49,16 @@ describe("parsePuppetArgs", () => {
     [[]],
     [["status"]],
     [["start"]],
+    [["start", "--json", "--packet-trace", "loud"]],
+    [["start", "--json", "--packet-trace"]],
+    [["start", "--packet-trace", "headers"]],
+    [["raw"]],
+    [["raw", "SMSG_PONG"]],
+    [["raw", "CMSG_PING", "0"]],
+    [["raw", "CMSG_PING", "zz"]],
+    [["raw", "CMSG_NOT_AN_OPCODE"]],
+    [["raw", "0x10000"]],
+    [["raw", "CMSG_PING", "00", "00"]],
     [["read"]],
     [["read", "--json", "--wait", "5"]],
     [["nearby", "--json", "all"]],

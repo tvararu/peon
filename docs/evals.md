@@ -137,12 +137,13 @@ by itself; a person can run the same commands through the launcher.
 
 | Command | Used by | Behaviour |
 |---|---|---|
-| `start --json` | partner, witness | Starts the puppet process and returns once the character is in the world. |
+| `start --json [--packet-trace off\|headers\|bodies]` | partner, witness; area workers add the trace | Starts the puppet process and returns once the character is in the world. A trace other than `off` (the default) writes `packets.jsonl` and `packets.json` to the account's state directory, `tmp/factory-account-<ACCOUNT>/state/peon/`, which `soap delete` removes; `packets.jsonl` appends across starts. When a puppet is already running, the reply has `started: false` and the flag has no effect. |
 | `send -w <name> <text>` | the `t2-whisper-reply` partner action | Whispers, and exits 0 on success. |
 | `read --json` | partner, after the run (`partner-read.jsonl`) | Prints one JSON envelope whose `events` array holds the chat events since start, then drains them. |
 | `nearby --json` | witness, sampled into `witness.jsonl` | Prints one JSON envelope whose `data` array holds the nearby unit rows. |
 | `events --json` | area workers, to read what a partner was told | Prints one JSON envelope whose `events` array holds the game events since the last `events` as `{ at, event, hook }` rows, then drains them. `hook` is `group`, `guild`, `duel`, `notice`, `packetError` or `area`; an area row's `event` is `{ area, event }`, a packet error's is `{ error, opcode }`, and a bigint is a decimal string. Keeps the newest 1000 rows. Chat stays with `read`. |
 | `call <method> [json-array]` | area workers, to drive a partner | Calls one allow-listed `WorldHandle` method from `puppet/calls.ts` with the JSON array as its arguments (a guid is a decimal string). Prints a result envelope naming the method, or exits 1 when the method throws. |
+| `raw <OPCODE> [hex]` | area workers, to send a client opcode that no handle method sends | Sends one packet: `OPCODE` is a `CMSG_` or `MSG_` name or `0x` hex, and `hex` an even-length body (empty by default). Needs a puppet started with `--packet-trace`. Prints a result envelope with the opcode name and body `size`. |
 | `stop` | the run's finish | Logs out, waits for the server logout, and the process exits. |
 
 ## Which scenarios to run

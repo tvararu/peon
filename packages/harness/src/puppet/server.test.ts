@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, type Mock, test } from "bun:test";
+import { afterEach, describe, expect, jest, type Mock, test } from "bun:test";
 import { access, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import type { WorldHandle } from "@peon/core";
@@ -64,7 +64,9 @@ async function setup(
   return { handle, paths, server, ws };
 }
 
-async function mockSetup(chatCapacity?: number): Promise<{
+async function mockSetup(
+  init: Partial<Omit<PuppetServerInit, "handle" | "paths">> = {},
+): Promise<{
   handle: MockHandle;
   paths: PuppetPaths;
 }> {
@@ -73,11 +75,7 @@ async function mockSetup(chatCapacity?: number): Promise<{
   await mkdir(paths.runtimeDir, { recursive: true });
   const handle = createMockHandle();
   cleanups.push(() => rm(dir, { force: true, recursive: true }));
-  const server = await listenPuppet({
-    handle,
-    paths,
-    ...(chatCapacity === undefined ? {} : { chatCapacity }),
-  });
+  const server = await listenPuppet({ handle, paths, ...init });
   cleanups.push(() => server.stop());
   return { handle, paths };
 }
@@ -357,7 +355,7 @@ describe("puppet events", () => {
   });
 
   test("keeps only the newest rows once the buffer is full", async () => {
-    const { handle, paths } = await mockSetup(2);
+    const { handle, paths } = await mockSetup({ chatCapacity: 2 });
     for (const name of ["one", "two", "three"])
       handle.triggerGroupEvent({ name, type: "leader_changed" });
     const rows = await drain(paths);
@@ -389,5 +387,73 @@ describe("puppet events", () => {
     expect((await drain(paths)).map(({ hook }) => hook)).toEqual(["group"]);
     const read = JSON.parse(await ask(paths, { cmd: "read" }));
     expect(read.events).toHaveLength(1);
+  });
+});
+
+describe("puppet raw", () => {
+  test("sends the opcode and the body bytes through the trace's sender", async () => {
+    const send = jest.fn();
+    const { paths } = await mockSetup({ send });
+    expect(
+      await ask(paths, {
+        body: "0100000000000000",
+        cmd: "raw",
+        opcode: GameOpcode.CMSG_PING,
+      }),
+    ).toBe(
+      '{"command":"raw","data":{"opcode":"CMSG_PING","size":8},"error":null,"events":[],"kind":"result"}',
+    );
+    expect(send).toHaveBeenCalledWith(
+      GameOpcode.CMSG_PING,
+      new Uint8Array([1, 0, 0, 0, 0, 0, 0, 0]),
+    );
+  });
+
+  test("an empty body sends zero bytes", async () => {
+    const send = jest.fn();
+    const { paths } = await mockSetup({ send });
+    const out = JSON.parse(
+      await ask(paths, {
+        body: "",
+        cmd: "raw",
+        opcode: GameOpcode.MSG_RAID_READY_CHECK,
+      }),
+    );
+    expect(out.data).toEqual({ opcode: "MSG_RAID_READY_CHECK", size: 0 });
+    expect(send).toHaveBeenCalledWith(
+      GameOpcode.MSG_RAID_READY_CHECK,
+      new Uint8Array(0),
+    );
+  });
+
+  test("refuses raw when the puppet has no packet trace", async () => {
+    const { paths } = await mockSetup();
+    expect(
+      await sendRequest(paths.socket, {
+        body: "",
+        cmd: "raw",
+        opcode: GameOpcode.CMSG_PING,
+      }),
+    ).toEqual({
+      error: "Start the puppet with --packet-trace to send raw packets.",
+      ok: false,
+    });
+  });
+
+  test("replies the sender's failure", async () => {
+    const send = jest.fn(() => {
+      throw new Error("the session gave the puppet no packet sender.");
+    });
+    const { paths } = await mockSetup({ send });
+    expect(
+      await sendRequest(paths.socket, {
+        body: "",
+        cmd: "raw",
+        opcode: GameOpcode.CMSG_PING,
+      }),
+    ).toEqual({
+      error: "the session gave the puppet no packet sender.",
+      ok: false,
+    });
   });
 });

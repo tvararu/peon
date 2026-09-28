@@ -1,4 +1,6 @@
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
+import type { PacketTraceMode } from "#harness/contract/config";
+import { TRACE_MODES } from "#harness/puppet/args";
 
 export type PuppetLaunchMessage =
   | { type: "ready" }
@@ -6,17 +8,28 @@ export type PuppetLaunchMessage =
 
 export type PuppetLaunchInit = {
   entry: string;
+  packetTrace?: PacketTraceMode;
   timeoutMs?: number;
 };
 
 export const START_TIMEOUT_MS = 90_000;
 
+const TRACE_FLAG = "--packet-trace";
+
+export function packetTraceOf(argv: readonly string[]): PacketTraceMode {
+  const at = argv.indexOf(TRACE_FLAG);
+  if (at === -1) return "off";
+  return TRACE_MODES.find((known) => known === argv[at + 1]) ?? "off";
+}
+
 export async function launchPuppet({
   entry,
+  packetTrace = "off",
   timeoutMs = START_TIMEOUT_MS,
 }: PuppetLaunchInit): Promise<void> {
   const outcome = Promise.withResolvers<PuppetLaunchMessage>();
-  const child = Bun.spawn([process.execPath, entry], {
+  const trace = packetTrace === "off" ? [] : [TRACE_FLAG, packetTrace];
+  const child = Bun.spawn([process.execPath, entry, ...trace], {
     detached: true,
     ipc: (message) => outcome.resolve(readMessage(message)),
     stdio: ["ignore", "ignore", "ignore"],
