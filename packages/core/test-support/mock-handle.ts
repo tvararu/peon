@@ -334,7 +334,7 @@ export function createMockHandle(): MockHandle {
     talk: jest.fn(),
     trainSpell: jest.fn(),
     triggerAreaEvent(area, event) {
-      events.area.emit({ area, event } as AreaEvent);
+      events.area.emit({ area, event } as unknown as AreaEvent);
     },
     triggerCombatEvent(event) {
       events.combat.emit(event);
