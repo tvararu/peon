@@ -297,6 +297,16 @@ describe("parsePartyKill (Unit.cpp:13583-13585)", () => {
     });
   });
 
+  test("reads the body of the combatlog-fight kill proof", () => {
+    const body = Uint8Array.from(
+      Buffer.from("060e000000000000084801283d0030f1", "hex"),
+    );
+    expect(parsePartyKill(read(body))).toEqual({
+      killer: 0xe06n,
+      victim: 0xf1_30_00_3d_28_01_48_08n,
+    });
+  });
+
   test("a short body throws", () => {
     const body = combatlogPartyKillBody({ killer: ME, victim: BOAR });
     expect(() => parsePartyKill(read(body.slice(0, 12)))).toThrow();

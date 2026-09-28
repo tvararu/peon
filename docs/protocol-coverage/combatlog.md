@@ -8,7 +8,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x14a` | `SMSG_ATTACKERSTATEUPDATE` | server | handled |  |
 | `0x150` | `SMSG_SPELLHEALLOG` | server | stub |  |
 | `0x151` | `SMSG_SPELLENERGIZELOG` | server | missing |  |
-| `0x1f5` | `SMSG_PARTYKILLLOG` | server | handled | not seen live |
+| `0x1f5` | `SMSG_PARTYKILLLOG` | server | handled |  |
 | `0x1fc` | `SMSG_ENVIRONMENTAL_DAMAGE_LOG` | server | stub |  |
 | `0x24b` | `SMSG_SPELLLOGMISS` | server | missing |  |
 | `0x24c` | `SMSG_SPELLLOGEXECUTE` | server | missing |  |
