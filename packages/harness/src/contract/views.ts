@@ -53,6 +53,13 @@ export type PlaceView = {
   ageMs: number | undefined;
 };
 
+export type QuestMark =
+  | "available"
+  | "available_low"
+  | "available_repeatable"
+  | "reward"
+  | "incomplete";
+
 export type UnitView = {
   ref: string;
   guid: string;
@@ -81,6 +88,7 @@ export type UnitView = {
   fightingMe?: boolean;
   aggro?: string;
   myThreatPct?: number;
+  questMark?: QuestMark;
 };
 
 export type NearestKind =

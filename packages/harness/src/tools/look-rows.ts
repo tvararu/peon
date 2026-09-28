@@ -1,5 +1,5 @@
 import type { LookAfter, LookFilter } from "#harness/contract/details";
-import type { NearestKind, UnitView } from "#harness/contract/views";
+import type { NearestKind, QuestMark, UnitView } from "#harness/contract/views";
 import { LOOK_DEFAULT_YD } from "#harness/ops/range";
 import { kindOf } from "#harness/tools/look-find";
 import { MORE_NAMES } from "#harness/tools/look-rank";
@@ -56,6 +56,14 @@ function lastSeenText(unit: UnitView, then: readonly string[]): string {
   return `last seen ${distanceText(unit)} ${ageText(unit.seenAgoMs)} ago${was} (not in view)`;
 }
 
+const QUEST_WORDS: Record<QuestMark, string> = {
+  available: "quest available",
+  available_low: "low-level quest",
+  available_repeatable: "repeatable quest",
+  incomplete: "quest in progress",
+  reward: "quest to turn in",
+};
+
 export function rowLine(unit: UnitView): string {
   const volatile = [
     unit.alive ? undefined : "dead",
@@ -73,6 +81,7 @@ export function rowLine(unit: UnitView): string {
     unit.kind === "player" ? "player" : undefined,
     unit.relation,
     unit.roles.length > 0 ? unit.roles.join(" ") : undefined,
+    unit.questMark === undefined ? undefined : QUEST_WORDS[unit.questMark],
     ...(unit.inView
       ? [...volatile, distanceText(unit)]
       : [lastSeenText(unit, volatile)]),

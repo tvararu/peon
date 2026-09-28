@@ -1,6 +1,7 @@
+import { withQuestMarks } from "#harness/areas/quests/reads";
 import type { LookAfter, LookFilter } from "#harness/contract/details";
 import type { ToolCtx } from "#harness/contract/services";
-import type { NearestKind, UnitView } from "#harness/contract/views";
+import type { NearestKind, QuestMark, UnitView } from "#harness/contract/views";
 import {
   LOOK_DEFAULT_ROWS,
   LOOK_DEFAULT_YD,
@@ -76,15 +77,38 @@ export function rememberedRows(
     .slice(0, REMEMBERED_ROWS);
 }
 
+const GIVER_RANK: Record<QuestMark, number> = {
+  available: 1,
+  available_low: 3,
+  available_repeatable: 3,
+  incomplete: 3,
+  reward: 0,
+};
+
+function byGiverMark(a: UnitView, b: UnitView): number {
+  const left = a.questMark === undefined ? 2 : GIVER_RANK[a.questMark];
+  const right = b.questMark === undefined ? 2 : GIVER_RANK[b.questMark];
+  if (left !== right) return left - right;
+  return (
+    (a.distance ?? Number.MAX_SAFE_INTEGER) -
+    (b.distance ?? Number.MAX_SAFE_INTEGER)
+  );
+}
+
 export function findUnits(args: LookArgs, ctx: ToolCtx<LookAfter>): LookFound {
   const filter = LOOK_FILTERS.find((known) => known === args.find) ?? "any";
-  const units = unitViews(ctx);
+  const units = withQuestMarks(unitViews(ctx), ctx.handle.quests.state().marks);
   const within = args.within ?? LOOK_DEFAULT_YD;
   const matching = units.filter((unit) =>
     fitsLook({ filter, name: args.name, unit, within }),
   );
-  const cut = args.within === undefined && matching.length > LOOK_DEFAULT_ROWS;
-  const ordered = cut ? byRelevance(matching, relevanceOf(ctx)) : matching;
+  const byMarkThenDistance =
+    filter === "questgiver" ? [...matching].sort(byGiverMark) : matching;
+  const cut =
+    args.within === undefined && byMarkThenDistance.length > LOOK_DEFAULT_ROWS;
+  let ordered = byMarkThenDistance;
+  if (filter !== "questgiver" && cut)
+    ordered = byRelevance(byMarkThenDistance, relevanceOf(ctx));
   const rows = ordered.slice(
     0,
     args.within === undefined ? LOOK_DEFAULT_ROWS : LOOK_MAX_ROWS,
