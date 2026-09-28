@@ -1,0 +1,106 @@
+import { describe, expect, test } from "bun:test";
+import { areaRig } from "#test-support/area-rig";
+import {
+  loginAccountDataTimesBody,
+  loginAddonInfoBody,
+  loginClientCacheVersionBody,
+  loginFeatureSystemStatusBody,
+  loginLearnedDanceMovesBody,
+  loginTutorialFlagsBody,
+} from "#test-support/areas/login";
+import { GameOpcode } from "#wow/protocol/opcodes";
+
+const FLAGS = [0xff_ff_ff_ff, 0x3, 0, 0, 0, 0, 0, 0];
+
+describe("login area wiring", () => {
+  test("the server's login order fills the state and fires login_noise once", () => {
+    const rig = areaRig("login");
+    try {
+      const seen: unknown[] = [];
+      rig.handle.onEvent((event) => seen.push(event));
+      rig.inject(
+        GameOpcode.SMSG_ADDON_INFO,
+        loginAddonInfoBody({
+          banned: [],
+          entries: [{ usePk: true }, { usePk: false }],
+        }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_CLIENTCACHE_VERSION,
+        loginClientCacheVersionBody({ version: 3 }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_TUTORIAL_FLAGS,
+        loginTutorialFlagsBody({ flags: FLAGS }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_ACCOUNT_DATA_TIMES,
+        loginAccountDataTimesBody({
+          mask: 0xea,
+          serverTime: 1_790_000_000,
+          times: [1, 3, 5, 6, 7],
+        }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_FEATURE_SYSTEM_STATUS,
+        loginFeatureSystemStatusBody({ complaints: 2, voice: 0 }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_LEARNED_DANCE_MOVES,
+        loginLearnedDanceMovesBody(),
+      );
+      rig.inject(
+        GameOpcode.SMSG_LEARNED_DANCE_MOVES,
+        loginLearnedDanceMovesBody(),
+      );
+      expect(rig.handle.state()).toEqual({
+        accountDataTimes: {
+          mask: 0xea,
+          serverTime: 1_790_000_000,
+          times: [
+            [1, 1],
+            [3, 3],
+            [5, 5],
+            [6, 6],
+            [7, 7],
+          ],
+        },
+        addons: { banned: 0, count: 2, keyed: 1 },
+        cacheVersion: 3,
+        danceMoves: [0, 0],
+        features: { complaints: 2, voice: 0 },
+        tutorials: FLAGS,
+      });
+      expect(seen).toEqual([
+        { mask: 0xea, type: "account_data_times" },
+        {
+          addons: 2,
+          cacheVersion: 3,
+          complaints: 2,
+          keyed: 1,
+          type: "login_noise",
+          voice: 0,
+        },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("an empty addon list parses to zero addons", () => {
+    const rig = areaRig("login");
+    try {
+      rig.inject(
+        GameOpcode.SMSG_ADDON_INFO,
+        loginAddonInfoBody({ banned: [], entries: [] }),
+      );
+      expect(rig.handle.state().addons).toEqual({
+        banned: 0,
+        count: 0,
+        keyed: 0,
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+});

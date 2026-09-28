@@ -16,11 +16,7 @@ export const LOGIN_OPCODES = {
     "SMSG_LOGOUT_CANCEL_ACK",
   ],
   uses: [],
-  stubs: [
-    ["SMSG_ACCOUNT_DATA_TIMES", "Account data"],
-    ["SMSG_FEATURE_SYSTEM_STATUS", "System features"],
-    ["SMSG_TUTORIAL_FLAGS", "Tutorial flags"],
-  ],
+  stubs: [],
   dead: [],
   unseen: [],
 } as const satisfies AreaOpcodes;
