@@ -62,7 +62,7 @@ function router(opts: { savedAt?: string; listed?: string[] } = {}): Router {
       return ok(
         JSON.stringify({
           account: argv[4],
-          command: `group list ${argv[4]}`,
+          command: "group list Fevala",
           ok: true,
           text: "Group type: Party and consists of 2 players.",
           verb: "read",

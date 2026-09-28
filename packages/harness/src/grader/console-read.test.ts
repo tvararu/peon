@@ -8,7 +8,8 @@ import { failed, fakeExec, ok } from "#test-support/fake-exec";
 const ACC = "FAC0123456789";
 const PARTNER = "FAC0000000002";
 const GROUP_TEXT = "Group type: Party and consists of 2 players.";
-const NOT_IN_GROUP = "Fevala is not in a group!";
+const CHARACTER = "Fevala";
+const NO_CHARACTER = `Character '${CHARACTER}' does not exist.`;
 
 const partnerNames = {
   account: PARTNER,
@@ -44,7 +45,7 @@ describe("readConsole", () => {
   test("group list reply from cs_group.cpp:224 and acore_string 1149 gives one read and one row", async () => {
     const dir = await runDir();
     const { calls, exec } = fakeExec(() =>
-      ok(`${gmReply(ACC, `group list ${ACC}`, GROUP_TEXT)}\n`),
+      ok(`${gmReply(ACC, `group list ${CHARACTER}`, GROUP_TEXT)}\n`),
     );
     await readConsole({
       agent: ACC,
@@ -100,13 +101,13 @@ describe("readConsole", () => {
     });
   });
 
-  test("a non-zero exit is recorded, not thrown", async () => {
+  test("a refused read (ChatCommandTags.cpp:129, acore_string 1508) is recorded, not thrown", async () => {
     const dir = await runDir();
     const refused = {
       account: ACC,
-      command: `group list ${ACC}`,
+      command: `group list ${CHARACTER}`,
       ok: false,
-      text: NOT_IN_GROUP,
+      text: NO_CHARACTER,
       verb: "read",
     };
     const { exec } = fakeExec(() => failed(1, "", JSON.stringify(refused)));
@@ -119,7 +120,7 @@ describe("readConsole", () => {
     });
     expect((await rowsOf(dir))[0]).toMatchObject({
       code: 1,
-      text: NOT_IN_GROUP,
+      text: NO_CHARACTER,
     });
   });
 

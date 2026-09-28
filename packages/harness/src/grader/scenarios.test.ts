@@ -125,6 +125,12 @@ describe("scenario files", () => {
       "$.checks[0].evidence.console.match: invalid regex",
     );
     refused({}).toThrow("$.checks[0]: a console check needs evidence.console");
+    refused({ console: { match: "x", read: "guild" } }).toThrow(
+      "$.checks[0].evidence.console.arg: read guild needs arg",
+    );
+    refused({ console: { arg: "Fevala", match: "x", read: "group" } }).toThrow(
+      "$.checks[0].evidence.console.arg: read group takes no arg",
+    );
   });
 
   test("an unknown id throws and names the known ids", () => {

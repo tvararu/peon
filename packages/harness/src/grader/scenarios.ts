@@ -162,6 +162,8 @@ function regexError(match: string): string | undefined {
   }
 }
 
+const ARG_READS: ReadonlySet<ConsoleVerb> = new Set(["arena", "guild"]);
+
 function consoleErrors({ checks }: Scenario): string[] {
   return checks.flatMap(({ evidence, source }, index) => {
     const at = `$.checks[${index}]`;
@@ -171,6 +173,7 @@ function consoleErrors({ checks }: Scenario): string[] {
         ? [`${at}: a console check needs evidence.console`]
         : [];
     const error = regexError(read.match);
+    const wantsArg = ARG_READS.has(read.read);
     return [
       ...(source === "console"
         ? []
@@ -178,6 +181,11 @@ function consoleErrors({ checks }: Scenario): string[] {
       ...(error === undefined
         ? []
         : [`${at}.evidence.console.match: invalid regex: ${error}`]),
+      ...(wantsArg === (read.arg !== undefined)
+        ? []
+        : [
+            `${at}.evidence.console.arg: read ${read.read} ${wantsArg ? "needs" : "takes no"} arg`,
+          ]),
     ];
   });
 }
