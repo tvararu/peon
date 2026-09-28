@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   type Entity,
+  type GameObjectEntity,
   ObjectType,
   type QuestLog,
   type QuestLogSlot,
@@ -15,6 +16,10 @@ import {
   questObjective,
 } from "#harness/loops/quest-objective";
 
+const CRATE = 161_557;
+const MILLY = 11_119;
+const GO_DYNAMIC_OFFSET = 14;
+const emptyTemplates = new Map<number, { questItems: readonly number[] }>();
 const WYRM = 15_274;
 const TENDER = 15_294;
 
@@ -79,8 +84,29 @@ function unit(
   return entity;
 }
 
+function crate(
+  guid: bigint,
+  x: number,
+  options: { entry?: number; dynFlags?: number } = {},
+): Entity {
+  const entity: GameObjectEntity = {
+    bytes1: 0,
+    displayId: 0,
+    entry: options.entry ?? CRATE,
+    flags: 0,
+    gameObjectType: 3,
+    guid,
+    name: undefined,
+    objectType: ObjectType.GAMEOBJECT,
+    position: { mapId: 0, orientation: 0, x, y: 0, z: 0 },
+    rawFields: new Map([[GO_DYNAMIC_OFFSET, options.dynFlags ?? 1]]),
+    scale: 1,
+  };
+  return entity;
+}
+
 function kills(): QuestObjective {
-  const objective = questObjective(query([[WYRM, 8]]), []);
+  const objective = questObjective(query([[WYRM, 8]]), [], emptyTemplates);
   if ("ok" in objective) throw new Error(objective.cause);
   return objective;
 }
@@ -95,30 +121,64 @@ describe("quest objective derivation", () => {
         [WYRM, 8],
       ]),
       [],
+      emptyTemplates,
     );
     expect(objective).toEqual({
+      chests: [],
       items: [],
       kills: [{ entry: WYRM, index: 1, required: 8 }],
+      objects: [],
       questId: 8325,
       sources: [],
     });
   });
 
-  test("objectives the loop cannot pursue are named, not guessed", () => {
-    expect(questObjective(query([[-181_000, 4]]), [])).toMatchObject({
-      cause: "objective_gameobject_unsupported",
+  test("a negative target id is an object objective with its counter index", () => {
+    const objective = questObjective(
+      query([
+        [0, 0],
+        [-181_000, 4],
+      ]),
+      [],
+      emptyTemplates,
+    );
+    expect(objective).toMatchObject({
+      kills: [],
+      objects: [{ entry: 181_000, index: 1, required: 4 }],
     });
-    expect(questObjective(query([], [[20_797, 8]]), [])).toMatchObject({
+  });
+
+  test("an item objective finds the chest whose template lists the item", () => {
+    const templates = new Map([
+      [CRATE, { questItems: [MILLY] }],
+      [4321, { questItems: [999] }],
+    ]);
+    const objective = questObjective(query([], [[MILLY, 8]]), [], templates);
+    expect(objective).toMatchObject({
+      chests: [CRATE],
+      items: [{ itemId: MILLY, required: 8 }],
+      sources: [],
+    });
+  });
+
+  test("objectives the loop cannot pursue are named, not guessed", () => {
+    expect(
+      questObjective(query([], [[20_797, 8]]), [], emptyTemplates),
+    ).toMatchObject({
       cause: "objective_item_sources_unknown",
       detail: { items: [20_797] },
     });
-    expect(questObjective(query([]), [])).toMatchObject({
+    expect(questObjective(query([]), [], emptyTemplates)).toMatchObject({
       cause: "objective_unsupported",
     });
   });
 
   test("item objectives use supervisor-named creature sources", () => {
-    const objective = questObjective(query([], [[20_797, 8]]), [TENDER]);
+    const objective = questObjective(
+      query([], [[20_797, 8]]),
+      [TENDER],
+      emptyTemplates,
+    );
     expect(objective).toMatchObject({
       items: [{ itemId: 20_797, required: 8 }],
       sources: [TENDER],
@@ -162,6 +222,7 @@ describe("objective target selection", () => {
         complete: true,
         items: [],
         kills: [{ current: 8, entry: WYRM, index: 0, required: 8 }],
+        objects: [],
         questId: 8325,
         slot: 3,
       },
@@ -189,5 +250,83 @@ describe("objective target selection", () => {
       guid: 1n,
       kind: "target",
     });
+  });
+});
+
+describe("object target selection", () => {
+  const chestObjective = (): QuestObjective => {
+    const objective = questObjective(
+      query([], [[MILLY, 8]]),
+      [],
+      new Map([[CRATE, { questItems: [MILLY] }]]),
+    );
+    if ("ok" in objective) throw new Error(objective.cause);
+    return objective;
+  };
+  const pick = (
+    entities: Entity[],
+    tried = new Set<bigint>(),
+    objective = chestObjective(),
+  ) =>
+    pickObjectiveTarget({
+      entities,
+      log: log(0, [0]),
+      objective,
+      self: origin,
+      tried,
+    });
+
+  test("picks the nearest untried chest that still glows for the quest", () => {
+    const entities = [
+      crate(1n, 30),
+      crate(2n, 5, { dynFlags: 0 }),
+      crate(3n, 12),
+      crate(4n, 3, { entry: 555 }),
+      unit(5n, WYRM, 1),
+    ];
+    expect(pick(entities)).toEqual({
+      distance: 12,
+      entry: CRATE,
+      guid: 3n,
+      kind: "object",
+    });
+    expect(pick(entities, new Set([3n]))).toMatchObject({ guid: 1n });
+  });
+
+  test("an object objective picks its object until the counter fills", () => {
+    const objective = questObjective(
+      query([[-181_000, 2]]),
+      [],
+      emptyTemplates,
+    );
+    if ("ok" in objective) throw new Error(objective.cause);
+    const entities = [crate(1n, 9, { entry: 181_000 })];
+    const open = pickObjectiveTarget({
+      entities,
+      log: log(0, [1]),
+      objective,
+      self: origin,
+      tried: new Set(),
+    });
+    expect(open).toMatchObject({ guid: 1n, kind: "object" });
+    const filled = pickObjectiveTarget({
+      entities,
+      log: log(0, [2]),
+      objective,
+      self: origin,
+      tried: new Set(),
+    });
+    expect(filled).toMatchObject({ cause: "objective_targets_absent" });
+  });
+
+  test("a creature and a chest compete by distance", () => {
+    const objective = questObjective(
+      query([[WYRM, 8]], [[MILLY, 8]]),
+      [],
+      new Map([[CRATE, { questItems: [MILLY] }]]),
+    );
+    if ("ok" in objective) throw new Error(objective.cause);
+    const near = pick([unit(1n, WYRM, 4), crate(2n, 9)], new Set(), objective);
+    expect(near).toMatchObject({ guid: 1n, kind: "target" });
   });
 });
