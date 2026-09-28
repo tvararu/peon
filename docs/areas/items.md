@@ -94,12 +94,13 @@ on-use spells it read before.
   destination positions (`Server/Packets/ItemPackets.h:40`).
 - `CMSG_AUTOSTORE_BAG_ITEM` names one destination bag and no slot
   (`Server/Packets/ItemPackets.cpp:108-113`). Bag 0 is `NULL_BAG`
-  (`Entities/Item/Item.h:40`), which lets the server pick any free slot,
-  and a bag slot 19-22 limits the pick to that bag
-  (`Handlers/ItemHandler.cpp:967-1000`,
-  `Entities/Player/PlayerStorage.cpp:605-609`). The gear tool sends every
+  (`Server/Protocol/Opcodes.cpp:398`), which lets the server pick any
+  free slot, and a bag slot 19-22 limits the pick to that bag
+  (`Handlers/ItemHandler.cpp:967-1000`). The gear tool sends every
   unequip through this opcode, so every unequip logs `items/unequipped`;
-  a move that starts on worn gear reroutes the same way.
+  a move that starts on worn gear reroutes the same way. An explicit
+  `bag B slot S` unequip autostores into bag B then moves to slot S
+  with the existing move act.
 - The items area peeks `SMSG_INVENTORY_CHANGE_FAILURE`. A move owns a
   failure when `item1` is the moving item, or when `item1` is 0 and no
   legacy request (destroy, vendor buy, quest accept or reward, loot take)
