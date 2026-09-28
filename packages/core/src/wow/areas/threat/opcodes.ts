@@ -10,7 +10,7 @@ export const THREAT_OPCODES = {
     "SMSG_BREAK_TARGET",
     "SMSG_CLEAR_TARGET",
   ],
-  uses: [],
+  uses: ["SMSG_NEW_WORLD"],
   stubs: [],
   dead: [],
   unseen: [],
