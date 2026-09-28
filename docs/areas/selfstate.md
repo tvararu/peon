@@ -60,9 +60,11 @@ sleep or kneel and settles `ok` on the reply, `refused` with
   packed guid and a `uint32` counter
   (`Entities/Unit/Unit.cpp:16103-16114,16199-16214`).
   `CMSG_MOVE_FEATHER_FALL_ACK` carries `FALLING_SLOW` 0x20000000 and the
-  trailing `uint32` applied flag; it reads a packed guid, as
-  wow_messages also has it
-  (`wow_message_parser/wowm/world/movement/cmsg/cmsg_move_feather_fall_ack.wowm:1-8`).
+  trailing `uint32` applied flag. AzerothCore reads its guid packed
+  (`Handlers/MiscHandler.cpp:1505`), while wow_messages declares a full
+  `Guid`
+  (`wow_message_parser/wowm/world/movement/cmsg/cmsg_move_feather_fall_ack.wowm:2`);
+  AzerothCore wins, so the ack writes a packed guid.
   `CMSG_MOVE_GRAVITY_DISABLE_ACK` and `CMSG_MOVE_GRAVITY_ENABLE_ACK` carry
   `DISABLE_GRAVITY` 0x400 set or clear and **no** applied flag
   (`Handlers/MiscHandler.cpp:1505-1520`).
