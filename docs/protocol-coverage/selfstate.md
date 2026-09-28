@@ -8,8 +8,8 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x040` | `SMSG_TRANSFER_ABORTED` | server | missing |  |
 | `0x0de` | `SMSG_MOVE_WATER_WALK` | server | handled |  |
 | `0x0df` | `SMSG_MOVE_LAND_WALK` | server | handled |  |
-| `0x0f2` | `SMSG_MOVE_FEATHER_FALL` | server | missing |  |
-| `0x0f3` | `SMSG_MOVE_NORMAL_FALL` | server | missing |  |
+| `0x0f2` | `SMSG_MOVE_FEATHER_FALL` | server | handled |  |
+| `0x0f3` | `SMSG_MOVE_NORMAL_FALL` | server | handled |  |
 | `0x0f4` | `SMSG_MOVE_SET_HOVER` | server | handled | not seen live |
 | `0x0f5` | `SMSG_MOVE_UNSET_HOVER` | server | handled |  |
 | `0x0f6` | `CMSG_MOVE_HOVER_ACK` | client | handled |  |
@@ -25,7 +25,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x2b3` | `CMSG_SELF_RES` | client | missing |  |
 | `0x2ca` | `CMSG_MOVE_FALL_RESET` | client | missing |  |
 | `0x2ce` | `CMSG_MOVE_TIME_SKIPPED` | client | missing |  |
-| `0x2cf` | `CMSG_MOVE_FEATHER_FALL_ACK` | client | missing |  |
+| `0x2cf` | `CMSG_MOVE_FEATHER_FALL_ACK` | client | handled |  |
 | `0x2d0` | `CMSG_MOVE_WATER_WALK_ACK` | client | handled |  |
 | `0x340` | `CMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY_ACK` | client | dead |  |
 | `0x375` | `CMSG_CANCEL_MOUNT_AURA` | client | missing |  |
@@ -37,10 +37,10 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x494` | `SMSG_PRE_RESURRECT` | server | handled |  |
 | `0x4b6` | `CMSG_CORPSE_MAP_POSITION_QUERY` | client | missing |  |
 | `0x4b7` | `SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE` | server | missing |  |
-| `0x4ce` | `SMSG_MOVE_GRAVITY_DISABLE` | server | missing |  |
-| `0x4cf` | `CMSG_MOVE_GRAVITY_DISABLE_ACK` | client | missing |  |
-| `0x4d0` | `SMSG_MOVE_GRAVITY_ENABLE` | server | missing |  |
-| `0x4d1` | `CMSG_MOVE_GRAVITY_ENABLE_ACK` | client | missing |  |
+| `0x4ce` | `SMSG_MOVE_GRAVITY_DISABLE` | server | handled | not seen live |
+| `0x4cf` | `CMSG_MOVE_GRAVITY_DISABLE_ACK` | client | handled | not seen live |
+| `0x4d0` | `SMSG_MOVE_GRAVITY_ENABLE` | server | handled | not seen live |
+| `0x4d1` | `CMSG_MOVE_GRAVITY_ENABLE_ACK` | client | handled | not seen live |
 | `0x516` | `SMSG_MOVE_SET_COLLISION_HGT` | server | missing |  |
 | `0x517` | `CMSG_MOVE_SET_COLLISION_HGT_ACK` | client | missing |  |
-| `0x51e` | `SMSG_MULTIPLE_MOVES` | server | missing |  |
+| `0x51e` | `SMSG_MULTIPLE_MOVES` | server | handled |  |

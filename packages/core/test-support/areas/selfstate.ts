@@ -69,3 +69,51 @@ export function selfstatePreResurrectBody(guid: bigint): Uint8Array {
   w.packedGuidBig(guid);
   return w.finish();
 }
+
+export function selfstateMoveFeatherFallBody(
+  init: MoveCounterBody,
+): Uint8Array {
+  return moveCounterBody(init);
+}
+
+export function selfstateMoveNormalFallBody(init: MoveCounterBody): Uint8Array {
+  return moveCounterBody(init);
+}
+
+export function selfstateMoveGravityDisableBody(
+  init: MoveCounterBody,
+): Uint8Array {
+  return moveCounterBody(init);
+}
+
+export function selfstateMoveGravityEnableBody(
+  init: MoveCounterBody,
+): Uint8Array {
+  return moveCounterBody(init);
+}
+
+export type MultipleMovesEntry = MoveCounterBody & {
+  opcode: number;
+  extra?: readonly number[];
+};
+
+export function selfstateMultipleMovesBody(
+  entries: readonly MultipleMovesEntry[],
+): Uint8Array {
+  const inner = new PacketWriter();
+  for (const { opcode, guid, counter, extra = [] } of entries) {
+    const entry = new PacketWriter();
+    entry.uint16LE(opcode);
+    entry.packedGuidBig(guid);
+    entry.uint32LE(counter);
+    for (const byte of extra) entry.uint8(byte);
+    const bytes = entry.finish();
+    inner.uint8(bytes.length);
+    inner.rawBytes(bytes);
+  }
+  const body = inner.finish();
+  const w = new PacketWriter();
+  w.uint32LE(body.length);
+  w.rawBytes(body);
+  return w.finish();
+}

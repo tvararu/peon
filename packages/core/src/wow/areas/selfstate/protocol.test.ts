@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  selfstateMultipleMovesBody,
   selfstatePreResurrectBody,
   selfstateStandstateUpdateBody,
   selfstateStartMirrorTimerBody,
@@ -9,11 +10,13 @@ import {
   buildStandStateChange,
   MIRROR_TIMERS,
   parseMirrorTimer,
+  parseMultipleMoves,
   parsePreResurrect,
   parseStandState,
   parseStopMirrorTimer,
   STAND_STATES,
 } from "#wow/areas/selfstate/protocol";
+import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 
 const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString("hex");
@@ -89,5 +92,55 @@ describe("selfstate protocol", () => {
     const body = selfstatePreResurrectBody(0x0e01n);
     expect(hex(body)).toBe("03010e");
     expect(parsePreResurrect(read(body))).toBe(0x0e01n);
+  });
+
+  test("SMSG_MULTIPLE_MOVES ghost login: one water walk entry (AC Entities/Player/Player.cpp:11866-11912)", () => {
+    const body = selfstateMultipleMovesBody([
+      { counter: 5, guid: 0x0764n, opcode: GameOpcode.SMSG_MOVE_WATER_WALK },
+    ]);
+    expect(hex(body)).toBe("0a00000009de0003640705000000");
+    expect(parseMultipleMoves(read(body))).toEqual({
+      entries: [
+        { counter: 5, guid: 0x0764n, opcode: GameOpcode.SMSG_MOVE_WATER_WALK },
+      ],
+      skipped: [],
+    });
+  });
+
+  test("SMSG_MULTIPLE_MOVES full case: root, feather fall, water walk and hover in wire order (AC Entities/Player/Player.cpp:11866-11912)", () => {
+    const guid = 0x0700_0000_0000_0764n;
+    const opcodes = [
+      GameOpcode.SMSG_FORCE_MOVE_ROOT,
+      GameOpcode.SMSG_MOVE_FEATHER_FALL,
+      GameOpcode.SMSG_MOVE_WATER_WALK,
+      GameOpcode.SMSG_MOVE_SET_HOVER,
+    ];
+    expect(opcodes).toEqual([0xe8, 0xf2, 0xde, 0xf4]);
+    const entries = opcodes.map((opcode, i) => ({
+      counter: 1 + i,
+      guid,
+      opcode,
+    }));
+    const r = read(selfstateMultipleMovesBody(entries));
+    expect(parseMultipleMoves(r)).toEqual({ entries, skipped: [] });
+    expect(r.remaining).toBe(0);
+  });
+
+  test("SMSG_MULTIPLE_MOVES skips an unknown inner opcode by its length and reports it", () => {
+    const body = selfstateMultipleMovesBody([
+      {
+        counter: 1,
+        extra: [0, 0, 0x80, 0x3f],
+        guid: 0x0764n,
+        opcode: GameOpcode.SMSG_MOVE_SET_COLLISION_HGT,
+      },
+      { counter: 2, guid: 0x0764n, opcode: GameOpcode.SMSG_MOVE_WATER_WALK },
+    ]);
+    expect(parseMultipleMoves(read(body))).toEqual({
+      entries: [
+        { counter: 2, guid: 0x0764n, opcode: GameOpcode.SMSG_MOVE_WATER_WALK },
+      ],
+      skipped: [GameOpcode.SMSG_MOVE_SET_COLLISION_HGT],
+    });
   });
 });

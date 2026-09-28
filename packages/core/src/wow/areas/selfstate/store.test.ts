@@ -1,10 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
+  selfstateMoveFeatherFallBody,
+  selfstateMoveGravityDisableBody,
+  selfstateMoveGravityEnableBody,
   selfstateMoveLandWalkBody,
+  selfstateMoveNormalFallBody,
   selfstateMoveSetHoverBody,
   selfstateMoveUnsetHoverBody,
   selfstateMoveWaterWalkBody,
+  selfstateMultipleMovesBody,
   selfstatePreResurrectBody,
   selfstateStandstateUpdateBody,
   selfstateStartMirrorTimerBody,
@@ -70,6 +75,87 @@ describe("selfstate move flags", () => {
       selfstateMoveUnsetHoverBody({ counter: 6, guid: OTHER }),
     );
     expect(events).toEqual([]);
+    rig.dispose();
+  });
+});
+
+describe("selfstate feather fall, gravity and the login compound", () => {
+  test("SMSG_MOVE_FEATHER_FALL and SMSG_MOVE_NORMAL_FALL become move_flag self events (AC Entities/Unit/Unit.cpp:16199-16214)", () => {
+    const { rig, events } = rigWithEvents();
+    rig.inject(
+      GameOpcode.SMSG_MOVE_FEATHER_FALL,
+      selfstateMoveFeatherFallBody({ counter: 3, guid: SELF }),
+    );
+    rig.inject(
+      GameOpcode.SMSG_MOVE_NORMAL_FALL,
+      selfstateMoveNormalFallBody({ counter: 4, guid: SELF }),
+    );
+    expect(events).toEqual([
+      { counter: 3, enable: true, flag: "feather_fall", type: "move_flag" },
+      { counter: 4, enable: false, flag: "feather_fall", type: "move_flag" },
+    ]);
+    rig.dispose();
+  });
+
+  test("SMSG_MOVE_GRAVITY_DISABLE and SMSG_MOVE_GRAVITY_ENABLE become move_flag self events (AC Entities/Unit/Unit.cpp:16103-16114)", () => {
+    const { rig, events } = rigWithEvents();
+    rig.inject(
+      GameOpcode.SMSG_MOVE_GRAVITY_DISABLE,
+      selfstateMoveGravityDisableBody({ counter: 8, guid: SELF }),
+    );
+    rig.inject(
+      GameOpcode.SMSG_MOVE_GRAVITY_ENABLE,
+      selfstateMoveGravityEnableBody({ counter: 9, guid: SELF }),
+    );
+    rig.inject(
+      GameOpcode.SMSG_MOVE_GRAVITY_DISABLE,
+      selfstateMoveGravityDisableBody({ counter: 10, guid: OTHER }),
+    );
+    expect(events).toEqual([
+      { counter: 8, enable: true, flag: "gravity_off", type: "move_flag" },
+      { counter: 9, enable: false, flag: "gravity_off", type: "move_flag" },
+    ]);
+    rig.dispose();
+  });
+
+  test("SMSG_MULTIPLE_MOVES gives one self event per entry in wire order, each with its own counter (AC Entities/Player/Player.cpp:11866-11912)", () => {
+    const { rig, events } = rigWithEvents();
+    rig.inject(
+      GameOpcode.SMSG_MULTIPLE_MOVES,
+      selfstateMultipleMovesBody([
+        { counter: 1, guid: SELF, opcode: GameOpcode.SMSG_FORCE_MOVE_ROOT },
+        { counter: 2, guid: SELF, opcode: GameOpcode.SMSG_MOVE_FEATHER_FALL },
+        { counter: 3, guid: SELF, opcode: GameOpcode.SMSG_MOVE_WATER_WALK },
+        { counter: 4, guid: SELF, opcode: GameOpcode.SMSG_MOVE_SET_HOVER },
+      ]),
+    );
+    expect(events).toEqual([
+      { counter: 1, type: "force_root" },
+      { counter: 2, enable: true, flag: "feather_fall", type: "move_flag" },
+      { counter: 3, enable: true, flag: "water_walk", type: "move_flag" },
+      { counter: 4, enable: true, flag: "hover", type: "move_flag" },
+    ]);
+    rig.dispose();
+  });
+
+  test("SMSG_MULTIPLE_MOVES skips an entry for another guid and an unknown inner opcode", () => {
+    const { rig, events } = rigWithEvents();
+    rig.inject(
+      GameOpcode.SMSG_MULTIPLE_MOVES,
+      selfstateMultipleMovesBody([
+        { counter: 1, guid: OTHER, opcode: GameOpcode.SMSG_FORCE_MOVE_ROOT },
+        {
+          counter: 2,
+          extra: [0, 0, 0x80, 0x3f],
+          guid: SELF,
+          opcode: GameOpcode.SMSG_MOVE_SET_COLLISION_HGT,
+        },
+        { counter: 3, guid: SELF, opcode: GameOpcode.SMSG_MOVE_WATER_WALK },
+      ]),
+    );
+    expect(events).toEqual([
+      { counter: 3, enable: true, flag: "water_walk", type: "move_flag" },
+    ]);
     rig.dispose();
   });
 });

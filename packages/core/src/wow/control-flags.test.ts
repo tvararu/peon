@@ -23,6 +23,15 @@ function decodeAck(packet: Sent | undefined) {
   };
 }
 
+function decodeGravityAck(packet: Sent | undefined) {
+  const { opcode, body } = must(packet);
+  const r = new PacketReader(body);
+  const guid = r.packedGuidBig();
+  const counter = r.uint32LE();
+  const info = parseMovementInfo(r);
+  return { counter, flags: info.flags, guid, left: r.remaining, opcode };
+}
+
 describe("ControlRuntime.moveFlag (AC Handlers/MiscHandler.cpp:1505-1520)", () => {
   test("water walk ack carries the packed guid, the counter, WATERWALKING and isApplied 1", () => {
     const { runtime, sent } = setup();
@@ -155,6 +164,62 @@ describe("ControlRuntime.moveFlag (AC Handlers/MiscHandler.cpp:1505-1520)", () =
       expect(
         heartbeat.flags & (MovementFlag.WATERWALKING | MovementFlag.HOVER),
       ).toBe(0);
+      runtime.halt();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("feather fall acks with CMSG_MOVE_FEATHER_FALL_ACK, FALLING_SLOW and isApplied, set and unset", () => {
+    const { runtime, sent } = setup();
+    sent.length = 0;
+    runtime.moveFlag("feather_fall", true, 13);
+    runtime.moveFlag("feather_fall", false, 14);
+    const [set, unset] = sent.map(decodeAck);
+    expect(must(set).opcode).toBe(GameOpcode.CMSG_MOVE_FEATHER_FALL_ACK);
+    expect(must(set).guid).toBe(0x0764n);
+    expect(must(set).counter).toBe(13);
+    expect(must(set).flags & MovementFlag.FALLING_SLOW).toBe(
+      MovementFlag.FALLING_SLOW,
+    );
+    expect(must(set).applied).toBe(1);
+    expect(must(set).left).toBe(0);
+    expect(must(unset).opcode).toBe(GameOpcode.CMSG_MOVE_FEATHER_FALL_ACK);
+    expect(must(unset).counter).toBe(14);
+    expect(must(unset).flags & MovementFlag.FALLING_SLOW).toBe(0);
+    expect(must(unset).applied).toBe(0);
+  });
+
+  test("gravity acks carry no isApplied and pick the opcode by direction (AC Handlers/MiscHandler.cpp:1518-1519)", () => {
+    const { runtime, sent } = setup();
+    sent.length = 0;
+    runtime.moveFlag("gravity_off", true, 21);
+    runtime.moveFlag("gravity_off", false, 22);
+    const [off, on] = sent.map(decodeGravityAck);
+    expect(must(off).opcode).toBe(GameOpcode.CMSG_MOVE_GRAVITY_DISABLE_ACK);
+    expect(must(off).guid).toBe(0x0764n);
+    expect(must(off).counter).toBe(21);
+    expect(must(off).flags & MovementFlag.DISABLE_GRAVITY).toBe(
+      MovementFlag.DISABLE_GRAVITY,
+    );
+    expect(must(off).left).toBe(0);
+    expect(must(on).opcode).toBe(GameOpcode.CMSG_MOVE_GRAVITY_ENABLE_ACK);
+    expect(must(on).counter).toBe(22);
+    expect(must(on).flags & MovementFlag.DISABLE_GRAVITY).toBe(0);
+    expect(must(on).left).toBe(0);
+  });
+
+  test("a gravity-off character refuses a move with disable_gravity until gravity returns", () => {
+    jest.useFakeTimers();
+    try {
+      const { runtime } = setup();
+      runtime.moveFlag("gravity_off", true, 21);
+      expect(runtime.snapshot().blockedReason).toBe("disable_gravity");
+      expect(() => runtime.move("forward", 500)).toThrow("disable_gravity");
+      runtime.moveFlag("gravity_off", false, 22);
+      expect(runtime.snapshot().blockedReason).toBeUndefined();
+      runtime.move("forward", 500);
+      expect(runtime.snapshot().moving).toBe(true);
       runtime.halt();
     } finally {
       jest.useRealTimers();

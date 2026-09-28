@@ -12,7 +12,7 @@ import type {
 
 export const LOGIN_TIMEOUT_MS = 10_000;
 
-export type MoveFlag = "water_walk" | "hover";
+export type MoveFlag = "water_walk" | "hover" | "feather_fall" | "gravity_off";
 
 export type SelfEvent =
   | { type: "login_verified"; position: Position }

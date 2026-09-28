@@ -3,6 +3,7 @@ import { SELFSTATE_OPCODES } from "#wow/areas/selfstate/opcodes";
 import {
   FLAG_OPCODES,
   parseMirrorTimer,
+  parseMultipleMoves,
   parsePreResurrect,
   parseStandState,
   parseStopMirrorTimer,
@@ -22,6 +23,9 @@ export const selfstateArea = defineArea({
       wire.on(opcode, (r) =>
         store.receiveMoveFlag(change, parseMoveCounter(r)),
       );
+    wire.on(GameOpcode.SMSG_MULTIPLE_MOVES, (r) =>
+      store.receiveMultipleMoves(parseMultipleMoves(r).entries),
+    );
     wire.on(GameOpcode.SMSG_STANDSTATE_UPDATE, (r) =>
       store.receiveStandState(parseStandState(r)),
     );

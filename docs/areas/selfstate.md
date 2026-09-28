@@ -2,9 +2,17 @@
 
 The `selfstate` area reads the packets that change the character's own
 movement flags and hands them to control. `SMSG_MOVE_WATER_WALK`,
-`SMSG_MOVE_LAND_WALK`, `SMSG_MOVE_SET_HOVER` and `SMSG_MOVE_UNSET_HOVER`
-become a `move_flag` self event; control sets or clears the flag bit,
-acks with the packet's counter and keeps the bit in every later move.
+`SMSG_MOVE_LAND_WALK`, `SMSG_MOVE_SET_HOVER`, `SMSG_MOVE_UNSET_HOVER`,
+`SMSG_MOVE_FEATHER_FALL`, `SMSG_MOVE_NORMAL_FALL`,
+`SMSG_MOVE_GRAVITY_DISABLE` and `SMSG_MOVE_GRAVITY_ENABLE` become a
+`move_flag` self event; control sets or clears the flag bit, acks with
+the packet's counter and keeps the bit in every later move. A character
+with gravity off refuses a move with `disable_gravity`.
+`SMSG_MULTIPLE_MOVES`, which the server sends at login, splits into one
+self event per entry in wire order: a root entry becomes `force_root`
+and the others `move_flag`, each acked with its own counter. An entry
+for another guid is dropped, and an entry with an unknown opcode is
+skipped by its length.
 
 The store keeps the stand state, the fatigue, breath and fire timers and
 whether a ghost is pending. The stand state starts from byte 0 of the
@@ -47,6 +55,24 @@ sleep or kneel and settles `ok` on the reply, `refused` with
 - The server relays each accepted ack to the players in view as
   `MSG_MOVE_HOVER` or `MSG_MOVE_WATER_WALK` (`Handlers/MiscHandler.cpp:1546-1557`),
   both for setting and for clearing the flag.
+- `SMSG_MOVE_FEATHER_FALL`, `SMSG_MOVE_NORMAL_FALL`,
+  `SMSG_MOVE_GRAVITY_DISABLE` and `SMSG_MOVE_GRAVITY_ENABLE` are the
+  packed guid and a `uint32` counter
+  (`Entities/Unit/Unit.cpp:16103-16114,16199-16214`).
+  `CMSG_MOVE_FEATHER_FALL_ACK` carries `FALLING_SLOW` 0x20000000 and the
+  trailing `uint32` applied flag; it reads a packed guid, as
+  wow_messages also has it
+  (`wow_message_parser/wowm/world/movement/cmsg/cmsg_move_feather_fall_ack.wowm:1-8`).
+  `CMSG_MOVE_GRAVITY_DISABLE_ACK` and `CMSG_MOVE_GRAVITY_ENABLE_ACK` carry
+  `DISABLE_GRAVITY` 0x400 set or clear and **no** applied flag
+  (`Handlers/MiscHandler.cpp:1505-1520`).
+- `SMSG_MULTIPLE_MOVES` is a `uint32` byte count, then per entry a
+  `uint8` length (opcode, guid and counter, not the length byte), a
+  `uint16` opcode, the packed guid and a `uint32` counter. The server
+  writes root, feather fall, water walk and hover entries in that order,
+  each only when the state holds (`Entities/Player/Player.cpp:11866-11912`);
+  wow_messages agrees (`movement/smsg/smsg_multiple_moves.wowm:1-25`).
+  A ghost that logs in gets one water-walk entry.
 - `SMSG_START_MIRROR_TIMER` is the timer id, the value, the maximum, a
   signed `int32` scale, a `uint8` paused flag and a spell id
   (`Server/Packets/MiscPackets.cpp:101-111`).
@@ -69,11 +95,6 @@ sleep or kneel and settles `ok` on the reply, `refused` with
 
 ## Left out
 
-- `SMSG_MOVE_FEATHER_FALL`, `SMSG_MOVE_NORMAL_FALL`,
-  `CMSG_MOVE_FEATHER_FALL_ACK`, `SMSG_MOVE_GRAVITY_DISABLE`,
-  `SMSG_MOVE_GRAVITY_ENABLE`, `CMSG_MOVE_GRAVITY_DISABLE_ACK`,
-  `CMSG_MOVE_GRAVITY_ENABLE_ACK` and `SMSG_MULTIPLE_MOVES`: built by
-  `self-state-2`.
 - `SMSG_TRANSFER_ABORTED`: built by `self-state-4`.
 - `SMSG_MOVE_SET_COLLISION_HGT`, `CMSG_MOVE_SET_COLLISION_HGT_ACK`,
   `SMSG_FORCE_PITCH_RATE_CHANGE`, `CMSG_FORCE_PITCH_RATE_CHANGE_ACK`,
@@ -105,6 +126,14 @@ tasks.
 | `SMSG_STOP_MIRROR_TIMER` | `live` | probe flow `selfstate-death --arg reclaim=no` on a `fresh` character at East Sanctum, exit 0; timers 0, 1 and 2 at the death and again at the release | `Server/Packets/MiscPackets.cpp:121-126` |
 | `SMSG_PRE_RESURRECT` | `live` | the same run, exit 0; the self packed guid right after `CMSG_REPOP_REQUEST` | `Entities/Player/Player.cpp:4508-4512` |
 | `SMSG_MOVE_SET_HOVER` | `mock` | `store.test.ts` "SMSG_MOVE_SET_HOVER and SMSG_MOVE_UNSET_HOVER become move_flag self events"; no normal-play trigger for a player | `Entities/Unit/Unit.cpp:16261-16268` |
+| `SMSG_MOVE_FEATHER_FALL` | `live` | probe flow `selfstate-slowfall` on an `eversong10-mage` character with Slow Fall 130 and Light Feathers 17056, exit 0; received `03240e01000000` (counter 1) after `CMSG_CAST_SPELL` 130 | `Entities/Unit/Unit.cpp:16199-16214` |
+| `SMSG_MOVE_NORMAL_FALL` | `live` | the same run; received `03240e02000000` (counter 2) when the 30 s aura expired | `Entities/Unit/Unit.cpp:16199-16214` |
+| `CMSG_MOVE_FEATHER_FALL_ACK` | `live` | the same run; sent with counter 1, `FALLING_SLOW` and applied 1, then with counter 2, no flag and applied 0; the character stayed in the world until the logout | `Handlers/MiscHandler.cpp:1505-1520` |
+| `SMSG_MULTIPLE_MOVES` | `live` | probe `--wait 20 --expect SMSG_MULTIPLE_MOVES` after `selfstate-death --arg reclaim=no`, exit 0; received `0a00000009de0003240e03000000` (one water-walk entry, counter 3) at the ghost's login and sent `CMSG_MOVE_WATER_WALK_ACK` with counter 3 and `WATERWALKING` | `Entities/Player/Player.cpp:11866-11912` |
+| `SMSG_MOVE_GRAVITY_DISABLE` | `mock` | `store.test.ts` gravity pair test; only scripts call `SetDisableGravity` for a player (`src/server/scripts/Spells/spell_generic.cpp:2866`) | `Entities/Unit/Unit.cpp:16086-16119` |
+| `SMSG_MOVE_GRAVITY_ENABLE` | `mock` | the same test | `Entities/Unit/Unit.cpp:16086-16119` |
+| `CMSG_MOVE_GRAVITY_DISABLE_ACK` | `mock` | `control-flags.test.ts` gravity ack test | `Handlers/MiscHandler.cpp:1505-1520` |
+| `CMSG_MOVE_GRAVITY_ENABLE_ACK` | `mock` | the same test | `Handlers/MiscHandler.cpp:1505-1520` |
 | `SMSG_MOUNTRESULT` | `dead` | registered as `STATUS_NEVER` and no AzerothCore code writes it; mount failures arrive as `SMSG_CAST_FAILED` | `Server/Protocol/Opcodes.cpp:497` |
 | `SMSG_RESURRECT_FAILED` | `dead` | registered as `STATUS_NEVER` and no AzerothCore code writes it | `Server/Protocol/Opcodes.cpp:725` |
 | `SMSG_FORCED_DEATH_UPDATE` | `dead` | registered as `STATUS_NEVER` and no AzerothCore code writes it | `Server/Protocol/Opcodes.cpp:1021` |

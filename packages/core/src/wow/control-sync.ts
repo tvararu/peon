@@ -31,12 +31,33 @@ const UNIT_BLOCK_FLAGS =
   UnitFlag.CONFUSED |
   UnitFlag.FLEEING;
 
-const FLAG_ACKS: Readonly<Record<MoveFlag, { bit: number; ack: number }>> = {
+type FlagAck = { bit: number; set: number; clear: number; applied: boolean };
+
+const FLAG_ACKS: Readonly<Record<MoveFlag, FlagAck>> = {
   water_walk: {
     bit: MovementFlag.WATERWALKING,
-    ack: GameOpcode.CMSG_MOVE_WATER_WALK_ACK,
+    set: GameOpcode.CMSG_MOVE_WATER_WALK_ACK,
+    clear: GameOpcode.CMSG_MOVE_WATER_WALK_ACK,
+    applied: true,
   },
-  hover: { bit: MovementFlag.HOVER, ack: GameOpcode.CMSG_MOVE_HOVER_ACK },
+  hover: {
+    bit: MovementFlag.HOVER,
+    set: GameOpcode.CMSG_MOVE_HOVER_ACK,
+    clear: GameOpcode.CMSG_MOVE_HOVER_ACK,
+    applied: true,
+  },
+  feather_fall: {
+    bit: MovementFlag.FALLING_SLOW,
+    set: GameOpcode.CMSG_MOVE_FEATHER_FALL_ACK,
+    clear: GameOpcode.CMSG_MOVE_FEATHER_FALL_ACK,
+    applied: true,
+  },
+  gravity_off: {
+    bit: MovementFlag.DISABLE_GRAVITY,
+    set: GameOpcode.CMSG_MOVE_GRAVITY_DISABLE_ACK,
+    clear: GameOpcode.CMSG_MOVE_GRAVITY_ENABLE_ACK,
+    applied: false,
+  },
 };
 
 export type Emit = (type: ControlEventType, reason?: string) => void;
@@ -283,7 +304,7 @@ export class MovementSync {
   }
 
   moveFlag(flag: MoveFlag, enable: boolean, counter: number): void {
-    const { bit, ack } = FLAG_ACKS[flag];
+    const { bit, set, clear, applied } = FLAG_ACKS[flag];
     if (enable) {
       this.observedFlags |= bit;
       this.moveFlags |= bit;
@@ -291,7 +312,11 @@ export class MovementSync {
       this.observedFlags &= ~bit;
       this.moveFlags &= ~bit;
     }
-    this.deps.send(ack, buildFlagAck(this.moveAck(counter), enable));
+    const ack = this.moveAck(counter);
+    this.deps.send(
+      enable ? set : clear,
+      applied ? buildFlagAck(ack, enable) : buildRootAck(ack),
+    );
   }
 
   private ackRoot(opcode: number, counter: number): void {

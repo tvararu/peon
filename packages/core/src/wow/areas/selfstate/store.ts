@@ -1,5 +1,7 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import {
+  type CompoundMove,
+  FLAG_CHANGES,
   type FlagChange,
   type MirrorTimerName,
   type MirrorTimerStart,
@@ -8,6 +10,7 @@ import {
   standStateName,
 } from "#wow/areas/selfstate/protocol";
 import type { MoveCounter } from "#wow/protocol/movement";
+import { GameOpcode } from "#wow/protocol/opcodes";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export type MirrorTimer = {
@@ -75,6 +78,18 @@ export class SelfstateStore {
       enable: change.enable,
       counter,
     });
+  }
+
+  receiveMultipleMoves(entries: readonly CompoundMove[]): void {
+    for (const { opcode, guid, counter } of entries) {
+      if (opcode === GameOpcode.SMSG_FORCE_MOVE_ROOT) {
+        if (guid === this.deps.selfGuid())
+          this.core.self.receive({ type: "force_root", counter });
+        continue;
+      }
+      const change = FLAG_CHANGES.get(opcode);
+      if (change) this.receiveMoveFlag(change, { guid, counter });
+    }
   }
 
   receiveStandState(value: number): void {
