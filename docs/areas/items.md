@@ -52,6 +52,25 @@ on-use spells it read before.
   (a trinket with an on-use spell), 16921 Halo of Transcendence (item set
   211, three stats, fire and frost resistance), 6948 Hearthstone and 159
   Refreshing Spring Water.
+- `readInventory` in `packages/core/src/wow/inventory.ts` reads the item
+  update fields the server sends to the owner: the remaining time
+  (`ITEM_FIELD_DURATION`, counted down in
+  `Entities/Item/Item.cpp:319-333`), five signed spell charges
+  (`Entities/Item/Item.h:317`), the creator and gift creator guids, the
+  raw flags with the soulbound, wrapped, readable and refundable bits
+  named (`Entities/Item/ItemTemplate.h:109-121`), and the non-empty
+  enchantment slots.
+- The 12 enchantment slots (`Entities/Item/Item.h:167-183`, 0 based)
+  each take three words from `ITEM_FIELD_ENCHANTMENT_1_1`: id, duration
+  and charges (`Entities/Item/Item.h:190-197`). The update-field table
+  types the third word as `u16x2`, but AzerothCore writes it as one
+  `uint32` (`Entities/Item/Item.cpp:937-939`); core reads the whole
+  word as the charges.
+- `InventoryState.ammoId` is `PLAYER_AMMO_ID` of the self entity, the
+  entry of the loaded ammo.
+- Item 5806 Fool's Stout is a timed item: a copy added to a hunter's
+  bags read `duration` 7200 live. The `eversong10-hunter` preset loads
+  ammo 2515 Sharp Arrow.
 
 ## Left out
 

@@ -251,3 +251,79 @@ describe("carried inventory authority", () => {
     });
   });
 });
+
+describe("item update fields", () => {
+  const self = (fields: [number, number][] = []) =>
+    entity(1n, ObjectType.PLAYER, [[0x1_72, 3], ...fields]);
+  const packItem = (fields: [number, number][]) =>
+    entity(3n, ObjectType.ITEM, [[3, 200], [6, 1], [8, 1], [14, 1], ...fields]);
+  const itemOf = (entities: Entity[]) => {
+    const found = view(entities).slots.find((slot) => slot.slot === 23);
+    return found?.status === "occupied" ? found.item : undefined;
+  };
+
+  test("reads timed items", () => {
+    const item = itemOf([
+      self(),
+      packItem([
+        [10, 0x2a],
+        [12, 0x2b],
+        [15, 3600],
+        [16, 0xff_ff_ff_ff],
+        [17, 2],
+      ]),
+    ]);
+    expect(item).toMatchObject({
+      creator: 0x2an,
+      giftCreator: 0x2bn,
+      duration: 3600,
+      spellCharges: [-1, 2, 0, 0, 0],
+    });
+  });
+
+  test("reads the 12 enchantment slots", () => {
+    const item = itemOf([
+      self(),
+      packItem([
+        [22, 1900],
+        [25, 2684],
+        [26, 1800],
+        [27, 5],
+        [55, 3000],
+        [56, 60],
+        [57, 7],
+      ]),
+    ]);
+    expect(item?.enchantments).toEqual([
+      { slot: 0, id: 1900, duration: 0, charges: 0 },
+      { slot: 1, id: 2684, duration: 1800, charges: 5 },
+      { slot: 11, id: 3000, duration: 60, charges: 7 },
+    ]);
+  });
+
+  test("names the flag bits", () => {
+    const item = itemOf([
+      self(),
+      packItem([[21, 0x1 | 0x8 | 0x2_00 | 0x10_00]]),
+    ]);
+    expect(item?.flags).toBe(0x1 | 0x8 | 0x2_00 | 0x10_00);
+    expect(item?.flagBits).toEqual({
+      soulbound: true,
+      wrapped: true,
+      readable: true,
+      refundable: true,
+    });
+    expect(itemOf([self(), packItem([[21, 0x1]])])?.flagBits).toEqual({
+      soulbound: true,
+      wrapped: false,
+      readable: false,
+      refundable: false,
+    });
+  });
+
+  test("reads the loaded ammo", () => {
+    expect(view([self([[0x4_ae, 2512]]), packItem([])]).ammoId).toBe(2512);
+    expect(view([self(), packItem([])]).ammoId).toBe(0);
+    expect(view([]).ammoId).toBeUndefined();
+  });
+});

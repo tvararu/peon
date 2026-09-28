@@ -19,6 +19,26 @@ export type InventoryItem = {
   randomPropertyId: number | undefined;
   durability: number | undefined;
   maxDurability: number | undefined;
+  duration?: number | undefined;
+  spellCharges?: number[] | undefined;
+  enchantments?: ItemEnchantment[] | undefined;
+  creator?: bigint | undefined;
+  giftCreator?: bigint | undefined;
+  flagBits?: ItemFlagBits | undefined;
+};
+
+export type ItemEnchantment = {
+  slot: number;
+  id: number;
+  duration: number;
+  charges: number;
+};
+
+export type ItemFlagBits = {
+  soulbound: boolean;
+  wrapped: boolean;
+  readable: boolean;
+  refundable: boolean;
 };
 
 export type InventoryRegion =
@@ -66,6 +86,7 @@ export type InventoryState = {
   bags: InventoryBag[];
   freeSlots: number | undefined;
   issues: InventoryIssue[];
+  ammoId?: number | undefined;
 };
 
 type ReadContext = {
@@ -118,6 +139,74 @@ function guid(
 
 function itemGuid(entity: Entity, offset: number): bigint | undefined {
   return guid(fieldOf(entity, offset), fieldOf(entity, offset + 1));
+}
+
+const ENCHANTMENT_SLOTS = 12;
+const ENCHANTMENT_STRIDE = 3;
+
+const ITEM_FLAG = {
+  SOULBOUND: 0x1,
+  WRAPPED: 0x8,
+  READABLE: 0x2_00,
+  REFUNDABLE: 0x10_00,
+} as const;
+
+function flagBits(flags: number | undefined): ItemFlagBits | undefined {
+  if (flags === undefined) return undefined;
+  return {
+    soulbound: (flags & ITEM_FLAG.SOULBOUND) !== 0,
+    wrapped: (flags & ITEM_FLAG.WRAPPED) !== 0,
+    readable: (flags & ITEM_FLAG.READABLE) !== 0,
+    refundable: (flags & ITEM_FLAG.REFUNDABLE) !== 0,
+  };
+}
+
+function spellCharges(entity: Entity): number[] | undefined {
+  const charges: number[] = [];
+  for (let i = 0; i < ITEM_FIELDS.SPELL_CHARGES.size; i++) {
+    const value = fieldOf(entity, ITEM_FIELDS.SPELL_CHARGES.offset + i);
+    if (value === undefined) return undefined;
+    charges.push(value | 0);
+  }
+  return charges;
+}
+
+function enchantments(entity: Entity): ItemEnchantment[] | undefined {
+  const result: ItemEnchantment[] = [];
+  for (let index = 0; index < ENCHANTMENT_SLOTS; index++) {
+    const base =
+      ITEM_FIELDS.ENCHANTMENT_1_1.offset + index * ENCHANTMENT_STRIDE;
+    const id = fieldOf(entity, base);
+    const duration = fieldOf(entity, base + 1);
+    const charges = fieldOf(entity, base + 2);
+    if (id === undefined || duration === undefined || charges === undefined)
+      return undefined;
+    if (id !== 0) result.push({ slot: index, id, duration, charges });
+  }
+  return result;
+}
+
+type ItemDetails = Pick<
+  InventoryItem,
+  | "duration"
+  | "spellCharges"
+  | "enchantments"
+  | "creator"
+  | "giftCreator"
+  | "flagBits"
+>;
+
+function details(entity: Entity | undefined, owned: boolean): ItemDetails {
+  if (!entity) return { flagBits: undefined };
+  const mine = owned ? entity : undefined;
+  return {
+    duration: fieldOf(mine, ITEM_FIELDS.DURATION.offset),
+    spellCharges: mine && spellCharges(mine),
+    enchantments: mine && enchantments(mine),
+    creator: itemGuid(entity, ITEM_FIELDS.CREATOR.offset),
+    giftCreator: itemGuid(entity, ITEM_FIELDS.GIFTCREATOR.offset),
+    flagBits: flagBits(fieldOf(entity, ITEM_FIELDS.FLAGS.offset)),
+  };
 }
 
 function issue(
@@ -174,6 +263,7 @@ function readItem(
     maxDurability: owned
       ? fieldOf(entity, ITEM_FIELDS.MAXDURABILITY.offset)
       : undefined,
+    ...details(entity, owned),
   };
 }
 
@@ -325,6 +415,7 @@ export function readInventory(
       bags: [],
       freeSlots: undefined,
       issues: [],
+      ammoId: undefined,
     };
   const context: ReadContext = {
     selfGuid,
@@ -351,5 +442,6 @@ export function readInventory(
     bags,
     freeSlots: freeSlots(slots, bags, context.issues),
     issues: context.issues,
+    ammoId: fieldOf(self, PLAYER_FIELDS.AMMO_ID.offset),
   };
 }
