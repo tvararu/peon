@@ -22,6 +22,20 @@ spell is not the channel). The attribute checks need the spell data;
 without it the act checks only the aura flags. `act.cancelGrowthAura()`
 sends the empty `CMSG_CANCEL_GROWTH_AURA`.
 
+`act.setActionButton(slot, button)` puts a spell, item, macro or
+equipment set on one of the 144 action buttons with
+`CMSG_SET_ACTION_BUTTON`; `undefined` clears the slot. The server sends
+no reply, so the act updates the bar store (`getActionBar()`) when it
+sends, as the client does. It refuses with `invalid_button`, and sends
+nothing, what the server would drop in silence: a slot outside 0-143, an
+id outside 1-0xFFFFFF, an unknown type, or a spell the character has not
+learned. Whether an item id exists needs the server's item data, so the
+act sends any item id. `act.setActionBarToggles(mask)` shows or hides
+the extra bars with `CMSG_SET_ACTIONBAR_TOGGLES` and refuses a mask
+outside 0-255 with `invalid_mask`. `state().barToggles` is the mask the
+server last set on the character, and stays undefined until a self
+update carries it.
+
 ## Wire notes
 
 - `MSG_CHANNEL_START` is the packed guid of the caster, the `uint32`
@@ -81,10 +95,42 @@ sends the empty `CMSG_CANCEL_GROWTH_AURA`.
 - `CMSG_CANCEL_GROWTH_AURA` has no body and the server does nothing with
   it (`Handlers/SpellHandler.cpp:642-644`,
   `wow_message_parser/wowm/world/spell/cmsg_cancel_growth_aura.wowm`).
+- `CMSG_SET_ACTION_BUTTON` is a `uint8` slot and one packed `uint32`
+  button; a packed 0 clears the slot
+  (`Handlers/MiscHandler.cpp:899-938`,
+  `wow_message_parser/wowm/world/login_logout/cmsg_set_action_button.wowm`).
+- A packed button holds the id in the low 24 bits and the type in the
+  high 8 (`Entities/Player/Player.h:235-237`). The types are spell 0x00,
+  equipment set 0x20, macro 0x40 (0x41 for a character macro) and item
+  0x80 (`Entities/Player/Player.h:222-227`).
+- The server drops a button in silence when the slot is 144 or more, the
+  id is 0x1000000 or more, the spell does not exist or is not known, or
+  the item does not exist (`Entities/Player/Player.cpp:5760-5801`). It
+  checks nothing for an equipment set or a macro, and it drops an
+  unknown type (`Handlers/MiscHandler.cpp:931-934`).
+- `CMSG_SET_ACTIONBAR_TOGGLES` is one `uint8` mask that the server
+  writes to byte 2 of `PLAYER_FIELD_BYTES`
+  (`Handlers/MiscHandler.cpp:952-965`,
+  `wow_message_parser/wowm/world/login_logout/cmsg_set_actionbar_toggles.wowm`).
+- `PLAYER_FIELD_BYTES` is update field 1197
+  (`Entities/Object/Updates/UpdateFields.h:368`); the next self update
+  carries the new mask.
+- `SMSG_ACTION_BUTTONS` is a `uint8` state and, unless the state is 2,
+  144 packed `uint32` buttons (`Entities/Player/Player.cpp:5732-5758`).
+  The legacy `action-bar.ts` handler reads it.
+- The login packets carry the saved bar
+  (`Entities/Player/Player.cpp:11797`).
 - The client direction of `MSG_CHANNEL_START` and `MSG_CHANNEL_UPDATE`
   is `Handle_NULL` (`Server/Protocol/Opcodes.cpp:444-445`).
 
 Disagreements for opcodes later tasks build (AzerothCore wins):
+
+- `CMSG_SET_ACTION_BUTTON` packs the id in 24 bits
+  (`Handlers/MiscHandler.cpp:899-938`); wow_messages splits it into a
+  `uint16` action and a `uint8` misc
+  (`wow_message_parser/wowm/world/login_logout/cmsg_set_action_button.wowm`),
+  which gives the same bytes but truncates a reading of ids above
+  0xFFFF.
 
 - `SMSG_SPELL_FAILED_OTHER` has the `SMSG_SPELL_FAILURE` body: packed
   guid, cast count, spell and result (`Spells/Spell.cpp:5334-5339`).
@@ -100,8 +146,6 @@ Disagreements for opcodes later tasks build (AzerothCore wins):
 
 ## Left out
 
-- `CMSG_SET_ACTION_BUTTON`, `CMSG_SET_ACTIONBAR_TOGGLES`,
-  `SMSG_ACTION_BUTTONS`: built by spells-4.
 - `SMSG_SEND_UNLEARN_SPELLS`, `SMSG_SET_FLAT_SPELL_MODIFIER`,
   `SMSG_SET_PCT_SPELL_MODIFIER`, `SMSG_MODIFY_COOLDOWN`: built by
   spells-5.
@@ -128,6 +172,9 @@ Stop a channel (proposed; spells-12b).
 | `CMSG_CANCEL_CHANNELLING` | `live` | probe flow `spells-channel` mode `cancel`, exit 0; sent 1 s into the channel, and `MSG_CHANNEL_UPDATE` 0 and `SMSG_SPELL_FAILURE` followed | `Handlers/SpellHandler.cpp:653-684` |
 | `CMSG_CANCEL_AURA` | `live` | probe flow `spells-aura` (`--arg spell=168`, `--expect` 0x496) on an `eversong10-mage`, exit 0 on two runs: Frost Armor applied in slot 0 with flags 0x3b, `CMSG_CANCEL_AURA` body `a8000000` sent, and the next `SMSG_AURA_UPDATE` (body `03ed0d0000000000`) cleared slot 0 within 16 ms | `Handlers/SpellHandler.cpp:568-601` |
 | `CMSG_CANCEL_GROWTH_AURA` | `accepted` | `mise protocol:probe --send CMSG_CANCEL_GROWTH_AURA --wait 3`, exit 0: empty body sent, no error packet, and the session ran on to a normal logout | `Handlers/SpellHandler.cpp:642-644` |
+| `CMSG_SET_ACTION_BUTTON` | `live` | probe flow `spells-bar` on an `eversong10-mage`, exit 0 twice: `--arg slot=0 --arg spell=133` and `--arg slot=11 --arg item=6948` each sent one 5-byte packet; the server sent no reply, and the next login's `SMSG_ACTION_BUTTONS` held slot 0 `85000000` and slot 11 `241b0080` | `Handlers/MiscHandler.cpp:899-938` |
+| `CMSG_SET_ACTIONBAR_TOGGLES` | `live` | probe flow `spells-bar` on an `eversong10-mage`, exit 0: `--arg toggles=15` sent body `0f` and the self update 23 ms later set field 1197 to 0x000f0000; `--arg toggles=7` logged in with 0x000f0000 saved, sent `07`, and the self update set 0x00070000, so `state().barToggles` read 7 | `Handlers/MiscHandler.cpp:952-965` |
+| `SMSG_ACTION_BUTTONS` | `live` | `mise protocol:probe --flow login --expect SMSG_ACTION_BUTTONS --bodies` after the two button writes, exit 0: state 1, slots 0 and 1 `85000000` (spell 133), slot 11 `241b0080` (item 6948), and 577 bytes in all (1 + 144 × 4); the legacy handler read it | `Entities/Player/Player.cpp:5732-5758` |
 | `SMSG_SPELL_UPDATE_CHAIN_TARGETS` | `dead` | no send site in AzerothCore `src/` or `modules/`; only the opcode table names it | `Server/Protocol/Opcodes.cpp:947` |
 | `SMSG_RESYNC_RUNES` | `dead` | built only in `Player::ResyncRunes`, whose only call, in `Spell::EffectActivateRune`, is commented out | `Entities/Player/Player.cpp:13746-13756` |
 | `SMSG_ADD_RUNE_POWER` | `dead` | built only in `Player::AddRunePower`, which has no caller | `Entities/Player/Player.cpp:13758-13763` |

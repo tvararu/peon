@@ -2,12 +2,15 @@ import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type { ChannelStart, ChannelUpdate } from "#wow/areas/spells/protocol";
 import type { CombatChannel } from "#wow/combat-casts";
 import type { SpellFailure } from "#wow/protocol/spell";
-import { UNIT_FIELDS } from "#wow/protocol/update-fields";
+import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export type ChannelEndReason = "finished" | "interrupted" | "cancelled";
 export type SpellsChannel = Readonly<CombatChannel>;
-export type SpellsState = { channel: SpellsChannel | undefined };
+export type SpellsState = {
+  channel: SpellsChannel | undefined;
+  barToggles: number | undefined;
+};
 export type SpellsEvent =
   | {
       type: "channel_start";
@@ -20,6 +23,7 @@ export type SpellsEvent =
 const END_TOLERANCE_MS = 400;
 const CHANNEL_SPELL = UNIT_FIELDS.CHANNEL_SPELL.offset;
 const CHANNEL_OBJECT = UNIT_FIELDS.CHANNEL_OBJECT.offset;
+const FIELD_BYTES = PLAYER_FIELDS.FEATURES.offset;
 
 function channelObject(fields: ReadonlyMap<number, number>): bigint {
   const low = fields.get(CHANNEL_OBJECT) ?? 0;
@@ -34,6 +38,7 @@ export class SpellsStore {
   private failed = false;
   private fieldSeen = false;
   private fieldTarget: bigint | undefined;
+  private barToggles: number | undefined;
 
   constructor(deps: SessionDeps, core: CoreStores) {
     this.deps = deps;
@@ -42,8 +47,10 @@ export class SpellsStore {
 
   snapshot(): SpellsState {
     const channel = this.core.combat.casts.channel;
-    if (!channel) return { channel: undefined };
+    const barToggles = this.barToggles;
+    if (!channel) return { barToggles, channel: undefined };
     return {
+      barToggles,
       channel: { ...channel, target: this.fieldTarget ?? channel.target },
     };
   }
@@ -84,6 +91,8 @@ export class SpellsStore {
   }
 
   selfFields(fields: ReadonlyMap<number, number>): void {
+    const bytes = fields.get(FIELD_BYTES);
+    if (bytes !== undefined) this.barToggles = (bytes >>> 16) & 0xff;
     const channel = this.core.combat.casts.channel;
     const spellId = fields.get(CHANNEL_SPELL);
     if (!channel || spellId === undefined) return;

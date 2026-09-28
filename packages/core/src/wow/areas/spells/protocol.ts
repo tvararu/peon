@@ -1,3 +1,7 @@
+import type {
+  ActionButton,
+  ActionButtonType,
+} from "#wow/protocol/action-buttons";
 import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 const ENDLESS = 0xff_ff_ff_ff;
@@ -40,4 +44,37 @@ export function buildCancelAura(spellId: number): Uint8Array {
 
 export function buildCancelGrowthAura(): Uint8Array {
   return new PacketWriter().finish();
+}
+
+export type BarButton = Omit<ActionButton, "slot">;
+
+export const ACTION_BUTTON_TYPE_CODES: Readonly<
+  Record<ActionButtonType, number>
+> = {
+  spell: 0x00,
+  equipment_set: 0x20,
+  macro: 0x40,
+  item: 0x80,
+};
+
+export function buildSetActionButton(
+  slot: number,
+  button: BarButton | undefined,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(slot);
+  w.uint32LE(
+    button
+      ? ((button.id & 0x00_ff_ff_ff) |
+          (ACTION_BUTTON_TYPE_CODES[button.type] << 24)) >>>
+          0
+      : 0,
+  );
+  return w.finish();
+}
+
+export function buildActionBarToggles(mask: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(mask);
+  return w.finish();
 }

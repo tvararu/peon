@@ -35,3 +35,14 @@ export function spellsSpellFailureBody(init: {
   w.uint8(init.result);
   return w.finish();
 }
+
+export function spellsActionButtonsBody(init: {
+  state: number;
+  buttons: Readonly<Record<number, number>>;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(init.state);
+  if (init.state === 2) return w.finish();
+  for (let slot = 0; slot < 144; slot++) w.uint32LE(init.buttons[slot] ?? 0);
+  return w.finish();
+}

@@ -4,9 +4,11 @@ import {
   spellsChannelUpdateBody,
 } from "#test-support/areas/spells";
 import {
+  buildActionBarToggles,
   buildCancelAura,
   buildCancelChannelling,
   buildCancelGrowthAura,
+  buildSetActionButton,
   parseChannelStart,
   parseChannelUpdate,
 } from "#wow/areas/spells/protocol";
@@ -74,5 +76,36 @@ describe("spells aura builders", () => {
 
   test("CMSG_CANCEL_GROWTH_AURA has an empty body (SpellHandler.cpp:642-644)", () => {
     expect(buildCancelGrowthAura()).toHaveLength(0);
+  });
+});
+
+describe("spells action bar builders", () => {
+  test.each([
+    ["spell", 133, 133],
+    ["spell", 0x1_23_45, 0x00_01_23_45],
+    ["item", 6948, 0x80_00_1b_24],
+    ["macro", 3, 0x40_00_00_03],
+    ["equipment_set", 1, 0x20_00_00_01],
+  ] as const)(
+    "CMSG_SET_ACTION_BUTTON packs a %s %p as u8 slot and u32 id | type << 24 (MiscHandler.cpp:899-938, Player.h:222-236)",
+    (type, id, packed) => {
+      const reader = new PacketReader(buildSetActionButton(11, { id, type }));
+      expect(reader.uint8()).toBe(11);
+      expect(reader.uint32LE()).toBe(packed);
+      expect(reader.remaining).toBe(0);
+    },
+  );
+
+  test("CMSG_SET_ACTION_BUTTON with no button writes 0, which removes it (MiscHandler.cpp:909-913)", () => {
+    const reader = new PacketReader(buildSetActionButton(143, undefined));
+    expect(reader.uint8()).toBe(143);
+    expect(reader.uint32LE()).toBe(0);
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("CMSG_SET_ACTIONBAR_TOGGLES is one u8 mask (MiscHandler.cpp:952-965)", () => {
+    const reader = new PacketReader(buildActionBarToggles(15));
+    expect(reader.uint8()).toBe(15);
+    expect(reader.remaining).toBe(0);
   });
 });
