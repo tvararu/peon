@@ -1,10 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { unitmotionCreateBody } from "#test-support/areas/unitmotion";
+import {
+  unitmotionCreateBody,
+  unitmotionMovementBody,
+} from "#test-support/areas/unitmotion";
 import { motionFixture } from "#test-support/remote-motion-fixtures";
 import { MovementFlag } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 const CREATURE = 0xf1_30_00_3e_ea_00_0a_bcn;
+const STRANGER = 0xf1_30_00_3e_ea_00_0a_bdn;
 
 describe("entity handlers feed unit movement", () => {
   test("a create block reaches the unitmotion store with its flags and nine speeds", async () => {
@@ -61,6 +65,33 @@ describe("entity handlers feed unit movement", () => {
       );
       const guids = f.handle.unitmotion.state().units.map((unit) => unit.guid);
       expect(guids).not.toContain(CREATURE);
+    } finally {
+      await f.close();
+    }
+  });
+
+  test("a movement block seeds only a unit the entity store holds", async () => {
+    const f = await motionFixture();
+    try {
+      await f.inject(
+        GameOpcode.SMSG_UPDATE_OBJECT,
+        unitmotionMovementBody({ guid: STRANGER }),
+      );
+      await f.inject(
+        GameOpcode.SMSG_UPDATE_OBJECT,
+        unitmotionCreateBody({ guid: CREATURE }),
+      );
+      await f.inject(
+        GameOpcode.SMSG_UPDATE_OBJECT,
+        unitmotionMovementBody({
+          guid: CREATURE,
+          speeds: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+        }),
+      );
+      const units = f.handle.unitmotion.state().units;
+      expect(units.map((unit) => unit.guid)).not.toContain(STRANGER);
+      const creature = units.find((unit) => unit.guid === CREATURE);
+      expect(creature?.speeds.run?.value).toBe(2);
     } finally {
       await f.close();
     }

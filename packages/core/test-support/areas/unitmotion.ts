@@ -75,3 +75,16 @@ export function unitmotionCreateBody(init: {
   );
   return w.finish();
 }
+
+export function unitmotionMovementBody(init: {
+  guid: bigint;
+  flags?: number;
+  speeds?: readonly number[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(1);
+  w.uint8(UpdateType.MOVEMENT);
+  writePackedGuid(w, init.guid);
+  unitmotionLivingBlock(w, init);
+  return w.finish();
+}
