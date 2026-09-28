@@ -346,4 +346,21 @@ describe("posture and breath", () => {
     selfstateIs(handle, {});
     expect(nowSnapshot(rt)?.breathS).toBeUndefined();
   });
+
+  test("a drained but still-active timer shows 0 s", async () => {
+    const { handle, now, rt } = await world();
+    selfstateIs(handle, {
+      timers: {
+        breath: {
+          at: now.t - 15_000,
+          maxMs: 60_000,
+          paused: false,
+          scale: -1,
+          spellId: 0,
+          valueMs: 15_000,
+        },
+      },
+    });
+    expect(nowSnapshot(rt)?.breathS).toBe(0);
+  });
 });

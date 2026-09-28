@@ -86,6 +86,26 @@ describe("engage fight", () => {
     );
   });
 
+  test("breath_low fails the fight with the surface line", async () => {
+    const t = await field();
+    tactics(t.handle, () => {
+      t.handle.triggerAreaEvent("selfstate", {
+        remainingMs: 6200,
+        type: "breath_low",
+      });
+    });
+    const res = await engageSpec.run(
+      { target: "Springpaw Stalker" },
+      toolCtx<EngageAfter>(t),
+    );
+    expect(res).toMatchObject({
+      next: "look()",
+      reason: "interrupted",
+      status: "FAILED",
+    });
+    expect(res.detail).toBe("Surface now: you have 7 s of breath.");
+  });
+
   test("death after an approach gives the fight time and the walk apart", async () => {
     const t = await field();
     setUnits(t.handle, [stalker(STALKER, 45)]);

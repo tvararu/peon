@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
+import type { AreaState } from "@peon/core";
 import type { OpsCtx, Sighting, Sightings } from "#harness/contract/services";
 import {
   createAttackLedger,
@@ -362,6 +363,89 @@ describe("breath interrupt", () => {
     };
     return { handle, watch: watchInterrupts(ctx, rules) };
   }
+  type BreathTimer = NonNullable<
+    NonNullable<AreaState<"selfstate">["timers"]>["breath"]
+  >;
+  const IDLE_BREATH: AreaState<"selfstate"> = {
+    collisionHeight: undefined,
+    ghostPending: false,
+    lastTransferAbort: undefined,
+    standState: "stand",
+    timers: {},
+  };
+  const LOW: BreathTimer = {
+    at: 0,
+    maxMs: 60_000,
+    paused: false,
+    scale: -1,
+    spellId: 0,
+    valueMs: 8000,
+  };
+  async function installed(
+    breath: BreathTimer | undefined,
+    rules = { death: true, newAttacker: true, rooted: true },
+  ) {
+    const { handle, rt } = await world({ t: 0 });
+    if (breath !== undefined)
+      jest
+        .spyOn(handle.selfstate, "state")
+        .mockReturnValue({ ...IDLE_BREATH, timers: { breath } });
+    const ctx: OpsCtx = {
+      handle,
+      progress: () => {},
+      rt,
+      signal: new AbortController().signal,
+      toolCallId: "c1",
+    };
+    return { handle, watch: watchInterrupts(ctx, rules) };
+  }
+  test("installing while breath is low and draining stops at once", async () => {
+    const { watch } = await installed(LOW);
+    expect(watch.signal.aborted).toBe(true);
+    expect(watch.cause()).toEqual({
+      attacker: undefined,
+      code: "breath",
+      detail: "Surface now: you have 8 s of breath.",
+    });
+    watch.dispose();
+  });
+  test("installing on a drained timer stops with 0 s", async () => {
+    const { watch } = await installed({ ...LOW, at: -20_000 });
+    expect(watch.signal.aborted).toBe(true);
+    expect(watch.cause()?.detail).toBe("Surface now: you have 0 s of breath.");
+    watch.dispose();
+  });
+  test.each([
+    ["plenty of breath left", { ...LOW, valueMs: 30_000 }],
+    ["a paused timer", { ...LOW, paused: true }],
+    ["a refilling timer", { ...LOW, scale: 10 }],
+  ])("installing with %s does not stop", async (_, breath) => {
+    const { watch } = await installed(breath);
+    expect(watch.signal.aborted).toBe(false);
+    expect(watch.cause()).toBeUndefined();
+    watch.dispose();
+  });
+  test("an already-aborted outer signal wins over the breath read", async () => {
+    const { handle, rt } = await world({ t: 0 });
+    jest
+      .spyOn(handle.selfstate, "state")
+      .mockReturnValue({ ...IDLE_BREATH, timers: { breath: LOW } });
+    const stop = new AbortController();
+    stop.abort(new Error("human_stop"));
+    const watch = watchInterrupts(
+      {
+        handle,
+        progress: () => {},
+        rt,
+        signal: stop.signal,
+        toolCallId: "c1",
+      },
+      { death: true, newAttacker: true, rooted: true },
+    );
+    expect(watch.cause()).toBeUndefined();
+    expect(watch.signal.reason).toEqual(new Error("human_stop"));
+    watch.dispose();
+  });
 
   test("breath_low stops a run with the seconds left", async () => {
     const { handle, watch } = await watched();

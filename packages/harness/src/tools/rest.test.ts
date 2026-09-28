@@ -333,6 +333,21 @@ describe("rest", () => {
     },
   );
 
+  test("breath_low stops the rest with the surface line", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { hp: 100, maxHp: 200, power: 60 });
+    const pending = restSpec.run({}, toolCtx<RestAfter>(t));
+    await flush();
+    t.handle.triggerAreaEvent("selfstate", {
+      remainingMs: 7400,
+      type: "breath_low",
+    });
+    const res = await pending;
+    expect(res).toMatchObject({ reason: "interrupted", status: "FAILED" });
+    expect(res.detail).toBe("Surface now: you have 8 s of breath.");
+    expect(res.next).toBe("look()");
+  });
+
   test("refuses while an attacker is on you", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle, { hp: 100, maxHp: 200 });

@@ -181,7 +181,7 @@ function breathSeconds(rt: HarnessRuntime, handle: WorldHandle) {
   const timer = handle.selfstate.state().timers.breath;
   if (!timer || timer.paused || timer.scale >= 0) return;
   const left = timer.valueMs + timer.scale * (rt.clock.now() - timer.at);
-  return left > 0 ? Math.ceil(left / 1000) : undefined;
+  return left >= 0 ? Math.ceil(left / 1000) : undefined;
 }
 
 export function selfView(ctx: ViewCtx): SelfView {

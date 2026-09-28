@@ -459,7 +459,15 @@ export async function fight(init: FightInit): Promise<Report> {
     const modes = { cycle, quest, single };
     const end = await modes[init.choice.mode](scene);
     const secs = Math.round((init.ops.rt.clock.now() - tally.startedAt) / 1000);
-    const died = init.cause()?.code === "died";
+    const cause = init.cause();
+    if (cause?.code === "breath")
+      return result("FAILED", {
+        after: afterOf(init.ops, scene),
+        detail: cause.detail,
+        next: nextCall("look"),
+        reason: "interrupted",
+      });
+    const died = cause?.code === "died";
     tally.loot = await nameLootLines(
       init.ops,
       tally.loot,
