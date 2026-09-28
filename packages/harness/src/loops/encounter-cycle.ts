@@ -115,6 +115,10 @@ export type CycleDeps = {
 };
 
 const DEFAULT_MAX_STARTS = 10;
+const MAX_OBJECT_FAILURES = 2;
+
+const progressKey = (progress: ObjectiveProgress | undefined) =>
+  JSON.stringify(progress ?? null);
 
 export class EncounterCycleRuntime {
   private readonly deps: CycleDeps;
@@ -269,26 +273,71 @@ export class EncounterCycleRuntime {
     signal: AbortSignal,
   ): Promise<void> {
     const tried = new Set(this.state.queue.map((record) => record.guid));
+    const failures = new Map<bigint, number>();
     for (;;) {
       const recovered = await this.recoverIfDead(signal);
       if (recovered) return this.stop(recovered.cause, recovered.detail);
       const pick = this.choose(objective, tried);
       if ("ok" in pick) return this.stop(pick.cause, pick.detail);
-      tried.add(pick.guid);
-      const record: CycleTargetRecord = { guid: pick.guid, status: "queued" };
-      this.state.queue.push(record);
-      this.state.currentIndex = this.state.queue.length - 1;
-      const failed =
-        pick.kind === "object"
-          ? await this.visit(objective, record, pick, signal)
-          : await this.engage(record, signal);
-      signal.throwIfAborted();
-      this.state.objective = objective.progress();
+      if (pick.kind === "target") tried.add(pick.guid);
+      const { record, failed, advanced } = await this.attempt(
+        objective,
+        pick,
+        signal,
+      );
+      if (pick.kind === "object")
+        this.settleObject(failures, tried, pick.guid, {
+          advanced,
+          spent: record.loot === "looted",
+        });
       const far = failed ?? outOfReach(pick, record.cause);
       if (far && !this.selfDead()) return this.stop(far.cause, far.detail);
       if (failed) record.cause = failed.cause;
       this.emit("target_done");
     }
+  }
+
+  private async attempt(
+    objective: CycleObjective,
+    pick: Extract<ObjectivePick, { kind: "target" | "object" }>,
+    signal: AbortSignal,
+  ): Promise<{
+    record: CycleTargetRecord;
+    failed: CycleStop | undefined;
+    advanced: boolean;
+  }> {
+    const before =
+      pick.kind === "object" ? progressKey(objective.progress()) : "";
+    const record: CycleTargetRecord = { guid: pick.guid, status: "queued" };
+    this.state.queue.push(record);
+    this.state.currentIndex = this.state.queue.length - 1;
+    const failed =
+      pick.kind === "object"
+        ? await this.visit(objective, record, pick, signal)
+        : await this.engage(record, signal);
+    signal.throwIfAborted();
+    this.state.objective = objective.progress();
+    const advanced = progressKey(this.state.objective) !== before;
+    return { advanced, failed, record };
+  }
+
+  private settleObject(
+    failures: Map<bigint, number>,
+    tried: Set<bigint>,
+    guid: bigint,
+    result: { advanced: boolean; spent: boolean },
+  ): void {
+    if (result.spent) {
+      tried.add(guid);
+      return;
+    }
+    if (result.advanced) {
+      failures.delete(guid);
+      return;
+    }
+    const count = (failures.get(guid) ?? 0) + 1;
+    failures.set(guid, count);
+    if (count >= MAX_OBJECT_FAILURES) tried.add(guid);
   }
 
   private choose(

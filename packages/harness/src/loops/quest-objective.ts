@@ -36,7 +36,13 @@ export type ObjectiveObject = {
   index: number;
   required: number;
 };
-export type ObjectiveItem = { itemId: number; required: number };
+export type ObjectiveItem = {
+  itemId: number;
+  required: number;
+  carried?: number | undefined;
+};
+export type ObjectiveChest = { entry: number; itemIds: number[] };
+export type CarriedCount = (itemId: number) => number | undefined;
 export type ObjectTemplates = ReadonlyMap<
   number,
   { questItems: readonly number[] }
@@ -48,7 +54,7 @@ export type QuestObjective = {
   objects: ObjectiveObject[];
   items: ObjectiveItem[];
   sources: number[];
-  chests: number[];
+  chests: ObjectiveChest[];
 };
 
 export type ObjectiveProgress = {
@@ -69,13 +75,14 @@ export type ObjectivePick =
 function chestEntries(
   items: readonly ObjectiveItem[],
   templates: ObjectTemplates,
-): number[] {
+): ObjectiveChest[] {
   const wanted = new Set(items.map((item) => item.itemId));
-  const entries: number[] = [];
-  for (const [entry, template] of templates)
-    if (template.questItems.some((itemId) => wanted.has(itemId)))
-      entries.push(entry);
-  return entries;
+  const chests: ObjectiveChest[] = [];
+  for (const [entry, template] of templates) {
+    const itemIds = template.questItems.filter((itemId) => wanted.has(itemId));
+    if (itemIds.length > 0) chests.push({ entry, itemIds });
+  }
+  return chests;
 }
 
 export function questObjective(
@@ -118,6 +125,7 @@ export function questObjective(
 export function objectiveProgress(
   objective: QuestObjective,
   log: QuestLog,
+  carried?: CarriedCount,
 ): ObjectiveProgress | CycleStop {
   const slot = log.slots.find((entry) => entry.questId === objective.questId);
   if (slot === undefined)
@@ -138,7 +146,10 @@ export function objectiveProgress(
       ...object,
       current: slot.counters[object.index],
     })),
-    items: objective.items,
+    items: objective.items.map((item) => ({
+      ...item,
+      carried: carried?.(item.itemId),
+    })),
   };
 }
 
@@ -150,8 +161,25 @@ function wantedEntries(progress: ObjectiveProgress, sources: number[]) {
   return entries;
 }
 
-function wantedObjects(progress: ObjectiveProgress, chests: number[]) {
-  const entries = new Set(chests);
+function outstanding(
+  progress: ObjectiveProgress,
+  itemId: number,
+  carried: CarriedCount,
+): boolean {
+  const have = carried(itemId);
+  const item = progress.items.find((entry) => entry.itemId === itemId);
+  return have === undefined || item === undefined || have < item.required;
+}
+
+function wantedObjects(
+  progress: ObjectiveProgress,
+  chests: readonly ObjectiveChest[],
+  carried: CarriedCount,
+) {
+  const entries = new Set<number>();
+  for (const chest of chests)
+    if (chest.itemIds.some((itemId) => outstanding(progress, itemId, carried)))
+      entries.add(chest.entry);
   for (const object of progress.objects ?? [])
     if (object.current === undefined || object.current < object.required)
       entries.add(object.entry);
@@ -166,17 +194,18 @@ function activatable(entity: Entity): boolean {
 export function pickObjectiveTarget(args: {
   objective: QuestObjective;
   log: QuestLog;
+  carried: CarriedCount;
   entities: readonly Entity[];
   self: Vec3 | undefined;
   tried: ReadonlySet<bigint>;
 }): ObjectivePick {
-  const progress = objectiveProgress(args.objective, args.log);
+  const progress = objectiveProgress(args.objective, args.log, args.carried);
   if ("ok" in progress) return progress;
   if (progress.complete) return { kind: "complete", progress };
   if (args.self === undefined) return cycleStop("self_pose_unobserved");
   const self = args.self;
   const entries = wantedEntries(progress, args.objective.sources);
-  const objects = wantedObjects(progress, args.objective.chests);
+  const objects = wantedObjects(progress, args.objective.chests, args.carried);
   const candidates = args.entities
     .flatMap((entity) => {
       if (entity.position === undefined || args.tried.has(entity.guid))

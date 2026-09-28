@@ -67,15 +67,18 @@ and reads shrines, plaques and books.
   that carries `GO_DYNFLAG_LO_ACTIVATE`, which the server sets per player
   while the object serves an open quest (`Entities/GameObject/GameObject.cpp:2799-2811`).
   It walks to 3 yd, opens a chest with the spell of `openLockSpell` (a use
-  first, then the cast, as `use do: open` does) and takes the loot with
-  `lootObject`; any other usable object gets one use and a wait of 3 s
-  for a quest update. An object whose visit fails is not tried again in
-  that run. A live run on an `elwynn10` character raised to level 60,
-  with quest 3904 staged by `soap gm quest add` and a teleport to the
-  vineyard, looted 8 crates through the loop and `soap truth` showed the
-  quest complete (status 1, item counts `[8, 0, 0, 0, 0, 0]`). The same run at
-  level 20 looted 6 crates and then died to the vineyard thugs, whose hits
-  interrupt the cast: the loop does not fight back.
+  first, then the cast, as `use do: open` does) or, when the lock wants a
+  key item, with `useItemOn`, and takes the loot with `lootObject`; any
+  other usable object gets one use and a wait of 3 s for a quest update. A
+  chest is wanted only while a required item it holds is still short of its
+  count in the bags. An object whose visit moves no quest counter is picked
+  again once and then dropped for the run; a chest whose loot was taken is
+  dropped at once. A live run on an `elwynn10` character raised to level 60,
+  with quest 3904 staged by `soap gm quest add` and a teleport to
+  `NorthshireVineyards`, looted 7 more crates through the loop on top of
+  one from an earlier run, stopped with no wanted chest left at 8 of 8
+  Milly's Harvest, and `soap truth` showed the quest complete (status 1,
+  item counts `[8, 0, 0, 0, 0, 0]`).
 - The guid of `SMSG_GAMEOBJECT_DESPAWN_ANIM` is not always a game
   object's.
   - A dynamic object sends the despawn animation with its own guid when

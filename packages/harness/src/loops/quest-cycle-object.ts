@@ -79,10 +79,13 @@ async function openChest(
   const choice = await handle.objects.act.openLockSpell(pick.entry);
   run.signal.throwIfAborted();
   if (!("by" in choice)) return skipped(choice.reason);
-  if (choice.by === "item") return skipped("object_needs_key");
   const used = handle.objects.act.use(pick.guid);
   if (!used.ok) return skipped("object_not_usable");
-  const opened = handle.objects.act.open(pick.guid, choice.spellId);
+  const opened =
+    choice.by === "item"
+      ? await handle.objects.act.useItemOn(choice.entry, pick.guid)
+      : handle.objects.act.open(pick.guid, choice.spellId);
+  run.signal.throwIfAborted();
   if (!opened.ok) return skipped(`open_${opened.reason}`);
   const looted = await lootObject(run, pick.guid);
   if (looted.ok) return { ok: true, record: looted.record };

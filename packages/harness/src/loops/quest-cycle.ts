@@ -63,17 +63,21 @@ export async function questCycleObjective(
     ...objective.objects,
     ...objective.items,
   ].reduce((sum, entry) => sum + entry.required, 0);
+  const carried = (itemId: number) =>
+    handle.getQuestState().items.find((item) => item.itemId === itemId)
+      ?.carried;
   const cycle: CycleObjective = {
     pick: (tried) =>
       pickObjectiveTarget({
         objective,
+        carried,
         log: log(),
         entities: handle.getNearbyEntities(),
         self: handle.getControlState().pose,
         tried,
       }),
     progress: () => {
-      const progress = objectiveProgress(objective, log());
+      const progress = objectiveProgress(objective, log(), carried);
       return "ok" in progress ? undefined : progress;
     },
     visit: visitObject(handle),

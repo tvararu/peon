@@ -112,6 +112,7 @@ function kills(): QuestObjective {
 }
 
 const origin = { x: 0, y: 0, z: 0 };
+const unknownCarried = () => undefined;
 
 describe("quest objective derivation", () => {
   test("creature targets keep their log counter index and count", () => {
@@ -155,7 +156,7 @@ describe("quest objective derivation", () => {
     ]);
     const objective = questObjective(query([], [[MILLY, 8]]), [], templates);
     expect(objective).toMatchObject({
-      chests: [CRATE],
+      chests: [{ entry: CRATE, itemIds: [MILLY] }],
       items: [{ itemId: MILLY, required: 8 }],
       sources: [],
     });
@@ -196,6 +197,7 @@ describe("objective target selection", () => {
       entities,
       log: questLog,
       objective: kills(),
+      carried: unknownCarried,
       self: origin,
       tried,
     });
@@ -272,6 +274,7 @@ describe("object target selection", () => {
       entities,
       log: log(0, [0]),
       objective,
+      carried: unknownCarried,
       self: origin,
       tried,
     });
@@ -305,6 +308,7 @@ describe("object target selection", () => {
       entities,
       log: log(0, [1]),
       objective,
+      carried: unknownCarried,
       self: origin,
       tried: new Set(),
     });
@@ -313,10 +317,46 @@ describe("object target selection", () => {
       entities,
       log: log(0, [2]),
       objective,
+      carried: unknownCarried,
       self: origin,
       tried: new Set(),
     });
     expect(filled).toMatchObject({ cause: "objective_targets_absent" });
+  });
+
+  test("a chest is wanted only while its quest item is outstanding", () => {
+    const templates = new Map([
+      [CRATE, { questItems: [MILLY] }],
+      [777, { questItems: [999] }],
+    ]);
+    const objective = questObjective(
+      query(
+        [],
+        [
+          [MILLY, 8],
+          [999, 2],
+        ],
+      ),
+      [],
+      templates,
+    );
+    if ("ok" in objective) throw new Error(objective.cause);
+    const entities = [crate(1n, 5), crate(2n, 20, { entry: 777 })];
+    const carrying = (counts: Record<number, number>) =>
+      pickObjectiveTarget({
+        carried: (itemId) => counts[itemId],
+        entities,
+        log: log(0, [0]),
+        objective,
+        self: origin,
+        tried: new Set(),
+      });
+    expect(carrying({ [MILLY]: 3, 999: 2 })).toMatchObject({ guid: 1n });
+    expect(carrying({ [MILLY]: 8, 999: 1 })).toMatchObject({ guid: 2n });
+    expect(carrying({ [MILLY]: 8, 999: 2 })).toMatchObject({
+      cause: "objective_targets_absent",
+    });
+    expect(carrying({})).toMatchObject({ guid: 1n });
   });
 
   test("a creature and a chest compete by distance", () => {
