@@ -13,10 +13,8 @@ const HIGH = 0x1_00_00_00_00_00_00n;
 const ENTRY_UNIT = 0x1_00_00_00n;
 const CREATURE_HIGHS = new Set([0xf1_30n, 0xf1_50n]);
 const IMMUNE_OUTCOMES = new Set(["immune", "immune2"]);
-const STOLEN_BY = new Set(["player", "pet"]);
 
 const highOf = (guid: bigint) => BigInt.asUintN(16, guid / HIGH);
-const isPet = (guid: bigint) => highOf(guid) === 0xf1_40n;
 
 function creatureEntry(guid: bigint): number | undefined {
   if (!CREATURE_HIGHS.has(highOf(guid))) return undefined;
@@ -51,8 +49,8 @@ function unitRow(
 }
 
 function onEntry(e: Of<"entry">, seen: Set<string>, rc: RuleInput) {
-  const ours = e.source === rc.selfGuid || isPet(e.source);
-  if (!(ours && isImmune(e)) || e.target === rc.selfGuid) return [];
+  if (e.source !== rc.selfGuid || e.target === rc.selfGuid) return [];
+  if (!isImmune(e)) return [];
   const spellId = e.spellId ?? 0;
   const entry = creatureEntry(e.target);
   const key = `${entry ?? guidText(e.target)}:${spellId}`;
@@ -71,7 +69,7 @@ function onEntry(e: Of<"entry">, seen: Set<string>, rc: RuleInput) {
 
 function onKill(e: Of<"kill">, rc: RuleInput): AreaDraft[] {
   if (e.bySelf === 1 || e.ourTarget !== 1) return [];
-  if (!STOLEN_BY.has(e.killerKind)) return [];
+  if (e.killerKind !== "player") return [];
   return [
     unitRow(e.victim, rc, {
       class: "log",

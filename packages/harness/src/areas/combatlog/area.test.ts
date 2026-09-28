@@ -87,7 +87,10 @@ describe("combatlog harness rules", () => {
       entry({ kind: "kill", source: ME, target: BOAR }),
       entry({ kind: "immune", source: BOAR, spellId: 122, target: ME }),
       kill({ bySelf: 1, killer: ME, killerKind: "self" }),
+      entry({ kind: "immune", source: PET, spellId: 122, target: BOAR }),
+      entry({ outcome: "immune", source: PET, target: BOAR }),
       kill({ killerKind: "creature" }),
+      kill({ killer: PET, killerKind: "pet" }),
       kill({ ourTarget: 0 }),
     ];
     expect(quiet.flatMap(rows)).toEqual([]);
@@ -119,15 +122,15 @@ describe("combatlog harness rules", () => {
       amount: 0,
       kind: "miss",
       outcome: "immune2",
-      source: PET,
-      spellId: 17_253,
+      source: ME,
+      spellId: 5143,
       target: BOAR,
     });
     const swing = entry({ outcome: "immune", source: ME, target: BOAR });
     expect([...rows(missed), ...rows(missed)]).toEqual([
       expect.objectContaining({
         event: "combatlog/immune",
-        text: `Mottled Boar u${BOAR} is immune to spell 17253.`,
+        text: `Mottled Boar u${BOAR} is immune to spell 5143.`,
       }),
     ]);
     expect([...rows(swing), ...rows(swing)]).toEqual([
@@ -135,6 +138,18 @@ describe("combatlog harness rules", () => {
         data: expect.objectContaining({ spellId: 0 }),
         event: "combatlog/immune",
         text: `Mottled Boar u${BOAR} is immune to your attacks.`,
+      }),
+    ]);
+  });
+
+  test("a pet's immunity leaves the character's own row to be written", () => {
+    const rows = session();
+    const petSwing = entry({ outcome: "immune", source: PET, target: BOAR });
+    const swing = entry({ outcome: "immune", source: ME, target: BOAR });
+    expect([...rows(petSwing), ...rows(swing)]).toEqual([
+      expect.objectContaining({
+        data: expect.objectContaining({ source: "2a", spellId: 0 }),
+        event: "combatlog/immune",
       }),
     ]);
   });
@@ -157,9 +172,6 @@ describe("combatlog harness rules", () => {
         ref: `u${BOAR}`,
         text: `Mate u${MATE} killed your target Mottled Boar u${BOAR}.`,
       },
-    ]);
-    expect(rows(kill({ killer: PET, killerKind: "pet" }))).toEqual([
-      expect.objectContaining({ event: "combatlog/killing_blow" }),
     ]);
   });
 
