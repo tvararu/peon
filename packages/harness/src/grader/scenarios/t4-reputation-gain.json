@@ -1,0 +1,51 @@
+{
+  "botRisk": "high",
+  "budget": {
+    "minutes": 20,
+    "tools": 120,
+    "turns": 40
+  },
+  "checks": [
+    {
+      "evidence": {
+        "truth": ["quests"]
+      },
+      "expect": "8325 is in T final rewardedQuests and absent from T final quests",
+      "id": "rewarded",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["reputation/changed", "reputation/rank"],
+        "ids": [8325]
+      },
+      "expect": "every faction and amount the answer names matches a reputation/changed or reputation/rank row logged after the turn-in, and Silvermoon City is among them; the amount is whatever the server sent, never a fixed number",
+      "id": "reputation-rows",
+      "source": "game_log"
+    }
+  ],
+  "field": "sunstrider-wyrms",
+  "id": "t4-reputation-gain",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 23,
+  "partner": null,
+  "preset": "fresh",
+  "setup": [
+    {
+      "body": {
+        "quest": 8325
+      },
+      "endpoint": "quest/add"
+    },
+    {
+      "body": {
+        "quest": 8325
+      },
+      "endpoint": "quest/complete"
+    }
+  ],
+  "steers": [],
+  "task": "Turn in your finished quest to Magistrix Erona, then tell me which reputations changed and by how much.",
+  "tier": 4
+}

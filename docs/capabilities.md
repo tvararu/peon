@@ -35,6 +35,7 @@ or the page names one that does not exist.
 | Read a letter in its bags | `t8-items-read` | The Dusty Unsent Letter's page text is empty on this server. |
 | Load arrows for a ranged weapon | `t8-items-ammo` | |
 | Cancel one of its own buffs | `t4-spells-cancel-aura` | Harmful and passive auras cannot be cancelled. |
+| Report its reputation with each faction and what changed it | `t4-reputation-gain` | Only factions the server lists. Standing is the Faction.dbc base plus the server's change; at war and inactive set by the agent show only after the next login. |
 
 
 ## Not shown by any scenario

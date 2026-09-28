@@ -192,3 +192,4 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Game objects (`use`) | `t0-objects-read-shrine` |
 | Game objects (area triggers) | `t4-objects-explore-fargodeep` |
 | Spells (spell tool, stop on channels) | `t4-spells-cancel-aura`, `t4-spells-action-bar` |
+| Reputation and hostility (journal reputation, reputation rows, unit relations) | `t4-reputation-gain`, `t0-hostiles` |
