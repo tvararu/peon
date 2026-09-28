@@ -33,3 +33,9 @@ export function timeQueryResponseBody(init: {
   w.uint32LE(init.dailyResetInSec);
   return w.finish();
 }
+
+export function timeUiTimerUpdateBody(init: { gameTime: number }): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.gameTime);
+  return w.finish();
+}

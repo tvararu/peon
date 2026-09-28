@@ -2,10 +2,12 @@ import { describe, expect, test } from "bun:test";
 import {
   timeLoginSetTimeSpeedBody,
   timeQueryResponseBody,
+  timeUiTimerUpdateBody,
 } from "#test-support/areas/time";
 import {
   parseLoginSetTimeSpeed,
   parseTimeQueryResponse,
+  parseUiTimerUpdate,
 } from "#wow/areas/time/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 
@@ -30,6 +32,16 @@ describe("time parsers", () => {
       serverTime: 1_790_000_000,
       dailyResetInSec: 3600,
     });
+  });
+
+  test("SMSG_WORLD_STATE_UI_TIMER_UPDATE reads the game time (MiscPackets.cpp:139)", () => {
+    const body = timeUiTimerUpdateBody({ gameTime: 1_790_000_123 });
+    expect(parseUiTimerUpdate(new PacketReader(body))).toEqual({
+      gameTime: 1_790_000_123,
+    });
+    expect(() =>
+      parseUiTimerUpdate(new PacketReader(body.subarray(0, 3))),
+    ).toThrow();
   });
 
   test("a short body throws", () => {

@@ -11,9 +11,11 @@ export type TimeState = {
   serverTime: number | undefined;
   dailyResetInSec: number | undefined;
   receivedAt: number | undefined;
+  uiTime: number | undefined;
+  uiTimeAt: number | undefined;
 };
 export type TimeEvent = {
-  type: "set_speed" | "query_reply";
+  type: "set_speed" | "query_reply" | "ui_time";
   state: TimeState;
 };
 
@@ -32,6 +34,8 @@ export class TimeStore {
     serverTime: undefined,
     dailyResetInSec: undefined,
     receivedAt: undefined,
+    uiTime: undefined,
+    uiTimeAt: undefined,
   };
 
   private readonly now: () => number;
@@ -66,6 +70,11 @@ export class TimeStore {
       receivedAt: this.now(),
     };
     this.events.emit({ type: "query_reply", state: this.snapshot() });
+  }
+
+  receiveUiTime(gameTime: number): void {
+    this.state = { ...this.state, uiTime: gameTime, uiTimeAt: this.now() };
+    this.events.emit({ type: "ui_time", state: this.snapshot() });
   }
 
   dispose(): void {

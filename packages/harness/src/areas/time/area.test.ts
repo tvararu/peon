@@ -1,5 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import type { AreaEvent, AreaState } from "@peon/core";
+import { flushMicrotasks } from "@peon/core/test-support/microtasks";
 import { areaDrafts, areaRuleSet, attachDrafts } from "#harness/areas/rules";
 import { timeHarness } from "#harness/areas/time/area";
 import { createWorldService } from "#harness/world/hub";
@@ -17,7 +18,10 @@ const SYNCED: AreaState<"time"> = {
   receivedAt: 7,
   serverTime: 1_790_000_000,
   speed: SPEED,
+  uiTime: undefined,
+  uiTimeAt: undefined,
 };
+const UI_TIMER_UPDATE = 0x4_f6;
 
 function timeEvent(type: "set_speed" | "query_reply"): AreaEvent {
   return { area: "time", event: { state: SYNCED, type } };
@@ -84,8 +88,16 @@ describe("time harness rules", () => {
     expect(speed?.data).not.toHaveProperty("fallback");
   });
 
-  test("the only world act is query", () => {
-    expect(timeHarness.worldActs).toEqual(["query"]);
+  test("a ui_time event writes no row", () => {
+    const event: AreaEvent = {
+      area: "time",
+      event: { state: { ...SYNCED, uiTime: 1_790_000_123 }, type: "ui_time" },
+    };
+    expect(areaDrafts(areaRuleSet(), event, testRuleInput())).toEqual([]);
+  });
+
+  test("the world acts are query and requestUiTime", () => {
+    expect(timeHarness.worldActs).toEqual(["query", "requestUiTime"]);
   });
 });
 
@@ -107,6 +119,27 @@ describe("time through the world service", () => {
     const claim = createWorldService(rt).service.claim("loop", "probe");
     await expect(claim?.areas.time.query()).rejects.toThrow("offline");
     expect(game.sent).toEqual([]);
+  });
+
+  test("claim.areas.time.requestUiTime sends one CMSG_WORLD_STATE_UI_TIMER_UPDATE", async () => {
+    const { game, world } = await connected();
+    const claim = world.claim("loop", "probe");
+    expect(typeof claim?.areas.time.requestUiTime).toBe("function");
+    jest.useFakeTimers();
+    try {
+      const settled = claim?.areas.time.requestUiTime().then(
+        () => "resolved",
+        (error: Error) => error.message,
+      );
+      await flushMicrotasks();
+      expect(
+        game.sent.filter((p) => p.opcode === UI_TIMER_UPDATE),
+      ).toHaveLength(1);
+      jest.advanceTimersByTime(5000);
+      expect(await settled).toBe("timeout");
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test("session.areas.time.state() is a frozen copy", async () => {

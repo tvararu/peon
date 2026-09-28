@@ -47,7 +47,8 @@ export const timeHarness = defineHarnessArea({
   area: "time",
   rules: () => ({
     attach: (state) => synced(state, "attach"),
-    event: (event) => synced(event.state, event.type),
+    event: (event) =>
+      event.type === "ui_time" ? [] : synced(event.state, event.type),
   }),
-  worldActs: ["query"],
+  worldActs: ["query", "requestUiTime"],
 });

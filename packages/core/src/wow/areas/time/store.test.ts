@@ -28,6 +28,33 @@ describe("TimeStore", () => {
       serverTime: undefined,
       dailyResetInSec: undefined,
       receivedAt: undefined,
+      uiTime: undefined,
+      uiTimeAt: undefined,
+    });
+  });
+
+  test("receiveUiTime stores the game time and emits ui_time with a detached state", () => {
+    const time = clock(1000);
+    const store = new TimeStore(time.now);
+    const seen: TimeEvent[] = [];
+    store.onEvent((event) => seen.push(event));
+    store.receiveSetSpeed({ gameTime: NOON, speed: SPEED });
+    time.advance(250);
+    store.receiveUiTime(1_790_000_123);
+    expect(store.snapshot()).toMatchObject({
+      gameTime: NOON,
+      receivedAt: 1000,
+      uiTime: 1_790_000_123,
+      uiTimeAt: 1250,
+    });
+    expect(seen.map((e) => e.type)).toEqual(["set_speed", "ui_time"]);
+    const last = seen[1];
+    if (!last?.state.gameTime) throw new Error("no event");
+    last.state.uiTime = 1;
+    last.state.gameTime.hour = 3;
+    expect(store.snapshot()).toMatchObject({
+      gameTime: NOON,
+      uiTime: 1_790_000_123,
     });
   });
 
@@ -63,6 +90,8 @@ describe("TimeStore", () => {
       serverTime: 1_790_000_000,
       dailyResetInSec: 60,
       receivedAt: 1500,
+      uiTime: undefined,
+      uiTimeAt: undefined,
     });
     expect(seen.map((e) => e.type)).toEqual(["set_speed", "query_reply"]);
     expect(seen[1]?.state.dailyResetInSec).toBe(60);

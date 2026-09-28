@@ -8,5 +8,5 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x042` | `SMSG_LOGIN_SETTIMESPEED` | server | handled |  |
 | `0x1ce` | `CMSG_QUERY_TIME` | client | handled |  |
 | `0x1cf` | `SMSG_QUERY_TIME_RESPONSE` | server | handled |  |
-| `0x4f6` | `CMSG_WORLD_STATE_UI_TIMER_UPDATE` | client | missing |  |
-| `0x4f7` | `SMSG_WORLD_STATE_UI_TIMER_UPDATE` | server | missing |  |
+| `0x4f6` | `CMSG_WORLD_STATE_UI_TIMER_UPDATE` | client | handled |  |
+| `0x4f7` | `SMSG_WORLD_STATE_UI_TIMER_UPDATE` | server | handled |  |
