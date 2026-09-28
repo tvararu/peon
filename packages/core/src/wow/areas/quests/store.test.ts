@@ -1,13 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
+  questsGossipPoiBody,
+  questsNpcTextUpdateBody,
   questsQuestgiverStatusBody,
   questsQuestgiverStatusMultipleBody,
   questsQuestPoiQueryResponseBody,
 } from "#test-support/areas/quests";
+import { parseGossipPoi, parseNpcTextUpdate } from "#wow/areas/quests/protocol";
 import type { QuestsEvent } from "#wow/areas/quests/store";
 import { markOf } from "#wow/areas/quests/store-marks";
 import { GameOpcode } from "#wow/protocol/opcodes";
+import { PacketReader } from "#wow/protocol/packet";
 
 const ERONA = 0xf1_30_00_3f_d1_00_1a_2bn;
 const JESSE = 0xf1_30_00_3e_a7_00_1a_30n;
@@ -244,6 +248,110 @@ describe("quests pois", () => {
       expect(rig.handle.state().pois.get(8325)?.pois[0]?.objectiveIndex).toBe(
         0,
       );
+    } finally {
+      rig.dispose();
+    }
+  });
+});
+
+const GUARD = 0xf1_30_00_05_8f_00_2b_11n;
+const ERONA_TEXT = 8281;
+const NO_EMOTES = [
+  { delay: 0, emote: 0 },
+  { delay: 0, emote: 0 },
+  { delay: 0, emote: 0 },
+];
+
+function option(text0: string, probability = 1) {
+  return { probability, text0, text1: text0, language: 7, emotes: NO_EMOTES };
+}
+
+describe("quests npc text", () => {
+  test("a text reply is cached and the greeting is the highest-probability non-empty text", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_NPC_TEXT_UPDATE,
+        questsNpcTextUpdateBody(ERONA_TEXT, [
+          option("Second, $C.", 0.5),
+          option("Welcome to Sunstrider Isle, $N."),
+          option("", 2),
+        ]),
+      );
+      expect(rig.handle.state().texts.get(ERONA_TEXT)?.status).toBe("known");
+      expect(rig.stores.areas.quests.greeting(ERONA_TEXT)).toBe(
+        "Welcome to Sunstrider Isle, $N.",
+      );
+      expect(seen).toEqual([
+        { status: "known", textId: ERONA_TEXT, type: "npc_text" },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("the unknown-id reply greets with the fallback text", () => {
+    const { rig } = rigWithEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_NPC_TEXT_UPDATE,
+        questsNpcTextUpdateBody(999_999),
+      );
+      expect(rig.stores.areas.quests.greeting(999_999)).toBe("Greetings $N");
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a reply overwrite is stored with its guid", () => {
+    const parsed = parseNpcTextUpdate(
+      new PacketReader(questsNpcTextUpdateBody(ERONA_TEXT, [option("Hail.")])),
+    );
+    expect(parsed.textId).toBe(ERONA_TEXT);
+    expect(parsed.options).toHaveLength(8);
+    const { rig } = rigWithEvents();
+    try {
+      rig.stores.areas.quests.receiveNpcText(parsed, GUARD);
+      expect(rig.stores.areas.quests.greeting(ERONA_TEXT)).toBe("Hail.");
+      expect(rig.handle.state().texts.get(ERONA_TEXT)?.guid).toBe(GUARD);
+    } finally {
+      rig.dispose();
+    }
+  });
+});
+
+describe("quests gossip POI", () => {
+  test("an injected POI is set with the giver open at arrival", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      const poi = parseGossipPoi(
+        new PacketReader(
+          questsGossipPoiBody({
+            flags: 99,
+            x: -8867.5,
+            y: 673.25,
+            icon: 7,
+            importance: 6,
+            name: "The Gilded Rose",
+          }),
+        ),
+      );
+      rig.stores.areas.quests.receiveGossipPoi(poi, GUARD);
+      expect(rig.handle.state().gossipPoi).toEqual({
+        flags: 99,
+        x: -8867.5,
+        y: 673.25,
+        icon: 7,
+        importance: 6,
+        name: "The Gilded Rose",
+        at: 1000,
+        from: GUARD,
+      });
+      expect(seen.at(-1)).toEqual({
+        type: "gossip_poi",
+        from: GUARD,
+        name: "The Gilded Rose",
+      });
     } finally {
       rig.dispose();
     }

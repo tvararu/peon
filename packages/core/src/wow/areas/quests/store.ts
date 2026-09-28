@@ -1,6 +1,8 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type {
   GiverStatus,
+  GossipPoi,
+  NpcText,
   QuestPoi,
   QuestPoiReply,
 } from "#wow/areas/quests/protocol";
@@ -22,6 +24,16 @@ import {
   refreshAbsentPois,
   requestPois,
 } from "#wow/areas/quests/store-poi";
+import {
+  type GossipPoiEntry,
+  greetingOf,
+  type NpcTextChange,
+  type NpcTexts,
+  receivePoi,
+  receiveText,
+  requestText,
+  textNoReply,
+} from "#wow/areas/quests/store-text";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export type PoiEntryView = {
@@ -29,7 +41,12 @@ export type PoiEntryView = {
   status: "known" | "none";
   pois: QuestPoi[];
 };
-export type QuestsState = { marks: Marks; pois: Pois };
+export type QuestsState = {
+  marks: Marks;
+  pois: Pois;
+  texts: NpcTexts;
+  gossipPoi: GossipPoiEntry | undefined;
+};
 export type QuestsEvent =
   | {
       type: "marks";
@@ -37,20 +54,28 @@ export type QuestsEvent =
       changed: readonly bigint[];
       givers: readonly GiverMark[];
     }
-  | { type: "poi"; questIds: readonly number[]; pois: readonly PoiEntryView[] };
+  | { type: "poi"; questIds: readonly number[]; pois: readonly PoiEntryView[] }
+  | NpcTextChange;
 
 export class QuestsStore {
   private readonly events = new Emitter<[QuestsEvent]>();
   private readonly now: () => number;
   private marks: Marks = new Map();
   private pois: Pois = new Map();
+  private texts: NpcTexts = new Map();
+  private gossipPoi: GossipPoiEntry | undefined;
 
   constructor(deps: SessionDeps, _core: CoreStores) {
     this.now = deps.now;
   }
 
   snapshot(): QuestsState {
-    return { marks: new Map(this.marks), pois: new Map(this.pois) };
+    return {
+      marks: new Map(this.marks),
+      pois: new Map(this.pois),
+      texts: new Map(this.texts),
+      gossipPoi: this.gossipPoi,
+    };
   }
 
   onEvent(cb: (event: QuestsEvent) => void): Unsubscribe {
@@ -76,9 +101,43 @@ export class QuestsStore {
     this.marks = forget(this.marks, guid);
   }
 
+  greeting(textId: number): string | undefined {
+    return greetingOf(this.texts.get(textId));
+  }
+
+  pendingTextGuid(textId: number): bigint | undefined {
+    return this.texts.get(textId)?.guid;
+  }
+
+  requestNpcText(textId: number, guid: bigint): boolean {
+    const next = requestText(this.texts, textId, guid, this.now());
+    this.texts = next.texts;
+    return next.send;
+  }
+
+  receiveNpcText(text: NpcText, guid: bigint | undefined): void {
+    const next = receiveText(this.texts, text, guid, this.now());
+    this.texts = next.texts;
+    this.events.emit(next.change);
+  }
+
+  npcTextNoReply(textId: number): void {
+    const next = textNoReply(this.texts, textId, this.now());
+    this.texts = next.texts;
+    this.events.emit(next.change);
+  }
+
+  receiveGossipPoi(poi: GossipPoi, from: bigint | undefined): void {
+    const next = receivePoi(poi, from, this.now());
+    this.gossipPoi = next.entry;
+    this.events.emit(next.change);
+  }
+
   dispose(): void {
     this.events.clear();
     this.marks = new Map();
+    this.texts = new Map();
+    this.gossipPoi = undefined;
     this.pois = new Map();
   }
 

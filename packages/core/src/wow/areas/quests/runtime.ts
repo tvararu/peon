@@ -1,5 +1,6 @@
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import {
+  buildNpcTextQuery,
   buildQuestgiverStatusQuery,
   buildQuestPoiQuery,
   MAX_POI_QUERY_IDS,
@@ -32,6 +33,8 @@ export type QuestsActs = {
   queryGiverStatus: (guid: bigint) => boolean;
   queryGiverStatuses: () => void;
   queryPoi: (ids: readonly number[]) => PoiEntryView[];
+  queryNpcText: (textId: number, guid: bigint) => boolean;
+  greeting: (textId: number) => string | undefined;
 };
 
 type Timer = ReturnType<typeof setTimeout>;
@@ -111,12 +114,12 @@ type PoiQueue = {
 };
 
 function poiQueue(
-  send: (batch: readonly number[]) => void,
+  ctx: AreaRuntimeCtx<QuestsEvent>,
   store: QuestsStore,
 ): PoiQueue {
   const pending = new Map<number, Timer>();
   function sendBatch(batch: readonly number[]): void {
-    send(batch);
+    ctx.send(GameOpcode.CMSG_QUEST_POI_QUERY, buildQuestPoiQuery(batch));
     for (const id of batch) {
       clearTimeout(pending.get(id));
       pending.set(
@@ -185,6 +188,46 @@ function trackPoiEntry(event: QuestEvent, hooks: QuestPoiHooks): void {
     seenInLog.delete(event.questId);
 }
 
+type TextEnv = {
+  ctx: AreaRuntimeCtx<QuestsEvent>;
+  store: QuestsStore;
+};
+
+type TextQuery = {
+  send: (textId: number, guid: bigint) => boolean;
+  dispose: () => void;
+};
+
+function queryDialogText(core: CoreStores, texts: TextQuery): void {
+  const dialog = core.quests.dialog;
+  if (dialog?.kind === "gossip")
+    texts.send(dialog.data.titleTextId, dialog.data.guid);
+}
+
+function textQuery({ ctx, store }: TextEnv): TextQuery {
+  const timers = new Map<number, Timer>();
+  function send(textId: number, guid: bigint): boolean {
+    if (!store.requestNpcText(textId, guid)) return false;
+    ctx.send(GameOpcode.CMSG_NPC_TEXT_QUERY, buildNpcTextQuery(textId, guid));
+    clearTimeout(timers.get(textId));
+    timers.set(
+      textId,
+      setTimeout(() => {
+        timers.delete(textId);
+        store.npcTextNoReply(textId);
+      }, REPLY_TIMEOUT_MS),
+    );
+    return true;
+  }
+  return {
+    send,
+    dispose: () => {
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
+    },
+  };
+}
+
 export function questsRuntime(
   ctx: AreaRuntimeCtx<QuestsEvent>,
   store: QuestsStore,
@@ -208,15 +251,13 @@ export function questsRuntime(
     known.delete(event.guid);
     store.forget(event.guid);
   });
-  const pois = poiQueue(
-    (batch) =>
-      ctx.send(GameOpcode.CMSG_QUEST_POI_QUERY, buildQuestPoiQuery(batch)),
-    store,
-  );
+  const pois = poiQueue(ctx, store);
+  const texts = textQuery({ ctx, store });
   const seenInLog = new Set<number>();
   const offQuest = ctx.listen("quest", (event) => {
     if (LOG_CHANGES.has(event.type)) query.schedule();
     trackPoiEntry(event, { seenInLog, store, core, pois });
+    if (event.type === "dialog") queryDialogText(core, texts);
   });
   const queryGiverStatus = (guid: bigint): boolean => {
     if (!known.has(guid)) return false;
@@ -231,11 +272,18 @@ export function questsRuntime(
     return store.poiOf(ids);
   };
   return {
-    act: { queryGiverStatus, queryGiverStatuses: query.sendNow, queryPoi },
+    act: {
+      queryGiverStatus,
+      queryGiverStatuses: query.sendNow,
+      queryPoi,
+      queryNpcText: texts.send,
+      greeting: (textId) => store.greeting(textId),
+    },
     dispose: () => {
       offEntity();
       offQuest();
       query.dispose();
+      texts.dispose();
       known.clear();
       pois.dispose();
     },

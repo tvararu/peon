@@ -1,6 +1,8 @@
 import { defineArea } from "#wow/areas/contract";
 import { QUESTS_OPCODES } from "#wow/areas/quests/opcodes";
 import {
+  parseGossipPoi,
+  parseNpcTextUpdate,
   parseQuestgiverStatusMultiple,
   parseQuestPoiResponse,
 } from "#wow/areas/quests/protocol";
@@ -12,7 +14,7 @@ import { parseQuestgiverStatus } from "#wow/protocol/questgiver";
 export const questsArea = defineArea({
   name: "quests",
   opcodes: QUESTS_OPCODES,
-  eventTypes: ["marks", "poi"],
+  eventTypes: ["marks", "poi", "npc_text", "gossip_poi"],
   store: (deps, core) => new QuestsStore(deps, core),
   register: (wire, store) => {
     wire.on(GameOpcode.SMSG_QUESTGIVER_STATUS_MULTIPLE, (r) =>
@@ -23,6 +25,12 @@ export const questsArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_QUEST_POI_QUERY_RESPONSE, (r) =>
       store.receivePoiResponse(parseQuestPoiResponse(r)),
+    );
+    wire.on(GameOpcode.SMSG_NPC_TEXT_UPDATE, (r) =>
+      store.receiveNpcText(parseNpcTextUpdate(r), undefined),
+    );
+    wire.on(GameOpcode.SMSG_GOSSIP_POI, (r) =>
+      store.receiveGossipPoi(parseGossipPoi(r), undefined),
     );
   },
   runtime: questsRuntime,
