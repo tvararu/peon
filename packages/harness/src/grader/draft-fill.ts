@@ -44,7 +44,7 @@ export function truthSummary(truth: Truth): TruthSummary {
 
 type Pair = { baseline: Truth | null; final: Truth | null };
 type Picked = Record<string, unknown>;
-type Picker = (truth: Truth) => Picked;
+type Picker = (truth: Truth, worn: boolean) => Picked;
 
 const CHARACTER_BAG = 255;
 const BANK_BAG = -1;
@@ -54,49 +54,81 @@ const BANK_SLOTS = { first: 39, last: 73 };
 const inSlots = (slot: number, { first, last }: typeof BANK_SLOTS) =>
   slot >= first && slot <= last;
 
-const rowsOf = (rows: readonly TruthItem[]) =>
-  rows.map(({ bag, count, item, name, slot }) => ({
+const ROW_PICKS: readonly TruthPick[] = ["bank", "equipment", "inventory"];
+
+const rowsOf = (rows: readonly TruthItem[], worn: boolean) =>
+  rows.map(({ bag, count, durability, item, maxDurability, name, slot }) => ({
     bag,
     count,
     item,
     name,
     slot,
+    ...(worn ? { durability, maxDurability } : {}),
   }));
+
+const byKey = <T>(rows: readonly T[] | undefined, key: (row: T) => number) =>
+  rows?.toSorted((a, b) => key(a) - key(b)) ?? null;
 
 const PICKS: Readonly<Record<TruthPick, Picker>> = {
   alive: ({ alive, deathState }) => ({ alive, deathState }),
-  bank: ({ inventory }) => ({
+  bank: ({ inventory }, worn) => ({
     bank: rowsOf(
       inventory.filter(
         ({ bag, slot }) =>
           bag === BANK_BAG ||
           (bag === CHARACTER_BAG && inSlots(slot, BANK_SLOTS)),
       ),
+      worn,
     ),
   }),
-  equipment: ({ inventory }) => ({
+  durability: ({ inventory }) => ({
+    durability: rowsOf(
+      inventory.filter(({ maxDurability = 0 }) => maxDurability > 0),
+      true,
+    ),
+  }),
+  equipment: ({ inventory }, worn) => ({
     equipment: rowsOf(
       inventory.filter(
         ({ bag, slot }) =>
           bag === CHARACTER_BAG && inSlots(slot, EQUIPMENT_SLOTS),
       ),
+      worn,
     ),
   }),
-  inventory: ({ inventory }) => ({ inventory: rowsOf(inventory) }),
+  hearth: ({ hearth }) => ({ hearth: hearth ?? null }),
+  inventory: ({ inventory }, worn) => ({ inventory: rowsOf(inventory, worn) }),
   level: ({ level }) => ({ level }),
+  mail: ({ mail }) => ({ mail: byKey(mail, ({ id }) => id) }),
   money: ({ money }) => ({ money }),
   quests: ({ quests, rewardedQuests }) => ({
     quests: quests.map(({ quest, status }) => ({ quest, status })),
     rewardedQuests,
   }),
+  reputation: ({ reputation }) => ({
+    reputation: byKey(reputation, ({ faction }) => faction),
+  }),
   spells: ({ spells }) => ({ spells: spells.toSorted((a, b) => a - b) }),
   totalXp: ({ level, xp }) => ({ level, totalXp: totalXp(level, xp), xp }),
 };
 
-const pickAll = (truth: Truth | null, picks: readonly Picker[]) =>
+const pickAll = (
+  truth: Truth | null,
+  picks: readonly Picker[],
+  worn = false,
+) =>
   truth === null
     ? null
-    : Object.assign({}, ...picks.map((pick) => pick(truth)));
+    : Object.assign({}, ...picks.map((pick) => pick(truth, worn)));
+
+function pickersOf(fields: readonly TruthPick[]) {
+  const worn = fields.includes("durability");
+  const onRows = worn && fields.some((field) => ROW_PICKS.includes(field));
+  const named = onRows
+    ? fields.filter((field) => field !== "durability")
+    : fields;
+  return { picks: named.map((field) => PICKS[field]), worn };
+}
 
 function delta(pair: Pair, fields: readonly TruthDelta[]): Picked | undefined {
   const { baseline, final } = pair;
@@ -171,13 +203,13 @@ export function observeTruth(
     return positionObserved(pair, evidence.point);
   const items =
     evidence.items === undefined ? undefined : itemDeltas(pair, evidence.items);
-  const picks = (evidence.truth ?? []).map((field) => PICKS[field]);
+  const { picks, worn } = pickersOf(evidence.truth ?? []);
   if (picks.length === 0 && items !== undefined) return { items };
   const all = picks.length === 0 ? [truthSummary as Picker] : picks;
   return {
-    baseline: pickAll(pair.baseline, all),
+    baseline: pickAll(pair.baseline, all, worn),
     delta: delta(pair, evidence.delta ?? []),
-    final: pickAll(pair.final, all),
+    final: pickAll(pair.final, all, worn),
     items,
   };
 }

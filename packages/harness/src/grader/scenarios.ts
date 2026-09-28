@@ -29,11 +29,15 @@ export type CheckMeasure =
 export type TruthPick =
   | "alive"
   | "bank"
+  | "durability"
   | "equipment"
+  | "hearth"
   | "inventory"
   | "level"
+  | "mail"
   | "money"
   | "quests"
+  | "reputation"
   | "spells"
   | "totalXp";
 

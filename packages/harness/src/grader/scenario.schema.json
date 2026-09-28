@@ -84,11 +84,15 @@
                   "enum": [
                     "alive",
                     "bank",
+                    "durability",
                     "equipment",
+                    "hearth",
                     "inventory",
                     "level",
+                    "mail",
                     "money",
                     "quests",
+                    "reputation",
                     "spells",
                     "totalXp"
                   ]

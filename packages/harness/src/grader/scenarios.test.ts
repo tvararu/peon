@@ -4,6 +4,7 @@ import {
   parseScenario,
   ROUND_1,
   SCENARIO_IDS,
+  type TruthPick,
 } from "#harness/grader/scenarios";
 
 const PRESETS = [
@@ -62,10 +63,19 @@ describe("scenario files", () => {
     }
   });
 
-  test("a truth check may pick spells, equipment and bank", () => {
+  test("a truth check may pick every truth field", () => {
+    const picks: TruthPick[] = [
+      "spells",
+      "equipment",
+      "bank",
+      "hearth",
+      "reputation",
+      "mail",
+      "durability",
+    ];
     const scenario = loadScenario("t0-self-state");
     const check = {
-      evidence: { truth: ["spells", "equipment", "bank"] },
+      evidence: { truth: picks },
       expect: "gear",
       id: "gear",
       source: "truth",
@@ -74,11 +84,7 @@ describe("scenario files", () => {
       ...scenario,
       checks: [check],
     });
-    expect(loaded.checks[0]?.evidence?.truth).toEqual([
-      "spells",
-      "equipment",
-      "bank",
-    ]);
+    expect(loaded.checks[0]?.evidence?.truth).toEqual(picks);
     expect(() =>
       parseScenario("t0-self-state.json", {
         ...scenario,
