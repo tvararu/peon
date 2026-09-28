@@ -1,4 +1,5 @@
 import { type Schema, schemaErrors } from "#harness/grader/json-schema";
+import type { ScenarioCheck } from "#harness/grader/scenarios";
 import schema from "./eval-result.schema.json" with { type: "json" };
 
 export type EvalVerdict = "pass" | "fail" | "blocked" | "aborted";
@@ -20,7 +21,7 @@ export type AbortCause =
 
 export type EvalCheck = {
   id: string;
-  source: "truth" | "verifier" | "witness" | "game_log" | "session" | "frame";
+  source: ScenarioCheck["source"];
   expected: unknown;
   observed: unknown;
   met: boolean;

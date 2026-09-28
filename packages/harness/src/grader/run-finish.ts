@@ -10,6 +10,7 @@ import {
 } from "#harness/grader/accounts";
 import { writeConcurrent } from "#harness/grader/concurrent";
 import { conditionsOf } from "#harness/grader/conditions";
+import { readConsole } from "#harness/grader/console-read";
 import { observedChecks } from "#harness/grader/draft-fill";
 import { parseGameLog } from "#harness/grader/draft-gamelog";
 import { efficiency, readSessionUsage } from "#harness/grader/efficiency";
@@ -199,6 +200,15 @@ export async function stopHarness(st: RunState): Promise<void> {
     await attempt(st, `${partner.role} final truth`, () =>
       partnerFinal(st, partner, stops[index] ?? st.clock.now()),
     );
+  await attempt(st, "console reads", () =>
+    readConsole({
+      agent: agent?.account,
+      checks: st.scenario.checks,
+      exec: st.exec,
+      partners,
+      runDir: st.runDir,
+    }),
+  );
 }
 
 async function deleteAll(st: RunState, accounts: string[]): Promise<void> {

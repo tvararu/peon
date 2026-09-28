@@ -41,6 +41,31 @@
           "evidence": {
             "additionalProperties": false,
             "properties": {
+              "console": {
+                "additionalProperties": false,
+                "properties": {
+                  "arg": {
+                    "type": "string"
+                  },
+                  "match": {
+                    "type": "string"
+                  },
+                  "read": {
+                    "enum": [
+                      "group",
+                      "mail",
+                      "pet",
+                      "titles",
+                      "reputation",
+                      "pinfo",
+                      "guild",
+                      "arena"
+                    ]
+                  }
+                },
+                "required": ["match", "read"],
+                "type": "object"
+              },
               "delta": {
                 "items": {
                   "enum": ["money", "totalXp"]
@@ -136,7 +161,8 @@
               "witness",
               "game_log",
               "session",
-              "frame"
+              "frame",
+              "console"
             ]
           }
         },

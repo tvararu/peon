@@ -58,6 +58,16 @@ function router(opts: { savedAt?: string; listed?: string[] } = {}): Router {
     if (argv[0] === "rg") return bunExec(argv, execOpts);
     if (argv[3] === "truth")
       return ok(truth(opts.savedAt ?? new Date(NOW).toISOString()));
+    if (argv[3] === "gm")
+      return ok(
+        JSON.stringify({
+          account: argv[4],
+          command: `group list ${argv[4]}`,
+          ok: true,
+          text: "Group type: Party and consists of 2 players.",
+          verb: "read",
+        }),
+      );
     if (argv[3] === "list")
       return ok(
         JSON.stringify((opts.listed ?? []).map((account) => ({ account }))),
@@ -182,6 +192,29 @@ describe("stopHarness", () => {
     expect(await Bun.file(`${st.runDir}/partner2-final.json`).exists()).toBe(
       false,
     );
+  });
+
+  test("reads a console check after the final truth", async () => {
+    const { calls, exec } = router();
+    const scenario = {
+      ...loadScenario("t0-self-state"),
+      checks: [
+        {
+          evidence: { console: { match: "Party", read: "group" as const } },
+          expect: "in a party",
+          id: "in-party",
+          source: "console" as const,
+        },
+      ],
+    };
+    const st = await state(exec, { pane: fakePane(["x"]), scenario });
+    await stopHarness(st);
+    expect(calls.map((call) => call.slice(3))).toEqual([
+      ["truth", ACC],
+      ["gm", ACC, "read", "group"],
+    ]);
+    const row = await Bun.file(`${st.runDir}/console.jsonl`).json();
+    expect(row).toMatchObject({ code: 0, id: "in-party", verb: "group" });
   });
 
   test("stops the partner while the agent is still logging out", async () => {

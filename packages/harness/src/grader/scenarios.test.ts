@@ -93,6 +93,40 @@ describe("scenario files", () => {
     ).toThrow("invalid scenario t0-self-state.json: $.checks[0].evidence");
   });
 
+  test("a console check loads and one without match or a valid regex is refused", () => {
+    const scenario = loadScenario("t0-self-state");
+    const check = {
+      evidence: {
+        console: { arg: "FacProbe", match: "^Guild", read: "guild" },
+      },
+      expect: "in a guild",
+      id: "guild",
+      source: "console",
+    };
+    const loaded = parseScenario("t0-self-state.json", {
+      ...scenario,
+      checks: [check],
+    });
+    expect(loaded.checks[0]?.evidence?.console?.read).toBe("guild");
+    const refused = (evidence: unknown) =>
+      expect(() =>
+        parseScenario("t0-self-state.json", {
+          ...scenario,
+          checks: [{ ...check, evidence }],
+        }),
+      );
+    refused({ console: { read: "group" } }).toThrow(
+      "$.checks[0].evidence.console: missing match",
+    );
+    refused({ console: { match: "x", read: "bank" } }).toThrow(
+      "$.checks[0].evidence.console.read: expected one of",
+    );
+    refused({ console: { match: "(", read: "group" } }).toThrow(
+      "$.checks[0].evidence.console.match: invalid regex",
+    );
+    refused({}).toThrow("$.checks[0]: a console check needs evidence.console");
+  });
+
   test("an unknown id throws and names the known ids", () => {
     expect(() => loadScenario("t9-nope")).toThrow(
       "unknown scenario: t9-nope (known: t4-quest-first,",

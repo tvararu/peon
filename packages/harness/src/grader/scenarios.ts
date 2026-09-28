@@ -60,6 +60,18 @@ export type TruthWho =
   | "partner3"
   | "partner4";
 
+export type ConsoleVerb =
+  | "group"
+  | "mail"
+  | "pet"
+  | "titles"
+  | "reputation"
+  | "pinfo"
+  | "guild"
+  | "arena";
+
+export type ConsoleRead = { read: ConsoleVerb; arg?: string; match: string };
+
 export type CheckEvidence = {
   truth?: TruthPick[];
   delta?: TruthDelta[];
@@ -68,11 +80,19 @@ export type CheckEvidence = {
   events?: string[];
   ids?: number[];
   who?: TruthWho;
+  console?: ConsoleRead;
 };
 
 export type ScenarioCheck = {
   id: string;
-  source: "truth" | "verifier" | "witness" | "game_log" | "session" | "frame";
+  source:
+    | "truth"
+    | "verifier"
+    | "witness"
+    | "game_log"
+    | "session"
+    | "frame"
+    | "console";
   expect: string;
   evidence?: CheckEvidence;
   measure?: CheckMeasure;
@@ -133,6 +153,35 @@ function whoErrors({ checks, partner, partners }: Scenario): string[] {
   });
 }
 
+function regexError(match: string): string | undefined {
+  try {
+    new RegExp(match, "m");
+    return undefined;
+  } catch (err) {
+    return (err as Error).message;
+  }
+}
+
+function consoleErrors({ checks }: Scenario): string[] {
+  return checks.flatMap(({ evidence, source }, index) => {
+    const at = `$.checks[${index}]`;
+    const read = evidence?.console;
+    if (read === undefined)
+      return source === "console"
+        ? [`${at}: a console check needs evidence.console`]
+        : [];
+    const error = regexError(read.match);
+    return [
+      ...(source === "console"
+        ? []
+        : [`${at}.evidence.console: only on a console check`]),
+      ...(error === undefined
+        ? []
+        : [`${at}.evidence.console.match: invalid regex: ${error}`]),
+    ];
+  });
+}
+
 function partnerErrors(scenario: Scenario): string[] {
   const { partner, partnerActions = [], partners } = scenario;
   const count = partners?.length ?? (partner === null ? 0 : 1);
@@ -156,7 +205,11 @@ export function parseScenario(file: string, value: unknown): Scenario {
   const stem = file.replace(JSON_FILE, "");
   if (errors.length === 0 && (value as Scenario).id !== stem)
     errors.push(`$.id: expected ${stem}`);
-  if (errors.length === 0) errors.push(...partnerErrors(value as Scenario));
+  if (errors.length === 0)
+    errors.push(
+      ...partnerErrors(value as Scenario),
+      ...consoleErrors(value as Scenario),
+    );
   if (errors.length > 0)
     throw new Error(`invalid scenario ${file}: ${errors.join("; ")}`);
   return value as Scenario;

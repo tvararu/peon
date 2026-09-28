@@ -82,7 +82,8 @@
               "witness",
               "game_log",
               "session",
-              "frame"
+              "frame",
+              "console"
             ]
           }
         },

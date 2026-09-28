@@ -12,7 +12,8 @@ the whole catalogue are in
 **Server-confirmed checks only.** A check passes on server truth
 (`soap truth`, the saved character row), a witness character's
 observation, a server packet in the harness game log (a kill credit, an
-item push, a quest-log counter), or a verifier login. Never on the agent's
+item push, a quest-log counter), a verifier login, or, as a fallback, a
+read-only GM console command at the end of the run. Never on the agent's
 claim, a tool `DONE` or an intent result. When the task is a question, the
 answer is graded against truth at the time of the answer, not at the end.
 
@@ -46,7 +47,8 @@ the run `aborted` with the cause `grader_contamination`.
 **Safety.** Eval characters are throwaway `soap create` characters that
 never get a GM level. After the baseline, no service write, console
 command or harness restart touches the character unless the scenario is
-about it. Passwords never reach a transcript or a result file.
+about it. The one console command the grader runs by itself is a `console`
+check's read, after the final truth. Passwords never reach a transcript or a result file.
 
 ## Run a scenario
 
@@ -77,6 +79,7 @@ Each run writes `tmp/evals/<round>/<scenario>-<replica>/`:
 | `baseline.json`, `final.json` | Server truth before the login and after the logout. |
 | `partner-baseline.json`, `partner-final.json`, `partner<N>-baseline.json`, `partner<N>-final.json` | Each second character's server truth before its start and after its stop; with `partners`, partner `N` writes `partner<N>-...`. A final truth that stays stale or online writes no file and adds a note. |
 | `gamelog.jsonl` | The harness game log: every game event, one typed row. |
+| `console.jsonl` | One row per `console` check: its `id`, whose character (`who`) and `account`, the read `verb` and `arg`, the exit `code` and the reply `text`. |
 | `session.jsonl`, `tools.json`, `runs.jsonl` | The Pi session, tool calls and harness runs, as in [harness.md](harness.md#run-directory). |
 | `packets.jsonl`, `packets.json` | Every game packet's header row and the counts by opcode: the grader starts the harness with `--packet-trace headers` ([harness.md](harness.md#run-directory)). |
 | `steers.jsonl`, `triggers.jsonl`, `progress.json` | The steers sent, the triggers that fired and the watcher's view of the run. |
@@ -121,7 +124,8 @@ grader to read. The draft fills the check's `observed` from its typed
 | `point` | `truth` checks | An `{ "x", "y" }` point: the final position and its 2D distance to the point, instead of the other truth fields. |
 | `events` | `game_log` checks | The game-log rows of these events (`domain/name`; a trailing `*` matches a prefix): the count, the first and last match, the first 10 rows and the last row of the same domains. |
 | `ids` | `game_log` checks | Only the rows of those events whose data holds one of these numbers. |
-| `who` | `truth` checks | Whose truth the other fields read: `agent` (the default), `partner` for the single partner, or `partner1` to `partner4` with `partners`. The scenario must have that character. When its baseline or final file is missing, the draft adds a `reason` that names the missing file. |
+| `console` | `console` checks | A `{ "read", "arg", "match" }` read: after the final truth the grader runs `soap gm <ACCOUNT> read <read> [arg]` (`read` is one of `group`, `mail`, `pet`, `titles`, `reputation`, `pinfo`, `guild`, `arena`) and records the reply in `console.jsonl`. `match` is a regular expression, with `^` and `$` at line ends, over the reply text. The draft shows the verb, the exit code, the text and whether `match` matched; the check is met when it matched and the command exited 0. A missing row shows a `reason`. The grader never runs a verb other than `read`. Console text follows the server's strings, so use this source only when no truth field and no game-log row can grade the check. |
+| `who` | `truth` and `console` checks | Whose character the other fields read: `agent` (the default), `partner` for the single partner, or `partner1` to `partner4` with `partners`. The scenario must have that character. When its baseline or final truth file is missing, a `truth` check adds a `reason` that names the missing file. |
 
 A `measure` names a computed measure in
 `packages/harness/src/grader/draft-measure.ts` (for example `kill_xp` or

@@ -1,3 +1,4 @@
+import { fillConsole, readConsoleLog } from "#harness/grader/draft-console";
 import { observeGameLog, parseGameLog } from "#harness/grader/draft-gamelog";
 import { measureGameLog } from "#harness/grader/draft-measure";
 import { parseJsonOutput } from "#harness/grader/exec";
@@ -274,6 +275,7 @@ export async function observedChecks(
       truths.set(who, await readWho(runDir, who));
   }
   const rows = await readGameLog(`${runDir}/gamelog.jsonl`);
+  const consoleLog = await readConsoleLog(runDir);
   const context = {
     jev: await readJev(`${runDir}/jev.jsonl`),
     steers: [...steers],
@@ -288,17 +290,29 @@ export async function observedChecks(
         observed: truth === undefined ? null : observeWho(truth, evidence),
       };
     }
-    if (rows === null || (source !== "game_log" && check.measure === undefined))
-      return { ...base, observed: null };
-    const { line, met, observed } =
-      check.measure === undefined
-        ? observedRows(rows, check)
-        : measureGameLog(rows, check.measure, context);
-    const filled = { ...base, met: met ?? false, observed };
-    return line === undefined
-      ? filled
-      : { ...filled, ref: `gamelog.jsonl:${line}` };
+    if (source === "console")
+      return { ...base, ...fillConsole(consoleLog, check) };
+    return { ...base, ...observedLog(rows, check, context) };
   });
+}
+
+type LogContext = Parameters<typeof measureGameLog>[2];
+
+function observedLog(
+  rows: ReturnType<typeof parseGameLog> | null,
+  check: ScenarioCheck,
+  context: LogContext,
+): { met: boolean; observed: unknown; ref?: string } {
+  if (rows === null || (check.source !== "game_log" && !check.measure))
+    return { met: false, observed: null };
+  const { line, met, observed } =
+    check.measure === undefined
+      ? observedRows(rows, check)
+      : measureGameLog(rows, check.measure, context);
+  const filled = { met: met ?? false, observed };
+  return line === undefined
+    ? filled
+    : { ...filled, ref: `gamelog.jsonl:${line}` };
 }
 
 function observedRows(
