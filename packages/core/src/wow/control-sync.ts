@@ -8,11 +8,14 @@ import { unsupportedReason } from "#wow/control-motion";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag, UnitFlag } from "#wow/protocol/entity-fields";
 import {
+  buildCollisionHeightAck,
   buildFlagAck,
+  buildMoveMessage,
   buildRootAck,
   buildSetActiveMover,
   buildSpeedAck,
   buildTeleportAck,
+  buildTimeSkipped,
   type ClientControl,
   type FallData,
   type ForceSpeed,
@@ -344,6 +347,31 @@ export class MovementSync {
     this.deps.send(
       enable ? set : clear,
       applied ? buildFlagAck(ack, enable) : buildRootAck(ack),
+    );
+  }
+
+  collisionHeight(counter: number, height: number): void {
+    this.deps.send(
+      GameOpcode.CMSG_MOVE_SET_COLLISION_HGT_ACK,
+      buildCollisionHeightAck(this.moveAck(counter), height),
+    );
+  }
+
+  timeSkipped(ms: number): void {
+    this.deps.send(
+      GameOpcode.CMSG_MOVE_TIME_SKIPPED,
+      buildTimeSkipped(this.deps.selfGuid(), ms),
+    );
+  }
+
+  resetFall(): void {
+    this.fall = undefined;
+    this.fallTime = 0;
+    this.observedFlags &= ~MovementFlag.FALLING;
+    this.moveFlags &= ~MovementFlag.FALLING;
+    this.deps.send(
+      GameOpcode.CMSG_MOVE_FALL_RESET,
+      buildMoveMessage(this.deps.selfGuid(), this.movementInfo()),
     );
   }
 

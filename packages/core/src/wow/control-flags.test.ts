@@ -2,7 +2,7 @@ import { describe, expect, jest, test } from "bun:test";
 import { decodeMove, type Sent, setup } from "#test-support/control-fixtures";
 import { must } from "#test-support/must";
 import { MovementFlag } from "#wow/protocol/entity-fields";
-import { parseMovementInfo } from "#wow/protocol/movement";
+import { parseMovementInfo, speedAckFor } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 
@@ -290,5 +290,61 @@ describe("ControlRuntime.transferAborted (AC Handlers/MovementHandler.cpp:91-97)
     } finally {
       jest.useRealTimers();
     }
+  });
+});
+
+describe("ControlRuntime collision height, time skip and fall reset (self-state-3)", () => {
+  test("collisionHeight sends CMSG_MOVE_SET_COLLISION_HGT_ACK as packed guid, counter, movement info and the f32 height (AC Handlers/MovementHandler.cpp:689-693)", () => {
+    const { runtime, sent } = setup();
+    sent.length = 0;
+    runtime.collisionHeight(5, 3.1);
+    expect(sent).toHaveLength(1);
+    const { opcode, body } = must(sent[0]);
+    expect(opcode).toBe(GameOpcode.CMSG_MOVE_SET_COLLISION_HGT_ACK);
+    const r = new PacketReader(body);
+    expect(r.packedGuidBig()).toBe(0x0764n);
+    expect(r.uint32LE()).toBe(5);
+    const ack = parseMovementInfo(r);
+    expect(ack.flags & MovementFlag.ROOT).toBe(0);
+    expect(r.floatLE()).toBeCloseTo(3.1, 4);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("pitch rate injects through the speed acks and echoes the packet value (AC Handlers/MovementHandler.cpp:765-777)", () => {
+    const spec = must(speedAckFor(GameOpcode.SMSG_FORCE_PITCH_RATE_CHANGE));
+    const { runtime, sent } = setup();
+    sent.length = 0;
+    runtime.forceSpeed(spec, { guid: 0x0764n, counter: 9, speed: 3.14 });
+    expect(must(sent[0]).opcode).toBe(
+      GameOpcode.CMSG_FORCE_PITCH_RATE_CHANGE_ACK,
+    );
+  });
+
+  test("timeSkipped sends the packed guid and the skipped u32 ms (AC Handlers/MovementHandler.cpp:894-901)", () => {
+    const { runtime, sent } = setup();
+    sent.length = 0;
+    runtime.timeSkipped(250);
+    expect(sent).toHaveLength(1);
+    const { opcode, body } = must(sent[0]);
+    expect(opcode).toBe(GameOpcode.CMSG_MOVE_TIME_SKIPPED);
+    const r = new PacketReader(body);
+    expect(r.packedGuidBig()).toBe(0x0764n);
+    expect(r.uint32LE()).toBe(250);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("resetFall sends the packed guid and a movement info with fallTime 0 and no FALLING (AC Handlers/MovementHandler.cpp:381,399)", () => {
+    const { runtime, sent } = setup();
+    sent.length = 0;
+    runtime.resetFall();
+    expect(sent).toHaveLength(1);
+    const { opcode, body } = must(sent[0]);
+    expect(opcode).toBe(GameOpcode.CMSG_MOVE_FALL_RESET);
+    const r = new PacketReader(body);
+    expect(r.packedGuidBig()).toBe(0x0764n);
+    const rest = parseMovementInfo(r);
+    expect(rest.fallTime).toBe(0);
+    expect(rest.flags & MovementFlag.FALLING).toBe(0);
+    expect(r.remaining).toBe(0);
   });
 });

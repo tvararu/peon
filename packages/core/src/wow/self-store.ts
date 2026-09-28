@@ -38,6 +38,7 @@ export type SelfEvent =
   | { type: "force_speed"; spec: SpeedAck; force: ForceSpeed }
   | { type: "can_fly"; counter: number; enable: boolean }
   | { type: "move_flag"; flag: MoveFlag; enable: boolean; counter: number }
+  | { type: "collision_height"; counter: number; height: number }
   | { type: "observed"; observation: SelfObservation };
 
 export class SelfStore {

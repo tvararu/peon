@@ -145,3 +145,10 @@ export function parseTransferAborted(r: PacketReader): TransferAborted {
     reason === 7 || reason === 8 || reason === 9 ? r.uint8() : undefined;
   return { arg, mapId, reason };
 }
+
+export type CollisionHeight = MoveCounter & { height: number };
+
+export function parseCollisionHeight(r: PacketReader): CollisionHeight {
+  const move = parseMoveCounter(r);
+  return { ...move, height: r.floatLE() };
+}

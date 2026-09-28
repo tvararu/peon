@@ -206,6 +206,18 @@ export class ControlRuntime {
     this.sync.moveFlag(flag, enable, counter);
   }
 
+  collisionHeight(counter: number, height: number): void {
+    this.sync.collisionHeight(counter, height);
+  }
+
+  timeSkipped(ms: number): void {
+    this.sync.timeSkipped(ms);
+  }
+
+  resetFall(): void {
+    this.sync.resetFall();
+  }
+
   follow(guide: MovementGuide, facing: number, durationMs: number): void {
     this.mover.guard(FORWARD);
     this.mover.face(facing);

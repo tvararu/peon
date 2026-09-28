@@ -1,5 +1,6 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import {
+  type CollisionHeight,
   type CompoundMove,
   FLAG_CHANGES,
   type FlagChange,
@@ -31,6 +32,7 @@ export type SelfstateState = {
   readonly timers: MirrorTimers;
   readonly ghostPending: boolean;
   readonly lastTransferAbort: TransferAbort | undefined;
+  readonly collisionHeight: number | undefined;
 };
 export type TransferAbort = TransferAborted & { readonly at: number };
 export type SelfstateEvent =
@@ -58,6 +60,7 @@ export class SelfstateStore {
   private timers: MirrorTimers = {};
   private ghostPending = false;
   private lastTransferAbort: TransferAbort | undefined;
+  private collisionHeight: number | undefined;
 
   constructor(deps: SessionDeps, core: CoreStores) {
     this.deps = deps;
@@ -66,6 +69,7 @@ export class SelfstateStore {
 
   snapshot(): SelfstateState {
     return {
+      collisionHeight: this.collisionHeight,
       standState: this.standState,
       timers: { ...this.timers },
       ghostPending: this.ghostPending,
@@ -85,6 +89,12 @@ export class SelfstateStore {
       enable: change.enable,
       counter,
     });
+  }
+
+  receiveCollisionHeight({ guid, counter, height }: CollisionHeight): void {
+    if (guid !== this.deps.selfGuid()) return;
+    this.collisionHeight = height;
+    this.core.self.receive({ type: "collision_height", counter, height });
   }
 
   receiveMultipleMoves(entries: readonly CompoundMove[]): void {

@@ -42,6 +42,9 @@ export function feedControl(control: ControlRuntime, event: SelfEvent): void {
     case "move_flag":
       control.moveFlag(event.flag, event.enable, event.counter);
       return;
+    case "collision_height":
+      control.collisionHeight(event.counter, event.height);
+      return;
     case "observed":
       control.observeSelf(event.observation);
       return;

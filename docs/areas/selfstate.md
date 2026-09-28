@@ -96,19 +96,29 @@ sleep or kneel and settles `ok` on the reply, `refused` with
   without a send when the character already holds that state.
 
 ## Left out
-
-- `SMSG_TRANSFER_ABORTED` is a `uint32` map, a `uint8` reason and a
-  `uint8` arg only for reasons 7, 8 and 9
-  (`Entities/Player/Player.cpp:11956-11972`). The store keeps it as
-  `lastTransferAbort` and fires one `transfer_aborted` area event, which
-  reaches control through `core.self.receive`. After
-  `handleTransferPending`, an abort arms a 10 s watchdog that clears
-  `teleporting` when no `new_world` or near teleport arrives; a
-  `new_world` first cancels it.
-- `SMSG_MOVE_SET_COLLISION_HGT`, `CMSG_MOVE_SET_COLLISION_HGT_ACK`,
-  `SMSG_FORCE_PITCH_RATE_CHANGE`, `CMSG_FORCE_PITCH_RATE_CHANGE_ACK`,
-  `CMSG_MOVE_TIME_SKIPPED` and `CMSG_MOVE_FALL_RESET`: built by
-  `self-state-3`.
+- `SMSG_MOVE_SET_COLLISION_HGT` is the packed guid, a `uint32` counter and
+  the `f32` height (`Entities/Unit/Unit.cpp:10272-10275`). The store keeps
+  the height and forwards `collision_height` to control, which acks with
+  the packet's counter and height and no motion abort
+  (`Handlers/MovementHandler.cpp:689-693`); the server relays the ack to
+  the players in view as `MSG_MOVE_SET_COLLISION_HGT`. Every mount and
+  dismount changes the height, so the probe flow `selfstate-mount` casts
+  a mount spell and waits for it.
+- `SMSG_FORCE_PITCH_RATE_CHANGE` is the packed guid, a `uint32` counter
+  and the `f32` rate (`Entities/Unit/Unit.h:661`). It joins the
+  speed-ack loop, and control echoes the packet's value in
+  `CMSG_FORCE_PITCH_RATE_CHANGE_ACK`, since an ack above the server's
+  rate kicks (`Handlers/MovementHandler.cpp:765-777`). Nothing changes a
+  player's pitch rate on this server, so the pair stays `mock` and not
+  seen live.
+- `CMSG_MOVE_TIME_SKIPPED` is the packed guid and a `uint32` of skipped
+  ms (`Handlers/MovementHandler.cpp:894-901`); the server adds the ms to
+  the mover's time and relays it as `MSG_MOVE_TIME_SKIPPED`. Control
+  sends it through `timeSkipped` with no automatic caller.
+- `CMSG_MOVE_FALL_RESET` is the packed guid and the movement info
+  (`Handlers/MovementHandler.cpp:362-381,399`); control sends it through
+  `resetFall` with `fallTime` 0 and `FALLING` cleared, also with no
+  automatic caller.
 - `CMSG_SELF_RES`, `CMSG_CORPSE_MAP_POSITION_QUERY` and
   `SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE`: built by `self-state-7`.
 - `CMSG_CANCEL_MOUNT_AURA`, `SMSG_DISMOUNT`, `CMSG_MOUNTSPECIAL_ANIM` and
@@ -122,7 +132,7 @@ tasks.
 
 ## Proof
 
-| Opcode | Proof | Evidence | Source |
+ | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
 | `SMSG_MOVE_UNSET_HOVER` | `live` | probe flow `selfstate-death` on a `fresh` character at East Sanctum, exit 0; received at death with counter 1, before `SMSG_FORCE_MOVE_ROOT` | `Entities/Unit/Unit.cpp:16261-16268` |
 | `SMSG_MOVE_WATER_WALK` | `live` | probe flow `selfstate-death`, exit 0; received at the release, after the root | `Entities/Unit/Unit.cpp:16297-16302` |
@@ -140,12 +150,12 @@ tasks.
 | `CMSG_MOVE_FEATHER_FALL_ACK` | `live` | the same run; sent with counter 1, `FALLING_SLOW` and applied 1, then with counter 2, no flag and applied 0; the character stayed in the world until the logout | `Handlers/MiscHandler.cpp:1505-1520` |
 | `SMSG_MULTIPLE_MOVES` | `live` | probe `--wait 20 --expect SMSG_MULTIPLE_MOVES` after `selfstate-death --arg reclaim=no`, exit 0; received `0a00000009de0003240e03000000` (one water-walk entry, counter 3) at the ghost's login and sent `CMSG_MOVE_WATER_WALK_ACK` with counter 3 and `WATERWALKING` | `Entities/Player/Player.cpp:11866-11912` |
 | `SMSG_MOVE_GRAVITY_DISABLE` | `mock` | `store.test.ts` gravity pair test; only mount-check scripts call `SetDisableGravity` for a player, so the server never sent it (not seen live) | `Entities/Unit/Unit.cpp:16107-16114` |
-| `SMSG_MOVE_GRAVITY_ENABLE` | `mock` | the same test | `Entities/Unit/Unit.cpp:16107-16114` |
-| `CMSG_MOVE_GRAVITY_DISABLE_ACK` | `mock` | `control-flags.test.ts` gravity ack test | `Handlers/MiscHandler.cpp:1505-1520` |
-| `CMSG_MOVE_GRAVITY_ENABLE_ACK` | `mock` | the same test | `Handlers/MiscHandler.cpp:1505-1520` |
-| `SMSG_MOUNTRESULT` | `dead` | registered as `STATUS_NEVER` and no AzerothCore code writes it; mount failures arrive as `SMSG_CAST_FAILED` | `Server/Protocol/Opcodes.cpp:497` |
-| `SMSG_RESURRECT_FAILED` | `dead` | registered as `STATUS_NEVER` and no AzerothCore code writes it | `Server/Protocol/Opcodes.cpp:725` |
-| `SMSG_FORCED_DEATH_UPDATE` | `dead` | registered as `STATUS_NEVER` and no AzerothCore code writes it | `Server/Protocol/Opcodes.cpp:1021` |
+| `SMSG_MOVE_SET_COLLISION_HGT` | `mock` | `store.test.ts` collision-height tests; the mount cast went through (`SMSG_SPELL_GO`, aura) but the server sent no height packet before logout (not seen live) | `Entities/Unit/Unit.cpp:10272-10275` |
+| `CMSG_MOVE_SET_COLLISION_HGT_ACK` | `mock` | `control-flags.test.ts` collision-height ack test; the live height packet never arrived so no ack was sent (not seen live) | `Handlers/MovementHandler.cpp:689-693` |
+| `SMSG_FORCE_PITCH_RATE_CHANGE` | `mock` | `protocol.test.ts` pitch-rate case through the speed acks; nothing on this server changes a player's pitch rate (not seen live) | `Entities/Unit/Unit.h:661` |
+| `CMSG_FORCE_PITCH_RATE_CHANGE_ACK` | `mock` | `control-flags.test.ts` pitch-rate case, echoing the packet value; nothing on this server changes a player's pitch rate (not seen live) | `Handlers/MovementHandler.cpp:765-777` |
+| `CMSG_MOVE_TIME_SKIPPED` | `builder` | sent live with `buildTimeSkipped` over the self guid (probe `--send`, exit 0, no disconnect); the relay never reached the witness, so the effect was not seen | `Handlers/MovementHandler.cpp:894-901` |
+| `CMSG_MOVE_FALL_RESET` | `builder` | sent live with the current position (probe `--send`, exit 0, no disconnect); the truth position after logout matched, so the server accepted it but the effect was not seen | `Handlers/MovementHandler.cpp:362-381,399` |
 | `CMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY_ACK` | `dead` | registered as `STATUS_NEVER` with `Handle_NULL` | `Server/Protocol/Opcodes.cpp:963` |
 | `SMSG_PAUSE_MIRROR_TIMER` | `dead` | registered as `STATUS_NEVER`; its packet class is never constructed | `Server/Packets/MiscPackets.cpp:113` |
 | `SMSG_TRANSFER_ABORTED` | `mock` | `store.test.ts` transfer-aborted tests; one live try teleported into a non-raid dungeon and gave no abort, since GM tele bypasses `PlayerCannotEnter` (not seen live) | `Entities/Player/Player.cpp:11956-11972` |

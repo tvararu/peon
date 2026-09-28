@@ -6,6 +6,7 @@ import {
   selfstateMoveGravityEnableBody,
   selfstateMoveLandWalkBody,
   selfstateMoveNormalFallBody,
+  selfstateMoveSetCollisionHeightBody,
   selfstateMoveSetHoverBody,
   selfstateMoveUnsetHoverBody,
   selfstateMoveWaterWalkBody,
@@ -356,5 +357,42 @@ describe("selfstate transfer aborted", () => {
     } finally {
       rig.dispose();
     }
+  });
+});
+
+describe("selfstate collision height", () => {
+  test("SMSG_MOVE_SET_COLLISION_HGT stores the height and forwards collision_height to control (AC Entities/Unit/Unit.cpp:10272-10275)", () => {
+    const { rig, events } = rigWithEvents();
+    rig.inject(
+      GameOpcode.SMSG_MOVE_SET_COLLISION_HGT,
+      selfstateMoveSetCollisionHeightBody({
+        counter: 5,
+        guid: SELF,
+        height: 3.1,
+      }),
+    );
+    expect(rig.handle.state().collisionHeight).toBeCloseTo(3.1, 4);
+    expect(events).toHaveLength(1);
+    const [event] = events;
+    expect(event?.type).toBe("collision_height");
+    if (event?.type !== "collision_height") throw new Error("wrong event");
+    expect(event.counter).toBe(5);
+    expect(event.height).toBeCloseTo(3.1, 4);
+    rig.dispose();
+  });
+
+  test("a collision height packet for another guid stores and forwards nothing", () => {
+    const { rig, events } = rigWithEvents();
+    rig.inject(
+      GameOpcode.SMSG_MOVE_SET_COLLISION_HGT,
+      selfstateMoveSetCollisionHeightBody({
+        counter: 6,
+        guid: OTHER,
+        height: 1.5,
+      }),
+    );
+    expect(rig.handle.state().collisionHeight).toBeUndefined();
+    expect(events).toEqual([]);
+    rig.dispose();
   });
 });

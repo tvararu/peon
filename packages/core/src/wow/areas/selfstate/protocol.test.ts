@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { must } from "#test-support/must";
 import {
+  selfstateForcePitchRateChangeBody,
+  selfstateMoveSetCollisionHeightBody,
   selfstateMultipleMovesBody,
   selfstatePreResurrectBody,
   selfstateStandstateUpdateBody,
@@ -10,6 +13,7 @@ import {
 import {
   buildStandStateChange,
   MIRROR_TIMERS,
+  parseCollisionHeight,
   parseMirrorTimer,
   parseMultipleMoves,
   parsePreResurrect,
@@ -19,6 +23,7 @@ import {
   STAND_STATES,
   TRANSFER_ABORT_REASONS,
 } from "#wow/areas/selfstate/protocol";
+import { parseForceSpeed, speedAckFor } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 
@@ -190,6 +195,37 @@ describe("SMSG_TRANSFER_ABORTED (AC Entities/Player/Player.cpp:11956-11972)", ()
       mapId: 36,
       reason: 4,
     });
+    expect(r.remaining).toBe(0);
+  });
+});
+
+describe("SMSG_MOVE_SET_COLLISION_HGT (AC Entities/Unit/Unit.cpp:10272-10275)", () => {
+  test("reads the guid, the counter and the height", () => {
+    const body = selfstateMoveSetCollisionHeightBody({
+      counter: 5,
+      guid: 0x0764n,
+      height: 3.1,
+    });
+    const r = read(body);
+    const parsed = parseCollisionHeight(r);
+    expect(parsed.guid).toBe(0x0764n);
+    expect(parsed.counter).toBe(5);
+    expect(parsed.height).toBeCloseTo(3.1, 4);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("SMSG_FORCE_PITCH_RATE_CHANGE reads guid, counter and speed through the speed acks (AC Entities/Unit/Unit.h:661)", () => {
+    const spec = must(speedAckFor(GameOpcode.SMSG_FORCE_PITCH_RATE_CHANGE));
+    const body = selfstateForcePitchRateChangeBody({
+      counter: 9,
+      guid: 0x0764n,
+      speed: 3.14,
+    });
+    const r = read(body);
+    const parsed = parseForceSpeed(r, spec);
+    expect(parsed.guid).toBe(0x0764n);
+    expect(parsed.counter).toBe(9);
+    expect(parsed.speed).toBeCloseTo(3.14, 4);
     expect(r.remaining).toBe(0);
   });
 });

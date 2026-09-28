@@ -118,6 +118,34 @@ export function selfstateMultipleMovesBody(
   return w.finish();
 }
 
+export type CollisionHeightBody = MoveCounterBody & { height: number };
+
+export function selfstateMoveSetCollisionHeightBody({
+  guid,
+  counter,
+  height,
+}: CollisionHeightBody): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(guid);
+  w.uint32LE(counter);
+  w.floatLE(height);
+  return w.finish();
+}
+
+export type ForceSpeedBody = MoveCounterBody & { speed: number };
+
+export function selfstateForcePitchRateChangeBody({
+  guid,
+  counter,
+  speed,
+}: ForceSpeedBody): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(guid);
+  w.uint32LE(counter);
+  w.floatLE(speed);
+  return w.finish();
+}
+
 export type TransferAbortedBody = {
   mapId: number;
   reason: number;
