@@ -347,3 +347,60 @@ describe("threat in the danger view", () => {
     quiet.dispose();
   });
 });
+
+describe("breath interrupt", () => {
+  async function watched(
+    rules = { death: true, newAttacker: true, rooted: true },
+  ) {
+    const { handle, rt } = await world({ t: 0 });
+    const ctx: OpsCtx = {
+      handle,
+      progress: () => {},
+      rt,
+      signal: new AbortController().signal,
+      toolCallId: "c1",
+    };
+    return { handle, watch: watchInterrupts(ctx, rules) };
+  }
+
+  test("breath_low stops a run with the seconds left", async () => {
+    const { handle, watch } = await watched();
+    expect(watch.signal.aborted).toBe(false);
+    handle.triggerAreaEvent("selfstate", {
+      remainingMs: 9400,
+      type: "breath_low",
+    });
+    expect(watch.signal.aborted).toBe(true);
+    expect(watch.cause()).toEqual({
+      attacker: undefined,
+      code: "breath",
+      detail: "Surface now: you have 10 s of breath.",
+    });
+    watch.dispose();
+  });
+
+  test("the first cause stays, and a disposed watch ignores breath_low", async () => {
+    const { handle, watch } = await watched({
+      death: false,
+      newAttacker: false,
+      rooted: false,
+    });
+    handle.triggerAreaEvent("selfstate", {
+      remainingMs: 10_000,
+      type: "breath_low",
+    });
+    handle.triggerAreaEvent("selfstate", {
+      remainingMs: 5000,
+      type: "breath_low",
+    });
+    expect(watch.cause()?.detail).toBe("Surface now: you have 10 s of breath.");
+    watch.dispose();
+    const late = await watched();
+    late.watch.dispose();
+    late.handle.triggerAreaEvent("selfstate", {
+      remainingMs: 10_000,
+      type: "breath_low",
+    });
+    expect(late.watch.cause()).toBeUndefined();
+  });
+});
