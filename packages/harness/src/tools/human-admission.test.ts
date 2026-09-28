@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { Type } from "@earendil-works/pi-ai";
 import type { SocialAfter } from "#harness/contract/details";
+import type { ToolKind } from "#harness/contract/result";
 import type { RunEnd } from "#harness/contract/runs";
 import { defineGameTool, result } from "#harness/tools/define";
-import type { GameToolSpec, ToolKind } from "#harness/tools/game-tool";
+import type { GameToolSpec } from "#harness/tools/game-tool";
 import { PROBE } from "#test-support/probe-tool";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 import { runTool } from "#test-support/tool-harness";

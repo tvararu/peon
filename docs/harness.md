@@ -2,7 +2,7 @@
 
 The Pi harness is an interactive terminal agent that plays one World of
 Warcraft 3.3.5a character. A model (by default `openai-codex/gpt-6-luna`
-at thinking `off`) acts through ten game tools. A human watches the same
+at thinking `off`) acts through its game tools. A human watches the same
 terminal and can type to the agent at any time. The harness is built on
 `@peon/core` and is the only way to play Peon. The eval scenarios
 that grade it are in [evals.md](evals.md).
@@ -116,7 +116,7 @@ character.
 
 ## Tools
 
-The model uses only these ten tools. Each result starts with a status
+The model uses only these game tools. Each result starts with a status
 word (`DONE`, `PARTLY`, `RUNNING`, `UNCONFIRMED`, `REFUSED`, `FAILED`).
 A result that is not `DONE` ends with a `Next:` step.
 

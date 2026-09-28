@@ -1,11 +1,44 @@
 import { describe, expect, jest, test } from "bun:test";
-import { ObjectType, type UnitEntity } from "@peon/core";
+import { type AreaEvent, ObjectType, type UnitEntity } from "@peon/core";
+import { type AreaRuleSet, areaRuleSet } from "#harness/areas/rules";
 import type { RunEnd, RunRegistry } from "#harness/contract/runs";
+import { createWakeGuard } from "#harness/events/guard";
+import { createEventRouter } from "#harness/events/router";
 import { XP_SOURCE_WAIT_MS } from "#harness/events/rules-xp";
+import { createGameLog, createJsonlSink } from "#harness/log/store";
 import type { Game } from "#harness/loops/game";
 import type { TacticsEvent } from "#harness/loops/tactics";
+import { createRunRegistry } from "#harness/runs/registry";
 import { createMockGame } from "#test-support/mock-game";
-import { routerSetup as setup } from "#test-support/router-fixture";
+import { routerSetup as setup, testFlags } from "#test-support/router-fixture";
+
+function ruledRouter(rules: AreaRuleSet) {
+  const clock = { now: () => 1_000_000 };
+  const log = createGameLog({ char: () => "Fgk", clock, file: undefined });
+  const sink = createJsonlSink({ file: undefined });
+  const router = createEventRouter({
+    areaRules: rules,
+    attacks: {
+      attach: () => () => {},
+      lastAttacker: () => undefined,
+      lastHitAt: () => undefined,
+    },
+    context: () => ({
+      now: clock.now(),
+      refOf: (guid) => `u${guid}`,
+      runActive: false,
+      selfGuid: 1n,
+      selfName: "Fgk",
+      wake: true,
+    }),
+    flags: testFlags,
+    guard: createWakeGuard(clock),
+    jevLog: sink,
+    log,
+    runs: createRunRegistry({ clock, log, sink }),
+  });
+  return { log, router };
+}
 
 async function endRun(runs: RunRegistry, awaited: boolean): Promise<string> {
   let finish = () => {};
@@ -27,14 +60,11 @@ async function endRun(runs: RunRegistry, awaited: boolean): Promise<string> {
 }
 
 describe("createEventRouter", () => {
-  test("attach subscribes all 20 hooks and detach removes them", () => {
+  test("attach subscribes every hook and detach removes them", () => {
     const { router } = setup();
     const handle = createMockGame();
     const hooks = Object.keys(handle).filter(
-      (key) =>
-        /^on[A-Z]/.test(key) &&
-        key !== "onMovementStop" &&
-        key !== "onAreaEvent",
+      (key) => /^on[A-Z]/.test(key) && key !== "onMovementStop",
     );
     const live = new Set<string>();
     const spied: Record<string, unknown> = {};
@@ -44,10 +74,55 @@ describe("createEventRouter", () => {
         return () => live.delete(name);
       };
     const detach = router.attach({ ...handle, ...spied } as Game);
-    expect(hooks).toHaveLength(20);
+    expect(hooks).toContain("onAreaEvent");
     expect([...live].sort()).toEqual([...hooks].sort());
     detach();
     expect(live.size).toBe(0);
+  });
+
+  test("an area event with no rule writes one quiet fallback row", () => {
+    const { log, router, sink } = setup();
+    const handle = createMockGame();
+    router.attach(handle);
+    const { area, event }: AreaEvent = {
+      area: "beta",
+      event: { speed: 2, type: "synced" },
+    } as never;
+    handle.triggerAreaEvent(area, event);
+    expect<unknown[]>(
+      log.since(0).map(({ class: c, data, event: e }) => [c, e, data]),
+    ).toEqual([
+      ["log", "beta/synced", { fallback: true, speed: 2, type: "synced" }],
+    ]);
+    expect(sink.passive).not.toHaveBeenCalled();
+    expect(sink.wake).not.toHaveBeenCalled();
+  });
+
+  test("attach writes the rows of the area attach rules", () => {
+    const rules = areaRuleSet({
+      alpha: {
+        area: "alpha",
+        rules: () => ({
+          attach: (state: { speed: number }) => [
+            {
+              class: "log" as const,
+              data: { speed: state.speed },
+              name: "synced",
+              progress: true as const,
+              text: "Server time synced.",
+            },
+          ],
+        }),
+      },
+    });
+    const { log, router } = ruledRouter(rules);
+    const handle = Object.assign(createMockGame(), {
+      alpha: { state: () => ({ speed: 3 }) },
+    });
+    router.attach(handle);
+    expect<unknown[]>(
+      log.since(0).map((row) => [row.event, row.data, row.progress]),
+    ).toEqual([["alpha/synced", { speed: 3 }, true]]);
   });
 
   test("an unawaited run end is a delivered wake with its run id", async () => {

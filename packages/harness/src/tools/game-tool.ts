@@ -4,10 +4,8 @@ import type {
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import type { ToolDetailsFor } from "#harness/contract/details";
-import type { ToolName, ToolResult } from "#harness/contract/result";
+import type { ToolKind, ToolName, ToolResult } from "#harness/contract/result";
 import type { HarnessRuntime, ToolCtx } from "#harness/contract/services";
-
-export type ToolKind = "read" | "action" | "run" | "control";
 
 export type ToolText = {
   label: string;

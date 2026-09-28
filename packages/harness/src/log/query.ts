@@ -92,6 +92,7 @@ function rowFilter(find: string | undefined): (row: GameLogEntry) => boolean {
     .filter((word) => word.length > 0);
   return (row) =>
     !QUIET_DOMAINS.has(row.domain) &&
+    row.data["fallback"] !== true &&
     words.every((word) => row.text.toLowerCase().includes(word));
 }
 

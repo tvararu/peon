@@ -9,6 +9,7 @@ import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { ToolDetailsFor } from "#harness/contract/details";
 import type {
   ResultInit,
+  ToolKind,
   ToolName,
   ToolResult,
   ToolStatus,
@@ -35,11 +36,7 @@ import { repeatRefusal } from "#harness/ops/repeat-guard";
 import { repeatScene } from "#harness/ops/repeat-scene";
 import { poseView } from "#harness/ops/views";
 import { coverRows } from "#harness/tools/covered";
-import type {
-  GameToolModule,
-  GameToolSpec,
-  ToolKind,
-} from "#harness/tools/game-tool";
+import type { GameToolModule, GameToolSpec } from "#harness/tools/game-tool";
 import { admitAgent } from "#harness/tools/human-admission";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 import { scrub } from "#harness/tools/scrub";
@@ -293,6 +290,7 @@ function repeatCall<P extends TSchema, N extends ToolName, A>(
   return {
     args,
     digest: rt.progress.digest(handle),
+    kind: spec.kind,
     pose: poseView({ handle, rt }),
     scene: repeatScene({ handle, rt }, args),
     tool: spec.name,
@@ -413,6 +411,7 @@ function remember<P extends TSchema, N extends ToolName, A>(
   rt.repeats.record({
     args,
     digest,
+    kind: spec.kind,
     pose: poseView({ handle, rt }),
     result: outcome,
     scene: repeatScene({ handle, rt }, args),
@@ -420,6 +419,7 @@ function remember<P extends TSchema, N extends ToolName, A>(
   });
   rt.progress.afterAction({
     digest,
+    kind: spec.kind,
     reason: outcome.reason,
     status: outcome.status,
     tool: spec.name,

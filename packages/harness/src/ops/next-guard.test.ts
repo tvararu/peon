@@ -335,6 +335,7 @@ describe("guardCall", () => {
     const engage = (): RepeatCall => ({
       args: { target: "u1" },
       digest: "",
+      kind: "run",
       pose: poseView({ handle, rt }),
       tool: "engage",
     });
@@ -355,6 +356,7 @@ describe("guardCall", () => {
     repeats.record({
       args: { to: "explore southeast" },
       digest: "",
+      kind: "run",
       pose: undefined,
       result: result("DONE", { after: {}, detail: "walked." }),
       tool: "travel",

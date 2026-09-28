@@ -5,7 +5,13 @@ import {
   visibleWidth,
 } from "@earendil-works/pi-tui";
 import { ChatType, type FactionRelation } from "@peon/core";
-import type { Domain, GameLogEntry, LogEvent } from "#harness/contract/log";
+import { HARNESS_AREAS } from "#harness/areas/registry";
+import type {
+  CoreDomain,
+  Domain,
+  GameLogEntry,
+  LogEvent,
+} from "#harness/contract/log";
 import type { ToolStatus } from "#harness/contract/result";
 import type { Compass } from "#harness/contract/views";
 import { glyphSetName, glyphs } from "#harness/ui/context";
@@ -101,7 +107,11 @@ export const FACING_GLYPH: Readonly<Record<Compass, GlyphName>> = {
   W: "facingW",
 };
 
-export const DOMAIN_GLYPH: Readonly<Record<Domain, GlyphName>> = {
+export type AreaGlyphs = Readonly<
+  Record<string, { readonly glyph?: GlyphName }>
+>;
+
+export const DOMAIN_GLYPH: Readonly<Record<CoreDomain, GlyphName>> = {
   agent: "system",
   aura: "buff",
   chat: "say",
@@ -212,9 +222,23 @@ function chatGlyph(entry: GameLogEntry): GlyphName | undefined {
     : undefined;
 }
 
-export function entryGlyph(entry: GameLogEntry): string {
+function isCoreDomain(domain: Domain): domain is CoreDomain {
+  return Object.hasOwn(DOMAIN_GLYPH, domain);
+}
+
+function domainGlyph(domain: Domain, areas: AreaGlyphs): GlyphName {
+  if (isCoreDomain(domain)) return DOMAIN_GLYPH[domain];
+  return areas[domain]?.glyph ?? "system";
+}
+
+export function entryGlyph(
+  entry: GameLogEntry,
+  areas: AreaGlyphs = HARNESS_AREAS,
+): string {
   return glyph(
-    chatGlyph(entry) ?? EVENT_GLYPH[entry.event] ?? DOMAIN_GLYPH[entry.domain],
+    chatGlyph(entry) ??
+      EVENT_GLYPH[entry.event] ??
+      domainGlyph(entry.domain, areas),
   );
 }
 

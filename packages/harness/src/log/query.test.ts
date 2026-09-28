@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { fallbackDraft } from "#harness/areas/rules";
 import type { LogDraft } from "#harness/contract/log";
 import type { RunEnd } from "#harness/contract/runs";
 import { formatLogRows, queryLog } from "#harness/log/query";
@@ -46,6 +47,23 @@ describe("queryLog", () => {
     expect(page.rows.map((row) => row.text)).toEqual(["new"]);
     expect(page.label).toBe("since your last turn started");
     expect(page.more).toBe(0);
+  });
+
+  test("hides area fallback rows unless the query names their domain", () => {
+    const { add, log, runs } = setup();
+    const area = { area: "beta", event: { type: "synced" } } as never;
+    add(fallbackDraft(area), 1000);
+    add({ ...fallbackDraft(area), data: {}, text: "beta ruled" }, 1100);
+    const read = (query: { find?: string }) =>
+      queryLog({ log, now: 2000, query, runs, turnStartSeq: 0 }).rows.map(
+        (row) => row.text,
+      );
+    expect(read({})).toEqual(["beta ruled"]);
+    expect(read({ find: "beta" })).toEqual(["beta ruled"]);
+    expect(read({ find: "domain:beta" })).toEqual([
+      "beta synced",
+      "beta ruled",
+    ]);
   });
 
   test("reads a time window", () => {
