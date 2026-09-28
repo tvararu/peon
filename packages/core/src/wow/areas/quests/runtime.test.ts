@@ -5,8 +5,8 @@ import {
   questsQuestgiverStatusMultipleBody,
   questsQuestPoiQueryResponseBody,
 } from "#test-support/areas/quests";
-import { COMPLETED_QUERY_TIMEOUT_MS } from "#wow/areas/quests/runtime-log";
 import { REPLY_TIMEOUT_MS } from "#wow/areas/quests/runtime";
+import { COMPLETED_QUERY_TIMEOUT_MS } from "#wow/areas/quests/runtime-log";
 import type {
   EntityEvent,
   GameObjectEntity,

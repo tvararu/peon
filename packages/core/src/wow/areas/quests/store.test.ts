@@ -388,7 +388,6 @@ describe("quests completed", () => {
   });
 });
 
-
 describe("quests gossip POI", () => {
   test("an injected POI is set with the giver open at arrival", () => {
     const { rig, seen } = rigWithEvents();

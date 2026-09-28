@@ -31,9 +31,7 @@ function context(): FlowContext & { handle: MockHandle } {
 }
 
 function autoLaunched(handle: MockHandle): boolean {
-  return handle.sent.some(
-    (p) => p.opcode === CMSG_QUESTGIVER_QUEST_AUTOLAUNCH,
-  );
+  return handle.sent.some((p) => p.opcode === CMSG_QUESTGIVER_QUEST_AUTOLAUNCH);
 }
 
 describe("quests-extras flow", () => {
@@ -67,5 +65,4 @@ describe("quests-extras flow", () => {
       expect(autoLaunched(ctx.handle)).toBe(true);
       expect(result).toMatchObject({ ping: false });
     }));
-
 });
