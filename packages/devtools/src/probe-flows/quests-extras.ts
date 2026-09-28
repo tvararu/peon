@@ -30,7 +30,8 @@ async function run({ handle, settle }: FlowContext): Promise<Json> {
   const row = await settle(() =>
     others(handle).find((entry) => entry.entity.entry === Number(ERONA)),
   );
-  quests.act.questgiverHello(row?.entity.guid ?? 0n);
+  if (!row) throw new Error(`no entity with entry ${ERONA} is in view.`);
+  quests.act.questgiverHello(row.entity.guid);
   const lastSeq = handle.login.state().link.lastSeq;
   quests.act.autoLaunch();
   const logged = await settle(() =>
@@ -75,8 +76,8 @@ async function run({ handle, settle }: FlowContext): Promise<Json> {
     after: toJson(swappedLog ?? logSlots(handle)),
     before: toJson(before),
     completed: [...(quests.state().completed?.ids ?? [])].sort((a, b) => a - b),
-    giver: row ? summary(row) : null,
-    helloSent: row !== undefined,
+    giver: summary(row),
+    helloSent: true,
     ping: pinged,
     staleDialog: logged !== undefined,
     swapped,

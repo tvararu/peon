@@ -1,8 +1,9 @@
 import { describe, expect, jest, test } from "bun:test";
-import type { WorldHandle } from "@peon/core";
+import type { Entity, WorldHandle } from "@peon/core";
 import {
   elapse,
   fakeAwait,
+  fakeRejection,
   withFakeTimers,
 } from "@peon/core/test-support/fake-time";
 import {
@@ -14,13 +15,28 @@ import { flow } from "#tools/probe-flows/quests-extras";
 
 type QuestState = ReturnType<WorldHandle["getQuestState"]>;
 
+const CMSG_QUESTGIVER_HELLO = 0x1_84;
+
 const CMSG_QUESTGIVER_QUEST_AUTOLAUNCH = 0x1_87;
 
 const PONG_WAIT_MS = 35_000;
 
-function context(): FlowContext & { handle: MockHandle } {
+const ERONA: Entity = {
+  entry: 15_278,
+  guid: 0xf1_30n,
+  name: "Magistrix Erona",
+  objectType: 3,
+  position: { mapId: 530, orientation: 0, x: 1, y: 2, z: 3 },
+  rawFields: new Map(),
+  scale: 1,
+};
+
+function context(nearby: Entity[] = [ERONA]): FlowContext & {
+  handle: MockHandle;
+} {
   const handle = createMockHandle();
   const questState = handle.getQuestState();
+  handle.getNearbyEntities = jest.fn(() => nearby);
   handle.getQuestState = jest.fn(
     (): QuestState => ({
       ...questState,
@@ -64,5 +80,15 @@ describe("quests-extras flow", () => {
       const result = await fakeAwait(flow.run(ctx), PONG_WAIT_MS + 5000);
       expect(autoLaunched(ctx.handle)).toBe(true);
       expect(result).toMatchObject({ ping: false });
+    }));
+
+  test("refuses without sending a hello when Erona is not in view", () =>
+    withFakeTimers(async () => {
+      const ctx = context([]);
+      expect(await fakeRejection(flow.run(ctx), 1000)).toContain("15278");
+      expect(
+        ctx.handle.sent.some((p) => p.opcode === CMSG_QUESTGIVER_HELLO),
+      ).toBe(false);
+      expect(autoLaunched(ctx.handle)).toBe(false);
     }));
 });
