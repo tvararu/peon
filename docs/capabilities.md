@@ -35,8 +35,6 @@ or the page names one that does not exist.
 | Read a letter in its bags | `t8-items-read` | The Dusty Unsent Letter's page text is empty on this server. |
 | Load arrows for a ranged weapon | `t8-items-ammo` | |
 | Cancel one of its own buffs | `t4-spells-cancel-aura` | Harmful and passive auras cannot be cancelled. |
-| Report its reputation with each faction and what changed it | `t4-reputation-gain` | Only factions the server lists. Standing is the Faction.dbc base plus the server's change; at war and inactive set by the agent show only after the next login. |
-
 
 ## Not shown by any scenario
 
@@ -49,6 +47,7 @@ These have tools or code but no scenario that checks them live:
 - Reading a shrine plaque (`t0-objects-read-shrine`, the agent reads the page but quotes the placard line, not the page's opening sentence).
 - Completing an exploration quest by walking into its area trigger (`t4-objects-explore-fargodeep`, the agent never reaches trigger 88: the accept points at `engage`, which fails explore quests, and compass exploring does not find the mine).
 - A sustained levelling run across several quests and zones.
+- Report its reputation with each faction and what changed it (`t4-reputation-gain`, no Faction.dbc in the eval profile so the journal names factions by id, not Silvermoon City).
 - Set the action bar (`t4-spells-action-bar`, no server truth for the bar).
 - Walking to a quest objective's region from `journal` (`t4-quests-poi-walk`):
   the agent takes the quest but walks by other means and never reads the

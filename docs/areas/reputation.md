@@ -108,6 +108,15 @@ the faction templates.
 
 ## Proof
 
+Eval `t4-reputation-gain` round 21, replicas 1 and 3 (`result.json`,
+verdict `blocked` both): each agent turned in quest 8325 and the five
+deltas logged (Faction 55 +250, Factions 14-17 +62 each), but the check
+names Silvermoon City and the eval profile carries no `Faction.dbc`, so
+`journal about: "reputation"` can only show faction ids. Replica 3 then
+retracted its correct by-id answer after a later log query returned 0
+events. The same gap stands in the capabilities page's "Not shown" entry
+for `t4-reputation-gain`.
+
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
 | `SMSG_INITIALIZE_FACTIONS` | `live` | probe flow `login` on a `fresh` character, exit 0; one received with 128 slots, and its 6 visible factions match `soap gm read reputation` | `Reputation/ReputationMgr.cpp:211-244` |
