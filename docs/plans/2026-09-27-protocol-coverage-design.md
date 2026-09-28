@@ -220,7 +220,8 @@ Structure:
 - **N13 Six unreachable senders are dead.** The six rows of the verified
   floor (section 1) go into `dead` with their evidence.
 - **N14 Legacy leases.** One legacy file or existing tool module is leased
-  to one area worker for the whole fan-out.
+  to one area task at a time; the coordinator hands the lease on when that
+  task lands (contract D12).
 
 Proof tooling:
 
@@ -272,8 +273,9 @@ Area decisions (each area subsection in section 5 lists its own under
   `#wow/protocol/inventory` for `bank`, `buyback` and `guildbank`, and
   fixes the other four stores;
   `pets` owns the `SMSG_PET_SPELLS` parser that `vehicles` reuses;
-  `talents` owns the talent-spec parser that `inspect` reuses; the first of
-  `guild` and `achievements` to land owns the packed-time reader; `group`
+  `talents` owns the talent-spec parser that `inspect` reuses; the
+  packed-time reader lives in `protocol/packed-time.ts` from step 0e, and
+  `guild` adds the writer there under a lease (contract D10); `group`
   owns the `SMSG_GROUP_LIST` rewrite, and `lfg` refuses `queue auto` until
   it lands; `instances` owns the difficulty enum.
 - **N29 Guards in core.** Core refuses what would destroy or leak data the
@@ -310,6 +312,42 @@ Process (added at approval):
   tooling that lands before the first area (section 4.8) are built
   straight from sections 4 and 6.3 while the plan is written. Step 0 and
   every wave wait for the plan approval.
+
+Contract amendments (added at plan approval). Each is "not yet ruled by
+the maintainer"; the design text it names is edited to match:
+
+- **D1** `AreaRuntimeCtx` carries `signal: AbortSignal` (section 3.3).
+  See contract D1.
+- **D4** `AreaRuntimeCtx` and `AreaPort` carry `dbc: DbcSource |
+  undefined`, from `ClientConfig.dbc` (sections 3.3, 3.6, 3.7). See
+  contract D4.
+- **D5** `AreaRuntimeCtx` and `AreaPort` carry `legacy: LegacyViews` from
+  step 0a, not from a coordinator commit before wave 2 (sections 3.3, 3.6,
+  3.12). See contract D5.
+- **D8** `areaRig`'s port routes `expect` through the rig's real dispatch
+  (section 3.9). See contract D8.
+- **D10** The packed-time reader lives in `protocol/packed-time.ts`
+  (step 0e); `guild` adds the writer there under a lease (section 3.13,
+  N28, section 5.21). See contract D10.
+- **D12** A lease is held by one task, not by one unit for the whole
+  fan-out (N14, section 3.12). See contract D12.
+- **D14** Scenario tiers are fixed when the plan index lists the scenario;
+  nobody renumbers after landing (section 5.2). See contract D14.
+- **D17** The live gates: `t1-walk-to-npc` passes, `t7-halt-resume`
+  passes or fails only from the known stale wake, and the regression
+  scenarios show no new failure cause against the R0 baseline (sections
+  3.15 test 29, 6.6). See contract D17.
+- **D20** A `world-conn.ts` change is a coordinator `COORD-<n>` commit
+  (sections 5.13, 5.21). See contract D20.
+- **D21** The `session` lease on `protocol/world.ts` covers the
+  `SMSG_CHAR_ENUM` parser only, never `OpcodeDispatch` (section 3.11). See
+  contract D21.
+- **D24** `areaRig` takes `init.register` for legacy owners, run before
+  the no-op fill, and the fill skips opcodes that already have an owner
+  (section 3.9). See contract D24.
+- **D25** One kind per tool: a tool with any sending `do` value is kind
+  `action` (`trade` is `run`) (sections 3.10, 5.11 to 5.14). See contract
+  D25.
 
 Approval: the advisor approved this design in the maintainer's place
 (R14) with four conditions: R0 runs first and edits this design where the
@@ -432,6 +470,13 @@ export type AreaRegister = {
   on: (opcode: number, read: Read) => void;
   peek: (opcode: number, read: Read) => void;
 };
+export type LegacyViews = {
+  party: () => PartyState;
+  friends: () => readonly FriendEntry[];
+  ignored: () => readonly IgnoreEntry[];
+  guild: () => GuildRoster | undefined;
+  channels: () => readonly string[];
+};
 export type AreaRuntimeCtx<E extends AreaEventBase> = {
   send: (opcode: number, body?: Uint8Array) => void;
   expect: (opcode: number, options?: ExpectOptions) => Promise<PacketReader>;
@@ -441,6 +486,8 @@ export type AreaRuntimeCtx<E extends AreaEventBase> = {
   now: () => number;
   selfGuid: () => bigint;
   signal: AbortSignal;
+  dbc: DbcSource | undefined;
+  legacy: LegacyViews;
 };
 export type AreaRuntime<A extends AreaActs> = { readonly act: A; dispose: () => void };
 export type AreaModule<N extends string, St extends AnyStore, A extends AreaActs> = {
@@ -494,6 +541,11 @@ Rules the contract carries:
   `gameplay-handlers.ts:327,346`]. It never replaces legacy state. A
   change to legacy behaviour goes through the legacy owner file under a
   lease (section 3.12).
+- **`dbc` and `legacy`.** `dbc` is the DBC source from `ClientConfig.dbc`,
+  or `undefined` when the client has none; the area catalogs of section 5
+  read it (contract D4). `legacy` holds read views of the `WorldConn`
+  state that `CoreStores` lacks: party, friends, ignored, guild roster and
+  channels. Step 0a adds both to the context and the port (contract D5).
 - **Type-cycle rule.** `AreaStores`, `AreaHandles`, `AreaEvent`, and so
   `SessionStores`, `WorldEvents` and `WorldHandle`, derive from
   `typeof AREAS`. An area module uses only `CoreStores`, `CoreEvents`,
@@ -621,17 +673,24 @@ export type AreaPort = {
   events: () => WorldEvents;
   now: () => number;
   selfGuid: () => bigint;
+  dbc: DbcSource | undefined;
+  legacy: LegacyViews;
 };
-export function areaPort(conn: WorldConn): AreaPort;
+export function areaPort(conn: WorldConn, dbc: DbcSource | undefined): AreaPort;
 export function testPort(init?: Partial<AreaPort>): AreaPort;
 ```
 
 - `areaPort` reads every `conn` field at call time and never uses
   `.bind`. `send` goes through `sessionDeps(conn).send`, which reads
-  `conn.socket` when called [M, `session-stores.ts:39-46`].
+  `conn.socket` when called [M, `session-stores.ts:39-46`]. The `legacy`
+  views copy the bodies of `getPartyState`, `getFriends`, `getIgnored` and
+  the guild roster read, and `channels` returns a copy of `conn.channels`
+  (contract D5).
 - `testPort()` records sends, rejects every `expect`, owns its own
-  `createWorldEvents()`, and uses a fixed clock.
-- The runtime context is built from a port. `listen(name, cb)` is
+  `createWorldEvents()`, and uses a fixed clock, `dbc: undefined` and
+  empty legacy views.
+- The runtime context is built from a port, and carries the port's `dbc`
+  and `legacy` (contract D4, D5). `listen(name, cb)` is
   `port.events()[name].subscribe(cb)` (one narrow cast). `until`
   subscribes to the area's store and arms one `setTimeout`, cleared on a
   match, on `signal` abort and on dispose.
@@ -658,7 +717,8 @@ One-time edits in step 0. After that no worker edits these files.
   `clearWorldEvents` clears the emitter with no edit [M,
   `client-connection.ts:216`, `world-events.ts:65-67`].
 - **Runtimes** (`runtime.ts`): `Runtimes` gains `areas`, built last in
-  `createRuntimes` by `createAreaRuntimes(areaPort(conn), stores)` and
+  `createRuntimes` by `createAreaRuntimes(areaPort(conn, config.dbc),
+  stores.areas, stores)` and
   disposed last. For each area it calls `module.runtime?.(ctx, store,
   core)`, then subscribes the forwarder `store.onEvent((event) =>
   port.events().area.emit({ area: name, event }))`. The runtime
@@ -772,12 +832,18 @@ every area act exists and is inert. It spreads the area handles, adds
 packets). A test stubs an act with `jest.spyOn(handle.time.act, "query")`.
 No area ever edits the mock.
 
-**`areaRig(name)`** (`test-support/area-rig.ts`) registers one area on a
-real `OpcodeDispatch` over `testStores()` and `testPort()`, and returns
-`{ dispatch, stores, handle, sent, events, inject }`. For each `uses`
-opcode it registers a no-op owner, `dispatch.on(op, () => {})`, so the
-area's peeks attach. A test that needs the real legacy owner calls that
-group's register function. Every area test and every R22 mock proof uses
+**`areaRig(name, init?)`** (`test-support/area-rig.ts`) registers one
+area on a real `OpcodeDispatch` over `testStores()` and a `testPort()`
+whose `expect` is the rig's `dispatch.expect`, so an injected reply
+resolves an act's wait (contract D8). It returns `{ dispatch, stores,
+handle, sent, events, inject }`. `init` takes `now`, `selfGuid`, `dbc`
+and `register`. The order is: first `init.register(dispatch, stores)` (a
+test that needs the real legacy owner passes that group's register
+function here), then a no-op owner, `dispatch.on(op, () => {})`, for each
+`uses` opcode where `dispatch.has(op)` is still false, so the area's
+peeks attach, then the area's own `register` (contract D24). A legacy
+register call after the rig is built would throw "already has a handler".
+Every area test and every R22 mock proof uses
 the rig. `test-support/mock-world-server.ts` covers socket-level tests.
 
 ### 3.10 Harness side
@@ -909,6 +975,13 @@ export type HarnessArea<K extends AreaName, W extends keyof AreaActsOf<K> & stri
   A `read` tool also runs in parallel [M, `tools/define.ts`
   `executionMode`]. A tool test helper fails when a tool whose `run`
   records a send on the mock handle is kind `read` or `control`.
+- **One kind per tool (contract D25).** `GameToolSpec.kind` holds one
+  value per tool [M, `tools/game-tool.ts:23-34`]. A tool with any sending
+  `do` value is kind `action` (`trade` is `run`). Its read-only `do`
+  values (`talents show`, `pet status`, `group status`, `dungeon status`)
+  run sequentially and are refused while the human drives in PLAY mode. A
+  read that must run in parallel goes on `look` or `journal` under a
+  lease.
 - **Kind on call records (N10).** Step 0c adds `kind` to the argument of
   `ProgressTracker.afterAction` and to `RepeatCall` [M,
   `contract/services.ts:90-96,108-114`], filled by `tools/define.ts` from
@@ -1009,7 +1082,9 @@ The seed commit has already created the directory, `opcodes.ts`, an empty
 A worker never edits: both registries, `contract.ts`, `compose.ts`,
 `port.ts`, `client.ts`, `client-handlers.ts`, `session-stores.ts`,
 `world-events.ts`, `runtime.ts`, `client-connection.ts`, `world-conn.ts`,
-`index.ts`, `protocol/stubs.ts`, `protocol/world.ts`, `mock-handle.ts`,
+`index.ts`, `protocol/stubs.ts`, `protocol/world.ts` (except the
+`SMSG_CHAR_ENUM` parser under the `session` lease, never the
+`OpcodeDispatch` class; contract D21), `mock-handle.ts`,
 `mock-game.ts`, `events/router.ts`, `router.test.ts`, `contract/log.ts`,
 `ui/draw.ts`, `world/service.ts`, `world/hub.ts`,
 `packages/core/package.json`, `biome.json`, `docs/protocol.md`,
@@ -1047,14 +1122,15 @@ already parses: the `SMSG_GROUP_LIST` fields in `protocol/group.ts`, the
 `SMSG_SHOWTAXINODES` node mask in `gameplay-handlers.ts`, the
 `CMSG_CAST_SPELL` targets in `protocol/spell.ts`, the `CMSG_USE_ITEM`
 targets in `protocol/item.ts`, and others listed per area in section 5.
-The coordinator keeps a lease table: one legacy file, one area worker,
-for the whole fan-out. The holder edits the file in place and keeps the
-legacy handler as the owner. A second area that needs the file waits.
+The coordinator keeps a lease table: one legacy file, one area task at a
+time; the coordinator hands the lease on when that task lands (contract
+D12). The holder edits the file in place and keeps the legacy handler as
+the owner. A second task that needs the file waits.
 
 - `WorldConn` state (party, friends, ignore, guild, chat) is not in
-  `CoreStores` [M, `world-conn.ts:15-48`]. Before the parties-and-raids
-  wave the coordinator adds read views, for example `party: () =>
-  conn.party.snapshot()`, to the runtime context, once.
+  `CoreStores` [M, `world-conn.ts:15-48`]. Step 0a adds read views of it
+  as `legacy: LegacyViews` on the runtime context and the port (sections
+  3.3, 3.6; contract D5), so no coordinator commit adds them later.
 - Control, self movement, `control*.ts`, `movement-handlers.ts` and
   `remote-motion*.ts` came from item 6. Areas that write control state go
   last in their band, with a reviewer who knows the item 6 control code.
@@ -1081,9 +1157,12 @@ wave 1, where it proves the flood guard.
   (`Server/Packets/QueryPackets.cpp:47-53`, `QueryPackets.h:71-72`,
   `Handlers/QueryHandler.cpp:72-85`).
 
-**Files.** Core `areas/time/`: `opcodes.ts`; `protocol.ts` with
-`parsePackedTime`, `parseLoginSetTimeSpeed`, `parseTimeQueryResponse` and
-tests including a packed-time round trip; `store.ts` with `TimeState = {
+**Files.** Core `protocol/packed-time.ts` with `PackedTime`,
+`parsePackedTime` and `readPackedTime`, and tests including a packed-time
+round trip; `guild` adds the writer there later under a lease (contract
+D10). Core `areas/time/`: `opcodes.ts`; `protocol.ts` with
+`parseLoginSetTimeSpeed`, `parseTimeQueryResponse` and tests; `store.ts`
+with `TimeState = {
 gameTime, speed, serverTime, dailyResetInSec, receivedAt }` and events
 `set_speed` and `query_reply`; `runtime.ts` with `act.query()` (send,
 `expect`, timeout) and one query on `core.self.onEvent` `login_verified`
@@ -1203,8 +1282,10 @@ Harness:
 Live:
 
 28. The `time` proof of section 3.13.
-29. `t1-walk-to-npc` and `t7-halt-resume` pass unchanged (a single
-    `t7-halt-resume` failure is rerun first; see 6.6). Every item 6
+29. `t1-walk-to-npc` passes; `t7-halt-resume` passes or fails only from
+    the known stale wake; `t3-ghostlands-kill` and the other regression
+    scenarios show no new failure cause against the R0 baseline (see
+    6.6; contract D17). Every item 6
     issue gated on both [M, issues #423, #424, #427], and step 0 edits the
     router, the log contract and the world service they pass through.
 30. `mise ci` green on the step-0 head.
@@ -1507,7 +1588,8 @@ verified floor (N13); "S/M/A" is stub, missing and absent among the
 relevant rows. Goals: L levelling, P parties and raids, D direct drive,
 - none. Eval ids follow `t<tier>-<area>-<slug>` with the id equal to the
 file stem; tiers are proposals (t8 character building, t9 groups,
-economy and PvP), and the coordinator renumbers at integration.
+economy and PvP) until the plan index lists the scenario, which fixes its
+tier; nobody renumbers after landing (contract D14).
 
 | # | Plan area | Code areas | Goal | Rel / dead | S/M/A | Tasks | Verbs and tools | Evals | Live proof |
 |---|---|---|---|---|---|---|---|---|---|
@@ -2397,8 +2479,10 @@ option, await the offer, never confirm above `maxCost`);
 `removeGlyph(slot)`; `applyGlyph({ item, slot })` through `CMSG_USE_ITEM`
 with a glyph index (a lease shared with `objects` on `protocol/item.ts`).
 
-**Verbs.** A new tool `talents` (`show` is kind `read`; `learn`, `glyph`,
-`unglyph` are kind `action`); `interact do:"reset_talents"` with
+**Verbs.** A new tool `talents` of kind `action` (`show`, `learn`,
+`glyph`, `unglyph`; `show` runs sequentially and is refused while the
+human drives in PLAY mode, contract D25);
+`interact do:"reset_talents"` with
 `max_cost` (default 0: show the cost, do not pay), matching the option
 text prefix "I wish to unlearn my talents" (438 rows in
 `data/sql/base/db_world/gossip_menu_option.sql`). `look` shows "N talent
@@ -2487,7 +2571,9 @@ change, because the server sends no reply and the next bar confirms it
 (`Handlers/MiscHandler.cpp:1567-1568`); a new pet number or name
 timestamp triggers a name query.
 
-**Verbs.** A new tool `pet` (kind `action`, `status` reads): `do:
+**Verbs.** A new tool `pet` (kind `action`; `status` reads, runs
+sequentially and is refused while the human drives in PLAY mode, contract
+D25): `do:
 status|call|dismiss|revive|attack|follow|stay|stop|stance|cast|autocast|
 rename|abandon|tame|talent`, with `what` and `target`. `abandon` runs only
 when `what` equals the pet's current name. `interact` at a stable master
@@ -2574,7 +2660,9 @@ convert refuses below `Group.Raid.LevelRestriction`, default 10
 (party, raid, battleground, dungeon finder), own subgroup, flags and
 roles, per member subgroup, flags, roles and status bits, per member
 power, zone, position, auras, pet and vehicle seat, the three difficulty
-bytes, and the dungeon-finder status; `conn.partyMembers` folds into it.
+bytes, and the dungeon-finder status; `conn.partyMembers` folds into it
+(a `world-conn.ts` change, so a coordinator `COORD-<n>` commit; contract
+D20).
 New stores: `ReadyCheckStore`, `RaidMarkStore` (8 slots; a set clears the
 same target from other slots, `Group.cpp:1835-1839`), `LootOwnerStore`
 (bounded to 64, plus master-loot candidates), `SummonStore` (expires after
@@ -2593,7 +2681,9 @@ timeoutMs)`, because most sends get no reply except the next roster. AC
 has no ready-check timer (`Handlers/GroupHandler.cpp:804-815`), so as
 initiator the harness sends the finish after all answers or 30 s.
 
-**Verbs.** A new tool `group` (kind `action`, `status` reads): `do:
+**Verbs.** A new tool `group` (kind `action`; `status` reads, runs
+sequentially and is refused while the human drives in PLAY mode, contract
+D25): `do:
 status|kick|lead|raid|move|swap|promote|ready_check|ready|mark|loot_rules|
 give|summon|ping|pass_loot|roll`. Permission checks live in the harness,
 so a silent server drop becomes a clear refusal; each verb settles on the
@@ -2715,7 +2805,9 @@ itself. AC's role check never times out in practice (milliseconds added
 to seconds, `LFGMgr.h:49`, `LFGMgr.cpp:834`), so the harness leaves the
 queue after 60 s without an answer.
 
-**Verbs.** A new tool `dungeon` (`status` reads; the rest are actions):
+**Verbs.** A new tool `dungeon` of kind `action` (`status` reads, runs
+sequentially and is refused while the human drives in PLAY mode, contract
+D25):
 `status`, `difficulty`, `reset`, `bind`, `extend`, `queue` (with `auto`,
 default true: accept the next proposal and role check, because the
 windows are shorter than a model turn), `leave_queue`, `answer`, `roles`,
@@ -3536,13 +3628,16 @@ defines and never reads [M, `protocol/update-fields.ts:262,270-272`]; the
 entity gains `emoteState` from `UNIT_NPC_EMOTESTATE`. The friend store
 gains notes (a lease on the legacy social files). `ChannelStore` replaces
 `conn.channels: string[]` (per channel: id, flags, owner, own flags,
-members, count, watched); `getChannel(index)` keeps its meaning. Pending
+members, count, watched); the `world-conn.ts` change is a coordinator
+`COORD-<n>` commit (contract D20); `getChannel(index)` keeps its
+meaning. Pending
 channel invite and level-grant offer (60 s). Events:
 `achievement_earned`, `achievement_removed`, `criteria_removed`,
 `server_first`, `title_changed`, `emote`, `text_emote`, `channel_notice`,
 `channel_members`, `complaint_received`, `level_grant`;
-`SMSG_CRITERIA_UPDATE` emits none (it arrives on every kill). A packed-time
-reader is shared with `guild` (the first to land owns it); the talent
+`SMSG_CRITERIA_UPDATE` emits none (it arrives on every kill). The
+packed-time reader comes from `protocol/packed-time.ts` (contract D10);
+the talent
 spec parser is shared with `talents`.
 
 **Acts and runtime.** `inspect` and `inspectAchievements` (3 s; the
@@ -3895,12 +3990,14 @@ where the code moved.
 
 - After each wave lands, one eval round runs the wave's scenarios plus the
   item 6 gates (`t1-walk-to-npc`, `t7-halt-resume`) and the regression
-  scenarios the areas name (`t3-ghostlands-kill`, `t0-hostiles`). Known
-  baseline, reported by the item 6 handover and not measured by R0:
-  `t3-ghostlands-kill` fails on `main` before item 4 (no kill credit, only
-  gray mobs), so it counts as a regression only when its failure changes;
-  `t7-halt-resume` failed once from a stale `life/low_health` wake, so one
-  failure is rerun before it counts.
+  scenarios the areas name (`t3-ghostlands-kill`, `t0-hostiles`). The
+  gates (contract D17): `t1-walk-to-npc` passes; `t7-halt-resume` passes
+  or fails only from the known stale `life/low_health` wake; and
+  `t3-ghostlands-kill` and the other regression scenarios show no new
+  failure cause against the R0 baseline. Known baseline, reported by the
+  item 6 handover: `t3-ghostlands-kill` fails on `main` before item 4 (no
+  kill credit, only gray mobs), and `t7-halt-resume` failed once from the
+  stale wake.
 - A round: fix briefs from the last round get a fixer, a reviewer and a
   serialised landing; the prep step recreates the eval worktree if it is
   missing, and run directories stay in that worktree; the scenarios run in
