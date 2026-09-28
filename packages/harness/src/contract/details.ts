@@ -125,6 +125,11 @@ export type EngageAfter = {
   timeouts: number;
   castErrors: CodeWord[];
   swingErrors: CodeWord[];
+  dealt?: number;
+  taken?: number;
+  healed?: number;
+  avoided?: CodeWord[];
+  immune?: string[];
 };
 
 export type LootAfter = {

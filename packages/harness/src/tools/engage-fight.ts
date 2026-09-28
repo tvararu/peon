@@ -41,6 +41,8 @@ import {
 } from "#harness/tools/engage-reasons";
 import {
   afterOf,
+  fightFigures,
+  fightLine,
   isKill,
   killNames,
   kills,
@@ -220,9 +222,14 @@ function noXpNote(tally: Tally): string {
     : `; no XP for ${noXp.map((target) => target.ref).join(", ")} (${noXpText(noXp)})`;
 }
 
+function totalsText(scene: Scene): string {
+  const line = fightLine(fightFigures(scene.ops, scene.tally.startedAt));
+  return line === "" ? "" : ` ${line}`;
+}
+
 function gains(scene: Scene): string {
   const { tally } = scene;
-  return `${tally.xp > 0 ? ` +${tally.xp} XP.` : ""}${lootText(tally)} ${vitalsLine(scene.ops)}`;
+  return `${tally.xp > 0 ? ` +${tally.xp} XP.` : ""}${lootText(tally)}${totalsText(scene)} ${vitalsLine(scene.ops)}`;
 }
 
 function creditText(tally: Tally, secs: number): string {
