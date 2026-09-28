@@ -129,6 +129,10 @@ export type { WhoResult } from "#wow/protocol/chat";
 export { ObjectType, UnitFlag } from "#wow/protocol/entity-fields";
 export { ChatType, PartyOperation, PartyResult } from "#wow/protocol/enums";
 export {
+  extractGameObjectFields,
+  type GameObjectFieldsResult,
+} from "#wow/protocol/extract-fields";
+export {
   formatGuildCommandError,
   GuildMemberStatus,
 } from "#wow/protocol/guild";
