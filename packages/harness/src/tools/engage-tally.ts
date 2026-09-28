@@ -1,5 +1,5 @@
-import type { CombatEvent, RewardsEvent } from "@peon/core";
-import { sumsSince } from "#harness/areas/combatlog/totals";
+import type { AreaEventOf, CombatEvent, RewardsEvent } from "@peon/core";
+import { newSums, noteEntry, type Sums } from "#harness/areas/combatlog/totals";
 import type {
   CodeWord,
   EngageAfter,
@@ -25,6 +25,8 @@ export type Tally = {
   castErrors: Map<string, number>;
   swingErrors: Map<string, number>;
   targets: EngageTarget[];
+  sums: Sums;
+  pets: Set<bigint>;
   labels: Map<number, { name: string; quality: number | null }>;
 };
 
@@ -49,7 +51,9 @@ export function newTally(ctx: ViewCtx): Tally {
     decisions: [],
     labels: new Map(),
     loot: [],
+    pets: new Set(),
     startedAt: ctx.rt.clock.now(),
+    sums: newSums(),
     swingErrors: new Map(),
     targets: [],
     xp: 0,
@@ -123,11 +127,30 @@ function noteRewards(ctx: ViewCtx, tally: Tally, event: RewardsEvent): void {
   if (event.type === "money_notice" && notice) tally.copper += notice.money;
 }
 
+function noteLog(
+  ctx: ViewCtx,
+  tally: Tally,
+  event: AreaEventOf<"combatlog">,
+): void {
+  if (event.type !== "entry") return;
+  const { handle } = ctx;
+  const self = handle.getCombatState().self.guid;
+  const pet = petOf((guid) => handle.getEntity(guid), self)?.guid;
+  if (pet !== undefined) tally.pets.add(pet);
+  noteEntry(
+    tally.sums,
+    event,
+    self,
+    (guid) => guid === self || tally.pets.has(guid),
+  );
+}
+
 export function watchTally(ctx: ViewCtx, tally: Tally): () => void {
   const offs = [
     ctx.handle.onCombatEvent((event) => noteCombat(tally, event)),
     ctx.handle.onTacticsEvent((event) => noteTactics(ctx, tally, event)),
     ctx.handle.onRewardsEvent((event) => noteRewards(ctx, tally, event)),
+    ctx.handle.combatlog.onEvent((event) => noteLog(ctx, tally, event)),
   ];
   return () => {
     for (const off of offs) off();
@@ -239,16 +262,9 @@ export type FightFigures = {
   immuneCount: number;
 };
 
-export function fightFigures(ops: OpsCtx, since: number): FightFigures {
+export function fightFigures(ops: OpsCtx, tally: Tally): FightFigures {
   const { handle } = ops;
-  const self = handle.getCombatState().self.guid;
-  const pet = petOf((guid) => handle.getEntity(guid), self)?.guid;
-  const sums = sumsSince(
-    handle.combatlog.state().entries,
-    since,
-    self,
-    (guid) => guid === self || guid === pet,
-  );
+  const { sums } = tally;
   return {
     avoided: Object.entries(sums.avoided).map(([word, count]) => ({
       code: -1,
@@ -286,7 +302,7 @@ export function afterOf(
   const target = ops.handle.getCombatState().target?.guid;
   const count = killCounts(ops, choice, tally);
   const hex = target === undefined ? undefined : guidHex(target);
-  const figures = fightFigures(ops, tally.startedAt);
+  const figures = fightFigures(ops, tally);
   const refused: CodeWord[] =
     figures.immuneCount > 0
       ? [{ code: -1, count: figures.immuneCount, word: "immune" }]

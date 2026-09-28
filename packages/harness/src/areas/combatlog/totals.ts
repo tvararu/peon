@@ -49,14 +49,17 @@ export function creatureEntry(guid: bigint): number | undefined {
   return Number(BigInt.asUintN(24, guid / ENTRY_UNIT));
 }
 
-function isImmune(entry: Entry): boolean {
+function isImmune(entry: Row): boolean {
   if (entry.kind === "immune") return true;
   return entry.kind === "miss" && IMMUNE_OUTCOMES.has(entry.outcome ?? "");
 }
 
 type Own = (guid: bigint) => boolean;
 
-function noteAmounts(sums: Sums, entry: Entry, self: bigint, ours: Own): void {
+type Row = Pick<Entry, "kind" | "source" | "target" | "amount"> &
+  Partial<Pick<Entry, "outcome" | "spellId">>;
+
+function noteAmounts(sums: Sums, entry: Row, self: bigint, ours: Own): void {
   if (DAMAGE.has(entry.kind)) {
     if (ours(entry.source) && !ours(entry.target)) sums.dealt += entry.amount;
     if (entry.target === self) sums.taken += entry.amount;
@@ -65,7 +68,7 @@ function noteAmounts(sums: Sums, entry: Entry, self: bigint, ours: Own): void {
     sums.healed += entry.amount;
 }
 
-function noteOwnCasts(sums: Sums, entry: Entry): void {
+function noteOwnCasts(sums: Sums, entry: Row): void {
   const outcome = entry.outcome ?? "";
   if (AVOIDED.has(outcome))
     sums.avoided[outcome] = (sums.avoided[outcome] ?? 0) + 1;
@@ -75,13 +78,8 @@ function noteOwnCasts(sums: Sums, entry: Entry): void {
   if (!sums.immune.includes(spellId)) sums.immune.push(spellId);
 }
 
-export function sumsSince(
-  entries: readonly Entry[],
-  since: number,
-  self: bigint,
-  ours: Own,
-): Sums {
-  const sums: Sums = {
+export function newSums(): Sums {
+  return {
     avoided: {},
     dealt: 0,
     healed: 0,
@@ -89,12 +87,16 @@ export function sumsSince(
     immuneCount: 0,
     taken: 0,
   };
-  for (const entry of entries) {
-    if (entry.at < since) continue;
-    noteAmounts(sums, entry, self, ours);
-    if (ours(entry.source)) noteOwnCasts(sums, entry);
-  }
-  return sums;
+}
+
+export function noteEntry(
+  sums: Sums,
+  entry: Row,
+  self: bigint,
+  ours: Own,
+): void {
+  noteAmounts(sums, entry, self, ours);
+  if (ours(entry.source)) noteOwnCasts(sums, entry);
 }
 
 function plural(word: string, count: number): string {

@@ -223,7 +223,7 @@ function noXpNote(tally: Tally): string {
 }
 
 function totalsText(scene: Scene): string {
-  const line = fightLine(fightFigures(scene.ops, scene.tally.startedAt));
+  const line = fightLine(fightFigures(scene.ops, scene.tally));
   return line === "" ? "" : ` ${line}`;
 }
 

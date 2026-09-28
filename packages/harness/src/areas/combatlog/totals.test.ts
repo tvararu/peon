@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaState } from "@peon/core";
-import { fightText, sumsSince } from "#harness/areas/combatlog/totals";
+import { fightText, newSums, noteEntry } from "#harness/areas/combatlog/totals";
 
 type Entry = AreaState<"combatlog">["entries"][number];
 
@@ -22,7 +22,19 @@ function entry(over: Partial<Entry>): Entry {
   };
 }
 
-describe("sumsSince", () => {
+function sumsSince(
+  entries: readonly Entry[],
+  since: number,
+  self: bigint,
+  own: (guid: bigint) => boolean,
+) {
+  const sums = newSums();
+  for (const item of entries)
+    if (item.at >= since) noteEntry(sums, item, self, own);
+  return sums;
+}
+
+describe("noteEntry", () => {
   test("sums what the character and its pet dealt, took and healed since the start", () => {
     const sums = sumsSince(
       [
