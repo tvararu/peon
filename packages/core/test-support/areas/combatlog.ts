@@ -112,3 +112,15 @@ export function combatlogComboPointsBody(init: {
   w.uint8(init.points);
   return w.finish();
 }
+
+export function combatlogPowerUpdateBody(init: {
+  guid: bigint;
+  power: number;
+  value: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.guid);
+  w.uint8(init.power);
+  w.uint32LE(init.value);
+  return w.finish();
+}

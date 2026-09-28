@@ -3,12 +3,14 @@ import {
   combatlogAttackerStateBody,
   combatlogComboPointsBody,
   combatlogPartyKillBody,
+  combatlogPowerUpdateBody,
   combatlogSpellDamageBody,
 } from "#test-support/areas/combatlog";
 import {
   parseAttackerState,
   parseComboPoints,
   parsePartyKill,
+  parsePowerUpdate,
   parseSpellDamage,
   SPELL_MISS_NAMES,
 } from "#wow/areas/combatlog/protocol";
@@ -330,5 +332,40 @@ describe("parseComboPoints (Unit.cpp:12851-12857)", () => {
     expect(combatlogComboPointsBody({ points: 0 })).toEqual(
       new Uint8Array([0x00, 0x00]),
     );
+  });
+});
+
+describe("parsePowerUpdate (Unit.cpp:12015-12019)", () => {
+  test("reads the packed guid, the power index and the value", () => {
+    expect(
+      parsePowerUpdate(
+        read(new Uint8Array([0x01, 0x2a, 0x01, 0x64, 0x00, 0x00, 0x00])),
+      ),
+    ).toEqual({ guid: ME, power: 1, value: 100 });
+  });
+
+  test("the builder writes the same layout", () => {
+    expect(
+      parsePowerUpdate(
+        read(combatlogPowerUpdateBody({ guid: BOAR, power: 0, value: 312 })),
+      ),
+    ).toEqual({ guid: BOAR, power: 0, value: 312 });
+    expect(
+      combatlogPowerUpdateBody({ guid: ME, power: 1, value: 100 }),
+    ).toEqual(new Uint8Array([0x01, 0x2a, 0x01, 0x64, 0x00, 0x00, 0x00]));
+  });
+
+  test("parses the bodies the server sent in a live mage run", () => {
+    const hex = (text: string) => Uint8Array.from(Buffer.from(text, "hex"));
+    expect(parsePowerUpdate(read(hex("030f0e0059020000")))).toEqual({
+      guid: 0xe0fn,
+      power: 0,
+      value: 601,
+    });
+    expect(parsePowerUpdate(read(hex("df6b5b01283d30f10000000000")))).toEqual({
+      guid: 0xf1_30_00_3d_28_01_5b_6bn,
+      power: 0,
+      value: 0,
+    });
   });
 });

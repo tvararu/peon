@@ -4,6 +4,7 @@ import {
   combatlogAttackerStateBody,
   combatlogComboPointsBody,
   combatlogPartyKillBody,
+  combatlogPowerUpdateBody,
   combatlogSpellDamageBody,
 } from "#test-support/areas/combatlog";
 import type { CombatlogEvent } from "#wow/areas/combatlog/store";
@@ -224,6 +225,24 @@ describe("combatlog combo points (Unit.cpp:12851-12857)", () => {
       const stubbed = areaStubs().map(([opcode]) => opcode);
       expect(stubbed).not.toContain(GameOpcode.SMSG_PARTYKILLLOG);
       expect(stubbed).not.toContain(GameOpcode.SMSG_UPDATE_COMBO_POINTS);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_POWER_UPDATE is handled, is no stub, and adds no entry", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      expect(rig.dispatch.has(GameOpcode.SMSG_POWER_UPDATE)).toBe(true);
+      expect(areaStubs().map(([opcode]) => opcode)).not.toContain(
+        GameOpcode.SMSG_POWER_UPDATE,
+      );
+      rig.inject(
+        GameOpcode.SMSG_POWER_UPDATE,
+        combatlogPowerUpdateBody({ guid: BOAR, power: 0, value: 12 }),
+      );
+      expect(rig.handle.state().entries).toEqual([]);
+      expect(seen).toEqual([]);
     } finally {
       rig.dispose();
     }

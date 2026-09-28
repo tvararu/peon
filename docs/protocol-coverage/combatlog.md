@@ -24,4 +24,4 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x333` | `SMSG_SPELLSTEALLOG` | server | missing |  |
 | `0x39d` | `SMSG_UPDATE_COMBO_POINTS` | server | handled | not seen live |
 | `0x47f` | `SMSG_HEALTH_UPDATE` | server | dead |  |
-| `0x480` | `SMSG_POWER_UPDATE` | server | stub |  |
+| `0x480` | `SMSG_POWER_UPDATE` | server | handled |  |

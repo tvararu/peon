@@ -3,8 +3,10 @@ import type {
   AttackerState,
   ComboPoints,
   PartyKill,
+  PowerUpdate,
   SpellDamage,
 } from "#wow/areas/combatlog/protocol";
+import type { Entity, UnitEntity } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { joinGuid } from "#wow/protocol/packet";
 import { UNIT_FIELDS } from "#wow/protocol/update-fields";
@@ -96,6 +98,7 @@ export type CombatlogEvent =
 const RING = 500;
 const KILLS = 20;
 const QUIET_MS = 6000;
+const POWERS = 7;
 const DAMAGE = new Set<CombatlogKind>([
   "melee",
   "spell_damage",
@@ -259,6 +262,18 @@ export class CombatlogStore {
     });
   }
 
+  applyPower({ guid, power, value }: PowerUpdate): void {
+    const unit = this.deps.getEntity(guid);
+    if (!isUnit(unit) || power >= POWERS) return;
+    const slots = [...unit.power];
+    slots[power] = value;
+    this.deps.updateEntity(
+      guid,
+      { power: slots },
+      new Map([[UNIT_FIELDS.POWER1.offset + power, value]]),
+    );
+  }
+
   dispose(): void {
     this.events.clear();
     this.entries.length = 0;
@@ -380,6 +395,13 @@ export class CombatlogStore {
   private inFight(guid: bigint): boolean {
     return this.fightUnits.has(guid) || this.core.combat.isAttackingSelf(guid);
   }
+}
+
+function isUnit(entity: Entity | undefined): entity is UnitEntity {
+  return (
+    entity?.objectType === ObjectType.UNIT ||
+    entity?.objectType === ObjectType.PLAYER
+  );
 }
 
 function guidField(fields: ReadonlyMap<number, number>, offset: number) {

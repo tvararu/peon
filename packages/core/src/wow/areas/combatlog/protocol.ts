@@ -180,3 +180,12 @@ export function parseComboPoints(r: PacketReader): ComboPoints {
   const points = r.uint8();
   return { target: target === 0n ? undefined : target, points };
 }
+
+export type PowerUpdate = { guid: bigint; power: number; value: number };
+
+export function parsePowerUpdate(r: PacketReader): PowerUpdate {
+  const guid = r.packedGuidBig();
+  const power = r.uint8();
+  const value = r.uint32LE();
+  return { guid, power, value };
+}

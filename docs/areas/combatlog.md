@@ -11,7 +11,8 @@ amounts, the crit flag and the outcome (`miss`, `dodge`, `parry`, `block`,
 `evade`, `immune`, `deflect`, `interrupt`, or `absorb` and `resist` for a
 full absorb or resist). The area emits one `entry` event per kept entry,
 one `kill` event per kill and one `combo_points` event per combo point
-update. The harness writes no log row for any of them.
+update. The harness writes no log row for any of them. A power update
+goes to the unit in the entity store, not to the combat log.
 
 - The store keeps an entry whose source or target is the character, a
   unit it summoned or created (its pet, a guardian or a totem), or a unit
@@ -36,6 +37,12 @@ update. The harness writes no log row for any of them.
 - The combo points are the target and the points of the last update.
   An update with no target or with 0 points clears them. The `combo_points`
   event carries the points and the target when there is one.
+- A power update sets the unit's power field (`UNIT_FIELD_POWER1` plus
+  the power index) and the same slot of its typed power list in one
+  entity store update, so the store emits one `update` event and
+  `combatUnitOf` reads the new value at once. An update for a unit the
+  entity store does not know, or for a power index past the seventh,
+  changes nothing. It adds no entry and emits no area event.
 
 ## Wire notes
 
@@ -99,10 +106,14 @@ last two items, which are not disagreements.
 - `SMSG_UPDATE_COMBO_POINTS` writes the target as a packed guid, a single
   0 byte when there is no target, then the points as a `u8`
   (`Entities/Unit/Unit.cpp:12851-12857`).
+- `SMSG_POWER_UPDATE` writes the unit as a packed guid, the power index
+  as a `u8` and the new value as a `u32`
+  (`Entities/Unit/Unit.cpp:12015-12019`). `Unit::SetPower` sends it to
+  the unit and the players that see it whenever its `withPowerUpdate`
+  argument is set, which is the default (`Entities/Unit/Unit.cpp:11996`).
 
 ## Left out
 
-- `SMSG_POWER_UPDATE`: built by `combat-log-6b`.
 - `SMSG_SPELLHEALLOG`, `SMSG_SPELLENERGIZELOG` and
   `SMSG_PERIODICAURALOG`: built by `combat-log-2`.
 - `SMSG_SPELLLOGMISS`, `SMSG_SPELLORDAMAGE_IMMUNE`,
@@ -130,6 +141,7 @@ No verb (N23).
 | `SMSG_SPELLNONMELEEDAMAGELOG` | `live` | probe flow `combatlog-fight`, exit 0; `handled`, Fireball (spell 133) of the character for 20 fire damage; an earlier run of the flow also received a creature's spell hit on the character | `Entities/Unit/Unit.cpp:6470-6483` |
 | `SMSG_PARTYKILLLOG` | `live` | probe flow `combatlog-fight` (`--arg spell=133`, `--expect` 0x1F5) on an `eversong10-mage` moved to East Sanctum with `soap gm tele EastSanctum`, exit 0; 1 received, `handled`, when the character killed an Angershade (killer 0xe06, the character; victim 0xf130003d28014808), and `state.kills` held one kill with `killerKind` `self` and `ourTarget` true. The protocol test parses this body, and a body the server sent in an earlier run, before the handler existed | `Entities/Unit/Unit.cpp:13583-13585` |
 | `SMSG_UPDATE_COMBO_POINTS` | `mock` | not seen live: no preset is a rogue or a druid, and `soap gm` cannot change a class. The maintainer can add a rogue preset for a live proof. The area test injects bodies built from the writer, with and without a target | `Entities/Unit/Unit.cpp:12851-12857` |
+| `SMSG_POWER_UPDATE` | `live` | probe flow `combatlog-fight` (`--arg spell=133`, `--expect` 0x480) on an `eversong10-mage` moved to East Sanctum with `soap gm tele EastSanctum`, exit 0; 8 received, all `handled`: the character's powers at login, its mana (power 0) falling from 621 to 601 just before the first Fireball's `SMSG_SPELL_GO`, and power 0 of the Angershade it killed (victim 0xf130003d28015b6b, value 0). The protocol test parses both bodies | `Entities/Unit/Unit.cpp:12015-12019` |
 | `SMSG_PROCRESIST` | `dead` | its only writer, `Unit::SendSpellDamageResist`, has no caller: the declaration and the definition are the only hits | `Entities/Unit/Unit.cpp:6616-6624` |
 | `SMSG_FEIGN_DEATH_RESISTED` | `dead` | both send sites are inside comment blocks | `Spells/Auras/SpellAuraEffects.cpp:2953-2958` |
 | `SMSG_HEALTH_UPDATE` | `dead` | no send site: only the opcode list and the opcode table name it | `Server/Protocol/Opcodes.h:1181` |

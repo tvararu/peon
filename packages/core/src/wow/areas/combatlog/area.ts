@@ -3,6 +3,7 @@ import {
   parseAttackerState,
   parseComboPoints,
   parsePartyKill,
+  parsePowerUpdate,
   parseSpellDamage,
 } from "#wow/areas/combatlog/protocol";
 import {
@@ -30,6 +31,9 @@ export const combatlogArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_UPDATE_COMBO_POINTS, (r) =>
       store.receiveComboPoints(parseComboPoints(r)),
+    );
+    wire.on(GameOpcode.SMSG_POWER_UPDATE, (r) =>
+      store.applyPower(parsePowerUpdate(r)),
     );
   },
 });
