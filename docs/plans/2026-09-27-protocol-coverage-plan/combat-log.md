@@ -1,0 +1,882 @@
+# Protocol coverage: combat-log (key: combat-log)
+
+Plan index: [2026-09-27-protocol-coverage-plan.md](../2026-09-27-protocol-coverage-plan.md).
+Contract: [contract.md](contract.md). Design:
+[2026-09-27-protocol-coverage-design.md](../2026-09-27-protocol-coverage-design.md)
+(section numbers such as "design 5.9" point into it).
+
+The `combat-log` unit builds the code area `combatlog` (design 5.1,
+5.9). It turns the server's combat log into facts: damage in and out,
+heals, power gains, misses, immunities, dispels, spell effects, killing
+blows and combo points. All 20 rows are server to client. 17 are
+relevant: 5 are stubs today (`protocol/stubs.ts:23-26,54`) and 12 are
+missing. 3 are dead (see the end). The area adds no verb (N23): the
+facts reach the agent through a few `combatlog/*` log rows, the `engage`
+result, the Jev observation and the vitals line.
+
+- Worktree `proto-combat-log`, created with the command of contract 0.1;
+  branch renamed to `proto/area-combat-log`. One task at a time.
+- Phases (design 5.1): tasks 1, 6a, 6b, 7a and 7b in wave 1; tasks 2
+  and 3 in wave 2 (parties and raids); tasks 4, 5 and 8 in wave 4 (long
+  tail). No task is in wave 3.
+- Task ids are `combat-log-<n>` (contract 0.10). Tasks 6 and 7 are each
+  split into `a` and `b`, each with its own test cycle. A dependency on
+  `combat-log-6` or `combat-log-7` means its `b` part.
+- Owned paths (contract 2.5): `packages/core/src/wow/areas/combatlog/*`,
+  `packages/core/test-support/areas/combatlog.ts`,
+  `packages/harness/src/areas/combatlog/*` (the seeded `area.ts`, its
+  test, and sibling rule files), `packages/devtools/src/probe-flows/combatlog-*.ts`,
+  `docs/areas/combatlog.md`, `docs/protocol-coverage/combatlog.md`
+  (regenerated only).
+- Core paths without a package prefix are under `packages/core/src/wow/`;
+  harness paths without a prefix are under `packages/harness/src/`.
+  AzerothCore paths are relative to `src/server/game/` at `9d4e36d81`
+  (contract 0.5). Peon lines are at `71fba0ab`; after item 6 the builder
+  re-reads them.
+- Every live proof in this unit runs on a character without `.cheat god`
+  and without GM mode. God mode moves damage into absorb on the wire
+  (`Entities/Unit/Unit.cpp:6644-6651`, `:6577-6581`), and a GM character
+  takes no fall damage (`Entities/Player/Player.cpp:14189`).
+
+## Contract issues
+
+These are gaps found while planning. The contract is not changed; the
+coordinator decides each one.
+
+1. **`SMSG_POWER_UPDATE` has no write path into the entity store.** The
+   design writes the value into the unit's `UNIT_FIELD_POWER1 + power`
+   raw field through `EntityStore.update` (`entity-store.ts:189-217`), so
+   `combatUnitOf` reads it (`combat-unit.ts:23-30`) and the store emits
+   its `update` event. The area gets `SessionDeps` and `CoreStores`
+   only. `CoreStores` holds no entity store (`session-stores.ts:24-37`),
+   and `SessionDeps` exposes only `getEntity` (`session-stores.ts:20-21`).
+   Setting `entity.rawFields` through `getEntity` would skip the `update`
+   event. Options: a `COORD-<n>` commit that adds one entity write (for
+   example `updateEntity: EntityStore["update"]`) to `SessionDeps` or to
+   `LegacyViews`, or a lease that lets the task register the opcode in a
+   legacy entity handler. The coordinator makes the edit before SEED-1,
+   or task 6b takes its fallback: it registers the handler, keeps
+   `{ guid, power, value, at }` per unit in area state, deletes the stub,
+   proves the opcode live, and lists the entity write under "Left out" in
+   `docs/areas/combatlog.md` as a named gap. The builder records the
+   deviation. No opcode task depends on 6b or 7b (only task 8 depends on
+   7b), so neither can stop the opcode tasks.
+2. **`fight/end` totals cross a frozen file.** `fightEnd`
+   (`events/rules-combat.ts:236-262`) sees only `RuleInput`, which has no
+   handle (`events/rules.ts:6-13,23-32,75`). Totals need one new
+   `RuleLookup` member (for example `combatTotals(since: number)`), which
+   edits `events/rules.ts` and `lookupFor` in `events/router.ts:134`; the
+   router is frozen after S0-5 (contract 2.3). Options: a `COORD-<n>`
+   commit that adds the lookup member, or the design is amended so that
+   the area's own rule writes a `combatlog/fight` row from owned files
+   (the store then emits a `fight_closed` event on the first entry or
+   read after the 6 s gap). The coordinator makes the `COORD` edit before
+   SEED-1, or task 7b takes its fallback, which is the builder's default
+   when the edit is absent at task start: an owned
+   `areas/combatlog/runtime.ts` arms one timer after each kept entry that
+   involves the character and, after 6 s of quiet, calls
+   `store.closeFight()`, which emits `fight_closed` with the totals; the
+   harness rule writes one `log` row `combatlog/fight` (`Fight over:
+   dealt 312, took 145 (1 dodge, 1 resist).`). The runtime waits with
+   `ctx.until(..., { timeoutMs: 6000, signal })` on the store's `entry`
+   events, so the wait ends with the session (contract 1.3), and
+   `fight_closed` is appended to `eventTypes` in `areas/combatlog/area.ts`.
+   The store itself still arms no timer (contract 1.2). The builder records the deviation.
+3. **The Jev lease names the wrong files.** Contract 2.7 lists
+   `jev/*` for the observation. The observation is built in
+   `CombatActions.observe` (`loops/combat-actions.ts:105-147`) with
+   helpers in `loops/combat-actions-observation.ts`; candidates come from
+   `spellAction` and `addCandidates` in the same class
+   (`loops/combat-actions.ts:106-112`); the deps object is built at
+   `loops/game.ts:122`. Task 7b needs the lease on those three files.
+4. **`VitalsView.comboPoints` touches files with no combat-log lease.**
+   D13 names the change, but the `tools/look.ts` lease list omits
+   `combat-log`. The type is `VitalsView` (`contract/views.ts:26-32`); it
+   is built by `vitalsView` (`ops/views.ts:139-150`); the `[now]` line is
+   `events/now.ts:52`; the footer is `ui/footer.ts`. Task 7b needs a lease
+   on `ops/views.ts`, `events/now.ts`, `ui/footer.ts` and the
+   `VitalsView` block of `contract/views.ts`.
+5. **The engage tally lease.** Contract 2.7 lists `tools/engage*.ts` for
+   `combat-log`. Task 7b edits `tools/engage-tally.ts` (the `Tally` type,
+   `tools/engage-tally.ts:17-27`, and its view at `:241-250`) and the
+   `EngageAfter` block of `contract/details.ts` (D13). The renderer that
+   prints the `engage` result line could not be determined from a quick
+   read; the builder names it in its report and it falls under the same
+   `tools/engage*.ts` lease only if it lives there.
+6. **The ticker has no lease.** Task 8 edits `ui/ticker.ts`
+   (`TickerSource`, `tickerLines`, `createTicker`, `:15-120`) and the
+   source list built at `ui/install.ts:144`. Neither is in contract 2.7.
+7. **Log row names.** Design 5.9 names the rows:
+   domain `combatlog`, events `combatlog/immune`,
+   `combatlog/killing_blow`, `combatlog/environmental`,
+   `combatlog/dispelled` and `combatlog/heal_in`, not `combat/*`. The
+   router sets the domain and event from the area rule (contract 1.9).
+8. **Coverage reads `GameOpcode.<NAME>` literally**
+   (`packages/core/test-support/protocol-coverage.ts:28`). Every
+   registration in `areas/combatlog/area.ts` writes `GameOpcode.SMSG_...`
+   in full.
+
+Leases this unit needs in the plan index (contract 2.7), in build order:
+
+| Task | Legacy file | Edit |
+|---|---|---|
+| combat-log-1 | `combat-store.ts` and its test | add `noteHostileDamage(guid)` |
+| combat-log-6b | the entity write of issue 1 | `COORD` edit or lease, as ruled |
+| combat-log-7b | `events/rules-combat.ts` | `fight/end` totals (after the `COORD` of issue 2) |
+| combat-log-7b | `tools/engage-tally.ts`, the `EngageAfter` block of `contract/details.ts` (D13) | tally fields and the result line |
+| combat-log-7b | `loops/combat-actions.ts`, `loops/combat-actions-observation.ts`, `loops/game.ts` | the Jev `combatLog` block and the immune filter |
+| combat-log-7b | `contract/views.ts` (`VitalsView`), `ops/views.ts`, `events/now.ts`, `ui/footer.ts` | `comboPoints` |
+| combat-log-8 | `ui/ticker.ts`, `ui/install.ts` | the human-only damage line |
+
+---
+
+## Task combat-log-1: Combat log store, melee and spell damage
+
+**codeArea:** `combatlog`. **Phase:** 1. **Size:** M.
+
+**Files:**
+
+- Create: `packages/core/src/wow/areas/combatlog/protocol.ts` and
+  `protocol.test.ts`; `areas/combatlog/store.ts` and `store.test.ts`;
+  `areas/combatlog/area.test.ts`;
+  `packages/core/test-support/areas/combatlog.ts`;
+  `packages/devtools/src/probe-flows/combatlog-fight.ts`;
+  `docs/areas/combatlog.md`.
+- Modify (owned): `areas/combatlog/area.ts` (the seed),
+  `areas/combatlog/opcodes.ts` (delete two `stubs` lines; check `dead`),
+  `packages/harness/src/areas/combatlog/area.ts` and its test,
+  `docs/protocol-coverage/combatlog.md` (regenerated).
+- Modify (lease): `combat-store.ts` and `combat-store.test.ts`.
+
+**Depends on:** item6, S0-5, SEED-1 (seeds `combatlog` in wave 1), T-2
+(tap), T-3 (probe), T-4 (cite-check).
+
+**Opcodes:** `SMSG_ATTACKERSTATEUPDATE` (stub),
+`SMSG_SPELLNONMELEEDAMAGELOG` (stub).
+
+**Steps:**
+
+1. **Failing tests first.**
+   - `areas/combatlog/protocol.test.ts`, bodies from
+     `test-support/areas/combatlog.ts`:
+     - `parseAttackerState`, built from `Entities/Unit/Unit.cpp:6661-6720`:
+       (a) a plain hit, `count` 1, no flags; (b) a partial absorb with
+       `count` 1 (`HITINFO_PARTIAL_ABSORB`); (c) a two-part swing, `count`
+       2, with both absorb and resist flags, so both arrays hold two
+       `u32` (`:6677-6691`; AzerothCore wins over
+       `combat/smsg_attackerstateupdate_3_3_5.wowm:64-99`, which reads one
+       of each); (d) `HITINFO_BLOCK` reads `blocked`; (e)
+       `HITINFO_RAGE_GAIN` (0x800000) reads one extra `u32`, and
+       `UNK19` (0x80000) alone reads none (`:6700-6701`); (f) `HITINFO_UNK1`
+       reads and drops the 12-field block (`:6704-6717`). After the parts
+       and arrays: `u8` victim state, `u32` unknown, `u32` melee spell id
+       (`:6693-6695`). A short body throws.
+     - `parseSpellDamage`, built from `Unit.cpp:6470-6483`: school is a
+       mask `u8` (`:6476`), `hitFlags` are `SPELL_HIT_TYPE_*`
+       (`src/server/shared/SharedDefines.h:1539-1544`), `crit` is
+       `hitFlags & 0x2`, `split` is `& 0x8`; the trailing debug byte is
+       read and ignored.
+   - `areas/combatlog/store.test.ts`: an entry whose source or target is
+     the character, its pet (`SUMMONEDBY` or `CREATEDBY` equal to the
+     character, `protocol/update-fields.ts:64-65`), a party member (from
+     `ctx.legacy.party()` or `core`), or a unit in the current fight is
+     kept; a stranger's entry is dropped and counted in `dropped`; the
+     ring keeps the last 500; a miss with no damage is still one entry;
+     the fight window opens on the first entry that involves the
+     character after 6 s of quiet and is reported closed on the next
+     entry or `snapshot()` after 6 s (computed from `deps.now()`, no
+     timer, contract 1.2); totals sum `dealt`, `taken`, `healed`, misses
+     by outcome and crits.
+   - `areas/combatlog/area.test.ts` with `areaRig("combatlog")`: an
+     injected swing and an injected spell hit each emit one `entry`
+     event and change `handle.state().entries`.
+   - `combat-store.test.ts`: `noteHostileDamage(guid)` for a unit not in
+     the attacker set adds it and emits `attacked` once; a second call
+     emits nothing.
+   - Harness `areas/combatlog/area.test.ts`: an `entry` event writes no
+     row (the flood guard, G17).
+   Each fails today: the modules do not exist, the opcodes are stubs, and
+   `CombatStore` has no such method.
+2. **Implementation.**
+   - `areas/combatlog/protocol.ts`:
+     - `parseAttackerState` returns `{ hitInfo, attacker, target, total,
+       overkill, parts, absorbed, resisted, victimState, meleeSpellId,
+       blocked?, rageGain?, crit, miss, glancing, crushing, offhand }`.
+       `parts` is `{ schoolMask, amount }[]` (the `u32` of each part; the
+       `f32` is read and dropped). `absorbed` and `resisted` hold one
+       `u32` per part when their flags are set (absorb 0x20 or 0x40,
+       resist 0x80 or 0x100), else `[]`. Derived flags: `crit` 0x200,
+       `miss` 0x10, `glancing` 0x10000, `crushing` 0x20000, `offhand`
+       0x4. `victimState` is a word from the victim state list
+       (`dodge`, `parry`, `evade`, `immune`, ...;
+       `Entities/Unit/Unit.h:83-94`).
+     - `parseSpellDamage` returns `{ target, attacker, spellId, amount,
+       overkill, schoolMask, absorbed, resisted, physical, blocked,
+       hitFlags, crit, split }`.
+     - The full `SPELL_MISS_*` list (`SharedDefines.h:1523-1534`),
+       exported as `SPELL_MISS_NAMES`; core defines only
+       `SPELL_MISS_REFLECT` today (`protocol/spell.ts:29`).
+     The builder checks each `HITINFO_*` value against
+     `Entities/Unit/Unit.h` before the fixtures use it.
+     Parsers read `packedGuidBig()` where the writer writes a packed guid.
+   - `areas/combatlog/store.ts`: `CombatlogStore` with `snapshot()`,
+     `onEvent`, `dispose`, and `receive(entries)`. It defines the full
+     kind union now, so later tasks only add parsers: `melee`,
+     `spell_damage`, `periodic_damage`, `damage_shield`, `environmental`,
+     `instakill`, `heal`, `periodic_heal`, `energize`, `periodic_power`,
+     `miss`, `immune`, `dispel`, `dispel_failed`, `steal`, `execute`,
+     `kill`. `CombatlogEntry = { at, kind, source, target, spellId?,
+     amount, over?, schoolMask?, absorbed?, resisted?, blocked?, crit?,
+     outcome?, power?, extra? }`. State
+     `CombatlogState = { entries, fight, lastFight, immunities,
+     comboPoints, kills, dropped }`, where `fight` and `lastFight` are
+     `FightTotals | undefined`, `immunities` is
+     `{ entry, spellId, at }[]` (empty until combat-log-3),
+     `comboPoints` is `undefined` until combat-log-6a, and `kills` is `[]`
+     until combat-log-6a. Events (`CombatlogEvent`): `{ type: "entry", ... }`
+     with the entry's fields spread flat (strings, numbers and guids
+     only, contract 1.2); `combo_points` and `kill` are declared now and
+     emitted from 6a. A damage entry whose target is the character and
+     whose source is not a known attacker calls
+     `core.combat.noteHostileDamage(source)` (design 5.9 "Decisions").
+   - `combat-store.ts` (lease): `noteHostileDamage(guid)`, next to the
+     `SMSG_ATTACKSTART` path (`combat-store.ts:336-343`).
+   - `areas/combatlog/area.ts`: `combatlogArea` with the store,
+     `eventTypes: ["entry", "combo_points", "kill"]`, and `register` with
+     `wire.on(GameOpcode.SMSG_ATTACKERSTATEUPDATE, ...)` and
+     `wire.on(GameOpcode.SMSG_SPELLNONMELEEDAMAGELOG, ...)`. No runtime,
+     no acts.
+   - `areas/combatlog/opcodes.ts`: delete the two `stubs` lines. `dead`
+     holds `SMSG_PROCRESIST`, `SMSG_FEIGN_DEATH_RESISTED` and
+     `SMSG_HEALTH_UPDATE`; if the seed left one out, add it.
+   - Harness `areas/combatlog/area.ts`:
+     `rules: () => ({ event: () => [] })` until combat-log-7a;
+     `worldActs: []`. The world service gets the read view
+     `session.areas.combatlog` from step 0 (N5) with no code here.
+   - `test-support/areas/combatlog.ts`: `combatlogAttackerStateBody`,
+     `combatlogSpellDamageBody`.
+   - Probe flow `combatlog-fight`, in the shape of `probe-flows/nearest.ts`
+     (T-3; the exact flow signature could not be determined before T-3
+     lands): args `spell=<id>` (optional). It walks to the nearest hostile
+     creature, starts melee, casts the spell when given, and waits until
+     the creature dies or 90 s pass.
+   - `docs/areas/combatlog.md` with the fixed headings of contract 3.8:
+     "Wire notes" (the six AzerothCore and wowm disagreements of design
+     5.9, each with both citations), "Left out" (every owned opcode with
+     the task that builds it, and the three dead rows),
+     "Capabilities row": "No verb (N23)", and the Proof table with rows
+     for this task and the three `dead` rows.
+3. **Checks.** `mise test` on each test file, `mise typecheck core`,
+   `mise typecheck harness`, `mise protocol:coverage`,
+   `mise protocol:cite-check`, `mise ci:checks`.
+
+**Proof (live):** `mise factory soap create` an `eversong10-mage`
+account. `mise protocol:probe <ACCOUNT> --flow combatlog-fight --arg
+spell=133 --expect SMSG_ATTACKERSTATEUPDATE --expect
+SMSG_SPELLNONMELEEDAMAGELOG --bodies` (Fireball rank 1 is spell 133 [I];
+the builder confirms it in the probe's `login` output). Exit 0 and trace
+outcome `handled` for 0x14A and 0x250 are the evidence; the bodies must
+show a swing in each direction. Add one captured two-part swing as a
+fixture if the trace holds one. Delete the account. Then rerun
+`t3-ghostlands-kill` and `t7-halt-resume` (the "Combat and Jev" row of
+`docs/evals.md`; N23, contract 3.6): `t7-halt-resume` passes or fails
+only with the known stale-wake cause, and `t3-ghostlands-kill` shows no
+failure cause the R0 baseline did not show. Record the verdicts.
+
+**Commit:**
+
+```
+feat: Read melee and spell damage logs
+
+Every fight sent melee and spell damage logs that core dropped as not
+implemented. A combat log store now keeps the entries that involve the
+character, and damage from a caster that never swung marks it as an
+attacker.
+```
+
+---
+
+## Task combat-log-6a: Kill log and combo points
+
+**codeArea:** `combatlog`. **Phase:** 1. **Size:** S.
+
+**Files:** `areas/combatlog/protocol.ts`, `protocol.test.ts`,
+`areas/combatlog/store.ts`, `store.test.ts`, `areas/combatlog/area.ts`,
+`area.test.ts`, `areas/combatlog/opcodes.ts` (`unseen`),
+`packages/core/test-support/areas/combatlog.ts`,
+`docs/areas/combatlog.md`, `docs/protocol-coverage/combatlog.md`.
+
+**Depends on:** combat-log-1.
+
+**Opcodes:** `SMSG_PARTYKILLLOG`, `SMSG_UPDATE_COMBO_POINTS`.
+
+**Steps:**
+
+1. **Failing tests.**
+   - `protocol.test.ts`: `parsePartyKill` reads two `u64`
+     (`Entities/Unit/Unit.cpp:13583-13585`). `parseComboPoints` reads a
+     packed guid and a `u8` (`Unit.cpp:12854-12857`); a packed guid of 0
+     (the single 0 byte of `:12851`) gives `target: undefined`.
+   - `area.test.ts` (`areaRig("combatlog")`): a kill by the character
+     emits `kill` with `bySelf: true` and adds one entry of kind `kill`;
+     the list keeps the last 20; a kill of the character's current target
+     by another player gives `bySelf: false`, `ourTarget: true` and
+     `killerKind: "player"`. Combo points `3` on a target emit
+     `combo_points` and set `state().comboPoints`; `0` with no target
+     clears it.
+   It fails because neither opcode has a handler.
+2. **Implementation.** Two parsers; `wire.on(GameOpcode.SMSG_PARTYKILLLOG,
+   ...)` and `wire.on(GameOpcode.SMSG_UPDATE_COMBO_POINTS, ...)`. The kill
+   event carries `killer`, `victim`, `at`, `bySelf`, `ourTarget` and
+   `killerKind` (`self`, `pet`, `player`, `creature` or `unknown`, from
+   `deps.getEntity`). `ourTarget` reads the character's current target
+   from the core stores; the exact member could not be determined (the
+   builder finds it in `combat-store.ts` or `self-store.ts` and reads it
+   through its existing entry point). Combo points belong to the
+   character only; the pet form is `pets`' `SMSG_PET_UPDATE_COMBO_POINTS`.
+   Builders `combatlogPartyKillBody`, `combatlogComboPointsBody`.
+   `SMSG_UPDATE_COMBO_POINTS` goes into `unseen` unless proven live.
+3. `mise protocol:coverage`; two Proof rows.
+
+**Proof:** `SMSG_PARTYKILLLOG` live: the `combatlog-fight` flow on an
+`eversong10-warrior` account, `--expect SMSG_PARTYKILLLOG`; exit 0 and
+outcome `handled` for 0x1F5. `SMSG_UPDATE_COMBO_POINTS` mock, not seen
+live: no rogue or druid preset exists (`docs/factory.md` presets), and
+`soap gm` cannot change a class (design 4.3). The rig test body is built
+from `Entities/Unit/Unit.cpp:12854-12857`. Delete the account. The Proof
+row says the maintainer can add a rogue preset for a live proof (design
+5.9 "Needs the maintainer").
+
+**Commit:**
+
+```
+feat: Read kill logs and combo points
+
+Each kill sent a party kill log that core ignored, and a rogue had no way
+to know its combo points. The store now keeps recent kills with their
+killer and the character's combo points.
+```
+
+---
+
+## Task combat-log-6b: Power updates
+
+**codeArea:** `combatlog`. **Phase:** 1. **Size:** S.
+
+**Files:** `areas/combatlog/protocol.ts`, `protocol.test.ts`,
+`areas/combatlog/area.ts`, `area.test.ts`, `areas/combatlog/opcodes.ts`
+(delete one `stubs` line), `packages/core/test-support/areas/combatlog.ts`,
+`docs/areas/combatlog.md`, `docs/protocol-coverage/combatlog.md`;
+`areas/combatlog/store.ts` and `store.test.ts` under the fallback of
+contract issue 1; the file of the entity-write ruling only if the ruling
+is a lease.
+
+**Depends on:** combat-log-6a. Uses the `COORD` edit or lease of
+contract issue 1 if present at task start; otherwise the fallback of
+that issue.
+
+**Opcodes:** `SMSG_POWER_UPDATE` (stub).
+
+**Steps:**
+
+1. **Failing test.** `protocol.test.ts`: `parsePowerUpdate` reads a
+   packed guid, a `u8` power and a `u32` value
+   (`Entities/Unit/Unit.cpp:12015-12019`). `area.test.ts`
+   (`areaRig("combatlog")` with a known unit in the entity store): the
+   packet sets raw field `UNIT_FIELDS.POWER1.offset + power`
+   (`protocol/update-fields.ts:71`) to the value, the entity store emits
+   one `update` event, and `combatUnitOf` reads the new power; a packet
+   for an unknown guid changes nothing. It fails because the opcode is a
+   stub.
+2. **Implementation.** `wire.on(GameOpcode.SMSG_POWER_UPDATE, ...)`
+   writes through the entity write that the ruling provides. The value
+   does not go into the log ring (design 5.9 "Store and events"). Delete the
+   `SMSG_POWER_UPDATE` `stubs` line. Builder `combatlogPowerUpdateBody`.
+3. `mise protocol:coverage`; one Proof row.
+
+**Proof (live):** the `combatlog-fight` flow on an `eversong10-mage`
+account with `--arg spell=133 --expect SMSG_POWER_UPDATE`; exit 0 and
+outcome `handled` for 0x480. Delete the account. Rerun
+`t3-ghostlands-kill` (N23): no new failure cause against the R0 baseline.
+
+**Commit:**
+
+```
+feat: Apply power updates to units
+
+The server sends a power update with every mana or rage change, and core
+showed it as not implemented. The value now reaches the unit's power
+field at once instead of with the next object update.
+```
+
+---
+
+## Task combat-log-7a: Immunity and killing blow rows
+
+**codeArea:** `combatlog`. **Phase:** 1. **Size:** S.
+
+**Files:** `packages/harness/src/areas/combatlog/area.ts` and
+`area.test.ts`; create `packages/harness/src/areas/combatlog/rules.ts`
+and `rules.test.ts` if `area.ts` passes 200 lines;
+`docs/areas/combatlog.md`.
+
+**Depends on:** combat-log-6a.
+
+**Opcodes:** none.
+
+**Steps:**
+
+1. **Failing tests** (harness, with the mock handle's
+   `triggerAreaEvent("combatlog", ...)`, contract 1.8):
+   - An `entry` of kind `immune` (or `miss` with reason `IMMUNE`, or
+     melee outcome `immune`) writes one `log` row `combatlog/immune`,
+     text like `Mottled Boar is immune to spell 122.` (the unit name from
+     `rc.lookup.unitName`; `RuleInput` has no spell name lookup,
+     `events/rules.ts:23-32`, so the text carries the spell id); the same creature
+     entry and spell again writes nothing.
+   - A `kill` with `ourTarget: true` and `killerKind` `player` or `pet`
+     writes one `log` row `combatlog/killing_blow`; a kill by the
+     character writes nothing (the `combat/kill_credit` path keeps it).
+   - Any other `entry` writes nothing (flood guard).
+   They fail because the rule returns `[]` for every event.
+2. **Implementation.** `rules: () => {...}` builds the rule closure; the
+   once-per-session set of `(entry, spellId)` lives in that closure, never
+   in `RuleMemo` (that would edit `events/rules.ts`). Names from design
+   5.9 (contract issue 7). Later opcode tasks add their own rows here:
+   `heal_in` (combat-log-2), `environmental` (combat-log-3), `dispelled`
+   (combat-log-4).
+3. `mise test` on the harness test, `mise typecheck harness`,
+   `mise ci:checks`.
+
+**Proof (eval):** rerun `t3-ghostlands-kill` with `--packet-trace
+headers` (N18). Count `combatlog/*` rows per fight and journal rows per
+turn in the run's game log, and record the counts in the report and the
+Proof section of `docs/areas/combatlog.md` as text (design 3.10: the
+first high-rate areas measure the flood guard). No new failure cause
+against the R0 baseline.
+
+**Commit:**
+
+```
+feat: Log immunities and killing blows
+
+The agent kept casting spells a creature was immune to and never learned
+who stole a kill. Two quiet log rows now record each immunity once and a
+killing blow on the character's target by someone else.
+```
+
+---
+
+## Task combat-log-7b: Fight totals, Jev and combo points
+
+**codeArea:** `combatlog`. **Phase:** 1. **Size:** M.
+
+**Files:** under leases: `events/rules-combat.ts` and its test;
+`tools/engage-tally.ts` and its test, the `EngageAfter` block of
+`contract/details.ts`; `loops/combat-actions.ts`,
+`loops/combat-actions-observation.ts`, `loops/game.ts` and their tests;
+the `VitalsView` block of `contract/views.ts`, `ops/views.ts`,
+`events/now.ts`, `ui/footer.ts` and their tests. Owned:
+`docs/areas/combatlog.md`.
+
+**Depends on:** combat-log-7a, the leases of contract issues 3, 4 and
+5. Uses the `COORD` edit of contract issue 2 if present at task start;
+otherwise the fallback of that issue (then `events/rules-combat.ts` is
+not touched, and the task also owns `areas/combatlog/runtime.ts`, its
+test, and the harness rule).
+
+**Opcodes:** none.
+
+**Steps:**
+
+1. **Failing tests.**
+   - `events/rules-combat.test.ts`: `fight/end` data gains `dealt`,
+     `taken`, `healed` and `misses` from the combat log since the fight
+     started, and its text reads like `Fight over: dealt 312, took 145
+     (1 dodge, 1 resist).`
+   - `tools/engage-tally.test.ts`: the tally gains `dealt`, `taken`,
+     `healed`, `avoided` (`CodeWord[]` of the character's misses and the
+     target's dodges, parries and blocks) and `immune` (spell names); the
+     result line reads like `Dealt 312, took 145; avoided: dodge x1;
+     immune: <spell name>.` (names from the character's own spell
+     definitions, which the engage loop already reads)
+   - `loops/combat-actions-observation.test.ts`: the
+     observation gains a `combatLog` block (damage taken in the last 6 s
+     by source and school mask, own misses in the last 6 s, the target's
+     known immunities, combo points); a spell in the target entry's
+     immunities is not a candidate and counts as cast error word
+     `immune` in the tally (`tools/engage-tally.ts:23`).
+   - `ops/views.test.ts` and the footer or `[now]` test: `comboPoints` is
+     shown as `CP 3` when above 0 and absent at 0.
+   They fail because nothing reads the combat log yet.
+2. **Implementation.** Each surface reads `handle.combatlog.state()`
+   (the step-0 sub-handle). Totals are summed from `entries` with
+   `at >= fight start`, in a harness helper that the tally and the
+   `fight/end` rule share; the `fight/end` row follows the tactics run,
+   not the store's own window. `fightEnd` reads it through the
+   `RuleLookup` member of contract issue 2. The Jev deps at
+   `loops/game.ts:122` gain a reader of the combat log state. The immune
+   drop is harness policy, not a core refusal.
+3. `mise test` on each touched test file, `mise typecheck harness`,
+   `mise ci:checks`.
+
+**Proof (eval):** rerun `t3-ghostlands-kill` and `t7-halt-resume` (N23,
+contract 3.6). The `t3-ghostlands-kill` game log must show `fight/end`
+rows with totals (or `combatlog/fight` rows under the fallback of
+contract issue 2) and an `engage` result with the damage line, and no
+failure cause the R0 baseline did not show; `t7-halt-resume` passes or
+fails only from the known stale wake. No new scenario and no
+`docs/capabilities.md` row (R9, N23). The combo point line is unit-tested
+only until a rogue preset exists.
+
+**Commit:**
+
+```
+feat: Show fight totals and combo points
+
+Fights ended with no word on damage dealt or taken, and Jev tried spells
+the target was immune to. Fight results now carry totals, Jev skips
+known immunities, and the vitals line shows combo points.
+```
+
+---
+
+## Task combat-log-2: Heals, power gains and ticks
+
+**codeArea:** `combatlog`. **Phase:** 2. **Size:** S.
+
+**Files:** `areas/combatlog/protocol.ts`, `protocol.test.ts`,
+`areas/combatlog/area.ts`, `area.test.ts`, `areas/combatlog/opcodes.ts`
+(delete one `stubs` line; `unseen`),
+`packages/core/test-support/areas/combatlog.ts`,
+`packages/harness/src/areas/combatlog/area.ts` (or `rules.ts`) and test,
+`docs/areas/combatlog.md`, `docs/protocol-coverage/combatlog.md`; create
+`packages/devtools/src/probe-flows/combatlog-use.ts`.
+
+**Depends on:** combat-log-1, combat-log-7a.
+
+**Opcodes:** `SMSG_SPELLHEALLOG` (stub), `SMSG_SPELLENERGIZELOG`,
+`SMSG_PERIODICAURALOG`.
+
+**Steps:**
+
+1. **Failing tests.**
+   - `protocol.test.ts`: `parseSpellHeal` (packed victim, packed caster,
+     spell, heal, overheal, absorb, crit `u8`, unused `u8`;
+     `Entities/Unit/Unit.cpp:8098-8107`); `parseSpellEnergize` (packed
+     victim, packed caster, spell, power `u32`, amount `u32`;
+     `Unit.cpp:8128-8134`); `parsePeriodicAuraLog` with one fixture per
+     aura family from `Unit.cpp:6563-6606`: damage types 3 and 89
+     (amount, overkill, school mask `u32`, absorb, resist, crit `u8`;
+     `:6583-6588`; AzerothCore wins over `spell/spell_common.wowm:35`,
+     which reads a `u8` school), heal types 8 and 20 (`:6593-6596`),
+     power types 21 and 24 (`:6600-6601`), mana leech 64 (power, amount,
+     `f32` multiplier, `:6604-6606`). Any other aura type throws (AC
+     sends none, `:6608-6610`).
+   - `area.test.ts`: each opcode emits the matching `entry` kinds
+     (`heal`, `energize`, `periodic_damage`, `periodic_heal`,
+     `periodic_power`) and totals count heals.
+   - Harness: `heal`/`periodic_heal` entries on the character from
+     another unit write one `passive` row `combatlog/heal_in`: the first
+     heal from a healer writes the row (`<healer> heals you for 540.`,
+     name from `rc.lookup.unitName`), and later heals from the same
+     healer within 10 s write nothing. The rule is called per event and
+     arms no timer; the last-row time per healer lives in the rule
+     closure. Self-heals write nothing.
+   They fail because the opcodes have no handler.
+2. **Implementation.** Three parsers, three `wire.on(GameOpcode.SMSG_...)`
+   lines, the `SMSG_SPELLHEALLOG` `stubs` line deleted, builders
+   `combatlogSpellHealBody`, `combatlogSpellEnergizeBody`,
+   `combatlogPeriodicAuraLogBody`.
+   Probe flow `combatlog-use`: args `item=<id>` or `spell=<id>`; it uses
+   the item from the bags, or casts the spell on the character, then
+   waits 10 s.
+3. `mise protocol:coverage`; three Proof rows.
+
+**Proof (live):** `soap create` an `eversong10-mage` account and, while it
+is offline, `mise factory soap setup <ACCOUNT> items/add` a Minor Healing
+Potion (item 118) and a Minor Mana Potion (item 2455) [I: ids from the
+design, the builder confirms them]. Do not use `soap gm items`,
+which mails them. Then `mise protocol:probe <ACCOUNT> --flow
+combatlog-use --arg item=118 --expect SMSG_SPELLHEALLOG` and the same with
+`item=2455 --expect SMSG_SPELLENERGIZELOG`. For `SMSG_PERIODICAURALOG`:
+the `combatlog-fight` flow with `spell=133 --expect
+SMSG_PERIODICAURALOG --bodies` (Fireball rank 1 leaves a damage over
+time [I]); an `eversong10-hunter` with Serpent Sting is the fallback
+[I]. The heal and power tick families are mock from `Unit.cpp:6593-6606`
+unless a live tick shows them; that family is noted "not seen live" in
+its Proof row text. Delete the account. Rerun `t3-ghostlands-kill`
+(N23).
+
+**Commit:**
+
+```
+feat: Read heal, energize and tick logs
+
+Heals, power gains and damage over time ticks reached core as noise, so
+the agent could not tell who healed it. The store now keeps them, and
+heals from others show as one grouped row per healer.
+```
+
+---
+
+## Task combat-log-3: Misses, immunity, shields, environment, instakill
+
+**codeArea:** `combatlog`. **Phase:** 2. **Size:** M.
+
+**Files:** `areas/combatlog/protocol.ts`, `protocol.test.ts`,
+`areas/combatlog/store.ts`, `store.test.ts`, `areas/combatlog/area.ts`,
+`area.test.ts`, `areas/combatlog/opcodes.ts` (`uses`, delete one `stubs`
+line, `unseen`), `packages/core/test-support/areas/combatlog.ts`,
+`packages/harness/src/areas/combatlog/area.ts` (or `rules.ts`) and test,
+`docs/areas/combatlog.md`, `docs/protocol-coverage/combatlog.md`.
+
+**Depends on:** combat-log-2.
+
+**Opcodes:** `SMSG_SPELLLOGMISS`, `SMSG_SPELLORDAMAGE_IMMUNE`,
+`SMSG_SPELLDAMAGESHIELD`, `SMSG_ENVIRONMENTAL_DAMAGE_LOG` (stub),
+`SMSG_SPELLINSTAKILLLOG` (5). It also peeks `SMSG_SPELL_GO`, which it
+does not own.
+
+**Steps:**
+
+1. **Failing tests.**
+   - `protocol.test.ts`: `parseSpellMiss` (spell `u32`, caster `u64`, `u8`,
+     count `u32`, then target `u64` and reason `u8`;
+     `Entities/Object/Object.cpp:3832-3841`); `parseSpellImmune` (caster
+     `u64`, target `u64`, spell, debug `u8`; `Entities/Unit/Unit.cpp:6628-6633`);
+     `parseDamageShield` (shield owner `u64`, attacker `u64`, spell,
+     damage, overkill, school mask `u32`; `Unit.cpp:2179-2187`;
+     AzerothCore wins over `spell/smsg_spelldamageshield.wowm:20-28`,
+     whose last field is a school index); `parseEnvironmentalDamage`
+     (victim `u64`, type `u8` 0-5, amount, resisted, absorbed;
+     `Server/Packets/CombatLogPackets.cpp:22-28`; AzerothCore wins over
+     `combat/smsg_environmentaldamagelog.wowm:12-18`, which puts absorb
+     first); `parseInstakill` (caster `u64`, target `u64`, spell;
+     `Spells/SpellEffects.cpp:294-298`).
+   - `store.test.ts`: `immune` entries, melee outcome `immune`, and
+     `miss` entries with reason `IMMUNE` or `IMMUNE2` add
+     `{ entry, spellId, at }` to `immunities` (creature entry id from
+     `deps.getEntity`), kept for the session.
+   - `area.test.ts` (`areaRig("combatlog")` with a no-op owner for
+     `SMSG_SPELL_GO`, D24): an `SMSG_SPELL_GO` whose miss list holds an
+     `IMMUNE` result for the character's target adds a `miss` entry and
+     an immunity; a miss list of a stranger's cast is dropped. Bodies
+     from the `SMSG_SPELL_GO` builder the core spell tests use, or a new
+     one built from `Spells/Spell.cpp:5202-5221`.
+   - Harness: an `environmental` entry on the character writes one row
+     `combatlog/environmental`, class `wake` when no run is active and
+     `log` inside a run (`rc.runActive`).
+   They fail because the opcodes have no handler and nothing peeks.
+2. **Implementation.** Five parsers and five `wire.on(GameOpcode.SMSG_...)`
+   lines; `wire.peek(GameOpcode.SMSG_SPELL_GO, ...)` with `parseSpellGo`
+   from `#wow/protocol/spell` (`protocol/spell.ts:200-207`); `uses` gains
+   `SMSG_SPELL_GO`. No handler edit, no lease: `spells` may peek the same
+   opcode (design 5.9 "Shared handler"). The environmental `kind` maps
+   0-5 to `exhausted`, `drowning`, `fall`, `lava`, `slime`, `fire`
+   (`Entities/Player/Player.h:826-835`). Delete the
+   `SMSG_ENVIRONMENTAL_DAMAGE_LOG` `stubs` line. Builders
+   `combatlogSpellMissBody`, `combatlogSpellImmuneBody`,
+   `combatlogDamageShieldBody`, `combatlogEnvironmentalDamageBody`,
+   `combatlogInstakillBody`.
+3. `mise protocol:coverage`; five Proof rows; `unseen` for each opcode
+   not seen live.
+
+**Proof:**
+
+- `SMSG_SPELLDAMAGESHIELD`: try live. While the `eversong10-mage`
+  character is offline, `soap setup <ACCOUNT> spells/learn` druid Thorns
+  (spell 467) [I: unconfirmed that a mage can cast it]; then
+  `mise protocol:probe <ACCOUNT> --flow combatlog-use --arg spell=467`
+  followed by `--flow combatlog-fight --expect SMSG_SPELLDAMAGESHIELD`
+  in one probe run if the probe takes two flows, else two runs within the
+  aura's duration [I]. If it does not arrive: mock from
+  `Entities/Unit/Unit.cpp:2179-2187`, `unseen`.
+- `SMSG_ENVIRONMENTAL_DAMAGE_LOG`: mock from
+  `Server/Packets/CombatLogPackets.cpp:22-28`, `unseen`. A live fall needs
+  direct drive to walk off a ledge on a non-GM character
+  (`Entities/Player/Player.cpp:14183-14215`); the builder does not wait
+  for it (contract 0.6).
+- `SMSG_SPELLLOGMISS`, `SMSG_SPELLORDAMAGE_IMMUNE`,
+  `SMSG_SPELLINSTAKILLLOG`: mock, not seen live, from
+  `Entities/Object/Object.cpp:3832-3841`,
+  `Entities/Unit/Unit.cpp:6628-6633` and
+  `Spells/SpellEffects.cpp:294-298`. None can be forced in normal
+  levelling: an ordinary cast miss rides the `SMSG_SPELL_GO` miss list
+  (`Spells/Spell.cpp:5202-5221`), and these three need an evade after
+  travel time, an immune target, or a boss spell.
+- Delete the account. Rerun `t3-ghostlands-kill` (N23).
+
+**Commit:**
+
+```
+feat: Read misses, immunity and shield logs
+
+Spell misses, immunities, damage shields, falls and instant kills were
+lost, so the agent could not learn what a creature was immune to. The
+store now keeps them and remembers immunities for the session.
+```
+
+---
+
+## Task combat-log-4: Dispels and spell steals
+
+**codeArea:** `combatlog`. **Phase:** 4. **Size:** S.
+
+**Files:** `areas/combatlog/protocol.ts`, `protocol.test.ts`,
+`areas/combatlog/area.ts`, `area.test.ts`, `areas/combatlog/opcodes.ts`
+(`unseen`), `packages/core/test-support/areas/combatlog.ts`,
+`packages/harness/src/areas/combatlog/area.ts` (or `rules.ts`) and test,
+`docs/areas/combatlog.md`, `docs/protocol-coverage/combatlog.md`.
+
+**Depends on:** combat-log-3, T-5 (`soap gm learn`).
+
+**Opcodes:** `SMSG_SPELLDISPELLOG`, `SMSG_DISPEL_FAILED`,
+`SMSG_SPELLSTEALLOG`.
+
+**Steps:**
+
+1. **Failing tests.**
+   - `protocol.test.ts`: `parseDispelLog` for both `SMSG_SPELLDISPELLOG`
+     (`Spells/SpellEffects.cpp:2803-2817`) and `SMSG_SPELLSTEALLOG`
+     (`:5990-6002`): packed victim, packed caster, spell, `u8`, count
+     `u32`, then per aura `u32` id and `u8` flag. `parseDispelFailed`:
+     caster `u64`, target `u64`, the dispel spell `u32`, then one `u32`
+     per failed aura to the end of the body (`:2779-2787`; AzerothCore
+     wins over `spell/smsg_dispel_failed.wowm:3-7`, which counts the
+     dispel spell as a failed aura).
+   - `area.test.ts`: the three opcodes emit `dispel`, `dispel_failed` and
+     `steal` entries.
+   - Harness: a `dispel` or `steal` entry that removed an aura from the
+     character writes one `log` row `combatlog/dispelled`
+     (`Defias Mage dispels your spell 168.`, spell id as in 7a).
+2. **Implementation.** Two parsers, three `wire.on(GameOpcode.SMSG_...)`
+   lines, builders `combatlogDispelLogBody`, `combatlogDispelFailedBody`.
+3. `mise protocol:coverage`; three Proof rows.
+
+**Proof:** try `SMSG_SPELLDISPELLOG` live once: an `eversong10-mage`
+account learns Dispel Magic (spell 527) with `soap setup spells/learn`
+while offline, and casts it with `combatlog-fight --arg spell=527` on a
+creature that carries a magic buff [I: no such creature near the preset
+start is known]. The builder spends at most one attempt. Otherwise all
+three are mock, not seen live, from `Spells/SpellEffects.cpp:2803-2817`,
+`:2779-2787` and `:5990-6002`, and go into `unseen`. Spellsteal is a
+level 70 mage spell (30449) [I]; a `max80` mage would need `soap gm
+learn 30449`, and the `max80` preset's class could not be determined, so
+it is not planned. Delete every account.
+
+**Commit:**
+
+```
+feat: Read dispel and spell steal logs
+
+A dispel or spell steal on the character left no trace, so the agent
+could not rebuff. The store now keeps dispels, steals and failed
+dispels, and a removed buff shows as one row.
+```
+
+---
+
+## Task combat-log-5: Spell execute log
+
+**codeArea:** `combatlog`. **Phase:** 4. **Size:** M.
+
+**Files:** `areas/combatlog/protocol.ts` (or a sibling
+`areas/combatlog/execute.ts` and its test if `protocol.ts` nears 500
+lines), `protocol.test.ts`, `areas/combatlog/area.ts`, `area.test.ts`,
+`areas/combatlog/opcodes.ts` (`unseen` if needed),
+`packages/core/test-support/areas/combatlog.ts`,
+`docs/areas/combatlog.md`, `docs/protocol-coverage/combatlog.md`.
+
+**Depends on:** combat-log-4.
+
+**Opcodes:** `SMSG_SPELLLOGEXECUTE`.
+
+**Steps:**
+
+1. **Failing tests.** `parseSpellExecute` returns
+   `{ caster, spellId, effects: { effect, records }[], truncated }`.
+   Header from `Spells/Spell.cpp:5224-5256`; one fixture per record
+   layout from `Spell.cpp:5258-5322`: power drain and burn (effects 8
+   and 62; packed guid, `u32` amount, `u32` power, `f32` multiplier;
+   `POWER_BURN` from `Spells/SpellEffects.cpp:1553`), extra attacks (19;
+   packed guid, `u32`), interrupt (68; packed guid, `u32` spell),
+   durability damage (111; packed guid, `i32` item, `i32` slot), create
+   item (24) and feed pet (101; `u32` entry, `SpellEffects.cpp:4758`),
+   guid only (18, 113, 33, 28, 50, 76, 83, 102, 104-107). A per-effect
+   target count above 1 reads that many records (`Spell.cpp:8838-8845`;
+   AzerothCore wins over `spell/smsg_spelllogexecute.wowm:1-8`, which
+   fixes the count at 1 and reads a guid for feed pet). An effect not in
+   the table keeps what was read and sets `truncated: true`. An
+   `area.test.ts` case: one `execute` entry per record.
+2. **Implementation.** The record table maps an effect number to its
+   reader; `wire.on(GameOpcode.SMSG_SPELLLOGEXECUTE, ...)`; builder
+   `combatlogSpellExecuteBody`. A `truncated` result is kept and counted
+   in state, not thrown (design 5.9 "Decisions").
+3. `mise protocol:coverage`; one Proof row.
+
+**Proof (live):** an `eversong10-mage` account casts Conjure Water with
+`combatlog-use --arg spell=5504 --expect SMSG_SPELLLOGEXECUTE --bodies`
+(rank 1 id 5504 [I]; if the preset lacks it, `soap setup spells/learn`
+while offline). The body must carry a create-item record (effect 24).
+Exit 0 and outcome `handled` for 0x24C. Delete the account. The other
+record layouts are rig tests only.
+
+**Commit:**
+
+```
+feat: Read the spell execute log
+
+Spell effects such as created items, interrupts and power drains arrive
+in the execute log, which core ignored. The parser reads every record
+layout the server writes and keeps a partial result for an unknown one.
+```
+
+---
+
+## Task combat-log-8: Human-only damage line (optional)
+
+**codeArea:** `combatlog`. **Phase:** 4. **Size:** S.
+
+**Files:** under a lease (contract issue 6): `ui/ticker.ts` and
+`ui/ticker.test.ts`, `ui/install.ts`.
+
+**Depends on:** combat-log-7b, the ticker lease.
+
+**Opcodes:** none.
+
+**Steps:**
+
+1. **Failing test.** `ui/ticker.test.ts`: `tickerLines` with a combat log
+   source shows at most one damage line per second (`You hit Mottled Boar
+   for 42.`), and the model's context never receives it (human-only
+   lines, `docs/harness.md` "Screen").
+2. **Implementation.** A combat log source for `createTicker`, fed from
+   `handle.combatlog.onEvent` in `ui/install.ts:144`.
+3. `mise test` on the ticker test, `mise typecheck harness`,
+   `mise ci:checks`.
+
+**Proof (unit):** unit tests only; a person who plays one fight by hand
+in PLAY mode sees the line. This task is optional (design 5.9); if the
+lease is not granted, it is skipped and recorded as a gap.
+
+**Commit:**
+
+```
+feat: Add a damage line to the ticker
+
+A person who plays by hand saw no damage numbers. The ticker now shows
+one rate-limited damage line that the model never sees.
+```
+
+---
+
+## Dead opcodes
+
+| Opcode | Why dead |
+|---|---|
+| `SMSG_PROCRESIST` 0x260 | Its only writer, `Unit::SendSpellDamageResist` (`Entities/Unit/Unit.cpp:6616-6624`), has no caller: the declaration (`Entities/Unit/Unit.h:2051`) and the definition are the only hits. One of the six unreachable senders of N13. |
+| `SMSG_FEIGN_DEATH_RESISTED` 0x2B4 | Both sites are inside `/* */` blocks (`Spells/Auras/SpellAuraEffects.cpp:2953-2958`, `:3038-3043`). |
+| `SMSG_HEALTH_UPDATE` 0x47F | No send site: only `Server/Protocol/Opcodes.h` and `Opcodes.cpp` name it. It is a stub today (`protocol/stubs.ts:55`); the seed puts it in `dead` (design 5.9). |
+
+## COMPLETE
