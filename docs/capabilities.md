@@ -28,6 +28,7 @@ or the page names one that does not exist.
 | Take off worn gear and keep it in bags | `t8-items-unequip` | |
 | Move an item into a bag | `t8-items-move` | |
 | Split a stack | `t8-items-split` | |
+| Open a container and keep its contents | `t8-items-open` | |
 
 ## Not shown by any scenario
 

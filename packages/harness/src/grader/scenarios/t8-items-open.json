@@ -1,0 +1,55 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 6,
+    "tools": 10,
+    "turns": 5
+  },
+  "checks": [
+    {
+      "evidence": {
+        "items": [5335],
+        "truth": ["inventory"]
+      },
+      "expect": "T final has no row of item 5335 (A Sack of Coins): the container count falls by 1 (it is consumed on open)",
+      "id": "container-gone",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "delta": ["money"],
+        "truth": ["money"]
+      },
+      "expect": "T delta money equals the loot/open copper (the sack holds 1901 copper here): the agent kept the contents",
+      "id": "loot-kept",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["loot/open"]
+      },
+      "expect": "GL has a loot/open row for the container guid",
+      "id": "open-row",
+      "source": "game_log"
+    }
+  ],
+  "id": "t8-items-open",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "eversong10",
+  "setup": [
+    {
+      "body": {
+        "count": 1,
+        "item": 5335
+      },
+      "endpoint": "items/add"
+    }
+  ],
+  "spawn": "eversong",
+  "steers": [],
+  "task": "Open the container in your bags and keep what is inside.",
+  "tier": 8
+}
