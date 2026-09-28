@@ -13,6 +13,14 @@ goes away when its unit disappears or dies, and all of them go away on a
 far teleport. A target break is only an event: it changes no state and
 does not clear the character's selection.
 
+In the harness, `look` rows of a creature with a table say "fighting
+you" when the character is on its list, "aggro on" its current victim,
+and "your threat" as the character's share of the top entry. The danger
+view counts every creature with the character on its list as an
+attacker, so a caster that never melees is counted, and a creature that
+switches its victim to the character interrupts a run that stops on a
+new attacker.
+
 ## Wire notes
 
 AzerothCore and wow_messages agree on all seven bodies

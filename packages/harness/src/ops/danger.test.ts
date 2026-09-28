@@ -1,9 +1,10 @@
-import { describe, expect, test } from "bun:test";
-import type { Sighting, Sightings } from "#harness/contract/services";
+import { describe, expect, jest, test } from "bun:test";
+import type { OpsCtx, Sighting, Sightings } from "#harness/contract/services";
 import {
   createAttackLedger,
   dangerLine,
   dangerView,
+  watchInterrupts,
 } from "#harness/ops/danger";
 import { createRefTable } from "#harness/ops/refs";
 import { createTestRuntime } from "#test-support/runtime-fixture";
@@ -271,5 +272,78 @@ describe("dangerView and dangerLine", () => {
       "Mana Wyrm",
       "an unknown unit",
     ]);
+  });
+});
+
+function threatOn(handle: Handle, units: bigint[]): void {
+  const state = handle.threat.state();
+  jest.spyOn(handle.threat, "state").mockReturnValue({
+    ...state,
+    tables: units.map((unit) => ({
+      entries: [{ isVictim: true, pct: 100, threat: 900, victim: SELF_GUID }],
+      pullAt: { melee: 990, ranged: 1170 },
+      unit,
+      updatedAt: 0,
+      victim: SELF_GUID,
+    })),
+  });
+}
+
+function casters(handle: Handle): void {
+  setWorld(handle, {
+    combat: { attackers: [0x50n] },
+    rows: [
+      nearbyRow(unitEntity({ dx: 3, guid: 0x50n, name: "Springpaw Stalker" })),
+      nearbyRow(unitEntity({ dx: 25, guid: 0x51n, name: "Wretched Caster" })),
+    ],
+  });
+}
+
+describe("threat in the danger view", () => {
+  test("a unit with you on its threat list counts once as an attacker", async () => {
+    const { handle, rt } = await world({ t: 0 });
+    casters(handle);
+    threatOn(handle, [0x50n, 0x51n]);
+    expect(
+      dangerView({ handle, rt }).attackers.map((a) => [a.name, a.distance]),
+    ).toEqual([
+      ["Springpaw Stalker", 3],
+      ["Wretched Caster", 25],
+    ]);
+  });
+
+  test("a victim switch to you by a new unit interrupts; a known one does not", async () => {
+    const { handle, rt } = await world({ t: 0 });
+    casters(handle);
+    const ctx: OpsCtx = {
+      handle,
+      progress: () => {},
+      rt,
+      signal: new AbortController().signal,
+      toolCallId: "c1",
+    };
+    const rules = { death: true, newAttacker: true, rooted: true };
+    const watch = watchInterrupts(ctx, rules);
+    const to = (unit: bigint, victim: bigint) =>
+      handle.triggerAreaEvent("threat", {
+        from: undefined,
+        to: victim,
+        type: "victim_changed",
+        unit,
+      });
+    to(0x50n, SELF_GUID);
+    to(0x51n, 0x99n);
+    expect(watch.signal.aborted).toBe(false);
+    to(0x51n, SELF_GUID);
+    expect(watch.cause()).toEqual({
+      attacker: 0x51n,
+      code: "attacked",
+      detail: `Wretched Caster ${rt.refs.refOf(0x51n)} attacked you.`,
+    });
+    watch.dispose();
+    const quiet = watchInterrupts(ctx, { ...rules, newAttacker: false });
+    to(0x52n, SELF_GUID);
+    expect(quiet.signal.aborted).toBe(false);
+    quiet.dispose();
   });
 });

@@ -27,3 +27,34 @@ export function threatOf(
   const entry = table?.entries.find((row) => row.victim === guid);
   return table && entry && { ...entry, pullAt: table.pullAt };
 }
+
+export type UnitThreat = {
+  fightingMe: boolean;
+  aggro: string | undefined;
+  myThreatPct: number | undefined;
+};
+
+function aggroOf(
+  victim: bigint | undefined,
+  self: bigint,
+  named: (guid: bigint) => string,
+): string | undefined {
+  if (victim === undefined) return undefined;
+  return victim === self ? "you" : named(victim);
+}
+
+export function unitThreat(
+  state: ThreatState,
+  unit: bigint,
+  self: bigint,
+  named: (guid: bigint) => string,
+): UnitThreat | undefined {
+  const table = state.tables.find((row) => row.unit === unit);
+  if (!table) return undefined;
+  const mine = table.entries.find((entry) => entry.victim === self);
+  return {
+    aggro: aggroOf(table.victim, self, named),
+    fightingMe: mine !== undefined,
+    myThreatPct: mine?.pct,
+  };
+}

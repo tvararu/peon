@@ -1,9 +1,11 @@
+import { unitThreat } from "#harness/areas/threat/reads";
 import type { LookAfter, LookFilter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { HarnessRuntime, ToolCtx } from "#harness/contract/services";
 import type { NowSnapshot, UnitView } from "#harness/contract/views";
-import { dangerView } from "#harness/ops/danger";
+import { dangerView, nameOf } from "#harness/ops/danger";
 import { compassWord, exploreSummary } from "#harness/ops/explore";
+import { guidHex } from "#harness/ops/refs";
 import { Refusal } from "#harness/ops/refusal";
 import { nowSnapshot } from "#harness/ops/views";
 import {
@@ -100,6 +102,22 @@ function countUnchanged(rt: HarnessRuntime, digest: string): number {
   return next.count;
 }
 
+function withThreat(
+  ctx: ToolCtx<LookAfter>,
+  rows: readonly UnitView[],
+): UnitView[] {
+  const state = ctx.handle.threat.state();
+  const self = ctx.handle.getControlState().selfGuid;
+  const units = new Map(state.tables.map(({ unit }) => [guidHex(unit), unit]));
+  const named = (guid: bigint) =>
+    `${nameOf(ctx, guid)} ${ctx.rt.refs.refOf(guid)}`;
+  return rows.map((row) => {
+    const unit = units.get(row.guid);
+    const threat = unit && unitThreat(state, unit, self, named);
+    return threat ? { ...row, ...threat } : row;
+  });
+}
+
 function lookAfter(
   args: LookArgs,
   ctx: ToolCtx<LookAfter>,
@@ -115,7 +133,7 @@ function lookAfter(
     nearest: snapshot.nearest,
     place: snapshot.place,
     remembered: rememberedRows(ctx, { filter: found.filter, name: args.name }),
-    rows: found.rows,
+    rows: withThreat(ctx, found.rows),
     run: snapshot.run,
     seen: found.seen,
     self: snapshot.self,
@@ -189,6 +207,7 @@ export const lookTool = defineGameTool({
     guidelines: [
       "Use find to filter. The Nearest line includes units out of view.",
       "Use within to list every unit near you, for example within: 30.",
+      "Fighting you means the unit has you on its threat list; aggro names who it attacks now; your threat is your share of its top threat.",
     ],
     label: "Look",
   },

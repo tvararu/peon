@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaState } from "@peon/core";
-import { aggroOn, engagedWith, threatOf } from "#harness/areas/threat/reads";
+import {
+  aggroOn,
+  engagedWith,
+  threatOf,
+  unitThreat,
+} from "#harness/areas/threat/reads";
 
 const SELF = 0xdc5n;
 const PET = 0xf1_40_00_0c_82_00_01_b2n;
@@ -70,5 +75,25 @@ describe("threat reads", () => {
     expect(threatOf(STATE, 0x2n, SELF)).toBeUndefined();
     expect(threatOf(STATE, SHADE, PET)).toBeUndefined();
     expect(threatOf(STATE, BOAR, SELF)).toBeUndefined();
+  });
+
+  test("unitThreat says whether the unit fights you, its aggro and your share", () => {
+    const named = (guid: bigint) => (guid === MATE ? "Fgklibmate u4" : "?");
+    expect(unitThreat(STATE, THUG, SELF, named)).toEqual({
+      aggro: "you",
+      fightingMe: true,
+      myThreatPct: 100,
+    });
+    expect(unitThreat(STATE, SHADE, SELF, named)).toEqual({
+      aggro: "Fgklibmate u4",
+      fightingMe: true,
+      myThreatPct: 20,
+    });
+    expect(unitThreat(STATE, SHADE, PET, named)).toEqual({
+      aggro: "Fgklibmate u4",
+      fightingMe: false,
+      myThreatPct: undefined,
+    });
+    expect(unitThreat(STATE, 0x2n, SELF, named)).toBeUndefined();
   });
 });

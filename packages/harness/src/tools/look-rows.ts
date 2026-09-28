@@ -62,6 +62,11 @@ export function rowLine(unit: UnitView): string {
     unit.lootable ? "lootable" : undefined,
     unit.attackingMe ? "attacking you" : undefined,
     unit.targetsMe && !unit.attackingMe ? "targets you" : undefined,
+    unit.fightingMe ? "fighting you" : undefined,
+    unit.aggro === undefined ? undefined : `aggro on ${unit.aggro}`,
+    unit.myThreatPct === undefined
+      ? undefined
+      : `your threat ${unit.myThreatPct}%`,
     unit.tappedByOther ? "tapped by another player" : undefined,
   ].filter((trait) => trait !== undefined);
   const traits = [
