@@ -50,9 +50,9 @@ AzerothCore and wow_messages agree on all seven bodies
 - `SMSG_AI_REACTION` is the full 8-byte guid of the unit and a `uint32`
   reaction (`Entities/Creature/Creature.cpp:2477-2487`).
 - The reaction values are `ALERT` 0, `FRIENDLY` 1, `HOSTILE` 2, `AFRAID`
-  3 and `DESTROY` 4 (`shared/SharedDefines.h:3471-3478`). Only `ALERT`
-  (`AI/CreatureAI.cpp:228`) and `HOSTILE` have send sites. The area keeps
-  any other code as `unknown`.
+  3 and `DESTROY` 4 (`src/server/shared/SharedDefines.h:3471-3478`).
+  Only `ALERT` (`AI/CreatureAI.cpp:228`) and `HOSTILE` have send sites.
+  The area keeps any other code as `unknown`.
 - A creature sends `HOSTILE` once for each new victim, when it switches
   its attack target (`Entities/Unit/Unit.cpp:7097-7117,7174`), not on every
   attack as the wow_messages and AzerothCore enum comments say.
