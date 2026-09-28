@@ -3,6 +3,7 @@ import type { NamedInventoryState } from "@peon/core";
 import { lootText, takeOffered } from "#harness/areas/items/tool-loot";
 import { runAmmo, runRead } from "#harness/areas/items/tool-read";
 import {
+  atBag,
   BACKPACK,
   BAGS,
   destination,
@@ -10,7 +11,6 @@ import {
   labelOf,
   named,
   type Occupied,
-  position,
   slotsOf,
 } from "#harness/areas/items/tool-resolve";
 import { afterOf, moveRefusal } from "#harness/areas/items/tool-shared";
@@ -227,12 +227,9 @@ async function runUnequip(
   const { handle, rt } = ctx;
   const found = named(handle.getInventoryState(), item, ["equipment", "bag"]);
   const from = { bag: found.held.bag, slot: found.held.slot };
-  const at =
-    bag === undefined ? undefined : position(bag, "name a destination");
+  const toBag = atBag(bag);
   const outcome_ = await rt.mutex.run(() =>
-    at === undefined
-      ? handle.items.act.unequip(found.held.slot, undefined)
-      : handle.items.act.move(from, at),
+    handle.items.act.unequip(found.held.slot, toBag),
   );
   if (outcome_.last?.status !== "confirmed")
     throw moveRefusal(handle, found.held.guid, outcome_);

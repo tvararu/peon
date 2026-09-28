@@ -149,6 +149,15 @@ export function position(text: string, prefix: string): Position {
   });
 }
 
+export function atBag(text: string | undefined): number | undefined {
+  if (text === undefined) return undefined;
+  const trimmed = text.trim().toLowerCase();
+  if (trimmed === "bags" || trimmed === "backpack") return undefined;
+  const at = AT_REF.exec(text.trim());
+  if (at?.[1] !== undefined) return Number(at[1]);
+  return bagNumber(text);
+}
+
 export function bagNumber(text: string | undefined): number {
   if (text === undefined) return 0;
   const trimmed = text.trim().toLowerCase();

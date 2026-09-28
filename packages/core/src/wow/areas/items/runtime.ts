@@ -65,10 +65,10 @@ function checkWornSlot(slot: number): void {
     throw new Error(`slot ${slot} is not an equipment or bag slot`);
 }
 
-function checkBag(bag: number): void {
+function checkNamedStoreBag(bag: number): void {
   const bagSlot = bag >= LAST_BAG_SLOT - 3 && bag <= LAST_BAG_SLOT;
-  if (bag !== NULL_BAG && bag !== BACKPACK && !bagSlot)
-    throw new Error(`bag ${bag} is not the backpack or a bag slot`);
+  if (bag !== NULL_BAG && !bagSlot)
+    throw new Error(`bag ${bag} is not autostore or a bag slot`);
 }
 
 function heldAt(inventory: InventoryState, position: ItemPosition): HeldSlot {
@@ -202,9 +202,13 @@ async function unequip(
   toBag = NULL_BAG,
 ): Promise<MoveState> {
   checkWornSlot(slot);
-  checkBag(toBag);
+  checkNamedStoreBag(toBag);
   const from = { bag: BACKPACK, slot };
   const held = heldAt(ready(env, "unequip"), from);
+  if (!isWorn(held))
+    throw new Error(
+      `bag ${from.bag} slot ${from.slot} holds no worn gear to take off`,
+    );
   const to = { bag: toBag, slot: NULL_SLOT };
   return await run(env, request(env, "unequip", { held, to }), [
     GameOpcode.CMSG_AUTOSTORE_BAG_ITEM,
@@ -230,11 +234,17 @@ async function move(
   from: ItemPosition,
   to: ItemPosition,
 ): Promise<MoveState> {
-  const { held, target } = destination(env, "swap", from, to);
+  const inventory = ready(env, "swap");
+  const refusal = positionRefusal(to);
+  if (refusal) throw new Error(refusal);
+  if (samePlace(from, to)) throw new Error("the swap has no destination");
+  const held = heldAt(inventory, from);
+  const toBag = to.bag === BACKPACK ? NULL_BAG : to.bag;
+  if (isWorn(held)) return unequip(env, held.slot, toBag);
   const inside = from.bag === BACKPACK && to.bag === BACKPACK;
   return await run(
     env,
-    request(env, "swap", { held, target, to }),
+    request(env, "swap", { held, target: slotAt(inventory, to), to }),
     inside
       ? [GameOpcode.CMSG_SWAP_INV_ITEM, buildSwapInvItem(to.slot, from.slot)]
       : [GameOpcode.CMSG_SWAP_ITEM, buildSwapItem(to, from)],

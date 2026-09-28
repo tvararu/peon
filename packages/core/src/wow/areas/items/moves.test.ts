@@ -78,6 +78,21 @@ describe("move settle rules (design 5.3)", () => {
     expect(moveSettled(named, inventory(world))).toBe(true);
   });
 
+  test("unequip into a named bag settles only once the item is in that bag", () => {
+    const world = itemsWorld(ME);
+    world.put(255, 19, { bagSlots: 6, entry: 4496, guid: BAG });
+    world.put(255, 25, { entry: 25, guid: SWORD });
+    const named = request({
+      from: { bag: 255, slot: 15 },
+      kind: "unequip",
+      to: { bag: 19, slot: 255 },
+    });
+    expect(moveSettled(named, inventory(world))).toBe(false);
+    world.clear(255, 25);
+    world.put(19, 3, { entry: 25, guid: SWORD });
+    expect(moveSettled(named, inventory(world))).toBe(true);
+  });
+
   test("swap settles when the item reaches the destination or merges into its stack", () => {
     const world = itemsWorld(ME);
     world.put(255, 23, { count: 5, entry: 159, guid: WATER });

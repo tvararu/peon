@@ -92,11 +92,14 @@ on-use spells it read before.
   slot before the source (`Server/Packets/ItemPackets.cpp:41-47`).
 - `CMSG_SPLIT_ITEM` carries a `uint32` count after the source and
   destination positions (`Server/Packets/ItemPackets.h:40`).
-- `CMSG_AUTOSTORE_BAG_ITEM` names a destination bag and no slot
-  (`Server/Packets/ItemPackets.cpp:108-113`).
-- Destination bag 0 is `NULL_BAG` (`Entities/Item/Item.h:40`), which
-  lets the server pick any free slot
-  (`Entities/Player/PlayerStorage.cpp:605-609`).
+- `CMSG_AUTOSTORE_BAG_ITEM` names one destination bag and no slot
+  (`Server/Packets/ItemPackets.cpp:108-113`). Bag 0 is `NULL_BAG`
+  (`Entities/Item/Item.h:40`), which lets the server pick any free slot,
+  and a bag slot 19-22 limits the pick to that bag
+  (`Handlers/ItemHandler.cpp:967-1000`,
+  `Entities/Player/PlayerStorage.cpp:605-609`). The gear tool sends every
+  unequip through this opcode, so every unequip logs `items/unequipped`;
+  a move that starts on worn gear reroutes the same way.
 - The items area peeks `SMSG_INVENTORY_CHANGE_FAILURE`. A move owns a
   failure when `item1` is the moving item, or when `item1` is 0 and no
   legacy request (destroy, vendor buy, quest accept or reward, loot take)

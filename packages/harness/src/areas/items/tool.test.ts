@@ -278,7 +278,22 @@ describe("gear tool", () => {
     expect(res.status).toBe("DONE");
   });
 
-  test("unequip to a bag and slot moves there", async () => {
+  test("unequip to bags lets the server pick the first free slot", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, [
+      { bag: 255, entry: 36, guid: SHIRT, name: "Brown Linen Shirt", slot: 3 },
+    ]);
+    const acts = itemActs(t.handle);
+    const res = await gearSpec.run(
+      { do: "unequip", item: "Brown Linen Shirt", to: "bags" },
+      toolCtx(t),
+    );
+    expect(acts.unequip).toHaveBeenCalledWith(3, undefined);
+    expect(acts.move).not.toHaveBeenCalled();
+    expect(res.status).toBe("DONE");
+  });
+
+  test("unequip into a named bag still un-equips through autostore", async () => {
     const t = await createTestRuntime();
     stocked(t.handle, [
       { bag: 255, entry: 36, guid: SHIRT, name: "Brown Linen Shirt", slot: 3 },
@@ -288,11 +303,8 @@ describe("gear tool", () => {
       { do: "unequip", item: "Brown Linen Shirt", to: "bag 19 slot 0" },
       toolCtx(t),
     );
-    expect(acts.move).toHaveBeenCalledWith(
-      { bag: 255, slot: 3 },
-      { bag: 19, slot: 0 },
-    );
-    expect(acts.unequip).not.toHaveBeenCalled();
+    expect(acts.unequip).toHaveBeenCalledWith(3, 19);
+    expect(acts.move).not.toHaveBeenCalled();
     expect(res.status).toBe("DONE");
   });
 

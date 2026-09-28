@@ -205,6 +205,43 @@ describe("items runtime: unequip, move and split", () => {
     }
   });
 
+  test("move out of an equipment slot is an unequip request; between carried slots it is a swap", async () => {
+    const { rig, world } = setup((w) =>
+      w.put(255, 15, { entry: 7, guid: HELM }),
+    );
+    try {
+      const off = rig.handle.act.move(
+        { bag: 255, slot: 15 },
+        { bag: 255, slot: 34 },
+      );
+      expect(rig.sent.at(-1)).toEqual({
+        body: buildAutostoreBagItem({ bag: 255, slot: 15 }, 0),
+        opcode: GameOpcode.CMSG_AUTOSTORE_BAG_ITEM,
+      });
+      world.clear(255, 15);
+      world.put(255, 34, { entry: 7, guid: HELM });
+      rig.touch();
+      expect(await off).toMatchObject({
+        last: {
+          request: { kind: "unequip" },
+          status: "confirmed",
+        },
+      });
+      const carried = rig.handle.act.move(
+        { bag: 255, slot: 23 },
+        { bag: 255, slot: 30 },
+      );
+      world.clear(255, 23);
+      world.put(255, 30, { entry: 25, guid: SWORD });
+      rig.touch();
+      expect(await carried).toMatchObject({
+        last: { request: { kind: "swap" }, status: "confirmed" },
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("bank and buyback positions are refused until economy reads them", async () => {
     const { rig } = setup();
     try {
