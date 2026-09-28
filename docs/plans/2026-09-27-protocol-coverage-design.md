@@ -4634,4 +4634,269 @@ before any slow advisor call. Treat rate-limit or usage errors as the
 R16 trigger, and keep the morning summary current after every
 milestone.
 
+### 8.9 Part 2, wave 1
+
+The 34 wave 1 tasks that part 1 did not land (part 1 landed 39 of the 73
+wave 1 tasks) land on `factory/431-wave1`, which starts from the #432
+engage fix `9efb2ab4`. The last wave 1 task landed as `91e6492c`
+(2026-09-28 21:41 UTC) and the round 23 unequip fix as `f7fafac1`.
+Wave 1 is 73 of 73 tasks landed.
+
+#### How it ran
+
+- Ruling P2-1: stock omp agents and workflowz, no new agent types and no
+  scheduler code. Builders are bundled `task` agents (Opus prewalk, which
+  hands off to a smaller model at the first edit), one per plan task.
+- Reviewers are the bundled `reviewer` (GPT-6 Sol). It is read-only, so a
+  `sonic` checker runs the format, lint, typecheck and test commands and
+  reverts each fix to see it fail, and the coordinator reads both. A
+  `fix` verdict goes back to a builder for a fix round.
+- Landers are `sonic` agents, one at a time, each rebasing the task's
+  commits onto the wave branch. A landing commit is the lease handover
+  for the next task of a chain; no `COORD-<n>` line is written (P2-17).
+- No task took more than three fix rounds: quests-9 and objects-8 took
+  three, and most took one or two.
+- Every builder works in its own worktree on a `proto/*` branch and
+  deletes the throwaway accounts it creates. Rare opcodes get at most two
+  live tries (about 10 minutes), then a mock test built from the
+  AzerothCore writer and an `unseen` entry (R22).
+
+#### What landed
+
+Proof kinds: live probe (`mise protocol:probe` flows), eval (a scenario
+graded with `mise eval result`), GM-staged capture (a `soap gm` staging
+step, then a probe or harness run), harness run (the harness on a
+throwaway account, no scenario), mock (a test built from the
+AzerothCore writer), unit (unit tests only). Scenario verdicts are
+`pass n/n`, `fail`, `blocked` or `aborted`; `replicas` counts graded
+runs of that scenario for the task.
+
+| Task | Title | Proof | Scenario verdicts |
+|---|---|---|---|
+| items-5a | Gear tool and items log rows | unit | none; items-5c proves it |
+| items-5b | Bag positions and marks in `journal` | eval, live item template queries | `t0-self-state` pass 5/5 |
+| items-5c | Six gear scenarios | eval, live `CMSG_READ_ITEM` probe | `t8-items-equip-upgrade` pass 4/4, `t8-items-unequip` pass 3/3, `t8-items-move` pass 2/2, `t8-items-split` pass 2/2, `t8-items-open` pass 3/3, `t8-items-read` pass 1/1 (checks the `items/read` row only; the letter's text is empty) |
+| items-8 | Load hunter ammunition | eval | `t8-items-ammo`: replica 1 fail (the preset already carries arrows, so "the new arrows" was ambiguous), replica 2 pass |
+| objects-1 | Full game object templates | live probe (70 replies parse with 0 leftover bytes) | none |
+| objects-2 | Use game objects | live probe (server effect: page text and criteria update) | none |
+| objects-3 | Page text from objects | live probe, GM-staged shrine capture | none |
+| objects-4 | Target objects and items with spells | live probe (`CMSG_CAST_SPELL` 6478 on a locked chest, then `SMSG_LOOT_RESPONSE`), mock for `CMSG_USE_ITEM` | none |
+| objects-7 | Game objects in `look`, `travel` and `interact` | harness run | none |
+| objects-8 | The `use` tool, object loot windows | live probe (shrine use), mock for chest loot | `t0-objects-read-shrine` fail in 7 of 7 replicas (0/2 in four, 1/2 in three) |
+| objects-10 | Area trigger rows, exploration scenario | eval | `t4-objects-explore-fargodeep` fail 0/2 in 3 of 3 replicas |
+| objects-11 | Object objectives in the quest loop | GM-staged live capture (quest 3904 crates, 8 of 8 items) | none |
+| quests-1 | Quest giver marks | live probe, GM-staged capture | none |
+| quests-2 | Quest marks in `look` | eval, live probe | `t4-quests-find-giver` pass 2/2 (replica 1 failed on a staging fault, replica 2 and the round 12 replica pass), `t1-walk-to-npc` pass 2/2, `t4-quest-first` pass 5/5 |
+| quests-3 | Quest objective regions | live probe, GM-staged | none |
+| quests-4 | Objective regions in `journal` | eval, live probe | `t4-quests-poi-walk` pass 2/2 in round 21 on the first version, then rewritten; round 22 aborted (1 replica) and fail 1/3 (1 replica). Gate `t4-quest-first` round 22: replicas 1 and 2 aborted, replica 3 pass 5/5 |
+| quests-5 | NPC text and gossip POI packets | live probe (`SMSG_NPC_TEXT_UPDATE`), mock for `SMSG_GOSSIP_POI` | none |
+| quests-6 | NPC greetings and guard directions | eval, live probe (`SMSG_GOSSIP_POI` seen live) | `t1-quests-read-greeting` pass 2/2 (round 21 replica 2 regraded fail, paraphrase), `t1-quests-guard-directions` pass 2/2 |
+| quests-9 | Completed quests and quest log extras | live probe | none |
+| travel-5 | Bind and hearth verbs | eval, live probe | `t8-travel-bind-inn` pass 2/2 and `t8-travel-hearth-home` pass 2/2, 2 replicas each |
+| self-state-2 | Feather fall, gravity and login move acks | live probe (feather fall, `SMSG_MULTIPLE_MOVES`), mock for the four gravity opcodes | none |
+| self-state-3 | Collision height and pitch rate acks | mock, live sends of `CMSG_MOVE_TIME_SKIPPED` and `CMSG_MOVE_FALL_RESET` with no effect seen | none |
+| self-state-4 | Breath and refused transfer log rows | mock (`SMSG_TRANSFER_ABORTED`) | none |
+| self-state-11a | Harness rows for the passive self state | harness run (mirror timers), unit | none |
+| self-state-11b | Breath stops runs, breath in `look` and `now` | harness run, eval | `t1-walk-to-npc` pass 2/2 |
+| combat-log-7a | Immunity and killing blow rows | unit, eval baseline | `t3-ghostlands-kill` fail (round 0 baseline cause, BR-S0-5-2) |
+| combat-log-7b | Fight rows and engage totals | unit, eval | `t3-ghostlands-kill` pass 4/4, `t7-halt-resume` pass 3/3 |
+| spells-12a | The `spell` tool, aura cancel and action bar | eval | `t4-spells-cancel-aura` pass 2/2 (replica 1 hit a scenario defect, replica 2 graded), `t4-spells-action-bar` blocked (no server truth for the bar), gates `t3-ghostlands-kill` pass 4/4, `t7-halt-resume` pass 3/3 |
+| spells-12b | Stop and wait for channels | live probe, eval | `t4-spells-stop-channel` pass 2/2 in 2 replicas, gates `t7-halt-resume` pass 3/3, `t3-ghostlands-kill` fail 0/4 (gray targets) |
+| world-2 | World states, weather, zone notice | live probe | none |
+| world-7 | Skip the intro cinematic | live probe, mock for `SMSG_TRIGGER_MOVIE` | `t1-walk-to-npc` run reached done (its character had logged in before, so no cinematic rows) |
+| world-8a | Reputation and cinematic rows in the game log | harness run, GM-staged capture (`gm quest reward` 8325) | none |
+| world-8b | Reputation in `journal` | eval | `t4-reputation-gain` blocked 1/2 in round 21 (2 replicas), blocked 1/2 in round 22, then pass 2/2 when the check accepted faction 55 by id (P2-8), gates `t4-quest-first` pass 5/5, `t1-walk-to-npc` pass 2/2 |
+| economy-2 | Buyback verb | eval, live probe | `t5-buyback-vendor` replica 1 fail (Tough Jerky is not grey), replica 2 pass 3/3 |
+
+Scenarios added: `t0-objects-read-shrine`, `t1-quests-guard-directions`,
+`t1-quests-read-greeting`, `t4-objects-explore-fargodeep`,
+`t4-quests-find-giver`, `t4-quests-poi-walk`, `t4-reputation-gain`,
+`t4-spells-action-bar`, `t4-spells-cancel-aura`, `t4-spells-stop-channel`,
+`t5-buyback-vendor`, `t8-items-ammo`, `t8-items-equip-upgrade`,
+`t8-items-move`, `t8-items-open`, `t8-items-read`, `t8-items-split`,
+`t8-items-unequip`, `t8-travel-bind-inn`, `t8-travel-hearth-home`.
+
+#### Coordinator commits
+
+| Commit | Why |
+|---|---|
+| `ac16a497` | Every `bun test` line in `mise.toml` gets `--timeout 2000` (P2-16), because tests on real timers made the suite six times slower without notice. |
+| `25077ec0` | `client-handlers.test.ts` and `protocol-coverage.test.ts` use `SMSG_WARDEN_DATA` as the example stub, because world-2 handles `SMSG_WEATHER` (BR-world-2-1). |
+| `da6fd8cc` | `hub.test.ts` sends a typed entity event, because the quests runtime reads the entity of every appear event (BR-quests-1-1). |
+| `286eabfe` | `areaRig` carries a shared `getEntity` lookup; the copies in the items, pets, looting and buyback rigs delegate to it (P2-5). |
+| `7e52e748` | The truth reader treats a null field as absent: `soap truth` returns a null `hearth` for a character that never logged in, which aborted every eval on the fresh preset before its pane opened. |
+| `596255ec` | `spawn-slots.test.ts` derives the scenario count from `ROUND_1`; it pinned the number, so every new scenario broke it. |
+| `a68798e9` | Nine new EVERSONG spawn points (written in travel-5's second fix round): the group holds 11 scenarios in 2 replicas and needed 44 points, and the grid held 40. |
+| `bd2747eb` | Adds the `EVERSONG_WEST` spawn grid (24 points) for the five bag scenarios, in the commit that also hardens three gear checks after review. |
+
+Rulings commits: `f2d8ed3c` (P2-4), `00b157f8` (P2-5), `58cb3443`,
+`3b79663e`, `8b069467`, `02321770`, `9a58af63`, `f2943805`, `21c0ab3d`,
+`4a7b899e`, `9152c433`, `37946165` and `b7db4dac` (P2-17).
+
+
+#### Build rulings
+
+Ruled by the maintainer (P2-4): objects-1 may rebuild two legacy fixtures (BR-objects-1-1); quests-1 drops the `hub.test.ts` edit the coordinator lands as `da6fd8cc` (BR-quests-1-1); self-state-2 holds `self-store.ts` for the `MoveFlag` members only (BR-self-state-2-1); world-2's shared tests move the example stub off `SMSG_WEATHER` to `25077ec0` (BR-world-2-1); and a sibling test file split off by the 500-line cap is part of the lease (BR-remote-motion-1-2).
+
+Approved by the coordinator (P2-17):
+
+- Contract 0.9: a task may edit a file its own unit owns that its plan body does not name; files of other units still stop it.
+- Lease handover: a landing commit is the handover record; no `COORD-<n>` lines.
+- BR-objects-1-2: objects-1 passes `entity.rawFields` through in `world-handlers-entity.ts`, so a partial `CREATED_BY` update keeps the other GUID half.
+- BR-objects-4-1: objects-4 appends two `miscValue` members to `spell-fixtures.ts`.
+- BR-objects-8-1: objects-8 extends the core rewards store and `openLoot` to accept game object GUIDs.
+- BR-objects-11-1: objects-11 adds an optional `visit` hook to `CycleObjective` in `loops/encounter-cycle.ts`.
+- BR-self-state-4-1: the six-dungeon transfer abort try is waived; `SMSG_TRANSFER_ABORTED` stays `mock` and not seen live.
+- BR-self-state-11b-1: self-state-11b names breath causes in `tools/rest.ts` and `tools/engage-fight.ts`.
+- BR-spells-12a-1: spells-12a appends the `eversong10-mage` preset and adds tool fixtures and a journal test.
+- BR-spells-12a-2: the TUI journal card does not render the new aura and bar rows; one follow-up renders every new journal field.
+- BR-spells-12b-1: spells-12b holds `loops/combat-actions.ts` and `loops/ports.ts` for a channel reader and cancel; the lease then passes to combat-log-7b.
+- BR-travel-5-1: travel-5 adds the `hearth` goal kind lines to four exhaustive switches and holds the tool files after their earlier holders land.
+- BR-world-8a-1: world-8a adds `wasAtWar` to the reputation `standing_changed` event.
+
+Other rulings applied: P2-5 (part 1 decisions accepted), P2-8 (degraded mode when a DBC is missing; used by world-8b), combat-log-7a (the `SMSG_PARTYKILLLOG` statements in `docs/areas/combatlog.md` are fixed and the task is re-reviewed, P2-4), BR-S0-5-2 (the `t3-ghostlands-kill` baseline cause, cited by combat-log-7a), BR-threat-1-1, BR-remote-motion-1-1 and BR-session-5-1 (part 1 wave 1; their plan rows stand, not this wave's).
+
+#### Eval results
+
+Model under test: `openai-codex/gpt-6-luna`, thinking off. Builders grade
+their own runs, validated by `mise eval result`; each task's own runs are
+in the table under "What landed". These rows are the coordinator's gates.
+
+| Round | Harness | Scenario | Rep | Verdict | Checks | Note |
+|---|---|---|---|---|---|---|
+| 20 | `c9a523b4` (#432 fix) | t1-walk-to-npc | 1 | pass | 2/2 | |
+| 20 | `c9a523b4` | t3-ghostlands-kill | 1 | fail | 3/4 | one-at-a-time unmet: gray packs joined two fights |
+| 20 | `c9a523b4` | t3-ghostlands-kill | 2 | fail | 1/4 | stayed in town, gave up at 2 of 10 minutes |
+| 20 | `c9a523b4` | t3-ghostlands-kill | 3 | fail | 1/4 | no non-gray hostile in view, gave up at 2 of 10 minutes |
+| 22 | `5db69d28` | t1-walk-to-npc | 1 | pass | 2/2 | |
+| 22 | `5db69d28` | t7-halt-resume | 1 | pass | 3/3 | |
+| 22 | `5db69d28` | t0-hostiles | 1 | pass | 3/3 | |
+| 22 | `5db69d28` | t3-ghostlands-kill | 1 | fail | 3/4 | two-kills unmet: one kill gave XP, the other was gray; the agent answered done with budget left |
+
+Round 20 shows no unnamed `engage` fight on a non-attacking gray unit,
+and the only-gray refusal fired in replicas 1 and 3. Round 22 has no
+regression: its one fail is an agent-side cause, not a product one.
+
+Round 23 runs all 24 wave-1 and gate scenarios once at `91e6492c`:
+
+| Scenario | Verdict | Checks |
+|---|---|---|
+| t1-walk-to-npc | pass | 2/2 |
+| t7-halt-resume | pass | 3/3 |
+| t3-ghostlands-kill | pass | 4/4 |
+| t0-hostiles | pass | 3/3 |
+| t0-objects-read-shrine | fail | 1/2: the agent quotes the placard line, not the page's opening sentence |
+| t1-quests-guard-directions | pass | 2/2 |
+| t1-quests-read-greeting | pass | 2/2 |
+| t4-objects-explore-fargodeep | fail | 0/2: exploring never reaches trigger 88 |
+| t4-quests-find-giver | pass | 2/2 |
+| t4-quests-poi-walk | fail | 1/3: the agent never reads the region from `journal` |
+| t4-reputation-gain | pass | 2/2 (faction 55 named by id, P2-8) |
+| t4-spells-action-bar | pass | 1/1 |
+| t4-spells-cancel-aura | pass | 2/2 |
+| t4-spells-stop-channel | pass | 2/2 |
+| t5-buyback-vendor | pass | 3/3 |
+| t8-items-ammo | pass | 2/2 |
+| t8-items-equip-upgrade | pass | 4/4 |
+| t8-items-move | pass | 2/2 |
+| t8-items-open | pass | 3/3 |
+| t8-items-read | pass | 2/2 |
+| t8-items-split | pass | 2/2 |
+| t8-items-unequip | blocked | 2/3: `gear unequip to:"bags"` was refused and the retry logged `items/moved` |
+| t8-travel-bind-inn | pass | 2/2 |
+| t8-travel-hearth-home | pass | 2/2 |
+
+The three fails are the scenarios listed under "Not shown by any
+scenario". The unequip result is a regression of the items-5a fix round;
+`f8fe08d4` to `f7fafac1` fix it (every unequip autostores, `backpack`
+stays in bag 255, a slot destination moves after the autostore), and
+round 24 passes `t8-items-unequip` 3/3 and `t8-items-move` 2/2 twice
+each. Every gate passes in round 23, including `t3-ghostlands-kill`.
+
+#### Coverage counts
+
+| | Handled | Stub | Missing | Dead | Not seen live |
+|---|---|---|---|---|---|
+| End of part 1 | 373 | 36 | 500 | 24 | 17 |
+| End of wave 1 | 414 | 35 | 460 | 24 | 29 |
+| Change | +41 | -1 | -40 | 0 | +12 |
+
+Both rows total 933 opcodes, from `mise protocol:coverage`. The 29
+opcodes not seen live are, by area: achievements 3, ambience 1
+(`SMSG_TRIGGER_MOVIE`), combatlog 1 (`SMSG_UPDATE_COMBO_POINTS`),
+instances 4, login 1, looting 1, pets 3, selfstate 12
+(`SMSG_TRANSFER_ABORTED`, `SMSG_MOVE_SET_HOVER`, the four gravity
+opcodes, the pitch rate and collision height opcodes and their acks,
+`CMSG_MOVE_TIME_SKIPPED`, `CMSG_MOVE_FALL_RESET`), spells 1, threat 2.
+
+#### Not shown
+
+`docs/capabilities.md` lists these under "Not shown by any scenario":
+
+- Reading a shrine plaque (`t0-objects-read-shrine`): the agent reads the page but quotes the placard line, not the page's opening sentence, in 7 of 7 replicas.
+- Completing an exploration quest by walking into its area trigger (`t4-objects-explore-fargodeep`): accepting the quest points at `engage`, which fails explore quests (`objective_unsupported`), and compass exploring does not find the mine.
+- Reporting reputation with each faction (`t4-reputation-gain`): the eval profile has no `Faction.dbc`, so the journal names factions by id, not Silvermoon City. The scenario passes only under the P2-8 id check.
+- Setting the action bar (`t4-spells-action-bar`): no server truth for the bar.
+- Walking to a quest objective's region from `journal` (`t4-quests-poi-walk`): the agent takes the quest but walks by other means and never calls `journal` (0 calls in two replicas).
+
+Two more limits. `t8-items-read` checks only the `items/read` row,
+because item text is empty on this server for GM-added items (the page
+text of a letter is served over `CMSG_PAGE_TEXT_QUERY`). No scenario
+covers quest objects; objects-8 left `t4-objects-quest-elwynn` out
+because quest 3903 gives no reward (SR1-objects-11).
+
+#### Incidents
+
+1. Wrong-checkout edits: the edit tools resolve relative paths against
+   the coordinator's checkout. quests-3 (`packet.ts`), items-5c (two doc
+   edits) and objects-7 (`refs.test.ts`) wrote there; each was reverted
+   with `git checkout`. Builders now pass absolute paths (rules.md 1).
+2. Request-budget restarts: builders stop at the request budget and a
+   second builder resumes from the report and the commits. Seen in
+   objects-2 (uncommitted work at the stop), objects-4, objects-7 (two
+   stops), objects-8, objects-10, items-5c and the #432 engage fix.
+   Rule 12 asks for one commit per test-backed slice.
+3. Kernel restarts and duplicate agents: the coordinator's eval kernel
+   restarted during the run and some tasks got a duplicate agent. The
+   task reports do not name which.
+4. Eval runs killed by short bash timeouts: fix1quests-4 ran `mise eval
+   run --no-wait` in the foreground with a 120 s and a 180 s tool
+   timeout. `--no-wait` does not detach, so the tool killed the grader
+   mid-run: replica 1 lost its driver at 120 s and replica 2 was killed
+   during the final quit. Both were recorded `aborted`. The end-to-end
+   quit path was checked on `5db69d28` with a 1800 s timeout and is
+   healthy. Rule 11 now asks for at least 1800 s or a background run.
+5. Offline quest staging writes COMPLETE: `soap setup quest/add` on an
+   offline character sets quest status 1 (complete). quests-4 saw the
+   journal show only the turn-in region for 8325 and 8326, and rewrote
+   `t4-quests-poi-walk` to take the quest in game. objects-11 redid its
+   staging online with `quest/remove` and `gm quest add`.
+6. DBC files copied into the maintainer's `spell_data_dir`: objects-4
+   extracted `Lock.dbc` and objects-10 `AreaTrigger.dbc` there for live
+   proof.
+7. self-state-3 briefly used a disallowed spell-learning endpoint for
+   mount staging before a reminder; it stopped and discarded the run.
+8. The stale `spawn-slots.test.ts` count and the 40-point EVERSONG grid
+   failed the full suite in items-5c, items-8 and travel-5; the
+   coordinator commits above fix both.
+
+#### Follow-ups
+
+- `gear read`: readable items carry page text over `CMSG_PAGE_TEXT_QUERY` (objects-3), not `CMSG_ITEM_TEXT_QUERY`, so it returns empty text.
+- `gear move`: `to: "bag 1"` is refused (bags are 19 to 22) and `to: "bags"` fills the backpack first.
+- The TUI card renderer (`ui/renderers/card.ts`) shows none of the new bag, aura or action bar rows (items-5b, BR-spells-12a-2).
+- `Lock.dbc` and `AreaTrigger.dbc` in the maintainer's `spell_data_dir` need a permanent home (incident 6); the eval profile has no `Faction.dbc`.
+- `CMSG_USE_ITEM` (a key on a lock) is mock only; the skeleton key skill bonus is not modelled (objects-4).
+- #433: explore stuck in Tranquillien with packs (`t3-ghostlands-kill`).
+- Accepting an explore quest points Next at `engage`; explore quests need a travel-to-trigger next step in `accept-next.ts` (objects-10).
+- `use_dismount` points at `spell do:dismount`, which self-state-10a adds in wave 3.
+- The agent never calls `journal` in `t4-quests-poi-walk` and stops short of the region; a prompt or guidance fix is needed.
+- `SMSG_LEARNED_SPELL` never arrives after `spells/learn`, which blocks `handle.cast` in a mount flow; mount spell 33388 sends `SPELL_GO` but no collision height (self-state-3).
+- objects-8: `reads.ts` reach uses the object centre while the server uses the display bounds; `travel` refuses raised ground such as the shrine (`ambiguous_floor`).
+- objects-11: the loop stops with `objective_targets_absent` when the complete flag lags the last loot, and does not fight back when interrupted.
+- world-8a: confirm `at_war` transition semantics; give the rank table a shared home.
+- world-6 (wave 2) hits the same stub-break risk as world-2 for `SMSG_PLAY_MUSIC`, `SMSG_PLAY_SOUND` and `SMSG_SET_PHASE_SHIFT` in shared tests.
+- combat-log-3 must give immune and miss entries an outcome, source, target and spell id; `combatlog/killing_blow` needs a two-account live proof.
+- Runners launch long evals as background jobs with a timeout that covers the scenario budget.
+
 ## COMPLETE
