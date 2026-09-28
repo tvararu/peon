@@ -51,7 +51,7 @@ describe("journal about spells", () => {
       ],
     });
     const out = await runTool(tool, { about: "spells" });
-    expect(out.text.split("\n").slice(2)).toEqual([
+    expect(out.text.split("\n").slice(1, 2)).toEqual([
       "Aura you can cancel: Frost Armor (spell 168).",
     ]);
     expect(out.details.result.after).toMatchObject({
@@ -82,7 +82,7 @@ describe("journal about spells", () => {
       { id: 6948, slot: 11, type: "item" },
     ];
     const short = (await runTool(tool, { about: "spells" })).text.split("\n");
-    expect(short.slice(2)).toEqual([
+    expect(short.slice(1, 3)).toEqual([
       "Bar slot 1: Fireball (spell 133).",
       "Bar slot 12: item 6948.",
     ]);
@@ -93,11 +93,30 @@ describe("journal about spells", () => {
         type: "spell" as const,
       }));
     const long = (await runTool(tool, { about: "spells" })).text.split("\n");
-    expect(long.slice(-4)).toEqual([
+    expect(long.slice(1, 5)).toEqual([
       "Bar slot 1: Fireball (spell 133).",
       "Bar slot 2: Fireball (spell 133).",
       "Bar slot 3: Fireball (spell 133).",
       "+2 more bar slots.",
     ]);
+  });
+
+  test("puts the auras and the bar before a long spell list", async () => {
+    const { handle, tool } = await world();
+    const book = Array.from({ length: 40 }, (_, index) =>
+      definition({ id: 2000 + index, name: `Spell ${index}` }),
+    );
+    installSpells(handle, {
+      auras: [aura()],
+      book: [FROST_ARMOR_SPELL, FIREBALL_SPELL, ...book],
+    });
+    handle.getActionBar = () => [{ id: FIREBALL, slot: 0, type: "spell" }];
+    const out = await runTool(tool, { about: "spells" });
+    const lines = out.text.split("\n");
+    expect(lines.slice(1, 3)).toEqual([
+      "Aura you can cancel: Frost Armor (spell 168).",
+      "Bar slot 1: Fireball (spell 133).",
+    ]);
+    expect(lines.length).toBeLessThanOrEqual(25);
   });
 });

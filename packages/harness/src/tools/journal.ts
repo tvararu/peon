@@ -392,7 +392,7 @@ async function spellsResult({
   const { auras, bar, lines } = spellsJournalExtras(handle);
   return result("DONE", {
     after: { about: "spells", auras, bar, spells },
-    body: [...spells.map(spellText), ...lines],
+    body: [...lines, ...spells.map(spellText)],
     detail: `${spells.length} spells known.`,
   });
 }
