@@ -1,0 +1,34 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 30,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["objects/page"],
+        "ids": [2936]
+      },
+      "expect": "GL has an objects/page row for page 2936 (the shrine text)",
+      "id": "page-row",
+      "source": "game_log"
+    },
+    {
+      "expect": "the answer holds the fixed phrase \"You have discovered the location of the shrine\"",
+      "id": "answer-matches-text",
+      "source": "session"
+    }
+  ],
+  "id": "t0-objects-read-shrine",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "fresh",
+  "setup": [],
+  "steers": [],
+  "task": "The Shrine of Dath'Remar stands north of the Sunstrider Isle start, past the Academy. Walk or explore north to it, read it, and tell me its first sentence.",
+  "tier": 0
+}

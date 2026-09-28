@@ -16,9 +16,13 @@ triggers the character stands in and the triggers it has sent this
 session; `lastMessage` holds the last trigger message and when it
 arrived. The area emits `used`, `trigger_sent`, `trigger_message`,
 `page_read`, `page_shown` and `page_unanswered` events, and its acts
-`use(guid)` uses one object by hand, `enterTrigger(id)` sends one
-trigger by hand, and `readPage(pageId)` resolves once with the chained
-pages, timing out after 5 s.
+`use(guid)` uses one object by hand, `open(guid, spellId)` casts an
+open-lock spell at one object, `useItemOn(entry, target)` uses a carried
+key on one object, `openLockSpell(entry)` picks the spell or key for a
+lock, `enterTrigger(id)` sends one trigger by hand, and
+`readPage(pageId)` resolves once with the chained pages, timing out
+after 5 s. The harness `use` tool opens locked chests and quest objects
+and reads shrines, plaques and books.
 
 ## Wire notes
 
@@ -161,7 +165,7 @@ character back through a portal.
 
 ## Capabilities row
 
-No verb for area triggers: core sends them while the character walks.
+| Use a game object and read a shrine plaque | `t0-objects-read-shrine` | |
 
 ## Proof
 

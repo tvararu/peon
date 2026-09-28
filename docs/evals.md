@@ -189,3 +189,4 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Alliance characters and map 0 | `t4-alliance-first`, `t5-vendor-buy-goldshire` |
 | Login, the world session and the harness shell | `t0-self-state` |
 | Items and gear (`gear`, `journal` bags) | `t8-items-equip-upgrade`, `t8-items-unequip`, `t8-items-move`, `t8-items-split`, `t8-items-open`, `t8-items-read`, `t8-items-ammo` |
+| Game objects (`use`) | `t0-objects-read-shrine` |

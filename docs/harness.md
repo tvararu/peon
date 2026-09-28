@@ -133,6 +133,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | `journal` | Quest log, bags and gear, spells, or the game log. |
 | `stop` | Stops one action or everything. |
 | `gear` | Wears, takes off, moves, splits, opens and reads items. |
+| `use` | Uses a game object: opens a locked chest or quest object and takes what is inside, reads a shrine, plaque or book, or presses another usable object. |
 
 `travel`, `engage`, `rest` and `recover` start a run (`r1`, `r2`, …).
 Only one run can be active. The tool waits for the run to end and
