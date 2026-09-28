@@ -187,4 +187,4 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Stopping and steering (`stop`, the stop reflex, human messages while a tool runs) | `t7-halt-resume`, `t7-question-while-acting` |
 | Alliance characters and map 0 | `t4-alliance-first`, `t5-vendor-buy-goldshire` |
 | Login, the world session and the harness shell | `t0-self-state` |
-| Items and gear (`gear`, `journal` bags) | `t8-items-equip-upgrade`, `t8-items-unequip`, `t8-items-move` |
+| Items and gear (`gear`, `journal` bags) | `t8-items-equip-upgrade`, `t8-items-unequip`, `t8-items-move`, `t8-items-split` |

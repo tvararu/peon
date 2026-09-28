@@ -1,0 +1,47 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 6,
+    "tools": 10,
+    "turns": 5
+  },
+  "checks": [
+    {
+      "evidence": {
+        "items": [159],
+        "truth": ["inventory"]
+      },
+      "expect": "T final has two rows of item 159 (Refreshing Spring Water), one of count 5 and the other of count 15 (the setup added 20, the agent split 5 off)",
+      "id": "two-stacks",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["items/split"],
+        "ids": [159]
+      },
+      "expect": "GL has an items/split row for item 159",
+      "id": "split-row",
+      "source": "game_log"
+    }
+  ],
+  "id": "t8-items-split",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "eversong10",
+  "setup": [
+    {
+      "body": {
+        "count": 20,
+        "item": 159
+      },
+      "endpoint": "items/add"
+    }
+  ],
+  "spawn": "eversong",
+  "steers": [],
+  "task": "Split 5 water off into a separate stack.",
+  "tier": 8
+}

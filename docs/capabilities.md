@@ -27,6 +27,7 @@ or the page names one that does not exist.
 | Wear better gear and put a bag on | `t8-items-equip-upgrade` | |
 | Take off worn gear and keep it in bags | `t8-items-unequip` | |
 | Move an item into a bag | `t8-items-move` | |
+| Split a stack | `t8-items-split` | |
 
 ## Not shown by any scenario
 
