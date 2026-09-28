@@ -3,6 +3,7 @@ import { areaRig } from "#test-support/area-rig";
 import {
   loginAccountDataTimesBody,
   loginAddonInfoBody,
+  loginCharacterLoginFailedBody,
   loginClientCacheVersionBody,
   loginFeatureSystemStatusBody,
   loginLearnedDanceMovesBody,
@@ -119,6 +120,25 @@ describe("login area wiring", () => {
         rttMs: 30,
       });
       expect(seen).toEqual([{ rttMs: 30, seq: 1, type: "pong" }]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_CHARACTER_LOGIN_FAILED and SMSG_LOGOUT_CANCEL_ACK reach the store as events", () => {
+    const rig = areaRig("login");
+    try {
+      const seen: unknown[] = [];
+      rig.handle.onEvent((event) => seen.push(event));
+      rig.inject(
+        GameOpcode.SMSG_CHARACTER_LOGIN_FAILED,
+        loginCharacterLoginFailedBody({ code: 5 }),
+      );
+      rig.inject(GameOpcode.SMSG_LOGOUT_CANCEL_ACK, new Uint8Array(0));
+      expect(seen).toEqual([
+        { code: 5, reason: "no_character", type: "login_failed" },
+        { type: "logout_cancelled" },
+      ]);
     } finally {
       rig.dispose();
     }

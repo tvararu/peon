@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
+import type { Socket } from "bun";
 import {
   clientPrivateKey,
   clientSeed,
@@ -9,8 +10,10 @@ import {
 } from "#test-support/fixtures";
 import { startMockWorldServer } from "#test-support/mock-world-server";
 import { worldSession } from "#wow/client";
+import { createWorldConn } from "#wow/client-connection";
+import { requestLogout } from "#wow/logout";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import { PacketWriter } from "#wow/protocol/packet";
+import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 function logoutResponse(result: number, instant: boolean): Uint8Array {
   const w = new PacketWriter();
@@ -118,5 +121,46 @@ describe("logout", () => {
       jest.useRealTimers();
       s.server.stop();
     }
+  });
+});
+
+function silentConn() {
+  const conn = createWorldConn();
+  conn.socket = { write: () => 0 } as unknown as Socket;
+  return conn;
+}
+
+describe("requestLogout", () => {
+  test("a refused logout names its reason (MiscHandler.cpp:435-441)", async () => {
+    const reasons: unknown[] = [];
+    for (const result of [1, 2, 3, 9]) {
+      const conn = silentConn();
+      const pending = requestLogout(conn, new Promise(() => undefined), 1000);
+      conn.dispatch.handle(
+        GameOpcode.SMSG_LOGOUT_RESPONSE,
+        new PacketReader(logoutResponse(result, false)),
+      );
+      reasons.push(await pending);
+    }
+    expect(reasons).toEqual([
+      { outcome: "refused", reason: "in_combat" },
+      { outcome: "refused", reason: "duel_or_frozen" },
+      { outcome: "refused", reason: "falling" },
+      { outcome: "refused", reason: "unknown" },
+    ]);
+  });
+
+  test("an accepted logout completes with no reason", async () => {
+    const conn = silentConn();
+    const pending = requestLogout(conn, new Promise(() => undefined), 1000);
+    conn.dispatch.handle(
+      GameOpcode.SMSG_LOGOUT_RESPONSE,
+      new PacketReader(logoutResponse(0, false)),
+    );
+    conn.dispatch.handle(
+      GameOpcode.SMSG_LOGOUT_COMPLETE,
+      new PacketReader(new Uint8Array(0)),
+    );
+    expect(await pending).toEqual({ outcome: "complete" });
   });
 });

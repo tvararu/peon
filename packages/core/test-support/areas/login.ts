@@ -77,3 +77,33 @@ export function loginPongBody(init: { seq: number }): Uint8Array {
   w.uint32LE(init.seq);
   return w.finish();
 }
+
+export function loginCharacterLoginFailedBody(init: {
+  code: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(init.code);
+  return w.finish();
+}
+
+export function loginAuthQueueFirstBody(init: {
+  position: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(0x1b);
+  w.uint32LE(0);
+  w.uint8(0);
+  w.uint32LE(0);
+  w.uint8(2);
+  w.uint32LE(init.position);
+  w.uint8(0);
+  return w.finish();
+}
+
+export function loginAuthQueueBody(init: { position: number }): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(0x1b);
+  w.uint32LE(init.position);
+  w.uint8(0);
+  return w.finish();
+}

@@ -1,3 +1,5 @@
+import { ignoreFailure } from "#lib/ignore-failure";
+import { parseCharacterLoginFailed } from "#wow/areas/login/protocol";
 import type { LoginStore } from "#wow/areas/login/store";
 import type { AuthResult } from "#wow/auth";
 import type { ClientConfig } from "#wow/client";
@@ -99,15 +101,65 @@ export async function authenticateWorld(
   traceOut(conn.trace, { body, opcode: GameOpcode.CMSG_AUTH_SESSION });
   conn.arc4 = new Arc4(auth.sessionKey);
 
-  const resp = await conn.dispatch.expect(GameOpcode.SMSG_AUTH_RESPONSE);
-  const status = resp.uint8();
-  if (status !== 0x0c) {
-    const names: Record<number, string> = {
-      13: "system error",
-      21: "account in use",
-    };
-    const label = names[status] ?? `status 0x${status.toString(16)}`;
-    throw new Error(`World auth failed: ${label}`);
+  await awaitAdmission(conn);
+}
+
+const AUTH_OK = 0x0c;
+const AUTH_WAIT_QUEUE = 0x1b;
+const AUTH_QUEUE_CAP_MS = 600_000;
+const AUTH_FAILURES = [
+  "failed",
+  "rejected",
+  "bad server proof",
+  "unavailable",
+  "system error",
+  "billing error",
+  "billing expired",
+  "version mismatch",
+  "unknown account",
+  "incorrect password",
+  "session expired",
+  "server shutting down",
+  "already logging in",
+  "login server not found",
+  "wait queue",
+  "banned",
+  "already online",
+  "no time",
+  "db busy",
+  "suspended",
+  "parental control",
+  "locked enforced",
+];
+
+function queuePosition(resp: PacketReader): number {
+  if (resp.remaining > 5) resp.skip(4 + 1 + 4 + 1);
+  return resp.uint32LE();
+}
+
+async function awaitAdmission(conn: WorldConn): Promise<void> {
+  const deadline = Date.now() + AUTH_QUEUE_CAP_MS;
+  let position: number | undefined;
+  while (true) {
+    const timeoutMs =
+      position === undefined ? undefined : Math.max(deadline - Date.now(), 0);
+    const resp = await conn.dispatch
+      .expect(GameOpcode.SMSG_AUTH_RESPONSE, { timeoutMs })
+      .catch((error: unknown) => {
+        if (position === undefined) throw error;
+        throw new Error(
+          `World auth failed: still queued at position ${position} after ${AUTH_QUEUE_CAP_MS / 1000} s`,
+        );
+      });
+    const status = resp.uint8();
+    if (status === AUTH_OK) return;
+    if (status !== AUTH_WAIT_QUEUE) {
+      const label =
+        AUTH_FAILURES[status - AUTH_OK - 1] ??
+        `status 0x${status.toString(16)}`;
+      throw new Error(`World auth failed: ${label}`);
+    }
+    position = queuePosition(resp);
   }
 }
 
@@ -138,8 +190,17 @@ export async function selectCharacter(
   const w = new PacketWriter();
   w.uint32LE(char.guidLow);
   w.uint32LE(char.guidHigh);
+  const refused = conn.dispatch
+    .expect(GameOpcode.SMSG_CHARACTER_LOGIN_FAILED)
+    .then((r) => {
+      const { reason } = parseCharacterLoginFailed(r);
+      throw new Error(`Character login failed: ${reason.replaceAll("_", " ")}`);
+    });
+  refused.catch(ignoreFailure);
+  const loggedIn = stores.self.waitLogin();
+  loggedIn.catch(ignoreFailure);
   sendPacket(conn, GameOpcode.CMSG_PLAYER_LOGIN, w.finish());
-  await stores.self.waitLogin();
+  await Promise.race([loggedIn, refused]);
 }
 
 export function startPingLoop(

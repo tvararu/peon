@@ -18,5 +18,5 @@ export const LOGIN_OPCODES = {
   uses: [],
   stubs: [],
   dead: [],
-  unseen: [],
+  unseen: ["SMSG_CHARACTER_LOGIN_FAILED"],
 } as const satisfies AreaOpcodes;

@@ -2,6 +2,7 @@ import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type {
   AccountDataTimes,
   AddonInfo,
+  CharacterLoginFailed,
   ClientCacheVersion,
   FeatureSystemStatus,
   LearnedDanceMoves,
@@ -38,7 +39,9 @@ export type LoginEvent =
       voice: number;
     }
   | { type: "account_data_times"; mask: number }
-  | { type: "pong"; seq: number; rttMs: number };
+  | { type: "pong"; seq: number; rttMs: number }
+  | { type: "login_failed"; code: number; reason: string }
+  | { type: "logout_cancelled" };
 
 const MAX_PENDING_PINGS = 8;
 
@@ -158,6 +161,14 @@ export class LoginStore {
       link: { ...this.state.link, rttMs, lastPongAt: at },
     };
     this.events.emit({ type: "pong", seq: packet.seq, rttMs });
+  }
+
+  receiveCharacterLoginFailed(packet: CharacterLoginFailed): void {
+    this.events.emit({ type: "login_failed", ...packet });
+  }
+
+  receiveLogoutCancelAck(): void {
+    this.events.emit({ type: "logout_cancelled" });
   }
 
   dispose(): void {

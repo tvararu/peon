@@ -23,6 +23,19 @@ export type AccountDataTimes = {
 export type FeatureSystemStatus = { complaints: number; voice: number };
 export type LearnedDanceMoves = { moves: readonly [number, number] };
 export type Pong = { seq: number };
+export type CharacterLoginFailed = { code: number; reason: string };
+
+const LOGIN_FAILURE_REASONS = [
+  "failed",
+  "no_world",
+  "duplicate_character",
+  "no_instances",
+  "disabled",
+  "no_character",
+  "locked_for_transfer",
+  "locked_by_billing",
+  "using_remote",
+] as const;
 
 function startsEntry(r: PacketReader): boolean {
   if (r.remaining < 2) return false;
@@ -96,5 +109,20 @@ export function parsePong(r: PacketReader): Pong {
 }
 
 export function buildKeepAlive(): Uint8Array {
+  return new Uint8Array(0);
+}
+
+export function parseCharacterLoginFailed(
+  r: PacketReader,
+): CharacterLoginFailed {
+  const code = r.uint8();
+  return { code, reason: LOGIN_FAILURE_REASONS[code] ?? "unknown" };
+}
+
+export function buildPlayerLogout(): Uint8Array {
+  return new Uint8Array(0);
+}
+
+export function buildLogoutCancel(): Uint8Array {
   return new Uint8Array(0);
 }

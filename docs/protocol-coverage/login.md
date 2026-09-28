@@ -5,10 +5,10 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x041` | `SMSG_CHARACTER_LOGIN_FAILED` | server | missing |  |
-| `0x04a` | `CMSG_PLAYER_LOGOUT` | client | missing |  |
-| `0x04e` | `CMSG_LOGOUT_CANCEL` | client | missing |  |
-| `0x04f` | `SMSG_LOGOUT_CANCEL_ACK` | server | missing |  |
+| `0x041` | `SMSG_CHARACTER_LOGIN_FAILED` | server | handled | not seen live |
+| `0x04a` | `CMSG_PLAYER_LOGOUT` | client | handled |  |
+| `0x04e` | `CMSG_LOGOUT_CANCEL` | client | handled |  |
+| `0x04f` | `SMSG_LOGOUT_CANCEL_ACK` | server | handled |  |
 | `0x0fd` | `SMSG_TUTORIAL_FLAGS` | server | handled |  |
 | `0x1dd` | `SMSG_PONG` | server | handled |  |
 | `0x209` | `SMSG_ACCOUNT_DATA_TIMES` | server | handled |  |

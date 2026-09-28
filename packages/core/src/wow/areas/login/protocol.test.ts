@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   loginAccountDataTimesBody,
   loginAddonInfoBody,
+  loginCharacterLoginFailedBody,
   loginClientCacheVersionBody,
   loginFeatureSystemStatusBody,
   loginLearnedDanceMovesBody,
@@ -10,8 +11,11 @@ import {
 } from "#test-support/areas/login";
 import {
   buildKeepAlive,
+  buildLogoutCancel,
+  buildPlayerLogout,
   parseAccountDataTimes,
   parseAddonInfo,
+  parseCharacterLoginFailed,
   parseClientCacheVersion,
   parseFeatureSystemStatus,
   parseLearnedDanceMoves,
@@ -166,5 +170,40 @@ describe("link packets", () => {
 
   test("CMSG_KEEP_ALIVE is empty (WorldSocket.cpp:452-462)", () => {
     expect(buildKeepAlive()).toEqual(new Uint8Array(0));
+  });
+});
+
+describe("login failure and logout packets", () => {
+  test("SMSG_CHARACTER_LOGIN_FAILED names each LoginFailureReason (CharacterHandler.cpp:2622-2627, SharedDefines.h:4001-4012)", () => {
+    const names = Array.from({ length: 9 }, (_, code) => {
+      const r = new PacketReader(loginCharacterLoginFailedBody({ code }));
+      const parsed = parseCharacterLoginFailed(r);
+      expect(r.remaining).toBe(0);
+      return parsed;
+    });
+    expect(names).toEqual([
+      { code: 0, reason: "failed" },
+      { code: 1, reason: "no_world" },
+      { code: 2, reason: "duplicate_character" },
+      { code: 3, reason: "no_instances" },
+      { code: 4, reason: "disabled" },
+      { code: 5, reason: "no_character" },
+      { code: 6, reason: "locked_for_transfer" },
+      { code: 7, reason: "locked_by_billing" },
+      { code: 8, reason: "using_remote" },
+    ]);
+  });
+
+  test("an unknown login failure code reads as unknown", () => {
+    const r = new PacketReader(loginCharacterLoginFailedBody({ code: 12 }));
+    expect(parseCharacterLoginFailed(r)).toEqual({
+      code: 12,
+      reason: "unknown",
+    });
+  });
+
+  test("CMSG_PLAYER_LOGOUT and CMSG_LOGOUT_CANCEL are empty (MiscHandler.cpp:476-497)", () => {
+    expect(buildPlayerLogout()).toEqual(new Uint8Array(0));
+    expect(buildLogoutCancel()).toEqual(new Uint8Array(0));
   });
 });
