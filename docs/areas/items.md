@@ -160,6 +160,12 @@ on-use spells it read before.
   page text is empty on this server). The server deletes conjured
   food and water at login, which shows as missing rows in the unequip
   and open baselines.
+- `t8-items-ammo` (round 21) loads 200 Rough Arrow (2512) added by the
+  setup. The `eversong10-hunter` preset already has 1000 Sharp Arrow
+  (2515) loaded, so the task names the Rough Arrows; with "the new
+  arrows" the agent took the Sharp Arrows as done (replica 1, `fail`).
+  The server answers `CMSG_SET_AMMO` with an update that sets
+  `PLAYER_AMMO_ID` to 2512 about 8 ms later.
 
 ## Left out
 
@@ -198,4 +204,4 @@ The `gear` tool wears, takes off, moves, splits, opens, reads and loads ammo. Th
 | `SMSG_READ_ITEM_FAILED` | `live` | probe flow `items-open` (`do=read`) on the level-20 Venomous Tome, exit 0: `SMSG_INVENTORY_CHANGE_FAILURE` result 1 naming the tome comes first, then this packet with its guid, and the read settles `failed` (`cant_equip_level_i`) | `Handlers/ItemHandler.cpp:567` |
 | `CMSG_ITEM_TEXT_QUERY` | `live` | probe flow `items-open` (`do=text`), exit 0: the query carries the letter's guid | `Handlers/ItemHandler.cpp:1461-1465` |
 | `SMSG_ITEM_TEXT_QUERY_RESPONSE` | `live` | probe flow `items-open` (`do=text`), exit 0: `0`, the letter's guid and its empty text, and the act returns the text | `Handlers/ItemHandler.cpp:1468-1474` |
-| `CMSG_SET_AMMO` | `eval` | `t8-items-ammo` verdict `pass`: `CMSG_SET_AMMO` with entry 2512 (Rough Arrow) and the `items/ammo` game-log row | `Handlers/ItemHandler.cpp:1014-1039` |
+| `CMSG_SET_AMMO` | `live` | eval `t8-items-ammo` round 21 replica 2, verdict `pass`: `CMSG_SET_AMMO` with entry 2512 (Rough Arrow), the update that sets `PLAYER_AMMO_ID` to 2512 and the `items/ammo` game-log row | `Handlers/ItemHandler.cpp:1014-1039` |
