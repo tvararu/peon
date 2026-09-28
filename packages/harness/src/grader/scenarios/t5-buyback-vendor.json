@@ -1,0 +1,34 @@
+{
+  "botRisk": "low",
+  "budget": { "minutes": 6, "tools": 30, "turns": 12 },
+  "checks": [
+    {
+      "evidence": { "items": [117] },
+      "expect": "T item 117 count, summed over every T row, has delta >= 0 (the grey item is back in the bags after the buyback)",
+      "id": "junk-back",
+      "source": "truth"
+    },
+    {
+      "evidence": { "delta": ["money"], "truth": ["money"] },
+      "expect": "T delta money equals 0 (the buyback price is the sale price)",
+      "id": "money",
+      "source": "truth"
+    },
+    {
+      "evidence": { "events": ["buyback/bought_back"] },
+      "expect": "GL has a buyback/bought_back row for item 117",
+      "id": "buyback-row",
+      "source": "game_log"
+    }
+  ],
+  "id": "t5-buyback-vendor",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "elwynn10",
+  "setup": [{ "body": { "count": 1, "item": 117 }, "endpoint": "items/add" }],
+  "steers": [],
+  "task": "Sell your Tough Jerky to the innkeeper, then buy back the Tough Jerky.",
+  "tier": 5
+}

@@ -130,6 +130,7 @@ export const ROUND_1: readonly string[] = [
   "t3-ghostlands-kill",
   "t1-walk-to-npc",
   "t5-vendor-buy-goldshire",
+  "t5-buyback-vendor",
   "t2-whisper-reply",
   "t0-hostiles",
   "t0-who-is-near",
