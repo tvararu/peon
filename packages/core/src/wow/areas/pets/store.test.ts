@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
+  petsPetActionFeedbackBody,
+  petsPetActionSoundBody,
+  petsPetDismissSoundBody,
   petsPetLearnedSpellBody,
   petsPetSpellsBody,
   petsPetUnlearnedSpellBody,
@@ -217,5 +220,48 @@ describe("PetsStore", () => {
     };
     const store = new PetsStore(deps, testStores(deps));
     expect(store.snapshot().pet).toMatchObject({ guid: PET, number: 7 });
+  });
+
+  test("action feedback sets the last refusal and emits a feedback event (Unit.cpp:12556-12564)", () => {
+    const { r, seen, advance } = rig();
+    try {
+      advance(250);
+      r.inject(
+        GameOpcode.SMSG_PET_ACTION_FEEDBACK,
+        petsPetActionFeedbackBody({ code: 1 }),
+      );
+      expect(r.handle.state().lastRefusal).toEqual({
+        at: 1250,
+        reason: "pet_dead",
+      });
+      expect(seen).toEqual([{ reason: "pet_dead", type: "feedback" }]);
+      r.inject(
+        GameOpcode.SMSG_PET_ACTION_FEEDBACK,
+        petsPetActionFeedbackBody({ code: 3 }),
+      );
+      expect(r.handle.state().lastRefusal?.reason).toBe("cant_attack");
+    } finally {
+      r.dispose();
+    }
+  });
+
+  test("the action and dismiss sounds change no state and emit nothing", () => {
+    const { r, seen } = rig();
+    try {
+      r.inject(GameOpcode.SMSG_PET_SPELLS, BAR);
+      const before = r.handle.state();
+      r.inject(
+        GameOpcode.SMSG_PET_ACTION_SOUND,
+        petsPetActionSoundBody({ action: 1, guid: PET }),
+      );
+      r.inject(
+        GameOpcode.SMSG_PET_DISMISS_SOUND,
+        petsPetDismissSoundBody({ modelId: 4449, x: 1, y: 2, z: 3 }),
+      );
+      expect(r.handle.state()).toEqual(before);
+      expect(seen.map((event) => event.type)).toEqual(["bar"]);
+    } finally {
+      r.dispose();
+    }
   });
 });

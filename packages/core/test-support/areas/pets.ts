@@ -58,3 +58,33 @@ export function petsPetUnlearnedSpellBody(init: { spell: number }): Uint8Array {
   w.uint32LE(init.spell);
   return w.finish();
 }
+
+export function petsPetActionFeedbackBody(init: { code: number }): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(init.code);
+  return w.finish();
+}
+
+export function petsPetActionSoundBody(init: {
+  guid: bigint;
+  action: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.guid);
+  w.uint32LE(init.action >>> 0);
+  return w.finish();
+}
+
+export function petsPetDismissSoundBody(init: {
+  modelId: number;
+  x: number;
+  y: number;
+  z: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.modelId >>> 0);
+  w.floatLE(init.x);
+  w.floatLE(init.y);
+  w.floatLE(init.z);
+  return w.finish();
+}

@@ -1,4 +1,5 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
+import type { PetFeedback } from "#wow/areas/pets/protocol";
 import { type PetView, petView } from "#wow/areas/pets/view";
 import type { EntityLookup } from "#wow/entity-store";
 import {
@@ -42,7 +43,8 @@ export type PetsEvent =
   | { type: "bar"; cleared: false; bar: PetsBar }
   | { type: "bar"; cleared: true }
   | { type: "spell_learned"; spell: number }
-  | { type: "spell_unlearned"; spell: number };
+  | { type: "spell_unlearned"; spell: number }
+  | { type: "feedback"; reason: PetFeedback };
 
 const REACTS: readonly PetReact[] = ["passive", "defensive", "aggressive"];
 const COMMANDS: readonly PetCommand[] = ["stay", "follow", "attack", "abandon"];
@@ -72,7 +74,7 @@ export class PetsStore {
   private readonly getEntity: EntityLookup;
   private current: PetsBar | undefined;
   private cooldowns: PetsCooldown[] = [];
-  private readonly lastRefusal: PetsRefusal | undefined = undefined;
+  private lastRefusal: PetsRefusal | undefined;
 
   constructor(deps: SessionDeps, _core: CoreStores) {
     this.now = deps.now;
@@ -141,6 +143,11 @@ export class PetsStore {
         spells: bar.spells.filter((row) => row.spell !== spell),
       };
     this.events.emit({ type: "spell_unlearned", spell });
+  }
+
+  feedback(reason: PetFeedback): void {
+    this.lastRefusal = { reason, at: this.now() };
+    this.events.emit({ type: "feedback", reason });
   }
 
   dispose(): void {

@@ -26,13 +26,13 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x275` | `CMSG_STABLE_SWAP_PET` | client | missing |  |
 | `0x279` | `CMSG_REQUEST_PET_INFO` | client | handled |  |
 | `0x2af` | `SMSG_PET_BROKEN` | server | dead |  |
-| `0x2c6` | `SMSG_PET_ACTION_FEEDBACK` | server | missing |  |
-| `0x2ea` | `CMSG_PET_STOP_ATTACK` | client | missing |  |
+| `0x2c6` | `SMSG_PET_ACTION_FEEDBACK` | server | handled | not seen live |
+| `0x2ea` | `CMSG_PET_STOP_ATTACK` | client | handled |  |
 | `0x2f0` | `CMSG_PET_UNLEARN` | client | dead |  |
 | `0x2f1` | `SMSG_PET_UNLEARN_CONFIRM` | server | dead |  |
 | `0x2f3` | `CMSG_PET_SPELL_AUTOCAST` | client | missing |  |
-| `0x324` | `SMSG_PET_ACTION_SOUND` | server | missing |  |
-| `0x325` | `SMSG_PET_DISMISS_SOUND` | server | missing |  |
+| `0x324` | `SMSG_PET_ACTION_SOUND` | server | handled | not seen live |
+| `0x325` | `SMSG_PET_DISMISS_SOUND` | server | handled | not seen live |
 | `0x47a` | `CMSG_PET_LEARN_TALENT` | client | missing |  |
 | `0x48d` | `CMSG_DISMISS_CRITTER` | client | missing |  |
 | `0x492` | `SMSG_PET_UPDATE_COMBO_POINTS` | server | missing |  |

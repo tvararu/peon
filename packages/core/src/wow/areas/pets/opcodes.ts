@@ -38,7 +38,7 @@ export const PETS_OPCODES = {
     "SMSG_PET_UNLEARN_CONFIRM",
     "SMSG_PET_GUIDS",
   ],
-  uses: [],
+  uses: ["CMSG_PET_ACTION"],
   stubs: [],
   dead: [
     "SMSG_PET_MODE",
@@ -47,5 +47,9 @@ export const PETS_OPCODES = {
     "SMSG_PET_UNLEARN_CONFIRM",
     "SMSG_PET_GUIDS",
   ],
-  unseen: [],
+  unseen: [
+    "SMSG_PET_ACTION_FEEDBACK",
+    "SMSG_PET_ACTION_SOUND",
+    "SMSG_PET_DISMISS_SOUND",
+  ],
 } as const satisfies AreaOpcodes;

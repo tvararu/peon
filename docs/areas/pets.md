@@ -6,9 +6,17 @@ through `session.areas.pets.state()`: the bar with the pet's family,
 duration, stance (`react`), command, flags, the ten slots, the spells
 with their autocast state, the running cooldowns as end times, and a
 `pet` view of the summoned pet (pet number, name timestamp, the rename
-and abandon bits, happiness). The area emits `bar`, `spell_learned` and
-`spell_unlearned` events, and the act `pets.requestPetInfo()` asks the
-server for the bar again.
+and abandon bits, happiness), and the last refusal the server sent. The
+area emits `bar`, `spell_learned`, `spell_unlearned` and `feedback`
+events. The act `pets.requestPetInfo()` asks the server for the bar
+again. `pets.petCommand("stay" | "follow")` and
+`pets.petStance("passive" | "defensive" | "aggressive")` send the order
+and then ask for the bar, which confirms it. `pets.petCommand("dismiss")`
+sends the dismiss command alone, and `pets.petStopAttack()` stops the
+pet's attack. Each returns `{ ok: false, reason: "no_pet" }` and
+sends nothing when there is no bar, and `petCommand("dismiss")` returns
+`hunter_pet_dismiss` for a pet with the abandon bit, because that command
+deletes a hunter pet (`Handlers/PetHandler.cpp:287-288`).
 
 ## Wire notes
 
@@ -53,13 +61,43 @@ server for the bar again.
 - The rename and abandon bits are byte 2 of `UNIT_FIELD_BYTES_2`
   (`Entities/Unit/UnitDefines.h:152-153`); happiness is the fifth power
   (`src/server/shared/SharedDefines.h:261`).
+- `CMSG_PET_ACTION` is a `uint64` pet guid, a `uint32` `action | type <<
+  24` and a `uint64` target guid (`Handlers/PetHandler.cpp:57-65`). The
+  server sends no reply; the next bar carries the new react and command
+  states (`Handlers/PetHandler.cpp:162-324`). The attack form has the
+  same bytes as the legacy attack command
+  (`packages/core/src/wow/protocol/pet.ts`).
+- A pet action of type 0x07 is a command (0 stay, 1 follow, 2 attack, 3
+  abandon or dismiss) and one of type 0x06 a stance (0 passive, 1
+  defensive, 2 aggressive) (`Entities/Unit/CharmInfo.h:61-65`,
+  `Entities/Unit/Unit.h:565-578`).
+- `CMSG_PET_STOP_ATTACK` is the pet guid
+  (`Server/Packets/PetPackets.cpp:30-33`, `Handlers/PetHandler.cpp:127-148`).
+  The server answers with `SMSG_ATTACKSTOP` for the pet and no other
+  reply.
+- A unit that stops its attack clears its target field
+  (`Entities/Unit/Unit.cpp:7221`).
+- `SMSG_PET_ACTION_FEEDBACK` is one `uint8`
+  (`Entities/Unit/Unit.cpp:12556-12564`). The area reads 1, 2 and 3 as
+  `pet_dead`, `nothing_to_attack` and `cant_attack`, and any other value
+  as `unknown`.
+- The feedback values are 1 pet dead, 2 nothing to attack and 3 cannot
+  attack the target (`Entities/Pet/PetDefines.h:71-77`). wow_messages
+  also names 4 "no path to"
+  (`wow_message_parser/wowm/world/pet/smsg_pet_action_feedback.wowm`),
+  which AzerothCore never writes.
+- `SMSG_PET_ACTION_SOUND` is the unit guid as a raw `uint64` and an
+  `int32` action (`Server/Packets/PetPackets.cpp:54-59`);
+  `SMSG_PET_DISMISS_SOUND` is an `int32` model id and three `float`
+  coordinates (`Server/Packets/PetPackets.cpp:61-68`). The area reads
+  both and keeps nothing.
+- Only a summoned (warlock) pet plays the attack sound and the dismiss
+  sound (`Handlers/PetHandler.cpp:256`, `Handlers/PetHandler.cpp:291`).
 - Spell ids resolved by name through the spellbook of the
   `eversong10-hunter` preset: Call Pet 883, Dismiss Pet 2641.
 
 ## Left out
 
-- `CMSG_PET_STOP_ATTACK`, `SMSG_PET_ACTION_FEEDBACK`,
-  `SMSG_PET_ACTION_SOUND`, `SMSG_PET_DISMISS_SOUND`: built by pets-2.
 - `CMSG_PET_CAST_SPELL`, `SMSG_PET_CAST_FAILED`, `CMSG_PET_SPELL_AUTOCAST`,
   `CMSG_PET_SET_ACTION`, `CMSG_PET_CANCEL_AURA`: built by pets-3.
 - `CMSG_PET_NAME_QUERY`, `SMSG_PET_NAME_QUERY_RESPONSE`, `CMSG_PET_RENAME`,
@@ -77,7 +115,8 @@ server for the bar again.
 
 ## Capabilities row
 
-No agent verb; the world-service act `pets.requestPetInfo` only.
+No agent verb; the world-service acts `pets.requestPetInfo`,
+`pets.petCommand`, `pets.petStance` and `pets.petStopAttack` only.
 
 ## Proof
 
@@ -92,3 +131,7 @@ No agent verb; the world-service act `pets.requestPetInfo` only.
 | `CMSG_PET_UNLEARN` | `dead` | `STATUS_NEVER` with `Handle_NULL` | `Server/Protocol/Opcodes.cpp:883` |
 | `SMSG_PET_UNLEARN_CONFIRM` | `dead` | no send site in AzerothCore | `Server/Protocol/Opcodes.cpp:884` |
 | `SMSG_PET_GUIDS` | `dead` | only a comment names it (`Entities/Player/Player.cpp:11812`) | `Server/Protocol/Opcodes.cpp:1325` |
+| `CMSG_PET_STOP_ATTACK` | `live` | probe flow `pets-command --arg do=stop --arg yards=120`, exit 0: the pet sent at a Springpaw Stalker, `SMSG_ATTACKSTART` for the pet, then `CMSG_PET_STOP_ATTACK`, `SMSG_ATTACKSTOP` for the pet 1 ms later and the pet's `UNIT_FIELD_TARGET` cleared | `Server/Packets/PetPackets.cpp:30-33` |
+| `SMSG_PET_ACTION_FEEDBACK` | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "action feedback sets the last refusal and emits a feedback event" | `Entities/Unit/Unit.cpp:12556-12564` |
+| `SMSG_PET_ACTION_SOUND` | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "the action and dismiss sounds change no state and emit nothing" | `Server/Packets/PetPackets.cpp:54-59` |
+| `SMSG_PET_DISMISS_SOUND` | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "the action and dismiss sounds change no state and emit nothing" | `Server/Packets/PetPackets.cpp:61-68` |
