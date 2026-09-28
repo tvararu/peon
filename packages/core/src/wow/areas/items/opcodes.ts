@@ -38,7 +38,7 @@ export const ITEMS_OPCODES = {
     "CMSG_ITEM_NAME_QUERY",
     "SMSG_ITEM_NAME_QUERY_RESPONSE",
   ],
-  uses: [],
+  uses: ["SMSG_INVENTORY_CHANGE_FAILURE"],
   stubs: [
     ["SMSG_EQUIPMENT_SET_LIST", "Equipment sets"],
     ["SMSG_SET_PROFICIENCY", "Proficiency"],

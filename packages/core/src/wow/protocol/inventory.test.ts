@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { itemsInventoryChangeFailureBody } from "#test-support/areas/items";
 import { bytes } from "#test-support/hex";
 import {
   DESTROY_TWO_OF_STACK,
@@ -7,7 +8,10 @@ import {
 } from "#test-support/inventory-fixtures";
 import {
   buildDestroyItem,
+  InventoryResult,
   inventoryResultName,
+  isNoChange,
+  ownsInventoryFailure,
   parseInventoryChangeFailure,
 } from "#wow/protocol/inventory";
 import { PacketReader } from "#wow/protocol/packet";
@@ -106,5 +110,67 @@ describe("inventoryResultName", () => {
     expect(inventoryResultName(24)).toBe("cant_drop_soulbound");
     expect(inventoryResultName(23)).toBe("item_not_found");
     expect(inventoryResultName(250)).toBe("inventory_result_250");
+  });
+});
+
+describe("inventory failure ownership", () => {
+  const MINE = 0x40_00_00_00_00_00_00_0an;
+  const OTHER = 0x40_00_00_00_00_00_00_0bn;
+  const read = (body: Uint8Array) =>
+    parseInventoryChangeFailure(new PacketReader(body));
+
+  test("a failure naming the request's item belongs to it (PlayerStorage.cpp:4156-4196)", () => {
+    const packet = read(
+      itemsInventoryChangeFailureBody({
+        result: 1,
+        item1: MINE,
+        requiredLevel: 10,
+      }),
+    );
+    expect(
+      ownsInventoryFailure(packet, { itemGuid: MINE }, [{ itemGuid: OTHER }]),
+    ).toBe(true);
+  });
+
+  test("a failure with no item belongs to a request only while no other request waits", () => {
+    const packet = read(itemsInventoryChangeFailureBody({ result: 23 }));
+    const mine = { itemGuid: MINE };
+    expect(ownsInventoryFailure(packet, mine, [undefined, undefined])).toBe(
+      true,
+    );
+    expect(
+      ownsInventoryFailure(packet, mine, [undefined, { itemGuid: undefined }]),
+    ).toBe(false);
+    expect(
+      ownsInventoryFailure(packet, { itemGuid: undefined }, [undefined]),
+    ).toBe(true);
+  });
+
+  test("a failure naming another item or an ok result belongs to nobody", () => {
+    const other = read(
+      itemsInventoryChangeFailureBody({ result: 22, item1: OTHER }),
+    );
+    expect(ownsInventoryFailure(other, { itemGuid: MINE }, [])).toBe(false);
+    expect(ownsInventoryFailure(other, { itemGuid: undefined }, [])).toBe(
+      false,
+    );
+    const ok = read(itemsInventoryChangeFailureBody({ result: 0 }));
+    expect(ownsInventoryFailure(ok, { itemGuid: MINE }, [])).toBe(false);
+  });
+
+  test("result 59 EQUIP_ERR_NONE is a no-change notice, not a refusal (Item.h:106, ItemHandler.cpp:1001-1006)", () => {
+    const none = read(
+      itemsInventoryChangeFailureBody({ result: 59, item1: MINE }),
+    );
+    expect(isNoChange(none)).toBe(true);
+    expect(inventoryResultName(InventoryResult.NONE)).toBe("none");
+    expect(
+      isNoChange(
+        read(itemsInventoryChangeFailureBody({ result: 22, item1: MINE })),
+      ),
+    ).toBe(false);
+    expect(
+      isNoChange(read(itemsInventoryChangeFailureBody({ result: 0 }))),
+    ).toBe(false);
   });
 });

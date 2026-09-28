@@ -1,10 +1,26 @@
-import { defineArea, emptyStore } from "#wow/areas/contract";
+import { defineArea } from "#wow/areas/contract";
 import { ITEMS_OPCODES } from "#wow/areas/items/opcodes";
+import { itemsRuntime } from "#wow/areas/items/runtime";
+import { ItemsStore } from "#wow/areas/items/store";
+import { parseInventoryChangeFailure } from "#wow/protocol/inventory";
+import { GameOpcode } from "#wow/protocol/opcodes";
 
 export const itemsArea = defineArea({
   name: "items",
   opcodes: ITEMS_OPCODES,
-  eventTypes: [],
-  store: () => emptyStore(),
-  register: () => undefined,
+  eventTypes: [
+    "move_requested",
+    "moved",
+    "move_refused",
+    "move_no_change",
+    "move_unanswered",
+    "item_received",
+  ],
+  store: (deps, core) => new ItemsStore(deps, core),
+  register: (wire, store) => {
+    wire.peek(GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE, (r) =>
+      store.receiveInventoryFailure(parseInventoryChangeFailure(r)),
+    );
+  },
+  runtime: itemsRuntime,
 });

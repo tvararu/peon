@@ -128,3 +128,87 @@ export function itemsItemQuerySingleResponseBody(
   words(w, [t.duration, t.limitCategory, x.holiday]);
   return w.finish();
 }
+
+export type EquipErrorInit = {
+  result: number;
+  item1?: bigint;
+  item2?: bigint;
+  requiredLevel?: number;
+  limitCategory?: number;
+};
+
+const CANT_EQUIP_LEVEL = 1;
+const BIND_CONFIRM = 81;
+const PURCHASE_LEVEL_TOO_LOW = 87;
+const LIMIT_RESULTS = new Set([84, 85, 89]);
+
+export function itemsInventoryChangeFailureBody(
+  init: EquipErrorInit,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(init.result);
+  if (init.result === 0) return w.finish();
+  w.uint64LE(init.item1 ?? 0n);
+  w.uint64LE(init.item2 ?? 0n);
+  w.uint8(0);
+  if (
+    init.result === CANT_EQUIP_LEVEL ||
+    init.result === PURCHASE_LEVEL_TOO_LOW
+  )
+    w.uint32LE(init.requiredLevel ?? 0);
+  if (init.result === BIND_CONFIRM) {
+    w.uint64LE(0n);
+    w.uint32LE(0);
+    w.uint64LE(0n);
+  }
+  if (LIMIT_RESULTS.has(init.result)) w.uint32LE(init.limitCategory ?? 0);
+  return w.finish();
+}
+
+export function itemsTemplate(init: Partial<ItemTemplate>): ItemTemplate {
+  return {
+    allowableClass: 0xff_ff_ff_ff,
+    allowableRace: 0xff_ff_ff_ff,
+    ammoType: 0,
+    armor: 0,
+    bagFamily: 0,
+    bonding: 0,
+    containerSlots: 0,
+    damage: [],
+    delay: 1900,
+    duration: 0,
+    entry: 25,
+    flags: 0,
+    gemProperties: 0,
+    inventoryType: 21,
+    itemClass: 2,
+    itemLevel: 2,
+    itemSet: 0,
+    limitCategory: 0,
+    lockId: 0,
+    maxCount: 0,
+    maxDurability: 20,
+    name: "Worn Shortsword",
+    pageText: 0,
+    quality: 1,
+    requiredLevel: 1,
+    requiredSkill: 0,
+    requiredSkillRank: 0,
+    requiredSpell: 0,
+    resistances: {
+      arcane: 0,
+      fire: 0,
+      frost: 0,
+      holy: 0,
+      nature: 0,
+      shadow: 0,
+    },
+    socketBonus: 0,
+    sockets: [],
+    spells: [],
+    stackSize: 1,
+    stats: [],
+    subclass: 7,
+    ...init,
+  };
+}

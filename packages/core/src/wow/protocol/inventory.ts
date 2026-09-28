@@ -6,6 +6,7 @@ export const InventoryResult = {
   BAG_FULL: 4,
   INVENTORY_FULL: 50,
   BAG_FULL3: 53,
+  NONE: 59,
   BIND_CONFIRM: 81,
   MAX_LIMIT_COUNT: 84,
   MAX_LIMIT_SOCKETED: 85,
@@ -29,6 +30,22 @@ export type InventoryChangeFailure =
       bagType: number;
       detail: InventoryFailureDetail;
     };
+
+export type InventoryClaim = { readonly itemGuid: bigint | undefined };
+
+export function ownsInventoryFailure(
+  packet: InventoryChangeFailure,
+  mine: InventoryClaim,
+  others: readonly (InventoryClaim | undefined)[],
+): boolean {
+  if (packet.kind !== "error") return false;
+  if (packet.item1 !== 0n) return packet.item1 === mine.itemGuid;
+  return others.every((claim) => claim === undefined);
+}
+
+export function isNoChange(packet: InventoryChangeFailure): boolean {
+  return packet.kind === "error" && packet.result === InventoryResult.NONE;
+}
 
 export function parseInventoryChangeFailure(
   r: PacketReader,

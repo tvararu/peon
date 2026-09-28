@@ -71,12 +71,44 @@ on-use spells it read before.
 - Item 5806 Fool's Stout is a timed item: a copy added to a hunter's
   bags read `duration` 7200 live. The `eversong10-hunter` preset loads
   ammo 2515 Sharp Arrow.
+- `CMSG_SWAP_INV_ITEM` carries the destination slot first, then the
+  source slot: `SwapInventoryItem::Read` reads them in that order
+  (`Server/Packets/ItemPackets.cpp:29-33`). wow_messages lists the source
+  first (`wow_message_parser/wowm/world/item/cmsg_swap_inv_item.wowm`).
+  AzerothCore wins. `CMSG_SWAP_ITEM` also carries the destination bag and
+  slot before the source (`Server/Packets/ItemPackets.cpp:41-47`).
+- `CMSG_SPLIT_ITEM` carries a `uint32` count after the source and
+  destination positions (`Server/Packets/ItemPackets.h:40`).
+- `CMSG_AUTOSTORE_BAG_ITEM` names a destination bag and no slot
+  (`Server/Packets/ItemPackets.cpp:108-113`).
+- Destination bag 0 is `NULL_BAG` (`Entities/Item/Item.h:40`), which
+  lets the server pick any free slot
+  (`Entities/Player/PlayerStorage.cpp:605-609`).
+- The items area peeks `SMSG_INVENTORY_CHANGE_FAILURE`. A move owns a
+  failure when `item1` is the moving item, or when `item1` is 0 and no
+  legacy request (destroy, vendor buy, quest accept or reward, loot take)
+  was pending during the move.
+- Result 59 `EQUIP_ERR_NONE` (`Entities/Item/Item.h:106`) is a no-change
+  notice that the server sends when an item is stored back into its own
+  slot (`Handlers/ItemHandler.cpp:1001-1006`); the move settles
+  `no_change`, not `refused`.
+- Several move paths answer with no packet at all
+  (`Handlers/ItemHandler.cpp:41-45,103-110`), so a move with no answer
+  settles `unanswered` after 5 seconds.
+- A bag equips into the first free bag slot, 19 to 22
+  (`Entities/Player/PlayerStorage.cpp:214-218`). `readInventory` numbers
+  an item inside a bag with that bag slot as `bag` and a 0-based `slot`,
+  as the move opcodes do. The `soap truth` dump numbers the same item
+  differently: the hearthstone moved into slot 0 of the bag in slot 19
+  shows as `bag` 0, `slot` 0, so truth counts bags from 0 (seen with one
+  bag equipped).
+- Items used for the move proof: 36 Worn Mace (main hand, required level
+  1), 4496 Small Brown Pouch (a 6-slot bag), 4344 Brown Linen Shirt
+  (shirt), 2284 Rat Cloth Cloak (required level 10) and 20 of 159
+  Refreshing Spring Water.
 
 ## Left out
 
-- `CMSG_AUTOEQUIP_ITEM`, `CMSG_AUTOEQUIP_ITEM_SLOT`, `CMSG_SWAP_ITEM`,
-  `CMSG_SWAP_INV_ITEM`, `CMSG_AUTOSTORE_BAG_ITEM` and `CMSG_SPLIT_ITEM`:
-  built by `items-3a`.
 - `CMSG_OPEN_ITEM`, `CMSG_READ_ITEM`, `SMSG_READ_ITEM_OK`,
   `SMSG_READ_ITEM_FAILED`, `CMSG_ITEM_TEXT_QUERY` and
   `SMSG_ITEM_TEXT_QUERY_RESPONSE`: built by `items-4`.
@@ -103,3 +135,9 @@ No verb yet; `items-5a` adds the `gear` tool and its row.
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
+| `CMSG_AUTOEQUIP_ITEM` | `live` | probe flow `items-move` (`do=equip`) on a `fresh` priest, exit 0: the Worn Mace moves from backpack slot 26 to main hand 15 and the bag to bag slot 19 in truth, and each act settles `confirmed`; equipping the level-10 Rat Cloth Cloak draws `SMSG_INVENTORY_CHANGE_FAILURE` result 1 naming the cloak and settles `refused` | `Server/Packets/ItemPackets.cpp:49-53` |
+| `CMSG_AUTOEQUIP_ITEM_SLOT` | `live` | probe flow `items-move` (`do=equip_to`), exit 0: the Brown Linen Shirt swaps into slot 3 in truth and the act settles `confirmed` | `Server/Packets/ItemPackets.cpp:35-39` |
+| `CMSG_SWAP_ITEM` | `live` | probe flow `items-move` (`do=move`, `to=19:0`), exit 0: the hearthstone moves from backpack slot 25 into the bag in truth and the act settles `confirmed` | `Server/Packets/ItemPackets.cpp:41-47` |
+| `CMSG_SWAP_INV_ITEM` | `live` | probe flow `items-move` (`do=move`, `to=31`), exit 0: the Honey Bread moves from backpack slot 23 to 31 in truth and the act settles `confirmed` | `Server/Packets/ItemPackets.cpp:29-33` |
+| `CMSG_AUTOSTORE_BAG_ITEM` | `live` | probe flow `items-move` (`do=unequip`), exit 0: the shirt in slot 3 moves to the backpack in truth and the act settles `confirmed` | `Server/Packets/ItemPackets.cpp:108-113` |
+| `CMSG_SPLIT_ITEM` | `live` | probe flow `items-move` (`do=split`, `count=5`), exit 0: the stack of 20 water in slot 30 leaves 15, a new stack of 5 is in slot 32 in truth, and the act settles `confirmed` | `Server/Packets/ItemPackets.cpp:20-27` |
