@@ -6,6 +6,7 @@ import type { UnitView } from "#harness/contract/views";
 import { MIN_HP_PCT, MIN_MANA_PCT } from "#harness/loops/cycle-gate";
 import { dangerView, type InterruptCause } from "#harness/ops/danger";
 import { compassWord, explore } from "#harness/ops/explore";
+import { critter, exploreWanted } from "#harness/ops/explore-wanted";
 import { Refusal } from "#harness/ops/refusal";
 import { type Resolved, resolveUnit, unitRefusal } from "#harness/ops/resolve";
 import { travelLeg } from "#harness/ops/travel-leg";
@@ -112,23 +113,32 @@ function hostiles(ctx: ViewCtx): UnitView[] {
   );
 }
 
-function wantsHostile(unit: UnitView): boolean {
-  return unit.attackable && unit.relation === "hostile";
-}
-
 async function findUnnamed(ops: OpsCtx): Promise<UnitView> {
+  const { level } = selfView(ops);
+  const wanted = exploreWanted(ops, "hostile");
   for (
     let tries = 0;
-    tries < EXPLORE_TRIES && hostiles(ops).length === 0;
+    tries < EXPLORE_TRIES && !hostiles(ops).some(wanted);
     tries += 1
   )
-    await explore(ops, { direction: undefined, wanted: wantsHostile });
-  const { level } = selfView(ops);
-  const all = hostiles(ops);
-  const fit = all.find((unit) => unit.level <= level + LEVEL_CAP_ABOVE);
+    await explore(ops, {
+      direction: undefined,
+      wanted: (unit) => wanted(unit) && unit.relation === "hostile",
+    });
+  const eligible = hostiles(ops).filter(wanted);
+  const fit = eligible.find((unit) => unit.level <= level + LEVEL_CAP_ABOVE);
   if (fit) return fit;
-  const [strong] = all;
+  const [strong] = eligible;
   if (strong) throw tooStrong(strong, level);
+  const passed = hostiles(ops)
+    .filter((unit) => !critter(unit))
+    .map((unit) => `${unit.name} ${unit.ref} L${unit.level}`);
+  if (passed.length > 0)
+    throw new Refusal({
+      detail: `only gray units in view (${passed.join(", ")}); they give no XP or kill credit.`,
+      next: askHuman("Where should I look for enemies?"),
+      reason: "not_seen",
+    });
   throw new Refusal({
     detail: `no hostile unit you can attack came into view after ${EXPLORE_TRIES} explore walks.`,
     next: askHuman("Where should I look for enemies?"),
