@@ -361,27 +361,46 @@ function compactLines(bags: BagsView): string[] {
   return lines;
 }
 
-function itemLines(bags: BagsView): string[] {
+function buybackLine(ctx: Ctx): string | undefined {
+  const list = ctx.handle.buyback.state().list;
+  if (list.length === 0) return undefined;
+  const rows = list.map((row) => {
+    const count = row.count ?? 1;
+    const name =
+      row.entry === undefined
+        ? "an item"
+        : (ctx.handle.itemLabel(row.entry).name ?? `item ${row.entry}`);
+    return row.price === undefined
+      ? `${name} x${count}`
+      : `${name} x${count} for ${row.price} copper`;
+  });
+  return `Buyback: ${rows.join("; ")}.`;
+}
+
+function itemLines(bags: BagsView, sold: string | undefined): string[] {
   const lines = bags.items.map(itemLine);
   if (bags.ammo !== undefined)
     lines.push(`Ammo: ${bags.ammo.name} (item ${bags.ammo.entry}).`);
+  if (lines.length === 0 && sold === undefined) return ["Bags: no items."];
+  if (sold !== undefined && lines.length <= BAG_LINE_BUDGET) lines.push(sold);
   if (lines.length === 0) return ["Bags: no items."];
   if (lines.length > BAG_LINE_BUDGET) return compactLines(bags);
   return lines;
 }
 
-async function bagsResult({ handle }: Ctx): Promise<ToolResult<JournalAfter>> {
-  const inventory = handle.getInventoryState();
+async function bagsResult(ctx: Ctx): Promise<ToolResult<JournalAfter>> {
+  const inventory = ctx.handle.getInventoryState();
   const bags = await bagsView(
     inventory,
-    handle.getItemTemplate,
-    handle.getSelfClass(),
-    handle.getExperienceState().level,
+    ctx.handle.getItemTemplate,
+    ctx.handle.getSelfClass(),
+    ctx.handle.getExperienceState().level,
   );
+  const sold = buybackLine(ctx);
   const detail = `Money: ${moneyText(bags.copper)}. ${bags.freeSlots ?? "unknown"} free bag slots.`;
   return result("DONE", {
     after: { about: "bags", bags },
-    body: [equippedLine(bags), ...itemLines(bags)],
+    body: [equippedLine(bags), ...itemLines(bags, sold)],
     detail,
   });
 }

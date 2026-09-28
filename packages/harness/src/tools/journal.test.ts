@@ -358,6 +358,32 @@ describe("journal", () => {
       "Ammo: Rough Arrow (item 2512).",
     ]);
   });
+  test("bags ends with a buyback line when the vendor holds sold items", async () => {
+    const { handle, tool } = await world();
+    const sold = {
+      ...handle.buyback.state(),
+      list: [
+        { count: 1, entry: 2589, guid: 0x77n, price: 35, slot: 74, soldAt: 10 },
+      ],
+    };
+    Object.assign(handle, {
+      buyback: { ...handle.buyback, state: () => sold },
+    });
+    handle.itemLabel = (() => ({
+      name: "Linen Cloth",
+      quality: 1,
+    })) as typeof handle.itemLabel;
+    const out = await runTool(tool, { about: "bags" });
+    expect(out.text.split("\n").at(-1)).toBe(
+      "Buyback: Linen Cloth x1 for 35 copper.",
+    );
+  });
+
+  test("bags omits the buyback line when nothing was sold", async () => {
+    const { tool } = await world();
+    const out = await runTool(tool, { about: "bags" });
+    expect(out.text).not.toContain("Buyback:");
+  });
 
   test("spells lists known spells by name with cost and cooldown", async () => {
     const { handle, tool } = await world();
