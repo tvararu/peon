@@ -8,19 +8,19 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x13f` | `CMSG_INSTANCE_LOCK_RESPONSE` | client | missing |  |
 | `0x147` | `SMSG_INSTANCE_LOCK_WARNING_QUERY` | server | missing |  |
 | `0x214` | `SMSG_UPDATE_INSTANCE_ENCOUNTER_UNIT` | server | missing |  |
-| `0x286` | `SMSG_RAID_GROUP_ONLY` | server | missing |  |
+| `0x286` | `SMSG_RAID_GROUP_ONLY` | server | handled |  |
 | `0x292` | `CMSG_SET_SAVED_INSTANCE_EXTEND` | client | missing |  |
 | `0x2cb` | `SMSG_INSTANCE_SAVE_CREATED` | server | missing |  |
 | `0x2cc` | `SMSG_RAID_INSTANCE_INFO` | server | missing |  |
 | `0x2cd` | `CMSG_REQUEST_RAID_INFO` | client | missing |  |
-| `0x2fa` | `SMSG_RAID_INSTANCE_MESSAGE` | server | stub |  |
+| `0x2fa` | `SMSG_RAID_INSTANCE_MESSAGE` | server | handled | not seen live |
 | `0x31d` | `CMSG_RESET_INSTANCES` | client | missing |  |
 | `0x31e` | `SMSG_INSTANCE_RESET` | server | missing |  |
 | `0x31f` | `SMSG_INSTANCE_RESET_FAILED` | server | missing |  |
-| `0x320` | `SMSG_UPDATE_LAST_INSTANCE` | server | missing |  |
-| `0x329` | `MSG_SET_DUNGEON_DIFFICULTY` | both | missing |  |
-| `0x32b` | `SMSG_UPDATE_INSTANCE_OWNERSHIP` | server | missing |  |
-| `0x33b` | `SMSG_INSTANCE_DIFFICULTY` | server | stub |  |
+| `0x320` | `SMSG_UPDATE_LAST_INSTANCE` | server | handled | not seen live |
+| `0x329` | `MSG_SET_DUNGEON_DIFFICULTY` | both | handled |  |
+| `0x32b` | `SMSG_UPDATE_INSTANCE_OWNERSHIP` | server | handled |  |
+| `0x33b` | `SMSG_INSTANCE_DIFFICULTY` | server | handled |  |
 | `0x396` | `SMSG_RESET_FAILED_NOTIFY` | server | missing |  |
-| `0x4eb` | `MSG_SET_RAID_DIFFICULTY` | both | missing |  |
-| `0x506` | `SMSG_CORPSE_NOT_IN_INSTANCE` | server | missing |  |
+| `0x4eb` | `MSG_SET_RAID_DIFFICULTY` | both | handled | not seen live |
+| `0x506` | `SMSG_CORPSE_NOT_IN_INSTANCE` | server | handled | not seen live |

@@ -1,0 +1,56 @@
+import { PacketWriter } from "#wow/protocol/packet";
+
+function u32s(...values: number[]): Uint8Array {
+  const w = new PacketWriter();
+  for (const value of values) w.uint32LE(value);
+  return w.finish();
+}
+
+export function instancesDifficultyBody(init: {
+  difficulty: number;
+  inGroup: boolean;
+}): Uint8Array {
+  return u32s(init.difficulty, 1, init.inGroup ? 1 : 0);
+}
+
+export function instancesInstanceDifficultyBody(init: {
+  difficulty: number;
+  dynamicHeroic: boolean;
+}): Uint8Array {
+  return u32s(init.difficulty, init.dynamicHeroic ? 1 : 0);
+}
+
+export function instancesOwnershipBody(hasBinds: boolean): Uint8Array {
+  return u32s(hasBinds ? 1 : 0);
+}
+
+export function instancesLastInstanceBody(mapId: number): Uint8Array {
+  return u32s(mapId);
+}
+
+export function instancesRaidInstanceMessageBody(init: {
+  kind: number;
+  mapId: number;
+  difficulty: number;
+  secondsLeft: number;
+  locked?: boolean;
+  extended?: boolean;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.kind);
+  w.uint32LE(init.mapId);
+  w.uint32LE(init.difficulty);
+  w.uint32LE(init.secondsLeft);
+  if (init.kind === 4) {
+    w.uint8(init.locked ? 1 : 0);
+    w.uint8(init.extended ? 1 : 0);
+  }
+  return w.finish();
+}
+
+export function instancesRaidGroupOnlyBody(init: {
+  timerMs: number;
+  code: number;
+}): Uint8Array {
+  return u32s(init.timerMs, init.code);
+}
