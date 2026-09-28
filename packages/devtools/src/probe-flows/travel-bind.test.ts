@@ -1,6 +1,11 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { UnitEntity, WorldHandle } from "@peon/core";
 import {
+  fakeAwait,
+  fakeRejection,
+  withFakeTimers,
+} from "@peon/core/test-support/fake-time";
+import {
   createMockHandle,
   type MockHandle,
 } from "@peon/core/test-support/mock-handle";
@@ -92,76 +97,81 @@ function gossip(handle: MockHandle, texts: string[]): void {
 }
 
 describe("travel-bind flow", () => {
-  test("binds at the nearest innkeeper and waits for bound", async () => {
-    const ctx = context({}, [
-      row(VENDOR, 2, ["vendor"]),
-      row(INNKEEPER, 3, ["innkeeper", "vendor"]),
-    ]);
-    const bind = jest
-      .spyOn(ctx.handle.travel.act, "bindActivate")
-      .mockImplementation(async () => {
-        setTimeout(
-          () =>
-            ctx.handle.triggerAreaEvent("travel", {
-              areaId: HOME.areaId,
-              binder: INNKEEPER,
-              type: "bound",
-            }),
-          10,
-        );
-        return { home: HOME, status: "ok" };
+  test("binds at the nearest innkeeper and waits for bound", () =>
+    withFakeTimers(async () => {
+      const ctx = context({}, [
+        row(VENDOR, 2, ["vendor"]),
+        row(INNKEEPER, 3, ["innkeeper", "vendor"]),
+      ]);
+      const bind = jest
+        .spyOn(ctx.handle.travel.act, "bindActivate")
+        .mockImplementation(async () => {
+          setTimeout(
+            () =>
+              ctx.handle.triggerAreaEvent("travel", {
+                areaId: HOME.areaId,
+                binder: INNKEEPER,
+                type: "bound",
+              }),
+            10,
+          );
+          return { home: HOME, status: "ok" };
+        });
+      const result = await fakeAwait(flow.run(ctx), 1000);
+      expect(bind).toHaveBeenCalledWith(INNKEEPER);
+      expect(result).toMatchObject({
+        bound: { areaId: HOME.areaId, binder: "0xf130003e4a001234" },
+        outcome: { home: HOME, status: "ok" },
       });
-    const result = await flow.run(ctx);
-    expect(bind).toHaveBeenCalledWith(INNKEEPER);
-    expect(result).toMatchObject({
-      bound: { areaId: HOME.areaId, binder: "0xf130003e4a001234" },
-      outcome: { home: HOME, status: "ok" },
-    });
-  });
+    }));
 
-  test("reports a bind the server did not answer", async () => {
-    const ctx = context({}, [row(INNKEEPER, 3, ["innkeeper"])]);
-    jest
-      .spyOn(ctx.handle.travel.act, "bindActivate")
-      .mockResolvedValue({ status: "no_answer" });
-    expect(await flow.run(ctx)).toMatchObject({
-      bound: null,
-      outcome: { status: "no_answer" },
-    });
-  });
-
-  test("refuses when no innkeeper is in view", async () => {
-    const ctx = context({}, [row(VENDOR, 2, ["vendor"])]);
-    await expect(Promise.resolve(flow.run(ctx))).rejects.toThrow(
-      "no innkeeper",
-    );
-  });
-
-  test("with gossip=1 picks the home option and waits for the offer", async () => {
-    const ctx = context({ gossip: "1" }, [row(INNKEEPER, 3, ["innkeeper"])]);
-    gossip(ctx.handle, [
-      "Let me browse your goods.",
-      "Make this inn your home.",
-    ]);
-    const bind = jest.spyOn(ctx.handle.travel.act, "bindActivate");
-    ctx.handle.selectGossipOption = jest.fn(() => {
-      ctx.handle.triggerAreaEvent("travel", {
-        npc: INNKEEPER,
-        type: "bind_offer",
+  test("reports a bind the server did not answer", () =>
+    withFakeTimers(async () => {
+      const ctx = context({}, [row(INNKEEPER, 3, ["innkeeper"])]);
+      jest
+        .spyOn(ctx.handle.travel.act, "bindActivate")
+        .mockResolvedValue({ status: "no_answer" });
+      expect(await fakeAwait(flow.run(ctx), 1000)).toMatchObject({
+        bound: null,
+        outcome: { status: "no_answer" },
       });
-    });
-    const result = await flow.run(ctx);
-    expect(ctx.handle.talk).toHaveBeenCalledWith(INNKEEPER);
-    expect(ctx.handle.selectGossipOption).toHaveBeenCalledWith(1);
-    expect(bind).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ offer: { npc: "0xf130003e4a001234" } });
-  });
+    }));
 
-  test("with gossip=1 refuses a menu with no home option", async () => {
-    const ctx = context({ gossip: "1" }, [row(INNKEEPER, 3, ["innkeeper"])]);
-    gossip(ctx.handle, ["Let me browse your goods."]);
-    await expect(Promise.resolve(flow.run(ctx))).rejects.toThrow(
-      "no home option",
-    );
-  });
+  test("refuses when no innkeeper is in view", () =>
+    withFakeTimers(async () => {
+      const ctx = context({}, [row(VENDOR, 2, ["vendor"])]);
+      expect(await fakeRejection(flow.run(ctx), 1000)).toContain(
+        "no innkeeper",
+      );
+    }));
+
+  test("with gossip=1 picks the home option and waits for the offer", () =>
+    withFakeTimers(async () => {
+      const ctx = context({ gossip: "1" }, [row(INNKEEPER, 3, ["innkeeper"])]);
+      gossip(ctx.handle, [
+        "Let me browse your goods.",
+        "Make this inn your home.",
+      ]);
+      const bind = jest.spyOn(ctx.handle.travel.act, "bindActivate");
+      ctx.handle.selectGossipOption = jest.fn(() => {
+        ctx.handle.triggerAreaEvent("travel", {
+          npc: INNKEEPER,
+          type: "bind_offer",
+        });
+      });
+      const result = await fakeAwait(flow.run(ctx), 1000);
+      expect(ctx.handle.talk).toHaveBeenCalledWith(INNKEEPER);
+      expect(ctx.handle.selectGossipOption).toHaveBeenCalledWith(1);
+      expect(bind).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ offer: { npc: "0xf130003e4a001234" } });
+    }));
+
+  test("with gossip=1 refuses a menu with no home option", () =>
+    withFakeTimers(async () => {
+      const ctx = context({ gossip: "1" }, [row(INNKEEPER, 3, ["innkeeper"])]);
+      gossip(ctx.handle, ["Let me browse your goods."]);
+      expect(await fakeRejection(flow.run(ctx), 1000)).toContain(
+        "no home option",
+      );
+    }));
 });

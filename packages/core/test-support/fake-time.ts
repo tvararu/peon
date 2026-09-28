@@ -1,4 +1,5 @@
 import { jest } from "bun:test";
+import { messageOf } from "#lib/errors";
 
 const STEP_MS = 10;
 
@@ -26,14 +27,14 @@ export async function elapse(ms: number): Promise<void> {
 }
 
 export async function fakeMsUntilSettled(
-  promise: Promise<unknown>,
+  promise: unknown,
   limitMs: number,
 ): Promise<number> {
   let settled = false;
   const done = () => {
     settled = true;
   };
-  promise.then(done, done);
+  Promise.resolve(promise).then(done, done);
   const started = performance.now();
   await turn();
   while (!settled && performance.now() - started < limitMs) {
@@ -54,4 +55,23 @@ export function fakeTimed<T>(
     const run = start();
     return { ms: await fakeMsUntilSettled(run, limitMs), run };
   });
+}
+
+export async function fakeAwait<T>(
+  promise: T | Promise<T>,
+  limitMs: number,
+): Promise<T> {
+  await fakeMsUntilSettled(promise, limitMs);
+  return promise;
+}
+
+export async function fakeRejection(
+  promise: unknown,
+  limitMs: number,
+): Promise<string> {
+  await fakeMsUntilSettled(promise, limitMs);
+  return Promise.resolve(promise).then(
+    () => "resolved",
+    (error: unknown) => messageOf(error),
+  );
 }

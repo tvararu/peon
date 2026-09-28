@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { Entity, WorldHandle } from "@peon/core";
+import {
+  fakeAwait,
+  fakeMsUntilSettled,
+  fakeRejection,
+  withFakeTimers,
+} from "@peon/core/test-support/fake-time";
 import { createMockHandle } from "@peon/core/test-support/mock-handle";
 import { type FlowContext, loadFlows, settleWithin } from "#tools/probe-flows";
 
@@ -138,14 +144,19 @@ describe("login flow", () => {
     });
   });
 
-  test("reports an unknown place once the settle time runs out", async () => {
-    expect(await flow("login").run(context())).toEqual({
-      area: null,
-      mapId: null,
-      pose: null,
-      zone: null,
-    });
-  });
+  test("reports an unknown place once the settle time runs out", () =>
+    withFakeTimers(async () => {
+      const run = flow("login").run(context());
+      const ms = await fakeMsUntilSettled(run, 1000);
+      expect(await run).toEqual({
+        area: null,
+        mapId: null,
+        pose: null,
+        zone: null,
+      });
+      expect(ms).toBeGreaterThanOrEqual(300);
+      expect(ms).toBeLessThan(400);
+    }));
 });
 
 describe("nearest flow", () => {
@@ -185,17 +196,19 @@ describe("nearest flow", () => {
     });
   });
 
-  test("waits for the world to fill in, up to the settle time", async () => {
-    const late = context({ kind: "gameobject" }, arrivingAfter(2));
-    const never = context({ kind: "gameobject" }, () => []);
-    expect(await flow("nearest").run(late)).toMatchObject({
-      rows: [{ entry: 181_222 }],
-    });
-    expect(await flow("nearest").run(never)).toEqual({
-      kind: "gameobject",
-      rows: [],
-    });
-  });
+  test("waits for the world to fill in, up to the settle time", () =>
+    withFakeTimers(async () => {
+      const late = context({ kind: "gameobject" }, arrivingAfter(2));
+      const never = context({ kind: "gameobject" }, () => []);
+      const found = flow("nearest").run(late);
+      expect(await fakeMsUntilSettled(found, 1000)).toBe(200);
+      expect(await found).toMatchObject({ rows: [{ entry: 181_222 }] });
+      const empty = flow("nearest").run(never);
+      const ms = await fakeMsUntilSettled(empty, 1000);
+      expect(await empty).toEqual({ kind: "gameobject", rows: [] });
+      expect(ms).toBeGreaterThanOrEqual(300);
+      expect(ms).toBeLessThan(400);
+    }));
 
   test("refuses an unknown kind", async () => {
     const run = flow("nearest").run(context({ kind: "dragon" }));
@@ -217,17 +230,23 @@ describe("talk flow", () => {
     expect(ctx.talked).toEqual([0xf1_31n]);
   });
 
-  test("waits for the entity to come into view", async () => {
-    const ctx = context({ entry: "16475" }, arrivingAfter(2));
-    expect(await flow("talk").run(ctx)).toMatchObject({ entry: 16_475 });
-    expect(ctx.talked).toEqual([0xf1_31n]);
-  });
+  test("waits for the entity to come into view", () =>
+    withFakeTimers(async () => {
+      const ctx = context({ entry: "16475" }, arrivingAfter(2));
+      expect(await fakeAwait(flow("talk").run(ctx), 1000)).toMatchObject({
+        entry: 16_475,
+      });
+      expect(ctx.talked).toEqual([0xf1_31n]);
+    }));
 
-  test("refuses when no such entity is nearby", async () => {
-    const ctx = context({ entry: "1" });
-    await expect(flow("talk").run(ctx)).rejects.toThrow("entry 1");
-    expect(ctx.talked).toEqual([]);
-  });
+  test("refuses when no such entity is nearby", () =>
+    withFakeTimers(async () => {
+      const ctx = context({ entry: "1" });
+      expect(await fakeRejection(flow("talk").run(ctx), 1000)).toContain(
+        "entry 1",
+      );
+      expect(ctx.talked).toEqual([]);
+    }));
 
   test("refuses a missing or non-numeric entry", async () => {
     const missing = flow("talk").run(context());

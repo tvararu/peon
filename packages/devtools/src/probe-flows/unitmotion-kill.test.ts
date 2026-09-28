@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import type { UnitEntity, WorldHandle } from "@peon/core";
 import {
+  elapse,
+  fakeAwait,
+  fakeMsUntilSettled,
+  fakeRejection,
+  withFakeTimers,
+} from "@peon/core/test-support/fake-time";
+import {
   createMockHandle,
   type MockHandle,
 } from "@peon/core/test-support/mock-handle";
@@ -116,76 +123,90 @@ function toggle(
 }
 
 describe("unitmotion-kill flow", () => {
-  test("attacks the nearest living hostile creature and records its death toggles", async () => {
-    const { health, rows } = world();
-    const ctx = context({ seconds: "5" }, rows);
-    const running = flow.run(ctx);
-    await Bun.sleep(50);
-    expect(ctx.handle.selectTarget).toHaveBeenCalledWith(CUB);
-    expect(ctx.handle.attack).toHaveBeenCalledWith(CUB);
-    toggle(ctx.handle, LYNX, "hover");
-    health.set(CUB, 0);
-    toggle(ctx.handle, CUB, "hover");
-    toggle(ctx.handle, CUB, "disable_gravity");
-    expect(await running).toEqual({
-      stop: "target_dead",
-      target: expect.objectContaining({ guid: "0xf130003b06000001" }),
-      toggles: ["hover", "disable_gravity"],
-    });
-  });
+  test("attacks the nearest living hostile creature and records its death toggles", () =>
+    withFakeTimers(async () => {
+      const { health, rows } = world();
+      const ctx = context({ seconds: "5" }, rows);
+      const running = flow.run(ctx);
+      await elapse(50);
+      expect(ctx.handle.selectTarget).toHaveBeenCalledWith(CUB);
+      expect(ctx.handle.attack).toHaveBeenCalledWith(CUB);
+      toggle(ctx.handle, LYNX, "hover");
+      health.set(CUB, 0);
+      toggle(ctx.handle, CUB, "hover");
+      toggle(ctx.handle, CUB, "disable_gravity");
+      expect(await fakeAwait(running, 1000)).toEqual({
+        stop: "target_dead",
+        target: expect.objectContaining({ guid: "0xf130003b06000001" }),
+        toggles: ["hover", "disable_gravity"],
+      });
+    }));
 
-  test("walks into melee range of a far creature", async () => {
-    let distance = 30;
-    let health = 100;
-    const rows = () => [
-      row({ distance: 0, guid: ME, self: true }),
-      row({ distance, guid: CUB, health }),
-    ];
-    const ctx = context({ seconds: "5" }, rows);
-    const steps: number[] = [];
-    ctx.handle.walkTowardPoint = async (_point, yards) => {
-      steps.push(yards);
-      distance -= yards;
-      return {
-        pose: {
-          mapId: 530,
-          orientation: 0,
-          source: "server" as const,
-          updatedAt: 0,
-          x: 0,
-          y: 0,
-          z: 0,
-        },
-        status: "completed" as const,
-        traveled: yards,
+  test("walks into melee range of a far creature", () =>
+    withFakeTimers(async () => {
+      let distance = 30;
+      let health = 100;
+      const rows = () => [
+        row({ distance: 0, guid: ME, self: true }),
+        row({ distance, guid: CUB, health }),
+      ];
+      const ctx = context({ seconds: "5" }, rows);
+      const steps: number[] = [];
+      ctx.handle.walkTowardPoint = async (_point, yards) => {
+        steps.push(yards);
+        distance -= yards;
+        return {
+          pose: {
+            mapId: 530,
+            orientation: 0,
+            source: "server" as const,
+            updatedAt: 0,
+            x: 0,
+            y: 0,
+            z: 0,
+          },
+          status: "completed" as const,
+          traveled: yards,
+        };
       };
-    };
-    const running = flow.run(ctx);
-    await Bun.sleep(50);
-    health = 0;
-    expect(await running).toMatchObject({ stop: "target_dead" });
-    expect(steps).toEqual([20, 7]);
-  });
+      const running = flow.run(ctx);
+      await elapse(50);
+      health = 0;
+      expect(await fakeAwait(running, 3000)).toMatchObject({
+        stop: "target_dead",
+      });
+      expect(steps).toEqual([20, 7]);
+    }));
 
-  test("stops when the character dies or time runs out", async () => {
-    const { health, rows } = world();
-    const ctx = context({ seconds: "5" }, rows);
-    const running = flow.run(ctx);
-    await Bun.sleep(50);
-    health.set(ME, 0);
-    expect(await running).toMatchObject({ stop: "self_dead", toggles: [] });
-    expect(
-      await flow.run(context({ seconds: "0.3" }, world().rows)),
-    ).toMatchObject({ stop: "timeout" });
-  });
+  test("stops when the character dies or time runs out", () =>
+    withFakeTimers(async () => {
+      const { health, rows } = world();
+      const ctx = context({ seconds: "5" }, rows);
+      const running = flow.run(ctx);
+      await elapse(50);
+      health.set(ME, 0);
+      expect(await fakeAwait(running, 1000)).toMatchObject({
+        stop: "self_dead",
+        toggles: [],
+      });
+      const late = flow.run(context({ seconds: "0.3" }, world().rows));
+      const ms = await fakeMsUntilSettled(late, 2000);
+      expect(await late).toMatchObject({ stop: "timeout" });
+      expect(ms).toBeGreaterThanOrEqual(300);
+      expect(ms).toBeLessThan(600);
+    }));
 
-  test("fails with no hostile creature or a bad time limit", async () => {
-    const lone = () => [row({ distance: 0, guid: ME, self: true })];
-    await expect(flow.run(context({}, lone))).rejects.toThrow(
-      "no hostile creature",
-    );
-    await expect(
-      flow.run(context({ seconds: "0" }, world().rows)),
-    ).rejects.toThrow("seconds > 0");
-  });
+  test("fails with no hostile creature or a bad time limit", () =>
+    withFakeTimers(async () => {
+      const lone = () => [row({ distance: 0, guid: ME, self: true })];
+      expect(await fakeRejection(flow.run(context({}, lone)), 1000)).toContain(
+        "no hostile creature",
+      );
+      expect(
+        await fakeRejection(
+          flow.run(context({ seconds: "0" }, world().rows)),
+          1000,
+        ),
+      ).toContain("seconds > 0");
+    }));
 });

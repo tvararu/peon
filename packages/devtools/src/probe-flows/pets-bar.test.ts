@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { WorldHandle } from "@peon/core";
 import {
+  elapse,
+  fakeAwait,
+  withFakeTimers,
+} from "@peon/core/test-support/fake-time";
+import {
   createMockHandle,
   type MockHandle,
 } from "@peon/core/test-support/mock-handle";
@@ -50,46 +55,52 @@ function requests(handle: MockHandle) {
 }
 
 describe("pets-bar flow", () => {
-  test("with a pet out it asks for the bar again and waits for the reply", async () => {
-    const ctx = context();
-    const running = flow.run(ctx);
-    show(ctx.handle);
-    await Bun.sleep(150);
-    expect(requests(ctx.handle)).toHaveLength(1);
-    show(ctx.handle);
-    expect(await running).toMatchObject({
-      bars: { cleared: 0, shown: 2 },
-      called: null,
-      cleared: null,
-      replied: true,
-    });
-    expect(ctx.handle.cast).not.toHaveBeenCalled();
-  });
+  test("with a pet out it asks for the bar again and waits for the reply", () =>
+    withFakeTimers(async () => {
+      const ctx = context();
+      const running = flow.run(ctx);
+      show(ctx.handle);
+      await elapse(150);
+      expect(requests(ctx.handle)).toHaveLength(1);
+      show(ctx.handle);
+      expect(await fakeAwait(running, 1000)).toMatchObject({
+        bars: { cleared: 0, shown: 2 },
+        called: null,
+        cleared: null,
+        replied: true,
+      });
+      expect(ctx.handle.cast).not.toHaveBeenCalled();
+    }));
 
-  test("with no pet out it casts Call Pet on the character first", async () => {
-    const ctx = context();
-    const running = flow.run(ctx);
-    await Bun.sleep(150);
-    expect(ctx.handle.cast).toHaveBeenCalledWith(883, ME);
-    show(ctx.handle);
-    await Bun.sleep(150);
-    show(ctx.handle);
-    expect(await running).toMatchObject({ called: 883, replied: true });
-  });
+  test("with no pet out it casts Call Pet on the character first", () =>
+    withFakeTimers(async () => {
+      const ctx = context();
+      const running = flow.run(ctx);
+      await elapse(150);
+      expect(ctx.handle.cast).toHaveBeenCalledWith(883, ME);
+      show(ctx.handle);
+      await elapse(150);
+      show(ctx.handle);
+      expect(await fakeAwait(running, 1000)).toMatchObject({
+        called: 883,
+        replied: true,
+      });
+    }));
 
-  test("dismiss=1 casts Dismiss Pet and waits for the cleared bar", async () => {
-    const ctx = context({ dismiss: "1" });
-    const running = flow.run(ctx);
-    show(ctx.handle);
-    await Bun.sleep(150);
-    show(ctx.handle);
-    await Bun.sleep(150);
-    expect(ctx.handle.cast).toHaveBeenCalledWith(2641, ME);
-    ctx.handle.triggerAreaEvent("pets", { cleared: true, type: "bar" });
-    expect(await running).toMatchObject({
-      bars: { cleared: 1, shown: 2 },
-      cleared: true,
-      dismissed: 2641,
-    });
-  });
+  test("dismiss=1 casts Dismiss Pet and waits for the cleared bar", () =>
+    withFakeTimers(async () => {
+      const ctx = context({ dismiss: "1" });
+      const running = flow.run(ctx);
+      show(ctx.handle);
+      await elapse(150);
+      show(ctx.handle);
+      await elapse(150);
+      expect(ctx.handle.cast).toHaveBeenCalledWith(2641, ME);
+      ctx.handle.triggerAreaEvent("pets", { cleared: true, type: "bar" });
+      expect(await fakeAwait(running, 1000)).toMatchObject({
+        bars: { cleared: 1, shown: 2 },
+        cleared: true,
+        dismissed: 2641,
+      });
+    }));
 });

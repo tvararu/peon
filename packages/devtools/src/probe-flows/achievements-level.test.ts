@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import type { UnitEntity, WorldHandle } from "@peon/core";
 import {
+  elapse,
+  fakeAwait,
+  fakeMsUntilSettled,
+  fakeRejection,
+  withFakeTimers,
+} from "@peon/core/test-support/fake-time";
+import {
   createMockHandle,
   type MockHandle,
 } from "@peon/core/test-support/mock-handle";
@@ -103,49 +110,59 @@ function world() {
 }
 
 describe("achievements-level flow", () => {
-  test("attacks the nearest attackable hostile creature until it dies", async () => {
-    const { health, rows } = world();
-    const ctx = context({ linger: "0", seconds: "5" }, rows);
-    const running = flow.run(ctx);
-    await Bun.sleep(50);
-    ctx.handle.triggerAreaEvent("achievements", {
-      guid: ME,
-      id: 7,
-      self: true,
-      type: "achievement_earned",
-    });
-    health.set(CUB, 0);
-    expect(await running).toMatchObject({
-      earned: [{ id: 7, self: true }],
-      stop: "target_dead",
-      target: { guid: "0xf130003b06000001" },
-    });
-    expect(ctx.handle.attack).toHaveBeenCalledWith(CUB);
-    expect(ctx.handle.attack).not.toHaveBeenCalledWith(GUARD);
-  });
+  test("attacks the nearest attackable hostile creature until it dies", () =>
+    withFakeTimers(async () => {
+      const { health, rows } = world();
+      const ctx = context({ linger: "0", seconds: "5" }, rows);
+      const running = flow.run(ctx);
+      await elapse(50);
+      ctx.handle.triggerAreaEvent("achievements", {
+        guid: ME,
+        id: 7,
+        self: true,
+        type: "achievement_earned",
+      });
+      health.set(CUB, 0);
+      expect(await fakeAwait(running, 1000)).toMatchObject({
+        earned: [{ id: 7, self: true }],
+        stop: "target_dead",
+        target: { guid: "0xf130003b06000001" },
+      });
+      expect(ctx.handle.attack).toHaveBeenCalledWith(CUB);
+      expect(ctx.handle.attack).not.toHaveBeenCalledWith(GUARD);
+    }));
 
-  test("stops when the character dies", async () => {
-    const { health, rows } = world();
-    const ctx = context({ linger: "0", seconds: "5" }, rows);
-    const running = flow.run(ctx);
-    await Bun.sleep(50);
-    health.set(ME, 0);
-    expect(await running).toMatchObject({ stop: "self_dead" });
-  });
+  test("stops when the character dies", () =>
+    withFakeTimers(async () => {
+      const { health, rows } = world();
+      const ctx = context({ linger: "0", seconds: "5" }, rows);
+      const running = flow.run(ctx);
+      await elapse(50);
+      health.set(ME, 0);
+      expect(await fakeAwait(running, 1000)).toMatchObject({
+        stop: "self_dead",
+      });
+    }));
 
-  test("stops at the time limit", async () => {
-    const { rows } = world();
-    const ctx = context({ linger: "0", seconds: "0.3" }, rows);
-    expect(await flow.run(ctx)).toMatchObject({ stop: "timeout" });
-  });
+  test("stops at the time limit", () =>
+    withFakeTimers(async () => {
+      const { rows } = world();
+      const ctx = context({ linger: "0", seconds: "0.3" }, rows);
+      const late = flow.run(ctx);
+      const ms = await fakeMsUntilSettled(late, 2000);
+      expect(await late).toMatchObject({ stop: "timeout" });
+      expect(ms).toBeGreaterThanOrEqual(300);
+      expect(ms).toBeLessThan(600);
+    }));
 
-  test("refuses when no hostile creature is within 35 yards", async () => {
-    const ctx = context({ linger: "0" }, () => [
-      row({ distance: 0, guid: ME, objectType: 4, self: true }),
-      row({ distance: 50, guid: FAR }),
-    ]);
-    await expect(flow.run(ctx)).rejects.toThrow(
-      "no hostile creature within 35",
-    );
-  });
+  test("refuses when no hostile creature is within 35 yards", () =>
+    withFakeTimers(async () => {
+      const ctx = context({ linger: "0" }, () => [
+        row({ distance: 0, guid: ME, objectType: 4, self: true }),
+        row({ distance: 50, guid: FAR }),
+      ]);
+      expect(await fakeRejection(flow.run(ctx), 1000)).toContain(
+        "no hostile creature within 35",
+      );
+    }));
 });

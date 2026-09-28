@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { UnitEntity, WorldHandle } from "@peon/core";
 import {
+  elapse,
+  fakeAwait,
+  withFakeTimers,
+} from "@peon/core/test-support/fake-time";
+import {
   createMockHandle,
   type MockHandle,
 } from "@peon/core/test-support/mock-handle";
@@ -57,56 +62,58 @@ function context(
 }
 
 describe("combatlog-fight flow", () => {
-  test("attacks the nearest hostile creature, casts the spell and counts log entries", async () => {
-    const health = new Map([
-      [ME, 100],
-      [BOAR, 100],
-    ]);
-    const ctx = context({ seconds: "5", spell: "133" }, health);
-    const running = flow.run(ctx);
-    await Bun.sleep(50);
-    ctx.handle.triggerAreaEvent("combatlog", {
-      amount: 9,
-      at: 1,
-      kind: "melee",
-      source: BOAR,
-      target: ME,
-      type: "entry",
-    });
-    ctx.handle.triggerAreaEvent("combatlog", {
-      amount: 20,
-      at: 2,
-      kind: "spell_damage",
-      source: ME,
-      spellId: 133,
-      target: BOAR,
-      type: "entry",
-    });
-    health.set(BOAR, 0);
-    expect(await running).toMatchObject({
-      entries: { "melee in": 1, "spell_damage out": 1 },
-      state: { kills: [] },
-      stop: "target_dead",
-      target: { guid: "0xf130003b06000001" },
-    });
-    expect(ctx.handle.attack).toHaveBeenCalledWith(BOAR);
-    expect(ctx.handle.cast).toHaveBeenCalledWith(133, BOAR);
-  });
+  test("attacks the nearest hostile creature, casts the spell and counts log entries", () =>
+    withFakeTimers(async () => {
+      const health = new Map([
+        [ME, 100],
+        [BOAR, 100],
+      ]);
+      const ctx = context({ seconds: "5", spell: "133" }, health);
+      const running = flow.run(ctx);
+      await elapse(50);
+      ctx.handle.triggerAreaEvent("combatlog", {
+        amount: 9,
+        at: 1,
+        kind: "melee",
+        source: BOAR,
+        target: ME,
+        type: "entry",
+      });
+      ctx.handle.triggerAreaEvent("combatlog", {
+        amount: 20,
+        at: 2,
+        kind: "spell_damage",
+        source: ME,
+        spellId: 133,
+        target: BOAR,
+        type: "entry",
+      });
+      health.set(BOAR, 0);
+      expect(await fakeAwait(running, 5000)).toMatchObject({
+        entries: { "melee in": 1, "spell_damage out": 1 },
+        state: { kills: [] },
+        stop: "target_dead",
+        target: { guid: "0xf130003b06000001" },
+      });
+      expect(ctx.handle.attack).toHaveBeenCalledWith(BOAR);
+      expect(ctx.handle.cast).toHaveBeenCalledWith(133, BOAR);
+    }));
 
-  test("without a spell it only swings", async () => {
-    const health = new Map([
-      [ME, 100],
-      [BOAR, 0],
-    ]);
-    const ctx = context({ seconds: "1" }, health);
-    health.set(BOAR, 100);
-    const running = flow.run(ctx);
-    await Bun.sleep(50);
-    health.set(BOAR, 0);
-    await running;
-    expect(ctx.handle.cast).not.toHaveBeenCalled();
-    expect(ctx.handle.attack).toHaveBeenCalledWith(BOAR);
-  });
+  test("without a spell it only swings", () =>
+    withFakeTimers(async () => {
+      const health = new Map([
+        [ME, 100],
+        [BOAR, 0],
+      ]);
+      const ctx = context({ seconds: "1" }, health);
+      health.set(BOAR, 100);
+      const running = flow.run(ctx);
+      await elapse(50);
+      health.set(BOAR, 0);
+      await fakeAwait(running, 1000);
+      expect(ctx.handle.cast).not.toHaveBeenCalled();
+      expect(ctx.handle.attack).toHaveBeenCalledWith(BOAR);
+    }));
 
   test("a bad spell argument throws", () => {
     const ctx = context({ spell: "fire" }, new Map());
