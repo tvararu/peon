@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
   combatlogAttackerStateBody,
+  combatlogComboPointsBody,
+  combatlogPartyKillBody,
   combatlogSpellDamageBody,
 } from "#test-support/areas/combatlog";
 import type { CombatlogEvent } from "#wow/areas/combatlog/store";
@@ -104,5 +106,126 @@ describe("combatlog area wiring", () => {
     const stubbed = areaStubs().map(([opcode]) => opcode);
     expect(stubbed).not.toContain(GameOpcode.SMSG_ATTACKERSTATEUPDATE);
     expect(stubbed).not.toContain(GameOpcode.SMSG_SPELLNONMELEEDAMAGELOG);
+  });
+});
+
+describe("combatlog kills (Unit.cpp:13583-13585)", () => {
+  test("a kill by the character emits kill and adds one kill entry", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_PARTYKILLLOG,
+        combatlogPartyKillBody({ killer: ME, victim: BOAR }),
+      );
+      expect(seen).toEqual([
+        {
+          at: 50,
+          bySelf: 1,
+          killer: ME,
+          killerKind: "self",
+          ourTarget: 0,
+          type: "kill",
+          victim: BOAR,
+        },
+      ]);
+      const state = rig.handle.state();
+      expect(state.kills).toEqual([
+        {
+          at: 50,
+          bySelf: true,
+          killer: ME,
+          killerKind: "self",
+          ourTarget: false,
+          victim: BOAR,
+        },
+      ]);
+      expect(state.entries).toEqual([
+        { amount: 0, at: 50, kind: "kill", source: ME, target: BOAR },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a kill by an unknown unit is bySelf 0 with killerKind unknown", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_PARTYKILLLOG,
+        combatlogPartyKillBody({ killer: 0x2bn, victim: BOAR }),
+      );
+      expect(seen).toMatchObject([
+        { bySelf: 0, killer: 0x2bn, killerKind: "unknown", type: "kill" },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("the kill list keeps the last 20", () => {
+    const { rig } = rigWithEvents();
+    try {
+      for (let i = 1n; i <= 21n; i++)
+        rig.inject(
+          GameOpcode.SMSG_PARTYKILLLOG,
+          combatlogPartyKillBody({ killer: ME, victim: BOAR + i }),
+        );
+      const { kills } = rig.handle.state();
+      expect(kills).toHaveLength(20);
+      expect(kills[0]?.victim).toBe(BOAR + 2n);
+      expect(kills.at(-1)?.victim).toBe(BOAR + 21n);
+    } finally {
+      rig.dispose();
+    }
+  });
+});
+
+describe("combatlog combo points (Unit.cpp:12851-12857)", () => {
+  test("points on a target emit combo_points and set the state", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_UPDATE_COMBO_POINTS,
+        combatlogComboPointsBody({ points: 3, target: BOAR }),
+      );
+      expect(seen).toEqual([{ points: 3, target: BOAR, type: "combo_points" }]);
+      expect(rig.handle.state().comboPoints).toEqual({
+        points: 3,
+        target: BOAR,
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("0 points with no target clears the state", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_UPDATE_COMBO_POINTS,
+        combatlogComboPointsBody({ points: 2, target: BOAR }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_UPDATE_COMBO_POINTS,
+        combatlogComboPointsBody({ points: 0 }),
+      );
+      expect(seen.at(-1)).toEqual({ points: 0, type: "combo_points" });
+      expect(rig.handle.state().comboPoints).toBeUndefined();
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("both opcodes are handled and neither is a stub", () => {
+    const { rig } = rigWithEvents();
+    try {
+      expect(rig.dispatch.has(GameOpcode.SMSG_PARTYKILLLOG)).toBe(true);
+      expect(rig.dispatch.has(GameOpcode.SMSG_UPDATE_COMBO_POINTS)).toBe(true);
+      const stubbed = areaStubs().map(([opcode]) => opcode);
+      expect(stubbed).not.toContain(GameOpcode.SMSG_PARTYKILLLOG);
+      expect(stubbed).not.toContain(GameOpcode.SMSG_UPDATE_COMBO_POINTS);
+    } finally {
+      rig.dispose();
+    }
   });
 });

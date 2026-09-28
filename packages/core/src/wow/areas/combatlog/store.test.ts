@@ -31,11 +31,20 @@ function owned(guid: bigint, offset: number): Entity {
   } as unknown as Entity;
 }
 
-function setup(start = 1000) {
+function unit(guid: bigint, objectType: number, fields: [number, number][]) {
+  return {
+    guid,
+    objectType,
+    rawFields: new Map(fields),
+  } as unknown as Entity;
+}
+
+function setup(start = 1000, extra: readonly Entity[] = []) {
   let t = start;
   const entities = new Map<bigint, Entity>([
     [PET, owned(PET, 14)],
     [TOTEM, owned(TOTEM, 16)],
+    ...extra.map((entity) => [entity.guid, entity] as const),
   ]);
   const deps: SessionDeps = {
     getEntity: (guid) => entities.get(guid),
@@ -250,6 +259,86 @@ describe("CombatlogStore attackers", () => {
     const { attacked, store } = setup();
     store.receive([hit(ME, BOAR, 10)]);
     expect(attacked).toEqual([]);
+  });
+});
+
+describe("CombatlogStore kills", () => {
+  const targeting = (guid: bigint) =>
+    unit(ME, 4, [
+      [18, Number(guid & 0xff_ff_ff_ffn)],
+      [19, Number(guid >> 32n)],
+    ]);
+
+  test("names the killer kind from the entity store", () => {
+    const { store } = setup(1000, [
+      unit(PLAYER, 4, []),
+      unit(WOLF, 3, []),
+      targeting(BOAR),
+    ]);
+    for (const killer of [ME, PET, PLAYER, WOLF, STRANGER])
+      store.receiveKill({ killer, victim: BOAR });
+    expect(store.snapshot().kills.map((kill) => kill.killerKind)).toEqual([
+      "self",
+      "pet",
+      "player",
+      "creature",
+      "unknown",
+    ]);
+  });
+
+  test("a kill of the character's target by another player is ourTarget and not bySelf", () => {
+    const { events, store } = setup(1000, [
+      unit(PLAYER, 4, []),
+      targeting(BOAR),
+    ]);
+    store.receiveKill({ killer: PLAYER, victim: BOAR });
+    store.receiveKill({ killer: PLAYER, victim: WOLF });
+    expect(store.snapshot().kills).toEqual([
+      {
+        at: 1000,
+        bySelf: false,
+        killer: PLAYER,
+        killerKind: "player",
+        ourTarget: true,
+        victim: BOAR,
+      },
+      {
+        at: 1000,
+        bySelf: false,
+        killer: PLAYER,
+        killerKind: "player",
+        ourTarget: false,
+        victim: WOLF,
+      },
+    ]);
+    expect(events.map((event) => event.type)).toEqual(["kill", "kill"]);
+    expect(events[0]).toMatchObject({ bySelf: 0, ourTarget: 1 });
+  });
+
+  test("a kill neither counts in the fight nor needs the fight scope", () => {
+    const { store } = setup();
+    store.receiveKill({ killer: PLAYER, victim: STRANGER });
+    const state = store.snapshot();
+    expect(state.fight).toBeUndefined();
+    expect(state.dropped).toBe(0);
+    expect(state.entries).toHaveLength(1);
+  });
+
+  test("dispose forgets kills and combo points", () => {
+    const { store } = setup();
+    store.receiveKill({ killer: ME, victim: BOAR });
+    store.receiveComboPoints({ points: 4, target: BOAR });
+    store.dispose();
+    const state = store.snapshot();
+    expect(state.kills).toEqual([]);
+    expect(state.comboPoints).toBeUndefined();
+  });
+
+  test("0 points on a target also clears the combo points", () => {
+    const { store } = setup();
+    store.receiveComboPoints({ points: 4, target: BOAR });
+    store.receiveComboPoints({ points: 0, target: BOAR });
+    expect(store.snapshot().comboPoints).toBeUndefined();
   });
 });
 

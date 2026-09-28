@@ -3,13 +3,15 @@
 The `combatlog` area turns the server's combat log into entries. World
 service code reads them through `session.areas.combatlog.state()`: a ring
 of the last 500 entries, the totals of the current fight and of the last
-one, and the count of dropped entries. Each entry names its kind (`melee`
-or `spell_damage` now), the source and target guids, the amount, and the
+one, the last 20 kills, the character's combo points, and the count of
+dropped entries. Each entry names its kind (`melee`, `spell_damage` or
+`kill` now), the source and target guids, the amount, and the
 optional spell, overkill, school mask, absorbed, resisted and blocked
 amounts, the crit flag and the outcome (`miss`, `dodge`, `parry`, `block`,
 `evade`, `immune`, `deflect`, `interrupt`, or `absorb` and `resist` for a
-full absorb or resist). The area emits one `entry` event per kept entry.
-The harness writes no log row for an entry.
+full absorb or resist). The area emits one `entry` event per kept entry,
+one `kill` event per kill and one `combo_points` event per combo point
+update. The harness writes no log row for any of them.
 
 - The store keeps an entry whose source or target is the character, a
   unit it summoned or created (its pet, a guardian or a totem), or a unit
@@ -23,11 +25,23 @@ The harness writes no log row for an entry.
   misses by outcome.
 - Damage to the character from a unit that never sent an attack start,
   such as a caster, marks that unit as an attacker of the character.
+- A kill names the killer and the victim, whether the character made it
+  (`bySelf`), whether the victim was the character's target (`ourTarget`,
+  from the character's target field), and the killer's kind: `self`,
+  `pet` (a unit the character summoned or created), `player`, `creature`,
+  or `unknown` when the entity store does not know the killer. A kill is
+  kept in the ring as one `kill` entry with amount 0 and in the kill list
+  whatever the fight scope, and it does not count in the fight totals.
+  The `kill` event carries `bySelf` and `ourTarget` as 1 or 0.
+- The combo points are the target and the points of the last update.
+  An update with no target or with 0 points clears them. The `combo_points`
+  event carries the points and the target when there is one.
 
 ## Wire notes
 
 AzerothCore wins over wow_messages in each of these disagreements. The
-layouts the area reads now are in the first and second items.
+layouts the area reads now are in the first and second items and in the
+last two items, which are not disagreements.
 
 - `SMSG_ATTACKERSTATEUPDATE` writes one absorb `u32` and one resist
   `u32` per sub-damage when their flags are set
@@ -75,10 +89,18 @@ layouts the area reads now are in the first and second items.
   (`Spells/SpellEffects.cpp:1553`), and logs feed pet as an item entry
   (`Spells/SpellEffects.cpp:4758`).
 
+- `SMSG_PARTYKILLLOG` writes the killer and the victim as two full
+  `u64` guids (`Entities/Unit/Unit.cpp:13583-13585`). The killer is the
+  player that gets the kill: the owner of a pet or charmed killer, or the
+  loot recipient (`Entities/Unit/Unit.cpp:13548`), so this server never
+  names a pet or a creature as the killer. The server sends the log to
+  that player alone, or to the player's group.
+- `SMSG_UPDATE_COMBO_POINTS` writes the target as a packed guid, a single
+  0 byte when there is no target, then the points as a `u8`
+  (`Entities/Unit/Unit.cpp:12851-12857`).
+
 ## Left out
 
-- `SMSG_PARTYKILLLOG` and `SMSG_UPDATE_COMBO_POINTS`: built by
-  `combat-log-6a`.
 - `SMSG_POWER_UPDATE`: built by `combat-log-6b`.
 - `SMSG_SPELLHEALLOG`, `SMSG_SPELLENERGIZELOG` and
   `SMSG_PERIODICAURALOG`: built by `combat-log-2`.
@@ -105,6 +127,8 @@ No verb (N23).
 |---|---|---|---|
 | `SMSG_ATTACKERSTATEUPDATE` | `live` | probe flow `combatlog-fight` (`--arg spell=133`, `--expect` 0x14A and 0x250) on an `eversong10-mage` moved to East Sanctum with `soap gm tele EastSanctum`, exit 0; 22 received, all `handled`, with swings of the character at an Angershade and of the Angershade at the character | `Entities/Unit/Unit.cpp:6661-6720` |
 | `SMSG_SPELLNONMELEEDAMAGELOG` | `live` | probe flow `combatlog-fight`, exit 0; `handled`, Fireball (spell 133) of the character for 20 fire damage; an earlier run of the flow also received a creature's spell hit on the character | `Entities/Unit/Unit.cpp:6470-6483` |
+| `SMSG_PARTYKILLLOG` | `mock` | not seen live: two `combatlog-fight` runs on an `eversong10-warrior` moved to East Sanctum killed nothing (the first never reached melee range, the second died). The area test injects a body built from the writer; the protocol test parses a body the server sent when an `eversong10-mage` killed an Angershade in the `combat-log-1` proof | `Entities/Unit/Unit.cpp:13583-13585` |
+| `SMSG_UPDATE_COMBO_POINTS` | `mock` | not seen live: no preset is a rogue or a druid, and `soap gm` cannot change a class. The maintainer can add a rogue preset for a live proof. The area test injects bodies built from the writer, with and without a target | `Entities/Unit/Unit.cpp:12851-12857` |
 | `SMSG_PROCRESIST` | `dead` | its only writer, `Unit::SendSpellDamageResist`, has no caller: the declaration and the definition are the only hits | `Entities/Unit/Unit.cpp:6616-6624` |
 | `SMSG_FEIGN_DEATH_RESISTED` | `dead` | both send sites are inside comment blocks | `Spells/Auras/SpellAuraEffects.cpp:2953-2958` |
 | `SMSG_HEALTH_UPDATE` | `dead` | no send site: only the opcode list and the opcode table name it | `Server/Protocol/Opcodes.h:1181` |

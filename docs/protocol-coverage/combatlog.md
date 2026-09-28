@@ -8,7 +8,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x14a` | `SMSG_ATTACKERSTATEUPDATE` | server | handled |  |
 | `0x150` | `SMSG_SPELLHEALLOG` | server | stub |  |
 | `0x151` | `SMSG_SPELLENERGIZELOG` | server | missing |  |
-| `0x1f5` | `SMSG_PARTYKILLLOG` | server | missing |  |
+| `0x1f5` | `SMSG_PARTYKILLLOG` | server | handled | not seen live |
 | `0x1fc` | `SMSG_ENVIRONMENTAL_DAMAGE_LOG` | server | stub |  |
 | `0x24b` | `SMSG_SPELLLOGMISS` | server | missing |  |
 | `0x24c` | `SMSG_SPELLLOGEXECUTE` | server | missing |  |
@@ -22,6 +22,6 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x2b4` | `SMSG_FEIGN_DEATH_RESISTED` | server | dead |  |
 | `0x32f` | `SMSG_SPELLINSTAKILLLOG` | server | missing |  |
 | `0x333` | `SMSG_SPELLSTEALLOG` | server | missing |  |
-| `0x39d` | `SMSG_UPDATE_COMBO_POINTS` | server | missing |  |
+| `0x39d` | `SMSG_UPDATE_COMBO_POINTS` | server | handled | not seen live |
 | `0x47f` | `SMSG_HEALTH_UPDATE` | server | dead |  |
 | `0x480` | `SMSG_POWER_UPDATE` | server | stub |  |

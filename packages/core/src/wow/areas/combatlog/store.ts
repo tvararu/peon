@@ -1,5 +1,11 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import type { AttackerState, SpellDamage } from "#wow/areas/combatlog/protocol";
+import type {
+  AttackerState,
+  ComboPoints,
+  PartyKill,
+  SpellDamage,
+} from "#wow/areas/combatlog/protocol";
+import { ObjectType } from "#wow/protocol/entity-fields";
 import { joinGuid } from "#wow/protocol/packet";
 import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
@@ -54,13 +60,19 @@ export type FightTotals = {
 };
 
 export type CombatlogImmunity = { entry: number; spellId: number; at: number };
+export type CombatlogKillerKind =
+  | "self"
+  | "pet"
+  | "player"
+  | "creature"
+  | "unknown";
 export type CombatlogKill = {
   killer: bigint;
   victim: bigint;
   at: number;
   bySelf: boolean;
   ourTarget: boolean;
-  killerKind: "self" | "pet" | "player" | "creature" | "unknown";
+  killerKind: CombatlogKillerKind;
 };
 
 export type CombatlogState = {
@@ -75,10 +87,14 @@ export type CombatlogState = {
 
 export type CombatlogEvent =
   | ({ type: "entry" } & Omit<CombatlogEntry, "crit"> & { crit?: number })
-  | { type: "combo_points"; target: bigint | undefined; points: number }
-  | ({ type: "kill" } & CombatlogKill);
+  | { type: "combo_points"; target?: bigint; points: number }
+  | ({ type: "kill" } & Omit<CombatlogKill, "bySelf" | "ourTarget"> & {
+        bySelf: number;
+        ourTarget: number;
+      });
 
 const RING = 500;
+const KILLS = 20;
 const QUIET_MS = 6000;
 const DAMAGE = new Set<CombatlogKind>([
   "melee",
@@ -179,6 +195,8 @@ export class CombatlogStore {
   private readonly core: CoreStores;
   private readonly entries: CombatlogEntry[] = [];
   private readonly fightUnits = new Set<bigint>();
+  private readonly kills: CombatlogKill[] = [];
+  private comboPoints: { target: bigint; points: number } | undefined;
   private fight: Fight | undefined;
   private lastFight: Fight | undefined;
   private dropped = 0;
@@ -195,8 +213,8 @@ export class CombatlogStore {
       fight: totalsOf(this.fight),
       lastFight: totalsOf(this.lastFight),
       immunities: [],
-      comboPoints: undefined,
-      kills: [],
+      comboPoints: this.comboPoints && { ...this.comboPoints },
+      kills: this.kills.map((kill) => ({ ...kill })),
       dropped: this.dropped,
     };
   }
@@ -209,9 +227,43 @@ export class CombatlogStore {
     for (const wire of wires) this.receiveOne(wire);
   }
 
+  receiveKill({ killer, victim }: PartyKill): void {
+    const at = this.deps.now();
+    const kill: CombatlogKill = {
+      killer,
+      victim,
+      at,
+      bySelf: killer === this.deps.selfGuid(),
+      ourTarget: victim === this.selfTarget(),
+      killerKind: this.kindOf(killer),
+    };
+    this.kills.push(kill);
+    if (this.kills.length > KILLS)
+      this.kills.splice(0, this.kills.length - KILLS);
+    this.push({ at, kind: "kill", source: killer, target: victim, amount: 0 });
+    this.events.emit({
+      type: "kill",
+      ...kill,
+      bySelf: kill.bySelf ? 1 : 0,
+      ourTarget: kill.ourTarget ? 1 : 0,
+    });
+  }
+
+  receiveComboPoints({ target, points }: ComboPoints): void {
+    this.comboPoints =
+      target !== undefined && points > 0 ? { target, points } : undefined;
+    this.events.emit({
+      type: "combo_points",
+      ...(target === undefined ? {} : { target }),
+      points,
+    });
+  }
+
   dispose(): void {
     this.events.clear();
     this.entries.length = 0;
+    this.kills.length = 0;
+    this.comboPoints = undefined;
     this.fightUnits.clear();
     this.fight = undefined;
     this.lastFight = undefined;
@@ -234,13 +286,17 @@ export class CombatlogStore {
       return;
     }
     const entry: CombatlogEntry = { at, ...wire };
-    this.entries.push(entry);
-    if (this.entries.length > RING)
-      this.entries.splice(0, this.entries.length - RING);
+    this.push(entry);
     if (sourceOurs || targetOurs) this.count(entry, sourceOurs, targetOurs);
     this.markAttacker(entry);
     const { crit, ...plain } = entry;
     this.events.emit({ type: "entry", ...plain, ...(crit ? { crit: 1 } : {}) });
+  }
+
+  private push(entry: CombatlogEntry): void {
+    this.entries.push(entry);
+    if (this.entries.length > RING)
+      this.entries.splice(0, this.entries.length - RING);
   }
 
   private count(
@@ -292,19 +348,42 @@ export class CombatlogStore {
 
   private isOurs(guid: bigint): boolean {
     const self = this.deps.selfGuid();
-    if (guid === self) return true;
+    return guid === self || this.isOwned(guid);
+  }
+
+  private isOwned(guid: bigint): boolean {
+    const self = this.deps.selfGuid();
     if (self === 0n) return false;
     const fields = this.deps.getEntity(guid)?.rawFields;
     if (!fields) return false;
     return [UNIT_FIELDS.SUMMONEDBY, UNIT_FIELDS.CREATEDBY].some(
-      ({ offset }) =>
-        joinGuid(fields.get(offset) ?? 0, fields.get(offset + 1) ?? 0) === self,
+      (field) => guidField(fields, field.offset) === self,
     );
+  }
+
+  private kindOf(guid: bigint): CombatlogKillerKind {
+    if (guid === this.deps.selfGuid()) return "self";
+    if (this.isOwned(guid)) return "pet";
+    const type = this.deps.getEntity(guid)?.objectType;
+    if (type === ObjectType.PLAYER) return "player";
+    if (type === ObjectType.UNIT) return "creature";
+    return "unknown";
+  }
+
+  private selfTarget(): bigint | undefined {
+    const fields = this.deps.getEntity(this.deps.selfGuid())?.rawFields;
+    if (!fields) return undefined;
+    const target = guidField(fields, UNIT_FIELDS.TARGET.offset);
+    return target === 0n ? undefined : target;
   }
 
   private inFight(guid: bigint): boolean {
     return this.fightUnits.has(guid) || this.core.combat.isAttackingSelf(guid);
   }
+}
+
+function guidField(fields: ReadonlyMap<number, number>, offset: number) {
+  return joinGuid(fields.get(offset) ?? 0, fields.get(offset + 1) ?? 0);
 }
 
 function totalsOf(fight: Fight | undefined): FightTotals | undefined {

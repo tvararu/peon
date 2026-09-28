@@ -165,3 +165,18 @@ export function parseSpellDamage(r: PacketReader): SpellDamage {
     split: (hitFlags & SPELL_HIT_TYPE_SPLIT) !== 0,
   };
 }
+
+export type PartyKill = { killer: bigint; victim: bigint };
+export type ComboPoints = { target: bigint | undefined; points: number };
+
+export function parsePartyKill(r: PacketReader): PartyKill {
+  const killer = r.uint64LE();
+  const victim = r.uint64LE();
+  return { killer, victim };
+}
+
+export function parseComboPoints(r: PacketReader): ComboPoints {
+  const target = r.packedGuidBig();
+  const points = r.uint8();
+  return { target: target === 0n ? undefined : target, points };
+}

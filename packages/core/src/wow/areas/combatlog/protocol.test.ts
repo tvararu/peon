@@ -1,10 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
   combatlogAttackerStateBody,
+  combatlogComboPointsBody,
+  combatlogPartyKillBody,
   combatlogSpellDamageBody,
 } from "#test-support/areas/combatlog";
 import {
   parseAttackerState,
+  parseComboPoints,
+  parsePartyKill,
   parseSpellDamage,
   SPELL_MISS_NAMES,
 } from "#wow/areas/combatlog/protocol";
@@ -269,4 +273,52 @@ test("SPELL_MISS_NAMES follows SharedDefines.h:1523-1534", () => {
     "absorb",
     "reflect",
   ]);
+});
+
+describe("parsePartyKill (Unit.cpp:13583-13585)", () => {
+  test("reads the killer and the victim as two full guids", () => {
+    const body = combatlogPartyKillBody({ killer: ME, victim: BOAR });
+    expect(body).toEqual(
+      new Uint8Array([
+        0x2a, 0, 0, 0, 0, 0, 0, 0, 0xbc, 0x0a, 0x00, 0xea, 0x3e, 0x00, 0x30,
+        0xf1,
+      ]),
+    );
+    expect(parsePartyKill(read(body))).toEqual({ killer: ME, victim: BOAR });
+  });
+
+  test("reads a body the server sent after a mage killed an Angershade", () => {
+    const body = Uint8Array.from(
+      Buffer.from("d10d000000000000334601283d0030f1", "hex"),
+    );
+    expect(parsePartyKill(read(body))).toEqual({
+      killer: 0xdd1n,
+      victim: 0xf1_30_00_3d_28_01_46_33n,
+    });
+  });
+
+  test("a short body throws", () => {
+    const body = combatlogPartyKillBody({ killer: ME, victim: BOAR });
+    expect(() => parsePartyKill(read(body.slice(0, 12)))).toThrow();
+  });
+});
+
+describe("parseComboPoints (Unit.cpp:12851-12857)", () => {
+  test("reads the packed target guid and the points", () => {
+    expect(
+      parseComboPoints(
+        read(combatlogComboPointsBody({ points: 3, target: BOAR })),
+      ),
+    ).toEqual({ points: 3, target: BOAR });
+  });
+
+  test("an empty packed guid (one 0 byte) gives no target", () => {
+    expect(parseComboPoints(read(new Uint8Array([0x00, 0x00])))).toEqual({
+      points: 0,
+      target: undefined,
+    });
+    expect(combatlogComboPointsBody({ points: 0 })).toEqual(
+      new Uint8Array([0x00, 0x00]),
+    );
+  });
 });

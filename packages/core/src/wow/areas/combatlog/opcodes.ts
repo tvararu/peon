@@ -31,5 +31,5 @@ export const COMBATLOG_OPCODES = {
     ["SMSG_HEALTH_UPDATE", "Health update"],
   ],
   dead: ["SMSG_PROCRESIST", "SMSG_FEIGN_DEATH_RESISTED", "SMSG_HEALTH_UPDATE"],
-  unseen: [],
+  unseen: ["SMSG_PARTYKILLLOG", "SMSG_UPDATE_COMBO_POINTS"],
 } as const satisfies AreaOpcodes;

@@ -92,3 +92,23 @@ export function combatlogSpellDamageBody(init: {
   w.uint8(init.debug ?? 0);
   return w.finish();
 }
+
+export function combatlogPartyKillBody(init: {
+  killer: bigint;
+  victim: bigint;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.killer);
+  w.uint64LE(init.victim);
+  return w.finish();
+}
+
+export function combatlogComboPointsBody(init: {
+  target?: bigint;
+  points: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.target ?? 0n);
+  w.uint8(init.points);
+  return w.finish();
+}

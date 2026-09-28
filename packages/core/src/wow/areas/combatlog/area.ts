@@ -1,6 +1,8 @@
 import { COMBATLOG_OPCODES } from "#wow/areas/combatlog/opcodes";
 import {
   parseAttackerState,
+  parseComboPoints,
+  parsePartyKill,
   parseSpellDamage,
 } from "#wow/areas/combatlog/protocol";
 import {
@@ -22,6 +24,12 @@ export const combatlogArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_SPELLNONMELEEDAMAGELOG, (r) =>
       store.receive([spellDamageEntry(parseSpellDamage(r))]),
+    );
+    wire.on(GameOpcode.SMSG_PARTYKILLLOG, (r) =>
+      store.receiveKill(parsePartyKill(r)),
+    );
+    wire.on(GameOpcode.SMSG_UPDATE_COMBO_POINTS, (r) =>
+      store.receiveComboPoints(parseComboPoints(r)),
     );
   },
 });
