@@ -10,7 +10,7 @@ const ERONA = 0xf1_30_00_3f_d1_00_1a_2bn;
 const CHEST = 0xf1_10_00_00_2c_00_00_07n;
 
 describe("quests parsers", () => {
-  test("SMSG_QUESTGIVER_STATUS_MULTIPLE reads every giver with its full guid (Player.cpp:7906-7952)", () => {
+  test("SMSG_QUESTGIVER_STATUS_MULTIPLE reads every giver with its full guid (Player.cpp:7906-7951)", () => {
     const reader = new PacketReader(
       questsQuestgiverStatusMultipleBody([
         { guid: ERONA, status: 8 },

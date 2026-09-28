@@ -37,7 +37,7 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
   const entry = Number(text);
   const quests = handle.quests;
   await settle(() => (quests.state().marks.size > 0 ? true : undefined));
-  const login = marksOf(handle, quests.state().marks);
+  const firstMarks = marksOf(handle, quests.state().marks);
   quests.act.queryGiverStatuses();
   const row = await settle(() =>
     others(handle).find((r) => r.entity.entry === entry),
@@ -50,9 +50,9 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
       })
     : undefined;
   return {
+    firstMarks,
     giver: row ? summary(row) : null,
     giverStatus: single?.status ?? null,
-    login,
     marks: marksOf(handle, quests.state().marks),
     singleSent: asked,
   };
@@ -62,5 +62,5 @@ export const flow: ProbeFlow = {
   name: "quests-marks",
   run,
   usage:
-    "--flow quests-marks [--arg entry=<n>]: wait for the login quest-giver marks, send CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY, then CMSG_QUESTGIVER_STATUS_QUERY for the nearest entity with that entry (default 15278, Magistrix Erona), and print the marks.",
+    "--flow quests-marks [--arg entry=<n>]: wait for the first non-empty quest-giver marks (the reply to the query the runtime sends after the givers come into view; the empty login list shows only in the packet trace), send CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY, then CMSG_QUESTGIVER_STATUS_QUERY for the nearest entity with that entry (default 15278, Magistrix Erona), and print the marks.",
 };
