@@ -1177,3 +1177,10 @@ requests and the missile `moveStop` tail (spells-10, spells-11) and on
 issue.
 
 ## COMPLETE
+
+## Build rulings
+
+| Id | Issue | Ruling | Status |
+|---|---|---|---|
+| BR-spells-12a-1 | spells-12a appends `"eversong10-mage"` to `PRESETS` in the shared `grader/scenarios.test.ts`, which its scenario needs; it also adds `packages/harness/test-support/spell-tool-fixtures.ts` and `tools/journal-spells.test.ts` | Accepted: an append-only preset line, and test files that serve only this unit's tool and its `journal.ts` lease | coordinator ruling (P2-17) |
+| BR-spells-12a-2 | The TUI journal card (`ui/renderers/card.ts`) does not render the new aura and bar rows | Out of this task's scope; one follow-up renders every new journal field (bags and spells) | coordinator ruling (P2-17) |
