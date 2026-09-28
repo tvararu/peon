@@ -323,6 +323,7 @@ export type JournalAfter =
   | { about: "quests"; quests: QuestLine[] }
   | { about: "bags"; bags: BagsView }
   | { about: "spells"; spells: SpellLine[]; auras: AuraLine[]; bar: BarLine[] }
+  | { about: "reputation"; factions: string[] }
   | { about: "log"; rows: GameLogEntry[]; more: number; label: string };
 
 export type StopAfter = {

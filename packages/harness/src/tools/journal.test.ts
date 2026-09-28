@@ -14,7 +14,7 @@ import {
   createTestRuntime,
   type MockHandle,
 } from "#test-support/runtime-fixture";
-import { runTool } from "#test-support/tool-harness";
+import { expectSendKind, runTool } from "#test-support/tool-harness";
 
 type KnownQuest = Extract<QuestQuery, { status: "known" }>["data"];
 
@@ -412,6 +412,108 @@ describe("journal", () => {
     for (const line of formatLogRows([kill, item], NOW))
       expect(out.text).toContain(line);
     expect(out.details.result.after).toMatchObject({ about: "log" });
+  });
+
+  test("reputation returns the lines and an After of about reputation", async () => {
+    const { handle, tool } = await world();
+    const rep = handle.reputation.state();
+    Object.assign(handle.reputation, {
+      state: () => ({
+      ...rep,
+      catalog: true,
+      factions: [
+        {
+          atWar: false,
+          changedAt: 20,
+          factionId: 911,
+          inactive: false,
+          name: "Silvermoon City",
+          rank: 4,
+          rankCeiling: 8999,
+          rankFloor: 3000,
+          repListId: 55,
+          standing: 4250,
+          visible: true,
+          watched: false,
+        },
+        {
+          atWar: true,
+          changedAt: 10,
+          factionId: 21,
+          inactive: false,
+          name: "Booty Bay",
+          rank: 3,
+          rankCeiling: 2999,
+          rankFloor: 0,
+          repListId: 3,
+          standing: 0,
+          visible: true,
+          watched: false,
+        },
+      ],
+      }),
+    });
+    const out = await runTool(tool, { about: "reputation" });
+    expect(out.text).toBe(
+      [
+        "DONE 2 factions. This is your reputation with each faction.",
+        "Silvermoon City: Friendly 1250/6000.",
+        "Booty Bay: Neutral 0/3000, at war.",
+      ].join("\n"),
+    );
+    expect(out.details.result.after).toEqual({
+      about: "reputation",
+      factions: ["Silvermoon City", "Booty Bay"],
+    });
+  });
+
+  test("reputation find filters by faction name", async () => {
+    const { handle, tool } = await world();
+    const rep = handle.reputation.state();
+    Object.assign(handle.reputation, {
+      state: () => ({
+        ...rep,
+        catalog: true,
+        factions: [
+          {
+            atWar: false,
+            changedAt: 20,
+            factionId: 911,
+            inactive: false,
+            name: "Silvermoon City",
+            rank: 4,
+            rankCeiling: 8999,
+            rankFloor: 3000,
+            repListId: 55,
+            standing: 4250,
+            visible: true,
+            watched: false,
+          },
+        ],
+      }),
+    });
+    const out = await runTool(tool, { about: "reputation", find: "booty" });
+    expect(out.text).toContain('No faction matches "booty".');
+  });
+
+  test("quests gains the daily-reset header when time holds a reply", async () => {
+    const { handle, rt, tool } = await world();
+    const clockNow = rt.clock.now();
+    const time = handle.time.state();
+    Object.assign(handle.time, {
+      state: () => ({
+        ...time,
+        dailyResetInSec: 5 * 3600 + 20 * 60,
+        receivedAt: clockNow - 8 * 60_000,
+      }),
+    });
+    const out = await runTool(tool, { about: "quests" });
+    expect(out.text.split("\n")[1]).toBe("Daily quests reset in 5 h 12 m.");
+  });
+
+  test("the tool stays kind read and sends nothing", async () => {
+    await expectSendKind(journalTool, { about: "reputation" });
+    expect(journalTool.kind).toBe("read");
   });
 
   test("log says how many older rows it left out", async () => {

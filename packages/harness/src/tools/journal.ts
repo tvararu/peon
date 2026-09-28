@@ -9,6 +9,11 @@ import {
   type SpellDefinition,
 } from "@peon/core";
 import { questRegion } from "#harness/areas/quests/reads";
+import {
+  dailyResetLine,
+  reputationLines,
+  reputationRows,
+} from "#harness/areas/reputation/journal";
 import { visibleSpellbook } from "#harness/areas/spells/book";
 import { spellsJournalExtras } from "#harness/areas/spells/journal";
 import type {
@@ -182,25 +187,42 @@ function questText({
   return `#${id} ${title}${levelText}: ${shown}${turnInText(status, turnIn)}${where}`;
 }
 
-function questsResult(ctx: Ctx): ToolResult<JournalAfter> {
-  const state = ctx.handle.getQuestState();
+function questsResult({ handle, rt }: Ctx): ToolResult<JournalAfter> {
+  const state = handle.getQuestState();
   const logged = state.log.slots.filter(
     (slot): slot is LoggedSlot =>
       slot.questId !== undefined && slot.questId > 0,
   );
-  const shown = logged.map((slot) => questLine(ctx, state, slot));
+  const shown = logged.map((slot) =>
+    questLine({ handle, rt } as Ctx, state, slot),
+  );
   const quests = shown.map(({ goal: _goal, ...line }) => line);
   const first = shown.find(
     (line) => line.region !== undefined && !("none" in line.region),
   );
   const to =
     first?.region && "to" in first.region ? first.region.to : undefined;
+  const reset = dailyResetLine(handle.time.state(), rt.clock.now());
   const detail = `${quests.length} quests. This is your quest log. To see what an NPC offers, use interact.`;
   return result("DONE", {
     after: { about: "quests", quests },
-    body: shown.map(questText),
+    body: [...(reset === undefined ? [] : [reset]), ...shown.map(questText)],
     detail,
     next: to === undefined ? undefined : nextCall("travel", { to }),
+  });
+}
+function reputationResult(
+  args: JournalArgs,
+  { handle }: Ctx,
+): ToolResult<JournalAfter> {
+  const state = handle.reputation.state();
+  const rows = reputationRows(state, args.find);
+  const lines = reputationLines(state, args.find);
+  const names = rows.map((row) => row.name ?? `Faction ${row.repListId}`);
+  return result("DONE", {
+    after: { about: "reputation", factions: names },
+    body: lines,
+    detail: `${rows.length} factions. This is your reputation with each faction.`,
   });
 }
 async function bagsView(
@@ -430,6 +452,8 @@ function journal(
   if (args.about === "spells") return spellsResult(ctx);
   if (args.about === "quests") return Promise.resolve(questsResult(ctx));
   if (args.about === "bags") return bagsResult(ctx);
+  if (args.about === "reputation")
+    return Promise.resolve(reputationResult(args, ctx));
   return Promise.resolve(logResult(args, ctx));
 }
 
@@ -444,7 +468,7 @@ export const journalTool = defineGameTool({
   run: journal,
   text: {
     description:
-      "Reads your own records: your quest log, your bags and equipped items, the spells you know, or the game log of what happened earlier. It does not move you or act.",
+      "Reads your own records: your quest log, your bags and equipped items, the spells you know, your reputation with each faction, or the game log of what happened earlier. It does not move you or act.",
     guidelines: [
       "log is history. It never loses events when you read it.",
       "Use bags to name an equipped item, for example the item in your main hand.",
