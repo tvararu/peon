@@ -1,19 +1,8 @@
-import { testStores } from "#test-support/session-fixtures";
-import {
-  type AreaHandle,
-  type AreaRuntimes,
-  type AreaStores,
-  areaHandles,
-  createModuleRuntimes,
-  looseModule,
-  registerModules,
-} from "#wow/areas/compose";
-import { type SentPacket, testPort } from "#wow/areas/port";
-import { AREAS } from "#wow/areas/registry";
+import { areaRig } from "#test-support/area-rig";
+import type { AreaHandle } from "#wow/areas/compose";
+import type { SentPacket } from "#wow/areas/port";
 import type { Entity } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
-import { GameOpcode } from "#wow/protocol/opcodes";
-import { PacketReader } from "#wow/protocol/packet";
 import {
   CONTAINER_FIELDS,
   ITEM_FIELDS,
@@ -21,8 +10,8 @@ import {
   PLAYER_FIELDS,
   UNIT_FIELDS,
 } from "#wow/protocol/update-fields";
-import { OpcodeDispatch } from "#wow/protocol/world";
-import { disposeSessionStores, type SessionStores } from "#wow/session-stores";
+import type { OpcodeDispatch } from "#wow/protocol/world";
+import type { SessionStores } from "#wow/session-stores";
 import type { WorldEvents } from "#wow/world-events";
 
 export type HeldItem = {
@@ -164,44 +153,19 @@ export function itemsRig(
   world: ItemsWorld,
   register?: (dispatch: OpcodeDispatch, stores: SessionStores) => void,
 ): ItemsRig {
-  const module = looseModule(AREAS.items);
-  const dispatch = new OpcodeDispatch();
-  const self = world.player.guid;
-  const port = testPort({
-    expect: (opcode, options) => dispatch.expect(opcode, options),
-    selfGuid: () => self,
-  });
-  const events = port.events();
-  const stores = testStores({
+  const rig = areaRig("items", {
     getEntity: world.lookup,
-    selfGuid: port.selfGuid,
-    send: port.send,
+    register,
+    selfGuid: world.player.guid,
   });
-  register?.(dispatch, stores);
-  for (const use of module.opcodes.uses)
-    if (!dispatch.has(GameOpcode[use]))
-      dispatch.on(GameOpcode[use], () => undefined);
-  const own = { items: stores.areas.items };
-  registerModules(dispatch, [module], own);
-  const lifetime = createModuleRuntimes(port, [module], own, stores);
-  const handles = areaHandles(
-    own as unknown as AreaStores,
-    lifetime.runtimes as AreaRuntimes,
-    () => events.area,
-  );
   return {
-    dispatch,
-    dispose() {
-      lifetime.dispose();
-      disposeSessionStores(stores);
-    },
-    events,
-    handle: handles.items,
-    inject: (opcode, body) =>
-      void dispatch.handle(opcode, new PacketReader(body)),
-    sent: port.sent,
-    stores,
+    ...rig,
+    handle: rig.handle,
     touch: () =>
-      events.entity.emit({ changed: [], entity: world.player, type: "update" }),
+      rig.events.entity.emit({
+        changed: [],
+        entity: world.player,
+        type: "update",
+      }),
   };
 }

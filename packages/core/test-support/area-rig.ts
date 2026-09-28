@@ -9,9 +9,10 @@ import {
   looseModule,
   registerModules,
 } from "#wow/areas/compose";
-import { type SentPacket, testPort } from "#wow/areas/port";
+import { type AreaPort, type SentPacket, testPort } from "#wow/areas/port";
 import { AREAS } from "#wow/areas/registry";
 import type { DbcSource } from "#wow/dbc";
+import type { EntityLookup } from "#wow/entity-store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 import { OpcodeDispatch } from "#wow/protocol/world";
@@ -32,6 +33,8 @@ type RigInit = {
   now?: () => number;
   selfGuid?: bigint;
   dbc?: DbcSource;
+  getEntity?: EntityLookup;
+  legacy?: AreaPort["legacy"];
   register?: (dispatch: OpcodeDispatch, stores: SessionStores) => void;
 };
 
@@ -49,11 +52,13 @@ export function areaRig<K extends AreaName>(
   const port = testPort({
     dbc: init.dbc,
     expect: (opcode, options) => dispatch.expect(opcode, options),
+    ...(init.legacy ? { legacy: init.legacy } : {}),
     now: init.now ?? (() => 0),
     selfGuid: () => guid,
   });
   const events = port.events();
   const stores = testStores({
+    getEntity: init.getEntity ?? (() => undefined),
     now: port.now,
     selfGuid: port.selfGuid,
     send: port.send,

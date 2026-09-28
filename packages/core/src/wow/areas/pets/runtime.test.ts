@@ -1,24 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import { petsPetSpellsBody } from "#test-support/areas/pets";
-import { testStores } from "#test-support/session-fixtures";
-import {
-  type AreaRuntimes,
-  type AreaStores,
-  areaHandles,
-  createModuleRuntimes,
-  looseModule,
-  registerModules,
-} from "#wow/areas/compose";
-import { petsArea } from "#wow/areas/pets/area";
 import { buildPetAction, PET_ACTION } from "#wow/areas/pets/protocol";
-import { testPort } from "#wow/areas/port";
 import type { Entity } from "#wow/entity-store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 import { UNIT_FIELDS } from "#wow/protocol/update-fields";
-import { OpcodeDispatch } from "#wow/protocol/world";
-import { disposeSessionStores } from "#wow/session-stores";
 
 const ME = 0x2an;
 const PET = 0xf1_40_00_0c_a9_00_02_0bn;
@@ -63,31 +50,12 @@ function withPet(bytes2: number) {
     guid: PET,
     rawFields: new Map([[UNIT_FIELDS.BYTES_2.offset, bytes2]]),
   } as unknown as Entity;
-  const port = testPort({ selfGuid: () => ME });
-  const stores = testStores({
+  const rig = areaRig("pets", {
     getEntity: (guid) => [owner, pet].find((row) => row.guid === guid),
-    selfGuid: () => ME,
-    send: port.send,
+    selfGuid: ME,
   });
-  const module = looseModule(petsArea);
-  const dispatch = new OpcodeDispatch();
-  const own = { pets: stores.areas.pets };
-  registerModules(dispatch, [module], own);
-  const lifetime = createModuleRuntimes(port, [module], own, stores);
-  const handles = areaHandles(
-    own as unknown as AreaStores,
-    lifetime.runtimes as AreaRuntimes,
-    () => port.events().area,
-  );
-  void dispatch.handle(GameOpcode.SMSG_PET_SPELLS, new PacketReader(BAR));
-  return {
-    act: handles.pets.act,
-    dispose: () => {
-      lifetime.dispose();
-      disposeSessionStores(stores);
-    },
-    sent: port.sent,
-  };
+  rig.inject(GameOpcode.SMSG_PET_SPELLS, BAR);
+  return { act: rig.handle.act, dispose: rig.dispose, sent: rig.sent };
 }
 
 describe("pets runtime", () => {
