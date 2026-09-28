@@ -1131,3 +1131,4 @@ self-state-9 and -10a). No wave-1 task meets them.
 | Id | Issue | Ruling | Status |
 |---|---|---|---|
 | BR-self-state-2-1 | self-state-2 adds `"feather_fall" \| "gravity_off"` to `MoveFlag` in `self-store.ts`, which is not in its plan body; SR1-self-state-7 gives `self-store.ts` to -1, -4, -3 only | self-state-2 holds the `self-store.ts` lease for the `MoveFlag` members only, between self-state-1 and self-state-4 | ruled by the maintainer (P2-4) |
+| BR-self-state-4-1 | Review of self-state-4: the plan's live try teleports into six non-raid dungeons; the builder made one attempt, which gave no transfer abort | Waived under the rare-event cap (at most two live tries per opcode, then R22 mock proof). `SMSG_TRANSFER_ABORTED` stays `mock` and not seen live | coordinator ruling (P2-17) |
