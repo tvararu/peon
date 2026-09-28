@@ -135,7 +135,9 @@ function optional<T>(
   key: string,
   read: (key: string) => T,
 ): Record<string, T> {
-  return json[key] === undefined ? {} : { [key]: read(key) };
+  return json[key] === undefined || json[key] === null
+    ? {}
+    : { [key]: read(key) };
 }
 
 function itemOf(value: unknown, where: string): TruthItem {
