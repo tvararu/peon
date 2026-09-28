@@ -21,6 +21,7 @@ or the page names one that does not exist.
 | Kill creatures at its level, one at a time, with Jev choosing the actions | `t3-ghostlands-kill` | Needs Jev: after repeated failed Jev calls the fight ends as `jev_unavailable`. A hunter can end up in melee range, because `travel` stops 3 yd from a unit, so no scenario proves ranged hunter play. |
 | Take a quest, do it and turn it in | `t4-quest-first`, `t4-alliance-first` | An accept or a turn-in the server does not answer is `UNCONFIRMED`; the agent checks the quest log before it tries again. |
 | See which NPCs have a quest or a quest to turn in | `t4-quests-find-giver` | |
+| Hear what an NPC says when talked to | `t1-quests-read-greeting` | |
 | Buy from a vendor | `t5-vendor-buy-goldshire` | |
 | Die, then come back to life | `t6-die-and-recover` | |
 | Stop on command and resume | `t7-halt-resume` | |
