@@ -698,10 +698,19 @@ The table lists every existing file that an area task edits outside its own area
 | `h:` tools/interact-trainer.ts | self-state-10b (C) → guild-16 (D) | yes |
 | `h:` tools/interact.ts | objects-7 (A) → quests-6 (A) → travel-5 (A) → economy-2 (A) → travel-6 (C) → economy-10 (C) → talents-4b (C) → pets-11 (C) → economy-13 (D) → guild-16 (D) | yes |
 | `h:` tools/journal.ts | items-5b (A) → quests-4 (A) → spells-12a (A) → world-8b (A) → economy-2 (A) → economy-8 (C) → spells-14 (C) → economy-10 (C) → quests-10 (D) | yes |
+| `h:` tools/look-find.ts (`SEED-1` sibling of `tools/look.ts`: which units match `find`, `name` and `within`, their order and cut, and the remembered rows) | threat-3b (A) → objects-7 (A) → quests-2 (A) → travel-5 (A) → self-state-11b (A) → spells-13 (B) → remote-motion-7a (B) → instances-5 (B) → economy-8 (C) → travel-6 (C) → self-state-10a (C) → economy-10 (C) → talents-3b (C) → economy-13 (D) → pvp-11c (D) | yes |
 | `h:` tools/look-rank.ts | objects-7 (A) → quests-2 (A) | yes |
-| `h:` tools/look.ts | threat-3b (A) → objects-7 (A) → quests-2 (A) → travel-5 (A) → self-state-11b (A) → spells-13 (B) → remote-motion-7a (B) → instances-5 (B) → economy-8 (C) → travel-6 (C) → self-state-10a (C) → economy-10 (C) → talents-3b (C) → economy-13 (D) → pvp-11c (D) | yes |
+| `h:` tools/look-rows.ts (`SEED-1` sibling of `tools/look.ts`: the unit rows, the header, "more" and "Nearest" lines) | threat-3b (A) → objects-7 (A) → quests-2 (A) → travel-5 (A) → self-state-11b (A) → spells-13 (B) → remote-motion-7a (B) → instances-5 (B) → economy-8 (C) → travel-6 (C) → self-state-10a (C) → economy-10 (C) → talents-3b (C) → economy-13 (D) → pvp-11c (D) | yes |
+| `h:` tools/look-self.ts (`SEED-1` sibling of `tools/look.ts`: the self line and the target and running line) | threat-3b (A) → objects-7 (A) → quests-2 (A) → travel-5 (A) → self-state-11b (A) → spells-13 (B) → remote-motion-7a (B) → instances-5 (B) → economy-8 (C) → travel-6 (C) → self-state-10a (C) → economy-10 (C) → talents-3b (C) → economy-13 (D) → pvp-11c (D) | yes |
+| `h:` tools/look.ts (after `SEED-1`: the tool, the `LookAfter` assembly, the unchanged count and the empty-result hint) | threat-3b (A) → objects-7 (A) → quests-2 (A) → travel-5 (A) → self-state-11b (A) → spells-13 (B) → remote-motion-7a (B) → instances-5 (B) → economy-8 (C) → travel-6 (C) → self-state-10a (C) → economy-10 (C) → talents-3b (C) → economy-13 (D) → pvp-11c (D) | yes |
 | `h:` tools/loot.ts | group-4a (A) → self-state-10b (C) | yes |
-| `h:` tools/params.ts | objects-7 (A) → travel-5 (A) → spells-12a (A) → world-8b (A) → economy-2 (A) → self-state-9 (B) → spells-13 (B) → economy-8 (C) → travel-6 (C) → spells-14 (C) → economy-10 (C) → talents-4b (C) → pets-11 (C) → social-14 (C) → economy-13 (D) → social-15 (D) → social-16 (D) → pvp-11b (D) | yes |
+| `h:` tools/params-interact.ts (`SEED-1` sibling of `tools/params.ts`: `interactParams`) | objects-7 (A) → travel-5 (A) → economy-2 (A) → travel-6 (C) → economy-10 (C) → talents-4b (C) → pets-11 (C) → economy-13 (D) | yes |
+| `h:` tools/params-journal.ts (`SEED-1` sibling: `journalParams`) | spells-12a (A) → world-8b (A) → economy-8 (C) → spells-14 (C) → economy-10 (C) | yes |
+| `h:` tools/params-look.ts (`SEED-1` sibling: `LOOK_KINDS`, `lookParams`, `prepareLookArgs`) | objects-7 (A) → travel-5 (A) → spells-13 (B) → economy-8 (C) → travel-6 (C) → economy-10 (C) → economy-13 (D) | yes |
+| `h:` tools/params-recover.ts (`SEED-1` sibling: `recoverParams`) | self-state-9 (B) → pvp-11b (D) | yes |
+| `h:` tools/params-social.ts (`SEED-1` sibling: `socialParams`) | social-14 (C) → social-15 (D) → social-16 (D) | yes |
+| `h:` tools/params-travel.ts (`SEED-1` sibling: `travelParams`) | objects-7 (A) → travel-5 (A) → travel-6 (C) | yes |
+| `h:` tools/params.ts (after `SEED-1`: a re-export facade that only `params.test.ts` imports; `params-engage.ts`, `params-loot.ts`, `params-rest.ts` and `params-stop.ts` have no holder) | coordinator only | yes |
 | `h:` tools/recover.ts | self-state-9 (B) → pvp-11b (D) | yes |
 | `h:` tools/rest.ts | self-state-10b (C) | yes |
 | `h:` tools/social.ts | social-14 (C) → social-15 (D) → social-16 (D) | yes |
@@ -745,18 +754,18 @@ The coordinator appends one line per handover: `COORD-<n>: <file> from <task> to
 - `SEED-1`: `core:` protocol/movement-block.ts to remote-motion-1; chain remote-motion-1 → vehicles-1 (C) → vehicles-6 (C) (SR1-remote-motion-1).
 - `SEED-1`: `core:` world-handlers-entity.ts (the holder creates `world-handlers-entity.test.ts`) to remote-motion-1; no next holder (SR1-remote-motion-1).
 - `SEED-1`: `core:` remote-motion-handlers.ts (the holder creates `remote-motion-handlers.test.ts`) to remote-motion-1; chain remote-motion-1 → remote-motion-4 (B) → remote-motion-6 (D) (SR1-remote-motion-1).
-- `SEED-1`: `h:` tools/look.ts, with the look blocks of `contract/details.ts` and the look lines of `docs/harness.md` as riders, to threat-3b; chain threat-3b → objects-7 → quests-2 → travel-5 → self-state-11b → spells-13 (B), then the later holders of the row (SR1-threat-7, SR1-objects-5, SR1-quests-1, SR1-travel-2, SR1-self-state-14).
+- `SEED-1`: `h:` tools/look.ts and its siblings `tools/look-find.ts`, `tools/look-rows.ts` and `tools/look-self.ts` (each its own lease with this chain), with the look blocks of `contract/details.ts` and the look lines of `docs/harness.md` as riders, to threat-3b; chain threat-3b → objects-7 → quests-2 → travel-5 → self-state-11b → spells-13 (B), then the later holders of the row (SR1-threat-7, SR1-objects-5, SR1-quests-1, SR1-travel-2, SR1-self-state-14).
 - `SEED-1`: `h:` tools/look-rank.ts to objects-7; chain objects-7 → quests-2 (SR1-objects-5, SR1-quests-1).
 - `SEED-1`: `h:` contract/views.ts to threat-3b (`UnitView` block); chain threat-3b → quests-2 (look views) → self-state-11b → combat-log-7b (`VitalsView` block) → remote-motion-7a (B), then the later holders of the row (SR1-threat-7, SR1-quests-1, SR1-combat-log-4).
 - `SEED-1`: `h:` ops/danger.ts to threat-3b; chain threat-3b → self-state-11b (SR1-threat-7, SR1-self-state-13).
 - `SEED-1`: `h:` tools/engage-approach.ts to threat-3c; no next holder (SR1-threat-5, SR1-threat-7).
-- `SEED-1`: `h:` tools/travel.ts, with the `travelParams` block of `tools/params.ts` and the `TravelGoalView` and `TravelAfter` blocks, to objects-7; chain objects-7 → travel-5 → travel-6 (C) → vehicles-8 (C) (SR1-objects-5, SR1-travel-2, SR1-travel-3).
-- `SEED-1`: `h:` tools/interact.ts, with the `interactParams` block of `tools/params.ts` and the `InteractAction` and `InteractAfter` blocks of `contract/details.ts`, to objects-7; chain objects-7 → quests-6 → travel-5 → economy-2 → travel-6 (C), then the later holders of the row (SR1-objects-5, SR1-quests-3, SR1-travel-2, SR1-economy-8).
+- `SEED-1`: `h:` tools/travel.ts, with `tools/params-travel.ts` and the `TravelGoalView` and `TravelAfter` blocks, to objects-7; chain objects-7 → travel-5 → travel-6 (C) → vehicles-8 (C) (SR1-objects-5, SR1-travel-2, SR1-travel-3).
+- `SEED-1`: `h:` tools/interact.ts, with `tools/params-interact.ts` and the `InteractAction` and `InteractAfter` blocks of `contract/details.ts`, to objects-7; chain objects-7 → quests-6 → travel-5 → economy-2 → travel-6 (C), then the later holders of the row (SR1-objects-5, SR1-quests-3, SR1-travel-2, SR1-economy-8).
 - `SEED-1`: `h:` tools/interact-quest.ts to objects-7; chain objects-7 → quests-6 (SR1-objects-5, SR1-quests-3).
-- `SEED-1`: `h:` the `lookParams` block of `tools/params.ts` to objects-7; it rides the `tools/look.ts` chain from objects-7 on (SR1-objects-5, SR1-travel-1).
+- `SEED-1`: `h:` tools/params-look.ts (the `lookParams` block) to objects-7; it rides the `tools/look.ts` chain from objects-7 on (SR1-objects-5, SR1-travel-1).
 - `SEED-1`: `h:` ops/refs.ts to objects-7; no next holder (SR1-objects-5).
 - `SEED-1`: `h:` tools/journal.ts, with the `JournalAfter` block of `contract/details.ts`, to items-5b; chain items-5b → quests-4 → spells-12a → world-8b → economy-2 → economy-8 (C), then the later holders of the row (SR1-items-1, SR1-quests-4, SR1-spells-11, SR1-world-5, SR1-economy-8).
-- `SEED-1`: `h:` the `journalParams` block of `tools/params.ts` to spells-12a (no earlier task edits it); chain spells-12a → world-8b → economy-8 (C); economy-2 does not take it (SR1-spells-11, SR1-world-5, SR1-economy-8).
+- `SEED-1`: `h:` tools/params-journal.ts (the `journalParams` block) to spells-12a (no earlier task edits it); chain spells-12a → world-8b → economy-8 (C); economy-2 does not take it (SR1-spells-11, SR1-world-5, SR1-economy-8).
 - `SEED-1`: `h:` loops/quest-objective.ts and loops/quest-cycle.ts (with the new `quest-cycle-object.test.ts`) to objects-11; no next holder (SR1-objects-9).
 - `SEED-1`: `h:` loops/loot-run.ts to objects-8; no next holder (SR1-objects-8).
 - `SEED-1`: `h:` tools/stop.ts (with the `stop` `After` block), loops/combat-actions-spells.ts and loops/combat-rejections.ts to spells-12b; no next holders (SR1-spells-15, SR1-spells-16).
@@ -802,6 +811,16 @@ The seed rulings ask for these code, shared-fake and scheduler edits. None is ma
 | Before spells-12b | The `channel_start` trigger: `grader/scenarios.ts` `TriggerName`, `grader/watch.ts` `TRIGGER_EVENTS` (`channel_start: ["spells/channel_start"]`, sorted), `grader/watch-rows.test.ts`, and both trigger enums of `grader/scenario.schema.json` | SR1-spells-14 |
 | Before group-4a | `puppet/calls.test.ts`: each key names a function on the mock handle or an act of an area handle in `AREA_NAMES`; check that `createMockGame()` in `packages/harness/test-support/mock-game.ts` exposes the area handles with inert acts, and add them if not | SR1-group-5 |
 | Scheduler data (outside the repository) | Mirror the new `lease:<file>` dependencies and owner-file changes of the task index (objects-7 gains objects-2 and `areas/objects/area.ts`; objects-8 gains `loops/loot-run.ts`; spells-12b loses `tools/engage*.ts`; combat-log-7b gains `tools/engage-fight.ts`; world-5 gains `client-control.ts`); add the `logout.ts` queue (session-5); run the `objects` unit as objects-5, then objects-1, 2, 3, 4, 7, 8, 10, 11 | SR1-objects-2, SR1-objects-6, SR1-session-6, SR1-travel-2, SR1-self-state-7, SR1-combat-log-6, SR1-spells-11, SR1-spells-17 |
+
+**`SEED-1` record.** The seed commit `chore: Seed wave1 areas` and its coordinator commits made every row above whose "When" is the seed, before threat-1, or before a wave-1 task, except the `RuleLookup` row, which waits for combat-log-1 to land. The seed writes each area's `owns` from the unit files' per-task opcode lines over all waves of that code area, with the dead rows inside `owns`. The rulings it needed, each not yet ruled by the maintainer:
+
+- SEED1-1: `tools/params.ts` becomes a re-export facade over `params-<tool>.ts` siblings, so `params.test.ts` keeps its imports; `biome.json` exempts that one file from `noBarrelFile`, beside `packages/core/src/wow/index.ts`. Tool modules import their sibling, never the facade.
+- SEED1-2: `tools/look.ts` splits into `look-find.ts` (matching and order), `look-rows.ts` (unit rows) and `look-self.ts` (self line); each sibling keeps the full `tools/look.ts` queue, so objects-7 starts after threat-3b lands (the "Otherwise" branch of SR1-objects-5).
+- SEED1-3: `SMSG_HEALTH_UPDATE` sits in both `COMBATLOG_OPCODES.stubs` and `dead`, as the social chat-error rows do, so the frozen 57-pair test keeps its pair.
+- SEED1-4: seeded core modules use `register: () => undefined`, not the `() => {}` of contract 1.5, because `noEmptyBlockStatements` refuses the empty block.
+- SEED1-5: `packages/core/test-support/area-rig.ts` casts its one-area store map through `unknown`; the old cast fails to typecheck once the registry holds a second area. No other rig line changes.
+- SEED1-6: SR1-combat-log-1 names two full `SessionDeps` literals; `areas/compose.test.ts` and `areas/registry.test.ts` hold three more, and each gains `updateEntity: () => undefined`.
+- SEED1-7: SR1-group-5 needs no mock edit: `createMockGame()` already exposes the area handles with inert acts, and `puppet/calls.test.ts` checks that.
 
 Two follow-ups wait for the wave integration tidy, not the seed: the design 5.13 sentence on the `loot` tool skipping another owner's corpse (SR1-group-2) and the `t0-hostiles` limit sentence (SR1-world-7). Contract 2.6 now lets a tool-lease holder add one clause to that tool's `docs/harness.md` row; SR1-self-state-17 still stands, so self-state-11b makes no `docs/harness.md` edit.
 
