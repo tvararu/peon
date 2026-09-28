@@ -153,7 +153,7 @@ on-use spells it read before.
 
 ## Capabilities row
 
-No verb yet; `items-5a` adds the `gear` tool and its row.
+The `gear` tool wears, takes off, moves, splits, opens and reads items. The game log writes `items/equipped`, `items/unequipped`, `items/moved` and `items/split` for confirmed moves, `items/refused` and `items/unanswered` as wake rows, `items/upgrade` when a received item level beats the worn one, and `items/read` for reads and item text. The harness never equips on its own.
 
 ## Proof
 
