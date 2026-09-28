@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import type { ClientConfig } from "@peon/core";
+import type { ClientConfig, DbcSource } from "@peon/core";
 import { parseConfig } from "@peon/core/lib/config";
 import { resolvePaths } from "@peon/core/lib/paths";
 
@@ -14,6 +14,18 @@ export function accountPaths(root: string, account: string): AccountPaths {
   const host = { home: root, tmp: root, uid: 0 };
   const { configPath, runtimeDir } = resolvePaths(env, host);
   return { config: configPath, pid: `${runtimeDir}/puppet.pid` };
+}
+
+const TRAILING_SLASH = /\/$/;
+
+function dbcDirectory(directory: string): DbcSource {
+  const root = directory.replace(TRAILING_SLASH, "");
+  return async (file) => {
+    const handle = Bun.file(`${root}/${file}`);
+    if (!(await handle.exists()))
+      throw new Error(`missing ${file} in ${directory}`);
+    return new Uint8Array(await handle.arrayBuffer());
+  };
 }
 
 function readText(path: string): Promise<string | undefined> {
@@ -53,9 +65,11 @@ export async function loadAccount(
       `the puppet for ${account} runs; stop it first (tmp/puppet-${account} stop).`,
     );
   const { character, host, language, password, port } = config;
+  const dataDir = config.spell_data_dir;
   return {
     account,
     character,
+    dbc: dataDir ? dbcDirectory(dataDir) : undefined,
     host,
     language,
     password: password.toUpperCase(),

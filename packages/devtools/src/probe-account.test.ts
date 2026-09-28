@@ -53,6 +53,26 @@ describe("loadAccount", () => {
     });
   });
 
+  test("reads game data from the config's spell data directory", async () => {
+    const dir = await root();
+    const data = `${dir}/dbc`;
+    await write(`${data}/FactionTemplate.dbc`, "WDBC");
+    await write(
+      accountPaths(dir, ACCOUNT).config,
+      `${config(ACCOUNT)}spell_data_dir = "${data}/"\n`,
+    );
+    const { dbc } = await loadAccount(dir, ACCOUNT);
+    const bytes = await dbc?.("FactionTemplate.dbc");
+    expect(new TextDecoder().decode(bytes)).toBe("WDBC");
+    await expect(dbc?.("Spell.dbc")).rejects.toThrow("missing Spell.dbc");
+  });
+
+  test("gives no game data without a spell data directory", async () => {
+    const dir = await root();
+    await write(accountPaths(dir, ACCOUNT).config, config(ACCOUNT));
+    expect((await loadAccount(dir, ACCOUNT)).dbc).toBeUndefined();
+  });
+
   test("refuses an account soap create did not set up here", async () => {
     const dir = await root();
     const load = loadAccount(dir, ACCOUNT);
