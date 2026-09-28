@@ -109,6 +109,38 @@ const FAIRBREEZE_EAST: Spawn = {
   zone: 3430,
 };
 
+const EVERSONG_WEST: Spawn = {
+  map: 530,
+  o: 1.686,
+  points: [
+    [8748, -6634, 70.76],
+    [8744, -6634, 70.54],
+    [8748, -6638, 70.67],
+    [8748, -6630, 70.75],
+    [8752, -6634, 70.68],
+    [8744, -6638, 70.54],
+    [8744, -6630, 70.59],
+    [8752, -6638, 70.58],
+    [8752, -6630, 70.61],
+    [8740, -6634, 70.48],
+    [8748, -6642, 70.44],
+    [8748, -6626, 70.67],
+    [8756, -6634, 70.23],
+    [8740, -6638, 70.46],
+    [8740, -6630, 70.54],
+    [8744, -6642, 70.53],
+    [8744, -6626, 70.62],
+    [8752, -6642, 70.27],
+    [8752, -6626, 70.4],
+    [8756, -6638, 70.16],
+    [8756, -6630, 70.2],
+    [8740, -6642, 70.5],
+    [8740, -6626, 70.54],
+    [8756, -6642, 69.88],
+  ],
+  zone: 3430,
+};
+
 const SPAWN_OF: Readonly<Record<string, Spawn>> = {
   eversong10: EVERSONG,
   "eversong10-hunter": EVERSONG,
@@ -119,6 +151,7 @@ const SPAWN_OF: Readonly<Record<string, Spawn>> = {
 
 const NAMED: Readonly<Record<string, Spawn>> = {
   eversong: EVERSONG,
+  "eversong-west": EVERSONG_WEST,
   "fairbreeze-east": FAIRBREEZE_EAST,
   "fairbreeze-south": FAIRBREEZE_SOUTH,
   ghostlands: GHOSTLANDS,

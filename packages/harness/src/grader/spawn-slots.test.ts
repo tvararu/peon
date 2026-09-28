@@ -21,7 +21,7 @@ describe("startSlots", () => {
           seen.add(key);
         }
       }
-    expect(seen.size).toBe(2 * 2 * 9);
+    expect(seen.size).toBe(2 * 2 * 14);
   });
 
   test("points stay a few yards from their spawn, on its map and zone", () => {

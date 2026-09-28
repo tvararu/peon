@@ -14,6 +14,11 @@
       "expect": "GL has an items/read row for item 889 (A Dusty Unsent Letter)",
       "id": "read-row",
       "source": "game_log"
+    },
+    {
+      "expect": "the agent's answer says the letter has no text: the retrieved item text is empty (the 889 page text is not served over CMSG_ITEM_TEXT_QUERY)",
+      "id": "answer-matches-text",
+      "source": "session"
     }
   ],
   "id": "t8-items-read",
@@ -31,7 +36,7 @@
       "endpoint": "items/add"
     }
   ],
-  "spawn": "eversong",
+  "spawn": "eversong-west",
   "steers": [],
   "task": "Read the letter in your bags and tell me what it says.",
   "tier": 8

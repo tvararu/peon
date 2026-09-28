@@ -40,7 +40,7 @@
       "endpoint": "items/add"
     }
   ],
-  "spawn": "eversong",
+  "spawn": "eversong-west",
   "steers": [],
   "task": "Split 5 water off into a separate stack.",
   "tier": 8

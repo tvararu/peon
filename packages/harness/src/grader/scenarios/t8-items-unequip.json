@@ -11,7 +11,7 @@
         "items": [9749],
         "truth": ["equipment"]
       },
-      "expect": "T final has no item 9749 (Simple Blouse) in equipment: the chest slot (bag 255 slot 4) is empty or holds another item",
+      "expect": "T final has no row at bag 255 slot 4: the chest slot is empty (not swapped to another item)",
       "id": "chest-empty",
       "source": "truth"
     },
@@ -41,7 +41,7 @@
   "partner": null,
   "preset": "eversong10",
   "setup": [],
-  "spawn": "eversong",
+  "spawn": "eversong-west",
   "steers": [],
   "task": "Take off your chest armour and keep it in your bags.",
   "tier": 8

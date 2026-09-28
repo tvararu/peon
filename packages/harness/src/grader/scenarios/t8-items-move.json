@@ -32,7 +32,7 @@
   "partner": null,
   "preset": "eversong10",
   "setup": [],
-  "spawn": "eversong",
+  "spawn": "eversong-west",
   "steers": [],
   "task": "Move your hearthstone into bag 19, your first bag.",
   "tier": 8
