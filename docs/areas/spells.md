@@ -228,7 +228,7 @@ Disagreements for opcodes later tasks build (AzerothCore wins):
 
 ## Capabilities row
 
-Cancel one of its own buffs (`t4-spells-cancel-aura`; harmful and passive auras cannot be cancelled). The action bar (`t4-spells-action-bar`) is not proven: no truth pick reads the bar, so the verdict stays `blocked`. Stop a channel (proposed; spells-12b).
+Cancel one of its own buffs (`t4-spells-cancel-aura`; harmful and passive auras cannot be cancelled). The action bar (`t4-spells-action-bar`) is not proven: no truth pick reads the bar, so the verdict stays `blocked`. Stop ends an Evocation channel (`t4-spells-stop-channel`): the stop reflex halts the character, the cancelled `spells/channel_end` row lands, and no recast sits between the steer and the end.
 
 ## Proof
 
