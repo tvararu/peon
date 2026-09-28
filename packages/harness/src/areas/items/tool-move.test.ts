@@ -1,7 +1,7 @@
-import { describe, expect, jest, test } from "bun:test";
+import { describe, expect, jest, type Mock, test } from "bun:test";
 import type { NamedInventorySlot } from "@peon/core";
 import { gearSpec } from "#harness/areas/items/tool";
-import { toolCtx } from "#test-support/ops-fixtures";
+import { contentOf, toolCtx } from "#test-support/ops-fixtures";
 import {
   createTestRuntime,
   type MockHandle,
@@ -16,6 +16,7 @@ type Occupied = {
 };
 
 const WATER = 0x40_00_00_00_00_00_00_04n;
+const SHIRT = 0x40_00_00_00_00_00_00_03n;
 
 function slots(items: Occupied[]) {
   return items.map(
@@ -106,6 +107,9 @@ function itemActs(handle: MockHandle) {
   return {
     move: jest.spyOn(act, "move").mockResolvedValue(outcome("confirmed", 25)),
     split: jest.spyOn(act, "split").mockResolvedValue(outcome("confirmed", 59)),
+    unequip: jest
+      .spyOn(act, "unequip")
+      .mockResolvedValue(outcome("confirmed", 36)),
   };
 }
 
@@ -170,6 +174,88 @@ describe("gear tool move", () => {
       { bag: 255, slot: 25 },
       { bag: 19, slot: 2 },
     );
+  });
+});
+
+describe("gear tool unequip to a slot", () => {
+  test("unequip into a named bag autostores then moves into the named slot", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, [
+      { bag: 255, entry: 36, guid: SHIRT, name: "Brown Linen Shirt", slot: 3 },
+    ]);
+    const acts = itemActs(t.handle);
+    const spies = acts as unknown as Record<
+      string,
+      Mock<(...args: unknown[]) => Promise<never>>
+    >;
+    spies["unequip"]?.mockImplementation(async () => {
+      stocked(t.handle, [
+        { bag: 19, entry: 36, guid: SHIRT, name: "Brown Linen Shirt", slot: 2 },
+      ]);
+      return outcome("confirmed", 36);
+    });
+    spies["move"]?.mockImplementation(async () => {
+      stocked(t.handle, [
+        { bag: 19, entry: 36, guid: SHIRT, name: "Brown Linen Shirt", slot: 0 },
+      ]);
+      return outcome("confirmed", 36);
+    });
+    const res = await gearSpec.run(
+      { do: "unequip", item: "Brown Linen Shirt", to: "bag 19 slot 0" },
+      toolCtx(t),
+    );
+    expect(acts.unequip).toHaveBeenCalledWith(3, 19);
+    expect(acts.move).toHaveBeenCalledWith(
+      { bag: 19, slot: 2 },
+      { bag: 19, slot: 0 },
+    );
+    expect(res.status).toBe("DONE");
+    expect(contentOf(res)).toMatch(/bag 19 slot 0/);
+  });
+  test("unequip to backpack sends bag 255 to autostore", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, [
+      { bag: 255, entry: 36, guid: SHIRT, name: "Brown Linen Shirt", slot: 3 },
+    ]);
+    const acts = itemActs(t.handle);
+    const res = await gearSpec.run(
+      { do: "unequip", item: "Brown Linen Shirt", to: "backpack" },
+      toolCtx(t),
+    );
+    expect(acts.unequip).toHaveBeenCalledWith(3, 255);
+    expect(acts.move).not.toHaveBeenCalled();
+    expect(res.status).toBe("DONE");
+  });
+
+  test("unequip to a taken slot reports the autostore landing, not the slot", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, [
+      { bag: 255, entry: 36, guid: SHIRT, name: "Brown Linen Shirt", slot: 3 },
+    ]);
+    const acts = itemActs(t.handle);
+    const spies = acts as unknown as Record<
+      string,
+      Mock<(...args: unknown[]) => Promise<never>>
+    >;
+    spies["unequip"]?.mockImplementation(async () => {
+      stocked(t.handle, [
+        { bag: 19, entry: 36, guid: SHIRT, name: "Brown Linen Shirt", slot: 2 },
+      ]);
+      return outcome("confirmed", 36);
+    });
+    acts.move.mockResolvedValue(outcome("refused", 36, "inventory_full"));
+    const res = await gearSpec
+      .run(
+        { do: "unequip", item: "Brown Linen Shirt", to: "bag 19 slot 0" },
+        toolCtx(t),
+      )
+      .catch((error) => error);
+    expect(acts.unequip).toHaveBeenCalledWith(3, 19);
+    expect(acts.move).toHaveBeenCalledWith(
+      { bag: 19, slot: 2 },
+      { bag: 19, slot: 0 },
+    );
+    expect(res).toMatchObject({ reason: "inventory_full" });
   });
 });
 

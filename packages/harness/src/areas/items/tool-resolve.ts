@@ -10,7 +10,7 @@ export const FIRST_BAG = 19;
 export const LAST_BAG = 22;
 
 const ITEM_REF = /^item (\d+)$/i;
-const AT_REF = /^bag (\d+) slot (\d+)$/i;
+export const AT_REF = /^bag (\d+) slot (\d+)$/i;
 const BAG_REF = /^bag (\d+)$/i;
 const BAG_NUMBER = /^([12]?[0-9]|2[0-2])$/;
 
@@ -152,7 +152,8 @@ export function position(text: string, prefix: string): Position {
 export function atBag(text: string | undefined): number | undefined {
   if (text === undefined) return undefined;
   const trimmed = text.trim().toLowerCase();
-  if (trimmed === "bags" || trimmed === "backpack") return undefined;
+  if (trimmed === "bags") return undefined;
+  if (trimmed === "backpack") return BACKPACK;
   const at = AT_REF.exec(text.trim());
   if (at?.[1] !== undefined) return Number(at[1]);
   return bagNumber(text);

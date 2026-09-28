@@ -3,6 +3,7 @@ import type { NamedInventoryState } from "@peon/core";
 import { lootText, takeOffered } from "#harness/areas/items/tool-loot";
 import { runAmmo, runRead } from "#harness/areas/items/tool-read";
 import {
+  AT_REF,
   atBag,
   BACKPACK,
   BAGS,
@@ -233,6 +234,38 @@ async function runUnequip(
   );
   if (outcome_.last?.status !== "confirmed")
     throw moveRefusal(handle, found.held.guid, outcome_);
+  const landed = handle.getInventoryState();
+  const placed = slotsOf(landed).find((slot) => slot.guid === found.held.guid);
+  const parsed = bag === undefined ? undefined : AT_REF.exec(bag.trim());
+  const at =
+    parsed?.[1] === undefined || parsed[2] === undefined
+      ? undefined
+      : { bag: Number(parsed[1]), slot: Number(parsed[2]) };
+  if (
+    at === undefined ||
+    placed === undefined ||
+    (placed.bag === at.bag && placed.slot === at.slot)
+  ) {
+    const after = handle.getInventoryState();
+    const now = slotsOf(after).find((slot) => slot.guid === found.held.guid);
+    const where = now ? `bag ${now.bag} slot ${now.slot}` : "in your bags";
+    return result("DONE", {
+      after: afterOf(found, from, {
+        do: "unequip",
+        item: found.label,
+        to: now ? { bag: now.bag, slot: now.slot } : undefined,
+      }),
+      detail: `Took off ${found.label}, now ${where}.`,
+    });
+  }
+  const settled = await rt.mutex.run(() =>
+    handle.items.act.move(
+      { bag: placed.bag, slot: placed.slot },
+      { bag: at.bag, slot: at.slot },
+    ),
+  );
+  if (settled.last?.status !== "confirmed")
+    throw moveRefusal(handle, found.held.guid, settled);
   const after = handle.getInventoryState();
   const now = slotsOf(after).find((slot) => slot.guid === found.held.guid);
   const where = now ? `bag ${now.bag} slot ${now.slot}` : "in your bags";
