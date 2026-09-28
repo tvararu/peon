@@ -14,6 +14,17 @@ or `no_reply` and the `QuestPoi` list, matched by quest id because the
 server answers in `unordered_set` order. A `poi` event fires per settled
 quest.
 
+The area also keeps the NPC greeting texts behind gossip menus and the
+last gossip point of interest. `session.areas.quests.state().texts` maps
+each text id to its `pending`, `known` or `no_reply` status with its 8
+options, and `greeting(textId)` returns the non-empty text of the
+highest-probability option with `$N`, `$C` and `$R` kept.
+`session.areas.quests.state().gossipPoi` holds the last point with the
+giver guid open at arrival. The runtime sends one
+`CMSG_NPC_TEXT_QUERY` for a gossip dialog's title text id, once per id
+for the session, and an id with no reply after 5 s becomes `no_reply`.
+The acts are `queryNpcText(textId, guid)` and `greeting(textId)`.
+
 The runtime sends one `CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY` 500 ms
 after the last trigger, and at most once every 2 s. A trigger is a unit
 with the quest-giver NPC flag or a quest-giver game object coming into
@@ -76,12 +87,22 @@ known entries.
 - The quest share result is AzerothCore's enum 0-10
   (`Quests/QuestDef.h:64-77`); the 3.3.5 wowm enum adds an 11,
   `DIFFERENT_SERVER_DAILY`, that AzerothCore does not define.
+- `CMSG_NPC_TEXT_QUERY` is the `uint32` text id then the `uint64` giver
+  guid (`Handlers/QueryHandler.cpp:274-282`).
+- `SMSG_NPC_TEXT_UPDATE` carries its `CMSG_NPC_TEXT_QUERY` text id then
+  exactly 8 options of `float` probability, two `CString` texts, a
+  `uint32` language and 3 `uint32` delay/emote pairs
+  (`Handlers/QueryHandler.cpp:286-355`). An unknown id answers 8
+  zero-probability options with the text `Greetings $N`
+  (`Handlers/QueryHandler.cpp:289-305`).
+- `SMSG_GOSSIP_POI` carries `uint32` flags, `float` x, `float` y,
+  `uint32` icon, `uint32` importance and a `CString` name, sent from a
+  gossip option with a POI id while the dialog is still open
+  (`Entities/Creature/GossipDef.cpp:247-270`).
 
 ## Left out
 
 - `SMSG_QUEST_FORCE_REMOVE` is dead: see Proof.
-- `CMSG_NPC_TEXT_QUERY`, `SMSG_NPC_TEXT_UPDATE` and `SMSG_GOSSIP_POI`:
-  built by `quests-5`.
 - `CMSG_QUESTGIVER_HELLO`, `CMSG_QUESTGIVER_QUEST_AUTOLAUNCH`,
   `CMSG_QUESTLOG_SWAP_QUEST`, `CMSG_QUERY_QUESTS_COMPLETED` and
   `SMSG_QUERY_QUESTS_COMPLETED_RESPONSE`: built by `quests-9`.
@@ -98,9 +119,10 @@ No verb yet: `quests-2` shows the marks in `look`.
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
-| `CMSG_QUESTGIVER_STATUS_QUERY` | `live` | probe flow `quests-marks` on a `fresh` character (`--expect` 0x418, 0x183), exit 0; the 8-byte query for Magistrix Erona drew `SMSG_QUESTGIVER_STATUS` with status 8, and 10 after `soap setup quest/add 8325` | `Handlers/QuestHandler.cpp:36-77` |
-| `CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY` | `live` | probe flow `quests-marks`, exit 0; the debounced query after the givers came into view and the act's query each drew a 103-byte list of 11 givers | `Handlers/QuestHandler.cpp:620-623` |
 | `SMSG_QUESTGIVER_STATUS_MULTIPLE` | `live` | probe flow `quests-marks`, exit 0; an empty list at login, then 11 givers with Erona at 8, and at 10 after `soap setup quest/add 8325` | `Entities/Player/Player.cpp:7906-7951` |
 | `CMSG_QUEST_POI_QUERY` | `live` | probe flow `quests-poi` on a `fresh` character with quest 8325 staged offline (`--expect SMSG_QUEST_POI_QUERY_RESPONSE`), exit 0; the 8-byte query for [8325] drew the 180-byte reply | `Handlers/QueryHandler.cpp:411-420` |
 | `SMSG_QUEST_POI_QUERY_RESPONSE` | `live` | probe flow `quests-poi`, exit 0; quest 8325 parsed `known` with 2 POIs, objective index -1 and 12 points matching base data (`data/sql/base/db_world/quest_poi.sql`, `data/sql/base/db_world/quest_poi_points.sql`); the character stands at (10349, -6357) inside the point cloud | `Handlers/QueryHandler.cpp:427-479` |
+| `CMSG_NPC_TEXT_QUERY` | `live` | probe flow `quests-text` on a `fresh` character (`--expect SMSG_NPC_TEXT_UPDATE`), exit 0; the dialog's title text id drew the update, and text id 999999 drew the fallback | `Handlers/QueryHandler.cpp:274-282` |
+| `SMSG_NPC_TEXT_UPDATE` | `live` | probe flow `quests-text`, exit 0; Magistrix Erona's greeting and the `Greetings $N` fallback for id 999999 | `Handlers/QueryHandler.cpp:286-355` |
+| `SMSG_GOSSIP_POI` | `live` | probe flow `quests-gossip-poi` on an `elwynn1` character, exit 0; the Inn option drew the point | `Entities/Creature/GossipDef.cpp:247-270` |
 | `SMSG_QUEST_FORCE_REMOVE` | `dead` | no file in `src/` or `modules/` names it outside the opcode enum and table, which marks it `STATUS_NEVER` | `Server/Protocol/Opcodes.cpp:673` |
