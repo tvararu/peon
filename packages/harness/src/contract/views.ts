@@ -31,6 +31,8 @@ export type VitalsView = {
   powerKind: PowerKind;
 };
 
+export type Posture = "sitting" | "kneeling" | "sleeping";
+
 export type SelfView = VitalsView & {
   name: string;
   guid: string;
@@ -43,6 +45,7 @@ export type SelfView = VitalsView & {
   copper: number | undefined;
   freeSlots: number | undefined;
   pose: PoseView | undefined;
+  posture?: Posture | undefined;
 };
 
 export type PlaceView = {
@@ -147,6 +150,7 @@ export type NoProgress = {
 export type NowSnapshot = {
   at: number;
   self: SelfView;
+  breathS?: number | undefined;
   place: PlaceView;
   target: UnitView | undefined;
   targetAuras: AuraView[];

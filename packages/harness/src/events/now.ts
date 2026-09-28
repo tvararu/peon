@@ -105,6 +105,7 @@ function parts(s: NowSnapshot): Part[] {
     : "";
   const list: Part[] = [
     { drop: 0, text: selfText(s) },
+    { drop: 0, text: s.breathS === undefined ? "" : `breath ${s.breathS} s` },
     { drop: 0, text: placeText(s.place, s.self.pose) },
     { drop: 1, text: s.target ? targetText(s.target) : "" },
     { drop: 2, text: attackers ? `attackers ${attackers}` : "" },

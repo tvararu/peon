@@ -1,4 +1,5 @@
 import {
+  type AreaState,
   CLASS_NAMES,
   type CombatAura,
   type CombatState,
@@ -21,6 +22,7 @@ import type {
   NowSnapshot,
   PlaceView,
   PoseView,
+  Posture,
   PowerKind,
   RecoveryView,
   RunView,
@@ -158,6 +160,30 @@ function xpPercent(handle: WorldHandle): number | undefined {
     : undefined;
 }
 
+const POSTURES: Partial<
+  Record<NonNullable<AreaState<"selfstate">["standState"]>, Posture>
+> = {
+  kneel: "kneeling",
+  sit: "sitting",
+  sit_chair: "sitting",
+  sit_high_chair: "sitting",
+  sit_low_chair: "sitting",
+  sit_medium_chair: "sitting",
+  sleep: "sleeping",
+};
+
+function postureOf(handle: WorldHandle): Posture | undefined {
+  const { standState } = handle.selfstate.state();
+  return standState && POSTURES[standState];
+}
+
+function breathSeconds(rt: HarnessRuntime, handle: WorldHandle) {
+  const timer = handle.selfstate.state().timers.breath;
+  if (!timer || timer.paused || timer.scale >= 0) return;
+  const left = timer.valueMs + timer.scale * (rt.clock.now() - timer.at);
+  return left > 0 ? Math.ceil(left / 1000) : undefined;
+}
+
 export function selfView(ctx: ViewCtx): SelfView {
   const { handle, rt } = ctx;
   const { selfGuid } = handle.getControlState();
@@ -179,6 +205,7 @@ export function selfView(ctx: ViewCtx): SelfView {
     life: handle.getRecoveryState().life,
     name: rt.profile.character,
     pose: poseView(ctx),
+    posture: postureOf(handle),
     race: world?.race ?? "unknown",
     xpPct: xpPercent(handle),
   };
@@ -394,6 +421,7 @@ export function nowSnapshot(rt: HarnessRuntime): NowSnapshot | undefined {
   return {
     at: now,
     attackers: dangerView(ctx).attackers,
+    breathS: breathSeconds(rt, handle),
     hpDelta5s: undefined,
     nearest: nearestOf(known),
     noProgress: rt.progress.noProgress(),
