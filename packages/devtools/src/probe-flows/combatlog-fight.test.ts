@@ -85,6 +85,7 @@ describe("combatlog-fight flow", () => {
     health.set(BOAR, 0);
     expect(await running).toMatchObject({
       entries: { "melee in": 1, "spell_damage out": 1 },
+      state: { kills: [] },
       stop: "target_dead",
       target: { guid: "0xf130003b06000001" },
     });

@@ -112,10 +112,25 @@ async function fight(
   const started = Date.now();
   while (Date.now() - started < seconds * 1000) {
     if (selfHealth(handle) === 0) return "self_dead";
-    if (healthOf(rowOf(handle, target)) === 0) return "target_dead";
+    const row = rowOf(handle, target);
+    if (healthOf(row) === 0) return "target_dead";
+    if (row && row.distance !== null && row.distance > MELEE_YARDS + 1) {
+      await closeIn(handle, target, MELEE_YARDS);
+      handle.faceGuid(target);
+    }
     await Bun.sleep(POLL_MS);
   }
   return "timeout";
+}
+
+function killsOf(handle: WorldHandle): Json {
+  return handle.combatlog.state().kills.map((kill) => ({
+    bySelf: kill.bySelf,
+    killer: `0x${kill.killer.toString(16)}`,
+    killerKind: kill.killerKind,
+    ourTarget: kill.ourTarget,
+    victim: `0x${kill.victim.toString(16)}`,
+  }));
 }
 
 async function run({ handle, args, settle }: FlowContext): Promise<Json> {
@@ -142,6 +157,7 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
       state: {
         dropped: handle.combatlog.state().dropped,
         entries: handle.combatlog.state().entries.length,
+        kills: killsOf(handle),
       },
       stop,
       target: summary(found),
