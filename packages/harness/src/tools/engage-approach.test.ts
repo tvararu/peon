@@ -82,6 +82,55 @@ describe("engage approach", () => {
     );
   });
 
+  test("a target that breaks targeting ends the approach as out of view", async () => {
+    const t = await field();
+    setUnits(t.handle, [stalker(STALKER, 45), stalker(STALKER_2, 80)]);
+    const { res, started } = await midApproach(t, () => {
+      t.handle.triggerAreaEvent("threat", {
+        hostileOnly: false,
+        type: "target_broken",
+        unit: STALKER,
+      });
+    });
+    expect(started).toBe(0);
+    expect(res).toMatchObject({
+      next: `engage(target: "${t.rt.refs.refOf(STALKER_2)}")`,
+      reason: "target_not_observed",
+      status: "FAILED",
+    });
+    expect(res.detail).toMatch(
+      /^Springpaw Stalker u\d+ is not in view any more; it may have died or despawned\. You walked 12 yd; the fight did not start\.$/,
+    );
+  });
+
+  test("a target_broken for another unit leaves the approach going", async () => {
+    const t = await field();
+    setUnits(t.handle, [stalker(STALKER, 45), lynx]);
+    driveGoto(t.handle, [
+      {
+        arrive: { x: 20, y: 0 },
+        onArrive: () => {
+          t.handle.triggerAreaEvent("threat", {
+            hostileOnly: true,
+            type: "target_broken",
+            unit: LYNX,
+          });
+          setUnits(t.handle, [stalker(STALKER, 25), lynx]);
+        },
+      },
+    ]);
+    let started = 0;
+    t.handle.startTactics = async () => {
+      started += 1;
+      throw new Error("fight_stub");
+    };
+    const res = await engageSpec
+      .run({ target: "Springpaw Stalker" }, toolCtx<EngageAfter>(t))
+      .catch((error: unknown) => error);
+    expect(started).toBe(1);
+    expect(res).not.toMatchObject({ reason: "target_not_observed" });
+  });
+
   test("a target another unit kills stops the approach", async () => {
     const t = await field();
     setUnits(t.handle, [stalker(STALKER, 45), lynx]);
