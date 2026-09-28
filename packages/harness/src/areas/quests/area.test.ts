@@ -126,4 +126,18 @@ describe("quests marks rule", () => {
       },
     ]);
   });
+
+  test("a gossip POI writes one quests/gossip_poi row", () => {
+    const rows = rules()({
+      from: ERONA,
+      name: "Lion's Pride Inn",
+      type: "gossip_poi",
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "log",
+      name: "gossip_poi",
+    });
+    expect(rows[0]?.text).toContain("Lion's Pride Inn");
+  });
 });

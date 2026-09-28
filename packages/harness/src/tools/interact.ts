@@ -27,6 +27,7 @@ import {
   openDialog,
   type StepInit,
   type TalkExtra,
+  waitGreeting,
 } from "#harness/tools/interact-quest";
 import { turnInStep } from "#harness/tools/interact-reward";
 import {
@@ -98,6 +99,7 @@ async function talkStep({
   npc,
 }: StepInit): Promise<ToolResult<InteractAfter>> {
   const dialog = await openDialog(ctx, npc);
+  const greeting = await waitGreeting(ctx, dialog);
   const gossip = gossipOf(dialog);
   const offers = offersOf(dialog, ctx.handle.getQuestState());
   let after: InteractAfter = {
@@ -119,14 +121,17 @@ async function talkStep({
     ? ""
     : " Not a vendor or trainer.";
   const body = [
+    ...(greeting === undefined ? [] : [`${npc.unit.name} says: "${greeting}"`]),
     ...offers.filter((offer) => offer.state !== "ready").map(offerLine),
     ...gossip.map((line) => `Gossip ${line.line}: ${line.text}`),
     ...extra,
     `Ready to turn in: ${ready.length === 0 ? "none" : ready.join(", ")}.${shop}`,
   ];
   const opened = dialog !== undefined || extra.length > 0;
+  const said =
+    greeting === undefined ? "" : ` ${npc.unit.name} says: "${greeting}"`;
   const detail = opened
-    ? `${npcLabel(npc)} offers:`
+    ? `${npcLabel(npc)} offers:${said}`
     : `${npcLabel(npc)} opened no dialog in 3 s.`;
   return result("DONE", { after, body, detail, next: talkNext(npc, after) });
 }

@@ -65,6 +65,23 @@ function quiet(event: QuestsEvent): AreaDraft {
   };
 }
 
+type GossipPoi = Extract<QuestsEvent, { type: "gossip_poi" }>;
+
+function onPoi(e: GossipPoi, rc: RuleInput): AreaDraft[] {
+  const name = e.from === undefined ? undefined : rc.lookup.unitName(e.from);
+  const ref = e.from === undefined ? undefined : rc.refOf(e.from);
+  const said =
+    name === undefined || ref === undefined ? "" : ` ${name} ${ref} marked`;
+  return [
+    {
+      class: "log",
+      data: { name: e.name },
+      name: "gossip_poi",
+      text: `Marked on the map:${said} ${e.name}.`,
+    },
+  ];
+}
+
 function onMarks(
   e: Marks,
   mem: { seen: Set<string> },
@@ -113,8 +130,11 @@ export const questsHarness = defineHarnessArea({
   rules: () => {
     const mem = { seen: new Set<string>() };
     return {
-      event: (e: QuestsEvent, rc: RuleInput) =>
-        e.type === "marks" ? onMarks(e, mem, rc) : [quiet(e)],
+      event: (e: QuestsEvent, rc: RuleInput) => {
+        if (e.type === "marks") return onMarks(e, mem, rc);
+        if (e.type === "gossip_poi") return onPoi(e, rc);
+        return [quiet(e)];
+      },
     };
   },
   worldActs: ["queryGiverStatuses", "queryPoi"],
