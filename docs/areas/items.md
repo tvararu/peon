@@ -147,10 +147,19 @@ on-use spells it read before.
 - `SMSG_ITEM_TEXT_QUERY_RESPONSE` is `0`, the item guid and the text for
   a carried item, or `1` alone (`Handlers/ItemHandler.cpp:1468-1479`).
   The `1` answer names no guid, so it settles the oldest waiting query.
-- Items used for the open and read proof: 5335 A Sack of Coins (has
-  loot, no lock), 889 A Dusty Unsent Letter (page text, no required
-  level) and 38579 Venomous Tome (page text, required level 20, so a
-  level 10 character's read fails with `cant_equip_level_i`).
+- Items used for the open and read proof: 5335 A Sack of Coins (has loot, no lock), 889 A Dusty Unsent Letter (page text, no required level) and 38579 Venomous Tome (page text, required level 20, so a level 10 character's read fails with `cant_equip_level_i`).
+- Six gear eval scenarios prove the tool end to end on the live server
+  (round 21): `t8-items-equip-upgrade` wears a better weapon and puts a
+  bag on, `t8-items-unequip` takes the chest into the bags,
+  `t8-items-move` moves the hearthstone into the bag in bag slot 19
+  (truth shows it as `bag` 0, counting equipped bags from 0),
+  `t8-items-split` splits 5 of 20 water off, `t8-items-open` opens A
+  Sack of Coins and keeps the copper and items (the sack's contents are
+  random per character, so the check compares the money delta to the
+  loot window), and `t8-items-read` reads A Dusty Unsent Letter (its
+  page text is empty on this server). The server deletes conjured
+  food and water at login, which shows as missing rows in the unequip
+  and open baselines.
 
 ## Left out
 
