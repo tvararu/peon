@@ -39,3 +39,14 @@ export function ambienceInitWorldStatesBody(init: {
   }
   return w.finish();
 }
+export function ambienceTriggerCinematicBody(sequenceId: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(sequenceId >>> 0);
+  return w.finish();
+}
+
+export function ambienceTriggerMovieBody(movieId: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(movieId >>> 0);
+  return w.finish();
+}

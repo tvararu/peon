@@ -13,6 +13,8 @@ const RAIN = { abrupt: false, intensity: 0.5, state: 4 };
 describe("AmbienceStore", () => {
   test("starts empty", () => {
     expect(new AmbienceStore().snapshot()).toEqual({
+      cinematic: undefined,
+      movie: undefined,
       states: [],
       weather: undefined,
     });
@@ -82,7 +84,12 @@ describe("AmbienceStore", () => {
     store.resetStates([{ id: 2, value: 7 }]);
     store.setWeather(RAIN);
     store.clear();
-    expect(store.snapshot()).toEqual({ states: [], weather: undefined });
+    expect(store.snapshot()).toEqual({
+      cinematic: undefined,
+      movie: undefined,
+      states: [],
+      weather: undefined,
+    });
   });
 
   test("snapshot is detached from the store", () => {
@@ -95,8 +102,67 @@ describe("AmbienceStore", () => {
     first.value = 0;
     snapshot.weather.state = 0;
     expect(store.snapshot()).toEqual({
+      cinematic: undefined,
+      movie: undefined,
       states: [{ id: 2, value: 7 }],
       weather: RAIN,
     });
+  });
+
+  test("startCinematic records the sequence unfinished and emits cinematic", () => {
+    const { seen, store } = storeWithEvents();
+    store.startCinematic({ at: 7, completed: false, sequenceId: 310 });
+    expect(store.snapshot().cinematic).toEqual({
+      at: 7,
+      completed: false,
+      sequenceId: 310,
+    });
+    expect(seen).toEqual([
+      {
+        cinematic: { at: 7, completed: false, sequenceId: 310 },
+        previous: undefined,
+        type: "cinematic",
+      },
+    ]);
+  });
+
+  test("completeCinematic marks the cinematic completed and emits it once", () => {
+    const { seen, store } = storeWithEvents();
+    store.completeCinematic();
+    store.startCinematic({ at: 7, completed: false, sequenceId: 310 });
+    seen.length = 0;
+    store.completeCinematic();
+    store.completeCinematic();
+    expect(store.snapshot().cinematic).toEqual({
+      at: 7,
+      completed: true,
+      sequenceId: 310,
+    });
+    expect(seen).toEqual([
+      {
+        cinematic: { at: 7, completed: true, sequenceId: 310 },
+        previous: { at: 7, completed: false, sequenceId: 310 },
+        type: "cinematic",
+      },
+    ]);
+  });
+
+  test("startMovie records the movie and emits movie, replacing the previous one", () => {
+    const { seen, store } = storeWithEvents();
+    store.startMovie({ at: 7, movieId: 44 });
+    store.startMovie({ at: 9, movieId: 55 });
+    expect(store.snapshot().movie).toEqual({ at: 9, movieId: 55 });
+    expect(seen).toEqual([
+      {
+        movie: { at: 7, movieId: 44 },
+        previous: undefined,
+        type: "movie",
+      },
+      {
+        movie: { at: 9, movieId: 55 },
+        previous: { at: 7, movieId: 44 },
+        type: "movie",
+      },
+    ]);
   });
 });

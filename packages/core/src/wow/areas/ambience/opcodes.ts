@@ -25,5 +25,5 @@ export const AMBIENCE_OPCODES = {
     ["SMSG_PLAY_MUSIC", "Music"],
   ],
   dead: ["CMSG_COMPLETE_MOVIE", "SMSG_TOGGLE_XP_GAIN", "SMSG_CAMERA_SHAKE"],
-  unseen: [],
+  unseen: ["SMSG_TRIGGER_MOVIE"],
 } as const satisfies AreaOpcodes;

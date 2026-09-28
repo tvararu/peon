@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
   ambienceInitWorldStatesBody,
+  ambienceTriggerCinematicBody,
+  ambienceTriggerMovieBody,
   ambienceUpdateWorldStateBody,
   ambienceWeatherBody,
 } from "#test-support/areas/ambience";
@@ -90,7 +92,62 @@ describe("ambience area wiring", () => {
         ambienceWeatherBody({ abrupt: true, intensity: 0.25, state: 4 }),
       );
       rig.inject(GameOpcode.SMSG_NEW_WORLD, newWorldBody());
-      expect(rig.handle.state()).toEqual({ states: [], weather: undefined });
+      expect(rig.handle.state()).toEqual({
+        cinematic: undefined,
+        movie: undefined,
+        states: [],
+        weather: undefined,
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_TRIGGER_CINEMATIC records the sequence and auto-completes it (Player.cpp:5878-5883)", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_TRIGGER_CINEMATIC,
+        ambienceTriggerCinematicBody(310),
+      );
+      expect(rig.handle.state().cinematic).toEqual({
+        at: 0,
+        completed: true,
+        sequenceId: 310,
+      });
+      expect(seen).toEqual([
+        {
+          cinematic: { at: 0, completed: false, sequenceId: 310 },
+          previous: undefined,
+          type: "cinematic",
+        },
+        {
+          cinematic: { at: 0, completed: true, sequenceId: 310 },
+          previous: { at: 0, completed: false, sequenceId: 310 },
+          type: "cinematic",
+        },
+      ]);
+      expect(rig.sent).toEqual([
+        { body: new Uint8Array(0), opcode: GameOpcode.CMSG_COMPLETE_CINEMATIC },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_TRIGGER_MOVIE records the movie and sends nothing (Player.cpp:5885-5890)", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      rig.inject(GameOpcode.SMSG_TRIGGER_MOVIE, ambienceTriggerMovieBody(44));
+      expect(rig.handle.state().movie).toEqual({ at: 0, movieId: 44 });
+      expect(seen).toEqual([
+        {
+          movie: { at: 0, movieId: 44 },
+          previous: undefined,
+          type: "movie",
+        },
+      ]);
+      expect(rig.sent).toEqual([]);
     } finally {
       rig.dispose();
     }
