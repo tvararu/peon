@@ -12,11 +12,10 @@ import {
 const AUTO_SHOT = 75;
 const SHOT_YARDS = 30;
 const MELEE_YARDS = 4;
-const SIGHT_YARDS = 100;
+const SIGHT_YARDS = 35;
 const STEP_YARDS = 20;
 const MAX_STEPS = 8;
 const MAX_PULL = 5;
-const LEVEL_MARGIN = 2;
 const PET_HIGH = 0xf1_40n;
 const PET_SPAN = 0x1_00_00_00_00_00_00n;
 const DEFAULT_SECONDS = 180;
@@ -53,24 +52,7 @@ function petOf(handle: WorldHandle): bigint | undefined {
   return pet === 0n ? undefined : pet;
 }
 
-function levelOf(row: Row | undefined): number {
-  return row && "level" in row.entity ? row.entity.level : 0;
-}
-
-function fightable(row: Row, maxLevel: number): boolean {
-  if (row.attackable) return true;
-  const level = levelOf(row);
-  return (
-    row.relation === "unknown" &&
-    row.roles.length === 0 &&
-    (healthOf(row) ?? 0) > 0 &&
-    level > 0 &&
-    level <= maxLevel
-  );
-}
-
 function targetsOf(handle: WorldHandle, pull: number): Row[] {
-  const maxLevel = levelOf(selfRow(handle)) + LEVEL_MARGIN;
   return others(handle)
     .filter(
       (row) =>
@@ -79,7 +61,8 @@ function targetsOf(handle: WorldHandle, pull: number): Row[] {
         !row.tappedByOther &&
         row.distance !== null &&
         row.distance <= SIGHT_YARDS &&
-        fightable(row, maxLevel),
+        row.attackable &&
+        row.relation === "hostile",
     )
     .slice(0, pull);
 }
@@ -229,7 +212,7 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
   const found = settled ?? targetsOf(handle, pull);
   const [first] = found;
   if (!first)
-    throw new Error(`no attackable creature within ${SIGHT_YARDS} yards.`);
+    throw new Error(`no hostile creature within ${SIGHT_YARDS} yards.`);
   await closeIn(handle, first.entity.guid, SHOT_YARDS);
   const pet = petOf(handle);
   const watch = watchThreat(handle);
@@ -253,5 +236,5 @@ export const flow: ProbeFlow = {
   name: "threat-fight",
   run,
   usage:
-    "--flow threat-fight [--arg pull=<1-5>] [--arg seconds=<n>]: walk within 30 yards of the nearest attackable creature, send the pet and Auto Shot at the nearest creatures, then wait for their death, the character's death or the time limit.",
+    "--flow threat-fight [--arg pull=<1-5>] [--arg seconds=<n>]: pick the nearest living hostile creatures within 35 yards, walk within 30 yards of the first, send the pet and Auto Shot at them, then wait for their death, the character's death or the time limit.",
 };

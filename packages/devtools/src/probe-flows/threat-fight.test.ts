@@ -180,7 +180,7 @@ describe("threat-fight flow", () => {
   });
 
   test("walks within Auto Shot range of a far creature before it shoots", async () => {
-    let distance = 60;
+    let distance = 34;
     let health = 100;
     const rows = () => [
       row({ distance: 0, guid: ME, objectType: 4, self: true }),
@@ -209,24 +209,28 @@ describe("threat-fight flow", () => {
     await Bun.sleep(50);
     health = 0;
     expect(await running).toMatchObject({ stop: "targets_dead" });
-    expect(steps).toEqual([20, 11]);
+    expect(steps).toEqual([5]);
     expect(ctx.handle.cast).toHaveBeenCalledWith(75, FAR);
   });
 
-  test("with no faction data it picks a low-level creature with no NPC role", async () => {
-    const unknown = { attackable: false, relation: "unknown" as const };
+  test("picks only living hostile attackable creatures within 35 yards", async () => {
     const rows = () => [
-      row({ distance: 0, guid: ME, level: 10, objectType: 4, self: true }),
-      row({ ...unknown, distance: 2, guid: PET, level: 10 }),
-      row({ ...unknown, distance: 3, guid: GUARD, level: 70 }),
-      row({ ...unknown, distance: 5, guid: TAKEN, roles: ["vendor"] }),
-      row({ ...unknown, distance: 8, guid: CUB, level: 12 }),
+      row({ distance: 0, guid: ME, objectType: 4, self: true }),
+      row({ attackable: false, distance: 2, guid: GUARD, relation: "unknown" }),
+      row({ distance: 3, guid: TAKEN, relation: "neutral" }),
+      row({ distance: 36, guid: FAR }),
+      row({ distance: 30, guid: LYNX }),
     ];
-    const ctx = context({ seconds: "0.3" }, rows);
+    const ctx = context({ pull: "5", seconds: "0.3" }, rows);
     expect(await flow.run(ctx)).toMatchObject({
-      targets: [{ guid: "0xf130003b06000001" }],
+      targets: [{ guid: "0xf130003b07000002" }],
     });
-    expect(ctx.handle.cast).toHaveBeenCalledWith(75, CUB);
+    const none = context({}, () =>
+      rows().filter((r) => r.entity.guid !== LYNX),
+    );
+    await expect(flow.run(none)).rejects.toThrow(
+      "no hostile creature within 35",
+    );
   });
 
   test("a refused cast does not end the fight", async () => {
@@ -262,7 +266,7 @@ describe("threat-fight flow", () => {
 
   test("fails with no creature in reach or a bad pull", async () => {
     const empty = context({}, () => []);
-    expect(flow.run(empty)).rejects.toThrow("no attackable creature");
+    expect(flow.run(empty)).rejects.toThrow("no hostile creature");
     const { rows } = world(false);
     expect(flow.run(context({ pull: "9" }, rows))).rejects.toThrow("pull=1..5");
   });
