@@ -40,8 +40,9 @@ server for the bar again.
   (`Entities/Player/Player.cpp:9384-9387`,
   `Entities/Player/Player.cpp:9985-9990`); the area clears the bar and
   its cooldowns.
-- The server sends the bar through `Player::PetSpellInitialize` when
-  the pet appears (`Entities/Unit/Unit.cpp:7696`).
+- The server sends the bar through `Player::PetSpellInitialize` at login
+  (`Handlers/CharacterHandler.cpp:1269`) and when a pet loads on summon
+  (`Entities/Pet/Pet.cpp:450`).
 - `CMSG_REQUEST_PET_INFO` has an empty body, and its only reply is a new
   bar (`Handlers/MiscHandler.cpp:1560-1578`).
 - `SMSG_PET_LEARNED_SPELL` and `SMSG_PET_UNLEARNED_SPELL` are one
