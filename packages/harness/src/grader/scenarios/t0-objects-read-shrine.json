@@ -41,6 +41,6 @@
     }
   ],
   "steers": [],
-  "task": "You stand near the Shrine of Dath'Remar on Sunstrider Isle. Read the shrine and tell me the first sentence of the text it shows you.",
+  "task": "You stand near the Shrine of Dath'Remar on Sunstrider Isle. Read the shrine and quote the opening sentence of its page text word for word.",
   "tier": 0
 }
