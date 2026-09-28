@@ -5,9 +5,9 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x122` | `SMSG_INITIALIZE_FACTIONS` | server | stub |  |
-| `0x123` | `SMSG_SET_FACTION_VISIBLE` | server | missing |  |
-| `0x124` | `SMSG_SET_FACTION_STANDING` | server | missing |  |
+| `0x122` | `SMSG_INITIALIZE_FACTIONS` | server | handled |  |
+| `0x123` | `SMSG_SET_FACTION_VISIBLE` | server | handled |  |
+| `0x124` | `SMSG_SET_FACTION_STANDING` | server | handled |  |
 | `0x125` | `CMSG_SET_FACTION_ATWAR` | client | missing |  |
 | `0x2a5` | `SMSG_SET_FORCED_REACTIONS` | server | missing |  |
 | `0x317` | `CMSG_SET_FACTION_INACTIVE` | client | missing |  |

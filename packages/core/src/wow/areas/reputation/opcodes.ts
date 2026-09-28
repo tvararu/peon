@@ -11,7 +11,7 @@ export const REPUTATION_OPCODES = {
     "CMSG_SET_WATCHED_FACTION",
   ],
   uses: [],
-  stubs: [["SMSG_INITIALIZE_FACTIONS", "Factions"]],
+  stubs: [],
   dead: [],
   unseen: [],
 } as const satisfies AreaOpcodes;
