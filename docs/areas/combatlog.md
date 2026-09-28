@@ -11,7 +11,22 @@ amounts, the crit flag and the outcome (`miss`, `dodge`, `parry`, `block`,
 `evade`, `immune`, `deflect`, `interrupt`, or `absorb` and `resist` for a
 full absorb or resist). The area emits one `entry` event per kept entry,
 one `kill` event per kill and one `combo_points` event per combo point
-update. The harness writes no log row for any of them. A power update
+update. The harness writes two quiet `log` rows from them and no row for
+any other event:
+
+- `combatlog/immune` when a spell of the character or its pet meets an
+  immune unit: an `immune` entry, a `miss` entry with outcome `immune`
+  or `immune2`, or a swing with outcome `immune` (spell 0 in the row).
+  The text names the unit and the spell id, such as `Mottled Boar u5 is
+  immune to spell 122.` It is written once per creature entry and spell
+  in a session, or once per unit and spell for a unit that is not a
+  creature.
+- `combatlog/killing_blow` when another player or a pet kills the
+  character's target (`ourTarget` 1, `bySelf` 0, `killerKind` `player`
+  or `pet`). A kill by the character writes no row here; its
+  `combat/kill_credit` row covers it.
+
+A power update
 goes to the unit in the entity store, not to the combat log.
 
 - The store keeps an entry whose source or target is the character, a
@@ -145,3 +160,14 @@ No verb (N23).
 | `SMSG_PROCRESIST` | `dead` | its only writer, `Unit::SendSpellDamageResist`, has no caller: the declaration and the definition are the only hits | `Entities/Unit/Unit.cpp:6616-6624` |
 | `SMSG_FEIGN_DEATH_RESISTED` | `dead` | both send sites are inside comment blocks | `Spells/Auras/SpellAuraEffects.cpp:2953-2958` |
 | `SMSG_HEALTH_UPDATE` | `dead` | no send site: only the opcode list and the opcode table name it | `Server/Protocol/Opcodes.h:1181` |
+
+Flood guard, measured on a `t3-ghostlands-kill` run with
+`--packet-trace headers`: 3 fights, 0 `combatlog/*` rows in each, and 243
+game log rows (240 `log`, 3 `passive`) over 12 agent turns, about 20 rows
+per turn. The run received 25 `SMSG_ATTACKERSTATEUPDATE`, 15
+`SMSG_SPELLNONMELEEDAMAGELOG` and 2 `SMSG_PARTYKILLLOG`, all `handled`.
+Both kill logs were kills by the character, which write no row. A
+creature took the third kill, and the server sends no kill log for a
+creature killer (`Entities/Unit/Unit.cpp:13581-13584`). No
+`combatlog/immune` or `combatlog/killing_blow` row has been seen live:
+the area test writes both rows from entries built from the writers.
