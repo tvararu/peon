@@ -13,6 +13,7 @@ import {
 } from "#wow/inventory";
 import {
   type InventoryChangeFailure,
+  type InventoryClaim,
   inventoryResultName,
 } from "#wow/protocol/inventory";
 
@@ -55,6 +56,10 @@ export class DestroyStore {
 
   get pending(): DestroyRequest | undefined {
     return this.request;
+  }
+
+  inventoryClaim(): InventoryClaim | undefined {
+    return this.request && { itemGuid: this.request.itemGuid };
   }
 
   snapshot(): DestroyState {

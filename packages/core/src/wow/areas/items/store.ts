@@ -35,19 +35,10 @@ export type ItemsEvent =
   | ({ type: "move_unanswered" } & MoveHead)
   | ({ type: "item_received" } & ItemReceived);
 
-const UNCLAIMED: InventoryClaim = { itemGuid: undefined };
-
 function legacyClaims(core: CoreStores): (InventoryClaim | undefined)[] {
-  const destroy = core.destroy.pending;
-  const buy = core.vendor.pending?.action === "buy";
-  const quest = core.quests.pending?.action;
-  const take = core.rewards.pending?.action === "take";
-  return [
-    destroy && { itemGuid: destroy.itemGuid },
-    buy ? UNCLAIMED : undefined,
-    quest === "accept" || quest === "chooseReward" ? UNCLAIMED : undefined,
-    take ? UNCLAIMED : undefined,
-  ];
+  return [core.rewards, core.vendor, core.quests, core.destroy].map((store) =>
+    store.inventoryClaim(),
+  );
 }
 
 const head = ({ kind, itemGuid, entry }: MoveRequest): MoveHead => ({

@@ -7,6 +7,7 @@ import {
 } from "#wow/inventory";
 import {
   type InventoryChangeFailure,
+  type InventoryClaim,
   InventoryResult,
 } from "#wow/protocol/inventory";
 import {
@@ -202,6 +203,10 @@ export class VendorStore {
     if (this.isDisposed || pending?.action !== "buy") return;
     if (itemId === 0 || itemId === pending.itemId)
       this.settle("refused", buyResultName(result), "refused");
+  }
+
+  inventoryClaim(): InventoryClaim | undefined {
+    return this.request?.action === "buy" ? { itemGuid: undefined } : undefined;
   }
 
   receiveInventoryFailure(packet: InventoryChangeFailure): void {
