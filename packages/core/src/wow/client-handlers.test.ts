@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import { testStores } from "#test-support/session-fixtures";
 import { MARNIEL, MARNIEL_LIST_INVENTORY } from "#test-support/vendor-fixtures";
+import { areaStubs, stubOwners } from "#wow/areas/compose";
 import { extrasMethods, type NoticeEvent } from "#wow/client-extras";
 import {
   NOTICE_BACKLOG,
@@ -22,10 +23,18 @@ describe("registerGameHandlers", () => {
     const names = new Map<number, string>(
       Object.entries(GameOpcode).map(([name, value]) => [value, name]),
     );
-    const shadowed = STUBS.filter(([opcode]) => dispatch.has(opcode)).map(
-      ([opcode]) => names.get(opcode),
-    );
+    const owners = stubOwners();
+    const shadowed = [...STUBS, ...areaStubs()]
+      .filter(([opcode]) => dispatch.has(opcode))
+      .map(
+        ([opcode]) => `${names.get(opcode)} (${owners.get(opcode) ?? "core"})`,
+      );
     expect(shadowed).toEqual([]);
+  });
+
+  test("runs on a connection that holds only a dispatch", () => {
+    const conn = { dispatch: new OpcodeDispatch() } as unknown as WorldConn;
+    expect(() => registerGameHandlers(conn, testStores())).not.toThrow();
   });
 });
 
@@ -36,6 +45,10 @@ describe("registerWorldHandlers", () => {
       has: (opcode: number) => counts.has(opcode),
       on: (opcode: number) => counts.set(opcode, (counts.get(opcode) ?? 0) + 1),
       onUnhandled: () => {},
+      onPeekError: () => {},
+      peek: (opcode: number) => {
+        if (!counts.has(opcode)) throw new Error("peek needs an owner");
+      },
     };
     const events = { message: { size: 0, emit: () => {} } };
     registerWorldHandlers(
@@ -66,6 +79,30 @@ describe("registerWorldHandlers", () => {
       guid: MARNIEL,
       emptyReason: undefined,
     });
+  });
+});
+
+describe("registerWorldHandlers on a coverage connection", () => {
+  test("runs with only a dispatch and events", () => {
+    const conn = {
+      dispatch: new OpcodeDispatch(),
+      events: createWorldEvents(),
+    } as unknown as WorldConn;
+    expect(() => registerWorldHandlers(conn, testStores())).not.toThrow();
+  });
+
+  test("reports a failing peek as a packet error", () => {
+    const conn = stubConn();
+    const errors: [number, Error][] = [];
+    conn.events.packetError.subscribe((opcode, error) =>
+      errors.push([opcode, error]),
+    );
+    conn.dispatch.on(0x7_fe, () => undefined);
+    conn.dispatch.peek(0x7_fe, () => {
+      throw new Error("peek broke");
+    });
+    conn.dispatch.handle(0x7_fe, weather());
+    expect(errors).toEqual([[0x7_fe, new Error("peek broke")]]);
   });
 });
 

@@ -79,8 +79,9 @@ export function unhandledNotice(opcode: number): StubNotice {
 export function registerStubs(
   dispatch: OpcodeDispatch,
   notify: (notice: StubNotice) => boolean,
+  stubs: readonly (readonly [opcode: number, label: string])[] = STUBS,
 ): void {
-  for (const [opcode, label] of STUBS) {
+  for (const [opcode, label] of stubs) {
     if (dispatch.has(opcode)) continue;
     const notice = stubNotice(opcode, label);
     let fired = false;

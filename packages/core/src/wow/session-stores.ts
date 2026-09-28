@@ -1,4 +1,9 @@
 import { ActionBarStore } from "#wow/action-bar";
+import {
+  type AreaStores,
+  buildAreaStores,
+  disposeAreaStores,
+} from "#wow/areas/compose";
 import { PlaceStore } from "#wow/client-place";
 import { CombatStore } from "#wow/combat-store";
 import { DestroyStore } from "#wow/destroy-store";
@@ -21,7 +26,7 @@ export type SessionDeps = {
   getEntity: EntityLookup;
 };
 
-export type SessionStores = {
+export type CoreStores = {
   actionBar: ActionBarStore;
   combat: CombatStore;
   motion: MotionStore;
@@ -35,6 +40,8 @@ export type SessionStores = {
   place: PlaceStore;
   self: SelfStore;
 };
+
+export type SessionStores = CoreStores & { readonly areas: AreaStores };
 
 export function sessionDeps(conn: WorldConn): SessionDeps {
   return {
@@ -50,6 +57,11 @@ export function createSessionStores(conn: WorldConn): SessionStores {
 }
 
 export function buildSessionStores(deps: SessionDeps): SessionStores {
+  const core = buildCoreStores(deps);
+  return { ...core, areas: buildAreaStores(deps, core) };
+}
+
+function buildCoreStores(deps: SessionDeps): CoreStores {
   const combat = new CombatStore(deps);
   return {
     actionBar: new ActionBarStore(),
@@ -80,4 +92,5 @@ export function disposeSessionStores(stores: SessionStores): void {
   stores.destroy.dispose();
   stores.place.dispose();
   stores.self.dispose();
+  disposeAreaStores(stores.areas);
 }

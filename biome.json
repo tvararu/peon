@@ -219,6 +219,16 @@
       ]
     },
     {
+      "assist": {
+        "actions": {
+          "source": {
+            "useSortedKeys": "on"
+          }
+        }
+      },
+      "includes": ["packages/core/src/wow/areas/registry.ts"]
+    },
+    {
       "includes": ["packages/core/src/wow/protocol/opcodes.ts"],
       "linter": {
         "rules": {
@@ -430,7 +440,8 @@
                       "!@peon/core",
                       "!@peon/core/session",
                       "!@peon/core/lib/*",
-                      "!@peon/core/test-support/*"
+                      "!@peon/core/test-support/*",
+                      "!@peon/core/test-support/areas/*"
                     ],
                     "message": "Shells import core only from \"@peon/core\" (the barrel), \"@peon/core/session\", \"@peon/core/lib/<module>\" and, in tests, \"@peon/core/test-support/<module>\"."
                   },

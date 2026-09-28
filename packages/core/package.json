@@ -8,6 +8,8 @@
     "./lib/ignore-failure": "./src/lib/ignore-failure.ts",
     "./lib/paths": "./src/lib/paths.ts",
     "./session": "./src/wow/session.ts",
+    "./test-support/area-rig": "./test-support/area-rig.ts",
+    "./test-support/areas/*": "./test-support/areas/*.ts",
     "./test-support/control-fixtures": "./test-support/control-fixtures.ts",
     "./test-support/dbc": "./test-support/dbc.ts",
     "./test-support/fixtures": "./test-support/fixtures.ts",

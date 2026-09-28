@@ -1,3 +1,4 @@
+import { areaStubs, registerAreas } from "#wow/areas/compose";
 import {
   handleExplorationExperience,
   handleInitWorldStates,
@@ -15,6 +16,7 @@ import { GameOpcode } from "#wow/protocol/opcodes";
 import type { PacketReader } from "#wow/protocol/packet";
 import {
   registerStubs,
+  STUBS,
   type StubNotice,
   unhandledNotice,
 } from "#wow/protocol/stubs";
@@ -170,6 +172,7 @@ export function registerGameHandlers(
   registerRecoveryHandlers(conn, stores);
   registerTrainerHandlers(conn, stores);
   registerVendorHandlers(conn, stores);
+  registerAreas(conn.dispatch, stores.areas);
 }
 
 export const NOTICE_BACKLOG = 64;
@@ -191,6 +194,13 @@ export function registerWorldHandlers(
     else return false;
     return true;
   };
-  registerStubs(conn.dispatch, notify);
+  registerStubs(conn.dispatch, notify, [...STUBS, ...areaStubs()]);
   conn.dispatch.onUnhandled((opcode) => notify(unhandledNotice(opcode)));
+  conn.dispatch.onPeekError((opcode, error) =>
+    conn.events.packetError.emit(opcode, asError(error)),
+  );
+}
+
+function asError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
 }

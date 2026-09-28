@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import type { AreaEvent } from "#wow/areas/compose";
 import type { UnitEntity } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { createMockHandle } from "./mock-handle";
@@ -221,4 +222,24 @@ test("mock queryNearby marks attackers from the combat state", () => {
     attackingMe: true,
     relation: "unknown",
   });
+});
+
+test("triggerAreaEvent reaches onAreaEvent until it unsubscribes", () => {
+  const handle = createMockHandle();
+  const seen: AreaEvent[] = [];
+  const off = handle.onAreaEvent((event) => seen.push(event));
+  const trigger = handle.triggerAreaEvent as (
+    area: string,
+    event: { type: string },
+  ) => void;
+  trigger("alpha", { type: "ticked" });
+  off();
+  trigger("alpha", { type: "ticked" });
+  expect(seen).toEqual([
+    { area: "alpha", event: { type: "ticked" } } as unknown as AreaEvent,
+  ]);
+});
+
+test("sent starts empty", () => {
+  expect(createMockHandle().sent).toEqual([]);
 });

@@ -1,4 +1,14 @@
 export type { Unsubscribe } from "#lib/emitter";
+export {
+  AREA_NAMES,
+  type AreaActsOf,
+  type AreaEvent,
+  type AreaEventOf,
+  type AreaHandle,
+  type AreaHandles,
+  type AreaName,
+  type AreaState,
+} from "#wow/areas/compose";
 export type { CombatAura } from "#wow/aura-store";
 export type { AuthResult } from "#wow/auth";
 export type {

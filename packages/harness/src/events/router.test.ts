@@ -31,7 +31,10 @@ describe("createEventRouter", () => {
     const { router } = setup();
     const handle = createMockGame();
     const hooks = Object.keys(handle).filter(
-      (key) => /^on[A-Z]/.test(key) && key !== "onMovementStop",
+      (key) =>
+        /^on[A-Z]/.test(key) &&
+        key !== "onMovementStop" &&
+        key !== "onAreaEvent",
     );
     const live = new Set<string>();
     const spied: Record<string, unknown> = {};

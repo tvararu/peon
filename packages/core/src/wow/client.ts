@@ -1,6 +1,11 @@
 import type { Unsubscribe } from "#lib/emitter";
 import { ignoreFailure } from "#lib/ignore-failure";
 import { actionBarMethods } from "#wow/action-bar";
+import {
+  type AreaEvent,
+  type AreaHandles,
+  areaHandles,
+} from "#wow/areas/compose";
 import { channelMethods, chatMethods } from "#wow/client-chat";
 import {
   authenticateWorld,
@@ -165,7 +170,7 @@ export type ChatMode =
   | { type: "whisper"; target: string }
   | { type: "channel"; channel: string };
 
-export type WorldHandle = {
+export type CoreHandle = {
   closed: Promise<void>;
   close: () => void;
   logout: () => void;
@@ -315,6 +320,11 @@ export type WorldHandle = {
   getCreatureInfo: (entry: number) => CreatureInfo | undefined;
 };
 
+export type WorldHandle = CoreHandle &
+  AreaHandles & {
+    onAreaEvent: (cb: (event: AreaEvent) => void) => Unsubscribe;
+  };
+
 type SessionHandle = {
   conn: WorldConn;
   stores: SessionStores;
@@ -347,6 +357,10 @@ function createHandle(session: SessionHandle): WorldHandle {
     ...placeMethods(stores),
     ...actionBarMethods(stores),
     ...extrasMethods(conn, rt),
+    ...areaHandles(stores.areas, rt.areas.runtimes, () => conn.events.area),
+    onAreaEvent(cb) {
+      return conn.events.area.subscribe(cb);
+    },
   };
   return handle;
 }
