@@ -16,9 +16,10 @@
     },
     {
       "evidence": {
-        "events": ["spells/channel_end", "combat/cast"]
+        "events": ["spells/channel_end"],
+        "ids": [12051]
       },
-      "expect": "GL has a spells/channel_end row with reason cancelled after the stop steer and no combat/cast row between the steer and that end, so the channel ended by the reflex stop and not by a recast",
+      "expect": "GL has a spells/channel_end row for Evocation (spell 12051) with reason cancelled within 2 s of the stop steer, so the channel ended by the reflex stop and not by finishing",
       "id": "reflex-stopped",
       "source": "game_log"
     }
