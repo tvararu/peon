@@ -7,6 +7,11 @@ import type {
   QuestPoiReply,
 } from "#wow/areas/quests/protocol";
 import {
+  addCompleted,
+  type Completed,
+  receiveCompleted,
+} from "#wow/areas/quests/store-log";
+import {
   forget,
   type GiverMark,
   giversOf,
@@ -46,6 +51,7 @@ export type QuestsState = {
   pois: Pois;
   texts: NpcTexts;
   gossipPoi: GossipPoiEntry | undefined;
+  completed: Completed | undefined;
 };
 export type QuestsEvent =
   | {
@@ -55,7 +61,8 @@ export type QuestsEvent =
       givers: readonly GiverMark[];
     }
   | { type: "poi"; questIds: readonly number[]; pois: readonly PoiEntryView[] }
-  | NpcTextChange;
+  | NpcTextChange
+  | { type: "completed"; count: number };
 
 export class QuestsStore {
   private readonly events = new Emitter<[QuestsEvent]>();
@@ -64,6 +71,7 @@ export class QuestsStore {
   private pois: Pois = new Map();
   private texts: NpcTexts = new Map();
   private gossipPoi: GossipPoiEntry | undefined;
+  private completed: Completed | undefined;
 
   private readonly core: CoreStores;
 
@@ -78,6 +86,7 @@ export class QuestsStore {
       pois: new Map(this.pois),
       texts: new Map(this.texts),
       gossipPoi: this.gossipPoi,
+      completed: this.completed,
     };
   }
 
@@ -135,12 +144,22 @@ export class QuestsStore {
     this.events.emit(next.change);
   }
 
+  receiveCompleted(ids: ReadonlySet<number>): void {
+    this.completed = receiveCompleted(ids, this.now());
+    this.events.emit({ type: "completed", count: this.completed.ids.size });
+  }
+
+  addCompleted(questId: number): void {
+    this.completed = addCompleted(this.completed, questId, this.now());
+  }
+
   dispose(): void {
     this.events.clear();
     this.marks = new Map();
     this.texts = new Map();
     this.gossipPoi = undefined;
     this.pois = new Map();
+    this.completed = undefined;
   }
 
   queryPois(ids: readonly number[]): number[] {

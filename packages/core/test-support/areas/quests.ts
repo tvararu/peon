@@ -121,6 +121,8 @@ export function questsGossipPoiBody(poi: QuestsGossipPoi): Uint8Array {
   w.uint32LE(poi.icon);
   w.uint32LE(poi.importance);
   w.cString(poi.name);
+  return w.finish();
+}
 
 export function questsQueryQuestsCompletedResponseBody(
   ids: readonly number[],

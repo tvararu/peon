@@ -1,9 +1,11 @@
 import { describe, expect, jest, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
+  questsQueryQuestsCompletedResponseBody,
   questsQuestgiverStatusMultipleBody,
   questsQuestPoiQueryResponseBody,
 } from "#test-support/areas/quests";
+import { COMPLETED_QUERY_TIMEOUT_MS } from "#wow/areas/quests/runtime-log";
 import { REPLY_TIMEOUT_MS } from "#wow/areas/quests/runtime";
 import type {
   EntityEvent,
@@ -432,5 +434,95 @@ describe("quests runtime", () => {
   });
   test("the timeout equals QUEST_REPLY_TIMEOUT_MS", () => {
     expect(REPLY_TIMEOUT_MS).toBe(QUEST_REPLY_TIMEOUT_MS);
+  });
+});
+
+const HOME = { mapId: 530, x: 1, y: 2, z: 3, orientation: 0 };
+
+function completedQueries(rig: ReturnType<typeof areaRig>) {
+  return rig.sent.filter(
+    (p) => p.opcode === GameOpcode.CMSG_QUERY_QUESTS_COMPLETED,
+  );
+}
+
+function replyCompleted(rig: ReturnType<typeof areaRig>, ids: number[]) {
+  rig.inject(
+    GameOpcode.SMSG_QUERY_QUESTS_COMPLETED_RESPONSE,
+    questsQueryQuestsCompletedResponseBody(ids),
+  );
+}
+
+async function flush(): Promise<void> {
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+}
+
+describe("quests log extras runtime", () => {
+  test("login_verified sends one empty CMSG_QUERY_QUESTS_COMPLETED; a new world does not", () => {
+    withRig(({ rig }) => {
+      rig.stores.self.receive({ type: "login_verified", position: HOME });
+      rig.stores.self.receive({ type: "new_world", position: HOME });
+      expect(completedQueries(rig)).toEqual([
+        {
+          body: new Uint8Array(),
+          opcode: GameOpcode.CMSG_QUERY_QUESTS_COMPLETED,
+        },
+      ]);
+    });
+  });
+
+  test("queryCompleted refuses while a query waits for its reply", async () => {
+    jest.useFakeTimers();
+    const rig = areaRig("quests");
+    try {
+      expect(rig.handle.act.queryCompleted()).toBe(true);
+      expect(rig.handle.act.queryCompleted()).toBe(false);
+      replyCompleted(rig, [8325]);
+      await flush();
+      expect(rig.handle.act.queryCompleted()).toBe(true);
+      jest.advanceTimersByTime(COMPLETED_QUERY_TIMEOUT_MS - 1);
+      await flush();
+      expect(rig.handle.act.queryCompleted()).toBe(false);
+      jest.advanceTimersByTime(1);
+      await flush();
+      expect(rig.handle.act.queryCompleted()).toBe(true);
+      expect(completedQueries(rig)).toHaveLength(3);
+    } finally {
+      rig.dispose();
+      jest.useRealTimers();
+    }
+  });
+
+  test("a rewarded quest joins the completed ids", () => {
+    withRig(({ quest, rig }) => {
+      replyCompleted(rig, [8324]);
+      quest("rewarded");
+      expect(rig.handle.state().completed?.ids).toEqual(new Set([8324, 8325]));
+    });
+  });
+
+  test("questgiverHello, autoLaunch and swapLogSlots send their packets", () => {
+    withRig(({ rig }) => {
+      rig.handle.act.questgiverHello(ERONA);
+      rig.handle.act.autoLaunch();
+      expect(rig.handle.act.swapLogSlots(0, 1)).toBe(true);
+      expect(rig.handle.act.swapLogSlots(1, 1)).toBe(false);
+      expect(rig.handle.act.swapLogSlots(0, 25)).toBe(false);
+      expect(rig.sent).toEqual([
+        {
+          body: new Uint8Array([
+            0x2b, 0x1a, 0x00, 0xd1, 0x3f, 0x00, 0x30, 0xf1,
+          ]),
+          opcode: GameOpcode.CMSG_QUESTGIVER_HELLO,
+        },
+        {
+          body: new Uint8Array(),
+          opcode: GameOpcode.CMSG_QUESTGIVER_QUEST_AUTOLAUNCH,
+        },
+        {
+          body: new Uint8Array([0, 1]),
+          opcode: GameOpcode.CMSG_QUESTLOG_SWAP_QUEST,
+        },
+      ]);
+    });
   });
 });

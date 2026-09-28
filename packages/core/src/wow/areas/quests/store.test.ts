@@ -3,6 +3,7 @@ import { areaRig } from "#test-support/area-rig";
 import {
   questsGossipPoiBody,
   questsNpcTextUpdateBody,
+  questsQueryQuestsCompletedResponseBody,
   questsQuestgiverStatusBody,
   questsQuestgiverStatusMultipleBody,
   questsQuestPoiQueryResponseBody,
@@ -319,6 +320,74 @@ describe("quests npc text", () => {
     }
   });
 });
+
+describe("quests completed", () => {
+  const completed = (rig: ReturnType<typeof areaRig>, ids: number[]) =>
+    rig.inject(
+      GameOpcode.SMSG_QUERY_QUESTS_COMPLETED_RESPONSE,
+      questsQueryQuestsCompletedResponseBody(ids),
+    );
+
+  test("starts with no completed list", () => {
+    const { rig } = rigWithEvents();
+    try {
+      expect(rig.handle.state().completed).toBeUndefined();
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("the reply replaces the completed ids and emits their count", () => {
+    const { advance, rig, seen } = rigWithEvents();
+    try {
+      completed(rig, [8325, 8326]);
+      advance(200);
+      completed(rig, [8325]);
+      expect(rig.handle.state().completed).toEqual({
+        at: 1200,
+        ids: new Set([8325]),
+      });
+      expect(seen).toEqual([
+        { count: 2, type: "completed" },
+        { count: 1, type: "completed" },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a rewarded quest joins a known list in silence and waits for a list otherwise", () => {
+    const { advance, rig, seen } = rigWithEvents();
+    const store = rig.stores.areas.quests;
+    try {
+      store.addCompleted(8325);
+      expect(rig.handle.state().completed).toBeUndefined();
+      completed(rig, [8325]);
+      advance(50);
+      store.addCompleted(8326);
+      expect(rig.handle.state().completed).toEqual({
+        at: 1050,
+        ids: new Set([8325, 8326]),
+      });
+      expect(seen).toEqual([{ count: 1, type: "completed" }]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a snapshot keeps its ids when the list changes later", () => {
+    const { rig } = rigWithEvents();
+    try {
+      completed(rig, [8325]);
+      const before = rig.handle.state().completed;
+      rig.stores.areas.quests.addCompleted(8326);
+      expect(before?.ids).toEqual(new Set([8325]));
+    } finally {
+      rig.dispose();
+    }
+  });
+});
+
 
 describe("quests gossip POI", () => {
   test("an injected POI is set with the giver open at arrival", () => {

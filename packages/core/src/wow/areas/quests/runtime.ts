@@ -5,6 +5,10 @@ import {
   buildQuestPoiQuery,
   MAX_POI_QUERY_IDS,
 } from "#wow/areas/quests/protocol";
+import {
+  type QuestLogActs,
+  questLogRuntime,
+} from "#wow/areas/quests/runtime-log";
 import type {
   PoiEntryView,
   QuestsEvent,
@@ -35,7 +39,7 @@ export type QuestsActs = {
   queryPoi: (ids: readonly number[]) => PoiEntryView[];
   queryNpcText: (textId: number, guid: bigint) => boolean;
   greeting: (textId: number) => string | undefined;
-};
+} & QuestLogActs;
 
 type Timer = ReturnType<typeof setTimeout>;
 
@@ -233,6 +237,7 @@ export function questsRuntime(
   store: QuestsStore,
   core: CoreStores,
 ): AreaRuntime<QuestsActs> {
+  const log = questLogRuntime(ctx, store, core);
   const known = new Map<bigint, boolean>();
   const query = marksQuery(() =>
     ctx.send(GameOpcode.CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY),
@@ -278,8 +283,10 @@ export function questsRuntime(
       queryPoi,
       queryNpcText: texts.send,
       greeting: (textId) => store.greeting(textId),
+      ...log.act,
     },
     dispose: () => {
+      log.dispose();
       offEntity();
       offQuest();
       query.dispose();
