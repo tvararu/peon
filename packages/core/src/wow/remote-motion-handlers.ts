@@ -1,4 +1,5 @@
 import { type TraceOutcome, traceIn } from "#wow/packet-trace";
+import type { SpeedKind } from "#wow/protocol/movement-block";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 import {
@@ -11,9 +12,23 @@ import {
 import type { SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
 
+type RemoteStores = Pick<SessionStores, "areas" | "motion" | "self">;
+
+const MOVE_SPEED_KIND: ReadonlyMap<number, SpeedKind> = new Map([
+  [GameOpcode.MSG_MOVE_SET_WALK_SPEED, "walk"],
+  [GameOpcode.MSG_MOVE_SET_RUN_SPEED, "run"],
+  [GameOpcode.MSG_MOVE_SET_RUN_BACK_SPEED, "run_back"],
+  [GameOpcode.MSG_MOVE_SET_SWIM_SPEED, "swim"],
+  [GameOpcode.MSG_MOVE_SET_SWIM_BACK_SPEED, "swim_back"],
+  [GameOpcode.MSG_MOVE_SET_TURN_RATE, "turn"],
+  [GameOpcode.MSG_MOVE_SET_FLIGHT_SPEED, "flight"],
+  [GameOpcode.MSG_MOVE_SET_FLIGHT_BACK_SPEED, "flight_back"],
+  [GameOpcode.MSG_MOVE_SET_PITCH_RATE, "pitch"],
+]);
+
 export function observeRemoteMovement(
   conn: WorldConn,
-  { motion, self }: Pick<SessionStores, "motion" | "self">,
+  { areas, motion, self }: RemoteStores,
   { opcode, guid }: { opcode: number; guid: bigint },
   r: PacketReader,
 ): void {
@@ -40,6 +55,9 @@ export function observeRemoteMovement(
   conn.remoteMotion.observe(guid, { position, source, info, transition });
   conn.entityStore.setPosition(guid, position);
   motion.observe(guid, position, undefined, "movement");
+  const kind = MOVE_SPEED_KIND.get(opcode);
+  if (kind !== undefined && body.speed !== undefined)
+    areas.unitmotion.receiveMoveSpeed(guid, kind, body.speed);
 }
 
 export function handleCompressedMoves(conn: WorldConn, r: PacketReader): void {
@@ -65,7 +83,7 @@ export function handleCompressedMoves(conn: WorldConn, r: PacketReader): void {
 
 export function registerRemoteMotionHandlers(
   conn: WorldConn,
-  stores: Pick<SessionStores, "motion" | "self">,
+  stores: RemoteStores,
 ): void {
   for (const opcode of REMOTE_MOVEMENT_OPCODES) {
     if (opcode === GameOpcode.MSG_MOVE_TELEPORT) continue;
