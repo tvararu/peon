@@ -42,7 +42,7 @@ These have tools or code but no scenario that checks them live:
   `repair`, `sell_junk`).
 - Group play: inviting, joining, leaving a group, and fighting as a group.
 - Ranged combat as a hunter.
-- Reading a shrine plaque (`t0-objects-read-shrine`, the agent never reached the shrine in budget).
+- Reading a shrine plaque (`t0-objects-read-shrine`, the agent reads the page but quotes the placard line, not the page's opening sentence).
 - A sustained levelling run across several quests and zones.
 
 Peon has no tool for mail, trade, the auction house, flight paths or
