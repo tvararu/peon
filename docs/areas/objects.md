@@ -61,6 +61,19 @@ pages, timing out after 5 s.
 - `CMSG_GAMEOBJ_USE` is one `ObjectGuid` (`Handlers/SpellHandler.cpp:329-347`).
   The server drops the use in silence when the object is too far; a
   type-2 quest giver answers by preparing and sending its gossip menu.
+- `CMSG_GAMEOBJ_USE` doubles as the harness object proof: `look find:
+  "object"` lists the nearby objects as `o<n>` refs with their template
+  kind, distance, and the `quest`, `locked` and `busy` flags. `travel to:
+  "o<n>"` stops inside the object's interaction distance minus 1 yd,
+  because the server drops the use in silence past
+  `obj->GetInteractionDistance()`
+  (`Handlers/SpellHandler.cpp:329-347`). A harness run on
+  a throwaway `elwynn1` character teleported to NorthshireVineyards listed 161557
+  Milly's Harvest as `o1` 8 yd N and walked `travel to: o1` to 4.3 yd
+  away (run `tmp/o7/run1`).
+- `CMSG_GAMEOBJ_REPORT_USE` follows the gossip: `interact npc: "o<n>"`
+  talks to a type-2 quest giver by sending the use to the object guid,
+  which runs the object's greeting (`Handlers/SpellHandler.cpp:350-376`).
 - `CMSG_GAMEOBJ_REPORT_USE` is one packed guid. The server ignores an
   unselectable or too-far object, runs the object's SmartAI greeting,
   then updates the use-object achievement criteria
