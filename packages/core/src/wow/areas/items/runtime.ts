@@ -67,7 +67,7 @@ function checkWornSlot(slot: number): void {
 
 function checkNamedStoreBag(bag: number): void {
   const bagSlot = bag >= LAST_BAG_SLOT - 3 && bag <= LAST_BAG_SLOT;
-  if (bag !== NULL_BAG && !bagSlot)
+  if (bag !== NULL_BAG && bag !== BACKPACK && !bagSlot)
     throw new Error(`bag ${bag} is not autostore or a bag slot`);
 }
 

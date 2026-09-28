@@ -174,6 +174,27 @@ describe("items runtime: unequip, move and split", () => {
       rig.dispose();
     }
   });
+  test("unequip to bag 255 stores into the backpack (CanStoreItem bag 255, NULL_SLOT)", async () => {
+    const { rig, world } = setup((w) =>
+      w.put(255, 0, { entry: 7, guid: HELM }),
+    );
+    try {
+      const pending = rig.handle.act.unequip(0, 255);
+      expect(sends(rig.sent, GameOpcode.CMSG_AUTOSTORE_BAG_ITEM)).toEqual([
+        {
+          body: buildAutostoreBagItem({ bag: 255, slot: 0 }, 255),
+          opcode: GameOpcode.CMSG_AUTOSTORE_BAG_ITEM,
+        },
+      ]);
+      world.clear(255, 0);
+      world.put(255, 30, { entry: 7, guid: HELM });
+      rig.touch();
+      expect(await pending).toMatchObject({ last: { status: "confirmed" } });
+      await expect(rig.handle.act.unequip(0, 5)).rejects.toThrow("bag 5");
+    } finally {
+      rig.dispose();
+    }
+  });
 
   test("move sends CMSG_SWAP_INV_ITEM inside bag 255 and CMSG_SWAP_ITEM otherwise", async () => {
     const { rig } = setup((w) =>
