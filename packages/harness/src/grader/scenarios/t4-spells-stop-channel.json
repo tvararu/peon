@@ -34,7 +34,8 @@
     {
       "at": {
         "kind": "trigger",
-        "trigger": "channel_start"
+        "trigger": "channel_start",
+        "delayMs": 1500
       },
       "text": "Stop! Stop right now."
     }
