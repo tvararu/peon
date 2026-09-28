@@ -276,4 +276,19 @@ describe("ControlRuntime.transferAborted (AC Handlers/MovementHandler.cpp:91-97)
       jest.useRealTimers();
     }
   });
+
+  test("dispose cancels the abort watchdog", () => {
+    jest.useFakeTimers();
+    try {
+      const { runtime, advance } = setup();
+      runtime.handleTransferPending();
+      runtime.transferAborted({ arg: undefined, mapId: 36, reason: 4 });
+      runtime.dispose();
+      expect(jest.getTimerCount()).toBe(0);
+      advance(10_000);
+      expect(runtime.snapshot().blockedReason).toBe("teleporting");
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

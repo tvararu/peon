@@ -243,6 +243,10 @@ export class MovementSync {
     this.transferAbortTimer = undefined;
   }
 
+  dispose(): void {
+    this.cancelTransferAbortWatch();
+  }
+
   newWorld(position: Position): void {
     this.cancelTransferAbortWatch();
     this.teleporting = false;

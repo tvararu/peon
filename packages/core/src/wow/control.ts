@@ -301,6 +301,7 @@ export class ControlRuntime {
 
   dispose(): void {
     this.events.clear();
+    this.sync.dispose();
     this.mover.abort("close");
     this.stops.clear();
   }

@@ -139,8 +139,8 @@ tasks.
 | `SMSG_MOVE_NORMAL_FALL` | `live` | the same run; received `03240e02000000` (counter 2) when the 30 s aura expired | `Entities/Unit/Unit.cpp:16199-16214` |
 | `CMSG_MOVE_FEATHER_FALL_ACK` | `live` | the same run; sent with counter 1, `FALLING_SLOW` and applied 1, then with counter 2, no flag and applied 0; the character stayed in the world until the logout | `Handlers/MiscHandler.cpp:1505-1520` |
 | `SMSG_MULTIPLE_MOVES` | `live` | probe `--wait 20 --expect SMSG_MULTIPLE_MOVES` after `selfstate-death --arg reclaim=no`, exit 0; received `0a00000009de0003240e03000000` (one water-walk entry, counter 3) at the ghost's login and sent `CMSG_MOVE_WATER_WALK_ACK` with counter 3 and `WATERWALKING` | `Entities/Player/Player.cpp:11866-11912` |
-| `SMSG_MOVE_GRAVITY_DISABLE` | `mock` | `store.test.ts` gravity pair test; only scripts call `SetDisableGravity` for a player (`src/server/scripts/Spells/spell_generic.cpp:2866`) | `Entities/Unit/Unit.cpp:16086-16119` |
-| `SMSG_MOVE_GRAVITY_ENABLE` | `mock` | the same test | `Entities/Unit/Unit.cpp:16086-16119` |
+| `SMSG_MOVE_GRAVITY_DISABLE` | `mock` | `store.test.ts` gravity pair test; only mount-check scripts call `SetDisableGravity` for a player, so the server never sent it (not seen live) | `Entities/Unit/Unit.cpp:16107-16114` |
+| `SMSG_MOVE_GRAVITY_ENABLE` | `mock` | the same test | `Entities/Unit/Unit.cpp:16107-16114` |
 | `CMSG_MOVE_GRAVITY_DISABLE_ACK` | `mock` | `control-flags.test.ts` gravity ack test | `Handlers/MiscHandler.cpp:1505-1520` |
 | `CMSG_MOVE_GRAVITY_ENABLE_ACK` | `mock` | the same test | `Handlers/MiscHandler.cpp:1505-1520` |
 | `SMSG_MOUNTRESULT` | `dead` | registered as `STATUS_NEVER` and no AzerothCore code writes it; mount failures arrive as `SMSG_CAST_FAILED` | `Server/Protocol/Opcodes.cpp:497` |
@@ -148,4 +148,4 @@ tasks.
 | `SMSG_FORCED_DEATH_UPDATE` | `dead` | registered as `STATUS_NEVER` and no AzerothCore code writes it | `Server/Protocol/Opcodes.cpp:1021` |
 | `CMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY_ACK` | `dead` | registered as `STATUS_NEVER` with `Handle_NULL` | `Server/Protocol/Opcodes.cpp:963` |
 | `SMSG_PAUSE_MIRROR_TIMER` | `dead` | registered as `STATUS_NEVER`; its packet class is never constructed | `Server/Packets/MiscPackets.cpp:113` |
-| `SMSG_TRANSFER_ABORTED` | `mock` | `store.test.ts` transfer-aborted tests; GM tele bypasses `PlayerCannotEnter`, so the server never refused the entry (not seen live) | `Entities/Player/Player.cpp:11956-11972` |
+| `SMSG_TRANSFER_ABORTED` | `mock` | `store.test.ts` transfer-aborted tests; one live try teleported into a non-raid dungeon and gave no abort, since GM tele bypasses `PlayerCannotEnter` (not seen live) | `Entities/Player/Player.cpp:11956-11972` |
