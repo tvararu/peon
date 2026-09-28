@@ -41,6 +41,24 @@ export const objectsHarness = defineHarnessArea({
     event: (event, rc) => {
       if (event.type === "used") return [usedRow(event, rc)];
       if (event.type === "page_read") return [pageRow(event)];
+      if (event.type === "trigger_sent")
+        return [
+          {
+            class: "log",
+            data: { map: event.map, triggerId: event.triggerId },
+            name: "trigger",
+            text: `Entered area trigger ${event.triggerId}.`,
+          },
+        ];
+      if (event.type === "trigger_message")
+        return [
+          {
+            class: rc.runActive ? "passive" : "wake",
+            data: { text: event.text },
+            name: "message",
+            text: event.text,
+          },
+        ];
       const fields = Object.entries(event).flatMap(([key, value]) => {
         const plain =
           typeof value === "string" ||

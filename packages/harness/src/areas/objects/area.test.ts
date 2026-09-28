@@ -37,14 +37,43 @@ describe("objects harness area", () => {
     expect(drafts.map((draft) => draft.event)).toEqual(["objects/page"]);
   });
 
-  test("a trigger message keeps its fallback shape", () => {
+  test("a trigger send writes one objects/trigger log row", () => {
     const drafts = areaDrafts(
       areaRuleSet(),
-      event("trigger_message", { text: "hello" }),
+      event("trigger_sent", { map: 0, triggerId: 88 }),
       testRuleInput(),
     );
-    expect(drafts.map((draft) => draft.event)).toEqual([
-      "objects/trigger_message",
+    expect(drafts).toEqual([
+      expect.objectContaining({
+        class: "log",
+        data: { map: 0, triggerId: 88 },
+        event: "objects/trigger",
+        text: "Entered area trigger 88.",
+      }),
     ]);
+    expect(drafts[0]?.progress).toBeUndefined();
+  });
+
+  test("a trigger message wakes an idle agent and is passive in a run", () => {
+    const text = "You must be at least level 10 to enter.";
+    for (const [runActive, cls] of [
+      [false, "wake"],
+      [true, "passive"],
+    ] as const) {
+      const drafts = areaDrafts(
+        areaRuleSet(),
+        event("trigger_message", { text }),
+        testRuleInput({ runActive }),
+      );
+      expect(drafts).toEqual([
+        expect.objectContaining({
+          class: cls,
+          data: { text },
+          event: "objects/message",
+          text,
+        }),
+      ]);
+      expect(drafts[0]?.progress).toBeUndefined();
+    }
   });
 });
