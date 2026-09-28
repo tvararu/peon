@@ -1,8 +1,17 @@
 import { type Static, StringEnum, Type } from "@earendil-works/pi-ai";
+import {
+  checkReach,
+  checkUsable,
+  findObject,
+  openObjectFlow,
+} from "#harness/areas/objects/tool-open";
+import { readObjectFlow } from "#harness/areas/objects/tool-read";
 import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
+import { Refusal } from "#harness/ops/refusal";
 import { defineGameTool, result } from "#harness/tools/define";
 import type { GameToolSpec, ToolRenderers } from "#harness/tools/game-tool";
+import { nextCall } from "#harness/tools/next-call";
 import { argText } from "#harness/ui/draw";
 import {
   type CallInit,
@@ -57,15 +66,32 @@ export async function useObject(
   args: UseArgs,
   ctx: UseCtx,
 ): Promise<ToolResult<UseAfter>> {
+  const row = findObject(ctx, args.object);
+  checkReach(row);
+  checkUsable(row);
+  const do_ = (args.do ?? "use") as UseDo;
+  if (do_ === "open") return await openObjectFlow(ctx, row, args.key);
+  if (do_ === "read") return await readObjectFlow(ctx, row);
+  const template = ctx.handle.objects.state().templates.get(row.entry);
+  const type = template?.type ?? row.type;
+  if (type === 9 && template?.pageId !== undefined)
+    return readObjectFlow(ctx, row);
+  const outcome = ctx.handle.objects.act.use(row.guid);
+  if (!("ok" in outcome))
+    throw new Refusal({
+      detail: `${row.name} (${row.ref}) cannot be used.`,
+      next: nextCall("look", { find: "object" }),
+      reason: "not_usable",
+    });
   return result("DONE", {
-    after: { ...emptyUse(), do: args.do ?? "use", object: args.object },
-    detail: `Used ${args.object}.`,
+    after: { ...emptyUse(), do: do_, object: row.ref },
+    detail: `Used ${row.name} (${row.ref}).`,
   });
 }
 
 function useCall(args: unknown, theme: CallInit["theme"]): string {
   return callLine({
-    icon: "object",
+    icon: "lootable",
     parts: [argText(args, "do") ?? "use", argText(args, "object")],
     theme,
     verb: "use",

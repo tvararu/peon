@@ -9,7 +9,8 @@ export type ToolName =
   | "social"
   | "journal"
   | "stop"
-  | "gear";
+  | "gear"
+  | "use";
 
 export type ToolKind = "read" | "action" | "run" | "control";
 
