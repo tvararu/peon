@@ -130,10 +130,11 @@ A result that is not `DONE` ends with a `Next:` step.
 | `rest` | Eats and drinks until health and mana reach a percent. |
 | `recover` | Comes back to life: corpse run, spirit healer or a resurrection offer. |
 | `social` | One chat message or one group action. |
-| `journal` | Quest log, bags and gear, spells, or the game log. |
+| `journal` | Quest log, bags and gear, spells (with the auras it can cancel and the action bar), or the game log. |
 | `stop` | Stops one action or everything. |
 | `gear` | Wears, takes off, moves, splits, opens and reads items. |
 | `use` | Uses a game object: opens a locked chest or quest object and takes what is inside, reads a shrine, plaque or book, or presses another usable object. |
+| `spell` | Casts a spell on itself or a unit (`do: cast`), cancels one of its own buffs (`cancel_aura`) or puts a spell or item on an action bar slot (`bar`). |
 
 `travel`, `engage`, `rest` and `recover` start a run (`r1`, `r2`, …).
 Only one run can be active. The tool waits for the run to end and

@@ -1,4 +1,4 @@
-import type { ItemKind, NpcRole } from "@peon/core";
+import type { ActionButtonType, ItemKind, NpcRole } from "@peon/core";
 import type { GameLogEntry } from "#harness/contract/log";
 import type { ToolResult } from "#harness/contract/result";
 import type { RunRecord } from "#harness/contract/runs";
@@ -307,10 +307,22 @@ export type SpellLine = {
   cooldownMs: number | undefined;
 };
 
+export type AuraLine = {
+  spellId: number;
+  name: string;
+};
+
+export type BarLine = {
+  slot: number;
+  type: ActionButtonType;
+  id: number;
+  name: string;
+};
+
 export type JournalAfter =
   | { about: "quests"; quests: QuestLine[] }
   | { about: "bags"; bags: BagsView }
-  | { about: "spells"; spells: SpellLine[] }
+  | { about: "spells"; spells: SpellLine[]; auras: AuraLine[]; bar: BarLine[] }
   | { about: "log"; rows: GameLogEntry[]; more: number; label: string };
 
 export type StopAfter = {

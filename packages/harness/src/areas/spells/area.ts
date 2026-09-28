@@ -31,5 +31,5 @@ export const spellsHarness = defineHarnessArea({
   rules: () => ({
     event: (event) => (event.type === "spell_visual" ? [] : [quiet(event)]),
   }),
-  worldActs: [],
+  worldActs: ["cancelAura", "setActionButton"],
 });

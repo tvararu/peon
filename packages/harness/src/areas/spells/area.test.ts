@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEvent } from "@peon/core";
 import { areaDrafts, areaRuleSet, fallbackDraft } from "#harness/areas/rules";
+import { spellsHarness } from "#harness/areas/spells/area";
 import { testRuleInput } from "#test-support/rule-fixtures";
 
 const ME = 0x2an;
@@ -8,6 +9,10 @@ const TRAINER = 0xf1_30_00_3e_d7_00_1a_2bn;
 const MOB = 0xf1_30_00_3e_ea_00_0a_bcn;
 
 describe("spells harness rules", () => {
+  test("the area claims the cancelAura and setActionButton acts", () => {
+    expect(spellsHarness.worldActs).toEqual(["cancelAura", "setActionButton"]);
+  });
+
   test("a spell visual or impact writes no row", () => {
     const events: AreaEvent[] = [
       {

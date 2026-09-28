@@ -9,6 +9,8 @@ import {
   type SpellDefinition,
 } from "@peon/core";
 import { questRegion } from "#harness/areas/quests/reads";
+import { visibleSpellbook } from "#harness/areas/spells/book";
+import { spellsJournalExtras } from "#harness/areas/spells/journal";
 import type {
   BagRow,
   BagsView,
@@ -384,12 +386,13 @@ function spellText({ cooldownMs, cost, name, rank }: SpellLine): string {
 async function spellsResult({
   handle,
 }: Ctx): Promise<ToolResult<JournalAfter>> {
-  const spells = (await handle.getSpellbook())
+  const spells = (await visibleSpellbook(handle))
     .map(spellLine)
     .sort((a, b) => a.name.localeCompare(b.name));
+  const { auras, bar, lines } = spellsJournalExtras(handle);
   return result("DONE", {
-    after: { about: "spells", spells },
-    body: spells.map(spellText),
+    after: { about: "spells", auras, bar, spells },
+    body: [...spells.map(spellText), ...lines],
     detail: `${spells.length} spells known.`,
   });
 }
