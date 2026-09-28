@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEvent } from "@peon/core";
-import { areaDrafts, areaRuleSet, fallbackDraft } from "#harness/areas/rules";
+import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
 import { spellsHarness } from "#harness/areas/spells/area";
 import { testRuleInput } from "#test-support/rule-fixtures";
 
@@ -29,7 +29,7 @@ describe("spells harness rules", () => {
       expect(areaDrafts(rules, event, testRuleInput())).toEqual([]);
   });
 
-  test("a channel start or end still writes its quiet fallback row", () => {
+  test("a channel start or end writes its ruled row", () => {
     const events: AreaEvent[] = [
       {
         area: "spells",
@@ -55,9 +55,13 @@ describe("spells harness rules", () => {
       },
     ];
     const rules = areaRuleSet();
-    for (const event of events)
-      expect(areaDrafts(rules, event, testRuleInput())).toEqual([
-        fallbackDraft(event),
-      ]);
+    const [started, startedEndless, ended] = events.map(
+      (event) => areaDrafts(rules, event, testRuleInput())[0]!,
+    );
+    expect(started!.event).toBe("spells/channel_start");
+    expect(started!.text).toBe("Channelling spell 5143.");
+    expect(startedEndless!.text).toBe("Channelling spell 5143.");
+    expect(ended!.event).toBe("spells/channel_end");
+    expect(ended!.text).toBe("spell 5143 ended (cancelled).");
   });
 });

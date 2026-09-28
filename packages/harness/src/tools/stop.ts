@@ -36,6 +36,13 @@ function runText({ id, kind, progress }: RunRecord): string {
   return progress ? `${id} (${kind}, ${progress})` : `${id} (${kind})`;
 }
 
+function channelText(handle: Game): string | undefined {
+  const channel = handle.spells.state().channel;
+  if (!channel) return undefined;
+  const name = handle.spellDefinition(channel.spellId)?.name;
+  return `Channelling ${name ?? `spell ${channel.spellId}`}. `;
+}
+
 function stopText({ self, stopped }: StopAfter): string {
   const what =
     stopped.length > 0
@@ -57,7 +64,11 @@ async function stop(
     self: vitalsView(ctx),
     stopped,
   };
-  return result("DONE", { after, detail: stopText(after) });
+  const channel = channelText(handle);
+  return result("DONE", {
+    after,
+    detail: `${channel ?? ""}${stopText(after)}`,
+  });
 }
 
 export const stopTool = defineGameTool({

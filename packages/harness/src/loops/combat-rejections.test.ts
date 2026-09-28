@@ -111,3 +111,17 @@ test("out of range and interrupts are recoverable, a bad target stops at once", 
     reason: "server_action_rejected:bad_targets",
   });
 });
+
+test("a channelling refusal waits and never counts as a rejection", () => {
+  const f = fight();
+  f.combatStore.casts.beginChannel({
+    durationMs: 3000,
+    spellId: 17,
+    target: 2n,
+  });
+  expect(() => f.combat.cast(17, 2n)).toThrow("channelling");
+  const frame = f.actions.observe(context);
+  expect(frame.outcome).toBeUndefined();
+  expect(frame.candidates.map((candidate) => candidate.id)).toEqual(["wait"]);
+  expect(frame.observation["rejections"]).toMatchObject({ consecutive: 0 });
+});

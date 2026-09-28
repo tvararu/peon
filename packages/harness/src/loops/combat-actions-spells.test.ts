@@ -129,3 +129,43 @@ test("an unobserved form is not treated as normal form", () => {
     definition.mockRestore();
   }
 });
+
+test("a running channel offers only wait and names the channel for Jev", () => {
+  const { actions, combat, combatStore } = setup();
+  const data = spell();
+  const definition = jest.spyOn(combat, "definition").mockReturnValue(data);
+  try {
+    combatStore.casts.beginChannel({
+      durationMs: 3000,
+      spellId: 17,
+      target: 2n,
+    });
+    const frame = actions.observe(context);
+    expect(frame.outcome).toBeUndefined();
+    expect(frame.candidates.map((candidate) => candidate.id)).toEqual(["wait"]);
+    expect(frame.observation["channel"]).toMatchObject({
+      spellId: 17,
+    });
+  } finally {
+    definition.mockRestore();
+  }
+});
+
+test("execute refuses a new cast while channelling but wait and cancel stay legal", () => {
+  const { actions, combat, combatStore } = setup();
+  const data = spell();
+  const definition = jest.spyOn(combat, "definition").mockReturnValue(data);
+  try {
+    combatStore.casts.beginChannel({
+      durationMs: 3000,
+      spellId: 17,
+      target: 2n,
+    });
+    expect(() => actions.execute("spell:17:target", context)).toThrow(
+      "action_no_longer_legal",
+    );
+    expect(() => actions.execute("wait", context)).not.toThrow();
+  } finally {
+    definition.mockRestore();
+  }
+});

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import type { RunEnd } from "#harness/contract/runs";
 import type { HarnessRuntime } from "#harness/contract/services";
 import { createGameLog, createJsonlSink } from "#harness/log/store";
@@ -123,4 +123,22 @@ describe("stop", () => {
     rt.session.humanWaiting = true;
     expect((await runTool(tool, {})).text).toStartWith("DONE ");
   });
+});
+
+test("names a running channel in its detail", async () => {
+  const { handle, tool } = await world();
+  const state = handle.spells.state();
+  jest.spyOn(handle.spells, "state").mockImplementation(() => ({
+    ...state,
+    channel: {
+      durationMs: 3000,
+      endsAt: 4000,
+      remainingMs: 3000,
+      spellId: 5143,
+      startedAt: 1000,
+      target: undefined,
+    },
+  }));
+  const out = await runTool(tool, {});
+  expect(out.text).toContain("Channelling spell 5143");
 });

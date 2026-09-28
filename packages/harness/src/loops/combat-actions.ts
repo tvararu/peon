@@ -44,6 +44,7 @@ import {
 } from "#harness/loops/combat-actions-ranged";
 import {
   auraReason,
+  channelText,
   describeSpell,
   manaReason,
   requiresStanding,
@@ -104,47 +105,68 @@ export class CombatActions {
 
   observe(context: TacticsContext): TacticsFrame {
     const state = this.deps.combat.snapshot(context.targetGuid);
+    const channel = this.deps.combat.channel();
     const spells = state.learned.map((id) =>
       this.spellAction(id, context, state),
     );
+    if (channel) {
+      const name = this.deps.combat.definition(channel.spellId)?.name;
+      return {
+        candidates: [WAIT],
+        observation: withNulls({
+          ...this.baseObservation(context, state, spells),
+          channel: { ...channel, target: hex(channel.target) },
+          channelling: channelText(channel, name),
+        }),
+        outcome: undefined,
+      };
+    }
     const outcome = this.outcome(context, state, spells);
     const candidates: JevCandidate[] = [WAIT];
     if (!outcome) this.addCandidates(candidates, spells, state);
     return {
-      observation: withNulls({
-        self: unitObservation(state.self),
-        target: state.target ? unitObservation(state.target) : null,
-        targetRelation: this.deps.relation(context.targetGuid),
-        separation: separation(state) ?? null,
-        facingTarget: facing(state),
-        casting: state.casting
-          ? { ...state.casting, target: hex(state.casting.target) }
-          : null,
-        pendingCast: state.pendingCast
-          ? { ...state.pendingCast, target: hex(state.pendingCast.target) }
-          : null,
-        attacking: state.attacking,
-        attackTarget: hex(state.attackTarget),
-        pendingAttack: hex(state.pendingAttack),
-        ...hunterObservation(state, this.deps.entity, context.targetGuid),
-        auras: state.auras.map(auraObservation),
-        targetAuras: state.targetAuras.map(auraObservation),
-        cooldowns: state.cooldowns,
-        unknownLearned: state.unknownLearned,
-        unavailable: spells
-          .filter((action) => action.reason)
-          .map((action) => ({ id: action.id, reason: action.reason })),
-        lastOutcome: state.lastOutcome
-          ? outcomeObservation(state.lastOutcome)
-          : null,
-        lastXp: state.lastXp
-          ? { ...state.lastXp, victim: hex(state.lastXp.victim) }
-          : null,
-        navigation: navigationObservation(this.deps.control.navigationState()),
-        rejections: this.rejections.observation(),
-      }),
       candidates,
+      observation: withNulls(this.baseObservation(context, state, spells)),
       outcome,
+    };
+  }
+
+  private baseObservation(
+    context: TacticsContext,
+    state: CombatState,
+    spells: { id: string; reason?: string }[],
+  ): Record<string, unknown> {
+    return {
+      self: unitObservation(state.self),
+      target: state.target ? unitObservation(state.target) : null,
+      targetRelation: this.deps.relation(context.targetGuid),
+      separation: separation(state) ?? null,
+      facingTarget: facing(state),
+      casting: state.casting
+        ? { ...state.casting, target: hex(state.casting.target) }
+        : null,
+      pendingCast: state.pendingCast
+        ? { ...state.pendingCast, target: hex(state.pendingCast.target) }
+        : null,
+      attacking: state.attacking,
+      attackTarget: hex(state.attackTarget),
+      pendingAttack: hex(state.pendingAttack),
+      ...hunterObservation(state, this.deps.entity, context.targetGuid),
+      auras: state.auras.map(auraObservation),
+      targetAuras: state.targetAuras.map(auraObservation),
+      cooldowns: state.cooldowns,
+      unknownLearned: state.unknownLearned,
+      unavailable: spells
+        .filter((action) => action.reason)
+        .map((action) => ({ id: action.id, reason: action.reason })),
+      lastOutcome: state.lastOutcome
+        ? outcomeObservation(state.lastOutcome)
+        : null,
+      lastXp: state.lastXp
+        ? { ...state.lastXp, victim: hex(state.lastXp.victim) }
+        : null,
+      navigation: navigationObservation(this.deps.control.navigationState()),
+      rejections: this.rejections.observation(),
     };
   }
 

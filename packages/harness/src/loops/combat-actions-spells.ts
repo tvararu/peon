@@ -156,6 +156,16 @@ export function auraReason(
   return undefined;
 }
 
+export function channelText(
+  channel: { spellId: number; remainingMs: number | undefined },
+  name: string | undefined,
+): string {
+  const label = name ?? `spell ${channel.spellId}`;
+  if (channel.remainingMs === undefined) return `channelling ${label}`;
+  const left = Math.max(0, channel.remainingMs) / 1000;
+  return `channelling ${label}, ${left.toFixed(1)} s left`;
+}
+
 export function describeSpell(spell: SpellDefinition, self: boolean): string {
   if (isAutoShot(spell))
     return `Start ${spell.name} on selected creature: repeating ranged weapon shots that use ammo, until stopped or the creature dies; needs line of sight, facing, and ${spell.range?.maxHostile ?? "unknown"} yd or less but outside melee range; no mana`;

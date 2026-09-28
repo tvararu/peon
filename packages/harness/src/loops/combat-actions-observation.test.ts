@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { timeoutOutcome } from "#harness/loops/combat-actions-observation";
 import { context, setup } from "#test-support/combat-actions-fixtures";
 
 test("a retained goto creature target serializes as a hex GUID for Jev", () => {
@@ -24,4 +25,22 @@ test("a fact the client never observed reaches Jev as null, not a missing key", 
 
   expect(sent.target).toMatchObject({ health: 100, pose: null });
   expect(sent.attackTarget).toBeNull();
+});
+
+test("a running channel never times out", () => {
+  const { combatStore } = setup();
+  combatStore.casts.beginChannel({
+    durationMs: 3000,
+    spellId: 17,
+    target: 2n,
+  });
+  const combat = combatStore.record(2n);
+  const snap = setup().combat.snapshot(2n);
+  const state = {
+    ...snap,
+    ...combat,
+    casting: undefined,
+    pendingCast: undefined,
+  };
+  expect(timeoutOutcome(state, 1000 + 9000)).toBeUndefined();
 });
