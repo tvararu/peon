@@ -202,6 +202,8 @@ maintainer**.
 **codeArea:** `reputation`. **Phase:** 1. **Size:** M. **Proof:** live
 (0x122, 0x124) and live or mock (0x123).
 
+Rulings: SR1-world-8.
+
 **Files:**
 
 - Create: `packages/core/src/wow/areas/reputation/protocol.ts` and
@@ -423,6 +425,8 @@ Faction.dbc, gives each faction's standing and rank.
 **codeArea:** `reputation`. **Phase:** 1. **Size:** M. **Proof:** live
 (the empty list) and mock (a non-empty list).
 
+Rulings: SR1-world-2, SR1-world-7, SR1-world-8, SR1-world-9.
+
 **Files:**
 
 - Create: `packages/core/src/wow/areas/reputation/relation.ts` and
@@ -564,6 +568,8 @@ templates, so reputation guards and disguises had the wrong hostility.
 
 **codeArea:** `time` (lease). **Phase:** 1. **Size:** S. **Proof:** live.
 
+Rulings: SR1-world-1.
+
 **Files** (all under the lease of issue 1):
 
 - Modify: `packages/core/src/wow/areas/time/protocol.ts` and
@@ -646,6 +652,8 @@ now ask for it through the world service instead of guessing the time.
 
 **codeArea:** `ambience`. **Phase:** 1. **Size:** S. **Proof:** live
 (0x2C3, 0x2F4) and accepted (`CMSG_ZONEUPDATE`).
+
+Rulings: SR1-world-8.
 
 **Files:**
 
@@ -768,6 +776,8 @@ read counters and timers from one place.
 **codeArea:** `ambience`. **Phase:** 1. **Size:** S. **Proof:** live
 (0x0FA), accepted (0x0FB, 0x0FC) and mock (0x464).
 
+Rulings: SR1-world-3, SR1-world-8.
+
 **Files:**
 
 - Modify: `packages/core/src/wow/areas/ambience/protocol.ts` and test,
@@ -876,6 +886,8 @@ records movies the server starts.
 module). **Phase:** 1. **Size:** S.
 **Proof:** live.
 
+Rulings: SR1-world-8.
+
 **Files:**
 
 - Modify: `packages/harness/src/areas/reputation/area.ts` and
@@ -945,6 +957,8 @@ cinematic, without rows for world states or weather.
 ## Task world-8b: Reputation in `journal` and the reputation eval
 
 **codeArea:** `reputation`. **Phase:** 1. **Size:** M. **Proof:** eval.
+
+Rulings: SR1-world-4, SR1-world-5, SR1-world-6, SR1-world-7.
 
 **Files:**
 
@@ -1294,5 +1308,228 @@ In `AMBIENCE_OPCODES.dead` from `SEED-1` (N13). Each has a `dead` row in
 | `CMSG_COMPLETE_MOVIE` (0x465) | `STATUS_NEVER` with `Handle_NULL` (`Server/Protocol/Opcodes.cpp:1256`): the server drops it, so a send proves nothing. Core never sends it after `SMSG_TRIGGER_MOVIE`. |
 | `SMSG_TOGGLE_XP_GAIN` (0x4ED) | Registered `STATUS_NEVER` (`Server/Protocol/Opcodes.cpp:1392`) with no send site in `src/`. wowm: "Only exists as comment in azerothcore/trinitycore" (`exp/smsg_toggle_xp_gain.wowm:1`). |
 | `SMSG_CAMERA_SHAKE` (0x50A) | Registered `STATUS_NEVER` (`Server/Protocol/Opcodes.cpp:1421`) with no send site in `src/`. wowm: "Only exists as a comment" (`cinematic/smsg_camera_shake.wowm:1`). |
+
+## Seed rulings (SEED-1)
+
+The coordinator rules each open issue, lease request and decision of this
+file that a wave-1 task (world-3, world-5, world-1, world-2, world-7,
+world-8a, world-8b) meets, before `SEED-1` (plan index "Contract issues
+awaiting a ruling"). Each ruling stands in for the contract or design
+text it names until the coordinator applies that text; the builder
+follows the ruling. Each ruling is **not yet ruled by the maintainer**.
+
+Left alone: world-6 (wave 3), world-4 (wave 4), and the unscheduled
+world-9 and world-10 ("Optional tasks not scheduled"). No issue of this
+file is met only by them. The split of the design's `world-8` into
+world-8a and world-8b is the plan writer's right under contract 0.10 and
+needs no ruling.
+
+### SR1-world-1: the UI timer pair and the `time` lease (world-1)
+
+Issue 1: "The UI timer pair has no owner yet. Design 5.17 puts
+`CMSG_WORLD_STATE_UI_TIMER_UPDATE` and `SMSG_WORLD_STATE_UI_TIMER_UPDATE`
+in the `time` area, and contract 1.10 gives `TIME_OPCODES` only S0-5's
+three names." Leases table, row 1.
+
+Ruling: accepted as the issue proposes.
+
+- `SEED-1` appends `CMSG_WORLD_STATE_UI_TIMER_UPDATE` and
+  `SMSG_WORLD_STATE_UI_TIMER_UPDATE` to `TIME_OPCODES.owns` in
+  `packages/core/src/wow/areas/time/opcodes.ts` and regenerates the
+  coverage files. world-1 does not edit `opcodes.ts`.
+- world-1 holds one lease on the `time` files: core
+  `areas/time/protocol.ts`, `store.ts`, `runtime.ts`, `area.ts` and the
+  three tests that exist (`protocol.test.ts`, `store.test.ts`,
+  `runtime.test.ts`; S0-5 writes no core `area.test.ts`);
+  `packages/core/test-support/areas/time.ts`; harness
+  `packages/harness/src/areas/time/area.ts` and `area.test.ts`;
+  `docs/areas/time.md`. The harness module is in the lease, so world-1
+  adds the `worldActs` entry and does not skip it. No task after world-1
+  holds the lease; a later edit needs a new lease.
+- Contract 1.10 reads with these additions, and no name is renamed:
+  `TimeState` gains `uiTime: number | undefined` and `uiTimeAt: number |
+  undefined`; the `TimeEvent` type union gains `"ui_time"`; `TimeActs`
+  gains `requestUiTime: () => Promise<TimeState>`; the test support gains
+  `timeUiTimerUpdateBody`; `timeHarness.worldActs` is `["query",
+  "requestUiTime"]`, and its `event` rule returns `[]` for `ui_time`.
+
+Not yet ruled by the maintainer.
+
+### SR1-world-2: `unitRelationOf` goes to world-5 under a lease (world-5)
+
+Issue 2: "`targetRelation` cannot reach the reputation store. ... a
+`COORD` commit changes `unitRelationOf` to pass `reputation:
+rt.areas.runtimes.reputation.act.relationView()` into `RelationDeps` ...
+world-5 stops `blocked` after its core commit if the `COORD` edit has not
+landed." Leases table, row 3.
+
+Ruling: the `COORD` route is refused, and world-5 gets a lease instead.
+The `COORD` edit cannot typecheck before world-5 has added
+`RelationDeps.reputation` (step 6) and the `relationView` act (step 7),
+so that route always stops world-5 `blocked` once and then needs a
+resume. `client-control.ts` is not a step-0 hub file (contract 1.6) and
+no other task in the plan edits it.
+
+- world-5 holds the lease on `packages/core/src/wow/client-control.ts`,
+  function `unitRelationOf` only (`client-control.ts:36-41` [M]), and on
+  `packages/core/src/wow/client-control.test.ts` for the wiring test.
+  No next holder.
+- In step 8, world-5 makes the edit itself: `unitRelationOf` passes
+  `reputation: rt.areas.runtimes.reputation.act.relationView()` into the
+  deps of `targetRelation`. `rt.areas` is `AreaLifetime` (contract 1.3,
+  1.6, D27). Core imports no area module; the access goes through the
+  typed `AreaRuntimes` map. The step-8 fallback ("commit steps 1-7 and
+  stop `blocked`") no longer applies.
+- The rest of issue 2 stands: `ReputationRelationView` lives in the
+  leased `unit-relation.ts`, the area imports it as a type (contract
+  1.12), `RelationDeps.reputation` is optional, and `relationView` is not
+  in `worldActs`.
+- This stands in for a new row in contract 2.7 "Leases added by the plan
+  fix-up" (`client-control.ts` `unitRelationOf`: world) and in the plan
+  index "Leases" table (`core: client-control.ts | world-5 (A)`).
+
+Not yet ruled by the maintainer.
+
+### SR1-world-3: no cinematic config switch (world-7)
+
+Issue 3: "No config switch for the cinematic auto-complete. ... The plan
+drops the switch. ... the proof of `CMSG_NEXT_CINEMATIC_CAMERA` is the
+`accepted` case of contract 0.6 ... This is a deviation from design
+5.17."
+
+Ruling: the plan stands, and it is not a deviation. Design 5.17 asks
+for no switch at any commit of the design file [M, `git show` of each
+commit from `25886a44` to `5ddd356c`]; its "Acts" paragraph reads
+"`completeCinematic` (sent automatically on every
+`SMSG_TRIGGER_CINEMATIC`); `nextCinematicCamera` (probe only, never in
+play ...)". world-7 builds no switch and does not edit `client.ts`. The
+proof of 0x0FB is `accepted` (contract 0.6), and no "objects leave view"
+observation is attempted. The design's "the camera step on a second
+`fresh` character" is met by the probe `--send` on the task's own
+`fresh` account after the core's 0x0FC, because the server returns at
+once when no camera is active (`Entities/Player/CinematicMgr.cpp:40-42`)
+and the row is `accepted` either way. No design text changes.
+
+Not yet ruled by the maintainer.
+
+### SR1-world-4: no world-service or `look` edit (world-8b)
+
+Issue 4: "The world-service `READ_KEYS` and `EVENT_KEYS` edits of the
+area design are superseded by N5 and contract 1.9 ... The `look`
+game-time line of the area design (V2) is dropped ... the daily-reset
+line in `journal about: "quests"` stays."
+
+Ruling: confirmed. Design 5.17 names neither edit [M, at `f3cb40a9`]: its
+"Verbs" paragraph has only `journal about:"reputation"` and the
+daily-reset line in `journal about:"quests"`. No world task edits
+`world/service.ts` or `tools/look.ts`, and none holds a `look.ts` lease.
+No text changes.
+
+Not yet ruled by the maintainer.
+
+### SR1-world-5: what the `journal` lease covers (world-8b)
+
+Issue 5: "The `journal` lease does not name `tools/params.ts` or the
+`docs/harness.md` row. ... world-8b takes both under the journal lease;
+without them it stops `blocked`." Leases table, row 4.
+
+Ruling: accepted. world-8b edits these, each in the plan's lease queue:
+
+- `packages/harness/src/tools/journal.ts` and `journal.test.ts`: after
+  spells-12a lands; next holder economy-2.
+- the `journalParams` block of `packages/harness/src/tools/params.ts`
+  (contract 2.7 fix-up row, a rider like D13): after spells-12a lands;
+  next holder economy-2. If `SEED-1` splits `params.ts` by tool, the
+  lease covers the sibling file that holds `journalParams` (contract 2.7,
+  last paragraph).
+- the `journal` `After` block of `packages/harness/src/contract/details.ts`
+  (D13): in the file queue of the plan index, after combat-log-7b lands;
+  next holder economy-2.
+- the `journal` row of the `docs/harness.md` tool table
+  (`docs/harness.md:132` [M]): a one-time rewrite of that row's text to
+  "Quest log, bags and gear, spells, reputation, or the game log.", as a
+  rider of the journal lease. Contract 2.6 allows only appending rows to
+  that table, so this stands in for an amendment of the
+  `docs/harness.md` row of contract 2.6 ("the holder of an existing
+  tool's lease may rewrite that tool's row"). Other tasks keep appending
+  rows; a rebase keeps both.
+
+world-8b starts only when it holds all three file leases. Not yet ruled
+by the maintainer.
+
+### SR1-world-6: the harness sibling `areas/reputation/journal.ts` (world-8b)
+
+Issue 6: "Contract 2.5 lists only `area.ts` and `tool*.ts` under
+`packages/harness/src/areas/<area>/`. The plan reads contract 0.2 ...
+as allowing `areas/reputation/journal.ts`".
+
+Ruling: allowed. `packages/harness/src/areas/reputation/journal.ts` and
+`journal.test.ts` are a sibling split by responsibility in the same
+directory, owned by the `world` unit (contract 0.2). This stands in for a
+row in contract 2.5: "`packages/harness/src/areas/<area>/<part>.ts` and
+tests: siblings of `area.ts` split by responsibility". The file stem is
+inside the area directory, so D26 does not apply. `dailyResetLine` takes
+the `time` state as an argument that `tools/journal.ts` passes in, typed
+through `@peon/core` (`AreaState<"time">`); the reputation module imports
+no module of the `time` harness area.
+
+Not yet ruled by the maintainer.
+
+### SR1-world-7: the `t0-hostiles` limit sentence (world-5, world-8b)
+
+Issue 7: "Contract 3.4 lets a task append rows and ids, not edit another
+scenario's limits. The plan leaves that sentence to the coordinator's
+wave integration tidy (contract 2.4) and puts the text in
+`docs/areas/reputation.md` "Capabilities row"."
+
+Ruling: accepted. world-5 writes the limit text in
+`docs/areas/reputation.md` "Capabilities row" and does not edit the
+`t0-hostiles` row of `docs/capabilities.md`. world-8b appends only its
+own row or bullet (contract 3.4). The coordinator moves the sentence into
+the `t0-hostiles` row in the Phase A wave integration tidy, after world-5
+lands. Nothing is needed before a task starts.
+
+Not yet ruled by the maintainer.
+
+### SR1-world-8: the seed of `reputation` and `ambience` (all wave-1 tasks)
+
+Source: "Code-area ownership (for `SEED-1`)": "The owns lists this plan
+expects (the coordinator writes `owns`; the unit never edits it,
+contract 2.5)".
+
+Ruling: `SEED-1` seeds both code areas exactly as that table lists, in
+the seed shapes of contract 1.5:
+
+- `REPUTATION_OPCODES.owns` holds the seven reputation opcodes; `stubs`
+  holds `["SMSG_INITIALIZE_FACTIONS", "Factions"]` (moved from
+  `protocol/stubs.ts:50` [M]); `uses`, `dead` and `unseen` are empty.
+- `AMBIENCE_OPCODES.owns` holds the twelve ambience opcodes and the three
+  dead ones; `stubs` holds the four lines moved from `protocol/stubs.ts`
+  (`SMSG_WEATHER` at `:44`, `SMSG_SET_PHASE_SHIFT` at `:56`,
+  `SMSG_PLAY_SOUND` at `:57`, `SMSG_PLAY_MUSIC` at `:58` [M]), each with
+  the label it has there; `dead` holds `CMSG_COMPLETE_MOVIE`,
+  `SMSG_TOGGLE_XP_GAIN` and `SMSG_CAMERA_SHAKE` (N13); `uses` and
+  `unseen` are empty.
+- The harness modules `reputationHarness` and `ambienceHarness` have
+  `worldActs: []`, and the two `AREAS` and `HARNESS_AREAS` lines are
+  added. No code area is named `world` (D26).
+- world-3 deletes the reputation stub line; world-2 deletes the
+  `SMSG_WEATHER` stub line; world-6 (wave 3) deletes the other three.
+
+Not yet ruled by the maintainer.
+
+### SR1-world-9: the `unit-relation.ts` lease (world-5)
+
+Source: Leases table, row 2: "`unit-relation.ts` and test | world-5 |
+`RelationDeps.reputation?`, and the AzerothCore order for the character
+against a creature".
+
+Ruling: world-5 holds the lease on
+`packages/core/src/wow/unit-relation.ts` and `unit-relation.test.ts`
+(plan index "Leases", `core: unit-relation.ts | world-5 (A)`). No next
+holder. world-5 starts after world-3 lands; the lease needs no handover
+from another task.
+
+Not yet ruled by the maintainer.
 
 ## COMPLETE

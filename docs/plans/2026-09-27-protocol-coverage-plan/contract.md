@@ -970,7 +970,9 @@ code-area name is never a file stem under either `areas/` directory:
 
 An area's non-test source may import values only from: `#lib/*`,
 `#wow/protocol/*`, `#wow/areas/contract`, its own directory
-`#wow/areas/<area>/*`, `#wow/geometry`, `#wow/dbc` and `#wow/data/*` [D11].
+`#wow/areas/<area>/*`, `#wow/geometry`, `#wow/dbc` and `#wow/data/*` [D11],
+and, from the `SEED-1` commit, `#wow/inventory` and `#wow/player-state`
+(SR1-items-2; not yet ruled by the maintainer).
 It may import types from any `#wow/*` module except `#wow/client`,
 `#wow/areas/compose`, and the names `WorldHandle`, `SessionStores` and
 `WorldEvents`. It never imports another area's directory. Its source
@@ -1083,7 +1085,7 @@ Code areas and shared parsers per unit (design 5.1, N28):
 | `talents` | `talents` | `protocol/talent-spec.ts` (`inspect` reuses it) |
 | `pets` | `pets` | `protocol/pet-spells.ts` (`SMSG_PET_SPELLS`; `vehicles` reuses it) |
 | `vehicles` | `vehicles`, `transports` | |
-| `social` | `achievements`, `emotes`, `contacts`, `inspect`, `channels`, `complaints`, `referral` | |
+| `social` | `achievements`, `emotes`, `contacts`, `inspect`, `channels`, `complaints`, `referral` | `protocol/achievement-data.ts` (`parseAchievementData`; `inspect` reuses it) (SR1-social-1; not yet ruled by the maintainer) |
 | `guild` | `guildadmin`, `guildbank`, `charters`, `calendar` | the packed-time writer, added to `protocol/packed-time.ts` (a lease, 2.7) [D10] |
 | `pvp` | `battlegrounds`, `arena`, `wintergrasp` | |
 
@@ -1097,7 +1099,7 @@ the seed commit and the plan index then state the new names.
 | `areas/registry.ts` (core), `areas/registry.ts` (harness) | coordinator (S0-5, `SEED-<n>`, mid-wave seeds) | sorted key |
 | `contract/result.ts` `ToolName` | the task that lands a new tool | append one member at the end of the union |
 | `tools/registry.ts` `GAME_TOOLS` and its import | the same task | append one entry at the end; the coordinator reorders at wave integration (design 3.10) |
-| `docs/harness.md` tool table (`docs/harness.md:122-133` [M]) | the same task | append one row `| \`<tool>\` | <one line> |` |
+| `docs/harness.md` tool table (`docs/harness.md:122-133` [M]) | the same task; the holder of a lease on an existing tool module | append one row `| \`<tool>\` | <one line> |`; the lease holder may also add one clause to that tool's one row (SR1-travel-4, SR1-objects-16; not yet ruled by the maintainer) |
 | `tools/covered.ts` `COVERS` (`:5` [M]) | a tool whose facts also reach the router as `wake` or `passive` rows | sorted key |
 | `contract/runs.ts` `RunKind` (`:1` [M]), `ui/status-line.ts` `VERB` (`:5` [M]) | a tool that starts a background run (`trade`) | append one member; sorted key |
 | `puppet/calls.ts` | any task that adds a partner method (after T-7) | sorted key |
@@ -1117,7 +1119,11 @@ file; a second task that needs it waits until the holder's task lands,
 and the coordinator then hands the lease on in a `COORD-<n>` line of the
 plan index [D12]. A lease on an existing tool module includes that tool's
 `After` type block in `contract/details.ts` and the views it reads in
-`contract/views.ts`, and nothing else in those two files [D13].
+`contract/views.ts`, and nothing else in those two files [D13]. It also
+covers that tool's lines in `docs/harness.md`, within the edit of section
+2.6 (SR1-objects-16). A lease on a legacy file also covers its colocated
+`.test.ts` file of the same stem, and the holder may create that test
+file (SR1-quests-4). Both sentences are not yet ruled by the maintainer.
 
 Candidates, from design section 5, in build order. **Bold** marks a holder
 the design names.
@@ -1191,6 +1197,9 @@ for any other lease [D12].
 | `combat-casts.ts`, `combat-types.ts` | talents (after spells) |
 | `protocol/monster-move.ts` | vehicles |
 | `protocol/enums.ts` | social |
+| `control-flags.test.ts` (with the `control-sync.ts` lease) | self-state (SR1-self-state-8) |
+| `client-control.ts` (`unitRelationOf` only) | world (SR1-world-2) |
+| harness `loops/loot-run.ts` (the exported `lootObject`) | objects (SR1-objects-8) |
 
 The coordinator may split `tools/params.ts` by tool and `tools/look.ts`
 by view in the `SEED-1` commit (plan index, "Phase A"). A lease on the old
@@ -1334,7 +1343,14 @@ headings, in this order:
 - `Source` is the AzerothCore writer or reader `path:line` (or the wowm
   file when AzerothCore has none). `mise protocol:cite-check` reads this
   column.
-- Every opcode in the area's `owns` has exactly one row.
+- Every opcode in the area's `owns` has exactly one row once the task
+  that builds it lands. Until then an owned opcode that no landed task
+  builds has one line under "Left out" ("built by <task>", or "Not
+  built." with the reason if `mise lint:docs` refuses that form) and no
+  row in "Proof"; the task that builds it moves it into "Proof" in the
+  same commit. No placeholder proof value is written (SR1-objects-10,
+  SR1-talents-2, SR1-pets-5, SR1-remote-motion-7; not yet ruled by the
+  maintainer).
 
 ## 4. Decisions this contract takes
 
@@ -1363,7 +1379,7 @@ changes: D1, D5, D8, D10, D12, D14, D17, D20, D21, D24 and D25.
 | D10 | The packed-time reader lives in `protocol/packed-time.ts` (S0-5); `guild` adds the writer there under a lease | Amends design 3.13 (`parsePackedTime` in `time/protocol.ts`) and N28. N28 gives the reader to the first of `guild` and `achievements`, but areas may not import each other (design 3.15 test 5), and `time` needs the reader first |
 | D11 | The area value-import allow-list adds `#wow/dbc` and `#wow/data/*` to design 3.15's list | the DBC catalogs and generated tables are leaf modules; the coordinator extends the list on a `blocked` report |
 | D12 | A lease is held by one task, not by one unit for the whole fan-out; the coordinator hands it on when that task lands | Amends N14 and design 3.12. N14 read literally serialises every `look.ts` change behind one unit for all four waves; one task at a time still gives "one legacy file, one area worker" at any moment |
-| D13 | A lease on an existing tool module covers that tool's `After` block in `contract/details.ts` and the views it reads in `contract/views.ts` | `journal about: bags` and `VitalsView.comboPoints` (design 5.3, 5.9) change types that live there; design 3.10 forbids new-tool types there, not existing ones |
+| D13 | A lease on an existing tool module covers that tool's `After` block in `contract/details.ts`, the views it reads in `contract/views.ts`, and that tool's lines in `docs/harness.md` (SR1-objects-16, not yet ruled by the maintainer) | `journal about: bags` and `VitalsView.comboPoints` (design 5.3, 5.9) change types that live there; design 3.10 forbids new-tool types there, not existing ones |
 | D14 | Scenario tiers are fixed when the plan index lists the scenario; nobody renumbers after landing | Amends design 5.2. Design 5.2 lets the coordinator renumber at integration, but an id is a file name, a `ROUND_1` line and two doc rows, so a rename after landing touches four shared files |
 | D15 | A scenario, its `ROUND_1` entry, its `docs/capabilities.md` line and its `docs/evals.md` row land in one commit | `mise lint:docs` and `grader/scenarios.test.ts` fail on any subset, and every landing push runs `mise ci --publish` |
 | D16 | A scenario that has not passed is listed under "Not shown by any scenario" with its id and gap | `mise lint:docs` needs every scenario on the page, and the page counts a capability only when a scenario proves it |

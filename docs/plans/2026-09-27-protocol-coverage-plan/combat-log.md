@@ -132,6 +132,8 @@ Leases this unit needs in the plan index (contract 2.7), in build order:
 
 ## Task combat-log-1: Combat log store, melee and spell damage
 
+Rulings: SR1-combat-log-8, SR1-combat-log-9, SR1-combat-log-10 (section "Seed rulings (SEED-1)").
+
 **codeArea:** `combatlog`. **Phase:** 1. **Size:** M.
 
 **Files:**
@@ -298,6 +300,8 @@ attacker.
 
 ## Task combat-log-6a: Kill log and combo points
 
+Rulings: SR1-combat-log-8, SR1-combat-log-11 (section "Seed rulings (SEED-1)").
+
 **codeArea:** `combatlog`. **Phase:** 1. **Size:** S.
 
 **Files:** `areas/combatlog/protocol.ts`, `protocol.test.ts`,
@@ -361,6 +365,8 @@ killer and the character's combo points.
 
 ## Task combat-log-6b: Power updates
 
+Rulings: SR1-combat-log-1, SR1-combat-log-8, SR1-combat-log-11 (section "Seed rulings (SEED-1)").
+
 **codeArea:** `combatlog`. **Phase:** 1. **Size:** S.
 
 **Files:** `areas/combatlog/protocol.ts`, `protocol.test.ts`,
@@ -412,6 +418,8 @@ field at once instead of with the next object update.
 ---
 
 ## Task combat-log-7a: Immunity and killing blow rows
+
+Rulings: SR1-combat-log-7 (section "Seed rulings (SEED-1)").
 
 **codeArea:** `combatlog`. **Phase:** 1. **Size:** S.
 
@@ -468,6 +476,8 @@ killing blow on the character's target by someone else.
 ---
 
 ## Task combat-log-7b: Fight totals, Jev and combo points
+
+Rulings: SR1-combat-log-2, SR1-combat-log-3, SR1-combat-log-4, SR1-combat-log-5, SR1-combat-log-6 (section "Seed rulings (SEED-1)").
 
 **codeArea:** `combatlog`. **Phase:** 1. **Size:** M.
 
@@ -880,3 +890,32 @@ one rate-limited damage line that the model never sees.
 | `SMSG_HEALTH_UPDATE` 0x47F | No send site: only `Server/Protocol/Opcodes.h` and `Opcodes.cpp` name it. It is a stub today (`protocol/stubs.ts:55`); the seed puts it in `dead` (design 5.9). |
 
 ## COMPLETE
+
+## Seed rulings (SEED-1)
+
+The coordinator rules every contract issue, lease request and decision
+of this unit that a wave-1 task (`combat-log-1`, `combat-log-6a`,
+`combat-log-6b`, `combat-log-7a`, `combat-log-7b`) meets. Contract issue
+6 (the ticker lease) and the `combat-log-8` row of the lease table are
+met only by `combat-log-8` in wave 4, so they wait for the `SEED-4`
+pass and are not ruled here. Two rulings need a `COORD-<n>` commit
+(SR1-combat-log-1 before `combat-log-6b`, SR1-combat-log-2 before
+`combat-log-7b`); each task takes its fallback only if that commit is
+absent at task start. A lease on a legacy file also covers its colocated
+test file of the same stem, as in SR1-threat-7. Line numbers marked [M]
+were read at `f3cb40a9`. Each ruling is **not yet ruled by the
+maintainer**.
+
+| Id | Issue | Ruling | Status |
+|---|---|---|---|
+| SR1-combat-log-1 | Contract issue 1: "`SMSG_POWER_UPDATE` has no write path into the entity store ... The coordinator makes the edit before SEED-1, or task 6b takes its fallback" (`combat-log-6b`) | `COORD`, the design default (design 5.9 "Store and events": the value goes through the entity store's existing `update`). Before `combat-log-6b` starts, one `COORD-<n>` commit adds `updateEntity: EntityStore["update"]` to `SessionDeps` in `packages/core/src/wow/session-stores.ts` (a type import beside `EntityLookup`), sets it in `sessionDeps(conn)` to `(guid, fields, rawFields) => conn.entityStore.update(guid, fields, rawFields)`, and gives `testStores` in `packages/core/test-support/session-fixtures.ts` the default `updateEntity: () => undefined`. These are the only two full `SessionDeps` literals [M]; the rig and the mock handle build through `testStores` (contract 1.8), so the member is required. `register` gets only `wire` and the store, so the store gains one method (for example `applyPower({ guid, power, value })`) that calls `deps.updateEntity` and keeps nothing in the log ring. The write sets both the raw field `UNIT_FIELDS.POWER1.offset + power` and slot `power` of the typed `power` array (`entity-store.ts:39` [M]; `update` merges an array by index, `:201-203` [M]), so `combatUnitOf` and typed readers agree. A guid the entity store does not know changes nothing (`update` returns early, `:195` [M]). No lease: the unit's lease table row for `combat-log-6b` reads "no lease; `COORD`". The entity-store assertions go in `store.test.ts` (SR1-combat-log-11). If the commit is absent at task start, 6b takes the fallback of contract issue 1 as written | not yet ruled by the maintainer |
+| SR1-combat-log-2 | Contract issue 2: "`fight/end` totals cross a frozen file ... Totals need one new `RuleLookup` member ... Options: a `COORD-<n>` commit that adds the lookup member, or the design is amended" (`combat-log-7b`) | `COORD`, the design default (design 5.9 "Verbs": "`fight/end` gains totals"). After `combat-log-1` lands (so `AreaState<"combatlog">` is `CombatlogState`) and before `combat-log-7b` starts, one `COORD-<n>` commit adds a raw read view `combatlog: () => AreaState<"combatlog"> \| undefined` to `RuleLookup` in `packages/harness/src/events/rules.ts` (`AreaState` from `@peon/core`, whose barrel exports it, contract 1.6), returns `undefined` from `NO_LOOKUP` and `handle.combatlog.state()` from `lookupFor` in `packages/harness/src/events/router.ts`, and gives `testLookup` in `packages/harness/test-support/rule-fixtures.ts` the default `combatlog: () => undefined`. The member returns the state, not totals, so the sums stay in unit code: `combat-log-7b` creates `packages/harness/src/areas/combatlog/totals.ts` and its test (owned, a sibling of the seeded `area.ts`) with one helper that sums `entries` with `at >= since`; the `engage` tally and `fightEnd` both call it, and `fightEnd` passes the fight start `rc.memo.fights.get(runId).at` (`events/rules-combat.ts:241` [M]). The design is not amended, and no `combatlog/fight` row or `fight_closed` event is added. If the commit is absent at task start, 7b takes the fallback of contract issue 2 as written | not yet ruled by the maintainer |
+| SR1-combat-log-3 | Contract issue 3: "The Jev lease names the wrong files ... Task 7b needs the lease on those three files" (`combat-log-7b`) | Lease. `combat-log-7b` edits no `jev/*` file. It holds `packages/harness/src/loops/combat-actions.ts` and `packages/harness/src/loops/game.ts` (first holder of each, no next holder) and `packages/harness/src/loops/combat-actions-observation.ts` after `spells-12b` lands (SR1-spells-15), then hands it to `spells-13`. These are contract 2.7 fix-up rows ("harness engage loop") | not yet ruled by the maintainer |
+| SR1-combat-log-4 | Contract issue 4: "`VitalsView.comboPoints` touches files with no combat-log lease ... Task 7b needs a lease on `ops/views.ts`, `events/now.ts`, `ui/footer.ts` and the `VitalsView` block of `contract/views.ts`" (`combat-log-7b`) | Lease (contract 2.7 fix-up rows "harness observation" and "harness `ui/footer.ts`"). `combat-log-7b` holds `packages/harness/src/events/now.ts` and `packages/harness/src/ops/views.ts` after `self-state-11b` lands, then hands both to `self-state-10a`; it holds `packages/harness/src/ui/footer.ts` as first holder with no next holder. It holds only the `VitalsView` block of `packages/harness/src/contract/views.ts` (`:26-32` [M]); as in SR1-spells-11 it does not wait for the holders of other blocks (`threat-3b`, `quests-2`), and it takes the block when `self-state-11b` lands, since it waits for that task for `events/now.ts` in any case. After 7b the block goes to `remote-motion-7a` in the file's queue | not yet ruled by the maintainer |
+| SR1-combat-log-5 | Contract issue 5: "The engage tally lease ... The renderer that prints the `engage` result line could not be determined from a quick read" (`combat-log-7b`) | Lease. The model-facing result line is the `detail` built at `tools/engage-fight.ts:360` [M] (`creditText` and `gains`), which `runEnd` turns into the run summary (`tools/engage.ts:101` [M]). SR1-spells-17 refused the `tools/engage*.ts` glob to `spells-12b`, so `combat-log-7b` is the first holder of `packages/harness/src/tools/engage-tally.ts` and of `packages/harness/src/tools/engage-fight.ts`, with no next holder in the plan; the plan "Leases" table gains a `tools/engage-fight.ts` row. It also holds the `EngageAfter` block of `packages/harness/src/contract/details.ts` (D13) and, as in SR1-spells-11, does not wait for the holders of other blocks of that file. `ui/renderers/live-run.ts` (`tally`, `engageDetail`, `:202-239` [M]) renders `EngageAfter` for the human view and has no lease: 7b leaves it, and `docs/areas/combatlog.md` "Left out" names the human engage line as a gap | not yet ruled by the maintainer |
+| SR1-combat-log-6 | Found while ruling SR1-combat-log-3 to -5: `combat-log-7b` depends only on `combat-log-7a`, and its index entry has `leaseDeps: []`, so a scheduler that reads only dependencies starts it ahead of two holders it must wait for (`combat-log-7b`) | `combat-log-7b` starts only when `combat-log-7a`, `spells-12b` (`loops/combat-actions-observation.ts`) and `self-state-11b` (`events/now.ts`, `ops/views.ts`) have landed and the commit of SR1-combat-log-2 is in (or its absence is recorded, and the fallback applies). The coordinator enforces this in the scheduler (for example `lease:` entries on 7b in the plan index); the task's "Depends on" line is not changed here | not yet ruled by the maintainer |
+| SR1-combat-log-7 | Contract issue 7: "Log row names. Design 5.9 names the rows: domain `combatlog`, events `combatlog/immune`, `combatlog/killing_blow` ... not `combat/*`" (`combat-log-7a`) | Stands, no contract change. The harness rule returns drafts with `name: "immune"` and `name: "killing_blow"`; the router sets `domain: "combatlog"` and the event `combatlog/<name>` (contract 1.9). The once-per-session set of `(entry, spellId)` lives in the closure that `rules()` returns, never in `RuleMemo` | not yet ruled by the maintainer |
+| SR1-combat-log-8 | Contract issue 8: "Coverage reads `GameOpcode.<NAME>` literally ... Every registration in `areas/combatlog/area.ts` writes `GameOpcode.SMSG_...` in full" (`combat-log-1`, `combat-log-6a`, `combat-log-6b`) | Stands, no contract change. Each `wire.on` names `GameOpcode.SMSG_<NAME>` in full; no alias, table or loop registers an opcode | not yet ruled by the maintainer |
+| SR1-combat-log-9 | Lease table: "`combat-store.ts` and its test \| add `noteHostileDamage(guid)`" and design 5.9 "Decisions": "revisit after `threat`" (`combat-log-1`) | Lease. `combat-log-1` holds `packages/core/src/wow/combat-store.ts` and `combat-store.test.ts` from `SEED-1` for that one method next to the `SMSG_ATTACKSTART` path (`:336-343` [M]); no next holder in the plan. The decision stands: `combat-log-1` already depends on `threat-1`, which is the "after `threat`" of the design | not yet ruled by the maintainer |
+| SR1-combat-log-10 | Task body: "a party member (from `ctx.legacy.party()` or `core`) ... is kept" (`combat-log-1`) | Refused for wave 1. The store gets `deps` and `core` only; `ctx.legacy` is on the runtime context (contract 1.2), `combat-log-1` has no runtime, and `legacy` exists because `CoreStores` holds no party (design 3.3). `combat-log-1` keeps entries whose source or target is the character, its pet or a unit in the current fight, and a party member's entry against such a unit is kept through that unit. Party scope goes to wave 2 (parties and raids): `combat-log-2` may add a runtime that passes `ctx.legacy.party()` to the store. `docs/areas/combatlog.md` "Left out" names the gap, and the store test drops the party case | not yet ruled by the maintainer |
+| SR1-combat-log-11 | Task bodies: 6a tests `killerKind: "player"` and `ourTarget: true` over `areaRig("combatlog")`, and reads the target from "`combat-store.ts` or `self-store.ts`"; 6b tests over "`areaRig("combatlog")` with a known unit in the entity store" (`combat-log-6a`, `combat-log-6b`) | Refused as written, with this alternative and no rig edit. The rig builds over `testStores()`, whose `getEntity` returns `undefined`, and `init` takes no entity source (contract 1.8); the rig is frozen after S0-5. Cases that need an entity go in `areas/combatlog/store.test.ts`, which builds the store with its own `SessionDeps` (the area allow-list binds non-test source only, contract 1.12, so a test may build a real `EntityStore` from `#wow/entity-store`). In 6a that is `killerKind` `player` or `pet` and `ourTarget`; in 6b the write to a known unit, one `update` event and the new power through `combatUnitOf`. The rig tests keep what needs no entity: the opcode is handled, the stub is gone, `bySelf` from the rig's `selfGuid`, `killerKind: "unknown"`, and a power update for an unknown guid changes nothing. Neither store holds the character's target: `selectedGuid` comes from `control.snapshot().target` (`runtime.ts:208` [M]), which is not in `CoreStores`. `ourTarget` compares the victim with the character's `UNIT_FIELDS.TARGET` (offset 18, two words) read from `deps.getEntity(deps.selfGuid())?.rawFields` and joined with `joinGuid` from `#wow/protocol/packet`, as SR1-threat-4 reads the pet | not yet ruled by the maintainer |

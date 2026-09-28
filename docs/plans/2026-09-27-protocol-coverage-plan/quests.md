@@ -117,6 +117,8 @@ tool. This plan assumes the quests-2 lease covers `tools/look*.ts`, as
 
 ## Task quests-1: Quest-giver marks in core
 
+Rulings: SR1-quests-5, SR1-quests-9, SR1-quests-10, SR1-quests-11, SR1-quests-12.
+
 **Files:**
 - Create: `areas/quests/protocol.ts`, `areas/quests/protocol.test.ts`,
   `areas/quests/store.ts`, `areas/quests/store-marks.ts`,
@@ -216,6 +218,8 @@ debounced status query.
 
 ## Task quests-3: Quest POI in core
 
+Rulings: SR1-quests-7, SR1-quests-9.
+
 **Files:**
 - Create: `areas/quests/store-poi.ts`,
   `packages/devtools/src/probe-flows/quests-poi.ts`
@@ -274,6 +278,8 @@ and reads the signed fields as AzerothCore writes them.
 ---
 
 ## Task quests-5: NPC text and gossip POI in core
+
+Rulings: SR1-quests-6, SR1-quests-7, SR1-quests-9.
 
 **Files:**
 - Create: `areas/quests/store-text.ts`,
@@ -346,6 +352,8 @@ point of interest.
 
 ## Task quests-9: Quest log extras and completed quests
 
+Rulings: SR1-quests-9, SR1-quests-13.
+
 **Files:**
 - Create: `areas/quests/store-log.ts`,
   `packages/devtools/src/probe-flows/quests-extras.ts`
@@ -417,6 +425,8 @@ that the server accepts.
 
 ## Task quests-2: Quest marks in `look`
 
+Rulings: SR1-quests-1, SR1-quests-2, SR1-quests-3, SR1-quests-4, SR1-quests-8, SR1-quests-10.
+
 **Files:**
 - Create: `packages/harness/src/grader/scenarios/t4-quests-find-giver.json`
 - Modify: `packages/harness/src/areas/quests/area.ts` and
@@ -478,6 +488,8 @@ walking to each one, and look lists those givers first.
 
 ## Task quests-4: Objective regions in `journal`
 
+Rulings: SR1-quests-3, SR1-quests-4, SR1-quests-8.
+
 **Files:**
 - Create: `packages/harness/src/grader/scenarios/t4-quests-poi-walk.json`
 - Modify: `packages/harness/src/tools/journal.ts`, `journal.test.ts` and
@@ -525,6 +537,8 @@ nearest objective region and offers a travel call to it.
 ---
 
 ## Task quests-6: Greetings and directions in `interact`
+
+Rulings: SR1-quests-3, SR1-quests-4, SR1-quests-8.
 
 **Files:**
 - Create: `grader/scenarios/t1-quests-read-greeting.json`,
@@ -864,5 +878,295 @@ module read. The journal now marks those quests.
 `CMSG_QUESTGIVER_QUEST_AUTOLAUNCH` is not dead. Its handler is empty
 (`Handlers/QuestHandler.cpp:525-527`), so quests-9 proves it `accepted`
 (N24).
+
+## Seed rulings (SEED-1)
+
+The coordinator rules each open issue, lease request and decision of this
+file that a wave-1 task (quests-1, quests-3, quests-5, quests-9,
+quests-2, quests-4, quests-6) meets, before `SEED-1` (plan index
+"Contract issues awaiting a ruling"). Each ruling stands in for the
+contract or design text it names until the coordinator applies that
+text. Until then, the builder follows the ruling. Each ruling is **not
+yet ruled by the maintainer**. `[M]` marks a fact measured in this worktree at
+`f3cb40a9`, before step 0 landed.
+
+Left alone, because only later waves meet them: the quests-7b lease on
+`quest-store.ts` (`openDialog`), the quests-8 lease on
+`areas/raid/tool.ts` and its group-9 dependency, the quests-10 lease on
+`tools/journal.ts` and its `player-state.ts` question, the quests-7a
+`puppet/calls.ts` form that T-7 defines, and the design 5.5 decisions
+"share tests use quest 8326" and "the share verbs follow the group tool".
+
+### SR1-quests-1: the `look` lease covers `look-rank.ts` and the SEED-1 siblings (quests-2)
+
+Issue: "Contract gap, reported to the coordinator: the lease table of
+contract 2.7 lists `tools/look.ts` only. `look-rank.ts` is the ranking
+half of the same tool. This plan assumes the quests-2 lease covers
+`tools/look*.ts`." Section "Leases this unit needs".
+
+Ruling: the gap is closed. Contract 2.7 "Leases added by the plan
+fix-up" has the row "harness `tools/look.ts` and `tools/look-rank.ts`
+(one row with `tools/look.ts`)", and the plan index "Leases" table
+queues `h: tools/look-rank.ts` as objects-7 → quests-2 [M].
+
+- quests-2 holds `tools/look.ts` and `tools/look-rank.ts` under one
+  lease, not all of `tools/look*.ts`.
+- If `SEED-1` splits `tools/look.ts` by view, the lease on `look.ts`
+  covers the sibling files that `SEED-1` names in the plan index
+  "Leases" section (contract 2.7, last paragraph). quests-2 edits only
+  the sibling that renders the unit rows and the one that orders the
+  `find` results.
+- An edit in another `look` sibling stops quests-2 as `blocked`, with
+  the file and the member named.
+
+Not yet ruled by the maintainer.
+
+### SR1-quests-2: no `params.ts` lease for `find: "questgiver"` (quests-2)
+
+Issue: "The `find` value lives where R0 reports the `look` parameters
+after item 6; if that file is outside the lease, stop as `blocked`."
+Task quests-2, step 2.
+
+Ruling: refused as a lease request, because the value exists.
+`"questgiver"` is in `LOOK_KINDS` (`tools/params.ts:3-7` [M]), the
+`find` validation accepts it (`tools/params.ts:214-218` [M]), and
+`LookFilter` and `NearestKind` hold it (`contract/details.ts:19-23`,
+`contract/views.ts:83-86` [M]).
+
+- quests-2 does not edit `tools/params.ts`. It changes only the order
+  and the words of the `find: "questgiver"` result, in `look.ts` (or its
+  `SEED-1` sibling) and `look-rank.ts`.
+- The `blocked` branch of step 2 does not apply. If the builder finds
+  that it must change the `look` parameter block, it stops as `blocked`
+  and names `tools/params.ts` and the member. The plan index queue for
+  `tools/params.ts` does not hold quests-2 [M].
+
+Not yet ruled by the maintainer.
+
+### SR1-quests-3: lease queues and the D13 blocks (quests-2, quests-4, quests-6)
+
+Issue: the lease rows for quests-2, quests-4 and quests-6 in section
+"Leases this unit needs", and "the `look` blocks of `contract/details.ts`
+and `contract/views.ts` (lease)" (task quests-2, **Files:**), "its
+`After` block in `contract/details.ts` (lease)" (task quests-4,
+**Files:**). Task quests-6 names no `details.ts` edit, and the plan index
+queue for `h: contract/details.ts` does not hold quests-6 [M].
+
+Ruling: each lease follows the plan index "Leases" queue. A quests task
+gets a lease only when the task before it in the row lands and the
+coordinator writes the handover line.
+
+- quests-2 holds `tools/look.ts` after objects-7 (queue threat-3b →
+  objects-7 → quests-2 → travel-5), `tools/look-rank.ts` after objects-7
+  (objects-7 → quests-2, last holder), `contract/details.ts` after
+  items-5b (items-5b → quests-2 → quests-4) and `contract/views.ts` after
+  threat-3b (threat-3b → quests-2 → self-state-11b). So quests-2 starts
+  only after threat-3b, objects-7 and items-5b have all landed. Its
+  "Depends on" line does not name them. The rule "a task whose lease is
+  not assigned stops as `blocked`" enforces the order. In `details.ts`
+  it edits only `LookAfter` and the types that only `LookAfter` uses. In
+  `views.ts` it edits only the views that `look` reads (D13).
+- quests-4 holds `tools/journal.ts` after items-5b (items-5b → quests-4
+  → spells-12a) and `contract/details.ts` after quests-2 (quests-2 →
+  quests-4 → spells-12a). In `details.ts` it edits only `JournalAfter`
+  (`contract/details.ts:288` [M]). It does not edit `views.ts`.
+- quests-6 holds `tools/interact.ts` after objects-7 (objects-7 →
+  quests-6 → travel-5) and `tools/interact-quest.ts` after objects-7
+  (objects-7 → quests-6, last holder). Under the D13 rider of its
+  `interact` lease it may edit the `InteractAfter` block
+  (`contract/details.ts:178-194` [M]) and nothing else in `details.ts`.
+  It does not edit `views.ts`. It is not added to the `details.ts` file
+  queue. The coordinator records the block lease as its own handover
+  line (objects-7 → quests-6 → travel-5, as the `interact.ts` row).
+  On a rebase conflict in `details.ts`, quests-6 keeps the other
+  holders' text and changes only its block.
+
+Not yet ruled by the maintainer.
+
+### SR1-quests-4: the test files beside a leased file (quests-2, quests-4, quests-6)
+
+Issue: the **Files:** lists name `look.test.ts` (quests-2),
+`journal.test.ts` (quests-4) and "their tests" of `interact.ts` and
+`interact-quest.ts` (quests-6). Contract 2.7 names the leased source
+files only, and the contract names a test file where it grants one
+(GR-2, GR-3, the `world-handlers-group.test.ts` and
+`gameplay-handlers-stores.test.ts` fix-up rows).
+
+Ruling: granted. Each lease below also covers the one test file beside
+the leased file, with the same holder and the same queue:
+
+- quests-2: `tools/look.test.ts` with `tools/look.ts` (and the test file
+  of each `SEED-1` sibling that SR1-quests-1 gives it, if `SEED-1`
+  creates one).
+- quests-4: `tools/journal.test.ts` with `tools/journal.ts`.
+- quests-6: `tools/interact.test.ts` with `tools/interact.ts`, and
+  `tools/interact-quest.test.ts` with `tools/interact-quest.ts`.
+
+This stands in for one sentence in contract 2.7: "A lease on a legacy
+file also covers its sibling `.test.ts` file."
+
+Not yet ruled by the maintainer.
+
+### SR1-quests-5: `SMSG_QUESTGIVER_STATUS` through `peek`, no `gameplay-handlers.ts` lease (quests-1)
+
+Issue: contract 2.7 lists quests as a candidate for
+`gameplay-handlers.ts` ("`SMSG_QUESTGIVER_STATUS` feeds marks"), and
+task quests-1 step 4 says "`register` ... reads the single one with
+`wire.peek`".
+
+Ruling: the lease request is refused. The plan index queue for
+`core: gameplay-handlers.ts` is items-3b → travel-4 and does not hold
+quests [M]. quests-1 reads `SMSG_QUESTGIVER_STATUS` with `wire.peek`,
+lists it in `uses`, and leaves the legacy handler
+(`gameplay-handlers.ts:222-224`, design 5.5) as it is. The body gap of
+design 5.5 ("keeps only the last packet") stays in the legacy store. The
+area keeps its own `marks` slice.
+
+Not yet ruled by the maintainer.
+
+### SR1-quests-6: `titleTextId` and `giver` through `core.quests`, no `quest-store.ts` lease (quests-5)
+
+Issue: contract 2.7 lists quests as a candidate for `quest-store.ts` and
+`protocol/gossip.ts` ("share, dialog, `titleTextId`"), and task quests-5
+step 3 reads "a gossip dialog with a `titleTextId`" and "`from` equal to
+`core.quests` `giver` at arrival".
+
+Ruling: the lease request is refused for wave 1. The data is already
+readable through the existing entry points (contract 1.2: `core` is
+"read and called through its existing entry points"):
+`GossipMessage.titleTextId` is parsed (`protocol/gossip.ts:19,72-75`
+[M]), the `gossip` kind of `QuestDialog` carries a `GossipMessage`
+(`quests-requests.ts:23-24` [M]), and `QuestStore.state()` returns
+`dialog` and `giver` (`quest-store.ts:104-107` [M]).
+
+- quests-5 imports these as types only (contract 1.12) and reads them
+  from `core.quests`.
+- `QuestStore.openDialog` shows a gossip dialog only when a talk intent
+  waits for that giver. Otherwise it records `stale_dialog`
+  (`quest-store.ts:269-285` [M]). So the `quests-text` probe flow and
+  the store tests open the dialog through the legacy talk path
+  (`handle.talk`, or the `quest` handlers passed as `init.register` to
+  `areaRig`), not through a bare injected `SMSG_GOSSIP_MESSAGE`.
+- The `quest-store.ts` lease stays with items-3b and then quests-7b
+  (wave 2), as the plan index queue says.
+
+Not yet ruled by the maintainer.
+
+### SR1-quests-7: the reply timeout is a local constant (quests-3, quests-5)
+
+Issue: "an id with no reply after `QUEST_REPLY_TIMEOUT_MS` (5000,
+`quests-requests.ts:65`) becomes `no_reply`" (task quests-3, step 3) and
+"no reply in 5 s gives `no_reply`" (task quests-5, step 3). An area's
+non-test source imports values only from the allow-list of contract
+1.12, and `#wow/quests-requests` is not on it [M].
+
+Ruling: the allow-list extension is refused. The area defines one
+exported constant `REPLY_TIMEOUT_MS = 5000` in
+`areas/quests/runtime.ts`. Only the runtime reads it: the runtime arms
+the timer and calls the slice that sets `no_reply`. No store file
+imports `runtime.ts`, so the store and the runtime have no import cycle.
+The area does not import `QUEST_REPLY_TIMEOUT_MS`. `quests-requests.ts:65`
+holds the same value today [M]. A test in `runtime.test.ts` may assert
+that the two are equal, because test files are not held to the value
+allow-list.
+
+Not yet ruled by the maintainer.
+
+### SR1-quests-8: harness tests set the area state with a spy (quests-2, quests-4, quests-6)
+
+Issue: "a mock handle whose `quests.state()` holds marks" (task quests-2,
+step 1), "with a POI state on the mock handle" (task quests-4, step 1),
+and the greeting and gossip POI state that task quests-6 step 1 needs.
+Contract 1.8 gives the mock handle only `sent` and `triggerAreaEvent`,
+says "No area task edits the mock", and contract 0.9 puts the shared
+fakes under coordinator edits.
+
+Ruling: the builder follows the harness `area.test.ts` of S0-5's `time`
+area. If that test sets area state only through `triggerAreaEvent`, the
+quests tests replace the state with a spy from `bun:test` on
+`handle.quests.state` (or on `session.areas.quests.state`, whichever the
+tool reads) that returns a fixture `QuestsState`. No task edits
+`packages/core/test-support/mock-handle.ts` or harness
+`test-support/mock-game.ts`. If neither path reaches the state the tool
+reads, the task stops as `blocked` and names that file and the missing
+member. This ruling is not checked against landed code, because step 0
+has not landed [M].
+
+Not yet ruled by the maintainer.
+
+### SR1-quests-9: one `QuestsStore`, not the six stores of design 5.5 (quests-1, quests-3, quests-5, quests-9)
+
+Issue: design 5.5 "Store, events, acts" names `QuestMarkStore`,
+`QuestPoiStore`, `NpcTextStore`, `GossipPoiStore`, `QuestShareStore` and
+`CompletedQuestStore`. This file's rule "One store" builds one
+`QuestsStore` with one slice per concern.
+
+Ruling: the unit rule stands, and it keeps the design. Contract 1.2
+gives an area module one `store: (deps, core) => St`, so a code area has
+one store. The six design names are the names of its slices:
+`marks`, `pois`, `texts`, `gossipPoi`, `share`, `completed`. The events
+are the design's six plus `daily`. No design text changes.
+
+Not yet ruled by the maintainer.
+
+### SR1-quests-10: the design 5.5 decisions that wave 1 meets (quests-1, quests-2)
+
+Issue: design 5.5 "Decisions (not yet ruled)": "one debounced multiple
+query, not one query per giver" and "marks log only when the set of
+givers with `available` or `reward` changes".
+
+Ruling: both stand as the design states. quests-1 sends one
+`CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY`, trailing-debounced by 500 ms and
+at most once every 2 s. `queryGiverStatus` sends the single query only
+when an act asks for it. The quests-2 `marks` rule writes a
+`quests/marks` row only when the set of givers with `available` or
+`reward` changes, and returns `[]` otherwise.
+
+Not yet ruled by the maintainer.
+
+### SR1-quests-11: the quest-giver flag check on an entity update (quests-1)
+
+Issue: "The builder checks whether an `entity` `update` event reports a
+changed `UNIT_NPC_FLAGS`; if it does, a change that adds bit 0x2 also
+triggers the query. If it does not, the builder reports that and does
+not add a core edit." Task quests-1, step 6.
+
+Ruling: `EntityStore.update` emits `update` with `changed` set to the
+keys of the fields it wrote, plus `"rawFields"` (`entity-store.ts:189-216`
+[M]). The runtime triggers the query when `changed` includes
+`"npcFlags"`, the unit now has bit 0x2 in `npcFlags`, and the store has
+no mark for that guid. That the update path writes the `npcFlags` key
+for `UNIT_NPC_FLAGS` is not measured. If the builder finds that it does
+not, the rest of step 6 stands: report it, and add no core edit.
+
+Not yet ruled by the maintainer.
+
+### SR1-quests-12: the `SMSG_QUEST_FORCE_REMOVE` dead row comes from `SEED-1` (quests-1)
+
+Issue: "`dead: ["SMSG_QUEST_FORCE_REMOVE"]` if the seed left it out."
+Task quests-1, step 7.
+
+Ruling: contract 2.4 gives the `SEED-<n>` commits "the dead rows of
+N13", and the plan index "Dead opcodes" table lists `quests` (1)
+`SMSG_QUEST_FORCE_REMOVE` [M]. So `SEED-1` writes
+`dead: ["SMSG_QUEST_FORCE_REMOVE"]` in `areas/quests/opcodes.ts`.
+quests-1 checks the line and writes it only if `SEED-1` did not. quests-1
+still writes the dead row of the proof table in `docs/areas/quests.md`.
+
+Not yet ruled by the maintainer.
+
+### SR1-quests-13: the hello reply records `stale_dialog` (quests-9)
+
+Issue: "Known limit, recorded under "Left out": the hello reply reaches
+`QuestStore` with no pending intent, so it records `stale_dialog`
+(`quest-store.ts:278-283`). No verb sends hello." Task quests-9, proof.
+
+Ruling: the limit stands as the task states. quests-9 gets no
+`quest-store.ts` lease. It records the limit in `docs/areas/quests.md`
+"Left out", and the `quests-extras` probe flow expects the
+`stale_dialog` error after the hello. No harness verb sends
+`CMSG_QUESTGIVER_HELLO` in wave 1.
+
+Not yet ruled by the maintainer.
 
 ## COMPLETE

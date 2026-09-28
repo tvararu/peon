@@ -122,6 +122,8 @@ precedence 3). Until then the plan works as stated.
 
 ## objects-1: Object templates and object fields
 
+Rulings: SR1-objects-2, SR1-objects-4, SR1-objects-10, SR1-objects-14.
+
 **Files:**
 - Modify (lease): `packages/core/src/wow/protocol/entity-queries.ts` and
   `protocol/entity-queries.test.ts`
@@ -217,6 +219,8 @@ field as AzerothCore writes them, plus creator and dynamic flags.
 
 ## objects-2: Use and report use
 
+Rulings: SR1-objects-2, SR1-objects-6, SR1-objects-10, SR1-objects-15.
+
 **Files:**
 - Create: `areas/objects/protocol.ts`, `areas/objects/runtime.ts` and
   tests
@@ -284,6 +288,8 @@ the pending use.
 
 ## objects-3: Page text
 
+Rulings: SR1-objects-2, SR1-objects-10.
+
 **Files:**
 - Modify: `areas/objects/protocol.ts`, `store.ts`, `runtime.ts`,
   `area.ts`, `opcodes.ts` and tests;
@@ -344,6 +350,8 @@ object shows a page.
 ---
 
 ## objects-4: Object targets and open-lock choice
+
+Rulings: SR1-objects-2, SR1-objects-7, SR1-objects-11, SR1-objects-12, SR1-objects-13, SR1-objects-15.
 
 **Files:**
 - Create: `packages/core/src/wow/protocol/spell-targets.ts` and test
@@ -430,6 +438,8 @@ serves both, and the objects area picks the spell a lock needs.
 ---
 
 ## objects-5: Area triggers and trigger messages
+
+Rulings: SR1-objects-1, SR1-objects-2, SR1-objects-3, SR1-objects-10, SR1-objects-15.
 
 **Files:**
 - Modify (lease): `packages/core/src/wow/control.ts` (`ControlEventType`
@@ -518,6 +528,8 @@ trigger once on entry and keeps the server's trigger messages.
 
 ## objects-7: Objects in look, travel and interact
 
+Rulings: SR1-objects-4, SR1-objects-5, SR1-objects-6, SR1-objects-16.
+
 **Files (all harness, under leases):** `packages/harness/src/tools/look.ts`,
 `tools/look-rank.ts`, `tools/travel.ts`, `tools/interact.ts`,
 `tools/interact-quest.ts`, `ops/refs.ts`, the `lookParams`,
@@ -568,6 +580,8 @@ quest-giver objects.
 ---
 
 ## objects-8: The use tool: open and read
+
+Rulings: SR1-objects-4, SR1-objects-7, SR1-objects-8, SR1-objects-11, SR1-objects-13, SR1-objects-15.
 
 Three commits: the tool, then one commit per scenario (contract 3.2).
 
@@ -702,6 +716,8 @@ server."
 ---
 
 ## objects-11: Object objectives in the quest loop
+
+Rulings: SR1-objects-4, SR1-objects-9, SR1-objects-11.
 
 **Files (harness, under leases):** `packages/harness/src/loops/quest-objective.ts`,
 `loops/quest-cycle.ts` and their tests.
@@ -848,5 +864,40 @@ instance, `MiscHandler.cpp:786-794`; quest exploration, not zone
 exploration XP). Out of scope and not an `objects` row:
 `SMSG_GAMEOBJECT_RESET_STATE` has no send site in AzerothCore `src/` or
 `modules/`, and `CMSG_SPELLCLICK` stays in `vehicles` (design 5.16).
+
+## Seed rulings (SEED-1)
+
+The coordinator rules each open issue, lease request and decision that a
+wave-1 task of this unit (objects-1 to objects-5, objects-7, objects-8,
+objects-10, objects-11) meets. Each ruling is **not yet ruled by the
+maintainer**. A ruling marked "amends" changes the named contract, plan
+or design text; the coordinator applies that text in one `COORD-<n>`
+commit before the first affected task starts, and until then the builder
+follows the ruling. Facts marked [M] were read in this worktree at
+`f3cb40a9` or in the AzerothCore checkout.
+
+Left for a later seed, not ruled here: objects-6 and objects-9 (wave 4:
+the fishing staging, `economy-8`, the `unseen` fallback and the
+`objects/fish` rows). No wave-1 task meets them. objects-10 meets no open
+issue.
+
+| Id | Issue (source) | Ruling | Status |
+|---|---|---|---|
+| SR1-objects-1 | Contract issue 1: "`control-mover.ts` is not on the control lease list ... objects-5 needs `control-mover.ts` in its lease"; objects-5 "Depends on": "the control lease (after the self-state task that holds it lands; issue 1)"; step 4: "In `control-drive.test.ts` or a new `control-pose.test.ts`" | Closed by the plan fix-up: contract 2.7 "control files, extended" names `control-mover.ts` for objects. The plan "Leases" queue wins over the unit text: objects-5 holds `control.ts` and `control-mover.ts` first, from `SEED-1`, so the `lease:control` wait is met at the seed, and objects-5 does not wait for a self-state task. When objects-5 lands, `control.ts` goes to self-state-1 and `control-mover.ts` to vehicles-4. objects-5 edits no other control file: `Mover` already holds `emit` (`control-mover.ts:44`, `:65-69`) and `sendMove` is at `:370-376` [M]. objects-5 creates the new `control-pose.test.ts` and does not edit `control-drive.test.ts`; `control-pose.test.ts` then rides the `control.ts` lease | not yet ruled by the maintainer |
+| SR1-objects-2 | Unit setup: "One task at a time"; "Unit files" says objects-1 creates `store.ts`, `test-support/areas/objects.ts` and `docs/areas/objects.md`, and objects-2 creates `protocol.ts` and `runtime.ts`; the plan index makes objects-1 and objects-5 ready together | The unit runs objects-5 first, because five self-state tasks queue behind its `control.ts` lease; then objects-1, 2, 3, 4, 7, 8, 10, 11 in dependency order. The first task that needs a unit file creates it, and every later "Create" line of a unit file reads "create or extend". The first task that creates `docs/areas/objects.md` writes all contract 3.8 headings | not yet ruled by the maintainer |
+| SR1-objects-3 | objects-5 step 3: "no send while the character is on a taxi ... the builder finds which `ControlState` field says so, could not determine at `71fba0ab`" | No `ControlState` field says so (`control.ts:42-54` [M]). The server's `IsInFlight` is the unit state `UNIT_STATE_IN_FLIGHT` (`Entities/Unit/Unit.h:1712`), which the client never receives. The client sees `UNIT_FLAG_TAXI_FLIGHT`, which the flight path sets and clears (`Movement/MovementGenerators/WaypointMovementGenerator.cpp:704`, `:672`) [M]. The watcher reads that bit (`UnitFlag.TAXI_FLIGHT`, `entity-fields.ts:91`, as `nearby.ts:105` does [M]) from the self entity, through the `getEntity` of the `SessionDeps` that the store receives. objects-5 edits neither `self-store.ts` nor `control-sync.ts` | not yet ruled by the maintainer |
+| SR1-objects-4 | Contract issue 4: "The plan reads them from `entity.rawFields` through the leased extractor in an area helper"; objects-7 step 2: "if `objectFields` is not exported, the task asks the coordinator for the barrel line (contract 0.9)" | Issue 4 stands: no edit to `entity-store.ts`. The barrel line for `objectFields` is refused: contract 1.6 gives `index.ts` "No per-area line, ever", and the harness imports no area module (contract 0.3). Instead: (a) objects-1 stores the derived values as data in each `GameObjectTemplate` of `ObjectsState` (`lockId`, `pageId`, `questId`, `questItems`), computed with the `templates.ts` functions when the reply arrives, so objects-7, 8 and 11 read them from `session.areas.objects.state()`; (b) the coordinator adds one legacy export line to `packages/core/src/wow/index.ts` before objects-7 starts, `export { extractGameObjectFields, type GameObjectFieldsResult } from "#wow/protocol/extract-fields";`, and the harness reads `dynFlags` with `extractGameObjectFields(entity.rawFields)`; `locked` and `busy` come from `entity.flags` (`entity-store.ts:43-49` [M]). `fields.ts` stays for core use (objects-6) | not yet ruled by the maintainer |
+| SR1-objects-5 | Contract issue 2: "A lease on those tool modules must include their blocks there [`tools/params.ts`]"; plan "Phase A": "`SEED-1` ... splits `tools/params.ts` by tool and `tools/look.ts` by view"; objects-7 files | Closed by the plan fix-up (contract 2.7, `tools/params.ts` rider). objects-7 holds the `lookParams`, `travelParams` and `interactParams` blocks, or the sibling files that `SEED-1` splits them into (contract 2.7: a lease on the old file covers the sibling of the same tool or view). Queues: `tools/look.ts` goes threat-3b, then objects-7, then quests-2; if the `SEED-1` split puts the object list and threat-3b's `UnitView` block in different siblings, each sibling is its own lease, `SEED-1` names them in "Leases", and objects-7 does not wait for threat-3b. Otherwise objects-7 starts after threat-3b lands. objects-7 uses no D13 rider: it edits neither `contract/details.ts` nor `contract/views.ts`, and stops `blocked` if it needs either | not yet ruled by the maintainer |
+| SR1-objects-6 | objects-7 step 1: "`interact npc: \"o1\"` on a type-2 quest giver ... sends the quest hello to the object guid"; step 2: "Check that core's quest code accepts an object guid as the quest giver; if it does not, stop as `blocked`" | Refused as written: both hello handlers accept a creature only (`Handlers/NPCHandler.cpp:144`, `Handlers/QuestHandler.cpp:86`), and a type-2 object opens its menu only on `CMSG_GAMEOBJ_USE` (`Entities/GameObject/GameObject.cpp:1509-1518`) [M]. The later quest handlers accept a game object guid (`QuestHandler.cpp:122`, `:265`, `:363`, `:487`) [M]. core's quest store drops a dialog whose guid is not the recorded giver (`quest-store.ts:269-285` [M]). So objects-2's `use(guid)` calls `core.quests.requestIntent({ action: "talk", guid })` (`quest-store.ts:135` [M]) before it sends, when the object's template type is 2, with one runtime test. objects-7 sends through `claim.areas.objects.use` for a type-2 object, adds `"use"` to `worldActs` in harness `areas/objects/area.ts` (objects-8 extends the list), and gains the dependency objects-2 | not yet ruled by the maintainer |
+| SR1-objects-7 | objects-4 step 5: "`open(guid, spellId)` (sends `CMSG_CAST_SPELL` with an object target ...)"; objects-8 step 1: "settles `DONE` on `SMSG_LOOT_RESPONSE` for that guid" | The open-lock effect sends the loot window by itself, but core's rewards store drops a loot reply unless its window is `opening` (`rewards-store.ts:190-218` [M]), and `Rewards.open` refuses a non-unit (`rewards.ts:149-162` [M]). So `open` returns `{ ok: false, reason: "loot_open" }` when `core.rewards.snapshot().loot.phase` is not `closed`, and otherwise calls `core.rewards.requestOpen(guid)` (`rewards-store.ts:135` [M]) before it sends the cast. objects-8 calls `rewards.abandonOpen()` when the step ends `FAILED` or `UNCONFIRMED` | not yet ruled by the maintainer |
+| SR1-objects-8 | objects-8 step 3: "loot through `lootCorpse(run, guid)` (`loops/loot-run.ts:47`) for the object guid. If that function needs a corpse, stop as `blocked` and name `loops/loot-run.ts`" | It needs a corpse: `awaitCorpse` and `tryOpen` wait for a dead unit and call `rewards.open` (`loot-run.ts:156-186` [M]). objects-8 gets a new lease on harness `loops/loot-run.ts` (no other holder): it exports one function `lootObject(run, guid)` that waits for `loot_opened` for that guid and then runs the take, money and close steps that `lootOpened` runs today, and it leaves `lootCorpse` unchanged. Amends the plan "Leases" table (one row) and the contract 2.7 "Leases added by the plan fix-up" table (one row) | not yet ruled by the maintainer |
+| SR1-objects-9 | Contract issue 3: "`loops/quest-cycle.ts` ... the lease list names only `loops/quest-objective.ts` for `objects`"; objects-11 step 1: "`encounter-cycle-objective.test.ts` or a new `quest-cycle-object.test.ts`" | Closed by the plan fix-up (contract 2.7, `loops/quest-cycle.ts` for objects). objects-11 holds both loop files; no later task is queued for them. objects-11 creates the new `quest-cycle-object.test.ts` and does not edit `encounter-cycle-objective.test.ts` | not yet ruled by the maintainer |
+| SR1-objects-10 | Contract issue 5: "Contract 3.8 asks for one proof row per owned opcode, but objects-1 creates the doc before any owned opcode is built ... If a check requires every row from the first commit, the builder reports it" | Stands. No check compares proof rows with `owns` today (`mise protocol:cite-check` reads citations only) [M, `rg`]. An owned opcode that no landed task has built stands under "Left out" as "built by objects-<n>"; the task that builds it moves it into the proof table. The four objects-6 opcodes stay under "Left out" through Gate A. Amends contract 3.8: "Every opcode in the area's `owns` has exactly one row" holds at the gate of the phase whose task builds the opcode | not yet ruled by the maintainer |
+| SR1-objects-11 | Contract issue 6: "Quest 3904 needs 3903, which needs 33 ... if 3903 is not rewarded, `t4-objects-quest-elwynn` cannot start without GM, and the task stops as `blocked`" | The chain holds (`quest_template_addon.sql:2171-2172`) [M]. `soap gm quest add` runs `Player::CanAddQuest`, which checks the quest log and the source item only, not the previous quest (`Commands/cs_quest.cpp:86-88`, `Entities/Player/PlayerQuest.cpp:266-288`) [M], so the GM staging of objects-4 and objects-11 works on any new account. objects-8 keeps its `soap truth` check first. If 3903 is not rewarded on `elwynn10`, objects-8 does not stop: it lands the tool commit and `t0-objects-read-shrine`, leaves `t4-objects-quest-elwynn` out (no JSON, no `ROUND_1` line, no doc rows), counts as landed, and names the gap in its report; the coordinator then adds a task for another object quest or preset. objects-10 and objects-11 do not need that scenario | not yet ruled by the maintainer |
+| SR1-objects-12 | objects-4 step 2: "`buildCastSpell` with an object target ...; `buildUseItem` with an object target ... Callers that pass a unit keep working"; plan "Leases": `protocol/item.ts` "items-1 (A) → objects-4 (A) → talents-5a (C)" | Both builders stay compatible with their one caller, `combat-casts.ts:69`, `:90` [M], which is under the spells lease: `buildCastSpell` takes `bigint \| SpellTarget` as its third argument (a bigint writes today's bytes), and `ItemUseRequest` gains an optional `target?: SpellTarget` (omitted writes mask 0). objects-4 edits no caller. objects-4 starts after items-1 lands; the plan index lists only objects-1 as its dependency, so the coordinator adds that wait | not yet ruled by the maintainer |
+| SR1-objects-13 | objects-4 step 4: "a `LOCK_KEY_SKILL` lock picks the first known spell ... a `LOCK_KEY_ITEM` lock returns the key item"; proof: "whether a new character knows it could not be determined" | The choice also covers `LOCK_KEY_SPELL`: it returns the lock's own spell even when the character does not know it, because the server allows that cast (`Handlers/SpellHandler.cpp:448-461`, `Entities/GameObject/GameObject.cpp:3061-3067`) [M]. For `LOCK_KEY_SKILL`, the spell pick follows `GameObject::GetSpellForLock` (`GameObject.cpp:3035-3092`), and the builder checks the skill test against `Spell.cpp:8707-8760`. The type of lock 43 could not be determined here (no `Lock.dbc` on disk); the `lock-catalog` test records it. If the new `elwynn1` character knows no spell that opens lock 43, the live proof runs `mise factory soap gm <ACCOUNT> learn <spell>` on that character first (R12), and objects-8 reports `t4-objects-quest-elwynn` as at risk, because an eval allows no GM command | not yet ruled by the maintainer |
+| SR1-objects-14 | Leases of objects-1: `protocol/entity-queries.ts` ("full `SMSG_GAMEOBJECT_QUERY_RESPONSE` body") and `protocol/extract-fields.ts` ("`createdBy`, `dynFlags`, `pathProgress`") | objects-1 holds both from `SEED-1`, with their tests; no later task is queued (vehicles reads only). The legacy handler in `world-handlers-entity.ts` (remote-motion-1's lease) needs no edit, as step 2 states; if the new result type breaks it, objects-1 stops `blocked` | not yet ruled by the maintainer |
+| SR1-objects-15 | Design 5.4 "Decisions (not yet ruled)": "`objects` owns the target writer; the watcher lives in core ...; report use follows every use; arrival triggers are not sent; reads are graded by a fixed phrase; the worker checks which open-lock spell a new character knows" | Each stands as the design states (objects-2, 4, 5, 8). The watcher in core is an exception to "behaviour in the harness", because the server expects the trigger from every client and the watcher chooses nothing | not yet ruled by the maintainer |
+| SR1-objects-16 | objects-7 files: "`docs/harness.md` (the `look`, `travel` and `interact` lines only)" | Contract 2.6 lets a task only append a row for a new tool to `docs/harness.md`, and the plan "Leases" table has no row for that file, so an edit to an existing tool's line is outside ownership (contract 0.9). A lease on an existing tool module also covers that tool's lines in `docs/harness.md`, as D13 does for `contract/details.ts`. objects-7 edits only the `look`, `travel` and `interact` lines. Amends contract 2.7 (the D13 sentence) and D13 | not yet ruled by the maintainer |
 
 ## COMPLETE

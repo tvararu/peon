@@ -191,6 +191,8 @@ Each is **not yet ruled by the maintainer**.
 
 ## spells-1: Channels
 
+Rulings: SR1-spells-1, SR1-spells-2, SR1-spells-3, SR1-spells-4, SR1-spells-5.
+
 **Files:**
 - Create: `areas/spells/protocol.ts`, `areas/spells/store.ts`,
   `areas/spells/runtime.ts` and their tests
@@ -297,6 +299,8 @@ pushback and end, and halt cancels a running channel.
 
 ## spells-3: Aura cancel
 
+Rulings: SR1-spells-9, SR1-spells-10.
+
 **Files:**
 - Modify: `areas/spells/protocol.ts`, `runtime.ts`, `area.ts`,
   `opcodes.ts` and tests; `packages/core/test-support/areas/spells.ts`
@@ -354,6 +358,8 @@ silence, and sends the empty growth-aura cancel the server accepts.
 ---
 
 ## spells-4: Action bar writes
+
+Rulings: SR1-spells-6, SR1-spells-7.
 
 **Files:**
 - Modify: `areas/spells/protocol.ts`, `store.ts`, `runtime.ts`,
@@ -421,6 +427,8 @@ sends no reply.
 ---
 
 ## spells-5: Spellbook housekeeping
+
+Rulings: SR1-spells-3, SR1-spells-8.
 
 **Files:**
 - Modify: `areas/spells/protocol.ts`, `store.ts`, `area.ts`,
@@ -528,6 +536,8 @@ writes no log row.
 
 ## spells-12a: The spell tool: cast, cancel aura and bar
 
+Rulings: SR1-spells-11, SR1-spells-12, SR1-spells-13.
+
 **Files:**
 - Create: `packages/harness/src/areas/spells/tool.ts`, `tool-cast.ts`,
   `tool-aura.ts`, `tool-bar.ts` and tests
@@ -623,6 +633,8 @@ check reads the session until truth covers the bar.
 ---
 
 ## spells-12b: Stop ends channels, engage waits
+
+Rulings: SR1-spells-5, SR1-spells-14, SR1-spells-15, SR1-spells-16, SR1-spells-17.
 
 **Files:**
 - Modify (lease): `tools/stop.ts` and test; `tools/engage*.ts` and
@@ -1125,5 +1137,43 @@ writes their proof rows):
 The client direction of `MSG_CHANNEL_START` and `MSG_CHANNEL_UPDATE` is
 `Handle_NULL` in `Server/Protocol/Opcodes.cpp`; only the server direction
 is built (spells-1).
+
+## Seed rulings (SEED-1)
+
+The coordinator rules every open issue, lease request and decision of
+this file that a wave-1 task (`spells-1`, `-3`, `-4`, `-5`, `-6`,
+`-12a`, `-12b`) meets. Each ruling is **not yet ruled by the
+maintainer**. A lease line below goes into the plan index "Lease
+handovers" as a `COORD-<n>` line when its holder lands (contract 2.7,
+D12). A lease on a legacy file `<name>.ts` includes `<name>.test.ts` in
+the same directory and nothing else.
+
+| Id | Issue (source) | Ruling | Status |
+|---|---|---|---|
+| SR1-spells-1 | Issue 1: "The plan keeps the state in `CombatCasts` (`core.combat.casts`, public at `combat-store.ts:63`) and exposes it through `SpellsState.channel`" (spells-1) | Stands. The channel state stays in `combat-casts.ts`; `SpellsState.channel` reads `core.combat.casts.channel` at snapshot time; `channel_start` and `channel_end` are area events. `combat-types.ts` and `combat-store.ts` get no edit. `halt()` cancels through `interruptCast()` and `casts.cancel()`, so `combat.ts` gets no edit | not yet ruled by the maintainer |
+| SR1-spells-2 | Leases table: "`combat.test.ts` \| spells-1 \| one test: `halt()` cancels a running channel (`combat.ts` itself needs no edit, see issue 1)"; the plan index "Leases" row is `combat.ts` spells-1 (spells-1) | Lease: spells-1 holds `combat.ts` with `combat.test.ts` and edits only `combat.test.ts` (one test). No next holder | not yet ruled by the maintainer |
+| SR1-spells-3 | Leases table: "`combat-casts.ts` and test \| spells-1" and "`combat-casts.ts`, `cooldown-store.ts` and tests \| spells-5"; spells-5 "Depends on: spells-1 (the `combat-casts.ts` lease passes on when it lands)" (spells-1, spells-5) | Lease: spells-1 holds `combat-casts.ts` and its test, then spells-5, then talents-5a (phase C). spells-1 edits only the members its lease row names; spells-5 adds only `shiftCooldown` | not yet ruled by the maintainer |
+| SR1-spells-4 | Issue 9: "`combat-casts.ts` imports `buildCancelChannelling` from `#wow/areas/spells/protocol`" (spells-1) | Allowed as written: contract 0.3 lets core runtime import any `#wow/*` module, and contract 1.12 limits only area imports. `areas/spells/protocol.ts` imports no value from `combat-casts.ts` or any other legacy module (the allow-list of contract 1.12 holds), so there is no import cycle | not yet ruled by the maintainer |
+| SR1-spells-5 | Decision: "A new cast or item use while a channel runs is refused with `channelling`. The harness waits (spells-12b)" (spells-1, spells-12b) | Stands (design 5.10). Between the landings of spells-1 and spells-12b, the fight loop reads `channelling` as a cast error. The wave's eval round runs after both land | not yet ruled by the maintainer |
+| SR1-spells-6 | Issue 2: "`SMSG_ACTION_BUTTONS` is legacy-handled (`action-bar.ts:18-21`) ... If `SEED-1` lists it in `owns`, the area cannot register it" (spells-4) | `SEED-1` keeps `SMSG_ACTION_BUTTONS` in `SPELLS_OPCODES.owns`, with no `stubs` line (it is not in `STUBS` since #422). The area never registers it. Coverage renders it `handled` from the legacy handler (design 3.4 `owns`; step0 test 19 renders `handled` for any `on` handler). spells-4 writes its proof row only. If a registry or coverage test still requires an area handler for every owned opcode, spells-4 stops `blocked` and the coordinator moves the opcode to `uses` in a `COORD-<n>` commit | not yet ruled by the maintainer |
+| SR1-spells-7 | Leases table: "`action-bar.ts` and test \| spells-4 \| `ActionBarStore.set(slot, button \| undefined)`" (spells-4) | Lease: spells-4 holds `action-bar.ts` and its test and adds only `set`. The runtime act calls it through `core.actionBar`, with a type-only import. No next holder | not yet ruled by the maintainer |
+| SR1-spells-8 | Issue 3: "`cooldown-store.ts` is on no lease ... Without the lease, spells-5 stops as `blocked`" (spells-5) | Granted. Contract 2.7 "Leases added by the plan fix-up" names `cooldown-store.ts` for spells, and the plan index "Leases" row is `cooldown-store.ts` spells-5. spells-5 holds it with its test and adds only `CooldownStore.shift`; the store reaches it through `CombatCasts.shiftCooldown` (SR1-spells-3). No next holder | not yet ruled by the maintainer |
+| SR1-spells-9 | spells-3 step 2: "the builder reads the attribute bits from `spell-catalog.ts` and states any it cannot see" (spells-3) | The area reads the definition at run time through `core.combat.definition(id)` (`combat-store.ts:108-110`), with a type-only import of `SpellDefinition`. It imports no value from `#wow/spell-catalog`, which is not on the allow-list of contract 1.12, and it takes no lease on `spell-catalog.ts` (objects-4 holds it). The builder cites the passive and `SPELL_ATTR0_NO_AURA_CANCEL` bit values from AzerothCore `SharedDefines.h` | not yet ruled by the maintainer |
+| SR1-spells-10 | Decision: "`CMSG_CANCEL_GROWTH_AURA` is built (N24); proof `accepted`" (spells-3) | Stands (design N24 names the opcode) | not yet ruled by the maintainer |
+| SR1-spells-11 | Leases table: "harness `tools/journal.ts`, its `journalParams` block in `tools/params.ts`, the `journal` `After` block in `contract/details.ts` \| spells-12a, then spells-14" (spells-12a) | Lease: the `journalParams` block and the `journal` `After` block ride with the `tools/journal.ts` lease (contract 2.7 fix-up row for `tools/params.ts`, D13). spells-12a takes all three when quests-4 lands (queue items-5b, quests-4, spells-12a, then world-8b). It does not wait for the holders of other blocks of `tools/params.ts` or `contract/details.ts` (objects-7, travel-5, quests-2) and edits no other block. The new tool keeps its own `After` type and parameters in `areas/spells/tool*.ts` (contract 1.9) | not yet ruled by the maintainer |
+| SR1-spells-12 | Decision: "`spell do:"cast"` for unit and self targets lands here (spells-12a); `objects` adds object, item and ground targets and `self-state` adds `mount` and `dismount` later" (spells-12a) | Stands for spells-12a: unit and self targets only. The later lease on `areas/spells/tool.ts` (self-state-10a, phase C) is ruled at its seed | not yet ruled by the maintainer |
+| SR1-spells-13 | Issue 8: "`t4-spells-action-bar` grades from the session only (no truth pick for the bar), so its best verdict is `partial`. D16 covers `fail` and `blocked`" (spells-12a) | Stands (design 5.10: "partial until truth has the bar"). A `partial` verdict is not a pass: the commit adds the bullet "- Set the action bar (`t4-spells-action-bar`, no server truth for the bar)." under "Not shown by any scenario" and no table row (contract 3.4, D16). The scenario, its `ROUND_1` entry, the bullet and the `docs/evals.md` row land in one commit (D15) | not yet ruled by the maintainer |
+| SR1-spells-14 | Issue 4: "The `channel_start` steer trigger has no owner ... spells-12b asks the coordinator for a `COORD` commit that adds `channel_start` mapped to `spells/channel_start`" (spells-12b) | Granted (design 5.10: the scenario "needs a `channel_start` steer trigger in the grader"). The coordinator adds it in one `COORD-<n>` commit after `SEED-1` (which makes `spells/<event>` a `LogEvent`) and before spells-12b starts: `"channel_start"` appended to `TriggerName` (`grader/scenarios.ts`), the sorted key `channel_start: ["spells/channel_start"]` in `TRIGGER_EVENTS` (`grader/watch.ts`) and in the expected map of `grader/watch-rows.test.ts`, and `"channel_start"` appended to both trigger `enum` lists of `grader/scenario.schema.json`. The scenario steers on `channel_start`; the `fight_start` fallback is withdrawn | not yet ruled by the maintainer |
+| SR1-spells-15 | Issue 5: "The fight loop and Jev observation live in `loops/` ... None is on a lease list. spells-12b and spells-13 need them" (spells-12b) | Lease: spells-12b holds `loops/combat-actions-spells.ts` and `loops/combat-rejections.ts` (no next holder) and `loops/combat-actions-observation.ts` (next combat-log-7b, then spells-13), each with its test. Jev's channel line goes in `combat-actions-observation.ts`; spells-12b edits no `jev/*` file | not yet ruled by the maintainer |
+| SR1-spells-16 | Leases table: "harness `tools/stop.ts` ... \| spells-12b \| the stop text names the ended channel" (spells-12b) | Lease: spells-12b holds `tools/stop.ts` with its test, and the `stop` `After` block of `contract/details.ts` rides with it (D13). No next holder | not yet ruled by the maintainer |
+| SR1-spells-17 | Leases table: "harness `tools/stop.ts`, `tools/engage*.ts` \| spells-12b \| ... engage waits for a channel"; spells-12b Files: "`tools/engage*.ts` and tests as needed" (spells-12b) | Refused. The plan index "Leases" gives the engage files to other tasks (`engage.ts` self-state-10b, `engage-approach.ts` threat-3c, `engage-tally.ts` combat-log-7b, `engage-choose.ts` pvp-11d) and none to spells-12b. The builder puts the wait for a channel in the fight loop it holds (`loops/combat-actions-spells.ts`, `loops/combat-rejections.ts`, `timeoutOutcome` in `loops/combat-actions-observation.ts`, SR1-spells-15). If a test shows that an `engage*.ts` member must change, spells-12b stops `blocked` and names the file and the member | not yet ruled by the maintainer |
+
+**Left for later seeds.** Only tasks of later waves meet these, so this
+pass does not rule them: issue 6 (`tools/look.ts`, spells-13, wave 2),
+issue 7 (client opcodes with no live path: spells-8 wave 2, spells-10
+and spells-11 wave 4), and the decisions on automatic mirror-image
+requests and the missile `moveStop` tail (spells-10, spells-11) and on
+`t4-spells-destroy-totem` (spells-14, wave 3). spells-6 meets no open
+issue.
 
 ## COMPLETE

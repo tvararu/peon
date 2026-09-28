@@ -178,6 +178,8 @@ plan works around each one as stated, and the coordinator decides.
 
 ## items-1: Read the full item template
 
+Rulings: SR1-items-1, SR1-items-9 (section "Seed rulings (SEED-1)").
+
 **Phase:** 1. **codeArea:** `items`. **Depends on:** item6, R0, S0-5,
 SEED-1. **Size:** S.
 
@@ -252,6 +254,8 @@ fields. No GM.
 
 ## items-2: Read item enchant, timer, charge and ammo fields
 
+Rulings: SR1-items-1, SR1-items-9, SR1-items-10, SR1-items-11 (section "Seed rulings (SEED-1)").
+
 **Phase:** 1. **codeArea:** `items`. **Depends on:** items-1. **Size:** S.
 
 **Opcodes:** none owned. Update fields only.
@@ -303,6 +307,8 @@ timed item's `duration`. The report quotes both values.
 ---
 
 ## items-3a: Equip, unequip, move and split in core
+
+Rulings: SR1-items-1, SR1-items-2, SR1-items-3, SR1-items-5, SR1-items-6, SR1-items-9, SR1-items-10 (section "Seed rulings (SEED-1)").
 
 **Phase:** 1. **codeArea:** `items`. **Depends on:** items-1, items-2,
 T-2, T-3, T-4, and Contract issues 2 (allow-list) and 4 (helper name).
@@ -429,6 +435,8 @@ inside bags (design 5.3 "Risks"), which items-5c needs. Proof rows:
 
 ## items-3b: Correlate inventory failures in the legacy stores
 
+Rulings: SR1-items-1, SR1-items-3, SR1-items-4, SR1-items-5, SR1-items-6, SR1-items-9 (section "Seed rulings (SEED-1)").
+
 **Phase:** 1. **codeArea:** `items`. **Depends on:** items-3a and the
 leases of Contract issues 1. **Size:** M.
 
@@ -477,6 +485,8 @@ verdicts. No proof row: the task owns no opcode.
 ---
 
 ## items-4: Open containers and read items
+
+Rulings: SR1-items-2, SR1-items-3, SR1-items-7, SR1-items-9, SR1-items-10 (section "Seed rulings (SEED-1)").
 
 **Phase:** 1. **codeArea:** `items`. **Depends on:** items-3a. **Size:** M.
 
@@ -547,6 +557,8 @@ verdicts. No proof row: the task owns no opcode.
 
 ## items-5a: The gear tool and the items log rows
 
+Rulings: SR1-items-1, SR1-items-9 (section "Seed rulings (SEED-1)").
+
 **Phase:** 1. **codeArea:** `items`. **Depends on:** items-3a, items-4,
 S0-3, S0-4. **Size:** L.
 
@@ -610,6 +622,8 @@ states that no gameplay claim is made yet.
 
 ## items-5b: Positions and marks in journal bags
 
+Rulings: SR1-items-1, SR1-items-9 (section "Seed rulings (SEED-1)").
+
 **Phase:** 1. **codeArea:** `items`. **Depends on:** items-5a and the
 `tools/journal.ts` lease. **Size:** M.
 
@@ -642,6 +656,8 @@ states that no gameplay claim is made yet.
 ---
 
 ## items-5c: Six gear scenarios
+
+Rulings: SR1-items-8 (section "Seed rulings (SEED-1)").
 
 **Phase:** 1. **codeArea:** `items`. **Depends on:** items-5b. **Size:** L
 (eval runs).
@@ -701,6 +717,8 @@ and its doc rows only):
 ---
 
 ## items-8: Load ammo
+
+Rulings: SR1-items-1, SR1-items-2, SR1-items-8, SR1-items-9, SR1-items-12 (section "Seed rulings (SEED-1)").
 
 **Phase:** 1 (N22). **codeArea:** `items`. **Depends on:** items-2,
 items-5c. **Size:** S.
@@ -1127,3 +1145,208 @@ server, which accepts the opcode (`Handlers/ItemHandler.cpp:62-98` [M,
 design]), so it stays relevant.
 
 ## COMPLETE
+
+## Seed rulings (SEED-1)
+
+The coordinator rules here every open issue, lease request and decision
+of this file that a wave-1 task (items-1 to items-5c, items-8) meets.
+Precedence: the design, then the plan index with the contract and the
+Gate R rulings, then this file. Contract issue 3 (`SMSG_EQUIPMENT_SET_SAVED`)
+is met only by items-9 (phase 3), so it is left for the `SEED-3` pass.
+Each ruling is **not yet ruled by the maintainer**.
+
+### SR1-items-1: the wave-1 leases
+
+**Issue.** "Leases this unit needs" asks for seven lease rows, and
+Contract issues 1 says: "items-3b therefore needs the five store files
+under lease as well. If the coordinator does not grant them, items-3b
+becomes a `COORD-<n>` commit built from its plan body".
+
+**Ruling.** Granted. Contract 2.7 ("Leases added by the plan fix-up")
+already names every file, and the plan index "Leases" table queues items
+first in each row. The coordinator assigns these leases at `SEED-1`; each
+holder hands its lease on when its task lands (D12), with one
+`COORD-<n>` line in the plan index "Lease handovers":
+
+| File | Holder | Next holder |
+|---|---|---|
+| core `protocol/item.ts` and `protocol/item.test.ts` | items-1 | objects-4 (A), then talents-5a (C) |
+| core `item-use.ts` | items-1 (edit only if the wider `ItemTemplate` breaks it) | none |
+| core `inventory.ts` and `inventory.test.ts` | items-2 | economy-1 (A), then economy-9 (C) |
+| core `protocol/inventory.ts` and its test | items-3a | none; `economy` and `guild` import the helper, which needs no lease |
+| core `gameplay-handlers.ts` | items-3b | travel-4 (C) |
+| core `gameplay-handlers-stores.test.ts` | items-3b | none |
+| core `destroy-store.ts`, `quest-errors.ts`, `rewards-store.ts` | items-3b | none |
+| core `vendor-store.ts` | items-3b | none in the table (economy issue 4 decides whether economy-1 takes it) |
+| core `quest-store.ts` | items-3b | quests-7b (B), then economy-9 (C), then economy-11 (D) |
+| harness `tools/journal.ts` and its test, with the `JournalAfter` block of `contract/details.ts` (D13) | items-5b | quests-4 (A) |
+
+The plan index row `core: gameplay-handlers-stores.ts` means the test
+file `gameplay-handlers-stores.test.ts`; no source file of that name
+exists [M, `ls packages/core/src/wow`]. items-5b holds only the
+`JournalAfter` block of `contract/details.ts` (contract 2.7: a lease
+names one file or one named block; D13). It edits no other block and no
+`contract/views.ts` member. items-5a, items-5b and items-8 edit no line of
+`tools/params.ts`: the `gear` parameters live in `areas/items/tool.ts`
+(contract 1.9), and the `journal` `about` enum does not change.
+
+### SR1-items-2: the area import allow-list
+
+**Issue.** Contract issues 2: "items-3a needs `#wow/inventory` and
+`#wow/player-state` on the allow-list. The coordinator adds them at
+`SEED-1` or on the first `blocked` report."
+
+**Ruling.** Granted, at `SEED-1`. `readInventory` (`inventory.ts:309` [M])
+and `readLife` (`player-state.ts:45` [M]) are pure reads over an
+`EntityLookup`, and the area store gets `deps.getEntity` through
+`SessionDeps` (`session-stores.ts:17-22` [M]). They send nothing and
+hold no state, like the `#wow/protocol/*` modules. The coordinator adds
+both specifiers to the value allow-list in
+`packages/core/src/wow/areas/registry.test.ts` and to the list in
+contract 1.12, in one `COORD-<n>` commit before items-3a starts. economy
+issue 6 asks for the same `#wow/inventory` entry, so one edit serves
+both units. items-3a, items-4 and items-8 read the inventory and
+`ammoId` only through `readInventory`, and life only through `readLife`.
+
+### SR1-items-3: the correlation helper names
+
+**Issue.** Contract issues 4: "This plan fixes `ownsInventoryFailure`,
+`isNoChange` and `InventoryClaim` in `protocol/inventory.ts`. Not in the
+contract; the coordinator confirms or renames before items-3a starts."
+
+**Ruling.** Confirmed as named; this ruling stands in for a line in
+contract 2.5 (row `items`). The exports of `protocol/inventory.ts` are:
+
+- `type InventoryClaim = { readonly itemGuid: bigint | undefined }`;
+- `ownsInventoryFailure(packet: InventoryChangeFailure, mine:
+  InventoryClaim, others: readonly (InventoryClaim | undefined)[]):
+  boolean`, the rule of design 5.3 "Shared failure packet";
+- `isNoChange(packet: InventoryChangeFailure): boolean`, true for result
+  59.
+
+items-3a may add `NONE: 59` to `InventoryResult` under the same lease.
+`economy.md` (issue 6, economy-1, economy-9) and `guild.md` (guild-6)
+already use these names, so no other unit file changes.
+
+### SR1-items-4: the legacy fan-out in items-3b
+
+**Issue.** items-3b step 2 says the handler "calls each settle only when
+`ownsInventoryFailure` holds for it, and skips `isNoChange` packets",
+while step 1 says "The rewards store still records `lastInventoryError`
+for every error packet". The two sentences disagree for the rewards store.
+
+**Ruling.** In the `SMSG_INVENTORY_CHANGE_FAILURE` handler:
+
+- A result-59 packet (`isNoChange`) reaches no legacy store except
+  `combat`. The rewards store does not record it as `lastInventoryError`.
+- Every other packet reaches `rewards.receiveInventoryFailure` as today.
+  The handler passes the ownership result as a second argument, and the
+  store clears its `take` request only when it owns the failure. The
+  `ok` packet (result 0) clears `lastInventoryError` as today.
+- `destroy`, `vendor` and `quests` get the packet only when
+  `ownsInventoryFailure` holds for their claim.
+- `combat.applyInventoryFailure` gets every packet, as today
+  (`combat-store.ts:260-265` [M] matches on `item1`).
+
+### SR1-items-5: the legacy claims before and after items-3b
+
+**Issue.** items-3a step 4 says "The store reads the legacy claims
+through `core` (destroy request, vendor buy, quest accept or reward, loot
+take) for the `others` list", but the `inventoryClaim()` reads arrive
+only in items-3b, after items-3a.
+
+**Ruling.** items-3a builds the `others` list from the existing public
+reads of the `CoreStores` members (`destroy`, `vendor`, `quests`
+`pending`, `rewards` `pending`), through their existing entry points
+(contract 1.2). items-3b adds `packages/core/src/wow/areas/items/store.ts`
+and its test to its file list, and switches the `others` list to the
+new `inventoryClaim()` reads, so the area and the legacy handler use one
+claim rule. That file is unit-owned (contract 2.5), so no lease applies.
+
+### SR1-items-6: one-way cross-talk
+
+**Issue.** Contract issues 5: "The cross-talk goes one way and ends in a
+timeout, not a wrong refusal."
+
+**Ruling.** Accepted as stated. A legacy store cannot import the area
+store (contract 1.12), so a failure with `item1` 0 while an item move
+and a legacy request are both pending settles the legacy request, and
+the move ends `move_unanswered`. items-3a has a rig test that pins this
+outcome.
+
+### SR1-items-7: opening a container through the rewards store
+
+**Issue.** Contract issues 7: "items-4 calls
+`core.rewards.requestOpen(itemGuid)` before it sends `CMSG_OPEN_ITEM`. If
+that path cannot open the window, items-4 stops as `blocked` and asks for
+a lease on `rewards.ts`."
+
+**Ruling.** The plan's path stands: the runtime calls the existing
+`requestOpen` entry point of `core.rewards` (contract 1.2 lets an area
+call `core` through its existing entry points). A pre-emptive lease on
+`rewards.ts` is refused: no task meets it yet, and no row of contract 2.7
+names it. If the live proof shows that the loot window does not open,
+items-4 stops `blocked` with the evidence, and the coordinator rules
+then.
+
+### SR1-items-8: scenario ids
+
+**Issue.** Contract issues 6: "This plan uses `t8-items-<slug>` ... The
+plan index must list them (contract 3.7)."
+
+**Ruling.** The ids stand. The plan index "Scenarios" table lists
+`t8-items-equip-upgrade`, `t8-items-unequip`, `t8-items-move`,
+`t8-items-split`, `t8-items-open`, `t8-items-read` (items-5c) and
+`t8-items-ammo` (items-8) at tier t8 [M]. No action.
+
+### SR1-items-9: the design 5.3 decisions
+
+**Issue.** Design 5.3 "Decisions (not yet ruled)": "who fixes the failure
+correlation in the other four stores (proposal: the `items` worker, under
+a lease on `gameplay-handlers.ts`); "better" is item level only; never
+auto-equip; the worker picks and records item ids; ammo moves to NS1."
+
+**Ruling.** Each stands as the design proposes: items-3b fixes the four
+stores under the SR1-items-1 leases; the `items/upgrade` wake (items-5a)
+and the journal `upgrade` mark (items-5b) compare item level only; the
+harness never equips on its own; each live task picks its item ids and
+records them in its report and in `docs/areas/items.md` "Wire notes";
+items-8 is phase 1.
+
+### SR1-items-10: new probe flow files and the loader test
+
+**Issue.** Not in the list above; found while ruling. The loader test
+asserts the exact flow set: `expect([...flows.keys()].sort()).toEqual(["login",
+"nearest", "talk"])` (`packages/devtools/src/probe-flows.test.ts:116`
+[M]). items-2 (`items-snapshot.ts`), items-3a (`items-move.ts`) and
+items-4 (`items-open.ts`) each add a flow file, so `mise ci:checks` fails
+on a file that T-3 owns and no items task may edit (contract 0.9).
+
+**Ruling.** The coordinator changes that assertion in one `COORD-<n>`
+commit before the first area flow lands (threat-1's `threat-fight.ts`
+meets it first): it checks that `login`, `nearest` and `talk` are
+present (`expect.arrayContaining`), not the exact set. The per-file name
+check in `loadFlows` (`probe-flows.ts:67-70` [M]) stays. Until that
+commit lands, items-2 stops `blocked` on that file.
+
+### SR1-items-11: the items-2 probe flow
+
+**Issue.** items-2 "Files" does not list
+`packages/devtools/src/probe-flows/items-snapshot.ts`; the proof and the
+commit name it, and the plan index lists it.
+
+**Ruling.** items-2 creates it; it is unit-owned (contract 2.5). It takes
+no arguments and prints `handle.getInventoryState()` as JSON
+(`client.ts:285` [M]). It needs no test file, like the landed flows
+`login`, `nearest` and `talk`, which have none [M].
+
+### SR1-items-12: the ammo log row
+
+**Issue.** items-8 step 3 checks "the game log row `items/equipped` or
+the `ammo` result with the entry", which gives the scenario two possible
+checks.
+
+**Ruling.** items-8 adds one row: a `moved` event of kind `ammo` writes
+the `log` row `items/ammo` with the entry, and `t8-items-ammo` checks
+that row (selector `items/ammo`, contract 3.1). `items/equipped` stays
+for the equip kinds of items-5a.

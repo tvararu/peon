@@ -92,6 +92,8 @@ Leases this unit needs in the plan index (contract 2.7), in build order:
 
 ## Task remote-motion-1: Spline parser, unit movement store, nine speeds
 
+Rulings: SR1-remote-motion-1, SR1-remote-motion-2, SR1-remote-motion-3, SR1-remote-motion-4, SR1-remote-motion-6, SR1-remote-motion-7, SR1-remote-motion-9 (section "Seed rulings (SEED-1)").
+
 **codeArea:** `unitmotion`. **Phase:** 1. **Size:** M.
 
 **Files:**
@@ -221,6 +223,8 @@ remote player speed messages stop dropping their value.
 ---
 
 ## Task remote-motion-2: Creature death toggles
+
+Rulings: SR1-remote-motion-5, SR1-remote-motion-7, SR1-remote-motion-8, SR1-remote-motion-9 (section "Seed rulings (SEED-1)").
 
 **codeArea:** `unitmotion`. **Phase:** 1. **Size:** S.
 
@@ -597,3 +601,215 @@ writer for both (`Entities/Unit/Unit.cpp:11037` via
 `Entities/Unit/Unit.h:658`, `:661`), so they are `unseen`, not dead.
 
 ## COMPLETE
+
+## Seed rulings (SEED-1)
+
+The coordinator rules here every open issue, lease request and decision
+of this file that a wave-1 task (remote-motion-1, remote-motion-2) meets.
+Precedence: the design, then the plan index with the contract and the
+Gate R rulings, then this file. Each ruling stands in for the contract or
+design text it names; the builder follows the ruling. Each ruling is
+**not yet ruled by the maintainer**.
+
+Left alone, because only later waves meet them: contract issue 3
+(`puppet/server.ts:121`, remote-motion-7b, wave 2); contract issue 5 (the
+speed writer citation, remote-motion-3 in wave 2 and remote-motion-5 in
+wave 4); contract issue 6 (log row names, remote-motion-7a, wave 2); the
+`conn.events.area` subscription half of contract issue 4
+(remote-motion-4, wave 2); lease rows 4 to 7 of "Leases this unit needs"
+(remote-motion-4, 7a, 7b and 6); and the design 5.15 decisions "player
+poses re-classify on a toggle", "100 ms merge window" and "`slowed`
+compares with the unit's previous speed" (remote-motion-4 and 7a). The
+`SEED-2` and `SEED-4` passes rule them.
+
+### SR1-remote-motion-1: the wave-1 leases
+
+**Issue.** "Leases this unit needs", rows 1 to 3: remote-motion-1 holds
+`protocol/movement-block.ts`, `world-handlers-entity.ts` and
+`remote-motion-handlers.ts`. The task body also edits "`world-handlers-entity.ts`
+and its test; `remote-motion-handlers.ts` and its test", and neither
+`world-handlers-entity.test.ts` nor `remote-motion-handlers.test.ts`
+exists [M, `ls packages/core/src/wow`].
+
+**Ruling.** Granted as the plan index "Leases" table queues them. The
+coordinator assigns the three leases at `SEED-1`. When remote-motion-1
+lands, the coordinator hands each on with one `COORD-<n>` line in the plan
+index "Lease handovers":
+
+| File | Holder | Next holder |
+|---|---|---|
+| core `protocol/movement-block.ts` and `protocol/movement-block.test.ts` | remote-motion-1 | vehicles-1 (C), then vehicles-6 (C) |
+| core `world-handlers-entity.ts` and a new `world-handlers-entity.test.ts` | remote-motion-1 | none |
+| core `remote-motion-handlers.ts` and a new `remote-motion-handlers.test.ts` | remote-motion-1 | remote-motion-4 (B), then remote-motion-6 (D) |
+
+A lease on a legacy file also covers its colocated test file of the same
+stem, and the holder may create that test file. The existing tests
+`world-handlers-entity-lifecycle.test.ts` and
+`world-handlers-entity-queries.test.ts` are in the lease only for a fix
+that the leased change forces; the builder adds new cases to the new
+test file. remote-motion-1 does not edit `remote-motion.ts`,
+`remote-motion.test.ts` or `remote-motion-lifetime.test.ts`; those go
+with the `remote-motion.ts` lease of remote-motion-4. Not yet ruled by
+the maintainer.
+
+### SR1-remote-motion-2: the `MovementStores` edit is a `COORD` commit
+
+**Issue.** Contract issue 2: "`movement-handlers.ts:21` narrows the
+stores. ... Task 1 needs `"areas"` added to that `Pick`. ... The
+coordinator makes this one-token edit as a `COORD-<n>` commit before task
+1 starts, or hands task 1 a lease on that one line."
+
+**Ruling.** The `COORD` route. `handleNearTeleport` passes its
+`MovementStores` to `observeRemoteMovement` (`movement-handlers.ts:24-38`
+[M]), and `registerMovementHandlers` passes it to
+`registerRemoteMotionHandlers` (`movement-handlers.ts:109` [M]), so the
+wider `Pick` of remote-motion-1 does not typecheck without this edit.
+The plan index queues `movement-handlers.ts` to travel-4 (C) first, and
+no wave-1 task holds it, so no holder waits. After `SEED-1` and before
+remote-motion-1 starts, the coordinator changes
+`packages/core/src/wow/movement-handlers.ts:21` to
+`type MovementStores = Pick<SessionStores, "areas" | "motion" | "quests" | "self">;`
+in one `COORD-<n>` commit. It needs S0-1b (`SessionStores` has `areas`),
+and its callers already pass the full `SessionStores`
+(`client-handlers.ts:166`, `testStores()` in `movement-handlers.test.ts`
+[M]). The `COORD` commit runs `mise typecheck core` and `mise test
+packages/core/src/wow/movement-handlers.test.ts`. remote-motion-1 edits
+no line of `movement-handlers.ts`. The lease queue of that file does not
+change. Not yet ruled by the maintainer.
+
+### SR1-remote-motion-3: remote player speeds come through the legacy owner
+
+**Issue.** Contract issue 1: "Contract 1.12 forbids `GameOpcode.MSG_MOVE_`
+in area sources, so the area cannot `peek` them. Remote player speeds
+therefore reach the store from the legacy owner,
+`remote-motion-handlers.ts` (lease) ... `UNITMOTION_OPCODES.uses` stays
+empty."
+
+**Ruling.** Stands, with no amendment. The nine
+`MSG_MOVE_SET_*_SPEED` rows are already parsed with the `speed` layout
+(`protocol/remote-movement.ts:67-75,146` [M]). The `MOVE_SPEED_KIND` map
+lives in `remote-motion-handlers.ts`, which is legacy code and not an
+area source, so the rule of contract 1.12 does not reach it. The map
+covers all nine rows, `MSG_MOVE_SET_TURN_RATE` and
+`MSG_MOVE_SET_PITCH_RATE` included. The area source names no
+`MSG_MOVE_` opcode, and `UNITMOTION_OPCODES.uses` stays empty. Not yet
+ruled by the maintainer.
+
+### SR1-remote-motion-4: legacy code feeds the area store
+
+**Issue.** Contract issue 4: "Tasks 1 and 4 call `stores.areas.unitmotion`
+from leased legacy files ... The design plans this feed (design 5.15
+'Body gaps'; area design section 5), and no contract rule forbids legacy
+code from reading `stores.areas` [I]."
+
+**Ruling.** Stands for remote-motion-1, with no amendment. Contract 1.12
+limits area sources only, and `SessionStores.areas` is public to core
+(contract 1.6). `world-handlers-entity.ts` calls
+`stores.areas.unitmotion.seed(...)` only after the entity is in the
+entity store, so `deps.getEntity` finds it, and `remote-motion-handlers.ts`
+calls `receiveMoveSpeed(...)`. `EntityStores` in
+`world-handlers-entity.ts:28` gains `"areas"` under the lease of
+SR1-remote-motion-1. The `conn.events.area` subscription of
+remote-motion-4 is left for `SEED-2`. Not yet ruled by the maintainer.
+
+### SR1-remote-motion-5: coverage needs literal opcode names
+
+**Issue.** Contract issue 7: "Coverage reads `GameOpcode.<NAME>`
+literally (`test-support/protocol-coverage.ts:28`). Every registration
+in `areas/unitmotion/area.ts` writes `GameOpcode.SMSG_...` in full."
+
+**Ruling.** Stands. remote-motion-2 writes
+`wire.on(GameOpcode.SMSG_SPLINE_MOVE_UNSET_HOVER, ...)` and
+`wire.on(GameOpcode.SMSG_SPLINE_MOVE_GRAVITY_ENABLE, ...)` in full, and
+every later task of this unit does the same. `SPLINE_UNIT_TABLE` may key
+by opcode number, because coverage reads only the registrations. Not yet
+ruled by the maintainer.
+
+### SR1-remote-motion-6: the design 5.15 decisions that wave 1 builds on
+
+**Issue.** Design 5.15 "Decisions (not yet ruled)": "one parser table in
+the first task; ... the self events are emitted and the item 6 owner
+decides their consumer."
+
+**Ruling.** Both stand. remote-motion-1 builds the one
+`SPLINE_UNIT_TABLE` for all 25 opcodes and registers none, so later
+tasks add only `wire.on` lines. The store emits events for the
+character's own guid with `self: true`; in wave 1 nothing in control
+consumes them, and remote-motion-1 edits no control file. The owner of
+the item 6 control files decides the consumer in a later task. Not yet
+ruled by the maintainer.
+
+### SR1-remote-motion-7: `docs/areas/unitmotion.md` while the unit builds
+
+**Issue.** remote-motion-1 step 2 asks for "'Left out' listing each of
+the 25 opcodes with the task that registers it ... and an empty Proof
+table". Contract 3.8 says: "Every opcode in the area's `owns` has
+exactly one row." Contract 0.6 has no proof value for an opcode that no
+task has registered yet. GR-21 binds each citation in the file to the
+opcodes that its block names.
+
+**Ruling.** Contract 3.8 reads, for a unit that is not yet complete, as
+follows: every owned opcode is in exactly one of "Left out" (with the
+task that registers it) or "Proof" (one row). A task that registers an
+opcode moves it from "Left out" to "Proof" in the same commit. The rule
+"exactly one row" in "Proof" holds when the last task of the unit lands.
+No amendment. So remote-motion-1 writes the header row of "Proof" and no
+data rows, and remote-motion-2 adds the rows for 0x308 and 0x4D4, with
+`Source` `Entities/Unit/Unit.cpp:16273` and `Entities/Unit/Unit.cpp:16118`
+[M, both lines name their opcode at `9d4e36d81`].
+
+In "Wire notes", each citation must pass `mise protocol:cite-check`:
+`Entities/Unit/Unit.cpp:14085-14086` in the paragraph that names
+`SMSG_SPLINE_MOVE_ROOT`, and `Entities/Unit/Unit.cpp:16148-16158` in the
+paragraph that names `SMSG_SPLINE_MOVE_SET_FLYING` (the enclosing
+`SetCanFly` names the opcode at `:16179` [M]). A citation of the speed
+writer `Entities/Unit/Unit.cpp:11037-11040` goes in a paragraph that
+names no opcode (`unbound`, which passes), as in GR-21. remote-motion-1
+runs `mise protocol:cite-check docs/areas/unitmotion.md` and
+`mise lint:docs` before it reports. Not yet ruled by the maintainer.
+
+### SR1-remote-motion-8: the `unitmotion-kill` probe flow
+
+**Issue.** remote-motion-2 step 3: "in the shape of
+`probe-flows/nearest.ts` (T-3; exact signature could not be determined
+before T-3 lands) ... wait until its health is 0 or 90 s pass." Its
+proof runs `mise protocol:probe <ACCOUNT> --flow unitmotion-kill --expect
+... --expect ...`.
+
+**Ruling.** T-3 has landed. The flow is
+`packages/devtools/src/probe-flows/unitmotion-kill.ts` and exports
+`flow: ProbeFlow = { name: "unitmotion-kill", usage, run }`; `loadFlows`
+refuses a flow whose `name` is not its file stem. `run({ handle, args,
+settle })` returns `Json`. It may import `#tools/probe-flows`
+(`FlowContext`, `Json`, `ProbeFlow`, `others`, `entityType`, `summary`)
+as `nearest.ts` does, besides `@peon/core`. `settle` gives up after 5 s
+(`SETTLE_MS`, `probe-run.ts:69` [M]), so the wait of up to 90 s is the
+flow's own poll loop with `Bun.sleep`. The flow uses
+`handle.walkTowardPoint`, `handle.selectTarget` and `handle.attack`
+(`client.ts:235-257` [M]). A test for the flow's target choice and stop
+conditions over a fake `FlowContext` may go in
+`probe-flows/unitmotion-kill.test.ts` (owned through
+`probe-flows/unitmotion-*.ts`).
+
+The death toggles can arrive after the flow sees health 0, so the proof
+command adds `--wait 10 --until SMSG_SPLINE_MOVE_UNSET_HOVER --until
+SMSG_SPLINE_MOVE_GRAVITY_ENABLE`. Exit 0 and the trace outcome `handled`
+for 0x308 and 0x4D4 stay the evidence. Neither opcode is in `STUBS`
+[M, `protocol/stubs.ts`], so the concern of GR-20 does not apply: before
+remote-motion-2 the outcome is `unhandled`. Not yet ruled by the
+maintainer.
+
+### SR1-remote-motion-9: the eval reruns of wave 1
+
+**Issue.** remote-motion-1 reruns `t0-who-is-near` and remote-motion-2
+reruns `t3-ghostlands-kill`; each "must show no failure cause the R0
+baseline did not show (contract 3.6)". Neither body names the round.
+
+**Ruling.** Both are a task's own runs in phase A, so the round is 11
+(contract 3.6, plan index "Eval loop"): `mise eval run t0-who-is-near
+--round 11` in remote-motion-1 and `mise eval run t3-ghostlands-kill
+--round 11` in remote-motion-2. Each scenario runs once in this worktree
+in phase A, so neither adds `--replica`; a second run of one scenario in
+round 11 adds `--replica 2`. The D17 rule of contract 3.6 applies:
+`t3-ghostlands-kill` fails on `main`, and it must show no failure cause
+that round 0 did not show. Not yet ruled by the maintainer.

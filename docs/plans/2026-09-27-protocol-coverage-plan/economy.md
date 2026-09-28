@@ -198,6 +198,8 @@ tasks), `mise lint <path>`, `mise protocol:coverage`,
 
 ## Task economy-1: Buyback and buy into a slot
 
+Rulings: SR1-economy-2, SR1-economy-3, SR1-economy-4, SR1-economy-5, SR1-economy-6, SR1-economy-7 (section "Seed rulings (SEED-1)").
+
 **Phase:** 1 (wave 1, N22). **codeArea:** `buyback`. **Size:** S.
 
 **Files:**
@@ -342,6 +344,8 @@ player's fields, so the agent can see what it sold.
 ---
 
 ## Task economy-2: Buyback verb and eval
+
+Rulings: SR1-economy-1, SR1-economy-8, SR1-economy-9, SR1-economy-10, SR1-economy-11, SR1-economy-12 (section "Seed rulings (SEED-1)").
 
 **Phase:** 1 (wave 1, N22). **codeArea:** `buyback`. **Size:** S.
 
@@ -1704,3 +1708,233 @@ can reach through SOAP (economy-6, step 10). It is built and proven by a
 mock test, marked "not seen live".
 
 ## COMPLETE
+
+## Seed rulings (SEED-1)
+
+The coordinator rules here every open issue, lease request and decision
+of this file that a wave-1 task (economy-1, economy-2) meets.
+Precedence: the design, then the plan index with the contract and the
+Gate R rulings, then this file. Each ruling is **not yet ruled by the
+maintainer**. A ruling that says "stands in for" replaces the named
+contract text; the coordinator applies that text in one `COORD-<n>`
+commit, and until then the builder follows the ruling.
+
+Not ruled here: contract issues 2 (mail eval staging, economy-8), 8
+(`quest-store.ts` window kinds, economy-9 and economy-11) and 10 (partner
+staging, economy-5 and economy-13); the mail and bank parts of issue 3
+(economy-6, economy-9); the self-field clause of issue 6 (`PLAYER_BYTES_2`,
+economy-9); and issue 5 for economy-9. Only tasks of phases 2 to 4 meet
+them, so the `SEED-2`, `SEED-3` and `SEED-4` passes rule them.
+
+### SR1-economy-1: the scenario id (economy-2)
+
+**Issue.** Contract issues 1: "Contract 3.7 says the plan index lists
+every scenario id. The index file does not exist at plan time ... The
+coordinator copies them into the index."
+
+**Ruling.** Closed, no action. The plan index "Scenarios" table lists
+`t5-buyback-vendor` at tier t5 for economy-2 in phase A [M, plan index
+line 543]. The ids of the later waves are in the same table.
+
+### SR1-economy-2: the buyback peeks (economy-1)
+
+**Issue.** Contract issues 3: "`buyback`: `SMSG_BUY_FAILED`,
+`SMSG_SELL_ITEM`, `SMSG_BUY_ITEM` (owners `gameplay-handlers.ts:349-357`
+[M]) and `SMSG_INVENTORY_CHANGE_FAILURE`."
+
+**Ruling.** Stands for the `buyback` part. economy-1 peeks the four
+opcodes and lists them in `BUYBACK_OPCODES.uses`; the legacy owners stay,
+and economy-1 takes no lease on `gameplay-handlers.ts` (items-3b holds it,
+then travel-4). The `mail` and `bank` parts of this issue wait for
+`SEED-3`.
+
+### SR1-economy-3: no `vendor-store.ts` lease (economy-1)
+
+**Issue.** Contract issues 4: "Design 5.19 says both 'the vendor store
+gains `buyback` and `buyInSlot` request kinds (a lease on
+`vendor-store.ts`)' and 'bank moves and buyback keep their own pending
+state and peek `SMSG_INVENTORY_CHANGE_FAILURE`'. This plan follows the
+second sentence." SR1-items-1 leaves the next holder of `vendor-store.ts`
+to this issue.
+
+**Ruling.** The lease is refused. economy-1 keeps the buyback pending
+state in its own store, as the second design sentence and the plan body
+say, and edits neither `vendor-store.ts` nor `vendor.ts`. items-3b stays
+the only holder of `vendor-store.ts` in wave 1, with no next holder.
+
+The design's goal (a buyback failure settles the buyback, not a legacy
+buy) holds through these rules:
+
+- `act.buyback` and `act.buyInSlot` throw while `core.vendor.pending` is
+  set (step 6), and the harness tools run one at a time under
+  `ctx.rt.mutex`. So a harness turn cannot start a legacy vendor request
+  inside the 5 s buyback wait.
+- If a legacy request starts in that window by another path, the
+  cross-talk is not only a timeout. `receiveSellFailure` settles a
+  pending legacy request that is not a buy on any `SMSG_SELL_ITEM` with
+  item guid 0 (`vendor-store.ts:181-186` [M]), so a buyback's
+  `cant_find_vendor` reply would also refuse a pending legacy sell. This
+  path is accepted as unreachable from the harness, like the one-way rule
+  of SR1-items-6.
+- The step 6 rig test that asserts that the legacy store's `pending` and
+  `lastOutcome` do not change is required, not optional. It runs with no
+  legacy request pending, which is the state the precondition
+  guarantees.
+
+If the coordinator later wants the design's first sentence, economy-1
+needs the `vendor-store.ts` and `vendor.ts` leases after items-3b; that
+reopens this ruling.
+
+### SR1-economy-4: the `inventory.ts` lease (economy-1)
+
+**Issue.** Contract issues 5: "items-2 holds the `inventory.ts` lease in
+wave 1. economy-1 needs it after items-2 lands ... If a region pushes the
+file past 500 non-blank lines (355 lines today [M, `wc -l`]), the lease
+covers one new sibling, `inventory-regions.ts`."
+
+**Ruling.** Lease, as SR1-items-1 queues it. economy-1 holds
+`packages/core/src/wow/inventory.ts` and `inventory.test.ts` (the test
+rides with the source, SR1-quests-4) when items-2 lands and the
+coordinator writes the handover line `COORD-<n>: inventory.ts from
+items-2 to economy-1`. The next holder is economy-9 (phase C). If the
+`buyback` region pushes `inventory.ts` past 500 non-blank lines, economy-1
+creates `packages/core/src/wow/inventory-regions.ts` (and its test)
+under the same lease, and the lease hands on with both files. economy-1
+edits only the `buyback` region, `ROOTS` and the `InventoryState` member
+of step 4. The economy-9 part of this issue waits for `SEED-3`.
+
+### SR1-economy-5: the allow-list and the helper names (economy-1)
+
+**Issue.** Contract issues 6: "The areas read the inventory through
+`readInventory` from `#wow/inventory`, which is outside the value
+allow-list of contract 1.12 ... The correlation helper names
+`ownsInventoryFailure`, `isNoChange` and `InventoryClaim` in
+`#wow/protocol/inventory` are fixed by items.md (issue 4)".
+
+**Ruling.** Granted through SR1-items-2 and SR1-items-3. The
+`COORD-<n>` commit of SR1-items-2 adds `#wow/inventory` and
+`#wow/player-state` to the value allow-list in
+`packages/core/src/wow/areas/registry.test.ts` and to contract 1.12
+before items-3a starts; one edit serves both units. economy-1 uses
+`readInventory` for the buyback slots and `coinage` (an
+`InventoryState` member, `inventory.ts:64` [M]), and the helper exactly as SR1-items-3 types it. That commit is not in
+economy-1's `deps` in the plan index, so economy-1 checks for it at
+start and stops `blocked` on `areas/registry.test.ts` if it has not
+landed. The `PLAYER_BYTES_2` clause (economy-9) waits for `SEED-3`.
+
+### SR1-economy-6: the legacy owners in the rig (economy-1)
+
+**Issue.** Found while ruling. economy-1 step 6 registers
+`registerVendorHandlers` (`gameplay-handlers.ts:338` [M]) and
+`registerLootHandlers` (`:269` [M], "owner of
+`SMSG_INVENTORY_CHANGE_FAILURE`"), but items-3b rewrites that handler's
+fan-out under its `gameplay-handlers.ts` lease (SR1-items-4) before
+economy-1 starts.
+
+**Ruling.** economy-1 reads `gameplay-handlers.ts` as landed and passes
+to `init.register` (D24) the exported function that registers each of
+the four peeked opcodes there. The test reads the file; it does not edit
+it. If items-3b moves a registration into a function that is not
+exported, economy-1 stops `blocked` and names the file and the function.
+The connection stub goes in `packages/core/test-support/areas/buyback.ts`
+(unit-owned), not in `test-support/mock-handle.ts` (contract 0.9).
+
+### SR1-economy-7: the probe flow file (economy-1)
+
+**Issue.** Found while ruling. economy-1 creates
+`packages/devtools/src/probe-flows/buyback-vendor.ts`, and the T-3 loader
+test pins the flow list (SR1-threat-10, SR1-items-10).
+
+**Ruling.** No new action. The `COORD-<n>` commit of SR1-threat-10 lands
+before threat-1, and threat-1 is in economy-1's dependencies. The flow
+has the shape SR1-threat-6 gives (`flow: ProbeFlow = { name:
+"buyback-vendor", usage, run }`); `args.poor` arrives as a string.
+
+### SR1-economy-8: the harness leases of economy-2
+
+**Issue.** economy-2 "Depends on": "the `interact*.ts`, `params.ts` and
+`journal.ts` leases (items-5b and travel-5 hold them first in wave 1)";
+contract issues 7: "`tools/params.ts` is not in the lease table ...
+economy-2 ... need[s] that file under the same lease as the `interact`,
+`journal` and `look` modules."
+
+**Ruling.** Leases, in the plan index queues. economy-2 starts only when
+the plan section "Lease handovers" records every handover below; its
+`deps: ["economy-1"]` in the plan index does not encode them.
+
+- `packages/harness/src/tools/interact.ts` and `interact.test.ts`: from
+  travel-5 (SR1-travel-2) to economy-2; next holder travel-6 (C).
+- The `interactParams` block of `packages/harness/src/tools/params.ts`
+  (the `do` enum gains `buyback`), as the rider of the `interact` lease
+  (contract 2.7 fix-up row, SR1-travel-1): from travel-5 to economy-2;
+  next holder travel-6 (C). If `SEED-1` splits `params.ts` by tool, the
+  lease covers the sibling that holds `interactParams`.
+- The `InteractAction` and `InteractAfter` blocks of
+  `packages/harness/src/contract/details.ts` (D13 rider of the
+  `interact` lease, SR1-travel-3 and SR1-quests-3): from travel-5 to
+  economy-2; next holder travel-6 (C).
+- `packages/harness/src/tools/journal.ts` and `journal.test.ts`: from
+  world-8b (SR1-world-5) to economy-2; next holder economy-8 (C).
+- The `JournalAfter` block of `contract/details.ts` (D13): from world-8b
+  to economy-2 in the file queue of the plan index; next holder
+  economy-8 (C). economy-2 edits it only if the buyback line needs a new
+  field in the bags details.
+- The `journalParams` block of `tools/params.ts`: economy-2 does not
+  take it, because `about: "bags"` already exists
+  (`tools/params.ts:188` [M]). The coordinator hands it from world-8b
+  directly to the next task that edits it (economy-8 in this unit).
+
+economy-2 edits no other block of `params.ts` or `details.ts` and no
+member of `contract/views.ts`. On a rebase conflict in a shared file it
+keeps the other holders' text and changes only its blocks.
+
+### SR1-economy-9: the new sibling `tools/interact-buyback.ts` (economy-2)
+
+**Issue.** economy-2 "Files": "a new sibling
+`packages/harness/src/tools/interact-buyback.ts` with its test". Contract
+2.5 does not list a file under `packages/harness/src/tools/`.
+
+**Ruling.** Allowed. economy-2 creates `tools/interact-buyback.ts` and
+`interact-buyback.test.ts` under its `tools/interact.ts` lease (contract
+2.7 names `tools/interact*.ts` for `economy`), as travel-5 does with
+`interact-bind.ts`. After economy-2 lands, the `economy` unit owns the
+two new files and no lease queue holds them. If `journal.ts` would pass
+500 non-blank lines (323 lines today [M, `wc -l`]), the buyback line
+goes in `packages/harness/src/areas/buyback/journal.ts` and its test, a
+sibling split by responsibility as SR1-world-6 allows; `tools/journal.ts`
+passes the buyback state in.
+
+### SR1-economy-10: the `interact` row of `docs/harness.md` (economy-2)
+
+**Issue.** economy-2 "Files": "`docs/harness.md` (the `interact` row of
+the tool table, one clause)"; contract 2.6 allows only "append one row"
+in that table.
+
+**Ruling.** Allowed through SR1-travel-4: the holder of the `interact`
+lease adds one clause (`buyback`) to the `interact` row. No other
+`docs/harness.md` edit.
+
+### SR1-economy-11: harness tasks with no opcode (economy-2)
+
+**Issue.** Contract issues 9: "The rule '1-8 opcodes per task' does not
+fit them, and contract 0.10 forbids merging them into the core tasks."
+
+**Ruling.** Stands, as SR1-travel-5. economy-2's proof is the
+`t5-buyback-vendor` verdict and its `docs/capabilities.md` row or bullet
+(contract 0.6). The later harness tasks of this unit are ruled the same
+way at their seeds.
+
+### SR1-economy-12: the scenario money check and the eval round (economy-2)
+
+**Issue.** economy-2 step 6: "truth `money` delta equals 0 (the buyback
+price is the sale price [I])"; step 7: "`mise eval run
+t5-buyback-vendor --round <n>`".
+
+**Ruling.** The money check stands, now [M]: the sell handler passes the
+sale money to `AddItemToBuyBackSlot(pItem, money)`
+(`Handlers/ItemHandler.cpp:723,732`), which writes it to
+`PLAYER_FIELD_BUYBACK_PRICE_1` (`Entities/Player/PlayerStorage.cpp:4113`),
+and `HandleBuybackItem` charges that field
+(`Handlers/ItemHandler.cpp:765,785`). The eval runs of step 7 use
+`--round 11` (contract 3.6: 11 for a phase-A task's own runs) and
+`--replica <k>` for a second run.
