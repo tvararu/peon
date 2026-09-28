@@ -31,7 +31,7 @@ export const SPELLS_OPCODES = {
     "SMSG_RESYNC_RUNES",
     "SMSG_ADD_RUNE_POWER",
   ],
-  uses: [],
+  uses: ["SMSG_SPELL_FAILURE"],
   stubs: [["SMSG_PLAY_SPELL_VISUAL", "Spell visual"]],
   dead: [
     "SMSG_SPELL_UPDATE_CHAIN_TARGETS",
