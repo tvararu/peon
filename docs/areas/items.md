@@ -67,10 +67,20 @@ on-use spells it read before.
   `uint32` (`Entities/Item/Item.cpp:937-939`); core reads the whole
   word as the charges.
 - `InventoryState.ammoId` is `PLAYER_AMMO_ID` of the self entity, the
-  entry of the loaded ammo.
+  entry of the loaded ammo. The bags journal marks the row of that entry
+  `loaded ammo` and names it in an `Ammo:` line.
 - Item 5806 Fool's Stout is a timed item: a copy added to a hunter's
   bags read `duration` 7200 live. The `eversong10-hunter` preset loads
   ammo 2515 Sharp Arrow.
+- A bags row is wearable when the character's class bit is set in the
+  template's allowable class (`Entities/Player/PlayerStorage.cpp:2397`)
+  and the character's level is at least the required level
+  (`Entities/Player/PlayerStorage.cpp:2448`). A wearable row whose item
+  level beats the worn item's is an `upgrade`, by item level only.
+- A bags row shows `durability C/M` when the observed durability is
+  below a quarter of the maximum, and `<time> left` while
+  `ITEM_FIELD_DURATION` is nonzero (seconds remaining,
+  `Entities/Item/Item.cpp:319-333`).
 - `CMSG_SWAP_INV_ITEM` carries the destination slot first, then the
   source slot: `SwapInventoryItem::Read` reads them in that order
   (`Server/Packets/ItemPackets.cpp:29-33`). wow_messages lists the source
