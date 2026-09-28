@@ -1,12 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
-import { dbcFiles, packDbc } from "#test-support/dbc";
 import { objectsGameObjectQueryResponseBody } from "#test-support/areas/objects";
+import { dbcFiles, packDbc } from "#test-support/dbc";
+import { elapse, withFakeTimers } from "#test-support/fake-time";
 import { EntityStore } from "#test-support/internals";
-import type { SessionDeps } from "#wow/session-stores";
-import { GameOpcode } from "#wow/protocol/opcodes";
 import { ObjectType } from "#wow/protocol/entity-fields";
+import { GameOpcode } from "#wow/protocol/opcodes";
 import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
+import type { SessionDeps } from "#wow/session-stores";
 import type { SpellCatalog, SpellDefinition } from "#wow/spell-catalog";
 
 const CHEST = 0xf1_10_2c_14_00_00_52_80n;
@@ -173,5 +174,57 @@ describe("objects runtime open lock", () => {
     } finally {
       rig.dispose();
     }
+  });
+
+  test("openLockSpell without a template queries the entry and resolves on reply", async () => {
+    const rig = rigWith(300, 0);
+    try {
+      await rig.stores.areas.objects.waitLocks();
+      const pending = rig.handle.act.openLockSpell(ENTRY);
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(
+        rig.sent
+          .filter((p) => p.opcode === GameOpcode.CMSG_GAMEOBJECT_QUERY)
+          .map((p) => [...p.body]),
+      ).toEqual([
+        [
+          0x15, 0x77, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+          0x00,
+        ],
+      ]);
+      rig.inject(
+        GameOpcode.SMSG_GAMEOBJECT_QUERY_RESPONSE,
+        objectsGameObjectQueryResponseBody({
+          data: [43],
+          displayId: 100,
+          entry: ENTRY,
+          name: "Chest",
+          type: 3,
+        }),
+      );
+      expect(await pending).toEqual({ by: "spell", spellId: 6478 });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("openLockSpell without a template reply reports no_lock_data", async () => {
+    await withFakeTimers(async () => {
+      const rig = rigWith(300, 0);
+      try {
+        await rig.stores.areas.objects.waitLocks();
+        const pending = rig.handle.act.openLockSpell(ENTRY);
+        await elapse(6000);
+        await expect(pending).resolves.toEqual({
+          need: 0,
+          ok: false,
+          reason: "no_lock_data",
+          skill: 0,
+        });
+      } finally {
+        rig.dispose();
+      }
+    });
   });
 });

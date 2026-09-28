@@ -16,6 +16,7 @@ import type {
 } from "#wow/areas/objects/store";
 import type { Entity, EntityLookup } from "#wow/entity-store";
 import { readInventory } from "#wow/inventory";
+import { buildGameObjectQuery } from "#wow/protocol/entity-queries";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { buildCastSpell } from "#wow/protocol/spell";
 import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
@@ -144,10 +145,33 @@ export function openObject(
   return { ok: true as const };
 }
 
+const TEMPLATE_WAIT_MS = 5000;
+const ENTRY_MASK = 0x7f_ff_ff_ff;
+
+async function waitTemplate(
+  env: Env,
+  entry: number,
+): Promise<number | undefined> {
+  const { ctx, store } = env;
+  const known = store.lockOf(entry);
+  if (known !== undefined) return known;
+  ctx.send(GameOpcode.CMSG_GAMEOBJECT_QUERY, buildGameObjectQuery(entry, 0n));
+  const settled = ctx.expect(GameOpcode.SMSG_GAMEOBJECT_QUERY_RESPONSE, {
+    timeoutMs: TEMPLATE_WAIT_MS,
+    match: (reader) => (reader.uint32LE() & ENTRY_MASK) === entry,
+  });
+  try {
+    await settled;
+  } catch {
+    return undefined;
+  }
+  return store.lockOf(entry);
+}
+
 export function queryOpenLock(env: Env, entry: number): Promise<OpenLockQuery> {
   const { store, core } = env;
-  return store.waitLocks().then((catalog) => {
-    const lockId = store.lockOf(entry);
+  return store.waitLocks().then(async (catalog) => {
+    const lockId = await waitTemplate(env, entry);
     if (lockId === undefined)
       return { ok: false, reason: "no_lock_data", skill: 0, need: 0 };
     if (lockId === 0) {
