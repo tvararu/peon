@@ -36,6 +36,8 @@ or the page names one that does not exist.
 | Load arrows for a ranged weapon | `t8-items-ammo` | |
 | Cancel one of its own buffs | `t4-spells-cancel-aura` | Harmful and passive auras cannot be cancelled. |
 | Stop a channelled spell with stop | `t4-spells-stop-channel` | Stop also ends a channel. |
+| Make an inn its home | `t8-travel-bind-inn` | `interact` `bind` walks to the innkeeper first. A bind the server does not answer (dead, out of range or in an instance) is `UNCONFIRMED`. |
+| Use the hearthstone to go home | `t8-travel-hearth-home` | `travel` `hearth` refuses without the stone, on cooldown, in combat or in flight. The scenario starts at the preset's own home, so it does not show a bind at another inn. |
 
 ## Not shown by any scenario
 

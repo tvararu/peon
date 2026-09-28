@@ -193,3 +193,4 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Game objects (area triggers) | `t4-objects-explore-fargodeep` |
 | Spells (spell tool, stop on channels) | `t4-spells-cancel-aura`, `t4-spells-action-bar`, `t4-spells-stop-channel` |
 | Reputation and hostility (journal reputation, reputation rows, unit relations) | `t4-reputation-gain`, `t0-hostiles` |
+| Travel (`interact` bind, `travel` hearth and fly) | `t8-travel-bind-inn`, `t8-travel-hearth-home` |

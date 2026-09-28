@@ -46,9 +46,29 @@ bind is pending, or `no_answer` after 5 seconds of silence.
   `SMSG_ACTIVATETAXIREPLY`: built by travel-3.
 - `CMSG_MOVE_SPLINE_DONE`: built by travel-4.
 
+## Harness verbs
+
+`interact` with `do: "bind"` makes the inn of a nearby innkeeper the
+home. It walks to the innkeeper first, sends `bindActivate` once and
+reports `Home is now <area>.` from the area's `home_set` row. The send
+must come from within the interaction distance, so the walk ends inside
+it; the server drops a bind from farther away without an answer
+(`Handlers/NPCHandler.cpp:298-307`). A silent server is `UNCONFIRMED`.
+`look` with `find: "innkeeper"` lists the innkeepers in view.
+
+`travel` with `to: "hearth"` uses the hearthstone (item 6948, spell
+8690) and waits for the teleport. The item use packet carries the full
+item guid, not the low guid
+(`Handlers/SpellHandler.cpp:58-71`), and the spell's destination is the
+home the server keeps (`Spells/Spell.cpp:1441-1444`). The step refuses
+without the stone, while the spell is on cooldown, in combat or in
+flight. A cast that ends without a teleport is `interrupted`.
+
 ## Capabilities row
 
-Proposed in travel-5.
+`t8-travel-bind-inn`: make an inn its home. `t8-travel-hearth-home`:
+use the hearthstone to go home. Both are in
+[capabilities.md](../capabilities.md).
 
 ## Proof
 
