@@ -44,6 +44,74 @@ type Corpse = "lootable" | "empty" | CycleStop;
 type Taken = { ok: true; taken: boolean } | CycleStop;
 type Items = { ok: true; taken: number[]; left: number[] } | CycleStop;
 
+export type ObjectLootRun = Pick<CycleDeps, "rewards" | "bags"> & {
+  events: EventWaiter<RewardsEvent>;
+  signal: AbortSignal;
+};
+
+export type ObjectLooted =
+  | { ok: true; record: CycleLootRecord | undefined; cause?: string }
+  | CycleStop;
+
+export async function lootObject(
+  run: ObjectLootRun,
+  guid: bigint,
+): Promise<ObjectLooted> {
+  const released = await releaseLeftover(run);
+  if (!released.ok) return released;
+  const opened = await openObjectLoot(run, guid);
+  if (!opened.ok) return opened;
+  return takeOffer(run, opened.state);
+}
+
+async function openObjectLoot(
+  run: ObjectLootRun,
+  guid: bigint,
+): Promise<Opened> {
+  for (;;) {
+    const event = await run.events.next(LOOT_SETTLE_MS, run.signal);
+    if (!event) return stop("loot_denied:timeout");
+    if (event.type === "loot_opened") {
+      const offer = event.state.loot;
+      if (offer.phase === "open" && offer.guid === guid)
+        return { ok: true, state: event.state };
+      continue;
+    }
+    if (event.type === "loot_error") return lootError(event);
+    if (event.type !== "loot_open_failed") continue;
+    const reason = event.state.lastOpenFailure?.reason ?? "unknown";
+    return stop(`loot_denied:${reason}`);
+  }
+}
+
+async function takeOffer(
+  run: ObjectLootRun,
+  state: RewardsState | undefined,
+): Promise<ObjectLooted> {
+  if (!state) return { ok: true, record: undefined };
+  const offer = state.loot;
+  if (offer.phase !== "open") return stop("loot_denied:unexpected_phase");
+  const items = await takeItems(run, state, offer);
+  if (!items.ok) return items;
+  let moneyTaken = 0;
+  if (offer.money > 0) {
+    const result = await take(run, () => run.rewards.takeMoney());
+    if (!result.ok) return result;
+    if (result.taken) moneyTaken = offer.money;
+  }
+  const closed = await closeLoot(run);
+  if (!closed.ok) return closed;
+  const record = {
+    guid: offer.guid.toString(),
+    slotsTaken: items.taken,
+    slotsLeft: items.left,
+    moneyTaken,
+    coinageBefore: state.inventory.coinage,
+    coinageAfter: run.rewards.snapshot().inventory.coinage,
+  };
+  return { ok: true, record };
+}
+
 export async function lootCorpse(run: LootRun, guid: bigint): Promise<Looted> {
   const released = await releaseLeftover(run);
   if (!released.ok) return released;
@@ -87,14 +155,14 @@ async function lootOpened(run: LootRun, guid: bigint): Promise<Looted> {
 }
 
 async function releaseLeftover(
-  run: LootRun,
+  run: ObjectLootRun | LootRun,
 ): Promise<{ ok: true } | CycleStop> {
   if (run.rewards.snapshot().loot.phase !== "open") return { ok: true };
   return await closeLoot(run);
 }
 
 async function takeItems(
-  run: LootRun,
+  run: ObjectLootRun,
   opened: RewardsState,
   offer: RewardsOpenLoot,
 ): Promise<Items> {
@@ -127,7 +195,7 @@ async function takeItems(
 }
 
 async function stackSizes(
-  run: LootRun,
+  run: Pick<ObjectLootRun, "bags" | "signal">,
   items: readonly LootItem[],
 ): Promise<Map<number, number | undefined>> {
   const entries = [...new Set(items.map((item) => item.itemId))];
@@ -139,7 +207,7 @@ async function stackSizes(
 }
 
 async function reserveStop(
-  run: LootRun,
+  run: Pick<ObjectLootRun, "rewards" | "events" | "signal">,
   item: LootItem,
   free: number | undefined,
 ): Promise<CycleStop> {
@@ -203,7 +271,7 @@ async function openLoot(run: LootRun, guid: bigint): Promise<Opened> {
 }
 
 async function take(
-  run: LootRun,
+  run: Pick<ObjectLootRun, "rewards" | "events" | "signal">,
   send: () => void,
   slot?: number,
 ): Promise<Taken> {
@@ -234,7 +302,7 @@ function takeOutcome(event: RewardsEvent, slot?: number): Taken | undefined {
   return undefined;
 }
 
-async function closeLoot(run: LootRun): Promise<{ ok: true } | CycleStop> {
+async function closeLoot(run: Pick<ObjectLootRun, "rewards" | "events" | "signal">): Promise<{ ok: true } | CycleStop> {
   const refused = request(() => run.rewards.close());
   if (refused) return refused;
   for (;;) {
