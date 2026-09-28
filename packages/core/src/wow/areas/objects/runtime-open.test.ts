@@ -5,8 +5,9 @@ import { dbcFiles, packDbc } from "#test-support/dbc";
 import { elapse, withFakeTimers } from "#test-support/fake-time";
 import { EntityStore } from "#test-support/internals";
 import { ObjectType } from "#wow/protocol/entity-fields";
+import type { ItemTemplate } from "#wow/protocol/item";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
+import { OBJECT_FIELDS, PLAYER_FIELDS } from "#wow/protocol/update-fields";
 import type { SessionDeps } from "#wow/session-stores";
 import type { SpellCatalog, SpellDefinition } from "#wow/spell-catalog";
 
@@ -109,6 +110,79 @@ function rigWith(skillValue: number, lockSkill: number) {
   return rig;
 }
 
+const KEY = 0x40_00_00_00_00_00_01_23n;
+const BAMBOO_CAGE_KEY = 12_301;
+
+const cageKey: ItemTemplate = {
+  entry: BAMBOO_CAGE_KEY,
+  name: "Bamboo Cage Key",
+  quality: 1,
+  itemClass: 13,
+  subclass: 0,
+  stackSize: 1,
+  spells: [
+    {
+      id: 3366,
+      trigger: 0,
+      charges: -1,
+      cooldownMs: -1,
+      category: 0,
+      categoryCooldownMs: -1,
+    },
+  ],
+  flags: 0,
+  inventoryType: 0,
+  allowableClass: 0xff_ff_ff_ff,
+  allowableRace: 0xff_ff_ff_ff,
+  itemLevel: 1,
+  requiredLevel: 0,
+  requiredSkill: 0,
+  requiredSkillRank: 0,
+  requiredSpell: 0,
+  maxCount: 1,
+  containerSlots: 0,
+  stats: [],
+  damage: [],
+  armor: 0,
+  resistances: { holy: 0, fire: 0, nature: 0, frost: 0, shadow: 0, arcane: 0 },
+  delay: 0,
+  ammoType: 0,
+  bonding: 4,
+  pageText: 0,
+  lockId: 0,
+  itemSet: 0,
+  maxDurability: 0,
+  bagFamily: 0,
+  sockets: [],
+  socketBonus: 0,
+  gemProperties: 0,
+  duration: 0,
+  limitCategory: 0,
+};
+
+function keyRig(carried: boolean) {
+  const world = new EntityStore();
+  world.create(CHEST, ObjectType.GAMEOBJECT, { entry: ENTRY } as never);
+  const pack = PLAYER_FIELDS.PACK_SLOT_1.offset;
+  world.create(SELF, ObjectType.PLAYER, {
+    rawFields: new Map<number, number>(
+      carried
+        ? [
+            [pack, Number(KEY & 0xff_ff_ff_ffn)],
+            [pack + 1, Number(KEY >> 32n)],
+          ]
+        : [],
+    ),
+  } as never);
+  world.create(KEY, ObjectType.ITEM, {
+    rawFields: new Map([[OBJECT_FIELDS.ENTRY.offset, BAMBOO_CAGE_KEY]]),
+  } as never);
+  const getEntity: SessionDeps["getEntity"] = (guid) => world.get(guid);
+  const rig = areaRig("objects", { getEntity, selfGuid: SELF });
+  rig.stores.items.receive({ entry: BAMBOO_CAGE_KEY, template: cageKey });
+  return rig;
+}
+
 describe("objects runtime open lock", () => {
   test("open sends CMSG_CAST_SPELL with an object target and emits used cast", async () => {
     const rig = rigWith(300, 0);
@@ -137,6 +211,54 @@ describe("objects runtime open lock", () => {
     } finally {
       rig.dispose();
     }
+  });
+
+  test("open releases the loot request when the cast fails", async () => {
+    const rig = rigWith(300, 0);
+    try {
+      expect(await rig.handle.act.open(CHEST, 6478)).toEqual({ ok: true });
+      expect(rig.stores.rewards.loot.phase).toBe("opening");
+      rig.inject(
+        GameOpcode.SMSG_CAST_FAILED,
+        new Uint8Array([0x00, 0x4e, 0x19, 0x00, 0x00, 0x31]),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(rig.stores.rewards.loot.phase).toBe("closed");
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("open keeps the loot request on another spell's cast failure", async () => {
+    const rig = rigWith(300, 0);
+    try {
+      await rig.handle.act.open(CHEST, 6478);
+      rig.inject(
+        GameOpcode.SMSG_CAST_FAILED,
+        new Uint8Array([0x00, 0x85, 0x00, 0x00, 0x00, 0x31]),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(rig.stores.rewards.loot.phase).toBe("opening");
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("open releases the loot request when no loot window arrives", async () => {
+    await withFakeTimers(async () => {
+      const rig = rigWith(300, 0);
+      try {
+        await rig.handle.act.open(CHEST, 6478);
+        await elapse(14_000);
+        expect(rig.stores.rewards.loot.phase).toBe("opening");
+        await elapse(2000);
+        expect(rig.stores.rewards.loot.phase).toBe("closed");
+      } finally {
+        rig.dispose();
+      }
+    });
   });
 
   test("open of an unknown object sends nothing", async () => {
@@ -209,6 +331,34 @@ describe("objects runtime open lock", () => {
     }
   });
 
+  test("openLockSpell during a failed Lock.dbc load settles as no_lock_data", async () => {
+    const rig = areaRig("objects", {
+      dbc: dbcFiles(new Map()),
+      selfGuid: SELF,
+    });
+    try {
+      const pending = rig.handle.act.openLockSpell(ENTRY);
+      rig.inject(
+        GameOpcode.SMSG_GAMEOBJECT_QUERY_RESPONSE,
+        objectsGameObjectQueryResponseBody({
+          data: [43],
+          displayId: 100,
+          entry: ENTRY,
+          name: "Chest",
+          type: 3,
+        }),
+      );
+      expect(await pending).toEqual({
+        need: 0,
+        ok: false,
+        reason: "no_lock_data",
+        skill: 0,
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("openLockSpell without a template reply reports no_lock_data", async () => {
     await withFakeTimers(async () => {
       const rig = rigWith(300, 0);
@@ -226,5 +376,53 @@ describe("objects runtime open lock", () => {
         rig.dispose();
       }
     });
+  });
+});
+
+describe("objects runtime key use (Handlers/SpellHandler.cpp:58-193, Entities/Player/Player.cpp:7623-7650)", () => {
+  test("useItemOn sends CMSG_USE_ITEM with the carried key, its use spell and the object target", async () => {
+    const rig = keyRig(true);
+    try {
+      const events: unknown[] = [];
+      rig.stores.areas.objects.onEvent((event) => events.push(event));
+      expect(await rig.handle.act.useItemOn(BAMBOO_CAGE_KEY, CHEST)).toEqual({
+        ok: true,
+      });
+      expect(
+        rig.sent
+          .filter((p) => p.opcode === GameOpcode.CMSG_USE_ITEM)
+          .map((p) => [...p.body]),
+      ).toEqual([
+        [
+          0xff, 0x17, 0x00, 0x26, 0x0d, 0x00, 0x00, 0x23, 0x01, 0x00, 0x00,
+          0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08,
+          0x00, 0x00, 0xf3, 0x80, 0x52, 0x14, 0x2c, 0x10, 0xf1,
+        ],
+      ]);
+      expect(rig.stores.rewards.loot.phase).toBe("opening");
+      expect(events).toContainEqual({
+        entry: ENTRY,
+        guid: CHEST,
+        how: "cast",
+        spellId: 3366,
+        type: "used",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("useItemOn without the key in the bags sends nothing", async () => {
+    const rig = keyRig(false);
+    try {
+      expect(await rig.handle.act.useItemOn(BAMBOO_CAGE_KEY, CHEST)).toEqual({
+        ok: false,
+        reason: "no_item",
+      });
+      expect(rig.sent).toEqual([]);
+      expect(rig.stores.rewards.loot.phase).toBe("closed");
+    } finally {
+      rig.dispose();
+    }
   });
 });

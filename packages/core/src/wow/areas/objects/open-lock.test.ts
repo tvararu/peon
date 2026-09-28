@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { LockKeyType, type LockEntry } from "#wow/areas/objects/lock-catalog";
+import { type LockEntry, LockKeyType } from "#wow/areas/objects/lock-catalog";
 import { type OpenLockNeed, pickOpenLock } from "#wow/areas/objects/open-lock";
 import type { SpellDefinition } from "#wow/spell-catalog";
 
@@ -74,6 +74,17 @@ function lock43(): LockEntry {
   };
 }
 
+function skillLock(index: number, skill: number): LockEntry {
+  return {
+    id: 57,
+    cases: Array.from({ length: 8 }, (_, i) =>
+      i === 1
+        ? { type: LockKeyType.SKILL, index, skill }
+        : { type: 0, index: 0, skill: 0 },
+    ),
+  };
+}
+
 describe("pickOpenLock (Entities/GameObject/GameObject.cpp:3035-3092, Spells/Spell.cpp:8707-8760)", () => {
   test("lock id 0 opens with any open-lock spell", () => {
     expect(
@@ -97,23 +108,60 @@ describe("pickOpenLock (Entities/GameObject/GameObject.cpp:3035-3092, Spells/Spe
     ).toEqual({ by: "spell", spellId: 6478 });
   });
 
-  test("a skill below the lock need refuses with the lock skill", () => {
-    const need: OpenLockNeed = { skill: 5, need: 200 };
+  test("a lockpicking lock below the need refuses with the lockpicking skill", () => {
+    const need: OpenLockNeed = { skill: 633, need: 200 };
     expect(
       pickOpenLock({
-        lock: {
-          id: 57,
-          cases: Array.from({ length: 8 }, (_, i) =>
-            i === 1
-              ? { type: LockKeyType.SKILL, index: 5, skill: 200 }
-              : { type: 0, index: 0, skill: 0 },
-          ),
-        },
+        lock: skillLock(1, 200),
         hasItem: () => false,
-        skillOf: () => 50,
-        spellbook: [spell(6477, 5)],
+        skillOf: (skill) => (skill === 633 ? 50 : 300),
+        spellbook: [spell(1804, 1)],
       }),
     ).toEqual({ ok: false, reason: "locked", ...need });
+  });
+
+  test("a lockpicking lock compares the lockpicking skill, not the lock type", () => {
+    expect(
+      pickOpenLock({
+        lock: skillLock(1, 75),
+        hasItem: () => false,
+        skillOf: (skill) => (skill === 633 ? 80 : 0),
+        spellbook: [spell(1804, 1)],
+      }),
+    ).toEqual({ by: "spell", spellId: 1804 });
+  });
+
+  test("herbalism and mining locks read their gathering skills", () => {
+    const skills = new Map([
+      [182, 20],
+      [186, 90],
+    ]);
+    const inputs = {
+      hasItem: () => false,
+      skillOf: (skill: number) => skills.get(skill) ?? 0,
+      spellbook: [spell(2366, 2), spell(2575, 3)],
+    };
+    expect(pickOpenLock({ ...inputs, lock: skillLock(2, 50) })).toEqual({
+      ok: false,
+      reason: "locked",
+      skill: 182,
+      need: 50,
+    });
+    expect(pickOpenLock({ ...inputs, lock: skillLock(3, 50) })).toEqual({
+      by: "spell",
+      spellId: 2575,
+    });
+  });
+
+  test("a lock type without a skill opens whatever its need", () => {
+    expect(
+      pickOpenLock({
+        lock: skillLock(5, 200),
+        hasItem: () => false,
+        skillOf: () => 0,
+        spellbook: [spell(6477, 5)],
+      }),
+    ).toEqual({ by: "spell", spellId: 6477 });
   });
 
   test("a spell lock returns the lock spell even when unknown", () => {

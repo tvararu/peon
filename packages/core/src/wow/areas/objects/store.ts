@@ -131,6 +131,9 @@ export class ObjectsStore {
 
   locksFailed(): void {
     this.locksState = "failed";
+    const waiters = this.lockWaiters;
+    this.lockWaiters = [];
+    for (const waiter of waiters) waiter.resolve(undefined);
   }
 
   useLocks(catalog: LockCatalog): void {

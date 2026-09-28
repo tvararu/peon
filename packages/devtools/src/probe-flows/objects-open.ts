@@ -65,6 +65,7 @@ type Acts = {
   use: (guid: bigint) => unknown;
   open: (guid: bigint, spellId: number) => unknown;
   openLockSpell: (entry: number) => Promise<OpenLockQueryLike>;
+  useItemOn: (entry: number, target: bigint) => Promise<unknown>;
 };
 
 type Found = {
@@ -134,13 +135,10 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
   const guid = found.guid;
   const useOutcome = acts.use(guid);
   let openOutcome: unknown = null;
-  if (
-    choice &&
-    typeof choice === "object" &&
-    "by" in choice &&
-    choice.by === "spell"
-  )
+  if ("by" in choice && choice.by === "spell")
     openOutcome = acts.open(guid, choice.spellId);
+  if ("by" in choice && choice.by === "item")
+    openOutcome = await acts.useItemOn(choice.entry, guid);
   await Bun.sleep(seconds * 1000);
   stop();
   const rewards = handle.getRewardsState().loot;

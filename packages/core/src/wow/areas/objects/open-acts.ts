@@ -17,8 +17,9 @@ import type {
 import type { Entity, EntityLookup } from "#wow/entity-store";
 import { readInventory } from "#wow/inventory";
 import { buildGameObjectQuery } from "#wow/protocol/entity-queries";
+import { buildUseItem, ItemSpellTrigger } from "#wow/protocol/item";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import { buildCastSpell } from "#wow/protocol/spell";
+import { buildCastSpell, parseCastFailed } from "#wow/protocol/spell";
 import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
 import type { CoreStores } from "#wow/session-stores";
 export type OpenOutcome =
@@ -30,11 +31,15 @@ export type OpenOutcome =
       skill?: number;
       need?: number;
     };
+export type UseItemOnOutcome =
+  | OpenOutcome
+  | { ok: false; reason: "no_item" | "no_use_spell" };
 export type UseOutcome = { ok: true; record: UseRecord } | UseRefusal;
 export type ObjectsActs = {
   enterTrigger: (triggerId: number) => void;
   use: (guid: bigint) => UseOutcome;
   open: (guid: bigint, spellId: number) => OpenOutcome;
+  useItemOn: (entry: number, target: bigint) => Promise<UseItemOnOutcome>;
   openLockSpell: (entry: number) => Promise<OpenLockQuery>;
   readPage: (pageId: number) => Promise<PageChain | UnansweredPage>;
 };
@@ -142,7 +147,86 @@ export function openObject(
     buildCastSpell(0, spellId, { guid, kind: "object" }),
   );
   store.recordOpen(object, spellId);
+  releaseUnanswered(env, guid, spellId);
   return { ok: true as const };
+}
+
+function carriedKey(
+  env: Env,
+  entry: number,
+): { bag: number; slot: number; guid: bigint } | undefined {
+  const { ctx, store } = env;
+  const selfGuid = ctx.selfGuid() ?? 0n;
+  const inventory = readInventory(selfGuid, (guid) => store.entity(guid));
+  for (const slot of inventory.slots) {
+    if (slot.status === "occupied" && slot.item.entry === entry)
+      return { bag: slot.bag, slot: slot.slot, guid: slot.guid };
+  }
+  return undefined;
+}
+
+async function useSpellOf(
+  core: CoreStores,
+  entry: number,
+): Promise<number | undefined> {
+  const template = await core.items.lookup(entry).catch(() => undefined);
+  return template?.spells.find(
+    (spell) => spell.trigger === ItemSpellTrigger.ON_USE,
+  )?.id;
+}
+
+export async function useItemOnObject(
+  env: Env,
+  entry: number,
+  guid: bigint,
+): Promise<UseItemOnOutcome> {
+  const { ctx, store, core } = env;
+  if (!store.object(guid)) return { ok: false, reason: "unknown" };
+  if (!carriedKey(env, entry)) return { ok: false, reason: "no_item" };
+  const spellId = await useSpellOf(core, entry);
+  if (spellId === undefined) return { ok: false, reason: "no_use_spell" };
+  if (core.rewards.loot.phase !== "closed")
+    return { ok: false, reason: "loot_open" };
+  const object = store.object(guid);
+  const key = carriedKey(env, entry);
+  if (!object) return { ok: false, reason: "unknown" };
+  if (!key) return { ok: false, reason: "no_item" };
+  core.rewards.requestOpen(guid);
+  ctx.send(
+    GameOpcode.CMSG_USE_ITEM,
+    buildUseItem({
+      bag: key.bag,
+      castCount: 0,
+      itemGuid: key.guid,
+      slot: key.slot,
+      spellId,
+      target: { guid, kind: "object" },
+    }),
+  );
+  store.recordOpen(object, spellId);
+  releaseUnanswered(env, guid, spellId);
+  return { ok: true };
+}
+
+const OPEN_WAIT_MS = 15_000;
+
+function releaseUnanswered(env: Env, guid: bigint, spellId: number): void {
+  const { ctx, core } = env;
+  ctx
+    .expect(GameOpcode.SMSG_CAST_FAILED, {
+      timeoutMs: OPEN_WAIT_MS,
+      match: (reader) => parseCastFailed(reader).spellId === spellId,
+    })
+    .then(
+      () => "cast_failed",
+      () => "timeout",
+    )
+    .then((reason) => {
+      const loot = core.rewards.loot;
+      if (loot.phase === "opening" && loot.guid === guid)
+        core.rewards.failOpen(reason);
+    })
+    .catch(ignoreFailure);
 }
 
 const TEMPLATE_WAIT_MS = 5000;

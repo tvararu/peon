@@ -17,6 +17,14 @@ export type OpenLockInputs = {
 
 const OPEN_LOCK_EFFECT = 33;
 
+const SKILL_BY_LOCK_TYPE: ReadonlyMap<number, number> = new Map([
+  [1, 633],
+  [2, 182],
+  [3, 186],
+  [19, 356],
+  [20, 773],
+]);
+
 function openSpell(
   spellbook: readonly SpellDefinition[],
 ): SpellDefinition | undefined {
@@ -66,10 +74,12 @@ function stepCase(
   if (lockCase.type !== LockKeyType.SKILL)
     return { done: undefined, need, stop: true };
   const match = skillSpell(walk.spellbook, lockCase.index);
-  if (!match || walk.skillOf(lockCase.index) < lockCase.skill)
+  const skill = SKILL_BY_LOCK_TYPE.get(lockCase.index);
+  const short = skill !== undefined && walk.skillOf(skill) < lockCase.skill;
+  if (!match || short)
     return {
       done: undefined,
-      need: { skill: lockCase.index, need: lockCase.skill },
+      need: { skill: skill ?? 0, need: lockCase.skill },
       stop: false,
     };
   return { done: { by: "spell", spellId: match.id }, need, stop: true };

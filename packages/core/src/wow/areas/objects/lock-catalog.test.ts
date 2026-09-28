@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { dbcFiles, packDbc } from "#test-support/dbc";
-import { loadLockCatalog, LockKeyType } from "#wow/areas/objects/lock-catalog";
+import { LockKeyType, loadLockCatalog } from "#wow/areas/objects/lock-catalog";
 
 const FIELDS = 33;
 

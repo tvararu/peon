@@ -7,6 +7,8 @@ import {
   type OpenOutcome,
   openObject,
   queryOpenLock,
+  type UseItemOnOutcome,
+  useItemOnObject,
 } from "#wow/areas/objects/open-acts";
 import {
   buildAreaTrigger,
@@ -66,6 +68,9 @@ export function objectsRuntime(
   function open(guid: bigint, spellId: number): OpenOutcome {
     return openObject({ ctx, store, core }, guid, spellId);
   }
+  function useItemOn(entry: number, target: bigint): Promise<UseItemOnOutcome> {
+    return useItemOnObject({ ctx, store, core }, entry, target);
+  }
   function openLockSpell(entry: number): Promise<OpenLockQuery> {
     return queryOpenLock({ ctx, store, core }, entry);
   }
@@ -86,7 +91,7 @@ export function objectsRuntime(
   });
   const offSelf = core.self.onEvent(arrival);
   return {
-    act: { enterTrigger, open, openLockSpell, readPage, use },
+    act: { enterTrigger, open, openLockSpell, readPage, use, useItemOn },
     dispose: () => {
       offControl();
       offSelf();

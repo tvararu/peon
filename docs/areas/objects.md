@@ -103,8 +103,24 @@ The open-lock choice reads the lock table (format
 the spell with the effect-33 `miscValue` the lock index needs, the lock's
 own spell for a spell case, or the key item the character carries
 (`Entities/GameObject/GameObject.cpp:3035-3092`,
-`Spells/Spell.cpp:8707-8760`). Skill values come from the self skill
+`Spells/Spell.cpp:8707-8760`). A skill case compares the player skill
+its lock type names (lockpicking 633, herbalism 182, mining 186,
+fishing 356, inscription 773, `src/server/shared/SharedDefines.h:3253-3271`);
+other lock types need no skill. Skill values come from the self skill
 info fields (`Entities/Player/Player.cpp:5631-5646`).
+
+A key item opens through `useItemOn`, which uses the carried key on the
+object with the key's on-use spell: the server casts only the item's
+on-use spells, with the key as cast item
+(`Entities/Player/Player.cpp:7623-7650`), and a key case passes only for
+that cast item (`Spells/Spell.cpp:8726-8730`). A key without an on-use
+spell answers `no_use_spell`.
+
+Both `open` and `useItemOn` ask core's rewards for the loot window first
+and give it back when the server reports that the spell failed, or when
+no loot window arrives within 15 seconds. The failure body starts with
+the cast count, the spell id and the result
+(`Spells/Spell.cpp:4704-4708`).
 
 The catalog reads `AreaTrigger.dbc` from the configured `spell_data_dir`
 (ten fields of four bytes: id, map, x, y, z, radius, length, width,
