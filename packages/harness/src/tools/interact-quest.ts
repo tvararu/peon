@@ -363,14 +363,10 @@ function poiLine(
 function poiOf(
   ctx: ToolCtx<InteractAfter>,
   seen: GossipPoiEvent | undefined,
-  npc: NpcTarget,
 ): { line: string; next: string } | undefined {
   const poi = ctx.handle.quests.state().gossipPoi;
-  if (poi === undefined) return undefined;
-  if (seen && (poi.name !== seen.name || poi.from !== npc.guid))
-    return undefined;
-  if (seen === undefined && poi.from !== undefined && poi.from !== npc.guid)
-    return undefined;
+  if (poi === undefined || seen === undefined) return undefined;
+  if (poi.name !== seen.name) return undefined;
   return poiLine(ctx, poi);
 }
 
@@ -473,7 +469,7 @@ export const gossipStep: InteractStep = async ({ args, ctx, npc }) => {
     );
   const next = ctx.handle.getQuestState().dialog;
   const offers = offersOf(next, ctx.handle.getQuestState());
-  const marked = poiOf(ctx, poi, npc);
+  const marked = poiOf(ctx, poi);
   return result("DONE", {
     after: {
       ...baseAfter(ctx, npc, "gossip"),

@@ -488,4 +488,28 @@ describe("talk greetings", () => {
     expect(res.detail).toContain("Lion's Pride Inn");
     expect(res.next).toBe('travel(to: "-9459, 42.1")');
   });
+
+  test("gossip does not mark a POI from an earlier option", async () => {
+    const { t } = await velan();
+    selfBloodElf(t);
+    moveTo(t.handle, { x: -9481, y: 74 });
+    const state: QuestsAreaState = {
+      completed: undefined,
+      gossipPoi: { ...POI, at: 2, from: VELAN },
+      marks: new Map(),
+      pois: new Map(),
+      texts: new Map(),
+    };
+    spyQuests(t, state);
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", { dialog: gossipWithPoi(16_703) });
+    t.handle.selectGossipOption = () =>
+      answer(t.handle, "dialog", { dialog: greetDialog(16_703, 1) });
+    const res = await interactSpec.run(
+      { do: "gossip", npc: "Velan Brightoak", what: "3" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(res.detail).not.toContain("Lion's Pride Inn");
+    expect(res.next).toBeUndefined();
+  });
 });

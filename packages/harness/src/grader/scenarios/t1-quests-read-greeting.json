@@ -38,6 +38,6 @@
     }
   ],
   "steers": [],
-  "task": "Talk to Magistrix Erona and tell me what she says.",
+  "task": "Talk to Magistrix Erona and quote the first sentence of her greeting word for word, exactly as she says it.",
   "tier": 1
 }
