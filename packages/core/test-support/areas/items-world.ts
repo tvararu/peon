@@ -75,6 +75,7 @@ export function itemsWorld(self: bigint) {
     for (let i = 0; i < range.size; i++) own.set(range.offset + i, 0);
   own.set(UNIT_FIELDS.HEALTH.offset, 100);
   own.set(PLAYER_FIELDS.FLAGS.offset, 0);
+  own.set(PLAYER_FIELDS.AMMO_ID.offset, 0);
 
   const rootOffset = (slot: number) =>
     PLAYER_FIELDS.INV_SLOT_HEAD.offset + slot * 2;
@@ -125,12 +126,17 @@ export function itemsWorld(self: bigint) {
     own.set(UNIT_FIELDS.HEALTH.offset, health);
   }
 
+  function setAmmo(entry: number): void {
+    own.set(PLAYER_FIELDS.AMMO_ID.offset, entry);
+  }
+
   return {
     clear,
     entities,
     lookup: (guid: bigint) => entities.get(guid),
     player,
     put,
+    setAmmo,
     setCount,
     setHealth,
   };

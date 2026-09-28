@@ -1,23 +1,23 @@
 import { type Static, StringEnum, Type } from "@earendil-works/pi-ai";
 import type { NamedInventoryState } from "@peon/core";
 import { lootText, takeOffered } from "#harness/areas/items/tool-loot";
+import { runAmmo, runRead } from "#harness/areas/items/tool-read";
 import {
   BACKPACK,
   BAGS,
   destination,
   equipSlot,
-  type Found,
   labelOf,
   named,
   type Occupied,
   position,
   slotsOf,
 } from "#harness/areas/items/tool-resolve";
+import { afterOf, moveRefusal } from "#harness/areas/items/tool-shared";
 import type { LootLine } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
 import { itemIdText } from "#harness/ops/item-names";
-import { Refusal } from "#harness/ops/refusal";
 import { defineGameTool, result } from "#harness/tools/define";
 import type { GameToolSpec, ToolRenderers } from "#harness/tools/game-tool";
 import { argText } from "#harness/ui/draw";
@@ -35,10 +35,13 @@ export const gearParams = Type.Object({
       minimum: 1,
     }),
   ),
-  do: StringEnum(["equip", "unequip", "move", "split", "open", "read"], {
-    description:
-      "equip: wear an item. unequip: take worn gear off. move: change bag or slot. split: divide a stack. open: open a container. read: read a readable item.",
-  }),
+  do: StringEnum(
+    ["equip", "unequip", "move", "split", "open", "read", "ammo"],
+    {
+      description:
+        "equip: wear an item. unequip: take worn gear off. move: change bag or slot. split: divide a stack. open: open a container. read: read a readable item. ammo: load arrows or bullets for a ranged weapon.",
+    },
+  ),
   item: Type.String({
     description:
       'Which item: its name as the bags journal shows it, "item <id>", or "bag B slot S".',
@@ -115,50 +118,6 @@ function emptyGear(): GearAfter {
   };
 }
 
-type MoveSeen = {
-  last:
-    | {
-        status: "confirmed" | "refused" | "no_change" | "unanswered";
-        reason: string | undefined;
-      }
-    | undefined;
-};
-
-function requiredLevel(
-  handle: GearHandle,
-  itemGuid: bigint,
-): number | undefined {
-  const { lastInventoryError } = handle.getRewardsState();
-  const packet = lastInventoryError?.packet;
-  if (packet?.kind !== "error" || packet.item1 !== itemGuid) return undefined;
-  return packet.detail.kind === "level"
-    ? packet.detail.requiredLevel
-    : undefined;
-}
-
-function moveRefusal(
-  handle: GearHandle,
-  itemGuid: bigint,
-  seen: MoveSeen,
-): Refusal {
-  const outcome = seen.last;
-  const reason = outcome?.reason ?? "unanswered";
-  const status = outcome?.status ?? "unanswered";
-  const level =
-    status === "refused" ? requiredLevel(handle, itemGuid) : undefined;
-  let detail = "the server did not answer.";
-  if (status === "refused") {
-    const tail = level === undefined ? "" : ` (needs level ${level})`;
-    detail = `the server refused: ${reason}${tail}.`;
-  } else if (status === "no_change") detail = "the server reported no change.";
-  return new Refusal({
-    detail,
-    next: BAGS,
-    reason,
-    status: status === "unanswered" ? "UNCONFIRMED" : "REFUSED",
-  });
-}
-
 function wornName(
   state: NamedInventoryState,
   slotNumber: number,
@@ -207,23 +166,6 @@ function equippedText(render: EquipRender): string {
       ? ` Old: ${render.worn}, now in ${slotName(displaced)}.`
       : "";
   return `Wearing ${render.label} (${where}).${old}`;
-}
-
-function afterOf(
-  found: Found,
-  from: { bag: number; slot: number },
-  init: Partial<GearAfter> & Pick<GearAfter, "do" | "item">,
-): GearAfter {
-  return {
-    copper: 0,
-    entry: found.held.item.entry,
-    from,
-    taken: [],
-    text: undefined,
-    to: undefined,
-    worn: undefined,
-    ...init,
-  };
 }
 
 async function runEquip(
@@ -409,42 +351,6 @@ async function runOpen(
   });
 }
 
-async function runRead(
-  ctx: GearCtx,
-  item: string,
-): Promise<ToolResult<GearAfter>> {
-  const { handle, rt } = ctx;
-  const found = named(handle.getInventoryState(), item, [
-    "backpack",
-    "bag_item",
-  ]);
-  const from = { bag: found.held.bag, slot: found.held.slot };
-  const outcome_ = await rt.mutex.run(() => handle.items.act.read(from));
-  if (outcome_.status !== "ok")
-    throw new Refusal({
-      detail:
-        outcome_.status === "unanswered"
-          ? "the server did not answer."
-          : `the server refused: ${outcome_.reason ?? "read_item_failed"}.`,
-      next: BAGS,
-      reason: outcome_.reason ?? outcome_.status,
-      status: outcome_.status === "unanswered" ? "UNCONFIRMED" : "REFUSED",
-    });
-  const text = await rt.mutex.run(() =>
-    handle.items.act.queryText(found.held.guid),
-  );
-  return result("DONE", {
-    after: afterOf(found, from, {
-      do: "read",
-      item: found.label,
-      text,
-    }),
-    detail: text
-      ? `Read ${found.label}: ${text}.`
-      : `Read ${found.label} (no text).`,
-  });
-}
-
 function runGear(args: GearArgs, ctx: GearCtx): Promise<ToolResult<GearAfter>> {
   if (args.do === "equip") return runEquip(ctx, args.item, args.slot);
   if (args.do === "unequip") return runUnequip(ctx, args.item, args.to);
@@ -452,6 +358,7 @@ function runGear(args: GearArgs, ctx: GearCtx): Promise<ToolResult<GearAfter>> {
   if (args.do === "split")
     return runSplit(ctx, args.item, args.to, args.count ?? 1);
   if (args.do === "open") return runOpen(ctx, args.item);
+  if (args.do === "ammo") return runAmmo(ctx, args.item);
   return runRead(ctx, args.item);
 }
 
@@ -502,7 +409,7 @@ export const gearSpec: GameToolSpec<typeof gearParams, "gear", GearAfter> = {
   run: runGear,
   text: {
     description:
-      "Wear gear, remove it, move it between bags, split a stack, open a container, or read a letter. Name the item as the bags journal shows it. Opening a container takes all items inside it.",
+      "Wear gear, remove it, move it between bags, split a stack, open a container, read a letter, or load ammo. Name the item as the bags journal shows it. Opening a container takes all items inside it.",
     guidelines: ["Wear an upgrade only when the game log names it an upgrade."],
     label: "Gear",
   },

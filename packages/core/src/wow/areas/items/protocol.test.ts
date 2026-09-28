@@ -4,6 +4,7 @@ import {
   buildAutoEquipItem,
   buildAutoEquipItemSlot,
   buildAutostoreBagItem,
+  buildSetAmmo,
   buildSplitItem,
   buildSwapInvItem,
   buildSwapItem,
@@ -42,5 +43,10 @@ describe("items move builders", () => {
     expect(
       buildSplitItem({ bag: 255, slot: 25 }, { bag: 19, slot: 0 }, 5),
     ).toEqual(bytes("ff 19 13 00 05000000"));
+  });
+
+  test("CMSG_SET_AMMO writes the ammo entry as u32 (ItemHandler.cpp:1014-1039)", () => {
+    expect(buildSetAmmo(2512)).toEqual(bytes("d0090000"));
+    expect(buildSetAmmo(0)).toEqual(bytes("00000000"));
   });
 });

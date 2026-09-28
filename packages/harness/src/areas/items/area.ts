@@ -8,6 +8,7 @@ type Moved = Extract<ItemsEvent, { type: "moved" }>;
 type Received = Extract<ItemsEvent, { type: "item_received" }>;
 
 const MOVED_ROW: Record<string, { name: string; verb: string }> = {
+  ammo: { name: "ammo", verb: "Loaded" },
   equip: { name: "equipped", verb: "Equipped" },
   equip_slot: { name: "equipped", verb: "Equipped" },
   split: { name: "split", verb: "Split" },
@@ -107,5 +108,14 @@ export const itemsHarness = defineHarnessArea({
   area: "items",
   glyph: "bag",
   rules: () => ({ event: (event, rc) => eventRow(event, rc) }),
-  worldActs: ["equip", "equipTo", "unequip", "move", "split", "open", "read"],
+  worldActs: [
+    "equip",
+    "equipTo",
+    "move",
+    "open",
+    "read",
+    "setAmmo",
+    "split",
+    "unequip",
+  ],
 });

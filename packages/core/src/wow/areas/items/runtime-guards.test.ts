@@ -9,6 +9,7 @@ import {
   itemsRig,
   itemsWorld,
 } from "#test-support/areas/items-world";
+import { buildSetAmmo } from "#wow/areas/items/protocol";
 import type { ItemsEvent } from "#wow/areas/items/store";
 import { registerLootHandlers } from "#wow/gameplay-handlers";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -156,6 +157,99 @@ describe("items runtime settling", () => {
     );
     rig.dispose();
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  });
+});
+
+describe("items runtime: setAmmo", () => {
+  test("setAmmo sends CMSG_SET_AMMO and settles confirmed from the loaded id (PlayerStorage.cpp:2628-2648)", async () => {
+    const { rig, world } = setup((w) =>
+      w.put(255, 25, {
+        count: 200,
+        entry: 2512,
+        guid: 0x40_00_00_00_00_00_00_04n,
+      }),
+    );
+    try {
+      const pending = rig.handle.act.setAmmo(2512);
+      await flush();
+      expect(
+        rig.sent.filter((packet) => packet.opcode === GameOpcode.CMSG_SET_AMMO),
+      ).toEqual([
+        {
+          body: buildSetAmmo(2512),
+          opcode: GameOpcode.CMSG_SET_AMMO,
+        },
+      ]);
+      world.setAmmo(2512);
+      rig.touch();
+      expect(await pending).toMatchObject({
+        last: { request: { entry: 2512 }, status: "confirmed" },
+        pending: undefined,
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a missing stack settles refused, entry 0 unloads (ItemHandler.cpp:1014-1039)", async () => {
+    const { rig, world } = setup((w) => {
+      w.setAmmo(2512);
+      w.put(255, 25, {
+        count: 1,
+        entry: 19_319,
+        guid: 0x40_00_00_00_00_00_00_04n,
+      });
+    });
+    try {
+      const missing = rig.handle.act.setAmmo(19_319);
+      await flush();
+      rig.inject(FAIL, itemsInventoryChangeFailureBody({ result: 23 }));
+      expect(await missing).toMatchObject({ last: { status: "refused" } });
+      const unload = rig.handle.act.setAmmo(0);
+      await flush();
+      world.setAmmo(0);
+      rig.touch();
+      expect(await unload).toMatchObject({
+        last: { request: { entry: 0 }, status: "confirmed" },
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("no reply in 5 s settles unanswered", async () => {
+    jest.useFakeTimers();
+    const { rig } = setup((w) =>
+      w.put(255, 25, {
+        count: 200,
+        entry: 2512,
+        guid: 0x40_00_00_00_00_00_00_04n,
+      }),
+    );
+    try {
+      const pending = rig.handle.act.setAmmo(2512);
+      jest.advanceTimersByTime(5000);
+      expect(await pending).toMatchObject({
+        last: { status: "unanswered" },
+        pending: undefined,
+      });
+    } finally {
+      rig.dispose();
+      jest.useRealTimers();
+    }
+  });
+
+  test("uncarried or already loaded ammo is rejected before sending", async () => {
+    const { rig } = setup();
+    try {
+      await expect(rig.handle.act.setAmmo(19_319)).rejects.toThrow(
+        "is not carried",
+      );
+      await expect(rig.handle.act.setAmmo(0)).rejects.toThrow("already loaded");
+      expect(rig.sent).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
   });
 });
 

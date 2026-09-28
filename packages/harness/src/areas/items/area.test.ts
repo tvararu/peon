@@ -50,6 +50,7 @@ describe("items harness rules", () => {
       ["unequip", "unequipped", "Took off Gnarled Staff."],
       ["swap", "moved", "Moved Gnarled Staff."],
       ["split", "split", "Split Gnarled Staff."],
+      ["ammo", "ammo", "Loaded Gnarled Staff."],
     ] as const)
       expect(areaDrafts(rules, moved(kind), rc)).toEqual([
         {
