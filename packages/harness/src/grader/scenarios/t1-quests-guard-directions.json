@@ -8,9 +8,7 @@
   "checks": [
     {
       "evidence": {
-        "events": [
-          "quests/gossip_poi"
-        ]
+        "events": ["quests/gossip_poi"]
       },
       "expect": "GL has a quests/gossip_poi row for the Lion's Pride Inn",
       "id": "poi-row",
