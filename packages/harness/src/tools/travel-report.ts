@@ -23,7 +23,8 @@ export type Goal =
   | { kind: "point"; x: number; y: number; z: number | undefined }
   | { kind: "corpse" }
   | { kind: "explore"; direction: Compass | undefined }
-  | { kind: "unstick" };
+  | { kind: "unstick" }
+  | { kind: "hearth" };
 
 export type Report = ToolResult<TravelAfter>;
 
@@ -133,6 +134,7 @@ export function goalView(goal: Goal): TravelGoalView {
     return { direction: goal.direction, kind: "explore" };
   if (goal.kind === "unstick")
     return { kind: "unstick", refusedGoal: undefined };
+  if (goal.kind === "hearth") return { kind: "hearth" };
   return { kind: "corpse" };
 }
 

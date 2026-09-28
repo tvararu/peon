@@ -66,6 +66,8 @@ function goalText(goal: TravelGoalView): string {
       return goal.direction ? `explore ${goal.direction}` : "explore";
     case "unstick":
       return "unstick";
+    case "hearth":
+      return "hearth";
     default:
       return "corpse";
   }

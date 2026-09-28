@@ -66,7 +66,8 @@ export type TravelGoalView =
   | { kind: "point"; x: number; y: number; z: number | undefined }
   | { kind: "corpse" }
   | { kind: "explore"; direction: Compass | undefined }
-  | { kind: "unstick"; refusedGoal: string | undefined };
+  | { kind: "unstick"; refusedGoal: string | undefined }
+  | { kind: "hearth" };
 
 export type TravelAfter = {
   goal: TravelGoalView;

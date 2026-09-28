@@ -30,6 +30,7 @@ import { defineGameTool, result, UPDATE_EVERY_MS } from "#harness/tools/define";
 import type { GameToolSpec } from "#harness/tools/game-tool";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 import { type TravelArgs, travelParams } from "#harness/tools/params-travel";
+import { hearthWork } from "#harness/tools/travel-hearth";
 import { noteTravel, noteUnstick } from "#harness/tools/travel-recovery";
 import {
   exploreReport,
@@ -47,7 +48,13 @@ import {
 import { travelRenderers } from "#harness/ui/renderers/live-run";
 
 type After = (patch: Partial<TravelAfter>) => TravelAfter;
-type Work = { ops: OpsCtx; args: TravelArgs; goal: Goal; after: After };
+type Work = {
+  ops: OpsCtx;
+  ctx: ToolCtx<TravelAfter>;
+  args: TravelArgs;
+  goal: Goal;
+  after: After;
+};
 
 const COORDS =
   /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*(-?\d+(?:\.\d+)?)\s*)?$/;
@@ -77,6 +84,7 @@ function parseGoal(ctx: ToolCtx<TravelAfter>, to: string): Goal {
   const lower = text.toLowerCase();
   if (lower === "corpse") return { kind: "corpse" };
   if (lower === "unstick") return { kind: "unstick" };
+  if (lower === "hearth") return { kind: "hearth" };
   if (lower === "explore" || lower.startsWith("explore "))
     return parseExplore(text, lower);
   const coords = COORDS.exec(text);
@@ -238,6 +246,7 @@ async function doWork(work: Work): Promise<Report> {
     return legWork({ ...work, goal });
   if (goal.kind === "unstick") return unstickWork(work);
   if (goal.kind === "corpse") return corpseWork(work);
+  if (goal.kind === "hearth") return hearthWork(work.ctx, work.after);
   const wanted = exploreWanted(work.ops, work.args.for);
   const found = await explore(work.ops, { direction: goal.direction, wanted });
   return exploreReport(
@@ -319,7 +328,7 @@ async function launch(init: {
     partial(now);
   }, UPDATE_EVERY_MS);
   try {
-    const report = await doWork({ after, args, goal, ops });
+    const report = await doWork({ after, args, ctx, goal, ops });
     if (control.signal.aborted)
       return runEnd(
         stopReport(control.signal, report.after),
