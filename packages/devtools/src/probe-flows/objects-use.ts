@@ -94,9 +94,7 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
     if (event.type === "used")
       used.push({ entry: event.entry, guid: hex(event.guid), how: event.how });
   });
-  const sent = outcomeJson(
-    handle.objects.act.use(row.entity.guid) as Outcome,
-  );
+  const sent = outcomeJson(handle.objects.act.use(row.entity.guid) as Outcome);
   await Bun.sleep(seconds * 1000);
   off();
   const pending = handle.objects.state().pendingUse;
