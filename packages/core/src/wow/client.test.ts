@@ -93,7 +93,7 @@ describe("session lifecycle", () => {
     }
   });
 
-  test("rejects with named message for system error (0x0d)", async () => {
+  test("rejects with named message for auth failed (0x0d)", async () => {
     const ws = await startMockWorldServer({ authStatus: 0x0d });
     try {
       await expect(
@@ -101,13 +101,13 @@ describe("session lifecycle", () => {
           { ...base, host: "127.0.0.1", port: ws.port },
           fakeAuth(ws.port),
         ),
-      ).rejects.toThrow("World auth failed: system error");
+      ).rejects.toThrow("World auth failed: failed");
     } finally {
       ws.stop();
     }
   });
 
-  test("rejects with named message for account in use (0x15)", async () => {
+  test("rejects with named message for unknown account (0x15)", async () => {
     const ws = await startMockWorldServer({ authStatus: 0x15 });
     try {
       await expect(
@@ -115,7 +115,7 @@ describe("session lifecycle", () => {
           { ...base, host: "127.0.0.1", port: ws.port },
           fakeAuth(ws.port),
         ),
-      ).rejects.toThrow("World auth failed: account in use");
+      ).rejects.toThrow("World auth failed: unknown account");
     } finally {
       ws.stop();
     }
