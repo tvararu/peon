@@ -1,4 +1,5 @@
 import {
+  type AreaState,
   bearing,
   type CombatState,
   type EntityLookup,
@@ -24,10 +25,13 @@ import {
 } from "#harness/loops/combat-actions-movement";
 import {
   auraObservation,
+  combatLogObservation,
   facing,
   hex,
+  immuneTo,
   navigationObservation,
   outcomeObservation,
+  RANGE_HELD_REASONS,
   separation,
   timeoutOutcome,
   unitObservation,
@@ -67,6 +71,7 @@ type ActionDeps = {
   relation: (guid: bigint) => FactionRelation;
   now: () => number;
   gear?: () => RangedGear;
+  combatLog?: () => AreaState<"combatlog"> | undefined;
 };
 
 type SpellAction = {
@@ -157,6 +162,11 @@ export class CombatActions {
       attackTarget: hex(state.attackTarget),
       pendingAttack: hex(state.pendingAttack),
       ...hunterObservation(state, this.deps.entity, context.targetGuid),
+      combatLog: combatLogObservation(this.deps.combatLog?.(), {
+        now: this.deps.now(),
+        self: state.self.guid,
+        target: context.targetGuid,
+      }),
       auras: state.auras.map(auraObservation),
       targetAuras: state.targetAuras.map(auraObservation),
       cooldowns: state.cooldowns,
@@ -333,7 +343,11 @@ export class CombatActions {
       (isRangedShot(spell)
         ? gearReason(spell, this.deps.gear?.() ?? NO_RANGED_GEAR)
         : undefined);
-    const reason = unsupported ?? this.spellReason(spell, state, hostile);
+    const immune =
+      hostile && immuneTo(this.deps.combatLog?.(), context.targetGuid, id);
+    const reason =
+      unsupported ??
+      (immune ? "immune" : this.spellReason(spell, state, hostile));
     return { id: actionId, spell, target, reason, supported: !unsupported };
   }
 
@@ -480,15 +494,7 @@ export class CombatActions {
         distance !== undefined &&
         distance >= range.minHostile &&
         distance <= range.maxHostile &&
-        [
-          "cooldown",
-          "insufficient_mana",
-          "aura_already_present",
-          "caster_aura_required",
-          "target_aura_required",
-          "too_close",
-          "auto_shot_active",
-        ].includes(action.reason)
+        RANGE_HELD_REASONS.has(action.reason)
       )
         return true;
     }

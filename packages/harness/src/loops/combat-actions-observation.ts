@@ -1,10 +1,12 @@
 import {
+  type AreaState,
   bearing,
   type CombatOutcome,
   type CombatState,
   type CombatUnit,
   distance,
 } from "@peon/core";
+import { creatureEntry, isDamage } from "#harness/areas/combatlog/totals";
 import type { TacticsFrame } from "#harness/loops/tactics";
 import type { NavigationState } from "#harness/navigation/route-follower";
 
@@ -84,4 +86,88 @@ export function withNulls(
   return Object.fromEntries(
     Object.entries(record).map(([key, value]) => [key, nulled(value)]),
   );
+}
+
+const RECENT_MS = 6000;
+
+export const RANGE_HELD_REASONS: ReadonlySet<string> = new Set([
+  "cooldown",
+  "insufficient_mana",
+  "aura_already_present",
+  "caster_aura_required",
+  "target_aura_required",
+  "too_close",
+  "auto_shot_active",
+  "immune",
+]);
+
+export function immuneTo(
+  log: AreaState<"combatlog"> | undefined,
+  targetGuid: bigint,
+  spellId: number,
+): boolean {
+  const entry = creatureEntry(targetGuid);
+  return (
+    entry !== undefined &&
+    (log?.immunities.some(
+      (known) => known.entry === entry && known.spellId === spellId,
+    ) ??
+      false)
+  );
+}
+
+function damageTaken(
+  log: AreaState<"combatlog">,
+  now: number,
+  self: bigint,
+): Record<string, unknown>[] {
+  const groups = new Map<string, Record<string, unknown>>();
+  for (const entry of log.entries) {
+    if (entry.at < now - RECENT_MS || !isDamage(entry.kind)) continue;
+    if (entry.target !== self) continue;
+    const key = `${entry.source}:${entry.schoolMask ?? 0}`;
+    const group = groups.get(key) ?? {
+      amount: 0,
+      schoolMask: entry.schoolMask,
+      source: hex(entry.source),
+    };
+    group["amount"] = Number(group["amount"]) + entry.amount;
+    groups.set(key, group);
+  }
+  return [...groups.values()];
+}
+
+function ownMisses(
+  log: AreaState<"combatlog">,
+  now: number,
+  self: bigint,
+): Record<string, unknown>[] {
+  const counts = new Map<string, number>();
+  for (const entry of log.entries)
+    if (
+      entry.source === self &&
+      entry.outcome !== undefined &&
+      entry.at >= now - RECENT_MS
+    )
+      counts.set(entry.outcome, (counts.get(entry.outcome) ?? 0) + 1);
+  return [...counts].map(([outcome, count]) => ({ count, outcome }));
+}
+
+export function combatLogObservation(
+  log: AreaState<"combatlog"> | undefined,
+  init: { now: number; self: bigint; target: bigint },
+): Record<string, unknown> {
+  const { now, self, target } = init;
+  if (!log)
+    return { comboPoints: 0, damageTaken: [], immunities: [], misses: [] };
+  const entry = creatureEntry(target);
+  return {
+    comboPoints:
+      log.comboPoints?.target === target ? log.comboPoints.points : 0,
+    damageTaken: damageTaken(log, now, self),
+    immunities: log.immunities
+      .filter((known) => known.entry === entry)
+      .map((known) => known.spellId),
+    misses: ownMisses(log, now, self),
+  };
 }

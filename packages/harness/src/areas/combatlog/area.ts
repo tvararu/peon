@@ -1,5 +1,5 @@
 import type { AreaEventOf } from "@peon/core";
-import { fightText } from "#harness/areas/combatlog/totals";
+import { creatureEntry, fightText } from "#harness/areas/combatlog/totals";
 import type { AreaDraft } from "#harness/areas/contract";
 import { defineHarnessArea } from "#harness/areas/contract";
 import { guidText, type RuleInput } from "#harness/events/rules";
@@ -10,17 +10,7 @@ type Of<T extends CombatlogEvent["type"]> = Extract<
   { type: T }
 >;
 
-const HIGH = 0x1_00_00_00_00_00_00n;
-const ENTRY_UNIT = 0x1_00_00_00n;
-const CREATURE_HIGHS = new Set([0xf1_30n, 0xf1_50n]);
 const IMMUNE_OUTCOMES = new Set(["immune", "immune2"]);
-
-const highOf = (guid: bigint) => BigInt.asUintN(16, guid / HIGH);
-
-function creatureEntry(guid: bigint): number | undefined {
-  if (!CREATURE_HIGHS.has(highOf(guid))) return undefined;
-  return Number(BigInt.asUintN(24, guid / ENTRY_UNIT));
-}
 
 function named(guid: bigint, rc: RuleInput): string {
   return `${rc.lookup.unitName(guid) ?? "A unit"} ${rc.refOf(guid)}`;

@@ -37,6 +37,18 @@ const AVOIDED = new Set([
 ]);
 const IMMUNE_OUTCOMES = new Set(["immune", "immune2"]);
 
+export const isDamage = (kind: Entry["kind"]): boolean => DAMAGE.has(kind);
+
+const HIGH = 0x1_00_00_00_00_00_00n;
+const ENTRY_UNIT = 0x1_00_00_00n;
+const CREATURE_HIGHS = new Set([0xf1_30, 0xf1_50]);
+
+export function creatureEntry(guid: bigint): number | undefined {
+  if (!CREATURE_HIGHS.has(Number(BigInt.asUintN(16, guid / HIGH))))
+    return undefined;
+  return Number(BigInt.asUintN(24, guid / ENTRY_UNIT));
+}
+
 function isImmune(entry: Entry): boolean {
   if (entry.kind === "immune") return true;
   return entry.kind === "miss" && IMMUNE_OUTCOMES.has(entry.outcome ?? "");
