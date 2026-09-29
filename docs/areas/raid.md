@@ -308,6 +308,15 @@ leader change does not wake an idle agent. Round 75 re-ran on the
 `ghostlands` spawn after the spawn-slot fix and passed with the same
 shape (kick `DONE`, disband row, partner alone).
 
+Run a raid (`t9-raid-convert`, round 78 replica 1, `pass` 6/6; run
+directory not committed): the agent joined, took the lead after the
+timer handoff and the scripted steer, then called `group` with `raid`,
+`move` to group 2, `promote` assistant and `promote` main_tank, all
+`DONE`. The game log shows the four roster rows (converted, subgroup,
+assistant, main tank) and the console read matches a raid of 2 players.
+Round 77 failed 0/6 because the passive leader handoff did not wake the
+idle agent; the steer at 100 s fixed the scenario.
+
 ## Proof
 
 | Opcode | Proof | Evidence | Source |
