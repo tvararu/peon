@@ -22,6 +22,8 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   guildInvite: { args: ["string"], run: (h, a) => h.guildInvite(text(a, 0)) },
   invite: { args: ["string"], run: (h, a) => h.invite(text(a, 0)) },
   leaveGroup: { args: [], run: (h) => h.leaveGroup() },
+  requestPartyLocks: { args: [], run: (h) => h.lfg.act.requestPartyLocks() },
+  requestStatus: { args: [], run: (h) => h.lfg.act.requestStatus() },
   rollLoot: {
     args: ["guid", "number", ROLL_VOTES],
     run: (h, a) => h.rollLoot(guid(a, 0), count(a, 1), a[2] as RollVote),
