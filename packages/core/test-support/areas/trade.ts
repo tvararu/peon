@@ -1,5 +1,8 @@
 import { areaRig } from "#test-support/area-rig";
+import { type ItemsWorld, itemsWorld } from "#test-support/areas/items-world";
+import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketWriter } from "#wow/protocol/packet";
+import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
 
 export const TRADE_STATUS = {
   BEGIN_TRADE: 1,
@@ -23,6 +26,8 @@ export const TRADE_STATUS = {
 
 export const TRADE_PARTNER = 0x00_00_00_00_00_00_0b_01n;
 export const TRADE_SELF = 0x00_00_00_00_00_00_0a_01n;
+export const TRADE_LINEN = 0x40_00_00_00_00_00_0c_01n;
+export const TRADE_SWORD = 0x40_00_00_00_00_00_0c_02n;
 
 export type TradeStatusExtra = {
   trader?: bigint;
@@ -51,6 +56,36 @@ export function tradeStatusBody(
 
 export function tradeRig() {
   return areaRig("trade", { selfGuid: TRADE_SELF });
+}
+
+export function tradeCoinage(world: ItemsWorld, coinage: number): void {
+  (world.player.rawFields as Map<number, number>).set(
+    PLAYER_FIELDS.COINAGE.offset,
+    coinage,
+  );
+}
+
+export function tradeScene(seed: (world: ItemsWorld) => void = () => {}) {
+  const world = itemsWorld(TRADE_SELF);
+  world.put(255, 24, { count: 3, entry: 2589, guid: TRADE_LINEN });
+  tradeCoinage(world, 1000);
+  seed(world);
+  const rig = areaRig("trade", {
+    getEntity: world.lookup,
+    selfGuid: TRADE_SELF,
+  });
+  const opened = () =>
+    rig.inject(
+      GameOpcode.SMSG_TRADE_STATUS,
+      tradeStatusBody(TRADE_STATUS.OPEN_WINDOW, { tradeId: 1 }),
+    );
+  const touch = () =>
+    rig.events.entity.emit({
+      changed: [],
+      entity: world.player,
+      type: "update",
+    });
+  return { opened, rig, touch, world };
 }
 
 export type TradeExtendedItemInit = {

@@ -1,5 +1,8 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import type { TradeStatus, TradeStatusExtended } from "#wow/areas/trade/protocol";
+import type {
+  TradeStatus,
+  TradeStatusExtended,
+} from "#wow/areas/trade/protocol";
 import { tradeStatusName } from "#wow/areas/trade/protocol";
 import type { SessionDeps } from "#wow/session-stores";
 
@@ -27,7 +30,13 @@ export type TradeOffer = {
 
 export type TradeLastOutcome =
   | { kind: "canceled"; status: string }
-  | { kind: "refused"; status: string; equipResult?: number; targetError?: boolean; limitItem?: number }
+  | {
+      kind: "refused";
+      status: string;
+      equipResult?: number;
+      targetError?: boolean;
+      limitItem?: number;
+    }
   | { kind: "completed"; gave: TradeOffer; got: TradeOffer };
 
 export type TradeState = {
@@ -92,6 +101,8 @@ export class TradeStore {
     this.deps = deps;
   }
 
+  entityOf: SessionDeps["getEntity"] = (guid) => this.deps.getEntity(guid);
+
   snapshot(): TradeState {
     return {
       dropped: this.dropped,
@@ -130,6 +141,17 @@ export class TradeStore {
       this.events.emit({ from: status.trader, type: "requested" });
       return;
     }
+    if (status.kind === "open_window") {
+      if (this.phase === "settling") {
+        this.dropped += 1;
+        return;
+      }
+      this.phase = "open";
+      this.last = undefined;
+      this.resetOffers();
+      this.events.emit({ type: "opened", with: this.partner ?? 0n });
+      return;
+    }
     if (this.phase === "settling") {
       if (name === "trade_canceled") {
         this.abandon();
@@ -138,13 +160,6 @@ export class TradeStore {
         return;
       }
       this.dropped += 1;
-      return;
-    }
-    if (status.kind === "open_window") {
-      this.phase = "open";
-      this.last = undefined;
-      this.resetOffers();
-      this.events.emit({ type: "opened", with: this.partner ?? 0n });
       return;
     }
     if (name === "back_to_trade") {
@@ -178,22 +193,6 @@ export class TradeStore {
         targetError: status.isTarget,
       };
       this.events.emit({ status: name, type: "refused" });
-      return;
-    }
-    if (this.phase === "settling") {
-      if (name === "trade_canceled") {
-        this.abandon();
-        this.last = { kind: "canceled", status: name };
-        this.events.emit({ status: name, type: "canceled" });
-        return;
-      }
-      this.dropped += 1;
-      return;
-    }
-    if (status.kind === "open_window") {
-      this.phase = "open";
-      this.last = undefined;
-      this.events.emit({ type: "opened", with: this.partner ?? 0n });
       return;
     }
     if (CANCEL_STATUSES[name]) {
@@ -272,7 +271,11 @@ export class TradeStore {
     this.echo = { ...offer, version: this.own.version };
   }
 
-  recordOwnOffer(offer: { gold: number; spell?: number; items?: readonly TradeOfferItem[] }): void {
+  recordOwnOffer(offer: {
+    gold: number;
+    spell?: number;
+    items?: readonly TradeOfferItem[];
+  }): void {
     this.own = {
       gold: offer.gold,
       items: offer.items ? [...offer.items] : [],
