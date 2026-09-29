@@ -49,6 +49,12 @@ describe("validateResult", () => {
     expect(validateResult(valid)).toEqual([]);
   });
 
+  test("accepts the tier-9 group scenarios the scenario schema allows", () => {
+    expect(
+      validateResult({ ...valid, scenario: "t9-instances-reset" }),
+    ).toEqual([]);
+  });
+
   test("names a missing required field", () => {
     const { verdict: _verdict, ...rest } = valid;
     expect(validateResult(rest)).toEqual(["$: missing verdict"]);

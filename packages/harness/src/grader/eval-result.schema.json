@@ -214,7 +214,7 @@
     "notes": { "maxLength": 1500, "type": "string" },
     "replica": { "minimum": 1, "type": "integer" },
     "round": { "minimum": 0, "type": "integer" },
-    "scenario": { "pattern": "^t[0-8]-[a-z0-9-]+$", "type": "string" },
+    "scenario": { "pattern": "^t[0-9]-[a-z0-9-]+$", "type": "string" },
     "sha": { "pattern": "^[0-9a-f]{7,40}$", "type": "string" },
     "tab": { "type": "string" },
     "verdict": { "enum": ["pass", "fail", "blocked", "aborted"] },
