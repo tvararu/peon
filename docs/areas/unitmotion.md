@@ -26,6 +26,22 @@ disable_gravity. The probe flow `unitmotion-kill` attacks
 the nearest hostile creature until it dies and lists the flags its death
 cleared.
 
+A snare or speed buff on a creature reaches every observer as up to
+seven absolute speeds: walk, run, run back, swim, swim back, flight and
+flight back (the aura handler updates all seven types,
+`Spells/Auras/SpellAuraEffects.cpp:3902-3908`). `SetSpeed` sends a type
+only when its rate changed (`Entities/Unit/Unit.cpp:11020-11024`), so a
+creature whose flight rate was already at the target sends fewer. Each
+packet becomes a `speed` event with `previous`, and `ratio(guid, "run")`
+gives the run speed as a share of the base speed. The release of the aura
+sends the same seven at the earlier values, so `run` rises again. Only
+creature snares arrive as splines: a snared player's own speed goes to
+its controller as a force packet
+(`Entities/Unit/Unit.cpp:11030-11031`), and other players' speeds reach
+the store from `MSG_MOVE_SET_*_SPEED`. The probe flow `unitmotion-cast`
+walks to the nearest hostile creature, casts a spell at it and lists the
+speed and flag changes the creature showed.
+
 ## Wire notes
 
 - Every living unit's create block carries nine speeds after the
@@ -58,13 +74,9 @@ cleared.
 
 ## Left out
 
-The parser reads all 25 owned opcodes; only the two death toggles have
-a handler.
+The parser reads all 25 owned opcodes; the two death toggles and the
+seven speed opcodes have a handler.
 
-- `SMSG_SPLINE_SET_WALK_SPEED`, `SMSG_SPLINE_SET_RUN_SPEED`,
-  `SMSG_SPLINE_SET_RUN_BACK_SPEED`, `SMSG_SPLINE_SET_SWIM_SPEED`,
-  `SMSG_SPLINE_SET_SWIM_BACK_SPEED`, `SMSG_SPLINE_SET_FLIGHT_SPEED` and
-  `SMSG_SPLINE_SET_FLIGHT_BACK_SPEED`: built by `remote-motion-3`.
 - `SMSG_SPLINE_MOVE_ROOT`, `SMSG_SPLINE_MOVE_UNROOT`,
   `SMSG_SPLINE_MOVE_SET_WALK_MODE`, `SMSG_SPLINE_MOVE_SET_RUN_MODE`,
   `SMSG_SPLINE_MOVE_START_SWIM` and `SMSG_SPLINE_MOVE_STOP_SWIM`: built
@@ -87,3 +99,10 @@ No verb (N23).
 |---|---|---|---|
 | `SMSG_SPLINE_MOVE_UNSET_HOVER` | `live` | probe flow `unitmotion-kill` (`--expect` 0x308, 0x4D4) on an `eversong10-warrior` moved to East Sanctum with `soap gm tele EastSanctum`, exit 0; the Angershade kill traced 0x308 twice as `handled`, and the flow saw `hover` cleared | `Entities/Unit/Unit.cpp:16273` |
 | `SMSG_SPLINE_MOVE_GRAVITY_ENABLE` | `live` | the same `unitmotion-kill` run, exit 0; 0x4D4 traced once as `handled`, and the flow saw `disable_gravity` cleared | `Entities/Unit/Unit.cpp:16118` |
+| `SMSG_SPLINE_SET_WALK_SPEED` | `live` | probe flow `unitmotion-cast` (`--arg spell=116`, `--expect` 0x2fe) on an `eversong10-mage` at Springpaw Stalker: Frostbolt traced 0x301 handled twice, 2.5 to 1.5 at the snare and 1.5 to 2.5 at its end; all seven speed opcodes arrived at both moments | `Entities/Unit/Unit.h:653` |
+| `SMSG_SPLINE_SET_RUN_SPEED` | `live` | the same run: 0x2fe traced twice as `handled`, 6.0 to 3.6 and back | `Entities/Unit/Unit.h:654` |
+| `SMSG_SPLINE_SET_RUN_BACK_SPEED` | `live` | the same run: 0x2ff traced twice as `handled`, 4.5 to 2.7 and back | `Entities/Unit/Unit.h:655` |
+| `SMSG_SPLINE_SET_SWIM_SPEED` | `live` | the same run: 0x300 traced twice as `handled`, 4.72 to 2.43 and back to 4.05 | `Entities/Unit/Unit.h:656` |
+| `SMSG_SPLINE_SET_SWIM_BACK_SPEED` | `live` | the same run: 0x302 traced twice as `handled`, 2.5 to 1.5 and back | `Entities/Unit/Unit.h:657` |
+| `SMSG_SPLINE_SET_FLIGHT_SPEED` | `live` | the same run: 0x385 traced twice as `handled`, 7 to 3.6 and back to 6.0 | `Entities/Unit/Unit.h:659` |
+| `SMSG_SPLINE_SET_FLIGHT_BACK_SPEED` | `live` | the same run: 0x386 traced twice as `handled`, 4.5 to 2.7 and back | `Entities/Unit/Unit.h:660` |

@@ -5,11 +5,11 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x2fe` | `SMSG_SPLINE_SET_RUN_SPEED` | server | missing |  |
-| `0x2ff` | `SMSG_SPLINE_SET_RUN_BACK_SPEED` | server | missing |  |
-| `0x300` | `SMSG_SPLINE_SET_SWIM_SPEED` | server | missing |  |
-| `0x301` | `SMSG_SPLINE_SET_WALK_SPEED` | server | missing |  |
-| `0x302` | `SMSG_SPLINE_SET_SWIM_BACK_SPEED` | server | missing |  |
+| `0x2fe` | `SMSG_SPLINE_SET_RUN_SPEED` | server | handled |  |
+| `0x2ff` | `SMSG_SPLINE_SET_RUN_BACK_SPEED` | server | handled |  |
+| `0x300` | `SMSG_SPLINE_SET_SWIM_SPEED` | server | handled |  |
+| `0x301` | `SMSG_SPLINE_SET_WALK_SPEED` | server | handled |  |
+| `0x302` | `SMSG_SPLINE_SET_SWIM_BACK_SPEED` | server | handled |  |
 | `0x303` | `SMSG_SPLINE_SET_TURN_RATE` | server | missing |  |
 | `0x304` | `SMSG_SPLINE_MOVE_UNROOT` | server | missing |  |
 | `0x305` | `SMSG_SPLINE_MOVE_FEATHER_FALL` | server | missing |  |
@@ -23,8 +23,8 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x30d` | `SMSG_SPLINE_MOVE_SET_RUN_MODE` | server | missing |  |
 | `0x30e` | `SMSG_SPLINE_MOVE_SET_WALK_MODE` | server | missing |  |
 | `0x31a` | `SMSG_SPLINE_MOVE_ROOT` | server | missing |  |
-| `0x385` | `SMSG_SPLINE_SET_FLIGHT_SPEED` | server | missing |  |
-| `0x386` | `SMSG_SPLINE_SET_FLIGHT_BACK_SPEED` | server | missing |  |
+| `0x385` | `SMSG_SPLINE_SET_FLIGHT_SPEED` | server | handled |  |
+| `0x386` | `SMSG_SPLINE_SET_FLIGHT_BACK_SPEED` | server | handled |  |
 | `0x422` | `SMSG_SPLINE_MOVE_SET_FLYING` | server | missing |  |
 | `0x423` | `SMSG_SPLINE_MOVE_UNSET_FLYING` | server | missing |  |
 | `0x45e` | `SMSG_SPLINE_SET_PITCH_RATE` | server | missing |  |
