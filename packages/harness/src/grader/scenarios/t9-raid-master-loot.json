@@ -1,0 +1,70 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 12,
+    "tools": 40,
+    "turns": 20
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["raid/roster"]
+      },
+      "expect": "GL has a raid/roster row for the loot rules changing to master loot, so the group tool with do loot_rules set master loot",
+      "id": "master-loot-set",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["looting/master_loot"]
+      },
+      "expect": "GL has a looting/master_loot row after the loot rules change, so the agent opened a corpse under master loot and the server listed the candidates",
+      "id": "candidates-listed",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "truth": ["inventory"]
+      },
+      "expect": "T final holds at least one more bag item row than T baseline, and that item is one the game log shows dropping from a corpse the agent killed; the agent must not have bought or been handed it by the partner",
+      "id": "item-gained",
+      "source": "truth"
+    },
+    {
+      "expect": "the session shows the agent calling the group tool with do give, not ending REFUSED or FAILED, after setting master loot with itself as looter",
+      "id": "give-called",
+      "source": "session"
+    }
+  ],
+  "field": "fairbreeze-stalkers",
+  "id": "t9-raid-master-loot",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 15,
+  "partner": "partner",
+  "partnerActions": [
+    {
+      "argv": ["call", "invite", "[\"<AGENT>\"]"],
+      "at": {
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "task_landed"
+      },
+      "windowMs": 120000
+    },
+    {
+      "argv": ["call", "setLeader", "[\"<AGENT>\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 20000
+      },
+      "windowMs": 180000
+    }
+  ],
+  "preset": "eversong10",
+  "setup": [],
+  "spawn": "eversong-trade",
+  "steers": [],
+  "task": "Join the group you are invited to. When you lead it, set master loot with yourself as looter, kill one Springpaw Stalker and give its item to yourself. If the corpse holds no item, kill another, up to three.",
+  "tier": 9
+}

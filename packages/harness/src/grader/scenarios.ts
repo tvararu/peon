@@ -174,6 +174,7 @@ export const ROUND_1: readonly string[] = [
   "t9-trade-receive",
   "t9-trade-swap",
   "t9-trade-cancel",
+  "t9-raid-master-loot",
 ];
 
 const DIR = `${import.meta.dir}/scenarios`;
