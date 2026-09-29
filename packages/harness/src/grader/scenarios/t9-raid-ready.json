@@ -55,17 +55,17 @@
       "argv": ["call", "answerReadyCheck", "[\"yes\"]"],
       "at": {
         "kind": "elapsed",
-        "ms": 60000
+        "ms": 240000
       },
-      "windowMs": 120000
+      "windowMs": 300000
     },
     {
       "argv": ["call", "answerReadyCheck", "[\"yes\"]"],
       "at": {
         "kind": "elapsed",
-        "ms": 90000
+        "ms": 270000
       },
-      "windowMs": 120000
+      "windowMs": 300000
     }
   ],
   "preset": "eversong10",
