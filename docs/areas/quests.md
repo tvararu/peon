@@ -97,7 +97,29 @@ its relay, the 60 s close or a group change.
 and emits `answered`; with no offer it returns false. An offer nobody
 answers in `OFFER_TIMEOUT_MS` (60000) gets that decline and an `expired`
 event with scope `offer`, while `SMSG_GOSSIP_COMPLETE` does not end an
-offer. `answerShare("accept")` throws `not built`: quests-7b builds it.
+offer. `answerShare("accept")` on a share offer sends
+`CMSG_QUESTGIVER_ACCEPT_QUEST` with the sharer's guid (the divider) as
+the giver and a zero trailing `uint32`, the form the server reads from a
+player who can share the quest (`Handlers/QuestHandler.cpp:113-132`);
+the quest joining the log is the existing `quest` `accepted` event. The
+shared details packet names the receiver's own guid as giver, so
+`QuestStore` opens no dialog and records no `stale_dialog` for a details
+packet with a divider, no giver and no pending intent
+(`Handlers/QuestHandler.cpp:596-598`).
+
+The escort prompt is `SMSG_QUEST_CONFIRM_ACCEPT` (`uint32` quest id,
+`CString` title, `uint64` guid of the taker,
+`Server/Packets/QuestPackets.cpp:61-68`), which the taker's accept sends
+to each group member in reward distance who can take the quest
+(`Entities/Player/PlayerQuest.cpp:2483-2503`), first closing their gossip
+windows (the `SendCloseGossip` call just before the
+`SendQuestConfirmAccept` call in the same loop).
+`kind` is `confirm`; `answerShare("accept")` on it sends the 4-byte
+`CMSG_QUEST_CONFIRM_ACCEPT` quest id
+(`Server/Packets/QuestPackets.cpp:118-121`), and the server adds the
+quest only when the receiver's divider names a group mate in reward
+distance (`Handlers/QuestHandler.cpp:446-476`).
+packet: `answerShare("decline")` and the 60 s expiry send nothing.
 
 ## Wire notes
 
@@ -226,8 +248,13 @@ offer. `answerShare("accept")` throws `not built`: quests-7b builds it.
   `CMSG_QUESTLOG_SWAP_QUEST`, `CMSG_QUERY_QUESTS_COMPLETED` and
   `SMSG_QUERY_QUESTS_COMPLETED_RESPONSE`: `live`/`accepted` in the Proof
   table below; built by `quests-9`.
-- `SMSG_QUEST_CONFIRM_ACCEPT` and `CMSG_QUEST_CONFIRM_ACCEPT`: built by
-  `quests-7b`.
+- `SMSG_QUEST_CONFIRM_ACCEPT` and `CMSG_QUEST_CONFIRM_ACCEPT`: `live` in
+  the Proof table below; built by `quests-7b`.
+- Quests 8325 and 8326 carry `SpecialFlags` 4 (auto-accept): a share
+  adds them to the receiver's log at once, so the accept of a share offer
+  answers `SMSG_QUESTGIVER_QUEST_INVALID` reason 13 (already on the
+  quest). The live accept proof uses quest 8329, which is sharable and
+  not auto-accept.
 - A share of a pooled quest that is not spawned today: the server
   answers the sharer alone with result 8 and contacts no member
   (`Entities/Player/PlayerQuest.cpp:1532-1552`,
@@ -258,3 +285,6 @@ See which NPCs have a quest or a quest to turn in (`t4-quests-find-giver`, pass 
 | `SMSG_QUERY_QUESTS_COMPLETED_RESPONSE` | `live` | same run: the reply body decodes to count 1, quest 8326, matching `soap truth rewardedQuests` (`[8326]`) | `Handlers/QuestHandler.cpp:627-636` |
 | `CMSG_PUSHQUESTTOPARTY` | `live` | two `fresh` characters (sharer FAC6ABB8F15BF with 8326 staged offline, partner FAC6ABB8F16B9 with 8325 rewarded offline so `CanTakeQuest` holds for 8326): partner `call invite`/`call acceptInvite` formed the group; `mise protocol:probe FAC6ABB8F15BF --flow quests-share --arg relay=40 --expect MSG_QUEST_PUSH_RESULT` sent the 4-byte 8326 push drawing result 0 for the partner, then result 3 relayed after the partner ran `call answerShare ["decline"]` (the 13-byte form is that decline, the client's `MSG_QUEST_PUSH_RESULT`, answered by the `MSG_QUEST_PUSH_RESULT` row below) | `Handlers/QuestHandler.cpp:531-598` |
 | `MSG_QUEST_PUSH_RESULT` | `live` | same run: the flow printed both results for the partner (`{ guid 0xeec, result 0 }` then `{ result 3 }`), the sharer's `events --json` held `share` `{ type "pushed" }`, `{ type "result", result 0 }` and `{ type "relayed", result 3 }`, the sharing row itself drawn from the handler's `SendPushToPartyResponse` reply, and the partner's `events --json` held `share` `{ type "offered", from 3819, title "Unfortunate Measures" }` then `{ type "answered", answer "decline" }` | `Handlers/QuestHandler.cpp:605-618` |
+| `SMSG_QUEST_CONFIRM_ACCEPT` | `live` | two `fresh` Blood Elf characters (FAC6ABBABAC6D and FAC6ABBABAC18) level 9 at (8711, -7158) on map 530 beside Apprentice Mirveda (entry 15402), quest 8487 rewarded offline on both so 8488 (`PrevQuestID` 8487) can be taken; grouped by `call invite`/`call acceptInvite`. The sharer's raw `CMSG_QUESTGIVER_ACCEPT_QUEST` (16 bytes, Mirveda's guid, quest 8488) drew `SMSG_QUESTGIVER_QUEST_INVALID` before 8487 was rewarded and, after it, the partner's trace shows `SMSG_GOSSIP_COMPLETE` then the 31-byte `SMSG_QUEST_CONFIRM_ACCEPT`; the partner's `events --json` held `share` `{ type "offered", from 3885, questId 8488, title "Unexpected Results" }` (run traces are not committed) | `Entities/Player/PlayerQuest.cpp:2483-2503` |
+| `CMSG_QUEST_CONFIRM_ACCEPT` | `live` | same run: the partner's `call answerShare ["accept"]` sent the 4-byte packet (`packets.jsonl` `out` row), its `events --json` held `share` `{ type "answered", answer "accept", questId 8488 }`, and `soap truth` listed quest 8488 on both characters | `Server/Packets/QuestPackets.cpp:118-121` |
+| `CMSG_QUESTGIVER_ACCEPT_QUEST` (share accept) | `live` | two `fresh` characters (sharer FAC6ABBABAC6D with 8329 staged offline, partner FAC6ABBABAC18), grouped: `call shareQuest [8329]` drew result 0; the partner's `call answerShare ["accept"]` sent the 16-byte accept (`bodies` trace: sharer guid 0xf2d, quest 0x2089, trailing zero) and the sharer's trace then held `MSG_QUEST_PUSH_RESULT` result 2; `soap truth` listed 8329 on the partner (8326 does not work: it auto-accepts and the accept draws reason 13) | `Handlers/QuestHandler.cpp:154-161` |
