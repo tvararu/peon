@@ -25,10 +25,20 @@ sends `CMSG_TOTEM_DESTROYED` and the totem disappears (`destroyed`).
 The area emits `totem_created` and `totem_gone`, and the harness writes
 "Stoneskin Totem placed (earth)." and the gone row. The destroy act
 refuses `invalid_slot` for a slot outside 0-3 and `no_totem` for an
-empty slot, and sends nothing either way. Other casters'
-`MSG_CHANNEL_START` and `MSG_CHANNEL_UPDATE`
- do the same for channels (`finished` on update 0 at or after the expected end, `interrupted` when it is more than 400 ms early; an update 0 inside the last 400 ms waits 50 ms for the `SMSG_SPELL_FAILURE` AzerothCore sends with each cancelled channel and ends `interrupted` when it comes). Entries expire 1000 ms after their end and drop when the caster disappears, and the harness
- writes no log row for them.
+`MSG_CHANNEL_START` and `MSG_CHANNEL_UPDATE` do the same for channels
+(`finished` on update 0 at or after the expected end, `interrupted` when it is
+more than 400 ms early; an update 0 inside the last 400 ms waits 50 ms for the
+`SMSG_SPELL_FAILURE` AzerothCore sends with each cancelled channel and ends
+`interrupted` when it comes). Entries expire 1000 ms after their end and drop
+when the caster disappears. The harness writes a row only for a caster the
+character targets or that attacks it (`relevant` is 1 on the event):
+`spells/target_start` "Scourge Invader starts casting Shadow Bolt." and, when
+such a cast ends `interrupted`, `spells/target_interrupted`; other casters and
+other outcomes write no row. `look` adds "channelling Arcane Missiles, 3 s
+left" to the self line while a channel runs and "casting Fireball, 1.2 s left"
+to the target line while the target has a cast in progress, and Jev's
+observation carries the same cast as `targetCast` (spell, kind, duration and
+time left).
 `act.cancelAura(spellId)` drops one of the character's own auras with
 `CMSG_CANCEL_AURA`. It refuses, and sends nothing, what the server would
 drop in silence: `invalid_spell` for an id that is not a positive
