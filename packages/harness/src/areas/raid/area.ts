@@ -133,6 +133,7 @@ function rule(event: RaidEvent): AreaDraft[] {
           text: `${event.operation} answered ${event.result}.`,
         },
       ];
+    case "disbanded":
       return [
         {
           class: "passive",

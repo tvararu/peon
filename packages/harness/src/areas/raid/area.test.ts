@@ -62,6 +62,12 @@ describe("raid harness rules", () => {
     ]);
   });
 
+  test("a disband event writes one passive roster row", () => {
+    expect(rows({ type: "disbanded" })).toMatchObject([
+      { class: "passive", event: "raid/roster" },
+    ]);
+  });
+
   test("a blocked invite writes one log row", () => {
     expect(rows({ name: "Tom", type: "invite_blocked" })).toMatchObject([
       { class: "log", event: "raid/invite_blocked" },

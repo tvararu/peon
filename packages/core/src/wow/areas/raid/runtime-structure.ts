@@ -30,70 +30,80 @@ type Store = {
 
 export const MAX_TOOL_SUBGROUP = 8;
 
-function makeStructure(env: { ctx: Ctx; store: Store }) {
-  function guidFor(name: string): bigint {
-    const party = env.ctx.legacy.party();
-    const state = env.store.snapshot();
-    const raid = state.group?.members.find((member) => member.name === name);
-    const found = raid ?? party.members.find((member) => member.name === name);
-    if (!found) throw new Error(`not in your party: ${name}`);
-    return found.guid;
-  }
+function guidFor(env: { ctx: Ctx; store: Store }, name: string): bigint {
+  const party = env.ctx.legacy.party();
+  const state = env.store.snapshot();
+  const raid = state.group?.members.find((member) => member.name === name);
+  const found = raid ?? party.members.find((member) => member.name === name);
+  if (!found) throw new Error(`not in your party: ${name}`);
+  return found.guid;
+}
+
+function moveActs(env: {
+  ctx: Ctx;
+  store: Store;
+}): Pick<StructureActs, "convertToRaid" | "moveToSubgroup" | "swapSubgroups"> {
   function convertToRaid(): void {
     env.ctx.send(GameOpcode.CMSG_GROUP_RAID_CONVERT, buildGroupRaidConvert());
   }
   function moveToSubgroup(name: string, group: number): void {
     if (!Number.isInteger(group) || group < 1 || group > MAX_TOOL_SUBGROUP)
       throw new Error(`subgroup must be a group 1-${MAX_TOOL_SUBGROUP}`);
-    guidFor(name);
+    guidFor(env, name);
     env.ctx.send(
       GameOpcode.CMSG_GROUP_CHANGE_SUB_GROUP,
       buildGroupChangeSubGroup(name, group - 1),
     );
   }
   function swapSubgroups(name: string, withName: string): void {
-    guidFor(name);
-    guidFor(withName);
+    guidFor(env, name);
+    guidFor(env, withName);
     env.ctx.send(
       GameOpcode.CMSG_GROUP_SWAP_SUB_GROUP,
       buildGroupSwapSubGroup(name, withName),
     );
   }
+  return { convertToRaid, moveToSubgroup, swapSubgroups };
+}
+
+function roleActs(env: {
+  ctx: Ctx;
+  store: Store;
+}): Pick<
+  StructureActs,
+  "setAssistant" | "setMainTank" | "setMainAssist" | "uninviteGuid"
+> {
   function setAssistant(name: string, on: boolean): void {
     env.ctx.send(
       GameOpcode.CMSG_GROUP_ASSISTANT_LEADER,
-      buildGroupAssistantLeader(guidFor(name), on),
+      buildGroupAssistantLeader(guidFor(env, name), on),
     );
   }
   function setMainTank(name: string, on: boolean): void {
     env.ctx.send(
       GameOpcode.MSG_PARTY_ASSIGNMENT,
-      buildPartyAssignment(PARTY_ASSIGN_MAIN_TANK, on, guidFor(name)),
+      buildPartyAssignment(PARTY_ASSIGN_MAIN_TANK, on, guidFor(env, name)),
     );
   }
   function setMainAssist(name: string, on: boolean): void {
     env.ctx.send(
       GameOpcode.MSG_PARTY_ASSIGNMENT,
-      buildPartyAssignment(PARTY_ASSIGN_MAIN_ASSIST, on, guidFor(name)),
+      buildPartyAssignment(PARTY_ASSIGN_MAIN_ASSIST, on, guidFor(env, name)),
     );
   }
   function uninviteGuid(name: string, reason: string): void {
     env.ctx.send(
       GameOpcode.CMSG_GROUP_UNINVITE_GUID,
-      buildGroupUninviteGuid(guidFor(name), reason),
+      buildGroupUninviteGuid(guidFor(env, name), reason),
     );
   }
+  return { setAssistant, setMainTank, setMainAssist, uninviteGuid };
+}
+
+function makeStructure(env: { ctx: Ctx; store: Store }) {
   return {
-    act: {
-      convertToRaid,
-      moveToSubgroup,
-      swapSubgroups,
-      setAssistant,
-      setMainTank,
-      setMainAssist,
-      uninviteGuid,
-    },
-    dispose: () => {},
+    act: { ...moveActs(env), ...roleActs(env) },
+    dispose: () => undefined,
   };
 }
 
