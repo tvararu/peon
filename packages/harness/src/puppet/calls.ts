@@ -22,8 +22,8 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
     run: (h, a) => h.lfg.act.answerProposal(a[0] === "accept"),
   },
   answerReadyCheck: {
-    args: [["ready", "not_ready"]],
-    run: (h, a) => h.raid.act.answerReadyCheck(a[0] === "ready"),
+    args: [["no", "yes"]],
+    run: (h, a) => h.raid.act.answerReadyCheck(a[0] === "yes"),
   },
   answerShare: {
     args: [["accept", "decline"]],
