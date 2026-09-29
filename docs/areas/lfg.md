@@ -52,14 +52,17 @@ on a kick. The store also keeps the last `proposal`, `boot`,
   `u32` (`Handlers/LFGHandler.cpp:383-392`); `SMSG_LFG_ROLE_CHECK_UPDATE`
   is the state `u32`, an initializing `u8`, a dungeon count, the entries,
   a member count and per member `u64`, ready `u8`, roles `u32`, level
-  `u8` with the leader first (`Handlers/LFGHandler.cpp:394-439`).
-- The `ghostlands20` queue flow joins entry 100663554 (id 258, type 6) as
-  damage with comment `peon`, sees the join result, a type-5 update and
-  the queue status, then leaves and sees the type-7 update. A group join
-  makes the server start a role check on the leader's join and send
-  `SMSG_LFG_ROLE_CHECK_UPDATE` to every member, and each answer is echoed
-  as `SMSG_LFG_ROLE_CHOSEN` (`Handlers/LFGHandler.cpp:383-392`, `Handlers/LFGHandler.cpp:394-439`);
-  this run was not seen live.
+  `u8` with the leader first (`Handlers/LFGHandler.cpp:394-439`); the
+  five-puppet run showed the group role check, each role answer and its
+  echo on the live server.
+- The run followed the server's order: the proposal answers land before
+  the state-2 update rebroadcasts them
+  (`DungeonFinding/LFGMgr.cpp:1944-1952`), the teleport out before the
+  removal that offers continue
+  (`DungeonFinding/LFGScripts.cpp:238-244`); a premade party that queues
+  together is converted without LFG restrictions
+  (`Groups/Group.cpp:2484-2488`), so a kick vote needs solo queuers and
+  stays unseen.
 - A role mask holds tank `2`, healer `4` and damage `8`; bit `1` is the
   leader flag, so a leader-only join or role answer fails the role check
   with `NO_ROLE` although the server echoes the answer as ready. `join`
@@ -171,14 +174,14 @@ The `dungeon` tool queues, answers role checks and proposals, teleports in and o
 | `SMSG_LFG_QUEUE_STATUS` | `live` | probe flow `lfg-queue`, exit 0; two `in` rows of size 31, `handled`, during the 12 s wait | `Handlers/LFGHandler.cpp:456-473` |
 | `CMSG_LFG_LEAVE` | `live` | probe flow `lfg-queue`, exit 0; trace shows `out` size 0, then the type-7 update | `Handlers/LFGHandler.cpp:78-93` |
 | `CMSG_SET_LFG_COMMENT` | `builder` | sent live, effect not seen: probe flow `lfg-queue` traces `out` size 10 with the changed comment, then the rejoin sends an empty comment that overwrites it. Builder test on `buildLfgComment` | `Handlers/LFGHandler.cpp:122-131` |
-| `CMSG_LFG_SET_ROLES` | `mock` | mock request body built by `buildLfgSetRoles`; the two-puppet `setRoles` trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:106-120` |
-| `SMSG_LFG_ROLE_CHECK_UPDATE` | `mock` | mock check body built by `lfgRoleCheckUpdateBody`; the two-puppet group trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:394-439` |
-| `SMSG_LFG_ROLE_CHOSEN` | `mock` | mock answer body built by `lfgRoleChosenBody`; the two-puppet group trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:383-392` |
+| `CMSG_LFG_SET_ROLES` | `live` | same run: the four puppets answer the role check tank, healer, damage, damage and the server echoes each answer | `Handlers/LFGHandler.cpp:106-120` |
+| `SMSG_LFG_ROLE_CHECK_UPDATE` | `live` | same run: the group join starts a role check that every member sees | `Handlers/LFGHandler.cpp:394-439` |
+| `SMSG_LFG_ROLE_CHOSEN` | `live` | same run: each puppet role answer is echoed to the group | `Handlers/LFGHandler.cpp:383-392` |
 | `CMSG_LFG_TELEPORT` | `live` | probe flow `lfg-teleport` on a fresh `ghostlands20` account, run not committed: trace shows `out` size 1, then 14 ms later `SMSG_LFG_TELEPORT_DENIED` | `Handlers/LFGHandler.cpp:143-150` |
 | `SMSG_LFG_TELEPORT_DENIED` | `live` | same run: `in` size 4, `handled`; the store holds code 6 (`invalid_location`, not in an LFG group) | `Handlers/LFGHandler.cpp:636-642` |
-| `SMSG_LFG_PROPOSAL_UPDATE` | `mock` | mock body built by `lfgProposalBody`; not seen live until instances-11 | `Handlers/LFGHandler.cpp:545-611` |
-| `CMSG_LFG_PROPOSAL_RESULT` | `builder` | builder test on `buildLfgProposalResult`; a live send needs a proposal, so not seen live until instances-11 | `Handlers/LFGHandler.cpp:95-104` |
-| `SMSG_LFG_OFFER_CONTINUE` | `mock` | mock body built by `lfgOfferContinueBody`; not seen live | `Handlers/LFGHandler.cpp:628-634` |
+| `SMSG_LFG_PROPOSAL_UPDATE` | `live` | five-`ghostlands20`-puppet run, trace kept under `tmp/` until review: a full party matches itself (`DungeonFinding/LFGQueue.cpp:224`), state 0 then state 2 for the level-20 random dungeon | `Handlers/LFGHandler.cpp:545-611` |
+| `CMSG_LFG_PROPOSAL_RESULT` | `live` | same run: trace shows five `out` proposal answers, the leader first, then the state-2 update | `Handlers/LFGHandler.cpp:95-104` |
+| `SMSG_LFG_OFFER_CONTINUE` | `live` | same run: `CMSG_GROUP_UNINVITE` after the teleport out, the leader gets `in` size 4 body `0c000001` | `Handlers/LFGHandler.cpp:628-634` |
 | `CMSG_LFG_SET_BOOT_VOTE` | `builder` | builder test on `buildLfgBootVote`; a live send needs a kick vote, so not seen live until instances-11 | `Handlers/LFGHandler.cpp:133-141` |
 | `SMSG_LFG_BOOT_PROPOSAL_UPDATE` | `mock` | mock body built by `lfgBootBody`; not seen live | `Handlers/LFGHandler.cpp:513-543` |
 | `SMSG_LFG_PLAYER_REWARD` | `mock` | mock body built by `lfgRewardBody`; needs a finished random dungeon, so not seen live | `Handlers/LFGHandler.cpp:475-511` |

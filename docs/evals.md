@@ -201,5 +201,5 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Reputation and hostility (journal reputation, reputation rows, unit relations) | `t4-reputation-gain`, `t0-hostiles` |
 | Travel (`interact` bind, `travel` hearth and fly) | `t8-travel-bind-inn`, `t8-travel-hearth-home` |
 | Pets (pet, interact stable) | `t8-pets-command` |
-| Instances and dungeon finder (`dungeon`) | `t9-instances-difficulty`, `t9-lfg-queue` |
+| Instances and dungeon finder (`dungeon`) | `t9-instances-difficulty`, `t9-lfg-queue`, `t9-lfg-run` |
 | Groups and raids (`group` tool) | `t9-raid-kick`, `t9-raid-convert` |
