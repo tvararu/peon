@@ -16,6 +16,7 @@ const ALIASES: Readonly<Record<string, readonly [string, string]>> = {
   tradeCancel: ["trade", "cancelTrade"],
   tradeOffer: ["trade", "offerItem"],
   tradeRequest: ["trade", "requestTrade"],
+  tradeRequestQuiet: ["trade", "requestTrade"],
 };
 
 const HANDLE_ALIASES: Readonly<Record<string, string>> = {
@@ -145,5 +146,26 @@ describe("PUPPET_CALLS", () => {
     expect(PUPPET_CALLS["walkToPlayer"]?.run(game, call.args)).rejects.toThrow(
       "No nearby player named Fabc.",
     );
+  });
+
+  test("tradeRequestQuiet does not fail when the other player refuses", async () => {
+    const game = createMockGame();
+    const row = {
+      distance: 2,
+      entity: { guid: 7n, name: "Fabc", objectType: 4 },
+      position: { x: 1, y: 2, z: 3 },
+      self: false,
+    };
+    spyOn(game, "queryNearby").mockReturnValue([row] as never);
+    spyOn(game.trade.act, "requestTrade").mockResolvedValue({
+      reason: "busy",
+      status: "refused",
+    });
+    const call = decodeCall("tradeRequestQuiet", '["Fabc"]');
+    if ("error" in call) throw new Error(call.error);
+    expect(
+      await PUPPET_CALLS["tradeRequestQuiet"]?.run(game, call.args),
+    ).toBeUndefined();
+    expect(game.trade.act.requestTrade).toHaveBeenCalledWith(7n);
   });
 });

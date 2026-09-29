@@ -177,6 +177,12 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
     args: ["string"],
     run: (h, a) => h.trade.act.requestTrade(nearbyPlayer(h, text(a, 0)).guid),
   },
+  tradeRequestQuiet: {
+    args: ["string"],
+    run: async (h, a) => {
+      await h.trade.act.requestTrade(nearbyPlayer(h, text(a, 0)).guid);
+    },
+  },
   uninvite: { args: ["string"], run: (h, a) => h.uninvite(text(a, 0)) },
   uninviteGuid: {
     args: ["string", "string"],
