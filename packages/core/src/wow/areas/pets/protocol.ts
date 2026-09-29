@@ -82,7 +82,9 @@ export function buildPetSpellAutocast(
 
 export function buildPetSetAction(
   pet: bigint,
-  pairs: readonly [PetSetActionPair, ...PetSetActionPair[]],
+  pairs:
+    | readonly [PetSetActionPair]
+    | readonly [PetSetActionPair, PetSetActionPair],
 ): Uint8Array {
   const w = new PacketWriter();
   w.uint64LE(pet);

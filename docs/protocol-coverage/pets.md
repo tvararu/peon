@@ -15,7 +15,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x178` | `SMSG_PET_NAME_INVALID` | server | missing |  |
 | `0x179` | `SMSG_PET_SPELLS` | server | handled |  |
 | `0x17a` | `SMSG_PET_MODE` | server | dead |  |
-| `0x1f0` | `CMSG_PET_CAST_SPELL` | client | handled |  |
+| `0x1f0` | `CMSG_PET_CAST_SPELL` | client | handled | not seen live |
 | `0x26b` | `CMSG_PET_CANCEL_AURA` | client | handled |  |
 | `0x26f` | `MSG_LIST_STABLED_PETS` | both | missing |  |
 | `0x270` | `CMSG_STABLE_PET` | client | missing |  |

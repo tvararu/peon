@@ -13,6 +13,7 @@ import {
 import type { PetsEvent, PetsStore } from "#wow/areas/pets/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { SpellTarget } from "#wow/protocol/spell-targets";
+import type { CoreStores } from "#wow/session-stores";
 export type PetOrder = "stay" | "follow" | "dismiss";
 export type PetStance = "passive" | "defensive" | "aggressive";
 export type PetsRefused = {
@@ -50,6 +51,7 @@ const STANCES: Record<PetStance, number> = {
 const NO_PET: PetsRefused = { ok: false, reason: "no_pet" };
 
 type Ctx = AreaRuntimeCtx<PetsEvent>;
+const SPELL_ATTR0_PASSIVE = 0x40;
 
 function requestPetInfo(ctx: Ctx): { ok: true } {
   ctx.send(GameOpcode.CMSG_REQUEST_PET_INFO, buildRequestPetInfo());
@@ -101,6 +103,7 @@ function orderActs(
 function spellActs(
   ctx: Ctx,
   store: PetsStore,
+  core: CoreStores,
 ): Pick<PetsActs, "petAutocast" | "petCancelAura" | "petCast"> {
   let castCount = 0;
   return {
@@ -131,7 +134,9 @@ function spellActs(
       if (!bar) return NO_PET;
       const row = bar.spells.find((entry) => entry.spell === spell);
       if (!row) return { ok: false, reason: "not_known" };
-      if (row.autocast === "passive") return { ok: false, reason: "passive" };
+      const raw = core.combat.definition(spell)?.attributes.raw;
+      if (raw !== undefined && (raw & SPELL_ATTR0_PASSIVE) !== 0)
+        return { ok: false, reason: "passive" };
       if (!pet) return NO_PET;
       if (pet.health === 0) return { ok: false, reason: "dead" };
       castCount = castCount === 255 ? 1 : castCount + 1;
@@ -187,9 +192,13 @@ function barActs(
   };
 }
 
-export function petsRuntime(ctx: Ctx, store: PetsStore): AreaRuntime<PetsActs> {
+export function petsRuntime(
+  ctx: Ctx,
+  store: PetsStore,
+  core: CoreStores,
+): AreaRuntime<PetsActs> {
   const orders = orderActs(ctx, store);
-  const spells = spellActs(ctx, store);
+  const spells = spellActs(ctx, store, core);
   const bar = barActs(ctx, store);
   return {
     act: {

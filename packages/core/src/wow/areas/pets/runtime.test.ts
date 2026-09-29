@@ -1,17 +1,23 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import { petsPetSpellsBody } from "#test-support/areas/pets";
+import { spell } from "#test-support/spell-fixtures";
 import { buildPetAction, PET_ACTION } from "#wow/areas/pets/protocol";
 import type { Entity } from "#wow/entity-store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 import { UNIT_FIELDS } from "#wow/protocol/update-fields";
+import type { SpellCatalog, SpellDefinition } from "#wow/spell-catalog";
 
 const ME = 0x2an;
 const PET = 0xf1_40_00_0c_a9_00_02_0bn;
 const BITE = 17_253;
 const GROWL = 2649;
 const DASH = 23_099;
+const SPELL_ATTR0_PASSIVE = 0x40;
+function definition(id: number, raw: number): SpellDefinition {
+  return { ...spell(), attributes: { ex: 0, ex2: 0, raw }, id };
+}
 const BAR = petsPetSpellsBody({
   command: 1,
   cooldowns: [],
@@ -76,7 +82,12 @@ function withPet(bytes2: number, health = 410) {
     selfGuid: ME,
   });
   rig.inject(GameOpcode.SMSG_PET_SPELLS, BAR);
-  return { act: rig.handle.act, dispose: rig.dispose, sent: rig.sent };
+  return {
+    act: rig.handle.act,
+    dispose: rig.dispose,
+    sent: rig.sent,
+    stores: rig.stores,
+  };
 }
 
 describe("pets runtime", () => {
@@ -217,18 +228,27 @@ describe("pets runtime", () => {
       dead.dispose();
     }
   });
-  test("petCast refuses a passive bar spell and leaves the cast count alone (PetHandler.cpp:1042-1044)", () => {
+  test("petCast sends a non-autocastable bar spell and refuses one whose attribute is passive (PetHandler.cpp:1042-1044, Pet.cpp:1810-1816)", () => {
     const rig = withPet(0);
+    const defs = new Map([
+      [DASH, definition(DASH, 0)],
+      [BITE, definition(BITE, SPELL_ATTR0_PASSIVE)],
+    ]);
+    rig.stores.combat.setCatalog({
+      get: (id: number) => defs.get(id),
+    } as unknown as SpellCatalog);
     try {
-      expect(rig.act.petCast(DASH, { kind: "none" })).toEqual({
+      expect(rig.act.petCast(BITE, { kind: "none" })).toEqual({
         ok: false,
         reason: "passive",
       });
       expect(rig.sent).toEqual([]);
-      expect(rig.act.petCast(GROWL, { kind: "none" })).toEqual({
+      expect(rig.act.petCast(DASH, { kind: "none" })).toEqual({
         castCount: 1,
         ok: true,
       });
+      expect(rig.sent).toHaveLength(1);
+      expect(rig.sent[0]?.opcode).toBe(GameOpcode.CMSG_PET_CAST_SPELL);
     } finally {
       rig.dispose();
     }
