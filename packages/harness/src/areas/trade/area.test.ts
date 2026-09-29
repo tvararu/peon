@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEvent } from "@peon/core";
-import { tradeHarness } from "#harness/areas/trade/area";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
+import { tradeHarness } from "#harness/areas/trade/area";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
 function trade(event: unknown): AreaEvent {
@@ -48,7 +48,9 @@ describe("trade harness rules", () => {
       trade({ type: "offer_changed", version: 2 }),
       input(),
     );
-    expect(changed).toMatchObject([{ class: "log", event: "trade/offer_changed" }]);
+    expect(changed).toMatchObject([
+      { class: "log", event: "trade/offer_changed" },
+    ]);
   });
 
   test("they_accepted, canceled and refused are wake rows; completed is a progress log row", () => {
