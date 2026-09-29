@@ -57,7 +57,7 @@
   ],
   "preset": "eversong10",
   "setup": [],
-  "spawn": "fairbreeze-east",
+  "spawn": "ghostlands",
   "steers": [],
   "task": "Join the group you are invited to. When you lead it, remove the other member with the reason 'test'.",
   "tier": 9
