@@ -342,3 +342,16 @@ export function raidPartyMemberOfflineBody(guid: bigint): Uint8Array {
   w.uint16LE(0);
   return w.finish();
 }
+
+export function raidReadyCheckBody(initiator: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(initiator);
+  return w.finish();
+}
+
+export function raidReadyConfirmBody(guid: bigint, state: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(guid);
+  w.uint8(state);
+  return w.finish();
+}
