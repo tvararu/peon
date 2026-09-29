@@ -109,7 +109,7 @@
       "actor": 1,
       "argv": ["call", "setRoles", "[2]"],
       "at": {
-        "delayMs": 1000,
+        "delayMs": 15000,
         "kind": "trigger",
         "nth": 1,
         "trigger": "lfg_role_check"
