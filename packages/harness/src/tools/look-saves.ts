@@ -9,7 +9,7 @@ function queueName(lfg: LfgSnapshot): string {
   const entry = lfg.queue?.dungeon ?? lfg.selected[0];
   if (entry === undefined) return "a dungeon";
   const unsigned = entry < 0 ? entry + 2 ** 32 : entry;
-  if (Math.floor(unsigned / 2 ** 24) % 256 === 1) return "a random dungeon";
+  if (Math.floor(unsigned / 2 ** 24) % 256 === 6) return "a random dungeon";
   return `dungeon ${unsigned % 2 ** 24}`;
 }
 

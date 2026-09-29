@@ -72,12 +72,36 @@ describe("look saves line", () => {
         locks: [lock({ secondsToReset: 2 * 86_400 })],
         locksAt: NOW - 60_000,
       }),
-      lfgState({ selected: [0x01_00_00_0c], status: "queued" }),
+      lfgState({ selected: [0x06_00_00_0c], status: "queued" }),
       NOW,
     );
     expect(line).toHaveLength(2);
     expect(line[0]).toMatch(/Saved: map 36[^\n]*2 d left/);
     expect(line[1]).toMatch(/In queue: a random dungeon/);
+  });
+
+  test("a type-6 entry reads as a random dungeon", () => {
+    const line = savesLine(
+      instancesState(),
+      lfgState({ selected: [0x06_00_00_02], status: "queued" }),
+      NOW,
+    );
+    expect(line).toEqual([
+      "No saved instances.",
+      "In queue: a random dungeon, waiting 0 s.",
+    ]);
+  });
+
+  test("a type-1 entry reads as a specific dungeon", () => {
+    const line = savesLine(
+      instancesState(),
+      lfgState({ selected: [0x01_00_00_02], status: "queued" }),
+      NOW,
+    );
+    expect(line).toEqual([
+      "No saved instances.",
+      "In queue: dungeon 2, waiting 0 s.",
+    ]);
   });
 
   test("no save and no queue add no line", () => {

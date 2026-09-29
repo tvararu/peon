@@ -13,6 +13,7 @@ import {
   createTestRuntime,
   type TestRuntime,
 } from "#test-support/runtime-fixture";
+import { expectSendKind } from "#test-support/tool-harness";
 
 const NOW = 1_000_000_000;
 const MIN = 60_000;
@@ -91,7 +92,7 @@ function queued() {
   return {
     avgWait: 0,
     dps: 0,
-    dungeon: 0x01_00_00_0c,
+    dungeon: 0x06_00_00_0c,
     healers: 0,
     queuedTime: 240,
     tanks: 0,
@@ -139,7 +140,7 @@ function statusWorld() {
     },
     lfg: {
       queue: queued(),
-      selected: [0x01_00_00_0c],
+      selected: [0x06_00_00_0c],
       status: "queued",
     },
   });
@@ -162,6 +163,7 @@ describe("dungeon tool", () => {
 
   test("is an action tool and so runs sequentially", async () => {
     expect(dungeonTool.kind).toBe("action");
+    await expectSendKind(dungeonTool, { accept: false, do: "bind" });
   });
 });
 
