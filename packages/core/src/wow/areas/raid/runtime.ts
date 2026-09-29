@@ -15,6 +15,9 @@ export type RaidActs = {
 type Ctx = AreaRuntimeCtx<RaidEvent>;
 
 function matches(event: RaidEvent, match: GroupChangeMatch): boolean {
+  if (event.type === "disbanded") {
+    return match.kinds.every((kind) => kind === "disbanded");
+  }
   if (event.type !== "group_list") return false;
   return match.kinds.every((kind) =>
     event.changes.some((change) => change.kind === kind),

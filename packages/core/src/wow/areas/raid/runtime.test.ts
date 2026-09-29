@@ -48,6 +48,31 @@ describe("raid awaitGroupChange", () => {
     }
   });
 
+  test("resolves a disbanded wait when the group empties", async () => {
+    const rig = areaRig("raid");
+    try {
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, partyList());
+      const pending = rig.handle.act.awaitGroupChange(
+        { kinds: ["disbanded"] },
+        1000,
+      );
+      rig.inject(
+        GameOpcode.SMSG_GROUP_LIST,
+        raidGroupListBody({
+          counter: 1,
+          leader: 0n,
+          loot: { method: 1, threshold: 2 },
+          members: [],
+          type: 0,
+        }),
+      );
+      const event = await pending;
+      expect(event.type).toBe("disbanded");
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("rejects with timeout after timeoutMs", async () => {
     jest.useFakeTimers();
     const rig = areaRig("raid");
