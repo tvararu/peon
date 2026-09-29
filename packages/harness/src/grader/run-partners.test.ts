@@ -246,6 +246,26 @@ describe("partnerSetup", () => {
       }),
     ).toThrow("$.partnerSetup[0].actor: no partner 3");
   });
+
+  test("a setup step without an actor is refused when no partner exists", () => {
+    const { partners, ...rest } = SCENARIO;
+    expect(() =>
+      parseScenario("t2-whisper-reply.json", {
+        ...rest,
+        partner: null,
+        partnerSetup: [{ body: { quest: 8326 }, endpoint: "quest/add" }],
+      }),
+    ).toThrow("$.partnerSetup[0].actor: no partner 1");
+  });
+
+  test("a setup step for a missing partner throws instead of skipping", async () => {
+    const { exec } = soapWorld();
+    const st = runState(exec);
+    const error = await placePartners(st, undefined, {
+      partnerSetup: [{ body: {}, endpoint: "level" }],
+    }).catch((err: unknown) => err);
+    expect(String(error)).toContain("no partner 1");
+  });
 });
 
 describe("partner truth", () => {

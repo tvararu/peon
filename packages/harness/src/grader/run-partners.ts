@@ -68,7 +68,8 @@ export async function placePartners(
       await applySetup({ account: names.account, exec, runDir, setup: [step] });
   for (const { actor = 1, body, endpoint } of scenario?.partnerSetup ?? []) {
     const partner = partners[actor - 1];
-    if (partner === undefined) continue;
+    if (partner === undefined)
+      throw new Error(`partnerSetup: no partner ${actor}`);
     await applySetup({
       account: partner.names.account,
       exec,

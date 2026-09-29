@@ -235,8 +235,8 @@ function partnerErrors(scenario: Scenario): string[] {
   );
   errors.push(
     ...partnerSetup.flatMap(({ actor }, index) =>
-      actor !== undefined && actor > count
-        ? [`$.partnerSetup[${index}].actor: no partner ${actor}`]
+      (actor ?? 1) > count
+        ? [`$.partnerSetup[${index}].actor: no partner ${actor ?? 1}`]
         : [],
     ),
   );
