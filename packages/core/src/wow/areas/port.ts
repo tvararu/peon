@@ -1,6 +1,7 @@
 import type { LegacyViews } from "#wow/areas/contract";
 import type { DbcSource } from "#wow/dbc";
 import { isUnit } from "#wow/entity-store";
+import { emptyParty } from "#wow/party-store";
 import type { PacketReader } from "#wow/protocol/packet";
 import type { ExpectOptions } from "#wow/protocol/world";
 import { sessionDeps } from "#wow/session-stores";
@@ -52,19 +53,7 @@ export function areaPort(
 }
 
 const EMPTY_LEGACY: LegacyViews = {
-  party: () => ({
-    counter: 0,
-    difficulty: undefined,
-    dungeonFinder: undefined,
-    inGroup: false,
-    kind: "party",
-    leader: null,
-    loot: null,
-    members: [],
-    ownFlags: 0,
-    ownRoles: 0,
-    ownSubgroup: 0,
-  }),
+  party: emptyParty,
   friends: () => [],
   ignored: () => [],
   guild: () => undefined,

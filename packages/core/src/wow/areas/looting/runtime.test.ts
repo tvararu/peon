@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import { lootingLootListBody } from "#test-support/areas/looting";
-import type { PartyMember } from "#wow/party-store";
+import { partyMember, partyState } from "#test-support/party-fixtures";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 const ME = 0xdcen;
@@ -10,39 +10,15 @@ const OTHER = 0xf1_30_00_3d_2a_01_2a_can;
 
 const PARTNER = 0x0_0000_0de6n;
 
-function member(name: string, guid: bigint): PartyMember {
-  return {
-    flags: 0,
-    guid,
-    health: null,
-    level: null,
-    maxHealth: null,
-    name,
-    online: true,
-    roles: 0,
-    source: null,
-    statsAt: null,
-    status: 1,
-    subgroup: 0,
-  };
+function member(name: string, guid: bigint) {
+  return partyMember({ guid, name });
 }
 
 function inParty() {
   const rig = areaRig("looting", {
     legacy: {
-      party: () => ({
-        counter: 0,
-        difficulty: undefined,
-        dungeonFinder: undefined,
-        inGroup: true,
-        kind: "party",
-        leader: null,
-        loot: null,
-        members: [member("Partner", PARTNER)],
-        ownFlags: 0,
-        ownRoles: 0,
-        ownSubgroup: 0,
-      }),
+      party: () =>
+        partyState({ inGroup: true, members: [member("Partner", PARTNER)] }),
       friends: () => [],
       ignored: () => [],
       guild: () => undefined,

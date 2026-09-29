@@ -7,7 +7,7 @@ import {
   lfgUpdatePlayerBody,
 } from "#test-support/areas/lfg";
 import { elapse, withFakeTimers } from "#test-support/fake-time";
-import type { PartyMember } from "#wow/party-store";
+import { partyMember, partyState } from "#test-support/party-fixtures";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 const PLAYER = lfgUpdatePlayerBody({
@@ -23,23 +23,14 @@ const INFO = lfgPlayerInfoBody({
   locks: [{ entry: 0x01_00_00_12, status: 2 }],
 });
 
-function member(name: string, guid: bigint): PartyMember {
-  return {
-    name,
-    guid,
-    online: true,
-    health: null,
-    maxHealth: null,
-    level: null,
-    statsAt: null,
-    source: null,
-  };
+function member(name: string, guid: bigint) {
+  return partyMember({ guid, name });
 }
 
 function solo() {
   return areaRig("lfg", {
     legacy: {
-      party: () => ({ inGroup: false, leader: null, loot: null, members: [] }),
+      party: () => partyState(),
       friends: () => [],
       ignored: () => [],
       guild: () => undefined,
@@ -51,12 +42,8 @@ function solo() {
 function grouped() {
   return areaRig("lfg", {
     legacy: {
-      party: () => ({
-        inGroup: true,
-        leader: null,
-        loot: null,
-        members: [member("Partner", 0xden)],
-      }),
+      party: () =>
+        partyState({ inGroup: true, members: [member("Partner", 0xden)] }),
       friends: () => [],
       ignored: () => [],
       guild: () => undefined,

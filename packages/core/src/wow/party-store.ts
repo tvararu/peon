@@ -119,8 +119,9 @@ function toDifficulty(loot: GroupList["loot"]): PartyState["difficulty"] {
     raid: loot.raidDifficulty,
   };
 }
-export class PartyStore {
-  private state: PartyState = {
+
+export function emptyParty(): PartyState {
+  return {
     counter: 0,
     difficulty: undefined,
     dungeonFinder: undefined,
@@ -133,6 +134,10 @@ export class PartyStore {
     ownRoles: 0,
     ownSubgroup: 0,
   };
+}
+
+export class PartyStore {
+  private state: PartyState = emptyParty();
   private readonly stats = new Map<bigint, Stats>();
 
   snapshot(
@@ -204,19 +209,7 @@ export class PartyStore {
   }
 
   clear(): void {
-    this.state = {
-      counter: 0,
-      difficulty: undefined,
-      dungeonFinder: undefined,
-      inGroup: false,
-      kind: "party",
-      leader: null,
-      loot: null,
-      members: [],
-      ownFlags: 0,
-      ownRoles: 0,
-      ownSubgroup: 0,
-    };
+    this.state = emptyParty();
     this.stats.clear();
   }
 }
