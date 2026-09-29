@@ -30,6 +30,6 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x36e` | `CMSG_LFD_PLAYER_LOCK_INFO_REQUEST` | client | handled |  |
 | `0x36f` | `SMSG_LFG_PLAYER_INFO` | server | handled |  |
 | `0x370` | `CMSG_LFG_TELEPORT` | client | missing |  |
-| `0x371` | `CMSG_LFD_PARTY_LOCK_INFO_REQUEST` | client | handled | not seen live |
-| `0x372` | `SMSG_LFG_PARTY_INFO` | server | handled | not seen live |
+| `0x371` | `CMSG_LFD_PARTY_LOCK_INFO_REQUEST` | client | handled |  |
+| `0x372` | `SMSG_LFG_PARTY_INFO` | server | handled |  |
 | `0x398` | `SMSG_LFG_DISABLED` | server | dead |  |
