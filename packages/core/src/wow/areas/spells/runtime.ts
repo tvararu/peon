@@ -83,11 +83,10 @@ function barActs(
   return { setActionBarToggles, setActionButton };
 }
 
-export function spellsRuntime(
+function channelAuraActs(
   ctx: AreaRuntimeCtx<SpellsEvent>,
-  store: SpellsStore,
   core: CoreStores,
-): AreaRuntime<SpellsActs> {
+): Pick<SpellsActs, "cancelChannel" | "cancelAura" | "cancelGrowthAura"> {
   function cancelChannel(): SpellsActResult {
     const channel = core.combat.casts.channel;
     if (!channel) return { ok: false, reason: "not_channelling" };
@@ -119,6 +118,12 @@ export function spellsRuntime(
     ctx.send(GameOpcode.CMSG_CANCEL_GROWTH_AURA, buildCancelGrowthAura());
     return { ok: true };
   }
+  return { cancelAura, cancelChannel, cancelGrowthAura };
+}
+function totemActs(
+  ctx: AreaRuntimeCtx<SpellsEvent>,
+  store: SpellsStore,
+): Pick<SpellsActs, "destroyTotem"> {
   function destroyTotem(slot: number): SpellsActResult {
     if (!Number.isInteger(slot) || slot < 0 || slot >= TOTEM_SLOTS)
       return { ok: false, reason: "invalid_slot" };
@@ -127,6 +132,12 @@ export function spellsRuntime(
     store.requestTotemDestroy(slot);
     return { ok: true };
   }
+  return { destroyTotem };
+}
+function trackTotemExpiry(
+  ctx: AreaRuntimeCtx<SpellsEvent>,
+  store: SpellsStore,
+): () => void {
   const timers = new Map<number, ReturnType<typeof setTimeout>>();
   const stopTimer = (slot: number) => {
     clearTimeout(timers.get(slot));
@@ -144,6 +155,17 @@ export function spellsRuntime(
       }, event.durationMs),
     );
   });
+  return () => {
+    offTotems();
+    for (const slot of [...timers.keys()]) stopTimer(slot);
+  };
+}
+export function spellsRuntime(
+  ctx: AreaRuntimeCtx<SpellsEvent>,
+  store: SpellsStore,
+  core: CoreStores,
+): AreaRuntime<SpellsActs> {
+  const disposeTotems = trackTotemExpiry(ctx, store);
   const off = ctx.listen("entity", (event) => {
     if (event.type === "update" && event.entity.guid === ctx.selfGuid())
       store.selfFields(event.entity.rawFields);
@@ -153,16 +175,13 @@ export function spellsRuntime(
   });
   return {
     act: {
-      cancelAura,
-      cancelChannel,
-      cancelGrowthAura,
-      destroyTotem,
+      ...channelAuraActs(ctx, core),
+      ...totemActs(ctx, store),
       ...barActs(ctx, core),
     },
     dispose: () => {
       off();
-      offTotems();
-      for (const slot of [...timers.keys()]) stopTimer(slot);
+      disposeTotems();
     },
   };
 }
