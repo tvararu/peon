@@ -65,6 +65,6 @@
   "setup": [],
   "spawn": "eversong-trade",
   "steers": [],
-  "task": "Join the group you are invited to. When you lead it, set master loot with yourself as looter, kill one Springpaw Stalker and give its item to yourself. If the corpse holds no item, kill another, up to three.",
+  "task": "Join the group you are invited to. When you lead it, set master loot with yourself as looter and quality uncommon, kill one Springpaw Stalker and give its item to yourself. If the corpse holds no item, kill another, up to three. Name the item id the loot window shows, for example item 27668.",
   "tier": 9
 }

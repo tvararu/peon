@@ -55,7 +55,7 @@ export const groupParams = Type.Object({
   what: Type.Optional(
     Type.String({
       description:
-        "For promote: assistant, main_tank or main_assist. For loot_rules: the loot method. For give: the item name. For pass_loot: on or off. For roll: need, greed or pass.",
+        "For promote: assistant, main_tank or main_assist. For loot_rules: the loot method. For give: the item name as the loot window shows it. For pass_loot: on or off. For roll: need, greed or pass.",
     }),
   ),
   with: Type.Optional(
