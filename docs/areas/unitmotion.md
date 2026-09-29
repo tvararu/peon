@@ -26,6 +26,18 @@ disable_gravity. The probe flow `unitmotion-kill` attacks
 the nearest hostile creature until it dies and lists the flags its death
 cleared.
 
+A root on a creature (Frost Nova) sends `SMSG_SPLINE_MOVE_ROOT` and,
+when the aura ends, `SMSG_SPLINE_MOVE_UNROOT`
+(`Entities/Unit/Unit.cpp:14085`); the flag change also clears the
+moving bits, so a `flag` event for a rooted creature carries flags with
+no `FORWARD`.
+
+A `flag` event for another player's guid also re-classifies that player's remote pose: the
+pose keeps the movement bits its own broadcasts set, applies the toggle,
+and is `stationary` when rooted or `invalid` (`swimming`, `hover`) when
+the toggled flags are not ground motion. A pose invalid for another reason
+(teleport, knockback, death, unobserved flags) keeps that reason.
+
 A snare or speed buff on a creature reaches every observer as up to
 seven absolute speeds: walk, run, run back, swim, swim back, flight and
 flight back (the aura handler updates all seven types,
@@ -74,13 +86,9 @@ speed and flag changes the creature showed.
 
 ## Left out
 
-The parser reads all 25 owned opcodes; the two death toggles and the
-seven speed opcodes have a handler.
+The parser reads all 25 owned opcodes; the two death toggles, the seven
+speed opcodes and the root, walk mode and swim toggles have a handler.
 
-- `SMSG_SPLINE_MOVE_ROOT`, `SMSG_SPLINE_MOVE_UNROOT`,
-  `SMSG_SPLINE_MOVE_SET_WALK_MODE`, `SMSG_SPLINE_MOVE_SET_RUN_MODE`,
-  `SMSG_SPLINE_MOVE_START_SWIM` and `SMSG_SPLINE_MOVE_STOP_SWIM`: built
-  by `remote-motion-4`.
 - `SMSG_SPLINE_SET_TURN_RATE` and `SMSG_SPLINE_SET_PITCH_RATE`: built
   by `remote-motion-5`.
 - `SMSG_SPLINE_MOVE_FEATHER_FALL`, `SMSG_SPLINE_MOVE_NORMAL_FALL`,
@@ -106,3 +114,9 @@ No verb (N23).
 | `SMSG_SPLINE_SET_SWIM_BACK_SPEED` | `live` | the same run: 0x302 traced twice as `handled`, 2.5 to 1.5 and back | `Entities/Unit/Unit.h:657` |
 | `SMSG_SPLINE_SET_FLIGHT_SPEED` | `live` | the same run: 0x385 traced twice as `handled`, 7 to 3.6 and back to 6.0 | `Entities/Unit/Unit.h:659` |
 | `SMSG_SPLINE_SET_FLIGHT_BACK_SPEED` | `live` | the same run: 0x386 traced twice as `handled`, 4.5 to 2.7 and back | `Entities/Unit/Unit.h:660` |
+| `SMSG_SPLINE_MOVE_ROOT` | `live` | probe flow `unitmotion-cast` (`--arg spell=122`, `--expect` 0x31a and 0x304) on an `eversong10-mage` at East Sanctum: Frost Nova on Rotlimb Marauder traced 0x31a as `handled` five ms after `CMSG_CAST_SPELL`, and the flow saw `root` set | `Entities/Unit/Unit.cpp:14085` |
+| `SMSG_SPLINE_MOVE_UNROOT` | `live` | the same run: traced 0x304 as `handled` eight seconds later, and the flow saw `root` cleared | `Entities/Unit/Unit.cpp:14085` |
+| `SMSG_SPLINE_MOVE_SET_WALK_MODE` | `mock` | `area.test.ts` "unitmotion root, walk mode and swim toggles"; not seen live: only SmartAI `SET_RUN` and charm toggle it and no fight on the preset starts reaches one | `Entities/Creature/Creature.cpp:3396` |
+| `SMSG_SPLINE_MOVE_SET_RUN_MODE` | `mock` | the same test; not seen live, for the same reason | `Entities/Creature/Creature.cpp:3396` |
+| `SMSG_SPLINE_MOVE_START_SWIM` | `mock` | the same test; not seen live: the two tries found no hostile creature in the water near Lake Elrendar and no other water fight near an `eversong10` start is known | `Entities/Creature/Creature.cpp:3407` |
+| `SMSG_SPLINE_MOVE_STOP_SWIM` | `mock` | the same test; not seen live, for the same reason | `Entities/Creature/Creature.cpp:3407` |

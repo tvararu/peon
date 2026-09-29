@@ -31,5 +31,10 @@ export const UNITMOTION_OPCODES = {
   uses: [],
   stubs: [],
   dead: [],
-  unseen: [],
+  unseen: [
+    "SMSG_SPLINE_MOVE_SET_WALK_MODE",
+    "SMSG_SPLINE_MOVE_SET_RUN_MODE",
+    "SMSG_SPLINE_MOVE_START_SWIM",
+    "SMSG_SPLINE_MOVE_STOP_SWIM",
+  ],
 } as const satisfies AreaOpcodes;
