@@ -5,14 +5,14 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x13f` | `CMSG_INSTANCE_LOCK_RESPONSE` | client | missing |  |
-| `0x147` | `SMSG_INSTANCE_LOCK_WARNING_QUERY` | server | missing |  |
+| `0x13f` | `CMSG_INSTANCE_LOCK_RESPONSE` | client | handled |  |
+| `0x147` | `SMSG_INSTANCE_LOCK_WARNING_QUERY` | server | handled | not seen live |
 | `0x214` | `SMSG_UPDATE_INSTANCE_ENCOUNTER_UNIT` | server | missing |  |
 | `0x286` | `SMSG_RAID_GROUP_ONLY` | server | handled |  |
-| `0x292` | `CMSG_SET_SAVED_INSTANCE_EXTEND` | client | missing |  |
-| `0x2cb` | `SMSG_INSTANCE_SAVE_CREATED` | server | missing |  |
-| `0x2cc` | `SMSG_RAID_INSTANCE_INFO` | server | missing |  |
-| `0x2cd` | `CMSG_REQUEST_RAID_INFO` | client | missing |  |
+| `0x292` | `CMSG_SET_SAVED_INSTANCE_EXTEND` | client | handled |  |
+| `0x2cb` | `SMSG_INSTANCE_SAVE_CREATED` | server | handled | not seen live |
+| `0x2cc` | `SMSG_RAID_INSTANCE_INFO` | server | handled |  |
+| `0x2cd` | `CMSG_REQUEST_RAID_INFO` | client | handled |  |
 | `0x2fa` | `SMSG_RAID_INSTANCE_MESSAGE` | server | handled | not seen live |
 | `0x31d` | `CMSG_RESET_INSTANCES` | client | missing |  |
 | `0x31e` | `SMSG_INSTANCE_RESET` | server | missing |  |

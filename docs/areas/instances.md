@@ -3,11 +3,25 @@
 The `instances` area keeps the character's dungeon and raid difficulty,
 the difficulty of the map it stands in, the maps it holds a permanent
 save to, the last instance warning the server sent and the timer that
-moves a character out of a dungeon whose group it left. World-service
-code reads it through `session.areas.instances.state()`. The area emits
-`difficulty`, `map_difficulty`, `saved_maps`, `warning`, `homebind_timer`
-and `corpse_elsewhere` events. The map difficulty and the homebind timer
-clear at login and on each far teleport.
+moves a character out of a dungeon whose group it left. It also keeps
+the last raid lockout list with its arrival time and the save prompt the
+server is waiting on. World-service code reads it through
+`session.areas.instances.state()`. The area emits `difficulty`,
+`map_difficulty`, `saved_maps`, `warning`, `homebind_timer`,
+`corpse_elsewhere`, `lockouts`, `bind_offer` and `bound` events. The map
+difficulty, the homebind timer and the pending bind clear at login and on
+each far teleport. A pending bind reads as absent once its timeout has
+passed.
+
+Three acts settle on the server's reply, or on `no_answer` after 5 s:
+`requestLockouts()`, `answerBind(accept)` and
+`setLockoutExtended({ mapId, difficulty, extended })`. Only one runs at a
+time; a second one refuses with `busy`. `answerBind` refuses with
+`no_bind_offer` and sends nothing without a pending bind, and
+`setLockoutExtended` refuses with `no_matching_lock` unless the last
+lockout list holds that map and difficulty with the other flag. It then
+asks for the lockouts again and settles `ok` when the flag changed and
+`refused("unchanged")` when not.
 
 ## Wire notes
 
@@ -47,13 +61,36 @@ clear at login and on each far teleport.
   AzerothCore wins.
 - `SMSG_CORPSE_NOT_IN_INSTANCE` has an empty body
   (`Maps/MapMgr.cpp:206-211`).
+- `CMSG_REQUEST_RAID_INFO` has an empty body
+  (`Handlers/GroupHandler.cpp:1137-1141`).
+- `SMSG_RAID_INSTANCE_INFO` lists only permanent saves: a `uint32`
+  count, then per lock a `uint32` map, a `uint32` difficulty, a `uint64`
+  instance guid, a `uint8` that is always 1, a `uint8` extended flag and
+  a `uint32` of seconds to the reset
+  (`Entities/Player/PlayerStorage.cpp:6726-6758`). The fifth field is
+  `locked`; `wow_message_parser/wowm/world/raid/smsg_raid_instance_info.wowm`
+  calls it `expired`, and the server always sends 1 (same range). A
+  character with no saves gets a count of 0, which is a real reply.
+- `SMSG_INSTANCE_LOCK_WARNING_QUERY` is a `uint32` timeout in ms (60000),
+  a `uint32` completed-encounter mask and a `uint8` 0 (`Maps/Map.cpp:2131-2139`).
+  The server sends it to a grouped character entering a dungeon that is
+  not yet saved, and expects `CMSG_INSTANCE_LOCK_RESPONSE` within the
+  timeout. `SMSG_INSTANCE_SAVE_CREATED` follows an accepted bind, with a
+  `uint32` 0 (`Entities/Player/PlayerStorage.cpp:6720-6722`).
+- `CMSG_INSTANCE_LOCK_RESPONSE` is one `uint8`
+  (`Server/Packets/InstancePackets.cpp:70-73`). The server ignores it
+  without a pending bind, accepts by binding and declines by repopping
+  the character at the graveyard, which is a map change
+  (`Handlers/MiscHandler.cpp:1707-1721`).
+- `CMSG_SET_SAVED_INSTANCE_EXTEND` is a `uint32` map, a `uint32`
+  difficulty and a `uint8` flag, 9 bytes. `wow_message_parser/wowm/world/raid/cmsg_set_saved_instance_extend.wowm`
+  makes the difficulty a `uint8`; AzerothCore wins
+  (`Handlers/CalendarHandler.cpp:793-817`). The server ignores it for a
+  map without a permanent save or a flag that does not change
+  (`Handlers/CalendarHandler.cpp:799-805`).
 
 ## Left out
 
-- `CMSG_REQUEST_RAID_INFO`, `SMSG_RAID_INSTANCE_INFO`,
-  `SMSG_INSTANCE_SAVE_CREATED`, `SMSG_INSTANCE_LOCK_WARNING_QUERY`,
-  `CMSG_INSTANCE_LOCK_RESPONSE` and `CMSG_SET_SAVED_INSTANCE_EXTEND`:
-  built by `instances-2`.
 - `CMSG_RESET_INSTANCES`, `SMSG_INSTANCE_RESET`,
   `SMSG_INSTANCE_RESET_FAILED` and `SMSG_RESET_FAILED_NOTIFY`: built by
   `instances-3`, which also adds the client form of the two
@@ -76,3 +113,9 @@ Proposed in instances-5.
 | `SMSG_RAID_INSTANCE_MESSAGE` | `mock` | `packages/core/src/wow/areas/instances/store.test.ts` "a raid instance message sets the last warning and emits warning"; not seen live | `Entities/Player/Player.cpp:11975-12008` |
 | `SMSG_RAID_GROUP_ONLY` | `live` | puppet run with `--packet-trace headers`: two `ghostlands20` in a party, both moved into the Deadmines with `soap gm tele Deadmines`, then one left the group; its trace shows the packet handled and its `homebind_timer` event reads started, 60000 ms, code 1 | `Entities/Player/PlayerUpdates.cpp:1421-1460` |
 | `SMSG_CORPSE_NOT_IN_INSTANCE` | `mock` | `packages/core/src/wow/areas/instances/store.test.ts` "SMSG_CORPSE_NOT_IN_INSTANCE with an empty body emits corpse_elsewhere"; not seen live (a ghost cannot be staged by SOAP) | `Maps/MapMgr.cpp:206-211` |
+| `CMSG_REQUEST_RAID_INFO` | `live` | probe flow `instances-raid-info` on a fresh `eversong10`, exit 0; the request left and the reply followed | `Handlers/GroupHandler.cpp:1137-1141` |
+| `SMSG_RAID_INSTANCE_INFO` | `live` | the same probe (`--expect` `SMSG_RAID_INSTANCE_INFO`), exit 0; a count-0 reply handled with no packet error | `Entities/Player/PlayerStorage.cpp:6726-6758` |
+| `SMSG_INSTANCE_SAVE_CREATED` | `mock` | `packages/core/src/wow/areas/instances/store.test.ts` "SMSG_INSTANCE_SAVE_CREATED clears the pending bind and emits bound" and `runtime.test.ts` "accepting sends the response and settles ok on SMSG_INSTANCE_SAVE_CREATED"; not seen live (needs a group entering an unsaved dungeon and accepting) | `Entities/Player/PlayerStorage.cpp:6720-6722` |
+| `SMSG_INSTANCE_LOCK_WARNING_QUERY` | `mock` | `packages/core/src/wow/areas/instances/store.test.ts` "a lock warning sets pendingBind with its deadline and emits bind_offer"; not seen live (needs a group entering an unsaved dungeon) | `Maps/Map.cpp:2131-2139` |
+| `CMSG_INSTANCE_LOCK_RESPONSE` | `accepted` | `protocol.test.ts` builder test; `mise protocol:probe --send CMSG_INSTANCE_LOCK_RESPONSE --body 01` sent one byte with no pending bind, exit 0, no packet error, no disconnect | `Server/Packets/InstancePackets.cpp:70-73` |
+| `CMSG_SET_SAVED_INSTANCE_EXTEND` | `accepted` | `protocol.test.ts` builder test; `--send CMSG_SET_SAVED_INSTANCE_EXTEND --body 770200000100000001` sent 9 bytes with no raid lock, exit 0, no packet error, no disconnect | `Handlers/CalendarHandler.cpp:793-817` |
