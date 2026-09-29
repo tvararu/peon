@@ -6,6 +6,11 @@ import {
   type RaidGroup,
 } from "#wow/areas/raid/protocol";
 import {
+  type ReadyCheck,
+  type ReadyEvent,
+  ReadyStore,
+} from "#wow/areas/raid/store-ready";
+import {
   type MemberStats,
   mergeMemberStats,
   type StatsEvent,
@@ -35,11 +40,13 @@ export type RaidEvent =
   | { type: "invite_blocked"; name: string }
   | { type: "disbanded" }
   | StatsEvent
+  | ReadyEvent
   | CommandResultEvent;
 
 export type RaidState = {
   group: RaidGroup | undefined;
   stats: ReadonlyMap<bigint, MemberStats>;
+  readyCheck?: ReadyCheck | undefined;
 };
 
 const FLAG_NAMES = [
@@ -159,10 +166,15 @@ export class RaidStore {
   private readonly events = new Emitter<[RaidEvent]>();
   private group: RaidGroup | undefined;
   private readonly stats = new Map<bigint, MemberStats>();
+  private readonly ready = new ReadyStore();
   private counter = 0;
 
   snapshot(): RaidState {
-    return { group: this.group, stats: this.stats };
+    return {
+      group: this.group,
+      readyCheck: this.ready.current(),
+      stats: this.stats,
+    };
   }
 
   onEvent(cb: (event: RaidEvent) => void): Unsubscribe {
@@ -184,6 +196,7 @@ export class RaidStore {
     if (packet.members.length === 0) {
       if (this.group !== undefined) {
         this.group = undefined;
+        this.ready.clear();
         this.pruneStats(undefined);
         this.events.emit({ type: "disbanded" });
       }
@@ -208,8 +221,27 @@ export class RaidStore {
     this.events.emit(event);
   }
 
+  receiveReadyStart(initiator: bigint, now: number): void {
+    this.events.emit(this.ready.start(this.group, initiator, now));
+  }
+
+  receiveReadyConfirm(guid: bigint, ready: boolean): void {
+    const event = this.ready.confirm(this.group, guid, ready);
+    if (event) this.events.emit(event);
+  }
+
+  receiveReadyFinished(now: number): void {
+    const event = this.ready.finish(this.group, now);
+    if (event) this.events.emit(event);
+  }
+
+  noteOwnReadyAnswer(ready: boolean): void {
+    this.ready.own(ready);
+  }
+
   dispose(): void {
     this.events.clear();
+    this.ready.clear();
     this.group = undefined;
     this.stats.clear();
     this.counter = 0;

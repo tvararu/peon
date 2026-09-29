@@ -41,6 +41,22 @@ export class RaidAreaStore {
     this.inner.receiveStats(stats, this.now());
   }
 
+  receiveReadyStart(initiator: bigint): void {
+    this.inner.receiveReadyStart(initiator, this.now());
+  }
+
+  receiveReadyConfirm(guid: bigint, ready: boolean): void {
+    this.inner.receiveReadyConfirm(guid, ready);
+  }
+
+  receiveReadyFinished(): void {
+    this.inner.receiveReadyFinished(this.now());
+  }
+
+  noteOwnReadyAnswer(ready: boolean): void {
+    this.inner.noteOwnReadyAnswer(ready);
+  }
+
   dispose(): void {
     this.inner.dispose();
   }

@@ -1,6 +1,10 @@
 import { defineArea } from "#wow/areas/contract";
 import { RAID_OPCODES } from "#wow/areas/raid/opcodes";
 import { readRaidGroup } from "#wow/areas/raid/protocol";
+import {
+  parseReadyCheckConfirm,
+  parseReadyCheckStart,
+} from "#wow/areas/raid/protocol-ready";
 import { raidRuntime } from "#wow/areas/raid/runtime";
 import { RaidAreaStore } from "#wow/areas/raid/store";
 import { parsePartyCommandResult } from "#wow/protocol/group";
@@ -37,6 +41,9 @@ export const raidArea = defineArea({
     "invite_blocked",
     "member_stats",
     "command_result",
+    "ready_check_started",
+    "ready_check_answer",
+    "ready_check_finished",
   ],
   store: (deps) => new RaidAreaStore(deps.now),
   register: (wire, store) => {
@@ -54,6 +61,16 @@ export const raidArea = defineArea({
     );
     wire.peek(GameOpcode.SMSG_PARTY_MEMBER_STATS_FULL, (r) =>
       store.receiveStats(parsePartyMemberStats(r, true)),
+    );
+    wire.on(GameOpcode.MSG_RAID_READY_CHECK, (r) =>
+      store.receiveReadyStart(parseReadyCheckStart(r).initiator),
+    );
+    wire.on(GameOpcode.MSG_RAID_READY_CHECK_CONFIRM, (r) => {
+      const confirm = parseReadyCheckConfirm(r);
+      store.receiveReadyConfirm(confirm.guid, confirm.ready);
+    });
+    wire.on(GameOpcode.MSG_RAID_READY_CHECK_FINISHED, () =>
+      store.receiveReadyFinished(),
     );
   },
   runtime: raidRuntime,

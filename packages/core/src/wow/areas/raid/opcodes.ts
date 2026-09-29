@@ -26,11 +26,7 @@ export const RAID_OPCODES = {
     "SMSG_PARTY_MEMBER_STATS",
     "SMSG_PARTY_MEMBER_STATS_FULL",
   ],
-  stubs: [
-    ["MSG_RAID_READY_CHECK", "Ready check"],
-    ["MSG_RAID_READY_CHECK_CONFIRM", "Ready check confirm"],
-    ["MSG_RAID_READY_CHECK_FINISHED", "Ready check finished"],
-  ],
+  stubs: [],
   dead: ["CMSG_GROUP_CANCEL", "SMSG_REAL_GROUP_UPDATE"],
   unseen: [],
 } as const satisfies AreaOpcodes;
