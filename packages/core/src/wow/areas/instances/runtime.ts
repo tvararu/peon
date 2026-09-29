@@ -74,10 +74,15 @@ async function reply(
   match: (event: InstancesEvent) => boolean,
   send: () => void,
 ): Promise<void> {
-  const wait = ctx.until(match, { timeoutMs: INSTANCES_ACT_TIMEOUT_MS });
+  const cancel = new AbortController();
+  const wait = ctx.until(match, {
+    timeoutMs: INSTANCES_ACT_TIMEOUT_MS,
+    signal: cancel.signal,
+  });
   try {
     send();
   } catch (error) {
+    cancel.abort();
     wait.catch(ignoreFailure);
     throw error;
   }

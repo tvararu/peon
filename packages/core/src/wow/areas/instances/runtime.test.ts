@@ -201,6 +201,18 @@ describe("instances runtime: requestLockouts", () => {
     rig.dispose();
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
   });
+  test("a failed send rejects and leaves no waiter or timer behind", async () => {
+    jest.useFakeTimers();
+    const rig = armed();
+    try {
+      Object.freeze(rig.sent);
+      await expect(rig.handle.act.requestLockouts()).rejects.toThrow();
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      rig.dispose();
+      jest.useRealTimers();
+    }
+  });
 });
 
 describe("instances runtime: answerBind", () => {
