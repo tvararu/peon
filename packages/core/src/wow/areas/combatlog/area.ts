@@ -1,3 +1,4 @@
+import { meleeEntry, spellDamageEntry } from "#wow/areas/combatlog/entries";
 import { COMBATLOG_OPCODES } from "#wow/areas/combatlog/opcodes";
 import {
   parseAttackerState,
@@ -7,11 +8,7 @@ import {
   parseSpellDamage,
 } from "#wow/areas/combatlog/protocol";
 import { combatlogRuntime } from "#wow/areas/combatlog/runtime";
-import {
-  CombatlogStore,
-  meleeEntry,
-  spellDamageEntry,
-} from "#wow/areas/combatlog/store";
+import { CombatlogStore } from "#wow/areas/combatlog/store";
 import { defineArea } from "#wow/areas/contract";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
