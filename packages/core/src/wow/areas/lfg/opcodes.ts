@@ -33,7 +33,6 @@ export const LFG_OPCODES = {
   ],
   uses: [],
   stubs: [
-    ["SMSG_LFG_UPDATE_PLAYER", "LFG status"],
     ["SMSG_LFG_PROPOSAL_UPDATE", "LFG proposal"],
     ["SMSG_LFG_QUEUE_STATUS", "LFG queue"],
   ],
