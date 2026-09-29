@@ -49,23 +49,30 @@ silence. `questgiverHello(guid)` sends the 8-byte hello,
 sends two `uint8` slots and refuses equal slots and slots of 25 or more.
 The runtime sends the completed query once at login.
 
-Quest sharing lives in `state().share` (`{ push, offer }`) and the
-`share` event (`{ type: "share", share }`), whose `share.type` is
-`pushed`, `result`, `relayed`, `offered`, `answered`, `expired` or
-`share_complete`. `shareQuest(questId)` refuses with `not_in_log`, an id
-missing from the log or 0, `not_in_group` or `in_flight`, and otherwise
-sends `CMSG_PUSHQUESTTOPARTY` and starts a push that waits for results.
-Each `MSG_QUEST_PUSH_RESULT` adds `{ guid, result, at }` and emits
-`result`, or `relayed` for a member's later accept (2) or decline (3);
-the first result frees the next push. A push with no result after
-`PUSH_TIMEOUT_MS` (3000) becomes `no_answer` and emits `expired` with
-scope `push`, because the server sends nothing for a quest it cannot
-share. A details packet with a non-zero divider, no pending
-`core.quests` intent and a quest not in the log opens
-`state().share.offer` (`from`, the sharer) and emits `offered`; a quest
-already in the log, an auto-accept share, emits `answered` with
-`auto_accepted` and opens no offer. A request-items packet from a group
-member with no pending intent emits `share_complete`.
+Quest sharing lives in `state().share` (`{ push, prior, offer }`; `prior`
+holds the pushes whose members never answered so a late relay keeps its
+quest id) and the `share` event (`{ type: "share", share }`), whose
+`share.type` is `pushed`, `result`, `relayed`, `offered`, `answered`,
+`expired` or `share_complete`. `shareQuest(questId)` refuses with
+`not_in_log`, an id missing from the log or 0, `not_in_group` or
+`in_flight`, and otherwise sends `CMSG_PUSHQUESTTOPARTY` and starts a push
+that waits for results. Each `MSG_QUEST_PUSH_RESULT` adds
+`{ guid, result, at }` and emits `result`, or `relayed` for a member's
+later accept (2) or decline (3); a member whose row sits at result 0 never
+blocks the next push, and its late relay is attributed to the newest push
+it was still awaiting. A push with no result after `PUSH_TIMEOUT_MS`
+(3000) becomes `no_answer` and emits `expired` with scope `push`, because
+the server sends nothing for a quest it cannot share. A details packet
+with a non-zero divider, no pending `core.quests` intent and a quest not
+in the log opens `state().share.offer` (`from`, the sharer) and emits
+`offered`; a quest already in the log, an auto-accept share, emits
+`answered` with `auto_accepted` and opens no offer. A request-items packet
+from a group member with no pending intent emits `share_complete`, and on
+the sharer it also settles that member's pending push reply as a relayed
+accept: for an auto-complete or zero-method quest the
+`CMSG_PUSHQUESTTOPARTY` handler sends result 0 and then
+`SMSG_QUESTGIVER_REQUEST_ITEMS` without setting the receiver's divider, so
+no relay ever arrives (`Handlers/QuestHandler.cpp:588-594`).
 `answerShare("decline")` sends the 13-byte push result 3 to the sharer
 and emits `answered`; with no offer it returns false. An offer nobody
 answers in `OFFER_TIMEOUT_MS` (60000) gets that decline and an `expired`

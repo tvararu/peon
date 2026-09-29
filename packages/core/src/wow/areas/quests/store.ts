@@ -37,6 +37,7 @@ import {
   expirePush,
   openOffer,
   receivePushResult,
+  settlePushRequestItems,
   type ShareAnswer,
   type ShareChange,
   type ShareOffer,
@@ -224,6 +225,7 @@ export class QuestsStore {
   receiveShareRequestItems(items: { guid: bigint; questId: number }): void {
     if (this.core.quests.snapshot().pending || !this.isMember(items.guid))
       return;
+    this.applyShare(settlePushRequestItems(this.share, items.guid));
     this.emitShare({
       from: items.guid,
       questId: items.questId,

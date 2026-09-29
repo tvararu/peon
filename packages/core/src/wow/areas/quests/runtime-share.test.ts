@@ -167,44 +167,97 @@ describe("quest sharing, sharer", () => {
     });
   });
 
-  test("a second push waits until the first push's replies settle", () => {
+  test("a member that only sent result 0 does not block the next push, and its late reply belongs to the first push", () => {
+    const OTHER = 8325;
+    withRig(
+      ({ rig, result, shares, sent }) => {
+        rig.handle.act.shareQuest(QUEST);
+        result(ALICE, QuestShareResult.SHARING_QUEST);
+        result(BOB, QuestShareResult.SHARING_QUEST);
+        expect(rig.handle.act.shareQuest(OTHER)).toEqual({ ok: true });
+        expect(sent(GameOpcode.CMSG_PUSHQUESTTOPARTY)).toHaveLength(2);
+        result(ALICE, QuestShareResult.DECLINE_QUEST);
+        result(BOB, QuestShareResult.ACCEPT_QUEST);
+        expect(shares().filter((s) => s.type === "relayed")).toEqual([
+          {
+            guid: ALICE,
+            questId: QUEST,
+            result: QuestShareResult.DECLINE_QUEST,
+            type: "relayed",
+          },
+          {
+            guid: BOB,
+            questId: QUEST,
+            result: QuestShareResult.ACCEPT_QUEST,
+            type: "relayed",
+          },
+        ]);
+        expect(rig.handle.state().share?.push).toMatchObject({
+          questId: OTHER,
+          results: [],
+        });
+      },
+      { log: [QUEST, OTHER] },
+    );
+  });
+
+  test("shares stay possible when a receiver never answers, such as an auto-complete quest", () => {
     const OTHER = 8325;
     withRig(
       ({ rig, result, sent }) => {
         rig.handle.act.shareQuest(QUEST);
         result(ALICE, QuestShareResult.SHARING_QUEST);
-        result(BOB, QuestShareResult.SHARING_QUEST);
-        expect(rig.handle.act.shareQuest(OTHER)).toEqual({
-          ok: false,
-          reason: "in_flight",
-        });
-        expect(sent(GameOpcode.CMSG_PUSHQUESTTOPARTY)).toHaveLength(1);
-        result(ALICE, QuestShareResult.DECLINE_QUEST);
-        expect(rig.handle.act.shareQuest(OTHER)).toEqual({
-          ok: false,
-          reason: "in_flight",
-        });
-        result(BOB, QuestShareResult.ACCEPT_QUEST);
+        jest.advanceTimersByTime(PUSH_TIMEOUT_MS * 10);
         expect(rig.handle.act.shareQuest(OTHER)).toEqual({ ok: true });
+        result(ALICE, QuestShareResult.SHARING_QUEST);
+        expect(rig.handle.state().share?.push).toMatchObject({
+          questId: OTHER,
+          status: "answered",
+        });
         expect(sent(GameOpcode.CMSG_PUSHQUESTTOPARTY)).toHaveLength(2);
       },
       { log: [QUEST, OTHER] },
     );
   });
 
-  test("a delayed accept or decline settles the push before the next push", () => {
+  test("a late reply goes to the newest push whose member is still awaiting", () => {
+    const OTHER = 8325;
+    withRig(
+      ({ rig, result, shares }) => {
+        rig.handle.act.shareQuest(QUEST);
+        result(ALICE, QuestShareResult.SHARING_QUEST);
+        rig.handle.act.shareQuest(OTHER);
+        result(ALICE, QuestShareResult.SHARING_QUEST);
+        rig.handle.act.shareQuest(QUEST);
+        result(ALICE, QuestShareResult.DECLINE_QUEST);
+        expect(shares().filter((s) => s.type === "relayed")).toEqual([
+          {
+            guid: ALICE,
+            questId: OTHER,
+            result: QuestShareResult.DECLINE_QUEST,
+            type: "relayed",
+          },
+        ]);
+        result(ALICE, QuestShareResult.ACCEPT_QUEST);
+        expect(
+          shares()
+            .filter((s) => s.type === "relayed")
+            .map((s) => s.questId),
+        ).toEqual([OTHER, QUEST]);
+      },
+      { log: [QUEST, OTHER] },
+    );
+  });
+
+  test("a delayed accept or decline is attributed to the push that reached the member", () => {
     const OTHER = 8325;
     withRig(
       ({ rig, result, shares, sent }) => {
         rig.handle.act.shareQuest(QUEST);
         result(ALICE, QuestShareResult.SHARING_QUEST);
         result(BOB, QuestShareResult.HAVE_QUEST);
-        expect(rig.handle.act.shareQuest(OTHER)).toEqual({
-          ok: false,
-          reason: "in_flight",
-        });
-        result(ALICE, QuestShareResult.DECLINE_QUEST);
         expect(rig.handle.act.shareQuest(OTHER)).toEqual({ ok: true });
+        result(ALICE, QuestShareResult.DECLINE_QUEST);
         expect(shares().filter((s) => s.type === "relayed")).toEqual([
           {
             guid: ALICE,
