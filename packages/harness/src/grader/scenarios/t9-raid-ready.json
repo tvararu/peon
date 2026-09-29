@@ -70,7 +70,7 @@
   ],
   "preset": "eversong10",
   "setup": [],
-  "spawn": "fairbreeze-south",
+  "spawn": "eversong-ready",
   "steers": [],
   "task": "Join the group you are invited to. When you lead it, run a ready check with the group tool and tell me who is ready.",
   "tier": 9

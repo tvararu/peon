@@ -20,12 +20,9 @@
       "source": "session"
     },
     {
-      "evidence": {
-        "events": ["raid/ready_answer"]
-      },
-      "expect": "GL has a raid/ready_answer row for the agent's answer, so the agent answered the partner's check",
+      "expect": "the agent packet trace has at least one outbound MSG_RAID_READY_CHECK with size 1 after the partner's ready check; this is the answer, not a new check started by the agent",
       "id": "answered",
-      "source": "game_log"
+      "source": "witness"
     }
   ],
   "id": "t9-raid-answer",
@@ -62,7 +59,7 @@
   ],
   "preset": "eversong10",
   "setup": [],
-  "spawn": "fairbreeze-south",
+  "spawn": "eversong-ready",
   "steers": [],
   "task": "Join the group you are invited to and answer any ready check with the group tool.",
   "tier": 9
