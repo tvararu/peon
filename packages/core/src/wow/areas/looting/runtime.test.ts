@@ -12,14 +12,18 @@ const PARTNER = 0x0_0000_0de6n;
 
 function member(name: string, guid: bigint): PartyMember {
   return {
-    name,
+    flags: 0,
     guid,
-    online: true,
     health: null,
-    maxHealth: null,
     level: null,
-    statsAt: null,
+    maxHealth: null,
+    name,
+    online: true,
+    roles: 0,
     source: null,
+    statsAt: null,
+    status: 1,
+    subgroup: 0,
   };
 }
 
@@ -27,10 +31,17 @@ function inParty() {
   const rig = areaRig("looting", {
     legacy: {
       party: () => ({
+        counter: 0,
+        difficulty: undefined,
+        dungeonFinder: undefined,
         inGroup: true,
+        kind: "party",
         leader: null,
         loot: null,
         members: [member("Partner", PARTNER)],
+        ownFlags: 0,
+        ownRoles: 0,
+        ownSubgroup: 0,
       }),
       friends: () => [],
       ignored: () => [],

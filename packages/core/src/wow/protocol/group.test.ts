@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { must } from "#test-support/must";
 import {
   GroupUpdateFlag,
   PartyOperation,
@@ -13,8 +12,6 @@ import {
   buildGroupSetLeader,
   buildGroupUninvite,
   parseGroupDecline,
-  parseGroupInvite,
-  parseGroupList,
   parseGroupSetLeader,
   parsePartyCommandResult,
   parsePartyMemberStats,
@@ -98,21 +95,6 @@ describe("parsePartyCommandResult", () => {
   });
 });
 
-describe("parseGroupInvite", () => {
-  test("parses incoming invite", () => {
-    const w = new PacketWriter();
-    w.uint8(1);
-    w.cString("Voidtrix");
-    w.uint32LE(0);
-    w.uint8(0);
-    w.uint32LE(0);
-
-    const result = parseGroupInvite(new PacketReader(w.finish()));
-    expect(result.status).toBe(1);
-    expect(result.name).toBe("Voidtrix");
-  });
-});
-
 describe("parseGroupSetLeader", () => {
   test("parses leader name", () => {
     const w = new PacketWriter();
@@ -130,87 +112,6 @@ describe("parseGroupDecline", () => {
 
     const result = parseGroupDecline(new PacketReader(w.finish()));
     expect(result.name).toBe("Voidtrix");
-  });
-});
-
-describe("parseGroupList", () => {
-  test("parses two-member group", () => {
-    const w = new PacketWriter();
-    w.uint8(0);
-    w.uint8(0);
-    w.uint8(0);
-    w.uint8(0);
-    w.uint32LE(0);
-    w.uint32LE(0);
-    w.uint32LE(1);
-    w.uint32LE(2);
-    w.cString("Xia");
-    w.uint32LE(0x10);
-    w.uint32LE(0x00);
-    w.uint8(1);
-    w.uint8(0);
-    w.uint8(0);
-    w.uint8(0);
-    w.cString("Voidtrix");
-    w.uint32LE(0x20);
-    w.uint32LE(0x00);
-    w.uint8(1);
-    w.uint8(0);
-    w.uint8(0);
-    w.uint8(0);
-    w.uint32LE(0x10);
-    w.uint32LE(0x00);
-
-    const result = parseGroupList(new PacketReader(w.finish()));
-    expect(result.members).toHaveLength(2);
-    expect(must(result.members[0]).name).toBe("Xia");
-    expect(must(result.members[0]).guidLow).toBe(0x10);
-    expect(must(result.members[0]).online).toBe(true);
-    expect(must(result.members[1]).name).toBe("Voidtrix");
-    expect(result.leaderGuidLow).toBe(0x10);
-  });
-
-  test("parses loot method, master looter and threshold after the leader", () => {
-    const w = new PacketWriter();
-    for (const byte of [0, 0, 0, 0]) w.uint8(byte);
-    w.uint64LE(0x1f4n);
-    w.uint32LE(3);
-    w.uint32LE(1);
-    w.cString("Fgklhdkmhha");
-    w.uint64LE(0xa5fn);
-    for (const byte of [1, 0, 0, 0]) w.uint8(byte);
-    w.uint64LE(0xa5en);
-    w.uint8(2);
-    w.uint64LE(0xa5en);
-    w.uint8(2);
-    for (const byte of [0, 0, 0]) w.uint8(byte);
-
-    const result = parseGroupList(new PacketReader(w.finish()));
-    expect(result.leaderGuidLow).toBe(0xa_5e);
-    expect(result.loot).toEqual({
-      looterGuidHigh: 0,
-      looterGuidLow: 0xa_5e,
-      method: 2,
-      threshold: 2,
-    });
-  });
-
-  test("parses empty group", () => {
-    const w = new PacketWriter();
-    w.uint8(0);
-    w.uint8(0);
-    w.uint8(0);
-    w.uint8(0);
-    w.uint32LE(0);
-    w.uint32LE(0);
-    w.uint32LE(0);
-    w.uint32LE(0);
-    w.uint32LE(0);
-    w.uint32LE(0);
-
-    const result = parseGroupList(new PacketReader(w.finish()));
-    expect(result.members).toHaveLength(0);
-    expect(result.loot).toBeUndefined();
   });
 });
 

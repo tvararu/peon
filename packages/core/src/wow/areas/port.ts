@@ -52,7 +52,19 @@ export function areaPort(
 }
 
 const EMPTY_LEGACY: LegacyViews = {
-  party: () => ({ inGroup: false, leader: null, loot: null, members: [] }),
+  party: () => ({
+    counter: 0,
+    difficulty: undefined,
+    dungeonFinder: undefined,
+    inGroup: false,
+    kind: "party",
+    leader: null,
+    loot: null,
+    members: [],
+    ownFlags: 0,
+    ownRoles: 0,
+    ownSubgroup: 0,
+  }),
   friends: () => [],
   ignored: () => [],
   guild: () => undefined,

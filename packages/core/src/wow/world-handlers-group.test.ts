@@ -1,4 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import {
+  raidGroupInviteBody,
+  raidGroupListBody,
+} from "#test-support/areas/raid";
 import { FIXTURE_CHARACTER } from "#test-support/fixtures";
 import { startMockWorldServer } from "#test-support/mock-world-server";
 import { must } from "#test-support/must";
@@ -92,7 +96,7 @@ describe("world handler tests", () => {
     }
   });
 
-  test("accept with no pending request fires system message", async () => {
+  test("an invite with status 0 sets no pending request", async () => {
     const ws = await startMockWorldServer();
     try {
       const handle = await worldSession(
@@ -101,12 +105,20 @@ describe("world handler tests", () => {
       );
       await waitForEchoProbe(handle);
 
+      const seen: GroupEvent[] = [];
+      handle.onGroupEvent((event) => {
+        seen.push(event);
+      });
+      ws.inject(
+        GameOpcode.SMSG_GROUP_INVITE,
+        raidGroupInviteBody({ name: "Leader", status: 0 }),
+      );
       const msg = new Promise<ChatMessage>((resolve) =>
         handle.onMessage(resolve),
       );
       handle.acceptInvite();
-      const result = await msg;
-      expect(result.message).toBe("Nothing to accept.");
+      expect((await msg).message).toBe("Nothing to accept.");
+      expect(seen).toEqual([]);
 
       handle.close();
       await handle.closed;
@@ -132,37 +144,24 @@ describe("world handler tests", () => {
       result.uint32LE(0);
       ws.inject(GameOpcode.SMSG_PARTY_COMMAND_RESULT, result.finish());
 
-      const invite = new PacketWriter();
-      invite.uint8(1);
-      invite.cString("Leader");
-      invite.uint32LE(0);
-      invite.uint8(0);
-      invite.uint32LE(0);
-      ws.inject(GameOpcode.SMSG_GROUP_INVITE, invite.finish());
+      ws.inject(
+        GameOpcode.SMSG_GROUP_INVITE,
+        raidGroupInviteBody({ name: "Leader", status: 1 }),
+      );
 
       const leader = new PacketWriter();
       leader.cString("Newleader");
       ws.inject(GameOpcode.SMSG_GROUP_SET_LEADER, leader.finish());
 
-      const list = new PacketWriter();
-      list.uint8(0);
-      list.uint8(0);
-      list.uint8(0);
-      list.uint8(0);
-      list.uint32LE(0);
-      list.uint32LE(0);
-      list.uint32LE(1);
-      list.uint32LE(1);
-      list.cString("Voidtrix");
-      list.uint32LE(0x10);
-      list.uint32LE(0x20);
-      list.uint8(1);
-      list.uint8(0);
-      list.uint8(0);
-      list.uint8(0);
-      list.uint32LE(0x10);
-      list.uint32LE(0x20);
-      ws.inject(GameOpcode.SMSG_GROUP_LIST, list.finish());
+      ws.inject(
+        GameOpcode.SMSG_GROUP_LIST,
+        raidGroupListBody({
+          leader: 0x20_0010n,
+          loot: { method: 1, threshold: 2 },
+          members: [{ guid: 0x20_0010n, name: "Voidtrix" }],
+          type: 0,
+        }),
+      );
 
       ws.inject(GameOpcode.SMSG_GROUP_DESTROYED, new Uint8Array(0));
       ws.inject(GameOpcode.SMSG_GROUP_UNINVITE, new Uint8Array(0));
@@ -220,30 +219,20 @@ describe("world handler tests", () => {
         handle.onGroupEvent(resolve);
       });
 
-      const list = new PacketWriter();
-      list.uint8(0);
-      list.uint8(0);
-      list.uint8(0);
-      list.uint8(0);
-      list.uint32LE(0);
-      list.uint32LE(0);
-      list.uint32LE(1);
-      list.uint32LE(1);
-      list.cString("Voidtrix");
-      list.uint32LE(0x10);
-      list.uint32LE(0x00);
-      list.uint8(1);
-      list.uint8(0);
-      list.uint8(0);
-      list.uint8(0);
-      list.uint32LE(0x42);
-      list.uint32LE(0x00);
-      ws.inject(GameOpcode.SMSG_GROUP_LIST, list.finish());
+      ws.inject(
+        GameOpcode.SMSG_GROUP_LIST,
+        raidGroupListBody({
+          leader: 0x42n,
+          loot: { method: 1, threshold: 2 },
+          members: [{ guid: 0x42n, name: "Voidtrix" }],
+          type: 0,
+        }),
+      );
 
       const event = await received;
       expect(event.type).toBe("group_list");
       if (event.type === "group_list") {
-        expect(event.leader).toBe("Testchar");
+        expect(event.leader).toBe("Voidtrix");
       }
 
       handle.close();
@@ -292,25 +281,15 @@ describe("world handler tests", () => {
         });
       });
 
-      const list = new PacketWriter();
-      list.uint8(0);
-      list.uint8(0);
-      list.uint8(0);
-      list.uint8(0);
-      list.uint32LE(0);
-      list.uint32LE(0);
-      list.uint32LE(1);
-      list.uint32LE(1);
-      list.cString("Voidtrix");
-      list.uint32LE(0x10);
-      list.uint32LE(0x20);
-      list.uint8(1);
-      list.uint8(0);
-      list.uint8(0);
-      list.uint8(0);
-      list.uint32LE(0x10);
-      list.uint32LE(0x20);
-      ws.inject(GameOpcode.SMSG_GROUP_LIST, list.finish());
+      ws.inject(
+        GameOpcode.SMSG_GROUP_LIST,
+        raidGroupListBody({
+          leader: 0x20_0010n,
+          loot: { method: 1, threshold: 2 },
+          members: [{ guid: 0x20_0010n, name: "Voidtrix" }],
+          type: 0,
+        }),
+      );
       await groupListReady;
 
       handle.invite("Voidtrix");

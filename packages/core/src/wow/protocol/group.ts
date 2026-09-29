@@ -54,81 +54,12 @@ export function parsePartyCommandResult(r: PacketReader): PartyCommandResult {
   };
 }
 
-export type GroupInviteReceived = {
-  status: number;
-  name: string;
-};
-
-export function parseGroupInvite(r: PacketReader): GroupInviteReceived {
-  const status = r.uint8();
-  const name = r.cString();
-  r.uint32LE();
-  r.uint8();
-  r.uint32LE();
-  return { status, name };
-}
-
 export function parseGroupSetLeader(r: PacketReader): { name: string } {
   return { name: r.cString() };
 }
 
 export function parseGroupDecline(r: PacketReader): { name: string } {
   return { name: r.cString() };
-}
-
-export type GroupMember = {
-  name: string;
-  guidLow: number;
-  guidHigh: number;
-  online: boolean;
-};
-
-export type GroupLoot = {
-  method: number;
-  looterGuidLow: number;
-  looterGuidHigh: number;
-  threshold: number;
-};
-
-export type GroupList = {
-  members: GroupMember[];
-  leaderGuidLow: number;
-  leaderGuidHigh: number;
-  loot: GroupLoot | undefined;
-};
-
-export function parseGroupList(r: PacketReader): GroupList {
-  r.uint8();
-  r.uint8();
-  r.uint8();
-  r.uint8();
-  r.uint32LE();
-  r.uint32LE();
-  r.uint32LE();
-  const memberCount = r.uint32LE();
-  const members: GroupMember[] = [];
-  for (let i = 0; i < memberCount; i++) {
-    const name = r.cString();
-    const guidLow = r.uint32LE();
-    const guidHigh = r.uint32LE();
-    const online = r.uint8() !== 0;
-    r.uint8();
-    r.uint8();
-    r.uint8();
-    members.push({ name, guidLow, guidHigh, online });
-  }
-  const leaderGuidLow = r.uint32LE();
-  const leaderGuidHigh = r.uint32LE();
-  const loot =
-    memberCount > 0 && r.remaining >= 10
-      ? {
-          method: r.uint8(),
-          looterGuidLow: r.uint32LE(),
-          looterGuidHigh: r.uint32LE(),
-          threshold: r.uint8(),
-        }
-      : undefined;
-  return { members, leaderGuidLow, leaderGuidHigh, loot };
 }
 
 export type PartyMemberStats = {

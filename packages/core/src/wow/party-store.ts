@@ -1,4 +1,4 @@
-import type { GroupList } from "#wow/protocol/group";
+import type { GroupList } from "#wow/protocol/group-list";
 import { joinGuid } from "#wow/protocol/packet";
 
 export const LOOT_METHODS: Record<number, string> = {
@@ -31,6 +31,10 @@ export type PartyMember = {
   name: string;
   guid: bigint;
   online: boolean;
+  status: number;
+  subgroup: number;
+  flags: number;
+  roles: number;
   health: number | null;
   maxHealth: number | null;
   level: number | null;
@@ -47,8 +51,15 @@ export type PartyLoot = {
 };
 
 export type PartyState = {
+  kind: "party" | "raid";
   inGroup: boolean;
   leader: string | null;
+  ownSubgroup: number;
+  ownFlags: number;
+  ownRoles: number;
+  dungeonFinder: { status: number; dungeonId: number } | undefined;
+  counter: number;
+  difficulty: { dungeon: number; raid: number; heroic: boolean } | undefined;
   loot: PartyLoot | null;
   members: PartyMember[];
 };
@@ -59,14 +70,68 @@ export type PartyChange = {
   removed: string[];
 };
 
-type Stats = Omit<PartyMember, "name" | "guid" | "online" | "source">;
+type RosterMember = GroupList["members"][number];
 
+type Stats = Omit<
+  PartyMember,
+  | "name"
+  | "guid"
+  | "online"
+  | "source"
+  | "status"
+  | "subgroup"
+  | "flags"
+  | "roles"
+>;
+
+function toMember(member: RosterMember): PartyMember {
+  return {
+    flags: member.flags,
+    guid: joinGuid(member.guidLow, member.guidHigh),
+    health: null,
+    level: null,
+    maxHealth: null,
+    name: member.name,
+    online: member.online,
+    roles: member.roles,
+    source: null,
+    statsAt: null,
+    status: member.status,
+    subgroup: member.subgroup,
+  };
+}
+
+function toLoot(loot: GroupList["loot"]): PartyState["loot"] {
+  if (!loot) return null;
+  const looter = joinGuid(loot.looterGuidLow, loot.looterGuidHigh);
+  return {
+    masterLooter: looter === 0n ? null : looter,
+    method: LOOT_METHODS[loot.method] ?? `method_${loot.method}`,
+    threshold: ITEM_QUALITIES[loot.threshold] ?? `quality_${loot.threshold}`,
+  };
+}
+
+function toDifficulty(loot: GroupList["loot"]): PartyState["difficulty"] {
+  if (!loot) return undefined;
+  return {
+    dungeon: loot.dungeonDifficulty,
+    heroic: loot.heroic,
+    raid: loot.raidDifficulty,
+  };
+}
 export class PartyStore {
   private state: PartyState = {
+    counter: 0,
+    difficulty: undefined,
+    dungeonFinder: undefined,
     inGroup: false,
+    kind: "party",
     leader: null,
     loot: null,
     members: [],
+    ownFlags: 0,
+    ownRoles: 0,
+    ownSubgroup: 0,
   };
   private readonly stats = new Map<bigint, Stats>();
 
@@ -89,40 +154,30 @@ export class PartyStore {
   applyList(list: GroupList, leader: string): PartyChange {
     const before = new Set(this.state.members.map((member) => member.name));
     const formed = !this.state.inGroup && list.members.length > 0;
-    const members = list.members.map((member) => ({
-      name: member.name,
-      guid: joinGuid(member.guidLow, member.guidHigh),
-      online: member.online,
-      health: null,
-      maxHealth: null,
-      level: null,
-      statsAt: null,
-      source: null,
-    }));
-    const { loot } = list;
-    const looter = loot
-      ? joinGuid(loot.looterGuidLow, loot.looterGuidHigh)
-      : 0n;
+    const members = list.members.map(toMember);
     this.state = {
+      counter: list.counter,
+      difficulty: toDifficulty(list.loot),
+      dungeonFinder:
+        list.dungeonId === undefined || list.dungeonStatus === undefined
+          ? undefined
+          : { dungeonId: list.dungeonId, status: list.dungeonStatus },
       inGroup: members.length > 0,
+      kind: list.type === 2 ? "raid" : "party",
       leader: members.length > 0 ? leader || null : null,
-      loot: loot
-        ? {
-            method: LOOT_METHODS[loot.method] ?? `method_${loot.method}`,
-            masterLooter: looter === 0n ? null : looter,
-            threshold:
-              ITEM_QUALITIES[loot.threshold] ?? `quality_${loot.threshold}`,
-          }
-        : null,
+      loot: toLoot(list.loot),
       members,
+      ownFlags: list.ownFlags,
+      ownRoles: list.ownRoles,
+      ownSubgroup: list.ownSubgroup,
     };
-    const after = new Set(members.map((member) => member.name));
+    const guids = new Set(members.map((member) => member.guid));
     for (const guid of this.stats.keys())
-      if (!members.some((member) => member.guid === guid))
-        this.stats.delete(guid);
+      if (!guids.has(guid)) this.stats.delete(guid);
+    const after = new Set(members.map((member) => member.name));
     return {
-      formed,
       added: formed ? [] : [...after].filter((name) => !before.has(name)),
+      formed,
       removed: [...before].filter((name) => !after.has(name)),
     };
   }
@@ -149,7 +204,19 @@ export class PartyStore {
   }
 
   clear(): void {
-    this.state = { inGroup: false, leader: null, loot: null, members: [] };
+    this.state = {
+      counter: 0,
+      difficulty: undefined,
+      dungeonFinder: undefined,
+      inGroup: false,
+      kind: "party",
+      leader: null,
+      loot: null,
+      members: [],
+      ownFlags: 0,
+      ownRoles: 0,
+      ownSubgroup: 0,
+    };
     this.stats.clear();
   }
 }
