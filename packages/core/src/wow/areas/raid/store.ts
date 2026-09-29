@@ -1,5 +1,6 @@
 import type { Unsubscribe } from "#lib/emitter";
 import type { RaidGroup } from "#wow/areas/raid/protocol";
+import type { RaidTargetUpdate } from "#wow/areas/raid/protocol-marks";
 import {
   type RaidEvent,
   type RaidState,
@@ -55,6 +56,14 @@ export class RaidAreaStore {
 
   noteOwnReadyAnswer(ready: boolean): void {
     this.inner.noteOwnReadyAnswer(ready);
+  }
+
+  receiveTarget(update: RaidTargetUpdate): void {
+    this.inner.receiveTarget(update);
+  }
+
+  receivePing(who: bigint, x: number, y: number): void {
+    this.inner.receivePing(who, x, y);
   }
 
   dispose(): void {

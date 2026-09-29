@@ -5,6 +5,8 @@ import {
   RAID_MAIN_TANK_FLAG,
   type RaidGroup,
 } from "#wow/areas/raid/protocol";
+import type { RaidTargetUpdate } from "#wow/areas/raid/protocol-marks";
+import { MarkStore, type MarksEvent } from "#wow/areas/raid/store-marks";
 import {
   type ReadyCheck,
   type ReadyEvent,
@@ -41,12 +43,14 @@ export type RaidEvent =
   | { type: "disbanded" }
   | StatsEvent
   | ReadyEvent
+  | MarksEvent
   | CommandResultEvent;
 
 export type RaidState = {
   group: RaidGroup | undefined;
   stats: ReadonlyMap<bigint, MemberStats>;
   readyCheck?: ReadyCheck | undefined;
+  marks?: readonly bigint[];
 };
 
 const FLAG_NAMES = [
@@ -167,11 +171,13 @@ export class RaidStore {
   private group: RaidGroup | undefined;
   private readonly stats = new Map<bigint, MemberStats>();
   private readonly ready = new ReadyStore();
+  private readonly markStore = new MarkStore();
   private counter = 0;
 
   snapshot(): RaidState {
     return {
       group: this.group,
+      marks: this.markStore.current(),
       readyCheck: this.ready.current(),
       stats: this.stats,
     };
@@ -197,6 +203,7 @@ export class RaidStore {
       if (this.group !== undefined) {
         this.group = undefined;
         this.ready.clear();
+        this.markStore.clear();
         this.pruneStats(undefined);
         this.events.emit({ type: "disbanded" });
       }
@@ -239,9 +246,19 @@ export class RaidStore {
     this.ready.own(ready);
   }
 
+  receiveTarget(update: RaidTargetUpdate): void {
+    const event = this.markStore.receive(this.group, update);
+    if (event) this.events.emit(event);
+  }
+
+  receivePing(who: bigint, x: number, y: number): void {
+    this.events.emit(this.markStore.ping(this.group, who, x, y));
+  }
+
   dispose(): void {
     this.events.clear();
     this.ready.clear();
+    this.markStore.clear();
     this.group = undefined;
     this.stats.clear();
     this.counter = 0;

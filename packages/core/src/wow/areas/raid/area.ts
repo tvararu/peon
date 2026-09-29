@@ -2,6 +2,10 @@ import { defineArea } from "#wow/areas/contract";
 import { RAID_OPCODES } from "#wow/areas/raid/opcodes";
 import { readRaidGroup } from "#wow/areas/raid/protocol";
 import {
+  parseMinimapPing,
+  parseRaidTargetUpdate,
+} from "#wow/areas/raid/protocol-marks";
+import {
   parseReadyCheckConfirm,
   parseReadyCheckStart,
 } from "#wow/areas/raid/protocol-ready";
@@ -44,6 +48,9 @@ export const raidArea = defineArea({
     "ready_check_started",
     "ready_check_answer",
     "ready_check_finished",
+    "raid_mark",
+    "raid_marks",
+    "minimap_ping",
   ],
   store: (deps) => new RaidAreaStore(deps.now),
   register: (wire, store) => {
@@ -72,6 +79,13 @@ export const raidArea = defineArea({
     wire.on(GameOpcode.MSG_RAID_READY_CHECK_FINISHED, () =>
       store.receiveReadyFinished(),
     );
+    wire.on(GameOpcode.MSG_RAID_TARGET_UPDATE, (r) =>
+      store.receiveTarget(parseRaidTargetUpdate(r)),
+    );
+    wire.on(GameOpcode.MSG_MINIMAP_PING, (r) => {
+      const ping = parseMinimapPing(r);
+      store.receivePing(ping.guid, ping.x, ping.y);
+    });
   },
   runtime: raidRuntime,
 });
