@@ -3,10 +3,10 @@ import {
   type AreaEventOf,
   type Entity,
   ObjectType,
+  UNIT_FIELDS,
   type UnitEntity,
 } from "@peon/core";
 import { fakeAwait, withFakeTimers } from "@peon/core/test-support/fake-time";
-import { UNIT_FIELDS } from "@peon/core";
 import { petSpec } from "#harness/areas/pets/tool";
 import { Refusal } from "#harness/ops/refusal";
 import { setUnits, toolCtx, unitRow } from "#test-support/ops-fixtures";
@@ -200,7 +200,6 @@ async function world(init: WorldInit = {}) {
   jest.spyOn(t.rt.clock, "now").mockImplementation(() => at);
   return { ...t, game: live as unknown as typeof live };
 }
-
 
 async function refusal(promise: Promise<unknown>): Promise<Refusal> {
   const error = await promise.then(
