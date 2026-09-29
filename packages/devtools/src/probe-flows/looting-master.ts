@@ -87,14 +87,11 @@ async function kill(
   return false;
 }
 
-async function candidatesOf(
-  handle: WorldHandle,
-  creature: bigint,
-): Promise<readonly bigint[]> {
+async function candidatesOf(handle: WorldHandle): Promise<readonly bigint[]> {
   const deadline = Date.now() + OWNER_WAIT_MS;
   for (;;) {
-    const owners = handle.looting.state().owners;
-    if (owners.has(creature)) return handle.looting.state().masterCandidates;
+    const { masterCandidates } = handle.looting.state();
+    if (masterCandidates.length > 0) return masterCandidates;
     if (Date.now() >= deadline) return [];
     await Bun.sleep(POLL_MS);
   }
@@ -123,15 +120,26 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
     const dead = await kill(handle, creature, seconds);
     if (!dead) continue;
     handle.openLoot(creature);
-    const candidates = await candidatesOf(handle, creature);
+    const candidates = await candidatesOf(handle);
     if (candidates.length === 0) continue;
-    const given = await handle.looting.act.giveMasterLoot(creature, 0, "@self");
+    const { loot } = handle.getRewardsState();
+    const slot = loot.phase === "open" ? loot.items[0]?.slot : undefined;
+    if (slot === undefined) {
+      handle.releaseLoot();
+      continue;
+    }
+    const given = await handle.looting.act.giveMasterLoot(
+      creature,
+      slot,
+      "@self",
+    );
     handle.releaseLoot();
     return {
       attempt,
       candidates: candidates.map(hex),
       gave: given,
       looting: lootingJson(handle, creature),
+      slot,
       target: summary(found),
     };
   }
