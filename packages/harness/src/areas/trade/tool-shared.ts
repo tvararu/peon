@@ -1,6 +1,6 @@
 import { type Static, StringEnum, Type } from "@earendil-works/pi-ai";
 import type { AreaState, NamedInventoryState } from "@peon/core";
-import type { Occupied } from "#harness/areas/items/tool-resolve";
+import { AT_REF, type Occupied } from "#harness/areas/items/tool-resolve";
 import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
 import { parseRef } from "#harness/ops/refs";
@@ -29,7 +29,7 @@ export const tradeParams = Type.Object({
   items: Type.Optional(
     Type.Array(Type.String(), {
       description:
-        "For give and offer: item names from journal bags. A named item is offered as its whole stack.",
+        'For give and offer: item names from journal bags. A named item is offered as its whole stack. Use "bag 255 slot 25" to pick one of two stacks with the same name.',
     }),
   ),
   version: Type.Optional(
@@ -139,6 +139,11 @@ function itemLabel(held: Occupied): string {
 
 function matchesFor(pool: Occupied[], text: string): Occupied[] {
   const trimmed = text.trim();
+  const at = AT_REF.exec(trimmed);
+  if (at?.[1] !== undefined && at[2] !== undefined) {
+    const [bag, slot] = [Number(at[1]), Number(at[2])];
+    return pool.filter((held) => held.bag === bag && held.slot === slot);
+  }
   const id = ITEM_ID.exec(trimmed)?.[1];
   const lower = trimmed.toLowerCase();
   if (id) return pool.filter((held) => held.item.entry === Number(id));
@@ -160,7 +165,7 @@ export function pickCarried(ctx: TradeCtx, text: string): Picked {
   if (near.length > 1)
     throw refusalOf(
       "ambiguous_item",
-      `"${text}" matches more than one item; name one item.`,
+      `"${text}" matches more than one item; name one bag and slot, like "bag 255 slot 25".`,
       bagsNext(),
     );
   if (held.region !== "backpack" && held.region !== "bag_item")

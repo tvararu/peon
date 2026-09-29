@@ -248,6 +248,37 @@ describe("trade give", () => {
     expect(t.acts.requestTrade).not.toHaveBeenCalled();
   });
 
+  test("give picks one of two same-name stacks by bag and slot", async () => {
+    const t = await world();
+    stocked(t.handle, [
+      { bag: 255, count: 15, entry: 159, guid: WATER, name: "Water", slot: 24 },
+      { bag: 255, count: 5, entry: 159, guid: CLOTH, name: "Water", slot: 25 },
+    ]);
+    const out = await tradeSpec.run(
+      { do: "give", items: ["bag 255 slot 25"], with: "Fgkllpgpdnj" },
+      toolCtx(t),
+    );
+    expect(t.acts.offerItem).toHaveBeenCalledTimes(1);
+    expect(t.acts.offerItem).toHaveBeenCalledWith(0, 255, 25);
+    expect(out.detail).toContain("5 Water");
+  });
+
+  test("give tells the agent to name a bag and slot for two same-name stacks", async () => {
+    const t = await world();
+    stocked(t.handle, [
+      { bag: 255, entry: 159, guid: WATER, name: "Water", slot: 24 },
+      { bag: 255, entry: 159, guid: CLOTH, name: "Water", slot: 25 },
+    ]);
+    await expect(
+      tradeSpec.run(
+        { do: "give", items: ["Water"], with: "Fgkllpgpdnj" },
+        toolCtx(t),
+      ),
+    ).rejects.toMatchObject({
+      detail: expect.stringContaining("bag and slot"),
+    });
+  });
+
   test("give refuses more than 6 items", async () => {
     const t = await world();
     await expect(
