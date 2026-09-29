@@ -65,7 +65,10 @@ function grouped() {
   });
 }
 
-function sentOpcode(rig: { sent: readonly { opcode: number }[] }, opcode: number) {
+function sentOpcode(
+  rig: { sent: readonly { opcode: number }[] },
+  opcode: number,
+) {
   return rig.sent.filter((p) => p.opcode === opcode);
 }
 
@@ -105,7 +108,9 @@ describe("lfg runtime", () => {
     const rig = solo();
     try {
       const pending = rig.handle.act.requestDungeons();
-      expect(sentOpcode(rig, GameOpcode.CMSG_LFD_PLAYER_LOCK_INFO_REQUEST)).toHaveLength(1);
+      expect(
+        sentOpcode(rig, GameOpcode.CMSG_LFD_PLAYER_LOCK_INFO_REQUEST),
+      ).toHaveLength(1);
       rig.inject(GameOpcode.SMSG_LFG_PLAYER_INFO, INFO);
       const result = await pending;
       expect(result.status).toBe("ok");
@@ -141,7 +146,9 @@ describe("lfg runtime", () => {
         status: "refused",
         reason: "not_in_group",
       });
-      expect(sentOpcode(rig, GameOpcode.CMSG_LFD_PARTY_LOCK_INFO_REQUEST)).toHaveLength(0);
+      expect(
+        sentOpcode(rig, GameOpcode.CMSG_LFD_PARTY_LOCK_INFO_REQUEST),
+      ).toHaveLength(0);
     } finally {
       rig.dispose();
     }
