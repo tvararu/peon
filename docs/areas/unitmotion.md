@@ -5,7 +5,11 @@ every unit the character sees. World-service code reads it through
 `session.areas.unitmotion.state()`: one row per unit with its raw
 movement flags, each speed with the packet kind that set it (`create`,
 `spline` or `move_msg`) and when, the run speed before a drop
-(`runBefore`), and whether the server moves the unit. Units that no
+(`runBefore`), and whether the server moves the unit. The puppet
+`nearby` row carries the same row for its guid as `movement`: the raw
+flags, `rooted` when the root bit holds (`ROOT` is `0x00_00_08_00` in
+`protocol/entity-fields.ts:48`), `serverControlled`, and each of the
+nine speeds with the packet kind that set it. Units that no
 entity backs are dropped and counted in `dropped`. The area emits
 `speed`, `flag` and `removed` events, each with `self` set when the
 unit is the character. A row goes away when its entity disappears,
