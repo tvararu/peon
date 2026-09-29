@@ -133,8 +133,14 @@ export class SpellsStore {
     if (packet.caster !== this.deps.selfGuid()) {
       if (packet.remainingMs > 0) return;
       const entry = this.units.castOf(packet.caster);
-      if (entry?.kind === "channel")
-        this.units.end(packet.caster, entry.spellId, "finished");
+      if (entry?.kind !== "channel") return;
+      this.units.end(
+        packet.caster,
+        entry.spellId,
+        this.deps.now() >= entry.startedAt + entry.durationMs - END_TOLERANCE_MS
+          ? "finished"
+          : "interrupted",
+      );
       return;
     }
     if (packet.remainingMs > 0)

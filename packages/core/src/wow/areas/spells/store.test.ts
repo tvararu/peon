@@ -164,8 +164,8 @@ describe("spells channel wiring", () => {
       start(MOB);
       advance(500);
       update(1000, MOB);
-      failure(MOB);
       update(0, MOB);
+      failure(MOB);
       expect(
         seen.filter(
           (e) => e.type === "channel_start" || e.type === "channel_end",
@@ -175,8 +175,23 @@ describe("spells channel wiring", () => {
         "unit_cast_start",
         "unit_cast_end",
       ]);
+      expect(seen.at(-1)).toMatchObject({ outcome: "interrupted" });
       expect(rig.handle.state().channel).toBeUndefined();
       expect(rig.stores.combat.casts.channel).toBeUndefined();
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("another caster's channel update 0 at full duration is finished", () => {
+    const { advance, rig, seen, start, update } = setup();
+    try {
+      start(MOB);
+      advance(3000);
+      update(0, MOB);
+      const ends = seen.filter((e) => e.type === "unit_cast_end");
+      expect(ends).toHaveLength(1);
+      expect(ends[0]).toMatchObject({ outcome: "finished" });
     } finally {
       rig.dispose();
     }
