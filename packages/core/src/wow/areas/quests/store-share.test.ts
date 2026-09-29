@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
+  questsQuestgiverOfferRewardBody,
   questsQuestgiverQuestDetailsBody,
   questsQuestgiverRequestItemsBody,
 } from "#test-support/areas/quests";
@@ -72,9 +73,14 @@ function setup(log: readonly number[] = [], pending?: object) {
       GameOpcode.SMSG_QUESTGIVER_REQUEST_ITEMS,
       questsQuestgiverRequestItemsBody(guid, QUEST),
     );
+  const offer = (guid: bigint) =>
+    rig.inject(
+      GameOpcode.SMSG_QUESTGIVER_OFFER_REWARD,
+      questsQuestgiverOfferRewardBody(guid, QUEST),
+    );
   const shares = () =>
     seen.flatMap((event) => (event.type === "share" ? [event.share] : []));
-  return { details, items, rig, shares };
+  return { details, items, offer, rig, shares };
 }
 
 function within(
@@ -163,6 +169,29 @@ describe("quest sharing offers", () => {
     within(
       ({ items, shares }) => {
         items(SHARER);
+        expect(shares()).toEqual([]);
+      },
+      [],
+      INTENT,
+    );
+  });
+
+  test("an offer-reward packet from a group member is a share_complete notice", () => {
+    within(({ offer, shares }) => {
+      offer(SHARER);
+      expect(shares()).toEqual([
+        { from: SHARER, questId: QUEST, type: "share_complete" },
+      ]);
+    });
+  });
+  test("an offer-reward packet from a stranger, or with a pending intent, says nothing", () => {
+    within(({ offer, shares }) => {
+      offer(STRANGER);
+      expect(shares()).toEqual([]);
+    });
+    within(
+      ({ offer, shares }) => {
+        offer(SHARER);
         expect(shares()).toEqual([]);
       },
       [],

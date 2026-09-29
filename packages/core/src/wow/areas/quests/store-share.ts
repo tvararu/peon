@@ -116,6 +116,20 @@ export function receivePushResult(
   if (RELAYED.has(result) && !owesReply(push, guid)) return dropRelay(share);
   return withRow(share, push, { at: now, guid, result });
 }
+export function settleWindow(share: ShareState): ShareStep | undefined {
+  const { push } = share;
+  if (push?.status !== "open") return undefined;
+  const heard = new Set(push.results.map((row) => row.guid));
+  const kept = push.expected.filter((guid) => heard.has(guid));
+  if (kept.length === push.expected.length) return undefined;
+  const next: SharePush = { ...push, expected: kept };
+  if (!everyoneAnswered(next))
+    return { changes: [], share: { ...share, push: next } };
+  return {
+    changes: [{ questId: push.questId, reason: "complete", type: "closed" }],
+    share: { ...share, push: { ...next, status: "complete" } },
+  };
+}
 
 export function closePush(
   share: ShareState,

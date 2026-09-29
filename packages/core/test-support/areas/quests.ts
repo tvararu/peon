@@ -188,3 +188,27 @@ export function questsQuestgiverRequestItemsBody(
   for (let i = 0; i < 4; i++) w.uint32LE(0);
   return w.finish();
 }
+
+export function questsQuestgiverOfferRewardBody(
+  guid: bigint,
+  questId: number,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(guid);
+  w.uint32LE(questId);
+  w.cString("Title");
+  w.cString("Reward");
+  w.uint8(0);
+  w.uint32LE(0);
+  w.uint32LE(0);
+  w.uint32LE(0);
+  const zeros = (count: number): void => {
+    for (let i = 0; i < count; i++) w.uint32LE(0);
+  };
+  zeros(13);
+  w.uint32LE(0);
+  zeros(9);
+  w.uint32LE(0);
+  zeros(21);
+  return w.finish();
+}

@@ -16,14 +16,14 @@ const BOB = 0x31n;
 const ME = 0x2an;
 const QUEST = 8326;
 
-function member(guid: bigint) {
+function member(guid: bigint, online = true) {
   return {
     guid,
     health: null,
     level: null,
     maxHealth: null,
     name: `P${guid}`,
-    online: true,
+    online,
     source: null,
     statsAt: null,
   };
@@ -32,6 +32,7 @@ function member(guid: bigint) {
 function legacy(
   inGroup: boolean,
   guids: readonly bigint[],
+  offline: readonly bigint[],
 ): AreaPort["legacy"] {
   return {
     channels: () => [],
@@ -42,16 +43,20 @@ function legacy(
       inGroup,
       leader: null,
       loot: null,
-      members: guids.map(member),
+      members: guids.map((guid) => member(guid, !offline.includes(guid))),
     }),
   };
 }
 
-type Setup = { group?: boolean; log?: readonly number[] };
+type Setup = {
+  group?: boolean;
+  log?: readonly number[];
+  offline?: readonly bigint[];
+};
 
-function setup({ group = true, log = [QUEST] }: Setup = {}) {
+function setup({ group = true, log = [QUEST], offline = [] }: Setup = {}) {
   const rig = areaRig("quests", {
-    legacy: legacy(group, [ALICE, BOB]),
+    legacy: legacy(group, [ALICE, BOB], offline),
     selfGuid: ME,
   });
   const state = rig.stores.quests.state();
@@ -174,6 +179,47 @@ describe("quest sharing, sharer", () => {
       });
       expect(rig.handle.act.shareQuest(QUEST)).toEqual({ ok: true });
       expect(sent(GameOpcode.CMSG_PUSHQUESTTOPARTY)).toHaveLength(2);
+    });
+  });
+
+  test("an offline member is not expected, so the push closes complete when the online member answers", () => {
+    withRig(
+      ({ rig, result }) => {
+        rig.handle.act.shareQuest(QUEST);
+        expect(rig.handle.state().share?.push?.expected).toEqual([ALICE]);
+        result(ALICE, QuestShareResult.SHARING_QUEST);
+        result(ALICE, QuestShareResult.ACCEPT_QUEST);
+        expect(rig.handle.state().share?.push?.status).toBe("complete");
+      },
+      { offline: [BOB] },
+    );
+  });
+
+  test("after the first-result window a silent member is resolved and the push closes once the answering members are final", () => {
+    withRig(({ rig, result, shares }) => {
+      rig.handle.act.shareQuest(QUEST);
+      result(ALICE, QuestShareResult.HAVE_QUEST);
+      jest.advanceTimersByTime(FIRST_RESULT_TIMEOUT_MS - 1);
+      expect(rig.handle.state().share?.push?.status).toBe("open");
+      jest.advanceTimersByTime(1);
+      expect(rig.handle.state().share?.push?.status).toBe("complete");
+      expect(shares().at(-1)).toEqual({
+        questId: QUEST,
+        reason: "complete",
+        type: "closed",
+      });
+    });
+  });
+
+  test("a member who sent result 0 keeps the push open past the window until the final reply", () => {
+    withRig(({ rig, result }) => {
+      rig.handle.act.shareQuest(QUEST);
+      result(ALICE, QuestShareResult.SHARING_QUEST);
+      jest.advanceTimersByTime(FIRST_RESULT_TIMEOUT_MS);
+      expect(rig.handle.state().share?.push?.expected).toEqual([ALICE]);
+      expect(rig.handle.state().share?.push?.status).toBe("open");
+      result(ALICE, QuestShareResult.ACCEPT_QUEST);
+      expect(rig.handle.state().share?.push?.status).toBe("complete");
     });
   });
 
@@ -310,19 +356,26 @@ describe("quest sharing, sharer", () => {
   });
 
   test("a stale relay does not move the open push's 60 s timer", () => {
-    withRig(({ rig, result }) => {
-      rig.handle.act.shareQuest(QUEST);
-      result(ALICE, QuestShareResult.SHARING_QUEST);
-      jest.advanceTimersByTime(PUSH_TIMEOUT_MS);
-      rig.handle.act.shareQuest(QUEST);
-      result(ALICE, QuestShareResult.SHARING_QUEST);
-      jest.advanceTimersByTime(PUSH_TIMEOUT_MS - 1000);
-      result(ALICE, QuestShareResult.DECLINE_QUEST);
-      jest.advanceTimersByTime(999);
-      expect(rig.handle.state().share?.push?.status).toBe("open");
-      jest.advanceTimersByTime(1);
-      expect(rig.handle.state().share?.push?.status).toBe("timed_out");
-    });
+    withRig(
+      ({ rig, result }) => {
+        const OTHER = 8325;
+        rig.handle.act.shareQuest(OTHER);
+        result(ALICE, QuestShareResult.SHARING_QUEST);
+        result(BOB, QuestShareResult.SHARING_QUEST);
+        jest.advanceTimersByTime(1000);
+        jest.advanceTimersByTime(PUSH_TIMEOUT_MS - 1000);
+        rig.handle.act.shareQuest(QUEST);
+        result(ALICE, QuestShareResult.SHARING_QUEST);
+        result(BOB, QuestShareResult.SHARING_QUEST);
+        jest.advanceTimersByTime(PUSH_TIMEOUT_MS - 1000);
+        result(ALICE, QuestShareResult.DECLINE_QUEST);
+        jest.advanceTimersByTime(999);
+        expect(rig.handle.state().share?.push?.status).toBe("open");
+        jest.advanceTimersByTime(1);
+        expect(rig.handle.state().share?.push?.status).toBe("timed_out");
+      },
+      { log: [QUEST, 8325] },
+    );
   });
 
   test("the open push's own results do not restart its timer", () => {

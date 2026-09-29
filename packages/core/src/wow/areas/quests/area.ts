@@ -12,6 +12,7 @@ import { questsRuntime } from "#wow/areas/quests/runtime";
 import { QuestsStore } from "#wow/areas/quests/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import {
+  parseQuestgiverOfferReward,
   parseQuestgiverQuestDetails,
   parseQuestgiverRequestItems,
   parseQuestgiverStatus,
@@ -50,6 +51,9 @@ export const questsArea = defineArea({
     );
     wire.peek(GameOpcode.SMSG_QUESTGIVER_REQUEST_ITEMS, (r) =>
       store.receiveShareRequestItems(parseQuestgiverRequestItems(r)),
+    );
+    wire.peek(GameOpcode.SMSG_QUESTGIVER_OFFER_REWARD, (r) =>
+      store.receiveShareOfferReward(parseQuestgiverOfferReward(r)),
     );
   },
   runtime: questsRuntime,

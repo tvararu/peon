@@ -53,30 +53,23 @@ function pushTimers(store: QuestsStore): PushTimers {
     pushTimer = undefined;
     firstResultTimer = undefined;
   };
-  const hasReply = (): boolean =>
-    (store.snapshot().share?.push?.results.length ?? 0) > 0;
+  const settleWindow = (): void => {
+    firstResultTimer = undefined;
+    if ((store.snapshot().share?.push?.results.length ?? 0) === 0)
+      store.closePush("no_answer");
+    else store.settlePushWindow();
+  };
   const startPush = (): void => {
     stopPush();
-    firstResultTimer = setTimeout(() => {
-      firstResultTimer = undefined;
-      if (hasReply()) return;
-      store.closePush("no_answer");
-    }, FIRST_RESULT_TIMEOUT_MS);
+    firstResultTimer = setTimeout(settleWindow, FIRST_RESULT_TIMEOUT_MS);
     pushTimer = setTimeout(() => {
       pushTimer = undefined;
       store.closePush("timed_out");
     }, PUSH_TIMEOUT_MS);
   };
-  const onFirstResult = (share: ShareChange): void => {
-    if (share.type === "result" || share.type === "relayed") {
-      clearTimeout(firstResultTimer);
-      firstResultTimer = undefined;
-    }
-  };
   const onPush = (share: ShareChange): void => {
     if (share.type === "pushed") startPush();
     else if (share.type === "closed") stopPush();
-    else onFirstResult(share);
   };
   return { onPush, stopPush };
 }
@@ -131,8 +124,8 @@ export function shareRuntime(
   store.bindMembers(() =>
     ctx.legacy
       .party()
-      .members.map((member) => member.guid)
-      .filter((guid) => guid !== self),
+      .members.filter((member) => member.online && member.guid !== self)
+      .map((member) => member.guid),
   );
   const timers = shareTimers(ctx, store);
   const offGroup = ctx.listen("group", (event) => {

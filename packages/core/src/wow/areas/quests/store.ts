@@ -42,6 +42,7 @@ import {
   type ShareOffer,
   type ShareState,
   type ShareStep,
+  settleWindow,
 } from "#wow/areas/quests/store-share";
 import {
   type GossipPoiEntry,
@@ -197,6 +198,10 @@ export class QuestsStore {
     this.applyShare(receivePushResult(this.share, guid, result, this.now()));
   }
 
+  settlePushWindow(): void {
+    this.applyShare(settleWindow(this.share));
+  }
+
   closePush(reason: "timed_out" | "group_changed" | "no_answer"): void {
     this.applyShare(closePush(this.share, reason));
   }
@@ -232,6 +237,19 @@ export class QuestsStore {
     this.emitShare({
       from: items.guid,
       questId: items.questId,
+      type: "share_complete",
+    });
+  }
+
+  receiveShareOfferReward(offer: { guid: bigint; questId: number }): void {
+    if (
+      this.core.quests.snapshot().pending ||
+      !this.members().includes(offer.guid)
+    )
+      return;
+    this.emitShare({
+      from: offer.guid,
+      questId: offer.questId,
       type: "share_complete",
     });
   }
