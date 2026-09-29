@@ -413,7 +413,7 @@ export function runDungeon(
   return Promise.reject(
     refusalOf(
       "unknown_verb",
-      `Unknown dungeon verb ${String(do_)}. Use status, difficulty, reset, bind or extend.`,
+      `Unknown dungeon verb ${String(do_)}. Use status, difficulty, reset, bind, extend, queue, leave_queue, answer, roles, teleport or kick_vote.`,
     ),
   );
 }

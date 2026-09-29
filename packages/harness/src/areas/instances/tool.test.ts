@@ -353,9 +353,22 @@ describe("dungeon tool verbs", () => {
     });
     expect(settled.status).toBe("REFUSED");
     expect(settled.reason).toBe("unknown_verb");
+    for (const verb of [
+      "status",
+      "difficulty",
+      "reset",
+      "bind",
+      "extend",
+      "queue",
+      "leave_queue",
+      "answer",
+      "roles",
+      "teleport",
+      "kick_vote",
+    ])
+      expect(settled.detail).toContain(verb);
     expect(extend).not.toHaveBeenCalled();
   });
-
   test("reset renders one line per map", async () => {
     const t = await world();
     const resetInstances = jest

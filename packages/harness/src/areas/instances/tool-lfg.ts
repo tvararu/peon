@@ -1,4 +1,8 @@
-import { startWatch, stopWatch } from "#harness/areas/instances/tool-lfg-auto";
+import {
+  answerOpenRoleCheck,
+  startWatch,
+  stopWatch,
+} from "#harness/areas/instances/tool-lfg-auto";
 import {
   type DungeonAfter,
   type DungeonCtx,
@@ -138,17 +142,25 @@ async function runQueue(
     return queueRefused(picked.refused.reason, picked.refused.detail);
   const entry = picked.entry;
   const auto = args.auto ?? true;
-  const outcome = await ctx.rt.mutex.run(() =>
-    ctx.handle.lfg.act.join({ comment: "", entries: [entry], roles }),
-  );
-  if (outcome.status !== "ok")
+  startWatch(ctx, { entries: [entry], roles }, auto);
+  const outcome = await ctx.rt.mutex
+    .run(() =>
+      ctx.handle.lfg.act.join({ comment: "", entries: [entry], roles }),
+    )
+    .catch((error: unknown) => {
+      stopWatch(ctx);
+      throw error;
+    });
+  if (outcome.status !== "ok") {
+    stopWatch(ctx);
     return queueRefused(
       outcome.status === "refused" ? outcome.reason : "no_answer",
       outcome.status === "refused"
         ? `The dungeon finder refused the queue (${outcome.reason}).`
         : "The dungeon finder did not answer the queue.",
     );
-  startWatch(ctx, { entries: [entry], roles }, auto);
+  }
+  if (outcome.roleCheck) answerOpenRoleCheck(ctx);
   const text = queueResultText(entry, roles, outcome.roleCheck);
   return {
     after: {

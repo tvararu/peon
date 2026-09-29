@@ -42,9 +42,9 @@ function settleAnswer(
 function answerRoleAuto(
   ctx: DungeonCtx,
   pick: QueuePick,
-  finish: { done: boolean },
+  finish: { proposal: boolean; role: boolean },
 ): void {
-  finish.done = true;
+  finish.role = true;
   settleAnswer(ctx.handle.lfg.act.setRoles(pick.roles), (outcome) => {
     const result = outcome as { status: string; reason?: string };
     if (result.status === "ok")
@@ -67,9 +67,9 @@ function answerRoleAuto(
 function answerProposalAuto(
   ctx: DungeonCtx,
   event: Extract<LfgEvent, { type: "proposal" }>,
-  finish: { done: boolean },
+  finish: { proposal: boolean; role: boolean },
 ): void {
-  finish.done = true;
+  finish.proposal = true;
   settleAnswer(ctx.handle.lfg.act.answerProposal(true), (outcome) => {
     const result = outcome as { status: string; reason?: string };
     if (result.status === "ok")
@@ -109,7 +109,7 @@ export function startWatch(
   auto: boolean,
 ): void {
   stopWatch(ctx);
-  const finish = { done: false };
+  const finish = { proposal: false, role: false };
   const holder: { timer: ReturnType<typeof setTimeout> | undefined } = {
     timer: undefined,
   };
@@ -120,7 +120,8 @@ export function startWatch(
     }
   };
   const stop = () => {
-    finish.done = true;
+    finish.proposal = true;
+    finish.role = true;
     clearRoleTimeout();
     watches.delete(ctx.rt);
     off();
@@ -134,12 +135,12 @@ export function startWatch(
   };
   const watch: QueueWatch = {
     answerProposal: (event) => {
-      if (!auto || finish.done) return;
+      if (!auto || finish.proposal) return;
       if (event.state !== 0 || event.selfAnswered) return;
       answerProposalAuto(ctx, event, finish);
     },
     answerRoleCheck: (event) => {
-      if (finish.done) return;
+      if (finish.role) return;
       if (event.stateName !== "initializing") {
         clearRoleTimeout();
         return;
@@ -156,6 +157,13 @@ export function startWatch(
     else if (event.type === "status" && event.status === "none") watch.stop();
   });
   watches.set(ctx.rt, watch);
+}
+export function answerOpenRoleCheck(ctx: DungeonCtx): void {
+  watches.get(ctx.rt)?.answerRoleCheck({
+    state: 2,
+    stateName: "initializing",
+    type: "role_check",
+  });
 }
 
 export function stopWatch(ctx: DungeonCtx): void {
