@@ -1,4 +1,5 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
+import { selfFields } from "#wow/areas/selfstate/fields";
 import {
   type CollisionHeight,
   type CompoundMove,
@@ -11,6 +12,7 @@ import {
   standStateName,
   type TransferAborted,
 } from "#wow/areas/selfstate/protocol";
+import { type PlayerLife, readLife } from "#wow/player-state";
 import type { MoveCounter } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { TransferAbortedInput } from "#wow/self-store";
@@ -33,6 +35,7 @@ export type SelfstateState = {
   readonly ghostPending: boolean;
   readonly lastTransferAbort: TransferAbort | undefined;
   readonly collisionHeight: number | undefined;
+  readonly selfResSpell: number;
 };
 export type TransferAbort = TransferAborted & { readonly at: number };
 export type SelfstateEvent =
@@ -50,7 +53,8 @@ export type SelfstateEvent =
     }
   | { type: "mirror_timer"; timer: MirrorTimerName; change: "stopped" }
   | { type: "breath_low"; remainingMs: number }
-  | { type: "ghost_pending" };
+  | { type: "ghost_pending" }
+  | { type: "self_res_available"; spellId: number; name: string | undefined };
 
 export class SelfstateStore {
   private readonly events = new Emitter<[SelfstateEvent]>();
@@ -61,6 +65,7 @@ export class SelfstateStore {
   private ghostPending = false;
   private lastTransferAbort: TransferAbort | undefined;
   private collisionHeight: number | undefined;
+  private selfResSpell = 0;
 
   constructor(deps: SessionDeps, core: CoreStores) {
     this.deps = deps;
@@ -70,6 +75,7 @@ export class SelfstateStore {
   snapshot(): SelfstateState {
     return {
       collisionHeight: this.collisionHeight,
+      selfResSpell: this.selfResSpell,
       standState: this.standState,
       timers: { ...this.timers },
       ghostPending: this.ghostPending,
@@ -161,6 +167,25 @@ export class SelfstateStore {
 
   clearGhostPending(): void {
     this.ghostPending = false;
+  }
+
+  life(): PlayerLife {
+    return readLife(this.deps.selfGuid(), this.deps.getEntity).life;
+  }
+
+  currentSelfResSpell(): number {
+    const guid = this.deps.selfGuid();
+    return selfFields(this.deps.getEntity(guid), guid)?.selfResSpell ?? 0;
+  }
+
+  syncSelfResSpell(spellId: number): boolean {
+    const appeared = this.selfResSpell === 0 && spellId !== 0;
+    this.selfResSpell = spellId;
+    return appeared;
+  }
+
+  selfResAvailable(spellId: number, name: string | undefined): void {
+    this.events.emit({ type: "self_res_available", spellId, name });
   }
 
   breathLow(remainingMs: number): void {

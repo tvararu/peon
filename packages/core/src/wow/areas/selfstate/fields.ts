@@ -7,6 +7,7 @@ export const PLAYER_FLAG_GHOST = 0x10;
 export type SelfFields = {
   standState: number | undefined;
   playerFlags: number | undefined;
+  selfResSpell: number | undefined;
 };
 
 function read(entity: Entity, offset: number): number | undefined {
@@ -30,5 +31,6 @@ export function selfFields(
   return {
     standState: bytes1 === undefined ? undefined : bytes1 & 0xff,
     playerFlags: read(entity, PLAYER_FIELDS.FLAGS.offset),
+    selfResSpell: read(entity, PLAYER_FIELDS.SELF_RES_SPELL.offset),
   };
 }

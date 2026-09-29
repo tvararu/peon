@@ -163,3 +163,11 @@ export function selfstateTransferAbortedBody({
   if (arg !== undefined) w.uint8(arg);
   return w.finish();
 }
+
+export function selfstateCorpseMapPositionQueryResponseBody(
+  values: readonly [number, number, number, number] = [0, 0, 0, 0],
+): Uint8Array {
+  const w = new PacketWriter();
+  for (const value of values) w.floatLE(value);
+  return w.finish();
+}

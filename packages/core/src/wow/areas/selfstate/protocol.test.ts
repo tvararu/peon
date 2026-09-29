@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  selfstateCorpseMapPositionQueryResponseBody,
   selfstateForcePitchRateChangeBody,
   selfstateMoveSetCollisionHeightBody,
   selfstateMultipleMovesBody,
@@ -11,9 +12,11 @@ import {
 } from "#test-support/areas/selfstate";
 import { must } from "#test-support/must";
 import {
+  buildCorpseMapPositionQuery,
   buildStandStateChange,
   MIRROR_TIMERS,
   parseCollisionHeight,
+  parseCorpseMapPosition,
   parseMirrorTimer,
   parseMultipleMoves,
   parsePreResurrect,
@@ -227,5 +230,25 @@ describe("SMSG_MOVE_SET_COLLISION_HGT (AC Entities/Unit/Unit.cpp:10272-10275)", 
     expect(parsed.counter).toBe(9);
     expect(parsed.speed).toBeCloseTo(3.14, 4);
     expect(r.remaining).toBe(0);
+  });
+});
+
+describe("corpse map position query (AC Handlers/QueryHandler.cpp:399-410)", () => {
+  test("CMSG_CORPSE_MAP_POSITION_QUERY is one u32 zero (AC Server/Packets/QueryPackets.cpp:55-58)", () => {
+    expect(hex(buildCorpseMapPositionQuery())).toBe("00000000");
+  });
+
+  test("the response reads four floats and consumes the packet", () => {
+    const r = read(
+      selfstateCorpseMapPositionQueryResponseBody([1.5, -2.25, 0, 4]),
+    );
+    expect(parseCorpseMapPosition(r)).toEqual([1.5, -2.25, 0, 4]);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("the response AzerothCore sends is all zeros", () => {
+    const body = selfstateCorpseMapPositionQueryResponseBody();
+    expect(body.length).toBe(16);
+    expect(parseCorpseMapPosition(read(body))).toEqual([0, 0, 0, 0]);
   });
 });

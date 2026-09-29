@@ -16,6 +16,7 @@ async function lineFor(standState: AreaState<"selfstate">["standState"]) {
     collisionHeight: undefined,
     ghostPending: false,
     lastTransferAbort: undefined,
+    selfResSpell: 0,
     standState,
     timers: {},
   });
