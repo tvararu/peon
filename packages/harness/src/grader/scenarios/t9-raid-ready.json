@@ -1,0 +1,77 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 20,
+    "turns": 10
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["raid/ready_check"]
+      },
+      "expect": "GL has a raid/ready_check wake row, so the agent started a ready check",
+      "id": "check-started",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["raid/ready_done"]
+      },
+      "expect": "GL has a raid/ready_done row after the partner answered, so the check finished with the partner ready",
+      "id": "check-done",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent calling the group tool with do ready_check, not ending REFUSED, and the final text names the partner as ready",
+      "id": "ready-called",
+      "source": "session"
+    }
+  ],
+  "id": "t9-raid-ready",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": "partner",
+  "partnerActions": [
+    {
+      "argv": ["call", "invite", "[\"<AGENT>\"]"],
+      "at": {
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "task_landed"
+      },
+      "windowMs": 120000
+    },
+    {
+      "argv": ["call", "setLeader", "[\"<AGENT>\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 20000
+      },
+      "windowMs": 180000
+    },
+    {
+      "argv": ["call", "answerReadyCheck", "[\"yes\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 60000
+      },
+      "windowMs": 120000
+    },
+    {
+      "argv": ["call", "answerReadyCheck", "[\"yes\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 90000
+      },
+      "windowMs": 120000
+    }
+  ],
+  "preset": "eversong10",
+  "setup": [],
+  "spawn": "fairbreeze-south",
+  "steers": [],
+  "task": "Join the group you are invited to. When you lead it, run a ready check with the group tool and tell me who is ready.",
+  "tier": 9
+}

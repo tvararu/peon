@@ -177,6 +177,8 @@ export const ROUND_1: readonly string[] = [
   "t9-raid-master-loot",
   "t8-quests-share",
   "t8-quests-accept-shared",
+  "t9-raid-ready",
+  "t9-raid-answer",
 ];
 
 const DIR = `${import.meta.dir}/scenarios`;
