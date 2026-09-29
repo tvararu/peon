@@ -76,6 +76,11 @@ legacy `group/roster` row already says; `invite_blocked` writes one
 - `SMSG_PARTY_MEMBER_STATS` position is two `uint16` casts of floats
   (`Handlers/GroupHandler.cpp:887-889`), read here as signed `int16` so
   a negative Eversong y stays negative.
+- `SMSG_PARTY_MEMBER_STATS` writes a zero pet guid when the member has
+  no pet (`Handlers/GroupHandler.cpp:909-915`). A full
+  `SMSG_PARTY_MEMBER_STATS_FULL` reply adds the pet name, model and
+  auras even for a member without a pet
+  (`Handlers/GroupHandler.cpp:1028-1037`).
 - The `SMSG_PARTY_MEMBER_STATS` status word sets `MEMBER_STATUS_ONLINE`
   and, when set, `MEMBER_STATUS_PVP`, `MEMBER_STATUS_DEAD` or
   `MEMBER_STATUS_GHOST`, `MEMBER_STATUS_PVP_FFA`, `MEMBER_STATUS_AFK`
@@ -133,9 +138,30 @@ space, one `<ACCOUNT>-packets.jsonl` per account:
 - After B's puppet stopped, A's trace holds the offline
   `SMSG_GROUP_LIST` (status 0), and a later `requestMemberStats` for B
   wrote `out CMSG_REQUEST_PARTY_MEMBER_STATS` with the 10-byte offline
-  `in SMSG_PARTY_MEMBER_STATS_FULL`; A's events show the `offline`
-  transition for B. The pet fields were not seen live
-  (`eversong10-hunter` was not staged); the pet fixture stays the proof.
+  `in SMSG_PARTY_MEMBER_STATS_FULL`. That run's events file was empty,
+  so the second run below is the proof of the `offline` event.
+
+A second run repeated the pair with an `eversong10-hunter` account A
+(Fgkllkkgkjo) and an `eversong10` account B (Fgkllkkhgne), both puppets
+started with `--packet-trace bodies`. Kept, not committed, in the
+directory `live-group2-fix2` of the same scratch space: both packet
+traces and the `events --json` reads.
+
+- B's trace holds the hunter's `in SMSG_PARTY_MEMBER_STATS_FULL`
+  (77 bytes). Decoded, it has zone 3430, x 8735, y -6685 (a negative
+  `int16`), and the pet fields for the hunter's starting pet: guid
+  `0xf140000d730004ff`, name `Ravager`, model 17061, health 344 of 344,
+  power type 2 and power 100 of 100. The pet was already summoned at
+  login, so the pet fields were seen live.
+- A's trace holds the 49-byte full reply for B with the same zone and
+  y. Before B logged out, A's events hold `member_stats` for B with the
+  `online` transition.
+- After B's puppet stopped, A's trace holds the offline
+  `SMSG_GROUP_LIST` (status 0) and, after a `requestMemberStats` for B,
+  the 10-byte offline `in SMSG_PARTY_MEMBER_STATS_FULL`
+  (`00032a0f010000000000`). A's events then hold `member_stats` for B
+  with the `offline` transition. Removal clears both stores' pet state,
+  proven by `areaRig` tests, not seen live.
 
 
 ## Capabilities row
