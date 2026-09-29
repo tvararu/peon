@@ -137,6 +137,27 @@ export type TradeStatusExtended = {
 
 const TRADE_SLOT_COUNT = 7;
 
+function isEmptySlot(item: Omit<TradeExtendedItem, "slot">): boolean {
+  return (
+    item.entry === 0 &&
+    item.display === 0 &&
+    item.count === 0 &&
+    !item.wrapped &&
+    item.giftCreator === 0n &&
+    item.permanentEnchant === 0 &&
+    item.gemEnchants[0] === 0 &&
+    item.gemEnchants[1] === 0 &&
+    item.gemEnchants[2] === 0 &&
+    item.creator === 0n &&
+    item.charges === 0 &&
+    item.suffix === 0 &&
+    item.randomProperty === 0 &&
+    item.lock === 0 &&
+    item.maxDurability === 0 &&
+    item.durability === 0
+  );
+}
+
 function readExtendedItem(
   reader: PacketReader,
   slot: number,
@@ -160,26 +181,7 @@ function readExtendedItem(
   const lock = reader.uint32LE();
   const maxDurability = reader.uint32LE();
   const durability = reader.uint32LE();
-  if (
-    entry === 0 &&
-    display === 0 &&
-    count === 0 &&
-    wrapped === 0 &&
-    giftCreator === 0n &&
-    permanentEnchant === 0 &&
-    gemEnchants[0] === 0 &&
-    gemEnchants[1] === 0 &&
-    gemEnchants[2] === 0 &&
-    creator === 0n &&
-    charges === 0 &&
-    suffix === 0 &&
-    randomProperty === 0 &&
-    lock === 0 &&
-    maxDurability === 0 &&
-    durability === 0
-  )
-    return undefined;
-  return {
+  const item = {
     charges,
     count,
     creator,
@@ -192,10 +194,11 @@ function readExtendedItem(
     maxDurability,
     permanentEnchant,
     randomProperty,
-    slot,
     suffix,
     wrapped: wrapped !== 0,
   };
+  if (isEmptySlot(item)) return undefined;
+  return { ...item, slot };
 }
 
 export function parseTradeStatusExtended(

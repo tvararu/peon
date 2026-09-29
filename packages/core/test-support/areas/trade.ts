@@ -112,6 +112,40 @@ export type TradeExtendedInit = {
   slots?: Readonly<Record<number, TradeExtendedItemInit>>;
 };
 
+function writeExtendedSlot(
+  w: PacketWriter,
+  index: number,
+  item?: TradeExtendedItemInit,
+): void {
+  w.uint8(index);
+  if (!item) {
+    for (let word = 0; word < 18; word++) w.uint32LE(0);
+    return;
+  }
+  writeExtendedHead(w, item);
+  writeExtendedTail(w, item);
+}
+
+function writeExtendedHead(w: PacketWriter, item: TradeExtendedItemInit): void {
+  w.uint32LE(item.entry);
+  w.uint32LE(item.display ?? 0);
+  w.uint32LE(item.count ?? 1);
+  w.uint32LE(item.wrapped ? 1 : 0);
+  w.uint64LE(item.giftCreator ?? 0n);
+  w.uint32LE(item.permanentEnchant ?? 0);
+  for (const gem of item.gemEnchants ?? [0, 0, 0]) w.uint32LE(gem);
+  w.uint64LE(item.creator ?? 0n);
+}
+
+function writeExtendedTail(w: PacketWriter, item: TradeExtendedItemInit): void {
+  w.uint32LE(item.charges ?? 0);
+  w.uint32LE(item.suffix ?? 0);
+  w.uint32LE((item.randomProperty ?? 0) >>> 0);
+  w.uint32LE(item.lock ?? 0);
+  w.uint32LE(item.maxDurability ?? 0);
+  w.uint32LE(item.durability ?? 0);
+}
+
 export function tradeStatusExtendedBody(init: TradeExtendedInit): Uint8Array {
   const w = new PacketWriter();
   w.uint8(init.side);
@@ -120,27 +154,7 @@ export function tradeStatusExtendedBody(init: TradeExtendedInit): Uint8Array {
   w.uint32LE(7);
   w.uint32LE(init.gold ?? 0);
   w.uint32LE(init.spell ?? 0);
-  for (let index = 0; index < 7; index++) {
-    w.uint8(index);
-    const item = init.slots?.[index];
-    if (!item) {
-      for (let word = 0; word < 18; word++) w.uint32LE(0);
-      continue;
-    }
-    w.uint32LE(item.entry);
-    w.uint32LE(item.display ?? 0);
-    w.uint32LE(item.count ?? 1);
-    w.uint32LE(item.wrapped ? 1 : 0);
-    w.uint64LE(item.giftCreator ?? 0n);
-    w.uint32LE(item.permanentEnchant ?? 0);
-    for (const gem of item.gemEnchants ?? [0, 0, 0]) w.uint32LE(gem);
-    w.uint64LE(item.creator ?? 0n);
-    w.uint32LE(item.charges ?? 0);
-    w.uint32LE(item.suffix ?? 0);
-    w.uint32LE((item.randomProperty ?? 0) >>> 0);
-    w.uint32LE(item.lock ?? 0);
-    w.uint32LE(item.maxDurability ?? 0);
-    w.uint32LE(item.durability ?? 0);
-  }
+  for (let index = 0; index < 7; index++)
+    writeExtendedSlot(w, index, init.slots?.[index]);
   return w.finish();
 }

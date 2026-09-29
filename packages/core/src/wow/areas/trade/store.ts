@@ -162,27 +162,7 @@ export class TradeStore {
       this.dropped += 1;
       return;
     }
-    if (name === "back_to_trade") {
-      this.accepted = false;
-      this.partnerAccepted = false;
-      this.theirs = { ...this.theirs, version: this.theirs.version + 1 };
-      this.events.emit({ type: "back_to_trade" });
-      return;
-    }
-    if (name === "trade_accept") {
-      this.partnerAccepted = true;
-      this.events.emit({ type: "they_accepted" });
-      return;
-    }
-    if (name === "trade_complete") {
-      this.last = {
-        gave: { ...this.own, items: [...this.own.items] },
-        got: { ...this.theirs, items: [...this.theirs.items] },
-        kind: "completed",
-      };
-      this.events.emit({ type: "completed" });
-      return;
-    }
+    if (this.receiveOfferStatus(name)) return;
     if (status.kind === "close_window") {
       this.abandon();
       this.last = {
@@ -210,6 +190,31 @@ export class TradeStore {
       this.last = { kind: "refused", status: name };
       this.events.emit({ status: name, type: "refused" });
     }
+  }
+
+  private receiveOfferStatus(name: string): boolean {
+    if (name === "back_to_trade") {
+      this.accepted = false;
+      this.partnerAccepted = false;
+      this.theirs = { ...this.theirs, version: this.theirs.version + 1 };
+      this.events.emit({ type: "back_to_trade" });
+      return true;
+    }
+    if (name === "trade_accept") {
+      this.partnerAccepted = true;
+      this.events.emit({ type: "they_accepted" });
+      return true;
+    }
+    if (name === "trade_complete") {
+      this.last = {
+        gave: { ...this.own, items: [...this.own.items] },
+        got: { ...this.theirs, items: [...this.theirs.items] },
+        kind: "completed",
+      };
+      this.events.emit({ type: "completed" });
+      return true;
+    }
+    return false;
   }
 
   expire(): void {

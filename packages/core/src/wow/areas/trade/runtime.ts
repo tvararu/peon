@@ -226,7 +226,7 @@ function offeredSlot(
   const found = inventory.slots.find(
     (position) => position.bag === bag && position.slot === slot,
   );
-  if (!found || found.status !== "occupied")
+  if (found?.status !== "occupied")
     throw new Error(`bag position ${bag}/${slot} is empty`);
   if (
     env.store.snapshot().ownOffer.items.some((held) => held.guid === found.guid)
