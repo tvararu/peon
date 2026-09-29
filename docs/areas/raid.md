@@ -178,9 +178,10 @@ state and result claim below is read from those files, in step order:
   `group_swap_failed`. The tool refuses the same call before any send
   with `not in your party`, so no `out` row is written for it.
 - Step 9, after B and C stopped, `call uninviteGuid '["<C>", "test"]'`:
-  a `group_list` whose change lists C in `removed`, then a
-  `group_destroyed` event and an empty `group_list` (A left alone).
-  The events hold no `left` change.
+  a legacy `group_list` whose change lists C in `removed`, then a
+  raid-area `group_list` with `changes` `[{"kind":"left","name":"<C>"}]`.
+  A `group_destroyed` event follows, then an empty `group_list` (A left
+  alone) and a raid-area `disbanded` event.
 - Steps 10 and 11, B set to level 9 by GM, B logged in again, A
   invited B and B accepted, then `call convertToRaid`: a
   `command_result` with `operation` 0, `result` 25, and a raid-area
