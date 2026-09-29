@@ -19,7 +19,21 @@ counter is not newer changes nothing, a list of another group replaces
 the held one, and a zero-member list of another group is ignored. The
 "you left" form clears the group and emits `disbanded`. The legacy
 party code reads the same packet for the `social` tool; this area only
-peeks it. The act `awaitGroupChange(match, timeoutMs)` resolves with
+peeks it. The area also keeps one `MemberStats` per roster member from
+the peeked `SMSG_PARTY_MEMBER_STATS` and `SMSG_PARTY_MEMBER_STATS_FULL`:
+status bits, health, power with its type, level, zone, position, auras,
+pet fields and the vehicle seat, stamped with the area clock; stats for
+a guid outside the roster are ignored. Each peek emits one
+`member_stats` event with the full guid, the roster name and the
+`transitions` (`died`, `ghost`, `revived`, `offline`, `online`) since
+the previous stats for that member. The runtime sends one
+`CMSG_REQUEST_PARTY_MEMBER_STATS` per member the roster adds; the act
+`memberStats(name)` returns the held stats and refreshes a member whose
+stats are missing or older than 30 s, at most one request per member
+per 10 s; the act `requestMemberStats(name)` sends one request and
+throws for a name outside the group. The harness writes one `passive`
+row `member` per transition, for example "Tom died."; stats with no
+transition write no row. The act `awaitGroupChange(match, timeoutMs)` resolves with
 the first `group_list` event whose `changes` hold every named kind, and
 rejects with `timeout` after `timeoutMs`. The harness writes one
 `passive` row `roster` per change, except `joined` and `left`, which the
@@ -50,11 +64,26 @@ legacy `group/roster` row already says; `invite_blocked` writes one
 - `SMSG_GROUP_INVITE` with status 0 goes to an invitee who is already
   in a group (`Handlers/GroupHandler.cpp:160-176`); status 1 is a live
   invite, which the legacy code handles.
+- `SMSG_PARTY_MEMBER_STATS` carries the changed fields of one member
+  (`Handlers/GroupHandler.cpp:835-999`), and `SMSG_PARTY_MEMBER_STATS_FULL`
+  carries the full reply to `CMSG_REQUEST_PARTY_MEMBER_STATS`
+  (`Handlers/GroupHandler.cpp:1023-1135`): the full reply without the
+  power-type bit defaults the power type to mana (0)
+  (`Handlers/GroupHandler.cpp:1032-1033`), and the offline reply for a
+  guid not in the raid carries only the status
+  (`Handlers/GroupHandler.cpp:1011-1017`). The request reads one guid
+  (`Handlers/GroupHandler.cpp:1002-1006`).
+- `SMSG_PARTY_MEMBER_STATS` position is two `uint16` casts of floats
+  (`Handlers/GroupHandler.cpp:887-889`), read here as signed `int16` so
+  a negative Eversong y stays negative.
+- The `SMSG_PARTY_MEMBER_STATS` status word sets `MEMBER_STATUS_ONLINE`
+  and, when set, `MEMBER_STATUS_PVP`, `MEMBER_STATUS_DEAD` or
+  `MEMBER_STATUS_GHOST`, `MEMBER_STATUS_PVP_FFA`, `MEMBER_STATUS_AFK`
+  and `MEMBER_STATUS_DND` (`Handlers/GroupHandler.cpp:841-860`).
 
 ## Left out
 
-- `CMSG_GROUP_UNINVITE_GUID`, `CMSG_REQUEST_PARTY_MEMBER_STATS`,
-  `CMSG_GROUP_RAID_CONVERT`, `CMSG_GROUP_CHANGE_SUB_GROUP`,
+- `CMSG_GROUP_UNINVITE_GUID`, `CMSG_GROUP_RAID_CONVERT`, `CMSG_GROUP_CHANGE_SUB_GROUP`,
   `CMSG_GROUP_SWAP_SUB_GROUP`, `CMSG_GROUP_ASSISTANT_LEADER`,
   `MSG_PARTY_ASSIGNMENT`, `MSG_MINIMAP_PING`, `MSG_RAID_READY_CHECK`,
   `MSG_RAID_READY_CHECK_CONFIRM`, `MSG_RAID_READY_CHECK_FINISHED`,
