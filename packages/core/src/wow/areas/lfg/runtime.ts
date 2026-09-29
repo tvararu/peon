@@ -25,7 +25,7 @@ export type LfgOutcome<T = Readonly<Record<never, never>>> =
   | { status: "refused"; reason: string }
   | { status: "no_answer" };
 
-export type LfgStatusResult = LfgOutcome;
+export type LfgStatusResult = LfgOutcome<{ comment: string }>;
 export type LfgDungeonsResult = LfgOutcome<{
   available: readonly LfgRandomView[];
   locks: readonly LfgLockView[];
@@ -94,7 +94,7 @@ function requestScope(): { abort: AbortController } {
   return { abort: new AbortController() };
 }
 
-function statusAct({ ctx }: Env) {
+function statusAct({ ctx, store }: Env) {
   return async (): Promise<LfgStatusResult> => {
     const scope = requestScope();
     const wait = waitForStatus(
@@ -111,7 +111,7 @@ function statusAct({ ctx }: Env) {
     }
     try {
       await wait;
-      return { status: "ok" };
+      return { status: "ok", comment: store.snapshot().comment };
     } catch (error) {
       if (isTimeout(error)) return { status: "no_answer" };
       throw error;
@@ -217,7 +217,7 @@ function joinRefusal(env: Env, join: JoinRequest): LfgJoinResult | undefined {
     return { status: "refused", reason: "too_many" };
   const blocked = groupRefusal(env.ctx, env.store);
   if (blocked !== undefined) return blocked;
-  const random = join.entries.some((e) => e >>> 24 === 1);
+  const random = join.entries.some((e) => e >>> 24 === 6);
   if (random && join.entries.length > 1)
     return { status: "refused", reason: "mixed_random" };
   if (!join.entries.every((entry) => knownEntry(env.store, entry)))

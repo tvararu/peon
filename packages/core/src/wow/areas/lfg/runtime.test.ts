@@ -70,7 +70,29 @@ describe("lfg runtime", () => {
       expect(sentOpcode(rig, GameOpcode.CMSG_LFG_GET_STATUS)).toHaveLength(1);
       rig.inject(GameOpcode.SMSG_LFG_UPDATE_PARTY, PARTY);
       rig.inject(GameOpcode.SMSG_LFG_UPDATE_PLAYER, PLAYER);
-      expect(await pending).toEqual({ status: "ok" });
+      expect(await pending).toEqual({ status: "ok", comment: "" });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("requestStatus returns the comment from the queued update", async () => {
+    const rig = solo();
+    try {
+      const pending = rig.handle.act.requestStatus();
+      rig.inject(GameOpcode.SMSG_LFG_UPDATE_PARTY, PARTY);
+      rig.inject(
+        GameOpcode.SMSG_LFG_UPDATE_PLAYER,
+        lfgUpdatePlayerBody({
+          updateType: 5,
+          data: {
+            queued: true,
+            dungeons: [0x01_00_00_12],
+            comment: "peon-live",
+          },
+        }),
+      );
+      expect(await pending).toEqual({ status: "ok", comment: "peon-live" });
     } finally {
       rig.dispose();
     }
@@ -88,7 +110,7 @@ describe("lfg runtime", () => {
       await Promise.resolve();
       expect(settled).toBe(false);
       rig.inject(GameOpcode.SMSG_LFG_UPDATE_PARTY, PARTY);
-      expect(await pending).toEqual({ status: "ok" });
+      expect(await pending).toEqual({ status: "ok", comment: "" });
     } finally {
       rig.dispose();
     }
@@ -179,6 +201,30 @@ describe("lfg runtime", () => {
       expect(
         await rig.handle.act.join({ roles: 0, entries: [0x06_00_01_06] }),
       ).toEqual({ status: "refused", reason: "no_role" });
+      expect(sentOpcode(rig, GameOpcode.CMSG_LFG_JOIN)).toHaveLength(0);
+    } finally {
+      rig.dispose();
+    }
+  });
+  test("join refuses a random type-6 entry mixed with another known entry without sending (LFGMgr.cpp:666-697)", async () => {
+    const rig = solo();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_LFG_PLAYER_INFO,
+        lfgPlayerInfoBody({
+          random: [{ entry: 0x06_00_01_06 }],
+          locks: [
+            { entry: 0x06_00_01_06, status: 0 },
+            { entry: 0x01_00_00_34, status: 0 },
+          ],
+        }),
+      );
+      expect(
+        await rig.handle.act.join({
+          roles: 8,
+          entries: [0x06_00_01_06, 0x01_00_00_34],
+        }),
+      ).toEqual({ status: "refused", reason: "mixed_random" });
       expect(sentOpcode(rig, GameOpcode.CMSG_LFG_JOIN)).toHaveLength(0);
     } finally {
       rig.dispose();
