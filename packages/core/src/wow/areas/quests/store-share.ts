@@ -14,6 +14,7 @@ export type SharePush = {
   results: ShareRow[];
 };
 export type ShareOffer = {
+  kind: "share" | "confirm";
   from: bigint;
   questId: number;
   title: string;

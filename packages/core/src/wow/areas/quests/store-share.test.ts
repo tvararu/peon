@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
+  questsQuestConfirmAcceptBody,
   questsQuestgiverOfferRewardBody,
   questsQuestgiverQuestDetailsBody,
   questsQuestgiverRequestItemsBody,
@@ -67,9 +68,14 @@ function setup(log: readonly number[] = [], pending?: object) {
       GameOpcode.SMSG_QUESTGIVER_OFFER_REWARD,
       questsQuestgiverOfferRewardBody(guid, QUEST),
     );
+  const confirm = (from: bigint, questId = QUEST) =>
+    rig.inject(
+      GameOpcode.SMSG_QUEST_CONFIRM_ACCEPT,
+      questsQuestConfirmAcceptBody(questId, "Unexpected", from),
+    );
   const shares = () =>
     seen.flatMap((event) => (event.type === "share" ? [event.share] : []));
-  return { details, items, offer, rig, shares };
+  return { confirm, details, items, offer, rig, shares };
 }
 
 function within(
@@ -185,6 +191,41 @@ describe("quest sharing offers", () => {
       },
       [],
       INTENT,
+    );
+  });
+});
+
+describe("quest escort confirm offers", () => {
+  test("a confirm packet opens a confirm offer from the accepting member", () => {
+    within(({ confirm, rig, shares }) => {
+      confirm(SHARER);
+      expect(rig.handle.state().share?.offer).toMatchObject({
+        from: SHARER,
+        kind: "confirm",
+        questId: QUEST,
+        title: "Unexpected",
+      });
+      expect(shares()).toEqual([
+        {
+          from: SHARER,
+          questId: QUEST,
+          title: "Unexpected",
+          type: "offered",
+        },
+      ]);
+    });
+  });
+
+  test("a confirm for a quest already in the log is auto_accepted", () => {
+    within(
+      ({ confirm, rig, shares }) => {
+        confirm(SHARER);
+        expect(rig.handle.state().share?.offer).toBeUndefined();
+        expect(shares()).toEqual([
+          { answer: "auto_accepted", questId: QUEST, type: "answered" },
+        ]);
+      },
+      [QUEST],
     );
   });
 });

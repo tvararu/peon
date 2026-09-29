@@ -222,8 +222,32 @@ export class QuestsStore {
     const offer: ShareOffer = {
       at: this.now(),
       from: details.dividerGuid,
+      kind: "share",
       questId,
       title: details.title,
+    };
+    this.applyShare(openOffer(this.share, offer));
+  }
+
+  receiveConfirmAccept(confirm: {
+    from: bigint;
+    questId: number;
+    title: string;
+  }): void {
+    const quests = this.core.quests.snapshot();
+    if (quests.pending) return;
+    const { questId } = confirm;
+    const held = quests.log.slots.some((slot) => slot.questId === questId);
+    if (held) {
+      this.emitShare({ answer: "auto_accepted", questId, type: "answered" });
+      return;
+    }
+    const offer: ShareOffer = {
+      at: this.now(),
+      from: confirm.from,
+      kind: "confirm",
+      questId,
+      title: confirm.title,
     };
     this.applyShare(openOffer(this.share, offer));
   }

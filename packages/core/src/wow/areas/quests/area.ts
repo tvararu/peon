@@ -3,6 +3,7 @@ import { QUESTS_OPCODES } from "#wow/areas/quests/opcodes";
 import {
   parseGossipPoi,
   parseNpcTextUpdate,
+  parseQuestConfirmAccept,
   parseQuestgiverStatusMultiple,
   parseQuestPoiResponse,
   parseQuestPushResult,
@@ -54,6 +55,9 @@ export const questsArea = defineArea({
     );
     wire.peek(GameOpcode.SMSG_QUESTGIVER_OFFER_REWARD, (r) =>
       store.receiveShareOfferReward(parseQuestgiverOfferReward(r)),
+    );
+    wire.on(GameOpcode.SMSG_QUEST_CONFIRM_ACCEPT, (r) =>
+      store.receiveConfirmAccept(parseQuestConfirmAccept(r)),
     );
   },
   runtime: questsRuntime,
