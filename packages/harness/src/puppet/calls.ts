@@ -28,6 +28,12 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   declineInvite: { args: [], run: (h) => h.declineInvite() },
   guildInvite: { args: ["string"], run: (h, a) => h.guildInvite(text(a, 0)) },
   invite: { args: ["string"], run: (h, a) => h.invite(text(a, 0)) },
+  join: {
+    args: ["number", "number"],
+    run: (h, a) =>
+      h.lfg.act.join({ entries: [count(a, 1)], roles: count(a, 0) }),
+  },
+  leave: { args: [], run: (h) => h.lfg.act.leave() },
   leaveGroup: { args: [], run: (h) => h.leaveGroup() },
   requestPartyLocks: { args: [], run: (h) => h.lfg.act.requestPartyLocks() },
   requestStatus: { args: [], run: (h) => h.lfg.act.requestStatus() },
@@ -72,6 +78,10 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   setPassOnLoot: {
     args: [["off", "on"]],
     run: (h, a) => h.looting.act.setPassOnLoot(a[0] === "on"),
+  },
+  setRoles: {
+    args: ["number"],
+    run: (h, a) => h.lfg.act.setRoles(count(a, 0)),
   },
   shareQuest: {
     args: ["number"],
