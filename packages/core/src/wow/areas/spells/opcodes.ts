@@ -38,5 +38,9 @@ export const SPELLS_OPCODES = {
     "SMSG_RESYNC_RUNES",
     "SMSG_ADD_RUNE_POWER",
   ],
-  unseen: ["SMSG_MODIFY_COOLDOWN"],
+  unseen: [
+    "SMSG_MODIFY_COOLDOWN",
+    "SMSG_TOTEM_CREATED",
+    "CMSG_TOTEM_DESTROYED",
+  ],
 } as const satisfies AreaOpcodes;

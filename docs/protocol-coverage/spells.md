@@ -23,8 +23,8 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x330` | `SMSG_SPELL_UPDATE_CHAIN_TARGETS` | server | dead |  |
 | `0x401` | `CMSG_GET_MIRRORIMAGE_DATA` | client | missing |  |
 | `0x402` | `SMSG_MIRRORIMAGE_DATA` | server | missing |  |
-| `0x413` | `SMSG_TOTEM_CREATED` | server | missing |  |
-| `0x414` | `CMSG_TOTEM_DESTROYED` | client | missing |  |
+| `0x413` | `SMSG_TOTEM_CREATED` | server | handled | not seen live |
+| `0x414` | `CMSG_TOTEM_DESTROYED` | client | handled | not seen live |
 | `0x41e` | `SMSG_SEND_UNLEARN_SPELLS` | server | handled |  |
 | `0x462` | `CMSG_UPDATE_MISSILE_TRAJECTORY` | client | missing |  |
 | `0x486` | `SMSG_CONVERT_RUNE` | server | missing |  |
