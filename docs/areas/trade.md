@@ -5,7 +5,8 @@ trade with another player. World-service code reads it through
 `session.areas.trade.state()`: `phase` (`idle`, `requested_out`,
 `requested_in`, `open` or `closed`), `with`, `from`, the offers
 (`ownOffer`, `theirOffer`, empty until the offer opcodes land),
-`selfAccepted`, `theyAccepted` and `lastOutcome`. The area emits
+`selfAccepted`, `theyAccepted`, `lastOutcome` and `dropped` (stray
+`TRADE_CANCELED` arrivals while `idle`). The area emits
 `requested`, `opened`, `canceled`, `refused` and `unanswered`.
 
 The acts:
@@ -17,13 +18,13 @@ The acts:
   `you_logout`, `target_dead`, `target_stunned`, `target_logout`,
   `trial_account`, and `busy` or `ignore_you` from the partner) and
   `unanswered` after 60 seconds, when it clears the pending request and
-  sends `CMSG_CANCEL_TRADE` to free the character. Only a `trade_canceled`
-  (`SMSG_TRADE_STATUS`) inside a 5-second reply window after that timeout is
-  ignored; `busy`, `ignore_you` and every other status always settles the
-  request it belongs to, never the timed-out one. A silent initiate veto
-  (`Handlers/TradeHandler.cpp:841-842`) leaves no reply to expect, because
-  `TradeCancel` with no `m_trade` takes the empty branch.
-  `trade_canceled` before the window
+  sends `CMSG_CANCEL_TRADE` to free the character. A silent initiate veto
+  (`Handlers/TradeHandler.cpp:841-842`) leaves no reply: `TradeCancel`
+  with no `m_trade` takes the empty branch, so the store is already
+  `idle` and a later stray `TRADE_CANCELED` is dropped and counted
+  (`dropped`). Any cancel status during `requested_out`, `requested_in`
+  or `open` applies to that current trade. `BEGIN_TRADE` always starts a
+  fresh incoming request. `trade_canceled` before the window
   opens settles a request `refused`, while `cancelTrade` settles it
   `ok`.
 - `answerTrade("yes" | "busy" | "ignore")` answers a request in

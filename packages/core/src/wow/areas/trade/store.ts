@@ -35,6 +35,7 @@ export type TradeState = {
   selfAccepted: boolean;
   theyAccepted: boolean;
   lastOutcome: TradeLastOutcome | undefined;
+  dropped: number;
 };
 
 export type TradeEvent =
@@ -71,7 +72,7 @@ export class TradeStore {
   private partner: bigint | undefined;
   private from: bigint | undefined;
   private last: TradeLastOutcome | undefined;
-  private cancelReplyUntil = 0;
+  private dropped = 0;
 
   constructor(deps: SessionDeps) {
     this.deps = deps;
@@ -79,6 +80,7 @@ export class TradeStore {
 
   snapshot(): TradeState {
     return {
+      dropped: this.dropped,
       from: this.from,
       lastOutcome: this.last,
       ownOffer: { ...EMPTY_OFFER, items: [] },
@@ -101,10 +103,6 @@ export class TradeStore {
     this.last = undefined;
   }
 
-  expectCancelReply(windowMs: number): void {
-    this.cancelReplyUntil = this.deps.now() + windowMs;
-  }
-
   receiveStatus(status: TradeStatus): void {
     const name = status.statusName;
     if (status.kind === "trader") {
@@ -118,21 +116,14 @@ export class TradeStore {
     if (status.kind === "open_window") {
       this.phase = "open";
       this.last = undefined;
-      this.cancelReplyUntil = 0;
       this.events.emit({ type: "opened", with: this.partner ?? 0n });
       return;
     }
     if (CANCEL_STATUSES[name]) {
-      if (
-        name === "trade_canceled" &&
-        this.cancelReplyUntil > 0 &&
-        this.deps.now() <= this.cancelReplyUntil
-      ) {
-        this.cancelReplyUntil = 0;
+      if (this.phase === "idle") {
+        this.dropped += 1;
         return;
       }
-      this.cancelReplyUntil = 0;
-      if (this.phase === "idle") return;
       this.phase = "closed";
       this.last = { kind: "canceled", status: name };
       this.events.emit({ status: name, type: "canceled" });

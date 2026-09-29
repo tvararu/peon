@@ -51,19 +51,18 @@ describe("trade store", () => {
     }
   });
 
-  test("a stale cancel reply is consumed without settling the request", () => {
+  test("TRADE_CANCELED during requested_out applies to that request", () => {
     const rig = tradeRig();
     const events: TradeEvent[] = [];
     rig.handle.onEvent((event) => events.push(event));
     try {
       rig.handle.act.requestTrade(TRADE_PARTNER).catch(() => undefined);
-      rig.stores.areas.trade.expectCancelReply(5000);
       rig.inject(
         GameOpcode.SMSG_TRADE_STATUS,
         tradeStatusBody(TRADE_STATUS.TRADE_CANCELED),
       );
-      expect(rig.handle.state().phase).toBe("requested_out");
-      expect(events).toEqual([]);
+      expect(rig.handle.state().phase).toBe("closed");
+      expect(events).toEqual([{ status: "trade_canceled", type: "canceled" }]);
     } finally {
       rig.dispose();
     }
@@ -99,12 +98,9 @@ describe("trade store", () => {
     statusName: "trade_canceled",
   };
 
-  test("a cancel reply that never came does not swallow the next request's BUSY or IGNORE_YOU", () => {
+  test("BUSY and IGNORE_YOU during a request close it as canceled", () => {
     for (const status of [BUSY_STATUS, IGNORE_YOU_STATUS]) {
-      const { clock, events, store } = clockStore();
-      store.expectCancelReply(5000);
-      store.abandon();
-      clock.now = 61_000;
+      const { events, store } = clockStore();
       store.beginRequest(TRADE_PARTNER);
       store.receiveStatus(status);
       expect(events).toEqual([{ status: status.statusName, type: "canceled" }]);
@@ -115,50 +111,39 @@ describe("trade store", () => {
     }
   });
 
-  test("BUSY and IGNORE_YOU are never taken for the cancel reply, even inside the window", () => {
-    for (const status of [BUSY_STATUS, IGNORE_YOU_STATUS]) {
-      const { events, store } = clockStore();
-      store.expectCancelReply(5000);
-      store.beginRequest(TRADE_PARTNER);
-      store.receiveStatus(status);
-      expect(events).toEqual([{ status: status.statusName, type: "canceled" }]);
-    }
+  test("TRADE_CANCELED during a request applies to that request", () => {
+    const { events, store } = clockStore();
+    store.beginRequest(TRADE_PARTNER);
+    store.receiveStatus(CANCELED_STATUS);
+    expect(events).toEqual([{ status: "trade_canceled", type: "canceled" }]);
+    expect(store.snapshot().phase).toBe("closed");
   });
 
-  test("the cancel reply is consumed once inside the window and not after it", () => {
-    const { clock, events, store } = clockStore();
-    store.expectCancelReply(5000);
+  test("TRADE_CANCELED while idle changes nothing and is counted", () => {
+    const { events, store } = clockStore();
     store.beginRequest(TRADE_PARTNER);
-    clock.now = 4000;
+    store.abandon();
+    const before = store.snapshot();
     store.receiveStatus(CANCELED_STATUS);
     expect(events).toEqual([]);
-    expect(store.snapshot().phase).toBe("requested_out");
-    store.receiveStatus(CANCELED_STATUS);
-    expect(events).toEqual([{ status: "trade_canceled", type: "canceled" }]);
-
-    const late = clockStore();
-    late.store.expectCancelReply(5000);
-    late.store.beginRequest(TRADE_PARTNER);
-    late.clock.now = 5001;
-    late.store.receiveStatus(CANCELED_STATUS);
-    expect(late.events).toEqual([
-      { status: "trade_canceled", type: "canceled" },
-    ]);
+    expect(store.snapshot()).toEqual({ ...before, dropped: 1 });
   });
 
-  test("a later status of the next request ends the expectation of the cancel reply", () => {
+  test("BEGIN_TRADE always starts a fresh incoming request", () => {
     const { events, store } = clockStore();
-    store.expectCancelReply(5000);
     store.beginRequest(TRADE_PARTNER);
+    store.abandon();
     store.receiveStatus({
-      kind: "open_window",
-      status: TRADE_STATUS.OPEN_WINDOW,
-      statusName: "open_window",
-      tradeId: 0,
+      kind: "trader",
+      status: TRADE_STATUS.BEGIN_TRADE,
+      statusName: "begin_trade",
+      trader: TRADE_PARTNER,
     });
-    events.length = 0;
-    store.receiveStatus(CANCELED_STATUS);
-    expect(events).toEqual([{ status: "trade_canceled", type: "canceled" }]);
+    expect(store.snapshot()).toMatchObject({
+      from: TRADE_PARTNER,
+      phase: "requested_in",
+    });
+    expect(events).toEqual([{ from: TRADE_PARTNER, type: "requested" }]);
   });
 
   test("TRADE_CANCELED, BUSY and IGNORE_YOU close with canceled and emit canceled", () => {

@@ -15,7 +15,7 @@ import { GameOpcode } from "#wow/protocol/opcodes";
 import type { CoreStores } from "#wow/session-stores";
 
 export const TRADE_ANSWER_MS = 60_000;
-export const TRADE_REPLY_MS = 5000;
+export const TRADE_CANCEL_MS = 5000;
 
 export type TradeResult =
   | { status: "ok" }
@@ -111,7 +111,6 @@ function requestTrade(env: Env, guid: bigint): Promise<TradeResult> {
     },
   ).then((result) => {
     if (result.status === "unanswered") {
-      env.store.expectCancelReply(TRADE_REPLY_MS);
       env.store.settlePending();
       env.ctx.send(GameOpcode.CMSG_CANCEL_TRADE, buildCancelTrade());
     }
@@ -131,7 +130,7 @@ function answerTrade(env: Env, answer: TradeAnswer): Promise<TradeResult> {
         event.type === "canceled" ||
         event.type === "refused",
       () => env.ctx.send(GameOpcode.CMSG_BEGIN_TRADE, buildBeginTrade()),
-      { mode: "open", timeoutMs: TRADE_REPLY_MS },
+      { mode: "open", timeoutMs: TRADE_CANCEL_MS },
     );
   const opcode =
     answer === "busy"
@@ -145,7 +144,7 @@ function answerTrade(env: Env, answer: TradeAnswer): Promise<TradeResult> {
       event.type === "refused" ||
       event.type === "opened",
     () => env.ctx.send(opcode, body),
-    { mode: "open", timeoutMs: TRADE_REPLY_MS },
+    { mode: "open", timeoutMs: TRADE_CANCEL_MS },
   );
 }
 
@@ -158,7 +157,7 @@ function cancelTrade(env: Env): Promise<TradeResult> {
     env,
     (event) => event.type === "canceled" || event.type === "unanswered",
     () => env.ctx.send(GameOpcode.CMSG_CANCEL_TRADE, buildCancelTrade()),
-    { mode: "cancel", timeoutMs: TRADE_REPLY_MS },
+    { mode: "cancel", timeoutMs: TRADE_CANCEL_MS },
   );
 }
 
