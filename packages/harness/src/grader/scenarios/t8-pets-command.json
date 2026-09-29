@@ -1,0 +1,50 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 25,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "expect": "the session shows the character calling the pet tool with do stance and what passive (or a status line that already shows stance passive after it), not ending REFUSED, so the stance result of the tool is the proof because a stance change writes no game log row",
+      "id": "stance-passive-set",
+      "source": "session"
+    },
+    {
+      "evidence": {
+        "events": ["combat/pet_attack"]
+      },
+      "expect": "GL has a combat/pet_attack row for the character's pet against a creature, so the pet tool with do attack sent the pet at a Springpaw",
+      "id": "pet-attacked",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["pets/gone"]
+      },
+      "expect": "GL has a pets/gone row, so the pet tool with do dismiss removed the pet bar",
+      "id": "pet-dismissed",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["pets/out"]
+      },
+      "expect": "GL has a pets/out row after the pets/gone row, so the pet tool with do call brought the pet back with a new bar",
+      "id": "pet-called-back",
+      "source": "game_log"
+    }
+  ],
+  "field": "fairbreeze-stalkers",
+  "id": "t8-pets-command",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "eversong10-hunter",
+  "setup": [],
+  "steers": [],
+  "task": "Check your pet, set it to passive, send it at the nearest Springpaw, then dismiss it and call it back.",
+  "tier": 8
+}

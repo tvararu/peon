@@ -163,6 +163,7 @@ export const ROUND_1: readonly string[] = [
   "t4-spells-stop-channel",
   "t8-travel-bind-inn",
   "t8-travel-hearth-home",
+  "t8-pets-command",
 ];
 
 const DIR = `${import.meta.dir}/scenarios`;

@@ -155,6 +155,33 @@ No agent verb; the world-service acts `pets.requestPetInfo`,
 `pets.petCast`, `pets.petAutocast`, `pets.petSetAction`,
 `pets.petSwapActions` and `pets.petCancelAura` only.
 
+## The pet tool
+
+The `pet` tool checks the pet's status, calls, dismisses or revives it,
+attacks with it, moves it (`follow`, `stay`, `stop`) or sets its stance
+(`passive`, `defensive`, `aggressive`). Status (`status` or no `do`)
+prints the pet's name, family, level, health, happiness, stance, command
+and the spells with their autocast state and cooldown ends; it sends
+nothing. Happiness words come from the pet's happiness level
+(`Entities/Pet/Pet.cpp:894-898`, `src/server/shared/SharedDefines.h:261`),
+and family names from the creature family list
+(`src/server/shared/SharedDefines.h:2644-2670`). Sends run inside
+`ctx.rt.mutex.run` through `claim.areas.pets` and settle with `settle`
+(subscribe before send). `call`, `revive` and `dismiss` cast the owner's
+spell found by name (Call Pet 883, Dismiss Pet 2641,
+`Entities/Pet/Pet.cpp:450`) and settle `DONE` on a `bar` event, `FAILED`
+on a cast failure, `UNCONFIRMED` after 5 s. `dismiss` for a pet without
+the abandon bit uses `petCommand("dismiss")`, which deletes a hunter pet
+(`Handlers/PetHandler.cpp:287-288`). `call` is refused with `already_out`
+when a bar is present. `attack` uses `petAttack` and settles `DONE` when
+the pet's target field equals the target or the `threat` area emits
+`reaction` for the pet, `UNCONFIRMED` with a `travel` `Next` after 5 s.
+`follow`, `stay` and `stance` settle `DONE` only when the next bar shows
+the change, else `UNCONFIRMED`. `stop` sends `petStopAttack` (a unit that
+stops its attack clears its target field, `Entities/Unit/Unit.cpp:7221`)
+and then `follow`. `cast`, `autocast`, `rename`, `abandon`, `tame` and
+`talent` are refused with `not_built`: pets-10 and pets-12 own them.
+
 ## Proof
 
 | Opcode | Proof | Evidence | Source |
