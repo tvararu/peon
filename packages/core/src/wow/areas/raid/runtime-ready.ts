@@ -24,8 +24,8 @@ type Store = {
   noteOwnReadyAnswer: (ready: boolean) => void;
 };
 
-function startedBySelf(store: Store, self: bigint): boolean {
-  return store.snapshot().readyCheck?.initiator === self;
+function startedBySelf(store: Store, selfGuid: () => bigint): boolean {
+  return store.snapshot().readyCheck?.initiator === selfGuid();
 }
 
 function allAnswered(store: Store): boolean {
@@ -49,7 +49,7 @@ export function composeReadyRuntime(env: { ctx: Ctx; store: Store }): {
   dispose: () => void;
 } {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const self = env.ctx.selfGuid();
+  const self = (): bigint => env.ctx.selfGuid();
   function stop(): void {
     clearTimeout(timer);
     timer = undefined;
@@ -57,7 +57,7 @@ export function composeReadyRuntime(env: { ctx: Ctx; store: Store }): {
   function maybeFinish(): void {
     const state = env.store.snapshot();
     const check = state.readyCheck;
-    if (!check || check.initiator !== self) return;
+    if (!check || check.initiator !== self()) return;
     if (allAnswered(env.store)) {
       stop();
       sendFinished(env);
@@ -66,7 +66,7 @@ export function composeReadyRuntime(env: { ctx: Ctx; store: Store }): {
   const off: Unsubscribe = env.store.onEvent((event) => {
     if (event.type === "ready_check_started") {
       stop();
-      if (event.initiator === self) {
+      if (event.initiator === self()) {
         timer = setTimeout(() => {
           timer = undefined;
           if (startedBySelf(env.store, self)) sendFinished(env);

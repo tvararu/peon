@@ -6,6 +6,10 @@ import {
   raidReadyConfirmBody,
 } from "#test-support/areas/raid";
 import { elapse, withFakeTimers } from "#test-support/fake-time";
+import type { AreaRuntimeCtx } from "#wow/areas/contract";
+import { composeReadyRuntime } from "#wow/areas/raid/runtime-ready";
+import { RaidAreaStore } from "#wow/areas/raid/store";
+import type { RaidEvent } from "#wow/areas/raid/store-roster";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 const PEON = 0x30n;
@@ -176,6 +180,34 @@ describe("ready check finish timer", () => {
         ).toBe(false);
       } finally {
         rig.dispose();
+      }
+    });
+  });
+});
+
+describe("ready check self guid", () => {
+  test("a guid fixed after composition still arms the timer", async () => {
+    await withFakeTimers(async () => {
+      const holder = { self: 0n };
+      const sent: number[] = [];
+      const store = new RaidAreaStore(() => 0);
+      const ctx = {
+        selfGuid: () => holder.self,
+        send: (opcode: number) => {
+          sent.push(opcode);
+        },
+      } as unknown as AreaRuntimeCtx<RaidEvent>;
+      const runtime = composeReadyRuntime({ ctx, store });
+      try {
+        holder.self = PEON;
+        store.receiveReadyStart(PEON, 0);
+        await elapse(29_000);
+        expect(sent).toEqual([]);
+        await elapse(1000);
+        expect(sent).toEqual([GameOpcode.MSG_RAID_READY_CHECK_FINISHED]);
+      } finally {
+        runtime.dispose();
+        store.dispose();
       }
     });
   });
