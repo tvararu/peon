@@ -251,10 +251,31 @@ traces and the `events --json` reads.
   with the `offline` transition. Removal clears both stores' pet state,
   proven by `areaRig` tests, not seen live.
 
+A `group-9a` run with two `eversong10` throwaway accounts (A leader,
+B partner) through their puppets, A's with `--packet-trace headers`
+(accounts deleted, trace not committed):
+
+- A's trace holds `out CMSG_GROUP_INVITE`, `in SMSG_PARTY_COMMAND_RESULT`
+  (invite ok), `in SMSG_GROUP_LIST` with the partner joined,
+  `out CMSG_GROUP_UNINVITE`, `in SMSG_LFG_UPDATE_PARTY`,
+  `in SMSG_GROUP_DESTROYED` and a final `in SMSG_GROUP_LIST`.
+- A's events hold the raid `group_list` with `joined` for the partner,
+  then the raid `disbanded` after the kick of the last member (a party
+  of two disbands, so no `left` row reaches the kicker).
+- Both sides' `group list` console reads match "not in a group" after
+  the kick: `Group type` reads `Party` with 2 players while grouped,
+  and `<name> is not in a group!` after the disband
+  (`Commands/cs_group.cpp:220-224`).
 
 ## Capabilities row
 
 No verb (N23).
+
+Remove a member with a reason (`t9-raid-kick`, not yet graded): the
+agent invites and leads a party of two, then kicks the partner; the
+server answers `SMSG_GROUP_DESTROYED` and both sides read "not in a
+group". A party of two disbands, so the kicker sees `disbanded`, not
+a `left` row.
 
 ## Proof
 
