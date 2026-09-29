@@ -73,8 +73,9 @@ still applies: it refuses the protected accounts and the character
 `spell_data_dir` is a flat directory of client DBC files. Without one, or
 without a file in it, the harness degrades to ids: unknown spells and
 factions show as numbers, unit relations read `unknown`, and locks and area
-triggers are not decoded. `--check` prints one warning per missing file on
-stderr and still exits 0.
+triggers are not decoded. When `spell_data_dir` is set, `--check` prints one
+warning per missing file on stderr and still exits 0. With no
+`spell_data_dir` it prints no warning.
 
 | File | Holds | Client archive (build 12340, enUS) |
 |---|---|---|
