@@ -59,6 +59,7 @@ function unitCastView(
   const remainingMs = cast.startedAt + cast.durationMs - now;
   if (remainingMs <= 0) return undefined;
   return {
+    kind: cast.kind,
     remainingMs,
     spellId: cast.spellId,
     spellName: spellLabel(ctx, cast.spellId),
@@ -81,9 +82,10 @@ export function castViews(
   const now = ctx.rt.clock.now();
   const { channel, unitCasts } = ctx.handle.spells.state();
   const left = channel && channelLeft(channel, now);
-  const own =
+  const own: LookCast | undefined =
     channel && left !== undefined && left > 0
       ? {
+          kind: "channel",
           remainingMs: left,
           spellId: channel.spellId,
           spellName: spellLabel(ctx, channel.spellId),
@@ -112,7 +114,8 @@ export function selfLine({
 }
 
 export function statusLine({ run, target, targetCast }: LookAfter): string {
-  const casting = targetCast ? `, ${castText("casting", targetCast)}` : "";
+  const word = targetCast?.kind === "channel" ? "channelling" : "casting";
+  const casting = targetCast ? `, ${castText(word, targetCast)}` : "";
   const aimed = target
     ? `${target.ref} ${target.name} ${target.hpPct}%${casting}`
     : "none";

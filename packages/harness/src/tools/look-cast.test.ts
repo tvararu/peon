@@ -16,7 +16,13 @@ const OTHER = 0x99n;
 
 type Setup = {
   channel?: { spellId: number; endsAt?: number; durationMs?: number };
-  casts?: { guid: bigint; spellId: number; durationMs: number; at?: number }[];
+  casts?: {
+    at?: number;
+    durationMs: number;
+    guid: bigint;
+    kind?: "cast" | "channel";
+    spellId: number;
+  }[];
   selected?: bigint;
 };
 
@@ -45,7 +51,7 @@ async function lookWorld(init: Setup): Promise<LookWorld> {
     unitCasts: (init.casts ?? []).map((cast) => ({
       durationMs: cast.durationMs,
       guid: cast.guid,
-      kind: "cast",
+      kind: cast.kind ?? "cast",
       relevant: true,
       spellId: cast.spellId,
       startedAt: cast.at ?? NOW - 300,
@@ -91,9 +97,27 @@ describe("look casts", () => {
     const target = text.split("\n").find((row) => row.startsWith("Target:"));
     expect(target).toContain("casting Fireball, 1.2 s left");
     expect(details.tool === "look" && details.result.after.targetCast).toEqual({
+      kind: "cast",
       remainingMs: 1200,
       spellId: 133,
       spellName: "Fireball",
+    });
+  });
+
+  test("the target line says channelling for a channel", async () => {
+    const w = await lookWorld({
+      casts: [
+        { durationMs: 3000, guid: STALKER, kind: "channel", spellId: 5143 },
+      ],
+    });
+    const { details, text } = await runTool(w.tool, {});
+    const target = text.split("\n").find((row) => row.startsWith("Target:"));
+    expect(target).toContain("channelling Arcane Missiles, 2.7 s left");
+    expect(details.tool === "look" && details.result.after.targetCast).toEqual({
+      kind: "channel",
+      remainingMs: 2700,
+      spellId: 5143,
+      spellName: "Arcane Missiles",
     });
   });
 

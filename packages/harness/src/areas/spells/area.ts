@@ -112,6 +112,7 @@ function targetStart(
   rc: RuleInput,
 ): AreaDraft {
   const caster = rc.lookup.unitName(event.guid) ?? "A unit";
+  const verb = event.kind === "channel" ? "channelling" : "casting";
   return {
     class: "log",
     data: {
@@ -119,9 +120,10 @@ function targetStart(
       guid: event.guid.toString(10),
       kind: event.kind,
       spellId: event.spellId,
+      spellName: event.spellName,
     },
     name: "target_start",
-    text: `${caster} starts casting ${castLabel(event)}.`,
+    text: `${caster} starts ${verb} ${castLabel(event)}.`,
   };
 }
 
@@ -132,9 +134,13 @@ function targetInterrupted(
   const caster = rc.lookup.unitName(event.guid) ?? "A unit";
   return {
     class: "log",
-    data: { guid: event.guid.toString(10), spellId: event.spellId },
+    data: {
+      guid: event.guid.toString(10),
+      spellId: event.spellId,
+      spellName: event.spellName,
+    },
     name: "target_interrupted",
-    text: `${caster}'s ${castLabel(event)} was interrupted.`,
+    text: `${caster}'s ${castLabel(event)} interrupted.`,
   };
 }
 

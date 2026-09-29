@@ -31,9 +31,10 @@ export type LookFilter =
   | "spirit_healer";
 
 export type LookCast = {
+  kind: "cast" | "channel";
+  remainingMs: number;
   spellId: number;
   spellName: string;
-  remainingMs: number;
 };
 
 export type LookAfter = {

@@ -99,19 +99,60 @@ describe("spells harness rules", () => {
     const rules = areaRuleSet();
     expect(areaDrafts(rules, start, rc)).toMatchObject([
       {
-        data: { durationMs: 2500, spellId: 9613 },
+        data: {
+          durationMs: 2500,
+          guid: MOB.toString(10),
+          kind: "cast",
+          spellId: 9613,
+          spellName: "Shadow Bolt",
+        },
         event: "spells/target_start",
         text: "Scourge Invader starts casting Shadow Bolt.",
       },
     ]);
     expect(areaDrafts(rules, end, rc)).toMatchObject([
       {
+        data: {
+          guid: MOB.toString(10),
+          spellId: 9613,
+          spellName: "Shadow Bolt",
+        },
         event: "spells/target_interrupted",
-        text: "Scourge Invader's Shadow Bolt was interrupted.",
+        text: "Scourge Invader's Shadow Bolt interrupted.",
       },
     ]);
   });
 
+  test("a relevant channel start says channelling", () => {
+    const rc = testRuleInput({
+      lookup: testLookup({ unitName: () => "Scourge Invader" }),
+    });
+    const start: AreaEvent = {
+      area: "spells",
+      event: {
+        durationMs: 3000,
+        guid: MOB,
+        kind: "channel",
+        relevant: 1,
+        spellId: 689,
+        spellName: "Drain Life",
+        type: "unit_cast_start",
+      },
+    };
+    expect(areaDrafts(areaRuleSet(), start, rc)).toMatchObject([
+      {
+        data: {
+          durationMs: 3000,
+          guid: MOB.toString(10),
+          kind: "channel",
+          spellId: 689,
+          spellName: "Drain Life",
+        },
+        event: "spells/target_start",
+        text: "Scourge Invader starts channelling Drain Life.",
+      },
+    ]);
+  });
   test("an unnamed caster or spell falls back to ids", () => {
     const start: AreaEvent = {
       area: "spells",
