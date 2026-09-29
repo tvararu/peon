@@ -46,6 +46,10 @@ or the page names one that does not exist.
 | Reset its own dungeons | — (not shown; see below) | Normal difficulty only; a group member cannot reset. |
 | Remove a member with a reason | `t9-raid-kick` | A party of two disbands. |
 | Run a raid: convert, subgroups, assistants, main tank and main assist | `t9-raid-convert` | Every member must be level 10 or more; the server refuses the convert below that. Flags and subgroups are shown by roster rows only, not by a truth field. |
+| Give items and gold to another player | `t9-trade-give` | One trade window at a time, up to 6 items. Only a player in range (11 yards). |
+| Take a trade another player offers | `t9-trade-receive` | The agent accepts after it reads both offers. |
+| Swap items with another player | `t9-trade-swap` | |
+| Refuse or cancel a trade | `t9-trade-cancel` | |
 
 ## Not shown by any scenario
 
@@ -70,5 +74,5 @@ These have tools or code but no scenario that checks them live:
   region from `journal`.
 - Come back to life where it died, with Reincarnation or a Soulstone (`t6-selfstate-res`, needs a self-res spell and its reagent; the server refuses silently under a no-resurrection aura).
 
-Peon has no tool for mail, trade, the auction house, flight paths or
+Peon has no tool for mail, the auction house, flight paths or
 mounts.
