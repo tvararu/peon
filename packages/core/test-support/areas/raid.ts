@@ -355,3 +355,40 @@ export function raidReadyConfirmBody(guid: bigint, state: number): Uint8Array {
   w.uint8(state);
   return w.finish();
 }
+
+export function raidTargetSetBody(
+  who: bigint,
+  icon: number,
+  target: bigint,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(0);
+  w.uint64LE(who);
+  w.uint8(icon);
+  w.uint64LE(target);
+  return w.finish();
+}
+
+export function raidTargetListBody(
+  entries: readonly { icon: number; target: bigint }[],
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(1);
+  for (const entry of entries) {
+    w.uint8(entry.icon);
+    w.uint64LE(entry.target);
+  }
+  return w.finish();
+}
+
+export function raidMinimapPingBody(
+  guid: bigint,
+  x: number,
+  y: number,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(guid);
+  w.floatLE(x);
+  w.floatLE(y);
+  return w.finish();
+}
