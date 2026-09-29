@@ -1,4 +1,4 @@
-import type { PacketReader } from "#wow/protocol/packet";
+import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 export const RAID_INSTANCE_WELCOME = 4;
 
@@ -13,6 +13,20 @@ export type RaidInstanceMessage = {
   secondsLeft: number;
   locked: boolean | undefined;
   extended: boolean | undefined;
+};
+export type RaidLock = {
+  mapId: number;
+  difficulty: number;
+  instanceGuid: bigint;
+  locked: boolean;
+  extended: boolean;
+  secondsToReset: number;
+};
+export type LockWarning = { timeoutMs: number; encounterMask: number };
+export type LockoutExtension = {
+  mapId: number;
+  difficulty: number;
+  extended: boolean;
 };
 export type RaidGroupOnly = { timerMs: number; code: number };
 
@@ -52,4 +66,51 @@ export function parseRaidGroupOnly(r: PacketReader): RaidGroupOnly {
   const timerMs = r.uint32LE();
   const code = r.uint32LE();
   return { timerMs, code };
+}
+
+export function parseRaidInstanceInfo(r: PacketReader): RaidLock[] {
+  const count = r.uint32LE();
+  const locks: RaidLock[] = [];
+  for (let i = 0; i < count; i++) {
+    const mapId = r.uint32LE();
+    const difficulty = r.uint32LE();
+    const instanceGuid = r.uint64LE();
+    const locked = r.uint8() !== 0;
+    const extended = r.uint8() !== 0;
+    const secondsToReset = r.uint32LE();
+    locks.push({
+      mapId,
+      difficulty,
+      instanceGuid,
+      locked,
+      extended,
+      secondsToReset,
+    });
+  }
+  return locks;
+}
+
+export function parseLockWarning(r: PacketReader): LockWarning {
+  const timeoutMs = r.uint32LE();
+  const encounterMask = r.uint32LE();
+  r.uint8();
+  return { timeoutMs, encounterMask };
+}
+
+export function buildRequestRaidInfo(): Uint8Array {
+  return new Uint8Array();
+}
+
+export function buildLockResponse(accept: boolean): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(accept ? 1 : 0);
+  return w.finish();
+}
+
+export function buildSetLockoutExtended(init: LockoutExtension): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.mapId);
+  w.uint32LE(init.difficulty);
+  w.uint8(init.extended ? 1 : 0);
+  return w.finish();
 }

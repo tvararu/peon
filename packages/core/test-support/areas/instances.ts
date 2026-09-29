@@ -54,3 +54,42 @@ export function instancesRaidGroupOnlyBody(init: {
 }): Uint8Array {
   return u32s(init.timerMs, init.code);
 }
+
+export type InstancesRaidLockInit = {
+  mapId: number;
+  difficulty: number;
+  instanceGuid: bigint;
+  extended: boolean;
+  secondsToReset: number;
+};
+
+export function instancesRaidInstanceInfoBody(
+  locks: readonly InstancesRaidLockInit[],
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(locks.length);
+  for (const lock of locks) {
+    w.uint32LE(lock.mapId);
+    w.uint32LE(lock.difficulty);
+    w.uint64LE(lock.instanceGuid);
+    w.uint8(1);
+    w.uint8(lock.extended ? 1 : 0);
+    w.uint32LE(lock.secondsToReset);
+  }
+  return w.finish();
+}
+
+export function instancesLockWarningBody(init: {
+  timeoutMs: number;
+  encounterMask: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.timeoutMs);
+  w.uint32LE(init.encounterMask);
+  w.uint8(0);
+  return w.finish();
+}
+
+export function instancesSaveCreatedBody(): Uint8Array {
+  return u32s(0);
+}
