@@ -6,8 +6,8 @@ export type TriggerCinematic = { sequenceId: number };
 export type TriggerMovie = { movieId: number };
 
 export function parseUpdateWorldState(r: PacketReader): UpdateWorldState {
-  const id = r.uint32LE() | 0;
-  const value = r.uint32LE() | 0;
+  const id = r.int32LE();
+  const value = r.int32LE();
   return { id, value };
 }
 

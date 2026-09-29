@@ -57,9 +57,9 @@ export function buildSpiritHealerActivate(guid: bigint): Uint8Array {
 
 export function parseCorpseQuery(r: PacketReader): CorpseQuery {
   if (r.uint8() === 0) return { found: false };
-  const mapId = r.uint32LE() | 0;
+  const mapId = r.int32LE();
   const position = r.vec3();
-  const corpseMapId = r.uint32LE() | 0;
+  const corpseMapId = r.int32LE();
   return { found: true, mapId, position, corpseMapId, unknown: r.uint32LE() };
 }
 

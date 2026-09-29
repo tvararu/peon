@@ -91,7 +91,7 @@ export function parseItemPushResult(r: PacketReader): ItemPushResult {
   const slot = r.uint32LE();
   const itemId = r.uint32LE();
   const randomSuffix = r.uint32LE();
-  const randomPropertyId = r.uint32LE() | 0;
+  const randomPropertyId = r.int32LE();
   const count = r.uint32LE();
   const totalCount = r.uint32LE();
   return {
@@ -115,7 +115,7 @@ function readItem(r: PacketReader): LootItem {
   const count = r.uint32LE();
   const displayId = r.uint32LE();
   const randomSuffix = r.uint32LE();
-  const randomPropertyId = r.uint32LE() | 0;
+  const randomPropertyId = r.int32LE();
   const slotType = r.uint8();
   return {
     slot,
@@ -190,7 +190,7 @@ export function parseLootStartRoll(r: PacketReader): LootStartRoll {
     slot: r.uint32LE(),
     itemId: r.uint32LE(),
     randomSuffix: r.uint32LE(),
-    randomPropertyId: r.uint32LE() | 0,
+    randomPropertyId: r.int32LE(),
     count: r.uint32LE(),
     countdownMs: r.uint32LE(),
     voteMask: r.uint8(),
@@ -204,7 +204,7 @@ export function parseLootRoll(r: PacketReader): LootRollNotice {
     player: r.uint64LE(),
     itemId: r.uint32LE(),
     randomSuffix: r.uint32LE(),
-    randomPropertyId: r.uint32LE() | 0,
+    randomPropertyId: r.int32LE(),
     rollNumber: r.uint8(),
     vote: r.uint8(),
     autoPass: r.uint8() !== 0,
@@ -217,7 +217,7 @@ export function parseLootRollWon(r: PacketReader): LootRollWon {
     slot: r.uint32LE(),
     itemId: r.uint32LE(),
     randomSuffix: r.uint32LE(),
-    randomPropertyId: r.uint32LE() | 0,
+    randomPropertyId: r.int32LE(),
     winner: r.uint64LE(),
     rollNumber: r.uint8(),
     vote: r.uint8(),
@@ -229,7 +229,7 @@ export function parseLootAllPassed(r: PacketReader): LootAllPassed {
     guid: r.uint64LE(),
     slot: r.uint32LE(),
     itemId: r.uint32LE(),
-    randomPropertyId: r.uint32LE() | 0,
+    randomPropertyId: r.int32LE(),
     randomSuffix: r.uint32LE(),
   };
 }

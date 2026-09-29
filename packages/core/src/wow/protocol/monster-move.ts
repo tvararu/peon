@@ -139,12 +139,12 @@ function readMoveTail(
   const flags = r.uint32LE();
   const animated = flags & SplineFlag.ANIMATION;
   const animation = animated
-    ? { id: r.uint8(), startTime: r.uint32LE() | 0 }
+    ? { id: r.uint8(), startTime: r.int32LE() }
     : undefined;
-  const duration = r.uint32LE() | 0;
+  const duration = r.int32LE();
   const arcing = flags & SplineFlag.PARABOLIC;
   const parabolic = arcing
-    ? { acceleration: r.floatLE(), startTime: r.uint32LE() | 0 }
+    ? { acceleration: r.floatLE(), startTime: r.int32LE() }
     : undefined;
   const cyclic = (flags & SplineFlag.CYCLIC) !== 0;
   const interpolation = interpolationOf(flags);
@@ -189,13 +189,13 @@ function readFinalFacing(r: PacketReader, flags: number): SplineFacing {
 export function parseCreateSpline(r: PacketReader): CreateSpline {
   const flags = r.uint32LE();
   const facing = readFinalFacing(r, flags);
-  const elapsed = r.uint32LE() | 0;
-  const duration = r.uint32LE() | 0;
+  const elapsed = r.int32LE();
+  const duration = r.int32LE();
   const splineId = r.uint32LE();
   const durationMod = r.floatLE();
   const durationModNext = r.floatLE();
   const verticalAcceleration = r.floatLE();
-  const effectStartTime = r.uint32LE() | 0;
+  const effectStartTime = r.int32LE();
   const points = readPoints(r, r.uint32LE());
   const mode = r.uint8();
   const final = r.vec3();

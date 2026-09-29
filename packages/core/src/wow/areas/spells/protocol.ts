@@ -41,14 +41,14 @@ export function parseUnlearnSpells(r: PacketReader): number[] {
 export function parseSpellModifier(r: PacketReader): SpellModifier {
   const bit = r.uint8();
   const op = r.uint8();
-  const value = r.uint32LE() | 0;
+  const value = r.int32LE();
   return { bit, op, value };
 }
 
 export function parseModifyCooldown(r: PacketReader): ModifyCooldown {
   const spellId = r.uint32LE();
   const guid = r.uint64LE();
-  const deltaMs = r.uint32LE() | 0;
+  const deltaMs = r.int32LE();
   return { spellId, guid, deltaMs };
 }
 

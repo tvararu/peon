@@ -55,12 +55,12 @@ export function parsePetActionFeedback(r: PacketReader): PetFeedback {
 
 export function parsePetActionSound(r: PacketReader): PetActionSound {
   const guid = r.uint64LE();
-  const action = r.uint32LE() | 0;
+  const action = r.int32LE();
   return { guid, action };
 }
 
 export function parsePetDismissSound(r: PacketReader): PetDismissSound {
-  const modelId = r.uint32LE() | 0;
+  const modelId = r.int32LE();
   const x = r.floatLE();
   const y = r.floatLE();
   const z = r.floatLE();

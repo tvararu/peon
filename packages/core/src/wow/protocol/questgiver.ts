@@ -165,7 +165,7 @@ export function parseQuestMenuEntry(r: PacketReader): QuestMenuEntry {
   return {
     questId: r.uint32LE(),
     icon: r.uint32LE(),
-    level: r.uint32LE() | 0,
+    level: r.int32LE(),
     flags: r.uint32LE(),
     repeatable: r.uint8(),
     title: r.cString(),
@@ -211,8 +211,8 @@ export function factions(r: PacketReader): QuestFactionReward[] {
   const result: QuestFactionReward[] = [];
   for (let i = 0; i < 5; i++)
     result.push({ factionId: r.uint32LE(), valueId: 0, override: 0 });
-  for (const faction of result) faction.valueId = r.uint32LE() | 0;
-  for (const faction of result) faction.override = r.uint32LE() | 0;
+  for (const faction of result) faction.valueId = r.int32LE();
+  for (const faction of result) faction.override = r.int32LE();
   return result;
 }
 
@@ -220,7 +220,7 @@ function rewardPrefix(r: PacketReader): QuestRewardPrefix {
   return {
     choices: displayItems(r),
     items: displayItems(r),
-    money: r.uint32LE() | 0,
+    money: r.int32LE(),
     experience: r.uint32LE(),
     honor: r.uint32LE(),
     honorMultiplier: r.floatLE(),
@@ -230,7 +230,7 @@ function rewardPrefix(r: PacketReader): QuestRewardPrefix {
 function rewardSuffix(r: PacketReader): QuestRewardSuffix {
   return {
     spellId: r.uint32LE(),
-    spellCastId: r.uint32LE() | 0,
+    spellCastId: r.int32LE(),
     titleId: r.uint32LE(),
     talents: r.uint32LE(),
     arenaPoints: r.uint32LE(),
@@ -340,7 +340,7 @@ export function parseQuestgiverQuestComplete(
   return {
     questId: r.uint32LE(),
     experience: r.uint32LE(),
-    money: r.uint32LE() | 0,
+    money: r.int32LE(),
     honor: r.uint32LE(),
     talents: r.uint32LE(),
     arenaPoints: r.uint32LE(),

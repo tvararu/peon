@@ -9,14 +9,12 @@ export type SetFactionStanding = {
 };
 export type SetFactionVisible = { repListId: number };
 
-const int32 = (r: PacketReader) => r.uint32LE() | 0;
-
 export function parseInitializeFactions(r: PacketReader): InitializeFactions {
   const count = r.uint32LE();
   const entries: FactionWireSlot[] = [];
   for (let i = 0; i < count; i++) {
     const flags = r.uint8();
-    const standing = int32(r);
+    const standing = r.int32LE();
     entries.push({ flags, standing });
   }
   return { entries };
@@ -33,7 +31,7 @@ export function parseSetFactionStanding(r: PacketReader): SetFactionStanding {
   const entries: FactionStandingEntry[] = [];
   for (let i = 0; i < count; i++) {
     const repListId = r.uint32LE();
-    const standing = int32(r);
+    const standing = r.int32LE();
     entries.push({ repListId, standing });
   }
   return { increased, entries };

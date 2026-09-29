@@ -88,7 +88,7 @@ export function parseMirrorTimer(r: PacketReader): MirrorTimerStart {
   const timer = r.uint32LE();
   const valueMs = r.uint32LE();
   const maxMs = r.uint32LE();
-  const scale = r.uint32LE() | 0;
+  const scale = r.int32LE();
   const paused = r.uint8() !== 0;
   const spellId = r.uint32LE();
   return { timer, valueMs, maxMs, scale, paused, spellId };
