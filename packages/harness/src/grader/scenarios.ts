@@ -165,6 +165,8 @@ export const ROUND_1: readonly string[] = [
   "t8-travel-hearth-home",
   "t8-pets-command",
   "t6-selfstate-res",
+  "t9-instances-difficulty",
+  "t9-instances-reset",
 ];
 
 const DIR = `${import.meta.dir}/scenarios`;

@@ -1,0 +1,45 @@
+{
+  "botRisk": "med",
+  "budget": {
+    "minutes": 8,
+    "tools": 30,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["instances/reset"]
+      },
+      "expect": "GL has an instances/reset row with map 36 (the Deadmines), the server's SMSG_INSTANCE_RESET reply after the character hearths out",
+      "id": "reset-row",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent calling the dungeon tool with do reset and its reply saying the Deadmines (map 36) was reset",
+      "id": "reset-reply",
+      "source": "session"
+    }
+  ],
+  "id": "t9-instances-reset",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "elwynn10",
+  "setup": [
+    {
+      "body": {
+        "map": 36,
+        "o": 2.52637,
+        "x": -16.4,
+        "y": -383.07,
+        "z": 61.78,
+        "zone": 1581
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "You are inside the Deadmines. Leave the dungeon first (walk out or hearth), then reset your dungeons.",
+  "tier": 9
+}
