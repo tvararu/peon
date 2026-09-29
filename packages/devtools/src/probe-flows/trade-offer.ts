@@ -70,6 +70,13 @@ function theirVersion(handle: WorldHandle): number {
   return handle.trade.state().theirOffer.version;
 }
 
+function requestedFrom(handle: WorldHandle): Json | undefined {
+  const state = handle.trade.state();
+  if (state.phase !== "requested_in") return undefined;
+  const { from } = state;
+  return from === undefined ? "requested" : `0x${from.toString(16)}`;
+}
+
 function backToTrade(handle: WorldHandle): Json | undefined {
   const accepted = handle.trade.state().selfAccepted;
   return accepted === false && handle.trade.state().theirOffer.version > 0
@@ -79,6 +86,15 @@ function backToTrade(handle: WorldHandle): Json | undefined {
 
 async function run(ctx: FlowContext): Promise<Json> {
   const { args, handle, settle } = ctx;
+  const requested = await waitFor(settle, () => requestedFrom(handle), 60_000);
+  if (requested === undefined)
+    return json({ outcome: "no_request", state: handle.trade.state() });
+  const answered = await attempt(() => handle.trade.act.answerTrade("yes"));
+  const opened = await waitFor(
+    settle,
+    () => (handle.trade.state().phase === "open" ? "open" : undefined),
+    10_000,
+  );
   const offer = offerOf(args);
   const gold = whole(args, "gold");
   const where = whole(args, "slot") ?? 0;
@@ -86,17 +102,20 @@ async function run(ctx: FlowContext): Promise<Json> {
   const located = offer ? bagSlot(handle, offer.entry) : undefined;
   const version0 = theirVersion(handle);
   const offered =
-    offer && located !== undefined
+    offer && located !== undefined && opened === "open"
       ? await attempt(() =>
           handle.trade.act.offerItem(where, located.bag, located.slot),
         )
       : undefined;
   const gilded =
-    gold === undefined
+    gold === undefined || opened !== "open"
       ? undefined
       : await attempt(() => handle.trade.act.offerGold(gold));
   const seen = theirVersion(handle);
-  const accepted = await attempt(() => handle.trade.act.acceptTrade(seen));
+  const accepted =
+    opened === "open"
+      ? await attempt(() => handle.trade.act.acceptTrade(seen))
+      : { thrown: "the trade window never opened" };
   const unaccepted = unaccept
     ? await attempt(() => handle.trade.act.unacceptTrade())
     : undefined;
@@ -105,9 +124,12 @@ async function run(ctx: FlowContext): Promise<Json> {
     : undefined;
   return json({
     accepted,
+    answered,
     gilded,
     located,
     offered,
+    opened,
+    requested,
     reset,
     state: handle.trade.state(),
     unaccepted,
@@ -119,5 +141,5 @@ export const flow: ProbeFlow = {
   name: "trade-offer",
   run,
   usage:
-    "--flow trade-offer [--arg offer=<entry>:<count>] [--arg gold=<copper>] [--arg slot=<trade slot>] [--arg unaccept=1]: wait up to 60 s for the trade window, offer the first backpack item with entry plus gold, accept with the seen version; unaccept=1 unaccepts and waits for BACK_TO_TRADE.",
+    "--flow trade-offer [--arg offer=<entry>:<count>] [--arg gold=<copper>] [--arg slot=<trade slot>] [--arg unaccept=1]: wait up to 60 s for an incoming trade request, answer yes, wait up to 10 s for the window, offer the first backpack item with entry plus gold, accept with the seen version; unaccept=1 unaccepts and waits for BACK_TO_TRADE.",
 };

@@ -346,6 +346,22 @@ describe("trade store", () => {
     expect(events).toContainEqual({ type: "completed" });
   });
 
+  test("TRADE_COMPLETE closes the trade so a new request can start (TradeHandler.cpp:655-657)", () => {
+    const { store } = clockStore();
+    store.receiveStatus({
+      kind: "open_window",
+      status: 2,
+      statusName: "open_window",
+      tradeId: 1,
+    });
+    store.receiveStatus({
+      kind: "none",
+      status: 8,
+      statusName: "trade_complete",
+    });
+    expect(store.snapshot().phase).toBe("closed");
+  });
+
   test("CLOSE_WINDOW records the named refusal fields from the packet (TradeHandler.cpp:431-460)", () => {
     const { events, store } = clockStore();
     store.receiveStatus({

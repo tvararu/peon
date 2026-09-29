@@ -70,6 +70,29 @@ describe("trade offers", () => {
     }
   });
 
+  test("offerItem throws for equipped bag positions 19-22 and sends nothing (Item.cpp:800, TradeHandler.cpp:887-891)", async () => {
+    const scene = tradeScene((world) => {
+      for (const slot of [19, 22])
+        world.put(255, slot, { entry: 4496, guid: BigInt(0x50_00 + slot) });
+    });
+    const { rig } = scene;
+    try {
+      scene.opened();
+      for (const slot of [19, 22]) {
+        let message = "resolved";
+        try {
+          await rig.handle.act.offerItem(0, 255, slot);
+        } catch (error) {
+          message = (error as Error).message;
+        }
+        expect(message).toContain("equipped");
+      }
+      expect(rig.sent).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("offerItem throws for a duplicate item already in another trade slot (TradeHandler.cpp:905-911)", async () => {
     const scene = tradeScene();
     const { rig } = scene;
@@ -183,6 +206,44 @@ describe("trade offers", () => {
         reason: "close_window",
         status: "refused",
       });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("acceptTrade settles refused on TRADE_CANCELED instead of waiting for the timeout", async () => {
+    const scene = tradeScene();
+    const { rig } = scene;
+    try {
+      scene.opened();
+      const pending = rig.handle.act.acceptTrade();
+      await flush();
+      rig.inject(
+        GameOpcode.SMSG_TRADE_STATUS,
+        tradeStatusBody(TRADE_STATUS.TRADE_CANCELED, {}),
+      );
+      expect(await pending).toEqual({
+        reason: "trade_canceled",
+        status: "refused",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a new trade can be requested after a completed trade", async () => {
+    const scene = tradeScene();
+    const { rig } = scene;
+    try {
+      scene.opened();
+      const pending = rig.handle.act.acceptTrade();
+      await flush();
+      rig.inject(GameOpcode.SMSG_TRADE_STATUS, tradeStatusBody(8, {}));
+      expect(await pending).toEqual({ status: "ok" });
+      const next = rig.handle.act.requestTrade(0x99n);
+      next.catch(() => undefined);
+      await flush();
+      expect(rig.sent.at(-1)?.opcode).toBe(GameOpcode.CMSG_INITIATE_TRADE);
     } finally {
       rig.dispose();
     }

@@ -206,6 +206,7 @@ export class TradeStore {
       return true;
     }
     if (name === "trade_complete") {
+      this.phase = "closed";
       this.last = {
         gave: { ...this.own, items: [...this.own.items] },
         got: { ...this.theirs, items: [...this.theirs.items] },

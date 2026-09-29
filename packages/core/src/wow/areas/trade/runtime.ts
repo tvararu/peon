@@ -220,7 +220,7 @@ function offeredSlot(
     tradeSlot >= TRADE_SLOT_TRADED_COUNT
   )
     throw new Error(`trade slot ${tradeSlot} is outside 0-5`);
-  if (bag === 255 && slot >= 0 && slot <= 18)
+  if (bag === 255 && slot >= 0 && slot <= 22)
     throw new Error(`equipped position ${slot} cannot be traded`);
   const inventory = openInventory(env);
   const found = inventory.slots.find(
@@ -323,6 +323,7 @@ function acceptTrade(env: Env, expectVersion?: number): Promise<TradeResult> {
     env,
     (event) =>
       event.type === "completed" ||
+      event.type === "canceled" ||
       event.type === "refused" ||
       event.type === "unanswered",
     () => {
