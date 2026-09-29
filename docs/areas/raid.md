@@ -133,44 +133,58 @@ already says; `invite_blocked` writes one `log` row.
 
 ## Live evidence
 
-Three `eversong10` throwaway accounts A (Fgkllmaablf), B (Fgkllmaabbk)
-and C (Fgkllmaabkl) ran through their puppets with `--packet-trace
-headers`. Kept, not committed, in the directory `live-group3` of the
-`proto-group` worktree's scratch space, one `<ACCOUNT>-packets.jsonl`
-per account. No account from the run remains: each one is deleted.
+Two runs on `eversong10` throwaway accounts, all deleted afterwards.
+Both were kept, not committed, in the directory `live-group3` of the
+`proto-group` worktree's scratch space.
 
-- A invited B and C; both accepted. A's trace holds `out
-  CMSG_GROUP_INVITE` twice and the `SMSG_GROUP_LIST` replies.
-- `call convertToRaid` on A wrote `out CMSG_GROUP_RAID_CONVERT`; A's
-  trace holds `in SMSG_PARTY_COMMAND_RESULT` (operation 0, result 0)
-  and then `in SMSG_GROUP_LIST` with kind `raid`, and A's events hold a
-  raid `command_result` `invite` / `ok` and a `group_list` with the
-  `converted` change.
-- `call moveToSubgroup '["<B>", 2]'` wrote `out
-  CMSG_GROUP_CHANGE_SUB_GROUP`; A's events hold a `group_list` with B's
-  `subgroup` change from 0 to 1.
-- `call swapSubgroups '["<B>", "<C>"]'` wrote `out
-  CMSG_GROUP_SWAP_SUB_GROUP`; A's events hold `group_list` rows moving
-  B and then C between the subgroups.
-- `call setAssistant '["<B>", "on"]'` wrote `out
-  CMSG_GROUP_ASSISTANT_LEADER`; A's events hold a `group_list` with B's
-  `flag` change to assistant.
-- `call setMainTank '["<B>", "on"]'` and `call setMainAssist '["<B>",
-  "on"]'` each wrote `out MSG_PARTY_ASSIGNMENT`; A's events hold
-  `group_list` rows with B's `flag` changes to main tank and main
-  assist.
-- A raw `CMSG_GROUP_SWAP_SUB_GROUP` with a bad first name was answered
-  with `in SMSG_PARTY_COMMAND_RESULT`, and A's events hold a raid
-  `command_result` `swap` / `group_swap_failed`. The tool refuses the
-  same call before any send with `not in your party`, so no `out` row
-  is written for it.
-- After B and C stopped, `call uninviteGuid '["<C>", "test"]'` wrote
-  `out CMSG_GROUP_UNINVITE_GUID`; A's trace holds `in
-  SMSG_GROUP_DESTROYED` and a `group_list` with C's `left` change.
-- A regrouped with B, B was set to level 9 by GM, and `call
-  convertToRaid` was answered with `in SMSG_PARTY_COMMAND_RESULT`
-  (operation 0, result 25); A's events hold a raid `command_result`
-  `invite` / `raid_disallowed_by_level`.
+The first run (accounts A Fgkllmaablf, B Fgkllmaabbk, C Fgkllmaabkl)
+ran the puppets with `--packet-trace headers`; its
+`<ACCOUNT>-packets.jsonl` files show opcode order only, with no packet
+bodies. A's file holds the full send sequence in order: `out
+CMSG_GROUP_INVITE` twice, `out CMSG_GROUP_RAID_CONVERT`, `out
+CMSG_GROUP_CHANGE_SUB_GROUP`, `out CMSG_GROUP_SWAP_SUB_GROUP`, `out
+CMSG_GROUP_ASSISTANT_LEADER`, two `out MSG_PARTY_ASSIGNMENT`, a second
+`out CMSG_GROUP_SWAP_SUB_GROUP` (the bad-name raw send), `out
+CMSG_GROUP_UNINVITE_GUID`, a third `out CMSG_GROUP_INVITE` for the
+regroup, and a second `out CMSG_GROUP_RAID_CONVERT` for the level
+refusal. `in SMSG_GROUP_LIST` follows each act, `in
+SMSG_PARTY_COMMAND_RESULT` answers the two converts and the bad swap,
+and `in SMSG_GROUP_DESTROYED` answers the uninvite.
+
+The second run (A Fgkllmaabng, B Fgkllmaabln, C Fgkllmaabgo) repeated
+the same steps and saved A's `events --json` output after each step,
+in the subdirectory `round2` as `A-events-<NN>-<step>.json`. Every
+state and result claim below is read from those files, in step order:
+
+- Step 1: A invited B and C by `call invite`; both accepted with `call
+  acceptInvite`.
+- Step 2, `call convertToRaid`: one `command_result` on the `group`
+  hook with `operation` 0, `target` empty, `result` 0, and one
+  raid-area `command_result` `invite` / `ok`; the following
+  `group_list` carries the `converted` change.
+- Step 3, `call moveToSubgroup '["<B>", 2]'`: a `group_list` whose
+  change is `subgroup` for B, `from` 0, `to` 1.
+- Step 4, `call swapSubgroups '["<B>", "<C>"]'`: two `group_list`
+  events, B `subgroup` from 1 to 0, then C `subgroup` from 0 to 1.
+- Step 5, `call setAssistant '["<B>", "on"]'`: a `group_list` change
+  `flag` `assistant`, `on` true, for B.
+- Steps 6 and 7, `call setMainTank` and `call setMainAssist` with
+  `"on"`: `group_list` changes `flag` `main_tank` and then
+  `main_assist`, `on` true, for B. B's member `flags` read 7 in step
+  9's roster.
+- Step 8, a raw `CMSG_GROUP_SWAP_SUB_GROUP` with the name `Nobody`
+  twice: a `command_result` with `operation` 4, `target` `Nobody`,
+  `result` 14, and a raid-area `command_result` `swap` /
+  `group_swap_failed`. The tool refuses the same call before any send
+  with `not in your party`, so no `out` row is written for it.
+- Step 9, after B and C stopped, `call uninviteGuid '["<C>", "test"]'`:
+  a `group_list` whose change lists C in `removed`, then a
+  `group_destroyed` event and an empty `group_list` (A left alone).
+  The events hold no `left` change.
+- Steps 10 and 11, B set to level 9 by GM, B logged in again, A
+  invited B and B accepted, then `call convertToRaid`: a
+  `command_result` with `operation` 0, `result` 25, and a raid-area
+  `command_result` `invite` / `raid_disallowed_by_level`.
 
 Three `eversong10` throwaway accounts A, B and C ran through their
 puppets with `--packet-trace headers`: A invited B, B accepted, then C
@@ -251,6 +265,6 @@ No verb (N23).
 | `CMSG_GROUP_SWAP_SUB_GROUP` | `live` | A's trace: `out` row, then the rosters swapping B and C; the bad-name raw send answers `SMSG_PARTY_COMMAND_RESULT` op 4 result 14 | `live-group3` scratch dir |
 | `CMSG_GROUP_ASSISTANT_LEADER` | `live` | A's trace: `out` row, then the roster with B flagged assistant | `live-group3` scratch dir |
 | `MSG_PARTY_ASSIGNMENT` | `live` | A's trace: two `out` rows, then the rosters with B flagged main tank and main assist | `live-group3` scratch dir |
-| `CMSG_GROUP_UNINVITE_GUID` | `live` | A's trace: `out` row, then `SMSG_GROUP_DESTROYED` and the roster with C's `left` change | `live-group3` scratch dir |
+| `CMSG_GROUP_UNINVITE_GUID` | `live` | A's trace: `out` row, then `SMSG_GROUP_DESTROYED`; A's events: roster change with C in `removed`, then `group_destroyed` and an empty roster | `live-group3` scratch dir |
 | `CMSG_GROUP_CANCEL` | `dead` | the server ignores it: no handler | `Server/Protocol/Opcodes.cpp:243` |
 | `SMSG_REAL_GROUP_UPDATE` | `dead` | `STATUS_NEVER` and no send site in AzerothCore | `Server/Protocol/Opcodes.cpp:1050` |
