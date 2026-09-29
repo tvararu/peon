@@ -138,8 +138,10 @@
       "actor": 2,
       "argv": ["call", "setRoles", "[4]"],
       "at": {
-        "kind": "elapsed",
-        "ms": 500
+        "delayMs": 16000,
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "lfg_role_check"
       },
       "windowMs": 45000
     },
@@ -147,8 +149,10 @@
       "actor": 3,
       "argv": ["call", "setRoles", "[8]"],
       "at": {
-        "kind": "elapsed",
-        "ms": 500
+        "delayMs": 17000,
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "lfg_role_check"
       },
       "windowMs": 45000
     },
@@ -156,8 +160,10 @@
       "actor": 4,
       "argv": ["call", "setRoles", "[8]"],
       "at": {
-        "kind": "elapsed",
-        "ms": 500
+        "delayMs": 18000,
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "lfg_role_check"
       },
       "windowMs": 45000
     },
