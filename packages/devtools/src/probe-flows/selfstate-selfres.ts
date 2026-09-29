@@ -104,6 +104,49 @@ async function walkBack(handle: WorldHandle, home: Point): Promise<void> {
     .catch(() => undefined);
 }
 
+type Attempt = {
+  alive: boolean;
+  corpse:
+    | { position: readonly [number, number, number, number]; status: "ok" }
+    | { status: "no_answer" };
+  deathMs: number;
+  events: Json[];
+  res:
+    | { status: "no_answer" }
+    | { status: "ok" }
+    | { reason: "no_self_res" | "not_dead"; status: "refused" };
+  spell: number | undefined;
+};
+
+function reportOf(attempt: Attempt): Json {
+  const { corpse, res } = attempt;
+  return {
+    alive: attempt.alive,
+    corpseQuery:
+      corpse.status === "ok"
+        ? { position: [...corpse.position], status: "ok" }
+        : { status: corpse.status },
+    deathMs: attempt.deathMs,
+    events: attempt.events,
+    selfRes:
+      res.status === "refused"
+        ? { reason: res.reason, status: "refused" }
+        : { status: res.status },
+    selfResSpell: attempt.spell ?? 0,
+  };
+}
+
+async function dieIfAlive(handle: WorldHandle, seconds: number): Promise<void> {
+  if (handle.getRecoveryState().life !== "alive") return;
+  const provoked = await provoke(handle);
+  if (!provoked) throw new Error("selfstate-selfres: no hostile in view.");
+  const dead = await until(
+    () => (handle.getRecoveryState().life === "dead" ? true : undefined),
+    seconds * 1000,
+  );
+  if (!dead) throw new Error("selfstate-selfres: the character never died.");
+}
+
 async function run({ handle, args }: FlowContext): Promise<Json> {
   const seconds = secondsOf(args);
   const started = Date.now();
@@ -117,16 +160,7 @@ async function run({ handle, args }: FlowContext): Promise<Json> {
       });
   });
   try {
-    if (handle.getRecoveryState().life === "alive") {
-      const provoked = await provoke(handle);
-      if (!provoked) throw new Error("selfstate-selfres: no hostile in view.");
-      const dead = await until(
-        () => (handle.getRecoveryState().life === "dead" ? true : undefined),
-        seconds * 1000,
-      );
-      if (!dead)
-        throw new Error("selfstate-selfres: the character never died.");
-    }
+    await dieIfAlive(handle, seconds);
     const deathMs = Date.now() - started;
     const home = handle.getControlState().pose;
     if (home) await walkBack(handle, home);
@@ -134,28 +168,21 @@ async function run({ handle, args }: FlowContext): Promise<Json> {
       const id = handle.selfstate.state().selfResSpell;
       return id === 0 ? undefined : id;
     }, SPELL_MS);
-    const refusedBefore = spell === undefined;
     const corpse = await handle.selfstate.act.queryCorpseMapPosition();
     const res = await handle.selfstate.act.selfResurrect();
     const alive = await until(
       () => (handle.getRecoveryState().life === "alive" ? true : undefined),
       LIFE_MS,
     );
-    const report: Json = {
+    const report = reportOf({
       alive: alive === true,
-      corpseQuery:
-        corpse.status === "ok"
-          ? { position: [...corpse.position], status: "ok" }
-          : { status: corpse.status },
+      corpse,
       deathMs,
       events,
-      selfRes:
-        res.status === "refused"
-          ? { reason: res.reason, status: "refused" }
-          : { status: res.status },
-      selfResSpell: spell ?? 0,
-    };
-    if (refusedBefore || res.status !== "ok" || !alive)
+      res,
+      spell,
+    });
+    if (spell === undefined || res.status !== "ok" || !alive)
       throw new Error(
         `selfstate-selfres did not come back: ${JSON.stringify(report)}`,
       );
