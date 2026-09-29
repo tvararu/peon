@@ -88,6 +88,12 @@ character can trade again.
   once) closes the local `settling` early; the outcome is the same
   (`idle`) either way. `Player::TradeCancel` deletes both sides' trade
   data and notifies both sessions (`PlayerStorage.cpp:4223-4241`).
+- A local cancel of a silently vetoed request (`TradeHandler.cpp:841-842`)
+  gets no reply, and the original request's wait stays armed for its
+  60 s. A later outgoing trade's window can settle it.
+- If the cancel sent at a request timeout throws (socket closed), the
+  store stays `settling`, and `requestTrade` refuses `busy` until the
+  session restarts.
 
 ## Capabilities row
 
