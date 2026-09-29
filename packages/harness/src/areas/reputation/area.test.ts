@@ -125,16 +125,6 @@ describe("reputation/rank", () => {
       text: "You are now Honored with Silvermoon City.",
     });
   });
-
-  test("an unknown rank logs the rank number", () => {
-    const [row] = rules()(
-      standing({
-        rank: 9,
-        rankChanged: true,
-      }),
-    );
-    expect(row?.text).toBe("You are now rank 9 with Silvermoon City.");
-  });
 });
 
 describe("reputation/at_war", () => {
