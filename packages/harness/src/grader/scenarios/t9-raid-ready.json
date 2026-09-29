@@ -55,7 +55,7 @@
       "argv": ["call", "answerReadyCheck", "[\"yes\"]"],
       "at": {
         "kind": "elapsed",
-        "ms": 240000
+        "ms": 170000
       },
       "windowMs": 300000
     },
@@ -63,7 +63,7 @@
       "argv": ["call", "answerReadyCheck", "[\"yes\"]"],
       "at": {
         "kind": "elapsed",
-        "ms": 270000
+        "ms": 30000
       },
       "windowMs": 300000
     }

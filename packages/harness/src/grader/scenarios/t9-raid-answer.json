@@ -52,7 +52,7 @@
       "argv": ["call", "startReadyCheck"],
       "at": {
         "kind": "elapsed",
-        "ms": 90000
+        "ms": 30000
       },
       "windowMs": 120000
     }
