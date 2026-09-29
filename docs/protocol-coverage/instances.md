@@ -7,7 +7,7 @@ columns are explained in [the index](../protocol-coverage.md).
 |---|---|---|---|---|
 | `0x13f` | `CMSG_INSTANCE_LOCK_RESPONSE` | client | handled |  |
 | `0x147` | `SMSG_INSTANCE_LOCK_WARNING_QUERY` | server | handled | not seen live |
-| `0x214` | `SMSG_UPDATE_INSTANCE_ENCOUNTER_UNIT` | server | missing |  |
+| `0x214` | `SMSG_UPDATE_INSTANCE_ENCOUNTER_UNIT` | server | handled | not seen live |
 | `0x286` | `SMSG_RAID_GROUP_ONLY` | server | handled |  |
 | `0x292` | `CMSG_SET_SAVED_INSTANCE_EXTEND` | client | handled |  |
 | `0x2cb` | `SMSG_INSTANCE_SAVE_CREATED` | server | handled | not seen live |

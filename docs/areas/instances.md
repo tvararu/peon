@@ -4,15 +4,16 @@ The `instances` area keeps the character's dungeon and raid difficulty,
 the difficulty of the map it stands in, the maps it holds a permanent
 save to, the last instance warning the server sent and the timer that
 moves a character out of a dungeon whose group it left. It also keeps
-the last raid lockout list with its arrival time and the save prompt the
-server is waiting on. World-service code reads it through
+the last raid lockout list with its arrival time, the save prompt the
+server is waiting on and the units a boss script marked for the
+encounter frame. World-service code reads it through
 `session.areas.instances.state()`. The area emits `difficulty`,
 `map_difficulty`, `saved_maps`, `warning`, `homebind_timer`,
 `corpse_elsewhere`, `lockouts`, `bind_offer`, `bound`, `reset`,
-`reset_failed` and `reset_blocked` events. The map
-difficulty, the homebind timer and the pending bind clear at login and on
-each far teleport. A pending bind reads as absent once its timeout has
-passed.
+`reset_failed`, `reset_blocked` and `encounter` events. The map
+difficulty, the homebind timer, the pending bind and the encounter units
+clear at login and on each far teleport. A pending bind reads as absent
+once its timeout has passed.
 
 Three acts settle on the server's reply, or on `no_answer` after 5 s:
 `requestLockouts()`, `answerBind(accept)` and
@@ -120,17 +121,14 @@ the maps failed or blocked, or `nothing_to_reset` when nothing came.
   not yet saved, and expects `CMSG_INSTANCE_LOCK_RESPONSE` within the
   timeout. `SMSG_INSTANCE_SAVE_CREATED` follows an accepted bind, with a
   `uint32` 0 (`Entities/Player/PlayerStorage.cpp:6720-6722`).
-- `CMSG_INSTANCE_LOCK_RESPONSE` is one `uint8`
-  (`Server/Packets/InstancePackets.cpp:70-73`). The server ignores it
-  without a pending bind, accepts by binding and declines by repopping
-  the character at the graveyard, which is a map change
-  (`Handlers/MiscHandler.cpp:1707-1721`).
-- `CMSG_SET_SAVED_INSTANCE_EXTEND` is a `uint32` map, a `uint32`
-  difficulty and a `uint8` flag, 9 bytes. `wow_message_parser/wowm/world/raid/cmsg_set_saved_instance_extend.wowm`
-  makes the difficulty a `uint8`; AzerothCore wins
-  (`Handlers/CalendarHandler.cpp:793-817`). The server ignores it for a
-  map without a permanent save or a flag that does not change
-  (`Handlers/CalendarHandler.cpp:799-805`).
+- `SMSG_UPDATE_INSTANCE_ENCOUNTER_UNIT` is a `uint32` frame: frames 0 to
+  2 carry a packed guid and a `uint8` priority, frames 3, 4 and 6 one
+  `uint8`, frame 5 two `uint8` and frame 7 nothing, 4 bytes in all
+  (`Instances/InstanceScript.cpp:775-803`). Frame 0 adds the unit to the
+  encounter frame, 1 removes it and 2 changes its priority; other frames
+  change nothing tracked. Each change emits `encounter` and the harness
+  writes no row for it, since frames change during every boss fight. A
+  map change drops the tracked units.
 
 ## Left out
 
@@ -138,7 +136,6 @@ the maps failed or blocked, or `nothing_to_reset` when nothing came.
   echo with the new value to every member; the difficulty change cooldown
   message of a raid group is chat text and is not read
   (`Handlers/MiscHandler.cpp:1346-1400`).
-- `SMSG_UPDATE_INSTANCE_ENCOUNTER_UNIT`: built by `instances-4`.
 
 ## Capabilities row
 
@@ -166,3 +163,4 @@ Proposed in instances-5.
 | `SMSG_INSTANCE_RESET` | `live` | reset from `TheDeadmines` (map 0) with `--expect SMSG_INSTANCE_RESET`, exit 0; one packet for map 36, settled `ok` with `reset: [36]` | `Entities/Player/PlayerMisc.cpp:324-329` |
 | `SMSG_INSTANCE_RESET_FAILED` | `live` | reset inside the Deadmines with `--expect SMSG_INSTANCE_RESET_FAILED`, exit 0; one packet for map 36, settled `ok` with `failed: [36]` | `Entities/Player/PlayerMisc.cpp:331-337` |
 | `SMSG_RESET_FAILED_NOTIFY` | `live` | the same run (`--expect SMSG_RESET_FAILED_NOTIFY`), exit 0; one packet in the same millisecond as the failure | `Entities/Player/PlayerMisc.cpp:185-190` |
+| `SMSG_UPDATE_INSTANCE_ENCOUNTER_UNIT` | `mock` | `packages/core/src/wow/areas/instances/protocol.test.ts` "SMSG_UPDATE_INSTANCE_ENCOUNTER_UNIT reads the eight frames and the 4-byte Halion refresh" and `store-encounter.test.ts` engage/update/disengage; not seen live (two `login` probes, one staged in Utgarde Keep, neither trace carried it; sent only by Wrath raid boss scripts) | `Instances/InstanceScript.cpp:775-803` |
