@@ -20,7 +20,8 @@ export const TRADE_CANCEL_MS = 5000;
 export type TradeResult =
   | { status: "ok" }
   | { status: "refused"; reason: string }
-  | { status: "unanswered" };
+  | { status: "unanswered" }
+  | { status: "superseded" };
 
 export type TradeAnswer = "yes" | "busy" | "ignore";
 
@@ -33,11 +34,13 @@ export type TradeActs = {
 type Env = {
   ctx: AreaRuntimeCtx<TradeEvent>;
   store: TradeStore;
+  armSettle: () => void;
 };
 
 function outcomeOf(event: TradeEvent, mode: "open" | "cancel"): TradeResult {
   if (event.type === "opened") return { status: "ok" };
   if (event.type === "unanswered") return { status: "unanswered" };
+  if (event.type === "requested") return { status: "superseded" };
   if (event.type === "refused")
     return { status: "refused", reason: event.status };
   if (event.type === "canceled") {
@@ -56,6 +59,7 @@ function subscribeBeforeSend(
     mode: "open" | "cancel";
     timeoutMs: number;
     restore?: () => void;
+    onTimeout?: () => void;
   },
 ): Promise<TradeResult> {
   const abort = new AbortController();
@@ -67,7 +71,7 @@ function subscribeBeforeSend(
     (event) => outcomeOf(event, options.mode),
     (error: unknown) => {
       if (error instanceof Error && error.message === "timeout") {
-        env.store.expire();
+        options.onTimeout?.();
         return outcomeOf({ type: "unanswered" }, options.mode);
       }
       throw error;
@@ -91,6 +95,8 @@ function liveCheck(env: Env): void {
 
 function requestTrade(env: Env, guid: bigint): Promise<TradeResult> {
   liveCheck(env);
+  if (env.store.snapshot().phase === "settling")
+    return Promise.resolve({ status: "refused", reason: "busy" });
   const phase = env.store.snapshot().phase;
   if (phase !== "idle" && phase !== "closed")
     throw new Error("a trade is already in progress");
@@ -98,6 +104,7 @@ function requestTrade(env: Env, guid: bigint): Promise<TradeResult> {
   return subscribeBeforeSend(
     env,
     (event) =>
+      event.type === "requested" ||
       event.type === "opened" ||
       event.type === "canceled" ||
       event.type === "refused" ||
@@ -106,14 +113,15 @@ function requestTrade(env: Env, guid: bigint): Promise<TradeResult> {
       env.ctx.send(GameOpcode.CMSG_INITIATE_TRADE, buildInitiateTrade(guid)),
     {
       mode: "open",
+      onTimeout: () => env.store.expire(),
       restore: () => env.store.abandon(),
       timeoutMs: TRADE_ANSWER_MS,
     },
   ).then((result) => {
-    if (result.status === "unanswered") {
-      env.store.settlePending();
-      env.ctx.send(GameOpcode.CMSG_CANCEL_TRADE, buildCancelTrade());
-    }
+    if (result.status !== "unanswered") return result;
+    env.store.settlePending();
+    env.ctx.send(GameOpcode.CMSG_CANCEL_TRADE, buildCancelTrade());
+    env.armSettle();
     return result;
   });
 }
@@ -156,8 +164,19 @@ function cancelTrade(env: Env): Promise<TradeResult> {
   return subscribeBeforeSend(
     env,
     (event) => event.type === "canceled" || event.type === "unanswered",
-    () => env.ctx.send(GameOpcode.CMSG_CANCEL_TRADE, buildCancelTrade()),
-    { mode: "cancel", timeoutMs: TRADE_CANCEL_MS },
+    () => {
+      env.store.settleCancel();
+      env.ctx.send(GameOpcode.CMSG_CANCEL_TRADE, buildCancelTrade());
+    },
+    {
+      mode: "cancel",
+      onTimeout: () => {
+        env.store.expire();
+        env.store.endSettling();
+      },
+      restore: () => env.store.restorePhase(phase),
+      timeoutMs: TRADE_CANCEL_MS,
+    },
   );
 }
 
@@ -167,23 +186,41 @@ export function tradeRuntime(
   core: CoreStores,
 ): AreaRuntime<TradeActs> {
   void core;
-  const env: Env = { ctx, store };
+  let settle: ReturnType<typeof setTimeout> | undefined;
+  const armSettle = () => {
+    clearTimeout(settle);
+    settle = setTimeout(() => {
+      settle = undefined;
+      store.endSettling();
+    }, TRADE_CANCEL_MS);
+  };
+  const env: Env = { armSettle, ctx, store };
   let timer: ReturnType<typeof setTimeout> | undefined;
   const arm = (event: TradeEvent) => {
     if (timer !== undefined) {
       clearTimeout(timer);
       timer = undefined;
     }
-    if (event.type !== "requested") return;
-    timer = setTimeout(() => {
-      timer = undefined;
-      if (store.snapshot().phase !== "requested_in") return;
-      try {
-        ctx.send(GameOpcode.CMSG_BUSY_TRADE, buildBusyTrade());
-      } catch {
-        store.abandon();
-      }
-    }, TRADE_ANSWER_MS);
+    if (
+      event.type === "requested" &&
+      store.snapshot().phase === "requested_in"
+    ) {
+      timer = setTimeout(() => {
+        timer = undefined;
+        if (store.snapshot().phase !== "requested_in") return;
+        try {
+          ctx.send(GameOpcode.CMSG_BUSY_TRADE, buildBusyTrade());
+        } catch {
+          store.abandon();
+        }
+      }, TRADE_ANSWER_MS);
+    }
+    if (event.type === "canceled" || event.type === "requested") {
+      clearTimeout(settle);
+      settle = undefined;
+    }
+    if (event.type === "canceled" && store.snapshot().phase === "settling")
+      store.endSettling();
   };
   const off = store.onEvent(arm);
   return {
@@ -198,6 +235,9 @@ export function tradeRuntime(
         clearTimeout(timer);
         timer = undefined;
       }
+      clearTimeout(settle);
+      settle = undefined;
+      store.endSettling();
     },
   };
 }

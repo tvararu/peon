@@ -134,7 +134,7 @@ describe("trade request", () => {
     }
   });
 
-  test("a second requestTrade starts after the 60 s timeout settles", async () => {
+  test("a second requestTrade starts after settling ends", async () => {
     jest.useFakeTimers();
     const rig = areaRig("trade", { selfGuid: TRADE_SELF });
     try {
@@ -145,7 +145,11 @@ describe("trade request", () => {
       await Promise.resolve();
       await Promise.resolve();
       expect(await pending).toEqual({ status: "unanswered" });
+      expect(rig.handle.state().phase).toBe("settling");
+      jest.advanceTimersByTime(5000);
+      expect(rig.handle.state().phase).toBe("idle");
       const next = rig.handle.act.requestTrade(TRADE_PARTNER);
+      jest.advanceTimersByTime(0);
       await Promise.resolve();
       rig.inject(
         GameOpcode.SMSG_TRADE_STATUS,
@@ -158,7 +162,7 @@ describe("trade request", () => {
     }
   });
 
-  test("a stray TRADE_CANCELED after the 60 s timeout changes nothing", async () => {
+  test("a stray TRADE_CANCELED during settling ends it", async () => {
     jest.useFakeTimers();
     const rig = areaRig("trade", { selfGuid: TRADE_SELF });
     try {
@@ -169,12 +173,12 @@ describe("trade request", () => {
       await Promise.resolve();
       await Promise.resolve();
       expect(await pending).toEqual({ status: "unanswered" });
-      const before = rig.handle.state();
+      expect(rig.handle.state().phase).toBe("settling");
       rig.inject(
         GameOpcode.SMSG_TRADE_STATUS,
         tradeStatusBody(TRADE_STATUS.TRADE_CANCELED),
       );
-      expect(rig.handle.state()).toEqual({ ...before, dropped: 1 });
+      expect(rig.handle.state().phase).toBe("idle");
     } finally {
       rig.dispose();
       jest.useRealTimers();
@@ -192,7 +196,10 @@ describe("trade request", () => {
       await Promise.resolve();
       await Promise.resolve();
       expect(await first).toEqual({ status: "unanswered" });
+      expect(rig.handle.state().phase).toBe("settling");
+      jest.advanceTimersByTime(5000);
       const next = rig.handle.act.requestTrade(TRADE_PARTNER);
+      jest.advanceTimersByTime(0);
       await Promise.resolve();
       rig.inject(
         GameOpcode.SMSG_TRADE_STATUS,

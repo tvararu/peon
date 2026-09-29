@@ -8,7 +8,8 @@ export type TradePhase =
   | "requested_out"
   | "requested_in"
   | "open"
-  | "closed";
+  | "closed"
+  | "settling";
 
 export type TradeOfferItem = {
   slot: number;
@@ -113,6 +114,16 @@ export class TradeStore {
       this.events.emit({ from: status.trader, type: "requested" });
       return;
     }
+    if (this.phase === "settling") {
+      if (name === "trade_canceled") {
+        this.abandon();
+        this.last = { kind: "canceled", status: name };
+        this.events.emit({ status: name, type: "canceled" });
+        return;
+      }
+      this.dropped += 1;
+      return;
+    }
     if (status.kind === "open_window") {
       this.phase = "open";
       this.last = undefined;
@@ -143,6 +154,25 @@ export class TradeStore {
 
   settlePending(): void {
     if (this.phase !== "requested_out") return;
+    this.phase = "settling";
+  }
+
+  settleCancel(): void {
+    if (
+      this.phase !== "open" &&
+      this.phase !== "requested_in" &&
+      this.phase !== "requested_out"
+    )
+      return;
+    this.phase = "settling";
+  }
+
+  restorePhase(phase: TradePhase): void {
+    this.phase = phase;
+  }
+
+  endSettling(): void {
+    if (this.phase !== "settling") return;
     this.abandon();
   }
 

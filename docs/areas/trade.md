@@ -3,34 +3,38 @@
 The `trade` area lets the character take part in the request half of a
 trade with another player. World-service code reads it through
 `session.areas.trade.state()`: `phase` (`idle`, `requested_out`,
-`requested_in`, `open` or `closed`), `with`, `from`, the offers
+`requested_in`, `open`, `closed` or `settling`), `with`, `from`, the offers
 (`ownOffer`, `theirOffer`, empty until the offer opcodes land),
 `selfAccepted`, `theyAccepted`, `lastOutcome` and `dropped` (stray
-`TRADE_CANCELED` arrivals while `idle`). The area emits
-`requested`, `opened`, `canceled`, `refused` and `unanswered`.
+statuses while `idle`, or any non-`TRADE_CANCELED` status while
+`settling`). The area emits `requested`, `opened`, `canceled`,
+`refused` and `unanswered`.
 
 The acts:
 
 - `requestTrade(guid)` sends `CMSG_INITIATE_TRADE`. It throws unless the
-  phase is `idle` or `closed`, settles `ok` when the window opens,
-  `refused` with the server's status name (`no_target`,
-  `target_to_far`, `wrong_faction`, `you_dead`, `you_stunned`,
-  `you_logout`, `target_dead`, `target_stunned`, `target_logout`,
-  `trial_account`, and `busy` or `ignore_you` from the partner) and
-  `unanswered` after 60 seconds, when it clears the pending request and
-  sends `CMSG_CANCEL_TRADE` to free the character. A silent initiate veto
-  (`Handlers/TradeHandler.cpp:841-842`) leaves no reply: `TradeCancel`
-  with no `m_trade` takes the empty branch, so the store is already
-  `idle` and a later stray `TRADE_CANCELED` is dropped and counted
-  (`dropped`). Any cancel status during `requested_out`, `requested_in`
-  or `open` applies to that current trade. `BEGIN_TRADE` always starts a
-  fresh incoming request. `trade_canceled` before the window
-  opens settles a request `refused`, while `cancelTrade` settles it
-  `ok`.
+  phase is `idle` or `closed`, and refuses `busy` without sending while
+  `settling`. It settles `ok` when the window opens, `refused` with the
+  server's status name (`no_target`, `target_to_far`, `wrong_faction`,
+  `you_dead`, `you_stunned`, `you_logout`, `target_dead`,
+  `target_stunned`, `target_logout`, `trial_account`, and `busy` or
+  `ignore_you` from the partner), `superseded` when an incoming
+  `BEGIN_TRADE` arrives while the request is out, and `unanswered` after
+  60 seconds, when it enters `settling` and sends `CMSG_CANCEL_TRADE` to
+  free the character; settling ends on `TRADE_CANCELED` or after 5 s. A
+  silent initiate veto (`Handlers/TradeHandler.cpp:841-842`) leaves no
+  reply: `TradeCancel` with no `m_trade` takes the empty branch, so the
+  store is already `settling` and a later stray `TRADE_CANCELED` ends it.
+  Any cancel status during `requested_out`, `requested_in` or `open`
+  applies to that current trade. `BEGIN_TRADE` always starts a fresh
+  incoming request. `trade_canceled` before the window opens settles a
+  request `refused`, while `cancelTrade` settles it `ok`.
 - `answerTrade("yes" | "busy" | "ignore")` answers a request in
   `requested_in` with `CMSG_BEGIN_TRADE`, `CMSG_BUSY_TRADE` or
   `CMSG_IGNORE_TRADE`. It throws `no_request` in any other phase.
-- `cancelTrade()` sends `CMSG_CANCEL_TRADE`.
+- `cancelTrade()` sends `CMSG_CANCEL_TRADE` and enters `settling`. The
+  reply settles it `ok`; no reply within 5 s settles it `unanswered`
+  locally back to `idle`.
 
 A request nobody answers within 60 seconds is answered busy, so the
 character can trade again.
@@ -79,6 +83,11 @@ character can trade again.
 - `TRIAL_ACCOUNT`, `YOU_DEAD` and the stunned, logout and flight statuses
   are tested on the rig only; the realm's trial restriction is unknown
   and the staging for the others is not worth a live try.
+- A `TRADE_CANCELED` that arrives for one side's already-cleared trade
+  while the other side's cancel is still in flight (both sides cancel at
+  once) closes the local `settling` early; the outcome is the same
+  (`idle`) either way. `Player::TradeCancel` deletes both sides' trade
+  data and notifies both sessions (`PlayerStorage.cpp:4223-4241`).
 
 ## Capabilities row
 
