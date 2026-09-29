@@ -196,44 +196,101 @@ function selfLeads(party: PartyView): boolean {
   );
 }
 
+type JoinRequest = {
+  roles: number;
+  entries: readonly number[];
+  comment?: string;
+};
+
+function groupRefusal(ctx: Ctx, store: LfgStore): LfgJoinResult | undefined {
+  const party = ctx.legacy.party();
+  if (party.inGroup && !selfLeads(party))
+    return { status: "refused", reason: "not_leader" };
+  if (store.snapshot().status === "proposal")
+    return { status: "refused", reason: "busy_proposal" };
+  return undefined;
+}
+
+function joinRefusal(env: Env, join: JoinRequest): LfgJoinResult | undefined {
+  if (join.roles === 0) return { status: "refused", reason: "no_role" };
+  if (join.entries.length > LFG_MAX_ENTRIES)
+    return { status: "refused", reason: "too_many" };
+  const blocked = groupRefusal(env.ctx, env.store);
+  if (blocked !== undefined) return blocked;
+  const random = join.entries.some((e) => e >>> 24 === 1);
+  if (random && join.entries.length > 1)
+    return { status: "refused", reason: "mixed_random" };
+  if (!join.entries.every((entry) => knownEntry(env.store, entry)))
+    return { status: "refused", reason: "unknown_dungeon" };
+  return undefined;
+}
+
+type JoinWaits = {
+  resultWait: Promise<LfgEvent>;
+  queuedWait: Promise<LfgEvent>;
+};
+
+function armJoinWaits(ctx: Ctx, signal: AbortSignal): JoinWaits {
+  const resultWait = ctx.until((event) => event.type === "join_result", {
+    timeoutMs: LFG_REQUEST_TIMEOUT_MS,
+    signal,
+  });
+  resultWait.catch(() => undefined);
+  const queuedWait = ctx.until(
+    (event) =>
+      (event.type === "status" &&
+        event.status === "queued" &&
+        event.source !== "search") ||
+      (event.type === "role_check" && event.state === 2),
+    { timeoutMs: LFG_REQUEST_TIMEOUT_MS, signal },
+  );
+  queuedWait.catch(() => undefined);
+  return { resultWait, queuedWait };
+}
+
+function queuedResult(
+  store: LfgStore,
+  entries: readonly number[],
+  roleCheck: boolean,
+): LfgJoinResult {
+  if (roleCheck) return { status: "ok", queued: entries, roleCheck: true };
+  const queued = store.snapshot().selected;
+  return {
+    status: "ok",
+    queued: queued.length > 0 ? queued : entries,
+    roleCheck: false,
+  };
+}
+
+async function settleJoin(
+  store: LfgStore,
+  entries: readonly number[],
+  waits: JoinWaits,
+): Promise<LfgJoinResult> {
+  const first = await Promise.race([
+    waits.resultWait.then((result) => ({ kind: "result" as const, result })),
+    waits.queuedWait.then((event) => ({ kind: "queued" as const, event })),
+  ]);
+  if (first.kind === "queued")
+    return queuedResult(store, entries, first.event.type === "role_check");
+  if (first.result.type === "join_result" && first.result.reason !== "ok") {
+    return {
+      status: "refused",
+      reason: first.result.reason,
+      partyLocks: store.snapshot().joinResult?.partyLocks ?? [],
+    } as LfgJoinResult;
+  }
+  const settled = await waits.queuedWait;
+  return queuedResult(store, entries, settled.type === "role_check");
+}
+
 function joinAct({ ctx, store }: Env) {
-  return async (join: {
-    roles: number;
-    entries: readonly number[];
-    comment?: string;
-  }): Promise<LfgJoinResult> => {
+  return async (join: JoinRequest): Promise<LfgJoinResult> => {
+    const refusal = joinRefusal({ ctx, store }, join);
+    if (refusal !== undefined) return refusal;
     const scope = requestScope();
-    if (join.roles === 0) return { status: "refused", reason: "no_role" };
-    if (join.entries.length > LFG_MAX_ENTRIES)
-      return { status: "refused", reason: "too_many" };
-    const party = ctx.legacy.party();
-    if (party.inGroup && !selfLeads(party))
-      return { status: "refused", reason: "not_leader" };
-    const fresh = store.snapshot();
-    if (fresh.status === "proposal")
-      return { status: "refused", reason: "busy_proposal" };
     const entries = [...join.entries];
-    const random = entries.filter((e) => e >>> 24 === 1);
-    if (random.length > 0 && entries.length > 1)
-      return { status: "refused", reason: "mixed_random" };
-    for (const entry of entries) {
-      if (!knownEntry(store, entry))
-        return { status: "refused", reason: "unknown_dungeon" };
-    }
-    const resultWait = ctx.until((event) => event.type === "join_result", {
-      timeoutMs: LFG_REQUEST_TIMEOUT_MS,
-      signal: scope.abort.signal,
-    });
-    resultWait.catch(() => undefined);
-    const queuedWait = ctx.until(
-      (event) =>
-        (event.type === "status" &&
-          event.status === "queued" &&
-          event.source !== "search") ||
-        (event.type === "role_check" && event.state === 2),
-      { timeoutMs: LFG_REQUEST_TIMEOUT_MS, signal: scope.abort.signal },
-    );
-    queuedWait.catch(() => undefined);
+    const waits = armJoinWaits(ctx, scope.abort.signal);
     try {
       ctx.send(
         GameOpcode.CMSG_LFG_JOIN,
@@ -243,55 +300,13 @@ function joinAct({ ctx, store }: Env) {
           comment: join.comment ?? "",
         }),
       );
+      return await settleJoin(store, entries, waits);
     } catch (error) {
-      scope.abort.abort();
-      throw error;
-    }
-    try {
-      const first = await Promise.race([
-        resultWait.then((result) => ({ kind: "result" as const, result })),
-        queuedWait.then((event) => ({ kind: "queued" as const, event })),
-      ]);
-      if (first.kind === "queued" && first.event.type === "role_check") {
-        scope.abort.abort();
-        return { status: "ok", queued: entries, roleCheck: true };
-      }
-      if (first.kind === "result") {
-        if (
-          first.result.type === "join_result" &&
-          first.result.reason !== "ok"
-        ) {
-          const after = store.snapshot();
-          scope.abort.abort();
-          return {
-            status: "refused",
-            reason: first.result.reason,
-            partyLocks: after.joinResult?.partyLocks ?? [],
-          } as LfgJoinResult;
-        }
-        const settled = await queuedWait;
-        scope.abort.abort();
-        if (settled.type === "role_check")
-          return { status: "ok", queued: entries, roleCheck: true };
-        const queued = store.snapshot().selected;
-        return {
-          status: "ok",
-          queued: queued.length > 0 ? queued : entries,
-          roleCheck: false,
-        };
-      }
-      scope.abort.abort();
-      const queued = store.snapshot().selected;
-      return {
-        status: "ok",
-        queued: queued.length > 0 ? queued : entries,
-        roleCheck: false,
-      };
-    } catch (error) {
-      scope.abort.abort();
       if (isTimeout(error))
         return { status: "refused", reason: "lfg_disabled_or_ignored" };
       throw error;
+    } finally {
+      scope.abort.abort();
     }
   };
 }
@@ -358,11 +373,15 @@ function setRolesAct({ ctx, store }: Env) {
 }
 
 function setCommentAct({ ctx }: Env) {
-  return async (comment: string): Promise<LfgCommentResult> => {
+  return (comment: string): Promise<LfgCommentResult> => {
     if (new TextEncoder().encode(comment).length > 64)
-      return { status: "refused", reason: "too_long" };
-    ctx.send(GameOpcode.CMSG_SET_LFG_COMMENT, buildLfgComment(comment));
-    return { status: "ok" };
+      return Promise.resolve({ status: "refused", reason: "too_long" });
+    try {
+      ctx.send(GameOpcode.CMSG_SET_LFG_COMMENT, buildLfgComment(comment));
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    return Promise.resolve({ status: "ok" });
   };
 }
 export function lfgRuntime(ctx: Ctx, store: LfgStore): AreaRuntime<LfgActs> {
@@ -371,11 +390,7 @@ export function lfgRuntime(ctx: Ctx, store: LfgStore): AreaRuntime<LfgActs> {
   const requestStatus = () => run(statusAct(env));
   const requestDungeons = () => run(dungeonsAct(env));
   const requestPartyLocks = () => run(partyLocksAct(env));
-  const join = (join: {
-    roles: number;
-    entries: readonly number[];
-    comment?: string;
-  }) => run(() => joinAct(env)(join));
+  const join = (request: JoinRequest) => run(() => joinAct(env)(request));
   const leave = () => run(leaveAct(env));
   const setRoles = (roles: number) => run(() => setRolesAct(env)(roles));
   const setComment = (comment: string) =>
