@@ -83,6 +83,29 @@ describe("quest interaction authority", () => {
     expect(runtime.snapshot().lastError?.kind).toBe("stale_dialog");
     expect(() => runtime.accept()).toThrow("quest_details_not_open");
   });
+  test("a shared details dialog with a divider and no giver opens no error", () => {
+    const { events, runtime, store } = setup();
+    const w = new PacketWriter();
+    w.uint64LE(1n);
+    w.uint64LE(9n);
+    w.uint32LE(questId);
+    w.cString("Quest");
+    w.cString("Text");
+    w.cString("Objectives");
+    w.uint8(1);
+    w.uint32LE(0);
+    w.uint32LE(0);
+    w.uint8(0);
+    for (let i = 0; i < 4; i++) w.uint32LE(0);
+    w.uint32LE(0);
+    w.floatLE(0);
+    for (let i = 0; i < 6; i++) w.uint32LE(0);
+    for (let i = 0; i < 15; i++) w.uint32LE(0);
+    w.uint32LE(0);
+    packet(store, GameOpcode.SMSG_QUESTGIVER_QUEST_DETAILS, w.finish());
+    expect(runtime.snapshot().lastError).toBeUndefined();
+    expect(events.filter((event) => event.type === "error")).toEqual([]);
+  });
 
   test("query metadata never authorizes acceptance and silence remains unknown", () => {
     const { runtime } = setup();
