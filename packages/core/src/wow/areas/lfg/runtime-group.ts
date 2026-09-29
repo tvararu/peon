@@ -82,21 +82,31 @@ async function answerProposal(
   try {
     const answered = await reply(
       ctx,
-      (event) => event.type === "proposal" && event.id === id,
+      (event) =>
+        event.type === "proposal" &&
+        event.id === id &&
+        (event.state !== 0 || acknowledges(event, accept)),
       () =>
         ctx.send(
           GameOpcode.CMSG_LFG_PROPOSAL_RESULT,
           buildLfgProposalResult(id, accept),
         ),
     );
-    return {
-      status: "ok",
-      state: answered.type === "proposal" ? answered.state : 0,
-    };
+    if (answered.type !== "proposal") return { status: "ok", state: 0 };
+    if (answered.state === 1 && !acknowledges(answered, accept))
+      return { status: "refused", reason: "proposal_failed" };
+    return { status: "ok", state: answered.state };
   } catch (error) {
     if (isTimeout(error)) return { status: "no_answer" };
     throw error;
   }
+}
+
+function acknowledges(
+  event: Extract<LfgEvent, { type: "proposal" }>,
+  accept: boolean,
+): boolean {
+  return event.selfAnswered && event.selfAccepted === accept;
 }
 
 async function voteKick(
@@ -116,7 +126,7 @@ async function voteKick(
     );
     return { status: "ok" };
   } catch (error) {
-    if (isTimeout(error)) return { status: "no_answer" };
+    if (isTimeout(error)) return { status: "ok" };
     throw error;
   }
 }

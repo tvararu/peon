@@ -118,6 +118,18 @@ on a kick. The store also keeps the last `proposal`, `boot`,
   (`Handlers/LFGHandler.cpp:95-104`); `CMSG_LFG_SET_BOOT_VOTE`
   (`Handlers/LFGHandler.cpp:133-141`) and `CMSG_LFG_TELEPORT`
   (`Handlers/LFGHandler.cpp:143-150`) are one `u8` each.
+- `answerProposal` settles on a proposal update for its id that shows the
+  self player's `answered` and `accepted` flags matching the answer, or
+  on a state 2 update. Other members' replies rebroadcast state 0 with
+  the self entry unchanged (`DungeonFinding/LFGMgr.cpp:1944-1952`), so
+  they do not settle it. A state 1 update without the matching self
+  entry (another member declined first) settles `refused`
+  `proposal_failed`; a decline is removed with state 1
+  (`DungeonFinding/LFGMgr.cpp:1937-1941`).
+- `voteKick` returns `ok` once the vote is sent. The server sends no
+  update until the agree or deny count reaches the threshold
+  (`DungeonFinding/LFGMgr.cpp:2193-2195`), so a non-decisive vote gets no
+  packet; any later boot update still updates the store.
 - Puppet calls: `answerProposal '["accept"]'`, `teleport '["out"]'` and
   `voteKick '["yes"]'` (the other values are `decline`, `in`, `no`).
   A puppet call does not await the act.

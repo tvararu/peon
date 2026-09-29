@@ -73,8 +73,35 @@ describe("LfgStore proposal", () => {
           dungeon: 0x06_00_00_02,
           state: 0,
           deadline: 41_000,
+          selfAnswered: false,
+          selfAccepted: false,
         },
       ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("the proposal event carries the self player's answered and accepted flags", () => {
+    const { rig, seen } = setup();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_LFG_PROPOSAL_UPDATE,
+        lfgProposalBody({
+          dungeon: 0x06_00_00_02,
+          state: 0,
+          id: 5,
+          players: [
+            { role: 8, answered: true, accepted: false },
+            { role: 2, self: true, answered: true, accepted: true },
+          ],
+        }),
+      );
+      expect(seen.at(-1)).toMatchObject({
+        type: "proposal",
+        selfAnswered: true,
+        selfAccepted: true,
+      });
     } finally {
       rig.dispose();
     }
@@ -121,6 +148,8 @@ describe("LfgStore proposal", () => {
           dungeon: 0x06_00_00_02,
           state,
           deadline: 41_000,
+          selfAnswered: false,
+          selfAccepted: false,
         });
       } finally {
         rig.dispose();

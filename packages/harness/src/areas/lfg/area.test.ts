@@ -17,6 +17,8 @@ describe("lfg harness rules", () => {
         deadline: 41_000,
         dungeon: 0x06_00_00_02,
         id: 5,
+        selfAccepted: false,
+        selfAnswered: false,
         state,
         type: "proposal",
       });
@@ -32,8 +34,15 @@ describe("lfg harness rules", () => {
   test("proposal rows differ between an open, failed and successful proposal", () => {
     const texts = [0, 1, 2].map(
       (state) =>
-        rows({ deadline: 1, dungeon: 1, id: 5, state, type: "proposal" })[0]
-          ?.text ?? "",
+        rows({
+          deadline: 1,
+          dungeon: 1,
+          id: 5,
+          selfAccepted: false,
+          selfAnswered: false,
+          state,
+          type: "proposal",
+        })[0]?.text ?? "",
     );
     expect(new Set(texts).size).toBe(3);
   });

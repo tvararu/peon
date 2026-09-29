@@ -123,6 +123,8 @@ export type LfgEvent =
       dungeon: number;
       state: number;
       deadline: number;
+      selfAnswered: boolean;
+      selfAccepted: boolean;
     }
   | {
       type: "boot_vote";
@@ -437,12 +439,15 @@ export class LfgStore {
     this.set({
       proposal: ended ? undefined : proposalView(proposal, at, deadline),
     });
+    const self = proposal.players.find((player) => player.self);
     this.events.emit({
       type: "proposal",
       id: proposal.id,
       dungeon: proposal.dungeon,
       state: proposal.state,
       deadline,
+      selfAnswered: self?.answered ?? false,
+      selfAccepted: self?.accepted ?? false,
     });
   }
 

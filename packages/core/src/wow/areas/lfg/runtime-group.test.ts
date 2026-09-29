@@ -73,12 +73,20 @@ function sent(rig: { sent: readonly SentPacket[] }, opcode: number) {
   return rig.sent.filter((p) => p.opcode === opcode);
 }
 
-function proposal(state: number, id = 5) {
+function proposal(
+  state: number,
+  id = 5,
+  self: { answered?: boolean; accepted?: boolean } = {},
+  other: { answered?: boolean; accepted?: boolean } = {},
+) {
   return lfgProposalBody({
     dungeon: 0x06_00_00_02,
     state,
     id,
-    players: [{ role: 8, self: true }],
+    players: [
+      { role: 8, self: true, ...self },
+      { role: 2, self: false, ...other },
+    ],
   });
 }
 
@@ -151,8 +159,84 @@ describe("lfg answerProposal", () => {
       expect(sent(rig, GameOpcode.CMSG_LFG_PROPOSAL_RESULT)[0]?.body).toEqual(
         new Uint8Array([5, 0, 0, 0, 0]),
       );
-      rig.inject(GameOpcode.SMSG_LFG_PROPOSAL_UPDATE, proposal(1, 5));
+      rig.inject(
+        GameOpcode.SMSG_LFG_PROPOSAL_UPDATE,
+        proposal(1, 5, { answered: true, accepted: false }),
+      );
       expect(await pending).toEqual({ status: "ok", state: 1 });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("another member's reply before this player's answer does not settle", async () => {
+    const { rig } = build();
+    try {
+      rig.inject(GameOpcode.SMSG_LFG_PROPOSAL_UPDATE, proposal(0, 5));
+      const pending = rig.handle.act.answerProposal(true);
+      let settled = false;
+      void pending.then(() => {
+        settled = true;
+      });
+      rig.inject(
+        GameOpcode.SMSG_LFG_PROPOSAL_UPDATE,
+        proposal(0, 5, {}, { answered: true, accepted: true }),
+      );
+      await Promise.resolve();
+      expect(settled).toBe(false);
+      rig.inject(
+        GameOpcode.SMSG_LFG_PROPOSAL_UPDATE,
+        proposal(
+          0,
+          5,
+          { answered: true, accepted: true },
+          { answered: true, accepted: true },
+        ),
+      );
+      expect(await pending).toEqual({ status: "ok", state: 0 });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a state 0 update that records the opposite answer does not settle", async () => {
+    const { rig } = build();
+    try {
+      rig.inject(GameOpcode.SMSG_LFG_PROPOSAL_UPDATE, proposal(0, 5));
+      const pending = rig.handle.act.answerProposal(false);
+      let settled = false;
+      void pending.then(() => {
+        settled = true;
+      });
+      rig.inject(
+        GameOpcode.SMSG_LFG_PROPOSAL_UPDATE,
+        proposal(0, 5, { answered: true, accepted: true }),
+      );
+      await Promise.resolve();
+      expect(settled).toBe(false);
+      rig.inject(
+        GameOpcode.SMSG_LFG_PROPOSAL_UPDATE,
+        proposal(1, 5, { answered: true, accepted: false }),
+      );
+      expect(await pending).toEqual({ status: "ok", state: 1 });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a proposal that fails on another member's decline is refused, not ok", async () => {
+    const { rig } = build();
+    try {
+      rig.inject(GameOpcode.SMSG_LFG_PROPOSAL_UPDATE, proposal(0, 5));
+      const pending = rig.handle.act.answerProposal(true);
+      rig.inject(
+        GameOpcode.SMSG_LFG_PROPOSAL_UPDATE,
+        proposal(1, 5, {}, { answered: true, accepted: false }),
+      );
+      expect(await pending).toEqual({
+        status: "refused",
+        reason: "proposal_failed",
+      });
     } finally {
       rig.dispose();
     }
@@ -387,7 +471,7 @@ describe("lfg voteKick", () => {
       expect(sent(rig, GameOpcode.CMSG_LFG_SET_BOOT_VOTE)[0]?.body).toEqual(
         new Uint8Array([0]),
       );
-      rig.inject(GameOpcode.SMSG_LFG_BOOT_PROPOSAL_UPDATE, boot(true));
+      rig.inject(GameOpcode.SMSG_LFG_BOOT_PROPOSAL_UPDATE, boot(true, true));
       expect(await pending).toEqual({ status: "ok" });
     } finally {
       rig.dispose();
@@ -412,14 +496,15 @@ describe("lfg voteKick", () => {
     }
   });
 
-  test("settles no_answer after 5 s", async () => {
+  test("a non-decisive vote with no update settles ok after the window", async () => {
     await withFakeTimers(async () => {
       const { rig } = build();
       try {
         rig.inject(GameOpcode.SMSG_LFG_BOOT_PROPOSAL_UPDATE, boot(true));
         const pending = rig.handle.act.voteKick(true);
         await elapse(5000);
-        expect(await pending).toEqual({ status: "no_answer" });
+        expect(await pending).toEqual({ status: "ok" });
+        expect(sent(rig, GameOpcode.CMSG_LFG_SET_BOOT_VOTE)).toHaveLength(1);
       } finally {
         rig.dispose();
       }
