@@ -169,6 +169,7 @@ export const ROUND_1: readonly string[] = [
   "t9-raid-kick",
   "t9-raid-convert",
   "t9-lfg-queue",
+  "t9-lfg-run",
 ];
 
 const DIR = `${import.meta.dir}/scenarios`;
