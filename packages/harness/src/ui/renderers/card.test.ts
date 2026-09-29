@@ -129,6 +129,8 @@ const spells: JournalAfter = {
   bar: [
     { id: 133, name: "Fireball", slot: 0, type: "spell" },
     { id: 4540, name: "Tough Jerky", slot: 3, type: "item" },
+    { id: 7, name: "macro 7", slot: 5, type: "macro" },
+    { id: 1, name: "set 1", slot: 9, type: "equipment_set" },
   ],
   spells: [
     { cooldownMs: 30_000, cost: 55, id: 133, name: "Fireball", rank: "Rank 1" },
@@ -324,9 +326,10 @@ describe("card family", () => {
       "Bar",
       `0 ${nerd.spell} Fireball`,
       `3 ${nerd.item} Tough Jerky`,
+      "5 macro macro 7",
+      "9 set set 1",
     ]);
   });
-
   test("journal spells with no auras or bar draws no empty headings", () => {
     const bare: JournalAfter = { ...spells, auras: [], bar: [] };
     const text = plain(

@@ -254,8 +254,11 @@ function spellRows({ auras, bar, spells, theme }: SpellRowsInit): string[] {
     lines.push(
       theme.fg("muted", "Bar"),
       ...bar.map((entry) => {
-        const icon = entry.type === "item" ? glyphs().item : glyph("spell");
-        return `${theme.fg("dim", `${entry.slot}`)} ${icon} ${theme.fg("text", entry.name)}`;
+        if (entry.type === "spell")
+          return `${theme.fg("dim", `${entry.slot}`)} ${glyph("spell")} ${theme.fg("text", entry.name)}`;
+        if (entry.type === "item")
+          return `${theme.fg("dim", `${entry.slot}`)} ${glyphs().item} ${theme.fg("text", entry.name)}`;
+        return `${theme.fg("dim", `${entry.slot}`)} ${theme.fg("dim", entry.type === "macro" ? "macro" : "set")} ${theme.fg("text", entry.name)}`;
       }),
     );
   return lines;
