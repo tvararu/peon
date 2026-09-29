@@ -129,6 +129,17 @@ the maps failed or blocked, or `nothing_to_reset` when nothing came.
   change nothing tracked. Each change emits `encounter` and the harness
   writes no row for it, since frames change during every boss fight. A
   map change drops the tracked units.
+- `CMSG_INSTANCE_LOCK_RESPONSE` is one `uint8`
+  (`Server/Packets/InstancePackets.cpp:70-73`). The server ignores it
+  without a pending bind, accepts by binding and declines by repopping
+  the character at the graveyard, which is a map change
+  (`Handlers/MiscHandler.cpp:1707-1721`).
+- `CMSG_SET_SAVED_INSTANCE_EXTEND` is a `uint32` map, a `uint32`
+  difficulty and a `uint8` flag, 9 bytes. `wow_message_parser/wowm/world/raid/cmsg_set_saved_instance_extend.wowm`
+  makes the difficulty a `uint8`; AzerothCore wins
+  (`Handlers/CalendarHandler.cpp:793-817`). The server ignores it for a
+  map without a permanent save or a flag that does not change
+  (`Handlers/CalendarHandler.cpp:799-805`).
 
 ## Left out
 
