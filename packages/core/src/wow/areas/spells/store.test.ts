@@ -166,7 +166,15 @@ describe("spells channel wiring", () => {
       update(1000, MOB);
       failure(MOB);
       update(0, MOB);
-      expect(seen).toEqual([]);
+      expect(
+        seen.filter(
+          (e) => e.type === "channel_start" || e.type === "channel_end",
+        ),
+      ).toEqual([]);
+      expect(seen.map((e) => e.type)).toEqual([
+        "unit_cast_start",
+        "unit_cast_end",
+      ]);
       expect(rig.handle.state().channel).toBeUndefined();
       expect(rig.stores.combat.casts.channel).toBeUndefined();
     } finally {

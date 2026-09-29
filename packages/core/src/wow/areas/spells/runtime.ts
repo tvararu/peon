@@ -119,6 +119,7 @@ export function spellsRuntime(
   const off = ctx.listen("entity", (event) => {
     if (event.type === "update" && event.entity.guid === ctx.selfGuid())
       store.selfFields(event.entity.rawFields);
+    if (event.type === "disappear") store.dropUnitCast(event.guid);
   });
   return {
     act: {

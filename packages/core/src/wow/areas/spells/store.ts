@@ -6,8 +6,10 @@ import type {
   SpellModifier,
   SpellVisual,
 } from "#wow/areas/spells/protocol";
+import type { UnitCast, UnitCastEvent } from "#wow/areas/spells/unit-casts";
+import { UnitCasts } from "#wow/areas/spells/unit-casts";
 import type { CombatChannel } from "#wow/combat-casts";
-import type { SpellFailure } from "#wow/protocol/spell";
+import type { SpellFailure, SpellGo, SpellStart } from "#wow/protocol/spell";
 import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
@@ -22,6 +24,7 @@ export type SpellsState = {
   barToggles: number | undefined;
   inactiveRanks: readonly number[];
   modifiers: Readonly<Record<SpellModifierKind, SpellModifierTotals>>;
+  unitCasts: readonly UnitCast[];
 };
 export type SpellsEvent =
   | {
@@ -31,7 +34,8 @@ export type SpellsEvent =
       target: bigint | undefined;
     }
   | { type: "channel_end"; spellId: number; reason: ChannelEndReason }
-  | { type: "spell_visual"; guid: bigint; kit: number; impact: boolean };
+  | { type: "spell_visual"; guid: bigint; kit: number; impact: boolean }
+  | UnitCastEvent;
 
 const END_TOLERANCE_MS = 400;
 const CHANNEL_SPELL = UNIT_FIELDS.CHANNEL_SPELL.offset;
@@ -56,6 +60,7 @@ export class SpellsStore {
   private readonly events = new Emitter<[SpellsEvent]>();
   private readonly deps: SessionDeps;
   private readonly core: CoreStores;
+  private readonly units: UnitCasts;
   private failed = false;
   private fieldSeen = false;
   private fieldTarget: bigint | undefined;
@@ -69,6 +74,9 @@ export class SpellsStore {
   constructor(deps: SessionDeps, core: CoreStores) {
     this.deps = deps;
     this.core = core;
+    this.units = new UnitCasts(deps, core.combat, (event) =>
+      this.events.emit(event),
+    );
   }
 
   snapshot(): SpellsState {
@@ -84,6 +92,7 @@ export class SpellsStore {
         flat: totals(this.modifiers.flat),
         pct: totals(this.modifiers.pct),
       },
+      unitCasts: this.units.snapshot(),
     };
   }
 
@@ -92,7 +101,18 @@ export class SpellsStore {
   }
 
   channelStart(packet: ChannelStart): void {
-    if (packet.caster !== this.deps.selfGuid()) return;
+    if (packet.caster !== this.deps.selfGuid()) {
+      if (packet.durationMs === undefined) return;
+      this.units.start({
+        durationMs: packet.durationMs,
+        guid: packet.caster,
+        kind: "channel",
+        spellId: packet.spellId,
+        startedAt: this.deps.now(),
+        target: undefined,
+      });
+      return;
+    }
     this.failed = false;
     this.fieldSeen = false;
     this.fieldTarget = undefined;
@@ -110,16 +130,51 @@ export class SpellsStore {
   }
 
   channelUpdate(packet: ChannelUpdate): void {
-    if (packet.caster !== this.deps.selfGuid()) return;
+    if (packet.caster !== this.deps.selfGuid()) {
+      if (packet.remainingMs > 0) return;
+      const entry = this.units.castOf(packet.caster);
+      if (entry?.kind === "channel")
+        this.units.end(packet.caster, entry.spellId, "finished");
+      return;
+    }
     if (packet.remainingMs > 0)
       this.core.combat.casts.updateChannel(packet.remainingMs);
     else this.end();
   }
 
+  spellStart(packet: SpellStart): void {
+    if (packet.caster === this.deps.selfGuid()) return;
+    if (packet.timer <= 0) return;
+    this.units.start({
+      durationMs: packet.timer,
+      guid: packet.caster,
+      kind: "cast",
+      spellId: packet.spellId,
+      startedAt: this.deps.now(),
+      target: packet.targets.objectGuid,
+    });
+  }
+
+  spellGo(packet: SpellGo): void {
+    if (packet.caster === this.deps.selfGuid()) return;
+    this.units.end(packet.caster, packet.spellId, "succeeded");
+  }
+
   spellFailure(packet: SpellFailure): void {
-    if (packet.caster !== this.deps.selfGuid()) return;
+    if (packet.caster !== this.deps.selfGuid()) {
+      this.units.end(packet.caster, packet.spellId, "interrupted");
+      return;
+    }
     if (this.core.combat.casts.channel?.spellId === packet.spellId)
       this.failed = true;
+  }
+
+  dropUnitCast(guid: bigint): void {
+    this.units.drop(guid);
+  }
+
+  castOf(guid: bigint): UnitCast | undefined {
+    return this.units.castOf(guid);
   }
 
   unlearnSpells(spellIds: readonly number[]): void {
