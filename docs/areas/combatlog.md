@@ -4,7 +4,8 @@ The `combatlog` area turns the server's combat log into entries. World
 service code reads them through `session.areas.combatlog.state()`: a ring
 of the last 500 entries, the totals of the current fight and of the last
 one, the last 20 kills, the character's combo points, and the count of
-dropped entries. Each entry names its kind (`melee`, `spell_damage` or
+dropped entries. Each entry names its kind (`melee`, `spell_damage`,
+`periodic_damage`, `heal`, `periodic_heal`, `energize`, `periodic_power` or
 `kill` now), the source and target guids, the amount, and the
 optional spell, overkill, school mask, absorbed, resisted and blocked
 amounts, the crit flag and the outcome (`miss`, `dodge`, `parry`, `block`,
@@ -14,7 +15,8 @@ one `kill` event per kill, one `combo_points` event per combo point
 update and one `fight_closed` event per fight. The state also lists the
 immunities the character met: the creature entry and spell id of each
 spell a creature refused, once per pair. The harness writes three quiet
-`log` rows from them and no row for any other event:
+`log` rows from them, one `passive` row for heals from others, and no row
+for any other event:
 
 - `combatlog/immune` when a spell or swing of the character meets an
   immune unit: an `immune` entry, a `miss` entry with outcome `immune`
@@ -23,6 +25,15 @@ spell a creature refused, once per pair. The harness writes three quiet
   immune to spell 122.` It is written once per creature entry and spell
   in a session, or once per unit and spell for a unit that is not a
   creature.
+- `combatlog/heal_in` (class `passive`) when another unit heals the
+  character: `Mate heals you for 540.` The first heal from a healer
+  writes the row; later heals from the same healer less than 10 seconds
+  after the last row write nothing (a suppressed heal does not move the
+  window). The amount is the effective heal. Self-heals, heals with no
+  caster (a periodic tick can carry an empty caster guid,
+  `Entities/Unit/Unit.cpp:6564-6566`) and heals that were all overheal
+  write nothing. The last-row time per healer lives in the rule closure;
+  the rule arms no timer.
 - `combatlog/fight` when a fight closes: `Fight over: dealt 312, took 145
   (1 dodge, 1 resist).` The text adds `, healed N` when the character
   was healed, and drops the brackets when nothing was avoided.
@@ -77,6 +88,18 @@ goes to the unit in the entity store, not to the combat log.
   entity store does not know, or for a power index past the seventh,
   changes nothing. It adds no entry and emits no area event.
 
+- The entry fields per kind. Amounts follow the plan ruling SR2-combat-log-3:
+  damage `amount` stays as the server sent it, and heal `amount` is the
+  effective heal, the gross heal minus the overheal, which `over` holds.
+  So the fight total `healed` counts effective healing only. `heal` and
+  `periodic_heal` carry `absorbed` and `crit`; `energize` and
+  `periodic_power` carry `power` (0 is mana, and the field is kept at 0)
+  and `amount`; `periodic_damage` carries `over`, `schoolMask`,
+  `absorbed`, `resisted` and `crit`. The mana leech tick (aura 64) reads
+  its `f32` multiplier and drops it, because an entry has no float field.
+  The source is the caster and the target the victim in all of them.
+- An entry whose source is `0n` never marks an attacker.
+
 ## Wire notes
 
 AzerothCore wins over wow_messages in each of these disagreements. The
@@ -129,6 +152,25 @@ last two items, which are not disagreements.
   (`Spells/SpellEffects.cpp:1553`), and logs feed pet as an item entry
   (`Spells/SpellEffects.cpp:4758`).
 
+- `SMSG_SPELLHEALLOG` writes the victim and the caster as packed guids,
+  the spell, the gross heal, the overheal (gross minus effective), the
+  absorb, a crit `u8` and one unused byte
+  (`Entities/Unit/Unit.cpp:8098-8107`).
+- `SMSG_SPELLENERGIZELOG` writes the victim and the caster as packed
+  guids, the spell, the power type `u32` and the amount `u32`
+  (`Entities/Unit/Unit.cpp:8128-8134`).
+- `SMSG_PERIODICAURALOG` writes the victim and the caster as packed
+  guids (`Entities/Unit/Unit.cpp:6564-6566`), the spell, a count that is
+  always 1 (`Entities/Unit/Unit.cpp:6567`), then per effect the aura
+  type and a body by type: damage (auras 3 and 89) is amount, overkill,
+  school mask `u32`, absorb, resist and a crit `u8`
+  (`Entities/Unit/Unit.cpp:6583-6588`); heal (auras 8 and 20) is amount,
+  overheal, absorb and crit (`Entities/Unit/Unit.cpp:6593-6596`); power
+  (auras 21 and 24) is the power type and the amount
+  (`Entities/Unit/Unit.cpp:6600-6601`); mana leech (aura 64) adds an
+  `f32` multiplier (`Entities/Unit/Unit.cpp:6604-6606`). The server sends
+  no other aura type (`Entities/Unit/Unit.cpp:6608-6610`), so the parser
+  throws on one.
 - `SMSG_PARTYKILLLOG` writes the killer and the victim as two full
   `u64` guids (`Entities/Unit/Unit.cpp:13583-13585`). The killer is the
   player that gets the kill: the owner of a pet or charmed killer
@@ -172,8 +214,6 @@ last two items, which are not disagreements.
 - `EngageAfter.dealt`, `taken`, `healed`, `avoided` and `immune` are
   optional, because `tools/engage.ts` builds an empty block.
 
-- `SMSG_SPELLHEALLOG`, `SMSG_SPELLENERGIZELOG` and
-  `SMSG_PERIODICAURALOG`: built by `combat-log-2`.
 - `SMSG_SPELLLOGMISS`, `SMSG_SPELLORDAMAGE_IMMUNE`,
   `SMSG_SPELLDAMAGESHIELD`, `SMSG_ENVIRONMENTAL_DAMAGE_LOG` and
   `SMSG_SPELLINSTAKILLLOG`: built by `combat-log-3`.
@@ -200,6 +240,9 @@ No verb (N23).
 | `SMSG_PARTYKILLLOG` | `live` | probe flow `combatlog-fight` (`--arg spell=133`, `--expect` 0x1F5) on an `eversong10-mage` moved to East Sanctum with `soap gm tele EastSanctum`, exit 0; 1 received, `handled`, when the character killed an Angershade (killer 0xe06, the character; victim 0xf130003d28014808), and `state.kills` held one kill with `killerKind` `self` and `ourTarget` true. The protocol test parses this body, and a body the server sent in an earlier run, before the handler existed | `Entities/Unit/Unit.cpp:13583-13585` |
 | `SMSG_UPDATE_COMBO_POINTS` | `mock` | not seen live: no preset is a rogue or a druid, and `soap gm` cannot change a class. The maintainer can add a rogue preset for a live proof. The area test injects bodies built from the writer, with and without a target | `Entities/Unit/Unit.cpp:12851-12857` |
 | `SMSG_POWER_UPDATE` | `live` | probe flow `combatlog-fight` (`--arg spell=133`, `--expect` 0x480) on an `eversong10-mage` moved to East Sanctum with `soap gm tele EastSanctum`, exit 0; 8 received, all `handled`: the character's powers at login, its mana (power 0) falling from 621 to 601 just before the first Fireball's `SMSG_SPELL_GO`, and power 0 of the Angershade it killed (victim 0xf130003d28015b6b, value 0). The protocol test parses both bodies | `Entities/Unit/Unit.cpp:12015-12019` |
+| `SMSG_SPELLHEALLOG` | `live` | probe flow `combatlog-use` (`--arg item=118`, `--expect SMSG_SPELLHEALLOG --bodies`) on an `eversong10-mage` moved to East Sanctum with `soap gm tele EastSanctum` and hurt in a `combatlog-fight` first, exit 0; 1 received, `handled`: the character healed itself with a Minor Healing Potion (spell 439) for 71, overheal 0, absorb 0, no crit, and the flow counted one `heal out` entry. The potion fails with `SMSG_CAST_FAILED` at full health. A heal from another unit was not tried live | `Entities/Unit/Unit.cpp:8098-8107` |
+| `SMSG_SPELLENERGIZELOG` | `live` | probe flow `combatlog-use` (`--arg item=2455`, `--expect SMSG_SPELLENERGIZELOG --bodies`) on an `eversong10-mage` after a Frost Armor cast spent mana, exit 0; 1 received, `handled`: a Minor Mana Potion (spell 437) gave the character 150 mana (power 0) | `Entities/Unit/Unit.cpp:8128-8134` |
+| `SMSG_PERIODICAURALOG` | `live` | probe flow `combatlog-fight` (`--arg spell=133`, `--expect SMSG_PERIODICAURALOG --bodies`) on an `eversong10-mage` moved to East Sanctum with `soap gm tele EastSanctum`, exit 0; 2 received, `handled`: Fireball's burn (spell 133, aura 3, 1 fire damage, school mask 4) on an Angershade, and the flow counted `periodic_damage out` 2. The heal (auras 8 and 20), power (21 and 24) and mana leech (64) families are not seen live: their parsers and entries are tested from the writer | `Entities/Unit/Unit.cpp:6563-6606` |
 | `SMSG_PROCRESIST` | `dead` | its only writer, `Unit::SendSpellDamageResist`, has no caller: the declaration and the definition are the only hits | `Entities/Unit/Unit.cpp:6616-6624` |
 | `SMSG_FEIGN_DEATH_RESISTED` | `dead` | both send sites are inside comment blocks | `Spells/Auras/SpellAuraEffects.cpp:2953-2958` |
 | `SMSG_HEALTH_UPDATE` | `dead` | no send site: only the opcode list and the opcode table name it | `Server/Protocol/Opcodes.h:1181` |
