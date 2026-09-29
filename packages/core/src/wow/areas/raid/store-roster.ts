@@ -1,0 +1,162 @@
+import { Emitter, type Unsubscribe } from "#lib/emitter";
+import {
+  RAID_ASSISTANT_FLAG,
+  RAID_MAIN_ASSIST_FLAG,
+  RAID_MAIN_TANK_FLAG,
+  type RaidGroup,
+} from "#wow/areas/raid/protocol";
+
+export type RaidChange =
+  | { kind: "converted" }
+  | { kind: "subgroup"; name: string; from: number; to: number }
+  | {
+      kind: "flag";
+      name: string;
+      flag: "assistant" | "main_tank" | "main_assist";
+      on: boolean;
+    }
+  | { kind: "loot" }
+  | { kind: "difficulty" }
+  | { kind: "joined"; name: string }
+  | { kind: "left"; name: string }
+  | { kind: "leader"; name: string }
+  | { kind: "disbanded" };
+
+export type RaidEvent =
+  | { type: "group_list"; group: RaidGroup; changes: readonly RaidChange[] }
+  | { type: "invite_blocked"; name: string }
+  | { type: "disbanded" };
+
+export type RaidState = { group: RaidGroup | undefined };
+
+const FLAG_NAMES = [
+  [RAID_ASSISTANT_FLAG, "assistant"],
+  [RAID_MAIN_TANK_FLAG, "main_tank"],
+  [RAID_MAIN_ASSIST_FLAG, "main_assist"],
+] as const;
+
+function sameLoot(a: RaidGroup["loot"], b: RaidGroup["loot"]): boolean {
+  return (
+    a?.method === b?.method &&
+    a?.master === b?.master &&
+    a?.threshold === b?.threshold
+  );
+}
+
+function sameDifficulty(
+  a: RaidGroup["difficulty"],
+  b: RaidGroup["difficulty"],
+): boolean {
+  return (
+    a?.dungeon === b?.dungeon && a?.raid === b?.raid && a?.heroic === b?.heroic
+  );
+}
+
+type Member = RaidGroup["members"][number];
+
+function converted(before: RaidGroup | undefined, after: RaidGroup): boolean {
+  return (
+    before !== undefined &&
+    (before.kind !== after.kind ||
+      before.battleground !== after.battleground ||
+      before.dungeonFinder?.status !== after.dungeonFinder?.status ||
+      before.dungeonFinder?.dungeonId !== after.dungeonFinder?.dungeonId)
+  );
+}
+
+function rosterChanges(
+  previous: Member | undefined,
+  member: Member,
+): RaidChange[] {
+  if (!previous) return [{ kind: "joined", name: member.name }];
+  const changes: RaidChange[] = [];
+  if (previous.subgroup !== member.subgroup)
+    changes.push({
+      from: previous.subgroup,
+      kind: "subgroup",
+      name: member.name,
+      to: member.subgroup,
+    });
+  for (const [bit, flag] of FLAG_NAMES)
+    if ((previous.flags & bit) !== (member.flags & bit))
+      changes.push({
+        flag,
+        kind: "flag",
+        name: member.name,
+        on: (member.flags & bit) !== 0,
+      });
+  return changes;
+}
+
+function leaderChange(
+  before: RaidGroup | undefined,
+  after: RaidGroup,
+): RaidChange | undefined {
+  if (!before || before.leader === after.leader) return undefined;
+  const leader = after.members.find((member) => member.guid === after.leader);
+  return leader ? { kind: "leader", name: leader.name } : undefined;
+}
+
+function flagChanges(
+  before: RaidGroup | undefined,
+  after: RaidGroup,
+): RaidChange[] {
+  const changes: RaidChange[] = [];
+  if (converted(before, after)) changes.push({ kind: "converted" });
+  const old = new Map(
+    (before?.members ?? []).map((member) => [member.guid, member]),
+  );
+  for (const member of after.members)
+    changes.push(...rosterChanges(old.get(member.guid), member));
+  const guids = new Set(after.members.map((member) => member.guid));
+  for (const member of before?.members ?? [])
+    if (!guids.has(member.guid))
+      changes.push({ kind: "left", name: member.name });
+  const leader = leaderChange(before, after);
+  if (leader) changes.push(leader);
+  return changes;
+}
+
+export class RaidStore {
+  private readonly events = new Emitter<[RaidEvent]>();
+  private group: RaidGroup | undefined;
+  private counter = 0;
+
+  snapshot(): RaidState {
+    return { group: this.group };
+  }
+
+  onEvent(cb: (event: RaidEvent) => void): Unsubscribe {
+    return this.events.subscribe(cb);
+  }
+
+  receiveList(packet: RaidGroup, counter: number): void {
+    if (counter <= this.counter && this.group !== undefined) return;
+    this.counter = counter;
+    if (packet.members.length === 0) {
+      if (this.group !== undefined) {
+        this.group = undefined;
+        this.events.emit({ type: "disbanded" });
+      }
+      return;
+    }
+    const before = this.group;
+    this.group = packet;
+    const changes = flagChanges(before, packet);
+    if (before && !sameLoot(before.loot, packet.loot))
+      changes.push({ kind: "loot" });
+    if (before && !sameDifficulty(before.difficulty, packet.difficulty))
+      changes.push({ kind: "difficulty" });
+    this.events.emit({ changes, group: packet, type: "group_list" });
+  }
+
+  receiveInviteBlocked(name: string): void {
+    this.events.emit({ name, type: "invite_blocked" });
+  }
+
+  dispose(): void {
+    this.events.clear();
+    this.group = undefined;
+    this.counter = 0;
+  }
+}
