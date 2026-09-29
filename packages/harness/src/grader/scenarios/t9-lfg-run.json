@@ -8,38 +8,38 @@
   "checks": [
     {
       "evidence": {
-        "events": ["lfg/role_check"]
+        "events": ["lfg/queued"]
       },
-      "expect": "GL has a lfg/role_check row for the queue the group-9a plan queued",
-      "id": "role-check",
+      "expect": "GL has an lfg/queued row for the run party queue",
+      "id": "queued",
       "source": "game_log"
     },
     {
       "evidence": {
         "events": ["lfg/proposal"]
       },
-      "expect": "GL has a lfg/proposal row for the dungeon group proposal",
+      "expect": "GL has an lfg/proposal row for the dungeon group proposal",
       "id": "proposal",
       "source": "game_log"
     },
     {
       "evidence": {
-        "events": ["lfg/proposal_answered"]
+        "events": ["lfg/role_chosen"]
       },
-      "expect": "GL has a lfg/proposal_answered row for the agent accepting the proposal",
-      "id": "proposal-answered",
+      "expect": "GL has lfg/role_chosen rows for every party member answering the role check",
+      "id": "roles-answered",
       "source": "game_log"
     },
     {
       "evidence": {
         "events": ["lfg/offer_continue"]
       },
-      "expect": "GL has a lfg/offer_continue row after a partner leaves the finished group",
+      "expect": "GL has an lfg/offer_continue row after a partner leaves the finished group",
       "id": "offer-continue",
       "source": "game_log"
     },
     {
-      "expect": "the session shows the agent calling the social tool with do accept_invite, then the dungeon tool with do queue and then with do teleport",
+      "expect": "the session shows the agent calling the social tool with do accept_invite, then the dungeon tool with do queue and then with do teleport out",
       "id": "queue-teleport",
       "source": "session"
     }
