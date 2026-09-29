@@ -127,7 +127,7 @@ character can trade again.
 
 ## Capabilities row
 
-Capabilities row: proposed in economy-5.
+Capabilities rows: give items and gold, take a trade offered, swap items, and refuse or cancel a trade, proven by `t9-trade-give`, `t9-trade-receive`, `t9-trade-swap` and `t9-trade-cancel` (see [capabilities.md](../capabilities.md)).
 
 ## Proof
 

@@ -1,0 +1,129 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 16,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "evidence": {
+        "items": [
+          159
+        ],
+        "truth": [
+          "inventory"
+        ],
+        "who": "agent"
+      },
+      "expect": "agent T final holds no item 159 (Refreshing Spring Water); the setup added one stack of 5 and the agent gave it",
+      "id": "agent-water-down",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "items": [
+          159
+        ],
+        "truth": [
+          "inventory"
+        ],
+        "who": "partner1"
+      },
+      "expect": "partner T final holds 25 of item 159 (the mage preset carries 20 and received 5)",
+      "id": "partner-water-up",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": [
+          "trade/completed"
+        ]
+      },
+      "expect": "GL has a trade/completed row",
+      "id": "trade-completed",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent calling the trade tool with do give, not ending REFUSED",
+      "id": "give-called",
+      "source": "session"
+    }
+  ],
+  "id": "t9-trade-give",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "partnerActions": [
+    {
+      "argv": [
+        "call",
+        "walkToPlayer",
+        "[\"<AGENT>\"]"
+      ],
+      "at": {
+        "delayMs": 0,
+        "kind": "trigger",
+        "trigger": "task_landed"
+      },
+      "windowMs": 90000
+    },
+    {
+      "argv": [
+        "send",
+        "-w",
+        "<AGENT>",
+        "hi, could you give me your Refreshing Spring Water? Please send me a trade request."
+      ],
+      "at": {
+        "kind": "elapsed",
+        "ms": 5000
+      },
+      "windowMs": 90000
+    },
+    {
+      "argv": [
+        "call",
+        "tradeAnswer",
+        "[\"yes\"]"
+      ],
+      "at": {
+        "kind": "elapsed",
+        "ms": 1000
+      },
+      "windowMs": 90000
+    },
+    {
+      "argv": [
+        "call",
+        "tradeAcceptOffered"
+      ],
+      "at": {
+        "kind": "elapsed",
+        "ms": 1000
+      },
+      "windowMs": 90000
+    }
+  ],
+  "partners": [
+    {
+      "preset": "eversong10-mage",
+      "role": "partner"
+    }
+  ],
+  "preset": "eversong10",
+  "setup": [
+    {
+      "body": {
+        "count": 5,
+        "item": 159
+      },
+      "endpoint": "items/add"
+    }
+  ],
+  "spawn": "eversong",
+  "steers": [],
+  "task": "A player will come to you and whisper a request for water. Give them your water.",
+  "tier": 9
+}
