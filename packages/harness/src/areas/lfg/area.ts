@@ -1,54 +1,82 @@
 import type { AreaEventOf, AreaState } from "@peon/core";
 import type { AreaDraft } from "#harness/areas/contract";
 import { defineHarnessArea } from "#harness/areas/contract";
+import type { RuleInput } from "#harness/events/rules";
 
 type LfgEvent = AreaEventOf<"lfg">;
 type LfgState = AreaState<"lfg">;
 
-function statusText(event: Extract<LfgEvent, { type: "status" }>): string {
-  if (event.source === "search")
-    return event.updateType === 3
-      ? "Dungeon finder list updated."
-      : "Dungeon finder list closed.";
+const QUEUE_ROW_MS = 60_000;
+
+function statusLog(event: Extract<LfgEvent, { type: "status" }>): AreaDraft {
+  return {
+    class: "log",
+    data: {
+      previous: event.previous,
+      source: event.source,
+      status: event.status,
+      updateType: event.updateType,
+    },
+    name: "status",
+    text: statusLogText(event),
+  };
+}
+
+function statusLogText(event: Extract<LfgEvent, { type: "status" }>): string {
+  if (event.source === "search") return "Dungeon finder list updated.";
   if (event.status === "queued") return "Queued for the dungeon finder.";
   if (event.status === "proposal") return "A dungeon group is ready.";
-  return event.previous === "none"
-    ? "Not queued for the dungeon finder."
-    : "Left the dungeon finder queue.";
+  return "Left the dungeon finder queue.";
 }
 
-function status(event: Extract<LfgEvent, { type: "status" }>): AreaDraft[] {
-  return [
-    {
-      class: "log",
-      data: {
-        previous: event.previous,
-        source: event.source,
-        status: event.status,
-        updateType: event.updateType,
+function status(
+  event: Extract<LfgEvent, { type: "status" }>,
+  memo: { lastQueueRow: number },
+): AreaDraft[] {
+  if (event.source === "search") return [statusLog(event)];
+  if (event.status === "queued" && event.previous !== "queued")
+    return [
+      {
+        class: "passive",
+        data: { updateType: event.updateType },
+        name: "queued",
+        text: "Queued for the dungeon finder.",
       },
-      name: "status",
-      text: statusText(event),
-    },
-  ];
+    ];
+  if (
+    event.status === "none" &&
+    (event.previous === "queued" || event.previous === "proposal")
+  ) {
+    memo.lastQueueRow = 0;
+    return [
+      {
+        class: "passive",
+        data: { previous: event.previous, updateType: event.updateType },
+        name: "left",
+        text: "Left the dungeon finder queue.",
+      },
+    ];
+  }
+  if (event.status === event.previous) return [];
+  return [statusLog(event)];
 }
 
-function dungeons(event: Extract<LfgEvent, { type: "dungeons" }>): AreaDraft[] {
-  return [
-    {
-      class: "log",
-      data: { scope: event.scope },
-      name: "dungeons",
-      text:
-        event.scope === "player"
-          ? "Dungeon finder list received."
-          : "Party lock list received.",
-    },
-  ];
-}
 function joinResult(
   event: Extract<LfgEvent, { type: "join_result" }>,
 ): AreaDraft[] {
+  if (event.reason !== "ok")
+    return [
+      {
+        class: "passive",
+        data: {
+          reason: event.reason,
+          result: event.result,
+          state: event.state,
+        },
+        name: "refused",
+        text: `The dungeon finder refused the queue request: ${event.reason}.`,
+      },
+    ];
   return [
     {
       class: "log",
@@ -58,21 +86,29 @@ function joinResult(
         state: event.state,
       },
       name: "join_result",
-      text:
-        event.reason === "ok"
-          ? "Joined the dungeon finder queue."
-          : "The dungeon finder refused the queue request.",
+      text: "Joined the dungeon finder queue.",
     },
   ];
 }
 
-function queue(event: Extract<LfgEvent, { type: "queue" }>): AreaDraft[] {
+function queueWait(queuedTime: number): string {
+  const waited = Math.max(0, queuedTime);
+  return waited >= 60 ? `${Math.round(waited / 60)} min` : `${waited} s`;
+}
+
+function queue(
+  event: Extract<LfgEvent, { type: "queue" }>,
+  rc: RuleInput,
+  memo: { lastQueueRow: number },
+): AreaDraft[] {
+  if (rc.now - memo.lastQueueRow < QUEUE_ROW_MS) return [];
+  memo.lastQueueRow = rc.now;
   return [
     {
-      class: "log",
+      class: "passive",
       data: { dungeon: event.dungeon, queuedTime: event.queuedTime },
       name: "queue",
-      text: "Still waiting in the dungeon finder queue.",
+      text: `Still waiting in the dungeon finder queue: ${queueWait(event.queuedTime)}.`,
     },
   ];
 }
@@ -80,15 +116,21 @@ function queue(event: Extract<LfgEvent, { type: "queue" }>): AreaDraft[] {
 function roleCheck(
   event: Extract<LfgEvent, { type: "role_check" }>,
 ): AreaDraft[] {
+  if (event.stateName === "initializing")
+    return [
+      {
+        class: "wake",
+        data: { state: event.state, stateName: event.stateName },
+        name: "role_check",
+        text: 'A role check started: answer with dungeon(do: "roles").',
+      },
+    ];
   return [
     {
       class: "log",
       data: { state: event.state, stateName: event.stateName },
       name: "role_check",
-      text:
-        event.stateName === "initializing"
-          ? "A role check started."
-          : "The role check changed.",
+      text: "The role check changed.",
     },
   ];
 }
@@ -113,6 +155,20 @@ const PROPOSAL_TEXT: Readonly<Record<number, string>> = {
 };
 
 function proposal(event: Extract<LfgEvent, { type: "proposal" }>): AreaDraft[] {
+  if (event.state === 0 && !event.selfAnswered)
+    return [
+      {
+        class: "wake",
+        data: {
+          deadline: event.deadline,
+          dungeon: event.dungeon,
+          id: event.id,
+          state: event.state,
+        },
+        name: "proposal",
+        text: "A dungeon group proposal is waiting for an answer.",
+      },
+    ];
   return [
     {
       class: "log",
@@ -124,6 +180,22 @@ function proposal(event: Extract<LfgEvent, { type: "proposal" }>): AreaDraft[] {
 }
 
 function boot(event: Extract<LfgEvent, { type: "boot_vote" }>): AreaDraft[] {
+  if (event.inProgress)
+    return [
+      {
+        class: "wake",
+        data: {
+          agrees: event.agrees,
+          deadline: event.deadline,
+          inProgress: event.inProgress,
+          needed: event.needed,
+          victim: `${event.victim}`,
+          votes: event.votes,
+        },
+        name: "boot_vote",
+        text: `A kick vote is open: ${event.agrees} of ${event.needed} needed agree.`,
+      },
+    ];
   return [
     {
       class: "log",
@@ -135,9 +207,7 @@ function boot(event: Extract<LfgEvent, { type: "boot_vote" }>): AreaDraft[] {
         votes: event.votes,
       },
       name: "boot_vote",
-      text: event.inProgress
-        ? `A kick vote is open: ${event.agrees} of ${event.needed} needed agree.`
-        : "The kick vote ended.",
+      text: "The kick vote ended.",
     },
   ];
 }
@@ -147,9 +217,9 @@ function teleportDenied(
 ): AreaDraft[] {
   return [
     {
-      class: "log",
+      class: "passive",
       data: { code: event.code, reason: event.reason },
-      name: "teleport_denied",
+      name: "teleport_refused",
       text: `The dungeon teleport was denied: ${event.reason}.`,
     },
   ];
@@ -180,21 +250,26 @@ function reward(event: Extract<LfgEvent, { type: "reward" }>): AreaDraft[] {
         xp: event.xp,
       },
       name: "reward",
+      progress: true,
       text: `Dungeon reward: ${event.money} copper, ${event.xp} experience, ${event.itemCount} item${event.itemCount === 1 ? "" : "s"}.`,
     },
   ];
 }
 
-function rule(event: LfgEvent): AreaDraft[] {
+function rule(
+  event: LfgEvent,
+  rc: RuleInput,
+  memo: { lastQueueRow: number },
+): AreaDraft[] {
   switch (event.type) {
     case "status":
-      return status(event);
+      return status(event, memo);
     case "dungeons":
-      return dungeons(event);
+      return [];
     case "join_result":
       return joinResult(event);
     case "queue":
-      return queue(event);
+      return queue(event, rc, memo);
     case "role_check":
       return roleCheck(event);
     case "role_chosen":
@@ -238,9 +313,12 @@ function attach(state: LfgState): AreaDraft[] {
 
 export const lfgHarness = defineHarnessArea({
   area: "lfg",
-  rules: () => ({
-    attach: (state) => attach(state),
-    event: (event) => rule(event),
-  }),
+  rules: () => {
+    const memo = { lastQueueRow: 0 };
+    return {
+      attach: (state) => attach(state),
+      event: (event, rc) => rule(event, rc, memo),
+    };
+  },
   worldActs: ["requestDungeons", "requestPartyLocks", "requestStatus"],
 });
