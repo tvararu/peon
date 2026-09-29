@@ -119,6 +119,7 @@ export class TradeStore {
       return;
     }
     if (REFUSE_STATUSES[name]) {
+      this.abandon();
       this.last = { kind: "refused", status: name };
       this.events.emit({ status: name, type: "refused" });
     }

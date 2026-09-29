@@ -101,6 +101,25 @@ describe("trade store", () => {
     }
   });
 
+  test("a refusal after requestTrade frees the request so the next one may start", () => {
+    const rig = areaRig("trade", { selfGuid: TRADE_SELF });
+    try {
+      rig.handle.act.requestTrade(TRADE_PARTNER).catch(() => undefined);
+      expect(rig.handle.state().phase).toBe("requested_out");
+      rig.inject(
+        GameOpcode.SMSG_TRADE_STATUS,
+        tradeStatusBody(TRADE_STATUS.TARGET_TO_FAR),
+      );
+      expect(rig.handle.state()).toMatchObject({
+        lastOutcome: { kind: "refused", status: "target_to_far" },
+        phase: "idle",
+        with: undefined,
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("dispatch handles SMSG_TRADE_STATUS and the stub pair is gone", () => {
     const rig = tradeRig();
     try {

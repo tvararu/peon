@@ -55,6 +55,7 @@ async function waitFor(
   }
   return value ?? (await settle(read));
 }
+const MAX_WALK_YARDS = 20;
 type TradeAnswer = "yes" | "busy" | "ignore";
 
 function parseAnswer(raw: string | undefined): TradeAnswer | undefined {
@@ -70,13 +71,22 @@ function parseTarget(raw: string | undefined): bigint | undefined {
 async function walkAway(
   handle: WorldHandle,
   away: number | undefined,
-): Promise<void> {
-  if (away === undefined || away <= 0) return;
-  const me = others(handle).find((row) => row.distance !== null);
-  if (!me?.position) return;
-  const { x, y, z } = me.position;
-  await handle.walkTowardPoint({ x, y, z }, 0);
-  await handle.walkTowardPoint({ x: x + away, y, z }, away);
+): Promise<Json | undefined> {
+  if (away === undefined || away <= 0) return undefined;
+  const pose = handle.getControlState().pose;
+  if (!pose) throw new Error("trade-window needs a pose to walk away.");
+  const destination = { x: pose.x + away, y: pose.y, z: pose.z };
+  const yards = Math.min(away, MAX_WALK_YARDS);
+  let outcome = await handle.walkTowardPoint(destination, yards);
+  for (
+    let tries = 0;
+    outcome.reason === "missing_speed" && tries < 30;
+    tries++
+  ) {
+    await Bun.sleep(200);
+    outcome = await handle.walkTowardPoint(destination, yards);
+  }
+  return json(outcome);
 }
 
 function requestedFrom(handle: WorldHandle): Json | undefined {
@@ -93,9 +103,9 @@ async function runTarget(
   away: number | undefined,
 ): Promise<Json> {
   const { handle } = ctx;
-  await walkAway(handle, away);
+  const walked = await walkAway(handle, away);
   const outcome = await attempt(() => handle.trade.act.requestTrade(target));
-  return json({ outcome, state: handle.trade.state() });
+  return json({ outcome, state: handle.trade.state(), walked });
 }
 
 async function runAnswer(ctx: FlowContext, answer: TradeAnswer): Promise<Json> {
