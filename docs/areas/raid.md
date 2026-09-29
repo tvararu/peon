@@ -271,12 +271,14 @@ B partner) through their puppets, A's with `--packet-trace headers`
 
 No verb (N23).
 
-Remove a member with a reason (`t9-raid-kick`, round 65 replica 2,
-`pass` 3/3): the agent joined, took the lead on the timer handoff,
-and kicked the partner with reason `test`; the game log shows the
-raid `roster` disband row and both console reads match "not in a
-group". A party of two disbands, so the kicker sees `disbanded`, not
-a `left` row.
+Remove a member with a reason (`t9-raid-kick`, round 65 replica 2 and
+round 69 replica 1, both `pass` 3/3; run directories not committed): the
+agent joined, took the lead on the timer handoff, and kicked the
+partner with reason `test`; the game log shows the raid `roster`
+disband row and the partner console read matches "not in a group". A
+party of two disbands, so the kicker sees `disbanded`, not a `left`
+row. The round 69 run needed the rescue nudge because the leader change
+does not wake an idle agent.
 
 ## Proof
 
