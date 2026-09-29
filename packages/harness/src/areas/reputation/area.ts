@@ -1,4 +1,4 @@
-import { RANK_NAMES, type AreaEventOf } from "@peon/core";
+import { type AreaEventOf, RANK_NAMES } from "@peon/core";
 import type { AreaDraft } from "#harness/areas/contract";
 import { defineHarnessArea } from "#harness/areas/contract";
 import type { RuleInput } from "#harness/events/rules";
