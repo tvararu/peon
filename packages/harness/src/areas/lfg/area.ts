@@ -106,6 +106,85 @@ function roleChosen(
   ];
 }
 
+const PROPOSAL_TEXT: Readonly<Record<number, string>> = {
+  0: "A dungeon group proposal is waiting for an answer.",
+  1: "The dungeon group proposal failed.",
+  2: "The dungeon group proposal succeeded.",
+};
+
+function proposal(event: Extract<LfgEvent, { type: "proposal" }>): AreaDraft[] {
+  return [
+    {
+      class: "log",
+      data: { dungeon: event.dungeon, id: event.id, state: event.state },
+      name: "proposal",
+      text: PROPOSAL_TEXT[event.state] ?? "The dungeon group proposal changed.",
+    },
+  ];
+}
+
+function boot(event: Extract<LfgEvent, { type: "boot" }>): AreaDraft[] {
+  return [
+    {
+      class: "log",
+      data: {
+        agrees: event.agrees,
+        inProgress: event.inProgress,
+        needed: event.needed,
+        victim: `${event.victim}`,
+        votes: event.votes,
+      },
+      name: "boot",
+      text: event.inProgress
+        ? `A kick vote is open: ${event.agrees} of ${event.needed} needed agree.`
+        : "The kick vote ended.",
+    },
+  ];
+}
+
+function teleportDenied(
+  event: Extract<LfgEvent, { type: "teleport_denied" }>,
+): AreaDraft[] {
+  return [
+    {
+      class: "log",
+      data: { code: event.code, reason: event.reason },
+      name: "teleport_denied",
+      text: `The dungeon teleport was denied: ${event.reason}.`,
+    },
+  ];
+}
+
+function offerContinue(
+  event: Extract<LfgEvent, { type: "offer_continue" }>,
+): AreaDraft[] {
+  return [
+    {
+      class: "log",
+      data: { entry: event.entry },
+      name: "offer_continue",
+      text: "The dungeon finder offers to fill the group again.",
+    },
+  ];
+}
+
+function reward(event: Extract<LfgEvent, { type: "reward" }>): AreaDraft[] {
+  return [
+    {
+      class: "log",
+      data: {
+        dungeon: event.dungeon,
+        itemCount: event.itemCount,
+        money: event.money,
+        randomDungeon: event.randomDungeon,
+        xp: event.xp,
+      },
+      name: "reward",
+      text: `Dungeon reward: ${event.money} copper, ${event.xp} experience, ${event.itemCount} item${event.itemCount === 1 ? "" : "s"}.`,
+    },
+  ];
+}
+
 function rule(event: LfgEvent): AreaDraft[] {
   switch (event.type) {
     case "status":
@@ -120,8 +199,20 @@ function rule(event: LfgEvent): AreaDraft[] {
       return roleCheck(event);
     case "role_chosen":
       return roleChosen(event);
-    default:
-      return [];
+    case "proposal":
+      return proposal(event);
+    case "boot":
+      return boot(event);
+    case "teleport_denied":
+      return teleportDenied(event);
+    case "offer_continue":
+      return offerContinue(event);
+    case "reward":
+      return reward(event);
+    default: {
+      const unhandled: never = event;
+      return unhandled;
+    }
   }
 }
 
