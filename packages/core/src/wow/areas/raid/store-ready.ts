@@ -71,6 +71,12 @@ function summary(
   };
 }
 
+function answerFor(ready: boolean, status: number): ReadyAnswer {
+  if (ready) return "ready";
+  if (isOnline(status)) return "not_ready";
+  return "offline";
+}
+
 export class ReadyStore {
   private check: ReadyCheck | undefined;
 
@@ -105,11 +111,7 @@ export class ReadyStore {
     const check = this.check;
     const member = group?.members.find((entry) => entry.guid === guid);
     if (!check || check.finishedAt !== undefined || !member) return undefined;
-    const answer: ReadyAnswer = ready
-      ? "ready"
-      : isOnline(member.status)
-        ? "not_ready"
-        : "offline";
+    const answer = answerFor(ready, member.status);
     this.check = {
       ...check,
       answers: new Map(check.answers).set(guid, answer),
