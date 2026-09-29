@@ -213,7 +213,7 @@ export type RestAfter = {
 };
 
 export type RecoverAfter = {
-  via: "corpse" | "spirit_healer" | "accept";
+  via: "corpse" | "spirit_healer" | "accept" | "self";
   alive: boolean;
   durationMs: number;
   corpseYd: number | undefined;

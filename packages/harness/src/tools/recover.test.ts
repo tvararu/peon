@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import type { RecoverAfter } from "#harness/contract/details";
 import { recoverSpec } from "#harness/tools/recover";
 import {
@@ -96,7 +96,7 @@ describe("recover", () => {
       status: "FAILED",
     });
     expect(res.body[0]).toMatch(
-      /^Other ways: spirit healer u\d+ 34 yd.* \(resurrection sickness\)\. No resurrection offer\.$/,
+      /^Other ways: spirit healer u\d+ 34 yd.* \(resurrection sickness\)\. No resurrection offer\. No self-resurrection spell\.$/,
     );
   });
 
@@ -113,6 +113,72 @@ describe("recover", () => {
       reason: "too_far",
       status: "REFUSED",
     });
+  });
+
+  test("self: alive again where you died, with the spell name", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { hp: 0, life: "ghost", maxHp: 217 });
+    t.handle.spellDefinition = (id) =>
+      id === 21_169 ? ({ id, name: "Reincarnation" } as never) : undefined;
+    jest.spyOn(t.handle.selfstate, "state").mockReturnValue({
+      collisionHeight: undefined,
+      ghostPending: false,
+      lastTransferAbort: undefined,
+      selfResSpell: 21_169,
+      standState: "stand",
+      timers: {},
+    });
+    t.handle.selfstate.act.selfResurrect = async () => {
+      setSelf(t.handle, {
+        hp: 108,
+        life: "alive",
+        maxHp: 217,
+        x: 8766,
+        y: -6560,
+      });
+      return { status: "ok" };
+    };
+    const res = await recoverSpec.run(
+      { how: "self" },
+      toolCtx<RecoverAfter>(t),
+    );
+    const text = contentOf(res);
+    expect(limitProblem(text)).toBeUndefined();
+    expect(text).toBe(
+      "DONE alive again where you died (8766, -6560) (Reincarnation), after 0 s. HP 108/217.",
+    );
+    expect(res.after.via).toBe("self");
+  });
+
+  test("self without the spell refuses and names the other ways", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { life: "dead" });
+    t.handle.selfstate.act.selfResurrect = async () => ({
+      reason: "no_self_res",
+      status: "refused",
+    });
+    const res = await recoverSpec.run(
+      { how: "self" },
+      toolCtx<RecoverAfter>(t),
+    );
+    expect(res).toMatchObject({ reason: "no_self_res", status: "FAILED" });
+    expect(res.body[0]).toContain("Other ways:");
+  });
+  test("self silence reports the no-resurrection-aura note", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { life: "ghost" });
+    t.handle.selfstate.act.selfResurrect = async () => ({
+      status: "no_answer",
+    });
+    const res = await recoverSpec.run(
+      { how: "self" },
+      toolCtx<RecoverAfter>(t),
+    );
+    expect(res).toMatchObject({
+      reason: "self_res_unanswered",
+      status: "FAILED",
+    });
+    expect(res.body[1]).toContain("no-resurrection aura");
   });
 
   test("refuses while alive", async () => {

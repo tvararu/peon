@@ -25,6 +25,7 @@ const HOWS = new Map<string, RecoverHow>([
   ["corpse", "corpse"],
   ["spirit_healer", "spirit_healer"],
   ["accept", "accept"],
+  ["self", "self"],
 ]);
 const HUMAN_WROTE = "The human wrote a message. Read it before you act.";
 
@@ -56,10 +57,18 @@ function afterOf(
   };
 }
 
+function selfName(ctx: ViewCtx): string {
+  const spellId = ctx.handle.selfstate.state().selfResSpell;
+  if (spellId === 0) return "a self-resurrection";
+  return ctx.handle.spellDefinition(spellId)?.name ?? `spell ${spellId}`;
+}
+
 function viaText(op: RecoverOpResult, ctx: ViewCtx): string {
   const { via } = op;
   if (via === "corpse") return aliveWhere(op.corpseYd, poseView(ctx));
   if (via === "spirit_healer") return `at the spirit healer${whereText(ctx)}`;
+  if (via === "self")
+    return `where you died${whereText(ctx)} (${selfName(ctx)})`;
   return `where you died${whereText(ctx)}`;
 }
 
@@ -86,7 +95,14 @@ function failedReport(op: RecoverOpResult, after: RecoverAfter): Report {
       : `, still ${Math.round(op.corpseYd)} yd from your corpse`;
   return result("FAILED", {
     after,
-    body: [others],
+    body: [
+      others,
+      ...(op.via === "self" && cause === "self_res_unanswered"
+        ? [
+            "The server did not answer the self-resurrection; a no-resurrection aura refuses it silently.",
+          ]
+        : []),
+    ],
     detail: `${op.legs} legs${where} (${cause}).`,
     next: healer
       ? nextCall("recover", { how: "spirit_healer" })
