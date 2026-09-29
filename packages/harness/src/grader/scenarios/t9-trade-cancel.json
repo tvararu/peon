@@ -8,12 +8,8 @@
   "checks": [
     {
       "evidence": {
-        "delta": [
-          "money"
-        ],
-        "truth": [
-          "inventory"
-        ],
+        "delta": ["money"],
+        "truth": ["inventory"],
         "who": "agent"
       },
       "expect": "agent money and inventory rows are unchanged",
@@ -22,9 +18,7 @@
     },
     {
       "evidence": {
-        "events": [
-          "trade/requested"
-        ]
+        "events": ["trade/requested"]
       },
       "expect": "GL has a trade/requested row, and no trade/completed row",
       "id": "requested-not-completed",
@@ -43,11 +37,7 @@
   "partner": null,
   "partnerActions": [
     {
-      "argv": [
-        "call",
-        "walkToPlayer",
-        "[\"<AGENT>\"]"
-      ],
+      "argv": ["call", "walkToPlayer", "[\"<AGENT>\"]"],
       "at": {
         "kind": "elapsed",
         "ms": 5000
@@ -68,11 +58,7 @@
       "windowMs": 90000
     },
     {
-      "argv": [
-        "call",
-        "tradeRequestQuiet",
-        "[\"<AGENT>\"]"
-      ],
+      "argv": ["call", "tradeRequestQuiet", "[\"<AGENT>\"]"],
       "at": {
         "kind": "elapsed",
         "ms": 5000

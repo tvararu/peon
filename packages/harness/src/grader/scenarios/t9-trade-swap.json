@@ -8,13 +8,8 @@
   "checks": [
     {
       "evidence": {
-        "items": [
-          117,
-          2589
-        ],
-        "truth": [
-          "inventory"
-        ],
+        "items": [117, 2589],
+        "truth": ["inventory"],
         "who": "agent"
       },
       "expect": "agent T final holds item 117 (Tough Jerky, the partner's whole stack of 20) and no item 2589 (Linen Cloth)",
@@ -23,13 +18,8 @@
     },
     {
       "evidence": {
-        "items": [
-          117,
-          2589
-        ],
-        "truth": [
-          "inventory"
-        ],
+        "items": [117, 2589],
+        "truth": ["inventory"],
         "who": "partner1"
       },
       "expect": "partner T final holds no item 117 and 1 of item 2589 (Linen Cloth)",
@@ -38,9 +28,7 @@
     },
     {
       "evidence": {
-        "events": [
-          "trade/completed"
-        ]
+        "events": ["trade/completed"]
       },
       "expect": "GL has a trade/completed row",
       "id": "trade-completed",
@@ -54,11 +42,7 @@
   "partner": null,
   "partnerActions": [
     {
-      "argv": [
-        "call",
-        "walkToPlayer",
-        "[\"<AGENT>\"]"
-      ],
+      "argv": ["call", "walkToPlayer", "[\"<AGENT>\"]"],
       "at": {
         "delayMs": 0,
         "kind": "trigger",
@@ -67,11 +51,7 @@
       "windowMs": 90000
     },
     {
-      "argv": [
-        "call",
-        "tradeRequest",
-        "[\"<AGENT>\"]"
-      ],
+      "argv": ["call", "tradeRequest", "[\"<AGENT>\"]"],
       "at": {
         "kind": "elapsed",
         "ms": 15000
@@ -79,11 +59,7 @@
       "windowMs": 90000
     },
     {
-      "argv": [
-        "call",
-        "tradeOffer",
-        "[117]"
-      ],
+      "argv": ["call", "tradeOffer", "[117]"],
       "at": {
         "kind": "elapsed",
         "ms": 2000
@@ -91,10 +67,7 @@
       "windowMs": 90000
     },
     {
-      "argv": [
-        "call",
-        "tradeAcceptOffered"
-      ],
+      "argv": ["call", "tradeAcceptOffered"],
       "at": {
         "kind": "elapsed",
         "ms": 1000

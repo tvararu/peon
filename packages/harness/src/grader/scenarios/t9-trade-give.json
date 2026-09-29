@@ -8,12 +8,8 @@
   "checks": [
     {
       "evidence": {
-        "items": [
-          159
-        ],
-        "truth": [
-          "inventory"
-        ],
+        "items": [159],
+        "truth": ["inventory"],
         "who": "agent"
       },
       "expect": "agent T final holds no item 159 (Refreshing Spring Water); the setup added one stack of 5 and the agent gave it",
@@ -22,12 +18,8 @@
     },
     {
       "evidence": {
-        "items": [
-          159
-        ],
-        "truth": [
-          "inventory"
-        ],
+        "items": [159],
+        "truth": ["inventory"],
         "who": "partner1"
       },
       "expect": "partner T final holds 25 of item 159 (the mage preset carries 20 and received 5)",
@@ -36,9 +28,7 @@
     },
     {
       "evidence": {
-        "events": [
-          "trade/completed"
-        ]
+        "events": ["trade/completed"]
       },
       "expect": "GL has a trade/completed row",
       "id": "trade-completed",
@@ -57,11 +47,7 @@
   "partner": null,
   "partnerActions": [
     {
-      "argv": [
-        "call",
-        "walkToPlayer",
-        "[\"<AGENT>\"]"
-      ],
+      "argv": ["call", "walkToPlayer", "[\"<AGENT>\"]"],
       "at": {
         "delayMs": 0,
         "kind": "trigger",
@@ -83,11 +69,7 @@
       "windowMs": 90000
     },
     {
-      "argv": [
-        "call",
-        "tradeAnswer",
-        "[\"yes\"]"
-      ],
+      "argv": ["call", "tradeAnswer", "[\"yes\"]"],
       "at": {
         "kind": "elapsed",
         "ms": 1000
@@ -95,10 +77,7 @@
       "windowMs": 90000
     },
     {
-      "argv": [
-        "call",
-        "tradeAcceptOffered"
-      ],
+      "argv": ["call", "tradeAcceptOffered"],
       "at": {
         "kind": "elapsed",
         "ms": 1000

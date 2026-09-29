@@ -8,12 +8,8 @@
   "checks": [
     {
       "evidence": {
-        "items": [
-          117
-        ],
-        "truth": [
-          "inventory"
-        ],
+        "items": [117],
+        "truth": ["inventory"],
         "who": "agent"
       },
       "expect": "agent T final holds item 117 (Tough Jerky), which it did not hold at the start; the partner offers its whole stack of 20",
@@ -22,9 +18,7 @@
     },
     {
       "evidence": {
-        "delta": [
-          "money"
-        ],
+        "delta": ["money"],
         "who": "agent"
       },
       "expect": "agent money is unchanged",
@@ -33,10 +27,7 @@
     },
     {
       "evidence": {
-        "events": [
-          "trade/requested",
-          "trade/completed"
-        ]
+        "events": ["trade/requested", "trade/completed"]
       },
       "expect": "GL has a trade/requested row and then a trade/completed row",
       "id": "requested-completed",
@@ -55,11 +46,7 @@
   "partner": null,
   "partnerActions": [
     {
-      "argv": [
-        "call",
-        "walkToPlayer",
-        "[\"<AGENT>\"]"
-      ],
+      "argv": ["call", "walkToPlayer", "[\"<AGENT>\"]"],
       "at": {
         "kind": "elapsed",
         "ms": 5000
@@ -67,11 +54,7 @@
       "windowMs": 90000
     },
     {
-      "argv": [
-        "call",
-        "tradeRequest",
-        "[\"<AGENT>\"]"
-      ],
+      "argv": ["call", "tradeRequest", "[\"<AGENT>\"]"],
       "at": {
         "kind": "elapsed",
         "ms": 25000
@@ -79,11 +62,7 @@
       "windowMs": 90000
     },
     {
-      "argv": [
-        "call",
-        "tradeOffer",
-        "[117]"
-      ],
+      "argv": ["call", "tradeOffer", "[117]"],
       "at": {
         "kind": "elapsed",
         "ms": 20000
@@ -91,10 +70,7 @@
       "windowMs": 90000
     },
     {
-      "argv": [
-        "call",
-        "tradeAccept"
-      ],
+      "argv": ["call", "tradeAccept"],
       "at": {
         "kind": "elapsed",
         "ms": 20000
