@@ -30,11 +30,7 @@ test("a give that waits keeps no mutex: stop cancels the pending request", async
   t.rt.runs.cancel(t.rt.runs.active()?.id ?? "", "tool");
   gate.resolve({ status: "ok" });
   await pending.catch(() => undefined);
-  for (
-    let i = 0;
-    i < 100 && t.acts.cancelTrade.mock.calls.length === 0;
-    i += 1
-  )
+  for (let i = 0; i < 100 && t.acts.cancelTrade.mock.calls.length === 0; i += 1)
     await Promise.resolve();
   expect(t.acts.cancelTrade).toHaveBeenCalled();
 });
