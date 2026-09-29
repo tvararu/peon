@@ -1,14 +1,14 @@
 # trade
 
-The `trade` area lets the character take part in the request half of a
-trade with another player. World-service code reads it through
-`session.areas.trade.state()`: `phase` (`idle`, `requested_out`,
-`requested_in`, `open`, `closed` or `settling`), `with`, `from`, the offers
-(`ownOffer`, `theirOffer`, empty until the offer opcodes land),
-`selfAccepted`, `theyAccepted`, `lastOutcome` and `dropped` (stray
-statuses while `idle`, or any non-`TRADE_CANCELED` status while
-`settling`). The area emits `requested`, `opened`, `canceled`,
-`refused` and `unanswered`.
+The `trade` area lets the character take part in a full trade with another
+player. World-service code reads it through `session.areas.trade.state()`:
+`phase` (`idle`, `requested_out`, `requested_in`, `open`, `closed` or
+`settling`), `with`, `from`, the offers (`ownOffer`, `theirOffer` with gold
+and a version that rises on every change), `selfAccepted`, `theyAccepted`,
+`lastOutcome` and `dropped` (stray statuses while `idle`, or any
+non-`TRADE_CANCELED` status while `settling`). The area emits `requested`,
+`opened`, `canceled`, `refused`, `unanswered`, `offer_changed`,
+`back_to_trade`, `they_accepted` and `completed`.
 
 The acts:
 
@@ -32,6 +32,22 @@ The acts:
 - `answerTrade("yes" | "busy" | "ignore")` answers a request in
   `requested_in` with `CMSG_BEGIN_TRADE`, `CMSG_BUSY_TRADE` or
   `CMSG_IGNORE_TRADE`. It throws `no_request` in any other phase.
+- `offerItem(tradeSlot, bag, slot)` sends `CMSG_SET_TRADE_ITEM` and records
+  the own slot from `readInventory`. It throws for trade slot 6 or above
+  (`TRADE_SLOT_TRADED_COUNT` is 6 in `Entities/Player/TradeData.h`), an
+  empty bag position, an equipped position (bag 255, slots 0-18) or an item
+  already in another trade slot (`Handlers/TradeHandler.cpp:905-911`).
+- `withdrawItem(tradeSlot)` sends `CMSG_CLEAR_TRADE_ITEM`
+  (`Handlers/TradeHandler.cpp:935-947`) and clears the own slot.
+- `offerGold(copper)` throws above the coinage, else sends
+  `CMSG_SET_TRADE_GOLD` (`Handlers/TradeHandler.cpp:858-868`).
+- `acceptTrade(expectVersion)` throws `offer_changed` and sends nothing
+  when `theirOffer.version` differs from the seen version; otherwise it
+  sends `CMSG_ACCEPT_TRADE` (`Handlers/TradeHandler.cpp:237`), settles
+  `ok` with the outcome on `completed`, `refused` on `CLOSE_WINDOW`, and
+  `waiting_for_them` after 60 s with the trade left open.
+- `unacceptTrade()` sends `CMSG_UNACCEPT_TRADE`
+  (`Handlers/TradeHandler.cpp:683-690`) only when `selfAccepted`.
 - `cancelTrade()` sends `CMSG_CANCEL_TRADE` and enters `settling`. The
   reply settles it `ok`; no reply within 5 s settles it `unanswered`
   locally back to `idle`.
@@ -73,13 +89,27 @@ character can trade again.
 - A `CMSG_BUSY_TRADE` or `CMSG_IGNORE_TRADE` reply reaches both sides
   (`BUSY` 0 or `IGNORE_YOU` 14), and a cancel after the window opened
   sends `TRADE_CANCELED` (3) to both.
-- `CMSG_ACCEPT_TRADE` reads no body, so economy-4's `uint32` is ignored
-  by AzerothCore.
+- `CMSG_ACCEPT_TRADE` reads no body, so the sent `uint32 1` (the
+  wow_messages `trade/cmsg_accept_trade.wowm` form) is ignored by
+  AzerothCore (`Handlers/TradeHandler.cpp:237`).
+- `SMSG_TRADE_STATUS_EXTENDED` is `u8` side, `u32` trade id, two `u32`
+  slot counts (both 7), `u32` gold, `u32` spell, then 7 slots of `u8`
+  index and 18 words each; an entry of 0 is an empty slot
+  (`Handlers/TradeHandler.cpp:89-102`). The server echoes the own side
+  only when a spell is set, so side 0 is kept as `ownEcho` and never
+  replaces `ownOffer`.
+- `CMSG_SET_TRADE_ITEM` is `u8, u8, u8` (trade slot, bag, slot;
+  `Handlers/TradeHandler.cpp:877-879`); `CMSG_CLEAR_TRADE_ITEM` one `u8`
+  (`Handlers/TradeHandler.cpp:935-947`); `CMSG_SET_TRADE_GOLD` one `u32`
+  (`Handlers/TradeHandler.cpp:858-868`); `CMSG_UNACCEPT_TRADE` empty
+  (`Handlers/TradeHandler.cpp:683-690`). The offer send order observed
+  live: the other side's `SMSG_TRADE_STATUS_EXTENDED` arrives before the
+  `BACK_TO_TRADE` accept reset.
 
 ## Left out
 
-- Offers, gold, accept and `SMSG_TRADE_STATUS_EXTENDED` belong to
-  economy-4; its stub line stays in `opcodes.ts`.
+- `NOT_ON_TAPLIST` (23) needs a soulbound looted item in a trade; it stays
+  a rig test built from `TradeHandler.cpp:924-929`.
 - `TRIAL_ACCOUNT`, `YOU_DEAD` and the stunned, logout and flight statuses
   are tested on the rig only; the realm's trial restriction is unknown
   and the staging for the others is not worth a live try.
@@ -116,3 +146,9 @@ run's trace shows the status body named below.
 | `CMSG_BUSY_TRADE` | `live` | `answer=busy` run: empty send, `BUSY` on both sides | `Handlers/TradeHandler.cpp:69-72` |
 | `CMSG_IGNORE_TRADE` | `live` | `answer=ignore` run: empty send, `IGNORE_YOU` on both sides | `Handlers/TradeHandler.cpp:64-67` |
 | `CMSG_CANCEL_TRADE` | `live` | the cancel after `OPEN_WINDOW` (the `answer=yes` run): `TRADE_CANCELED` on both sides | `Handlers/TradeHandler.cpp:714-719` |
+| `SMSG_TRADE_STATUS_EXTENDED` | `live` | B's item, gold and withdraw offers: A's trace shows a 532-byte `EXTENDED` after each change, and A's state emits `offer_changed` then `back_to_trade` (not committed puppet traces, kept until review) | `Handlers/TradeHandler.cpp:89-102` |
+| `CMSG_SET_TRADE_ITEM` | `live` | B's offer of Linen Cloth slot 28 into trade slot 0 (4-byte send); A's trace shows the `EXTENDED` | `Handlers/TradeHandler.cpp:877-879` |
+| `CMSG_CLEAR_TRADE_ITEM` | `live` | B's withdraw of trade slot 0 (1-byte send); A gets `EXTENDED` plus `back_to_trade` | `Handlers/TradeHandler.cpp:935-947` |
+| `CMSG_SET_TRADE_GOLD` | `live` | B's 10-copper offer (4-byte send); A's `EXTENDED` shows it; a 999999-copper offer is refused with `CLOSE_WINDOW` | `Handlers/TradeHandler.cpp:858-868` |
+| `CMSG_ACCEPT_TRADE` | `live` | B accepts (A gets `they_accepted`), A accepts (`completed` both sides); truth deltas: A 1000→1010 copper and 3 cloth, B 1000→990 and 2 cloth stacks left | `Handlers/TradeHandler.cpp:237` |
+| `CMSG_UNACCEPT_TRADE` | `live` | B accepts then unaccepts (empty send); A gets `back_to_trade` | `Handlers/TradeHandler.cpp:683-690` |
