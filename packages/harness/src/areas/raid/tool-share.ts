@@ -113,11 +113,12 @@ async function shareQuestTool(
         }
         return false;
       },
-      send: () => {
-        const started = ctx.handle.quests.act.shareQuest(questId);
-        if (!started.ok)
-          refuse(started.reason, `cannot share ${title}: ${started.reason}.`);
-      },
+      send: () =>
+        ctx.rt.mutex.run(() => {
+          const started = ctx.handle.quests.act.shareQuest(questId);
+          if (!started.ok)
+            refuse(started.reason, `cannot share ${title}: ${started.reason}.`);
+        }),
       signal: ctx.signal,
       subscribe: (cb) =>
         ctx.handle.quests.onEvent((event) => {
@@ -170,10 +171,11 @@ async function acceptQuestTool(
     try {
       await settle<QuestEvent>({
         match: () => acceptSettled(ctx, offer.questId),
-        send: () => {
-          if (!ctx.handle.quests.act.answerShare("accept"))
-            refuse("no_offer", "no shared quest is offered.");
-        },
+        send: () =>
+          ctx.rt.mutex.run(() => {
+            if (!ctx.handle.quests.act.answerShare("accept"))
+              refuse("no_offer", "no shared quest is offered.");
+          }),
         signal: ctx.signal,
         subscribe: (cb) => ctx.handle.onQuestEvent(cb),
         timeoutMs: ACCEPT_SETTLE_MS,
@@ -204,23 +206,23 @@ async function acceptQuestTool(
   });
 }
 
-function declineQuestTool(
+async function declineQuestTool(
   args: GroupArgs,
   ctx: GroupCtx,
 ): Promise<ToolResult<GroupAfter>> {
   const offer = ctx.handle.quests.state().share?.offer;
   if (!offer) refuse("no_offer", "no shared quest is offered.");
-  if (!ctx.handle.quests.act.answerShare("decline"))
-    refuse("no_offer", "no shared quest is offered.");
-  return Promise.resolve(
-    result("DONE", {
-      after: { ...emptyGroup(), confirmed: true, do: args.do as GroupDo },
-      detail: `declined ${offer.title}.`,
-    }),
-  );
+  await ctx.rt.mutex.run(() => {
+    if (!ctx.handle.quests.act.answerShare("decline"))
+      refuse("no_offer", "no shared quest is offered.");
+  });
+  return result("DONE", {
+    after: { ...emptyGroup(), confirmed: true, do: args.do as GroupDo },
+    detail: `declined ${offer.title}.`,
+  });
 }
 
-export async function shareTool(
+export function shareTool(
   args: GroupArgs,
   ctx: GroupCtx,
 ): Promise<ToolResult<GroupAfter>> {
