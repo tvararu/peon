@@ -6,6 +6,7 @@ import {
   raidTool,
   swapTool,
 } from "#harness/areas/raid/tool-raid";
+import { readyCheckTool, readyTool } from "#harness/areas/raid/tool-ready";
 import { lootRulesTool } from "#harness/areas/raid/tool-rules";
 import { shareTool } from "#harness/areas/raid/tool-share";
 import {
@@ -281,6 +282,8 @@ function groupRun(
   if (args.do === "swap") return swapTool(args, ctx);
   if (args.do === "promote") return promoteTool(args, ctx);
   if (args.do === "loot_rules") return lootRulesTool(args, ctx);
+  if (args.do === "ready_check") return readyCheckTool(args, ctx);
+  if (args.do === "ready") return readyTool(args, ctx);
   if (args.do === "give") return giveTool(args, ctx);
   if (args.do === "pass_loot") return passTool(args, ctx);
   if (args.do === "roll") return rollTool(args, ctx);
@@ -328,7 +331,7 @@ export const groupSpec: GameToolSpec<typeof groupParams, "group", GroupAfter> =
     run: groupRun,
     text: {
       description:
-        "Runs the group: status, kick, lead, raid, move, swap, promote, loot_rules, give, pass_loot, roll, share_quest, accept_quest and decline_quest. Status lists each member's subgroup, role, health and state. Raid needs Peon as leader, move and swap need a raid with leader or assistant, promote and loot_rules need the leader, give needs master loot, kick needs a reason. share_quest shares a quest in your log; accept_quest and decline_quest answer a shared quest.",
+        "Runs the group: status, kick, lead, raid, move, swap, promote, loot_rules, ready_check, ready, give, pass_loot, roll, share_quest, accept_quest and decline_quest. Status lists each member's subgroup, role, health and state. Raid needs Peon as leader, move and swap need a raid with leader or assistant, promote and loot_rules need the leader, ready_check needs the leader or an assistant, give needs master loot, kick needs a reason. share_quest shares a quest in your log; accept_quest and decline_quest answer a shared quest.",
       guidelines: [
         "Call status first to learn the exact member name.",
         "Convert to a raid with `group do=raid` before subgroups and main roles.",
