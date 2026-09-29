@@ -5,7 +5,9 @@ import type {
   ModifyCooldown,
   SpellModifier,
   SpellVisual,
+  TotemCreatedPacket,
 } from "#wow/areas/spells/protocol";
+import { type Totem, type TotemEvent, Totems } from "#wow/areas/spells/totems";
 import type { UnitCast, UnitCastEvent } from "#wow/areas/spells/unit-casts";
 import { UnitCasts } from "#wow/areas/spells/unit-casts";
 import type { CombatChannel } from "#wow/combat-casts";
@@ -25,6 +27,7 @@ export type SpellsState = {
   inactiveRanks: readonly number[];
   modifiers: Readonly<Record<SpellModifierKind, SpellModifierTotals>>;
   unitCasts: readonly UnitCast[];
+  totems: readonly (Readonly<Totem> | undefined)[];
 };
 export type SpellsEvent =
   | {
@@ -35,6 +38,7 @@ export type SpellsEvent =
     }
   | { type: "channel_end"; spellId: number; reason: ChannelEndReason }
   | { type: "spell_visual"; guid: bigint; kit: number; impact: boolean }
+  | TotemEvent
   | UnitCastEvent;
 
 const END_TOLERANCE_MS = 400;
@@ -61,6 +65,7 @@ export class SpellsStore {
   private readonly deps: SessionDeps;
   private readonly core: CoreStores;
   private readonly units: UnitCasts;
+  private readonly totems: Totems;
   private failed = false;
   private fieldSeen = false;
   private fieldTarget: bigint | undefined;
@@ -77,6 +82,11 @@ export class SpellsStore {
     this.units = new UnitCasts(deps, core.combat, (event) =>
       this.events.emit(event),
     );
+    this.totems = new Totems(
+      deps.now,
+      (spellId) => core.combat.definition(spellId)?.name,
+      (event) => this.events.emit(event),
+    );
   }
 
   snapshot(): SpellsState {
@@ -92,6 +102,7 @@ export class SpellsStore {
         flat: totals(this.modifiers.flat),
         pct: totals(this.modifiers.pct),
       },
+      totems: this.totems.snapshot(),
       unitCasts: this.units.snapshot(),
     };
   }
@@ -184,6 +195,26 @@ export class SpellsStore {
     this.units.drop(guid);
   }
 
+  totemCreated(packet: TotemCreatedPacket): void {
+    this.totems.create(packet);
+  }
+
+  totemDisappeared(guid: bigint): void {
+    this.totems.disappear(guid);
+  }
+
+  totemExpired(slot: number, guid: bigint): void {
+    this.totems.expire(slot, guid);
+  }
+
+  totemAt(slot: number): Readonly<Totem> | undefined {
+    return this.totems.at(slot);
+  }
+
+  requestTotemDestroy(slot: number): void {
+    this.totems.requestDestroy(slot);
+  }
+
   castOf(guid: bigint): UnitCast | undefined {
     return this.units.castOf(guid);
   }
@@ -248,6 +279,7 @@ export class SpellsStore {
 
   dispose(): void {
     this.units.dispose();
+    this.totems.clear();
     this.events.clear();
   }
 }

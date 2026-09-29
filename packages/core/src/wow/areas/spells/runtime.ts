@@ -6,8 +6,10 @@ import {
   buildCancelAura,
   buildCancelGrowthAura,
   buildSetActionButton,
+  buildTotemDestroyed,
 } from "#wow/areas/spells/protocol";
 import type { SpellsEvent, SpellsStore } from "#wow/areas/spells/store";
+import { TOTEM_SLOTS } from "#wow/areas/spells/totems";
 import { ACTION_BUTTON_SLOTS } from "#wow/protocol/action-buttons";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { CoreStores } from "#wow/session-stores";
@@ -25,6 +27,7 @@ export type SpellsActs = {
     button: BarButton | undefined,
   ) => SpellsActResult;
   setActionBarToggles: (mask: number) => SpellsActResult;
+  destroyTotem: (slot: number) => SpellsActResult;
 };
 
 const PASSIVE = 0x40;
@@ -116,18 +119,50 @@ export function spellsRuntime(
     ctx.send(GameOpcode.CMSG_CANCEL_GROWTH_AURA, buildCancelGrowthAura());
     return { ok: true };
   }
+  function destroyTotem(slot: number): SpellsActResult {
+    if (!Number.isInteger(slot) || slot < 0 || slot >= TOTEM_SLOTS)
+      return { ok: false, reason: "invalid_slot" };
+    if (!store.totemAt(slot)) return { ok: false, reason: "no_totem" };
+    ctx.send(GameOpcode.CMSG_TOTEM_DESTROYED, buildTotemDestroyed(slot));
+    store.requestTotemDestroy(slot);
+    return { ok: true };
+  }
+  const timers = new Map<number, ReturnType<typeof setTimeout>>();
+  const stopTimer = (slot: number) => {
+    clearTimeout(timers.get(slot));
+    timers.delete(slot);
+  };
+  const offTotems = store.onEvent((event) => {
+    if (event.type === "totem_gone") stopTimer(event.slot);
+    if (event.type !== "totem_created") return;
+    stopTimer(event.slot);
+    timers.set(
+      event.slot,
+      setTimeout(() => {
+        timers.delete(event.slot);
+        if (!ctx.signal.aborted) store.totemExpired(event.slot, event.guid);
+      }, event.durationMs),
+    );
+  });
   const off = ctx.listen("entity", (event) => {
     if (event.type === "update" && event.entity.guid === ctx.selfGuid())
       store.selfFields(event.entity.rawFields);
-    if (event.type === "disappear") store.dropUnitCast(event.guid);
+    if (event.type !== "disappear") return;
+    store.dropUnitCast(event.guid);
+    store.totemDisappeared(event.guid);
   });
   return {
     act: {
       cancelAura,
       cancelChannel,
       cancelGrowthAura,
+      destroyTotem,
       ...barActs(ctx, core),
     },
-    dispose: off,
+    dispose: () => {
+      off();
+      offTotems();
+      for (const slot of [...timers.keys()]) stopTimer(slot);
+    },
   };
 }

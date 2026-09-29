@@ -108,3 +108,24 @@ export function buildActionBarToggles(mask: number): Uint8Array {
   w.uint8(mask);
   return w.finish();
 }
+
+export type TotemCreatedPacket = {
+  slot: number;
+  guid: bigint;
+  durationMs: number;
+  spellId: number;
+};
+
+export function parseTotemCreated(r: PacketReader): TotemCreatedPacket {
+  const slot = r.uint8();
+  const guid = r.uint64LE();
+  const durationMs = r.uint32LE();
+  const spellId = r.uint32LE();
+  return { durationMs, guid, slot, spellId };
+}
+
+export function buildTotemDestroyed(slot: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(slot);
+  return w.finish();
+}

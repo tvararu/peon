@@ -6,6 +6,7 @@ import {
   parseModifyCooldown,
   parseSpellModifier,
   parseSpellVisual,
+  parseTotemCreated,
   parseUnlearnSpells,
 } from "#wow/areas/spells/protocol";
 import { spellsRuntime } from "#wow/areas/spells/runtime";
@@ -24,6 +25,8 @@ export const spellsArea = defineArea({
     "channel_start",
     "channel_end",
     "spell_visual",
+    "totem_created",
+    "totem_gone",
     "unit_cast_start",
     "unit_cast_end",
   ],
@@ -52,6 +55,9 @@ export const spellsArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_PLAY_SPELL_IMPACT, (r) =>
       store.spellVisual(parseSpellVisual(r), true),
+    );
+    wire.on(GameOpcode.SMSG_TOTEM_CREATED, (r) =>
+      store.totemCreated(parseTotemCreated(r)),
     );
     wire.peek(GameOpcode.SMSG_SPELL_FAILURE, (r) =>
       store.spellFailure(parseSpellFailure(r)),

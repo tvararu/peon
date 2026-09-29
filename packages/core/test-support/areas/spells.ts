@@ -145,3 +145,17 @@ export function spellsSpellGoBody(init: {
 }
 
 export const spellsSpellFailedOtherBody = spellsSpellFailureBody;
+
+export function spellsTotemCreatedBody(init: {
+  slot: number;
+  guid: bigint;
+  duration: number;
+  spell: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(init.slot);
+  w.uint64LE(init.guid);
+  w.uint32LE(init.duration);
+  w.uint32LE(init.spell);
+  return w.finish();
+}

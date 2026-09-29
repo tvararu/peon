@@ -53,6 +53,49 @@ function channelEnd(
     text: `${label} ended (${event.reason}).`,
   };
 }
+function totemName(
+  event: Extract<SpellsEvent, { type: "totem_created" | "totem_gone" }>,
+): string {
+  return typeof event.spellName === "string" && event.spellName !== ""
+    ? event.spellName
+    : `spell ${event.spellId}`;
+}
+
+function totemElement(slot: number): string {
+  return ["fire", "earth", "water", "air"][slot] ?? `slot ${slot}`;
+}
+
+function totemCreated(
+  event: Extract<SpellsEvent, { type: "totem_created" }>,
+): AreaDraft {
+  return {
+    class: "log",
+    data: {
+      durationMs: event.durationMs,
+      guid: event.guid.toString(10),
+      slot: event.slot,
+      spellId: event.spellId,
+    },
+    name: "totem_created",
+    text: `${totemName(event)} placed (${totemElement(event.slot)}).`,
+  };
+}
+
+function totemGone(
+  event: Extract<SpellsEvent, { type: "totem_gone" }>,
+): AreaDraft {
+  return {
+    class: "log",
+    data: {
+      guid: event.guid.toString(10),
+      reason: event.reason,
+      slot: event.slot,
+      spellId: event.spellId,
+    },
+    name: "totem_gone",
+    text: `${totemName(event)} gone (${totemElement(event.slot)}, ${event.reason}).`,
+  };
+}
 
 export const spellsHarness = defineHarnessArea({
   area: "spells",
@@ -61,10 +104,12 @@ export const spellsHarness = defineHarnessArea({
       if (event.type === "spell_visual") return [];
       if (event.type === "channel_start") return [channelStart(event)];
       if (event.type === "channel_end") return [channelEnd(event)];
+      if (event.type === "totem_created") return [totemCreated(event)];
+      if (event.type === "totem_gone") return [totemGone(event)];
       if (event.type === "unit_cast_start" || event.type === "unit_cast_end")
         return [];
       return [quiet(event)];
     },
   }),
-  worldActs: ["cancelAura", "setActionButton"],
+  worldActs: ["cancelAura", "destroyTotem", "setActionButton"],
 });

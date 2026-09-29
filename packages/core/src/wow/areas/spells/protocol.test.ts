@@ -5,6 +5,7 @@ import {
   spellsModifyCooldownBody,
   spellsPlaySpellVisualBody,
   spellsSpellModifierBody,
+  spellsTotemCreatedBody,
   spellsUnlearnSpellsBody,
 } from "#test-support/areas/spells";
 import {
@@ -13,11 +14,13 @@ import {
   buildCancelChannelling,
   buildCancelGrowthAura,
   buildSetActionButton,
+  buildTotemDestroyed,
   parseChannelStart,
   parseChannelUpdate,
   parseModifyCooldown,
   parseSpellModifier,
   parseSpellVisual,
+  parseTotemCreated,
   parseUnlearnSpells,
 } from "#wow/areas/spells/protocol";
 import { PacketReader } from "#wow/protocol/packet";
@@ -173,5 +176,26 @@ describe("spells visual parser", () => {
     const reader = new PacketReader(body);
     expect(parseSpellVisual(reader)).toEqual({ guid: MOB, kit: 179 });
     expect(reader.remaining).toBe(0);
+  });
+});
+
+describe("spells totem packets", () => {
+  test("parseTotemCreated reads the u8 slot, u64 guid, u32 duration and u32 spell (TotemPackets.cpp:25-33)", () => {
+    const body = spellsTotemCreatedBody({
+      duration: 120_000,
+      guid: MOB,
+      slot: 2,
+      spell: 8071,
+    });
+    expect(parseTotemCreated(new PacketReader(body))).toEqual({
+      durationMs: 120_000,
+      guid: MOB,
+      slot: 2,
+      spellId: 8071,
+    });
+  });
+
+  test("buildTotemDestroyed writes the slot as one byte (TotemPackets.cpp:20-23)", () => {
+    expect(Array.from(buildTotemDestroyed(3))).toEqual([3]);
   });
 });
