@@ -101,7 +101,7 @@
       "endpoint": "items/add"
     }
   ],
-  "spawn": "eversong",
+  "spawn": "eversong-trade",
   "steers": [],
   "task": "A player will come to you and whisper a request for water. Give them your water.",
   "tier": 9

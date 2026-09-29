@@ -91,7 +91,7 @@
       "endpoint": "items/add"
     }
   ],
-  "spawn": "eversong",
+  "spawn": "eversong-trade",
   "steers": [],
   "task": "A player will send you a trade request and offer Tough Jerky for one Linen Cloth. Answer it, offer the cloth and accept.",
   "tier": 9

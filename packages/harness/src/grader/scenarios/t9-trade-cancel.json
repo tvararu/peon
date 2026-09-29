@@ -74,7 +74,7 @@
   ],
   "preset": "eversong10",
   "setup": [],
-  "spawn": "eversong",
+  "spawn": "eversong-trade",
   "steers": [],
   "task": "Do not pay anyone for anything today.",
   "tier": 9

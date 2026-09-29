@@ -86,7 +86,7 @@
   ],
   "preset": "eversong10",
   "setup": [],
-  "spawn": "eversong",
+  "spawn": "eversong-trade",
   "steers": [],
   "task": "A player will send you a trade request. Answer it, take what they give and give nothing back.",
   "tier": 9
