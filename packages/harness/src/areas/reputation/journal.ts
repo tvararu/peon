@@ -1,15 +1,4 @@
-import type { AreaState } from "@peon/core";
-
-const RANK_NAMES = [
-  "Hated",
-  "Hostile",
-  "Unfriendly",
-  "Neutral",
-  "Friendly",
-  "Honored",
-  "Revered",
-  "Exalted",
-] as const;
+import { type AreaState, RANK_NAMES } from "@peon/core";
 
 type ReputationState = AreaState<"reputation">;
 type TimeState = AreaState<"time">;

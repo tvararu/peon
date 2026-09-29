@@ -9,6 +9,7 @@ export {
   type AreaName,
   type AreaState,
 } from "#wow/areas/compose";
+export { RANK_NAMES } from "#wow/areas/reputation/catalog";
 export type { CombatAura } from "#wow/aura-store";
 export type { AuthResult } from "#wow/auth";
 export type {
