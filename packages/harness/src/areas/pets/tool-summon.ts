@@ -116,7 +116,7 @@ const SUMMON_NAMES = {
 
 function summonHeard(kind: "call" | "revive" | "dismiss", spellId: number) {
   return (event: Heard): boolean => {
-    if (!("area" in event)) return castReply(event, spellId) !== undefined;
+    if (!("area" in event)) return castReply(event, spellId) === false;
     if (event.area !== "pets") return false;
     const inner = event.event;
     if (inner.type === "bar")
@@ -140,22 +140,8 @@ function summonHeardResult(
   after: PetAfter,
   heard: Heard,
 ): ToolResult<PetAfter> {
-  if ("area" in heard) {
-    if (heard.event.type === "bar") return summonDone(kind, after);
-    return result("FAILED", {
-      after,
-      detail: `${spell.name} failed.`,
-      reason: "cast_failed",
-    });
-  }
-  if (castReply(heard, spell.id))
-    return result("DONE", {
-      after,
-      detail:
-        kind === "dismiss"
-          ? "Dismissed: your pet is gone."
-          : `Cast ${spell.name}.`,
-    });
+  if ("area" in heard && heard.event.type === "bar")
+    return summonDone(kind, after);
   return result("FAILED", {
     after,
     detail: `${spell.name} failed.`,
@@ -231,12 +217,12 @@ export async function summonFlow(
   kind: "call" | "revive" | "dismiss",
   ctx: PetCtx,
 ): Promise<ToolResult<PetAfter>> {
-  const spell = await ownerSpell(ctx, SUMMON_NAMES[kind]);
   const after: PetAfter = { do: kind, target: undefined, what: undefined };
   alreadyOut(kind, ctx);
   const pet = stateOf(ctx.handle).pet;
   if (kind === "dismiss" && pet !== undefined && !pet.canAbandon)
     return kennelDismiss(ctx, after);
+  const spell = await ownerSpell(ctx, SUMMON_NAMES[kind]);
   return spellSummon(kind, spell, after, ctx);
 }
 

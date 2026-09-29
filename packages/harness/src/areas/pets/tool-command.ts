@@ -40,7 +40,11 @@ export type PetsState = {
         spells: readonly { spell: number; autocast: string }[];
       }
     | undefined;
-  cooldowns: readonly { spell: number; readyAt: number | undefined }[];
+  cooldowns: readonly {
+    infinite: boolean;
+    readyAt: number | undefined;
+    spell: number;
+  }[];
   pet:
     | {
         guid: bigint;
@@ -136,7 +140,9 @@ function spellLine(
   const name = spellLabel(handle, entry.spell);
   const auto =
     entry.autocast === "passive" ? "passive" : `autocast ${entry.autocast}`;
-  const readyAt = cooldowns.find((row) => row.spell === entry.spell)?.readyAt;
+  const row = cooldowns.find((cooldown) => cooldown.spell === entry.spell);
+  if (row?.infinite) return `${name} (${entry.spell}): ${auto}, unavailable.`;
+  const readyAt = row?.readyAt;
   const left = readyAt === undefined ? 0 : readyAt - now;
   const ready = left <= 0 ? "ready" : `ready in ${Math.ceil(left / 1000)} s`;
   return `${name} (${entry.spell}): ${auto}, ${ready}.`;
