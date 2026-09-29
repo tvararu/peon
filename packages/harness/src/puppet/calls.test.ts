@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { AREA_NAMES } from "@peon/core";
 import { decodeCall, PUPPET_CALLS } from "#harness/puppet/calls";
 import { createMockGame } from "#test-support/mock-game";
@@ -18,7 +18,13 @@ const ALIASES: Readonly<Record<string, readonly [string, string]>> = {
   tradeRequest: ["trade", "requestTrade"],
 };
 
+const HANDLE_ALIASES: Readonly<Record<string, string>> = {
+  walkToPlayer: "walkTowardPoint",
+};
+
 function callable(game: object, method: string): boolean {
+  const member = HANDLE_ALIASES[method];
+  if (member) return typeof Reflect.get(game, member) === "function";
   const aliased = ALIASES[method];
   if (aliased) {
     const acts = areaActs(game, aliased[0]);
@@ -108,5 +114,36 @@ describe("PUPPET_CALLS", () => {
     if ("error" in call) throw new Error(call.error);
     PUPPET_CALLS["rollLoot"]?.run(game, call.args);
     expect(game.rollLoot).toHaveBeenCalledWith(42n, 3, "need");
+  });
+
+  test("walks toward a named nearby player until it is close", async () => {
+    const game = createMockGame();
+    const row = {
+      distance: 17,
+      entity: { guid: 7n, name: "Fabc", objectType: 4 },
+      position: { x: 1, y: 2, z: 3 },
+      self: false,
+    };
+    spyOn(game, "queryNearby").mockReturnValue([row] as never);
+    const walk = spyOn(game, "walkTowardPoint").mockResolvedValue({
+      pose: undefined,
+      reason: "arrived",
+      status: "arrived",
+      traveled: 14,
+    } as never);
+    const call = decodeCall("walkToPlayer", '["fabc"]');
+    if ("error" in call) throw new Error(call.error);
+    await PUPPET_CALLS["walkToPlayer"]?.run(game, call.args);
+    expect(walk).toHaveBeenCalledWith({ x: 1, y: 2, z: 3 }, 14);
+  });
+
+  test("refuses to walk toward a player who is not nearby", () => {
+    const game = createMockGame();
+    spyOn(game, "queryNearby").mockReturnValue([]);
+    const call = decodeCall("walkToPlayer", '["Fabc"]');
+    if ("error" in call) throw new Error(call.error);
+    expect(PUPPET_CALLS["walkToPlayer"]?.run(game, call.args)).rejects.toThrow(
+      "No nearby player named Fabc.",
+    );
   });
 });

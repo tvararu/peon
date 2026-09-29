@@ -168,27 +168,14 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
             slot.item.entry === entry &&
             (slot.region === "backpack" || slot.region === "bag_item"),
         );
-      if (!held || held.status !== "occupied")
+      if (held?.status !== "occupied")
         throw new Error(`No carried item with entry ${entry}.`);
       await h.trade.act.offerItem(0, held.bag, held.slot);
     },
   },
   tradeRequest: {
     args: ["string"],
-    run: (h, a) => {
-      const name = text(a, 0).toLowerCase();
-      const found = h
-        .queryNearby()
-        .find(
-          (row) =>
-            !row.self &&
-            isUnit(row.entity) &&
-            row.entity.objectType === ObjectType.PLAYER &&
-            row.entity.name?.toLowerCase() === name,
-        );
-      if (!found) throw new Error(`No nearby player named ${text(a, 0)}.`);
-      return h.trade.act.requestTrade(found.entity.guid);
-    },
+    run: (h, a) => h.trade.act.requestTrade(nearbyPlayer(h, text(a, 0)).guid),
   },
   uninvite: { args: ["string"], run: (h, a) => h.uninvite(text(a, 0)) },
   uninviteGuid: {
@@ -199,7 +186,44 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
     args: [["no", "yes"]],
     run: (h, a) => h.lfg.act.voteKick(a[0] === "yes"),
   },
+  walkToPlayer: {
+    args: ["string"],
+    run: (h, a) => walkToPlayer(h, text(a, 0)),
+  },
 };
+
+const CLOSE_YARDS = 3;
+const MAX_STEP_YARDS = 20;
+
+function nearbyRow(handle: WorldHandle, name: string) {
+  const wanted = name.toLowerCase();
+  const found = handle
+    .queryNearby()
+    .find(
+      (row) =>
+        !row.self &&
+        isUnit(row.entity) &&
+        row.entity.objectType === ObjectType.PLAYER &&
+        row.entity.name?.toLowerCase() === wanted,
+    );
+  if (!found) throw new Error(`No nearby player named ${name}.`);
+  return found;
+}
+
+function nearbyPlayer(handle: WorldHandle, name: string) {
+  return nearbyRow(handle, name).entity;
+}
+
+async function walkToPlayer(handle: WorldHandle, name: string): Promise<void> {
+  const { distance, position } = nearbyRow(handle, name);
+  if (!position || distance === null)
+    throw new Error(`${name} has no known position.`);
+  if (distance <= CLOSE_YARDS) return;
+  await handle.walkTowardPoint(
+    position,
+    Math.min(MAX_STEP_YARDS, distance - CLOSE_YARDS),
+  );
+}
 
 const GUID = /^\d+$/;
 const GUID_MAX = 2n ** 64n - 1n;
