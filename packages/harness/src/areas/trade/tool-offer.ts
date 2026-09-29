@@ -1,10 +1,13 @@
 import {
   afterOf,
   offerLine,
+  type Picked,
   pickAll,
   playerName,
   refusalOf,
+  type Settled,
   settleOutcome,
+  stackText,
   type TradeAfter,
   type TradeArgs,
   type TradeCtx,
@@ -26,6 +29,51 @@ export async function runAnswer(
   return settleOutcome(outcome, "answer", afterOf("answer"));
 }
 
+type OccupiedSlot = { bag: number; guid: bigint; slot: number };
+
+function keyOf(bag: number, slot: number): string {
+  return `${bag}/${slot}`;
+}
+
+function occupiedSlots(ctx: TradeCtx): OccupiedSlot[] {
+  return ctx.handle
+    .getInventoryState()
+    .slots.flatMap((slot) => (slot.status === "occupied" ? [slot] : []));
+}
+
+async function withdrawUnwanted(
+  ctx: TradeCtx,
+  live: TradeState,
+  picked: Picked[],
+): Promise<void> {
+  const wanted: Record<string, true> = {};
+  for (const item of picked) wanted[keyOf(item.bag, item.slot)] = true;
+  const slots = occupiedSlots(ctx);
+  for (const held of [...live.ownOffer.items]) {
+    const found = slots.find((slot) => slot.guid === held.guid);
+    if (found === undefined || wanted[keyOf(found.bag, found.slot)] !== true)
+      await ctx.handle.trade.act.withdrawItem(held.slot);
+  }
+}
+
+async function placeWanted(
+  ctx: TradeCtx,
+  live: TradeState,
+  picked: Picked[],
+): Promise<void> {
+  const slots = occupiedSlots(ctx);
+  for (const [index, item] of picked.entries()) {
+    const placed = slots.find(
+      (slot) => slot.bag === item.bag && slot.slot === item.slot,
+    );
+    const current = live.ownOffer.items.find(
+      (held) => placed !== undefined && placed.guid === held.guid,
+    );
+    if (!current || current.slot !== index)
+      await ctx.handle.trade.act.offerItem(index, item.bag, item.slot);
+  }
+}
+
 export async function runOffer(
   args: TradeArgs,
   ctx: TradeCtx,
@@ -36,32 +84,8 @@ export async function runOffer(
   await ctx.rt.mutex.run(async () => {
     const live = ctx.handle.trade.state();
     if (live.phase !== "open") throw new Error("no trade is open");
-    const slots = ctx.handle.getInventoryState().slots;
-    const keyOf = (bag: number, slot: number): string => `${bag}/${slot}`;
-    const wanted: Record<string, true> = {};
-    for (const item of picked) wanted[keyOf(item.bag, item.slot)] = true;
-    for (const held of [...live.ownOffer.items]) {
-      const found = slots.find(
-        (slot): slot is Extract<typeof slot, { status: "occupied" }> =>
-          slot.status === "occupied" && slot.guid === held.guid,
-      );
-      if (found === undefined || wanted[keyOf(found.bag, found.slot)] !== true)
-        await ctx.handle.trade.act.withdrawItem(held.slot);
-    }
-    const snap = ctx.handle.getInventoryState().slots;
-    for (const [index, item] of picked.entries()) {
-      const placed = snap.find(
-        (slot): slot is Extract<typeof slot, { status: "occupied" }> =>
-          slot.status === "occupied" &&
-          slot.bag === item.bag &&
-          slot.slot === item.slot,
-      );
-      const current = live.ownOffer.items.find(
-        (held) => placed !== undefined && placed.guid === held.guid,
-      );
-      if (!current || current.slot !== index)
-        await ctx.handle.trade.act.offerItem(index, item.bag, item.slot);
-    }
+    await withdrawUnwanted(ctx, live, picked);
+    await placeWanted(ctx, live, picked);
     if (copper !== state.ownOffer.gold)
       await ctx.handle.trade.act.offerGold(copper);
   });
@@ -71,7 +95,7 @@ export async function runOffer(
       items: picked.map((item) => item.label),
       version: state.theirOffer.version,
     }),
-    detail: `Offered ${picked.map((item) => item.label).join(", ") || "nothing"} and ${copper} copper.`,
+    detail: `Offered ${picked.map(stackText).join(", ") || "nothing"} and ${copper} copper.`,
   });
 }
 
@@ -81,7 +105,7 @@ export async function runAccept(
 ): Promise<ToolResult<TradeAfter>> {
   throwUnlessOpen(ctx);
   const version = args.version ?? ctx.handle.trade.state().theirOffer.version;
-  let outcome;
+  let outcome: Settled;
   try {
     outcome = await ctx.rt.mutex.run(() =>
       ctx.handle.trade.act.acceptTrade(version),
@@ -116,7 +140,7 @@ function stateLines(ctx: TradeCtx, state: TradeState): string[] {
   ];
 }
 
-export async function runShow(ctx: TradeCtx): Promise<ToolResult<TradeAfter>> {
+export function runShow(ctx: TradeCtx): ToolResult<TradeAfter> {
   const state = ctx.handle.trade.state();
   const lines = stateLines(ctx, state);
   return result("DONE", {

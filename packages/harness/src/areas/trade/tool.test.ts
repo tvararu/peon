@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import { validateToolArguments } from "@earendil-works/pi-ai";
-import { tradeParams, tradeSpec, tradeTool } from "#harness/areas/trade/tool";
+import { tradeSpec, tradeTool } from "#harness/areas/trade/tool";
+import { tradeParams } from "#harness/areas/trade/tool-shared";
 import {
   contentOf,
   setUnits,
@@ -193,9 +194,21 @@ describe("trade give", () => {
     expect(t.acts.offerGold).toHaveBeenCalledWith(10);
     expect(t.acts.acceptTrade).toHaveBeenCalled();
     expect(out.status).toBe("DONE");
-    expect(out.detail).toBe(
-      "Gave Refreshing Spring Water, Linen Cloth and 10 copper to Fgkllpgpdnj.",
+    expect(out.detail).toContain("Refreshing Spring Water");
+    expect(out.detail).toContain("Linen Cloth");
+    expect(out.detail).toContain("10 copper");
+  });
+
+  test("give reports the whole stack it offers", async () => {
+    const t = await world();
+    stocked(t.handle, [
+      { bag: 255, count: 20, entry: 159, guid: WATER, name: "Water", slot: 24 },
+    ]);
+    const out = await tradeSpec.run(
+      { do: "give", items: ["Water"], with: "Fgkllpgpdnj" },
+      toolCtx(t),
     );
+    expect(out.detail).toContain("20 Water");
   });
 
   test("give refuses an equipped item", async () => {

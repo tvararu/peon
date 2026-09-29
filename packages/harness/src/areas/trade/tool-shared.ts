@@ -28,7 +28,8 @@ export const tradeParams = Type.Object({
   ),
   items: Type.Optional(
     Type.Array(Type.String(), {
-      description: "For give and offer: item names from journal bags.",
+      description:
+        "For give and offer: item names from journal bags. A named item is offered as its whole stack.",
     }),
   ),
   version: Type.Optional(
@@ -64,7 +65,16 @@ export type TradeAfter = {
 export type TradeCtx = ToolCtx<TradeAfter>;
 export type TradeState = AreaState<"trade">;
 
-export type Picked = { bag: number; slot: number; label: string };
+export type Picked = {
+  bag: number;
+  count: number;
+  slot: number;
+  label: string;
+};
+
+export function stackText(item: Picked): string {
+  return item.count > 1 ? `${item.count} ${item.label}` : item.label;
+}
 
 export type Settled =
   | { status: "ok" }
@@ -159,7 +169,12 @@ export function pickCarried(ctx: TradeCtx, text: string): Picked {
       `${itemLabel(held)} is equipped; trade only carried items.`,
       bagsNext(),
     );
-  return { bag: held.bag, label: itemLabel(held), slot: held.slot };
+  return {
+    bag: held.bag,
+    count: held.item.count ?? 1,
+    label: itemLabel(held),
+    slot: held.slot,
+  };
 }
 
 export function pickAll(ctx: TradeCtx, names: string[]): Picked[] {

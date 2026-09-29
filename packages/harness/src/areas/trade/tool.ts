@@ -15,6 +15,7 @@ import {
   type TradeDo,
   tradeParams,
 } from "#harness/areas/trade/tool-shared";
+import type { ToolResult } from "#harness/contract/result";
 import { defineGameTool } from "#harness/tools/define";
 import type { GameToolSpec, ToolRenderers } from "#harness/tools/game-tool";
 import { argText } from "#harness/ui/draw";
@@ -26,20 +27,17 @@ import {
   resultRenderer,
 } from "#harness/ui/renderers/line";
 
-export type { TradeAfter, TradeArgs, TradeCtx, TradeDo };
-export { emptyTrade, tradeParams };
-
 export async function runTrade(
   args: TradeArgs,
   ctx: TradeCtx,
-): Promise<import("#harness/contract/result").ToolResult<TradeAfter>> {
+): Promise<ToolResult<TradeAfter>> {
   const verb = (args.do ?? "show") as TradeDo;
   if (verb === "show") return runShow(ctx);
-  if (verb === "give") return runGive(args, ctx);
-  if (verb === "answer") return runAnswer(args, ctx);
-  if (verb === "offer") return runOffer(args, ctx);
-  if (verb === "accept") return runAccept(args, ctx);
-  if (verb === "cancel") return runCancel(ctx);
+  if (verb === "give") return await runGive(args, ctx);
+  if (verb === "answer") return await runAnswer(args, ctx);
+  if (verb === "offer") return await runOffer(args, ctx);
+  if (verb === "accept") return await runAccept(args, ctx);
+  if (verb === "cancel") return await runCancel(ctx);
   throw refusalOf(
     "unknown_verb",
     `Unknown trade verb ${String(verb)}. Use give, answer, offer, accept, cancel or show.`,
@@ -86,6 +84,7 @@ export const tradeSpec: GameToolSpec<typeof tradeParams, "trade", TradeAfter> =
         "Trade items and gold with another player. Give items, answer a request, change your offer, accept or cancel the trade, and read both offers.",
       guidelines: [
         "Trade only with a player you see. Never give an item you did not name.",
+        "A named item goes as its whole stack. Split a stack first to give part of it.",
         "Accept a trade only after you read both offers.",
       ],
       label: "Trade",

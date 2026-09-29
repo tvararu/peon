@@ -7,6 +7,7 @@ import {
   refusalOf,
   resolvePlayer,
   type Settled,
+  stackText,
   type TradeAfter,
   type TradeArgs,
   type TradeCtx,
@@ -53,47 +54,53 @@ function givePicks(
   return { copper, name: with_, picked };
 }
 
-function gaveDetail(picked: Picked[], copper: number, name: string): string {
-  const labels = picked.map((item) => item.label);
+type Offer = { copper: number; guid: bigint; name: string; picked: Picked[] };
+
+function gaveDetail({ copper, name, picked }: Offer): string {
+  const items = picked.map(stackText).join(", ");
   const gave =
-    labels.length === 0
-      ? `${copper} copper`
-      : copper > 0
-        ? `${labels.join(", ")} and ${copper} copper`
-        : labels.join(", ");
+    copper > 0
+      ? [items, `${copper} copper`].filter(Boolean).join(" and ")
+      : items;
   return `Gave ${gave} to ${name}.`;
+}
+
+function stopped(signal: AbortSignal): void {
+  if (signal.aborted) throw new Error("the trade was stopped");
+}
+
+async function giveFlow(
+  ctx: TradeCtx,
+  offer: Offer,
+  signal: AbortSignal,
+): Promise<Settled> {
+  stopped(signal);
+  const requested: Settled = await ctx.handle.trade.act.requestTrade(
+    offer.guid,
+  );
+  if (requested.status !== "ok") return requested;
+  for (const [index, item] of offer.picked.entries()) {
+    stopped(signal);
+    await ctx.handle.trade.act.offerItem(index, item.bag, item.slot);
+  }
+  if (offer.copper > 0) await ctx.handle.trade.act.offerGold(offer.copper);
+  stopped(signal);
+  const version = ctx.handle.trade.state().theirOffer.version;
+  return await ctx.handle.trade.act.acceptTrade(version);
 }
 
 function tradeEnd(
   ctx: TradeCtx,
-  guid: bigint,
-  picked: Picked[],
-  copper: number,
-  name: string,
+  offer: Offer,
 ): (control: {
   signal: AbortSignal;
 }) => Promise<RunEnd<ToolResult<TradeAfter>>> {
-  return async (control) => {
-    const aborted = control.signal.aborted;
-    const flow = async (): Promise<Settled> => {
-      if (aborted) throw new Error("the trade was stopped");
-      const requested: Settled = await ctx.handle.trade.act.requestTrade(guid);
-      if (requested.status !== "ok") return requested;
-      for (const [index, item] of picked.entries()) {
-        if (aborted) throw new Error("the trade was stopped");
-        await ctx.handle.trade.act.offerItem(index, item.bag, item.slot);
-      }
-      if (copper > 0) await ctx.handle.trade.act.offerGold(copper);
-      if (aborted) throw new Error("the trade was stopped");
-      const version = ctx.handle.trade.state().theirOffer.version;
-      const accepted: Settled = await ctx.handle.trade.act.acceptTrade(version);
-      return accepted;
-    };
+  return async ({ signal }) => {
     let settled: Settled;
     try {
-      settled = await ctx.rt.mutex.run(flow);
+      settled = await ctx.rt.mutex.run(() => giveFlow(ctx, offer, signal));
     } finally {
-      if (aborted)
+      if (signal.aborted)
         await ctx.rt.mutex
           .run(() => ctx.handle.trade.act.cancelTrade())
           .catch(() => undefined);
@@ -101,15 +108,15 @@ function tradeEnd(
     if (settled.status !== "ok") throw refusalFor(settled, "give");
     return {
       status: "succeeded",
-      summary: `gave to ${name}`,
+      summary: `gave to ${offer.name}`,
       value: result("DONE", {
         after: afterOf("give", {
-          gold: copper,
-          items: picked.map((item) => item.label),
+          gold: offer.copper,
+          items: offer.picked.map((item) => item.label),
           version: undefined,
-          with: name,
+          with: offer.name,
         }),
-        detail: gaveDetail(picked, copper, name),
+        detail: gaveDetail(offer),
       }),
     };
   };
@@ -125,7 +132,7 @@ export async function runGive(
   const run = ctx.rt.runs.start<ToolResult<TradeAfter>>({
     args: { do: "give", gold: copper, with: name },
     kind: "trade",
-    launch: tradeEnd(ctx, guid, picked, copper, seen),
+    launch: tradeEnd(ctx, { copper, guid, name: seen, picked }),
     toolCallId: ctx.toolCallId,
   });
   const waited = await awaitRun({ rt: ctx.rt, run });
