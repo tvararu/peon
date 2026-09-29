@@ -17,10 +17,13 @@ export const groupParams = Type.Object({
         "give",
         "pass_loot",
         "roll",
+        "share_quest",
+        "accept_quest",
+        "decline_quest",
       ],
       {
         description:
-          "status: show each group member. kick: remove a member by name. lead: pass the leader to a member. raid: make the group a raid. move: move a member to a subgroup. swap: swap two members between subgroups. promote: set assistant, main tank or main assist. loot_rules: set the loot method. give: give a master loot item to a member. pass_loot: pass on group loot with on or off. roll: answer the open group roll with need, greed or pass. Default status.",
+          "status: show each group member. kick: remove a member by name. lead: pass the leader to a member. raid: make the group a raid. move: move a member to a subgroup. swap: swap two members between subgroups. promote: set assistant, main tank or main assist. loot_rules: set the loot method. give: give a master loot item to a member. pass_loot: pass on group loot with on or off. roll: answer the open group roll with need, greed or pass. share_quest: share a quest in your log with the group; quest takes the id or part of the title. accept_quest: take the shared quest. decline_quest: turn down the shared quest. Default status.",
       },
     ),
   ),
@@ -33,6 +36,19 @@ export const groupParams = Type.Object({
     StringEnum(["uncommon", "rare", "epic", "legendary", "artifact"], {
       description: "For loot_rules: the loot quality threshold.",
     }),
+  ),
+  quest: Type.Optional(
+    Type.Union(
+      [
+        Type.Number({ description: "For share_quest: the quest id." }),
+        Type.String({
+          description: "For share_quest: part of the quest title.",
+        }),
+      ],
+      {
+        description: "For share_quest: the quest id or part of its title.",
+      },
+    ),
   ),
   target: Type.Optional(
     Type.String({
@@ -78,7 +94,10 @@ export type GroupDo =
   | "loot_rules"
   | "give"
   | "pass_loot"
-  | "roll";
+  | "roll"
+  | "share_quest"
+  | "accept_quest"
+  | "decline_quest";
 
 export type RaidState = AreaState<"raid">;
 export type RaidGroup = NonNullable<RaidState["group"]>;
