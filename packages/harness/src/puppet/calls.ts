@@ -200,6 +200,11 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
       const outcome = await h.trade.act.requestTrade(
         nearbyPlayer(h, text(a, 0)).guid,
       );
+      if (
+        outcome.status === "refused" &&
+        (outcome.reason === "busy" || outcome.reason === "trade_canceled")
+      )
+        return;
       if (outcome.status !== "ok" && outcome.status !== "unanswered")
         throw new Error(
           outcome.status === "refused"

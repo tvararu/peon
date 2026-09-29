@@ -170,7 +170,7 @@ describe("PUPPET_CALLS", () => {
     expect(game.trade.act.requestTrade).toHaveBeenCalledWith(7n);
   });
 
-  test("tradeRequestQuiet fails when the other player is busy", async () => {
+  function quietGame(outcome: unknown) {
     const game = createMockGame();
     const row = {
       distance: 2,
@@ -179,15 +179,30 @@ describe("PUPPET_CALLS", () => {
       self: false,
     };
     spyOn(game, "queryNearby").mockReturnValue([row] as never);
-    spyOn(game.trade.act, "requestTrade").mockResolvedValue({
-      reason: "busy",
-      status: "refused",
-    });
+    spyOn(game.trade.act, "requestTrade").mockResolvedValue(outcome as never);
     const call = decodeCall("tradeRequestQuiet", '["Fabc"]');
     if ("error" in call) throw new Error(call.error);
+    return { args: call.args, game };
+  }
+
+  test.each(["busy", "trade_canceled"])(
+    "tradeRequestQuiet tolerates the %s decline",
+    async (reason) => {
+      const { args, game } = quietGame({ reason, status: "refused" });
+      expect(
+        await PUPPET_CALLS["tradeRequestQuiet"]?.run(game, args),
+      ).toBeUndefined();
+    },
+  );
+
+  test("tradeRequestQuiet still fails on other refusals", async () => {
+    const { args, game } = quietGame({
+      reason: "ignore_you",
+      status: "refused",
+    });
     await expect(
-      PUPPET_CALLS["tradeRequestQuiet"]?.run(game, call.args),
-    ).rejects.toThrow("trade_refused: busy");
+      PUPPET_CALLS["tradeRequestQuiet"]?.run(game, args),
+    ).rejects.toThrow("trade_refused: ignore_you");
   });
 
   test("tradeAnswer waits for a request before it answers", () =>
