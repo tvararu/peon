@@ -1,12 +1,16 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import type {
+  AuraLine,
+  BagRow,
   BagsView,
+  BarLine,
   InteractAfter,
   JournalAfter,
   LootAfter,
   LootLine,
   QuestLine,
   QuestOffer,
+  SpellLine,
 } from "#harness/contract/details";
 import type { GameLogEntry } from "#harness/contract/log";
 import type { ToolRenderers } from "#harness/tools/game-tool";
@@ -19,6 +23,7 @@ import {
   hms,
   money,
   qualityTone,
+  span,
 } from "#harness/ui/draw";
 import type { GlyphName } from "#harness/ui/glyphs";
 import {
@@ -178,21 +183,74 @@ function questRows(theme: Theme, quests: readonly QuestLine[]): string[] {
   });
 }
 
+function itemMarks(item: BagRow): string {
+  const marks: string[] = [];
+  if (item.upgrade !== undefined) marks.push("upgrade");
+  else if (item.canWear === true) marks.push("wear");
+  if (item.loadedAmmo) marks.push("loaded");
+  if (item.secondsLeft !== undefined)
+    marks.push(`${span(item.secondsLeft * 1000)} left`);
+  return marks.length > 0 ? ` · ${marks.join(", ")}` : "";
+}
+
 function bagRows(theme: Theme, bags: BagsView): string[] {
   const g = glyphs();
   const purse = [
     bags.copper === undefined ? "" : money(theme, bags.copper),
     bags.freeSlots === undefined ? "" : `${g.bag} ${bags.freeSlots} free`,
-  ];
-  const worn = bags.equipped.map(
-    (e) =>
-      `${theme.fg("dim", e.slot)} ${theme.fg(qualityTone(e.quality), e.name)}`,
-  );
-  const items = bags.items.map(
-    (item) =>
-      `${g.item} ${theme.fg(qualityTone(item.quality), `${item.name} ×${item.count}`)} ${theme.fg("dim", item.kind)}`,
-  );
-  return [purse.filter(Boolean).join("  "), ...items, ...worn];
+  ]
+    .filter(Boolean)
+    .join("  ");
+  const items = bags.items.map((item) => {
+    const head = `${g.item} ${theme.fg(qualityTone(item.quality), `${item.name} ×${item.count}`)} ${theme.fg("dim", item.kind)}`;
+    return `${head}${theme.fg("dim", itemMarks(item))}`;
+  });
+  const worn = bags.equipped.map((e) => {
+    const dura =
+      e.durability === undefined
+        ? ""
+        : theme.fg("dim", ` ${e.durability.current}/${e.durability.max}`);
+    return `${theme.fg("dim", e.slot)} ${theme.fg(qualityTone(e.quality), e.name)}${dura}`;
+  });
+  const ammo =
+    bags.ammo === undefined
+      ? []
+      : [`${theme.fg("dim", "Ammo")} ${bags.ammo.name}`];
+  return [...(purse ? [purse] : []), ...items, ...worn, ...ammo];
+}
+
+type SpellRowsInit = {
+  auras: readonly AuraLine[];
+  bar: readonly BarLine[];
+  spells: readonly SpellLine[];
+  theme: Theme;
+};
+
+function spellRows({ auras, bar, spells, theme }: SpellRowsInit): string[] {
+  const lines = spells.map((s) => {
+    const head = `${glyph("spell")} ${s.name}${s.rank ? ` (${s.rank})` : ""}`;
+    const bits = [
+      s.cost === undefined ? "" : `${s.cost}`,
+      s.cooldownMs === undefined ? "" : span(s.cooldownMs),
+    ].filter(Boolean);
+    return bits.length > 0
+      ? `${head} ${theme.fg("dim", bits.join(" · "))}`
+      : head;
+  });
+  if (auras.length > 0)
+    lines.push(
+      theme.fg("muted", "Auras"),
+      ...auras.map((a) => `${glyph("buff")} ${theme.fg("text", a.name)}`),
+    );
+  if (bar.length > 0)
+    lines.push(
+      theme.fg("muted", "Bar"),
+      ...bar.map((entry) => {
+        const icon = entry.type === "item" ? glyphs().item : glyph("spell");
+        return `${theme.fg("dim", `${entry.slot}`)} ${icon} ${theme.fg("text", entry.name)}`;
+      }),
+    );
+  return lines;
 }
 
 function logRow(theme: Theme, entry: GameLogEntry): string {
@@ -209,9 +267,12 @@ function journalRows(theme: Theme, after: JournalAfter): string[] {
     case "reputation":
       return after.factions.map((name) => `${glyph("spell")} ${name}`);
     case "spells":
-      return after.spells.map(
-        (s) => `${glyph("spell")} ${s.name}${s.rank ? ` (${s.rank})` : ""}`,
-      );
+      return spellRows({
+        auras: after.auras,
+        bar: after.bar,
+        spells: after.spells,
+        theme,
+      });
     default: {
       const more =
         after.more > 0 ? [theme.fg("dim", `+${after.more} more`)] : [];
