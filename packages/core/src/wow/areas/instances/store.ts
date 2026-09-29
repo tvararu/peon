@@ -30,7 +30,7 @@ export type PendingBind = {
   deadline: number;
 };
 
-export type PendingDifficulty = { kind: DifficultyKind; value: number };
+export type PendingDifficulty = { dungeon?: number; raid?: number };
 export type DifficultyBody = { kind: DifficultyKind; difficulty: number };
 
 export type InstancesState = {
@@ -148,14 +148,25 @@ export class InstancesStore {
   }
 
   pendDifficulty(kind: DifficultyKind, value: number): void {
-    this.set({ pendingDifficulty: { kind, value } });
+    this.set({
+      pendingDifficulty: { ...this.state.pendingDifficulty, [kind]: value },
+    });
   }
 
   difficulty(kind: DifficultyKind, packet: DifficultyPacket): void {
     const key = DIFFICULTY_KEY[kind];
     const previous = this.state[key];
-    if (this.state.pendingDifficulty?.kind === kind)
-      this.set({ pendingDifficulty: undefined });
+    const pending = this.state.pendingDifficulty;
+    if (pending?.[kind] !== undefined) {
+      const next = { ...pending };
+      delete next[kind];
+      this.set({
+        pendingDifficulty:
+          next.dungeon === undefined && next.raid === undefined
+            ? undefined
+            : next,
+      });
+    }
     if (previous === packet.difficulty) {
       this.bodies.emit({ kind, difficulty: packet.difficulty });
       return;

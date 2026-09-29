@@ -85,10 +85,7 @@ export async function requestDifficulty(
   const state = store.snapshot();
   const known =
     kind === "dungeon" ? state.dungeonDifficulty : state.raidDifficulty;
-  const current =
-    state.pendingDifficulty?.kind === kind
-      ? state.pendingDifficulty.value
-      : known;
+  const current = state.pendingDifficulty?.[kind] ?? known;
   if (current === value) return { status: "refused", reason: "unchanged" };
   const party = ctx.legacy.party();
   if (party.inGroup && !leads(party))
@@ -128,10 +125,7 @@ export async function requestReset(
   if (party.inGroup && !leads(party))
     return { status: "refused", reason: "not_leader" };
   const state = store.snapshot();
-  const dungeon =
-    state.pendingDifficulty?.kind === "dungeon"
-      ? state.pendingDifficulty.value
-      : state.dungeonDifficulty;
+  const dungeon = state.pendingDifficulty?.dungeon ?? state.dungeonDifficulty;
   if (
     !party.inGroup &&
     dungeon !== undefined &&

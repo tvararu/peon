@@ -63,10 +63,7 @@ describe("instances store: pending difficulty", () => {
         instancesDifficultyBody({ difficulty: 0, inGroup: false }),
       );
       rig.stores.areas.instances.pendDifficulty("dungeon", 1);
-      expect(rig.handle.state().pendingDifficulty).toEqual({
-        kind: "dungeon",
-        value: 1,
-      });
+      expect(rig.handle.state().pendingDifficulty).toEqual({ dungeon: 1 });
       rig.inject(
         GameOpcode.MSG_SET_RAID_DIFFICULTY,
         instancesDifficultyBody({ difficulty: 0, inGroup: false }),

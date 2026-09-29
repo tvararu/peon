@@ -197,10 +197,7 @@ describe("instances runtime: setDifficulty", () => {
       expect(rig.handle.state().pendingDifficulty).toBeUndefined();
       jest.advanceTimersByTime(1);
       expect(await pending).toEqual({ status: "unconfirmed_solo" });
-      expect(rig.handle.state().pendingDifficulty).toEqual({
-        kind: "dungeon",
-        value: 1,
-      });
+      expect(rig.handle.state().pendingDifficulty).toEqual({ dungeon: 1 });
       rig.inject(
         GameOpcode.MSG_SET_DUNGEON_DIFFICULTY,
         instancesDifficultyBody({ difficulty: 1, inGroup: false }),
@@ -326,6 +323,39 @@ describe("instances runtime: resetInstances", () => {
         reason: "heroic_no_reset",
       });
       expect(rig.sent).toHaveLength(sentBefore);
+    } finally {
+      rig.dispose();
+      jest.useRealTimers();
+    }
+  });
+
+  test("an unconfirmed raid change after an unconfirmed heroic dungeon change keeps the dungeon pending", async () => {
+    jest.useFakeTimers();
+    const rig = rigIn(SOLO);
+    try {
+      rig.inject(
+        GameOpcode.MSG_SET_DUNGEON_DIFFICULTY,
+        instancesDifficultyBody({ difficulty: 0, inGroup: false }),
+      );
+      const dungeonChange = rig.handle.act.setDifficulty(dungeon(1));
+      jest.advanceTimersByTime(2000);
+      expect(await dungeonChange).toEqual({ status: "unconfirmed_solo" });
+      const raidChange = rig.handle.act.setDifficulty(raid(1));
+      jest.advanceTimersByTime(2000);
+      expect(await raidChange).toEqual({ status: "unconfirmed_solo" });
+      expect(rig.handle.state().pendingDifficulty).toEqual({
+        dungeon: 1,
+        raid: 1,
+      });
+      expect(await rig.handle.act.resetInstances()).toEqual({
+        status: "refused",
+        reason: "heroic_no_reset",
+      });
+      rig.inject(
+        GameOpcode.MSG_SET_RAID_DIFFICULTY,
+        instancesDifficultyBody({ difficulty: 1, inGroup: false }),
+      );
+      expect(rig.handle.state().pendingDifficulty).toEqual({ dungeon: 1 });
     } finally {
       rig.dispose();
       jest.useRealTimers();
