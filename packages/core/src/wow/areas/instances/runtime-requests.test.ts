@@ -309,6 +309,50 @@ describe("instances runtime: resetInstances", () => {
     }
   });
 
+  test("solo with an unconfirmed heroic change pending refuses heroic_no_reset", async () => {
+    jest.useFakeTimers();
+    const rig = rigIn(SOLO);
+    try {
+      rig.inject(
+        GameOpcode.MSG_SET_DUNGEON_DIFFICULTY,
+        instancesDifficultyBody({ difficulty: 0, inGroup: false }),
+      );
+      const change = rig.handle.act.setDifficulty(dungeon(1));
+      jest.advanceTimersByTime(2000);
+      expect(await change).toEqual({ status: "unconfirmed_solo" });
+      const sentBefore = rig.sent.length;
+      expect(await rig.handle.act.resetInstances()).toEqual({
+        status: "refused",
+        reason: "heroic_no_reset",
+      });
+      expect(rig.sent).toHaveLength(sentBefore);
+    } finally {
+      rig.dispose();
+      jest.useRealTimers();
+    }
+  });
+
+  test("solo with an unconfirmed normal change pending over known heroic still sends", async () => {
+    jest.useFakeTimers();
+    const rig = rigIn(SOLO);
+    try {
+      rig.inject(
+        GameOpcode.MSG_SET_DUNGEON_DIFFICULTY,
+        instancesDifficultyBody({ difficulty: 1, inGroup: false }),
+      );
+      const change = rig.handle.act.setDifficulty(dungeon(0));
+      jest.advanceTimersByTime(2000);
+      expect(await change).toEqual({ status: "unconfirmed_solo" });
+      const reset = rig.handle.act.resetInstances();
+      expect(opcodes(rig)).toContain(GameOpcode.CMSG_RESET_INSTANCES);
+      jest.advanceTimersByTime(2000);
+      expect(await reset).toEqual({ status: "nothing_to_reset" });
+    } finally {
+      rig.dispose();
+      jest.useRealTimers();
+    }
+  });
+
   test("a group leader at heroic difficulty still sends", async () => {
     jest.useFakeTimers();
     const rig = rigIn(LEADING);

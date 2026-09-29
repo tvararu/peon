@@ -119,6 +119,7 @@ describe("instances harness rules", () => {
       class: "log",
       data: { mapId: 36 },
       event: "instances/reset",
+      progress: true,
     });
     expect(row?.text).toContain("36");
   });

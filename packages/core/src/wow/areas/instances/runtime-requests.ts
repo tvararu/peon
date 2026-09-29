@@ -127,7 +127,11 @@ export async function requestReset(
   const party = ctx.legacy.party();
   if (party.inGroup && !leads(party))
     return { status: "refused", reason: "not_leader" };
-  const dungeon = store.snapshot().dungeonDifficulty;
+  const state = store.snapshot();
+  const dungeon =
+    state.pendingDifficulty?.kind === "dungeon"
+      ? state.pendingDifficulty.value
+      : state.dungeonDifficulty;
   if (
     !party.inGroup &&
     dungeon !== undefined &&

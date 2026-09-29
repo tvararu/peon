@@ -129,6 +129,7 @@ function reset(event: Of<"reset">): AreaDraft[] {
       class: "log",
       data: { mapId: event.mapId },
       name: "reset",
+      progress: true,
       text: `Instance map ${event.mapId} was reset.`,
     },
   ];
