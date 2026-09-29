@@ -141,6 +141,73 @@ function readyDoneText(finished: Of<"ready_check_finished">): string {
   return `The ready check finished: ${parts.join("; ")}.`;
 }
 
+function commandResult(event: Of<"command_result">): AreaDraft[] {
+  return [
+    {
+      class: "wake" as const,
+      data: {
+        member: event.member,
+        operation: event.operation,
+        result: event.result,
+      },
+      name: "command" as const,
+      text: `${event.operation} answered ${event.result}.`,
+    },
+  ];
+}
+
+function readyStarted(event: Of<"ready_check_started">): AreaDraft[] {
+  return [
+    {
+      class: "wake" as const,
+      data: { name: event.name },
+      name: "ready_check" as const,
+      text:
+        event.name === ""
+          ? "You start a ready check."
+          : `${event.name} starts a ready check.`,
+    },
+  ];
+}
+
+function readyAnswer(event: Of<"ready_check_answer">): AreaDraft[] {
+  return [
+    {
+      class: "passive" as const,
+      data: { answer: event.answer, name: event.name },
+      name: "ready_answer" as const,
+      text: answerText(event),
+    },
+  ];
+}
+
+function readyFinished(event: Of<"ready_check_finished">): AreaDraft[] {
+  return [
+    {
+      class: "passive" as const,
+      data: {
+        notReady: [...event.notReady],
+        offline: event.offline,
+        pending: event.pending,
+        ready: event.ready,
+      },
+      name: "ready_done" as const,
+      text: readyDoneText(event),
+    },
+  ];
+}
+
+function disbanded(): AreaDraft[] {
+  return [
+    {
+      class: "passive",
+      data: {},
+      name: "roster",
+      text: "The group disbanded.",
+    },
+  ];
+}
+
 function rule(event: RaidEvent): AreaDraft[] {
   switch (event.type) {
     case "group_list":
@@ -150,94 +217,15 @@ function rule(event: RaidEvent): AreaDraft[] {
     case "member_stats":
       return memberStats(event);
     case "command_result":
-      return [
-        {
-          class: "wake" as const,
-          data: {
-            member: event.member,
-            operation: event.operation,
-            result: event.result,
-          },
-          name: "command" as const,
-          text: `${event.operation} answered ${event.result}.`,
-        },
-      ];
+      return commandResult(event);
     case "ready_check_started":
-      return [
-        {
-          class: "wake" as const,
-          data: { name: event.name },
-          name: "ready_check" as const,
-          text:
-            event.name === ""
-              ? "You start a ready check."
-              : `${event.name} starts a ready check.`,
-        },
-      ];
+      return readyStarted(event);
     case "ready_check_answer":
-      return [
-        {
-          class: "passive" as const,
-          data: { answer: event.answer, name: event.name },
-          name: "ready_answer" as const,
-          text: answerText(event),
-        },
-      ];
+      return readyAnswer(event);
     case "ready_check_finished":
-      return [
-        {
-          class: "passive" as const,
-          data: {
-            notReady: [...event.notReady],
-            offline: event.offline,
-            pending: event.pending,
-            ready: event.ready,
-          },
-          name: "ready_done" as const,
-          text: readyDoneText(event),
-        },
-      ];
-    case "ready_check_started":
-      return [
-        {
-          class: "wake" as const,
-          data: { name: event.name },
-          name: "ready_check" as const,
-          text: `${event.name} starts a ready check.`,
-        },
-      ];
-    case "ready_check_answer":
-      return [
-        {
-          class: "passive" as const,
-          data: { answer: event.answer, name: event.name },
-          name: "ready_answer" as const,
-          text: answerText(event),
-        },
-      ];
-    case "ready_check_finished":
-      return [
-        {
-          class: "passive" as const,
-          data: {
-            notReady: [...event.notReady],
-            offline: event.offline,
-            pending: event.pending,
-            ready: event.ready,
-          },
-          name: "ready_done" as const,
-          text: readyDoneText(event),
-        },
-      ];
+      return readyFinished(event);
     case "disbanded":
-      return [
-        {
-          class: "passive",
-          data: {},
-          name: "roster",
-          text: "The group disbanded.",
-        },
-      ];
+      return disbanded();
     default:
       return [];
   }
