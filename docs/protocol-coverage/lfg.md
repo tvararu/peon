@@ -9,7 +9,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x200` | `SMSG_LFG_TELEPORT_DENIED` | server | missing |  |
 | `0x293` | `SMSG_LFG_OFFER_CONTINUE` | server | missing |  |
 | `0x296` | `CMSG_LFG_GET_STATUS` | client | handled |  |
-| `0x2bb` | `SMSG_LFG_ROLE_CHOSEN` | server | handled |  |
+| `0x2bb` | `SMSG_LFG_ROLE_CHOSEN` | server | handled | not seen live |
 | `0x35c` | `CMSG_LFG_JOIN` | client | handled |  |
 | `0x35d` | `CMSG_LFG_LEAVE` | client | handled |  |
 | `0x35e` | `CMSG_SEARCH_LFG_JOIN` | client | missing |  |
@@ -17,19 +17,19 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x360` | `SMSG_UPDATE_LFG_LIST` | server | missing |  |
 | `0x361` | `SMSG_LFG_PROPOSAL_UPDATE` | server | stub |  |
 | `0x362` | `CMSG_LFG_PROPOSAL_RESULT` | client | missing |  |
-| `0x363` | `SMSG_LFG_ROLE_CHECK_UPDATE` | server | handled |  |
+| `0x363` | `SMSG_LFG_ROLE_CHECK_UPDATE` | server | handled | not seen live |
 | `0x364` | `SMSG_LFG_JOIN_RESULT` | server | handled |  |
 | `0x365` | `SMSG_LFG_QUEUE_STATUS` | server | handled |  |
 | `0x366` | `CMSG_SET_LFG_COMMENT` | client | handled |  |
 | `0x367` | `SMSG_LFG_UPDATE_PLAYER` | server | handled |  |
 | `0x368` | `SMSG_LFG_UPDATE_PARTY` | server | handled |  |
 | `0x369` | `SMSG_LFG_UPDATE_SEARCH` | server | handled |  |
-| `0x36a` | `CMSG_LFG_SET_ROLES` | client | handled |  |
+| `0x36a` | `CMSG_LFG_SET_ROLES` | client | handled | not seen live |
 | `0x36c` | `CMSG_LFG_SET_BOOT_VOTE` | client | missing |  |
 | `0x36d` | `SMSG_LFG_BOOT_PROPOSAL_UPDATE` | server | missing |  |
 | `0x36e` | `CMSG_LFD_PLAYER_LOCK_INFO_REQUEST` | client | handled |  |
 | `0x36f` | `SMSG_LFG_PLAYER_INFO` | server | handled |  |
 | `0x370` | `CMSG_LFG_TELEPORT` | client | missing |  |
-| `0x371` | `CMSG_LFD_PARTY_LOCK_INFO_REQUEST` | client | handled |  |
-| `0x372` | `SMSG_LFG_PARTY_INFO` | server | handled |  |
+| `0x371` | `CMSG_LFD_PARTY_LOCK_INFO_REQUEST` | client | handled | not seen live |
+| `0x372` | `SMSG_LFG_PARTY_INFO` | server | handled | not seen live |
 | `0x398` | `SMSG_LFG_DISABLED` | server | dead |  |

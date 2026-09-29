@@ -82,8 +82,8 @@ No verb (N23).
 | `SMSG_LFG_UPDATE_PARTY` | `live` | probe flow `lfg-status`, exit 0; solo body is type 0 with no data | `Handlers/LFGHandler.cpp:339-381` |
 | `CMSG_LFD_PLAYER_LOCK_INFO_REQUEST` | `live` | probe flow `lfg-status`, exit 0; player info follows | `Handlers/LFGHandler.cpp:152-228` |
 | `SMSG_LFG_PLAYER_INFO` | `live` | probe flow `lfg-status`, exit 0; one random dungeon at level 20 | `Handlers/LFGHandler.cpp:169-227` |
-| `CMSG_LFD_PARTY_LOCK_INFO_REQUEST` | `live` | partner group, `call requestPartyLocks`; the A packet trace (not committed) shows the `out` packet with size 0 | `Handlers/LFGHandler.cpp:230-263` |
-| `SMSG_LFG_PARTY_INFO` | `live` | partner group, `call requestPartyLocks`; the same trace shows `in` size 1061, outcome `handled`, 13 ms after the request | `Handlers/LFGHandler.cpp:255-262` |
+| `CMSG_LFD_PARTY_LOCK_INFO_REQUEST` | `mock` | mock request body built by `buildPartyLockInfoRequest`; the two-puppet request trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:230-263` |
+| `SMSG_LFG_PARTY_INFO` | `mock` | mock party body built by `lfgPartyInfoBody`; the two-puppet reply trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:230-263` |
 | `SMSG_LFG_UPDATE_SEARCH` | `live` | probe flow `lfg-status`, exit 0; sent at logout | `Handlers/LFGHandler.cpp:613-619` |
 | `SMSG_LFG_DISABLED` | `dead` | no caller for `SendLfgDisabled`; a join with no reply means off | `Handlers/LFGHandler.cpp:621-626` |
 | `CMSG_LFG_JOIN` | `live` | probe flow `lfg-queue`, exit 0; trace shows `out` size 20, then `SMSG_LFG_JOIN_RESULT` | `Handlers/LFGHandler.cpp:50-55` |
@@ -91,6 +91,6 @@ No verb (N23).
 | `SMSG_LFG_QUEUE_STATUS` | `live` | probe flow `lfg-queue`, exit 0; two `in` rows of size 31, `handled`, during the 12 s wait | `Handlers/LFGHandler.cpp:456-473` |
 | `CMSG_LFG_LEAVE` | `live` | probe flow `lfg-queue`, exit 0; trace shows `out` size 0, then the type-7 update | `Handlers/LFGHandler.cpp:78-93` |
 | `CMSG_SET_LFG_COMMENT` | `live` | probe flow `lfg-queue`, exit 0; trace shows `out` size 5 before the join | `Handlers/LFGHandler.cpp:122-131` |
-| `CMSG_LFG_SET_ROLES` | `live` | two-puppet group, `call setRoles '[2]'`; the B trace (not committed) shows `out` size 1 | `Handlers/LFGHandler.cpp:106-120` |
-| `SMSG_LFG_ROLE_CHECK_UPDATE` | `live` | two-puppet group, leader `call join`; both traces (not committed) show `in` size 39, `handled` | `Handlers/LFGHandler.cpp:394-439` |
-| `SMSG_LFG_ROLE_CHOSEN` | `live` | two-puppet group; both traces (not committed) show `in` size 13, `handled` | `Handlers/LFGHandler.cpp:383-392` |
+| `CMSG_LFG_SET_ROLES` | `mock` | mock request body built by `buildLfgSetRoles`; the two-puppet `setRoles` trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:106-120` |
+| `SMSG_LFG_ROLE_CHECK_UPDATE` | `mock` | mock check body built by `lfgRoleCheckUpdateBody`; the two-puppet group trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:394-439` |
+| `SMSG_LFG_ROLE_CHOSEN` | `mock` | mock answer body built by `lfgRoleChosenBody`; the two-puppet group trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:383-392` |

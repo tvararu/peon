@@ -34,5 +34,11 @@ export const LFG_OPCODES = {
   uses: [],
   stubs: [["SMSG_LFG_PROPOSAL_UPDATE", "LFG proposal"]],
   dead: ["SMSG_LFG_DISABLED"],
-  unseen: [],
+  unseen: [
+    "CMSG_LFD_PARTY_LOCK_INFO_REQUEST",
+    "SMSG_LFG_PARTY_INFO",
+    "CMSG_LFG_SET_ROLES",
+    "SMSG_LFG_ROLE_CHECK_UPDATE",
+    "SMSG_LFG_ROLE_CHOSEN",
+  ],
 } as const satisfies AreaOpcodes;
