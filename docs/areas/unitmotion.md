@@ -118,5 +118,5 @@ No verb (N23).
 | `SMSG_SPLINE_MOVE_UNROOT` | `live` | the same run: traced 0x304 as `handled` eight seconds later, and the flow saw `root` cleared | `Entities/Unit/Unit.cpp:14085` |
 | `SMSG_SPLINE_MOVE_SET_WALK_MODE` | `mock` | `area.test.ts` "unitmotion root, walk mode and swim toggles"; not seen live: only SmartAI `SET_RUN` and charm toggle it and no fight on the preset starts reaches one | `Entities/Creature/Creature.cpp:3396` |
 | `SMSG_SPLINE_MOVE_SET_RUN_MODE` | `mock` | the same test; not seen live, for the same reason | `Entities/Creature/Creature.cpp:3396` |
-| `SMSG_SPLINE_MOVE_START_SWIM` | `mock` | the same test; not seen live: the two tries found no hostile creature in the water near Lake Elrendar and no other water fight near an `eversong10` start is known | `Entities/Creature/Creature.cpp:3407` |
+| `SMSG_SPLINE_MOVE_START_SWIM` | `mock` | the same test; not seen live: one water-fight try (probe flow `unitmotion-cast` after a teleport to Lake Elrendar, `tmp/rm4-probe4.out`) found no hostile creature within 100 yards, so no swimming creature was fought, and no other water fight near an `eversong10` start is known | `Entities/Creature/Creature.cpp:3407` |
 | `SMSG_SPLINE_MOVE_STOP_SWIM` | `mock` | the same test; not seen live, for the same reason | `Entities/Creature/Creature.cpp:3407` |
