@@ -183,4 +183,36 @@ describe("lfg runtime", () => {
       rig.dispose();
     }
   });
+
+  describe("when the world socket is down", () => {
+    const acts = {
+      requestDungeons: solo,
+      requestPartyLocks: grouped,
+      requestStatus: solo,
+    } as const;
+
+    for (const [name, make] of Object.entries(acts)) {
+      test(`${name} rejects with the send error and leaves no waiter behind`, async () => {
+        await withFakeTimers(async () => {
+          const unhandled: unknown[] = [];
+          const listener = (reason: unknown) => unhandled.push(reason);
+          process.on("unhandledRejection", listener);
+          const rig = make();
+          try {
+            (rig.sent as unknown[]).push = () => {
+              throw new Error("socket down");
+            };
+            const act = rig.handle.act[name as keyof typeof acts];
+            await expect(act()).rejects.toThrow("socket down");
+            await elapse(5100);
+            await Promise.resolve();
+            expect(unhandled).toEqual([]);
+          } finally {
+            process.off("unhandledRejection", listener);
+            rig.dispose();
+          }
+        });
+      });
+    }
+  });
 });

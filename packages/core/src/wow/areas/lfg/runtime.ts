@@ -54,7 +54,11 @@ function guard(running: { count: number }) {
   };
 }
 
-async function waitForStatus(ctx: Ctx, grouped: boolean): Promise<void> {
+async function waitForStatus(
+  ctx: Ctx,
+  grouped: boolean,
+  signal: AbortSignal,
+): Promise<void> {
   const seen = { player: false, party: !grouped };
   await ctx.until(
     (event) => {
@@ -63,14 +67,29 @@ async function waitForStatus(ctx: Ctx, grouped: boolean): Promise<void> {
       if (event.source === "party") seen.party = true;
       return seen.player && seen.party;
     },
-    { timeoutMs: LFG_REQUEST_TIMEOUT_MS },
+    { timeoutMs: LFG_REQUEST_TIMEOUT_MS, signal },
   );
+}
+
+function requestScope(): { abort: AbortController } {
+  return { abort: new AbortController() };
 }
 
 function statusAct({ ctx }: Env) {
   return async (): Promise<LfgStatusResult> => {
-    const wait = waitForStatus(ctx, ctx.legacy.party().members.length > 0);
-    ctx.send(GameOpcode.CMSG_LFG_GET_STATUS, buildLfgGetStatus());
+    const scope = requestScope();
+    const wait = waitForStatus(
+      ctx,
+      ctx.legacy.party().members.length > 0,
+      scope.abort.signal,
+    );
+    wait.catch(() => undefined);
+    try {
+      ctx.send(GameOpcode.CMSG_LFG_GET_STATUS, buildLfgGetStatus());
+    } catch (error) {
+      scope.abort.abort();
+      throw error;
+    }
     try {
       await wait;
       return { status: "ok" };
@@ -83,14 +102,21 @@ function statusAct({ ctx }: Env) {
 
 function dungeonsAct({ ctx, store }: Env) {
   return async (): Promise<LfgDungeonsResult> => {
+    const scope = requestScope();
     const wait = ctx.until(
       (event) => event.type === "dungeons" && event.scope === "player",
-      { timeoutMs: LFG_REQUEST_TIMEOUT_MS },
+      { timeoutMs: LFG_REQUEST_TIMEOUT_MS, signal: scope.abort.signal },
     );
-    ctx.send(
-      GameOpcode.CMSG_LFD_PLAYER_LOCK_INFO_REQUEST,
-      buildPlayerLockInfoRequest(),
-    );
+    wait.catch(() => undefined);
+    try {
+      ctx.send(
+        GameOpcode.CMSG_LFD_PLAYER_LOCK_INFO_REQUEST,
+        buildPlayerLockInfoRequest(),
+      );
+    } catch (error) {
+      scope.abort.abort();
+      throw error;
+    }
     try {
       await wait;
       const state = store.snapshot();
@@ -106,14 +132,21 @@ function partyLocksAct({ ctx, store }: Env) {
   return async (): Promise<LfgPartyLocksResult> => {
     if (ctx.legacy.party().members.length === 0)
       return { status: "refused", reason: "not_in_group" };
+    const scope = requestScope();
     const wait = ctx.until(
       (event) => event.type === "dungeons" && event.scope === "party",
-      { timeoutMs: LFG_REQUEST_TIMEOUT_MS },
+      { timeoutMs: LFG_REQUEST_TIMEOUT_MS, signal: scope.abort.signal },
     );
-    ctx.send(
-      GameOpcode.CMSG_LFD_PARTY_LOCK_INFO_REQUEST,
-      buildPartyLockInfoRequest(),
-    );
+    wait.catch(() => undefined);
+    try {
+      ctx.send(
+        GameOpcode.CMSG_LFD_PARTY_LOCK_INFO_REQUEST,
+        buildPartyLockInfoRequest(),
+      );
+    } catch (error) {
+      scope.abort.abort();
+      throw error;
+    }
     try {
       await wait;
       return { status: "ok", partyLocks: store.snapshot().partyLocks };
