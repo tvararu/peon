@@ -1,6 +1,6 @@
 import { ROLL_VOTES, type RollVote, type WorldHandle } from "@peon/core";
 
-type ArgKind = "string" | "guid" | "number" | readonly string[];
+type ArgKind = "string" | "guid" | "number" | "float" | readonly string[];
 
 export type PuppetCall = {
   readonly args: readonly ArgKind[];
@@ -13,6 +13,7 @@ export type PuppetCall = {
 const text = (args: readonly unknown[], at: number) => args[at] as string;
 const guid = (args: readonly unknown[], at: number) => args[at] as bigint;
 const count = (args: readonly unknown[], at: number) => args[at] as number;
+const real = (args: readonly unknown[], at: number) => args[at] as number;
 
 export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   acceptGuildInvite: { args: [], run: (h) => h.acceptGuildInvite() },
@@ -49,11 +50,19 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
     args: ["string", "number"],
     run: (h, a) => h.raid.act.moveToSubgroup(text(a, 0), count(a, 1)),
   },
+  pingMinimap: {
+    args: ["float", "float"],
+    run: (h, a) => h.raid.act.pingMinimap(real(a, 0), real(a, 1)),
+  },
   requestMemberStats: {
     args: ["string"],
     run: (h, a) => h.raid.act.requestMemberStats(text(a, 0)),
   },
   requestPartyLocks: { args: [], run: (h) => h.lfg.act.requestPartyLocks() },
+  requestRaidMarks: {
+    args: [],
+    run: (h) => h.raid.act.requestRaidMarks(),
+  },
   requestStatus: { args: [], run: (h) => h.lfg.act.requestStatus() },
   rollLoot: {
     args: ["guid", "number", ROLL_VOTES],
@@ -108,6 +117,10 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   setPassOnLoot: {
     args: [["off", "on"]],
     run: (h, a) => h.looting.act.setPassOnLoot(a[0] === "on"),
+  },
+  setRaidMark: {
+    args: ["number", "guid"],
+    run: (h, a) => h.raid.act.setRaidMark(count(a, 0), guid(a, 1)),
   },
   setRoles: {
     args: ["number"],
@@ -180,20 +193,27 @@ function parseArray(json: string | undefined): unknown[] | undefined {
   }
 }
 
+function decodeGuid(value: unknown): bigint | undefined {
+  if (typeof value !== "string" || !GUID.test(value)) return undefined;
+  const big = BigInt(value);
+  return big <= GUID_MAX ? big : undefined;
+}
+
 function decodeArg(kind: ArgKind, value: unknown): unknown {
   if (kind === "string") return typeof value === "string" ? value : undefined;
   if (kind === "number") return Number.isInteger(value) ? value : undefined;
-  if (kind === "guid") {
-    if (typeof value !== "string" || !GUID.test(value)) return undefined;
-    const big = BigInt(value);
-    return big <= GUID_MAX ? big : undefined;
-  }
+  if (kind === "float")
+    return typeof value === "number" && Number.isFinite(value)
+      ? value
+      : undefined;
+  if (kind === "guid") return decodeGuid(value);
   return typeof value === "string" && kind.includes(value) ? value : undefined;
 }
 
 function describe(kind: ArgKind): string {
   if (kind === "string") return "a string";
   if (kind === "number") return "an integer";
+  if (kind === "float") return "a number";
   if (kind === "guid") return "a decimal guid string";
   return `one of ${kind.join(", ")}`;
 }
