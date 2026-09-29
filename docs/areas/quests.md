@@ -228,6 +228,11 @@ offer. `answerShare("accept")` throws `not built`: quests-7b builds it.
   table below; built by `quests-9`.
 - `SMSG_QUEST_CONFIRM_ACCEPT` and `CMSG_QUEST_CONFIRM_ACCEPT`: built by
   `quests-7b`.
+- A share of a pooled quest that is not spawned today: the server
+  answers the sharer alone with result 8 and contacts no member
+  (`Entities/Player/PlayerQuest.cpp:1532-1552`,
+  `Handlers/QuestHandler.cpp:529-532`). The push stays open, and
+  `shareQuest` refuses `busy`, until the 60-second window closes.
 
 ## Capabilities row
 
