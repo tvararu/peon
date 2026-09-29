@@ -1,0 +1,104 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 20,
+    "turns": 10
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": [
+          "raid/roster"
+        ]
+      },
+      "expect": "GL has a raid/roster row for the group changing shape (converted to a raid)",
+      "id": "converted",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": [
+          "raid/roster"
+        ]
+      },
+      "expect": "GL has a raid/roster row for the partner moving to group 2",
+      "id": "moved",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": [
+          "raid/roster"
+        ]
+      },
+      "expect": "GL has a raid/roster row for the partner gaining the assistant flag",
+      "id": "assistant",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": [
+          "raid/roster"
+        ]
+      },
+      "expect": "GL has a raid/roster row for the partner gaining main tank",
+      "id": "main-tank",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "console": {
+          "match": "Raid and consists of 2 players",
+          "read": "group"
+        }
+      },
+      "expect": "the agent-side console read of group matches a raid of 2 players",
+      "id": "is-raid",
+      "source": "console"
+    },
+    {
+      "expect": "the session shows the agent calling the group tool with do raid, move and promote, not ending REFUSED",
+      "id": "raid-called",
+      "source": "session"
+    }
+  ],
+  "id": "t9-raid-convert",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": "partner",
+  "partnerActions": [
+    {
+      "argv": [
+        "call",
+        "invite",
+        "[\"<AGENT>\"]"
+      ],
+      "at": {
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "task_landed"
+      },
+      "windowMs": 120000
+    },
+    {
+      "argv": [
+        "call",
+        "setLeader",
+        "[\"<AGENT>\"]"
+      ],
+      "at": {
+        "kind": "elapsed",
+        "ms": 20000
+      },
+      "windowMs": 180000
+    }
+  ],
+  "preset": "eversong10",
+  "setup": [],
+  "spawn": "eversong-raid",
+  "steers": [],
+  "task": "Join the group you are invited to. When you lead it, make it a raid, move the other member to group 2, and make them an assistant and main tank.",
+  "tier": 9
+}

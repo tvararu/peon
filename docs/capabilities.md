@@ -43,6 +43,7 @@ or the page names one that does not exist.
 | Set dungeon difficulty | `t9-instances-difficulty` | A solo change is not confirmed until the next dungeon entry; in a group only the leader can change it. |
 | Reset its own dungeons | — (not shown; see below) | Normal difficulty only; a group member cannot reset. |
 | Remove a member with a reason | `t9-raid-kick` | A party of two disbands. |
+| Run a raid: convert, subgroups, assistants, main tank and main assist | `t9-raid-convert` | Every member must be level 10 or more; the server refuses the convert below that. Flags and subgroups are shown by roster rows only, not by a truth field. |
 
 ## Not shown by any scenario
 

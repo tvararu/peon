@@ -202,4 +202,4 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Travel (`interact` bind, `travel` hearth and fly) | `t8-travel-bind-inn`, `t8-travel-hearth-home` |
 | Pets (pet, interact stable) | `t8-pets-command` |
 | Instances and dungeon finder (`dungeon`) | `t9-instances-difficulty` |
-| Groups and raids (`group` tool) | `t9-raid-kick` |
+| Groups and raids (`group` tool) | `t9-raid-kick`, `t9-raid-convert` |

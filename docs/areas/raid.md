@@ -267,6 +267,32 @@ B partner) through their puppets, A's with `--packet-trace headers`
   and `<name> is not in a group!` after the disband
   (`Commands/cs_group.cpp:220-224`).
 
+`group-9b` live proof re-ran the verbs through the `group` tool's acts on
+two `eversong10` throwaway accounts (A Fgkllppeenl the leader, B
+Fgkllppegba the partner; both deleted, trace not committed):
+
+- A's trace shows `out CMSG_GROUP_RAID_CONVERT` then `in
+  SMSG_PARTY_COMMAND_RESULT` (op 0, result 0,
+  `Handlers/GroupHandler.cpp:647-670`) and a raid `group_list` with the
+  `converted` change.
+- The console read matches `Group type: Raid and consists of 2 players`
+  (`Commands/cs_group.cpp:220-224`).
+- A's trace shows `out CMSG_GROUP_CHANGE_SUB_GROUP` then `in
+  SMSG_GROUP_LIST`, and the events show the `subgroup` change for B
+  from 0 to 1.
+- A's trace shows `out CMSG_GROUP_ASSISTANT_LEADER` then `in
+  SMSG_GROUP_LIST`, and the events show the `flag` `assistant` change
+  for B, `on` true. The raw act calls only accept JSON numbers, so the
+  first two puppet `call` tries with a string group failed in the puppet
+  layer and sent nothing.
+- A's trace shows `out MSG_PARTY_ASSIGNMENT` then `in SMSG_GROUP_LIST`
+  with B's flags reading main tank. The assistant flag arrives only on
+  the second toggle because the server answers the first toggle without
+  a list, so the tool settles on the next change.
+- `setLootMethod` with A's own guid as master wrote the `loot` change
+  with method 2 and threshold 3, and the legacy list shows
+  `master_loot` with threshold `rare` (`Handlers/GroupHandler.cpp:516-545`).
+
 ## Capabilities row
 
 No verb (N23).

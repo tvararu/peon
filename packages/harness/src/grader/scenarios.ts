@@ -167,6 +167,7 @@ export const ROUND_1: readonly string[] = [
   "t6-selfstate-res",
   "t9-instances-difficulty",
   "t9-raid-kick",
+  "t9-raid-convert",
 ];
 
 const DIR = `${import.meta.dir}/scenarios`;
