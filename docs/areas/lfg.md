@@ -80,6 +80,13 @@ proposal acts belong to later tasks.
 - A non-leader in a partly filled `CMSG_LFG_JOIN` group may join
   (`Handlers/LFGHandler.cpp:50-55`); the join act still refuses
   `not_leader` for every non-leader (SR2-instances-15).
+- `join` sends an empty dungeon list, which the server drops with no
+  reply (`Handlers/LFGHandler.cpp:56-60`), so the act reports
+  `lfg_disabled_or_ignored` after 5 s.
+- `leave` sends for a grouped non-leader, whom the server ignores
+  (`Handlers/LFGHandler.cpp:78-92`), so the act reports `no_answer`.
+- A refused join's party locks are returned but not typed in
+  `LfgJoinResult`.
 
 ## Capabilities row
 
