@@ -132,7 +132,7 @@ export async function raidTool(
       reason: "lfg_group",
     });
   }
-  if (party.members.length < 2) {
+  if (party.members.length === 0) {
     throw new Refusal({
       detail: "a raid needs at least two members.",
       next: "end your turn.",

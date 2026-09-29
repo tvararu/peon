@@ -207,6 +207,13 @@ describe("group tool raid", () => {
     expect((await runTool(t.tool, { do: "raid" })).text).toContain("DONE");
   });
 
+  test("Peon and one other member may convert", async () => {
+    const t = await world({ group: { kind: "party" }, members: [tom()] });
+    t.act.convert.mockImplementation(() => elapse(WAIT_MS));
+    await withFakeTimers(() => runTool(t.tool, { do: "raid" }));
+    expect(t.act.convert).toHaveBeenCalledTimes(1);
+  });
+
   test("stays unconfirmed after 3 s of silence", async () => {
     const t = await world({ group: { kind: "party" } });
     t.act.convert.mockImplementation(() => elapse(WAIT_MS));
