@@ -220,6 +220,54 @@ describe("lfg runtime", () => {
       rig.dispose();
     }
   });
+  test("group join settles ok with roleCheck when the check opens first (LFGMgr.cpp:837-875)", async () => {
+    const rig = areaRig("lfg", {
+      legacy: {
+        party: () => ({
+          inGroup: true,
+          leader: "Me",
+          loot: null,
+          members: [member("Partner", 0xden)],
+        }),
+        friends: () => [],
+        ignored: () => [],
+        guild: () => undefined,
+        channels: () => [],
+      },
+    });
+    try {
+      rig.inject(
+        GameOpcode.SMSG_LFG_PLAYER_INFO,
+        lfgPlayerInfoBody({
+          random: [{ entry: 0x06_00_01_06 }],
+          locks: [],
+        }),
+      );
+      const pending = rig.handle.act.join({
+        roles: 8,
+        entries: [0x06_00_01_06],
+      });
+      expect(sentOpcode(rig, GameOpcode.CMSG_LFG_JOIN)).toHaveLength(1);
+      rig.inject(
+        GameOpcode.SMSG_LFG_ROLE_CHECK_UPDATE,
+        lfgRoleCheckUpdateBody({ state: 2, dungeons: [], members: [] }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_LFG_UPDATE_PARTY,
+        lfgUpdatePartyBody({
+          updateType: 5,
+          data: { join: true, queued: true, dungeons: [0x06_00_01_06] },
+        }),
+      );
+      expect(await pending).toEqual({
+        status: "ok",
+        queued: [0x06_00_01_06],
+        roleCheck: true,
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
 
   test("a non-zero join result settles refused with the locks", async () => {
     const rig = solo();

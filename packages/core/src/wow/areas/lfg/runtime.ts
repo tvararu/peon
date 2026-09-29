@@ -248,20 +248,39 @@ function joinAct({ ctx, store }: Env) {
       throw error;
     }
     try {
-      const result = await resultWait;
-      if (result.type === "join_result" && result.reason !== "ok") {
-        const after = store.snapshot();
+      const first = await Promise.race([
+        resultWait.then((result) => ({ kind: "result" as const, result })),
+        queuedWait.then((event) => ({ kind: "queued" as const, event })),
+      ]);
+      if (first.kind === "queued" && first.event.type === "role_check") {
         scope.abort.abort();
-        return {
-          status: "refused",
-          reason: result.reason,
-          partyLocks: after.joinResult?.partyLocks ?? [],
-        } as LfgJoinResult;
-      }
-      const settled = await queuedWait;
-      scope.abort.abort();
-      if (settled.type === "role_check")
         return { status: "ok", queued: entries, roleCheck: true };
+      }
+      if (first.kind === "result") {
+        if (
+          first.result.type === "join_result" &&
+          first.result.reason !== "ok"
+        ) {
+          const after = store.snapshot();
+          scope.abort.abort();
+          return {
+            status: "refused",
+            reason: first.result.reason,
+            partyLocks: after.joinResult?.partyLocks ?? [],
+          } as LfgJoinResult;
+        }
+        const settled = await queuedWait;
+        scope.abort.abort();
+        if (settled.type === "role_check")
+          return { status: "ok", queued: entries, roleCheck: true };
+        const queued = store.snapshot().selected;
+        return {
+          status: "ok",
+          queued: queued.length > 0 ? queued : entries,
+          roleCheck: false,
+        };
+      }
+      scope.abort.abort();
       const queued = store.snapshot().selected;
       return {
         status: "ok",
