@@ -66,7 +66,7 @@ No verb (N23).
 | `SMSG_LFG_UPDATE_PARTY` | `live` | probe flow `lfg-status`, exit 0; solo body is type 0 with no data | `Handlers/LFGHandler.cpp:339-381` |
 | `CMSG_LFD_PLAYER_LOCK_INFO_REQUEST` | `live` | probe flow `lfg-status`, exit 0; player info follows | `Handlers/LFGHandler.cpp:152-228` |
 | `SMSG_LFG_PLAYER_INFO` | `live` | probe flow `lfg-status`, exit 0; one random dungeon at level 20 | `Handlers/LFGHandler.cpp:169-227` |
-| `CMSG_LFD_PARTY_LOCK_INFO_REQUEST` | `live` | partner group, `call requestPartyLocks`; the A trace `tmp/lfg-party-locks-packets.jsonl` shows the `out` packet with size 0 | `Handlers/LFGHandler.cpp:230-263` |
+| `CMSG_LFD_PARTY_LOCK_INFO_REQUEST` | `live` | partner group, `call requestPartyLocks`; the A packet trace (not committed) shows the `out` packet with size 0 | `Handlers/LFGHandler.cpp:230-263` |
 | `SMSG_LFG_PARTY_INFO` | `live` | partner group, `call requestPartyLocks`; the same trace shows `in` size 1061, outcome `handled`, 13 ms after the request | `Handlers/LFGHandler.cpp:255-262` |
 | `SMSG_LFG_UPDATE_SEARCH` | `live` | probe flow `lfg-status`, exit 0; sent at logout | `Handlers/LFGHandler.cpp:613-619` |
 | `SMSG_LFG_DISABLED` | `dead` | no caller for `SendLfgDisabled`; a join with no reply means off | `Handlers/LFGHandler.cpp:621-626` |
