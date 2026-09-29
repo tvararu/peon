@@ -26,9 +26,17 @@ export async function runAnswer(
   const outcome = await ctx.rt.mutex.run(() =>
     ctx.handle.trade.act.answerTrade(answer),
   );
+  if (
+    args.accept === false &&
+    outcome.status === "refused" &&
+    outcome.reason === "trade_canceled"
+  )
+    return result("DONE", {
+      after: afterOf("answer"),
+      detail: "Declined the trade.",
+    });
   return settleOutcome(outcome, "answer", afterOf("answer"));
 }
-
 type OccupiedSlot = { bag: number; guid: bigint; slot: number };
 
 function keyOf(bag: number, slot: number): string {
@@ -41,25 +49,33 @@ function occupiedSlots(ctx: TradeCtx): OccupiedSlot[] {
     .slots.flatMap((slot) => (slot.status === "occupied" ? [slot] : []));
 }
 
-async function withdrawUnwanted(
+async function withdrawMoved(
   ctx: TradeCtx,
   live: TradeState,
   picked: Picked[],
-): Promise<void> {
-  const wanted: Record<string, true> = {};
-  for (const item of picked) wanted[keyOf(item.bag, item.slot)] = true;
+): Promise<Record<string, true>> {
+  const moved: Record<string, true> = {};
+  const wanted: Record<string, number> = {};
+  for (const [index, item] of picked.entries())
+    wanted[keyOf(item.bag, item.slot)] = index;
   const slots = occupiedSlots(ctx);
   for (const held of [...live.ownOffer.items]) {
     const found = slots.find((slot) => slot.guid === held.guid);
-    if (found === undefined || wanted[keyOf(found.bag, found.slot)] !== true)
+    const target =
+      found === undefined ? undefined : wanted[keyOf(found.bag, found.slot)];
+    if (target === undefined || target !== held.slot) {
       await ctx.handle.trade.act.withdrawItem(held.slot);
+      moved[`${held.guid}`] = true;
+    }
   }
+  return moved;
 }
 
 async function placeWanted(
   ctx: TradeCtx,
   live: TradeState,
   picked: Picked[],
+  moved: Record<string, true>,
 ): Promise<void> {
   const slots = occupiedSlots(ctx);
   for (const [index, item] of picked.entries()) {
@@ -69,7 +85,11 @@ async function placeWanted(
     const current = live.ownOffer.items.find(
       (held) => placed !== undefined && placed.guid === held.guid,
     );
-    if (!current || current.slot !== index)
+    if (
+      current === undefined ||
+      current.slot !== index ||
+      moved[`${current.guid}`] === true
+    )
       await ctx.handle.trade.act.offerItem(index, item.bag, item.slot);
   }
 }
@@ -84,8 +104,8 @@ export async function runOffer(
   await ctx.rt.mutex.run(async () => {
     const live = ctx.handle.trade.state();
     if (live.phase !== "open") throw new Error("no trade is open");
-    await withdrawUnwanted(ctx, live, picked);
-    await placeWanted(ctx, live, picked);
+    const moved = await withdrawMoved(ctx, live, picked);
+    await placeWanted(ctx, live, picked, moved);
     if (copper !== state.ownOffer.gold)
       await ctx.handle.trade.act.offerGold(copper);
   });

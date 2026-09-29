@@ -69,24 +69,76 @@ function stopped(signal: AbortSignal): void {
   if (signal.aborted) throw new Error("the trade was stopped");
 }
 
+function raceAbort<T>(pending: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(new Error("the trade was stopped"));
+  const gate = Promise.withResolvers<T>();
+  const onAbort = () => gate.reject(new Error("the trade was stopped"));
+  signal.addEventListener("abort", onAbort, { once: true });
+  pending.then(
+    (value) => {
+      signal.removeEventListener("abort", onAbort);
+      gate.resolve(value);
+    },
+    (error: unknown) => {
+      signal.removeEventListener("abort", onAbort);
+      gate.reject(error);
+    },
+  );
+  return gate.promise;
+}
+
+async function sendUnder<T>(
+  ctx: TradeCtx,
+  send: () => Promise<T>,
+): Promise<{ sent: Promise<T>; settled: Promise<void> }> {
+  const gate = Promise.withResolvers<void>();
+  let sent!: Promise<T>;
+  const released = ctx.rt.mutex.run(() => {
+    try {
+      sent = send();
+    } finally {
+      gate.resolve();
+    }
+  });
+  released.catch(() => undefined);
+  await released;
+  return { sent, settled: gate.promise };
+}
+
 async function giveFlow(
   ctx: TradeCtx,
   offer: Offer,
   signal: AbortSignal,
 ): Promise<Settled> {
   stopped(signal);
-  const requested: Settled = await ctx.handle.trade.act.requestTrade(
-    offer.guid,
+  const request = await sendUnder(ctx, () =>
+    ctx.handle.trade.act.requestTrade(offer.guid),
   );
+  await request.settled;
+  const requested: Settled = await raceAbort(request.sent, signal);
   if (requested.status !== "ok") return requested;
   for (const [index, item] of offer.picked.entries()) {
     stopped(signal);
-    await ctx.handle.trade.act.offerItem(index, item.bag, item.slot);
+    const offered = await sendUnder(ctx, () =>
+      ctx.handle.trade.act.offerItem(index, item.bag, item.slot),
+    );
+    await offered.settled;
+    await raceAbort(offered.sent, signal);
   }
-  if (offer.copper > 0) await ctx.handle.trade.act.offerGold(offer.copper);
+  if (offer.copper > 0) {
+    const gold = await sendUnder(ctx, () =>
+      ctx.handle.trade.act.offerGold(offer.copper),
+    );
+    await gold.settled;
+    await raceAbort(gold.sent, signal);
+  }
   stopped(signal);
   const version = ctx.handle.trade.state().theirOffer.version;
-  return await ctx.handle.trade.act.acceptTrade(version);
+  const accepted = await sendUnder(ctx, () =>
+    ctx.handle.trade.act.acceptTrade(version),
+  );
+  await accepted.settled;
+  return await raceAbort(accepted.sent, signal);
 }
 
 function tradeEnd(
@@ -98,12 +150,16 @@ function tradeEnd(
   return async ({ signal }) => {
     let settled: Settled;
     try {
-      settled = await ctx.rt.mutex.run(() => giveFlow(ctx, offer, signal));
-    } finally {
-      if (signal.aborted)
-        await ctx.rt.mutex
-          .run(() => ctx.handle.trade.act.cancelTrade())
-          .catch(() => undefined);
+      settled = await giveFlow(ctx, offer, signal);
+    } catch (error) {
+      const phase = ctx.handle.trade.state().phase;
+      if (
+        phase === "open" ||
+        phase === "requested_in" ||
+        phase === "requested_out"
+      )
+        ctx.rt.mutex.run(() => ctx.handle.trade.act.cancelTrade());
+      throw error;
     }
     if (settled.status !== "ok") throw refusalFor(settled, "give");
     return {
