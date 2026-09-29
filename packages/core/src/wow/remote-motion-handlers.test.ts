@@ -6,11 +6,15 @@ import {
   moveBody,
   PEER,
 } from "#test-support/remote-motion-fixtures";
+import { testStores } from "#test-support/session-fixtures";
 import { writePackedGuid } from "#test-support/world-handlers-fixtures";
 import { MovementFlag } from "#wow/protocol/entity-fields";
 import { writeMovementInfo } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketWriter } from "#wow/protocol/packet";
+import { OpcodeDispatch } from "#wow/protocol/world";
+import { registerRemoteMotionHandlers } from "#wow/remote-motion-handlers";
+import type { WorldConn } from "#wow/world-conn";
 
 function speedBody(speed: number): Uint8Array {
   const w = new PacketWriter();
@@ -120,5 +124,14 @@ describe("remote motion handlers re-classify a player pose on spline toggles", (
     } finally {
       await f.close();
     }
+  });
+});
+
+describe("registerRemoteMotionHandlers on partial connections", () => {
+  test("registers on a connection that holds only a dispatch", () => {
+    const conn = { dispatch: new OpcodeDispatch() } as unknown as WorldConn;
+    expect(() =>
+      registerRemoteMotionHandlers(conn, testStores()),
+    ).not.toThrow();
   });
 });

@@ -101,7 +101,7 @@ export function registerRemoteMotionHandlers(
   conn.dispatch.on(GameOpcode.SMSG_COMPRESSED_MOVES, (r) =>
     handleCompressedMoves(conn, r),
   );
-  conn.events.area.subscribe((event) => {
+  conn.events?.area?.subscribe((event) => {
     if (
       event.area !== "unitmotion" ||
       event.event.type !== "flag" ||
