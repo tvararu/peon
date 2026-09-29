@@ -83,6 +83,11 @@ describe("trade store", () => {
       [TRADE_STATUS.TARGET_TO_FAR, "target_to_far"],
       [TRADE_STATUS.WRONG_FACTION, "wrong_faction"],
       [TRADE_STATUS.YOU_DEAD, "you_dead"],
+      [TRADE_STATUS.TARGET_DEAD, "target_dead"],
+      [TRADE_STATUS.TARGET_STUNNED, "target_stunned"],
+      [TRADE_STATUS.TARGET_LOGOUT, "target_logout"],
+      [TRADE_STATUS.YOU_STUNNED, "you_stunned"],
+      [TRADE_STATUS.YOU_LOGOUT, "you_logout"],
       [TRADE_STATUS.TRIAL_ACCOUNT, "trial_account"],
     ] as const) {
       const rig = tradeRig();

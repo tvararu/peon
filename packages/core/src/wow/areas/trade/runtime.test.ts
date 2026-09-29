@@ -68,6 +68,30 @@ describe("trade request", () => {
     }
   });
 
+  test("stun, death and logout refusals settle refused with the status name", async () => {
+    for (const [status, name] of [
+      [TRADE_STATUS.TARGET_DEAD, "target_dead"],
+      [TRADE_STATUS.TARGET_STUNNED, "target_stunned"],
+      [TRADE_STATUS.TARGET_LOGOUT, "target_logout"],
+      [TRADE_STATUS.YOU_STUNNED, "you_stunned"],
+      [TRADE_STATUS.YOU_LOGOUT, "you_logout"],
+    ] as const) {
+      const rig = areaRig("trade", { selfGuid: TRADE_SELF });
+      try {
+        const pending = rig.handle.act.requestTrade(TRADE_PARTNER);
+        await flush();
+        rig.inject(GameOpcode.SMSG_TRADE_STATUS, tradeStatusBody(status));
+        expect(await pending).toEqual({
+          reason: name,
+          status: "refused",
+        });
+        expect(rig.handle.state().phase).toBe("idle");
+      } finally {
+        rig.dispose();
+      }
+    }
+  });
+
   test("no OPEN_WINDOW in 60 s sends CMSG_CANCEL_TRADE and settles unanswered", async () => {
     jest.useFakeTimers();
     const rig = areaRig("trade", { selfGuid: TRADE_SELF });
@@ -83,6 +107,73 @@ describe("trade request", () => {
         GameOpcode.CMSG_CANCEL_TRADE,
       );
       expect(await pending).toEqual({ status: "unanswered" });
+    } finally {
+      rig.dispose();
+      jest.useRealTimers();
+    }
+  });
+
+  test("canceling a pending request settles refused instead of ok", async () => {
+    const rig = areaRig("trade", { selfGuid: TRADE_SELF });
+    try {
+      const pending = rig.handle.act.requestTrade(TRADE_PARTNER);
+      await flush();
+      const canceling = rig.handle.act.cancelTrade();
+      await flush();
+      rig.inject(
+        GameOpcode.SMSG_TRADE_STATUS,
+        tradeStatusBody(TRADE_STATUS.TRADE_CANCELED),
+      );
+      expect(await pending).toEqual({
+        reason: "trade_canceled",
+        status: "refused",
+      });
+      expect(await canceling).toEqual({ status: "ok" });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a second requestTrade starts after the 60 s timeout settles", async () => {
+    jest.useFakeTimers();
+    const rig = areaRig("trade", { selfGuid: TRADE_SELF });
+    try {
+      const pending = rig.handle.act.requestTrade(TRADE_PARTNER);
+      jest.advanceTimersByTime(0);
+      await Promise.resolve();
+      jest.advanceTimersByTime(60_000);
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(await pending).toEqual({ status: "unanswered" });
+      const next = rig.handle.act.requestTrade(TRADE_PARTNER);
+      await Promise.resolve();
+      rig.inject(
+        GameOpcode.SMSG_TRADE_STATUS,
+        tradeStatusBody(TRADE_STATUS.OPEN_WINDOW, { tradeId: 0 }),
+      );
+      expect(await next).toEqual({ status: "ok" });
+    } finally {
+      rig.dispose();
+      jest.useRealTimers();
+    }
+  });
+
+  test("a late cancel reply after the 60 s timeout keeps the store idle", async () => {
+    jest.useFakeTimers();
+    const rig = areaRig("trade", { selfGuid: TRADE_SELF });
+    try {
+      const pending = rig.handle.act.requestTrade(TRADE_PARTNER);
+      jest.advanceTimersByTime(0);
+      await Promise.resolve();
+      jest.advanceTimersByTime(60_000);
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(await pending).toEqual({ status: "unanswered" });
+      rig.inject(
+        GameOpcode.SMSG_TRADE_STATUS,
+        tradeStatusBody(TRADE_STATUS.TRADE_CANCELED),
+      );
+      expect(rig.handle.state().phase).toBe("idle");
     } finally {
       rig.dispose();
       jest.useRealTimers();

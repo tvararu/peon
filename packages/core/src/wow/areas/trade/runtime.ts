@@ -8,7 +8,6 @@ import {
 } from "#wow/areas/trade/protocol";
 import type {
   TradeEvent,
-  TradeLastOutcome,
   TradeState,
   TradeStore,
 } from "#wow/areas/trade/store";
@@ -36,19 +35,16 @@ type Env = {
   store: TradeStore;
 };
 
-function outcomeOf(
-  event: TradeEvent,
-  last: TradeLastOutcome | undefined,
-): TradeResult {
+function outcomeOf(event: TradeEvent, mode: "open" | "cancel"): TradeResult {
   if (event.type === "opened") return { status: "ok" };
   if (event.type === "unanswered") return { status: "unanswered" };
   if (event.type === "refused")
     return { status: "refused", reason: event.status };
   if (event.type === "canceled") {
-    if (event.status === "trade_canceled") return { status: "ok" };
+    if (event.status === "trade_canceled" && mode === "cancel")
+      return { status: "ok" };
     return { status: "refused", reason: event.status };
   }
-  void last;
   return { status: "unanswered" };
 }
 
@@ -56,7 +52,7 @@ function subscribeBeforeSend(
   env: Env,
   match: (event: TradeEvent) => boolean,
   send: () => void,
-  options: { timeoutMs: number },
+  options: { mode: "open" | "cancel"; timeoutMs: number },
 ): Promise<TradeResult> {
   const waited = env.ctx.until(match, {
     signal: env.ctx.signal,
@@ -64,11 +60,11 @@ function subscribeBeforeSend(
   });
   send();
   return waited.then(
-    (event) => outcomeOf(event, env.store.snapshot().lastOutcome),
+    (event) => outcomeOf(event, options.mode),
     (error: unknown) => {
       if (error instanceof Error && error.message === "timeout") {
         env.store.expire();
-        return outcomeOf({ type: "unanswered" }, undefined);
+        return outcomeOf({ type: "unanswered" }, options.mode);
       }
       throw error;
     },
@@ -94,10 +90,12 @@ function requestTrade(env: Env, guid: bigint): Promise<TradeResult> {
       event.type === "unanswered",
     () =>
       env.ctx.send(GameOpcode.CMSG_INITIATE_TRADE, buildInitiateTrade(guid)),
-    { timeoutMs: TRADE_ANSWER_MS },
+    { mode: "open", timeoutMs: TRADE_ANSWER_MS },
   ).then((result) => {
-    if (result.status === "unanswered")
+    if (result.status === "unanswered") {
+      env.store.settlePending();
       env.ctx.send(GameOpcode.CMSG_CANCEL_TRADE, buildCancelTrade());
+    }
     return result;
   });
 }
@@ -114,7 +112,7 @@ function answerTrade(env: Env, answer: TradeAnswer): Promise<TradeResult> {
         event.type === "canceled" ||
         event.type === "refused",
       () => env.ctx.send(GameOpcode.CMSG_BEGIN_TRADE, buildBeginTrade()),
-      { timeoutMs: TRADE_REPLY_MS },
+      { mode: "open", timeoutMs: TRADE_REPLY_MS },
     );
   const opcode =
     answer === "busy"
@@ -128,7 +126,7 @@ function answerTrade(env: Env, answer: TradeAnswer): Promise<TradeResult> {
       event.type === "refused" ||
       event.type === "opened",
     () => env.ctx.send(opcode, body),
-    { timeoutMs: TRADE_REPLY_MS },
+    { mode: "open", timeoutMs: TRADE_REPLY_MS },
   );
 }
 
@@ -141,7 +139,7 @@ function cancelTrade(env: Env): Promise<TradeResult> {
     env,
     (event) => event.type === "canceled" || event.type === "unanswered",
     () => env.ctx.send(GameOpcode.CMSG_CANCEL_TRADE, buildCancelTrade()),
-    { timeoutMs: TRADE_REPLY_MS },
+    { mode: "cancel", timeoutMs: TRADE_REPLY_MS },
   );
 }
 

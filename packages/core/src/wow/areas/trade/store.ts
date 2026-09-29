@@ -52,10 +52,15 @@ const CANCEL_STATUSES: Record<string, true> = {
 
 const REFUSE_STATUSES: Record<string, true> = {
   no_target: true,
+  target_dead: true,
+  target_logout: true,
+  target_stunned: true,
   target_to_far: true,
   trial_account: true,
   wrong_faction: true,
   you_dead: true,
+  you_logout: true,
+  you_stunned: true,
 };
 
 const EMPTY_OFFER: TradeOffer = { gold: 0, items: [] };
@@ -113,6 +118,7 @@ export class TradeStore {
       return;
     }
     if (CANCEL_STATUSES[name]) {
+      if (this.phase === "idle") return;
       this.phase = "closed";
       this.last = { kind: "canceled", status: name };
       this.events.emit({ status: name, type: "canceled" });
@@ -128,6 +134,11 @@ export class TradeStore {
   expire(): void {
     this.last = undefined;
     this.events.emit({ type: "unanswered" });
+  }
+
+  settlePending(): void {
+    if (this.phase !== "requested_out") return;
+    this.abandon();
   }
 
   abandon(): void {

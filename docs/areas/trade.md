@@ -12,10 +12,15 @@ The acts:
 
 - `requestTrade(guid)` sends `CMSG_INITIATE_TRADE`. It throws unless the
   phase is `idle` or `closed`, settles `ok` when the window opens,
-  `refused` with the server's status name (`no_target`, `target_to_far`,
-  `wrong_faction`, `you_dead`, `trial_account`, and `busy` or
-  `ignore_you` from the partner) and `unanswered` after 60 seconds,
-  when it sends `CMSG_CANCEL_TRADE` to free the character.
+  `refused` with the server's status name (`no_target`,
+  `target_to_far`, `wrong_faction`, `you_dead`, `you_stunned`,
+  `you_logout`, `target_dead`, `target_stunned`, `target_logout`,
+  `trial_account`, and `busy` or `ignore_you` from the partner) and
+  `unanswered` after 60 seconds, when it clears the pending request and
+  sends `CMSG_CANCEL_TRADE` to free the character. A late cancel reply
+  after that timeout is ignored. `trade_canceled` before the window
+  opens settles a request `refused`, while `cancelTrade` settles it
+  `ok`.
 - `answerTrade("yes" | "busy" | "ignore")` answers a request in
   `requested_in` with `CMSG_BEGIN_TRADE`, `CMSG_BUSY_TRADE` or
   `CMSG_IGNORE_TRADE`. It throws `no_request` in any other phase.
