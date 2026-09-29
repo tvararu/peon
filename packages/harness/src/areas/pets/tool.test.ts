@@ -1,5 +1,9 @@
 import { describe, expect, jest, test } from "bun:test";
-import { fakeAwait, withFakeTimers } from "@peon/core/test-support/fake-time";
+import {
+  elapse,
+  fakeAwait,
+  withFakeTimers,
+} from "@peon/core/test-support/fake-time";
 import { petSpec } from "#harness/areas/pets/tool";
 import { toolCtx } from "#test-support/ops-fixtures";
 import {
@@ -16,7 +20,7 @@ import {
   unit,
   world,
 } from "#test-support/pets-command-fixture";
-import { combatEvent } from "#test-support/spell-tool-fixtures";
+import { combatEvent, definition } from "#test-support/spell-tool-fixtures";
 
 describe("pet status", () => {
   test("status sends nothing and reports no pet when the bar is missing", async () => {
@@ -219,5 +223,113 @@ describe("pet call, revive and dismiss", () => {
     const out = await petSpec.run({ do: "dismiss" }, toolCtx(t));
     expect(commanded).toHaveBeenCalledWith("dismiss");
     expect(out.status).toBe("DONE");
+  });
+
+  test("dismiss waits out the 5 s cast before the clear bar arrives", async () => {
+    await withFakeTimers(async () => {
+      const t = await world({ petEntity: unit(), pets: barState() });
+      const base = t.game.spellDefinition;
+      jest
+        .spyOn(t.game, "spellDefinition")
+        .mockImplementation((id: number) =>
+          id === DISMISS_PET
+            ? definition({ castMs: 5000, id, name: "Dismiss Pet" })
+            : base(id),
+        );
+      jest.spyOn(t.game, "cast").mockImplementation(() => {});
+      const run = petSpec.run({ do: "dismiss" }, toolCtx(t));
+      await elapse(9985);
+      t.game.triggerAreaEvent("pets", { cleared: true, type: "bar" });
+      const out = await fakeAwait(run, 100);
+      expect(out.status).toBe("DONE");
+    });
+  });
+
+  test("a pet refusal during the Dismiss Pet cast does not fail it; the later clear is DONE", async () => {
+    await withFakeTimers(async () => {
+      const t = await world({ petEntity: unit(), pets: barState() });
+      jest.spyOn(t.game, "cast").mockImplementation(() => {
+        t.game.triggerAreaEvent("pets", {
+          reason: "nothing_to_attack",
+          type: "feedback",
+        } as never);
+        t.game.triggerAreaEvent("pets", {
+          castCount: 1,
+          reason: "out_of_range",
+          spell: BITE,
+          type: "cast_failed",
+        } as never);
+      });
+      const run = petSpec.run({ do: "dismiss" }, toolCtx(t));
+      await elapse(50);
+      t.game.triggerAreaEvent("pets", { cleared: true, type: "bar" });
+      const out = await fakeAwait(run, 100);
+      expect(out.status).toBe("DONE");
+    });
+  });
+
+  test("dismiss with a failed owner cast is FAILED", async () => {
+    const t = await world({ petEntity: unit(), pets: barState() });
+    jest.spyOn(t.game, "cast").mockImplementation((spellId) => {
+      t.game.triggerCombatEvent(
+        combatEvent(t.game.getCombatState(), "cast_failed", spellId),
+      );
+    });
+    const out = await petSpec.run({ do: "dismiss" }, toolCtx(t));
+    expect(out.status).toBe("FAILED");
+  });
+
+  test("revive of a dead pet that is still out is DONE when its health rises, with no new bar", async () => {
+    await withFakeTimers(async () => {
+      const dead = { ...unit({ health: 0 }), maxHealth: 410 };
+      const t = await world({
+        petEntity: dead,
+        pets: barState({
+          pet: {
+            canAbandon: true,
+            guid: PET,
+            happiness: HAPPY,
+            health: 0,
+            maxHealth: 410,
+          },
+        }),
+      });
+      jest.spyOn(t.game, "cast").mockImplementation((spellId) => {
+        t.game.triggerCombatEvent(
+          combatEvent(t.game.getCombatState(), "cast_succeeded", spellId),
+        );
+      });
+      const run = petSpec.run({ do: "revive" }, toolCtx(t));
+      let settled = false;
+      void run.then(() => {
+        settled = true;
+      });
+      await fakeAwait(Promise.resolve(), 100);
+      expect(settled).toBe(false);
+      const risen = { ...dead, health: 205 };
+      Object.assign(dead, { health: 205 });
+      t.game.triggerEntityEvent({
+        changed: ["health"],
+        entity: risen,
+        type: "update",
+      } as never);
+      const out = await fakeAwait(run, 100);
+      expect(out.status).toBe("DONE");
+    });
+  });
+
+  test("revive of a dead pet that never rises is UNCONFIRMED", async () => {
+    await withFakeTimers(async () => {
+      const t = await world({
+        petEntity: unit({ health: 0 }),
+        pets: barState(),
+      });
+      jest.spyOn(t.game, "cast").mockImplementation(() => {});
+      const out = await fakeAwait(
+        petSpec.run({ do: "revive" }, toolCtx(t)),
+        20_000,
+      );
+      expect(out.status).toBe("UNCONFIRMED");
+    });
   });
 });

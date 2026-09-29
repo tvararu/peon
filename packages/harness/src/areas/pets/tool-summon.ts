@@ -1,3 +1,4 @@
+import { type AreaEvent, type EntityEvent, isUnit } from "@peon/core";
 import {
   castReply,
   type EntityHeard,
@@ -13,7 +14,7 @@ import {
   throwUnlessOk,
 } from "#harness/areas/pets/tool-command";
 import { knownSpell, type SpellRef } from "#harness/areas/spells/book";
-import type { Heard } from "#harness/areas/spells/tool-wait";
+import { type Heard, hearCasts } from "#harness/areas/spells/tool-wait";
 import type { ToolResult } from "#harness/contract/result";
 import type { UnitView } from "#harness/contract/views";
 import { parseRef } from "#harness/ops/refs";
@@ -114,15 +115,68 @@ const SUMMON_NAMES = {
   revive: "Revive Pet",
 } as const;
 
-function summonHeard(kind: "call" | "revive" | "dismiss", spellId: number) {
-  return (event: Heard): boolean => {
-    if (!("area" in event)) return castReply(event, spellId) === false;
-    if (event.area !== "pets") return false;
-    const inner = event.event;
-    if (inner.type === "bar")
-      return kind === "dismiss" ? inner.cleared : !inner.cleared;
-    return inner.type === "feedback" || inner.type === "cast_failed";
+type SummonHeard = Heard | EntityHeard;
+
+function isEntityUpdate(
+  event: SummonHeard | EntityEvent,
+): event is EntityEvent {
+  const candidate = event as {
+    area?: unknown;
+    entity?: unknown;
+    type?: unknown;
   };
+  return (
+    candidate.area === undefined &&
+    candidate.entity !== undefined &&
+    candidate.type !== "entity"
+  );
+}
+
+function isAlive(entity: EntityEvent, pet: bigint): boolean {
+  if (entity.type !== "update" || !isUnit(entity.entity)) return false;
+  if (entity.entity.guid !== pet) return false;
+  return entity.entity.health > 0;
+}
+
+function reviveRisen(event: EntityEvent, pet: bigint | undefined): boolean {
+  if (pet === undefined) return false;
+  return isAlive(event, pet);
+}
+
+function barHeard(
+  kind: "call" | "revive" | "dismiss",
+  inner: AreaEvent["event"],
+): boolean {
+  if (inner.type === "bar")
+    return kind === "dismiss" ? inner.cleared : !inner.cleared;
+  return false;
+}
+
+function summonHeard(
+  kind: "call" | "revive" | "dismiss",
+  spellId: number,
+  pet: bigint | undefined,
+) {
+  return (event: SummonHeard | EntityEvent): boolean => {
+    if (isEntityUpdate(event)) {
+      if (kind !== "revive") return false;
+      return reviveRisen(event, pet);
+    }
+    const candidate = event as Partial<AreaEvent> & { type?: unknown };
+    if (candidate.area !== undefined)
+      return barSettled(kind, spellId, event as AreaEvent);
+    if (candidate.type === "entity") return false;
+    return castReply(event as Heard, spellId) === false;
+  };
+}
+
+function barSettled(
+  kind: "call" | "revive" | "dismiss",
+  spellId: number,
+  heard: AreaEvent,
+): boolean {
+  if (heard.area !== "pets") return castReply(heard, spellId) === false;
+  return barHeard(kind, heard.event);
 }
 
 function summonDone(
@@ -138,10 +192,14 @@ function summonHeardResult(
   kind: "call" | "revive" | "dismiss",
   spell: SpellRef,
   after: PetAfter,
-  heard: Heard,
+  heard: SummonHeard | EntityEvent,
 ): ToolResult<PetAfter> {
-  if ("area" in heard && heard.event.type === "bar")
-    return summonDone(kind, after);
+  if (isEntityUpdate(heard)) return summonDone(kind, after);
+  const candidate = heard as Partial<AreaEvent> & { type?: unknown };
+  if (candidate.area !== undefined) {
+    const settled = heard as AreaEvent;
+    if (settled.event.type === "bar") return summonDone(kind, after);
+  }
   return result("FAILED", {
     after,
     detail: `${spell.name} failed.`,
@@ -184,15 +242,32 @@ async function spellSummon(
   after: PetAfter,
   ctx: PetCtx,
 ): Promise<ToolResult<PetAfter>> {
-  const heard = await settle<Heard>({
-    match: summonHeard(kind, spell.id),
+  const pet = stateOf(ctx.handle).pet?.guid;
+  const castMs =
+    ctx.handle.spellDefinition(spell.id)?.castTime?.castTimeMs ?? 0;
+  const heard = await settle<SummonHeard | EntityEvent>({
+    match: summonHeard(kind, spell.id, pet),
     send: () =>
       ctx.rt.mutex.run(() => {
         ctx.handle.cast(spell.id, ctx.handle.getControlState().selfGuid);
       }),
     signal: ctx.signal,
-    subscribe: hearSettle(ctx.handle),
-    timeoutMs: SETTLE_MS,
+    subscribe: (cb) => {
+      const offCasts = hearCasts(ctx.handle)((event: Heard) =>
+        cb(event as SummonHeard | EntityEvent),
+      );
+      const offRevive =
+        kind === "revive"
+          ? ctx.handle.onEntityEvent((event) =>
+              cb(event as SummonHeard | EntityEvent),
+            )
+          : undefined;
+      return () => {
+        offCasts();
+        offRevive?.();
+      };
+    },
+    timeoutMs: Math.max(0, castMs) + SETTLE_MS,
   });
   if (!heard)
     return result("UNCONFIRMED", {

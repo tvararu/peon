@@ -170,7 +170,14 @@ and family names from the creature family list
 (subscribe before send). `call`, `revive` and `dismiss` cast the owner's
 spell found by name (Call Pet 883, Dismiss Pet 2641,
 `Entities/Pet/Pet.cpp:450`) and settle `DONE` on a `bar` event, `FAILED`
-on a cast failure, `UNCONFIRMED` after 5 s. `dismiss` for a pet without
+on an owner cast failure, `UNCONFIRMED` after the spell's cast time plus
+5 s. Only the owner's combat `cast_failed` or `cast_interrupted` fails
+the tool; the pet's own `feedback` and `cast_failed` rows are ignored and
+the wait continues. `revive` of a dead pet that is still out settles
+`DONE` when the pet entity's health rises above 0: the corpse stays
+summoned (`Entities/Pet/Pet.cpp:671`), `EffectResurrectPet` revives it in
+place without a new bar (`Entities/ObjectUpdates/Unit.cpp` resurrect path
+and `Spells/SpellEffects.cpp:5496-5525`). `dismiss` for a pet without
 the abandon bit uses `petCommand("dismiss")`, which deletes a hunter pet
 (`Handlers/PetHandler.cpp:287-288`). `call` is refused with `already_out`
 when a bar is present. `attack` uses `petAttack` and settles `DONE` when
