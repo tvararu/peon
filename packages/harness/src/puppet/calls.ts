@@ -151,9 +151,26 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
     args: [],
     run: (h) => h.trade.act.acceptTrade(h.trade.state().theirOffer.version),
   },
+  tradeAcceptOffered: {
+    args: [],
+    run: async (h) => {
+      const offered = () => {
+        const { gold, items } = h.trade.state().theirOffer;
+        return gold > 0 || items.length > 0;
+      };
+      await tradeWaitFor(offered, "no_offer");
+      return h.trade.act.acceptTrade(h.trade.state().theirOffer.version);
+    },
+  },
   tradeAnswer: {
     args: [["yes", "busy", "ignore"]],
-    run: (h, a) => h.trade.act.answerTrade(a[0] as "yes" | "busy" | "ignore"),
+    run: async (h, a) => {
+      await tradeWaitFor(
+        () => h.trade.state().phase === "requested_in",
+        "no_request",
+      );
+      return h.trade.act.answerTrade(a[0] as "yes" | "busy" | "ignore");
+    },
   },
   tradeCancel: { args: [], run: (h) => h.trade.act.cancelTrade() },
   tradeOffer: {
@@ -198,6 +215,8 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   },
 };
 
+const TRADE_WAIT_MS = 60_000;
+const TRADE_POLL_MS = 250;
 const CLOSE_YARDS = 3;
 const MAX_STEP_YARDS = 20;
 
@@ -218,6 +237,16 @@ function nearbyRow(handle: WorldHandle, name: string) {
 
 function nearbyPlayer(handle: WorldHandle, name: string) {
   return nearbyRow(handle, name).entity;
+}
+
+async function tradeWaitFor(
+  ready: () => boolean,
+  failure: string,
+): Promise<void> {
+  for (let waited = 0; !ready(); waited += TRADE_POLL_MS) {
+    if (waited >= TRADE_WAIT_MS) throw new Error(failure);
+    await new Promise<void>((resolve) => setTimeout(resolve, TRADE_POLL_MS));
+  }
 }
 
 async function walkToPlayer(handle: WorldHandle, name: string): Promise<void> {

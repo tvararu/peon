@@ -1,5 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import { AREA_NAMES } from "@peon/core";
+import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
 import { decodeCall, PUPPET_CALLS } from "#harness/puppet/calls";
 import { createMockGame } from "#test-support/mock-game";
 
@@ -12,6 +13,7 @@ function areaActs(game: object, area: string): object | undefined {
 
 const ALIASES: Readonly<Record<string, readonly [string, string]>> = {
   tradeAccept: ["trade", "acceptTrade"],
+  tradeAcceptOffered: ["trade", "acceptTrade"],
   tradeAnswer: ["trade", "answerTrade"],
   tradeCancel: ["trade", "cancelTrade"],
   tradeOffer: ["trade", "offerItem"],
@@ -168,4 +170,57 @@ describe("PUPPET_CALLS", () => {
     ).toBeUndefined();
     expect(game.trade.act.requestTrade).toHaveBeenCalledWith(7n);
   });
+
+  test("tradeAnswer waits for a request before it answers", () =>
+    withFakeTimers(async () => {
+      const game = createMockGame();
+      const phase = spyOn(game.trade, "state");
+      phase.mockReturnValue({ phase: "idle" } as never);
+      const answer = spyOn(game.trade.act, "answerTrade").mockResolvedValue({
+        status: "ok",
+      });
+      const call = decodeCall("tradeAnswer", '["yes"]');
+      if ("error" in call) throw new Error(call.error);
+      const done = PUPPET_CALLS["tradeAnswer"]?.run(game, call.args);
+      await elapse(3000);
+      expect(answer).not.toHaveBeenCalled();
+      phase.mockReturnValue({ phase: "requested_in" } as never);
+      await elapse(1000);
+      await done;
+      expect(answer).toHaveBeenCalledWith("yes");
+    }));
+
+  test("tradeAnswer fails when no request comes in time", () =>
+    withFakeTimers(async () => {
+      const game = createMockGame();
+      spyOn(game.trade, "state").mockReturnValue({ phase: "idle" } as never);
+      const call = decodeCall("tradeAnswer", '["yes"]');
+      if ("error" in call) throw new Error(call.error);
+      const done = PUPPET_CALLS["tradeAnswer"]?.run(game, call.args);
+      const failure = Promise.resolve(done).catch((error: Error) => error);
+      await elapse(61_000);
+      expect(await failure).toHaveProperty("message", "no_request");
+    }));
+
+  test("tradeAcceptOffered accepts once the other side offers", () =>
+    withFakeTimers(async () => {
+      const game = createMockGame();
+      const empty = { gold: 0, items: [], version: 1 };
+      const state = spyOn(game.trade, "state");
+      state.mockReturnValue({ theirOffer: empty } as never);
+      const accept = spyOn(game.trade.act, "acceptTrade").mockResolvedValue({
+        status: "ok",
+      });
+      const call = decodeCall("tradeAcceptOffered", "[]");
+      if ("error" in call) throw new Error(call.error);
+      const done = PUPPET_CALLS["tradeAcceptOffered"]?.run(game, call.args);
+      await elapse(3000);
+      expect(accept).not.toHaveBeenCalled();
+      state.mockReturnValue({
+        theirOffer: { gold: 0, items: [{}], version: 4 },
+      } as never);
+      await elapse(1000);
+      await done;
+      expect(accept).toHaveBeenCalledWith(4);
+    }));
 });
