@@ -280,6 +280,59 @@ describe("puppet call", () => {
     ).toEqual({ error: "Not in the world.", ok: false });
   });
 
+  test.each<[string, unknown, string]>([
+    ["refused", { reason: "busy", status: "refused" }, "refused: busy"],
+    ["no_answer", { status: "no_answer" }, "no_answer"],
+  ])(
+    "an outcome with status %s replies ok: false naming it",
+    async (_, outcome, error) => {
+      const { handle, paths } = await mockSetup();
+      const invite = handle.invite as unknown as Mock<
+        (name: string) => Promise<unknown>
+      >;
+      invite.mockResolvedValue(outcome);
+      expect(
+        await sendRequest(paths.socket, {
+          args: ["Fabc"],
+          cmd: "call",
+          method: "invite",
+        }),
+      ).toEqual({ error, ok: false });
+    },
+  );
+
+  test("a rejected call replies ok: false with its message", async () => {
+    const { handle, paths } = await mockSetup();
+    const invite = handle.invite as unknown as Mock<
+      (name: string) => Promise<unknown>
+    >;
+    invite.mockRejectedValue(new Error("Not in the world."));
+    expect(
+      await sendRequest(paths.socket, {
+        args: ["Fabc"],
+        cmd: "call",
+        method: "invite",
+      }),
+    ).toEqual({ error: "Not in the world.", ok: false });
+  });
+
+  test.each<unknown>([{ status: "ok" }, { status: "done" }, { locks: [] }])(
+    "an outcome %p replies ok: true",
+    async (outcome) => {
+      const { handle, paths } = await mockSetup();
+      const invite = handle.invite as unknown as Mock<
+        (name: string) => Promise<unknown>
+      >;
+      invite.mockResolvedValue(outcome);
+      const reply = await sendRequest(paths.socket, {
+        args: ["Fabc"],
+        cmd: "call",
+        method: "invite",
+      });
+      expect(reply.ok).toBe(true);
+    },
+  );
+
   test("a call during logout replies that the puppet is stopping", async () => {
     const { paths, server, ws } = await setup();
     const stopping = ask(paths, { cmd: "stop" });

@@ -4,7 +4,10 @@ type ArgKind = "string" | "guid" | "number" | readonly string[];
 
 export type PuppetCall = {
   readonly args: readonly ArgKind[];
-  readonly run: (handle: WorldHandle, args: readonly unknown[]) => void;
+  readonly run: (
+    handle: WorldHandle,
+    args: readonly unknown[],
+  ) => unknown | Promise<unknown>;
 };
 
 const text = (args: readonly unknown[], at: number) => args[at] as string;
