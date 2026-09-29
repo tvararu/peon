@@ -64,4 +64,35 @@ describe("spells harness rules", () => {
       { event: "spells/channel_end", text: "spell 5143 ended (cancelled)." },
     ]);
   });
+
+  test("another unit's casts write no row", () => {
+    const events: AreaEvent[] = [
+      {
+        area: "spells",
+        event: {
+          durationMs: 2500,
+          guid: MOB,
+          kind: "cast",
+          relevant: 1,
+          spellId: 9613,
+          spellName: "Shadow Bolt",
+          type: "unit_cast_start",
+        },
+      },
+      {
+        area: "spells",
+        event: {
+          guid: MOB,
+          outcome: "succeeded",
+          relevant: 1,
+          spellId: 9613,
+          spellName: "Shadow Bolt",
+          type: "unit_cast_end",
+        },
+      },
+    ];
+    const rules = areaRuleSet();
+    for (const event of events)
+      expect(areaDrafts(rules, event, testRuleInput())).toEqual([]);
+  });
 });

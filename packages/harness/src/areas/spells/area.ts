@@ -61,6 +61,8 @@ export const spellsHarness = defineHarnessArea({
       if (event.type === "spell_visual") return [];
       if (event.type === "channel_start") return [channelStart(event)];
       if (event.type === "channel_end") return [channelEnd(event)];
+      if (event.type === "unit_cast_start" || event.type === "unit_cast_end")
+        return [];
       return [quiet(event)];
     },
   }),
