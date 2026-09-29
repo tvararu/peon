@@ -47,8 +47,11 @@ describe("look movement words", () => {
       }),
     );
     expect(stalkerLine(out.text)).toContain("rooted, slowed 50%");
-    const rows = out.details.tool === "look" ? out.details.result.after.rows : undefined;
-    expect(rows?.find((unit) => unit.name.includes("Springpaw"))?.movement).toEqual({
+    const rows =
+      out.details.tool === "look" ? out.details.result.after.rows : undefined;
+    expect(
+      rows?.find((unit) => unit.name.includes("Springpaw"))?.movement,
+    ).toEqual({
       flying: false,
       hover: false,
       rooted: true,
@@ -65,7 +68,8 @@ describe("look movement words", () => {
   test("a unit with default movement renders without words or movement", async () => {
     const { out } = await looked(moving());
     expect(stalkerLine(out.text)).not.toMatch(/rooted|slowed|swimming/);
-    const rows = out.details.tool === "look" ? out.details.result.after.rows : [];
+    const rows =
+      out.details.tool === "look" ? out.details.result.after.rows : [];
     expect(rows.every((unit) => unit.movement === undefined)).toBe(true);
   });
 
