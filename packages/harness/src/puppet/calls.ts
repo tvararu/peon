@@ -21,6 +21,10 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
     args: [["decline", "accept"]],
     run: (h, a) => h.lfg.act.answerProposal(a[0] === "accept"),
   },
+  answerReadyCheck: {
+    args: [["ready", "not_ready"]],
+    run: (h, a) => h.raid.act.answerReadyCheck(a[0] === "ready"),
+  },
   answerShare: {
     args: [["accept", "decline"]],
     run: (h, a) => {
@@ -31,6 +35,7 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   convertToRaid: { args: [], run: (h) => h.raid.act.convertToRaid() },
   declineGuildInvite: { args: [], run: (h) => h.declineGuildInvite() },
   declineInvite: { args: [], run: (h) => h.declineInvite() },
+  finishReadyCheck: { args: [], run: (h) => h.raid.act.finishReadyCheck() },
   guildInvite: { args: ["string"], run: (h, a) => h.guildInvite(text(a, 0)) },
   invite: { args: ["string"], run: (h, a) => h.invite(text(a, 0)) },
   join: {
@@ -115,6 +120,7 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
       if (!shared.ok) throw new Error(`Quest not shared: ${shared.reason}.`);
     },
   },
+  startReadyCheck: { args: [], run: (h) => h.raid.act.startReadyCheck() },
   swapSubgroups: {
     args: ["string", "string"],
     run: (h, a) => h.raid.act.swapSubgroups(text(a, 0), text(a, 1)),

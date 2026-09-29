@@ -145,3 +145,43 @@ describe("raid roster row detail", () => {
     expect(row?.data).toMatchObject({ from: 0, to: 2 });
   });
 });
+
+describe("ready check harness rules", () => {
+  test("a started check writes one wake row", () => {
+    expect(
+      rows({ initiator: 0x10n, name: "Tom", type: "ready_check_started" }),
+    ).toMatchObject([{ class: "wake", event: "raid/ready_check" }]);
+  });
+
+  test("an answer writes one passive row carrying the answer", () => {
+    const [row] = rows({
+      answer: "not_ready",
+      guid: 0x10n,
+      name: "Tom",
+      type: "ready_check_answer",
+    });
+    expect(row).toMatchObject({
+      class: "passive",
+      data: { answer: "not_ready", name: "Tom" },
+      event: "raid/ready_answer",
+    });
+    expect(row?.text).toContain("Tom");
+    expect(row?.text).toContain("not ready");
+  });
+
+  test("a finished check reports counts and the names not ready", () => {
+    const [row] = rows({
+      notReady: ["Tom"],
+      offline: 1,
+      pending: 0,
+      ready: 1,
+      type: "ready_check_finished",
+    });
+    expect(row).toMatchObject({
+      class: "passive",
+      data: { notReady: ["Tom"], offline: 1, pending: 0, ready: 1 },
+      event: "raid/ready_done",
+    });
+    expect(row?.text).toContain("Tom");
+  });
+});

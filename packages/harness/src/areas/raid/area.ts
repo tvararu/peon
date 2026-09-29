@@ -121,6 +121,26 @@ function memberStats(event: Of<"member_stats">): AreaDraft[] {
   }));
 }
 
+function answerText(answer: Of<"ready_check_answer">): string {
+  switch (answer.answer) {
+    case "ready":
+      return `${answer.name} is ready.`;
+    case "offline":
+      return `${answer.name} is offline.`;
+    default:
+      return `${answer.name} is not ready.`;
+  }
+}
+
+function readyDoneText(finished: Of<"ready_check_finished">): string {
+  const parts = [`${finished.ready} ready`];
+  if (finished.notReady.length > 0)
+    parts.push(`not ready: ${finished.notReady.join(", ")}`);
+  if (finished.offline > 0) parts.push(`${finished.offline} offline`);
+  if (finished.pending > 0) parts.push(`${finished.pending} did not answer`);
+  return `The ready check finished: ${parts.join("; ")}.`;
+}
+
 function rule(event: RaidEvent): AreaDraft[] {
   switch (event.type) {
     case "group_list":
@@ -140,6 +160,70 @@ function rule(event: RaidEvent): AreaDraft[] {
           },
           name: "command" as const,
           text: `${event.operation} answered ${event.result}.`,
+        },
+      ];
+    case "ready_check_started":
+      return [
+        {
+          class: "wake" as const,
+          data: { name: event.name },
+          name: "ready_check" as const,
+          text: `${event.name} starts a ready check.`,
+        },
+      ];
+    case "ready_check_answer":
+      return [
+        {
+          class: "passive" as const,
+          data: { answer: event.answer, name: event.name },
+          name: "ready_answer" as const,
+          text: answerText(event),
+        },
+      ];
+    case "ready_check_finished":
+      return [
+        {
+          class: "passive" as const,
+          data: {
+            notReady: [...event.notReady],
+            offline: event.offline,
+            pending: event.pending,
+            ready: event.ready,
+          },
+          name: "ready_done" as const,
+          text: readyDoneText(event),
+        },
+      ];
+    case "ready_check_started":
+      return [
+        {
+          class: "wake" as const,
+          data: { name: event.name },
+          name: "ready_check" as const,
+          text: `${event.name} starts a ready check.`,
+        },
+      ];
+    case "ready_check_answer":
+      return [
+        {
+          class: "passive" as const,
+          data: { answer: event.answer, name: event.name },
+          name: "ready_answer" as const,
+          text: answerText(event),
+        },
+      ];
+    case "ready_check_finished":
+      return [
+        {
+          class: "passive" as const,
+          data: {
+            notReady: [...event.notReady],
+            offline: event.offline,
+            pending: event.pending,
+            ready: event.ready,
+          },
+          name: "ready_done" as const,
+          text: readyDoneText(event),
         },
       ];
     case "disbanded":
