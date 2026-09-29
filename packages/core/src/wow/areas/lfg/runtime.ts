@@ -9,6 +9,7 @@ import {
   buildPlayerLockInfoRequest,
   LFG_MAX_ENTRIES,
 } from "#wow/areas/lfg/protocol";
+import { type LfgGroupActs, lfgGroupActs } from "#wow/areas/lfg/runtime-group";
 import type {
   LfgEvent,
   LfgLockView,
@@ -17,6 +18,7 @@ import type {
   LfgStore,
 } from "#wow/areas/lfg/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
+import type { CoreStores } from "#wow/session-stores";
 
 export const LFG_REQUEST_TIMEOUT_MS = 5000;
 const PLAYABLE_ROLES = 0x0e;
@@ -53,7 +55,7 @@ export type LfgActs = {
   leave: () => Promise<LfgLeaveResult>;
   setRoles: (roles: number) => Promise<LfgSetRolesResult>;
   setComment: (comment: string) => Promise<LfgCommentResult>;
-};
+} & LfgGroupActs;
 
 type Ctx = AreaRuntimeCtx<LfgEvent>;
 type Env = { ctx: Ctx; store: LfgStore };
@@ -398,9 +400,14 @@ function setCommentAct({ ctx }: Env) {
     return Promise.resolve({ status: "ok" });
   };
 }
-export function lfgRuntime(ctx: Ctx, store: LfgStore): AreaRuntime<LfgActs> {
+export function lfgRuntime(
+  ctx: Ctx,
+  store: LfgStore,
+  core: CoreStores,
+): AreaRuntime<LfgActs> {
   const env: Env = { ctx, store };
   const run = guard({ count: 0 });
+  const group = lfgGroupActs(ctx, store, core, guard({ count: 0 }));
   const requestStatus = () => run(statusAct(env));
   const requestDungeons = () => run(dungeonsAct(env));
   const requestPartyLocks = () => run(partyLocksAct(env));
@@ -411,6 +418,7 @@ export function lfgRuntime(ctx: Ctx, store: LfgStore): AreaRuntime<LfgActs> {
     run(() => setCommentAct(env)(comment));
   return {
     act: {
+      ...group,
       join,
       leave,
       requestDungeons,
