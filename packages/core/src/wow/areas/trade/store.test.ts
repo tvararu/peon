@@ -239,11 +239,20 @@ describe("trade store", () => {
       tradeId: 1,
     });
     const before = store.snapshot().theirOffer.version;
-    store.receiveExtended({ gold: 40, items: [], side: 1, spell: 0, tradeId: 1 });
+    store.receiveExtended({
+      gold: 40,
+      items: [],
+      side: 1,
+      spell: 0,
+      tradeId: 1,
+    });
     const after = store.snapshot();
     expect(after.theirOffer.gold).toBe(40);
     expect(after.theirOffer.version).toBe(before + 1);
-    expect(events.map((event) => event.type)).toEqual(["opened", "offer_changed"]);
+    expect(events.map((event) => event.type)).toEqual([
+      "opened",
+      "offer_changed",
+    ]);
   });
 
   test("an EXTENDED of the own side is kept as ownEcho, not ownOffer", () => {
@@ -255,7 +264,13 @@ describe("trade store", () => {
       tradeId: 1,
     });
     store.recordOwnOffer({ gold: 10, items: [] });
-    store.receiveExtended({ gold: 40, items: [], side: 0, spell: 0, tradeId: 1 });
+    store.receiveExtended({
+      gold: 40,
+      items: [],
+      side: 0,
+      spell: 0,
+      tradeId: 1,
+    });
     const state = store.snapshot();
     expect(state.ownOffer.gold).toBe(10);
     expect(state.ownEcho?.gold).toBe(40);
@@ -272,7 +287,11 @@ describe("trade store", () => {
     });
     store.noteTheyAccepted();
     const before = store.snapshot().theirOffer.version;
-    store.receiveStatus({ kind: "none", status: 7, statusName: "back_to_trade" });
+    store.receiveStatus({
+      kind: "none",
+      status: 7,
+      statusName: "back_to_trade",
+    });
     expect(store.snapshot()).toMatchObject({
       selfAccepted: false,
       theyAccepted: false,
@@ -289,7 +308,11 @@ describe("trade store", () => {
       statusName: "open_window",
       tradeId: 1,
     });
-    store.receiveStatus({ kind: "none", status: 4, statusName: "trade_accept" });
+    store.receiveStatus({
+      kind: "none",
+      status: 4,
+      statusName: "trade_accept",
+    });
     expect(store.snapshot().theyAccepted).toBe(true);
     expect(events).toContainEqual({ type: "they_accepted" });
   });
@@ -303,8 +326,18 @@ describe("trade store", () => {
       tradeId: 1,
     });
     store.recordOwnOffer({ gold: 10, items: [] });
-    store.receiveExtended({ gold: 40, items: [], side: 1, spell: 0, tradeId: 1 });
-    store.receiveStatus({ kind: "none", status: 8, statusName: "trade_complete" });
+    store.receiveExtended({
+      gold: 40,
+      items: [],
+      side: 1,
+      spell: 0,
+      tradeId: 1,
+    });
+    store.receiveStatus({
+      kind: "none",
+      status: 8,
+      statusName: "trade_complete",
+    });
     expect(store.snapshot().lastOutcome).toEqual({
       gave: { gold: 10, items: [], spell: 0, version: 1 },
       got: { gold: 40, items: [], spell: 0, version: 1 },

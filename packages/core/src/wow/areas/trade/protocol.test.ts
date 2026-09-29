@@ -153,11 +153,11 @@ describe("parseTradeStatusExtended", () => {
         gold: 1234,
         side: 1,
         slots: { 2: { ...linen, charges: 4 } },
-        spell: 13262,
+        spell: 13_262,
       }),
     );
     const parsed = parseTradeStatusExtended(reader);
-    expect(parsed).toMatchObject({ gold: 1234, side: 1, spell: 13262 });
+    expect(parsed).toMatchObject({ gold: 1234, side: 1, spell: 13_262 });
     expect(parsed?.items).toEqual([
       {
         charges: 4,
