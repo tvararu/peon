@@ -5,15 +5,15 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x116` | `CMSG_INITIATE_TRADE` | client | missing |  |
-| `0x117` | `CMSG_BEGIN_TRADE` | client | missing |  |
-| `0x118` | `CMSG_BUSY_TRADE` | client | missing |  |
-| `0x119` | `CMSG_IGNORE_TRADE` | client | missing |  |
+| `0x116` | `CMSG_INITIATE_TRADE` | client | handled |  |
+| `0x117` | `CMSG_BEGIN_TRADE` | client | handled |  |
+| `0x118` | `CMSG_BUSY_TRADE` | client | handled |  |
+| `0x119` | `CMSG_IGNORE_TRADE` | client | handled |  |
 | `0x11a` | `CMSG_ACCEPT_TRADE` | client | missing |  |
 | `0x11b` | `CMSG_UNACCEPT_TRADE` | client | missing |  |
-| `0x11c` | `CMSG_CANCEL_TRADE` | client | missing |  |
+| `0x11c` | `CMSG_CANCEL_TRADE` | client | handled |  |
 | `0x11d` | `CMSG_SET_TRADE_ITEM` | client | missing |  |
 | `0x11e` | `CMSG_CLEAR_TRADE_ITEM` | client | missing |  |
 | `0x11f` | `CMSG_SET_TRADE_GOLD` | client | missing |  |
-| `0x120` | `SMSG_TRADE_STATUS` | server | stub |  |
+| `0x120` | `SMSG_TRADE_STATUS` | server | handled |  |
 | `0x121` | `SMSG_TRADE_STATUS_EXTENDED` | server | stub |  |
