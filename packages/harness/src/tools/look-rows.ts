@@ -2,6 +2,7 @@ import type { LookAfter, LookFilter } from "#harness/contract/details";
 import type { NearestKind, QuestMark, UnitView } from "#harness/contract/views";
 import { LOOK_DEFAULT_YD } from "#harness/ops/range";
 import { kindOf } from "#harness/tools/look-find";
+import { movementWords } from "#harness/tools/look-movement";
 import { MORE_NAMES } from "#harness/tools/look-rank";
 import { nextCall } from "#harness/tools/next-call";
 
@@ -68,6 +69,7 @@ export function rowLine(unit: UnitView): string {
   const volatile = [
     unit.alive ? undefined : "dead",
     unit.lootable ? "lootable" : undefined,
+    ...movementWords(unit.movement),
     unit.attackingMe ? "attacking you" : undefined,
     unit.targetsMe && !unit.attackingMe ? "targets you" : undefined,
     unit.fightingMe ? "fighting you" : undefined,

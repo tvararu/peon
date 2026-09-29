@@ -22,6 +22,7 @@ import {
   result,
 } from "#harness/tools/define";
 import { findUnits, kindOf, rememberedRows } from "#harness/tools/look-find";
+import { movementWords, withMovement } from "#harness/tools/look-movement";
 import {
   headerLine,
   moreLine,
@@ -97,7 +98,8 @@ function lookDigest(rows: readonly UnitView[], snapshot: NowSnapshot): string {
     : "-";
   const units = rows
     .map(
-      (unit) => `${unit.ref}:${unit.hpPct}:${Math.round(unit.distance ?? -1)}`,
+      (unit) =>
+        `${unit.ref}:${unit.hpPct}:${Math.round(unit.distance ?? -1)}:${movementWords(unit.movement).join("+")}`,
     )
     .join(",");
   return `${snapshot.self.hp}|${where}|${units}`;
@@ -178,6 +180,10 @@ function lookAfter(
   snapshot: NowSnapshot,
 ): LookAfter {
   const found = findUnits(args, ctx);
+  const rows = withMovement(
+    withThreat(ctx, found.rows),
+    ctx.handle.unitmotion.state(),
+  );
   return {
     danger: dangerView(ctx),
     filter: found.filter,
@@ -187,12 +193,12 @@ function lookAfter(
     nearest: snapshot.nearest,
     place: snapshot.place,
     remembered: rememberedRows(ctx, { filter: found.filter, name: args.name }),
-    rows: withThreat(ctx, found.rows),
+    rows,
     run: snapshot.run,
     seen: found.seen,
     self: snapshot.self,
     target: snapshot.target,
-    unchanged: countUnchanged(ctx.rt, lookDigest(found.rows, snapshot)),
+    unchanged: countUnchanged(ctx.rt, lookDigest(rows, snapshot)),
     within: args.within,
   };
 }
