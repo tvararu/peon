@@ -15,7 +15,7 @@ export type FactionTemplate = {
 
 const HATES_ALL_EXCEPT_FRIENDS = 0x20_00;
 
-const LAYOUT = {
+export const FACTION_TEMPLATE_LAYOUT = {
   file: "FactionTemplate.dbc",
   fields: 14,
   recordSize: 56,
@@ -50,7 +50,9 @@ export class FactionTemplateCatalog {
 export async function loadFactionTemplates(
   source: DbcSource,
 ): Promise<FactionTemplateCatalog> {
-  return new FactionTemplateCatalog(await openDbc(source, LAYOUT));
+  return new FactionTemplateCatalog(
+    await openDbc(source, FACTION_TEMPLATE_LAYOUT),
+  );
 }
 
 function idList(file: DbcFile, row: number, start: number): number[] {

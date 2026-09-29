@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { EventEmitter } from "node:events";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { rm, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { REQUIRED_DBC_FILES } from "@peon/core";
 import { scratchDir } from "@peon/core/test-support/scratch";
 import { harnessStateDir, parseFlags } from "#harness/config/flags";
 import { ompDbPath } from "#harness/credentials/omp-store";
@@ -271,5 +272,66 @@ describe("main exit paths write endedAt and exitReason", () => {
       exitReason: "fatal_error",
     });
     expect(locks()).toEqual([]);
+  });
+});
+
+describe("main --check spell data", () => {
+  async function profileWith(dir: string): Promise<string> {
+    const path = join(home, "config.toml");
+    await writeFile(
+      path,
+      `account = "FACABC0123456"\npassword = "pw"\ncharacter = "Fgklibhlflc"\nspell_data_dir = "${dir}"\n`,
+    );
+    return path;
+  }
+
+  async function seed(dir: string, files: readonly string[]): Promise<void> {
+    await mkdir(dir, { recursive: true });
+    for (const file of files) await writeFile(join(dir, file), "");
+  }
+
+  function validLogin(): void {
+    writeOmpDb(ompDbPath(home), [
+      codexRow({ access: "tok", expires: NOW + 3_600_000 }),
+    ]);
+  }
+
+  test("warns once per missing file and still passes the check", async () => {
+    validLogin();
+    const dir = join(home, "dbc");
+    const present = REQUIRED_DBC_FILES.filter(
+      (file) => file !== "Lock.dbc" && file !== "AreaTrigger.dbc",
+    );
+    await seed(dir, present);
+    const code = await main(
+      parseFlags(["--profile", await profileWith(dir), "--check"]),
+      deps(),
+    );
+    expect(code).toBe(EXIT.ok);
+    expect(lines.err).toHaveLength(2);
+    expect(lines.err[0]).toContain("Lock.dbc");
+    expect(lines.err[1]).toContain("AreaTrigger.dbc");
+  });
+
+  test("is silent when every file is present", async () => {
+    validLogin();
+    const dir = join(home, "dbc");
+    await seed(dir, REQUIRED_DBC_FILES);
+    const code = await main(
+      parseFlags(["--profile", await profileWith(dir), "--check"]),
+      deps(),
+    );
+    expect(code).toBe(EXIT.ok);
+    expect(lines.err).toEqual([]);
+  });
+
+  test("is silent when spell_data_dir is unset", async () => {
+    validLogin();
+    const code = await main(
+      parseFlags(["--profile", await ledger(), "--check"]),
+      deps(),
+    );
+    expect(code).toBe(EXIT.ok);
+    expect(lines.err).toEqual([]);
   });
 });

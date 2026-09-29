@@ -14,7 +14,11 @@ export type LockEntry = {
 export const LockKeyType = { NONE: 0, ITEM: 1, SKILL: 2, SPELL: 3 } as const;
 
 const LOCK_CASES = 8;
-const LAYOUT = { file: "Lock.dbc", fields: 33, recordSize: 132 } as const;
+export const LOCK_LAYOUT = {
+  file: "Lock.dbc",
+  fields: 33,
+  recordSize: 132,
+} as const;
 
 function decode(file: DbcFile, row: number): LockEntry {
   const cases: LockCase[] = [];
@@ -41,7 +45,7 @@ export class LockCatalog {
 }
 
 export async function loadLockCatalog(source: DbcSource): Promise<LockCatalog> {
-  const file = await openDbc(source, LAYOUT);
+  const file = await openDbc(source, LOCK_LAYOUT);
   return new LockCatalog(
     Array.from({ length: file.recordCount }, (_, row) => decode(file, row)),
   );

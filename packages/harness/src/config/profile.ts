@@ -88,6 +88,7 @@ export async function loadProfile(
     navigation: navigationOf(config),
     path,
     source,
+    spellDataDir: config.spell_data_dir,
   };
 }
 

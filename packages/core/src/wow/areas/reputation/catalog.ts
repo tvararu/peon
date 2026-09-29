@@ -34,7 +34,11 @@ const REPUTATION_CAP = 42_999;
 const REPUTATION_BOTTOM = -42_000;
 const ALL_PLAYABLE_RACES = 1791;
 
-const LAYOUT = { file: "Faction.dbc", fields: 57, recordSize: 228 } as const;
+export const FACTION_LAYOUT = {
+  file: "Faction.dbc",
+  fields: 57,
+  recordSize: 228,
+} as const;
 
 export function rankOf(standing: number): number {
   let limit = REPUTATION_CAP + 1;
@@ -125,5 +129,5 @@ export class FactionCatalog {
 export async function loadFactionCatalog(
   source: DbcSource,
 ): Promise<FactionCatalog> {
-  return new FactionCatalog(await openDbc(source, LAYOUT));
+  return new FactionCatalog(await openDbc(source, FACTION_LAYOUT));
 }
