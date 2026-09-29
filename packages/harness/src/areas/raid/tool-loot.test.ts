@@ -26,7 +26,7 @@ const FANG = { itemId: 7073, name: "Broken Fang", slot: 0 };
 const LINEN = { itemId: 2589, name: "Linen Cloth", slot: 1 };
 const LINEN_TWO = { itemId: 2589, name: "Linen Cloth", slot: 2 };
 
-type Offered = { itemId: number; name: string; slot: number };
+type Offered = { itemId: number; name: string | undefined; slot: number };
 
 function tom(): PartyMember {
   return partyMember({ guid: TOM, name: "Tom" });
@@ -270,6 +270,49 @@ describe("group tool give", () => {
     const t = await world({ items: [FANG, LINEN_TWO, LINEN] });
     await runTool(t.tool, { do: "give", to: "Tom", what: "Linen Cloth" });
     expect(t.give).toHaveBeenCalledWith(CORPSE, 1, "Tom");
+  });
+
+  test("matches an unnamed cached item by numeric id", async () => {
+    const unnamed = { itemId: 27_668, name: undefined, slot: 0 };
+    const t = await world({ items: [unnamed] });
+    const out = await runTool(t.tool, { do: "give", to: "Tom", what: "27668" });
+    expect(out.text).toContain("DONE");
+    expect(t.give).toHaveBeenCalledWith(CORPSE, 0, "Tom");
+  });
+
+  test("matches an unnamed cached item by 'item <id>' label", async () => {
+    const unnamed = { itemId: 27_668, name: undefined, slot: 0 };
+    const t = await world({ items: [unnamed] });
+    const out = await runTool(t.tool, {
+      do: "give",
+      to: "Tom",
+      what: "item 27668",
+    });
+    expect(out.text).toContain("DONE");
+    expect(t.give).toHaveBeenCalledWith(CORPSE, 0, "Tom");
+  });
+
+  test("matches a named item by its numeric id", async () => {
+    const t = await world();
+    const out = await runTool(t.tool, {
+      do: "give",
+      to: "Tom",
+      what: String(LINEN.itemId),
+    });
+    expect(out.text).toContain("DONE");
+    expect(t.give).toHaveBeenCalledWith(CORPSE, 1, "Tom");
+  });
+
+  test("does not match an id fragment of another item", async () => {
+    const unnamed = { itemId: 27_668, name: undefined, slot: 0 };
+    const t = await world({ items: [unnamed] });
+    const out = await runTool(t.tool, {
+      do: "give",
+      to: "Tom",
+      what: "7668",
+    });
+    expect(out.text).toContain("REFUSED not_offered");
+    expect(t.give).not.toHaveBeenCalled();
   });
 
   test("refuses an item the corpse does not hold and releases the window", async () => {

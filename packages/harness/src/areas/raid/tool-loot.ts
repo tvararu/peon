@@ -145,28 +145,45 @@ async function openCorpse(ctx: GroupCtx, guid: bigint): Promise<NamedOpen> {
   return window;
 }
 
+function itemMatches(
+  item: NamedOpen["items"][number],
+  wanted: string,
+): { exact: boolean } | undefined {
+  const name = item.name?.toLowerCase();
+  const id = String(item.itemId);
+  if (name === wanted || id === wanted || `item ${id}` === wanted)
+    return { exact: true };
+  if (wanted !== "" && (name?.includes(wanted) ?? false))
+    return { exact: false };
+  return undefined;
+}
+
 function itemSlot(
   window: NamedOpen,
   what: string,
 ): { label: string; slot: number } {
   const wanted = what.trim().toLowerCase();
   const labels = window.items.map((item) => item.name ?? `item ${item.itemId}`);
-  const slots = window.items
-    .filter(
-      (item) =>
-        (item.name ?? "").toLowerCase() === wanted ||
-        (item.name ?? "").toLowerCase().includes(wanted),
-    )
-    .map((item) => item.slot)
+  const hits = window.items.flatMap((item) => {
+    const hit = itemMatches(item, wanted);
+    return hit ? [{ exact: hit.exact, slot: item.slot }] : [];
+  });
+  const exact = hits
+    .filter((hit) => hit.exact)
+    .map((hit) => hit.slot)
     .sort((a, b) => a - b);
-  const slot = slots[0];
+  const partial = hits
+    .filter((hit) => !hit.exact)
+    .map((hit) => hit.slot)
+    .sort((a, b) => a - b);
+  const slot = exact[0] ?? partial[0];
   if (slot === undefined)
     refuse(
       "not_offered",
       `the corpse holds no ${what.trim()}. It holds: ${labels.join(", ") || "nothing"}.`,
     );
   const named = window.items.find((item) => item.slot === slot);
-  return { label: named?.name ?? what.trim(), slot };
+  return { label: named?.name ?? `item ${named?.itemId}`, slot };
 }
 
 function candidateOf(ctx: GroupCtx, name: string): bigint {

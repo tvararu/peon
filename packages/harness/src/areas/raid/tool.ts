@@ -324,7 +324,7 @@ export const groupSpec: GameToolSpec<typeof groupParams, "group", GroupAfter> =
     run: groupRun,
     text: {
       description:
-        "Runs the group: status, kick, lead, raid, move, swap, promote, loot_rules, give, pass_loot and roll. Status lists each member's subgroup, role, health and state. Raid makes the group a raid when Peon leads, move and swap need a raid and the leader or an assistant, promote and loot_rules need the leader, give needs master loot with Peon as master, and kick needs a reason.",
+        "Runs the group: status, kick, lead, raid, move, swap, promote, loot_rules, give, pass_loot and roll. Status lists each member's subgroup, role, health and state. Raid needs Peon as leader, move and swap need a raid with leader or assistant, promote and loot_rules need the leader, give needs master loot, kick needs a reason.",
       guidelines: [
         "Call status first to learn the exact member name.",
         "Convert to a raid with `group do=raid` before subgroups and main roles.",
