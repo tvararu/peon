@@ -104,7 +104,9 @@ deletes a hunter pet (`Handlers/PetHandler.cpp:287-288`).
   refuses a spell whose attribute is passive before counting or sending,
   as the server skips unlearned and passive spells without a reply
   (`Handlers/PetHandler.cpp:1041-1044`); a bar type of 0x01 alone is not
-  a refusal.
+  a refusal. When the combat catalog has no definition for the spell
+  (no spell data loaded) the attribute check cannot run: the cast is
+  still sent, and the outcome says `confirmed: false`.
 - The bar marks every non-autocastable spell passive
   (`Entities/Pet/Pet.cpp:1810-1816`); a spell that only carries
   `SPELL_ATTR1_NO_AUTOCAST_AI` is still manually castable, which is
@@ -134,6 +136,24 @@ deletes a hunter pet (`Handlers/PetHandler.cpp:287-288`).
 ## Left out
 
 - `CMSG_PET_NAME_QUERY`, `SMSG_PET_NAME_QUERY_RESPONSE`, `CMSG_PET_RENAME`,
+  `SMSG_PET_NAME_INVALID`: built by pets-4.
+- `MSG_LIST_STABLED_PETS`, `CMSG_STABLE_PET`, `CMSG_UNSTABLE_PET`,
+  `CMSG_STABLE_SWAP_PET`, `CMSG_BUY_STABLE_SLOT`, `SMSG_STABLE_RESULT`,
+  `CMSG_STABLE_REVIVE_PET`: built by pets-5.
+- `CMSG_PET_ABANDON`, `SMSG_PET_TAME_FAILURE`, `CMSG_DISMISS_CRITTER`:
+  built by pets-6.
+- `CMSG_PET_LEARN_TALENT`, `CMSG_LEARN_PREVIEW_TALENTS_PET`: built by
+  pets-7.
+- `SMSG_PET_UPDATE_COMBO_POINTS`: built by pets-8.
+- `SMSG_PET_MODE`, `SMSG_PET_BROKEN`, `CMSG_PET_UNLEARN`,
+  `SMSG_PET_UNLEARN_CONFIRM`, `SMSG_PET_GUIDS`: dead (see Proof).
+
+## Capabilities row
+
+No agent verb; the world-service acts `pets.requestPetInfo`,
+`pets.petCommand`, `pets.petStance`, `pets.petStopAttack`,
+`pets.petCast`, `pets.petAutocast`, `pets.petSetAction`,
+`pets.petSwapActions` and `pets.petCancelAura` only.
 
 ## Proof
 
@@ -150,6 +170,8 @@ deletes a hunter pet (`Handlers/PetHandler.cpp:287-288`).
 | `SMSG_PET_GUIDS` | `dead` | only a comment names it (`Entities/Player/Player.cpp:11812`) | `Server/Protocol/Opcodes.cpp:1325` |
 | `CMSG_PET_STOP_ATTACK` | `live` | probe flow `pets-command --arg do=stop --arg yards=120`, exit 0: the pet sent at a Springpaw Stalker, `SMSG_ATTACKSTART` for the pet, then `CMSG_PET_STOP_ATTACK`, `SMSG_ATTACKSTOP` for the pet 1 ms later and the pet's `UNIT_FIELD_TARGET` cleared | `Server/Packets/PetPackets.cpp:30-33` |
 | `SMSG_PET_ACTION_FEEDBACK` | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "action feedback sets the last refusal and emits a feedback event" | `Entities/Unit/Unit.cpp:12556-12564` |
+| `SMSG_PET_ACTION_SOUND` | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "the action and dismiss sounds change no state and emit nothing" | `Server/Packets/PetPackets.cpp:54-59` |
+| `SMSG_PET_DISMISS_SOUND` | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "the action and dismiss sounds change no state and emit nothing" | `Server/Packets/PetPackets.cpp:61-68` |
 | `CMSG_PET_CAST_SPELL` | `builder` | not seen live: probe flow `pets-spell --arg spell=Growl` on an `eversong10-hunter` with its Ravager out, exit 0: one 18-byte `CMSG_PET_CAST_SPELL` out, answered by `SMSG_PET_CAST_FAILED` with reason `bad_implicit_targets` (Growl cast with no target selected and no hostile within 35 yards; the selected unit falls back only after an explicit target, `Handlers/PetHandler.cpp:1061-1064`). A second try at Fairbreeze Village with `--arg target=nearest` found no hostile within 35 yards even after the attack flow engaged a Springpaw Stalker, so no targeted cast went out. Builder test "petCast sends a non-autocastable bar spell and refuses one whose attribute is passive" | `Handlers/PetHandler.cpp:1018-1023` |
 | `SMSG_PET_CAST_FAILED` | `live` | probe flow `pets-spell --arg spell=Growl`, exit 0: `SMSG_PET_CAST_FAILED` size 6 after the cast, parsed as count 1, spell 14916, result `bad_implicit_targets`; a second cast fails the same way (Growl has no cooldown, so no `not_ready`) | `Spells/Spell.cpp:4842-4861` |
 | `CMSG_PET_SPELL_AUTOCAST` | `live` | probe flow `pets-spell --arg autocast=Bite:on --bodies`, exit 0: 13-byte `CMSG_PET_SPELL_AUTOCAST` (spell 17255, flag 1), and the next 144-byte `SMSG_PET_SPELLS` shows Bite as type `0xc1` where it was `0x81` before | `Server/Packets/PetPackets.cpp:35-40` |

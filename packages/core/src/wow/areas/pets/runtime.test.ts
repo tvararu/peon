@@ -245,6 +245,7 @@ describe("pets runtime", () => {
       expect(rig.sent).toEqual([]);
       expect(rig.act.petCast(DASH, { kind: "none" })).toEqual({
         castCount: 1,
+        confirmed: true,
         ok: true,
       });
       expect(rig.sent).toHaveLength(1);
@@ -278,10 +279,12 @@ describe("pets runtime", () => {
     try {
       expect(rig.act.petCast(GROWL, { kind: "none" })).toEqual({
         castCount: 1,
+        confirmed: false,
         ok: true,
       });
       expect(rig.act.petCast(GROWL, { kind: "none" })).toEqual({
         castCount: 2,
+        confirmed: false,
         ok: true,
       });
       expect(rig.sent).toHaveLength(2);

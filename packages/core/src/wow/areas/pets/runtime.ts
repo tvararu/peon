@@ -28,7 +28,9 @@ export type PetsRefused = {
     | "passive"
     | "not_removable";
 };
-export type PetsCast = { ok: true; castCount: number } | PetsRefused;
+export type PetsCast =
+  | { ok: true; castCount: number; confirmed: boolean }
+  | PetsRefused;
 export type PetsActResult = { ok: true } | PetsRefused;
 export type PetsActs = {
   requestPetInfo: () => { ok: true };
@@ -144,7 +146,7 @@ function spellActs(
         GameOpcode.CMSG_PET_CAST_SPELL,
         buildPetCastSpell(bar.guid, castCount, spell, target),
       );
-      return { castCount, ok: true };
+      return { castCount, confirmed: raw !== undefined, ok: true };
     },
   };
 }
