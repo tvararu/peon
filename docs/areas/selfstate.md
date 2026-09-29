@@ -143,6 +143,17 @@ logs `selfstate/self_res_available`: "You can come back where you died
   `SMSG_INITIAL_SPELLS` listed 39 spells without it and no
   `SMSG_LEARNED_SPELL` arrived, so the staging did not apply. The Ankh
   17030 was present (not seen live).
+- The login spell send `SMSG_INITIAL_SPELLS` rebuilds from the stored
+  spells, so the offline `spells/learn` of a Shaman spell on a priest
+  preset never sticks: its next login has no Reincarnation row, and the
+  first `t6-selfstate-res` run (round 68, not committed) showed it. The
+  priest died, `recover how:"self"` refused `no_self_res` twice, and the
+  final truth had no spells. `Player::SendInitialSpells` packs
+  `SMSG_INITIAL_SPELLS` from `m_spells`
+  (`Entities/Player/Player.cpp:2789-2800`); the delete of the row happens
+  in the login spell load, which the scenario's blockedBy names. The eval
+  may not use GM commands, so a Shaman preset or a Warlock partner is
+  needed.
 - `CMSG_CORPSE_MAP_POSITION_QUERY` is a `uint32` 0
   (`Server/Packets/QueryPackets.cpp:55-58`); the server answers with four
   `f32`, always zero in AzerothCore
