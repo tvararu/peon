@@ -4,6 +4,8 @@ import schema from "./scenario.schema.json" with { type: "json" };
 export type TriggerName =
   | "fight_start"
   | "kill"
+  | "lfg_proposal"
+  | "lfg_role_check"
   | "death"
   | "movement_start"
   | "answer_text"

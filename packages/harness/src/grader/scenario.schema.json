@@ -226,6 +226,8 @@
                     "enum": [
                       "fight_start",
                       "kill",
+                      "lfg_proposal",
+                      "lfg_role_check",
                       "death",
                       "movement_start",
                       "answer_text",
@@ -329,6 +331,8 @@
                     "enum": [
                       "fight_start",
                       "kill",
+                      "lfg_proposal",
+                      "lfg_role_check",
                       "death",
                       "movement_start",
                       "answer_text",

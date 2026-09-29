@@ -58,6 +58,8 @@ describe("TRIGGER_EVENTS", () => {
       death: ["life/dead"],
       fight_start: ["fight/start"],
       kill: ["combat/kill_credit"],
+      lfg_proposal: ["lfg/proposal"],
+      lfg_role_check: ["lfg/role_check"],
       movement_start: ["nav/route_start", "control/move_start"],
       steer_landed: ["human/input"],
     });
