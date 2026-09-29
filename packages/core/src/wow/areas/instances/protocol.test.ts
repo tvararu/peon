@@ -8,19 +8,28 @@ import {
   instancesRaidGroupOnlyBody,
   instancesRaidInstanceInfoBody,
   instancesRaidInstanceMessageBody,
+  instancesResetBody,
+  instancesResetFailedBody,
+  instancesResetFailedNotifyBody,
 } from "#test-support/areas/instances";
 import {
   buildLockResponse,
   buildRequestRaidInfo,
+  buildResetInstances,
+  buildSetDungeonDifficulty,
   buildSetLockoutExtended,
+  buildSetRaidDifficulty,
   parseDifficulty,
   parseInstanceDifficulty,
   parseInstanceOwnership,
+  parseInstanceReset,
+  parseInstanceResetFailed,
   parseLastInstance,
   parseLockWarning,
   parseRaidGroupOnly,
   parseRaidInstanceInfo,
   parseRaidInstanceMessage,
+  parseResetFailedNotify,
 } from "#wow/areas/instances/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 
@@ -197,5 +206,32 @@ describe("instances protocol", () => {
     expect(body.length).toBe(9);
     const r = reader(body);
     expect([r.uint32LE(), r.uint32LE(), r.uint8()]).toEqual([631, 1, 1]);
+  });
+
+  test("SMSG_INSTANCE_RESET is one u32 map (InstancePackets.cpp:20-25)", () => {
+    const r = reader(instancesResetBody(36));
+    expect(parseInstanceReset(r)).toEqual({ mapId: 36 });
+    expect(r.remaining).toBe(0);
+  });
+
+  test("SMSG_INSTANCE_RESET_FAILED is u32 reason then u32 map (InstancePackets.cpp:27-33)", () => {
+    const r = reader(instancesResetFailedBody({ reason: 0, mapId: 36 }));
+    expect(parseInstanceResetFailed(r)).toEqual({ reason: 0, mapId: 36 });
+    expect(r.remaining).toBe(0);
+  });
+
+  test("SMSG_RESET_FAILED_NOTIFY is one u32 map (InstancePackets.cpp:49-54)", () => {
+    const r = reader(instancesResetFailedNotifyBody(36));
+    expect(parseResetFailedNotify(r)).toEqual({ mapId: 36 });
+    expect(r.remaining).toBe(0);
+  });
+
+  test("the client difficulty forms are one u32 mode each (InstancePackets.cpp:44-47,65-68)", () => {
+    expect(buildSetDungeonDifficulty(1)).toEqual(new Uint8Array([1, 0, 0, 0]));
+    expect(buildSetRaidDifficulty(2)).toEqual(new Uint8Array([2, 0, 0, 0]));
+  });
+
+  test("CMSG_RESET_INSTANCES has an empty body (MiscHandler.cpp:1255-1266)", () => {
+    expect(buildResetInstances()).toEqual(new Uint8Array());
   });
 });

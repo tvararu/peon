@@ -3,6 +3,8 @@ import type {
   DifficultyPacket,
   InstanceDifficulty,
   InstanceOwnership,
+  InstanceReset,
+  InstanceResetFailed,
   LastInstance,
   LockWarning,
   RaidGroupOnly,
@@ -28,6 +30,9 @@ export type PendingBind = {
   deadline: number;
 };
 
+export type PendingDifficulty = { kind: DifficultyKind; value: number };
+export type DifficultyBody = { kind: DifficultyKind; difficulty: number };
+
 export type InstancesState = {
   dungeonDifficulty: number | undefined;
   raidDifficulty: number | undefined;
@@ -39,6 +44,7 @@ export type InstancesState = {
   locks: readonly RaidLock[] | undefined;
   locksAt: number | undefined;
   pendingBind: PendingBind | undefined;
+  pendingDifficulty: PendingDifficulty | undefined;
 };
 
 export type InstancesEvent =
@@ -72,7 +78,10 @@ export type InstancesEvent =
       encounterMask: number;
       deadline: number;
     }
-  | { type: "bound" };
+  | { type: "bound" }
+  | { type: "reset"; mapId: number }
+  | { type: "reset_failed"; mapId: number; reason: number }
+  | { type: "reset_blocked"; mapId: number };
 
 const lockKey = (lock: RaidLock) => `${lock.mapId}:${lock.difficulty}`;
 
@@ -92,10 +101,12 @@ const EMPTY: InstancesState = {
   locks: undefined,
   locksAt: undefined,
   pendingBind: undefined,
+  pendingDifficulty: undefined,
 };
 
 export class InstancesStore {
   private readonly events = new Emitter<[InstancesEvent]>();
+  private readonly bodies = new Emitter<[DifficultyBody]>();
   private state: InstancesState = EMPTY;
   private readonly now: () => number;
   private readonly core: CoreStores;
@@ -106,8 +117,14 @@ export class InstancesStore {
   }
 
   snapshot(): InstancesState {
-    const { mapDifficulty, lastWarning, homebindTimer, locks, pendingBind } =
-      this.state;
+    const {
+      mapDifficulty,
+      lastWarning,
+      homebindTimer,
+      locks,
+      pendingBind,
+      pendingDifficulty,
+    } = this.state;
     return {
       ...this.state,
       locks: locks?.map((lock) => ({ ...lock })),
@@ -115,6 +132,7 @@ export class InstancesStore {
         pendingBind && this.now() < pendingBind.deadline
           ? { ...pendingBind }
           : undefined,
+      pendingDifficulty: pendingDifficulty && { ...pendingDifficulty },
       mapDifficulty: mapDifficulty && { ...mapDifficulty },
       lastWarning: lastWarning && { ...lastWarning },
       homebindTimer: homebindTimer && { ...homebindTimer },
@@ -125,11 +143,25 @@ export class InstancesStore {
     return this.events.subscribe(cb);
   }
 
+  onDifficultyBody(cb: (body: DifficultyBody) => void): Unsubscribe {
+    return this.bodies.subscribe(cb);
+  }
+
+  pendDifficulty(kind: DifficultyKind, value: number): void {
+    this.set({ pendingDifficulty: { kind, value } });
+  }
+
   difficulty(kind: DifficultyKind, packet: DifficultyPacket): void {
     const key = DIFFICULTY_KEY[kind];
     const previous = this.state[key];
-    if (previous === packet.difficulty) return;
+    if (this.state.pendingDifficulty?.kind === kind)
+      this.set({ pendingDifficulty: undefined });
+    if (previous === packet.difficulty) {
+      this.bodies.emit({ kind, difficulty: packet.difficulty });
+      return;
+    }
     this.set({ [key]: packet.difficulty });
+    this.bodies.emit({ kind, difficulty: packet.difficulty });
     this.events.emit({
       type: "difficulty",
       kind,
@@ -212,6 +244,22 @@ export class InstancesStore {
     this.events.emit({ type: "bound" });
   }
 
+  reset(packet: InstanceReset): void {
+    this.events.emit({ type: "reset", mapId: packet.mapId });
+  }
+
+  resetFailed(packet: InstanceResetFailed): void {
+    this.events.emit({
+      type: "reset_failed",
+      mapId: packet.mapId,
+      reason: packet.reason,
+    });
+  }
+
+  resetBlocked(packet: InstanceReset): void {
+    this.events.emit({ type: "reset_blocked", mapId: packet.mapId });
+  }
+
   mapChanged(): void {
     this.set({
       mapDifficulty: undefined,
@@ -222,6 +270,7 @@ export class InstancesStore {
 
   dispose(): void {
     this.events.clear();
+    this.bodies.clear();
   }
 
   private set(next: Partial<InstancesState>): void {

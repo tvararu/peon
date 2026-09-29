@@ -63,6 +63,7 @@ describe("instances store", () => {
         locks: undefined,
         locksAt: undefined,
         pendingBind: undefined,
+        pendingDifficulty: undefined,
       });
     } finally {
       rig.dispose();

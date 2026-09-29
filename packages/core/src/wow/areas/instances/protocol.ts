@@ -29,6 +29,8 @@ export type LockoutExtension = {
   extended: boolean;
 };
 export type RaidGroupOnly = { timerMs: number; code: number };
+export type InstanceReset = { mapId: number };
+export type InstanceResetFailed = { reason: number; mapId: number };
 
 export function parseDifficulty(r: PacketReader): DifficultyPacket {
   const difficulty = r.uint32LE();
@@ -95,6 +97,38 @@ export function parseLockWarning(r: PacketReader): LockWarning {
   const encounterMask = r.uint32LE();
   r.uint8();
   return { timeoutMs, encounterMask };
+}
+
+export function parseInstanceReset(r: PacketReader): InstanceReset {
+  return { mapId: r.uint32LE() };
+}
+
+export function parseInstanceResetFailed(r: PacketReader): InstanceResetFailed {
+  const reason = r.uint32LE();
+  const mapId = r.uint32LE();
+  return { reason, mapId };
+}
+
+export function parseResetFailedNotify(r: PacketReader): InstanceReset {
+  return { mapId: r.uint32LE() };
+}
+
+function u32(value: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(value);
+  return w.finish();
+}
+
+export function buildSetDungeonDifficulty(mode: number): Uint8Array {
+  return u32(mode);
+}
+
+export function buildSetRaidDifficulty(mode: number): Uint8Array {
+  return u32(mode);
+}
+
+export function buildResetInstances(): Uint8Array {
+  return new Uint8Array();
 }
 
 export function buildRequestRaidInfo(): Uint8Array {

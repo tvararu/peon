@@ -4,11 +4,14 @@ import {
   parseDifficulty,
   parseInstanceDifficulty,
   parseInstanceOwnership,
+  parseInstanceReset,
+  parseInstanceResetFailed,
   parseLastInstance,
   parseLockWarning,
   parseRaidGroupOnly,
   parseRaidInstanceInfo,
   parseRaidInstanceMessage,
+  parseResetFailedNotify,
 } from "#wow/areas/instances/protocol";
 import { instancesRuntime } from "#wow/areas/instances/runtime";
 import { createInstancesStore } from "#wow/areas/instances/store";
@@ -27,6 +30,9 @@ export const instancesArea = defineArea({
     "lockouts",
     "bind_offer",
     "bound",
+    "reset",
+    "reset_failed",
+    "reset_blocked",
   ],
   store: (deps, core) => createInstancesStore(deps, core),
   register: (wire, store) => {
@@ -59,6 +65,15 @@ export const instancesArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_INSTANCE_LOCK_WARNING_QUERY, (r) =>
       store.lockWarning(parseLockWarning(r)),
+    );
+    wire.on(GameOpcode.SMSG_INSTANCE_RESET, (r) =>
+      store.reset(parseInstanceReset(r)),
+    );
+    wire.on(GameOpcode.SMSG_INSTANCE_RESET_FAILED, (r) =>
+      store.resetFailed(parseInstanceResetFailed(r)),
+    );
+    wire.on(GameOpcode.SMSG_RESET_FAILED_NOTIFY, (r) =>
+      store.resetBlocked(parseResetFailedNotify(r)),
     );
     wire.on(GameOpcode.SMSG_INSTANCE_SAVE_CREATED, () => store.saveCreated());
   },

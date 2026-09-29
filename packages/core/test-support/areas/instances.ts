@@ -93,3 +93,18 @@ export function instancesLockWarningBody(init: {
 export function instancesSaveCreatedBody(): Uint8Array {
   return u32s(0);
 }
+
+export function instancesResetBody(mapId: number): Uint8Array {
+  return u32s(mapId);
+}
+
+export function instancesResetFailedBody(init: {
+  reason: number;
+  mapId: number;
+}): Uint8Array {
+  return u32s(init.reason, init.mapId);
+}
+
+export function instancesResetFailedNotifyBody(mapId: number): Uint8Array {
+  return u32s(mapId);
+}
