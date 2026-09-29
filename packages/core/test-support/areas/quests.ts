@@ -132,3 +132,59 @@ export function questsQueryQuestsCompletedResponseBody(
   for (const id of ids) w.uint32LE(id);
   return w.finish();
 }
+
+export function questsQuestPushResultBody(
+  guid: bigint,
+  result: number,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(guid);
+  w.uint8(result);
+  return w.finish();
+}
+
+export type QuestsQuestDetails = {
+  guid: bigint;
+  divider: bigint;
+  questId: number;
+  title: string;
+  flags?: number;
+};
+
+export function questsQuestgiverQuestDetailsBody(
+  quest: QuestsQuestDetails,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(quest.guid);
+  w.uint64LE(quest.divider);
+  w.uint32LE(quest.questId);
+  w.cString(quest.title);
+  w.cString("Details");
+  w.cString("Objectives");
+  w.uint8(1);
+  w.uint32LE(quest.flags ?? 0x88);
+  w.uint32LE(0);
+  w.uint8(0);
+  for (let i = 0; i < 4; i++) w.uint32LE(0);
+  w.uint32LE(0);
+  w.floatLE(0);
+  for (let i = 0; i < 6; i++) w.uint32LE(0);
+  for (let i = 0; i < 15; i++) w.uint32LE(0);
+  w.uint32LE(0);
+  return w.finish();
+}
+
+export function questsQuestgiverRequestItemsBody(
+  guid: bigint,
+  questId: number,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(guid);
+  w.uint32LE(questId);
+  w.cString("Title");
+  w.cString("Request");
+  for (let i = 0; i < 6; i++) w.uint32LE(0);
+  w.uint32LE(0);
+  for (let i = 0; i < 4; i++) w.uint32LE(0);
+  return w.finish();
+}

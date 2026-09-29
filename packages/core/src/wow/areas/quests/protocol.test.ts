@@ -6,18 +6,23 @@ import {
   questsQueryQuestsCompletedResponseBody,
   questsQuestgiverStatusMultipleBody,
   questsQuestPoiQueryResponseBody,
+  questsQuestPushResultBody,
 } from "#test-support/areas/quests";
 import {
   buildNpcTextQuery,
+  buildPushQuestToParty,
   buildQuestgiverHello,
   buildQuestgiverStatusQuery,
   buildQuestLogSwapQuest,
   buildQuestPoiQuery,
+  buildQuestPushResult,
   parseGossipPoi,
   parseNpcTextUpdate,
   parseQuestgiverStatusMultiple,
   parseQuestPoiResponse,
+  parseQuestPushResult,
   parseQuestsCompleted,
+  QuestShareResult,
 } from "#wow/areas/quests/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 
@@ -242,5 +247,44 @@ describe("quests log extras", () => {
     expect(buildQuestLogSwapQuest(25, 1)).toBeUndefined();
     expect(buildQuestLogSwapQuest(-1, 1)).toBeUndefined();
     expect(buildQuestLogSwapQuest(0.5, 1)).toBeUndefined();
+  });
+});
+
+describe("quest sharing packets", () => {
+  test("MSG_QUEST_PUSH_RESULT from the server is a guid and a uint8 result (QuestPackets.cpp:70-76)", () => {
+    const body = questsQuestPushResultBody(ERONA, 4);
+    expect(body).toHaveLength(9);
+    expect(parseQuestPushResult(new PacketReader(body))).toEqual({
+      guid: ERONA,
+      result: QuestShareResult.BUSY,
+    });
+  });
+
+  test("MSG_QUEST_PUSH_RESULT from the client is 13 bytes, guid then quest id then result (QuestPackets.cpp:98-105)", () => {
+    const body = buildQuestPushResult(
+      ERONA,
+      8326,
+      QuestShareResult.DECLINE_QUEST,
+    );
+    expect(body).toHaveLength(13);
+    const reader = new PacketReader(body);
+    expect(reader.uint64LE()).toBe(ERONA);
+    expect(reader.uint32LE()).toBe(8326);
+    expect(reader.uint8()).toBe(3);
+  });
+
+  test("CMSG_PUSHQUESTTOPARTY is the uint32 quest id (QuestPackets.cpp:123-126)", () => {
+    expect(buildPushQuestToParty(8326)).toEqual(
+      new Uint8Array([0x86, 0x20, 0, 0]),
+    );
+  });
+
+  test("the share results hold AzerothCore's values 0 to 10 (QuestDef.h:64-77)", () => {
+    expect(Object.values(QuestShareResult).sort((a, b) => a - b)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+    ]);
+    expect(QuestShareResult.SHARING_QUEST).toBe(0);
+    expect(QuestShareResult.ACCEPT_QUEST).toBe(2);
+    expect(QuestShareResult.NOT_IN_PARTY).toBe(10);
   });
 });

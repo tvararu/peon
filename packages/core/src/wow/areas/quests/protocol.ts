@@ -177,3 +177,43 @@ export function buildQuestLogSwapQuest(
   w.uint8(b);
   return w.finish();
 }
+
+export const QuestShareResult = {
+  SHARING_QUEST: 0,
+  CANT_TAKE_QUEST: 1,
+  ACCEPT_QUEST: 2,
+  DECLINE_QUEST: 3,
+  BUSY: 4,
+  LOG_FULL: 5,
+  HAVE_QUEST: 6,
+  FINISH_QUEST: 7,
+  CANT_BE_SHARED_TODAY: 8,
+  SHARING_TIMER_EXPIRED: 9,
+  NOT_IN_PARTY: 10,
+} as const;
+
+export type QuestPushResult = { guid: bigint; result: number };
+
+export function parseQuestPushResult(r: PacketReader): QuestPushResult {
+  const guid = r.uint64LE();
+  const result = r.uint8();
+  return { guid, result };
+}
+
+export function buildQuestPushResult(
+  guid: bigint,
+  questId: number,
+  result: number,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(guid);
+  w.uint32LE(questId);
+  w.uint8(result);
+  return w.finish();
+}
+
+export function buildPushQuestToParty(questId: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(questId);
+  return w.finish();
+}
