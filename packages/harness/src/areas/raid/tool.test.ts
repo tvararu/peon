@@ -123,6 +123,7 @@ describe("group tool", () => {
     await expectSendKind(groupTool, { do: "give", what: "Linen" });
     await expectSendKind(groupTool, { do: "pass_loot", what: "on" });
     await expectSendKind(groupTool, { do: "roll", what: "need" });
+    await expectSendKind(groupTool, { do: "share_quest", quest: "Nothing" });
   });
 
   describe("status", () => {

@@ -1,0 +1,61 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 16,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "evidence": {
+        "truth": ["quests"],
+        "who": "agent"
+      },
+      "expect": "agent T final quests holds 8329 (Warrior Training), which it did not hold at the start, so the agent used the group tool with do accept_quest on the partner's share",
+      "id": "quest-taken",
+      "source": "truth"
+    },
+    {
+      "expect": "the session shows the agent joining the group and then calling the group tool with do accept_quest, not ending REFUSED",
+      "id": "accept-called",
+      "source": "session"
+    }
+  ],
+  "id": "t8-quests-accept-shared",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": "partner",
+  "partnerActions": [
+    {
+      "argv": ["call", "invite", "[\"<AGENT>\"]"],
+      "at": {
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "task_landed"
+      },
+      "windowMs": 120000
+    },
+    {
+      "argv": ["call", "shareQuest", "[8329]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 45000
+      },
+      "windowMs": 180000
+    }
+  ],
+  "partnerSetup": [
+    {
+      "body": {
+        "quest": 8329
+      },
+      "endpoint": "quest/add"
+    }
+  ],
+  "preset": "fresh",
+  "setup": [],
+  "steers": [],
+  "task": "A player will invite you to a group and share a quest with you. Join the group and take the quest.",
+  "tier": 8
+}

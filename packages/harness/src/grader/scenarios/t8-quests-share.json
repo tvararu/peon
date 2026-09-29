@@ -1,0 +1,59 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 16,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["quests/share_result"]
+      },
+      "expect": "GL has a quests/share_result row that holds accepted, so the agent used the group tool with do share_quest on quest 8329 (Warrior Training) and the partner accepted it",
+      "id": "share-accepted",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent joining the group and then calling the group tool with do share_quest, not ending REFUSED",
+      "id": "share-called",
+      "source": "session"
+    }
+  ],
+  "id": "t8-quests-share",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": "partner",
+  "partnerActions": [
+    {
+      "argv": ["call", "invite", "[\"<AGENT>\"]"],
+      "at": {
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "task_landed"
+      },
+      "windowMs": 180000
+    },
+    {
+      "argv": ["call", "answerShare", "[\"accept\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 60000
+      },
+      "windowMs": 180000
+    }
+  ],
+  "preset": "fresh",
+  "setup": [
+    {
+      "body": {
+        "quest": 8329
+      },
+      "endpoint": "quest/add"
+    }
+  ],
+  "steers": [],
+  "task": "A player will invite you to a group. Join it, then share the quest Warrior Training with the group.",
+  "tier": 8
+}
