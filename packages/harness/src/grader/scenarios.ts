@@ -170,6 +170,10 @@ export const ROUND_1: readonly string[] = [
   "t9-raid-convert",
   "t9-lfg-queue",
   "t9-lfg-run",
+  "t9-trade-give",
+  "t9-trade-receive",
+  "t9-trade-swap",
+  "t9-trade-cancel",
 ];
 
 const DIR = `${import.meta.dir}/scenarios`;
