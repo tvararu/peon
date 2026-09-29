@@ -288,13 +288,14 @@ No `combatlog/immune` row and no self-written `combatlog/killing_blow`
 row has been seen live: the area test writes both rows from hand-built
 entries. A groupmate kill (`SMSG_PARTYKILLLOG` with `bySelf` 0,
 `ourTarget` true and `killerKind` `player` on a grouped observer) was
-tried twice on the puppets in East Sanctum and is not seen live. Run one
-at level 80 ran out of mana after four Fireballs
+tried twice on the puppets in East Sanctum and is not seen live. The router
+test feeds the event shape from the writer
+(`Entities/Unit/Unit.cpp:13593-13611`).
+
+Run one at level 80 ran out of mana after four Fireballs
 (`SPELL_FAILED_NO_POWER`, `src/server/shared/SharedDefines.h:1022`) with the
 Angershade at 95 of 158 health; run two at level 10 died to the mobs
-before a cast landed. Neither trace held a kill log. The router test
-feeds the event shape from the writer
-(`Entities/Unit/Unit.cpp:13593-13611`).
+before a cast landed. Neither trace held a kill log.
 
 Fight totals, measured on a `t3-ghostlands-kill` run (round 21, verdict
 `pass`): one `engage` call killed two Shadowpine Oracles and answered
