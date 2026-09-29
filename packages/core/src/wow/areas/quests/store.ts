@@ -30,6 +30,20 @@ import {
   requestPois,
 } from "#wow/areas/quests/store-poi";
 import {
+  answerOffer,
+  beginPush,
+  EMPTY_SHARE,
+  expireOffer,
+  expirePush,
+  openOffer,
+  receivePushResult,
+  type ShareAnswer,
+  type ShareChange,
+  type ShareOffer,
+  type ShareState,
+  type ShareStep,
+} from "#wow/areas/quests/store-share";
+import {
   type GossipPoiEntry,
   greetingOf,
   type NpcTextChange,
@@ -52,6 +66,7 @@ export type QuestsState = {
   texts: NpcTexts;
   gossipPoi: GossipPoiEntry | undefined;
   completed: Completed | undefined;
+  share?: ShareState;
 };
 export type QuestsEvent =
   | {
@@ -62,7 +77,8 @@ export type QuestsEvent =
     }
   | { type: "poi"; questIds: readonly number[]; pois: readonly PoiEntryView[] }
   | NpcTextChange
-  | { type: "completed"; count: number };
+  | { type: "completed"; count: number }
+  | { type: "share"; share: ShareChange };
 
 export class QuestsStore {
   private readonly events = new Emitter<[QuestsEvent]>();
@@ -72,6 +88,8 @@ export class QuestsStore {
   private texts: NpcTexts = new Map();
   private gossipPoi: GossipPoiEntry | undefined;
   private completed: Completed | undefined;
+  private share: ShareState = EMPTY_SHARE;
+  private isMember: (guid: bigint) => boolean = () => false;
 
   private readonly core: CoreStores;
 
@@ -87,6 +105,7 @@ export class QuestsStore {
       texts: new Map(this.texts),
       gossipPoi: this.gossipPoi,
       completed: this.completed,
+      share: this.share,
     };
   }
 
@@ -160,6 +179,68 @@ export class QuestsStore {
     this.gossipPoi = undefined;
     this.pois = new Map();
     this.completed = undefined;
+    this.share = EMPTY_SHARE;
+    this.isMember = () => false;
+  }
+
+  bindMembers(isMember: (guid: bigint) => boolean): void {
+    this.isMember = isMember;
+  }
+
+  beginPush(questId: number): boolean {
+    return this.applyShare(beginPush(this.share, questId, this.now()));
+  }
+
+  receivePushResult(guid: bigint, result: number): void {
+    this.applyShare(receivePushResult(this.share, guid, result, this.now()));
+  }
+
+  expirePush(): void {
+    this.applyShare(expirePush(this.share));
+  }
+
+  receiveShareDetails(details: {
+    dividerGuid: bigint;
+    questId: number;
+    title: string;
+  }): void {
+    const quests = this.core.quests.snapshot();
+    if (details.dividerGuid === 0n || quests.pending) return;
+    const { questId } = details;
+    const held = quests.log.slots.some((slot) => slot.questId === questId);
+    if (held) {
+      this.emitShare({ answer: "auto_accepted", questId, type: "answered" });
+      return;
+    }
+    const offer: ShareOffer = {
+      at: this.now(),
+      from: details.dividerGuid,
+      questId,
+      title: details.title,
+    };
+    this.applyShare(openOffer(this.share, offer));
+  }
+
+  receiveShareRequestItems(items: { guid: bigint; questId: number }): void {
+    if (this.core.quests.snapshot().pending || !this.isMember(items.guid))
+      return;
+    this.emitShare({
+      from: items.guid,
+      questId: items.questId,
+      type: "share_complete",
+    });
+  }
+
+  answerOffer(answer: ShareAnswer): ShareOffer | undefined {
+    const offer = this.share.offer;
+    this.applyShare(answerOffer(this.share, answer));
+    return offer;
+  }
+
+  expireOffer(): ShareOffer | undefined {
+    const offer = this.share.offer;
+    this.applyShare(expireOffer(this.share));
+    return offer;
   }
 
   queryPois(ids: readonly number[]): number[] {
@@ -209,5 +290,16 @@ export class QuestsStore {
       questIds: change.settled,
       pois: this.poiOf(change.settled),
     });
+  }
+
+  private applyShare(step: ShareStep | undefined): boolean {
+    if (!step) return false;
+    this.share = step.share;
+    for (const change of step.changes) this.emitShare(change);
+    return true;
+  }
+
+  private emitShare(change: ShareChange): void {
+    this.events.emit({ share: change, type: "share" });
   }
 }

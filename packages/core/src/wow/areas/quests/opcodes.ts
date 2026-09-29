@@ -21,7 +21,11 @@ export const QUESTS_OPCODES = {
     "CMSG_QUEST_CONFIRM_ACCEPT",
     "SMSG_QUEST_FORCE_REMOVE",
   ],
-  uses: ["SMSG_QUESTGIVER_STATUS"],
+  uses: [
+    "SMSG_QUESTGIVER_STATUS",
+    "SMSG_QUESTGIVER_QUEST_DETAILS",
+    "SMSG_QUESTGIVER_REQUEST_ITEMS",
+  ],
   stubs: [],
   dead: ["SMSG_QUEST_FORCE_REMOVE"],
   unseen: [],

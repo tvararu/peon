@@ -17,6 +17,13 @@ const count = (args: readonly unknown[], at: number) => args[at] as number;
 export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   acceptGuildInvite: { args: [], run: (h) => h.acceptGuildInvite() },
   acceptInvite: { args: [], run: (h) => h.acceptInvite() },
+  answerShare: {
+    args: [["accept", "decline"]],
+    run: (h, a) => {
+      if (!h.quests.act.answerShare(a[0] as "accept" | "decline"))
+        throw new Error("No shared quest is offered.");
+    },
+  },
   declineGuildInvite: { args: [], run: (h) => h.declineGuildInvite() },
   declineInvite: { args: [], run: (h) => h.declineInvite() },
   guildInvite: { args: ["string"], run: (h, a) => h.guildInvite(text(a, 0)) },
@@ -65,6 +72,13 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   setPassOnLoot: {
     args: [["off", "on"]],
     run: (h, a) => h.looting.act.setPassOnLoot(a[0] === "on"),
+  },
+  shareQuest: {
+    args: ["number"],
+    run: (h, a) => {
+      const shared = h.quests.act.shareQuest(count(a, 0));
+      if (!shared.ok) throw new Error(`Quest not shared: ${shared.reason}.`);
+    },
   },
   uninvite: { args: ["string"], run: (h, a) => h.uninvite(text(a, 0)) },
 };
