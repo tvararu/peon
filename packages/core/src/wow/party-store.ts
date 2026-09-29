@@ -20,11 +20,43 @@ export const ITEM_QUALITIES: Record<number, string> = {
   7: "heirloom",
 };
 
+export type MemberAura = { slot: number; spellId: number; flags: number };
+
+export type MemberPet = {
+  guid: bigint | null;
+  name: string | null;
+  displayId: number | null;
+  hp: number | null;
+  maxHp: number | null;
+  powerType: number | null;
+  power: number | null;
+  maxPower: number | null;
+  auras: readonly MemberAura[];
+};
+
 export type PartyMemberStats = {
   online?: boolean;
   hp?: number;
   maxHp?: number;
+  powerType?: number;
+  power?: number;
+  maxPower?: number;
   level?: number;
+  zone?: number;
+  position?: { x: number; y: number };
+  auras?: readonly MemberAura[];
+  pet?: {
+    guid?: bigint;
+    name?: string;
+    displayId?: number;
+    hp?: number;
+    maxHp?: number;
+    powerType?: number;
+    power?: number;
+    maxPower?: number;
+    auras?: readonly MemberAura[];
+  };
+  vehicleSeat?: number;
 };
 
 export type PartyMember = {
@@ -37,12 +69,41 @@ export type PartyMember = {
   roles: number;
   health: number | null;
   maxHealth: number | null;
+  powerType: number | null;
+  power: number | null;
+  maxPower: number | null;
   level: number | null;
+  zone: number | null;
+  position: { x: number; y: number } | null;
+  auras: readonly MemberAura[];
+  pet: MemberPet | null;
+  vehicleSeat: number | null;
   statsAt: number | null;
   source: "unit" | "party_stats" | null;
 };
 
-export type PartyUnit = { health: number; maxHealth: number; level: number };
+export type PartyUnit = {
+  health: number;
+  maxHealth: number;
+  powerType?: number;
+  power?: number;
+  maxPower?: number;
+  level: number;
+};
+
+export function emptyMemberPet(): MemberPet {
+  return {
+    auras: [],
+    displayId: null,
+    guid: null,
+    hp: null,
+    maxHp: null,
+    maxPower: null,
+    name: null,
+    power: null,
+    powerType: null,
+  };
+}
 
 export type PartyLoot = {
   method: string;
@@ -86,18 +147,26 @@ type Stats = Omit<
 
 function toMember(member: RosterMember): PartyMember {
   return {
+    auras: [],
     flags: member.flags,
     guid: joinGuid(member.guidLow, member.guidHigh),
     health: null,
     level: null,
     maxHealth: null,
+    maxPower: null,
     name: member.name,
     online: member.online,
+    pet: null,
+    position: null,
+    power: null,
+    powerType: null,
     roles: member.roles,
     source: null,
     statsAt: null,
     status: member.status,
     subgroup: member.subgroup,
+    vehicleSeat: null,
+    zone: null,
   };
 }
 
@@ -136,6 +205,25 @@ export function emptyParty(): PartyState {
   };
 }
 
+function mergePet(
+  update: PartyMemberStats["pet"],
+  previous: MemberPet | null,
+): MemberPet | null {
+  const present = update ?? previous;
+  if (!present) return null;
+  const base = previous ?? emptyMemberPet();
+  return {
+    auras: update?.auras ? [...update.auras] : [...base.auras],
+    displayId: update?.displayId ?? base.displayId,
+    guid: update?.guid ?? base.guid,
+    hp: update?.hp ?? base.hp,
+    maxHp: update?.maxHp ?? base.maxHp,
+    maxPower: update?.maxPower ?? base.maxPower,
+    name: update?.name ?? base.name,
+    power: update?.power ?? base.power,
+    powerType: update?.powerType ?? base.powerType,
+  };
+}
 export class PartyStore {
   private state: PartyState = emptyParty();
   private readonly stats = new Map<bigint, Stats>();
@@ -192,17 +280,22 @@ export class PartyStore {
   }
 
   applyStats(guid: bigint, update: PartyMemberStats, now: number): void {
-    const previous = this.stats.get(guid) ?? {
-      health: null,
-      maxHealth: null,
-      level: null,
-      statsAt: null,
-    };
+    const previous = this.stats.get(guid);
     this.stats.set(guid, {
-      health: update.hp ?? previous.health,
-      maxHealth: update.maxHp ?? previous.maxHealth,
-      level: update.level ?? previous.level,
+      auras: update.auras ? [...update.auras] : (previous?.auras ?? []),
+      health: update.hp ?? previous?.health ?? null,
+      level: update.level ?? previous?.level ?? null,
+      maxHealth: update.maxHp ?? previous?.maxHealth ?? null,
+      maxPower: update.maxPower ?? previous?.maxPower ?? null,
+      pet: mergePet(update.pet, previous?.pet ?? null),
+      position: update.position
+        ? { ...update.position }
+        : (previous?.position ?? null),
+      power: update.power ?? previous?.power ?? null,
+      powerType: update.powerType ?? previous?.powerType ?? null,
       statsAt: now,
+      vehicleSeat: update.vehicleSeat ?? previous?.vehicleSeat ?? null,
+      zone: update.zone ?? previous?.zone ?? null,
     });
     const member = this.state.members.find((entry) => entry.guid === guid);
     if (member && update.online !== undefined) member.online = update.online;

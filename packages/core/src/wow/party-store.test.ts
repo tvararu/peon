@@ -222,6 +222,43 @@ describe("party store", () => {
       source: "party_stats",
     });
   });
+  test("merges power, zone, position, auras and pet across updates", () => {
+    const party = new PartyStore();
+    party.applyList(list(["Bob"]), "Xia");
+    party.applyStats(
+      0xa40n,
+      {
+        auras: [{ flags: 1, slot: 0, spellId: 2457 }],
+        hp: 4200,
+        level: 80,
+        maxHp: 9000,
+        maxPower: 1000,
+        pet: { guid: 0x99n, hp: 100, name: "Rex" },
+        position: { x: 9040, y: -6250 },
+        power: 450,
+        powerType: 1,
+        vehicleSeat: 3153,
+        zone: 3430,
+      },
+      1000,
+    );
+    party.applyStats(0xa40n, { hp: 3900 }, 2000);
+    expect(party.snapshot().members[0]).toMatchObject({
+      auras: [{ flags: 1, slot: 0, spellId: 2457 }],
+      health: 3900,
+      level: 80,
+      maxHealth: 9000,
+      maxPower: 1000,
+      pet: { guid: 0x99n, hp: 100, name: "Rex" },
+      position: { x: 9040, y: -6250 },
+      power: 450,
+      powerType: 1,
+      source: "party_stats",
+      statsAt: 2000,
+      vehicleSeat: 3153,
+      zone: 3430,
+    });
+  });
 
   test("marks offline members and reports no group when alone", () => {
     const party = new PartyStore();
