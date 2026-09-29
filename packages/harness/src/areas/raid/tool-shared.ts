@@ -14,10 +14,13 @@ export const groupParams = Type.Object({
         "swap",
         "promote",
         "loot_rules",
+        "give",
+        "pass_loot",
+        "roll",
       ],
       {
         description:
-          "status: show each group member. kick: remove a member by name. lead: pass the leader to a member. raid: make the group a raid. move: move a member to a subgroup. swap: swap two members between subgroups. promote: set assistant, main tank or main assist. loot_rules: set the loot method. Default status.",
+          "status: show each group member. kick: remove a member by name. lead: pass the leader to a member. raid: make the group a raid. move: move a member to a subgroup. swap: swap two members between subgroups. promote: set assistant, main tank or main assist. loot_rules: set the loot method. give: give a master loot item to a member. pass_loot: pass on group loot with on or off. roll: answer the open group roll with need, greed or pass. Default status.",
       },
     ),
   ),
@@ -31,6 +34,12 @@ export const groupParams = Type.Object({
       description: "For loot_rules: the loot quality threshold.",
     }),
   ),
+  target: Type.Optional(
+    Type.String({
+      description:
+        "For give: the corpse unit id or name. Default: the nearest lootable corpse.",
+    }),
+  ),
   text: Type.Optional(
     Type.String({
       description:
@@ -40,18 +49,19 @@ export const groupParams = Type.Object({
   to: Type.Optional(
     Type.String({
       description:
-        "For kick, lead, move, swap, promote and loot_rules: the member's exact name. For status: show only this member.",
+        "For kick, lead, move, swap, promote and loot_rules: the member's exact name. For status: show only this member. For give: the member who receives the item; empty means yourself.",
     }),
   ),
   what: Type.Optional(
     Type.String({
       description:
-        "For promote: assistant, main_tank or main_assist. For loot_rules: the loot method.",
+        "For promote: assistant, main_tank or main_assist. For loot_rules: the loot method. For give: the item name. For pass_loot: on or off. For roll: need, greed or pass.",
     }),
   ),
   with: Type.Optional(
     Type.String({
-      description: "For swap: the second member's exact name.",
+      description:
+        "For swap: the second member's exact name. For roll: the item name when two rolls are open.",
     }),
   ),
 });
@@ -65,7 +75,10 @@ export type GroupDo =
   | "move"
   | "swap"
   | "promote"
-  | "loot_rules";
+  | "loot_rules"
+  | "give"
+  | "pass_loot"
+  | "roll";
 
 export type RaidState = AreaState<"raid">;
 export type RaidGroup = NonNullable<RaidState["group"]>;

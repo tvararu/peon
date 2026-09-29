@@ -120,6 +120,9 @@ describe("group tool", () => {
     await expectSendKind(groupTool, {});
     await expectSendKind(groupTool, { do: "kick", to: "Nobody" });
     await expectSendKind(groupTool, { do: "lead", to: "Nobody" });
+    await expectSendKind(groupTool, { do: "give", what: "Linen" });
+    await expectSendKind(groupTool, { do: "pass_loot", what: "on" });
+    await expectSendKind(groupTool, { do: "roll", what: "need" });
   });
 
   describe("status", () => {

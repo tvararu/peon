@@ -1,4 +1,5 @@
 import type { PartyMember } from "@peon/core";
+import { giveTool, passTool, rollTool } from "#harness/areas/raid/tool-loot";
 import {
   moveTool,
   promoteTool,
@@ -279,6 +280,9 @@ function groupRun(
   if (args.do === "swap") return swapTool(args, ctx);
   if (args.do === "promote") return promoteTool(args, ctx);
   if (args.do === "loot_rules") return lootRulesTool(args, ctx);
+  if (args.do === "give") return giveTool(args, ctx);
+  if (args.do === "pass_loot") return passTool(args, ctx);
+  if (args.do === "roll") return rollTool(args, ctx);
   return statusTool(args, ctx);
 }
 
@@ -320,7 +324,7 @@ export const groupSpec: GameToolSpec<typeof groupParams, "group", GroupAfter> =
     run: groupRun,
     text: {
       description:
-        "Runs the group: status, kick, lead, raid, move, swap, promote and loot_rules. Status lists each member's subgroup, role, health and state. Raid makes the group a raid when Peon leads, move and swap need a raid and the leader or an assistant, promote and loot_rules need the leader, and kick needs a reason.",
+        "Runs the group: status, kick, lead, raid, move, swap, promote, loot_rules, give, pass_loot and roll. Status lists each member's subgroup, role, health and state. Raid makes the group a raid when Peon leads, move and swap need a raid and the leader or an assistant, promote and loot_rules need the leader, give needs master loot with Peon as master, and kick needs a reason.",
       guidelines: [
         "Call status first to learn the exact member name.",
         "Convert to a raid with `group do=raid` before subgroups and main roles.",
