@@ -1,4 +1,4 @@
-import type { AreaEventOf } from "@peon/core";
+import { type AreaEventOf, RANK_NAMES } from "@peon/core";
 import type { AreaDraft } from "#harness/areas/contract";
 import { defineHarnessArea } from "#harness/areas/contract";
 import type { RuleInput } from "#harness/events/rules";
@@ -9,17 +9,6 @@ type Of<T extends ReputationEvent["type"]> = Extract<
   { type: T }
 >;
 type ForcedRow = { factionId: number; name: string | undefined; rank: number };
-
-const RANK_NAMES = [
-  "Hated",
-  "Hostile",
-  "Unfriendly",
-  "Neutral",
-  "Friendly",
-  "Honored",
-  "Revered",
-  "Exalted",
-] as const;
 const POINTS_IN_RANK = [36_000, 3000, 3000, 3000, 6000, 12_000, 21_000, 1000];
 
 function rankName(rank: number): string {
