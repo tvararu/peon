@@ -1,12 +1,36 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
+import {
+  joinReasonName,
+  type LfgJoinReason,
+  type LfgRoleCheckStateName,
+  roleCheckStateName,
+} from "#wow/areas/lfg/names";
 import type {
+  LfgBootUpdate,
   LfgJoinResult,
   LfgPlayerInfo,
+  LfgProposal,
   LfgQueueStatus,
+  LfgReward,
   LfgUpdate,
   RoleCheckUpdate,
   RoleChosen,
 } from "#wow/areas/lfg/protocol";
+import {
+  bootView,
+  copyProposal,
+  copyReward,
+  LFG_PROPOSAL_SECONDS,
+  type LfgBootView,
+  type LfgOfferContinueView,
+  type LfgProposalView,
+  type LfgRewardView,
+  type LfgTeleportDeniedView,
+  type LfgTeleportReason,
+  proposalView,
+  teleportReasonName,
+} from "#wow/areas/lfg/views";
+import { UnitFlag } from "#wow/protocol/entity-fields";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export type LfgStatus = "none" | "queued" | "proposal";
@@ -39,36 +63,6 @@ export type LfgPartyLocks = {
   guid: bigint;
   locks: readonly LfgLockView[];
 };
-export type LfgJoinReason =
-  | "ok"
-  | "failed"
-  | "group_full"
-  | "internal_error"
-  | "not_meet_reqs"
-  | "party_not_meet_reqs"
-  | "mixed_raid_dungeon"
-  | "multi_realm"
-  | "disconnected"
-  | "party_info_failed"
-  | "dungeon_invalid"
-  | "deserter"
-  | "party_deserter"
-  | "random_cooldown"
-  | "party_random_cooldown"
-  | "too_many_members"
-  | "using_bg_system"
-  | "unknown";
-
-export type LfgRoleCheckStateName =
-  | "default"
-  | "finished"
-  | "initializing"
-  | "missing_role"
-  | "wrong_roles"
-  | "aborted"
-  | "no_role"
-  | "unknown";
-
 export type LfgJoinView = {
   result: number;
   state: number;
@@ -98,6 +92,11 @@ export type LfgState = {
   joinResult: LfgJoinView | undefined;
   queue: LfgQueueStatus | undefined;
   roleCheck: LfgRoleCheckView | undefined;
+  proposal: LfgProposalView | undefined;
+  boot: LfgBootView | undefined;
+  teleportDenied: LfgTeleportDeniedView | undefined;
+  offerContinue: LfgOfferContinueView | undefined;
+  reward: LfgRewardView | undefined;
 };
 
 export type LfgEvent =
@@ -117,7 +116,26 @@ export type LfgEvent =
     }
   | { type: "queue"; dungeon: number; queuedTime: number }
   | { type: "role_check"; state: number; stateName: LfgRoleCheckStateName }
-  | { type: "role_chosen"; guid: bigint; roles: number; ready: boolean };
+  | { type: "role_chosen"; guid: bigint; roles: number; ready: boolean }
+  | { type: "proposal"; id: number; dungeon: number; state: number }
+  | {
+      type: "boot";
+      inProgress: boolean;
+      victim: bigint;
+      votes: number;
+      agrees: number;
+      needed: number;
+    }
+  | { type: "teleport_denied"; code: number; reason: LfgTeleportReason }
+  | { type: "offer_continue"; entry: number }
+  | {
+      type: "reward";
+      randomDungeon: number;
+      dungeon: number;
+      money: number;
+      xp: number;
+      itemCount: number;
+    };
 
 const LOCK_REASONS: Readonly<Record<number, LfgLockReason>> = {
   0: "none",
@@ -147,44 +165,6 @@ export function lockView(entry: number, status: number): LfgLockView {
     status,
     reason: lockReason(status),
   };
-}
-
-const JOIN_REASONS: Readonly<Record<number, LfgJoinReason>> = {
-  0: "ok",
-  1: "failed",
-  2: "group_full",
-  4: "internal_error",
-  5: "not_meet_reqs",
-  6: "party_not_meet_reqs",
-  7: "mixed_raid_dungeon",
-  8: "multi_realm",
-  9: "disconnected",
-  10: "party_info_failed",
-  11: "dungeon_invalid",
-  12: "deserter",
-  13: "party_deserter",
-  14: "random_cooldown",
-  15: "party_random_cooldown",
-  16: "too_many_members",
-  17: "using_bg_system",
-};
-
-export function joinReasonName(result: number): LfgJoinReason {
-  return JOIN_REASONS[result] ?? "unknown";
-}
-
-const ROLE_CHECK_NAMES: Readonly<Record<number, LfgRoleCheckStateName>> = {
-  0: "default",
-  1: "finished",
-  2: "initializing",
-  3: "missing_role",
-  4: "wrong_roles",
-  5: "aborted",
-  6: "no_role",
-};
-
-export function roleCheckStateName(state: number): LfgRoleCheckStateName {
-  return ROLE_CHECK_NAMES[state] ?? "unknown";
 }
 
 function roleCheckView(update: RoleCheckUpdate): LfgRoleCheckView {
@@ -247,15 +227,28 @@ const EMPTY: LfgState = {
   joinResult: undefined,
   queue: undefined,
   roleCheck: undefined,
+  proposal: undefined,
+  boot: undefined,
+  teleportDenied: undefined,
+  offerContinue: undefined,
+  reward: undefined,
 };
 
 export class LfgStore {
   private readonly events = new Emitter<[LfgEvent]>();
   private state: LfgState = EMPTY;
   private readonly now: () => number;
+  private readonly deps: SessionDeps;
 
   constructor(deps: SessionDeps, _core: CoreStores) {
     this.now = deps.now;
+    this.deps = deps;
+  }
+
+  selfInCombat(): boolean {
+    const self = this.deps.getEntity(this.deps.selfGuid());
+    if (!(self && "unitFlags" in self)) return false;
+    return (self.unitFlags & UnitFlag.IN_COMBAT) !== 0;
   }
 
   snapshot(): LfgState {
@@ -289,6 +282,17 @@ export class LfgStore {
               ready: [...this.state.roleCheck.ready],
               pending: [...this.state.roleCheck.pending],
             },
+      proposal: copyProposal(this.state.proposal),
+      boot: this.state.boot === undefined ? undefined : { ...this.state.boot },
+      teleportDenied:
+        this.state.teleportDenied === undefined
+          ? undefined
+          : { ...this.state.teleportDenied },
+      offerContinue:
+        this.state.offerContinue === undefined
+          ? undefined
+          : { ...this.state.offerContinue },
+      reward: copyReward(this.state.reward),
     };
   }
   onEvent(cb: (event: LfgEvent) => void): Unsubscribe {
@@ -412,6 +416,68 @@ export class LfgStore {
       guid: chosen.guid,
       roles: chosen.roles,
       ready: chosen.ready,
+    });
+  }
+
+  receiveProposal(proposal: LfgProposal): void {
+    const at = this.now();
+    const current = this.state.proposal;
+    const ended = proposal.state !== 0;
+    const deadline =
+      current?.id === proposal.id
+        ? current.deadline
+        : at + LFG_PROPOSAL_SECONDS * 1000;
+    this.set({
+      proposal: ended ? undefined : proposalView(proposal, at, deadline),
+    });
+    this.events.emit({
+      type: "proposal",
+      id: proposal.id,
+      dungeon: proposal.dungeon,
+      state: proposal.state,
+    });
+  }
+
+  receiveBoot(boot: LfgBootUpdate): void {
+    this.set({
+      boot: boot.inProgress ? bootView(boot, this.now()) : undefined,
+    });
+    this.events.emit({
+      type: "boot",
+      inProgress: boot.inProgress,
+      victim: boot.victim,
+      votes: boot.votes,
+      agrees: boot.agrees,
+      needed: boot.needed,
+    });
+  }
+
+  receiveTeleportDenied(code: number): void {
+    const reason = teleportReasonName(code);
+    this.set({ teleportDenied: { code, reason, at: this.now() } });
+    this.events.emit({ type: "teleport_denied", code, reason });
+  }
+
+  receiveOfferContinue(entry: number): void {
+    this.set({ offerContinue: { entry, at: this.now() } });
+    this.events.emit({ type: "offer_continue", entry });
+  }
+
+  receiveReward(reward: LfgReward): void {
+    this.set({
+      reward: {
+        ...reward,
+        items: reward.items.map((item) => ({ ...item })),
+        at: this.now(),
+      },
+    });
+    this.events.emit({
+      type: "reward",
+      randomDungeon: reward.randomDungeon,
+      dungeon: reward.dungeon,
+      money: reward.money,
+      xp: reward.xp,
+      itemCount: reward.items.length,
     });
   }
 

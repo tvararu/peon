@@ -1,13 +1,18 @@
 import { defineArea } from "#wow/areas/contract";
 import { LFG_OPCODES } from "#wow/areas/lfg/opcodes";
 import {
+  parseBootProposal,
   parseLfgJoinResult,
   parseLfgPlayerInfo,
+  parseLfgProposal,
   parseLfgQueueStatus,
+  parseLfgReward,
   parseLfgUpdate,
+  parseOfferContinue,
   parsePartyLockBlock,
   parseRoleCheckUpdate,
   parseRoleChosen,
+  parseTeleportDenied,
 } from "#wow/areas/lfg/protocol";
 import { lfgRuntime } from "#wow/areas/lfg/runtime";
 import { createLfgStore } from "#wow/areas/lfg/store";
@@ -23,6 +28,11 @@ export const lfgArea = defineArea({
     "queue",
     "role_check",
     "role_chosen",
+    "proposal",
+    "boot",
+    "teleport_denied",
+    "offer_continue",
+    "reward",
   ],
   store: (deps, core) => createLfgStore(deps, core),
   register: (wire, store) => {
@@ -52,6 +62,21 @@ export const lfgArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_LFG_ROLE_CHOSEN, (r) =>
       store.receiveRoleChosen(parseRoleChosen(r)),
+    );
+    wire.on(GameOpcode.SMSG_LFG_PROPOSAL_UPDATE, (r) =>
+      store.receiveProposal(parseLfgProposal(r)),
+    );
+    wire.on(GameOpcode.SMSG_LFG_BOOT_PROPOSAL_UPDATE, (r) =>
+      store.receiveBoot(parseBootProposal(r)),
+    );
+    wire.on(GameOpcode.SMSG_LFG_TELEPORT_DENIED, (r) =>
+      store.receiveTeleportDenied(parseTeleportDenied(r).code),
+    );
+    wire.on(GameOpcode.SMSG_LFG_OFFER_CONTINUE, (r) =>
+      store.receiveOfferContinue(parseOfferContinue(r).entry),
+    );
+    wire.on(GameOpcode.SMSG_LFG_PLAYER_REWARD, (r) =>
+      store.receiveReward(parseLfgReward(r)),
     );
   },
   runtime: lfgRuntime,

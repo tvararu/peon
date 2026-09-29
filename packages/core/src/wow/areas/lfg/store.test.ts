@@ -39,6 +39,11 @@ describe("LfgStore", () => {
         joinResult: undefined,
         queue: undefined,
         roleCheck: undefined,
+        proposal: undefined,
+        boot: undefined,
+        teleportDenied: undefined,
+        offerContinue: undefined,
+        reward: undefined,
       });
     } finally {
       rig.dispose();

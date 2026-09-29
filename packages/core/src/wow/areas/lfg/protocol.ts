@@ -233,3 +233,131 @@ export function buildLfgComment(comment: string): Uint8Array {
   w.cString(comment);
   return w.finish();
 }
+
+export type LfgProposalPlayer = {
+  role: number;
+  self: boolean;
+  inDungeon: boolean;
+  sameGroup: boolean;
+  answered: boolean;
+  accepted: boolean;
+};
+
+export type LfgProposal = {
+  dungeon: number;
+  state: number;
+  id: number;
+  encounters: number;
+  silent: boolean;
+  players: readonly LfgProposalPlayer[];
+};
+
+export type LfgBootUpdate = {
+  inProgress: boolean;
+  didVote: boolean;
+  agree: boolean;
+  victim: bigint;
+  votes: number;
+  agrees: number;
+  timeLeft: number;
+  needed: number;
+  reason: string;
+};
+
+export type LfgRewardItem = {
+  itemId: number;
+  displayId: number;
+  count: number;
+};
+
+export type LfgReward = {
+  randomDungeon: number;
+  dungeon: number;
+  done: boolean;
+  money: number;
+  xp: number;
+  items: readonly LfgRewardItem[];
+};
+
+export function parseLfgProposal(r: PacketReader): LfgProposal {
+  const dungeon = r.uint32LE();
+  const state = r.uint8();
+  const id = r.uint32LE();
+  const encounters = r.uint32LE();
+  const silent = r.uint8() !== 0;
+  const count = r.uint8();
+  const players: LfgProposalPlayer[] = [];
+  for (let i = 0; i < count; i++)
+    players.push({
+      role: r.uint32LE(),
+      self: r.uint8() !== 0,
+      inDungeon: r.uint8() !== 0,
+      sameGroup: r.uint8() !== 0,
+      answered: r.uint8() !== 0,
+      accepted: r.uint8() !== 0,
+    });
+  return { dungeon, state, id, encounters, silent, players };
+}
+
+export function parseBootProposal(r: PacketReader): LfgBootUpdate {
+  return {
+    inProgress: r.uint8() !== 0,
+    didVote: r.uint8() !== 0,
+    agree: r.uint8() !== 0,
+    victim: r.uint64LE(),
+    votes: r.uint32LE(),
+    agrees: r.uint32LE(),
+    timeLeft: r.uint32LE(),
+    needed: r.uint32LE(),
+    reason: r.cString(),
+  };
+}
+
+export function parseLfgReward(r: PacketReader): LfgReward {
+  const randomDungeon = r.uint32LE();
+  const dungeon = r.uint32LE();
+  const done = r.uint8() !== 0;
+  r.skip(4);
+  const money = r.uint32LE();
+  const xp = r.uint32LE();
+  r.skip(8);
+  const count = r.uint8();
+  const items: LfgRewardItem[] = [];
+  for (let i = 0; i < count; i++)
+    items.push({
+      itemId: r.uint32LE(),
+      displayId: r.uint32LE(),
+      count: r.uint32LE(),
+    });
+  return { randomDungeon, dungeon, done, money, xp, items };
+}
+
+export function parseTeleportDenied(r: PacketReader): { code: number } {
+  return { code: r.uint32LE() };
+}
+
+export function parseOfferContinue(r: PacketReader): { entry: number } {
+  return { entry: r.uint32LE() };
+}
+
+export function buildLfgProposalResult(
+  id: number,
+  accept: boolean,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(id);
+  w.uint8(accept ? 1 : 0);
+  return w.finish();
+}
+
+export function buildLfgTeleport(out: boolean): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(out ? 1 : 0);
+  return w.finish();
+}
+
+export function buildLfgBootVote(agree: boolean): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(agree ? 1 : 0);
+  return w.finish();
+}

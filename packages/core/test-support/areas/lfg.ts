@@ -181,3 +181,100 @@ export function lfgRoleChosenBody(init: {
   w.uint32LE(init.roles);
   return w.finish();
 }
+
+export type LfgProposalPlayerInit = {
+  role: number;
+  self?: boolean;
+  inDungeon?: boolean;
+  sameGroup?: boolean;
+  answered?: boolean;
+  accepted?: boolean;
+};
+
+export function lfgProposalBody(init: {
+  dungeon: number;
+  state: number;
+  id: number;
+  encounters?: number;
+  silent?: boolean;
+  players: readonly LfgProposalPlayerInit[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.dungeon);
+  w.uint8(init.state);
+  w.uint32LE(init.id);
+  w.uint32LE(init.encounters ?? 0);
+  w.uint8(init.silent ? 1 : 0);
+  w.uint8(init.players.length);
+  for (const player of init.players) {
+    w.uint32LE(player.role);
+    w.uint8(player.self ? 1 : 0);
+    w.uint8(player.inDungeon ? 1 : 0);
+    w.uint8(player.sameGroup ? 1 : 0);
+    w.uint8(player.answered ? 1 : 0);
+    w.uint8(player.accepted ? 1 : 0);
+  }
+  return w.finish();
+}
+
+export function lfgBootBody(init: {
+  inProgress: boolean;
+  didVote?: boolean;
+  agree?: boolean;
+  victim: bigint;
+  votes?: number;
+  agrees?: number;
+  timeLeft: number;
+  needed?: number;
+  reason: string;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(init.inProgress ? 1 : 0);
+  w.uint8(init.didVote ? 1 : 0);
+  w.uint8(init.agree ? 1 : 0);
+  w.uint64LE(init.victim);
+  w.uint32LE(init.votes ?? 0);
+  w.uint32LE(init.agrees ?? 0);
+  w.uint32LE(init.timeLeft);
+  w.uint32LE(init.needed ?? 3);
+  w.cString(init.reason);
+  return w.finish();
+}
+
+export function lfgRewardBody(init: {
+  randomDungeon: number;
+  dungeon: number;
+  done?: boolean;
+  money: number;
+  xp: number;
+  items: readonly { itemId: number; displayId: number; count: number }[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.randomDungeon);
+  w.uint32LE(init.dungeon);
+  w.uint8(init.done ? 1 : 0);
+  w.uint32LE(1);
+  w.uint32LE(init.money);
+  w.uint32LE(init.xp);
+  w.uint32LE(0);
+  w.uint32LE(0);
+  w.uint8(init.items.length);
+  for (const item of init.items) {
+    w.uint32LE(item.itemId);
+    w.uint32LE(item.displayId);
+    w.uint32LE(item.count);
+  }
+  return w.finish();
+}
+
+export function lfgTeleportDeniedBody(code: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(code);
+  return w.finish();
+}
+
+export function lfgOfferContinueBody(entry: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(entry);
+  return w.finish();
+}

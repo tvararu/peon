@@ -1,31 +1,44 @@
 import { describe, expect, test } from "bun:test";
 import {
+  lfgBootBody,
   lfgJoinResultBody,
+  lfgOfferContinueBody,
   lfgPartyInfoBody,
   lfgPlayerInfoBody,
+  lfgProposalBody,
   lfgQueueStatusBody,
+  lfgRewardBody,
   lfgRoleCheckUpdateBody,
   lfgRoleChosenBody,
+  lfgTeleportDeniedBody,
   lfgUpdatePartyBody,
   lfgUpdatePlayerBody,
 } from "#test-support/areas/lfg";
 import {
+  buildLfgBootVote,
   buildLfgComment,
   buildLfgGetStatus,
   buildLfgJoin,
   buildLfgLeave,
+  buildLfgProposalResult,
   buildLfgSetRoles,
+  buildLfgTeleport,
   buildPartyLockInfoRequest,
   buildPlayerLockInfoRequest,
   dungeonEntry,
+  parseBootProposal,
   parseLfgJoinResult,
   parseLfgPlayerInfo,
+  parseLfgProposal,
   parseLfgQueueStatus,
+  parseLfgReward,
   parseLfgUpdate,
   parseLockBlock,
+  parseOfferContinue,
   parsePartyLockBlock,
   parseRoleCheckUpdate,
   parseRoleChosen,
+  parseTeleportDenied,
 } from "#wow/areas/lfg/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 
@@ -242,5 +255,157 @@ describe("lfg protocol", () => {
     expect(buildLfgLeave()).toEqual(new Uint8Array());
     expect(buildLfgSetRoles(8)).toEqual(new Uint8Array([8]));
     expect(reader(buildLfgComment("hi")).cString()).toBe("hi");
+  });
+
+  test("proposal update reads the dungeon, state, id and each member's flags (LFGHandler.cpp:545-611)", () => {
+    const proposal = parseLfgProposal(
+      reader(
+        lfgProposalBody({
+          dungeon: 0x06_00_01_02,
+          state: 0,
+          id: 77,
+          encounters: 5,
+          silent: true,
+          players: [
+            { role: 2, self: true, inDungeon: false, sameGroup: true },
+            {
+              role: 8,
+              answered: true,
+              accepted: true,
+              sameGroup: false,
+              inDungeon: true,
+            },
+          ],
+        }),
+      ),
+    );
+    expect(proposal).toEqual({
+      dungeon: 0x06_00_01_02,
+      state: 0,
+      id: 77,
+      encounters: 5,
+      silent: true,
+      players: [
+        {
+          role: 2,
+          self: true,
+          inDungeon: false,
+          sameGroup: true,
+          answered: false,
+          accepted: false,
+        },
+        {
+          role: 8,
+          self: false,
+          inDungeon: true,
+          sameGroup: false,
+          answered: true,
+          accepted: true,
+        },
+      ],
+    });
+  });
+
+  test("proposal update with no players still reads (LFGHandler.cpp:565-571)", () => {
+    const body = lfgProposalBody({ dungeon: 1, state: 2, id: 3, players: [] });
+    expect(parseLfgProposal(reader(body)).players).toEqual([]);
+  });
+
+  test("boot update reads the votes, the victim, the time left and the reason (LFGHandler.cpp:513-543)", () => {
+    expect(
+      parseBootProposal(
+        reader(
+          lfgBootBody({
+            inProgress: true,
+            didVote: true,
+            agree: false,
+            victim: 0xabcdn,
+            votes: 2,
+            agrees: 1,
+            timeLeft: 118,
+            reason: "afk",
+          }),
+        ),
+      ),
+    ).toEqual({
+      inProgress: true,
+      didVote: true,
+      agree: false,
+      victim: 0xabcdn,
+      votes: 2,
+      agrees: 1,
+      timeLeft: 118,
+      needed: 3,
+      reason: "afk",
+    });
+  });
+
+  test("reward reads items as id, display id, count where wow_messages QuestGiverReward puts count before display id; AzerothCore wins (LFGHandler.cpp:475-511)", () => {
+    expect(
+      parseLfgReward(
+        reader(
+          lfgRewardBody({
+            randomDungeon: 0x06_00_00_02,
+            dungeon: 0x01_00_00_10,
+            done: true,
+            money: 4321,
+            xp: 900,
+            items: [
+              { itemId: 47_241, displayId: 9999, count: 2 },
+              { itemId: 1, displayId: 2, count: 3 },
+            ],
+          }),
+        ),
+      ),
+    ).toEqual({
+      randomDungeon: 0x06_00_00_02,
+      dungeon: 0x01_00_00_10,
+      done: true,
+      money: 4321,
+      xp: 900,
+      items: [
+        { itemId: 47_241, displayId: 9999, count: 2 },
+        { itemId: 1, displayId: 2, count: 3 },
+      ],
+    });
+  });
+
+  test("reward with no items reads an empty list", () => {
+    const reward = parseLfgReward(
+      reader(
+        lfgRewardBody({
+          randomDungeon: 1,
+          dungeon: 2,
+          money: 0,
+          xp: 0,
+          items: [],
+        }),
+      ),
+    );
+    expect(reward.items).toEqual([]);
+    expect(reward.done).toBe(false);
+  });
+
+  test("teleport denied and offer continue each read one u32 (LFGHandler.cpp:628-642)", () => {
+    expect(parseTeleportDenied(reader(lfgTeleportDeniedBody(6)))).toEqual({
+      code: 6,
+    });
+    expect(
+      parseOfferContinue(reader(lfgOfferContinueBody(0x01_00_00_10))),
+    ).toEqual({ entry: 0x01_00_00_10 });
+  });
+
+  test("proposal result, teleport and boot vote requests match the handlers (LFGHandler.cpp:95-104,133-150)", () => {
+    const result = reader(buildLfgProposalResult(77, true));
+    expect(result.uint32LE()).toBe(77);
+    expect(result.uint8()).toBe(1);
+    expect(result.remaining).toBe(0);
+    expect(buildLfgProposalResult(9, false)).toEqual(
+      new Uint8Array([9, 0, 0, 0, 0]),
+    );
+    expect(buildLfgTeleport(true)).toEqual(new Uint8Array([1]));
+    expect(buildLfgTeleport(false)).toEqual(new Uint8Array([0]));
+    expect(buildLfgBootVote(false)).toEqual(new Uint8Array([0]));
+    expect(buildLfgBootVote(true)).toEqual(new Uint8Array([1]));
   });
 });
