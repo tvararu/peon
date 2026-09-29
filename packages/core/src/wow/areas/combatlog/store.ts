@@ -216,6 +216,11 @@ export class CombatlogStore {
       this.entries.splice(0, this.entries.length - RING);
   }
 
+  private trackUnit(guid: bigint, ours: boolean): void {
+    if (ours || guid === 0n) return;
+    this.fightUnits.add(guid);
+  }
+
   private count(
     entry: CombatlogEntry,
     sourceOurs: boolean,
@@ -223,8 +228,8 @@ export class CombatlogStore {
   ): void {
     const fight = this.fight ?? this.open(entry.at);
     fight.lastAt = entry.at;
-    if (!sourceOurs) this.fightUnits.add(entry.source);
-    if (!targetOurs) this.fightUnits.add(entry.target);
+    this.trackUnit(entry.source, sourceOurs);
+    this.trackUnit(entry.target, targetOurs);
     if (entry.outcome !== undefined)
       fight.misses[entry.outcome] = (fight.misses[entry.outcome] ?? 0) + 1;
     if (entry.crit && sourceOurs) fight.crits++;

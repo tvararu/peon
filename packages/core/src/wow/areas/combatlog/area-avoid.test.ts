@@ -337,6 +337,25 @@ describe("combatlog shield, environment and instakill wiring", () => {
     }
   });
 
+  test("environmental damage to the character does not open scope to other environmental packets", () => {
+    const { rig } = rigWithEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_ENVIRONMENTAL_DAMAGE_LOG,
+        combatlogEnvironmentalDamageBody({ amount: 9, type: 2, victim: ME }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_ENVIRONMENTAL_DAMAGE_LOG,
+        combatlogEnvironmentalDamageBody({ amount: 5, type: 2, victim: MATE }),
+      );
+      const state = rig.handle.state();
+      expect(state.entries.map((entry) => entry.target)).toEqual([ME]);
+      expect(state.dropped).toBe(1);
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("SMSG_SPELLINSTAKILLLOG adds an instakill entry from caster to target", () => {
     const { rig, seen } = rigWithEvents();
     try {
