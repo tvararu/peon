@@ -292,6 +292,15 @@ describe("CombatlogStore attackers", () => {
     expect(core.combat.attackers()).toEqual([WOLF]);
   });
 
+  test("a periodic tick with an empty caster marks nobody", () => {
+    const { attacked, core, store } = setup();
+    store.receive([
+      { amount: 5, kind: "periodic_damage", source: 0n, target: ME },
+    ]);
+    expect(attacked).toEqual([]);
+    expect(core.combat.attackers()).toEqual([]);
+  });
+
   test("damage the character deals marks nobody", () => {
     const { attacked, store } = setup();
     store.receive([hit(ME, BOAR, 10)]);

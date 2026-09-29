@@ -124,3 +124,110 @@ export function combatlogPowerUpdateBody(init: {
   w.uint32LE(init.value);
   return w.finish();
 }
+
+export function combatlogSpellHealBody(init: {
+  victim: bigint;
+  caster: bigint;
+  spellId: number;
+  heal: number;
+  overheal?: number;
+  absorbed?: number;
+  crit?: boolean;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.victim);
+  w.packedGuidBig(init.caster);
+  w.uint32LE(init.spellId);
+  w.uint32LE(init.heal);
+  w.uint32LE(init.overheal ?? 0);
+  w.uint32LE(init.absorbed ?? 0);
+  w.uint8(init.crit ? 1 : 0);
+  w.uint8(0);
+  return w.finish();
+}
+
+export function combatlogSpellEnergizeBody(init: {
+  victim: bigint;
+  caster: bigint;
+  spellId: number;
+  power: number;
+  amount: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.victim);
+  w.packedGuidBig(init.caster);
+  w.uint32LE(init.spellId);
+  w.uint32LE(init.power);
+  w.uint32LE(init.amount);
+  return w.finish();
+}
+
+export type PeriodicTickInit =
+  | {
+      auraType: 3 | 89;
+      amount: number;
+      overkill?: number;
+      schoolMask: number;
+      absorbed?: number;
+      resisted?: number;
+      crit?: boolean;
+    }
+  | {
+      auraType: 8 | 20;
+      amount: number;
+      overheal: number;
+      absorbed?: number;
+      crit?: boolean;
+    }
+  | { auraType: 21 | 24; power: number; amount: number }
+  | { auraType: 64; power: number; amount: number; multiplier: number }
+  | { auraType: 4 };
+
+type DamageTick = Extract<PeriodicTickInit, { auraType: 3 | 89 }>;
+type HealTick = Extract<PeriodicTickInit, { auraType: 8 | 20 }>;
+type PowerTick = Extract<PeriodicTickInit, { auraType: 21 | 24 | 64 }>;
+
+function writeDamageTick(w: PacketWriter, tick: DamageTick): void {
+  w.uint32LE(tick.amount);
+  w.uint32LE(tick.overkill ?? 0);
+  w.uint32LE(tick.schoolMask);
+  w.uint32LE(tick.absorbed ?? 0);
+  w.uint32LE(tick.resisted ?? 0);
+  w.uint8(tick.crit ? 1 : 0);
+}
+
+function writeHealTick(w: PacketWriter, tick: HealTick): void {
+  w.uint32LE(tick.amount);
+  w.uint32LE(tick.overheal);
+  w.uint32LE(tick.absorbed ?? 0);
+  w.uint8(tick.crit ? 1 : 0);
+}
+
+function writePowerTick(w: PacketWriter, tick: PowerTick): void {
+  w.uint32LE(tick.power);
+  w.uint32LE(tick.amount);
+  if (tick.auraType === 64) w.floatLE(tick.multiplier);
+}
+
+function writeTick(w: PacketWriter, tick: PeriodicTickInit): void {
+  w.uint32LE(tick.auraType);
+  if ("schoolMask" in tick) writeDamageTick(w, tick);
+  else if ("overheal" in tick) writeHealTick(w, tick);
+  else if ("power" in tick) writePowerTick(w, tick);
+}
+
+export function combatlogPeriodicAuraLogBody(init: {
+  victim: bigint;
+  caster: bigint;
+  spellId: number;
+  count?: number;
+  tick: PeriodicTickInit;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.victim);
+  w.packedGuidBig(init.caster);
+  w.uint32LE(init.spellId);
+  w.uint32LE(init.count ?? 1);
+  writeTick(w, init.tick);
+  return w.finish();
+}

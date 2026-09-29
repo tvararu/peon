@@ -1,4 +1,11 @@
-import type { AttackerState, SpellDamage } from "#wow/areas/combatlog/protocol";
+import type {
+  AttackerState,
+  PeriodicAuraLog,
+  PeriodicTick,
+  SpellDamage,
+  SpellEnergize,
+  SpellHeal,
+} from "#wow/areas/combatlog/protocol";
 
 export type CombatlogKind =
   | "melee"
@@ -121,4 +128,80 @@ export function spellDamageEntry(hit: SpellDamage): CombatlogWire {
       crit: hit.crit,
     },
   );
+}
+
+function effective(heal: number, overheal: number): number {
+  return Math.max(0, heal - overheal);
+}
+
+export function healEntry(heal: SpellHeal): CombatlogWire {
+  return optional(
+    {
+      kind: "heal",
+      source: heal.caster,
+      target: heal.victim,
+      amount: effective(heal.heal, heal.overheal),
+    },
+    {
+      spellId: heal.spellId,
+      over: heal.overheal,
+      absorbed: heal.absorbed,
+      crit: heal.crit,
+    },
+  );
+}
+
+export function energizeEntry(energize: SpellEnergize): CombatlogWire {
+  return {
+    kind: "energize",
+    source: energize.caster,
+    target: energize.victim,
+    spellId: energize.spellId,
+    power: energize.power,
+    amount: energize.amount,
+  };
+}
+
+function tickEntry(log: PeriodicAuraLog, tick: PeriodicTick): CombatlogWire {
+  const ends = { source: log.caster, target: log.victim };
+  switch (tick.type) {
+    case "damage":
+      return optional(
+        { kind: "periodic_damage", ...ends, amount: tick.amount },
+        {
+          spellId: log.spellId,
+          over: tick.overkill,
+          schoolMask: tick.schoolMask,
+          absorbed: tick.absorbed,
+          resisted: tick.resisted,
+          crit: tick.crit,
+        },
+      );
+    case "heal":
+      return optional(
+        {
+          kind: "periodic_heal",
+          ...ends,
+          amount: effective(tick.amount, tick.overheal),
+        },
+        {
+          spellId: log.spellId,
+          over: tick.overheal,
+          absorbed: tick.absorbed,
+          crit: tick.crit,
+        },
+      );
+    default:
+      return {
+        kind: "periodic_power",
+        ...ends,
+        spellId: log.spellId,
+        power: tick.power,
+        amount: tick.amount,
+      };
+  }
+}
+
+export function periodicEntries(log: PeriodicAuraLog): CombatlogWire[] {
+  return log.ticks.map((tick) => tickEntry(log, tick));
 }

@@ -277,6 +277,7 @@ export class CombatlogStore {
 
   private markAttacker(entry: CombatlogEntry): void {
     const self = this.deps.selfGuid();
+    if (entry.source === 0n) return;
     if (!DAMAGE.has(entry.kind) || entry.target !== self) return;
     if (entry.source === self) return;
     this.core.combat.noteHostileDamage(entry.source);

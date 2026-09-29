@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { meleeEntry, spellDamageEntry } from "#wow/areas/combatlog/entries";
+import {
+  energizeEntry,
+  healEntry,
+  meleeEntry,
+  periodicEntries,
+  spellDamageEntry,
+} from "#wow/areas/combatlog/entries";
 
 const ME = 0x2an;
 const BOAR = 0xf1_30_00_3e_ea_00_0a_bcn;
@@ -90,5 +96,122 @@ describe("entry builders", () => {
       spellId: 133,
       target: BOAR,
     });
+  });
+});
+
+describe("heal, energize and periodic builders", () => {
+  test("a heal takes the caster as source and keeps the effective amount", () => {
+    expect(
+      healEntry({
+        absorbed: 4,
+        caster: BOAR,
+        crit: true,
+        heal: 540,
+        overheal: 40,
+        spellId: 2050,
+        victim: ME,
+      }),
+    ).toEqual({
+      absorbed: 4,
+      amount: 500,
+      crit: true,
+      kind: "heal",
+      over: 40,
+      source: BOAR,
+      spellId: 2050,
+      target: ME,
+    });
+  });
+
+  test("an all-overheal heal keeps amount 0 and the overheal", () => {
+    const entry = healEntry({
+      absorbed: 0,
+      caster: BOAR,
+      crit: false,
+      heal: 100,
+      overheal: 100,
+      spellId: 1,
+      victim: ME,
+    });
+    expect(entry.amount).toBe(0);
+    expect(entry.over).toBe(100);
+  });
+
+  test("mana power type 0 stays on an energize entry", () => {
+    expect(
+      energizeEntry({
+        amount: 150,
+        caster: ME,
+        power: 0,
+        spellId: 2455,
+        victim: ME,
+      }),
+    ).toEqual({
+      amount: 150,
+      kind: "energize",
+      power: 0,
+      source: ME,
+      spellId: 2455,
+      target: ME,
+    });
+  });
+
+  test("each tick family maps to its kind and fields", () => {
+    const log = { caster: BOAR, spellId: 133, victim: ME };
+    expect(
+      periodicEntries({
+        ...log,
+        ticks: [
+          {
+            absorbed: 1,
+            amount: 12,
+            auraType: 3,
+            crit: false,
+            overkill: 2,
+            resisted: 3,
+            schoolMask: 4,
+            type: "damage",
+          },
+          {
+            absorbed: 0,
+            amount: 30,
+            auraType: 8,
+            crit: true,
+            overheal: 10,
+            type: "heal",
+          },
+          { amount: 20, auraType: 24, power: 0, type: "power" },
+        ],
+      }),
+    ).toEqual([
+      {
+        absorbed: 1,
+        amount: 12,
+        kind: "periodic_damage",
+        over: 2,
+        resisted: 3,
+        schoolMask: 4,
+        source: BOAR,
+        spellId: 133,
+        target: ME,
+      },
+      {
+        amount: 20,
+        crit: true,
+        kind: "periodic_heal",
+        over: 10,
+        source: BOAR,
+        spellId: 133,
+        target: ME,
+      },
+      {
+        amount: 20,
+        kind: "periodic_power",
+        power: 0,
+        source: BOAR,
+        spellId: 133,
+        target: ME,
+      },
+    ]);
   });
 });
