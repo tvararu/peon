@@ -168,7 +168,7 @@ function movementObj(movement: UnitMovement): Record<string, unknown> {
     speeds[kind] = { source: reading.source, value: reading.value };
   return {
     flags: movement.flags,
-    rooted: (movement.flags & MOVEMENT_ROOT_BIT) !== 0,
+    rooted: Math.floor(movement.flags / MOVEMENT_ROOT_BIT) % 2 === 1,
     serverControlled: movement.serverControlled,
     speeds,
   };

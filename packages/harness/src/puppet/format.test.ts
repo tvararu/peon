@@ -217,7 +217,12 @@ const READ_EVENTS = [
 
 describe("puppet JSON output, pinned to the CLI's", () => {
   test("nearby --json prints the rows in one result envelope", () => {
-    expect(resultJson("nearby", rows.map((row) => nearbyRowObj(row)))).toBe(
+    expect(
+      resultJson(
+        "nearby",
+        rows.map((row) => nearbyRowObj(row)),
+      ),
+    ).toBe(
       `{"command":"nearby","data":[${NEARBY_ROWS.join(",")}],"error":null,"events":[],"kind":"result"}`,
     );
   });
@@ -282,12 +287,13 @@ describe("nearbyRowObj movement", () => {
     const wyrm = rows[0];
     if (!wyrm) throw new Error("missing fixture row");
     const movements = new Map([
-      [wyrm.entity.guid.toString(), movementOf(wyrm.entity.guid, 0x800)],
+      [wyrm.entity.guid.toString(), movementOf(wyrm.entity.guid, 0x08_00)],
     ]);
-    const movement = nearbyRowObj(wyrm, movements)[
-      "movement"
-    ] as Record<string, unknown>;
-    expect(movement["flags"]).toBe(0x800);
+    const movement = nearbyRowObj(wyrm, movements)["movement"] as Record<
+      string,
+      unknown
+    >;
+    expect(movement["flags"]).toBe(0x08_00);
     expect(movement["rooted"]).toBe(true);
     expect(movement["serverControlled"]).toBe(true);
     expect(Object.keys(movement["speeds"] as object)).toHaveLength(9);
@@ -304,17 +310,35 @@ describe("nearbyRowObj movement", () => {
     const movements = new Map([
       [wyrm.entity.guid.toString(), movementOf(wyrm.entity.guid, 1)],
     ]);
-    const movement = nearbyRowObj(wyrm, movements)[
-      "movement"
-    ] as Record<string, unknown>;
+    const movement = nearbyRowObj(wyrm, movements)["movement"] as Record<
+      string,
+      unknown
+    >;
     expect(movement["flags"]).toBe(1);
     expect(movement["rooted"]).toBe(false);
+  });
+
+  test("the root bit is found among other flag bits", () => {
+    const wyrm = rows[0];
+    if (!wyrm) throw new Error("missing fixture row");
+    const rootedOf = (flags: number): unknown => {
+      const movements = new Map([
+        [wyrm.entity.guid.toString(), movementOf(wyrm.entity.guid, flags)],
+      ]);
+      const movement = nearbyRowObj(wyrm, movements)["movement"] as Record<
+        string,
+        unknown
+      >;
+      return movement["rooted"];
+    };
+    expect(rootedOf(0x1_08_01)).toBe(true);
+    expect(rootedOf(0x1_f7_ff)).toBe(false);
   });
 
   test("with no stored movement the row is unchanged", () => {
     const wyrm = rows[0];
     const other = rows[1];
-    if (!wyrm || !other) throw new Error("missing fixture row");
+    if (!(wyrm && other)) throw new Error("missing fixture row");
     const untouched = nearbyRowObj(wyrm);
     const missing = nearbyRowObj(
       wyrm,
