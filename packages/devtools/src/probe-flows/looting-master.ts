@@ -17,6 +17,7 @@ const PET_SPAN = 0x1_00_00_00_00_00_00n;
 const DEFAULT_SECONDS = 120;
 const OWNER_WAIT_MS = 3000;
 const POLL_MS = 250;
+const RELEASE_WAIT_MS = 3000;
 const KILL_TRIES = 3;
 
 type Row = ReturnType<WorldHandle["queryNearby"]>[number];
@@ -96,6 +97,34 @@ async function candidatesOf(handle: WorldHandle): Promise<readonly bigint[]> {
     await Bun.sleep(POLL_MS);
   }
 }
+async function releaseAndWait(handle: WorldHandle): Promise<void> {
+  const released = Promise.withResolvers<void>();
+  const off = handle.onRewardsEvent((event) => {
+    if (
+      event.type === "loot_release_observed" &&
+      event.state.loot.phase === "closed"
+    )
+      released.resolve();
+  });
+  try {
+    handle.releaseLoot();
+  } catch (error) {
+    off();
+    throw new Error("loot window did not release", { cause: error });
+  }
+  try {
+    if (handle.getRewardsState().loot.phase === "closed") return;
+    const deadline = Date.now() + RELEASE_WAIT_MS;
+    for (;;) {
+      await Promise.race([released.promise, Bun.sleep(POLL_MS)]);
+      if (handle.getRewardsState().loot.phase === "closed") return;
+      if (Date.now() >= deadline)
+        throw new Error("loot window did not release");
+    }
+  } finally {
+    off();
+  }
+}
 
 function lootingJson(handle: WorldHandle, creature: bigint | undefined): Json {
   const state = handle.looting.state();
@@ -121,11 +150,14 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
     if (!dead) continue;
     handle.openLoot(creature);
     const candidates = await candidatesOf(handle);
-    if (candidates.length === 0) continue;
+    if (candidates.length === 0) {
+      await releaseAndWait(handle);
+      continue;
+    }
     const { loot } = handle.getRewardsState();
     const slot = loot.phase === "open" ? loot.items[0]?.slot : undefined;
     if (slot === undefined) {
-      handle.releaseLoot();
+      await releaseAndWait(handle);
       continue;
     }
     const given = await handle.looting.act.giveMasterLoot(
@@ -133,7 +165,7 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
       slot,
       "@self",
     );
-    handle.releaseLoot();
+    await releaseAndWait(handle);
     return {
       attempt,
       candidates: candidates.map(hex),
