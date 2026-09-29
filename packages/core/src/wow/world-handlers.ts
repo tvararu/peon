@@ -10,8 +10,8 @@ import {
   parseGroupSetLeader,
   parsePartyCommandResult,
 } from "#wow/protocol/group";
-import { parsePartyMemberStats } from "#wow/protocol/group-stats";
 import { parseGroupInvite, parseGroupList } from "#wow/protocol/group-list";
+import { parsePartyMemberStats } from "#wow/protocol/group-stats";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import {
   joinGuid,
