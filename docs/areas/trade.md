@@ -82,16 +82,16 @@ Capabilities row: proposed in economy-5.
 
 Live proof on `eversong10` accounts at one point (both at the spawn, 0
 yards apart), one driven by `protocol:probe --flow trade-window --arg
-answer=...`, the other by `--arg target=<guid>`, `--bodies` traces, run
-dirs under `tmp/probe/e3-*`. The `wrong_faction` row used an `elwynn1`
-character moved to the Eversong spawn with `soap setup position`. Each
+answer=...`, the other by `--arg target=<guid>`, `--bodies` traces. The
+`wrong_faction` row used an `elwynn1` character moved to the Eversong
+spawn with `soap setup position`. The probe runs are not committed; each
 run's trace shows the status body named below.
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
-| `SMSG_TRADE_STATUS` | `live` | every answer: `BEGIN_TRADE` (`01000000` + guid), `OPEN_WINDOW` (`0200000000000000`), `TRADE_CANCELED` (`03000000`), `BUSY` (`00000000`), `IGNORE_YOU` (`0e000000`), `NO_TARGET` (`06000000`), `TARGET_TO_FAR` (`0a000000`), `WRONG_FACTION` (`0b000000`) in `tmp/probe/e3-*` | `Handlers/TradeHandler.cpp:35-60` |
-| `CMSG_INITIATE_TRADE` | `live` | 8-byte flat guid send in every run (`tmp/probe/e3-yes-B`); the reply is the status above, and a self target answers `BUSY` | `Handlers/TradeHandler.cpp:721-724` |
-| `CMSG_BEGIN_TRADE` | `live` | `answer=yes` (`tmp/probe/e3-yes-A`): empty send, `OPEN_WINDOW` on both sides | `Handlers/TradeHandler.cpp:692-702` |
-| `CMSG_BUSY_TRADE` | `live` | `answer=busy` (`tmp/probe/e3-busy-A`): empty send, `BUSY` on both sides | `Handlers/TradeHandler.cpp:69-72` |
-| `CMSG_IGNORE_TRADE` | `live` | `answer=ignore` (`tmp/probe/e3-ignore-A`): empty send, `IGNORE_YOU` on both sides | `Handlers/TradeHandler.cpp:64-67` |
-| `CMSG_CANCEL_TRADE` | `live` | the cancel after `OPEN_WINDOW` (`tmp/probe/e3-yes-A`): `TRADE_CANCELED` on both sides | `Handlers/TradeHandler.cpp:714-719` |
+| `SMSG_TRADE_STATUS` | `live` | every answer: `BEGIN_TRADE` (`01000000` + guid), `OPEN_WINDOW` (`0200000000000000`), `TRADE_CANCELED` (`03000000`), `BUSY` (`00000000`), `IGNORE_YOU` (`0e000000`), `NO_TARGET` (`06000000`), `TARGET_TO_FAR` (`0a000000`), `WRONG_FACTION` (`0b000000`) in the uncommitted probe runs | `Handlers/TradeHandler.cpp:35-60` |
+| `CMSG_INITIATE_TRADE` | `live` | 8-byte flat guid send in every run (the `answer=yes` run with a partner target); the reply is the status above, and a self target answers `BUSY` | `Handlers/TradeHandler.cpp:721-724` |
+| `CMSG_BEGIN_TRADE` | `live` | `answer=yes` run: empty send, `OPEN_WINDOW` on both sides | `Handlers/TradeHandler.cpp:692-702` |
+| `CMSG_BUSY_TRADE` | `live` | `answer=busy` run: empty send, `BUSY` on both sides | `Handlers/TradeHandler.cpp:69-72` |
+| `CMSG_IGNORE_TRADE` | `live` | `answer=ignore` run: empty send, `IGNORE_YOU` on both sides | `Handlers/TradeHandler.cpp:64-67` |
+| `CMSG_CANCEL_TRADE` | `live` | the cancel after `OPEN_WINDOW` (the `answer=yes` run): `TRADE_CANCELED` on both sides | `Handlers/TradeHandler.cpp:714-719` |
