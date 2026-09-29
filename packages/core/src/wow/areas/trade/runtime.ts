@@ -1,0 +1,183 @@
+import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
+import {
+  buildBeginTrade,
+  buildBusyTrade,
+  buildCancelTrade,
+  buildIgnoreTrade,
+  buildInitiateTrade,
+} from "#wow/areas/trade/protocol";
+import type {
+  TradeEvent,
+  TradeLastOutcome,
+  TradeState,
+  TradeStore,
+} from "#wow/areas/trade/store";
+import { GameOpcode } from "#wow/protocol/opcodes";
+import type { CoreStores } from "#wow/session-stores";
+
+export const TRADE_ANSWER_MS = 60_000;
+export const TRADE_REPLY_MS = 5000;
+
+export type TradeResult =
+  | { status: "ok" }
+  | { status: "refused"; reason: string }
+  | { status: "unanswered" };
+
+export type TradeAnswer = "yes" | "busy" | "ignore";
+
+export type TradeActs = {
+  requestTrade: (guid: bigint) => Promise<TradeResult>;
+  answerTrade: (answer: TradeAnswer) => Promise<TradeResult>;
+  cancelTrade: () => Promise<TradeResult>;
+};
+
+type Env = {
+  ctx: AreaRuntimeCtx<TradeEvent>;
+  store: TradeStore;
+};
+
+function outcomeOf(
+  event: TradeEvent,
+  last: TradeLastOutcome | undefined,
+): TradeResult {
+  if (event.type === "opened") return { status: "ok" };
+  if (event.type === "unanswered") return { status: "unanswered" };
+  if (event.type === "refused")
+    return { status: "refused", reason: event.status };
+  if (event.type === "canceled") {
+    if (event.status === "trade_canceled") return { status: "ok" };
+    return { status: "refused", reason: event.status };
+  }
+  void last;
+  return { status: "unanswered" };
+}
+
+function subscribeBeforeSend(
+  env: Env,
+  match: (event: TradeEvent) => boolean,
+  send: () => void,
+  options: { timeoutMs: number },
+): Promise<TradeResult> {
+  const waited = env.ctx.until(match, {
+    signal: env.ctx.signal,
+    timeoutMs: options.timeoutMs,
+  });
+  send();
+  return waited.then(
+    (event) => outcomeOf(event, env.store.snapshot().lastOutcome),
+    (error: unknown) => {
+      if (error instanceof Error && error.message === "timeout") {
+        env.store.expire();
+        return outcomeOf({ type: "unanswered" }, undefined);
+      }
+      throw error;
+    },
+  );
+}
+
+function liveCheck(env: Env): void {
+  if (!env.ctx.selfGuid()) throw new Error("the character is not in world");
+}
+
+function requestTrade(env: Env, guid: bigint): Promise<TradeResult> {
+  liveCheck(env);
+  const phase = env.store.snapshot().phase;
+  if (phase !== "idle" && phase !== "closed")
+    throw new Error("a trade is already in progress");
+  env.store.beginRequest(guid);
+  return subscribeBeforeSend(
+    env,
+    (event) =>
+      event.type === "opened" ||
+      event.type === "canceled" ||
+      event.type === "refused" ||
+      event.type === "unanswered",
+    () =>
+      env.ctx.send(GameOpcode.CMSG_INITIATE_TRADE, buildInitiateTrade(guid)),
+    { timeoutMs: TRADE_ANSWER_MS },
+  ).then((result) => {
+    if (result.status === "unanswered")
+      env.ctx.send(GameOpcode.CMSG_CANCEL_TRADE, buildCancelTrade());
+    return result;
+  });
+}
+
+function answerTrade(env: Env, answer: TradeAnswer): Promise<TradeResult> {
+  liveCheck(env);
+  const state: TradeState = env.store.snapshot();
+  if (state.phase !== "requested_in") throw new Error("no_request");
+  if (answer === "yes")
+    return subscribeBeforeSend(
+      env,
+      (event) =>
+        event.type === "opened" ||
+        event.type === "canceled" ||
+        event.type === "refused",
+      () => env.ctx.send(GameOpcode.CMSG_BEGIN_TRADE, buildBeginTrade()),
+      { timeoutMs: TRADE_REPLY_MS },
+    );
+  const opcode =
+    answer === "busy"
+      ? GameOpcode.CMSG_BUSY_TRADE
+      : GameOpcode.CMSG_IGNORE_TRADE;
+  const body = answer === "busy" ? buildBusyTrade() : buildIgnoreTrade();
+  return subscribeBeforeSend(
+    env,
+    (event) =>
+      event.type === "canceled" ||
+      event.type === "refused" ||
+      event.type === "opened",
+    () => env.ctx.send(opcode, body),
+    { timeoutMs: TRADE_REPLY_MS },
+  );
+}
+
+function cancelTrade(env: Env): Promise<TradeResult> {
+  liveCheck(env);
+  const phase = env.store.snapshot().phase;
+  if (phase !== "open" && phase !== "requested_in" && phase !== "requested_out")
+    throw new Error("no trade to cancel");
+  return subscribeBeforeSend(
+    env,
+    (event) => event.type === "canceled" || event.type === "unanswered",
+    () => env.ctx.send(GameOpcode.CMSG_CANCEL_TRADE, buildCancelTrade()),
+    { timeoutMs: TRADE_REPLY_MS },
+  );
+}
+
+export function tradeRuntime(
+  ctx: AreaRuntimeCtx<TradeEvent>,
+  store: TradeStore,
+  core: CoreStores,
+): AreaRuntime<TradeActs> {
+  void core;
+  const env: Env = { ctx, store };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const arm = (event: TradeEvent) => {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    if (event.type !== "requested") return;
+    timer = setTimeout(() => {
+      timer = undefined;
+      if (store.snapshot().phase !== "requested_in") return;
+      ctx.send(GameOpcode.CMSG_BUSY_TRADE, buildBusyTrade());
+    }, TRADE_ANSWER_MS);
+  };
+  const off = store.onEvent(arm);
+  return {
+    act: {
+      answerTrade: (answer) => answerTrade(env, answer),
+      cancelTrade: () => cancelTrade(env),
+      requestTrade: (guid) => requestTrade(env, guid),
+    },
+    dispose: () => {
+      off();
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
+    },
+  };
+}
