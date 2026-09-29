@@ -217,6 +217,41 @@ describe("pets runtime", () => {
       dead.dispose();
     }
   });
+  test("petCast refuses a passive bar spell and leaves the cast count alone (PetHandler.cpp:1042-1044)", () => {
+    const rig = withPet(0);
+    try {
+      expect(rig.act.petCast(DASH, { kind: "none" })).toEqual({
+        ok: false,
+        reason: "passive",
+      });
+      expect(rig.sent).toEqual([]);
+      expect(rig.act.petCast(GROWL, { kind: "none" })).toEqual({
+        castCount: 1,
+        ok: true,
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("petSetAction refuses a single command or reaction pair, which the server ignores (PetHandler.cpp:732-740)", () => {
+    const rig = withPet(0);
+    try {
+      expect(rig.act.petSetAction(0, 2, PET_ACTION.command)).toEqual({
+        ok: false,
+        reason: "not_removable",
+      });
+      expect(rig.act.petSetAction(7, 2, PET_ACTION.reaction)).toEqual({
+        ok: false,
+        reason: "not_removable",
+      });
+      expect(rig.sent).toEqual([]);
+      expect(rig.act.petSetAction(5, GROWL, 0x81)).toEqual({ ok: true });
+      expect(rig.sent).toHaveLength(1);
+    } finally {
+      rig.dispose();
+    }
+  });
 
   test("petCast sends CMSG_PET_CAST_SPELL with the pet guid and a rising count (PetHandler.cpp:1018-1023)", () => {
     const rig = withPet(0);

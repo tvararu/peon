@@ -23,7 +23,9 @@ export type PetsRefused = {
     | "not_known"
     | "dead"
     | "not_autocastable"
-    | "bad_slot";
+    | "bad_slot"
+    | "passive"
+    | "not_removable";
 };
 export type PetsCast = { ok: true; castCount: number } | PetsRefused;
 export type PetsActResult = { ok: true } | PetsRefused;
@@ -127,8 +129,9 @@ function spellActs(
     petCast: (spell, target) => {
       const { bar, pet } = store.snapshot();
       if (!bar) return NO_PET;
-      if (!bar.spells.some((row) => row.spell === spell))
-        return { ok: false, reason: "not_known" };
+      const row = bar.spells.find((entry) => entry.spell === spell);
+      if (!row) return { ok: false, reason: "not_known" };
+      if (row.autocast === "passive") return { ok: false, reason: "passive" };
       if (!pet) return NO_PET;
       if (pet.health === 0) return { ok: false, reason: "dead" };
       castCount = castCount === 255 ? 1 : castCount + 1;
@@ -150,6 +153,8 @@ function barActs(
       const { bar } = store.snapshot();
       if (!bar) return NO_PET;
       if (!(slot >= 0 && slot < 10)) return { ok: false, reason: "bad_slot" };
+      if (type === PET_ACTION.command || type === PET_ACTION.reaction)
+        return { ok: false, reason: "not_removable" };
       const packed = ((type << 24) | (action & 0xff_ff_ff)) >>> 0;
       const pair: PetSetActionPair = { packed, slot };
       ctx.send(
