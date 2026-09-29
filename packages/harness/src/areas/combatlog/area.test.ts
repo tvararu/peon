@@ -208,6 +208,18 @@ describe("combatlog harness rules", () => {
       },
     ]);
   });
+  test("the router writes killing_blow for a groupmate kill of our target", () => {
+    const { log, router } = routerSetup({ selfGuid: ME });
+    const handle = createMockGame();
+    router.attach(handle);
+    handle.triggerAreaEvent("combatlog", kill());
+    const rows = log.since(0);
+    expect(rows.map((row) => row.event)).toEqual(["combatlog/killing_blow"]);
+    expect(rows[0]).toMatchObject({
+      class: "log",
+      data: { killerKind: "player" },
+    });
+  });
 
   test("the router writes the rows of area events from the handle", () => {
     const { log, router } = routerSetup({ selfGuid: ME });
