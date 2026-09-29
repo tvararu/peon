@@ -7,7 +7,7 @@ columns are explained in [the index](../protocol-coverage.md).
 |---|---|---|---|---|
 | `0x070` | `CMSG_GROUP_CANCEL` | client | dead |  |
 | `0x076` | `CMSG_GROUP_UNINVITE_GUID` | client | handled |  |
-| `0x1d5` | `MSG_MINIMAP_PING` | both | missing |  |
+| `0x1d5` | `MSG_MINIMAP_PING` | both | handled |  |
 | `0x27e` | `CMSG_GROUP_CHANGE_SUB_GROUP` | client | handled |  |
 | `0x27f` | `CMSG_REQUEST_PARTY_MEMBER_STATS` | client | handled |  |
 | `0x280` | `CMSG_GROUP_SWAP_SUB_GROUP` | client | handled |  |
@@ -15,7 +15,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x28f` | `CMSG_GROUP_ASSISTANT_LEADER` | client | handled |  |
 | `0x2ab` | `SMSG_SUMMON_REQUEST` | server | missing |  |
 | `0x2ac` | `CMSG_SUMMON_RESPONSE` | client | missing |  |
-| `0x321` | `MSG_RAID_TARGET_UPDATE` | both | missing |  |
+| `0x321` | `MSG_RAID_TARGET_UPDATE` | both | handled |  |
 | `0x322` | `MSG_RAID_READY_CHECK` | both | handled |  |
 | `0x38e` | `MSG_PARTY_ASSIGNMENT` | both | handled |  |
 | `0x397` | `SMSG_REAL_GROUP_UPDATE` | server | dead |  |

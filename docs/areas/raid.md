@@ -63,6 +63,21 @@ their number (`result_<n>`, `operation_<n>`). The harness writes one
 change, except `joined` and `left`, which the legacy `group/roster` row
 already says; `invite_blocked` writes one `log` row.
 
+The area also keeps `marks`, eight guids where `0` is an empty slot. A
+kind 0 `MSG_RAID_TARGET_UPDATE` sets one slot, clears the same target
+from the other slots and emits `raid_mark` with the setter's name, the
+icon and the target; a target of 0 clears the slot; an icon past 7 is
+dropped. A kind 1 list replaces all eight slots and emits `raid_marks`.
+A disband clears the marks. `MSG_MINIMAP_PING` emits `minimap_ping`
+with the sender, the name and the two floats. The acts are
+`setRaidMark(icon, guid)`, `clearRaidMark(icon)` (a set of guid 0),
+`requestRaidMarks()` and `pingMinimap(x, y)`, each one packet; an icon
+outside 0-7 throws before any send. The harness writes one `passive`
+row `mark` for a set with a setter and a target, or a clear by a named
+member, no row for the server's own clear (who 0) or for a list, and one
+`passive` row `ping` with the distance and direction from the
+character when its position is known.
+
 ## Wire notes
 
 - `SMSG_GROUP_LIST` (type, own subgroup/flags/roles, the dungeon-finder
@@ -146,11 +161,36 @@ already says; `invite_blocked` writes one `log` row.
 - The `SMSG_PARTY_COMMAND_RESULT` result `raid_disallowed_by_level` is
   code 25 and `group_swap_failed` is code 14; the operation `swap` is
   code 4.
+- `MSG_RAID_TARGET_UPDATE` kind 0 is `u8 0`, the setter guid as a full
+  `u64`, the icon and the target guid
+  (`Groups/Group.cpp:1830-1849`). `SetTargetIcon` first clears the same
+  target from every other icon by calling itself with an empty guid, and
+  each call broadcasts its own kind 0 packet with who 0 and target 0
+  (`Groups/Group.cpp:1835-1839`); the set follows to every member
+  including the setter (`Groups/Group.cpp:1848`). An icon of 8 or more
+  is dropped (`Groups/Group.cpp:1832-1833`).
+- `MSG_RAID_TARGET_UPDATE` kind 1 is `u8 1` then an `(icon, target)`
+  pair for each set icon only, so it holds 0 to 8 pairs and ends with
+  the packet (`Groups/Group.cpp:1851-1869`); wowm writes a fixed eight
+  (`raid/raid_target.wowm`). The client request is a single `0xFF` and
+  answers the sender only; an update carries the icon and the guid, is
+  refused in a raid unless the sender leads or assists, and drops a
+  player target that is offline or hostile
+  (`Handlers/GroupHandler.cpp:610-645`).
+- `MSG_MINIMAP_PING` from the server is the sender guid and two floats
+  (`Server/Packets/MiscPackets.cpp:76-83`); the client form is the two
+  floats (`Server/Packets/MiscPackets.cpp:70-74`). The server drops a
+  ping outside a group or outside valid map coordinates
+  (`Handlers/GroupHandler.cpp:584-595`) and sends it to every member
+  except the sender (`Groups/Group.cpp:2272-2280`).
+- The icon names star, circle, diamond, triangle, moon, square, cross,
+  skull for icons 0-7 are client art: neither AzerothCore nor wowm names
+  them, so that order is unconfirmed.
 
 ## Left out
 
-- `MSG_MINIMAP_PING`, `MSG_RAID_TARGET_UPDATE`, `SMSG_SUMMON_REQUEST`
-  and `CMSG_SUMMON_RESPONSE`: built by later group tasks. The LFG form (type
+- `SMSG_SUMMON_REQUEST` and `CMSG_SUMMON_RESPONSE`: built by later group
+  tasks. The LFG form (type
   `0x08`) is not seen live until `instances` forms a dungeon-finder
   group. The acts name other members only: the caller's own name throws
   `not in your party`, because the server never lists the receiving
@@ -318,6 +358,30 @@ Fgkllppegba the partner; both deleted, trace not committed):
   with method 2 and threshold 3, and the legacy list shows
   `master_loot` with threshold `rare` (`Handlers/GroupHandler.cpp:516-545`).
 
+`group-7` live proof on two `eversong10` throwaway accounts (A leader,
+B partner, both deleted; traces and event reads not committed), both
+puppets on `--packet-trace headers`, grouped, with a Red Dragonhawk
+Hatchling from `nearby` as the target:
+
+- `call setRaidMark` on A: A's trace holds `out MSG_RAID_TARGET_UPDATE`
+  size 9 then `in` size 18, and B's trace holds `in` size 18. Both
+  sides' events hold `raid_mark` with the icon, the target and A as
+  `who` (A's own event has an empty name, because the roster never
+  lists the receiving character). A plain party lets any member mark
+  (`Handlers/GroupHandler.cpp:631-632`).
+- A `setRaidMark` with target 0 on the same icon emitted `raid_mark`
+  with target 0 and who A on both sides.
+- `call requestRaidMarks` on A: `out MSG_RAID_TARGET_UPDATE` size 1
+  then `in` size 10, and a `raid_marks` event whose eight slots hold the target in its slot
+  (`Groups/Group.cpp:1851-1869`).
+- Moving an `MSG_RAID_TARGET_UPDATE` mark to a second icon: B received
+  two size 18 packets, first a clear of the old icon with who 0 and
+  target 0, then the set (`Groups/Group.cpp:1835-1848`).
+- `call pingMinimap '[8735, -6685]'` on B, B's own position: A's trace
+  holds `in MSG_MINIMAP_PING` size 16 and A's events hold `minimap_ping`
+  with B's name and the two floats; B's trace holds no `in` ping, so the
+  sender gets no echo (`Groups/Group.cpp:2272-2280`).
+
 ## Capabilities row
 
 No verb (N23).
@@ -356,5 +420,7 @@ idle agent; the steer at 100 s fixed the scenario.
 | `MSG_RAID_READY_CHECK` | `live` | A starts: A's trace holds `out` size 0 then `in` size 8, B's trace holds `in` size 8; B starts: B's trace holds `out` size 0 then `in` size 8, A's trace holds `in` size 8 | not committed |
 | `MSG_RAID_READY_CHECK_CONFIRM` | `live` | B answers ready: B's trace holds `out` size 1, A's trace holds `in` size 9; A answers not ready to B's check: A's trace holds `out` size 1, B's trace holds `in` size 9; B starts with A offline: B's trace holds `in` size 9 with the offline answer for A | not committed |
 | `MSG_RAID_READY_CHECK_FINISHED` | `live` | B's answer completes A's check: A's trace holds `out` size 0, both traces hold `in` size 0; A's answer completes B's check the same way; the offline answer completes B's check without waiting | not committed |
+| `MSG_RAID_TARGET_UPDATE` | `live` | A sets a mark: A's trace holds `out` size 9 then `in` size 18 (kind 0, the setter included), B's trace holds `in` size 18; A requests the list: `out` size 1 then `in` size 10 (kind 1 with one pair); moving a marked target to a second icon: B's trace holds two `in` size 18 packets, the first a clear of the old slot with who 0 and target 0 | not committed |
+| `MSG_MINIMAP_PING` | `live` | B pings at its own position: B's trace holds `out` size 8, A's trace holds `in` size 16 and B's trace holds no `in` | not committed |
 | `CMSG_GROUP_CANCEL` | `dead` | the server ignores it: no handler | `Server/Protocol/Opcodes.cpp:243` |
 | `SMSG_REAL_GROUP_UPDATE` | `dead` | `STATUS_NEVER` and no send site in AzerothCore | `Server/Protocol/Opcodes.cpp:1050` |
