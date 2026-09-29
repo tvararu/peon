@@ -7,6 +7,13 @@ import {
   type LockoutExtension,
   type RaidLock,
 } from "#wow/areas/instances/protocol";
+import {
+  type DifficultyRequest,
+  type DifficultyResult,
+  type ResetResult,
+  requestDifficulty,
+  requestReset,
+} from "#wow/areas/instances/runtime-requests";
 import type {
   InstancesEvent,
   InstancesStore,
@@ -20,12 +27,18 @@ export type InstancesRefusal =
   | "busy"
   | "no_bind_offer"
   | "no_matching_lock"
-  | "unchanged";
+  | "unchanged"
+  | "out_of_range"
+  | "not_leader"
+  | "server_refused"
+  | "heroic_no_reset";
 
 export type InstancesOutcome<T = Readonly<Record<never, never>>> =
   | ({ status: "ok" } & T)
   | { status: "refused"; reason: InstancesRefusal }
-  | { status: "no_answer" };
+  | { status: "no_answer" }
+  | { status: "unconfirmed_solo" }
+  | { status: "nothing_to_reset" };
 
 export type InstancesActs = {
   requestLockouts: () => Promise<
@@ -33,6 +46,8 @@ export type InstancesActs = {
   >;
   answerBind: (accept: boolean) => Promise<InstancesOutcome>;
   setLockoutExtended: (init: LockoutExtension) => Promise<InstancesOutcome>;
+  setDifficulty: (init: DifficultyRequest) => Promise<DifficultyResult>;
+  resetInstances: () => Promise<ResetResult>;
 };
 
 type Ctx = AreaRuntimeCtx<InstancesEvent>;
@@ -206,6 +221,9 @@ export function instancesRuntime(
     act: {
       ...lockActs(ctx, store, exclusive),
       answerBind: bindAct(ctx, store, exclusive, waiters),
+      setDifficulty: (init) =>
+        exclusive(() => requestDifficulty(ctx, store, init)),
+      resetInstances: () => exclusive(() => requestReset(ctx, store)),
     },
     dispose: off,
   };
