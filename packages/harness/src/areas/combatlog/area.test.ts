@@ -97,7 +97,7 @@ describe("combatlog harness rules", () => {
     const quiet = [
       entry({ kind: "spell_damage", source: ME, spellId: 133, target: BOAR }),
       entry({ kind: "melee", outcome: "dodge", source: ME, target: BOAR }),
-      entry({ kind: "heal", source: MATE, spellId: 2050, target: ME }),
+      entry({ kind: "heal", source: ME, spellId: 2050, target: ME }),
       entry({ kind: "kill", source: ME, target: BOAR }),
       entry({ kind: "immune", source: BOAR, spellId: 122, target: ME }),
       kill({ bySelf: 1, killer: ME, killerKind: "self" }),
