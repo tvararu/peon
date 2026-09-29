@@ -221,7 +221,12 @@ function consoleErrors({ checks }: Scenario): string[] {
 }
 
 function partnerErrors(scenario: Scenario): string[] {
-  const { partner, partnerActions = [], partners, partnerSetup = [] } = scenario;
+  const {
+    partner,
+    partnerActions = [],
+    partners,
+    partnerSetup = [],
+  } = scenario;
   const count = partners?.length ?? (partner === null ? 0 : 1);
   const errors = partnerActions.flatMap(({ actor }, index) =>
     actor !== undefined && actor > count
