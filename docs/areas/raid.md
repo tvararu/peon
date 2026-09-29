@@ -39,7 +39,20 @@ server drops it with no reply; `swapSubgroups(name, withName)` sends
 both names; `setAssistant(name, on)` sends the member guid and the
 flag byte; `setMainTank(name, on)` and `setMainAssist(name, on)` send
 the role byte (main tank 0, main assist 1), the apply byte and the guid;
-`uninviteGuid(name, reason)` sends the member guid and the reason. Every
+`uninviteGuid(name, reason)` sends the member guid and the reason. The
+ready check acts are `startReadyCheck()`, which sends the empty start,
+`answerReadyCheck(ready)`, which sends one state byte, and
+`finishReadyCheck()`, which sends the empty finish. The runtime finishes
+a check the agent started once every online member answered, or after
+30 s, whichever comes first; a finish from the server cancels the
+timer. A start sets `readyCheck` with the initiator, the start time and
+empty answers and emits `ready_check_started`; a confirm records
+`ready`, `not_ready` or `offline` (state 0 for a member whose roster
+status is offline) and emits `ready_check_answer`; a finish stamps
+`finishedAt` and emits `ready_check_finished` with the ready count, the
+names not ready, the offline count and the pending count. Confirms with
+no open check, from a guid outside the roster, or after the finish are
+ignored. Every
 act names another member: a name outside the roster throws
 `not in your party`, and the caller's own name throws too because the
 server never lists the receiving character. The peeked
@@ -116,16 +129,28 @@ already says; `invite_blocked` writes one `log` row.
   (`Handlers/GroupHandler.cpp:728-758`).
 - `CMSG_GROUP_UNINVITE_GUID` carries the member guid and the reason
   (`Handlers/GroupHandler.cpp:353-360`).
+- `MSG_RAID_READY_CHECK` from the server carries the initiator's guid
+  (`Handlers/GroupHandler.cpp:783-787`,
+  `HandleRaidReadyCheckOpcode`); the client start is empty and the
+  client answer carries one state byte (`:790-800`). The server relays
+  each answer to the leader and assistants and at the start sends a
+  state-0 confirm for each offline member (`Groups/Group.cpp:2000`,
+  `MSG_RAID_READY_CHECK_CONFIRM`). `MSG_RAID_READY_CHECK_CONFIRM`
+  carries a guid and a state byte (`Handlers/GroupHandler.cpp:795-800`,
+  `Handle_NULL`). The finish is sent only on a client request from the
+  leader or an assistant (`Server/Protocol/Opcodes.cpp:1097`,
+  `MSG_RAID_READY_CHECK_FINISHED`); there is no server timer, so
+  Peon finishes its own checks after 30 s.
+- `MSG_RAID_READY_CHECK_FINISHED` carries no body
+  (`Server/Protocol/Opcodes.cpp:1097`, `MSG_RAID_READY_CHECK_FINISHED`).
 - The `SMSG_PARTY_COMMAND_RESULT` result `raid_disallowed_by_level` is
   code 25 and `group_swap_failed` is code 14; the operation `swap` is
   code 4.
 
 ## Left out
 
-- `MSG_MINIMAP_PING`, `MSG_RAID_READY_CHECK`,
-  `MSG_RAID_READY_CHECK_CONFIRM`, `MSG_RAID_READY_CHECK_FINISHED`,
-  `MSG_RAID_TARGET_UPDATE`, `SMSG_SUMMON_REQUEST` and
-  `CMSG_SUMMON_RESPONSE`: built by later group tasks. The LFG form (type
+- `MSG_MINIMAP_PING`, `MSG_RAID_TARGET_UPDATE`, `SMSG_SUMMON_REQUEST`
+  and `CMSG_SUMMON_RESPONSE`: built by later group tasks. The LFG form (type
   `0x08`) is not seen live until `instances` forms a dungeon-finder
   group. The acts name other members only: the caller's own name throws
   `not in your party`, because the server never lists the receiving
@@ -328,5 +353,8 @@ idle agent; the steer at 100 s fixed the scenario.
 | `CMSG_GROUP_ASSISTANT_LEADER` | `live` | A's trace: `out` row, then the roster with B flagged assistant | `live-group3` scratch dir |
 | `MSG_PARTY_ASSIGNMENT` | `live` | A's trace: two `out` rows, then the rosters with B flagged main tank and main assist | `live-group3` scratch dir |
 | `CMSG_GROUP_UNINVITE_GUID` | `live` | A's trace: `out` row, then `SMSG_GROUP_DESTROYED`; A's events: roster change with C in `removed`, then `group_destroyed` and an empty roster | `live-group3` scratch dir |
+| `MSG_RAID_READY_CHECK` | `live` | A starts: A's trace holds `out` size 0 then `in` size 8, B's trace holds `in` size 8; B starts: B's trace holds `out` size 0 then `in` size 8, A's trace holds `in` size 8 | `live-group6` scratch dir |
+| `MSG_RAID_READY_CHECK_CONFIRM` | `live` | B answers ready: B's trace holds `out` size 1, A's trace holds `in` size 9; A answers not ready to B's check: A's trace holds `out` size 1, B's trace holds `in` size 9; B starts with A offline: B's trace holds `in` size 9 with the offline answer for A | `live-group6` scratch dir |
+| `MSG_RAID_READY_CHECK_FINISHED` | `live` | B's answer completes A's check: A's trace holds `out` size 0, both traces hold `in` size 0; A's answer completes B's check the same way; the offline answer completes B's check without waiting | `live-group6` scratch dir |
 | `CMSG_GROUP_CANCEL` | `dead` | the server ignores it: no handler | `Server/Protocol/Opcodes.cpp:243` |
 | `SMSG_REAL_GROUP_UPDATE` | `dead` | `STATUS_NEVER` and no send site in AzerothCore | `Server/Protocol/Opcodes.cpp:1050` |
