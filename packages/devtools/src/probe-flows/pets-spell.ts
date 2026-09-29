@@ -53,6 +53,7 @@ function barJson(handle: WorldHandle): Json {
   return {
     cooldowns: cooldowns.map(({ infinite, spell }) => ({ infinite, spell })),
     refusal: lastRefusal ? lastRefusal.reason : null,
+    slots: bar ? bar.slots.map(({ action, type }) => ({ action, type })) : null,
     spells: bar
       ? bar.spells.map(({ autocast, spell }) => ({
           autocast,
@@ -152,9 +153,12 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
       if (event.type === "bar" && !event.cleared) bars.shown++;
     });
     try {
+      handle.pets.act.requestPetInfo();
+      if (!(await waitFor(() => bars.shown > 0)))
+        throw new Error("no fresh pet bar arrived before the swap.");
       const result = handle.pets.act.petSwapActions(a, b);
       handle.pets.act.requestPetInfo();
-      const replied = await waitFor(() => bars.shown > 0);
+      const replied = await waitFor(() => bars.shown > 1);
       return { after: barJson(handle), before, replied, result };
     } finally {
       watch();

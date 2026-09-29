@@ -141,10 +141,18 @@ describe("pets-spell flow", () => {
       });
     }));
 
-  test("swap swaps two slots then asks for the bar again", () =>
+  test("swap refreshes the bar first, swaps two slots, then asks for the bar again", () =>
     withFakeTimers(async () => {
       const { act, ctx } = context({ swap: "3,4" });
       const running = flow.run(ctx);
+      await elapse(200);
+      expect(act.requestPetInfo).toHaveBeenCalled();
+      expect(act.petSwapActions).not.toHaveBeenCalled();
+      ctx.handle.triggerAreaEvent("pets", {
+        bar: BAR,
+        cleared: false,
+        type: "bar",
+      });
       await elapse(200);
       expect(act.petSwapActions).toHaveBeenCalledWith(3, 4);
       ctx.handle.triggerAreaEvent("pets", {
