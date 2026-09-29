@@ -188,6 +188,19 @@ character when its position is known.
   skull for icons 0-7 are client art: neither AzerothCore nor wowm names
   them, so that order is unconfirmed.
 
+- `give` sends `CMSG_LOOT_MASTER_GIVE` only after the checks the server
+  makes: the sender is the master looter, the corpse is open, and the
+  target is in the candidate list; a bad slot or a full bag answers a
+  loot error, and the server removes the slot before it sends the new
+  item (`Handlers/LootHandler.cpp:483-500`).
+- The master list reaches the master when the first player opens a
+  master-looted corpse (`Groups/Group.cpp:1444,1482-1492`); the tool
+  reads the candidates from that reply and refuses a name outside it.
+- `pass_loot` sets the opt-out flag and gets no reply
+  (`Handlers/GroupHandler.cpp:1143-1152`).
+- `roll` answers only the roll the agent names or the single open roll;
+  Peon never rolls by itself.
+
 ## Left out
 
 - `SMSG_SUMMON_REQUEST` and `CMSG_SUMMON_RESPONSE`: built by later group
