@@ -120,6 +120,95 @@ const quests: JournalAfter = {
   ],
 };
 
+const spells: JournalAfter = {
+  about: "spells",
+  auras: [
+    { name: "Arcane Intellect", spellId: 1459 },
+    { name: "Mana Shield", spellId: 1463 },
+  ],
+  bar: [
+    { id: 133, name: "Fireball", slot: 0, type: "spell" },
+    { id: 4540, name: "Tough Jerky", slot: 3, type: "item" },
+    { id: 7, name: "macro 7", slot: 5, type: "macro" },
+    { id: 1, name: "set 1", slot: 9, type: "equipment_set" },
+  ],
+  spells: [
+    { cooldownMs: 30_000, cost: 55, id: 133, name: "Fireball", rank: "Rank 1" },
+    {
+      cooldownMs: undefined,
+      cost: undefined,
+      id: 168,
+      name: "Frost Armor",
+      rank: undefined,
+    },
+  ],
+};
+
+const bags: JournalAfter = {
+  about: "bags",
+  bags: {
+    ammo: { entry: 2512, name: "Rough Arrow" },
+    copper: 12_345,
+    equipped: [
+      {
+        durability: { current: 40, max: 50 },
+        name: "Apprentice's Robe",
+        quality: 1,
+        slot: "chest",
+      },
+      { durability: undefined, name: "Frayed Cloak", quality: 1, slot: "back" },
+    ],
+    freeSlots: 11,
+    items: [
+      {
+        bag: 0,
+        canWear: true,
+        count: 1,
+        durability: undefined,
+        entry: 4540,
+        kind: "other",
+        loadedAmmo: false,
+        name: "Silk Belt",
+        quality: 2,
+        requiredLevel: undefined,
+        secondsLeft: undefined,
+        slot: 1,
+        upgrade: { itemLevel: 9, wornItemLevel: 4 },
+      },
+      {
+        bag: 0,
+        canWear: undefined,
+        count: 200,
+        durability: undefined,
+        entry: 2512,
+        kind: "other",
+        loadedAmmo: true,
+        name: "Rough Arrow",
+        quality: 1,
+        requiredLevel: undefined,
+        secondsLeft: 90,
+        slot: 2,
+        upgrade: undefined,
+      },
+      {
+        bag: 1,
+        canWear: false,
+        count: 1,
+        durability: { current: 3, max: 30 },
+        entry: 3208,
+        kind: "other",
+        loadedAmmo: false,
+        name: "Dented Plate Helm",
+        quality: 1,
+        requiredLevel: 8,
+        secondsLeft: undefined,
+        slot: 4,
+        upgrade: undefined,
+      },
+    ],
+  },
+};
+
 const done = <A>(after: A, detail: string): ToolResult<A> => ({
   after,
   body: [],
@@ -220,6 +309,70 @@ describe("card family", () => {
       `${nerd.questComplete} Unfortunate Measures [2] → ${nerd.questgiver} Magistrix Erona`,
     );
     expect(text[4]).toBe("  3/8 Springpaw Cub slain");
+  });
+
+  test("journal spells lists cost, cooldown, auras and the action bar", () => {
+    const text = plain(
+      renderResultLines(journalTool, done(spells, "2 spells known."), {
+        options: open,
+      }),
+    );
+    expect(text.slice(1)).toEqual([
+      `${nerd.spell} Fireball (Rank 1) 55 · 30s`,
+      `${nerd.spell} Frost Armor`,
+      "Auras",
+      `${nerd.buff} Arcane Intellect`,
+      `${nerd.buff} Mana Shield`,
+      "Bar",
+      `0 ${nerd.spell} Fireball`,
+      `3 ${nerd.item} Tough Jerky`,
+      "5 macro macro 7",
+      "9 set set 1",
+    ]);
+  });
+  test("journal spells with no auras or bar draws no empty headings", () => {
+    const bare: JournalAfter = { ...spells, auras: [], bar: [] };
+    const text = plain(
+      renderResultLines(journalTool, done(bare, "2 spells known."), {
+        options: open,
+      }),
+    ).join("\n");
+    expect(text).not.toContain("Auras");
+    expect(text).not.toContain("Bar");
+  });
+
+  test("journal bags shows worn durability, item marks and ammo", () => {
+    const text = plain(
+      renderResultLines(journalTool, done(bags, "Money."), { options: open }),
+    );
+    expect(text.slice(1)).toEqual([
+      `${nerd.gold}1 ${nerd.silver}23 ${nerd.copper}45  ${nerd.bag} 11 free`,
+      `${nerd.item} Silk Belt ×1 other · upgrade`,
+      `${nerd.item} Rough Arrow ×200 other · loaded, 1m left`,
+      `${nerd.item} Dented Plate Helm ×1 other · needs level 8, low dura 3/30`,
+      `chest Apprentice's Robe 40/50`,
+      "back Frayed Cloak",
+      "Ammo Rough Arrow",
+    ]);
+  });
+
+  test("an empty bags journal draws no blank row", () => {
+    const empty: JournalAfter = {
+      about: "bags",
+      bags: {
+        ammo: undefined,
+        copper: undefined,
+        equipped: [],
+        freeSlots: undefined,
+        items: [],
+      },
+    };
+    const text = plain(
+      renderResultLines(journalTool, done(empty, "Bags empty."), {
+        options: open,
+      }),
+    );
+    expect(text.filter((line) => line.trim() === "")).toHaveLength(0);
   });
 
   test("card results fit a 40-column pane", () => {
