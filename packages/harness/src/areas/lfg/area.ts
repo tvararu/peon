@@ -46,6 +46,65 @@ function dungeons(event: Extract<LfgEvent, { type: "dungeons" }>): AreaDraft[] {
     },
   ];
 }
+function joinResult(
+  event: Extract<LfgEvent, { type: "join_result" }>,
+): AreaDraft[] {
+  return [
+    {
+      class: "log",
+      data: {
+        reason: event.reason,
+        result: event.result,
+        state: event.state,
+      },
+      name: "join_result",
+      text:
+        event.reason === "ok"
+          ? "Joined the dungeon finder queue."
+          : "The dungeon finder refused the queue request.",
+    },
+  ];
+}
+
+function queue(event: Extract<LfgEvent, { type: "queue" }>): AreaDraft[] {
+  return [
+    {
+      class: "log",
+      data: { dungeon: event.dungeon, queuedTime: event.queuedTime },
+      name: "queue",
+      text: "Still waiting in the dungeon finder queue.",
+    },
+  ];
+}
+
+function roleCheck(
+  event: Extract<LfgEvent, { type: "role_check" }>,
+): AreaDraft[] {
+  return [
+    {
+      class: "log",
+      data: { state: event.state, stateName: event.stateName },
+      name: "role_check",
+      text:
+        event.stateName === "initializing"
+          ? "A role check started."
+          : "The role check changed.",
+    },
+  ];
+}
+
+function roleChosen(
+  event: Extract<LfgEvent, { type: "role_chosen" }>,
+): AreaDraft[] {
+  return [
+    {
+      class: "log",
+      data: { guid: `${event.guid}`, ready: event.ready, roles: event.roles },
+      name: "role_chosen",
+      text: "A party member answered the role check.",
+    },
+  ];
+}
 
 function rule(event: LfgEvent): AreaDraft[] {
   switch (event.type) {
@@ -53,6 +112,14 @@ function rule(event: LfgEvent): AreaDraft[] {
       return status(event);
     case "dungeons":
       return dungeons(event);
+    case "join_result":
+      return joinResult(event);
+    case "queue":
+      return queue(event);
+    case "role_check":
+      return roleCheck(event);
+    case "role_chosen":
+      return roleChosen(event);
     default:
       return [];
   }
