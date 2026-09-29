@@ -1,5 +1,12 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import type { LfgPlayerInfo, LfgUpdate } from "#wow/areas/lfg/protocol";
+import type {
+  LfgJoinResult,
+  LfgPlayerInfo,
+  LfgQueueStatus,
+  LfgUpdate,
+  RoleCheckUpdate,
+  RoleChosen,
+} from "#wow/areas/lfg/protocol";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export type LfgStatus = "none" | "queued" | "proposal";
@@ -32,6 +39,51 @@ export type LfgPartyLocks = {
   guid: bigint;
   locks: readonly LfgLockView[];
 };
+export type LfgJoinReason =
+  | "ok"
+  | "failed"
+  | "group_full"
+  | "internal_error"
+  | "not_meet_reqs"
+  | "party_not_meet_reqs"
+  | "mixed_raid_dungeon"
+  | "multi_realm"
+  | "disconnected"
+  | "party_info_failed"
+  | "dungeon_invalid"
+  | "deserter"
+  | "party_deserter"
+  | "random_cooldown"
+  | "party_random_cooldown"
+  | "too_many_members"
+  | "using_bg_system"
+  | "unknown";
+
+export type LfgRoleCheckStateName =
+  | "default"
+  | "finished"
+  | "initializing"
+  | "missing_role"
+  | "wrong_roles"
+  | "aborted"
+  | "no_role"
+  | "unknown";
+
+export type LfgJoinView = {
+  result: number;
+  state: number;
+  reason: LfgJoinReason;
+  partyLocks: readonly LfgPartyLocks[];
+};
+
+export type LfgRoleCheckView = {
+  state: number;
+  stateName: LfgRoleCheckStateName;
+  initializing: boolean;
+  dungeons: readonly number[];
+  ready: readonly bigint[];
+  pending: readonly bigint[];
+};
 
 export type LfgState = {
   status: LfgStatus;
@@ -43,6 +95,9 @@ export type LfgState = {
   locksAt: number | undefined;
   partyLocks: readonly LfgPartyLocks[];
   partyLocksAt: number | undefined;
+  joinResult: LfgJoinView | undefined;
+  queue: LfgQueueStatus | undefined;
+  roleCheck: LfgRoleCheckView | undefined;
 };
 
 export type LfgEvent =
@@ -53,7 +108,16 @@ export type LfgEvent =
       source: LfgUpdateSource;
       updateType: number;
     }
-  | { type: "dungeons"; scope: "player" | "party" };
+  | { type: "dungeons"; scope: "player" | "party" }
+  | {
+      type: "join_result";
+      result: number;
+      state: number;
+      reason: LfgJoinReason;
+    }
+  | { type: "queue"; dungeon: number; queuedTime: number }
+  | { type: "role_check"; state: number; stateName: LfgRoleCheckStateName }
+  | { type: "role_chosen"; guid: bigint; roles: number; ready: boolean };
 
 const LOCK_REASONS: Readonly<Record<number, LfgLockReason>> = {
   0: "none",
@@ -82,6 +146,55 @@ export function lockView(entry: number, status: number): LfgLockView {
     type: (entry >>> 24) & 0xff,
     status,
     reason: lockReason(status),
+  };
+}
+
+const JOIN_REASONS: Readonly<Record<number, LfgJoinReason>> = {
+  0: "ok",
+  1: "failed",
+  2: "group_full",
+  4: "internal_error",
+  5: "not_meet_reqs",
+  6: "party_not_meet_reqs",
+  7: "mixed_raid_dungeon",
+  8: "multi_realm",
+  9: "disconnected",
+  10: "party_info_failed",
+  11: "dungeon_invalid",
+  12: "deserter",
+  13: "party_deserter",
+  14: "random_cooldown",
+  15: "party_random_cooldown",
+  16: "too_many_members",
+  17: "using_bg_system",
+};
+
+export function joinReasonName(result: number): LfgJoinReason {
+  return JOIN_REASONS[result] ?? "unknown";
+}
+
+const ROLE_CHECK_NAMES: Readonly<Record<number, LfgRoleCheckStateName>> = {
+  0: "default",
+  1: "finished",
+  2: "initializing",
+  3: "missing_role",
+  4: "wrong_roles",
+  5: "aborted",
+  6: "no_role",
+};
+
+export function roleCheckStateName(state: number): LfgRoleCheckStateName {
+  return ROLE_CHECK_NAMES[state] ?? "unknown";
+}
+
+function roleCheckView(update: RoleCheckUpdate): LfgRoleCheckView {
+  return {
+    state: update.state,
+    stateName: roleCheckStateName(update.state),
+    initializing: update.initializing,
+    dungeons: [...update.dungeons],
+    ready: update.members.filter((m) => m.ready).map((m) => m.guid),
+    pending: update.members.filter((m) => !m.ready).map((m) => m.guid),
   };
 }
 
@@ -131,6 +244,9 @@ const EMPTY: LfgState = {
   locksAt: undefined,
   partyLocks: [],
   partyLocksAt: undefined,
+  joinResult: undefined,
+  queue: undefined,
+  roleCheck: undefined,
 };
 
 export class LfgStore {
@@ -148,10 +264,31 @@ export class LfgStore {
       selected: [...this.state.selected],
       available: this.state.available.map((d) => ({ ...d })),
       locks: this.state.locks.map((l) => ({ ...l })),
-      partyLocks: this.state.partyLocks.map((p) => ({
+      partyLocks: this.state.partyLocks.map((p: LfgPartyLocks) => ({
         guid: p.guid,
-        locks: p.locks.map((l) => ({ ...l })),
+        locks: p.locks.map((l: LfgLockView) => ({ ...l })),
       })),
+      joinResult:
+        this.state.joinResult === undefined
+          ? undefined
+          : {
+              ...this.state.joinResult,
+              partyLocks: this.state.joinResult.partyLocks.map(
+                (p: LfgPartyLocks) => ({
+                  guid: p.guid,
+                  locks: p.locks.map((l: LfgLockView) => ({ ...l })),
+                }),
+              ),
+            },
+      roleCheck:
+        this.state.roleCheck === undefined
+          ? undefined
+          : {
+              ...this.state.roleCheck,
+              dungeons: [...this.state.roleCheck.dungeons],
+              ready: [...this.state.roleCheck.ready],
+              pending: [...this.state.roleCheck.pending],
+            },
     };
   }
   onEvent(cb: (event: LfgEvent) => void): Unsubscribe {
@@ -175,6 +312,8 @@ export class LfgStore {
       status: next,
       selected: next === "none" ? [] : [...update.dungeons],
       comment: next === "none" ? "" : update.comment,
+      queue: undefined,
+      roleCheck: next === "none" ? undefined : this.state.roleCheck,
     });
     this.events.emit({
       type: "status",
@@ -211,6 +350,69 @@ export class LfgStore {
       partyLocksAt: this.now(),
     });
     this.events.emit({ type: "dungeons", scope: "party" });
+  }
+  receiveJoinResult(join: LfgJoinResult): void {
+    const view: LfgJoinView = {
+      result: join.result,
+      state: join.state,
+      reason: joinReasonName(join.result),
+      partyLocks: join.partyLocks.map((p) => ({
+        guid: p.guid,
+        locks: p.locks.map((l) => lockView(l.entry, l.status)),
+      })),
+    };
+    this.set({ joinResult: view });
+    this.events.emit({
+      type: "join_result",
+      result: join.result,
+      state: join.state,
+      reason: view.reason,
+    });
+  }
+
+  receiveQueueStatus(queue: LfgQueueStatus): void {
+    this.set({ queue: { ...queue } });
+    this.events.emit({
+      type: "queue",
+      dungeon: queue.dungeon,
+      queuedTime: queue.queuedTime,
+    });
+  }
+
+  receiveRoleCheck(update: RoleCheckUpdate): void {
+    const view = roleCheckView(update);
+    this.set({ roleCheck: view });
+    this.events.emit({
+      type: "role_check",
+      state: update.state,
+      stateName: view.stateName,
+    });
+  }
+
+  receiveRoleChosen(chosen: RoleChosen): void {
+    const current = this.state.roleCheck;
+    if (current !== undefined) {
+      const chosenGuids: readonly bigint[] = [chosen.guid];
+      const ready = chosen.ready
+        ? [
+            ...current.ready.filter((guid) => !chosenGuids.includes(guid)),
+            chosen.guid,
+          ]
+        : current.ready;
+      this.set({
+        roleCheck: {
+          ...current,
+          ready,
+          pending: current.pending.filter((guid) => guid !== chosen.guid),
+        },
+      });
+    }
+    this.events.emit({
+      type: "role_chosen",
+      guid: chosen.guid,
+      roles: chosen.roles,
+      ready: chosen.ready,
+    });
   }
 
   receiveSearch(on: boolean): void {

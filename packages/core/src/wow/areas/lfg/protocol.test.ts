@@ -1,19 +1,31 @@
 import { describe, expect, test } from "bun:test";
 import {
+  lfgJoinResultBody,
   lfgPartyInfoBody,
   lfgPlayerInfoBody,
+  lfgQueueStatusBody,
+  lfgRoleCheckUpdateBody,
+  lfgRoleChosenBody,
   lfgUpdatePartyBody,
   lfgUpdatePlayerBody,
 } from "#test-support/areas/lfg";
 import {
+  buildLfgComment,
   buildLfgGetStatus,
+  buildLfgJoin,
+  buildLfgLeave,
+  buildLfgSetRoles,
   buildPartyLockInfoRequest,
   buildPlayerLockInfoRequest,
   dungeonEntry,
+  parseLfgJoinResult,
   parseLfgPlayerInfo,
+  parseLfgQueueStatus,
   parseLfgUpdate,
   parseLockBlock,
   parsePartyLockBlock,
+  parseRoleCheckUpdate,
+  parseRoleChosen,
 } from "#wow/areas/lfg/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 
@@ -100,5 +112,135 @@ describe("lfg protocol", () => {
     expect(buildLfgGetStatus()).toEqual(new Uint8Array());
     expect(buildPlayerLockInfoRequest()).toEqual(new Uint8Array());
     expect(buildPartyLockInfoRequest()).toEqual(new Uint8Array());
+  });
+
+  test("join result reads a bare result and state (LFGHandler.cpp:441-454)", () => {
+    const body = lfgJoinResultBody({ result: 0 });
+    expect(body).toHaveLength(8);
+    expect(parseLfgJoinResult(reader(body))).toEqual({
+      result: 0,
+      state: 0,
+      partyLocks: [],
+    });
+  });
+
+  test("join result with locks reads a u8 player count, which wowm's smsg_lfg_join_result.wowm lacks", () => {
+    const body = lfgJoinResultBody({
+      result: 6,
+      state: 3,
+      partyLocks: [
+        { guid: 0xden, locks: [{ entry: 0x01_00_00_12, status: 2 }] },
+        { guid: 0xbeen, locks: [] },
+      ],
+    });
+    expect(parseLfgJoinResult(reader(body))).toEqual({
+      result: 6,
+      state: 3,
+      partyLocks: [
+        { guid: 0xden, locks: [{ entry: 0x01_00_00_12, status: 2 }] },
+        { guid: 0xbeen, locks: [] },
+      ],
+    });
+  });
+
+  test("queue status reads signed waits and the needed roles (LFGHandler.cpp:456-473)", () => {
+    const body = lfgQueueStatusBody({
+      dungeon: 0x01_00_00_12,
+      avgWait: -1,
+      wait: 61,
+      waitTank: -1,
+      waitHealer: 30,
+      waitDps: 900,
+      tanks: 1,
+      healers: 0,
+      dps: 3,
+      queuedTime: 12,
+    });
+    expect(parseLfgQueueStatus(reader(body))).toEqual({
+      dungeon: 0x01_00_00_12,
+      avgWait: -1,
+      wait: 61,
+      waitTank: -1,
+      waitHealer: 30,
+      waitDps: 900,
+      tanks: 1,
+      healers: 0,
+      dps: 3,
+      queuedTime: 12,
+    });
+  });
+
+  test("role check update reads state, dungeons and members leader first (LFGHandler.cpp:394-439)", () => {
+    const body = lfgRoleCheckUpdateBody({
+      state: 2,
+      dungeons: [0x01_00_00_12],
+      members: [
+        { guid: 0xan, roles: 8, level: 20 },
+        { guid: 0xbn, roles: 0, level: 19 },
+      ],
+    });
+    expect(parseRoleCheckUpdate(reader(body))).toEqual({
+      state: 2,
+      initializing: true,
+      dungeons: [0x01_00_00_12],
+      members: [
+        { guid: 0xan, ready: true, roles: 8, level: 20 },
+        { guid: 0xbn, ready: false, roles: 0, level: 19 },
+      ],
+    });
+  });
+
+  test("role check update with no dungeons and no members parses empty", () => {
+    const body = lfgRoleCheckUpdateBody({
+      state: 5,
+      dungeons: [],
+      members: [],
+    });
+    expect(parseRoleCheckUpdate(reader(body))).toEqual({
+      state: 5,
+      initializing: false,
+      dungeons: [],
+      members: [],
+    });
+  });
+
+  test("role chosen reads guid, ready and roles (LFGHandler.cpp:383-392)", () => {
+    expect(
+      parseRoleChosen(reader(lfgRoleChosenBody({ guid: 0xcn, roles: 2 }))),
+    ).toEqual({ guid: 0xcn, ready: true, roles: 2 });
+    expect(
+      parseRoleChosen(reader(lfgRoleChosenBody({ guid: 0xcn, roles: 0 }))),
+    ).toEqual({ guid: 0xcn, ready: false, roles: 0 });
+  });
+
+  test("join request writes roles, two flag bytes, entries, three needs and the comment (LFGPackets.cpp:20-34)", () => {
+    const r = reader(
+      buildLfgJoin({ roles: 8, entries: [0x06_00_01_06], comment: "" }),
+    );
+    expect(r.uint32LE()).toBe(8);
+    expect(r.uint8()).toBe(0);
+    expect(r.uint8()).toBe(0);
+    expect(r.uint8()).toBe(1);
+    expect(r.uint32LE()).toBe(0x06_00_01_06);
+    expect(r.uint8()).toBe(3);
+    expect([r.uint8(), r.uint8(), r.uint8()]).toEqual([0, 0, 0]);
+    expect(r.cString()).toBe("");
+    expect(r.remaining).toBe(0);
+  });
+
+  test("join request carries the comment and allows 50 entries but not 51 (LFGPackets.h:34)", () => {
+    const entries = Array.from({ length: 50 }, (_, i) => i + 1);
+    const r = reader(buildLfgJoin({ roles: 2, entries, comment: "hi" }));
+    r.skip(6);
+    expect(r.uint8()).toBe(50);
+    expect(() =>
+      buildLfgJoin({ roles: 2, entries: [...entries, 51], comment: "" }),
+    ).toThrow();
+  });
+
+  test("leave, set roles and comment requests match the handlers (LFGHandler.cpp:78-131)", () => {
+    expect(buildLfgLeave()).toEqual(new Uint8Array());
+    expect(buildLfgSetRoles(8)).toEqual(new Uint8Array([8]));
+    expect(reader(buildLfgComment("hi")).cString()).toBe("hi");
   });
 });

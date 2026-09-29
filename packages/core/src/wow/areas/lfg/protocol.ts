@@ -115,3 +115,121 @@ export function buildPlayerLockInfoRequest(): Uint8Array {
 export function buildPartyLockInfoRequest(): Uint8Array {
   return new PacketWriter().finish();
 }
+
+export const LFG_MAX_ENTRIES = 50;
+
+export type LfgJoinResult = {
+  result: number;
+  state: number;
+  partyLocks: readonly LfgPartyPlayer[];
+};
+
+export type LfgQueueStatus = {
+  dungeon: number;
+  avgWait: number;
+  wait: number;
+  waitTank: number;
+  waitHealer: number;
+  waitDps: number;
+  tanks: number;
+  healers: number;
+  dps: number;
+  queuedTime: number;
+};
+
+export type RoleCheckMember = {
+  guid: bigint;
+  ready: boolean;
+  roles: number;
+  level: number;
+};
+
+export type RoleCheckUpdate = {
+  state: number;
+  initializing: boolean;
+  dungeons: readonly number[];
+  members: readonly RoleCheckMember[];
+};
+
+export type RoleChosen = { guid: bigint; ready: boolean; roles: number };
+
+export function parseLfgJoinResult(r: PacketReader): LfgJoinResult {
+  const result = r.uint32LE();
+  const state = r.uint32LE();
+  const partyLocks = r.remaining > 0 ? parsePartyLockBlock(r) : [];
+  return { result, state, partyLocks };
+}
+
+export function parseLfgQueueStatus(r: PacketReader): LfgQueueStatus {
+  return {
+    dungeon: r.uint32LE(),
+    avgWait: r.int32LE(),
+    wait: r.int32LE(),
+    waitTank: r.int32LE(),
+    waitHealer: r.int32LE(),
+    waitDps: r.int32LE(),
+    tanks: r.uint8(),
+    healers: r.uint8(),
+    dps: r.uint8(),
+    queuedTime: r.uint32LE(),
+  };
+}
+
+export function parseRoleCheckUpdate(r: PacketReader): RoleCheckUpdate {
+  const state = r.uint32LE();
+  const initializing = r.uint8() !== 0;
+  const dungeonCount = r.uint8();
+  const dungeons: number[] = [];
+  for (let i = 0; i < dungeonCount; i++) dungeons.push(r.uint32LE());
+  const memberCount = r.uint8();
+  const members: RoleCheckMember[] = [];
+  for (let i = 0; i < memberCount; i++)
+    members.push({
+      guid: r.uint64LE(),
+      ready: r.uint8() !== 0,
+      roles: r.uint32LE(),
+      level: r.uint8(),
+    });
+  return { state, initializing, dungeons, members };
+}
+
+export function parseRoleChosen(r: PacketReader): RoleChosen {
+  return { guid: r.uint64LE(), ready: r.uint8() !== 0, roles: r.uint32LE() };
+}
+
+export function buildLfgJoin(join: {
+  roles: number;
+  entries: readonly number[];
+  comment: string;
+}): Uint8Array {
+  if (join.entries.length > LFG_MAX_ENTRIES)
+    throw new RangeError(
+      `An LFG join carries at most ${LFG_MAX_ENTRIES} dungeon entries, got ${join.entries.length}.`,
+    );
+  const w = new PacketWriter();
+  w.uint32LE(join.roles);
+  w.uint8(0);
+  w.uint8(0);
+  w.uint8(join.entries.length);
+  for (const entry of join.entries) w.uint32LE(entry);
+  w.uint8(3);
+  for (let i = 0; i < 3; i++) w.uint8(0);
+  w.cString(join.comment);
+  return w.finish();
+}
+
+export function buildLfgLeave(): Uint8Array {
+  return new PacketWriter().finish();
+}
+
+export function buildLfgSetRoles(roles: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(roles);
+  return w.finish();
+}
+
+export function buildLfgComment(comment: string): Uint8Array {
+  const w = new PacketWriter();
+  w.cString(comment);
+  return w.finish();
+}

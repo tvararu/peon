@@ -99,3 +99,85 @@ export function lfgUpdateSearchBody(on: boolean): Uint8Array {
   w.uint8(on ? 1 : 0);
   return w.finish();
 }
+
+export function lfgJoinResultBody(init: {
+  result: number;
+  state?: number;
+  partyLocks?: readonly { guid: bigint; locks: readonly LfgLockInit[] }[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.result);
+  w.uint32LE(init.state ?? 0);
+  const locks = init.partyLocks ?? [];
+  if (locks.length > 0) {
+    w.uint8(locks.length);
+    for (const player of locks) {
+      w.uint64LE(player.guid);
+      lockBlock(w, player.locks);
+    }
+  }
+  return w.finish();
+}
+
+export type LfgQueueStatusInit = {
+  dungeon: number;
+  avgWait?: number;
+  wait?: number;
+  waitTank?: number;
+  waitHealer?: number;
+  waitDps?: number;
+  tanks?: number;
+  healers?: number;
+  dps?: number;
+  queuedTime?: number;
+};
+
+export function lfgQueueStatusBody(init: LfgQueueStatusInit): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.dungeon);
+  w.uint32LE(init.avgWait ?? 0);
+  w.uint32LE(init.wait ?? 0);
+  w.uint32LE(init.waitTank ?? 0);
+  w.uint32LE(init.waitHealer ?? 0);
+  w.uint32LE(init.waitDps ?? 0);
+  w.uint8(init.tanks ?? 0);
+  w.uint8(init.healers ?? 0);
+  w.uint8(init.dps ?? 0);
+  w.uint32LE(init.queuedTime ?? 0);
+  return w.finish();
+}
+
+export function lfgRoleCheckUpdateBody(init: {
+  state: number;
+  dungeons: readonly number[];
+  members: readonly {
+    guid: bigint;
+    roles: number;
+    level?: number;
+  }[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.state);
+  w.uint8(init.state === 2 ? 1 : 0);
+  w.uint8(init.dungeons.length);
+  for (const entry of init.dungeons) w.uint32LE(entry);
+  w.uint8(init.members.length);
+  for (const member of init.members) {
+    w.uint64LE(member.guid);
+    w.uint8(member.roles > 0 ? 1 : 0);
+    w.uint32LE(member.roles);
+    w.uint8(member.level ?? 0);
+  }
+  return w.finish();
+}
+
+export function lfgRoleChosenBody(init: {
+  guid: bigint;
+  roles: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.guid);
+  w.uint8(init.roles > 0 ? 1 : 0);
+  w.uint32LE(init.roles);
+  return w.finish();
+}

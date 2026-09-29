@@ -32,10 +32,7 @@ export const LFG_OPCODES = {
     "SMSG_LFG_DISABLED",
   ],
   uses: [],
-  stubs: [
-    ["SMSG_LFG_PROPOSAL_UPDATE", "LFG proposal"],
-    ["SMSG_LFG_QUEUE_STATUS", "LFG queue"],
-  ],
+  stubs: [["SMSG_LFG_PROPOSAL_UPDATE", "LFG proposal"]],
   dead: ["SMSG_LFG_DISABLED"],
   unseen: [],
 } as const satisfies AreaOpcodes;
