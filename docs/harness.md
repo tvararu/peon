@@ -68,6 +68,34 @@ The harness guard in [Credentials and safety](#credentials-and-safety)
 still applies: it refuses the protected accounts and the character
 `Xiara`, whatever the profile.
 
+### DBC files
+
+`spell_data_dir` is a flat directory of client DBC files. Without one, or
+without a file in it, the harness degrades to ids: unknown spells and
+factions show as numbers, unit relations read `unknown`, and locks and area
+triggers are not decoded. When `spell_data_dir` is set, `--check` prints one
+warning per missing file on stderr and still exits 0. With no
+`spell_data_dir` it prints no warning.
+
+| File | Holds | Client archive (build 12340, enUS) |
+|---|---|---|
+| `Spell.dbc` | spell definitions | `enUS/patch-enUS-3.MPQ` |
+| `SpellRange.dbc` | spell ranges | `enUS/patch-enUS-3.MPQ` |
+| `SpellDuration.dbc` | spell durations | `enUS/patch-enUS-3.MPQ` |
+| `SpellCastTimes.dbc` | cast times | `enUS/patch-enUS-2.MPQ` |
+| `SpellRadius.dbc` | spell radii | `enUS/patch-enUS.MPQ` |
+| `FactionTemplate.dbc` | unit friend and foe masks | `enUS/patch-enUS-2.MPQ` |
+| `Faction.dbc` | reputation factions | `enUS/patch-enUS-3.MPQ` |
+| `Lock.dbc` | lock requirements | `enUS/patch-enUS-3.MPQ` |
+| `AreaTrigger.dbc` | area trigger volumes | `enUS/patch-enUS-3.MPQ` |
+
+The client resolves each file from the first archive that holds it:
+`enUS/patch-enUS-3.MPQ`, then `enUS/patch-enUS-2.MPQ`, then
+`enUS/patch-enUS.MPQ`, then the remaining locale, patch and base
+archives. Extract each `DBFilesClient\<name>` from the `Data` directory
+with an MPQ tool such as StormLib, following that order, and copy the files
+into `spell_data_dir` unchanged.
+
 ## Flags
 
 | Flag | Default | What it does |
@@ -84,7 +112,7 @@ still applies: it refuses the protected accounts and the character
 | `--log-entities` | off | Writes raw entity rows to the game log. |
 | `--packet-trace off\|headers\|bodies` | `off` | `headers` writes one row per game packet to `packets.jsonl`; `bodies` adds each packet body in hex, including whisper and chat text. The login packet never has a body. The eval grader runs every eval with `headers`. |
 | `--extension <path>` | none | Loads a Pi extension file; repeat it for more. See [Extensions](#extensions). |
-| `--check` | off | Checks the profile, the extension paths, the lock and the Codex login, then exits with code 0. |
+| `--check` | off | Checks the profile, the extension paths, the lock and the Codex login, and warns about DBC files missing from `spell_data_dir`, then exits with code 0. |
 
 The harness reads no `WOW_*` variable. Only `--profile` selects the
 character.

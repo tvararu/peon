@@ -114,7 +114,7 @@ type CatalogFiles = {
 const SPELL_FIELDS = 234;
 const SPELL_RECORD_SIZE = 936;
 
-const LAYOUT = {
+export const SPELL_LAYOUT = {
   spell: {
     file: "Spell.dbc",
     fields: SPELL_FIELDS,
@@ -142,11 +142,11 @@ export async function loadSpellCatalog(
   source: DbcSource,
 ): Promise<SpellCatalog> {
   const [spell, range, cast, duration, radius] = await Promise.all([
-    openDbc(source, LAYOUT.spell),
-    openDbc(source, LAYOUT.range),
-    openDbc(source, LAYOUT.cast),
-    openDbc(source, LAYOUT.duration),
-    openDbc(source, LAYOUT.radius),
+    openDbc(source, SPELL_LAYOUT.spell),
+    openDbc(source, SPELL_LAYOUT.range),
+    openDbc(source, SPELL_LAYOUT.cast),
+    openDbc(source, SPELL_LAYOUT.duration),
+    openDbc(source, SPELL_LAYOUT.radius),
   ]);
   return new SpellCatalog({ spell, range, cast, duration, radius });
 }

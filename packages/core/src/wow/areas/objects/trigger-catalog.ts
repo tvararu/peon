@@ -13,7 +13,11 @@ export type AreaTrigger = {
   orientation: number;
 };
 
-const LAYOUT = { file: "AreaTrigger.dbc", fields: 10, recordSize: 40 } as const;
+export const TRIGGER_LAYOUT = {
+  file: "AreaTrigger.dbc",
+  fields: 10,
+  recordSize: 40,
+} as const;
 
 function decode(file: DbcFile, row: number): AreaTrigger {
   return {
@@ -55,7 +59,7 @@ export class AreaTriggerCatalog {
 export async function loadAreaTriggers(
   source: DbcSource,
 ): Promise<AreaTriggerCatalog> {
-  const file = await openDbc(source, LAYOUT);
+  const file = await openDbc(source, TRIGGER_LAYOUT);
   return new AreaTriggerCatalog(
     Array.from({ length: file.recordCount }, (_, row) => decode(file, row)),
   );

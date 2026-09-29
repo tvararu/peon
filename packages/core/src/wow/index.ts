@@ -59,6 +59,7 @@ export {
 } from "#wow/control-motion";
 export type { GuideStep, MovementGuide } from "#wow/control-mover";
 export type { DbcSource } from "#wow/dbc";
+export { REQUIRED_DBC_FILES } from "#wow/dbc-files";
 export type {
   DestroyEvent,
   DestroyRequest,

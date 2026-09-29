@@ -61,6 +61,7 @@ import { createSightings } from "#harness/ops/sightings";
 import { snapshotWorld } from "#harness/ops/views";
 import { createRunRegistry } from "#harness/runs/registry";
 import { defaultLogin } from "#harness/runtime/connection";
+import { missingDbcWarnings } from "#harness/runtime/dbc-check";
 import {
   createExitRecorder,
   type ExitProcess,
@@ -147,6 +148,9 @@ async function start(flags: HarnessFlags, deps: MainDeps): Promise<number> {
     dbPath: ompDbPath(deps.home),
     now: deps.now,
   });
+  if (profile.spellDataDir)
+    for (const warning of await missingDbcWarnings(profile.spellDataDir))
+      deps.err(warning);
   const check = startupCheck(await credentialStatus(credentials, deps.now()));
   if (check.ok) deps.out(check.line);
   else deps.err(check.line);
