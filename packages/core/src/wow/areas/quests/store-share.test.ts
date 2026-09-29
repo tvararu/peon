@@ -5,6 +5,7 @@ import {
   questsQuestgiverQuestDetailsBody,
   questsQuestgiverRequestItemsBody,
 } from "#test-support/areas/quests";
+import { partyMember, partyState } from "#test-support/party-fixtures";
 import type { AreaPort } from "#wow/areas/port";
 import type { QuestsEvent } from "#wow/areas/quests/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -19,23 +20,11 @@ const legacy: AreaPort["legacy"] = {
   friends: () => [],
   guild: () => undefined,
   ignored: () => [],
-  party: () => ({
-    inGroup: true,
-    leader: null,
-    loot: null,
-    members: [
-      {
-        guid: SHARER,
-        health: null,
-        level: null,
-        maxHealth: null,
-        name: "Sharer",
-        online: true,
-        source: null,
-        statsAt: null,
-      },
-    ],
-  }),
+  party: () =>
+    partyState({
+      inGroup: true,
+      members: [partyMember({ guid: SHARER, name: "Sharer" })],
+    }),
 };
 
 function setup(log: readonly number[] = [], pending?: object) {

@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import { questsQuestPushResultBody } from "#test-support/areas/quests";
+import { partyMember, partyState } from "#test-support/party-fixtures";
 import type { AreaPort } from "#wow/areas/port";
 import { QuestShareResult } from "#wow/areas/quests/protocol";
 import {
@@ -17,16 +18,7 @@ const ME = 0x2an;
 const QUEST = 8326;
 
 function member(guid: bigint, online = true) {
-  return {
-    guid,
-    health: null,
-    level: null,
-    maxHealth: null,
-    name: `P${guid}`,
-    online,
-    source: null,
-    statsAt: null,
-  };
+  return partyMember({ guid, name: `P${guid}`, online });
 }
 
 function legacy(
@@ -39,12 +31,11 @@ function legacy(
     friends: () => [],
     guild: () => undefined,
     ignored: () => [],
-    party: () => ({
-      inGroup,
-      leader: null,
-      loot: null,
-      members: guids.map((guid) => member(guid, !offline.includes(guid))),
-    }),
+    party: () =>
+      partyState({
+        inGroup,
+        members: guids.map((guid) => member(guid, !offline.includes(guid))),
+      }),
   };
 }
 
