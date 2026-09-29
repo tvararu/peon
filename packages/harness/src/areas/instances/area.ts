@@ -98,6 +98,36 @@ function homebindTimer(event: Of<"homebind_timer">): AreaDraft[] {
   ];
 }
 
+function bindOffer(event: Of<"bind_offer">): AreaDraft[] {
+  const seconds = Math.max(1, Math.round(event.timeoutMs / 1000));
+  return [
+    {
+      class: "wake",
+      data: { encounterMask: event.encounterMask, timeoutMs: event.timeoutMs },
+      name: "bind_offer",
+      text: `You will be saved to this instance in ${seconds} s. Answer with dungeon(do: "bind").`,
+    },
+  ];
+}
+
+function lockouts(event: Of<"lockouts">): AreaDraft[] {
+  if (event.added.length === 0 && event.removed.length === 0) return [];
+  const added = event.added.map((lock) => lock.mapId);
+  const removed = event.removed.map((lock) => lock.mapId);
+  const parts = [
+    ...added.map((mapId) => `saved to ${mapId}`),
+    ...removed.map((mapId) => `no longer saved to ${mapId}`),
+  ];
+  return [
+    {
+      class: "log",
+      data: { added, removed },
+      name: "lockouts",
+      text: `Raid lockouts: ${parts.join(", ")}.`,
+    },
+  ];
+}
+
 function rule(event: InstancesEvent): AreaDraft[] {
   switch (event.type) {
     case "difficulty":
@@ -117,6 +147,19 @@ function rule(event: InstancesEvent): AreaDraft[] {
           text: "Cannot enter: your corpse is in a different instance.",
         },
       ];
+    case "bind_offer":
+      return bindOffer(event);
+    case "bound":
+      return [
+        {
+          class: "passive",
+          data: {},
+          name: "bound",
+          text: "You are now saved to this instance.",
+        },
+      ];
+    case "lockouts":
+      return lockouts(event);
     default:
       return [];
   }

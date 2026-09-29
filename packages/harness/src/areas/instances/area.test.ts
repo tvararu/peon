@@ -112,6 +112,57 @@ describe("instances harness rules", () => {
     ]);
   });
 
+  test("bind_offer wakes with the choice window and the bind call", () => {
+    const [row, ...rest] = rows({
+      deadline: 1_000_000,
+      encounterMask: 3,
+      timeoutMs: 60_000,
+      type: "bind_offer",
+    });
+    expect(rest).toEqual([]);
+    expect(row).toMatchObject({
+      class: "wake",
+      data: { encounterMask: 3, timeoutMs: 60_000 },
+      event: "instances/bind_offer",
+    });
+    expect(row?.text).toContain("60 s");
+    expect(row?.text).toContain("bind");
+  });
+
+  test("bound writes one passive row", () => {
+    expect(rows({ type: "bound" })).toMatchObject([
+      { class: "passive", event: "instances/bound" },
+    ]);
+  });
+
+  test("lockouts log the maps added and removed and stay quiet when nothing changed", () => {
+    const lock = {
+      difficulty: 1,
+      extended: false,
+      instanceGuid: 9n,
+      locked: true,
+      mapId: 533,
+      secondsToReset: 3600,
+    };
+    const changed = rows({
+      added: [lock],
+      locks: [lock],
+      removed: [],
+      type: "lockouts",
+    });
+    expect(changed).toMatchObject([
+      { class: "log", data: { added: [533], removed: [] } },
+    ]);
+    expect(changed[0]?.event).toBe("instances/lockouts");
+    expect(changed[0]?.text).toContain("533");
+    expect(
+      rows({ added: [], locks: [lock], removed: [], type: "lockouts" }),
+    ).toEqual([]);
+    expect(
+      rows({ added: [], locks: [], removed: [lock], type: "lockouts" }),
+    ).toMatchObject([{ data: { added: [], removed: [533] } }]);
+  });
+
   test("saved_maps writes nothing", () => {
     expect(
       rows({ hasPermanentBinds: true, maps: [533], type: "saved_maps" }),
