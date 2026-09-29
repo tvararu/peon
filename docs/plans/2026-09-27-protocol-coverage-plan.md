@@ -1097,3 +1097,10 @@ Two independent verifiers checked this plan: a coverage and contract verifier (1
 | D21 | R0's dependents and owners disagreed across three documents | Fixed. rebaseline.md names S0-1a as the dependent and contract section 1.9; the index R0 row has no owner files; contract 2.1 moves the eval baseline to Gate R |
 | D22 | The six N13 dead rows beyond R7's 48 had no mark | Fixed. The Goal marks them as a coordinator decision, accepted by the maintainer (P2-5) |
 | D23 | `tools/look.ts` would pass the 500-line cap with no owner for the split | Fixed. `SEED-1` splits `tools/look.ts` by view and `tools/params.ts` by tool; contract 2.7 carries a lease over to the sibling file |
+
+### Build rulings for wave 2
+
+| Id | Issue | Ruling |
+|---|---|---|
+| BR-wave2-1 | Sol finds new, real defects in most tasks' third and fourth review rounds; the two-round limit sends each task back to the coordinator | Coordinator ruling (P2-17), general for wave 2: a task gets up to two more fix rounds, rounds 3 and 4, each limited to its last review's findings and followed by a full re-review. Each task's extra rounds are listed in the wave record. After round 4 the coordinator lands the task under a named ruling, with any leftover gap recorded in "Left out" and a follow-up issue, or parks it. |
+| BR-wave2-2 | Tasks that add a required field to a shared state type (`PartyState`, `PartyMember`, the self-state view) break typed test literals and fixtures owned by other units (group-2, self-state-7) | Coordinator ruling (P2-17), general for wave 2: such a task may add the new field's empty value to the shared fixture (`packages/core/test-support/party-fixtures.ts`, which the `group` unit owns from now on) and to other units' typed test literals. The edit adds the field only; no assertion changes. |
