@@ -65,7 +65,6 @@ These have tools or code but no scenario that checks them live:
   the agent takes the quest but walks by other means and never reads the
   region from `journal`.
 - Come back to life where it died, with Reincarnation or a Soulstone (`t6-selfstate-res`, needs a self-res spell and its reagent; the server refuses silently under a no-resurrection aura).
-- Resetting a dungeon: no scenario stages a character inside one, because the realm service's offline `position` setup accepts only maps 0, 1, 530 and 571, and evals may not GM-teleport there.
 
 Peon has no tool for mail, trade, the auction house, flight paths or
 mounts.
