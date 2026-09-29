@@ -14,6 +14,7 @@ import type {
 } from "#harness/contract/details";
 import type { GameLogEntry } from "#harness/contract/log";
 import type { ToolRenderers } from "#harness/tools/game-tool";
+import { secondsText } from "#harness/tools/journal-bags";
 import { glyphs } from "#harness/ui/context";
 import {
   argText,
@@ -187,9 +188,16 @@ function itemMarks(item: BagRow): string {
   const marks: string[] = [];
   if (item.upgrade !== undefined) marks.push("upgrade");
   else if (item.canWear === true) marks.push("wear");
+  else if (item.canWear === false)
+    marks.push(
+      item.requiredLevel === undefined
+        ? "cannot wear"
+        : `needs level ${item.requiredLevel}`,
+    );
+  if (item.durability !== undefined)
+    marks.push(`low dura ${item.durability.current}/${item.durability.max}`);
   if (item.loadedAmmo) marks.push("loaded");
-  if (item.secondsLeft !== undefined)
-    marks.push(`${span(item.secondsLeft * 1000)} left`);
+  if (item.secondsLeft !== undefined) marks.push(secondsText(item.secondsLeft));
   return marks.length > 0 ? ` · ${marks.join(", ")}` : "";
 }
 
