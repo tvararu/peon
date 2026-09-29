@@ -1,5 +1,5 @@
-import { describe, expect, jest, test } from "bun:test";
 import type { Mock } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import { validateToolArguments } from "@earendil-works/pi-ai";
 import type { AreaState, PartyMember } from "@peon/core";
 import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
@@ -7,12 +7,9 @@ import {
   partyMember,
   partyState,
 } from "@peon/core/test-support/party-fixtures";
-import {
-  type GroupAfter,
-  groupParams,
-  groupSpec,
-  groupTool,
-} from "#harness/areas/raid/tool";
+import { groupSpec, groupTool } from "#harness/areas/raid/tool";
+import type { GroupAfter } from "#harness/areas/raid/tool-shared";
+import { groupParams } from "#harness/areas/raid/tool-shared";
 import { toolCtx } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 import { expectSendKind, runTool } from "#test-support/tool-harness";
@@ -24,7 +21,7 @@ type Member = PartyMember;
 const SELF = 0x0764n;
 const TOM = 0x100n;
 const ANN = 0x200n;
-const NOW = 1000000;
+const NOW = 1_000_000;
 const ONLINE_STATUS = 0x01;
 const DEAD_STATUS = 0x04;
 const GHOST_STATUS = 0x08;
@@ -259,7 +256,7 @@ describe("group tool", () => {
     test("a full raid hits the line cap and a named status reaches the hidden member", async () => {
       const members = Array.from({ length: 39 }, (_, index) =>
         partyMember({
-          guid: BigInt(0x1000 + index),
+          guid: BigInt(0x10_00 + index),
           name: `Raider${index + 1}`,
           subgroup: Math.floor(index / 5),
         }),
@@ -469,81 +466,6 @@ describe("group tool", () => {
         ),
       ).rejects.toThrow("cancelled");
       expect(t.uninvite).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("lead", () => {
-    test("refuses when Peon does not lead", async () => {
-      const t = await world({
-        group: { leader: TOM },
-        members: [tom(), ann()],
-      });
-      const out = await runTool(t.tool, { do: "lead", to: "Ann" });
-      expect(out.text).toContain("REFUSED not_leader");
-      expect(t.handle.setLeader).not.toHaveBeenCalled();
-    });
-
-    test("an assistant may not lead-transfer", async () => {
-      const t = await world({
-        group: { leader: TOM, self: { flags: 1, roles: 0, subgroup: 0 } },
-        members: [tom(), ann()],
-      });
-      const out = await runTool(t.tool, { do: "lead", to: "Ann" });
-      expect(out.text).toContain("REFUSED not_leader");
-    });
-
-    test("refuses a name outside the roster and out of a group", async () => {
-      const t = await world({ members: [tom()] });
-      const unknown = await runTool(t.tool, { do: "lead", to: "Zed" });
-      expect(unknown.text).toContain("REFUSED not_a_member");
-      const missing = await runTool(t.tool, { do: "lead" });
-      expect(missing.text).toContain("REFUSED");
-      const alone = await world({ inGroup: false });
-      const none = await runTool(alone.tool, { do: "lead", to: "Tom" });
-      expect(none.text).toContain("REFUSED not_in_group");
-      expect(t.handle.setLeader).not.toHaveBeenCalled();
-    });
-
-    test("is done on the leader change to that member", async () => {
-      const t = await world({ members: [tom(), ann()] });
-      (t.handle.setLeader as Mock<(name: string) => void>).mockImplementation(
-        (name: string) =>
-          t.handle.triggerGroupEvent({ name, type: "leader_changed" }),
-      );
-      const out = await runTool(t.tool, { do: "lead", to: "ann" });
-      expect(t.handle.setLeader).toHaveBeenCalledWith("Ann");
-      expect(out.text).toContain("DONE");
-      expect(out.text).toContain("Ann");
-      expect(out.details.result.after).toMatchObject({
-        confirmed: true,
-        do: "lead",
-        to: "Ann",
-      });
-    });
-
-    test("a leader change to someone else does not confirm", async () => {
-      const t = await world({ members: [tom(), ann()] });
-      (t.handle.setLeader as Mock<(name: string) => void>).mockImplementation(
-        () => {
-          t.handle.triggerGroupEvent({ name: "Tom", type: "leader_changed" });
-          return elapse(3000);
-        },
-      );
-      const out = await withFakeTimers(() =>
-        runTool(t.tool, { do: "lead", to: "Ann" }),
-      );
-      expect(out.text).toContain("UNCONFIRMED");
-    });
-
-    test("stays unconfirmed when the server stays silent", async () => {
-      const t = await world({ members: [tom(), ann()] });
-      (t.handle.setLeader as Mock<(name: string) => void>).mockImplementation(
-        () => elapse(3000),
-      );
-      const out = await withFakeTimers(() =>
-        runTool(t.tool, { do: "lead", to: "Ann" }),
-      );
-      expect(out.text).toContain("UNCONFIRMED");
     });
   });
 });

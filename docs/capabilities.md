@@ -42,6 +42,7 @@ or the page names one that does not exist.
 | Command a pet: call, dismiss, attack, follow, stay, stop and stance | `t8-pets-command` | Hunter only; no warlock or death knight preset. |
 | Set dungeon difficulty | `t9-instances-difficulty` | A solo change is not confirmed until the next dungeon entry; in a group only the leader can change it. |
 | Reset its own dungeons | — (not shown; see below) | Normal difficulty only; a group member cannot reset. |
+| Remove a member with a reason | `t9-raid-kick` | A party of two disbands. |
 
 ## Not shown by any scenario
 
