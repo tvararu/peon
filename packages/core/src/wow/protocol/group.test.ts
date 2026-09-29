@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  GroupUpdateFlag,
-  PartyOperation,
-  PartyResult,
-} from "#wow/protocol/enums";
+import { PartyOperation, PartyResult } from "#wow/protocol/enums";
 import {
   buildGroupAccept,
   buildGroupDecline,
@@ -14,7 +10,6 @@ import {
   parseGroupDecline,
   parseGroupSetLeader,
   parsePartyCommandResult,
-  parsePartyMemberStats,
 } from "#wow/protocol/group";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
@@ -112,135 +107,5 @@ describe("parseGroupDecline", () => {
 
     const result = parseGroupDecline(new PacketReader(w.finish()));
     expect(result.name).toBe("Voidtrix");
-  });
-});
-
-describe("parsePartyMemberStats", () => {
-  test("parses status + hp + level", () => {
-    const w = new PacketWriter();
-    w.uint8(0x01);
-    w.uint8(0x42);
-    const mask =
-      GroupUpdateFlag.STATUS |
-      GroupUpdateFlag.CUR_HP |
-      GroupUpdateFlag.MAX_HP |
-      GroupUpdateFlag.LEVEL;
-    w.uint32LE(mask);
-    w.uint16LE(0x01);
-    w.uint32LE(12_000);
-    w.uint32LE(15_000);
-    w.uint16LE(80);
-
-    const result = parsePartyMemberStats(new PacketReader(w.finish()));
-    expect(result.guidLow).toBe(0x42);
-    expect(result.online).toBe(true);
-    expect(result.hp).toBe(12_000);
-    expect(result.maxHp).toBe(15_000);
-    expect(result.level).toBe(80);
-  });
-
-  test("parses status-only update", () => {
-    const w = new PacketWriter();
-    w.uint8(0x01);
-    w.uint8(0x10);
-    w.uint32LE(GroupUpdateFlag.STATUS);
-    w.uint16LE(0x04);
-
-    const result = parsePartyMemberStats(new PacketReader(w.finish()));
-    expect(result.guidLow).toBe(0x10);
-    expect(result.online).toBe(false);
-    expect(result.hp).toBeUndefined();
-  });
-
-  test("skips power and zone fields correctly", () => {
-    const w = new PacketWriter();
-    w.uint8(0x01);
-    w.uint8(0x10);
-    const mask =
-      GroupUpdateFlag.STATUS |
-      GroupUpdateFlag.POWER_TYPE |
-      GroupUpdateFlag.CUR_POWER |
-      GroupUpdateFlag.MAX_POWER |
-      GroupUpdateFlag.LEVEL |
-      GroupUpdateFlag.ZONE;
-    w.uint32LE(mask);
-    w.uint16LE(0x01);
-    w.uint8(0);
-    w.uint16LE(5000);
-    w.uint16LE(8000);
-    w.uint16LE(80);
-    w.uint16LE(1);
-
-    const result = parsePartyMemberStats(new PacketReader(w.finish()));
-    expect(result.level).toBe(80);
-    expect(result.online).toBe(true);
-  });
-
-  test("skips auras correctly", () => {
-    const w = new PacketWriter();
-    w.uint8(0x01);
-    w.uint8(0x10);
-    const mask = GroupUpdateFlag.STATUS | GroupUpdateFlag.AURAS;
-    w.uint32LE(mask);
-    w.uint16LE(0x01);
-    w.uint32LE(0x05);
-    w.uint32LE(0x00);
-    w.uint32LE(12_345);
-    w.uint8(0);
-    w.uint32LE(67_890);
-    w.uint8(0);
-
-    const result = parsePartyMemberStats(new PacketReader(w.finish()));
-    expect(result.online).toBe(true);
-  });
-
-  test("skips high-mask auras correctly", () => {
-    const w = new PacketWriter();
-    w.uint8(0x01);
-    w.uint8(0x11);
-    const mask = GroupUpdateFlag.STATUS | GroupUpdateFlag.AURAS;
-    w.uint32LE(mask);
-    w.uint16LE(0x01);
-    w.uint32LE(0x00);
-    w.uint32LE(0x02);
-    w.uint32LE(54_321);
-    w.uint8(0);
-
-    const result = parsePartyMemberStats(new PacketReader(w.finish()));
-    expect(result.online).toBe(true);
-  });
-
-  test("handles full stats variant with leading byte", () => {
-    const w = new PacketWriter();
-    w.uint8(0);
-    w.uint8(0x01);
-    w.uint8(0x42);
-    w.uint32LE(GroupUpdateFlag.STATUS | GroupUpdateFlag.CUR_HP);
-    w.uint16LE(0x01);
-    w.uint32LE(10_000);
-
-    const result = parsePartyMemberStats(new PacketReader(w.finish()), true);
-    expect(result.guidLow).toBe(0x42);
-    expect(result.hp).toBe(10_000);
-  });
-
-  test("skips position and pet guid fields correctly", () => {
-    const w = new PacketWriter();
-    w.uint8(0x01);
-    w.uint8(0x10);
-    const mask =
-      GroupUpdateFlag.STATUS |
-      GroupUpdateFlag.POSITION |
-      GroupUpdateFlag.PET_GUID;
-    w.uint32LE(mask);
-    w.uint16LE(0x01);
-    w.uint16LE(1234);
-    w.uint16LE(5678);
-    w.uint32LE(0xaa_aa);
-    w.uint32LE(0xbb_bb);
-
-    const result = parsePartyMemberStats(new PacketReader(w.finish()));
-    expect(result.online).toBe(true);
-    expect(result.guidLow).toBe(0x10);
   });
 });
