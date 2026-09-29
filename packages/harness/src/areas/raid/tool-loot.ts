@@ -51,7 +51,8 @@ function masterLoot(group: RaidGroup, ctx: GroupCtx): void {
 
 function recipient(ctx: GroupCtx, to: string | undefined): string {
   const named = to?.trim() ?? "";
-  if (named === "") return SELF_MASTER;
+  if (named === "" || sameName(named, ctx.rt.profile.character))
+    return SELF_MASTER;
   return resolveMember(ctx.handle.getPartyState().members, named).name;
 }
 
@@ -169,7 +170,9 @@ function itemSlot(
 }
 
 function candidateOf(ctx: GroupCtx, name: string): bigint {
-  if (name === SELF_MASTER) return ctx.handle.getControlState().selfGuid;
+  const selfGuid = ctx.handle.getControlState().selfGuid;
+  if (name === SELF_MASTER) return selfGuid;
+  if (sameName(name, ctx.rt.profile.character)) return selfGuid;
   return (
     ctx.handle
       .getPartyState()

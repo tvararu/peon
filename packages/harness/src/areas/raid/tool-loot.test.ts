@@ -255,6 +255,17 @@ describe("group tool give", () => {
     expect(t.give).toHaveBeenCalledWith(CORPSE, 0, "@self");
   });
 
+  test("gives to yourself when the caller names its own character", async () => {
+    const t = await world();
+    const out = await runTool(t.tool, {
+      do: "give",
+      to: "Testchar",
+      what: "Broken Fang",
+    });
+    expect(out.text).toContain("DONE");
+    expect(t.give).toHaveBeenCalledWith(CORPSE, 0, "@self");
+  });
+
   test("takes the lowest slot among items with the same label", async () => {
     const t = await world({ items: [FANG, LINEN_TWO, LINEN] });
     await runTool(t.tool, { do: "give", to: "Tom", what: "Linen Cloth" });
