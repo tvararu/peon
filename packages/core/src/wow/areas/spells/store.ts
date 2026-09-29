@@ -138,7 +138,9 @@ export class SpellsStore {
       const entry = this.units.castOf(packet.caster);
       if (entry?.kind !== "channel") return;
       const now = this.deps.now();
-      const expectedEnd = this.units.expectedEndOf(packet.caster) ?? entry.startedAt + entry.durationMs;
+      const expectedEnd =
+        this.units.expectedEndOf(packet.caster) ??
+        entry.startedAt + entry.durationMs;
       if (now >= expectedEnd)
         this.units.end(packet.caster, entry.spellId, "finished");
       else if (now >= expectedEnd - END_TOLERANCE_MS)
