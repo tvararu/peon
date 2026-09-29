@@ -7,16 +7,16 @@ columns are explained in [the index](../protocol-coverage.md).
 |---|---|---|---|---|
 | `0x052` | `CMSG_PET_NAME_QUERY` | client | missing |  |
 | `0x053` | `SMSG_PET_NAME_QUERY_RESPONSE` | server | missing |  |
-| `0x138` | `SMSG_PET_CAST_FAILED` | server | missing |  |
+| `0x138` | `SMSG_PET_CAST_FAILED` | server | handled |  |
 | `0x173` | `SMSG_PET_TAME_FAILURE` | server | missing |  |
-| `0x174` | `CMSG_PET_SET_ACTION` | client | missing |  |
+| `0x174` | `CMSG_PET_SET_ACTION` | client | handled |  |
 | `0x176` | `CMSG_PET_ABANDON` | client | missing |  |
 | `0x177` | `CMSG_PET_RENAME` | client | missing |  |
 | `0x178` | `SMSG_PET_NAME_INVALID` | server | missing |  |
 | `0x179` | `SMSG_PET_SPELLS` | server | handled |  |
 | `0x17a` | `SMSG_PET_MODE` | server | dead |  |
-| `0x1f0` | `CMSG_PET_CAST_SPELL` | client | missing |  |
-| `0x26b` | `CMSG_PET_CANCEL_AURA` | client | missing |  |
+| `0x1f0` | `CMSG_PET_CAST_SPELL` | client | handled |  |
+| `0x26b` | `CMSG_PET_CANCEL_AURA` | client | handled |  |
 | `0x26f` | `MSG_LIST_STABLED_PETS` | both | missing |  |
 | `0x270` | `CMSG_STABLE_PET` | client | missing |  |
 | `0x271` | `CMSG_UNSTABLE_PET` | client | missing |  |
@@ -30,7 +30,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x2ea` | `CMSG_PET_STOP_ATTACK` | client | handled |  |
 | `0x2f0` | `CMSG_PET_UNLEARN` | client | dead |  |
 | `0x2f1` | `SMSG_PET_UNLEARN_CONFIRM` | server | dead |  |
-| `0x2f3` | `CMSG_PET_SPELL_AUTOCAST` | client | missing |  |
+| `0x2f3` | `CMSG_PET_SPELL_AUTOCAST` | client | handled |  |
 | `0x324` | `SMSG_PET_ACTION_SOUND` | server | handled | not seen live |
 | `0x325` | `SMSG_PET_DISMISS_SOUND` | server | handled | not seen live |
 | `0x47a` | `CMSG_PET_LEARN_TALENT` | client | missing |  |

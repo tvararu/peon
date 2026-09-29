@@ -95,28 +95,33 @@ deletes a hunter pet (`Handlers/PetHandler.cpp:287-288`).
   sound (`Handlers/PetHandler.cpp:256`, `Handlers/PetHandler.cpp:291`).
 - Spell ids resolved by name through the spellbook of the
   `eversong10-hunter` preset: Call Pet 883, Dismiss Pet 2641.
+- `CMSG_PET_CAST_SPELL` is the pet guid, a `uint8` cast count, the
+  `uint32` spell, a `uint8` flags byte of 0 and the target block
+  (`Handlers/PetHandler.cpp:1018-1023`); the area keeps its own
+  counter, 1-255 wrapping to 1. `SMSG_PET_CAST_FAILED` carries the
+  count, spell and result (`Spells/Spell.cpp:4842-4861`); the extra
+  `multiple_casts` byte of wowm does not exist in AzerothCore.
+- `CMSG_PET_SPELL_AUTOCAST` is the pet guid, the `uint32` spell and a
+  `uint8` flag (`Server/Packets/PetPackets.cpp:35-40`); the bar shows
+  autocast-on spells as type `0xc1`, autocast-off as `0x81` and
+  passive spells as `0x01`. `CMSG_PET_SET_ACTION` is the pet guid and
+  one or two `{ uint32 slot, uint32 packed }` pairs; the pair count
+  comes from the packet size (`Handlers/PetHandler.cpp:696-716`).
+  Slots outside 0-9 are refused (`Handlers/PetHandler.cpp:726-727`).
+- `CMSG_PET_CANCEL_AURA` is the pet guid and the `uint32` spell
+  (`Handlers/SpellHandler.cpp:604-610`); the server removes only an
+  aura the pet owns (`Handlers/SpellHandler.cpp:639`).
+- The area peeks `SMSG_SPELL_COOLDOWN` (guid, flags, spell and time
+  per entry, `Entities/Unit/Unit.cpp:16618-16625`) and
+  `SMSG_CLEAR_COOLDOWN` (spell then pet guid, `Entities/Pet/Pet.cpp:2458`)
+  for the pet's guid only; both are `uses`, owned at
+  `gameplay-handlers.ts:123-128`. The pet's normal cooldowns arrive in
+  `SMSG_PET_SPELLS`; a pet-guid `SMSG_SPELL_COOLDOWN` is only sent when
+  `RequireCooldownInfo()` holds (`Spells/Spell.cpp:4493-4498`).
 
 ## Left out
 
-- `CMSG_PET_CAST_SPELL`, `SMSG_PET_CAST_FAILED`, `CMSG_PET_SPELL_AUTOCAST`,
-  `CMSG_PET_SET_ACTION`, `CMSG_PET_CANCEL_AURA`: built by pets-3.
 - `CMSG_PET_NAME_QUERY`, `SMSG_PET_NAME_QUERY_RESPONSE`, `CMSG_PET_RENAME`,
-  `SMSG_PET_NAME_INVALID`: built by pets-4.
-- `MSG_LIST_STABLED_PETS`, `CMSG_STABLE_PET`, `CMSG_UNSTABLE_PET`,
-  `CMSG_STABLE_SWAP_PET`, `CMSG_BUY_STABLE_SLOT`, `SMSG_STABLE_RESULT`,
-  `CMSG_STABLE_REVIVE_PET`: built by pets-5.
-- `CMSG_PET_ABANDON`, `SMSG_PET_TAME_FAILURE`, `CMSG_DISMISS_CRITTER`:
-  built by pets-6.
-- `CMSG_PET_LEARN_TALENT`, `CMSG_LEARN_PREVIEW_TALENTS_PET`: built by
-  pets-7.
-- `SMSG_PET_UPDATE_COMBO_POINTS`: built by pets-8.
-- `SMSG_PET_MODE`, `SMSG_PET_BROKEN`, `CMSG_PET_UNLEARN`,
-  `SMSG_PET_UNLEARN_CONFIRM`, `SMSG_PET_GUIDS`: dead (see Proof).
-
-## Capabilities row
-
-No agent verb; the world-service acts `pets.requestPetInfo`,
-`pets.petCommand`, `pets.petStance` and `pets.petStopAttack` only.
 
 ## Proof
 
@@ -133,5 +138,10 @@ No agent verb; the world-service acts `pets.requestPetInfo`,
 | `SMSG_PET_GUIDS` | `dead` | only a comment names it (`Entities/Player/Player.cpp:11812`) | `Server/Protocol/Opcodes.cpp:1325` |
 | `CMSG_PET_STOP_ATTACK` | `live` | probe flow `pets-command --arg do=stop --arg yards=120`, exit 0: the pet sent at a Springpaw Stalker, `SMSG_ATTACKSTART` for the pet, then `CMSG_PET_STOP_ATTACK`, `SMSG_ATTACKSTOP` for the pet 1 ms later and the pet's `UNIT_FIELD_TARGET` cleared | `Server/Packets/PetPackets.cpp:30-33` |
 | `SMSG_PET_ACTION_FEEDBACK` | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "action feedback sets the last refusal and emits a feedback event" | `Entities/Unit/Unit.cpp:12556-12564` |
-| `SMSG_PET_ACTION_SOUND` | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "the action and dismiss sounds change no state and emit nothing" | `Server/Packets/PetPackets.cpp:54-59` |
-| `SMSG_PET_DISMISS_SOUND` | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "the action and dismiss sounds change no state and emit nothing" | `Server/Packets/PetPackets.cpp:61-68` |
+| `CMSG_PET_CAST_SPELL` | `live` | probe flow `pets-spell --arg spell=Growl` on an `eversong10-hunter` with its Ravager out, exit 0: one 18-byte `CMSG_PET_CAST_SPELL` out, answered by `SMSG_PET_CAST_FAILED` with reason `bad_implicit_targets` (Growl cast with no target; no hostile within 35 yards and the flow does not walk) | `Handlers/PetHandler.cpp:1018-1023` |
+| `SMSG_PET_CAST_FAILED` | `live` | the same `pets-spell` run: `SMSG_PET_CAST_FAILED` size 6 after the cast, parsed as count 1, spell 14916, result `bad_implicit_targets`; a second cast fails the same way (Growl has no cooldown, so no `not_ready`) | `Spells/Spell.cpp:4842-4861` |
+| `CMSG_PET_SPELL_AUTOCAST` | `live` | probe flow `pets-spell --arg autocast=Bite:on --bodies`, exit 0: 13-byte `CMSG_PET_SPELL_AUTOCAST` (spell 17255, flag 1), and the next 144-byte `SMSG_PET_SPELLS` shows Bite as type `0xc1` where it was `0x81` before | `Server/Packets/PetPackets.cpp:35-40` |
+| `CMSG_PET_SET_ACTION` | `live` | probe flow `pets-spell --arg swap=3,4 --bodies`, exit 0: the flow asks for the bar again first, then one 24-byte `CMSG_PET_SET_ACTION` (slot 3 packed `0xc1004367`, slot 4 packed `0x81003a44`); the next `SMSG_PET_SPELLS` shows slots 3 and 4 swapped (Growl `0x81003a44` and Bite `0xc1004367` exchange places) | `Handlers/PetHandler.cpp:696-716` |
+| `CMSG_PET_CANCEL_AURA` | `accepted` | `--send CMSG_PET_CANCEL_AURA` with the pet guid and spell 17255 (Bite), exit 3 for the missing `--expect SMSG_PET_ACTION_FEEDBACK` only: the 12-byte send went out, no disconnect and no error packet; the server removes only an aura the pet owns, and the pet had none | `Handlers/SpellHandler.cpp:604-610` |
+| `SMSG_SPELL_COOLDOWN` (pets peek) | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "a pet-guid SMSG_SPELL_COOLDOWN sets a pet cooldown and the character's guid changes nothing"; no pet-guid packet arrived live (Growl casts failed before any cooldown; sent only when `RequireCooldownInfo()` holds). A `uses` opcode takes no `unseen` entry | `Entities/Unit/Unit.cpp:16618-16625` |
+| `SMSG_CLEAR_COOLDOWN` (pets peek) | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "SMSG_CLEAR_COOLDOWN clears only the pet's row for its own guid"; no pet-guid packet arrived live. A `uses` opcode takes no `unseen` entry | `Entities/Pet/Pet.cpp:2458` |
