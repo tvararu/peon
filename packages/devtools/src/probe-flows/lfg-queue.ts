@@ -13,21 +13,35 @@ async function run({ handle }: FlowContext): Promise<Json> {
   if (dungeons.status !== "ok") return json({ dungeons });
   const entry = dungeons.available.at(0)?.entry;
   if (entry === undefined) return json({ dungeons, queued: "no_entries" });
-  const commented = await handle.lfg.act.setComment("peon");
   const joined = await handle.lfg.act.join({
     comment: "peon",
     entries: [entry],
     roles: 8,
   });
+  if (joined.status !== "ok") return json({ joined });
+  const changed = await handle.lfg.act.setComment("peon-live");
+  const rejoined = await handle.lfg.act.join({
+    entries: [entry],
+    roles: 8,
+  });
+  const queuedComment = handle.lfg.state().comment;
   await Bun.sleep(12_000);
-  const status = json(await handle.lfg.act.requestStatus());
   const left = json(await handle.lfg.act.leave());
-  return json({ commented, joined, left, state: handle.lfg.state(), status });
+  const status = await handle.lfg.act.requestStatus();
+  return json({
+    changed,
+    joined,
+    left,
+    queuedComment,
+    rejoined,
+    state: handle.lfg.state(),
+    status,
+  });
 }
 
 export const flow: ProbeFlow = {
   name: "lfg-queue",
   run,
   usage:
-    "--flow lfg-queue: request dungeons, comment, join the first unlocked random entry as damage, wait 12 s, request status, then leave.",
+    "--flow lfg-queue: request dungeons, join the first unlocked random entry as damage with comment peon, change the comment to peon-live, rejoin without a comment so the join update surfaces the changed comment, wait 12 s, then leave.",
 };

@@ -20,7 +20,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x363` | `SMSG_LFG_ROLE_CHECK_UPDATE` | server | handled | not seen live |
 | `0x364` | `SMSG_LFG_JOIN_RESULT` | server | handled |  |
 | `0x365` | `SMSG_LFG_QUEUE_STATUS` | server | handled |  |
-| `0x366` | `CMSG_SET_LFG_COMMENT` | client | handled |  |
+| `0x366` | `CMSG_SET_LFG_COMMENT` | client | handled | not seen live |
 | `0x367` | `SMSG_LFG_UPDATE_PLAYER` | server | handled |  |
 | `0x368` | `SMSG_LFG_UPDATE_PARTY` | server | handled |  |
 | `0x369` | `SMSG_LFG_UPDATE_SEARCH` | server | handled |  |

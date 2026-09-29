@@ -55,6 +55,11 @@ proposal acts belong to later tasks.
   group starts a role check on the leader's join; both puppets see
   `SMSG_LFG_ROLE_CHECK_UPDATE` and `SMSG_LFG_ROLE_CHOSEN`, and the server
   follows with a proposal (`SMSG_LFG_PROPOSAL_UPDATE`, instances-8).
+- A `CMSG_SET_LFG_COMMENT` after the join stores no comment-carrying
+  update: the queued type-12/13 `SMSG_LFG_UPDATE_PLAYER` updates keep the
+  join comment, and the `CMSG_LFG_GET_STATUS` reply after leaving is type
+  14 with no data, so the changed comment is never returned
+  (`Handlers/LFGHandler.cpp:302-337`).
 
 ## Left out
 
@@ -90,7 +95,7 @@ No verb (N23).
 | `SMSG_LFG_JOIN_RESULT` | `live` | probe flow `lfg-queue`, exit 0; trace shows `in` size 8, `handled`, same tick as the type-5 update | `Handlers/LFGHandler.cpp:441-454` |
 | `SMSG_LFG_QUEUE_STATUS` | `live` | probe flow `lfg-queue`, exit 0; two `in` rows of size 31, `handled`, during the 12 s wait | `Handlers/LFGHandler.cpp:456-473` |
 | `CMSG_LFG_LEAVE` | `live` | probe flow `lfg-queue`, exit 0; trace shows `out` size 0, then the type-7 update | `Handlers/LFGHandler.cpp:78-93` |
-| `CMSG_SET_LFG_COMMENT` | `live` | probe flow `lfg-queue`, exit 0; trace shows `out` size 5 before the join | `Handlers/LFGHandler.cpp:122-131` |
+| `CMSG_SET_LFG_COMMENT` | `mock` | mock request body built by `buildLfgComment`; the trace shows `out` size 10 with the changed comment, but no comment-carrying update returns it, so not seen live | `Handlers/LFGHandler.cpp:122-131` |
 | `CMSG_LFG_SET_ROLES` | `mock` | mock request body built by `buildLfgSetRoles`; the two-puppet `setRoles` trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:106-120` |
 | `SMSG_LFG_ROLE_CHECK_UPDATE` | `mock` | mock check body built by `lfgRoleCheckUpdateBody`; the two-puppet group trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:394-439` |
 | `SMSG_LFG_ROLE_CHOSEN` | `mock` | mock answer body built by `lfgRoleChosenBody`; the two-puppet group trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:383-392` |
