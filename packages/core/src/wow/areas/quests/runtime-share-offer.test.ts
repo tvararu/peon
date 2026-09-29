@@ -1,6 +1,9 @@
 import { describe, expect, jest, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
-import { questsQuestgiverQuestDetailsBody } from "#test-support/areas/quests";
+import {
+  questsQuestConfirmAcceptBody,
+  questsQuestgiverQuestDetailsBody,
+} from "#test-support/areas/quests";
 import { partyMember, partyState } from "#test-support/party-fixtures";
 import type { AreaPort } from "#wow/areas/port";
 import { QuestShareResult } from "#wow/areas/quests/protocol";
@@ -89,12 +92,14 @@ function withRig(run: (r: ReturnType<typeof setup>) => void, init?: Setup) {
   }
 }
 
-describe("quest sharing, receiver", () => {
-  const offered = (run: (r: ReturnType<typeof setup>) => void) =>
-    withRig(run, { log: [] });
-  const declined = (r: ReturnType<typeof setup>) =>
-    r.rig.sent.filter((p) => p.opcode === GameOpcode.MSG_QUEST_PUSH_RESULT);
+const offered = (
+  run: (r: ReturnType<typeof setup>) => void,
+  log: readonly number[] = [],
+) => withRig(run, { log });
+const declined = (r: ReturnType<typeof setup>) =>
+  r.rig.sent.filter((p) => p.opcode === GameOpcode.MSG_QUEST_PUSH_RESULT);
 
+describe("quest sharing, receiver", () => {
   test("declining sends the 13-byte push result 3 to the sharer and closes the offer", () => {
     offered((r) => {
       r.details(SHARER);
@@ -123,11 +128,24 @@ describe("quest sharing, receiver", () => {
     });
   });
 
-  test("accepting is not built yet", () => {
+  test("accepting a shared offer sends the accept quest to the divider and answers", () => {
     offered((r) => {
       r.details(SHARER);
-      expect(() => r.rig.handle.act.answerShare("accept")).toThrow("not built");
-      expect(r.rig.handle.state().share?.offer).toBeDefined();
+      expect(r.rig.handle.act.answerShare("accept")).toBe(true);
+      const accepted = r.rig.sent.filter(
+        (p) => p.opcode === GameOpcode.CMSG_QUESTGIVER_ACCEPT_QUEST,
+      );
+      expect(accepted).toHaveLength(1);
+      const reader = new PacketReader(accepted[0]?.body ?? new Uint8Array());
+      expect(reader.uint64LE()).toBe(SHARER);
+      expect(reader.uint32LE()).toBe(QUEST);
+      expect(r.rig.handle.state().share?.offer).toBeUndefined();
+      expect(r.shares().at(-1)).toEqual({
+        answer: "accept",
+        questId: QUEST,
+        type: "answered",
+      });
+      expect(declined(r)).toEqual([]);
     });
   });
 
@@ -172,7 +190,59 @@ describe("quest sharing, receiver", () => {
       expect(declined(r)).toEqual([]);
     });
   });
+});
 
+describe("quest escort confirm, receiver", () => {
+  const confirm = (r: ReturnType<typeof setup>) =>
+    r.rig.inject(
+      GameOpcode.SMSG_QUEST_CONFIRM_ACCEPT,
+      questsQuestConfirmAcceptBody(8488, "Unexpected", SHARER),
+    );
+  const confirmed = (r: ReturnType<typeof setup>) =>
+    r.rig.sent.filter((p) => p.opcode === GameOpcode.CMSG_QUEST_CONFIRM_ACCEPT);
+
+  test("accepting the escort prompt sends the 4-byte confirm and answers", () => {
+    offered((r) => {
+      confirm(r);
+      expect(r.rig.handle.act.answerShare("accept")).toBe(true);
+      const [packet] = confirmed(r);
+      expect(packet?.body).toEqual(new Uint8Array([0x28, 0x21, 0, 0]));
+      expect(r.rig.handle.state().share?.offer).toBeUndefined();
+      expect(r.shares().at(-1)).toEqual({
+        answer: "accept",
+        questId: 8488,
+        type: "answered",
+      });
+    });
+  });
+
+  test("declining or timing out the escort prompt sends no decline", () => {
+    offered((r) => {
+      confirm(r);
+      expect(r.rig.handle.act.answerShare("decline")).toBe(true);
+      expect(confirmed(r)).toEqual([]);
+      expect(
+        r.rig.sent.filter((p) => p.opcode === GameOpcode.MSG_QUEST_PUSH_RESULT),
+      ).toEqual([]);
+    });
+    offered((r) => {
+      confirm(r);
+      jest.advanceTimersByTime(OFFER_TIMEOUT_MS);
+      expect(confirmed(r)).toEqual([]);
+      expect(
+        r.rig.sent.filter((p) => p.opcode === GameOpcode.MSG_QUEST_PUSH_RESULT),
+      ).toEqual([]);
+      expect(r.rig.handle.state().share?.offer).toBeUndefined();
+      expect(r.shares().at(-1)).toEqual({
+        questId: 8488,
+        scope: "offer",
+        type: "expired",
+      });
+    });
+  });
+});
+
+describe("quest sharing, receiver timers", () => {
   test("a gossip complete does not end the offer", () => {
     offered((r) => {
       r.details(SHARER);

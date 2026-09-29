@@ -1,12 +1,14 @@
 import type { AreaRuntimeCtx } from "#wow/areas/contract";
 import {
   buildPushQuestToParty,
+  buildQuestConfirmAccept,
   buildQuestPushResult,
   QuestShareResult,
 } from "#wow/areas/quests/protocol";
 import type { QuestsEvent, QuestsStore } from "#wow/areas/quests/store";
 import type { ShareChange, ShareOffer } from "#wow/areas/quests/store-share";
 import { GameOpcode } from "#wow/protocol/opcodes";
+import { buildQuestgiverAcceptQuest } from "#wow/protocol/questgiver";
 import type { CoreStores } from "#wow/session-stores";
 
 export const PUSH_TIMEOUT_MS = 60_000;
@@ -26,10 +28,24 @@ type Timer = ReturnType<typeof setTimeout>;
 
 type ShareTimers = { dispose: () => void };
 
+function sendAccept(ctx: AreaRuntimeCtx<QuestsEvent>, offer: ShareOffer): void {
+  if (offer.kind === "confirm")
+    ctx.send(
+      GameOpcode.CMSG_QUEST_CONFIRM_ACCEPT,
+      buildQuestConfirmAccept(offer.questId),
+    );
+  else
+    ctx.send(
+      GameOpcode.CMSG_QUESTGIVER_ACCEPT_QUEST,
+      buildQuestgiverAcceptQuest(offer.from, offer.questId, 0),
+    );
+}
+
 function sendDecline(
   ctx: AreaRuntimeCtx<QuestsEvent>,
   offer: ShareOffer,
 ): void {
+  if (offer.kind === "confirm") return;
   ctx.send(
     GameOpcode.MSG_QUEST_PUSH_RESULT,
     buildQuestPushResult(
@@ -161,11 +177,15 @@ export function shareRuntime(
     return { ok: true };
   };
   const answerShare = (answer: "accept" | "decline"): boolean => {
-    if (answer === "accept") throw new Error("answerShare accept is not built");
     const offer = store.snapshot().share?.offer;
     if (!offer) return false;
-    sendDecline(ctx, offer);
-    store.answerOffer("decline");
+    if (answer === "decline") {
+      sendDecline(ctx, offer);
+      store.answerOffer("decline");
+      return true;
+    }
+    sendAccept(ctx, offer);
+    store.answerOffer("accept");
     return true;
   };
   const dispose = (): void => {
