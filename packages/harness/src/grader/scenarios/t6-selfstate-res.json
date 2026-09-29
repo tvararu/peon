@@ -32,10 +32,20 @@
   "partner": null,
   "preset": "fresh",
   "setup": [
+    {
+      "body": {
+        "map": 530,
+        "o": 1.686,
+        "x": 8751,
+        "y": -6685,
+        "z": 69.26,
+        "zone": 3430
+      },
+      "endpoint": "position"
+    },
     { "body": { "spell": 20608 }, "endpoint": "spells/learn" },
     { "body": { "count": 1, "item": 17030 }, "endpoint": "items/add" }
   ],
-  "spawn": "eversong",
   "steers": [
     {
       "at": { "kind": "trigger", "trigger": "death" },
