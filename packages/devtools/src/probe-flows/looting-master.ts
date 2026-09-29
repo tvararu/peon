@@ -122,6 +122,7 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
     const creature = found.entity.guid;
     const dead = await kill(handle, creature, seconds);
     if (!dead) continue;
+    handle.openLoot(creature);
     const candidates = await candidatesOf(handle, creature);
     if (candidates.length === 0) continue;
     const given = await handle.looting.act.giveMasterLoot(creature, 0, "@self");
