@@ -30,6 +30,7 @@ import {
   nounOf,
   rowLine,
 } from "#harness/tools/look-rows";
+import { savesLine } from "#harness/tools/look-saves";
 import { selfLine, statusLine } from "#harness/tools/look-self";
 import { nextCall } from "#harness/tools/next-call";
 import {
@@ -65,7 +66,20 @@ function emptyLook(): LookAfter {
   };
 }
 
+function lookSaves(ctx: ToolCtx<LookAfter>): string[] {
+  try {
+    return savesLine(
+      ctx.handle.instances.state(),
+      ctx.handle.lfg.state(),
+      ctx.rt.clock.now(),
+    );
+  } catch {
+    return [];
+  }
+}
+
 function lookBody(
+  ctx: ToolCtx<LookAfter>,
   after: LookAfter,
   objects: readonly ObjectRow[] = [],
 ): string[] {
@@ -88,7 +102,7 @@ function lookBody(
           ...after.remembered.map(rowLine),
           nearestLine(after),
         ];
-  return [...lines, ...calm, ...stale];
+  return [...lines, ...lookSaves(ctx), ...calm, ...stale];
 }
 
 function lookDigest(rows: readonly UnitView[], snapshot: NowSnapshot): string {
@@ -257,7 +271,7 @@ function look(args: LookArgs, ctx: ToolCtx<LookAfter>): ToolResult<LookAfter> {
       });
     return result("DONE", {
       after,
-      body: lookBody(after, objects),
+      body: lookBody(ctx, after, objects),
       detail: selfLine(after),
     });
   }
@@ -268,7 +282,7 @@ function look(args: LookArgs, ctx: ToolCtx<LookAfter>): ToolResult<LookAfter> {
     return noneSeen(ctx, after);
   return result("DONE", {
     after,
-    body: lookBody(after),
+    body: lookBody(ctx, after),
     detail: selfLine(after),
   });
 }

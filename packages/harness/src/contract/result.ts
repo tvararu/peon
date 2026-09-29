@@ -12,7 +12,8 @@ export type ToolName =
   | "gear"
   | "use"
   | "spell"
-  | "pet";
+  | "pet"
+  | "dungeon";
 
 export type ToolKind = "read" | "action" | "run" | "control";
 
