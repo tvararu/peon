@@ -16,10 +16,7 @@ export const TRADE_OPCODES = {
     "CMSG_UNACCEPT_TRADE",
   ],
   uses: [],
-  stubs: [
-    ["SMSG_TRADE_STATUS", "Trade window"],
-    ["SMSG_TRADE_STATUS_EXTENDED", "Trade update"],
-  ],
+  stubs: [["SMSG_TRADE_STATUS_EXTENDED", "Trade update"]],
   dead: [],
   unseen: [],
 } as const satisfies AreaOpcodes;
