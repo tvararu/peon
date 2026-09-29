@@ -166,6 +166,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | `pet` | Checks its pet (`status`), calls, dismisses or revives it, attacks with it, moves it (`follow`, `stay`, `stop`) or sets its stance. |
 | `dungeon` | Difficulty, saved instances, resets, the bind prompt and the dungeon finder queue, role answers, proposal answers, teleports and kick votes. |
 | `group` | Shows the group roster, removes a member, or passes the lead. |
+| `trade` | Gives items and gold to another player, answers a trade request, changes the offer, accepts, cancels or reads both offers. |
 
 `travel`, `engage`, `rest` and `recover` start a run (`r1`, `r2`, …).
 Only one run can be active. The tool waits for the run to end and

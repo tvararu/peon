@@ -1,4 +1,10 @@
-import { ROLL_VOTES, type RollVote, type WorldHandle } from "@peon/core";
+import {
+  isUnit,
+  ObjectType,
+  ROLL_VOTES,
+  type RollVote,
+  type WorldHandle,
+} from "@peon/core";
 
 type ArgKind = "string" | "guid" | "number" | readonly string[];
 
@@ -140,6 +146,49 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   teleport: {
     args: [["in", "out"]],
     run: (h, a) => h.lfg.act.teleport(a[0] === "out"),
+  },
+  tradeAccept: {
+    args: [],
+    run: (h) => h.trade.act.acceptTrade(h.trade.state().theirOffer.version),
+  },
+  tradeAnswer: {
+    args: [["yes", "busy", "ignore"]],
+    run: (h, a) => h.trade.act.answerTrade(a[0] as "yes" | "busy" | "ignore"),
+  },
+  tradeCancel: { args: [], run: (h) => h.trade.act.cancelTrade() },
+  tradeOffer: {
+    args: ["number"],
+    run: async (h, a) => {
+      const entry = count(a, 0);
+      const held = h
+        .getInventoryState()
+        .slots.find(
+          (slot) =>
+            slot.status === "occupied" &&
+            slot.item.entry === entry &&
+            (slot.region === "backpack" || slot.region === "bag_item"),
+        );
+      if (!held || held.status !== "occupied")
+        throw new Error(`No carried item with entry ${entry}.`);
+      await h.trade.act.offerItem(0, held.bag, held.slot);
+    },
+  },
+  tradeRequest: {
+    args: ["string"],
+    run: (h, a) => {
+      const name = text(a, 0).toLowerCase();
+      const found = h
+        .queryNearby()
+        .find(
+          (row) =>
+            !row.self &&
+            isUnit(row.entity) &&
+            row.entity.objectType === ObjectType.PLAYER &&
+            row.entity.name?.toLowerCase() === name,
+        );
+      if (!found) throw new Error(`No nearby player named ${text(a, 0)}.`);
+      return h.trade.act.requestTrade(found.entity.guid);
+    },
   },
   uninvite: { args: ["string"], run: (h, a) => h.uninvite(text(a, 0)) },
   uninviteGuid: {

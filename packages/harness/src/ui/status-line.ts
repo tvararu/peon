@@ -6,6 +6,7 @@ const VERB: Readonly<Record<RunKind, string>> = {
   engage: "fighting",
   recover: "recovering",
   rest: "resting",
+  trade: "trading",
   travel: "walking",
 };
 

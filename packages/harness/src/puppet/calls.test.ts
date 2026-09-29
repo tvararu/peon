@@ -10,7 +10,22 @@ function areaActs(game: object, area: string): object | undefined {
   return typeof acts === "object" && acts !== null ? acts : undefined;
 }
 
+const ALIASES: Readonly<Record<string, readonly [string, string]>> = {
+  tradeAccept: ["trade", "acceptTrade"],
+  tradeAnswer: ["trade", "answerTrade"],
+  tradeCancel: ["trade", "cancelTrade"],
+  tradeOffer: ["trade", "offerItem"],
+  tradeRequest: ["trade", "requestTrade"],
+};
+
 function callable(game: object, method: string): boolean {
+  const aliased = ALIASES[method];
+  if (aliased) {
+    const acts = areaActs(game, aliased[0]);
+    return (
+      acts !== undefined && typeof Reflect.get(acts, aliased[1]) === "function"
+    );
+  }
   if (typeof Reflect.get(game, method) === "function") return true;
   return AREA_NAMES.some((area) => {
     const acts = areaActs(game, area);
