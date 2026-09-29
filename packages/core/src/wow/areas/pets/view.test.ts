@@ -20,18 +20,22 @@ const OWNER = unit(ME, [
 ]);
 
 describe("petView", () => {
-  test("joins the summon, pet number, name timestamp, rename and abandon bits and happiness", () => {
+  test("joins the summon, pet number, name timestamp, rename and abandon bits, happiness and health", () => {
     const pet = unit(PET, [
       [UNIT_FIELDS.PETNUMBER.offset, 42],
       [UNIT_FIELDS.PET_NAME_TIMESTAMP.offset, 1_790_000_000],
       [UNIT_FIELDS.BYTES_2.offset, 0x00_03_00_01],
       [UNIT_FIELDS.POWER5.offset, 825_000],
+      [UNIT_FIELDS.HEALTH.offset, 410],
+      [UNIT_FIELDS.MAXHEALTH.offset, 520],
     ]);
     expect(petView(lookup(OWNER, pet), ME)).toEqual({
       canAbandon: true,
       canRename: true,
       guid: PET,
       happiness: 825_000,
+      health: 410,
+      maxHealth: 520,
       nameTimestamp: 1_790_000_000,
       number: 42,
     });
@@ -50,6 +54,8 @@ describe("petView", () => {
       canAbandon: false,
       canRename: false,
       happiness: 0,
+      health: 0,
+      maxHealth: 0,
       nameTimestamp: 0,
       number: 0,
     });

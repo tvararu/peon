@@ -9,6 +9,12 @@ import {
   type PetCooldown,
   type PetSlot,
 } from "#wow/protocol/pet-spells";
+import type {
+  CastFailed,
+  CooldownNotice,
+  SpellCooldown,
+} from "#wow/protocol/spell";
+import { spellCastReason } from "#wow/protocol/spell-cast-result";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export type PetReact = "passive" | "defensive" | "aggressive" | "unknown";
@@ -44,7 +50,8 @@ export type PetsEvent =
   | { type: "bar"; cleared: true }
   | { type: "spell_learned"; spell: number }
   | { type: "spell_unlearned"; spell: number }
-  | { type: "feedback"; reason: PetFeedback };
+  | { type: "feedback"; reason: PetFeedback }
+  | { type: "cast_failed"; spell: number; reason: string; castCount: number };
 
 const REACTS: readonly PetReact[] = ["passive", "defensive", "aggressive"];
 const COMMANDS: readonly PetCommand[] = ["stay", "follow", "attack", "abandon"];
@@ -148,6 +155,45 @@ export class PetsStore {
   feedback(reason: PetFeedback): void {
     this.lastRefusal = { reason, at: this.now() };
     this.events.emit({ type: "feedback", reason });
+  }
+
+  castFailed(failed: CastFailed): void {
+    const reason = spellCastReason(failed.result);
+    this.lastRefusal = { reason, at: this.now() };
+    this.events.emit({
+      castCount: failed.castCount,
+      reason,
+      spell: failed.spellId,
+      type: "cast_failed",
+    });
+  }
+
+  cooldown(packet: SpellCooldown): void {
+    const bar = this.current;
+    if (!bar || packet.guid !== bar.guid) return;
+    const now = this.now();
+    const rows = [...this.cooldowns];
+    for (const entry of packet.cooldowns) {
+      const readyAt = entry.time <= 0 ? now : now + entry.time;
+      const next = {
+        category: 0,
+        infinite: false,
+        readyAt,
+        spell: entry.spellId,
+      };
+      const at = rows.findIndex((row) => row.spell === entry.spellId);
+      if (at < 0) rows.push(next);
+      else rows[at] = next;
+    }
+    this.cooldowns = rows;
+  }
+
+  clearCooldown(notice: CooldownNotice): void {
+    const bar = this.current;
+    if (!bar || notice.guid !== bar.guid) return;
+    this.cooldowns = this.cooldowns.filter(
+      (row) => row.spell !== notice.spellId,
+    );
   }
 
   dispose(): void {

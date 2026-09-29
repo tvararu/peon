@@ -1,25 +1,42 @@
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import {
   buildPetAction,
+  buildPetCancelAura,
+  buildPetCastSpell,
+  buildPetSetAction,
+  buildPetSpellAutocast,
   buildPetStopAttack,
   buildRequestPetInfo,
   PET_ACTION,
+  type PetSetActionPair,
 } from "#wow/areas/pets/protocol";
 import type { PetsEvent, PetsStore } from "#wow/areas/pets/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
-
+import type { SpellTarget } from "#wow/protocol/spell-targets";
 export type PetOrder = "stay" | "follow" | "dismiss";
 export type PetStance = "passive" | "defensive" | "aggressive";
 export type PetsRefused = {
   ok: false;
-  reason: "no_pet" | "hunter_pet_dismiss";
+  reason:
+    | "no_pet"
+    | "hunter_pet_dismiss"
+    | "not_known"
+    | "dead"
+    | "not_autocastable"
+    | "bad_slot";
 };
+export type PetsCast = { ok: true; castCount: number } | PetsRefused;
 export type PetsActResult = { ok: true } | PetsRefused;
 export type PetsActs = {
   requestPetInfo: () => { ok: true };
   petCommand: (order: PetOrder) => PetsActResult;
   petStance: (stance: PetStance) => PetsActResult;
   petStopAttack: () => PetsActResult;
+  petCast: (spell: number, target: SpellTarget) => PetsCast;
+  petAutocast: (spell: number, on: boolean) => PetsActResult;
+  petSetAction: (slot: number, action: number, type: number) => PetsActResult;
+  petSwapActions: (a: number, b: number) => PetsActResult;
+  petCancelAura: (spell: number) => PetsActResult;
 };
 
 const ORDERS: Record<PetOrder, number> = { stay: 0, follow: 1, dismiss: 3 };
@@ -71,8 +88,97 @@ export function petsRuntime(
     return { ok: true };
   }
 
+  let castCount = 0;
+
+  function petCast(spell: number, target: SpellTarget): PetsCast {
+    const { bar, pet } = store.snapshot();
+    if (!bar) return NO_PET;
+    if (!bar.spells.some((row) => row.spell === spell))
+      return { ok: false, reason: "not_known" };
+    if (!pet) return NO_PET;
+    if (pet.health === 0) return { ok: false, reason: "dead" };
+    castCount = castCount === 255 ? 1 : castCount + 1;
+    ctx.send(
+      GameOpcode.CMSG_PET_CAST_SPELL,
+      buildPetCastSpell(bar.guid, castCount, spell, target),
+    );
+    return { castCount, ok: true };
+  }
+
+  function petAutocast(spell: number, on: boolean): PetsActResult {
+    const { bar } = store.snapshot();
+    if (!bar) return NO_PET;
+    const row = bar.spells.find((entry) => entry.spell === spell);
+    if (!row) return { ok: false, reason: "not_known" };
+    if (row.autocast === "passive")
+      return { ok: false, reason: "not_autocastable" };
+    ctx.send(
+      GameOpcode.CMSG_PET_SPELL_AUTOCAST,
+      buildPetSpellAutocast(bar.guid, spell, on),
+    );
+    return requestPetInfo();
+  }
+
+  function petSetAction(
+    slot: number,
+    action: number,
+    type: number,
+  ): PetsActResult {
+    const { bar } = store.snapshot();
+    if (!bar) return NO_PET;
+    if (!(slot >= 0 && slot < 10)) return { ok: false, reason: "bad_slot" };
+    const packed = ((type << 24) | (action & 0xff_ff_ff)) >>> 0;
+    const pair: PetSetActionPair = { packed, slot };
+    ctx.send(
+      GameOpcode.CMSG_PET_SET_ACTION,
+      buildPetSetAction(bar.guid, [pair]),
+    );
+    return { ok: true };
+  }
+
+  function petSwapActions(a: number, b: number): PetsActResult {
+    const { bar } = store.snapshot();
+    if (!bar) return NO_PET;
+    if (!(a >= 0 && a < 10 && b >= 0 && b < 10))
+      return { ok: false, reason: "bad_slot" };
+    const packedOf = (slot: number) => {
+      const entry = bar.slots[slot];
+      return (
+        (((entry?.type ?? 0) << 24) | ((entry?.action ?? 0) & 0xff_ff_ff)) >>> 0
+      );
+    };
+    ctx.send(
+      GameOpcode.CMSG_PET_SET_ACTION,
+      buildPetSetAction(bar.guid, [
+        { packed: packedOf(b), slot: a },
+        { packed: packedOf(a), slot: b },
+      ]),
+    );
+    return { ok: true };
+  }
+
+  function petCancelAura(spell: number): PetsActResult {
+    const { bar } = store.snapshot();
+    if (!bar) return NO_PET;
+    ctx.send(
+      GameOpcode.CMSG_PET_CANCEL_AURA,
+      buildPetCancelAura(bar.guid, spell),
+    );
+    return { ok: true };
+  }
+
   return {
-    act: { requestPetInfo, petCommand, petStance, petStopAttack },
+    act: {
+      petAutocast,
+      petCancelAura,
+      petCast,
+      petCommand,
+      petSetAction,
+      petStance,
+      petStopAttack,
+      petSwapActions,
+      requestPetInfo,
+    },
     dispose: () => undefined,
   };
 }
