@@ -42,6 +42,7 @@ export type UnitCastEnd = {
 export type UnitCastEvent = UnitCastStart | UnitCastEnd;
 
 const MAX_CASTS = 64;
+const SETTLE_MS = 50;
 
 function selfTarget(deps: SessionDeps): bigint | undefined {
   const fields = deps.getEntity(deps.selfGuid())?.rawFields;
@@ -57,6 +58,7 @@ export class UnitCasts {
   private readonly deps: SessionDeps;
   private readonly combat: CombatStore;
   private readonly casts = new Map<bigint, UnitCast>();
+  private readonly settling = new Map<bigint, Timer>();
   private readonly emit: (event: UnitCastEvent) => void;
 
   constructor(
@@ -83,6 +85,7 @@ export class UnitCasts {
     const guid = entry.guid;
     const relevant = this.isRelevant(guid);
     this.casts.delete(guid);
+    this.unsettle(guid);
     if (this.casts.size >= MAX_CASTS) {
       const oldest = this.casts.keys().next();
       if (!oldest.done) this.casts.delete(oldest.value);
@@ -103,6 +106,7 @@ export class UnitCasts {
     const entry = this.casts.get(guid);
     if (!entry || entry.spellId !== spellId) return;
     this.casts.delete(guid);
+    this.unsettle(guid);
     this.emit({
       guid,
       outcome,
@@ -117,8 +121,32 @@ export class UnitCasts {
     this.end(guid, this.casts.get(guid)?.spellId ?? 0, "expired");
   }
 
+  settle(guid: bigint, spellId: number, outcome: UnitCastOutcome): void {
+    this.unsettle(guid);
+    this.settling.set(
+      guid,
+      setTimeout(() => {
+        this.settling.delete(guid);
+        this.end(guid, spellId, outcome);
+      }, SETTLE_MS),
+    );
+  }
+
   drop(guid: bigint): void {
     this.casts.delete(guid);
+    this.unsettle(guid);
+  }
+
+  dispose(): void {
+    for (const timer of this.settling.values()) clearTimeout(timer);
+    this.settling.clear();
+  }
+
+  private unsettle(guid: bigint): void {
+    const timer = this.settling.get(guid);
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    this.settling.delete(guid);
   }
 
   private nameOf(spellId: number): string | undefined {

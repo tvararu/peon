@@ -134,13 +134,13 @@ export class SpellsStore {
       if (packet.remainingMs > 0) return;
       const entry = this.units.castOf(packet.caster);
       if (entry?.kind !== "channel") return;
-      this.units.end(
-        packet.caster,
-        entry.spellId,
-        this.deps.now() >= entry.startedAt + entry.durationMs - END_TOLERANCE_MS
-          ? "finished"
-          : "interrupted",
-      );
+      const now = this.deps.now();
+      const expectedEnd = entry.startedAt + entry.durationMs;
+      if (now >= expectedEnd)
+        this.units.end(packet.caster, entry.spellId, "finished");
+      else if (now >= expectedEnd - END_TOLERANCE_MS)
+        this.units.settle(packet.caster, entry.spellId, "finished");
+      else this.units.end(packet.caster, entry.spellId, "interrupted");
       return;
     }
     if (packet.remainingMs > 0)
@@ -242,6 +242,7 @@ export class SpellsStore {
   }
 
   dispose(): void {
+    this.units.dispose();
     this.events.clear();
   }
 }
