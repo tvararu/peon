@@ -200,7 +200,7 @@ describe("ready check self guid", () => {
       const runtime = composeReadyRuntime({ ctx, store });
       try {
         holder.self = PEON;
-        store.receiveReadyStart(PEON, 0);
+        store.receiveReadyStart(PEON);
         await elapse(29_000);
         expect(sent).toEqual([]);
         await elapse(1000);
