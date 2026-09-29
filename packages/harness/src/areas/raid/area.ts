@@ -75,6 +75,23 @@ function groupList(event: Of<"group_list">): AreaDraft[] {
   return rows;
 }
 
+function transitionText(transition: string, name: string): string {
+  switch (transition) {
+    case "died":
+      return `${name} died.`;
+    case "ghost":
+      return `${name} released spirit.`;
+    case "revived":
+      return `${name} revived.`;
+    case "offline":
+      return `${name} went offline.`;
+    case "online":
+      return `${name} came online.`;
+    default:
+      return `${name} changed.`;
+  }
+}
+
 function inviteBlocked(event: Of<"invite_blocked">): AreaDraft[] {
   return [
     {
@@ -86,12 +103,23 @@ function inviteBlocked(event: Of<"invite_blocked">): AreaDraft[] {
   ];
 }
 
+function memberStats(event: Of<"member_stats">): AreaDraft[] {
+  return [...event.transitions].sort().map((transition) => ({
+    class: "passive" as const,
+    data: { name: event.name, transition },
+    name: "member" as const,
+    text: transitionText(transition, event.name),
+  }));
+}
+
 function rule(event: RaidEvent): AreaDraft[] {
   switch (event.type) {
     case "group_list":
       return groupList(event);
     case "invite_blocked":
       return inviteBlocked(event);
+    case "member_stats":
+      return memberStats(event);
     case "disbanded":
       return [
         {

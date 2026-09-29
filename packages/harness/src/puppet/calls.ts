@@ -35,6 +35,10 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   },
   leave: { args: [], run: (h) => h.lfg.act.leave() },
   leaveGroup: { args: [], run: (h) => h.leaveGroup() },
+  requestMemberStats: {
+    args: ["string"],
+    run: (h, a) => h.raid.act.requestMemberStats(text(a, 0)),
+  },
   requestPartyLocks: { args: [], run: (h) => h.lfg.act.requestPartyLocks() },
   requestStatus: { args: [], run: (h) => h.lfg.act.requestStatus() },
   rollLoot: {

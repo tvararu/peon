@@ -67,6 +67,25 @@ describe("raid harness rules", () => {
       { class: "log", event: "raid/invite_blocked" },
     ]);
   });
+
+  test("a death writes one passive member row", () => {
+    expect(
+      rows({
+        guid: 0x10n,
+        name: "Tom",
+        transitions: ["died"],
+        type: "member_stats",
+      }),
+    ).toMatchObject([
+      { class: "passive", event: "raid/member", text: "Tom died." },
+    ]);
+  });
+
+  test("stats with no transition write no rows", () => {
+    expect(
+      rows({ guid: 0x10n, name: "Tom", transitions: [], type: "member_stats" }),
+    ).toEqual([]);
+  });
 });
 
 describe("raid roster row detail", () => {
