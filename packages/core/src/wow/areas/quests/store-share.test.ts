@@ -149,7 +149,7 @@ describe("quest sharing offers", () => {
 
   test("a request-items packet settles that member's pending push reply", () => {
     within(({ items, rig, shares }) => {
-      rig.stores.areas.quests.bindMembers(() => true);
+      rig.stores.areas.quests.bindMembers(() => [SHARER]);
       expect(rig.stores.areas.quests.beginPush(QUEST)).toBe(true);
       rig.inject(
         GameOpcode.MSG_QUEST_PUSH_RESULT,
@@ -160,6 +160,7 @@ describe("quest sharing offers", () => {
         { questId: QUEST, type: "pushed" },
         { guid: SHARER, questId: QUEST, result: 0, type: "result" },
         { guid: SHARER, questId: QUEST, result: 2, type: "relayed" },
+        { questId: QUEST, reason: "complete", type: "closed" },
         { from: SHARER, questId: QUEST, type: "share_complete" },
       ]);
       expect(rig.stores.areas.quests.beginPush(8325)).toBe(true);

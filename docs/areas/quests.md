@@ -49,20 +49,27 @@ silence. `questgiverHello(guid)` sends the 8-byte hello,
 sends two `uint8` slots and refuses equal slots and slots of 25 or more.
 The runtime sends the completed query once at login.
 
-Quest sharing lives in `state().share` (`{ push, prior, offer }`; `prior`
-holds the pushes whose members never answered so a late relay keeps its
-quest id) and the `share` event (`{ type: "share", share }`), whose
-`share.type` is `pushed`, `result`, `relayed`, `offered`, `answered`,
-`expired` or `share_complete`. `shareQuest(questId)` refuses with
-`not_in_log`, an id missing from the log or 0, `not_in_group` or
-`in_flight`, and otherwise sends `CMSG_PUSHQUESTTOPARTY` and starts a push
-that waits for results. Each `MSG_QUEST_PUSH_RESULT` adds
+Quest sharing lives in `state().share` (`{ push, offer, dropped }`; the open
+`push` holds every group member but self in `expected`, its rows in
+`results`, and `dropped` counts the relays that arrived with no open push or
+with no reply owed, never attributed anywhere) and the `share` event
+(`{ type: "share", share }`), whose `share.type` is `pushed`, `result`,
+`relayed`, `closed` (a push close with reason `complete`, `timed_out` or
+`group_changed`), `offered`, `answered`, `expired` (an offer expiry) or
+`share_complete`. `shareQuest(questId)` refuses with `not_in_log`, an id
+missing from the log or 0, `not_in_group` or `busy`, sending nothing when a
+push is open, and otherwise sends `CMSG_PUSHQUESTTOPARTY` and opens one push
+for every current group member. Each `MSG_QUEST_PUSH_RESULT` adds
 `{ guid, result, at }` and emits `result`, or `relayed` for a member's
-later accept (2) or decline (3); a member whose row sits at result 0 never
-blocks the next push, and its late relay is attributed to the newest push
-it was still awaiting. A push with no result after `PUSH_TIMEOUT_MS`
-(3000) becomes `no_answer` and emits `expired` with scope `push`, because
-the server sends nothing for a quest it cannot share. A details packet
+later accept (2) or decline (3) when that member's row sits awaiting at
+result 0; a relay with no open push or nothing owed is dropped and counted.
+Every result other than `SHARING_QUEST` (0) is final (`CANT_TAKE_QUEST` 1,
+`BUSY` 4, `HAVE_QUEST` 6 and the rest), and the push closes `complete` once
+every expected member answered. The open push's own results and relays never
+move the timer; 60 s after the push it closes `timed_out`, and a group
+membership change (a listed member added or removed, the group formed or
+destroyed, a kick) closes it `group_changed`: both free the next share. A
+details packet
 with a non-zero divider, no pending `core.quests` intent and a quest not
 in the log opens `state().share.offer` (`from`, the sharer) and emits
 `offered`; a quest already in the log, an auto-accept share, emits

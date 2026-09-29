@@ -29,7 +29,7 @@ async function run({ args, handle, settle }: FlowContext): Promise<Json> {
       guid: `0x${row.guid.toString(16)}`,
       result: row.result,
     })),
-    status: handle.quests.state().share?.push?.status ?? "waiting",
+    status: handle.quests.state().share?.push?.status ?? "open",
   };
 }
 

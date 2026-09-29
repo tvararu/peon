@@ -32,9 +32,9 @@ import {
 import {
   answerOffer,
   beginPush,
+  closePush,
   EMPTY_SHARE,
   expireOffer,
-  expirePush,
   openOffer,
   receivePushResult,
   type ShareAnswer,
@@ -90,7 +90,7 @@ export class QuestsStore {
   private gossipPoi: GossipPoiEntry | undefined;
   private completed: Completed | undefined;
   private share: ShareState = EMPTY_SHARE;
-  private isMember: (guid: bigint) => boolean = () => false;
+  private members: () => readonly bigint[] = () => [];
 
   private readonly core: CoreStores;
 
@@ -181,23 +181,25 @@ export class QuestsStore {
     this.pois = new Map();
     this.completed = undefined;
     this.share = EMPTY_SHARE;
-    this.isMember = () => false;
+    this.members = () => [];
   }
 
-  bindMembers(isMember: (guid: bigint) => boolean): void {
-    this.isMember = isMember;
+  bindMembers(members: () => readonly bigint[]): void {
+    this.members = members;
   }
 
   beginPush(questId: number): boolean {
-    return this.applyShare(beginPush(this.share, questId, this.now()));
+    return this.applyShare(
+      beginPush(this.share, questId, this.now(), this.members()),
+    );
   }
 
   receivePushResult(guid: bigint, result: number): void {
     this.applyShare(receivePushResult(this.share, guid, result, this.now()));
   }
 
-  expirePush(): void {
-    this.applyShare(expirePush(this.share));
+  closePush(reason: "timed_out" | "group_changed"): void {
+    this.applyShare(closePush(this.share, reason));
   }
 
   receiveShareDetails(details: {
@@ -223,7 +225,10 @@ export class QuestsStore {
   }
 
   receiveShareRequestItems(items: { guid: bigint; questId: number }): void {
-    if (this.core.quests.snapshot().pending || !this.isMember(items.guid))
+    if (
+      this.core.quests.snapshot().pending ||
+      !this.members().includes(items.guid)
+    )
       return;
     this.applyShare(settlePushRequestItems(this.share, items.guid));
     this.emitShare({

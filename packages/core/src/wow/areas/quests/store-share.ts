@@ -1,10 +1,12 @@
 import { QuestShareResult } from "#wow/areas/quests/protocol";
 
 export type ShareRow = { guid: bigint; result: number; at: number };
+export type PushClose = "complete" | "timed_out" | "group_changed";
 export type SharePush = {
   questId: number;
   at: number;
-  status: "waiting" | "answered" | "no_answer";
+  status: "open" | PushClose;
+  expected: readonly bigint[];
   results: ShareRow[];
 };
 export type ShareOffer = {
@@ -16,22 +18,23 @@ export type ShareOffer = {
 export type ShareState = {
   push: SharePush | undefined;
   offer: ShareOffer | undefined;
-  prior: readonly SharePush[];
+  dropped: number;
 };
 export type ShareAnswer = "accept" | "decline" | "auto_accepted";
 export type ShareChange =
   | { type: "pushed"; questId: number }
   | { type: "result"; questId: number; guid: bigint; result: number }
   | { type: "relayed"; questId: number; guid: bigint; result: number }
+  | { type: "closed"; questId: number; reason: PushClose }
   | { type: "offered"; from: bigint; questId: number; title: string }
   | { type: "answered"; questId: number; answer: ShareAnswer }
-  | { type: "expired"; scope: "push" | "offer"; questId: number }
+  | { type: "expired"; scope: "offer"; questId: number }
   | { type: "share_complete"; from: bigint; questId: number };
 export type ShareStep = { share: ShareState; changes: ShareChange[] };
 
 export const EMPTY_SHARE: ShareState = {
+  dropped: 0,
   offer: undefined,
-  prior: [],
   push: undefined,
 };
 
@@ -39,141 +42,99 @@ const RELAYED: ReadonlySet<number> = new Set([
   QuestShareResult.ACCEPT_QUEST,
   QuestShareResult.DECLINE_QUEST,
 ]);
-const awaitingReply = (push: SharePush): boolean =>
+
+const isFinal = (result: number): boolean =>
+  result !== QuestShareResult.SHARING_QUEST;
+
+const settled = (push: SharePush, guid: bigint): boolean =>
+  push.results.some((row) => row.guid === guid && isFinal(row.result));
+
+const owesReply = (push: SharePush, guid: bigint): boolean =>
+  !settled(push, guid) &&
   push.results.some(
-    (row) =>
-      row.result === QuestShareResult.SHARING_QUEST &&
-      !push.results.some(
-        (other) => other.guid === row.guid && RELAYED.has(other.result),
-      ),
+    (row) => row.guid === guid && row.result === QuestShareResult.SHARING_QUEST,
   );
 
-const MAX_PRIOR = 16;
+const everyoneAnswered = (push: SharePush): boolean =>
+  push.expected.length > 0 &&
+  push.expected.every((guid) => settled(push, guid));
 
-const replied = (push: SharePush, guid: bigint): boolean =>
-  push.results.some((row) => row.guid === guid && RELAYED.has(row.result));
+const dropRelay = (share: ShareState): ShareStep => ({
+  changes: [],
+  share: { ...share, dropped: share.dropped + 1 },
+});
 
 export function beginPush(
   share: ShareState,
   questId: number,
   now: number,
+  expected: readonly bigint[],
 ): ShareStep | undefined {
-  if (share.push?.status === "waiting") return undefined;
-  const prior = share.push ? [...share.prior, share.push] : [...share.prior];
-  const kept = prior.filter(awaitingReply).slice(-MAX_PRIOR);
+  if (share.push?.status === "open") return undefined;
   return {
     changes: [{ questId, type: "pushed" }],
     share: {
       ...share,
-      prior: kept,
-      push: { at: now, questId, results: [], status: "waiting" },
+      push: {
+        at: now,
+        expected: [...expected],
+        questId,
+        results: [],
+        status: "open",
+      },
     },
   };
 }
 
-const withRow = (push: SharePush, row: ShareRow): SharePush => ({
-  ...push,
-  results: [...push.results, row],
-  status: push.status === "waiting" ? "answered" : push.status,
-});
+function withRow(share: ShareState, push: SharePush, row: ShareRow): ShareStep {
+  const next: SharePush = { ...push, results: [...push.results, row] };
+  const type = RELAYED.has(row.result) ? "relayed" : "result";
+  const changes: ShareChange[] = [
+    { guid: row.guid, questId: push.questId, result: row.result, type },
+  ];
+  if (!everyoneAnswered(next))
+    return { changes, share: { ...share, push: next } };
+  changes.push({ questId: push.questId, reason: "complete", type: "closed" });
+  return {
+    changes,
+    share: { ...share, push: { ...next, status: "complete" } },
+  };
+}
 
 export function receivePushResult(
   share: ShareState,
   guid: bigint,
   result: number,
   now: number,
-): ShareStep | undefined {
-  const row = { at: now, guid, result };
-  const type = RELAYED.has(result) ? "relayed" : "result";
-  if (!share.push) return undefined;
-  if (!RELAYED.has(result)) {
-    return {
-      changes: [{ guid, questId: share.push.questId, result, type }],
-      share: { ...share, push: withRow(share.push, row) },
-    };
-  }
-  const prior = [...share.prior];
-  for (let index = prior.length - 1; index >= 0; index -= 1) {
-    const candidate = prior[index] as SharePush;
-    if (
-      candidate.results.some(
-        (entry) =>
-          entry.guid === guid &&
-          entry.result === QuestShareResult.SHARING_QUEST &&
-          !replied(candidate, guid),
-      )
-    ) {
-      const settled = withRow(candidate, row);
-      prior[index] = settled;
-      const kept = prior.filter(awaitingReply);
-      return {
-        changes: [{ guid, questId: settled.questId, result, type }],
-        share: { ...share, prior: kept },
-      };
-    }
-  }
+): ShareStep {
   const { push } = share;
-  if (
-    push.results.some(
-      (entry) =>
-        entry.guid === guid &&
-        entry.result === QuestShareResult.SHARING_QUEST &&
-        !replied(push, guid),
-    )
-  ) {
-    const settled = withRow(push, row);
-    return {
-      changes: [{ guid, questId: settled.questId, result, type }],
-      share: { ...share, push: settled },
-    };
-  }
-  const updated = withRow(share.push, row);
-  return {
-    changes: [{ guid, questId: updated.questId, result, type }],
-    share: { ...share, push: updated },
-  };
+  if (push?.status !== "open") return dropRelay(share);
+  if (RELAYED.has(result) && !owesReply(push, guid)) return dropRelay(share);
+  return withRow(share, push, { at: now, guid, result });
 }
 
 export function settlePushRequestItems(
   share: ShareState,
   guid: bigint,
 ): ShareStep | undefined {
-  const push = share.push;
-  if (
-    !push ||
-    replied(push, guid) ||
-    !push.results.some(
-      (row) =>
-        row.guid === guid && row.result === QuestShareResult.SHARING_QUEST,
-    )
-  )
-    return undefined;
-  return {
-    changes: [
-      {
-        guid,
-        questId: push.questId,
-        result: QuestShareResult.ACCEPT_QUEST,
-        type: "relayed",
-      },
-    ],
-    share: {
-      ...share,
-      push: withRow(push, {
-        at: push.at,
-        guid,
-        result: QuestShareResult.ACCEPT_QUEST,
-      }),
-    },
-  };
+  const { push } = share;
+  if (push?.status !== "open" || !owesReply(push, guid)) return undefined;
+  return withRow(share, push, {
+    at: push.at,
+    guid,
+    result: QuestShareResult.ACCEPT_QUEST,
+  });
 }
 
-export function expirePush(share: ShareState): ShareStep | undefined {
+export function closePush(
+  share: ShareState,
+  reason: "timed_out" | "group_changed",
+): ShareStep | undefined {
   const { push } = share;
-  if (push?.status !== "waiting") return undefined;
+  if (push?.status !== "open") return undefined;
   return {
-    changes: [{ questId: push.questId, scope: "push", type: "expired" }],
-    share: { ...share, push: { ...push, status: "no_answer" } },
+    changes: [{ questId: push.questId, reason, type: "closed" }],
+    share: { ...share, push: { ...push, status: reason } },
   };
 }
 

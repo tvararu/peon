@@ -9,12 +9,12 @@ import type { ShareChange, ShareOffer } from "#wow/areas/quests/store-share";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { CoreStores } from "#wow/session-stores";
 
-export const PUSH_TIMEOUT_MS = 3000;
+export const PUSH_TIMEOUT_MS = 60_000;
 export const OFFER_TIMEOUT_MS = 60_000;
 
 export type ShareStart =
   | { ok: true }
-  | { ok: false; reason: "not_in_log" | "not_in_group" | "in_flight" };
+  | { ok: false; reason: "not_in_log" | "not_in_group" | "busy" };
 
 export type ShareActs = {
   shareQuest: (questId: number) => ShareStart;
@@ -64,7 +64,7 @@ function shareTimers(
     stopPush();
     pushTimer = setTimeout(() => {
       pushTimer = undefined;
-      store.expirePush();
+      store.closePush("timed_out");
     }, PUSH_TIMEOUT_MS);
   };
   const startOffer = (): void => {
@@ -73,14 +73,13 @@ function shareTimers(
   };
   const onPush = (share: ShareChange): void => {
     if (share.type === "pushed") startPush();
-    else if (share.type === "result" || share.type === "relayed") stopPush();
-    else if (share.type === "expired" && share.scope === "push") stopPush();
+    else if (share.type === "closed") stopPush();
   };
   const onOffer = (share: ShareChange): void => {
     if (share.type === "offered") startOffer();
     else if (share.type === "answered" && share.answer !== "auto_accepted")
       stopOffer();
-    else if (share.type === "expired" && share.scope === "offer") stopOffer();
+    else if (share.type === "expired") stopOffer();
   };
   const off = store.onEvent((event) => {
     if (event.type !== "share") return;
@@ -101,10 +100,27 @@ export function shareRuntime(
   store: QuestsStore,
   core: CoreStores,
 ): { act: ShareActs; dispose: () => void } {
-  store.bindMembers((guid) =>
-    ctx.legacy.party().members.some((member) => member.guid === guid),
+  const self = ctx.selfGuid();
+  store.bindMembers(() =>
+    ctx.legacy
+      .party()
+      .members.map((member) => member.guid)
+      .filter((guid) => guid !== self),
   );
   const timers = shareTimers(ctx, store);
+  const offGroup = ctx.listen("group", (event) => {
+    if (event.type !== "group_list") {
+      if (event.type === "group_destroyed" || event.type === "kicked")
+        store.closePush("group_changed");
+      return;
+    }
+    if (
+      event.change.formed ||
+      event.change.added.length > 0 ||
+      event.change.removed.length > 0
+    )
+      store.closePush("group_changed");
+  });
   const shareQuest = (questId: number): ShareStart => {
     const inLog =
       questId > 0 &&
@@ -112,8 +128,16 @@ export function shareRuntime(
     if (!inLog) return { ok: false, reason: "not_in_log" };
     if (!ctx.legacy.party().inGroup)
       return { ok: false, reason: "not_in_group" };
-    if (!store.beginPush(questId)) return { ok: false, reason: "in_flight" };
-    ctx.send(GameOpcode.CMSG_PUSHQUESTTOPARTY, buildPushQuestToParty(questId));
+    if (!store.beginPush(questId)) return { ok: false, reason: "busy" };
+    try {
+      ctx.send(
+        GameOpcode.CMSG_PUSHQUESTTOPARTY,
+        buildPushQuestToParty(questId),
+      );
+    } catch (error) {
+      store.closePush("group_changed");
+      throw error;
+    }
     return { ok: true };
   };
   const answerShare = (answer: "accept" | "decline"): boolean => {
@@ -124,5 +148,9 @@ export function shareRuntime(
     store.answerOffer("decline");
     return true;
   };
-  return { act: { answerShare, shareQuest }, dispose: timers.dispose };
+  const dispose = (): void => {
+    offGroup();
+    timers.dispose();
+  };
+  return { act: { answerShare, shareQuest }, dispose };
 }
