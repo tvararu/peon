@@ -179,7 +179,7 @@ The `dungeon` tool queues, answers role checks and proposals, teleports in and o
 | `SMSG_LFG_ROLE_CHOSEN` | `live` | same run: each puppet role answer is echoed to the group | `Handlers/LFGHandler.cpp:383-392` |
 | `CMSG_LFG_TELEPORT` | `live` | probe flow `lfg-teleport` on a fresh `ghostlands20` account, run not committed: trace shows `out` size 1, then 14 ms later `SMSG_LFG_TELEPORT_DENIED` | `Handlers/LFGHandler.cpp:143-150` |
 | `SMSG_LFG_TELEPORT_DENIED` | `live` | same run: `in` size 4, `handled`; the store holds code 6 (`invalid_location`, not in an LFG group) | `Handlers/LFGHandler.cpp:636-642` |
-| `SMSG_LFG_PROPOSAL_UPDATE` | `live` | five-`ghostlands20`-puppet run, trace kept under `tmp/` until review: a full party matches itself (`DungeonFinding/LFGQueue.cpp:224`), state 0 then state 2 for the level-20 random dungeon | `Handlers/LFGHandler.cpp:545-611` |
+| `SMSG_LFG_PROPOSAL_UPDATE` | `live` | five-`ghostlands20`-puppet run, not committed: a full party matches itself (`DungeonFinding/LFGQueue.cpp:224`), state 0 then state 2 for the level-20 random dungeon | `Handlers/LFGHandler.cpp:545-611` |
 | `CMSG_LFG_PROPOSAL_RESULT` | `live` | same run: trace shows five `out` proposal answers, the leader first, then the state-2 update | `Handlers/LFGHandler.cpp:95-104` |
 | `SMSG_LFG_OFFER_CONTINUE` | `live` | same run: `CMSG_GROUP_UNINVITE` after the teleport out, the leader gets `in` size 4 body `0c000001` | `Handlers/LFGHandler.cpp:628-634` |
 | `CMSG_LFG_SET_BOOT_VOTE` | `builder` | builder test on `buildLfgBootVote`; a live send needs a kick vote, so not seen live until instances-11 | `Handlers/LFGHandler.cpp:133-141` |
