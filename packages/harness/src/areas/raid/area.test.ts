@@ -68,3 +68,39 @@ describe("raid harness rules", () => {
     ]);
   });
 });
+
+describe("raid roster row detail", () => {
+  test("a flag gained names the flag and carries it", () => {
+    const [row] = rows({
+      changes: [{ flag: "main_tank", kind: "flag", name: "Tom", on: true }],
+      group: GROUP,
+      type: "group_list",
+    });
+    expect(row?.text).toContain("Tom");
+    expect(row?.text).toContain("main tank");
+    expect(row?.text).toContain("gained");
+    expect(row?.data).toMatchObject({ flag: "main_tank", on: true });
+  });
+
+  test("a flag removal says lost, not gained", () => {
+    const [row] = rows({
+      changes: [{ flag: "assistant", kind: "flag", on: false, self: true }],
+      group: GROUP,
+      type: "group_list",
+    });
+    expect(row?.text).toContain("lost");
+    expect(row?.text).toContain("assistant");
+    expect(row?.text).not.toContain("gained");
+    expect(row?.data).toMatchObject({ flag: "assistant", on: false });
+  });
+
+  test("a subgroup move carries and names the destination group", () => {
+    const [row] = rows({
+      changes: [{ from: 0, kind: "subgroup", name: "Tom", to: 2 }],
+      group: GROUP,
+      type: "group_list",
+    });
+    expect(row?.text).toContain("group 3");
+    expect(row?.data).toMatchObject({ from: 0, to: 2 });
+  });
+});

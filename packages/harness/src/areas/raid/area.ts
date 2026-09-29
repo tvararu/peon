@@ -5,15 +5,33 @@ import { defineHarnessArea } from "#harness/areas/contract";
 type RaidEvent = AreaEventOf<"raid">;
 type Of<T extends RaidEvent["type"]> = Extract<RaidEvent, { type: T }>;
 
-function rosterText(kind: string, name: string | undefined): string {
+function flagLabel(flag: string): string {
+  switch (flag) {
+    case "main_tank":
+      return "main tank";
+    case "main_assist":
+      return "main assist";
+    default:
+      return flag;
+  }
+}
+
+function groupLabel(index: number): string {
+  return `group ${index + 1}`;
+}
+
+function rosterText(change: Of<"group_list">["changes"][number]): string {
+  const name = "name" in change ? change.name : undefined;
   const who = name ?? "You";
-  switch (kind) {
+  switch (change.kind) {
     case "converted":
       return "The group changed shape.";
     case "subgroup":
-      return `${who} moved groups.`;
+      return `${who} moved to ${groupLabel(change.to)}.`;
     case "flag":
-      return `${who} gained a raid flag.`;
+      return change.on
+        ? `${who} gained ${flagLabel(change.flag)}.`
+        : `${who} lost ${flagLabel(change.flag)}.`;
     case "loot":
       return "The loot rules changed.";
     case "difficulty":
@@ -27,6 +45,17 @@ function rosterText(kind: string, name: string | undefined): string {
   }
 }
 
+function changeDetail(change: Of<"group_list">["changes"][number]) {
+  switch (change.kind) {
+    case "flag":
+      return { flag: change.flag, on: change.on };
+    case "subgroup":
+      return { from: change.from, to: change.to };
+    default:
+      return {};
+  }
+}
+
 function groupList(event: Of<"group_list">): AreaDraft[] {
   const rows: AreaDraft[] = [];
   for (const change of event.changes) {
@@ -34,9 +63,13 @@ function groupList(event: Of<"group_list">): AreaDraft[] {
     const name = "name" in change ? change.name : undefined;
     rows.push({
       class: "passive",
-      data: { change: change.kind, ...(name ? { name } : {}) },
+      data: {
+        change: change.kind,
+        ...changeDetail(change),
+        ...(name ? { name } : {}),
+      },
       name: "roster",
-      text: rosterText(change.kind, name),
+      text: rosterText(change),
     });
   }
   return rows;
