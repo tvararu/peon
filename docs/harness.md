@@ -89,10 +89,11 @@ stderr and still exits 0.
 | `AreaTrigger.dbc` | area trigger volumes | `enUS/patch-enUS-3.MPQ` |
 
 The client resolves each file from the first archive that holds it:
-`enUS/patch-enUS-3.MPQ`, then `patch-enUS-2.MPQ`, then `patch-enUS.MPQ`,
-then the remaining locale, patch and base archives. Extract each
-`DBFilesClient\<name>` from the `Data` directory with an MPQ tool such as
-StormLib, following that order, and copy the files into `spell_data_dir`
+`enUS/patch-enUS-3.MPQ`, then `enUS/patch-enUS-2.MPQ`, then
+`enUS/patch-enUS.MPQ`, then the remaining locale, patch and base
+archives. Extract each `DBFilesClient\<name>` from the `Data` directory
+with an MPQ tool such as StormLib, following that order, and copy the files
+into `spell_data_dir` unchanged.
 unchanged.
 
 ## Flags
