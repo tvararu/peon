@@ -82,6 +82,14 @@ const GHOSTLANDS: Spawn = {
     [7571, -6839, 90.39],
     [7571, -6831, 87.84],
     [7579, -6839, 89.57],
+    [7579, -6831, 87.59],
+    [7583, -6835, 88.42],
+    [7567, -6835, 88.95],
+    [7575, -6843, 90.64],
+    [7571, -6843, 91.28],
+    [7579, -6843, 90.53],
+    [7583, -6839, 89.55],
+    [7583, -6831, 87.35],
   ],
   zone: 3433,
 };
@@ -158,8 +166,25 @@ const SPAWN_OF: Readonly<Record<string, Spawn>> = {
   ghostlands20: GHOSTLANDS,
 };
 
+const EVERSONG_RAID: Spawn = {
+  map: 530,
+  o: 1.686,
+  points: [
+    [8735, -6550, 67.35],
+    [8731, -6550, 68.15],
+    [8739, -6550, 66.5],
+    [8735, -6554, 67.85],
+    [8731, -6554, 68.69],
+    [8739, -6554, 66.89],
+    [8735, -6546, 66.88],
+    [8731, -6546, 67.67],
+  ],
+  zone: 3430,
+};
+
 const NAMED: Readonly<Record<string, Spawn>> = {
   eversong: EVERSONG,
+  "eversong-raid": EVERSONG_RAID,
   "eversong-west": EVERSONG_WEST,
   "fairbreeze-east": FAIRBREEZE_EAST,
   "fairbreeze-south": FAIRBREEZE_SOUTH,
