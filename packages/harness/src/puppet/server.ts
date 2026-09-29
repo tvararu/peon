@@ -158,11 +158,20 @@ class Puppet {
       return { ok: true, out: eventsJson("read", this.chat.splice(0)) };
     if (request.cmd === "events")
       return { ok: true, out: gameEventsJson(this.events.splice(0)) };
-    if (request.cmd === "nearby")
+    if (request.cmd === "nearby") {
+      const movements = new Map(
+        this.handle.unitmotion
+          .state()
+          .units.map((unit) => [unit.guid.toString(), unit]),
+      );
       return {
         ok: true,
-        out: resultJson("nearby", this.handle.queryNearby().map(nearbyRowObj)),
+        out: resultJson(
+          "nearby",
+          this.handle.queryNearby().map((row) => nearbyRowObj(row, movements)),
+        ),
       };
+    }
     if (request.cmd === "whisper") {
       this.handle.sendWhisper(request.target, request.text);
       return { ok: true, out: "OK" };

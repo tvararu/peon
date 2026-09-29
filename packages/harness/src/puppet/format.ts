@@ -1,4 +1,5 @@
 import {
+  type AreaState,
   type ChatMessage,
   ChatType,
   type GameObjectEntity,
@@ -157,8 +158,26 @@ function addKindFields(obj: Record<string, unknown>, row: NearbyRow): void {
   if (entity.objectType === ObjectType.GAMEOBJECT)
     obj["gameObjectType"] = (entity as GameObjectEntity).gameObjectType;
 }
+const MOVEMENT_ROOT_BIT = 0x00_00_08_00;
 
-export function nearbyRowObj(row: NearbyRow): Record<string, unknown> {
+type UnitMovement = AreaState<"unitmotion">["units"][number];
+
+function movementObj(movement: UnitMovement): Record<string, unknown> {
+  const speeds: Record<string, { source: string; value: number }> = {};
+  for (const [kind, reading] of Object.entries(movement.speeds))
+    speeds[kind] = { source: reading.source, value: reading.value };
+  return {
+    flags: movement.flags,
+    rooted: (movement.flags & MOVEMENT_ROOT_BIT) !== 0,
+    serverControlled: movement.serverControlled,
+    speeds,
+  };
+}
+
+export function nearbyRowObj(
+  row: NearbyRow,
+  movements?: ReadonlyMap<string, UnitMovement>,
+): Record<string, unknown> {
   const { entity } = row;
   const obj: Record<string, unknown> = {
     bearingRadians: row.bearingRadians,
@@ -177,5 +196,7 @@ export function nearbyRowObj(row: NearbyRow): Record<string, unknown> {
   Object.assign(obj, positionObj(row));
   if (row.remotePose)
     obj["remotePose"] = remotePoseObj(row.remotePose, row.preparedAt);
+  const movement = movements?.get(entity.guid.toString());
+  if (movement) obj["movement"] = movementObj(movement);
   return obj;
 }

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  type AreaState,
   type ChatMessage,
   ChatType,
   type NearbyRow,
@@ -216,7 +217,7 @@ const READ_EVENTS = [
 
 describe("puppet JSON output, pinned to the CLI's", () => {
   test("nearby --json prints the rows in one result envelope", () => {
-    expect(resultJson("nearby", rows.map(nearbyRowObj))).toBe(
+    expect(resultJson("nearby", rows.map((row) => nearbyRowObj(row)))).toBe(
       `{"command":"nearby","data":[${NEARBY_ROWS.join(",")}],"error":null,"events":[],"kind":"result"}`,
     );
   });
@@ -243,5 +244,84 @@ describe("puppet JSON output, pinned to the CLI's", () => {
     expect(resultJson("start", { socket: "responsive", started: true })).toBe(
       '{"command":"start","data":{"socket":"responsive","started":true},"error":null,"events":[],"kind":"result"}',
     );
+  });
+});
+
+type UnitMovement = AreaState<"unitmotion">["units"][number];
+
+const SPEED_ROWS = [
+  ["walk", 2.5, "create"],
+  ["run", 3.5, "spline"],
+  ["run_back", 4.5, "create"],
+  ["swim", 4.722_222, "move_msg"],
+  ["swim_back", 2.5, "create"],
+  ["flight", 7, "create"],
+  ["flight_back", 4.5, "create"],
+  ["turn", 3.141_594, "create"],
+  ["pitch", 3.14, "create"],
+] as const;
+
+function movementOf(guidValue: bigint, flagsValue: number): UnitMovement {
+  return {
+    flags: flagsValue,
+    guid: guidValue,
+    runBefore: 7,
+    serverControlled: true,
+    speeds: Object.fromEntries(
+      SPEED_ROWS.map(([kind, value, source]) => [
+        kind,
+        { at: 5, source, value },
+      ]),
+    ),
+    updatedAt: 5,
+  } as UnitMovement;
+}
+
+describe("nearbyRowObj movement", () => {
+  test("a unit with stored movement gains flags, nine sourced speeds, root and control", () => {
+    const wyrm = rows[0];
+    if (!wyrm) throw new Error("missing fixture row");
+    const movements = new Map([
+      [wyrm.entity.guid.toString(), movementOf(wyrm.entity.guid, 0x800)],
+    ]);
+    const movement = nearbyRowObj(wyrm, movements)[
+      "movement"
+    ] as Record<string, unknown>;
+    expect(movement["flags"]).toBe(0x800);
+    expect(movement["rooted"]).toBe(true);
+    expect(movement["serverControlled"]).toBe(true);
+    expect(Object.keys(movement["speeds"] as object)).toHaveLength(9);
+    expect(movement["speeds"]).toEqual(
+      Object.fromEntries(
+        SPEED_ROWS.map(([kind, value, source]) => [kind, { source, value }]),
+      ),
+    );
+  });
+
+  test("a unit whose flags lack the root bit is not rooted", () => {
+    const wyrm = rows[0];
+    if (!wyrm) throw new Error("missing fixture row");
+    const movements = new Map([
+      [wyrm.entity.guid.toString(), movementOf(wyrm.entity.guid, 1)],
+    ]);
+    const movement = nearbyRowObj(wyrm, movements)[
+      "movement"
+    ] as Record<string, unknown>;
+    expect(movement["flags"]).toBe(1);
+    expect(movement["rooted"]).toBe(false);
+  });
+
+  test("with no stored movement the row is unchanged", () => {
+    const wyrm = rows[0];
+    const other = rows[1];
+    if (!wyrm || !other) throw new Error("missing fixture row");
+    const untouched = nearbyRowObj(wyrm);
+    const missing = nearbyRowObj(
+      wyrm,
+      new Map([[other.entity.guid.toString(), movementOf(1n, 0)]]),
+    );
+    expect(missing).toEqual(untouched);
+    expect("movement" in missing).toBe(false);
+    expect("movement" in untouched).toBe(false);
   });
 });

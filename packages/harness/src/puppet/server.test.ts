@@ -207,7 +207,14 @@ describe("puppet server over the socket", () => {
       "x",
       "y",
       "z",
+      "movement",
     ]);
+    expect(reply.data[0].movement).toMatchObject({
+      flags: expect.any(Number),
+      rooted: false,
+      serverControlled: false,
+    });
+    expect(Object.keys(reply.data[0].movement.speeds)).toHaveLength(9);
   });
 
   test("stop logs out, waits for the server, then removes the socket and pid", async () => {
