@@ -220,7 +220,7 @@ describe("lfg runtime", () => {
       rig.dispose();
     }
   });
-  test("group join settles ok with roleCheck when the check opens first (LFGMgr.cpp:837-875)", async () => {
+  test("group join waits for the initializing role check after the type-5 party update (LFGMgr.cpp:837-875)", async () => {
     const rig = areaRig("lfg", {
       legacy: {
         party: () => ({
@@ -249,15 +249,15 @@ describe("lfg runtime", () => {
       });
       expect(sentOpcode(rig, GameOpcode.CMSG_LFG_JOIN)).toHaveLength(1);
       rig.inject(
-        GameOpcode.SMSG_LFG_ROLE_CHECK_UPDATE,
-        lfgRoleCheckUpdateBody({ state: 2, dungeons: [], members: [] }),
-      );
-      rig.inject(
         GameOpcode.SMSG_LFG_UPDATE_PARTY,
         lfgUpdatePartyBody({
           updateType: 5,
           data: { join: true, queued: true, dungeons: [0x06_00_01_06] },
         }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_LFG_ROLE_CHECK_UPDATE,
+        lfgRoleCheckUpdateBody({ state: 2, dungeons: [], members: [] }),
       );
       expect(await pending).toEqual({
         status: "ok",
@@ -365,6 +365,25 @@ describe("lfg runtime", () => {
         lfgRoleChosenBody({ guid: 0n, roles: 2 }),
       );
       expect(await pending).toEqual({ status: "ok", roles: 2 });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("setRoles(0) during a check settles refused on the not-ready answer (LFGMgr.cpp:1490-1555)", async () => {
+    const rig = grouped();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_LFG_ROLE_CHECK_UPDATE,
+        lfgRoleCheckUpdateBody({ state: 2, dungeons: [], members: [] }),
+      );
+      const pending = rig.handle.act.setRoles(0);
+      expect(sentOpcode(rig, GameOpcode.CMSG_LFG_SET_ROLES)).toHaveLength(1);
+      rig.inject(
+        GameOpcode.SMSG_LFG_ROLE_CHOSEN,
+        lfgRoleChosenBody({ guid: 0n, roles: 0 }),
+      );
+      expect(await pending).toEqual({ status: "refused", reason: "no_role" });
     } finally {
       rig.dispose();
     }

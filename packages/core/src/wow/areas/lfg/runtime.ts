@@ -230,7 +230,11 @@ type JoinWaits = {
   queuedWait: Promise<LfgEvent>;
 };
 
-function armJoinWaits(ctx: Ctx, signal: AbortSignal): JoinWaits {
+function armJoinWaits(
+  ctx: Ctx,
+  signal: AbortSignal,
+  grouped: boolean,
+): JoinWaits {
   const resultWait = ctx.until((event) => event.type === "join_result", {
     timeoutMs: LFG_REQUEST_TIMEOUT_MS,
     signal,
@@ -238,10 +242,11 @@ function armJoinWaits(ctx: Ctx, signal: AbortSignal): JoinWaits {
   resultWait.catch(() => undefined);
   const queuedWait = ctx.until(
     (event) =>
-      (event.type === "status" &&
-        event.status === "queued" &&
-        event.source !== "search") ||
-      (event.type === "role_check" && event.state === 2),
+      grouped
+        ? event.type === "role_check" && event.state === 2
+        : event.type === "status" &&
+          event.status === "queued" &&
+          event.source !== "search",
     { timeoutMs: LFG_REQUEST_TIMEOUT_MS, signal },
   );
   queuedWait.catch(() => undefined);
@@ -290,7 +295,8 @@ function joinAct({ ctx, store }: Env) {
     if (refusal !== undefined) return refusal;
     const scope = requestScope();
     const entries = [...join.entries];
-    const waits = armJoinWaits(ctx, scope.abort.signal);
+    const inGroup = ctx.legacy.party().inGroup;
+    const waits = armJoinWaits(ctx, scope.abort.signal, inGroup);
     try {
       ctx.send(
         GameOpcode.CMSG_LFG_JOIN,
@@ -361,8 +367,10 @@ function setRolesAct({ ctx, store }: Env) {
     try {
       const chosen = await wait;
       scope.abort.abort();
-      if (chosen.type === "role_chosen")
+      if (chosen.type === "role_chosen" && chosen.ready)
         return { status: "ok", roles: chosen.roles };
+      if (chosen.type === "role_chosen")
+        return { status: "refused", reason: "no_role" };
       throw new Error("unreachable");
     } catch (error) {
       scope.abort.abort();
