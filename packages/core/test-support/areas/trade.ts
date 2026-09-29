@@ -52,3 +52,60 @@ export function tradeStatusBody(
 export function tradeRig() {
   return areaRig("trade", { selfGuid: TRADE_SELF });
 }
+
+export type TradeExtendedItemInit = {
+  entry: number;
+  display?: number;
+  count?: number;
+  wrapped?: boolean;
+  giftCreator?: bigint;
+  permanentEnchant?: number;
+  gemEnchants?: readonly [number, number, number];
+  creator?: bigint;
+  charges?: number;
+  suffix?: number;
+  randomProperty?: number;
+  lock?: number;
+  maxDurability?: number;
+  durability?: number;
+};
+
+export type TradeExtendedInit = {
+  side: number;
+  gold?: number;
+  spell?: number;
+  slots?: Readonly<Record<number, TradeExtendedItemInit>>;
+};
+
+export function tradeStatusExtendedBody(init: TradeExtendedInit): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(init.side);
+  w.uint32LE(0);
+  w.uint32LE(7);
+  w.uint32LE(7);
+  w.uint32LE(init.gold ?? 0);
+  w.uint32LE(init.spell ?? 0);
+  for (let index = 0; index < 7; index++) {
+    w.uint8(index);
+    const item = init.slots?.[index];
+    if (!item) {
+      for (let word = 0; word < 18; word++) w.uint32LE(0);
+      continue;
+    }
+    w.uint32LE(item.entry);
+    w.uint32LE(item.display ?? 0);
+    w.uint32LE(item.count ?? 1);
+    w.uint32LE(item.wrapped ? 1 : 0);
+    w.uint64LE(item.giftCreator ?? 0n);
+    w.uint32LE(item.permanentEnchant ?? 0);
+    for (const gem of item.gemEnchants ?? [0, 0, 0]) w.uint32LE(gem);
+    w.uint64LE(item.creator ?? 0n);
+    w.uint32LE(item.charges ?? 0);
+    w.uint32LE(item.suffix ?? 0);
+    w.uint32LE((item.randomProperty ?? 0) >>> 0);
+    w.uint32LE(item.lock ?? 0);
+    w.uint32LE(item.maxDurability ?? 0);
+    w.uint32LE(item.durability ?? 0);
+  }
+  return w.finish();
+}

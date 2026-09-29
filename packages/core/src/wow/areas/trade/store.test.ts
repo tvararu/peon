@@ -229,4 +229,113 @@ describe("trade store", () => {
       rig.dispose();
     }
   });
+
+  test("an EXTENDED from their side replaces theirOffer, raises the version and emits offer_changed", () => {
+    const { events, store } = clockStore();
+    store.receiveStatus({
+      kind: "open_window",
+      status: 2,
+      statusName: "open_window",
+      tradeId: 1,
+    });
+    const before = store.snapshot().theirOffer.version;
+    store.receiveExtended({ gold: 40, items: [], side: 1, spell: 0, tradeId: 1 });
+    const after = store.snapshot();
+    expect(after.theirOffer.gold).toBe(40);
+    expect(after.theirOffer.version).toBe(before + 1);
+    expect(events.map((event) => event.type)).toEqual(["opened", "offer_changed"]);
+  });
+
+  test("an EXTENDED of the own side is kept as ownEcho, not ownOffer", () => {
+    const { events, store } = clockStore();
+    store.receiveStatus({
+      kind: "open_window",
+      status: 2,
+      statusName: "open_window",
+      tradeId: 1,
+    });
+    store.recordOwnOffer({ gold: 10, items: [] });
+    store.receiveExtended({ gold: 40, items: [], side: 0, spell: 0, tradeId: 1 });
+    const state = store.snapshot();
+    expect(state.ownOffer.gold).toBe(10);
+    expect(state.ownEcho?.gold).toBe(40);
+    expect(events.map((event) => event.type)).toEqual(["opened"]);
+  });
+
+  test("BACK_TO_TRADE clears both accept flags, raises the version and emits back_to_trade", () => {
+    const { events, store } = clockStore();
+    store.receiveStatus({
+      kind: "open_window",
+      status: 2,
+      statusName: "open_window",
+      tradeId: 1,
+    });
+    store.noteTheyAccepted();
+    const before = store.snapshot().theirOffer.version;
+    store.receiveStatus({ kind: "none", status: 7, statusName: "back_to_trade" });
+    expect(store.snapshot()).toMatchObject({
+      selfAccepted: false,
+      theyAccepted: false,
+    });
+    expect(store.snapshot().theirOffer.version).toBe(before + 1);
+    expect(events).toContainEqual({ type: "back_to_trade" });
+  });
+
+  test("TRADE_ACCEPT sets theyAccepted and emits they_accepted", () => {
+    const { events, store } = clockStore();
+    store.receiveStatus({
+      kind: "open_window",
+      status: 2,
+      statusName: "open_window",
+      tradeId: 1,
+    });
+    store.receiveStatus({ kind: "none", status: 4, statusName: "trade_accept" });
+    expect(store.snapshot().theyAccepted).toBe(true);
+    expect(events).toContainEqual({ type: "they_accepted" });
+  });
+
+  test("TRADE_COMPLETE snapshots both offers into a completed outcome and emits completed", () => {
+    const { events, store } = clockStore();
+    store.receiveStatus({
+      kind: "open_window",
+      status: 2,
+      statusName: "open_window",
+      tradeId: 1,
+    });
+    store.recordOwnOffer({ gold: 10, items: [] });
+    store.receiveExtended({ gold: 40, items: [], side: 1, spell: 0, tradeId: 1 });
+    store.receiveStatus({ kind: "none", status: 8, statusName: "trade_complete" });
+    expect(store.snapshot().lastOutcome).toEqual({
+      gave: { gold: 10, items: [], spell: 0, version: 1 },
+      got: { gold: 40, items: [], spell: 0, version: 1 },
+      kind: "completed",
+    });
+    expect(events).toContainEqual({ type: "completed" });
+  });
+
+  test("CLOSE_WINDOW records the named refusal fields from the packet (TradeHandler.cpp:431-460)", () => {
+    const { events, store } = clockStore();
+    store.receiveStatus({
+      kind: "open_window",
+      status: 2,
+      statusName: "open_window",
+      tradeId: 1,
+    });
+    store.receiveStatus({
+      isTarget: true,
+      kind: "close_window",
+      limitItem: 2589,
+      result: 50,
+      status: 12,
+      statusName: "close_window",
+    });
+    expect(store.snapshot().lastOutcome).toEqual({
+      equipResult: 50,
+      kind: "refused",
+      limitItem: 2589,
+      status: "close_window",
+      targetError: true,
+    });
+    expect(events).toContainEqual({ type: "refused", status: "close_window" });
+  });
 });

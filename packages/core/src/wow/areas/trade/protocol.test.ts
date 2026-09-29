@@ -3,15 +3,22 @@ import {
   TRADE_PARTNER,
   TRADE_STATUS,
   tradeStatusBody,
+  tradeStatusExtendedBody,
 } from "#test-support/areas/trade";
 import { bytes } from "#test-support/hex";
 import {
+  buildAcceptTrade,
   buildBeginTrade,
   buildBusyTrade,
   buildCancelTrade,
+  buildClearTradeItem,
   buildIgnoreTrade,
   buildInitiateTrade,
+  buildSetTradeGold,
+  buildSetTradeItem,
+  buildUnacceptTrade,
   parseTradeStatus,
+  parseTradeStatusExtended,
   tradeStatusName,
 } from "#wow/areas/trade/protocol";
 import { PacketReader } from "#wow/protocol/packet";
@@ -120,5 +127,109 @@ describe("trade builders", () => {
     expect(buildBusyTrade()).toEqual(bytes(""));
     expect(buildIgnoreTrade()).toEqual(bytes(""));
     expect(buildCancelTrade()).toEqual(bytes(""));
+  });
+});
+
+describe("parseTradeStatusExtended", () => {
+  const linen = {
+    count: 3,
+    creator: 0x0a_01n,
+    display: 1234,
+    durability: 20,
+    entry: 2589,
+    gemEnchants: [7, 8, 9],
+    giftCreator: 0x0b_01n,
+    lock: 5,
+    maxDurability: 25,
+    permanentEnchant: 44,
+    randomProperty: -12,
+    suffix: 99,
+    wrapped: true,
+  } as const;
+
+  test("reads the side, gold, spell and every field of a filled slot (TradeHandler.cpp:74-122)", () => {
+    const reader = new PacketReader(
+      tradeStatusExtendedBody({
+        gold: 1234,
+        side: 1,
+        slots: { 2: { ...linen, charges: 4 } },
+        spell: 13262,
+      }),
+    );
+    const parsed = parseTradeStatusExtended(reader);
+    expect(parsed).toMatchObject({ gold: 1234, side: 1, spell: 13262 });
+    expect(parsed?.items).toEqual([
+      {
+        charges: 4,
+        count: 3,
+        creator: 0x0a_01n,
+        display: 1234,
+        durability: 20,
+        entry: 2589,
+        gemEnchants: [7, 8, 9],
+        giftCreator: 0x0b_01n,
+        lock: 5,
+        maxDurability: 25,
+        permanentEnchant: 44,
+        randomProperty: -12,
+        slot: 2,
+        suffix: 99,
+        wrapped: true,
+      },
+    ]);
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("an all-zero slot is empty and gives no item", () => {
+    const reader = new PacketReader(
+      tradeStatusExtendedBody({ gold: 0, side: 0 }),
+    );
+    const parsed = parseTradeStatusExtended(reader);
+    expect(parsed).toMatchObject({ gold: 0, items: [], side: 0, spell: 0 });
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("keeps the slot index of each filled slot among empty ones", () => {
+    const parsed = parseTradeStatusExtended(
+      new PacketReader(
+        tradeStatusExtendedBody({
+          side: 1,
+          slots: { 0: { entry: 10 }, 6: { entry: 20 } },
+        }),
+      ),
+    );
+    expect(parsed?.items.map((item) => [item.slot, item.entry])).toEqual([
+      [0, 10],
+      [6, 20],
+    ]);
+  });
+
+  test("a body cut inside the slot loop gives undefined", () => {
+    const body = tradeStatusExtendedBody({ side: 1 });
+    expect(
+      parseTradeStatusExtended(new PacketReader(body.slice(0, 100))),
+    ).toBeUndefined();
+  });
+});
+
+describe("trade offer builders", () => {
+  test("CMSG_SET_TRADE_ITEM writes u8 trade slot, u8 bag, u8 slot (TradeHandler.cpp:877-879)", () => {
+    expect(buildSetTradeItem(2, 255, 24)).toEqual(bytes("02ff18"));
+  });
+
+  test("CMSG_CLEAR_TRADE_ITEM writes one u8 (TradeHandler.cpp:935-947)", () => {
+    expect(buildClearTradeItem(3)).toEqual(bytes("03"));
+  });
+
+  test("CMSG_SET_TRADE_GOLD writes one u32 of copper (TradeHandler.cpp:858-868)", () => {
+    expect(buildSetTradeGold(10)).toEqual(bytes("0a000000"));
+  });
+
+  test("CMSG_UNACCEPT_TRADE is empty (TradeHandler.cpp:683-690)", () => {
+    expect(buildUnacceptTrade()).toEqual(bytes(""));
+  });
+
+  test("CMSG_ACCEPT_TRADE writes u32 1; AzerothCore reads no body (TradeHandler.cpp:237) and wowm cmsg_accept_trade has one u32", () => {
+    expect(buildAcceptTrade()).toEqual(bytes("01000000"));
   });
 });
