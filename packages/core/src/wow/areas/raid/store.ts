@@ -5,6 +5,8 @@ import {
   type RaidState,
   RaidStore,
 } from "#wow/areas/raid/store-roster";
+import type { PartyMemberStats } from "#wow/protocol/group-stats";
+
 export class RaidAreaStore {
   private readonly inner = new RaidStore();
 
@@ -22,6 +24,10 @@ export class RaidAreaStore {
 
   receiveInviteBlocked(name: string): void {
     this.inner.receiveInviteBlocked(name);
+  }
+
+  receiveStats(stats: PartyMemberStats, now: number): void {
+    this.inner.receiveStats(stats, now);
   }
 
   dispose(): void {

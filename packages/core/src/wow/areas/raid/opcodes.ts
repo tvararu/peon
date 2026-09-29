@@ -19,7 +19,12 @@ export const RAID_OPCODES = {
     "CMSG_GROUP_CANCEL",
     "SMSG_REAL_GROUP_UPDATE",
   ],
-  uses: ["SMSG_GROUP_LIST", "SMSG_GROUP_INVITE"],
+  uses: [
+    "SMSG_GROUP_LIST",
+    "SMSG_GROUP_INVITE",
+    "SMSG_PARTY_MEMBER_STATS",
+    "SMSG_PARTY_MEMBER_STATS_FULL",
+  ],
   stubs: [
     ["MSG_RAID_READY_CHECK", "Ready check"],
     ["MSG_RAID_READY_CHECK_CONFIRM", "Ready check confirm"],

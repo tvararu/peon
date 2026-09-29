@@ -5,7 +5,13 @@ import {
   RAID_MAIN_TANK_FLAG,
   type RaidGroup,
 } from "#wow/areas/raid/protocol";
-
+import {
+  type MemberStats,
+  type StatsEvent,
+  mergeMemberStats,
+  statsTransitions,
+} from "#wow/areas/raid/store-stats";
+import type { PartyMemberStats } from "#wow/protocol/group-stats";
 export type RaidChange =
   | { kind: "converted" }
   | { kind: "subgroup"; name?: string; self?: true; from: number; to: number }
@@ -26,9 +32,13 @@ export type RaidChange =
 export type RaidEvent =
   | { type: "group_list"; group: RaidGroup; changes: readonly RaidChange[] }
   | { type: "invite_blocked"; name: string }
-  | { type: "disbanded" };
+  | { type: "disbanded" }
+  | StatsEvent;
 
-export type RaidState = { group: RaidGroup | undefined };
+export type RaidState = {
+  group: RaidGroup | undefined;
+  stats: ReadonlyMap<bigint, MemberStats>;
+};
 
 const FLAG_NAMES = [
   [RAID_ASSISTANT_FLAG, "assistant"],
@@ -146,10 +156,11 @@ function flagChanges(
 export class RaidStore {
   private readonly events = new Emitter<[RaidEvent]>();
   private group: RaidGroup | undefined;
+  private readonly stats = new Map<bigint, MemberStats>();
   private counter = 0;
 
   snapshot(): RaidState {
-    return { group: this.group };
+    return { group: this.group, stats: this.stats };
   }
 
   onEvent(cb: (event: RaidEvent) => void): Unsubscribe {
@@ -186,6 +197,23 @@ export class RaidStore {
   dispose(): void {
     this.events.clear();
     this.group = undefined;
+    this.stats.clear();
     this.counter = 0;
+  }
+
+  receiveStats(stats: PartyMemberStats, now: number): void {
+    const guid = (BigInt(stats.guidHigh) << 32n) | BigInt(stats.guidLow >>> 0);
+    const member = this.group?.members.find((entry) => entry.guid === guid);
+    if (!member) return;
+    const before = this.stats.get(guid);
+    const merged = mergeMemberStats(stats, before, member.name, now);
+    this.stats.set(guid, merged);
+    const transitions = statsTransitions(before, merged);
+    this.events.emit({
+      guid,
+      name: member.name,
+      transitions,
+      type: "member_stats",
+    });
   }
 }
