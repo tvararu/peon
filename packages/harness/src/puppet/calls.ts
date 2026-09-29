@@ -197,7 +197,15 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   tradeRequestQuiet: {
     args: ["string"],
     run: async (h, a) => {
-      await h.trade.act.requestTrade(nearbyPlayer(h, text(a, 0)).guid);
+      const outcome = await h.trade.act.requestTrade(
+        nearbyPlayer(h, text(a, 0)).guid,
+      );
+      if (outcome.status !== "ok" && outcome.status !== "unanswered")
+        throw new Error(
+          outcome.status === "refused"
+            ? `trade_refused: ${outcome.reason}`
+            : outcome.status,
+        );
     },
   },
   uninvite: { args: ["string"], run: (h, a) => h.uninvite(text(a, 0)) },

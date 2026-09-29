@@ -150,7 +150,27 @@ describe("PUPPET_CALLS", () => {
     );
   });
 
-  test("tradeRequestQuiet does not fail when the other player refuses", async () => {
+  test("tradeRequestQuiet waits out an unanswered request", async () => {
+    const game = createMockGame();
+    const row = {
+      distance: 2,
+      entity: { guid: 7n, name: "Fabc", objectType: 4 },
+      position: { x: 1, y: 2, z: 3 },
+      self: false,
+    };
+    spyOn(game, "queryNearby").mockReturnValue([row] as never);
+    spyOn(game.trade.act, "requestTrade").mockResolvedValue({
+      status: "unanswered",
+    });
+    const call = decodeCall("tradeRequestQuiet", '["Fabc"]');
+    if ("error" in call) throw new Error(call.error);
+    expect(
+      await PUPPET_CALLS["tradeRequestQuiet"]?.run(game, call.args),
+    ).toBeUndefined();
+    expect(game.trade.act.requestTrade).toHaveBeenCalledWith(7n);
+  });
+
+  test("tradeRequestQuiet fails when the other player is busy", async () => {
     const game = createMockGame();
     const row = {
       distance: 2,
@@ -165,10 +185,9 @@ describe("PUPPET_CALLS", () => {
     });
     const call = decodeCall("tradeRequestQuiet", '["Fabc"]');
     if ("error" in call) throw new Error(call.error);
-    expect(
-      await PUPPET_CALLS["tradeRequestQuiet"]?.run(game, call.args),
-    ).toBeUndefined();
-    expect(game.trade.act.requestTrade).toHaveBeenCalledWith(7n);
+    await expect(
+      PUPPET_CALLS["tradeRequestQuiet"]?.run(game, call.args),
+    ).rejects.toThrow("trade_refused: busy");
   });
 
   test("tradeAnswer waits for a request before it answers", () =>
