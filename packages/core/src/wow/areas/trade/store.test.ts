@@ -343,7 +343,11 @@ describe("trade store", () => {
       got: { gold: 40, items: [], spell: 0, version: 1 },
       kind: "completed",
     });
-    expect(events).toContainEqual({ type: "completed" });
+    expect(events).toContainEqual({
+      gave: { gold: 10, items: [], spell: 0, version: 1 },
+      got: { gold: 40, items: [], spell: 0, version: 1 },
+      type: "completed",
+    });
   });
 
   test("TRADE_COMPLETE closes the trade so a new request can start (TradeHandler.cpp:655-657)", () => {

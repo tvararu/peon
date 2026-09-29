@@ -61,7 +61,7 @@ export type TradeEvent =
   | { type: "offer_changed"; version: number }
   | { type: "back_to_trade" }
   | { type: "they_accepted" }
-  | { type: "completed" };
+  | { type: "completed"; gave: TradeOffer; got: TradeOffer };
 
 const CANCEL_STATUSES: Record<string, true> = {
   busy: true,
@@ -212,7 +212,11 @@ export class TradeStore {
         got: { ...this.theirs, items: [...this.theirs.items] },
         kind: "completed",
       };
-      this.events.emit({ type: "completed" });
+      this.events.emit({
+        gave: this.last.gave,
+        got: this.last.got,
+        type: "completed",
+      });
       return true;
     }
     return false;
