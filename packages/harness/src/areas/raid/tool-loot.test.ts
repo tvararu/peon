@@ -112,6 +112,7 @@ function roll(over: Partial<Roll> = {}): Roll {
 
 type Setup = {
   candidates?: readonly bigint[];
+  closedLoot?: boolean;
   corpseDistance?: number;
   group?: Partial<RaidGroup>;
   inGroup?: boolean;
@@ -154,13 +155,30 @@ async function world(setup: Setup = {}) {
   const items = setup.items ?? [FANG, LINEN];
   const open = lootState(items);
   const base = t.handle.getRewardsState();
-  const rolls = { last: undefined, pending: [...(setup.rolls ?? [])] };
-  const startLoot = setup.rolls
-    ? { ...base, ...open, rolls }
-    : { ...base, rolls };
+  const rolls: typeof base.rolls = {
+    last: undefined,
+    pending: [...(setup.rolls ?? [])],
+  };
+  const rewards = { ...base, rolls };
+  let startLoot = rewards;
+  if (setup.closedLoot)
+    startLoot = { ...rewards, loot: { phase: "closed" as const } };
+  else if (setup.rolls) startLoot = { ...rewards, ...open };
   (t.handle.getRewardsState as Mock<() => typeof base>).mockImplementation(
     () => startLoot,
   );
+  const names: Record<number, string> = {
+    [FANG.itemId]: FANG.name,
+    [LINEN.itemId]: LINEN.name,
+  };
+  (
+    t.handle.itemLabel as Mock<
+      (entry: number) => { name: string | null; quality: number | null }
+    >
+  ).mockImplementation((entry) => ({
+    name: names[entry] ?? null,
+    quality: 1,
+  }));
   jest.spyOn(t.handle, "openLoot").mockImplementation(() => {
     if (setup.opens === false) return;
     queueMicrotask(() => {
@@ -443,6 +461,49 @@ describe("group tool roll", () => {
     });
     expect(picked.text).toContain("DONE");
     expect(t.rollLoot).toHaveBeenCalledWith(0x31n, 0, "pass");
+  });
+
+  test("matches by name with the loot window closed", async () => {
+    const second = roll({
+      guid: 0x31n,
+      itemId: FANG.itemId,
+      slot: 0,
+    });
+    const t = await world({ closedLoot: true, rolls: [roll(), second] });
+    const picked = await runTool(t.tool, {
+      do: "roll",
+      what: "pass",
+      with: "linen cloth",
+    });
+    expect(picked.text).toContain("DONE");
+    expect(t.rollLoot).toHaveBeenCalledWith(ROLL_GUID, 1, "pass");
+  });
+
+  test("matches an item id label", async () => {
+    const second = roll({
+      guid: 0x31n,
+      itemId: FANG.itemId,
+      slot: 0,
+    });
+    const t = await world({ closedLoot: true, rolls: [roll(), second] });
+    const picked = await runTool(t.tool, {
+      do: "roll",
+      what: "need",
+      with: `item ${LINEN.itemId}`,
+    });
+    expect(picked.text).toContain("DONE");
+    expect(t.rollLoot).toHaveBeenCalledWith(ROLL_GUID, 1, "need");
+  });
+
+  test("refuses an unmatched item name without rolling", async () => {
+    const t = await world({ closedLoot: true, rolls: [roll()] });
+    const out = await runTool(t.tool, {
+      do: "roll",
+      what: "need",
+      with: "Mithril Ore",
+    });
+    expect(out.text).toContain("REFUSED no_roll");
+    expect(t.rollLoot).not.toHaveBeenCalled();
   });
 
   test("reports a refused send as FAILED", async () => {

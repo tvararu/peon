@@ -301,24 +301,30 @@ async function releaseCorpse(ctx: GroupCtx): Promise<void> {
   await ctx.rt.mutex.run(() => ctx.handle.releaseLoot());
 }
 
+function rollMatches(
+  ctx: GroupCtx,
+  open: NamedOpen | undefined,
+  roll: OpenRoll,
+  wanted: string,
+): boolean {
+  const id = String(roll.itemId);
+  if (id === wanted || `item ${id}` === wanted) return true;
+  if (
+    open?.items.find((item) => item.slot === roll.slot)?.name?.toLowerCase() ===
+    wanted
+  )
+    return true;
+  return ctx.handle.itemLabel(roll.itemId).name?.toLowerCase() === wanted;
+}
+
 function namedRoll(
   ctx: GroupCtx,
   rolls: readonly OpenRoll[],
   named: string,
 ): OpenRoll {
-  const wanted = named.toLowerCase();
-  const wantedId = Number(named);
+  const wanted = named.trim().toLowerCase();
   const open = opened(ctx.handle.getRewardsState().loot);
-  const hit =
-    rolls.find((roll) =>
-      Number.isSafeInteger(wantedId) ? roll.itemId === wantedId : false,
-    ) ??
-    rolls.find((roll) => {
-      const label = open?.items
-        .find((item) => item.slot === roll.slot)
-        ?.name?.toLowerCase();
-      return label === wanted;
-    });
+  const hit = rolls.find((roll) => rollMatches(ctx, open, roll, wanted));
   if (!hit)
     refuse("no_roll", `no open roll matches ${named}.`, nextCall("look"));
   return hit as OpenRoll;
@@ -328,7 +334,7 @@ function onlyPending(pending: readonly OpenRoll[]): OpenRoll {
   if (pending.length > 1)
     refuse(
       "ambiguous_roll",
-      `two rolls are open (${pending.map((roll) => `item ${roll.itemId} slot ${roll.slot}`).join("; ")}). Name one with the with item name.`,
+      `two rolls are open (${pending.map((roll) => `item ${roll.itemId} slot ${roll.slot}`).join("; ")}). Name one with the item name.`,
     );
   const only = pending[0];
   if (!only)
