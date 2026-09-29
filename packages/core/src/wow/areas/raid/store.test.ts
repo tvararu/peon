@@ -122,6 +122,104 @@ describe("raid store", () => {
     }
   });
 
+  test("scopes the counter to the group guid", () => {
+    const rig = areaRig("raid");
+    const events: RaidEvent[] = [];
+    rig.handle.onEvent((event) => {
+      events.push(event);
+    });
+    try {
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, partyList(9));
+      rig.inject(
+        GameOpcode.SMSG_GROUP_LIST,
+        raidGroupListBody({
+          counter: 1,
+          groupGuid: 0x2f4n,
+          leader: TOM,
+          members: [{ guid: TOM, name: "Tom" }],
+          type: 3,
+        }),
+      );
+      expect(events).toHaveLength(2);
+      expect(rig.handle.state().group?.groupGuid).toBe(0x2f4n);
+      expect(rig.handle.state().group?.kind).toBe("raid");
+      expect(rig.handle.state().group?.battleground).toBe(true);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("ignores a disband list of another group", () => {
+    const rig = areaRig("raid");
+    try {
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, partyList(1));
+      rig.inject(
+        GameOpcode.SMSG_GROUP_LIST,
+        raidGroupListBody({
+          counter: 1,
+          groupGuid: 0x2f4n,
+          leader: TOM,
+          members: [{ guid: TOM, name: "Tom" }],
+          type: 3,
+        }),
+      );
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, raidGroupLeftBody(2));
+      expect(rig.handle.state().group?.groupGuid).toBe(0x2f4n);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("reports changes that affect the receiving character", () => {
+    const rig = areaRig("raid");
+    const events: RaidEvent[] = [];
+    rig.handle.onEvent((event) => {
+      events.push(event);
+    });
+    try {
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, partyList());
+      const self = 0x99n;
+      rig.inject(
+        GameOpcode.SMSG_GROUP_LIST,
+        raidGroupListBody({
+          counter: 1,
+          flags: 5,
+          leader: self,
+          loot: { method: 1, threshold: 2 },
+          members: [
+            { guid: ANN, name: "Ann" },
+            { guid: TOM, name: "Tom" },
+          ],
+          subgroup: 2,
+          type: 0,
+        }),
+      );
+      const second = events[1];
+      if (second?.type !== "group_list") throw new Error("no second list");
+      expect(second.changes).toContainEqual({
+        from: 0,
+        kind: "subgroup",
+        self: true,
+        to: 2,
+      });
+      expect(second.changes).toContainEqual({
+        flag: "assistant",
+        kind: "flag",
+        on: true,
+        self: true,
+      });
+      expect(second.changes).toContainEqual({
+        flag: "main_assist",
+        kind: "flag",
+        on: true,
+        self: true,
+      });
+      expect(second.changes).toContainEqual({ kind: "leader", self: true });
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("the you-left form clears the group and emits disbanded", () => {
     const rig = areaRig("raid");
     const events: RaidEvent[] = [];

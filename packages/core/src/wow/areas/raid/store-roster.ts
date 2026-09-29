@@ -8,10 +8,11 @@ import {
 
 export type RaidChange =
   | { kind: "converted" }
-  | { kind: "subgroup"; name: string; from: number; to: number }
+  | { kind: "subgroup"; name?: string; self?: true; from: number; to: number }
   | {
       kind: "flag";
-      name: string;
+      name?: string;
+      self?: true;
       flag: "assistant" | "main_tank" | "main_assist";
       on: boolean;
     }
@@ -19,7 +20,7 @@ export type RaidChange =
   | { kind: "difficulty" }
   | { kind: "joined"; name: string }
   | { kind: "left"; name: string }
-  | { kind: "leader"; name: string }
+  | { kind: "leader"; name?: string; self?: true }
   | { kind: "disbanded" };
 
 export type RaidEvent =
@@ -64,6 +65,29 @@ function converted(before: RaidGroup | undefined, after: RaidGroup): boolean {
   );
 }
 
+function selfChanges(
+  before: RaidGroup["self"],
+  after: RaidGroup["self"],
+): RaidChange[] {
+  const changes: RaidChange[] = [];
+  if (before.subgroup !== after.subgroup)
+    changes.push({
+      from: before.subgroup,
+      kind: "subgroup",
+      self: true,
+      to: after.subgroup,
+    });
+  for (const [bit, flag] of FLAG_NAMES)
+    if ((before.flags & bit) !== (after.flags & bit))
+      changes.push({
+        flag,
+        kind: "flag",
+        on: (after.flags & bit) !== 0,
+        self: true,
+      });
+  return changes;
+}
+
 function rosterChanges(
   previous: Member | undefined,
   member: Member,
@@ -94,7 +118,8 @@ function leaderChange(
 ): RaidChange | undefined {
   if (!before || before.leader === after.leader) return undefined;
   const leader = after.members.find((member) => member.guid === after.leader);
-  return leader ? { kind: "leader", name: leader.name } : undefined;
+  if (leader) return { kind: "leader", name: leader.name };
+  return after.leader === 0n ? undefined : { kind: "leader", self: true };
 }
 
 function flagChanges(
@@ -103,6 +128,7 @@ function flagChanges(
 ): RaidChange[] {
   const changes: RaidChange[] = [];
   if (converted(before, after)) changes.push({ kind: "converted" });
+  if (before) changes.push(...selfChanges(before.self, after.self));
   const old = new Map(
     (before?.members ?? []).map((member) => [member.guid, member]),
   );
@@ -131,7 +157,10 @@ export class RaidStore {
   }
 
   receiveList(packet: RaidGroup, counter: number): void {
-    if (counter <= this.counter && this.group !== undefined) return;
+    const current = this.group;
+    if (current !== undefined && packet.groupGuid !== current.groupGuid) {
+      if (packet.members.length === 0) return;
+    } else if (counter <= this.counter && current !== undefined) return;
     this.counter = counter;
     if (packet.members.length === 0) {
       if (this.group !== undefined) {

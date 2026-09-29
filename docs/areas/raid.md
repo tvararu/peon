@@ -7,9 +7,16 @@ name, guid, status, subgroup, flags and roles, the leader, the loot
 method with the master looter and threshold, and the three difficulty
 bytes. It emits one `group_list` event per list with the `changes`
 between the previous list and the new one (`converted`, `subgroup`,
-`flag`, `loot`, `difficulty`, `joined`, `left`, `leader`), and one
-`invite_blocked` event per `SMSG_GROUP_INVITE` with status 0. A list
-whose counter is not newer than the last one changes nothing. The
+`flag`, `loot`, `difficulty`, `joined`, `left`, `leader`). The server never lists the receiving character, so a
+change to its own subgroup or flags, or a leader guid that no member row
+holds, is a `subgroup`, `flag` or `leader` change with `self: true` and
+no name, and one
+`invite_blocked` event per `SMSG_GROUP_INVITE` with status 0. The
+group is raid when bit `0x02` of the type is set, so a battleground raid
+(`0x03`) reads as raid with `battleground` set. The counter belongs to
+one group: a list whose group guid matches the held group and whose
+counter is not newer changes nothing, a list of another group replaces
+the held one, and a zero-member list of another group is ignored. The
 "you left" form clears the group and emits `disbanded`. The legacy
 party code reads the same packet for the `social` tool; this area only
 peeks it. The act `awaitGroupChange(match, timeoutMs)` resolves with
@@ -34,8 +41,12 @@ legacy `group/roster` row already says; `invite_blocked` writes one
 - `SMSG_GROUP_LIST` member flags are assistant `0x01`, main tank `0x02`
   and main assist `0x04`, written per member
   (`Groups/Group.cpp:1928`).
-- The `SMSG_GROUP_LIST` counter rises on every send
-  (`Groups/Group.cpp:1914`).
+- The `SMSG_GROUP_LIST` counter is `Group::m_counter`, so it belongs to
+  one group and rises on every send of that group
+  (`Groups/Group.cpp:1913`).
+- The group type is a flag set: `GROUPTYPE_BG` `0x01`, `GROUPTYPE_RAID`
+  `0x02`, their mask `GROUPTYPE_BGRAID` and `GROUPTYPE_LFG` `0x08`
+  (`Groups/Group.h:87-92`).
 - `SMSG_GROUP_INVITE` with status 0 goes to an invitee who is already
   in a group (`Handlers/GroupHandler.cpp:160-176`); status 1 is a live
   invite, which the legacy code handles.
@@ -51,6 +62,31 @@ legacy `group/roster` row already says; `invite_blocked` writes one
   `CMSG_SUMMON_RESPONSE`: built by later group tasks. The LFG form (type
   `0x08`) is not seen live until `instances` forms a dungeon-finder
   group.
+
+## Live evidence
+
+Three `eversong10` throwaway accounts A, B and C ran through their
+puppets with `--packet-trace headers`: A invited B, B accepted, then C
+(in no group) invited A. Kept, not committed, in the directory
+`live-raid-fix1` of the `proto-group` worktree's scratch space, one `<ACCOUNT>-packets.jsonl` and one
+`<ACCOUNT>-events.json` per account:
+
+- A's trace holds `out CMSG_GROUP_INVITE`, `in SMSG_GROUP_INVITE` and
+  three `in SMSG_GROUP_LIST`; A's events hold a raid `group_list` with
+  `joined` for B and an `invite_blocked` for C.
+- B's trace holds `in SMSG_GROUP_INVITE`, `out CMSG_GROUP_ACCEPT` and
+  three `in SMSG_GROUP_LIST`; B's events hold a raid `group_list` with
+  `joined` for A.
+- C's trace holds the outgoing invite.
+
+A second run over the same characters, kept under
+`live-raid-fix1-regroup` of the same scratch space, found A and B still grouped from the
+first run, so A's new invite of B was answered with status 0 and both
+puppets logged `invite_blocked`.
+
+Battleground groups and the self-only changes are proven by
+`areaRig` tests built from the writer at `Groups/Group.cpp:1883-1950`,
+not seen live.
 
 ## Capabilities row
 

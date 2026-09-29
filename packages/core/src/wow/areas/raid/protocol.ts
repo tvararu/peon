@@ -16,6 +16,7 @@ export type RaidMember = {
 export type RaidGroup = {
   kind: "party" | "raid";
   battleground: boolean;
+  groupGuid: bigint;
   dungeonFinder: { status: number; dungeonId: number } | undefined;
   self: { subgroup: number; flags: number; roles: number };
   members: readonly RaidMember[];
@@ -40,7 +41,9 @@ export function readRaidGroup(packet: GroupList): RaidGroup {
       packet.dungeonId === undefined || packet.dungeonStatus === undefined
         ? undefined
         : { dungeonId: packet.dungeonId, status: packet.dungeonStatus },
-    kind: packet.type === 0x02 ? "raid" : "party",
+    groupGuid:
+      (BigInt(packet.groupGuidHigh) << 32n) | BigInt(packet.groupGuidLow),
+    kind: (packet.type & 0x02) === 0 ? "party" : "raid",
     leader:
       (BigInt(packet.leaderGuidHigh) << 32n) | BigInt(packet.leaderGuidLow),
     loot: packet.loot

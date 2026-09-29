@@ -6,19 +6,20 @@ type RaidEvent = AreaEventOf<"raid">;
 type Of<T extends RaidEvent["type"]> = Extract<RaidEvent, { type: T }>;
 
 function rosterText(kind: string, name: string | undefined): string {
+  const who = name ?? "You";
   switch (kind) {
     case "converted":
       return "The group changed shape.";
     case "subgroup":
-      return `${name ?? "Someone"} moved groups.`;
+      return `${who} moved groups.`;
     case "flag":
-      return `${name ?? "Someone"} gained a raid flag.`;
+      return `${who} gained a raid flag.`;
     case "loot":
       return "The loot rules changed.";
     case "difficulty":
       return "The difficulty changed.";
     case "leader":
-      return `${name ?? "Someone"} leads the group now.`;
+      return name ? `${name} leads the group now.` : "You lead the group now.";
     case "disbanded":
       return "The group disbanded.";
     default:

@@ -14,6 +14,7 @@ const GROUP = {
   counter: 1,
   difficulty: undefined,
   dungeonFinder: undefined,
+  groupGuid: 0x1f4n,
   kind: "party",
   leader: 0x10n,
   loot: undefined,
@@ -47,6 +48,18 @@ describe("raid harness rules", () => {
         type: "group_list",
       }),
     ).toEqual([]);
+  });
+
+  test("a change to the receiving character writes a roster row", () => {
+    expect(
+      rows({
+        changes: [{ kind: "leader", self: true }],
+        group: GROUP,
+        type: "group_list",
+      }),
+    ).toMatchObject([
+      { class: "passive", data: { change: "leader" }, event: "raid/roster" },
+    ]);
   });
 
   test("a blocked invite writes one log row", () => {

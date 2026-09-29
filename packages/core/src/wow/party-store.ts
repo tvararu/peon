@@ -163,7 +163,7 @@ export class PartyStore {
           ? undefined
           : { dungeonId: list.dungeonId, status: list.dungeonStatus },
       inGroup: members.length > 0,
-      kind: list.type === 2 ? "raid" : "party",
+      kind: (list.type & 0x02) === 0 ? "party" : "raid",
       leader: members.length > 0 ? leader || null : null,
       loot: toLoot(list.loot),
       members,

@@ -36,6 +36,22 @@ describe("readRaidGroup", () => {
     expect(group.difficulty).toEqual({ dungeon: 0, heroic: false, raid: 0 });
   });
 
+  test("reads the raid bit of a battleground raid group", () => {
+    const group = readRaidGroup(
+      parseGroupList(
+        new PacketReader(
+          raidGroupListBody({
+            leader: TOM,
+            members: [{ guid: TOM, name: "Tom" }],
+            type: 3,
+          }),
+        ),
+      ),
+    );
+    expect(group.kind).toBe("raid");
+    expect(group.battleground).toBe(true);
+  });
+
   test("maps the raid form with member flags and roles", () => {
     const group = readRaidGroup(
       parseGroupList(

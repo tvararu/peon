@@ -167,6 +167,12 @@ describe("party store", () => {
     });
   });
 
+  test("reads a battleground raid group as a raid", () => {
+    const party = new PartyStore();
+    party.applyList({ ...list(["Bob"]), type: 3 }, "Bob");
+    expect(party.snapshot().kind).toBe("raid");
+  });
+
   test("reads the dungeon-finder form", () => {
     const party = new PartyStore();
     party.applyList(
