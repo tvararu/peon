@@ -118,10 +118,24 @@ async function useHealer(ctx: OpsCtx): Promise<RecoveryOutcome> {
 }
 
 async function useSelf(ctx: OpsCtx): Promise<RecoveryOutcome> {
-  const outcome = await ctx.handle.selfstate.act.selfResurrect();
-  if (outcome.status === "ok") return { ok: true, outcome: "resurrected" };
-  if (outcome.status === "refused") return { cause: outcome.reason, ok: false };
-  return { cause: "self_res_unanswered", ok: false };
+  ctx.signal.throwIfAborted();
+  let onAbort: (() => void) | undefined;
+  const aborted = new Promise<never>((_, reject) => {
+    onAbort = () => reject(ctx.signal.reason);
+    ctx.signal.addEventListener("abort", onAbort, { once: true });
+  });
+  try {
+    const outcome = await Promise.race([
+      ctx.handle.selfstate.act.selfResurrect(),
+      aborted,
+    ]);
+    if (outcome.status === "ok") return { ok: true, outcome: "resurrected" };
+    if (outcome.status === "refused")
+      return { cause: outcome.reason, ok: false };
+    return { cause: "self_res_unanswered", ok: false };
+  } finally {
+    if (onAbort) ctx.signal.removeEventListener("abort", onAbort);
+  }
 }
 function legsOf(outcome: RecoveryOutcome): number {
   const legs = outcome.detail?.["legs"];

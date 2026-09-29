@@ -57,18 +57,37 @@ function afterOf(
   };
 }
 
-function selfName(ctx: ViewCtx): string {
-  const spellId = ctx.handle.selfstate.state().selfResSpell;
-  if (spellId === 0) return "a self-resurrection";
-  return ctx.handle.spellDefinition(spellId)?.name ?? `spell ${spellId}`;
+type SelfSnapshot = {
+  released: boolean;
+  spell: string;
+};
+
+function snapshotSelf(ctx: ViewCtx): SelfSnapshot {
+  const state = ctx.handle.selfstate.state();
+  return {
+    released: selfView(ctx).life === "ghost",
+    spell:
+      state.selfResSpell === 0
+        ? "a self-resurrection"
+        : (ctx.handle.spellDefinition(state.selfResSpell)?.name ??
+          `spell ${state.selfResSpell}`),
+  };
 }
 
-function viaText(op: RecoverOpResult, ctx: ViewCtx): string {
+function viaText(
+  op: RecoverOpResult,
+  ctx: ViewCtx,
+  self: SelfSnapshot,
+): string {
   const { via } = op;
   if (via === "corpse") return aliveWhere(op.corpseYd, poseView(ctx));
   if (via === "spirit_healer") return `at the spirit healer${whereText(ctx)}`;
-  if (via === "self")
-    return `where you died${whereText(ctx)} (${selfName(ctx)})`;
+  if (via === "self") {
+    const place = self.released
+      ? `at ${Math.round(poseView(ctx)?.x ?? 0)}, ${Math.round(poseView(ctx)?.y ?? 0)}`
+      : `where you died${whereText(ctx)}`;
+    return `${place} (${self.spell})`;
+  }
   return `where you died${whereText(ctx)}`;
 }
 
@@ -111,12 +130,17 @@ function failedReport(op: RecoverOpResult, after: RecoverAfter): Report {
   });
 }
 
-function report(ctx: ViewCtx, op: RecoverOpResult, durationMs: number): Report {
+function report(
+  ctx: ViewCtx,
+  op: RecoverOpResult,
+  durationMs: number,
+  self: SelfSnapshot,
+): Report {
   const after = afterOf(ctx, op, durationMs);
   if (!op.outcome.ok) return failedReport(op, after);
   return result("DONE", {
     after,
-    detail: `alive again ${viaText(op, ctx)}, after ${Math.round(durationMs / 1000)} s. HP ${after.hp}/${after.maxHp}.`,
+    detail: `alive again ${viaText(op, ctx, self)}, after ${Math.round(durationMs / 1000)} s. HP ${after.hp}/${after.maxHp}.`,
   });
 }
 
@@ -182,11 +206,12 @@ async function launch(init: {
     progress: control.progress,
     signal: AbortSignal.any([control.signal, watch.signal]),
   };
+  const self = snapshotSelf(ops);
   try {
     const op = await recoverOp(ops, how);
     const cause = watch.cause();
     if (cause) return interruptEnd(ops, cause, ctx.rt.clock.now() - startedAt);
-    const value = report(ops, op, ctx.rt.clock.now() - startedAt);
+    const value = report(ops, op, ctx.rt.clock.now() - startedAt, self);
     const status = op.outcome.ok ? "succeeded" : "failed";
     return {
       reason: value.reason,

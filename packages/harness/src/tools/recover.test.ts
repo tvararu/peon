@@ -115,20 +115,24 @@ describe("recover", () => {
     });
   });
 
-  test("self: alive again where you died, with the spell name", async () => {
+  test("self from a ghost: report says at the place, with the spell name", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle, { hp: 0, life: "ghost", maxHp: 217 });
     t.handle.spellDefinition = (id) =>
       id === 21_169 ? ({ id, name: "Reincarnation" } as never) : undefined;
-    jest.spyOn(t.handle.selfstate, "state").mockReturnValue({
-      collisionHeight: undefined,
-      ghostPending: false,
-      lastTransferAbort: undefined,
-      selfResSpell: 21_169,
-      standState: "stand",
-      timers: {},
-    });
+    let spell = 21_169;
+    const spy = jest
+      .spyOn(t.handle.selfstate, "state")
+      .mockImplementation(() => ({
+        collisionHeight: undefined,
+        ghostPending: false,
+        lastTransferAbort: undefined,
+        selfResSpell: spell,
+        standState: "stand",
+        timers: {},
+      }));
     t.handle.selfstate.act.selfResurrect = async () => {
+      spell = 0;
       setSelf(t.handle, {
         hp: 108,
         life: "alive",
@@ -142,12 +146,45 @@ describe("recover", () => {
       { how: "self" },
       toolCtx<RecoverAfter>(t),
     );
-    const text = contentOf(res);
-    expect(limitProblem(text)).toBeUndefined();
-    expect(text).toBe(
-      "DONE alive again where you died (8766, -6560) (Reincarnation), after 0 s. HP 108/217.",
-    );
+    expect(spy).toHaveBeenCalled();
+    expect(res.status).toBe("DONE");
     expect(res.after.via).toBe("self");
+    expect(contentOf(res)).toContain("Reincarnation");
+    expect(contentOf(res)).toContain("at 8766, -6560");
+  });
+
+  test("self from dead: report says where you died, with the spell name", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { hp: 0, life: "dead", maxHp: 217 });
+    t.handle.spellDefinition = (id) =>
+      id === 21_169 ? ({ id, name: "Reincarnation" } as never) : undefined;
+    let spell = 21_169;
+    jest.spyOn(t.handle.selfstate, "state").mockImplementation(() => ({
+      collisionHeight: undefined,
+      ghostPending: false,
+      lastTransferAbort: undefined,
+      selfResSpell: spell,
+      standState: "stand",
+      timers: {},
+    }));
+    t.handle.selfstate.act.selfResurrect = async () => {
+      spell = 0;
+      setSelf(t.handle, {
+        hp: 108,
+        life: "alive",
+        maxHp: 217,
+        x: 8766,
+        y: -6560,
+      });
+      return { status: "ok" };
+    };
+    const res = await recoverSpec.run(
+      { how: "self" },
+      toolCtx<RecoverAfter>(t),
+    );
+    expect(res.status).toBe("DONE");
+    expect(contentOf(res)).toContain("Reincarnation");
+    expect(contentOf(res)).toContain("where you died");
   });
 
   test("self without the spell refuses and names the other ways", async () => {

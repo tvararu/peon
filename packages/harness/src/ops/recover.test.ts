@@ -164,6 +164,32 @@ describe("recoverOp", () => {
     const result = await recoverOp(toolCtx(t), "self");
     expect(result.outcome).toEqual({ cause: "self_res_unanswered", ok: false });
   });
+  test("self: an abort during the act rejects with the abort reason", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { life: "dead" });
+    t.handle.selfstate.act.selfResurrect = () =>
+      new Promise<never>(() => undefined);
+    const controller = new AbortController();
+    const pending = recoverOp(toolCtx(t, controller.signal), "self");
+    controller.abort(new Error("human_stop"));
+    await expect(pending).rejects.toThrow("human_stop");
+  });
+
+  test("self: an already aborted run never calls the act", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { life: "dead" });
+    let resurrects = 0;
+    t.handle.selfstate.act.selfResurrect = async () => {
+      resurrects += 1;
+      return { status: "ok" };
+    };
+    const controller = new AbortController();
+    controller.abort(new Error("human_stop"));
+    await expect(
+      recoverOp(toolCtx(t, controller.signal), "self"),
+    ).rejects.toThrow("human_stop");
+    expect(resurrects).toBe(0);
+  });
 
   test("accept: takes the offer and names the other ways", async () => {
     const t = await createTestRuntime();
