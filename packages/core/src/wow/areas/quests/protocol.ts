@@ -217,3 +217,22 @@ export function buildPushQuestToParty(questId: number): Uint8Array {
   w.uint32LE(questId);
   return w.finish();
 }
+
+export type QuestConfirmAccept = {
+  questId: number;
+  title: string;
+  from: bigint;
+};
+
+export function parseQuestConfirmAccept(r: PacketReader): QuestConfirmAccept {
+  const questId = r.uint32LE();
+  const title = r.cString();
+  const from = r.uint64LE();
+  return { from, questId, title };
+}
+
+export function buildQuestConfirmAccept(questId: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(questId);
+  return w.finish();
+}

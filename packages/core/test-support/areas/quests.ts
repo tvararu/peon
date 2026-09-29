@@ -143,6 +143,18 @@ export function questsQuestPushResultBody(
   return w.finish();
 }
 
+export function questsQuestConfirmAcceptBody(
+  questId: number,
+  title: string,
+  guid: bigint,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(questId);
+  w.cString(title);
+  w.uint64LE(guid);
+  return w.finish();
+}
+
 export type QuestsQuestDetails = {
   guid: bigint;
   divider: bigint;

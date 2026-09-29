@@ -4,6 +4,7 @@ import {
   questsGossipPoiBody,
   questsNpcTextUpdateBody,
   questsQueryQuestsCompletedResponseBody,
+  questsQuestConfirmAcceptBody,
   questsQuestgiverStatusMultipleBody,
   questsQuestPoiQueryResponseBody,
   questsQuestPushResultBody,
@@ -11,6 +12,7 @@ import {
 import {
   buildNpcTextQuery,
   buildPushQuestToParty,
+  buildQuestConfirmAccept,
   buildQuestgiverHello,
   buildQuestgiverStatusQuery,
   buildQuestLogSwapQuest,
@@ -18,6 +20,7 @@ import {
   buildQuestPushResult,
   parseGossipPoi,
   parseNpcTextUpdate,
+  parseQuestConfirmAccept,
   parseQuestgiverStatusMultiple,
   parseQuestPoiResponse,
   parseQuestPushResult,
@@ -276,6 +279,23 @@ describe("quest sharing packets", () => {
   test("CMSG_PUSHQUESTTOPARTY is the uint32 quest id (QuestPackets.cpp:123-126)", () => {
     expect(buildPushQuestToParty(8326)).toEqual(
       new Uint8Array([0x86, 0x20, 0, 0]),
+    );
+  });
+
+  test("SMSG_QUEST_CONFIRM_ACCEPT is quest id, title and the accepting member guid (QuestPackets.cpp:61-68, PlayerQuest.cpp:2483-2503)", () => {
+    const body = questsQuestConfirmAcceptBody(
+      8488,
+      "Unexpected Results",
+      ERONA,
+    );
+    const confirm = parseQuestConfirmAccept(new PacketReader(body));
+    expect(confirm.questId).toBe(8488);
+    expect(confirm.from).toBe(ERONA);
+  });
+
+  test("CMSG_QUEST_CONFIRM_ACCEPT is the uint32 quest id (QuestPackets.cpp:118-121)", () => {
+    expect(buildQuestConfirmAccept(8488)).toEqual(
+      new Uint8Array([0x28, 0x21, 0, 0]),
     );
   });
 
