@@ -19,13 +19,14 @@ import type {
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 export const LFG_REQUEST_TIMEOUT_MS = 5000;
+const PLAYABLE_ROLES = 0x0e;
 
 export type LfgOutcome<T = Readonly<Record<never, never>>> =
   | ({ status: "ok" } & T)
   | { status: "refused"; reason: string }
   | { status: "no_answer" };
 
-export type LfgStatusResult = LfgOutcome<{ comment: string }>;
+export type LfgStatusResult = LfgOutcome;
 export type LfgDungeonsResult = LfgOutcome<{
   available: readonly LfgRandomView[];
   locks: readonly LfgLockView[];
@@ -94,7 +95,7 @@ function requestScope(): { abort: AbortController } {
   return { abort: new AbortController() };
 }
 
-function statusAct({ ctx, store }: Env) {
+function statusAct({ ctx }: Env) {
   return async (): Promise<LfgStatusResult> => {
     const scope = requestScope();
     const wait = waitForStatus(
@@ -111,7 +112,7 @@ function statusAct({ ctx, store }: Env) {
     }
     try {
       await wait;
-      return { status: "ok", comment: store.snapshot().comment };
+      return { status: "ok" };
     } catch (error) {
       if (isTimeout(error)) return { status: "no_answer" };
       throw error;
@@ -212,7 +213,8 @@ function groupRefusal(ctx: Ctx, store: LfgStore): LfgJoinResult | undefined {
 }
 
 function joinRefusal(env: Env, join: JoinRequest): LfgJoinResult | undefined {
-  if (join.roles === 0) return { status: "refused", reason: "no_role" };
+  if ((join.roles & PLAYABLE_ROLES) === 0)
+    return { status: "refused", reason: "no_role" };
   if (join.entries.length > LFG_MAX_ENTRIES)
     return { status: "refused", reason: "too_many" };
   const blocked = groupRefusal(env.ctx, env.store);
@@ -367,7 +369,11 @@ function setRolesAct({ ctx, store }: Env) {
     try {
       const chosen = await wait;
       scope.abort.abort();
-      if (chosen.type === "role_chosen" && chosen.ready)
+      if (
+        chosen.type === "role_chosen" &&
+        chosen.ready &&
+        (chosen.roles & PLAYABLE_ROLES) !== 0
+      )
         return { status: "ok", roles: chosen.roles };
       if (chosen.type === "role_chosen")
         return { status: "refused", reason: "no_role" };

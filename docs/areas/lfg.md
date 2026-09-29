@@ -51,15 +51,22 @@ proposal acts belong to later tasks.
   `u8` with the leader first (`Handlers/LFGHandler.cpp:394-439`).
 - The `ghostlands20` queue flow joins entry 100663554 (id 258, type 6) as
   damage with comment `peon`, sees the join result, a type-5 update and
-  the queue status, then leaves and sees the type-7 update. A two-puppet
-  group starts a role check on the leader's join; both puppets see
-  `SMSG_LFG_ROLE_CHECK_UPDATE` and `SMSG_LFG_ROLE_CHOSEN`, and the server
-  follows with a proposal (`SMSG_LFG_PROPOSAL_UPDATE`, instances-8).
+  the queue status, then leaves and sees the type-7 update. A group join
+  makes the server start a role check on the leader's join and send
+  `SMSG_LFG_ROLE_CHECK_UPDATE` to every member, and each answer is echoed
+  as `SMSG_LFG_ROLE_CHOSEN` (`Handlers/LFGHandler.cpp:383-392`, `Handlers/LFGHandler.cpp:394-439`);
+  this run was not seen live.
+- A role mask holds tank `2`, healer `4` and damage `8`; bit `1` is the
+  leader flag, so a leader-only join or role answer fails the role check
+  with `NO_ROLE` although the server echoes the answer as ready. `join`
+  refuses such a mask before sending and `setRoles` settles it as refused
+  (`DungeonFinding/LFG.h:39-43`, `DungeonFinding/LFGMgr.cpp:1500-1502`).
 - A `CMSG_SET_LFG_COMMENT` after the join stores no comment-carrying
   update: the queued type-12/13 `SMSG_LFG_UPDATE_PLAYER` updates keep the
   join comment, and the `CMSG_LFG_GET_STATUS` reply after leaving is type
   14 with no data, so the changed comment is never returned
-  (`Handlers/LFGHandler.cpp:302-337`).
+  (`Handlers/LFGHandler.cpp:302-337`). The status reply carries no comment,
+  so `requestStatus` returns none (`Handlers/LFGHandler.cpp:281-300`).
 
 ## Left out
 
@@ -87,15 +94,15 @@ No verb (N23).
 | `SMSG_LFG_UPDATE_PARTY` | `live` | probe flow `lfg-status`, exit 0; solo body is type 0 with no data | `Handlers/LFGHandler.cpp:339-381` |
 | `CMSG_LFD_PLAYER_LOCK_INFO_REQUEST` | `live` | probe flow `lfg-status`, exit 0; player info follows | `Handlers/LFGHandler.cpp:152-228` |
 | `SMSG_LFG_PLAYER_INFO` | `live` | probe flow `lfg-status`, exit 0; one random dungeon at level 20 | `Handlers/LFGHandler.cpp:169-227` |
-| `CMSG_LFD_PARTY_LOCK_INFO_REQUEST` | `mock` | mock request body built by `buildPartyLockInfoRequest`; the two-puppet request trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:230-263` |
-| `SMSG_LFG_PARTY_INFO` | `mock` | mock party body built by `lfgPartyInfoBody`; the two-puppet reply trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:230-263` |
+| `CMSG_LFD_PARTY_LOCK_INFO_REQUEST` | `live` | probe run with a partner, not committed: trace shows `out` size 0, then 13 ms later `SMSG_LFG_PARTY_INFO` | `Handlers/LFGHandler.cpp:230-263` |
+| `SMSG_LFG_PARTY_INFO` | `live` | probe run with a partner, not committed: trace shows `in` size 1061, `handled`, 13 ms after the request | `Handlers/LFGHandler.cpp:230-263` |
 | `SMSG_LFG_UPDATE_SEARCH` | `live` | probe flow `lfg-status`, exit 0; sent at logout | `Handlers/LFGHandler.cpp:613-619` |
 | `SMSG_LFG_DISABLED` | `dead` | no caller for `SendLfgDisabled`; a join with no reply means off | `Handlers/LFGHandler.cpp:621-626` |
 | `CMSG_LFG_JOIN` | `live` | probe flow `lfg-queue`, exit 0; trace shows `out` size 20, then `SMSG_LFG_JOIN_RESULT` | `Handlers/LFGHandler.cpp:50-55` |
 | `SMSG_LFG_JOIN_RESULT` | `live` | probe flow `lfg-queue`, exit 0; trace shows `in` size 8, `handled`, same tick as the type-5 update | `Handlers/LFGHandler.cpp:441-454` |
 | `SMSG_LFG_QUEUE_STATUS` | `live` | probe flow `lfg-queue`, exit 0; two `in` rows of size 31, `handled`, during the 12 s wait | `Handlers/LFGHandler.cpp:456-473` |
 | `CMSG_LFG_LEAVE` | `live` | probe flow `lfg-queue`, exit 0; trace shows `out` size 0, then the type-7 update | `Handlers/LFGHandler.cpp:78-93` |
-| `CMSG_SET_LFG_COMMENT` | `mock` | mock request body built by `buildLfgComment`; the trace shows `out` size 10 with the changed comment, but no comment-carrying update returns it, so not seen live | `Handlers/LFGHandler.cpp:122-131` |
+| `CMSG_SET_LFG_COMMENT` | `builder` | sent live, effect not seen: probe flow `lfg-queue` traces `out` size 10 with the changed comment, then the rejoin sends an empty comment that overwrites it. Builder test on `buildLfgComment` | `Handlers/LFGHandler.cpp:122-131` |
 | `CMSG_LFG_SET_ROLES` | `mock` | mock request body built by `buildLfgSetRoles`; the two-puppet `setRoles` trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:106-120` |
 | `SMSG_LFG_ROLE_CHECK_UPDATE` | `mock` | mock check body built by `lfgRoleCheckUpdateBody`; the two-puppet group trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:394-439` |
 | `SMSG_LFG_ROLE_CHOSEN` | `mock` | mock answer body built by `lfgRoleChosenBody`; the two-puppet group trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:383-392` |

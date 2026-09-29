@@ -70,13 +70,13 @@ describe("lfg runtime", () => {
       expect(sentOpcode(rig, GameOpcode.CMSG_LFG_GET_STATUS)).toHaveLength(1);
       rig.inject(GameOpcode.SMSG_LFG_UPDATE_PARTY, PARTY);
       rig.inject(GameOpcode.SMSG_LFG_UPDATE_PLAYER, PLAYER);
-      expect(await pending).toEqual({ status: "ok", comment: "" });
+      expect(await pending).toEqual({ status: "ok" });
     } finally {
       rig.dispose();
     }
   });
 
-  test("requestStatus returns the comment from the queued update", async () => {
+  test("requestStatus reports no comment, since the status reply carries none (LFGMgr.cpp:2876-2879)", async () => {
     const rig = solo();
     try {
       const pending = rig.handle.act.requestStatus();
@@ -92,7 +92,7 @@ describe("lfg runtime", () => {
           },
         }),
       );
-      expect(await pending).toEqual({ status: "ok", comment: "peon-live" });
+      expect(await pending).toEqual({ status: "ok" });
     } finally {
       rig.dispose();
     }
@@ -110,7 +110,7 @@ describe("lfg runtime", () => {
       await Promise.resolve();
       expect(settled).toBe(false);
       rig.inject(GameOpcode.SMSG_LFG_UPDATE_PARTY, PARTY);
-      expect(await pending).toEqual({ status: "ok", comment: "" });
+      expect(await pending).toEqual({ status: "ok" });
     } finally {
       rig.dispose();
     }
@@ -195,12 +195,14 @@ describe("lfg runtime", () => {
       rig.dispose();
     }
   });
-  test("join refuses no_role without sending", async () => {
+  test("join refuses a mask without tank, healer or damage without sending (LFG.h:39-43)", async () => {
     const rig = solo();
     try {
-      expect(
-        await rig.handle.act.join({ roles: 0, entries: [0x06_00_01_06] }),
-      ).toEqual({ status: "refused", reason: "no_role" });
+      for (const roles of [0, 1]) {
+        expect(
+          await rig.handle.act.join({ roles, entries: [0x06_00_01_06] }),
+        ).toEqual({ status: "refused", reason: "no_role" });
+      }
       expect(sentOpcode(rig, GameOpcode.CMSG_LFG_JOIN)).toHaveLength(0);
     } finally {
       rig.dispose();
@@ -411,6 +413,24 @@ describe("lfg runtime", () => {
         lfgRoleChosenBody({ guid: 0n, roles: 2 }),
       );
       expect(await pending).toEqual({ status: "ok", roles: 2 });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("setRoles(1) settles refused although the server echoes ready (LFGHandler.cpp:383-392)", async () => {
+    const rig = grouped();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_LFG_ROLE_CHECK_UPDATE,
+        lfgRoleCheckUpdateBody({ state: 2, dungeons: [], members: [] }),
+      );
+      const pending = rig.handle.act.setRoles(1);
+      rig.inject(
+        GameOpcode.SMSG_LFG_ROLE_CHOSEN,
+        lfgRoleChosenBody({ guid: 0n, roles: 1 }),
+      );
+      expect(await pending).toEqual({ status: "refused", reason: "no_role" });
     } finally {
       rig.dispose();
     }
