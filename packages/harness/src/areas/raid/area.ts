@@ -1,6 +1,8 @@
 import type { AreaEventOf } from "@peon/core";
 import type { AreaDraft } from "#harness/areas/contract";
 import { defineHarnessArea } from "#harness/areas/contract";
+import { markRows, pingRows } from "#harness/areas/raid/rules-marks";
+import type { RuleInput } from "#harness/events/rules";
 
 type RaidEvent = AreaEventOf<"raid">;
 type Of<T extends RaidEvent["type"]> = Extract<RaidEvent, { type: T }>;
@@ -208,7 +210,7 @@ function disbanded(): AreaDraft[] {
   ];
 }
 
-function rule(event: RaidEvent): AreaDraft[] {
+function rule(event: RaidEvent, rc: RuleInput): AreaDraft[] {
   switch (event.type) {
     case "group_list":
       return groupList(event);
@@ -224,6 +226,10 @@ function rule(event: RaidEvent): AreaDraft[] {
       return readyAnswer(event);
     case "ready_check_finished":
       return readyFinished(event);
+    case "raid_mark":
+      return markRows(event, rc);
+    case "minimap_ping":
+      return pingRows(event, rc);
     case "disbanded":
       return disbanded();
     default:

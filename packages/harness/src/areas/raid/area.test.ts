@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEventOf } from "@peon/core";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
-import { testRuleInput } from "#test-support/rule-fixtures";
+import { createRuleMemo } from "#harness/events/rules";
+import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
 type RaidEvent = AreaEventOf<"raid">;
 
@@ -192,6 +193,103 @@ describe("ready check harness rules", () => {
       data: { notReady: ["Tom"], offline: 1, pending: 0, ready: 1 },
       event: "raid/ready_done",
     });
+    expect(row?.text).toContain("Tom");
+  });
+});
+
+function rowsWith(event: RaidEvent, over: Parameters<typeof testRuleInput>[0]) {
+  return areaDrafts(
+    areaRuleSet(),
+    { area: "raid", event },
+    testRuleInput(over),
+  );
+}
+
+const LYNX = 0xf130000123000045n;
+
+describe("raid mark harness rules", () => {
+  test("a set by a named member writes one passive mark row", () => {
+    const [row, ...rest] = rowsWith(
+      { icon: 7, name: "Tom", target: LYNX, type: "raid_mark", who: 0x10n },
+      { lookup: testLookup({ unitName: () => "Springpaw Lynx" }) },
+    );
+    expect(rest).toEqual([]);
+    expect(row).toMatchObject({
+      class: "passive",
+      data: { icon: 7, name: "Tom", target: `${LYNX}` },
+      event: "raid/mark",
+    });
+    expect(row?.text).toContain("Tom");
+    expect(row?.text).toContain("skull");
+    expect(row?.text).toContain("Springpaw Lynx");
+  });
+
+  test("a set by the agent names the agent", () => {
+    const [row] = rowsWith(
+      { icon: 0, name: "", target: LYNX, type: "raid_mark", who: 1n },
+      { selfGuid: 1n, selfName: "Fgk" },
+    );
+    expect(row).toMatchObject({ event: "raid/mark" });
+    expect(row?.text).toContain("Fgk");
+    expect(row?.text).toContain("star");
+  });
+
+  test("an explicit clear by a named member writes a mark row", () => {
+    const [row] = rows({
+      icon: 7,
+      name: "Tom",
+      target: 0n,
+      type: "raid_mark",
+      who: 0x10n,
+    });
+    expect(row).toMatchObject({
+      class: "passive",
+      data: { icon: 7, name: "Tom" },
+      event: "raid/mark",
+    });
+    expect(row?.text).toContain("cleared");
+  });
+
+  test("the server's own clear before a move writes no row", () => {
+    expect(
+      rows({ icon: 7, name: "", target: 0n, type: "raid_mark", who: 0n }),
+    ).toEqual([]);
+  });
+
+  test("a mark list writes no row", () => {
+    expect(
+      rows({ marks: [LYNX, 0n, 0n, 0n, 0n, 0n, 0n, 0n], type: "raid_marks" }),
+    ).toEqual([]);
+  });
+});
+
+describe("minimap ping harness rules", () => {
+  const ping = {
+    name: "Tom",
+    type: "minimap_ping",
+    who: 0x10n,
+    x: 130,
+    y: 40,
+  } as const;
+
+  test("a ping writes one passive row with distance and direction", () => {
+    const memo = createRuleMemo();
+    memo.pose = { mapId: 0, x: 100, y: 40, z: 0 };
+    const [row, ...rest] = rowsWith(ping, { memo });
+    expect(rest).toEqual([]);
+    expect(row).toMatchObject({
+      class: "passive",
+      data: { name: "Tom", x: 130, y: 40 },
+      event: "raid/ping",
+    });
+    expect(row?.text).toContain("Tom");
+    expect(row?.text).toContain("30 yd");
+    expect(row?.text).toMatch(/north/i);
+  });
+
+  test("a ping before any pose is known still writes a row", () => {
+    const [row] = rows(ping);
+    expect(row).toMatchObject({ class: "passive", event: "raid/ping" });
     expect(row?.text).toContain("Tom");
   });
 });
