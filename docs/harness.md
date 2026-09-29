@@ -156,7 +156,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | `loot` | Loots one corpse, one slot at a time. |
 | `interact` | Talks to an NPC (`npc: o<n>` talks to a quest-giver object): quests, gossip, buy, sell junk, buyback, train, repair, bind at an inn. |
 | `rest` | Eats and drinks until health and mana reach a percent. |
-| `recover` | Comes back to life: corpse run, spirit healer or a resurrection offer. |
+| `recover` | Comes back to life: corpse run, spirit healer, a resurrection offer, or `self` with a Soulstone or Reincarnation. |
 | `social` | One chat message or one group action. |
 | `journal` | Quest log, bags and gear, spells, reputation, or the game log. |
 | `stop` | Stops one action or everything. |

@@ -57,6 +57,7 @@ These have tools or code but no scenario that checks them live:
 - Walking to a quest objective's region from `journal` (`t4-quests-poi-walk`):
   the agent takes the quest but walks by other means and never reads the
   region from `journal`.
+- Come back to life where it died, with Reincarnation or a Soulstone (`t6-selfstate-res`, needs a self-res spell and its reagent; the server refuses silently under a no-resurrection aura).
 
 Peon has no tool for mail, trade, the auction house, flight paths or
 mounts.

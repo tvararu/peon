@@ -190,6 +190,7 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Nearby units and relations (`look`, entity state) | `t0-who-is-near`, `t0-hostiles` |
 | Self state (level, money, bags, `journal`) | `t0-self-state` |
 | Death and recovery (`recover`) | `t6-die-and-recover` |
+| Self-state (recover how:self; spell mount/dismount) | `t6-selfstate-res` |
 | Stopping and steering (`stop`, the stop reflex, human messages while a tool runs) | `t7-halt-resume`, `t7-question-while-acting` |
 | Alliance characters and map 0 | `t4-alliance-first`, `t5-vendor-buy-goldshire` |
 | Login, the world session and the harness shell | `t0-self-state` |
