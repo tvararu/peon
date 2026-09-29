@@ -42,8 +42,8 @@
   "paneMinutes": 11,
   "partner": null,
   "preset": "ghostlands20",
-  "spawn": "eversong-raid",
   "setup": [],
+  "spawn": "eversong-raid",
   "steers": [],
   "task": "Join the dungeon finder as damage for a random dungeon without accepting any group. Once you are queued, tell me how long the wait is, then leave the queue.",
   "tier": 9
