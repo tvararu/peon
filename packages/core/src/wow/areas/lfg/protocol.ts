@@ -71,7 +71,9 @@ export function parseLockBlock(r: PacketReader): readonly LfgLock[] {
   return locks;
 }
 
-export function parsePartyLockBlock(r: PacketReader): readonly LfgPartyPlayer[] {
+export function parsePartyLockBlock(
+  r: PacketReader,
+): readonly LfgPartyPlayer[] {
   const count = r.uint8();
   const players: LfgPartyPlayer[] = [];
   for (let i = 0; i < count; i++)

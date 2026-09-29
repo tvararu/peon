@@ -44,8 +44,7 @@ function isTimeout(error: unknown): boolean {
 
 function guard(running: { count: number }) {
   return async <T>(body: () => Promise<T>): Promise<T> => {
-    if (running.count > 0)
-      return { status: "refused", reason: "busy" } as T;
+    if (running.count > 0) return { status: "refused", reason: "busy" } as T;
     running.count += 1;
     try {
       return await body();

@@ -185,7 +185,6 @@ export class LfgStore {
     });
   }
 
-
   receivePlayerInfo(info: LfgPlayerInfo): void {
     this.set({
       available: info.random.map((d) => ({
@@ -198,7 +197,12 @@ export class LfgStore {
     this.events.emit({ type: "dungeons", scope: "player" });
   }
 
-  receivePartyInfo(players: readonly { guid: bigint; locks: readonly { entry: number; status: number }[] }[]): void {
+  receivePartyInfo(
+    players: readonly {
+      guid: bigint;
+      locks: readonly { entry: number; status: number }[];
+    }[],
+  ): void {
     this.set({
       partyLocks: players.map((p) => ({
         guid: p.guid,
