@@ -221,6 +221,6 @@
       "text": "You lead the group now. Queue your party for a random dungeon as damage, go in, then teleport back out."
     }
   ],
-  "task": "Join the group you are invited to. When you lead it, queue your party for a random dungeon as damage, go in, then teleport back out.",
+  "task": "Your friends will invite you to their group. Accept the invite when it arrives, even if an earlier try found nothing to accept. When you lead the group, queue your party for a random dungeon as damage, go in, then teleport back out.",
   "tier": 9
 }
