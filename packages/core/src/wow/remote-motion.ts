@@ -117,6 +117,13 @@ export function classifyGroundFlags(
   return UNSUPPORTED.find(([mask]) => (flags & mask) !== 0)?.[1];
 }
 
+const FLAG_REASONS: ReadonlySet<RemoteInvalidReason> = new Set(
+  UNSUPPORTED.map(([, reason]) => reason).concat(
+    "unknown_flags",
+    "contradictory_flags",
+  ),
+);
+
 export class RemoteMotion {
   private readonly deps: RemoteMotionDeps;
   private readonly poses = new Map<bigint, RemotePose>();
@@ -128,6 +135,24 @@ export class RemoteMotion {
 
   all(): RemotePose[] {
     return [...this.poses.values()];
+  }
+
+  pose(guid: bigint): RemotePose | undefined {
+    return this.poses.get(guid);
+  }
+
+  applyFlags(guid: bigint, flags: number): void {
+    const pose = this.poses.get(guid);
+    if (!pose || pose.flags === undefined) return;
+    const { motion: _motion, invalid: previous, ...rest } = pose;
+    const invalid =
+      previous && !FLAG_REASONS.has(previous)
+        ? previous
+        : this.flagReason(guid, flags, pose.extraFlags ?? 0);
+    const next: RemotePose = { ...rest, flags };
+    if (invalid) next.invalid = invalid;
+    else next.motion = flags & TRANSLATING ? "moving" : "stationary";
+    this.store(next);
   }
 
   observe(guid: bigint, observation: RemoteObservation): boolean {
@@ -205,6 +230,15 @@ export class RemoteMotion {
       return transition;
     if (!info) return "flags_unobserved";
     return classifyGroundFlags(info.flags, info.extraFlags);
+  }
+
+  private flagReason(
+    guid: bigint,
+    flags: number,
+    extraFlags: number,
+  ): RemoteInvalidReason | undefined {
+    if (this.deps.dead(guid)) return "dead";
+    return classifyGroundFlags(flags, extraFlags);
   }
 
   private store(pose: RemotePose): void {

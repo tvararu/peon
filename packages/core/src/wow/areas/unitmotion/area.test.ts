@@ -4,6 +4,10 @@ import {
   unitmotionSplineSpeedBody,
   unitmotionSplineToggleBody,
 } from "#test-support/areas/unitmotion";
+import {
+  MOTION_FLAG_BITS,
+  type MotionFlagName,
+} from "#wow/areas/unitmotion/protocol";
 import { BASE_SPEEDS, type UnitmotionEvent } from "#wow/areas/unitmotion/store";
 import { MovementFlag } from "#wow/protocol/entity-fields";
 import type { SpeedKind } from "#wow/protocol/movement-block";
@@ -139,6 +143,107 @@ describe("unitmotion snare speeds", () => {
     try {
       for (const { opcode, body } of snare(0.5)) rig.inject(opcode, body);
       expect(rig.handle.state()).toEqual({ units: [], dropped: 7 });
+    } finally {
+      rig.dispose();
+    }
+  });
+});
+
+const TOGGLES = [
+  [GameOpcode.SMSG_SPLINE_MOVE_ROOT, "root", true, 0],
+  [GameOpcode.SMSG_SPLINE_MOVE_UNROOT, "root", false, MovementFlag.ROOT],
+  [GameOpcode.SMSG_SPLINE_MOVE_SET_WALK_MODE, "walking", true, 0],
+  [
+    GameOpcode.SMSG_SPLINE_MOVE_SET_RUN_MODE,
+    "walking",
+    false,
+    MovementFlag.WALKING,
+  ],
+  [GameOpcode.SMSG_SPLINE_MOVE_START_SWIM, "swimming", true, 0],
+  [
+    GameOpcode.SMSG_SPLINE_MOVE_STOP_SWIM,
+    "swimming",
+    false,
+    MovementFlag.SWIMMING,
+  ],
+] as const satisfies readonly (readonly [
+  number,
+  MotionFlagName,
+  boolean,
+  number,
+])[];
+
+describe("unitmotion root, walk mode and swim toggles", () => {
+  test.each(TOGGLES)("opcode %d sets %s to %p", (opcode, flag, on, before) => {
+    const rig = areaRig("unitmotion");
+    try {
+      const seen: UnitmotionEvent[] = [];
+      rig.handle.onEvent((event) => seen.push(event));
+      rig.stores.areas.unitmotion.seed(CREATURE, {
+        flags: before,
+        speeds: BASE_SPEEDS,
+      });
+      rig.inject(opcode, unitmotionSplineToggleBody({ guid: CREATURE }));
+      const bit = MOTION_FLAG_BITS[flag];
+      const [row] = rig.handle.state().units;
+      expect(((row?.flags ?? 0) & bit) !== 0).toBe(on);
+      expect(seen).toEqual([
+        {
+          type: "flag",
+          guid: CREATURE,
+          flag,
+          on,
+          flags: row?.flags ?? -1,
+          self: false,
+        },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a root stops a walking creature and its unroot leaves it stopped", () => {
+    const rig = areaRig("unitmotion");
+    try {
+      rig.stores.areas.unitmotion.seed(CREATURE, {
+        flags: MovementFlag.FORWARD | MovementFlag.WALKING,
+        speeds: BASE_SPEEDS,
+      });
+      const body = unitmotionSplineToggleBody({ guid: CREATURE });
+      rig.inject(GameOpcode.SMSG_SPLINE_MOVE_ROOT, body);
+      expect(rig.handle.state().units[0]?.flags).toBe(
+        MovementFlag.ROOT | MovementFlag.WALKING,
+      );
+      rig.inject(GameOpcode.SMSG_SPLINE_MOVE_UNROOT, body);
+      expect(rig.handle.state().units[0]?.flags).toBe(MovementFlag.WALKING);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("the six toggles for a guid with no entity are dropped and counted", () => {
+    const rig = areaRig("unitmotion");
+    try {
+      const body = unitmotionSplineToggleBody({ guid: STRANGER });
+      for (const [opcode] of TOGGLES) rig.inject(opcode, body);
+      expect(rig.handle.state()).toEqual({ units: [], dropped: 6 });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a toggle with trailing bytes is rejected", () => {
+    const rig = areaRig("unitmotion");
+    try {
+      rig.stores.areas.unitmotion.seed(CREATURE, {
+        flags: 0,
+        speeds: BASE_SPEEDS,
+      });
+      const body = unitmotionSplineToggleBody({ guid: CREATURE });
+      expect(() =>
+        rig.inject(GameOpcode.SMSG_SPLINE_MOVE_ROOT, Uint8Array.of(...body, 0)),
+      ).toThrow("Unexpected trailing spline unit payload");
+      expect(rig.handle.state().units[0]?.flags).toBe(0);
     } finally {
       rig.dispose();
     }
