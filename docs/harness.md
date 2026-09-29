@@ -84,9 +84,9 @@ stderr and still exits 0.
 | `SpellCastTimes.dbc` | cast times | `enUS/patch-enUS-2.MPQ` |
 | `SpellRadius.dbc` | spell radii | `enUS/patch-enUS.MPQ` |
 | `FactionTemplate.dbc` | unit friend and foe masks | `enUS/patch-enUS-2.MPQ` |
-| `Faction.dbc` | reputation factions | `DBFilesClient` in the locale and patch MPQs |
-| `Lock.dbc` | lock requirements | `DBFilesClient` in the locale and patch MPQs |
-| `AreaTrigger.dbc` | area trigger volumes | `DBFilesClient` in the locale and patch MPQs |
+| `Faction.dbc` | reputation factions | `enUS/patch-enUS-3.MPQ` |
+| `Lock.dbc` | lock requirements | `enUS/patch-enUS-3.MPQ` |
+| `AreaTrigger.dbc` | area trigger volumes | `enUS/patch-enUS-3.MPQ` |
 
 The client resolves each file from the first archive that holds it:
 `enUS/patch-enUS-3.MPQ`, then `patch-enUS-2.MPQ`, then `patch-enUS.MPQ`,
