@@ -210,6 +210,7 @@ export class RaidStore {
       return;
     }
     const before = this.group;
+    if (before && before.groupGuid !== packet.groupGuid) this.markStore.clear();
     this.group = packet;
     this.pruneStats(packet);
     const changes = flagChanges(before, packet);

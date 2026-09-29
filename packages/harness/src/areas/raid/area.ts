@@ -228,6 +228,8 @@ function rule(event: RaidEvent, rc: RuleInput): AreaDraft[] {
       return readyFinished(event);
     case "raid_mark":
       return markRows(event, rc);
+    case "raid_marks":
+      return [];
     case "minimap_ping":
       return pingRows(event, rc);
     case "disbanded":

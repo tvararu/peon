@@ -24,8 +24,14 @@ describe("raid mark puppet calls", () => {
 
   test("pingMinimap passes both coordinates", () => {
     const spy = jest.fn();
-    run("pingMinimap", "[-9464.5, 62.25]", { pingMinimap: spy });
-    expect(spy).toHaveBeenCalledWith(-9464.5, 62.25);
+    run("pingMinimap", "[8735, -6685]", { pingMinimap: spy });
+    expect(spy).toHaveBeenCalledWith(8735, -6685);
+  });
+
+  test("pingMinimap rejects fractions before calling the act", () => {
+    expect(decodeCall("pingMinimap", "[8735.5, -6685]")).toHaveProperty(
+      "error",
+    );
   });
 
   test("setRaidMark refuses a guid that is not a number string", () => {

@@ -68,7 +68,8 @@ kind 0 `MSG_RAID_TARGET_UPDATE` sets one slot, clears the same target
 from the other slots and emits `raid_mark` with the setter's name, the
 icon and the target; a target of 0 clears the slot; an icon past 7 is
 dropped. A kind 1 list replaces all eight slots and emits `raid_marks`.
-A disband clears the marks. `MSG_MINIMAP_PING` emits `minimap_ping`
+A disband or a switch to another group clears the marks.
+`MSG_MINIMAP_PING` emits `minimap_ping`
 with the sender, the name and the two floats. The acts are
 `setRaidMark(icon, guid)`, `clearRaidMark(icon)` (a set of guid 0),
 `requestRaidMarks()` and `pingMinimap(x, y)`, each one packet; an icon

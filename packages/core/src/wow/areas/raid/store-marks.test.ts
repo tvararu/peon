@@ -177,6 +177,26 @@ describe("raid marks store", () => {
     }
   });
 
+  test("a new group does not inherit the old group's marks", () => {
+    const { rig } = rigWithGroup();
+    try {
+      set(rig, TOM, 7, LYNX);
+      rig.inject(
+        GameOpcode.SMSG_GROUP_LIST,
+        raidGroupListBody({
+          counter: 1,
+          groupGuid: 0x1234n,
+          leader: TOM,
+          members: [{ guid: TOM, name: "Tom" }],
+          type: 0,
+        }),
+      );
+      expect(rig.handle.state().marks?.every((guid) => guid === 0n)).toBe(true);
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("a ping emits minimap_ping with who, name and position", () => {
     const { events, rig } = rigWithGroup();
     try {
