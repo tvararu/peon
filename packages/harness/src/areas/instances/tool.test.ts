@@ -1,12 +1,11 @@
 import { describe, expect, jest, test } from "bun:test";
 import { validateToolArguments } from "@earendil-works/pi-ai";
 import type { AreaState } from "@peon/core";
+import { dungeonSpec, dungeonTool } from "#harness/areas/instances/tool";
 import {
   type DungeonArgs,
   dungeonParams,
-  dungeonSpec,
-  dungeonTool,
-} from "#harness/areas/instances/tool";
+} from "#harness/areas/instances/tool-params";
 import { Refusal } from "#harness/ops/refusal";
 import { toolCtx } from "#test-support/ops-fixtures";
 import {
@@ -348,7 +347,7 @@ describe("dungeon tool verbs", () => {
     const t = await world();
     const extend = jest.spyOn(t.handle.instances.act, "setLockoutExtended");
     const { settled } = await attempt(t, {
-      do: "teleport" as unknown as DungeonArgs["do"],
+      do: "frobnicate" as unknown as DungeonArgs["do"],
       extended: true,
       map: 533,
     });

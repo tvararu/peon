@@ -1,4 +1,15 @@
-import { type Static, StringEnum, Type } from "@earendil-works/pi-ai";
+import { isLfgDo, runLfg } from "#harness/areas/instances/tool-lfg";
+import {
+  type DungeonAfter,
+  type DungeonCtx,
+  emptyDungeon,
+  refusalOf,
+  refusedOutcome,
+} from "#harness/areas/instances/tool-lfg-base";
+import {
+  type DungeonArgs,
+  dungeonParams,
+} from "#harness/areas/instances/tool-params";
 import {
   difficultyLines,
   difficultyName,
@@ -8,12 +19,9 @@ import {
   type RaidLockView,
 } from "#harness/areas/instances/tool-status";
 import type { ToolResult } from "#harness/contract/result";
-import type { ToolCtx } from "#harness/contract/services";
-import { Refusal } from "#harness/ops/refusal";
 import { defineGameTool, result } from "#harness/tools/define";
 import type { GameToolSpec, ToolRenderers } from "#harness/tools/game-tool";
 import { savesLine } from "#harness/tools/look-saves";
-import { nextCall } from "#harness/tools/next-call";
 import { argText } from "#harness/ui/draw";
 import {
   type CallInit,
@@ -22,62 +30,18 @@ import {
   resultRenderer,
 } from "#harness/ui/renderers/line";
 
-export const dungeonParams = Type.Object({
-  accept: Type.Optional(
-    Type.Boolean({
-      description: "For bind: false refuses the save prompt. Default true.",
-    }),
-  ),
-  do: Type.Optional(
-    StringEnum(["status", "difficulty", "reset", "bind", "extend"], {
-      description: "status: difficulty, saves and the queue. Default status.",
-    }),
-  ),
-  extended: Type.Optional(
-    Type.Boolean({
-      description: "For extend: false shortens the lock. Default true.",
-    }),
-  ),
-  for: Type.Optional(
-    StringEnum(["dungeon", "raid"], {
-      description: "Which difficulty the difficulty verb sets.",
-    }),
-  ),
-  map: Type.Optional(
-    Type.Number({
-      description: "For extend: the saved map id whose lock changes.",
-    }),
-  ),
-  value: Type.Optional(
-    Type.String({
-      description:
-        "The new difficulty: normal or heroic for a dungeon; 10, 25, 10-heroic or 25-heroic for a raid.",
-    }),
-  ),
-});
-
-export type DungeonArgs = Static<typeof dungeonParams>;
-export type DungeonDo = "status" | "difficulty" | "reset" | "bind" | "extend";
-
-export type DungeonAfter = {
-  do: DungeonDo;
-  detail: string;
-  refreshed: boolean;
-  saves: string[];
-  status: string;
-};
-
-export type DungeonCtx = ToolCtx<DungeonAfter>;
-
-export function emptyDungeon(): DungeonAfter {
-  return {
-    detail: "",
-    do: "status",
-    refreshed: false,
-    saves: [],
-    status: "DONE",
-  };
-}
+export type DungeonDo =
+  | "status"
+  | "difficulty"
+  | "reset"
+  | "bind"
+  | "extend"
+  | "queue"
+  | "leave_queue"
+  | "answer"
+  | "roles"
+  | "teleport"
+  | "kick_vote";
 
 type Snapshots = { instances: InstancesSnapshot; lfg: LfgSnapshot };
 
@@ -157,18 +121,6 @@ async function runStatus(ctx: DungeonCtx): Promise<ToolResult<DungeonAfter>> {
     { instances: refreshed.instances, lfg: snapshotsOf(ctx).lfg },
     refreshed.refreshed,
   );
-}
-
-function refusalOf(reason: string, detail: string): Refusal {
-  return new Refusal({
-    detail,
-    next: nextCall("dungeon", { do: "status" }),
-    reason,
-  });
-}
-
-function refusedOutcome(reason: string, detail: string): never {
-  throw refusalOf(reason, detail);
 }
 
 type Reply = {
@@ -457,6 +409,7 @@ export function runDungeon(
   if (do_ === "bind") return runBind(ctx, args.accept);
   if (do_ === "extend")
     return runExtend(ctx, args.map, args.extended, args.value);
+  if (isLfgDo(do_)) return runLfg(do_, args, ctx);
   return Promise.reject(
     refusalOf(
       "unknown_verb",
@@ -508,7 +461,7 @@ export const dungeonSpec: GameToolSpec<
   run: runDungeon,
   text: {
     description:
-      "Shows dungeon and raid difficulty, saved instances and the dungeon finder queue. It sets difficulty, resets dungeons, answers the save prompt and extends raid locks.",
+      "Shows dungeon and raid difficulty, saved instances and the dungeon finder queue. It sets difficulty, resets dungeons, answers the save prompt, extends raid locks, joins and leaves the dungeon finder, answers role checks and proposals, teleports in and out and votes on kicks.",
     guidelines: [
       "Only the group leader can change difficulty or reset dungeons.",
     ],
