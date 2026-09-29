@@ -12,6 +12,7 @@ import {
   navigationObservation,
   outcomeObservation,
   separation,
+  targetCastObservation,
   unitObservation,
 } from "#harness/loops/combat-actions-observation";
 import { hunterObservation } from "#harness/loops/combat-actions-pet";
@@ -28,6 +29,7 @@ export type ActionDeps = {
   now: () => number;
   gear?: () => RangedGear;
   combatLog?: () => AreaState<"combatlog"> | undefined;
+  spells?: () => AreaState<"spells"> | undefined;
 };
 
 export type BaseObservationInput = {
@@ -64,6 +66,11 @@ export function baseObservation({
     combatLog: combatLogObservation(deps.combatLog?.(), {
       now: deps.now(),
       self: state.self.guid,
+      target: context.targetGuid,
+    }),
+    targetCast: targetCastObservation(deps.spells?.(), {
+      name: (id) => deps.combat.definition(id)?.name,
+      now: deps.now(),
       target: context.targetGuid,
     }),
     auras: state.auras.map(auraObservation),

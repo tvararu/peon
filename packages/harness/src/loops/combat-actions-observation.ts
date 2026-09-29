@@ -171,3 +171,24 @@ export function combatLogObservation(
     misses: ownMisses(log, now, self),
   };
 }
+
+export function targetCastObservation(
+  spells: AreaState<"spells"> | undefined,
+  init: {
+    now: number;
+    target: bigint;
+    name: (spellId: number) => string | undefined;
+  },
+): Record<string, unknown> | null {
+  const cast = spells?.unitCasts.find((entry) => entry.guid === init.target);
+  if (!cast) return null;
+  const remainingMs = cast.startedAt + cast.durationMs - init.now;
+  if (remainingMs <= 0) return null;
+  return {
+    durationMs: cast.durationMs,
+    kind: cast.kind,
+    remainingMs,
+    spellId: cast.spellId,
+    spellName: init.name(cast.spellId) ?? null,
+  };
+}

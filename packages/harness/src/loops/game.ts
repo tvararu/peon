@@ -130,6 +130,7 @@ function createTactics(ports: Ports, jev: JevPort | undefined): TacticsLoop {
       ),
     now: () => Date.now(),
     relation: (guid) => handle.unitRelation(guid),
+    spells: () => handle.spells.state(),
   });
   return new TacticsLoop({
     activate: (context) => actions.activate(context),

@@ -5,6 +5,7 @@ import { CombatActions } from "#harness/loops/combat-actions";
 import { timeoutOutcome } from "#harness/loops/combat-actions-observation";
 import { context, setup } from "#test-support/combat-actions-fixtures";
 
+type SpellsState = AreaState<"spells">;
 type LogState = AreaState<"combatlog">;
 type LogEntry = LogState["entries"][number];
 
@@ -38,7 +39,7 @@ function logEntry(over: Partial<LogEntry>): LogEntry {
   };
 }
 
-function withLog(state: LogState) {
+function withLog(state: LogState, spells?: SpellsState) {
   const parts = setup(() => NOW);
   const { combat, combatStore, motion, store } = parts;
   store.create(CREATURE, ObjectType.UNIT, {
@@ -66,6 +67,7 @@ function withLog(state: LogState) {
       stopAutoRepeat: () => combat.stopAutoRepeat(),
     },
     combatLog: () => state,
+    ...(spells ? { spells: () => spells } : {}),
     control: parts.control,
     entity: (guid) => store.get(guid),
     now: () => NOW,
@@ -75,8 +77,8 @@ function withLog(state: LogState) {
   return { actions, definition };
 }
 
-function observed(state: LogState) {
-  const { actions, definition } = withLog(state);
+function observed(state: LogState, spells?: SpellsState) {
+  const { actions, definition } = withLog(state, spells);
   try {
     const frame = actions.observe(AT_CREATURE);
     return JSON.parse(JSON.stringify({ ...frame, actions: undefined }));
@@ -220,4 +222,47 @@ test("an immunity of another creature or spell leaves the spell a candidate", ()
   expect(sent.candidates.map((c: { id: string }) => c.id)).toContain(
     "spell:17:target",
   );
+});
+
+function spellsState(casts: SpellsState["unitCasts"]): SpellsState {
+  return {
+    barToggles: undefined,
+    channel: undefined,
+    inactiveRanks: [],
+    modifiers: { flat: {}, pct: {} },
+    totems: [],
+    unitCasts: casts,
+  };
+}
+
+function unitCast(over: Partial<SpellsState["unitCasts"][number]>) {
+  return {
+    durationMs: 2500,
+    guid: CREATURE,
+    kind: "cast" as const,
+    relevant: true,
+    spellId: 17,
+    startedAt: NOW - 500,
+    target: undefined,
+    ...over,
+  };
+}
+
+test("Jev sees what the target is casting and how long is left", () => {
+  const sent = observed(logState(), spellsState([unitCast({})]));
+  expect(sent.observation.targetCast).toEqual({
+    durationMs: 2500,
+    kind: "cast",
+    remainingMs: 2000,
+    spellId: 17,
+    spellName: "Fixture spell",
+  });
+});
+
+test("Jev sees no target cast for another caster, an overdue cast or no state", () => {
+  const other = spellsState([unitCast({ guid: OTHER })]);
+  const overdue = spellsState([unitCast({ startedAt: NOW - 9000 })]);
+  expect(observed(logState(), other).observation.targetCast).toBeNull();
+  expect(observed(logState(), overdue).observation.targetCast).toBeNull();
+  expect(observed(logState()).observation.targetCast).toBeNull();
 });
