@@ -270,12 +270,12 @@ describe("lfg runtime", () => {
   test("group join waits for the initializing role check after the type-5 party update (LFGMgr.cpp:837-875)", async () => {
     const rig = areaRig("lfg", {
       legacy: {
-        party: () => ({
-          inGroup: true,
-          leader: "Me",
-          loot: null,
-          members: [member("Partner", 0xden)],
-        }),
+        party: () =>
+          partyState({
+            inGroup: true,
+            leader: "Me",
+            members: [member("Partner", 0xden)],
+          }),
         friends: () => [],
         ignored: () => [],
         guild: () => undefined,

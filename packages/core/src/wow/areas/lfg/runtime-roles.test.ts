@@ -4,26 +4,18 @@ import {
   lfgRoleCheckUpdateBody,
   lfgRoleChosenBody,
 } from "#test-support/areas/lfg";
+import { partyMember, partyState } from "#test-support/party-fixtures";
 import type { PartyMember } from "#wow/party-store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 function member(name: string, guid: bigint): PartyMember {
-  return {
-    name,
-    guid,
-    online: true,
-    health: null,
-    maxHealth: null,
-    level: null,
-    statsAt: null,
-    source: null,
-  };
+  return partyMember({ guid, name });
 }
 
 function solo() {
   return areaRig("lfg", {
     legacy: {
-      party: () => ({ inGroup: false, leader: null, loot: null, members: [] }),
+      party: () => partyState({ inGroup: false, leader: null, members: [] }),
       friends: () => [],
       ignored: () => [],
       guild: () => undefined,
@@ -35,12 +27,12 @@ function solo() {
 function grouped() {
   return areaRig("lfg", {
     legacy: {
-      party: () => ({
-        inGroup: true,
-        leader: null,
-        loot: null,
-        members: [member("Partner", 0xden)],
-      }),
+      party: () =>
+        partyState({
+          inGroup: true,
+          leader: null,
+          members: [member("Partner", 0xden)],
+        }),
       friends: () => [],
       ignored: () => [],
       guild: () => undefined,
