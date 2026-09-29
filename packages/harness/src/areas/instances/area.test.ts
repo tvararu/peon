@@ -200,10 +200,20 @@ describe("instances harness rules", () => {
       rows({ added: [], locks: [], removed: [lock], type: "lockouts" }),
     ).toMatchObject([{ data: { added: [], removed: [533] } }]);
   });
-
   test("saved_maps writes nothing", () => {
     expect(
       rows({ hasPermanentBinds: true, maps: [533], type: "saved_maps" }),
+    ).toEqual([]);
+  });
+
+  test("encounter writes nothing", () => {
+    expect(
+      rows({
+        change: "engage",
+        guid: 0x00f1_2299_0000_0003n,
+        priority: 7,
+        type: "encounter",
+      }),
     ).toEqual([]);
   });
 });
