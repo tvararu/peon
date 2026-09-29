@@ -66,6 +66,7 @@ function lifeText(
   member: PartyMember,
   stats: MemberVitals | undefined,
 ): string {
+  if (!member.online) return "offline";
   if (stats) {
     if (stats.ghost) return "ghost";
     if (stats.dead) return "dead";
@@ -152,7 +153,7 @@ export function statusTool(
     result("DONE", {
       after: { ...emptyGroup(), do: "status" as GroupDo },
       body: rows,
-      detail: leadText(group, party.members.length, ctx),
+      detail: leadText(group, party.members.length + 1, ctx),
     }),
   );
 }

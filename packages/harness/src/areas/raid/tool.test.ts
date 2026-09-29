@@ -253,6 +253,58 @@ describe("group tool", () => {
       expect(out.text).toMatch(/Tom.*dead/);
     });
 
+    test("an offline member with remembered stats is still offline", async () => {
+      const cy = 0x400n;
+      const t = await world({
+        members: [
+          partyMember({
+            guid: cy,
+            name: "Cy",
+            online: false,
+            status: OFFLINE_STATUS,
+          }),
+        ],
+        stats: new Map([
+          [
+            cy,
+            {
+              afk: false,
+              auras: [],
+              dead: false,
+              dnd: false,
+              ghost: false,
+              guid: cy,
+              hp: 100,
+              level: 10,
+              maxHp: 100,
+              maxPower: 0,
+              name: "Cy",
+              online: true,
+              pet: null,
+              position: { x: 0, y: 0 },
+              power: 0,
+              powerType: 0,
+              pvp: false,
+              pvpFfa: false,
+              seenAt: NOW,
+              status: 1,
+              vehicleSeat: 0,
+              zone: 1,
+            },
+          ],
+        ]),
+      });
+      const out = await runTool(t.tool, {});
+      expect(out.text).toMatch(/Cy.*offline/);
+      expect(out.text).not.toMatch(/Cy.*alive/);
+    });
+
+    test("the lead text counts Peon in the group size", async () => {
+      const t = await world({ members: [tom()] });
+      const out = await runTool(t.tool, {});
+      expect(out.text).toMatch(/lead the (party|raid) of 2/);
+    });
+
     test("a full raid hits the line cap and a named status reaches the hidden member", async () => {
       const members = Array.from({ length: 39 }, (_, index) =>
         partyMember({

@@ -30,17 +30,7 @@ import {
 } from "#harness/ui/renderers/line";
 
 function subscribeKick(ctx: GroupCtx, cb: (answer: Answer) => void) {
-  const offRaid = ctx.handle.raid.onEvent((event) =>
-    cb({ event, kind: "raid" }),
-  );
-  const offGroup = ctx.handle.onGroupEvent((event) => {
-    if (event.type === "leader_changed")
-      cb({ kind: "group", name: event.name });
-  });
-  return () => {
-    offRaid();
-    offGroup();
-  };
+  return ctx.handle.raid.onEvent((event) => cb({ event, kind: "raid" }));
 }
 
 function kickSettled(target: string, answer: Answer | undefined) {
