@@ -134,6 +134,8 @@ function totemActs(
   }
   return { destroyTotem };
 }
+const MAX_TIMER_MS = 2 ** 31 - 1;
+
 function trackTotemExpiry(
   ctx: AreaRuntimeCtx<SpellsEvent>,
   store: SpellsStore,
@@ -147,6 +149,7 @@ function trackTotemExpiry(
     if (event.type === "totem_gone") stopTimer(event.slot);
     if (event.type !== "totem_created") return;
     stopTimer(event.slot);
+    if (event.durationMs > MAX_TIMER_MS) return;
     timers.set(
       event.slot,
       setTimeout(() => {

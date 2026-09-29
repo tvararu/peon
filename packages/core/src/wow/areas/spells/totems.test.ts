@@ -171,6 +171,20 @@ describe("spells totems", () => {
     }
   });
 
+  test("a duration beyond the timer range does not expire the totem at once", () => {
+    const { advance, create, rig, totemEvents } = setup();
+    try {
+      create(FIRE, FIRE_GUID, SEARING, 0xff_ff_ff_ff);
+      advance(1000);
+      expect(rig.handle.state().totems[FIRE]?.guid).toBe(FIRE_GUID);
+      expect(totemEvents().filter((e) => e.type === "totem_gone")).toHaveLength(
+        0,
+      );
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("a replaced totem's timer does not end its successor", () => {
     const { advance, create, rig, totemEvents } = setup();
     try {
