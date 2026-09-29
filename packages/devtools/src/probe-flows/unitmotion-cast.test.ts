@@ -160,9 +160,9 @@ describe("unitmotion-cast flow", () => {
         row({ distance: 0, guid: CUB }),
       ];
       const ctx = context({ seconds: "1", spell: "116" }, rows);
-      ctx.handle.faceGuid.mockImplementation(() => {
+      ctx.handle.faceGuid = () => {
         throw new Error("target_coincident");
-      });
+      };
       const running = flow.run(ctx);
       await elapse(50);
       expect(ctx.handle.cast).toHaveBeenCalledWith(116, CUB);
