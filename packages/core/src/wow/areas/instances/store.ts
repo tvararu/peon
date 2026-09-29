@@ -4,8 +4,10 @@ import type {
   InstanceDifficulty,
   InstanceOwnership,
   LastInstance,
+  LockWarning,
   RaidGroupOnly,
   RaidInstanceMessage,
+  RaidLock,
 } from "#wow/areas/instances/protocol";
 import { type DifficultyKind, difficultyName } from "#wow/protocol/difficulty";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
@@ -19,6 +21,13 @@ export type MapDifficulty = {
 export type InstanceWarning = RaidInstanceMessage & { at: number };
 export type HomebindTimer = { startedAt: number; ms: number };
 
+export type PendingBind = {
+  timeoutMs: number;
+  encounterMask: number;
+  at: number;
+  deadline: number;
+};
+
 export type InstancesState = {
   dungeonDifficulty: number | undefined;
   raidDifficulty: number | undefined;
@@ -27,6 +36,9 @@ export type InstancesState = {
   lastInstanceMaps: readonly number[];
   lastWarning: InstanceWarning | undefined;
   homebindTimer: HomebindTimer | undefined;
+  locks: readonly RaidLock[] | undefined;
+  locksAt: number | undefined;
+  pendingBind: PendingBind | undefined;
 };
 
 export type InstancesEvent =
@@ -47,7 +59,22 @@ export type InstancesEvent =
       ms: number;
       code: number;
     }
-  | { type: "corpse_elsewhere" };
+  | { type: "corpse_elsewhere" }
+  | {
+      type: "lockouts";
+      locks: readonly RaidLock[];
+      added: readonly RaidLock[];
+      removed: readonly RaidLock[];
+    }
+  | {
+      type: "bind_offer";
+      timeoutMs: number;
+      encounterMask: number;
+      deadline: number;
+    }
+  | { type: "bound" };
+
+const lockKey = (lock: RaidLock) => `${lock.mapId}:${lock.difficulty}`;
 
 const DIFFICULTY_KEY = {
   dungeon: "dungeonDifficulty",
@@ -62,6 +89,9 @@ const EMPTY: InstancesState = {
   lastInstanceMaps: [],
   lastWarning: undefined,
   homebindTimer: undefined,
+  locks: undefined,
+  locksAt: undefined,
+  pendingBind: undefined,
 };
 
 export class InstancesStore {
@@ -76,9 +106,15 @@ export class InstancesStore {
   }
 
   snapshot(): InstancesState {
-    const { mapDifficulty, lastWarning, homebindTimer } = this.state;
+    const { mapDifficulty, lastWarning, homebindTimer, locks, pendingBind } =
+      this.state;
     return {
       ...this.state,
+      locks: locks?.map((lock) => ({ ...lock })),
+      pendingBind:
+        pendingBind && this.now() < pendingBind.deadline
+          ? { ...pendingBind }
+          : undefined,
       mapDifficulty: mapDifficulty && { ...mapDifficulty },
       lastWarning: lastWarning && { ...lastWarning },
       homebindTimer: homebindTimer && { ...homebindTimer },
@@ -151,8 +187,37 @@ export class InstancesStore {
     this.events.emit({ type: "corpse_elsewhere" });
   }
 
+  raidInfo(locks: readonly RaidLock[]): void {
+    const before = this.state.locks ?? [];
+    const kept = new Set(locks.map(lockKey));
+    const had = new Set(before.map(lockKey));
+    this.set({ locks, locksAt: this.now() });
+    this.events.emit({
+      type: "lockouts",
+      locks,
+      added: locks.filter((lock) => !had.has(lockKey(lock))),
+      removed: before.filter((lock) => !kept.has(lockKey(lock))),
+    });
+  }
+
+  lockWarning(packet: LockWarning): void {
+    const at = this.now();
+    const deadline = at + packet.timeoutMs;
+    this.set({ pendingBind: { ...packet, at, deadline } });
+    this.events.emit({ type: "bind_offer", ...packet, deadline });
+  }
+
+  saveCreated(): void {
+    this.set({ pendingBind: undefined });
+    this.events.emit({ type: "bound" });
+  }
+
   mapChanged(): void {
-    this.set({ mapDifficulty: undefined, homebindTimer: undefined });
+    this.set({
+      mapDifficulty: undefined,
+      homebindTimer: undefined,
+      pendingBind: undefined,
+    });
   }
 
   dispose(): void {

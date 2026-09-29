@@ -5,7 +5,9 @@ import {
   parseInstanceDifficulty,
   parseInstanceOwnership,
   parseLastInstance,
+  parseLockWarning,
   parseRaidGroupOnly,
+  parseRaidInstanceInfo,
   parseRaidInstanceMessage,
 } from "#wow/areas/instances/protocol";
 import { instancesRuntime } from "#wow/areas/instances/runtime";
@@ -22,6 +24,9 @@ export const instancesArea = defineArea({
     "warning",
     "homebind_timer",
     "corpse_elsewhere",
+    "lockouts",
+    "bind_offer",
+    "bound",
   ],
   store: (deps, core) => createInstancesStore(deps, core),
   register: (wire, store) => {
@@ -49,6 +54,13 @@ export const instancesArea = defineArea({
     wire.on(GameOpcode.SMSG_CORPSE_NOT_IN_INSTANCE, () =>
       store.corpseElsewhere(),
     );
+    wire.on(GameOpcode.SMSG_RAID_INSTANCE_INFO, (r) =>
+      store.raidInfo(parseRaidInstanceInfo(r)),
+    );
+    wire.on(GameOpcode.SMSG_INSTANCE_LOCK_WARNING_QUERY, (r) =>
+      store.lockWarning(parseLockWarning(r)),
+    );
+    wire.on(GameOpcode.SMSG_INSTANCE_SAVE_CREATED, () => store.saveCreated());
   },
   runtime: instancesRuntime,
 });

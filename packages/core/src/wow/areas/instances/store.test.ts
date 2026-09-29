@@ -4,9 +4,12 @@ import {
   instancesDifficultyBody,
   instancesInstanceDifficultyBody,
   instancesLastInstanceBody,
+  instancesLockWarningBody,
   instancesOwnershipBody,
   instancesRaidGroupOnlyBody,
+  instancesRaidInstanceInfoBody,
   instancesRaidInstanceMessageBody,
+  instancesSaveCreatedBody,
 } from "#test-support/areas/instances";
 import { areaStubs } from "#wow/areas/compose";
 import { INSTANCES_OPCODES } from "#wow/areas/instances/opcodes";
@@ -22,6 +25,29 @@ function rigWithEvents(now = () => 500) {
   return { rig, seen };
 }
 
+const ICC = {
+  mapId: 631,
+  difficulty: 3,
+  instanceGuid: 0x1f50_0000_0000_0007n,
+  extended: false,
+  secondsToReset: 86_400,
+};
+const NAXX = {
+  mapId: 533,
+  difficulty: 1,
+  instanceGuid: 0x1f50_0000_0000_0009n,
+  extended: true,
+  secondsToReset: 3600,
+};
+const lockOf = (init: typeof ICC) => ({
+  mapId: init.mapId,
+  difficulty: init.difficulty,
+  instanceGuid: init.instanceGuid,
+  locked: true,
+  extended: init.extended,
+  secondsToReset: init.secondsToReset,
+});
+
 describe("instances store", () => {
   test("starts with nothing known", () => {
     const { rig } = rigWithEvents();
@@ -34,6 +60,9 @@ describe("instances store", () => {
         lastInstanceMaps: [],
         lastWarning: undefined,
         homebindTimer: undefined,
+        locks: undefined,
+        locksAt: undefined,
+        pendingBind: undefined,
       });
     } finally {
       rig.dispose();
@@ -280,6 +309,157 @@ describe("instances store", () => {
       expect(
         eight.filter((name) => !rig.dispatch.has(GameOpcode[name])),
       ).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a raid info reply sets the locks with its arrival time and emits the maps added and removed", () => {
+    let clock = 500;
+    const { rig, seen } = rigWithEvents(() => clock);
+    try {
+      rig.inject(
+        GameOpcode.SMSG_RAID_INSTANCE_INFO,
+        instancesRaidInstanceInfoBody([ICC, NAXX]),
+      );
+      expect(rig.handle.state()).toMatchObject({
+        locks: [lockOf(ICC), lockOf(NAXX)],
+        locksAt: 500,
+      });
+      clock = 900;
+      rig.inject(
+        GameOpcode.SMSG_RAID_INSTANCE_INFO,
+        instancesRaidInstanceInfoBody([
+          NAXX,
+          { ...ICC, mapId: 603, difficulty: 0 },
+        ]),
+      );
+      expect(rig.handle.state().locksAt).toBe(900);
+      expect(seen).toEqual([
+        {
+          type: "lockouts",
+          locks: [lockOf(ICC), lockOf(NAXX)],
+          added: [lockOf(ICC), lockOf(NAXX)],
+          removed: [],
+        },
+        {
+          type: "lockouts",
+          locks: [lockOf(NAXX), lockOf({ ...ICC, mapId: 603, difficulty: 0 })],
+          added: [lockOf({ ...ICC, mapId: 603, difficulty: 0 })],
+          removed: [lockOf(ICC)],
+        },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("an empty raid info reply is known: locks is an empty list, not undefined, and an extension change adds and removes nothing", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_RAID_INSTANCE_INFO,
+        instancesRaidInstanceInfoBody([]),
+      );
+      expect(rig.handle.state().locks).toEqual([]);
+      rig.inject(
+        GameOpcode.SMSG_RAID_INSTANCE_INFO,
+        instancesRaidInstanceInfoBody([ICC]),
+      );
+      rig.inject(
+        GameOpcode.SMSG_RAID_INSTANCE_INFO,
+        instancesRaidInstanceInfoBody([{ ...ICC, extended: true }]),
+      );
+      expect(seen[2]).toMatchObject({
+        type: "lockouts",
+        added: [],
+        removed: [],
+      });
+      expect(rig.handle.state().locks?.[0]?.extended).toBe(true);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a lock warning sets pendingBind with its deadline and emits bind_offer", () => {
+    const { rig, seen } = rigWithEvents(() => 1000);
+    try {
+      rig.inject(
+        GameOpcode.SMSG_INSTANCE_LOCK_WARNING_QUERY,
+        instancesLockWarningBody({ timeoutMs: 60_000, encounterMask: 3 }),
+      );
+      expect(rig.handle.state().pendingBind).toEqual({
+        timeoutMs: 60_000,
+        encounterMask: 3,
+        at: 1000,
+        deadline: 61_000,
+      });
+      expect(seen).toEqual([
+        {
+          type: "bind_offer",
+          timeoutMs: 60_000,
+          encounterMask: 3,
+          deadline: 61_000,
+        },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_INSTANCE_SAVE_CREATED clears the pending bind and emits bound", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_INSTANCE_LOCK_WARNING_QUERY,
+        instancesLockWarningBody({ timeoutMs: 60_000, encounterMask: 0 }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_INSTANCE_SAVE_CREATED,
+        instancesSaveCreatedBody(),
+      );
+      expect(rig.handle.state().pendingBind).toBeUndefined();
+      expect(seen.map((e) => e.type)).toEqual(["bind_offer", "bound"]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a pending bind reads as absent from its deadline on", () => {
+    let clock = 0;
+    const { rig } = rigWithEvents(() => clock);
+    try {
+      rig.inject(
+        GameOpcode.SMSG_INSTANCE_LOCK_WARNING_QUERY,
+        instancesLockWarningBody({ timeoutMs: 60_000, encounterMask: 0 }),
+      );
+      clock = 59_999;
+      expect(rig.handle.state().pendingBind).toBeDefined();
+      clock = 60_000;
+      expect(rig.handle.state().pendingBind).toBeUndefined();
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("mapChanged clears the pending bind and keeps the locks", () => {
+    const { rig } = rigWithEvents();
+    try {
+      rig.stores.self.receive({ type: "login_verified", position: DEADMINES });
+      rig.inject(
+        GameOpcode.SMSG_RAID_INSTANCE_INFO,
+        instancesRaidInstanceInfoBody([ICC]),
+      );
+      rig.inject(
+        GameOpcode.SMSG_INSTANCE_LOCK_WARNING_QUERY,
+        instancesLockWarningBody({ timeoutMs: 60_000, encounterMask: 0 }),
+      );
+      rig.stores.self.receive({
+        type: "new_world",
+        position: { ...DEADMINES, mapId: 1 },
+      });
+      expect(rig.handle.state().pendingBind).toBeUndefined();
+      expect(rig.handle.state().locks).toHaveLength(1);
     } finally {
       rig.dispose();
     }
