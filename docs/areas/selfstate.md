@@ -14,8 +14,11 @@ and the others `move_flag`, each acked with its own counter. An entry
 for another guid is dropped, and an entry with an unknown opcode is
 skipped by its length.
 
-The store keeps the stand state, the fatigue, breath and fire timers and
-whether a ghost is pending. The stand state starts from byte 0 of the
+The store keeps the stand state, the fatigue, breath and fire timers,
+whether a ghost is pending, and the self-resurrection spell from the self
+`PLAYER_SELF_RES_SPELL` field. The spell id is restored at death and
+cleared on the return to life; the first non-zero value fires
+`self_res_available` with the spell's name from the combat catalog. The stand state starts from byte 0 of the
 self `UNIT_FIELD_BYTES_1` and follows `SMSG_STANDSTATE_UPDATE`;
 `stand_changed` fires on a change only. `SMSG_START_MIRROR_TIMER` and
 `SMSG_STOP_MIRROR_TIMER` fill and clear a timer and fire `mirror_timer`.
@@ -32,7 +35,9 @@ the seconds left, the stop logs `selfstate/surfaced`, `breath_low` wakes
 it to surface, and a refused transfer wakes it with
 `selfstate/transfer_aborted`, naming the map id and the reason in words.
 `stand_changed` and `ghost_pending` write no row, and reattaching with a
-draining breath timer rewrites the under-water row.
+draining breath timer rewrites the under-water row. `self_res_available`
+logs `selfstate/self_res_available`: "You can come back where you died
+(<name>)."
 
 ## Wire notes
 
@@ -127,8 +132,21 @@ draining breath timer rewrites the under-water row.
   (`Handlers/MovementHandler.cpp:362-381,399`); control sends it through
   `resetFall` with `fallTime` 0 and `FALLING` cleared, also with no
   automatic caller.
-- `CMSG_SELF_RES`, `CMSG_CORPSE_MAP_POSITION_QUERY` and
-  `SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE`: built by `self-state-7`.
+- `CMSG_SELF_RES` is empty. The server casts the stored
+  `PLAYER_SELF_RES_SPELL` on the sender and clears it, refusing silently
+  under a no-resurrection aura (`Handlers/SpellHandler.cpp:707-721`), so
+  the act `selfResurrect` refuses `not_dead` when the character is alive
+  and `no_self_res` when the field is 0, then settles `ok` when the self
+  health turns positive within 5 s or `no_answer` on silence. One live
+  try on a level 10 character staged with Reincarnation 20608 and an Ankh
+  17030 never died (not seen live).
+- `CMSG_CORPSE_MAP_POSITION_QUERY` is a `uint32` 0
+  (`Server/Packets/QueryPackets.cpp:55-58`); the server answers with four
+  `f32`, always zero in AzerothCore
+  (`Handlers/QueryHandler.cpp:399-409`). The act
+  `queryCorpseMapPosition` sends the query and settles `ok` with the four
+  floats or `no_answer` after 3 s. Live: sent `00000000`, received 16
+  zero bytes.
 - `CMSG_CANCEL_MOUNT_AURA`, `SMSG_DISMOUNT`, `CMSG_MOUNTSPECIAL_ANIM` and
   `SMSG_MOUNTSPECIAL_ANIM`: built by `self-state-6`.
 - `SMSG_CROSSED_INEBRIATION_THRESHOLD`: built by `self-state-8`.

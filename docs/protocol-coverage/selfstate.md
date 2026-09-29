@@ -22,7 +22,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x1db` | `SMSG_STOP_MIRROR_TIMER` | server | handled |  |
 | `0x252` | `SMSG_RESURRECT_FAILED` | server | dead |  |
 | `0x29d` | `SMSG_STANDSTATE_UPDATE` | server | handled |  |
-| `0x2b3` | `CMSG_SELF_RES` | client | handled |  |
+| `0x2b3` | `CMSG_SELF_RES` | client | handled | not seen live |
 | `0x2ca` | `CMSG_MOVE_FALL_RESET` | client | handled | not seen live |
 | `0x2ce` | `CMSG_MOVE_TIME_SKIPPED` | client | handled | not seen live |
 | `0x2cf` | `CMSG_MOVE_FEATHER_FALL_ACK` | client | handled |  |
