@@ -226,7 +226,11 @@ Disagreements for opcodes later tasks build (AzerothCore wins):
 
 ## Left out
 
-- `SMSG_SPELL_FAILED_OTHER`: built by spells-2.
+- An other unit's channel that pushback shortens to zero ends with
+  a zero channel update and no failure packet
+  (`Spells/Spell.cpp:8147-8169`, `:4565-4580`). If that update comes
+  more than 400 ms before the planned end, `unit_cast_end` reports
+  `interrupted`.
 - `SMSG_TOTEM_CREATED`, `CMSG_TOTEM_DESTROYED`: built by spells-8.
 - `CMSG_UNLEARN_SKILL`: built by spells-7.
 - `SMSG_CONVERT_RUNE`: built by spells-9.
