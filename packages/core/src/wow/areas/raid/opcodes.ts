@@ -1,0 +1,30 @@
+import type { AreaOpcodes } from "#wow/areas/contract";
+
+export const RAID_OPCODES = {
+  owns: [
+    "CMSG_REQUEST_PARTY_MEMBER_STATS",
+    "CMSG_GROUP_RAID_CONVERT",
+    "CMSG_GROUP_CHANGE_SUB_GROUP",
+    "CMSG_GROUP_SWAP_SUB_GROUP",
+    "CMSG_GROUP_ASSISTANT_LEADER",
+    "MSG_PARTY_ASSIGNMENT",
+    "CMSG_GROUP_UNINVITE_GUID",
+    "MSG_RAID_READY_CHECK",
+    "MSG_RAID_READY_CHECK_CONFIRM",
+    "MSG_RAID_READY_CHECK_FINISHED",
+    "MSG_RAID_TARGET_UPDATE",
+    "MSG_MINIMAP_PING",
+    "SMSG_SUMMON_REQUEST",
+    "CMSG_SUMMON_RESPONSE",
+    "CMSG_GROUP_CANCEL",
+    "SMSG_REAL_GROUP_UPDATE",
+  ],
+  uses: [],
+  stubs: [
+    ["MSG_RAID_READY_CHECK", "Ready check"],
+    ["MSG_RAID_READY_CHECK_CONFIRM", "Ready check confirm"],
+    ["MSG_RAID_READY_CHECK_FINISHED", "Ready check finished"],
+  ],
+  dead: ["CMSG_GROUP_CANCEL", "SMSG_REAL_GROUP_UPDATE"],
+  unseen: [],
+} as const satisfies AreaOpcodes;
