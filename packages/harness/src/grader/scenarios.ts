@@ -17,6 +17,12 @@ export type SteerAt =
   | { kind: "trigger"; trigger: TriggerName; nth?: number; delayMs?: number }
   | { kind: "elapsed"; ms: number };
 
+export type PartnerSetup = {
+  actor?: number;
+  endpoint: string;
+  body: Record<string, unknown>;
+};
+
 export type PartnerAction = {
   at: SteerAt;
   argv: string[];
@@ -114,6 +120,7 @@ export type Scenario = {
   steers: { at: SteerAt; text: string }[];
   partnerActions?: PartnerAction[];
   partners?: ScenarioPartner[];
+  partnerSetup?: PartnerSetup[];
   blockedBy?: string[];
   field?: string;
   spawn?: string;
@@ -214,12 +221,19 @@ function consoleErrors({ checks }: Scenario): string[] {
 }
 
 function partnerErrors(scenario: Scenario): string[] {
-  const { partner, partnerActions = [], partners } = scenario;
+  const { partner, partnerActions = [], partners, partnerSetup = [] } = scenario;
   const count = partners?.length ?? (partner === null ? 0 : 1);
   const errors = partnerActions.flatMap(({ actor }, index) =>
     actor !== undefined && actor > count
       ? [`$.partnerActions[${index}].actor: no partner ${actor}`]
       : [],
+  );
+  errors.push(
+    ...partnerSetup.flatMap(({ actor }, index) =>
+      actor !== undefined && actor > count
+        ? [`$.partnerSetup[${index}].actor: no partner ${actor}`]
+        : [],
+    ),
   );
   errors.push(...whoErrors(scenario));
   if (partners === undefined) return errors;

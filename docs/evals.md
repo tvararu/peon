@@ -156,7 +156,11 @@ names (1-based; the default is the single partner or partner 1), and its
 `argv` replaces `<AGENT>` with the agent's character, `<PARTNER1>` to
 `<PARTNER4>` with each partner's character and `<PARTNER>` with the
 first. The grader reads each partner that has an action with `read
---json` while the actions run and once at the end.
+--json` while the actions run and once at the end. A scenario lists
+optional `partnerSetup` steps as `{ "actor" (default 1), "endpoint",
+"body" }`; after the start point is placed, each step runs through
+`soap setup` on its partner's account, so a partner can start with a
+quest, an item or a level the agent's own `setup` cannot give it.
 
 | Command | Used by | Behaviour |
 |---|---|---|

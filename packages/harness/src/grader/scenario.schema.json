@@ -266,6 +266,26 @@
       },
       "type": "array"
     },
+    "partnerSetup": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "actor": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "body": {
+            "type": "object"
+          },
+          "endpoint": {
+            "type": "string"
+          }
+        },
+        "required": ["body", "endpoint"],
+        "type": "object"
+      },
+      "type": "array"
+    },
     "partners": {
       "items": {
         "additionalProperties": false,

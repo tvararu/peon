@@ -8,10 +8,15 @@ import {
   actPartners,
   createPartners,
   partnerSpecs,
+  placePartners,
   readPartners,
   startPartners,
 } from "#harness/grader/run-partners";
-import { loadScenario, type Scenario } from "#harness/grader/scenarios";
+import {
+  loadScenario,
+  parseScenario,
+  type Scenario,
+} from "#harness/grader/scenarios";
 import { failed, fakeExec, ok } from "#test-support/fake-exec";
 
 const NOW = Date.parse("2026-09-28T02:00:00.000Z");
@@ -204,6 +209,42 @@ describe("two partners", () => {
     expect(await Bun.file(`${st.runDir}/partner1-read.jsonl`).exists()).toBe(
       false,
     );
+  });
+});
+
+describe("partnerSetup", () => {
+  const setups = (calls: { argv: string[] }[]) =>
+    calls.flatMap(({ argv }) =>
+      argv[3] === "setup" ? [`${argv[4]} ${argv[5]} ${argv[6]}`] : [],
+    );
+
+  test("applies each step to its partner after the start point", async () => {
+    const { calls, exec } = soapWorld();
+    const st = runState(exec);
+    await createPartners(
+      { ...st, log: st.log, owner: st.tab },
+      partnerSpecs(SCENARIO),
+    );
+    const [one, two] = [accountOf(1), accountOf(2)];
+    await placePartners(st, undefined, {
+      partnerSetup: [
+        { actor: 2, body: { quest: 8326 }, endpoint: "quest/add" },
+        { body: { level: 9 }, endpoint: "level" },
+      ],
+    });
+    expect(setups(calls)).toEqual([
+      `${two} quest/add {"quest":8326}`,
+      `${one} level {"level":9}`,
+    ]);
+  });
+
+  test("a setup step for a missing partner is refused", () => {
+    expect(() =>
+      parseScenario("t2-whisper-reply.json", {
+        ...SCENARIO,
+        partnerSetup: [{ actor: 3, body: {}, endpoint: "level" }],
+      }),
+    ).toThrow("$.partnerSetup[0].actor: no partner 3");
   });
 });
 
