@@ -1,0 +1,46 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 30,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["objects/page"],
+        "ids": [2936]
+      },
+      "expect": "GL has an objects/page row for page 2936 (the shrine text)",
+      "id": "page-row",
+      "source": "game_log"
+    },
+    {
+      "expect": "the answer holds the fixed phrase \"You have discovered the location of the shrine\"",
+      "id": "answer-matches-text",
+      "source": "session"
+    }
+  ],
+  "id": "t0-objects-read-shrine",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "fresh",
+  "setup": [
+    {
+      "body": {
+        "map": 530,
+        "o": 1.0604,
+        "x": 10403.85,
+        "y": -5949.5,
+        "z": 41.5,
+        "zone": 3430
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "You stand near the Shrine of Dath'Remar on Sunstrider Isle. Read the shrine and quote the opening sentence of its page text word for word.",
+  "tier": 0
+}

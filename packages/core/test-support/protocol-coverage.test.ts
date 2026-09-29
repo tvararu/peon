@@ -157,7 +157,7 @@ describe("coverageRows", () => {
     const { rows } = projectCoverage(["send(GameOpcode.CMSG_BOOTME)"]);
     const status = new Map(rows.map((r) => [r.name, r.status]));
     expect(status.get("SMSG_UPDATE_OBJECT")).toBe("handled");
-    expect(status.get("SMSG_WEATHER")).toBe("stub");
+    expect(status.get("SMSG_WARDEN_DATA")).toBe("stub");
     expect(status.get("CMSG_BOOTME")).toBe("handled");
     expect(status.get("SMSG_SPELLLOGEXECUTE")).toBe("missing");
   });

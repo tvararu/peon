@@ -28,9 +28,13 @@ function poseText(pose: PoseView | undefined): string {
   return `${Math.round(pose.x)}, ${Math.round(pose.y)}, facing ${pose.facing}. Pose ${pose.source}, ${fix}.`;
 }
 
-export function selfLine({ place, self }: LookAfter): string {
+export function selfLine({
+  place,
+  self,
+}: Pick<LookAfter, "place" | "self">): string {
   const combat = self.inCombat ? "in combat" : "not in combat";
-  const vitals = `HP ${self.hp}/${self.maxHp}, ${powerText(self)}${self.life}, ${combat}`;
+  const posture = self.posture ? `${self.posture}, ` : "";
+  const vitals = `HP ${self.hp}/${self.maxHp}, ${powerText(self)}${self.life}, ${posture}${combat}`;
   return `${self.name} L${self.level} ${self.className}, ${vitals}. ${placeText(place)} ${poseText(self.pose)}`;
 }
 

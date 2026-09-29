@@ -134,7 +134,10 @@ function vitalSegments(self: SelfView, theme: Theme): Segment[] {
     drop: 2,
     variants: meter({ icon: g.health, max: self.maxHp, theme, value: self.hp }),
   };
-  if (self.powerKind === "none") return [health];
+  const points: Segment[] = self.comboPoints
+    ? [{ drop: 3, variants: [theme.fg("warning", `CP ${self.comboPoints}`)] }]
+    : [];
+  if (self.powerKind === "none") return [health, ...points];
   const icon = g[POWER_GLYPH[self.powerKind]];
   return [
     health,
@@ -142,6 +145,7 @@ function vitalSegments(self: SelfView, theme: Theme): Segment[] {
       drop: 2,
       variants: meter({ icon, max: self.maxPower, theme, value: self.power }),
     },
+    ...points,
   ];
 }
 

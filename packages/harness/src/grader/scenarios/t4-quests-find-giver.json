@@ -1,0 +1,47 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 40,
+    "turns": 15
+  },
+  "checks": [
+    {
+      "evidence": {
+        "truth": ["quests"]
+      },
+      "expect": "8325 is in T final quests",
+      "id": "took-quest",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["quests/marks"]
+      },
+      "expect": "GL has a quests/marks row before the first interact call",
+      "id": "marks-row",
+      "source": "game_log"
+    }
+  ],
+  "field": "sunstrider-wyrms",
+  "id": "t4-quests-find-giver",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "fresh",
+  "setup": [
+    {
+      "body": {
+        "map": 530,
+        "x": 10322,
+        "y": -6357,
+        "z": 29.82
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Find someone nearby who has a quest for you and take it.",
+  "tier": 4
+}

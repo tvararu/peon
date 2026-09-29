@@ -11,6 +11,7 @@ const PRESETS = [
   "fresh",
   "eversong10",
   "eversong10-hunter",
+  "eversong10-mage",
   "eversong10-warrior",
   "elwynn1",
   "elwynn10",
@@ -315,6 +316,15 @@ describe("checks measure what they name", () => {
       "answer-values": "answer_values",
       "kept-grinding": "kill_after_answer",
       stopped: "no_fight_after_stop",
+    });
+  });
+
+  test("t4-reputation-gain accepts the faction by id when Faction.dbc is absent", () => {
+    expect(checkOf("t4-reputation-gain", "reputation-rows")).toMatchObject({
+      evidence: {
+        events: ["reputation/changed", "reputation/rank"],
+        ids: [55],
+      },
     });
   });
 });

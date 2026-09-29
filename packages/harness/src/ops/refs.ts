@@ -1,7 +1,19 @@
 import { type Entity, ObjectType, type UnitEntity } from "@peon/core";
 import type { RefTable } from "#harness/contract/services";
 
-const REF = /^u([1-9]\d*)$/;
+const REF = /^[uo]([1-9]\d*)$/;
+
+const HIGH_GUID_SHIFT = 0x1_0000_0000_0000n;
+
+const OBJECT_HIGH: Record<number, true> = {
+  8128: true,
+  61712: true,
+  61728: true,
+};
+
+export function isObjectGuid(guid: bigint): boolean {
+  return OBJECT_HIGH[Number(guid / HIGH_GUID_SHIFT)] === true;
+}
 
 export function guidHex(guid: bigint): string {
   return guid.toString(16);
@@ -27,7 +39,10 @@ export function createRefTable(): RefTable {
     refOf(guid) {
       const known = refs.get(guid);
       if (known) return known;
-      const ref = `u${refs.size + 1}`;
+      const prefix = isObjectGuid(guid) ? "o" : "u";
+      let next = 1;
+      while (guids.has(`${prefix}${next}`)) next += 1;
+      const ref = `${prefix}${next}`;
       refs.set(guid, ref);
       guids.set(ref, guid);
       return ref;

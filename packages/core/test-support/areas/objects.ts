@@ -14,9 +14,69 @@ export function objectsAreaTriggerMessageBody(
   return w.finish();
 }
 
+export type ObjectsTemplateFixture = {
+  entry: number;
+  type: number;
+  displayId: number;
+  name: string;
+  iconName?: string;
+  castBarCaption?: string;
+  unk1?: string;
+  data?: readonly number[];
+  size?: number;
+  questItems?: readonly number[];
+};
+
+export function objectsGameObjectQueryResponseBody(
+  t: ObjectsTemplateFixture,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(t.entry);
+  w.uint32LE(t.type);
+  w.uint32LE(t.displayId);
+  w.cString(t.name);
+  for (let i = 0; i < 3; i++) w.uint8(0);
+  w.cString(t.iconName ?? "");
+  w.cString(t.castBarCaption ?? "");
+  w.cString(t.unk1 ?? "");
+  for (let i = 0; i < 24; i++) w.uint32LE(t.data?.[i] ?? 0);
+  w.floatLE(t.size ?? 1);
+  for (let i = 0; i < 6; i++) w.uint32LE(t.questItems?.[i] ?? 0);
+  return w.finish();
+}
+
+export function objectsGameObjectQueryMissingBody(entry: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(entry | 0x80_00_00_00);
+  return w.finish();
+}
 export function objectsAreaTriggerBody(triggerId: number): Uint8Array {
   const w = new PacketWriter();
   w.uint32LE(triggerId);
+  return w.finish();
+}
+
+export function objectsGameObjUseBody(guid: bigint): Uint8Array {
+  const w = new PacketWriter(8);
+  w.uint64LE(guid);
+  return w.finish();
+}
+
+export function objectsPageTextQueryResponseBody(
+  pageId: number,
+  text: string,
+  nextPageId: number,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(pageId);
+  w.cString(text);
+  w.uint32LE(nextPageId);
+  return w.finish();
+}
+
+export function objectsGameObjectPageTextBody(guid: bigint): Uint8Array {
+  const w = new PacketWriter(8);
+  w.uint64LE(guid);
   return w.finish();
 }
 

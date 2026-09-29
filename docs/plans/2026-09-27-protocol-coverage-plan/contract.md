@@ -24,7 +24,7 @@ Code pins: Peon `origin/main` `71fba0ab` (#429 merged), which is also the
 base of `factory/426-protocol-coverage` below the two design commits
 `25886a44` and `9f5a1f22`. Marks: **[M]** a command ran or the cited line
 was read for this contract; **[I]** inferred; **[D<n>]** a decision of
-this contract (section 4), not yet ruled by the maintainer. Core paths
+this contract (section 4), accepted by the maintainer (P2-5). Core paths
 without a package prefix are under `packages/core/src/wow/`; harness paths
 without a prefix are under `packages/harness/src/`.
 
@@ -181,7 +181,7 @@ only where the area adds a harness verb (section 3).
 | The server sends it and no worker can trigger it | an `areaRig` or `mock-world-server` test whose body is built from the AzerothCore writer (R22) | `unseen` | `mock` with the writer's `path:line`; coverage prints `not seen live` |
 | A client opcode the server accepts with a real effect | a builder test plus a live send whose effect shows in a later packet or in truth | none | `live` |
 | A client opcode whose server handler does nothing (N24) | a builder test against the AzerothCore reader plus a live send that the server accepts (no disconnect, no error packet) | none | `accepted` |
-| A client opcode with a real effect that no worker can make visible (added by the plan fix-up; not yet ruled by the maintainer) | a builder test against the AzerothCore reader plus a live send with no disconnect | `unseen` | `builder` with the reader's `path:line` and the evidence "sent live, effect not seen" |
+| A client opcode with a real effect that no worker can make visible (added by the plan fix-up; accepted by the maintainer (P2-5)) | a builder test against the AzerothCore reader plus a live send with no disconnect | `unseen` | `builder` with the reader's `path:line` and the evidence "sent live, effect not seen" |
 | A client opcode whose live send leaves a server log line or a table row that outlives the accounts (N25) | a builder test only | `unseen` | `builder` with the reader's `path:line` |
 | Dead (rule 7, N13) | no code | `dead` | `dead` with the evidence |
 
@@ -238,6 +238,12 @@ commit (design 6.4). This covers the shared test fakes
 (`test-support/mock-handle.ts`, harness `test-support/mock-game.ts`, the
 puppet protocol files), both area registries, `world-conn.ts` and the
 step-0 hub files.
+
+Wave 1 of part 2 amends the first bullet (coordinator ruling, P2-17): a
+task may also edit a file its own unit owns (section 2.5) that its plan
+body does not name, such as an earlier task's probe flow or the area's
+doc, when the change serves the task. It still stops `blocked` for any
+file another unit owns, a shared file or a legacy file without a lease.
 
 ### 0.10 Task ids
 
@@ -972,7 +978,7 @@ An area's non-test source may import values only from: `#lib/*`,
 `#wow/protocol/*`, `#wow/areas/contract`, its own directory
 `#wow/areas/<area>/*`, `#wow/geometry`, `#wow/dbc` and `#wow/data/*` [D11],
 and, from the `SEED-1` commit, `#wow/inventory` and `#wow/player-state`
-(SR1-items-2; not yet ruled by the maintainer).
+(SR1-items-2; accepted by the maintainer (P2-5)).
 It may import types from any `#wow/*` module except `#wow/client`,
 `#wow/areas/compose`, and the names `WorldHandle`, `SessionStores` and
 `WorldEvents`. It never imports another area's directory. Its source
@@ -1085,7 +1091,7 @@ Code areas and shared parsers per unit (design 5.1, N28):
 | `talents` | `talents` | `protocol/talent-spec.ts` (`inspect` reuses it) |
 | `pets` | `pets` | `protocol/pet-spells.ts` (`SMSG_PET_SPELLS`; `vehicles` reuses it) |
 | `vehicles` | `vehicles`, `transports` | |
-| `social` | `achievements`, `emotes`, `contacts`, `inspect`, `channels`, `complaints`, `referral` | `protocol/achievement-data.ts` (`parseAchievementData`; `inspect` reuses it) (SR1-social-1; not yet ruled by the maintainer) |
+| `social` | `achievements`, `emotes`, `contacts`, `inspect`, `channels`, `complaints`, `referral` | `protocol/achievement-data.ts` (`parseAchievementData`; `inspect` reuses it) (SR1-social-1; accepted by the maintainer (P2-5)) |
 | `guild` | `guildadmin`, `guildbank`, `charters`, `calendar` | the packed-time writer, added to `protocol/packed-time.ts` (a lease, 2.7) [D10] |
 | `pvp` | `battlegrounds`, `arena`, `wintergrasp` | |
 
@@ -1099,7 +1105,7 @@ the seed commit and the plan index then state the new names.
 | `areas/registry.ts` (core), `areas/registry.ts` (harness) | coordinator (S0-5, `SEED-<n>`, mid-wave seeds) | sorted key |
 | `contract/result.ts` `ToolName` | the task that lands a new tool | append one member at the end of the union |
 | `tools/registry.ts` `GAME_TOOLS` and its import | the same task | append one entry at the end; the coordinator reorders at wave integration (design 3.10) |
-| `docs/harness.md` tool table (`docs/harness.md:122-133` [M]) | the same task; the holder of a lease on an existing tool module | append one row `| \`<tool>\` | <one line> |`; the lease holder may also add one clause to that tool's one row (SR1-travel-4, SR1-objects-16; not yet ruled by the maintainer) |
+| `docs/harness.md` tool table (`docs/harness.md:122-133` [M]) | the same task; the holder of a lease on an existing tool module | append one row `| \`<tool>\` | <one line> |`; the lease holder may also add one clause to that tool's one row (SR1-travel-4, SR1-objects-16; accepted by the maintainer (P2-5)) |
 | `tools/covered.ts` `COVERS` (`:5` [M]) | a tool whose facts also reach the router as `wake` or `passive` rows | sorted key |
 | `contract/runs.ts` `RunKind` (`:1` [M]), `ui/status-line.ts` `VERB` (`:5` [M]) | a tool that starts a background run (`trade`) | append one member; sorted key |
 | `puppet/calls.ts` | any task that adds a partner method (after T-7) | sorted key |
@@ -1123,7 +1129,7 @@ plan index [D12]. A lease on an existing tool module includes that tool's
 covers that tool's lines in `docs/harness.md`, within the edit of section
 2.6 (SR1-objects-16). A lease on a legacy file also covers its colocated
 `.test.ts` file of the same stem, and the holder may create that test
-file (SR1-quests-4). Both sentences are not yet ruled by the maintainer.
+file (SR1-quests-4). Both sentences are accepted by the maintainer (P2-5).
 
 Candidates, from design section 5, in build order. **Bold** marks a holder
 the design names.
@@ -1168,7 +1174,7 @@ the design names.
 | harness `puppet/format.ts` (the `nearby --json` row) | remote-motion |
 | a new tool module another unit owns (`areas/raid/tool.ts`, `areas/spells/tool.ts`, `areas/pets/tool.ts`) | quests (share verbs on `group`), self-state (mount verbs on `spell`), objects (object targets on `spell`), vehicles (abilities on `pet`) |
 
-**Leases added by the plan fix-up** (not yet ruled by the maintainer).
+**Leases added by the plan fix-up** (accepted by the maintainer (P2-5)).
 The plan bodies edit these files, and the table above did not name the
 unit for them, so each such task would stop `blocked` on its first edit.
 The rows below add them. Each row is one lease per file, queued as the
@@ -1354,7 +1360,7 @@ headings, in this order:
 
 ## 4. Decisions this contract takes
 
-Each decision is **not yet ruled by the maintainer**. The advisor approves
+Each decision is **accepted by the maintainer (P2-5)**. The advisor approves
 the plan in the maintainer's place (R14); the maintainer may reverse any
 of them.
 
@@ -1379,11 +1385,11 @@ changes: D1, D5, D8, D10, D12, D14, D17, D20, D21, D24 and D25.
 | D10 | The packed-time reader lives in `protocol/packed-time.ts` (S0-5); `guild` adds the writer there under a lease | Amends design 3.13 (`parsePackedTime` in `time/protocol.ts`) and N28. N28 gives the reader to the first of `guild` and `achievements`, but areas may not import each other (design 3.15 test 5), and `time` needs the reader first |
 | D11 | The area value-import allow-list adds `#wow/dbc` and `#wow/data/*` to design 3.15's list | the DBC catalogs and generated tables are leaf modules; the coordinator extends the list on a `blocked` report |
 | D12 | A lease is held by one task, not by one unit for the whole fan-out; the coordinator hands it on when that task lands | Amends N14 and design 3.12. N14 read literally serialises every `look.ts` change behind one unit for all four waves; one task at a time still gives "one legacy file, one area worker" at any moment |
-| D13 | A lease on an existing tool module covers that tool's `After` block in `contract/details.ts`, the views it reads in `contract/views.ts`, and that tool's lines in `docs/harness.md` (SR1-objects-16, not yet ruled by the maintainer) | `journal about: bags` and `VitalsView.comboPoints` (design 5.3, 5.9) change types that live there; design 3.10 forbids new-tool types there, not existing ones |
+| D13 | A lease on an existing tool module covers that tool's `After` block in `contract/details.ts`, the views it reads in `contract/views.ts`, and that tool's lines in `docs/harness.md` (SR1-objects-16, accepted by the maintainer (P2-5)) | `journal about: bags` and `VitalsView.comboPoints` (design 5.3, 5.9) change types that live there; design 3.10 forbids new-tool types there, not existing ones |
 | D14 | Scenario tiers are fixed when the plan index lists the scenario; nobody renumbers after landing | Amends design 5.2. Design 5.2 lets the coordinator renumber at integration, but an id is a file name, a `ROUND_1` line and two doc rows, so a rename after landing touches four shared files |
 | D15 | A scenario, its `ROUND_1` entry, its `docs/capabilities.md` line and its `docs/evals.md` row land in one commit | `mise lint:docs` and `grader/scenarios.test.ts` fail on any subset, and every landing push runs `mise ci --publish` |
 | D16 | A scenario that has not passed is listed under "Not shown by any scenario" with its id and gap | `mise lint:docs` needs every scenario on the page, and the page counts a capability only when a scenario proves it |
-| D17 | The live gates are `t1-walk-to-npc` passing, `t7-halt-resume` passing or failing only from the known stale wake, and no new failure cause in `t3-ghostlands-kill` and the other regression scenarios against the R0 baseline | Amends design 3.15 test 29 and 6.6. Design 3.15 test 29 requires `t7-halt-resume` to pass unchanged, but it failed once on `main` from a known stale wake, and `t3-ghostlands-kill` fails on `main`<br><br>Coordinator ruling: on the D17 t3 gate (not yet ruled by the maintainer): a `t3-ghostlands-kill` failure whose cause is a gray or low-level mob (the agent targets it, or it joins a pull or attacks during travel) belongs to the round 0 baseline cause family, not a new failure cause: `engage-choose.ts` has no lower level bound and the round 0 run already fought a gray mob (see `/home/deity/.local/state/peon-protocol-build/evals/r0-cluster.md`). It counts as a new cause only when the task under test changes combat, targeting, travel, aggro or snapshot-attacker code. S0-5 changes none of these (it adds the time area and one `CMSG_QUERY_TIME` at login), so its t3 runs meet the gate. |
+| D17 | The live gates are `t1-walk-to-npc` passing, `t7-halt-resume` passing or failing only from the known stale wake, and no new failure cause in `t3-ghostlands-kill` and the other regression scenarios against the R0 baseline | Amends design 3.15 test 29 and 6.6. Design 3.15 test 29 requires `t7-halt-resume` to pass unchanged, but it failed once on `main` from a known stale wake, and `t3-ghostlands-kill` fails on `main`<br><br>Coordinator ruling: on the D17 t3 gate (accepted by the maintainer (P2-5)): a `t3-ghostlands-kill` failure whose cause is a gray or low-level mob (the agent targets it, or it joins a pull or attacks during travel) belongs to the round 0 baseline cause family, not a new failure cause: `engage-choose.ts` has no lower level bound and the round 0 run already fought a gray mob (see `/home/deity/.local/state/peon-protocol-build/evals/r0-cluster.md`). It counts as a new cause only when the task under test changes combat, targeting, travel, aggro or snapshot-attacker code. S0-5 changes none of these (it adds the time area and one `CMSG_QUERY_TIME` at login), so its t3 runs meet the gate. |
 | D18 | Coordinator commits carry the labels `SEED-<n>` and `COORD-<n>` | they are not worker tasks, but plan rows and reports need to name them |
 | D19 | Every unit's branch is `proto/area-<unit>`, the step-0 and tooling units included | the task brief gives one branch pattern; one pattern keeps the reaper and the coordinator's scripts simple |
 | D20 | A `world-conn.ts` change (for example `group` folding `conn.partyMembers`, `social` replacing `conn.channels`) is a `COORD-<n>` commit | Amends design 5.13 and 5.21 (who edits). Design 3.11 forbids workers to edit `world-conn.ts`, while design 5.13 and 5.21 need these changes |

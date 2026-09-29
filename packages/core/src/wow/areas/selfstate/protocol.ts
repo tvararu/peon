@@ -1,5 +1,6 @@
+import { type MoveCounter, parseMoveCounter } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
+import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 import type { MoveFlag } from "#wow/self-store";
 
 export type FlagChange = { readonly flag: MoveFlag; readonly enable: boolean };
@@ -12,7 +13,40 @@ export const FLAG_OPCODES: readonly (readonly [
   [GameOpcode.SMSG_MOVE_LAND_WALK, { flag: "water_walk", enable: false }],
   [GameOpcode.SMSG_MOVE_SET_HOVER, { flag: "hover", enable: true }],
   [GameOpcode.SMSG_MOVE_UNSET_HOVER, { flag: "hover", enable: false }],
+  [GameOpcode.SMSG_MOVE_FEATHER_FALL, { flag: "feather_fall", enable: true }],
+  [GameOpcode.SMSG_MOVE_NORMAL_FALL, { flag: "feather_fall", enable: false }],
+  [GameOpcode.SMSG_MOVE_GRAVITY_DISABLE, { flag: "gravity_off", enable: true }],
+  [GameOpcode.SMSG_MOVE_GRAVITY_ENABLE, { flag: "gravity_off", enable: false }],
 ];
+
+export const FLAG_CHANGES: ReadonlyMap<number, FlagChange> = new Map(
+  FLAG_OPCODES,
+);
+
+const COMPOUND_OPCODES: ReadonlySet<number> = new Set([
+  GameOpcode.SMSG_FORCE_MOVE_ROOT,
+  GameOpcode.SMSG_MOVE_FEATHER_FALL,
+  GameOpcode.SMSG_MOVE_WATER_WALK,
+  GameOpcode.SMSG_MOVE_SET_HOVER,
+]);
+
+export type CompoundMove = MoveCounter & { opcode: number };
+export type MultipleMoves = { entries: CompoundMove[]; skipped: number[] };
+
+export function parseMultipleMoves(r: PacketReader): MultipleMoves {
+  const size = r.uint32LE();
+  const all = new PacketReader(r.bytes(Math.min(size, r.remaining)));
+  const entries: CompoundMove[] = [];
+  const skipped: number[] = [];
+  while (all.remaining > 0) {
+    const entry = new PacketReader(all.bytes(all.uint8()));
+    const opcode = entry.uint16LE();
+    if (COMPOUND_OPCODES.has(opcode))
+      entries.push({ opcode, ...parseMoveCounter(entry) });
+    else skipped.push(opcode);
+  }
+  return { entries, skipped };
+}
 
 export const STAND_STATES = {
   stand: 0,
@@ -76,4 +110,45 @@ export function buildStandStateChange(state: StandStateName): Uint8Array {
   const w = new PacketWriter();
   w.uint32LE(STAND_STATES[state]);
   return w.finish();
+}
+
+export const TRANSFER_ABORT_REASONS = {
+  none: 0,
+  error: 1,
+  max_players: 2,
+  not_found: 3,
+  too_many_instances: 4,
+  zone_in_combat: 6,
+  insuf_expan_lvl: 7,
+  difficulty: 8,
+  unique_message: 9,
+  too_many_realm_instances: 10,
+  need_group: 11,
+  not_found1: 12,
+  not_found2: 13,
+  not_found3: 14,
+  realm_only: 15,
+  map_not_allowed: 16,
+} as const;
+export type TransferAbortReasonName = keyof typeof TRANSFER_ABORT_REASONS;
+
+export type TransferAborted = {
+  mapId: number;
+  reason: number;
+  arg: number | undefined;
+};
+
+export function parseTransferAborted(r: PacketReader): TransferAborted {
+  const mapId = r.uint32LE();
+  const reason = r.uint8();
+  const arg =
+    reason === 7 || reason === 8 || reason === 9 ? r.uint8() : undefined;
+  return { arg, mapId, reason };
+}
+
+export type CollisionHeight = MoveCounter & { height: number };
+
+export function parseCollisionHeight(r: PacketReader): CollisionHeight {
+  const move = parseMoveCounter(r);
+  return { ...move, height: r.floatLE() };
 }

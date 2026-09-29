@@ -174,6 +174,27 @@ describe("items runtime: unequip, move and split", () => {
       rig.dispose();
     }
   });
+  test("unequip to bag 255 stores into the backpack (CanStoreItem bag 255, NULL_SLOT)", async () => {
+    const { rig, world } = setup((w) =>
+      w.put(255, 0, { entry: 7, guid: HELM }),
+    );
+    try {
+      const pending = rig.handle.act.unequip(0, 255);
+      expect(sends(rig.sent, GameOpcode.CMSG_AUTOSTORE_BAG_ITEM)).toEqual([
+        {
+          body: buildAutostoreBagItem({ bag: 255, slot: 0 }, 255),
+          opcode: GameOpcode.CMSG_AUTOSTORE_BAG_ITEM,
+        },
+      ]);
+      world.clear(255, 0);
+      world.put(255, 30, { entry: 7, guid: HELM });
+      rig.touch();
+      expect(await pending).toMatchObject({ last: { status: "confirmed" } });
+      await expect(rig.handle.act.unequip(0, 5)).rejects.toThrow("bag 5");
+    } finally {
+      rig.dispose();
+    }
+  });
 
   test("move sends CMSG_SWAP_INV_ITEM inside bag 255 and CMSG_SWAP_ITEM otherwise", async () => {
     const { rig } = setup((w) =>
@@ -199,6 +220,43 @@ describe("items runtime: unequip, move and split", () => {
       expect(rig.sent.at(-1)).toEqual({
         body: buildSwapItem({ bag: 19, slot: 2 }, { bag: 255, slot: 24 }),
         opcode: GameOpcode.CMSG_SWAP_ITEM,
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("move out of an equipment slot is an unequip request; between carried slots it is a swap", async () => {
+    const { rig, world } = setup((w) =>
+      w.put(255, 15, { entry: 7, guid: HELM }),
+    );
+    try {
+      const off = rig.handle.act.move(
+        { bag: 255, slot: 15 },
+        { bag: 255, slot: 34 },
+      );
+      expect(rig.sent.at(-1)).toEqual({
+        body: buildAutostoreBagItem({ bag: 255, slot: 15 }, 0),
+        opcode: GameOpcode.CMSG_AUTOSTORE_BAG_ITEM,
+      });
+      world.clear(255, 15);
+      world.put(255, 34, { entry: 7, guid: HELM });
+      rig.touch();
+      expect(await off).toMatchObject({
+        last: {
+          request: { kind: "unequip" },
+          status: "confirmed",
+        },
+      });
+      const carried = rig.handle.act.move(
+        { bag: 255, slot: 23 },
+        { bag: 255, slot: 30 },
+      );
+      world.clear(255, 23);
+      world.put(255, 30, { entry: 25, guid: SWORD });
+      rig.touch();
+      expect(await carried).toMatchObject({
+        last: { request: { kind: "swap" }, status: "confirmed" },
       });
     } finally {
       rig.dispose();

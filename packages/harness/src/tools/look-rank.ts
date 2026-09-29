@@ -51,6 +51,7 @@ function rankOf(unit: UnitView, relevance: Relevance): number {
   const name = unit.name.toLowerCase();
   if (unit.attackingMe || relevance.attackers.has(unit.guid)) return 0;
   if (relevance.questNpcs.has(name)) return 1;
+  if (unit.questMark === "available" || unit.questMark === "reward") return 1;
   if (name !== "unknown" && relevance.said.includes(name)) return 2;
   if (unit.relation === "hostile" && unit.alive) return 3;
   if (staticRole(unit)) return 4;

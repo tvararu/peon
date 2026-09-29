@@ -5,17 +5,17 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x0fa` | `SMSG_TRIGGER_CINEMATIC` | server | missing |  |
-| `0x0fb` | `CMSG_NEXT_CINEMATIC_CAMERA` | client | missing |  |
-| `0x0fc` | `CMSG_COMPLETE_CINEMATIC` | client | missing |  |
-| `0x1f4` | `CMSG_ZONEUPDATE` | client | missing |  |
+| `0x0fa` | `SMSG_TRIGGER_CINEMATIC` | server | handled |  |
+| `0x0fb` | `CMSG_NEXT_CINEMATIC_CAMERA` | client | handled |  |
+| `0x0fc` | `CMSG_COMPLETE_CINEMATIC` | client | handled |  |
+| `0x1f4` | `CMSG_ZONEUPDATE` | client | handled |  |
 | `0x277` | `SMSG_PLAY_MUSIC` | server | stub |  |
 | `0x278` | `SMSG_PLAY_OBJECT_SOUND` | server | missing |  |
-| `0x2c3` | `SMSG_UPDATE_WORLD_STATE` | server | missing |  |
+| `0x2c3` | `SMSG_UPDATE_WORLD_STATE` | server | handled |  |
 | `0x2d2` | `SMSG_PLAY_SOUND` | server | stub |  |
-| `0x2f4` | `SMSG_WEATHER` | server | stub |  |
+| `0x2f4` | `SMSG_WEATHER` | server | handled |  |
 | `0x412` | `SMSG_OVERRIDE_LIGHT` | server | missing |  |
-| `0x464` | `SMSG_TRIGGER_MOVIE` | server | missing |  |
+| `0x464` | `SMSG_TRIGGER_MOVIE` | server | handled | not seen live |
 | `0x465` | `CMSG_COMPLETE_MOVIE` | client | dead |  |
 | `0x47c` | `SMSG_SET_PHASE_SHIFT` | server | stub |  |
 | `0x4ed` | `SMSG_TOGGLE_XP_GAIN` | server | dead |  |

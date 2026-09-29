@@ -69,9 +69,20 @@ export type CycleState = {
   lastRecovery: (CycleRecovery & { at: number }) | undefined;
   objective: ObjectiveProgress | undefined;
 };
+export type CycleVisit = Pick<CycleDeps, "approach" | "bags" | "rewards"> & {
+  events: EventWaiter<RewardsEvent>;
+  signal: AbortSignal;
+};
+export type CycleVisitEnd =
+  | { ok: true; cause?: string; record?: CycleLootRecord }
+  | CycleStop;
 export type CycleObjective = {
   pick: (tried: ReadonlySet<bigint>) => ObjectivePick;
   progress: () => ObjectiveProgress | undefined;
+  visit?: (
+    pick: Extract<ObjectivePick, { kind: "object" }>,
+    run: CycleVisit,
+  ) => Promise<CycleVisitEnd>;
 };
 export type CycleEvent = {
   type:
@@ -104,6 +115,10 @@ export type CycleDeps = {
 };
 
 const DEFAULT_MAX_STARTS = 10;
+const MAX_OBJECT_FAILURES = 2;
+
+const progressKey = (progress: ObjectiveProgress | undefined) =>
+  JSON.stringify(progress ?? null);
 
 export class EncounterCycleRuntime {
   private readonly deps: CycleDeps;
@@ -258,18 +273,23 @@ export class EncounterCycleRuntime {
     signal: AbortSignal,
   ): Promise<void> {
     const tried = new Set(this.state.queue.map((record) => record.guid));
+    const failures = new Map<bigint, number>();
     for (;;) {
       const recovered = await this.recoverIfDead(signal);
       if (recovered) return this.stop(recovered.cause, recovered.detail);
       const pick = this.choose(objective, tried);
       if ("ok" in pick) return this.stop(pick.cause, pick.detail);
-      tried.add(pick.guid);
-      const record: CycleTargetRecord = { guid: pick.guid, status: "queued" };
-      this.state.queue.push(record);
-      this.state.currentIndex = this.state.queue.length - 1;
-      const failed = await this.engage(record, signal);
-      signal.throwIfAborted();
-      this.state.objective = objective.progress();
+      if (pick.kind === "target") tried.add(pick.guid);
+      const { record, failed, advanced } = await this.attempt(
+        objective,
+        pick,
+        signal,
+      );
+      if (pick.kind === "object")
+        this.settleObject(failures, tried, pick.guid, {
+          advanced,
+          spent: record.loot === "looted",
+        });
       const far = failed ?? outOfReach(pick, record.cause);
       if (far && !this.selfDead()) return this.stop(far.cause, far.detail);
       if (failed) record.cause = failed.cause;
@@ -277,10 +297,53 @@ export class EncounterCycleRuntime {
     }
   }
 
+  private async attempt(
+    objective: CycleObjective,
+    pick: Extract<ObjectivePick, { kind: "target" | "object" }>,
+    signal: AbortSignal,
+  ): Promise<{
+    record: CycleTargetRecord;
+    failed: CycleStop | undefined;
+    advanced: boolean;
+  }> {
+    const before =
+      pick.kind === "object" ? progressKey(objective.progress()) : "";
+    const record: CycleTargetRecord = { guid: pick.guid, status: "queued" };
+    this.state.queue.push(record);
+    this.state.currentIndex = this.state.queue.length - 1;
+    const failed =
+      pick.kind === "object"
+        ? await this.visit(objective, record, pick, signal)
+        : await this.engage(record, signal);
+    signal.throwIfAborted();
+    this.state.objective = objective.progress();
+    const advanced = progressKey(this.state.objective) !== before;
+    return { advanced, failed, record };
+  }
+
+  private settleObject(
+    failures: Map<bigint, number>,
+    tried: Set<bigint>,
+    guid: bigint,
+    result: { advanced: boolean; spent: boolean },
+  ): void {
+    if (result.spent) {
+      tried.add(guid);
+      return;
+    }
+    if (result.advanced) {
+      failures.delete(guid);
+      return;
+    }
+    const count = (failures.get(guid) ?? 0) + 1;
+    failures.set(guid, count);
+    if (count >= MAX_OBJECT_FAILURES) tried.add(guid);
+  }
+
   private choose(
     objective: CycleObjective,
     tried: ReadonlySet<bigint>,
-  ): CycleStop | { guid: bigint; distance: number } {
+  ): CycleStop | Extract<ObjectivePick, { kind: "target" | "object" }> {
     const pick = objective.pick(tried);
     if ("ok" in pick) return pick;
     if (pick.kind === "complete") {
@@ -289,7 +352,43 @@ export class EncounterCycleRuntime {
     }
     if (this.state.startsUsed >= this.state.maxStarts)
       return cycleStop("max_starts_reached");
+    if (pick.kind === "object") return pick;
     return this.deps.gate?.(pick.guid) ?? pick;
+  }
+
+  private async visit(
+    objective: CycleObjective,
+    record: CycleTargetRecord,
+    pick: Extract<ObjectivePick, { kind: "object" }>,
+    signal: AbortSignal,
+  ): Promise<CycleStop | undefined> {
+    if (!objective.visit)
+      return cycleStop("objective_object_unsupported", { entry: pick.entry });
+    this.state.phase = "looting";
+    this.state.startsUsed++;
+    const events = new EventWaiter<RewardsEvent>();
+    this.rewardsEvents = events;
+    try {
+      const { approach, bags, rewards } = this.deps;
+      const end = await objective.visit(pick, {
+        approach,
+        bags,
+        events,
+        rewards,
+        signal,
+      });
+      signal.throwIfAborted();
+      if (!end.ok) return end;
+      if (end.cause !== undefined) return skip(record, end.cause, undefined);
+      record.status = "done";
+      if (!end.record) return undefined;
+      record.loot = "looted";
+      this.state.lastLoot = end.record;
+      this.emit("loot_done");
+      return undefined;
+    } finally {
+      if (this.rewardsEvents === events) this.rewardsEvents = undefined;
+    }
   }
 
   private async recoverIfDead(

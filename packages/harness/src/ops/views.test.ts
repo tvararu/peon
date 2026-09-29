@@ -1,5 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import type { NearbyRow } from "@peon/core";
+import { describe, expect, jest, test } from "bun:test";
+import type { AreaState, NearbyRow } from "@peon/core";
 import { createRefTable } from "#harness/ops/refs";
 import { createSightings } from "#harness/ops/sightings";
 import {
@@ -7,6 +7,7 @@ import {
   knownUnits,
   manaText,
   nearestByKind,
+  nowSnapshot,
   placeView,
   poseView,
   selfView,
@@ -112,6 +113,34 @@ describe("poseView and vitalsView", () => {
       power: 25,
       powerKind: "rage",
     });
+  });
+});
+
+describe("vitalsView combo points", () => {
+  const points = (n: number | undefined) => ({
+    comboPoints: n === undefined ? undefined : { points: n, target: 0x30n },
+    dropped: 0,
+    entries: [],
+    fight: undefined,
+    immunities: [],
+    kills: [],
+    lastFight: undefined,
+  });
+
+  test("shows the combo points held on the target when above zero", async () => {
+    const { ctx, handle } = await world();
+    jest.spyOn(handle.combatlog, "state").mockReturnValue(points(3));
+    expect(vitalsView(ctx).comboPoints).toBe(3);
+    expect(selfView(ctx).comboPoints).toBe(3);
+  });
+
+  test("leaves the field out with none or a zero count", async () => {
+    const { ctx, handle } = await world();
+    const state = jest.spyOn(handle.combatlog, "state");
+    for (const held of [undefined, 0]) {
+      state.mockReturnValue(points(held));
+      expect(vitalsView(ctx)).not.toHaveProperty("comboPoints");
+    }
   });
 });
 
@@ -286,5 +315,80 @@ describe("manaText", () => {
     expect(
       manaText({ ...vitals, maxPower: 0, powerKind: "mana" }),
     ).toBeUndefined();
+  });
+});
+
+const IDLE: AreaState<"selfstate"> = {
+  collisionHeight: undefined,
+  ghostPending: false,
+  lastTransferAbort: undefined,
+  standState: "stand",
+  timers: {},
+};
+
+function selfstateIs(
+  handle: Awaited<ReturnType<typeof world>>["handle"],
+  state: Partial<AreaState<"selfstate">>,
+) {
+  jest.spyOn(handle.selfstate, "state").mockReturnValue({ ...IDLE, ...state });
+}
+
+describe("posture and breath", () => {
+  test("sit, chair sits, sleep and kneel get a posture word; the rest none", async () => {
+    const { ctx, handle } = await world();
+    const posture = (standState: AreaState<"selfstate">["standState"]) => {
+      selfstateIs(handle, { standState });
+      return selfView(ctx).posture;
+    };
+    expect(posture("sit")).toBe("sitting");
+    expect(posture("sit_low_chair")).toBe("sitting");
+    expect(posture("sleep")).toBe("sleeping");
+    expect(posture("kneel")).toBe("kneeling");
+    expect(posture("stand")).toBeUndefined();
+    expect(posture("dead")).toBeUndefined();
+    expect(posture(undefined)).toBeUndefined();
+  });
+
+  test("the now snapshot counts a running breath timer down to the clock", async () => {
+    const { handle, now, rt } = await world();
+    const timer = {
+      at: now.t - 15_000,
+      maxMs: 60_000,
+      paused: false,
+      scale: -1,
+      spellId: 0,
+      valueMs: 60_000,
+    };
+    selfstateIs(handle, { timers: { breath: timer } });
+    expect(nowSnapshot(rt)?.breathS).toBe(45);
+    selfstateIs(handle, { timers: { breath: { ...timer, paused: true } } });
+    expect(nowSnapshot(rt)?.breathS).toBeUndefined();
+    selfstateIs(handle, { timers: { breath: { ...timer, scale: 1 } } });
+    expect(nowSnapshot(rt)?.breathS).toBeUndefined();
+    selfstateIs(handle, {
+      timers: { breath: { ...timer, at: now.t - 70_000 } },
+    });
+    expect(nowSnapshot(rt)?.breathS).toBeUndefined();
+    selfstateIs(handle, { timers: { fatigue: timer } });
+    expect(nowSnapshot(rt)?.breathS).toBeUndefined();
+    selfstateIs(handle, {});
+    expect(nowSnapshot(rt)?.breathS).toBeUndefined();
+  });
+
+  test("a drained but still-active timer shows 0 s", async () => {
+    const { handle, now, rt } = await world();
+    selfstateIs(handle, {
+      timers: {
+        breath: {
+          at: now.t - 15_000,
+          maxMs: 60_000,
+          paused: false,
+          scale: -1,
+          spellId: 0,
+          valueMs: 15_000,
+        },
+      },
+    });
+    expect(nowSnapshot(rt)?.breathS).toBe(0);
   });
 });

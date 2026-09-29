@@ -90,6 +90,7 @@ export type CombatlogState = {
 export type CombatlogEvent =
   | ({ type: "entry" } & Omit<CombatlogEntry, "crit"> & { crit?: number })
   | { type: "combo_points"; target?: bigint; points: number }
+  | ({ type: "fight_closed" } & FightTotals)
   | ({ type: "kill" } & Omit<CombatlogKill, "bySelf" | "ourTarget"> & {
         bySelf: number;
         ourTarget: number;
@@ -99,6 +100,8 @@ const RING = 500;
 const KILLS = 20;
 const QUIET_MS = 6000;
 const POWERS = 7;
+const CREATURE_HIGHS = new Set([0xf1_30, 0xf1_50]);
+const IMMUNE_OUTCOMES = new Set(["immune", "immune2"]);
 const DAMAGE = new Set<CombatlogKind>([
   "melee",
   "spell_damage",
@@ -129,6 +132,17 @@ type Fight = {
   crits: number;
   misses: Record<string, number>;
 };
+
+function creatureEntry(guid: bigint): number | undefined {
+  const high = Number(BigInt.asUintN(16, guid >> 48n));
+  if (!CREATURE_HIGHS.has(high)) return undefined;
+  return Number(BigInt.asUintN(24, guid >> 24n));
+}
+
+function isImmune(entry: CombatlogEntry): boolean {
+  if (entry.kind === "immune") return true;
+  return entry.kind === "miss" && IMMUNE_OUTCOMES.has(entry.outcome ?? "");
+}
 
 function sum(values: readonly number[]): number {
   return values.reduce((total, value) => total + value, 0);
@@ -199,6 +213,7 @@ export class CombatlogStore {
   private readonly entries: CombatlogEntry[] = [];
   private readonly fightUnits = new Set<bigint>();
   private readonly kills: CombatlogKill[] = [];
+  private readonly immunities: CombatlogImmunity[] = [];
   private comboPoints: { target: bigint; points: number } | undefined;
   private fight: Fight | undefined;
   private lastFight: Fight | undefined;
@@ -215,7 +230,7 @@ export class CombatlogStore {
       entries: this.entries.map((entry) => ({ ...entry })),
       fight: totalsOf(this.fight),
       lastFight: totalsOf(this.lastFight),
-      immunities: [],
+      immunities: this.immunities.map((immunity) => ({ ...immunity })),
       comboPoints: this.comboPoints && { ...this.comboPoints },
       kills: this.kills.map((kill) => ({ ...kill })),
       dropped: this.dropped,
@@ -224,6 +239,10 @@ export class CombatlogStore {
 
   onEvent(cb: (event: CombatlogEvent) => void): Unsubscribe {
     return this.events.subscribe(cb);
+  }
+
+  closeFight(): void {
+    this.roll(this.deps.now());
   }
 
   receive(wires: readonly CombatlogWire[]): void {
@@ -278,6 +297,7 @@ export class CombatlogStore {
     this.events.clear();
     this.entries.length = 0;
     this.kills.length = 0;
+    this.immunities.length = 0;
     this.comboPoints = undefined;
     this.fightUnits.clear();
     this.fight = undefined;
@@ -304,6 +324,7 @@ export class CombatlogStore {
     this.push(entry);
     if (sourceOurs || targetOurs) this.count(entry, sourceOurs, targetOurs);
     this.markAttacker(entry);
+    if (sourceOurs) this.noteImmunity(entry);
     const { crit, ...plain } = entry;
     this.events.emit({ type: "entry", ...plain, ...(crit ? { crit: 1 } : {}) });
   }
@@ -349,9 +370,28 @@ export class CombatlogStore {
 
   private roll(now: number): void {
     if (!this.fight || now - this.fight.lastAt < QUIET_MS) return;
-    this.lastFight = this.fight;
+    const closed = this.fight;
+    this.lastFight = closed;
     this.fight = undefined;
     this.fightUnits.clear();
+    this.events.emit({
+      type: "fight_closed",
+      ...closed,
+      misses: { ...closed.misses },
+    });
+  }
+
+  private noteImmunity(entry: CombatlogEntry): void {
+    const spellId = entry.spellId ?? 0;
+    const target = creatureEntry(entry.target);
+    if (!isImmune(entry) || spellId === 0 || target === undefined) return;
+    if (
+      this.immunities.some(
+        (known) => known.entry === target && known.spellId === spellId,
+      )
+    )
+      return;
+    this.immunities.push({ at: entry.at, entry: target, spellId });
   }
 
   private markAttacker(entry: CombatlogEntry): void {
@@ -361,7 +401,7 @@ export class CombatlogStore {
     this.core.combat.noteHostileDamage(entry.source);
   }
 
-  private isOurs(guid: bigint): boolean {
+  isOurs(guid: bigint): boolean {
     const self = this.deps.selfGuid();
     return guid === self || this.isOwned(guid);
   }

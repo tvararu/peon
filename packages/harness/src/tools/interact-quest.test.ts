@@ -1,17 +1,18 @@
 import { describe, expect, jest, test } from "bun:test";
-import type { QuestLogSlot } from "@peon/core";
-import { withFakeTimers } from "@peon/core/test-support/fake-time";
+import type { AreaState, QuestDialog, QuestLogSlot } from "@peon/core";
+import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
 import type { InteractAfter } from "#harness/contract/details";
 import { interactSpec } from "#harness/tools/interact";
 import { ANSWER_MS } from "#harness/tools/interact-quest";
 import { journalTool } from "#harness/tools/journal";
-import { setUnits, toolCtx, unitRow } from "#test-support/ops-fixtures";
+import { moveTo, setUnits, toolCtx, unitRow } from "#test-support/ops-fixtures";
 import {
   answer,
   detailsDialog,
   listDialog,
   MCBRIDE,
   offerDialog,
+  VELAN,
   velan,
 } from "#test-support/quest-fixtures";
 import { runTool } from "#test-support/tool-harness";
@@ -233,5 +234,282 @@ describe("quest handoff", () => {
       "turned in Reclaiming Sunstrider Isle #8325. Reward: 100 XP, 30 copper, Green Chain Boots.",
     );
     expect(res.after.money).toEqual({ after: 530, before: 500 });
+  });
+});
+
+type QuestsAreaState = AreaState<"quests">;
+
+const POI = {
+  flags: 0,
+  icon: 7,
+  importance: 0,
+  name: "Lion's Pride Inn",
+  x: -9459,
+  y: 42.08,
+};
+
+type TextOption = {
+  emotes: { delay: number; emote: number }[];
+  language: number;
+  probability: number;
+  text0: string;
+  text1: string;
+};
+
+function textOption(text0: string, probability = 1): TextOption {
+  return {
+    emotes: [
+      { delay: 0, emote: 0 },
+      { delay: 0, emote: 0 },
+      { delay: 0, emote: 0 },
+    ],
+    language: 7,
+    probability,
+    text0,
+    text1: text0,
+  };
+}
+
+function optionsOf(text0: string, probability = 1): TextOption[] {
+  return [
+    textOption(text0, probability),
+    ...Array.from({ length: 7 }, () => textOption("", 0)),
+  ];
+}
+
+function greetDialog(textId: number, options: number): QuestDialog {
+  return {
+    data: {
+      guid: VELAN,
+      menuId: 1,
+      options: Array.from({ length: options }, (_, index) => ({
+        boxText: "",
+        coded: 0,
+        icon: 0,
+        money: 0,
+        optionIndex: index,
+        text: `Direction ${index + 1}`,
+      })),
+      quests: [],
+      titleTextId: textId,
+    },
+    kind: "gossip",
+  };
+}
+
+function gossipWithPoi(textId: number): QuestDialog {
+  return {
+    data: {
+      guid: VELAN,
+      menuId: 3506,
+      options: [
+        {
+          boxText: "",
+          coded: 0,
+          icon: 0,
+          money: 0,
+          optionIndex: 1,
+          text: "Bank",
+        },
+        {
+          boxText: "",
+          coded: 0,
+          icon: 0,
+          money: 0,
+          optionIndex: 2,
+          text: "The guild master",
+        },
+        {
+          boxText: "",
+          coded: 0,
+          icon: 0,
+          money: 0,
+          optionIndex: 3,
+          text: "Inn",
+        },
+      ],
+      quests: [],
+      titleTextId: textId,
+    },
+    kind: "gossip",
+  };
+}
+
+function spyQuests(
+  t: { handle: { quests: { state: () => QuestsAreaState } } },
+  state: QuestsAreaState,
+): void {
+  jest.spyOn(t.handle.quests, "state").mockReturnValue(state);
+}
+
+function selfBloodElf(t: { rt: { ready: { inWorld: () => unknown } } }): void {
+  t.rt.ready.inWorld = () => ({
+    className: "Priest",
+    race: "Blood Elf",
+  });
+}
+
+describe("talk greetings", () => {
+  test("talk shows the greeting with the name, class and race filled in", async () => {
+    const { t } = await velan();
+    selfBloodElf(t);
+    const state: QuestsAreaState = {
+      completed: undefined,
+      gossipPoi: undefined,
+      marks: new Map(),
+      pois: new Map(),
+      texts: new Map([
+        [
+          16_703,
+          {
+            at: 1,
+            guid: VELAN,
+            options: optionsOf("$N! Work, $C of the $R."),
+            status: "known",
+          },
+        ],
+      ]),
+    };
+    spyQuests(t, state);
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", { dialog: greetDialog(16_703, 2) });
+    const res = await interactSpec.run(
+      { npc: "Velan Brightoak" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(res.detail).toContain("Testchar! Work, Priest of the Blood Elf.");
+    expect(res.detail).not.toContain("$N");
+  });
+
+  test("talk hides the server fallback greeting", async () => {
+    const { t } = await velan();
+    selfBloodElf(t);
+    const state: QuestsAreaState = {
+      completed: undefined,
+      gossipPoi: undefined,
+      marks: new Map(),
+      pois: new Map(),
+      texts: new Map([
+        [
+          999_999,
+          {
+            at: 1,
+            guid: VELAN,
+            options: optionsOf("Greetings $N", 0),
+            status: "known",
+          },
+        ],
+      ]),
+    };
+    spyQuests(t, state);
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", { dialog: greetDialog(999_999, 1) });
+    const res = await interactSpec.run(
+      { npc: "Velan Brightoak" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(res.detail).not.toContain("Greetings");
+  });
+
+  test("talk waits for the greeting that arrives after the dialog", async () => {
+    const { t } = await velan();
+    selfBloodElf(t);
+    const known: QuestsAreaState = {
+      completed: undefined,
+      gossipPoi: undefined,
+      marks: new Map(),
+      pois: new Map(),
+      texts: new Map([
+        [
+          16_703,
+          {
+            at: 2,
+            guid: VELAN,
+            options: optionsOf("$N, ready."),
+            status: "known",
+          },
+        ],
+      ]),
+    };
+    const pending: QuestsAreaState = {
+      ...known,
+      texts: new Map([
+        [16_703, { at: 1, guid: VELAN, options: [], status: "pending" }],
+      ]),
+    };
+    const spy = jest.spyOn(t.handle.quests, "state").mockReturnValue(pending);
+    t.handle.talk = () => {
+      answer(t.handle, "dialog", { dialog: greetDialog(16_703, 1) });
+      setTimeout(() => {
+        spy.mockReturnValue(known);
+        t.handle.triggerAreaEvent("quests", {
+          status: "known",
+          textId: 16_703,
+          type: "npc_text",
+        });
+      }, 100);
+    };
+    const run = interactSpec.run(
+      { npc: "Velan Brightoak" },
+      toolCtx<InteractAfter>(t),
+    );
+    const settled = run.then((done) => done);
+    await withFakeTimers(() => elapse(ANSWER_MS)).catch(() => undefined);
+    const res = await settled;
+    expect(res.detail).toContain("Testchar, ready.");
+  });
+
+  test("gossip with a POI marks the point and names the travel", async () => {
+    const { t } = await velan();
+    selfBloodElf(t);
+    moveTo(t.handle, { x: -9481, y: 74 });
+    const state: QuestsAreaState = {
+      completed: undefined,
+      gossipPoi: { ...POI, at: 2, from: VELAN },
+      marks: new Map(),
+      pois: new Map(),
+      texts: new Map(),
+    };
+    spyQuests(t, state);
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", { dialog: gossipWithPoi(16_703) });
+    t.handle.selectGossipOption = () => {
+      answer(t.handle, "dialog", { dialog: greetDialog(16_703, 1) });
+      t.handle.triggerAreaEvent("quests", {
+        from: VELAN,
+        name: POI.name,
+        type: "gossip_poi",
+      });
+    };
+    const res = await interactSpec.run(
+      { do: "gossip", npc: "Velan Brightoak", what: "3" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(res.detail).toContain("Lion's Pride Inn");
+    expect(res.next).toBe('travel(to: "-9459, 42.1")');
+  });
+
+  test("gossip does not mark a POI from an earlier option", async () => {
+    const { t } = await velan();
+    selfBloodElf(t);
+    moveTo(t.handle, { x: -9481, y: 74 });
+    const state: QuestsAreaState = {
+      completed: undefined,
+      gossipPoi: { ...POI, at: 2, from: VELAN },
+      marks: new Map(),
+      pois: new Map(),
+      texts: new Map(),
+    };
+    spyQuests(t, state);
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", { dialog: gossipWithPoi(16_703) });
+    t.handle.selectGossipOption = () =>
+      answer(t.handle, "dialog", { dialog: greetDialog(16_703, 1) });
+    const res = await interactSpec.run(
+      { do: "gossip", npc: "Velan Brightoak", what: "3" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(res.detail).not.toContain("Lion's Pride Inn");
+    expect(res.next).toBeUndefined();
   });
 });

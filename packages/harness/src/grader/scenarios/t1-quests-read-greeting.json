@@ -1,0 +1,43 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 6,
+    "tools": 15,
+    "turns": 6
+  },
+  "checks": [
+    {
+      "expect": "the agent's answer holds the phrase \"ready to get to work\", copied from the live SMSG_NPC_TEXT_UPDATE capture for Magistrix Erona (title text id 16703)",
+      "id": "greeting-phrase",
+      "source": "session"
+    },
+    {
+      "evidence": {
+        "events": ["tool/call"]
+      },
+      "expect": "GL has a tool/call row for interact talk",
+      "id": "talk-called",
+      "source": "game_log"
+    }
+  ],
+  "id": "t1-quests-read-greeting",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "fresh",
+  "setup": [
+    {
+      "body": {
+        "map": 530,
+        "x": 10349,
+        "y": -6357,
+        "z": 33.4
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Talk to Magistrix Erona and quote the first sentence of her greeting word for word, exactly as she says it.",
+  "tier": 1
+}

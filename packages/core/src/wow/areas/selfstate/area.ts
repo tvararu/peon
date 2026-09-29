@@ -2,10 +2,13 @@ import { defineArea } from "#wow/areas/contract";
 import { SELFSTATE_OPCODES } from "#wow/areas/selfstate/opcodes";
 import {
   FLAG_OPCODES,
+  parseCollisionHeight,
   parseMirrorTimer,
+  parseMultipleMoves,
   parsePreResurrect,
   parseStandState,
   parseStopMirrorTimer,
+  parseTransferAborted,
 } from "#wow/areas/selfstate/protocol";
 import { selfstateRuntime } from "#wow/areas/selfstate/runtime";
 import { SelfstateStore } from "#wow/areas/selfstate/store";
@@ -22,6 +25,12 @@ export const selfstateArea = defineArea({
       wire.on(opcode, (r) =>
         store.receiveMoveFlag(change, parseMoveCounter(r)),
       );
+    wire.on(GameOpcode.SMSG_MOVE_SET_COLLISION_HGT, (r) =>
+      store.receiveCollisionHeight(parseCollisionHeight(r)),
+    );
+    wire.on(GameOpcode.SMSG_MULTIPLE_MOVES, (r) =>
+      store.receiveMultipleMoves(parseMultipleMoves(r).entries),
+    );
     wire.on(GameOpcode.SMSG_STANDSTATE_UPDATE, (r) =>
       store.receiveStandState(parseStandState(r)),
     );
@@ -33,6 +42,9 @@ export const selfstateArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_PRE_RESURRECT, (r) =>
       store.receivePreResurrect(parsePreResurrect(r)),
+    );
+    wire.on(GameOpcode.SMSG_TRANSFER_ABORTED, (r) =>
+      store.receiveTransferAborted(parseTransferAborted(r)),
     );
   },
   runtime: (ctx, store) => selfstateRuntime(ctx, store),

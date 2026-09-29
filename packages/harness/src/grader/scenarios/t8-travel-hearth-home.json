@@ -1,0 +1,40 @@
+{
+  "botRisk": "med",
+  "budget": {
+    "minutes": 6,
+    "tools": 30,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "evidence": {
+        "point": {
+          "x": 10349.6,
+          "y": -6357.3
+        }
+      },
+      "expect": "T final position within 15 yd of the home (10349.6, -6357.3, map 530), the preset's own home read from the login bind_point of an eversong10 run and more than 1500 yd from the start slot",
+      "id": "at-home",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "items": [6948],
+        "truth": ["inventory"]
+      },
+      "expect": "the Hearthstone (item 6948) is still in T final inventory",
+      "id": "stone-kept",
+      "source": "truth"
+    }
+  ],
+  "id": "t8-travel-hearth-home",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "eversong10",
+  "setup": [],
+  "steers": [],
+  "task": "Use your hearthstone to go home: travel to hearth.",
+  "tier": 8
+}

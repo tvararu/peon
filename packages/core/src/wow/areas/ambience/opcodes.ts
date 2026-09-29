@@ -18,13 +18,12 @@ export const AMBIENCE_OPCODES = {
     "SMSG_TOGGLE_XP_GAIN",
     "SMSG_CAMERA_SHAKE",
   ],
-  uses: [],
+  uses: ["SMSG_INIT_WORLD_STATES", "SMSG_NEW_WORLD"],
   stubs: [
-    ["SMSG_WEATHER", "Weather change"],
     ["SMSG_SET_PHASE_SHIFT", "Phase shift"],
     ["SMSG_PLAY_SOUND", "Sound effect"],
     ["SMSG_PLAY_MUSIC", "Music"],
   ],
   dead: ["CMSG_COMPLETE_MOVIE", "SMSG_TOGGLE_XP_GAIN", "SMSG_CAMERA_SHAKE"],
-  unseen: [],
+  unseen: ["SMSG_TRIGGER_MOVIE"],
 } as const satisfies AreaOpcodes;

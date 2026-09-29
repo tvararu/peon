@@ -1,10 +1,41 @@
-import { defineArea, emptyStore } from "#wow/areas/contract";
+import { defineArea } from "#wow/areas/contract";
 import { QUESTS_OPCODES } from "#wow/areas/quests/opcodes";
+import {
+  parseGossipPoi,
+  parseNpcTextUpdate,
+  parseQuestgiverStatusMultiple,
+  parseQuestPoiResponse,
+  parseQuestsCompleted,
+} from "#wow/areas/quests/protocol";
+import { questsRuntime } from "#wow/areas/quests/runtime";
+import { QuestsStore } from "#wow/areas/quests/store";
+import { GameOpcode } from "#wow/protocol/opcodes";
+import { parseQuestgiverStatus } from "#wow/protocol/questgiver";
 
 export const questsArea = defineArea({
   name: "quests",
   opcodes: QUESTS_OPCODES,
-  eventTypes: [],
-  store: () => emptyStore(),
-  register: () => undefined,
+  eventTypes: ["marks", "poi", "npc_text", "gossip_poi", "completed"],
+  store: (deps, core) => new QuestsStore(deps, core),
+  register: (wire, store) => {
+    wire.on(GameOpcode.SMSG_QUESTGIVER_STATUS_MULTIPLE, (r) =>
+      store.receiveMultiple(parseQuestgiverStatusMultiple(r)),
+    );
+    wire.peek(GameOpcode.SMSG_QUESTGIVER_STATUS, (r) =>
+      store.receiveSingle(parseQuestgiverStatus(r)),
+    );
+    wire.on(GameOpcode.SMSG_QUEST_POI_QUERY_RESPONSE, (r) =>
+      store.receivePoiResponse(parseQuestPoiResponse(r)),
+    );
+    wire.on(GameOpcode.SMSG_NPC_TEXT_UPDATE, (r) =>
+      store.receiveNpcText(parseNpcTextUpdate(r)),
+    );
+    wire.on(GameOpcode.SMSG_GOSSIP_POI, (r) =>
+      store.receiveGossipPoi(parseGossipPoi(r)),
+    );
+    wire.on(GameOpcode.SMSG_QUERY_QUESTS_COMPLETED_RESPONSE, (r) =>
+      store.receiveCompleted(parseQuestsCompleted(r)),
+    );
+  },
+  runtime: questsRuntime,
 });

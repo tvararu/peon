@@ -8,11 +8,14 @@ import { unsupportedReason } from "#wow/control-motion";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag, UnitFlag } from "#wow/protocol/entity-fields";
 import {
+  buildCollisionHeightAck,
   buildFlagAck,
+  buildMoveMessage,
   buildRootAck,
   buildSetActiveMover,
   buildSpeedAck,
   buildTeleportAck,
+  buildTimeSkipped,
   type ClientControl,
   type FallData,
   type ForceSpeed,
@@ -23,7 +26,9 @@ import {
   type TransportInfo,
 } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import type { MoveFlag } from "#wow/self-store";
+import type { MoveFlag, TransferAbortedInput } from "#wow/self-store";
+
+export const TRANSFER_ABORT_TIMEOUT_MS = 10_000;
 
 const UNIT_BLOCK_FLAGS =
   UnitFlag.DISABLE_MOVE |
@@ -31,12 +36,33 @@ const UNIT_BLOCK_FLAGS =
   UnitFlag.CONFUSED |
   UnitFlag.FLEEING;
 
-const FLAG_ACKS: Readonly<Record<MoveFlag, { bit: number; ack: number }>> = {
+type FlagAck = { bit: number; set: number; clear: number; applied: boolean };
+
+const FLAG_ACKS: Readonly<Record<MoveFlag, FlagAck>> = {
   water_walk: {
     bit: MovementFlag.WATERWALKING,
-    ack: GameOpcode.CMSG_MOVE_WATER_WALK_ACK,
+    set: GameOpcode.CMSG_MOVE_WATER_WALK_ACK,
+    clear: GameOpcode.CMSG_MOVE_WATER_WALK_ACK,
+    applied: true,
   },
-  hover: { bit: MovementFlag.HOVER, ack: GameOpcode.CMSG_MOVE_HOVER_ACK },
+  hover: {
+    bit: MovementFlag.HOVER,
+    set: GameOpcode.CMSG_MOVE_HOVER_ACK,
+    clear: GameOpcode.CMSG_MOVE_HOVER_ACK,
+    applied: true,
+  },
+  feather_fall: {
+    bit: MovementFlag.FALLING_SLOW,
+    set: GameOpcode.CMSG_MOVE_FEATHER_FALL_ACK,
+    clear: GameOpcode.CMSG_MOVE_FEATHER_FALL_ACK,
+    applied: true,
+  },
+  gravity_off: {
+    bit: MovementFlag.DISABLE_GRAVITY,
+    set: GameOpcode.CMSG_MOVE_GRAVITY_DISABLE_ACK,
+    clear: GameOpcode.CMSG_MOVE_GRAVITY_ENABLE_ACK,
+    applied: false,
+  },
 };
 
 export type Emit = (type: ControlEventType, reason?: string) => void;
@@ -81,6 +107,7 @@ export class MovementSync {
   private rooted = false;
   private teleporting = false;
   private unitBlocked = false;
+  private transferAbortTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor({ deps, emit, motion }: SyncParts) {
     this.deps = deps;
@@ -178,6 +205,7 @@ export class MovementSync {
   }
 
   teleportAck({ counter, info: dest }: MoveAck): void {
+    this.cancelTransferAbortWatch();
     this.teleporting = false;
     this.motion.abort("teleport");
     this.deps.send(
@@ -188,18 +216,42 @@ export class MovementSync {
   }
 
   nearTeleport(dest: MovementInfo): void {
+    this.cancelTransferAbortWatch();
     this.teleporting = false;
     this.motion.abort("near_teleport");
     this.applyForcedPose(dest, "near_teleport");
   }
 
   handleTransferPending(): void {
+    this.cancelTransferAbortWatch();
     this.teleporting = true;
     this.motion.abort("teleport");
     this.emit("control_changed", "teleporting");
   }
 
+  transferAborted(_abort: TransferAbortedInput): void {
+    if (!this.teleporting) return;
+    this.cancelTransferAbortWatch();
+    this.transferAbortTimer = setTimeout(() => {
+      this.transferAbortTimer = undefined;
+      this.teleporting = false;
+      this.motion.stop("transfer_aborted");
+      this.emit("control_changed", undefined);
+    }, TRANSFER_ABORT_TIMEOUT_MS);
+  }
+
+  private cancelTransferAbortWatch(): void {
+    if (this.transferAbortTimer !== undefined)
+      clearTimeout(this.transferAbortTimer);
+    this.transferAbortTimer = undefined;
+  }
+
+  dispose(): void {
+    this.cancelTransferAbortWatch();
+  }
+
   newWorld(position: Position): void {
+    this.cancelTransferAbortWatch();
     this.teleporting = false;
     this.motion.abort("teleport");
     this.mapId = position.mapId;
@@ -283,7 +335,7 @@ export class MovementSync {
   }
 
   moveFlag(flag: MoveFlag, enable: boolean, counter: number): void {
-    const { bit, ack } = FLAG_ACKS[flag];
+    const { bit, set, clear, applied } = FLAG_ACKS[flag];
     if (enable) {
       this.observedFlags |= bit;
       this.moveFlags |= bit;
@@ -291,7 +343,36 @@ export class MovementSync {
       this.observedFlags &= ~bit;
       this.moveFlags &= ~bit;
     }
-    this.deps.send(ack, buildFlagAck(this.moveAck(counter), enable));
+    const ack = this.moveAck(counter);
+    this.deps.send(
+      enable ? set : clear,
+      applied ? buildFlagAck(ack, enable) : buildRootAck(ack),
+    );
+  }
+
+  collisionHeight(counter: number, height: number): void {
+    this.deps.send(
+      GameOpcode.CMSG_MOVE_SET_COLLISION_HGT_ACK,
+      buildCollisionHeightAck(this.moveAck(counter), height),
+    );
+  }
+
+  timeSkipped(ms: number): void {
+    this.deps.send(
+      GameOpcode.CMSG_MOVE_TIME_SKIPPED,
+      buildTimeSkipped(this.deps.selfGuid(), ms),
+    );
+  }
+
+  resetFall(): void {
+    this.fall = undefined;
+    this.fallTime = 0;
+    this.observedFlags &= ~MovementFlag.FALLING;
+    this.moveFlags &= ~MovementFlag.FALLING;
+    this.deps.send(
+      GameOpcode.CMSG_MOVE_FALL_RESET,
+      buildMoveMessage(this.deps.selfGuid(), this.movementInfo()),
+    );
   }
 
   private ackRoot(opcode: number, counter: number): void {

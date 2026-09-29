@@ -1,3 +1,9 @@
+import {
+  type ObjectRow,
+  objectLine,
+  objectRows,
+  objectUnit,
+} from "#harness/areas/objects/reads";
 import { unitThreat } from "#harness/areas/threat/reads";
 import type { LookAfter, LookFilter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
@@ -5,6 +11,7 @@ import type { HarnessRuntime, ToolCtx } from "#harness/contract/services";
 import type { NowSnapshot, UnitView } from "#harness/contract/views";
 import { dangerView, nameOf } from "#harness/ops/danger";
 import { compassWord, exploreSummary } from "#harness/ops/explore";
+import { LOOK_DEFAULT_YD } from "#harness/ops/range";
 import { guidHex } from "#harness/ops/refs";
 import { Refusal } from "#harness/ops/refusal";
 import { nowSnapshot } from "#harness/ops/views";
@@ -57,7 +64,10 @@ function emptyLook(): LookAfter {
   };
 }
 
-function lookBody(after: LookAfter): string[] {
+function lookBody(
+  after: LookAfter,
+  objects: readonly ObjectRow[] = [],
+): string[] {
   const calm =
     after.danger.attackers.length === 0 ? ["No unit is attacking you."] : [];
   const stale =
@@ -66,16 +76,18 @@ function lookBody(after: LookAfter): string[] {
           `Nothing changed in ${after.unchanged} looks. Act, or end your turn to wait for events.`,
         ]
       : [];
-  return [
-    statusLine(after),
-    headerLine(after),
-    ...after.rows.map(rowLine),
-    ...moreLine(after),
-    ...after.remembered.map(rowLine),
-    nearestLine(after),
-    ...calm,
-    ...stale,
-  ];
+  const lines =
+    objects.length > 0
+      ? [statusLine(after), ...objects.map(objectLine), nearestLine(after)]
+      : [
+          statusLine(after),
+          headerLine(after),
+          ...after.rows.map(rowLine),
+          ...moreLine(after),
+          ...after.remembered.map(rowLine),
+          nearestLine(after),
+        ];
+  return [...lines, ...calm, ...stale];
 }
 
 function lookDigest(rows: readonly UnitView[], snapshot: NowSnapshot): string {
@@ -116,6 +128,48 @@ function withThreat(
     const threat = unit && unitThreat(state, unit, self, named);
     return threat ? { ...row, ...threat } : row;
   });
+}
+
+function objectAfter(
+  args: LookArgs,
+  ctx: ToolCtx<LookAfter>,
+  snapshot: NowSnapshot,
+): { after: LookAfter; objects: ObjectRow[] } {
+  const rows = objectRows(ctx)
+    .filter((row) =>
+      args.name
+        ? row.name.toLowerCase().includes(args.name.toLowerCase())
+        : true,
+    )
+    .filter(
+      (row) =>
+        row.distance === undefined ||
+        row.distance <= (args.within ?? LOOK_DEFAULT_YD),
+    );
+  const near = rows.map(objectUnit);
+  const digest = near
+    .map((row) => `${row.ref}:${Math.round(row.distance ?? -1)}`)
+    .join(",");
+  return {
+    after: {
+      danger: dangerView(ctx),
+      filter: "any",
+      matched: 0,
+      more: [],
+      name: args.name,
+      nearest: snapshot.nearest,
+      place: snapshot.place,
+      remembered: [],
+      rows: near,
+      run: snapshot.run,
+      seen: 0,
+      self: snapshot.self,
+      target: snapshot.target,
+      unchanged: countUnchanged(ctx.rt, `objects|${digest}`),
+      within: args.within,
+    },
+    objects: rows,
+  };
 }
 
 function lookAfter(
@@ -179,6 +233,28 @@ function look(args: LookArgs, ctx: ToolCtx<LookAfter>): ToolResult<LookAfter> {
       next: "call look again in a few seconds.",
       reason: "not_ready",
     });
+  if (args.find === "object") {
+    const { after, objects } = objectAfter(args, ctx, snapshot);
+    ctx.rt.snapshots.capture("look", args.within);
+    if (objects.length === 0)
+      return result("DONE", {
+        after,
+        body: [
+          statusLine(after),
+          `No objects within ${after.within ?? LOOK_DEFAULT_YD} yd.`,
+          nearestLine(after),
+          ...(after.danger.attackers.length === 0
+            ? ["No unit is attacking you."]
+            : []),
+        ],
+        detail: selfLine(after),
+      });
+    return result("DONE", {
+      after,
+      body: lookBody(after, objects),
+      detail: selfLine(after),
+    });
+  }
   const after = lookAfter(args, ctx, snapshot);
   ctx.rt.snapshots.capture("look", args.within);
   const own = kindOf(after.filter);

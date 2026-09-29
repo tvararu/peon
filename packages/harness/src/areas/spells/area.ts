@@ -26,10 +26,43 @@ function quiet(event: SpellsEvent): AreaDraft {
   };
 }
 
+function channelStart(
+  event: Extract<SpellsEvent, { type: "channel_start" }>,
+): AreaDraft {
+  const label = `spell ${event.spellId}`;
+  return {
+    class: "log",
+    data: {
+      durationMs: event.durationMs ?? null,
+      spellId: event.spellId,
+      target: event.target === undefined ? null : event.target.toString(10),
+    },
+    name: "channel_start",
+    text: `Channelling ${label}.`,
+  };
+}
+
+function channelEnd(
+  event: Extract<SpellsEvent, { type: "channel_end" }>,
+): AreaDraft {
+  const label = `spell ${event.spellId}`;
+  return {
+    class: "log",
+    data: { reason: event.reason, spellId: event.spellId },
+    name: "channel_end",
+    text: `${label} ended (${event.reason}).`,
+  };
+}
+
 export const spellsHarness = defineHarnessArea({
   area: "spells",
   rules: () => ({
-    event: (event) => (event.type === "spell_visual" ? [] : [quiet(event)]),
+    event: (event) => {
+      if (event.type === "spell_visual") return [];
+      if (event.type === "channel_start") return [channelStart(event)];
+      if (event.type === "channel_end") return [channelEnd(event)];
+      return [quiet(event)];
+    },
   }),
-  worldActs: [],
+  worldActs: ["cancelAura", "setActionButton"],
 });

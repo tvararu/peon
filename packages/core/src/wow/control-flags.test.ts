@@ -2,7 +2,7 @@ import { describe, expect, jest, test } from "bun:test";
 import { decodeMove, type Sent, setup } from "#test-support/control-fixtures";
 import { must } from "#test-support/must";
 import { MovementFlag } from "#wow/protocol/entity-fields";
-import { parseMovementInfo } from "#wow/protocol/movement";
+import { parseMovementInfo, speedAckFor } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 
@@ -21,6 +21,15 @@ function decodeAck(packet: Sent | undefined) {
     left: r.remaining,
     opcode,
   };
+}
+
+function decodeGravityAck(packet: Sent | undefined) {
+  const { opcode, body } = must(packet);
+  const r = new PacketReader(body);
+  const guid = r.packedGuidBig();
+  const counter = r.uint32LE();
+  const info = parseMovementInfo(r);
+  return { counter, flags: info.flags, guid, left: r.remaining, opcode };
 }
 
 describe("ControlRuntime.moveFlag (AC Handlers/MiscHandler.cpp:1505-1520)", () => {
@@ -159,5 +168,183 @@ describe("ControlRuntime.moveFlag (AC Handlers/MiscHandler.cpp:1505-1520)", () =
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  test("feather fall acks with CMSG_MOVE_FEATHER_FALL_ACK, FALLING_SLOW and isApplied, set and unset", () => {
+    const { runtime, sent } = setup();
+    sent.length = 0;
+    runtime.moveFlag("feather_fall", true, 13);
+    runtime.moveFlag("feather_fall", false, 14);
+    const [set, unset] = sent.map(decodeAck);
+    expect(must(set).opcode).toBe(GameOpcode.CMSG_MOVE_FEATHER_FALL_ACK);
+    expect(must(set).guid).toBe(0x0764n);
+    expect(must(set).counter).toBe(13);
+    expect(must(set).flags & MovementFlag.FALLING_SLOW).toBe(
+      MovementFlag.FALLING_SLOW,
+    );
+    expect(must(set).applied).toBe(1);
+    expect(must(set).left).toBe(0);
+    expect(must(unset).opcode).toBe(GameOpcode.CMSG_MOVE_FEATHER_FALL_ACK);
+    expect(must(unset).counter).toBe(14);
+    expect(must(unset).flags & MovementFlag.FALLING_SLOW).toBe(0);
+    expect(must(unset).applied).toBe(0);
+  });
+
+  test("gravity acks carry no isApplied and pick the opcode by direction (AC Handlers/MiscHandler.cpp:1518-1519)", () => {
+    const { runtime, sent } = setup();
+    sent.length = 0;
+    runtime.moveFlag("gravity_off", true, 21);
+    runtime.moveFlag("gravity_off", false, 22);
+    const [off, on] = sent.map(decodeGravityAck);
+    expect(must(off).opcode).toBe(GameOpcode.CMSG_MOVE_GRAVITY_DISABLE_ACK);
+    expect(must(off).guid).toBe(0x0764n);
+    expect(must(off).counter).toBe(21);
+    expect(must(off).flags & MovementFlag.DISABLE_GRAVITY).toBe(
+      MovementFlag.DISABLE_GRAVITY,
+    );
+    expect(must(off).left).toBe(0);
+    expect(must(on).opcode).toBe(GameOpcode.CMSG_MOVE_GRAVITY_ENABLE_ACK);
+    expect(must(on).counter).toBe(22);
+    expect(must(on).flags & MovementFlag.DISABLE_GRAVITY).toBe(0);
+    expect(must(on).left).toBe(0);
+  });
+
+  test("a gravity-off character refuses a move with disable_gravity until gravity returns", () => {
+    jest.useFakeTimers();
+    try {
+      const { runtime } = setup();
+      runtime.moveFlag("gravity_off", true, 21);
+      expect(runtime.snapshot().blockedReason).toBe("disable_gravity");
+      expect(() => runtime.move("forward", 500)).toThrow("disable_gravity");
+      runtime.moveFlag("gravity_off", false, 22);
+      expect(runtime.snapshot().blockedReason).toBeUndefined();
+      runtime.move("forward", 500);
+      expect(runtime.snapshot().moving).toBe(true);
+      runtime.halt();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
+describe("ControlRuntime.transferAborted (AC Handlers/MovementHandler.cpp:91-97)", () => {
+  test("after handleTransferPending, a transfer abort arms a watchdog that clears teleporting", () => {
+    jest.useFakeTimers();
+    try {
+      const { runtime, advance } = setup();
+      runtime.handleTransferPending();
+      expect(runtime.snapshot().blockedReason).toBe("teleporting");
+      runtime.transferAborted({ arg: undefined, mapId: 36, reason: 4 });
+      expect(runtime.snapshot().blockedReason).toBe("teleporting");
+      advance(10_000);
+      expect(runtime.snapshot().blockedReason).toBeUndefined();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("a new_world first cancels the abort watchdog", () => {
+    jest.useFakeTimers();
+    try {
+      const { runtime, sent, advance } = setup();
+      runtime.handleTransferPending();
+      runtime.transferAborted({ arg: undefined, mapId: 36, reason: 4 });
+      runtime.newWorld({
+        mapId: 36,
+        orientation: 0,
+        x: 0,
+        y: 0,
+        z: 0,
+      });
+      advance(10_000);
+      expect(
+        sent.some((p) => p.opcode === GameOpcode.MSG_MOVE_WORLDPORT_ACK),
+      ).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("an abort with no pending transfer arms nothing", () => {
+    jest.useFakeTimers();
+    try {
+      const { runtime, advance } = setup();
+      runtime.transferAborted({ arg: undefined, mapId: 36, reason: 4 });
+      advance(10_000);
+      expect(runtime.snapshot().blockedReason).toBeUndefined();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("dispose cancels the abort watchdog", () => {
+    jest.useFakeTimers();
+    try {
+      const { runtime, advance } = setup();
+      runtime.handleTransferPending();
+      runtime.transferAborted({ arg: undefined, mapId: 36, reason: 4 });
+      runtime.dispose();
+      expect(jest.getTimerCount()).toBe(0);
+      advance(10_000);
+      expect(runtime.snapshot().blockedReason).toBe("teleporting");
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
+describe("ControlRuntime collision height, time skip and fall reset (self-state-3)", () => {
+  test("collisionHeight sends CMSG_MOVE_SET_COLLISION_HGT_ACK as packed guid, counter, movement info and the f32 height (AC Handlers/MovementHandler.cpp:689-693)", () => {
+    const { runtime, sent } = setup();
+    sent.length = 0;
+    runtime.collisionHeight(5, 3.1);
+    expect(sent).toHaveLength(1);
+    const { opcode, body } = must(sent[0]);
+    expect(opcode).toBe(GameOpcode.CMSG_MOVE_SET_COLLISION_HGT_ACK);
+    const r = new PacketReader(body);
+    expect(r.packedGuidBig()).toBe(0x0764n);
+    expect(r.uint32LE()).toBe(5);
+    const ack = parseMovementInfo(r);
+    expect(ack.flags & MovementFlag.ROOT).toBe(0);
+    expect(r.floatLE()).toBeCloseTo(3.1, 4);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("pitch rate injects through the speed acks and echoes the packet value (AC Handlers/MovementHandler.cpp:765-777)", () => {
+    const spec = must(speedAckFor(GameOpcode.SMSG_FORCE_PITCH_RATE_CHANGE));
+    const { runtime, sent } = setup();
+    sent.length = 0;
+    runtime.forceSpeed(spec, { guid: 0x0764n, counter: 9, speed: 3.14 });
+    expect(must(sent[0]).opcode).toBe(
+      GameOpcode.CMSG_FORCE_PITCH_RATE_CHANGE_ACK,
+    );
+  });
+
+  test("timeSkipped sends the packed guid and the skipped u32 ms (AC Handlers/MovementHandler.cpp:894-901)", () => {
+    const { runtime, sent } = setup();
+    sent.length = 0;
+    runtime.timeSkipped(250);
+    expect(sent).toHaveLength(1);
+    const { opcode, body } = must(sent[0]);
+    expect(opcode).toBe(GameOpcode.CMSG_MOVE_TIME_SKIPPED);
+    const r = new PacketReader(body);
+    expect(r.packedGuidBig()).toBe(0x0764n);
+    expect(r.uint32LE()).toBe(250);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("resetFall sends the packed guid and a movement info with fallTime 0 and no FALLING (AC Handlers/MovementHandler.cpp:381,399)", () => {
+    const { runtime, sent } = setup();
+    sent.length = 0;
+    runtime.resetFall();
+    expect(sent).toHaveLength(1);
+    const { opcode, body } = must(sent[0]);
+    expect(opcode).toBe(GameOpcode.CMSG_MOVE_FALL_RESET);
+    const r = new PacketReader(body);
+    expect(r.packedGuidBig()).toBe(0x0764n);
+    const rest = parseMovementInfo(r);
+    expect(rest.fallTime).toBe(0);
+    expect(rest.flags & MovementFlag.FALLING).toBe(0);
+    expect(r.remaining).toBe(0);
   });
 });

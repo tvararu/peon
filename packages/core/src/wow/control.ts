@@ -24,7 +24,7 @@ import {
   type SpeedAck,
 } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import type { MoveFlag } from "#wow/self-store";
+import type { MoveFlag, TransferAbortedInput } from "#wow/self-store";
 
 const FORWARD: MovementInput = { move: "forward" };
 
@@ -170,6 +170,10 @@ export class ControlRuntime {
     this.sync.handleTransferPending();
   }
 
+  transferAborted(abort: TransferAbortedInput): void {
+    this.sync.transferAborted(abort);
+  }
+
   newWorld(position: Position): void {
     this.sync.newWorld(position);
   }
@@ -200,6 +204,18 @@ export class ControlRuntime {
 
   moveFlag(flag: MoveFlag, enable: boolean, counter: number): void {
     this.sync.moveFlag(flag, enable, counter);
+  }
+
+  collisionHeight(counter: number, height: number): void {
+    this.sync.collisionHeight(counter, height);
+  }
+
+  timeSkipped(ms: number): void {
+    this.sync.timeSkipped(ms);
+  }
+
+  resetFall(): void {
+    this.sync.resetFall();
   }
 
   follow(guide: MovementGuide, facing: number, durationMs: number): void {
@@ -297,6 +313,7 @@ export class ControlRuntime {
 
   dispose(): void {
     this.events.clear();
+    this.sync.dispose();
     this.mover.abort("close");
     this.stops.clear();
   }

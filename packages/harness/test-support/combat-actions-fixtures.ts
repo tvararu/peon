@@ -84,8 +84,24 @@ export function setup(
       z: 0,
     });
   combatStore.applyInitialSpells({ cooldowns: [], spells: [{ spellId: 17 }] });
+  const port = {
+    attack: (targetGuid: bigint) => combat.attack(targetGuid),
+    cancelCast: () => combat.cancelCast(),
+    cast: (spellId: number, targetGuid: bigint) =>
+      combat.cast(spellId, targetGuid),
+    channel: () => combatStore.casts.channel,
+    definition: (spellId: number) => combat.definition(spellId),
+    halt: () => combat.halt(),
+    isAttackingSelf: (guid: bigint) => combat.isAttackingSelf(guid),
+    petAttack: (petGuid: bigint, targetGuid: bigint) =>
+      combat.petAttack(petGuid, targetGuid),
+    readyAt: (spellId: number) => combat.readyAt(spellId),
+    snapshot: (targetGuid?: bigint) => combat.snapshot(targetGuid),
+    stopAttack: () => combat.stopAttack(),
+    stopAutoRepeat: () => combat.stopAutoRepeat(),
+  };
   const actions = new CombatActions({
-    combat,
+    combat: port,
     control,
     entity: (guid) => store.get(guid),
     now: nowFn,

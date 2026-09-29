@@ -18,6 +18,7 @@ import {
   buildAutoEquipItem,
   buildAutoEquipItemSlot,
   buildAutostoreBagItem,
+  buildSetAmmo,
   buildSplitItem,
   buildSwapInvItem,
   buildSwapItem,
@@ -43,6 +44,7 @@ export type ItemsActs = {
     to: ItemPosition,
     count: number,
   ) => Promise<MoveState>;
+  setAmmo: (entry: number) => Promise<MoveState>;
 } & ReadActs;
 
 const SETTLED = new Set<ItemsEvent["type"]>([
@@ -63,10 +65,10 @@ function checkWornSlot(slot: number): void {
     throw new Error(`slot ${slot} is not an equipment or bag slot`);
 }
 
-function checkBag(bag: number): void {
+function checkNamedStoreBag(bag: number): void {
   const bagSlot = bag >= LAST_BAG_SLOT - 3 && bag <= LAST_BAG_SLOT;
   if (bag !== NULL_BAG && bag !== BACKPACK && !bagSlot)
-    throw new Error(`bag ${bag} is not the backpack or a bag slot`);
+    throw new Error(`bag ${bag} is not autostore or a bag slot`);
 }
 
 function heldAt(inventory: InventoryState, position: ItemPosition): HeldSlot {
@@ -115,13 +117,20 @@ async function equippable(
 
 type Shape = {
   held: HeldSlot;
-  to: ItemPosition | undefined;
+  to?: ItemPosition | undefined;
   count?: number;
+  stackBefore?: number;
   target?: HeldSlot | undefined;
 };
 
 function request(env: Env, kind: MoveKind, shape: Shape): MoveRequest {
-  const { held, to, count = stack(held), target } = shape;
+  const {
+    held,
+    to,
+    count = stack(held),
+    stackBefore = stack(held),
+    target,
+  } = shape;
   return {
     kind,
     itemGuid: held.guid,
@@ -129,7 +138,7 @@ function request(env: Env, kind: MoveKind, shape: Shape): MoveRequest {
     from: { bag: held.bag, slot: held.slot },
     to,
     count,
-    stackBefore: stack(held),
+    stackBefore,
     target: target && { guid: target.guid, count: stack(target) },
     requestedAt: env.ctx.now(),
   };
@@ -193,9 +202,13 @@ async function unequip(
   toBag = NULL_BAG,
 ): Promise<MoveState> {
   checkWornSlot(slot);
-  checkBag(toBag);
+  checkNamedStoreBag(toBag);
   const from = { bag: BACKPACK, slot };
   const held = heldAt(ready(env, "unequip"), from);
+  if (!isWorn(held))
+    throw new Error(
+      `bag ${from.bag} slot ${from.slot} holds no worn gear to take off`,
+    );
   const to = { bag: toBag, slot: NULL_SLOT };
   return await run(env, request(env, "unequip", { held, to }), [
     GameOpcode.CMSG_AUTOSTORE_BAG_ITEM,
@@ -221,11 +234,17 @@ async function move(
   from: ItemPosition,
   to: ItemPosition,
 ): Promise<MoveState> {
-  const { held, target } = destination(env, "swap", from, to);
+  const inventory = ready(env, "swap");
+  const refusal = positionRefusal(to);
+  if (refusal) throw new Error(refusal);
+  if (samePlace(from, to)) throw new Error("the swap has no destination");
+  const held = heldAt(inventory, from);
+  const toBag = to.bag === BACKPACK ? NULL_BAG : to.bag;
+  if (isWorn(held)) return unequip(env, held.slot, toBag);
   const inside = from.bag === BACKPACK && to.bag === BACKPACK;
   return await run(
     env,
-    request(env, "swap", { held, target, to }),
+    request(env, "swap", { held, target: slotAt(inventory, to), to }),
     inside
       ? [GameOpcode.CMSG_SWAP_INV_ITEM, buildSwapInvItem(to.slot, from.slot)]
       : [GameOpcode.CMSG_SWAP_ITEM, buildSwapItem(to, from)],
@@ -244,6 +263,40 @@ async function split(
   return await run(env, request(env, "split", { count, held, target, to }), [
     GameOpcode.CMSG_SPLIT_ITEM,
     buildSplitItem(from, to, count),
+  ]);
+}
+
+async function setAmmo(env: Env, entry: number): Promise<MoveState> {
+  const inventory = ready(env, "ammo");
+  if (!Number.isInteger(entry) || entry < 0)
+    throw new Error(`ammo entry ${entry} is not a non-negative integer`);
+  if (inventory.ammoId === entry)
+    throw new Error(`ammo ${entry} is already loaded`);
+  const stacks = inventory.slots.filter(
+    (slot) => slot.status === "occupied" && slot.item.entry === entry,
+  );
+  if (entry !== 0 && stacks.length === 0)
+    throw new Error(`ammo ${entry} is not carried`);
+  const held =
+    stacks.find((slot) => slot.bag === BACKPACK && slot.slot > LAST_BAG_SLOT) ??
+    stacks[0];
+  const shape: Shape =
+    entry === 0
+      ? {
+          count: 0,
+          held: {
+            bag: BACKPACK,
+            guid: 0n,
+            item: { count: 0, entry: 0 },
+            slot: NULL_SLOT,
+            status: "occupied",
+          } as HeldSlot,
+          stackBefore: 0,
+        }
+      : { held: held as HeldSlot };
+  return await run(env, request(env, "ammo", shape), [
+    GameOpcode.CMSG_SET_AMMO,
+    buildSetAmmo(entry),
   ]);
 }
 
@@ -293,6 +346,7 @@ export function itemsRuntime(
       equipTo: (itemGuid, slot) => equipTo(env, itemGuid, slot),
       unequip: (slot, toBag) => unequip(env, slot, toBag),
       move: (from, to) => move(env, from, to),
+      setAmmo: (entry) => setAmmo(env, entry),
       split: (from, to, count) => split(env, from, to, count),
       ...readActs(env),
     },

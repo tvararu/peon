@@ -5,7 +5,7 @@ import { EVENT_KEYS, isWorld, type WorldSession } from "#harness/world/service";
 import { createMockGame, type MockGame } from "#test-support/mock-game";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 
-const APPEAR = { type: "appear" } as EntityEvent;
+const EVENT: EntityEvent = { guid: 0n, type: "disappear" };
 
 const CLOCK = { clock: { area: "clock", worldActs: ["sync"] } } as const;
 type ClockActs = { clock: { sync: () => Promise<unknown> } };
@@ -57,12 +57,12 @@ describe("createWorldService sessions", () => {
     });
     expect(world.current()).toBeUndefined();
     await rt.connect();
-    first.triggerEntityEvent(APPEAR);
+    first.triggerEntityEvent(EVENT);
     await rt.disconnect();
-    first.triggerEntityEvent(APPEAR);
+    first.triggerEntityEvent(EVENT);
     expect(world.current()).toBeUndefined();
     await rt.connect();
-    second.triggerEntityEvent(APPEAR);
+    second.triggerEntityEvent(EVENT);
     expect(seen).toHaveLength(2);
     expect(cleaned).toEqual([seen[0] as WorldSession]);
     expect(events).toHaveLength(2);

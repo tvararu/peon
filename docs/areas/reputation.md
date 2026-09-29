@@ -19,6 +19,14 @@ Names, base values and ranks come from `Faction.dbc` in the configured
 data directory. Without that file the area keeps the server's deltas as
 the standing and knows no name or rank.
 
+In the harness, a standing change inside a rank logs the delta and the
+place in the rank ("Silvermoon City reputation +250: Friendly
+1250/6000."), a new rank logs the rank reached, and a standing change
+that puts a faction at war (the event's `wasAtWar` is false and `atWar`
+true) warns that its guards will attack the character. A faction made visible is logged as discovered, and a forced
+reaction wakes the agent outside a run. `initialized` and
+`watched_changed` write no row.
+
 ## Wire notes
 
 - `SMSG_INITIALIZE_FACTIONS` is a `uint32` count (always 128), then per
@@ -99,6 +107,15 @@ the data directory (forced reactions need no file); player targets use
 the faction templates.
 
 ## Proof
+
+Eval `t4-reputation-gain` round 21, replicas 1 and 3 (`result.json`,
+verdict `blocked` both): each agent turned in quest 8325 and the five
+deltas logged (Faction 55 +250, Factions 14-17 +62 each), but the check
+names Silvermoon City and the eval profile carries no `Faction.dbc`, so
+`journal about: "reputation"` can only show faction ids. Replica 3 then
+retracted its correct by-id answer after a later log query returned 0
+events. The same gap stands in the capabilities page's "Not shown" entry
+for `t4-reputation-gain`.
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|

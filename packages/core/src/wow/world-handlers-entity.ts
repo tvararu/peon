@@ -78,7 +78,7 @@ function typeFields(
   if (objectType === ObjectType.UNIT || objectType === ObjectType.PLAYER)
     return extractUnitFields(fields, previous);
   if (objectType === ObjectType.GAMEOBJECT)
-    return extractGameObjectFields(fields);
+    return extractGameObjectFields(fields, previous);
   return {};
 }
 

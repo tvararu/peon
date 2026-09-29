@@ -121,6 +121,7 @@ function createTactics(ports: Ports, jev: JevPort | undefined): TacticsLoop {
   const { handle, combat, control, entity, halt } = ports;
   const actions = new CombatActions({
     combat,
+    combatLog: () => handle.combatlog.state(),
     control,
     entity,
     gear: () =>

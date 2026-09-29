@@ -299,6 +299,13 @@ function stoppedReport(init: {
       next: nextCall("recover"),
       reason: "died",
     });
+  if (cause?.code === "breath")
+    return result("FAILED", {
+      after,
+      detail: cause.detail,
+      next: nextCall("look"),
+      reason: "interrupted",
+    });
   if (cause?.attacker !== undefined) {
     const verb = rested.hurt ? "hit you" : "started attacking you";
     return result("FAILED", {

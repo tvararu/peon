@@ -72,6 +72,7 @@ describe("reputation area wiring", () => {
           rankChanged: false,
           repListId: SILVERMOON,
           type: "standing_changed",
+          wasAtWar: false,
         },
       ]);
       expect(rig.handle.state()).toEqual({

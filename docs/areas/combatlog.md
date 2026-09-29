@@ -10,8 +10,33 @@ optional spell, overkill, school mask, absorbed, resisted and blocked
 amounts, the crit flag and the outcome (`miss`, `dodge`, `parry`, `block`,
 `evade`, `immune`, `deflect`, `interrupt`, or `absorb` and `resist` for a
 full absorb or resist). The area emits one `entry` event per kept entry,
-one `kill` event per kill and one `combo_points` event per combo point
-update. The harness writes no log row for any of them. A power update
+one `kill` event per kill, one `combo_points` event per combo point
+update and one `fight_closed` event per fight. The state also lists the
+immunities the character met: the creature entry and spell id of each
+spell a creature refused, once per pair. The harness writes three quiet
+`log` rows from them and no row for any other event:
+
+- `combatlog/immune` when a spell or swing of the character meets an
+  immune unit: an `immune` entry, a `miss` entry with outcome `immune`
+  or `immune2`, or a swing with outcome `immune` (spell 0 in the row).
+  The text names the unit and the spell id, such as `Mottled Boar u5 is
+  immune to spell 122.` It is written once per creature entry and spell
+  in a session, or once per unit and spell for a unit that is not a
+  creature.
+- `combatlog/fight` when a fight closes: `Fight over: dealt 312, took 145
+  (1 dodge, 1 resist).` The text adds `, healed N` when the character
+  was healed, and drops the brackets when nothing was avoided.
+- `combatlog/killing_blow` when another player kills the character's
+  target (`ourTarget` 1, `bySelf` 0, `killerKind` `player`). A kill by
+  the character writes no row here; its `combat/kill_credit` row covers
+  it. The server's `SMSG_PARTYKILLLOG` names the loot recipient as the
+  killer and goes only to that player or its group
+  (`Entities/Unit/Unit.cpp:13593`, `Entities/Unit/Unit.cpp:13611`), so
+  the row fires only when a member of the character's group gets the
+  kill credit; a stranger who kills the character's target is never
+  seen.
+
+A power update
 goes to the unit in the entity store, not to the combat log.
 
 - The store keeps an entry whose source or target is the character, a
@@ -20,8 +45,10 @@ goes to the unit in the entity store, not to the combat log.
   the character or its units in a kept entry, or when it attacks the
   character. Every other entry is dropped and counted in `dropped`.
 - A fight opens on the first entry of the character or its units after 6
-  seconds of quiet, and closes on the next entry or read after 6 seconds
-  of quiet. Its totals sum the damage dealt and taken, the heals the
+  seconds of quiet, and closes 6 seconds after the last kept entry: a
+  runtime timer, armed by each kept entry and not at build, calls
+  `closeFight()`, and a read or an entry after the gap closes it too. Each
+  close emits one `fight_closed` event with the totals. Its totals sum the damage dealt and taken, the heals the
   character received, the crits of the character and its units, and the
   misses by outcome.
 - Damage to the character from a unit that never sent an attack start,
@@ -34,6 +61,12 @@ goes to the unit in the entity store, not to the combat log.
   kept in the ring as one `kill` entry with amount 0 and in the kill list
   whatever the fight scope, and it does not count in the fight totals.
   The `kill` event carries `bySelf` and `ourTarget` as 1 or 0.
+- An immunity is recorded when an entry of the character or its units
+  that names a spell (an `immune` entry, or a `miss` entry with outcome
+  `immune` or `immune2`) hits a creature (guid high `0xF130` or
+  `0xF150`); a swing with no spell records nothing. Nothing writes such
+  an entry until `combat-log-3` parses `SMSG_SPELLORDAMAGE_IMMUNE` and
+  `SMSG_SPELLLOGMISS`.
 - The combo points are the target and the points of the last update.
   An update with no target or with 0 points clears them. The `combo_points`
   event carries the points and the target when there is one.
@@ -112,7 +145,32 @@ last two items, which are not disagreements.
   the unit and the players that see it whenever its `withPowerUpdate`
   argument is set, which is the default (`Entities/Unit/Unit.cpp:11996`).
 
+## Harness readers
+
+- `engage` (`tools/engage-tally.ts`) sums the entries since the run
+  started (`areas/combatlog/totals.ts`): damage the character or its pet
+  dealt, damage the character took, healing it received, its own misses
+  and the target's dodges, parries and blocks, and the spells its
+  targets refused. A `DONE` or `PARTLY` line adds `Dealt 312, took 145;
+  avoided: dodge x1; immune: Frost Nova.` when the log holds any of
+  them, and the `after` block carries `dealt`, `taken`, `healed`,
+  `avoided` and `immune`; the refusals also count as the cast error
+  word `immune`.
+- Jev's observation (`loops/combat-actions.ts`) has a `combatLog` block:
+  damage taken in the last 6 s by source and school mask, the
+  character's own misses in the last 6 s, the target's known immunities
+  and the combo points held on the target. A hostile spell in the
+  target's immunities reads `immune` in `unavailable` and is no
+  candidate.
+- `[now]`, the footer and `VitalsView` show `CP 3` while the character
+  holds combo points on a target, and nothing at 0.
+
 ## Left out
+
+- The human engage line (`ui/renderers/live-run.ts`) does not show the
+  fight totals; only the model-facing result line does.
+- `EngageAfter.dealt`, `taken`, `healed`, `avoided` and `immune` are
+  optional, because `tools/engage.ts` builds an empty block.
 
 - `SMSG_SPELLHEALLOG`, `SMSG_SPELLENERGIZELOG` and
   `SMSG_PERIODICAURALOG`: built by `combat-log-2`.
@@ -145,3 +203,29 @@ No verb (N23).
 | `SMSG_PROCRESIST` | `dead` | its only writer, `Unit::SendSpellDamageResist`, has no caller: the declaration and the definition are the only hits | `Entities/Unit/Unit.cpp:6616-6624` |
 | `SMSG_FEIGN_DEATH_RESISTED` | `dead` | both send sites are inside comment blocks | `Spells/Auras/SpellAuraEffects.cpp:2953-2958` |
 | `SMSG_HEALTH_UPDATE` | `dead` | no send site: only the opcode list and the opcode table name it | `Server/Protocol/Opcodes.h:1181` |
+
+Flood guard, measured on a `t3-ghostlands-kill` run with
+`--packet-trace headers`: 3 fights, 0 `combatlog/*` rows in each, and 243
+game log rows (240 `log`, 3 `passive`) over 12 agent turns, about 20 rows
+per turn. The run received 25 `SMSG_ATTACKERSTATEUPDATE`, 15
+`SMSG_SPELLNONMELEEDAMAGELOG` and 2 `SMSG_PARTYKILLLOG`, all `handled`.
+Both kill logs were kills by the character, which write no row. A
+creature took the third kill, and no player earned the kill, so the
+reward was not allowed (`Entities/Unit/Unit.cpp:13551-13557`) and the
+server sent no kill log (`Entities/Unit/Unit.cpp:13581`). No
+`combatlog/immune` or `combatlog/killing_blow` row has been seen live:
+the area test writes both rows from hand-built entries.
+
+Fight totals, measured on a `t3-ghostlands-kill` run (round 21, verdict
+`pass`): one `engage` call killed two Shadowpine Oracles and answered
+`DONE killed 2 Shadowpine Oracle ... +342 XP. Dealt 649, took 131.`. The
+game log held two `combatlog/fight` rows, `Fight over: dealt 328, took
+42.` and `Fight over: dealt 321, took 89.`, which sum to those figures,
+and 2 `combatlog/*` rows among 146 game log rows. A `t7-halt-resume` run
+(`pass`) gave three rows (`dealt 123, took 28 (1 miss)`, `dealt 122, took
+33 (1 miss)`, `dealt 144, took 57`) and an `engage` line ending `Dealt
+389, took 118.`. Two things stay unproved live. No immunity entry reaches
+the store yet, so the Jev immune drop and the `immune:` clause of the
+result line run only in unit tests until `combat-log-3` parses the spell
+immunity packets. `SMSG_UPDATE_COMBO_POINTS` stays unseen, so `CP n` in
+`[now]` and the footer is unit-tested only.

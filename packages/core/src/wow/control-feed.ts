@@ -15,6 +15,9 @@ export function feedControl(control: ControlRuntime, event: SelfEvent): void {
     case "transfer_pending":
       control.handleTransferPending();
       return;
+    case "transfer_aborted":
+      control.transferAborted(event);
+      return;
     case "new_world":
       control.newWorld(event.position);
       return;
@@ -38,6 +41,9 @@ export function feedControl(control: ControlRuntime, event: SelfEvent): void {
       return;
     case "move_flag":
       control.moveFlag(event.flag, event.enable, event.counter);
+      return;
+    case "collision_height":
+      control.collisionHeight(event.counter, event.height);
       return;
     case "observed":
       control.observeSelf(event.observation);

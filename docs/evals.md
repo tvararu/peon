@@ -178,8 +178,10 @@ two scenarios closest to it. Every scenario appears in at least one row.
 |---|---|
 | Navigation and movement (`travel`, routes, namigator) | `t1-walk-to-npc` |
 | Combat and Jev (`engage`, spells) | `t3-ghostlands-kill`, `t7-halt-resume` |
+| Quest marks, objective regions, greetings and sharing (look, journal, interact, group) | `t4-quests-find-giver`, `t4-quests-poi-walk`, `t1-quests-read-greeting`, `t1-quests-guard-directions` |
 | Quests (`interact` quest dialogs, quest log, rewards) | `t4-quest-first`, `t4-alliance-first` |
 | Vendors and money | `t5-vendor-buy-goldshire` |
+| Economy (`interact` buyback, bank, auction; `trade`; `mail`) | `t5-buyback-vendor` |
 | Chat and whispers (`social`, pushed chat events) | `t2-whisper-reply` |
 | Nearby units and relations (`look`, entity state) | `t0-who-is-near`, `t0-hostiles` |
 | Self state (level, money, bags, `journal`) | `t0-self-state` |
@@ -187,3 +189,9 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Stopping and steering (`stop`, the stop reflex, human messages while a tool runs) | `t7-halt-resume`, `t7-question-while-acting` |
 | Alliance characters and map 0 | `t4-alliance-first`, `t5-vendor-buy-goldshire` |
 | Login, the world session and the harness shell | `t0-self-state` |
+| Items and gear (`gear`, `journal` bags) | `t8-items-equip-upgrade`, `t8-items-unequip`, `t8-items-move`, `t8-items-split`, `t8-items-open`, `t8-items-read`, `t8-items-ammo` |
+| Game objects (`use`) | `t0-objects-read-shrine` |
+| Game objects (area triggers) | `t4-objects-explore-fargodeep` |
+| Spells (spell tool, stop on channels) | `t4-spells-cancel-aura`, `t4-spells-action-bar`, `t4-spells-stop-channel` |
+| Reputation and hostility (journal reputation, reputation rows, unit relations) | `t4-reputation-gain`, `t0-hostiles` |
+| Travel (`interact` bind, `travel` hearth and fly) | `t8-travel-bind-inn`, `t8-travel-hearth-home` |

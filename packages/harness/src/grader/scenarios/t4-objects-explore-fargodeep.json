@@ -1,0 +1,47 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 30,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "evidence": {
+        "truth": ["quests"]
+      },
+      "expect": "T final quests hold 62 as complete, or 62 is in rewardedQuests",
+      "id": "explored",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["objects/trigger"],
+        "ids": [88]
+      },
+      "expect": "GL has an objects/trigger row for trigger 88 (the Fargodeep Mine)",
+      "id": "trigger-row",
+      "source": "game_log"
+    }
+  ],
+  "id": "t4-objects-explore-fargodeep",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "elwynn10",
+  "setup": [
+    {
+      "body": {
+        "map": 0,
+        "x": -9870.52,
+        "y": 212.959,
+        "z": 14.01
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Take The Fargodeep Mine quest from Marshal Dughan in Goldshire, then explore the mine mouth south of you until the quest completes.",
+  "tier": 4
+}

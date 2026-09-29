@@ -18,6 +18,7 @@ const NEAREST_ORDER: readonly NearestKind[] = [
   "vendor",
   "trainer",
   "repair",
+  "innkeeper",
   "lootable",
   "player",
   "spirit_healer",
@@ -43,13 +44,17 @@ function powerText({ power, maxPower, powerKind }: SelfView): string {
   return ` mana ${power}/${maxPower}`;
 }
 
+function comboText({ comboPoints }: SelfView): string {
+  return comboPoints ? ` CP ${comboPoints}` : "";
+}
+
 function selfText({ at, self, hpDelta5s }: NowSnapshot): string {
   const delta = hpDelta5s
     ? ` (${hpDelta5s > 0 ? "+" : ""}${hpDelta5s} in 5s)`
     : "";
   const combat = self.inCombat ? " in combat" : "";
   const head = `[now ${nowClock(at)}] ${self.name} L${self.level} ${self.className}`;
-  return `${head} HP ${self.hp}/${self.maxHp}${delta}${powerText(self)} ${self.life}${combat}`;
+  return `${head} HP ${self.hp}/${self.maxHp}${delta}${powerText(self)}${comboText(self)} ${self.life}${combat}`;
 }
 
 function poseText(pose: PoseView | undefined): string {
@@ -104,6 +109,7 @@ function parts(s: NowSnapshot): Part[] {
     : "";
   const list: Part[] = [
     { drop: 0, text: selfText(s) },
+    { drop: 0, text: s.breathS === undefined ? "" : `breath ${s.breathS} s` },
     { drop: 0, text: placeText(s.place, s.self.pose) },
     { drop: 1, text: s.target ? targetText(s.target) : "" },
     { drop: 2, text: attackers ? `attackers ${attackers}` : "" },

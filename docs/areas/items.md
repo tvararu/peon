@@ -67,10 +67,23 @@ on-use spells it read before.
   `uint32` (`Entities/Item/Item.cpp:937-939`); core reads the whole
   word as the charges.
 - `InventoryState.ammoId` is `PLAYER_AMMO_ID` of the self entity, the
-  entry of the loaded ammo.
+  entry of the loaded ammo. The bags journal marks the row of that entry
+  `loaded ammo` and names it in an `Ammo:` line.
 - Item 5806 Fool's Stout is a timed item: a copy added to a hunter's
   bags read `duration` 7200 live. The `eversong10-hunter` preset loads
   ammo 2515 Sharp Arrow.
+- A bags row is wearable when the template names an equip slot
+  (`Entities/Player/PlayerStorage.cpp:129-245`; inventory type 0 names
+  none) and the character's class bit is set in the template's allowable
+  class (`Entities/Player/PlayerStorage.cpp:2397`) and the character's
+  level is at least the required level
+  (`Entities/Player/PlayerStorage.cpp:2448`). A wearable row whose item
+  level beats the worn item's is an `upgrade`, by item level only; a bag
+  row compares slot counts against the best equipped bag.
+- A bags row shows `durability C/M` when the observed durability is
+  below a quarter of the maximum, and `<time> left` while
+  `ITEM_FIELD_DURATION` is nonzero (seconds remaining,
+  `Entities/Item/Item.cpp:319-333`).
 - `CMSG_SWAP_INV_ITEM` carries the destination slot first, then the
   source slot: `SwapInventoryItem::Read` reads them in that order
   (`Server/Packets/ItemPackets.cpp:29-33`). wow_messages lists the source
@@ -79,11 +92,15 @@ on-use spells it read before.
   slot before the source (`Server/Packets/ItemPackets.cpp:41-47`).
 - `CMSG_SPLIT_ITEM` carries a `uint32` count after the source and
   destination positions (`Server/Packets/ItemPackets.h:40`).
-- `CMSG_AUTOSTORE_BAG_ITEM` names a destination bag and no slot
-  (`Server/Packets/ItemPackets.cpp:108-113`).
-- Destination bag 0 is `NULL_BAG` (`Entities/Item/Item.h:40`), which
-  lets the server pick any free slot
-  (`Entities/Player/PlayerStorage.cpp:605-609`).
+- `CMSG_AUTOSTORE_BAG_ITEM` names one destination bag and no slot
+  (`Server/Packets/ItemPackets.cpp:108-113`). Bag 0 is `NULL_BAG`
+  (`Server/Protocol/Opcodes.cpp:398`), which lets the server pick any
+  free slot, and a bag slot 19-22 limits the pick to that bag
+  (`Handlers/ItemHandler.cpp:967-1000`). The gear tool sends every
+  unequip through this opcode, so every unequip logs `items/unequipped`;
+  a move that starts on worn gear reroutes the same way. An explicit
+  `bag B slot S` unequip autostores into bag B then moves to slot S
+  with the existing move act.
 - The items area peeks `SMSG_INVENTORY_CHANGE_FAILURE`. A move owns a
   failure when `item1` is the moving item, or when `item1` is 0 and no
   legacy request (destroy, vendor buy, quest accept or reward, loot take)
@@ -117,6 +134,11 @@ on-use spells it read before.
   The `open` act asks the rewards store to open that guid first, so the
   loot window lands in `core.rewards`, and closes it with a failure after
   a refusal or 5 seconds with no answer.
+- The gear tool snapshots the offered loot slots before taking them:
+  receiving a slot removal shrinks the live window. It waits for each
+  requested slot to disappear and for its matching item-push receipt
+  before releasing the window. AzerothCore sends the removal before
+  `SendNewItem` (`Entities/Player/Player.cpp:13896-13921`).
 - `CMSG_READ_ITEM` carries the bag and slot
   (`Server/Packets/ItemPackets.cpp:65-69`). `SMSG_READ_ITEM_OK` and
   `SMSG_READ_ITEM_FAILED` carry only the item guid
@@ -129,14 +151,29 @@ on-use spells it read before.
 - `SMSG_ITEM_TEXT_QUERY_RESPONSE` is `0`, the item guid and the text for
   a carried item, or `1` alone (`Handlers/ItemHandler.cpp:1468-1479`).
   The `1` answer names no guid, so it settles the oldest waiting query.
-- Items used for the open and read proof: 5335 A Sack of Coins (has
-  loot, no lock), 889 A Dusty Unsent Letter (page text, no required
-  level) and 38579 Venomous Tome (page text, required level 20, so a
-  level 10 character's read fails with `cant_equip_level_i`).
+- Items used for the open and read proof: 5335 A Sack of Coins (has loot, no lock), 889 A Dusty Unsent Letter (page text, no required level) and 38579 Venomous Tome (page text, required level 20, so a level 10 character's read fails with `cant_equip_level_i`).
+- Six gear eval scenarios prove the tool end to end on the live server
+  (round 21): `t8-items-equip-upgrade` wears a better weapon and puts a
+  bag on, `t8-items-unequip` takes the chest into the bags,
+  `t8-items-move` moves the hearthstone into the bag in bag slot 19
+  (truth shows it as `bag` 0, counting equipped bags from 0),
+  `t8-items-split` splits 5 of 20 water off, `t8-items-open` opens A
+  Sack of Coins and keeps the copper and items (the sack's contents are
+  random per character, so the check compares the money delta to the
+  loot window), and `t8-items-read` reads A Dusty Unsent Letter (its
+  page text is empty on this server). The server deletes conjured
+  food and water at login, which shows as missing rows in the unequip
+  and open baselines.
+- `t8-items-ammo` (round 21) loads 200 Rough Arrow (2512) added by the
+  setup. The `eversong10-hunter` preset already has 1000 Sharp Arrow
+  (2515) loaded, so the task names the Rough Arrows; with "the new
+  arrows" the agent took the Sharp Arrows as done (replica 1, `fail`).
+  The server answers `CMSG_SET_AMMO` with an update that sets
+  `PLAYER_AMMO_ID` to 2512 about 8 ms later.
 
 ## Left out
 
-- `CMSG_SET_AMMO`: built by `items-8`.
+
 - `SMSG_ITEM_COOLDOWN`, `SMSG_ITEM_TIME_UPDATE`,
   `SMSG_ITEM_ENCHANT_TIME_UPDATE`, `SMSG_DURABILITY_DAMAGE_DEATH` and
   `SMSG_SET_PROFICIENCY`: built by `items-6`.
@@ -153,7 +190,7 @@ on-use spells it read before.
 
 ## Capabilities row
 
-No verb yet; `items-5a` adds the `gear` tool and its row.
+The `gear` tool wears, takes off, moves, splits, opens, reads and loads ammo. The game log writes `items/equipped`, `items/unequipped`, `items/moved` and `items/split` for confirmed moves, `items/refused` and `items/unanswered` as wake rows, `items/upgrade` when a received item level beats the worn one, and `items/read` for reads and item text, and `items/ammo` when ammo is loaded. The harness never equips on its own.
 
 ## Proof
 
@@ -171,3 +208,4 @@ No verb yet; `items-5a` adds the `gear` tool and its row.
 | `SMSG_READ_ITEM_FAILED` | `live` | probe flow `items-open` (`do=read`) on the level-20 Venomous Tome, exit 0: `SMSG_INVENTORY_CHANGE_FAILURE` result 1 naming the tome comes first, then this packet with its guid, and the read settles `failed` (`cant_equip_level_i`) | `Handlers/ItemHandler.cpp:567` |
 | `CMSG_ITEM_TEXT_QUERY` | `live` | probe flow `items-open` (`do=text`), exit 0: the query carries the letter's guid | `Handlers/ItemHandler.cpp:1461-1465` |
 | `SMSG_ITEM_TEXT_QUERY_RESPONSE` | `live` | probe flow `items-open` (`do=text`), exit 0: `0`, the letter's guid and its empty text, and the act returns the text | `Handlers/ItemHandler.cpp:1468-1474` |
+| `CMSG_SET_AMMO` | `live` | eval `t8-items-ammo` round 21 replica 2, verdict `pass`: `CMSG_SET_AMMO` with entry 2512 (Rough Arrow), the update that sets `PLAYER_AMMO_ID` to 2512 and the `items/ammo` game-log row | `Handlers/ItemHandler.cpp:1014-1039` |

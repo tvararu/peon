@@ -1,0 +1,47 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 6,
+    "tools": 10,
+    "turns": 5
+  },
+  "checks": [
+    {
+      "evidence": {
+        "items": [2512],
+        "truth": ["inventory"]
+      },
+      "expect": "T final has item 2512 (Rough Arrow, count 200 from the setup) in a bag row",
+      "id": "arrows-in-bags",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["items/ammo"],
+        "ids": [2512]
+      },
+      "expect": "GL has an items/ammo row for item 2512 (Rough Arrow loaded)",
+      "id": "ammo-row",
+      "source": "game_log"
+    }
+  ],
+  "id": "t8-items-ammo",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "eversong10-hunter",
+  "setup": [
+    {
+      "body": {
+        "count": 200,
+        "item": 2512
+      },
+      "endpoint": "items/add"
+    }
+  ],
+  "spawn": "eversong-west",
+  "steers": [],
+  "task": "Load the Rough Arrows into the quiver.",
+  "tier": 8
+}

@@ -1,4 +1,8 @@
 import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
+import {
+  type SpellTarget,
+  writeSpellTargets,
+} from "#wow/protocol/spell-targets";
 
 const SpellTargetFlag = {
   UNIT: 0x00_00_00_02,
@@ -254,18 +258,18 @@ function parseGoExtras(
 export function buildCastSpell(
   castCount: number,
   spellId: number,
-  targetGuid: bigint,
+  target: bigint | SpellTarget,
 ): Uint8Array {
+  let resolved: SpellTarget = target as SpellTarget;
+  if (typeof target === "bigint") {
+    resolved = { guid: target, kind: "unit" };
+    if (target === 0n) resolved = { kind: "none" };
+  }
   const w = new PacketWriter();
   w.uint8(castCount);
   w.uint32LE(spellId);
   w.uint8(0);
-  if (targetGuid === 0n) {
-    w.uint32LE(0);
-    return w.finish();
-  }
-  w.uint32LE(SpellTargetFlag.UNIT);
-  w.packedGuidBig(targetGuid);
+  writeSpellTargets(w, resolved);
   return w.finish();
 }
 

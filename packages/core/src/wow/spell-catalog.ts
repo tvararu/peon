@@ -45,6 +45,7 @@ export type SpellEffect = {
   implicitTargetB: number;
   applyAura: number;
   amplitude: number;
+  miscValue: number;
   radius: SpellRadius | undefined;
 };
 
@@ -214,6 +215,7 @@ function decodeEffects(files: CatalogFiles, row: number): SpellEffect[] {
       implicitTargetB: u32(files.spell, row, 89 + i),
       applyAura: u32(files.spell, row, 95 + i),
       amplitude: u32(files.spell, row, 98 + i),
+      miscValue: i32(files.spell, row, 110 + i),
       radius: decodeRadius(files.radius, u32(files.spell, row, 92 + i)),
     });
   }

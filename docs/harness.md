@@ -122,16 +122,19 @@ A result that is not `DONE` ends with a `Next:` step.
 
 | Tool | What it does |
 |---|---|
-| `look` | Self, place, target, the running action, and the nearest units with short ids like `u7`. |
-| `travel` | Walks to a unit, the corpse or a point, explores in a direction, or unsticks. |
-| `engage` | Chooses a target, walks to it, fights it with Jev and loots it. |
+| `look` | Self, place, target, the running action, and the nearest units with short ids like `u7`; `find: object` lists game objects as `o<n>` with kind and quest, locked and busy flags. |
+| `travel` | Walks to a unit (`to: o<n>` reaches a game object), the corpse or a point, uses the hearthstone (`to: hearth`), explores in a direction, or unsticks. |
+| `engage` | Chooses a target, walks to it, fights it with Jev and loots it; the result line gives damage dealt and taken, avoided swings and refused spells. |
 | `loot` | Loots one corpse, one slot at a time. |
-| `interact` | Talks to an NPC: quests, gossip, buy, sell junk, train, repair. |
+| `interact` | Talks to an NPC (`npc: o<n>` talks to a quest-giver object): quests, gossip, buy, sell junk, buyback, train, repair, bind at an inn. |
 | `rest` | Eats and drinks until health and mana reach a percent. |
 | `recover` | Comes back to life: corpse run, spirit healer or a resurrection offer. |
 | `social` | One chat message or one group action. |
-| `journal` | Quest log, bags and gear, spells, or the game log. |
+| `journal` | Quest log, bags and gear, spells, reputation, or the game log. |
 | `stop` | Stops one action or everything. |
+| `gear` | Wears, takes off, moves, splits, opens and reads items. |
+| `use` | Uses a game object: opens a locked chest or quest object and takes what is inside, reads a shrine, plaque or book, or presses another usable object. |
+| `spell` | Casts a spell on itself or a unit (`do: cast`), cancels one of its own buffs (`cancel_aura`) or puts a spell or item on an action bar slot (`bar`). |
 
 `travel`, `engage`, `rest` and `recover` start a run (`r1`, `r2`, …).
 Only one run can be active. The tool waits for the run to end and

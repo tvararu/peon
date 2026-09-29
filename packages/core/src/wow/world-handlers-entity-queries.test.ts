@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { deflateSync } from "node:zlib";
+import { objectsGameObjectQueryResponseBody } from "#test-support/areas/objects";
 import { FIXTURE_CHARACTER } from "#test-support/fixtures";
 import { startMockWorldServer } from "#test-support/mock-world-server";
 import { must } from "#test-support/must";
@@ -256,12 +257,15 @@ describe("world handler tests", () => {
         await firstAppear;
 
         const nameReady = waitForEntityEvents(handle, 2);
-        const goResp = new PacketWriter();
-        goResp.uint32LE(7777);
-        goResp.uint32LE(19);
-        goResp.uint32LE(0);
-        goResp.cString("Forge");
-        ws.inject(GameOpcode.SMSG_GAMEOBJECT_QUERY_RESPONSE, goResp.finish());
+        ws.inject(
+          GameOpcode.SMSG_GAMEOBJECT_QUERY_RESPONSE,
+          objectsGameObjectQueryResponseBody({
+            displayId: 0,
+            entry: 7777,
+            name: "Forge",
+            type: 19,
+          }),
+        );
         await nameReady;
 
         const secondAppear = waitForEntityEvents(handle, 1);

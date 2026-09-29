@@ -41,6 +41,8 @@ import {
 } from "#harness/tools/engage-reasons";
 import {
   afterOf,
+  fightFigures,
+  fightLine,
   isKill,
   killNames,
   kills,
@@ -220,9 +222,14 @@ function noXpNote(tally: Tally): string {
     : `; no XP for ${noXp.map((target) => target.ref).join(", ")} (${noXpText(noXp)})`;
 }
 
+function totalsText(scene: Scene): string {
+  const line = fightLine(fightFigures(scene.ops, scene.tally));
+  return line === "" ? "" : ` ${line}`;
+}
+
 function gains(scene: Scene): string {
   const { tally } = scene;
-  return `${tally.xp > 0 ? ` +${tally.xp} XP.` : ""}${lootText(tally)} ${vitalsLine(scene.ops)}`;
+  return `${tally.xp > 0 ? ` +${tally.xp} XP.` : ""}${lootText(tally)}${totalsText(scene)} ${vitalsLine(scene.ops)}`;
 }
 
 function creditText(tally: Tally, secs: number): string {
@@ -459,7 +466,15 @@ export async function fight(init: FightInit): Promise<Report> {
     const modes = { cycle, quest, single };
     const end = await modes[init.choice.mode](scene);
     const secs = Math.round((init.ops.rt.clock.now() - tally.startedAt) / 1000);
-    const died = init.cause()?.code === "died";
+    const cause = init.cause();
+    if (cause?.code === "breath")
+      return result("FAILED", {
+        after: afterOf(init.ops, scene),
+        detail: cause.detail,
+        next: nextCall("look"),
+        reason: "interrupted",
+      });
+    const died = cause?.code === "died";
     tally.loot = await nameLootLines(
       init.ops,
       tally.loot,

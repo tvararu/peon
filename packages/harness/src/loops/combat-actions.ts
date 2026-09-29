@@ -1,4 +1,5 @@
 import {
+  type AreaState,
   bearing,
   type CombatState,
   type EntityLookup,
@@ -7,6 +8,10 @@ import {
   type SpellDefinition,
 } from "@peon/core";
 import type { JevCandidate } from "#harness/jev/contract";
+import {
+  channelCandidates,
+  channelObservation,
+} from "#harness/loops/combat-actions-channel";
 import {
   deathOutcome,
   engagedWith,
@@ -20,10 +25,13 @@ import {
 } from "#harness/loops/combat-actions-movement";
 import {
   auraObservation,
+  combatLogObservation,
   facing,
   hex,
+  immuneTo,
   navigationObservation,
   outcomeObservation,
+  RANGE_HELD_REASONS,
   separation,
   timeoutOutcome,
   unitObservation,
@@ -38,14 +46,14 @@ import {
   gearReason,
   isAutoShot,
   isRangedShot,
-  meleeRange,
   NO_RANGED_GEAR,
-  RANGED_RANGE_FLAG,
 } from "#harness/loops/combat-actions-ranged";
 import {
   auraReason,
   describeSpell,
+  hostileReason,
   manaReason,
+  rangeSupport,
   requiresStanding,
   unsupportedSpell,
 } from "#harness/loops/combat-actions-spells";
@@ -63,6 +71,7 @@ type ActionDeps = {
   relation: (guid: bigint) => FactionRelation;
   now: () => number;
   gear?: () => RangedGear;
+  combatLog?: () => AreaState<"combatlog"> | undefined;
 };
 
 type SpellAction = {
@@ -104,47 +113,75 @@ export class CombatActions {
 
   observe(context: TacticsContext): TacticsFrame {
     const state = this.deps.combat.snapshot(context.targetGuid);
+    const channel = this.deps.combat.channel();
     const spells = state.learned.map((id) =>
       this.spellAction(id, context, state),
     );
-    const outcome = this.outcome(context, state, spells);
+    const outcome = channel
+      ? this.terminalOutcome(context, state)
+      : this.outcome(context, state, spells);
     const candidates: JevCandidate[] = [WAIT];
-    if (!outcome) this.addCandidates(candidates, spells, state);
+    if (channel && !outcome)
+      candidates.push(...channelCandidates(state, channel, context.targetGuid));
+    else if (!outcome) this.addCandidates(candidates, spells, state);
+    const extra = channel
+      ? channelObservation(
+          channel,
+          this.deps.combat.definition(channel.spellId)?.name,
+          this.deps.now(),
+        )
+      : {};
     return {
-      observation: withNulls({
-        self: unitObservation(state.self),
-        target: state.target ? unitObservation(state.target) : null,
-        targetRelation: this.deps.relation(context.targetGuid),
-        separation: separation(state) ?? null,
-        facingTarget: facing(state),
-        casting: state.casting
-          ? { ...state.casting, target: hex(state.casting.target) }
-          : null,
-        pendingCast: state.pendingCast
-          ? { ...state.pendingCast, target: hex(state.pendingCast.target) }
-          : null,
-        attacking: state.attacking,
-        attackTarget: hex(state.attackTarget),
-        pendingAttack: hex(state.pendingAttack),
-        ...hunterObservation(state, this.deps.entity, context.targetGuid),
-        auras: state.auras.map(auraObservation),
-        targetAuras: state.targetAuras.map(auraObservation),
-        cooldowns: state.cooldowns,
-        unknownLearned: state.unknownLearned,
-        unavailable: spells
-          .filter((action) => action.reason)
-          .map((action) => ({ id: action.id, reason: action.reason })),
-        lastOutcome: state.lastOutcome
-          ? outcomeObservation(state.lastOutcome)
-          : null,
-        lastXp: state.lastXp
-          ? { ...state.lastXp, victim: hex(state.lastXp.victim) }
-          : null,
-        navigation: navigationObservation(this.deps.control.navigationState()),
-        rejections: this.rejections.observation(),
-      }),
       candidates,
+      observation: withNulls({
+        ...this.baseObservation(context, state, spells),
+        ...extra,
+      }),
       outcome,
+    };
+  }
+
+  private baseObservation(
+    context: TacticsContext,
+    state: CombatState,
+    spells: { id: string; reason?: string }[],
+  ): Record<string, unknown> {
+    return {
+      self: unitObservation(state.self),
+      target: state.target ? unitObservation(state.target) : null,
+      targetRelation: this.deps.relation(context.targetGuid),
+      separation: separation(state) ?? null,
+      facingTarget: facing(state),
+      casting: state.casting
+        ? { ...state.casting, target: hex(state.casting.target) }
+        : null,
+      pendingCast: state.pendingCast
+        ? { ...state.pendingCast, target: hex(state.pendingCast.target) }
+        : null,
+      attacking: state.attacking,
+      attackTarget: hex(state.attackTarget),
+      pendingAttack: hex(state.pendingAttack),
+      ...hunterObservation(state, this.deps.entity, context.targetGuid),
+      combatLog: combatLogObservation(this.deps.combatLog?.(), {
+        now: this.deps.now(),
+        self: state.self.guid,
+        target: context.targetGuid,
+      }),
+      auras: state.auras.map(auraObservation),
+      targetAuras: state.targetAuras.map(auraObservation),
+      cooldowns: state.cooldowns,
+      unknownLearned: state.unknownLearned,
+      unavailable: spells
+        .filter((action) => action.reason)
+        .map((action) => ({ id: action.id, reason: action.reason })),
+      lastOutcome: state.lastOutcome
+        ? outcomeObservation(state.lastOutcome)
+        : null,
+      lastXp: state.lastXp
+        ? { ...state.lastXp, victim: hex(state.lastXp.victim) }
+        : null,
+      navigation: navigationObservation(this.deps.control.navigationState()),
+      rejections: this.rejections.observation(),
     };
   }
 
@@ -302,22 +339,16 @@ export class CombatActions {
       };
     const unsupported =
       unsupportedSpell(spell, state.self.shapeshiftForm) ??
-      this.rangeSupport(spell, hostile) ??
+      rangeSupport(spell, hostile) ??
       (isRangedShot(spell)
         ? gearReason(spell, this.deps.gear?.() ?? NO_RANGED_GEAR)
         : undefined);
-    const reason = unsupported ?? this.spellReason(spell, state, hostile);
+    const immune =
+      hostile && immuneTo(this.deps.combatLog?.(), context.targetGuid, id);
+    const reason =
+      unsupported ??
+      (immune ? "immune" : this.spellReason(spell, state, hostile));
     return { id: actionId, spell, target, reason, supported: !unsupported };
-  }
-
-  private rangeSupport(
-    spell: SpellDefinition,
-    hostile: boolean,
-  ): string | undefined {
-    const flags = spell.range?.flags;
-    if (!hostile || flags === 0) return undefined;
-    if (flags === RANGED_RANGE_FLAG && isRangedShot(spell)) return undefined;
-    return "unsupported_range";
   }
 
   private spellReason(
@@ -342,24 +373,7 @@ export class CombatActions {
         target.health >= target.maxHealth)
     )
       return "no_observed_healing_needed";
-    return hostile ? this.hostileReason(spell, state) : undefined;
-  }
-
-  private hostileReason(
-    spell: SpellDefinition,
-    state: CombatState,
-  ): string | undefined {
-    const distance = separation(state);
-    if (distance === undefined) return "unobserved_range";
-    const range = spell.range;
-    if (range === undefined)
-      throw new Error("hostile spell is missing range metadata");
-    if (distance < range.minHostile || distance > range.maxHostile)
-      return "out_of_range";
-    if (isRangedShot(spell) && distance <= meleeRange(this.deps.entity, state))
-      return "too_close";
-    if (!facing(state)) return "not_facing";
-    return undefined;
+    return hostile ? hostileReason(spell, state, this.deps.entity) : undefined;
   }
 
   private outcome(
@@ -367,18 +381,12 @@ export class CombatActions {
     state: CombatState,
     spells: readonly SpellAction[],
   ): TacticsFrame["outcome"] {
-    const observed = this.observedOutcome(context, state);
-    if (observed) return observed;
+    const terminal = this.terminalOutcome(context, state);
+    if (terminal || state.target?.health === 0) return terminal;
     const now = this.deps.now();
     const timedOut = timeoutOutcome(state, now);
     if (timedOut) return timedOut;
     const target = this.deps.entity(context.targetGuid);
-    if (state.target?.health === 0) {
-      this.deadAt ??= now;
-      const { engaged } = this;
-      const waitedMs = now - this.deadAt;
-      return deathOutcome({ engaged, state, target, waitedMs });
-    }
     this.engaged ||= engagedWith(state, target);
     const reason = targetReason(this.deps, context.targetGuid, state);
     if (reason) return { status: "blocked", reason };
@@ -392,6 +400,21 @@ export class CombatActions {
       this.reachOutcome(context, state, spells, now) ??
       this.progress.observe(state, now)
     );
+  }
+
+  private terminalOutcome(
+    context: TacticsContext,
+    state: CombatState,
+  ): TacticsFrame["outcome"] {
+    const observed = this.observedOutcome(context, state);
+    if (observed) return observed;
+    if (state.target?.health !== 0) return undefined;
+    const now = this.deps.now();
+    this.deadAt ??= now;
+    const { engaged } = this;
+    const waitedMs = now - this.deadAt;
+    const target = this.deps.entity(context.targetGuid);
+    return deathOutcome({ engaged, state, target, waitedMs });
   }
 
   private observedOutcome(
@@ -471,15 +494,7 @@ export class CombatActions {
         distance !== undefined &&
         distance >= range.minHostile &&
         distance <= range.maxHostile &&
-        [
-          "cooldown",
-          "insufficient_mana",
-          "aura_already_present",
-          "caster_aura_required",
-          "target_aura_required",
-          "too_close",
-          "auto_shot_active",
-        ].includes(action.reason)
+        RANGE_HELD_REASONS.has(action.reason)
       )
         return true;
     }

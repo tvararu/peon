@@ -1,4 +1,6 @@
 import {
+  type AreaEventOf,
+  type AreaState,
   type QuestDialog,
   type QuestEvent,
   type QuestState,
@@ -136,7 +138,10 @@ export async function openDialog(
 ): Promise<QuestDialog | undefined> {
   const opened = await questStep(ctx, {
     match: (event) => event.type === "dialog" || event.type === "window",
-    packet: () => ctx.handle.talk(npc.guid),
+    packet: () =>
+      npc.unit.ref.startsWith("o")
+        ? ctx.handle.objects.act.use(npc.guid)
+        : ctx.handle.talk(npc.guid),
   });
   return opened?.type === "dialog"
     ? ctx.handle.getQuestState().dialog
@@ -247,6 +252,124 @@ export function pickRefusal(
   });
 }
 
+type QuestsArea = AreaState<"quests">;
+type GossipPoiEvent = Extract<AreaEventOf<"quests">, { type: "gossip_poi" }>;
+type NpcTextEvent = Extract<AreaEventOf<"quests">, { type: "npc_text" }>;
+
+const FALLBACK_TEXT = "Greetings $N";
+
+function selfWords(ctx: ToolCtx<InteractAfter>): {
+  className: string;
+  name: string;
+  race: string;
+} {
+  const world = ctx.rt.ready.inWorld();
+  return {
+    className: world?.className ?? "unknown",
+    name: ctx.rt.profile.character,
+    race: world?.race ?? "unknown",
+  };
+}
+
+function fillPlaceholders(
+  text: string,
+  self: { className: string; name: string; race: string },
+): string {
+  return text
+    .replaceAll("$N", self.name)
+    .replaceAll("$n", self.name)
+    .replaceAll("$C", self.className)
+    .replaceAll("$c", self.className)
+    .replaceAll("$R", self.race)
+    .replaceAll("$r", self.race)
+    .replaceAll("$B", " ")
+    .replaceAll("$b", " ")
+    .replaceAll(/ {2,}/g, " ")
+    .trim();
+}
+
+function greetingRaw(
+  ctx: ToolCtx<InteractAfter>,
+  textId: number,
+): string | undefined {
+  const entry = ctx.handle.quests.state().texts.get(textId);
+  if (entry?.status !== "known") return undefined;
+  const texts = entry.options.filter((option) => option.text0 !== "");
+  if (texts.length === 0) return undefined;
+  if (
+    texts.every(
+      (option) => option.probability === 0 && option.text0 === FALLBACK_TEXT,
+    )
+  )
+    return undefined;
+  let best = texts[0];
+  for (const option of texts)
+    if (option.probability > (best?.probability ?? -1)) best = option;
+  return best?.text0;
+}
+
+function greetingOf(
+  ctx: ToolCtx<InteractAfter>,
+  dialog: QuestDialog | undefined,
+): string | undefined {
+  if (dialog?.kind !== "gossip") return undefined;
+  const raw = greetingRaw(ctx, dialog.data.titleTextId);
+  return raw === undefined ? undefined : fillPlaceholders(raw, selfWords(ctx));
+}
+
+export async function waitGreeting(
+  ctx: ToolCtx<InteractAfter>,
+  dialog: QuestDialog | undefined,
+): Promise<string | undefined> {
+  const now = greetingOf(ctx, dialog);
+  if (now !== undefined) return now;
+  if (dialog?.kind !== "gossip") return undefined;
+  const textId = dialog.data.titleTextId;
+  if (ctx.handle.quests.state().texts.get(textId)?.status !== "pending")
+    return undefined;
+  await settle<NpcTextEvent>({
+    match: (event) => event.textId === textId && event.status !== "pending",
+    signal: ctx.signal,
+    subscribe: (cb) =>
+      ctx.handle.onAreaEvent(({ area, event }) => {
+        if (area === "quests" && event.type === "npc_text") cb(event);
+      }),
+    timeoutMs: ANSWER_MS,
+  });
+  return greetingOf(ctx, dialog);
+}
+
+function coordOf(value: number): string {
+  return String(Math.round(value * 10) / 10);
+}
+
+function poiLine(
+  ctx: ToolCtx<InteractAfter>,
+  poi: NonNullable<QuestsArea["gossipPoi"]>,
+): { line: string; next: string } {
+  const pose = ctx.handle.getControlState().pose;
+  const yards =
+    pose === undefined
+      ? undefined
+      : Math.round(Math.hypot(poi.x - pose.x, poi.y - pose.y));
+  const far = yards === undefined ? "" : ` (${yards} yd)`;
+  const to = `${coordOf(poi.x)}, ${coordOf(poi.y)}`;
+  return {
+    line: `marked: ${poi.name} at ${to}${far}`,
+    next: nextCall("travel", { to }),
+  };
+}
+
+function poiOf(
+  ctx: ToolCtx<InteractAfter>,
+  seen: GossipPoiEvent | undefined,
+): { line: string; next: string } | undefined {
+  const poi = ctx.handle.quests.state().gossipPoi;
+  if (poi === undefined || seen === undefined) return undefined;
+  if (poi.name !== seen.name) return undefined;
+  return poiLine(ctx, poi);
+}
+
 export function unanswered(
   npc: NpcTarget,
   what: string,
@@ -293,6 +416,31 @@ export const acceptStep: InteractStep = async ({ args, ctx, npc }) => {
   });
 };
 
+async function chooseOption(
+  ctx: ToolCtx<InteractAfter>,
+  npc: NpcTarget,
+  optionIndex: number,
+): Promise<{ poi: GossipPoiEvent | undefined; reply: QuestEvent | undefined }> {
+  let poi: GossipPoiEvent | undefined;
+  const stop = ctx.handle.onAreaEvent(({ area, event }) => {
+    if (
+      area === "quests" &&
+      event.type === "gossip_poi" &&
+      event.from === npc.guid
+    )
+      poi = event;
+  });
+  const reply = await questStep(ctx, {
+    match: (event) =>
+      event.type === "dialog" ||
+      event.type === "window" ||
+      event.type === "closed",
+    packet: () => ctx.handle.selectGossipOption(optionIndex),
+  });
+  stop();
+  return { poi, reply };
+}
+
 export const gossipStep: InteractStep = async ({ args, ctx, npc }) => {
   const dialog = await openDialog(ctx, npc);
   const lines = gossipOf(dialog);
@@ -312,14 +460,8 @@ export const gossipStep: InteractStep = async ({ args, ctx, npc }) => {
       }),
       reason: lines.length === 0 ? "no_gossip" : "which_option",
     });
-  const answer = await questStep(ctx, {
-    match: (event) =>
-      event.type === "dialog" ||
-      event.type === "window" ||
-      event.type === "closed",
-    packet: () => ctx.handle.selectGossipOption(option.optionIndex),
-  });
-  if (!answer)
+  const { poi, reply } = await chooseOption(ctx, npc, option.optionIndex);
+  if (!reply)
     throw unanswered(
       npc,
       `option ${line.line}`,
@@ -327,6 +469,7 @@ export const gossipStep: InteractStep = async ({ args, ctx, npc }) => {
     );
   const next = ctx.handle.getQuestState().dialog;
   const offers = offersOf(next, ctx.handle.getQuestState());
+  const marked = poiOf(ctx, poi);
   return result("DONE", {
     after: {
       ...baseAfter(ctx, npc, "gossip"),
@@ -337,7 +480,9 @@ export const gossipStep: InteractStep = async ({ args, ctx, npc }) => {
     body: [
       ...offers.map(offerLine),
       ...gossipOf(next).map((known) => `Gossip ${known.line}: ${known.text}`),
+      ...(marked ? [marked.line] : []),
     ],
-    detail: `chose "${line.text}"; the NPC answered (${answer.type}).`,
+    detail: `chose "${line.text}"; the NPC answered (${reply.type}).${marked ? ` ${marked.line}.` : ""}`,
+    next: marked?.next,
   });
 };

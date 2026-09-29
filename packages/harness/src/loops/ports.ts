@@ -1,4 +1,5 @@
 import type {
+  AreaState,
   CombatState,
   ControlState,
   MovementDirection,
@@ -13,6 +14,7 @@ import type { Travel } from "#harness/navigation/travel";
 
 export type CombatPort = {
   snapshot: (targetGuid?: bigint) => CombatState;
+  channel: () => AreaState<"spells">["channel"];
   definition: (spellId: number) => SpellDefinition | undefined;
   readyAt: (spellId: number) => number;
   isAttackingSelf: (guid: bigint) => boolean;
@@ -57,6 +59,7 @@ export function combatPort(handle: WorldHandle): CombatPort {
     attack: (targetGuid) => handle.attack(targetGuid),
     cancelCast: () => handle.cancelCast(),
     cast: (spellId, targetGuid) => handle.cast(spellId, targetGuid),
+    channel: () => handle.spells.state().channel,
     definition: (spellId) => handle.spellDefinition(spellId),
     halt: () => handle.stopCombat(),
     isAttackingSelf: (guid) => handle.isAttackingSelf(guid),

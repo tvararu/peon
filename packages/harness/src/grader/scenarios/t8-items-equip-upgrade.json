@@ -1,0 +1,71 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 6,
+    "tools": 12,
+    "turns": 6
+  },
+  "checks": [
+    {
+      "evidence": {
+        "items": [20840, 20981],
+        "truth": ["equipment"]
+      },
+      "expect": "T final has item 20840 (Sunstrider Mace, a one-hand mace of item level 5) at bag 255 slot 15, where T baseline had item 20981 (Neophyte's Mace, item level 2)",
+      "id": "weapon",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "items": [4496],
+        "truth": ["equipment"]
+      },
+      "expect": "T final has item 4496 (Small Brown Pouch, a 6-slot bag) at bag 255 in one of slots 19-22",
+      "id": "bag",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "items": [20981],
+        "truth": ["inventory"]
+      },
+      "expect": "T final has item 20981 (the old Neophyte's Mace) in a bag row: bag 255 slots 23-38 or a row inside the equipped bag, and item 20981 count delta is 0 (it was not destroyed or sold)",
+      "id": "old-weapon",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["items/equipped"],
+        "ids": [20840, 4496]
+      },
+      "expect": "GL has an items/equipped row for item 20840 and one for item 4496",
+      "id": "equipped-rows",
+      "source": "game_log"
+    }
+  ],
+  "id": "t8-items-equip-upgrade",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "fresh",
+  "setup": [
+    {
+      "body": {
+        "count": 1,
+        "item": 20840
+      },
+      "endpoint": "items/add"
+    },
+    {
+      "body": {
+        "count": 1,
+        "item": 4496
+      },
+      "endpoint": "items/add"
+    }
+  ],
+  "steers": [],
+  "task": "You got new gear. Wear anything better, and put the bag on.",
+  "tier": 8
+}

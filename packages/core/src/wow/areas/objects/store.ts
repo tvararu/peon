@@ -1,15 +1,41 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import type { AreaTriggerMessage } from "#wow/areas/objects/protocol";
+import type { LockCatalog } from "#wow/areas/objects/lock-catalog";
+import type {
+  AreaTriggerMessage,
+  PageTextReply,
+} from "#wow/areas/objects/protocol";
+import {
+  type GameObjectTemplate,
+  gameObjectTemplate,
+} from "#wow/areas/objects/templates";
 import type { AreaTriggerCatalog } from "#wow/areas/objects/trigger-catalog";
 import {
   type TriggerPoint,
   TriggerWatch,
 } from "#wow/areas/objects/trigger-watch";
 import { UnitFlag } from "#wow/protocol/entity-fields";
+import type { GameObjectQueryResult } from "#wow/protocol/entity-queries";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
+const GAMEOBJECT_TYPE = 5;
+export const PAGE_READ_MAX_PAGES = 30;
 export type TriggerCatalogState = "none" | "loading" | "ready" | "failed";
+export type LockCatalogState = "none" | "loading" | "ready" | "failed";
+export type PendingUse = {
+  guid: bigint;
+  entry: number;
+  sentAt: number;
+  expired: boolean;
+};
+export type UseRecord = { guid: bigint; entry: number };
+export type UseRefusal = { ok: false; reason: "unknown" };
+export type PageText = { pageId: number; text: string };
+export type PageChain = { firstPageId: number; pages: readonly PageText[] };
+export type UnansweredPage = { pageId: number };
 export type ObjectsState = {
+  templates: ReadonlyMap<number, GameObjectTemplate>;
+  pendingUse: PendingUse | undefined;
+  pages: ReadonlyMap<number, readonly PageText[]>;
   triggers: {
     catalog: TriggerCatalogState;
     map: number | undefined;
@@ -18,25 +44,58 @@ export type ObjectsState = {
   };
   lastMessage: { text: string; at: number } | undefined;
 };
+export type OpenUseRecord = UseRecord & {
+  how: "use" | "cast";
+  spellId?: number;
+};
 export type ObjectsEvent =
+  | {
+      type: "used";
+      guid: bigint;
+      entry: number;
+      how: "use" | "cast";
+      spellId?: number;
+    }
   | { type: "trigger_sent"; triggerId: number; map: number }
-  | { type: "trigger_message"; text: string };
+  | { type: "trigger_message"; text: string }
+  | { type: "page_read"; firstPageId: number; pages: readonly PageText[] }
+  | { type: "page_shown"; guid: bigint; pageId: number }
+  | { type: "page_unanswered"; pageId: number };
 
 export class ObjectsStore {
   private readonly events = new Emitter<[ObjectsEvent]>();
   private readonly deps: SessionDeps;
+  private readonly core: CoreStores;
   private catalog: TriggerCatalogState = "none";
+  private locksState: LockCatalogState = "none";
+  private locks: LockCatalog | undefined;
+  private lockWaiters: {
+    resolve: (catalog: LockCatalog | undefined) => void;
+  }[] = [];
   private watch: TriggerWatch | undefined;
   private last: TriggerPoint | undefined;
   private readonly sent = new Set<number>();
   private lastMessage: ObjectsState["lastMessage"];
+  private readonly templates = new Map<number, GameObjectTemplate>();
+  private pending: { guid: bigint; entry: number; sentAt: number } | undefined;
+  private readonly pages = new Map<number, PageText[]>();
+  private readonly chained = new Map<number, PageText[]>();
+  private readonly nexts = new Map<number, number>();
+  private readonly pendingShown = new Set<bigint>();
 
-  constructor(deps: SessionDeps, _core: CoreStores) {
+  constructor(deps: SessionDeps, core: CoreStores) {
     this.deps = deps;
+    this.core = core;
   }
 
   snapshot(): ObjectsState {
     return {
+      templates: this.templates,
+      pendingUse: this.pending && {
+        ...this.pending,
+        expired: this.deps.now() - this.pending.sentAt >= 5000,
+      },
+      pages: this.pages,
       triggers: {
         catalog: this.catalog,
         map: this.last?.mapId,
@@ -51,8 +110,64 @@ export class ObjectsStore {
     return this.events.subscribe(cb);
   }
 
+  template(reply: GameObjectQueryResult): void {
+    if (reply.name === undefined) return;
+    this.templates.set(reply.entry, gameObjectTemplate(reply));
+    for (const guid of [...this.pendingShown]) {
+      const object = this.object(guid);
+      if (object?.entry !== reply.entry) continue;
+      this.pendingShown.delete(guid);
+      this.shown({ guid });
+    }
+  }
+
   loadingTriggers(): void {
     this.catalog = "loading";
+  }
+
+  loadingLocks(): void {
+    this.locksState = "loading";
+  }
+
+  locksFailed(): void {
+    this.locksState = "failed";
+    const waiters = this.lockWaiters;
+    this.lockWaiters = [];
+    for (const waiter of waiters) waiter.resolve(undefined);
+  }
+
+  useLocks(catalog: LockCatalog): void {
+    this.locksState = "ready";
+    this.locks = catalog;
+    const waiters = this.lockWaiters;
+    this.lockWaiters = [];
+    for (const waiter of waiters) waiter.resolve(catalog);
+  }
+
+  lockOf(entry: number) {
+    return this.templates.get(entry)?.lockId;
+  }
+
+  lockEntry(lockId: number) {
+    return this.locks?.get(lockId);
+  }
+
+  waitLocks(): Promise<LockCatalog | undefined> {
+    if (this.locksState === "ready") return Promise.resolve(this.locks);
+    if (this.locksState === "failed" || this.locksState === "none")
+      return Promise.resolve(undefined);
+    return new Promise<LockCatalog | undefined>((resolve) => {
+      this.lockWaiters.push({ resolve });
+    });
+  }
+
+  locksReady(): boolean {
+    return this.locksState === "ready";
+  }
+
+  recordOpen(object: UseRecord, spellId: number): void {
+    this.pending = { ...object, sentAt: this.deps.now() };
+    this.events.emit({ ...object, how: "cast", spellId, type: "used" });
   }
 
   triggersFailed(): void {
@@ -75,6 +190,27 @@ export class ObjectsStore {
     this.watch?.arrive(point);
   }
 
+  entity(guid: bigint) {
+    return this.deps.getEntity(guid);
+  }
+
+  object(guid: bigint): UseRecord | undefined {
+    const entity = this.deps.getEntity(guid);
+    if (entity?.objectType !== GAMEOBJECT_TYPE) return undefined;
+    return { entry: entity.entry, guid };
+  }
+
+  sendUse(guid: bigint): UseRecord | UseRefusal {
+    const object = this.object(guid);
+    if (!object) return { ok: false, reason: "unknown" };
+    const entity = this.deps.getEntity(guid);
+    if (entity && "gameObjectType" in entity && entity.gameObjectType === 2)
+      this.core.quests.requestIntent({ action: "talk", guid });
+    this.pending = { ...object, sentAt: this.deps.now() };
+    this.events.emit({ ...object, how: "use", type: "used" });
+    return object;
+  }
+
   noteSent(triggerId: number, map: number): void {
     this.sent.add(triggerId);
     this.events.emit({ type: "trigger_sent", triggerId, map });
@@ -83,6 +219,74 @@ export class ObjectsStore {
   message({ text }: AreaTriggerMessage): void {
     this.lastMessage = { text, at: this.deps.now() };
     this.events.emit({ type: "trigger_message", text });
+  }
+
+  chain(firstPageId: number): PageText[] {
+    const kept = this.pages.get(firstPageId);
+    if (kept) return [...kept];
+    const open = this.chained.get(firstPageId);
+    if (open) return open;
+    const pages: PageText[] = [];
+    this.chained.set(firstPageId, pages);
+    return pages;
+  }
+
+  chainsFor(reply: PageTextReply): number[] {
+    const firsts: number[] = [];
+    const open = this.chained.get(reply.pageId);
+    if (open && open.length === 0) firsts.push(reply.pageId);
+    for (const [first, pages] of this.chained) {
+      if (first === reply.pageId) continue;
+      if (pages.length > 0 && this.nexts.get(first) === reply.pageId)
+        firsts.push(first);
+    }
+    return firsts;
+  }
+
+  page(reply: PageTextReply): void {
+    if (this.pages.has(reply.pageId)) return;
+    const firsts = this.chainsFor(reply);
+    if (firsts.length === 0) return;
+    for (const first of firsts) {
+      const pages = this.chained.get(first);
+      if (!pages) continue;
+      pages.push({ pageId: reply.pageId, text: reply.text });
+      this.nexts.set(first, reply.nextPageId);
+      if (reply.nextPageId === 0 || pages.length >= PAGE_READ_MAX_PAGES) {
+        this.markRead({ firstPageId: first, pages });
+        continue;
+      }
+      const suffix = this.pages.get(reply.nextPageId);
+      if (suffix) {
+        pages.push(...suffix.slice(0, PAGE_READ_MAX_PAGES - pages.length));
+        this.markRead({ firstPageId: first, pages });
+      }
+    }
+  }
+
+  shown({ guid }: { guid: bigint }): void {
+    const object = this.object(guid);
+    if (!object) return;
+    const template = this.templates.get(object.entry);
+    if (!template) {
+      this.pendingShown.add(guid);
+      return;
+    }
+    if (!template.pageId) return;
+    this.events.emit({ guid, pageId: template.pageId, type: "page_shown" });
+  }
+
+  markRead(chain: PageChain): void {
+    this.pages.set(chain.firstPageId, [...chain.pages]);
+    this.chained.delete(chain.firstPageId);
+    this.nexts.delete(chain.firstPageId);
+    this.events.emit({ ...chain, type: "page_read" });
+  }
+
+  unanswered(pageId: number): void {
+    this.chained.delete(pageId);
+    this.nexts.delete(pageId);
+    this.events.emit({ pageId, type: "page_unanswered" });
   }
 
   dispose(): void {

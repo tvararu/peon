@@ -206,6 +206,8 @@ function journalRows(theme: Theme, after: JournalAfter): string[] {
       return questRows(theme, after.quests);
     case "bags":
       return bagRows(theme, after.bags);
+    case "reputation":
+      return after.factions.map((name) => `${glyph("spell")} ${name}`);
     case "spells":
       return after.spells.map(
         (s) => `${glyph("spell")} ${s.name}${s.rank ? ` (${s.rank})` : ""}`,

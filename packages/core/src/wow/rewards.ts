@@ -152,7 +152,11 @@ export class RewardsRuntime {
     if (this.store.loot.phase !== "closed")
       throw new Error("Previous loot window has not closed");
     const source = this.deps.getEntity(guid);
-    if (source?.guid !== guid || source.objectType !== ObjectType.UNIT)
+    if (source?.guid !== guid)
+      throw new Error("Loot source is not an observed entity");
+    if (source.objectType === ObjectType.GAMEOBJECT)
+      return this.store.requestOpen(guid);
+    if (source.objectType !== ObjectType.UNIT)
       throw new Error("Loot source is not an observed creature");
     const health = fieldOf(source, UNIT_FIELDS.HEALTH.offset);
     const flags = source.rawFields.get(UNIT_FIELDS.DYNAMIC_FLAGS.offset);

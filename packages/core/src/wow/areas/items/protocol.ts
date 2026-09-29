@@ -62,3 +62,9 @@ export function buildSplitItem(
   w.uint32LE(count);
   return w.finish();
 }
+
+export function buildSetAmmo(entry: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(entry);
+  return w.finish();
+}

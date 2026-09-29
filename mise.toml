@@ -20,18 +20,18 @@ hk install --mise
 [tasks.test]
 description = "Run all tests in parallel, failing if one writes git config"
 raw = true
-run = "bun packages/devtools/src/git-env-guard.ts bun test --parallel --no-isolate"
+run = "bun packages/devtools/src/git-env-guard.ts bun test --parallel --no-isolate --timeout 2000"
 
 [tasks."test:coverage"]
 description = "Run tests in parallel with coverage report"
 raw = true
-run = "bun packages/devtools/src/git-env-guard.ts bun test --parallel --no-isolate --coverage"
+run = "bun packages/devtools/src/git-env-guard.ts bun test --parallel --no-isolate --timeout 2000 --coverage"
 
 [tasks."test:slowest"]
 description = "Show 10 slowest tests"
 raw = true
 run = '''
-bun packages/devtools/src/git-env-guard.ts bun test --parallel --no-isolate \
+bun packages/devtools/src/git-env-guard.ts bun test --parallel --no-isolate --timeout 2000 \
   --reporter=junit --reporter-outfile=tmp/junit.xml && \
 sed -n 's/.*<testcase name="\([^"]*\)".* time="\([^"]*\)".*/\2\t\1/p' \
   tmp/junit.xml | sort -rn | head -10 \

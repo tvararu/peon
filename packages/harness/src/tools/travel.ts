@@ -1,4 +1,11 @@
 import { messageOf } from "@peon/core/lib/errors";
+import {
+  isObjectRef,
+  objectRows,
+  objectUnit,
+  reachYd,
+  resolveObjectRef,
+} from "#harness/areas/objects/reads";
 import type { TravelAfter } from "#harness/contract/details";
 import type { ToolStatus } from "#harness/contract/result";
 import type { RunControl, RunEnd, RunStatus } from "#harness/contract/runs";
@@ -23,6 +30,7 @@ import { defineGameTool, result, UPDATE_EVERY_MS } from "#harness/tools/define";
 import type { GameToolSpec } from "#harness/tools/game-tool";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 import { type TravelArgs, travelParams } from "#harness/tools/params-travel";
+import { hearthWork } from "#harness/tools/travel-hearth";
 import { noteTravel, noteUnstick } from "#harness/tools/travel-recovery";
 import {
   exploreReport,
@@ -40,7 +48,13 @@ import {
 import { travelRenderers } from "#harness/ui/renderers/live-run";
 
 type After = (patch: Partial<TravelAfter>) => TravelAfter;
-type Work = { ops: OpsCtx; args: TravelArgs; goal: Goal; after: After };
+type Work = {
+  ops: OpsCtx;
+  ctx: ToolCtx<TravelAfter>;
+  args: TravelArgs;
+  goal: Goal;
+  after: After;
+};
 
 const COORDS =
   /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*(-?\d+(?:\.\d+)?)\s*)?$/;
@@ -70,6 +84,7 @@ function parseGoal(ctx: ToolCtx<TravelAfter>, to: string): Goal {
   const lower = text.toLowerCase();
   if (lower === "corpse") return { kind: "corpse" };
   if (lower === "unstick") return { kind: "unstick" };
+  if (lower === "hearth") return { kind: "hearth" };
   if (lower === "explore" || lower.startsWith("explore "))
     return parseExplore(text, lower);
   const coords = COORDS.exec(text);
@@ -80,10 +95,25 @@ function parseGoal(ctx: ToolCtx<TravelAfter>, to: string): Goal {
       y: Number(coords[2]),
       z: coords[3] === undefined ? undefined : Number(coords[3]),
     };
+  if (isObjectRef(text)) {
+    const object = resolveObjectRef(ctx, text);
+    if (object)
+      return { guid: object.guid, kind: "unit", unit: objectUnit(object) };
+  }
   const resolved = resolveUnit(ctx, { text });
+  if (resolved.kind === "not_seen") {
+    const object = resolveObjectRef(ctx, text);
+    if (object)
+      return { guid: object.guid, kind: "unit", unit: objectUnit(object) };
+  }
   if (resolved.kind !== "unit")
     throw unitRefusal({ param: "to", resolved, tool: "travel" });
   return { guid: resolved.guid, kind: "unit", unit: resolved.unit };
+}
+
+function reachOf(ctx: OpsCtx, guid: bigint): number | undefined {
+  const row = objectRows(ctx).find((known) => known.guid === guid);
+  return row ? reachYd(row) : undefined;
 }
 
 function remainingOf(ctx: OpsCtx, goal: Goal): number | undefined {
@@ -111,7 +141,9 @@ async function legWork(
             y: goal.y,
             ...(goal.z === undefined ? {} : { z: goal.z }),
           },
-    within: args.within ?? (goal.kind === "unit" ? 3 : 1),
+    within:
+      args.within ??
+      (goal.kind === "unit" ? (reachOf(ops, goal.guid) ?? 3) : 1),
   });
   const leg = { ...walked, traveledYd: walked.traveledYd + walkedYd };
   const view = after({
@@ -214,6 +246,8 @@ async function doWork(work: Work): Promise<Report> {
     return legWork({ ...work, goal });
   if (goal.kind === "unstick") return unstickWork(work);
   if (goal.kind === "corpse") return corpseWork(work);
+  if (goal.kind === "hearth")
+    return hearthWork({ ...work.ctx, signal: work.ops.signal }, work.after);
   const wanted = exploreWanted(work.ops, work.args.for);
   const found = await explore(work.ops, { direction: goal.direction, wanted });
   return exploreReport(
@@ -295,7 +329,7 @@ async function launch(init: {
     partial(now);
   }, UPDATE_EVERY_MS);
   try {
-    const report = await doWork({ after, args, goal, ops });
+    const report = await doWork({ after, args, ctx, goal, ops });
     if (control.signal.aborted)
       return runEnd(
         stopReport(control.signal, report.after),

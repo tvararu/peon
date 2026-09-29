@@ -15,15 +15,18 @@ describe("guidHex", () => {
 });
 
 describe("parseRef", () => {
-  test("reads u<n>", () => {
+  test("reads u<n> and o<n>", () => {
     expect(parseRef("u12")).toBe(12);
-    expect(parseRef(" u3 ")).toBe(3);
+    expect(parseRef("o12")).toBe(12);
+    expect(parseRef(" o3 ")).toBe(3);
   });
 
   test("gives undefined for anything else", () => {
     expect(parseRef("u0")).toBeUndefined();
+    expect(parseRef("o0")).toBeUndefined();
     expect(parseRef("12")).toBeUndefined();
     expect(parseRef("u4x")).toBeUndefined();
+    expect(parseRef("x1")).toBeUndefined();
     expect(parseRef("Springpaw Stalker")).toBeUndefined();
   });
 });
@@ -53,6 +56,17 @@ describe("createRefTable", () => {
       new Set(Array.from({ length: 31 }, (_, i) => refs.refOf(BigInt(i + 1))))
         .size,
     ).toBe(31);
+  });
+});
+
+describe("createRefTable with o<n>", () => {
+  test("numbers objects separately from units", () => {
+    const refs = createRefTable();
+    expect(refs.refOf(0x50n)).toBe("u1");
+    expect(refs.refOf(0xf110_0000_0000_0070n)).toBe("o1");
+    expect(refs.refOf(0x60n)).toBe("u2");
+    expect(refs.refOf(0xf110_0000_0000_0070n)).toBe("o1");
+    expect(refs.guidOf("o1")).toBe(0xf110_0000_0000_0070n);
   });
 });
 

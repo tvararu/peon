@@ -1,0 +1,59 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 15,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["spells/channel_end"]
+      },
+      "expect": "GL has a spells/channel_end row with reason cancelled within 2 s of the stop steer, so the channel ended by the stop and not by finishing",
+      "id": "channel-cancelled",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["combat/cast"]
+      },
+      "expect": "GL shows no new combat/cast row from the character in the 5 s after the stop steer; the only combat/cast row allowed in that window is result interrupted for Evocation (spell 12051), which is the cancelled channel's own end, so nothing recast",
+      "id": "no-recast",
+      "source": "game_log"
+    }
+  ],
+  "field": "fairbreeze-stalkers",
+  "id": "t4-spells-stop-channel",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "eversong10-mage",
+  "setup": [
+    {
+      "body": {
+        "level": 20
+      },
+      "endpoint": "level"
+    },
+    {
+      "body": {
+        "spell": 12051
+      },
+      "endpoint": "spells/learn"
+    }
+  ],
+  "steers": [
+    {
+      "at": {
+        "delayMs": 300,
+        "kind": "trigger",
+        "trigger": "channel_start"
+      },
+      "text": "Stop! Stop right now."
+    }
+  ],
+  "task": "Channel Evocation with the spell tool, then wait: do not cast again until told.",
+  "tier": 4
+}

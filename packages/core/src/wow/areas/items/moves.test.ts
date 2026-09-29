@@ -78,6 +78,21 @@ describe("move settle rules (design 5.3)", () => {
     expect(moveSettled(named, inventory(world))).toBe(true);
   });
 
+  test("unequip into a named bag settles only once the item is in that bag", () => {
+    const world = itemsWorld(ME);
+    world.put(255, 19, { bagSlots: 6, entry: 4496, guid: BAG });
+    world.put(255, 25, { entry: 25, guid: SWORD });
+    const named = request({
+      from: { bag: 255, slot: 15 },
+      kind: "unequip",
+      to: { bag: 19, slot: 255 },
+    });
+    expect(moveSettled(named, inventory(world))).toBe(false);
+    world.clear(255, 25);
+    world.put(19, 3, { entry: 25, guid: SWORD });
+    expect(moveSettled(named, inventory(world))).toBe(true);
+  });
+
   test("swap settles when the item reaches the destination or merges into its stack", () => {
     const world = itemsWorld(ME);
     world.put(255, 23, { count: 5, entry: 159, guid: WATER });
@@ -116,6 +131,19 @@ describe("move settle rules (design 5.3)", () => {
     expect(moveSettled(split, inventory(world))).toBe(false);
     world.put(255, 30, { count: 5, entry: 159, guid: SPLIT });
     expect(moveSettled(split, inventory(world))).toBe(true);
+  });
+
+  test("ammo settles when the loaded id equals the entry (PlayerStorage.cpp:2628-2648)", () => {
+    const world = itemsWorld(ME);
+    world.put(255, 23, { count: 200, entry: 2512, guid: WATER });
+    const load = request({ entry: 2512, kind: "ammo" });
+    expect(moveSettled(load, inventory(world))).toBe(false);
+    world.setAmmo(2512);
+    expect(moveSettled(load, inventory(world))).toBe(true);
+    world.setAmmo(0);
+    expect(
+      moveSettled(request({ entry: 0, kind: "ammo" }), inventory(world)),
+    ).toBe(true);
   });
 
   test("bank slots, bank bags and buyback slots are refused until economy reads them", () => {

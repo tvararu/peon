@@ -29,7 +29,10 @@ export type VitalsView = {
   power: number;
   maxPower: number;
   powerKind: PowerKind;
+  comboPoints?: number;
 };
+
+export type Posture = "sitting" | "kneeling" | "sleeping";
 
 export type SelfView = VitalsView & {
   name: string;
@@ -43,6 +46,7 @@ export type SelfView = VitalsView & {
   copper: number | undefined;
   freeSlots: number | undefined;
   pose: PoseView | undefined;
+  posture?: Posture | undefined;
 };
 
 export type PlaceView = {
@@ -52,6 +56,13 @@ export type PlaceView = {
   areaId: number | undefined;
   ageMs: number | undefined;
 };
+
+export type QuestMark =
+  | "available"
+  | "available_low"
+  | "available_repeatable"
+  | "reward"
+  | "incomplete";
 
 export type UnitView = {
   ref: string;
@@ -81,6 +92,7 @@ export type UnitView = {
   fightingMe?: boolean;
   aggro?: string;
   myThreatPct?: number;
+  questMark?: QuestMark;
 };
 
 export type NearestKind =
@@ -90,6 +102,7 @@ export type NearestKind =
   | "vendor"
   | "trainer"
   | "repair"
+  | "innkeeper"
   | "lootable"
   | "player"
   | "spirit_healer";
@@ -138,6 +151,7 @@ export type NoProgress = {
 export type NowSnapshot = {
   at: number;
   self: SelfView;
+  breathS?: number | undefined;
   place: PlaceView;
   target: UnitView | undefined;
   targetAuras: AuraView[];

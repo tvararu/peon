@@ -69,3 +69,97 @@ export function selfstatePreResurrectBody(guid: bigint): Uint8Array {
   w.packedGuidBig(guid);
   return w.finish();
 }
+
+export function selfstateMoveFeatherFallBody(
+  init: MoveCounterBody,
+): Uint8Array {
+  return moveCounterBody(init);
+}
+
+export function selfstateMoveNormalFallBody(init: MoveCounterBody): Uint8Array {
+  return moveCounterBody(init);
+}
+
+export function selfstateMoveGravityDisableBody(
+  init: MoveCounterBody,
+): Uint8Array {
+  return moveCounterBody(init);
+}
+
+export function selfstateMoveGravityEnableBody(
+  init: MoveCounterBody,
+): Uint8Array {
+  return moveCounterBody(init);
+}
+
+export type MultipleMovesEntry = MoveCounterBody & {
+  opcode: number;
+  extra?: readonly number[];
+};
+
+export function selfstateMultipleMovesBody(
+  entries: readonly MultipleMovesEntry[],
+): Uint8Array {
+  const inner = new PacketWriter();
+  for (const { opcode, guid, counter, extra = [] } of entries) {
+    const entry = new PacketWriter();
+    entry.uint16LE(opcode);
+    entry.packedGuidBig(guid);
+    entry.uint32LE(counter);
+    for (const byte of extra) entry.uint8(byte);
+    const bytes = entry.finish();
+    inner.uint8(bytes.length);
+    inner.rawBytes(bytes);
+  }
+  const body = inner.finish();
+  const w = new PacketWriter();
+  w.uint32LE(body.length);
+  w.rawBytes(body);
+  return w.finish();
+}
+
+export type CollisionHeightBody = MoveCounterBody & { height: number };
+
+export function selfstateMoveSetCollisionHeightBody({
+  guid,
+  counter,
+  height,
+}: CollisionHeightBody): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(guid);
+  w.uint32LE(counter);
+  w.floatLE(height);
+  return w.finish();
+}
+
+export type ForceSpeedBody = MoveCounterBody & { speed: number };
+
+export function selfstateForcePitchRateChangeBody({
+  guid,
+  counter,
+  speed,
+}: ForceSpeedBody): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(guid);
+  w.uint32LE(counter);
+  w.floatLE(speed);
+  return w.finish();
+}
+
+export type TransferAbortedBody = {
+  mapId: number;
+  reason: number;
+  arg?: number;
+};
+
+export function selfstateTransferAbortedBody({
+  mapId,
+  reason,
+  arg,
+}: TransferAbortedBody): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(mapId);
+  w.uint8(reason);
+  if (arg !== undefined) w.uint8(arg);
+  return w.finish();
+}

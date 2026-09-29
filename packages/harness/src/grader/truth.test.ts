@@ -243,6 +243,11 @@ describe("parseTruth", () => {
     expect(Object.keys(truth)).not.toContain("hearth");
   });
 
+  test("reads a null hearth as none for a character never logged in", () => {
+    const truth = parseTruth({ ...LIVE_REPLY, hearth: null });
+    expect(Object.keys(truth)).not.toContain("hearth");
+  });
+
   test("names a wrong optional field", () => {
     const live = (overrides: Record<string, unknown>) => ({
       ...LIVE_REPLY,

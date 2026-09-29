@@ -1,11 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import { lootingLootListBody } from "#test-support/areas/looting";
-import { testStores } from "#test-support/session-fixtures";
-import { createModuleRuntimes, looseModule } from "#wow/areas/compose";
-import type { LootingActs } from "#wow/areas/looting/runtime";
-import { testPort } from "#wow/areas/port";
-import { AREAS } from "#wow/areas/registry";
 import type { PartyMember } from "#wow/party-store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
@@ -29,7 +24,7 @@ function member(name: string, guid: bigint): PartyMember {
 }
 
 function inParty() {
-  const port = testPort({
+  const rig = areaRig("looting", {
     legacy: {
       party: () => ({
         inGroup: true,
@@ -43,16 +38,7 @@ function inParty() {
       channels: () => [],
     },
   });
-  const stores = testStores({ send: port.send });
-  const own = { looting: stores.areas.looting };
-  const lifetime = createModuleRuntimes(
-    port,
-    [looseModule(AREAS.looting)],
-    own,
-    stores,
-  );
-  const act = lifetime.runtimes["looting"]?.act as LootingActs;
-  return { act, dispose: lifetime.dispose, sent: port.sent };
+  return { act: rig.handle.act, dispose: rig.dispose, sent: rig.sent };
 }
 
 function killed() {

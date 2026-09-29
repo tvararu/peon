@@ -125,7 +125,7 @@ export type InterruptRules = {
   death: boolean;
 };
 export type InterruptCause = {
-  code: "attacked" | "rooted" | "died";
+  code: "attacked" | "rooted" | "died" | "breath";
   detail: string;
   attacker: bigint | undefined;
 };
@@ -154,6 +154,32 @@ const DIED: InterruptCause = {
   code: "died",
   detail: "you died.",
 };
+
+function breathCause(remainingMs: number): InterruptCause {
+  const seconds = Math.max(0, Math.ceil(remainingMs / 1000));
+  return {
+    attacker: undefined,
+    code: "breath",
+    detail: `Surface now: you have ${seconds} s of breath.`,
+  };
+}
+
+const BREATH_LOW_MS = 10_000;
+
+function breathRemainingMs(
+  handle: WorldHandle,
+  now: number,
+): number | undefined {
+  const timer = handle.selfstate.state().timers.breath;
+  if (timer === undefined || timer.paused || timer.scale >= 0) return;
+  return timer.valueMs + timer.scale * (now - timer.at);
+}
+
+function fireLowBreath(handle: WorldHandle, now: number, fire: Fire): void {
+  const left = breathRemainingMs(handle, now);
+  if (left === undefined || left > BREATH_LOW_MS) return;
+  fire(breathCause(Math.max(0, left)));
+}
 
 function onAttacked({ ctx, event, fire, known, rules }: AttackWatch): void {
   if (event.type !== "attacked") return;
@@ -205,6 +231,9 @@ export function watchInterrupts(
     handle.onControlEvent((event) => {
       if (rules.rooted && event.state.blockedReason === "rooted") fire(ROOTED);
     }),
+    handle.selfstate.onEvent((event) => {
+      if (event.type === "breath_low") fire(breathCause(event.remainingMs));
+    }),
     handle.onRecoveryEvent((event) => {
       if (
         rules.death &&
@@ -215,7 +244,10 @@ export function watchInterrupts(
     }),
   ];
   if (signal.aborted) follow();
-  else signal.addEventListener("abort", follow, { once: true });
+  else {
+    fireLowBreath(handle, ctx.rt.clock.now(), fire);
+    signal.addEventListener("abort", follow, { once: true });
+  }
   return {
     cause: () => cause,
     dispose() {

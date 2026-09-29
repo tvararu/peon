@@ -1,7 +1,15 @@
-import type { CombatState, SpellDefinition, SpellEffect } from "@peon/core";
+import type {
+  CombatState,
+  EntityLookup,
+  SpellDefinition,
+  SpellEffect,
+} from "@peon/core";
+import { facing, separation } from "#harness/loops/combat-actions-observation";
 import {
   isAutoShot,
   isRangedShot,
+  meleeRange,
+  RANGED_RANGE_FLAG,
   rangedAura,
 } from "#harness/loops/combat-actions-ranged";
 
@@ -156,6 +164,33 @@ export function auraReason(
   return undefined;
 }
 
+type ChannelClock = {
+  spellId: number;
+  remainingMs: number | undefined;
+  endsAt: number | undefined;
+};
+
+export function channelRemainingMs(
+  channel: ChannelClock,
+  now: number,
+): number | undefined {
+  if (channel.endsAt !== undefined) return Math.max(0, channel.endsAt - now);
+  return channel.remainingMs === undefined
+    ? undefined
+    : Math.max(0, channel.remainingMs);
+}
+
+export function channelText(
+  channel: ChannelClock,
+  name: string | undefined,
+  now: number,
+): string {
+  const label = name ?? `spell ${channel.spellId}`;
+  const remainingMs = channelRemainingMs(channel, now);
+  if (remainingMs === undefined) return `channelling ${label}`;
+  return `channelling ${label}, ${(remainingMs / 1000).toFixed(1)} s left`;
+}
+
 export function describeSpell(spell: SpellDefinition, self: boolean): string {
   if (isAutoShot(spell))
     return `Start ${spell.name} on selected creature: repeating ranged weapon shots that use ammo, until stopped or the creature dies; needs line of sight, facing, and ${spell.range?.maxHostile ?? "unknown"} yd or less but outside melee range; no mana`;
@@ -171,4 +206,32 @@ export function describeSpell(spell: SpellDefinition, self: boolean): string {
       intervalMs: effect.amplitude,
     }));
   return `Request ${spell.name} ${spell.rank} on ${self ? "self" : "selected creature"}; mana ${spell.power.costRaw} + ${spell.power.costPercentageOfBaseMana}% base mana; cast ${castMs}ms; duration ${spell.duration?.durationMs ?? "unknown"}ms; DBC base effects (server applies scaling/modifiers) ${JSON.stringify(effects)}`;
+}
+
+export function rangeSupport(
+  spell: SpellDefinition,
+  hostile: boolean,
+): string | undefined {
+  const flags = spell.range?.flags;
+  if (!hostile || flags === 0) return undefined;
+  if (flags === RANGED_RANGE_FLAG && isRangedShot(spell)) return undefined;
+  return "unsupported_range";
+}
+
+export function hostileReason(
+  spell: SpellDefinition,
+  state: CombatState,
+  entity: EntityLookup,
+): string | undefined {
+  const distance = separation(state);
+  if (distance === undefined) return "unobserved_range";
+  const range = spell.range;
+  if (range === undefined)
+    throw new Error("hostile spell is missing range metadata");
+  if (distance < range.minHostile || distance > range.maxHostile)
+    return "out_of_range";
+  if (isRangedShot(spell) && distance <= meleeRange(entity, state))
+    return "too_close";
+  if (!facing(state)) return "not_facing";
+  return undefined;
 }

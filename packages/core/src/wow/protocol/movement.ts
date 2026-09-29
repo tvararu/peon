@@ -79,6 +79,10 @@ export const SPEED_ACKS = [
     smsg: GameOpcode.SMSG_FORCE_FLIGHT_BACK_SPEED_CHANGE,
     ack: GameOpcode.CMSG_FORCE_FLIGHT_BACK_SPEED_CHANGE_ACK,
   },
+  {
+    smsg: GameOpcode.SMSG_FORCE_PITCH_RATE_CHANGE,
+    ack: GameOpcode.CMSG_FORCE_PITCH_RATE_CHANGE_ACK,
+  },
 ] as const;
 
 export type SpeedAck = (typeof SPEED_ACKS)[number];
@@ -251,6 +255,23 @@ export function buildSpeedAck(ack: MoveAck, speed: number): Uint8Array {
   const w = new PacketWriter();
   writeMoveAck(w, ack);
   w.floatLE(speed);
+  return w.finish();
+}
+
+export function buildCollisionHeightAck(
+  ack: MoveAck,
+  height: number,
+): Uint8Array {
+  const w = new PacketWriter();
+  writeMoveAck(w, ack);
+  w.floatLE(height);
+  return w.finish();
+}
+
+export function buildTimeSkipped(guid: bigint, ms: number): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(guid);
+  w.uint32LE(ms);
   return w.finish();
 }
 

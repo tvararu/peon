@@ -1,0 +1,46 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 40,
+    "turns": 15
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["quest/accepted"],
+        "ids": [8325]
+      },
+      "expect": "the agent accepts 8325 from Magistrix Erona (GL quest/accepted for 8325)",
+      "id": "took-quest",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "point": { "x": 10309, "y": -6294 }
+      },
+      "expect": "final position within 40 yd of the 8325 objective-0 centroid (10309, -6294) from the live SMSG_QUEST_POI_QUERY_RESPONSE capture",
+      "id": "walked-to-region",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["tool/call"]
+      },
+      "expect": "a journal call is in the game log (the grader confirms its tool/call row names journal before grading it met)",
+      "id": "journal-called",
+      "source": "game_log"
+    }
+  ],
+  "field": "sunstrider-wyrms",
+  "id": "t4-quests-poi-walk",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "fresh",
+  "setup": [],
+  "steers": [],
+  "task": "Take the first quest from Magistrix Erona in front of you, go to where its objective is, then stop.",
+  "tier": 4
+}

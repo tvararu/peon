@@ -1,0 +1,49 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 25,
+    "turns": 10
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["quests/gossip_poi"]
+      },
+      "expect": "GL has a quests/gossip_poi row for the Lion's Pride Inn",
+      "id": "poi-row",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "point": {
+          "x": -9459,
+          "y": 42.08
+        }
+      },
+      "expect": "T final position within 15 yd of the live POI point (-9459, 42.08)",
+      "id": "at-inn",
+      "source": "truth"
+    }
+  ],
+  "id": "t1-quests-guard-directions",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "elwynn10",
+  "setup": [
+    {
+      "body": {
+        "map": 0,
+        "x": -9481,
+        "y": 74,
+        "z": 56.5
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Ask a guard where the inn is and go there.",
+  "tier": 1
+}

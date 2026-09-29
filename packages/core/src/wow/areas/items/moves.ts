@@ -12,7 +12,13 @@ const BANK_LAST = 73;
 const BUYBACK_FIRST = 74;
 const BUYBACK_LAST = 85;
 
-export type MoveKind = "equip" | "equip_slot" | "unequip" | "swap" | "split";
+export type MoveKind =
+  | "equip"
+  | "equip_slot"
+  | "unequip"
+  | "swap"
+  | "split"
+  | "ammo";
 export type MoveTarget = { guid: bigint; count: number };
 export type MoveRequest = {
   kind: MoveKind;
@@ -120,6 +126,7 @@ const RULES: Readonly<
   unequip: (request, _inventory, held) => unequipped(request, held),
   swap: (request, inventory) => swapped(request, inventory),
   split: (request, inventory) => split(request, inventory),
+  ammo: (request, inventory) => inventory.ammoId === request.entry,
 };
 
 export function moveSettled(

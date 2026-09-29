@@ -8,7 +8,10 @@ export type ToolName =
   | "recover"
   | "social"
   | "journal"
-  | "stop";
+  | "stop"
+  | "gear"
+  | "use"
+  | "spell";
 
 export type ToolKind = "read" | "action" | "run" | "control";
 

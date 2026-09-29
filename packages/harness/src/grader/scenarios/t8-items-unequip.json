@@ -1,0 +1,48 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 6,
+    "tools": 10,
+    "turns": 5
+  },
+  "checks": [
+    {
+      "evidence": {
+        "items": [9749],
+        "truth": ["equipment"]
+      },
+      "expect": "T final has no row at bag 255 slot 4: the chest slot is empty (not swapped to another item)",
+      "id": "chest-empty",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "items": [9749],
+        "truth": ["inventory"]
+      },
+      "expect": "T final still has item 9749 (Simple Blouse) in a bag row, count delta 0 (it was kept, not destroyed or sold)",
+      "id": "chest-kept",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["items/unequipped"],
+        "ids": [9749]
+      },
+      "expect": "GL has an items/unequipped row for item 9749",
+      "id": "unequipped-row",
+      "source": "game_log"
+    }
+  ],
+  "id": "t8-items-unequip",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "eversong10",
+  "setup": [],
+  "spawn": "eversong-west",
+  "steers": [],
+  "task": "Take off your chest armour and keep it in your bags.",
+  "tier": 8
+}

@@ -1,19 +1,30 @@
 import { describe, expect, test } from "bun:test";
 import {
+  selfstateForcePitchRateChangeBody,
+  selfstateMoveSetCollisionHeightBody,
+  selfstateMultipleMovesBody,
   selfstatePreResurrectBody,
   selfstateStandstateUpdateBody,
   selfstateStartMirrorTimerBody,
   selfstateStopMirrorTimerBody,
+  selfstateTransferAbortedBody,
 } from "#test-support/areas/selfstate";
+import { must } from "#test-support/must";
 import {
   buildStandStateChange,
   MIRROR_TIMERS,
+  parseCollisionHeight,
   parseMirrorTimer,
+  parseMultipleMoves,
   parsePreResurrect,
   parseStandState,
   parseStopMirrorTimer,
+  parseTransferAborted,
   STAND_STATES,
+  TRANSFER_ABORT_REASONS,
 } from "#wow/areas/selfstate/protocol";
+import { parseForceSpeed, speedAckFor } from "#wow/protocol/movement";
+import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 
 const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString("hex");
@@ -89,5 +100,132 @@ describe("selfstate protocol", () => {
     const body = selfstatePreResurrectBody(0x0e01n);
     expect(hex(body)).toBe("03010e");
     expect(parsePreResurrect(read(body))).toBe(0x0e01n);
+  });
+
+  test("SMSG_MULTIPLE_MOVES ghost login: one water walk entry (AC Entities/Player/Player.cpp:11866-11912)", () => {
+    const body = selfstateMultipleMovesBody([
+      { counter: 5, guid: 0x0764n, opcode: GameOpcode.SMSG_MOVE_WATER_WALK },
+    ]);
+    expect(hex(body)).toBe("0a00000009de0003640705000000");
+    expect(parseMultipleMoves(read(body))).toEqual({
+      entries: [
+        { counter: 5, guid: 0x0764n, opcode: GameOpcode.SMSG_MOVE_WATER_WALK },
+      ],
+      skipped: [],
+    });
+  });
+
+  test("SMSG_MULTIPLE_MOVES full case: root, feather fall, water walk and hover in wire order (AC Entities/Player/Player.cpp:11866-11912)", () => {
+    const guid = 0x0700_0000_0000_0764n;
+    const opcodes = [
+      GameOpcode.SMSG_FORCE_MOVE_ROOT,
+      GameOpcode.SMSG_MOVE_FEATHER_FALL,
+      GameOpcode.SMSG_MOVE_WATER_WALK,
+      GameOpcode.SMSG_MOVE_SET_HOVER,
+    ];
+    expect(opcodes).toEqual([0xe8, 0xf2, 0xde, 0xf4]);
+    const entries = opcodes.map((opcode, i) => ({
+      counter: 1 + i,
+      guid,
+      opcode,
+    }));
+    const r = read(selfstateMultipleMovesBody(entries));
+    expect(parseMultipleMoves(r)).toEqual({ entries, skipped: [] });
+    expect(r.remaining).toBe(0);
+  });
+
+  test("SMSG_MULTIPLE_MOVES skips an unknown inner opcode by its length and reports it", () => {
+    const body = selfstateMultipleMovesBody([
+      {
+        counter: 1,
+        extra: [0, 0, 0x80, 0x3f],
+        guid: 0x0764n,
+        opcode: GameOpcode.SMSG_MOVE_SET_COLLISION_HGT,
+      },
+      { counter: 2, guid: 0x0764n, opcode: GameOpcode.SMSG_MOVE_WATER_WALK },
+    ]);
+    expect(parseMultipleMoves(read(body))).toEqual({
+      entries: [
+        { counter: 2, guid: 0x0764n, opcode: GameOpcode.SMSG_MOVE_WATER_WALK },
+      ],
+      skipped: [GameOpcode.SMSG_MOVE_SET_COLLISION_HGT],
+    });
+  });
+});
+
+describe("SMSG_TRANSFER_ABORTED (AC Entities/Player/Player.cpp:11956-11972)", () => {
+  test("reasons 7, 8 and 9 carry a u8 arg after the map and reason", () => {
+    expect(TRANSFER_ABORT_REASONS.insuf_expan_lvl).toBe(7);
+    expect(TRANSFER_ABORT_REASONS.difficulty).toBe(8);
+    expect(TRANSFER_ABORT_REASONS.unique_message).toBe(9);
+    const bodies = [36, 574, 631].map((mapId, i) =>
+      selfstateTransferAbortedBody({ arg: 1, mapId, reason: 7 + i }),
+    );
+    expect(bodies.map(hex)).toEqual([
+      "240000000701",
+      "3e0200000801",
+      "770200000901",
+    ]);
+    const last = bodies[2];
+    if (!last) throw new Error("missing body");
+    expect(parseTransferAborted(read(last))).toEqual({
+      arg: 1,
+      mapId: 631,
+      reason: 9,
+    });
+  });
+
+  test("reason 5 ends after the reason byte", () => {
+    const body = selfstateTransferAbortedBody({ mapId: 36, reason: 5 });
+    expect(hex(body)).toBe("2400000005");
+    const r = read(body);
+    expect(parseTransferAborted(r)).toEqual({
+      arg: undefined,
+      mapId: 36,
+      reason: 5,
+    });
+    expect(r.remaining).toBe(0);
+  });
+
+  test("too_many_instances is reason 4 with no arg (AC Maps/MapMgr.cpp:230-244)", () => {
+    expect(TRANSFER_ABORT_REASONS.too_many_instances).toBe(4);
+    const r = read(selfstateTransferAbortedBody({ mapId: 36, reason: 4 }));
+    expect(parseTransferAborted(r)).toEqual({
+      arg: undefined,
+      mapId: 36,
+      reason: 4,
+    });
+    expect(r.remaining).toBe(0);
+  });
+});
+
+describe("SMSG_MOVE_SET_COLLISION_HGT (AC Entities/Unit/Unit.cpp:10272-10275)", () => {
+  test("reads the guid, the counter and the height", () => {
+    const body = selfstateMoveSetCollisionHeightBody({
+      counter: 5,
+      guid: 0x0764n,
+      height: 3.1,
+    });
+    const r = read(body);
+    const parsed = parseCollisionHeight(r);
+    expect(parsed.guid).toBe(0x0764n);
+    expect(parsed.counter).toBe(5);
+    expect(parsed.height).toBeCloseTo(3.1, 4);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("SMSG_FORCE_PITCH_RATE_CHANGE reads guid, counter and speed through the speed acks (AC Entities/Unit/Unit.h:661)", () => {
+    const spec = must(speedAckFor(GameOpcode.SMSG_FORCE_PITCH_RATE_CHANGE));
+    const body = selfstateForcePitchRateChangeBody({
+      counter: 9,
+      guid: 0x0764n,
+      speed: 3.14,
+    });
+    const r = read(body);
+    const parsed = parseForceSpeed(r, spec);
+    expect(parsed.guid).toBe(0x0764n);
+    expect(parsed.counter).toBe(9);
+    expect(parsed.speed).toBeCloseTo(3.14, 4);
+    expect(r.remaining).toBe(0);
   });
 });

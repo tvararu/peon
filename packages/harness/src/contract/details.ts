@@ -1,4 +1,4 @@
-import type { ItemKind, NpcRole } from "@peon/core";
+import type { ActionButtonType, ItemKind, NpcRole } from "@peon/core";
 import type { GameLogEntry } from "#harness/contract/log";
 import type { ToolResult } from "#harness/contract/result";
 import type { RunRecord } from "#harness/contract/runs";
@@ -24,6 +24,7 @@ export type LookFilter =
   | "vendor"
   | "trainer"
   | "repair"
+  | "innkeeper"
   | "lootable"
   | "player"
   | "corpse"
@@ -66,7 +67,8 @@ export type TravelGoalView =
   | { kind: "point"; x: number; y: number; z: number | undefined }
   | { kind: "corpse" }
   | { kind: "explore"; direction: Compass | undefined }
-  | { kind: "unstick"; refusedGoal: string | undefined };
+  | { kind: "unstick"; refusedGoal: string | undefined }
+  | { kind: "hearth" };
 
 export type TravelAfter = {
   goal: TravelGoalView;
@@ -123,6 +125,11 @@ export type EngageAfter = {
   timeouts: number;
   castErrors: CodeWord[];
   swingErrors: CodeWord[];
+  dealt?: number;
+  taken?: number;
+  healed?: number;
+  avoided?: CodeWord[];
+  immune?: string[];
 };
 
 export type LootAfter = {
@@ -141,7 +148,9 @@ export type InteractAction =
   | "buy"
   | "sell_junk"
   | "train"
-  | "repair";
+  | "repair"
+  | "bind"
+  | "buyback";
 
 export type QuestOffer = {
   line: number;
@@ -254,6 +263,12 @@ export type EquipSlotName =
   | "ranged"
   | "tabard";
 
+export type QuestRegionView = {
+  kind: "objective" | "turn_in";
+  label: string;
+  to: string;
+};
+
 export type QuestLine = {
   id: number;
   title: string;
@@ -261,20 +276,36 @@ export type QuestLine = {
   status: "incomplete" | "complete" | "failed";
   objectives: { text: string; count: number; required: number }[];
   turnIn: string | undefined;
+  region?: QuestRegionView | { none: true } | undefined;
+};
+
+export type BagRow = {
+  name: string;
+  count: number;
+  quality: number | null;
+  bag: number;
+  slot: number;
+  kind: ItemKind;
+  entry: number | undefined;
+  canWear: boolean | undefined;
+  requiredLevel: number | undefined;
+  upgrade: { itemLevel: number; wornItemLevel: number } | undefined;
+  durability: { current: number; max: number } | undefined;
+  secondsLeft: number | undefined;
+  loadedAmmo: boolean;
 };
 
 export type BagsView = {
   copper: number | undefined;
   freeSlots: number | undefined;
-  equipped: { slot: EquipSlotName; name: string; quality: number | null }[];
-  items: {
+  equipped: {
+    slot: EquipSlotName;
     name: string;
-    count: number;
     quality: number | null;
-    bag: number;
-    slot: number;
-    kind: ItemKind;
+    durability: { current: number; max: number } | undefined;
   }[];
+  items: BagRow[];
+  ammo: { name: string; entry: number } | undefined;
 };
 
 export type SpellLine = {
@@ -285,10 +316,23 @@ export type SpellLine = {
   cooldownMs: number | undefined;
 };
 
+export type AuraLine = {
+  spellId: number;
+  name: string;
+};
+
+export type BarLine = {
+  slot: number;
+  type: ActionButtonType;
+  id: number;
+  name: string;
+};
+
 export type JournalAfter =
   | { about: "quests"; quests: QuestLine[] }
   | { about: "bags"; bags: BagsView }
-  | { about: "spells"; spells: SpellLine[] }
+  | { about: "spells"; spells: SpellLine[]; auras: AuraLine[]; bar: BarLine[] }
+  | { about: "reputation"; factions: string[] }
   | { about: "log"; rows: GameLogEntry[]; more: number; label: string };
 
 export type StopAfter = {

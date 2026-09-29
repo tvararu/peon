@@ -190,3 +190,38 @@ describe("nowClock", () => {
     expect(nowClock(at)).toBe("19:13:31");
   });
 });
+
+describe("formatNow breath", () => {
+  test("shows the seconds of breath after the vitals and never drops it", () => {
+    const long = "A".repeat(90);
+    const line = formatNow(
+      snapshot({
+        breathS: 45,
+        nearest: { hostile: unit("u12", long, 41) },
+        target: unit("u9", long, 23),
+      }),
+    );
+    expect(line).toContain("alive in combat · breath 45 s · Eversong Woods");
+    expect(line).toContain("breath 45 s");
+    expect(line.length).toBeLessThanOrEqual(NOW_MAX_CHARS);
+  });
+
+  test("shows nothing without a breath timer", () => {
+    expect(formatNow(snapshot({ breathS: undefined }))).not.toContain("breath");
+    expect(formatNow(snapshot())).not.toContain("breath");
+  });
+});
+
+describe("formatNow combo points", () => {
+  test("shows CP after the power when the character holds any", () => {
+    const line = formatNow(snapshot({ self: { ...self, comboPoints: 3 } }));
+    expect(line).toContain("mana 88/100 CP 3 alive");
+  });
+
+  test("shows nothing at zero or without the field", () => {
+    expect(formatNow(snapshot())).not.toContain("CP");
+    expect(
+      formatNow(snapshot({ self: { ...self, comboPoints: 0 } })),
+    ).not.toContain("CP");
+  });
+});

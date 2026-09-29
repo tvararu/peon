@@ -1,10 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import type { GameObjectEntity } from "@peon/core";
 import type { InteractAfter } from "#harness/contract/details";
-import { interactSpec } from "#harness/tools/interact";
+import { createRefTable } from "#harness/ops/refs";
+import { interactSpec, interactTool } from "#harness/tools/interact";
 import {
   contentOf,
   driveGoto,
   limitProblem,
+  objectRow,
+  setSelf,
   setUnits,
   toolCtx,
   unitRow,
@@ -21,6 +25,8 @@ import {
   VELAN,
   velan,
 } from "#test-support/quest-fixtures";
+import { createTestRuntime } from "#test-support/runtime-fixture";
+import { expectSendKind } from "#test-support/tool-harness";
 
 describe("interact", () => {
   test("talk lists the offers as the design example does, then closes the window", async () => {
@@ -346,4 +352,65 @@ describe("interact", () => {
     );
     expect(goTo).toHaveBeenCalledWith({ guid: VELAN, kind: "guid" });
   });
+
+  test("talk to a type-2 object uses it and opens the quest window", async () => {
+    const t = await statueWorld(2);
+    const used: bigint[] = [];
+    const talked: bigint[] = [];
+    t.handle.talk = (at) => {
+      talked.push(at);
+    };
+    t.handle.objects.act.use = (at: bigint) => {
+      used.push(at);
+      answer(t.handle, "dialog", { dialog: listDialog(OFFERED) });
+      return { ok: true as const, record: { entry: 1, guid: at } };
+    };
+    const res = await interactSpec.run(
+      { npc: "o1" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(used).toEqual([STATUE]);
+    expect(talked).toEqual([]);
+    expect(contentOf(res).split("\n")[0]).toBe(
+      "DONE Ancient Statue (o1) offers:",
+    );
+    expect(res.after.offers.map((offer) => offer.id)).toEqual([9254, 8892]);
+    await expectSendKind(interactTool, { npc: "o1" });
+  });
+
+  test("an object that is not a quest giver refuses without a use", async () => {
+    const t = await statueWorld(0);
+    const used: bigint[] = [];
+    t.handle.objects.act.use = (at: bigint) => {
+      used.push(at);
+      return { ok: true as const, record: { entry: 1, guid: at } };
+    };
+    await expect(
+      interactSpec.run({ npc: "o1" }, toolCtx<InteractAfter>(t)),
+    ).rejects.toMatchObject({ reason: "not_quest_giver" });
+    expect(used).toEqual([]);
+  });
 });
+
+const STATUE = 0xf110_0000_0000_0070n;
+
+async function statueWorld(type: number) {
+  const t = await createTestRuntime({ parts: { refs: createRefTable() } });
+  setSelf(t.handle);
+  const row = objectRow({
+    distance: 3,
+    guid: STATUE,
+    name: "Ancient Statue",
+    x: 3,
+    y: 0,
+  });
+  setUnits(t.handle, [
+    {
+      ...row,
+      entity: { ...row.entity, gameObjectType: type } as GameObjectEntity,
+    },
+  ]);
+  t.rt.refs.refOf(STATUE);
+  t.handle.cancelInteraction = () => undefined;
+  return t;
+}

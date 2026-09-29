@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEvent } from "@peon/core";
-import { areaDrafts, areaRuleSet, fallbackDraft } from "#harness/areas/rules";
+import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
+import { spellsHarness } from "#harness/areas/spells/area";
 import { testRuleInput } from "#test-support/rule-fixtures";
 
 const ME = 0x2an;
@@ -8,6 +9,10 @@ const TRAINER = 0xf1_30_00_3e_d7_00_1a_2bn;
 const MOB = 0xf1_30_00_3e_ea_00_0a_bcn;
 
 describe("spells harness rules", () => {
+  test("the area claims the cancelAura and setActionButton acts", () => {
+    expect(spellsHarness.worldActs).toEqual(["cancelAura", "setActionButton"]);
+  });
+
   test("a spell visual or impact writes no row", () => {
     const events: AreaEvent[] = [
       {
@@ -24,7 +29,7 @@ describe("spells harness rules", () => {
       expect(areaDrafts(rules, event, testRuleInput())).toEqual([]);
   });
 
-  test("a channel start or end still writes its quiet fallback row", () => {
+  test("a channel start or end writes its ruled row", () => {
     const events: AreaEvent[] = [
       {
         area: "spells",
@@ -50,9 +55,13 @@ describe("spells harness rules", () => {
       },
     ];
     const rules = areaRuleSet();
-    for (const event of events)
-      expect(areaDrafts(rules, event, testRuleInput())).toEqual([
-        fallbackDraft(event),
-      ]);
+    const rows = events.map(
+      (event) => areaDrafts(rules, event, testRuleInput())[0],
+    );
+    expect(rows).toMatchObject([
+      { event: "spells/channel_start", text: "Channelling spell 5143." },
+      { event: "spells/channel_start", text: "Channelling spell 5143." },
+      { event: "spells/channel_end", text: "spell 5143 ended (cancelled)." },
+    ]);
   });
 });

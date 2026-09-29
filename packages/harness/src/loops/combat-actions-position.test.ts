@@ -259,7 +259,22 @@ test("an attacking creature whose faction relation is unknown can be engaged", (
   motion.observe(2n, { mapId: 530, x: 10, y: 0, z: 0, orientation: 0 });
   combatStore.applyInitialSpells({ spells: [{ spellId: 17 }], cooldowns: [] });
   const actions = new CombatActions({
-    combat,
+    combat: {
+      attack: (targetGuid: bigint) => combat.attack(targetGuid),
+      cancelCast: () => combat.cancelCast(),
+      cast: (spellId: number, targetGuid: bigint) =>
+        combat.cast(spellId, targetGuid),
+      channel: () => combatStore.casts.channel,
+      definition: (spellId: number) => combat.definition(spellId),
+      halt: () => combat.halt(),
+      isAttackingSelf: (guid: bigint) => combat.isAttackingSelf(guid),
+      petAttack: (petGuid: bigint, targetGuid: bigint) =>
+        combat.petAttack(petGuid, targetGuid),
+      readyAt: (spellId: number) => combat.readyAt(spellId),
+      snapshot: (targetGuid?: bigint) => combat.snapshot(targetGuid),
+      stopAttack: () => combat.stopAttack(),
+      stopAutoRepeat: () => combat.stopAutoRepeat(),
+    },
     control,
     entity: (guid) => store.get(guid),
     relation: () => "unknown",

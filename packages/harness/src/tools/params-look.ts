@@ -8,16 +8,18 @@ const LOOK_KINDS = [
   "vendor",
   "trainer",
   "repair",
+  "innkeeper",
   "lootable",
   "player",
   "corpse",
   "spirit_healer",
+  "object",
 ] as const;
 
 export const lookParams = Type.Object({
   find: Type.Optional(
     StringEnum(LOOK_KINDS, {
-      description: "What kind of unit to list. Default: any.",
+      description: "What kind of unit or object to list. Default: any.",
     }),
   ),
   name: Type.Optional(

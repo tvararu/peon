@@ -20,10 +20,25 @@ or the page names one that does not exist.
 | Answer whispers from another player | `t2-whisper-reply` | A chat line with no echo within 2 s is `UNCONFIRMED`. |
 | Kill creatures at its level, one at a time, with Jev choosing the actions | `t3-ghostlands-kill` | Needs Jev: after repeated failed Jev calls the fight ends as `jev_unavailable`. A hunter can end up in melee range, because `travel` stops 3 yd from a unit, so no scenario proves ranged hunter play. |
 | Take a quest, do it and turn it in | `t4-quest-first`, `t4-alliance-first` | An accept or a turn-in the server does not answer is `UNCONFIRMED`; the agent checks the quest log before it tries again. |
+| See which NPCs have a quest or a quest to turn in | `t4-quests-find-giver` | |
+| Hear what an NPC says when talked to | `t1-quests-read-greeting` | |
+| Follow a guard's directions to a marked point | `t1-quests-guard-directions` | |
 | Buy from a vendor | `t5-vendor-buy-goldshire` | |
+| Buy back an item sold by mistake | `t5-buyback-vendor` | Only items sold this session. |
 | Die, then come back to life | `t6-die-and-recover` | |
 | Stop on command and resume | `t7-halt-resume` | |
 | Answer a question while an action runs | `t7-question-while-acting` | |
+| Wear better gear and put a bag on | `t8-items-equip-upgrade` | |
+| Take off worn gear and keep it in bags | `t8-items-unequip` | |
+| Move an item into a bag | `t8-items-move` | |
+| Split a stack | `t8-items-split` | |
+| Open a container and keep its contents | `t8-items-open` | |
+| Read a letter in its bags | `t8-items-read` | The Dusty Unsent Letter's page text is empty on this server. |
+| Load arrows for a ranged weapon | `t8-items-ammo` | |
+| Cancel one of its own buffs | `t4-spells-cancel-aura` | Harmful and passive auras cannot be cancelled. |
+| Stop a channelled spell with stop | `t4-spells-stop-channel` | Stop also ends a channel. |
+| Make an inn its home | `t8-travel-bind-inn` | `interact` `bind` walks to the innkeeper first. A bind the server does not answer (dead, out of range or in an instance) is `UNCONFIRMED`. |
+| Use the hearthstone to go home | `t8-travel-hearth-home` | `travel` `hearth` refuses without the stone, on cooldown, in combat or in flight. The scenario starts at the preset's own home, so it does not show a bind at another inn. |
 
 ## Not shown by any scenario
 
@@ -33,7 +48,14 @@ These have tools or code but no scenario that checks them live:
   `repair`, `sell_junk`).
 - Group play: inviting, joining, leaving a group, and fighting as a group.
 - Ranged combat as a hunter.
+- Reading a shrine plaque (`t0-objects-read-shrine`, the agent reads the page but quotes the placard line, not the page's opening sentence).
+- Completing an exploration quest by walking into its area trigger (`t4-objects-explore-fargodeep`, the agent never reaches trigger 88: the accept points at `engage`, which fails explore quests, and compass exploring does not find the mine).
 - A sustained levelling run across several quests and zones.
+- Report its reputation with each faction and what changed it (`t4-reputation-gain`, no Faction.dbc in the eval profile so the journal names factions by id, not Silvermoon City).
+- Set the action bar (`t4-spells-action-bar`, no server truth for the bar).
+- Walking to a quest objective's region from `journal` (`t4-quests-poi-walk`):
+  the agent takes the quest but walks by other means and never reads the
+  region from `journal`.
 
 Peon has no tool for mail, trade, the auction house, flight paths or
 mounts.

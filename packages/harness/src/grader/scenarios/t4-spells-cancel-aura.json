@@ -1,0 +1,34 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 6,
+    "tools": 10,
+    "turns": 6
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["aura/gain", "aura/fade", "combat/cast"],
+        "ids": [168, 7300]
+      },
+      "expect": "GL has an aura/gain row for Frost Armor (spell 168, or 7300 for rank 2, which a level 10 mage casts) followed by an aura/fade row for the same spell, and no combat/cast row for it lies between them, so the aura went away by a cancel and not by a recast or a timeout",
+      "id": "aura-cycle",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent calling the spell tool with do \"cancel_aura\" (a tool call named spell whose arguments hold do cancel_aura), and that call not ending REFUSED",
+      "id": "used-cancel-aura",
+      "source": "session"
+    }
+  ],
+  "id": "t4-spells-cancel-aura",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "eversong10-mage",
+  "setup": [],
+  "steers": [],
+  "task": "Put Frost Armor on, then take it off again.",
+  "tier": 4
+}

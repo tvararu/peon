@@ -12,11 +12,22 @@ import type {
 
 export const LOGIN_TIMEOUT_MS = 10_000;
 
-export type MoveFlag = "water_walk" | "hover";
+export type MoveFlag = "water_walk" | "hover" | "feather_fall" | "gravity_off";
 
+export type TransferAbortedInput = {
+  mapId: number;
+  reason: number;
+  arg: number | undefined;
+};
 export type SelfEvent =
   | { type: "login_verified"; position: Position }
   | { type: "near_teleport"; info: MovementInfo }
+  | {
+      type: "transfer_aborted";
+      mapId: number;
+      reason: number;
+      arg: number | undefined;
+    }
   | { type: "teleport_ack"; ack: MoveAck }
   | { type: "transfer_pending" }
   | { type: "new_world"; position: Position }
@@ -27,6 +38,7 @@ export type SelfEvent =
   | { type: "force_speed"; spec: SpeedAck; force: ForceSpeed }
   | { type: "can_fly"; counter: number; enable: boolean }
   | { type: "move_flag"; flag: MoveFlag; enable: boolean; counter: number }
+  | { type: "collision_height"; counter: number; height: number }
   | { type: "observed"; observation: SelfObservation };
 
 export class SelfStore {

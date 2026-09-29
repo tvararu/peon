@@ -49,7 +49,7 @@ are relative to `src/server/game/` unless they start with `src/` or
 
 These follow contract D7 and 1.8. A builder adds private helpers but no
 second public name. Names the contract does not fix are plan decisions,
-not yet ruled by the maintainer.
+accepted by the maintainer (P2-5).
 
 | Name | File | Created by |
 |---|---|---|
@@ -68,7 +68,7 @@ not yet ruled by the maintainer.
 | `calendarTool` | `packages/harness/src/areas/calendar/tool.ts` | guild-17 |
 | probe flows | `packages/devtools/src/probe-flows/<area>-<name>.ts` | per task |
 
-### State placement (a plan decision, not yet ruled by the maintainer)
+### State placement (a plan decision, accepted by the maintainer (P2-5))
 
 Design 5.20 extends the legacy `GuildStore` with info, emblem, rank
 rights, permissions and the event log. This plan puts every new field in
@@ -126,7 +126,7 @@ task that reaches one of these files without its lease stops as
 | harness `tools/interact*.ts` (`interact.ts`, `interact-trainer.ts` and their tests) | guild-16 | `from: "guild"` on `do: "repair"` (`tools/interact-trainer.ts:177-222`) | the last of objects, quests, travel, pets, talents, economy in wave order |
 
 **Coordinator requests** (each a `COORD-<n>` commit or a ruling; each is
-not yet ruled by the maintainer):
+accepted by the maintainer (P2-5)):
 
 1. **Eval guild staging.** Five scenarios need the scenario character (or
    its partner) to lead a guild: `t9-guild-admin`, `t9-guild-join`,
