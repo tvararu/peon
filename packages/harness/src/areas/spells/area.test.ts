@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { AreaEvent } from "@peon/core";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
 import { spellsHarness } from "#harness/areas/spells/area";
-import { testRuleInput } from "#test-support/rule-fixtures";
+import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
 const ME = 0x2an;
 const TRAINER = 0xf1_30_00_3e_d7_00_1a_2bn;
@@ -69,7 +69,68 @@ describe("spells harness rules", () => {
     ]);
   });
 
-  test("another unit's casts write no row", () => {
+  test("a relevant caster's start and interruption write their rows", () => {
+    const rc = testRuleInput({
+      lookup: testLookup({ unitName: () => "Scourge Invader" }),
+    });
+    const start: AreaEvent = {
+      area: "spells",
+      event: {
+        durationMs: 2500,
+        guid: MOB,
+        kind: "cast",
+        relevant: 1,
+        spellId: 9613,
+        spellName: "Shadow Bolt",
+        type: "unit_cast_start",
+      },
+    };
+    const end: AreaEvent = {
+      area: "spells",
+      event: {
+        guid: MOB,
+        outcome: "interrupted",
+        relevant: 1,
+        spellId: 9613,
+        spellName: "Shadow Bolt",
+        type: "unit_cast_end",
+      },
+    };
+    const rules = areaRuleSet();
+    expect(areaDrafts(rules, start, rc)).toMatchObject([
+      {
+        data: { durationMs: 2500, spellId: 9613 },
+        event: "spells/target_start",
+        text: "Scourge Invader starts casting Shadow Bolt.",
+      },
+    ]);
+    expect(areaDrafts(rules, end, rc)).toMatchObject([
+      {
+        event: "spells/target_interrupted",
+        text: "Scourge Invader's Shadow Bolt was interrupted.",
+      },
+    ]);
+  });
+
+  test("an unnamed caster or spell falls back to ids", () => {
+    const start: AreaEvent = {
+      area: "spells",
+      event: {
+        durationMs: 1500,
+        guid: MOB,
+        kind: "channel",
+        relevant: 1,
+        spellId: 5143,
+        spellName: undefined,
+        type: "unit_cast_start",
+      },
+    };
+    expect(
+      areaDrafts(areaRuleSet(), start, testRuleInput())[0]?.text,
+    ).toContain("spell 5143");
+  });
+
+  test("other casters and settled casts write no row", () => {
     const events: AreaEvent[] = [
       {
         area: "spells",
@@ -77,7 +138,7 @@ describe("spells harness rules", () => {
           durationMs: 2500,
           guid: MOB,
           kind: "cast",
-          relevant: 1,
+          relevant: 0,
           spellId: 9613,
           spellName: "Shadow Bolt",
           type: "unit_cast_start",
@@ -87,13 +148,26 @@ describe("spells harness rules", () => {
         area: "spells",
         event: {
           guid: MOB,
-          outcome: "succeeded",
-          relevant: 1,
+          outcome: "interrupted",
+          relevant: 0,
           spellId: 9613,
           spellName: "Shadow Bolt",
           type: "unit_cast_end",
         },
       },
+      ...(["succeeded", "expired", "finished"] as const).map(
+        (outcome): AreaEvent => ({
+          area: "spells",
+          event: {
+            guid: MOB,
+            outcome,
+            relevant: 1,
+            spellId: 9613,
+            spellName: "Shadow Bolt",
+            type: "unit_cast_end",
+          },
+        }),
+      ),
     ];
     const rules = areaRuleSet();
     for (const event of events)
