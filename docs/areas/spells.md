@@ -9,7 +9,17 @@ remaining time and expected end) and stops it with
 `act.cancelChannel()`, which refuses with `not_channelling` or
 `cancel_requested` and then sends nothing. The area emits
 `channel_start` and `channel_end`; `channel_end` gives the reason
-`finished`, `interrupted` or `cancelled`.
+`finished`, `interrupted` or `cancelled`. `state().unitCasts` keeps the
+current cast or channel of every other unit in view (guid, spell, kind,
+start, duration, target and whether the caster targets the character or
+attacks it), read through `castOf(guid)`. A timed `SMSG_SPELL_START`
+opens an entry and emits `unit_cast_start`; `SMSG_SPELL_GO` ends it
+`succeeded` and `SMSG_SPELL_FAILURE` or `SMSG_SPELL_FAILED_OTHER` ends
+it `interrupted`, each emitting `unit_cast_end`, while instant casts
+open nothing. Other casters' `MSG_CHANNEL_START` and `MSG_CHANNEL_UPDATE`
+do the same for channels (`finished` on update 0). Entries expire 1000 ms
+after their end and drop when the caster disappears, and the harness
+writes no log row for them.
 
 `act.cancelAura(spellId)` drops one of the character's own auras with
 `CMSG_CANCEL_AURA`. It refuses, and sends nothing, what the server would
@@ -242,6 +252,7 @@ Cancel one of its own buffs (`t4-spells-cancel-aura`; harmful and passive auras 
 | `CMSG_SET_ACTION_BUTTON` | `live` | probe flow `spells-bar` on an `eversong10-mage`, exit 0 twice: `--arg slot=0 --arg spell=133` and `--arg slot=11 --arg item=6948` each sent one 5-byte packet; the server sent no reply, and the next login's `SMSG_ACTION_BUTTONS` held slot 0 `85000000` and slot 11 `241b0080`; eval `t4-spells-action-bar` (verdict `blocked`, no server truth for the bar) sent two through `spell do:"bar"` | `Handlers/MiscHandler.cpp:899-938` |
 | `CMSG_SET_ACTIONBAR_TOGGLES` | `live` | probe flow `spells-bar` on an `eversong10-mage`, exit 0: `--arg toggles=15` sent body `0f` and the self update 23 ms later set field 1197 to 0x000f0000; `--arg toggles=7` logged in with 0x000f0000 saved, sent `07`, and the self update set 0x00070000, so `state().barToggles` read 7 | `Handlers/MiscHandler.cpp:952-965` |
 | `SMSG_ACTION_BUTTONS` | `live` | `mise protocol:probe --flow login --expect SMSG_ACTION_BUTTONS --bodies` after the two button writes, exit 0: state 1, slots 0 and 1 `85000000` (spell 133), slot 11 `241b0080` (item 6948), and 577 bytes in all (1 + 144 × 4); the legacy handler read it | `Entities/Player/Player.cpp:5732-5758` |
+| `SMSG_SPELL_FAILED_OTHER` | `mock` | `packages/core/src/wow/areas/spells/unit-casts.test.ts` "SMSG_SPELL_FAILED_OTHER alone interrupts a cast", built as `Spells/Spell.cpp:5334-5339` writes it (packed guid, `u8` cast count, `u32` spell, `u8` result); not seen live: two `eversong10-mage` accounts stood together at Sunstrider Isle, the caster sent `CMSG_CAST_SPELL` for Polymorph (118) then `CMSG_CANCEL_CAST`, and neither trace held `SMSG_SPELL_START`, `SMSG_SPELL_FAILURE` or `SMSG_SPELL_FAILED_OTHER` from the caster (self-targeted Polymorph answered only `SMSG_CAST_FAILED` to the caster) | `Spells/Spell.cpp:5325-5339` |
 | `SMSG_SEND_UNLEARN_SPELLS` | `live` | `mise protocol:probe --flow login --expect SMSG_SEND_UNLEARN_SPELLS --expect SMSG_SET_PCT_SPELL_MODIFIER --expect SMSG_SET_FLAT_SPELL_MODIFIER --bodies` on a `ghostlands20` account, exit 0, nothing missing: one packet after the initial spells, body `00000000` (no inactive rank), outcome `handled` | `Entities/Player/Player.cpp:2885-2922` |
 | `SMSG_SET_FLAT_SPELL_MODIFIER` | `live` | the same login probe: 4 packets, outcome `handled`, among them `4a1c1e000000` (bit 74, op 28, 30) and `320b3850ffff` (bit 50, op 11, -45000); at logout the server sent both bits again with total 0 (`4a1c00000000`, `320b00000000`) | `Entities/Player/Player.cpp:10103-10130` |
 | `SMSG_SET_PCT_SPELL_MODIFIER` | `live` | the same login probe: 44 packets, outcome `handled`, among them `000805000000` (bit 0, op 8, 5) and `0402ecffffff` (bit 4, op 2, -20) | `Handlers/CharacterHandler.cpp:1218-1250` |
