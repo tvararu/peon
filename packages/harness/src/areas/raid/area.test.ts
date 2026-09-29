@@ -153,6 +153,16 @@ describe("ready check harness rules", () => {
     ).toMatchObject([{ class: "wake", event: "raid/ready_check" }]);
   });
 
+  test("a check the agent starts names the agent", () => {
+    const [row] = rows({
+      initiator: 0x10n,
+      name: "",
+      type: "ready_check_started",
+    });
+    expect(row).toMatchObject({ class: "wake", event: "raid/ready_check" });
+    expect(row?.text).toContain("You start");
+  });
+
   test("an answer writes one passive row carrying the answer", () => {
     const [row] = rows({
       answer: "not_ready",

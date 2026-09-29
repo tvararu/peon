@@ -168,7 +168,10 @@ function rule(event: RaidEvent): AreaDraft[] {
           class: "wake" as const,
           data: { name: event.name },
           name: "ready_check" as const,
-          text: `${event.name} starts a ready check.`,
+          text:
+            event.name === ""
+              ? "You start a ready check."
+              : `${event.name} starts a ready check.`,
         },
       ];
     case "ready_check_answer":
