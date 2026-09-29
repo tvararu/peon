@@ -50,6 +50,7 @@ or the page names one that does not exist.
 | Take a trade another player offers | `t9-trade-receive` | The agent accepts after it reads both offers. |
 | Swap items with another player | `t9-trade-swap` | |
 | Refuse or cancel a trade | `t9-trade-cancel` | |
+| Share a quest with the group and take one shared back | `t8-quests-share`, `t8-quests-accept-shared` | A share with no member answer is `UNCONFIRMED` after 3 s. |
 | Set loot rules and give master loot | `t9-raid-master-loot` | Needs a corpse that holds an item; the scenario allows three kills. `roll` and `pass_loot` are not shown: a group roll needs an uncommon drop and `pass_loot` has no server reply. |
 
 ## Not shown by any scenario
