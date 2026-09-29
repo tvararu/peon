@@ -420,6 +420,8 @@ assistant, main tank) and the console read matches a raid of 2 players.
 Round 77 failed 0/6 because the passive leader handoff did not wake the
 idle agent; the steer at 100 s fixed the scenario.
 
+Set loot rules and give master loot (`t9-raid-master-loot`, round 84 replicas 1-3, `fail` 2/4 each; run directories not committed): the agent set master loot with itself as looter every time (roster loot row, `DONE`), and the game log shows the `looting/master_loot` candidate row with the master named. No replica moved an item through `give`: replica 1 named the placeholder `item` against a window of item ids, replica 2 named creature names and `Springpaw Pelt` against item ids, replica 3 looted the Lynx Meat (item 27668) normally before calling `give`. The tool now maps the caller's own character name to `@self` (the server lists only the master as candidate) and the task names the shown item id. `roll` and `pass_loot` stay unit-tested only: a group roll needs an uncommon drop and `pass_loot` has no server reply.
+
 ## Proof
 
 | Opcode | Proof | Evidence | Source |
