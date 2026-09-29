@@ -150,7 +150,7 @@ the maps failed or blocked, or `nothing_to_reset` when nothing came.
 
 ## Capabilities row
 
-Proposed in instances-5.
+Set dungeon difficulty (`t9-instances-difficulty`, pass round 61): one `dungeon` `difficulty` call with `for: "dungeon"` and `value: "heroic"`, whose reply names heroic and does not claim the server confirmed the solo change. Reset its own dungeons (`t9-instances-reset`): blocked on staging (contract issue 1; the realm `position` setup refuses map 36, so the eval aborts before login) — live probe proof only: reset inside the Deadmines settles `ok` with `failed: [36]`, after hearth `ok` with `reset: [36]`. A group member cannot reset; a solo difficulty change stays unconfirmed until the next dungeon entry.
 
 ## Proof
 
