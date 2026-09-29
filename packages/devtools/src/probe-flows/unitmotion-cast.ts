@@ -92,7 +92,11 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
   try {
     handle.selectTarget(target);
     await closeIn(handle, target);
-    handle.faceGuid(target);
+    try {
+      handle.faceGuid(target);
+    } catch {
+      ignoreFailure();
+    }
     handle.cast(spell, target);
     await Bun.sleep(seconds * 1000);
     return { flags, speeds, spell, target: summary(found) };

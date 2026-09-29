@@ -153,6 +153,22 @@ describe("unitmotion-cast flow", () => {
       });
     }));
 
+  test("casts even when the creature stands on the character", () =>
+    withFakeTimers(async () => {
+      const rows = () => [
+        row({ distance: 0, guid: ME, self: true }),
+        row({ distance: 0, guid: CUB }),
+      ];
+      const ctx = context({ seconds: "1", spell: "116" }, rows);
+      ctx.handle.faceGuid.mockImplementation(() => {
+        throw new Error("target_coincident");
+      });
+      const running = flow.run(ctx);
+      await elapse(50);
+      expect(ctx.handle.cast).toHaveBeenCalledWith(116, CUB);
+      expect(await fakeAwait(running, 2000)).toMatchObject({ spell: 116 });
+    }));
+
   test("fails with no spell, no hostile creature or a bad wait", () =>
     withFakeTimers(async () => {
       const lone = () => [row({ distance: 0, guid: ME, self: true })];
