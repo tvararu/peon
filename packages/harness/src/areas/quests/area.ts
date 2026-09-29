@@ -88,12 +88,8 @@ function onShare(change: Share, rc: RuleInput): AreaDraft[] {
   }
   if (change.type === "result" || change.type === "relayed") {
     const member = rc.lookup.unitName(change.guid) ?? "A member";
-    const answer =
-      change.result === 2
-        ? "accepted"
-        : change.result === 3
-          ? "declined"
-          : `result ${change.result}`;
+    const answers: Record<number, string> = { 2: "accepted", 3: "declined" };
+    const answer = answers[change.result] ?? `result ${change.result}`;
     return [
       {
         class: "wake",
