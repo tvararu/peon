@@ -52,13 +52,24 @@ function subscribeBeforeSend(
   env: Env,
   match: (event: TradeEvent) => boolean,
   send: () => void,
-  options: { mode: "open" | "cancel"; timeoutMs: number },
+  options: {
+    mode: "open" | "cancel";
+    timeoutMs: number;
+    restore?: () => void;
+  },
 ): Promise<TradeResult> {
+  const abort = new AbortController();
   const waited = env.ctx.until(match, {
-    signal: env.ctx.signal,
+    signal: AbortSignal.any([env.ctx.signal, abort.signal]),
     timeoutMs: options.timeoutMs,
   });
-  send();
+  try {
+    send();
+  } catch (error) {
+    abort.abort();
+    options.restore?.();
+    throw error;
+  }
   return waited.then(
     (event) => outcomeOf(event, options.mode),
     (error: unknown) => {
@@ -90,9 +101,14 @@ function requestTrade(env: Env, guid: bigint): Promise<TradeResult> {
       event.type === "unanswered",
     () =>
       env.ctx.send(GameOpcode.CMSG_INITIATE_TRADE, buildInitiateTrade(guid)),
-    { mode: "open", timeoutMs: TRADE_ANSWER_MS },
+    {
+      mode: "open",
+      restore: () => env.store.abandon(),
+      timeoutMs: TRADE_ANSWER_MS,
+    },
   ).then((result) => {
     if (result.status === "unanswered") {
+      env.store.expectCancelReply();
       env.store.settlePending();
       env.ctx.send(GameOpcode.CMSG_CANCEL_TRADE, buildCancelTrade());
     }
@@ -160,7 +176,11 @@ export function tradeRuntime(
     timer = setTimeout(() => {
       timer = undefined;
       if (store.snapshot().phase !== "requested_in") return;
-      ctx.send(GameOpcode.CMSG_BUSY_TRADE, buildBusyTrade());
+      try {
+        ctx.send(GameOpcode.CMSG_BUSY_TRADE, buildBusyTrade());
+      } catch {
+        store.abandon();
+      }
     }, TRADE_ANSWER_MS);
   };
   const off = store.onEvent(arm);

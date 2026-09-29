@@ -180,6 +180,36 @@ describe("trade request", () => {
     }
   });
 
+  test("a cancel reply for the timed-out request does not settle the next request", async () => {
+    jest.useFakeTimers();
+    const rig = areaRig("trade", { selfGuid: TRADE_SELF });
+    try {
+      const first = rig.handle.act.requestTrade(TRADE_PARTNER);
+      jest.advanceTimersByTime(0);
+      await Promise.resolve();
+      jest.advanceTimersByTime(60_000);
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(await first).toEqual({ status: "unanswered" });
+      const next = rig.handle.act.requestTrade(TRADE_PARTNER);
+      await Promise.resolve();
+      rig.inject(
+        GameOpcode.SMSG_TRADE_STATUS,
+        tradeStatusBody(TRADE_STATUS.TRADE_CANCELED),
+      );
+      expect(rig.handle.state().phase).toBe("requested_out");
+      rig.inject(
+        GameOpcode.SMSG_TRADE_STATUS,
+        tradeStatusBody(TRADE_STATUS.OPEN_WINDOW, { tradeId: 0 }),
+      );
+      expect(await next).toEqual({ status: "ok" });
+      expect(rig.handle.state().phase).toBe("open");
+    } finally {
+      rig.dispose();
+      jest.useRealTimers();
+    }
+  });
+
   test("requestTrade throws while a trade is not idle or closed", () => {
     const rig = answeredRig();
     try {

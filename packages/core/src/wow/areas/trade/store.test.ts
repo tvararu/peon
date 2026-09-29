@@ -50,6 +50,24 @@ describe("trade store", () => {
     }
   });
 
+  test("a stale cancel reply is consumed without settling the request", () => {
+    const rig = tradeRig();
+    const events: TradeEvent[] = [];
+    rig.handle.onEvent((event) => events.push(event));
+    try {
+      rig.handle.act.requestTrade(TRADE_PARTNER).catch(() => undefined);
+      rig.stores.areas.trade.expectCancelReply();
+      rig.inject(
+        GameOpcode.SMSG_TRADE_STATUS,
+        tradeStatusBody(TRADE_STATUS.TRADE_CANCELED),
+      );
+      expect(rig.handle.state().phase).toBe("requested_out");
+      expect(events).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("TRADE_CANCELED, BUSY and IGNORE_YOU close with canceled and emit canceled", () => {
     for (const [status, name] of [
       [TRADE_STATUS.TRADE_CANCELED, "trade_canceled"],

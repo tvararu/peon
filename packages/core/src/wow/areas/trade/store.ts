@@ -64,7 +64,6 @@ const REFUSE_STATUSES: Record<string, true> = {
 };
 
 const EMPTY_OFFER: TradeOffer = { gold: 0, items: [] };
-
 export class TradeStore {
   private readonly events = new Emitter<[TradeEvent]>();
   private readonly deps: SessionDeps;
@@ -72,6 +71,7 @@ export class TradeStore {
   private partner: bigint | undefined;
   private from: bigint | undefined;
   private last: TradeLastOutcome | undefined;
+  private pendingCancel = 0;
 
   constructor(deps: SessionDeps) {
     this.deps = deps;
@@ -101,6 +101,10 @@ export class TradeStore {
     this.last = undefined;
   }
 
+  expectCancelReply(): void {
+    this.pendingCancel += 1;
+  }
+
   receiveStatus(status: TradeStatus): void {
     const name = status.statusName;
     if (status.kind === "trader") {
@@ -114,10 +118,15 @@ export class TradeStore {
     if (status.kind === "open_window") {
       this.phase = "open";
       this.last = undefined;
+      this.pendingCancel = 0;
       this.events.emit({ type: "opened", with: this.partner ?? 0n });
       return;
     }
     if (CANCEL_STATUSES[name]) {
+      if (this.pendingCancel > 0) {
+        this.pendingCancel -= 1;
+        return;
+      }
       if (this.phase === "idle") return;
       this.phase = "closed";
       this.last = { kind: "canceled", status: name };
