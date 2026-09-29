@@ -17,6 +17,10 @@ const count = (args: readonly unknown[], at: number) => args[at] as number;
 export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   acceptGuildInvite: { args: [], run: (h) => h.acceptGuildInvite() },
   acceptInvite: { args: [], run: (h) => h.acceptInvite() },
+  answerProposal: {
+    args: [["decline", "accept"]],
+    run: (h, a) => h.lfg.act.answerProposal(a[0] === "accept"),
+  },
   answerShare: {
     args: [["accept", "decline"]],
     run: (h, a) => {
@@ -94,7 +98,15 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
       if (!shared.ok) throw new Error(`Quest not shared: ${shared.reason}.`);
     },
   },
+  teleport: {
+    args: [["in", "out"]],
+    run: (h, a) => h.lfg.act.teleport(a[0] === "out"),
+  },
   uninvite: { args: ["string"], run: (h, a) => h.uninvite(text(a, 0)) },
+  voteKick: {
+    args: [["no", "yes"]],
+    run: (h, a) => h.lfg.act.voteKick(a[0] === "yes"),
+  },
 };
 
 const GUID = /^\d+$/;
