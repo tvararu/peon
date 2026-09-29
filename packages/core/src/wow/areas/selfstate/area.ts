@@ -51,7 +51,7 @@ export const selfstateArea = defineArea({
       store.receivePreResurrect(parsePreResurrect(r)),
     );
     wire.on(GameOpcode.SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE, (r) => {
-      parseCorpseMapPosition(r);
+      store.receiveCorpseMapPosition(parseCorpseMapPosition(r));
     });
     wire.on(GameOpcode.SMSG_TRANSFER_ABORTED, (r) =>
       store.receiveTransferAborted(parseTransferAborted(r)),

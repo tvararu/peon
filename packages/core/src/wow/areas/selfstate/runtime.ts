@@ -6,7 +6,6 @@ import {
   buildCorpseMapPositionQuery,
   buildStandStateChange,
   type CorpseMapPosition,
-  parseCorpseMapPosition,
   type StandStateName,
 } from "#wow/areas/selfstate/protocol";
 import type {
@@ -49,8 +48,8 @@ function isTimeout(error: unknown): boolean {
   return error instanceof Error && error.message === "timeout";
 }
 
-function isExpectTimeout(error: unknown): boolean {
-  return error instanceof Error && error.message.startsWith("Timed out");
+function corpseTimeout(): Error {
+  return new Error("Timed out waiting for corpse position");
 }
 
 function remainingMs(timer: MirrorTimer, now: number): number {
@@ -140,49 +139,86 @@ function standStateAct(ctx: Ctx, store: SelfstateStore) {
   };
 }
 
-function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
-  if (signal.aborted) {
-    promise.catch(ignoreFailure);
-    return Promise.reject(signal.reason);
+function waitReply(
+  ctx: Ctx,
+  store: SelfstateStore,
+  timeoutMs: number,
+): { promise: Promise<CorpseMapPosition>; cancel: () => void } {
+  const { promise, resolve, reject } =
+    Promise.withResolvers<CorpseMapPosition>();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let offReply: Unsubscribe | undefined;
+  const cancel = () => {
+    clearTimeout(timer);
+    timer = undefined;
+    offReply?.();
+    offReply = undefined;
+    ctx.signal.removeEventListener("abort", onCtxAbort);
+  };
+  const onCtxAbort = () => {
+    cancel();
+    reject(ctx.signal.reason);
+  };
+  promise.catch(ignoreFailure);
+  const out: { promise: Promise<CorpseMapPosition>; cancel: () => void } = {
+    cancel,
+    promise,
+  };
+  if (ctx.signal.aborted) {
+    reject(ctx.signal.reason);
+    return out;
   }
-  const { promise: aborted, reject } = Promise.withResolvers<never>();
-  const onAbort = () => reject(signal.reason);
-  signal.addEventListener("abort", onAbort, { once: true });
-  return Promise.race([promise, aborted]).finally(() =>
-    signal.removeEventListener("abort", onAbort),
-  );
+  ctx.signal.addEventListener("abort", onCtxAbort, { once: true });
+  offReply = store.onCorpseMapPosition((position) => {
+    cancel();
+    resolve(position);
+  });
+  timer = setTimeout(() => {
+    cancel();
+    reject(corpseTimeout());
+  }, timeoutMs);
+  return out;
 }
 
-function waitAlive(ctx: Ctx, timeoutMs: number): Promise<boolean> {
+function waitAlive(
+  ctx: Ctx,
+  timeoutMs: number,
+): {
+  promise: Promise<boolean>;
+  cancel: () => void;
+} {
   const { promise, resolve, reject } = Promise.withResolvers<boolean>();
   const { signal } = ctx;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let off: Unsubscribe | undefined;
-  const settle = () => {
+  const cancel = () => {
     clearTimeout(timer);
+    timer = undefined;
     off?.();
+    off = undefined;
     signal.removeEventListener("abort", onAbort);
   };
   const onAbort = () => {
-    settle();
+    cancel();
     reject(signal.reason);
   };
+  promise.catch(ignoreFailure);
   if (signal.aborted) {
     reject(signal.reason);
-    return promise;
+    return { cancel, promise };
   }
   signal.addEventListener("abort", onAbort, { once: true });
   off = ctx.listen("entity", (event) => {
     if (event.type === "disappear") return;
     if (readLife(ctx.selfGuid(), () => event.entity).life !== "alive") return;
-    settle();
+    cancel();
     resolve(true);
   });
   timer = setTimeout(() => {
-    settle();
+    cancel();
     resolve(false);
   }, timeoutMs);
-  return promise;
+  return { cancel, promise };
 }
 
 function selfResurrectAct(ctx: Ctx, store: SelfstateStore) {
@@ -192,29 +228,34 @@ function selfResurrectAct(ctx: Ctx, store: SelfstateStore) {
       return { status: "refused", reason: "not_dead" };
     if (store.currentSelfResSpell() === 0)
       return { status: "refused", reason: "no_self_res" };
-    const revived = waitAlive(ctx, SELF_RES_TIMEOUT_MS);
-    ctx.send(GameOpcode.CMSG_SELF_RES);
-    return (await revived) ? { status: "ok" } : { status: "no_answer" };
+    const wait = waitAlive(ctx, SELF_RES_TIMEOUT_MS);
+    try {
+      ctx.send(GameOpcode.CMSG_SELF_RES);
+    } catch (error) {
+      wait.cancel();
+      throw error;
+    }
+    return (await wait.promise) ? { status: "ok" } : { status: "no_answer" };
   };
 }
 
-function corpseQueryAct(ctx: Ctx) {
+function corpseQueryAct(ctx: Ctx, store: SelfstateStore) {
   return async (): Promise<CorpseQueryOutcome> => {
-    const reply = ctx.expect(
-      GameOpcode.SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE,
-      {
-        timeoutMs: CORPSE_QUERY_TIMEOUT_MS,
-      },
-    );
-    ctx.send(
-      GameOpcode.CMSG_CORPSE_MAP_POSITION_QUERY,
-      buildCorpseMapPositionQuery(),
-    );
+    const wait = waitReply(ctx, store, CORPSE_QUERY_TIMEOUT_MS);
     try {
-      const reader = await abortable(reply, ctx.signal);
-      return { status: "ok", position: parseCorpseMapPosition(reader) };
+      ctx.send(
+        GameOpcode.CMSG_CORPSE_MAP_POSITION_QUERY,
+        buildCorpseMapPositionQuery(),
+      );
     } catch (error) {
-      if (ctx.signal.aborted || !isExpectTimeout(error)) throw error;
+      wait.cancel();
+      throw error;
+    }
+    try {
+      const position = await wait.promise;
+      return { status: "ok", position };
+    } catch (error) {
+      if (ctx.signal.aborted) throw error;
       return { status: "no_answer" };
     }
   };
@@ -231,7 +272,7 @@ export function selfstateRuntime(
     act: {
       setStandState: standStateAct(ctx, store),
       selfResurrect: selfResurrectAct(ctx, store),
-      queryCorpseMapPosition: corpseQueryAct(ctx),
+      queryCorpseMapPosition: corpseQueryAct(ctx, store),
     },
     dispose: () => {
       offBreath();

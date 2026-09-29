@@ -137,16 +137,16 @@ logs `selfstate/self_res_available`: "You can come back where you died
   under a no-resurrection aura (`Handlers/SpellHandler.cpp:707-721`), so
   the act `selfResurrect` refuses `not_dead` when the character is alive
   and `no_self_res` when the field is 0, then settles `ok` when the self
-  health turns positive within 5 s or `no_answer` on silence. One live
-  try on a level 10 character staged with Reincarnation 20608 and an Ankh
-  17030 never died (not seen live).
+  health turns positive within 5 s or `no_answer` on silence. Two live
+  tries on a `fresh` level-1 character staged with Reincarnation 20608
+  and an Ankh 17030 at Fairbreeze never died (not seen live).
 - `CMSG_CORPSE_MAP_POSITION_QUERY` is a `uint32` 0
   (`Server/Packets/QueryPackets.cpp:55-58`); the server answers with four
   `f32`, always zero in AzerothCore
   (`Handlers/QueryHandler.cpp:399-409`). The act
   `queryCorpseMapPosition` sends the query and settles `ok` with the four
-  floats or `no_answer` after 3 s. Live: sent `00000000`, received 16
-  zero bytes.
+  floats or `no_answer` after 3 s. Live: sent `00000000` (4 bytes),
+  received 32 zero hex chars (16 bytes).
 - `CMSG_CANCEL_MOUNT_AURA`, `SMSG_DISMOUNT`, `CMSG_MOUNTSPECIAL_ANIM` and
   `SMSG_MOUNTSPECIAL_ANIM`: built by `self-state-6`.
 - `SMSG_CROSSED_INEBRIATION_THRESHOLD`: built by `self-state-8`.
@@ -185,3 +185,6 @@ tasks.
 | `CMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY_ACK` | `dead` | registered as `STATUS_NEVER` with `Handle_NULL` | `Server/Protocol/Opcodes.cpp:963` |
 | `SMSG_PAUSE_MIRROR_TIMER` | `dead` | registered as `STATUS_NEVER`; its packet class is never constructed | `Server/Packets/MiscPackets.cpp:113` |
 | `SMSG_TRANSFER_ABORTED` | `mock` | `store.test.ts` transfer-aborted tests; one live try teleported into a non-raid dungeon and gave no abort, since GM tele bypasses `PlayerCannotEnter` (not seen live) | `Entities/Player/Player.cpp:11956-11972` |
+| `CMSG_SELF_RES` | `mock` | `runtime-selfres.test.ts` send/refusal/timeout/dispose cases from the writer shape; two live tries on a `fresh` level-1 character staged with Reincarnation 20608 and an Ankh 17030 at Fairbreeze never died (not seen live) | `Handlers/SpellHandler.cpp:707-721` |
+| `CMSG_CORPSE_MAP_POSITION_QUERY` | `live` | probe `--send CMSG_CORPSE_MAP_POSITION_QUERY --body 00000000 --expect SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE --bodies` on a `fresh` character, exit 0; sent `00000000` (4 bytes, not committed) | `Server/Packets/QueryPackets.cpp:55-58` |
+| `SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE` | `live` | the same run; received 32 zero hex chars (16 bytes, not committed) | `Handlers/QueryHandler.cpp:399-409` |

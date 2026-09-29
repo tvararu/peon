@@ -238,17 +238,21 @@ describe("corpse map position query (AC Handlers/QueryHandler.cpp:399-410)", () 
     expect(hex(buildCorpseMapPositionQuery())).toBe("00000000");
   });
 
-  test("the response reads four floats and consumes the packet", () => {
+  test("the response is the all-zero writer body and consumes the packet (AC Handlers/QueryHandler.cpp:399-410)", () => {
+    const body = selfstateCorpseMapPositionQueryResponseBody();
+    expect(body.length).toBe(16);
+    const r = read(body);
+    expect(parseCorpseMapPosition(r)).toEqual([0, 0, 0, 0]);
+    expect(r.remaining).toBe(0);
+  });
+});
+
+describe("corpse map position float decoding (synthetic, not protocol proof)", () => {
+  test("four floats decode and consume the packet", () => {
     const r = read(
       selfstateCorpseMapPositionQueryResponseBody([1.5, -2.25, 0, 4]),
     );
     expect(parseCorpseMapPosition(r)).toEqual([1.5, -2.25, 0, 4]);
     expect(r.remaining).toBe(0);
-  });
-
-  test("the response AzerothCore sends is all zeros", () => {
-    const body = selfstateCorpseMapPositionQueryResponseBody();
-    expect(body.length).toBe(16);
-    expect(parseCorpseMapPosition(read(body))).toEqual([0, 0, 0, 0]);
   });
 });

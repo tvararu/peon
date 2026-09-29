@@ -3,6 +3,7 @@ import { selfFields } from "#wow/areas/selfstate/fields";
 import {
   type CollisionHeight,
   type CompoundMove,
+  type CorpseMapPosition,
   FLAG_CHANGES,
   type FlagChange,
   type MirrorTimerName,
@@ -65,6 +66,7 @@ export class SelfstateStore {
   private ghostPending = false;
   private lastTransferAbort: TransferAbort | undefined;
   private collisionHeight: number | undefined;
+  private readonly corpseReplies = new Emitter<[CorpseMapPosition]>();
   private selfResSpell = 0;
 
   constructor(deps: SessionDeps, core: CoreStores) {
@@ -187,12 +189,18 @@ export class SelfstateStore {
   selfResAvailable(spellId: number, name: string | undefined): void {
     this.events.emit({ type: "self_res_available", spellId, name });
   }
-
   breathLow(remainingMs: number): void {
     this.events.emit({ type: "breath_low", remainingMs });
+  }
+  onCorpseMapPosition(cb: (position: CorpseMapPosition) => void): Unsubscribe {
+    return this.corpseReplies.subscribe(cb);
+  }
+  receiveCorpseMapPosition(position: CorpseMapPosition): void {
+    this.corpseReplies.emit(position);
   }
 
   dispose(): void {
     this.events.clear();
+    this.corpseReplies.clear();
   }
 }
