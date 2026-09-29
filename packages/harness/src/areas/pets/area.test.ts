@@ -1,0 +1,138 @@
+import { describe, expect, test } from "bun:test";
+import type { AreaEventOf, AreaState } from "@peon/core";
+import type { AreaDraft } from "#harness/areas/contract";
+import { petsHarness } from "#harness/areas/pets/area";
+import type { RuleInput } from "#harness/events/rules";
+import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
+
+type PetsEvent = AreaEventOf<"pets">;
+type PetsState = AreaState<"pets">;
+type Bar = Extract<PetsEvent, { type: "bar"; cleared: false }>["bar"];
+
+const FANG = 0xf1_40_00_0c_82_00_01_b2n;
+const RAVAGER = 0xf1_40_00_0c_82_00_01_b3n;
+const WOLF = 1;
+
+function input(over: Partial<RuleInput> = {}): RuleInput {
+  return testRuleInput({
+    lookup: testLookup({
+      unitName: (guid) => (guid === FANG ? "Fang" : undefined),
+    }),
+    ...over,
+  });
+}
+
+function bar(over: Partial<Bar> = {}): Bar {
+  return {
+    command: "follow",
+    durationMs: 0,
+    family: WOLF,
+    flags: 0,
+    guid: FANG,
+    react: "defensive",
+    receivedAt: 0,
+    slots: [],
+    spells: [],
+    ...over,
+  };
+}
+
+function barEvent(over: Partial<Bar> = {}): PetsEvent {
+  return { bar: bar(over), cleared: false, type: "bar" };
+}
+
+const CLEARED: PetsEvent = { cleared: true, type: "bar" };
+
+function rules() {
+  const set = petsHarness.rules?.();
+  if (!set?.event) throw new Error("pets has no event rule");
+  const { attach, event } = set;
+  const snapshot = event;
+  return {
+    attach: (barState: PetsState, rc: RuleInput = input()) =>
+      attach?.(barState, rc) ?? [],
+    event: (inner: PetsEvent, rc: RuleInput = input()): readonly AreaDraft[] =>
+      snapshot(inner, rc),
+  };
+}
+
+function state(current: Bar | undefined): PetsState {
+  return {
+    bar: current,
+    cooldowns: [],
+    lastRefusal: undefined,
+    pet: undefined,
+  };
+}
+
+describe("pets rules", () => {
+  test("a bar with a new guid gives one out row naming the pet, its family, stance and command", () => {
+    const [row, ...rest] = rules().event(barEvent());
+    expect(rest).toEqual([]);
+    expect(row).toMatchObject({
+      class: "log",
+      name: "out",
+      text: "Fang (Wolf) is out: defensive, follow.",
+    });
+    expect(row?.guid).toBeDefined();
+  });
+
+  test("a second bar for the same pet, such as a stance change, gives no row", () => {
+    const r = rules();
+    r.event(barEvent());
+    expect(r.event(barEvent({ react: "passive" }))).toEqual([]);
+    expect(r.event(barEvent({ command: "stay" }))).toEqual([]);
+  });
+
+  test("a different pet guid gives a new out row", () => {
+    const r = rules();
+    r.event(barEvent());
+    const rows = r.event(barEvent({ family: 31, guid: RAVAGER }));
+    expect(rows.map((row) => row.name)).toEqual(["out"]);
+    expect(rows.at(0)?.text).toContain("Ravager");
+  });
+
+  test("an unseen pet name and an unknown family still give a readable row", () => {
+    const [row] = rules().event(barEvent({ family: 99, guid: RAVAGER }));
+    expect(row?.text).toBe("Your pet (family 99) is out: defensive, follow.");
+  });
+
+  test("the clear gives one gone row, and a clear with no pet out gives none", () => {
+    const r = rules();
+    expect(r.event(CLEARED)).toEqual([]);
+    r.event(barEvent());
+    expect(r.event(CLEARED).map((row) => row.name)).toEqual(["gone"]);
+    expect(r.event(CLEARED)).toEqual([]);
+    expect(r.event(barEvent()).map((row) => row.name)).toEqual(["out"]);
+  });
+
+  test("attach seeds the pet in play so the first bar after it gives no out row, and writes no row itself", () => {
+    const r = rules();
+    expect(r.attach(state(bar()))).toEqual([]);
+    expect(r.event(barEvent())).toEqual([]);
+    expect(r.event(CLEARED).map((row) => row.name)).toEqual(["gone"]);
+  });
+
+  test("feedback and a failed pet cast give one refused row each with the reason", () => {
+    const r = rules();
+    const feedback = r.event({ reason: "nothing_to_attack", type: "feedback" });
+    expect(feedback.map((row) => row.name)).toEqual(["refused"]);
+    expect(feedback.at(0)?.text).toContain("nothing to attack");
+    const cast = r.event({
+      castCount: 1,
+      reason: "not_ready",
+      spell: 1742,
+      type: "cast_failed",
+    });
+    expect(cast.map((row) => row.name)).toEqual(["refused"]);
+    expect(cast.at(0)?.text).toContain("not_ready");
+  });
+
+  test("a learned spell gives one learned row and an unlearned spell gives none", () => {
+    const r = rules();
+    const learned = r.event({ spell: 1742, type: "spell_learned" });
+    expect(learned.map((row) => row.name)).toEqual(["learned"]);
+    expect(learned.at(0)?.data).toMatchObject({ spell: 1742 });
+    expect(r.event({ spell: 1742, type: "spell_unlearned" })).toEqual([]);
+  });
+});

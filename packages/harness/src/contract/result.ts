@@ -11,7 +11,8 @@ export type ToolName =
   | "stop"
   | "gear"
   | "use"
-  | "spell";
+  | "spell"
+  | "pet";
 
 export type ToolKind = "read" | "action" | "run" | "control";
 

@@ -1,5 +1,6 @@
 import { gearTool } from "#harness/areas/items/tool";
 import { useTool } from "#harness/areas/objects/tool";
+import { petTool } from "#harness/areas/pets/tool";
 import { spellTool } from "#harness/areas/spells/tool";
 import type { ToolName } from "#harness/contract/result";
 import { engageTool } from "#harness/tools/engage";
@@ -27,6 +28,7 @@ export const GAME_TOOLS = [
   gearTool,
   useTool,
   spellTool,
+  petTool,
 ] as const;
 
 type Listed = (typeof GAME_TOOLS)[number]["name"];
