@@ -165,6 +165,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | `spell` | Casts a spell on itself or a unit (`do: cast`), cancels one of its own buffs (`cancel_aura`) or puts a spell or item on an action bar slot (`bar`). |
 | `pet` | Checks its pet (`status`), calls, dismisses or revives it, attacks with it, moves it (`follow`, `stay`, `stop`) or sets its stance. |
 | `dungeon` | Difficulty, saved instances, resets, the bind prompt and the dungeon finder. |
+| `group` | Shows the group roster, removes a member, or passes the lead. |
 
 `travel`, `engage`, `rest` and `recover` start a run (`r1`, `r2`, …).
 Only one run can be active. The tool waits for the run to end and

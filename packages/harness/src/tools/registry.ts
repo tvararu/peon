@@ -1,4 +1,5 @@
 import { dungeonTool } from "#harness/areas/instances/tool";
+import { groupTool } from "#harness/areas/raid/tool";
 import { gearTool } from "#harness/areas/items/tool";
 import { useTool } from "#harness/areas/objects/tool";
 import { petTool } from "#harness/areas/pets/tool";
@@ -31,6 +32,7 @@ export const GAME_TOOLS = [
   spellTool,
   petTool,
   dungeonTool,
+  groupTool,
 ] as const;
 
 type Listed = (typeof GAME_TOOLS)[number]["name"];

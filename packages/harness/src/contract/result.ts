@@ -13,7 +13,8 @@ export type ToolName =
   | "use"
   | "spell"
   | "pet"
-  | "dungeon";
+  | "dungeon"
+  | "group";
 
 export type ToolKind = "read" | "action" | "run" | "control";
 

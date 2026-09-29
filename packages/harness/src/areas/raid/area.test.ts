@@ -33,7 +33,7 @@ describe("raid harness rules", () => {
     ).toMatchObject([{ class: "passive", event: "raid/roster" }]);
   });
 
-  test("joined and left changes write no rows", () => {
+  test("joined changes write no rows", () => {
     expect(
       rows({
         changes: [{ kind: "joined", name: "Tom" }],
@@ -41,13 +41,18 @@ describe("raid harness rules", () => {
         type: "group_list",
       }),
     ).toEqual([]);
+  });
+
+  test("a left change writes one passive roster row", () => {
     expect(
       rows({
         changes: [{ kind: "left", name: "Tom" }],
         group: GROUP,
         type: "group_list",
       }),
-    ).toEqual([]);
+    ).toMatchObject([
+      { class: "passive", event: "raid/roster", text: "Tom left the group." },
+    ]);
   });
 
   test("a change to the receiving character writes a roster row", () => {

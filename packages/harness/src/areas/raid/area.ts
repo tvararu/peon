@@ -59,7 +59,16 @@ function changeDetail(change: Of<"group_list">["changes"][number]) {
 function groupList(event: Of<"group_list">): AreaDraft[] {
   const rows: AreaDraft[] = [];
   for (const change of event.changes) {
-    if (change.kind === "joined" || change.kind === "left") continue;
+    if (change.kind === "left") {
+      rows.push({
+        class: "passive",
+        data: { change: change.kind, name: change.name },
+        name: "roster",
+        text: `${change.name} left the group.`,
+      });
+      continue;
+    }
+    if (change.kind === "joined") continue;
     const name = "name" in change ? change.name : undefined;
     rows.push({
       class: "passive",
@@ -149,6 +158,7 @@ function rule(event: RaidEvent): AreaDraft[] {
 
 export const raidHarness = defineHarnessArea({
   area: "raid",
+  glyph: "party",
   rules: () => ({ event: rule }),
   worldActs: [],
 });

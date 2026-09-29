@@ -64,6 +64,20 @@ describe("coverRows", () => {
     expect(log.get(accepted.seq)?.consumedBy).toBeUndefined();
   });
 
+  test("a group kick covers its roster row", () => {
+    const log = setup();
+    log.append({
+      class: "log",
+      data: { toolCallId: "c1" },
+      domain: "tool",
+      event: "tool/call",
+      text: "group called",
+    });
+    const roster = log.append(draft("raid/roster"));
+    coverRows(log, { status: "DONE", tool: "group", toolCallId: "c1" });
+    expect(log.get(roster.seq)?.consumedBy).toBe("c1");
+  });
+
   test("a call whose tool/call row is gone covers nothing", () => {
     const log = setup();
     const accepted = log.append(draft("quest/accepted"));

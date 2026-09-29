@@ -8,6 +8,7 @@ const COVERS: Partial<Record<ToolName, ReadonlySet<LogEvent>>> = {
     "instances/reset_failed",
     "instances/bound",
   ]),
+  group: new Set<LogEvent>(["raid/roster"]),
   interact: new Set<LogEvent>([
     "quest/accepted",
     "quest/rewarded",
