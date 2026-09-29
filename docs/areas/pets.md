@@ -100,7 +100,10 @@ deletes a hunter pet (`Handlers/PetHandler.cpp:287-288`).
   (`Handlers/PetHandler.cpp:1018-1023`); the area keeps its own
   counter, 1-255 wrapping to 1. `SMSG_PET_CAST_FAILED` carries the
   count, spell and result (`Spells/Spell.cpp:4842-4861`); the extra
-  `multiple_casts` byte of wowm does not exist in AzerothCore.
+  `multiple_casts` byte of wowm does not exist in AzerothCore. The
+  area refuses a passive bar spell before counting or sending, as the
+  server skips unlearned and passive spells without a reply
+  (`Handlers/PetHandler.cpp:1041-1044`).
 - `CMSG_PET_SPELL_AUTOCAST` is the pet guid, the `uint32` spell and a
   `uint8` flag (`Server/Packets/PetPackets.cpp:35-40`); the bar shows
   autocast-on spells as type `0xc1`, autocast-off as `0x81` and
@@ -108,6 +111,8 @@ deletes a hunter pet (`Handlers/PetHandler.cpp:287-288`).
   one or two `{ uint32 slot, uint32 packed }` pairs; the pair count
   comes from the packet size (`Handlers/PetHandler.cpp:696-716`).
   Slots outside 0-9 are refused (`Handlers/PetHandler.cpp:726-727`).
+  A single pair carrying a command or reaction type is refused, as the
+  server ignores it (`Handlers/PetHandler.cpp:732-740`).
 - `CMSG_PET_CANCEL_AURA` is the pet guid and the `uint32` spell
   (`Handlers/SpellHandler.cpp:604-610`); the server removes only an
   aura the pet owns (`Handlers/SpellHandler.cpp:639`).
@@ -138,8 +143,8 @@ deletes a hunter pet (`Handlers/PetHandler.cpp:287-288`).
 | `SMSG_PET_GUIDS` | `dead` | only a comment names it (`Entities/Player/Player.cpp:11812`) | `Server/Protocol/Opcodes.cpp:1325` |
 | `CMSG_PET_STOP_ATTACK` | `live` | probe flow `pets-command --arg do=stop --arg yards=120`, exit 0: the pet sent at a Springpaw Stalker, `SMSG_ATTACKSTART` for the pet, then `CMSG_PET_STOP_ATTACK`, `SMSG_ATTACKSTOP` for the pet 1 ms later and the pet's `UNIT_FIELD_TARGET` cleared | `Server/Packets/PetPackets.cpp:30-33` |
 | `SMSG_PET_ACTION_FEEDBACK` | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "action feedback sets the last refusal and emits a feedback event" | `Entities/Unit/Unit.cpp:12556-12564` |
-| `CMSG_PET_CAST_SPELL` | `live` | probe flow `pets-spell --arg spell=Growl` on an `eversong10-hunter` with its Ravager out, exit 0: one 18-byte `CMSG_PET_CAST_SPELL` out, answered by `SMSG_PET_CAST_FAILED` with reason `bad_implicit_targets` (Growl cast with no target; no hostile within 35 yards and the flow does not walk) | `Handlers/PetHandler.cpp:1018-1023` |
-| `SMSG_PET_CAST_FAILED` | `live` | the same `pets-spell` run: `SMSG_PET_CAST_FAILED` size 6 after the cast, parsed as count 1, spell 14916, result `bad_implicit_targets`; a second cast fails the same way (Growl has no cooldown, so no `not_ready`) | `Spells/Spell.cpp:4842-4861` |
+| `CMSG_PET_CAST_SPELL` | `builder` | sent live, effect not seen: probe flow `pets-spell --arg spell=Growl` on an `eversong10-hunter` with its Ravager out, exit 0: one 18-byte `CMSG_PET_CAST_SPELL` out, answered by `SMSG_PET_CAST_FAILED` with reason `bad_implicit_targets` (Growl cast with no target selected and no hostile within 35 yards; the selected unit falls back only after an explicit target, `Handlers/PetHandler.cpp:1061-1064`). A targeted cast needs a hostile in range, and none was in range on two fresh hunters at two teleports. Builder test "petCast sends CMSG_PET_CAST_SPELL with the pet guid and a rising count" | `Handlers/PetHandler.cpp:1018-1023` |
+| `SMSG_PET_CAST_FAILED` | `live` | probe flow `pets-spell --arg spell=Growl`, exit 0: `SMSG_PET_CAST_FAILED` size 6 after the cast, parsed as count 1, spell 14916, result `bad_implicit_targets`; a second cast fails the same way (Growl has no cooldown, so no `not_ready`) | `Spells/Spell.cpp:4842-4861` |
 | `CMSG_PET_SPELL_AUTOCAST` | `live` | probe flow `pets-spell --arg autocast=Bite:on --bodies`, exit 0: 13-byte `CMSG_PET_SPELL_AUTOCAST` (spell 17255, flag 1), and the next 144-byte `SMSG_PET_SPELLS` shows Bite as type `0xc1` where it was `0x81` before | `Server/Packets/PetPackets.cpp:35-40` |
 | `CMSG_PET_SET_ACTION` | `live` | probe flow `pets-spell --arg swap=3,4 --bodies`, exit 0: the flow asks for the bar again first, then one 24-byte `CMSG_PET_SET_ACTION` (slot 3 packed `0xc1004367`, slot 4 packed `0x81003a44`); the next `SMSG_PET_SPELLS` shows slots 3 and 4 swapped (Growl `0x81003a44` and Bite `0xc1004367` exchange places) | `Handlers/PetHandler.cpp:696-716` |
 | `CMSG_PET_CANCEL_AURA` | `accepted` | `--send CMSG_PET_CANCEL_AURA` with the pet guid and spell 17255 (Bite), exit 3 for the missing `--expect SMSG_PET_ACTION_FEEDBACK` only: the 12-byte send went out, no disconnect and no error packet; the server removes only an aura the pet owns, and the pet had none | `Handlers/SpellHandler.cpp:604-610` |
