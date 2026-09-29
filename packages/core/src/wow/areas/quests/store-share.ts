@@ -16,6 +16,7 @@ export type ShareOffer = {
 export type ShareState = {
   push: SharePush | undefined;
   offer: ShareOffer | undefined;
+  prior: readonly SharePush[];
 };
 export type ShareAnswer = "accept" | "decline" | "auto_accepted";
 export type ShareChange =
@@ -28,12 +29,24 @@ export type ShareChange =
   | { type: "share_complete"; from: bigint; questId: number };
 export type ShareStep = { share: ShareState; changes: ShareChange[] };
 
-export const EMPTY_SHARE: ShareState = { push: undefined, offer: undefined };
+export const EMPTY_SHARE: ShareState = {
+  offer: undefined,
+  prior: [],
+  push: undefined,
+};
 
 const RELAYED: ReadonlySet<number> = new Set([
   QuestShareResult.ACCEPT_QUEST,
   QuestShareResult.DECLINE_QUEST,
 ]);
+const awaitingReply = (push: SharePush): boolean =>
+  push.results.some(
+    (row) =>
+      row.result === QuestShareResult.SHARING_QUEST &&
+      !push.results.some(
+        (other) => other.guid === row.guid && RELAYED.has(other.result),
+      ),
+  );
 
 export function beginPush(
   share: ShareState,
@@ -41,10 +54,14 @@ export function beginPush(
   now: number,
 ): ShareStep | undefined {
   if (share.push?.status === "waiting") return undefined;
+  if (share.push && awaitingReply(share.push)) return undefined;
+  if (share.prior.some(awaitingReply)) return undefined;
+  const prior = share.push ? [...share.prior, share.push] : [...share.prior];
   return {
     changes: [{ questId, type: "pushed" }],
     share: {
       ...share,
+      prior,
       push: { at: now, questId, results: [], status: "waiting" },
     },
   };

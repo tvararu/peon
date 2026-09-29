@@ -161,9 +161,80 @@ describe("quest sharing, sharer", () => {
         ok: false,
         reason: "in_flight",
       });
-      result(ALICE, QuestShareResult.SHARING_QUEST);
+      result(ALICE, QuestShareResult.HAVE_QUEST);
       expect(rig.handle.act.shareQuest(QUEST)).toEqual({ ok: true });
       expect(sent(GameOpcode.CMSG_PUSHQUESTTOPARTY)).toHaveLength(2);
+    });
+  });
+
+  test("a second push waits until the first push's replies settle", () => {
+    const OTHER = 8325;
+    withRig(
+      ({ rig, result, sent }) => {
+        rig.handle.act.shareQuest(QUEST);
+        result(ALICE, QuestShareResult.SHARING_QUEST);
+        result(BOB, QuestShareResult.SHARING_QUEST);
+        expect(rig.handle.act.shareQuest(OTHER)).toEqual({
+          ok: false,
+          reason: "in_flight",
+        });
+        expect(sent(GameOpcode.CMSG_PUSHQUESTTOPARTY)).toHaveLength(1);
+        result(ALICE, QuestShareResult.DECLINE_QUEST);
+        expect(rig.handle.act.shareQuest(OTHER)).toEqual({
+          ok: false,
+          reason: "in_flight",
+        });
+        result(BOB, QuestShareResult.ACCEPT_QUEST);
+        expect(rig.handle.act.shareQuest(OTHER)).toEqual({ ok: true });
+        expect(sent(GameOpcode.CMSG_PUSHQUESTTOPARTY)).toHaveLength(2);
+      },
+      { log: [QUEST, OTHER] },
+    );
+  });
+
+  test("a delayed accept or decline settles the push before the next push", () => {
+    const OTHER = 8325;
+    withRig(
+      ({ rig, result, shares, sent }) => {
+        rig.handle.act.shareQuest(QUEST);
+        result(ALICE, QuestShareResult.SHARING_QUEST);
+        result(BOB, QuestShareResult.HAVE_QUEST);
+        expect(rig.handle.act.shareQuest(OTHER)).toEqual({
+          ok: false,
+          reason: "in_flight",
+        });
+        result(ALICE, QuestShareResult.DECLINE_QUEST);
+        expect(rig.handle.act.shareQuest(OTHER)).toEqual({ ok: true });
+        expect(shares().filter((s) => s.type === "relayed")).toEqual([
+          {
+            guid: ALICE,
+            questId: QUEST,
+            result: QuestShareResult.DECLINE_QUEST,
+            type: "relayed",
+          },
+        ]);
+        expect(rig.handle.state().share?.push?.questId).toBe(OTHER);
+        expect(sent(GameOpcode.CMSG_PUSHQUESTTOPARTY)).toHaveLength(2);
+      },
+      { log: [QUEST, OTHER] },
+    );
+  });
+
+  test("a reply after its push settled falls to the current push", () => {
+    withRig(({ rig, result, shares }) => {
+      rig.handle.act.shareQuest(QUEST);
+      result(ALICE, QuestShareResult.HAVE_QUEST);
+      rig.handle.act.shareQuest(QUEST);
+      result(ALICE, QuestShareResult.DECLINE_QUEST);
+      expect(shares().filter((s) => s.type === "relayed")).toEqual([
+        {
+          guid: ALICE,
+          questId: QUEST,
+          result: QuestShareResult.DECLINE_QUEST,
+          type: "relayed",
+        },
+      ]);
+      expect(rig.handle.state().share?.push?.results).toHaveLength(1);
     });
   });
 
@@ -202,6 +273,7 @@ describe("quest sharing, sharer", () => {
       });
       result(ALICE, QuestShareResult.SHARING_QUEST);
       expect(rig.handle.state().share?.push?.results).toHaveLength(1);
+      result(ALICE, QuestShareResult.DECLINE_QUEST);
       expect(rig.handle.act.shareQuest(QUEST)).toEqual({ ok: true });
     });
   });
