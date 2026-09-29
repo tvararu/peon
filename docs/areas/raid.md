@@ -117,6 +117,27 @@ Battleground groups and the self-only changes are proven by
 `areaRig` tests built from the writer at `Groups/Group.cpp:1883-1950`,
 not seen live.
 
+Two throwaway accounts A (`eversong10`, Fgkllkghmhk) and B
+(`ghostlands20`, Fgkllkghpll) ran through their puppets with
+`--packet-trace headers`: A invited B, B accepted. Kept, not committed,
+in the directory `live-group2` of the `proto-group` worktree's scratch
+space, one `<ACCOUNT>-packets.jsonl` per account:
+
+- A's trace holds `out CMSG_GROUP_INVITE`, `in SMSG_GROUP_LIST`, two
+  `in SMSG_PARTY_MEMBER_STATS` (the zone and y of out-of-range B),
+  `out CMSG_REQUEST_PARTY_MEMBER_STATS` (sent by the roster-add policy)
+  and `in SMSG_PARTY_MEMBER_STATS_FULL`.
+- a `requestMemberStats` puppet call for B wrote
+  `out CMSG_REQUEST_PARTY_MEMBER_STATS` and
+  `in SMSG_PARTY_MEMBER_STATS_FULL`.
+- After B's puppet stopped, A's trace holds the offline
+  `SMSG_GROUP_LIST` (status 0), and a later `requestMemberStats` for B
+  wrote `out CMSG_REQUEST_PARTY_MEMBER_STATS` with the 10-byte offline
+  `in SMSG_PARTY_MEMBER_STATS_FULL`; A's events show the `offline`
+  transition for B. The pet fields were not seen live
+  (`eversong10-hunter` was not staged); the pet fixture stays the proof.
+
+
 ## Capabilities row
 
 No verb (N23).
@@ -125,5 +146,6 @@ No verb (N23).
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
+| `CMSG_REQUEST_PARTY_MEMBER_STATS` | `live` | A's trace: roster-add request, `requestMemberStats` call, offline reply after B stopped | `live-group2` scratch dir |
 | `CMSG_GROUP_CANCEL` | `dead` | the server ignores it: no handler | `Server/Protocol/Opcodes.cpp:243` |
 | `SMSG_REAL_GROUP_UPDATE` | `dead` | `STATUS_NEVER` and no send site in AzerothCore | `Server/Protocol/Opcodes.cpp:1050` |
