@@ -89,6 +89,24 @@
     },
     {
       "actor": 2,
+      "argv": ["call", "invite", "[\"<PARTNER1>\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 5000
+      },
+      "windowMs": 120000
+    },
+    {
+      "actor": 1,
+      "argv": ["call", "acceptInvite", "[]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 5000
+      },
+      "windowMs": 120000
+    },
+    {
+      "actor": 2,
       "argv": ["call", "invite", "[\"<AGENT>\"]"],
       "at": {
         "kind": "elapsed",
