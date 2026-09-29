@@ -34,10 +34,6 @@ export type QuestPoi = {
 };
 export type QuestPoiReply = { questId: number; pois: QuestPoi[] };
 
-function signed(v: number): number {
-  return v >= 0x80_00_00_00 ? v - 0x1_00_00_00_00 : v;
-}
-
 export function parseQuestPoiResponse(r: PacketReader): QuestPoiReply[] {
   const count = r.uint32LE();
   const replies: QuestPoiReply[] = [];
@@ -47,7 +43,7 @@ export function parseQuestPoiResponse(r: PacketReader): QuestPoiReply[] {
     const pois: QuestPoi[] = [];
     for (let p = 0; p < poiCount; p++) {
       const poiId = r.uint32LE();
-      const objectiveIndex = signed(r.uint32LE());
+      const objectiveIndex = r.int32LE();
       const mapId = r.uint32LE();
       const areaId = r.uint32LE();
       const floorId = r.uint32LE();
@@ -56,7 +52,7 @@ export function parseQuestPoiResponse(r: PacketReader): QuestPoiReply[] {
       const pointCount = r.uint32LE();
       const points: QuestPoiPoint[] = [];
       for (let q = 0; q < pointCount; q++)
-        points.push({ x: signed(r.uint32LE()), y: signed(r.uint32LE()) });
+        points.push({ x: r.int32LE(), y: r.int32LE() });
       pois.push({
         poiId,
         objectiveIndex,

@@ -34,6 +34,19 @@ test("PacketWriter writes and PacketReader reads uint32LE", () => {
   expect(r.uint32LE()).toBe(0xde_ad_be_ef);
 });
 
+test("PacketReader reads int32LE at its signed boundaries", () => {
+  const r = new PacketReader(
+    new Uint8Array([
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f, 0x00, 0x00, 0x00, 0x80,
+      0x00, 0x00, 0x00, 0x00,
+    ]),
+  );
+  expect(r.int32LE()).toBe(-1);
+  expect(r.int32LE()).toBe(0x7f_ff_ff_ff);
+  expect(r.int32LE()).toBe(-0x80_00_00_00);
+  expect(r.int32LE()).toBe(0);
+});
+
 test("PacketReader reads cString (null-terminated)", () => {
   const bytes = new Uint8Array([0x48, 0x69, 0x00]);
   const r = new PacketReader(bytes);

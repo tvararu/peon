@@ -58,6 +58,12 @@ export class PacketReader {
     return v;
   }
 
+  int32LE(): number {
+    const v = this.view.getInt32(this.pos, true);
+    this.pos += 4;
+    return v;
+  }
+
   uint64LE(): bigint {
     const v = this.view.getBigUint64(this.pos, true);
     this.pos += 8;

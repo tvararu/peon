@@ -119,10 +119,6 @@ function skipWords(r: PacketReader, count: number) {
   r.skip(count * WORD);
 }
 
-function int32(r: PacketReader): number {
-  return r.uint32LE() | 0;
-}
-
 function readRequirements(r: PacketReader) {
   const inventoryType = r.uint32LE();
   const allowableClass = r.uint32LE();
@@ -133,8 +129,8 @@ function readRequirements(r: PacketReader) {
   const requiredSkillRank = r.uint32LE();
   const requiredSpell = r.uint32LE();
   skipWords(r, HONOR_CITY_AND_REPUTATION);
-  const maxCount = int32(r);
-  const stackable = int32(r);
+  const maxCount = r.int32LE();
+  const stackable = r.int32LE();
   const containerSlots = r.uint32LE();
   const requirements: ItemRequirements = {
     inventoryType,
@@ -158,7 +154,7 @@ function readCombat(r: PacketReader): ItemCombat {
   const stats: ItemStat[] = [];
   const statCount = r.uint32LE();
   for (let i = 0; i < statCount; i++) {
-    stats.push({ type: r.uint32LE(), value: int32(r) });
+    stats.push({ type: r.uint32LE(), value: r.int32LE() });
   }
   skipWords(r, SCALING);
   const damage: ItemDamage[] = [];
@@ -167,12 +163,12 @@ function readCombat(r: PacketReader): ItemCombat {
   }
   const armor = r.uint32LE();
   const resistances = {
-    holy: int32(r),
-    fire: int32(r),
-    nature: int32(r),
-    frost: int32(r),
-    shadow: int32(r),
-    arcane: int32(r),
+    holy: r.int32LE(),
+    fire: r.int32LE(),
+    nature: r.int32LE(),
+    frost: r.int32LE(),
+    shadow: r.int32LE(),
+    arcane: r.int32LE(),
   };
   const delay = r.uint32LE();
   const ammoType = r.uint32LE();
@@ -186,10 +182,10 @@ function readSpells(r: PacketReader): ItemSpell[] {
     const spell = {
       id: r.uint32LE(),
       trigger: r.uint32LE(),
-      charges: int32(r),
-      cooldownMs: int32(r),
+      charges: r.int32LE(),
+      cooldownMs: r.int32LE(),
       category: r.uint32LE(),
-      categoryCooldownMs: int32(r),
+      categoryCooldownMs: r.int32LE(),
     };
     if (spell.id !== 0) spells.push(spell);
   }

@@ -308,7 +308,7 @@ export function parseSpellStart(r: PacketReader): SpellStart {
   const castCount = r.uint8();
   const spellId = r.uint32LE();
   const flags = r.uint32LE();
-  const timer = r.uint32LE() | 0;
+  const timer = r.int32LE();
   const targets = parseSpellTargets(r);
   return {
     castItem,

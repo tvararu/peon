@@ -86,9 +86,9 @@ function targets(r: PacketReader): QuestObjectiveTarget[] {
 function readHead(r: PacketReader) {
   const questId = r.uint32LE();
   const method = r.uint32LE();
-  const level = r.uint32LE() | 0;
+  const level = r.int32LE();
   const minLevel = r.uint32LE();
-  const zoneOrSort = r.uint32LE() | 0;
+  const zoneOrSort = r.int32LE();
   const type = r.uint32LE();
   const suggestedPlayers = r.uint32LE();
   const reputationObjectives: QuestQueryResponse["reputationObjectives"] = [
@@ -112,15 +112,15 @@ function readHead(r: PacketReader) {
 }
 
 function readReputation(r: PacketReader): QuestReputationObjective {
-  return { factionId: r.uint32LE(), value: r.uint32LE() | 0 };
+  return { factionId: r.uint32LE(), value: r.int32LE() };
 }
 
 function readRewards(r: PacketReader) {
   return {
-    money: r.uint32LE() | 0,
+    money: r.int32LE(),
     maxLevelMoney: r.uint32LE(),
     spellId: r.uint32LE(),
-    spellCastId: r.uint32LE() | 0,
+    spellCastId: r.int32LE(),
     honor: r.uint32LE(),
     honorMultiplier: r.floatLE(),
     sourceItemId: r.uint32LE(),
