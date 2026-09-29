@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
-import { lootingLootListBody } from "#test-support/areas/looting";
+import {
+  lootingLootErrorBody,
+  lootingLootListBody,
+  lootingLootMasterListBody,
+  lootingLootRemovedBody,
+} from "#test-support/areas/looting";
+import { elapse, withFakeTimers } from "#test-support/fake-time";
 import { partyMember, partyState } from "#test-support/party-fixtures";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
@@ -16,6 +22,7 @@ function member(name: string, guid: bigint) {
 
 function inParty() {
   const rig = areaRig("looting", {
+    selfGuid: ME,
     legacy: {
       party: () =>
         partyState({ inGroup: true, members: [member("Partner", PARTNER)] }),
@@ -25,7 +32,12 @@ function inParty() {
       channels: () => [],
     },
   });
-  return { act: rig.handle.act, dispose: rig.dispose, sent: rig.sent };
+  return {
+    act: rig.handle.act,
+    dispose: rig.dispose,
+    rig,
+    sent: rig.sent,
+  };
 }
 
 function killed() {
@@ -173,5 +185,152 @@ describe("looting runtime", () => {
     } finally {
       party.dispose();
     }
+  });
+  test("setLootMethod accepts the @self token for the character's own guid (SR2-group-13)", () => {
+    const rig = areaRig("looting", { selfGuid: ME });
+    try {
+      rig.handle.act.setLootMethod({
+        method: "master_loot",
+        threshold: "uncommon",
+        master: "@self",
+      });
+      expect(rig.sent).toEqual([
+        {
+          opcode: GameOpcode.CMSG_LOOT_METHOD,
+          body: new Uint8Array([
+            2, 0, 0, 0, 0xce, 0x0d, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0,
+          ]),
+        },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("giveMasterLoot resolves its own name through @self and sends one CMSG_LOOT_MASTER_GIVE (LootHandler.cpp:484-559)", async () => {
+    const party = inParty();
+    try {
+      party.rig.inject(
+        GameOpcode.SMSG_LOOT_MASTER_LIST,
+        lootingLootMasterListBody([ME, PARTNER]),
+      );
+      const done = party.act.giveMasterLoot(CREATURE, 0, "@self");
+      expect(party.sent).toEqual([
+        {
+          opcode: GameOpcode.CMSG_LOOT_MASTER_GIVE,
+          body: new Uint8Array([
+            0xc6, 0x28, 0x01, 0x28, 0x3d, 0x00, 0x30, 0xf1, 0, 0xce, 0x0d, 0, 0,
+            0, 0, 0, 0,
+          ]),
+        },
+      ]);
+      party.rig.inject(GameOpcode.SMSG_LOOT_REMOVED, lootingLootRemovedBody(0));
+      const result = await done;
+      expect(result).toEqual({ status: "given", slot: 0 });
+      party.dispose();
+    } catch (error) {
+      party.dispose();
+      throw error;
+    }
+  });
+
+  test("giveMasterLoot resolves a partner name, and a removal for another slot does not settle it", async () => {
+    const party = inParty();
+    try {
+      party.rig.inject(
+        GameOpcode.SMSG_LOOT_MASTER_LIST,
+        lootingLootMasterListBody([PARTNER]),
+      );
+      let done = false;
+      const pending = party.act
+        .giveMasterLoot(CREATURE, 1, "Partner")
+        .then(() => {
+          done = true;
+        });
+      party.rig.inject(GameOpcode.SMSG_LOOT_REMOVED, lootingLootRemovedBody(2));
+      expect(done).toBe(false);
+      party.rig.inject(GameOpcode.SMSG_LOOT_REMOVED, lootingLootRemovedBody(1));
+      await pending;
+      expect(done).toBe(true);
+      party.dispose();
+    } catch (error) {
+      party.dispose();
+      throw error;
+    }
+  });
+
+  test("giveMasterLoot throws for a target outside the candidates and sends nothing", () => {
+    const party = inParty();
+    try {
+      party.rig.inject(
+        GameOpcode.SMSG_LOOT_MASTER_LIST,
+        lootingLootMasterListBody([PARTNER]),
+      );
+      expect(() => party.act.giveMasterLoot(CREATURE, 0, "Stranger")).toThrow(
+        "not a candidate",
+      );
+      expect(party.sent).toEqual([]);
+    } finally {
+      party.dispose();
+    }
+  });
+
+  test("giveMasterLoot rejects with the server loot error (Player.cpp:8398-8405)", async () => {
+    const party = inParty();
+    try {
+      party.rig.inject(
+        GameOpcode.SMSG_LOOT_MASTER_LIST,
+        lootingLootMasterListBody([PARTNER]),
+      );
+      const done = party.act.giveMasterLoot(CREATURE, 0, "Partner");
+      void done.catch(() => undefined);
+      party.rig.inject(
+        GameOpcode.SMSG_LOOT_RESPONSE,
+        lootingLootErrorBody(CREATURE, 12),
+      );
+      await expect(done).rejects.toThrow("that player's inventory is full");
+      party.dispose();
+    } catch (error) {
+      party.dispose();
+      throw error;
+    }
+  });
+
+  test("giveMasterLoot times out after 5 s with no answer (fake time)", async () => {
+    await withFakeTimers(async () => {
+      const party = inParty();
+      try {
+        party.rig.inject(
+          GameOpcode.SMSG_LOOT_MASTER_LIST,
+          lootingLootMasterListBody([PARTNER]),
+        );
+        const pending = party.act.giveMasterLoot(CREATURE, 0, "Partner");
+        const assertion = pending.then(
+          () => {
+            throw new Error("give settled without an answer");
+          },
+          (error: unknown) => {
+            expect(String(error)).toContain(
+              "timed out waiting for slot 0 after 5000ms",
+            );
+          },
+        );
+        await elapse(5100);
+        await assertion;
+        expect(party.sent).toEqual([
+          {
+            opcode: GameOpcode.CMSG_LOOT_MASTER_GIVE,
+            body: new Uint8Array([
+              0xc6, 0x28, 0x01, 0x28, 0x3d, 0x00, 0x30, 0xf1, 0, 0xe6, 0x0d, 0,
+              0, 0, 0, 0, 0,
+            ]),
+          },
+        ]);
+        party.dispose();
+      } catch (error) {
+        party.dispose();
+        throw error;
+      }
+    });
   });
 });
