@@ -50,7 +50,7 @@ export type RaidState = {
   group: RaidGroup | undefined;
   stats: ReadonlyMap<bigint, MemberStats>;
   readyCheck?: ReadyCheck | undefined;
-  marks?: readonly bigint[];
+  marks: readonly bigint[];
 };
 
 const FLAG_NAMES = [

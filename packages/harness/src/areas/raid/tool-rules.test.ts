@@ -79,6 +79,7 @@ async function world(setup: Setup = {}) {
           ...setup.group,
         })
       : undefined,
+    marks: Array.from({ length: 8 }, () => 0n),
     stats: new Map(),
   };
   jest.spyOn(t.handle.raid, "state").mockReturnValue(groupState);
