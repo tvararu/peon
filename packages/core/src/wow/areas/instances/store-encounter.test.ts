@@ -62,6 +62,20 @@ describe("instances store: encounter frames", () => {
     }
   });
 
+  test("a priority update for an untracked unit does not engage it", () => {
+    const { rig } = rigWithEvents();
+    const guid = 0x00f1_2299_0000_0003n;
+    try {
+      rig.inject(
+        GameOpcode.SMSG_UPDATE_INSTANCE_ENCOUNTER_UNIT,
+        instancesEncounterUnitBody({ frame: 2, guid, priority: 9 }),
+      );
+      expect(rig.handle.state().encounterUnits).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("non-unit frames keep the units and a map change drops them", () => {
     const { rig, seen } = rigWithEvents();
     const guid = 0x00f1_2299_0000_0003n;

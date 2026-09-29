@@ -292,7 +292,7 @@ export class InstancesStore {
           if (at >= 0) units.splice(at, 1);
         } else if (at >= 0) {
           units[at] = { guid: frame.guid };
-        } else {
+        } else if (frame.kind === "engage") {
           units.push({ guid: frame.guid });
         }
         this.set({ encounterUnits: units });
