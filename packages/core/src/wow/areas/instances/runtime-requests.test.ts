@@ -6,45 +6,30 @@ import {
   instancesResetFailedBody,
   instancesResetFailedNotifyBody,
 } from "#test-support/areas/instances";
+import { partyMember, partyState } from "#test-support/party-fixtures";
 import {
   buildResetInstances,
   buildSetDungeonDifficulty,
   buildSetRaidDifficulty,
 } from "#wow/areas/instances/protocol";
-import type { PartyMember, PartyState } from "#wow/party-store";
+import type { PartyState } from "#wow/party-store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
-function member(name: string): PartyMember {
-  return {
-    name,
-    guid: 0x10n,
-    online: true,
-    health: null,
-    maxHealth: null,
-    level: null,
-    statsAt: null,
-    source: null,
-  };
+function member(name: string) {
+  return partyMember({ name, guid: 0x10n });
 }
 
-const SOLO: PartyState = {
-  inGroup: false,
-  leader: null,
-  loot: null,
-  members: [],
-};
-const LEADING: PartyState = {
+const SOLO = partyState();
+const LEADING = partyState({
   inGroup: true,
   leader: "Me",
-  loot: null,
   members: [member("Partner")],
-};
-const FOLLOWING: PartyState = {
+});
+const FOLLOWING = partyState({
   inGroup: true,
   leader: "Partner",
-  loot: null,
   members: [member("Partner"), member("Other")],
-};
+});
 
 function rigIn(party: PartyState) {
   return areaRig("instances", {
