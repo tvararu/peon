@@ -159,82 +159,107 @@ async function runStatus(ctx: DungeonCtx): Promise<ToolResult<DungeonAfter>> {
   );
 }
 
-function refusedOutcome(reason: string, detail: string): never {
-  throw new Refusal({
+function refusalOf(reason: string, detail: string): Refusal {
+  return new Refusal({
     detail,
     next: nextCall("dungeon", { do: "status" }),
     reason,
   });
 }
 
-async function runDifficulty(
-  ctx: DungeonCtx,
+function refusedOutcome(reason: string, detail: string): never {
+  throw refusalOf(reason, detail);
+}
+
+type Reply = {
+  afterDetail?: string;
+  body: string[];
+  detail: string;
+  reason?: string;
+};
+
+function reply(
+  status: "DONE" | "PARTLY" | "UNCONFIRMED",
+  verb: DungeonDo,
+  { afterDetail, body, detail, reason }: Reply,
+): ToolResult<DungeonAfter> {
+  return result(status, {
+    after: {
+      detail: afterDetail ?? detail,
+      do: verb,
+      refreshed: false,
+      saves: [],
+      status,
+    },
+    body,
+    detail,
+    ...(reason === undefined ? {} : { reason }),
+  });
+}
+
+const NO_DIFFICULTY_ARGS =
+  "Difficulty needs for and value: dungeon normal or heroic, raid 10, 25, 10-heroic or 25-heroic.";
+const RAID_SIZE =
+  "Raid difficulty needs a size: 10, 25, 10-heroic or 25-heroic";
+
+function checkDifficulty(
   kind: "dungeon" | "raid" | undefined,
   value: string | undefined,
-): Promise<ToolResult<DungeonAfter>> {
+): { kind: "dungeon" | "raid"; wire: number } {
   if (kind === undefined || value === undefined)
     return refusedOutcome(
       "missing_args",
-      kind === "raid"
-        ? "Raid difficulty needs a size: 10, 25, 10-heroic or 25-heroic."
-        : "Difficulty needs for and value: dungeon normal or heroic, raid 10, 25, 10-heroic or 25-heroic.",
+      kind === "raid" ? `${RAID_SIZE}.` : NO_DIFFICULTY_ARGS,
     );
   const wire = difficultyValue(kind, value);
   if (wire === undefined)
     return refusedOutcome(
       "bad_value",
       kind === "raid"
-        ? `Raid difficulty needs a size: 10, 25, 10-heroic or 25-heroic, not ${value}.`
+        ? `${RAID_SIZE}, not ${value}.`
         : `Dungeon difficulty is normal or heroic, not ${value}.`,
     );
-  const name = difficultyName(kind, wire);
-  const outcome = await ctx.rt.mutex.run(() =>
-    ctx.handle.instances.act.setDifficulty({ kind, value: wire }),
-  );
+  return { kind, wire };
+}
+
+type DifficultyOutcome =
+  | { status: "ok"; result: "changed" }
+  | { status: "refused"; reason: string }
+  | { status: "no_answer" }
+  | { status: "unconfirmed_solo" }
+  | { status: "nothing_to_reset" };
+
+function difficultyResult(
+  kind: "dungeon" | "raid",
+  name: string,
+  outcome: DifficultyOutcome,
+): ToolResult<DungeonAfter> {
+  const label = kind === "dungeon" ? "Dungeon" : "Raid";
   if (outcome.status === "ok")
-    return result("DONE", {
-      after: {
-        detail: `${kind} difficulty set to ${name}.`,
-        do: "difficulty",
-        refreshed: false,
-        saves: [],
-        status: "DONE",
-      },
-      body: [
-        `${kind === "dungeon" ? "Dungeon" : "Raid"} difficulty is now ${name}.`,
-      ],
-      detail: `${kind === "dungeon" ? "Dungeon" : "Raid"} difficulty set to ${name}.`,
+    return reply("DONE", "difficulty", {
+      afterDetail: `${kind} difficulty set to ${name}.`,
+      body: [`${label} difficulty is now ${name}.`],
+      detail: `${label} difficulty set to ${name}.`,
     });
-  if (outcome.status === "unconfirmed_solo")
-    return result("UNCONFIRMED", {
-      after: {
-        detail: `Difficulty change to ${name} was sent.`,
-        do: "difficulty",
-        refreshed: false,
-        saves: [],
-        status: "UNCONFIRMED",
-      },
-      body: [
-        `Changed ${kind} difficulty to ${name}; the server does not confirm a solo change; it shows on your next dungeon entry.`,
-      ],
-      detail: `Changed ${kind} difficulty to ${name}; the server does not confirm a solo change; it shows on your next dungeon entry.`,
+  const sent = `Difficulty change to ${name} was sent.`;
+  if (outcome.status === "unconfirmed_solo") {
+    const text = `Changed ${kind} difficulty to ${name}; the server does not confirm a solo change; it shows on your next dungeon entry.`;
+    return reply("UNCONFIRMED", "difficulty", {
+      afterDetail: sent,
+      body: [text],
+      detail: text,
       reason: "unconfirmed_solo",
     });
-  if (outcome.status === "no_answer")
-    return result("UNCONFIRMED", {
-      after: {
-        detail: `Difficulty change to ${name} was sent.`,
-        do: "difficulty",
-        refreshed: false,
-        saves: [],
-        status: "UNCONFIRMED",
-      },
-      body: [
-        `The server did not answer the ${kind} difficulty change to ${name}.`,
-      ],
-      detail: `The server did not answer the ${kind} difficulty change to ${name}.`,
+  }
+  if (outcome.status === "no_answer") {
+    const text = `The server did not answer the ${kind} difficulty change to ${name}.`;
+    return reply("UNCONFIRMED", "difficulty", {
+      afterDetail: sent,
+      body: [text],
+      detail: text,
       reason: "no_answer",
     });
+  }
   if (outcome.status === "refused")
     return refusedOutcome(
       outcome.reason,
@@ -245,19 +270,24 @@ async function runDifficulty(
   throw new Error(`unexpected difficulty outcome ${outcome.status}`);
 }
 
+async function runDifficulty(
+  ctx: DungeonCtx,
+  forKind: "dungeon" | "raid" | undefined,
+  value: string | undefined,
+): Promise<ToolResult<DungeonAfter>> {
+  const { kind, wire } = checkDifficulty(forKind, value);
+  const outcome = await ctx.rt.mutex.run(() =>
+    ctx.handle.instances.act.setDifficulty({ kind, value: wire }),
+  );
+  return difficultyResult(kind, difficultyName(kind, wire), outcome);
+}
+
 async function runReset(ctx: DungeonCtx): Promise<ToolResult<DungeonAfter>> {
   const outcome = await ctx.rt.mutex.run(() =>
     ctx.handle.instances.act.resetInstances(),
   );
   if (outcome.status === "nothing_to_reset")
-    return result("DONE", {
-      after: {
-        detail: "There was nothing to reset.",
-        do: "reset",
-        refreshed: false,
-        saves: [],
-        status: "DONE",
-      },
+    return reply("DONE", "reset", {
       body: ["No dungeons needed a reset."],
       detail: "There was nothing to reset.",
       reason: "nothing_to_reset",
@@ -277,30 +307,10 @@ async function runReset(ctx: DungeonCtx): Promise<ToolResult<DungeonAfter>> {
     ...reset.map((mapId) => `map ${mapId} was reset.`),
     ...failed.map((mapId) => `map ${mapId} stayed inside and was not reset.`),
   ];
-  if (failed.length === 0)
-    return result("DONE", {
-      after: {
-        detail: body.join(" "),
-        do: "reset",
-        refreshed: false,
-        saves: [],
-        status: "DONE",
-      },
-      body,
-      detail: body.join(" "),
-    });
-  if (reset.length === 0) return refusedOutcome("reset_failed", body.join(" "));
-  return result("PARTLY", {
-    after: {
-      detail: body.join(" "),
-      do: "reset",
-      refreshed: false,
-      saves: [],
-      status: "PARTLY",
-    },
-    body,
-    detail: body.join(" "),
-  });
+  const detail = body.join(" ");
+  if (failed.length === 0) return reply("DONE", "reset", { body, detail });
+  if (reset.length === 0) return refusedOutcome("reset_failed", detail);
+  return reply("PARTLY", "reset", { body, detail });
 }
 
 async function runBind(
@@ -311,35 +321,22 @@ async function runBind(
   const outcome = await ctx.rt.mutex.run(() =>
     ctx.handle.instances.act.answerBind(keep),
   );
-  if (outcome.status === "ok")
-    return result("DONE", {
-      after: {
-        detail: keep
-          ? "Accepted the instance save."
-          : "Refused the instance save.",
-        do: "bind",
-        refreshed: false,
-        saves: [],
-        status: "DONE",
-      },
+  if (outcome.status === "ok") {
+    const detail = keep
+      ? "Accepted the instance save."
+      : "Refused the instance save.";
+    return reply("DONE", "bind", {
       body: [
         keep
           ? "You are now saved to this instance."
           : "You refused the save and keep your old bind.",
       ],
-      detail: keep
-        ? "Accepted the instance save."
-        : "Refused the instance save.",
+      detail,
     });
+  }
   if (outcome.status === "no_answer")
-    return result("UNCONFIRMED", {
-      after: {
-        detail: "The bind answer was sent.",
-        do: "bind",
-        refreshed: false,
-        saves: [],
-        status: "UNCONFIRMED",
-      },
+    return reply("UNCONFIRMED", "bind", {
+      afterDetail: "The bind answer was sent.",
       body: ["The server did not answer the bind choice."],
       detail: "The server did not answer the bind choice.",
       reason: "no_answer",
@@ -354,79 +351,70 @@ async function runBind(
   throw new Error(`unexpected bind outcome ${outcome.status}`);
 }
 
-function heldLocks(
+function pickLock(
   locks: readonly RaidLockView[],
-  map: number,
-): RaidLockView[] {
-  return locks.filter((lock) => lock.mapId === map);
-}
-
-async function runExtend(
-  ctx: DungeonCtx,
   map: number | undefined,
-  extended: boolean | undefined,
   value: string | undefined,
-): Promise<ToolResult<DungeonAfter>> {
+): RaidLockView {
   if (map === undefined)
     return refusedOutcome(
       "missing_args",
       "Extend needs the map id of the saved lock.",
     );
-  const locks = ctx.handle.instances.state().locks ?? [];
-  const held = heldLocks(locks, map);
-  if (held.length === 0)
+  const held = locks.filter((lock) => lock.mapId === map);
+  const first = held[0];
+  if (first === undefined)
     return refusedOutcome(
       "no_matching_lock",
       `No save is held for map ${map}.`,
     );
-  const want = extended ?? true;
-  let picked = held[0];
-  if (value !== undefined) {
-    const wire = RAID_VALUE[value];
-    if (wire === undefined || held.every((lock) => lock.difficulty !== wire))
+  if (value === undefined) {
+    if (held.length > 1)
       return refusedOutcome(
-        "bad_value",
-        `Map ${map} has no save with difficulty ${value}.`,
+        "ambiguous",
+        `Map ${map} has ${held.length} saves; name one with value 10, 25, 10-heroic or 25-heroic.`,
       );
-    picked = held.find((lock) => lock.difficulty === wire) ?? held[0];
-  } else if (held.length > 1)
+    return first;
+  }
+  const wire = RAID_VALUE[value];
+  const picked = held.find((lock) => lock.difficulty === wire);
+  if (wire === undefined || picked === undefined)
     return refusedOutcome(
-      "ambiguous",
-      `Map ${map} has ${held.length} saves; name one with value 10, 25, 10-heroic or 25-heroic.`,
+      "bad_value",
+      `Map ${map} has no save with difficulty ${value}.`,
     );
-  const difficulty = (picked as RaidLockView).difficulty;
-  const outcome = await ctx.rt.mutex.run(() =>
-    ctx.handle.instances.act.setLockoutExtended({
-      difficulty,
-      extended: want,
-      mapId: map,
-    }),
-  );
-  if (outcome.status === "ok")
-    return result("DONE", {
-      after: {
-        detail: `Map ${map} lock ${want ? "extended" : "shortened"}.`,
-        do: "extend",
-        refreshed: false,
-        saves: [],
-        status: "DONE",
-      },
-      body: [`Map ${map} lock ${want ? "extended." : "shortened."}`],
-      detail: `Map ${map} lock ${want ? "extended." : "shortened."}`,
+  return picked;
+}
+
+type ExtendOutcome =
+  | { status: "ok" }
+  | { status: "refused"; reason: string }
+  | { status: "no_answer" }
+  | { status: "unconfirmed_solo" }
+  | { status: "nothing_to_reset" };
+
+function extendResult(
+  map: number,
+  want: boolean,
+  outcome: ExtendOutcome,
+): ToolResult<DungeonAfter> {
+  if (outcome.status === "ok") {
+    const text = `Map ${map} lock ${want ? "extended." : "shortened."}`;
+    return reply("DONE", "extend", {
+      afterDetail: `Map ${map} lock ${want ? "extended" : "shortened"}.`,
+      body: [text],
+      detail: text,
     });
-  if (outcome.status === "no_answer")
-    return result("UNCONFIRMED", {
-      after: {
-        detail: `Map ${map} extend answer was sent.`,
-        do: "extend",
-        refreshed: false,
-        saves: [],
-        status: "UNCONFIRMED",
-      },
-      body: [`The server did not answer the extend choice for map ${map}.`],
-      detail: `The server did not answer the extend choice for map ${map}.`,
+  }
+  if (outcome.status === "no_answer") {
+    const text = `The server did not answer the extend choice for map ${map}.`;
+    return reply("UNCONFIRMED", "extend", {
+      afterDetail: `Map ${map} extend answer was sent.`,
+      body: [text],
+      detail: text,
       reason: "no_answer",
     });
+  }
   if (outcome.status === "refused")
     return refusedOutcome(
       outcome.reason,
@@ -435,7 +423,25 @@ async function runExtend(
   throw new Error(`unexpected extend outcome ${outcome.status}`);
 }
 
-export async function runDungeon(
+async function runExtend(
+  ctx: DungeonCtx,
+  map: number | undefined,
+  extended: boolean | undefined,
+  value: string | undefined,
+): Promise<ToolResult<DungeonAfter>> {
+  const picked = pickLock(ctx.handle.instances.state().locks ?? [], map, value);
+  const want = extended ?? true;
+  const outcome = await ctx.rt.mutex.run(() =>
+    ctx.handle.instances.act.setLockoutExtended({
+      difficulty: picked.difficulty,
+      extended: want,
+      mapId: picked.mapId,
+    }),
+  );
+  return extendResult(picked.mapId, want, outcome);
+}
+
+export function runDungeon(
   args: DungeonArgs,
   ctx: DungeonCtx,
 ): Promise<ToolResult<DungeonAfter>> {
@@ -451,9 +457,11 @@ export async function runDungeon(
   if (do_ === "bind") return runBind(ctx, args.accept);
   if (do_ === "extend")
     return runExtend(ctx, args.map, args.extended, args.value);
-  return refusedOutcome(
-    "unknown_verb",
-    `Unknown dungeon verb ${String(do_)}. Use status, difficulty, reset, bind or extend.`,
+  return Promise.reject(
+    refusalOf(
+      "unknown_verb",
+      `Unknown dungeon verb ${String(do_)}. Use status, difficulty, reset, bind or extend.`,
+    ),
   );
 }
 
