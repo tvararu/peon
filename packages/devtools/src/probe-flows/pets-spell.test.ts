@@ -72,13 +72,11 @@ function context(args: Record<string, string>) {
     }),
   };
   Object.assign(handle, { pets });
-  handle.spellDefinition = jest.fn((id: number) =>
-    id === GROWL
-      ? { name: "Growl" }
-      : id === BITE
-        ? { name: "Bite" }
-        : undefined,
-  ) as unknown as WorldHandle["spellDefinition"];
+  const names: Record<number, string> = { [BITE]: "Bite", [GROWL]: "Growl" };
+  handle.spellDefinition = jest.fn((id: number) => {
+    const name = names[id];
+    return name === undefined ? undefined : { name };
+  }) as unknown as WorldHandle["spellDefinition"];
   const ctx: FlowContext & { handle: MockHandle } = {
     args,
     handle,
