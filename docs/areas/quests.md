@@ -54,8 +54,8 @@ Quest sharing lives in `state().share` (`{ push, offer, dropped }`; the open
 `results`, and `dropped` counts the relays that arrived with no open push or
 with no reply owed, never attributed anywhere) and the `share` event
 (`{ type: "share", share }`), whose `share.type` is `pushed`, `result`,
-`relayed`, `closed` (a push close with reason `complete`, `timed_out` or
-`group_changed`), `offered`, `answered`, `expired` (an offer expiry) or
+`relayed`, `closed` (a push close with reason `complete`, `timed_out`,
+`group_changed` or `no_answer`), `offered`, `answered`, `expired` (an offer expiry) or
 `share_complete`. `shareQuest(questId)` refuses with `not_in_log`, an id
 missing from the log or 0, `not_in_group` or `busy`, sending nothing when a
 push is open, and otherwise sends `CMSG_PUSHQUESTTOPARTY` and opens one push
@@ -65,21 +65,24 @@ later accept (2) or decline (3) when that member's row sits awaiting at
 result 0; a relay with no open push or nothing owed is dropped and counted.
 Every result other than `SHARING_QUEST` (0) is final (`CANT_TAKE_QUEST` 1,
 `BUSY` 4, `HAVE_QUEST` 6 and the rest), and the push closes `complete` once
-every expected member answered. The open push's own results and relays never
-move the timer; 60 s after the push it closes `timed_out`, and a group
+every expected member answered. No result within 3 s of the push closes it
+`no_answer`, because AzerothCore sends no `MSG_QUEST_PUSH_RESULT` for a
+quest it refuses in `HandlePushQuestToParty`; any result keeps the push
+open, and members that got result 0 keep it open up to 60 s from the push
+for their final answer. The open push's own results and relays never
+move the 60 s timer; 60 s after the push it closes `timed_out`, and a group
 membership change (a listed member added or removed, the group formed or
-destroyed, a kick) closes it `group_changed`: both free the next share. A
+destroyed, a kick) closes it `group_changed`: `no_answer`, `timed_out` and
+`group_changed` all free the next share. A
 details packet
 with a non-zero divider, no pending `core.quests` intent and a quest not
 in the log opens `state().share.offer` (`from`, the sharer) and emits
 `offered`; a quest already in the log, an auto-accept share, emits
 `answered` with `auto_accepted` and opens no offer. A request-items packet
-from a group member with no pending intent emits `share_complete`, and on
-the sharer it also settles that member's pending push reply as a relayed
-accept: for an auto-complete or zero-method quest the
-`CMSG_PUSHQUESTTOPARTY` handler sends result 0 and then
-`SMSG_QUESTGIVER_REQUEST_ITEMS` without setting the receiver's divider, so
-no relay ever arrives (`Handlers/QuestHandler.cpp:588-594`).
+from a group member with no pending intent emits `share_complete` and opens
+no offer; the sharer never receives the recipient's request-items packet
+(`Handlers/QuestHandler.cpp:588-598`), so such a member stays open until
+its relay, the 60 s close or a group change.
 `answerShare("decline")` sends the 13-byte push result 3 to the sharer
 and emits `answered`; with no offer it returns false. An offer nobody
 answers in `OFFER_TIMEOUT_MS` (60000) gets that decline and an `expired`

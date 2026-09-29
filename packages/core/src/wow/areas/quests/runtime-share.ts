@@ -10,6 +10,7 @@ import { GameOpcode } from "#wow/protocol/opcodes";
 import type { CoreStores } from "#wow/session-stores";
 
 export const PUSH_TIMEOUT_MS = 60_000;
+export const FIRST_RESULT_TIMEOUT_MS = 3000;
 export const OFFER_TIMEOUT_MS = 60_000;
 
 export type ShareStart =
@@ -38,17 +39,54 @@ function sendDecline(
     ),
   );
 }
+type PushTimers = {
+  stopPush: () => void;
+  onPush: (share: ShareChange) => void;
+};
+
+function pushTimers(store: QuestsStore): PushTimers {
+  let pushTimer: Timer | undefined;
+  let firstResultTimer: Timer | undefined;
+  const stopPush = (): void => {
+    clearTimeout(pushTimer);
+    clearTimeout(firstResultTimer);
+    pushTimer = undefined;
+    firstResultTimer = undefined;
+  };
+  const hasReply = (): boolean =>
+    (store.snapshot().share?.push?.results.length ?? 0) > 0;
+  const startPush = (): void => {
+    stopPush();
+    firstResultTimer = setTimeout(() => {
+      firstResultTimer = undefined;
+      if (hasReply()) return;
+      store.closePush("no_answer");
+    }, FIRST_RESULT_TIMEOUT_MS);
+    pushTimer = setTimeout(() => {
+      pushTimer = undefined;
+      store.closePush("timed_out");
+    }, PUSH_TIMEOUT_MS);
+  };
+  const onFirstResult = (share: ShareChange): void => {
+    if (share.type === "result" || share.type === "relayed") {
+      clearTimeout(firstResultTimer);
+      firstResultTimer = undefined;
+    }
+  };
+  const onPush = (share: ShareChange): void => {
+    if (share.type === "pushed") startPush();
+    else if (share.type === "closed") stopPush();
+    else onFirstResult(share);
+  };
+  return { onPush, stopPush };
+}
 
 function shareTimers(
   ctx: AreaRuntimeCtx<QuestsEvent>,
   store: QuestsStore,
 ): ShareTimers {
-  let pushTimer: Timer | undefined;
+  const push = pushTimers(store);
   let offerTimer: Timer | undefined;
-  const stopPush = (): void => {
-    clearTimeout(pushTimer);
-    pushTimer = undefined;
-  };
   const stopOffer = (): void => {
     clearTimeout(offerTimer);
     offerTimer = undefined;
@@ -60,20 +98,9 @@ function shareTimers(
     sendDecline(ctx, offer);
     store.expireOffer();
   };
-  const startPush = (): void => {
-    stopPush();
-    pushTimer = setTimeout(() => {
-      pushTimer = undefined;
-      store.closePush("timed_out");
-    }, PUSH_TIMEOUT_MS);
-  };
   const startOffer = (): void => {
     stopOffer();
     offerTimer = setTimeout(expireOffer, OFFER_TIMEOUT_MS);
-  };
-  const onPush = (share: ShareChange): void => {
-    if (share.type === "pushed") startPush();
-    else if (share.type === "closed") stopPush();
   };
   const onOffer = (share: ShareChange): void => {
     if (share.type === "offered") startOffer();
@@ -83,13 +110,13 @@ function shareTimers(
   };
   const off = store.onEvent((event) => {
     if (event.type !== "share") return;
-    onPush(event.share);
+    push.onPush(event.share);
     onOffer(event.share);
   });
   return {
     dispose: () => {
       off();
-      stopPush();
+      push.stopPush();
       stopOffer();
     },
   };

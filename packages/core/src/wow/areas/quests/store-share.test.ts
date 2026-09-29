@@ -3,7 +3,6 @@ import { areaRig } from "#test-support/area-rig";
 import {
   questsQuestgiverQuestDetailsBody,
   questsQuestgiverRequestItemsBody,
-  questsQuestPushResultBody,
 } from "#test-support/areas/quests";
 import type { AreaPort } from "#wow/areas/port";
 import type { QuestsEvent } from "#wow/areas/quests/store";
@@ -145,26 +144,6 @@ describe("quest sharing offers", () => {
       },
       [QUEST],
     );
-  });
-
-  test("a request-items packet settles that member's pending push reply", () => {
-    within(({ items, rig, shares }) => {
-      rig.stores.areas.quests.bindMembers(() => [SHARER]);
-      expect(rig.stores.areas.quests.beginPush(QUEST)).toBe(true);
-      rig.inject(
-        GameOpcode.MSG_QUEST_PUSH_RESULT,
-        questsQuestPushResultBody(SHARER, 0),
-      );
-      items(SHARER);
-      expect(shares()).toEqual([
-        { questId: QUEST, type: "pushed" },
-        { guid: SHARER, questId: QUEST, result: 0, type: "result" },
-        { guid: SHARER, questId: QUEST, result: 2, type: "relayed" },
-        { questId: QUEST, reason: "complete", type: "closed" },
-        { from: SHARER, questId: QUEST, type: "share_complete" },
-      ]);
-      expect(rig.stores.areas.quests.beginPush(8325)).toBe(true);
-    });
   });
 
   test("a request-items packet from a group member is a share_complete notice with no offer", () => {

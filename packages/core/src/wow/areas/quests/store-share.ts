@@ -1,7 +1,11 @@
 import { QuestShareResult } from "#wow/areas/quests/protocol";
 
 export type ShareRow = { guid: bigint; result: number; at: number };
-export type PushClose = "complete" | "timed_out" | "group_changed";
+export type PushClose =
+  | "complete"
+  | "timed_out"
+  | "group_changed"
+  | "no_answer";
 export type SharePush = {
   questId: number;
   at: number;
@@ -113,22 +117,9 @@ export function receivePushResult(
   return withRow(share, push, { at: now, guid, result });
 }
 
-export function settlePushRequestItems(
-  share: ShareState,
-  guid: bigint,
-): ShareStep | undefined {
-  const { push } = share;
-  if (push?.status !== "open" || !owesReply(push, guid)) return undefined;
-  return withRow(share, push, {
-    at: push.at,
-    guid,
-    result: QuestShareResult.ACCEPT_QUEST,
-  });
-}
-
 export function closePush(
   share: ShareState,
-  reason: "timed_out" | "group_changed",
+  reason: "timed_out" | "group_changed" | "no_answer",
 ): ShareStep | undefined {
   const { push } = share;
   if (push?.status !== "open") return undefined;

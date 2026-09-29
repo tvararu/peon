@@ -42,7 +42,6 @@ import {
   type ShareOffer,
   type ShareState,
   type ShareStep,
-  settlePushRequestItems,
 } from "#wow/areas/quests/store-share";
 import {
   type GossipPoiEntry,
@@ -198,7 +197,7 @@ export class QuestsStore {
     this.applyShare(receivePushResult(this.share, guid, result, this.now()));
   }
 
-  closePush(reason: "timed_out" | "group_changed"): void {
+  closePush(reason: "timed_out" | "group_changed" | "no_answer"): void {
     this.applyShare(closePush(this.share, reason));
   }
 
@@ -230,7 +229,6 @@ export class QuestsStore {
       !this.members().includes(items.guid)
     )
       return;
-    this.applyShare(settlePushRequestItems(this.share, items.guid));
     this.emitShare({
       from: items.guid,
       questId: items.questId,
