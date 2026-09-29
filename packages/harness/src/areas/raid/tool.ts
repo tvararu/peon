@@ -1,5 +1,12 @@
 import type { PartyMember } from "@peon/core";
 import {
+  moveTool,
+  promoteTool,
+  raidTool,
+  swapTool,
+} from "#harness/areas/raid/tool-raid";
+import { lootRulesTool } from "#harness/areas/raid/tool-rules";
+import {
   type Answer,
   emptyGroup,
   findMember,
@@ -265,19 +272,13 @@ function groupRun(
   args: GroupArgs,
   ctx: GroupCtx,
 ): Promise<ToolResult<GroupAfter>> {
-  const ops: Record<GroupDo, string> = {
-    kick: "kick",
-    lead: "lead",
-    status: "status",
-  };
-  const op =
-    ops[
-      (["status", "kick", "lead"] as const).find(
-        (known) => known === args.do,
-      ) ?? "status"
-    ];
-  if (op === "kick") return kickTool(args, ctx);
-  if (op === "lead") return leadTool(args, ctx);
+  if (args.do === "kick") return kickTool(args, ctx);
+  if (args.do === "lead") return leadTool(args, ctx);
+  if (args.do === "raid") return raidTool(args, ctx);
+  if (args.do === "move") return moveTool(args, ctx);
+  if (args.do === "swap") return swapTool(args, ctx);
+  if (args.do === "promote") return promoteTool(args, ctx);
+  if (args.do === "loot_rules") return lootRulesTool(args, ctx);
   return statusTool(args, ctx);
 }
 
@@ -285,7 +286,7 @@ function groupCall(args: unknown, theme: CallInit["theme"]): string {
   const doing = argText(args, "do") ?? "status";
   return callLine({
     icon: "party",
-    parts: [doing, argText(args, "to"), argText(args, "text")],
+    parts: [doing, argText(args, "to"), argText(args, "with")],
     theme,
     verb: "group",
   });
@@ -319,8 +320,11 @@ export const groupSpec: GameToolSpec<typeof groupParams, "group", GroupAfter> =
     run: groupRun,
     text: {
       description:
-        "Shows the group roster, removes a member, or passes the lead. Status lists each member's subgroup, role, health and state. Kick and lead act only when Peon leads or assists, never in a dungeon-finder group, and kick needs a reason.",
-      guidelines: ["Call status first to learn the exact member name."],
+        "Runs the group: status, kick, lead, raid, move, swap, promote and loot_rules. Status lists each member's subgroup, role, health and state. Raid makes the group a raid when Peon leads, move and swap need a raid and the leader or an assistant, promote and loot_rules need the leader, and kick needs a reason.",
+      guidelines: [
+        "Call status first to learn the exact member name.",
+        "Convert to a raid with `group do=raid` before subgroups and main roles.",
+      ],
       label: "Group",
     },
   };

@@ -4,26 +4,68 @@ import type { ToolCtx } from "#harness/contract/services";
 
 export const groupParams = Type.Object({
   do: Type.Optional(
-    StringEnum(["status", "kick", "lead"], {
-      description:
-        "status: show each group member. kick: remove a member by name. lead: pass the leader to a member. Default status.",
+    StringEnum(
+      [
+        "status",
+        "kick",
+        "lead",
+        "raid",
+        "move",
+        "swap",
+        "promote",
+        "loot_rules",
+      ],
+      {
+        description:
+          "status: show each group member. kick: remove a member by name. lead: pass the leader to a member. raid: make the group a raid. move: move a member to a subgroup. swap: swap two members between subgroups. promote: set assistant, main tank or main assist. loot_rules: set the loot method. Default status.",
+      },
+    ),
+  ),
+  group: Type.Optional(
+    Type.Number({
+      description: "For move: the subgroup 1-8.",
+    }),
+  ),
+  quality: Type.Optional(
+    StringEnum(["uncommon", "rare", "epic", "legendary", "artifact"], {
+      description: "For loot_rules: the loot quality threshold.",
     }),
   ),
   text: Type.Optional(
     Type.String({
-      description: "For kick: the removal reason, up to 40 characters.",
+      description:
+        "For kick: the removal reason, up to 40 characters. For promote: off clears the role.",
     }),
   ),
   to: Type.Optional(
     Type.String({
       description:
-        "For kick and lead: the member's exact name. For status: show only this member.",
+        "For kick, lead, move, swap, promote and loot_rules: the member's exact name. For status: show only this member.",
+    }),
+  ),
+  what: Type.Optional(
+    Type.String({
+      description:
+        "For promote: assistant, main_tank or main_assist. For loot_rules: the loot method.",
+    }),
+  ),
+  with: Type.Optional(
+    Type.String({
+      description: "For swap: the second member's exact name.",
     }),
   ),
 });
 
 export type GroupArgs = Static<typeof groupParams>;
-export type GroupDo = "status" | "kick" | "lead";
+export type GroupDo =
+  | "status"
+  | "kick"
+  | "lead"
+  | "raid"
+  | "move"
+  | "swap"
+  | "promote"
+  | "loot_rules";
 
 export type RaidState = AreaState<"raid">;
 export type RaidGroup = NonNullable<RaidState["group"]>;
