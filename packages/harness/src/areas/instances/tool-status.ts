@@ -44,20 +44,27 @@ export function liveSaves(
 }
 
 export function saveLine({
-  left,
+  left: remaining,
   lock,
 }: {
   left: string;
   lock: RaidLockView;
 }): string {
   const held = lock.extended ? ", extended" : "";
-  return `map ${lock.mapId} (difficulty ${lock.difficulty}), ${left} left${held}`;
+  return `map ${lock.mapId} (difficulty ${lock.difficulty}), ${remaining} left${held}`;
 }
 
 export function lockStale(instances: InstancesSnapshot, now: number): boolean {
   const at = instances.locksAt;
   if (at === undefined) return true;
   return now - at > LOCKS_STALE_MS;
+}
+
+function hereLine(map: InstancesSnapshot["mapDifficulty"]): string {
+  if (map === undefined) return "Not in a dungeon or raid map.";
+  if (map.difficulty !== 0)
+    return `Here: map ${map.mapId} (${map.name ?? `difficulty ${map.difficulty}`}).`;
+  return `Here: map ${map.mapId} (normal).`;
 }
 
 export function difficultyLines(
@@ -72,20 +79,13 @@ export function difficultyLines(
     instances.raidDifficulty === undefined
       ? "Raid difficulty: unknown."
       : `Raid difficulty: ${difficultyName("raid", instances.raidDifficulty)}.`;
-  const map = instances.mapDifficulty;
-  const here =
-    map === undefined
-      ? "Not in a dungeon or raid map."
-      : map.difficulty === 0
-        ? `Here: map ${map.mapId} (normal).`
-        : `Here: map ${map.mapId} (${map.name ?? `difficulty ${map.difficulty}`}).`;
   const saves = liveSaves(instances, now)
     .map(saveLine)
     .map((line) => `  ${line}`);
   return [
     dungeon,
     raid,
-    here,
+    hereLine(instances.mapDifficulty),
     ...(saves.length > 0
       ? ["Saved instances:", ...saves]
       : ["No saved instances."]),

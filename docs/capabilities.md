@@ -46,6 +46,11 @@ or the page names one that does not exist.
 ## Not shown by any scenario
 
 These have tools or code but no scenario that checks them live:
+- Resetting its own dungeons (`dungeon` `reset`): no scenario can stage the
+  character inside a dungeon (the realm position setup accepts only
+  continent maps, and evals may not teleport with a GM command), so the
+  reset is proven by probe runs, failed inside the dungeon and reset
+  outside it.
 
 - Training spells, repairing, and selling junk (`interact` `train`,
   `repair`, `sell_junk`).
