@@ -41,6 +41,7 @@ or the page names one that does not exist.
 | Use the hearthstone to go home | `t8-travel-hearth-home` | `travel` `hearth` refuses without the stone, on cooldown, in combat or in flight. The scenario starts at the preset's own home, so it does not show a bind at another inn. |
 | Command a pet: call, dismiss, attack, follow, stay, stop and stance | `t8-pets-command` | Hunter only; no warlock or death knight preset. |
 | Set dungeon difficulty | `t9-instances-difficulty` | A solo change is not confirmed until the next dungeon entry; in a group only the leader can change it. |
+| Queue for the dungeon finder and leave | `t9-lfg-queue` | Joining needs an LFG option on the server; a queue with no reply is reported as disabled. |
 | Reset its own dungeons | — (not shown; see below) | Normal difficulty only; a group member cannot reset. |
 | Remove a member with a reason | `t9-raid-kick` | A party of two disbands. |
 | Run a raid: convert, subgroups, assistants, main tank and main assist | `t9-raid-convert` | Every member must be level 10 or more; the server refuses the convert below that. Flags and subgroups are shown by roster rows only, not by a truth field. |

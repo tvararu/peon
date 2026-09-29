@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEventOf } from "@peon/core";
+import { lfgHarness } from "#harness/areas/lfg/area";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
 import { testRuleInput } from "#test-support/rule-fixtures";
 
@@ -189,9 +190,7 @@ describe("lfg harness rules: prompts", () => {
   test("a role check start wakes and a later state does not", () => {
     expect(
       rows({ state: 2, stateName: "initializing", type: "role_check" }),
-    ).toMatchObject([
-      { class: "wake", data: { stateName: "initializing" } },
-    ]);
+    ).toMatchObject([{ class: "wake", data: { stateName: "initializing" } }]);
     expect(
       rows({ state: 1, stateName: "finished", type: "role_check" })[0]?.class,
     ).toBe("log");
@@ -289,5 +288,22 @@ describe("lfg harness rules: other events", () => {
   test("a dungeon list arrival writes no row", () => {
     expect(rows({ scope: "player", type: "dungeons" })).toEqual([]);
     expect(rows({ scope: "party", type: "dungeons" })).toEqual([]);
+  });
+});
+
+describe("lfg world acts", () => {
+  test("the dungeon verbs reach the world", () => {
+    expect(lfgHarness.worldActs).toEqual([
+      "requestDungeons",
+      "requestPartyLocks",
+      "requestStatus",
+      "answerProposal",
+      "join",
+      "leave",
+      "setComment",
+      "setRoles",
+      "teleport",
+      "voteKick",
+    ]);
   });
 });

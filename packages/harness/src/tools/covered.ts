@@ -7,6 +7,10 @@ const COVERS: Partial<Record<ToolName, ReadonlySet<LogEvent>>> = {
     "instances/reset",
     "instances/reset_failed",
     "instances/bound",
+    "lfg/queued",
+    "lfg/left",
+    "lfg/refused",
+    "lfg/teleport_refused",
   ]),
   group: new Set<LogEvent>(["raid/roster"]),
   interact: new Set<LogEvent>([
