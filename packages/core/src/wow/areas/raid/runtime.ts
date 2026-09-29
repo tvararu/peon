@@ -1,5 +1,9 @@
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import {
+  composeReadyRuntime,
+  type ReadyActs,
+} from "#wow/areas/raid/runtime-ready";
+import {
   composeStatsRuntime,
   type StatsActs,
 } from "#wow/areas/raid/runtime-stats";
@@ -15,7 +19,8 @@ export type GroupChangeMatch = {
 };
 
 export type RaidActs = StatsActs &
-  StructureActs & {
+  StructureActs &
+  ReadyActs & {
     awaitGroupChange: (
       match: GroupChangeMatch,
       timeoutMs: number,
@@ -40,6 +45,7 @@ export function raidRuntime(
 ): AreaRuntime<RaidActs> {
   const stats = composeStatsRuntime({ ctx, store });
   const structure = composeStructureRuntime({ ctx, store });
+  const ready = composeReadyRuntime({ ctx, store });
   function awaitGroupChange(
     match: GroupChangeMatch,
     timeoutMs: number,
@@ -47,10 +53,11 @@ export function raidRuntime(
     return ctx.until((event) => matches(event, match), { timeoutMs });
   }
   return {
-    act: { awaitGroupChange, ...stats.act, ...structure.act },
+    act: { awaitGroupChange, ...stats.act, ...structure.act, ...ready.act },
     dispose: () => {
       stats.dispose();
       structure.dispose();
+      ready.dispose();
     },
   };
 }
