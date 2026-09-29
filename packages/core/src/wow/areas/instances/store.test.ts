@@ -64,6 +64,7 @@ describe("instances store", () => {
         locksAt: undefined,
         pendingBind: undefined,
         pendingDifficulty: undefined,
+        encounterUnits: [],
       });
     } finally {
       rig.dispose();

@@ -32,6 +32,49 @@ export type RaidGroupOnly = { timerMs: number; code: number };
 export type InstanceReset = { mapId: number };
 export type InstanceResetFailed = { reason: number; mapId: number };
 
+export type EncounterFrame =
+  | { kind: "engage"; guid: bigint; priority: number }
+  | { kind: "disengage"; guid: bigint; priority: number }
+  | { kind: "update_priority"; guid: bigint; priority: number }
+  | { kind: "add_timer"; param: number }
+  | { kind: "enable_objective"; param: number }
+  | { kind: "update_objective"; param: number; extra: number }
+  | { kind: "disable_objective"; param: number }
+  | { kind: "refresh" }
+  | { kind: "unknown"; frame: number };
+
+export function parseEncounterUnit(r: PacketReader): EncounterFrame {
+  const frame = r.uint32LE();
+  switch (frame) {
+    case 0:
+      return { kind: "engage", guid: r.packedGuidBig(), priority: r.uint8() };
+    case 1:
+      return {
+        kind: "disengage",
+        guid: r.packedGuidBig(),
+        priority: r.uint8(),
+      };
+    case 2:
+      return {
+        kind: "update_priority",
+        guid: r.packedGuidBig(),
+        priority: r.uint8(),
+      };
+    case 3:
+      return { kind: "add_timer", param: r.uint8() };
+    case 4:
+      return { kind: "enable_objective", param: r.uint8() };
+    case 5:
+      return { kind: "update_objective", param: r.uint8(), extra: r.uint8() };
+    case 6:
+      return { kind: "disable_objective", param: r.uint8() };
+    case 7:
+      return { kind: "refresh" };
+    default:
+      return { kind: "unknown", frame };
+  }
+}
+
 export function parseDifficulty(r: PacketReader): DifficultyPacket {
   const difficulty = r.uint32LE();
   r.uint32LE();

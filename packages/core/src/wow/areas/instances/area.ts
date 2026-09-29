@@ -2,6 +2,7 @@ import { defineArea } from "#wow/areas/contract";
 import { INSTANCES_OPCODES } from "#wow/areas/instances/opcodes";
 import {
   parseDifficulty,
+  parseEncounterUnit,
   parseInstanceDifficulty,
   parseInstanceOwnership,
   parseInstanceReset,
@@ -33,6 +34,7 @@ export const instancesArea = defineArea({
     "reset",
     "reset_failed",
     "reset_blocked",
+    "encounter",
   ],
   store: (deps, core) => createInstancesStore(deps, core),
   register: (wire, store) => {
@@ -76,6 +78,9 @@ export const instancesArea = defineArea({
       store.resetBlocked(parseResetFailedNotify(r)),
     );
     wire.on(GameOpcode.SMSG_INSTANCE_SAVE_CREATED, () => store.saveCreated());
+    wire.on(GameOpcode.SMSG_UPDATE_INSTANCE_ENCOUNTER_UNIT, (r) =>
+      store.encounterUnit(parseEncounterUnit(r)),
+    );
   },
   runtime: instancesRuntime,
 });

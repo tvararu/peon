@@ -212,6 +212,8 @@ function rule(event: InstancesEvent): AreaDraft[] {
       return resetBlocked(event);
     case "lockouts":
       return lockouts(event);
+    case "encounter":
+      return [];
     default:
       return [];
   }

@@ -1,6 +1,7 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type {
   DifficultyPacket,
+  EncounterFrame,
   InstanceDifficulty,
   InstanceOwnership,
   InstanceReset,
@@ -29,7 +30,7 @@ export type PendingBind = {
   at: number;
   deadline: number;
 };
-
+export type EncounterUnit = { guid: bigint };
 export type PendingDifficulty = { dungeon?: number; raid?: number };
 export type DifficultyBody = { kind: DifficultyKind; difficulty: number };
 
@@ -45,6 +46,7 @@ export type InstancesState = {
   locksAt: number | undefined;
   pendingBind: PendingBind | undefined;
   pendingDifficulty: PendingDifficulty | undefined;
+  encounterUnits: readonly EncounterUnit[];
 };
 
 export type InstancesEvent =
@@ -81,7 +83,13 @@ export type InstancesEvent =
   | { type: "bound" }
   | { type: "reset"; mapId: number }
   | { type: "reset_failed"; mapId: number; reason: number }
-  | { type: "reset_blocked"; mapId: number };
+  | { type: "reset_blocked"; mapId: number }
+  | {
+      type: "encounter";
+      change: "engage" | "disengage" | "update_priority";
+      guid: bigint;
+      priority: number;
+    };
 
 const lockKey = (lock: RaidLock) => `${lock.mapId}:${lock.difficulty}`;
 
@@ -102,6 +110,7 @@ const EMPTY: InstancesState = {
   locksAt: undefined,
   pendingBind: undefined,
   pendingDifficulty: undefined,
+  encounterUnits: [],
 };
 
 export class InstancesStore {
@@ -124,6 +133,7 @@ export class InstancesStore {
       locks,
       pendingBind,
       pendingDifficulty,
+      encounterUnits,
     } = this.state;
     return {
       ...this.state,
@@ -136,6 +146,7 @@ export class InstancesStore {
       mapDifficulty: mapDifficulty && { ...mapDifficulty },
       lastWarning: lastWarning && { ...lastWarning },
       homebindTimer: homebindTimer && { ...homebindTimer },
+      encounterUnits: encounterUnits.map((unit) => ({ ...unit })),
     };
   }
 
@@ -270,12 +281,40 @@ export class InstancesStore {
   resetBlocked(packet: InstanceReset): void {
     this.events.emit({ type: "reset_blocked", mapId: packet.mapId });
   }
+  encounterUnit(frame: EncounterFrame): void {
+    switch (frame.kind) {
+      case "engage":
+      case "disengage":
+      case "update_priority": {
+        const units = [...this.state.encounterUnits];
+        const at = units.findIndex((unit) => unit.guid === frame.guid);
+        if (frame.kind === "disengage") {
+          if (at >= 0) units.splice(at, 1);
+        } else if (at >= 0) {
+          units[at] = { guid: frame.guid };
+        } else {
+          units.push({ guid: frame.guid });
+        }
+        this.set({ encounterUnits: units });
+        this.events.emit({
+          type: "encounter",
+          change: frame.kind,
+          guid: frame.guid,
+          priority: frame.priority,
+        });
+        return;
+      }
+      default:
+        return;
+    }
+  }
 
   mapChanged(): void {
     this.set({
       mapDifficulty: undefined,
       homebindTimer: undefined,
       pendingBind: undefined,
+      encounterUnits: [],
     });
   }
 

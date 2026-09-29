@@ -108,3 +108,36 @@ export function instancesResetFailedBody(init: {
 export function instancesResetFailedNotifyBody(mapId: number): Uint8Array {
   return u32s(mapId);
 }
+
+export type InstancesEncounterFrame =
+  | { frame: 0 | 1 | 2; guid: bigint; priority: number }
+  | { frame: 3 | 4 | 6; param: number }
+  | { frame: 5; param: number; extra: number }
+  | { frame: 7 };
+
+export function instancesEncounterUnitBody(
+  init: InstancesEncounterFrame,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.frame);
+  switch (init.frame) {
+    case 0:
+    case 1:
+    case 2:
+      w.packedGuidBig(init.guid);
+      w.uint8(init.priority);
+      break;
+    case 3:
+    case 4:
+    case 6:
+      w.uint8(init.param);
+      break;
+    case 5:
+      w.uint8(init.param);
+      w.uint8(init.extra);
+      break;
+    case 7:
+      break;
+  }
+  return w.finish();
+}

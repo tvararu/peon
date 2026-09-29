@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   instancesDifficultyBody,
+  instancesEncounterUnitBody,
   instancesInstanceDifficultyBody,
   instancesLastInstanceBody,
   instancesLockWarningBody,
@@ -20,6 +21,7 @@ import {
   buildSetLockoutExtended,
   buildSetRaidDifficulty,
   parseDifficulty,
+  parseEncounterUnit,
   parseInstanceDifficulty,
   parseInstanceOwnership,
   parseInstanceReset,
@@ -224,6 +226,45 @@ describe("instances protocol", () => {
     const r = reader(instancesResetFailedNotifyBody(36));
     expect(parseResetFailedNotify(r)).toEqual({ mapId: 36 });
     expect(r.remaining).toBe(0);
+  });
+
+  test("SMSG_UPDATE_INSTANCE_ENCOUNTER_UNIT reads the eight frames and the 4-byte Halion refresh (InstanceScript.cpp:775-803, boss_halion.cpp:199-201)", () => {
+    const guid = 0x00f1_2299_0000_0003n;
+    for (const [kind, frame] of [
+      ["engage", 0],
+      ["disengage", 1],
+      ["update_priority", 2],
+    ] as const) {
+      const r = reader(
+        instancesEncounterUnitBody({ frame, guid, priority: 7 }),
+      );
+      expect(parseEncounterUnit(r)).toEqual({ kind, guid, priority: 7 });
+      expect(r.remaining).toBe(0);
+    }
+    const paramCases = [
+      ["add_timer", 3],
+      ["enable_objective", 4],
+      ["disable_objective", 6],
+    ] as const;
+    for (const [kind, frame] of paramCases) {
+      const r = reader(instancesEncounterUnitBody({ frame, param: 2 }));
+      expect(parseEncounterUnit(r)).toEqual({ kind, param: 2 });
+      expect(r.remaining).toBe(0);
+    }
+    const update = reader(
+      instancesEncounterUnitBody({ frame: 5, param: 2, extra: 9 }),
+    );
+    expect(parseEncounterUnit(update)).toEqual({
+      kind: "update_objective",
+      param: 2,
+      extra: 9,
+    });
+    expect(update.remaining).toBe(0);
+    const refreshBody = instancesEncounterUnitBody({ frame: 7 });
+    expect(refreshBody.length).toBe(4);
+    const refresh = reader(refreshBody);
+    expect(parseEncounterUnit(refresh)).toEqual({ kind: "refresh" });
+    expect(refresh.remaining).toBe(0);
   });
 
   test("the client difficulty forms are one u32 mode each (InstancePackets.cpp:44-47,65-68)", () => {
