@@ -121,24 +121,12 @@ function emptyPet(pet: GroupPetStats): boolean {
   );
 }
 
-function readPetFields(
+function readPetDetails(
   r: PacketReader,
   mask: number,
-  result: PartyMemberStats,
-): void {
-  const pet: GroupPetStats = {};
+  pet: GroupPetStats,
+): boolean {
   let seen = false;
-  let removed = false;
-  if (mask & GroupUpdateFlag.PET_GUID) {
-    const low = r.uint32LE();
-    const high = r.uint32LE();
-    if (low === 0 && high === 0) {
-      removed = true;
-    } else {
-      pet.guid = (BigInt(high) << 32n) | BigInt(low >>> 0);
-      seen = true;
-    }
-  }
   if (mask & GroupUpdateFlag.PET_NAME) {
     pet.name = r.cString();
     seen = true;
@@ -171,6 +159,28 @@ function readPetFields(
     pet.auras = readAuras(r);
     seen = true;
   }
+  return seen;
+}
+
+function readPetFields(
+  r: PacketReader,
+  mask: number,
+  result: PartyMemberStats,
+): void {
+  const pet: GroupPetStats = {};
+  let seen = false;
+  let removed = false;
+  if (mask & GroupUpdateFlag.PET_GUID) {
+    const low = r.uint32LE();
+    const high = r.uint32LE();
+    if (low === 0 && high === 0) {
+      removed = true;
+    } else {
+      pet.guid = (BigInt(high) << 32n) | BigInt(low >>> 0);
+      seen = true;
+    }
+  }
+  if (readPetDetails(r, mask, pet)) seen = true;
   if (mask & GroupUpdateFlag.VEHICLE_SEAT) result.vehicleSeat = r.uint32LE();
   if (removed || (seen && emptyPet(pet))) result.pet = null;
   else if (seen) result.pet = pet;

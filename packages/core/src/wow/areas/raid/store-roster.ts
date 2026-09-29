@@ -7,8 +7,8 @@ import {
 } from "#wow/areas/raid/protocol";
 import {
   type MemberStats,
-  type StatsEvent,
   mergeMemberStats,
+  type StatsEvent,
   statsTransitions,
 } from "#wow/areas/raid/store-stats";
 import type { PartyMemberStats } from "#wow/protocol/group-stats";
