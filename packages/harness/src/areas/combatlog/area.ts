@@ -14,6 +14,15 @@ const IMMUNE_OUTCOMES = new Set(["immune", "immune2"]);
 const HEAL_KINDS = new Set(["heal", "periodic_heal"]);
 const HEAL_ROW_GAP_MS = 10_000;
 
+const ENVIRONMENT_TYPES = [
+  "exhausted",
+  "drowning",
+  "fall",
+  "lava",
+  "slime",
+  "fire",
+];
+
 type RuleState = { seen: Set<string>; healAt: Map<bigint, number> };
 
 function named(guid: bigint, rc: RuleInput): string {
@@ -64,7 +73,27 @@ function onHealIn(
   ];
 }
 
+function onEnvironmental(e: Of<"entry">, rc: RuleInput): AreaDraft[] {
+  if (e.target !== rc.selfGuid) return [];
+  const wire = e.extra ?? 0;
+  const type = ENVIRONMENT_TYPES[wire] ?? `unknown_${wire}`;
+  return [
+    {
+      class: rc.runActive ? "log" : "wake",
+      data: {
+        absorbed: e.absorbed ?? 0,
+        amount: e.amount,
+        resisted: e.resisted ?? 0,
+        type,
+      },
+      name: "environmental",
+      text: `You took ${e.amount} ${type} damage.`,
+    },
+  ];
+}
+
 function onEntry(e: Of<"entry">, state: RuleState, rc: RuleInput) {
+  if (e.kind === "environmental") return onEnvironmental(e, rc);
   if (HEAL_KINDS.has(e.kind)) return onHealIn(e, state.healAt, rc);
   const { seen } = state;
   if (e.source !== rc.selfGuid || e.target === rc.selfGuid) return [];

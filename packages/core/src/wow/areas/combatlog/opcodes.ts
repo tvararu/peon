@@ -23,11 +23,8 @@ export const COMBATLOG_OPCODES = {
     "SMSG_FEIGN_DEATH_RESISTED",
     "SMSG_HEALTH_UPDATE",
   ],
-  uses: [],
-  stubs: [
-    ["SMSG_ENVIRONMENTAL_DAMAGE_LOG", "Environmental damage"],
-    ["SMSG_HEALTH_UPDATE", "Health update"],
-  ],
+  uses: ["SMSG_SPELL_GO"],
+  stubs: [["SMSG_HEALTH_UPDATE", "Health update"]],
   dead: ["SMSG_PROCRESIST", "SMSG_FEIGN_DEATH_RESISTED", "SMSG_HEALTH_UPDATE"],
   unseen: ["SMSG_UPDATE_COMBO_POINTS"],
 } as const satisfies AreaOpcodes;

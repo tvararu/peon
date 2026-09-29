@@ -231,3 +231,106 @@ export function combatlogPeriodicAuraLogBody(init: {
   writeTick(w, init.tick);
   return w.finish();
 }
+
+export function combatlogSpellMissBody(init: {
+  spellId: number;
+  caster: bigint;
+  targets: readonly { guid: bigint; reason: number }[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.spellId);
+  w.uint64LE(init.caster);
+  w.uint8(0);
+  w.uint32LE(init.targets.length);
+  for (const target of init.targets) {
+    w.uint64LE(target.guid);
+    w.uint8(target.reason);
+  }
+  return w.finish();
+}
+
+export function combatlogSpellImmuneBody(init: {
+  caster: bigint;
+  target: bigint;
+  spellId: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.caster);
+  w.uint64LE(init.target);
+  w.uint32LE(init.spellId);
+  w.uint8(0);
+  return w.finish();
+}
+
+export function combatlogDamageShieldBody(init: {
+  owner: bigint;
+  attacker: bigint;
+  spellId: number;
+  damage: number;
+  overkill?: number;
+  schoolMask: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.owner);
+  w.uint64LE(init.attacker);
+  w.uint32LE(init.spellId);
+  w.uint32LE(init.damage);
+  w.uint32LE(init.overkill ?? 0);
+  w.uint32LE(init.schoolMask);
+  return w.finish();
+}
+
+export function combatlogEnvironmentalDamageBody(init: {
+  victim: bigint;
+  type: number;
+  amount: number;
+  resisted?: number;
+  absorbed?: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.victim);
+  w.uint8(init.type);
+  w.uint32LE(init.amount);
+  w.uint32LE(init.resisted ?? 0);
+  w.uint32LE(init.absorbed ?? 0);
+  return w.finish();
+}
+
+export function combatlogInstakillBody(init: {
+  caster: bigint;
+  target: bigint;
+  spellId: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.caster);
+  w.uint64LE(init.target);
+  w.uint32LE(init.spellId);
+  return w.finish();
+}
+
+export function combatlogSpellGoBody(init: {
+  caster: bigint;
+  spellId: number;
+  hits?: readonly bigint[];
+  misses?: readonly { guid: bigint; reason: number; reflect?: number }[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.caster);
+  w.packedGuidBig(init.caster);
+  w.uint8(0);
+  w.uint32LE(init.spellId);
+  w.uint32LE(0);
+  w.uint32LE(0);
+  const hits = init.hits ?? [];
+  w.uint8(hits.length);
+  for (const guid of hits) w.uint64LE(guid);
+  const misses = init.misses ?? [];
+  w.uint8(misses.length);
+  for (const miss of misses) {
+    w.uint64LE(miss.guid);
+    w.uint8(miss.reason);
+    if (miss.reason === 11) w.uint8(miss.reflect ?? 0);
+  }
+  w.uint32LE(0);
+  return w.finish();
+}

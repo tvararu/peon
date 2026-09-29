@@ -1,10 +1,16 @@
-import type {
-  AttackerState,
-  PeriodicAuraLog,
-  PeriodicTick,
-  SpellDamage,
-  SpellEnergize,
-  SpellHeal,
+import {
+  type AttackerState,
+  type DamageShield,
+  type EnvironmentalDamage,
+  type Instakill,
+  type PeriodicAuraLog,
+  type PeriodicTick,
+  SPELL_MISS_NAMES,
+  type SpellDamage,
+  type SpellEnergize,
+  type SpellHeal,
+  type SpellImmune,
+  type SpellMissLog,
 } from "#wow/areas/combatlog/protocol";
 
 export type CombatlogKind =
@@ -204,4 +210,80 @@ function tickEntry(log: PeriodicAuraLog, tick: PeriodicTick): CombatlogWire {
 
 export function periodicEntries(log: PeriodicAuraLog): CombatlogWire[] {
   return log.ticks.map((tick) => tickEntry(log, tick));
+}
+
+function missName(reason: number): string {
+  return SPELL_MISS_NAMES[reason] ?? `unknown_${reason}`;
+}
+
+export function missEntry(
+  caster: bigint,
+  target: bigint,
+  spellId: number,
+  reason: number,
+): CombatlogWire {
+  return {
+    kind: "miss",
+    source: caster,
+    target,
+    spellId,
+    amount: 0,
+    outcome: missName(reason),
+  };
+}
+
+export function spellMissEntries(log: SpellMissLog): CombatlogWire[] {
+  return log.targets.map((target) =>
+    missEntry(log.caster, target.guid, log.spellId, target.reason),
+  );
+}
+
+export function immuneEntry(immune: SpellImmune): CombatlogWire {
+  return {
+    kind: "immune",
+    source: immune.caster,
+    target: immune.target,
+    spellId: immune.spellId,
+    amount: 0,
+    outcome: "immune",
+  };
+}
+
+export function damageShieldEntry(shield: DamageShield): CombatlogWire {
+  return optional(
+    {
+      kind: "damage_shield",
+      source: shield.owner,
+      target: shield.attacker,
+      amount: shield.damage,
+    },
+    {
+      spellId: shield.spellId,
+      over: shield.overkill,
+      schoolMask: shield.schoolMask,
+    },
+  );
+}
+
+export function environmentalEntry(hit: EnvironmentalDamage): CombatlogWire {
+  return optional(
+    {
+      kind: "environmental",
+      source: 0n,
+      target: hit.victim,
+      amount: hit.amount,
+      extra: hit.type,
+    },
+    { resisted: hit.resisted, absorbed: hit.absorbed },
+  );
+}
+
+export function instakillEntry(kill: Instakill): CombatlogWire {
+  return {
+    kind: "instakill",
+    source: kill.caster,
+    target: kill.target,
+    spellId: kill.spellId,
+    amount: 0,
+  };
 }

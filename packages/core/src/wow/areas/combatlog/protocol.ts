@@ -320,3 +320,71 @@ export function parsePeriodicAuraLog(r: PacketReader): PeriodicAuraLog {
   for (let i = 0; i < count; i++) ticks.push(parseTick(r, r.uint32LE()));
   return { victim, caster, spellId, ticks };
 }
+
+export type SpellMissTarget = { guid: bigint; reason: number };
+export type SpellMissLog = {
+  spellId: number;
+  caster: bigint;
+  targets: SpellMissTarget[];
+};
+export type SpellImmune = { caster: bigint; target: bigint; spellId: number };
+export type DamageShield = {
+  owner: bigint;
+  attacker: bigint;
+  spellId: number;
+  damage: number;
+  overkill: number;
+  schoolMask: number;
+};
+export type EnvironmentalDamage = {
+  victim: bigint;
+  type: number;
+  amount: number;
+  resisted: number;
+  absorbed: number;
+};
+export type Instakill = { caster: bigint; target: bigint; spellId: number };
+
+export function parseSpellMiss(r: PacketReader): SpellMissLog {
+  const spellId = r.uint32LE();
+  const caster = r.uint64LE();
+  r.uint8();
+  const count = r.uint32LE();
+  const targets: SpellMissTarget[] = [];
+  for (let i = 0; i < count; i++)
+    targets.push({ guid: r.uint64LE(), reason: r.uint8() });
+  return { spellId, caster, targets };
+}
+
+export function parseSpellImmune(r: PacketReader): SpellImmune {
+  const caster = r.uint64LE();
+  const target = r.uint64LE();
+  const spellId = r.uint32LE();
+  return { caster, target, spellId };
+}
+
+export function parseDamageShield(r: PacketReader): DamageShield {
+  const owner = r.uint64LE();
+  const attacker = r.uint64LE();
+  const spellId = r.uint32LE();
+  const damage = r.uint32LE();
+  const overkill = r.uint32LE();
+  const schoolMask = r.uint32LE();
+  return { owner, attacker, spellId, damage, overkill, schoolMask };
+}
+
+export function parseEnvironmentalDamage(r: PacketReader): EnvironmentalDamage {
+  const victim = r.uint64LE();
+  const type = r.uint8();
+  const amount = r.uint32LE();
+  const resisted = r.uint32LE();
+  const absorbed = r.uint32LE();
+  return { victim, type, amount, resisted, absorbed };
+}
+
+export function parseInstakill(r: PacketReader): Instakill {
+  const caster = r.uint64LE();
+  const target = r.uint64LE();
+  const spellId = r.uint32LE();
+  return { caster, target, spellId };
+}
