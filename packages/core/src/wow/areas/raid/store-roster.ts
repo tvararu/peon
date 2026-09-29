@@ -167,6 +167,12 @@ export class RaidStore {
     return this.events.subscribe(cb);
   }
 
+  private pruneStats(group: RaidGroup | undefined): void {
+    const guids = new Set(group?.members.map((member) => member.guid));
+    for (const guid of [...this.stats.keys()])
+      if (!guids.has(guid)) this.stats.delete(guid);
+  }
+
   receiveList(packet: RaidGroup, counter: number): void {
     const current = this.group;
     if (current !== undefined && packet.groupGuid !== current.groupGuid) {
@@ -176,12 +182,14 @@ export class RaidStore {
     if (packet.members.length === 0) {
       if (this.group !== undefined) {
         this.group = undefined;
+        this.pruneStats(undefined);
         this.events.emit({ type: "disbanded" });
       }
       return;
     }
     const before = this.group;
     this.group = packet;
+    this.pruneStats(packet);
     const changes = flagChanges(before, packet);
     if (before && !sameLoot(before.loot, packet.loot))
       changes.push({ kind: "loot" });

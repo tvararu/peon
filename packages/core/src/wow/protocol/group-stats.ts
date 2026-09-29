@@ -37,7 +37,7 @@ export type PartyMemberStats = {
   zone?: number;
   position?: { x: number; y: number };
   auras?: readonly GroupAura[];
-  pet?: GroupPetStats;
+  pet?: GroupPetStats | null;
   vehicleSeat?: number;
 };
 
@@ -107,6 +107,20 @@ function readMemberFields(
   if (mask & GroupUpdateFlag.AURAS) result.auras = readAuras(r);
 }
 
+function emptyPet(pet: GroupPetStats): boolean {
+  return (
+    pet.guid === undefined &&
+    !pet.name &&
+    !pet.displayId &&
+    !pet.auras?.length &&
+    pet.hp === undefined &&
+    pet.maxHp === undefined &&
+    pet.powerType === undefined &&
+    pet.power === undefined &&
+    pet.maxPower === undefined
+  );
+}
+
 function readPetFields(
   r: PacketReader,
   mask: number,
@@ -114,10 +128,13 @@ function readPetFields(
 ): void {
   const pet: GroupPetStats = {};
   let seen = false;
+  let removed = false;
   if (mask & GroupUpdateFlag.PET_GUID) {
     const low = r.uint32LE();
     const high = r.uint32LE();
-    if (low !== 0 || high !== 0) {
+    if (low === 0 && high === 0) {
+      removed = true;
+    } else {
       pet.guid = (BigInt(high) << 32n) | BigInt(low >>> 0);
       seen = true;
     }
@@ -155,7 +172,8 @@ function readPetFields(
     seen = true;
   }
   if (mask & GroupUpdateFlag.VEHICLE_SEAT) result.vehicleSeat = r.uint32LE();
-  if (seen) result.pet = pet;
+  if (removed || (seen && emptyPet(pet))) result.pet = null;
+  else if (seen) result.pet = pet;
 }
 
 export function parsePartyMemberStats(

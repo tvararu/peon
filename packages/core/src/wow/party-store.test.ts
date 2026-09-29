@@ -260,6 +260,16 @@ describe("party store", () => {
     });
   });
 
+  test("clears the pet when the server sends an explicit no-pet update", () => {
+    const party = new PartyStore();
+    party.applyList(list(["Bob"]), "Xia");
+    party.applyStats(0xa40n, { pet: { guid: 0x99n, name: "Rex" } }, 1000);
+    party.applyStats(0xa40n, { hp: 5 }, 1500);
+    expect(party.snapshot().members[0]?.pet?.guid).toBe(0x99n);
+    party.applyStats(0xa40n, { pet: null }, 2000);
+    expect(party.snapshot().members[0]?.pet).toBeNull();
+  });
+
   test("marks offline members and reports no group when alone", () => {
     const party = new PartyStore();
     expect(party.snapshot().inGroup).toBe(false);

@@ -18,7 +18,7 @@ export type RaidPet = {
   auras: readonly RaidAura[];
 };
 
-function petOrNull(pet: GroupPetStats | undefined): RaidPet | null {
+function petOrNull(pet: GroupPetStats | null): RaidPet | null {
   if (!pet) return null;
   return {
     auras: pet.auras ? [...pet.auras] : [],
@@ -134,7 +134,8 @@ export function mergeMemberStats(
     guid,
     name,
     online: stats.online ?? previous?.online ?? false,
-    pet: stats.pet ? petOrNull(stats.pet) : (previous?.pet ?? null),
+    pet:
+      stats.pet === undefined ? (previous?.pet ?? null) : petOrNull(stats.pet),
     position: stats.position
       ? { ...stats.position }
       : { ...(previous?.position ?? { x: 0, y: 0 }) },

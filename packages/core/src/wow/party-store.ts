@@ -55,7 +55,7 @@ export type PartyMemberStats = {
     power?: number;
     maxPower?: number;
     auras?: readonly MemberAura[];
-  };
+  } | null;
   vehicleSeat?: number;
 };
 
@@ -209,6 +209,7 @@ function mergePet(
   update: PartyMemberStats["pet"],
   previous: MemberPet | null,
 ): MemberPet | null {
+  if (update === null) return null;
   const present = update ?? previous;
   if (!present) return null;
   const base = previous ?? emptyMemberPet();

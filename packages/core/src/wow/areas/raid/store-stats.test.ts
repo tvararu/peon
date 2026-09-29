@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
+  raidGroupLeftBody,
   raidGroupListBody,
   raidPartyMemberOfflineBody,
   raidPartyMemberStatsBody,
@@ -135,6 +136,134 @@ describe("raid stats store", () => {
       expect(
         rig.stores.areas.raid.snapshot().stats?.get(0x99n),
       ).toBeUndefined();
+    } finally {
+      rig.dispose();
+    }
+  });
+});
+
+describe("raid stats after roster changes", () => {
+  function tomOnly(counter: number) {
+    return raidGroupListBody({
+      counter,
+      leader: TOM,
+      loot: { method: 1, threshold: 2 },
+      members: [{ guid: TOM, name: "Tom" }],
+      type: 0,
+    });
+  }
+
+  test("drops a departed member's stats and keeps the rest", () => {
+    const rig = areaRig("raid");
+    try {
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, roster());
+      rig.inject(GameOpcode.SMSG_PARTY_MEMBER_STATS, annStats(1));
+      rig.inject(
+        GameOpcode.SMSG_PARTY_MEMBER_STATS,
+        raidPartyMemberStatsBody({ guid: TOM, hp: 10, status: 1 }),
+      );
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, tomOnly(1));
+      const stats = rig.stores.areas.raid.snapshot().stats;
+      expect(stats?.has(ANN)).toBe(false);
+      expect(stats?.get(TOM)?.hp).toBe(10);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("clears every member's stats when the group disbands", () => {
+    const rig = areaRig("raid");
+    try {
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, roster());
+      rig.inject(GameOpcode.SMSG_PARTY_MEMBER_STATS, annStats(1));
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, raidGroupLeftBody(1));
+      expect(rig.stores.areas.raid.snapshot().stats?.size).toBe(0);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("does not carry stale status into a rejoin", () => {
+    const rig = areaRig("raid");
+    const seen: string[] = [];
+    const stop = rig.handle.onEvent((event) => {
+      if (event.type === "member_stats") seen.push(...event.transitions);
+    });
+    try {
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, roster());
+      rig.inject(GameOpcode.SMSG_PARTY_MEMBER_STATS, annStats(1));
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, tomOnly(1));
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, roster(2));
+      rig.inject(GameOpcode.SMSG_PARTY_MEMBER_STATS, annStats(5));
+      expect(seen).toEqual([]);
+      expect(rig.stores.areas.raid.snapshot().stats?.get(ANN)?.hp).toBe(4200);
+    } finally {
+      stop();
+      rig.dispose();
+    }
+  });
+});
+
+describe("raid pet removal", () => {
+  const PET = 0xf1_30_00_00_00_00_00_42n;
+
+  test("clears the pet on an explicit zero pet guid", () => {
+    const rig = areaRig("raid");
+    try {
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, roster());
+      rig.inject(
+        GameOpcode.SMSG_PARTY_MEMBER_STATS,
+        raidPartyMemberStatsBody({
+          guid: ANN,
+          pet: { guid: PET, hp: 100, name: "Rex" },
+        }),
+      );
+      expect(rig.stores.areas.raid.snapshot().stats?.get(ANN)?.pet?.guid).toBe(
+        PET,
+      );
+      rig.inject(
+        GameOpcode.SMSG_PARTY_MEMBER_STATS,
+        raidPartyMemberStatsBody({ guid: ANN, pet: { guid: 0n } }),
+      );
+      expect(rig.stores.areas.raid.snapshot().stats?.get(ANN)?.pet).toBeNull();
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("keeps the pet when the update leaves the pet fields out", () => {
+    const rig = areaRig("raid");
+    try {
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, roster());
+      rig.inject(
+        GameOpcode.SMSG_PARTY_MEMBER_STATS,
+        raidPartyMemberStatsBody({
+          guid: ANN,
+          pet: { guid: PET, hp: 100, name: "Rex" },
+        }),
+      );
+      rig.inject(GameOpcode.SMSG_PARTY_MEMBER_STATS, annStats(1));
+      expect(rig.stores.areas.raid.snapshot().stats?.get(ANN)?.pet?.name).toBe(
+        "Rex",
+      );
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a full reply without a pet leaves no pet", () => {
+    const rig = areaRig("raid");
+    try {
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, roster());
+      rig.inject(
+        GameOpcode.SMSG_PARTY_MEMBER_STATS_FULL,
+        raidPartyMemberStatsFullBody({
+          guid: ANN,
+          hp: 5,
+          status: 1,
+        }),
+      );
+      expect(rig.stores.areas.raid.snapshot().stats?.get(ANN)?.pet).toBeNull();
     } finally {
       rig.dispose();
     }

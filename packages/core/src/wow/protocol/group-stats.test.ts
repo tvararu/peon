@@ -91,6 +91,16 @@ describe("parsePartyMemberStats", () => {
     expect(stats.vehicleSeat).toBe(3153);
   });
 
+  test("reads a zero pet guid as an explicit no-pet signal", () => {
+    const body = raidPartyMemberStatsBody({ guid: TOM, pet: { guid: 0n } });
+    expect(parsePartyMemberStats(new PacketReader(body)).pet).toBeNull();
+  });
+
+  test("leaves the pet undefined when no pet field is in the mask", () => {
+    const body = raidPartyMemberStatsBody({ guid: TOM, hp: 1 });
+    expect(parsePartyMemberStats(new PacketReader(body)).pet).toBeUndefined();
+  });
+
   test("reads a mage full reply with the power type defaulting to mana", () => {
     const body = raidPartyMemberStatsFullBody({
       auras: [{ flags: 0, slot: 5, spellId: 1459 }],
@@ -110,7 +120,7 @@ describe("parsePartyMemberStats", () => {
       hp: 3000,
       level: 70,
       maxPower: 4000,
-      pet: { auras: [], displayId: 0, name: "" },
+      pet: null,
       position: { x: -1234, y: 567 },
       power: 3900,
       powerType: 0,
