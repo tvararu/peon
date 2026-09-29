@@ -35,13 +35,29 @@ proposal acts belong to later tasks.
   (`Handlers/LFGHandler.cpp:621-626`), so the client learns a disabled
   finder from a `CMSG_LFG_JOIN` with no reply
   (`Handlers/LFGHandler.cpp:50-55`).
+- `CMSG_LFG_JOIN` is roles `u32`, two flag bytes, a `u8` entry count, one
+  `u32` per entry, the constant `u8` 3, three `u8` needs and the comment
+  CString (`Server/Packets/LFGPackets.cpp:20-34`); at most 50 entries
+  (`Server/Packets/LFGPackets.h:34`).
+- `SMSG_LFG_JOIN_RESULT` is `u32` result, `u32` state and the party lock
+  block only when locks exist (`Handlers/LFGHandler.cpp:441-454`).
+- `SMSG_LFG_QUEUE_STATUS` is the dungeon `u32`, five signed wait `i32`,
+  three `u8` role counts and the queued `u32`
+  (`Handlers/LFGHandler.cpp:456-473`).
+- `SMSG_LFG_ROLE_CHOSEN` is the member `u64`, a ready `u8` and the roles
+  `u32` (`Handlers/LFGHandler.cpp:383-392`); `SMSG_LFG_ROLE_CHECK_UPDATE`
+  is the state `u32`, an initializing `u8`, a dungeon count, the entries,
+  a member count and per member `u64`, ready `u8`, roles `u32`, level
+  `u8` with the leader first (`Handlers/LFGHandler.cpp:394-439`).
+- The `ghostlands20` queue flow joins entry 100663554 (id 258, type 6) as
+  damage with comment `peon`, sees the join result, a type-5 update and
+  the queue status, then leaves and sees the type-7 update. A two-puppet
+  group starts a role check on the leader's join; both puppets see
+  `SMSG_LFG_ROLE_CHECK_UPDATE` and `SMSG_LFG_ROLE_CHOSEN`, and the server
+  follows with a proposal (`SMSG_LFG_PROPOSAL_UPDATE`, instances-8).
 
 ## Left out
 
-- `CMSG_LFG_JOIN`, `CMSG_LFG_LEAVE`, `SMSG_LFG_JOIN_RESULT`,
-  `SMSG_LFG_QUEUE_STATUS`, `CMSG_SET_LFG_COMMENT`,
-  `CMSG_LFG_SET_ROLES`, `SMSG_LFG_ROLE_CHECK_UPDATE` and
-  `SMSG_LFG_ROLE_CHOSEN`: built by `instances-7`.
 - `SMSG_LFG_PROPOSAL_UPDATE`, `CMSG_LFG_PROPOSAL_RESULT`,
   `CMSG_LFG_TELEPORT`, `SMSG_LFG_TELEPORT_DENIED`,
   `SMSG_LFG_OFFER_CONTINUE`, `CMSG_LFG_SET_BOOT_VOTE`,
