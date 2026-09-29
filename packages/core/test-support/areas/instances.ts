@@ -138,6 +138,10 @@ export function instancesEncounterUnitBody(
       break;
     case 7:
       break;
+    default: {
+      const unhandled: never = init;
+      throw new Error(`unknown encounter frame ${JSON.stringify(unhandled)}`);
+    }
   }
   return w.finish();
 }
