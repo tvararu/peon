@@ -11,6 +11,41 @@ export const unitmotionArea = defineArea({
   eventTypes: ["speed", "flag", "removed"],
   store: (deps, core) => new UnitmotionStore(deps, core),
   register: (wire, store) => {
+    wire.on(GameOpcode.SMSG_SPLINE_SET_WALK_SPEED, (r) =>
+      store.receiveSpline(
+        parseSplineUnitState(GameOpcode.SMSG_SPLINE_SET_WALK_SPEED, r),
+      ),
+    );
+    wire.on(GameOpcode.SMSG_SPLINE_SET_RUN_SPEED, (r) =>
+      store.receiveSpline(
+        parseSplineUnitState(GameOpcode.SMSG_SPLINE_SET_RUN_SPEED, r),
+      ),
+    );
+    wire.on(GameOpcode.SMSG_SPLINE_SET_RUN_BACK_SPEED, (r) =>
+      store.receiveSpline(
+        parseSplineUnitState(GameOpcode.SMSG_SPLINE_SET_RUN_BACK_SPEED, r),
+      ),
+    );
+    wire.on(GameOpcode.SMSG_SPLINE_SET_SWIM_SPEED, (r) =>
+      store.receiveSpline(
+        parseSplineUnitState(GameOpcode.SMSG_SPLINE_SET_SWIM_SPEED, r),
+      ),
+    );
+    wire.on(GameOpcode.SMSG_SPLINE_SET_SWIM_BACK_SPEED, (r) =>
+      store.receiveSpline(
+        parseSplineUnitState(GameOpcode.SMSG_SPLINE_SET_SWIM_BACK_SPEED, r),
+      ),
+    );
+    wire.on(GameOpcode.SMSG_SPLINE_SET_FLIGHT_SPEED, (r) =>
+      store.receiveSpline(
+        parseSplineUnitState(GameOpcode.SMSG_SPLINE_SET_FLIGHT_SPEED, r),
+      ),
+    );
+    wire.on(GameOpcode.SMSG_SPLINE_SET_FLIGHT_BACK_SPEED, (r) =>
+      store.receiveSpline(
+        parseSplineUnitState(GameOpcode.SMSG_SPLINE_SET_FLIGHT_BACK_SPEED, r),
+      ),
+    );
     wire.on(GameOpcode.SMSG_SPLINE_MOVE_UNSET_HOVER, (r) =>
       store.receiveSpline(
         parseSplineUnitState(GameOpcode.SMSG_SPLINE_MOVE_UNSET_HOVER, r),
