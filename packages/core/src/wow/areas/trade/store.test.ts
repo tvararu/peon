@@ -7,7 +7,8 @@ import {
   tradeRig,
   tradeStatusBody,
 } from "#test-support/areas/trade";
-import type { TradeEvent } from "#wow/areas/trade/store";
+import type { TradeStatus } from "#wow/areas/trade/protocol";
+import { type TradeEvent, TradeStore } from "#wow/areas/trade/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 describe("trade store", () => {
@@ -56,7 +57,7 @@ describe("trade store", () => {
     rig.handle.onEvent((event) => events.push(event));
     try {
       rig.handle.act.requestTrade(TRADE_PARTNER).catch(() => undefined);
-      rig.stores.areas.trade.expectCancelReply();
+      rig.stores.areas.trade.expectCancelReply(5000);
       rig.inject(
         GameOpcode.SMSG_TRADE_STATUS,
         tradeStatusBody(TRADE_STATUS.TRADE_CANCELED),
@@ -66,6 +67,98 @@ describe("trade store", () => {
     } finally {
       rig.dispose();
     }
+  });
+
+  function clockStore() {
+    const clock = { now: 0 };
+    const store = new TradeStore({
+      getEntity: () => undefined,
+      now: () => clock.now,
+      selfGuid: () => TRADE_SELF,
+      send: () => undefined,
+      updateEntity: () => undefined,
+    });
+    const events: TradeEvent[] = [];
+    store.onEvent((event) => events.push(event));
+    return { clock, events, store };
+  }
+
+  const BUSY_STATUS: TradeStatus = {
+    kind: "none",
+    status: TRADE_STATUS.BUSY,
+    statusName: "busy",
+  };
+  const IGNORE_YOU_STATUS: TradeStatus = {
+    kind: "none",
+    status: TRADE_STATUS.IGNORE_YOU,
+    statusName: "ignore_you",
+  };
+  const CANCELED_STATUS: TradeStatus = {
+    kind: "none",
+    status: TRADE_STATUS.TRADE_CANCELED,
+    statusName: "trade_canceled",
+  };
+
+  test("a cancel reply that never came does not swallow the next request's BUSY or IGNORE_YOU", () => {
+    for (const status of [BUSY_STATUS, IGNORE_YOU_STATUS]) {
+      const { clock, events, store } = clockStore();
+      store.expectCancelReply(5000);
+      store.abandon();
+      clock.now = 61_000;
+      store.beginRequest(TRADE_PARTNER);
+      store.receiveStatus(status);
+      expect(events).toEqual([{ status: status.statusName, type: "canceled" }]);
+      expect(store.snapshot().lastOutcome).toEqual({
+        kind: "canceled",
+        status: status.statusName,
+      });
+    }
+  });
+
+  test("BUSY and IGNORE_YOU are never taken for the cancel reply, even inside the window", () => {
+    for (const status of [BUSY_STATUS, IGNORE_YOU_STATUS]) {
+      const { events, store } = clockStore();
+      store.expectCancelReply(5000);
+      store.beginRequest(TRADE_PARTNER);
+      store.receiveStatus(status);
+      expect(events).toEqual([{ status: status.statusName, type: "canceled" }]);
+    }
+  });
+
+  test("the cancel reply is consumed once inside the window and not after it", () => {
+    const { clock, events, store } = clockStore();
+    store.expectCancelReply(5000);
+    store.beginRequest(TRADE_PARTNER);
+    clock.now = 4000;
+    store.receiveStatus(CANCELED_STATUS);
+    expect(events).toEqual([]);
+    expect(store.snapshot().phase).toBe("requested_out");
+    store.receiveStatus(CANCELED_STATUS);
+    expect(events).toEqual([{ status: "trade_canceled", type: "canceled" }]);
+
+    const late = clockStore();
+    late.store.expectCancelReply(5000);
+    late.store.beginRequest(TRADE_PARTNER);
+    late.clock.now = 5001;
+    late.store.receiveStatus(CANCELED_STATUS);
+    expect(late.events).toEqual([
+      { status: "trade_canceled", type: "canceled" },
+    ]);
+  });
+
+  test("a later status of the next request ends the expectation of the cancel reply", () => {
+    const { events, store } = clockStore();
+    store.expectCancelReply(5000);
+    store.beginRequest(TRADE_PARTNER);
+    store.receiveStatus({
+      kind: "open_window",
+      status: TRADE_STATUS.OPEN_WINDOW,
+      statusName: "open_window",
+      tradeId: 0,
+    });
+    events.length = 0;
+    store.receiveStatus(CANCELED_STATUS);
+    expect(events).toEqual([{ status: "trade_canceled", type: "canceled" }]);
   });
 
   test("TRADE_CANCELED, BUSY and IGNORE_YOU close with canceled and emit canceled", () => {

@@ -79,10 +79,16 @@ function rig() {
 describe("trade send failure", () => {
   test("a failed initiate send releases the waiter and allows a retry", async () => {
     const { runtime, state, store } = rig();
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
     try {
-      expect(() => runtime.act.requestTrade(TRADE_PARTNER)).toThrow(
+      await expect(runtime.act.requestTrade(TRADE_PARTNER)).rejects.toThrow(
         "world socket is not connected",
       );
+      expect(unhandled).toEqual([]);
       expect(state.waiters).toBe(0);
       expect(store.snapshot().phase).toBe("idle");
       state.broken = false;
@@ -91,20 +97,28 @@ describe("trade send failure", () => {
       store.receiveStatus(OPEN_WINDOW);
       expect(await retry).toEqual({ status: "ok" });
     } finally {
+      process.off("unhandledRejection", onUnhandled);
       runtime.dispose();
     }
   });
 
-  test("a failed busy answer releases the waiter and keeps the request", () => {
+  test("a failed busy answer releases the waiter and keeps the request", async () => {
     const { runtime, state, store } = rig();
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
     try {
       store.receiveStatus(BEGIN_TRADE);
-      expect(() => runtime.act.answerTrade("busy")).toThrow(
+      await expect(runtime.act.answerTrade("busy")).rejects.toThrow(
         "world socket is not connected",
       );
+      expect(unhandled).toEqual([]);
       expect(state.waiters).toBe(0);
       expect(store.snapshot().phase).toBe("requested_in");
     } finally {
+      process.off("unhandledRejection", onUnhandled);
       runtime.dispose();
     }
   });

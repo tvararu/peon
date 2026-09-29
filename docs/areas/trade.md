@@ -17,8 +17,13 @@ The acts:
   `you_logout`, `target_dead`, `target_stunned`, `target_logout`,
   `trial_account`, and `busy` or `ignore_you` from the partner) and
   `unanswered` after 60 seconds, when it clears the pending request and
-  sends `CMSG_CANCEL_TRADE` to free the character. A late cancel reply
-  after that timeout is ignored. `trade_canceled` before the window
+  sends `CMSG_CANCEL_TRADE` to free the character. Only a `trade_canceled`
+  (`SMSG_TRADE_STATUS`) inside a 5-second reply window after that timeout is
+  ignored; `busy`, `ignore_you` and every other status always settles the
+  request it belongs to, never the timed-out one. A silent initiate veto
+  (`Handlers/TradeHandler.cpp:841-842`) leaves no reply to expect, because
+  `TradeCancel` with no `m_trade` takes the empty branch.
+  `trade_canceled` before the window
   opens settles a request `refused`, while `cancelTrade` settles it
   `ok`.
 - `answerTrade("yes" | "busy" | "ignore")` answers a request in

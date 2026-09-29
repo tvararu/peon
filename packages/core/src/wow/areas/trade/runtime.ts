@@ -63,14 +63,7 @@ function subscribeBeforeSend(
     signal: AbortSignal.any([env.ctx.signal, abort.signal]),
     timeoutMs: options.timeoutMs,
   });
-  try {
-    send();
-  } catch (error) {
-    abort.abort();
-    options.restore?.();
-    throw error;
-  }
-  return waited.then(
+  const handled = waited.then(
     (event) => outcomeOf(event, options.mode),
     (error: unknown) => {
       if (error instanceof Error && error.message === "timeout") {
@@ -80,6 +73,16 @@ function subscribeBeforeSend(
       throw error;
     },
   );
+  try {
+    send();
+  } catch (error) {
+    abort.abort();
+    options.restore?.();
+    return handled.catch(() => {
+      throw error;
+    });
+  }
+  return handled;
 }
 
 function liveCheck(env: Env): void {
@@ -108,7 +111,7 @@ function requestTrade(env: Env, guid: bigint): Promise<TradeResult> {
     },
   ).then((result) => {
     if (result.status === "unanswered") {
-      env.store.expectCancelReply();
+      env.store.expectCancelReply(TRADE_REPLY_MS);
       env.store.settlePending();
       env.ctx.send(GameOpcode.CMSG_CANCEL_TRADE, buildCancelTrade());
     }

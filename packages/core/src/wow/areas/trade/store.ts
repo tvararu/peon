@@ -71,7 +71,7 @@ export class TradeStore {
   private partner: bigint | undefined;
   private from: bigint | undefined;
   private last: TradeLastOutcome | undefined;
-  private pendingCancel = 0;
+  private cancelReplyUntil = 0;
 
   constructor(deps: SessionDeps) {
     this.deps = deps;
@@ -101,8 +101,8 @@ export class TradeStore {
     this.last = undefined;
   }
 
-  expectCancelReply(): void {
-    this.pendingCancel += 1;
+  expectCancelReply(windowMs: number): void {
+    this.cancelReplyUntil = this.deps.now() + windowMs;
   }
 
   receiveStatus(status: TradeStatus): void {
@@ -118,15 +118,20 @@ export class TradeStore {
     if (status.kind === "open_window") {
       this.phase = "open";
       this.last = undefined;
-      this.pendingCancel = 0;
+      this.cancelReplyUntil = 0;
       this.events.emit({ type: "opened", with: this.partner ?? 0n });
       return;
     }
     if (CANCEL_STATUSES[name]) {
-      if (this.pendingCancel > 0) {
-        this.pendingCancel -= 1;
+      if (
+        name === "trade_canceled" &&
+        this.cancelReplyUntil > 0 &&
+        this.deps.now() <= this.cancelReplyUntil
+      ) {
+        this.cancelReplyUntil = 0;
         return;
       }
+      this.cancelReplyUntil = 0;
       if (this.phase === "idle") return;
       this.phase = "closed";
       this.last = { kind: "canceled", status: name };
