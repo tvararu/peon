@@ -68,6 +68,17 @@ describe("raid harness rules", () => {
     ]);
   });
 
+  test("a command result writes one wake row", () => {
+    expect(
+      rows({
+        member: "Nobody",
+        operation: "swap",
+        result: "group_swap_failed",
+        type: "command_result",
+      }),
+    ).toMatchObject([{ class: "wake", event: "raid/command" }]);
+  });
+
   test("a death writes one passive member row", () => {
     expect(
       rows({

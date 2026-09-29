@@ -5,6 +5,8 @@ import {
   type RaidState,
   RaidStore,
 } from "#wow/areas/raid/store-roster";
+import { commandResultEvent } from "#wow/areas/raid/store-structure";
+import type { PartyCommandResult } from "#wow/protocol/group";
 import type { PartyMemberStats } from "#wow/protocol/group-stats";
 
 export class RaidAreaStore {
@@ -29,6 +31,10 @@ export class RaidAreaStore {
 
   receiveInviteBlocked(name: string): void {
     this.inner.receiveInviteBlocked(name);
+  }
+
+  receiveCommandResult(parsed: PartyCommandResult): void {
+    this.inner.receiveCommandResult(commandResultEvent(parsed));
   }
 
   receiveStats(stats: PartyMemberStats): void {

@@ -11,6 +11,7 @@ import {
   type StatsEvent,
   statsTransitions,
 } from "#wow/areas/raid/store-stats";
+import type { CommandResultEvent } from "#wow/areas/raid/store-structure";
 import type { PartyMemberStats } from "#wow/protocol/group-stats";
 export type RaidChange =
   | { kind: "converted" }
@@ -33,7 +34,8 @@ export type RaidEvent =
   | { type: "group_list"; group: RaidGroup; changes: readonly RaidChange[] }
   | { type: "invite_blocked"; name: string }
   | { type: "disbanded" }
-  | StatsEvent;
+  | StatsEvent
+  | CommandResultEvent;
 
 export type RaidState = {
   group: RaidGroup | undefined;
@@ -200,6 +202,10 @@ export class RaidStore {
 
   receiveInviteBlocked(name: string): void {
     this.events.emit({ name, type: "invite_blocked" });
+  }
+
+  receiveCommandResult(event: CommandResultEvent): void {
+    this.events.emit(event);
   }
 
   dispose(): void {

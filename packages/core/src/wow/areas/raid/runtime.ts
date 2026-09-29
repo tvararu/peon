@@ -3,6 +3,10 @@ import {
   composeStatsRuntime,
   type StatsActs,
 } from "#wow/areas/raid/runtime-stats";
+import {
+  composeStructureRuntime,
+  type StructureActs,
+} from "#wow/areas/raid/runtime-structure";
 import type { RaidAreaStore } from "#wow/areas/raid/store";
 import type { RaidChange, RaidEvent } from "#wow/areas/raid/store-roster";
 
@@ -10,12 +14,13 @@ export type GroupChangeMatch = {
   kinds: readonly RaidChange["kind"][];
 };
 
-export type RaidActs = StatsActs & {
-  awaitGroupChange: (
-    match: GroupChangeMatch,
-    timeoutMs: number,
-  ) => Promise<RaidEvent>;
-};
+export type RaidActs = StatsActs &
+  StructureActs & {
+    awaitGroupChange: (
+      match: GroupChangeMatch,
+      timeoutMs: number,
+    ) => Promise<RaidEvent>;
+  };
 
 type Ctx = AreaRuntimeCtx<RaidEvent>;
 
@@ -34,6 +39,7 @@ export function raidRuntime(
   store: RaidAreaStore,
 ): AreaRuntime<RaidActs> {
   const stats = composeStatsRuntime({ ctx, store });
+  const structure = composeStructureRuntime({ ctx, store });
   function awaitGroupChange(
     match: GroupChangeMatch,
     timeoutMs: number,
@@ -41,7 +47,10 @@ export function raidRuntime(
     return ctx.until((event) => matches(event, match), { timeoutMs });
   }
   return {
-    act: { awaitGroupChange, ...stats.act },
-    dispose: () => stats.dispose(),
+    act: { awaitGroupChange, ...stats.act, ...structure.act },
+    dispose: () => {
+      stats.dispose();
+      structure.dispose();
+    },
   };
 }

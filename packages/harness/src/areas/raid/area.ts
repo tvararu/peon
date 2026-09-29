@@ -120,7 +120,19 @@ function rule(event: RaidEvent): AreaDraft[] {
       return inviteBlocked(event);
     case "member_stats":
       return memberStats(event);
-    case "disbanded":
+    case "command_result":
+      return [
+        {
+          class: "wake" as const,
+          data: {
+            member: event.member,
+            operation: event.operation,
+            result: event.result,
+          },
+          name: "command" as const,
+          text: `${event.operation} answered ${event.result}.`,
+        },
+      ];
       return [
         {
           class: "passive",

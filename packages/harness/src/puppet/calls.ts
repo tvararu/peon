@@ -28,6 +28,7 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
         throw new Error("No shared quest is offered.");
     },
   },
+  convertToRaid: { args: [], run: (h) => h.raid.act.convertToRaid() },
   declineGuildInvite: { args: [], run: (h) => h.declineGuildInvite() },
   declineInvite: { args: [], run: (h) => h.declineInvite() },
   guildInvite: { args: ["string"], run: (h, a) => h.guildInvite(text(a, 0)) },
@@ -39,6 +40,10 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   },
   leave: { args: [], run: (h) => h.lfg.act.leave() },
   leaveGroup: { args: [], run: (h) => h.leaveGroup() },
+  moveToSubgroup: {
+    args: ["string", "number"],
+    run: (h, a) => h.raid.act.moveToSubgroup(text(a, 0), count(a, 1)),
+  },
   requestMemberStats: {
     args: ["string"],
     run: (h, a) => h.raid.act.requestMemberStats(text(a, 0)),
@@ -53,6 +58,10 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   sendParty: { args: ["string"], run: (h, a) => h.sendParty(text(a, 0)) },
   sendRaid: { args: ["string"], run: (h, a) => h.sendRaid(text(a, 0)) },
   sendSay: { args: ["string"], run: (h, a) => h.sendSay(text(a, 0)) },
+  setAssistant: {
+    args: ["string", ["off", "on"]],
+    run: (h, a) => h.raid.act.setAssistant(text(a, 0), a[1] === "on"),
+  },
   setLeader: { args: ["string"], run: (h, a) => h.setLeader(text(a, 0)) },
   setLootMethod: {
     args: [
@@ -83,6 +92,14 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
         threshold: a[1] as never,
       }),
   },
+  setMainAssist: {
+    args: ["string", ["off", "on"]],
+    run: (h, a) => h.raid.act.setMainAssist(text(a, 0), a[1] === "on"),
+  },
+  setMainTank: {
+    args: ["string", ["off", "on"]],
+    run: (h, a) => h.raid.act.setMainTank(text(a, 0), a[1] === "on"),
+  },
   setPassOnLoot: {
     args: [["off", "on"]],
     run: (h, a) => h.looting.act.setPassOnLoot(a[0] === "on"),
@@ -98,11 +115,19 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
       if (!shared.ok) throw new Error(`Quest not shared: ${shared.reason}.`);
     },
   },
+  swapSubgroups: {
+    args: ["string", "string"],
+    run: (h, a) => h.raid.act.swapSubgroups(text(a, 0), text(a, 1)),
+  },
   teleport: {
     args: [["in", "out"]],
     run: (h, a) => h.lfg.act.teleport(a[0] === "out"),
   },
   uninvite: { args: ["string"], run: (h, a) => h.uninvite(text(a, 0)) },
+  uninviteGuid: {
+    args: ["string", "string"],
+    run: (h, a) => h.raid.act.uninviteGuid(text(a, 0), text(a, 1)),
+  },
   voteKick: {
     args: [["no", "yes"]],
     run: (h, a) => h.lfg.act.voteKick(a[0] === "yes"),
