@@ -86,7 +86,7 @@ No verb (N23).
 | `SMSG_LFG_PARTY_INFO` | `live` | partner group, `call requestPartyLocks`; the same trace shows `in` size 1061, outcome `handled`, 13 ms after the request | `Handlers/LFGHandler.cpp:255-262` |
 | `SMSG_LFG_UPDATE_SEARCH` | `live` | probe flow `lfg-status`, exit 0; sent at logout | `Handlers/LFGHandler.cpp:613-619` |
 | `SMSG_LFG_DISABLED` | `dead` | no caller for `SendLfgDisabled`; a join with no reply means off | `Handlers/LFGHandler.cpp:621-626` |
-| `CMSG_LFG_JOIN` | `live` | probe flow `lfg-queue`, exit 0; trace shows `out` size 20, then `SMSG_LFG_JOIN_RESULT` | `Handlers/LFGHandler.cpp:49-77` |
+| `CMSG_LFG_JOIN` | `live` | probe flow `lfg-queue`, exit 0; trace shows `out` size 20, then `SMSG_LFG_JOIN_RESULT` | `Handlers/LFGHandler.cpp:50-55` |
 | `SMSG_LFG_JOIN_RESULT` | `live` | probe flow `lfg-queue`, exit 0; trace shows `in` size 8, `handled`, same tick as the type-5 update | `Handlers/LFGHandler.cpp:441-454` |
 | `SMSG_LFG_QUEUE_STATUS` | `live` | probe flow `lfg-queue`, exit 0; two `in` rows of size 31, `handled`, during the 12 s wait | `Handlers/LFGHandler.cpp:456-473` |
 | `CMSG_LFG_LEAVE` | `live` | probe flow `lfg-queue`, exit 0; trace shows `out` size 0, then the type-7 update | `Handlers/LFGHandler.cpp:78-93` |
