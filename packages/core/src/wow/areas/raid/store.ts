@@ -9,6 +9,11 @@ import type { PartyMemberStats } from "#wow/protocol/group-stats";
 
 export class RaidAreaStore {
   private readonly inner = new RaidStore();
+  private readonly now: () => number;
+
+  constructor(now: () => number = () => Date.now()) {
+    this.now = now;
+  }
 
   snapshot(): RaidState {
     return this.inner.snapshot();
@@ -26,8 +31,8 @@ export class RaidAreaStore {
     this.inner.receiveInviteBlocked(name);
   }
 
-  receiveStats(stats: PartyMemberStats, now: number): void {
-    this.inner.receiveStats(stats, now);
+  receiveStats(stats: PartyMemberStats): void {
+    this.inner.receiveStats(stats, this.now());
   }
 
   dispose(): void {

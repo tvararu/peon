@@ -27,7 +27,7 @@ export const raidArea = defineArea({
   name: "raid",
   opcodes: RAID_OPCODES,
   eventTypes: ["group_list", "invite_blocked", "member_stats"],
-  store: () => new RaidAreaStore(),
+  store: (deps) => new RaidAreaStore(deps.now),
   register: (wire, store) => {
     wire.peek(GameOpcode.SMSG_GROUP_LIST, (r) =>
       receiveList(store, parseGroupList(r)),
@@ -36,10 +36,10 @@ export const raidArea = defineArea({
       receiveInvite(store, parseGroupInvite(r)),
     );
     wire.peek(GameOpcode.SMSG_PARTY_MEMBER_STATS, (r) =>
-      store.receiveStats(parsePartyMemberStats(r), Date.now()),
+      store.receiveStats(parsePartyMemberStats(r)),
     );
     wire.peek(GameOpcode.SMSG_PARTY_MEMBER_STATS_FULL, (r) =>
-      store.receiveStats(parsePartyMemberStats(r, true), Date.now()),
+      store.receiveStats(parsePartyMemberStats(r, true)),
     );
   },
   runtime: raidRuntime,
