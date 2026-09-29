@@ -271,9 +271,10 @@ B partner) through their puppets, A's with `--packet-trace headers`
 
 No verb (N23).
 
-Remove a member with a reason (`t9-raid-kick`, not yet graded): the
-agent invites and leads a party of two, then kicks the partner; the
-server answers `SMSG_GROUP_DESTROYED` and both sides read "not in a
+Remove a member with a reason (`t9-raid-kick`, round 65 replica 2,
+`pass` 3/3): the agent joined, took the lead on the timer handoff,
+and kicked the partner with reason `test`; the game log shows the
+raid `roster` disband row and both console reads match "not in a
 group". A party of two disbands, so the kicker sees `disbanded`, not
 a `left` row.
 
