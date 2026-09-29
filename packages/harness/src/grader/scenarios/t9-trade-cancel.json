@@ -25,9 +25,12 @@
       "source": "game_log"
     },
     {
-      "expect": "the session shows the agent calling the trade tool with do cancel, or do answer with accept false, and not ending REFUSED",
+      "evidence": {
+        "events": ["tool/result"]
+      },
+      "expect": "GL shows the trade decline settling DONE: a trade tool/result row with status DONE for do answer accept false or do cancel, and no trade tool/result row with status REFUSED",
       "id": "declined",
-      "source": "session"
+      "source": "game_log"
     }
   ],
   "id": "t9-trade-cancel",
