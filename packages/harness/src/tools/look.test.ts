@@ -1,137 +1,16 @@
-import { describe, expect, jest, test } from "bun:test";
-import type { CombatState, NearbyRow, NpcRole } from "@peon/core";
-import type { WorldSnapshots } from "#harness/contract/services";
-import { createGameLog, createJsonlSink } from "#harness/log/store";
-import { createAttackLedger } from "#harness/ops/danger";
-import { createRefTable } from "#harness/ops/refs";
-import { createSightings } from "#harness/ops/sightings";
-import { createRunRegistry } from "#harness/runs/registry";
+import { describe, expect, test } from "bun:test";
 import { MAX_CONTENT_BYTES } from "#harness/tools/define";
-import { lookTool } from "#harness/tools/look";
-import { createTestRuntime } from "#test-support/runtime-fixture";
-import { runTool } from "#test-support/tool-harness";
 import {
-  nearbyRow,
-  selfPose,
-  selfRow,
-  setWorld,
-  type UnitInit,
-  unitEntity,
-} from "#test-support/world-fixtures";
-
-const NOW = 1_000_000;
-
-async function world() {
-  const clock = { now: () => NOW };
-  const snapshots: WorldSnapshots = {
-    attach: () => () => {},
-    capture: jest.fn(),
-    write: jest.fn(() => Promise.resolve("")),
-  };
-  const log = createGameLog({
-    char: () => "Fgklibhlflc",
-    clock,
-    file: undefined,
-  });
-  const runs = createRunRegistry({
-    clock,
-    log,
-    sink: createJsonlSink({ file: undefined }),
-  });
-  const parts = {
-    attacks: createAttackLedger(clock),
-    clock,
-    log,
-    refs: createRefTable(),
-    runs,
-    sightings: createSightings(clock),
-    snapshots,
-  };
-  const { handle, rt } = await createTestRuntime({ parts });
-  return { handle, rt, snapshots, tool: lookTool.definition(rt) };
-}
-
-type World = Awaited<ReturnType<typeof world>>;
-
-function questLog({ handle, rt }: World, questId: number, ender: string) {
-  rt.quests.set(questId, {
-    ender,
-    giver: "Deputy Willem",
-    objectives: `Speak with ${ender}.`,
-    title: "A Threat Within",
-  });
-  const state = handle.getQuestState();
-  const counters: [number, number, number, number] = [0, 0, 0, 0];
-  handle.getQuestState = () => ({
-    ...state,
-    log: {
-      complete: true,
-      slots: [{ counters, expiresAtSeconds: 0, flags: 0, questId, slot: 0 }],
-    },
-  });
-}
-
-function crowd(last: UnitInit): NearbyRow[] {
-  const rabbits = [5, 10, 15, 20, 25].map((dx, i) =>
-    nearbyRow(unitEntity({ dx, guid: BigInt(0x60 + i), name: "Rabbit" }), {
-      relation: "neutral",
-    }),
-  );
-  return [
-    selfRow(),
-    ...rabbits,
-    nearbyRow(unitEntity({ dx: 30, guid: 0x70n, level: 5, name: "Stallion" }), {
-      relation: "neutral",
-    }),
-    friendly({ dx: 40, guid: 0x71n, level: 22, name: "Stormwind Guard" }),
-    friendly({ dx: 45, guid: 0x72n, level: 10, name: "Fgkliba", player: true }),
-    friendly(last),
-  ];
-}
-
-const friendly = (init: UnitInit, roles: NpcRole[] = []) =>
-  nearbyRow(unitEntity(init), { relation: "friendly", roles });
-const stalker = () =>
-  nearbyRow(
-    unitEntity({ dx: 78, guid: 0x25n, level: 7, name: "Springpaw Stalker" }),
-    { relation: "hostile" },
-  );
-
-function eversong(extra: NearbyRow[] = []): NearbyRow[] {
-  return [
-    selfRow(),
-    friendly({ guid: 0x21n, level: 10, name: "Fgklibiancf", player: true }),
-    friendly({ dy: -11, guid: 0x22n, level: 30, name: "Velan Brightoak" }, [
-      "questgiver",
-    ]),
-    friendly({ dy: 38, guid: 0x23n, level: 15, name: "Marniel Amberlight" }, [
-      "vendor",
-      "repair",
-    ]),
-    friendly({ dx: -58, guid: 0x24n, level: 22, name: "Silvermoon Guardian" }),
-    ...extra,
-  ];
-}
-
-function place(
-  handle: Parameters<typeof setWorld>[0],
-  rows: NearbyRow[],
-  combat: Partial<CombatState> = {},
-) {
-  setWorld(handle, {
-    combat,
-    place: {
-      area: "Fairbreeze Village",
-      areaId: 3665,
-      at: NOW - 240_000,
-      zone: "Eversong Woods",
-      zoneId: 3430,
-    },
-    pose: selfPose(NOW),
-    rows,
-    serverPose: selfPose(NOW - 12_000, { source: "server" }),
-  });
-}
+  crowd,
+  eversong,
+  friendly,
+  place,
+  questLog,
+  stalker,
+  world,
+} from "#test-support/look-fixtures";
+import { runTool } from "#test-support/tool-harness";
+import { nearbyRow, selfRow, unitEntity } from "#test-support/world-fixtures";
 
 describe("look", () => {
   test("the design example", async () => {

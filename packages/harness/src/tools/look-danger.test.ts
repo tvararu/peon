@@ -1,99 +1,19 @@
 import { describe, expect, jest, test } from "bun:test";
-import type { CombatState, NearbyRow, NpcRole } from "@peon/core";
-import type { WorldSnapshots } from "#harness/contract/services";
-import { createGameLog, createJsonlSink } from "#harness/log/store";
-import { createAttackLedger } from "#harness/ops/danger";
-import { createRefTable } from "#harness/ops/refs";
-import { createSightings } from "#harness/ops/sightings";
-import { createRunRegistry } from "#harness/runs/registry";
 import { lookTool } from "#harness/tools/look";
-import { createTestRuntime } from "#test-support/runtime-fixture";
+import {
+  eversong,
+  NOW,
+  place,
+  stalker,
+  world,
+} from "#test-support/look-fixtures";
 import { expectSendKind, runTool } from "#test-support/tool-harness";
 import {
   nearbyRow,
   SELF_GUID,
-  selfPose,
   selfRow,
-  setWorld,
-  type UnitInit,
   unitEntity,
 } from "#test-support/world-fixtures";
-
-const NOW = 1_000_000;
-
-async function world() {
-  const clock = { now: () => NOW };
-  const snapshots: WorldSnapshots = {
-    attach: () => () => {},
-    capture: jest.fn(),
-    write: jest.fn(() => Promise.resolve("")),
-  };
-  const log = createGameLog({
-    char: () => "Fgklibhlflc",
-    clock,
-    file: undefined,
-  });
-  const runs = createRunRegistry({
-    clock,
-    log,
-    sink: createJsonlSink({ file: undefined }),
-  });
-  const parts = {
-    attacks: createAttackLedger(clock),
-    clock,
-    log,
-    refs: createRefTable(),
-    runs,
-    sightings: createSightings(clock),
-    snapshots,
-  };
-  const { handle, rt } = await createTestRuntime({ parts });
-  return { handle, rt, snapshots, tool: lookTool.definition(rt) };
-}
-
-const friendly = (init: UnitInit, roles: NpcRole[] = []) =>
-  nearbyRow(unitEntity(init), { relation: "friendly", roles });
-const stalker = () =>
-  nearbyRow(
-    unitEntity({ dx: 78, guid: 0x25n, level: 7, name: "Springpaw Stalker" }),
-    { relation: "hostile" },
-  );
-
-function eversong(extra: NearbyRow[] = []): NearbyRow[] {
-  return [
-    selfRow(),
-    friendly({ guid: 0x21n, level: 10, name: "Fgklibiancf", player: true }),
-    friendly({ dy: -11, guid: 0x22n, level: 30, name: "Velan Brightoak" }, [
-      "questgiver",
-    ]),
-    friendly({ dy: 38, guid: 0x23n, level: 15, name: "Marniel Amberlight" }, [
-      "vendor",
-      "repair",
-    ]),
-    friendly({ dx: -58, guid: 0x24n, level: 22, name: "Silvermoon Guardian" }),
-    ...extra,
-  ];
-}
-
-function place(
-  handle: Parameters<typeof setWorld>[0],
-  rows: NearbyRow[],
-  combat: Partial<CombatState> = {},
-) {
-  setWorld(handle, {
-    combat,
-    place: {
-      area: "Fairbreeze Village",
-      areaId: 3665,
-      at: NOW - 240_000,
-      zone: "Eversong Woods",
-      zoneId: 3430,
-    },
-    pose: selfPose(NOW),
-    rows,
-    serverPose: selfPose(NOW - 12_000, { source: "server" }),
-  });
-}
 
 describe("look loops and danger", () => {
   test("three unchanged looks add the loop note", async () => {
