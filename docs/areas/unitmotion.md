@@ -15,10 +15,21 @@ entity backs are dropped and counted in `dropped`. The area emits
 unit is the character. A row goes away when its entity disappears,
 which also covers a far teleport.
 
-The create block and every movement block seed a row. Other players'
-speed messages reach the store from the remote-motion handlers, because
-area sources never name those opcodes. The harness writes no log rows
-for these events.
+The harness `look` tool shows the movement on each row: a rooted unit
+reads `rooted`, a unit slowed to half its run speed reads `slowed 50%`,
+and a swimming unit reads `swimming` (the unit file of
+`docs/plans/2026-09-27-protocol-coverage-plan/remote-motion.md` names
+the words). The row's `movement` holds `rooted`, `slowedPct`,
+`swimming`, `flying` and `hover`; `slowedPct` comes from the run speed
+against `runBefore`, and `flying` is `CAN_FLY` or `DISABLE_GRAVITY`
+(`Entities/Creature/Creature.cpp:3396` names the walk-mode bit the slow
+words ignore). A root or slow change breaks the look's unchanged count.
+
+In a fight the harness logs a run slow (`unitmotion/slowed`, `<Name>
+slowed to 50% run speed`), the speed-up (`unitmotion/sped`), and root
+on and off (`unitmotion/rooted`, `unitmotion/freed`), at most one row
+per unit per 100 ms; other speeds, other flags, and units outside the
+fight write none (design 5.15 of the unit file).
 
 Every creature death clears hover twice and disabled gravity once on
 the dead unit: `Unit::setDeathState` clears hover
