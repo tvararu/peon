@@ -96,6 +96,76 @@ describe("spells unit casts near the end of a channel", () => {
     }
   });
 
+  const channelRemaining = (
+    rig: ReturnType<typeof setup>["rig"],
+    time: number,
+  ) =>
+    rig.inject(
+      GameOpcode.MSG_CHANNEL_UPDATE,
+      spellsChannelUpdateBody({ caster: MOB, time }),
+    );
+
+  test("shortened by pushback finishes at the shortened end", () => {
+    jest.useFakeTimers();
+    const { advance, rig, seen } = setup();
+    try {
+      channelBegin(rig);
+      advance(2000);
+      channelRemaining(rig, 4000);
+      advance(4000);
+      channelEnd(rig);
+      jest.advanceTimersByTime(1000);
+      expect(ends(seen)).toEqual([
+        expect.objectContaining({ outcome: "finished", spellId: EVOCATION }),
+      ]);
+    } finally {
+      rig.dispose();
+      jest.useRealTimers();
+    }
+  });
+
+  test("shortened by pushback and stopped early is interrupted", () => {
+    jest.useFakeTimers();
+    const { advance, rig, seen } = setup();
+    try {
+      channelBegin(rig);
+      advance(2000);
+      channelRemaining(rig, 4000);
+      advance(1000);
+      channelEnd(rig);
+      expect(ends(seen)).toEqual([
+        expect.objectContaining({
+          outcome: "interrupted",
+          spellId: EVOCATION,
+        }),
+      ]);
+    } finally {
+      rig.dispose();
+      jest.useRealTimers();
+    }
+  });
+
+  test("pushed back twice follows the last update", () => {
+    jest.useFakeTimers();
+    const { advance, rig, seen } = setup();
+    try {
+      channelBegin(rig);
+      advance(1000);
+      channelRemaining(rig, 5000);
+      advance(1000);
+      channelRemaining(rig, 3000);
+      advance(3000);
+      channelEnd(rig);
+      jest.advanceTimersByTime(1000);
+      expect(ends(seen)).toEqual([
+        expect.objectContaining({ outcome: "finished", spellId: EVOCATION }),
+      ]);
+    } finally {
+      rig.dispose();
+      jest.useRealTimers();
+    }
+  });
+
   test("is not finished after the store is disposed", () => {
     jest.useFakeTimers();
     const { advance, rig, seen } = setup();

@@ -59,6 +59,7 @@ export class UnitCasts {
   private readonly combat: CombatStore;
   private readonly casts = new Map<bigint, UnitCast>();
   private readonly settling = new Map<bigint, Timer>();
+  private readonly shortenedEnds = new Map<bigint, number>();
   private readonly emit: (event: UnitCastEvent) => void;
 
   constructor(
@@ -86,6 +87,7 @@ export class UnitCasts {
     const relevant = this.isRelevant(guid);
     this.casts.delete(guid);
     this.unsettle(guid);
+    this.shortenedEnds.delete(guid);
     if (this.casts.size >= MAX_CASTS) {
       const oldest = this.casts.keys().next();
       if (!oldest.done) this.casts.delete(oldest.value);
@@ -107,6 +109,7 @@ export class UnitCasts {
     if (!entry || entry.spellId !== spellId) return;
     this.casts.delete(guid);
     this.unsettle(guid);
+    this.shortenedEnds.delete(guid);
     this.emit({
       guid,
       outcome,
@@ -135,11 +138,24 @@ export class UnitCasts {
   drop(guid: bigint): void {
     this.casts.delete(guid);
     this.unsettle(guid);
+    this.shortenedEnds.delete(guid);
+  }
+
+  noteChannelRemaining(guid: bigint, remainingMs: number): void {
+    if (this.casts.get(guid)?.kind !== "channel") return;
+    this.shortenedEnds.set(guid, this.deps.now() + remainingMs);
+  }
+
+  expectedEndOf(guid: bigint): number | undefined {
+    const entry = this.casts.get(guid);
+    if (!entry) return undefined;
+    return this.shortenedEnds.get(guid) ?? entry.startedAt + entry.durationMs;
   }
 
   dispose(): void {
     for (const timer of this.settling.values()) clearTimeout(timer);
     this.settling.clear();
+    this.shortenedEnds.clear();
   }
 
   private unsettle(guid: bigint): void {
