@@ -112,6 +112,43 @@ describe("instances harness rules", () => {
     ]);
   });
 
+  test("reset logs the map so the reset is observable", () => {
+    const [row, ...rest] = rows({ mapId: 36, type: "reset" });
+    expect(rest).toEqual([]);
+    expect(row).toMatchObject({
+      class: "log",
+      data: { mapId: 36 },
+      event: "instances/reset",
+    });
+    expect(row?.text).toContain("36");
+  });
+
+  test("reset_failed wakes with the map and names each failure reason", () => {
+    const texts = [0, 1, 2].map((reason) => {
+      const [row, ...rest] = rows({ mapId: 36, reason, type: "reset_failed" });
+      expect(rest).toEqual([]);
+      expect(row).toMatchObject({
+        class: "wake",
+        data: { mapId: 36, reason },
+        event: "instances/reset_failed",
+      });
+      return row?.text ?? "";
+    });
+    for (const text of texts) expect(text).toContain("36");
+    expect(new Set(texts).size).toBe(3);
+  });
+
+  test("reset_blocked wakes with the map", () => {
+    const [row, ...rest] = rows({ mapId: 36, type: "reset_blocked" });
+    expect(rest).toEqual([]);
+    expect(row).toMatchObject({
+      class: "wake",
+      data: { mapId: 36 },
+      event: "instances/reset_blocked",
+    });
+    expect(row?.text).toContain("36");
+  });
+
   test("bind_offer wakes with the choice window and the bind call", () => {
     const [row, ...rest] = rows({
       deadline: 1_000_000,

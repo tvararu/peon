@@ -110,6 +110,52 @@ function bindOffer(event: Of<"bind_offer">): AreaDraft[] {
   ];
 }
 
+function resetFailedReason(reason: number): string {
+  switch (reason) {
+    case 0:
+      return "players are still inside";
+    case 1:
+      return "a party member is offline";
+    case 2:
+      return "a party member is zoning";
+    default:
+      return `reason ${reason}`;
+  }
+}
+
+function reset(event: Of<"reset">): AreaDraft[] {
+  return [
+    {
+      class: "log",
+      data: { mapId: event.mapId },
+      name: "reset",
+      text: `Instance map ${event.mapId} was reset.`,
+    },
+  ];
+}
+
+function resetFailed(event: Of<"reset_failed">): AreaDraft[] {
+  return [
+    {
+      class: "wake",
+      data: { mapId: event.mapId, reason: event.reason },
+      name: "reset_failed",
+      text: `Map ${event.mapId} was not reset: ${resetFailedReason(event.reason)}.`,
+    },
+  ];
+}
+
+function resetBlocked(event: Of<"reset_blocked">): AreaDraft[] {
+  return [
+    {
+      class: "wake",
+      data: { mapId: event.mapId },
+      name: "reset_blocked",
+      text: `Map ${event.mapId} cannot reset while players are inside it.`,
+    },
+  ];
+}
+
 function lockouts(event: Of<"lockouts">): AreaDraft[] {
   if (event.added.length === 0 && event.removed.length === 0) return [];
   const added = event.added.map((lock) => lock.mapId);
@@ -127,7 +173,6 @@ function lockouts(event: Of<"lockouts">): AreaDraft[] {
     },
   ];
 }
-
 function rule(event: InstancesEvent): AreaDraft[] {
   switch (event.type) {
     case "difficulty":
@@ -158,6 +203,12 @@ function rule(event: InstancesEvent): AreaDraft[] {
           text: "You are now saved to this instance.",
         },
       ];
+    case "reset":
+      return reset(event);
+    case "reset_failed":
+      return resetFailed(event);
+    case "reset_blocked":
+      return resetBlocked(event);
     case "lockouts":
       return lockouts(event);
     default:
