@@ -184,6 +184,7 @@ export function shareRuntime(
       return true;
     }
     sendAccept(ctx, offer);
+    if (offer.kind === "confirm") sendDecline(ctx, offer);
     store.answerOffer("accept");
     return true;
   };

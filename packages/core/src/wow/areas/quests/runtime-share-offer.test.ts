@@ -216,6 +216,37 @@ describe("quest escort confirm, receiver", () => {
     });
   });
 
+  test("accepting the escort prompt follows the confirm with a decline that clears a stuck divider", () => {
+    offered((r) => {
+      confirm(r);
+      r.rig.handle.act.answerShare("accept");
+      const order = r.rig.sent
+        .map((p) => p.opcode)
+        .filter(
+          (op) =>
+            op === GameOpcode.CMSG_QUEST_CONFIRM_ACCEPT ||
+            op === GameOpcode.MSG_QUEST_PUSH_RESULT,
+        );
+      expect(order).toEqual([
+        GameOpcode.CMSG_QUEST_CONFIRM_ACCEPT,
+        GameOpcode.MSG_QUEST_PUSH_RESULT,
+      ]);
+      expect(pushResult(r)).toEqual({
+        guid: SHARER,
+        questId: 8488,
+        result: QuestShareResult.DECLINE_QUEST,
+      });
+    });
+  });
+
+  test("accepting an ordinary shared quest sends no decline", () => {
+    offered((r) => {
+      r.details(SHARER);
+      r.rig.handle.act.answerShare("accept");
+      expect(declined(r)).toEqual([]);
+    });
+  });
+
   const pushResult = (r: ReturnType<typeof setup>) => {
     const [packet] = declined(r);
     if (packet === undefined) return;

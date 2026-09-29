@@ -116,17 +116,26 @@ windows (the `SendCloseGossip` call just before the
 `SendQuestConfirmAccept` call in the same loop).
 `kind` is `confirm`; `answerShare("accept")` on it sends the 4-byte
 `CMSG_QUEST_CONFIRM_ACCEPT` quest id
-(`Server/Packets/QuestPackets.cpp:118-121`), and the server adds the
+(`Server/Packets/QuestPackets.cpp:118-121`), then the client's 13-byte
+`MSG_QUEST_PUSH_RESULT` with the taker's guid and result 3
+(`Handlers/QuestHandler.cpp:605-616`). The server adds the
 quest only when the receiver's divider names a group mate in reward
-distance (`Handlers/QuestHandler.cpp:446-476`). The taker's
+distance, clears the divider on success, and returns without clearing it
+when the divider has moved out of reward distance
+(`Handlers/QuestHandler.cpp:446-476`), so the matching decline after the
+confirm clears a stuck divider; the server ignores it when acceptance
+already cleared the divider because the guid no longer matches
+(`Handlers/QuestHandler.cpp:605-616`). The taker's
 `CMSG_QUESTGIVER_ACCEPT_QUEST` accept sets the receiver's divider
 before sending `SMSG_QUEST_CONFIRM_ACCEPT`
 (`Handlers/QuestHandler.cpp:180-185`), so a declined or expired
-confirm offer sends the client's 13-byte `MSG_QUEST_PUSH_RESULT` with
-the taker's guid and result 3 to clear it
-(`Handlers/QuestHandler.cpp:605-616`); without that clear every later
-`CMSG_PUSHQUESTTOPARTY` to the character answers `BUSY`
-(`Handlers/QuestHandler.cpp:581-585`).
+confirm offer sends the same decline to clear it; without that clear
+every later `CMSG_PUSHQUESTTOPARTY` to the character answers `BUSY`
+(`Handlers/QuestHandler.cpp:581-585`). The `quests-share` probe's
+`escort` mode runs on the grouped sharer beside Apprentice Mirveda
+(entry 15402): it talks to her, takes quest 8488 and waits for it in the
+log, while `escort-confirm` runs on the partner and prints the
+`SMSG_QUEST_CONFIRM_ACCEPT` offer.
 
 ## Wire notes
 
