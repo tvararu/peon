@@ -5,8 +5,12 @@ dungeons it may queue for with their lock reasons, the party members'
 locks and the raid-browser search flag. World-service code reads it
 through `session.areas.lfg.state()`. The area emits `status` and
 `dungeons` events. Three acts ask the server for the status, the
-player's dungeons and the party's locks; the queue, role check and
-proposal acts belong to later tasks.
+player's dungeons and the party's locks; the queue and role check acts
+follow. `answerProposal`, `teleport` and `voteKick` answer a dungeon
+group proposal, move the character into or out of the dungeon and vote
+on a kick. The store also keeps the last `proposal`, `boot`,
+`teleportDenied`, `offerContinue` and `reward` and emits `proposal`,
+`boot`, `teleport_denied`, `offer_continue` and `reward` events.
 
 ## Wire notes
 
@@ -68,13 +72,58 @@ proposal acts belong to later tasks.
   (`Handlers/LFGHandler.cpp:302-337`). The status reply carries no comment,
   so `requestStatus` returns none (`Handlers/LFGHandler.cpp:281-300`).
 
+- `SMSG_LFG_PROPOSAL_UPDATE` is the dungeon `u32`, the state `u8`, the
+  proposal id `u32`, the encounter mask `u32`, a silent `u8`, a count
+  `u8` and per member the role `u32` and five `u8` (self, in dungeon,
+  same group, answered, accepted), members ordered tank, healer, damage
+  (`Handlers/LFGHandler.cpp:545-611`).
+- Proposal states are 0 initiating, 1 failed and 2 success
+  (`DungeonFinding/LFGMgr.h:79-84`). State 0 sets the proposal with a
+  deadline 40 s after its first update (`DungeonFinding/LFGMgr.h:51`); a
+  later state 0 update for the same id keeps that deadline, and state 1
+  or 2 ends the proposal.
+- `SMSG_LFG_BOOT_PROPOSAL_UPDATE` is in progress `u8`, did vote `u8`,
+  agree `u8`, the victim `u64`, votes, agrees, seconds left and needed
+  votes as `u32`, and the reason CString
+  (`Handlers/LFGHandler.cpp:513-543`).
+- A kick vote lasts 120 s (`DungeonFinding/LFGMgr.h:50`): the boot
+  deadline is the arrival time plus the seconds left, and an update not
+  in progress ends the vote.
+- `SMSG_LFG_PLAYER_REWARD` is the random and the finished dungeon `u32`,
+  a done `u8`, a constant `u32` 1, money and experience `u32`, two zero
+  `u32`, an item count `u8` and per item the item id, the display id and
+  the count as `u32` (`Handlers/LFGHandler.cpp:475-511`), where
+  `wow_messages` `QuestGiverReward` puts count before display id.
+  AzerothCore wins.
+- The server sends the reward to each member when a dungeon finishes
+  (`DungeonFinding/LFGMgr.cpp:2421`).
+- `SMSG_LFG_TELEPORT_DENIED` carries one `u32` code
+  (`Handlers/LFGHandler.cpp:636-642`) and `SMSG_LFG_OFFER_CONTINUE` one
+  `u32` dungeon entry (`Handlers/LFGHandler.cpp:628-634`).
+- Denial codes are 1 dead, 2 falling, 3 vehicle, 4 fatigue, 6 invalid
+  location and 8 combat (`DungeonFinding/LFGMgr.h:87-97`). The server
+  checks for an LFG group first (code 6), then dead, falling, fatigue,
+  vehicle and combat (`DungeonFinding/LFGMgr.cpp:2228-2264`).
+- `teleport` refuses `not_in_lfg_group` (code 6), `dead` (code 1) and
+  `in_combat` (code 8) without a send, in the server's order, reading an
+  LFG group from the group list's dungeon fields
+  (`Groups/Group.cpp:1906-1909`), life from the recovery store and
+  combat from the self entity's in-combat unit flag. Falling, fatigue,
+  vehicle and charm are left to the server's denial, and a teleport out
+  from another map is silent in AzerothCore
+  (`DungeonFinding/LFGMgr.cpp:2264-2268`), so it settles `no_answer`
+  after 10 s. `{ force: true }` skips the local refusal; only the probe
+  flow uses it.
+- `CMSG_LFG_PROPOSAL_RESULT` is the proposal id `u32` and the answer `u8`
+  (`Handlers/LFGHandler.cpp:95-104`); `CMSG_LFG_SET_BOOT_VOTE`
+  (`Handlers/LFGHandler.cpp:133-141`) and `CMSG_LFG_TELEPORT`
+  (`Handlers/LFGHandler.cpp:143-150`) are one `u8` each.
+- Puppet calls: `answerProposal '["accept"]'`, `teleport '["out"]'` and
+  `voteKick '["yes"]'` (the other values are `decline`, `in`, `no`).
+  A puppet call does not await the act.
+
 ## Left out
 
-- `SMSG_LFG_PROPOSAL_UPDATE`, `CMSG_LFG_PROPOSAL_RESULT`,
-  `CMSG_LFG_TELEPORT`, `SMSG_LFG_TELEPORT_DENIED`,
-  `SMSG_LFG_OFFER_CONTINUE`, `CMSG_LFG_SET_BOOT_VOTE`,
-  `SMSG_LFG_BOOT_PROPOSAL_UPDATE` and `SMSG_LFG_PLAYER_REWARD`: built by
-  `instances-8`.
 - `CMSG_SEARCH_LFG_JOIN`, `CMSG_SEARCH_LFG_LEAVE` and
   `SMSG_UPDATE_LFG_LIST`: built by `instances-9`.
 - A non-leader in a partly filled `CMSG_LFG_JOIN` group may join
@@ -113,3 +162,11 @@ No verb (N23).
 | `CMSG_LFG_SET_ROLES` | `mock` | mock request body built by `buildLfgSetRoles`; the two-puppet `setRoles` trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:106-120` |
 | `SMSG_LFG_ROLE_CHECK_UPDATE` | `mock` | mock check body built by `lfgRoleCheckUpdateBody`; the two-puppet group trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:394-439` |
 | `SMSG_LFG_ROLE_CHOSEN` | `mock` | mock answer body built by `lfgRoleChosenBody`; the two-puppet group trace was not retained, so not seen live | `Handlers/LFGHandler.cpp:383-392` |
+| `CMSG_LFG_TELEPORT` | `live` | probe flow `lfg-teleport` on a fresh `ghostlands20` account, run not committed: trace shows `out` size 1, then 14 ms later `SMSG_LFG_TELEPORT_DENIED` | `Handlers/LFGHandler.cpp:143-150` |
+| `SMSG_LFG_TELEPORT_DENIED` | `live` | same run: `in` size 4, `handled`; the store holds code 6 (`invalid_location`, not in an LFG group) | `Handlers/LFGHandler.cpp:636-642` |
+| `SMSG_LFG_PROPOSAL_UPDATE` | `mock` | mock body built by `lfgProposalBody`; not seen live until instances-11 | `Handlers/LFGHandler.cpp:545-611` |
+| `CMSG_LFG_PROPOSAL_RESULT` | `builder` | builder test on `buildLfgProposalResult`; a live send needs a proposal, so not seen live until instances-11 | `Handlers/LFGHandler.cpp:95-104` |
+| `SMSG_LFG_OFFER_CONTINUE` | `mock` | mock body built by `lfgOfferContinueBody`; not seen live | `Handlers/LFGHandler.cpp:628-634` |
+| `CMSG_LFG_SET_BOOT_VOTE` | `builder` | builder test on `buildLfgBootVote`; a live send needs a kick vote, so not seen live until instances-11 | `Handlers/LFGHandler.cpp:133-141` |
+| `SMSG_LFG_BOOT_PROPOSAL_UPDATE` | `mock` | mock body built by `lfgBootBody`; not seen live | `Handlers/LFGHandler.cpp:513-543` |
+| `SMSG_LFG_PLAYER_REWARD` | `mock` | mock body built by `lfgRewardBody`; needs a finished random dungeon, so not seen live | `Handlers/LFGHandler.cpp:475-511` |
