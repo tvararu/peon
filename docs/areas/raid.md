@@ -31,14 +31,24 @@ the previous stats for that member. The runtime sends one
 `memberStats(name)` returns the held stats and refreshes a member whose
 stats are missing or older than 30 s, at most one request per member
 per 10 s; the act `requestMemberStats(name)` sends one request and
-throws for a name outside the group. The harness writes one `passive`
-row `member` per transition, for example "Tom died."; stats with no
-transition write no row. The act `awaitGroupChange(match, timeoutMs)` resolves with
-the first `group_list` event whose `changes` hold every named kind, and
-rejects with `timeout` after `timeoutMs`. The harness writes one
-`passive` row `roster` per change, except `joined` and `left`, which the
-legacy `group/roster` row already says; `invite_blocked` writes one
-`log` row.
+throws for a name outside the group. The raid structure acts each send
+one packet: `convertToRaid()` sends the empty convert;
+`moveToSubgroup(name, group)` takes the tool group 1-8 and sends the
+wire group 0-7, throwing for a tool group outside 1-8 because the
+server drops it with no reply; `swapSubgroups(name, withName)` sends
+both names; `setAssistant(name, on)` sends the member guid and the
+flag byte; `setMainTank(name, on)` and `setMainAssist(name, on)` send
+the role byte (main tank 0, main assist 1), the apply byte and the guid;
+`uninviteGuid(name, reason)` sends the member guid and the reason. Every
+act names another member: a name outside the roster throws
+`not in your party`, and the caller's own name throws too because the
+server never lists the receiving character. The peeked
+`SMSG_PARTY_COMMAND_RESULT` emits one `command_result` event with the
+operation and result as names and the member name; unknown codes keep
+their number (`result_<n>`, `operation_<n>`). The harness writes one
+`wake` row `command` per result, and one `passive` row `roster` per
+change, except `joined` and `left`, which the legacy `group/roster` row
+already says; `invite_blocked` writes one `log` row.
 
 ## Wire notes
 
@@ -85,19 +95,82 @@ legacy `group/roster` row already says; `invite_blocked` writes one
   and, when set, `MEMBER_STATUS_PVP`, `MEMBER_STATUS_DEAD` or
   `MEMBER_STATUS_GHOST`, `MEMBER_STATUS_PVP_FFA`, `MEMBER_STATUS_AFK`
   and `MEMBER_STATUS_DND` (`Handlers/GroupHandler.cpp:841-860`).
+- `SMSG_PARTY_COMMAND_RESULT` carries the operation, the member name, the
+  result and a value word
+  (`Handlers/GroupHandler.cpp:53-62`).
+- `CMSG_GROUP_RAID_CONVERT` carries no body; the leader's convert is
+  answered with operation 0 result 0 and then the raid roster, while a
+  member below the raid level is refused with result 25
+  (`Handlers/GroupHandler.cpp:647-670`).
+- `CMSG_GROUP_CHANGE_SUB_GROUP` carries the member name and the wire
+  subgroup 0-7; a value at or above `MAX_RAID_SUBGROUPS` is dropped with
+  no reply (`Handlers/GroupHandler.cpp:672-707`).
+- `CMSG_GROUP_SWAP_SUB_GROUP` carries two member names; bad names are
+  answered with operation 4 result 14
+  (`Handlers/GroupHandler.cpp:1154-1180`).
+- `CMSG_GROUP_ASSISTANT_LEADER` carries the member guid and the apply
+  flag (`Handlers/GroupHandler.cpp:709-726`).
+- `MSG_PARTY_ASSIGNMENT` carries the role byte (main tank
+  `GROUP_ASSIGN_MAINTANK` 0, main assist `GROUP_ASSIGN_MAINASSIST` 1),
+  the apply flag and the member guid
+  (`Handlers/GroupHandler.cpp:728-758`).
+- `CMSG_GROUP_UNINVITE_GUID` carries the member guid and the reason
+  (`Handlers/GroupHandler.cpp:353-360`).
+- The `SMSG_PARTY_COMMAND_RESULT` result `raid_disallowed_by_level` is
+  code 25 and `group_swap_failed` is code 14; the operation `swap` is
+  code 4.
 
 ## Left out
 
-- `CMSG_GROUP_UNINVITE_GUID`, `CMSG_GROUP_RAID_CONVERT`, `CMSG_GROUP_CHANGE_SUB_GROUP`,
-  `CMSG_GROUP_SWAP_SUB_GROUP`, `CMSG_GROUP_ASSISTANT_LEADER`,
-  `MSG_PARTY_ASSIGNMENT`, `MSG_MINIMAP_PING`, `MSG_RAID_READY_CHECK`,
+- `MSG_MINIMAP_PING`, `MSG_RAID_READY_CHECK`,
   `MSG_RAID_READY_CHECK_CONFIRM`, `MSG_RAID_READY_CHECK_FINISHED`,
   `MSG_RAID_TARGET_UPDATE`, `SMSG_SUMMON_REQUEST` and
   `CMSG_SUMMON_RESPONSE`: built by later group tasks. The LFG form (type
   `0x08`) is not seen live until `instances` forms a dungeon-finder
-  group.
+  group. The acts name other members only: the caller's own name throws
+  `not in your party`, because the server never lists the receiving
+  character in `SMSG_GROUP_LIST`.
 
 ## Live evidence
+
+Three `eversong10` throwaway accounts A (Fgkllmaablf), B (Fgkllmaabbk)
+and C (Fgkllmaabkl) ran through their puppets with `--packet-trace
+headers`. Kept, not committed, in the directory `live-group3` of the
+`proto-group` worktree's scratch space, one `<ACCOUNT>-packets.jsonl`
+per account. No account from the run remains: each one is deleted.
+
+- A invited B and C; both accepted. A's trace holds `out
+  CMSG_GROUP_INVITE` twice and the `SMSG_GROUP_LIST` replies.
+- `call convertToRaid` on A wrote `out CMSG_GROUP_RAID_CONVERT`; A's
+  trace holds `in SMSG_PARTY_COMMAND_RESULT` (operation 0, result 0)
+  and then `in SMSG_GROUP_LIST` with kind `raid`, and A's events hold a
+  raid `command_result` `invite` / `ok` and a `group_list` with the
+  `converted` change.
+- `call moveToSubgroup '["<B>", 2]'` wrote `out
+  CMSG_GROUP_CHANGE_SUB_GROUP`; A's events hold a `group_list` with B's
+  `subgroup` change from 0 to 1.
+- `call swapSubgroups '["<B>", "<C>"]'` wrote `out
+  CMSG_GROUP_SWAP_SUB_GROUP`; A's events hold `group_list` rows moving
+  B and then C between the subgroups.
+- `call setAssistant '["<B>", "on"]'` wrote `out
+  CMSG_GROUP_ASSISTANT_LEADER`; A's events hold a `group_list` with B's
+  `flag` change to assistant.
+- `call setMainTank '["<B>", "on"]'` and `call setMainAssist '["<B>",
+  "on"]'` each wrote `out MSG_PARTY_ASSIGNMENT`; A's events hold
+  `group_list` rows with B's `flag` changes to main tank and main
+  assist.
+- A raw `CMSG_GROUP_SWAP_SUB_GROUP` with a bad first name was answered
+  with `in SMSG_PARTY_COMMAND_RESULT`, and A's events hold a raid
+  `command_result` `swap` / `group_swap_failed`. The tool refuses the
+  same call before any send with `not in your party`, so no `out` row
+  is written for it.
+- After B and C stopped, `call uninviteGuid '["<C>", "test"]'` wrote
+  `out CMSG_GROUP_UNINVITE_GUID`; A's trace holds `in
+  SMSG_GROUP_DESTROYED` and a `group_list` with C's `left` change.
+- A regrouped with B, B was set to level 9 by GM, and `call
+  convertToRaid` was answered with `in SMSG_PARTY_COMMAND_RESULT`
+  (operation 0, result 25); A's events hold a raid `command_result`
+  `invite` / `raid_disallowed_by_level`.
 
 Three `eversong10` throwaway accounts A, B and C ran through their
 puppets with `--packet-trace headers`: A invited B, B accepted, then C
@@ -173,5 +246,11 @@ No verb (N23).
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
 | `CMSG_REQUEST_PARTY_MEMBER_STATS` | `live` | A's trace: roster-add request, `requestMemberStats` call, offline reply after B stopped | `live-group2` scratch dir |
+| `CMSG_GROUP_RAID_CONVERT` | `live` | A's trace: `out` row, then `in SMSG_PARTY_COMMAND_RESULT` (op 0, result 0) and the raid roster; the level-9 rerun answers result 25 | `live-group3` scratch dir |
+| `CMSG_GROUP_CHANGE_SUB_GROUP` | `live` | A's trace: `out` row, then the roster with B moved to group 2 | `live-group3` scratch dir |
+| `CMSG_GROUP_SWAP_SUB_GROUP` | `live` | A's trace: `out` row, then the rosters swapping B and C; the bad-name raw send answers `SMSG_PARTY_COMMAND_RESULT` op 4 result 14 | `live-group3` scratch dir |
+| `CMSG_GROUP_ASSISTANT_LEADER` | `live` | A's trace: `out` row, then the roster with B flagged assistant | `live-group3` scratch dir |
+| `MSG_PARTY_ASSIGNMENT` | `live` | A's trace: two `out` rows, then the rosters with B flagged main tank and main assist | `live-group3` scratch dir |
+| `CMSG_GROUP_UNINVITE_GUID` | `live` | A's trace: `out` row, then `SMSG_GROUP_DESTROYED` and the roster with C's `left` change | `live-group3` scratch dir |
 | `CMSG_GROUP_CANCEL` | `dead` | the server ignores it: no handler | `Server/Protocol/Opcodes.cpp:243` |
 | `SMSG_REAL_GROUP_UPDATE` | `dead` | `STATUS_NEVER` and no send site in AzerothCore | `Server/Protocol/Opcodes.cpp:1050` |
