@@ -30,6 +30,12 @@ export type LookFilter =
   | "corpse"
   | "spirit_healer";
 
+export type LookCast = {
+  spellId: number;
+  spellName: string;
+  remainingMs: number;
+};
+
 export type LookAfter = {
   self: SelfView;
   place: PlaceView;
@@ -46,6 +52,8 @@ export type LookAfter = {
   nearest: Partial<Record<NearestKind, UnitView>>;
   danger: DangerView;
   unchanged: number;
+  channel?: LookCast;
+  targetCast?: LookCast;
 };
 
 export type LegStatus =
