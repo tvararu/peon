@@ -101,8 +101,11 @@ function difficultyValue(
   kind: "dungeon" | "raid",
   value: string,
 ): number | undefined {
-  if (kind === "dungeon")
-    return value === "normal" ? 0 : value === "heroic" ? 1 : undefined;
+  if (kind === "dungeon") {
+    if (value === "normal") return 0;
+    if (value === "heroic") return 1;
+    return undefined;
+  }
   return RAID_VALUE[value];
 }
 
@@ -446,7 +449,12 @@ export async function runDungeon(
     );
   if (do_ === "reset") return runReset(ctx);
   if (do_ === "bind") return runBind(ctx, args.accept);
-  return runExtend(ctx, args.map, args.extended, args.value);
+  if (do_ === "extend")
+    return runExtend(ctx, args.map, args.extended, args.value);
+  return refusedOutcome(
+    "unknown_verb",
+    `Unknown dungeon verb ${String(do_)}. Use status, difficulty, reset, bind or extend.`,
+  );
 }
 
 function dungeonCall(args: unknown, theme: CallInit["theme"]): string {

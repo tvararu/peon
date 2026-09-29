@@ -342,6 +342,19 @@ describe("dungeon tool verbs", () => {
     },
   );
 
+  test("an unknown verb is refused and sends nothing", async () => {
+    const t = await world();
+    const extend = jest.spyOn(t.handle.instances.act, "setLockoutExtended");
+    const { settled } = await attempt(t, {
+      do: "teleport" as unknown as DungeonArgs["do"],
+      extended: true,
+      map: 533,
+    });
+    expect(settled.status).toBe("REFUSED");
+    expect(settled.reason).toBe("unknown_verb");
+    expect(extend).not.toHaveBeenCalled();
+  });
+
   test("reset renders one line per map", async () => {
     const t = await world();
     const resetInstances = jest
