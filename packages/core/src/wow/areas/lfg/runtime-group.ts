@@ -104,12 +104,13 @@ async function voteKick(
   store: LfgStore,
   agree: boolean,
 ): Promise<LfgVoteResult> {
-  if (store.snapshot().boot === undefined)
-    return { status: "refused", reason: "no_vote" };
+  const boot = store.snapshot().boot;
+  if (boot === undefined) return { status: "refused", reason: "no_vote" };
+  if (boot.didVote) return { status: "refused", reason: "already_voted" };
   try {
     await reply(
       ctx,
-      (event) => event.type === "boot",
+      (event) => event.type === "boot_vote",
       () =>
         ctx.send(GameOpcode.CMSG_LFG_SET_BOOT_VOTE, buildLfgBootVote(agree)),
     );

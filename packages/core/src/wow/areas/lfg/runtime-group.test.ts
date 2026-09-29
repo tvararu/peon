@@ -82,9 +82,10 @@ function proposal(state: number, id = 5) {
   });
 }
 
-function boot(inProgress: boolean) {
+function boot(inProgress: boolean, didVote = false) {
   return lfgBootBody({
     inProgress,
+    didVote,
     victim: 0xabn,
     timeLeft: 100,
     reason: "afk",
@@ -357,6 +358,20 @@ describe("lfg voteKick", () => {
       expect(await rig.handle.act.voteKick(true)).toEqual({
         status: "refused",
         reason: "no_vote",
+      });
+      expect(sent(rig, GameOpcode.CMSG_LFG_SET_BOOT_VOTE)).toHaveLength(0);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("refuses already_voted with no send once this player has voted", async () => {
+    const { rig } = build();
+    try {
+      rig.inject(GameOpcode.SMSG_LFG_BOOT_PROPOSAL_UPDATE, boot(true, true));
+      expect(await rig.handle.act.voteKick(true)).toEqual({
+        status: "refused",
+        reason: "already_voted",
       });
       expect(sent(rig, GameOpcode.CMSG_LFG_SET_BOOT_VOTE)).toHaveLength(0);
     } finally {

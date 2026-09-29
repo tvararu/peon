@@ -29,7 +29,7 @@ export const lfgArea = defineArea({
     "role_check",
     "role_chosen",
     "proposal",
-    "boot",
+    "boot_vote",
     "teleport_denied",
     "offer_continue",
     "reward",

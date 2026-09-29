@@ -117,14 +117,21 @@ export type LfgEvent =
   | { type: "queue"; dungeon: number; queuedTime: number }
   | { type: "role_check"; state: number; stateName: LfgRoleCheckStateName }
   | { type: "role_chosen"; guid: bigint; roles: number; ready: boolean }
-  | { type: "proposal"; id: number; dungeon: number; state: number }
   | {
-      type: "boot";
+      type: "proposal";
+      id: number;
+      dungeon: number;
+      state: number;
+      deadline: number;
+    }
+  | {
+      type: "boot_vote";
       inProgress: boolean;
       victim: bigint;
       votes: number;
       agrees: number;
       needed: number;
+      deadline: number | undefined;
     }
   | { type: "teleport_denied"; code: number; reason: LfgTeleportReason }
   | { type: "offer_continue"; entry: number }
@@ -435,20 +442,21 @@ export class LfgStore {
       id: proposal.id,
       dungeon: proposal.dungeon,
       state: proposal.state,
+      deadline,
     });
   }
 
   receiveBoot(boot: LfgBootUpdate): void {
-    this.set({
-      boot: boot.inProgress ? bootView(boot, this.now()) : undefined,
-    });
+    const view = boot.inProgress ? bootView(boot, this.now()) : undefined;
+    this.set({ boot: view });
     this.events.emit({
-      type: "boot",
+      type: "boot_vote",
       inProgress: boot.inProgress,
       victim: boot.victim,
       votes: boot.votes,
       agrees: boot.agrees,
       needed: boot.needed,
+      deadline: view?.deadline,
     });
   }
 

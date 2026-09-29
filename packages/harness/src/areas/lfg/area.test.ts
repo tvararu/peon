@@ -14,6 +14,7 @@ describe("lfg harness rules", () => {
     "a proposal update in state %i writes one lfg/proposal row",
     (state) => {
       const [row, ...rest] = rows({
+        deadline: 41_000,
         dungeon: 0x06_00_00_02,
         id: 5,
         state,
@@ -31,32 +32,35 @@ describe("lfg harness rules", () => {
   test("proposal rows differ between an open, failed and successful proposal", () => {
     const texts = [0, 1, 2].map(
       (state) =>
-        rows({ dungeon: 1, id: 5, state, type: "proposal" })[0]?.text ?? "",
+        rows({ deadline: 1, dungeon: 1, id: 5, state, type: "proposal" })[0]
+          ?.text ?? "",
     );
     expect(new Set(texts).size).toBe(3);
   });
 
-  test("a boot update writes an lfg/boot row with the vote counts and the victim as text", () => {
+  test("a boot update writes an lfg/boot_vote row with the vote counts and the victim as text", () => {
     const [row] = rows({
       agrees: 1,
+      deadline: 122_000,
       inProgress: true,
       needed: 3,
-      type: "boot",
+      type: "boot_vote",
       victim: 0xabn,
       votes: 2,
     });
     expect(row).toMatchObject({
       class: "log",
       data: { agrees: 1, inProgress: true, needed: 3, victim: "171", votes: 2 },
-      event: "lfg/boot",
+      event: "lfg/boot_vote",
     });
   });
 
   test("an ended boot vote reads differently from an open one", () => {
     const base = {
       agrees: 3,
+      deadline: undefined,
       needed: 3,
-      type: "boot",
+      type: "boot_vote",
       victim: 1n,
       votes: 3,
     } as const;

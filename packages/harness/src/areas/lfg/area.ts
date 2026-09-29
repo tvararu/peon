@@ -123,7 +123,7 @@ function proposal(event: Extract<LfgEvent, { type: "proposal" }>): AreaDraft[] {
   ];
 }
 
-function boot(event: Extract<LfgEvent, { type: "boot" }>): AreaDraft[] {
+function boot(event: Extract<LfgEvent, { type: "boot_vote" }>): AreaDraft[] {
   return [
     {
       class: "log",
@@ -134,7 +134,7 @@ function boot(event: Extract<LfgEvent, { type: "boot" }>): AreaDraft[] {
         victim: `${event.victim}`,
         votes: event.votes,
       },
-      name: "boot",
+      name: "boot_vote",
       text: event.inProgress
         ? `A kick vote is open: ${event.agrees} of ${event.needed} needed agree.`
         : "The kick vote ended.",
@@ -201,7 +201,7 @@ function rule(event: LfgEvent): AreaDraft[] {
       return roleChosen(event);
     case "proposal":
       return proposal(event);
-    case "boot":
+    case "boot_vote":
       return boot(event);
     case "teleport_denied":
       return teleportDenied(event);

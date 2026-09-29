@@ -67,7 +67,13 @@ describe("LfgStore proposal", () => {
         deadline: 41_000,
       });
       expect(seen).toEqual([
-        { type: "proposal", id: 5, dungeon: 0x06_00_00_02, state: 0 },
+        {
+          type: "proposal",
+          id: 5,
+          dungeon: 0x06_00_00_02,
+          state: 0,
+          deadline: 41_000,
+        },
       ]);
     } finally {
       rig.dispose();
@@ -114,6 +120,7 @@ describe("LfgStore proposal", () => {
           id: 5,
           dungeon: 0x06_00_00_02,
           state,
+          deadline: 41_000,
         });
       } finally {
         rig.dispose();
@@ -157,12 +164,13 @@ describe("LfgStore boot vote", () => {
       });
       expect(seen).toEqual([
         {
-          type: "boot",
+          type: "boot_vote",
           inProgress: true,
           victim: 0xabn,
           votes: 1,
           agrees: 1,
           needed: 3,
+          deadline: 122_000,
         },
       ]);
     } finally {
@@ -184,10 +192,11 @@ describe("LfgStore boot vote", () => {
       );
       expect(rig.handle.state().boot).toBeUndefined();
       expect(seen.at(-1)).toMatchObject({
-        type: "boot",
+        type: "boot_vote",
         inProgress: false,
         agrees: 3,
       });
+      expect(seen.at(-1)).not.toHaveProperty("deadline", expect.any(Number));
     } finally {
       rig.dispose();
     }
