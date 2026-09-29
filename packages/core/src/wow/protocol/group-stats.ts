@@ -74,6 +74,25 @@ function readAuras(r: PacketReader): GroupAura[] {
   return auras;
 }
 
+function readPowerFields(
+  r: PacketReader,
+  mask: number,
+  full: boolean,
+  result: PartyMemberStats,
+): void {
+  const powerSeen =
+    (mask & GroupUpdateFlag.POWER_TYPE) !== 0 ||
+    (mask & GroupUpdateFlag.CUR_POWER) !== 0 ||
+    (mask & GroupUpdateFlag.MAX_POWER) !== 0;
+  if (mask & GroupUpdateFlag.POWER_TYPE) {
+    result.powerType = r.uint8();
+  } else if (full && powerSeen) {
+    result.powerType = 0;
+  }
+  if (mask & GroupUpdateFlag.CUR_POWER) result.power = r.uint16LE();
+  if (mask & GroupUpdateFlag.MAX_POWER) result.maxPower = r.uint16LE();
+}
+
 function readMemberFields(
   r: PacketReader,
   mask: number,
@@ -87,13 +106,7 @@ function readMemberFields(
   }
   if (mask & GroupUpdateFlag.CUR_HP) result.hp = r.uint32LE();
   if (mask & GroupUpdateFlag.MAX_HP) result.maxHp = r.uint32LE();
-  if (mask & GroupUpdateFlag.POWER_TYPE) {
-    result.powerType = r.uint8();
-  } else if (full) {
-    result.powerType = 0;
-  }
-  if (mask & GroupUpdateFlag.CUR_POWER) result.power = r.uint16LE();
-  if (mask & GroupUpdateFlag.MAX_POWER) result.maxPower = r.uint16LE();
+  readPowerFields(r, mask, full, result);
   if (mask & GroupUpdateFlag.LEVEL) result.level = r.uint16LE();
   if (mask & GroupUpdateFlag.ZONE) result.zone = r.uint16LE();
   if (mask & GroupUpdateFlag.POSITION) {

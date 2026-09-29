@@ -251,6 +251,73 @@ describe("raid pet removal", () => {
     }
   });
 
+  test("a pet hp-only update keeps the other pet fields", () => {
+    const rig = areaRig("raid");
+    try {
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, roster());
+      rig.inject(
+        GameOpcode.SMSG_PARTY_MEMBER_STATS,
+        raidPartyMemberStatsBody({
+          guid: ANN,
+          pet: {
+            auras: [{ flags: 1, slot: 2, spellId: 136 }],
+            displayId: 4444,
+            guid: PET,
+            hp: 100,
+            maxHp: 200,
+            maxPower: 90,
+            name: "Rex",
+            power: 40,
+            powerType: 2,
+          },
+        }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_PARTY_MEMBER_STATS,
+        raidPartyMemberStatsBody({ guid: ANN, pet: { hp: 60 } }),
+      );
+      expect(rig.stores.areas.raid.snapshot().stats?.get(ANN)?.pet).toEqual({
+        auras: [{ flags: 1, slot: 2, spellId: 136 }],
+        displayId: 4444,
+        guid: PET,
+        hp: 60,
+        maxHp: 200,
+        maxPower: 90,
+        name: "Rex",
+        power: 40,
+        powerType: 2,
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("an offline reply keeps the observed power type", () => {
+    const rig = areaRig("raid");
+    try {
+      rig.inject(GameOpcode.SMSG_GROUP_LIST, roster());
+      rig.inject(
+        GameOpcode.SMSG_PARTY_MEMBER_STATS,
+        raidPartyMemberStatsBody({
+          guid: ANN,
+          power: 450,
+          powerType: 1,
+          status: 1,
+        }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_PARTY_MEMBER_STATS_FULL,
+        raidPartyMemberOfflineBody(ANN),
+      );
+      expect(rig.stores.areas.raid.snapshot().stats?.get(ANN)).toMatchObject({
+        online: false,
+        powerType: 1,
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("a full reply without a pet leaves no pet", () => {
     const rig = areaRig("raid");
     try {

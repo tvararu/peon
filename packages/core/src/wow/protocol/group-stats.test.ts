@@ -128,7 +128,7 @@ describe("parsePartyMemberStats", () => {
     });
   });
 
-  test("reads the offline full reply for a guid outside the raid", () => {
+  test("reads the offline full reply without inventing a power type", () => {
     const stats = parsePartyMemberStats(
       new PacketReader(raidPartyMemberOfflineBody(TOM)),
       true,
@@ -137,7 +137,6 @@ describe("parsePartyMemberStats", () => {
       guidHigh: 0,
       guidLow: 0x10,
       online: false,
-      powerType: 0,
       status: 0,
     });
   });

@@ -18,19 +18,42 @@ export type RaidPet = {
   auras: readonly RaidAura[];
 };
 
-function petOrNull(pet: GroupPetStats | null): RaidPet | null {
-  if (!pet) return null;
+function defaultPet(): RaidPet {
   return {
-    auras: pet.auras ? [...pet.auras] : [],
-    displayId: pet.displayId ?? 0,
-    guid: pet.guid ?? null,
-    hp: pet.hp ?? 0,
-    maxHp: pet.maxHp ?? 0,
-    maxPower: pet.maxPower ?? 0,
-    name: pet.name ?? "",
-    power: pet.power ?? 0,
-    powerType: pet.powerType ?? 0,
+    auras: [],
+    displayId: 0,
+    guid: null,
+    hp: 0,
+    maxHp: 0,
+    maxPower: 0,
+    name: "",
+    power: 0,
+    powerType: 0,
   };
+}
+
+function mergePet(pet: GroupPetStats, previous: RaidPet | null): RaidPet {
+  const base = previous ?? defaultPet();
+  return {
+    auras: pet.auras ? [...pet.auras] : [...base.auras],
+    displayId: pet.displayId ?? base.displayId,
+    guid: pet.guid ?? base.guid,
+    hp: pet.hp ?? base.hp,
+    maxHp: pet.maxHp ?? base.maxHp,
+    maxPower: pet.maxPower ?? base.maxPower,
+    name: pet.name ?? base.name,
+    power: pet.power ?? base.power,
+    powerType: pet.powerType ?? base.powerType,
+  };
+}
+
+function mergePetUpdate(
+  update: GroupPetStats | null | undefined,
+  previous: RaidPet | null,
+): RaidPet | null {
+  if (update === undefined) return previous;
+  if (update === null) return null;
+  return mergePet(update, previous);
 }
 
 export type StatsTransition =
@@ -134,8 +157,7 @@ export function mergeMemberStats(
     guid,
     name,
     online: stats.online ?? previous?.online ?? false,
-    pet:
-      stats.pet === undefined ? (previous?.pet ?? null) : petOrNull(stats.pet),
+    pet: mergePetUpdate(stats.pet, previous?.pet ?? null),
     position: stats.position
       ? { ...stats.position }
       : { ...(previous?.position ?? { x: 0, y: 0 }) },
