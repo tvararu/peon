@@ -24,9 +24,16 @@ the words). The row's `movement` holds `rooted`, `slowedPct`,
 against `runBefore`, and `flying` is `CAN_FLY` or `DISABLE_GRAVITY`
 (`Entities/Creature/Creature.cpp:3396` names the walk-mode bit the slow
 words ignore). A root or slow change breaks the look's unchanged count.
-
-In a fight the harness logs a run slow (`unitmotion/slowed`, `<Name>
-slowed to 50% run speed`), the speed-up (`unitmotion/sped`), and root
+A live Frostbolt fight on an `eversong10-mage` (run not committed) shows
+both rows on one Springpaw Stalker: the cast landed after the mob had
+already attacked, so the snare traced seven handled speed packets and
+wrote `unitmotion/slowed` ("Springpaw Stalker slowed to 60% run speed",
+run 6.0 to 3.6); the snare's end wrote `unitmotion/sped` ("sped up to
+167% run speed", 3.6 to 6.0). The rule keeps only fight units: the
+snare's row was written because the mob was the last attacker, while a
+snare that lands before `fight/start` on a unit that never attacked
+writes none (design 5.15 of the unit file).
+In a fight the harness logs the speed-up (`unitmotion/sped`), and root
 on and off (`unitmotion/rooted`, `unitmotion/freed`), at most one row
 per unit per 100 ms; other speeds, other flags, and units outside the
 fight write none (design 5.15 of the unit file).
