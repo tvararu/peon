@@ -1,6 +1,7 @@
 import type { FlowContext, Json, ProbeFlow } from "#tools/probe-flows";
 
 const DEFAULT_QUEST_ID = 8326;
+const ESCORT_QUEST_ID = 8488;
 const RELAY_CODES: readonly number[] = [2, 3];
 
 async function run({ args, handle, settle }: FlowContext): Promise<Json> {
@@ -39,6 +40,7 @@ async function escort({ handle, settle }: FlowContext): Promise<Json> {
   const seen = await settle(() => {
     const offer = handle.quests.state().share?.offer;
     if (!offer) return;
+    if (offer.kind !== "confirm" || offer.questId !== ESCORT_QUEST_ID) return;
     return {
       from: `0x${offer.from.toString(16)}`,
       questId: offer.questId,
