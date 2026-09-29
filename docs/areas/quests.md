@@ -118,8 +118,15 @@ windows (the `SendCloseGossip` call just before the
 `CMSG_QUEST_CONFIRM_ACCEPT` quest id
 (`Server/Packets/QuestPackets.cpp:118-121`), and the server adds the
 quest only when the receiver's divider names a group mate in reward
-distance (`Handlers/QuestHandler.cpp:446-476`).
-packet: `answerShare("decline")` and the 60 s expiry send nothing.
+distance (`Handlers/QuestHandler.cpp:446-476`). The taker's
+`CMSG_QUESTGIVER_ACCEPT_QUEST` accept sets the receiver's divider
+before sending `SMSG_QUEST_CONFIRM_ACCEPT`
+(`Handlers/QuestHandler.cpp:180-185`), so a declined or expired
+confirm offer sends the client's 13-byte `MSG_QUEST_PUSH_RESULT` with
+the taker's guid and result 3 to clear it
+(`Handlers/QuestHandler.cpp:605-616`); without that clear every later
+`CMSG_PUSHQUESTTOPARTY` to the character answers `BUSY`
+(`Handlers/QuestHandler.cpp:581-585`).
 
 ## Wire notes
 

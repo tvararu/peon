@@ -216,22 +216,42 @@ describe("quest escort confirm, receiver", () => {
     });
   });
 
-  test("declining or timing out the escort prompt sends no decline", () => {
+  const pushResult = (r: ReturnType<typeof setup>) => {
+    const [packet] = declined(r);
+    if (packet === undefined) return;
+    const reader = new PacketReader(packet.body);
+    return {
+      guid: reader.uint64LE(),
+      questId: reader.uint32LE(),
+      result: reader.uint8(),
+    };
+  };
+
+  test("declining the escort prompt clears the divider with push result 3", () => {
     offered((r) => {
       confirm(r);
       expect(r.rig.handle.act.answerShare("decline")).toBe(true);
       expect(confirmed(r)).toEqual([]);
-      expect(
-        r.rig.sent.filter((p) => p.opcode === GameOpcode.MSG_QUEST_PUSH_RESULT),
-      ).toEqual([]);
+      expect(pushResult(r)).toEqual({
+        guid: SHARER,
+        questId: 8488,
+        result: QuestShareResult.DECLINE_QUEST,
+      });
     });
+  });
+
+  test("an unanswered escort prompt is declined at 60 s and expires", () => {
     offered((r) => {
       confirm(r);
-      jest.advanceTimersByTime(OFFER_TIMEOUT_MS);
+      jest.advanceTimersByTime(OFFER_TIMEOUT_MS - 1);
+      expect(declined(r)).toEqual([]);
+      jest.advanceTimersByTime(1);
       expect(confirmed(r)).toEqual([]);
-      expect(
-        r.rig.sent.filter((p) => p.opcode === GameOpcode.MSG_QUEST_PUSH_RESULT),
-      ).toEqual([]);
+      expect(pushResult(r)).toEqual({
+        guid: SHARER,
+        questId: 8488,
+        result: QuestShareResult.DECLINE_QUEST,
+      });
       expect(r.rig.handle.state().share?.offer).toBeUndefined();
       expect(r.shares().at(-1)).toEqual({
         questId: 8488,

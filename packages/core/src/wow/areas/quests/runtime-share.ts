@@ -45,7 +45,6 @@ function sendDecline(
   ctx: AreaRuntimeCtx<QuestsEvent>,
   offer: ShareOffer,
 ): void {
-  if (offer.kind === "confirm") return;
   ctx.send(
     GameOpcode.MSG_QUEST_PUSH_RESULT,
     buildQuestPushResult(
