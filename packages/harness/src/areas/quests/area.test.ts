@@ -13,8 +13,13 @@ const JULIA = 0xf1_30_00_3b_a4_00_00_11n;
 const ARCANIST = 0xf1_30_00_3b_a5_00_00_12n;
 
 describe("quests harness area", () => {
-  test("the area claims the giver and POI acts", () => {
-    expect(questsHarness.worldActs).toEqual(["queryGiverStatuses", "queryPoi"]);
+  test("the area claims the giver, POI and share acts", () => {
+    expect(questsHarness.worldActs).toEqual([
+      "answerShare",
+      "queryGiverStatuses",
+      "queryPoi",
+      "shareQuest",
+    ]);
   });
 });
 
@@ -139,5 +144,51 @@ describe("quests marks rule", () => {
       name: "gossip_poi",
     });
     expect(rows[0]?.text).toContain("Lion's Pride Inn");
+  });
+
+  test("a share offer writes one quests/offered wake row", () => {
+    const rows = rules()({
+      share: {
+        from: ERONA,
+        questId: 8329,
+        title: "Unfortunate Measures",
+        type: "offered",
+      },
+      type: "share",
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ class: "wake", name: "offered" });
+    expect(rows[0]?.text).toContain("Magistrix Erona");
+    expect(rows[0]?.text).toContain("Unfortunate Measures");
+    expect(rows[0]?.text).toContain("accept_quest");
+    expect(rows[0]?.text).toContain("decline_quest");
+  });
+
+  test("a relayed accept writes one quests/share_result wake row", () => {
+    const rows = rules()({
+      share: { guid: JULIA, questId: 8329, result: 2, type: "relayed" },
+      type: "share",
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "wake",
+      data: { answer: "accepted", member: "Julia Sunstriker", questId: 8329 },
+      name: "share_result",
+    });
+    expect(rows[0]?.text).toContain("Julia Sunstriker");
+    expect(rows[0]?.text).toContain("accepted");
+  });
+
+  test("a declined first result writes one quests/share_result wake row", () => {
+    const rows = rules()({
+      share: { guid: ARCANIST, questId: 8329, result: 3, type: "result" },
+      type: "share",
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "wake",
+      data: { answer: "declined" },
+      name: "share_result",
+    });
   });
 });
