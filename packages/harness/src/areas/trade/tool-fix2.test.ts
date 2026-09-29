@@ -79,3 +79,11 @@ test("an answer decline that the server cancels settles DONE", async () => {
   const out = await tradeSpec.run({ accept: false, do: "answer" }, toolCtx(t));
   expect(out.status).toBe("DONE");
 });
+
+test("an answer decline that the server refuses busy settles DONE", async () => {
+  const t = await world();
+  t.acts.answerTrade.mockResolvedValue({ reason: "busy", status: "refused" });
+  const out = await tradeSpec.run({ accept: false, do: "answer" }, toolCtx(t));
+  expect(out.status).toBe("DONE");
+  expect(out.detail).toContain("Declined");
+});

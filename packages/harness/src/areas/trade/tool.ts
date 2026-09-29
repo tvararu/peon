@@ -83,8 +83,7 @@ export const tradeSpec: GameToolSpec<typeof tradeParams, "trade", TradeAfter> =
       description:
         "Trade items and gold with another player. Give items, answer a request, change your offer, accept or cancel the trade, and read both offers.",
       guidelines: [
-        "Trade only with a player you see. Never give an item you did not name.",
-        "A named item goes as its whole stack. Split a stack first to give part of it.",
+        "Trade only with a player you see, and give only items you named. A named item goes as its whole stack: split first to give part.",
         "Accept a trade only after you read both offers.",
       ],
       label: "Trade",

@@ -29,7 +29,7 @@ export async function runAnswer(
   if (
     args.accept === false &&
     outcome.status === "refused" &&
-    outcome.reason === "trade_canceled"
+    (outcome.reason === "busy" || outcome.reason === "trade_canceled")
   )
     return result("DONE", {
       after: afterOf("answer"),

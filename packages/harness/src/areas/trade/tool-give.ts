@@ -1,3 +1,4 @@
+import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import {
   afterOf,
   type Picked,
@@ -158,7 +159,9 @@ function tradeEnd(
         phase === "requested_in" ||
         phase === "requested_out"
       )
-        ctx.rt.mutex.run(() => ctx.handle.trade.act.cancelTrade());
+        ctx.rt.mutex
+          .run(() => ctx.handle.trade.act.cancelTrade())
+          .catch(ignoreFailure);
       throw error;
     }
     if (settled.status !== "ok") throw refusalFor(settled, "give");
