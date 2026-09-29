@@ -164,7 +164,7 @@ describe("LootingStore", () => {
       expect(rig.handle.state().masterCandidates).toEqual([PARTNER]);
       rig.inject(
         GameOpcode.SMSG_LOOT_RELEASE_RESPONSE,
-        lootingLootReleaseBody(CREATURE, 0),
+        lootingLootReleaseBody(CREATURE, 1),
       );
       expect(rig.handle.state().masterCandidates).toEqual([]);
       expect(seen).toEqual([]);
@@ -183,7 +183,7 @@ describe("LootingStore", () => {
       );
       rig.inject(
         GameOpcode.SMSG_LOOT_RELEASE_RESPONSE,
-        lootingLootReleaseBody(CREATURE, 0),
+        lootingLootReleaseBody(CREATURE, 1),
       );
     } finally {
       rig.dispose();
