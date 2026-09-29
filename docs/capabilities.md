@@ -41,7 +41,7 @@ or the page names one that does not exist.
 | Use the hearthstone to go home | `t8-travel-hearth-home` | `travel` `hearth` refuses without the stone, on cooldown, in combat or in flight. The scenario starts at the preset's own home, so it does not show a bind at another inn. |
 | Command a pet: call, dismiss, attack, follow, stay, stop and stance | `t8-pets-command` | Hunter only; no warlock or death knight preset. |
 | Set dungeon difficulty | `t9-instances-difficulty` | A solo change is not confirmed until the next dungeon entry; in a group only the leader can change it. |
-| Reset its own dungeons | `t9-instances-reset` | Blocked on staging: the realm `position` setup refuses map 36, so the eval aborts before login. Live probe proof only: reset inside the dungeon fails the map, after hearth it resets. Normal difficulty only; a group member cannot reset. |
+| Reset its own dungeons | — (not shown; see below) | Normal difficulty only; a group member cannot reset. |
 
 ## Not shown by any scenario
 
@@ -60,6 +60,7 @@ These have tools or code but no scenario that checks them live:
   the agent takes the quest but walks by other means and never reads the
   region from `journal`.
 - Come back to life where it died, with Reincarnation or a Soulstone (`t6-selfstate-res`, needs a self-res spell and its reagent; the server refuses silently under a no-resurrection aura).
+- Resetting a dungeon: no scenario stages a character inside one, because the realm service's offline `position` setup accepts only maps 0, 1, 530 and 571, and evals may not GM-teleport there.
 
 Peon has no tool for mail, trade, the auction house, flight paths or
 mounts.
