@@ -26,10 +26,9 @@ The area emits `totem_created` and `totem_gone`, and the harness writes
 "Stoneskin Totem placed (earth)." and the gone row. The destroy act
 refuses `invalid_slot` for a slot outside 0-3 and `no_totem` for an
 `MSG_CHANNEL_START` and `MSG_CHANNEL_UPDATE` do the same for channels
-(`finished` on update 0 at or after the expected end, `interrupted` when it is
-more than 400 ms early; an update 0 inside the last 400 ms waits 50 ms for the
-`SMSG_SPELL_FAILURE` AzerothCore sends with each cancelled channel and ends
-`interrupted` when it comes). Entries expire 1000 ms after their end and drop
+(an update 0 waits 50 ms for the `SMSG_SPELL_FAILURE` AzerothCore sends
+with each cancelled channel and ends `finished` when none comes).
+Entries expire 1000 ms after their end and drop
 when the caster disappears. The harness writes a row only for a caster the
 character targets or that attacks it (`relevant` is 1 on the event):
 `spells/target_start` "Scourge Invader starts casting Shadow Bolt." and, when
@@ -108,7 +107,10 @@ ranks in `inactiveRanks`.
   `wow_message_parser/wowm/world/spell/msg_channel_update.wowm`). A
   non-zero value is pushback after a hit; 0 ends the channel.
 - Pushback takes 25% of the channel duration per hit and sends the new
-  remaining time (`Spells/Spell.cpp:8129-8173`).
+  remaining time (`Spells/Spell.cpp:8129-8173`). When pushback shortens
+  the channel to zero the server sends the 0 update with no failure
+  packet (`Spells/Spell.cpp:8147-8169`, `:4565-4580`), so the area
+  reports it `finished` however early it comes.
 - The server sends the spell-go packet before the channel start
   (`Spells/Spell.cpp:4072`, `Spells/Spell.cpp:4155`,
   `Spells/Spell.cpp:4243`), so the cast looks finished while the channel
@@ -261,11 +263,6 @@ Disagreements for opcodes later tasks build (AzerothCore wins):
   disconnect.
 ## Left out
 
-- An other unit's channel that pushback shortens to zero ends with
-  a zero channel update and no failure packet
-  (`Spells/Spell.cpp:8147-8169`, `:4565-4580`). If that update comes
-  more than 400 ms before the planned end, `unit_cast_end` reports
-  `interrupted`.
 - `CMSG_UNLEARN_SKILL`: built by spells-7.
 - `SMSG_CONVERT_RUNE`: built by spells-9.
 - `CMSG_FAR_SIGHT`, `CMSG_GET_MIRRORIMAGE_DATA`,

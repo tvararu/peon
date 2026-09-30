@@ -300,7 +300,8 @@ describe("spells unit casts", () => {
     }
   });
 
-  test("another caster's channel start and update 0 give a channel entry then finished", () => {
+  test("another caster's channel start and update 0 settle to finished", () => {
+    jest.useFakeTimers();
     const { advance, rig, seen } = setup();
     try {
       rig.inject(
@@ -328,6 +329,8 @@ describe("spells unit casts", () => {
         GameOpcode.MSG_CHANNEL_UPDATE,
         spellsChannelUpdateBody({ caster: MOB, time: 0 }),
       );
+      expect(seen.filter((e) => e.type === "unit_cast_end")).toEqual([]);
+      jest.advanceTimersByTime(1000);
       expect(seen.at(-1)).toMatchObject({
         outcome: "finished",
         type: "unit_cast_end",
@@ -335,6 +338,7 @@ describe("spells unit casts", () => {
       expect(rig.handle.state().unitCasts).toEqual([]);
     } finally {
       rig.dispose();
+      jest.useRealTimers();
     }
   });
 
