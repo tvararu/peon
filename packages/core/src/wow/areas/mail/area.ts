@@ -21,7 +21,7 @@ export const mailArea = defineArea({
     wire.on(GameOpcode.MSG_QUERY_NEXT_MAIL_TIME, (reader) => {
       store.receiveNextMailTime(parseNextMailTime(reader));
     });
-    wire.on(GameOpcode.SMSG_RECEIVED_MAIL, (reader) => {
+    wire.peek(GameOpcode.SMSG_RECEIVED_MAIL, (reader) => {
       parseReceivedMail(reader);
       store.receiveReceivedMail();
     });

@@ -65,16 +65,17 @@ async function listMail(env: Env, mailbox: bigint): Promise<MailListResult> {
   }
 }
 
-function markMailRead(env: Env, id: number): Promise<MailMarkResult> {
+async function markMailRead(env: Env, id: number): Promise<MailMarkResult> {
   requireWorld(env);
   const mailbox = env.store.snapshot().mailbox;
   if (mailbox === undefined) throw new Error("no_mailbox");
   requireMailbox(env, mailbox);
+  await Promise.resolve();
   env.ctx.send(
     GameOpcode.CMSG_MAIL_MARK_AS_READ,
     buildMailMarkAsRead(mailbox, id),
   );
-  return Promise.resolve({ status: "ok" });
+  return { status: "ok" };
 }
 
 async function queryNextMail(env: Env): Promise<MailNextResult> {
