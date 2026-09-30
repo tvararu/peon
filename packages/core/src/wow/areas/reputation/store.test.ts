@@ -345,3 +345,19 @@ describe("reputation store", () => {
     expect(store.factionAtWar(911)).toBe(false);
   });
 });
+
+describe("reputation store inferred at-war flags", () => {
+  test("hostile standing keeps the inferred flag while at war", async () => {
+    const { store } = await setup();
+    store.setStanding(standing(BLOODSAIL, -700));
+    expect(row(store, BLOODSAIL)?.atWar).toBe(true);
+    store.setStanding(standing(BLOODSAIL, -800));
+    expect(row(store, BLOODSAIL)?.atWar).toBe(true);
+  });
+
+  test("peace-forced factions never infer at war", async () => {
+    const { store } = await setup();
+    store.setStanding(standing(SILVERMOON, -9500));
+    expect(row(store, SILVERMOON)?.atWar).toBe(false);
+  });
+});

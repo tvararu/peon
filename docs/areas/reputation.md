@@ -56,10 +56,19 @@ reaction wakes the agent outside a run. `initialized` and
   (`Reputation/ReputationMgr.cpp:254-255`).
 - When a standing falls to Hostile or below, the server sets `AT_WAR`,
   and when it rises from Hostile to Unfriendly or above on a faction every
-  race starts in, it clears it (`Reputation/ReputationMgr.cpp:432-436`).
-  Neither change reaches the client before the next login, so the area
-  infers both the same way, and never sets `AT_WAR` on a faction with
-  `PEACE_FORCED` (`Reputation/ReputationMgr.cpp:517-521`).
+  race starts in, it clears it (`SMSG_SET_FACTION_STANDING` in
+  `Reputation/ReputationMgr.cpp:178-209`; `SMSG_INITIALIZE_FACTIONS` in
+  `Reputation/ReputationMgr.cpp:211-244`). The flag rides only in the
+  initialize packet while each standing packet sends standing only, so
+  neither change reaches the client before the next login and the area
+  infers both the same way. All three transitions are proven by citation:
+  the fall, the rise that clears, and the rise that keeps `AT_WAR` where
+  war cannot be set by hand (`CMSG_SET_FACTION_ATWAR` in
+  `Handlers/CharacterHandler.cpp:1287-1296`). The toggle itself was tried
+  live and left no trace: a throwaway `fresh` character sent the toggle
+  for list ids 35, 55 and 20 and the next initialize packet kept the old
+  flags with no `SMSG_SET_FACTION` packet in between, so the toggle
+  transition stays citation-only.
 - `SMSG_SET_FORCED_REACTIONS` is a `uint32` count, then per entry a
   `uint32` `Faction.dbc` faction id (not a template or list id) and a
   `uint32` rank (`Reputation/ReputationMgr.cpp:165-176`). wow_messages
