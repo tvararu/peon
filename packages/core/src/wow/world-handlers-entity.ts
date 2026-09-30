@@ -1,5 +1,5 @@
-import { inflateSync } from "node:zlib";
 import type { CreatureInfo, CreatureRank } from "#wow/client-extras";
+import { inflateCompressedUpdate } from "#wow/protocol/compressed-update";
 import { ObjectType, UpdateFlag } from "#wow/protocol/entity-fields";
 import {
   buildCreatureQuery,
@@ -16,7 +16,7 @@ import {
   type UnitFieldsResult,
 } from "#wow/protocol/extract-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import { PacketReader, PacketWriter } from "#wow/protocol/packet";
+import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
 import {
   parseUpdateObject,
   type UpdateEntry,
@@ -198,19 +198,7 @@ export function handleCompressedUpdateObject(
   stores: EntityStores,
   r: PacketReader,
 ): void {
-  const uncompressedSize = r.uint32LE();
-  const compressed = r.bytes(r.remaining);
-  const decompressed = inflateSync(compressed);
-  if (decompressed.length !== uncompressedSize) {
-    throw new Error(
-      `Compressed update size mismatch: expected ${uncompressedSize}, got ${decompressed.length}`,
-    );
-  }
-  handleUpdateObject(
-    conn,
-    stores,
-    new PacketReader(new Uint8Array(decompressed)),
-  );
+  handleUpdateObject(conn, stores, inflateCompressedUpdate(r));
 }
 
 export function handleDestroyObject(
