@@ -30,6 +30,15 @@ export const ambienceHarness = defineHarnessArea({
             text: `The server started movie ${event.movie.movieId}; Peon cannot show it.`,
           } satisfies AreaDraft,
         ];
+      if (event.type === "phase_changed")
+        return [
+          {
+            class: "log",
+            data: { from: event.from, to: event.to },
+            name: "phase",
+            text: "Your phase changed. Some units and objects may appear or vanish.",
+          } satisfies AreaDraft,
+        ];
       return [];
     },
   }),
