@@ -20,6 +20,11 @@ export const TAXI_TIMEOUT_MS = 3000;
 export type TravelOutcome<T = Readonly<Record<never, never>>> =
   | ({ status: "ok" } & T)
   | { status: "refused"; reason: string }
+  | {
+      status: "refused";
+      reason: "ambiguous";
+      matches: { node: number; name: string }[];
+    }
   | { status: "no_answer" };
 
 export type TaxiDestination = {
@@ -106,10 +111,18 @@ async function readCatalog(
   }
 }
 
+type DestinationPick =
+  | { node: number }
+  | { refusal: "unknown_node" }
+  | {
+      refusal: "ambiguous";
+      matches: { node: number; name: string }[];
+    };
+
 function pickDestination(
   catalog: TaxiCatalog,
   destination: string,
-): { node: number } | { refusal: string } {
+): DestinationPick {
   const matches = catalog.nodesByName(destination);
   const folded = destination.toLowerCase();
   const exact = matches.filter((node) => node.name.toLowerCase() === folded);
@@ -117,7 +130,11 @@ function pickDestination(
   if (firstExact) return { node: firstExact.id };
   const only = matches.length === 1 ? matches[0] : undefined;
   if (only) return { node: only.id };
-  return { refusal: matches.length === 0 ? "unknown_node" : "ambiguous" };
+  if (matches.length === 0) return { refusal: "unknown_node" };
+  return {
+    refusal: "ambiguous",
+    matches: matches.map((node) => ({ node: node.id, name: node.name })),
+  };
 }
 
 async function guard<T>(
@@ -331,6 +348,12 @@ async function planFlight(
   if (loaded.catalog.node(from) === undefined)
     return { status: "refused", reason: "unknown_node" };
   const picked = pickDestination(loaded.catalog, destination);
+  if ("refusal" in picked && picked.refusal === "ambiguous")
+    return {
+      status: "refused",
+      reason: picked.refusal,
+      matches: picked.matches,
+    };
   if ("refusal" in picked) return { status: "refused", reason: picked.refusal };
   const known = new Set(store.snapshot().known ?? []);
   if (!known.has(picked.node))

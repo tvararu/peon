@@ -444,7 +444,14 @@ describe("travel runtime: taxi", () => {
         reason: "unknown_node",
       });
       const ambiguous = await rig.handle.act.planFlight(82, "n");
-      expect(ambiguous).toEqual({ status: "refused", reason: "ambiguous" });
+      expect(ambiguous).toEqual({
+        status: "refused",
+        reason: "ambiguous",
+        matches: [
+          { node: 82, name: "Silvermoon City" },
+          { node: 83, name: "Tranquillien" },
+        ],
+      });
       expect(await rig.handle.act.planFlight(82, "Tranquillien")).toEqual({
         status: "refused",
         reason: "not_known",
