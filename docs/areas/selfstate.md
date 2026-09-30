@@ -37,7 +37,16 @@ change fires `mounted` (with the display id) or `dismounted`, and both
 carry `taxi`, true when `TAXI_FLIGHT` is set in the update that mounts or
 in the state before the one that dismounts, since a taxi flight mounts the
 character too. A self `SMSG_DISMOUNT` clears the state at once, so the
-field update that follows adds no second event. `SMSG_MOUNTSPECIAL_ANIM`
+confirming field update that clears the mount adds no second event. A name
+or position reread that still shows the mount before it is ignored. A fresh
+mount-field update that still shows the mount is an authoritative remount,
+even with the same display id and taxi bit; the `SMSG_DISMOUNT` path
+handles the Brewfest mount transformation this way because removing the
+mounted aura dismounts and the recast of the selected mount, even when it
+matches the current one, sends the dismount first while the update carries
+only the final values (`Entities/Unit/Unit.cpp:10301-10303`,
+`Entities/Unit/Unit.cpp:10283-10290`).
+`SMSG_MOUNTSPECIAL_ANIM`
 for another guid fires `mount_anim`. The act `dismount` refuses
 `not_mounted` and then `in_flight` without a send, otherwise sends the
 empty `CMSG_CANCEL_MOUNT_AURA` and settles `ok` on `dismounted` or

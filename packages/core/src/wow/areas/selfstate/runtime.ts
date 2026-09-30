@@ -125,7 +125,9 @@ function watchSelfFields(
       store.syncStandField(fields.standState);
     if (((fields.playerFlags ?? 0) & PLAYER_FLAG_GHOST) !== 0)
       store.clearGhostPending();
-    store.syncMountFields(fields.unitFlags, fields.mountDisplayId);
+    const fresh =
+      event.type !== "update" || event.changed.includes("rawFields");
+    store.syncMountFields(fields.unitFlags, fields.mountDisplayId, fresh);
     if (fields.selfResSpell === undefined) return;
     const spellId = fields.selfResSpell;
     if (store.syncSelfResSpell(spellId))

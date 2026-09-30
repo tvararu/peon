@@ -57,8 +57,13 @@ function rigMounted(start: [number, number][] = WALKING) {
     held.current = entity;
     rig.events.entity.emit({ changed: ["rawFields"], entity, type: "update" });
   };
+  const reread = (changed: string) => {
+    const entity = held.current;
+    if (entity)
+      rig.events.entity.emit({ changed: [changed], entity, type: "update" });
+  };
   rig.events.entity.emit({ entity: unit(SELF, start), type: "appear" });
-  return { events, rig, update };
+  return { events, rig, reread, update };
 }
 
 const mountEvents = (events: readonly SelfstateEvent[]) =>
@@ -153,13 +158,34 @@ describe("selfstate runtime: SMSG_DISMOUNT", () => {
     }
   });
 
-  test("an unrelated self update that still shows the mount before the confirming one adds no mounted event", () => {
+  test("a name or position reread that still shows the mount before the confirming one adds no mounted event", () => {
+    const { rig, events, reread, update } = rigMounted(RIDING);
+    try {
+      rig.inject(GameOpcode.SMSG_DISMOUNT, selfstateDismountBody(SELF));
+      reread("position");
+      reread("name");
+      expect(rig.handle.state().mounted).toBe(false);
+      update(unit(SELF, WALKING));
+      reread("position");
+      update(unit(SELF, RIDING));
+      expect(mountEvents(events)).toEqual([
+        { type: "dismounted", taxi: false },
+        { type: "mounted", displayId: HORSE, taxi: false },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("an authoritative remount on the same display id and taxi bit straight after the dismount is accepted (AC scripts/Spells/spell_item.cpp:3350-3374, Object.cpp:495-513)", () => {
     const { rig, events, update } = rigMounted(RIDING);
     try {
       rig.inject(GameOpcode.SMSG_DISMOUNT, selfstateDismountBody(SELF));
       update(unit(SELF, RIDING));
-      update(unit(SELF, WALKING));
-      update(unit(SELF, RIDING));
+      expect(rig.handle.state()).toMatchObject({
+        mountDisplayId: HORSE,
+        mounted: true,
+      });
       expect(mountEvents(events)).toEqual([
         { type: "dismounted", taxi: false },
         { type: "mounted", displayId: HORSE, taxi: false },
