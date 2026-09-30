@@ -4,6 +4,8 @@ import {
   vehiclesMonsterMoveTransportBody,
   vehiclesPlayerVehicleDataBody,
 } from "#test-support/areas/vehicles";
+import { vehiclesRuntime } from "#wow/areas/vehicles/runtime";
+import { type VehiclesEvent, VehiclesStore } from "#wow/areas/vehicles/store";
 import type { Entity } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { SplineFlag } from "#wow/protocol/monster-move";
@@ -89,7 +91,7 @@ describe("vehicles acts", () => {
     }
   });
 
-  test("exitVehicle sends exit and settles ok on the exit spline", async () => {
+  test("exitVehicle sends exit and settles ok when control returns to the character (AC Unit.cpp:15343-15346)", async () => {
     const rig = rigWith(new Map());
     rig.stores.areas.vehicles.setSeat({
       controlling: false,
@@ -103,18 +105,104 @@ describe("vehicles acts", () => {
       expect(rig.sent.map((packet) => packet.opcode)).toEqual([
         GameOpcode.CMSG_REQUEST_VEHICLE_EXIT,
       ]);
+      rig.events.control.emit({ type: "control_changed", state: {} as never });
+      expect(await pending).toEqual({ status: "ok" });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("exitVehicle after a boarding spline uses the seat the spline named", async () => {
+    const rig = rigWith(new Map([[VEHICLE, 0x01_00_00_00]]));
+    try {
+      const board = rig.handle.act.spellClick(VEHICLE);
+      await Promise.resolve();
       rig.inject(
         GameOpcode.SMSG_MONSTER_MOVE_TRANSPORT,
         vehiclesMonsterMoveTransportBody({
           guid: SELF,
-          seat: -1,
-          stop: true,
+          seat: 0,
+          stop: false,
           transportGuid: VEHICLE,
+          flags: SplineFlag.TRANSPORT_ENTER,
         }),
       );
-      expect(await pending).toEqual({ status: "ok" });
+      expect(await board).toEqual({ status: "ok" });
+      const exit = rig.handle.act.exitVehicle();
+      await Promise.resolve();
+      expect(rig.sent.map((packet) => packet.opcode)).toEqual([
+        GameOpcode.CMSG_SPELLCLICK,
+        GameOpcode.CMSG_REQUEST_VEHICLE_EXIT,
+      ]);
+      rig.events.control.emit({ type: "control_changed", state: {} as never });
+      expect(await exit).toEqual({ status: "ok" });
     } finally {
       rig.dispose();
+    }
+  });
+
+  test("the character guid is read when the act runs, not when the runtime is built", async () => {
+    let self = 0n;
+    const store = new VehiclesStore({ getEntity: () => undefined } as never);
+    const sent: number[] = [];
+    const ctx = {
+      selfGuid: () => self,
+      send: (opcode: number) => void sent.push(opcode),
+      signal: new AbortController().signal,
+      until: (match: (event: VehiclesEvent) => boolean) =>
+        new Promise<VehiclesEvent>((resolve) => {
+          const off = store.onEvent((event) => {
+            if (!match(event)) return;
+            off();
+            resolve(event);
+          });
+        }),
+    } as unknown as Parameters<typeof vehiclesRuntime>[0];
+    const runtime = vehiclesRuntime(ctx, store, {} as never);
+    self = SELF;
+    store.setSeat({
+      controlling: false,
+      entry: undefined,
+      seat: 0,
+      vehicle: VEHICLE,
+    });
+    const pending = runtime.act.nextSeat();
+    store.receiveTransport({
+      guid: SELF,
+      move: {
+        kind: "move",
+        duration: 1,
+        flags: 0,
+        splineId: 1,
+      } as never,
+      seat: 1,
+      transportGuid: VEHICLE,
+    });
+    expect(await pending).toEqual({ status: "ok" });
+    expect(sent).toEqual([GameOpcode.CMSG_REQUEST_VEHICLE_NEXT_SEAT]);
+  });
+
+  test("exitVehicle ignores control changes that carry a reason and times out", async () => {
+    jest.useFakeTimers();
+    const rig = rigWith(new Map());
+    rig.stores.areas.vehicles.setSeat({
+      controlling: false,
+      entry: undefined,
+      seat: 0,
+      vehicle: VEHICLE,
+    });
+    try {
+      const pending = rig.handle.act.exitVehicle();
+      rig.events.control.emit({
+        type: "control_changed",
+        reason: "rooted",
+        state: {} as never,
+      });
+      jest.advanceTimersByTime(3000);
+      expect(await pending).toEqual({ status: "no_answer" });
+    } finally {
+      rig.dispose();
+      jest.useRealTimers();
     }
   });
 
@@ -259,7 +347,10 @@ describe("vehicles acts", () => {
       await Promise.resolve();
       rig.inject(
         GameOpcode.SMSG_PLAYER_VEHICLE_DATA,
-        vehiclesPlayerVehicleDataBody({ guid: 0xf1_30_00_3e_ea_00_0d_bcn, vehicleId: 0 }),
+        vehiclesPlayerVehicleDataBody({
+          guid: 0xf1_30_00_3e_ea_00_0d_bcn,
+          vehicleId: 0,
+        }),
       );
       jest.advanceTimersByTime(3000);
       expect(await pending).toEqual({ status: "no_answer" });
@@ -267,6 +358,22 @@ describe("vehicles acts", () => {
       rig.dispose();
       jest.useRealTimers();
     }
+  });
+
+  test("disposing the rig while an exit waits aborts it", async () => {
+    const rig = rigWith(new Map());
+    rig.stores.areas.vehicles.setSeat({
+      controlling: false,
+      entry: undefined,
+      seat: 0,
+      vehicle: VEHICLE,
+    });
+    const settled = rig.handle.act.exitVehicle().then(
+      () => "resolved",
+      () => "rejected",
+    );
+    rig.dispose();
+    expect(await settled).toBe("rejected");
   });
 
   test("disposing the rig while waiting aborts the pending act", async () => {

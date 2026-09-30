@@ -54,8 +54,19 @@ async function waitSeatAnswer(
 type SeatDeps = {
   ctx: Ctx;
   store: VehiclesStore;
-  self: bigint;
 };
+
+function currentSeat(
+  store: VehiclesStore,
+  self: bigint,
+): { vehicle: bigint; seat: number } | undefined {
+  const state = store.snapshot();
+  if (state.seat) return state.seat;
+  const passenger = state.passengers.get(self);
+  return passenger
+    ? { vehicle: passenger.transportGuid, seat: passenger.seat }
+    : undefined;
+}
 
 function boarded(self: bigint) {
   return (event: VehiclesEvent) =>
@@ -70,11 +81,12 @@ function changedSeat(self: bigint, before: number) {
 }
 
 function changeSeat(
-  { ctx, store, self }: SeatDeps,
+  { ctx, store }: SeatDeps,
   opcode: number,
   body?: Uint8Array,
 ): Promise<VehiclesOutcome> {
-  const seat = store.snapshot().seat;
+  const self = ctx.selfGuid();
+  const seat = currentSeat(store, self);
   if (seat === undefined)
     return Promise.resolve({ status: "refused", reason: "not_seated" });
   const answer = waitSeatAnswer(ctx, changedSeat(self, seat.seat));
@@ -83,9 +95,10 @@ function changeSeat(
 }
 
 function clickSeat(
-  { ctx, store, self }: SeatDeps,
+  { ctx, store }: SeatDeps,
   guid: bigint,
 ): Promise<VehiclesOutcome> {
+  const self = ctx.selfGuid();
   const target = store.entityOf(guid);
   if (!(isUnit(target) && target.npcFlags & NPC_FLAG_SPELLCLICK))
     return Promise.resolve({ status: "refused", reason: "not_clickable" });
@@ -94,31 +107,53 @@ function clickSeat(
   return answer;
 }
 
-function exitSeat({ ctx, store, self }: SeatDeps): Promise<VehiclesOutcome> {
-  const seat = store.snapshot().seat;
-  if (seat === undefined)
+function waitControlRestored(ctx: Ctx): Promise<VehiclesOutcome> {
+  return new Promise((resolve, reject) => {
+    const release = (): void => {
+      clearTimeout(timer);
+      off();
+      ctx.signal.removeEventListener("abort", onAbort);
+    };
+    const onAbort = (): void => {
+      release();
+      reject(ctx.signal.reason ?? new Error("aborted"));
+    };
+    const timer = setTimeout(() => {
+      release();
+      resolve({ status: "no_answer" });
+    }, NO_ANSWER_MS);
+    const off = ctx.listen("control", ({ type, reason }) => {
+      if (type !== "control_changed" || reason !== undefined) return;
+      release();
+      resolve({ status: "ok" });
+    });
+    if (ctx.signal.aborted) onAbort();
+    else ctx.signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+function exitSeat({ ctx, store }: SeatDeps): Promise<VehiclesOutcome> {
+  if (currentSeat(store, ctx.selfGuid()) === undefined)
     return Promise.resolve({ status: "refused", reason: "not_seated" });
-  const answer = waitSeatAnswer(ctx, changedSeat(self, seat.seat));
+  const answer = waitControlRestored(ctx);
   ctx.send(GameOpcode.CMSG_REQUEST_VEHICLE_EXIT);
   return answer;
 }
 
-function enterSeat(
-  { ctx, self }: SeatDeps,
-  guid: bigint,
-): Promise<VehiclesOutcome> {
-  const answer = waitSeatAnswer(ctx, boarded(self));
+function enterSeat({ ctx }: SeatDeps, guid: bigint): Promise<VehiclesOutcome> {
+  const answer = waitSeatAnswer(ctx, boarded(ctx.selfGuid()));
   ctx.send(GameOpcode.CMSG_PLAYER_VEHICLE_ENTER, buildPlayerVehicleEnter(guid));
   return answer;
 }
 
 function ejectSeat(
-  { ctx, store, self }: SeatDeps,
+  { ctx, store }: SeatDeps,
   guid: bigint,
 ): Promise<VehiclesOutcome> {
+  const self = ctx.selfGuid();
   if (!store.snapshot().vehicleIds.has(self))
     return Promise.resolve({ status: "refused", reason: "not_a_vehicle" });
-  if (store.snapshot().seat === undefined)
+  if (currentSeat(store, self) === undefined)
     return Promise.resolve({ status: "refused", reason: "not_seated" });
   const answer = waitSeatAnswer(
     ctx,
@@ -139,9 +174,9 @@ export function vehiclesRuntime(
   store: VehiclesStore,
   _core: CoreStores,
 ): AreaRuntime<VehiclesActs> {
-  const deps: SeatDeps = { ctx, self: ctx.selfGuid(), store };
+  const deps: SeatDeps = { ctx, store };
   const switchSeat = (seat: number): Promise<VehiclesOutcome> => {
-    const vehicle = store.snapshot().seat?.vehicle;
+    const vehicle = currentSeat(store, ctx.selfGuid())?.vehicle;
     if (vehicle === undefined)
       return Promise.resolve({ status: "refused", reason: "not_seated" });
     return changeSeat(
