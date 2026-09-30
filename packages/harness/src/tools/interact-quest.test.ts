@@ -12,6 +12,7 @@ import {
   listDialog,
   MCBRIDE,
   offerDialog,
+  talkQuery,
   VELAN,
   velan,
 } from "#test-support/quest-fixtures";
@@ -67,6 +68,38 @@ async function readyToTurnIn() {
       dialog: offerDialog(questId, RECLAIMING.title),
     });
   return t;
+}
+
+type PoiSpot = { index: number; mapId?: number; x: number; y: number };
+
+function knownPoiState(questId: number, spot: PoiSpot): QuestsAreaState {
+  return {
+    completed: undefined,
+    gossipPoi: undefined,
+    marks: new Map(),
+    pois: new Map([
+      [
+        questId,
+        {
+          at: 1,
+          pois: [
+            {
+              areaId: 0,
+              floorId: 0,
+              mapId: spot.mapId ?? 530,
+              objectiveIndex: spot.index,
+              poiId: 0,
+              points: [{ x: spot.x, y: spot.y }],
+              unk3: 0,
+              unk4: 0,
+            },
+          ],
+          status: "known",
+        },
+      ],
+    ]),
+    texts: new Map(),
+  };
 }
 
 describe("quest handoff", () => {
@@ -234,6 +267,89 @@ describe("quest handoff", () => {
       "turned in Reclaiming Sunstrider Isle #8325. Reward: 100 XP, 30 copper, Green Chain Boots.",
     );
     expect(res.after.money).toEqual({ after: 530, before: 500 });
+  });
+  test("accept of an explore quest travels to the area trigger by its region", async () => {
+    const { t } = await velan();
+    const state = t.handle.getQuestState();
+    t.handle.getQuestState = () => ({
+      ...state,
+      log: { complete: true, slots: [logged(62, 0)] },
+      queries: [talkQuery(62, "Explore the Fargodeep Mine.")],
+    });
+    spyQuests(t, knownPoiState(62, { index: 0, mapId: 0, x: -9844, y: 92 }));
+    t.handle.objects.act.triggersNear = () => [
+      { id: 88, x: -9843.54, y: 127.525 },
+    ];
+    const control = t.handle.getControlState();
+    const lands = { mapId: 0, x: -9870, y: 213 };
+    t.handle.getControlState = () => ({
+      ...control,
+      pose: control.pose && { ...control.pose, ...lands },
+      serverPose: control.serverPose && { ...control.serverPose, ...lands },
+    });
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", {
+        dialog: listDialog([
+          { icon: 2, level: 4, questId: 62, title: "The Fargodeep Mine" },
+        ]),
+      });
+    t.handle.selectQuest = () =>
+      answer(t.handle, "dialog", {
+        dialog: detailsDialog(
+          62,
+          "The Fargodeep Mine",
+          "Explore the Fargodeep Mine.",
+        ),
+      });
+    t.handle.acceptQuest = () =>
+      answer(
+        t.handle,
+        "accepted",
+        { dialog: undefined, log: { complete: true, slots: [logged(62, 0)] } },
+        62,
+      );
+    const res = await interactSpec.run(
+      { do: "accept", npc: "Velan Brightoak", what: "1" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(res.detail).toContain("objective region");
+    expect(res.next).toBe('travel(to: "-9843.54, 127.53")');
+  });
+  test("accept names the quest region when the objective is far", async () => {
+    const { t } = await velan();
+    const state = t.handle.getQuestState();
+    t.handle.getQuestState = () => ({
+      ...state,
+      log: { complete: true, slots: [logged(8326, 0)] },
+    });
+    spyQuests(t, knownPoiState(8326, { index: 0, x: 10_385, y: -6316 }));
+    moveTo(t.handle, { x: 10_293, y: -6357 });
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", {
+        dialog: listDialog([
+          { icon: 2, level: 1, questId: 8326, title: "Thirst Unending" },
+        ]),
+      });
+    t.handle.selectQuest = () =>
+      answer(t.handle, "dialog", {
+        dialog: detailsDialog(8326, "Thirst Unending", "Slay 8 Manawraiths."),
+      });
+    t.handle.acceptQuest = () =>
+      answer(
+        t.handle,
+        "accepted",
+        {
+          dialog: undefined,
+          log: { complete: true, slots: [logged(8326, 0)] },
+        },
+        8326,
+      );
+    const res = await interactSpec.run(
+      { do: "accept", npc: "Velan Brightoak", what: "1" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(res.detail).toContain("objective region around 10385, -6316");
+    expect(res.next).toBe('travel(to: "10385, -6316")');
   });
 });
 

@@ -1,4 +1,5 @@
 import { type QuestState, questSlotStatus } from "@peon/core";
+import { questRegion } from "#harness/areas/quests/reads";
 import type { ViewCtx } from "#harness/contract/services";
 import type { UnitView } from "#harness/contract/views";
 import { enderIn } from "#harness/ops/quest-memory";
@@ -8,7 +9,23 @@ import { nextCall } from "#harness/tools/next-call";
 type Accepted = { detail: string; next: string };
 type Shown = { giver: string; objectives: string };
 
+const FAR_YD = 40;
 const STOP = /[.!?]$/;
+
+function regionOf(ctx: ViewCtx, questId: number) {
+  const pose = ctx.handle.getControlState().pose ?? undefined;
+  const slot = ctx.handle
+    .getQuestState()
+    .log.slots.find((known) => known.questId === questId);
+  if (!slot) return;
+  const status =
+    questSlotStatus(slot) === "complete" ? "complete" : "incomplete";
+  return questRegion(
+    { id: questId, status },
+    ctx.handle.quests.state().pois,
+    pose,
+  );
+}
 
 function counted(state: QuestState, questId: number): boolean | undefined {
   const query = state.queries.find(
@@ -76,18 +93,65 @@ export function acceptedNext(
     title: offer.title,
   });
   const npc = goalNpc(ctx, goal, ender);
-  const detail =
+  const region = regionOf(ctx, offer.id);
+  const regionText =
+    region && "label" in region ? ` The quest region is ${region.label}.` : "";
+  const pointed =
     goal === ""
-      ? accepted
-      : `${accepted} Goal: ${sentence(withWhere(goal, npc))}`;
+      ? `${accepted}${regionText}`
+      : `${accepted} Goal: ${sentence(withWhere(goal, npc))}${regionText}`;
+  if (region && "to" in region) {
+    const trigger = triggerAt(ctx, region.to);
+    if (trigger)
+      return { detail: pointed, next: nextCall("travel", { to: trigger }) };
+    if (counted(state, offer.id) !== false && farFrom(ctx, region.to))
+      return {
+        detail: pointed,
+        next: nextCall("travel", { to: region.to }),
+      };
+  }
   if (counted(state, offer.id) !== false)
-    return { detail, next: nextCall("engage", { quest: String(offer.id) }) };
-  if (ender) return { detail, next: nextCall("interact", { npc: ender }) };
+    return {
+      detail: pointed,
+      next: nextCall("engage", { quest: String(offer.id) }),
+    };
+  if (ender)
+    return { detail: pointed, next: nextCall("interact", { npc: ender }) };
   const named = npc?.inView ? npc : undefined;
   return {
-    detail: `${detail} It has nothing to kill or collect.`,
+    detail: `${pointed} It has nothing to kill or collect.`,
     next: named
       ? nextCall("interact", { do: "turn_in", npc: named.ref })
       : nextCall("look", { find: "questgiver" }),
   };
+}
+
+function pointOf(to: string): { x: number; y: number } | undefined {
+  const [x, y] = to.split(",").map(Number);
+  if (x === undefined || y === undefined) return undefined;
+  if (Number.isNaN(x) || Number.isNaN(y)) return undefined;
+  return { x, y };
+}
+
+function farFrom(ctx: ViewCtx, to: string): boolean {
+  const pose = ctx.handle.getControlState().pose;
+  if (!pose) return true;
+  const point = pointOf(to);
+  if (!point) return false;
+  return Math.hypot(pose.x - point.x, pose.y - point.y) >= FAR_YD;
+}
+
+function triggerAt(ctx: ViewCtx, to: string): string | undefined {
+  const pose = ctx.handle.getControlState().pose;
+  if (!pose) return undefined;
+  const point = pointOf(to);
+  if (!point) return undefined;
+  const first = ctx.handle.objects.act.triggersNear(
+    pose.mapId,
+    point.x,
+    point.y,
+    100,
+  )[0];
+  if (!first) return undefined;
+  return `${Math.round(first.x * 100) / 100}, ${Math.round(first.y * 100) / 100}`;
 }
