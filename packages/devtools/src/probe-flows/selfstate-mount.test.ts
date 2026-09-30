@@ -22,15 +22,29 @@ function context(
   spell: string,
   heights: Array<number | undefined>,
   extra: Record<string, string> = {},
+  mountFieldsAfterReads = 0,
 ) {
   const handle = createMockHandle();
   const realSelf = handle.selfstate;
-  const dismount = jest.fn(async () => OK as { status: string });
-  const mountSpecialAnim = jest.fn(() => OK);
+  let reads = 0;
+  const mounted = () => reads > mountFieldsAfterReads;
+  const dismount = jest.fn(async () =>
+    mounted() ? OK : ({ reason: "not_mounted", status: "refused" } as const),
+  );
+  const mountSpecialAnim = jest.fn(() =>
+    mounted() ? OK : ({ reason: "not_mounted", status: "refused" } as const),
+  );
   const selfstate: Selfstate = {
     ...realSelf,
     act: { ...realSelf.act, dismount, mountSpecialAnim } as Selfstate["act"],
-    state: () => ({ ...realSelf.state(), collisionHeight: heights.shift() }),
+    state: () => {
+      reads += 1;
+      return {
+        ...realSelf.state(),
+        collisionHeight: heights.shift(),
+        mounted: mounted(),
+      };
+    },
   };
   Object.assign(handle, { selfstate });
   const ctx: FlowContext & { handle: MockHandle } = {
@@ -115,5 +129,22 @@ describe("selfstate-mount flow", () => {
       expect(result).toMatchObject({
         events: [{ dismounted: { taxi: false } }],
       });
+    }));
+
+  test("waits for the mount fields when the collision height arrives first", () =>
+    withFakeTimers(async () => {
+      const { ctx, dismount, mountSpecialAnim } = context(
+        "458",
+        [undefined, MOUNTED, MOUNTED, MOUNTED, WALKING],
+        { special: "1" },
+        3,
+      );
+      expect(await fakeAwait(flow.run(ctx), 3000)).toMatchObject({
+        dismount: "ok",
+        mounted: MOUNTED,
+        special: "ok",
+      });
+      expect(mountSpecialAnim).toHaveBeenCalledTimes(1);
+      expect(dismount).toHaveBeenCalledTimes(1);
     }));
 });
