@@ -1,4 +1,5 @@
 import type { ControlDeps, ControlEventType, ControlPose } from "#wow/control";
+import { FLAG_ACKS } from "#wow/control-flag-acks";
 import {
   DEFAULT_TURN_RATE,
   INPUT_BITS,
@@ -35,35 +36,6 @@ const UNIT_BLOCK_FLAGS =
   UnitFlag.STUNNED |
   UnitFlag.CONFUSED |
   UnitFlag.FLEEING;
-
-type FlagAck = { bit: number; set: number; clear: number; applied: boolean };
-
-const FLAG_ACKS: Readonly<Record<MoveFlag, FlagAck>> = {
-  water_walk: {
-    bit: MovementFlag.WATERWALKING,
-    set: GameOpcode.CMSG_MOVE_WATER_WALK_ACK,
-    clear: GameOpcode.CMSG_MOVE_WATER_WALK_ACK,
-    applied: true,
-  },
-  hover: {
-    bit: MovementFlag.HOVER,
-    set: GameOpcode.CMSG_MOVE_HOVER_ACK,
-    clear: GameOpcode.CMSG_MOVE_HOVER_ACK,
-    applied: true,
-  },
-  feather_fall: {
-    bit: MovementFlag.FALLING_SLOW,
-    set: GameOpcode.CMSG_MOVE_FEATHER_FALL_ACK,
-    clear: GameOpcode.CMSG_MOVE_FEATHER_FALL_ACK,
-    applied: true,
-  },
-  gravity_off: {
-    bit: MovementFlag.DISABLE_GRAVITY,
-    set: GameOpcode.CMSG_MOVE_GRAVITY_DISABLE_ACK,
-    clear: GameOpcode.CMSG_MOVE_GRAVITY_ENABLE_ACK,
-    applied: false,
-  },
-};
 
 export type Emit = (type: ControlEventType, reason?: string) => void;
 
