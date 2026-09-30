@@ -151,7 +151,11 @@ export function position(text: string, prefix: string): Position {
 
 function ordinalBag(text: string, value: number): number | undefined {
   const bag = BAG_REF.exec(text);
-  if (bag?.[1] === undefined) return undefined;
+  if (bag?.[1] === undefined) {
+    if (value === BACKPACK || (value >= FIRST_BAG && value <= LAST_BAG))
+      return value;
+    return undefined;
+  }
   if (value >= 1 && value <= 4) return FIRST_BAG + value - 1;
   if (value === BACKPACK || (value >= FIRST_BAG && value <= LAST_BAG))
     return value;
@@ -246,7 +250,7 @@ export function destination(
         (slot) =>
           slot.bag === number ||
           (slot.region === "bag" &&
-            slot.status !== "unknown" &&
+            slot.status === "occupied" &&
             "slot" in slot &&
             slot.slot === number),
       );

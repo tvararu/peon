@@ -241,6 +241,38 @@ describe("gear tool unequip to a slot", () => {
     expect(acts.move).not.toHaveBeenCalled();
   });
 
+  test("unequip accepts the bare wire numbers 19 to 22 and 255", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, [
+      { bag: 255, entry: 36, guid: SHIRT, name: "Brown Linen Shirt", slot: 3 },
+    ]);
+    const acts = itemActs(t.handle);
+    for (const to of ["19", "22", "255"])
+      await gearSpec.run(
+        { do: "unequip", item: "Brown Linen Shirt", to },
+        toolCtx(t),
+      );
+    expect(acts.unequip.mock.calls.map((call) => call[1]) as unknown).toEqual([
+      19, 22, 255,
+    ]);
+  });
+
+  test("unequip refuses bare numbers that are not bags", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, [
+      { bag: 255, entry: 36, guid: SHIRT, name: "Brown Linen Shirt", slot: 3 },
+    ]);
+    const acts = itemActs(t.handle);
+    for (const to of ["1", "23"])
+      await expect(
+        gearSpec.run(
+          { do: "unequip", item: "Brown Linen Shirt", to },
+          toolCtx(t),
+        ),
+      ).rejects.toMatchObject({ reason: "no_such_bag" });
+    expect(acts.unequip).not.toHaveBeenCalled();
+  });
+
   test("unequip to a taken slot reports the autostore landing, not the slot", async () => {
     const t = await createTestRuntime();
     stocked(t.handle, [
@@ -350,6 +382,23 @@ describe("gear tool move to a numbered bag", () => {
   test("a bag slot with no bag equipped is refused without a move", async () => {
     const t = await createTestRuntime();
     stocked(t.handle, HELD, [empty(255, 30), empty(19, 1)]);
+    const acts = itemActs(t.handle);
+    await expect(
+      gearSpec.run(
+        { do: "move", item: "Hearthstone", to: "bag 2" },
+        toolCtx(t),
+      ),
+    ).rejects.toMatchObject({ reason: "no_such_bag" });
+    expect(acts.move).not.toHaveBeenCalled();
+  });
+
+  test("an empty equipped-bag slot is not a bag", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, HELD, [
+      empty(255, 30),
+      empty(19, 1),
+      { bag: 255, region: "bag", slot: 20, status: "empty" } as Empty,
+    ]);
     const acts = itemActs(t.handle);
     await expect(
       gearSpec.run(
