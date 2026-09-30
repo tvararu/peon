@@ -38,3 +38,26 @@ describe("explore ambiguous floors", () => {
     );
   });
 });
+
+describe("explore obstruction budget with probed distances", () => {
+  test("an exhausted ambiguous bearing counts once, so an open perpendicular bearing is still tried", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 0, y: 0 });
+    t.rt.travel.blockedBearings.set(`${MAP_ID}:0:0`, new Set(["NE", "NW"]));
+    const goTo = driveGoto(t.handle, [
+      { refuse: "pick_destination: destination is not on a ground floor" },
+      { refuse: "pick_destination: destination is not on a ground floor" },
+      { refuse: "pick_destination: destination is not on a ground floor" },
+      { refuse: "pick_destination: destination is not on a ground floor" },
+      { arrive: { x: 0, y: -20 } },
+    ]);
+    await explore(toolCtx(t), { direction: "N" });
+    const east = goTo.mock.calls
+      .map((call) => call[0])
+      .filter(
+        (target) =>
+          target.kind === "point" && target.x === 0 && target.y === -20,
+      );
+    expect(east.length).toBe(1);
+  });
+});

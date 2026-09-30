@@ -204,6 +204,7 @@ type Walk = {
   wanted: (unit: UnitView) => boolean;
   seen: Set<string>;
   refused: Set<string>;
+  probed: Set<string>;
   legs: LegView[];
   newInView: UnitView[];
   walkedYd: number;
@@ -287,6 +288,7 @@ async function walkBearing(
     blockBearing: (at: PoseView, bearing: Compass) => block(ctx, at, bearing),
     ctx,
     goalKey,
+    probed: walk.probed,
     pushLeg: (retry: LegResult) =>
       walk.legs.push({
         index: walk.legs.length,
@@ -429,6 +431,7 @@ export async function explore(
     legs: [],
     newInView: [],
     obstructed: 0,
+    probed: new Set(),
     refused: new Set(),
     rounds: 0,
     seen: new Set(unitViews(ctx).map((unit) => unit.guid)),
