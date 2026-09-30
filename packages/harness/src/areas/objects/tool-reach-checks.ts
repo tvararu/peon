@@ -46,48 +46,79 @@ export function checkUsable(row: ObjectRow): void {
     });
 }
 
+const PLAYER_SIZE_YD = 0.389;
+
+type DisplayVerdict = boolean | undefined;
+
 export function checkReach(row: ObjectRow, ctx?: ViewCtx): void {
-  if (ctx && displayHit(row, ctx, interactionRadius(row.type))) return;
+  if (!ctx) {
+    refuseWhenFar(row, reachYd(row));
+    return;
+  }
+  const hit = displayVerdict(row, ctx, 0);
+  if (hit === true) return;
+  if (hit === false)
+    throw new Refusal({
+      detail: refuseDetail(row),
+      next: nextCall("travel", { to: row.ref }),
+      reason: "too_far",
+    });
   refuseWhenFar(row, reachYd(row, ctx));
 }
 
 export function checkCastReach(row: ObjectRow, ctx?: ViewCtx): void {
-  if (
-    ctx &&
-    displayHit(row, ctx, interactionRadius(row.type) + REACH_MARGIN_YD)
-  )
+  if (!ctx) {
+    refuseWhenFar(row, reachYd(row) + REACH_MARGIN_YD);
     return;
+  }
+  const hit = displayVerdict(row, ctx, REACH_MARGIN_YD);
+  if (hit === true) return;
+  if (hit === false) return;
   refuseWhenFar(row, reachYd(row, ctx) + REACH_MARGIN_YD);
 }
 
-function displayHit(row: ObjectRow, ctx: ViewCtx, radius: number): boolean {
+function displayVerdict(
+  row: ObjectRow,
+  ctx: ViewCtx,
+  extra: number,
+): DisplayVerdict {
   if (row.x === undefined || row.y === undefined || row.z === undefined)
-    return false;
+    return undefined;
   const pose = ctx.handle.getControlState().pose;
-  if (!pose) return false;
+  if (!pose) return undefined;
   const state = ctx.handle.objects.state();
   const displayId = state.templates.get(row.entry)?.displayId;
   const bounds =
     displayId === undefined ? undefined : state.displays?.get(displayId);
   const entity = ctx.handle.getEntity(row.guid);
-  if (bounds === undefined || !isGameObjectEntity(entity)) return false;
+  if (bounds === undefined || !isGameObjectEntity(entity)) return undefined;
   const facing = entity.position?.orientation ?? 0;
-  return inDisplayReach(
-    { x: pose.x, y: pose.y, z: pose.z },
-    {
-      at: { x: row.x, y: row.y, z: row.z },
-      bounds,
-      rotation: entity.rotation ?? {
-        w: Math.cos(facing / 2),
-        x: 0,
-        y: 0,
-        z: Math.sin(facing / 2),
-      },
-      scale: entity.scale,
-      type: row.type,
+  const target = {
+    at: { x: row.x, y: row.y, z: row.z },
+    bounds,
+    rotation: entity.rotation ?? {
+      w: Math.cos(facing / 2),
+      x: 0,
+      y: 0,
+      z: Math.sin(facing / 2),
     },
-    radius,
+    scale: entity.scale,
+    type: row.type,
+  };
+  const at = { x: pose.x, y: pose.y, z: pose.z };
+  if (!inDisplayReach(at, target, interactionRadius(row.type) + extra))
+    return false;
+  if (extra > 0) return true;
+  return (
+    Math.hypot(at.x - target.at.x, at.y - target.at.y, at.z - target.at.z) <=
+    interactionRadius(target.type) + PLAYER_SIZE_YD
   );
+}
+
+function refuseDetail(row: ObjectRow): string {
+  const distance =
+    row.distance === undefined ? "an unknown distance" : `${row.distance} yd`;
+  return `${row.name} (${row.ref}) is ${distance} away; walk to it first.`;
 }
 
 function refuseWhenFar(row: ObjectRow, limit: number): void {

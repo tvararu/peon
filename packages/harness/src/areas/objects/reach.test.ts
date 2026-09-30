@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
   inDisplayReach,
-  inscribedReach,
   interactionRadius,
   type ReachTarget,
 } from "#harness/areas/objects/reach";
@@ -38,15 +37,18 @@ describe("object reach", () => {
     expect(interactionRadius(99)).toBe(5.5);
   });
 
-  test("display bounds widen the walk-up range by the inscribed half extent", () => {
+  test("a nearer box face outweighs a farther face for the walk-up range", () => {
     expect(
-      inscribedReach({
-        at: { x: 30, y: 0, z: 42.5 },
-        bounds: SHRINE,
-        scale: 1.91,
-        type: 9,
-      }),
-    ).toBeGreaterThan(interactionRadius(9));
+      inDisplayReach(
+        { x: 30, y: -5.4, z: 42.5 },
+        {
+          at: { x: 30, y: 0, z: 42.5 },
+          bounds: SHRINE,
+          scale: 1.91,
+          type: 9,
+        },
+      ),
+    ).toBe(true);
   });
 
   test("the shrine stays usable from the far side of its stone", () => {

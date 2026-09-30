@@ -170,6 +170,8 @@ function applyMovement(
   entry: Entry<"movement">,
 ): void {
   if (conn.entityStore.get(entry.guid)) seedUnitMotion(areas, entry);
+  if (entry.rotation)
+    conn.entityStore.update(entry.guid, { rotation: entry.rotation });
   if (!entry.position) return;
   conn.remoteMotion.observe(entry.guid, {
     position: entry.position,

@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
+import { DisplayCatalog } from "@peon/core";
 import type { TravelAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import { createRefTable } from "#harness/ops/refs";
@@ -421,6 +422,57 @@ describe("travel", () => {
     expect(fit(res)).toMatch(/^DONE arrived at Milly's Harvest \(o1\): /);
     await expectSendKind(travelTool, { to: "Milly's Harvest" });
   });
+  test("a flat wide object above the walk plane still plans a route", async () => {
+    const t = await world();
+    jest.spyOn(t.handle.objects, "state").mockImplementation(() => ({
+      displays: new DisplayCatalog([
+        { id: 7001, maxX: 5, maxY: 5, maxZ: 0.1, minX: -5, minY: -5, minZ: 0 },
+      ]),
+      lastMessage: undefined,
+      pages: new Map(),
+      pendingUse: undefined,
+      templates: new Map([
+        [
+          1,
+          {
+            castBarCaption: "",
+            data: [],
+            displayId: 7001,
+            entry: 1,
+            iconName: "",
+            lockId: 0,
+            name: "Notice Board",
+            pageId: undefined,
+            questId: undefined,
+            questItems: [],
+            size: 1,
+            type: 10,
+          },
+        ],
+      ]),
+      triggers: { catalog: "none", inside: [], map: undefined, sent: [] },
+    }));
+    setUnits(t.handle, [
+      ...t.handle.queryNearby(),
+      objectRow({
+        distance: 8,
+        guid: 0xf110_0000_0000_0070n,
+        name: "Notice Board",
+        x: 0,
+        y: 0,
+        z: 8,
+      }),
+    ]);
+    t.rt.refs.refOf(0xf110_0000_0000_0070n);
+    const goTo = driveGoto(t.handle, [{ arrive: { x: 0, y: 0, z: 8 } }]);
+    const res = await travelSpec.run(
+      { to: "Notice Board" },
+      toolCtx<TravelAfter>(t),
+    );
+    expect(goTo).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe("DONE");
+  });
+
   test("a unit name wins over an object name", async () => {
     const t = await world();
     setUnits(t.handle, [

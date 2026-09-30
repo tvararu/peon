@@ -1,5 +1,6 @@
 import {
   type AreaState,
+  type DisplayBounds,
   type Entity,
   extractGameObjectFields,
   type GameObjectEntity,
@@ -157,21 +158,46 @@ export function objectUnit(row: ObjectRow): UnitView {
   };
 }
 export function reachYd(row: ObjectRow, ctx?: ViewCtx): number {
-  const base = Math.max(baseReachYd(row.type) - 1, 1);
-  if (!ctx || row.x === undefined || row.y === undefined) return base;
+  const radius = baseReachYd(row.type);
+  const base = Math.max(radius - 1, 1);
+  const target = boundedTarget(row, ctx);
+  if (!target) return base;
+  const clearance = faceClearance(target, radius);
+  if (!(clearance > 0)) return base;
+  return Math.max(Math.min(clearance, radius + 0.389) - 1, 1);
+}
+
+type BoundedTarget = { bounds: DisplayBounds; scale: number };
+
+function boundedTarget(
+  row: ObjectRow,
+  ctx?: ViewCtx,
+): BoundedTarget | undefined {
+  if (!ctx || row.x === undefined || row.y === undefined) return undefined;
   const state = ctx.handle.objects.state() as ObjectsState;
   const displayId = state.templates.get(row.entry)?.displayId;
   const bounds =
     displayId === undefined ? undefined : state.displays?.get(displayId);
   const entity = ctx.handle.getEntity(row.guid);
-  if (bounds === undefined) return base;
-  if (!isGameObjectEntity(entity)) return base;
-  const scale = entity.scale > 0 ? entity.scale : 1;
-  const halfX = ((bounds.maxX - bounds.minX) / 2) * scale;
-  const halfY = ((bounds.maxY - bounds.minY) / 2) * scale;
-  const inset = Math.min(halfX, halfY);
-  if (!(inset > 0)) return base;
-  return base + inset;
+  if (bounds === undefined) return undefined;
+  if (!isGameObjectEntity(entity)) return undefined;
+  return { bounds, scale: entity.scale > 0 ? entity.scale : 1 };
+}
+
+function faceClearance(target: BoundedTarget, radius: number): number {
+  const halfX = ((target.bounds.maxX - target.bounds.minX) / 2) * target.scale;
+  const halfY = ((target.bounds.maxY - target.bounds.minY) / 2) * target.scale;
+  const halfZ = ((target.bounds.maxZ - target.bounds.minZ) / 2) * target.scale;
+  const centreX =
+    ((target.bounds.maxX + target.bounds.minX) / 2) * target.scale;
+  const centreY =
+    ((target.bounds.maxY + target.bounds.minY) / 2) * target.scale;
+  const centreZ =
+    ((target.bounds.maxZ + target.bounds.minZ) / 2) * target.scale;
+  const clearX = Math.abs(halfX) - Math.abs(centreX) + radius;
+  const clearY = Math.abs(halfY) - Math.abs(centreY) + radius;
+  const clearZ = Math.abs(halfZ) - Math.abs(centreZ) + radius;
+  return Math.min(clearX, clearY, clearZ);
 }
 
 export function objectLine(row: ObjectRow): string {

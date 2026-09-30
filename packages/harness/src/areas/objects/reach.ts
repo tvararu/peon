@@ -42,16 +42,6 @@ export function interactionRadius(type: number): number {
   return baseReachYd(type);
 }
 
-export function inscribedReach(target: ReachTarget): number {
-  const radius = interactionRadius(target.type);
-  if (!(target.bounds && target.scale > 0)) return radius;
-  const halfX = ((target.bounds.maxX - target.bounds.minX) / 2) * target.scale;
-  const halfY = ((target.bounds.maxY - target.bounds.minY) / 2) * target.scale;
-  const inset = Math.min(Math.abs(halfX), Math.abs(halfY));
-  if (!(inset > 0)) return radius;
-  return radius + inset;
-}
-
 function rotateBy(q: Rotation, v: ReachPoint): ReachPoint {
   const tx = 2 * (q.y * v.z - q.z * v.y);
   const ty = 2 * (q.z * v.x - q.x * v.z);
