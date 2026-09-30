@@ -86,9 +86,9 @@ spell by name or id on the character or on a `u<n>` unit through
 on the cast's success or a channel start, `FAILED` with the core reason,
 or `UNCONFIRMED` when nothing answers within the cast time plus 3 s.
 `do: "cancel_aura"` calls `act.cancelAura` and is `DONE` when the next
-aura update removes the aura within 2 s; an aura with an effect that
-applies `SPELL_AURA_MOUNTED` (`Spells/Auras/SpellAuraDefines.h:141`) is
-refused with `use_dismount`. `do: "bar"` writes slot 1-144 as wire slot
+aura update removes the aura within 2 s. A mount aura cancels the same
+way: the server treats it like any positive non-passive aura
+(`Handlers/SpellHandler.cpp:568-601`). `do: "bar"` writes slot 1-144 as
 0-143 with `act.setActionButton`, and a call with neither spell nor item
 clears the slot. `journal about: "spells"` lists up to four cancellable
 auras and four filled bar slots before the spellbook, and leaves out the
