@@ -1,6 +1,7 @@
 import { defineArea } from "#wow/areas/contract";
 import { TRAVEL_OPCODES } from "#wow/areas/travel/opcodes";
 import {
+  parseActivateTaxiReply,
   parseBinderConfirm,
   parseBindPointUpdate,
   parsePlayerBound,
@@ -22,6 +23,9 @@ export const travelArea = defineArea({
     "taxi_node_learned",
     "taxi_map",
     "benchmark",
+    "taxi_reply",
+    "flight_started",
+    "flight_landed",
   ],
   store: (deps) => createTravelStore(deps.now),
   register: (wire, store) => {
@@ -40,6 +44,9 @@ export const travelArea = defineArea({
     wire.on(GameOpcode.SMSG_NEW_TAXI_PATH, () => store.receiveNewTaxiPath());
     wire.peek(GameOpcode.SMSG_SHOWTAXINODES, (r) =>
       store.receiveShowTaxiNodes(parseShowTaxiNodes(r)),
+    );
+    wire.on(GameOpcode.SMSG_ACTIVATETAXIREPLY, (r) =>
+      store.receiveActivateTaxiReply(parseActivateTaxiReply(r)),
     );
   },
   runtime: travelRuntime,

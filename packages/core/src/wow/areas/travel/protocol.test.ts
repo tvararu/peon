@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  travelActivateTaxiReplyBody,
   travelBinderConfirmBody,
   travelBindPointUpdateBody,
   travelPlayerBoundBody,
@@ -7,11 +8,14 @@ import {
   travelTaxiNodeStatusBody,
 } from "#test-support/areas/travel";
 import {
+  buildActivateTaxi,
+  buildActivateTaxiExpress,
   buildBinderActivate,
   buildEnableTaxi,
   buildSetTaxiBenchmarkMode,
   buildTaxiNodeStatusQuery,
   buildTaxiQueryAvailableNodes,
+  parseActivateTaxiReply,
   parseBinderConfirm,
   parseBindPointUpdate,
   parsePlayerBound,
@@ -150,5 +154,57 @@ describe("travel taxi builders", () => {
   test("CMSG_SET_TAXI_BENCHMARK_MODE is one u8 (MiscHandler.cpp:1580-1585)", () => {
     expect(buildSetTaxiBenchmarkMode(true)).toEqual(new Uint8Array([1]));
     expect(buildSetTaxiBenchmarkMode(false)).toEqual(new Uint8Array([0]));
+  });
+});
+
+describe("travel flight parsers", () => {
+  test("SMSG_ACTIVATETAXIREPLY maps each code and unknown codes (TaxiHandler.cpp:300-305; SharedDefines.h:3849-3864)", () => {
+    const names = [
+      "ok",
+      "unspecified_server_error",
+      "no_such_path",
+      "not_enough_money",
+      "too_far",
+      "no_vendor_nearby",
+      "not_visited",
+      "busy",
+      "mounted",
+      "shapeshifted",
+      "moving",
+      "same_node",
+      "not_standing",
+    ];
+    for (const [code, name] of names.entries()) {
+      const reader = new PacketReader(travelActivateTaxiReplyBody(code));
+      expect(parseActivateTaxiReply(reader)).toEqual({ code, name });
+      expect(reader.remaining).toBe(0);
+    }
+    const unknown = new PacketReader(travelActivateTaxiReplyBody(99));
+    expect(parseActivateTaxiReply(unknown)).toEqual({
+      code: 99,
+      name: "unknown_99",
+    });
+  });
+});
+
+describe("travel flight builders", () => {
+  test("CMSG_ACTIVATETAXI writes guid, from and to (TaxiHandler.cpp:272-278)", () => {
+    const writer = new PacketWriter();
+    writer.uint64LE(TAXI_MASTER);
+    writer.uint32LE(83);
+    writer.uint32LE(82);
+    expect(buildActivateTaxi(TAXI_MASTER, 83, 82)).toEqual(writer.finish());
+  });
+
+  test("CMSG_ACTIVATETAXIEXPRESS writes guid, count and nodes (TaxiHandler.cpp:165-194; cmsg_activatetaxiexpress.wowm:11-17)", () => {
+    const writer = new PacketWriter();
+    writer.uint64LE(TAXI_MASTER);
+    writer.uint32LE(3);
+    writer.uint32LE(83);
+    writer.uint32LE(200);
+    writer.uint32LE(82);
+    expect(buildActivateTaxiExpress(TAXI_MASTER, [83, 200, 82])).toEqual(
+      writer.finish(),
+    );
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
+  travelActivateTaxiReplyBody,
   travelBinderConfirmBody,
   travelBindPointUpdateBody,
   travelPlayerBoundBody,
@@ -43,6 +44,8 @@ describe("travel store", () => {
         learnedAt: undefined,
         mapPending: undefined,
         benchmark: false,
+        lastReply: undefined,
+        flight: { phase: "idle", route: undefined },
       });
     } finally {
       rig.dispose();
@@ -286,6 +289,63 @@ describe("travel store: taxi", () => {
       rig.stores.areas.travel.receiveSelfFlags(true);
       expect(rig.handle.state().benchmark).toBe(true);
       expect(seen).toEqual([{ type: "benchmark", on: true }]);
+    } finally {
+      rig.dispose();
+    }
+  });
+});
+
+describe("travel store: flight", () => {
+  test("an activate with ERR_TAXIOK sets lastReply, flies and emits taxi_reply then flight_started", () => {
+    const { rig, seen } = rigAt();
+    try {
+      rig.stores.areas.travel.beginFlight([83, 82]);
+      rig.inject(
+        GameOpcode.SMSG_ACTIVATETAXIREPLY,
+        travelActivateTaxiReplyBody(0),
+      );
+      expect(rig.handle.state().lastReply).toBe("ok");
+      expect(rig.handle.state().flight).toEqual({
+        phase: "flying",
+        route: [83, 82],
+      });
+      expect(seen).toEqual([
+        { type: "taxi_reply", code: 0, name: "ok" },
+        { type: "flight_started", route: [83, 82] },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a refusal sets lastReply and emits taxi_reply without flying", () => {
+    const { rig, seen } = rigAt();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_ACTIVATETAXIREPLY,
+        travelActivateTaxiReplyBody(3),
+      );
+      expect(rig.handle.state().lastReply).toBe("not_enough_money");
+      expect(rig.handle.state().flight.phase).toBe("idle");
+      expect(seen).toEqual([
+        { type: "taxi_reply", code: 3, name: "not_enough_money" },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a self flight flag enters flying from idle and its clear lands", () => {
+    const { rig, seen } = rigAt();
+    try {
+      rig.stores.areas.travel.receiveFlightFlag(true);
+      rig.stores.areas.travel.receiveFlightFlag(true);
+      rig.stores.areas.travel.receiveFlightFlag(false);
+      expect(rig.handle.state().flight.phase).toBe("landed");
+      expect(seen).toEqual([
+        { type: "flight_started", route: [] },
+        { type: "flight_landed" },
+      ]);
     } finally {
       rig.dispose();
     }

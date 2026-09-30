@@ -6,6 +6,8 @@ import {
 } from "#wow/areas/travel/catalog";
 import {
   type BindPoint,
+  buildActivateTaxi,
+  buildActivateTaxiExpress,
   buildBinderActivate,
   buildEnableTaxi,
   buildSetTaxiBenchmarkMode,
@@ -15,11 +17,13 @@ import {
 import { taxiRoute } from "#wow/areas/travel/route";
 import type { TravelEvent, TravelStore } from "#wow/areas/travel/store";
 import type { Entity } from "#wow/entity-store";
+import { UnitFlag } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
+import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 export const BIND_TIMEOUT_MS = 5000;
 export const TAXI_TIMEOUT_MS = 3000;
+export const FLIGHT_TIMEOUT_MS = 5000;
 
 export type TravelOutcome<T = Readonly<Record<never, never>>> =
   | ({ status: "ok" } & T)
@@ -72,6 +76,16 @@ export type TravelActs = {
     from: number,
     destination: string,
   ) => Promise<TravelOutcome<RoutePlan>>;
+  activateTaxi: (
+    npc: bigint,
+    route: RoutePlan,
+    options?: { express?: boolean },
+  ) => Promise<TravelOutcome<FlightResult>>;
+};
+
+export type FlightResult = {
+  nodes: readonly number[];
+  price: number;
 };
 
 type TaxiRuntime = {
@@ -363,6 +377,132 @@ async function destinations(
   };
 }
 
+const ARRIVALS = new Set(["teleport", "near_teleport", "new_world"]);
+
+type FlightRefusal =
+  | { status: "refused"; reason: string }
+  | { status: "no_answer" };
+
+function checkFlightRoute(
+  catalog: TaxiCatalog,
+  known: ReadonlySet<number>,
+  route: RoutePlan,
+): FlightRefusal | undefined {
+  if (route.nodes.length < 2)
+    return { status: "refused", reason: "no_such_path" };
+  for (const node of route.nodes) {
+    if (catalog.node(node) === undefined || !known.has(node))
+      return { status: "refused", reason: "not_known" };
+  }
+  for (let hop = 0; hop + 1 < route.nodes.length; hop++) {
+    const from = route.nodes[hop];
+    const to = route.nodes[hop + 1];
+    if (from === undefined || to === undefined)
+      return { status: "refused", reason: "no_such_path" };
+    const edge = catalog.edgesFrom(from).some((step) => step.to === to);
+    if (!edge) return { status: "refused", reason: "no_such_path" };
+  }
+  return undefined;
+}
+
+function sendFlight(
+  ctx: AreaRuntimeCtx<TravelEvent>,
+  npc: bigint,
+  route: RoutePlan,
+  express: boolean,
+): void {
+  if (express || route.nodes.length > 2)
+    ctx.send(
+      GameOpcode.CMSG_ACTIVATETAXIEXPRESS,
+      buildActivateTaxiExpress(npc, route.nodes),
+    );
+  else {
+    const from = route.nodes[0];
+    const to = route.nodes[1];
+    if (from === undefined || to === undefined) return;
+    ctx.send(GameOpcode.CMSG_ACTIVATETAXI, buildActivateTaxi(npc, from, to));
+  }
+}
+
+type TeleportWait = { promise: Promise<void>; cancel: () => void };
+
+function awaitTeleport(
+  deps: TaxiDeps,
+  state: { arrived: boolean },
+): TeleportWait {
+  let cancel = (): void => undefined;
+  const promise = new Promise<void>((resolve) => {
+    cancel = deps.ctx.listen("control", ({ type, state: pose, reason }) => {
+      if (
+        type === "server_correction" &&
+        ARRIVALS.has(reason ?? "") &&
+        pose.pose
+      ) {
+        state.arrived = true;
+        resolve();
+      }
+    });
+  });
+  return { promise, cancel };
+}
+
+async function settleFlight(
+  route: RoutePlan,
+  wait: Promise<TravelEvent>,
+  teleport: TeleportWait,
+  arrived: { arrived: boolean },
+): Promise<TravelOutcome<FlightResult>> {
+  try {
+    const event = await wait;
+    if (event.type !== "taxi_reply") return { status: "no_answer" };
+    if (event.name !== "ok") return { status: "refused", reason: event.name };
+    return { status: "ok", nodes: [...route.nodes], price: route.price };
+  } catch (error) {
+    if (!(error instanceof Error && error.message === "timeout")) throw error;
+    if (!arrived.arrived) return { status: "no_answer" };
+    return { status: "ok", nodes: [...route.nodes], price: route.price };
+  } finally {
+    teleport.cancel();
+  }
+}
+
+async function runFlight(
+  deps: TaxiDeps,
+  npc: bigint,
+  route: RoutePlan,
+  options?: { express?: boolean },
+): Promise<TravelOutcome<FlightResult>> {
+  const { ctx, store, state } = deps;
+  const phase = store.snapshot().flight.phase;
+  if (phase === "requested" || phase === "flying")
+    return { status: "refused", reason: "flight_active" };
+  const loaded = await readCatalog(ctx, state);
+  if ("error" in loaded) return loaded.error;
+  const known = new Set(store.snapshot().known ?? []);
+  const bad = checkFlightRoute(loaded.catalog, known, route);
+  if (bad) return bad;
+  const waited = ctx.until((e) => e.type === "taxi_reply", {
+    timeoutMs: FLIGHT_TIMEOUT_MS,
+    signal: ctx.signal,
+  });
+  waited.catch(() => undefined);
+  const arrived = { arrived: false };
+  const teleport = awaitTeleport(deps, arrived);
+  store.beginFlight(route.nodes);
+  try {
+    sendFlight(ctx, npc, route, options?.express === true);
+  } catch (error) {
+    store.endFlight();
+    teleport.cancel();
+    throw error;
+  }
+  try {
+    return await settleFlight(route, waited, teleport, arrived);
+  } finally {
+    if (store.snapshot().flight.phase === "requested") store.endFlight();
+  }
+}
+
 async function planFlight(
   deps: TaxiDeps,
   from: number,
@@ -389,6 +529,20 @@ async function planFlight(
   return { status: "ok", ...route, destination: picked.node };
 }
 
+function flightFlagOf(entity: Entity | undefined): boolean | undefined {
+  if (!entity) return undefined;
+  const flags = entity.rawFields.get(UNIT_FIELDS.FLAGS.offset);
+  if (flags === undefined) return undefined;
+  return (flags & UnitFlag.TAXI_FLIGHT) !== 0;
+}
+
+function observeFlight(deps: TaxiDeps, entity: Entity | undefined): void {
+  const { ctx, store } = deps;
+  if (!entity || entity.guid !== ctx.selfGuid()) return;
+  const on = flightFlagOf(entity);
+  if (on !== undefined) store.receiveFlightFlag(on);
+}
+
 function observeBenchmark(deps: TaxiDeps, entity: Entity | undefined): void {
   const { ctx, store } = deps;
   if (!entity || entity.guid !== ctx.selfGuid()) return;
@@ -405,6 +559,7 @@ export function travelRuntime(
   const offEntity = ctx.listen("entity", (event) => {
     if (event.type === "disappear") return;
     observeBenchmark(deps, event.entity);
+    observeFlight(deps, event.entity);
   });
 
   return {
@@ -415,6 +570,8 @@ export function travelRuntime(
       setTaxiBenchmark: (on) => setTaxiBenchmark(deps, on),
       destinations: (from) => destinations(deps, from),
       planFlight: (from, destination) => planFlight(deps, from, destination),
+      activateTaxi: (npc, route, options) =>
+        runFlight(deps, npc, route, options),
     },
     dispose: () => {
       offEntity();
