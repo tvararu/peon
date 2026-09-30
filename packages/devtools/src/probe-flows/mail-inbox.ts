@@ -11,6 +11,7 @@ import {
 const REACH_YARDS = 9;
 const STEP_YARDS = 20;
 const MAX_STEPS = 6;
+const MAILBOX_OBJECT_TYPE = 19;
 
 type Args = Readonly<Record<string, string>>;
 
@@ -85,12 +86,15 @@ async function run(ctx: FlowContext): Promise<Json> {
   const { handle, args, settle } = ctx;
   const entry = whole(args, "entry");
   const box = await settle(() =>
-    others(handle).find(
-      (r) =>
-        entityType(r) === "gameobject" &&
-        r.roles.includes("mailbox") &&
-        (entry === undefined || r.entity.entry === entry),
-    ),
+    others(handle).find((r) => {
+      if (entityType(r) !== "gameobject") return false;
+      if (entry !== undefined && r.entity.entry !== entry) return false;
+      if (r.roles.includes("mailbox")) return true;
+      return (
+        handle.objects.state().templates.get(r.entity.entry)?.type ===
+        MAILBOX_OBJECT_TYPE
+      );
+    }),
   );
   if (!box) throw new Error("no mailbox is in view.");
   await reach(handle, box.entity.guid);
