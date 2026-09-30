@@ -164,6 +164,18 @@ describe("mail-inbox flow", () => {
     });
   });
 
+  test("finds a mailbox by its gameobject template when no npc role names it", async () => {
+    const ctx = context({});
+    ctx.handle.queryNearby = () => [{ ...boxRow(30), roles: [] }];
+    const templates = new Map([[32_349, { type: 19 }]]);
+    jest
+      .spyOn(ctx.handle.objects, "state")
+      .mockReturnValue({ pendingUse: undefined, templates } as never);
+    const out = await flow.run(ctx);
+    expect(ctx.handle.mail.act.listMail).toHaveBeenCalledTimes(2);
+    expect(out).toMatchObject({ listed: { status: "ok" } });
+  });
+
   test("throws when no mailbox is in view", async () => {
     const ctx = context({});
     ctx.handle.queryNearby = () => [];
