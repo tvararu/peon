@@ -5,7 +5,8 @@ export type PushClose =
   | "complete"
   | "timed_out"
   | "group_changed"
-  | "no_answer";
+  | "no_answer"
+  | "refused";
 export type SharePush = {
   questId: number;
   at: number;
@@ -90,13 +91,23 @@ export function beginPush(
     },
   };
 }
-
 function withRow(share: ShareState, push: SharePush, row: ShareRow): ShareStep {
   const next: SharePush = { ...push, results: [...push.results, row] };
   const type = RELAYED.has(row.result) ? "relayed" : "result";
   const changes: ShareChange[] = [
     { guid: row.guid, questId: push.questId, result: row.result, type },
   ];
+  const heard = new Set(next.results.map((entry) => entry.guid));
+  const selfOnly =
+    row.result === QuestShareResult.CANT_BE_SHARED_TODAY &&
+    push.expected.every((guid) => !heard.has(guid));
+  if (selfOnly) {
+    changes.push({ questId: push.questId, reason: "refused", type: "closed" });
+    return {
+      changes,
+      share: { ...share, push: { ...next, status: "refused" } },
+    };
+  }
   if (!everyoneAnswered(next))
     return { changes, share: { ...share, push: next } };
   changes.push({ questId: push.questId, reason: "complete", type: "closed" });

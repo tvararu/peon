@@ -473,6 +473,29 @@ describe("quest sharing, sharer", () => {
     });
   });
 
+  test("the sharer's own result 8 alone closes the push at once as refused and frees the next share", () => {
+    withRig(({ rig, result, shares }) => {
+      rig.handle.act.shareQuest(QUEST);
+      result(ME, QuestShareResult.CANT_BE_SHARED_TODAY);
+      expect(shares().slice(1)).toEqual([
+        { guid: ME, questId: QUEST, result: 8, type: "result" },
+        { questId: QUEST, reason: "refused", type: "closed" },
+      ]);
+      expect(rig.handle.state().share?.push?.status).toBe("refused");
+      jest.advanceTimersByTime(PUSH_TIMEOUT_MS * 2);
+      expect(shares().filter((s) => s.type === "closed")).toHaveLength(1);
+      expect(rig.handle.act.shareQuest(QUEST)).toEqual({ ok: true });
+    });
+  });
+
+  test("a member's result 8 is a plain final answer and does not close a push that other members still owe", () => {
+    withRig(({ rig, result }) => {
+      rig.handle.act.shareQuest(QUEST);
+      result(ALICE, QuestShareResult.CANT_BE_SHARED_TODAY);
+      expect(rig.handle.state().share?.push?.status).toBe("open");
+    });
+  });
+
   test("dispose cancels the push timer", () => {
     withRig(({ rig, shares }) => {
       rig.handle.act.shareQuest(QUEST);

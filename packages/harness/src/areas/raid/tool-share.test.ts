@@ -253,6 +253,25 @@ describe("group tool share_quest", () => {
     ).rejects.toThrow("cancelled");
     expect(act).not.toHaveBeenCalled();
   });
+
+  test("a self-only refusal closes the share and says it cannot be shared today", async () => {
+    const t = await world();
+    jest.spyOn(t.handle.quests.act, "shareQuest").mockImplementation(() => {
+      t.share({ questId: QUEST, type: "pushed" });
+      t.share({
+        guid: 0x1n,
+        questId: QUEST,
+        result: 8,
+        type: "result",
+      });
+      t.share({ questId: QUEST, reason: "refused", type: "closed" });
+      return { ok: true };
+    });
+    const out = await runTool(t.tool, { do: "share_quest", quest: QUEST });
+    expect(out.text).toContain("FAILED");
+    expect(out.text).toContain("cannot share");
+    expect(out.text).toContain("today");
+  });
 });
 
 describe("group tool accept_quest and decline_quest", () => {

@@ -55,7 +55,7 @@ Quest sharing lives in `state().share` (`{ push, offer, dropped }`; the open
 with no reply owed, never attributed anywhere) and the `share` event
 (`{ type: "share", share }`), whose `share.type` is `pushed`, `result`,
 `relayed`, `closed` (a push close with reason `complete`, `timed_out`,
-`group_changed` or `no_answer`), `offered`, `answered`, `expired` (an offer expiry) or
+`group_changed`, `no_answer` or `refused`), `offered`, `answered`, `expired` (an offer expiry) or
 `share_complete`. `shareQuest(questId)` refuses with `not_in_log`, an id
 missing from the log or 0, `not_in_group` or `busy`, sending nothing when a
 push is open, and otherwise sends `CMSG_PUSHQUESTTOPARTY` and opens one push
@@ -74,11 +74,16 @@ replies. No result within 3 s of the push closes it
 `no_answer`, because AzerothCore sends no `MSG_QUEST_PUSH_RESULT` for a
 quest it refuses in `HandlePushQuestToParty`; a member that answered 0
 keeps the push open up to 60 s from the push
-for their final answer. The open push's own results and relays never
+for their final answer. A result 8 (`CANT_BE_SHARED_TODAY`) that names no
+expected member, while no expected member has a row, closes the push
+`refused` at once and frees the next share: `HandlePushQuestToParty`
+returns without contacting a member
+(`Handlers/QuestHandler.cpp:529-532`). A member's own result 8 stays a
+final answer for that member. The open push's own results and relays never
 move the 60 s timer; 60 s after the push it closes `timed_out`, and a group
 membership change (a listed member added or removed, the group formed or
-destroyed, a kick) closes it `group_changed`: `no_answer`, `timed_out` and
-`group_changed` all free the next share. A
+destroyed, a kick) closes it `group_changed`: `no_answer`, `timed_out`,
+`group_changed` and `refused` all free the next share. A
 details packet
 with a non-zero divider, no pending `core.quests` intent and a quest not
 in the log opens `state().share.offer` (`from`, the sharer) and emits
@@ -205,7 +210,9 @@ log, while `escort-confirm` runs on the partner and prints the
   handler sends nothing for a quest the sharer cannot share
   (`Handlers/QuestHandler.cpp:531-532`).
 - The push is refused locally as `not_in_log` unless `CanShareQuest`
-  would hold on the sharer's log; a sharable quest there is shareable
+  would hold on the sharer's log. A sharable quest there is shareable,
+  except a pooled quest that is not spawned today: `CanShareQuest`
+  answers the sharer alone and returns before any member is contacted
   (`Entities/Player/PlayerQuest.cpp:1532-1552`).
 - After that the `CMSG_PUSHQUESTTOPARTY` handler answers each group
   member on the same map, with no distance check, a member-guid
@@ -271,11 +278,6 @@ log, while `escort-confirm` runs on the partner and prints the
   answers `SMSG_QUESTGIVER_QUEST_INVALID` reason 13 (already on the
   quest). The live accept proof uses quest 8329, which is sharable and
   not auto-accept.
-- A share of a pooled quest that is not spawned today: the server
-  answers the sharer alone with result 8 and contacts no member
-  (`Entities/Player/PlayerQuest.cpp:1532-1552`,
-  `Handlers/QuestHandler.cpp:529-532`). The push stays open, and
-  `shareQuest` refuses `busy`, until the 60-second window closes.
 
 ## Capabilities row
 
