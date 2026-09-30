@@ -31,7 +31,7 @@
   "setup": [
     { "body": { "quest": 3904 }, "endpoint": "quest/add" },
     {
-      "body": { "map": 0, "x": -9105, "y": -323, "z": 55 },
+      "body": { "map": 0, "x": -9076.49, "y": -344.65, "z": 73.45 },
       "endpoint": "position"
     }
   ],
