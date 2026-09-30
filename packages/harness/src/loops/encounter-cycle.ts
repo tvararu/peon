@@ -13,6 +13,7 @@ import { JEV_UNAVAILABLE, JevUnavailableError } from "#harness/jev/failure";
 import { type CycleRecovery, recoverCorpse } from "#harness/loops/corpse-run";
 import type { CycleApproach } from "#harness/loops/cycle-approach";
 import type { PullGate } from "#harness/loops/cycle-gate";
+import { pursueObjective } from "#harness/loops/cycle-pursue";
 import { type CycleStop, cycleStop } from "#harness/loops/cycle-stop";
 import { vetTarget } from "#harness/loops/cycle-vet";
 import { EventWaiter } from "#harness/loops/event-waiter";
@@ -22,10 +23,9 @@ import type {
   RecoveryPort,
   RewardsPort,
 } from "#harness/loops/ports";
-import {
-  type ObjectivePick,
-  type ObjectiveProgress,
-  outOfReach,
+import type {
+  ObjectivePick,
+  ObjectiveProgress,
 } from "#harness/loops/quest-objective";
 import type {
   TacticsLoop,
@@ -83,6 +83,8 @@ export type CycleObjective = {
     pick: Extract<ObjectivePick, { kind: "object" }>,
     run: CycleVisit,
   ) => Promise<CycleVisitEnd>;
+  awaitComplete?: (run: Pick<CycleVisit, "signal">) => Promise<boolean>;
+  attackers?: () => readonly bigint[];
 };
 export type CycleEvent = {
   type:
@@ -111,11 +113,11 @@ export type CycleDeps = {
   entity: EntityLookup;
   approach?: CycleApproach;
   gate?: PullGate;
+  attackers?: () => readonly bigint[];
   now: () => number;
 };
 
 const DEFAULT_MAX_STARTS = 10;
-const MAX_OBJECT_FAILURES = 2;
 
 const progressKey = (progress: ObjectiveProgress | undefined) =>
   JSON.stringify(progress ?? null);
@@ -272,29 +274,32 @@ export class EncounterCycleRuntime {
     objective: CycleObjective,
     signal: AbortSignal,
   ): Promise<void> {
-    const tried = new Set(this.state.queue.map((record) => record.guid));
-    const failures = new Map<bigint, number>();
-    for (;;) {
-      const recovered = await this.recoverIfDead(signal);
-      if (recovered) return this.stop(recovered.cause, recovered.detail);
-      const pick = this.choose(objective, tried);
-      if ("ok" in pick) return this.stop(pick.cause, pick.detail);
-      if (pick.kind === "target") tried.add(pick.guid);
-      const { record, failed, advanced } = await this.attempt(
-        objective,
-        pick,
-        signal,
-      );
-      if (pick.kind === "object")
-        this.settleObject(failures, tried, pick.guid, {
-          advanced,
-          spent: record.loot === "looted",
-        });
-      const far = failed ?? outOfReach(pick, record.cause);
-      if (far && !this.selfDead()) return this.stop(far.cause, far.detail);
-      if (failed) record.cause = failed.cause;
-      this.emit("target_done");
-    }
+    await pursueObjective(
+      {
+        attackers: this.deps.attackers,
+        outOfStarts: () => this.state.startsUsed >= this.state.maxStarts,
+        attempt: (target, pick, runSignal) =>
+          this.attempt(target, pick, runSignal),
+        choose: (target, tried) => this.choose(target, tried),
+        engage: (record, runSignal) => this.engage(record, runSignal),
+        observeObjective: () => {
+          this.state.objective = this.objective?.progress();
+        },
+        queue: (guid) => {
+          const record: CycleTargetRecord = { guid, status: "queued" };
+          this.state.queue.push(record);
+          this.state.currentIndex = this.state.queue.length - 1;
+          return record;
+        },
+        recoverIfDead: (runSignal) => this.recoverIfDead(runSignal),
+        selfDead: () => this.selfDead(),
+        stop: (cause, detail) => this.stop(cause, detail),
+        targetDone: () => this.emit("target_done"),
+      },
+      this.state.queue.map((record) => record.guid),
+      objective,
+      signal,
+    );
   }
 
   private async attempt(
@@ -319,25 +324,6 @@ export class EncounterCycleRuntime {
     this.state.objective = objective.progress();
     const advanced = progressKey(this.state.objective) !== before;
     return { advanced, failed, record };
-  }
-
-  private settleObject(
-    failures: Map<bigint, number>,
-    tried: Set<bigint>,
-    guid: bigint,
-    result: { advanced: boolean; spent: boolean },
-  ): void {
-    if (result.spent) {
-      tried.add(guid);
-      return;
-    }
-    if (result.advanced) {
-      failures.delete(guid);
-      return;
-    }
-    const count = (failures.get(guid) ?? 0) + 1;
-    failures.set(guid, count);
-    if (count >= MAX_OBJECT_FAILURES) tried.add(guid);
   }
 
   private choose(

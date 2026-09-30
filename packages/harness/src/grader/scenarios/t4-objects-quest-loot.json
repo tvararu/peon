@@ -1,0 +1,43 @@
+{
+  "botRisk": "high",
+  "budget": { "minutes": 20, "tools": 120, "turns": 40 },
+  "checks": [
+    {
+      "evidence": { "events": ["objects/used"], "ids": [161557] },
+      "expect": "GL has an objects/used row for a Milly's Harvest crate (entry 161557), so the agent opened a quest chest through the use path",
+      "id": "crate-opened",
+      "source": "game_log"
+    },
+    {
+      "evidence": { "events": ["loot/open"] },
+      "expect": "GL has a loot/open row for a crate guid that an objects/used row names, so the open reached the loot window",
+      "id": "loot-window",
+      "source": "game_log"
+    },
+    {
+      "evidence": { "truth": ["quests"] },
+      "expect": "T final rewardedQuests holds 3904, or T final quests hold 3904 as complete, so the agent took the quest itself and finished the crate loop",
+      "id": "quest-done",
+      "source": "truth"
+    }
+  ],
+  "field": "northshire-vineyards",
+  "id": "t4-objects-quest-loot",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 23,
+  "partner": null,
+  "preset": "elwynn10",
+  "setup": [
+    { "body": { "quest": 3903 }, "endpoint": "quest/add" },
+    { "body": { "quest": 3903 }, "endpoint": "quest/complete" },
+    { "body": { "quest": 3903 }, "endpoint": "quest/reward" },
+    {
+      "body": { "map": 0, "x": -8850.29, "y": -221.03, "z": 81.78 },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Milly Osworth in Northshire Abbey has a quest about her grape harvest. Take it from her, gather what she asks for from the crates in the vineyards to the southeast, and turn it in to her.",
+  "tier": 4
+}

@@ -167,6 +167,7 @@ function cycleDeps(ports: Ports, tactics: TacticsLoop): CycleDeps {
     control,
     entity,
     gate: pullGate(() => handle.getCombatState()),
+    attackers: () => handle.getCombatState().attackers,
     now: () => Date.now(),
     recovery: recoveryPort(handle),
     rewards: rewardsPort(handle),
