@@ -189,4 +189,71 @@ describe("pets names runtime", () => {
       }
     });
   });
+
+  test("a same-second rename still refreshes and stores the new name", async () => {
+    await withFakeTimers(async () => {
+      const { fields, r } = rig(0x01_00_00, 7);
+      const seen: string[] = [];
+      const off = r.handle.onEvent((event) => seen.push(event.type));
+      try {
+        r.inject(
+          GameOpcode.SMSG_PET_NAME_QUERY_RESPONSE,
+          petsNameQueryResponseBody({
+            name: "Rex",
+            number: NUMBER,
+            timestamp: 7,
+          }),
+        );
+        expect(r.handle.act.renamePet("Fangtooth")).toEqual({ ok: true });
+        const before = r.sent.length;
+        fields.set(UNIT_FIELDS.BYTES_2.offset, 0);
+        r.events.entity.emit({
+          changed: ["rawFields"],
+          entity: { guid: PET, rawFields: fields } as unknown as Entity,
+          type: "update",
+        });
+        expect(r.sent).toHaveLength(before + 1);
+        expect(r.sent.at(-1)?.opcode).toBe(GameOpcode.CMSG_PET_NAME_QUERY);
+        r.inject(
+          GameOpcode.SMSG_PET_NAME_QUERY_RESPONSE,
+          petsNameQueryResponseBody({
+            name: "Fangtooth",
+            number: NUMBER,
+            timestamp: 7,
+          }),
+        );
+        await elapse(6000);
+        expect(r.handle.state().names[NUMBER]?.name).toBe("Fangtooth");
+        expect(seen).toEqual(["name", "name"]);
+      } finally {
+        off();
+        r.dispose();
+      }
+    });
+  });
+
+  test("a replaced rename emits one unanswered at the newer deadline", async () => {
+    await withFakeTimers(async () => {
+      const { r } = rig(0x01_00_00, 7);
+      const seen: { at: number; type: string }[] = [];
+      let clock = 0;
+      const off = r.handle.onEvent((event) =>
+        seen.push({ at: clock, type: event.type }),
+      );
+      try {
+        expect(r.handle.act.renamePet("A")).toEqual({ ok: true });
+        await elapse(3000);
+        clock = 3000;
+        expect(r.handle.act.renamePet("B")).toEqual({ ok: true });
+        await elapse(2500);
+        expect(seen).toEqual([]);
+        clock = 5500;
+        await elapse(3000);
+        expect(seen.map((row) => row.type)).toEqual(["unanswered"]);
+      } finally {
+        off();
+        r.dispose();
+      }
+    });
+  });
 });
