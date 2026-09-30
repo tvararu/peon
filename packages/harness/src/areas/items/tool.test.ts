@@ -438,6 +438,19 @@ describe("gear tool", () => {
     expect(contentOf(res)).toMatch(/^DONE Read Letter: Read me\./);
   });
 
+  test("read propagates a timed-out template lookup instead of the item text", async () => {
+    const t = await createTestRuntime();
+    const { acts, readPage } = pagedLetter(t);
+    t.handle.getItemTemplate = () =>
+      Promise.reject(new Error("item_query_timeout"));
+    const res = await gearSpec
+      .run({ do: "read", item: "Letter" }, toolCtx(t))
+      .catch((error) => error);
+    expect(res).toMatchObject({ message: "item_query_timeout" });
+    expect(readPage).not.toHaveBeenCalled();
+    expect(acts.queryText).not.toHaveBeenCalled();
+  });
+
   test("ammo resolves by name and loads the entry", async () => {
     const t = await createTestRuntime();
     stocked(t.handle, [

@@ -79,9 +79,7 @@ export async function runRead(
   const queried =
     entry === undefined
       ? undefined
-      : await rt.mutex.run(() =>
-          handle.getItemTemplate(entry).catch(() => undefined),
-        );
+      : await rt.mutex.run(() => handle.getItemTemplate(entry));
   const pageId = queried?.pageText || undefined;
   if (pageId !== undefined) return readPages(ctx, found, from, pageId);
   const text = await rt.mutex.run(() =>
