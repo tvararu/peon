@@ -16,7 +16,7 @@
       "source": "game_log"
     },
     {
-      "expect": "the agent's answer says the letter has no text: the retrieved item text is empty (the 889 page text is not served over CMSG_ITEM_TEXT_QUERY)",
+      "expect": "the agent's answer quotes the letter's page text",
       "id": "answer-matches-text",
       "source": "session"
     }
