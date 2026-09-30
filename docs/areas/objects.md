@@ -154,6 +154,14 @@ on-use spells, with the key as cast item
 that cast item (`Spells/Spell.cpp:8726-8730`). A key without an on-use
 spell answers `no_use_spell`.
 
+Known gap: the skeleton key skill bonus is not modelled. For a skill
+lock the server adds the effect base points of a key item's spell to the
+skill value when the spell targets a game object item and is not a
+lockpicking ability, and counts no character skill for a cast item
+(`Spells/Spell.cpp:8746-8756`). `openLockSpell` compares the
+character's own skill only, and its key path matches an item lock alone,
+so a skeleton key never opens a skill lock through it.
+
 Both `open` and `useItemOn` ask core's rewards for the loot window first
 and give it back when the server reports that the spell failed, or when
 no loot window arrives within 15 seconds. The failure body starts with
@@ -200,4 +208,4 @@ character back through a portal.
 | `SMSG_PAGE_TEXT_QUERY_RESPONSE` | `live` | the same run read page 2936 in one packet; a second run with `--arg page=2147483647` answered "Item page missing." with next page 0 | `Handlers/QueryHandler.cpp:367-392` |
 | `SMSG_GAMEOBJECT_PAGETEXT` | `live` | probe flow `objects-use` (`--arg entry=180516`, the Shrine of Dath'Remar, a type-10 goober with page 2936) on a `fresh` character moved with `soap gm tele ShrineOfDathRemar`, exit 0; the flow reported `shown` with guid 0xf11002c124000887 and page 2936 | `Entities/GameObject/GameObject.cpp:1630-1634` |
 | `CMSG_CAST_SPELL` | `live` | probe flow `objects-open` (`--arg entry=161557`) on an `elwynn1` character given quest 3904, raised to level 20 so the vineyard thugs could not interrupt the cast, and moved with `soap gm tele NorthshireVineyards`, exit 0 (run `tmp/probe/FAC6ABA6E7843-20260928T134300Z`); the flow found Milly's Harvest (`0xf11002771500078e`), walked to 2.0 yards, chose spell 6478 from the lock, and sent the cast with the object target; the server answered `SMSG_SPELL_START` and then `SMSG_LOOT_RESPONSE` for the crate (no items offered). An earlier level 1 try was interrupted (`SMSG_CAST_FAILED` result 40) when thugs killed the character | `Handlers/SpellHandler.cpp:441-445` |
-| `CMSG_USE_ITEM` | `mock` | object-target body covered by builder tests (`item.test.ts`) and the key use by `useItemOn` in `runtime-open.test.ts` (Bamboo Cage Key 12301, on-use spell 3366); no key-locked object was staged live, not seen live | `Handlers/SpellHandler.cpp:67-73`, `:193` |
+| `CMSG_USE_ITEM` | `live` | probe flow `objects-open` (`--arg entry=185220`, the Massive Treasure Chest, a type-3 chest whose Data0 is Lock.dbc entry 1726, a lock of type item that needs the Derelict Caravan Chest Key, item 31705) on a `max80` character given the key with `soap gm items 31705:1` (delivered by mail), retrieved at the Ironforge mailbox with probe `--send CMSG_GET_MAIL_LIST` and `CMSG_MAIL_TAKE_ITEM` (the mail then held no item), and moved with `soap gm tele DerelictCaravan`, exit 0 (kept packet trace lines 320-323 and 455): the flow sent `CMSG_GAMEOBJ_USE`, `CMSG_GAMEOBJ_REPORT_USE` and then `CMSG_USE_ITEM` with the key on the chest; the server answered `SMSG_SPELL_START` 8 ms later and `SMSG_LOOT_RESPONSE` at the end of the cast (no items offered). The object-target body is covered by builder tests (`item.test.ts`) and the key use by `useItemOn` in `runtime-open.test.ts` (Bamboo Cage Key 12301, on-use spell 3366) | `Handlers/SpellHandler.cpp:67-73`, `:193` |
