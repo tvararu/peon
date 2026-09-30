@@ -178,8 +178,8 @@ the wait continues. `revive` of a dead pet that is still out settles
 summoned (`Entities/Pet/Pet.cpp:671`), `EffectResurrectPet` revives it in
 place without a new bar (`Entities/ObjectUpdates/Unit.cpp` resurrect path
 and `Spells/SpellEffects.cpp:5496-5525`). `dismiss` for a pet without
-the abandon bit uses `petCommand("dismiss")`, which deletes a hunter pet
-(`Handlers/PetHandler.cpp:287-288`). `call` is refused with `already_out`
+the abandon bit uses `petCommand("dismiss")`, which leaves a summoned pet
+as a corpse (`Handlers/PetHandler.cpp:287-294`). `call` is refused with `already_out`
 when a bar is present. `attack` uses `petAttack` and settles `DONE` when
 the pet's target field equals the target or the `threat` area emits
 `reaction` for the pet, `UNCONFIRMED` with a `travel` `Next` after 5 s.
