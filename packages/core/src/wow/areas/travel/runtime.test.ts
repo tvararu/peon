@@ -150,8 +150,22 @@ function maskOf(...nodes: number[]): number[] {
 function taxiDbc() {
   return travelTaxiDbc({
     nodes: [
-      { id: 82, map: 530, x: 9411.31, y: -7278.72, z: 15.9, name: "Silvermoon City" },
-      { id: 83, map: 530, x: 7535.26, y: -6812.75, z: 84.92, name: "Tranquillien" },
+      {
+        id: 82,
+        map: 530,
+        x: 9411.31,
+        y: -7278.72,
+        z: 15.9,
+        name: "Silvermoon City",
+      },
+      {
+        id: 83,
+        map: 530,
+        x: 7535.26,
+        y: -6812.75,
+        z: 84.92,
+        name: "Tranquillien",
+      },
     ],
     paths: [
       { id: 1, from: 82, to: 83, price: 210 },
@@ -226,7 +240,11 @@ describe("travel runtime: taxi", () => {
       ]);
       rig.inject(
         GameOpcode.SMSG_SHOWTAXINODES,
-        travelShowTaxiNodesBody({ npc: TAXI_MASTER, currentNode: 83, mask: maskOf(82, 83) }),
+        travelShowTaxiNodesBody({
+          npc: TAXI_MASTER,
+          currentNode: 83,
+          mask: maskOf(82, 83),
+        }),
       );
       expect(await pending).toEqual({
         status: "ok",
@@ -256,7 +274,10 @@ describe("travel runtime: taxi", () => {
     try {
       const pending = rig.handle.act.openTaxiMap(TAXI_MASTER, { enable: true });
       expect(rig.sent).toEqual([
-        { opcode: GameOpcode.CMSG_ENABLETAXI, body: buildEnableTaxi(TAXI_MASTER) },
+        {
+          opcode: GameOpcode.CMSG_ENABLETAXI,
+          body: buildEnableTaxi(TAXI_MASTER),
+        },
       ]);
       rig.inject(GameOpcode.SMSG_NEW_TAXI_PATH, new Uint8Array(0));
       expect(await pending).toEqual({ status: "ok", kind: "learned" });
@@ -326,7 +347,11 @@ describe("travel runtime: taxi", () => {
     try {
       rig.inject(
         GameOpcode.SMSG_SHOWTAXINODES,
-        travelShowTaxiNodesBody({ npc: TAXI_MASTER, currentNode: 82, mask: maskOf(82, 83) }),
+        travelShowTaxiNodesBody({
+          npc: TAXI_MASTER,
+          currentNode: 82,
+          mask: maskOf(82, 83),
+        }),
       );
       expect(await rig.handle.act.destinations(82)).toEqual({
         status: "ok",
@@ -343,7 +368,11 @@ describe("travel runtime: taxi", () => {
     try {
       rig.inject(
         GameOpcode.SMSG_SHOWTAXINODES,
-        travelShowTaxiNodesBody({ npc: TAXI_MASTER, currentNode: 82, mask: maskOf(82, 83) }),
+        travelShowTaxiNodesBody({
+          npc: TAXI_MASTER,
+          currentNode: 82,
+          mask: maskOf(82, 83),
+        }),
       );
       expect(await rig.handle.act.destinations(999)).toEqual({
         status: "refused",
@@ -365,7 +394,11 @@ describe("travel runtime: taxi", () => {
     try {
       rig.inject(
         GameOpcode.SMSG_SHOWTAXINODES,
-        travelShowTaxiNodesBody({ npc: TAXI_MASTER, currentNode: 82, mask: maskOf(82) }),
+        travelShowTaxiNodesBody({
+          npc: TAXI_MASTER,
+          currentNode: 82,
+          mask: maskOf(82),
+        }),
       );
       expect(await rig.handle.act.planFlight(82, "zzz")).toEqual({
         status: "refused",
@@ -395,7 +428,11 @@ describe("travel runtime: taxi", () => {
     try {
       rig.inject(
         GameOpcode.SMSG_SHOWTAXINODES,
-        travelShowTaxiNodesBody({ npc: TAXI_MASTER, currentNode: 82, mask: maskOf(82, 83) }),
+        travelShowTaxiNodesBody({
+          npc: TAXI_MASTER,
+          currentNode: 82,
+          mask: maskOf(82, 83),
+        }),
       );
       expect(await rig.handle.act.planFlight(82, "Tranquillien")).toEqual({
         status: "refused",

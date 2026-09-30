@@ -249,9 +249,7 @@ describe("travel store: taxi", () => {
       advance(250);
       rig.inject(GameOpcode.SMSG_NEW_TAXI_PATH, new Uint8Array(0));
       expect(rig.handle.state().learnedAt).toBe(1250);
-      expect(seen).toEqual([
-        { type: "taxi_node_learned", npc: TAXI_MASTER },
-      ]);
+      expect(seen).toEqual([{ type: "taxi_node_learned", npc: TAXI_MASTER }]);
     } finally {
       rig.dispose();
     }
