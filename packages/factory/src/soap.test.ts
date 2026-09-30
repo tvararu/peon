@@ -8,7 +8,6 @@ import {
   assertFactory,
   characterName,
   envelope,
-  factoryAccount,
   hasTriple,
   inheritedConfig,
   newNames,
@@ -17,7 +16,11 @@ import {
   parseResponse,
   reserveNames,
 } from "#factory/soap";
-import { pinfoAccount, type SoapResult } from "#factory/soap-copy";
+import {
+  factoryAccount,
+  pinfoAccount,
+  type SoapResult,
+} from "#factory/soap-copy";
 
 describe("names", () => {
   test("account is FAC + 8 hex seconds + 2 random, uppercase", () => {

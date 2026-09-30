@@ -5,7 +5,8 @@ import {
   type RealmService,
   ServiceError,
 } from "#factory/realm-service";
-import { characterName, factoryAccount } from "#factory/soap";
+import { characterName } from "#factory/soap";
+import { factoryAccount } from "#factory/soap-copy";
 
 export type ServiceDeps = {
   service: RealmService;
