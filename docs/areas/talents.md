@@ -20,6 +20,13 @@ AzerothCore and wow_messages agree on the `SMSG_TALENTS_INFO` layout
 - `SMSG_TALENTS_INFO` starts with a type byte: 0 for the player form, 1
   for the pet form (`Entities/Player/Player.cpp:14840-14849`). Its talent
   id is a raw `u32`; wow_messages types it as its `Talent` enum.
+- `CMSG_LEARN_TALENT` is the talent id then the 0-based wire rank, two
+  `u32`, answered by one `SMSG_TALENTS_INFO`
+  (`Handlers/SkillHandler.cpp:25-32`).
+- `CMSG_LEARN_PREVIEW_TALENTS` is a `u32` count then id and rank pairs
+  in order; the server learns at most 150 and drops the rest, then
+  answers with one `SMSG_TALENTS_INFO`
+  (`Handlers/SkillHandler.cpp:34-56`).
 
 The server sends the player form at every login
 (`Entities/Player/Player.cpp:11786`) and at every level change
@@ -74,8 +81,6 @@ server fills slot index `Order - 1` with each ordered slot type at login
 
 ## Left out
 
-- `CMSG_LEARN_TALENT` and `CMSG_LEARN_PREVIEW_TALENTS`: built by
-  `talents-3a`.
 - `MSG_TALENT_WIPE_CONFIRM`: built by `talents-4a`.
 - `CMSG_REMOVE_GLYPH`: built by `talents-5a`.
 - `CMSG_UNLEARN_TALENTS` and `SMSG_TALENTS_INVOLUNTARILY_RESET`: dead.
@@ -89,5 +94,5 @@ Added by talents-3b.
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
 | `SMSG_TALENTS_INFO` | `live` | probe flow `login` with `--expect SMSG_TALENTS_INFO`, exit 0, on a `fresh`, an `eversong10-warrior` and an `eversong10-hunter` account; the hunter login also brought the six-byte pet form. A harness run on the warrior with `soap gm level 12` received two player forms with 2 free points and wrote one `talents/points` row | `Entities/Player/Player.cpp:14840-14849` |
-| `CMSG_UNLEARN_TALENTS` | `dead` | registered `STATUS_NEVER` with `Handle_NULL`; resets go through `MSG_TALENT_WIPE_CONFIRM` | `Server/Protocol/Opcodes.cpp:662` |
-| `SMSG_TALENTS_INVOLUNTARILY_RESET` | `dead` | no writer in AzerothCore `src/`, only its registration; wow_messages says it exists only as a comment | `Server/Protocol/Opcodes.cpp:1405` |
+| `CMSG_LEARN_TALENT` | `live` | probe flow `talents-learn --arg plan=124:1` on a fresh level-13 `eversong10-warrior` (template holds 124 at wire rank 0, 3 free): one `7c 00 00 00 01 00 00 00` went out and one `SMSG_TALENTS_INFO` answered with talent 124 at wire rank 1 and 2 free | `Handlers/SkillHandler.cpp:25-32` |
+| `CMSG_LEARN_PREVIEW_TALENTS` | `live` | probe flow `talents-learn --arg plan=124:2,130:0` on the same character (2 free left): one `02 00 00 00 82 00 00 00 00 00 00 00 7c 00 00 00 02 00 00 00` went out and one `SMSG_TALENTS_INFO` answered with 0 free and talents 124 at wire rank 2 and 130 at wire rank 0. Account deleted | `Handlers/SkillHandler.cpp:34-56` |
