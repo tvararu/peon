@@ -3,6 +3,7 @@ import type { OpsCtx, ViewCtx } from "#harness/contract/services";
 import type { Compass, PoseView, UnitView } from "#harness/contract/views";
 import { ahead, RING, SEARCH, turned } from "#harness/ops/compass";
 import { dangerView } from "#harness/ops/danger";
+import { type FloorWalk, floorRetries } from "#harness/ops/explore-floors";
 import { type LegResult, travelLeg } from "#harness/ops/travel-leg";
 import { structuralReach } from "#harness/ops/unreached";
 import { MIN_UNSTICK_YD, needPose, unstick } from "#harness/ops/unstick";
@@ -203,6 +204,7 @@ type Walk = {
   wanted: (unit: UnitView) => boolean;
   seen: Set<string>;
   refused: Set<string>;
+  probed: Set<string>;
   legs: LegView[];
   newInView: UnitView[];
   walkedYd: number;
@@ -278,10 +280,39 @@ async function walkBearing(
 ): Promise<LegResult> {
   const { ctx } = walk;
   const point = ahead(from, direction, legYd(walk));
-  const leg = await travelLeg(ctx, {
+  let leg = await travelLeg(ctx, {
     goal: { kind: "point", ...point },
     within: LEG_WITHIN_YD,
   });
+  const floors: FloorWalk = {
+    blockBearing: (at: PoseView, bearing: Compass) => block(ctx, at, bearing),
+    ctx,
+    goalKey,
+    probed: walk.probed,
+    pushLeg: (retry: LegResult) =>
+      walk.legs.push({
+        index: walk.legs.length,
+        reason: retry.reason,
+        status: retry.status,
+        traveledYd: retry.traveledYd,
+      }),
+    refused: walk.refused,
+    stopped: (retry: LegResult) => stopped(walk, retry),
+    walkedYd: walk.walkedYd,
+    withinYd: LEG_WITHIN_YD,
+  };
+  walk.legs.push({
+    index: walk.legs.length,
+    reason: leg.reason,
+    status: leg.status,
+    traveledYd: leg.traveledYd,
+  });
+  if (leg.reason === "ambiguous_floor") {
+    walk.refused.add(goalKey(point));
+    leg = await floorRetries(floors, from, direction, leg);
+    if (leg.status === "arrived" || stopped(walk, leg))
+      return finishLeg(walk, from, leg);
+  }
   const to = poseView(ctx) ?? from;
   walk.walkedYd += Math.hypot(to.x - from.x, to.y - from.y);
   ctx.rt.travel.visitedCells.add(cellKey(to));
@@ -289,12 +320,13 @@ async function walkBearing(
     block(ctx, from, direction);
     walk.refused.add(goalKey(point));
   }
-  walk.legs.push({
-    index: walk.legs.length,
-    reason: leg.reason,
-    status: leg.status,
-    traveledYd: leg.traveledYd,
-  });
+  return leg;
+}
+
+function finishLeg(walk: Walk, from: PoseView, leg: LegResult): LegResult {
+  const to = poseView(walk.ctx) ?? from;
+  walk.walkedYd += Math.hypot(to.x - from.x, to.y - from.y);
+  walk.ctx.rt.travel.visitedCells.add(cellKey(to));
   return leg;
 }
 
@@ -399,6 +431,7 @@ export async function explore(
     legs: [],
     newInView: [],
     obstructed: 0,
+    probed: new Set(),
     refused: new Set(),
     rounds: 0,
     seen: new Set(unitViews(ctx).map((unit) => unit.guid)),

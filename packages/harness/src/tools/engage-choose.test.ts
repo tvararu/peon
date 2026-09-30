@@ -178,6 +178,10 @@ describe("chooseTarget", () => {
         /^only gray units in view \(Mistbat u\d+ L9\); they give no XP or kill credit\.$/,
       ),
     );
+    await expect(refused).rejects.toHaveProperty(
+      "next",
+      'travel(to: "explore")',
+    );
   });
 
   test("unnamed: a gray attacker is still fought", async () => {
