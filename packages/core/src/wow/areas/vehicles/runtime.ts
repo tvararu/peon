@@ -51,95 +51,114 @@ async function waitSeatAnswer(
   }
 }
 
+type SeatDeps = {
+  ctx: Ctx;
+  store: VehiclesStore;
+  self: bigint;
+};
+
+function boarded(self: bigint) {
+  return (event: VehiclesEvent) =>
+    event.type === "spline" &&
+    event.guid === self &&
+    (event.flags & SplineFlag.TRANSPORT_ENTER) !== 0;
+}
+
+function changedSeat(self: bigint, before: number) {
+  return (event: VehiclesEvent) =>
+    event.type === "spline" && event.guid === self && event.seat !== before;
+}
+
+function changeSeat(
+  { ctx, store, self }: SeatDeps,
+  opcode: number,
+  body?: Uint8Array,
+): Promise<VehiclesOutcome> {
+  const seat = store.snapshot().seat;
+  if (seat === undefined)
+    return Promise.resolve({ status: "refused", reason: "not_seated" });
+  const answer = waitSeatAnswer(ctx, changedSeat(self, seat.seat));
+  ctx.send(opcode, body);
+  return answer;
+}
+
+function clickSeat(
+  { ctx, store, self }: SeatDeps,
+  guid: bigint,
+): Promise<VehiclesOutcome> {
+  const target = store.entityOf(guid);
+  if (!(isUnit(target) && target.npcFlags & NPC_FLAG_SPELLCLICK))
+    return Promise.resolve({ status: "refused", reason: "not_clickable" });
+  const answer = waitSeatAnswer(ctx, boarded(self));
+  ctx.send(GameOpcode.CMSG_SPELLCLICK, buildSpellClick(guid));
+  return answer;
+}
+
+function exitSeat({ ctx, store, self }: SeatDeps): Promise<VehiclesOutcome> {
+  const seat = store.snapshot().seat;
+  if (seat === undefined)
+    return Promise.resolve({ status: "refused", reason: "not_seated" });
+  const answer = waitSeatAnswer(ctx, changedSeat(self, seat.seat));
+  ctx.send(GameOpcode.CMSG_REQUEST_VEHICLE_EXIT);
+  return answer;
+}
+
+function enterSeat(
+  { ctx, self }: SeatDeps,
+  guid: bigint,
+): Promise<VehiclesOutcome> {
+  const answer = waitSeatAnswer(ctx, boarded(self));
+  ctx.send(GameOpcode.CMSG_PLAYER_VEHICLE_ENTER, buildPlayerVehicleEnter(guid));
+  return answer;
+}
+
+function ejectSeat(
+  { ctx, store, self }: SeatDeps,
+  guid: bigint,
+): Promise<VehiclesOutcome> {
+  if (!store.snapshot().vehicleIds.has(self))
+    return Promise.resolve({ status: "refused", reason: "not_a_vehicle" });
+  if (store.snapshot().seat === undefined)
+    return Promise.resolve({ status: "refused", reason: "not_seated" });
+  const answer = waitSeatAnswer(
+    ctx,
+    (event) =>
+      event.type === "player_vehicle" &&
+      event.guid === guid &&
+      event.vehicleId === 0,
+  );
+  ctx.send(
+    GameOpcode.CMSG_CONTROLLER_EJECT_PASSENGER,
+    buildEjectPassenger(guid),
+  );
+  return answer;
+}
+
 export function vehiclesRuntime(
   ctx: Ctx,
   store: VehiclesStore,
   _core: CoreStores,
 ): AreaRuntime<VehiclesActs> {
-  const self = ctx.selfGuid();
-  const boarded = (event: VehiclesEvent) =>
-    event.type === "spline" &&
-    event.guid === self &&
-    (event.flags & SplineFlag.TRANSPORT_ENTER) !== 0;
-  const snapshotSeat = () => store.snapshot().seat;
-  const seatedVehicle = () => snapshotSeat()?.vehicle;
-
-  const seatChanged = (before: number) => (event: VehiclesEvent) =>
-    event.type === "spline" && event.guid === self && event.seat !== before;
-
-  const changeSeat = (
-    opcode: number,
-    body?: Uint8Array,
-  ): Promise<VehiclesOutcome> => {
-    const seat = snapshotSeat();
-    if (seat === undefined)
+  const deps: SeatDeps = { ctx, self: ctx.selfGuid(), store };
+  const switchSeat = (seat: number): Promise<VehiclesOutcome> => {
+    const vehicle = store.snapshot().seat?.vehicle;
+    if (vehicle === undefined)
       return Promise.resolve({ status: "refused", reason: "not_seated" });
-    const answer = waitSeatAnswer(ctx, seatChanged(seat.seat));
-    ctx.send(opcode, body);
-    return answer;
+    return changeSeat(
+      deps,
+      GameOpcode.CMSG_REQUEST_VEHICLE_SWITCH_SEAT,
+      buildRequestVehicleSwitchSeat(vehicle, seat),
+    );
   };
-
   return {
     act: {
-      spellClick: (guid) => {
-        const target = store.entityOf(guid);
-        if (!(isUnit(target) && target.npcFlags & NPC_FLAG_SPELLCLICK))
-          return Promise.resolve({
-            status: "refused",
-            reason: "not_clickable",
-          });
-        const answer = waitSeatAnswer(ctx, boarded);
-        ctx.send(GameOpcode.CMSG_SPELLCLICK, buildSpellClick(guid));
-        return answer;
-      },
-      exitVehicle: () => {
-        const seat = snapshotSeat();
-        if (seat === undefined)
-          return Promise.resolve({ status: "refused", reason: "not_seated" });
-        const answer = waitSeatAnswer(ctx, seatChanged(seat.seat));
-        ctx.send(GameOpcode.CMSG_REQUEST_VEHICLE_EXIT);
-        return answer;
-      },
-      nextSeat: () => changeSeat(GameOpcode.CMSG_REQUEST_VEHICLE_NEXT_SEAT),
-      prevSeat: () => changeSeat(GameOpcode.CMSG_REQUEST_VEHICLE_PREV_SEAT),
-      switchSeat: (seat) => {
-        const vehicle = seatedVehicle();
-        if (vehicle === undefined)
-          return Promise.resolve({ status: "refused", reason: "not_seated" });
-        return changeSeat(
-          GameOpcode.CMSG_REQUEST_VEHICLE_SWITCH_SEAT,
-          buildRequestVehicleSwitchSeat(vehicle, seat),
-        );
-      },
-      enterPlayerVehicle: (guid) => {
-        const answer = waitSeatAnswer(ctx, boarded);
-        ctx.send(
-          GameOpcode.CMSG_PLAYER_VEHICLE_ENTER,
-          buildPlayerVehicleEnter(guid),
-        );
-        return answer;
-      },
-      ejectPassenger: (guid) => {
-        if (!store.snapshot().vehicleIds.has(self))
-          return Promise.resolve({
-            status: "refused",
-            reason: "not_a_vehicle",
-          });
-        if (snapshotSeat() === undefined)
-          return Promise.resolve({ status: "refused", reason: "not_seated" });
-        const answer = waitSeatAnswer(
-          ctx,
-          (event) =>
-            event.type === "player_vehicle" &&
-            event.guid === guid &&
-            event.vehicleId === 0,
-        );
-        ctx.send(
-          GameOpcode.CMSG_CONTROLLER_EJECT_PASSENGER,
-          buildEjectPassenger(guid),
-        );
-        return answer;
-      },
+      spellClick: (guid) => clickSeat(deps, guid),
+      exitVehicle: () => exitSeat(deps),
+      nextSeat: () => changeSeat(deps, GameOpcode.CMSG_REQUEST_VEHICLE_NEXT_SEAT),
+      prevSeat: () => changeSeat(deps, GameOpcode.CMSG_REQUEST_VEHICLE_PREV_SEAT),
+      switchSeat,
+      enterPlayerVehicle: (guid) => enterSeat(deps, guid),
+      ejectPassenger: (guid) => ejectSeat(deps, guid),
     },
     dispose: () => undefined,
   };
