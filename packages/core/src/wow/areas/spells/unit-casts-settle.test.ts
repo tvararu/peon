@@ -124,7 +124,7 @@ describe("spells unit casts near the end of a channel", () => {
     }
   });
 
-  test("shortened by pushback and stopped early is interrupted", () => {
+  test("shortened to zero by pushback with no failure finishes however early", () => {
     jest.useFakeTimers();
     const { advance, rig, seen } = setup();
     try {
@@ -133,12 +133,34 @@ describe("spells unit casts near the end of a channel", () => {
       channelRemaining(rig, 4000);
       advance(1000);
       channelEnd(rig);
+      expect(ends(seen)).toEqual([]);
+      jest.advanceTimersByTime(1000);
+      expect(ends(seen)).toEqual([
+        expect.objectContaining({ outcome: "finished", spellId: EVOCATION }),
+      ]);
+      expect(rig.handle.state().unitCasts).toEqual([]);
+    } finally {
+      rig.dispose();
+      jest.useRealTimers();
+    }
+  });
+
+  test("an early cancel followed by the failure is interrupted once", () => {
+    jest.useFakeTimers();
+    const { advance, failedOther, rig, seen } = setup();
+    try {
+      channelBegin(rig);
+      advance(1000);
+      channelEnd(rig);
+      failedOther(MOB, EVOCATION);
+      jest.advanceTimersByTime(1000);
       expect(ends(seen)).toEqual([
         expect.objectContaining({
           outcome: "interrupted",
           spellId: EVOCATION,
         }),
       ]);
+      expect(rig.handle.state().unitCasts).toEqual([]);
     } finally {
       rig.dispose();
       jest.useRealTimers();
