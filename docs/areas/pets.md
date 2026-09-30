@@ -16,7 +16,8 @@ sends the dismiss command alone, and `pets.petStopAttack()` stops the
 pet's attack. Each returns `{ ok: false, reason: "no_pet" }` and
 sends nothing when there is no bar, and `petCommand("dismiss")` returns
 `hunter_pet_dismiss` for a pet with the abandon bit, because that command
-deletes a hunter pet (`Handlers/PetHandler.cpp:287-288`).
+deletes a hunter pet while a summoned pet without the bit is left as a
+corpse (`Handlers/PetHandler.cpp:287-294`).
 
 ## Wire notes
 
