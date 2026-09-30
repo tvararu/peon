@@ -352,6 +352,21 @@ describe("travel runtime: taxi", () => {
       rig.dispose();
     }
   });
+  test("an opposing benchmark request while one is pending refuses busy", async () => {
+    const rig = areaRig("travel");
+    try {
+      const first = rig.handle.act.setTaxiBenchmark(true);
+      expect(await rig.handle.act.setTaxiBenchmark(false)).toEqual({
+        status: "refused",
+        reason: "busy",
+      });
+      expect(rig.sent).toHaveLength(1);
+      rig.stores.areas.travel.receiveSelfFlags(true);
+      expect(await first).toEqual({ status: "ok", on: true });
+    } finally {
+      rig.dispose();
+    }
+  });
 
   test("setTaxiBenchmark of 3 s of silence gives no_answer", async () => {
     jest.useFakeTimers();
