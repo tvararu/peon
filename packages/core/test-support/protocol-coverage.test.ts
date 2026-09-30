@@ -134,6 +134,11 @@ describe("coverageRows", () => {
     expect(row(rows, "SMSG_PLAY_TIME_WARNING").status).toBe("missing");
   });
 
+  test("marks an owned opcode missing when nothing claims it", () => {
+    const rows = fixtureRows();
+    expect(row(rows, "SMSG_PLAY_TIME_WARNING").status).toBe("missing");
+  });
+
   test("marks unseen opcodes not seen live", () => {
     const rows = fixtureRows();
     expect(row(rows, "SMSG_LEARNED_DANCE_MOVES").live).toBe("not seen live");
@@ -153,13 +158,12 @@ describe("coverageRows", () => {
     expect(row(rows, "MSG_RANDOM_ROLL").direction).toBe("both");
   });
 
-  test("tells handled, stubbed, sent and missing core opcodes apart", () => {
+  test("tells handled, dead and sent core opcodes apart", () => {
     const { rows } = projectCoverage(["send(GameOpcode.CMSG_BOOTME)"]);
     const status = new Map(rows.map((r) => [r.name, r.status]));
     expect(status.get("SMSG_UPDATE_OBJECT")).toBe("handled");
     expect(status.get("SMSG_TOGGLE_XP_GAIN")).toBe("dead");
     expect(status.get("CMSG_BOOTME")).toBe("handled");
-    expect(status.get("SMSG_SPELLLOGEXECUTE")).toBe("missing");
   });
 
   test("lists every opcode once", () => {

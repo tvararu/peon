@@ -178,13 +178,13 @@ describe("stub notices", () => {
     const conn = stubConn();
     const notices: NoticeEvent[] = [];
     conn.events.notice.subscribe((event) => notices.push(event));
-    conn.dispatch.handle(GameOpcode.SMSG_SPELLLOGEXECUTE, weather());
-    conn.dispatch.handle(GameOpcode.SMSG_SPELLLOGEXECUTE, weather());
+    conn.dispatch.handle(GameOpcode[STUB_EXAMPLE], weather());
+    conn.dispatch.handle(GameOpcode[STUB_EXAMPLE], weather());
     conn.dispatch.handle(0x7_ff, weather());
     expect(notices).toMatchObject([
       {
-        opcode: GameOpcode.SMSG_SPELLLOGEXECUTE,
-        text: "[peon] SMSG_SPELLLOGEXECUTE is not yet implemented",
+        opcode: GameOpcode[STUB_EXAMPLE],
+        text: `[peon] ${STUB_EXAMPLE} is not yet implemented`,
       },
       { label: "Opcode 0x7ff", opcode: 0x7_ff },
     ]);
