@@ -131,7 +131,7 @@ deletes a hunter pet (`Handlers/PetHandler.cpp:287-288`).
   for the pet's guid only; both are `uses`, owned at
   `gameplay-handlers.ts:123-128`. The pet's normal cooldowns arrive in
   `SMSG_PET_SPELLS`; a pet-guid `SMSG_SPELL_COOLDOWN` is only sent when
-  `RequireCooldownInfo()` holds (`Spells/Spell.cpp:4493-4498`).
+  `RequireCooldownInfo()` holds (`Spells/Spell.cpp:4493-4498`). `SMSG_SPELL_COOLDOWN` carries no category, so an update keeps the row `SMSG_PET_SPELLS` filled and a new spell starts at category 0.
 
 ## Left out
 

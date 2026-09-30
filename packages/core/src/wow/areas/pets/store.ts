@@ -175,13 +175,14 @@ export class PetsStore {
     const rows = [...this.cooldowns];
     for (const entry of packet.cooldowns) {
       const readyAt = entry.time <= 0 ? now : now + entry.time;
+      const at = rows.findIndex((row) => row.spell === entry.spellId);
+      const category = at < 0 ? 0 : (rows[at]?.category ?? 0);
       const next = {
-        category: 0,
+        category,
         infinite: false,
         readyAt,
         spell: entry.spellId,
       };
-      const at = rows.findIndex((row) => row.spell === entry.spellId);
       if (at < 0) rows.push(next);
       else rows[at] = next;
     }
