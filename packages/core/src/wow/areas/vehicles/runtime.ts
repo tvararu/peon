@@ -154,8 +154,10 @@ export function vehiclesRuntime(
     act: {
       spellClick: (guid) => clickSeat(deps, guid),
       exitVehicle: () => exitSeat(deps),
-      nextSeat: () => changeSeat(deps, GameOpcode.CMSG_REQUEST_VEHICLE_NEXT_SEAT),
-      prevSeat: () => changeSeat(deps, GameOpcode.CMSG_REQUEST_VEHICLE_PREV_SEAT),
+      nextSeat: () =>
+        changeSeat(deps, GameOpcode.CMSG_REQUEST_VEHICLE_NEXT_SEAT),
+      prevSeat: () =>
+        changeSeat(deps, GameOpcode.CMSG_REQUEST_VEHICLE_PREV_SEAT),
       switchSeat,
       enterPlayerVehicle: (guid) => enterSeat(deps, guid),
       ejectPassenger: (guid) => ejectSeat(deps, guid),
