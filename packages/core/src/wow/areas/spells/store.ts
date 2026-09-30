@@ -7,6 +7,9 @@ import type {
   SpellVisual,
   TotemCreatedPacket,
 } from "#wow/areas/spells/protocol";
+import type { SkillCatalog } from "#wow/areas/spells/skill-names";
+import { STATIC_SKILL_CATALOG } from "#wow/areas/spells/skill-names";
+import { readSkills, type Skill } from "#wow/areas/spells/skills";
 import { type Totem, type TotemEvent, Totems } from "#wow/areas/spells/totems";
 import type { UnitCast, UnitCastEvent } from "#wow/areas/spells/unit-casts";
 import { UnitCasts } from "#wow/areas/spells/unit-casts";
@@ -28,6 +31,7 @@ export type SpellsState = {
   modifiers: Readonly<Record<SpellModifierKind, SpellModifierTotals>>;
   unitCasts: readonly UnitCast[];
   totems: readonly (Readonly<Totem> | undefined)[];
+  skills: readonly Skill[];
 };
 export type SpellsEvent =
   | {
@@ -38,6 +42,15 @@ export type SpellsEvent =
     }
   | { type: "channel_end"; spellId: number; reason: ChannelEndReason }
   | { type: "spell_visual"; guid: bigint; kit: number; impact: boolean }
+  | {
+      type: "skill_changed";
+      id: number;
+      name: string;
+      from: number | undefined;
+      to: number;
+      max: number;
+    }
+  | { type: "skill_removed"; id: number; name: string }
   | TotemEvent
   | UnitCastEvent;
 
@@ -71,6 +84,8 @@ export class SpellsStore {
   private fieldTarget: bigint | undefined;
   private barToggles: number | undefined;
   private inactiveRanks: readonly number[] = [];
+  private catalog: SkillCatalog = STATIC_SKILL_CATALOG;
+  private skillBaseline: readonly Skill[] | undefined;
   private readonly modifiers: Record<
     SpellModifierKind,
     Map<number, Map<number, number>>
@@ -102,6 +117,7 @@ export class SpellsStore {
         flat: totals(this.modifiers.flat),
         pct: totals(this.modifiers.pct),
       },
+      skills: this.skills(),
       totems: this.totems.snapshot(),
       unitCasts: this.units.snapshot(),
     };
@@ -235,9 +251,72 @@ export class SpellsStore {
     });
   }
 
+  setSkillCatalog(catalog: SkillCatalog): void {
+    this.catalog = catalog;
+  }
+
+  skillKnown(id: number): boolean {
+    return this.skills().some((skill) => skill.id === id);
+  }
+
+  isPrimaryProfession(id: number): boolean {
+    return this.catalog.isPrimary(id);
+  }
+
+  readSkills(): void {
+    const current = this.skills();
+    this.emitSkillChanges(current);
+    this.skillBaseline = current;
+  }
+
+  private skills(): Skill[] {
+    return readSkills(
+      this.deps.getEntity(this.deps.selfGuid())?.rawFields,
+      this.catalog,
+    );
+  }
+
+  private emitSkillChanges(current: readonly Skill[]): void {
+    if (!this.skillBaseline) return;
+    const before = new Map(
+      this.skillBaseline.map((skill) => [skill.id, skill]),
+    );
+    const after = new Map(current.map((skill) => [skill.id, skill]));
+    for (const skill of current) {
+      const prev = before.get(skill.id);
+      if (!prev) {
+        this.events.emit({
+          from: undefined,
+          id: skill.id,
+          max: skill.max,
+          name: skill.name,
+          to: skill.value,
+          type: "skill_changed",
+        });
+      } else if (prev.value !== skill.value || prev.max !== skill.max) {
+        this.events.emit({
+          from: prev.value,
+          id: skill.id,
+          max: skill.max,
+          name: skill.name,
+          to: skill.value,
+          type: "skill_changed",
+        });
+      }
+    }
+    for (const skill of this.skillBaseline)
+      if (!after.has(skill.id))
+        this.events.emit({
+          id: skill.id,
+          name: skill.name,
+          type: "skill_removed",
+        });
+  }
+
   selfFields(fields: ReadonlyMap<number, number>): void {
     const bytes = fields.get(FIELD_BYTES);
     if (bytes !== undefined) this.barToggles = (bytes >>> 16) & 0xff;
+    this.readSkills();
     const channel = this.core.combat.casts.channel;
     const spellId = fields.get(CHANNEL_SPELL);
     if (!channel || spellId === undefined) return;
