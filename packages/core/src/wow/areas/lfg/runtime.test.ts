@@ -379,6 +379,54 @@ describe("lfg runtime", () => {
     });
   });
 
+  test("join refuses an empty dungeon list without sending (LFGHandler.cpp:56-60)", async () => {
+    const rig = solo();
+    try {
+      const result = await rig.handle.act.join({ roles: 8, entries: [] });
+      expect(result).toMatchObject({
+        status: "refused",
+        reason: "no_dungeons",
+      });
+      expect(sentOpcode(rig, GameOpcode.CMSG_LFG_JOIN)).toHaveLength(0);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a refused join returns the typed party locks", async () => {
+    const rig = solo();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_LFG_PLAYER_INFO,
+        lfgPlayerInfoBody({
+          random: [{ entry: 0x06_00_01_06 }],
+          locks: [],
+        }),
+      );
+      const pending = rig.handle.act.join({
+        roles: 8,
+        entries: [0x06_00_01_06],
+      });
+      rig.inject(
+        GameOpcode.SMSG_LFG_JOIN_RESULT,
+        lfgJoinResultBody({
+          result: 6,
+          state: 3,
+          partyLocks: [
+            { guid: 0xden, locks: [{ entry: 0x06_00_01_06, status: 2 }] },
+          ],
+        }),
+      );
+      const result = await pending;
+      const locks =
+        result.status === "refused" ? (result.partyLocks ?? []) : [];
+      expect(locks.map((p) => p.guid)).toEqual([0xden]);
+      expect(locks[0]?.locks.map((l) => l.entry)).toEqual([0x06_00_01_06]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("leave settles ok on the type-7 update", async () => {
     const rig = solo();
     try {

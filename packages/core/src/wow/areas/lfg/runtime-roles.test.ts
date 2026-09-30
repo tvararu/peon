@@ -3,6 +3,7 @@ import { areaRig } from "#test-support/area-rig";
 import {
   lfgRoleCheckUpdateBody,
   lfgRoleChosenBody,
+  lfgUpdatePlayerBody,
 } from "#test-support/areas/lfg";
 import { partyMember, partyState } from "#test-support/party-fixtures";
 import type { PartyMember } from "#wow/party-store";
@@ -104,6 +105,58 @@ describe("lfg runtime roles and comment", () => {
         lfgRoleChosenBody({ guid: 0n, roles: 0 }),
       );
       expect(await pending).toEqual({ status: "refused", reason: "no_role" });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("leave refuses for a grouped non-leader without sending (LFGHandler.cpp:78-92)", async () => {
+    const rig = areaRig("lfg", {
+      legacy: {
+        party: () =>
+          partyState({
+            inGroup: true,
+            leader: "Partner",
+            members: [member("Partner", 0xden)],
+          }),
+        friends: () => [],
+        ignored: () => [],
+        guild: () => undefined,
+        channels: () => [],
+      },
+    });
+    try {
+      const result = await rig.handle.act.leave();
+      expect(result).toMatchObject({ status: "refused", reason: "not_leader" });
+      expect(sentOpcode(rig, GameOpcode.CMSG_LFG_LEAVE)).toHaveLength(0);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("leave sends for a group leader", async () => {
+    const rig = areaRig("lfg", {
+      legacy: {
+        party: () =>
+          partyState({
+            inGroup: true,
+            leader: "Me",
+            members: [member("Partner", 0xden)],
+          }),
+        friends: () => [],
+        ignored: () => [],
+        guild: () => undefined,
+        channels: () => [],
+      },
+    });
+    try {
+      const pending = rig.handle.act.leave();
+      expect(sentOpcode(rig, GameOpcode.CMSG_LFG_LEAVE)).toHaveLength(1);
+      rig.inject(
+        GameOpcode.SMSG_LFG_UPDATE_PLAYER,
+        lfgUpdatePlayerBody({ updateType: 7 }),
+      );
+      expect(await pending).toEqual({ status: "ok" });
     } finally {
       rig.dispose();
     }
