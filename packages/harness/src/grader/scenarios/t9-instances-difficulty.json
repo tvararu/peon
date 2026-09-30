@@ -1,0 +1,33 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 30,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "expect": "the session shows one dungeon tool call with do difficulty, for dungeon and value heroic, and a reply that names heroic and does not claim the server confirmed it (a solo change is unconfirmed until the next dungeon entry)",
+      "id": "difficulty-call",
+      "source": "session"
+    },
+    {
+      "evidence": {
+        "events": ["instances/difficulty"]
+      },
+      "expect": "GL shows no instances/difficulty row with difficulty 0 after the call",
+      "id": "no-normal-echo",
+      "source": "game_log"
+    }
+  ],
+  "id": "t9-instances-difficulty",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "elwynn10",
+  "setup": [],
+  "steers": [],
+  "task": "Switch your dungeon difficulty to heroic and tell me what the game says.",
+  "tier": 9
+}

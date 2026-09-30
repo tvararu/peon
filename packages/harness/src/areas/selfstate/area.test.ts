@@ -17,6 +17,7 @@ const IDLE: AreaState<"selfstate"> = {
   collisionHeight: undefined,
   ghostPending: false,
   lastTransferAbort: undefined,
+  selfResSpell: 0,
   standState: "stand",
   timers: {},
 };
@@ -107,6 +108,32 @@ describe("selfstate harness rules", () => {
       type: "transfer_aborted",
     });
     expect(row?.text).toBe("Could not enter map 229: reason 99.");
+  });
+
+  test("an available self-resurrection spell logs the way back with its name", () => {
+    const rows = drafts({
+      name: "Reincarnation",
+      spellId: 21_169,
+      type: "self_res_available",
+    });
+    expect<unknown[]>(rows).toEqual([
+      {
+        class: "log",
+        data: { name: "Reincarnation", spellId: 21_169 },
+        domain: "selfstate",
+        event: "selfstate/self_res_available",
+        text: "You can come back where you died (Reincarnation).",
+      },
+    ]);
+  });
+
+  test("an unnamed self-resurrection spell falls back to its id", () => {
+    const [row] = drafts({
+      name: undefined,
+      spellId: 20_707,
+      type: "self_res_available",
+    });
+    expect(row?.text).toBe("You can come back where you died (spell 20707).");
   });
 
   test("stand changes and a pending ghost write no row", () => {

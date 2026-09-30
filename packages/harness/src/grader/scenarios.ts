@@ -4,6 +4,8 @@ import schema from "./scenario.schema.json" with { type: "json" };
 export type TriggerName =
   | "fight_start"
   | "kill"
+  | "lfg_proposal"
+  | "lfg_role_check"
   | "death"
   | "movement_start"
   | "answer_text"
@@ -14,6 +16,12 @@ export type TriggerName =
 export type SteerAt =
   | { kind: "trigger"; trigger: TriggerName; nth?: number; delayMs?: number }
   | { kind: "elapsed"; ms: number };
+
+export type PartnerSetup = {
+  actor?: number;
+  endpoint: string;
+  body: Record<string, unknown>;
+};
 
 export type PartnerAction = {
   at: SteerAt;
@@ -112,6 +120,7 @@ export type Scenario = {
   steers: { at: SteerAt; text: string }[];
   partnerActions?: PartnerAction[];
   partners?: ScenarioPartner[];
+  partnerSetup?: PartnerSetup[];
   blockedBy?: string[];
   field?: string;
   spawn?: string;
@@ -154,6 +163,23 @@ export const ROUND_1: readonly string[] = [
   "t4-spells-stop-channel",
   "t8-travel-bind-inn",
   "t8-travel-hearth-home",
+  "t8-pets-command",
+  "t6-selfstate-res",
+  "t9-instances-difficulty",
+  "t9-raid-kick",
+  "t9-raid-convert",
+  "t9-lfg-queue",
+  "t9-lfg-run",
+  "t9-trade-give",
+  "t9-trade-receive",
+  "t9-trade-swap",
+  "t9-trade-cancel",
+  "t9-raid-master-loot",
+  "t8-quests-share",
+  "t8-quests-accept-shared",
+  "t9-raid-ready",
+  "t9-raid-answer",
+  "t9-raid-mark",
 ];
 
 const DIR = `${import.meta.dir}/scenarios`;
@@ -212,12 +238,24 @@ function consoleErrors({ checks }: Scenario): string[] {
 }
 
 function partnerErrors(scenario: Scenario): string[] {
-  const { partner, partnerActions = [], partners } = scenario;
+  const {
+    partner,
+    partnerActions = [],
+    partners,
+    partnerSetup = [],
+  } = scenario;
   const count = partners?.length ?? (partner === null ? 0 : 1);
   const errors = partnerActions.flatMap(({ actor }, index) =>
     actor !== undefined && actor > count
       ? [`$.partnerActions[${index}].actor: no partner ${actor}`]
       : [],
+  );
+  errors.push(
+    ...partnerSetup.flatMap(({ actor }, index) =>
+      (actor ?? 1) > count
+        ? [`$.partnerSetup[${index}].actor: no partner ${actor ?? 1}`]
+        : [],
+    ),
   );
   errors.push(...whoErrors(scenario));
   if (partners === undefined) return errors;

@@ -156,7 +156,11 @@ names (1-based; the default is the single partner or partner 1), and its
 `argv` replaces `<AGENT>` with the agent's character, `<PARTNER1>` to
 `<PARTNER4>` with each partner's character and `<PARTNER>` with the
 first. The grader reads each partner that has an action with `read
---json` while the actions run and once at the end.
+--json` while the actions run and once at the end. A scenario lists
+optional `partnerSetup` steps as `{ "actor" (default 1), "endpoint",
+"body" }`; after the start point is placed, each step runs through
+`soap setup` on its partner's account, so a partner can start with a
+quest, an item or a level the agent's own `setup` cannot give it.
 
 | Command | Used by | Behaviour |
 |---|---|---|
@@ -165,7 +169,7 @@ first. The grader reads each partner that has an action with `read
 | `read --json` | partner, after the run (`partner-read.jsonl`) | Prints one JSON envelope whose `events` array holds the chat events since start, then drains them. |
 | `nearby --json` | witness, sampled into `witness.jsonl` | Prints one JSON envelope whose `data` array holds the nearby unit rows. |
 | `events --json` | area workers, to read what a partner was told | Prints one JSON envelope whose `events` array holds the game events since the last `events` as `{ at, event, hook }` rows, then drains them. `hook` is `group`, `guild`, `duel`, `notice`, `packetError` or `area`; an area row's `event` is `{ area, event }`, a packet error's is `{ error, opcode }`, and a bigint is a decimal string. Keeps the newest 1000 rows. Chat stays with `read`. |
-| `call <method> [json-array]` | area workers, to drive a partner | Calls one allow-listed `WorldHandle` method from `puppet/calls.ts` with the JSON array as its arguments (a guid is a decimal string). Prints a result envelope naming the method, or exits 1 when the method throws. |
+| `call <method> [json-array]` | area workers, to drive a partner | Calls one allow-listed `WorldHandle` method from `puppet/calls.ts` with the JSON array as its arguments (a guid is a decimal string). Prints a result envelope naming the method, or exits 1 when the method throws, rejects, or returns an outcome whose `status` is not `ok` or `done`. |
 | `raw <OPCODE> [hex]` | area workers, to send a client opcode that no handle method sends | Sends one packet: `OPCODE` is a `CMSG_` or `MSG_` name or `0x` hex, and `hex` an even-length body (empty by default). Needs a puppet started with `--packet-trace`. Prints a result envelope with the opcode name and body `size`. |
 | `stop` | the run's finish | Logs out, waits for the server logout, and the process exits. |
 
@@ -178,14 +182,15 @@ two scenarios closest to it. Every scenario appears in at least one row.
 |---|---|
 | Navigation and movement (`travel`, routes, namigator) | `t1-walk-to-npc` |
 | Combat and Jev (`engage`, spells) | `t3-ghostlands-kill`, `t7-halt-resume` |
-| Quest marks, objective regions, greetings and sharing (look, journal, interact, group) | `t4-quests-find-giver`, `t4-quests-poi-walk`, `t1-quests-read-greeting`, `t1-quests-guard-directions` |
+| Quest marks, objective regions, greetings and sharing (look, journal, interact, group) | `t4-quests-find-giver`, `t4-quests-poi-walk`, `t1-quests-read-greeting`, `t1-quests-guard-directions`, `t8-quests-share`, `t8-quests-accept-shared` |
 | Quests (`interact` quest dialogs, quest log, rewards) | `t4-quest-first`, `t4-alliance-first` |
 | Vendors and money | `t5-vendor-buy-goldshire` |
-| Economy (`interact` buyback, bank, auction; `trade`; `mail`) | `t5-buyback-vendor` |
+| Economy (`interact` buyback, bank, auction; `trade`; `mail`) | `t5-buyback-vendor`, `t9-trade-give`, `t9-trade-receive`, `t9-trade-swap`, `t9-trade-cancel` |
 | Chat and whispers (`social`, pushed chat events) | `t2-whisper-reply` |
 | Nearby units and relations (`look`, entity state) | `t0-who-is-near`, `t0-hostiles` |
 | Self state (level, money, bags, `journal`) | `t0-self-state` |
 | Death and recovery (`recover`) | `t6-die-and-recover` |
+| Self-state (recover how:self; spell mount/dismount) | `t6-selfstate-res` |
 | Stopping and steering (`stop`, the stop reflex, human messages while a tool runs) | `t7-halt-resume`, `t7-question-while-acting` |
 | Alliance characters and map 0 | `t4-alliance-first`, `t5-vendor-buy-goldshire` |
 | Login, the world session and the harness shell | `t0-self-state` |
@@ -195,3 +200,6 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Spells (spell tool, stop on channels) | `t4-spells-cancel-aura`, `t4-spells-action-bar`, `t4-spells-stop-channel` |
 | Reputation and hostility (journal reputation, reputation rows, unit relations) | `t4-reputation-gain`, `t0-hostiles` |
 | Travel (`interact` bind, `travel` hearth and fly) | `t8-travel-bind-inn`, `t8-travel-hearth-home` |
+| Pets (pet, interact stable) | `t8-pets-command` |
+| Instances and dungeon finder (`dungeon`) | `t9-instances-difficulty`, `t9-lfg-queue`, `t9-lfg-run` |
+| Groups and raids (`group` tool) | `t9-raid-kick`, `t9-raid-convert`, `t9-raid-master-loot`, `t9-raid-ready`, `t9-raid-answer`, `t9-raid-mark` |

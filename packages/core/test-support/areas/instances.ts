@@ -54,3 +54,94 @@ export function instancesRaidGroupOnlyBody(init: {
 }): Uint8Array {
   return u32s(init.timerMs, init.code);
 }
+
+export type InstancesRaidLockInit = {
+  mapId: number;
+  difficulty: number;
+  instanceGuid: bigint;
+  extended: boolean;
+  secondsToReset: number;
+};
+
+export function instancesRaidInstanceInfoBody(
+  locks: readonly InstancesRaidLockInit[],
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(locks.length);
+  for (const lock of locks) {
+    w.uint32LE(lock.mapId);
+    w.uint32LE(lock.difficulty);
+    w.uint64LE(lock.instanceGuid);
+    w.uint8(1);
+    w.uint8(lock.extended ? 1 : 0);
+    w.uint32LE(lock.secondsToReset);
+  }
+  return w.finish();
+}
+
+export function instancesLockWarningBody(init: {
+  timeoutMs: number;
+  encounterMask: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.timeoutMs);
+  w.uint32LE(init.encounterMask);
+  w.uint8(0);
+  return w.finish();
+}
+
+export function instancesSaveCreatedBody(): Uint8Array {
+  return u32s(0);
+}
+
+export function instancesResetBody(mapId: number): Uint8Array {
+  return u32s(mapId);
+}
+
+export function instancesResetFailedBody(init: {
+  reason: number;
+  mapId: number;
+}): Uint8Array {
+  return u32s(init.reason, init.mapId);
+}
+
+export function instancesResetFailedNotifyBody(mapId: number): Uint8Array {
+  return u32s(mapId);
+}
+
+export type InstancesEncounterFrame =
+  | { frame: 0 | 1 | 2; guid: bigint; priority: number }
+  | { frame: 3 | 4 | 6; param: number }
+  | { frame: 5; param: number; extra: number }
+  | { frame: 7 };
+
+export function instancesEncounterUnitBody(
+  init: InstancesEncounterFrame,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.frame);
+  switch (init.frame) {
+    case 0:
+    case 1:
+    case 2:
+      w.packedGuidBig(init.guid);
+      w.uint8(init.priority);
+      break;
+    case 3:
+    case 4:
+    case 6:
+      w.uint8(init.param);
+      break;
+    case 5:
+      w.uint8(init.param);
+      w.uint8(init.extra);
+      break;
+    case 7:
+      break;
+    default: {
+      const unhandled: never = init;
+      throw new Error(`unknown encounter frame ${JSON.stringify(unhandled)}`);
+    }
+  }
+  return w.finish();
+}

@@ -1,11 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { lootingLootListBody } from "#test-support/areas/looting";
 import {
+  lootingLootListBody,
+  lootingLootMasterListBody,
+} from "#test-support/areas/looting";
+import {
+  buildLootMasterGive,
   buildLootMethod,
   buildOptOutOfLoot,
   LOOT_METHOD_NAMES,
   LOOT_THRESHOLD_NAMES,
+  lootErrorName,
   parseLootList,
+  parseLootMasterList,
 } from "#wow/areas/looting/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 
@@ -82,5 +88,41 @@ describe("looting parsers", () => {
       "legendary",
       "artifact",
     ]);
+  });
+
+  test("SMSG_LOOT_MASTER_LIST reads u8 count then full u64 guids (Group.cpp:1482-1492)", () => {
+    const body = lootingLootMasterListBody([LOOTER, MASTER]);
+    expect([...body]).toEqual([
+      2, 0xce, 0x0d, 0, 0, 0, 0, 0, 0, 0x2a, 0, 0, 0, 0, 0, 0, 0,
+    ]);
+    const reader = new PacketReader(body);
+    expect(parseLootMasterList(reader)).toEqual({
+      candidates: [LOOTER, MASTER],
+    });
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("SMSG_LOOT_MASTER_LIST with count 0 reads no guids", () => {
+    expect(
+      parseLootMasterList(new PacketReader(lootingLootMasterListBody([]))),
+    ).toEqual({ candidates: [] });
+  });
+
+  test("CMSG_LOOT_MASTER_GIVE writes u64 loot guid, u8 slot, u64 target (LootHandler.cpp:483)", () => {
+    expect(buildLootMasterGive(CREATURE, 3, LOOTER)).toEqual(
+      new Uint8Array([
+        0xc6, 0x28, 0x01, 0x28, 0x3d, 0x00, 0x30, 0xf1, 3, 0xce, 0x0d, 0, 0, 0,
+        0, 0, 0,
+      ]),
+    );
+  });
+
+  test("loot error names follow LootMgr.h:96-108", () => {
+    expect(lootErrorName(12)).toBe("that player's inventory is full");
+    expect(lootErrorName(13)).toBe("player has too many of that item already");
+    expect(lootErrorName(14)).toBe("can't assign item to that player");
+    expect(lootErrorName(10)).toBe("player not found");
+    expect(lootErrorName(0)).toBe("no permission to loot that corpse");
+    expect(lootErrorName(99)).toBe("loot error 99");
   });
 });

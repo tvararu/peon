@@ -26,9 +26,10 @@ export const INSTANCES_OPCODES = {
   stubs: [],
   dead: [],
   unseen: [
-    "MSG_SET_RAID_DIFFICULTY",
     "SMSG_UPDATE_LAST_INSTANCE",
-    "SMSG_RAID_INSTANCE_MESSAGE",
     "SMSG_CORPSE_NOT_IN_INSTANCE",
+    "SMSG_INSTANCE_SAVE_CREATED",
+    "SMSG_INSTANCE_LOCK_WARNING_QUERY",
+    "SMSG_UPDATE_INSTANCE_ENCOUNTER_UNIT",
   ],
 } as const satisfies AreaOpcodes;

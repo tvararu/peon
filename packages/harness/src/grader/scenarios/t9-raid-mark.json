@@ -1,0 +1,53 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 20,
+    "turns": 10
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["raid/mark"]
+      },
+      "expect": "GL has a raid/mark row, so the agent marked a creature with the group tool and the server echoed the mark",
+      "id": "mark-set",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["chat/out"]
+      },
+      "expect": "GL has a chat/out row for the agent telling the group about the skull mark in party chat",
+      "id": "party-told",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent calling the group tool with do mark and what skull, not ending REFUSED",
+      "id": "mark-called",
+      "source": "session"
+    }
+  ],
+  "id": "t9-raid-mark",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": "partner",
+  "partnerActions": [
+    {
+      "argv": ["call", "invite", "[\"<AGENT>\"]"],
+      "at": {
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "task_landed"
+      },
+      "windowMs": 120000
+    }
+  ],
+  "preset": "eversong10",
+  "setup": [],
+  "spawn": "eversong-ready",
+  "steers": [],
+  "task": "Join the group you are invited to. Put a skull on the nearest Springpaw Lynx and tell the group in party chat.",
+  "tier": 9
+}

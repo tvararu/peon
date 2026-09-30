@@ -6,7 +6,7 @@ import { TALK_RANGE_YD } from "#harness/ops/range";
 import { settle } from "#harness/ops/settle";
 import { unitViews } from "#harness/ops/views";
 
-export type RecoverHow = "corpse" | "spirit_healer" | "accept";
+export type RecoverHow = "corpse" | "spirit_healer" | "accept" | "self";
 export type RecoverOpResult = {
   outcome: RecoveryOutcome;
   via: RecoverHow;
@@ -50,6 +50,13 @@ function healerText(unit: UnitView): string {
   return `spirit healer ${unit.ref} ${where} (resurrection sickness)`;
 }
 
+function selfText(ctx: OpsCtx): string {
+  const spellId = ctx.handle.selfstate.state().selfResSpell;
+  if (spellId === 0) return "no self-resurrection spell";
+  const name = ctx.handle.spellDefinition(spellId)?.name;
+  return `come back where you died (${name ?? `spell ${spellId}`})`;
+}
+
 function alternativesFor(
   ctx: OpsCtx,
   how: RecoverHow,
@@ -72,6 +79,7 @@ function alternativesFor(
             : "no resurrection offer",
         ]),
     ...(how === "corpse" ? [] : ["walk back to your corpse"]),
+    ...(how === "self" ? [] : [selfText(ctx)]),
   ];
 }
 
@@ -109,6 +117,26 @@ async function useHealer(ctx: OpsCtx): Promise<RecoveryOutcome> {
     : { cause: "spirit_healer_unanswered", ok: false };
 }
 
+async function useSelf(ctx: OpsCtx): Promise<RecoveryOutcome> {
+  ctx.signal.throwIfAborted();
+  let onAbort: (() => void) | undefined;
+  const aborted = new Promise<never>((_, reject) => {
+    onAbort = () => reject(ctx.signal.reason);
+    ctx.signal.addEventListener("abort", onAbort, { once: true });
+  });
+  try {
+    const outcome = await Promise.race([
+      ctx.handle.selfstate.act.selfResurrect(),
+      aborted,
+    ]);
+    if (outcome.status === "ok") return { ok: true, outcome: "resurrected" };
+    if (outcome.status === "refused")
+      return { cause: outcome.reason, ok: false };
+    return { cause: "self_res_unanswered", ok: false };
+  } finally {
+    if (onAbort) ctx.signal.removeEventListener("abort", onAbort);
+  }
+}
 function legsOf(outcome: RecoveryOutcome): number {
   const legs = outcome.detail?.["legs"];
   return typeof legs === "number" ? legs : 0;
@@ -130,6 +158,7 @@ async function attempt(
   state: RecoveryState,
 ): Promise<RecoveryOutcome> {
   if (how === "accept") return acceptOffer(ctx, state);
+  if (how === "self") return useSelf(ctx);
   if (state.life === "dead") {
     const released = await waitLife(ctx, "ghost", RELEASE_MS, () =>
       ctx.handle.releaseSpirit(),

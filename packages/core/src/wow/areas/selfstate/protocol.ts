@@ -152,3 +152,15 @@ export function parseCollisionHeight(r: PacketReader): CollisionHeight {
   const move = parseMoveCounter(r);
   return { ...move, height: r.floatLE() };
 }
+
+export type CorpseMapPosition = readonly [number, number, number, number];
+
+export function buildCorpseMapPositionQuery(): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(0);
+  return w.finish();
+}
+
+export function parseCorpseMapPosition(r: PacketReader): CorpseMapPosition {
+  return [r.floatLE(), r.floatLE(), r.floatLE(), r.floatLE()];
+}

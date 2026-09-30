@@ -282,6 +282,13 @@ export class QuestStore {
       "questId" in dialog.data &&
       dialog.data.questId !== expected.questId;
     if (
+      dialog.kind === "details" &&
+      dialog.data.dividerGuid !== 0n &&
+      this.giver === undefined &&
+      this.waiting === undefined
+    )
+      return;
+    if (
       dialog.data.guid !== this.giver ||
       wrongQuest ||
       !expectedDialog(this.waiting?.action, dialog)

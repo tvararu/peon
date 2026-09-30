@@ -22,7 +22,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x1db` | `SMSG_STOP_MIRROR_TIMER` | server | handled |  |
 | `0x252` | `SMSG_RESURRECT_FAILED` | server | dead |  |
 | `0x29d` | `SMSG_STANDSTATE_UPDATE` | server | handled |  |
-| `0x2b3` | `CMSG_SELF_RES` | client | missing |  |
+| `0x2b3` | `CMSG_SELF_RES` | client | handled | not seen live |
 | `0x2ca` | `CMSG_MOVE_FALL_RESET` | client | handled | not seen live |
 | `0x2ce` | `CMSG_MOVE_TIME_SKIPPED` | client | handled | not seen live |
 | `0x2cf` | `CMSG_MOVE_FEATHER_FALL_ACK` | client | handled |  |
@@ -35,8 +35,8 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x45c` | `SMSG_FORCE_PITCH_RATE_CHANGE` | server | handled | not seen live |
 | `0x45d` | `CMSG_FORCE_PITCH_RATE_CHANGE_ACK` | client | handled | not seen live |
 | `0x494` | `SMSG_PRE_RESURRECT` | server | handled |  |
-| `0x4b6` | `CMSG_CORPSE_MAP_POSITION_QUERY` | client | missing |  |
-| `0x4b7` | `SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE` | server | missing |  |
+| `0x4b6` | `CMSG_CORPSE_MAP_POSITION_QUERY` | client | handled |  |
+| `0x4b7` | `SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE` | server | handled |  |
 | `0x4ce` | `SMSG_MOVE_GRAVITY_DISABLE` | server | handled | not seen live |
 | `0x4cf` | `CMSG_MOVE_GRAVITY_DISABLE_ACK` | client | handled | not seen live |
 | `0x4d0` | `SMSG_MOVE_GRAVITY_ENABLE` | server | handled | not seen live |

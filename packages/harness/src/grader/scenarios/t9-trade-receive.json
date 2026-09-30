@@ -1,0 +1,93 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 16,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "evidence": {
+        "items": [117],
+        "truth": ["inventory"],
+        "who": "agent"
+      },
+      "expect": "agent T final holds item 117 (Tough Jerky), which it did not hold at the start; the partner offers its whole stack of 20",
+      "id": "agent-got-jerky",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "delta": ["money"],
+        "who": "agent"
+      },
+      "expect": "agent money is unchanged",
+      "id": "money-unchanged",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["trade/requested", "trade/completed"]
+      },
+      "expect": "GL has a trade/requested row and then a trade/completed row",
+      "id": "requested-completed",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent answering with the trade tool (do answer accept true) and giving nothing",
+      "id": "answered",
+      "source": "session"
+    }
+  ],
+  "id": "t9-trade-receive",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "partnerActions": [
+    {
+      "argv": ["call", "walkToPlayer", "[\"<AGENT>\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 5000
+      },
+      "windowMs": 90000
+    },
+    {
+      "argv": ["call", "tradeRequest", "[\"<AGENT>\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 25000
+      },
+      "windowMs": 90000
+    },
+    {
+      "argv": ["call", "tradeOffer", "[117]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 20000
+      },
+      "windowMs": 90000
+    },
+    {
+      "argv": ["call", "tradeAccept"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 20000
+      },
+      "windowMs": 90000
+    }
+  ],
+  "partners": [
+    {
+      "preset": "eversong10-mage",
+      "role": "partner"
+    }
+  ],
+  "preset": "eversong10",
+  "setup": [],
+  "spawn": "eversong-trade",
+  "steers": [],
+  "task": "A player will send you a trade request. Answer it, take what they give and give nothing back.",
+  "tier": 9
+}

@@ -1,19 +1,37 @@
 import { describe, expect, test } from "bun:test";
 import {
   instancesDifficultyBody,
+  instancesEncounterUnitBody,
   instancesInstanceDifficultyBody,
   instancesLastInstanceBody,
+  instancesLockWarningBody,
   instancesOwnershipBody,
   instancesRaidGroupOnlyBody,
+  instancesRaidInstanceInfoBody,
   instancesRaidInstanceMessageBody,
+  instancesResetBody,
+  instancesResetFailedBody,
+  instancesResetFailedNotifyBody,
 } from "#test-support/areas/instances";
 import {
+  buildLockResponse,
+  buildRequestRaidInfo,
+  buildResetInstances,
+  buildSetDungeonDifficulty,
+  buildSetLockoutExtended,
+  buildSetRaidDifficulty,
   parseDifficulty,
+  parseEncounterUnit,
   parseInstanceDifficulty,
   parseInstanceOwnership,
+  parseInstanceReset,
+  parseInstanceResetFailed,
   parseLastInstance,
+  parseLockWarning,
   parseRaidGroupOnly,
+  parseRaidInstanceInfo,
   parseRaidInstanceMessage,
+  parseResetFailedNotify,
 } from "#wow/areas/instances/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 
@@ -113,5 +131,148 @@ describe("instances protocol", () => {
     const hide = reader(instancesRaidGroupOnlyBody({ timerMs: 0, code: 0 }));
     expect(parseRaidGroupOnly(hide)).toEqual({ timerMs: 0, code: 0 });
     expect(hide.remaining).toBe(0);
+  });
+
+  test("SMSG_RAID_INSTANCE_INFO reads an empty list", () => {
+    const r = reader(instancesRaidInstanceInfoBody([]));
+    expect(parseRaidInstanceInfo(r)).toEqual([]);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("SMSG_RAID_INSTANCE_INFO reads two locks; the fifth field is locked, which wowm raid/smsg_raid_instance_info.wowm calls expired (PlayerStorage.cpp:6726-6758)", () => {
+    const r = reader(
+      instancesRaidInstanceInfoBody([
+        {
+          mapId: 631,
+          difficulty: 3,
+          instanceGuid: 0x1f50_0000_0000_0007n,
+          extended: false,
+          secondsToReset: 86_400,
+        },
+        {
+          mapId: 533,
+          difficulty: 1,
+          instanceGuid: 0x1f50_0000_0000_0009n,
+          extended: true,
+          secondsToReset: 0,
+        },
+      ]),
+    );
+    expect(parseRaidInstanceInfo(r)).toEqual([
+      {
+        mapId: 631,
+        difficulty: 3,
+        instanceGuid: 0x1f50_0000_0000_0007n,
+        locked: true,
+        extended: false,
+        secondsToReset: 86_400,
+      },
+      {
+        mapId: 533,
+        difficulty: 1,
+        instanceGuid: 0x1f50_0000_0000_0009n,
+        locked: true,
+        extended: true,
+        secondsToReset: 0,
+      },
+    ]);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("SMSG_INSTANCE_LOCK_WARNING_QUERY reads the timeout, the encounter mask and the trailing byte (Map.cpp:2131-2139)", () => {
+    const r = reader(
+      instancesLockWarningBody({ timeoutMs: 60_000, encounterMask: 5 }),
+    );
+    expect(parseLockWarning(r)).toEqual({
+      timeoutMs: 60_000,
+      encounterMask: 5,
+    });
+    expect(r.remaining).toBe(0);
+  });
+
+  test("CMSG_REQUEST_RAID_INFO has an empty body (GroupHandler.cpp:1137-1141)", () => {
+    expect(buildRequestRaidInfo()).toEqual(new Uint8Array());
+  });
+
+  test("CMSG_INSTANCE_LOCK_RESPONSE is one byte (InstancePackets.cpp:70-73)", () => {
+    expect(buildLockResponse(true)).toEqual(new Uint8Array([1]));
+    expect(buildLockResponse(false)).toEqual(new Uint8Array([0]));
+  });
+
+  test("CMSG_SET_SAVED_INSTANCE_EXTEND is u32 map, u32 difficulty, u8 flag; wowm raid/cmsg_set_saved_instance_extend.wowm makes the difficulty a u8, AzerothCore wins (CalendarHandler.cpp:793-817)", () => {
+    const body = buildSetLockoutExtended({
+      mapId: 631,
+      difficulty: 1,
+      extended: true,
+    });
+    expect(body.length).toBe(9);
+    const r = reader(body);
+    expect([r.uint32LE(), r.uint32LE(), r.uint8()]).toEqual([631, 1, 1]);
+  });
+
+  test("SMSG_INSTANCE_RESET is one u32 map (InstancePackets.cpp:20-25)", () => {
+    const r = reader(instancesResetBody(36));
+    expect(parseInstanceReset(r)).toEqual({ mapId: 36 });
+    expect(r.remaining).toBe(0);
+  });
+
+  test("SMSG_INSTANCE_RESET_FAILED is u32 reason then u32 map (InstancePackets.cpp:27-33)", () => {
+    const r = reader(instancesResetFailedBody({ reason: 0, mapId: 36 }));
+    expect(parseInstanceResetFailed(r)).toEqual({ reason: 0, mapId: 36 });
+    expect(r.remaining).toBe(0);
+  });
+
+  test("SMSG_RESET_FAILED_NOTIFY is one u32 map (InstancePackets.cpp:49-54)", () => {
+    const r = reader(instancesResetFailedNotifyBody(36));
+    expect(parseResetFailedNotify(r)).toEqual({ mapId: 36 });
+    expect(r.remaining).toBe(0);
+  });
+
+  test("SMSG_UPDATE_INSTANCE_ENCOUNTER_UNIT reads the eight frames and the 4-byte Halion refresh (InstanceScript.cpp:775-803, boss_halion.cpp:199-201)", () => {
+    const guid = 0x00f1_2299_0000_0003n;
+    for (const [kind, frame] of [
+      ["engage", 0],
+      ["disengage", 1],
+      ["update_priority", 2],
+    ] as const) {
+      const r = reader(
+        instancesEncounterUnitBody({ frame, guid, priority: 7 }),
+      );
+      expect(parseEncounterUnit(r)).toEqual({ kind, guid, priority: 7 });
+      expect(r.remaining).toBe(0);
+    }
+    const paramCases = [
+      ["add_timer", 3],
+      ["enable_objective", 4],
+      ["disable_objective", 6],
+    ] as const;
+    for (const [kind, frame] of paramCases) {
+      const r = reader(instancesEncounterUnitBody({ frame, param: 2 }));
+      expect(parseEncounterUnit(r)).toEqual({ kind, param: 2 });
+      expect(r.remaining).toBe(0);
+    }
+    const update = reader(
+      instancesEncounterUnitBody({ frame: 5, param: 2, extra: 9 }),
+    );
+    expect(parseEncounterUnit(update)).toEqual({
+      kind: "update_objective",
+      param: 2,
+      extra: 9,
+    });
+    expect(update.remaining).toBe(0);
+    const refreshBody = instancesEncounterUnitBody({ frame: 7 });
+    expect(refreshBody.length).toBe(4);
+    const refresh = reader(refreshBody);
+    expect(parseEncounterUnit(refresh)).toEqual({ kind: "refresh" });
+    expect(refresh.remaining).toBe(0);
+  });
+
+  test("the client difficulty forms are one u32 mode each (InstancePackets.cpp:44-47,65-68)", () => {
+    expect(buildSetDungeonDifficulty(1)).toEqual(new Uint8Array([1, 0, 0, 0]));
+    expect(buildSetRaidDifficulty(2)).toEqual(new Uint8Array([2, 0, 0, 0]));
+  });
+
+  test("CMSG_RESET_INSTANCES has an empty body (MiscHandler.cpp:1255-1266)", () => {
+    expect(buildResetInstances()).toEqual(new Uint8Array());
   });
 });

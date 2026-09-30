@@ -322,6 +322,7 @@ const IDLE: AreaState<"selfstate"> = {
   collisionHeight: undefined,
   ghostPending: false,
   lastTransferAbort: undefined,
+  selfResSpell: 0,
   standState: "stand",
   timers: {},
 };

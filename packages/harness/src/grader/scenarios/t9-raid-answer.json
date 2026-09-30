@@ -1,0 +1,66 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 20,
+    "turns": 10
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["raid/ready_check"]
+      },
+      "expect": "GL has a raid/ready_check wake row, so the partner started a ready check the agent saw",
+      "id": "check-seen",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent calling the group tool with do ready, not ending REFUSED",
+      "id": "ready-called",
+      "source": "session"
+    },
+    {
+      "expect": "the agent packet trace has at least one outbound MSG_RAID_READY_CHECK with size 1 after the partner's ready check; this is the answer, not a new check started by the agent",
+      "id": "answered",
+      "source": "witness"
+    }
+  ],
+  "id": "t9-raid-answer",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": "partner",
+  "partnerActions": [
+    {
+      "argv": ["call", "invite", "[\"<AGENT>\"]"],
+      "at": {
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "task_landed"
+      },
+      "windowMs": 120000
+    },
+    {
+      "argv": ["call", "startReadyCheck"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 60000
+      },
+      "windowMs": 120000
+    },
+    {
+      "argv": ["call", "startReadyCheck"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 30000
+      },
+      "windowMs": 120000
+    }
+  ],
+  "preset": "eversong10",
+  "setup": [],
+  "spawn": "eversong-ready",
+  "steers": [],
+  "task": "Join the group you are invited to and answer any ready check with the group tool.",
+  "tier": 9
+}

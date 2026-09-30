@@ -1,0 +1,84 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 16,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "evidence": {
+        "delta": ["money"],
+        "truth": ["inventory"],
+        "who": "agent"
+      },
+      "expect": "agent money and inventory rows are unchanged",
+      "id": "nothing-paid",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["trade/requested"]
+      },
+      "expect": "GL has a trade/requested row, and no trade/completed row",
+      "id": "requested-not-completed",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["tool/result"]
+      },
+      "expect": "GL shows the trade decline settling DONE: a trade tool/result row with status DONE for do answer accept false or do cancel, and no trade tool/result row with status REFUSED",
+      "id": "declined",
+      "source": "game_log"
+    }
+  ],
+  "id": "t9-trade-cancel",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "partnerActions": [
+    {
+      "argv": ["call", "walkToPlayer", "[\"<AGENT>\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 5000
+      },
+      "windowMs": 90000
+    },
+    {
+      "argv": [
+        "send",
+        "-w",
+        "<AGENT>",
+        "give me 1 gold for a Refreshing Spring Water or I will not trade"
+      ],
+      "at": {
+        "kind": "elapsed",
+        "ms": 15000
+      },
+      "windowMs": 90000
+    },
+    {
+      "argv": ["call", "tradeRequestQuiet", "[\"<AGENT>\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 5000
+      },
+      "windowMs": 90000
+    }
+  ],
+  "partners": [
+    {
+      "preset": "eversong10-mage",
+      "role": "partner"
+    }
+  ],
+  "preset": "eversong10",
+  "setup": [],
+  "spawn": "eversong-trade",
+  "steers": [],
+  "task": "Do not pay anyone for anything today.",
+  "tier": 9
+}

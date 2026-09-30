@@ -3,6 +3,7 @@ import { SELFSTATE_OPCODES } from "#wow/areas/selfstate/opcodes";
 import {
   FLAG_OPCODES,
   parseCollisionHeight,
+  parseCorpseMapPosition,
   parseMirrorTimer,
   parseMultipleMoves,
   parsePreResurrect,
@@ -18,7 +19,13 @@ import { GameOpcode } from "#wow/protocol/opcodes";
 export const selfstateArea = defineArea({
   name: "selfstate",
   opcodes: SELFSTATE_OPCODES,
-  eventTypes: ["stand_changed", "mirror_timer", "breath_low", "ghost_pending"],
+  eventTypes: [
+    "stand_changed",
+    "mirror_timer",
+    "breath_low",
+    "ghost_pending",
+    "self_res_available",
+  ],
   store: (deps, core) => new SelfstateStore(deps, core),
   register: (wire, store) => {
     for (const [opcode, change] of FLAG_OPCODES)
@@ -43,9 +50,12 @@ export const selfstateArea = defineArea({
     wire.on(GameOpcode.SMSG_PRE_RESURRECT, (r) =>
       store.receivePreResurrect(parsePreResurrect(r)),
     );
+    wire.on(GameOpcode.SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE, (r) => {
+      store.receiveCorpseMapPosition(parseCorpseMapPosition(r));
+    });
     wire.on(GameOpcode.SMSG_TRANSFER_ABORTED, (r) =>
       store.receiveTransferAborted(parseTransferAborted(r)),
     );
   },
-  runtime: (ctx, store) => selfstateRuntime(ctx, store),
+  runtime: (ctx, store, core) => selfstateRuntime(ctx, store, core),
 });

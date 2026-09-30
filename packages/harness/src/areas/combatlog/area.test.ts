@@ -97,7 +97,7 @@ describe("combatlog harness rules", () => {
     const quiet = [
       entry({ kind: "spell_damage", source: ME, spellId: 133, target: BOAR }),
       entry({ kind: "melee", outcome: "dodge", source: ME, target: BOAR }),
-      entry({ kind: "heal", source: MATE, spellId: 2050, target: ME }),
+      entry({ kind: "heal", source: ME, spellId: 2050, target: ME }),
       entry({ kind: "kill", source: ME, target: BOAR }),
       entry({ kind: "immune", source: BOAR, spellId: 122, target: ME }),
       kill({ bySelf: 1, killer: ME, killerKind: "self" }),
@@ -207,6 +207,18 @@ describe("combatlog harness rules", () => {
         text: "Fight over: dealt 312, took 145 (1 dodge, 1 resist).",
       },
     ]);
+  });
+  test("the router writes killing_blow for a groupmate kill of our target", () => {
+    const { log, router } = routerSetup({ selfGuid: ME });
+    const handle = createMockGame();
+    router.attach(handle);
+    handle.triggerAreaEvent("combatlog", kill());
+    const rows = log.since(0);
+    expect(rows.map((row) => row.event)).toEqual(["combatlog/killing_blow"]);
+    expect(rows[0]).toMatchObject({
+      class: "log",
+      data: { killerKind: "player" },
+    });
   });
 
   test("the router writes the rows of area events from the handle", () => {

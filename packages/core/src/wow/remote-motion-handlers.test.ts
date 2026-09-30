@@ -1,13 +1,20 @@
 import { describe, expect, test } from "bun:test";
+import { unitmotionSplineToggleBody } from "#test-support/areas/unitmotion";
 import {
   info,
   motionFixture,
+  moveBody,
   PEER,
 } from "#test-support/remote-motion-fixtures";
+import { testStores } from "#test-support/session-fixtures";
 import { writePackedGuid } from "#test-support/world-handlers-fixtures";
+import { MovementFlag } from "#wow/protocol/entity-fields";
 import { writeMovementInfo } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketWriter } from "#wow/protocol/packet";
+import { OpcodeDispatch } from "#wow/protocol/world";
+import { registerRemoteMotionHandlers } from "#wow/remote-motion-handlers";
+import type { WorldConn } from "#wow/world-conn";
 
 function speedBody(speed: number): Uint8Array {
   const w = new PacketWriter();
@@ -50,5 +57,81 @@ describe("remote motion handlers feed unit speeds", () => {
     } finally {
       await f.close();
     }
+  });
+});
+
+describe("remote motion handlers re-classify a player pose on spline toggles", () => {
+  test("root and swim toggles move the pose between valid and invalid", async () => {
+    const f = await motionFixture();
+    try {
+      const body = unitmotionSplineToggleBody({ guid: PEER });
+      await f.inject(
+        GameOpcode.MSG_MOVE_START_FORWARD,
+        moveBody(PEER, info(1, MovementFlag.FORWARD)),
+      );
+      expect(f.pose()?.motion).toBe("moving");
+      await f.inject(GameOpcode.SMSG_SPLINE_MOVE_ROOT, body);
+      expect(f.pose()).toMatchObject({
+        flags: MovementFlag.ROOT,
+        motion: "stationary",
+      });
+      await f.inject(GameOpcode.SMSG_SPLINE_MOVE_UNROOT, body);
+      expect(f.pose()).toMatchObject({ flags: 0, motion: "stationary" });
+      await f.inject(GameOpcode.SMSG_SPLINE_MOVE_START_SWIM, body);
+      expect(f.pose()).toMatchObject({
+        flags: MovementFlag.SWIMMING,
+        invalid: "swimming",
+      });
+      await f.inject(GameOpcode.SMSG_SPLINE_MOVE_STOP_SWIM, body);
+      expect(f.pose()).toMatchObject({ flags: 0, motion: "stationary" });
+      expect(f.pose()?.invalid).toBeUndefined();
+      expect(f.errors).toEqual([]);
+    } finally {
+      await f.close();
+    }
+  });
+
+  test("a toggle keeps the observer's movement bits it does not change", async () => {
+    const f = await motionFixture();
+    try {
+      await f.inject(
+        GameOpcode.MSG_MOVE_START_FORWARD,
+        moveBody(PEER, info(1, MovementFlag.FORWARD)),
+      );
+      await f.inject(
+        GameOpcode.SMSG_SPLINE_MOVE_SET_WALK_MODE,
+        unitmotionSplineToggleBody({ guid: PEER }),
+      );
+      expect(f.pose()).toMatchObject({
+        flags: MovementFlag.FORWARD | MovementFlag.WALKING,
+        motion: "moving",
+      });
+    } finally {
+      await f.close();
+    }
+  });
+
+  test("a toggle for a guid with no pose leaves poses alone", async () => {
+    const f = await motionFixture();
+    try {
+      const before = f.pose();
+      await f.inject(
+        GameOpcode.SMSG_SPLINE_MOVE_ROOT,
+        unitmotionSplineToggleBody({ guid: 0x77n }),
+      );
+      expect(f.pose()).toEqual(before);
+      expect(f.errors).toEqual([]);
+    } finally {
+      await f.close();
+    }
+  });
+});
+
+describe("registerRemoteMotionHandlers on partial connections", () => {
+  test("registers on a connection that holds only a dispatch", () => {
+    const conn = { dispatch: new OpcodeDispatch() } as unknown as WorldConn;
+    expect(() =>
+      registerRemoteMotionHandlers(conn, testStores()),
+    ).not.toThrow();
   });
 });

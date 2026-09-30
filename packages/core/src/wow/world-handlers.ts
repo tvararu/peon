@@ -7,12 +7,11 @@ import {
 } from "#wow/protocol/duel";
 import {
   parseGroupDecline,
-  parseGroupInvite,
-  parseGroupList,
   parseGroupSetLeader,
   parsePartyCommandResult,
-  parsePartyMemberStats,
 } from "#wow/protocol/group";
+import { parseGroupInvite, parseGroupList } from "#wow/protocol/group-list";
+import { parsePartyMemberStats } from "#wow/protocol/group-stats";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import {
   joinGuid,
@@ -95,6 +94,7 @@ export function handleGroupInviteReceived(
   r: PacketReader,
 ): void {
   const invite = parseGroupInvite(r);
+  if (invite.status === 0) return;
   conn.pendingRequest = "group";
   conn.events.group.emit({ type: "invite_received", from: invite.name });
 }

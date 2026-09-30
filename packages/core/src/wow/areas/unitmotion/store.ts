@@ -56,7 +56,7 @@ export const BASE_SPEEDS: Speeds = {
   pitch: 3.14,
 };
 
-const ROOT_CLEARS =
+export const ROOT_CLEARS =
   MovementFlag.FORWARD |
   MovementFlag.BACKWARD |
   MovementFlag.STRAFE_LEFT |

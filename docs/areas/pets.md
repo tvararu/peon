@@ -95,11 +95,46 @@ deletes a hunter pet (`Handlers/PetHandler.cpp:287-288`).
   sound (`Handlers/PetHandler.cpp:256`, `Handlers/PetHandler.cpp:291`).
 - Spell ids resolved by name through the spellbook of the
   `eversong10-hunter` preset: Call Pet 883, Dismiss Pet 2641.
+- `CMSG_PET_CAST_SPELL` is the pet guid, a `uint8` cast count, the
+  `uint32` spell, a `uint8` flags byte of 0 and the target block
+  (`Handlers/PetHandler.cpp:1018-1023`); the area keeps its own
+  counter, 1-255 wrapping to 1. `SMSG_PET_CAST_FAILED` carries the
+  count, spell and result (`Spells/Spell.cpp:4842-4861`); the extra
+  `multiple_casts` byte of wowm does not exist in AzerothCore. The area
+  refuses a spell whose attribute is passive before counting or sending,
+  as the server skips unlearned and passive spells without a reply
+  (`Handlers/PetHandler.cpp:1041-1044`); a bar type of 0x01 alone is not
+  a refusal. When the combat catalog has no definition for the spell
+  (no spell data loaded) the attribute check cannot run: the cast is
+  still sent, and the outcome says `confirmed: false`.
+- The bar marks every non-autocastable spell passive
+  (`Entities/Pet/Pet.cpp:1810-1816`); a spell that only carries
+  `SPELL_ATTR1_NO_AUTOCAST_AI` is still manually castable, which is
+  why the `IsAutocastable` check (`Spells/SpellInfo.cpp:1149-1155`)
+  differs from the passive-attribute check
+  (`Spells/SpellInfo.cpp:1143-1147`).
+- `CMSG_PET_SPELL_AUTOCAST` is the pet guid, the `uint32` spell and a
+  `uint8` flag (`Server/Packets/PetPackets.cpp:35-40`); the bar shows
+  autocast-on spells as type `0xc1`, autocast-off as `0x81` and
+  passive spells as `0x01`. `CMSG_PET_SET_ACTION` is the pet guid and
+  one or two `{ uint32 slot, uint32 packed }` pairs; the pair count
+  comes from the packet size (`Handlers/PetHandler.cpp:696-716`).
+  Slots outside 0-9 are refused (`Handlers/PetHandler.cpp:726-727`).
+  A single pair carrying a command or reaction type is refused, as the
+  server ignores it (`Handlers/PetHandler.cpp:732-740`).
+- `CMSG_PET_CANCEL_AURA` is the pet guid and the `uint32` spell
+  (`Handlers/SpellHandler.cpp:604-610`); the server removes only an
+  aura the pet owns (`Handlers/SpellHandler.cpp:639`).
+- The area peeks `SMSG_SPELL_COOLDOWN` (guid, flags, spell and time
+  per entry, `Entities/Unit/Unit.cpp:16618-16625`) and
+  `SMSG_CLEAR_COOLDOWN` (spell then pet guid, `Entities/Pet/Pet.cpp:2458`)
+  for the pet's guid only; both are `uses`, owned at
+  `gameplay-handlers.ts:123-128`. The pet's normal cooldowns arrive in
+  `SMSG_PET_SPELLS`; a pet-guid `SMSG_SPELL_COOLDOWN` is only sent when
+  `RequireCooldownInfo()` holds (`Spells/Spell.cpp:4493-4498`).
 
 ## Left out
 
-- `CMSG_PET_CAST_SPELL`, `SMSG_PET_CAST_FAILED`, `CMSG_PET_SPELL_AUTOCAST`,
-  `CMSG_PET_SET_ACTION`, `CMSG_PET_CANCEL_AURA`: built by pets-3.
 - `CMSG_PET_NAME_QUERY`, `SMSG_PET_NAME_QUERY_RESPONSE`, `CMSG_PET_RENAME`,
   `SMSG_PET_NAME_INVALID`: built by pets-4.
 - `MSG_LIST_STABLED_PETS`, `CMSG_STABLE_PET`, `CMSG_UNSTABLE_PET`,
@@ -116,7 +151,43 @@ deletes a hunter pet (`Handlers/PetHandler.cpp:287-288`).
 ## Capabilities row
 
 No agent verb; the world-service acts `pets.requestPetInfo`,
-`pets.petCommand`, `pets.petStance` and `pets.petStopAttack` only.
+`pets.petCommand`, `pets.petStance`, `pets.petStopAttack`,
+`pets.petCast`, `pets.petAutocast`, `pets.petSetAction`,
+`pets.petSwapActions` and `pets.petCancelAura` only.
+
+## The pet tool
+
+The `pet` tool checks the pet's status, calls, dismisses or revives it,
+attacks with it, moves it (`follow`, `stay`, `stop`) or sets its stance
+(`passive`, `defensive`, `aggressive`). Status (`status` or no `do`)
+prints the pet's name, family, level, health, happiness, stance, command
+and the spells with their autocast state and cooldown ends; it sends
+nothing. Happiness words come from the pet's happiness level
+(`Entities/Pet/Pet.cpp:894-898`, `src/server/shared/SharedDefines.h:261`),
+and family names from the creature family list
+(`src/server/shared/SharedDefines.h:2644-2670`). Sends run inside
+`ctx.rt.mutex.run` through `claim.areas.pets` and settle with `settle`
+(subscribe before send). `call`, `revive` and `dismiss` cast the owner's
+spell found by name (Call Pet 883, Dismiss Pet 2641,
+`Entities/Pet/Pet.cpp:450`) and settle `DONE` on a `bar` event, `FAILED`
+on an owner cast failure, `UNCONFIRMED` after the spell's cast time plus
+5 s. Only the owner's combat `cast_failed` or `cast_interrupted` fails
+the tool; the pet's own `feedback` and `cast_failed` rows are ignored and
+the wait continues. `revive` of a dead pet that is still out settles
+`DONE` when the pet entity's health rises above 0: the corpse stays
+summoned (`Entities/Pet/Pet.cpp:671`), `EffectResurrectPet` revives it in
+place without a new bar (`Entities/ObjectUpdates/Unit.cpp` resurrect path
+and `Spells/SpellEffects.cpp:5496-5525`). `dismiss` for a pet without
+the abandon bit uses `petCommand("dismiss")`, which deletes a hunter pet
+(`Handlers/PetHandler.cpp:287-288`). `call` is refused with `already_out`
+when a bar is present. `attack` uses `petAttack` and settles `DONE` when
+the pet's target field equals the target or the `threat` area emits
+`reaction` for the pet, `UNCONFIRMED` with a `travel` `Next` after 5 s.
+`follow`, `stay` and `stance` settle `DONE` only when the next bar shows
+the change, else `UNCONFIRMED`. `stop` sends `petStopAttack` (a unit that
+stops its attack clears its target field, `Entities/Unit/Unit.cpp:7221`)
+and then `follow`. `cast`, `autocast`, `rename`, `abandon`, `tame` and
+`talent` are refused with `not_built`: pets-10 and pets-12 own them.
 
 ## Proof
 
@@ -135,3 +206,10 @@ No agent verb; the world-service acts `pets.requestPetInfo`,
 | `SMSG_PET_ACTION_FEEDBACK` | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "action feedback sets the last refusal and emits a feedback event" | `Entities/Unit/Unit.cpp:12556-12564` |
 | `SMSG_PET_ACTION_SOUND` | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "the action and dismiss sounds change no state and emit nothing" | `Server/Packets/PetPackets.cpp:54-59` |
 | `SMSG_PET_DISMISS_SOUND` | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "the action and dismiss sounds change no state and emit nothing" | `Server/Packets/PetPackets.cpp:61-68` |
+| `CMSG_PET_CAST_SPELL` | `builder` | not seen live: probe flow `pets-spell --arg spell=Growl` on an `eversong10-hunter` with its Ravager out, exit 0: one 18-byte `CMSG_PET_CAST_SPELL` out, answered by `SMSG_PET_CAST_FAILED` with reason `bad_implicit_targets` (Growl cast with no target selected and no hostile within 35 yards; the selected unit falls back only after an explicit target, `Handlers/PetHandler.cpp:1061-1064`). A second try at Fairbreeze Village with `--arg target=nearest` found no hostile within 35 yards even after the attack flow engaged a Springpaw Stalker, so no targeted cast went out. Builder test "petCast sends a non-autocastable bar spell and refuses one whose attribute is passive" | `Handlers/PetHandler.cpp:1018-1023` |
+| `SMSG_PET_CAST_FAILED` | `live` | probe flow `pets-spell --arg spell=Growl`, exit 0: `SMSG_PET_CAST_FAILED` size 6 after the cast, parsed as count 1, spell 14916, result `bad_implicit_targets`; a second cast fails the same way (Growl has no cooldown, so no `not_ready`) | `Spells/Spell.cpp:4842-4861` |
+| `CMSG_PET_SPELL_AUTOCAST` | `live` | probe flow `pets-spell --arg autocast=Bite:on --bodies`, exit 0: 13-byte `CMSG_PET_SPELL_AUTOCAST` (spell 17255, flag 1), and the next 144-byte `SMSG_PET_SPELLS` shows Bite as type `0xc1` where it was `0x81` before | `Server/Packets/PetPackets.cpp:35-40` |
+| `CMSG_PET_SET_ACTION` | `live` | probe flow `pets-spell --arg swap=3,4 --bodies`, exit 0: the flow asks for the bar again first, then one 24-byte `CMSG_PET_SET_ACTION` (slot 3 packed `0xc1004367`, slot 4 packed `0x81003a44`); the next `SMSG_PET_SPELLS` shows slots 3 and 4 swapped (Growl `0x81003a44` and Bite `0xc1004367` exchange places) | `Handlers/PetHandler.cpp:696-716` |
+| `CMSG_PET_CANCEL_AURA` | `accepted` | `--send CMSG_PET_CANCEL_AURA` with the pet guid and spell 17255 (Bite), exit 3 for the missing `--expect SMSG_PET_ACTION_FEEDBACK` only: the 12-byte send went out, no disconnect and no error packet; the server removes only an aura the pet owns, and the pet had none | `Handlers/SpellHandler.cpp:604-610` |
+| `SMSG_SPELL_COOLDOWN` (pets peek) | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "a pet-guid SMSG_SPELL_COOLDOWN sets a pet cooldown and the character's guid changes nothing"; no pet-guid packet arrived live (Growl casts failed before any cooldown; sent only when `RequireCooldownInfo()` holds). A `uses` opcode takes no `unseen` entry | `Entities/Unit/Unit.cpp:16618-16625` |
+| `SMSG_CLEAR_COOLDOWN` (pets peek) | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "SMSG_CLEAR_COOLDOWN clears only the pet's row for its own guid"; no pet-guid packet arrived live. A `uses` opcode takes no `unseen` entry | `Entities/Pet/Pet.cpp:2458` |

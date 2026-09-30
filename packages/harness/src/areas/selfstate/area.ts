@@ -59,6 +59,17 @@ function refusedTransfer(
   };
 }
 
+function selfResAvailable(
+  event: Extract<SelfEvent, { type: "self_res_available" }>,
+): AreaDraft {
+  return {
+    class: "log",
+    data: { name: event.name ?? null, spellId: event.spellId },
+    name: "self_res_available",
+    text: `You can come back where you died (${event.name ?? `spell ${event.spellId}`}).`,
+  };
+}
+
 function mirrorTimer(
   event: Extract<SelfEvent, { type: "mirror_timer" }>,
 ): readonly AreaDraft[] {
@@ -94,10 +105,12 @@ export const selfstateHarness = defineHarnessArea({
           return [breathLow(event)];
         case "transfer_aborted":
           return [refusedTransfer(event)];
+        case "self_res_available":
+          return [selfResAvailable(event)];
         default:
           return [];
       }
     },
   }),
-  worldActs: [],
+  worldActs: ["selfResurrect"],
 });

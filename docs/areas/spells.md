@@ -9,8 +9,36 @@ remaining time and expected end) and stops it with
 `act.cancelChannel()`, which refuses with `not_channelling` or
 `cancel_requested` and then sends nothing. The area emits
 `channel_start` and `channel_end`; `channel_end` gives the reason
-`finished`, `interrupted` or `cancelled`.
-
+`finished`, `interrupted` or `cancelled`. `state().unitCasts` keeps the
+current cast or channel of every other unit in view (guid, spell, kind,
+start, duration, target and whether the caster targets the character or
+attacks it), read through `castOf(guid)`. A timed `SMSG_SPELL_START`
+opens an entry and emits `unit_cast_start`; `SMSG_SPELL_GO` ends it
+`succeeded` and `SMSG_SPELL_FAILURE` or `SMSG_SPELL_FAILED_OTHER` ends
+it `interrupted`, each emitting `unit_cast_end`, while instant casts
+open nothing. `state().totems` keeps the four totem slots (fire 0, earth
+1, water 2, air 3) with the totem guid, spell and expiry, fed by
+`SMSG_TOTEM_CREATED`; a create for an occupied slot ends the old totem
+as `replaced`. A totem clears when its guid disappears (`gone`), when
+its duration runs out (`expired`), or after `act.destroyTotem(slot)`
+sends `CMSG_TOTEM_DESTROYED` and the totem disappears (`destroyed`).
+The area emits `totem_created` and `totem_gone`, and the harness writes
+"Stoneskin Totem placed (earth)." and the gone row. The destroy act
+refuses `invalid_slot` for a slot outside 0-3 and `no_totem` for an
+`MSG_CHANNEL_START` and `MSG_CHANNEL_UPDATE` do the same for channels
+(`finished` on update 0 at or after the expected end, `interrupted` when it is
+more than 400 ms early; an update 0 inside the last 400 ms waits 50 ms for the
+`SMSG_SPELL_FAILURE` AzerothCore sends with each cancelled channel and ends
+`interrupted` when it comes). Entries expire 1000 ms after their end and drop
+when the caster disappears. The harness writes a row only for a caster the
+character targets or that attacks it (`relevant` is 1 on the event):
+`spells/target_start` "Scourge Invader starts casting Shadow Bolt." and, when
+such a cast ends `interrupted`, `spells/target_interrupted`; other casters and
+other outcomes write no row. `look` adds "channelling Arcane Missiles, 3 s
+left" to the self line while a channel runs and "casting Fireball, 1.2 s left"
+to the target line while the target has a cast in progress, and Jev's
+observation carries the same cast as `targetCast` (spell, kind, duration and
+time left).
 `act.cancelAura(spellId)` drops one of the character's own auras with
 `CMSG_CANCEL_AURA`. It refuses, and sends nothing, what the server would
 drop in silence: `invalid_spell` for an id that is not a positive
@@ -211,14 +239,33 @@ Disagreements for opcodes later tasks build (AzerothCore wins):
   guid, cast count, spell and result (`Spells/Spell.cpp:5334-5339`).
   wow_messages has a plain guid and the spell
   (`wow_message_parser/wowm/world/spell/smsg_spell_failed_other.wowm`).
-- `CMSG_UPDATE_MISSILE_TRAJECTORY` ends with a `uint8` move stop and an
-  optional movement packet (`Handlers/MiscHandler.cpp:1735`,
-  `Handlers/MiscHandler.cpp:1758-1765`).
-
+- `SMSG_TOTEM_CREATED` is a `uint8` slot (0-3, the wire slot minus
+  `SUMMON_SLOT_TOTEM_FIRE`), the `uint64` totem guid, the `uint32`
+  duration in milliseconds and the `uint32` spell
+  (`Server/Packets/TotemPackets.cpp:25-33`,
+  `Entities/Totem/Totem.cpp:55-67`). The create goes out before the
+  totem joins the world, so the slot stores the guid and a later
+  disappear of that guid clears it; a zero duration expires on the
+  next tick.
+- `CMSG_TOTEM_DESTROYED` is one `uint8` slot
+  (`Server/Packets/TotemPackets.cpp:20-23`); the server adds
+  `SUMMON_SLOT_TOTEM_FIRE` back and drops the packet past the air slot
+  without a reply (`Handlers/SpellHandler.cpp:686-705`). The
+  `spells-totem` probe flow casts the spell, waits for the create,
+  destroys the slot and waits for the totem's destroy object.
+- `SMSG_TOTEM_CREATED`, `CMSG_TOTEM_DESTROYED`: not seen live (no
+  shaman preset; a priest that learned 8071 with the Earth Totem item
+  5175 in the bags casts 836, and the create never comes). The parser
+  test builds the packet from the AzerothCore writer, and a live
+  `CMSG_TOTEM_DESTROYED` of empty slot 0 sent one byte with no
+  disconnect.
 ## Left out
 
-- `SMSG_SPELL_FAILED_OTHER`: built by spells-2.
-- `SMSG_TOTEM_CREATED`, `CMSG_TOTEM_DESTROYED`: built by spells-8.
+- An other unit's channel that pushback shortens to zero ends with
+  a zero channel update and no failure packet
+  (`Spells/Spell.cpp:8147-8169`, `:4565-4580`). If that update comes
+  more than 400 ms before the planned end, `unit_cast_end` reports
+  `interrupted`.
 - `CMSG_UNLEARN_SKILL`: built by spells-7.
 - `SMSG_CONVERT_RUNE`: built by spells-9.
 - `CMSG_FAR_SIGHT`, `CMSG_GET_MIRRORIMAGE_DATA`,
@@ -234,20 +281,5 @@ Cancel one of its own buffs (`t4-spells-cancel-aura`; harmful and passive auras 
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
-| `MSG_CHANNEL_START` | `live` | probe flow `spells-channel` (`--arg spell=5143`, modes `finish`, `cancel` and `hit`, `--expect` 0x139, 0x13a) on an `eversong10-mage` moved to East Sanctum with `soap gm tele EastSanctum`, exit 0 each; received after `SMSG_SPELL_GO` with duration 3000 | `Spells/Spell.cpp:5362-5385` |
-| `MSG_CHANNEL_UPDATE` | `live` | probe flow `spells-channel`, exit 0: mode `finish` got 0 about 3000 ms after the start (`finished`); mode `cancel` got 0 right after the cancel, then `SMSG_SPELL_FAILURE` (`cancelled`); mode `hit` got 1606 after a melee hit, then 0 at the moved end (`finished`) | `Spells/Spell.cpp:5342-5359` |
-| `CMSG_CANCEL_CHANNELLING` | `live` | probe flow `spells-channel` mode `cancel`, exit 0; sent 1 s into the channel, and `MSG_CHANNEL_UPDATE` 0 and `SMSG_SPELL_FAILURE` followed | `Handlers/SpellHandler.cpp:653-684` |
-| `CMSG_CANCEL_AURA` | `live` | probe flow `spells-aura` (`--arg spell=168`, `--expect` 0x496) on an `eversong10-mage`, exit 0 on two runs: Frost Armor applied in slot 0 with flags 0x3b, `CMSG_CANCEL_AURA` body `a8000000` sent, and the next `SMSG_AURA_UPDATE` (body `03ed0d0000000000`) cleared slot 0 within 16 ms; eval `t4-spells-cancel-aura` (pass) sent it through `spell do:"cancel_aura"` on Frost Armor rank 2 (spell 7300) and the aura faded | `Handlers/SpellHandler.cpp:568-601` |
-| `CMSG_CANCEL_GROWTH_AURA` | `accepted` | `mise protocol:probe --send CMSG_CANCEL_GROWTH_AURA --wait 3`, exit 0: empty body sent, no error packet, and the session ran on to a normal logout | `Handlers/SpellHandler.cpp:642-644` |
-| `CMSG_SET_ACTION_BUTTON` | `live` | probe flow `spells-bar` on an `eversong10-mage`, exit 0 twice: `--arg slot=0 --arg spell=133` and `--arg slot=11 --arg item=6948` each sent one 5-byte packet; the server sent no reply, and the next login's `SMSG_ACTION_BUTTONS` held slot 0 `85000000` and slot 11 `241b0080`; eval `t4-spells-action-bar` (verdict `blocked`, no server truth for the bar) sent two through `spell do:"bar"` | `Handlers/MiscHandler.cpp:899-938` |
-| `CMSG_SET_ACTIONBAR_TOGGLES` | `live` | probe flow `spells-bar` on an `eversong10-mage`, exit 0: `--arg toggles=15` sent body `0f` and the self update 23 ms later set field 1197 to 0x000f0000; `--arg toggles=7` logged in with 0x000f0000 saved, sent `07`, and the self update set 0x00070000, so `state().barToggles` read 7 | `Handlers/MiscHandler.cpp:952-965` |
-| `SMSG_ACTION_BUTTONS` | `live` | `mise protocol:probe --flow login --expect SMSG_ACTION_BUTTONS --bodies` after the two button writes, exit 0: state 1, slots 0 and 1 `85000000` (spell 133), slot 11 `241b0080` (item 6948), and 577 bytes in all (1 + 144 × 4); the legacy handler read it | `Entities/Player/Player.cpp:5732-5758` |
-| `SMSG_SEND_UNLEARN_SPELLS` | `live` | `mise protocol:probe --flow login --expect SMSG_SEND_UNLEARN_SPELLS --expect SMSG_SET_PCT_SPELL_MODIFIER --expect SMSG_SET_FLAT_SPELL_MODIFIER --bodies` on a `ghostlands20` account, exit 0, nothing missing: one packet after the initial spells, body `00000000` (no inactive rank), outcome `handled` | `Entities/Player/Player.cpp:2885-2922` |
-| `SMSG_SET_FLAT_SPELL_MODIFIER` | `live` | the same login probe: 4 packets, outcome `handled`, among them `4a1c1e000000` (bit 74, op 28, 30) and `320b3850ffff` (bit 50, op 11, -45000); at logout the server sent both bits again with total 0 (`4a1c00000000`, `320b00000000`) | `Entities/Player/Player.cpp:10103-10130` |
-| `SMSG_SET_PCT_SPELL_MODIFIER` | `live` | the same login probe: 44 packets, outcome `handled`, among them `000805000000` (bit 0, op 8, 5) and `0402ecffffff` (bit 4, op 2, -20) | `Handlers/CharacterHandler.cpp:1218-1250` |
-| `SMSG_MODIFY_COOLDOWN` | `mock` | `packages/core/src/wow/areas/spells/store-spellbook.test.ts` "SMSG_MODIFY_COOLDOWN for self moves the server cooldown by the signed delta"; not seen live (its senders are level-80 scripts) | `Entities/Player/Player.cpp:11284-11287` |
-| `SMSG_PLAY_SPELL_VISUAL` | `live` | `mise protocol:probe --flow nearest --arg kind=trainer --send CMSG_TRAINER_BUY_SPELL --body 0e25008d3f0030f191000000 --expect SMSG_PLAY_SPELL_VISUAL --expect SMSG_PLAY_SPELL_IMPACT --bodies` on an `eversong10-mage` at level 12 next to the Falconwing Square mage trainer, exit 0: after the buy of spell 145, body `0e25008d3f0030f1b3000000` (the trainer's guid, kit 179), outcome `handled` | `Entities/Unit/Unit.cpp:14752-14758` |
-| `SMSG_PLAY_SPELL_IMPACT` | `live` | the same probe: in the same millisecond, body `1e0e0000000000006a010000` (the character's guid, kit 362), outcome `handled`, then `SMSG_LEARNED_SPELL` and `SMSG_TRAINER_BUY_SUCCEEDED` | `Entities/Unit/Unit.cpp:14768-14778` |
-| `SMSG_SPELL_UPDATE_CHAIN_TARGETS` | `dead` | no send site in AzerothCore `src/` or `modules/`; only the opcode table names it | `Server/Protocol/Opcodes.cpp:947` |
-| `SMSG_RESYNC_RUNES` | `dead` | built only in `Player::ResyncRunes`, whose only call, in `Spell::EffectActivateRune`, is commented out | `Entities/Player/Player.cpp:13746-13756` |
-| `SMSG_ADD_RUNE_POWER` | `dead` | built only in `Player::AddRunePower`, which has no caller | `Entities/Player/Player.cpp:13758-13763` |
+| `SMSG_TOTEM_CREATED` | `mock` | `packages/core/src/wow/areas/spells/totems.test.ts` "SMSG_TOTEM_CREATED fills the slot and emits totem_created" builds the packet from the AzerothCore writer; not seen live (no shaman preset; a priest that learned 8071 with Earth Totem item 5175 in the bags casts 836 instead, and the create never comes) | `Server/Packets/TotemPackets.cpp:25-33` |
+| `CMSG_TOTEM_DESTROYED` | `builder` | sent live on a `max80` priest: `mise protocol:probe <ACCOUNT> --send CMSG_TOTEM_DESTROYED --body 00 --wait 8`, exit 0, one byte in the trace, no disconnect; effect not seen (slot 0 was empty, which the server ignores); not seen live | `Server/Packets/TotemPackets.cpp:20-23` |

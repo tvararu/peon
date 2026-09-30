@@ -22,6 +22,7 @@ import {
   result,
 } from "#harness/tools/define";
 import { findUnits, kindOf, rememberedRows } from "#harness/tools/look-find";
+import { movementWords, withMovement } from "#harness/tools/look-movement";
 import {
   headerLine,
   moreLine,
@@ -29,7 +30,8 @@ import {
   nounOf,
   rowLine,
 } from "#harness/tools/look-rows";
-import { selfLine, statusLine } from "#harness/tools/look-self";
+import { savesLine } from "#harness/tools/look-saves";
+import { castViews, selfLine, statusLine } from "#harness/tools/look-self";
 import { nextCall } from "#harness/tools/next-call";
 import {
   type LookArgs,
@@ -64,7 +66,20 @@ function emptyLook(): LookAfter {
   };
 }
 
+function lookSaves(ctx: ToolCtx<LookAfter>): string[] {
+  try {
+    return savesLine(
+      ctx.handle.instances.state(),
+      ctx.handle.lfg.state(),
+      ctx.rt.clock.now(),
+    );
+  } catch {
+    return [];
+  }
+}
+
 function lookBody(
+  ctx: ToolCtx<LookAfter>,
   after: LookAfter,
   objects: readonly ObjectRow[] = [],
 ): string[] {
@@ -82,12 +97,12 @@ function lookBody(
       : [
           statusLine(after),
           headerLine(after),
-          ...after.rows.map(rowLine),
+          ...after.rows.map((unit) => rowLine(unit, after.self.level)),
           ...moreLine(after),
-          ...after.remembered.map(rowLine),
+          ...after.remembered.map((unit) => rowLine(unit, after.self.level)),
           nearestLine(after),
         ];
-  return [...lines, ...calm, ...stale];
+  return [...lines, ...lookSaves(ctx), ...calm, ...stale];
 }
 
 function lookDigest(rows: readonly UnitView[], snapshot: NowSnapshot): string {
@@ -97,7 +112,8 @@ function lookDigest(rows: readonly UnitView[], snapshot: NowSnapshot): string {
     : "-";
   const units = rows
     .map(
-      (unit) => `${unit.ref}:${unit.hpPct}:${Math.round(unit.distance ?? -1)}`,
+      (unit) =>
+        `${unit.ref}:${unit.hpPct}:${Math.round(unit.distance ?? -1)}:${movementWords(unit.movement).join("+")}`,
     )
     .join(",");
   return `${snapshot.self.hp}|${where}|${units}`;
@@ -152,6 +168,7 @@ function objectAfter(
     .join(",");
   return {
     after: {
+      ...castViews(ctx, snapshot.target),
       danger: dangerView(ctx),
       filter: "any",
       matched: 0,
@@ -178,7 +195,12 @@ function lookAfter(
   snapshot: NowSnapshot,
 ): LookAfter {
   const found = findUnits(args, ctx);
+  const rows = withMovement(
+    withThreat(ctx, found.rows),
+    ctx.handle.unitmotion.state(),
+  );
   return {
+    ...castViews(ctx, snapshot.target),
     danger: dangerView(ctx),
     filter: found.filter,
     matched: found.matched,
@@ -187,12 +209,12 @@ function lookAfter(
     nearest: snapshot.nearest,
     place: snapshot.place,
     remembered: rememberedRows(ctx, { filter: found.filter, name: args.name }),
-    rows: withThreat(ctx, found.rows),
+    rows,
     run: snapshot.run,
     seen: found.seen,
     self: snapshot.self,
     target: snapshot.target,
-    unchanged: countUnchanged(ctx.rt, lookDigest(found.rows, snapshot)),
+    unchanged: countUnchanged(ctx.rt, lookDigest(rows, snapshot)),
     within: args.within,
   };
 }
@@ -251,7 +273,7 @@ function look(args: LookArgs, ctx: ToolCtx<LookAfter>): ToolResult<LookAfter> {
       });
     return result("DONE", {
       after,
-      body: lookBody(after, objects),
+      body: lookBody(ctx, after, objects),
       detail: selfLine(after),
     });
   }
@@ -262,7 +284,7 @@ function look(args: LookArgs, ctx: ToolCtx<LookAfter>): ToolResult<LookAfter> {
     return noneSeen(ctx, after);
   return result("DONE", {
     after,
-    body: lookBody(after),
+    body: lookBody(ctx, after),
     detail: selfLine(after),
   });
 }

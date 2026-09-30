@@ -1,4 +1,4 @@
-import type { PacketReader } from "#wow/protocol/packet";
+import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 export const RAID_INSTANCE_WELCOME = 4;
 
@@ -14,7 +14,66 @@ export type RaidInstanceMessage = {
   locked: boolean | undefined;
   extended: boolean | undefined;
 };
+export type RaidLock = {
+  mapId: number;
+  difficulty: number;
+  instanceGuid: bigint;
+  locked: boolean;
+  extended: boolean;
+  secondsToReset: number;
+};
+export type LockWarning = { timeoutMs: number; encounterMask: number };
+export type LockoutExtension = {
+  mapId: number;
+  difficulty: number;
+  extended: boolean;
+};
 export type RaidGroupOnly = { timerMs: number; code: number };
+export type InstanceReset = { mapId: number };
+export type InstanceResetFailed = { reason: number; mapId: number };
+
+export type EncounterFrame =
+  | { kind: "engage"; guid: bigint; priority: number }
+  | { kind: "disengage"; guid: bigint; priority: number }
+  | { kind: "update_priority"; guid: bigint; priority: number }
+  | { kind: "add_timer"; param: number }
+  | { kind: "enable_objective"; param: number }
+  | { kind: "update_objective"; param: number; extra: number }
+  | { kind: "disable_objective"; param: number }
+  | { kind: "refresh" }
+  | { kind: "unknown"; frame: number };
+
+export function parseEncounterUnit(r: PacketReader): EncounterFrame {
+  const frame = r.uint32LE();
+  switch (frame) {
+    case 0:
+      return { kind: "engage", guid: r.packedGuidBig(), priority: r.uint8() };
+    case 1:
+      return {
+        kind: "disengage",
+        guid: r.packedGuidBig(),
+        priority: r.uint8(),
+      };
+    case 2:
+      return {
+        kind: "update_priority",
+        guid: r.packedGuidBig(),
+        priority: r.uint8(),
+      };
+    case 3:
+      return { kind: "add_timer", param: r.uint8() };
+    case 4:
+      return { kind: "enable_objective", param: r.uint8() };
+    case 5:
+      return { kind: "update_objective", param: r.uint8(), extra: r.uint8() };
+    case 6:
+      return { kind: "disable_objective", param: r.uint8() };
+    case 7:
+      return { kind: "refresh" };
+    default:
+      return { kind: "unknown", frame };
+  }
+}
 
 export function parseDifficulty(r: PacketReader): DifficultyPacket {
   const difficulty = r.uint32LE();
@@ -52,4 +111,83 @@ export function parseRaidGroupOnly(r: PacketReader): RaidGroupOnly {
   const timerMs = r.uint32LE();
   const code = r.uint32LE();
   return { timerMs, code };
+}
+
+export function parseRaidInstanceInfo(r: PacketReader): RaidLock[] {
+  const count = r.uint32LE();
+  const locks: RaidLock[] = [];
+  for (let i = 0; i < count; i++) {
+    const mapId = r.uint32LE();
+    const difficulty = r.uint32LE();
+    const instanceGuid = r.uint64LE();
+    const locked = r.uint8() !== 0;
+    const extended = r.uint8() !== 0;
+    const secondsToReset = r.uint32LE();
+    locks.push({
+      mapId,
+      difficulty,
+      instanceGuid,
+      locked,
+      extended,
+      secondsToReset,
+    });
+  }
+  return locks;
+}
+
+export function parseLockWarning(r: PacketReader): LockWarning {
+  const timeoutMs = r.uint32LE();
+  const encounterMask = r.uint32LE();
+  r.uint8();
+  return { timeoutMs, encounterMask };
+}
+
+export function parseInstanceReset(r: PacketReader): InstanceReset {
+  return { mapId: r.uint32LE() };
+}
+
+export function parseInstanceResetFailed(r: PacketReader): InstanceResetFailed {
+  const reason = r.uint32LE();
+  const mapId = r.uint32LE();
+  return { reason, mapId };
+}
+
+export function parseResetFailedNotify(r: PacketReader): InstanceReset {
+  return { mapId: r.uint32LE() };
+}
+
+function u32(value: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(value);
+  return w.finish();
+}
+
+export function buildSetDungeonDifficulty(mode: number): Uint8Array {
+  return u32(mode);
+}
+
+export function buildSetRaidDifficulty(mode: number): Uint8Array {
+  return u32(mode);
+}
+
+export function buildResetInstances(): Uint8Array {
+  return new Uint8Array();
+}
+
+export function buildRequestRaidInfo(): Uint8Array {
+  return new Uint8Array();
+}
+
+export function buildLockResponse(accept: boolean): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(accept ? 1 : 0);
+  return w.finish();
+}
+
+export function buildSetLockoutExtended(init: LockoutExtension): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.mapId);
+  w.uint32LE(init.difficulty);
+  w.uint8(init.extended ? 1 : 0);
+  return w.finish();
 }

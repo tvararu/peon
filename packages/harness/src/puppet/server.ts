@@ -158,11 +158,20 @@ class Puppet {
       return { ok: true, out: eventsJson("read", this.chat.splice(0)) };
     if (request.cmd === "events")
       return { ok: true, out: gameEventsJson(this.events.splice(0)) };
-    if (request.cmd === "nearby")
+    if (request.cmd === "nearby") {
+      const movements = new Map(
+        this.handle.unitmotion
+          .state()
+          .units.map((unit) => [unit.guid.toString(), unit]),
+      );
       return {
         ok: true,
-        out: resultJson("nearby", this.handle.queryNearby().map(nearbyRowObj)),
+        out: resultJson(
+          "nearby",
+          this.handle.queryNearby().map((row) => nearbyRowObj(row, movements)),
+        ),
       };
+    }
     if (request.cmd === "whisper") {
       this.handle.sendWhisper(request.target, request.text);
       return { ok: true, out: "OK" };
@@ -172,10 +181,15 @@ class Puppet {
     return { ok: true, out: "" };
   }
 
-  private call(method: string, raw: unknown[]): PuppetReply {
+  private async call(method: string, raw: unknown[]): Promise<PuppetReply> {
     const call = decodeCall(method, JSON.stringify(raw));
     if ("error" in call) return { error: call.error, ok: false };
-    PUPPET_CALLS[call.method]?.run(this.handle, call.args);
+    const outcome = await PUPPET_CALLS[call.method]?.run(
+      this.handle,
+      call.args,
+    );
+    const failure = outcomeError(outcome);
+    if (failure !== undefined) return { error: failure, ok: false };
     return { ok: true, out: resultJson("call", { method: call.method }) };
   }
 
@@ -218,4 +232,15 @@ class Puppet {
     ]);
     this.done.resolve();
   }
+}
+
+function outcomeError(outcome: unknown): string | undefined {
+  if (typeof outcome !== "object" || outcome === null) return undefined;
+  const status = Reflect.get(outcome, "status");
+  if (status === undefined || status === "ok" || status === "done")
+    return undefined;
+  const reason = Reflect.get(outcome, "reason");
+  return typeof reason === "string" && reason !== ""
+    ? `${String(status)}: ${reason}`
+    : String(status);
 }

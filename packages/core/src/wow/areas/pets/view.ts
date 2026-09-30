@@ -12,6 +12,8 @@ export type PetView = {
   canRename: boolean;
   canAbandon: boolean;
   happiness: number;
+  health: number;
+  maxHealth: number;
 };
 
 export function petView(
@@ -33,5 +35,7 @@ export function petView(
     canRename: (rename & CAN_RENAME) !== 0,
     canAbandon: (rename & CAN_ABANDON) !== 0,
     happiness: fields.get(UNIT_FIELDS.POWER5.offset) ?? 0,
+    health: fields.get(UNIT_FIELDS.HEALTH.offset) ?? 0,
+    maxHealth: fields.get(UNIT_FIELDS.MAXHEALTH.offset) ?? 0,
   };
 }

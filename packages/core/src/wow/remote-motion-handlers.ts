@@ -1,3 +1,5 @@
+import { MOTION_FLAG_BITS } from "#wow/areas/unitmotion/protocol";
+import { ROOT_CLEARS } from "#wow/areas/unitmotion/store";
 import { type TraceOutcome, traceIn } from "#wow/packet-trace";
 import type { SpeedKind } from "#wow/protocol/movement-block";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -99,4 +101,18 @@ export function registerRemoteMotionHandlers(
   conn.dispatch.on(GameOpcode.SMSG_COMPRESSED_MOVES, (r) =>
     handleCompressedMoves(conn, r),
   );
+  conn.events?.area?.subscribe((event) => {
+    if (
+      event.area !== "unitmotion" ||
+      event.event.type !== "flag" ||
+      event.event.self
+    )
+      return;
+    const { guid, flag, on } = event.event;
+    const known = conn.remoteMotion.pose(guid)?.flags;
+    if (known === undefined) return;
+    const bit = MOTION_FLAG_BITS[flag];
+    const base = on && flag === "root" ? known & ~ROOT_CLEARS : known;
+    conn.remoteMotion.applyFlags(guid, (on ? base | bit : base & ~bit) >>> 0);
+  });
 }

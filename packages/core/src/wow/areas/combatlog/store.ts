@@ -1,55 +1,20 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type {
-  AttackerState,
+  CombatlogEntry,
+  CombatlogKind,
+  CombatlogWire,
+  CombatlogFight as Fight,
+} from "#wow/areas/combatlog/entries";
+import type {
   ComboPoints,
   PartyKill,
   PowerUpdate,
-  SpellDamage,
 } from "#wow/areas/combatlog/protocol";
 import type { Entity, UnitEntity } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { joinGuid } from "#wow/protocol/packet";
 import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
-
-export type CombatlogKind =
-  | "melee"
-  | "spell_damage"
-  | "periodic_damage"
-  | "damage_shield"
-  | "environmental"
-  | "instakill"
-  | "heal"
-  | "periodic_heal"
-  | "energize"
-  | "periodic_power"
-  | "miss"
-  | "immune"
-  | "dispel"
-  | "dispel_failed"
-  | "steal"
-  | "execute"
-  | "kill";
-
-export type CombatlogEntry = {
-  at: number;
-  kind: CombatlogKind;
-  source: bigint;
-  target: bigint;
-  spellId?: number;
-  amount: number;
-  over?: number;
-  schoolMask?: number;
-  absorbed?: number;
-  resisted?: number;
-  blocked?: number;
-  crit?: boolean;
-  outcome?: string;
-  power?: number;
-  extra?: number;
-};
-
-export type CombatlogWire = Omit<CombatlogEntry, "at">;
 
 export type FightTotals = {
   startedAt: number;
@@ -100,39 +65,6 @@ const RING = 500;
 const KILLS = 20;
 const QUIET_MS = 6000;
 const POWERS = 7;
-const CREATURE_HIGHS = new Set([0xf1_30, 0xf1_50]);
-const IMMUNE_OUTCOMES = new Set(["immune", "immune2"]);
-const DAMAGE = new Set<CombatlogKind>([
-  "melee",
-  "spell_damage",
-  "periodic_damage",
-  "damage_shield",
-  "environmental",
-  "instakill",
-]);
-const HEALS = new Set<CombatlogKind>(["heal", "periodic_heal"]);
-const ABSORB_FULL = 0x20;
-const RESIST_FULL = 0x80;
-const AVOIDED = new Set([
-  "dodge",
-  "parry",
-  "interrupt",
-  "block",
-  "evade",
-  "immune",
-  "deflect",
-]);
-
-type Fight = {
-  startedAt: number;
-  lastAt: number;
-  dealt: number;
-  taken: number;
-  healed: number;
-  crits: number;
-  misses: Record<string, number>;
-};
-
 function creatureEntry(guid: bigint): number | undefined {
   const high = Number(BigInt.asUintN(16, guid >> 48n));
   if (!CREATURE_HIGHS.has(high)) return undefined;
@@ -144,68 +76,17 @@ function isImmune(entry: CombatlogEntry): boolean {
   return entry.kind === "miss" && IMMUNE_OUTCOMES.has(entry.outcome ?? "");
 }
 
-function sum(values: readonly number[]): number {
-  return values.reduce((total, value) => total + value, 0);
-}
-
-function meleeOutcome(swing: AttackerState): string | undefined {
-  if (swing.miss) return "miss";
-  if (AVOIDED.has(swing.victimState)) return swing.victimState;
-  if (swing.hitInfo & ABSORB_FULL) return "absorb";
-  if (swing.hitInfo & RESIST_FULL) return "resist";
-  return undefined;
-}
-
-function optional(
-  wire: CombatlogWire,
-  fields: Partial<CombatlogWire>,
-): CombatlogWire {
-  for (const [key, value] of Object.entries(fields))
-    if (value !== undefined && value !== 0 && value !== false)
-      Object.assign(wire, { [key]: value });
-  return wire;
-}
-
-export function meleeEntry(swing: AttackerState): CombatlogWire {
-  return optional(
-    {
-      kind: "melee",
-      source: swing.attacker,
-      target: swing.target,
-      amount: swing.total,
-    },
-    {
-      over: swing.overkill,
-      schoolMask: swing.parts.reduce((mask, part) => mask | part.schoolMask, 0),
-      absorbed: sum(swing.absorbed),
-      resisted: sum(swing.resisted),
-      blocked: swing.blocked,
-      crit: swing.crit,
-      outcome: meleeOutcome(swing),
-    },
-  );
-}
-
-export function spellDamageEntry(hit: SpellDamage): CombatlogWire {
-  return optional(
-    {
-      kind: "spell_damage",
-      source: hit.attacker,
-      target: hit.target,
-      amount: hit.amount,
-    },
-    {
-      spellId: hit.spellId,
-      over: hit.overkill,
-      schoolMask: hit.schoolMask,
-      absorbed: hit.absorbed,
-      resisted: hit.resisted,
-      blocked: hit.blocked,
-      crit: hit.crit,
-    },
-  );
-}
-
+const CREATURE_HIGHS = new Set([0xf1_30, 0xf1_50]);
+const IMMUNE_OUTCOMES = new Set(["immune", "immune2"]);
+const DAMAGE = new Set<CombatlogKind>([
+  "melee",
+  "spell_damage",
+  "periodic_damage",
+  "damage_shield",
+  "environmental",
+  "instakill",
+]);
+const HEALS = new Set<CombatlogKind>(["heal", "periodic_heal"]);
 export class CombatlogStore {
   private readonly events = new Emitter<[CombatlogEvent]>();
   private readonly deps: SessionDeps;
@@ -335,6 +216,11 @@ export class CombatlogStore {
       this.entries.splice(0, this.entries.length - RING);
   }
 
+  private trackUnit(guid: bigint, ours: boolean): void {
+    if (ours || guid === 0n) return;
+    this.fightUnits.add(guid);
+  }
+
   private count(
     entry: CombatlogEntry,
     sourceOurs: boolean,
@@ -342,8 +228,8 @@ export class CombatlogStore {
   ): void {
     const fight = this.fight ?? this.open(entry.at);
     fight.lastAt = entry.at;
-    if (!sourceOurs) this.fightUnits.add(entry.source);
-    if (!targetOurs) this.fightUnits.add(entry.target);
+    this.trackUnit(entry.source, sourceOurs);
+    this.trackUnit(entry.target, targetOurs);
     if (entry.outcome !== undefined)
       fight.misses[entry.outcome] = (fight.misses[entry.outcome] ?? 0) + 1;
     if (entry.crit && sourceOurs) fight.crits++;
@@ -396,6 +282,7 @@ export class CombatlogStore {
 
   private markAttacker(entry: CombatlogEntry): void {
     const self = this.deps.selfGuid();
+    if (entry.source === 0n) return;
     if (!DAMAGE.has(entry.kind) || entry.target !== self) return;
     if (entry.source === self) return;
     this.core.combat.noteHostileDamage(entry.source);

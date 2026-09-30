@@ -447,7 +447,7 @@ async function play(run: Live): Promise<void> {
     runDir: run.runDir,
     setup: [...run.scenario.setup, ...(slots ? [slots.agent] : [])],
   });
-  await placePartners(run, slots?.partner);
+  await placePartners(run, slots?.partner, run.scenario);
   await baseline(run, agent.account);
   await startPartners(run);
   await launch(run);

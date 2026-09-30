@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  selfstateCorpseMapPositionQueryResponseBody,
   selfstateForcePitchRateChangeBody,
   selfstateMoveSetCollisionHeightBody,
   selfstateMultipleMovesBody,
@@ -11,9 +12,11 @@ import {
 } from "#test-support/areas/selfstate";
 import { must } from "#test-support/must";
 import {
+  buildCorpseMapPositionQuery,
   buildStandStateChange,
   MIRROR_TIMERS,
   parseCollisionHeight,
+  parseCorpseMapPosition,
   parseMirrorTimer,
   parseMultipleMoves,
   parsePreResurrect,
@@ -226,6 +229,30 @@ describe("SMSG_MOVE_SET_COLLISION_HGT (AC Entities/Unit/Unit.cpp:10272-10275)", 
     expect(parsed.guid).toBe(0x0764n);
     expect(parsed.counter).toBe(9);
     expect(parsed.speed).toBeCloseTo(3.14, 4);
+    expect(r.remaining).toBe(0);
+  });
+});
+
+describe("corpse map position query (AC Handlers/QueryHandler.cpp:399-410)", () => {
+  test("CMSG_CORPSE_MAP_POSITION_QUERY is one u32 zero (AC Server/Packets/QueryPackets.cpp:55-58)", () => {
+    expect(hex(buildCorpseMapPositionQuery())).toBe("00000000");
+  });
+
+  test("the response is the all-zero writer body and consumes the packet (AC Handlers/QueryHandler.cpp:399-410)", () => {
+    const body = selfstateCorpseMapPositionQueryResponseBody();
+    expect(body.length).toBe(16);
+    const r = read(body);
+    expect(parseCorpseMapPosition(r)).toEqual([0, 0, 0, 0]);
+    expect(r.remaining).toBe(0);
+  });
+});
+
+describe("corpse map position float decoding (synthetic, not protocol proof)", () => {
+  test("four floats decode and consume the packet", () => {
+    const r = read(
+      selfstateCorpseMapPositionQueryResponseBody([1.5, -2.25, 0, 4]),
+    );
+    expect(parseCorpseMapPosition(r)).toEqual([1.5, -2.25, 0, 4]);
     expect(r.remaining).toBe(0);
   });
 });

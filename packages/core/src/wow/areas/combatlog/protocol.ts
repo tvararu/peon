@@ -189,3 +189,202 @@ export function parsePowerUpdate(r: PacketReader): PowerUpdate {
   const value = r.uint32LE();
   return { guid, power, value };
 }
+
+export type SpellHeal = {
+  victim: bigint;
+  caster: bigint;
+  spellId: number;
+  heal: number;
+  overheal: number;
+  absorbed: number;
+  crit: boolean;
+};
+
+export type SpellEnergize = {
+  victim: bigint;
+  caster: bigint;
+  spellId: number;
+  power: number;
+  amount: number;
+};
+
+export type PeriodicTick =
+  | {
+      type: "damage";
+      auraType: number;
+      amount: number;
+      overkill: number;
+      schoolMask: number;
+      absorbed: number;
+      resisted: number;
+      crit: boolean;
+    }
+  | {
+      type: "heal";
+      auraType: number;
+      amount: number;
+      overheal: number;
+      absorbed: number;
+      crit: boolean;
+    }
+  | { type: "power"; auraType: number; power: number; amount: number };
+
+export type PeriodicAuraLog = {
+  victim: bigint;
+  caster: bigint;
+  spellId: number;
+  ticks: PeriodicTick[];
+};
+
+const AURA_PERIODIC_DAMAGE = 3;
+const AURA_PERIODIC_HEAL = 8;
+const AURA_OBS_MOD_HEALTH = 20;
+const AURA_OBS_MOD_POWER = 21;
+const AURA_PERIODIC_ENERGIZE = 24;
+const AURA_PERIODIC_MANA_LEECH = 64;
+const AURA_PERIODIC_DAMAGE_PERCENT = 89;
+
+export function parseSpellHeal(r: PacketReader): SpellHeal {
+  const victim = r.packedGuidBig();
+  const caster = r.packedGuidBig();
+  const spellId = r.uint32LE();
+  const heal = r.uint32LE();
+  const overheal = r.uint32LE();
+  const absorbed = r.uint32LE();
+  const crit = r.uint8() !== 0;
+  r.uint8();
+  return { victim, caster, spellId, heal, overheal, absorbed, crit };
+}
+
+export function parseSpellEnergize(r: PacketReader): SpellEnergize {
+  const victim = r.packedGuidBig();
+  const caster = r.packedGuidBig();
+  const spellId = r.uint32LE();
+  const power = r.uint32LE();
+  const amount = r.uint32LE();
+  return { victim, caster, spellId, power, amount };
+}
+
+function parseTick(r: PacketReader, auraType: number): PeriodicTick {
+  switch (auraType) {
+    case AURA_PERIODIC_DAMAGE:
+    case AURA_PERIODIC_DAMAGE_PERCENT: {
+      const amount = r.uint32LE();
+      const overkill = r.uint32LE();
+      const schoolMask = r.uint32LE();
+      const absorbed = r.uint32LE();
+      const resisted = r.uint32LE();
+      const crit = r.uint8() !== 0;
+      return {
+        type: "damage",
+        auraType,
+        amount,
+        overkill,
+        schoolMask,
+        absorbed,
+        resisted,
+        crit,
+      };
+    }
+    case AURA_PERIODIC_HEAL:
+    case AURA_OBS_MOD_HEALTH: {
+      const amount = r.uint32LE();
+      const overheal = r.uint32LE();
+      const absorbed = r.uint32LE();
+      const crit = r.uint8() !== 0;
+      return { type: "heal", auraType, amount, overheal, absorbed, crit };
+    }
+    case AURA_OBS_MOD_POWER:
+    case AURA_PERIODIC_ENERGIZE: {
+      const power = r.uint32LE();
+      const amount = r.uint32LE();
+      return { type: "power", auraType, power, amount };
+    }
+    case AURA_PERIODIC_MANA_LEECH: {
+      const power = r.uint32LE();
+      const amount = r.uint32LE();
+      r.floatLE();
+      return { type: "power", auraType, power, amount };
+    }
+    default:
+      throw new RangeError(`unknown periodic aura type ${auraType}`);
+  }
+}
+
+export function parsePeriodicAuraLog(r: PacketReader): PeriodicAuraLog {
+  const victim = r.packedGuidBig();
+  const caster = r.packedGuidBig();
+  const spellId = r.uint32LE();
+  const count = r.uint32LE();
+  const ticks: PeriodicTick[] = [];
+  for (let i = 0; i < count; i++) ticks.push(parseTick(r, r.uint32LE()));
+  return { victim, caster, spellId, ticks };
+}
+
+export type SpellMissTarget = { guid: bigint; reason: number };
+export type SpellMissLog = {
+  spellId: number;
+  caster: bigint;
+  targets: SpellMissTarget[];
+};
+export type SpellImmune = { caster: bigint; target: bigint; spellId: number };
+export type DamageShield = {
+  owner: bigint;
+  attacker: bigint;
+  spellId: number;
+  damage: number;
+  overkill: number;
+  schoolMask: number;
+};
+export type EnvironmentalDamage = {
+  victim: bigint;
+  type: number;
+  amount: number;
+  resisted: number;
+  absorbed: number;
+};
+export type Instakill = { caster: bigint; target: bigint; spellId: number };
+
+export function parseSpellMiss(r: PacketReader): SpellMissLog {
+  const spellId = r.uint32LE();
+  const caster = r.uint64LE();
+  r.uint8();
+  const count = r.uint32LE();
+  const targets: SpellMissTarget[] = [];
+  for (let i = 0; i < count; i++)
+    targets.push({ guid: r.uint64LE(), reason: r.uint8() });
+  return { spellId, caster, targets };
+}
+
+export function parseSpellImmune(r: PacketReader): SpellImmune {
+  const caster = r.uint64LE();
+  const target = r.uint64LE();
+  const spellId = r.uint32LE();
+  return { caster, target, spellId };
+}
+
+export function parseDamageShield(r: PacketReader): DamageShield {
+  const owner = r.uint64LE();
+  const attacker = r.uint64LE();
+  const spellId = r.uint32LE();
+  const damage = r.uint32LE();
+  const overkill = r.uint32LE();
+  const schoolMask = r.uint32LE();
+  return { owner, attacker, spellId, damage, overkill, schoolMask };
+}
+
+export function parseEnvironmentalDamage(r: PacketReader): EnvironmentalDamage {
+  const victim = r.uint64LE();
+  const type = r.uint8();
+  const amount = r.uint32LE();
+  const resisted = r.uint32LE();
+  const absorbed = r.uint32LE();
+  return { victim, type, amount, resisted, absorbed };
+}
+
+export function parseInstakill(r: PacketReader): Instakill {
+  const caster = r.uint64LE();
+  const target = r.uint64LE();
+  const spellId = r.uint32LE();
+  return { caster, target, spellId };
+}

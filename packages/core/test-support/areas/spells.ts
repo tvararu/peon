@@ -89,3 +89,73 @@ export function spellsPlaySpellVisualBody(init: {
 }
 
 export const spellsPlaySpellImpactBody = spellsPlaySpellVisualBody;
+
+export function spellsSpellStartBody(init: {
+  castItem?: bigint;
+  caster: bigint;
+  castCount: number;
+  spellId: number;
+  flags: number;
+  timer: number;
+  target?: bigint;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.castItem ?? init.caster);
+  w.packedGuidBig(init.caster);
+  w.uint8(init.castCount);
+  w.uint32LE(init.spellId);
+  w.uint32LE(init.flags);
+  w.uint32LE(init.timer >>> 0);
+  if (init.target === undefined) {
+    w.uint32LE(0);
+  } else {
+    w.uint32LE(2);
+    w.packedGuidBig(init.target);
+  }
+  return w.finish();
+}
+
+export function spellsSpellGoBody(init: {
+  castItem?: bigint;
+  caster: bigint;
+  extraCasts: number;
+  spellId: number;
+  flags: number;
+  timestamp: number;
+  hits: readonly bigint[];
+  target?: bigint;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.castItem ?? init.caster);
+  w.packedGuidBig(init.caster);
+  w.uint8(init.extraCasts);
+  w.uint32LE(init.spellId);
+  w.uint32LE(init.flags);
+  w.uint32LE(init.timestamp);
+  w.uint8(init.hits.length);
+  for (const hit of init.hits) w.uint64LE(hit);
+  w.uint8(0);
+  if (init.target === undefined) {
+    w.uint32LE(0);
+  } else {
+    w.uint32LE(2);
+    w.packedGuidBig(init.target);
+  }
+  return w.finish();
+}
+
+export const spellsSpellFailedOtherBody = spellsSpellFailureBody;
+
+export function spellsTotemCreatedBody(init: {
+  slot: number;
+  guid: bigint;
+  duration: number;
+  spell: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(init.slot);
+  w.uint64LE(init.guid);
+  w.uint32LE(init.duration);
+  w.uint32LE(init.spell);
+  return w.finish();
+}

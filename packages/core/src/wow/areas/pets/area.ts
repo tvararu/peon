@@ -10,11 +10,22 @@ import { petsRuntime } from "#wow/areas/pets/runtime";
 import { PetsStore } from "#wow/areas/pets/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { parsePetSpells } from "#wow/protocol/pet-spells";
+import {
+  parseCastFailed,
+  parseCooldownNotice,
+  parseSpellCooldown,
+} from "#wow/protocol/spell";
 
 export const petsArea = defineArea({
   name: "pets",
   opcodes: PETS_OPCODES,
-  eventTypes: ["bar", "spell_learned", "spell_unlearned", "feedback"],
+  eventTypes: [
+    "bar",
+    "spell_learned",
+    "spell_unlearned",
+    "feedback",
+    "cast_failed",
+  ],
   store: (deps, core) => new PetsStore(deps, core),
   register: (wire, store) => {
     wire.on(GameOpcode.SMSG_PET_SPELLS, (r) => store.bar(parsePetSpells(r)));
@@ -26,6 +37,15 @@ export const petsArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_PET_ACTION_FEEDBACK, (r) =>
       store.feedback(parsePetActionFeedback(r)),
+    );
+    wire.on(GameOpcode.SMSG_PET_CAST_FAILED, (r) =>
+      store.castFailed(parseCastFailed(r)),
+    );
+    wire.peek(GameOpcode.SMSG_SPELL_COOLDOWN, (r) =>
+      store.cooldown(parseSpellCooldown(r)),
+    );
+    wire.peek(GameOpcode.SMSG_CLEAR_COOLDOWN, (r) =>
+      store.clearCooldown(parseCooldownNotice(r)),
     );
     wire.on(GameOpcode.SMSG_PET_ACTION_SOUND, (r) => {
       parsePetActionSound(r);

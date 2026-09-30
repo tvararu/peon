@@ -1,0 +1,64 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 12,
+    "turns": 6
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["raid/roster"]
+      },
+      "expect": "GL has a raid/roster row for the kicked partner leaving the group",
+      "id": "kicked-left",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "console": {
+          "match": "not in a group",
+          "read": "group"
+        }
+      },
+      "expect": "the partner-side console read of group matches \"not in a group\" after the kick",
+      "id": "partner-alone",
+      "source": "console"
+    },
+    {
+      "expect": "the session shows the agent calling the group tool with do kick, not ending REFUSED",
+      "id": "kick-called",
+      "source": "session"
+    }
+  ],
+  "id": "t9-raid-kick",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": "partner",
+  "partnerActions": [
+    {
+      "argv": ["call", "invite", "[\"<AGENT>\"]"],
+      "at": {
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "task_landed"
+      },
+      "windowMs": 120000
+    },
+    {
+      "argv": ["call", "setLeader", "[\"<AGENT>\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 20000
+      },
+      "windowMs": 180000
+    }
+  ],
+  "preset": "eversong10",
+  "setup": [],
+  "spawn": "ghostlands",
+  "steers": [],
+  "task": "Join the group you are invited to. When you lead it, remove the other member with the reason 'test'.",
+  "tier": 9
+}

@@ -1,11 +1,16 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type {
   DifficultyPacket,
+  EncounterFrame,
   InstanceDifficulty,
   InstanceOwnership,
+  InstanceReset,
+  InstanceResetFailed,
   LastInstance,
+  LockWarning,
   RaidGroupOnly,
   RaidInstanceMessage,
+  RaidLock,
 } from "#wow/areas/instances/protocol";
 import { type DifficultyKind, difficultyName } from "#wow/protocol/difficulty";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
@@ -19,6 +24,16 @@ export type MapDifficulty = {
 export type InstanceWarning = RaidInstanceMessage & { at: number };
 export type HomebindTimer = { startedAt: number; ms: number };
 
+export type PendingBind = {
+  timeoutMs: number;
+  encounterMask: number;
+  at: number;
+  deadline: number;
+};
+export type EncounterUnit = { guid: bigint };
+export type PendingDifficulty = { dungeon?: number; raid?: number };
+export type DifficultyBody = { kind: DifficultyKind; difficulty: number };
+
 export type InstancesState = {
   dungeonDifficulty: number | undefined;
   raidDifficulty: number | undefined;
@@ -27,6 +42,11 @@ export type InstancesState = {
   lastInstanceMaps: readonly number[];
   lastWarning: InstanceWarning | undefined;
   homebindTimer: HomebindTimer | undefined;
+  locks: readonly RaidLock[] | undefined;
+  locksAt: number | undefined;
+  pendingBind: PendingBind | undefined;
+  pendingDifficulty: PendingDifficulty | undefined;
+  encounterUnits: readonly EncounterUnit[];
 };
 
 export type InstancesEvent =
@@ -47,7 +67,31 @@ export type InstancesEvent =
       ms: number;
       code: number;
     }
-  | { type: "corpse_elsewhere" };
+  | { type: "corpse_elsewhere" }
+  | {
+      type: "lockouts";
+      locks: readonly RaidLock[];
+      added: readonly RaidLock[];
+      removed: readonly RaidLock[];
+    }
+  | {
+      type: "bind_offer";
+      timeoutMs: number;
+      encounterMask: number;
+      deadline: number;
+    }
+  | { type: "bound" }
+  | { type: "reset"; mapId: number }
+  | { type: "reset_failed"; mapId: number; reason: number }
+  | { type: "reset_blocked"; mapId: number }
+  | {
+      type: "encounter";
+      change: "engage" | "disengage" | "update_priority";
+      guid: bigint;
+      priority: number;
+    };
+
+const lockKey = (lock: RaidLock) => `${lock.mapId}:${lock.difficulty}`;
 
 const DIFFICULTY_KEY = {
   dungeon: "dungeonDifficulty",
@@ -62,10 +106,16 @@ const EMPTY: InstancesState = {
   lastInstanceMaps: [],
   lastWarning: undefined,
   homebindTimer: undefined,
+  locks: undefined,
+  locksAt: undefined,
+  pendingBind: undefined,
+  pendingDifficulty: undefined,
+  encounterUnits: [],
 };
 
 export class InstancesStore {
   private readonly events = new Emitter<[InstancesEvent]>();
+  private readonly bodies = new Emitter<[DifficultyBody]>();
   private state: InstancesState = EMPTY;
   private readonly now: () => number;
   private readonly core: CoreStores;
@@ -76,12 +126,27 @@ export class InstancesStore {
   }
 
   snapshot(): InstancesState {
-    const { mapDifficulty, lastWarning, homebindTimer } = this.state;
+    const {
+      mapDifficulty,
+      lastWarning,
+      homebindTimer,
+      locks,
+      pendingBind,
+      pendingDifficulty,
+      encounterUnits,
+    } = this.state;
     return {
       ...this.state,
+      locks: locks?.map((lock) => ({ ...lock })),
+      pendingBind:
+        pendingBind && this.now() < pendingBind.deadline
+          ? { ...pendingBind }
+          : undefined,
+      pendingDifficulty: pendingDifficulty && { ...pendingDifficulty },
       mapDifficulty: mapDifficulty && { ...mapDifficulty },
       lastWarning: lastWarning && { ...lastWarning },
       homebindTimer: homebindTimer && { ...homebindTimer },
+      encounterUnits: encounterUnits.map((unit) => ({ ...unit })),
     };
   }
 
@@ -89,11 +154,36 @@ export class InstancesStore {
     return this.events.subscribe(cb);
   }
 
+  onDifficultyBody(cb: (body: DifficultyBody) => void): Unsubscribe {
+    return this.bodies.subscribe(cb);
+  }
+
+  pendDifficulty(kind: DifficultyKind, value: number): void {
+    this.set({
+      pendingDifficulty: { ...this.state.pendingDifficulty, [kind]: value },
+    });
+  }
+
   difficulty(kind: DifficultyKind, packet: DifficultyPacket): void {
     const key = DIFFICULTY_KEY[kind];
     const previous = this.state[key];
-    if (previous === packet.difficulty) return;
+    const pending = this.state.pendingDifficulty;
+    if (pending?.[kind] !== undefined) {
+      const next = { ...pending };
+      delete next[kind];
+      this.set({
+        pendingDifficulty:
+          next.dungeon === undefined && next.raid === undefined
+            ? undefined
+            : next,
+      });
+    }
+    if (previous === packet.difficulty) {
+      this.bodies.emit({ kind, difficulty: packet.difficulty });
+      return;
+    }
     this.set({ [key]: packet.difficulty });
+    this.bodies.emit({ kind, difficulty: packet.difficulty });
     this.events.emit({
       type: "difficulty",
       kind,
@@ -151,12 +241,86 @@ export class InstancesStore {
     this.events.emit({ type: "corpse_elsewhere" });
   }
 
+  raidInfo(locks: readonly RaidLock[]): void {
+    const before = this.state.locks ?? [];
+    const kept = new Set(locks.map(lockKey));
+    const had = new Set(before.map(lockKey));
+    this.set({ locks, locksAt: this.now() });
+    this.events.emit({
+      type: "lockouts",
+      locks,
+      added: locks.filter((lock) => !had.has(lockKey(lock))),
+      removed: before.filter((lock) => !kept.has(lockKey(lock))),
+    });
+  }
+
+  lockWarning(packet: LockWarning): void {
+    const at = this.now();
+    const deadline = at + packet.timeoutMs;
+    this.set({ pendingBind: { ...packet, at, deadline } });
+    this.events.emit({ type: "bind_offer", ...packet, deadline });
+  }
+
+  saveCreated(): void {
+    this.set({ pendingBind: undefined });
+    this.events.emit({ type: "bound" });
+  }
+
+  reset(packet: InstanceReset): void {
+    this.events.emit({ type: "reset", mapId: packet.mapId });
+  }
+
+  resetFailed(packet: InstanceResetFailed): void {
+    this.events.emit({
+      type: "reset_failed",
+      mapId: packet.mapId,
+      reason: packet.reason,
+    });
+  }
+
+  resetBlocked(packet: InstanceReset): void {
+    this.events.emit({ type: "reset_blocked", mapId: packet.mapId });
+  }
+  encounterUnit(frame: EncounterFrame): void {
+    switch (frame.kind) {
+      case "engage":
+      case "disengage":
+      case "update_priority": {
+        const units = [...this.state.encounterUnits];
+        const at = units.findIndex((unit) => unit.guid === frame.guid);
+        if (frame.kind === "disengage") {
+          if (at >= 0) units.splice(at, 1);
+        } else if (at >= 0) {
+          units[at] = { guid: frame.guid };
+        } else if (frame.kind === "engage") {
+          units.push({ guid: frame.guid });
+        }
+        this.set({ encounterUnits: units });
+        this.events.emit({
+          type: "encounter",
+          change: frame.kind,
+          guid: frame.guid,
+          priority: frame.priority,
+        });
+        return;
+      }
+      default:
+        return;
+    }
+  }
+
   mapChanged(): void {
-    this.set({ mapDifficulty: undefined, homebindTimer: undefined });
+    this.set({
+      mapDifficulty: undefined,
+      homebindTimer: undefined,
+      pendingBind: undefined,
+      encounterUnits: [],
+    });
   }
 
   dispose(): void {
     this.events.clear();
+    this.bodies.clear();
   }
 
   private set(next: Partial<InstancesState>): void {

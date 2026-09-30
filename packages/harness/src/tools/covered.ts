@@ -3,6 +3,16 @@ import type { ToolName, ToolStatus } from "#harness/contract/result";
 import type { GameLog } from "#harness/contract/services";
 
 const COVERS: Partial<Record<ToolName, ReadonlySet<LogEvent>>> = {
+  dungeon: new Set<LogEvent>([
+    "instances/reset",
+    "instances/reset_failed",
+    "instances/bound",
+    "lfg/queued",
+    "lfg/left",
+    "lfg/refused",
+    "lfg/teleport_refused",
+  ]),
+  group: new Set<LogEvent>(["raid/roster", "raid/mark"]),
   interact: new Set<LogEvent>([
     "quest/accepted",
     "quest/rewarded",

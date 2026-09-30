@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
-import { lootingLootListBody } from "#test-support/areas/looting";
+import {
+  lootingLootErrorBody,
+  lootingLootListBody,
+  lootingLootMasterListBody,
+  lootingLootReleaseBody,
+  lootingLootRemovedBody,
+} from "#test-support/areas/looting";
 import type { LootingEvent } from "#wow/areas/looting/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
@@ -123,6 +129,62 @@ describe("LootingStore", () => {
       const state = rig.handle.state();
       (state.owners as Map<bigint, unknown>).delete(CREATURE);
       expect(owner(CREATURE)).toBeDefined();
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a master list sets the candidates and emits master_loot_candidates", () => {
+    const { rig, seen } = setup();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_LOOT_MASTER_LIST,
+        lootingLootMasterListBody([ME, PARTNER]),
+      );
+      expect(rig.handle.state().masterCandidates).toEqual([ME, PARTNER]);
+      expect(seen).toEqual([
+        {
+          type: "master_loot_candidates",
+          candidates: [ME, PARTNER],
+        },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a release peek clears the candidates in silence", () => {
+    const { rig, seen } = setup();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_LOOT_MASTER_LIST,
+        lootingLootMasterListBody([PARTNER]),
+      );
+      seen.length = 0;
+      expect(rig.handle.state().masterCandidates).toEqual([PARTNER]);
+      rig.inject(
+        GameOpcode.SMSG_LOOT_RELEASE_RESPONSE,
+        lootingLootReleaseBody(CREATURE, 1),
+      );
+      expect(rig.handle.state().masterCandidates).toEqual([]);
+      expect(seen).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("duplicate items with the same label settle only their own give", () => {
+    const { rig } = setup();
+    try {
+      rig.inject(GameOpcode.SMSG_LOOT_REMOVED, lootingLootRemovedBody(0));
+      rig.inject(
+        GameOpcode.SMSG_LOOT_RESPONSE,
+        lootingLootErrorBody(CREATURE, 12),
+      );
+      rig.inject(
+        GameOpcode.SMSG_LOOT_RELEASE_RESPONSE,
+        lootingLootReleaseBody(CREATURE, 1),
+      );
     } finally {
       rig.dispose();
     }

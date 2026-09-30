@@ -1,0 +1,50 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 30,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["lfg/queued"]
+      },
+      "expect": "GL has an lfg/queued row for the random-dungeon queue",
+      "id": "queued",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["lfg/left"]
+      },
+      "expect": "GL has an lfg/left row after the agent leaves the queue",
+      "id": "left",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["lfg/queue"]
+      },
+      "expect": "GL has at least one lfg/queue row with the reported wait",
+      "id": "wait-row",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent calling the dungeon tool with do queue and then with do leave_queue, and reporting the wait from the last lfg/queue row",
+      "id": "queue-and-leave",
+      "source": "session"
+    }
+  ],
+  "id": "t9-lfg-queue",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "ghostlands20",
+  "setup": [],
+  "spawn": "eversong-raid",
+  "steers": [],
+  "task": "Join the dungeon finder as damage for a random dungeon without accepting any group. Once you are queued, tell me how long the wait is, then leave the queue.",
+  "tier": 9
+}

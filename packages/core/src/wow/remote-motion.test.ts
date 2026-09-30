@@ -17,6 +17,8 @@ import { PacketWriter } from "#wow/protocol/packet";
 import {
   classifyGroundFlags,
   type RemoteInvalidReason,
+  RemoteMotion,
+  type RemoteMotionEvent,
 } from "#wow/remote-motion";
 
 async function withFixture(run: (f: MotionFixture) => Promise<void>) {
@@ -271,5 +273,85 @@ describe("remote player movement reception", () => {
         moverTime: 490_761_817,
       });
     });
+  });
+});
+
+describe("RemoteMotion.applyFlags", () => {
+  const GUID = 0x9ffn;
+  const position = { mapId: MAP, x: 1, y: 2, z: 3, orientation: 0 };
+
+  function motion(dead = false) {
+    const events: RemoteMotionEvent[] = [];
+    const remote = new RemoteMotion({
+      now: () => 500,
+      eligible: () => true,
+      dead: () => dead,
+      emit: (event) => events.push(event),
+    });
+    return { remote, events };
+  }
+
+  function observed(remote: RemoteMotion, flags: number, extraFlags = 0) {
+    remote.observe(GUID, {
+      position,
+      source: "observer",
+      info: info(1, flags, extraFlags),
+    });
+  }
+
+  test("root makes a moving pose stationary and hover makes it invalid", () => {
+    const { remote, events } = motion();
+    observed(remote, MovementFlag.FORWARD);
+    expect(remote.all()[0]?.motion).toBe("moving");
+    events.length = 0;
+    remote.applyFlags(GUID, MovementFlag.ROOT);
+    expect(remote.all()[0]).toMatchObject({
+      flags: MovementFlag.ROOT,
+      motion: "stationary",
+      source: "observer",
+      moverTime: 77,
+      receivedAt: 500,
+    });
+    expect(remote.all()[0]?.invalid).toBeUndefined();
+    expect(events.map((event) => event.type)).toEqual(["pose"]);
+    remote.applyFlags(GUID, MovementFlag.ROOT | MovementFlag.HOVER);
+    expect(remote.all()[0]).toMatchObject({ invalid: "hover" });
+    expect(remote.all()[0]?.motion).toBeUndefined();
+    remote.applyFlags(GUID, 0);
+    expect(remote.all()[0]).toMatchObject({
+      flags: 0,
+      motion: "stationary",
+    });
+    expect(remote.all()[0]?.invalid).toBeUndefined();
+  });
+
+  test("a discontinuity, death or missing flags stay invalid through a toggle", () => {
+    const { remote } = motion();
+    remote.observe(GUID, {
+      position,
+      source: "observer",
+      info: info(1, 0),
+      transition: "teleport",
+    });
+    remote.applyFlags(GUID, MovementFlag.WALKING);
+    expect(remote.all()[0]).toMatchObject({ invalid: "teleport" });
+    const dying = motion(true);
+    observed(dying.remote, 0);
+    dying.remote.applyFlags(GUID, 0);
+    expect(dying.remote.all()[0]).toMatchObject({ invalid: "dead" });
+    const bare = motion();
+    bare.remote.observe(GUID, { position, source: "update" });
+    bare.remote.applyFlags(GUID, 0);
+    expect(bare.remote.all()[0]).toMatchObject({
+      invalid: "flags_unobserved",
+    });
+    expect(bare.remote.all()[0]?.flags).toBeUndefined();
+  });
+
+  test("an unknown guid gets no pose and emits nothing", () => {
+    const { remote, events } = motion();
+    remote.applyFlags(GUID, MovementFlag.ROOT);
+    expect(remote.all()).toEqual([]);
+    expect(events).toEqual([]);
   });
 });

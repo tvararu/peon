@@ -74,8 +74,15 @@ export function groupMethods(conn: WorldConn) {
       return conn.party.snapshot((guid) => {
         const entity = conn.entityStore.get(guid);
         if (!isUnit(entity) || entity.maxHealth === 0) return;
-        const { health, maxHealth, level } = entity;
-        return { health, level, maxHealth };
+        const type = entity.powerType ?? 0;
+        return {
+          health: entity.health,
+          level: entity.level,
+          maxHealth: entity.maxHealth,
+          maxPower: entity.maxPower[type] ?? 0,
+          power: entity.power[type] ?? 0,
+          powerType: type,
+        };
       }, Date.now());
     },
     invite(name) {

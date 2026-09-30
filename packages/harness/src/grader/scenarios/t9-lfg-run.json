@@ -1,0 +1,250 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 25,
+    "tools": 30,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["lfg/queued"]
+      },
+      "expect": "GL has an lfg/queued row for the run party queue",
+      "id": "queued",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["lfg/proposal"]
+      },
+      "expect": "GL has an lfg/proposal row for the dungeon group proposal",
+      "id": "proposal",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["lfg/role_chosen"]
+      },
+      "expect": "GL has lfg/role_chosen rows for every party member answering the role check",
+      "id": "roles-answered",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["lfg/offer_continue"]
+      },
+      "expect": "GL has an lfg/offer_continue row after a partner leaves the finished group",
+      "id": "offer-continue",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent calling the social tool with do accept_invite, then the dungeon tool with do queue and then with do teleport out",
+      "id": "queue-teleport",
+      "source": "session"
+    }
+  ],
+  "id": "t9-lfg-run",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 28,
+  "partner": null,
+  "partnerActions": [
+    {
+      "actor": 2,
+      "argv": ["call", "invite", "[\"<PARTNER3>\"]"],
+      "at": {
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "task_landed"
+      },
+      "windowMs": 120000
+    },
+    {
+      "actor": 3,
+      "argv": ["call", "acceptInvite", "[]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 5000
+      },
+      "windowMs": 120000
+    },
+    {
+      "actor": 2,
+      "argv": ["call", "invite", "[\"<PARTNER4>\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 5000
+      },
+      "windowMs": 120000
+    },
+    {
+      "actor": 4,
+      "argv": ["call", "acceptInvite", "[]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 5000
+      },
+      "windowMs": 120000
+    },
+    {
+      "actor": 2,
+      "argv": ["call", "invite", "[\"<PARTNER1>\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 5000
+      },
+      "windowMs": 120000
+    },
+    {
+      "actor": 1,
+      "argv": ["call", "acceptInvite", "[]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 5000
+      },
+      "windowMs": 120000
+    },
+    {
+      "actor": 2,
+      "argv": ["call", "invite", "[\"<AGENT>\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 5000
+      },
+      "windowMs": 180000
+    },
+    {
+      "actor": 2,
+      "argv": ["call", "setLeader", "[\"<AGENT>\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 60000
+      },
+      "windowMs": 180000
+    },
+    {
+      "actor": 1,
+      "argv": ["call", "setRoles", "[2]"],
+      "at": {
+        "delayMs": 15000,
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "lfg_role_check"
+      },
+      "windowMs": 45000
+    },
+    {
+      "actor": 2,
+      "argv": ["call", "setRoles", "[4]"],
+      "at": {
+        "delayMs": 16000,
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "lfg_role_check"
+      },
+      "windowMs": 45000
+    },
+    {
+      "actor": 3,
+      "argv": ["call", "setRoles", "[8]"],
+      "at": {
+        "delayMs": 17000,
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "lfg_role_check"
+      },
+      "windowMs": 45000
+    },
+    {
+      "actor": 4,
+      "argv": ["call", "setRoles", "[8]"],
+      "at": {
+        "delayMs": 18000,
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "lfg_role_check"
+      },
+      "windowMs": 45000
+    },
+    {
+      "actor": 1,
+      "argv": ["call", "answerProposal", "[\"accept\"]"],
+      "at": {
+        "delayMs": 500,
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "lfg_proposal"
+      },
+      "windowMs": 30000
+    },
+    {
+      "actor": 2,
+      "argv": ["call", "answerProposal", "[\"accept\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 500
+      },
+      "windowMs": 30000
+    },
+    {
+      "actor": 3,
+      "argv": ["call", "answerProposal", "[\"accept\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 500
+      },
+      "windowMs": 30000
+    },
+    {
+      "actor": 4,
+      "argv": ["call", "answerProposal", "[\"accept\"]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 500
+      },
+      "windowMs": 30000
+    },
+    {
+      "actor": 1,
+      "argv": ["call", "leaveGroup", "[]"],
+      "at": {
+        "kind": "elapsed",
+        "ms": 30000
+      },
+      "windowMs": 60000
+    }
+  ],
+  "partners": [
+    {
+      "preset": "ghostlands20",
+      "role": "partner"
+    },
+    {
+      "preset": "ghostlands20",
+      "role": "partner"
+    },
+    {
+      "preset": "ghostlands20",
+      "role": "partner"
+    },
+    {
+      "preset": "ghostlands20",
+      "role": "partner"
+    }
+  ],
+  "preset": "ghostlands20",
+  "setup": [],
+  "spawn": "ghostlands",
+  "steers": [
+    {
+      "at": {
+        "kind": "elapsed",
+        "ms": 120000
+      },
+      "text": "You lead the group now. Queue your party for a random dungeon as damage, go in, then teleport back out."
+    }
+  ],
+  "task": "Your friends will invite you to their group. Accept the invite when it arrives, even if an earlier try found nothing to accept. When you lead the group, queue your party for a random dungeon as damage, go in, then teleport back out.",
+  "tier": 9
+}

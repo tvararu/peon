@@ -23,12 +23,15 @@ export const COMBATLOG_OPCODES = {
     "SMSG_FEIGN_DEATH_RESISTED",
     "SMSG_HEALTH_UPDATE",
   ],
-  uses: [],
-  stubs: [
-    ["SMSG_SPELLHEALLOG", "Heal received"],
-    ["SMSG_ENVIRONMENTAL_DAMAGE_LOG", "Environmental damage"],
-    ["SMSG_HEALTH_UPDATE", "Health update"],
-  ],
+  uses: ["SMSG_SPELL_GO"],
+  stubs: [["SMSG_HEALTH_UPDATE", "Health update"]],
   dead: ["SMSG_PROCRESIST", "SMSG_FEIGN_DEATH_RESISTED", "SMSG_HEALTH_UPDATE"],
-  unseen: ["SMSG_UPDATE_COMBO_POINTS"],
+  unseen: [
+    "SMSG_UPDATE_COMBO_POINTS",
+    "SMSG_SPELLLOGMISS",
+    "SMSG_SPELLORDAMAGE_IMMUNE",
+    "SMSG_SPELLDAMAGESHIELD",
+    "SMSG_ENVIRONMENTAL_DAMAGE_LOG",
+    "SMSG_SPELLINSTAKILLLOG",
+  ],
 } as const satisfies AreaOpcodes;

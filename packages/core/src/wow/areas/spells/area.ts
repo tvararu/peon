@@ -6,17 +6,30 @@ import {
   parseModifyCooldown,
   parseSpellModifier,
   parseSpellVisual,
+  parseTotemCreated,
   parseUnlearnSpells,
 } from "#wow/areas/spells/protocol";
 import { spellsRuntime } from "#wow/areas/spells/runtime";
 import { SpellsStore } from "#wow/areas/spells/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import { parseSpellFailure } from "#wow/protocol/spell";
+import {
+  parseSpellFailure,
+  parseSpellGo,
+  parseSpellStart,
+} from "#wow/protocol/spell";
 
 export const spellsArea = defineArea({
   name: "spells",
   opcodes: SPELLS_OPCODES,
-  eventTypes: ["channel_start", "channel_end", "spell_visual"],
+  eventTypes: [
+    "channel_start",
+    "channel_end",
+    "spell_visual",
+    "totem_created",
+    "totem_gone",
+    "unit_cast_start",
+    "unit_cast_end",
+  ],
   store: (deps, core) => new SpellsStore(deps, core),
   register: (wire, store) => {
     wire.on(GameOpcode.MSG_CHANNEL_START, (r) =>
@@ -43,7 +56,17 @@ export const spellsArea = defineArea({
     wire.on(GameOpcode.SMSG_PLAY_SPELL_IMPACT, (r) =>
       store.spellVisual(parseSpellVisual(r), true),
     );
+    wire.on(GameOpcode.SMSG_TOTEM_CREATED, (r) =>
+      store.totemCreated(parseTotemCreated(r)),
+    );
     wire.peek(GameOpcode.SMSG_SPELL_FAILURE, (r) =>
+      store.spellFailure(parseSpellFailure(r)),
+    );
+    wire.peek(GameOpcode.SMSG_SPELL_START, (r) =>
+      store.spellStart(parseSpellStart(r)),
+    );
+    wire.peek(GameOpcode.SMSG_SPELL_GO, (r) => store.spellGo(parseSpellGo(r)));
+    wire.on(GameOpcode.SMSG_SPELL_FAILED_OTHER, (r) =>
       store.spellFailure(parseSpellFailure(r)),
     );
   },

@@ -39,10 +39,30 @@ or the page names one that does not exist.
 | Stop a channelled spell with stop | `t4-spells-stop-channel` | Stop also ends a channel. |
 | Make an inn its home | `t8-travel-bind-inn` | `interact` `bind` walks to the innkeeper first. A bind the server does not answer (dead, out of range or in an instance) is `UNCONFIRMED`. |
 | Use the hearthstone to go home | `t8-travel-hearth-home` | `travel` `hearth` refuses without the stone, on cooldown, in combat or in flight. The scenario starts at the preset's own home, so it does not show a bind at another inn. |
+| Command a pet: call, dismiss, attack, follow, stay, stop and stance | `t8-pets-command` | Hunter only; no warlock or death knight preset. |
+| Set dungeon difficulty | `t9-instances-difficulty` | A solo change is not confirmed until the next dungeon entry; in a group only the leader can change it. |
+| Queue for the dungeon finder and leave | `t9-lfg-queue` | Joining needs an LFG option on the server; a queue with no reply is reported as disabled. |
+| Enter and leave a dungeon-finder dungeon with a party | `t9-lfg-run` | Needs a full party of five; the dungeon finder cannot bring a ghost back. |
+| Reset its own dungeons | — (not shown; see below) | Normal difficulty only; a group member cannot reset. |
+| Remove a member with a reason | `t9-raid-kick` | A party of two disbands. |
+| Run a raid: convert, subgroups, assistants, main tank and main assist | `t9-raid-convert` | Every member must be level 10 or more; the server refuses the convert below that. Flags and subgroups are shown by roster rows only, not by a truth field. |
+| Give items and gold to another player | `t9-trade-give` | One trade window at a time, up to 6 items. Only a player in range (11 yards). |
+| Take a trade another player offers | `t9-trade-receive` | The agent accepts after it reads both offers. |
+| Swap items with another player | `t9-trade-swap` | |
+| Refuse or cancel a trade | `t9-trade-cancel` | |
+| Share a quest with the group and take one shared back | `t8-quests-share`, `t8-quests-accept-shared` | A share with no member answer is `UNCONFIRMED` after 3 s. |
+| Set loot rules and give master loot | `t9-raid-master-loot` | Needs a corpse that holds an item; the scenario allows three kills. `roll` and `pass_loot` are not shown: a group roll needs an uncommon drop and `pass_loot` has no server reply. |
+| Run and answer ready checks | `t9-raid-ready`, `t9-raid-answer` | Peon ends its own checks after 30 s. |
+| Mark targets | `t9-raid-mark` | Icon names are unconfirmed. |
 
 ## Not shown by any scenario
 
 These have tools or code but no scenario that checks them live:
+- Resetting its own dungeons (`dungeon` `reset`): no scenario can stage the
+  character inside a dungeon (the realm position setup accepts only
+  continent maps, and evals may not teleport with a GM command), so the
+  reset is proven by probe runs, failed inside the dungeon and reset
+  outside it.
 
 - Training spells, repairing, and selling junk (`interact` `train`,
   `repair`, `sell_junk`).
@@ -56,6 +76,10 @@ These have tools or code but no scenario that checks them live:
 - Walking to a quest objective's region from `journal` (`t4-quests-poi-walk`):
   the agent takes the quest but walks by other means and never reads the
   region from `journal`.
+- Come back to life where it died, with Reincarnation or a Soulstone (`t6-selfstate-res`, blocked: the server drops Reincarnation from a non-shaman preset at login, so no preset has a self-resurrection spell).
+- Give a master-looted item to a group member (`t9-raid-master-loot`, the agent sets master loot but its kills leave empty corpses or it names the loot method wrongly, so no item is given).
+- Answer a raid ready check (`t9-raid-answer`, the agent answers before the check starts, and the repeat guard then refuses its answer during the check).
+- Accept a quest a party member shares (`t8-quests-accept-shared`, the agent's early `accept_invite` is refused as a repeat, so it is not in the group when the partner shares).
 
-Peon has no tool for mail, trade, the auction house, flight paths or
+Peon has no tool for mail, the auction house, flight paths or
 mounts.

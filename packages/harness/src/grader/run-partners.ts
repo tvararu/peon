@@ -61,10 +61,22 @@ export async function createPartners(
 export async function placePartners(
   { exec, partners, runDir }: PartnersInit,
   step: Scenario["setup"][number] | undefined,
+  scenario?: Pick<Scenario, "partnerSetup">,
 ): Promise<void> {
-  if (step === undefined) return;
-  for (const { names } of partners)
-    await applySetup({ account: names.account, exec, runDir, setup: [step] });
+  if (step !== undefined)
+    for (const { names } of partners)
+      await applySetup({ account: names.account, exec, runDir, setup: [step] });
+  for (const { actor = 1, body, endpoint } of scenario?.partnerSetup ?? []) {
+    const partner = partners[actor - 1];
+    if (partner === undefined)
+      throw new Error(`partnerSetup: no partner ${actor}`);
+    await applySetup({
+      account: partner.names.account,
+      exec,
+      runDir,
+      setup: [{ body, endpoint }],
+    });
+  }
 }
 
 export const partnerTruthFile = (

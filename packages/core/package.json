@@ -19,6 +19,7 @@
     "./test-support/mock-handle": "./test-support/mock-handle.ts",
     "./test-support/mock-world-server": "./test-support/mock-world-server.ts",
     "./test-support/must": "./test-support/must.ts",
+    "./test-support/party-fixtures": "./test-support/party-fixtures.ts",
     "./test-support/scratch": "./test-support/scratch.ts",
     "./test-support/session-fixtures": "./test-support/session-fixtures.ts",
     "./test-support/spell-fixtures": "./test-support/spell-fixtures.ts",

@@ -9,6 +9,7 @@ import {
   type QuestLogActs,
   questLogRuntime,
 } from "#wow/areas/quests/runtime-log";
+import { type ShareActs, shareRuntime } from "#wow/areas/quests/runtime-share";
 import type {
   PoiEntryView,
   QuestsEvent,
@@ -39,7 +40,8 @@ export type QuestsActs = {
   queryPoi: (ids: readonly number[]) => PoiEntryView[];
   queryNpcText: (textId: number, guid: bigint) => boolean;
   greeting: (textId: number) => string | undefined;
-} & QuestLogActs;
+} & QuestLogActs &
+  ShareActs;
 
 type Timer = ReturnType<typeof setTimeout>;
 
@@ -232,12 +234,26 @@ function textQuery({ ctx, store }: TextEnv): TextQuery {
   };
 }
 
+function queryGiverStatus(
+  ctx: AreaRuntimeCtx<QuestsEvent>,
+  known: ReadonlyMap<bigint, boolean>,
+  guid: bigint,
+): boolean {
+  if (!known.has(guid)) return false;
+  ctx.send(
+    GameOpcode.CMSG_QUESTGIVER_STATUS_QUERY,
+    buildQuestgiverStatusQuery(guid),
+  );
+  return true;
+}
+
 export function questsRuntime(
   ctx: AreaRuntimeCtx<QuestsEvent>,
   store: QuestsStore,
   core: CoreStores,
 ): AreaRuntime<QuestsActs> {
   const log = questLogRuntime(ctx, store, core);
+  const share = shareRuntime(ctx, store, core);
   const known = new Map<bigint, boolean>();
   const query = marksQuery(() =>
     ctx.send(GameOpcode.CMSG_QUESTGIVER_STATUS_MULTIPLE_QUERY),
@@ -264,29 +280,23 @@ export function questsRuntime(
     trackPoiEntry(event, { seenInLog, store, core, pois });
     if (event.type === "dialog") queryDialogText(core, texts);
   });
-  const queryGiverStatus = (guid: bigint): boolean => {
-    if (!known.has(guid)) return false;
-    ctx.send(
-      GameOpcode.CMSG_QUESTGIVER_STATUS_QUERY,
-      buildQuestgiverStatusQuery(guid),
-    );
-    return true;
-  };
   const queryPoi = (ids: readonly number[]): PoiEntryView[] => {
     pois.request(ids);
     return store.poiOf(ids);
   };
   return {
     act: {
-      queryGiverStatus,
+      queryGiverStatus: (guid) => queryGiverStatus(ctx, known, guid),
       queryGiverStatuses: query.sendNow,
       queryPoi,
       queryNpcText: texts.send,
       greeting: (textId) => store.greeting(textId),
       ...log.act,
+      ...share.act,
     },
     dispose: () => {
       log.dispose();
+      share.dispose();
       offEntity();
       offQuest();
       query.dispose();

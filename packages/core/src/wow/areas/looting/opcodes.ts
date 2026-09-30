@@ -9,7 +9,11 @@ export const LOOTING_OPCODES = {
     "CMSG_LOOT_MASTER_GIVE",
     "SMSG_LOOT_ITEM_NOTIFY",
   ],
-  uses: [],
+  uses: [
+    "SMSG_LOOT_REMOVED",
+    "SMSG_LOOT_RESPONSE",
+    "SMSG_LOOT_RELEASE_RESPONSE",
+  ],
   stubs: [],
   dead: ["SMSG_LOOT_ITEM_NOTIFY"],
   unseen: ["CMSG_OPT_OUT_OF_LOOT"],

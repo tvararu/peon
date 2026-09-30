@@ -112,9 +112,108 @@ describe("instances harness rules", () => {
     ]);
   });
 
+  test("reset logs the map so the reset is observable", () => {
+    const [row, ...rest] = rows({ mapId: 36, type: "reset" });
+    expect(rest).toEqual([]);
+    expect(row).toMatchObject({
+      class: "log",
+      data: { mapId: 36 },
+      event: "instances/reset",
+      progress: true,
+    });
+    expect(row?.text).toContain("36");
+  });
+
+  test("reset_failed wakes with the map and names each failure reason", () => {
+    const texts = [0, 1, 2].map((reason) => {
+      const [row, ...rest] = rows({ mapId: 36, reason, type: "reset_failed" });
+      expect(rest).toEqual([]);
+      expect(row).toMatchObject({
+        class: "wake",
+        data: { mapId: 36, reason },
+        event: "instances/reset_failed",
+      });
+      return row?.text ?? "";
+    });
+    for (const text of texts) expect(text).toContain("36");
+    expect(new Set(texts).size).toBe(3);
+  });
+
+  test("reset_blocked wakes with the map", () => {
+    const [row, ...rest] = rows({ mapId: 36, type: "reset_blocked" });
+    expect(rest).toEqual([]);
+    expect(row).toMatchObject({
+      class: "wake",
+      data: { mapId: 36 },
+      event: "instances/reset_blocked",
+    });
+    expect(row?.text).toContain("36");
+  });
+
+  test("bind_offer wakes with the choice window and the bind call", () => {
+    const [row, ...rest] = rows({
+      deadline: 1_000_000,
+      encounterMask: 3,
+      timeoutMs: 60_000,
+      type: "bind_offer",
+    });
+    expect(rest).toEqual([]);
+    expect(row).toMatchObject({
+      class: "wake",
+      data: { encounterMask: 3, timeoutMs: 60_000 },
+      event: "instances/bind_offer",
+    });
+    expect(row?.text).toContain("60 s");
+    expect(row?.text).toContain("bind");
+  });
+
+  test("bound writes one passive row", () => {
+    expect(rows({ type: "bound" })).toMatchObject([
+      { class: "passive", event: "instances/bound" },
+    ]);
+  });
+
+  test("lockouts log the maps added and removed and stay quiet when nothing changed", () => {
+    const lock = {
+      difficulty: 1,
+      extended: false,
+      instanceGuid: 9n,
+      locked: true,
+      mapId: 533,
+      secondsToReset: 3600,
+    };
+    const changed = rows({
+      added: [lock],
+      locks: [lock],
+      removed: [],
+      type: "lockouts",
+    });
+    expect(changed).toMatchObject([
+      { class: "log", data: { added: [533], removed: [] } },
+    ]);
+    expect(changed[0]?.event).toBe("instances/lockouts");
+    expect(changed[0]?.text).toContain("533");
+    expect(
+      rows({ added: [], locks: [lock], removed: [], type: "lockouts" }),
+    ).toEqual([]);
+    expect(
+      rows({ added: [], locks: [], removed: [lock], type: "lockouts" }),
+    ).toMatchObject([{ data: { added: [], removed: [533] } }]);
+  });
   test("saved_maps writes nothing", () => {
     expect(
       rows({ hasPermanentBinds: true, maps: [533], type: "saved_maps" }),
+    ).toEqual([]);
+  });
+
+  test("encounter writes nothing", () => {
+    expect(
+      rows({
+        change: "engage",
+        guid: 0x00f1_2299_0000_0003n,
+        priority: 7,
+        type: "encounter",
+      }),
     ).toEqual([]);
   });
 });

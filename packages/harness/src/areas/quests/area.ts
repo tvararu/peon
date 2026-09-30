@@ -66,6 +66,48 @@ function quiet(event: QuestsEvent): AreaDraft {
 }
 
 type GossipPoi = Extract<QuestsEvent, { type: "gossip_poi" }>;
+type Share = Extract<QuestsEvent, { type: "share" }>["share"];
+
+function shareTitle(change: Share, rc: RuleInput): string {
+  return rc.lookup.questTitle(change.questId) ?? `quest ${change.questId}`;
+}
+
+function onShare(change: Share, rc: RuleInput): AreaDraft[] {
+  if (change.type === "offered") {
+    const sharer = rc.lookup.unitName(change.from) ?? "A member";
+    return [
+      {
+        class: "wake",
+        data: { from: sharer, questId: change.questId, title: change.title },
+        guid: guidText(change.from),
+        name: "offered",
+        ref: rc.refOf(change.from),
+        text: `${sharer} ${rc.refOf(change.from)} shared ${change.title}: accept it with group do=accept_quest or turn it down with group do=decline_quest.`,
+      },
+    ];
+  }
+  if (change.type === "result" || change.type === "relayed") {
+    const member = rc.lookup.unitName(change.guid) ?? "A member";
+    const answers: Record<number, string> = { 2: "accepted", 3: "declined" };
+    const answer = answers[change.result] ?? `result ${change.result}`;
+    return [
+      {
+        class: "wake",
+        data: {
+          answer,
+          member,
+          questId: change.questId,
+          result: change.result,
+        },
+        guid: guidText(change.guid),
+        name: "share_result",
+        ref: rc.refOf(change.guid),
+        text: `${member} ${answer} ${shareTitle(change, rc)}.`,
+      },
+    ];
+  }
+  return [quiet({ share: change, type: "share" } as QuestsEvent)];
+}
 
 function onPoi(e: GossipPoi, rc: RuleInput): AreaDraft[] {
   const name = e.from === undefined ? undefined : rc.lookup.unitName(e.from);
@@ -133,9 +175,10 @@ export const questsHarness = defineHarnessArea({
       event: (e: QuestsEvent, rc: RuleInput) => {
         if (e.type === "marks") return onMarks(e, mem, rc);
         if (e.type === "gossip_poi") return onPoi(e, rc);
+        if (e.type === "share") return onShare(e.share, rc);
         return [quiet(e)];
       },
     };
   },
-  worldActs: ["queryGiverStatuses", "queryPoi"],
+  worldActs: ["answerShare", "queryGiverStatuses", "queryPoi", "shareQuest"],
 });

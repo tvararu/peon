@@ -1,14 +1,23 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import { petsPetSpellsBody } from "#test-support/areas/pets";
+import { spell } from "#test-support/spell-fixtures";
 import { buildPetAction, PET_ACTION } from "#wow/areas/pets/protocol";
 import type { Entity } from "#wow/entity-store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 import { UNIT_FIELDS } from "#wow/protocol/update-fields";
+import type { SpellCatalog, SpellDefinition } from "#wow/spell-catalog";
 
 const ME = 0x2an;
 const PET = 0xf1_40_00_0c_a9_00_02_0bn;
+const BITE = 17_253;
+const GROWL = 2649;
+const DASH = 23_099;
+const SPELL_ATTR0_PASSIVE = 0x40;
+function definition(id: number, raw: number): SpellDefinition {
+  return { ...spell(), attributes: { ex: 0, ex2: 0, raw }, id };
+}
 const BAR = petsPetSpellsBody({
   command: 1,
   cooldowns: [],
@@ -17,8 +26,23 @@ const BAR = petsPetSpellsBody({
   flags: 0,
   guid: PET,
   react: 0,
-  slots: Array.from({ length: 10 }, () => ({ action: 0, type: 0 })),
-  spells: [],
+  slots: [
+    { action: 2, type: 0x07 },
+    { action: 1, type: 0x07 },
+    { action: 0, type: 0x07 },
+    { action: BITE, type: 0xc1 },
+    { action: GROWL, type: 0x81 },
+    { action: DASH, type: 0x01 },
+    { action: 0, type: 0x01 },
+    { action: 2, type: 0x06 },
+    { action: 1, type: 0x06 },
+    { action: 0, type: 0x06 },
+  ],
+  spells: [
+    { action: BITE, type: 0xc1 },
+    { action: GROWL, type: 0x81 },
+    { action: DASH, type: 0x01 },
+  ],
 });
 const REQUEST = {
   body: new Uint8Array(),
@@ -38,7 +62,7 @@ function withBar() {
   return rig;
 }
 
-function withPet(bytes2: number) {
+function withPet(bytes2: number, health = 410) {
   const owner = {
     guid: ME,
     rawFields: new Map([
@@ -48,14 +72,22 @@ function withPet(bytes2: number) {
   } as unknown as Entity;
   const pet = {
     guid: PET,
-    rawFields: new Map([[UNIT_FIELDS.BYTES_2.offset, bytes2]]),
+    rawFields: new Map<number, number>([
+      [UNIT_FIELDS.BYTES_2.offset, bytes2],
+      [UNIT_FIELDS.HEALTH.offset, health],
+    ]),
   } as unknown as Entity;
   const rig = areaRig("pets", {
     getEntity: (guid) => [owner, pet].find((row) => row.guid === guid),
     selfGuid: ME,
   });
   rig.inject(GameOpcode.SMSG_PET_SPELLS, BAR);
-  return { act: rig.handle.act, dispose: rig.dispose, sent: rig.sent };
+  return {
+    act: rig.handle.act,
+    dispose: rig.dispose,
+    sent: rig.sent,
+    stores: rig.stores,
+  };
 }
 
 describe("pets runtime", () => {
@@ -127,6 +159,11 @@ describe("pets runtime", () => {
       expect(rig.handle.act.petCommand("dismiss")).toEqual(refused);
       expect(rig.handle.act.petStance("aggressive")).toEqual(refused);
       expect(rig.handle.act.petStopAttack()).toEqual(refused);
+      expect(rig.handle.act.petCast(GROWL, { kind: "none" })).toEqual(refused);
+      expect(rig.handle.act.petAutocast(GROWL, false)).toEqual(refused);
+      expect(rig.handle.act.petSetAction(3, GROWL, 0xc1)).toEqual(refused);
+      expect(rig.handle.act.petSwapActions(3, 4)).toEqual(refused);
+      expect(rig.handle.act.petCancelAura(GROWL)).toEqual(refused);
       expect(rig.sent).toEqual([]);
     } finally {
       rig.dispose();
@@ -164,6 +201,174 @@ describe("pets runtime", () => {
     try {
       expect(rig.act.petCommand("dismiss")).toEqual({ ok: true });
       expect(rig.sent).toEqual([action(PET_ACTION.command, 3)]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("petCast refuses an unknown spell and a dead pet before sending (PetHandler.cpp:1041-1044)", () => {
+    const bar = withBar();
+    try {
+      expect(bar.handle.act.petCast(999_999, { kind: "none" })).toEqual({
+        ok: false,
+        reason: "not_known",
+      });
+      expect(bar.sent).toEqual([]);
+    } finally {
+      bar.dispose();
+    }
+    const dead = withPet(0, 0);
+    try {
+      expect(dead.act.petCast(GROWL, { kind: "none" })).toEqual({
+        ok: false,
+        reason: "dead",
+      });
+      expect(dead.sent).toEqual([]);
+    } finally {
+      dead.dispose();
+    }
+  });
+  test("petCast sends a non-autocastable bar spell and refuses one whose attribute is passive (PetHandler.cpp:1042-1044, Pet.cpp:1810-1816)", () => {
+    const rig = withPet(0);
+    const defs = new Map([
+      [DASH, definition(DASH, 0)],
+      [BITE, definition(BITE, SPELL_ATTR0_PASSIVE)],
+    ]);
+    rig.stores.combat.setCatalog({
+      get: (id: number) => defs.get(id),
+    } as unknown as SpellCatalog);
+    try {
+      expect(rig.act.petCast(BITE, { kind: "none" })).toEqual({
+        ok: false,
+        reason: "passive",
+      });
+      expect(rig.sent).toEqual([]);
+      expect(rig.act.petCast(DASH, { kind: "none" })).toEqual({
+        castCount: 1,
+        confirmed: true,
+        ok: true,
+      });
+      expect(rig.sent).toHaveLength(1);
+      expect(rig.sent[0]?.opcode).toBe(GameOpcode.CMSG_PET_CAST_SPELL);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("petSetAction refuses a single command or reaction pair, which the server ignores (PetHandler.cpp:732-740)", () => {
+    const rig = withPet(0);
+    try {
+      expect(rig.act.petSetAction(0, 2, PET_ACTION.command)).toEqual({
+        ok: false,
+        reason: "not_removable",
+      });
+      expect(rig.act.petSetAction(7, 2, PET_ACTION.reaction)).toEqual({
+        ok: false,
+        reason: "not_removable",
+      });
+      expect(rig.sent).toEqual([]);
+      expect(rig.act.petSetAction(5, GROWL, 0x81)).toEqual({ ok: true });
+      expect(rig.sent).toHaveLength(1);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("petCast sends CMSG_PET_CAST_SPELL with the pet guid and a rising count (PetHandler.cpp:1018-1023)", () => {
+    const rig = withPet(0);
+    try {
+      expect(rig.act.petCast(GROWL, { kind: "none" })).toEqual({
+        castCount: 1,
+        confirmed: false,
+        ok: true,
+      });
+      expect(rig.act.petCast(GROWL, { kind: "none" })).toEqual({
+        castCount: 2,
+        confirmed: false,
+        ok: true,
+      });
+      expect(rig.sent).toHaveLength(2);
+      expect(rig.sent[0]?.opcode).toBe(GameOpcode.CMSG_PET_CAST_SPELL);
+      const first = new PacketReader(rig.sent[0]?.body ?? new Uint8Array());
+      expect(first.uint64LE()).toBe(PET);
+      expect(first.uint8()).toBe(1);
+      expect(first.uint32LE()).toBe(GROWL);
+      const second = new PacketReader(rig.sent[1]?.body ?? new Uint8Array());
+      second.uint64LE();
+      expect(second.uint8()).toBe(2);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("petAutocast sends CMSG_PET_SPELL_AUTOCAST then asks for the bar again (PetHandler.cpp:955-1010)", () => {
+    const rig = withPet(0);
+    try {
+      expect(rig.act.petAutocast(GROWL, false)).toEqual({ ok: true });
+      expect(rig.sent).toHaveLength(2);
+      expect(rig.sent[0]?.opcode).toBe(GameOpcode.CMSG_PET_SPELL_AUTOCAST);
+      const r = new PacketReader(rig.sent[0]?.body ?? new Uint8Array());
+      expect(r.uint64LE()).toBe(PET);
+      expect(r.uint32LE()).toBe(GROWL);
+      expect(r.uint8()).toBe(0);
+      expect(rig.sent[1]).toEqual(REQUEST);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("petAutocast refuses an unknown spell and a passive spell (PetHandler.cpp:987-988)", () => {
+    const rig = withPet(0);
+    try {
+      expect(rig.act.petAutocast(999_999, true)).toEqual({
+        ok: false,
+        reason: "not_known",
+      });
+      expect(rig.act.petAutocast(DASH, true)).toEqual({
+        ok: false,
+        reason: "not_autocastable",
+      });
+      expect(rig.sent).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("petSetAction refuses a slot outside 0-9 and petSwapActions sends one packet with two pairs (PetHandler.cpp:716-727)", () => {
+    const rig = withPet(0);
+    try {
+      expect(rig.act.petSetAction(10, GROWL, 0xc1)).toEqual({
+        ok: false,
+        reason: "bad_slot",
+      });
+      expect(rig.act.petSwapActions(3, 10)).toEqual({
+        ok: false,
+        reason: "bad_slot",
+      });
+      expect(rig.sent).toEqual([]);
+      expect(rig.act.petSwapActions(3, 4)).toEqual({ ok: true });
+      expect(rig.sent).toHaveLength(1);
+      expect(rig.sent[0]?.opcode).toBe(GameOpcode.CMSG_PET_SET_ACTION);
+      const r = new PacketReader(rig.sent[0]?.body ?? new Uint8Array());
+      expect(r.uint64LE()).toBe(PET);
+      expect(r.uint32LE()).toBe(3);
+      expect(r.uint32LE()).toBe(0x81_00_0a_59);
+      expect(r.uint32LE()).toBe(4);
+      expect(r.uint32LE()).toBe(0xc1_00_43_65);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("petCancelAura sends one CMSG_PET_CANCEL_AURA with the pet guid (SpellHandler.cpp:604-608)", () => {
+    const rig = withPet(0);
+    try {
+      expect(rig.act.petCancelAura(GROWL)).toEqual({ ok: true });
+      expect(rig.sent).toHaveLength(1);
+      expect(rig.sent[0]?.opcode).toBe(GameOpcode.CMSG_PET_CANCEL_AURA);
+      const r = new PacketReader(rig.sent[0]?.body ?? new Uint8Array());
+      expect(r.uint64LE()).toBe(PET);
+      expect(r.uint32LE()).toBe(GROWL);
     } finally {
       rig.dispose();
     }

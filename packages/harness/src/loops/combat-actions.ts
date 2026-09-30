@@ -1,9 +1,6 @@
 import {
-  type AreaState,
   bearing,
   type CombatState,
-  type EntityLookup,
-  type FactionRelation,
   isUnit,
   type SpellDefinition,
 } from "@peon/core";
@@ -17,6 +14,10 @@ import {
   engagedWith,
 } from "#harness/loops/combat-actions-credit";
 import {
+  type ActionDeps,
+  baseObservation,
+} from "#harness/loops/combat-actions-frame";
+import {
   MOVE_CANDIDATES,
   MOVE_DIRECTION_BY_ID,
   MOVE_LEASE_MS,
@@ -24,24 +25,14 @@ import {
   WAIT,
 } from "#harness/loops/combat-actions-movement";
 import {
-  auraObservation,
-  combatLogObservation,
   facing,
-  hex,
   immuneTo,
-  navigationObservation,
-  outcomeObservation,
   RANGE_HELD_REASONS,
   separation,
   timeoutOutcome,
-  unitObservation,
   withNulls,
 } from "#harness/loops/combat-actions-observation";
-import {
-  hunterObservation,
-  petCandidate,
-  petOf,
-} from "#harness/loops/combat-actions-pet";
+import { petCandidate, petOf } from "#harness/loops/combat-actions-pet";
 import {
   gearReason,
   isAutoShot,
@@ -59,20 +50,8 @@ import {
 } from "#harness/loops/combat-actions-spells";
 import { targetReason } from "#harness/loops/combat-actions-target";
 import { approached, ProgressWatch } from "#harness/loops/combat-progress";
-import type { RangedGear } from "#harness/loops/combat-ranged-gear";
 import { RejectionTracker } from "#harness/loops/combat-rejections";
-import type { CombatPort, ControlPort } from "#harness/loops/ports";
 import type { TacticsContext, TacticsFrame } from "#harness/loops/tactics";
-
-type ActionDeps = {
-  combat: CombatPort;
-  control: ControlPort;
-  entity: EntityLookup;
-  relation: (guid: bigint) => FactionRelation;
-  now: () => number;
-  gear?: () => RangedGear;
-  combatLog?: () => AreaState<"combatlog"> | undefined;
-};
 
 type SpellAction = {
   spell?: SpellDefinition;
@@ -134,54 +113,16 @@ export class CombatActions {
     return {
       candidates,
       observation: withNulls({
-        ...this.baseObservation(context, state, spells),
+        ...baseObservation({
+          deps: this.deps,
+          rejections: this.rejections,
+          context,
+          state,
+          spells,
+        }),
         ...extra,
       }),
       outcome,
-    };
-  }
-
-  private baseObservation(
-    context: TacticsContext,
-    state: CombatState,
-    spells: { id: string; reason?: string }[],
-  ): Record<string, unknown> {
-    return {
-      self: unitObservation(state.self),
-      target: state.target ? unitObservation(state.target) : null,
-      targetRelation: this.deps.relation(context.targetGuid),
-      separation: separation(state) ?? null,
-      facingTarget: facing(state),
-      casting: state.casting
-        ? { ...state.casting, target: hex(state.casting.target) }
-        : null,
-      pendingCast: state.pendingCast
-        ? { ...state.pendingCast, target: hex(state.pendingCast.target) }
-        : null,
-      attacking: state.attacking,
-      attackTarget: hex(state.attackTarget),
-      pendingAttack: hex(state.pendingAttack),
-      ...hunterObservation(state, this.deps.entity, context.targetGuid),
-      combatLog: combatLogObservation(this.deps.combatLog?.(), {
-        now: this.deps.now(),
-        self: state.self.guid,
-        target: context.targetGuid,
-      }),
-      auras: state.auras.map(auraObservation),
-      targetAuras: state.targetAuras.map(auraObservation),
-      cooldowns: state.cooldowns,
-      unknownLearned: state.unknownLearned,
-      unavailable: spells
-        .filter((action) => action.reason)
-        .map((action) => ({ id: action.id, reason: action.reason })),
-      lastOutcome: state.lastOutcome
-        ? outcomeObservation(state.lastOutcome)
-        : null,
-      lastXp: state.lastXp
-        ? { ...state.lastXp, victim: hex(state.lastXp.victim) }
-        : null,
-      navigation: navigationObservation(this.deps.control.navigationState()),
-      rejections: this.rejections.observation(),
     };
   }
 

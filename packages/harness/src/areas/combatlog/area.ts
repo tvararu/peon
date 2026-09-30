@@ -11,6 +11,19 @@ type Of<T extends CombatlogEvent["type"]> = Extract<
 >;
 
 const IMMUNE_OUTCOMES = new Set(["immune", "immune2"]);
+const HEAL_KINDS = new Set(["heal", "periodic_heal"]);
+const HEAL_ROW_GAP_MS = 10_000;
+
+const ENVIRONMENT_TYPES = [
+  "exhausted",
+  "drowning",
+  "fall",
+  "lava",
+  "slime",
+  "fire",
+];
+
+type RuleState = { seen: Set<string>; healAt: Map<bigint, number> };
 
 function named(guid: bigint, rc: RuleInput): string {
   return `${rc.lookup.unitName(guid) ?? "A unit"} ${rc.refOf(guid)}`;
@@ -39,7 +52,50 @@ function unitRow(
   };
 }
 
-function onEntry(e: Of<"entry">, seen: Set<string>, rc: RuleInput) {
+function onHealIn(
+  e: Of<"entry">,
+  healAt: Map<bigint, number>,
+  rc: RuleInput,
+): AreaDraft[] {
+  if (e.target !== rc.selfGuid || e.source === rc.selfGuid) return [];
+  if (e.source === 0n || e.amount <= 0) return [];
+  const last = healAt.get(e.source);
+  if (last !== undefined && e.at - last < HEAL_ROW_GAP_MS) return [];
+  healAt.set(e.source, e.at);
+  const healer = rc.lookup.unitName(e.source) ?? "A unit";
+  return [
+    unitRow(e.source, rc, {
+      class: "passive",
+      data: { amount: e.amount, spellId: e.spellId ?? 0 },
+      name: "heal_in",
+      text: `${healer} heals you for ${e.amount}.`,
+    }),
+  ];
+}
+
+function onEnvironmental(e: Of<"entry">, rc: RuleInput): AreaDraft[] {
+  if (e.target !== rc.selfGuid) return [];
+  const wire = e.extra ?? 0;
+  const type = ENVIRONMENT_TYPES[wire] ?? `unknown_${wire}`;
+  return [
+    {
+      class: rc.runActive ? "log" : "wake",
+      data: {
+        absorbed: e.absorbed ?? 0,
+        amount: e.amount,
+        resisted: e.resisted ?? 0,
+        type,
+      },
+      name: "environmental",
+      text: `You took ${e.amount} ${type} damage.`,
+    },
+  ];
+}
+
+function onEntry(e: Of<"entry">, state: RuleState, rc: RuleInput) {
+  if (e.kind === "environmental") return onEnvironmental(e, rc);
+  if (HEAL_KINDS.has(e.kind)) return onHealIn(e, state.healAt, rc);
+  const { seen } = state;
   if (e.source !== rc.selfGuid || e.target === rc.selfGuid) return [];
   if (!isImmune(e)) return [];
   const spellId = e.spellId ?? 0;
@@ -94,10 +150,10 @@ function onFightClosed(e: Of<"fight_closed">): AreaDraft[] {
   ];
 }
 
-function combatlogRows(e: CombatlogEvent, seen: Set<string>, rc: RuleInput) {
+function combatlogRows(e: CombatlogEvent, state: RuleState, rc: RuleInput) {
   switch (e.type) {
     case "entry":
-      return onEntry(e, seen, rc);
+      return onEntry(e, state, rc);
     case "kill":
       return onKill(e, rc);
     case "fight_closed":
@@ -110,8 +166,8 @@ function combatlogRows(e: CombatlogEvent, seen: Set<string>, rc: RuleInput) {
 export const combatlogHarness = defineHarnessArea({
   area: "combatlog",
   rules: () => {
-    const seen = new Set<string>();
-    return { event: (e, rc) => combatlogRows(e, seen, rc) };
+    const state: RuleState = { healAt: new Map(), seen: new Set() };
+    return { event: (e, rc) => combatlogRows(e, state, rc) };
   },
   worldActs: [],
 });

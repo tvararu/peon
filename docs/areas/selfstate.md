@@ -14,8 +14,11 @@ and the others `move_flag`, each acked with its own counter. An entry
 for another guid is dropped, and an entry with an unknown opcode is
 skipped by its length.
 
-The store keeps the stand state, the fatigue, breath and fire timers and
-whether a ghost is pending. The stand state starts from byte 0 of the
+The store keeps the stand state, the fatigue, breath and fire timers,
+whether a ghost is pending, and the self-resurrection spell from the self
+`PLAYER_SELF_RES_SPELL` field. The spell id is restored at death and
+cleared on the return to life; the first non-zero value fires
+`self_res_available` with the spell's name from the combat catalog. The stand state starts from byte 0 of the
 self `UNIT_FIELD_BYTES_1` and follows `SMSG_STANDSTATE_UPDATE`;
 `stand_changed` fires on a change only. `SMSG_START_MIRROR_TIMER` and
 `SMSG_STOP_MIRROR_TIMER` fill and clear a timer and fire `mirror_timer`.
@@ -32,7 +35,9 @@ the seconds left, the stop logs `selfstate/surfaced`, `breath_low` wakes
 it to surface, and a refused transfer wakes it with
 `selfstate/transfer_aborted`, naming the map id and the reason in words.
 `stand_changed` and `ghost_pending` write no row, and reattaching with a
-draining breath timer rewrites the under-water row.
+draining breath timer rewrites the under-water row. `self_res_available`
+logs `selfstate/self_res_available`: "You can come back where you died
+(<name>)."
 
 ## Wire notes
 
@@ -127,8 +132,35 @@ draining breath timer rewrites the under-water row.
   (`Handlers/MovementHandler.cpp:362-381,399`); control sends it through
   `resetFall` with `fallTime` 0 and `FALLING` cleared, also with no
   automatic caller.
-- `CMSG_SELF_RES`, `CMSG_CORPSE_MAP_POSITION_QUERY` and
-  `SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE`: built by `self-state-7`.
+- `CMSG_SELF_RES` is empty. The server casts the stored
+  `PLAYER_SELF_RES_SPELL` on the sender and clears it, refusing silently
+  under a no-resurrection aura (`Handlers/SpellHandler.cpp:707-721`), so
+  the act `selfResurrect` refuses `not_dead` when the character is alive
+  and `no_self_res` when the field is 0, then settles `ok` when the self
+  health turns positive within 5 s or `no_answer` on silence. Two live
+  tries on a `fresh` level-1 character at Fairbreeze never died, and
+  the character did not know Reincarnation 20608: its login
+  `SMSG_INITIAL_SPELLS` listed 39 spells without it and no
+  `SMSG_LEARNED_SPELL` arrived, so the staging did not apply. The Ankh
+  17030 was present (not seen live).
+- The login spell send `SMSG_INITIAL_SPELLS` rebuilds from the stored
+  spells, so the offline `spells/learn` of a Shaman spell on a priest
+  preset never sticks: its next login has no Reincarnation row, and the
+  first `t6-selfstate-res` run (round 68, not committed) showed it. The
+  priest died, `recover how:"self"` refused `no_self_res` twice, and the
+  final truth had no spells. `Player::SendInitialSpells` packs
+  `SMSG_INITIAL_SPELLS` from `m_spells`
+  (`Entities/Player/Player.cpp:2789-2800`); the delete of the row happens
+  in the login spell load, which the scenario's blockedBy names. The eval
+  may not use GM commands, so a Shaman preset or a Warlock partner is
+  needed.
+- `CMSG_CORPSE_MAP_POSITION_QUERY` is a `uint32` 0
+  (`Server/Packets/QueryPackets.cpp:55-58`); the server answers with four
+  `f32`, always zero in AzerothCore
+  (`Handlers/QueryHandler.cpp:399-409`). The act
+  `queryCorpseMapPosition` sends the query and settles `ok` with the four
+  floats or `no_answer` after 3 s. Live: sent `00000000` (4 bytes),
+  received 32 zero hex chars (16 bytes).
 - `CMSG_CANCEL_MOUNT_AURA`, `SMSG_DISMOUNT`, `CMSG_MOUNTSPECIAL_ANIM` and
   `SMSG_MOUNTSPECIAL_ANIM`: built by `self-state-6`.
 - `SMSG_CROSSED_INEBRIATION_THRESHOLD`: built by `self-state-8`.
@@ -167,3 +199,6 @@ tasks.
 | `CMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY_ACK` | `dead` | registered as `STATUS_NEVER` with `Handle_NULL` | `Server/Protocol/Opcodes.cpp:963` |
 | `SMSG_PAUSE_MIRROR_TIMER` | `dead` | registered as `STATUS_NEVER`; its packet class is never constructed | `Server/Packets/MiscPackets.cpp:113` |
 | `SMSG_TRANSFER_ABORTED` | `mock` | `store.test.ts` transfer-aborted tests; one live try teleported into a non-raid dungeon and gave no abort, since GM tele bypasses `PlayerCannotEnter` (not seen live) | `Entities/Player/Player.cpp:11956-11972` |
+| `CMSG_SELF_RES` | `mock` | `runtime-selfres.test.ts` send/refusal/timeout/dispose cases from the writer shape; two live tries on a `fresh` level-1 character at Fairbreeze never died, and the spell was not known: the login `SMSG_INITIAL_SPELLS` had 39 spells without Reincarnation 20608 and no `SMSG_LEARNED_SPELL` arrived, while the Ankh 17030 was present (not seen live; runs not committed) | `Handlers/SpellHandler.cpp:707-721` |
+| `CMSG_CORPSE_MAP_POSITION_QUERY` | `live` | probe `--send CMSG_CORPSE_MAP_POSITION_QUERY --body 00000000 --expect SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE --bodies` on a `fresh` character, exit 0; sent `00000000` (4 bytes, not committed) | `Server/Packets/QueryPackets.cpp:55-58` |
+| `SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE` | `live` | the same run; received 32 zero hex chars (16 bytes, not committed) | `Handlers/QueryHandler.cpp:399-409` |

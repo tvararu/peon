@@ -1,5 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { AREA_NAMES } from "@peon/core";
+import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
 import { decodeCall, PUPPET_CALLS } from "#harness/puppet/calls";
 import { createMockGame } from "#test-support/mock-game";
 
@@ -10,7 +11,30 @@ function areaActs(game: object, area: string): object | undefined {
   return typeof acts === "object" && acts !== null ? acts : undefined;
 }
 
+const ALIASES: Readonly<Record<string, readonly [string, string]>> = {
+  tradeAccept: ["trade", "acceptTrade"],
+  tradeAcceptOffered: ["trade", "acceptTrade"],
+  tradeAnswer: ["trade", "answerTrade"],
+  tradeCancel: ["trade", "cancelTrade"],
+  tradeOffer: ["trade", "offerItem"],
+  tradeRequest: ["trade", "requestTrade"],
+  tradeRequestQuiet: ["trade", "requestTrade"],
+};
+
+const HANDLE_ALIASES: Readonly<Record<string, string>> = {
+  walkToPlayer: "walkTowardPoint",
+};
+
 function callable(game: object, method: string): boolean {
+  const member = HANDLE_ALIASES[method];
+  if (member) return typeof Reflect.get(game, member) === "function";
+  const aliased = ALIASES[method];
+  if (aliased) {
+    const acts = areaActs(game, aliased[0]);
+    return (
+      acts !== undefined && typeof Reflect.get(acts, aliased[1]) === "function"
+    );
+  }
   if (typeof Reflect.get(game, method) === "function") return true;
   return AREA_NAMES.some((area) => {
     const acts = areaActs(game, area);
@@ -94,4 +118,143 @@ describe("PUPPET_CALLS", () => {
     PUPPET_CALLS["rollLoot"]?.run(game, call.args);
     expect(game.rollLoot).toHaveBeenCalledWith(42n, 3, "need");
   });
+
+  test("walks toward a named nearby player until it is close", async () => {
+    const game = createMockGame();
+    const row = {
+      distance: 17,
+      entity: { guid: 7n, name: "Fabc", objectType: 4 },
+      position: { x: 1, y: 2, z: 3 },
+      self: false,
+    };
+    spyOn(game, "queryNearby").mockReturnValue([row] as never);
+    const walk = spyOn(game, "walkTowardPoint").mockResolvedValue({
+      pose: undefined,
+      reason: "arrived",
+      status: "arrived",
+      traveled: 14,
+    } as never);
+    const call = decodeCall("walkToPlayer", '["fabc"]');
+    if ("error" in call) throw new Error(call.error);
+    await PUPPET_CALLS["walkToPlayer"]?.run(game, call.args);
+    expect(walk).toHaveBeenCalledWith({ x: 1, y: 2, z: 3 }, 14);
+  });
+
+  test("refuses to walk toward a player who is not nearby", () => {
+    const game = createMockGame();
+    spyOn(game, "queryNearby").mockReturnValue([]);
+    const call = decodeCall("walkToPlayer", '["Fabc"]');
+    if ("error" in call) throw new Error(call.error);
+    expect(PUPPET_CALLS["walkToPlayer"]?.run(game, call.args)).rejects.toThrow(
+      "No nearby player named Fabc.",
+    );
+  });
+
+  test("tradeRequestQuiet waits out an unanswered request", async () => {
+    const game = createMockGame();
+    const row = {
+      distance: 2,
+      entity: { guid: 7n, name: "Fabc", objectType: 4 },
+      position: { x: 1, y: 2, z: 3 },
+      self: false,
+    };
+    spyOn(game, "queryNearby").mockReturnValue([row] as never);
+    spyOn(game.trade.act, "requestTrade").mockResolvedValue({
+      status: "unanswered",
+    });
+    const call = decodeCall("tradeRequestQuiet", '["Fabc"]');
+    if ("error" in call) throw new Error(call.error);
+    expect(
+      await PUPPET_CALLS["tradeRequestQuiet"]?.run(game, call.args),
+    ).toBeUndefined();
+    expect(game.trade.act.requestTrade).toHaveBeenCalledWith(7n);
+  });
+
+  function quietGame(outcome: unknown) {
+    const game = createMockGame();
+    const row = {
+      distance: 2,
+      entity: { guid: 7n, name: "Fabc", objectType: 4 },
+      position: { x: 1, y: 2, z: 3 },
+      self: false,
+    };
+    spyOn(game, "queryNearby").mockReturnValue([row] as never);
+    spyOn(game.trade.act, "requestTrade").mockResolvedValue(outcome as never);
+    const call = decodeCall("tradeRequestQuiet", '["Fabc"]');
+    if ("error" in call) throw new Error(call.error);
+    return { args: call.args, game };
+  }
+
+  test.each(["busy", "trade_canceled"])(
+    "tradeRequestQuiet tolerates the %s decline",
+    async (reason) => {
+      const { args, game } = quietGame({ reason, status: "refused" });
+      expect(
+        await PUPPET_CALLS["tradeRequestQuiet"]?.run(game, args),
+      ).toBeUndefined();
+    },
+  );
+
+  test("tradeRequestQuiet still fails on other refusals", async () => {
+    const { args, game } = quietGame({
+      reason: "ignore_you",
+      status: "refused",
+    });
+    await expect(
+      PUPPET_CALLS["tradeRequestQuiet"]?.run(game, args),
+    ).rejects.toThrow("trade_refused: ignore_you");
+  });
+
+  test("tradeAnswer waits for a request before it answers", () =>
+    withFakeTimers(async () => {
+      const game = createMockGame();
+      const phase = spyOn(game.trade, "state");
+      phase.mockReturnValue({ phase: "idle" } as never);
+      const answer = spyOn(game.trade.act, "answerTrade").mockResolvedValue({
+        status: "ok",
+      });
+      const call = decodeCall("tradeAnswer", '["yes"]');
+      if ("error" in call) throw new Error(call.error);
+      const done = PUPPET_CALLS["tradeAnswer"]?.run(game, call.args);
+      await elapse(3000);
+      expect(answer).not.toHaveBeenCalled();
+      phase.mockReturnValue({ phase: "requested_in" } as never);
+      await elapse(1000);
+      await done;
+      expect(answer).toHaveBeenCalledWith("yes");
+    }));
+
+  test("tradeAnswer fails when no request comes in time", () =>
+    withFakeTimers(async () => {
+      const game = createMockGame();
+      spyOn(game.trade, "state").mockReturnValue({ phase: "idle" } as never);
+      const call = decodeCall("tradeAnswer", '["yes"]');
+      if ("error" in call) throw new Error(call.error);
+      const done = PUPPET_CALLS["tradeAnswer"]?.run(game, call.args);
+      const failure = Promise.resolve(done).catch((error: Error) => error);
+      await elapse(61_000);
+      expect(await failure).toHaveProperty("message", "no_request");
+    }));
+
+  test("tradeAcceptOffered accepts once the other side offers", () =>
+    withFakeTimers(async () => {
+      const game = createMockGame();
+      const empty = { gold: 0, items: [], version: 1 };
+      const state = spyOn(game.trade, "state");
+      state.mockReturnValue({ theirOffer: empty } as never);
+      const accept = spyOn(game.trade.act, "acceptTrade").mockResolvedValue({
+        status: "ok",
+      });
+      const call = decodeCall("tradeAcceptOffered", "[]");
+      if ("error" in call) throw new Error(call.error);
+      const done = PUPPET_CALLS["tradeAcceptOffered"]?.run(game, call.args);
+      await elapse(3000);
+      expect(accept).not.toHaveBeenCalled();
+      state.mockReturnValue({
+        theirOffer: { gold: 0, items: [{}], version: 4 },
+      } as never);
+      await elapse(1000);
+      await done;
+      expect(accept).toHaveBeenCalledWith(4);
+    }));
 });

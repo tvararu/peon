@@ -30,6 +30,13 @@ export type LookFilter =
   | "corpse"
   | "spirit_healer";
 
+export type LookCast = {
+  kind: "cast" | "channel";
+  remainingMs: number;
+  spellId: number;
+  spellName: string;
+};
+
 export type LookAfter = {
   self: SelfView;
   place: PlaceView;
@@ -46,6 +53,8 @@ export type LookAfter = {
   nearest: Partial<Record<NearestKind, UnitView>>;
   danger: DangerView;
   unchanged: number;
+  channel?: LookCast;
+  targetCast?: LookCast;
 };
 
 export type LegStatus =
@@ -213,7 +222,7 @@ export type RestAfter = {
 };
 
 export type RecoverAfter = {
-  via: "corpse" | "spirit_healer" | "accept";
+  via: "corpse" | "spirit_healer" | "accept" | "self";
   alive: boolean;
   durationMs: number;
   corpseYd: number | undefined;

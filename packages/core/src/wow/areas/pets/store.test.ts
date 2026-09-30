@@ -12,6 +12,7 @@ import { testStores } from "#test-support/session-fixtures";
 import { type PetsEvent, PetsStore } from "#wow/areas/pets/store";
 import type { Entity } from "#wow/entity-store";
 import { GameOpcode } from "#wow/protocol/opcodes";
+import { PacketWriter } from "#wow/protocol/packet";
 import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { SessionDeps } from "#wow/session-stores";
 
@@ -260,6 +261,83 @@ describe("PetsStore", () => {
       );
       expect(r.handle.state()).toEqual(before);
       expect(seen.map((event) => event.type)).toEqual(["bar"]);
+    } finally {
+      r.dispose();
+    }
+  });
+  test("a pet cast failure sets the last refusal and emits cast_failed (Spell.cpp:4842-4861)", () => {
+    const { r, seen, advance } = rig();
+    try {
+      r.inject(GameOpcode.SMSG_PET_SPELLS, BAR);
+      advance(250);
+      const w = new PacketWriter();
+      w.uint8(3);
+      w.uint32LE(GROWL);
+      w.uint8(67);
+      r.inject(GameOpcode.SMSG_PET_CAST_FAILED, w.finish());
+      expect(r.handle.state().lastRefusal).toEqual({
+        at: 1250,
+        reason: "not_ready",
+      });
+      expect(seen.at(-1)).toEqual({
+        castCount: 3,
+        reason: "not_ready",
+        spell: GROWL,
+        type: "cast_failed",
+      });
+    } finally {
+      r.dispose();
+    }
+  });
+
+  test("a pet-guid SMSG_SPELL_COOLDOWN sets a pet cooldown and the character's guid changes nothing (Unit.cpp:16620-16627)", () => {
+    const { r } = rig();
+    try {
+      r.inject(GameOpcode.SMSG_PET_SPELLS, BAR);
+      const pet = new PacketWriter();
+      pet.uint64LE(PET);
+      pet.uint8(0);
+      pet.uint32LE(CLAW);
+      pet.uint32LE(2000);
+      r.inject(GameOpcode.SMSG_SPELL_COOLDOWN, pet.finish());
+      expect(
+        r.handle.state().cooldowns.find((row) => row.spell === CLAW),
+      ).toEqual({ category: 0, infinite: false, readyAt: 3000, spell: CLAW });
+      const other = new PacketWriter();
+      other.uint64LE(ME);
+      other.uint8(0);
+      other.uint32LE(DASH);
+      other.uint32LE(9000);
+      r.inject(GameOpcode.SMSG_SPELL_COOLDOWN, other.finish());
+      expect(
+        r.handle.state().cooldowns.find((row) => row.spell === DASH),
+      ).toBeUndefined();
+    } finally {
+      r.dispose();
+    }
+  });
+
+  test("SMSG_CLEAR_COOLDOWN clears only the pet's row for its own guid (Pet.cpp:2458)", () => {
+    const { r } = rig();
+    try {
+      r.inject(GameOpcode.SMSG_PET_SPELLS, BAR);
+      const clear = new PacketWriter();
+      clear.uint32LE(BITE);
+      clear.uint64LE(PET);
+      r.inject(GameOpcode.SMSG_CLEAR_COOLDOWN, clear.finish());
+      expect(r.handle.state().cooldowns.some((row) => row.spell === BITE)).toBe(
+        false,
+      );
+      expect(
+        r.handle.state().cooldowns.some((row) => row.spell === GROWL),
+      ).toBe(true);
+      const foreign = new PacketWriter();
+      foreign.uint32LE(GROWL);
+      foreign.uint64LE(ME);
+      r.inject(GameOpcode.SMSG_CLEAR_COOLDOWN, foreign.finish());
+      expect(
+        r.handle.state().cooldowns.some((row) => row.spell === GROWL),
+      ).toBe(true);
     } finally {
       r.dispose();
     }

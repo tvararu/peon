@@ -8,6 +8,10 @@ import {
 } from "#test-support/areas/pets";
 import {
   buildPetAction,
+  buildPetCancelAura,
+  buildPetCastSpell,
+  buildPetSetAction,
+  buildPetSpellAutocast,
   buildPetStopAttack,
   buildRequestPetInfo,
   PET_ACTION,
@@ -115,5 +119,68 @@ describe("pets protocol", () => {
       y: -6832.25,
       z: 16.5,
     });
+  });
+
+  test("CMSG_PET_CAST_SPELL writes guid, count, spell, flags and the target block (PetHandler.cpp:1018-1023)", () => {
+    const unit = buildPetCastSpell(PET, 1, 2649, { kind: "unit", guid: MOB });
+    expect([...unit.slice(0, 15)]).toEqual([
+      0x0b, 0x02, 0x00, 0xa9, 0x0c, 0x00, 0x40, 0xf1, 1, 0x59, 0x0a, 0x00, 0x00,
+      0, 0x02,
+    ]);
+    const r = new PacketReader(unit);
+    expect(r.uint64LE()).toBe(PET);
+    expect(r.uint8()).toBe(1);
+    expect(r.uint32LE()).toBe(2649);
+    expect(r.uint8()).toBe(0);
+    expect(r.uint32LE()).toBe(2);
+    expect(r.packedGuidBig()).toBe(MOB);
+  });
+
+  test("CMSG_PET_CAST_SPELL with no target writes an empty mask (PetHandler.cpp:1018-1023)", () => {
+    const body = buildPetCastSpell(PET, 2, 2649, { kind: "none" });
+    const r = new PacketReader(body);
+    expect(r.uint64LE()).toBe(PET);
+    expect(r.uint8()).toBe(2);
+    expect(r.uint32LE()).toBe(2649);
+    expect(r.uint8()).toBe(0);
+    expect(r.uint32LE()).toBe(0);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("CMSG_PET_SPELL_AUTOCAST writes guid, spell and the flag (PetPackets.cpp:35-40)", () => {
+    const off = buildPetSpellAutocast(PET, 2649, false);
+    const r = new PacketReader(off);
+    expect(r.uint64LE()).toBe(PET);
+    expect(r.uint32LE()).toBe(2649);
+    expect(r.uint8()).toBe(0);
+    const on = buildPetSpellAutocast(PET, 2649, true);
+    expect([...on.slice(0, 12)]).toEqual([...off.slice(0, 12)]);
+    expect(on[12]).toBe(1);
+  });
+
+  test("CMSG_PET_SET_ACTION writes guid and one or two slot pairs (PetHandler.cpp:696-716)", () => {
+    const single = buildPetSetAction(PET, [{ slot: 3, packed: 0xc1_00_43_65 }]);
+    const r = new PacketReader(single);
+    expect(r.uint64LE()).toBe(PET);
+    expect(r.uint32LE()).toBe(3);
+    expect(r.uint32LE()).toBe(0xc1_00_43_65);
+    const both = buildPetSetAction(PET, [
+      { slot: 3, packed: 0xc1_00_43_65 },
+      { slot: 4, packed: 0x07_00_00_02 },
+    ]);
+    expect(both).toHaveLength(24);
+    const b = new PacketReader(both);
+    expect(b.uint64LE()).toBe(PET);
+    expect(b.uint32LE()).toBe(3);
+    expect(b.uint32LE()).toBe(0xc1_00_43_65);
+    expect(b.uint32LE()).toBe(4);
+    expect(b.uint32LE()).toBe(0x07_00_00_02);
+  });
+
+  test("CMSG_PET_CANCEL_AURA writes guid and spell (SpellHandler.cpp:604-608)", () => {
+    const body = buildPetCancelAura(PET, 2649);
+    const r = new PacketReader(body);
+    expect(r.uint64LE()).toBe(PET);
+    expect(r.uint32LE()).toBe(2649);
   });
 });

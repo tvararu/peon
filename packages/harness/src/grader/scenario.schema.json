@@ -226,6 +226,8 @@
                     "enum": [
                       "fight_start",
                       "kill",
+                      "lfg_proposal",
+                      "lfg_role_check",
                       "death",
                       "movement_start",
                       "answer_text",
@@ -260,6 +262,26 @@
           }
         },
         "required": ["argv", "at", "windowMs"],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "partnerSetup": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "actor": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "body": {
+            "type": "object"
+          },
+          "endpoint": {
+            "type": "string"
+          }
+        },
+        "required": ["body", "endpoint"],
         "type": "object"
       },
       "type": "array"
@@ -329,6 +351,8 @@
                     "enum": [
                       "fight_start",
                       "kill",
+                      "lfg_proposal",
+                      "lfg_role_check",
                       "death",
                       "movement_start",
                       "answer_text",

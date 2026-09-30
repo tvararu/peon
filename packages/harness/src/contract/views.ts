@@ -93,6 +93,13 @@ export type UnitView = {
   aggro?: string;
   myThreatPct?: number;
   questMark?: QuestMark;
+  movement?: {
+    rooted: boolean;
+    slowedPct: number | undefined;
+    swimming: boolean;
+    flying: boolean;
+    hover: boolean;
+  };
 };
 
 export type NearestKind =

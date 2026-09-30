@@ -1,7 +1,9 @@
 import type { LookAfter, LookFilter } from "#harness/contract/details";
 import type { NearestKind, QuestMark, UnitView } from "#harness/contract/views";
+import { grayLevel } from "#harness/loops/combat-actions-credit";
 import { LOOK_DEFAULT_YD } from "#harness/ops/range";
 import { kindOf } from "#harness/tools/look-find";
+import { movementWords } from "#harness/tools/look-movement";
 import { MORE_NAMES } from "#harness/tools/look-rank";
 import { nextCall } from "#harness/tools/next-call";
 
@@ -64,10 +66,19 @@ const QUEST_WORDS: Record<QuestMark, string> = {
   reward: "quest to turn in",
 };
 
-export function rowLine(unit: UnitView): string {
+function grayMark(selfLevel: number, unit: UnitView): string | undefined {
+  return unit.kind === "creature" &&
+    unit.relation === "hostile" &&
+    unit.level <= grayLevel(selfLevel)
+    ? "gray (no XP)"
+    : undefined;
+}
+
+export function rowLine(unit: UnitView, selfLevel: number): string {
   const volatile = [
     unit.alive ? undefined : "dead",
     unit.lootable ? "lootable" : undefined,
+    ...movementWords(unit.movement),
     unit.attackingMe ? "attacking you" : undefined,
     unit.targetsMe && !unit.attackingMe ? "targets you" : undefined,
     unit.fightingMe ? "fighting you" : undefined,
@@ -85,24 +96,35 @@ export function rowLine(unit: UnitView): string {
     ...(unit.inView
       ? [...volatile, distanceText(unit)]
       : [lastSeenText(unit, volatile)]),
+    grayMark(selfLevel, unit),
   ];
   return `- ${unit.ref} ${unit.name} L${unit.level} ${traits.filter((trait) => trait !== undefined).join(", ")}`;
 }
 
-function nearestText(kind: NearestKind, unit: UnitView | undefined): string {
+function nearestText(
+  kind: NearestKind,
+  unit: UnitView | undefined,
+  selfLevel: number,
+): string {
   const label = `Nearest ${kind.replace("_", " ")}:`;
   if (!unit) return `${label} ${kind === "lootable" ? "none" : "none seen"}.`;
   const life = unit.alive ? "alive" : "dead";
+  const gray =
+    kind === "hostile" && grayMark(selfLevel, unit) !== undefined
+      ? ", gray (no XP)"
+      : "";
   if (!unit.inView)
-    return `${label} ${unit.ref} ${unit.name} L${unit.level}, last seen ${distanceText(unit)} ${ageText(unit.seenAgoMs)} ago, then ${life}.`;
-  return `${label} ${unit.ref} ${unit.name} L${unit.level} ${life}, ${distanceText(unit)} (seen now).`;
+    return `${label} ${unit.ref} ${unit.name} L${unit.level}, last seen ${distanceText(unit)} ${ageText(unit.seenAgoMs)} ago, then ${life}${gray}.`;
+  return `${label} ${unit.ref} ${unit.name} L${unit.level} ${life}${gray}, ${distanceText(unit)} (seen now).`;
 }
 
-export function nearestLine({ filter, nearest }: LookAfter): string {
+export function nearestLine({ filter, nearest, self }: LookAfter): string {
   const own = kindOf(filter);
   const kinds =
     own && !ALWAYS_NEAREST.includes(own)
       ? [...ALWAYS_NEAREST, own]
       : ALWAYS_NEAREST;
-  return kinds.map((kind) => nearestText(kind, nearest[kind])).join(" ");
+  return kinds
+    .map((kind) => nearestText(kind, nearest[kind], self.level))
+    .join(" ");
 }

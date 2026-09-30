@@ -98,6 +98,82 @@ function homebindTimer(event: Of<"homebind_timer">): AreaDraft[] {
   ];
 }
 
+function bindOffer(event: Of<"bind_offer">): AreaDraft[] {
+  const seconds = Math.max(1, Math.round(event.timeoutMs / 1000));
+  return [
+    {
+      class: "wake",
+      data: { encounterMask: event.encounterMask, timeoutMs: event.timeoutMs },
+      name: "bind_offer",
+      text: `You will be saved to this instance in ${seconds} s. Answer with dungeon(do: "bind").`,
+    },
+  ];
+}
+
+function resetFailedReason(reason: number): string {
+  switch (reason) {
+    case 0:
+      return "players are still inside";
+    case 1:
+      return "a party member is offline";
+    case 2:
+      return "a party member is zoning";
+    default:
+      return `reason ${reason}`;
+  }
+}
+
+function reset(event: Of<"reset">): AreaDraft[] {
+  return [
+    {
+      class: "log",
+      data: { mapId: event.mapId },
+      name: "reset",
+      progress: true,
+      text: `Instance map ${event.mapId} was reset.`,
+    },
+  ];
+}
+
+function resetFailed(event: Of<"reset_failed">): AreaDraft[] {
+  return [
+    {
+      class: "wake",
+      data: { mapId: event.mapId, reason: event.reason },
+      name: "reset_failed",
+      text: `Map ${event.mapId} was not reset: ${resetFailedReason(event.reason)}.`,
+    },
+  ];
+}
+
+function resetBlocked(event: Of<"reset_blocked">): AreaDraft[] {
+  return [
+    {
+      class: "wake",
+      data: { mapId: event.mapId },
+      name: "reset_blocked",
+      text: `Map ${event.mapId} cannot reset while players are inside it.`,
+    },
+  ];
+}
+
+function lockouts(event: Of<"lockouts">): AreaDraft[] {
+  if (event.added.length === 0 && event.removed.length === 0) return [];
+  const added = event.added.map((lock) => lock.mapId);
+  const removed = event.removed.map((lock) => lock.mapId);
+  const parts = [
+    ...added.map((mapId) => `saved to ${mapId}`),
+    ...removed.map((mapId) => `no longer saved to ${mapId}`),
+  ];
+  return [
+    {
+      class: "log",
+      data: { added, removed },
+      name: "lockouts",
+      text: `Raid lockouts: ${parts.join(", ")}.`,
+    },
+  ];
+}
 function rule(event: InstancesEvent): AreaDraft[] {
   switch (event.type) {
     case "difficulty":
@@ -117,6 +193,27 @@ function rule(event: InstancesEvent): AreaDraft[] {
           text: "Cannot enter: your corpse is in a different instance.",
         },
       ];
+    case "bind_offer":
+      return bindOffer(event);
+    case "bound":
+      return [
+        {
+          class: "passive",
+          data: {},
+          name: "bound",
+          text: "You are now saved to this instance.",
+        },
+      ];
+    case "reset":
+      return reset(event);
+    case "reset_failed":
+      return resetFailed(event);
+    case "reset_blocked":
+      return resetBlocked(event);
+    case "lockouts":
+      return lockouts(event);
+    case "encounter":
+      return [];
     default:
       return [];
   }
@@ -125,5 +222,11 @@ function rule(event: InstancesEvent): AreaDraft[] {
 export const instancesHarness = defineHarnessArea({
   area: "instances",
   rules: () => ({ event: rule }),
-  worldActs: [],
+  worldActs: [
+    "answerBind",
+    "requestLockouts",
+    "resetInstances",
+    "setDifficulty",
+    "setLockoutExtended",
+  ],
 });
