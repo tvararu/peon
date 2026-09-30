@@ -1,7 +1,6 @@
 import type { OpsCtx } from "#harness/contract/services";
 import type { Compass, PoseView } from "#harness/contract/views";
 import { ahead } from "#harness/ops/compass";
-import { EXPLORE_MAX_YD } from "#harness/ops/explore";
 import { type LegResult, travelLeg } from "#harness/ops/travel-leg";
 
 export type FloorWalk = {
@@ -15,8 +14,6 @@ export type FloorWalk = {
   stopped: (leg: LegResult) => boolean;
 };
 
-const AMBIGUOUS_YD = [10, 30, 40];
-
 export async function floorRetries(
   walk: FloorWalk,
   from: PoseView,
@@ -24,8 +21,8 @@ export async function floorRetries(
   first: LegResult,
 ): Promise<LegResult> {
   let leg = first;
-  for (const yards of AMBIGUOUS_YD) {
-    if (yards > EXPLORE_MAX_YD - walk.walkedYd) continue;
+  for (const yards of [10, 30, 40]) {
+    if (yards > 100 - walk.walkedYd) continue;
     const point = ahead(from, direction, yards);
     const key = walk.goalKey(point);
     if (walk.refused.has(key)) continue;
