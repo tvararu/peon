@@ -25,8 +25,9 @@ describe("names", () => {
     expect(accountName(0x1, "0f")).toBe("FAC000000010F");
   });
 
-  test("character maps hex digits to a-p", () => {
+  test("character maps hex digits to a-p, escaping a triple third as z", () => {
     expect(characterName("FAC6AB6E05F5A")).toBe("Fgklgoafpfk");
+    expect(characterName("FAC6ABBB00012")).toBe("Fgkllzaazbc");
   });
 
   test("new names match the sweep regex and carry the time", () => {
@@ -43,19 +44,37 @@ describe("names", () => {
     expect(hasTriple("Faabb")).toBe(false);
   });
 
-  test("random part is regenerated on a triple", () => {
-    const randoms = ["00", "12"];
-    const { account } = newNames(
-      0x6a_b6_e0_50 * 1000,
-      () => randoms.shift() ?? "34",
-    );
-    expect(account).toBe("FAC6AB6E05012");
+  test("a triple in the time digits never moves the creation second", () => {
+    const seconds = 0x6a_bb_b0_00;
+    const { account, character } = newNames(seconds * 1000, () => "12");
+    expect(account).toBe("FAC6ABBB00012");
+    expect(hasTriple(character)).toBe(false);
   });
 
-  test("seconds advance when the time digits hold a triple", () => {
-    const { account, character } = newNames(0x6a_b6_e0_00 * 1000, () => "12");
-    expect(hasTriple(character)).toBe(false);
-    expect(account).toBe("FAC6AB6E00112");
+  test("no creation second or random byte yields a triple character", () => {
+    const seconds = [0x6a_bb_b0_00, 0x6a_bb_bb_bb, 0x6a_aa_a0_00, 0];
+    for (const s of seconds)
+      for (const random of ["00", "11", "ff", "ab"]) {
+        const account = accountName(s, random);
+        expect(hasTriple(characterName(account))).toBe(false);
+      }
+  });
+
+  test("accounts that differ only around a triple keep distinct characters", () => {
+    expect(characterName("FAC6ABBB00012")).not.toBe(
+      characterName("FAC6ABBB00112"),
+    );
+  });
+
+  test("every random byte in a triple window has its own character", () => {
+    for (const s of [0x6a_bb_b0_00, 0x6a_bb_bb_bb, 0x55_55_55_55, 0]) {
+      const seen: Record<string, true> = {};
+      for (let byte = 0; byte < 256; byte++) {
+        const random = byte.toString(16).padStart(2, "0");
+        seen[characterName(accountName(s, random))] = true;
+      }
+      expect(Object.keys(seen).length).toBe(256);
+    }
   });
 
   test("password is 16 alphanumerics", () => {

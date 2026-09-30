@@ -4,7 +4,7 @@ import { factoryAccount } from "#factory/soap";
 const trailingSlashes = /\/+$/;
 const urlKey = "PEON_REALM_SERVICE";
 
-export const factoryCharacter = /^F[a-p]{10}$/;
+export const factoryCharacter = /^F[a-pz]{10}$/;
 export const charEndpoints = [
   "position",
   "level",

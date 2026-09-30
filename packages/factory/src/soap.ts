@@ -200,7 +200,16 @@ export function accountName(seconds: number, random: string): string {
 
 export function characterName(account: string): string {
   const digits = account.slice(3).toLowerCase();
-  return `F${Array.from(digits, (d) => String.fromCharCode(97 + Number.parseInt(d, 16))).join("")}`;
+  let name = "F";
+  for (const digit of digits) {
+    const letter = String.fromCharCode(97 + Number.parseInt(digit, 16));
+    const tail = name.slice(-2).toLowerCase();
+    name +=
+      tail.length === 2 && tail[0] === tail[1] && tail[1] === letter
+        ? "z"
+        : letter;
+  }
+  return name;
 }
 
 export function hasTriple(name: string): boolean {
@@ -213,13 +222,9 @@ function randomByte(): string {
 }
 
 export function newNames(now = Date.now(), random = randomByte): Names {
-  for (let seconds = Math.floor(now / 1000); ; seconds++) {
-    for (let i = 0; i < 16; i++) {
-      const account = accountName(seconds, random());
-      const character = characterName(account);
-      if (!hasTriple(character)) return { account, character };
-    }
-  }
+  const seconds = Math.floor(now / 1000);
+  const account = accountName(seconds, random());
+  return { account, character: characterName(account) };
 }
 
 export function newPassword(): string {
