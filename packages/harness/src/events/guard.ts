@@ -56,7 +56,8 @@ export function createWakeGuard(clock: Clock): WakeGuard {
   const senders = new Map<string, number>();
   return {
     admit(entry) {
-      if (entry.class !== "wake") return entry.class;
+      if (entry.class !== "wake" || entry.event === "chat/in")
+        return entry.class;
       const now = clock.now();
       const key = senderKey(entry);
       const since = key === undefined ? undefined : senders.get(key);
