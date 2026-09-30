@@ -9,7 +9,8 @@ import type {
   PlayerTalentsInfo,
   TalentsInfo,
 } from "#wow/areas/talents/protocol";
-import type { TalentSpec } from "#wow/protocol/talent-spec";
+import type { Entity } from "#wow/entity-store";
+import type { TalentRank, TalentSpec } from "#wow/protocol/talent-spec";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export type GlyphSlot = {
@@ -26,7 +27,14 @@ export type TalentsState = {
 };
 export type TalentChange = { talentId: number; from: number; to: number };
 export type GlyphChange = { slot: number; from: number; to: number };
+export type RefusedTalents = { entries: readonly TalentRank[] };
+
 export type TalentsEvent =
+  | {
+      type: "refused";
+      outcome: "refused";
+      entries: readonly TalentRank[];
+    }
   | {
       type: "info";
       talents: readonly TalentChange[];
@@ -159,6 +167,18 @@ export class TalentsStore {
       type: "pet_info",
       freePoints: packet.freePoints,
       talents: packet.talents.map((talent) => ({ ...talent })),
+    });
+  }
+
+  entityOf(guid: bigint): Entity | undefined {
+    return this.deps.getEntity(guid);
+  }
+
+  noteRefused(entries: readonly TalentRank[]): void {
+    this.events.emit({
+      entries: entries.map((entry) => ({ ...entry })),
+      outcome: "refused",
+      type: "refused",
     });
   }
 
