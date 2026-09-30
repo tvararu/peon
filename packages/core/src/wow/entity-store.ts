@@ -1,5 +1,6 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import { ObjectType } from "#wow/protocol/entity-fields";
+import type { Rotation } from "#wow/protocol/movement-block";
 
 export type Position = {
   mapId: number;
@@ -39,13 +40,13 @@ type UnitFields = BaseFields & {
   power: number[];
   maxPower: number[];
 };
-
 type GameObjectFields = BaseFields & {
   objectType: typeof ObjectType.GAMEOBJECT;
   displayId: number;
   flags: number;
   gameObjectType: number;
   bytes1: number;
+  rotation?: Rotation | undefined;
 };
 
 type View<T> = {
@@ -144,6 +145,7 @@ function createGameObject(guid: bigint): GameObjectFields {
     flags: 0,
     gameObjectType: 0,
     bytes1: 0,
+    rotation: undefined,
   };
 }
 

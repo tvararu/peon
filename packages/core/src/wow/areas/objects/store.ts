@@ -44,6 +44,7 @@ export type ObjectsState = {
     sent: readonly number[];
   };
   lastMessage: { text: string; at: number } | undefined;
+  displays: DisplayCatalog | undefined;
 };
 export type OpenUseRecord = UseRecord & {
   how: "use" | "cast";
@@ -106,6 +107,7 @@ export class ObjectsStore {
         sent: [...this.sent],
       },
       lastMessage: this.lastMessage && { ...this.lastMessage },
+      displays: this.displays,
     };
   }
 

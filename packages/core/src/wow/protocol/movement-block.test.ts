@@ -491,6 +491,7 @@ describe("parseMovementBlock", () => {
     const r = new PacketReader(w.finish());
     const m = parseMovementBlock(r);
     expect(must(m.point).x).toBeCloseTo(5);
+    expect(m.rotation).toMatchObject({ w: 1, x: 0, y: 0, z: 0 });
     expect(r.remaining).toBe(0);
   });
 

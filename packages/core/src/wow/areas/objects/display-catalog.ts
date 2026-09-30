@@ -18,15 +18,13 @@ export const DISPLAY_LAYOUT = {
 } as const;
 
 function decode(file: DbcFile, row: number): DisplayBounds {
-  return {
-    id: u32(file, row, 0),
-    minX: f32(file, row, 12),
-    minY: f32(file, row, 13),
-    minZ: f32(file, row, 14),
-    maxX: f32(file, row, 15),
-    maxY: f32(file, row, 16),
-    maxZ: f32(file, row, 17),
-  };
+  const minX = Math.min(f32(file, row, 12), f32(file, row, 15));
+  const maxX = Math.max(f32(file, row, 12), f32(file, row, 15));
+  const minY = Math.min(f32(file, row, 13), f32(file, row, 16));
+  const maxY = Math.max(f32(file, row, 13), f32(file, row, 16));
+  const minZ = Math.min(f32(file, row, 14), f32(file, row, 17));
+  const maxZ = Math.max(f32(file, row, 14), f32(file, row, 17));
+  return { id: u32(file, row, 0), maxX, maxY, maxZ, minX, minY, minZ };
 }
 
 export class DisplayCatalog {
