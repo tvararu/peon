@@ -76,12 +76,11 @@ and reads shrines, plaques and books.
   dropped at once. After the last loot the loop waits up to 3 s for the
   quest-complete flag before it reports absent targets, and a unit that
   starts attacking mid-loop is fought through the engage path before the
-  loop resumes. A live run on an `elwynn10` character raised to level 60,
-  with quest 3904 staged by `soap gm quest add` and a teleport to
-  `NorthshireVineyards`, looted 7 more crates through the loop on top of
-  one from an earlier run, stopped with no wanted chest left at 8 of 8
-  Milly's Harvest, and `soap truth` showed the quest complete (status 1,
-  item counts `[8, 0, 0, 0, 0, 0]`).
+  loop resumes. Eval `t4-objects-quest-loot` stages quest 3904 at the
+  Northshire vineyard crates: the agent opens crates through the use path
+  (`CMSG_GAMEOBJ_USE` sent, `objects/used` rows for entry 161557, loot
+  windows open for those crate guids), but every window is empty and the
+  quest stays incomplete, so the quest-done check fails.
 - The guid of `SMSG_GAMEOBJECT_DESPAWN_ANIM` is not always a game
   object's.
   - A dynamic object sends the despawn animation with its own guid when
