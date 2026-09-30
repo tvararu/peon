@@ -158,19 +158,31 @@ corpse (`Handlers/PetHandler.cpp:287-294`).
 - `CMSG_PET_CANCEL_AURA` is the pet guid and the `uint32` spell
   (`Handlers/SpellHandler.cpp:604-610`); the server removes only an
   aura the pet owns (`Handlers/SpellHandler.cpp:639`).
-- The area peeks `SMSG_SPELL_COOLDOWN` (guid, flags, spell and time
-  per entry, `Entities/Unit/Unit.cpp:16618-16625`) and
-  `SMSG_CLEAR_COOLDOWN` (spell then pet guid, `Entities/Pet/Pet.cpp:2458`)
-  for the pet's guid only; both are `uses`, owned at
-  `gameplay-handlers.ts:123-128`. The pet's normal cooldowns arrive in
-  `SMSG_PET_SPELLS`; a pet-guid `SMSG_SPELL_COOLDOWN` is only sent when
-  `RequireCooldownInfo()` holds (`Spells/Spell.cpp:4493-4498`). `SMSG_SPELL_COOLDOWN` carries no category, so an update keeps the row `SMSG_PET_SPELLS` filled and a new spell starts at category 0.
+- Every stable request carries the stable master's guid (`WorldSession`
+  `GetNPCIfCanInteractWith`, `Handlers/NPCHandler.cpp:341` handles
+  `MSG_LIST_STABLED_PETS`): out of interact range the server sends nothing
+  for the list and `0x06` for the rest. The stable list reply is stabled
+  pets only, each with a flag of 1 while out or 2 while stabled
+  (`Handlers/NPCHandler.cpp:359` writes `MSG_LIST_STABLED_PETS`, slots byte
+  at `:372`); with no bought slots the player has no `PetStable` (`:447`)
+  and the list stays silent too. A 1-byte `SMSG_STABLE_RESULT` reports
+  `STABLE_ERR_MONEY` 0x01, `STABLE_ERR_STABLE` 0x06, `STABLE_SUCCESS_STABLE`
+  0x08, `STABLE_SUCCESS_UNSTABLE` 0x09, `STABLE_SUCCESS_BUY_SLOT` 0x0a and
+  `STABLE_ERR_EXOTIC` 0x0c (`Handlers/NPCHandler.cpp:418` sends
+  `SMSG_STABLE_RESULT`): stabling needs one bought slot
+  (`Handlers/NPCHandler.cpp:434` handles `CMSG_STABLE_PET`), the revive
+  handler is empty (`Handlers/NPCHandler.cpp:641` handles
+  `CMSG_STABLE_REVIVE_PET`), and the first slot price comes out of
+  `StableSlotPrices.dbc` read by the server (`Handlers/NPCHandler.cpp:627`
+  inside the `CMSG_BUY_STABLE_SLOT` handler). `pets.listStabledPets`,
+  `pets.stablePet`, `pets.unstablePet`, `pets.swapStabledPet` and
+  `pets.buyStableSlot` each wait 5 s for the list or the result and
+  otherwise report `unanswered` with `request: "stable"`;
+  `pets.stableRevivePet` sends and returns. The stable slice clears on
+  logout.
 
 ## Left out
 
-- `MSG_LIST_STABLED_PETS`, `CMSG_STABLE_PET`, `CMSG_UNSTABLE_PET`,
-  `CMSG_STABLE_SWAP_PET`, `CMSG_BUY_STABLE_SLOT`, `SMSG_STABLE_RESULT`,
-  `CMSG_STABLE_REVIVE_PET`: built by pets-5.
 - `CMSG_PET_ABANDON`, `SMSG_PET_TAME_FAILURE`, `CMSG_DISMISS_CRITTER`:
   built by pets-6.
 - `CMSG_PET_LEARN_TALENT`, `CMSG_LEARN_PREVIEW_TALENTS_PET`: built by
@@ -184,8 +196,10 @@ corpse (`Handlers/PetHandler.cpp:287-294`).
 No agent verb; the world-service acts `pets.requestPetInfo`,
 `pets.petCommand`, `pets.petStance`, `pets.petStopAttack`,
 `pets.petCast`, `pets.petAutocast`, `pets.petSetAction`,
-`pets.petSwapActions`, `pets.petCancelAura`, `pets.queryPetName` and
-`pets.renamePet` only.
+`pets.petSwapActions`, `pets.petCancelAura`, `pets.queryPetName`,
+`pets.renamePet`, `pets.listStabledPets`, `pets.stablePet`,
+`pets.unstablePet`, `pets.swapStabledPet`, `pets.buyStableSlot` and
+`pets.stableRevivePet` only.
 
 ## The pet tool
 
@@ -249,3 +263,10 @@ and then `follow`. `queryPetName` asks for the current pet's name again and `ren
 | `SMSG_PET_NAME_QUERY_RESPONSE` | `live` | the same `pets-bar` run: four replies, each naming the hunter pet (pet number 3711, "Ravager") with its name timestamp, parsed into `names[3711]` | `Handlers/PetHandler.cpp:656-668` |
 | `CMSG_PET_RENAME` | `live` | probe flow `pets-name --arg rename=Fangtooth` on the same account: one 19-byte `CMSG_PET_RENAME` out, and `soap gm read pet` afterwards names the pet Fangtooth; the rename cleared `UNIT_CAN_BE_RENAMED`, so a later `pets-name --arg rename=Rex` returns `not_renamable` with nothing sent | `Handlers/PetHandler.cpp:846-852` |
 | `SMSG_PET_NAME_INVALID` | `live` | probe flow `pets-name --arg rename=A` on the same account while the rename bit was still set: one 11-byte `CMSG_PET_RENAME` out, one 7-byte `SMSG_PET_NAME_INVALID` in, matching `too_short` (`uint32` 3, name "A", flag 0) | `Handlers/PetHandler.cpp:1112-1126` |
+| `MSG_LIST_STABLED_PETS` | `live` | probe flow `pets-stable --arg do=list,buy,list,stable,list` on an `eversong10-hunter` staged to the Tranquillien platform with `money 1000000` (pet Ravager 3722), exit 0: one 8-byte `MSG_LIST_STABLED_PETS` out per list, one 31-byte reply in per list, and from-interact-range `nearest` settled Paniar `0xf13000411900070d`; a `pets-stable --arg do=list` from 49 yards earlier went out with the server silent and `unanswered` reported | `Handlers/NPCHandler.cpp:341` |
+| `CMSG_BUY_STABLE_SLOT` | `live` | the same run, exit 0: one 8-byte `CMSG_BUY_STABLE_SLOT` out to Paniar, answered by a 1-byte `SMSG_STABLE_RESULT` (`slot_bought`); `soap gm truth` showed money 999500 copper after staging 1000000, a 500-copper fall that equals the first staged `StableSlotPrices.dbc` row (row 0 is id 1 price 500, read with a throwaway `openDbc` script per SR3-pets-7's script branch) | `Handlers/NPCHandler.cpp:607` |
+| `SMSG_STABLE_RESULT` | `live` | the same run: one 1-byte `slot_bought` after the buy, one 1-byte `stabled` after the stable; the `--arg do=list,unstable,list,revive` run answered the unstable with `unstabled`; the first `--arg do=buy` try from out of interact range answered `refused` (`0x06`) | `Handlers/NPCHandler.cpp:418` |
+| `CMSG_STABLE_PET` | `live` | the same run, exit 0: one 8-byte `CMSG_STABLE_PET` out, answered by `SMSG_STABLE_RESULT` (`stabled`); `soap gm read pet` afterwards showed pet 3722 in Slot 1, and after logout showed the slot still holds it | `Handlers/NPCHandler.cpp:425` |
+| `CMSG_UNSTABLE_PET` | `live` | probe flow `pets-stable --arg do=list,unstable,list,revive --arg number=3722`, exit 0: one 12-byte `CMSG_UNSTABLE_PET` out (guid plus number), answered by `SMSG_STABLE_RESULT` (`unstabled`); `soap gm read pet` afterwards showed pet 3722 back in Slot 0 | `Handlers/NPCHandler.cpp:493` |
+| `CMSG_STABLE_REVIVE_PET` | `accepted` | the same run, exit 0: one 8-byte `CMSG_STABLE_REVIVE_PET` out, no disconnect and no error packet; the handler is empty | `Handlers/NPCHandler.cpp:641` |
+| `CMSG_STABLE_SWAP_PET` | `builder` | not seen live: `pets-stable --arg do=list,swap --arg number=3722` went out and was answered by a 1-byte `SMSG_STABLE_RESULT` (`refused`, no pet was out); the swap order only swaps onto a current pet, which needs a second tamed beast while no pet is out, and no tameable beast stood within 100 yards of the staged Tranquillien platform on a `--packet-trace headers` puppet, so the success path stayed unseen. Builder test `protocol.test.ts` "unstable and swap write the guid and the pet number" | `Handlers/NPCHandler.cpp:646` |
