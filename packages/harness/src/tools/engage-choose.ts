@@ -136,7 +136,7 @@ async function findUnnamed(ops: OpsCtx): Promise<UnitView> {
   if (passed.length > 0)
     throw new Refusal({
       detail: `only gray units in view (${passed.join(", ")}); they give no XP or kill credit.`,
-      next: askHuman("Where should I look for enemies?"),
+      next: nextCall("travel", { to: "explore" }),
       reason: "not_seen",
     });
   throw new Refusal({
