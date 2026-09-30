@@ -2,7 +2,7 @@ import {
   type MonsterMove,
   parseMonsterMoveBody,
 } from "#wow/protocol/monster-move";
-import type { PacketReader } from "#wow/protocol/packet";
+import { PacketWriter, type PacketReader } from "#wow/protocol/packet";
 
 export const NPC_FLAG_SPELLCLICK = 0x01_00_00_00;
 export const NPC_FLAG_PLAYER_VEHICLE = 0x02_00_00_00;
@@ -31,4 +31,32 @@ export function parseMonsterMoveTransport(
 
 export function parsePlayerVehicleData(r: PacketReader): PlayerVehicleData {
   return { guid: r.packedGuidBig(), vehicleId: r.uint32LE() };
+}
+
+export function buildSpellClick(guid: bigint): Uint8Array {
+  const writer = new PacketWriter();
+  writer.uint64LE(guid);
+  return writer.finish();
+}
+
+export function buildRequestVehicleSwitchSeat(
+  guid: bigint,
+  seat: number,
+): Uint8Array {
+  const writer = new PacketWriter();
+  writer.packedGuidBig(guid);
+  writer.uint8(seat & 0xff);
+  return writer.finish();
+}
+
+export function buildPlayerVehicleEnter(guid: bigint): Uint8Array {
+  const writer = new PacketWriter();
+  writer.uint64LE(guid);
+  return writer.finish();
+}
+
+export function buildEjectPassenger(guid: bigint): Uint8Array {
+  const writer = new PacketWriter();
+  writer.uint64LE(guid);
+  return writer.finish();
 }

@@ -1,4 +1,5 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
+import type { SessionDeps } from "#wow/session-stores";
 import type {
   MonsterMoveTransport,
   PlayerVehicleData,
@@ -31,6 +32,11 @@ export type VehiclesState = {
 };
 
 export class VehiclesStore {
+  constructor(private readonly deps: SessionDeps) {}
+
+  entityOf(guid: bigint) {
+    return this.deps.getEntity(guid);
+  }
   private readonly events = new Emitter<[VehiclesEvent]>();
   private readonly pending: VehiclesEvent[] = [];
   private emitting = false;
@@ -43,10 +49,16 @@ export class VehiclesStore {
   snapshot(): VehiclesState {
     return {
       passengers: new Map(this.passengers),
-      seat: undefined,
+      seat: this.seat ? { ...this.seat } : undefined,
       vehicleIds: new Map(this.vehicleIds),
     };
   }
+
+  setSeat(seat: VehicleSeat | undefined): void {
+    this.seat = seat ? { ...seat } : undefined;
+  }
+
+  private seat: VehicleSeat | undefined;
 
   onEvent(cb: (event: VehiclesEvent) => void): Unsubscribe {
     return this.events.subscribe(cb);
@@ -95,6 +107,7 @@ export class VehiclesStore {
     this.events.clear();
     this.vehicleIds.clear();
     this.passengers.clear();
+    this.seat = undefined;
   }
 
   private queue(event: VehiclesEvent): void {
