@@ -1,5 +1,6 @@
 export type SoapResult = { ok: boolean; text: string };
 export type Names = { account: string; character: string };
+export const factoryAccount = /^FAC[0-9A-F]{10}$/;
 export type Run = (command: string) => Promise<SoapResult>;
 export type CopyTiming = {
   attempts: number;

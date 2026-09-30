@@ -1,5 +1,5 @@
 import { factoryConfigDir } from "#factory/config";
-import { factoryAccount } from "#factory/soap";
+import { factoryAccount } from "#factory/soap-copy";
 
 const trailingSlashes = /\/+$/;
 const urlKey = "PEON_REALM_SERVICE";

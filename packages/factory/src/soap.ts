@@ -8,23 +8,33 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { homedir } from "node:os";
+import type { ClientConfig } from "@peon/core";
 import {
   type Config,
   parseConfig,
   realmDefaults,
   serializeConfig,
 } from "@peon/core/lib/config";
+import {
+  authWithRetry,
+  createCharacter,
+  worldSession,
+} from "@peon/core/session";
 import { factoryConfigDir, factoryStateDir } from "#factory/config";
 import { requirePatchedLibrary } from "#factory/namigator-library";
 import {
   copyConfirmed,
+  factoryAccount,
   type Names,
   pinfoAccount,
   type SoapResult,
 } from "#factory/soap-copy";
+import { createByProtocol, type ServiceChar } from "#factory/soap-create";
 import {
+  needsProtocol,
   type Preset,
   presetLanguage,
+  presetSpecs,
   presets,
   templateFor,
 } from "#factory/soap-presets";
@@ -46,6 +56,7 @@ export type CreateOptions = {
   preset: Preset;
   owner?: string;
   gm?: number;
+  service?: () => Promise<ServiceChar>;
 };
 export type Session = Names & {
   preset: Preset;
@@ -61,8 +72,6 @@ export type ConsoleDeps = {
   now: () => Date;
   run: (command: string) => Promise<SoapResult>;
 };
-
-export const factoryAccount = /^FAC[0-9A-F]{10}$/;
 
 const lockStaleMs = 30_000;
 const lockPollMs = 100;
@@ -309,6 +318,29 @@ export async function inheritedConfig(
   return inherited;
 }
 
+async function createdService(): Promise<ServiceChar> {
+  const file = Bun.file(`${factoryConfigDir()}/soap.env`);
+  const config = (await file.exists()) ? parseEnv(await file.text()) : {};
+  const { createService, serviceUrl } = await import("#factory/realm-service");
+  return createService({ baseUrl: serviceUrl(Bun.env, config) });
+}
+
+async function createdLoginConfig(
+  _root: string,
+  account: string,
+  inherited: Inherited,
+): Promise<ClientConfig> {
+  const entry = await loadLedger(account);
+  if (!entry) throw new Error(`no ledger entry for ${account}`);
+  return {
+    account,
+    character: entry.character,
+    host: inherited.host,
+    password: entry.password,
+    port: inherited.port,
+  };
+}
+
 async function writeSession(
   entry: Ledger & { root: string },
   inherited: Inherited,
@@ -360,11 +392,9 @@ export async function createAccount({
   preset,
   gm,
   owner,
+  service = createdService,
 }: CreateOptions): Promise<Session> {
-  const [template, inherited] = await Promise.all([
-    presetTemplate(preset),
-    inheritedConfig(),
-  ]);
+  const inherited = await inheritedConfig();
   const password = newPassword();
   const names = await reserveNames(password);
   const root = process.cwd();
@@ -378,7 +408,30 @@ export async function createAccount({
   };
   try {
     await saveLedger(entry);
-    await copyConfirmed(soap, template, names);
+    if (needsProtocol(presetSpecs[preset])) {
+      await createByProtocol(preset, {
+        auth: (config) => authWithRetry(config, { maxAttempts: 2 }),
+        console: (accounts, command) => consoleCommand(accounts, command),
+        copy: (template, n) => copyConfirmed(soap, template, n),
+        create: createCharacter,
+        createConfig: (n) => ({
+          account: n.account,
+          character: n.character,
+          host: inherited.host,
+          password,
+          port: inherited.port,
+        }),
+        login: (config, auth) => worldSession(config, auth),
+        loginConfig: (account) => createdLoginConfig(root, account, inherited),
+        names,
+        run: soap,
+        service: await service(),
+        sleep: (ms) => Bun.sleep(ms),
+      });
+    } else {
+      const template = await presetTemplate(preset);
+      await copyConfirmed(soap, template, names);
+    }
     if (gm) await must(`account set gmlevel ${entry.account} ${gm} -1`);
     return await writeSession(entry, inherited);
   } catch (err) {

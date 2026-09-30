@@ -65,10 +65,21 @@ distinct accounts keep distinct characters and names always carry the
 creation second.
 
 Presets: `fresh`, `eversong10`, `max80`, `eversong10-warrior`,
-`eversong10-mage`, `eversong10-hunter`, `ghostlands20` (Horde), `elwynn1`,
-`elwynn10` (Alliance). Each copies a template character from the
-`TCPRESETS` account; a `PEON_PRESET_<NAME>` key in `soap.env` (`-` as `_`)
-overrides the template.
+`eversong10-mage`, `eversong10-hunter`, `eversong10-priest`, `ghostlands20`
+(Horde), `elwynn1`, `elwynn10` (Alliance). Each copies a template character
+from the `TCPRESETS` account (read only); a `PEON_PRESET_<NAME>` key in
+`soap.env` (`-` as `_`) overrides the template. The created presets
+`eversong10-shaman`, `eversong10-warlock`, `eversong10-rogue`,
+`eversong10-druid`, `eversong55-deathknight` and `eversong10-fishing` are
+built over the protocol instead: `soap create` raises the new account to
+security 1 inside its own creation step, sends `CMSG_CHAR_CREATE` without
+logging in, stages position, level, money, items and spells through the
+realm service, then demotes the account to 0 and confirms the demotion
+before publishing the profile. The death knight starts at 55 with no level
+stage; the fishing preset learns 7733 in one online login. `Tplhunter`
+carries a level 10 Ravager (entry 17525). Service `reset` copies a
+`TCPRESETS` template and so does not know the created presets; the eval
+runner never calls it.
 
 Create also writes the launcher `tmp/puppet-<ACCOUNT>` (the soap JSON's
 `.wrapper`). It runs the harness's headless puppet as that account, with
