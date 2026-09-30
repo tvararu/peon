@@ -55,6 +55,12 @@ async function run(ctx: FlowContext): Promise<Json> {
     node === undefined
       ? null
       : await ctx.handle.travel.act.destinations(node).catch(() => null);
+  const name =
+    node === undefined || catalog?.status !== "ok"
+      ? null
+      : (catalog.list.find((edge) => edge.node === node)?.name ??
+        catalog.list[0]?.name ??
+        null);
   return {
     benchmarkOff: freeze(benchmarkOff),
     benchmarkOn: freeze(benchmarkOn),
@@ -63,7 +69,9 @@ async function run(ctx: FlowContext): Promise<Json> {
     first: freeze(first),
     master: summary(master),
     masterGuid: hex(guid),
+    masterPosition: freeze(master.position ?? null),
     node: node ?? null,
+    nodeName: name,
     second: freeze(second),
     status: freeze(status),
   };
