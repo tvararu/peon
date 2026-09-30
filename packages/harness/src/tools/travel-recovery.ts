@@ -1,5 +1,6 @@
 import type { TravelRecovery, ViewCtx } from "#harness/contract/services";
 import { poseView } from "#harness/ops/views";
+import { nextTrigger } from "#harness/tools/accept-trigger";
 import { nextCall } from "#harness/tools/next-call";
 
 const LADDER: ReadonlySet<string> = new Set([
@@ -44,12 +45,10 @@ export function noteTravel(ctx: ViewCtx, to: string): void {
 
 export function arrivedNext(ctx: ViewCtx, to: string): string | undefined {
   const known = ctx.rt.travel.recovery;
-  if (!known) return;
-  if (known.goal === to) {
-    ctx.rt.travel.recovery = undefined;
-    return;
-  }
-  if (known.waypoint === to) return nextCall("travel", { to: known.goal });
+  if (known?.goal === to) ctx.rt.travel.recovery = undefined;
+  else if (known?.waypoint === to)
+    return nextCall("travel", { to: known.goal });
+  return nextTrigger(ctx, to);
 }
 
 export function triedText(recovery: TravelRecovery, planner: string): string {

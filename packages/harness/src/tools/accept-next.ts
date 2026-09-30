@@ -103,7 +103,11 @@ export function acceptedNext(
       : `${accepted} Goal: ${sentence(withWhere(goal, npc))}${regionText}`;
   const toRegion =
     region && "to" in region
-      ? regionNext(ctx, region, { counted: counted(state, offer.id), pointed })
+      ? regionNext(ctx, region, {
+          counted: counted(state, offer.id),
+          id: offer.id,
+          pointed,
+        })
       : undefined;
   if (toRegion) return toRegion;
   if (counted(state, offer.id) !== false)
@@ -125,10 +129,14 @@ export function acceptedNext(
 function regionNext(
   ctx: ViewCtx,
   region: QuestRegion,
-  quest: { counted: boolean | undefined; pointed: string },
+  quest: { counted: boolean | undefined; id: number; pointed: string },
 ): Accepted | undefined {
   const { pointed } = quest;
-  const [trigger, ...others] = triggersOf(ctx, region);
+  const chain = triggersOf(ctx, region);
+  const [trigger, ...others] = chain;
+  ctx.rt.travel.triggers = trigger
+    ? { points: chain, questId: quest.id }
+    : undefined;
   if (trigger)
     return {
       detail:

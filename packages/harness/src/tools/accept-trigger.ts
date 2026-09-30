@@ -1,4 +1,6 @@
+import { questSlotStatus } from "@peon/core";
 import type { ViewCtx } from "#harness/contract/services";
+import { nextCall } from "#harness/tools/next-call";
 
 const RADIUS_YD = 100;
 
@@ -55,4 +57,20 @@ export function triggersOf(
     );
   if (within.length > 0) return within.map(text);
   return near.slice(0, 1).map(text);
+}
+
+export function nextTrigger(ctx: ViewCtx, at: string): string | undefined {
+  const chain = ctx.rt.travel.triggers;
+  if (!chain) return undefined;
+  const index = chain.points.indexOf(at);
+  if (index < 0) return undefined;
+  const slot = ctx.handle
+    .getQuestState()
+    .log.slots.find((known) => known.questId === chain.questId);
+  const next = chain.points[index + 1];
+  if (!slot || questSlotStatus(slot) !== "in progress" || next === undefined) {
+    ctx.rt.travel.triggers = undefined;
+    return undefined;
+  }
+  return nextCall("travel", { to: next });
 }

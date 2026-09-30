@@ -213,6 +213,7 @@ export type TravelMemory = {
   lastRefusedGoal: string | undefined;
   obstructedExplores: Map<string, Set<Compass>>;
   recovery: TravelRecovery | undefined;
+  triggers: { points: string[]; questId: number } | undefined;
   visitedCells: Set<string>;
 };
 
