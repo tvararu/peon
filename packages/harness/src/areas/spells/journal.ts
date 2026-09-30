@@ -1,7 +1,17 @@
+import type { SpellDefinition } from "@peon/core";
+import { visibleSpellbook } from "#harness/areas/spells/book";
 import { auraName, isCancellable } from "#harness/areas/spells/tool-aura";
 import { barLines, barText } from "#harness/areas/spells/tool-bar";
-import type { AuraLine, BarLine } from "#harness/contract/details";
+import type {
+  AuraLine,
+  BarLine,
+  JournalAfter,
+  SpellLine,
+} from "#harness/contract/details";
+import type { ToolResult } from "#harness/contract/result";
+import type { OpsCtx } from "#harness/contract/services";
 import type { Game } from "#harness/loops/game";
+import { result } from "#harness/tools/define";
 
 const LINES_PER_BLOCK = 4;
 
@@ -37,4 +47,37 @@ export function spellsJournalExtras(handle: Game): {
       ...capped(barRows, "bar slots"),
     ],
   };
+}
+
+function spellLine(spell: SpellDefinition): SpellLine {
+  return {
+    cooldownMs: spell.cooldown.recoveryTimeMs || undefined,
+    cost: spell.power.costRaw || undefined,
+    id: spell.id,
+    name: spell.name,
+    rank: spell.rank || undefined,
+  };
+}
+
+function spellText({ cooldownMs, cost, name, rank }: SpellLine): string {
+  const rankText = rank ? ` (${rank})` : "";
+  const costText = cost ? `costs ${cost}` : "no cost";
+  const cooldownText = cooldownMs
+    ? `, cooldown ${Math.round(cooldownMs / 1000)} s`
+    : "";
+  return `${name}${rankText}: ${costText}${cooldownText}.`;
+}
+
+export async function spellsResult({
+  handle,
+}: OpsCtx): Promise<ToolResult<JournalAfter>> {
+  const spells = (await visibleSpellbook(handle))
+    .map(spellLine)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const { auras, bar, lines } = spellsJournalExtras(handle);
+  return result("DONE", {
+    after: { about: "spells", auras, bar, spells },
+    body: [...lines, ...spells.map(spellText)],
+    detail: `${spells.length} spells known.`,
+  });
 }
