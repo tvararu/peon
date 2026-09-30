@@ -54,18 +54,15 @@ function writeMailItem(w: PacketWriter, item: MailItemInit): void {
 export const MAIL_ITEM_BYTES =
   1 + 4 + 4 + 7 * 3 * 4 + 4 + 4 + 4 + 4 + 4 + 4 + 1;
 
-export function writeMailEntry(w: PacketWriter, mail: MailEntryInit): void {
-  if (
-    mail.type !== undefined &&
-    mail.type !== 0 &&
-    mail.senderGuid !== undefined
-  )
-    throw new Error("mail entry needs senderEntry for a non-player type.");
-  const body = new PacketWriter();
+function writeMailHead(body: PacketWriter, mail: MailEntryInit): void {
+  const type = mail.type ?? 0;
   body.uint32LE(mail.id ?? 0);
-  body.uint8(mail.type ?? 0);
-  if ((mail.type ?? 0) === 0) body.uint64LE(mail.senderGuid ?? MAIL_SENDER);
+  body.uint8(type);
+  if (type === 0) body.uint64LE(mail.senderGuid ?? MAIL_SENDER);
   else body.uint32LE(mail.senderEntry ?? 0);
+}
+
+function writeMailFields(body: PacketWriter, mail: MailEntryInit): void {
   body.uint32LE(mail.cod ?? 0);
   body.uint32LE(0);
   body.uint32LE(mail.stationery ?? 41);
@@ -75,12 +72,23 @@ export function writeMailEntry(w: PacketWriter, mail: MailEntryInit): void {
   body.uint32LE(mail.template ?? 0);
   body.cString(mail.subject ?? "");
   body.cString(mail.body ?? "");
+}
+
+export function writeMailEntry(w: PacketWriter, mail: MailEntryInit): void {
+  if (
+    mail.type !== undefined &&
+    mail.type !== 0 &&
+    mail.senderGuid !== undefined
+  )
+    throw new Error("mail entry needs senderEntry for a non-player type.");
+  const body = new PacketWriter();
+  writeMailHead(body, mail);
+  writeMailFields(body, mail);
   const items = mail.items ?? [];
   body.uint8(items.length);
   for (const item of items) writeMailItem(body, item);
   const raw = body.finish();
-  const size = 2 + raw.byteLength;
-  w.uint16LE(size);
+  w.uint16LE(2 + raw.byteLength);
   w.rawBytes(raw);
 }
 
