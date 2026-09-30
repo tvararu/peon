@@ -20,6 +20,7 @@ or the page names one that does not exist.
 | Answer whispers from another player | `t2-whisper-reply` | A chat line with no echo within 2 s is `UNCONFIRMED`. |
 | Kill creatures at its level, one at a time, with Jev choosing the actions | `t3-ghostlands-kill` | Needs Jev: after repeated failed Jev calls the fight ends as `jev_unavailable`. A hunter can end up in melee range, because `travel` stops 3 yd from a unit, so no scenario proves ranged hunter play. |
 | Take a quest, do it and turn it in | `t4-quest-first`, `t4-alliance-first` | An accept or a turn-in the server does not answer is `UNCONFIRMED`; the agent checks the quest log before it tries again. |
+| Gather quest loot from game-object chests | `t4-objects-quest-loot` | After the last loot, the loop waits up to 3 s for the quest-complete flag before it reports no targets left, and it fights back an attacker that interrupts it. |
 | See which NPCs have a quest or a quest to turn in | `t4-quests-find-giver` | |
 | Hear what an NPC says when talked to | `t1-quests-read-greeting` | |
 | Follow a guard's directions to a marked point | `t1-quests-guard-directions` | |
