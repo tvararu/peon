@@ -7,6 +7,7 @@ import {
   vehiclesPlayerVehicleDataBody,
 } from "#test-support/areas/vehicles";
 import type { VehiclesEvent } from "#wow/areas/vehicles/store";
+import { UpdateType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketWriter } from "#wow/protocol/packet";
 
@@ -142,6 +143,39 @@ describe("vehicles area wiring", () => {
       rig.inject(GameOpcode.SMSG_UPDATE_OBJECT, new Uint8Array([1, 2, 3]));
       expect(errors).toHaveLength(1);
       expect(errors[0]?.[0]).toBe(GameOpcode.SMSG_UPDATE_OBJECT);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a destroy for an unknown guid and an empty out-of-range change nothing", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      const destroy = new PacketWriter();
+      destroy.uint64LE(STRANGER);
+      destroy.uint8(0);
+      rig.inject(GameOpcode.SMSG_DESTROY_OBJECT, destroy.finish());
+      const empty = new PacketWriter();
+      empty.uint32LE(1);
+      empty.uint8(UpdateType.OUT_OF_RANGE);
+      empty.uint32LE(0);
+      rig.inject(GameOpcode.SMSG_UPDATE_OBJECT, empty.finish());
+      expect(rig.handle.state().vehicleIds.size).toBe(0);
+      expect(seen).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a truncated transport packet throws to the caller", () => {
+    const { rig } = rigWithEvents();
+    try {
+      expect(() =>
+        rig.inject(
+          GameOpcode.SMSG_MONSTER_MOVE_TRANSPORT,
+          new Uint8Array([0x01, 0x17]),
+        ),
+      ).toThrow();
     } finally {
       rig.dispose();
     }
