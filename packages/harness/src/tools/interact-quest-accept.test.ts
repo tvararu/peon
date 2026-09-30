@@ -16,7 +16,13 @@ import {
   velan,
 } from "#test-support/quest-fixtures";
 
-type PoiSpot = { index: number; mapId?: number; x: number; y: number };
+type PoiSpot = {
+  index: number;
+  mapId?: number;
+  polygon?: { x: number; y: number }[];
+  x: number;
+  y: number;
+};
 
 function logged(questId: number): QuestLogSlot {
   return {
@@ -45,7 +51,7 @@ function knownPoiState(questId: number, spot: PoiSpot): AreaState<"quests"> {
               mapId: spot.mapId ?? 530,
               objectiveIndex: spot.index,
               poiId: 0,
-              points: [{ x: spot.x, y: spot.y }],
+              points: spot.polygon ?? [{ x: spot.x, y: spot.y }],
               unk3: 0,
               unk4: 0,
             },
@@ -226,5 +232,98 @@ describe("accept while the quest region is still pending", () => {
       expect(res.status).toBe("DONE");
       expect(res.next).not.toContain("travel");
     });
+  });
+});
+
+describe("accept an explore quest with several area triggers", () => {
+  const square = [
+    { x: -9850, y: 100 },
+    { x: -9830, y: 100 },
+    { x: -9830, y: 140 },
+    { x: -9850, y: 140 },
+  ];
+
+  async function accept(triggers: { id: number; x: number; y: number }[]) {
+    const { t } = await velan();
+    const state = t.handle.getQuestState();
+    t.handle.getQuestState = () => ({
+      ...state,
+      log: { complete: true, slots: [logged(62)] },
+      queries: [talkQuery(62, "Explore the Fargodeep Mine.")],
+    });
+    jest.spyOn(t.handle.quests, "state").mockReturnValue(
+      knownPoiState(62, {
+        index: 0,
+        mapId: 0,
+        polygon: square,
+        x: -9840,
+        y: 120,
+      }),
+    );
+    t.handle.objects.act.triggersNear = () => triggers;
+    const control = t.handle.getControlState();
+    const lands = { mapId: 0, x: -9870, y: 213 };
+    t.handle.getControlState = () => ({
+      ...control,
+      pose: control.pose && { ...control.pose, ...lands },
+      serverPose: control.serverPose && { ...control.serverPose, ...lands },
+    });
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", {
+        dialog: listDialog([
+          { icon: 2, level: 4, questId: 62, title: "The Fargodeep Mine" },
+        ]),
+      });
+    t.handle.selectQuest = () =>
+      answer(t.handle, "dialog", {
+        dialog: detailsDialog(
+          62,
+          "The Fargodeep Mine",
+          "Explore the Fargodeep Mine.",
+        ),
+      });
+    t.handle.acceptQuest = () =>
+      answer(
+        t.handle,
+        "accepted",
+        { dialog: undefined, log: { complete: true, slots: [logged(62)] } },
+        62,
+      );
+    return interactSpec.run(
+      { do: "accept", npc: "Velan Brightoak", what: "1" },
+      toolCtx<InteractAfter>(t),
+    );
+  }
+
+  test("prefers a trigger inside the region over one nearer its centre", async () => {
+    const res = await accept([
+      { id: 197, x: -9796.18, y: 157.77 },
+      { id: 88, x: -9843.54, y: 127.525 },
+    ]);
+    expect(res.next).toBe('travel(to: "-9843.54, 127.53")');
+  });
+
+  test("picks the inside trigger nearest the character first", async () => {
+    const res = await accept([
+      { id: 1, x: -9840, y: 105 },
+      { id: 2, x: -9840, y: 135 },
+    ]);
+    expect(res.next).toBe('travel(to: "-9840, 135")');
+  });
+
+  test("names the other inside triggers for when the first does not finish it", async () => {
+    const res = await accept([
+      { id: 1, x: -9840, y: 105 },
+      { id: 2, x: -9840, y: 135 },
+    ]);
+    expect(res.detail).toContain("-9840, 105");
+  });
+
+  test("falls back to the trigger nearest the centre when none is inside", async () => {
+    const res = await accept([
+      { id: 197, x: -9796.18, y: 157.77 },
+      { id: 300, x: -9700, y: 200 },
+    ]);
+    expect(res.next).toBe('travel(to: "-9796.18, 157.77")');
   });
 });

@@ -1,9 +1,10 @@
 import { type QuestState, questSlotStatus } from "@peon/core";
-import { questRegion } from "#harness/areas/quests/reads";
+import { type QuestRegion, questRegion } from "#harness/areas/quests/reads";
 import type { ViewCtx } from "#harness/contract/services";
 import type { UnitView } from "#harness/contract/views";
 import { enderIn } from "#harness/ops/quest-memory";
 import { knownUnits } from "#harness/ops/views";
+import { triggersOf } from "#harness/tools/accept-trigger";
 import { nextCall } from "#harness/tools/next-call";
 
 type Accepted = { detail: string; next: string };
@@ -100,16 +101,11 @@ export function acceptedNext(
     goal === ""
       ? `${accepted}${regionText}`
       : `${accepted} Goal: ${sentence(withWhere(goal, npc))}${regionText}`;
-  if (region && "to" in region) {
-    const trigger = triggerAt(ctx, region.to);
-    if (trigger)
-      return { detail: pointed, next: nextCall("travel", { to: trigger }) };
-    if (counted(state, offer.id) !== false && farFrom(ctx, region.to))
-      return {
-        detail: pointed,
-        next: nextCall("travel", { to: region.to }),
-      };
-  }
+  const toRegion =
+    region && "to" in region
+      ? regionNext(ctx, region, { counted: counted(state, offer.id), pointed })
+      : undefined;
+  if (toRegion) return toRegion;
   if (counted(state, offer.id) !== false)
     return {
       detail: pointed,
@@ -126,6 +122,25 @@ export function acceptedNext(
   };
 }
 
+function regionNext(
+  ctx: ViewCtx,
+  region: QuestRegion,
+  quest: { counted: boolean | undefined; pointed: string },
+): Accepted | undefined {
+  const { pointed } = quest;
+  const [trigger, ...others] = triggersOf(ctx, region);
+  if (trigger)
+    return {
+      detail:
+        others.length > 0
+          ? `${pointed} Other area triggers in it: ${others.join("; ")}.`
+          : pointed,
+      next: nextCall("travel", { to: trigger }),
+    };
+  if (quest.counted !== false && farFrom(ctx, region.to))
+    return { detail: pointed, next: nextCall("travel", { to: region.to }) };
+}
+
 function pointOf(to: string): { x: number; y: number } | undefined {
   const [x, y] = to.split(",").map(Number);
   if (x === undefined || y === undefined) return undefined;
@@ -139,19 +154,4 @@ function farFrom(ctx: ViewCtx, to: string): boolean {
   const point = pointOf(to);
   if (!point) return false;
   return Math.hypot(pose.x - point.x, pose.y - point.y) >= FAR_YD;
-}
-
-function triggerAt(ctx: ViewCtx, to: string): string | undefined {
-  const pose = ctx.handle.getControlState().pose;
-  if (!pose) return undefined;
-  const point = pointOf(to);
-  if (!point) return undefined;
-  const first = ctx.handle.objects.act.triggersNear(
-    pose.mapId,
-    point.x,
-    point.y,
-    100,
-  )[0];
-  if (!first) return undefined;
-  return `${Math.round(first.x * 100) / 100}, ${Math.round(first.y * 100) / 100}`;
 }
