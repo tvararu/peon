@@ -17,13 +17,13 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x17a` | `SMSG_PET_MODE` | server | dead |  |
 | `0x1f0` | `CMSG_PET_CAST_SPELL` | client | handled | not seen live |
 | `0x26b` | `CMSG_PET_CANCEL_AURA` | client | handled |  |
-| `0x26f` | `MSG_LIST_STABLED_PETS` | both | missing |  |
-| `0x270` | `CMSG_STABLE_PET` | client | missing |  |
-| `0x271` | `CMSG_UNSTABLE_PET` | client | missing |  |
-| `0x272` | `CMSG_BUY_STABLE_SLOT` | client | missing |  |
-| `0x273` | `SMSG_STABLE_RESULT` | server | missing |  |
-| `0x274` | `CMSG_STABLE_REVIVE_PET` | client | missing |  |
-| `0x275` | `CMSG_STABLE_SWAP_PET` | client | missing |  |
+| `0x26f` | `MSG_LIST_STABLED_PETS` | both | handled |  |
+| `0x270` | `CMSG_STABLE_PET` | client | handled |  |
+| `0x271` | `CMSG_UNSTABLE_PET` | client | handled |  |
+| `0x272` | `CMSG_BUY_STABLE_SLOT` | client | handled |  |
+| `0x273` | `SMSG_STABLE_RESULT` | server | handled |  |
+| `0x274` | `CMSG_STABLE_REVIVE_PET` | client | handled |  |
+| `0x275` | `CMSG_STABLE_SWAP_PET` | client | handled |  |
 | `0x279` | `CMSG_REQUEST_PET_INFO` | client | handled |  |
 | `0x2af` | `SMSG_PET_BROKEN` | server | dead |  |
 | `0x2c6` | `SMSG_PET_ACTION_FEEDBACK` | server | handled | not seen live |
