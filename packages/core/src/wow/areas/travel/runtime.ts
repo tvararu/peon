@@ -284,14 +284,14 @@ function setTaxiBenchmark(
   on: boolean,
 ): Promise<TravelOutcome<{ on: boolean }>> {
   const { ctx, store, state } = deps;
-  if (store.snapshot().benchmark === on) {
-    ctx.send(
-      GameOpcode.CMSG_SET_TAXI_BENCHMARK_MODE,
-      buildSetTaxiBenchmarkMode(on),
-    );
-    return Promise.resolve({ status: "ok", on });
-  }
   return guard(state, "benchmark", () => {
+    if (store.snapshot().benchmark === on) {
+      ctx.send(
+        GameOpcode.CMSG_SET_TAXI_BENCHMARK_MODE,
+        buildSetTaxiBenchmarkMode(on),
+      );
+      return Promise.resolve({ status: "ok", on });
+    }
     ctx.send(
       GameOpcode.CMSG_SET_TAXI_BENCHMARK_MODE,
       buildSetTaxiBenchmarkMode(on),
