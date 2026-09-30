@@ -4,6 +4,12 @@ import {
   parseItemTextResponse,
   parseReadItemResult,
 } from "#wow/areas/items/protocol-read";
+import {
+  parseItemCooldown,
+  parseItemEnchantTimeUpdate,
+  parseItemTimeUpdate,
+  parseSetProficiency,
+} from "#wow/areas/items/protocol-timers";
 import { itemsRuntime } from "#wow/areas/items/runtime";
 import { ItemsStore } from "#wow/areas/items/store";
 import { parseInventoryChangeFailure } from "#wow/protocol/inventory";
@@ -24,6 +30,11 @@ export const itemsArea = defineArea({
     "read_failed",
     "read_unanswered",
     "item_text",
+    "item_cooldown",
+    "item_time",
+    "item_enchant_time",
+    "durability_loss",
+    "proficiency",
   ],
   store: (deps, core) => new ItemsStore(deps, core),
   register: (wire, store) => {
@@ -38,6 +49,21 @@ export const itemsArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_ITEM_TEXT_QUERY_RESPONSE, (r) =>
       store.receiveItemText(parseItemTextResponse(r)),
+    );
+    wire.on(GameOpcode.SMSG_ITEM_COOLDOWN, (r) =>
+      store.receiveItemCooldown(parseItemCooldown(r)),
+    );
+    wire.on(GameOpcode.SMSG_ITEM_TIME_UPDATE, (r) =>
+      store.receiveItemTime(parseItemTimeUpdate(r)),
+    );
+    wire.on(GameOpcode.SMSG_ITEM_ENCHANT_TIME_UPDATE, (r) =>
+      store.receiveItemEnchantTime(parseItemEnchantTimeUpdate(r)),
+    );
+    wire.on(GameOpcode.SMSG_DURABILITY_DAMAGE_DEATH, () =>
+      store.receiveDeathDurability(),
+    );
+    wire.on(GameOpcode.SMSG_SET_PROFICIENCY, (r) =>
+      store.receiveProficiency(parseSetProficiency(r)),
     );
   },
   runtime: itemsRuntime,

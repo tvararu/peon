@@ -1,5 +1,6 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import {
+  findItem,
   type MoveKind,
   type MoveOutcome,
   type MoveRequest,
@@ -10,12 +11,24 @@ import type {
   ItemTextResponse,
   ReadItemResult,
 } from "#wow/areas/items/protocol-read";
+import type {
+  ItemCooldownPacket,
+  ItemEnchantTimeUpdatePacket,
+  ItemTimeUpdatePacket,
+  SetProficiencyPacket,
+} from "#wow/areas/items/protocol-timers";
 import {
   type ItemText,
   type ReadRequest,
   ReadSlice,
   type ReadState,
 } from "#wow/areas/items/reads";
+import {
+  type ProficiencyKind,
+  proficiencyNames,
+  TimerSlice,
+  type TimersState,
+} from "#wow/areas/items/timers";
 import { type InventoryState, readInventory } from "#wow/inventory";
 import { type PlayerLife, readLife } from "#wow/player-state";
 import {
@@ -27,7 +40,11 @@ import {
 } from "#wow/protocol/inventory";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
-export type ItemsState = { move: MoveState; read: ReadState };
+export type ItemsState = {
+  move: MoveState;
+  read: ReadState;
+  timers: TimersState;
+};
 
 type ReadHead = { itemGuid: bigint; entry: number | undefined };
 type MoveHead = { kind: MoveKind; itemGuid: bigint; entry: number | undefined };
@@ -53,7 +70,36 @@ export type ItemsEvent =
       result: number | undefined;
     } & ReadHead)
   | ({ type: "read_unanswered" } & ReadHead)
-  | ({ type: "item_text" } & ItemText);
+  | ({ type: "item_text" } & ItemText)
+  | {
+      type: "item_cooldown";
+      itemGuid: bigint;
+      entry: number | undefined;
+      spell: number;
+    }
+  | {
+      type: "item_time";
+      itemGuid: bigint;
+      entry: number | undefined;
+      seconds: number;
+      expiresAt: number;
+    }
+  | {
+      type: "item_enchant_time";
+      itemGuid: bigint;
+      entry: number | undefined;
+      slot: number;
+      seconds: number;
+      expiresAt: number;
+    }
+  | { type: "durability_loss" }
+  | {
+      type: "proficiency";
+      kind: ProficiencyKind;
+      mask: number;
+      added: number;
+      names: string[];
+    };
 
 function legacyClaims(core: CoreStores): (InventoryClaim | undefined)[] {
   return [core.rewards, core.vendor, core.quests, core.destroy].map((store) =>
@@ -77,6 +123,7 @@ export class ItemsStore {
   private readonly deps: SessionDeps;
   private readonly core: CoreStores;
   private readonly reads = new ReadSlice();
+  private readonly timers = new TimerSlice();
   private pending: MoveRequest | undefined;
   private last: MoveOutcome | undefined;
   private seen: InventoryClaim[] = [];
@@ -90,6 +137,7 @@ export class ItemsStore {
     return {
       move: { pending: this.pending, last: this.last },
       read: this.reads.snapshot(),
+      timers: this.timers.snapshot(),
     };
   }
 
@@ -217,11 +265,65 @@ export class ItemsStore {
     this.events.emit({ type: "item_received", ...item });
   }
 
+  receiveItemCooldown(packet: ItemCooldownPacket): void {
+    this.timers.cooldown(packet, this.deps.now());
+    this.events.emit({
+      type: "item_cooldown",
+      itemGuid: packet.itemGuid,
+      entry: this.entryOf(packet.itemGuid),
+      spell: packet.spell,
+    });
+  }
+
+  receiveItemTime(packet: ItemTimeUpdatePacket): void {
+    const { expiresAt } = this.timers.time(packet, this.deps.now());
+    this.events.emit({
+      type: "item_time",
+      itemGuid: packet.itemGuid,
+      entry: this.entryOf(packet.itemGuid),
+      seconds: packet.seconds,
+      expiresAt,
+    });
+  }
+
+  receiveItemEnchantTime(packet: ItemEnchantTimeUpdatePacket): void {
+    const { expiresAt } = this.timers.enchant(packet, this.deps.now());
+    this.events.emit({
+      type: "item_enchant_time",
+      itemGuid: packet.itemGuid,
+      entry: this.entryOf(packet.itemGuid),
+      slot: packet.slot,
+      seconds: packet.seconds,
+      expiresAt,
+    });
+  }
+
+  receiveDeathDurability(): void {
+    this.events.emit({ type: "durability_loss" });
+  }
+
+  receiveProficiency(packet: SetProficiencyPacket): void {
+    const change = this.timers.proficiency(packet);
+    if (!change) return;
+    this.events.emit({
+      type: "proficiency",
+      kind: change.kind,
+      mask: packet.mask,
+      added: change.added,
+      names: proficiencyNames(change.kind, change.added),
+    });
+  }
+
   dispose(): void {
     this.abandon();
     this.reads.clear();
+    this.timers.clear();
     this.seen = [];
     this.events.clear();
+  }
+
+  private entryOf(itemGuid: bigint): number | undefined {
+    return findItem(this.inventory(), itemGuid)?.item.entry;
   }
 
   private startClaims(): void {
