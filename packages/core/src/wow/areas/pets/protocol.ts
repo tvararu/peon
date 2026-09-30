@@ -111,6 +111,94 @@ export function parsePetActionSound(r: PacketReader): PetActionSound {
   return { guid, action };
 }
 
+export type PetNameQueryResponse = {
+  number: number;
+  name: string;
+  timestamp: number;
+  declined: readonly string[] | undefined;
+};
+
+export function buildPetNameQuery(number: number, pet: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(number);
+  w.uint64LE(pet);
+  return w.finish();
+}
+
+export function parsePetNameQueryResponse(
+  r: PacketReader,
+): PetNameQueryResponse {
+  const number = r.uint32LE();
+  const name = r.cString();
+  const timestamp = r.uint32LE();
+  const flag = r.uint8();
+  const declined =
+    flag === 1
+      ? [r.cString(), r.cString(), r.cString(), r.cString(), r.cString()]
+      : undefined;
+  return { declined, name, number, timestamp };
+}
+
+export function buildPetRename(pet: bigint, name: string): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(pet);
+  w.cString(name);
+  w.uint8(0);
+  return w.finish();
+}
+
+export type PetNameInvalidReason =
+  | "success"
+  | "invalid"
+  | "no_name"
+  | "too_short"
+  | "too_long"
+  | "mixed_languages"
+  | "profane"
+  | "reserved"
+  | "three_consecutive"
+  | "invalid_space"
+  | "consecutive_spaces"
+  | "russian_consecutive_silent_characters"
+  | "russian_silent_character_at_edge"
+  | "declension_mismatch"
+  | "unknown";
+
+export type PetNameInvalid = {
+  code: number;
+  reason: PetNameInvalidReason;
+  name: string;
+  declined: readonly string[] | undefined;
+};
+
+const NAME_INVALID: Record<number, PetNameInvalidReason> = {
+  0: "success",
+  1: "invalid",
+  2: "no_name",
+  3: "too_short",
+  4: "too_long",
+  6: "mixed_languages",
+  7: "profane",
+  8: "reserved",
+  11: "three_consecutive",
+  12: "invalid_space",
+  13: "consecutive_spaces",
+  14: "russian_consecutive_silent_characters",
+  15: "russian_silent_character_at_edge",
+  16: "declension_mismatch",
+};
+
+export function parsePetNameInvalid(r: PacketReader): PetNameInvalid {
+  const code = r.uint32LE();
+  const name = r.cString();
+  const flag = r.uint8();
+  const declined =
+    flag === 1
+      ? [r.cString(), r.cString(), r.cString(), r.cString(), r.cString()]
+      : undefined;
+  return { code, declined, name, reason: NAME_INVALID[code] ?? "unknown" };
+}
+
 export function parsePetDismissSound(r: PacketReader): PetDismissSound {
   const modelId = r.int32LE();
   const x = r.floatLE();

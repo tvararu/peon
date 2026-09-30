@@ -88,3 +88,39 @@ export function petsPetDismissSoundBody(init: {
   w.floatLE(init.z);
   return w.finish();
 }
+
+export function petsNameQueryResponseBody(init: {
+  number: number;
+  name: string;
+  timestamp: number;
+  declined?: readonly string[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.number);
+  w.cString(init.name);
+  w.uint32LE(init.timestamp);
+  if (!init.declined) {
+    w.uint8(0);
+    return w.finish();
+  }
+  w.uint8(1);
+  for (const name of init.declined) w.cString(name);
+  return w.finish();
+}
+
+export function petsNameInvalidBody(init: {
+  code: number;
+  name: string;
+  declined?: readonly string[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.code);
+  w.cString(init.name);
+  if (!init.declined) {
+    w.uint8(0);
+    return w.finish();
+  }
+  w.uint8(1);
+  for (const name of init.declined) w.cString(name);
+  return w.finish();
+}
