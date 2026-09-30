@@ -200,7 +200,19 @@ describe("the object loop when an attacker interrupts it", () => {
     jest.useFakeTimers();
     try {
       const t = world();
-      const { objective } = await questCycleObjective(t.handle, QUEST, []);
+      const { objective: inner } = await questCycleObjective(
+        t.handle,
+        QUEST,
+        [],
+      );
+      let enteredWait = false;
+      const objective: CycleObjective = {
+        ...inner,
+        awaitComplete: (args) => {
+          enteredWait = true;
+          return inner.awaitComplete?.(args) ?? Promise.resolve(false);
+        },
+      };
       const runtime = makeCycle({
         control: fakeControl(),
         loot: t.loot,
@@ -221,7 +233,8 @@ describe("the object loop when an attacker interrupts it", () => {
           jest.advanceTimersByTime(100);
         }
       };
-      await tick(1000);
+      for (let i = 0; i < 200 && !enteredWait; i++) await tick(100);
+      expect(enteredWait).toBe(true);
       const release = Promise.withResolvers<void>();
       let replacementVisits = 0;
       let firstSettled = false;

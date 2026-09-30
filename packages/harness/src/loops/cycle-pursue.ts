@@ -84,10 +84,11 @@ async function settleStop(
   if (
     stop.cause === "objective_targets_absent" &&
     state.looted &&
-    (await objective.awaitComplete?.({ signal }))
+    objective.awaitComplete
   ) {
+    const completed = await objective.awaitComplete({ signal });
     signal.throwIfAborted();
-    return false;
+    if (completed) return false;
   }
   loop.stop(stop.cause, stop.detail);
   return true;
