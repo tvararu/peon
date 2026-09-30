@@ -135,9 +135,15 @@ function requestTrade(env: Env, guid: bigint): Promise<TradeResult> {
     },
   ).then((result) => {
     if (result.status !== "unanswered") return result;
+    if (env.store.snapshot().phase !== "requested_out") return result;
     env.store.settlePending();
-    env.ctx.send(GameOpcode.CMSG_CANCEL_TRADE, buildCancelTrade());
-    env.armSettle();
+    try {
+      env.ctx.send(GameOpcode.CMSG_CANCEL_TRADE, buildCancelTrade());
+      env.armSettle();
+    } catch (error) {
+      env.store.endSettling();
+      throw error;
+    }
     return result;
   });
 }

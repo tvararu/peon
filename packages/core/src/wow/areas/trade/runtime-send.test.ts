@@ -22,15 +22,23 @@ const BEGIN_TRADE: TradeStatus = {
 };
 
 function rig() {
+  const clock = { at: 0 };
+  const timeouts = new Set<() => void>();
   const store = new TradeStore({
     getEntity: () => undefined,
-    now: () => 0,
+    now: () => clock.at,
     selfGuid: () => TRADE_SELF,
     send: () => undefined,
     updateEntity: () => undefined,
   });
   const lifetime = new AbortController();
-  const state = { broken: true, waiters: 0, sent: [] as number[] };
+  const state = {
+    broken: true,
+    clock,
+    timeouts,
+    waiters: 0,
+    sent: [] as number[],
+  };
   const ctx: AreaRuntimeCtx<TradeEvent> = {
     dbc: undefined,
     expect: () => Promise.reject(new Error("no server")),
@@ -52,19 +60,28 @@ function rig() {
     },
     signal: lifetime.signal,
     until: (match, options) =>
-      new Promise((resolve, reject) => {
+      new Promise<TradeEvent>((resolve, reject) => {
         state.waiters += 1;
+        const startedAt = state.clock.at;
         let done = false;
-        const finish = (settle: () => void) => {
+        const finish = (settle: () => void): void => {
           if (done) return;
           done = true;
           state.waiters -= 1;
           off();
+          state.timeouts.delete(checkTimeout);
           settle();
         };
         const off = store.onEvent((event) => {
           if (match(event)) finish(() => resolve(event));
+          else checkTimeout();
         });
+        const checkTimeout = (): void => {
+          if (done) return;
+          if (state.clock.at - startedAt < options.timeoutMs) return;
+          finish(() => reject(new Error("timeout")));
+        };
+        state.timeouts.add(checkTimeout);
         options.signal?.addEventListener(
           "abort",
           () => finish(() => reject(new Error("aborted"))),
@@ -73,7 +90,12 @@ function rig() {
       }),
   };
   const runtime = tradeRuntime(ctx, store, {} as CoreStores);
-  return { runtime, state, store };
+  const tick = async (): Promise<void> => {
+    for (const checkTimeout of [...state.timeouts]) checkTimeout();
+    await Promise.resolve();
+    await Promise.resolve();
+  };
+  return { runtime, state, store, tick };
 }
 
 describe("trade send failure", () => {
@@ -117,6 +139,41 @@ describe("trade send failure", () => {
       expect(unhandled).toEqual([]);
       expect(state.waiters).toBe(0);
       expect(store.snapshot().phase).toBe("requested_in");
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+      runtime.dispose();
+    }
+  });
+
+  test("a cancel send that throws at the request timeout still settles", async () => {
+    const { runtime, state, store, tick } = rig();
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      state.broken = false;
+      const pending = runtime.act.requestTrade(TRADE_PARTNER);
+      await tick();
+      expect(state.sent).toEqual([GameOpcode.CMSG_INITIATE_TRADE]);
+      state.broken = true;
+      state.clock.at = 60_000;
+      await tick();
+      await expect(pending).rejects.toThrow("world socket is not connected");
+      expect(unhandled).toEqual([]);
+      expect(state.waiters).toBe(0);
+      expect(store.snapshot().phase).toBe("idle");
+      expect(state.sent).toEqual([GameOpcode.CMSG_INITIATE_TRADE]);
+      state.broken = false;
+      const retry = runtime.act.requestTrade(TRADE_PARTNER);
+      await tick();
+      expect(state.sent).toEqual([
+        GameOpcode.CMSG_INITIATE_TRADE,
+        GameOpcode.CMSG_INITIATE_TRADE,
+      ]);
+      store.receiveStatus(OPEN_WINDOW);
+      expect(await retry).toEqual({ status: "ok" });
     } finally {
       process.off("unhandledRejection", onUnhandled);
       runtime.dispose();
