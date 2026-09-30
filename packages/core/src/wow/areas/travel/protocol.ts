@@ -9,6 +9,14 @@ export type BindPoint = {
 };
 export type PlayerBound = { binder: bigint; areaId: number };
 export type BinderConfirm = { npc: bigint };
+export type ShowTaxiNodes = {
+  npc: bigint;
+  currentNode: number;
+  known: readonly number[];
+};
+export type TaxiNodeStatus = { npc: bigint; known: boolean };
+
+const TAXI_MASK_WORDS = 14;
 
 export function parseBindPointUpdate(r: PacketReader): BindPoint {
   const x = r.floatLE();
@@ -29,8 +37,50 @@ export function parseBinderConfirm(r: PacketReader): BinderConfirm {
   return { npc: r.uint64LE() };
 }
 
+export function parseShowTaxiNodes(r: PacketReader): ShowTaxiNodes {
+  r.uint32LE();
+  const npc = r.uint64LE();
+  const currentNode = r.uint32LE();
+  const known: number[] = [];
+  for (let word = 0; word < TAXI_MASK_WORDS; word++) {
+    const bits = r.uint32LE();
+    for (let bit = 0; bit < 32; bit++)
+      if ((bits & (1 << bit)) !== 0) known.push(word * 32 + bit + 1);
+  }
+  return { npc, currentNode, known };
+}
+
+export function parseTaxiNodeStatus(r: PacketReader): TaxiNodeStatus {
+  const npc = r.uint64LE();
+  return { npc, known: r.uint8() !== 0 };
+}
+
 export function buildBinderActivate(npc: bigint): Uint8Array {
   const w = new PacketWriter();
   w.uint64LE(npc);
+  return w.finish();
+}
+
+function buildTaxiGuid(npc: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(npc);
+  return w.finish();
+}
+
+export function buildTaxiNodeStatusQuery(npc: bigint): Uint8Array {
+  return buildTaxiGuid(npc);
+}
+
+export function buildTaxiQueryAvailableNodes(npc: bigint): Uint8Array {
+  return buildTaxiGuid(npc);
+}
+
+export function buildEnableTaxi(npc: bigint): Uint8Array {
+  return buildTaxiGuid(npc);
+}
+
+export function buildSetTaxiBenchmarkMode(on: boolean): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(on ? 1 : 0);
   return w.finish();
 }
