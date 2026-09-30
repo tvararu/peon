@@ -106,7 +106,6 @@ describe("travel runtime: bindActivate", () => {
     rig.dispose();
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
   });
-
   test("the bind's SMSG_TRAINER_BUY_SUCCEEDED for spell 3286 is no purchase for a pending train (NPCHandler.cpp:321-331, trainer-store.ts:106-112)", () => {
     const rig = areaRig("travel", {
       register: (dispatch, stores) =>
@@ -395,8 +394,22 @@ describe("travel runtime: taxi", () => {
       expect(await rig.handle.act.destinations(82)).toEqual({
         status: "ok",
         from: 82,
+        node: {
+          id: 82,
+          map: 530,
+          x: expect.closeTo(9411.31, 2),
+          y: expect.closeTo(-7278.72, 2),
+          z: expect.closeTo(15.9, 2),
+          name: "Silvermoon City",
+        },
         list: [{ node: 83, name: "Tranquillien", price: 210, known: true }],
       });
+      const other = await rig.handle.act.destinations(83);
+      expect(other.status).toBe("ok");
+      if (other.status !== "ok") return;
+      expect(other.node.name).toBe("Tranquillien");
+      expect(other.node.x).toBeCloseTo(7535.26, 2);
+      expect(other.list.map((d) => d.name)).toEqual(["Silvermoon City"]);
     } finally {
       rig.dispose();
     }

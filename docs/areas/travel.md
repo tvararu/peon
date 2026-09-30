@@ -17,8 +17,9 @@ The area tracks taxi knowledge: `known` (node ids from the last
 `openTaxiMap(npc)` (or with `{ enable: true }` for `CMSG_ENABLETAXI`)
 and `setTaxiBenchmark(on)` settle as `ok`, `refused` with `busy` while
 one of the same kind is pending, or `no_answer` after 3 seconds of
-silence. `destinations(from)` lists the catalog's direct edges from a
-node with names, list prices and known flags; `planFlight(from,
+silence. `destinations(from)` reports the node's own catalog record
+(`node`: name, map and coordinates) and lists the catalog's direct edges
+from the node with names, list prices and known flags; `planFlight(from,
 destination)` matches the destination by case-insensitive name part
 and returns the cheapest chain of direct edges over known nodes with
 the summed list price, refusing with `unknown_node`, `ambiguous`,

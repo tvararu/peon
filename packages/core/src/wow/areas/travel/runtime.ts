@@ -1,5 +1,9 @@
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
-import { loadTaxiCatalog, type TaxiCatalog } from "#wow/areas/travel/catalog";
+import {
+  loadTaxiCatalog,
+  type TaxiCatalog,
+  type TaxiNode,
+} from "#wow/areas/travel/catalog";
 import {
   type BindPoint,
   buildBinderActivate,
@@ -34,6 +38,11 @@ export type TaxiDestination = {
   known: boolean;
 };
 
+export type TaxiNodeInfo = Pick<
+  TaxiNode,
+  "id" | "map" | "x" | "y" | "z" | "name"
+>;
+
 export type MapResult =
   | { kind: "map"; currentNode: number; known: readonly number[] }
   | { kind: "learned" };
@@ -52,10 +61,12 @@ export type TravelActs = {
     options?: { enable: boolean },
   ) => Promise<TravelOutcome<MapResult>>;
   setTaxiBenchmark: (on: boolean) => Promise<TravelOutcome<{ on: boolean }>>;
-  destinations: (
-    from: number,
-  ) => Promise<
-    TravelOutcome<{ from: number; list: readonly TaxiDestination[] }>
+  destinations: (from: number) => Promise<
+    TravelOutcome<{
+      from: number;
+      node: TaxiNodeInfo;
+      list: readonly TaxiDestination[];
+    }>
   >;
   planFlight: (
     from: number,
@@ -320,15 +331,30 @@ function setTaxiBenchmark(
 async function destinations(
   deps: TaxiDeps,
   from: number,
-): Promise<TravelOutcome<{ from: number; list: readonly TaxiDestination[] }>> {
+): Promise<
+  TravelOutcome<{
+    from: number;
+    node: TaxiNodeInfo;
+    list: readonly TaxiDestination[];
+  }>
+> {
   const { ctx, store, state } = deps;
   const loaded = await readCatalog(ctx, state);
   if ("error" in loaded) return loaded.error;
-  if (loaded.catalog.node(from) === undefined)
+  const record = loaded.catalog.node(from);
+  if (record === undefined)
     return { status: "refused", reason: "unknown_node" };
   return {
     status: "ok",
     from,
+    node: {
+      id: record.id,
+      map: record.map,
+      x: record.x,
+      y: record.y,
+      z: record.z,
+      name: record.name,
+    },
     list: destinationList(
       loaded.catalog,
       new Set(store.snapshot().known ?? []),
