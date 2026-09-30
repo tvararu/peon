@@ -245,16 +245,22 @@ describe("accept an explore quest with several area triggers", () => {
 
   async function accept(
     triggers: { id: number; x: number; y: number; z: number }[],
+    quest: { id: number; objectives: string; title: string } = {
+      id: 62,
+      objectives: "Explore the Fargodeep Mine.",
+      title: "The Fargodeep Mine",
+    },
+    query = talkQuery(quest.id, quest.objectives),
   ) {
     const { t } = await velan();
     const state = t.handle.getQuestState();
     t.handle.getQuestState = () => ({
       ...state,
-      log: { complete: true, slots: [logged(62)] },
-      queries: [talkQuery(62, "Explore the Fargodeep Mine.")],
+      log: { complete: true, slots: [logged(quest.id)] },
+      queries: [query],
     });
     jest.spyOn(t.handle.quests, "state").mockReturnValue(
-      knownPoiState(62, {
+      knownPoiState(quest.id, {
         index: 0,
         mapId: 0,
         polygon: square,
@@ -273,23 +279,22 @@ describe("accept an explore quest with several area triggers", () => {
     t.handle.talk = () =>
       answer(t.handle, "dialog", {
         dialog: listDialog([
-          { icon: 2, level: 4, questId: 62, title: "The Fargodeep Mine" },
+          { icon: 2, level: 4, questId: quest.id, title: quest.title },
         ]),
       });
     t.handle.selectQuest = () =>
       answer(t.handle, "dialog", {
-        dialog: detailsDialog(
-          62,
-          "The Fargodeep Mine",
-          "Explore the Fargodeep Mine.",
-        ),
+        dialog: detailsDialog(quest.id, quest.title, quest.objectives),
       });
     t.handle.acceptQuest = () =>
       answer(
         t.handle,
         "accepted",
-        { dialog: undefined, log: { complete: true, slots: [logged(62)] } },
-        62,
+        {
+          dialog: undefined,
+          log: { complete: true, slots: [logged(quest.id)] },
+        },
+        quest.id,
       );
     return interactSpec.run(
       { do: "accept", npc: "Velan Brightoak", what: "1" },
@@ -327,5 +332,27 @@ describe("accept an explore quest with several area triggers", () => {
       { id: 300, x: -9700, y: 200, z: 30 },
     ]);
     expect(res.next).toBe('travel(to: "-9796.18, 157.77, 25.39")');
+  });
+
+  test("a collection quest whose region holds triggers points at the journal instead", async () => {
+    const query = talkQuery(47, "Collect 10 Gold Dust.");
+    if (query.status !== "known") throw new Error("query not known");
+    const collecting = {
+      ...query,
+      data: { ...query.data, requiredItems: [{ count: 10, itemId: 1 }] },
+    };
+    const res = await accept(
+      [
+        { id: 197, x: -9796.18, y: 157.77, z: 25.39 },
+        { id: 88, x: -9843.54, y: 127.525, z: 5.37 },
+      ],
+      {
+        id: 47,
+        objectives: "Collect 10 Gold Dust.",
+        title: "Gold Dust Exchange",
+      },
+      collecting,
+    );
+    expect(res.next).toBe('journal(about: "quests")');
   });
 });

@@ -132,19 +132,22 @@ function regionNext(
   quest: { counted: boolean | undefined; id: number; pointed: string },
 ): Accepted | undefined {
   const { pointed } = quest;
-  const chain = triggersOf(ctx, region);
-  const [trigger, ...others] = chain;
-  ctx.rt.travel.triggers = trigger
-    ? { points: chain, questId: quest.id }
-    : undefined;
-  if (trigger)
-    return {
-      detail:
-        others.length > 0
-          ? `${pointed} Other area triggers in it: ${others.join("; ")}.`
-          : pointed,
-      next: nextCall("travel", { to: trigger }),
-    };
+  if (quest.counted === true) ctx.rt.travel.triggers = undefined;
+  else {
+    const chain = triggersOf(ctx, region);
+    const [trigger, ...others] = chain;
+    ctx.rt.travel.triggers = trigger
+      ? { points: chain, questId: quest.id }
+      : undefined;
+    if (trigger)
+      return {
+        detail:
+          others.length > 0
+            ? `${pointed} Other area triggers in it: ${others.join("; ")}.`
+            : pointed,
+        next: nextCall("travel", { to: trigger }),
+      };
+  }
   if (quest.counted !== false && farFrom(ctx, region.to))
     return {
       detail: pointed,
