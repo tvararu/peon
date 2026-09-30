@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
+  ambienceOverrideLightBody,
+  ambiencePlayMusicBody,
+  ambiencePlayObjectSoundBody,
+  ambiencePlaySoundBody,
+  ambienceSetPhaseShiftBody,
   ambienceTriggerCinematicBody,
   ambienceTriggerMovieBody,
   ambienceUpdateWorldStateBody,
@@ -9,6 +14,11 @@ import {
   buildCompleteCinematic,
   buildNextCinematicCamera,
   buildZoneUpdate,
+  parseOverrideLight,
+  parsePlayMusic,
+  parsePlayObjectSound,
+  parsePlaySound,
+  parseSetPhaseShift,
   parseTriggerCinematic,
   parseTriggerMovie,
   parseUpdateWorldState,
@@ -59,5 +69,45 @@ describe("ambience protocol", () => {
 
   test("buildNextCinematicCamera gives an empty body (MiscHandler.cpp:946-950)", () => {
     expect(buildNextCinematicCamera()).toEqual(new Uint8Array(0));
+  });
+
+  test("parsePlaySound and parsePlayMusic read one uint32 sound kit id (MiscPackets.cpp:48-68)", () => {
+    const sound = new PacketReader(ambiencePlaySoundBody(3337));
+    expect(parsePlaySound(sound)).toEqual({ soundKitId: 3337 });
+    expect(sound.remaining).toBe(0);
+    const music = new PacketReader(ambiencePlayMusicBody(6077));
+    expect(parsePlayMusic(music)).toEqual({ soundKitId: 6077 });
+    expect(music.remaining).toBe(0);
+  });
+
+  test("parsePlayObjectSound reads a full 8-byte guid, not a packed one (MiscPackets.cpp:55-61)", () => {
+    const source = 0xf130_0000_1234_0001n;
+    const body = ambiencePlayObjectSoundBody({ soundKitId: 7, source });
+    expect(body.length).toBe(12);
+    const reader = new PacketReader(body);
+    expect(parsePlayObjectSound(reader)).toEqual({ soundKitId: 7, source });
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("parseOverrideLight reads three uint32 and keeps the fade in milliseconds (Map.cpp:3331-3340)", () => {
+    const reader = new PacketReader(
+      ambienceOverrideLightBody({
+        defaultId: 12,
+        fadeMs: 5000,
+        overrideId: 1942,
+      }),
+    );
+    expect(parseOverrideLight(reader)).toEqual({
+      defaultId: 12,
+      fadeMs: 5000,
+      overrideId: 1942,
+    });
+    expect(reader.remaining).toBe(0);
+  });
+
+  test("parseSetPhaseShift keeps a mask above the int32 range unsigned (MiscHandler.cpp:1632-1637)", () => {
+    const reader = new PacketReader(ambienceSetPhaseShiftBody(0xff_ff_ff_ff));
+    expect(parseSetPhaseShift(reader)).toEqual({ mask: 0xff_ff_ff_ff });
+    expect(reader.remaining).toBe(0);
   });
 });

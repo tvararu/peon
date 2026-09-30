@@ -50,3 +50,43 @@ export function ambienceTriggerMovieBody(movieId: number): Uint8Array {
   w.uint32LE(movieId >>> 0);
   return w.finish();
 }
+
+export function ambiencePlaySoundBody(soundKitId: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(soundKitId);
+  return w.finish();
+}
+
+export function ambiencePlayMusicBody(soundKitId: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(soundKitId);
+  return w.finish();
+}
+
+export function ambiencePlayObjectSoundBody(init: {
+  soundKitId: number;
+  source: bigint;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.soundKitId);
+  w.uint64LE(init.source);
+  return w.finish();
+}
+
+export function ambienceOverrideLightBody(init: {
+  defaultId: number;
+  overrideId: number;
+  fadeMs: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.defaultId);
+  w.uint32LE(init.overrideId);
+  w.uint32LE(init.fadeMs);
+  return w.finish();
+}
+
+export function ambienceSetPhaseShiftBody(mask: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(mask);
+  return w.finish();
+}
