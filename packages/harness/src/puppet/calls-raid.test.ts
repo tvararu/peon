@@ -25,4 +25,20 @@ describe("raid puppet calls", () => {
       expect(decodeCall("answerReadyCheck", json)).toHaveProperty("error");
     },
   );
+
+  test.each<[string, boolean]>([
+    ['["accept"]', true],
+    ['["decline"]', false],
+  ])("answerSummon %s calls the act with %p", (json, expected) => {
+    const spy = jest.fn();
+    run("answerSummon", json, { answerSummon: spy });
+    expect(spy).toHaveBeenCalledWith(expected);
+  });
+
+  test.each(['["yes"]', '["true"]', "[]"])(
+    "refuses answerSummon with %s",
+    (json) => {
+      expect(decodeCall("answerSummon", json)).toHaveProperty("error");
+    },
+  );
 });

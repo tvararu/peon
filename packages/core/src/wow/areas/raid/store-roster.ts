@@ -6,6 +6,7 @@ import {
   type RaidGroup,
 } from "#wow/areas/raid/protocol";
 import type { RaidTargetUpdate } from "#wow/areas/raid/protocol-marks";
+import type { SummonRequest } from "#wow/areas/raid/protocol-summon";
 import { MarkStore, type MarksEvent } from "#wow/areas/raid/store-marks";
 import {
   type ReadyCheck,
@@ -19,6 +20,12 @@ import {
   statsTransitions,
 } from "#wow/areas/raid/store-stats";
 import type { CommandResultEvent } from "#wow/areas/raid/store-structure";
+import {
+  type Summon,
+  type SummonEvent,
+  SummonStore,
+} from "#wow/areas/raid/store-summon";
+import type { ZoneNames } from "#wow/areas/raid/zone-names";
 import type { PartyMemberStats } from "#wow/protocol/group-stats";
 export type RaidChange =
   | { kind: "converted" }
@@ -44,6 +51,7 @@ export type RaidEvent =
   | StatsEvent
   | ReadyEvent
   | MarksEvent
+  | SummonEvent
   | CommandResultEvent;
 
 export type RaidState = {
@@ -51,6 +59,7 @@ export type RaidState = {
   stats: ReadonlyMap<bigint, MemberStats>;
   readyCheck?: ReadyCheck | undefined;
   marks: readonly bigint[];
+  summon?: Summon | undefined;
 };
 
 const FLAG_NAMES = [
@@ -172,6 +181,8 @@ export class RaidStore {
   private readonly stats = new Map<bigint, MemberStats>();
   private readonly ready = new ReadyStore();
   private readonly markStore = new MarkStore();
+  private readonly summons = new SummonStore();
+  private zones: ZoneNames | undefined;
   private counter = 0;
 
   snapshot(): RaidState {
@@ -180,6 +191,7 @@ export class RaidStore {
       marks: this.markStore.current(),
       readyCheck: this.ready.current(),
       stats: this.stats,
+      summon: this.summons.current(),
     };
   }
 
@@ -256,8 +268,31 @@ export class RaidStore {
     this.events.emit(this.markStore.ping(this.group, who, x, y));
   }
 
+  setZoneNames(zones: ZoneNames): void {
+    this.zones = zones;
+  }
+
+  receiveSummon(packet: SummonRequest, now: number): void {
+    const name =
+      this.group?.members.find((member) => member.guid === packet.summoner)
+        ?.name ?? "";
+    this.events.emit(
+      this.summons.receive(packet, now, name, this.zones?.get(packet.zoneId)),
+    );
+  }
+
+  expireSummon(expiresAt: number): void {
+    const event = this.summons.expire(expiresAt);
+    if (event) this.events.emit(event);
+  }
+
+  clearSummon(): void {
+    this.summons.clear();
+  }
+
   dispose(): void {
     this.events.clear();
+    this.summons.clear();
     this.ready.clear();
     this.markStore.clear();
     this.group = undefined;

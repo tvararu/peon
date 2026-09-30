@@ -9,6 +9,7 @@ import {
   parseReadyCheckConfirm,
   parseReadyCheckStart,
 } from "#wow/areas/raid/protocol-ready";
+import { parseSummonRequest } from "#wow/areas/raid/protocol-summon";
 import { raidRuntime } from "#wow/areas/raid/runtime";
 import { RaidAreaStore } from "#wow/areas/raid/store";
 import { parsePartyCommandResult } from "#wow/protocol/group";
@@ -51,6 +52,8 @@ export const raidArea = defineArea({
     "raid_mark",
     "raid_marks",
     "minimap_ping",
+    "summon_requested",
+    "summon_expired",
   ],
   store: (deps) => new RaidAreaStore(deps.now),
   register: (wire, store) => {
@@ -81,6 +84,9 @@ export const raidArea = defineArea({
     );
     wire.on(GameOpcode.MSG_RAID_TARGET_UPDATE, (r) =>
       store.receiveTarget(parseRaidTargetUpdate(r)),
+    );
+    wire.on(GameOpcode.SMSG_SUMMON_REQUEST, (r) =>
+      store.receiveSummon(parseSummonRequest(r)),
     );
     wire.on(GameOpcode.MSG_MINIMAP_PING, (r) => {
       const ping = parseMinimapPing(r);
