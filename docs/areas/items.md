@@ -173,15 +173,43 @@ on-use spells it read before.
   arrows" the agent took the Sharp Arrows as done (replica 1, `fail`).
   The server answers `CMSG_SET_AMMO` with an update that sets
   `PLAYER_AMMO_ID` to 2512 about 8 ms later.
+- `SMSG_ITEM_COOLDOWN` is `u64` item guid and `u32` spell
+  (`Entities/Player/Player.cpp:12058-12061`). It is sent only when an
+  item with an on-use spell is equipped: the spell or its category cooldown
+  must exceed 3000 ms (`Entities/Player/Player.cpp:12044`), no longer
+  cooldown may already run (`Entities/Player/Player.cpp:12050`), and the
+  spell must not carry `SPELL_ATTR0_NOT_IN_COMBAT_ONLY_PEACEFUL`
+  (`Entities/Player/Player.cpp:12054`). The equip cooldown is always 30 s
+  (`Entities/Player/Player.cpp:12056`), which the packet does not carry.
+  login (`Entities/Player/Player.cpp` calls `SendItemDurations`, which calls
+  each item's `SendTimeUpdate`). A later packet for the
+  same guid replaces the earlier one, so a timer can rise.
+- `SMSG_ITEM_ENCHANT_TIME_UPDATE` is `u64` item guid, `u32` enchant slot,
+  `u32` seconds and `u64` player guid
+  (`Server/Packets/ItemPackets.cpp:125-133`). The senders
+  (`Entities/Player/PlayerStorage.cpp`, `AddEnchantmentDuration` and
+  `SendEnchantmentDurations`) divide milliseconds by 1000.
+- `SMSG_DURABILITY_DAMAGE_DEATH` has an empty body
+  (`Server/Packets/MiscPackets.h:183-186`). It follows a death caused by a
+  creature outside a battleground (`Entities/Unit/Unit.cpp`, `Unit::Kill`)
+  and a fall death (`Entities/Player/Player.cpp`, `EnvironmentalDamage`).
+- `SMSG_SET_PROFICIENCY` is `u8` item class and `u32` subclass mask
+  (`Entities/Player/Player.cpp:10282-10285`). The server sends one at
+  login per class and mask it builds (a `max80` priest drew 8 at login),
+  and `Spell::EffectProficiency` sends one when a mask gains a bit
+  (`Spells/SpellEffects.cpp`). The masks start empty each
+  login, so the store reports `unknown` until the first packet and names
+  only the bits that are new. Class 2 is weapons and class 4 armour; other
+  classes change nothing.
+- Core keeps timers as absolute expiry times from the local clock at
+  receipt (`ItemsState.timers`), item cooldowns as item guid, spell and
+  time seen, and the weapon and armour masks. The game log writes
+  `items/cooldown`, `items/expiring` (passive; a wake row under 60 s
+  left, for timed items and temporary enchants), `items/durability_loss`
+  (a wake row that tells the agent to repair) and `items/proficiency`.
 
 ## Left out
 
-
-- `SMSG_ITEM_COOLDOWN`, `SMSG_ITEM_TIME_UPDATE`,
-  `SMSG_ITEM_ENCHANT_TIME_UPDATE`, `SMSG_DURABILITY_DAMAGE_DEATH` and
-  `SMSG_SET_PROFICIENCY`: built by `items-6`.
-- `CMSG_SOCKET_GEMS`, `SMSG_SOCKET_GEMS_RESULT`, `SMSG_ENCHANTMENTLOG`
-  and `CMSG_CANCEL_TEMP_ENCHANTMENT`: built by `items-7`.
 - `SMSG_EQUIPMENT_SET_LIST`, `CMSG_EQUIPMENT_SET_SAVE`,
   `SMSG_EQUIPMENT_SET_SAVED`, `CMSG_DELETEEQUIPMENT_SET`,
   `CMSG_EQUIPMENT_SET_USE` and `SMSG_EQUIPMENT_SET_USE_RESULT`: built by
@@ -193,7 +221,7 @@ on-use spells it read before.
 
 ## Capabilities row
 
-The `gear` tool wears, takes off, moves, splits, opens, reads and loads ammo. The game log writes `items/equipped`, `items/unequipped`, `items/moved` and `items/split` for confirmed moves, `items/refused` and `items/unanswered` as wake rows, `items/upgrade` when a received item level beats the worn one, and `items/read` for reads and item text, and `items/ammo` when ammo is loaded. The harness never equips on its own.
+The game log also writes `items/cooldown` for item cooldowns, `items/expiring` for timed items and temporary enchants (a wake row under 60 s left), `items/durability_loss` when death damages equipment (a wake row that tells the agent to repair), and `items/proficiency` for new weapon or armour skills.
 
 ## Proof
 
@@ -212,3 +240,7 @@ The `gear` tool wears, takes off, moves, splits, opens, reads and loads ammo. Th
 | `CMSG_ITEM_TEXT_QUERY` | `live` | probe flow `items-open` (`do=text`), exit 0: the query carries the letter's guid | `Handlers/ItemHandler.cpp:1461-1465` |
 | `SMSG_ITEM_TEXT_QUERY_RESPONSE` | `live` | probe flow `items-open` (`do=text`), exit 0: `0`, the letter's guid and its empty text, and the act returns the text | `Handlers/ItemHandler.cpp:1468-1474` |
 | `CMSG_SET_AMMO` | `live` | eval `t8-items-ammo` round 21 replica 2, verdict `pass`: `CMSG_SET_AMMO` with entry 2512 (Rough Arrow), the update that sets `PLAYER_AMMO_ID` to 2512 and the `items/ammo` game-log row | `Handlers/ItemHandler.cpp:1014-1039` |
+| `SMSG_ITEM_COOLDOWN` | `live` | probe flow `items-move` (`do=equip`, `slot=36`) on a `max80` priest with Medallion of the Horde (51378) staged in backpack slot 36, exit 0, `--expect SMSG_ITEM_COOLDOWN`: the move settles `confirmed` and the trace shows `SMSG_ITEM_COOLDOWN` `369d13000000004034a50000` (item guid `0x4000000000139d36`, spell 42292) | `Entities/Player/Player.cpp:12058-12061` |
+| `SMSG_ITEM_TIME_UPDATE` | `live` | Fool's Stout (5806) added offline, login probe `--flow items-snapshot --expect SMSG_ITEM_TIME_UPDATE`, exit 0: the trace shows `SMSG_ITEM_TIME_UPDATE` `829d130000000040201c0000` twice (the staged copy's guid, 7200 s; truth reads `duration` 7200) | `Entities/Item/Item.cpp:1088-1091` |
+| `SMSG_ITEM_ENCHANT_TIME_UPDATE` | `mock` | rig test in `packages/core/src/wow/areas/items/timers.test.ts` ("each timer opcode reaches the store and ends in state") injects a body built from the writer (item, slot, seconds, player) and asserts the event and state; not seen live: no realm-service endpoint can stage a timed temporary enchant | `Server/Packets/ItemPackets.cpp:125-133` |
+| `SMSG_SET_PROFICIENCY` | `live` | the login trace of every probe run shows it: login sends one per class and mask built, and the login of `probe items-snapshot` on a `max80` priest drew 8 (`0200000800`, weapon one-handed maces until swords; `0402000000` and `0403000000`, armour leather and mail) | `Entities/Player/Player.cpp:10282-10285` |
