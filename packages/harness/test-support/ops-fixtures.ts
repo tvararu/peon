@@ -151,10 +151,10 @@ export function setUnits(handle: MockHandle, rows: readonly NearbyRow[]): void {
   const byGuid = new Map<bigint, Entity>(
     rows.map((row) => [row.entity.guid, row.entity]),
   );
-  const getEntity = jest.fn((guid: bigint): Entity | undefined =>
-    byGuid.get(guid),
+  const previous = handle.getEntity;
+  handle.getEntity = jest.fn(
+    (guid: bigint): Entity | undefined => byGuid.get(guid) ?? previous(guid),
   );
-  handle.getEntity = getEntity;
 }
 
 export type SelfInit = {

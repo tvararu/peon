@@ -1,6 +1,10 @@
 import { describe, expect, jest, test } from "bun:test";
 import { validateToolArguments } from "@earendil-works/pi-ai";
-import { type AreaState, DisplayCatalog, type GameObjectEntity } from "@peon/core";
+import {
+  type AreaState,
+  DisplayCatalog,
+  type GameObjectEntity,
+} from "@peon/core";
 import { objectRows, reachYd } from "#harness/areas/objects/reads";
 import {
   emptyUse,

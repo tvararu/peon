@@ -6,9 +6,9 @@ import {
   type NearbyRow,
   ObjectType,
 } from "@peon/core";
+import { baseReachYd } from "#harness/areas/objects/reach";
 import type { ViewCtx } from "#harness/contract/services";
 import type { UnitView } from "#harness/contract/views";
-import { baseReachYd } from "#harness/areas/objects/reach";
 import { compassOf } from "#harness/ops/views";
 
 const OBJECT_REF = /^o[1-9]\d*$/;

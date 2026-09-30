@@ -1,11 +1,11 @@
 import { type Static, StringEnum, Type } from "@earendil-works/pi-ai";
+import { openObjectFlow } from "#harness/areas/objects/tool-open";
 import {
   checkCastReach,
   checkReach,
   checkUsable,
   findObject,
-  openObjectFlow,
-} from "#harness/areas/objects/tool-open";
+} from "#harness/areas/objects/tool-reach-checks";
 import { readObjectFlow } from "#harness/areas/objects/tool-read";
 import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
