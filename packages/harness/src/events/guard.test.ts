@@ -28,6 +28,10 @@ function whisper(sender: string): WakeCandidate {
   return { class: "wake", data: { sender }, event: "chat/in" };
 }
 
+function invite(from: string): WakeCandidate {
+  return { class: "wake", data: { from }, event: "group/invite" };
+}
+
 function attacked(attacker: string): WakeCandidate {
   return { class: "wake", data: { attacker }, event: "combat/attacked" };
 }
@@ -54,17 +58,30 @@ describe("createWakeGuard", () => {
     expect(guard.admit(runEnd)).toBe("passive");
   });
 
-  test("joins lines from one sender inside 2 s, then holds them for 20 s", () => {
+  test("never holds back chat lines, however many one sender sends", () => {
     const { clock, tick } = clockAt();
     const guard = createWakeGuard(clock);
-    expect(guard.admit(whisper("Kaelyn"))).toBe("wake");
-    tick(SENDER_JOIN_MS - 1);
-    expect(guard.admit(whisper("Kaelyn"))).toBe("wake");
-    tick(1);
-    expect(guard.admit(whisper("Kaelyn"))).toBe("passive");
+    for (const _ of [1, 2, 3, 4, 5, 6]) {
+      expect(guard.admit(whisper("Kaelyn"))).toBe("wake");
+      tick(3000);
+    }
     expect(guard.admit(whisper("Bob"))).toBe("wake");
+  });
+
+  test("chat lines do not use up the wake bucket", () => {
+    const guard = createWakeGuard(clockAt().clock);
+    for (const _ of [1, 2, 3, 4, 5]) guard.admit(whisper("Kaelyn"));
+    expect(guard.admit(runEnd)).toBe("wake");
+  });
+
+  test("holds a group invite from one sender for 20 s after the first", () => {
+    const { clock, tick } = clockAt();
+    const guard = createWakeGuard(clock);
+    expect(guard.admit(invite("Kaelyn"))).toBe("wake");
+    tick(SENDER_JOIN_MS);
+    expect(guard.admit(invite("Kaelyn"))).toBe("passive");
     tick(SENDER_GAP_MS);
-    expect(guard.admit(whisper("Kaelyn"))).toBe("wake");
+    expect(guard.admit(invite("Kaelyn"))).toBe("wake");
   });
 
   test("wakes once per attacker per 30 s", () => {

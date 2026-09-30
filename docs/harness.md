@@ -212,6 +212,16 @@ module, one entry in that list and its name in `ToolName`.
 Other human text while the agent works goes to the agent at the next
 step. Action tools refuse until the agent reads it.
 
+## When chat wakes the agent
+
+A whisper, a party, raid, guild or officer line, and open chat that
+names the character always start an agent turn, however many arrive in
+a row: chat wakes are exempt from the wake guard. Other wakes still
+pass through it: non-chat wakes share a bucket of three, repeat lines
+from one sender are held back for 20 seconds, and repeated combat hits
+stay limited to one wake per attacker every 30 seconds. Lines that
+arrive together reach the agent as one message.
+
 ## Who controls the character
 
 One owner holds the character at a time, ranked human, agent, loop.
