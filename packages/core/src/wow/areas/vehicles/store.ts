@@ -88,6 +88,7 @@ export class VehiclesStore {
 
   removeVehicleId(guid: bigint): void {
     this.vehicleIds.delete(guid);
+    this.passengers.delete(guid);
   }
 
   dispose(): void {

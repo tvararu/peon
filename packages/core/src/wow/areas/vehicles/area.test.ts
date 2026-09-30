@@ -6,6 +6,7 @@ import {
   vehiclesMonsterMoveTransportBody,
   vehiclesPlayerVehicleDataBody,
 } from "#test-support/areas/vehicles";
+import { writePackedGuid } from "#test-support/world-handlers-fixtures";
 import type { VehiclesEvent } from "#wow/areas/vehicles/store";
 import { UpdateType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -132,6 +133,38 @@ describe("vehicles area wiring", () => {
       destroy.uint8(0);
       rig.inject(GameOpcode.SMSG_DESTROY_OBJECT, destroy.finish());
       expect(rig.handle.state().vehicleIds.has(GUID)).toBe(false);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("destroy and out-of-range drop the departed rider's passenger entry", () => {
+    const { rig } = rigWithEvents();
+    try {
+      for (const rider of [GUID, STRANGER]) {
+        rig.inject(
+          GameOpcode.SMSG_MONSTER_MOVE_TRANSPORT,
+          vehiclesMonsterMoveTransportBody({
+            guid: rider,
+            seat: 1,
+            stop: true,
+            transportGuid: TRANSPORT,
+          }),
+        );
+      }
+      expect(rig.handle.state().passengers.size).toBe(2);
+      const destroy = new PacketWriter();
+      destroy.uint64LE(GUID);
+      destroy.uint8(0);
+      rig.inject(GameOpcode.SMSG_DESTROY_OBJECT, destroy.finish());
+      expect([...rig.handle.state().passengers.keys()]).toEqual([STRANGER]);
+      const gone = new PacketWriter();
+      gone.uint32LE(1);
+      gone.uint8(UpdateType.OUT_OF_RANGE);
+      gone.uint32LE(1);
+      writePackedGuid(gone, STRANGER);
+      rig.inject(GameOpcode.SMSG_UPDATE_OBJECT, gone.finish());
+      expect(rig.handle.state().passengers.size).toBe(0);
     } finally {
       rig.dispose();
     }
