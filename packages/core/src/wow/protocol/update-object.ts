@@ -20,6 +20,7 @@ type Movement = {
   turnRate?: number;
   speeds?: Speeds;
   spline?: CreateSpline;
+  vehicle?: { id: number; orientation: number };
 };
 
 export type UpdateEntry =
