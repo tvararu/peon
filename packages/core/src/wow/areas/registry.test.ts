@@ -373,7 +373,7 @@ describe("the registry checks", () => {
     const alpha = fixture(0);
     const twin = { ...alpha, name: "twin" };
     const ghost = withOpcodes(alpha, { uses: ["SMSG_NO_SUCH" as OpcodeName] });
-    const loose = withOpcodes(alpha, { dead: ["SMSG_WEATHER"] });
+    const loose = withOpcodes(alpha, { dead: ["SMSG_CAMERA_SHAKE"] });
     const late = withOpcodes(alpha, { owns: ["SMSG_LOGOUT_COMPLETE"] });
     expect(ownershipProblems([alpha, twin])).toEqual([
       "SMSG_QUERY_TIME_RESPONSE: owned by alpha and twin",
@@ -383,7 +383,7 @@ describe("the registry checks", () => {
       "alpha: SMSG_NO_SUCH is no opcode",
     ]);
     expect(ownershipProblems([loose])).toEqual([
-      "alpha: SMSG_WEATHER is not owned",
+      "alpha: SMSG_CAMERA_SHAKE is not owned",
     ]);
     expect(ownershipProblems([late])).toEqual([
       "alpha: SMSG_LOGOUT_COMPLETE is late",

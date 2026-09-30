@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { STUB_EXAMPLE, STUB_EXAMPLE_LABEL } from "#test-support/never-handled";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 import { registerStubs, STUBS, type StubNotice } from "#wow/protocol/stubs";
 import { OpcodeDispatch } from "#wow/protocol/world";
 
-const WEATHER = [[GameOpcode.SMSG_WEATHER, "Weather change"]] as const;
+const EXAMPLE = [[GameOpcode[STUB_EXAMPLE], STUB_EXAMPLE_LABEL]] as const;
 
 describe("registerStubs", () => {
   test("leaves world states to the place handler", () => {
@@ -16,9 +17,9 @@ describe("registerStubs", () => {
   test("registers SMSG opcodes that aren't already handled", () => {
     const d = new OpcodeDispatch();
     d.on(GameOpcode.SMSG_MESSAGE_CHAT, () => {});
-    registerStubs(d, () => true, WEATHER);
+    registerStubs(d, () => true, EXAMPLE);
 
-    expect(d.has(GameOpcode.SMSG_WEATHER)).toBe(true);
+    expect(d.has(GameOpcode[STUB_EXAMPLE])).toBe(true);
   });
 
   test("skips opcodes already registered", () => {
@@ -42,13 +43,13 @@ describe("registerStubs", () => {
         messages.push(notice.text);
         return true;
       },
-      WEATHER,
+      EXAMPLE,
     );
 
-    d.handle(GameOpcode.SMSG_WEATHER, new PacketReader(new Uint8Array(0)));
-    d.handle(GameOpcode.SMSG_WEATHER, new PacketReader(new Uint8Array(0)));
+    d.handle(GameOpcode[STUB_EXAMPLE], new PacketReader(new Uint8Array(0)));
+    d.handle(GameOpcode[STUB_EXAMPLE], new PacketReader(new Uint8Array(0)));
 
-    const matching = messages.filter((m) => m.includes("Weather"));
+    const matching = messages.filter((m) => m.includes(STUB_EXAMPLE_LABEL));
     expect(matching).toHaveLength(1);
   });
 
@@ -63,18 +64,18 @@ describe("registerStubs", () => {
         messages.push(notice.text);
         return true;
       },
-      WEATHER,
+      EXAMPLE,
     );
 
-    d.handle(GameOpcode.SMSG_WEATHER, new PacketReader(new Uint8Array(0)));
+    d.handle(GameOpcode[STUB_EXAMPLE], new PacketReader(new Uint8Array(0)));
     expect(messages).toHaveLength(0);
 
     ready = true;
-    d.handle(GameOpcode.SMSG_WEATHER, new PacketReader(new Uint8Array(0)));
+    d.handle(GameOpcode[STUB_EXAMPLE], new PacketReader(new Uint8Array(0)));
     expect(messages).toHaveLength(1);
-    expect(messages[0]).toContain("Weather");
+    expect(messages[0]).toContain(STUB_EXAMPLE_LABEL);
 
-    d.handle(GameOpcode.SMSG_WEATHER, new PacketReader(new Uint8Array(0)));
+    d.handle(GameOpcode[STUB_EXAMPLE], new PacketReader(new Uint8Array(0)));
     expect(messages).toHaveLength(1);
   });
 
@@ -87,14 +88,14 @@ describe("registerStubs", () => {
         notices.push(notice);
         return true;
       },
-      WEATHER,
+      EXAMPLE,
     );
-    d.handle(GameOpcode.SMSG_WEATHER, new PacketReader(new Uint8Array(0)));
+    d.handle(GameOpcode[STUB_EXAMPLE], new PacketReader(new Uint8Array(0)));
     expect(notices).toEqual([
       {
-        opcode: GameOpcode.SMSG_WEATHER,
-        label: "Weather change",
-        text: "[peon] Weather change is not yet implemented",
+        opcode: GameOpcode[STUB_EXAMPLE],
+        label: STUB_EXAMPLE_LABEL,
+        text: `[peon] ${STUB_EXAMPLE_LABEL} is not yet implemented`,
       },
     ]);
   });

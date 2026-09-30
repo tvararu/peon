@@ -5,7 +5,7 @@ import { runPaths } from "#harness/eval/run-dir";
 import { createPacketTrace, TRACE_FLUSH_MS } from "#harness/log/packet-trace";
 
 const LOGIN = 0x3d;
-const WEATHER = 0x2_f4;
+const CAMERA_SHAKE = 0x5_0a;
 
 function paths() {
   return runPaths(scratchDir("tc-harness-packets"));
@@ -24,7 +24,7 @@ async function exists(path: string): Promise<boolean> {
 }
 
 const counts = {
-  seen: { SMSG_WEATHER: 2 },
+  seen: { SMSG_CAMERA_SHAKE: 2 },
   sent: { CMSG_PLAYER_LOGIN: 1 },
   unhandled: {},
 };
@@ -36,7 +36,7 @@ describe("createPacketTrace", () => {
     trace.row({
       at: 1,
       dir: "in",
-      opcode: WEATHER,
+      opcode: CAMERA_SHAKE,
       outcome: "handled",
       size: 4,
     });
@@ -107,13 +107,13 @@ describe("createPacketTrace", () => {
     const trace = createPacketTrace({ mode: "off", paths: p });
     trace.close?.(counts);
     trace.close?.({
-      seen: { SMSG_PONG: 3, SMSG_WEATHER: 1 },
+      seen: { SMSG_CAMERA_SHAKE: 1, SMSG_PONG: 3 },
       sent: {},
       unhandled: { "0x7ff": 1 },
     });
     await trace.flush();
     expect(await Bun.file(p.packetCounts).json()).toEqual({
-      seen: { SMSG_PONG: 3, SMSG_WEATHER: 3 },
+      seen: { SMSG_CAMERA_SHAKE: 3, SMSG_PONG: 3 },
       sent: { CMSG_PLAYER_LOGIN: 1 },
       sessions: 2,
       unhandled: { "0x7ff": 1 },
