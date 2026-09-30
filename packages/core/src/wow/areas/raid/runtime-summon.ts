@@ -12,6 +12,8 @@ export type SummonActs = {
 
 type Ctx = AreaRuntimeCtx<RaidEvent>;
 
+const MAX_TIMER_MS = 2_147_483_647;
+
 export function composeSummonRuntime(env: { ctx: Ctx; store: RaidAreaStore }): {
   act: SummonActs;
   dispose: () => void;
@@ -31,10 +33,13 @@ export function composeSummonRuntime(env: { ctx: Ctx; store: RaidAreaStore }): {
     if (event.type === "summon_requested") {
       stop();
       const { expiresAt, timeoutMs } = event;
-      timer = setTimeout(() => {
-        timer = undefined;
-        env.store.expireSummon(expiresAt);
-      }, timeoutMs);
+      timer = setTimeout(
+        () => {
+          timer = undefined;
+          env.store.expireSummon(expiresAt);
+        },
+        Math.min(timeoutMs, MAX_TIMER_MS),
+      );
     } else if (event.type === "summon_expired") {
       stop();
     }

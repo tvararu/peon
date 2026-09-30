@@ -148,6 +148,19 @@ describe("summon expiry", () => {
     });
   });
 
+  test("a timeout past the timer limit does not expire at once", async () => {
+    await withFakeTimers(async () => {
+      const { rig: made } = rig();
+      try {
+        summon(made, TOM, 3_000_000_000);
+        await elapse(1000);
+        expect(made.handle.state().summon).toBeDefined();
+      } finally {
+        made.dispose();
+      }
+    });
+  });
+
   test("answering stops the timer so no expiry fires", async () => {
     await withFakeTimers(async () => {
       const { rig: made, events } = rig();
