@@ -79,6 +79,24 @@ member, no row for the server's own clear (who 0) or for a list, and one
 `passive` row `ping` with the distance and direction from the
 character when its position is known.
 
+Summons: `SMSG_SUMMON_REQUEST` sets `summon` (summoner guid, the
+summoner's name from the roster or an empty string, zone id, zone name
+and `expiresAt`, the receive time plus the packet's timeout) and emits
+`summon_requested`. The runtime holds one timer for the offer; at
+`expiresAt` it clears the offer and the store emits `summon_expired`. A
+newer request replaces the offer and restarts the timer; an expiry set
+for an older offer clears nothing. `answerSummon(accept)` throws
+`no_summon` when no offer is pending, otherwise sends the summoner
+guid and one byte and clears the offer, so a second answer throws. The
+zone name comes from `AreaTable.dbc` (name column 11) when
+`spell_data_dir` holds the file; without it the event carries no zone
+name and the harness row reads `zone <id>`. A request that arrives
+before the file has loaded is also named by id. The harness writes one
+`wake` row `summon` (`<name> summons you to <zone>. Answer within <n>
+s.`; the name falls back to the unit lookup, then `Someone`) and one
+`passive` row `summon_expired`. The puppet call is `answerSummon` with
+`accept` or `decline`.
+
 ## Wire notes
 
 - `SMSG_GROUP_LIST` (type, own subgroup/flags/roles, the dungeon-finder
@@ -200,13 +218,29 @@ character when its position is known.
   (`Handlers/GroupHandler.cpp:1143-1152`).
 - `roll` answers only the roll the agent names or the single open roll;
   Peon never rolls by itself.
+- `SMSG_SUMMON_REQUEST` is the summoner guid (`uint64`), the summoner's
+  zone (`uint32`) and the auto-decline time in milliseconds (`uint32`),
+  written by `Spell::EffectSummonPlayer` (`Spells/SpellEffects.cpp:4442-4446`).
+- The auto-decline time is `MAX_PLAYER_SUMMON_DELAY * IN_MILLISECONDS`,
+  which is 120 s (`Entities/Player/Player.h:923`).
+- `CMSG_SUMMON_RESPONSE` is read only when the player is alive and out of
+  combat (`Handlers/MovementHandler.cpp:872-873`); it holds the summoner
+  guid (`uint64`) and the answer (`uint8`)
+  (`Handlers/MovementHandler.cpp:879-881`).
+- The offer is cleared on a decline, an accept after the offer expired is
+  ignored, and an answer with no offer returns at once
+  (`Entities/Player/Player.cpp:12691-12700`).
+- The summon request is not seen live. No preset has a warlock, `soap gm`
+  has no summon verb, and the console `summon` commands refuse the
+  console (`scripts/Commands/cs_misc.cpp:111-112`); the meeting stone
+  needs the `objects` use act (`Entities/GameObject/GameObject.cpp:1902-1928`).
+  A mock test built from the writer proves the parser. The `group`
+  tool's summon scenario (`t9-raid-summon`) is the live try.
 
 ## Left out
 
-- `SMSG_SUMMON_REQUEST` and `CMSG_SUMMON_RESPONSE`: built by later group
-  tasks. The LFG form (type
-  `0x08`) is not seen live until `instances` forms a dungeon-finder
-  group. The acts name other members only: the caller's own name throws
+- The LFG form (type `0x08`) is not seen live until `instances` forms a
+  dungeon-finder group. The acts name other members only: the caller's own name throws
   `not in your party`, because the server never lists the receiving
   character in `SMSG_GROUP_LIST`. The `group` tool's `mark` refuses a
   hostile player as a target and refuses in a raid unless Peon leads or
@@ -448,3 +482,5 @@ Mark a target (`t9-raid-mark`, round 90 replica 1, `pass` 3/3; run directory not
 | `MSG_MINIMAP_PING` | `live` | B pings at its own position: B's trace holds `out` size 8, A's trace holds `in` size 16 and B's trace holds no `in` | not committed |
 | `CMSG_GROUP_CANCEL` | `dead` | the server ignores it: no handler | `Server/Protocol/Opcodes.cpp:243` |
 | `SMSG_REAL_GROUP_UPDATE` | `dead` | `STATUS_NEVER` and no send site in AzerothCore | `Server/Protocol/Opcodes.cpp:1050` |
+| `SMSG_SUMMON_REQUEST` | `mock` | not seen live: `protocol-summon.test.ts` and `runtime-summon.test.ts` parse and time a body built from the `Spell::EffectSummonPlayer` writer (`Spells/SpellEffects.cpp:4442-4446`); the reasons are in the wire notes | `Spells/SpellEffects.cpp:4442` |
+| `CMSG_SUMMON_RESPONSE` | `accepted` | one `eversong10` account, puppet started with `--packet-trace headers`: `call answerSummon '["accept"]'` failed locally with `no_summon` and sent nothing; `raw CMSG_SUMMON_RESPONSE 100000000000000001` left one `out` row of size 9 in `packets.jsonl`, and the puppet kept receiving packets and answered a later call 6 s afterwards, so the server did not disconnect it (with no offer the server returns at the expiry check); the account and its run directory were deleted | `Handlers/MovementHandler.cpp:872-873` |
