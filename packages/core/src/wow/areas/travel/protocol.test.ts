@@ -127,7 +127,9 @@ describe("travel taxi parsers", () => {
   });
 
   test("a short taxi body throws", () => {
-    expect(() => parseShowTaxiNodes(new PacketReader(new Uint8Array(16)))).toThrow();
+    expect(() =>
+      parseShowTaxiNodes(new PacketReader(new Uint8Array(16))),
+    ).toThrow();
     expect(() =>
       parseTaxiNodeStatus(new PacketReader(new Uint8Array(8))),
     ).toThrow();
