@@ -151,7 +151,7 @@ on-use spells it read before.
 - `SMSG_ITEM_TEXT_QUERY_RESPONSE` is `0`, the item guid and the text for
   a carried item, or `1` alone (`Handlers/ItemHandler.cpp:1468-1479`).
   The `1` answer names no guid, so it settles the oldest waiting query.
-- Items used for the open and read proof: 5335 A Sack of Coins (has loot, no lock), 889 A Dusty Unsent Letter (page text, no required level) and 38579 Venomous Tome (page text, required level 20, so a level 10 character's read fails with `cant_equip_level_i`).
+- Items used for the open and read proof: 5335 A Sack of Coins (has loot, no lock), 889 A Dusty Unsent Letter (page text, no required level) and 38579 Venomous Tome (page text, required level 20, so a level 10 character's read fails with `cant_equip_level_i`). `CMSG_READ_ITEM` answers `SMSG_READ_ITEM_OK` only for items whose template names page text (`Handlers/ItemHandler.cpp:552-568`); `CMSG_PAGE_TEXT_QUERY` then serves each page and its next page id (`Handlers/QueryHandler.cpp:361-391`), while `CMSG_ITEM_TEXT_QUERY` serves only carried mail text (`Handlers/ItemHandler.cpp:1461-1479`). `gear read` follows the item template's page-text id through the page chain and keeps the item-text query for items with no page id. Items with page text draw `SMSG_READ_ITEM_OK` while items without draw `EQUIP_ERR_ITEM_NOT_FOUND` (`Handlers/ItemHandler.cpp:548-575`).
 - Six gear eval scenarios prove the tool end to end on the live server
   (round 21): `t8-items-equip-upgrade` wears a better weapon and puts a
   bag on, `t8-items-unequip` takes the chest into the bags,

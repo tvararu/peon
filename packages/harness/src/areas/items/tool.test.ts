@@ -5,6 +5,7 @@ import { contentOf, limitProblem, toolCtx } from "#test-support/ops-fixtures";
 import {
   createTestRuntime,
   type MockHandle,
+  type TestRuntime,
 } from "#test-support/runtime-fixture";
 import { expectSendKind } from "#test-support/tool-harness";
 
@@ -380,6 +381,59 @@ describe("gear tool", () => {
     const acts = itemActs(t.handle);
     const res = await gearSpec.run({ do: "read", item: "Letter" }, toolCtx(t));
     expect(acts.read).toHaveBeenCalledWith({ bag: 255, slot: 35 });
+    expect(acts.queryText).toHaveBeenCalledWith(LETTER);
+    expect(contentOf(res)).toMatch(/^DONE Read Letter: Read me\./);
+  });
+
+  function pagedLetter(t: TestRuntime) {
+    stocked(t.handle, [
+      { bag: 255, entry: 889, guid: LETTER, name: "Letter", slot: 35 },
+    ]);
+    const acts = itemActs(t.handle);
+    t.handle.getItemTemplate = async () => ({ pageText: 731 }) as never;
+    const objects = t.handle.objects as unknown as {
+      act: Record<string, unknown>;
+    };
+    objects.act = { ...objects.act };
+    const readPage = jest.spyOn(objects.act as never, "readPage" as never);
+    return { acts, readPage };
+  }
+
+  test("read of an item with a page id returns the page chain, not the mail text", async () => {
+    const t = await createTestRuntime();
+    const { acts, readPage } = pagedLetter(t);
+    readPage.mockResolvedValue({
+      firstPageId: 731,
+      pages: [
+        { pageId: 731, text: "My dearest Mother,$BI am well." },
+        { pageId: 732, text: "Yours, Eliza" },
+      ],
+    } as never);
+    const res = await gearSpec.run({ do: "read", item: "Letter" }, toolCtx(t));
+    expect(readPage).toHaveBeenCalledWith(731);
+    expect(acts.queryText).not.toHaveBeenCalled();
+    const text = contentOf(res);
+    expect(text).toContain("My dearest Mother,");
+    expect(text).toContain("I am well.");
+    expect(text).toContain("Yours, Eliza");
+    expect(limitProblem(text)).toBeUndefined();
+  });
+
+  test("read of an item with a page id reports an unanswered page chain", async () => {
+    const t = await createTestRuntime();
+    pagedLetter(t).readPage.mockResolvedValue({ pageId: 731 } as never);
+    const res = await gearSpec
+      .run({ do: "read", item: "Letter" }, toolCtx(t))
+      .catch((error) => error);
+    expect(res).toMatchObject({ reason: "unanswered", status: "UNCONFIRMED" });
+  });
+
+  test("read of an item with an unknown template falls back to the item text", async () => {
+    const t = await createTestRuntime();
+    const { acts, readPage } = pagedLetter(t);
+    t.handle.getItemTemplate = async () => undefined;
+    const res = await gearSpec.run({ do: "read", item: "Letter" }, toolCtx(t));
+    expect(readPage).not.toHaveBeenCalled();
     expect(acts.queryText).toHaveBeenCalledWith(LETTER);
     expect(contentOf(res)).toMatch(/^DONE Read Letter: Read me\./);
   });
