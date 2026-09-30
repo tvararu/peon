@@ -28,7 +28,6 @@ export type LegResult = {
   pose: PoseView | undefined;
 };
 
-export const FLOOR_MATCH_YD = 0.25;
 const WITHIN_POLL_MS = 250;
 const CODE_WORDS = 3;
 const CANCEL_CODES = new Set(["human_stop", "esc", "quit", "stopped_by_tool"]);
@@ -155,13 +154,10 @@ function matchFloor(
   const unit = unitViews(ctx).find((view) => view.guid === guidHex(guid));
   const z = unit?.z;
   if (unit?.x === undefined || unit.y === undefined || z === undefined) return;
-  const matches = (floors ?? []).filter(
-    (height) => Math.abs(height - z) <= FLOOR_MATCH_YD,
+  const [floor] = [...(floors ?? [])].sort(
+    (a, b) => Math.abs(a - z) - Math.abs(b - z),
   );
-  const [floor] = matches;
-  return matches.length === 1 && floor !== undefined
-    ? { x: unit.x, y: unit.y, z: floor }
-    : undefined;
+  return floor === undefined ? undefined : { x: unit.x, y: unit.y, z: floor };
 }
 
 function selfFloor(

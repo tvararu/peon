@@ -74,17 +74,19 @@ describe("nav rows from travelLeg", () => {
     });
   });
 
-  test("a refusal writes nav/refused with reason, floors and next step", async () => {
+  test("a refusal with no unit height writes nav/refused", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle);
-    marniel(t);
     driveGoto(t.handle, [
       {
         floors: [72.6, 72.8],
         refuse: "pick_destination: ambiguous ground column at destination",
       },
     ]);
-    await travelLeg(toolCtx(t), { goal: MARNIEL, within: 3 });
+    await travelLeg(toolCtx(t), {
+      goal: { guid: 0x10n, kind: "unit", name: "Marniel Amberlight" },
+      within: 3,
+    });
     const rows = navRows(t);
     expect(rows.map((row) => row.event)).toEqual([
       "nav/route_start",

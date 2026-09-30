@@ -174,55 +174,6 @@ describe("travel", () => {
     },
   );
 
-  test.each([
-    {
-      height: "none is within 0.25 yd of Marniel Amberlight's height 0.0",
-      next: 'travel(to: "36, 0, 72.6")',
-      z: 0,
-    },
-    {
-      height: "none is within 0.25 yd of Marniel Amberlight's height 77.0",
-      next: 'travel(to: "36, 0, 80.1")',
-      z: 77,
-    },
-  ])(
-    "a unit on two floors with no match refuses with the floors ($next)",
-    async ({ height, next, z }) => {
-      const t = await world();
-      setUnits(t.handle, [
-        unitRow({
-          distance: 36,
-          guid: 0x10n,
-          name: "Marniel Amberlight",
-          relation: "friendly",
-          x: 36,
-          y: 0,
-          z,
-        }),
-      ]);
-      const goTo = driveGoto(t.handle, [
-        {
-          floors: [72.6, 80.1],
-          refuse: "pick_destination: ambiguous ground column at destination",
-        },
-      ]);
-      const res = await travelSpec.run(
-        { to: "Marniel Amberlight" },
-        toolCtx<TravelAfter>(t),
-      );
-      expect(goTo).toHaveBeenCalledTimes(1);
-      expect(res).toMatchObject({
-        options: [72.6, 80.1],
-        reason: "ambiguous_floor",
-        status: "REFUSED",
-      });
-      expect(fit(res).split("\n")).toEqual([
-        `REFUSED ambiguous_floor: the ground at Marniel Amberlight (u1) has 2 floors: 72.6, 80.1, and ${height}. Tried: planner once. ${THERE}`,
-        `Next: ${next}`,
-      ]);
-    },
-  );
-
   test("coordinates on two floors refuse with the floors and a ready call", async () => {
     const t = await world();
     driveGoto(t.handle, [
