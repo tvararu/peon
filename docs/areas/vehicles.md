@@ -50,6 +50,6 @@ No verb (N23).
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
-| `SMSG_PLAYER_VEHICLE_DATA` | `mock` | `packages/core/src/wow/areas/vehicles/area.test.ts`, "SMSG_PLAYER_VEHICLE_DATA sets the id and id 0 deletes it"; live proof lands with the `vehicles-mount` flow | `Entities/Unit/Unit.cpp:10242-10245` |
-| `SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA` | `mock` | `packages/core/src/wow/areas/vehicles/area.test.ts`, "an empty SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA only records the cancel"; live proof lands with the `vehicles-mount` flow | `Entities/Unit/Unit.cpp:10247-10248` |
+| `SMSG_PLAYER_VEHICLE_DATA` | `live` | `mise protocol:probe --flow vehicles-mount --arg spell=61470 --expect SMSG_PLAYER_VEHICLE_DATA --bodies` on a `max80` standing outdoors in Northrend (in Dalaran the cast failed `SPELL_FAILED_ONLY_OUTDOORS`), exit 0; the two bodies are `0331113b010000` (id 315) on the mount and `03311100000000` (id 0) on the aura cancel, and the store emitted `player_vehicle` | `Entities/Unit/Unit.cpp:10242-10245` |
+| `SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA` | `live` | same run, `--expect SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA`, exit 0; the empty body arrived in the same batch as the first vehicle data (on entering the mount), and the store emitted `ride_aura_cancel` | `Entities/Unit/Unit.cpp:10247-10248` |
 | `SMSG_MONSTER_MOVE_TRANSPORT` | `mock` | `packages/core/src/wow/areas/vehicles/area.test.ts`, "SMSG_MONSTER_MOVE_TRANSPORT records the seat and emits the spline"; live proof lands in vehicles-2 | `Movement/Spline/MoveSplineInit.cpp:114-124` |
