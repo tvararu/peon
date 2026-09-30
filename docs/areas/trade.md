@@ -26,9 +26,9 @@ The acts:
   one `CMSG_CANCEL_TRADE` goes out. A silent initiate veto leaves no
   `CMSG_INITIATE_TRADE` reply (`Handlers/TradeHandler.cpp:841-842`):
   `TradeCancel` with no `m_trade` takes the empty branch, so the store is
-  already `settling` and a later stray `TRADE_CANCELED` ends it. A cancel send that throws at the timeout
-  settles the store back to `idle` and rejects with the send error, so the
-  next `requestTrade` may start.
+  already `settling` and a later stray `TRADE_CANCELED` ends it. A
+  cancel send that throws at the timeout settles the store back to `idle`
+  and rejects with the send error, so the next `requestTrade` may start.
   Any cancel status during `requested_out`, `requested_in` or `open`
   applies to that current trade. `BEGIN_TRADE` always starts a fresh
   incoming request. `trade_canceled` before the window opens settles a
