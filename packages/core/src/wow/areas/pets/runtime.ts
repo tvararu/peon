@@ -116,7 +116,6 @@ function renamePetAct(
   const { bar, pet } = store.snapshot();
   if (!(bar && pet)) return NO_PET;
   if (!pet.canRename) return { ok: false, reason: "not_renamable" };
-  const baseline = pet.nameTimestamp;
   const number = pet.number;
   const scope = new AbortController();
   pending.abort();
@@ -124,8 +123,8 @@ function renamePetAct(
     (event) =>
       (event.type === "name" &&
         event.name.number === number &&
-        (event.name.timestamp > baseline || event.name.name === name)) ||
-      event.type === "name_invalid",
+        event.name.name === name) ||
+      (event.type === "name_invalid" && event.name === name),
     { signal: scope.signal, timeoutMs: RENAME_TIMEOUT_MS },
   );
   const onAbort = () => {
