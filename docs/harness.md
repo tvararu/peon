@@ -88,7 +88,8 @@ warning per missing file on stderr and still exits 0. With no
 | `Faction.dbc` | reputation factions | `enUS/patch-enUS-3.MPQ` |
 | `Lock.dbc` | lock requirements | `enUS/patch-enUS-3.MPQ` |
 | `AreaTrigger.dbc` | area trigger volumes | `enUS/patch-enUS-3.MPQ` |
-| `GameObjectDisplayInfo.dbc` | object display bounds for reach | `enUS/patch-enUS-3.MPQ` |
+| `TaxiNodes.dbc` | flight master node positions and names | `enUS/patch-enUS-3.MPQ` |
+| `TaxiPath.dbc` | flight path edges with list prices | `enUS/patch-enUS-3.MPQ` |
 
 The client resolves each file from the first archive that holds it:
 `enUS/patch-enUS-3.MPQ`, then `enUS/patch-enUS-2.MPQ`, then
