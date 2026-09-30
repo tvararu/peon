@@ -1,6 +1,7 @@
 import { ignoreFailure } from "#lib/ignore-failure";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import {
+  loadDisplays,
   loadLocks,
   type ObjectsActs,
   type OpenLockQuery,
@@ -82,6 +83,7 @@ export function objectsRuntime(
   }
   loadTriggers(ctx, store);
   loadLocks(ctx, store);
+  loadDisplays(ctx, store);
   const offControl = ctx.listen("control", ({ type, state, reason }) => {
     if (!state.pose) return;
     if (type === "pose_sent")

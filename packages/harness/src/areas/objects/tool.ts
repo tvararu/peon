@@ -69,8 +69,8 @@ export async function useObject(
 ): Promise<ToolResult<UseAfter>> {
   const row = findObject(ctx, args.object);
   const do_ = (args.do ?? "use") as UseDo;
-  if (do_ === "open" || do_ === "read") checkCastReach(row);
-  else checkReach(row);
+  if (do_ === "open" || do_ === "read") checkCastReach(row, ctx);
+  else checkReach(row, ctx);
   checkUsable(row);
   if (do_ === "open") return await openObjectFlow(ctx, row, args.key);
   if (do_ === "read") return await readObjectFlow(ctx, row);

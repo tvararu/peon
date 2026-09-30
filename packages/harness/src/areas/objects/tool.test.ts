@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import { validateToolArguments } from "@earendil-works/pi-ai";
 import type { AreaState, GameObjectEntity } from "@peon/core";
+import { objectRows, reachYd } from "#harness/areas/objects/reads";
 import {
   emptyUse,
   useParams,
@@ -146,6 +147,46 @@ describe("use tool", () => {
       next: 'travel(to: "o1")',
       reason: "too_far",
     });
+  });
+
+  test("a wide shrine widens the walk-up range past the centre range", async () => {
+    const t = await world(5, "text");
+    const store = {
+      ...state(),
+      boundsOf: () => ({
+        id: 3011,
+        maxX: 0.236,
+        maxY: 0.4726,
+        maxZ: 0,
+        minX: -0.236,
+        minY: 0.0004,
+        minZ: 0.083,
+      }),
+      displayOf: () => 3011,
+      templates: new Map([
+        [
+          161_557,
+          { ...crateTemplate(), displayId: 3011, pageId: 2936, type: 9 },
+        ],
+      ]),
+    };
+    jest.spyOn(t.handle.objects, "state").mockImplementation(() => store);
+    (t.handle.getEntity as ReturnType<typeof jest.fn>).mockImplementation(
+      (guid: bigint) =>
+        guid === CRATE
+          ? {
+              ...gameObject(CRATE, "Shrine"),
+              entry: 161_557,
+              gameObjectType: 9,
+              scale: 1.91,
+            }
+          : undefined,
+    );
+    const rows = objectRows(toolCtx(t));
+    const row = rows.find((near) => near.guid === CRATE);
+    expect(row?.distance).toBe(5);
+    expect(reachYd(row as never)).toBeLessThan(5);
+    expect(reachYd(row as never, toolCtx(t))).toBeGreaterThanOrEqual(5);
   });
 
   test("a kind outside the usable set refuses not_usable", async () => {

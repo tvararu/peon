@@ -1,11 +1,8 @@
 import type { RewardsEvent } from "@peon/core";
 import type { Occupied } from "#harness/areas/items/tool-resolve";
-import {
-  isObjectRef,
-  type ObjectRow,
-  reachYd,
-  resolveObjectRef,
-} from "#harness/areas/objects/reads";
+import { type ObjectRow, reachYd } from "#harness/areas/objects/reads";
+import { isObjectRef, resolveObjectRef } from "#harness/areas/objects/reads";
+import type { ViewCtx } from "#harness/contract/services";
 import type { UseAfter, UseCtx } from "#harness/areas/objects/tool";
 import type { LootLine } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
@@ -42,12 +39,12 @@ export function findObject(ctx: UseCtx, object: string): ObjectRow {
   return row;
 }
 
-export function checkReach(row: ObjectRow): void {
-  refuseWhenFar(row, reachYd(row));
+export function checkReach(row: ObjectRow, ctx?: ViewCtx): void {
+  refuseWhenFar(row, reachYd(row, ctx));
 }
 
-export function checkCastReach(row: ObjectRow): void {
-  refuseWhenFar(row, reachYd(row) + REACH_MARGIN_YD);
+export function checkCastReach(row: ObjectRow, ctx?: ViewCtx): void {
+  refuseWhenFar(row, reachYd(row, ctx) + REACH_MARGIN_YD);
 }
 
 function refuseWhenFar(row: ObjectRow, limit: number): void {

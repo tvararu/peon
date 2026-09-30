@@ -1,3 +1,4 @@
+import { DISPLAY_LAYOUT } from "#wow/areas/objects/display-catalog";
 import { LOCK_LAYOUT } from "#wow/areas/objects/lock-catalog";
 import { TRIGGER_LAYOUT } from "#wow/areas/objects/trigger-catalog";
 import { FACTION_LAYOUT } from "#wow/areas/reputation/catalog";
@@ -12,6 +13,7 @@ export const REQUIRED_DBC_FILES: readonly string[] = [
   SPELL_LAYOUT.radius.file,
   FACTION_TEMPLATE_LAYOUT.file,
   FACTION_LAYOUT.file,
+  DISPLAY_LAYOUT.file,
   LOCK_LAYOUT.file,
   TRIGGER_LAYOUT.file,
 ];

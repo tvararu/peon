@@ -1,4 +1,5 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
+import type { DisplayCatalog } from "#wow/areas/objects/display-catalog";
 import type { LockCatalog } from "#wow/areas/objects/lock-catalog";
 import type {
   AreaTriggerMessage,
@@ -70,6 +71,7 @@ export class ObjectsStore {
   private triggers: AreaTriggerCatalog | undefined;
   private locksState: LockCatalogState = "none";
   private locks: LockCatalog | undefined;
+  private displays: DisplayCatalog | undefined;
   private lockWaiters: {
     resolve: (catalog: LockCatalog | undefined) => void;
   }[] = [];
@@ -151,6 +153,18 @@ export class ObjectsStore {
 
   lockEntry(lockId: number) {
     return this.locks?.get(lockId);
+  }
+
+  useDisplays(catalog: DisplayCatalog): void {
+    this.displays = catalog;
+  }
+
+  displayOf(entry: number): number | undefined {
+    return this.templates.get(entry)?.displayId;
+  }
+
+  boundsOf(displayId: number) {
+    return this.displays?.get(displayId);
   }
 
   waitLocks(): Promise<LockCatalog | undefined> {

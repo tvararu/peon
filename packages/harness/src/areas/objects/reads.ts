@@ -1,5 +1,6 @@
 import {
   type AreaState,
+  type DisplayBounds,
   type Entity,
   extractGameObjectFields,
   type GameObjectEntity,
@@ -98,6 +99,20 @@ export function isGameObjectEntity(
   return entity?.objectType === ObjectType.GAMEOBJECT;
 }
 
+export type DisplaySource = {
+  displayOf: (entry: number) => number | undefined;
+  boundsOf: (displayId: number) => DisplayBounds | undefined;
+};
+
+export function boundsFor(
+  store: DisplaySource,
+  entry: number,
+): DisplayBounds | undefined {
+  const displayId = store.displayOf(entry);
+  if (displayId === undefined) return undefined;
+  return store.boundsOf(displayId);
+}
+
 export function objectRows({ handle, rt }: ViewCtx): ObjectRow[] {
   const { templates } = handle.objects.state() as ObjectsState;
   const rows = handle
@@ -177,8 +192,27 @@ export function objectUnit(row: ObjectRow): UnitView {
     z: row.z,
   };
 }
-export function reachYd(row: ObjectRow): number {
-  return Math.max((REACH_YD[row.type] ?? 5.5) - 1, 1);
+export function baseReachYd(type: number): number {
+  return REACH_YD[type] ?? 5.5;
+}
+
+export function reachYd(row: ObjectRow, ctx?: ViewCtx): number {
+  const base = Math.max(baseReachYd(row.type) - 1, 1);
+  if (!ctx || row.x === undefined || row.y === undefined) return base;
+  const store = ctx.handle.objects.state() as Partial<DisplaySource>;
+  const bounds =
+    typeof store.displayOf === "function" &&
+    typeof store.boundsOf === "function"
+      ? boundsFor(store as DisplaySource, row.entry)
+      : undefined;
+  const entity = ctx.handle.getEntity(row.guid);
+  if (!bounds || !isGameObjectEntity(entity)) return base;
+  const scale = entity.scale > 0 ? entity.scale : 1;
+  const halfX = ((bounds.maxX - bounds.minX) / 2) * scale;
+  const halfY = ((bounds.maxY - bounds.minY) / 2) * scale;
+  const inset = Math.min(halfX, halfY);
+  if (!(inset > 0)) return base;
+  return base + inset;
 }
 
 export function objectLine(row: ObjectRow): string {
