@@ -91,6 +91,7 @@ warning per missing file on stderr and still exits 0. With no
 | `TaxiNodes.dbc` | flight master node positions and names | `enUS/patch-enUS-3.MPQ` |
 | `GameObjectDisplayInfo.dbc` | object display bounds for reach | `enUS/patch-enUS-3.MPQ` |
 | `TaxiPath.dbc` | flight path edges with list prices | `enUS/patch-enUS-3.MPQ` |
+| `AreaTable.dbc` | zone names in summon rows | the first archive that holds it, in the order below |
 
 The client resolves each file from the first archive that holds it:
 `enUS/patch-enUS-3.MPQ`, then `enUS/patch-enUS-2.MPQ`, then
