@@ -47,7 +47,19 @@ the character wears no aura of the spell. A channelled spell id cancels
 the running channel through `cancelChannel` (`not_channelling` when that
 spell is not the channel). The attribute checks need the spell data;
 without it the act checks only the aura flags. `act.cancelGrowthAura()`
-sends the empty `CMSG_CANCEL_GROWTH_AURA`.
+sends the empty `CMSG_CANCEL_GROWTH_AURA`. `state().skills` keeps the
+character's skill lines (id, name, step, value, max and both bonuses),
+read from the 128 `PLAYER_SKILL_INFO` triples at update field 636. A
+self update that adds an id or moves a value or max emits
+`skill_changed` (with no `from` for a new id), and one that drops an id
+emits `skill_removed`; the first read only seeds the baseline. The
+harness writes `spells/skill_changed` "Mining is now 12/75." at most
+once per skill per minute ("Mining learned, 1/75." for a new id) and
+`spells/skill_removed` "Mining dropped.". `act.unlearnSkill(id)` drops
+a primary profession with `CMSG_UNLEARN_SKILL`; it refuses, and sends
+nothing, `invalid_skill` for a non-positive id, `not_profession` for an
+id outside the primary list, and `not_known` for a profession the
+character lacks.
 
 `act.setActionButton(slot, button)` puts a spell, item, macro or
 equipment set on one of the 144 action buttons with
@@ -293,9 +305,27 @@ Disagreements for opcodes later tasks build (AzerothCore wins):
 - The server drops a client `CMSG_CAST_SPELL` of a spell it does not
   know or a passive spell without a reply
   (`Handlers/SpellHandler.cpp:449-450`).
+- A skill slot is three `uint32`: the id in the low `u16` of word 0
+  with the step in the high `u16`, the value and max in the low and
+  high `u16` of word 1, and the temporary and permanent bonuses as the
+  two signed `int16` of word 2 (`Entities/Player/Player.h:79-89`).
+- `CMSG_UNLEARN_SKILL` is one `uint32` skill id; the server unlearns the
+  skill when it is a primary profession and drops the rest without a
+  reply (`Handlers/SkillHandler.cpp:91-100`).
+- A primary profession is a `SkillLine` row whose category is 11, while
+  9 marks a secondary profession (`Spells/SpellMgr.cpp:38-48`,
+  `src/server/shared/SharedDefines.h:3309-3311`).
+- Learning a profession spell grants its skill line: `Player::addSpell`
+  reads the spell's `SpellLearnSkillNode` and calls `SetSkill`
+  (`Entities/Player/Player.cpp:3355-3374`); `SetSkill(id, 0, 0, 0)`
+  clears the triple and removes the skill's spells and auras
+  (`Entities/Player/Player.cpp:5537-5556`).
+- Skill names and the profession category come from `SkillLine.dbc`
+  (category 11 is primary, 9 is secondary); without the file the area
+  names the eleven primary and four secondary professions from a static
+  table and other skills as `skill <id>`.
 ## Left out
 
-- `CMSG_UNLEARN_SKILL`: built by spells-7.
 - `SMSG_CONVERT_RUNE`: built by spells-9.
 - `CMSG_FAR_SIGHT`, `CMSG_GET_MIRRORIMAGE_DATA`,
   `SMSG_MIRRORIMAGE_DATA`: built by spells-10.
