@@ -147,13 +147,14 @@ corpse (`Handlers/PetHandler.cpp:287-294`).
   `UNIT_FIELD_PET_NAME_TIMESTAMP` from seconds-resolution game time
   (`Handlers/PetHandler.cpp:859-929`), so a rename inside the load's second
   keeps the same timestamp. The rename-bit transition triggers the next name
-  query even at the same timestamp, and the rename wait confirms on the
-  requested name as well as on a newer timestamp. `pets.renamePet(name)`
-  returns `not_renamable` when the pet's rename bit is clear and otherwise
-  sends, then waits 5 s for the matching `name` or a `name_invalid`; silence
-  emits `unanswered` with `request: "rename"` through the store. A second
-  `renamePet` cancels the earlier wait, so only the newest request can emit
-  `unanswered`.
+  query even at the same timestamp, and the rename wait confirms only on the
+  requested name for that pet number: a newer reply for another name leaves
+  the wait running, and only a `name_invalid` carrying the requested name
+  ends it. `pets.renamePet(name)` returns `not_renamable` when the pet's
+  rename bit is clear and otherwise sends, then waits 5 s for the matching
+  `name` or the matching `name_invalid`; silence emits `unanswered` with
+  `request: "rename"` through the store. A second `renamePet` cancels the
+  earlier wait, so only the newest request can emit `unanswered`.
 - `CMSG_PET_CANCEL_AURA` is the pet guid and the `uint32` spell
   (`Handlers/SpellHandler.cpp:604-610`); the server removes only an
   aura the pet owns (`Handlers/SpellHandler.cpp:639`).
@@ -217,11 +218,8 @@ the pet's target field equals the target or the `threat` area emits
 `follow`, `stay` and `stance` settle `DONE` only when the next bar shows
 the change, else `UNCONFIRMED`. `stop` sends `petStopAttack` (a unit that
 stops its attack clears its target field, `Entities/Unit/Unit.cpp:7221`)
-and then `follow`. `queryPetName` asks for the current pet's name again and
-`renamePet` renames a hunter pet whose rename bit is set, waiting 5 s for the
-new `name` or a `name_invalid` before the store reports `unanswered`.
-`cast`, `autocast`, `abandon`, `tame` and
-`talent` are refused with `not_built`: pets-10 and pets-12 own them.
+and then `follow`. `queryPetName` asks for the current pet's name again and `renamePet` renames a hunter pet whose rename bit is set, waiting 5 s for the `name` carrying the requested name or a `name_invalid` refusing it before the store reports `unanswered`.
+`cast`, `autocast`, `abandon`, `tame` and `talent` are refused with `not_built`: pets-10 and pets-12 own them.
 
 ## Proof
 

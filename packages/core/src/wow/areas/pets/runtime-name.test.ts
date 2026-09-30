@@ -257,3 +257,74 @@ describe("pets names runtime", () => {
     });
   });
 });
+
+describe("pets rename correlation", () => {
+  test("a newer reply for the first name does not confirm the second rename", async () => {
+    await withFakeTimers(async () => {
+      const { r } = rig(0x01_00_00, 7);
+      const seen: string[] = [];
+      const off = r.handle.onEvent((event) => seen.push(event.type));
+      try {
+        expect(r.handle.act.renamePet("Fangtooth")).toEqual({ ok: true });
+        expect(r.handle.act.renamePet("Rex")).toEqual({ ok: true });
+        r.inject(
+          GameOpcode.SMSG_PET_NAME_QUERY_RESPONSE,
+          petsNameQueryResponseBody({
+            name: "Fangtooth",
+            number: NUMBER,
+            timestamp: 9,
+          }),
+        );
+        await elapse(6000);
+        expect(seen).toEqual(["name", "unanswered"]);
+      } finally {
+        off();
+        r.dispose();
+      }
+    });
+  });
+
+  test("a refusal of another name does not end the rename wait", async () => {
+    await withFakeTimers(async () => {
+      const { r } = rig(0x01_00_00, 7);
+      const seen: string[] = [];
+      const off = r.handle.onEvent((event) => seen.push(event.type));
+      try {
+        expect(r.handle.act.renamePet("Fangtooth")).toEqual({ ok: true });
+        r.inject(
+          GameOpcode.SMSG_PET_NAME_INVALID,
+          petsNameInvalidBody({ code: 3, name: "Other" }),
+        );
+        await elapse(6000);
+        expect(seen).toEqual(["name_invalid", "unanswered"]);
+      } finally {
+        off();
+        r.dispose();
+      }
+    });
+  });
+
+  test("the reply for the requested name ends the wait without unanswered", async () => {
+    await withFakeTimers(async () => {
+      const { r } = rig(0x01_00_00, 7);
+      const seen: string[] = [];
+      const off = r.handle.onEvent((event) => seen.push(event.type));
+      try {
+        expect(r.handle.act.renamePet("Rex")).toEqual({ ok: true });
+        r.inject(
+          GameOpcode.SMSG_PET_NAME_QUERY_RESPONSE,
+          petsNameQueryResponseBody({
+            name: "Rex",
+            number: NUMBER,
+            timestamp: 9,
+          }),
+        );
+        await elapse(6000);
+        expect(seen).toEqual(["name"]);
+      } finally {
+        off();
+        r.dispose();
+      }
+    });
+  });
+});
