@@ -101,7 +101,11 @@ export type World = {
 };
 
 export function world(
-  options: { x?: number; templates?: Template[] } = {},
+  options: {
+    x?: number;
+    templates?: Template[];
+    loot?: Parameters<typeof fakeLoot>[0];
+  } = {},
 ): World {
   const handle = createMockHandle();
   const pose = { mapId: 0, orientation: 0, x: 0, y: 0, z: 0 } as ControlPose;
@@ -130,7 +134,7 @@ export function world(
     pose.x = Math.min(target.x, pose.x + yards);
     return { pose, status: "completed" as const, traveled: yards };
   });
-  const loot = fakeLoot({ items: [1] });
+  const loot = fakeLoot({ items: [1], ...(options.loot ?? {}) });
   const acts = handle.objects.act;
   const order: string[] = [];
   jest.spyOn(acts, "openLockSpell").mockImplementation(async () => {

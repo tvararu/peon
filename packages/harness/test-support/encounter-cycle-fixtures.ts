@@ -91,6 +91,7 @@ export function fakeLoot(config: {
   takeError?: string;
   inventoryFull?: boolean;
   openFailure?: string;
+  openFailures?: number;
   deferClose?: boolean;
   deferTake?: boolean;
   leftoverWindow?: boolean;
@@ -117,6 +118,10 @@ export function fakeLoot(config: {
   let lastOpenFailure: RewardsState["lastOpenFailure"];
   const closeRequested = Promise.withResolvers<void>();
   let silentOpens = config.silentOpens ?? 0;
+  let failuresLeft =
+    config.openFailures ??
+    (config.openFailure === undefined ? 0 : Number.MAX_SAFE_INTEGER);
+  const failureReason = config.openFailure;
 
   function lootWindow(): RewardsState["loot"] {
     if (phase === "open" || phase === "closing")
@@ -213,13 +218,14 @@ export function fakeLoot(config: {
         return state();
       }
       queueMicrotask(() => {
-        if (config.openFailure !== undefined) {
+        if (failuresLeft > 0) {
+          failuresLeft -= 1;
           emit("loot_release_observed");
           phase = "closed";
           lastOpenFailure = {
             guid: 2n,
             observedAt: 0,
-            reason: config.openFailure,
+            reason: failureReason ?? "unknown",
           };
           emit("loot_open_failed");
           return;

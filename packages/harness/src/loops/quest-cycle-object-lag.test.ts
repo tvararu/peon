@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
+import { JevUnavailableError } from "#harness/jev/failure";
 import { type PullVitals, pullGate } from "#harness/loops/cycle-gate";
 import { cycleStop } from "#harness/loops/cycle-stop";
 import type { CycleObjective } from "#harness/loops/encounter-cycle";
@@ -147,6 +148,177 @@ describe("the object loop when an attacker interrupts it", () => {
     });
     expect(fought).toEqual([ATTACKER]);
     expect(visits).toBeGreaterThan(1);
+  });
+
+  test("fights back when an attacker interrupts the chest cast, then resumes", async () => {
+    jest.useFakeTimers();
+    try {
+      const t = world({
+        loot: { openFailure: "cast_failed", openFailures: 1 },
+      });
+      const attackers: bigint[] = [];
+      const fought: bigint[] = [];
+      t.loot.onEvent((event) => {
+        if (event.type === "loot_removed") t.state.flags = 1;
+        if (event.type === "loot_open_failed") attackers.push(ATTACKER);
+      });
+      const { objective } = await questCycleObjective(t.handle, QUEST, []);
+      const tactics = fakeTactics([]);
+      const start = tactics.start;
+      tactics.start = async (ctx, signal) => {
+        fought.push(ctx.targetGuid);
+        attackers.length = 0;
+        await start(ctx, signal);
+      };
+      const runtime = makeCycle({
+        attackers: () => [...attackers],
+        control: fakeControl(),
+        gate: pullGate(() => vitals(attackers)),
+        loot: t.loot,
+        now: () => 0,
+        recovery: fakeRecovery({ life: ["alive"] }),
+        tactics,
+      });
+      await advanceUntilSettled(
+        runtime.start({
+          guids: [],
+          instruction: "get the crates",
+          maxStarts: 6,
+          objective,
+        }),
+        30_000,
+      );
+      expect(fought).toEqual([ATTACKER]);
+      expect(t.loot.taken()).toEqual([1]);
+      expect(runtime.snapshot().stopCause).toBe("objective_complete");
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("a replaced cycle during the complete-flag wait keeps running", async () => {
+    jest.useFakeTimers();
+    try {
+      const t = world();
+      const { objective } = await questCycleObjective(t.handle, QUEST, []);
+      const runtime = makeCycle({
+        control: fakeControl(),
+        loot: t.loot,
+        now: () => 0,
+        recovery: fakeRecovery({ life: ["alive"] }),
+        tactics: fakeTactics([]),
+      });
+      const first = runtime.start({
+        guids: [],
+        instruction: "get the crates",
+        maxStarts: 4,
+        objective,
+      });
+      const tick = async (ms: number) => {
+        for (let elapsed = 0; elapsed < ms; elapsed += 100) {
+          await Promise.resolve();
+          await Promise.resolve();
+          jest.advanceTimersByTime(100);
+        }
+      };
+      await tick(1000);
+      const release = Promise.withResolvers<void>();
+      let replacementVisits = 0;
+      let firstSettled = false;
+      void first.then(() => {
+        firstSettled = true;
+      });
+      const replacement = runtime.start({
+        guids: [],
+        instruction: "get the crates",
+        maxStarts: 4,
+        objective: {
+          pick: () => ({
+            distance: 5,
+            entry: CRATE_ENTRY,
+            guid: CRATE_GUID,
+            kind: "object" as const,
+          }),
+          progress: () => undefined,
+          visit: () => {
+            replacementVisits++;
+            return release.promise.then(() => ({
+              cause: "fighting_back",
+              ok: true as const,
+            }));
+          },
+        },
+      });
+      await tick(500);
+      release.resolve();
+      await advanceUntilSettled(replacement, 10_000);
+      expect(replacementVisits).toBeGreaterThan(0);
+      expect(runtime.snapshot().stopCause).toBe("max_starts_reached");
+      await advanceUntilSettled(first, 10_000);
+      expect(firstSettled).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("a defense failure with jev_unavailable stops the run", async () => {
+    const attackers: bigint[] = [ATTACKER];
+    const objective: CycleObjective = {
+      pick: () => cycleStop("objective_targets_absent"),
+      progress: () => undefined,
+    };
+    const tactics = fakeTactics([new JevUnavailableError("outage")]);
+    const runtime = makeCycle({
+      attackers: () => [...attackers],
+      control: fakeControl(),
+      gate: pullGate(() => vitals(attackers)),
+      loot: world().loot,
+      now: () => 0,
+      recovery: fakeRecovery({ life: ["alive"] }),
+      tactics,
+    });
+    const started = runtime.start({
+      guids: [],
+      instruction: "x",
+      maxStarts: 4,
+      objective,
+    });
+    await expect(started).rejects.toBeInstanceOf(JevUnavailableError);
+    expect(runtime.snapshot().stopCause).toBe("jev_unavailable");
+  });
+
+  test("a second attacker past the start budget does not start a fight", async () => {
+    const attackers: bigint[] = [77n, 78n];
+    const fought: bigint[] = [];
+    const objective: CycleObjective = {
+      pick: () => objectPick,
+      progress: () => undefined,
+      visit: async () => ({ cause: "fighting_back", ok: true }),
+    };
+    const tactics = fakeTactics([]);
+    const start = tactics.start;
+    tactics.start = async (ctx, signal) => {
+      fought.push(ctx.targetGuid);
+      attackers.length = 0;
+      await start(ctx, signal);
+    };
+    const runtime = makeCycle({
+      attackers: () => [...attackers],
+      control: fakeControl(),
+      gate: pullGate(() => vitals(attackers)),
+      loot: world().loot,
+      now: () => 0,
+      recovery: fakeRecovery({ life: ["alive"] }),
+      tactics,
+    });
+    await runtime.start({
+      guids: [],
+      instruction: "x",
+      maxStarts: 1,
+      objective,
+    });
+    expect(fought).toEqual([77n]);
+    expect(runtime.snapshot().stopCause).toBe("max_starts_reached");
   });
 
   test("does not fight the same attacker again after a failed fight", async () => {

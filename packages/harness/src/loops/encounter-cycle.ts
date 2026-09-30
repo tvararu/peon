@@ -277,6 +277,7 @@ export class EncounterCycleRuntime {
     await pursueObjective(
       {
         attackers: this.deps.attackers,
+        outOfStarts: () => this.state.startsUsed >= this.state.maxStarts,
         attempt: (target, pick, runSignal) =>
           this.attempt(target, pick, runSignal),
         choose: (target, tried) => this.choose(target, tried),

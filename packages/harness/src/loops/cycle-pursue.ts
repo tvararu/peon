@@ -8,6 +8,7 @@ import { type ObjectivePick, outOfReach } from "#harness/loops/quest-objective";
 
 export type PursueLoop = {
   attackers?: () => readonly bigint[];
+  outOfStarts: () => boolean;
   selfDead: () => boolean;
   stop: (cause: string, detail?: Record<string, unknown>) => void;
   choose: (
@@ -40,19 +41,38 @@ type PursueState = {
   looted: boolean;
 };
 
+function defender(
+  loop: PursueLoop,
+  objective: CycleObjective,
+  state: PursueState,
+): bigint | undefined {
+  return (objective.attackers ?? loop.attackers)?.().find(
+    (guid) => !(state.fought.has(guid) || loop.selfDead()),
+  );
+}
+
 async function defend(
   loop: PursueLoop,
   state: PursueState,
   run: { guid: bigint; signal: AbortSignal },
-): Promise<void> {
+): Promise<boolean> {
   const { guid, signal } = run;
+  if (loop.outOfStarts()) {
+    loop.stop("max_starts_reached");
+    return true;
+  }
   state.fought.add(guid);
   const record = loop.queue(guid);
   const failed = await loop.engage(record, signal);
   signal.throwIfAborted();
   loop.observeObjective();
+  if (failed && !loop.selfDead()) {
+    loop.stop(failed.cause, failed.detail);
+    return true;
+  }
   if (failed) record.cause = failed.cause;
   loop.targetDone();
+  return false;
 }
 
 async function settleStop(
@@ -65,8 +85,10 @@ async function settleStop(
     stop.cause === "objective_targets_absent" &&
     state.looted &&
     (await objective.awaitComplete?.({ signal }))
-  )
+  ) {
+    signal.throwIfAborted();
     return false;
+  }
   loop.stop(stop.cause, stop.detail);
   return true;
 }
@@ -88,11 +110,20 @@ async function settlePick(
     signal,
   );
   state.looted = state.looted || record.loot === "looted";
-  if (pick.kind === "object")
+  const interrupted =
+    pick.kind === "object" &&
+    failed?.cause === "loot_denied:cast_failed" &&
+    !loop.selfDead() &&
+    defender(loop, objective, state) !== undefined;
+  if (!interrupted && pick.kind === "object")
     settleObject(state.failures, state.tried, pick.guid, {
       advanced,
       spent: record.loot === "looted",
     });
+  if (interrupted) {
+    loop.targetDone();
+    return false;
+  }
   const far = failed ?? outOfReach(pick, record.cause);
   if (far && !loop.selfDead()) {
     loop.stop(far.cause, far.detail);
@@ -121,11 +152,9 @@ export async function pursueObjective(
       loop.stop(recovered.cause, recovered.detail);
       return;
     }
-    const defender = (objective.attackers ?? loop.attackers)?.().find(
-      (guid) => !(state.fought.has(guid) || loop.selfDead()),
-    );
-    if (defender !== undefined) {
-      await defend(loop, state, { guid: defender, signal });
+    const next = defender(loop, objective, state);
+    if (next !== undefined) {
+      if (await defend(loop, state, { guid: next, signal })) return;
       continue;
     }
     const pick = loop.choose(objective, state.tried);
