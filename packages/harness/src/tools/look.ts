@@ -97,9 +97,9 @@ function lookBody(
       : [
           statusLine(after),
           headerLine(after),
-          ...after.rows.map(rowLine),
+          ...after.rows.map((unit) => rowLine(unit, after.self.level)),
           ...moreLine(after),
-          ...after.remembered.map(rowLine),
+          ...after.remembered.map((unit) => rowLine(unit, after.self.level)),
           nearestLine(after),
         ];
   return [...lines, ...lookSaves(ctx), ...calm, ...stale];
