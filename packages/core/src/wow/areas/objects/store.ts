@@ -67,6 +67,7 @@ export class ObjectsStore {
   private readonly deps: SessionDeps;
   private readonly core: CoreStores;
   private catalog: TriggerCatalogState = "none";
+  private triggers: AreaTriggerCatalog | undefined;
   private locksState: LockCatalogState = "none";
   private locks: LockCatalog | undefined;
   private lockWaiters: {
@@ -176,10 +177,30 @@ export class ObjectsStore {
 
   useTriggers(catalog: AreaTriggerCatalog): void {
     this.catalog = "ready";
+    this.triggers = catalog;
     this.watch = new TriggerWatch((map) => catalog.onMap(map));
     if (this.last) this.watch.arrive(this.last);
   }
 
+  triggersNear(
+    map: number,
+    x: number,
+    y: number,
+    radius: number,
+  ): readonly { id: number; x: number; y: number }[] {
+    return (
+      this.triggers
+        ?.onMap(map)
+        .filter((trigger) => Math.hypot(trigger.x - x, trigger.y - y) <= radius)
+        .sort(
+          (one, other) =>
+            Math.hypot(one.x - x, one.y - y) -
+            Math.hypot(other.x - x, other.y - y),
+        )
+        .map((trigger) => ({ id: trigger.id, x: trigger.x, y: trigger.y })) ??
+      []
+    );
+  }
   move(point: TriggerPoint): number[] {
     this.last = point;
     return this.watch?.move(point, { taxi: this.onTaxi() }) ?? [];

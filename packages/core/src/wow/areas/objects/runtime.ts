@@ -91,7 +91,15 @@ export function objectsRuntime(
   });
   const offSelf = core.self.onEvent(arrival);
   return {
-    act: { enterTrigger, open, openLockSpell, readPage, use, useItemOn },
+    act: {
+      enterTrigger,
+      open,
+      openLockSpell,
+      readPage,
+      triggersNear: store.triggersNear.bind(store),
+      use,
+      useItemOn,
+    },
     dispose: () => {
       offControl();
       offSelf();
