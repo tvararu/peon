@@ -78,6 +78,7 @@ describe("PetsStore", () => {
         lastRefusal: undefined,
         names: {},
         pet: undefined,
+        stable: undefined,
       });
     } finally {
       r.dispose();

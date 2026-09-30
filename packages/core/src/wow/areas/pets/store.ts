@@ -3,6 +3,9 @@ import type {
   PetFeedback,
   PetNameInvalid,
   PetNameQueryResponse,
+  StabledPets,
+  StablePet,
+  StableResult,
 } from "#wow/areas/pets/protocol";
 import { type PetView, petView } from "#wow/areas/pets/view";
 import type { EntityLookup } from "#wow/entity-store";
@@ -49,12 +52,24 @@ export type PetName = {
   timestamp: number;
   declined: readonly string[] | undefined;
 };
+export type StableState = {
+  npc: bigint;
+  slots: number;
+  pets: readonly StablePet[];
+  stale: boolean;
+};
+export type StableResultEvent = {
+  type: "stable_result";
+  code: number;
+  result: StableResult;
+};
 export type PetsState = {
   bar: PetsBar | undefined;
   cooldowns: readonly PetsCooldown[];
   lastRefusal: PetsRefusal | undefined;
   pet: PetView | undefined;
   names: Readonly<Record<number, PetName>>;
+  stable: StableState | undefined;
 };
 export type PetsEvent =
   | { type: "bar"; cleared: false; bar: PetsBar }
@@ -70,7 +85,9 @@ export type PetsEvent =
       name: string;
       declined: readonly string[] | undefined;
     }
-  | { type: "unanswered"; request: "rename" };
+  | { type: "stable_list"; stable: StableState }
+  | StableResultEvent
+  | { type: "unanswered"; request: "rename" | "stable" };
 
 const REACTS: readonly PetReact[] = ["passive", "defensive", "aggressive"];
 const COMMANDS: readonly PetCommand[] = ["stay", "follow", "attack", "abandon"];
@@ -102,6 +119,7 @@ export class PetsStore {
   private cooldowns: PetsCooldown[] = [];
   private lastRefusal: PetsRefusal | undefined;
   private names: Record<number, PetName> = {};
+  private listing: StableState | undefined;
 
   constructor(deps: SessionDeps, _core: CoreStores) {
     this.now = deps.now;
@@ -119,6 +137,14 @@ export class PetsStore {
       lastRefusal: this.lastRefusal,
       names: { ...this.names },
       pet: petView(this.getEntity, this.selfGuid()),
+      stable: this.listing
+        ? {
+            npc: this.listing.npc,
+            pets: [...this.listing.pets],
+            slots: this.listing.slots,
+            stale: this.listing.stale,
+          }
+        : undefined,
     };
   }
 
@@ -249,11 +275,40 @@ export class PetsStore {
     this.events.emit({ request: "rename", type: "unanswered" });
   }
 
+  stable(reply: StabledPets): void {
+    this.listing = {
+      npc: reply.npc,
+      pets: [...reply.pets],
+      slots: reply.slots,
+      stale: false,
+    };
+    this.events.emit({ stable: this.listing, type: "stable_list" });
+  }
+
+  stableResult(code: number, result: StableResult): void {
+    const listing = this.listing;
+    if (
+      listing &&
+      (result === "stabled" ||
+        result === "unstabled" ||
+        result === "slot_bought")
+    )
+      this.listing = { ...listing, stale: true };
+    if (result === "money" || result === "refused" || result === "exotic")
+      this.lastRefusal = { at: this.now(), reason: result };
+    this.events.emit({ code, result, type: "stable_result" });
+  }
+
+  unansweredStable(): void {
+    this.events.emit({ request: "stable", type: "unanswered" });
+  }
+
   dispose(): void {
     this.events.clear();
     this.current = undefined;
     this.cooldowns = [];
     this.names = {};
+    this.listing = undefined;
     this.lastRefusal = undefined;
   }
 }
