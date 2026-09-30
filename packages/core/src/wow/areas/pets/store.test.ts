@@ -317,6 +317,64 @@ describe("PetsStore", () => {
     }
   });
 
+  test("a cooldown update keeps the known category and a new spell starts at 0", () => {
+    const { r } = rig();
+    try {
+      r.inject(
+        GameOpcode.SMSG_PET_SPELLS,
+        petsPetSpellsBody({
+          command: 1,
+          cooldowns: [
+            { category: 7, categoryCooldown: 0, cooldown: 4500, spell: BITE },
+          ],
+          duration: 0,
+          family: 1,
+          flags: 0,
+          guid: PET,
+          react: 1,
+          slots: [
+            { action: 0, type: 0x01 },
+            { action: 0, type: 0x01 },
+            { action: 0, type: 0x01 },
+            { action: 0, type: 0x01 },
+            { action: 0, type: 0x01 },
+            { action: 0, type: 0x01 },
+            { action: 0, type: 0x01 },
+            { action: 0, type: 0x01 },
+            { action: 0, type: 0x01 },
+            { action: 0, type: 0x01 },
+          ],
+          spells: [{ action: BITE, type: 0xc1 }],
+        }),
+      );
+      const update = new PacketWriter();
+      update.uint64LE(PET);
+      update.uint8(0);
+      update.uint32LE(BITE);
+      update.uint32LE(2000);
+      r.inject(GameOpcode.SMSG_SPELL_COOLDOWN, update.finish());
+      expect(
+        r.handle.state().cooldowns.find((row) => row.spell === BITE),
+      ).toEqual({
+        category: 7,
+        infinite: false,
+        readyAt: 3000,
+        spell: BITE,
+      });
+      const fresh = new PacketWriter();
+      fresh.uint64LE(PET);
+      fresh.uint8(0);
+      fresh.uint32LE(CLAW);
+      fresh.uint32LE(2000);
+      r.inject(GameOpcode.SMSG_SPELL_COOLDOWN, fresh.finish());
+      expect(
+        r.handle.state().cooldowns.find((row) => row.spell === CLAW),
+      ).toEqual({ category: 0, infinite: false, readyAt: 3000, spell: CLAW });
+    } finally {
+      r.dispose();
+    }
+  });
+
   test("SMSG_CLEAR_COOLDOWN clears only the pet's row for its own guid (Pet.cpp:2458)", () => {
     const { r } = rig();
     try {

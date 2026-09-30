@@ -318,6 +318,32 @@ describe("pet call, revive and dismiss", () => {
     });
   });
 
+  test("revive stays UNCONFIRMED when an already alive pet gets another update", async () => {
+    await withFakeTimers(async () => {
+      const t = await world({
+        petEntity: unit({ health: 410 }),
+        pets: barState(),
+      });
+      jest.spyOn(t.game, "cast").mockImplementation(() => {});
+      const run = petSpec.run({ do: "revive" }, toolCtx(t));
+      let settled = false;
+      void run.then(() => {
+        settled = true;
+      });
+      await fakeAwait(Promise.resolve(), 100);
+      expect(settled).toBe(false);
+      t.game.triggerEntityEvent({
+        changed: ["health"],
+        entity: unit({ health: 410 }),
+        type: "update",
+      } as never);
+      await fakeAwait(Promise.resolve(), 100);
+      expect(settled).toBe(false);
+      const out = await fakeAwait(run, 20_000);
+      expect(out.status).toBe("UNCONFIRMED");
+    });
+  });
+
   test("revive of a dead pet that never rises is UNCONFIRMED", async () => {
     await withFakeTimers(async () => {
       const t = await world({

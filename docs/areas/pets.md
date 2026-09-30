@@ -16,7 +16,8 @@ sends the dismiss command alone, and `pets.petStopAttack()` stops the
 pet's attack. Each returns `{ ok: false, reason: "no_pet" }` and
 sends nothing when there is no bar, and `petCommand("dismiss")` returns
 `hunter_pet_dismiss` for a pet with the abandon bit, because that command
-deletes a hunter pet (`Handlers/PetHandler.cpp:287-288`).
+deletes a hunter pet while a summoned pet without the bit is left as a
+corpse (`Handlers/PetHandler.cpp:287-294`).
 
 ## Wire notes
 
@@ -131,7 +132,7 @@ deletes a hunter pet (`Handlers/PetHandler.cpp:287-288`).
   for the pet's guid only; both are `uses`, owned at
   `gameplay-handlers.ts:123-128`. The pet's normal cooldowns arrive in
   `SMSG_PET_SPELLS`; a pet-guid `SMSG_SPELL_COOLDOWN` is only sent when
-  `RequireCooldownInfo()` holds (`Spells/Spell.cpp:4493-4498`).
+  `RequireCooldownInfo()` holds (`Spells/Spell.cpp:4493-4498`). `SMSG_SPELL_COOLDOWN` carries no category, so an update keeps the row `SMSG_PET_SPELLS` filled and a new spell starts at category 0.
 
 ## Left out
 
@@ -174,12 +175,12 @@ on an owner cast failure, `UNCONFIRMED` after the spell's cast time plus
 5 s. Only the owner's combat `cast_failed` or `cast_interrupted` fails
 the tool; the pet's own `feedback` and `cast_failed` rows are ignored and
 the wait continues. `revive` of a dead pet that is still out settles
-`DONE` when the pet entity's health rises above 0: the corpse stays
+`DONE` when the pet entity's health leaves 0 for above 0: the corpse stays
 summoned (`Entities/Pet/Pet.cpp:671`), `EffectResurrectPet` revives it in
 place without a new bar (`Entities/ObjectUpdates/Unit.cpp` resurrect path
 and `Spells/SpellEffects.cpp:5496-5525`). `dismiss` for a pet without
-the abandon bit uses `petCommand("dismiss")`, which deletes a hunter pet
-(`Handlers/PetHandler.cpp:287-288`). `call` is refused with `already_out`
+the abandon bit uses `petCommand("dismiss")`, which leaves a summoned pet
+as a corpse (`Handlers/PetHandler.cpp:287-294`). `call` is refused with `already_out`
 when a bar is present. `attack` uses `petAttack` and settles `DONE` when
 the pet's target field equals the target or the `threat` area emits
 `reaction` for the pet, `UNCONFIRMED` with a `travel` `Next` after 5 s.
