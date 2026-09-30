@@ -76,7 +76,10 @@ These have tools or code but no scenario that checks them live:
 - Walking to a quest objective's region from `journal` (`t4-quests-poi-walk`):
   the agent takes the quest but walks by other means and never reads the
   region from `journal`.
-- Come back to life where it died, with Reincarnation or a Soulstone (`t6-selfstate-res`, needs a self-res spell and its reagent; the server refuses silently under a no-resurrection aura).
+- Come back to life where it died, with Reincarnation or a Soulstone (`t6-selfstate-res`, blocked: the server drops Reincarnation from a non-shaman preset at login, so no preset has a self-resurrection spell).
+- Give a master-looted item to a group member (`t9-raid-master-loot`, the agent sets master loot but its kills leave empty corpses or it names the loot method wrongly, so no item is given).
+- Answer a raid ready check (`t9-raid-answer`, the agent answers before the check starts, and the repeat guard then refuses its answer during the check).
+- Accept a quest a party member shares (`t8-quests-accept-shared`, the agent's early `accept_invite` is refused as a repeat, so it is not in the group when the partner shares).
 
 Peon has no tool for mail, the auction house, flight paths or
 mounts.
