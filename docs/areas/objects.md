@@ -10,7 +10,7 @@ that are set, and the lock id, page id and quest id read from the data
 words by type, as `GameObjectTemplate::GetLockId` does,
 `Entities/GameObject/GameObjectData.h:428-457`); `pendingUse` holds the
 guid and entry of the last use and when it was sent, expiring after 5
-s; `pages` caches each read page chain by its first page id; `triggers`
+s; `pages` caches each read page chain by its first page id; the area also loads `GameObjectDisplayInfo.dbc` into a display catalog keyed by display id (bounds `minX`–`maxZ`, `src/server/shared/DataStores/DBCfmt.h:56`, loaded as `src/server/game/DataStores/DBCStores.cpp:321`), and object reach follows `GameObject::IsAtInteractDistance` (`src/server/game/Entities/GameObject/GameObject.cpp:3008-3028`): the interaction radius per type (`src/server/game/Entities/GameObject/GameObject.cpp:2898-2940`) widened by the scaled display bounds, falling back to the centre distance without the DBC file; `triggers`
 holds the state of the `AreaTrigger.dbc` catalog, the current map, the
 triggers the character stands in and the triggers it has sent this
 session; `lastMessage` holds the last trigger message and when it
