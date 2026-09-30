@@ -196,7 +196,10 @@ export function spellsRuntime(
       .catch(ignoreFailure);
   const disposeTotems = trackTotemExpiry(ctx, store);
   const off = ctx.listen("entity", (event) => {
-    if (event.type === "update" && event.entity.guid === ctx.selfGuid())
+    if (
+      (event.type === "appear" || event.type === "update") &&
+      event.entity.guid === ctx.selfGuid()
+    )
       store.selfFields(event.entity.rawFields);
     if (event.type !== "disappear") return;
     store.dropUnitCast(event.guid);

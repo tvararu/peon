@@ -54,7 +54,14 @@ function setup() {
       type: "update",
     });
   };
-  return { rig, seen, update };
+  const appear = (next: ReadonlyMap<number, number>) => {
+    raw = next;
+    rig.events.entity.emit({
+      entity: player(next),
+      type: "appear",
+    });
+  };
+  return { appear, rig, seen, update };
 }
 describe("spells skill baseline", () => {
   test("skills are empty until the self update arrives", () => {
@@ -97,6 +104,31 @@ describe("spells skill baseline", () => {
         type: "skill_removed",
       });
       expect(rig.handle.state().skills).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("the self appear seeds the baseline so the next update diffs against it", () => {
+    const { appear, rig, seen, update } = setup();
+    try {
+      appear(fields());
+      expect(seen).toEqual([]);
+      update(
+        spellsSkillFields([
+          { id: MINING, max: 75, perm: 0, step: 1, temp: 0, value: 13 },
+        ]),
+      );
+      expect(seen).toEqual([
+        {
+          from: 12,
+          id: MINING,
+          max: 75,
+          name: "Mining",
+          to: 13,
+          type: "skill_changed",
+        },
+      ]);
     } finally {
       rig.dispose();
     }
