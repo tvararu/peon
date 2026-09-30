@@ -1,0 +1,23 @@
+import type { AreaOpcodes } from "#wow/areas/contract";
+
+export const VEHICLES_OPCODES = {
+  owns: [
+    "SMSG_MONSTER_MOVE_TRANSPORT",
+    "SMSG_PLAYER_VEHICLE_DATA",
+    "SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA",
+    "CMSG_SPELLCLICK",
+    "CMSG_REQUEST_VEHICLE_EXIT",
+    "CMSG_REQUEST_VEHICLE_PREV_SEAT",
+    "CMSG_REQUEST_VEHICLE_NEXT_SEAT",
+    "CMSG_REQUEST_VEHICLE_SWITCH_SEAT",
+    "CMSG_PLAYER_VEHICLE_ENTER",
+    "CMSG_CONTROLLER_EJECT_PASSENGER",
+    "CMSG_DISMISS_CONTROLLED_VEHICLE",
+    "CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE",
+    "CMSG_MOVE_NOT_ACTIVE_MOVER",
+  ],
+  uses: [],
+  stubs: [],
+  dead: [],
+  unseen: [],
+} as const satisfies AreaOpcodes;

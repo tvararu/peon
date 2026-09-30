@@ -21,8 +21,10 @@ import { talentsArea } from "#wow/areas/talents/area";
 import { threatArea } from "#wow/areas/threat/area";
 import { timeArea } from "#wow/areas/time/area";
 import { tradeArea } from "#wow/areas/trade/area";
+import { transportsArea } from "#wow/areas/transports/area";
 import { travelArea } from "#wow/areas/travel/area";
 import { unitmotionArea } from "#wow/areas/unitmotion/area";
+import { vehiclesArea } from "#wow/areas/vehicles/area";
 
 export const AREAS = {
   achievements: achievementsArea,
@@ -48,6 +50,8 @@ export const AREAS = {
   threat: threatArea,
   time: timeArea,
   trade: tradeArea,
+  transports: transportsArea,
   travel: travelArea,
   unitmotion: unitmotionArea,
+  vehicles: vehiclesArea,
 };
