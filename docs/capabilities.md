@@ -23,6 +23,7 @@ or the page names one that does not exist.
 | See which NPCs have a quest or a quest to turn in | `t4-quests-find-giver` | |
 | Hear what an NPC says when talked to | `t1-quests-read-greeting` | |
 | Follow a guard's directions to a marked point | `t1-quests-guard-directions` | |
+| Walk to where a quest's objective is | `t4-quests-poi-walk` | Accepting a quest with a far region points `next` at `journal`, which names the region and a `travel` call to it. |
 | Buy from a vendor | `t5-vendor-buy-goldshire` | |
 | Buy back an item sold by mistake | `t5-buyback-vendor` | Only items sold this session. |
 | Die, then come back to life | `t6-die-and-recover` | |
@@ -74,13 +75,10 @@ These have tools or code but no scenario that checks them live:
 - Group play: inviting, joining, leaving a group, and fighting as a group.
 - Ranged combat as a hunter.
 - Reading a shrine plaque (`t0-objects-read-shrine`, the agent reads the page but quotes the placard line, not the page's opening sentence).
-- Completing an exploration quest by walking into its area trigger (`t4-objects-explore-fargodeep`, the agent never reaches trigger 88: the accept points at `engage`, which fails explore quests, and compass exploring does not find the mine).
+- Completing an exploration quest by walking into its area trigger (`t4-objects-explore-fargodeep`): accept names the quest region and `travel` to the area triggers in it, at their height, but trigger 88 lies in the mine tunnel (z 5.37, 33 yd under the hillside) and the route planner refuses every route into it (`pathfind_find_height` fails with `UNKNOWN_HEIGHT`), so the agent never enters the trigger sphere.
 - A sustained levelling run across several quests and zones.
 - Report its reputation with each faction and what changed it (`t4-reputation-gain`, no Faction.dbc in the eval profile so the journal names factions by id, not Silvermoon City).
 - Set the action bar (`t4-spells-action-bar`, no server truth for the bar).
-- Walking to a quest objective's region from `journal` (`t4-quests-poi-walk`):
-  the agent takes the quest but walks by other means and never reads the
-  region from `journal`.
 - Come back to life where it died, with Reincarnation or a Soulstone (`t6-selfstate-res`, blocked: the server drops Reincarnation from a non-shaman preset at login, so no preset has a self-resurrection spell).
 - Give a master-looted item to a group member (`t9-raid-master-loot`, the agent sets master loot but its kills leave empty corpses or it names the loot method wrongly, so no item is given).
 - Answer a raid ready check (`t9-raid-answer`, the agent answers before the check starts, and the repeat guard then refuses its answer during the check).
