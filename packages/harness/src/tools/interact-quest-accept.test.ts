@@ -1,7 +1,12 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { AreaState, QuestLogSlot } from "@peon/core";
+import {
+  fakeMsUntilSettled,
+  withFakeTimers,
+} from "@peon/core/test-support/fake-time";
 import type { InteractAfter } from "#harness/contract/details";
 import { interactSpec } from "#harness/tools/interact";
+import { ANSWER_MS } from "#harness/tools/interact-quest";
 import { moveTo, toolCtx } from "#test-support/ops-fixtures";
 import {
   answer,
@@ -142,5 +147,84 @@ describe("accept with a quest region", () => {
     );
     expect(res.detail).toContain("objective region around 10385, -6316");
     expect(res.next).toBe('travel(to: "10385, -6316")');
+  });
+});
+describe("accept while the quest region is still pending", () => {
+  async function setup() {
+    const { t } = await velan();
+    const state = t.handle.getQuestState();
+    t.handle.getQuestState = () => ({
+      ...state,
+      log: { complete: true, slots: [logged(8326)] },
+    });
+    const known = knownPoiState(8326, { index: 0, x: 10_385, y: -6316 });
+    const pending: AreaState<"quests"> = {
+      ...known,
+      pois: new Map([[8326, { at: 1, pois: [], status: "pending" }]]),
+    };
+    const spy = jest.spyOn(t.handle.quests, "state").mockReturnValue(pending);
+    moveTo(t.handle, { x: 10_293, y: -6357 });
+    t.handle.talk = () =>
+      answer(t.handle, "dialog", {
+        dialog: listDialog([
+          { icon: 2, level: 1, questId: 8326, title: "Thirst Unending" },
+        ]),
+      });
+    t.handle.selectQuest = () =>
+      answer(t.handle, "dialog", {
+        dialog: detailsDialog(8326, "Thirst Unending", "Slay 8 Manawraiths."),
+      });
+    t.handle.acceptQuest = () =>
+      answer(
+        t.handle,
+        "accepted",
+        { dialog: undefined, log: { complete: true, slots: [logged(8326)] } },
+        8326,
+      );
+    return { known, spy, t };
+  }
+
+  test("waits for the region reply before naming the next step", async () => {
+    await withFakeTimers(async () => {
+      const { known, spy, t } = await setup();
+      t.handle.acceptQuest = () => {
+        answer(
+          t.handle,
+          "accepted",
+          { dialog: undefined, log: { complete: true, slots: [logged(8326)] } },
+          8326,
+        );
+        setTimeout(() => {
+          spy.mockReturnValue(known);
+          t.handle.triggerAreaEvent("quests", {
+            pois: [],
+            questIds: [8326],
+            type: "poi",
+          });
+        }, 11);
+      };
+      const run = interactSpec.run(
+        { do: "accept", npc: "Velan Brightoak", what: "1" },
+        toolCtx<InteractAfter>(t),
+      );
+      await fakeMsUntilSettled(run, ANSWER_MS);
+      const res = await run;
+      expect(res.next).toBe('travel(to: "10385, -6316")');
+    });
+  });
+
+  test("gives up waiting when the region reply never comes", async () => {
+    await withFakeTimers(async () => {
+      const { t } = await setup();
+      const run = interactSpec.run(
+        { do: "accept", npc: "Velan Brightoak", what: "1" },
+        toolCtx<InteractAfter>(t),
+      );
+      const ms = await fakeMsUntilSettled(run, 2 * ANSWER_MS);
+      const res = await run;
+      expect(ms).toBeGreaterThanOrEqual(ANSWER_MS);
+      expect(res.status).toBe("DONE");
+      expect(res.next).not.toContain("travel");
+    });
   });
 });
