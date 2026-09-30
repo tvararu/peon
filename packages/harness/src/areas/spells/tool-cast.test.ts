@@ -96,6 +96,19 @@ describe("spell do:cast", () => {
     expect(cast).not.toHaveBeenCalled();
   });
 
+  test("casting the hearthstone points at travel to hearth", async () => {
+    const t = await world();
+    const cast = answer(t, "cast_succeeded");
+    for (const spell of ["Hearthstone", "hearth", "8690"]) {
+      const refused = await refusal(
+        spellSpec.run({ do: "cast", spell }, toolCtx(t)),
+      );
+      expect(refused.next).toContain("travel");
+      expect(refused.next).toContain("hearth");
+    }
+    expect(cast).not.toHaveBeenCalled();
+  });
+
   test("a missing spell is REFUSED missing_spell", async () => {
     const t = await world();
     const refused = await refusal(spellSpec.run({ do: "cast" }, toolCtx(t)));
