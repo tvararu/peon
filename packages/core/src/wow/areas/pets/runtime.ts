@@ -84,15 +84,16 @@ function refreshOnTransition(
   ctx: Ctx,
   store: PetsStore,
   wasRenamable: boolean,
-  guid: bigint,
-  number: number,
-  timestamp: number,
+  query: NameQuery,
 ): boolean {
   const { pet } = store.snapshot();
   const renamable = pet?.canRename ?? wasRenamable;
   if (wasRenamable && !renamable)
-    ctx.send(GameOpcode.CMSG_PET_NAME_QUERY, buildPetNameQuery(number, guid));
-  else sendNameQuery(ctx, store, { guid, number, timestamp });
+    ctx.send(
+      GameOpcode.CMSG_PET_NAME_QUERY,
+      buildPetNameQuery(query.number, query.guid),
+    );
+  else sendNameQuery(ctx, store, query);
   return renamable;
 }
 
@@ -163,14 +164,11 @@ function observeNames(ctx: Ctx, store: PetsStore): () => void {
       renamable = undefined;
       return;
     }
-    renamable = refreshOnTransition(
-      ctx,
-      store,
-      renamable ?? pet.canRename,
-      bar.guid,
-      pet.number,
-      pet.nameTimestamp,
-    );
+    renamable = refreshOnTransition(ctx, store, renamable ?? pet.canRename, {
+      guid: bar.guid,
+      number: pet.number,
+      timestamp: pet.nameTimestamp,
+    });
   };
   const offStore = store.onEvent((event) => {
     if (event.type !== "bar" || event.cleared) {
