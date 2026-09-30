@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   parseCreateSpline,
   parseMonsterMove,
+  parseMonsterMoveBody,
 } from "#wow/protocol/monster-move";
 import { PacketReader } from "#wow/protocol/packet";
 
@@ -285,5 +286,17 @@ describe("parseCreateSpline", () => {
         ]),
       ),
     ).toThrow();
+  });
+});
+
+describe("parseMonsterMoveBody", () => {
+  test("body after the guid matches parseMonsterMove", () => {
+    const body = [0x00, ...f32(1), ...f32(2), ...f32(3), ...u32(9), 0x01];
+    const full = parseMonsterMove(reader([0x01, 0x17, ...body]));
+    const part = parseMonsterMoveBody(
+      new PacketReader(Uint8Array.from(body)),
+      0x17n,
+    );
+    expect(part).toEqual(full);
   });
 });

@@ -166,8 +166,10 @@ function readMoveTail(
   };
 }
 
-export function parseMonsterMove(r: PacketReader): MonsterMove {
-  const guid = r.packedGuidBig();
+export function parseMonsterMoveBody(
+  r: PacketReader,
+  guid: bigint,
+): MonsterMove {
   const extra = r.uint8();
   const start = r.vec3();
   const splineId = r.uint32LE();
@@ -175,6 +177,10 @@ export function parseMonsterMove(r: PacketReader): MonsterMove {
   const type = r.uint8();
   if (type === 1) return { kind: "stop", ...head };
   return readMoveTail(r, head, readFacing(r, type));
+}
+
+export function parseMonsterMove(r: PacketReader): MonsterMove {
+  return parseMonsterMoveBody(r, r.packedGuidBig());
 }
 
 function readFinalFacing(r: PacketReader, flags: number): SplineFacing {

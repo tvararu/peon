@@ -32,6 +32,7 @@ export type MovementData = {
   speeds?: Speeds;
   movementInfo?: MovementInfo;
   spline?: CreateSpline;
+  vehicle?: { id: number; orientation: number };
 };
 
 type Placement = Omit<MovementData, "updateFlags">;
@@ -97,14 +98,17 @@ export function unpackRotation(packed: bigint): Rotation {
 function readTrailer(
   r: PacketReader,
   updateFlags: number,
-): Pick<MovementData, "rotation"> {
+): Pick<MovementData, "rotation" | "vehicle"> {
   if (updateFlags & UpdateFlag.HIGH_GUID) r.skip(4);
   if (updateFlags & UpdateFlag.LOW_GUID) r.skip(4);
   if (updateFlags & UpdateFlag.HAS_ATTACKING_TARGET) r.packedGuid();
   if (updateFlags & UpdateFlag.TRANSPORT) r.skip(4);
-  if (updateFlags & UpdateFlag.VEHICLE) r.skip(8);
-  if (!(updateFlags & UpdateFlag.ROTATION)) return {};
-  return { rotation: unpackRotation(r.uint64LE()) };
+  const vehicle =
+    updateFlags & UpdateFlag.VEHICLE
+      ? { id: r.uint32LE(), orientation: r.floatLE() }
+      : undefined;
+  if (!(updateFlags & UpdateFlag.ROTATION)) return vehicle ? { vehicle } : {};
+  return { rotation: unpackRotation(r.uint64LE()), vehicle };
 }
 export function parseMovementBlock(r: PacketReader): MovementData {
   const updateFlags = r.uint16LE();

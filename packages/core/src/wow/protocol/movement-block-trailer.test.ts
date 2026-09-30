@@ -116,3 +116,20 @@ describe("parseMovementBlock trailers", () => {
     expect(r.remaining).toBe(0);
   });
 });
+
+describe("parseMovementBlock vehicle trailer", () => {
+  test("VEHICLE returns the id and orientation", () => {
+    const w = new PacketWriter();
+    w.uint16LE(UpdateFlag.HAS_POSITION | UpdateFlag.VEHICLE);
+    w.floatLE(5);
+    w.floatLE(6);
+    w.floatLE(7);
+    w.floatLE(1);
+    w.uint32LE(315);
+    w.floatLE(2.5);
+    const r = new PacketReader(w.finish());
+    const m = parseMovementBlock(r);
+    expect(m.vehicle).toEqual({ id: 315, orientation: 2.5 });
+    expect(r.remaining).toBe(0);
+  });
+});
