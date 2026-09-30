@@ -70,12 +70,12 @@ describe("mail store", () => {
     try {
       rig.inject(
         GameOpcode.MSG_QUERY_NEXT_MAIL_TIME,
-        mailNextMailTimeBody({ senders: [{ delay: 120 }] }),
+        mailNextMailTimeBody({ senders: [{}] }),
       );
       const state = rig.handle.state();
       expect(state.unread).toBe(true);
       expect(state.senders).toHaveLength(1);
-      expect(state.senders[0]).toMatchObject({ delay: 120, type: 0 });
+      expect(state.senders[0]).toMatchObject({ delay: 0, type: 0 });
       expect(seen).toEqual(["next_time"]);
     } finally {
       rig.dispose();

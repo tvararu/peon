@@ -125,5 +125,5 @@ export const flow: ProbeFlow = {
   name: "mail-inbox",
   run,
   usage:
-    "--flow mail-inbox [--arg entry=<n>]: walk to the nearest mailbox (with that gameobject entry), query next mail time, list the inbox, mark the first unread letter read, list again, query again.",
+    "--flow mail-inbox [--arg entry=<n>]: walk to the nearest mailbox (with that gameobject entry), query next mail time, list the inbox, mark the first unread letter read, list again, query again. Stage at map 0 (-9452, 48, 56.4), within 10 yd of the Goldshire mailbox (entry 142075).",
 };

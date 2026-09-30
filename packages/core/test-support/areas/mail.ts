@@ -168,11 +168,12 @@ export function mailNextMailTimeBody(
   w.floatLE(0);
   w.uint32LE(senders.length > 2 ? 2 : senders.length);
   for (const sender of senders.slice(0, 2)) {
-    w.uint64LE(sender.guid ?? MAIL_SENDER);
-    w.uint32LE(sender.entry ?? 0);
-    w.uint32LE(sender.type ?? 0);
+    const type = sender.type ?? 0;
+    w.uint64LE(type === 0 ? (sender.guid ?? MAIL_SENDER) : 0n);
+    w.uint32LE(type === 0 ? 0 : (sender.entry ?? type));
+    w.uint32LE(type);
     w.uint32LE(sender.stationery ?? 41);
-    w.floatLE(sender.delay ?? 3600);
+    w.floatLE(sender.delay ?? 0);
   }
   return w.finish();
 }

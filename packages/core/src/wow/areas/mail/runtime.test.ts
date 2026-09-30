@@ -108,11 +108,12 @@ describe("mail acts", () => {
       ]);
       rig.inject(
         GameOpcode.MSG_QUERY_NEXT_MAIL_TIME,
-        mailNextMailTimeBody({ senders: [{ delay: 120 }] }),
+        mailNextMailTimeBody({ senders: [{}] }),
       );
       expect(await pending).toEqual({ status: "ok", unread: true });
       expect(rig.handle.state().senders[0]).toMatchObject({
-        delay: 120,
+        delay: 0,
+        entry: 0,
         guid: MAIL_SENDER,
       });
     } finally {
