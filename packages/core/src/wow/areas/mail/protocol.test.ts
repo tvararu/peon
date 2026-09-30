@@ -114,6 +114,16 @@ describe("parseMailList", () => {
     expect(list.unreadable).toBe(1);
     expect(list.hidden).toBe(2);
   });
+  test("skips a corrupt entry and reads the letters after it", () => {
+    const first = mailEntryBody({ id: 301 });
+    const corrupt = mailSized(new Uint8Array([0x01]));
+    const last = mailEntryBody({ id: 303, subject: "After the break" });
+    const rest = new Uint8Array([...first, ...corrupt, ...last]);
+    const list = parseMailList(new PacketReader(mailRawList(3, rest, 3)));
+    expect(list.mails.map((mail) => mail.id)).toEqual([301, 303]);
+    expect(list.unreadable).toBe(1);
+    expect(list.hidden).toBe(0);
+  });
 });
 
 describe("parseNextMailTime", () => {

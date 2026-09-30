@@ -1,4 +1,4 @@
-import { describe, expect, jest, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
   MAIL_SENDER,
   MAILBOX_OBJECT,
@@ -6,6 +6,7 @@ import {
   mailNextMailTimeBody,
   mailRig,
 } from "#test-support/areas/mail";
+import { elapse, withFakeTimers } from "#test-support/fake-time";
 import {
   buildGetMailList,
   buildMailMarkAsRead,
@@ -52,17 +53,17 @@ describe("mail acts", () => {
   });
 
   test("listMail settles unanswered after 5 s of silence", async () => {
-    jest.useFakeTimers();
-    const rig = mailRig();
-    try {
-      const pending = rig.handle.act.listMail(MAILBOX_OBJECT);
-      jest.advanceTimersByTime(5000);
-      expect(await pending).toEqual({ status: "unanswered" });
-      expect(rig.handle.state().mailbox).toBeUndefined();
-    } finally {
-      jest.useRealTimers();
-      rig.dispose();
-    }
+    await withFakeTimers(async () => {
+      const rig = mailRig();
+      try {
+        const pending = rig.handle.act.listMail(MAILBOX_OBJECT);
+        await elapse(5000);
+        expect(await pending).toEqual({ status: "unanswered" });
+        expect(rig.handle.state().mailbox).toBeUndefined();
+      } finally {
+        rig.dispose();
+      }
+    });
   });
 
   test("markMailRead sends CMSG_MAIL_MARK_AS_READ and settles ok with no reply", async () => {
@@ -120,16 +121,16 @@ describe("mail acts", () => {
   });
 
   test("queryNextMail settles unanswered after 5 s of silence", async () => {
-    jest.useFakeTimers();
-    const rig = mailRig();
-    try {
-      const pending = rig.handle.act.queryNextMail();
-      jest.advanceTimersByTime(5000);
-      expect(await pending).toEqual({ status: "unanswered" });
-    } finally {
-      jest.useRealTimers();
-      rig.dispose();
-    }
+    await withFakeTimers(async () => {
+      const rig = mailRig();
+      try {
+        const pending = rig.handle.act.queryNextMail();
+        await elapse(5000);
+        expect(await pending).toEqual({ status: "unanswered" });
+      } finally {
+        rig.dispose();
+      }
+    });
   });
 
   test("run abort rejects a pending list", async () => {
