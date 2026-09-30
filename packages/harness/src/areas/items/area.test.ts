@@ -179,3 +179,133 @@ describe("items harness rules", () => {
     ]);
   });
 });
+
+function timerEvent(event: Record<string, unknown>): AreaEvent {
+  return { area: "items", event } as unknown as AreaEvent;
+}
+
+describe("items harness timer rows", () => {
+  const rc = () =>
+    testRuleInput({ lookup: testLookup({ itemName: () => "Dragonmaw Key" }) });
+
+  test("an item cooldown writes a log row naming the item", () => {
+    const rows = areaDrafts(
+      areaRuleSet(),
+      timerEvent({
+        entry: 25,
+        itemGuid: GUID,
+        spell: 7000,
+        type: "item_cooldown",
+      }),
+      rc(),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "log",
+      data: { entry: 25, spell: 7000 },
+      event: "items/cooldown",
+      guid: HEX,
+    });
+    expect(rows[0]?.text).toContain("Dragonmaw Key");
+  });
+
+  test("an expiring item is passive with a long time left and wakes under 60 seconds", () => {
+    const rules = areaRuleSet();
+    const at = (seconds: number) =>
+      areaDrafts(
+        rules,
+        timerEvent({
+          entry: 25,
+          expiresAt: 0,
+          itemGuid: GUID,
+          seconds,
+          type: "item_time",
+        }),
+        rc(),
+      )[0];
+    expect(at(3600)).toMatchObject({
+      class: "passive",
+      event: "items/expiring",
+    });
+    expect(at(60)).toMatchObject({ class: "passive" });
+    expect(at(59)).toMatchObject({ class: "wake", data: { seconds: 59 } });
+    expect(at(0)).toMatchObject({ class: "wake" });
+    expect(at(3600)?.text).toContain("1 h");
+    expect(at(59)?.text).toContain("59 s");
+  });
+
+  test("a temporary enchant timer is an expiring row that names the enchant slot", () => {
+    const rows = areaDrafts(
+      areaRuleSet(),
+      timerEvent({
+        entry: 25,
+        expiresAt: 0,
+        itemGuid: GUID,
+        seconds: 30,
+        slot: 1,
+        type: "item_enchant_time",
+      }),
+      rc(),
+    );
+    expect(rows[0]).toMatchObject({
+      class: "wake",
+      data: { enchantSlot: 1, seconds: 30 },
+      event: "items/expiring",
+    });
+    expect(rows[0]?.text).toContain("enchant");
+  });
+
+  test("the death durability notice wakes with a repair hint", () => {
+    const rows = areaDrafts(
+      areaRuleSet(),
+      timerEvent({ type: "durability_loss" }),
+      rc(),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "wake",
+      event: "items/durability_loss",
+    });
+    expect(rows[0]?.text).toContain("repair");
+  });
+
+  test("new skills write a log row naming them", () => {
+    const rows = areaDrafts(
+      areaRuleSet(),
+      timerEvent({
+        added: 3,
+        kind: "weapon",
+        mask: 3,
+        names: ["one-handed axes", "two-handed axes"],
+        type: "proficiency",
+      }),
+      rc(),
+    );
+    expect(rows[0]).toMatchObject({
+      class: "log",
+      data: {
+        kind: "weapon",
+        mask: 3,
+        names: ["one-handed axes", "two-handed axes"],
+      },
+      event: "items/proficiency",
+    });
+    expect(rows[0]?.text).toContain("one-handed axes");
+  });
+
+  test("a proficiency packet that adds nothing writes no row", () => {
+    expect(
+      areaDrafts(
+        areaRuleSet(),
+        timerEvent({
+          added: 0,
+          kind: "armor",
+          mask: 2,
+          names: [],
+          type: "proficiency",
+        }),
+        rc(),
+      ),
+    ).toEqual([]);
+  });
+});
