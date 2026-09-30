@@ -24,17 +24,17 @@ const FIXTURE: LooseModule = {
   eventTypes: [],
   name: "alpha",
   opcodes: {
-    dead: ["CMSG_SET_FACTION_CHEAT"],
+    dead: ["SMSG_CAMERA_SHAKE"],
     owns: [
       "SMSG_DESTRUCTIBLE_BUILDING_DAMAGE",
-      "CMSG_SET_FACTION_CHEAT",
-      "SMSG_EQUIPMENT_SET_SAVED",
+      "SMSG_CAMERA_SHAKE",
+      "SMSG_TOGGLE_XP_GAIN",
       "SMSG_PLAY_TIME_WARNING",
       "SMSG_LEARNED_DANCE_MOVES",
       "TC9_CMSG_PREPARE_FOR_REDIRECT",
       "TC9_SMSG_READY_FOR_REDIRECT",
     ],
-    stubs: [["SMSG_EQUIPMENT_SET_SAVED", "Equipment set saved"]],
+    stubs: [["SMSG_TOGGLE_XP_GAIN", "XP gain toggle"]],
     unseen: ["SMSG_LEARNED_DANCE_MOVES"],
     uses: [],
   },
@@ -124,13 +124,18 @@ describe("renderCoverage", () => {
 describe("coverageRows", () => {
   test("gives an area's opcodes dead, stub, handled or missing", () => {
     const rows = fixtureRows([
-      "GameOpcode.CMSG_SET_FACTION_CHEAT GameOpcode.SMSG_EQUIPMENT_SET_SAVED",
+      "GameOpcode.SMSG_CAMERA_SHAKE GameOpcode.SMSG_TOGGLE_XP_GAIN",
     ]);
-    expect(row(rows, "CMSG_SET_FACTION_CHEAT").status).toBe("dead");
-    expect(row(rows, "SMSG_EQUIPMENT_SET_SAVED").status).toBe("stub");
+    expect(row(rows, "SMSG_CAMERA_SHAKE").status).toBe("dead");
+    expect(row(rows, "SMSG_TOGGLE_XP_GAIN").status).toBe("stub");
     expect(row(rows, "SMSG_DESTRUCTIBLE_BUILDING_DAMAGE").status).toBe(
       "handled",
     );
+    expect(row(rows, "SMSG_PLAY_TIME_WARNING").status).toBe("missing");
+  });
+
+  test("marks an owned opcode missing when nothing claims it", () => {
+    const rows = fixtureRows();
     expect(row(rows, "SMSG_PLAY_TIME_WARNING").status).toBe("missing");
   });
 
@@ -153,13 +158,12 @@ describe("coverageRows", () => {
     expect(row(rows, "MSG_RANDOM_ROLL").direction).toBe("both");
   });
 
-  test("tells handled, stubbed, sent and missing core opcodes apart", () => {
+  test("tells handled, dead and sent core opcodes apart", () => {
     const { rows } = projectCoverage(["send(GameOpcode.CMSG_BOOTME)"]);
     const status = new Map(rows.map((r) => [r.name, r.status]));
     expect(status.get("SMSG_UPDATE_OBJECT")).toBe("handled");
-    expect(status.get("SMSG_WARDEN_DATA")).toBe("stub");
+    expect(status.get("SMSG_TOGGLE_XP_GAIN")).toBe("dead");
     expect(status.get("CMSG_BOOTME")).toBe("handled");
-    expect(status.get("SMSG_SPELLLOGEXECUTE")).toBe("missing");
   });
 
   test("lists every opcode once", () => {

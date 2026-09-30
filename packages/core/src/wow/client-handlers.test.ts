@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
+import { STUB_EXAMPLE } from "#test-support/never-handled";
 import { testStores } from "#test-support/session-fixtures";
 import { MARNIEL, MARNIEL_LIST_INVENTORY } from "#test-support/vendor-fixtures";
 import { areaStubs, stubOwners } from "#wow/areas/compose";
@@ -127,14 +128,14 @@ describe("stub notices", () => {
     const notices: NoticeEvent[] = [];
     conn.events.message.subscribe((msg) => chat.push(msg.message));
     conn.events.notice.subscribe((event) => notices.push(event));
-    conn.dispatch.handle(GameOpcode.SMSG_WARDEN_DATA, weather());
+    conn.dispatch.handle(GameOpcode[STUB_EXAMPLE], weather());
     expect(chat).toEqual([]);
     expect(notices).toMatchObject([
       {
         type: "not_implemented",
-        opcode: GameOpcode.SMSG_WARDEN_DATA,
-        label: "Warden anti-cheat",
-        text: "[peon] Warden anti-cheat is not yet implemented",
+        opcode: GameOpcode[STUB_EXAMPLE],
+        label: STUB_EXAMPLE,
+        text: `[peon] ${STUB_EXAMPLE} is not yet implemented`,
       },
     ]);
   });
@@ -142,17 +143,17 @@ describe("stub notices", () => {
   test("a notice with no subscriber replays to the first onNotice subscriber", () => {
     const conn = stubConn();
     const now = jest.spyOn(Date, "now").mockReturnValue(1000);
-    conn.dispatch.handle(GameOpcode.SMSG_WARDEN_DATA, weather());
+    conn.dispatch.handle(GameOpcode[STUB_EXAMPLE], weather());
     now.mockReturnValue(5000);
     const { onNotice } = extrasMethods(conn, {} as Runtimes);
     const first: NoticeEvent[] = [];
     const second: NoticeEvent[] = [];
     onNotice((event) => first.push(event));
     onNotice((event) => second.push(event));
-    conn.dispatch.handle(GameOpcode.SMSG_WARDEN_DATA, weather());
+    conn.dispatch.handle(GameOpcode[STUB_EXAMPLE], weather());
     now.mockRestore();
     expect(first).toMatchObject([
-      { at: 1000, opcode: GameOpcode.SMSG_WARDEN_DATA },
+      { at: 1000, opcode: GameOpcode[STUB_EXAMPLE] },
     ]);
     expect(second).toEqual([]);
   });
@@ -161,15 +162,15 @@ describe("stub notices", () => {
     const conn = stubConn();
     for (let opcode = 0x7_00; opcode < 0x7_00 + NOTICE_BACKLOG; opcode++)
       conn.dispatch.handle(opcode, weather());
-    conn.dispatch.handle(GameOpcode.SMSG_WARDEN_DATA, weather());
+    conn.dispatch.handle(GameOpcode[STUB_EXAMPLE], weather());
     const notices: NoticeEvent[] = [];
     extrasMethods(conn, {} as Runtimes).onNotice((event) =>
       notices.push(event),
     );
-    conn.dispatch.handle(GameOpcode.SMSG_WARDEN_DATA, weather());
+    conn.dispatch.handle(GameOpcode[STUB_EXAMPLE], weather());
     expect(notices).toHaveLength(NOTICE_BACKLOG + 1);
     expect(notices.at(-1)).toMatchObject({
-      opcode: GameOpcode.SMSG_WARDEN_DATA,
+      opcode: GameOpcode[STUB_EXAMPLE],
     });
   });
 
@@ -177,13 +178,13 @@ describe("stub notices", () => {
     const conn = stubConn();
     const notices: NoticeEvent[] = [];
     conn.events.notice.subscribe((event) => notices.push(event));
-    conn.dispatch.handle(GameOpcode.SMSG_SPELLLOGEXECUTE, weather());
-    conn.dispatch.handle(GameOpcode.SMSG_SPELLLOGEXECUTE, weather());
+    conn.dispatch.handle(GameOpcode[STUB_EXAMPLE], weather());
+    conn.dispatch.handle(GameOpcode[STUB_EXAMPLE], weather());
     conn.dispatch.handle(0x7_ff, weather());
     expect(notices).toMatchObject([
       {
-        opcode: GameOpcode.SMSG_SPELLLOGEXECUTE,
-        text: "[peon] SMSG_SPELLLOGEXECUTE is not yet implemented",
+        opcode: GameOpcode[STUB_EXAMPLE],
+        text: `[peon] ${STUB_EXAMPLE} is not yet implemented`,
       },
       { label: "Opcode 0x7ff", opcode: 0x7_ff },
     ]);

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { deflateSync } from "node:zlib";
 import { startMockWorldServer } from "#test-support/mock-world-server";
+import { STUB_EXAMPLE } from "#test-support/never-handled";
 import { info, moveBody, PEER } from "#test-support/remote-motion-fixtures";
 import {
   base,
@@ -84,7 +85,7 @@ function named(rows: TraceRow[], name: string): TraceRow[] {
 
 describe("opcodeName", () => {
   test("names a known opcode and hex-labels an unknown one", () => {
-    expect(opcodeName(GameOpcode.SMSG_WEATHER)).toBe("SMSG_WEATHER");
+    expect(opcodeName(GameOpcode[STUB_EXAMPLE])).toBe(STUB_EXAMPLE);
     expect(opcodeName(0x7_ff)).toBe("0x7ff");
   });
 });
@@ -106,14 +107,14 @@ describe("opcodeNumber", () => {
 describe("OpcodeDispatch counts", () => {
   test("handle reports its outcome and counts every opcode it sees", () => {
     const dispatch = new OpcodeDispatch();
-    dispatch.on(GameOpcode.SMSG_WEATHER, () => {});
+    dispatch.on(GameOpcode[STUB_EXAMPLE], () => {});
     const empty = () => new PacketReader(new Uint8Array(0));
-    expect(dispatch.handle(GameOpcode.SMSG_WEATHER, empty())).toBe("handled");
+    expect(dispatch.handle(GameOpcode[STUB_EXAMPLE], empty())).toBe("handled");
     expect(dispatch.handle(0x7_ff, empty())).toBe("unhandled");
     dispatch.handle(0x7_ff, empty());
     const { seen, unhandled } = dispatch.counts();
     expect([...seen]).toEqual([
-      [GameOpcode.SMSG_WEATHER, 1],
+      [GameOpcode[STUB_EXAMPLE], 1],
       [0x7_ff, 2],
     ]);
     expect([...unhandled]).toEqual([[0x7_ff, 2]]);

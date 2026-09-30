@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { creatureQueryResponse } from "#test-support/creature-query-fixtures";
+import { STUB_EXAMPLE, STUB_EXAMPLE_LABEL } from "#test-support/never-handled";
 import { extrasMethods, type NoticeEvent } from "#wow/client-extras";
 import { EntityStore } from "#wow/entity-store";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -11,9 +12,9 @@ import { handleCreatureQueryResponse } from "#wow/world-handlers-entity";
 
 const notice: NoticeEvent = {
   type: "not_implemented",
-  opcode: GameOpcode.SMSG_WEATHER,
-  label: "Weather change",
-  text: "[peon] Weather change is not yet implemented",
+  opcode: GameOpcode[STUB_EXAMPLE],
+  label: STUB_EXAMPLE_LABEL,
+  text: `[peon] ${STUB_EXAMPLE_LABEL} is not yet implemented`,
   at: 1,
 };
 

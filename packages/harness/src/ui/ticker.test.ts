@@ -65,7 +65,7 @@ const entries = [
     class: "log",
     domain: "notice",
     event: "notice/not_implemented",
-    text: "SMSG_SPELLLOGEXECUTE is not handled",
+    text: "SMSG_CAMERA_SHAKE is not handled",
   }),
 ];
 
@@ -91,7 +91,7 @@ describe("tickerLines", () => {
       `  7s ${nerd.kill} Springpaw Stalker killed · +84 xp`,
     );
     expect(lines[5]).toBe(
-      `  6s ${nerd.warning} SMSG_SPELLLOGEXECUTE is not handled`,
+      `  6s ${nerd.warning} SMSG_CAMERA_SHAKE is not handled`,
     );
     expect(lines.join("\n")).not.toContain("hidden tool call");
   });
@@ -132,7 +132,7 @@ describe("tickerLines", () => {
     expect(text).not.toContain("Emote animation");
     expect(text).not.toContain("Text emote");
     expect(plain([lines[5] ?? ""]).join("")).toContain(
-      "SMSG_SPELLLOGEXECUTE is not handled",
+      "SMSG_CAMERA_SHAKE is not handled",
     );
   });
 
