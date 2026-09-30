@@ -170,8 +170,12 @@ export function parseMailList(reader: PacketReader): MailList {
     }
     const start = reader.offset;
     const end = start + size - 2;
+    const entryReader = reader.fork();
     try {
-      mails.push(parseEntry(reader));
+      const entry = parseEntry(entryReader);
+      if (entryReader.offset > end)
+        throw new Error("mail entry overruns its size");
+      mails.push(entry);
     } catch {
       unreadable += 1;
     }
