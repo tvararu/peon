@@ -60,6 +60,7 @@ type PoiMap = QuestsPois;
 export type QuestRegion = {
   kind: "objective" | "turn_in";
   label: string;
+  points: readonly { x: number; y: number }[];
   to: string;
 };
 
@@ -102,19 +103,21 @@ export function questRegion(
   );
   const ranked = seen
     .filter((poi) => pose === undefined || poi.mapId === pose.mapId)
-    .map((poi) => centroid(poi.points))
-    .filter((point) => !(Number.isNaN(point.x) || Number.isNaN(point.y)))
+    .map((poi) => ({ at: centroid(poi.points), points: poi.points }))
+    .filter(({ at }) => !(Number.isNaN(at.x) || Number.isNaN(at.y)))
     .sort((one, other) =>
       pose
-        ? Math.hypot(one.x - pose.x, one.y - pose.y) -
-          Math.hypot(other.x - pose.x, other.y - pose.y)
+        ? Math.hypot(one.at.x - pose.x, one.at.y - pose.y) -
+          Math.hypot(other.at.x - pose.x, other.at.y - pose.y)
         : 0,
     );
-  const spot = ranked[0];
-  if (!spot) return { none: true };
+  const first = ranked[0];
+  if (!first) return { none: true };
+  const spot = first.at;
   return {
     kind,
     label: regionLabel(kind, spot, pose),
+    points: first.points,
     to: `${spot.x}, ${spot.y}`,
   };
 }

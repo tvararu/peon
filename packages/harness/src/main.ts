@@ -299,6 +299,7 @@ function travelMemory(): TravelMemory {
     lastRefusedGoal: undefined,
     obstructedExplores: new Map(),
     recovery: undefined,
+    triggers: undefined,
     visitedCells: new Set<string>(),
   };
 }

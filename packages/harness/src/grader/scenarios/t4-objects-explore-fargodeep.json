@@ -34,14 +34,14 @@
     {
       "body": {
         "map": 0,
-        "x": -9870.52,
-        "y": 212.959,
-        "z": 14.01
+        "x": -9481,
+        "y": 74,
+        "z": 56.5
       },
       "endpoint": "position"
     }
   ],
   "steers": [],
-  "task": "Take The Fargodeep Mine quest from Marshal Dughan in Goldshire, then explore the mine mouth south of you until the quest completes.",
+  "task": "Take The Fargodeep Mine quest from Marshal Dughan in Goldshire, then explore the mine mouth to the south until the quest completes.",
   "tier": 4
 }

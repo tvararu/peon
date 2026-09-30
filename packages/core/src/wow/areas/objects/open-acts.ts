@@ -37,12 +37,19 @@ export type UseItemOnOutcome =
 export type UseOutcome = { ok: true; record: UseRecord } | UseRefusal;
 export type ObjectsActs = {
   enterTrigger: (triggerId: number) => void;
+  triggersNear: (
+    map: number,
+    x: number,
+    y: number,
+    radius: number,
+  ) => readonly NearTrigger[];
   use: (guid: bigint) => UseOutcome;
   open: (guid: bigint, spellId: number) => OpenOutcome;
   useItemOn: (entry: number, target: bigint) => Promise<UseItemOnOutcome>;
   openLockSpell: (entry: number) => Promise<OpenLockQuery>;
   readPage: (pageId: number) => Promise<PageChain | UnansweredPage>;
 };
+export type NearTrigger = { id: number; x: number; y: number; z: number };
 export type OpenLockQuery =
   | { by: "spell"; spellId: number }
   | { by: "item"; entry: number }

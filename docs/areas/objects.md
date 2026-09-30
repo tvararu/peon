@@ -187,6 +187,12 @@ a far teleport or a near teleport it marks the triggers at the arrival
 point as entered without sending them, so a teleport never bounces the
 character back through a portal.
 
+`triggersNear(map, x, y, radius)` lists the catalog's triggers on a map
+within `radius` yards of a point in the plane, nearest first, each with its
+id and centre. The sphere test includes height, so the Fargodeep Mine
+trigger 88 (z 5.37) lies about 33 yd below the hillside (ground at 38.14) and a walk to its
+x and y on the surface never enters it.
+
 ## Left out
 
 - `SMSG_GAMEOBJECT_CUSTOM_ANIM`, `SMSG_GAMEOBJECT_DESPAWN_ANIM`,

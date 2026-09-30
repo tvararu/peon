@@ -391,3 +391,19 @@ describe("ObjectsStore page text", () => {
     }
   });
 });
+
+describe("ObjectsStore triggersNear", () => {
+  test("lists triggers on the map nearest first within the radius, and none before the catalog loads", () => {
+    const { store } = build();
+    expect(store.triggersNear(0, -9843, 92, 100)).toEqual([]);
+    const far: AreaTrigger = { ...FARGODEEP, id: 7, y: 200 };
+    const other: AreaTrigger = { ...FARGODEEP, id: 9, map: 1 };
+    store.useTriggers(new AreaTriggerCatalog([far, FARGODEEP, other]));
+    expect(store.triggersNear(0, -9843, 92, 150).map((t) => t.id)).toEqual([
+      88, 7,
+    ]);
+    expect(store.triggersNear(0, -9843, 92, 50).map((t) => t.id)).toEqual([88]);
+    expect(store.triggersNear(0, -9843, 92, 50)[0]?.z).toBe(FARGODEEP.z);
+    expect(store.triggersNear(1, -9843, 92, 100).map((t) => t.id)).toEqual([9]);
+  });
+});

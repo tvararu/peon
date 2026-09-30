@@ -339,6 +339,23 @@ export async function waitGreeting(
   return greetingOf(ctx, dialog);
 }
 
+async function waitPoi(
+  ctx: ToolCtx<InteractAfter>,
+  questId: number,
+): Promise<void> {
+  const entry = ctx.handle.quests.state().pois.get(questId);
+  if (entry?.status !== "pending" || entry.at <= 0) return;
+  await settle<AreaEventOf<"quests">>({
+    match: (event) => event.type === "poi" && event.questIds.includes(questId),
+    signal: ctx.signal,
+    subscribe: (cb) =>
+      ctx.handle.onAreaEvent(({ area, event }) => {
+        if (area === "quests") cb(event);
+      }),
+    timeoutMs: ANSWER_MS,
+  });
+}
+
 function coordOf(value: number): string {
   return String(Math.round(value * 10) / 10);
 }
@@ -410,6 +427,7 @@ export const acceptStep: InteractStep = async ({ args, ctx, npc }) => {
     timeoutMs: ANSWER_MS,
   });
   if (!accepted) throw unanswered(npc, `the accept of ${offer.title}`, check);
+  await waitPoi(ctx, offer.id);
   return result("DONE", {
     after: { ...baseAfter(ctx, npc, "accept"), dialogOpened: true, offers },
     ...acceptedNext(ctx, offer, { giver: npc.unit.name, objectives }),

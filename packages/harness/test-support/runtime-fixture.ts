@@ -201,6 +201,7 @@ function defaultParts({
       lastRefusedGoal: undefined,
       obstructedExplores: new Map(),
       recovery: undefined,
+      triggers: undefined,
       visitedCells: new Set(),
     },
     yields: createYieldGate(0),
