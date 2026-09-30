@@ -100,7 +100,7 @@ describe("pets stable runtime", () => {
           r.inject(GameOpcode.SMSG_STABLE_RESULT, petsStableResultBody(0x06));
         }
         await elapse(6000);
-        expect(seen).toEqual(Array(4).fill("stable_result"));
+        expect(seen).toEqual(new Array(4).fill("stable_result"));
       } finally {
         off();
         r.dispose();

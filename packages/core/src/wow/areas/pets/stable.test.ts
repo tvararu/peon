@@ -189,6 +189,8 @@ describe("pets stable store", () => {
           case "name_invalid":
             kinds.push(event.type);
             break;
+          default:
+            break;
         }
       }
       r.inject(GameOpcode.MSG_LIST_STABLED_PETS, LIST);
