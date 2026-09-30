@@ -1,5 +1,9 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import type { PetFeedback } from "#wow/areas/pets/protocol";
+import type {
+  PetFeedback,
+  PetNameInvalid,
+  PetNameQueryResponse,
+} from "#wow/areas/pets/protocol";
 import { type PetView, petView } from "#wow/areas/pets/view";
 import type { EntityLookup } from "#wow/entity-store";
 import {
@@ -39,11 +43,18 @@ export type PetsCooldown = {
   infinite: boolean;
 };
 export type PetsRefusal = { reason: string; at: number };
+export type PetName = {
+  number: number;
+  name: string;
+  timestamp: number;
+  declined: readonly string[] | undefined;
+};
 export type PetsState = {
   bar: PetsBar | undefined;
   cooldowns: readonly PetsCooldown[];
   lastRefusal: PetsRefusal | undefined;
   pet: PetView | undefined;
+  names: Readonly<Record<number, PetName>>;
 };
 export type PetsEvent =
   | { type: "bar"; cleared: false; bar: PetsBar }
@@ -51,7 +62,15 @@ export type PetsEvent =
   | { type: "spell_learned"; spell: number }
   | { type: "spell_unlearned"; spell: number }
   | { type: "feedback"; reason: PetFeedback }
-  | { type: "cast_failed"; spell: number; reason: string; castCount: number };
+  | { type: "cast_failed"; spell: number; reason: string; castCount: number }
+  | { type: "name"; name: PetName }
+  | {
+      type: "name_invalid";
+      reason: PetNameInvalid["reason"];
+      name: string;
+      declined: readonly string[] | undefined;
+    }
+  | { type: "unanswered"; request: "rename" };
 
 const REACTS: readonly PetReact[] = ["passive", "defensive", "aggressive"];
 const COMMANDS: readonly PetCommand[] = ["stay", "follow", "attack", "abandon"];
@@ -82,6 +101,7 @@ export class PetsStore {
   private current: PetsBar | undefined;
   private cooldowns: PetsCooldown[] = [];
   private lastRefusal: PetsRefusal | undefined;
+  private names: Record<number, PetName> = {};
 
   constructor(deps: SessionDeps, _core: CoreStores) {
     this.now = deps.now;
@@ -97,6 +117,7 @@ export class PetsStore {
         (row) => row.readyAt === undefined || row.readyAt > now,
       ),
       lastRefusal: this.lastRefusal,
+      names: { ...this.names },
       pet: petView(this.getEntity, this.selfGuid()),
     };
   }
@@ -197,9 +218,42 @@ export class PetsStore {
     );
   }
 
+  named(reply: PetNameQueryResponse): void {
+    if (reply.name === "") return;
+    const name: PetName = {
+      declined: reply.declined,
+      name: reply.name,
+      number: reply.number,
+      timestamp: reply.timestamp,
+    };
+    this.names = { ...this.names, [reply.number]: name };
+    this.events.emit({ name, type: "name" });
+  }
+
+  nameRefused(refusal: PetNameInvalid): void {
+    this.lastRefusal = { at: this.now(), reason: refusal.reason };
+    this.events.emit({
+      declined: refusal.declined,
+      name: refusal.name,
+      reason: refusal.reason,
+      type: "name_invalid",
+    });
+  }
+
+  nameStale(number: number, timestamp: number): boolean {
+    const cached = this.names[number];
+    return !cached || cached.timestamp < timestamp;
+  }
+
+  unanswered(): void {
+    this.events.emit({ request: "rename", type: "unanswered" });
+  }
+
   dispose(): void {
     this.events.clear();
     this.current = undefined;
     this.cooldowns = [];
+    this.names = {};
+    this.lastRefusal = undefined;
   }
 }

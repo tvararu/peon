@@ -3,6 +3,8 @@ import {
   buildPetAction,
   buildPetCancelAura,
   buildPetCastSpell,
+  buildPetNameQuery,
+  buildPetRename,
   buildPetSetAction,
   buildPetSpellAutocast,
   buildPetStopAttack,
@@ -11,6 +13,7 @@ import {
   type PetSetActionPair,
 } from "#wow/areas/pets/protocol";
 import type { PetsEvent, PetsStore } from "#wow/areas/pets/store";
+import type { Entity } from "#wow/entity-store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { SpellTarget } from "#wow/protocol/spell-targets";
 import type { CoreStores } from "#wow/session-stores";
@@ -26,7 +29,8 @@ export type PetsRefused = {
     | "not_autocastable"
     | "bad_slot"
     | "passive"
-    | "not_removable";
+    | "not_removable"
+    | "not_renamable";
 };
 export type PetsCast =
   | { ok: true; castCount: number; confirmed: boolean }
@@ -42,6 +46,8 @@ export type PetsActs = {
   petSetAction: (slot: number, action: number, type: number) => PetsActResult;
   petSwapActions: (a: number, b: number) => PetsActResult;
   petCancelAura: (spell: number) => PetsActResult;
+  queryPetName: () => PetsActResult;
+  renamePet: (name: string) => PetsActResult;
 };
 
 const ORDERS: Record<PetOrder, number> = { stay: 0, follow: 1, dismiss: 3 };
@@ -58,6 +64,106 @@ const SPELL_ATTR0_PASSIVE = 0x40;
 function requestPetInfo(ctx: Ctx): { ok: true } {
   ctx.send(GameOpcode.CMSG_REQUEST_PET_INFO, buildRequestPetInfo());
   return { ok: true };
+}
+
+const RENAME_TIMEOUT_MS = 5000;
+
+type NameQuery = { guid: bigint; number: number; timestamp: number };
+
+function sendNameQuery(ctx: Ctx, store: PetsStore, query: NameQuery): void {
+  if (query.number === 0) return;
+  if (store.nameStale(query.number, query.timestamp))
+    ctx.send(
+      GameOpcode.CMSG_PET_NAME_QUERY,
+      buildPetNameQuery(query.number, query.guid),
+    );
+}
+
+type PendingRename = { abort: () => void };
+
+function queryPetNameAct(ctx: Ctx, store: PetsStore): PetsActResult {
+  const { bar, pet } = store.snapshot();
+  if (!(bar && pet)) return NO_PET;
+  ctx.send(
+    GameOpcode.CMSG_PET_NAME_QUERY,
+    buildPetNameQuery(pet.number, bar.guid),
+  );
+  return { ok: true };
+}
+
+function renamePetAct(
+  ctx: Ctx,
+  store: PetsStore,
+  pending: PendingRename,
+  name: string,
+): PetsActResult {
+  const { bar, pet } = store.snapshot();
+  if (!(bar && pet)) return NO_PET;
+  if (!pet.canRename) return { ok: false, reason: "not_renamable" };
+  ctx.send(GameOpcode.CMSG_PET_RENAME, buildPetRename(bar.guid, name));
+  const baseline = pet.nameTimestamp;
+  const number = pet.number;
+  pending.abort();
+  const waiter = ctx.until(
+    (event) =>
+      (event.type === "name" &&
+        event.name.number === number &&
+        event.name.timestamp > baseline) ||
+      event.type === "name_invalid",
+    { signal: ctx.signal, timeoutMs: RENAME_TIMEOUT_MS },
+  );
+  const onAbort = () => {
+    waiter.catch(() => undefined).then(() => undefined);
+  };
+  pending.abort = onAbort;
+  void waiter.then(
+    () => undefined,
+    (error: unknown) => {
+      if (ctx.signal.aborted) return;
+      if (error instanceof Error && error.message === "timeout")
+        store.unanswered();
+    },
+  );
+  return { ok: true };
+}
+
+function nameActs(
+  ctx: Ctx,
+  store: PetsStore,
+  pending: PendingRename,
+): Pick<PetsActs, "queryPetName" | "renamePet"> {
+  return {
+    queryPetName: () => queryPetNameAct(ctx, store),
+    renamePet: (name) => renamePetAct(ctx, store, pending, name),
+  };
+}
+
+function observeNames(ctx: Ctx, store: PetsStore): () => void {
+  const offStore = store.onEvent((event) => {
+    if (event.type !== "bar" || event.cleared) return;
+    const { pet } = store.snapshot();
+    if (!pet) return;
+    sendNameQuery(ctx, store, {
+      guid: event.bar.guid,
+      number: pet.number,
+      timestamp: pet.nameTimestamp,
+    });
+  });
+  const offEntity = ctx.listen("entity", (event) => {
+    if (event.type === "disappear") return;
+    const entity: Entity = event.entity;
+    const { bar, pet } = store.snapshot();
+    if (!(bar && pet) || entity.guid !== bar.guid) return;
+    sendNameQuery(ctx, store, {
+      guid: bar.guid,
+      number: pet.number,
+      timestamp: pet.nameTimestamp,
+    });
+  });
+  return () => {
+    offStore();
+    offEntity();
+  };
 }
 
 function confirm(
@@ -202,6 +308,9 @@ export function petsRuntime(
   const orders = orderActs(ctx, store);
   const spells = spellActs(ctx, store, core);
   const bar = barActs(ctx, store);
+  const offNames = observeNames(ctx, store);
+  const pending = { abort: () => undefined };
+  const names = nameActs(ctx, store, pending);
   return {
     act: {
       petAutocast: spells.petAutocast,
@@ -212,8 +321,13 @@ export function petsRuntime(
       petStance: orders.petStance,
       petStopAttack: orders.petStopAttack,
       petSwapActions: bar.petSwapActions,
+      queryPetName: names.queryPetName,
+      renamePet: names.renamePet,
       requestPetInfo: () => requestPetInfo(ctx),
     },
-    dispose: () => undefined,
+    dispose: () => {
+      offNames();
+      pending.abort();
+    },
   };
 }

@@ -4,6 +4,8 @@ import {
   parsePetActionFeedback,
   parsePetActionSound,
   parsePetDismissSound,
+  parsePetNameInvalid,
+  parsePetNameQueryResponse,
   parsePetSpellId,
 } from "#wow/areas/pets/protocol";
 import { petsRuntime } from "#wow/areas/pets/runtime";
@@ -25,6 +27,9 @@ export const petsArea = defineArea({
     "spell_unlearned",
     "feedback",
     "cast_failed",
+    "name",
+    "name_invalid",
+    "unanswered",
   ],
   store: (deps, core) => new PetsStore(deps, core),
   register: (wire, store) => {
@@ -53,6 +58,12 @@ export const petsArea = defineArea({
     wire.on(GameOpcode.SMSG_PET_DISMISS_SOUND, (r) => {
       parsePetDismissSound(r);
     });
+    wire.on(GameOpcode.SMSG_PET_NAME_QUERY_RESPONSE, (r) =>
+      store.named(parsePetNameQueryResponse(r)),
+    );
+    wire.on(GameOpcode.SMSG_PET_NAME_INVALID, (r) =>
+      store.nameRefused(parsePetNameInvalid(r)),
+    );
   },
   runtime: petsRuntime,
 });

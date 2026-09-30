@@ -61,6 +61,7 @@ function state(current: Bar | undefined): PetsState {
     bar: current,
     cooldowns: [],
     lastRefusal: undefined,
+    names: {},
     pet: undefined,
   };
 }
