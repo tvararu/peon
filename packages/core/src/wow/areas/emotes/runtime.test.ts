@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import { elapse, withFakeTimers } from "#test-support/fake-time";
 import type { Entity, EntityEvent, UnitEntity } from "#wow/entity-store";
@@ -319,6 +319,55 @@ describe("emote acts", () => {
       await r.handle.act.textEmote("wave");
       const queued = r.handle.act.textEmote("dance");
       await elapse(100);
+      r.dispose();
+      expect(await queued).toEqual({ ok: false, reason: "cancelled" });
+      expect(r.sent).toHaveLength(1);
+    });
+  });
+});
+
+describe("emote spam guard under timer lateness", () => {
+  async function settle(): Promise<void> {
+    await elapse(0);
+    await elapse(0);
+  }
+
+  test("a late timer pushes the next send a full gap after the actual send", async () => {
+    await withFakeTimers(async () => {
+      const r = actRig();
+      try {
+        const first = r.handle.act.textEmote("wave");
+        const second = r.handle.act.textEmote("dance");
+        const third = r.handle.act.textEmote("salute");
+        await elapse(10);
+        expect(r.sent).toHaveLength(1);
+        jest.advanceTimersByTime(SPAM_MS + 500);
+        await settle();
+        expect(r.sent).toHaveLength(2);
+        jest.advanceTimersByTime(SPAM_MS - 20);
+        await settle();
+        expect(r.sent).toHaveLength(2);
+        jest.advanceTimersByTime(20);
+        await settle();
+        expect(r.sent).toHaveLength(3);
+        expect(await Promise.all([first, second, third])).toEqual([
+          { ok: true },
+          { ok: true },
+          { ok: true },
+        ]);
+      } finally {
+        r.dispose();
+      }
+    });
+  });
+
+  test("dispose after the timer fired but before the send cancels it", async () => {
+    await withFakeTimers(async () => {
+      const r = actRig();
+      await r.handle.act.textEmote("wave");
+      const queued = r.handle.act.textEmote("dance");
+      await elapse(10);
+      jest.advanceTimersByTime(SPAM_MS);
       r.dispose();
       expect(await queued).toEqual({ ok: false, reason: "cancelled" });
       expect(r.sent).toHaveLength(1);
