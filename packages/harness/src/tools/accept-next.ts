@@ -138,7 +138,10 @@ function regionNext(
       next: nextCall("travel", { to: trigger }),
     };
   if (quest.counted !== false && farFrom(ctx, region.to))
-    return { detail: pointed, next: nextCall("travel", { to: region.to }) };
+    return {
+      detail: pointed,
+      next: nextCall("journal", { about: "quests" }),
+    };
 }
 
 function pointOf(to: string): { x: number; y: number } | undefined {

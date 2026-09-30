@@ -116,7 +116,7 @@ describe("accept with a quest region", () => {
     expect(res.detail).toContain("objective region");
     expect(res.next).toBe('travel(to: "-9843.54, 127.53")');
   });
-  test("names the quest region when the objective is far", async () => {
+  test("points at the journal's region when the objective is far", async () => {
     const { t } = await velan();
     const state = t.handle.getQuestState();
     t.handle.getQuestState = () => ({
@@ -152,7 +152,7 @@ describe("accept with a quest region", () => {
       toolCtx<InteractAfter>(t),
     );
     expect(res.detail).toContain("objective region around 10385, -6316");
-    expect(res.next).toBe('travel(to: "10385, -6316")');
+    expect(res.next).toBe('journal(about: "quests")');
   });
 });
 describe("accept while the quest region is still pending", () => {
@@ -215,7 +215,7 @@ describe("accept while the quest region is still pending", () => {
       );
       await fakeMsUntilSettled(run, ANSWER_MS);
       const res = await run;
-      expect(res.next).toBe('travel(to: "10385, -6316")');
+      expect(res.next).toBe('journal(about: "quests")');
     });
   });
 
