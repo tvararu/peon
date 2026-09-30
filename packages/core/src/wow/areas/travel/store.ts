@@ -1,5 +1,6 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type {
+  ActivateTaxiReply,
   BinderConfirm,
   BindPoint,
   PlayerBound,
@@ -11,10 +12,16 @@ export const BIND_OFFER_TTL_MS = 60_000;
 
 export type TravelOffer = { npc: bigint; at: number };
 export type TravelBound = { binder: bigint; areaId: number; at: number };
+
 export type TravelMaster = {
   npc: bigint;
   node: number | undefined;
   known: boolean | undefined;
+};
+export type FlightPhase = "idle" | "requested" | "flying" | "landed";
+export type TravelFlight = {
+  phase: FlightPhase;
+  route: readonly number[] | undefined;
 };
 export type TravelState = {
   home: BindPoint | undefined;
@@ -26,6 +33,8 @@ export type TravelState = {
   learnedAt: number | undefined;
   mapPending: bigint | undefined;
   benchmark: boolean;
+  lastReply: string | undefined;
+  flight: TravelFlight;
 };
 export type TravelEvent =
   | ({ type: "bind_point"; reason: "login" | "bound" } & BindPoint)
@@ -34,7 +43,10 @@ export type TravelEvent =
   | { type: "taxi_node_status"; npc: bigint; known: boolean }
   | { type: "taxi_node_learned"; npc: bigint | undefined }
   | { type: "taxi_map"; npc: bigint; currentNode: number; knownCount: number }
-  | { type: "benchmark"; on: boolean };
+  | { type: "benchmark"; on: boolean }
+  | { type: "taxi_reply"; code: number; name: string }
+  | { type: "flight_started"; route: readonly number[] }
+  | { type: "flight_landed" };
 
 export type TravelStore = {
   snapshot: () => TravelState;
@@ -50,15 +62,20 @@ export type TravelStore = {
   receiveSelfFlags: (on: boolean) => void;
   beginMap: (npc: bigint) => void;
   endMap: () => void;
+  beginFlight: (route: readonly number[]) => void;
+  endFlight: () => void;
+  receiveActivateTaxiReply: (reply: ActivateTaxiReply) => void;
+  receiveFlightFlag: (on: boolean) => void;
   dispose: () => void;
 };
-
 type TaxiFields = {
   known: readonly number[] | undefined;
   masters: Map<bigint, TravelMaster>;
   learnedAt: number | undefined;
   mapPending: bigint | undefined;
   benchmark: boolean;
+  lastReply: string | undefined;
+  flight: TravelFlight;
 };
 
 function trackMaster(taxi: TaxiFields, npc: bigint): TravelMaster {
@@ -138,6 +155,42 @@ function receiveSelfFlags(
   events.emit({ type: "benchmark", on });
 }
 
+function enterFlying(taxi: TaxiFields, events: Emitter<[TravelEvent]>): void {
+  if (taxi.flight.phase === "flying") return;
+  taxi.flight = {
+    phase: "flying",
+    route: taxi.flight.route ? [...taxi.flight.route] : undefined,
+  };
+  events.emit({
+    type: "flight_started",
+    route: taxi.flight.route ? [...taxi.flight.route] : [],
+  });
+}
+
+function receiveActivateTaxiReply(
+  taxi: TaxiFields,
+  events: Emitter<[TravelEvent]>,
+  reply: ActivateTaxiReply,
+): void {
+  taxi.lastReply = reply.name;
+  events.emit({ type: "taxi_reply", code: reply.code, name: reply.name });
+  if (reply.name === "ok") enterFlying(taxi, events);
+}
+
+function receiveFlightFlag(
+  taxi: TaxiFields,
+  events: Emitter<[TravelEvent]>,
+  on: boolean,
+): void {
+  if (on) {
+    enterFlying(taxi, events);
+    return;
+  }
+  if (taxi.flight.phase !== "flying") return;
+  taxi.flight = { phase: "landed", route: undefined };
+  events.emit({ type: "flight_landed" });
+}
+
 type BindFields = {
   home: BindPoint | undefined;
   offer: TravelOffer | undefined;
@@ -160,6 +213,11 @@ function snapshotState(
     learnedAt: taxi.learnedAt,
     mapPending: taxi.mapPending,
     benchmark: taxi.benchmark,
+    lastReply: taxi.lastReply,
+    flight: {
+      phase: taxi.flight.phase,
+      route: taxi.flight.route ? [...taxi.flight.route] : undefined,
+    },
   };
 }
 
@@ -177,6 +235,8 @@ export function createTravelStore(now: () => number): TravelStore {
     learnedAt: undefined,
     mapPending: undefined,
     benchmark: false,
+    lastReply: undefined,
+    flight: { phase: "idle", route: undefined },
   };
 
   const freshOffer = () =>
@@ -216,6 +276,19 @@ export function createTravelStore(now: () => number): TravelStore {
     },
     endMap(): void {
       taxi.mapPending = undefined;
+    },
+    beginFlight(route: readonly number[]): void {
+      taxi.flight = { phase: "requested", route: [...route] };
+    },
+    endFlight(): void {
+      if (taxi.flight.phase === "requested")
+        taxi.flight = { phase: "idle", route: undefined };
+    },
+    receiveActivateTaxiReply(reply: ActivateTaxiReply): void {
+      receiveActivateTaxiReply(taxi, events, reply);
+    },
+    receiveFlightFlag(on: boolean): void {
+      receiveFlightFlag(taxi, events, on);
     },
     dispose(): void {
       events.clear();

@@ -2,6 +2,12 @@ import { dbcFiles, packDbc } from "#test-support/dbc";
 import type { DbcSource } from "#wow/dbc";
 import { PacketWriter } from "#wow/protocol/packet";
 
+export function travelActivateTaxiReplyBody(code: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(code);
+  return w.finish();
+}
+
 export function travelBindPointUpdateBody(init: {
   x: number;
   y: number;
