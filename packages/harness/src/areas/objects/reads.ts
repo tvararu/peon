@@ -50,7 +50,7 @@ const KIND_WORD: Record<number, string> = {
   32: "barber chair",
   33: "destructible building",
   34: "guild bank",
-}
+};
 
 export type ObjectRow = {
   ref: string;
@@ -76,7 +76,6 @@ export function isGameObjectEntity(
 ): entity is GameObjectEntity {
   return entity?.objectType === ObjectType.GAMEOBJECT;
 }
-
 
 export function objectRows({ handle, rt }: ViewCtx): ObjectRow[] {
   const { templates } = handle.objects.state() as ObjectsState;
