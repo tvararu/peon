@@ -1,0 +1,41 @@
+{
+  "botRisk": "high",
+  "budget": { "minutes": 20, "tools": 120, "turns": 40 },
+  "checks": [
+    {
+      "evidence": { "events": ["loot/open"], "ids": [161557] },
+      "expect": "GL has a loot/open row for a Milly's Harvest crate (entry 161557), so the agent opened a quest chest through the loop",
+      "id": "crate-opened",
+      "source": "game_log"
+    },
+    {
+      "evidence": { "events": ["loot/item"], "ids": [11119] },
+      "expect": "GL has a loot/item row for item 11119 (Milly's Harvest), so the loop took the quest loot",
+      "id": "harvest-looted",
+      "source": "game_log"
+    },
+    {
+      "evidence": { "truth": ["quests"] },
+      "expect": "T final quests hold 3904 as complete, or 3904 is in rewardedQuests",
+      "id": "quest-done",
+      "source": "truth"
+    }
+  ],
+  "field": "northshire-vineyards",
+  "id": "t4-objects-quest-loot",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 23,
+  "partner": null,
+  "preset": "elwynn10",
+  "setup": [
+    { "body": { "quest": 3904 }, "endpoint": "quest/add" },
+    {
+      "body": { "map": 0, "x": -9105, "y": -323, "z": 55 },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Milly Osworth asked you to gather Milly's Harvest from the crates in the Northshire vineyards. Open the crates near you until the quest is complete, then tell me how many you gathered.",
+  "tier": 4
+}
