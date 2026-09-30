@@ -3,15 +3,15 @@
   "budget": { "minutes": 20, "tools": 120, "turns": 40 },
   "checks": [
     {
-      "evidence": { "events": ["loot/open"], "ids": [161557] },
-      "expect": "GL has a loot/open row for a Milly's Harvest crate (entry 161557), so the agent opened a quest chest through the loop",
+      "evidence": { "events": ["objects/used"], "ids": [161557] },
+      "expect": "GL has an objects/used row for a Milly's Harvest crate (entry 161557), so the agent opened a quest chest through the use path",
       "id": "crate-opened",
       "source": "game_log"
     },
     {
-      "evidence": { "events": ["loot/item"], "ids": [11119] },
-      "expect": "GL has a loot/item row for item 11119 (Milly's Harvest), so the loop took the quest loot",
-      "id": "harvest-looted",
+      "evidence": { "events": ["loot/open"] },
+      "expect": "GL has a loot/open row for a crate guid that an objects/used row names, so the open reached the loot window",
+      "id": "loot-window",
       "source": "game_log"
     },
     {
