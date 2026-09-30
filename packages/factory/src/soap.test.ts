@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { rm, writeFile } from "node:fs/promises";
 import { serializeConfig } from "@peon/core/lib/config";
 import { scratchDir } from "@peon/core/test-support/scratch";
+import { factoryAccount } from "#factory/factory-account";
 import {
   accountAgeHours,
   accountName,
@@ -16,11 +17,7 @@ import {
   parseResponse,
   reserveNames,
 } from "#factory/soap";
-import {
-  factoryAccount,
-  pinfoAccount,
-  type SoapResult,
-} from "#factory/soap-copy";
+import { pinfoAccount, type SoapResult } from "#factory/soap-copy";
 
 describe("names", () => {
   test("account is FAC + 8 hex seconds + 2 random, uppercase", () => {
