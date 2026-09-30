@@ -19,7 +19,6 @@ import { result } from "#harness/tools/define";
 import { nextCall } from "#harness/tools/next-call";
 
 const GONE_WITHIN_MS = 2000;
-const AURA_MOUNTED = 78;
 const AFLAG_NEGATIVE = 0x80;
 const SPELL_ATTR0_PASSIVE = 0x40;
 const SPELL_ATTR0_NO_AURA_CANCEL = 0x80_00_00_00;
@@ -41,18 +40,12 @@ function hasBit(bits: number | undefined, mask: number): boolean {
   return Math.floor(unsigned / mask) % 2 === 1;
 }
 
-export function isMountAura(handle: Game, spellId: number): boolean {
-  const effects = handle.spellDefinition(spellId)?.effects ?? [];
-  return effects.some((effect) => effect.applyAura === AURA_MOUNTED);
-}
-
 export function isCancellable(handle: Game, aura: CombatAura): boolean {
   const attributes = handle.spellDefinition(aura.spellId)?.attributes;
   return !(
     hasBit(aura.flags, AFLAG_NEGATIVE) ||
     hasBit(attributes?.raw, SPELL_ATTR0_PASSIVE) ||
-    hasBit(attributes?.raw, SPELL_ATTR0_NO_AURA_CANCEL) ||
-    isMountAura(handle, aura.spellId)
+    hasBit(attributes?.raw, SPELL_ATTR0_NO_AURA_CANCEL)
   );
 }
 
@@ -112,12 +105,6 @@ export async function cancelAuraFlow(
       reason: "missing_spell",
     });
   const spell = await auraSpell(ctx, args.spell);
-  if (isMountAura(handle, spell.id))
-    throw new Refusal({
-      detail: `${spell.name} is a mount. Cancelling it is dismounting.`,
-      next: nextCall("spell", { do: "dismount" }),
-      reason: "use_dismount",
-    });
   const after: SpellAfter = {
     do: "cancel_aura",
     slot: undefined,

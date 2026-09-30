@@ -51,11 +51,15 @@ describe("journal about spells", () => {
       ],
     });
     const out = await runTool(tool, { about: "spells" });
-    expect(out.text.split("\n").slice(1, 2)).toEqual([
+    expect(out.text.split("\n").slice(1, 3)).toEqual([
       "Aura you can cancel: Frost Armor (spell 168).",
+      "Aura you can cancel: Brown Horse (spell 458).",
     ]);
     expect(out.details.result.after).toMatchObject({
-      auras: [{ name: "Frost Armor", spellId: 168 }],
+      auras: [
+        { name: "Frost Armor", spellId: 168 },
+        { name: "Brown Horse", spellId: 458 },
+      ],
     });
   });
 

@@ -97,19 +97,19 @@ describe("spell do:cancel_aura", () => {
     expect(out.status).toBe("DONE");
   });
 
-  test("a mount aura is REFUSED use_dismount and sends nothing", async () => {
+  test("a mount aura is cancelled like any cancellable aura", async () => {
     const mount = mountAura();
     const t = await spellWorld({
       auras: [mount.aura],
       definitions: [mount.spell],
     });
-    const act = jest.spyOn(t.handle.spells.act, "cancelAura");
-    const refused = await refusal(
-      spellSpec.run({ do: "cancel_aura", spell: "Brown Horse" }, toolCtx(t)),
+    const act = removesAura(t);
+    const out = await spellSpec.run(
+      { do: "cancel_aura", spell: "Brown Horse" },
+      toolCtx(t),
     );
-    expect(refused.reason).toBe("use_dismount");
-    expect(refused.next).toContain("dismount");
-    expect(act).not.toHaveBeenCalled();
+    expect(out.status).toBe("DONE");
+    expect(act).toHaveBeenCalledWith(mount.spell.id);
   });
 
   test("an act refusal becomes REFUSED with the same reason", async () => {
