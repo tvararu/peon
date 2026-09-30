@@ -46,7 +46,7 @@
   ],
   "preset": "eversong10",
   "setup": [],
-  "spawn": "eversong-west",
+  "spawn": "eversong-ready",
   "steers": [],
   "task": "Join the group you are invited to. Put a skull on the nearest Springpaw Lynx and tell the group in party chat.",
   "tier": 9
