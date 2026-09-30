@@ -18,7 +18,7 @@ export const TRAVEL_OPCODES = {
     "CMSG_MOVE_SPLINE_DONE",
     "SMSG_FLIGHT_SPLINE_SYNC",
   ],
-  uses: [],
+  uses: ["SMSG_SHOWTAXINODES"],
   stubs: [],
   dead: ["SMSG_FLIGHT_SPLINE_SYNC"],
   unseen: [],

@@ -4,6 +4,8 @@ import {
   travelBinderConfirmBody,
   travelBindPointUpdateBody,
   travelPlayerBoundBody,
+  travelShowTaxiNodesBody,
+  travelTaxiNodeStatusBody,
 } from "#test-support/areas/travel";
 import { areaStubs } from "#wow/areas/compose";
 import type { TravelEvent } from "#wow/areas/travel/store";
@@ -36,6 +38,11 @@ describe("travel store", () => {
         offer: undefined,
         lastBound: undefined,
         bindPending: undefined,
+        known: undefined,
+        masters: [],
+        learnedAt: undefined,
+        mapPending: undefined,
+        benchmark: false,
       });
     } finally {
       rig.dispose();
@@ -157,6 +164,130 @@ describe("travel store", () => {
           ([opcode]) => opcode === GameOpcode.SMSG_BINDPOINTUPDATE,
         ),
       ).toBe(false);
+    } finally {
+      rig.dispose();
+    }
+  });
+});
+
+const TAXI_MASTER = 0xf1_30_00_3d_c1_00_04_57n;
+
+function maskOf(...nodes: number[]): number[] {
+  const words = new Array<number>(14).fill(0);
+  for (const node of nodes) {
+    const word = Math.floor((node - 1) / 32);
+    words[word] = ((words[word] ?? 0) | (1 << ((node - 1) % 32))) >>> 0;
+  }
+  return words;
+}
+
+describe("travel store: taxi", () => {
+  test("a taxi map sets known, the master node and emits taxi_map; a stub saw the legacy body first", () => {
+    let legacy: { prefix: number; npc: bigint } | undefined;
+    const rig = areaRig("travel", {
+      register: (dispatch) => {
+        dispatch.on(GameOpcode.SMSG_SHOWTAXINODES, (r) => {
+          legacy = { prefix: r.uint32LE(), npc: r.uint64LE() };
+        });
+      },
+    });
+    const seen: TravelEvent[] = [];
+    rig.handle.onEvent((event) => seen.push(event));
+    try {
+      rig.inject(
+        GameOpcode.SMSG_SHOWTAXINODES,
+        travelShowTaxiNodesBody({
+          npc: TAXI_MASTER,
+          currentNode: 83,
+          mask: maskOf(82, 83),
+        }),
+      );
+      expect(legacy).toEqual({ prefix: 1, npc: TAXI_MASTER });
+      expect(rig.handle.state().known).toEqual([82, 83]);
+      expect(rig.handle.state().masters).toEqual([
+        { npc: TAXI_MASTER, node: 83, known: undefined },
+      ]);
+      expect(seen).toEqual([
+        { type: "taxi_map", npc: TAXI_MASTER, currentNode: 83, knownCount: 2 },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("known is undefined until the first map", () => {
+    const { rig } = rigAt();
+    try {
+      expect(rig.handle.state().known).toBeUndefined();
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a node status sets the master known flag and emits taxi_node_status", () => {
+    const { rig, seen } = rigAt();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_TAXINODE_STATUS,
+        travelTaxiNodeStatusBody({ npc: TAXI_MASTER, known: true }),
+      );
+      expect(rig.handle.state().masters).toEqual([
+        { npc: TAXI_MASTER, node: undefined, known: true },
+      ]);
+      expect(seen).toEqual([
+        { type: "taxi_node_status", npc: TAXI_MASTER, known: true },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a new taxi path sets learnedAt and emits taxi_node_learned with the pending map npc", () => {
+    const { rig, seen, advance } = rigAt();
+    try {
+      rig.stores.areas.travel.beginMap(TAXI_MASTER);
+      advance(250);
+      rig.inject(GameOpcode.SMSG_NEW_TAXI_PATH, new Uint8Array(0));
+      expect(rig.handle.state().learnedAt).toBe(1250);
+      expect(seen).toEqual([
+        { type: "taxi_node_learned", npc: TAXI_MASTER },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a new taxi path without a pending map request emits taxi_node_learned with no npc", () => {
+    const { rig, seen } = rigAt();
+    try {
+      rig.inject(GameOpcode.SMSG_NEW_TAXI_PATH, new Uint8Array(0));
+      expect(seen).toEqual([{ type: "taxi_node_learned", npc: undefined }]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a self update gaining PLAYER_FLAGS 0x20000 sets benchmark and emits it", () => {
+    const me = 0xf1_00_00_3e_4a_00_12_34n;
+    const rig = areaRig("travel", {
+      selfGuid: me,
+      getEntity: () => ({
+        guid: me,
+        objectType: 4,
+        entry: 0,
+        scale: 0,
+        position: undefined,
+        rawFields: new Map([[59, 0x2_00_00]]),
+        name: undefined,
+        createComplete: true,
+      }),
+    });
+    const seen: TravelEvent[] = [];
+    rig.handle.onEvent((event) => seen.push(event));
+    try {
+      rig.stores.areas.travel.receiveSelfFlags(true);
+      expect(rig.handle.state().benchmark).toBe(true);
+      expect(seen).toEqual([{ type: "benchmark", on: true }]);
     } finally {
       rig.dispose();
     }
