@@ -206,7 +206,7 @@ export function characterName(account: string): string {
     const tail = name.slice(-2).toLowerCase();
     name +=
       tail.length === 2 && tail[0] === tail[1] && tail[1] === letter
-        ? String.fromCharCode(97 + ((letter.charCodeAt(0) - 97 + 1) % 16))
+        ? "z"
         : letter;
   }
   return name;

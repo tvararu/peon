@@ -25,8 +25,9 @@ describe("names", () => {
     expect(accountName(0x1, "0f")).toBe("FAC000000010F");
   });
 
-  test("character maps hex digits to a-p", () => {
+  test("character maps hex digits to a-p, escaping a triple third as z", () => {
     expect(characterName("FAC6AB6E05F5A")).toBe("Fgklgoafpfk");
+    expect(characterName("FAC6ABBB00012")).toBe("Fgkllzaazbc");
   });
 
   test("new names match the sweep regex and carry the time", () => {
@@ -57,6 +58,23 @@ describe("names", () => {
         const account = accountName(s, random);
         expect(hasTriple(characterName(account))).toBe(false);
       }
+  });
+
+  test("accounts that differ only around a triple keep distinct characters", () => {
+    expect(characterName("FAC6ABBB00012")).not.toBe(
+      characterName("FAC6ABBB00112"),
+    );
+  });
+
+  test("every random byte in a triple window has its own character", () => {
+    for (const s of [0x6a_bb_b0_00, 0x6a_bb_bb_bb, 0x55_55_55_55, 0]) {
+      const seen: Record<string, true> = {};
+      for (let byte = 0; byte < 256; byte++) {
+        const random = byte.toString(16).padStart(2, "0");
+        seen[characterName(accountName(s, random))] = true;
+      }
+      expect(Object.keys(seen).length).toBe(256);
+    }
   });
 
   test("password is 16 alphanumerics", () => {

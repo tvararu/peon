@@ -60,8 +60,9 @@ library from `mise namigator:build`. The account's config connects to the
 Account names hold the creation second and one random byte, so two
 creates in the same second can pick the same name; create then retries
 with fresh names, up to eight times. The character name maps each hex
-digit to a letter, bumping the third letter of a triple to the next one,
-so names always carry the creation second.
+digit to a letter, escaping the third letter of a triple as `z`, so
+distinct accounts keep distinct characters and names always carry the
+creation second.
 
 Presets: `fresh`, `eversong10`, `max80`, `eversong10-warrior`,
 `eversong10-mage`, `eversong10-hunter`, `ghostlands20` (Horde), `elwynn1`,
