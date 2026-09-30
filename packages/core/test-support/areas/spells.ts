@@ -1,4 +1,5 @@
 import { PacketWriter } from "#wow/protocol/packet";
+import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
 
 export function spellsChannelStartBody(init: {
   caster: bigint;
@@ -158,4 +159,35 @@ export function spellsTotemCreatedBody(init: {
   w.uint32LE(init.duration);
   w.uint32LE(init.spell);
   return w.finish();
+}
+
+export type SkillField = {
+  readonly id: number;
+  readonly step: number;
+  readonly value: number;
+  readonly max: number;
+  readonly temp: number;
+  readonly perm: number;
+};
+
+export function spellsSkillFields(
+  skills: readonly SkillField[],
+): Map<number, number> {
+  const raw = new Map<number, number>();
+  for (const [slot, skill] of skills.entries()) {
+    raw.set(
+      PLAYER_FIELDS.SKILL_INFO.offset + slot * 3,
+      ((skill.step & 0xff_ff) << 16) | (skill.id & 0xff_ff),
+    );
+    raw.set(
+      PLAYER_FIELDS.SKILL_INFO.offset + slot * 3 + 1,
+      ((skill.max & 0xff_ff) << 16) | (skill.value & 0xff_ff),
+    );
+    raw.set(
+      PLAYER_FIELDS.SKILL_INFO.offset + slot * 3 + 2,
+      (((skill.perm + 0x1_00_00) & 0xff_ff) << 16) |
+        ((skill.temp + 0x1_00_00) & 0xff_ff),
+    );
+  }
+  return raw;
 }
