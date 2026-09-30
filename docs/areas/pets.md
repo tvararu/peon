@@ -143,13 +143,27 @@ corpse (`Handlers/PetHandler.cpp:287-294`).
   (`Handlers/PetHandler.cpp:1112-1126`); the area maps the reason number to
   the server's `PetNameInvalidReason` names (`too_short`, `too_long` and the
   rest). A successful rename sends no
-  packet: the server clears `UNIT_CAN_BE_RENAMED` and bumps
-  `UNIT_FIELD_PET_NAME_TIMESTAMP` (`Handlers/PetHandler.cpp:859-929`), whose
-  field update triggers the next name query. `pets.renamePet(name)` returns
-  `not_renamable` when the pet's rename bit is clear and otherwise sends,
-  then waits 5 s for the newer `name` or a `name_invalid`; silence emits
-  `unanswered` with `request: "rename"` through the store.
+  packet: the server clears `UNIT_CAN_BE_RENAMED` and rewrites
+  `UNIT_FIELD_PET_NAME_TIMESTAMP` from seconds-resolution game time
+  (`Handlers/PetHandler.cpp:859-929`), so a rename inside the load's second
+  keeps the same timestamp. The rename-bit transition triggers the next name
+  query even at the same timestamp, and the rename wait confirms on the
+  requested name as well as on a newer timestamp. `pets.renamePet(name)`
+  returns `not_renamable` when the pet's rename bit is clear and otherwise
+  sends, then waits 5 s for the matching `name` or a `name_invalid`; silence
+  emits `unanswered` with `request: "rename"` through the store. A second
+  `renamePet` cancels the earlier wait, so only the newest request can emit
+  `unanswered`.
+- `CMSG_PET_CANCEL_AURA` is the pet guid and the `uint32` spell
+  (`Handlers/SpellHandler.cpp:604-610`); the server removes only an
+  aura the pet owns (`Handlers/SpellHandler.cpp:639`).
 - The area peeks `SMSG_SPELL_COOLDOWN` (guid, flags, spell and time
+  per entry, `Entities/Unit/Unit.cpp:16618-16625`) and
+  `SMSG_CLEAR_COOLDOWN` (spell then pet guid, `Entities/Pet/Pet.cpp:2458`)
+  for the pet's guid only; both are `uses`, owned at
+  `gameplay-handlers.ts:123-128`. The pet's normal cooldowns arrive in
+  `SMSG_PET_SPELLS`; a pet-guid `SMSG_SPELL_COOLDOWN` is only sent when
+  `RequireCooldownInfo()` holds (`Spells/Spell.cpp:4493-4498`). `SMSG_SPELL_COOLDOWN` carries no category, so an update keeps the row `SMSG_PET_SPELLS` filled and a new spell starts at category 0.
 
 ## Left out
 
@@ -231,6 +245,8 @@ new `name` or a `name_invalid` before the store reports `unanswered`.
 | `CMSG_PET_SPELL_AUTOCAST` | `live` | probe flow `pets-spell --arg autocast=Bite:on --bodies`, exit 0: 13-byte `CMSG_PET_SPELL_AUTOCAST` (spell 17255, flag 1), and the next 144-byte `SMSG_PET_SPELLS` shows Bite as type `0xc1` where it was `0x81` before | `Server/Packets/PetPackets.cpp:35-40` |
 | `CMSG_PET_SET_ACTION` | `live` | probe flow `pets-spell --arg swap=3,4 --bodies`, exit 0: the flow asks for the bar again first, then one 24-byte `CMSG_PET_SET_ACTION` (slot 3 packed `0xc1004367`, slot 4 packed `0x81003a44`); the next `SMSG_PET_SPELLS` shows slots 3 and 4 swapped (Growl `0x81003a44` and Bite `0xc1004367` exchange places) | `Handlers/PetHandler.cpp:696-716` |
 | `CMSG_PET_CANCEL_AURA` | `accepted` | `--send CMSG_PET_CANCEL_AURA` with the pet guid and spell 17255 (Bite), exit 3 for the missing `--expect SMSG_PET_ACTION_FEEDBACK` only: the 12-byte send went out, no disconnect and no error packet; the server removes only an aura the pet owns, and the pet had none | `Handlers/SpellHandler.cpp:604-610` |
+| `SMSG_SPELL_COOLDOWN` (pets peek) | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "a pet-guid SMSG_SPELL_COOLDOWN sets a pet cooldown and the character's guid changes nothing"; no pet-guid packet arrived live (Growl casts failed before any cooldown; sent only when `RequireCooldownInfo()` holds). A `uses` opcode takes no `unseen` entry | `Entities/Unit/Unit.cpp:16618-16625` |
+| `SMSG_CLEAR_COOLDOWN` (pets peek) | `mock` | `packages/core/src/wow/areas/pets/store.test.ts` "SMSG_CLEAR_COOLDOWN clears only the pet's row for its own guid"; no pet-guid packet arrived live. A `uses` opcode takes no `unseen` entry | `Entities/Pet/Pet.cpp:2458` |
 | `CMSG_PET_NAME_QUERY` | `live` | probe flow `pets-bar` on an `eversong10-hunter` (`--expect SMSG_PET_NAME_QUERY_RESPONSE`): four 12-byte `CMSG_PET_NAME_QUERY` out, four 17-byte `SMSG_PET_NAME_QUERY_RESPONSE` in | `Handlers/PetHandler.cpp:616-627` |
 | `SMSG_PET_NAME_QUERY_RESPONSE` | `live` | the same `pets-bar` run: four replies, each naming the hunter pet (pet number 3711, "Ravager") with its name timestamp, parsed into `names[3711]` | `Handlers/PetHandler.cpp:656-668` |
 | `CMSG_PET_RENAME` | `live` | probe flow `pets-name --arg rename=Fangtooth` on the same account: one 19-byte `CMSG_PET_RENAME` out, and `soap gm read pet` afterwards names the pet Fangtooth; the rename cleared `UNIT_CAN_BE_RENAMED`, so a later `pets-name --arg rename=Rex` returns `not_renamable` with nothing sent | `Handlers/PetHandler.cpp:846-852` |

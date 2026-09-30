@@ -69,7 +69,6 @@ function requestPetInfo(ctx: Ctx): { ok: true } {
 const RENAME_TIMEOUT_MS = 5000;
 
 type NameQuery = { guid: bigint; number: number; timestamp: number };
-
 function sendNameQuery(ctx: Ctx, store: PetsStore, query: NameQuery): void {
   if (query.number === 0) return;
   if (store.nameStale(query.number, query.timestamp))
@@ -80,6 +79,22 @@ function sendNameQuery(ctx: Ctx, store: PetsStore, query: NameQuery): void {
 }
 
 type PendingRename = { abort: () => void };
+
+function refreshOnTransition(
+  ctx: Ctx,
+  store: PetsStore,
+  wasRenamable: boolean,
+  guid: bigint,
+  number: number,
+  timestamp: number,
+): boolean {
+  const { pet } = store.snapshot();
+  const renamable = pet?.canRename ?? wasRenamable;
+  if (wasRenamable && !renamable)
+    ctx.send(GameOpcode.CMSG_PET_NAME_QUERY, buildPetNameQuery(number, guid));
+  else sendNameQuery(ctx, store, { guid, number, timestamp });
+  return renamable;
+}
 
 function queryPetNameAct(ctx: Ctx, store: PetsStore): PetsActResult {
   const { bar, pet } = store.snapshot();
@@ -102,24 +117,26 @@ function renamePetAct(
   if (!pet.canRename) return { ok: false, reason: "not_renamable" };
   const baseline = pet.nameTimestamp;
   const number = pet.number;
+  const scope = new AbortController();
   pending.abort();
   const waiter = ctx.until(
     (event) =>
       (event.type === "name" &&
         event.name.number === number &&
-        event.name.timestamp > baseline) ||
+        (event.name.timestamp > baseline || event.name.name === name)) ||
       event.type === "name_invalid",
-    { signal: ctx.signal, timeoutMs: RENAME_TIMEOUT_MS },
+    { signal: scope.signal, timeoutMs: RENAME_TIMEOUT_MS },
   );
   const onAbort = () => {
     waiter.catch(() => undefined).then(() => undefined);
+    scope.abort();
   };
   pending.abort = onAbort;
   ctx.send(GameOpcode.CMSG_PET_RENAME, buildPetRename(bar.guid, name));
   void waiter.then(
     () => undefined,
     (error: unknown) => {
-      if (ctx.signal.aborted) return;
+      if (scope.signal.aborted || ctx.signal.aborted) return;
       if (error instanceof Error && error.message === "timeout")
         store.unanswered();
     },
@@ -139,26 +156,35 @@ function nameActs(
 }
 
 function observeNames(ctx: Ctx, store: PetsStore): () => void {
+  let renamable: boolean | undefined;
+  const track = (): void => {
+    const { bar, pet } = store.snapshot();
+    if (!(bar && pet)) {
+      renamable = undefined;
+      return;
+    }
+    renamable = refreshOnTransition(
+      ctx,
+      store,
+      renamable ?? pet.canRename,
+      bar.guid,
+      pet.number,
+      pet.nameTimestamp,
+    );
+  };
   const offStore = store.onEvent((event) => {
-    if (event.type !== "bar" || event.cleared) return;
-    const { pet } = store.snapshot();
-    if (!pet) return;
-    sendNameQuery(ctx, store, {
-      guid: event.bar.guid,
-      number: pet.number,
-      timestamp: pet.nameTimestamp,
-    });
+    if (event.type !== "bar" || event.cleared) {
+      if (event.type === "bar") renamable = undefined;
+      return;
+    }
+    track();
   });
   const offEntity = ctx.listen("entity", (event) => {
     if (event.type === "disappear") return;
     const entity: Entity = event.entity;
-    const { bar, pet } = store.snapshot();
-    if (!(bar && pet) || entity.guid !== bar.guid) return;
-    sendNameQuery(ctx, store, {
-      guid: bar.guid,
-      number: pet.number,
-      timestamp: pet.nameTimestamp,
-    });
+    const { bar } = store.snapshot();
+    if (!bar || entity.guid !== bar.guid) return;
+    track();
   });
   return () => {
     offStore();
