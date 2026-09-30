@@ -29,6 +29,21 @@ The act `setStandState` sends `CMSG_STANDSTATECHANGE` for stand, sit,
 sleep or kneel and settles `ok` on the reply, `refused` with
 `invalid_state` for any other state, or `no_answer` after 2 s.
 
+The store reads the mount from the self `UNIT_FIELD_FLAGS` and
+`UNIT_FIELD_MOUNTDISPLAYID`: `mounted` is the `UNIT_FLAG_MOUNT` bit with a
+non-zero display id, and either alone is not a mount. The first reading,
+such as a login while mounted, sets the state without an event. Each
+change fires `mounted` (with the display id) or `dismounted`, and both
+carry `taxi`, true when `TAXI_FLIGHT` is set in the update that mounts or
+in the state before the one that dismounts, since a taxi flight mounts the
+character too. A self `SMSG_DISMOUNT` clears the state at once, so the
+field update that follows adds no second event. `SMSG_MOUNTSPECIAL_ANIM`
+for another guid fires `mount_anim`. The act `dismount` refuses
+`not_mounted` and then `in_flight` without a send, otherwise sends the
+empty `CMSG_CANCEL_MOUNT_AURA` and settles `ok` on `dismounted` or
+`no_answer` after 2 s. The act `mountSpecialAnim` refuses `not_mounted`,
+otherwise sends the empty `CMSG_MOUNTSPECIAL_ANIM`.
+
 The harness area turns the breath and transfer events into game-log rows:
 a started breath timer wakes the agent with `selfstate/under_water` and
 the seconds left, the stop logs `selfstate/surfaced`, `breath_low` wakes
@@ -37,7 +52,9 @@ it to surface, and a refused transfer wakes it with
 `stand_changed` and `ghost_pending` write no row, and reattaching with a
 draining breath timer rewrites the under-water row. `self_res_available`
 logs `selfstate/self_res_available`: "You can come back where you died
-(<name>)."
+(<name>)." `mounted` and `dismounted` log `selfstate/mounted` and
+`selfstate/dismounted`, except for a taxi flight, which `travel` already
+describes; `dismount` is a world act.
 
 ## Wire notes
 
@@ -161,8 +178,20 @@ logs `selfstate/self_res_available`: "You can come back where you died
   `queryCorpseMapPosition` sends the query and settles `ok` with the four
   floats or `no_answer` after 3 s. Live: sent `00000000` (4 bytes),
   received 32 zero hex chars (16 bytes).
-- `CMSG_CANCEL_MOUNT_AURA`, `SMSG_DISMOUNT`, `CMSG_MOUNTSPECIAL_ANIM` and
-  `SMSG_MOUNTSPECIAL_ANIM`: built by `self-state-6`.
+- `UNIT_FLAG_MOUNT` is 0x08000000 (`Entities/Unit/UnitDefines.h:284`).
+
+- `Unit::Dismount` clears `UNIT_FIELD_MOUNTDISPLAYID` and the flag, then
+  sends `SMSG_DISMOUNT`, a packed guid, to the set including the rider
+  (`Entities/Unit/Unit.cpp:10283-10303`). The height packet comes first
+  and the field update last, so the store also clears on the packet.
+- `CMSG_CANCEL_MOUNT_AURA` is empty. The server answers a character on
+  foot or in flight with a system message and nothing else, and otherwise
+  dismounts and removes the mount auras
+  (`Handlers/MiscHandler.cpp:1475-1494`).
+- `SMSG_MOUNTSPECIAL_ANIM` is a full `u64` guid, not packed. The server
+  relays the empty `CMSG_MOUNTSPECIAL_ANIM` to the set without the sender,
+  so the rider never sees its own packet and `mount_anim` needs a witness
+  (`Handlers/MovementHandler.cpp:816-822`).
 - `SMSG_CROSSED_INEBRIATION_THRESHOLD`: built by `self-state-8`.
 
 ## Capabilities row
@@ -201,4 +230,8 @@ tasks.
 | `SMSG_TRANSFER_ABORTED` | `mock` | `store.test.ts` transfer-aborted tests; one live try teleported into a non-raid dungeon and gave no abort, since GM tele bypasses `PlayerCannotEnter` (not seen live) | `Entities/Player/Player.cpp:11956-11972` |
 | `CMSG_SELF_RES` | `mock` | `runtime-selfres.test.ts` send/refusal/timeout/dispose cases from the writer shape; two live tries on a `fresh` level-1 character at Fairbreeze never died, and the spell was not known: the login `SMSG_INITIAL_SPELLS` had 39 spells without Reincarnation 20608 and no `SMSG_LEARNED_SPELL` arrived, while the Ankh 17030 was present (not seen live; runs not committed) | `Handlers/SpellHandler.cpp:707-721` |
 | `CMSG_CORPSE_MAP_POSITION_QUERY` | `live` | probe `--send CMSG_CORPSE_MAP_POSITION_QUERY --body 00000000 --expect SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE --bodies` on a `fresh` character, exit 0; sent `00000000` (4 bytes, not committed) | `Server/Packets/QueryPackets.cpp:55-58` |
+| `CMSG_CANCEL_MOUNT_AURA` | `live` | probe flow `selfstate-mount` on a throwaway `max80` Blood Elf priest teleported to Durotar (Dalaran refuses the cast as indoors) with 33388 and 458 staged offline via `spells/learn`, exit 0; `act.dismount()` sent the empty packet (0 bytes) and settled `ok` (trace not committed) | `Handlers/MiscHandler.cpp:1475-1494` |
+| `SMSG_DISMOUNT` | `live` | the same run; received `032411` (packed guid of the rider) after the second `SMSG_MOVE_SET_COLLISION_HGT`, and the store emitted one `dismounted` | `Entities/Unit/Unit.cpp:10283-10303` |
+| `CMSG_MOUNTSPECIAL_ANIM` | `live` | partner B on a second `max80` in the same Durotar spot ran `selfstate-mount --arg special=1`, exit 0; sent the empty packet once after mounting and the flow reported `special: ok` (trace not committed) | `Handlers/MovementHandler.cpp:816-822` |
+| `SMSG_MOUNTSPECIAL_ANIM` | `live` | partner A, watching with `--wait 45 --expect SMSG_MOUNTSPECIAL_ANIM`, exit 0; received `2511000000000000` (8 bytes, B's guid as a full `u64`) in the same millisecond B sent the request (trace not committed) | `Handlers/MovementHandler.cpp:816-822` |
 | `SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE` | `live` | the same run; received 32 zero hex chars (16 bytes, not committed) | `Handlers/QueryHandler.cpp:399-409` |

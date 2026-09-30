@@ -826,7 +826,7 @@ and `packages/harness/src/tools/params.ts` (contract issue 6).
 
 **Steps:**
 
-- [ ] **Step 1: Failing tests.**
+- [x] **Step 1: Failing tests.**
   - `SMSG_DISMOUNT` is a packed guid (`Entities/Unit/Unit.cpp:10301-10303`);
     `SMSG_MOUNTSPECIAL_ANIM` a full `u64` guid
     (`Handlers/MovementHandler.cpp:818-821`).
@@ -842,15 +842,15 @@ and `packages/harness/src/tools/params.ts` (contract issue 6).
   - `act.mountSpecialAnim()` refuses `not_mounted`, else sends the empty
     opcode (reader `MovementHandler.cpp:816-822`).
   - Another guid's `SMSG_MOUNTSPECIAL_ANIM` emits `mount_anim`.
-- [ ] **Step 2: Implement.**
-- [ ] **Step 3:** tests, typecheck, coverage, `mise ci:checks`.
-- [ ] **Step 4: Live proof.** Two `max80` accounts A and B at one point,
+- [x] **Step 2: Implement.**
+- [x] **Step 3:** tests, typecheck, coverage, `mise ci:checks`.
+- [x] **Step 4: Live proof.** Two `max80` accounts A and B at one point,
   both with riding and a mount learned offline. A:
   `--flow selfstate-mount` (mount, then `act.dismount()`) with
   `--expect SMSG_DISMOUNT`. B mounted sends
   `tmp/puppet-B raw CMSG_MOUNTSPECIAL_ANIM` (T-7) while A runs
   `--wait 60 --expect SMSG_MOUNTSPECIAL_ANIM`.
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   Subject: `feat: Add dismount and mount state`
   Body: `A mounted character cannot cast or use items, and Peon had no way down. The selfstate area now reads the mount fields and sends the dismount request.`
 
