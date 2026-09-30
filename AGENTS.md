@@ -47,6 +47,8 @@ Run everything through the `mise.toml` tasks as `mise <task>`, never
 `bun <script>` or `mise run`.
 
 - `mise bundle`: install dependencies and git hooks.
+- `mise omp:link-config`: in a worktree, link `.omp/config.yml` to the
+  main checkout's copy; the `orca.yaml` setup runs it.
 - `mise test [file]`, `mise test:coverage`, `mise test:slowest`.
 - `mise typecheck [package]`, `mise format[:fix] [path]`,
   `mise lint[:fix] [path]`, `mise lint:docs`.
@@ -137,8 +139,11 @@ Run everything through the `mise.toml` tasks as `mise <task>`, never
 
 - Create one with `orca-ide worktree create --name <name>
   --parent-worktree active --comment "owner: <agent>, <purpose>" --agent
-  omp`. `orca.yaml` runs the setup. Remove it with `orca-ide worktree rm
-  --worktree name:<name>`, then `git branch -D`, once the work has landed.
+  omp`. `orca.yaml` runs the setup, which also links the worktree's
+  `.omp/config.yml` to the main checkout's copy (`mise omp:link-config`),
+  where the maintainer keeps local model and agent overrides. Remove it
+  with `orca-ide worktree rm --worktree name:<name>`, then `git branch
+  -D`, once the work has landed.
 - Every worktree has one owner, and the maintainer must never find stale
   worktrees or idle agents. Commit and push before you stop. Factory runs
   never create worktrees.
