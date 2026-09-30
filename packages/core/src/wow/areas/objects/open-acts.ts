@@ -1,9 +1,6 @@
 import { ignoreFailure } from "#lib/ignore-failure";
 import type { AreaRuntimeCtx } from "#wow/areas/contract";
-import {
-  type DisplayBounds,
-  loadDisplayCatalog,
-} from "#wow/areas/objects/display-catalog";
+import { loadDisplayCatalog } from "#wow/areas/objects/display-catalog";
 import {
   type LockCatalog,
   type LockEntry,
@@ -286,23 +283,12 @@ export function loadDisplays(
 ): void {
   const { dbc, signal } = ctx;
   if (!dbc) return;
-  loadDisplayCatalog(dbc)
-    .then(
-      (catalog) => {
-        if (!signal.aborted) store.useDisplays(catalog);
-      },
-      () => undefined,
-    )
-    .catch(ignoreFailure);
-}
-
-export function boundsFor(
-  store: Pick<ObjectsStore, "displayOf" | "boundsOf">,
-  entry: number,
-): DisplayBounds | undefined {
-  const displayId = store.displayOf(entry);
-  if (displayId === undefined) return undefined;
-  return store.boundsOf(displayId);
+  loadDisplayCatalog(dbc).then(
+    (catalog) => {
+      if (!signal.aborted) store.useDisplays(catalog);
+    },
+    () => undefined,
+  );
 }
 
 export function loadLocks(

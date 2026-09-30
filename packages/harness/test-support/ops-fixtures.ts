@@ -132,7 +132,13 @@ export function objectRow(init: {
     guid: init.guid,
     name: init.name,
     objectType: ObjectType.GAMEOBJECT,
-    position: { mapId: MAP_ID, orientation: 0, x: init.x, y: init.y, z: init.z ?? 0 },
+    position: {
+      mapId: MAP_ID,
+      orientation: 0,
+      x: init.x,
+      y: init.y,
+      z: init.z ?? 0,
+    },
     rawFields: new Map(),
     scale: 1,
   };

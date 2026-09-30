@@ -1,6 +1,5 @@
 import {
   type AreaState,
-  type DisplayBounds,
   type Entity,
   extractGameObjectFields,
   type GameObjectEntity,
@@ -9,6 +8,7 @@ import {
 } from "@peon/core";
 import type { ViewCtx } from "#harness/contract/services";
 import type { UnitView } from "#harness/contract/views";
+import { baseReachYd } from "#harness/areas/objects/reach";
 import { compassOf } from "#harness/ops/views";
 
 const OBJECT_REF = /^o[1-9]\d*$/;
@@ -50,29 +50,7 @@ const KIND_WORD: Record<number, string> = {
   32: "barber chair",
   33: "destructible building",
   34: "guild bank",
-};
-
-const REACH_YD: Record<number, number> = {
-  0: 5,
-  2: 5.555_555_3,
-  4: 10,
-  7: 3,
-  9: 5.555_555_3,
-  12: 0,
-  13: 5,
-  14: 5,
-  15: 5,
-  17: 100,
-  19: 10,
-  24: 5.555_555_3,
-  25: 20.5,
-  26: 5.555_555_3,
-  27: 5.555_555_3,
-  31: 5,
-  32: 3,
-  33: 5,
-  34: 10,
-};
+}
 
 export type ObjectRow = {
   ref: string;
@@ -99,19 +77,6 @@ export function isGameObjectEntity(
   return entity?.objectType === ObjectType.GAMEOBJECT;
 }
 
-export type DisplaySource = {
-  displayOf: (entry: number) => number | undefined;
-  boundsOf: (displayId: number) => DisplayBounds | undefined;
-};
-
-export function boundsFor(
-  store: DisplaySource,
-  entry: number,
-): DisplayBounds | undefined {
-  const displayId = store.displayOf(entry);
-  if (displayId === undefined) return undefined;
-  return store.boundsOf(displayId);
-}
 
 export function objectRows({ handle, rt }: ViewCtx): ObjectRow[] {
   const { templates } = handle.objects.state() as ObjectsState;
@@ -192,19 +157,12 @@ export function objectUnit(row: ObjectRow): UnitView {
     z: row.z,
   };
 }
-export function baseReachYd(type: number): number {
-  return REACH_YD[type] ?? 5.5;
-}
-
 export function reachYd(row: ObjectRow, ctx?: ViewCtx): number {
   const base = Math.max(baseReachYd(row.type) - 1, 1);
   if (!ctx || row.x === undefined || row.y === undefined) return base;
-  const store = ctx.handle.objects.state() as Partial<DisplaySource>;
-  const bounds =
-    typeof store.displayOf === "function" &&
-    typeof store.boundsOf === "function"
-      ? boundsFor(store as DisplaySource, row.entry)
-      : undefined;
+  const state = ctx.handle.objects.state() as ObjectsState;
+  const displayId = state.templates.get(row.entry)?.displayId;
+  const bounds = displayId === undefined ? undefined : state.displays?.get(displayId);
   const entity = ctx.handle.getEntity(row.guid);
   if (bounds === undefined) return base;
   if (!isGameObjectEntity(entity)) return base;

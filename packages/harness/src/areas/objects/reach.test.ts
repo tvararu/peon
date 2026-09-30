@@ -3,7 +3,21 @@ import {
   inDisplayReach,
   inscribedReach,
   interactionRadius,
+  type ReachTarget,
 } from "#harness/areas/objects/reach";
+
+const SQRT_HALF = Math.sqrt(0.5);
+
+function shrine(over: Partial<ReachTarget> = {}): ReachTarget {
+  return {
+    at: { x: 0, y: 0, z: 0 },
+    bounds: SHRINE,
+    rotation: { w: 1, x: 0, y: 0, z: 0 },
+    scale: 3.01,
+    type: 10,
+    ...over,
+  };
+}
 
 const SHRINE = {
   id: 3011,
@@ -65,5 +79,23 @@ describe("object reach", () => {
     };
     expect(inDisplayReach({ x: 30, y: -5, z: 0 }, target)).toBe(true);
     expect(inDisplayReach({ x: 30, y: -6, z: 0 }, target)).toBe(false);
+  });
+
+  test("the deep side of the shrine box reaches past the plain threshold", () => {
+    expect(inDisplayReach({ x: 0, y: 5.8, z: 0 }, shrine())).toBe(true);
+    expect(inDisplayReach({ x: 0, y: -5.6, z: 0 }, shrine())).toBe(false);
+  });
+
+  test("a quarter turn moves the deep side of the box", () => {
+    const turned = shrine({
+      rotation: { w: SQRT_HALF, x: 0, y: 0, z: SQRT_HALF },
+    });
+    expect(inDisplayReach({ x: 5.8, y: 0, z: 0 }, shrine())).toBe(true);
+    expect(inDisplayReach({ x: 5.8, y: 0, z: 0 }, turned)).toBe(false);
+  });
+
+  test("reversed bounds reach the same box", () => {
+    expect(inDisplayReach({ x: 0, y: 0, z: 5.7 }, shrine())).toBe(true);
+    expect(inDisplayReach({ x: 0, y: 0, z: 5.8 }, shrine())).toBe(false);
   });
 });

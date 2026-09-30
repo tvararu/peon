@@ -144,6 +144,7 @@ export {
 } from "#wow/protocol/guild";
 export type { ItemTemplate } from "#wow/protocol/item";
 export { type LootItem, ROLL_VOTES, type RollVote } from "#wow/protocol/loot";
+export type { Rotation } from "#wow/protocol/movement-block";
 export { joinGuid, type Vec3 } from "#wow/protocol/packet";
 export type { QuestQueryResponse } from "#wow/protocol/quest-query";
 export type {
