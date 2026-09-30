@@ -89,6 +89,54 @@ function shareText(
     .join("; ");
 }
 
+function shareOutcome(
+  title: string,
+  rows: { guid: bigint; result: number }[],
+  ctx: GroupCtx,
+  flags: { noAnswer: boolean; refused: boolean },
+): ToolResult<GroupAfter> {
+  const listed = rows.length > 0 ? shareText(rows, ctx) : "no member answered";
+  const after = { ...emptyGroup(), do: "share_quest" as GroupDo };
+  if (flags.refused)
+    return result("FAILED", {
+      after,
+      detail: `cannot share ${title} today. ${listed}.`,
+      next: nextCall("look"),
+      reason: "refused",
+    });
+  if (flags.noAnswer || rows.length === 0)
+    return result("UNCONFIRMED", {
+      after,
+      detail: `no answer: the quest cannot be shared. ${listed}.`,
+      next: `end your turn; a [quests] message comes if someone answers the share of ${title}.`,
+      reason: "no_answer",
+    });
+  return result("DONE", {
+    after: { ...after, confirmed: true },
+    detail: `shared ${title}: ${listed}.`,
+  });
+}
+
+function shareMatch(
+  questId: number,
+  rows: { guid: bigint; result: number }[],
+  flags: { noAnswer: boolean; refused: boolean },
+): (change: ShareChange) => boolean {
+  return (change) => {
+    if (change.questId !== questId) return false;
+    if (change.type === "result" || change.type === "relayed") {
+      rows.push({ guid: change.guid, result: change.result });
+      return false;
+    }
+    if (change.type === "closed") {
+      flags.noAnswer = change.reason === "no_answer" && rows.length === 0;
+      flags.refused = change.reason === "refused";
+      return change.reason !== "no_answer" || rows.length === 0;
+    }
+    return false;
+  };
+}
+
 async function shareQuestTool(
   args: GroupArgs,
   ctx: GroupCtx,
@@ -98,21 +146,10 @@ async function shareQuestTool(
   const questId = questParam(ctx, args);
   const title = questTitle(ctx, questId);
   const rows: { guid: bigint; result: number }[] = [];
-  let noAnswer = false;
+  const flags = { noAnswer: false, refused: false };
   try {
     await settle<ShareChange>({
-      match: (change) => {
-        if (change.questId !== questId) return false;
-        if (change.type === "result" || change.type === "relayed") {
-          rows.push({ guid: change.guid, result: change.result });
-          return false;
-        }
-        if (change.type === "closed") {
-          noAnswer = change.reason === "no_answer" && rows.length === 0;
-          return change.reason !== "no_answer" || rows.length === 0;
-        }
-        return false;
-      },
+      match: shareMatch(questId, rows, flags),
       send: () =>
         ctx.rt.mutex.run(() => {
           const started = ctx.handle.quests.act.shareQuest(questId);
@@ -137,18 +174,7 @@ async function shareQuestTool(
           status: "FAILED",
         });
   }
-  const listed = rows.length > 0 ? shareText(rows, ctx) : "no member answered";
-  if (noAnswer || rows.length === 0)
-    return result("UNCONFIRMED", {
-      after: { ...emptyGroup(), do: "share_quest" as GroupDo },
-      detail: `no answer: the quest cannot be shared. ${listed}.`,
-      next: `end your turn; a [quests] message comes if someone answers the share of ${title}.`,
-      reason: "no_answer",
-    });
-  return result("DONE", {
-    after: { ...emptyGroup(), confirmed: true, do: "share_quest" as GroupDo },
-    detail: `shared ${title}: ${listed}.`,
-  });
+  return shareOutcome(title, rows, ctx, flags);
 }
 
 function acceptSettled(ctx: GroupCtx, questId: number): boolean {
