@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import {
   clientPrivateKey,
   clientSeed,
@@ -41,6 +41,42 @@ function config(port: number) {
     password: FIXTURE_PASSWORD,
     port,
     srpPrivateKey: clientPrivateKey,
+  };
+}
+
+function trackLongTimers() {
+  const realSet = globalThis.setTimeout;
+  const realClear = globalThis.clearTimeout;
+  const live: Record<number, unknown> = {};
+  let next = 0;
+  const set = spyOn(globalThis, "setTimeout").mockImplementation(((
+    fn: () => void,
+    ms?: number,
+  ) => {
+    const key = next;
+    next += 1;
+    const id = realSet(() => {
+      clear.mockClear();
+      delete live[key];
+      fn();
+    }, ms);
+    if ((ms ?? 0) >= 5000) live[key] = id;
+    return id;
+  }) as unknown as typeof setTimeout);
+  const clear = spyOn(globalThis, "clearTimeout").mockImplementation(((
+    id: unknown,
+  ) => {
+    for (const [key, value] of Object.entries(live))
+      if (value === id) delete live[Number(key)];
+    realClear(id as Timer);
+  }) as unknown as typeof clearTimeout);
+  return {
+    pending: () => Object.keys(live).length,
+    restore() {
+      set.mockRestore();
+      clear.mockRestore();
+      for (const id of Object.values(live)) realClear(id as Timer);
+    },
   };
 }
 describe("buildCharCreate", () => {
@@ -135,6 +171,126 @@ describe("createCharacter", () => {
       ).rejects.toThrow("World auth failed");
     } finally {
       server.stop();
+    }
+  });
+
+  test("settles only after the connection reports its close", async () => {
+    const realConnect = Bun.connect;
+    const events: string[] = [];
+    const openHook = spyOn(Bun, "connect").mockImplementation(((
+      options: unknown,
+    ) => {
+      const opts = options as {
+        socket: Record<string, unknown> & { close: () => void };
+      };
+      const wrapped = {
+        ...opts.socket,
+        close() {
+          events.push("close");
+          opts.socket.close();
+        },
+      };
+      return realConnect({
+        ...(options as object),
+        socket: wrapped,
+      } as unknown as Parameters<typeof Bun.connect>[0]);
+    }) as unknown as typeof Bun.connect);
+    const server = await startMockWorldServer();
+    try {
+      let outcome = "";
+      const done = createCharacter(
+        config(server.port),
+        auth(server.port),
+        spec,
+      ).then((result) => {
+        outcome = result.result;
+      });
+      await server.waitForCapture(
+        (p) => p.opcode === GameOpcode.CMSG_CHAR_CREATE,
+      );
+      server.inject(GameOpcode.SMSG_CHAR_CREATE, new Uint8Array([0x2f]));
+      await done;
+      expect(outcome).toBe("success");
+      expect(events).toEqual(["close"]);
+    } finally {
+      openHook.mockRestore();
+      server.stop();
+    }
+  });
+
+  test("a failure result is recorded before the close settles it", async () => {
+    const server = await startMockWorldServer();
+    try {
+      const order: string[] = [];
+      const done = createCharacter(
+        config(server.port),
+        auth(server.port),
+        spec,
+      );
+      done.then(
+        () => order.push("resolved"),
+        () => order.push("rejected"),
+      );
+      await server.waitForCapture(
+        (p) => p.opcode === GameOpcode.CMSG_CHAR_CREATE,
+      );
+      server.inject(GameOpcode.SMSG_CHAR_CREATE, new Uint8Array([0x32]));
+      await expect(done).rejects.toThrow("name_in_use");
+      expect(order).toEqual(["rejected"]);
+    } finally {
+      server.stop();
+    }
+  });
+
+  test("a disconnect while the create reply is pending releases its wait", async () => {
+    const timers = trackLongTimers();
+    const server = await startMockWorldServer();
+    try {
+      const done = createCharacter(
+        config(server.port),
+        auth(server.port),
+        spec,
+        20_000,
+      );
+      done.catch(() => {});
+      await server.waitForCapture(
+        (p) => p.opcode === GameOpcode.CMSG_CHAR_CREATE,
+      );
+      expect(timers.pending()).toBeGreaterThan(0);
+      server.stop();
+      await expect(done).rejects.toThrow("closed");
+      expect(timers.pending()).toBe(0);
+    } finally {
+      timers.restore();
+      server.stop();
+    }
+  });
+
+  test("a disconnect during world authentication releases its wait", async () => {
+    const timers = trackLongTimers();
+    const listener = Bun.listen({
+      hostname: "127.0.0.1",
+      port: 0,
+      socket: {
+        data() {},
+        open(socket) {
+          socket.end();
+        },
+      },
+    });
+    try {
+      await expect(
+        createCharacter(
+          config(listener.port),
+          auth(listener.port),
+          spec,
+          20_000,
+        ),
+      ).rejects.toThrow("closed");
+      expect(timers.pending()).toBe(0);
+    } finally {
+      timers.restore();
+      listener.stop(true);
     }
   });
 });

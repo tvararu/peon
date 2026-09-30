@@ -6,7 +6,7 @@ import {
   createWorldConn,
 } from "#wow/client-connection";
 import { GameOpcode } from "#wow/protocol/opcodes";
-import { PacketWriter } from "#wow/protocol/packet";
+import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 import { sendPacket } from "#wow/world-handlers";
 
 export type CharCreateSpec = {
@@ -57,6 +57,50 @@ export function charCreateResult(code: number): string {
   return resultNames[code] ?? `code_0x${code.toString(16)}`;
 }
 
+type CreateSession = {
+  conn: ReturnType<typeof createWorldConn>;
+  resolve: (value: CharCreateResult) => void;
+  reject: (error: unknown) => void;
+  onClosed: () => void;
+  settled: boolean;
+  closing: boolean;
+  failure: unknown;
+  failed: boolean;
+};
+
+function releaseWaits(session: CreateSession): void {
+  for (const opcode of [
+    GameOpcode.SMSG_AUTH_CHALLENGE,
+    GameOpcode.SMSG_AUTH_RESPONSE,
+    GameOpcode.SMSG_CHAR_CREATE,
+  ])
+    session.conn.dispatch.handle(opcode, new PacketReader(new Uint8Array(0)));
+}
+
+function observe(session: CreateSession, error?: unknown): void {
+  if (!session.settled) {
+    session.failure = error;
+    session.failed = error !== undefined;
+  }
+}
+
+function finishAfterClose(session: CreateSession): void {
+  if (session.settled) return;
+  session.settled = true;
+  if (session.failed) session.reject(session.failure);
+  else session.resolve({ result: "success" });
+}
+
+function closeCreate(session: CreateSession): void {
+  session.closing = true;
+  releaseWaits(session);
+  try {
+    session.conn.socket?.end();
+  } catch {
+    session.onClosed();
+  }
+}
+
 export function createCharacter(
   config: ClientConfig,
   auth: AuthResult,
@@ -67,24 +111,30 @@ export function createCharacter(
     Promise.withResolvers<CharCreateResult>();
   const conn = createWorldConn();
   conn.dispatch.onUnhandled(() => false);
-  let done = false;
-  const finish = (fn: () => void): void => {
-    if (done) return;
-    done = true;
-    try {
-      conn.socket?.end();
-    } catch {
-      /* the socket is already gone */
-    }
-    fn();
+  const { promise: closed, resolve: onClosed } = Promise.withResolvers<void>();
+  const session: CreateSession = {
+    closing: false,
+    conn,
+    failed: false,
+    failure: undefined,
+    onClosed,
+    reject,
+    resolve,
+    settled: false,
   };
   connectWorld(conn, auth, {
     close() {
-      finish(() =>
-        reject(new Error("World connection closed before SMSG_CHAR_CREATE")),
-      );
+      releaseWaits(session);
+      onClosed();
+      if (!session.closing) observe(session, new Error("World connection closed"));
+      finishAfterClose(session);
     },
-    reject: (error) => finish(() => reject(error)),
+    reject: (error) => {
+      releaseWaits(session);
+      onClosed();
+      observe(session, error);
+      finishAfterClose(session);
+    },
   });
   void (async () => {
     try {
@@ -94,10 +144,16 @@ export function createCharacter(
       });
       sendPacket(conn, GameOpcode.CMSG_CHAR_CREATE, buildCharCreate(spec));
       const name = charCreateResult((await reply).uint8());
-      if (name === "success") finish(() => resolve({ result: name }));
-      else finish(() => reject(new Error(`Character create: ${name}`)));
+      if (name !== "success")
+        observe(session, new Error(`Character create: ${name}`));
+      closeCreate(session);
+      await closed;
+      finishAfterClose(session);
     } catch (error) {
-      finish(() => reject(error));
+      observe(session, error);
+      closeCreate(session);
+      await closed;
+      finishAfterClose(session);
     }
   })();
   return promise;

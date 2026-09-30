@@ -9,6 +9,7 @@ import {
   type PresetSpec,
   presetSpecs,
   type StageStep,
+  templateFor,
 } from "#factory/soap-presets";
 
 export type CreateFn = typeof createCharacter;
@@ -35,11 +36,12 @@ export type CreateDeps = {
   service: ServiceChar;
   names: Names;
   sleep: (ms: number) => Promise<unknown>;
+  templateEnv: Record<string, string>;
 };
 const pinfoTries = 100;
 const pinfoPollMs = 50;
 const onlineTries = 120;
-const demoted = /Security:\s*0\b/;
+const demoted = /GMLevel:\s*0\b/;
 const skillBase = 636;
 const skillSlots = 384;
 const skillStride = 3;
@@ -145,7 +147,7 @@ export async function createByProtocol(
   const { account, character } = deps.names;
   if (!isCreatePreset(spec)) {
     if (!spec.stage) throw new Error(`preset ${preset} is not created`);
-    await deps.copy(spec.template, deps.names);
+    await deps.copy(templateFor(preset, deps.templateEnv), deps.names);
     await waitForCharacter(deps.run, deps.names, deps.sleep);
     await stagePreset(character, account, spec.stage, deps);
     return;

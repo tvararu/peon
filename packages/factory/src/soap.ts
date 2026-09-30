@@ -15,21 +15,16 @@ import {
   realmDefaults,
   serializeConfig,
 } from "@peon/core/lib/config";
-import {
-  authWithRetry,
-  createCharacter,
-  worldSession,
-} from "@peon/core/session";
 import { factoryConfigDir, factoryStateDir } from "#factory/config";
+import { factoryAccount } from "#factory/factory-account";
 import { requirePatchedLibrary } from "#factory/namigator-library";
 import {
   copyConfirmed,
-  factoryAccount,
   type Names,
   pinfoAccount,
   type SoapResult,
 } from "#factory/soap-copy";
-import { createByProtocol, type ServiceChar } from "#factory/soap-create";
+import { createByProtocol } from "#factory/soap-create";
 import {
   needsProtocol,
   type Preset,
@@ -56,7 +51,6 @@ export type CreateOptions = {
   preset: Preset;
   owner?: string;
   gm?: number;
-  service?: () => Promise<ServiceChar>;
 };
 export type Session = Names & {
   preset: Preset;
@@ -318,13 +312,6 @@ export async function inheritedConfig(
   return inherited;
 }
 
-async function createdService(): Promise<ServiceChar> {
-  const file = Bun.file(`${factoryConfigDir()}/soap.env`);
-  const config = (await file.exists()) ? parseEnv(await file.text()) : {};
-  const { createService, serviceUrl } = await import("#factory/realm-service");
-  return createService({ baseUrl: serviceUrl(Bun.env, config) });
-}
-
 async function createdLoginConfig(
   _root: string,
   account: string,
@@ -392,7 +379,6 @@ export async function createAccount({
   preset,
   gm,
   owner,
-  service = createdService,
 }: CreateOptions): Promise<Session> {
   const inherited = await inheritedConfig();
   const password = newPassword();
@@ -409,11 +395,17 @@ export async function createAccount({
   try {
     await saveLedger(entry);
     if (needsProtocol(presetSpecs[preset])) {
+      const session = await import("@peon/core/session");
+      const { createService, serviceUrl } = await import(
+        "#factory/realm-service"
+      );
+      const file = Bun.file(`${factoryConfigDir()}/soap.env`);
+      const env = (await file.exists()) ? parseEnv(await file.text()) : {};
       await createByProtocol(preset, {
-        auth: (config) => authWithRetry(config, { maxAttempts: 2 }),
+        auth: (config) => session.authWithRetry(config, { maxAttempts: 2 }),
         console: (accounts, command) => consoleCommand(accounts, command),
         copy: (template, n) => copyConfirmed(soap, template, n),
-        create: createCharacter,
+        create: session.createCharacter,
         createConfig: (n) => ({
           account: n.account,
           character: n.character,
@@ -421,12 +413,13 @@ export async function createAccount({
           password,
           port: inherited.port,
         }),
-        login: (config, auth) => worldSession(config, auth),
+        login: (config, auth) => session.worldSession(config, auth),
         loginConfig: (account) => createdLoginConfig(root, account, inherited),
         names,
         run: soap,
-        service: await service(),
+        service: createService({ baseUrl: serviceUrl(Bun.env, env) }),
         sleep: (ms) => Bun.sleep(ms),
+        templateEnv: env,
       });
     } else {
       const template = await presetTemplate(preset);

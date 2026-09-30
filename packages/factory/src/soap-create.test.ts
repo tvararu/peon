@@ -50,6 +50,13 @@ type ServiceCall = { body: Json; character: string; endpoint: CharEndpoint };
 
 type ServiceDouble = { calls: ServiceCall[]; service: CreateDeps["service"] };
 
+const pinfoText = (account: string, gmLevel: number) =>
+  [
+    "| Player Faaaaaaaaab (guid: 2515)",
+    `| Account: ${account} (ID: 309),`,
+    `   GMLevel: ${gmLevel}`,
+  ].join("\n");
+
 function depsFor(
   _preset: Preset,
   overrides?: Partial<CreateDeps>,
@@ -75,10 +82,14 @@ function depsFor(
     names: { account: "FAC0000000001", character: "Faaaaaaaaab" },
     run: async (command) => {
       commands.push(command);
-      return { ok: true, text: "FAC0000000001 Security: 0" };
+      return {
+        ok: true,
+        text: command.startsWith("pinfo") ? pinfoText("FAC0000000001", 0) : "",
+      };
     },
     service: service.service,
     sleep: async () => undefined,
+    templateEnv: {},
     ...overrides,
   };
   return { commands, deps, service };
@@ -140,7 +151,12 @@ describe("createByProtocol", () => {
       const { commands, deps, service } = depsFor(preset);
       deps.run = (async (command: string) => {
         commands.push(command);
-        return { ok: true, text: "FAC0000000001 Security: 0" };
+        return {
+          ok: true,
+          text: command.startsWith("pinfo")
+            ? pinfoText("FAC0000000001", 0)
+            : "",
+        };
       }) as CreateDeps["run"];
       await createByProtocol(preset, deps);
       const text = [...commands, ...service.calls.map((c) => c.endpoint)].join(
@@ -152,11 +168,12 @@ describe("createByProtocol", () => {
     }
   });
 
-  test("the death knight raises and restores the privilege", async () => {
+  test("a confirmed demotion shows the GMLevel 0 readback", async () => {
     const { commands, deps } = depsFor("eversong55-deathknight");
     await createByProtocol("eversong55-deathknight", deps);
     expect(commands[0]).toBe("account set gmlevel FAC0000000001 1 -1");
     expect(commands[1]).toBe("account set gmlevel FAC0000000001 0 -1");
+    expect(commands[2]).toBe("pinfo Faaaaaaaaab");
   });
 
   test("the death knight demotes even when creation throws", async () => {
@@ -175,11 +192,12 @@ describe("createByProtocol", () => {
     ]);
   });
 
-  test("a failed demotion fails creation", async () => {
-    const { deps } = depsFor("eversong55-deathknight", {
+  test("a stuck GMLevel 1 fails creation", async () => {
+    const { commands, deps } = depsFor("eversong55-deathknight", {
       run: (async (command: string) => {
+        commands.push(command);
         if (command.startsWith("pinfo"))
-          return { ok: true, text: "Security: 1" };
+          return { ok: true, text: pinfoText("FAC0000000001", 1) };
         return { ok: true, text: "" };
       }) as CreateDeps["run"],
     });
@@ -239,6 +257,19 @@ describe("createByProtocol", () => {
     await createByProtocol("eversong10-fishing", deps);
     expect(copied).toBe("Tpleversong");
     expect(service.calls.map((c) => c.endpoint)).toEqual(["items/add"]);
+  });
+
+  test("the fishing preset honors a soap.env template override", async () => {
+    const { deps } = depsFor("eversong10-fishing", {
+      templateEnv: { PEON_PRESET_EVERSONG10_FISHING: "Tplalt" },
+    });
+    let copied = "";
+    deps.copy = (async (template: string) => {
+      copied = template;
+      return 1;
+    }) as CreateDeps["copy"];
+    await createByProtocol("eversong10-fishing", deps);
+    expect(copied).toBe("Tplalt");
   });
 
   test("a fishing online failure fails creation", async () => {
