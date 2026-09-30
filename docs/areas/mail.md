@@ -91,8 +91,8 @@ None.
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
-| `CMSG_GET_MAIL_LIST` | `live` | probe flow `mail-inbox` on an `elwynn10` character at the Goldshire mailbox (entry 142075, map 0, -9452, 48, 56.4), exit 0; the list follows | `Handlers/MailHandler.cpp:681-692` |
-| `SMSG_MAIL_LIST_RESULT` | `live` | probe flow `mail-inbox`, three staged letters (run `tmp/probe/FAC6ABD8BDA7D-20260930T223452Z`): item mail id 2133 with entry 159 count 5, money mail id 2134 with 250 copper, plain letter id 2135; the second list shows flag 0x01 on the marked letters | `Handlers/MailHandler.cpp:698-821` |
-| `CMSG_MAIL_MARK_AS_READ` | `live` | probe flow `mail-inbox`: the mark sends, and the relist shows flag 0x01 on letter 2135, then on 2135 and 2134 after the second run | `Handlers/MailHandler.cpp:383-403` |
+| `CMSG_GET_MAIL_LIST` | `live` | probe flow `mail-inbox` on an `elwynn10` character, exit 0; the list follows | `Handlers/MailHandler.cpp:681-692` |
+| `SMSG_MAIL_LIST_RESULT` | `live` | probe flow `mail-inbox`, three staged letters (run `tmp/probe/FAC6ABD98D0BC-mail-round2` with `--bodies`): first list flags 0/0/0 on ids 2164/2163/2162, the relist shows flag 0x01 on 2164, a second run marks 2163 too; the item mail carries entry 159 count 5, the money mail 250 copper | `Handlers/MailHandler.cpp:698-821` |
+| `CMSG_MAIL_MARK_AS_READ` | `live` | probe flow `mail-inbox` (run `tmp/probe/FAC6ABD98D0BC-mail-round2`): the mark for 2164 sends, and the relist shows flag 0x01 on 2164 while 2163/2162 stay 0; the second run marks 2163 | `Handlers/MailHandler.cpp:383-403` |
 | `MSG_QUERY_NEXT_MAIL_TIME` | `live` | probe flow `mail-inbox`, before and after the mark; the trace shows two queries and two 56-byte replies | `Handlers/MailHandler.cpp:891-938` |
 | `SMSG_SHOW_MAILBOX` | `mock`, not seen live | rig test from `Handlers/NPCHandler.cpp:74-79`; two live tries (a `--send SMSG_SHOW_MAILBOX` probe and the `mail-inbox` flow expecting it) drew no server send | `Handlers/NPCHandler.cpp:74-79` |

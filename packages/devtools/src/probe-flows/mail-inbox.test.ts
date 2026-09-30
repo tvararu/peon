@@ -1,6 +1,10 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { WorldHandle } from "@peon/core";
 import {
+  fakeRejection,
+  withFakeTimers,
+} from "@peon/core/test-support/fake-time";
+import {
   createMockHandle,
   type MockHandle,
 } from "@peon/core/test-support/mock-handle";
@@ -176,11 +180,12 @@ describe("mail-inbox flow", () => {
     expect(out).toMatchObject({ listed: { status: "ok" } });
   });
 
-  test("throws when no mailbox is in view", async () => {
-    const ctx = context({});
-    ctx.handle.queryNearby = () => [];
-    await expect(Promise.resolve(flow.run(ctx))).rejects.toThrow(
-      "no mailbox is in view",
-    );
-  });
+  test("throws when no mailbox is in view", () =>
+    withFakeTimers(async () => {
+      const ctx = context({});
+      ctx.handle.queryNearby = () => [];
+      expect(await fakeRejection(flow.run(ctx), 1000)).toContain(
+        "no mailbox is in view",
+      );
+    }));
 });

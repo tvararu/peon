@@ -132,9 +132,9 @@ describe("parseNextMailTime", () => {
       new PacketReader(
         mailNextMailTimeBody({
           senders: [
-            { delay: 120, stationery: 41 },
-            { delay: 3600, entry: 611, stationery: 61, type: 3 },
-            { delay: 7200 },
+            { guid: MAIL_SENDER, stationery: 41 },
+            { entry: 611, stationery: 61, type: 3 },
+            {},
           ],
         }),
       ),
@@ -142,7 +142,18 @@ describe("parseNextMailTime", () => {
     expect(senders.delay).toBe(0);
     expect(senders.count).toBe(2);
     expect(senders.senders).toHaveLength(MAX_MAIL_SENDER_ROWS);
-    expect(senders.senders[1]).toMatchObject({ entry: 611, type: 3 });
+    expect(senders.senders[0]).toMatchObject({
+      delay: 0,
+      entry: 0,
+      guid: MAIL_SENDER,
+      type: 0,
+    });
+    expect(senders.senders[1]).toMatchObject({
+      delay: 0,
+      entry: 611,
+      guid: 0n,
+      type: 3,
+    });
     expect(senders.unread).toBe(true);
   });
 
