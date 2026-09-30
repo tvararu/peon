@@ -5,7 +5,7 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x2ae` | `SMSG_MONSTER_MOVE_TRANSPORT` | server | missing |  |
+| `0x2ae` | `SMSG_MONSTER_MOVE_TRANSPORT` | server | handled |  |
 | `0x2d1` | `CMSG_MOVE_NOT_ACTIVE_MOVER` | client | missing |  |
 | `0x3f8` | `CMSG_SPELLCLICK` | client | missing |  |
 | `0x46d` | `CMSG_DISMISS_CONTROLLED_VEHICLE` | client | missing |  |
@@ -14,7 +14,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x478` | `CMSG_REQUEST_VEHICLE_NEXT_SEAT` | client | missing |  |
 | `0x479` | `CMSG_REQUEST_VEHICLE_SWITCH_SEAT` | client | missing |  |
 | `0x49b` | `CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE` | client | missing |  |
-| `0x49d` | `SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA` | server | missing |  |
-| `0x4a7` | `SMSG_PLAYER_VEHICLE_DATA` | server | missing |  |
+| `0x49d` | `SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA` | server | handled |  |
+| `0x4a7` | `SMSG_PLAYER_VEHICLE_DATA` | server | handled |  |
 | `0x4a8` | `CMSG_PLAYER_VEHICLE_ENTER` | client | missing |  |
 | `0x4a9` | `CMSG_CONTROLLER_EJECT_PASSENGER` | client | missing |  |
