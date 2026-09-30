@@ -1,4 +1,11 @@
 export { authHandshake, authWithRetry } from "#wow/auth";
+export {
+  buildCharCreate,
+  type CharCreateResult,
+  type CharCreateSpec,
+  charCreateResult,
+  createCharacter,
+} from "#wow/char-create";
 export { worldSession } from "#wow/client";
 export {
   opcodeName,
