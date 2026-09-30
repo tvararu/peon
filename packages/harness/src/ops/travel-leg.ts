@@ -54,7 +54,9 @@ export function refusalCode(refusal: string): string {
 function remainingTo(ctx: OpsCtx, goal: LegGoal): number | undefined {
   if (goal.kind === "unit") return distanceTo(ctx, goal.guid);
   const pose = poseView(ctx);
-  return pose ? Math.hypot(pose.x - goal.x, pose.y - goal.y) : undefined;
+  if (!pose) return undefined;
+  if (goal.z === undefined) return Math.hypot(pose.x - goal.x, pose.y - goal.y);
+  return Math.hypot(pose.x - goal.x, pose.y - goal.y, pose.z - goal.z);
 }
 
 function targetOf(goal: LegGoal): GotoTarget {
@@ -146,18 +148,25 @@ async function legOnce(
   }
 }
 
+function observedAt(ctx: OpsCtx, guid: bigint) {
+  const unit = unitViews(ctx).find((view) => view.guid === guidHex(guid));
+  if (unit?.x !== undefined && unit.y !== undefined && unit.z !== undefined)
+    return { x: unit.x, y: unit.y, z: unit.z };
+  const at = ctx.handle.getEntity(guid)?.position;
+  return at ? { x: at.x, y: at.y, z: at.z } : undefined;
+}
+
 function matchFloor(
   ctx: OpsCtx,
   guid: bigint,
   floors: readonly number[] | undefined,
 ) {
-  const unit = unitViews(ctx).find((view) => view.guid === guidHex(guid));
-  const z = unit?.z;
-  if (unit?.x === undefined || unit.y === undefined || z === undefined) return;
+  const seen = observedAt(ctx, guid);
+  if (!seen) return;
   const [floor] = [...(floors ?? [])].sort(
-    (a, b) => Math.abs(a - z) - Math.abs(b - z),
+    (a, b) => Math.abs(a - seen.z) - Math.abs(b - seen.z),
   );
-  return floor === undefined ? undefined : { x: unit.x, y: unit.y, z: floor };
+  return floor === undefined ? undefined : { x: seen.x, y: seen.y, z: floor };
 }
 
 function selfFloor(

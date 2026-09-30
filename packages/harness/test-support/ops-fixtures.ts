@@ -1,5 +1,6 @@
 import { jest } from "bun:test";
 import {
+  type Entity,
   type FactionRelation,
   type GameObjectEntity,
   type NearbyRow,
@@ -119,6 +120,7 @@ export function objectRow(init: {
   x: number;
   y: number;
   distance: number;
+  z?: number;
 }): NearbyRow {
   const entity: GameObjectEntity = {
     bytes1: 0,
@@ -130,7 +132,7 @@ export function objectRow(init: {
     guid: init.guid,
     name: init.name,
     objectType: ObjectType.GAMEOBJECT,
-    position: { mapId: MAP_ID, orientation: 0, x: init.x, y: init.y, z: 0 },
+    position: { mapId: MAP_ID, orientation: 0, x: init.x, y: init.y, z: init.z ?? 0 },
     rawFields: new Map(),
     scale: 1,
   };
@@ -140,6 +142,13 @@ export function objectRow(init: {
 export function setUnits(handle: MockHandle, rows: readonly NearbyRow[]): void {
   handle.queryNearby = () => [...rows];
   handle.getNearbyEntities = () => rows.map((row) => row.entity);
+  const byGuid = new Map<bigint, Entity>(
+    rows.map((row) => [row.entity.guid, row.entity]),
+  );
+  const getEntity = jest.fn((guid: bigint): Entity | undefined =>
+    byGuid.get(guid),
+  );
+  handle.getEntity = getEntity;
 }
 
 export type SelfInit = {

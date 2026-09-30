@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { refusalCode, travelLeg } from "#harness/ops/travel-leg";
 import {
   driveGoto,
+  objectRow,
   setSelf,
   setUnits,
   toolCtx,
@@ -176,6 +177,73 @@ describe("travelLeg", () => {
       x: 30,
       y: 0,
       z: 41.6,
+    });
+  });
+
+  test("a raised game object retries on the floor nearest its height", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { z: 0 });
+    setUnits(t.handle, [
+      objectRow({
+        distance: 52,
+        guid: 0xf110_0000_0000_0070n,
+        name: "Shrine of Dath'Remar",
+        x: 30,
+        y: 0,
+        z: 42.5,
+      }),
+    ]);
+    const goTo = driveGoto(t.handle, [
+      {
+        floors: [30.2, 41.6, 55],
+        refuse: "pick_destination: ambiguous ground column at destination",
+      },
+      { arrive: { x: 30, y: 0, z: 41.6 } },
+    ]);
+    const leg = await travelLeg(toolCtx(t), {
+      goal: { guid: 0xf110_0000_0000_0070n, kind: "unit", name: "Shrine" },
+      within: 3,
+    });
+    expect(leg).toMatchObject({ floorRetried: true, status: "arrived" });
+    expect(goTo).toHaveBeenNthCalledWith(2, {
+      kind: "point",
+      x: 30,
+      y: 0,
+      z: 41.6,
+    });
+  });
+  test("a unit over a lower floor still walks to the chosen floor", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { z: 0 });
+    setUnits(t.handle, [
+      unitRow({
+        distance: 10.5,
+        guid: 0x10n,
+        name: "Marniel Amberlight",
+        relation: "friendly",
+        x: 1,
+        y: 0,
+        z: 10.5,
+      }),
+    ]);
+    const goTo = driveGoto(t.handle, [
+      {
+        floors: [0, 10],
+        refuse: "pick_destination: ambiguous ground column at destination",
+      },
+      { arrive: { x: 1, y: 0, z: 10 } },
+    ]);
+    const leg = await travelLeg(toolCtx(t), {
+      goal: { guid: 0x10n, kind: "unit", name: "Marniel Amberlight" },
+      within: 3,
+    });
+    expect(leg).toMatchObject({ floorRetried: true, status: "arrived" });
+    expect(goTo).toHaveBeenCalledTimes(2);
+    expect(goTo).toHaveBeenNthCalledWith(2, {
+      kind: "point",
+      x: 1,
+      y: 0,
+      z: 10,
     });
   });
 

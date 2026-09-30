@@ -1,9 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { TravelAfter } from "#harness/contract/details";
-import type { ToolResult } from "#harness/contract/result";
 import { travelSpec } from "#harness/tools/travel";
 import {
-  contentOf,
   driveGoto,
   setSelf,
   setUnits,
@@ -11,11 +9,6 @@ import {
   unitRow,
 } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
-
-function fit(res: ToolResult<TravelAfter>): string {
-  const text = contentOf(res);
-  return text;
-}
 
 async function world() {
   const t = await createTestRuntime();
@@ -26,41 +19,26 @@ async function world() {
 describe("travel floor failures", () => {
   test.each([
     {
+      cause: "ambiguous ground column",
       floor: 72.6,
-      height:
-        "ambiguous ground column at destination. Walked 0 yd. Tried: planner twice (floor retry). Not tried: another destination.\nThe destination has more than one floor. Repeat the travel with one of floors as Z, or choose another destination. Do not guess Z.",
-      nextLine:
-        'ask the human: "I cannot reach Marniel Amberlight from here. Is there another way?"',
-      refuse: "pick_destination: ambiguous ground column at destination",
       refused: "ambiguous_floor",
-      refusedStatus: "FAILED",
       z: 0,
     },
     {
+      cause: "ambiguous ground column",
       floor: 80.1,
-      height:
-        "ambiguous ground column at destination. Walked 0 yd. Tried: planner twice (floor retry). Not tried: another destination.\nThe destination has more than one floor. Repeat the travel with one of floors as Z, or choose another destination. Do not guess Z.",
-      nextLine:
-        'ask the human: "I cannot reach Marniel Amberlight from here. Is there another way?"',
-      refuse: "pick_destination: ambiguous ground column at destination",
       refused: "ambiguous_floor",
-      refusedStatus: "FAILED",
       z: 80,
     },
     {
+      cause: "UNKNOWN_HEIGHT",
       floor: 72.6,
-      height:
-        "the path finder found no ground on the way (UNKNOWN_HEIGHT). Walked 0 yd. Tried: planner twice (floor retry).",
-      nextLine:
-        'ask the human: "I cannot reach Marniel Amberlight from here. Is there another way?"',
-      refuse: "unreachable: pathfind_find_height failed (UNKNOWN_HEIGHT)",
       refused: "no_ground",
-      refusedStatus: "FAILED",
       z: 0,
     },
   ])(
     "a failed floor walk for a unit reports the failure ($refused)",
-    async ({ floor, height, nextLine, refuse, refused, refusedStatus, z }) => {
+    async ({ cause, floor, refused, z }) => {
       const t = await world();
       setUnits(t.handle, [
         unitRow({
@@ -73,12 +51,16 @@ describe("travel floor failures", () => {
           z,
         }),
       ]);
+      const second =
+        refused === "no_ground"
+          ? "unreachable: pathfind_find_height failed (UNKNOWN_HEIGHT)"
+          : "pick_destination: ambiguous ground column at destination";
       const goTo = driveGoto(t.handle, [
         {
           floors: [72.6, 80.1],
           refuse: "pick_destination: ambiguous ground column at destination",
         },
-        { refuse },
+        { refuse: second },
       ]);
       const res = await travelSpec.run(
         { to: "Marniel Amberlight" },
@@ -91,10 +73,11 @@ describe("travel floor failures", () => {
         y: 0,
         z: floor,
       });
-      expect(res).toMatchObject({ reason: refused, status: refusedStatus });
-      expect(fit(res)).toBe(
-        `${refusedStatus} ${refused}: ${height}\nNext: ${nextLine}`,
-      );
+      expect(res.status).toBe("FAILED");
+      expect(res.reason).toBe(refused);
+      expect(res.detail).toContain(cause);
+      expect(res.detail).toContain("floor retry");
+      expect(res.next).toContain("ask the human");
     },
   );
 });

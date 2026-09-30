@@ -1,6 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
 import { validateToolArguments } from "@earendil-works/pi-ai";
-import type { AreaState, GameObjectEntity } from "@peon/core";
+import { DisplayCatalog } from "@peon/core";
 import { objectRows, reachYd } from "#harness/areas/objects/reads";
 import {
   emptyUse,
@@ -154,16 +154,17 @@ describe("use tool", () => {
     const t = await world(5, "text");
     const store = {
       ...state(),
-      boundsOf: () => ({
-        id: 3011,
-        maxX: 0.236,
-        maxY: 0.4726,
-        maxZ: 0,
-        minX: -0.236,
-        minY: 0.0004,
-        minZ: 0.083,
-      }),
-      displayOf: () => 3011,
+      displays: new DisplayCatalog([
+        {
+          id: 3011,
+          maxX: 0.236,
+          maxY: 0.4726,
+          maxZ: 0.083,
+          minX: -0.236,
+          minY: 0.0004,
+          minZ: 0,
+        },
+      ]),
       templates: new Map([
         [
           161_557,
