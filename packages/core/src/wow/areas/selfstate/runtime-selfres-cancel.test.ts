@@ -2,6 +2,7 @@ import { describe, expect, jest, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import { selfstateCorpseMapPositionQueryResponseBody } from "#test-support/areas/selfstate";
 import type { AreaRuntimeCtx, Listener } from "#wow/areas/contract";
+import { UNIT_FLAG_MOUNT } from "#wow/areas/selfstate/fields";
 import { selfstateRuntime } from "#wow/areas/selfstate/runtime";
 import type { SelfstateEvent } from "#wow/areas/selfstate/store";
 import type { Entity } from "#wow/entity-store";
@@ -84,6 +85,74 @@ describe("selfstate runtime: a send that throws releases the wait", () => {
       lifetime.abort();
       await Promise.resolve();
     } finally {
+      runtime.dispose?.();
+      rig.dispose();
+      jest.useRealTimers();
+    }
+  });
+});
+
+describe("selfstate runtime: a send that throws releases the dismount wait", () => {
+  test("dismount rejects with the send error and leaves no timer or waiter", async () => {
+    jest.useFakeTimers();
+    const rig = areaRig("selfstate", { selfGuid: SELF });
+    const lifetime = new AbortController();
+    const store = rig.stores.areas.selfstate;
+    store.syncMountFields(UNIT_FLAG_MOUNT, 14_337);
+    const live = { waiters: 0, unhandled: 0 };
+    const onUnhandled = () => {
+      live.unhandled += 1;
+    };
+    process.on("unhandledRejection", onUnhandled);
+    const ctx = {
+      dbc: undefined,
+      expect: (opcode: number, options?: ExpectOptions) =>
+        rig.dispatch.expect(opcode, options),
+      legacy: undefined,
+      listen: <K extends keyof CoreEvents>(name: K, cb: Listener<K>) =>
+        rig.events[name].subscribe(cb),
+      now: () => 0,
+      selfGuid: () => SELF,
+      send: () => {
+        throw new Error("world socket is not connected");
+      },
+      signal: lifetime.signal,
+      until: (
+        _match: (event: SelfstateEvent) => boolean,
+        options: { timeoutMs: number; signal?: AbortSignal },
+      ): Promise<SelfstateEvent> => {
+        const { promise, reject } = Promise.withResolvers<SelfstateEvent>();
+        live.waiters += 1;
+        const timer = setTimeout(() => {
+          live.waiters -= 1;
+          reject(new Error("timeout"));
+        }, options.timeoutMs);
+        options.signal?.addEventListener(
+          "abort",
+          () => {
+            clearTimeout(timer);
+            live.waiters -= 1;
+            reject(options.signal?.reason);
+          },
+          { once: true },
+        );
+        return promise;
+      },
+    } as unknown as AreaRuntimeCtx<SelfstateEvent>;
+    const runtime = selfstateRuntime(ctx, store, rig.stores);
+    try {
+      await expect(runtime.act.dismount()).rejects.toThrow(
+        "world socket is not connected",
+      );
+      expect(live.waiters).toBe(0);
+      expect(jest.getTimerCount()).toBe(0);
+      jest.advanceTimersByTime(10_000);
+      lifetime.abort();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(live.unhandled).toBe(0);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
       runtime.dispose?.();
       rig.dispose();
       jest.useRealTimers();

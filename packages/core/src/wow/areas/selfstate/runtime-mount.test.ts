@@ -168,6 +168,47 @@ describe("selfstate runtime: SMSG_DISMOUNT", () => {
       rig.dispose();
     }
   });
+  test("a remount to a different mount straight after the dismount is accepted (AC Entities/Player/Player.cpp:10453, Handlers/TaxiHandler.cpp:119-120)", () => {
+    const { rig, events, update } = rigMounted(RIDING);
+    try {
+      rig.inject(GameOpcode.SMSG_DISMOUNT, selfstateDismountBody(SELF));
+      update(
+        unit(SELF, [
+          [FLAGS, UNIT_FLAG_MOUNT],
+          [DISPLAY, HORSE + 1],
+        ]),
+      );
+      expect(rig.handle.state()).toMatchObject({
+        mountDisplayId: HORSE + 1,
+        mounted: true,
+      });
+      expect(mountEvents(events)).toEqual([
+        { type: "dismounted", taxi: false },
+        { type: "mounted", displayId: HORSE + 1, taxi: false },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a taxi flight straight after the dismount sets in_flight even on the same display id", () => {
+    const { rig, events, update } = rigMounted(RIDING);
+    try {
+      rig.inject(GameOpcode.SMSG_DISMOUNT, selfstateDismountBody(SELF));
+      update(unit(SELF, FLYING));
+      expect(mountEvents(events)).toEqual([
+        { type: "dismounted", taxi: false },
+        { type: "mounted", displayId: HORSE, taxi: true },
+      ]);
+      update(unit(SELF, WALKING));
+      expect(mountEvents(events).at(-1)).toEqual({
+        type: "dismounted",
+        taxi: true,
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
 
   test("another guid's dismount, and one while on foot, give no event", () => {
     const { rig, events } = rigMounted();
