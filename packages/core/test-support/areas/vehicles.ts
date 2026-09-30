@@ -11,6 +11,7 @@ export function vehiclesMonsterMoveTransportBody(init: {
   transportGuid: bigint;
   seat: number;
   stop: boolean;
+  flags?: number;
 }): Uint8Array {
   const w = new PacketWriter();
   w.packedGuidBig(init.guid);
@@ -26,7 +27,7 @@ export function vehiclesMonsterMoveTransportBody(init: {
     return w.finish();
   }
   w.uint8(0);
-  w.uint32LE(0);
+  w.uint32LE(init.flags ?? 0);
   w.uint32LE(1000);
   w.uint32LE(1);
   w.floatLE(10);

@@ -5,7 +5,7 @@ const GUID = 0xf1_30_00_3e_ea_00_0a_bcn;
 const TRANSPORT = 0xf1_30_00_3e_ea_00_0b_bcn;
 
 function storeWithEvents() {
-  const store = new VehiclesStore();
+  const store = new VehiclesStore({ getEntity: () => undefined } as never);
   const seen: VehiclesEvent[] = [];
   store.onEvent((event) => seen.push(event));
   return { seen, store };
@@ -13,7 +13,7 @@ function storeWithEvents() {
 
 describe("VehiclesStore", () => {
   test("starts with no seat, vehicles or passengers", () => {
-    expect(new VehiclesStore().snapshot()).toEqual({
+    expect(new VehiclesStore({ getEntity: () => undefined } as never).snapshot()).toEqual({
       passengers: new Map(),
       seat: undefined,
       vehicleIds: new Map(),

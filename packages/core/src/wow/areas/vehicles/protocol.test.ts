@@ -4,6 +4,10 @@ import {
   vehiclesPlayerVehicleDataBody,
 } from "#test-support/areas/vehicles";
 import {
+  buildEjectPassenger,
+  buildPlayerVehicleEnter,
+  buildRequestVehicleSwitchSeat,
+  buildSpellClick,
   NPC_FLAG_PLAYER_VEHICLE,
   NPC_FLAG_SPELLCLICK,
   parseMonsterMoveTransport,
@@ -77,5 +81,37 @@ describe("parsePlayerVehicleData", () => {
   test("vehicle flag constants match the kit bits (Vehicle.cpp:395-397)", () => {
     expect(NPC_FLAG_SPELLCLICK).toBe(0x01_00_00_00);
     expect(NPC_FLAG_PLAYER_VEHICLE).toBe(0x02_00_00_00);
+  });
+});
+
+describe("seat request builders", () => {
+  test("CMSG_SPELLCLICK carries a full u64 guid (SpellHandler.cpp:723-739)", () => {
+    const body = buildSpellClick(GUID);
+    expect(body.byteLength).toBe(8);
+    expect(new PacketReader(body).uint64LE()).toBe(GUID);
+  });
+
+  test("CMSG_REQUEST_VEHICLE_SWITCH_SEAT carries a packed guid and int8 seat (VehicleHandler.cpp:122-137)", () => {
+    const body = buildRequestVehicleSwitchSeat(TRANSPORT, 2);
+    const read = new PacketReader(body);
+    expect(read.packedGuidBig()).toBe(TRANSPORT);
+    expect(read.uint8()).toBe(2);
+    const negative = new PacketReader(
+      buildRequestVehicleSwitchSeat(TRANSPORT, -1),
+    );
+    negative.packedGuidBig();
+    expect(negative.uint8()).toBe(0xff);
+  });
+
+  test("CMSG_PLAYER_VEHICLE_ENTER carries a full u64 guid (VehicleHandler.cpp:143-163)", () => {
+    const body = buildPlayerVehicleEnter(TRANSPORT);
+    expect(body.byteLength).toBe(8);
+    expect(new PacketReader(body).uint64LE()).toBe(TRANSPORT);
+  });
+
+  test("CMSG_CONTROLLER_EJECT_PASSENGER carries a full u64 guid (VehicleHandler.cpp:165-177)", () => {
+    const body = buildEjectPassenger(TRANSPORT);
+    expect(body.byteLength).toBe(8);
+    expect(new PacketReader(body).uint64LE()).toBe(TRANSPORT);
   });
 });

@@ -4,6 +4,7 @@ import {
   parseMonsterMoveTransport,
   parsePlayerVehicleData,
 } from "#wow/areas/vehicles/protocol";
+import { vehiclesRuntime } from "#wow/areas/vehicles/runtime";
 import { VehiclesStore } from "#wow/areas/vehicles/store";
 import { inflateCompressedUpdate } from "#wow/protocol/compressed-update";
 import { UpdateFlag } from "#wow/protocol/entity-fields";
@@ -48,5 +49,6 @@ export const vehiclesArea = defineArea({
       store.removeVehicleId(r.uint64LE()),
     );
   },
-  store: () => new VehiclesStore(),
+  runtime: (ctx, store, core) => vehiclesRuntime(ctx, store, core),
+  store: (deps) => new VehiclesStore(deps),
 });
