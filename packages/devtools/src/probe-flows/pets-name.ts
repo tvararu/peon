@@ -60,9 +60,13 @@ async function run({ args, handle }: FlowContext): Promise<Json> {
     const pet = handle.pets.state().pet;
     if (!pet) throw new Error("no pet is out; call the pet first.");
     const before = namesJson(handle);
+    const seen = { ...counts };
     const result = handle.pets.act.renamePet(rename);
     const answered = await waitFor(
-      () => counts.name > 0 || counts.refused > 0 || counts.unanswered > 0,
+      () =>
+        counts.name > seen.name ||
+        counts.refused > seen.refused ||
+        counts.unanswered > seen.unanswered,
     );
     return {
       answered,
