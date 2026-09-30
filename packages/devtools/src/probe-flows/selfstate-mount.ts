@@ -33,8 +33,9 @@ async function run({ handle, settle, args }: FlowContext): Promise<Json> {
     const before = handle.selfstate.state().collisionHeight ?? null;
     handle.cast(spell, 0n);
     const mounted = await settle(() => {
-      const height = handle.selfstate.state().collisionHeight;
-      return height === before ? undefined : height;
+      const state = handle.selfstate.state();
+      if ((state.collisionHeight ?? null) === before || !state.mounted) return;
+      return state.collisionHeight;
     });
     const special =
       args["special"] === "1"
