@@ -100,7 +100,6 @@ function renamePetAct(
   const { bar, pet } = store.snapshot();
   if (!(bar && pet)) return NO_PET;
   if (!pet.canRename) return { ok: false, reason: "not_renamable" };
-  ctx.send(GameOpcode.CMSG_PET_RENAME, buildPetRename(bar.guid, name));
   const baseline = pet.nameTimestamp;
   const number = pet.number;
   pending.abort();
@@ -116,6 +115,7 @@ function renamePetAct(
     waiter.catch(() => undefined).then(() => undefined);
   };
   pending.abort = onAbort;
+  ctx.send(GameOpcode.CMSG_PET_RENAME, buildPetRename(bar.guid, name));
   void waiter.then(
     () => undefined,
     (error: unknown) => {
