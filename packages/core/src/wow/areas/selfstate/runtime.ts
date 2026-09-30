@@ -158,10 +158,22 @@ function dismountAct(ctx: Ctx, store: SelfstateStore) {
     if (!store.snapshot().mounted)
       return { status: "refused", reason: "not_mounted" };
     if (store.inFlight()) return { status: "refused", reason: "in_flight" };
+    const wait = new AbortController();
     const answer = ctx.until((event) => event.type === "dismounted", {
       timeoutMs: DISMOUNT_TIMEOUT_MS,
+      signal: wait.signal,
     });
-    ctx.send(GameOpcode.CMSG_CANCEL_MOUNT_AURA);
+    answer.catch(ignoreFailure);
+    try {
+      ctx.send(GameOpcode.CMSG_CANCEL_MOUNT_AURA);
+    } catch (error) {
+      wait.abort();
+      await answer.then(
+        () => undefined,
+        () => undefined,
+      );
+      throw error;
+    }
     try {
       await answer;
       return { status: "ok" };
