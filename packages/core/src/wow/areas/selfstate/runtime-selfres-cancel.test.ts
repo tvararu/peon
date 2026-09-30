@@ -98,7 +98,7 @@ describe("selfstate runtime: a send that throws releases the dismount wait", () 
     const rig = areaRig("selfstate", { selfGuid: SELF });
     const lifetime = new AbortController();
     const store = rig.stores.areas.selfstate;
-    store.syncMountFields(UNIT_FLAG_MOUNT, 14_337);
+    store.syncMountFields(UNIT_FLAG_MOUNT, 14_337, true);
     const live = { waiters: 0, unhandled: 0 };
     const onUnhandled = () => {
       live.unhandled += 1;

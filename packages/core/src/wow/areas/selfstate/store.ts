@@ -77,8 +77,6 @@ export class SelfstateStore {
   private mountKnown = false;
   private mountDisplayId = 0;
   private taxi = false;
-  private dismountedDisplayId = 0;
-  private dismountedTaxi = false;
   private dismountUnconfirmed = false;
 
   constructor(deps: SessionDeps, core: CoreStores) {
@@ -150,18 +148,13 @@ export class SelfstateStore {
   syncMountFields(
     unitFlags: number | undefined,
     displayId: number | undefined,
+    fresh: boolean,
   ): void {
     if (unitFlags === undefined || displayId === undefined) return;
     const mounted = (unitFlags & UNIT_FLAG_MOUNT) !== 0 && displayId !== 0;
     const taxi = (unitFlags & UnitFlag.TAXI_FLIGHT) !== 0;
-    if (this.dismountUnconfirmed && mounted) {
-      const changed =
-        displayId !== this.dismountedDisplayId || taxi !== this.dismountedTaxi;
-      if (!changed) return;
-      this.dismountUnconfirmed = false;
-    } else {
-      this.dismountUnconfirmed = false;
-    }
+    if (this.dismountUnconfirmed && mounted && !fresh) return;
+    this.dismountUnconfirmed = false;
     const displayIdNow = mounted ? displayId : 0;
     const was = this.mountDisplayId !== 0;
     const taxiBefore = this.taxi;
@@ -176,8 +169,6 @@ export class SelfstateStore {
 
   receiveDismount(guid: bigint): void {
     if (guid !== this.deps.selfGuid() || this.mountDisplayId === 0) return;
-    this.dismountedDisplayId = this.mountDisplayId;
-    this.dismountedTaxi = this.taxi;
     this.dismountUnconfirmed = true;
     this.mountDisplayId = 0;
     this.events.emit({ type: "dismounted", taxi: this.taxi });
