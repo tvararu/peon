@@ -19,9 +19,11 @@ import {
   type RaidLockView,
 } from "#harness/areas/instances/tool-status";
 import type { ToolResult } from "#harness/contract/result";
+import { Refusal } from "#harness/ops/refusal";
 import { defineGameTool, result } from "#harness/tools/define";
 import type { GameToolSpec, ToolRenderers } from "#harness/tools/game-tool";
 import { savesLine } from "#harness/tools/look-saves";
+import { nextCall } from "#harness/tools/next-call";
 import { argText } from "#harness/ui/draw";
 import {
   type CallInit,
@@ -261,7 +263,12 @@ async function runReset(ctx: DungeonCtx): Promise<ToolResult<DungeonAfter>> {
   ];
   const detail = body.join(" ");
   if (failed.length === 0) return reply("DONE", "reset", { body, detail });
-  if (reset.length === 0) return refusedOutcome("reset_failed", detail);
+  if (reset.length === 0)
+    throw new Refusal({
+      detail: `${detail} Leave the dungeon first, for example with your hearthstone.`,
+      next: nextCall("travel", { to: "hearth" }),
+      reason: "reset_failed",
+    });
   return reply("PARTLY", "reset", { body, detail });
 }
 

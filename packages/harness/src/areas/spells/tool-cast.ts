@@ -11,9 +11,11 @@ import { resolveUnit, unitRefusal } from "#harness/ops/resolve";
 import { settle } from "#harness/ops/settle";
 import { result } from "#harness/tools/define";
 import { nextCall } from "#harness/tools/next-call";
+import { HEARTHSTONE_SPELL } from "#harness/tools/travel-hearth";
 
 const REPLY_MARGIN_MS = 3000;
 const CODE = /^[a-z][a-z_]*$/;
+const HEARTH_TEXT = /hearth/i;
 
 type Reply = { done: true } | { done: false; reason: string };
 type Target = { guid: bigint; label: string; text: string | undefined };
@@ -113,10 +115,22 @@ async function sendAndWait(
   return heard && replyOf(heard, spell.id);
 }
 
+function refuseHearthstone(text: string | undefined): void {
+  const wanted = text?.trim() ?? "";
+  if (!HEARTH_TEXT.test(wanted) && wanted !== String(HEARTHSTONE_SPELL)) return;
+  throw new Refusal({
+    detail:
+      "your hearthstone is an item, not a spell you cast; travel to hearth uses it.",
+    next: nextCall("travel", { to: "hearth" }),
+    reason: "hearthstone_is_travel",
+  });
+}
+
 export async function castFlow(
   args: SpellArgs,
   ctx: SpellCtx,
 ): Promise<ToolResult<SpellAfter>> {
+  refuseHearthstone(args.spell);
   const spell = await spellOf(ctx, args.spell);
   const target = targetOf(ctx, args.target);
   const after: SpellAfter = {

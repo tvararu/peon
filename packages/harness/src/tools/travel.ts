@@ -424,7 +424,7 @@ export const travelSpec: GameToolSpec<
   run: runTravel,
   text: {
     description:
-      "Walks to a unit, to your corpse or to a point, or explores in a direction. It waits until you arrive or it fails, up to two minutes. Use explore when look does not show a unit that the task needs. Do not use it to fight.",
+      "Walks to a unit, to your corpse or to a point, or explores in a direction. With to hearth it uses your hearthstone and waits for the teleport home. It waits until you arrive or it fails, up to two minutes. Use explore when look does not show a unit that the task needs. Do not use it to fight.",
     guidelines: [
       "Never invent coordinates. If a refusal gives floors, use one as the third number.",
       'If a result says start_off_mesh, call travel with to "unstick". Then try the goal again.',

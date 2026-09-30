@@ -58,11 +58,16 @@ or the page names one that does not exist.
 ## Not shown by any scenario
 
 These have tools or code but no scenario that checks them live:
-- Resetting its own dungeons (`dungeon` `reset`): no scenario can stage the
-  character inside a dungeon (the realm position setup accepts only
-  continent maps, and evals may not teleport with a GM command), so the
-  reset is proven by probe runs, failed inside the dungeon and reset
-  outside it.
+- Resetting its own dungeons (`dungeon` `reset`): offline setup cannot place
+  the character inside a dungeon (the realm position setup accepts only
+  maps 0, 1, 530 and 571, and evals may not teleport with a GM command).
+  Walking in from the Ragefire Chasm portal (area trigger 2230, map 1) does
+  not work either: two live tries started the agent beside the portal in
+  the Cleft of Shadow on a `fresh` character, and both graded `fail` with
+  0 of 4 checks met. `travel` refused with `unsupported_map_1` (no Kalimdor
+  navigation data on this host) and walked 0 yd, so the agent never entered.
+  The reset is proven by probe runs, failed inside the dungeon and
+  reset outside it.
 
 - Training spells, repairing, and selling junk (`interact` `train`,
   `repair`, `sell_junk`).
