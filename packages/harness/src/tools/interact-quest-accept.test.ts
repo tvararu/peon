@@ -1,5 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
-import type { AreaState, QuestLogSlot } from "@peon/core";
+import type { AreaState, QuestLogSlot, QuestQuery } from "@peon/core";
 import {
   fakeMsUntilSettled,
   withFakeTimers,
@@ -250,14 +250,14 @@ describe("accept an explore quest with several area triggers", () => {
       objectives: "Explore the Fargodeep Mine.",
       title: "The Fargodeep Mine",
     },
-    query = talkQuery(quest.id, quest.objectives),
+    query: QuestQuery | null = talkQuery(quest.id, quest.objectives),
   ) {
     const { t } = await velan();
     const state = t.handle.getQuestState();
     t.handle.getQuestState = () => ({
       ...state,
       log: { complete: true, slots: [logged(quest.id)] },
-      queries: [query],
+      queries: query ? [query] : [],
     });
     jest.spyOn(t.handle.quests, "state").mockReturnValue(
       knownPoiState(quest.id, {
@@ -352,6 +352,22 @@ describe("accept an explore quest with several area triggers", () => {
         title: "Gold Dust Exchange",
       },
       collecting,
+    );
+    expect(res.next).toBe('journal(about: "quests")');
+  });
+
+  test("a quest whose template query is still pending does not route to a trigger", async () => {
+    const res = await accept(
+      [
+        { id: 197, x: -9796.18, y: 157.77, z: 25.39 },
+        { id: 88, x: -9843.54, y: 127.525, z: 5.37 },
+      ],
+      {
+        id: 47,
+        objectives: "Collect 10 Gold Dust.",
+        title: "Gold Dust Exchange",
+      },
+      null,
     );
     expect(res.next).toBe('journal(about: "quests")');
   });

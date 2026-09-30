@@ -132,8 +132,7 @@ function regionNext(
   quest: { counted: boolean | undefined; id: number; pointed: string },
 ): Accepted | undefined {
   const { pointed } = quest;
-  if (quest.counted === true) ctx.rt.travel.triggers = undefined;
-  else {
+  if (quest.counted === false) {
     const chain = triggersOf(ctx, region);
     const [trigger, ...others] = chain;
     ctx.rt.travel.triggers = trigger
@@ -147,7 +146,7 @@ function regionNext(
             : pointed,
         next: nextCall("travel", { to: trigger }),
       };
-  }
+  } else ctx.rt.travel.triggers = undefined;
   if (quest.counted !== false && farFrom(ctx, region.to))
     return {
       detail: pointed,
