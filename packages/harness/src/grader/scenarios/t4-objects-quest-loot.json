@@ -16,7 +16,7 @@
     },
     {
       "evidence": { "truth": ["quests"] },
-      "expect": "T final quests hold 3904 as complete, or 3904 is in rewardedQuests",
+      "expect": "T final rewardedQuests holds 3904, or T final quests hold 3904 as complete, so the agent took the quest itself and finished the crate loop",
       "id": "quest-done",
       "source": "truth"
     }
@@ -29,13 +29,15 @@
   "partner": null,
   "preset": "elwynn10",
   "setup": [
-    { "body": { "quest": 3904 }, "endpoint": "quest/add" },
+    { "body": { "quest": 3903 }, "endpoint": "quest/add" },
+    { "body": { "quest": 3903 }, "endpoint": "quest/complete" },
+    { "body": { "quest": 3903 }, "endpoint": "quest/reward" },
     {
-      "body": { "map": 0, "x": -9076.49, "y": -344.65, "z": 73.45 },
+      "body": { "map": 0, "x": -8850.29, "y": -221.03, "z": 81.78 },
       "endpoint": "position"
     }
   ],
   "steers": [],
-  "task": "Milly Osworth asked you to gather Milly's Harvest from the crates in the Northshire vineyards. Open the crates near you until the quest is complete, then tell me how many you gathered.",
+  "task": "Milly Osworth in Northshire Abbey has a quest about her grape harvest. Take it from her, gather what she asks for from the crates in the vineyards to the southeast, and turn it in to her.",
   "tier": 4
 }

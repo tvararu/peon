@@ -76,11 +76,10 @@ and reads shrines, plaques and books.
   dropped at once. After the last loot the loop waits up to 3 s for the
   quest-complete flag before it reports absent targets, and a unit that
   starts attacking mid-loop is fought through the engage path before the
-  loop resumes. Eval `t4-objects-quest-loot` stages quest 3904 at the
-  Northshire vineyard crates: the agent opens crates through the use path
-  (`CMSG_GAMEOBJ_USE` sent, `objects/used` rows for entry 161557, loot
-  windows open for those crate guids), but every window is empty and the
-  quest stays incomplete, so the quest-done check fails.
+  loop resumes. Eval `t4-objects-quest-loot` rewards quest 3903 at setup
+  and starts at Milly Osworth by Northshire Abbey, so the agent takes
+  quest 3904 itself and gathers the harvest from the vineyard crates
+  through the use path.
 - The guid of `SMSG_GAMEOBJECT_DESPAWN_ANIM` is not always a game
   object's.
   - A dynamic object sends the despawn animation with its own guid when
