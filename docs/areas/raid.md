@@ -428,6 +428,8 @@ idle agent; the steer at 100 s fixed the scenario.
 
 Set loot rules and give master loot (`t9-raid-master-loot`, round 84 replicas 1-3, `fail` 2/4 each; run directories not committed): the agent set master loot with itself as looter every time (roster loot row, `DONE`), and the game log shows the `looting/master_loot` candidate row with the master named. No replica moved an item through `give`: replica 1 named the placeholder `item` against a window of item ids, replica 2 named creature names and `Springpaw Pelt` against item ids, replica 3 looted the Lynx Meat (item 27668) normally before calling `give`. The tool now maps the caller's own character name to `@self` (the server lists only the master as candidate) and the task names the shown item id. `roll` and `pass_loot` stay unit-tested only: a group roll needs an uncommon drop and `pass_loot` has no server reply.
 
+Mark a target (`t9-raid-mark`, round 90 replica 1, `pass` 3/3; run directory not committed): the agent joined the invited party, marked the nearest hostile Springpaw Stalker with skull through the group tool, and told the group in party chat. The game log shows the `raid/mark` row with icon 7 and the setter's name and the `chat/out` party row, and the packet trace holds `out MSG_RAID_TARGET_UPDATE` size 9 then `in` size 18. The target was a Stalker, not a Lynx: the spawn point holds no Lynx in range, so the agent marked the nearest hostile of the same family. An earlier round 90 replica failed 0/3 because the agent tried `accept_invite` before the partner invite arrived and the repeat guard refused the retry, so it never joined; the next wording was reverted to match the sibling scenarios.
+
 ## Proof
 
 | Opcode | Proof | Evidence | Source |
