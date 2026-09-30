@@ -150,7 +150,7 @@ the maps failed or blocked, or `nothing_to_reset` when nothing came.
 
 ## Capabilities row
 
-Set dungeon difficulty (`t9-instances-difficulty`, pass round 61): one `dungeon` `difficulty` call with `for: "dungeon"` and `value: "heroic"`, whose reply names heroic and does not claim the server confirmed the solo change. Resetting a dungeon has no scenario (BR-instances-5-1): the live proof is probe runs, not committed — reset inside the Deadmines settles `ok` with `failed: [36]`, after hearth `ok` with `reset: [36]`. A group member cannot reset; a solo difficulty change stays unconfirmed until the next dungeon entry.
+Set dungeon difficulty (`t9-instances-difficulty`, pass round 61): one `dungeon` `difficulty` call with `for: "dungeon"` and `value: "heroic"`, whose reply names heroic and does not claim the server confirmed the solo change. Resetting a dungeon has no scenario (BR-instances-5-1, [capabilities](../capabilities.md#not-shown-by-any-scenario)): the live proof is probe runs, not committed — reset inside the Deadmines settles `ok` with `failed: [36]`, after hearth `ok` with `reset: [36]`. Inside a dungeon the agent leaves with `travel` `to: "hearth"`; a failed reset and a `spell` `cast` of the Hearthstone both point at it. A group member cannot reset; a solo difficulty change stays unconfirmed until the next dungeon entry.
 
 ## Proof
 

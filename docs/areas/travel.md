@@ -63,6 +63,7 @@ item guid, not the low guid
 home the server keeps (`Spells/Spell.cpp:1441-1444`). The step refuses
 without the stone, while the spell is on cooldown, in combat or in
 flight. A cast that ends without a teleport is `interrupted`.
+The Hearthstone is an item, so `spell` `cast` of it refuses with `travel` `to: "hearth"` as the next call; the `travel` description names `to: "hearth"` too.
 
 ## Capabilities row
 
