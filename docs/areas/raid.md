@@ -208,7 +208,13 @@ character when its position is known.
   `0x08`) is not seen live until `instances` forms a dungeon-finder
   group. The acts name other members only: the caller's own name throws
   `not in your party`, because the server never lists the receiving
-  character in `SMSG_GROUP_LIST`.
+  character in `SMSG_GROUP_LIST`. The `group` tool's `mark` refuses a
+  hostile player as a target and refuses in a raid unless Peon leads or
+  assists, mirroring the `MSG_RAID_TARGET_UPDATE` handler
+  (`Handlers/GroupHandler.cpp:610-645`); `ping` sends the target's or
+  the character's position and gets no echo, mirroring the
+  `MSG_MINIMAP_PING` handler (`Handlers/GroupHandler.cpp:584-595`)
+  and its broadcast (`Groups/Group.cpp:2272-2280`).
 
 ## Live evidence
 
