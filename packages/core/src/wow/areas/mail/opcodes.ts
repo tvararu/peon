@@ -7,6 +7,7 @@ export const MAIL_OPCODES = {
     "CMSG_MAIL_MARK_AS_READ",
     "MSG_QUERY_NEXT_MAIL_TIME",
     "SMSG_SHOW_MAILBOX",
+    "SMSG_RECEIVED_MAIL",
     "SMSG_SEND_MAIL_RESULT",
     "CMSG_MAIL_TAKE_MONEY",
     "CMSG_MAIL_TAKE_ITEM",
@@ -16,11 +17,7 @@ export const MAIL_OPCODES = {
     "CMSG_SEND_MAIL",
   ],
   uses: [],
-  stubs: [
-    ["SMSG_SEND_MAIL_RESULT", "Mail result"],
-    ["SMSG_MAIL_LIST_RESULT", "Mail list"],
-    ["SMSG_SHOW_MAILBOX", "Mailbox opened"],
-  ],
+  stubs: [["SMSG_SEND_MAIL_RESULT", "Mail result"]],
   dead: [],
-  unseen: [],
+  unseen: ["SMSG_SHOW_MAILBOX"],
 } as const satisfies AreaOpcodes;
