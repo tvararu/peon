@@ -12,9 +12,23 @@ once the way a player who skips it would; `nextCinematicCamera` exists
 for the probe only and is never sent in play. Movies the server starts
 are recorded, and core sends no reply.
 
+The area also records sound, music, light and phase. `SMSG_PLAY_SOUND`,
+`SMSG_PLAY_MUSIC` and `SMSG_PLAY_OBJECT_SOUND` each emit one `sound`
+event with `kind` (`sound`, `music` or `object`), `soundKitId` and
+`source` (the source guid as a decimal string, empty when the packet
+has none); only music keeps state (`music`, the last one).
+`SMSG_OVERRIDE_LIGHT` sets `light` and emits `light`.
+`SMSG_SET_PHASE_SHIFT` sets `phaseMask` (1 by default, unsigned) and
+emits `phase_changed` with `from` and `to` only when the mask differs.
+`SMSG_NEW_WORLD` clears `light` and `music`, which the server resends on
+zone entry, and keeps `phaseMask`, which the server sends only when a
+phase aura is applied or removed.
+
 In the harness, the completed intro cinematic and a movie the server
 starts are passive log rows; a cinematic that did not complete writes
-no row.
+no row. A phase change writes the `log` row `ambience/phase` ("Your
+phase changed. Some units and objects may appear or vanish."). `sound`
+and `light` write no row.
 
 ## Wire notes
 
@@ -57,10 +71,26 @@ no row.
   (`Entities/Player/Player.cpp:5887`), from the map script `PLAY_MOVIE`
   command (`Server/Protocol/Opcodes.cpp:1255`); core never sends a reply.
 
+- `SMSG_PLAY_SOUND` and `SMSG_PLAY_MUSIC` are one `uint32` sound kit id
+  (`Server/Packets/MiscPackets.cpp:63`, `Server/Packets/MiscPackets.cpp:48`).
+  `SMSG_PLAY_OBJECT_SOUND` is the sound kit id and then the full 8-byte
+  source guid, not a packed one (`Server/Packets/MiscPackets.cpp:55`,
+  from `PlayDistanceSound`, `Entities/Object/Object.cpp:3008`).
+- `SMSG_OVERRIDE_LIGHT` is three `uint32`: the map's default light id,
+  the override light id and the fade time in milliseconds
+  (`Maps/Map.cpp:3331`, `LightFadeInTime` is `Milliseconds`).
+  wow_messages types the fade as seconds
+  (`wow_message_parser/wowm/world/cinematic/smsg_override_light.wowm`);
+  AzerothCore wins and the area keeps `fadeMs`. The server resends the
+  zone's override light on zone entry (`Maps/Map.cpp:3236`).
+- `SMSG_SET_PHASE_SHIFT` is one `uint32` phase mask
+  (`Handlers/MiscHandler.cpp:1632`), sent when a phase aura is applied
+  or removed (the `HandlePhase` aura handler in `Spells/Auras/SpellAuraEffects.cpp`); 1 when no
+  phase aura is left. A GM-mode player gets `PHASEMASK_ANYWHERE`, so the
+  area keeps the mask unsigned.
+
 ## Left out
 
-- `SMSG_PLAY_SOUND`, `SMSG_PLAY_MUSIC`, `SMSG_PLAY_OBJECT_SOUND`,
-  `SMSG_OVERRIDE_LIGHT` and `SMSG_SET_PHASE_SHIFT`: built by world-6.
 - `CMSG_COMPLETE_MOVIE`, `SMSG_TOGGLE_XP_GAIN` and `SMSG_CAMERA_SHAKE`
   are dead (rows below): the server drops the first and never sends the
   other two.
@@ -79,6 +109,11 @@ No verb (N23); the world service reads world states and weather.
 | `SMSG_TRIGGER_CINEMATIC` | `live` | probe flow `login` on a `fresh` account, exit 0 | `Entities/Player/Player.cpp:5878` |
 | `CMSG_COMPLETE_CINEMATIC` | `accepted` | the same run: core's send, no disconnect | `Handlers/MiscHandler.cpp:940` |
 | `CMSG_NEXT_CINEMATIC_CAMERA` | `accepted` | probe `--send` after the complete, no disconnect | `Handlers/MiscHandler.cpp:946` |
+| `SMSG_PLAY_OBJECT_SOUND` | `live` | `elwynn10` account staged at the Eastvale camp (-9466.71, -1296.88, 41.55), probe flow `login --expect SMSG_PLAY_OBJECT_SOUND --wait 180`, exit 0; 8 packets of 12 bytes, all handled (run `tmp/probe/FAC6ABD9AB7DB-20260930T232658Z`) | `Server/Packets/MiscPackets.cpp:55` |
+| `SMSG_PLAY_SOUND` | `mock` | `area.test.ts`, not seen live | `Server/Packets/MiscPackets.cpp:63` |
+| `SMSG_PLAY_MUSIC` | `mock` | `area.test.ts`, not seen live | `Server/Packets/MiscPackets.cpp:48` |
+| `SMSG_OVERRIDE_LIGHT` | `mock` | `area.test.ts`, not seen live | `Maps/Map.cpp:3331` |
+| `SMSG_SET_PHASE_SHIFT` | `mock` | `area.test.ts`, not seen live | `Handlers/MiscHandler.cpp:1632` |
 | `SMSG_TRIGGER_MOVIE` | `mock` | `area.test.ts`, not seen live | `Entities/Player/Player.cpp:5885` |
 | `CMSG_COMPLETE_MOVIE` | `dead` | `STATUS_NEVER` with `Handle_NULL`: the server drops it, so a send proves nothing, and core never sends it | `Server/Protocol/Opcodes.cpp:1256` |
 | `SMSG_TOGGLE_XP_GAIN` | `dead` | registered `STATUS_NEVER` with no send site in AzerothCore `src/`; wow_messages notes it exists only as a comment (`wow_message_parser/wowm/world/exp/smsg_toggle_xp_gain.wowm`) | `Server/Protocol/Opcodes.cpp:1392` |
