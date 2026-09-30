@@ -261,6 +261,38 @@ Disagreements for opcodes later tasks build (AzerothCore wins):
   test builds the packet from the AzerothCore writer, and a live
   `CMSG_TOTEM_DESTROYED` of empty slot 0 sent one byte with no
   disconnect.
+- `SMSG_LEARNED_SPELL` is the `uint32` spell and a `uint16` 0
+  (`Entities/Player/Player.cpp:3139-3141`). Offline `spells/learn`
+  writes a character that setup refuses to stage while online, so no
+  such packet follows it; the row lands in the spellbook at the next
+  login, which packs the `m_spells` map into `SMSG_INITIAL_SPELLS`
+  (`Entities/Player/Player.cpp:2796-2799`). A spell learned while the
+  character is in the world, with `soap gm <ACCOUNT> learn <spell>`,
+  arrives as `SMSG_LEARNED_SPELL` with no relog: the same throwaway
+  `eversong10` that saw no packet from offline learns of 33388, 458
+  and 20608, and found only 33388 and 458 in its 73-spell next-login
+  `SMSG_INITIAL_SPELLS`, drew `SMSG_LEARNED_SPELL` body `6c8200000000`
+  for 33388 with outcome `handled`. A flow that needs a spell learns
+  it online, or stages it before the login and reads it from
+  `SMSG_INITIAL_SPELLS`.
+- `Player::learnSpell` only sends the packet when the player is in the
+  world, behind the `IsInWorld` guard
+  (`Entities/Player/Player.cpp:3439-3440`); the login load keeps a
+  stored spell only when its skill line fits the race and class and
+  deletes the row (`Entities/Player/PlayerStorage.cpp:6678-6681`),
+  logging which skill a bad spell would teach
+  (`Entities/Player/Player.cpp:3233-3236`).
+- The probe flow `selfstate-mount` defaults to 458 because spell 33388
+  is Apprentice Riding, not a mount: `Spell.dbc` gives it effects 3
+  (dummy) and 118 (skill) with no aura, and the passive flag. A mount
+  spell has effect 6 with aura 78 (`SPELL_AURA_MOUNTED`), as Brown Horse
+  458 and Frostwolf Howler 23509 do; `Unit::Mount` sends the height
+  packet, packed guid, counter and height
+  (`Entities/Unit/Unit.cpp:10272-10275`), named
+  `SMSG_MOVE_SET_COLLISION_HGT`.
+- The server drops a client `CMSG_CAST_SPELL` of a spell it does not
+  know or a passive spell without a reply
+  (`Handlers/SpellHandler.cpp:449-450`).
 ## Left out
 
 - `CMSG_UNLEARN_SKILL`: built by spells-7.
@@ -282,3 +314,4 @@ Cancel one of its own buffs (`t4-spells-cancel-aura`; harmful and passive auras 
 | `CMSG_TOTEM_DESTROYED` | `builder` | sent live on a `max80` priest: `mise protocol:probe <ACCOUNT> --send CMSG_TOTEM_DESTROYED --body 00 --wait 8`, exit 0, one byte in the trace, no disconnect; effect not seen (slot 0 was empty, which the server ignores); not seen live | `Server/Packets/TotemPackets.cpp:20-23` |
 
 | `CMSG_CANCEL_AURA` | `live` | mount cancel on a throwaway `eversong10` character with spell 458 (Brown Horse): `mise protocol:probe <ACCOUNT> --flow selfstate-mount` reports spell 458, collision height null to 2.88, `cancel: ok`, height back to 2.03 after the dismount; the retained trace shows `CMSG_CAST_SPELL` out, `SMSG_MOVE_SET_COLLISION_HGT` and `SMSG_AURA_UPDATE` in, then `CMSG_CANCEL_AURA` out followed by `SMSG_AURA_UPDATE`, `SMSG_MOVE_SET_COLLISION_HGT` and `SMSG_DISMOUNT` in. A puppet cancel of the live mount aura (`CMSG_CAST_SPELL` then raw `CMSG_CANCEL_AURA`) shows the same packet sequence in its retained `packets.jsonl` | `Handlers/SpellHandler.cpp:568-601` |
+| `SMSG_LEARNED_SPELL` | `live` | throwaway `eversong10` character: `soap setup spells/learn` of 33388, 458 and 20608 while offline sent no packet, and the next login's `SMSG_INITIAL_SPELLS` (73 spells) held 33388 and 458 and no 20608; with the character in the world, `soap gm learn 33388` drew `SMSG_LEARNED_SPELL` body `6c8200000000`, outcome `handled` | `Entities/Player/Player.cpp:3137-3145` |
