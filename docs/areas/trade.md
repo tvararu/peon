@@ -22,9 +22,13 @@ The acts:
   `BEGIN_TRADE` arrives while the request is out, and `unanswered` after
   60 seconds, when it enters `settling` and sends `CMSG_CANCEL_TRADE` to
   free the character; settling ends on `TRADE_CANCELED` or after 5 s. A
-  silent initiate veto (`Handlers/TradeHandler.cpp:841-842`) leaves no
-  reply: `TradeCancel` with no `m_trade` takes the empty branch, so the
-  store is already `settling` and a later stray `TRADE_CANCELED` ends it.
+  cancel that already settled the request skips that timeout send, so only
+  one `CMSG_CANCEL_TRADE` goes out. A silent initiate veto leaves no
+  `CMSG_INITIATE_TRADE` reply (`Handlers/TradeHandler.cpp:841-842`):
+  `TradeCancel` with no `m_trade` takes the empty branch, so the store is
+  already `settling` and a later stray `TRADE_CANCELED` ends it. A
+  cancel send that throws at the timeout settles the store back to `idle`
+  and rejects with the send error, so the next `requestTrade` may start.
   Any cancel status during `requested_out`, `requested_in` or `open`
   applies to that current trade. `BEGIN_TRADE` always starts a fresh
   incoming request. `trade_canceled` before the window opens settles a
@@ -118,12 +122,6 @@ character can trade again.
   once) closes the local `settling` early; the outcome is the same
   (`idle`) either way. `Player::TradeCancel` deletes both sides' trade
   data and notifies both sessions (`PlayerStorage.cpp:4223-4241`).
-- A local cancel of a silently vetoed request (`TradeHandler.cpp:841-842`)
-  gets no reply, and the original request's wait stays armed for its
-  60 s. A later outgoing trade's window can settle it.
-- If the cancel sent at a request timeout throws (socket closed), the
-  store stays `settling`, and `requestTrade` refuses `busy` until the
-  session restarts.
 
 ## Capabilities row
 

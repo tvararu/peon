@@ -149,9 +149,10 @@ describe("a local cancel settles", () => {
       await Promise.resolve();
       expect(await canceling).toEqual({ status: "unanswered" });
       expect(rig.handle.state().phase).toBe("idle");
+      expect(cancelsCount(rig)).toBe(1);
       jest.advanceTimersByTime(60_000);
       expect(await pending).toEqual({ status: "unanswered" });
-      expect(cancelsCount(rig)).toBe(2);
+      expect(cancelsCount(rig)).toBe(1);
       const next = rig.handle.act.requestTrade(TRADE_PARTNER);
       await advance(0);
       status(rig, TRADE_STATUS.OPEN_WINDOW, { tradeId: 0 });
