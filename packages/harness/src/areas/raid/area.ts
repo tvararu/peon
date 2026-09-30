@@ -210,6 +210,43 @@ function disbanded(): AreaDraft[] {
   ];
 }
 
+function summonerName(name: string, summoner: bigint, rc: RuleInput): string {
+  if (name !== "") return name;
+  return rc.lookup.unitName(summoner) ?? "Someone";
+}
+
+function summonRequested(
+  event: Of<"summon_requested">,
+  rc: RuleInput,
+): AreaDraft[] {
+  const who = summonerName(event.name, event.summoner, rc);
+  const zone = event.zoneName ?? `zone ${event.zoneId}`;
+  const seconds = Math.round(event.timeoutMs / 1000);
+  return [
+    {
+      class: "wake",
+      data: { name: who, seconds, summoner: `${event.summoner}`, zone },
+      name: "summon",
+      text: `${who} summons you to ${zone}. Answer within ${seconds} s.`,
+    },
+  ];
+}
+
+function summonExpired(
+  event: Of<"summon_expired">,
+  rc: RuleInput,
+): AreaDraft[] {
+  const who = summonerName(event.name, event.summoner, rc);
+  return [
+    {
+      class: "passive",
+      data: { name: who, summoner: `${event.summoner}` },
+      name: "summon_expired",
+      text: `The summon from ${who} expired.`,
+    },
+  ];
+}
+
 function rule(event: RaidEvent, rc: RuleInput): AreaDraft[] {
   switch (event.type) {
     case "group_list":
@@ -232,6 +269,10 @@ function rule(event: RaidEvent, rc: RuleInput): AreaDraft[] {
       return [];
     case "minimap_ping":
       return pingRows(event, rc);
+    case "summon_requested":
+      return summonRequested(event, rc);
+    case "summon_expired":
+      return summonExpired(event, rc);
     case "disbanded":
       return disbanded();
     default:

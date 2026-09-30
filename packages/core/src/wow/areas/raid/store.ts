@@ -1,12 +1,14 @@
 import type { Unsubscribe } from "#lib/emitter";
 import type { RaidGroup } from "#wow/areas/raid/protocol";
 import type { RaidTargetUpdate } from "#wow/areas/raid/protocol-marks";
+import type { SummonRequest } from "#wow/areas/raid/protocol-summon";
 import {
   type RaidEvent,
   type RaidState,
   RaidStore,
 } from "#wow/areas/raid/store-roster";
 import { commandResultEvent } from "#wow/areas/raid/store-structure";
+import type { ZoneNames } from "#wow/areas/raid/zone-names";
 import type { PartyCommandResult } from "#wow/protocol/group";
 import type { PartyMemberStats } from "#wow/protocol/group-stats";
 
@@ -64,6 +66,22 @@ export class RaidAreaStore {
 
   receivePing(who: bigint, x: number, y: number): void {
     this.inner.receivePing(who, x, y);
+  }
+
+  receiveSummon(packet: SummonRequest): void {
+    this.inner.receiveSummon(packet, this.now());
+  }
+
+  expireSummon(expiresAt: number): void {
+    this.inner.expireSummon(expiresAt);
+  }
+
+  clearSummon(): void {
+    this.inner.clearSummon();
+  }
+
+  setZoneNames(zones: ZoneNames): void {
+    this.inner.setZoneNames(zones);
   }
 
   dispose(): void {

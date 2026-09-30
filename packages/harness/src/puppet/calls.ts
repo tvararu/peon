@@ -38,6 +38,10 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
         throw new Error("No shared quest is offered.");
     },
   },
+  answerSummon: {
+    args: [["decline", "accept"]],
+    run: (h, a) => h.raid.act.answerSummon(a[0] === "accept"),
+  },
   convertToRaid: { args: [], run: (h) => h.raid.act.convertToRaid() },
   declineGuildInvite: { args: [], run: (h) => h.declineGuildInvite() },
   declineInvite: { args: [], run: (h) => h.declineInvite() },

@@ -1,3 +1,5 @@
+import { dbcFiles, packDbc } from "#test-support/dbc";
+import type { DbcSource } from "#wow/dbc";
 import { PacketWriter } from "#wow/protocol/packet";
 
 const GROUP_TYPE_LFG = 0x08;
@@ -391,4 +393,34 @@ export function raidMinimapPingBody(
   w.floatLE(x);
   w.floatLE(y);
   return w.finish();
+}
+
+export function raidSummonRequestBody(
+  summoner: bigint,
+  zoneId: number,
+  timeoutMs: number,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(summoner);
+  w.uint32LE(zoneId);
+  w.uint32LE(timeoutMs);
+  return w.finish();
+}
+
+export function raidAreaTableSource(
+  rows: readonly { id: number; name: string }[],
+): DbcSource {
+  let text = "\0";
+  const cells = rows.map((row) => {
+    const cell = new Array<number>(36).fill(0);
+    cell[0] = row.id;
+    cell[11] = text.length;
+    text += `${row.name}\0`;
+    return cell;
+  });
+  return dbcFiles(
+    new Map([
+      ["AreaTable.dbc", packDbc(36, cells, new TextEncoder().encode(text))],
+    ]),
+  );
 }

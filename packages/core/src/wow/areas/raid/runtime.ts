@@ -15,6 +15,10 @@ import {
   composeStructureRuntime,
   type StructureActs,
 } from "#wow/areas/raid/runtime-structure";
+import {
+  composeSummonRuntime,
+  type SummonActs,
+} from "#wow/areas/raid/runtime-summon";
 import type { RaidAreaStore } from "#wow/areas/raid/store";
 import type { RaidChange, RaidEvent } from "#wow/areas/raid/store-roster";
 
@@ -25,7 +29,8 @@ export type GroupChangeMatch = {
 export type RaidActs = StatsActs &
   StructureActs &
   ReadyActs &
-  MarkActs & {
+  MarkActs &
+  SummonActs & {
     awaitGroupChange: (
       match: GroupChangeMatch,
       timeoutMs: number,
@@ -52,6 +57,7 @@ export function raidRuntime(
   const structure = composeStructureRuntime({ ctx, store });
   const ready = composeReadyRuntime({ ctx, store });
   const marks = composeMarksRuntime({ ctx });
+  const summon = composeSummonRuntime({ ctx, store });
   function awaitGroupChange(
     match: GroupChangeMatch,
     timeoutMs: number,
@@ -65,12 +71,14 @@ export function raidRuntime(
       ...structure.act,
       ...ready.act,
       ...marks.act,
+      ...summon.act,
     },
     dispose: () => {
       stats.dispose();
       structure.dispose();
       ready.dispose();
       marks.dispose();
+      summon.dispose();
     },
   };
 }
