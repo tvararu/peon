@@ -55,11 +55,16 @@ export function vehiclesCreateVehicleBlock(init: {
   w.uint8(UpdateType.CREATE_OBJECT2);
   writePackedGuid(w, init.guid);
   w.uint8(3);
-  w.uint16LE(UpdateFlag.HAS_POSITION | UpdateFlag.VEHICLE);
+  w.uint16LE(UpdateFlag.LIVING | UpdateFlag.VEHICLE);
+  w.uint32LE(0);
+  w.uint16LE(0);
+  w.uint32LE(0);
   w.floatLE(5);
   w.floatLE(6);
   w.floatLE(7);
-  w.floatLE(1);
+  w.floatLE(init.orientation);
+  w.floatLE(0);
+  for (let i = 0; i < 9; i++) w.floatLE(i === 1 ? 7 : 0);
   w.uint32LE(init.vehicleId);
   w.floatLE(init.orientation);
   writeUpdateMask(w, new Map([[UNIT_FIELDS.HEALTH.offset, 100]]));
