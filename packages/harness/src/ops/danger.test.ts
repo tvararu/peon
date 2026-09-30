@@ -370,6 +370,8 @@ describe("breath interrupt", () => {
     collisionHeight: undefined,
     ghostPending: false,
     lastTransferAbort: undefined,
+    mountDisplayId: 0,
+    mounted: false,
     selfResSpell: 0,
     standState: "stand",
     timers: {},

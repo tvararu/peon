@@ -146,6 +146,14 @@ export function parseTransferAborted(r: PacketReader): TransferAborted {
   return { arg, mapId, reason };
 }
 
+export function parseDismount(r: PacketReader): bigint {
+  return r.packedGuidBig();
+}
+
+export function parseMountSpecialAnim(r: PacketReader): bigint {
+  return r.uint64LE();
+}
+
 export type CollisionHeight = MoveCounter & { height: number };
 
 export function parseCollisionHeight(r: PacketReader): CollisionHeight {

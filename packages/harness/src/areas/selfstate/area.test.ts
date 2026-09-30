@@ -17,6 +17,8 @@ const IDLE: AreaState<"selfstate"> = {
   collisionHeight: undefined,
   ghostPending: false,
   lastTransferAbort: undefined,
+  mountDisplayId: 0,
+  mounted: false,
   selfResSpell: 0,
   standState: "stand",
   timers: {},
@@ -125,6 +127,28 @@ describe("selfstate harness rules", () => {
         text: "You can come back where you died (Reincarnation).",
       },
     ]);
+  });
+
+  test("a mount and a dismount log their rows", () => {
+    const [up] = drafts({ displayId: 14_337, taxi: false, type: "mounted" });
+    const [down] = drafts({ taxi: false, type: "dismounted" });
+    expect(up).toMatchObject({
+      class: "log",
+      data: { displayId: 14_337 },
+      event: "selfstate/mounted",
+    });
+    expect(down).toMatchObject({ class: "log", event: "selfstate/dismounted" });
+  });
+
+  test("a taxi flight's mount and dismount write no row", () => {
+    expect(drafts({ displayId: 14_337, taxi: true, type: "mounted" })).toEqual(
+      [],
+    );
+    expect(drafts({ taxi: true, type: "dismounted" })).toEqual([]);
+  });
+
+  test("another rider's animation writes no row", () => {
+    expect(drafts({ guid: 7n, type: "mount_anim" })).toEqual([]);
   });
 
   test("an unnamed self-resurrection spell falls back to its id", () => {

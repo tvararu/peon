@@ -9,12 +9,24 @@ function spellOf(args: Readonly<Record<string, string>>): number {
   return spell;
 }
 
+function describe(outcome: { status: string; reason?: string }): string {
+  return outcome.reason ?? outcome.status;
+}
+
 async function run({ handle, settle, args }: FlowContext): Promise<Json> {
   const spell = spellOf(args);
   const events: Json[] = [];
   const off = handle.selfstate.onEvent((event) => {
     if (event.type === "stand_changed")
       events.push({ from: event.from ?? null, to: event.to });
+    else if (event.type === "mounted")
+      events.push({
+        mounted: { displayId: event.displayId, taxi: event.taxi },
+      });
+    else if (event.type === "dismounted")
+      events.push({ dismounted: { taxi: event.taxi } });
+    else if (event.type === "mount_anim")
+      events.push({ mountAnim: event.guid.toString() });
   });
   try {
     await handle.loadCatalogs();
@@ -24,8 +36,11 @@ async function run({ handle, settle, args }: FlowContext): Promise<Json> {
       const height = handle.selfstate.state().collisionHeight;
       return height === before ? undefined : height;
     });
-    const cancel = handle.spells.act.cancelAura(spell);
-    const cancelStatus = cancel.ok ? "ok" : cancel.reason;
+    const special =
+      args["special"] === "1"
+        ? describe(handle.selfstate.act.mountSpecialAnim())
+        : null;
+    const dismount = describe(await handle.selfstate.act.dismount());
     if (mounted === undefined)
       throw new Error(
         `selfstate-mount saw no SMSG_MOVE_SET_COLLISION_HGT after casting ${spell}.`,
@@ -38,9 +53,10 @@ async function run({ handle, settle, args }: FlowContext): Promise<Json> {
     return {
       after,
       before,
-      cancel: cancelStatus,
+      dismount,
       events,
       mounted: mounted ?? null,
+      special,
       spell,
     };
   } finally {
@@ -52,5 +68,5 @@ export const flow: ProbeFlow = {
   name: "selfstate-mount",
   run,
   usage:
-    "--flow selfstate-mount [--arg spell=<id>]: cast the mount spell <id> (default 458) with the existing cast act, wait for the collision height from SMSG_MOVE_SET_COLLISION_HGT, then cancel the aura and report the height after the dismount.",
+    "--flow selfstate-mount [--arg spell=<id>] [--arg special=1]: cast the mount spell <id> (default 458) with the existing cast act and wait for the collision height from SMSG_MOVE_SET_COLLISION_HGT. With special=1, send CMSG_MOUNTSPECIAL_ANIM. Then dismount with the selfstate act and report the dismount outcome, the selfstate events and the height after it.",
 };
