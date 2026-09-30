@@ -1,5 +1,6 @@
 import { achievementsArea } from "#wow/areas/achievements/area";
 import { ambienceArea } from "#wow/areas/ambience/area";
+import { bankArea } from "#wow/areas/bank/area";
 import { buybackArea } from "#wow/areas/buyback/area";
 import { combatlogArea } from "#wow/areas/combatlog/area";
 import { emotesArea } from "#wow/areas/emotes/area";
@@ -8,6 +9,7 @@ import { itemsArea } from "#wow/areas/items/area";
 import { lfgArea } from "#wow/areas/lfg/area";
 import { loginArea } from "#wow/areas/login/area";
 import { lootingArea } from "#wow/areas/looting/area";
+import { mailArea } from "#wow/areas/mail/area";
 import { objectsArea } from "#wow/areas/objects/area";
 import { petsArea } from "#wow/areas/pets/area";
 import { questsArea } from "#wow/areas/quests/area";
@@ -25,6 +27,7 @@ import { unitmotionArea } from "#wow/areas/unitmotion/area";
 export const AREAS = {
   achievements: achievementsArea,
   ambience: ambienceArea,
+  bank: bankArea,
   buyback: buybackArea,
   combatlog: combatlogArea,
   emotes: emotesArea,
@@ -33,6 +36,7 @@ export const AREAS = {
   lfg: lfgArea,
   login: loginArea,
   looting: lootingArea,
+  mail: mailArea,
   objects: objectsArea,
   pets: petsArea,
   quests: questsArea,
