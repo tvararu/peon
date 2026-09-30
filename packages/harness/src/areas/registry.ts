@@ -22,8 +22,10 @@ import { talentsHarness } from "#harness/areas/talents/area";
 import { threatHarness } from "#harness/areas/threat/area";
 import { timeHarness } from "#harness/areas/time/area";
 import { tradeHarness } from "#harness/areas/trade/area";
+import { transportsHarness } from "#harness/areas/transports/area";
 import { travelHarness } from "#harness/areas/travel/area";
 import { unitmotionHarness } from "#harness/areas/unitmotion/area";
+import { vehiclesHarness } from "#harness/areas/vehicles/area";
 
 export const HARNESS_AREAS = {
   achievements: achievementsHarness,
@@ -49,8 +51,10 @@ export const HARNESS_AREAS = {
   threat: threatHarness,
   time: timeHarness,
   trade: tradeHarness,
+  transports: transportsHarness,
   travel: travelHarness,
   unitmotion: unitmotionHarness,
+  vehicles: vehiclesHarness,
 };
 export const HARNESS_AREAS_TOTAL: [
   Exclude<AreaName, keyof typeof HARNESS_AREAS>,

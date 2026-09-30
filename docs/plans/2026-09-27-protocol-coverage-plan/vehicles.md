@@ -771,9 +771,9 @@ Related opcodes that other units own: `CMSG_MOVE_SPLINE_DONE` (`travel`),
 
 ## Questions for the coordinator
 
-1. The two leases and the `COORD` export named above that contract 2.7
+1. ~~The two leases and the `COORD` export named above that contract 2.7
    does not list (`protocol/monster-move.ts`, `control-feed.ts`,
-   `control-mover.ts`, the update-object inflate).
+   `control-mover.ts`, the update-object inflate).~~ Granted (SEED3-21).
 2. The "Control access" and "Create-block reads" decisions.
 3. Contract 0.6 had no proof row for a client opcode whose effect no
    worker can reach. The plan fix-up added the effect-not-seen row
