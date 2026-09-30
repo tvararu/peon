@@ -1,11 +1,15 @@
 import type { RewardsEvent } from "@peon/core";
 import type { Occupied } from "#harness/areas/items/tool-resolve";
-import { type ObjectRow, reachYd } from "#harness/areas/objects/reads";
-import { isObjectRef, resolveObjectRef } from "#harness/areas/objects/reads";
-import type { ViewCtx } from "#harness/contract/services";
+import {
+  isObjectRef,
+  type ObjectRow,
+  reachYd,
+  resolveObjectRef,
+} from "#harness/areas/objects/reads";
 import type { UseAfter, UseCtx } from "#harness/areas/objects/tool";
 import type { LootLine } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
+import type { ViewCtx } from "#harness/contract/services";
 import { EventWaiter } from "#harness/loops/event-waiter";
 import { lootObject } from "#harness/loops/loot-run";
 import { itemIdText, nameLootLines } from "#harness/ops/item-names";

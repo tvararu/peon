@@ -206,7 +206,8 @@ export function reachYd(row: ObjectRow, ctx?: ViewCtx): number {
       ? boundsFor(store as DisplaySource, row.entry)
       : undefined;
   const entity = ctx.handle.getEntity(row.guid);
-  if (!bounds || !isGameObjectEntity(entity)) return base;
+  if (bounds === undefined) return base;
+  if (!isGameObjectEntity(entity)) return base;
   const scale = entity.scale > 0 ? entity.scale : 1;
   const halfX = ((bounds.maxX - bounds.minX) / 2) * scale;
   const halfY = ((bounds.maxY - bounds.minY) / 2) * scale;
