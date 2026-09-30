@@ -75,7 +75,7 @@ These have tools or code but no scenario that checks them live:
 - Group play: inviting, joining, leaving a group, and fighting as a group.
 - Ranged combat as a hunter.
 - Reading a shrine plaque (`t0-objects-read-shrine`, the agent reads the page but quotes the placard line, not the page's opening sentence).
-- Completing an exploration quest by walking into its area trigger (`t4-objects-explore-fargodeep`): accept names the quest region and `travel` to the area triggers in it, at their height, but trigger 88 lies in the mine tunnel (z 5.37, 33 yd under the hillside) and the route planner refuses every route into it (`pathfind_find_height` fails with `UNKNOWN_HEIGHT`), so the agent never enters the trigger sphere.
+- Completing an exploration quest by walking into its area trigger (`t4-objects-explore-fargodeep`): accept names the quest region and `travel` to the area triggers in it, at their height, but trigger 88 lies in the mine tunnel (z 5.37, 33 yd under the hillside) and the route planner refuses every route into it (`pathfind_find_height` fails with `UNKNOWN_HEIGHT`), so the agent never enters the trigger sphere. Eval rounds 157, 189 and 197 all fail this way.
 - A sustained levelling run across several quests and zones.
 - Report its reputation with each faction and what changed it (`t4-reputation-gain`, no Faction.dbc in the eval profile so the journal names factions by id, not Silvermoon City).
 - Set the action bar (`t4-spells-action-bar`, no server truth for the bar).
