@@ -3,7 +3,11 @@ import {
   talentsTalentsInfoBody,
   talentsTalentsInfoPetBody,
 } from "#test-support/areas/talents";
-import { parseTalentsInfo } from "#wow/areas/talents/protocol";
+import {
+  buildLearnPreviewTalents,
+  buildLearnTalent,
+  parseTalentsInfo,
+} from "#wow/areas/talents/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 
 const NO_GLYPHS = [0, 0, 0, 0, 0, 0];
@@ -99,5 +103,38 @@ describe("parseTalentsInfo", () => {
     expect(() =>
       parseTalentsInfo(new PacketReader(new Uint8Array([2, 0, 0, 0, 0]))),
     ).toThrow("unknown_talents_info_type");
+  });
+});
+
+function words(body: Uint8Array): number[] {
+  const r = new PacketReader(body);
+  const out: number[] = [];
+  while (r.remaining > 0) out.push(r.uint32LE());
+  return out;
+}
+
+describe("learn builders", () => {
+  test("a learn is talent id then wire rank, two u32 (SkillHandler.cpp:25-32)", () => {
+    expect(words(buildLearnTalent({ rank: 1, talentId: 124 }))).toEqual([
+      124, 1,
+    ]);
+  });
+
+  test("a preview batch is a count then id and rank pairs in the given order (SkillHandler.cpp:34-56)", () => {
+    const body = buildLearnPreviewTalents([
+      { rank: 2, talentId: 124 },
+      { rank: 0, talentId: 130 },
+    ]);
+    expect(words(body)).toEqual([2, 124, 2, 130, 0]);
+  });
+
+  test("150 entries are sent and 151 throw because the server drops the rest (SkillHandler.cpp:44-47)", () => {
+    const entry = { rank: 0, talentId: 1 };
+    expect(
+      words(buildLearnPreviewTalents(Array(150).fill(entry))),
+    ).toHaveLength(301);
+    expect(() => buildLearnPreviewTalents(Array(151).fill(entry))).toThrow(
+      "too_many_talents",
+    );
   });
 });

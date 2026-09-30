@@ -1,4 +1,4 @@
-import type { PacketReader } from "#wow/protocol/packet";
+import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
 import {
   readTalentRanks,
   readTalentSpec,
@@ -40,4 +40,26 @@ export function parseTalentsInfo(r: PacketReader): TalentsInfo {
   if (type === 0) return readPlayer(r);
   if (type === 1) return readPet(r);
   throw new Error("unknown_talents_info_type");
+}
+
+export const MAX_PREVIEW_TALENTS = 150;
+
+export function buildLearnTalent(entry: TalentRank): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(entry.talentId);
+  w.uint32LE(entry.rank);
+  return w.finish();
+}
+
+export function buildLearnPreviewTalents(
+  entries: readonly TalentRank[],
+): Uint8Array {
+  if (entries.length > MAX_PREVIEW_TALENTS) throw new Error("too_many_talents");
+  const w = new PacketWriter();
+  w.uint32LE(entries.length);
+  for (const entry of entries) {
+    w.uint32LE(entry.talentId);
+    w.uint32LE(entry.rank);
+  }
+  return w.finish();
 }
