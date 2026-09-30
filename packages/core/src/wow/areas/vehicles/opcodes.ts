@@ -16,7 +16,11 @@ export const VEHICLES_OPCODES = {
     "CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE",
     "CMSG_MOVE_NOT_ACTIVE_MOVER",
   ],
-  uses: [],
+  uses: [
+    "SMSG_UPDATE_OBJECT",
+    "SMSG_COMPRESSED_UPDATE_OBJECT",
+    "SMSG_DESTROY_OBJECT",
+  ],
   stubs: [],
   dead: [],
   unseen: [],
