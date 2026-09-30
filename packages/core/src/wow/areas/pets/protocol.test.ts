@@ -29,7 +29,6 @@ import {
   PET_ACTION,
   type PetNameInvalid,
   type PetNameQueryResponse,
-  type StableResult,
   parsePetActionFeedback,
   parsePetActionSound,
   parsePetDismissSound,
@@ -38,6 +37,7 @@ import {
   parsePetSpellId,
   parseStabledPets,
   parseStableResult,
+  type StableResult,
 } from "#wow/areas/pets/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 import { buildPetAttack } from "#wow/protocol/pet";
