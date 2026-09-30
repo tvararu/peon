@@ -227,6 +227,30 @@ describe("travel runtime: taxi", () => {
       rig.dispose();
     }
   });
+  test("a status query whose send throws still lets the retry send", async () => {
+    const rig = areaRig("travel");
+    const sent = rig.sent as unknown as { push: (...items: never[]) => number };
+    const push = sent.push;
+    try {
+      sent.push = () => {
+        throw new Error("World socket is not connected");
+      };
+      await expect(rig.handle.act.queryTaxiStatus(TAXI_MASTER)).rejects.toThrow(
+        "World socket is not connected",
+      );
+      sent.push = push;
+      const retry = rig.handle.act.queryTaxiStatus(TAXI_MASTER);
+      expect(rig.sent).toHaveLength(1);
+      rig.inject(
+        GameOpcode.SMSG_TAXINODE_STATUS,
+        travelTaxiNodeStatusBody({ npc: TAXI_MASTER, known: true }),
+      );
+      expect(await retry).toEqual({ status: "ok", known: true });
+    } finally {
+      sent.push = push;
+      rig.dispose();
+    }
+  });
 
   test("openTaxiMap sends the query and settles map on SMSG_SHOWTAXINODES", async () => {
     const rig = areaRig("travel");

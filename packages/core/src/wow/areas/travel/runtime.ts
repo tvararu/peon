@@ -120,17 +120,18 @@ function pickDestination(
   return { refusal: matches.length === 0 ? "unknown_node" : "ambiguous" };
 }
 
-function guard<T>(
+async function guard<T>(
   state: TaxiRuntime,
   kind: string,
   run: () => Promise<T>,
 ): Promise<T | { status: "refused"; reason: string }> {
-  if (state.pending.has(kind))
-    return Promise.resolve({ status: "refused", reason: "busy" });
+  if (state.pending.has(kind)) return { status: "refused", reason: "busy" };
   state.pending.add(kind);
-  return run().finally(() => {
+  try {
+    return await run();
+  } finally {
     state.pending.delete(kind);
-  });
+  }
 }
 
 async function waitStatus(
