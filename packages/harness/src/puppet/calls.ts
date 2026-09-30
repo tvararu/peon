@@ -45,6 +45,14 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   convertToRaid: { args: [], run: (h) => h.raid.act.convertToRaid() },
   declineGuildInvite: { args: [], run: (h) => h.declineGuildInvite() },
   declineInvite: { args: [], run: (h) => h.declineInvite() },
+  enterPlayerVehicle: {
+    args: ["guid"],
+    run: (h, a) => h.vehicles.act.enterPlayerVehicle(guid(a, 0)),
+  },
+  exitVehicle: {
+    args: [],
+    run: (h) => h.vehicles.act.exitVehicle(),
+  },
   finishReadyCheck: { args: [], run: (h) => h.raid.act.finishReadyCheck() },
   guildInvite: { args: ["string"], run: (h, a) => h.guildInvite(text(a, 0)) },
   invite: { args: ["string"], run: (h, a) => h.invite(text(a, 0)) },
@@ -146,6 +154,10 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   swapSubgroups: {
     args: ["string", "string"],
     run: (h, a) => h.raid.act.swapSubgroups(text(a, 0), text(a, 1)),
+  },
+  switchSeat: {
+    args: ["number"],
+    run: (h, a) => h.vehicles.act.switchSeat(count(a, 0)),
   },
   teleport: {
     args: [["in", "out"]],
