@@ -4899,4 +4899,116 @@ because quest 3903 gives no reward (SR1-objects-11).
 - combat-log-3 must give immune and miss entries an outcome, source, target and spell id; `combatlog/killing_blow` needs a two-account live proof.
 - Runners launch long evals as background jobs with a timeout that covers the scenario budget.
 
+### 8.10 Part 2, wave 2
+
+Wave 2 (phase B, parties and raids) lands its 39 tasks on
+`factory/431-wave2`, which starts from `main` with the four pre-wave
+cleanups (#453 to #456, merged) and was rebased onto them. The build ran
+from 2026-09-29 10:05 UTC to the last landing, group-10b, at 2026-09-30
+01:13 UTC. Wave 2 is 39 of 39 tasks landed.
+
+#### How it ran
+
+- One omp coordinator (Opus 5.5) drove a Python state machine in its eval
+  kernel: build → check → review → fix → land, one worktree per unit and a
+  second one for the pairs the SEED-2 index marks independent.
+- Roles: `task` builders (Sonnet 5.5 medium), `reviewer` (Sol) with the
+  checker's output in its prompt, `sonic` (Gemini 3.8 Flash) for the
+  mechanical check (revert proof, tests, lint, format, cite-check, line
+  counts), the serial lander and the evals. No advisors. No model change
+  was recorded during the wave.
+- Every task landed on a Sol `pass` of its whole final diff, or under a
+  named build ruling. 32 of 39 tasks failed their first review. Nine tasks
+  landed under a ruling after three to six fix rounds (BR-wave2-1 allowed
+  up to four; each extra round is named in its unit file).
+- Builders stopped at the 200-request budget 16 times; the driver
+  restarted each from its report and commits, and nothing was lost.
+- A quota watchdog read `omp usage --json` every 10 minutes: Anthropic
+  7-day usage went from 74% to 79%.
+- Throughput: 39 tasks in 15.1 hours, about 2.6 tasks per hour, with up
+  to 8 builders and reviewers at once.
+
+#### Coordinator commits
+
+| Commit | Why |
+|---|---|
+| `d6d5f678` and the SEED-2 set | Seed `raid`, `trade` and `lfg`; pre-split `look.test.ts`, `combat-actions.ts` and the combat log store; two LFG triggers; scenario `partnerSetup` |
+| `d889e4d1` | The puppet awaits each call and reports refusals, timeouts and rejections (BR-instances-6-1) |
+| `e18f6821` | Shared `partyState()` and `partyMember()` fixtures, since group-1 grows the party types (BR-wave2-2) |
+| `9aed7224` | Eval results accept `t9-` scenario ids |
+| `0c62bc05`, `9c245122`, `cc0623de`, `06cc2a6c` | Spawn points: 16 in Ghostlands and new `eversong-raid`, `eversong-trade` and `eversong-ready` grids on navmesh heights (BR-wave2-3) |
+| `a606b745` | `look` marks gray hostile units (BR-wave2-4) |
+
+#### Build rulings
+
+Seed rulings SR2-n and SEED2-1 to SEED2-6 are in the unit files and the
+plan. Build rulings taken during the wave, each marked "coordinator ruling
+(P2-17)" in its unit file: BR-group-1-1, BR-group-1-2, BR-group-5-1,
+BR-instances-3-1, BR-instances-5-1, BR-instances-6-1, BR-instances-6-2,
+BR-instances-7-1 to -3, BR-quests-7a-1 to -3, BR-economy-3-1 to -4,
+BR-economy-5-1, BR-pets-3-1 to -3, BR-pets-9-1 to -3, BR-spells-2-1, and
+the wave-wide BR-wave2-1 (extra fix rounds), BR-wave2-2 (shared fixture
+fallout), BR-wave2-3 (spawn grids) and BR-wave2-4 (gray marker).
+
+#### Eval results
+
+Round 91 ran every wave-2 scenario and the four gates at `2dc0c234`.
+Round 92 reran the gates and the aborted or failed wave-2 scenarios at
+`a606b745`; the only harness change between the two is the gray marker in
+`look`. Each run's `run.json` and `result.json` are kept in
+`~/.local/state/peon-protocol-build/evals/round-91/` and `round-92/`.
+
+| Scenario | Round, replica | Verdict |
+|---|---|---|
+| `t1-walk-to-npc` | 91 r1, 92 r1 | pass, pass |
+| `t7-halt-resume` | 91 r1, 92 r1 | pass, pass |
+| `t0-hostiles` | 91 r1, 92 r1 | pass, pass |
+| `t3-ghostlands-kill` | 91 r1-2, 92 r1-3 | fail 3/4, fail 3/4; fail 2/4, pass 4/4, fail 1/4 |
+| `t8-pets-command` | 91 r1 | pass 4/4 |
+| `t9-instances-difficulty` | 91 r1 | pass 2/2 |
+| `t9-raid-kick` | 91 r1 | pass 3/3 |
+| `t9-raid-convert` | 91 r1 | pass 6/6 |
+| `t9-lfg-queue` | 91 r1 | pass 4/4 |
+| `t9-lfg-run` | 91 r1 | pass 5/5 |
+| `t9-trade-give` | 91 r1 | pass 4/4 |
+| `t9-trade-receive` | 91 r1, 92 r1 | aborted (partner puppet), pass 4/4 |
+| `t9-trade-swap` | 91 r1 | pass 3/3 |
+| `t9-trade-cancel` | 91 r1 | pass 3/3 |
+| `t8-quests-share` | 91 r1 | pass 2/2 |
+| `t9-raid-ready` | 91 r1 | pass 3/3 |
+| `t9-raid-mark` | 91 r1 | pass 3/3 |
+| `t8-quests-accept-shared` | 91 r1, 92 r1-2 | aborted each time |
+| `t9-raid-answer` | 91 r1, 92 r2 | fail 1/3, fail 1/3 |
+| `t9-raid-master-loot` | 91 r1, 92 r1 | fail 2/4, fail 1/4 |
+| `t6-selfstate-res` | 91 r1 | blocked |
+
+The `t3-ghostlands-kill` failures are the #433 causes: the agent finds no
+target out of Tranquillien, or only gray ones. The four scenarios that
+fail or are blocked are listed under "Not shown" in `docs/capabilities.md`.
+
+#### Coverage counts
+
+`mise protocol:coverage`: 933 opcodes, 511 handled (414 after wave 1),
+27 dead, 25 stub, 370 missing, 47 not seen live.
+
+#### Incidents
+
+1. Account names: from 12:33 to 13:41 UTC on 09-29 every new factory
+   account was named an hour ahead and the realm service refused it
+   (#457). Live proof stopped for about an hour.
+2. Wrong-checkout edits: builders wrote 10 files into the coordinator
+   worktree. A guard reverted each before any commit.
+3. Spawn capacity: wave-2 scenarios outgrew the spawn grids four times;
+   each time a coordinator commit added points (BR-wave2-3).
+4. The session ran inside the wave-1 worktree when it was removed with
+   `git worktree remove`; the coordinator restarted in a new worktree.
+5. Eval round 91 spanned a harness change: the eval worktree moved to
+   `a606b745` while its last agent ran, so round 92 reran every gate at
+   one SHA.
+
+#### Follow-ups
+
+Filed as issues: #457 (account names), #458 to #465 (the gaps the build
+rulings recorded).
+
 ## COMPLETE
