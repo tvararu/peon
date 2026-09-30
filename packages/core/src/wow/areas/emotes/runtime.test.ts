@@ -324,6 +324,23 @@ describe("emote acts", () => {
       expect(r.sent).toHaveLength(1);
     });
   });
+
+  test("dispose cancels every queued text emote without starting a new wait", async () => {
+    await withFakeTimers(async () => {
+      const r = actRig();
+      await r.handle.act.textEmote("wave");
+      const second = r.handle.act.textEmote("dance");
+      const third = r.handle.act.textEmote("cheer");
+      await elapse(100);
+      r.dispose();
+      expect(await Promise.all([second, third])).toEqual([
+        { ok: false, reason: "cancelled" },
+        { ok: false, reason: "cancelled" },
+      ]);
+      expect(jest.getTimerCount()).toBe(0);
+      expect(r.sent).toHaveLength(1);
+    });
+  });
 });
 
 describe("emote spam guard under timer lateness", () => {

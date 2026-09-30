@@ -34,6 +34,7 @@ export type EmotesActs = {
 function createWaiter(signal: AbortSignal) {
   const waiting = new Set<() => void>();
   const wait = (ms: number): Promise<boolean> => {
+    if (signal.aborted) return Promise.resolve(false);
     const { promise, resolve } = Promise.withResolvers<boolean>();
     const finish = (completed: boolean) => {
       clearTimeout(timer);
@@ -104,10 +105,11 @@ type QueuedSend = {
   turn: Promise<void>;
   wait: GapWait;
 };
-
 function sendQueued(send: QueuedSend): Promise<TextEmoteOutcome> {
   const run = async (): Promise<TextEmoteOutcome> => {
     await send.turn;
+    if (send.disposed() || send.ctx.signal.aborted)
+      return { ok: false, reason: "cancelled" };
     if (!(await waitGap(send.ctx.now, send.wait, send.guard.lastSentAt)))
       return { ok: false, reason: "cancelled" };
     if (send.disposed() || send.ctx.signal.aborted)
