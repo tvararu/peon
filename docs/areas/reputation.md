@@ -54,12 +54,43 @@ reaction wakes the agent outside a run. `initialized` and
   (`wow_message_parser/wowm/world/faction/smsg_set_faction_visible.wowm`).
   The server does not send it while the character loads
   (`Reputation/ReputationMgr.cpp:254-255`).
-- When a standing falls to Hostile or below, the server sets `AT_WAR`,
-  and when it rises from Hostile to Unfriendly or above on a faction every
-  race starts in, it clears it (`Reputation/ReputationMgr.cpp:432-436`).
-  Neither change reaches the client before the next login, so the area
-  infers both the same way, and never sets `AT_WAR` on a faction with
-  `PEACE_FORCED` (`Reputation/ReputationMgr.cpp:517-521`).
+- The store models three standing-driven `AT_WAR` transitions. A fall to
+  Hostile or below sets `AT_WAR` (`Reputation/ReputationMgr.cpp:432-433`).
+  A rise from Hostile to Unfriendly or above clears it only where
+  `CanBeSetAtWar` holds, that is a faction with a reputation list id
+  whose first race mask is 1791 (`Reputation/ReputationMgr.cpp:435-436`,
+  `src/server/shared/DataStores/DBCStructure.h:966-969`); a rise on any
+  other faction keeps `AT_WAR`. `SetAtWar` refuses to set the flag on a
+  `PEACE_FORCED` faction and changes flags only when the state differs
+  (`Reputation/ReputationMgr.cpp:517-533`), so the area skips inference
+  for such a faction. `CanBeSetAtWar` gates only that automatic clearing;
+  a manual toggle passes the hidden and invisible-forced check and the
+  peace-forced check instead (`Reputation/ReputationMgr.cpp:504-515`).
+  All three transitions are proven by these citations.
+- The flag rides only in the `SMSG_INITIALIZE_FACTIONS` packet
+  (`Reputation/ReputationMgr.cpp:211-244`) while each
+  `SMSG_SET_FACTION_STANDING` packet sends standing only
+  (`Reputation/ReputationMgr.cpp:178-209`), so neither standing-driven
+  change reaches the client before the next login and the area infers
+  both the same way. In the 3.3.5 opcode table the entry
+  `SMSG_SET_FACTION_ATWAR` carries `STATUS_NEVER`
+  (`Server/Protocol/Opcodes.cpp:918`) and the deployed source has no
+  other sender for it.
+- The client toggle `CMSG_SET_FACTION_ATWAR` is a `uint32` reputation
+  list id and a `uint8` flag, handled by `SetAtWar`
+  (`Handlers/CharacterHandler.cpp:1287-1296`), whose guard and mutation
+  ranges are cited above. The server saves the flags and replays them at
+  the next `SMSG_INITIALIZE_FACTIONS` login; the client sees the change
+  only there. The toggle is proven live on list id 1, whose flags are
+  `0x40` (rival only, not hidden, not peace-forced): a throwaway `fresh`
+  character sent it on (`0100000001`), no `SMSG_SET_FACTION_*` packet
+  followed, and the next login listed `0x42`; the off toggle
+  (`0100000000`) gave `0x40` again. Requests the server rejects or
+  ignores change nothing: list id 55 (`0x11`, peace-forced) refuses on,
+  list id 20 (`0x06`, hidden) refuses every toggle, and list id 35
+  (`0x02`) is already at war, so an on request is redundant; an off
+  request to a faction that is not visible is accepted and saved but the
+  next login replays its default flags.
 - `SMSG_SET_FORCED_REACTIONS` is a `uint32` count, then per entry a
   `uint32` `Faction.dbc` faction id (not a template or list id) and a
   `uint32` rank (`Reputation/ReputationMgr.cpp:165-176`). wow_messages
