@@ -8,6 +8,7 @@ import {
   type PetArgs,
   type PetCtx,
   petTarget,
+  petUnit,
   refused,
   SETTLE_MS,
   stateOf,
@@ -132,15 +133,15 @@ function isEntityUpdate(
   );
 }
 
-function isAlive(entity: EntityEvent, pet: bigint): boolean {
-  if (entity.type !== "update" || !isUnit(entity.entity)) return false;
-  if (entity.entity.guid !== pet) return false;
-  return entity.entity.health > 0;
-}
-
-function reviveRisen(event: EntityEvent, pet: bigint | undefined): boolean {
+function reviveRisen(
+  event: EntityEvent,
+  pet: bigint | undefined,
+  wasDead: () => boolean,
+): boolean {
   if (pet === undefined) return false;
-  return isAlive(event, pet);
+  if (event.type !== "update" || !isUnit(event.entity)) return false;
+  if (event.entity.guid !== pet) return false;
+  return wasDead() && event.entity.health > 0;
 }
 
 function barHeard(
@@ -156,11 +157,12 @@ function summonHeard(
   kind: "call" | "revive" | "dismiss",
   spellId: number,
   pet: bigint | undefined,
+  wasDead: () => boolean,
 ) {
   return (event: SummonHeard | EntityEvent): boolean => {
     if (isEntityUpdate(event)) {
       if (kind !== "revive") return false;
-      return reviveRisen(event, pet);
+      return reviveRisen(event, pet, wasDead);
     }
     const candidate = event as Partial<AreaEvent> & { type?: unknown };
     if (candidate.area !== undefined)
@@ -243,10 +245,12 @@ async function spellSummon(
   ctx: PetCtx,
 ): Promise<ToolResult<PetAfter>> {
   const pet = stateOf(ctx.handle).pet?.guid;
+  let seenDead =
+    pet === undefined ? false : petUnit(ctx.handle, pet)?.health === 0;
   const castMs =
     ctx.handle.spellDefinition(spell.id)?.castTime?.castTimeMs ?? 0;
   const heard = await settle<SummonHeard | EntityEvent>({
-    match: summonHeard(kind, spell.id, pet),
+    match: summonHeard(kind, spell.id, pet, () => seenDead),
     send: () =>
       ctx.rt.mutex.run(() => {
         ctx.handle.cast(spell.id, ctx.handle.getControlState().selfGuid);
@@ -258,9 +262,16 @@ async function spellSummon(
       );
       const offRevive =
         kind === "revive"
-          ? ctx.handle.onEntityEvent((event) =>
-              cb(event as SummonHeard | EntityEvent),
-            )
+          ? ctx.handle.onEntityEvent((event) => {
+              if (
+                event.type === "update" &&
+                isUnit(event.entity) &&
+                event.entity.guid === pet &&
+                event.entity.health === 0
+              )
+                seenDead = true;
+              cb(event as SummonHeard | EntityEvent);
+            })
           : undefined;
       return () => {
         offCasts();
