@@ -135,7 +135,7 @@ on a kick. The store also keeps the last `proposal`, `boot`,
   packet; any later boot update still updates the store.
 - Puppet calls: `answerProposal '["accept"]'`, `teleport '["out"]'` and
   `voteKick '["yes"]'` (the other values are `decline`, `in`, `no`).
-  A puppet call does not await the act.
+  A puppet call awaits the act and reports a refusal as an error.
 
 ## Left out
 
@@ -144,13 +144,10 @@ on a kick. The store also keeps the last `proposal`, `boot`,
 - A non-leader in a partly filled `CMSG_LFG_JOIN` group may join
   (`Handlers/LFGHandler.cpp:50-55`); the join act still refuses
   `not_leader` for every non-leader (SR2-instances-15).
-- `join` sends an empty dungeon list, which the server drops with no
-  reply (`Handlers/LFGHandler.cpp:56-60`), so the act reports
-  `lfg_disabled_or_ignored` after 5 s.
-- `leave` sends for a grouped non-leader, whom the server ignores
-  (`Handlers/LFGHandler.cpp:78-92`), so the act reports `no_answer`.
-- A refused join's party locks are returned but not typed in
-  `LfgJoinResult`.
+- `join` refuses `no_dungeons` for an empty dungeon list
+  (`Handlers/LFGHandler.cpp:56-60`) and `leave` refuses `not_leader`
+  for a grouped non-leader (`Handlers/LFGHandler.cpp:78-92`) before
+  sending; a refused join returns the party locks in `LfgJoinResult`.
 
 ## Capabilities row
 
