@@ -19,11 +19,14 @@ export const AMBIENCE_OPCODES = {
     "SMSG_CAMERA_SHAKE",
   ],
   uses: ["SMSG_INIT_WORLD_STATES", "SMSG_NEW_WORLD"],
-  stubs: [
-    ["SMSG_SET_PHASE_SHIFT", "Phase shift"],
-    ["SMSG_PLAY_SOUND", "Sound effect"],
-    ["SMSG_PLAY_MUSIC", "Music"],
-  ],
+  stubs: [],
   dead: ["CMSG_COMPLETE_MOVIE", "SMSG_TOGGLE_XP_GAIN", "SMSG_CAMERA_SHAKE"],
-  unseen: ["SMSG_TRIGGER_MOVIE"],
+  unseen: [
+    "SMSG_TRIGGER_MOVIE",
+    "SMSG_PLAY_SOUND",
+    "SMSG_PLAY_MUSIC",
+    "SMSG_PLAY_OBJECT_SOUND",
+    "SMSG_OVERRIDE_LIGHT",
+    "SMSG_SET_PHASE_SHIFT",
+  ],
 } as const satisfies AreaOpcodes;

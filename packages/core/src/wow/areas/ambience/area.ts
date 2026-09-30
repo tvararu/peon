@@ -1,5 +1,10 @@
 import { AMBIENCE_OPCODES } from "#wow/areas/ambience/opcodes";
 import {
+  parseOverrideLight,
+  parsePlayMusic,
+  parsePlayObjectSound,
+  parsePlaySound,
+  parseSetPhaseShift,
   parseTriggerCinematic,
   parseTriggerMovie,
   parseUpdateWorldState,
@@ -14,7 +19,15 @@ import { parseInitWorldStates } from "#wow/protocol/world-states";
 export const ambienceArea = defineArea({
   name: "ambience",
   opcodes: AMBIENCE_OPCODES,
-  eventTypes: ["world_state", "weather", "cinematic", "movie"],
+  eventTypes: [
+    "world_state",
+    "weather",
+    "cinematic",
+    "movie",
+    "sound",
+    "light",
+    "phase_changed",
+  ],
   store: (deps) => new AmbienceStore(deps.now),
   register: (wire, store) => {
     wire.on(GameOpcode.SMSG_UPDATE_WORLD_STATE, (r) =>
@@ -29,6 +42,21 @@ export const ambienceArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_TRIGGER_MOVIE, (r) =>
       store.startMovie({ ...parseTriggerMovie(r) }),
+    );
+    wire.on(GameOpcode.SMSG_PLAY_SOUND, (r) =>
+      store.playSound({ kind: "sound", ...parsePlaySound(r) }),
+    );
+    wire.on(GameOpcode.SMSG_PLAY_MUSIC, (r) =>
+      store.playSound({ kind: "music", ...parsePlayMusic(r) }),
+    );
+    wire.on(GameOpcode.SMSG_PLAY_OBJECT_SOUND, (r) =>
+      store.playSound({ kind: "object", ...parsePlayObjectSound(r) }),
+    );
+    wire.on(GameOpcode.SMSG_OVERRIDE_LIGHT, (r) =>
+      store.setLight(parseOverrideLight(r)),
+    );
+    wire.on(GameOpcode.SMSG_SET_PHASE_SHIFT, (r) =>
+      store.setPhaseMask(parseSetPhaseShift(r).mask),
     );
     wire.peek(GameOpcode.SMSG_INIT_WORLD_STATES, (r) =>
       store.resetStates(

@@ -14,7 +14,10 @@ describe("AmbienceStore", () => {
   test("starts empty", () => {
     expect(new AmbienceStore().snapshot()).toEqual({
       cinematic: undefined,
+      light: undefined,
       movie: undefined,
+      music: undefined,
+      phaseMask: 1,
       states: [],
       weather: undefined,
     });
@@ -86,10 +89,50 @@ describe("AmbienceStore", () => {
     store.clear();
     expect(store.snapshot()).toEqual({
       cinematic: undefined,
+      light: undefined,
       movie: undefined,
+      music: undefined,
+      phaseMask: 1,
       states: [],
       weather: undefined,
     });
+  });
+
+  test("clear drops the music and the light and keeps the phase mask", () => {
+    const { store } = storeWithEvents();
+    store.playSound({ kind: "music", soundKitId: 5 });
+    store.setLight({ defaultId: 1, fadeMs: 0, overrideId: 2 });
+    store.setPhaseMask(8);
+    store.clear();
+    const state = store.snapshot();
+    expect(state.music).toBeUndefined();
+    expect(state.light).toBeUndefined();
+    expect(state.phaseMask).toBe(8);
+  });
+
+  test("playSound keeps state only for music and renders no source as an empty string", () => {
+    const { seen, store } = storeWithEvents();
+    store.playSound({ kind: "sound", soundKitId: 1 });
+    store.playSound({ kind: "object", soundKitId: 2, source: 77n });
+    expect(store.snapshot().music).toBeUndefined();
+    store.playSound({ kind: "music", soundKitId: 3 });
+    expect(store.snapshot().music).toMatchObject({ soundKitId: 3 });
+    expect(seen.map((e) => e.type === "sound" && e.source)).toEqual([
+      "",
+      "77",
+      "",
+    ]);
+  });
+
+  test("setPhaseMask emits nothing for the same mask and the snapshot light is detached", () => {
+    const { seen, store } = storeWithEvents();
+    store.setPhaseMask(1);
+    expect(seen).toEqual([]);
+    store.setLight({ defaultId: 1, fadeMs: 10, overrideId: 2 });
+    const light = store.snapshot().light;
+    if (!light) throw new Error("no light");
+    light.overrideId = 99;
+    expect(store.snapshot().light?.overrideId).toBe(2);
   });
 
   test("snapshot is detached from the store", () => {
@@ -103,7 +146,10 @@ describe("AmbienceStore", () => {
     snapshot.weather.state = 0;
     expect(store.snapshot()).toEqual({
       cinematic: undefined,
+      light: undefined,
       movie: undefined,
+      music: undefined,
+      phaseMask: 1,
       states: [{ id: 2, value: 7 }],
       weather: RAIN,
     });
