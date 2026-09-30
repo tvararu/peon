@@ -53,6 +53,25 @@ and keeps no level table.
   wow_messages names the field `glyph`
   (`wow_message_parser/wowm/world/spell/cmsg_remove_glyph.wowm`).
 
+The talent catalog loads four client DBC files once at start. `Talent.dbc`
+holds 23 fields of 92 bytes: the talent id, its tab, row and column, five
+rank spell ids at 4-8, the prerequisite talent at 13 with its rank at 16
+(`src/server/shared/DataStores/DBCStructure.h:1958-1973`,
+`src/server/shared/DataStores/DBCfmt.h:121`). `TalentTab.dbc` holds 24
+fields of 96 bytes: the tab id, the class mask at 20, the pet mask at 21
+and the tab page at 22; the tab name is the enUS locale string at field 1
+(`src/server/shared/DataStores/DBCStructure.h:1975-1986`,
+`src/server/shared/DataStores/DBCfmt.h:122`). `GlyphProperties.dbc` holds
+4 fields of 16 bytes: the glyph id, its spell id and its slot type flags
+(`src/server/shared/DataStores/DBCStructure.h:1059-1065`,
+`src/server/shared/DataStores/DBCfmt.h:58`). `GlyphSlot.dbc` holds 3
+fields of 12 bytes: the slot type id, its type flags and its order
+(`src/server/shared/DataStores/DBCStructure.h:1067-1072`,
+`src/server/shared/DataStores/DBCfmt.h:59`). A glyph goes in a slot whose
+type flags match (`Entities/Player/PlayerStorage.cpp:5944`), and the
+server fills slot index `Order - 1` with each ordered slot type at login
+(`Entities/Player/Player.cpp:13605-13610`).
+
 ## Left out
 
 - `CMSG_LEARN_TALENT` and `CMSG_LEARN_PREVIEW_TALENTS`: built by
