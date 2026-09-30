@@ -227,6 +227,52 @@ describe("gear tool unequip to a slot", () => {
     expect(res.status).toBe("DONE");
   });
 
+  test("unequip to bag 1 autostores into the first bag", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, [
+      { bag: 255, entry: 36, guid: SHIRT, name: "Brown Linen Shirt", slot: 3 },
+    ]);
+    const acts = itemActs(t.handle);
+    await gearSpec.run(
+      { do: "unequip", item: "Brown Linen Shirt", to: "bag 1" },
+      toolCtx(t),
+    );
+    expect(acts.unequip).toHaveBeenCalledWith(3, 19);
+    expect(acts.move).not.toHaveBeenCalled();
+  });
+
+  test("unequip accepts the bare wire numbers 19 to 22 and 255", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, [
+      { bag: 255, entry: 36, guid: SHIRT, name: "Brown Linen Shirt", slot: 3 },
+    ]);
+    const acts = itemActs(t.handle);
+    for (const to of ["19", "22", "255"])
+      await gearSpec.run(
+        { do: "unequip", item: "Brown Linen Shirt", to },
+        toolCtx(t),
+      );
+    expect(acts.unequip.mock.calls.map((call) => call[1]) as unknown).toEqual([
+      19, 22, 255,
+    ]);
+  });
+
+  test("unequip refuses bare numbers that are not bags", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, [
+      { bag: 255, entry: 36, guid: SHIRT, name: "Brown Linen Shirt", slot: 3 },
+    ]);
+    const acts = itemActs(t.handle);
+    for (const to of ["1", "23"])
+      await expect(
+        gearSpec.run(
+          { do: "unequip", item: "Brown Linen Shirt", to },
+          toolCtx(t),
+        ),
+      ).rejects.toMatchObject({ reason: "no_such_bag" });
+    expect(acts.unequip).not.toHaveBeenCalled();
+  });
+
   test("unequip to a taken slot reports the autostore landing, not the slot", async () => {
     const t = await createTestRuntime();
     stocked(t.handle, [
@@ -289,6 +335,124 @@ describe("gear tool split", () => {
     expect(acts.split).toHaveBeenCalledWith(
       { bag: 255, slot: 24 },
       { bag: 19, slot: 3 },
+      1,
+    );
+  });
+});
+
+describe("gear tool move to a numbered bag", () => {
+  const HELD = [
+    { bag: 255, entry: 6948, guid: WATER, name: "Hearthstone", slot: 25 },
+  ];
+
+  test("bag 1 to bag 4 land in the first to fourth equipped bag", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, HELD, [
+      empty(255, 30),
+      empty(19, 1),
+      empty(20, 2),
+      empty(21, 3),
+      empty(22, 4),
+    ]);
+    const acts = itemActs(t.handle);
+    for (const to of ["bag 1", "bag 2", "bag 3", "bag 4"])
+      await gearSpec.run({ do: "move", item: "Hearthstone", to }, toolCtx(t));
+    expect(acts.move.mock.calls.map((call) => call[1]) as unknown).toEqual([
+      { bag: 19, slot: 1 },
+      { bag: 20, slot: 2 },
+      { bag: 21, slot: 3 },
+      { bag: 22, slot: 4 },
+    ]);
+  });
+
+  test("bag 1 skips the backpack even when it has room", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, HELD, [empty(255, 30), empty(19, 5)]);
+    const acts = itemActs(t.handle);
+    await gearSpec.run(
+      { do: "move", item: "Hearthstone", to: "Bag 1" },
+      toolCtx(t),
+    );
+    expect(acts.move).toHaveBeenCalledWith(
+      { bag: 255, slot: 25 },
+      { bag: 19, slot: 5 },
+    );
+  });
+
+  test("a bag slot with no bag equipped is refused without a move", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, HELD, [empty(255, 30), empty(19, 1)]);
+    const acts = itemActs(t.handle);
+    await expect(
+      gearSpec.run(
+        { do: "move", item: "Hearthstone", to: "bag 2" },
+        toolCtx(t),
+      ),
+    ).rejects.toMatchObject({ reason: "no_such_bag" });
+    expect(acts.move).not.toHaveBeenCalled();
+  });
+
+  test("an empty equipped-bag slot is not a bag", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, HELD, [
+      empty(255, 30),
+      empty(19, 1),
+      { bag: 255, region: "bag", slot: 20, status: "empty" } as Empty,
+    ]);
+    const acts = itemActs(t.handle);
+    await expect(
+      gearSpec.run(
+        { do: "move", item: "Hearthstone", to: "bag 2" },
+        toolCtx(t),
+      ),
+    ).rejects.toMatchObject({ reason: "no_such_bag" });
+    expect(acts.move).not.toHaveBeenCalled();
+  });
+
+  test("a full bag is reported as full, not missing", async () => {
+    const t = await createTestRuntime();
+    stocked(
+      t.handle,
+      [
+        ...HELD,
+        { bag: 19, entry: 25, guid: SHIRT, name: "Worn Shortsword", slot: 0 },
+      ],
+      [empty(255, 30)],
+    );
+    const acts = itemActs(t.handle);
+    await expect(
+      gearSpec.run(
+        { do: "move", item: "Hearthstone", to: "bag 1" },
+        toolCtx(t),
+      ),
+    ).rejects.toMatchObject({ reason: "bags_full" });
+    expect(acts.move).not.toHaveBeenCalled();
+  });
+
+  test("numbers outside 1-4 and 19-22 are not bags", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, HELD, [empty(255, 30)]);
+    for (const to of ["bag 0", "bag 5", "bag 23"])
+      await expect(
+        gearSpec.run({ do: "move", item: "Hearthstone", to }, toolCtx(t)),
+      ).rejects.toMatchObject({ reason: "no_such_bag" });
+  });
+
+  test("split into bag 1 lands in that bag", async () => {
+    const t = await createTestRuntime();
+    stocked(
+      t.handle,
+      [{ bag: 255, entry: 159, guid: WATER, name: "Water", slot: 25 }],
+      [empty(255, 30), empty(19, 2)],
+    );
+    const acts = itemActs(t.handle);
+    await gearSpec.run(
+      { count: 1, do: "split", item: "Water", to: "bag 1" },
+      toolCtx(t),
+    );
+    expect(acts.split).toHaveBeenCalledWith(
+      { bag: 255, slot: 25 },
+      { bag: 19, slot: 2 },
       1,
     );
   });
