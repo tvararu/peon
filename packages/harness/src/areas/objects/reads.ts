@@ -161,7 +161,8 @@ export function reachYd(row: ObjectRow, ctx?: ViewCtx): number {
   if (!ctx || row.x === undefined || row.y === undefined) return base;
   const state = ctx.handle.objects.state() as ObjectsState;
   const displayId = state.templates.get(row.entry)?.displayId;
-  const bounds = displayId === undefined ? undefined : state.displays?.get(displayId);
+  const bounds =
+    displayId === undefined ? undefined : state.displays?.get(displayId);
   const entity = ctx.handle.getEntity(row.guid);
   if (bounds === undefined) return base;
   if (!isGameObjectEntity(entity)) return base;
