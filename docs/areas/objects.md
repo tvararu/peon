@@ -73,7 +73,10 @@ and reads shrines, plaques and books.
   chest is wanted only while a required item it holds is still short of its
   count in the bags. An object whose visit moves no quest counter is picked
   again once and then dropped for the run; a chest whose loot was taken is
-  dropped at once. A live run on an `elwynn10` character raised to level 60,
+  dropped at once. After the last loot the loop waits up to 3 s for the
+  quest-complete flag before it reports absent targets, and a unit that
+  starts attacking mid-loop is fought through the engage path before the
+  loop resumes. A live run on an `elwynn10` character raised to level 60,
   with quest 3904 staged by `soap gm quest add` and a teleport to
   `NorthshireVineyards`, looted 7 more crates through the loop on top of
   one from an earlier run, stopped with no wanted chest left at 8 of 8
