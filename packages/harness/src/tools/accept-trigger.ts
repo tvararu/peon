@@ -5,6 +5,7 @@ import { nextCall } from "#harness/tools/next-call";
 const RADIUS_YD = 100;
 
 type Point = { x: number; y: number };
+type Spot = Point & { z: number };
 
 function inside(polygon: readonly Point[], at: Point): boolean {
   let within = false;
@@ -31,8 +32,11 @@ function pointOf(to: string): Point | undefined {
   return { x, y };
 }
 
-function text(point: Point): string {
-  return `${Math.round(point.x * 100) / 100}, ${Math.round(point.y * 100) / 100}`;
+function text(point: Spot): string {
+  const rounded = [point.x, point.y, point.z].map(
+    (value) => Math.round(value * 100) / 100,
+  );
+  return rounded.join(", ");
 }
 
 export function triggersOf(

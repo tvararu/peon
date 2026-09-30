@@ -79,7 +79,7 @@ describe("accept with a quest region", () => {
         knownPoiState(62, { index: 0, mapId: 0, x: -9844, y: 92 }),
       );
     t.handle.objects.act.triggersNear = () => [
-      { id: 88, x: -9843.54, y: 127.525 },
+      { id: 88, x: -9843.54, y: 127.525, z: 5.37 },
     ];
     const control = t.handle.getControlState();
     const lands = { mapId: 0, x: -9870, y: 213 };
@@ -114,7 +114,7 @@ describe("accept with a quest region", () => {
       toolCtx<InteractAfter>(t),
     );
     expect(res.detail).toContain("objective region");
-    expect(res.next).toBe('travel(to: "-9843.54, 127.53")');
+    expect(res.next).toBe('travel(to: "-9843.54, 127.53, 5.37")');
   });
   test("points at the journal's region when the objective is far", async () => {
     const { t } = await velan();
@@ -243,7 +243,9 @@ describe("accept an explore quest with several area triggers", () => {
     { x: -9850, y: 140 },
   ];
 
-  async function accept(triggers: { id: number; x: number; y: number }[]) {
+  async function accept(
+    triggers: { id: number; x: number; y: number; z: number }[],
+  ) {
     const { t } = await velan();
     const state = t.handle.getQuestState();
     t.handle.getQuestState = () => ({
@@ -297,33 +299,33 @@ describe("accept an explore quest with several area triggers", () => {
 
   test("prefers a trigger inside the region over one nearer its centre", async () => {
     const res = await accept([
-      { id: 197, x: -9796.18, y: 157.77 },
-      { id: 88, x: -9843.54, y: 127.525 },
+      { id: 197, x: -9796.18, y: 157.77, z: 25.39 },
+      { id: 88, x: -9843.54, y: 127.525, z: 5.37 },
     ]);
-    expect(res.next).toBe('travel(to: "-9843.54, 127.53")');
+    expect(res.next).toBe('travel(to: "-9843.54, 127.53, 5.37")');
   });
 
   test("picks the inside trigger nearest the character first", async () => {
     const res = await accept([
-      { id: 1, x: -9840, y: 105 },
-      { id: 2, x: -9840, y: 135 },
+      { id: 1, x: -9840, y: 105, z: 10 },
+      { id: 2, x: -9840, y: 135, z: 10 },
     ]);
-    expect(res.next).toBe('travel(to: "-9840, 135")');
+    expect(res.next).toBe('travel(to: "-9840, 135, 10")');
   });
 
   test("names the other inside triggers for when the first does not finish it", async () => {
     const res = await accept([
-      { id: 1, x: -9840, y: 105 },
-      { id: 2, x: -9840, y: 135 },
+      { id: 1, x: -9840, y: 105, z: 10 },
+      { id: 2, x: -9840, y: 135, z: 10 },
     ]);
-    expect(res.detail).toContain("-9840, 105");
+    expect(res.detail).toContain("-9840, 105, 10");
   });
 
   test("falls back to the trigger nearest the centre when none is inside", async () => {
     const res = await accept([
-      { id: 197, x: -9796.18, y: 157.77 },
-      { id: 300, x: -9700, y: 200 },
+      { id: 197, x: -9796.18, y: 157.77, z: 25.39 },
+      { id: 300, x: -9700, y: 200, z: 30 },
     ]);
-    expect(res.next).toBe('travel(to: "-9796.18, 157.77")');
+    expect(res.next).toBe('travel(to: "-9796.18, 157.77, 25.39")');
   });
 });

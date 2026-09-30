@@ -49,7 +49,7 @@ export type ObjectsActs = {
   openLockSpell: (entry: number) => Promise<OpenLockQuery>;
   readPage: (pageId: number) => Promise<PageChain | UnansweredPage>;
 };
-export type NearTrigger = { id: number; x: number; y: number };
+export type NearTrigger = { id: number; x: number; y: number; z: number };
 export type OpenLockQuery =
   | { by: "spell"; spellId: number }
   | { by: "item"; entry: number }

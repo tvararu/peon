@@ -187,7 +187,7 @@ export class ObjectsStore {
     x: number,
     y: number,
     radius: number,
-  ): readonly { id: number; x: number; y: number }[] {
+  ): readonly { id: number; x: number; y: number; z: number }[] {
     return (
       this.triggers
         ?.onMap(map)
@@ -197,8 +197,12 @@ export class ObjectsStore {
             Math.hypot(one.x - x, one.y - y) -
             Math.hypot(other.x - x, other.y - y),
         )
-        .map((trigger) => ({ id: trigger.id, x: trigger.x, y: trigger.y })) ??
-      []
+        .map((trigger) => ({
+          id: trigger.id,
+          x: trigger.x,
+          y: trigger.y,
+          z: trigger.z,
+        })) ?? []
     );
   }
   move(point: TriggerPoint): number[] {

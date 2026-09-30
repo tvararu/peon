@@ -403,6 +403,7 @@ describe("ObjectsStore triggersNear", () => {
       88, 7,
     ]);
     expect(store.triggersNear(0, -9843, 92, 50).map((t) => t.id)).toEqual([88]);
+    expect(store.triggersNear(0, -9843, 92, 50)[0]?.z).toBe(FARGODEEP.z);
     expect(store.triggersNear(1, -9843, 92, 100).map((t) => t.id)).toEqual([9]);
   });
 });
