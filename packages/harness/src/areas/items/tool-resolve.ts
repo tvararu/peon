@@ -149,6 +149,23 @@ export function position(text: string, prefix: string): Position {
   });
 }
 
+function ordinalBag(text: string, value: number): number | undefined {
+  const bag = BAG_REF.exec(text);
+  if (bag?.[1] === undefined) return undefined;
+  if (value >= 1 && value <= 4) return FIRST_BAG + value - 1;
+  if (value === BACKPACK || (value >= FIRST_BAG && value <= LAST_BAG))
+    return value;
+  return undefined;
+}
+
+function noSuchBag(text: string): Refusal {
+  return new Refusal({
+    detail: `there is no bag "${text}"; use bags, backpack, bag 1-4, or bag 19-22.`,
+    next: BAGS,
+    reason: "no_such_bag",
+  });
+}
+
 export function atBag(text: string | undefined): number | undefined {
   if (text === undefined) return undefined;
   const trimmed = text.trim().toLowerCase();
@@ -165,13 +182,9 @@ export function bagNumber(text: string | undefined): number {
   if (trimmed === "bags" || trimmed === "backpack") return BACKPACK;
   const bag = BAG_REF.exec(trimmed);
   const value = bag?.[1] === undefined ? Number(trimmed) : Number(bag[1]);
-  if (value === BACKPACK || (value >= FIRST_BAG && value <= LAST_BAG))
-    return value;
-  throw new Refusal({
-    detail: `there is no bag "${text}"; use bags, backpack, or bag 19-22.`,
-    next: BAGS,
-    reason: "no_such_bag",
-  });
+  const resolved = ordinalBag(trimmed, value);
+  if (resolved !== undefined) return resolved;
+  throw noSuchBag(text);
 }
 
 export function freeSlots(state: NamedInventoryState): Position[] {
@@ -224,13 +237,20 @@ export function destination(
     );
   const bag = BAG_REF.exec(trimmed);
   if (bag?.[1] !== undefined) {
-    const number = Number(bag[1]);
-    if (number !== BACKPACK && (number < FIRST_BAG || number > LAST_BAG))
-      throw new Refusal({
-        detail: `there is no bag "${text}"; use bags, backpack, or bag 19-22.`,
-        next: BAGS,
-        reason: "no_such_bag",
-      });
+    const slots = handle.getInventoryState().slots;
+    const number = ordinalBag(trimmed, Number(bag[1]));
+    if (number === undefined) throw noSuchBag(text);
+    const equipped =
+      number === BACKPACK ||
+      slots.some(
+        (slot) =>
+          slot.bag === number ||
+          (slot.region === "bag" &&
+            slot.status !== "unknown" &&
+            "slot" in slot &&
+            slot.slot === number),
+      );
+    if (!equipped) throw noSuchBag(text);
     const full =
       number === BACKPACK ? "the backpack is full." : `bag ${number} is full.`;
     return firstFree(handle, (slot) => slot.bag === number, full, "bags_full");

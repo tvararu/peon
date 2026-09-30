@@ -56,7 +56,7 @@ export const gearParams = Type.Object({
   to: Type.Optional(
     Type.String({
       description:
-        'For move, split and unequip: "bags", "backpack", "bag N", or "bag B slot S". Default: the first free bag slot.',
+        'For move, split and unequip: "bags", "backpack", "bag 1-4", "bag 19-22", or "bag B slot S". Default: the first free bag slot.',
     }),
   ),
 });
