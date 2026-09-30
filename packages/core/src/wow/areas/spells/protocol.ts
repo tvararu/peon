@@ -129,3 +129,9 @@ export function buildTotemDestroyed(slot: number): Uint8Array {
   w.uint8(slot);
   return w.finish();
 }
+
+export function buildUnlearnSkill(skillId: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(skillId);
+  return w.finish();
+}

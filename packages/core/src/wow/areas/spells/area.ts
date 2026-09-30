@@ -29,6 +29,8 @@ export const spellsArea = defineArea({
     "totem_gone",
     "unit_cast_start",
     "unit_cast_end",
+    "skill_changed",
+    "skill_removed",
   ],
   store: (deps, core) => new SpellsStore(deps, core),
   register: (wire, store) => {
