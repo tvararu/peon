@@ -59,7 +59,9 @@ library from `mise namigator:build`. The account's config connects to the
 `localhost:3724`) and copies its navigation data paths.
 Account names hold the creation second and one random byte, so two
 creates in the same second can pick the same name; create then retries
-with fresh names, up to eight times.
+with fresh names, up to eight times. The character name maps each hex
+digit to a letter, bumping the third letter of a triple to the next one,
+so names always carry the creation second.
 
 Presets: `fresh`, `eversong10`, `max80`, `eversong10-warrior`,
 `eversong10-mage`, `eversong10-hunter`, `ghostlands20` (Horde), `elwynn1`,
