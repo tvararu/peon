@@ -9,8 +9,8 @@ import {
 
 const WAIT_MS = 10_000;
 const POLL_MS = 100;
-const NEAR_YARDS = 10;
-const STEP_YARDS = 25;
+const NEAR_YARDS = 5;
+const STEP_YARDS = 20;
 const MAX_STEPS = 10;
 const DOS = ["list", "buy", "stable", "unstable", "swap", "revive"] as const;
 
@@ -72,17 +72,14 @@ async function closeIn(handle: WorldHandle, target: bigint): Promise<void> {
     if (walked.traveled === 0) return;
   }
 }
-
 async function resolveNpc(
   handle: WorldHandle,
   npc: bigint | "nearest",
-): Promise<{ guid: bigint }>;
-async function resolveNpc(
-  handle: WorldHandle,
-  npc: bigint | "nearest",
+  settle: FlowContext["settle"],
 ): Promise<{ guid: bigint }> {
   if (npc !== "nearest") return { guid: npc };
-  const seen = nearestStableMaster(handle);
+  const found = await settle(() => nearestStableMaster(handle));
+  const seen = found ?? nearestStableMaster(handle);
   if (seen === undefined)
     throw new Error("no stable master in range; walk to a stable master.");
   await closeIn(handle, seen);
@@ -133,13 +130,14 @@ function act(
   }
 }
 
-async function run({ args, handle }: FlowContext): Promise<Json> {
+async function run({ args, handle, settle }: FlowContext): Promise<Json> {
   const dos = dosOf(args);
   const npc = npcOf(args);
   const number = Number(args["number"] ?? 0);
   await handle.loadCatalogs().catch(ignoreFailure);
-  const { guid: master } = await resolveNpc(handle, npc);
-  if (npc !== "nearest" && !stableMaster(handle, master))
+  const { guid: master } = await resolveNpc(handle, npc, settle);
+  await settle(() => (stableMaster(handle, master) ? master : undefined));
+  if (!stableMaster(handle, master))
     throw new Error(`0x${master.toString(16)} has no stable_master role here.`);
   const counts = { lists: 0, refusals: 0, results: 0, unanswered: 0 };
   const stop = handle.pets.onEvent((event) => {
