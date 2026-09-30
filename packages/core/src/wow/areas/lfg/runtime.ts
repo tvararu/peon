@@ -36,10 +36,18 @@ export type LfgDungeonsResult = LfgOutcome<{
 export type LfgPartyLocksResult = LfgOutcome<{
   partyLocks: readonly LfgPartyLocks[];
 }>;
-export type LfgJoinResult = LfgOutcome<{
-  queued: readonly number[];
-  roleCheck: boolean;
-}>;
+export type LfgJoinRefusal = {
+  status: "refused";
+  reason: string;
+  partyLocks?: readonly LfgPartyLocks[];
+};
+export type LfgJoinResult =
+  | ({ status: "ok" } & {
+      queued: readonly number[];
+      roleCheck: boolean;
+    })
+  | LfgJoinRefusal
+  | { status: "no_answer" };
 export type LfgLeaveResult = LfgOutcome;
 export type LfgSetRolesResult = LfgOutcome<{ roles: number }>;
 export type LfgCommentResult = LfgOutcome;
@@ -215,6 +223,8 @@ function groupRefusal(ctx: Ctx, store: LfgStore): LfgJoinResult | undefined {
 }
 
 function joinRefusal(env: Env, join: JoinRequest): LfgJoinResult | undefined {
+  if (join.entries.length === 0)
+    return { status: "refused", reason: "no_dungeons" };
   if ((join.roles & PLAYABLE_ROLES) === 0)
     return { status: "refused", reason: "no_role" };
   if (join.entries.length > LFG_MAX_ENTRIES)
@@ -287,7 +297,7 @@ async function settleJoin(
       status: "refused",
       reason: first.result.reason,
       partyLocks: store.snapshot().joinResult?.partyLocks ?? [],
-    } as LfgJoinResult;
+    };
   }
   const settled = await waits.queuedWait;
   return queuedResult(store, entries, settled.type === "role_check");
@@ -323,6 +333,9 @@ function joinAct({ ctx, store }: Env) {
 
 function leaveAct({ ctx }: Env) {
   return async (): Promise<LfgLeaveResult> => {
+    const party = ctx.legacy.party();
+    if (party.inGroup && !selfLeads(party))
+      return { status: "refused", reason: "not_leader" };
     const scope = requestScope();
     const wait = ctx.until(
       (event) =>

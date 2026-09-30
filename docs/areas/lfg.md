@@ -135,7 +135,11 @@ on a kick. The store also keeps the last `proposal`, `boot`,
   packet; any later boot update still updates the store.
 - Puppet calls: `answerProposal '["accept"]'`, `teleport '["out"]'` and
   `voteKick '["yes"]'` (the other values are `decline`, `in`, `no`).
-  A puppet call does not await the act.
+  A puppet call awaits the act and reports a refusal as an error.
+- `join` refuses `no_dungeons` for an empty dungeon list
+  (`Handlers/LFGHandler.cpp:56-60`) and `leave` refuses `not_leader`
+  for a grouped non-leader (`Handlers/LFGHandler.cpp:78-92`) before
+  sending; a refused join returns the party locks in `LfgJoinResult`.
 
 ## Left out
 
@@ -144,13 +148,6 @@ on a kick. The store also keeps the last `proposal`, `boot`,
 - A non-leader in a partly filled `CMSG_LFG_JOIN` group may join
   (`Handlers/LFGHandler.cpp:50-55`); the join act still refuses
   `not_leader` for every non-leader (SR2-instances-15).
-- `join` sends an empty dungeon list, which the server drops with no
-  reply (`Handlers/LFGHandler.cpp:56-60`), so the act reports
-  `lfg_disabled_or_ignored` after 5 s.
-- `leave` sends for a grouped non-leader, whom the server ignores
-  (`Handlers/LFGHandler.cpp:78-92`), so the act reports `no_answer`.
-- A refused join's party locks are returned but not typed in
-  `LfgJoinResult`.
 
 ## Capabilities row
 
@@ -174,9 +171,9 @@ The `dungeon` tool queues, answers role checks and proposals, teleports in and o
 | `SMSG_LFG_QUEUE_STATUS` | `live` | probe flow `lfg-queue`, exit 0; two `in` rows of size 31, `handled`, during the 12 s wait | `Handlers/LFGHandler.cpp:456-473` |
 | `CMSG_LFG_LEAVE` | `live` | probe flow `lfg-queue`, exit 0; trace shows `out` size 0, then the type-7 update | `Handlers/LFGHandler.cpp:78-93` |
 | `CMSG_SET_LFG_COMMENT` | `builder` | sent live, effect not seen: probe flow `lfg-queue` traces `out` size 10 with the changed comment, then the rejoin sends an empty comment that overwrites it. Builder test on `buildLfgComment` | `Handlers/LFGHandler.cpp:122-131` |
-| `CMSG_LFG_SET_ROLES` | `live` | same run: the four puppets answer the role check tank, healer, damage, damage and the server echoes each answer | `Handlers/LFGHandler.cpp:106-120` |
-| `SMSG_LFG_ROLE_CHECK_UPDATE` | `live` | same run: the group join starts a role check that every member sees | `Handlers/LFGHandler.cpp:394-439` |
-| `SMSG_LFG_ROLE_CHOSEN` | `live` | same run: each puppet role answer is echoed to the group | `Handlers/LFGHandler.cpp:383-392` |
+| `CMSG_LFG_SET_ROLES` | `live` | two `ghostlands20` puppets in a party, the leader queues the level-20 random dungeon as damage (`lfg-rolecheck` flow, run not committed): the leader trace shows `out` size 1 answering the opening role check, then `SMSG_LFG_ROLE_CHOSEN` and `SMSG_LFG_ROLE_CHECK_UPDATE` 24 ms later. The member's trace was not kept | `Handlers/LFGHandler.cpp:106-120` |
+| `SMSG_LFG_ROLE_CHECK_UPDATE` | `live` | same run, leader trace: `in` size 39, `handled`, on the group join before the roles are sent, again after the leader's answer, and once more about 10 s later when a proposal follows | `Handlers/LFGHandler.cpp:394-439` |
+| `SMSG_LFG_ROLE_CHOSEN` | `live` | same run, leader trace: `in` size 13, `handled`, in the same tick as each role-check update | `Handlers/LFGHandler.cpp:383-392` |
 | `CMSG_LFG_TELEPORT` | `live` | probe flow `lfg-teleport` on a fresh `ghostlands20` account, run not committed: trace shows `out` size 1, then 14 ms later `SMSG_LFG_TELEPORT_DENIED` | `Handlers/LFGHandler.cpp:143-150` |
 | `SMSG_LFG_TELEPORT_DENIED` | `live` | same run: `in` size 4, `handled`; the store holds code 6 (`invalid_location`, not in an LFG group) | `Handlers/LFGHandler.cpp:636-642` |
 | `SMSG_LFG_PROPOSAL_UPDATE` | `live` | five-`ghostlands20`-puppet run, not committed: a full party matches itself, state 0 then state 2 for the level-20 random dungeon | `Handlers/LFGHandler.cpp:545-611` |
