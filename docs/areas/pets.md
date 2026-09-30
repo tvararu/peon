@@ -4,12 +4,15 @@ The `pets` area reads the pet bar the server sends for the character's
 pet, vehicle, charmed or possessed unit. World-service code reads it
 through `session.areas.pets.state()`: the bar with the pet's family,
 duration, stance (`react`), command, flags, the ten slots, the spells
-with their autocast state, the running cooldowns as end times, and a
+with their autocast state, the running cooldowns as end times, the
+names known by pet number, and a
 `pet` view of the summoned pet (pet number, name timestamp, the rename
 and abandon bits, happiness), and the last refusal the server sent. The
-area emits `bar`, `spell_learned`, `spell_unlearned` and `feedback`
-events. The act `pets.requestPetInfo()` asks the server for the bar
-again. `pets.petCommand("stay" | "follow")` and
+area emits `bar`, `spell_learned`, `spell_unlearned`, `feedback`,
+`cast_failed`, `name`, `name_invalid` and `unanswered` events. The act
+`pets.requestPetInfo()` asks the server for the bar
+again. `pets.queryPetName()` asks for the current pet's name again.
+`pets.petCommand("stay" | "follow")` and
 `pets.petStance("passive" | "defensive" | "aggressive")` send the order
 and then ask for the bar, which confirms it. `pets.petCommand("dismiss")`
 sends the dismiss command alone, and `pets.petStopAttack()` stops the
@@ -123,21 +126,33 @@ corpse (`Handlers/PetHandler.cpp:287-294`).
   Slots outside 0-9 are refused (`Handlers/PetHandler.cpp:726-727`).
   A single pair carrying a command or reaction type is refused, as the
   server ignores it (`Handlers/PetHandler.cpp:732-740`).
-- `CMSG_PET_CANCEL_AURA` is the pet guid and the `uint32` spell
-  (`Handlers/SpellHandler.cpp:604-610`); the server removes only an
-  aura the pet owns (`Handlers/SpellHandler.cpp:639`).
+- `CMSG_PET_NAME_QUERY` is a `uint32` pet number and the `uint64` pet guid
+  (`Handlers/PetHandler.cpp:616-627`). `SMSG_PET_NAME_QUERY_RESPONSE` is the
+  number, the name, the `uint32` name timestamp, a `uint8` declined-names flag
+  and, when the flag is 1, five declined-name strings
+  (`Handlers/PetHandler.cpp:656-668`); the not-found form carries an empty
+  name, timestamp 0 and flag 0 (`Handlers/PetHandler.cpp:632-640`). The area
+  asks once per bar and again when the pet's `UNIT_FIELD_PET_NAME_TIMESTAMP`
+  grows past the cached entry, and keeps the reply by pet number; a not-found
+  reply caches nothing. Pets without a pet number (`UNIT_FIELD_PETNUMBER` 0)
+  are never asked.
+- `CMSG_PET_RENAME` is the pet guid, the new name and a `uint8` 0 for the
+  declined-names flag the area never sends (`Handlers/PetHandler.cpp:846-852`).
+  `SMSG_PET_NAME_INVALID` is the `uint32` reason, the refused name, the
+  declined-names flag and the five strings when the flag is 1
+  (`Handlers/PetHandler.cpp:1112-1126`); the area maps the reason number to
+  the server's `PetNameInvalidReason` names (`too_short`, `too_long` and the
+  rest). A successful rename sends no
+  packet: the server clears `UNIT_CAN_BE_RENAMED` and bumps
+  `UNIT_FIELD_PET_NAME_TIMESTAMP` (`Handlers/PetHandler.cpp:859-929`), whose
+  field update triggers the next name query. `pets.renamePet(name)` returns
+  `not_renamable` when the pet's rename bit is clear and otherwise sends,
+  then waits 5 s for the newer `name` or a `name_invalid`; silence emits
+  `unanswered` with `request: "rename"` through the store.
 - The area peeks `SMSG_SPELL_COOLDOWN` (guid, flags, spell and time
-  per entry, `Entities/Unit/Unit.cpp:16618-16625`) and
-  `SMSG_CLEAR_COOLDOWN` (spell then pet guid, `Entities/Pet/Pet.cpp:2458`)
-  for the pet's guid only; both are `uses`, owned at
-  `gameplay-handlers.ts:123-128`. The pet's normal cooldowns arrive in
-  `SMSG_PET_SPELLS`; a pet-guid `SMSG_SPELL_COOLDOWN` is only sent when
-  `RequireCooldownInfo()` holds (`Spells/Spell.cpp:4493-4498`). `SMSG_SPELL_COOLDOWN` carries no category, so an update keeps the row `SMSG_PET_SPELLS` filled and a new spell starts at category 0.
 
 ## Left out
 
-- `CMSG_PET_NAME_QUERY`, `SMSG_PET_NAME_QUERY_RESPONSE`, `CMSG_PET_RENAME`,
-  `SMSG_PET_NAME_INVALID`: built by pets-4.
 - `MSG_LIST_STABLED_PETS`, `CMSG_STABLE_PET`, `CMSG_UNSTABLE_PET`,
   `CMSG_STABLE_SWAP_PET`, `CMSG_BUY_STABLE_SLOT`, `SMSG_STABLE_RESULT`,
   `CMSG_STABLE_REVIVE_PET`: built by pets-5.
@@ -154,7 +169,8 @@ corpse (`Handlers/PetHandler.cpp:287-294`).
 No agent verb; the world-service acts `pets.requestPetInfo`,
 `pets.petCommand`, `pets.petStance`, `pets.petStopAttack`,
 `pets.petCast`, `pets.petAutocast`, `pets.petSetAction`,
-`pets.petSwapActions` and `pets.petCancelAura` only.
+`pets.petSwapActions`, `pets.petCancelAura`, `pets.queryPetName` and
+`pets.renamePet` only.
 
 ## The pet tool
 
@@ -187,7 +203,10 @@ the pet's target field equals the target or the `threat` area emits
 `follow`, `stay` and `stance` settle `DONE` only when the next bar shows
 the change, else `UNCONFIRMED`. `stop` sends `petStopAttack` (a unit that
 stops its attack clears its target field, `Entities/Unit/Unit.cpp:7221`)
-and then `follow`. `cast`, `autocast`, `rename`, `abandon`, `tame` and
+and then `follow`. `queryPetName` asks for the current pet's name again and
+`renamePet` renames a hunter pet whose rename bit is set, waiting 5 s for the
+new `name` or a `name_invalid` before the store reports `unanswered`.
+`cast`, `autocast`, `abandon`, `tame` and
 `talent` are refused with `not_built`: pets-10 and pets-12 own them.
 
 ## Proof
