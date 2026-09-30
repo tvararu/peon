@@ -19,9 +19,11 @@ function describe(outcome: Outcome): string {
 
 async function run({ handle, args, settle }: FlowContext): Promise<Json> {
   const entry = entryOf(args);
-  const found = handle
-    .queryNearby()
-    .find((row) => !row.self && row.entity.entry === entry);
+  const found = await settle(() =>
+    handle
+      .queryNearby()
+      .find((row) => !row.self && row.entity.entry === entry),
+  );
   if (!found)
     throw new Error(`vehicles-click found no unit of entry ${entry}.`);
   const guid = found.entity.guid;
