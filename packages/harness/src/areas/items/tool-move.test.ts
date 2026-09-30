@@ -227,6 +227,20 @@ describe("gear tool unequip to a slot", () => {
     expect(res.status).toBe("DONE");
   });
 
+  test("unequip to bag 1 autostores into the first bag", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, [
+      { bag: 255, entry: 36, guid: SHIRT, name: "Brown Linen Shirt", slot: 3 },
+    ]);
+    const acts = itemActs(t.handle);
+    await gearSpec.run(
+      { do: "unequip", item: "Brown Linen Shirt", to: "bag 1" },
+      toolCtx(t),
+    );
+    expect(acts.unequip).toHaveBeenCalledWith(3, 19);
+    expect(acts.move).not.toHaveBeenCalled();
+  });
+
   test("unequip to a taken slot reports the autostore landing, not the slot", async () => {
     const t = await createTestRuntime();
     stocked(t.handle, [
