@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+  petsNameInvalidBody,
+  petsNameQueryResponseBody,
   petsPetActionFeedbackBody,
   petsPetActionSoundBody,
   petsPetDismissSoundBody,
@@ -10,14 +12,20 @@ import {
   buildPetAction,
   buildPetCancelAura,
   buildPetCastSpell,
+  buildPetNameQuery,
+  buildPetRename,
   buildPetSetAction,
   buildPetSpellAutocast,
   buildPetStopAttack,
   buildRequestPetInfo,
   PET_ACTION,
+  type PetNameInvalid,
+  type PetNameQueryResponse,
   parsePetActionFeedback,
   parsePetActionSound,
   parsePetDismissSound,
+  parsePetNameInvalid,
+  parsePetNameQueryResponse,
   parsePetSpellId,
 } from "#wow/areas/pets/protocol";
 import { PacketReader } from "#wow/protocol/packet";
@@ -182,5 +190,89 @@ describe("pets protocol", () => {
     const r = new PacketReader(body);
     expect(r.uint64LE()).toBe(PET);
     expect(r.uint32LE()).toBe(2649);
+  });
+
+  test("CMSG_PET_NAME_QUERY writes the number then the guid (PetHandler.cpp:616-627)", () => {
+    const body = buildPetNameQuery(7, PET);
+    expect(body).toHaveLength(12);
+    const r = new PacketReader(body);
+    expect(r.uint32LE()).toBe(7);
+    expect(r.uint64LE()).toBe(PET);
+  });
+
+  test("SMSG_PET_NAME_QUERY_RESPONSE reads number, name and timestamp (PetHandler.cpp:656-668)", () => {
+    const body = petsNameQueryResponseBody({
+      name: "Fangtooth",
+      number: 7,
+      timestamp: 1_700_000_000,
+    });
+    expect(parsePetNameQueryResponse(new PacketReader(body))).toEqual({
+      declined: undefined,
+      name: "Fangtooth",
+      number: 7,
+      timestamp: 1_700_000_000,
+    } satisfies PetNameQueryResponse);
+  });
+
+  test("SMSG_PET_NAME_QUERY_RESPONSE reads the five declined names when the flag is 1", () => {
+    const body = petsNameQueryResponseBody({
+      declined: ["a", "b", "c", "d", "e"],
+      name: "Rex",
+      number: 2,
+      timestamp: 5,
+    });
+    const parsed = parsePetNameQueryResponse(new PacketReader(body));
+    expect(parsed.declined).toEqual(["a", "b", "c", "d", "e"]);
+  });
+
+  test("SMSG_PET_NAME_QUERY_RESPONSE not-found form gives an empty name (PetHandler.cpp:632-640)", () => {
+    const parsed = parsePetNameQueryResponse(
+      new PacketReader(new Uint8Array([3, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
+    );
+    expect(parsed).toEqual({
+      declined: undefined,
+      name: "",
+      number: 3,
+      timestamp: 0,
+    } satisfies PetNameQueryResponse);
+  });
+
+  test("CMSG_PET_RENAME writes guid, name and a zero declined flag (PetHandler.cpp:846-852)", () => {
+    const body = buildPetRename(PET, "Fangtooth");
+    const r = new PacketReader(body);
+    expect(r.uint64LE()).toBe(PET);
+    expect(r.cString()).toBe("Fangtooth");
+    expect(r.uint8()).toBe(0);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("SMSG_PET_NAME_INVALID names the refusal reasons (SharedDefines.h:3911-3929)", () => {
+    const codes: [number, PetNameInvalid["reason"]][] = [
+      [0, "success"],
+      [1, "invalid"],
+      [3, "too_short"],
+      [4, "too_long"],
+      [16, "declension_mismatch"],
+    ];
+    for (const [code, reason] of codes) {
+      const body = petsNameInvalidBody({ code, name: "A" });
+      expect(parsePetNameInvalid(new PacketReader(body))).toEqual({
+        code,
+        declined: undefined,
+        name: "A",
+        reason,
+      });
+    }
+  });
+
+  test("SMSG_PET_NAME_INVALID reads the declined names after flag 1 (PetHandler.cpp:1112-1126)", () => {
+    const body = petsNameInvalidBody({
+      code: 16,
+      declined: ["a", "b", "c", "d", "e"],
+      name: "Rex",
+    });
+    const parsed = parsePetNameInvalid(new PacketReader(body));
+    expect(parsed.reason).toBe("declension_mismatch");
+    expect(parsed.declined).toEqual(["a", "b", "c", "d", "e"]);
   });
 });
