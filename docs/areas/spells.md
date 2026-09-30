@@ -86,9 +86,9 @@ spell by name or id on the character or on a `u<n>` unit through
 on the cast's success or a channel start, `FAILED` with the core reason,
 or `UNCONFIRMED` when nothing answers within the cast time plus 3 s.
 `do: "cancel_aura"` calls `act.cancelAura` and is `DONE` when the next
-aura update removes the aura within 2 s; an aura with an effect that
-applies `SPELL_AURA_MOUNTED` (`Spells/Auras/SpellAuraDefines.h:141`) is
-refused with `use_dismount`. `do: "bar"` writes slot 1-144 as wire slot
+aura update removes the aura within 2 s. A mount aura cancels the same
+way: the server treats it like any positive non-passive aura
+(`Handlers/SpellHandler.cpp:568-601`). `do: "bar"` writes slot 1-144 as
 0-143 with `act.setActionButton`, and a call with neither spell nor item
 clears the slot. `journal about: "spells"` lists up to four cancellable
 auras and four filled bar slots before the spellbook, and leaves out the
@@ -280,3 +280,5 @@ Cancel one of its own buffs (`t4-spells-cancel-aura`; harmful and passive auras 
 |---|---|---|---|
 | `SMSG_TOTEM_CREATED` | `mock` | `packages/core/src/wow/areas/spells/totems.test.ts` "SMSG_TOTEM_CREATED fills the slot and emits totem_created" builds the packet from the AzerothCore writer; not seen live (no shaman preset; a priest that learned 8071 with Earth Totem item 5175 in the bags casts 836 instead, and the create never comes) | `Server/Packets/TotemPackets.cpp:25-33` |
 | `CMSG_TOTEM_DESTROYED` | `builder` | sent live on a `max80` priest: `mise protocol:probe <ACCOUNT> --send CMSG_TOTEM_DESTROYED --body 00 --wait 8`, exit 0, one byte in the trace, no disconnect; effect not seen (slot 0 was empty, which the server ignores); not seen live | `Server/Packets/TotemPackets.cpp:20-23` |
+
+| `CMSG_CANCEL_AURA` | `live` | mount cancel on a throwaway `eversong10` character with spell 458 (Brown Horse): `mise protocol:probe <ACCOUNT> --flow selfstate-mount` reports spell 458, collision height null to 2.88, `cancel: ok`, height back to 2.03 after the dismount; the retained trace shows `CMSG_CAST_SPELL` out, `SMSG_MOVE_SET_COLLISION_HGT` and `SMSG_AURA_UPDATE` in, then `CMSG_CANCEL_AURA` out followed by `SMSG_AURA_UPDATE`, `SMSG_MOVE_SET_COLLISION_HGT` and `SMSG_DISMOUNT` in. A puppet cancel of the live mount aura (`CMSG_CAST_SPELL` then raw `CMSG_CANCEL_AURA`) shows the same packet sequence in its retained `packets.jsonl` | `Handlers/SpellHandler.cpp:568-601` |
