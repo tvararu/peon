@@ -3,7 +3,12 @@ import {
   emotesEmoteBody,
   emotesTextEmoteBody,
 } from "#test-support/areas/emotes";
-import { parseEmote, parseTextEmote } from "#wow/areas/emotes/protocol";
+import {
+  buildEmote,
+  buildTextEmote,
+  parseEmote,
+  parseTextEmote,
+} from "#wow/areas/emotes/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 
 const ME = 0xde1n;
@@ -82,5 +87,24 @@ describe("emote packets", () => {
       textEmote: WAVE,
     });
     expect(reader.remaining).toBe(0);
+  });
+});
+
+describe("emote requests", () => {
+  test("CMSG_EMOTE is one little-endian u32", () => {
+    expect([...buildEmote(3)]).toEqual([3, 0, 0, 0]);
+  });
+
+  test("CMSG_TEXT_EMOTE matches the wow_messages body", () => {
+    expect([...buildTextEmote(DANCE, 0xff_ff_ff_ff, 0n)]).toEqual([
+      0x22, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0,
+    ]);
+  });
+
+  test("the target guid is written in full", () => {
+    const body = buildTextEmote(WAVE, 0, CREATURE);
+    expect([...body.slice(8)]).toEqual([
+      0xd2, 0x48, 0x01, 0x28, 0x3d, 0x00, 0x30, 0xf1,
+    ]);
   });
 });
