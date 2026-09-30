@@ -124,3 +124,36 @@ export function petsNameInvalidBody(init: {
   for (const name of init.declined) w.cString(name);
   return w.finish();
 }
+
+export type PetsStabledPetInit = {
+  number: number;
+  entry: number;
+  level: number;
+  name: string;
+  flag: number;
+};
+
+export function petsStabledPetsBody(init: {
+  npc: bigint;
+  slots: number;
+  pets: readonly PetsStabledPetInit[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.npc);
+  w.uint8(init.pets.length);
+  w.uint8(init.slots);
+  for (const pet of init.pets) {
+    w.uint32LE(pet.number);
+    w.uint32LE(pet.entry);
+    w.uint32LE(pet.level);
+    w.cString(pet.name);
+    w.uint8(pet.flag);
+  }
+  return w.finish();
+}
+
+export function petsStableResultBody(code: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(code);
+  return w.finish();
+}

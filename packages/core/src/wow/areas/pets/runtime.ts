@@ -1,5 +1,7 @@
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import {
+  buildBuyStableSlot,
+  buildListStabledPets,
   buildPetAction,
   buildPetCancelAura,
   buildPetCastSpell,
@@ -9,6 +11,10 @@ import {
   buildPetSpellAutocast,
   buildPetStopAttack,
   buildRequestPetInfo,
+  buildStablePet,
+  buildStableRevivePet,
+  buildStableSwapPet,
+  buildUnstablePet,
   PET_ACTION,
   type PetSetActionPair,
 } from "#wow/areas/pets/protocol";
@@ -36,6 +42,14 @@ export type PetsCast =
   | { ok: true; castCount: number; confirmed: boolean }
   | PetsRefused;
 export type PetsActResult = { ok: true } | PetsRefused;
+export type StableActs = {
+  listStabledPets: (npc: bigint) => PetsActResult;
+  stablePet: (npc: bigint) => PetsActResult;
+  unstablePet: (npc: bigint, number: number) => PetsActResult;
+  swapStabledPet: (npc: bigint, number: number) => PetsActResult;
+  buyStableSlot: (npc: bigint) => PetsActResult;
+  stableRevivePet: (npc: bigint) => PetsActResult;
+};
 export type PetsActs = {
   requestPetInfo: () => { ok: true };
   petCommand: (order: PetOrder) => PetsActResult;
@@ -48,7 +62,7 @@ export type PetsActs = {
   petCancelAura: (spell: number) => PetsActResult;
   queryPetName: () => PetsActResult;
   renamePet: (name: string) => PetsActResult;
-};
+} & StableActs;
 
 const ORDERS: Record<PetOrder, number> = { stay: 0, follow: 1, dismiss: 3 };
 const STANCES: Record<PetStance, number> = {
@@ -142,6 +156,91 @@ function renamePetAct(
     },
   );
   return { ok: true };
+}
+
+const STABLE_TIMEOUT_MS = 5000;
+
+type PendingStable = { abort: () => void };
+
+function waitStable(
+  ctx: Ctx,
+  store: PetsStore,
+  options: {
+    pending: PendingStable;
+    reply: "stable_list" | "stable_result";
+    send: () => void;
+  },
+): PetsActResult {
+  const scope = new AbortController();
+  options.pending.abort();
+  const waiter = ctx.until((event) => event.type === options.reply, {
+    signal: scope.signal,
+    timeoutMs: STABLE_TIMEOUT_MS,
+  });
+  const onAbort = () => {
+    waiter.catch(() => undefined).then(() => undefined);
+    scope.abort();
+  };
+  options.pending.abort = onAbort;
+  options.send();
+  void waiter.then(
+    () => undefined,
+    (error: unknown) => {
+      if (scope.signal.aborted || ctx.signal.aborted) return;
+      if (error instanceof Error && error.message === "timeout")
+        store.unansweredStable();
+    },
+  );
+  return { ok: true };
+}
+function stableActs(
+  ctx: Ctx,
+  store: PetsStore,
+  pending: PendingStable,
+): StableActs {
+  return {
+    listStabledPets: (npc) =>
+      waitStable(ctx, store, {
+        pending,
+        reply: "stable_list",
+        send: () =>
+          ctx.send(GameOpcode.MSG_LIST_STABLED_PETS, buildListStabledPets(npc)),
+      }),
+    stablePet: (npc) =>
+      waitStable(ctx, store, {
+        pending,
+        reply: "stable_result",
+        send: () => ctx.send(GameOpcode.CMSG_STABLE_PET, buildStablePet(npc)),
+      }),
+    unstablePet: (npc, number) =>
+      waitStable(ctx, store, {
+        pending,
+        reply: "stable_result",
+        send: () =>
+          ctx.send(GameOpcode.CMSG_UNSTABLE_PET, buildUnstablePet(npc, number)),
+      }),
+    swapStabledPet: (npc, number) =>
+      waitStable(ctx, store, {
+        pending,
+        reply: "stable_result",
+        send: () =>
+          ctx.send(
+            GameOpcode.CMSG_STABLE_SWAP_PET,
+            buildStableSwapPet(npc, number),
+          ),
+      }),
+    buyStableSlot: (npc) =>
+      waitStable(ctx, store, {
+        pending,
+        reply: "stable_result",
+        send: () =>
+          ctx.send(GameOpcode.CMSG_BUY_STABLE_SLOT, buildBuyStableSlot(npc)),
+      }),
+    stableRevivePet: (npc) => {
+      ctx.send(GameOpcode.CMSG_STABLE_REVIVE_PET, buildStableRevivePet(npc));
+      return { ok: true };
+    },
+  };
 }
 
 function nameActs(
@@ -334,8 +433,12 @@ export function petsRuntime(
   const offNames = observeNames(ctx, store);
   const pending = { abort: () => undefined };
   const names = nameActs(ctx, store, pending);
+  const stablePending = { abort: () => undefined };
+  const stable = stableActs(ctx, store, stablePending);
   return {
     act: {
+      buyStableSlot: stable.buyStableSlot,
+      listStabledPets: stable.listStabledPets,
       petAutocast: spells.petAutocast,
       petCancelAura: spells.petCancelAura,
       petCast: spells.petCast,
@@ -347,10 +450,15 @@ export function petsRuntime(
       queryPetName: names.queryPetName,
       renamePet: names.renamePet,
       requestPetInfo: () => requestPetInfo(ctx),
+      stablePet: stable.stablePet,
+      stableRevivePet: stable.stableRevivePet,
+      swapStabledPet: stable.swapStabledPet,
+      unstablePet: stable.unstablePet,
     },
     dispose: () => {
       offNames();
       pending.abort();
+      stablePending.abort();
     },
   };
 }

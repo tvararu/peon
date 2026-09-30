@@ -206,3 +206,102 @@ export function parsePetDismissSound(r: PacketReader): PetDismissSound {
   const z = r.floatLE();
   return { modelId, x, y, z };
 }
+
+export function buildListStabledPets(npc: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(npc);
+  return w.finish();
+}
+
+export function buildStablePet(npc: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(npc);
+  return w.finish();
+}
+
+export function buildUnstablePet(npc: bigint, number: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(npc);
+  w.uint32LE(number);
+  return w.finish();
+}
+
+export function buildStableSwapPet(npc: bigint, number: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(npc);
+  w.uint32LE(number);
+  return w.finish();
+}
+
+export function buildBuyStableSlot(npc: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(npc);
+  return w.finish();
+}
+
+export function buildStableRevivePet(npc: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(npc);
+  return w.finish();
+}
+
+export type StablePetState = "active" | "stabled" | "unknown";
+export type StablePet = {
+  number: number;
+  entry: number;
+  level: number;
+  name: string;
+  state: StablePetState;
+};
+export type StabledPets = {
+  npc: bigint;
+  slots: number;
+  pets: readonly StablePet[];
+};
+
+const STABLE_FLAGS: Record<number, StablePetState> = {
+  1: "active",
+  2: "stabled",
+};
+
+export function parseStabledPets(r: PacketReader): StabledPets {
+  const npc = r.uint64LE();
+  const count = r.uint8();
+  const slots = r.uint8();
+  const pets: StablePet[] = [];
+  for (let at = 0; at < count; at++) {
+    const number = r.uint32LE();
+    const entry = r.uint32LE();
+    const level = r.uint32LE();
+    const name = r.cString();
+    const state = STABLE_FLAGS[r.uint8()] ?? "unknown";
+    pets.push({ entry, level, name, number, state });
+  }
+  return { npc, pets, slots };
+}
+
+export type StableResult =
+  | "money"
+  | "refused"
+  | "stabled"
+  | "unstabled"
+  | "slot_bought"
+  | "exotic"
+  | "unknown";
+
+const STABLE_RESULTS: Record<number, StableResult> = {
+  1: "money",
+  6: "refused",
+  8: "stabled",
+  9: "unstabled",
+  10: "slot_bought",
+  12: "exotic",
+};
+
+export function parseStableResult(r: PacketReader): {
+  code: number;
+  result: StableResult;
+} {
+  const code = r.uint8();
+  return { code, result: STABLE_RESULTS[code] ?? "unknown" };
+}

@@ -7,8 +7,12 @@ import {
   petsPetDismissSoundBody,
   petsPetLearnedSpellBody,
   petsPetUnlearnedSpellBody,
+  petsStabledPetsBody,
+  petsStableResultBody,
 } from "#test-support/areas/pets";
 import {
+  buildBuyStableSlot,
+  buildListStabledPets,
   buildPetAction,
   buildPetCancelAura,
   buildPetCastSpell,
@@ -18,15 +22,22 @@ import {
   buildPetSpellAutocast,
   buildPetStopAttack,
   buildRequestPetInfo,
+  buildStablePet,
+  buildStableRevivePet,
+  buildStableSwapPet,
+  buildUnstablePet,
   PET_ACTION,
   type PetNameInvalid,
   type PetNameQueryResponse,
+  type StableResult,
   parsePetActionFeedback,
   parsePetActionSound,
   parsePetDismissSound,
   parsePetNameInvalid,
   parsePetNameQueryResponse,
   parsePetSpellId,
+  parseStabledPets,
+  parseStableResult,
 } from "#wow/areas/pets/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 import { buildPetAttack } from "#wow/protocol/pet";
@@ -274,5 +285,92 @@ describe("pets protocol", () => {
     const parsed = parsePetNameInvalid(new PacketReader(body));
     expect(parsed.reason).toBe("declension_mismatch");
     expect(parsed.declined).toEqual(["a", "b", "c", "d", "e"]);
+  });
+});
+
+describe("pets stable protocol", () => {
+  const NPC = 0xf1_30_00_41_11_00_00_01n;
+
+  test("list, stable, buy and revive write one guid (NPCHandler.cpp:334-353,425-491,607-644)", () => {
+    for (const build of [
+      buildListStabledPets,
+      buildStablePet,
+      buildBuyStableSlot,
+      buildStableRevivePet,
+    ]) {
+      const r = new PacketReader(build(NPC));
+      expect(r.uint64LE()).toBe(NPC);
+      expect(r.remaining).toBe(0);
+    }
+  });
+
+  test("unstable and swap write the guid and the pet number (NPCHandler.cpp:493-605,646-738)", () => {
+    for (const build of [buildUnstablePet, buildStableSwapPet]) {
+      const r = new PacketReader(build(NPC, 77));
+      expect(r.uint64LE()).toBe(NPC);
+      expect(r.uint32LE()).toBe(77);
+      expect(r.remaining).toBe(0);
+    }
+  });
+
+  test("the stable list reads count, slots and pets with no loyalty field (NPCHandler.cpp:355-416)", () => {
+    const body = petsStabledPetsBody({
+      npc: NPC,
+      pets: [
+        { entry: 17_525, flag: 1, level: 10, name: "Ravager", number: 5 },
+        { entry: 1, flag: 2, level: 12, name: "Ravager", number: 9 },
+      ],
+      slots: 2,
+    });
+    const r = new PacketReader(body);
+    expect(parseStabledPets(r)).toEqual({
+      npc: NPC,
+      pets: [
+        {
+          entry: 17_525,
+          level: 10,
+          name: "Ravager",
+          number: 5,
+          state: "active",
+        },
+        { entry: 1, level: 12, name: "Ravager", number: 9, state: "stabled" },
+      ],
+      slots: 2,
+    });
+    expect(r.remaining).toBe(0);
+  });
+
+  test("a player with no pet stable reads an empty list (NPCHandler.cpp:365-370)", () => {
+    const r = new PacketReader(
+      petsStabledPetsBody({ npc: NPC, pets: [], slots: 0 }),
+    );
+    expect(parseStabledPets(r)).toEqual({ npc: NPC, pets: [], slots: 0 });
+  });
+
+  test("an unknown pet flag is kept as unknown", () => {
+    const body = petsStabledPetsBody({
+      npc: NPC,
+      pets: [{ entry: 1, flag: 7, level: 1, name: "X", number: 1 }],
+      slots: 1,
+    });
+    expect(parseStabledPets(new PacketReader(body)).pets[0]?.state).toBe(
+      "unknown",
+    );
+  });
+
+  test("SMSG_STABLE_RESULT names the codes (NPCHandler.cpp:38-46)", () => {
+    const names: [number, StableResult][] = [
+      [0x01, "money"],
+      [0x06, "refused"],
+      [0x08, "stabled"],
+      [0x09, "unstabled"],
+      [0x0a, "slot_bought"],
+      [0x0c, "exotic"],
+      [0x02, "unknown"],
+    ];
+    for (const [code, result] of names)
+      expect(
+        parseStableResult(new PacketReader(petsStableResultBody(code))),
+      ).toEqual({ code, result });
   });
 });

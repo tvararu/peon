@@ -7,6 +7,8 @@ import {
   parsePetNameInvalid,
   parsePetNameQueryResponse,
   parsePetSpellId,
+  parseStabledPets,
+  parseStableResult,
 } from "#wow/areas/pets/protocol";
 import { petsRuntime } from "#wow/areas/pets/runtime";
 import { PetsStore } from "#wow/areas/pets/store";
@@ -29,6 +31,8 @@ export const petsArea = defineArea({
     "cast_failed",
     "name",
     "name_invalid",
+    "stable_list",
+    "stable_result",
     "unanswered",
   ],
   store: (deps, core) => new PetsStore(deps, core),
@@ -64,6 +68,13 @@ export const petsArea = defineArea({
     wire.on(GameOpcode.SMSG_PET_NAME_INVALID, (r) =>
       store.nameRefused(parsePetNameInvalid(r)),
     );
+    wire.on(GameOpcode.MSG_LIST_STABLED_PETS, (r) =>
+      store.stable(parseStabledPets(r)),
+    );
+    wire.on(GameOpcode.SMSG_STABLE_RESULT, (r) => {
+      const parsed = parseStableResult(r);
+      store.stableResult(parsed.code, parsed.result);
+    });
   },
   runtime: petsRuntime,
 });
