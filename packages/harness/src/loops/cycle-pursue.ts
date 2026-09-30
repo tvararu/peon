@@ -1,9 +1,9 @@
 import { settleObject } from "#harness/loops/cycle-object-settle";
+import type { CycleStop } from "#harness/loops/cycle-stop";
 import type {
   CycleObjective,
   CycleTargetRecord,
 } from "#harness/loops/encounter-cycle";
-import type { CycleStop } from "#harness/loops/cycle-stop";
 import { type ObjectivePick, outOfReach } from "#harness/loops/quest-objective";
 
 export type PursueLoop = {
