@@ -16,6 +16,8 @@ export const groupParams = Type.Object({
         "loot_rules",
         "ready_check",
         "ready",
+        "mark",
+        "ping",
         "give",
         "pass_loot",
         "roll",
@@ -25,7 +27,7 @@ export const groupParams = Type.Object({
       ],
       {
         description:
-          "status: show each group member. kick: remove a member by name. lead: pass the leader to a member. raid: make the group a raid. move: move a member to a subgroup. swap: swap two members between subgroups. promote: set assistant, main tank or main assist. loot_rules: set the loot method. ready_check: start a ready check as leader or assistant; alone in a group. ready: answer the open ready check with yes or no. give: give a master loot item to a member. pass_loot: pass on group loot with on or off. roll: answer the open group roll with need, greed or pass. share_quest: share a quest in your log with the group; quest takes the id or part of the title. accept_quest: take the shared quest. decline_quest: turn down the shared quest. Default status.",
+          "status: show each group member. kick: remove a member by name. lead: pass the leader to a member. raid: make the group a raid. move: move a member to a subgroup. swap: swap two members between subgroups. promote: set assistant, main tank or main assist. loot_rules: set the loot method. ready_check: start a ready check as leader or assistant; alone in a group. ready: answer the open ready check with yes or no. mark: put a raid icon on a unit with target and what; what is an icon name or clear. ping: ping the map at the target or your position. give: give a master loot item to a member. pass_loot: pass on group loot with on or off. roll: answer the open group roll with need, greed or pass. share_quest: share a quest in your log with the group; quest takes the id or part of the title. accept_quest: take the shared quest. decline_quest: turn down the shared quest. Default status.",
       },
     ),
   ),
@@ -55,7 +57,7 @@ export const groupParams = Type.Object({
   target: Type.Optional(
     Type.String({
       description:
-        "For give: the corpse unit id or name. Default: the nearest lootable corpse.",
+        "For give: the corpse unit id or name. Default: the nearest lootable corpse. For mark and ping: the target unit id or name; ping defaults to your position.",
     }),
   ),
   text: Type.Optional(
@@ -73,7 +75,7 @@ export const groupParams = Type.Object({
   what: Type.Optional(
     Type.String({
       description:
-        "For promote: assistant, main_tank or main_assist. For loot_rules: the loot method. For give: the item name as the loot window shows it. For pass_loot: on or off. For roll: need, greed or pass. For ready: yes or no.",
+        "For promote: assistant, main_tank or main_assist. For loot_rules: the loot method. For give: the item name as the loot window shows it. For pass_loot: on or off. For roll: need, greed or pass. For ready: yes or no. For mark: an icon name or clear.",
     }),
   ),
   with: Type.Optional(
@@ -96,6 +98,8 @@ export type GroupDo =
   | "loot_rules"
   | "ready_check"
   | "ready"
+  | "mark"
+  | "ping"
   | "give"
   | "pass_loot"
   | "roll"

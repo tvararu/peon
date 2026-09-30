@@ -12,7 +12,7 @@ const COVERS: Partial<Record<ToolName, ReadonlySet<LogEvent>>> = {
     "lfg/refused",
     "lfg/teleport_refused",
   ]),
-  group: new Set<LogEvent>(["raid/roster"]),
+  group: new Set<LogEvent>(["raid/roster", "raid/mark"]),
   interact: new Set<LogEvent>([
     "quest/accepted",
     "quest/rewarded",

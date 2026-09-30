@@ -64,6 +64,22 @@ describe("coverRows", () => {
     expect(log.get(accepted.seq)?.consumedBy).toBeUndefined();
   });
 
+  test("a group mark covers its mark echo row", () => {
+    const log = setup();
+    log.append({
+      class: "log",
+      data: { toolCallId: "c1" },
+      domain: "tool",
+      event: "tool/call",
+      text: "group called",
+    });
+    const mark = log.append(draft("raid/mark"));
+    const ping = log.append(draft("raid/ping_row"));
+    coverRows(log, { status: "DONE", tool: "group", toolCallId: "c1" });
+    expect(log.get(mark.seq)?.consumedBy).toBe("c1");
+    expect(log.get(ping.seq)?.consumedBy).toBeUndefined();
+  });
+
   test("a group kick covers its roster row", () => {
     const log = setup();
     log.append({
