@@ -997,5 +997,14 @@ None. This unit owns no opcode.
   `packages/harness/src/grader/result.test.ts` (the expected enum
   message), because its console checks need them and typecheck fails
   without them. The contract 2.2 row T-10 gains these three files.
+- **BR-T-11-1.** Coordinator ruling for T-11 (P2-17): creating
+  presets through `soap.ts` made an import cycle between `soap.ts` and
+  `realm-service.ts`. T-11 may move `factoryAccount` into a new owned
+  module `packages/factory/src/factory-account.ts` and change the import
+  lines of `soap.ts`, `soap-copy.ts`, `realm-service.ts` and
+  `soap-service-cli.ts` to it, with no other edit to those three files.
+  Everything else of the created-preset path lives in the owned
+  `soap-create.ts`; `soap.ts` keeps only the import and the branch in
+  `createAccount` and stays under 480 non-blank lines.
 
 ## COMPLETE
