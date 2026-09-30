@@ -38,6 +38,27 @@ describe("explore ambiguous floors", () => {
     );
   });
 });
+describe("explore floor-retry escape", () => {
+  test("an ambiguous floor that escapes the height retry is retried at another distance", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { x: 0, y: 0, z: 0 });
+    const goTo = driveGoto(t.handle, [
+      {
+        floors: [72.6, 80.1],
+        refuse: "pick_destination: ambiguous ground column at destination",
+      },
+      {
+        floors: [72.6, 80.1],
+        refuse: "pick_destination: ambiguous ground column at destination",
+      },
+      { arrive: { x: 10, y: 0 } },
+    ]);
+    const result = await explore(toolCtx(t), { direction: "N" });
+    expect(goTo).toHaveBeenNthCalledWith(3, { kind: "point", x: 10, y: 0 });
+    expect(result.obstructed).toBe(0);
+    expect(t.rt.travel.blockedBearings.get(`${MAP_ID}:0:0`)).toBeUndefined();
+  });
+});
 
 describe("explore obstruction budget with probed distances", () => {
   test("an exhausted ambiguous bearing counts once, so an open perpendicular bearing is still tried", async () => {
