@@ -1,6 +1,11 @@
 import { describe, expect, jest, test } from "bun:test";
 import { validateToolArguments } from "@earendil-works/pi-ai";
-import type { AreaState, GameObjectEntity } from "@peon/core";
+import {
+  type AreaState,
+  DisplayCatalog,
+  type GameObjectEntity,
+} from "@peon/core";
+import { objectRows, reachYd } from "#harness/areas/objects/reads";
 import {
   emptyUse,
   useParams,
@@ -43,6 +48,7 @@ function crateTemplate() {
 
 function state(over: Partial<ObjectsState> = {}): ObjectsState {
   return {
+    displays: undefined,
     lastMessage: undefined,
     pages: new Map(),
     pendingUse: undefined,
@@ -138,6 +144,156 @@ describe("use tool", () => {
 
   test("a plain use past interaction distance refuses too_far", async () => {
     const t = await world(8, "generic");
+    const outcome = await useSpec.run({ object: "o1" }, toolCtx(t)).then(
+      () => ({ reason: "resolved" }),
+      (error: unknown) => error,
+    );
+    expect(outcome).toMatchObject({
+      next: 'travel(to: "o1")',
+      reason: "too_far",
+    });
+  });
+
+  test("a wide shrine keeps a near side point usable past the base range", async () => {
+    const t = await world(2, "text");
+    const store = {
+      ...state(),
+      displays: new DisplayCatalog([
+        {
+          id: 3011,
+          maxX: 3.4,
+          maxY: 3.4,
+          maxZ: 3.4,
+          minX: -3.4,
+          minY: -3.4,
+          minZ: -3.4,
+        },
+      ]),
+      templates: new Map([
+        [
+          161_557,
+          { ...crateTemplate(), displayId: 3011, pageId: 2936, type: 9 },
+        ],
+      ]),
+    };
+    jest.spyOn(t.handle.objects, "state").mockImplementation(() => store);
+    (t.handle.getEntity as ReturnType<typeof jest.fn>).mockImplementation(
+      (guid: bigint) =>
+        guid === CRATE
+          ? {
+              ...gameObject(CRATE, "Shrine"),
+              entry: 161_557,
+              gameObjectType: 9,
+              scale: 1,
+            }
+          : undefined,
+    );
+    setWorld(t.handle, {
+      pose: selfPose(NOW, { x: 5, y: 0, z: 0 }),
+      rows: [
+        selfRow(),
+        nearbyRow(crate(5, { gameObjectType: 9 }), {
+          bearingRadians: 0,
+          distance: 5,
+          horizontalDistance: 5,
+        }),
+      ],
+    });
+    const rows = objectRows(toolCtx(t));
+    const row = rows.find((near) => near.guid === CRATE);
+    expect(row?.distance).toBe(5);
+    expect(reachYd(row as never)).toBeLessThan(5);
+    expect(reachYd(row as never, toolCtx(t))).toBeGreaterThanOrEqual(4);
+  });
+  test("a box-contained point past the use gate refuses too_far", async () => {
+    const t = await world(2, "text");
+    const store = {
+      ...state(),
+      displays: new DisplayCatalog([
+        {
+          id: 3011,
+          maxX: 0.236,
+          maxY: 0.4726,
+          maxZ: 0.083,
+          minX: -0.236,
+          minY: 0.0004,
+          minZ: 0,
+        },
+      ]),
+      templates: new Map([
+        [
+          161_557,
+          { ...crateTemplate(), displayId: 3011, pageId: 2936, type: 9 },
+        ],
+      ]),
+    };
+    jest.spyOn(t.handle.objects, "state").mockImplementation(() => store);
+    (t.handle.getEntity as ReturnType<typeof jest.fn>).mockImplementation(
+      (guid: bigint) =>
+        guid === CRATE
+          ? {
+              ...gameObject(CRATE, "Shrine"),
+              entry: 161_557,
+              gameObjectType: 9,
+              scale: 3.01,
+            }
+          : undefined,
+    );
+    setWorld(t.handle, {
+      pose: selfPose(NOW, { x: 6, y: 6, z: 0 }),
+      rows: [
+        selfRow(),
+        nearbyRow(crate(2, { gameObjectType: 9 }), {
+          bearingRadians: 0,
+          distance: 8.49,
+          horizontalDistance: 8.49,
+        }),
+      ],
+    });
+    const outcome = await useSpec.run({ object: "o1" }, toolCtx(t)).then(
+      () => ({ reason: "resolved" }),
+      (error: unknown) => error,
+    );
+    expect(outcome).toMatchObject({
+      next: 'travel(to: "o1")',
+      reason: "too_far",
+    });
+  });
+
+  test("a display rejection below the scalar range still refuses too_far", async () => {
+    const t = await world(8, "generic");
+    const store = {
+      ...state(),
+      displays: new DisplayCatalog([
+        { id: 7001, maxX: 5, maxY: 5, maxZ: 0.1, minX: -5, minY: -5, minZ: 0 },
+      ]),
+      templates: new Map([
+        [161_557, { ...crateTemplate(), displayId: 7001, lockId: 0, type: 10 }],
+      ]),
+    };
+    jest.spyOn(t.handle.objects, "state").mockImplementation(() => store);
+    (t.handle.getEntity as ReturnType<typeof jest.fn>).mockImplementation(
+      (guid: bigint) =>
+        guid === CRATE
+          ? {
+              ...gameObject(CRATE, "Notice"),
+              entry: 161_557,
+              gameObjectType: 10,
+              scale: 1,
+            }
+          : undefined,
+    );
+    setWorld(t.handle, {
+      pose: selfPose(NOW, { x: 0, y: 0, z: 8 }),
+      rows: [
+        selfRow(),
+        nearbyRow(crate(2, { gameObjectType: 10 }), {
+          bearingRadians: 0,
+          distance: 8,
+          horizontalDistance: 0,
+        }),
+      ],
+    });
     const outcome = await useSpec.run({ object: "o1" }, toolCtx(t)).then(
       () => ({ reason: "resolved" }),
       (error: unknown) => error,

@@ -25,6 +25,7 @@ export type Speeds = Readonly<Record<SpeedKind, number>>;
 export type MovementData = {
   updateFlags: number;
   point?: Point;
+  rotation?: Rotation;
   runSpeed?: number;
   runBackSpeed?: number;
   turnRate?: number;
@@ -83,18 +84,31 @@ function readPlacement(r: PacketReader, updateFlags: number): Placement {
   return {};
 }
 
-function skipTrailer(r: PacketReader, updateFlags: number): void {
+export type Rotation = { x: number; y: number; z: number; w: number };
+
+export function unpackRotation(packed: bigint): Rotation {
+  const x = Number(BigInt.asIntN(22, packed >> 42n)) / (1 << 21);
+  const y = Number(BigInt.asIntN(21, packed >> 21n)) / (1 << 20);
+  const z = Number(BigInt.asIntN(21, packed)) / (1 << 20);
+  const w = Math.sqrt(Math.max(0, 1 - x * x - y * y - z * z));
+  return { w, x, y, z };
+}
+
+function readTrailer(
+  r: PacketReader,
+  updateFlags: number,
+): Pick<MovementData, "rotation"> {
   if (updateFlags & UpdateFlag.HIGH_GUID) r.skip(4);
   if (updateFlags & UpdateFlag.LOW_GUID) r.skip(4);
   if (updateFlags & UpdateFlag.HAS_ATTACKING_TARGET) r.packedGuid();
   if (updateFlags & UpdateFlag.TRANSPORT) r.skip(4);
   if (updateFlags & UpdateFlag.VEHICLE) r.skip(8);
-  if (updateFlags & UpdateFlag.ROTATION) r.skip(8);
+  if (!(updateFlags & UpdateFlag.ROTATION)) return {};
+  return { rotation: unpackRotation(r.uint64LE()) };
 }
-
 export function parseMovementBlock(r: PacketReader): MovementData {
   const updateFlags = r.uint16LE();
   const placement = readPlacement(r, updateFlags);
-  skipTrailer(r, updateFlags);
-  return { updateFlags, ...placement };
+  const trailer = readTrailer(r, updateFlags);
+  return { updateFlags, ...placement, ...trailer };
 }

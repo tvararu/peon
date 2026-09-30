@@ -2,7 +2,11 @@ import type { Position } from "#wow/entity-store";
 import { ObjectType, UpdateType } from "#wow/protocol/entity-fields";
 import type { CreateSpline } from "#wow/protocol/monster-move";
 import type { MovementInfo } from "#wow/protocol/movement";
-import { parseMovementBlock, type Speeds } from "#wow/protocol/movement-block";
+import {
+  parseMovementBlock,
+  type Rotation,
+  type Speeds,
+} from "#wow/protocol/movement-block";
 import type { PacketReader } from "#wow/protocol/packet";
 import { parseUpdateMask } from "#wow/protocol/update-mask";
 
@@ -10,6 +14,7 @@ type Movement = {
   position: Position | undefined;
   updateFlags: number;
   movementInfo?: MovementInfo;
+  rotation: Rotation | undefined;
   runSpeed?: number;
   runBackSpeed?: number;
   turnRate?: number;
@@ -42,7 +47,11 @@ class MalformedEntry extends Error {
 function readMovement(r: PacketReader, mapId: number, guid: bigint): Movement {
   try {
     const { point, ...rest } = parseMovementBlock(r);
-    return { position: point && { mapId, ...point }, ...rest };
+    return {
+      position: point && { mapId, ...point },
+      rotation: undefined,
+      ...rest,
+    };
   } catch (error) {
     throw new MalformedEntry(guid, { cause: error });
   }

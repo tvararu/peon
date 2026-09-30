@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { refusalCode, travelLeg } from "#harness/ops/travel-leg";
 import {
   driveGoto,
+  objectRow,
   setSelf,
   setUnits,
   toolCtx,
@@ -145,7 +146,108 @@ describe("travelLeg", () => {
     });
   });
 
-  test("two floors near the unit: no retry, the refusal stands", async () => {
+  test("a unit raised above its floor retries on the floor nearest its height", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { z: 0 });
+    setUnits(t.handle, [
+      unitRow({
+        distance: 30,
+        guid: 0x10n,
+        name: "Shrine of Dath'Remar",
+        relation: "neutral",
+        x: 30,
+        y: 0,
+        z: 42.5,
+      }),
+    ]);
+    const goTo = driveGoto(t.handle, [
+      {
+        floors: [30.2, 41.6, 55],
+        refuse: "pick_destination: ambiguous ground column at destination",
+      },
+      { arrive: { x: 30, y: 0, z: 41.6 } },
+    ]);
+    const leg = await travelLeg(toolCtx(t), {
+      goal: { guid: 0x10n, kind: "unit", name: "Shrine of Dath'Remar" },
+      within: 3,
+    });
+    expect(leg).toMatchObject({ floorRetried: true, status: "arrived" });
+    expect(goTo).toHaveBeenNthCalledWith(2, {
+      kind: "point",
+      x: 30,
+      y: 0,
+      z: 41.6,
+    });
+  });
+
+  test("a raised game object retries on the floor nearest its height", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { z: 0 });
+    setUnits(t.handle, [
+      objectRow({
+        distance: 52,
+        guid: 0xf110_0000_0000_0070n,
+        name: "Shrine of Dath'Remar",
+        x: 30,
+        y: 0,
+        z: 42.5,
+      }),
+    ]);
+    const goTo = driveGoto(t.handle, [
+      {
+        floors: [30.2, 41.6, 55],
+        refuse: "pick_destination: ambiguous ground column at destination",
+      },
+      { arrive: { x: 30, y: 0, z: 41.6 } },
+    ]);
+    const leg = await travelLeg(toolCtx(t), {
+      goal: { guid: 0xf110_0000_0000_0070n, kind: "unit", name: "Shrine" },
+      within: 3,
+    });
+    expect(leg).toMatchObject({ floorRetried: true, status: "arrived" });
+    expect(goTo).toHaveBeenNthCalledWith(2, {
+      kind: "point",
+      x: 30,
+      y: 0,
+      z: 41.6,
+    });
+  });
+  test("a unit over a lower floor still walks to the chosen floor", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { z: 0 });
+    setUnits(t.handle, [
+      unitRow({
+        distance: 10.5,
+        guid: 0x10n,
+        name: "Marniel Amberlight",
+        relation: "friendly",
+        x: 1,
+        y: 0,
+        z: 10.5,
+      }),
+    ]);
+    const goTo = driveGoto(t.handle, [
+      {
+        floors: [0, 10],
+        refuse: "pick_destination: ambiguous ground column at destination",
+      },
+      { arrive: { x: 1, y: 0, z: 10 } },
+    ]);
+    const leg = await travelLeg(toolCtx(t), {
+      goal: { guid: 0x10n, kind: "unit", name: "Marniel Amberlight" },
+      within: 3,
+    });
+    expect(leg).toMatchObject({ floorRetried: true, status: "arrived" });
+    expect(goTo).toHaveBeenCalledTimes(2);
+    expect(goTo).toHaveBeenNthCalledWith(2, {
+      kind: "point",
+      x: 1,
+      y: 0,
+      z: 10,
+    });
+  });
+
+  test("two floors near the unit: retries on the closer floor", async () => {
     const t = await createTestRuntime();
     setSelf(t.handle);
     setUnits(t.handle, [
@@ -156,7 +258,7 @@ describe("travelLeg", () => {
         relation: "friendly",
         x: 30,
         y: 0,
-        z: 72.7,
+        z: 72.75,
       }),
     ]);
     const goTo = driveGoto(t.handle, [
@@ -164,14 +266,36 @@ describe("travelLeg", () => {
         floors: [72.6, 72.8],
         refuse: "pick_destination: ambiguous ground column at destination",
       },
+      { arrive: { x: 30, y: 0, z: 72.8 } },
     ]);
     const leg = await travelLeg(toolCtx(t), {
       goal: { guid: 0x10n, kind: "unit", name: "Marniel Amberlight" },
       within: 3,
     });
+    expect(leg).toMatchObject({ floorRetried: true, status: "arrived" });
+    expect(goTo).toHaveBeenNthCalledWith(2, {
+      kind: "point",
+      x: 30,
+      y: 0,
+      z: 72.8,
+    });
+  });
+
+  test("a unit whose height is unknown keeps the refusal", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle);
+    const goTo = driveGoto(t.handle, [
+      {
+        floors: [72.6, 80.1],
+        refuse: "pick_destination: ambiguous ground column at destination",
+      },
+    ]);
+    const leg = await travelLeg(toolCtx(t), {
+      goal: { guid: 0x99n, kind: "unit", name: "Nobody" },
+      within: 3,
+    });
     expect(leg).toMatchObject({
       floorRetried: false,
-      floors: [72.6, 72.8],
       reason: "ambiguous_floor",
       status: "refused",
     });

@@ -5,7 +5,7 @@ import type { OpsCtx, ViewCtx } from "#harness/contract/services";
 import type { Compass, UnitView } from "#harness/contract/views";
 import type { InterruptCause } from "#harness/ops/danger";
 import { type ExploreResult, SIDE_REASONS } from "#harness/ops/explore";
-import { FLOOR_MATCH_YD, type LegResult } from "#harness/ops/travel-leg";
+import type { LegResult } from "#harness/ops/travel-leg";
 import { structuralAsk, structuralReach } from "#harness/ops/unreached";
 import { manaText, poseView, vitalsView } from "#harness/ops/views";
 import { result } from "#harness/tools/define";
@@ -104,7 +104,7 @@ function unitFloorsReport(
   const floor = nearestFloor(floors, z);
   if (x === undefined || y === undefined || floor === undefined) return;
   const at = z === undefined ? "" : ` ${z.toFixed(1)}`;
-  const height = `none is within ${FLOOR_MATCH_YD} yd of ${goal.unit.name}'s height${at}`;
+  const height = `${goal.unit.name} floats ${at} over ${floors.length} ground floors`;
   return result("REFUSED", {
     after,
     detail: `the ground at ${goalName(goal)} has ${floors.length} floors: ${floors.map((one) => one.toFixed(1)).join(", ")}, and ${height}. ${tried} ${NOT_TRIED_THERE}`,

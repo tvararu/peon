@@ -1,11 +1,13 @@
 import {
   type AreaState,
+  type DisplayBounds,
   type Entity,
   extractGameObjectFields,
   type GameObjectEntity,
   type NearbyRow,
   ObjectType,
 } from "@peon/core";
+import { baseReachYd } from "#harness/areas/objects/reach";
 import type { ViewCtx } from "#harness/contract/services";
 import type { UnitView } from "#harness/contract/views";
 import { compassOf } from "#harness/ops/views";
@@ -49,28 +51,6 @@ const KIND_WORD: Record<number, string> = {
   32: "barber chair",
   33: "destructible building",
   34: "guild bank",
-};
-
-const REACH_YD: Record<number, number> = {
-  0: 5,
-  2: 5.555_555_3,
-  4: 10,
-  7: 3,
-  9: 5.555_555_3,
-  12: 0,
-  13: 5,
-  14: 5,
-  15: 5,
-  17: 100,
-  19: 10,
-  24: 5.555_555_3,
-  25: 20.5,
-  26: 5.555_555_3,
-  27: 5.555_555_3,
-  31: 5,
-  32: 3,
-  33: 5,
-  34: 10,
 };
 
 export type ObjectRow = {
@@ -177,8 +157,47 @@ export function objectUnit(row: ObjectRow): UnitView {
     z: row.z,
   };
 }
-export function reachYd(row: ObjectRow): number {
-  return Math.max((REACH_YD[row.type] ?? 5.5) - 1, 1);
+export function reachYd(row: ObjectRow, ctx?: ViewCtx): number {
+  const radius = baseReachYd(row.type);
+  const base = Math.max(radius - 1, 1);
+  const target = boundedTarget(row, ctx);
+  if (!target) return base;
+  const clearance = faceClearance(target, radius);
+  if (!(clearance > 0)) return base;
+  return Math.max(Math.min(clearance, radius + 0.389) - 1, 1);
+}
+
+type BoundedTarget = { bounds: DisplayBounds; scale: number };
+
+function boundedTarget(
+  row: ObjectRow,
+  ctx?: ViewCtx,
+): BoundedTarget | undefined {
+  if (!ctx || row.x === undefined || row.y === undefined) return undefined;
+  const state = ctx.handle.objects.state() as ObjectsState;
+  const displayId = state.templates.get(row.entry)?.displayId;
+  const bounds =
+    displayId === undefined ? undefined : state.displays?.get(displayId);
+  const entity = ctx.handle.getEntity(row.guid);
+  if (bounds === undefined) return undefined;
+  if (!isGameObjectEntity(entity)) return undefined;
+  return { bounds, scale: entity.scale > 0 ? entity.scale : 1 };
+}
+
+function faceClearance(target: BoundedTarget, radius: number): number {
+  const halfX = ((target.bounds.maxX - target.bounds.minX) / 2) * target.scale;
+  const halfY = ((target.bounds.maxY - target.bounds.minY) / 2) * target.scale;
+  const halfZ = ((target.bounds.maxZ - target.bounds.minZ) / 2) * target.scale;
+  const centreX =
+    ((target.bounds.maxX + target.bounds.minX) / 2) * target.scale;
+  const centreY =
+    ((target.bounds.maxY + target.bounds.minY) / 2) * target.scale;
+  const centreZ =
+    ((target.bounds.maxZ + target.bounds.minZ) / 2) * target.scale;
+  const clearX = Math.abs(halfX) - Math.abs(centreX) + radius;
+  const clearY = Math.abs(halfY) - Math.abs(centreY) + radius;
+  const clearZ = Math.abs(halfZ) - Math.abs(centreZ) + radius;
+  return Math.min(clearX, clearY, clearZ);
 }
 
 export function objectLine(row: ObjectRow): string {

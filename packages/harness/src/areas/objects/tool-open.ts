@@ -1,11 +1,6 @@
 import type { RewardsEvent } from "@peon/core";
 import type { Occupied } from "#harness/areas/items/tool-resolve";
-import {
-  isObjectRef,
-  type ObjectRow,
-  reachYd,
-  resolveObjectRef,
-} from "#harness/areas/objects/reads";
+import type { ObjectRow } from "#harness/areas/objects/reads";
 import type { UseAfter, UseCtx } from "#harness/areas/objects/tool";
 import type { LootLine } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
@@ -17,56 +12,6 @@ import { result } from "#harness/tools/define";
 import { nextCall } from "#harness/tools/next-call";
 
 export const OPEN_SETTLE_MS = 5000;
-
-const REACH_MARGIN_YD = 6;
-
-const USABLE: Record<number, true> = {
-  0: true,
-  1: true,
-  2: true,
-  3: true,
-  8: true,
-  9: true,
-  10: true,
-  22: true,
-};
-
-export function findObject(ctx: UseCtx, object: string): ObjectRow {
-  const row = resolveObjectRef(ctx, object);
-  if (!row || (isObjectRef(object) && row.ref !== object.trim()))
-    throw new Refusal({
-      detail: `no object named ${object} is nearby; look for it first.`,
-      next: nextCall("look", { find: "object" }),
-      reason: "not_found",
-    });
-  return row;
-}
-
-export function checkReach(row: ObjectRow): void {
-  refuseWhenFar(row, reachYd(row));
-}
-
-export function checkCastReach(row: ObjectRow): void {
-  refuseWhenFar(row, reachYd(row) + REACH_MARGIN_YD);
-}
-
-function refuseWhenFar(row: ObjectRow, limit: number): void {
-  if (row.distance === undefined || row.distance <= limit) return;
-  throw new Refusal({
-    detail: `${row.name} (${row.ref}) is ${row.distance} yd away; walk to it first.`,
-    next: nextCall("travel", { to: row.ref }),
-    reason: "too_far",
-  });
-}
-
-export function checkUsable(row: ObjectRow): void {
-  if (!USABLE[row.type])
-    throw new Refusal({
-      detail: `${row.name} (${row.ref}) cannot be used.`,
-      next: nextCall("look", { find: "object" }),
-      reason: "not_usable",
-    });
-}
 
 export function undiscoveredLock(
   _handle: UseCtx["handle"],

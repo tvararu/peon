@@ -87,7 +87,7 @@ function applyCreate(
   { areas, motion, quests, self: selfStore }: EntityStores,
   entry: Entry<"create">,
 ): void {
-  const { guid, objectType, fields, position } = entry;
+  const { guid, objectType, fields, position, rotation } = entry;
   const { _changed: _o, ...object } = extractObjectFields(fields);
   const { _changed: _t, ...extra } = typeFields(objectType, fields);
   const name = lookupCachedName(conn, guid, objectType, object.entry);
@@ -96,6 +96,7 @@ function applyCreate(
     ...extra,
     ...(name ? { name } : {}),
     ...(position ? { position } : {}),
+    ...(rotation ? { rotation } : {}),
     rawFields: new Map(fields),
     createComplete: true,
   });
@@ -169,6 +170,8 @@ function applyMovement(
   entry: Entry<"movement">,
 ): void {
   if (conn.entityStore.get(entry.guid)) seedUnitMotion(areas, entry);
+  if (entry.rotation)
+    conn.entityStore.update(entry.guid, { rotation: entry.rotation });
   if (!entry.position) return;
   conn.remoteMotion.observe(entry.guid, {
     position: entry.position,

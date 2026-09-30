@@ -1,5 +1,6 @@
 import { ignoreFailure } from "#lib/ignore-failure";
 import type { AreaRuntimeCtx } from "#wow/areas/contract";
+import { loadDisplayCatalog } from "#wow/areas/objects/display-catalog";
 import {
   type LockCatalog,
   type LockEntry,
@@ -274,6 +275,20 @@ export function queryOpenLock(env: Env, entry: number): Promise<OpenLockQuery> {
     if (!("cases" in lock)) return lock;
     return choiceFor(env, lock);
   });
+}
+
+export function loadDisplays(
+  ctx: AreaRuntimeCtx<ObjectsEvent>,
+  store: ObjectsStore,
+): void {
+  const { dbc, signal } = ctx;
+  if (!dbc) return;
+  loadDisplayCatalog(dbc).then(
+    (catalog) => {
+      if (!signal.aborted) store.useDisplays(catalog);
+    },
+    () => undefined,
+  );
 }
 
 export function loadLocks(

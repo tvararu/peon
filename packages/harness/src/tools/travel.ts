@@ -113,7 +113,7 @@ function parseGoal(ctx: ToolCtx<TravelAfter>, to: string): Goal {
 
 function reachOf(ctx: OpsCtx, guid: bigint): number | undefined {
   const row = objectRows(ctx).find((known) => known.guid === guid);
-  return row ? reachYd(row) : undefined;
+  return row ? reachYd(row, ctx) : undefined;
 }
 
 function remainingOf(ctx: OpsCtx, goal: Goal): number | undefined {
