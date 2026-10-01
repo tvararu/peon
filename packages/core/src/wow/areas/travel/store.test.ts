@@ -45,7 +45,12 @@ describe("travel store", () => {
         mapPending: undefined,
         benchmark: false,
         lastReply: undefined,
-        flight: { phase: "idle", route: undefined },
+        flight: {
+          durationMs: undefined,
+          fare: undefined,
+          phase: "idle",
+          route: undefined,
+        },
       });
     } finally {
       rig.dispose();
@@ -252,7 +257,9 @@ describe("travel store: taxi", () => {
       advance(250);
       rig.inject(GameOpcode.SMSG_NEW_TAXI_PATH, new Uint8Array(0));
       expect(rig.handle.state().learnedAt).toBe(1250);
-      expect(seen).toEqual([{ type: "taxi_node_learned", npc: TAXI_MASTER }]);
+      expect(seen).toEqual([
+        { node: undefined, npc: TAXI_MASTER, type: "taxi_node_learned" },
+      ]);
     } finally {
       rig.dispose();
     }
@@ -262,7 +269,9 @@ describe("travel store: taxi", () => {
     const { rig, seen } = rigAt();
     try {
       rig.inject(GameOpcode.SMSG_NEW_TAXI_PATH, new Uint8Array(0));
-      expect(seen).toEqual([{ type: "taxi_node_learned", npc: undefined }]);
+      expect(seen).toEqual([
+        { node: undefined, npc: undefined, type: "taxi_node_learned" },
+      ]);
     } finally {
       rig.dispose();
     }
@@ -299,19 +308,26 @@ describe("travel store: flight", () => {
   test("an activate with ERR_TAXIOK sets lastReply, flies and emits taxi_reply then flight_started", () => {
     const { rig, seen } = rigAt();
     try {
-      rig.stores.areas.travel.beginFlight([83, 82]);
+      rig.stores.areas.travel.beginFlight([83, 82], 105);
       rig.inject(
         GameOpcode.SMSG_ACTIVATETAXIREPLY,
         travelActivateTaxiReplyBody(0),
       );
       expect(rig.handle.state().lastReply).toBe("ok");
       expect(rig.handle.state().flight).toEqual({
+        durationMs: undefined,
+        fare: 105,
         phase: "flying",
         route: [83, 82],
       });
       expect(seen).toEqual([
         { type: "taxi_reply", code: 0, name: "ok" },
-        { type: "flight_started", route: [83, 82] },
+        {
+          durationMs: undefined,
+          fare: 105,
+          route: [83, 82],
+          type: "flight_started",
+        },
       ]);
     } finally {
       rig.dispose();
@@ -352,7 +368,12 @@ describe("travel store: flight", () => {
       expect(rig.handle.state().flight.phase).toBe("landed");
       expect(seen).toEqual([
         { type: "taxi_reply", code: 0, name: "ok" },
-        { type: "flight_started", route: [83, 82] },
+        {
+          durationMs: undefined,
+          fare: undefined,
+          route: [83, 82],
+          type: "flight_started",
+        },
         { type: "flight_landed" },
       ]);
     } finally {
@@ -370,9 +391,79 @@ describe("travel store: flight", () => {
       rig.stores.areas.travel.receiveFlightFlag(false);
       expect(rig.handle.state().flight.phase).toBe("landed");
       expect(seen).toEqual([
-        { type: "flight_started", route: [] },
+        {
+          durationMs: undefined,
+          fare: undefined,
+          route: [],
+          type: "flight_started",
+        },
         { type: "flight_landed" },
       ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a learned node after a shown map carries the map's current node", () => {
+    const { rig, seen } = rigAt();
+    try {
+      rig.stores.areas.travel.beginMap(TAXI_MASTER);
+      rig.inject(
+        GameOpcode.SMSG_SHOWTAXINODES,
+        travelShowTaxiNodesBody({
+          currentNode: 82,
+          mask: maskOf(82),
+          npc: TAXI_MASTER,
+        }),
+      );
+      rig.stores.areas.travel.endMap();
+      rig.stores.areas.travel.beginMap(TAXI_MASTER);
+      rig.inject(GameOpcode.SMSG_NEW_TAXI_PATH, new Uint8Array(0));
+      expect(seen.at(-1)).toEqual({
+        node: 82,
+        npc: TAXI_MASTER,
+        type: "taxi_node_learned",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a self flight spline records the duration and re-emits flight_started with fare and duration", () => {
+    const { rig, seen } = rigAt();
+    try {
+      rig.stores.areas.travel.beginFlight([83, 82], 105);
+      rig.inject(
+        GameOpcode.SMSG_ACTIVATETAXIREPLY,
+        travelActivateTaxiReplyBody(0),
+      );
+      rig.stores.areas.travel.receiveFlightSpline(95_000);
+      expect(rig.handle.state().flight.durationMs).toBe(95_000);
+      expect(seen.at(-1)).toEqual({
+        durationMs: 95_000,
+        fare: 105,
+        route: [83, 82],
+        type: "flight_started",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a second spline and a spline outside a flight change nothing", () => {
+    const { rig, seen } = rigAt();
+    try {
+      rig.stores.areas.travel.receiveFlightSpline(95_000);
+      rig.stores.areas.travel.beginFlight([83, 82], 105);
+      rig.inject(
+        GameOpcode.SMSG_ACTIVATETAXIREPLY,
+        travelActivateTaxiReplyBody(0),
+      );
+      rig.stores.areas.travel.receiveFlightSpline(95_000);
+      const count = seen.length;
+      rig.stores.areas.travel.receiveFlightSpline(96_000);
+      expect(seen.length).toBe(count);
+      expect(rig.handle.state().flight.durationMs).toBe(95_000);
     } finally {
       rig.dispose();
     }

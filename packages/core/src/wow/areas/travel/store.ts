@@ -22,6 +22,8 @@ export type FlightPhase = "idle" | "requested" | "flying" | "landed";
 export type TravelFlight = {
   phase: FlightPhase;
   route: readonly number[] | undefined;
+  fare: number | undefined;
+  durationMs: number | undefined;
 };
 export type TravelState = {
   home: BindPoint | undefined;
@@ -41,11 +43,20 @@ export type TravelEvent =
   | { type: "bind_offer"; npc: bigint }
   | { type: "bound"; binder: bigint; areaId: number }
   | { type: "taxi_node_status"; npc: bigint; known: boolean }
-  | { type: "taxi_node_learned"; npc: bigint | undefined }
+  | {
+      type: "taxi_node_learned";
+      node: number | undefined;
+      npc: bigint | undefined;
+    }
   | { type: "taxi_map"; npc: bigint; currentNode: number; knownCount: number }
   | { type: "benchmark"; on: boolean }
   | { type: "taxi_reply"; code: number; name: string }
-  | { type: "flight_started"; route: readonly number[] }
+  | {
+      type: "flight_started";
+      route: readonly number[];
+      fare: number | undefined;
+      durationMs: number | undefined;
+    }
   | { type: "flight_landed" };
 
 export type TravelStore = {
@@ -62,8 +73,9 @@ export type TravelStore = {
   receiveSelfFlags: (on: boolean) => void;
   beginMap: (npc: bigint) => void;
   endMap: () => void;
-  beginFlight: (route: readonly number[]) => void;
+  beginFlight: (route: readonly number[], fare?: number) => void;
   endFlight: () => void;
+  receiveFlightSpline: (durationMs: number) => void;
   receiveActivateTaxiReply: (reply: ActivateTaxiReply) => void;
   receiveFlightFlag: (on: boolean) => void;
   dispose: () => void;
@@ -143,7 +155,15 @@ function receiveNewTaxiPath(
   now: () => number,
 ): void {
   taxi.learnedAt = now();
-  events.emit({ type: "taxi_node_learned", npc: taxi.mapPending });
+  const pending =
+    taxi.mapPending === undefined
+      ? undefined
+      : taxi.masters.get(taxi.mapPending);
+  events.emit({
+    node: pending?.node,
+    npc: taxi.mapPending,
+    type: "taxi_node_learned",
+  });
 }
 
 function receiveSelfFlags(
@@ -160,12 +180,32 @@ function enterFlying(taxi: TaxiFields, events: Emitter<[TravelEvent]>): void {
   if (taxi.flight.phase === "flying") return;
   taxi.flagSeen = false;
   taxi.flight = {
+    durationMs: taxi.flight.durationMs,
+    fare: taxi.flight.fare,
     phase: "flying",
     route: taxi.flight.route ? [...taxi.flight.route] : undefined,
   };
   events.emit({
-    type: "flight_started",
+    durationMs: taxi.flight.durationMs,
+    fare: taxi.flight.fare,
     route: taxi.flight.route ? [...taxi.flight.route] : [],
+    type: "flight_started",
+  });
+}
+
+function receiveFlightSpline(
+  taxi: TaxiFields,
+  events: Emitter<[TravelEvent]>,
+  durationMs: number,
+): void {
+  if (taxi.flight.phase !== "flying" || taxi.flight.durationMs !== undefined)
+    return;
+  taxi.flight = { ...taxi.flight, durationMs };
+  events.emit({
+    durationMs,
+    fare: taxi.flight.fare,
+    route: taxi.flight.route ? [...taxi.flight.route] : [],
+    type: "flight_started",
   });
 }
 
@@ -192,7 +232,12 @@ function receiveFlightFlag(
   if (taxi.flight.phase !== "flying") return;
   if (!taxi.flagSeen) return;
   taxi.flagSeen = false;
-  taxi.flight = { phase: "landed", route: undefined };
+  taxi.flight = {
+    durationMs: taxi.flight.durationMs,
+    fare: taxi.flight.fare,
+    phase: "landed",
+    route: undefined,
+  };
   events.emit({ type: "flight_landed" });
 }
 
@@ -220,6 +265,8 @@ function snapshotState(
     benchmark: taxi.benchmark,
     lastReply: taxi.lastReply,
     flight: {
+      durationMs: taxi.flight.durationMs,
+      fare: taxi.flight.fare,
       phase: taxi.flight.phase,
       route: taxi.flight.route ? [...taxi.flight.route] : undefined,
     },
@@ -242,9 +289,38 @@ function emptyTaxi(): TaxiFields {
     mapPending: undefined,
     benchmark: false,
     lastReply: undefined,
-    flight: { phase: "idle", route: undefined },
+    flight: {
+      durationMs: undefined,
+      fare: undefined,
+      phase: "idle",
+      route: undefined,
+    },
     flagSeen: false,
   };
+}
+function beginFlightRequest(
+  taxi: TaxiFields,
+  route: readonly number[],
+  fare?: number,
+): void {
+  taxi.flight = {
+    durationMs: undefined,
+    fare: fare ?? undefined,
+    phase: "requested",
+    route: [...route],
+  };
+  taxi.flagSeen = false;
+}
+
+function endFlightRequest(taxi: TaxiFields): void {
+  if (taxi.flight.phase !== "requested") return;
+  taxi.flight = {
+    durationMs: undefined,
+    fare: undefined,
+    phase: "idle",
+    route: undefined,
+  };
+  taxi.flagSeen = false;
 }
 
 export function createTravelStore(now: () => number): TravelStore {
@@ -290,14 +366,14 @@ export function createTravelStore(now: () => number): TravelStore {
     endMap(): void {
       taxi.mapPending = undefined;
     },
-    beginFlight(route: readonly number[]): void {
-      taxi.flight = { phase: "requested", route: [...route] };
-      taxi.flagSeen = false;
+    beginFlight(route: readonly number[], fare?: number): void {
+      beginFlightRequest(taxi, route, fare);
     },
     endFlight(): void {
-      if (taxi.flight.phase !== "requested") return;
-      taxi.flight = { phase: "idle", route: undefined };
-      taxi.flagSeen = false;
+      endFlightRequest(taxi);
+    },
+    receiveFlightSpline(durationMs: number): void {
+      receiveFlightSpline(taxi, events, durationMs);
     },
     receiveActivateTaxiReply(reply: ActivateTaxiReply): void {
       receiveActivateTaxiReply(taxi, events, reply);

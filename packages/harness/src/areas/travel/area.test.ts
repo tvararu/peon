@@ -88,15 +88,35 @@ describe("travel harness rules", () => {
     expect(row).toMatchObject({ event: "travel/node_learned" });
   });
 
-  test("a started flight writes a flight_started row with the route", () => {
+  test("a started flight writes a flight_started row with the route, fare and duration", () => {
     const [row] = areaDrafts(
       areaRuleSet(),
-      travelEvent({ route: [82, 83], type: "flight_started" }),
+      travelEvent({
+        durationMs: 95_000,
+        fare: 105,
+        route: [83, 82],
+        type: "flight_started",
+      }),
       testRuleInput(),
     );
     expect(row).toMatchObject({
-      data: { route: [82, 83] },
+      data: { durationMs: 95_000, fare: 105, route: [83, 82] },
       event: "travel/flight_started",
+      progress: true,
+    });
+    expect(row?.text).toContain("105 copper fare");
+    expect(row?.text).toContain("95 s flight");
+  });
+
+  test("a learned flight path carries the node id in the row data", () => {
+    const [row] = areaDrafts(
+      areaRuleSet(),
+      travelEvent({ node: 82, npc: 0x55n, type: "taxi_node_learned" }),
+      testRuleInput(),
+    );
+    expect(row).toMatchObject({
+      data: { node: 82 },
+      event: "travel/node_learned",
     });
   });
 

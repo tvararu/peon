@@ -21,21 +21,34 @@ function flightDrafts(
     return [
       {
         class: "log",
-        data: { npc: event.npc?.toString(10) },
+        data: { node: event.node, npc: event.npc?.toString(10) },
         name: "node_learned",
-        text: `New flight path: learned from ${master ?? "the flight master"}.`,
+        progress: true,
+        text: `New flight path: ${master ?? "a new stop"}.`,
       },
     ];
   }
-  if (event.type === "flight_started")
+  if (event.type === "flight_started") {
+    const fare =
+      event.fare === undefined ? "fare unknown" : `${event.fare} copper fare`;
+    const duration =
+      event.durationMs === undefined
+        ? "duration unknown"
+        : `${Math.round(event.durationMs / 1000)} s flight`;
     return [
       {
         class: "log",
-        data: { route: [...event.route] },
+        data: {
+          durationMs: event.durationMs,
+          fare: event.fare,
+          route: [...event.route],
+        },
         name: "flight_started",
-        text: `Flight started along ${event.route.length} stops.`,
+        progress: true,
+        text: `Flight started along ${event.route.length} stops (${fare}, ${duration}).`,
       },
     ];
+  }
   if (event.type === "flight_landed")
     return [
       {
