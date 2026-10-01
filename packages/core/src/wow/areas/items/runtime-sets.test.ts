@@ -15,6 +15,8 @@ const CHEST = 0x40_00_00_00_00_00_00_02n;
 const STRANGER = 0x40_00_00_00_00_00_00_09n;
 const CANT_DO_RIGHT_NOW = 39;
 const NO_CHANGE = 59;
+const NOT_WHILE_DISARMED = 61;
+const DISARMED = 0x40_00_00_00_00_00_00_07n;
 
 function setup() {
   const world = itemsWorld(ME);
@@ -240,20 +242,47 @@ describe("items runtime: equipment sets", () => {
     }
   });
 
-  test("a set for an equipped bag reads slot 19 from the bag region", async () => {
+  test("a bag worn in slot 19 cannot stand in for equipment slot 1", async () => {
     const world = itemsWorld(ME);
     world.put(255, 0, { entry: 100, guid: HELM });
     world.put(255, 19, { entry: 4500, guid: CHEST, bagSlots: 16 });
     const rig = itemsRig(world);
-    const events: ItemsEvent[] = [];
-    rig.stores.areas.items.onEvent((event) => events.push(event));
     try {
-      const pending = rig.handle.act.saveSet({
+      const refused = rig.handle.act.saveSet({
         icon: "",
         index: 0,
         items: Array.from({ length: 19 }, (_, slot) =>
           slot === 1 ? CHEST : 0n,
         ),
+        name: "Peon",
+      });
+      await expect(refused).rejects.toThrow(/slot 1/);
+      expect(sends(rig.sent, GameOpcode.CMSG_EQUIPMENT_SET_SAVE)).toHaveLength(
+        0,
+      );
+      expect(rig.handle.state().sets.savePending).toBeUndefined();
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("swapped equipment guids are refused and ignored or empty slots pass", async () => {
+    const { rig } = setup();
+    try {
+      const swapped = Array.from({ length: 19 }, (_, slot) => {
+        if (slot === 0) return CHEST;
+        return slot === 1 ? HELM : 0n;
+      });
+      await expect(
+        rig.handle.act.saveSet({ index: 0, items: swapped, name: "Peon" }),
+      ).rejects.toThrow(/slot 0/);
+      const sentinels = Array.from({ length: 19 }, (_, slot) => {
+        if (slot === 0) return HELM;
+        return slot === 1 ? 1n : 0n;
+      });
+      const pending = rig.handle.act.saveSet({
+        index: 0,
+        items: sentinels,
         name: "Peon",
       });
       expect(sends(rig.sent, GameOpcode.CMSG_EQUIPMENT_SET_SAVE)).toHaveLength(
@@ -264,12 +293,84 @@ describe("items runtime: equipment sets", () => {
         itemsEquipmentSetSavedBody(0, 9n),
       );
       expect(await pending).toMatchObject({ status: "saved" });
-      const use = rig.handle.act.useSet(0);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a failure naming the weapon a set replaces is owned by the use", async () => {
+    const world = itemsWorld(ME);
+    world.put(255, 15, { entry: 100, guid: HELM });
+    const rig = itemsRig(world);
+    try {
+      const created = rig.handle.act.saveSet({ index: 0, name: "Peon" });
+      rig.inject(
+        GameOpcode.SMSG_EQUIPMENT_SET_SAVED,
+        itemsEquipmentSetSavedBody(0, 9n),
+      );
+      await created;
+      world.clear(255, 15);
+      world.put(255, 15, { entry: 101, guid: DISARMED });
+      world.put(255, 23, { entry: 100, guid: HELM });
+      const pending = rig.handle.act.useSet(0);
+      rig.inject(
+        GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE,
+        itemsInventoryChangeFailureBody({
+          item1: DISARMED,
+          result: NOT_WHILE_DISARMED,
+        }),
+      );
       rig.inject(
         GameOpcode.SMSG_EQUIPMENT_SET_USE_RESULT,
         itemsEquipmentSetUseResultBody(0),
       );
-      expect(await use).toMatchObject({ status: "ok" });
+      expect(await pending).toMatchObject({
+        failures: ["not_while_disarmed"],
+        status: "ok",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a failure naming the item a set unequips is owned by the use", async () => {
+    const { rig } = setup();
+    try {
+      const created = rig.handle.act.saveSet({
+        index: 0,
+        items: Array.from({ length: 19 }, (_, slot) =>
+          slot === 1 ? CHEST : 0n,
+        ),
+        name: "Peon",
+      });
+      rig.inject(
+        GameOpcode.SMSG_EQUIPMENT_SET_SAVED,
+        itemsEquipmentSetSavedBody(0, 9n),
+      );
+      await created;
+      const pending = rig.handle.act.useSet(0);
+      rig.inject(
+        GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE,
+        itemsInventoryChangeFailureBody({
+          item1: HELM,
+          result: NOT_WHILE_DISARMED,
+        }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE,
+        itemsInventoryChangeFailureBody({
+          item1: STRANGER,
+          result: NOT_WHILE_DISARMED,
+        }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_EQUIPMENT_SET_USE_RESULT,
+        itemsEquipmentSetUseResultBody(0),
+      );
+      expect(await pending).toMatchObject({
+        failures: ["not_while_disarmed"],
+        status: "ok",
+      });
     } finally {
       rig.dispose();
     }

@@ -67,13 +67,19 @@ function checkItems(inventory: InventoryState, items: readonly bigint[]): void {
     throw new Error(
       `an equipment set holds ${EQUIPMENT_SLOT_COUNT} slots, got ${items.length}`,
     );
-  for (const guid of items) {
-    if (guid === 0n || guid === IGNORED_SLOT) continue;
-    const held = findItem(inventory, guid);
-    if (!held) throw new Error(`item ${guid} is not in the inventory`);
-    if (held.bag !== 255 || held.slot > 22)
-      throw new Error(`item ${guid} is not worn or carried`);
-  }
+  items.forEach((guid, slot) => {
+    if (guid === 0n || guid === IGNORED_SLOT) return;
+    const held = inventory.slots.find(
+      (entry) =>
+        entry.status === "occupied" &&
+        entry.bag === 255 &&
+        entry.slot === slot &&
+        entry.region === "equipment",
+    );
+    const worn = held?.status === "occupied" ? held.guid : 0n;
+    if (worn !== guid)
+      throw new Error(`item ${guid} is not equipped in slot ${slot}`);
+  });
 }
 
 function positionsOf(
@@ -165,9 +171,13 @@ async function useSet(env: Env, index: number): Promise<UseOutcome> {
   const set = snap.sets.find((entry) => entry.index === index);
   if (!set)
     return Promise.reject(new Error(`no set is stored at index ${index}`));
+  const worn = wornGuids(inventory);
   const request = {
     index,
     items: [...set.items],
+    outgoing: set.items.map((guid, slot) =>
+      guid === IGNORED_SLOT ? 0n : (worn[slot] ?? 0n),
+    ),
     requestedAt: ctx.now(),
   };
   const settled = ctx.until((event) => USE_SETTLED.has(event.type), {

@@ -143,7 +143,12 @@ describe("ItemsStore sets", () => {
   test("beginUse tracks the use and receiveUseResult settles it with failures seen in between", () => {
     const { events, store } = setup();
     store.receiveSetList([setEntry()]);
-    store.beginUse({ index: 0, items: items({ 0: HELM }), requestedAt: 1000 });
+    store.beginUse({
+      index: 0,
+      items: items({ 0: HELM }),
+      outgoing: [],
+      requestedAt: 1000,
+    });
     store.receiveInventoryFailure(failure({ item1: HELM, result: 39 }));
     store.receiveInventoryFailure(failure({ item1: HELM, result: 59 }));
     store.receiveInventoryFailure(failure({ item1: CHEST, result: 39 }));
@@ -163,7 +168,12 @@ describe("ItemsStore sets", () => {
   test("result 4 rolls the use back into bags_full and keeps the unowned failures out", () => {
     const { store } = setup();
     store.receiveSetList([setEntry()]);
-    store.beginUse({ index: 0, items: items({ 0: HELM }), requestedAt: 1000 });
+    store.beginUse({
+      index: 0,
+      items: items({ 0: HELM }),
+      outgoing: [],
+      requestedAt: 1000,
+    });
     store.receiveInventoryFailure(failure({ item1: 0x09n, result: 62 }));
     store.receiveUseResult(4);
     expect(store.snapshot().sets.lastUse).toMatchObject({
