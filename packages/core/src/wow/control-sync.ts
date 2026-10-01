@@ -25,6 +25,7 @@ import {
   UNIT_BLOCK_FLAGS,
   unsupportedFlags,
 } from "#wow/control-sync-guards";
+import { WorldTransfer } from "#wow/control-sync-transfer";
 import type {
   Emit,
   FlightPort,
@@ -32,18 +33,12 @@ import type {
   SyncMotion,
   SyncParts,
 } from "#wow/control-sync-types";
-import { WorldTransfer } from "#wow/control-sync-transfer";
-import {
-  planBoard,
-  planLeave,
-  type TransportBoard,
-} from "#wow/control-transport";
+import type { TransportBoard } from "#wow/control-transport";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag } from "#wow/protocol/entity-fields";
 import type { MonsterMove } from "#wow/protocol/monster-move";
 import {
   buildRootAck,
-  buildMoveMessage,
   buildSetActiveMover,
   type ClientControl,
   type FallData,
@@ -175,30 +170,11 @@ export class MovementSync {
   }
 
   transportBoard(board: TransportBoard): void {
-    const from = this.pose();
-    if (!from) throw new Error("no_pose");
-    const plan = planBoard(board, from, this.deps.now());
-    this.transport = undefined;
-    this.ride.boardTransport(plan);
-    this.moveFlags |= MovementFlag.ON_TRANSPORT;
-    this.observedFlags |= MovementFlag.ON_TRANSPORT;
-    const body = buildMoveMessage(this.deps.selfGuid(), this.movementInfo());
-    this.deps.send(GameOpcode.CMSG_MOVE_CHNG_TRANSPORT, body);
+    this.transfer.transportBoard(board);
   }
 
   transportLeave(): void {
-    this.ride.refreshPose();
-    const ride = this.ride.carriage();
-    if (!ride) throw new Error("not_boarded");
-    const dest = planLeave(ride, this.mapId, this.deps.ground);
-    this.transport = undefined;
-    this.moveFlags &= ~MovementFlag.ON_TRANSPORT;
-    this.observedFlags &= ~MovementFlag.ON_TRANSPORT;
-    this.adoptServerPose(dest);
-    this.motion.stop("transport_leave");
-    this.ride.leaveTransport();
-    const body = buildMoveMessage(this.deps.selfGuid(), this.movementInfo());
-    this.deps.send(GameOpcode.CMSG_MOVE_CHNG_TRANSPORT, body);
+    this.transfer.transportLeave();
   }
 
   airBlock(): string | undefined {
@@ -469,7 +445,7 @@ export class MovementSync {
     this.selfMotion.save(this);
   }
 
-  private adoptServerPose(position: Position): void {
+  adoptServerPose(position: Position): void {
     this.setServerPose(position);
     this.predicted = undefined;
   }

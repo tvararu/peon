@@ -26,20 +26,10 @@ export function feedControl(control: ControlRuntime, event: SelfEvent): void {
   }
 }
 
-type MovementEvent = Extract<
+type RideEvent = Extract<
   SelfEvent,
   {
     type:
-      | "force_root"
-      | "force_unroot"
-      | "knock_back"
-      | "client_control"
-      | "force_speed"
-      | "can_fly"
-      | "move_flag"
-      | "collision_height"
-      | "observed"
-      | "spline"
       | "vehicle_seat"
       | "vehicle_left"
       | "mover_state"
@@ -48,6 +38,52 @@ type MovementEvent = Extract<
       | "transport_leave";
   }
 >;
+
+type MovementEvent =
+  | RideEvent
+  | Extract<
+      SelfEvent,
+      {
+        type:
+          | "force_root"
+          | "force_unroot"
+          | "knock_back"
+          | "client_control"
+          | "force_speed"
+          | "can_fly"
+          | "move_flag"
+          | "collision_height"
+          | "observed"
+          | "spline";
+      }
+    >;
+
+function feedRide(control: ControlRuntime, event: RideEvent): void {
+  switch (event.type) {
+    case "vehicle_seat":
+      control.vehicleSeat(event);
+      return;
+    case "vehicle_left":
+      control.vehicleLeft();
+      return;
+    case "mover_state":
+      control.moverState(event);
+      return;
+    case "mover_packet":
+      control.moverPacket(event.opcode, event.build);
+      return;
+    case "transport_board":
+      control.transportBoard(event);
+      return;
+    case "transport_leave":
+      control.transportLeave();
+      return;
+    default: {
+      const unhandled: never = event;
+      throw new Error("unhandled self event", { cause: unhandled });
+    }
+  }
+}
 
 function feedMovement(control: ControlRuntime, event: MovementEvent): void {
   switch (event.type) {
@@ -81,27 +117,8 @@ function feedMovement(control: ControlRuntime, event: MovementEvent): void {
     case "spline":
       control.observeSelfSpline(event.move);
       return;
-    case "vehicle_seat":
-      control.vehicleSeat(event);
+    default:
+      feedRide(control, event);
       return;
-    case "vehicle_left":
-      control.vehicleLeft();
-      return;
-    case "mover_state":
-      control.moverState(event);
-      return;
-    case "mover_packet":
-      control.moverPacket(event.opcode, event.build);
-      return;
-    case "transport_board":
-      control.transportBoard(event);
-      return;
-    case "transport_leave":
-      control.transportLeave();
-      return;
-    default: {
-      const unhandled: never = event;
-      throw new Error("unhandled self event", { cause: unhandled });
-    }
   }
 }

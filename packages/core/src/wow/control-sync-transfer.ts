@@ -1,14 +1,16 @@
 import type { ControlDeps } from "#wow/control";
 import type { RideState } from "#wow/control-ride";
 import type { TransferAbortWatch } from "#wow/control-sync-guards";
-import type {
-  Emit,
-  FlightPort,
-  SyncMotion,
-} from "#wow/control-sync-types";
+import type { Emit, FlightPort, SyncMotion } from "#wow/control-sync-types";
+import {
+  planBoard,
+  planLeave,
+  type TransportBoard,
+} from "#wow/control-transport";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag } from "#wow/protocol/entity-fields";
 import {
+  buildMoveMessage,
   buildSetActiveMover,
   buildTeleportAck,
   type FallData,
@@ -42,9 +44,12 @@ export type TransferHost = {
   transportTransfer: boolean;
   transport: unknown;
   predicted: unknown;
-  cancelForced(reason: string): void;
-  applyForcedPose(dest: MovementInfo, reason: string): void;
-  setServerPose(position: Position): void;
+  cancelForced: (reason: string) => void;
+  applyForcedPose: (dest: MovementInfo, reason: string) => void;
+  setServerPose: (position: Position) => void;
+  adoptServerPose: (position: Position) => void;
+  pose: () => Position | undefined;
+  movementInfo: () => MovementInfo;
 };
 
 export class WorldTransfer {
@@ -134,5 +139,34 @@ export class WorldTransfer {
       buildSetActiveMover(host.deps.selfGuid()),
     );
     host.emit("server_correction", "new_world");
+  }
+
+  transportBoard(board: TransportBoard): void {
+    const host = this.host;
+    const from = host.pose();
+    if (!from) throw new Error("no_pose");
+    const plan = planBoard(board, from, host.deps.now());
+    host.transport = undefined;
+    host.ride.boardTransport(plan);
+    host.moveFlags |= MovementFlag.ON_TRANSPORT;
+    host.observedFlags |= MovementFlag.ON_TRANSPORT;
+    const body = buildMoveMessage(host.deps.selfGuid(), host.movementInfo());
+    host.deps.send(GameOpcode.CMSG_MOVE_CHNG_TRANSPORT, body);
+  }
+
+  transportLeave(): void {
+    const host = this.host;
+    host.ride.refreshPose();
+    const ride = host.ride.carriage();
+    if (!ride) throw new Error("not_boarded");
+    const dest = planLeave(ride, host.mapId, host.deps.ground);
+    host.transport = undefined;
+    host.moveFlags &= ~MovementFlag.ON_TRANSPORT;
+    host.observedFlags &= ~MovementFlag.ON_TRANSPORT;
+    host.adoptServerPose(dest);
+    host.motion.stop("transport_leave");
+    host.ride.leaveTransport();
+    const body = buildMoveMessage(host.deps.selfGuid(), host.movementInfo());
+    host.deps.send(GameOpcode.CMSG_MOVE_CHNG_TRANSPORT, body);
   }
 }
