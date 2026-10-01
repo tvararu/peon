@@ -107,3 +107,56 @@ describe("mail send after a timeout", () => {
     }
   });
 });
+
+describe("mail take after a timeout", () => {
+  test("a delayed GUID-less refusal cannot settle the next attachment", async () => {
+    const rig = mailRig();
+    try {
+      await withFakeTimers(async () => {
+        const listed = rig.handle.act.listMail(MAILBOX_OBJECT);
+        await flushMicrotasks();
+        rig.inject(
+          GameOpcode.SMSG_MAIL_LIST_RESULT,
+          mailListResultBody({
+            mails: [
+              {
+                id: 102,
+                items: [
+                  { count: 5, entry: 159, low: 77 },
+                  { count: 3, entry: 159, low: 78 },
+                ],
+              },
+            ],
+          }),
+        );
+        expect(await listed).toEqual({ status: "ok" });
+        const first = rig.handle.act.takeMailItem(102, 77);
+        await flushMicrotasks();
+        await elapse(MAIL_ANSWER_MS);
+        expect(await first).toEqual({ status: "unanswered" });
+        expect(rig.handle.state().pending).toEqual({
+          action: "item_taken",
+          id: 102,
+          itemLow: 77,
+        });
+        await expect(rig.handle.act.takeMailItem(102, 78)).rejects.toThrow(
+          "mail_busy",
+        );
+        rig.inject(
+          GameOpcode.SMSG_SEND_MAIL_RESULT,
+          mailSendMailResultBody({ action: 2, id: 102, result: 6 }),
+        );
+        expect(rig.handle.state().pending).toBeUndefined();
+        const second = rig.handle.act.takeMailItem(102, 78);
+        await flushMicrotasks();
+        rig.inject(
+          GameOpcode.SMSG_SEND_MAIL_RESULT,
+          mailSendMailResultBody({ action: 2, count: 3, id: 102, itemLow: 78 }),
+        );
+        expect(await second).toEqual({ itemLow: 78, status: "ok" });
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+});
