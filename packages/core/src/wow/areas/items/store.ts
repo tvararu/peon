@@ -26,6 +26,13 @@ import {
   type ReadState,
 } from "#wow/areas/items/reads";
 import {
+  type RefundInfoRequest,
+  type RefundOutcome,
+  type RefundRequest,
+  RefundSlice,
+  type RefundsState,
+} from "#wow/areas/items/refunds";
+import {
   type SaveRequest,
   SetSlice,
   type SetsState,
@@ -36,6 +43,10 @@ import {
   SocketSlice,
   type SocketState,
 } from "#wow/areas/items/sockets";
+import {
+  type RefundsBehavior,
+  refundsBehavior,
+} from "#wow/areas/items/store-refunds";
 import {
   noteUseFailure,
   type SetsBehavior,
@@ -63,6 +74,7 @@ export type ItemsState = {
   timers: TimersState;
   sockets: SocketState;
   sets: SetsState;
+  refund: RefundsState;
 };
 
 function legacyClaims(core: CoreStores): (InventoryClaim | undefined)[] {
@@ -94,6 +106,8 @@ export class ItemsStore {
   private readonly setApi: SetsBehavior;
   private readonly timers = new TimerSlice();
   private readonly timerApi: TimersBehavior;
+  private readonly refunds = new RefundSlice();
+  private readonly refundApi: RefundsBehavior;
   private pending: MoveRequest | undefined;
   private last: MoveOutcome | undefined;
   private seen: InventoryClaim[] = [];
@@ -117,6 +131,12 @@ export class ItemsStore {
       now: () => this.deps.now(),
       entryOf: (itemGuid) => this.entryOf(itemGuid),
     });
+    this.refundApi = refundsBehavior({
+      refunds: this.refunds,
+      events: this.events,
+      now: () => this.deps.now(),
+      entryOf: (itemGuid) => this.entryOf(itemGuid),
+    });
   }
 
   snapshot(): ItemsState {
@@ -126,6 +146,7 @@ export class ItemsStore {
       timers: this.timers.snapshot(),
       sockets: this.sockets.snapshot(),
       sets: this.setSlices.snapshot(),
+      refund: this.refunds.snapshot(),
     };
   }
 
@@ -346,15 +367,42 @@ export class ItemsStore {
     this.timerApi.receiveDeathDurability(...a);
   receiveProficiency: TimersBehavior["receiveProficiency"] = (...a) =>
     this.timerApi.receiveProficiency(...a);
+  beginRefundInfo(request: RefundInfoRequest): void {
+    this.refunds.beginInfo(request);
+  }
+  refundOffer(itemGuid: bigint) {
+    return this.refunds.offer(itemGuid);
+  }
+  receiveRefundInfo: RefundsBehavior["receiveRefundInfo"] = (...a) =>
+    this.refundApi.receiveRefundInfo(...a);
+  expireRefundInfo: RefundsBehavior["expireRefundInfo"] = (...a) =>
+    this.refundApi.expireRefundInfo(...a);
+  abandonRefundInfo: RefundsBehavior["abandonRefundInfo"] = (...a) =>
+    this.refundApi.abandonRefundInfo(...a);
+  beginRefund(request: RefundRequest): void {
+    this.refunds.beginRefund(request);
+  }
+  refundOutcome(): RefundOutcome | undefined {
+    return this.refunds.snapshot().last;
+  }
+  receiveRefundResult: RefundsBehavior["receiveRefundResult"] = (...a) =>
+    this.refundApi.receiveRefundResult(...a);
+  expireRefund: RefundsBehavior["expireRefund"] = (...a) =>
+    this.refundApi.expireRefund(...a);
+  abandonRefund: RefundsBehavior["abandonRefund"] = (...a) =>
+    this.refundApi.abandonRefund(...a);
 
   dispose(): void {
     this.abandon();
     this.abandonSave();
     this.abandonUse();
+    this.abandonRefundInfo();
+    this.abandonRefund();
     this.reads.clear();
     this.sockets.clear();
     this.setSlices.clear();
     this.timers.clear();
+    this.refunds.clear();
     this.seen = [];
     this.events.clear();
   }

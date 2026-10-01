@@ -321,6 +321,13 @@ describe("items harness attach replay", () => {
   const base = {
     move: { last: undefined, pending: undefined },
     read: { last: undefined, pending: undefined, texts: [] },
+    refund: {
+      infoPending: undefined,
+      last: undefined,
+      lastInfo: undefined,
+      offers: [],
+      refundPending: undefined,
+    },
     sets: {
       known: false,
       lastSave: undefined,

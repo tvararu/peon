@@ -1,5 +1,9 @@
 import type { MoveKind } from "#wow/areas/items/moves";
 import type {
+  RefundInfoPacket,
+  RefundResultPacket,
+} from "#wow/areas/items/protocol-refund";
+import type {
   SetDeletedEvent,
   SetSavedEvent,
   SetSaveRequestedEvent,
@@ -24,6 +28,7 @@ export type ItemReceived = {
   wornItemLevel: number | undefined;
 };
 type SocketHead = { itemGuid: bigint; entry: number | undefined };
+type RefundHead = { itemGuid: bigint; entry: number | undefined };
 
 export type ItemsEvent =
   | ({ type: "move_requested" } & MoveHead)
@@ -87,6 +92,10 @@ export type ItemsEvent =
     }
   | ({ type: "socket_refused"; reason: string } & SocketHead)
   | ({ type: "socket_unanswered" } & SocketHead)
+  | ({ type: "refund_info"; offer: RefundInfoPacket } & RefundHead)
+  | ({ type: "refund_info_none" } & RefundHead)
+  | ({ type: "refund_result"; result: RefundResultPacket } & RefundHead)
+  | ({ type: "refund_unanswered" } & RefundHead)
   | SetsListedEvent
   | SetSaveRequestedEvent
   | SetSavedEvent
