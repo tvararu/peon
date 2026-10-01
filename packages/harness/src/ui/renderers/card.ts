@@ -8,9 +8,12 @@ import type {
   JournalAfter,
   LootAfter,
   LootLine,
+  ProfessionLine,
   QuestLine,
   QuestOffer,
+  RuneLine,
   SpellLine,
+  TotemLine,
 } from "#harness/contract/details";
 import type { GameLogEntry } from "#harness/contract/log";
 import type { ToolRenderers } from "#harness/tools/game-tool";
@@ -230,11 +233,22 @@ function bagRows(theme: Theme, bags: BagsView): string[] {
 type SpellRowsInit = {
   auras: readonly AuraLine[];
   bar: readonly BarLine[];
+  professions: readonly ProfessionLine[];
+  runes: readonly RuneLine[] | undefined;
   spells: readonly SpellLine[];
   theme: Theme;
+  totems: readonly TotemLine[];
 };
 
-function spellRows({ auras, bar, spells, theme }: SpellRowsInit): string[] {
+function spellRows({
+  auras,
+  bar,
+  professions,
+  runes,
+  spells,
+  theme,
+  totems,
+}: SpellRowsInit): string[] {
   const lines = spells.map((s) => {
     const head = `${glyph("spell")} ${s.name}${s.rank ? ` (${s.rank})` : ""}`;
     const bits = [
@@ -261,6 +275,28 @@ function spellRows({ auras, bar, spells, theme }: SpellRowsInit): string[] {
         return `${theme.fg("dim", `${entry.slot}`)} ${theme.fg("dim", entry.type === "macro" ? "macro" : "set")} ${theme.fg("text", entry.name)}`;
       }),
     );
+  if (professions.length > 0)
+    lines.push(
+      theme.fg("muted", "Professions"),
+      ...professions.map((p) =>
+        theme.fg("text", `${p.name} ${p.value}/${p.max}`),
+      ),
+    );
+  if (totems.length > 0)
+    lines.push(
+      theme.fg("muted", "Totems"),
+      ...totems.map((t) => theme.fg("text", `Totem (${t.element}): ${t.name}`)),
+    );
+  if (runes !== undefined && runes.length > 0)
+    lines.push(
+      theme.fg("muted", "Runes"),
+      ...runes.map((r) =>
+        theme.fg(
+          "text",
+          `Rune ${r.index + 1}: ${r.ready ? "ready" : "on cooldown"}`,
+        ),
+      ),
+    );
   return lines;
 }
 
@@ -281,8 +317,11 @@ function journalRows(theme: Theme, after: JournalAfter): string[] {
       return spellRows({
         auras: after.auras,
         bar: after.bar,
+        professions: after.professions,
+        runes: after.runes,
         spells: after.spells,
         theme,
+        totems: after.totems,
       });
     default: {
       const more =

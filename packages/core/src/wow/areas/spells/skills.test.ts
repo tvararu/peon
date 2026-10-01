@@ -19,6 +19,7 @@ describe("readSkills", () => {
         max: 75,
         name: "Mining",
         permBonus: 0,
+        profession: true,
         step: 1,
         tempBonus: 0,
         value: 12,
@@ -28,6 +29,7 @@ describe("readSkills", () => {
         max: 300,
         name: `skill ${SWORDS}`,
         permBonus: -2,
+        profession: false,
         step: 0,
         tempBonus: 5,
         value: 100,
@@ -35,6 +37,32 @@ describe("readSkills", () => {
     ]);
   });
 
+  test("marks primary and secondary professions, not weapons or racials", () => {
+    const raw = spellsSkillFields(
+      [186, 185, 43, 54, 101, 356, 762].map((id) => ({
+        id,
+        max: 75,
+        perm: 0,
+        step: 1,
+        temp: 0,
+        value: 10,
+      })),
+    );
+    expect(
+      readSkills(raw, STATIC_SKILL_CATALOG).map((skill) => [
+        skill.id,
+        skill.profession,
+      ]),
+    ).toEqual([
+      [186, true],
+      [185, true],
+      [43, false],
+      [54, false],
+      [101, false],
+      [356, true],
+      [762, false],
+    ]);
+  });
   test("skips empty slots and reads past them", () => {
     const raw = spellsSkillFields([
       { id: 0, max: 0, perm: 0, step: 0, temp: 0, value: 0 },

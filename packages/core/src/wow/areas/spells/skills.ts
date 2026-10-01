@@ -4,6 +4,7 @@ import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
 export type Skill = {
   readonly id: number;
   readonly name: string;
+  readonly profession: boolean;
   readonly step: number;
   readonly value: number;
   readonly max: number;
@@ -36,6 +37,7 @@ export function readSkills(
       max: (word1 >> 16) & 0xff_ff,
       name: catalog.nameOf(id),
       permBonus: signed((bonus >> 16) & 0xff_ff),
+      profession: catalog.isProfession(id),
       step: (word0 >> 16) & 0xff_ff,
       tempBonus: signed(bonus & 0xff_ff),
       value: word1 & 0xff_ff,
