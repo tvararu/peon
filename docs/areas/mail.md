@@ -111,7 +111,7 @@ The acts need the character in the world:
   is attached (`:358`), and item mail to another account waits an hour
   (`:346-360`).
 - `CMSG_MAIL_TAKE_MONEY` reads mailbox and letter id
-  (`Handlers/MailHandler.cpp:636-679`); a missing or deleted letter
+  (`Handlers/MailHandler.cpp:636-678`); a missing or deleted letter
   answers `INTERNAL_ERROR`, and gold past the cap answers
   `EQUIP_ERROR`. `CMSG_MAIL_TAKE_ITEM` reads mailbox, id and the item
   guid low (`:517-634`); a missing letter, a guid the letter does not
@@ -154,9 +154,9 @@ None.
 | `CMSG_MAIL_MARK_AS_READ` | `live` | probe flow `mail-inbox` (run `tmp/probe/FAC6ABD98D0BC-mail-round2`): the mark for 2164 sends, and the relist shows flag 0x01 on 2164 while 2163/2162 stay 0; the second run marks 2163 | `Handlers/MailHandler.cpp:383-403` |
 | `MSG_QUERY_NEXT_MAIL_TIME` | `live` | probe flow `mail-inbox`, before and after the mark; the trace shows two queries and two 56-byte replies | `Handlers/MailHandler.cpp:891-938` |
 | `SMSG_SEND_MAIL_RESULT` | `live` | probe flow `mail-actions --arg do=take` on an `elwynn10` character (run `tmp/probe/FAC6ABDAA3CBA-20261001T003349Z`): actions 1 and 2 both ok, the first with no tail and the second with the item guid low and count 5 | `Entities/Player/Player.cpp:2958-2972` |
-| `CMSG_MAIL_TAKE_MONEY` | `live` | probe flow `mail-actions --arg do=take` (run `tmp/probe/FAC6ABDAA3CBA-20261001T003349Z`): money mail 2219 taken, `soap gm read mail` shows its money 0 afterwards, `soap truth` shows money 50250 | `Handlers/MailHandler.cpp:636-679` |
+| `CMSG_MAIL_TAKE_MONEY` | `live` | probe flow `mail-actions --arg do=take` (run `tmp/probe/FAC6ABDAA3CBA-20261001T003349Z`): money mail 2219 taken, `soap gm read mail` shows its money 0 afterwards, `soap truth` shows money 50250 | `Handlers/MailHandler.cpp:636-678` |
 | `CMSG_MAIL_TAKE_ITEM` | `live` | probe flow `mail-actions --arg do=take` (run `tmp/probe/FAC6ABDAA3CBA-20261001T003349Z`): item mail 2218 taken with the slot-byte order on the wire, `soap gm read mail` shows its items gone, `soap truth` shows entry 159 count 5 | `Handlers/MailHandler.cpp:517-634` |
-| `CMSG_MAIL_RETURN_TO_SENDER` | `partial` | the return guid order is unit-tested against `Handlers/MailHandler.cpp:442`, and the delete step below proves the flow reaches the box; two-account send/return proof is still open | `Handlers/MailHandler.cpp:436-515` |
+| `CMSG_MAIL_RETURN_TO_SENDER` | `partial` | the return guid order is unit-tested against `Handlers/MailHandler.cpp:442`, and the delete step below proves the flow reaches the box; two-account send/return proof is still open | `Handlers/MailHandler.cpp:436-514` |
 | `CMSG_MAIL_DELETE` | `live` | probe flow `mail-actions --arg do=delete` (run `tmp/probe/FAC6ABDAA3CBA-20261001T003534Z`): text letter 2220 deleted, `soap gm read mail` lists only 2219 and 2218 afterwards | `Handlers/MailHandler.cpp:406-434` |
 | `CMSG_MAIL_CREATE_TEXT_ITEM` | `live` | probe flow `mail-actions --arg do=copy` (run `tmp/probe/FAC6ABDAA3CBA-20261001T003507Z`): text letter 2220 copied, action 5 ok | `Handlers/MailHandler.cpp:824-846` |
 | `CMSG_SEND_MAIL` | `partial` | the slot-byte order and `u64 0, u8 0` tail are unit-tested against `Handlers/MailHandler.cpp:70-109`; the two-account send with `SMSG_RECEIVED_MAIL` proof is still open | `Handlers/MailHandler.cpp:66-375` |
