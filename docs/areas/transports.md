@@ -93,10 +93,43 @@ teleports land hundreds of yards from the elevator, whose create is sent
 only near it. The pause and state rules rest on
 `Entities/Transport/Transport.cpp:983-1008` and the unit tests.
 
+## Riding in control
+
+- `board(guid)` refuses `transport_data_missing` without a pose,
+  `not_docked` unless the pose is in a stop window, and `too_far` when the
+  character is more than 30 yd from the pose. Otherwise it sends one
+  `CMSG_MOVE_CHNG_TRANSPORT` (packed guid, then `MovementInfo` with
+  `ON_TRANSPORT`, the transport guid and the offset) and resolves `ok` right
+  away, because the server answers nothing: the handler returns before any
+  broadcast (`Handlers/MovementHandler.cpp:362-408`) and attaches the mover in
+  `HandleMoverRelocation` when a transport with that guid is on the map
+  (`Handlers/MovementHandler.cpp:430-447`). A packet more than 66.6 yd
+  (`SIZE_OF_GRIDS`) from the server position is dropped without a
+  correction (`Handlers/MovementHandler.cpp:588-600`). The effect shows in the
+  character's position (`soap truth`).
+- The offset is the character's current place relative to the docked pose,
+  rotated by the inverse of the transport orientation; the ride is rigid, so
+  the world pose follows `poseAt` and control sends nothing while standing
+  (the server moves passengers, `Entities/Transport/Transport.cpp`).
+  `unsupportedReason` keeps refusing free movement while `ON_TRANSPORT`.
+- `leave()` refuses `not_boarded`, `not_docked` and
+  `ground_height_unavailable`. It sends one `CMSG_MOVE_CHNG_TRANSPORT`
+  without `ON_TRANSPORT` at the ground point under the docked pose; the
+  server strips the transport when the flag is absent
+  (`Handlers/MovementHandler.cpp:473-485`) and applies fall damage only on
+  `MSG_MOVE_FALL_LAND`.
+- `SMSG_TRANSFER_PENDING` carries the destination map and, on a transport,
+  the transport entry and the old map (`Entities/Player/Player.cpp:1607-1612`).
+  The `transfer_pending` self event holds them and the area emits
+  `map_change { entry, fromMap, toMap }`. That path is built and unit-tested,
+  not seen live: the live ride (Orgrimmar to Thunder Bluff) stays on map 1.
+  A same-map `SMSG_NEW_WORLD` keeps the ride; a different map ends it.
+
 ## Capabilities row
 
-None: the model has no agent verb. Boarding, riding and the zeppelin eval
-arrive in vehicles-7 and vehicles-8.
+None yet: `board(guid)` and `leave()` are acts of the area (and
+`worldActs`), not an agent verb. The `travel ride` verb and the zeppelin eval
+arrive in vehicles-8.
 
 ## Proof
 
@@ -105,3 +138,4 @@ arrive in vehicles-7 and vehicles-8.
 | `SMSG_UPDATE_OBJECT` | `live` | create blocks of 10 boats and zeppelins and 9 lifts on Kalimdor, captured at 33 logins over 648.6 s and replayed through the area with the staged DBC files (see "Live validation"); builder tests build the same blocks from the movement-block writer | `Entities/Object/Updates/UpdateData.cpp:66` |
 | `SMSG_GAMEOBJECT_QUERY_RESPONSE` | `live` | the replay reads the real template of every transport (the Zephyr is type 15, path 1221, speed 30, acceleration 1; the 9 lifts are type 11 with pause time 0); builder tests cover the other rows | `Handlers/QueryHandler.cpp:193-211` |
 | `SMSG_DESTROY_OBJECT` | `builder` | destroy and out-of-range bodies remove the transport and emit `transport_gone` | `Entities/Object/Object.cpp:289-294` |
+| `CMSG_MOVE_CHNG_TRANSPORT` | `builder` | control tests read the sent body back with `parseMovementInfo` (flag, transport guid, offset; and none on leave); the wired area test runs `board` and `leave` through a real `ControlRuntime`. The live ride (Horde `max80` character on the Orgrimmar zeppelin tower, flow `transports-ride`, `soap truth` at Thunder Bluff) is not done: the first live try waited for the Thunder Bluff dock and `board` refused `too_far`, so no packet was sent, and later runs hit the 300 s tool timeout before the next Orgrimmar stop | `Handlers/MovementHandler.cpp:362-408,430-485,588-600` |
