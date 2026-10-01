@@ -18,6 +18,7 @@ export type GlyphApplyRequest = {
   bag: number;
   slot: number;
   glyphSlot: number;
+  signal?: AbortSignal;
 };
 
 export type GlyphApplyResult =
@@ -39,7 +40,10 @@ export type GlyphRemoveResult =
 
 export type GlyphActs = {
   applyGlyph: (request: GlyphApplyRequest) => Promise<GlyphApplyResult>;
-  removeGlyph: (slot: number) => Promise<GlyphRemoveResult>;
+  removeGlyph: (
+    slot: number,
+    signal?: AbortSignal,
+  ) => Promise<GlyphRemoveResult>;
 };
 
 export type GlyphEnv = {
@@ -155,10 +159,11 @@ function replyWaiter(
 async function sendApply(
   env: GlyphEnv,
   apply: PendingApply,
+  call: AbortSignal,
 ): Promise<GlyphApplyResult> {
   const { spellId, glyphId, glyphSlot } = apply;
   const scope = new AbortController();
-  const signal = AbortSignal.any([env.ctx.signal, scope.signal]);
+  const signal = AbortSignal.any([call, scope.signal]);
   const { waited, stop: stopStarted } = replyWaiter(env, apply, signal);
   const gate = Promise.withResolvers<GlyphApplyResult>();
   const stopListening = env.ctx.listen("combat", (event) => {
@@ -179,7 +184,7 @@ async function sendApply(
     gate.promise,
   ]);
   try {
-    env.ctx.signal.throwIfAborted();
+    call.throwIfAborted();
     env.core.combat.casts.sendItem(env.ctx.send, spellId, {
       bag: apply.item.bag,
       entry: apply.item.entry,
@@ -216,6 +221,10 @@ export async function applyGlyph(
   request: GlyphApplyRequest,
 ): Promise<GlyphApplyResult> {
   if (!validSlot(request.glyphSlot)) throw new Error("bad_glyph_slot");
+  const signal = request.signal
+    ? AbortSignal.any([env.ctx.signal, request.signal])
+    : env.ctx.signal;
+  signal.throwIfAborted();
   const snapshot = env.store.snapshot();
   if (!enabledAt(snapshot.fields.enabledMask, request.glyphSlot))
     return { outcome: "slot_locked" };
@@ -228,13 +237,13 @@ export async function applyGlyph(
         if (isAbort(error)) throw error;
         return undefined;
       }),
-    env.ctx.signal,
+    signal,
   );
   const spellId = useSpellOf(template);
   if (spellId === undefined) return { outcome: "not_a_glyph" };
   const glyphId = glyphOf(env.core.combat.definition(spellId));
   if (glyphId === undefined) return { outcome: "not_a_glyph" };
-  const catalog = await abortable(env.catalog(), env.ctx.signal);
+  const catalog = await abortable(env.catalog(), signal);
   const glyph = catalog?.glyph(glyphId);
   if (catalog && !glyph) return { outcome: "not_a_glyph" };
   if (glyph) {
@@ -245,23 +254,31 @@ export async function applyGlyph(
     );
     if (refused) return refused;
   }
-  return sendApply(env, {
-    glyphId,
-    glyphSlot: request.glyphSlot,
-    item: {
-      bag: request.bag,
-      entry: item.entry,
-      guid: item.guid,
-      slot: request.slot,
+  return sendApply(
+    env,
+    {
+      glyphId,
+      glyphSlot: request.glyphSlot,
+      item: {
+        bag: request.bag,
+        entry: item.entry,
+        guid: item.guid,
+        slot: request.slot,
+      },
+      spellId,
     },
-    spellId,
-  });
+    signal,
+  );
 }
 
 export function removeGlyph(
   env: GlyphEnv,
   slot: number,
+  call?: AbortSignal,
 ): Promise<GlyphRemoveResult> {
+  const signal = call
+    ? AbortSignal.any([env.ctx.signal, call])
+    : env.ctx.signal;
   if (!validSlot(slot)) return Promise.resolve({ outcome: "slot_empty" });
   const filled = env.store.snapshot().slots[slot]?.glyphId;
   if (filled === undefined || filled === 0)
@@ -272,7 +289,7 @@ export function removeGlyph(
       event.type === "info" &&
       event.glyphs.some((change) => change.slot === slot && change.to === 0),
     {
-      signal: AbortSignal.any([env.ctx.signal, scope.signal]),
+      signal: AbortSignal.any([signal, scope.signal]),
       timeoutMs: GLYPH_ANSWER_MS,
     },
   );
@@ -285,7 +302,7 @@ export function removeGlyph(
     },
   );
   try {
-    env.ctx.signal.throwIfAborted();
+    signal.throwIfAborted();
     env.ctx.send(GameOpcode.CMSG_REMOVE_GLYPH, buildRemoveGlyph(slot));
   } catch (error) {
     scope.abort();

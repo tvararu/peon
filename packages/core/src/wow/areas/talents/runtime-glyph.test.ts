@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { itemsTemplate } from "#test-support/areas/items";
 import {
   APPLY,
   castFailed,
   castStarted,
   flush,
+  GLYPH_ITEM,
   INFO,
   ITEM,
   infoWith,
@@ -327,6 +329,66 @@ describe("applyGlyph", () => {
         outcome: "busy",
       });
       expect(rig.sent.length).toBe(before);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("aborting the call while the item template is pending sends nothing once it arrives", async () => {
+    const { rig, sent } = rigged({ templateCached: false });
+    try {
+      const stop = new AbortController();
+      const pending = rig.handle.act.applyGlyph({
+        ...APPLY,
+        signal: stop.signal,
+      });
+      const settled = pending.then(
+        () => "resolved",
+        () => "rejected",
+      );
+      await flush();
+      stop.abort();
+      expect(await settled).toBe("rejected");
+      rig.stores.items.receive({
+        entry: GLYPH_ITEM,
+        template: itemsTemplate({
+          entry: GLYPH_ITEM,
+          itemClass: 16,
+          name: "Glyph of Battle",
+          spells: [
+            {
+              category: 0,
+              categoryCooldownMs: -1,
+              charges: 0,
+              cooldownMs: -1,
+              id: USE_SPELL,
+              trigger: 0,
+            },
+          ],
+        }),
+      });
+      await flush();
+      expect(sent(USE)).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("aborting the call while waiting for the reply rejects it", async () => {
+    const { rig } = rigged();
+    try {
+      const stop = new AbortController();
+      const pending = rig.handle.act.applyGlyph({
+        ...APPLY,
+        signal: stop.signal,
+      });
+      const settled = pending.then(
+        () => "resolved",
+        () => "rejected",
+      );
+      await flush();
+      stop.abort();
+      expect(await settled).toBe("rejected");
     } finally {
       rig.dispose();
     }
