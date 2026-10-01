@@ -1,5 +1,10 @@
-import { describe, expect, test } from "bun:test";
-import type { NamedTrainerSpell, TrainerEvent, VendorEvent } from "@peon/core";
+import { describe, expect, jest, test } from "bun:test";
+import type {
+  AreaState,
+  NamedTrainerSpell,
+  TrainerEvent,
+  VendorEvent,
+} from "@peon/core";
 import type { InteractAfter } from "#harness/contract/details";
 import { interactSpec } from "#harness/tools/interact";
 import {
@@ -16,6 +21,19 @@ import {
 } from "#test-support/runtime-fixture";
 
 const ARENA = 0x40n;
+
+function dismountState(mounted: boolean): AreaState<"selfstate"> {
+  return {
+    collisionHeight: undefined,
+    ghostPending: false,
+    lastTransferAbort: undefined,
+    mountDisplayId: mounted ? 1234 : 0,
+    mounted,
+    selfResSpell: 0,
+    standState: "stand",
+    timers: {},
+  };
+}
 
 function spell(
   spellId: number,
@@ -194,5 +212,45 @@ describe("interact trainer", () => {
     ).rejects.toMatchObject({
       reason: "not_repairer",
     });
+  });
+
+  test("a mounted train dismounts first and says so", async () => {
+    const t = await arena(
+      ["trainer"],
+      [spell(1244, "Power Word: Fortitude", "available", 10)],
+    );
+    t.handle.trainSpell = () => trainerEvent(t.handle, "trained");
+    jest
+      .spyOn(t.handle.selfstate, "state")
+      .mockReturnValue(dismountState(true));
+    const spy = jest
+      .spyOn(t.handle.selfstate.act, "dismount")
+      .mockResolvedValue({ status: "ok" });
+    const res = await interactSpec.run(
+      { do: "train", npc: "Matron Arena" },
+      toolCtx<InteractAfter>(t),
+    );
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(res.detail.startsWith("Dismounted first. ")).toBe(true);
+  });
+
+  test("a taxi mount stops the train with in_flight", async () => {
+    const t = await arena(
+      ["trainer"],
+      [spell(1244, "Power Word: Fortitude", "available", 10)],
+    );
+    jest
+      .spyOn(t.handle.selfstate, "state")
+      .mockReturnValue(dismountState(true));
+    t.handle.selfstate.act.dismount = async () => ({
+      reason: "in_flight",
+      status: "refused",
+    });
+    await expect(
+      interactSpec.run(
+        { do: "train", npc: "Matron Arena" },
+        toolCtx<InteractAfter>(t),
+      ),
+    ).rejects.toMatchObject({ reason: "in_flight" });
   });
 });

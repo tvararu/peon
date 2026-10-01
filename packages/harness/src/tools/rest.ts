@@ -1,6 +1,10 @@
 import { type CombatEvent, itemKind } from "@peon/core";
 import { pause } from "@peon/core/lib/abort";
 import { messageOf } from "@peon/core/lib/errors";
+import {
+  dismountFirst,
+  withDismountedFirst,
+} from "#harness/areas/selfstate/dismount-first";
 import type { LootLine, RestAfter } from "#harness/contract/details";
 import type { ToolResult, ToolStatus } from "#harness/contract/result";
 import type { RunControl, RunEnd, RunStatus } from "#harness/contract/runs";
@@ -373,8 +377,9 @@ async function launch(init: {
     signal: AbortSignal.any([control.signal, watch.signal]),
   };
   try {
+    const ride = await dismountFirst(ops);
     await rest(ops, until, rested);
-    return runEnd(doneReport(ops, rested, until));
+    return runEnd(withDismountedFirst(ride, doneReport(ops, rested, until)));
   } catch (error) {
     if (!ops.signal.aborted) throw error;
     const stop = control.signal.aborted

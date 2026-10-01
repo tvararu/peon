@@ -1,4 +1,8 @@
 import { messageOf } from "@peon/core/lib/errors";
+import {
+  dismountFirst,
+  withDismountedFirst,
+} from "#harness/areas/selfstate/dismount-first";
 import type { EngageAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { RunControl, RunEnd, RunStatus } from "#harness/contract/runs";
@@ -134,8 +138,9 @@ async function launch(init: {
     );
   };
   try {
+    const ride = await dismountFirst(ops);
     const choice = await chooseTarget(ops, args);
-    const report = await FIGHT({
+    const fightReport = await FIGHT({
       args,
       cause: watch.cause,
       choice,
@@ -143,6 +148,7 @@ async function launch(init: {
       ops,
       progress,
     });
+    const report = withDismountedFirst(ride, fightReport);
     if (control.signal.aborted)
       return runEnd(
         stopReport(control.signal, report.after),

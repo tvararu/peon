@@ -1,4 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
+import type { AreaState } from "@peon/core";
 import type { LootAfter } from "#harness/contract/details";
 import { lootSpec } from "#harness/tools/loot";
 import {
@@ -16,6 +17,19 @@ import {
 } from "#test-support/runtime-fixture";
 
 const CORPSE = 0x20n;
+
+function dismountState(mounted: boolean): AreaState<"selfstate"> {
+  return {
+    collisionHeight: undefined,
+    ghostPending: false,
+    lastTransferAbort: undefined,
+    mountDisplayId: mounted ? 1234 : 0,
+    mounted,
+    selfResSpell: 0,
+    standState: "stand",
+    timers: {},
+  };
+}
 
 function corpseRow(distance: number, lootable: boolean) {
   return unitRow({
@@ -202,5 +216,38 @@ describe("loot", () => {
       status: "PARTLY",
     });
     expect(limitProblem(contentOf(res))).toBeUndefined();
+  });
+
+  test("a mounted looter dismounts first and says so", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle);
+    setUnits(t.handle, [corpseRow(2, true)]);
+    lootsFang(t.handle, []);
+    jest
+      .spyOn(t.handle.selfstate, "state")
+      .mockReturnValue(dismountState(true));
+    const spy = jest
+      .spyOn(t.handle.selfstate.act, "dismount")
+      .mockResolvedValue({ status: "ok" });
+    const res = await lootSpec.run({}, toolCtx<LootAfter>(t));
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(res.detail.startsWith("Dismounted first. ")).toBe(true);
+  });
+
+  test("a taxi mount stops the loot with in_flight", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle);
+    setUnits(t.handle, [corpseRow(2, true)]);
+    lootsFang(t.handle, []);
+    jest
+      .spyOn(t.handle.selfstate, "state")
+      .mockReturnValue(dismountState(true));
+    t.handle.selfstate.act.dismount = async () => ({
+      reason: "in_flight",
+      status: "refused",
+    });
+    await expect(lootSpec.run({}, toolCtx<LootAfter>(t))).rejects.toMatchObject(
+      { reason: "in_flight" },
+    );
   });
 });
