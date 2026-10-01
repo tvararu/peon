@@ -166,7 +166,11 @@ export type InteractAction =
   | "reset_talents"
   | "stable"
   | "unstable"
-  | "buy_slot";
+  | "buy_slot"
+  | "bank"
+  | "deposit"
+  | "withdraw"
+  | "buy_bank_slot";
 
 export type QuestOffer = {
   line: number;
@@ -200,6 +204,15 @@ export type RewardChoice = { index: number; name: string; count: number };
 
 export type MoneyChange = { before: number; after: number };
 
+export type BankRow = {
+  line: number;
+  name: string;
+  count: number;
+  entry: number | undefined;
+  bag: number;
+  slot: number;
+};
+
 export type InteractAfter = {
   npc: UnitView;
   action: InteractAction;
@@ -216,6 +229,13 @@ export type InteractAfter = {
   repairCost: number | undefined;
   money: MoneyChange | undefined;
   freeSlots: number | undefined;
+  bank?:
+    | {
+        bagSlots: number | undefined;
+        free: number | undefined;
+        lines: BankRow[];
+      }
+    | undefined;
 };
 
 export type RestAfter = {
