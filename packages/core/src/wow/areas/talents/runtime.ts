@@ -136,8 +136,8 @@ function sendAndWait(
       throw error;
     },
   );
-  env.ctx.signal.throwIfAborted();
   try {
+    env.ctx.signal.throwIfAborted();
     env.ctx.send(opcode, body);
   } catch (error) {
     scope.abort();

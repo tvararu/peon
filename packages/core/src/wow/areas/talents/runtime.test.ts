@@ -234,7 +234,7 @@ describe("talents runtime: learn", () => {
     const { off, rig } = rigged({ dbc: false });
     try {
       const first = rig.handle.act.learnTalents([{ rank: 1, talentId: 124 }]);
-      for (let round = 0; round < 20 && rig.sent.length < 1; round++)
+      for (let round = 0; round < 20 && rig.sent.length === 0; round++)
         await Promise.resolve();
       await expect(
         rig.handle.act.learnTalents([{ rank: 1, talentId: 124 }]),
