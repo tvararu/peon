@@ -35,41 +35,54 @@ function imageGuids(handle: WorldHandle): bigint[] {
 async function run({ handle, args }: FlowContext): Promise<Json> {
   const spell = spellOf(args);
   await handle.loadCatalogs().catch(ignoreFailure);
-  handle.cast(spell, 0n);
-  await until(() => imageGuids(handle).length > 0, FIND_WAIT_MS);
-  const guids = imageGuids(handle);
-  const requests = guids.map((guid) => ({
-    guid,
-    result: handle.spells.act.requestMirrorImage(guid),
-  }));
-  await until(
-    () =>
-      guids.every((guid) =>
-        handle.spells.state().mirrorImages.some((image) => image.guid === guid),
-      ),
-    REPLY_WAIT_MS,
-  );
-  const held = handle.spells.state().mirrorImages;
-  return {
-    cast: guids.length > 0 ? "ok" : "no_images",
-    images: requests.map(({ guid, result }) => {
-      const image = held.find((m) => m.guid === guid);
-      return {
-        appearance: image
-          ? {
-              classId: image.classId,
-              displayId: image.displayId,
-              gender: image.gender,
-              items: [...image.items],
-              race: image.race,
-            }
-          : null,
-        guid: `0x${guid.toString(16)}`,
-        requested: result.ok,
-      };
-    }),
-    spell,
-  };
+  let failure: string | undefined;
+  const stop = handle.onCombatEvent((event) => {
+    if (event.type !== "cast_failed") return;
+    const outcome = event.state.lastOutcome;
+    if (outcome?.spellId !== spell || outcome.status !== "failed") return;
+    failure = outcome.reason ?? "unknown";
+  });
+  try {
+    handle.cast(spell, 0n);
+    await until(() => imageGuids(handle).length > 0, FIND_WAIT_MS);
+    const guids = imageGuids(handle);
+    const requests = guids.map((guid) => ({
+      guid,
+      result: handle.spells.act.requestMirrorImage(guid),
+    }));
+    await until(
+      () =>
+        guids.every((guid) =>
+          handle.spells
+            .state()
+            .mirrorImages.some((image) => image.guid === guid),
+        ),
+      REPLY_WAIT_MS,
+    );
+    const held = handle.spells.state().mirrorImages;
+    return {
+      cast: failure ?? (guids.length > 0 ? "ok" : "no_images"),
+      images: requests.map(({ guid, result }) => {
+        const image = held.find((m) => m.guid === guid);
+        return {
+          appearance: image
+            ? {
+                classId: image.classId,
+                displayId: image.displayId,
+                gender: image.gender,
+                items: [...image.items],
+                race: image.race,
+              }
+            : null,
+          guid: `0x${guid.toString(16)}`,
+          requested: result.ok,
+        };
+      }),
+      spell,
+    };
+  } finally {
+    stop();
+  }
 }
 
 export const flow: ProbeFlow = {
