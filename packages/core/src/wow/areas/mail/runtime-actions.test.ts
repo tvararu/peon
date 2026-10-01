@@ -418,4 +418,79 @@ describe("mail actions", () => {
       }
     });
   });
+
+  test("a delayed take success during a refresh leaves it pending", async () => {
+    await withFakeTimers(async () => {
+      const rig = mailRig();
+      try {
+        const listed = rig.handle.act.listMail(MAILBOX_OBJECT);
+        await flushMicrotasks();
+        rig.inject(
+          GameOpcode.SMSG_MAIL_LIST_RESULT,
+          mailListResultBody({
+            mails: [{ id: 101, money: 250 }],
+            realCount: 3,
+          }),
+        );
+        expect(await listed).toEqual({ status: "ok" });
+        expect(rig.handle.state().hidden).toBe(2);
+        const take = rig.handle.act.takeMailMoney(101);
+        await flushMicrotasks();
+        await elapse(MAIL_ANSWER_MS);
+        expect(await take).toEqual({ status: "unanswered" });
+        const refresh = rig.handle.act.listMail(MAILBOX_OBJECT);
+        let settled: string | undefined;
+        refresh.then((result) => {
+          settled = result.status;
+        });
+        await flushMicrotasks();
+        rig.inject(
+          GameOpcode.SMSG_SEND_MAIL_RESULT,
+          mailSendMailResultBody({ action: 1, id: 101 }),
+        );
+        await flushMicrotasks();
+        expect(rig.handle.state().inbox[0]?.money).toBe(0);
+        expect(settled).toBeUndefined();
+        rig.inject(
+          GameOpcode.SMSG_MAIL_LIST_RESULT,
+          mailListResultBody({ mails: [{ id: 205 }] }),
+        );
+        expect(await refresh).toEqual({ status: "ok" });
+        expect(rig.handle.state().inbox.map((mail) => mail.id)).toEqual([205]);
+        expect(rig.handle.state().hidden).toBe(0);
+      } finally {
+        rig.dispose();
+      }
+    });
+  });
+
+  test("a refresh interrupted by a delayed take success ends unanswered", async () => {
+    await withFakeTimers(async () => {
+      const rig = mailRig();
+      try {
+        const listed = rig.handle.act.listMail(MAILBOX_OBJECT);
+        await flushMicrotasks();
+        rig.inject(
+          GameOpcode.SMSG_MAIL_LIST_RESULT,
+          mailListResultBody({ mails: [{ id: 101, money: 250 }] }),
+        );
+        expect(await listed).toEqual({ status: "ok" });
+        const take = rig.handle.act.takeMailMoney(101);
+        await flushMicrotasks();
+        await elapse(MAIL_ANSWER_MS);
+        expect(await take).toEqual({ status: "unanswered" });
+        const refresh = rig.handle.act.listMail(MAILBOX_OBJECT);
+        await flushMicrotasks();
+        rig.inject(
+          GameOpcode.SMSG_SEND_MAIL_RESULT,
+          mailSendMailResultBody({ action: 1, id: 101 }),
+        );
+        await flushMicrotasks();
+        await elapse(MAIL_ANSWER_MS);
+        expect(await refresh).toEqual({ status: "unanswered" });
+      } finally {
+        rig.dispose();
+      }
+    });
+  });
 });
