@@ -39,7 +39,8 @@ function professionLines(handle: Game): {
 } {
   const lines: ProfessionLine[] = handle.spells
     .state()
-    .skills.map(({ id, max, name, value }) => ({ id, max, name, value }));
+    .skills.filter((skill) => skill.profession)
+    .map(({ id, max, name, value }) => ({ id, max, name, value }));
   return {
     lines,
     rows: lines.map(({ max, name, value }) => `${name}: ${value}/${max}.`),

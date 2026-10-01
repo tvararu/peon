@@ -25,6 +25,7 @@ describe("static skill catalog", () => {
     for (const [id, name] of PRIMARY) {
       expect(STATIC_SKILL_CATALOG.nameOf(id)).toBe(name);
       expect(STATIC_SKILL_CATALOG.isPrimary(id)).toBe(true);
+      expect(STATIC_SKILL_CATALOG.isProfession(id)).toBe(true);
     }
   });
 
@@ -39,6 +40,11 @@ describe("static skill catalog", () => {
       expect(STATIC_SKILL_CATALOG.nameOf(id)).toBe(name);
       expect(STATIC_SKILL_CATALOG.isPrimary(id)).toBe(false);
     }
+    for (const id of [185, 129, 356]) {
+      expect(STATIC_SKILL_CATALOG.isProfession(id)).toBe(true);
+    }
+    expect(STATIC_SKILL_CATALOG.isProfession(762)).toBe(false);
+    expect(STATIC_SKILL_CATALOG.isProfession(43)).toBe(false);
   });
 
   test("an unnamed skill reads as skill <id>", () => {

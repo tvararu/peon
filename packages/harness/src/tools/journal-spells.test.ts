@@ -142,6 +142,7 @@ describe("journal about spells professions, totems and runes", () => {
           max: 75,
           name: "Mining",
           permBonus: 0,
+          profession: true,
           step: 1,
           tempBonus: 0,
           value: 12,
@@ -187,6 +188,7 @@ describe("journal about spells professions, totems and runes", () => {
       max: 75,
       name: `Trade ${index}`,
       permBonus: 0,
+      profession: true,
       step: 1,
       tempBonus: 0,
       value: 10,
@@ -201,6 +203,54 @@ describe("journal about spells professions, totems and runes", () => {
       "Trade 2: 10/75.",
       "+2 more professions.",
     ]);
+  });
+
+  test("shows only professions when weapons share the skill list", async () => {
+    const { handle, tool } = await world();
+    installSpells(handle, { book: [] });
+    const base = handle.spells.state();
+    const mixed = [
+      { id: 43, name: "Swords", profession: false },
+      { id: 186, name: "Mining", profession: true },
+      { id: 54, name: "Maces", profession: false },
+      { id: 356, name: "Fishing", profession: true },
+      { id: 101, name: "Dwarven Racial", profession: false },
+      { id: 171, name: "Alchemy", profession: true },
+      { id: 762, name: "Riding", profession: false },
+      { id: 197, name: "Tailoring", profession: true },
+      { id: 393, name: "Skinning", profession: true },
+      { id: 333, name: "Enchanting", profession: true },
+    ].map(({ id, name, profession }) => ({
+      id,
+      max: 75,
+      name,
+      permBonus: 0,
+      profession,
+      step: 1,
+      tempBonus: 0,
+      value: 10,
+    }));
+    jest
+      .spyOn(handle.spells, "state")
+      .mockImplementation(() => ({ ...base, skills: mixed }));
+    const out = await runTool(tool, { about: "spells" });
+    const lines = out.text.split("\n");
+    expect(lines.slice(1)).toEqual([
+      "Mining: 10/75.",
+      "Fishing: 10/75.",
+      "Alchemy: 10/75.",
+      "+3 more professions.",
+    ]);
+    expect(out.details.result.after).toMatchObject({
+      professions: [
+        { id: 186, name: "Mining" },
+        { id: 356, name: "Fishing" },
+        { id: 171, name: "Alchemy" },
+        { id: 197, name: "Tailoring" },
+        { id: 393, name: "Skinning" },
+        { id: 333, name: "Enchanting" },
+      ],
+    });
   });
 
   test("omits the rune block for a non-death-knight", async () => {

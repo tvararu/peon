@@ -22,6 +22,7 @@ type SkillInit = {
   max: number;
   name: string;
   permBonus: number;
+  profession: boolean;
   step: number;
   tempBonus: number;
   value: number;
@@ -31,6 +32,7 @@ function skill(init: Partial<SkillInit> & { id: number; name: string }) {
   return {
     max: 75,
     permBonus: 0,
+    profession: true,
     step: 1,
     tempBonus: 0,
     value: 12,

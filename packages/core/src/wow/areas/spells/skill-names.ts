@@ -2,11 +2,20 @@ import type { DbcSource } from "#wow/dbc";
 import { localeString, openDbc, u32 } from "#wow/dbc";
 
 export type SkillCatalog = {
-  nameOf: (id: number) => string;
   isPrimary: (id: number) => boolean;
+  isProfession: (id: number) => boolean;
+  nameOf: (id: number) => string;
 };
 
 const PROFESSION_CATEGORY = 11;
+
+const SECONDARY_CATEGORY = 9;
+
+const SECONDARY_PROFESSIONS: Record<number, true> = {
+  129: true,
+  185: true,
+  356: true,
+};
 
 type NamedSkill = { readonly name: string; readonly primary: boolean };
 
@@ -39,6 +48,8 @@ const SKILL_LINE_NAME = 3;
 function staticCatalog(): SkillCatalog {
   return {
     isPrimary: (id) => STATIC_SKILLS[id]?.primary ?? false,
+    isProfession: (id) =>
+      STATIC_SKILLS[id]?.primary === true || SECONDARY_PROFESSIONS[id] === true,
     nameOf: (id) => STATIC_SKILLS[id]?.name ?? `skill ${id}`,
   };
 }
@@ -51,6 +62,11 @@ function withFileRows(
   const base = staticCatalog();
   return {
     isPrimary: (id) => rows.get(id)?.category === PROFESSION_CATEGORY,
+    isProfession: (id) =>
+      rows.get(id)?.category === PROFESSION_CATEGORY ||
+      (rows.get(id) === undefined && base.isProfession(id)) ||
+      (rows.get(id)?.category === SECONDARY_CATEGORY &&
+        SECONDARY_PROFESSIONS[id] === true),
     nameOf: (id) => {
       const row = rows.get(id);
       if (row && row.name.length > 0) return row.name;
