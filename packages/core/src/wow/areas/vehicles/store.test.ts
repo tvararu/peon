@@ -13,7 +13,9 @@ function storeWithEvents() {
 
 describe("VehiclesStore", () => {
   test("starts with no seat, vehicles or passengers", () => {
-    expect(new VehiclesStore({ getEntity: () => undefined } as never).snapshot()).toEqual({
+    expect(
+      new VehiclesStore({ getEntity: () => undefined } as never).snapshot(),
+    ).toEqual({
       passengers: new Map(),
       seat: undefined,
       vehicleIds: new Map(),

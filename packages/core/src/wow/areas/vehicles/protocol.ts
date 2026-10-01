@@ -2,7 +2,7 @@ import {
   type MonsterMove,
   parseMonsterMoveBody,
 } from "#wow/protocol/monster-move";
-import { PacketWriter, type PacketReader } from "#wow/protocol/packet";
+import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 export const NPC_FLAG_SPELLCLICK = 0x01_00_00_00;
 export const NPC_FLAG_PLAYER_VEHICLE = 0x02_00_00_00;
