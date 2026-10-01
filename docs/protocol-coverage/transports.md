@@ -5,4 +5,4 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x38d` | `CMSG_MOVE_CHNG_TRANSPORT` | client | missing |  |
+| `0x38d` | `CMSG_MOVE_CHNG_TRANSPORT` | client | handled |  |
