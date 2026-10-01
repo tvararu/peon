@@ -202,7 +202,9 @@ describe("items runtime: socket", () => {
         rig.handle.act.socket(RING, [RING]),
       ];
       const settled = await Promise.allSettled(refusals);
-      expect(settled.map((s) => s.status)).toEqual(Array(6).fill("rejected"));
+      expect(settled.map((s) => s.status)).toEqual(
+        new Array(6).fill("rejected"),
+      );
       expect(sends(rig.sent, GameOpcode.CMSG_SOCKET_GEMS)).toEqual([]);
     } finally {
       rig.dispose();
