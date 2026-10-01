@@ -32,7 +32,7 @@ export type SelfEvent =
       arg: number | undefined;
     }
   | { type: "teleport_ack"; ack: MoveAck }
-  | { type: "transfer_pending" }
+  | { type: "transfer_pending"; mapId: number; transport?: { entry: number; fromMap: number } }
   | { type: "new_world"; position: Position }
   | { type: "force_root"; counter: number; guid: bigint | undefined }
   | { type: "force_unroot"; counter: number; guid: bigint | undefined }
