@@ -8,6 +8,7 @@ import {
 import { unsupportedReason } from "#wow/control-motion";
 import { type RideSeat, RideState } from "#wow/control-ride";
 import { AIR_INPUT_BITS } from "#wow/control-swim";
+import { ForcedAcks, TransferAbortWatch } from "#wow/control-sync-acks";
 import {
   planBoard,
   planLeave,
@@ -17,14 +18,9 @@ import type { Position } from "#wow/entity-store";
 import { MovementFlag, UnitFlag } from "#wow/protocol/entity-fields";
 import type { MonsterMove } from "#wow/protocol/monster-move";
 import {
-  buildCollisionHeightAck,
-  buildFlagAck,
   buildMoveMessage,
-  buildRootAck,
   buildSetActiveMover,
-  buildSpeedAck,
   buildTeleportAck,
-  buildTimeSkipped,
   type ClientControl,
   type FallData,
   type ForceSpeed,
@@ -104,13 +100,15 @@ export class MovementSync {
   private rooted = false;
   private teleporting = false;
   private unitBlocked = false;
-  private transferAbortTimer: ReturnType<typeof setTimeout> | undefined;
+  private readonly abortWatch = new TransferAbortWatch();
+  private readonly acks: ForcedAcks;
 
   constructor({ deps, emit, motion, flight }: SyncParts) {
     this.deps = deps;
     this.emit = emit;
     this.motion = motion;
     this.flight = flight;
+    this.acks = new ForcedAcks(deps, (counter) => this.moveAck(counter));
     this.ride = new RideState({
       cancelForced: (reason) => this.cancelForced(reason),
       deps,
@@ -289,7 +287,7 @@ export class MovementSync {
   }
 
   teleportAck({ counter, info: dest }: MoveAck): void {
-    this.cancelTransferAbortWatch();
+    this.abortWatch.cancel();
     this.teleporting = false;
     this.cancelForced("teleport");
     this.deps.send(
@@ -300,14 +298,14 @@ export class MovementSync {
   }
 
   nearTeleport(dest: MovementInfo): void {
-    this.cancelTransferAbortWatch();
+    this.abortWatch.cancel();
     this.teleporting = false;
     this.cancelForced("near_teleport");
     this.applyForcedPose(dest, "near_teleport");
   }
 
   handleTransferPending(): void {
-    this.cancelTransferAbortWatch();
+    this.abortWatch.cancel();
     this.teleporting = true;
     this.cancelForced("teleport");
     this.emit("control_changed", "teleporting");
@@ -315,28 +313,20 @@ export class MovementSync {
 
   transferAborted(_abort: TransferAbortedInput): void {
     if (!this.teleporting) return;
-    this.cancelTransferAbortWatch();
-    this.transferAbortTimer = setTimeout(() => {
-      this.transferAbortTimer = undefined;
+    this.abortWatch.start(() => {
       this.teleporting = false;
       this.motion.stop("transfer_aborted");
       this.emit("control_changed", undefined);
     }, TRANSFER_ABORT_TIMEOUT_MS);
   }
 
-  private cancelTransferAbortWatch(): void {
-    if (this.transferAbortTimer !== undefined)
-      clearTimeout(this.transferAbortTimer);
-    this.transferAbortTimer = undefined;
-  }
-
   dispose(): void {
-    this.cancelTransferAbortWatch();
+    this.abortWatch.cancel();
     this.ride.dispose();
   }
 
   newWorld(position: Position): void {
-    this.cancelTransferAbortWatch();
+    this.abortWatch.cancel();
     this.teleporting = false;
     this.flight?.newWorld();
     this.transport = undefined;
@@ -364,14 +354,14 @@ export class MovementSync {
     this.rooted = true;
     this.cancelForced("root");
     this.moveFlags |= MovementFlag.ROOT;
-    this.ackRoot(GameOpcode.CMSG_FORCE_MOVE_ROOT_ACK, counter);
+    this.acks.root(GameOpcode.CMSG_FORCE_MOVE_ROOT_ACK, counter);
     this.emit("control_changed", "rooted");
   }
 
   forceUnroot(counter: number): void {
     this.rooted = false;
     this.moveFlags &= ~MovementFlag.ROOT;
-    this.ackRoot(GameOpcode.CMSG_FORCE_MOVE_UNROOT_ACK, counter);
+    this.acks.root(GameOpcode.CMSG_FORCE_MOVE_UNROOT_ACK, counter);
     this.emit("control_changed", undefined);
   }
 
@@ -380,7 +370,7 @@ export class MovementSync {
     this.observedFlags |= MovementFlag.FALLING;
     this.moveFlags |= MovementFlag.FALLING;
     this.fall = fall;
-    this.ackRoot(GameOpcode.CMSG_MOVE_KNOCK_BACK_ACK, counter);
+    this.acks.root(GameOpcode.CMSG_MOVE_KNOCK_BACK_ACK, counter);
     this.emit("server_correction", "knockback");
   }
 
@@ -403,7 +393,7 @@ export class MovementSync {
     if ("field" in spec && spec.field === "runBackSpeed")
       this.runBackSpeed = speed;
     if ("field" in spec && spec.field === "turnRate") this.turnRate = speed;
-    this.deps.send(spec.ack, buildSpeedAck(this.moveAck(counter), speed));
+    this.acks.speed(spec, counter, speed);
   }
 
   setCanFly(counter: number, enable: boolean): void {
@@ -419,15 +409,12 @@ export class MovementSync {
         AIR_INPUT_BITS
       );
     }
-    this.deps.send(
-      GameOpcode.CMSG_MOVE_SET_CAN_FLY_ACK,
-      buildFlagAck(this.moveAck(counter), enable),
-    );
+    this.acks.canFly(counter, enable);
     this.emit("control_changed", enable ? "flying" : undefined);
   }
 
   moveFlag(flag: MoveFlag, enable: boolean, counter: number): void {
-    const { bit, set, clear, applied } = FLAG_ACKS[flag];
+    const { bit } = FLAG_ACKS[flag];
     if (enable) {
       this.observedFlags |= bit;
       this.moveFlags |= bit;
@@ -435,25 +422,15 @@ export class MovementSync {
       this.observedFlags &= ~bit;
       this.moveFlags &= ~bit;
     }
-    const ack = this.moveAck(counter);
-    this.deps.send(
-      enable ? set : clear,
-      applied ? buildFlagAck(ack, enable) : buildRootAck(ack),
-    );
+    this.acks.flag(flag, enable, counter);
   }
 
   collisionHeight(counter: number, height: number): void {
-    this.deps.send(
-      GameOpcode.CMSG_MOVE_SET_COLLISION_HGT_ACK,
-      buildCollisionHeightAck(this.moveAck(counter), height),
-    );
+    this.acks.collisionHeight(counter, height);
   }
 
   timeSkipped(ms: number): void {
-    this.deps.send(
-      GameOpcode.CMSG_MOVE_TIME_SKIPPED,
-      buildTimeSkipped(this.deps.selfGuid(), ms),
-    );
+    this.acks.timeSkipped(ms);
   }
 
   resetFall(): void {
@@ -465,10 +442,6 @@ export class MovementSync {
       GameOpcode.CMSG_MOVE_FALL_RESET,
       buildMoveMessage(this.deps.selfGuid(), this.movementInfo()),
     );
-  }
-
-  private ackRoot(opcode: number, counter: number): void {
-    this.deps.send(opcode, buildRootAck(this.moveAck(counter)));
   }
 
   private cancelForced(reason: string): void {
