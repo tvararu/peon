@@ -8,6 +8,7 @@ import {
 import { unsupportedReason } from "#wow/control-motion";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag, UnitFlag } from "#wow/protocol/entity-fields";
+import type { MonsterMove } from "#wow/protocol/monster-move";
 import {
   buildCollisionHeightAck,
   buildFlagAck,
@@ -56,7 +57,19 @@ export type SelfObservation = {
   unitFlags?: number;
 };
 
-export type SyncParts = { deps: ControlDeps; emit: Emit; motion: SyncMotion };
+export type SyncParts = {
+  deps: ControlDeps;
+  emit: Emit;
+  motion: SyncMotion;
+  flight?: FlightPort | undefined;
+};
+export type FlightPort = {
+  inFlight: () => boolean;
+  newWorld: () => void;
+  observeSpline: (move: MonsterMove) => boolean;
+  observeUnitFlags: (unitFlags: number) => boolean;
+  onLanded: (() => void) | undefined;
+};
 
 export class MovementSync {
   predicted: ControlPose | undefined;
@@ -73,18 +86,21 @@ export class MovementSync {
   private readonly emit: Emit;
   private readonly motion: SyncMotion;
   private extraFlags = 0;
+  private flight: FlightPort | undefined;
   private observedFlags = 0;
   private transport: TransportInfo | undefined;
   private controlAllowed = true;
   private rooted = false;
   private teleporting = false;
+  private inFlight = false;
   private unitBlocked = false;
   private transferAbortTimer: ReturnType<typeof setTimeout> | undefined;
 
-  constructor({ deps, emit, motion }: SyncParts) {
+  constructor({ deps, emit, motion, flight }: SyncParts) {
     this.deps = deps;
     this.emit = emit;
     this.motion = motion;
+    this.flight = flight;
   }
 
   pose(): ControlPose | undefined {
@@ -103,10 +119,29 @@ export class MovementSync {
 
   blockReason(): string | undefined {
     if (this.teleporting) return "teleporting";
+    if (this.inFlight) return "in_flight";
     if (this.rooted) return "rooted";
     if (!this.controlAllowed) return "no_control";
     if (this.unitBlocked) return "disable_move";
     return unsupportedReason(this.observedFlags);
+  }
+
+  setFlight(flight: FlightPort): void {
+    this.flight = flight;
+    flight.onLanded = () => this.syncFlightFlag();
+  }
+
+  setFlightPose(pose: Position): void {
+    this.setServerPose(pose);
+    this.predicted = undefined;
+  }
+  observeSelfSpline(move: MonsterMove): void {
+    if (this.flight?.observeSpline(move)) this.syncFlightFlag();
+  }
+
+  syncFlightFlag(): void {
+    if (this.flight) this.setFlightFlag(this.flight.inFlight());
+    if (!this.inFlight) this.unitBlocked = false;
   }
 
   movementInfo(): MovementInfo {
@@ -225,6 +260,7 @@ export class MovementSync {
   newWorld(position: Position): void {
     this.cancelTransferAbortWatch();
     this.teleporting = false;
+    this.flight?.newWorld();
     this.motion.abort("teleport");
     this.mapId = position.mapId;
     this.moveFlags = 0;
@@ -378,10 +414,21 @@ export class MovementSync {
   }
 
   private setUnitFlags(unitFlags: number): void {
+    if (this.flight) {
+      this.flight.observeUnitFlags(unitFlags);
+      this.setFlightFlag(this.flight.inFlight());
+      return;
+    }
     const blocked = (unitFlags & UNIT_BLOCK_FLAGS) !== 0;
     if (blocked === this.unitBlocked) return;
     this.unitBlocked = blocked;
+    if (this.inFlight) return;
     if (blocked) this.motion.stop("disable_move");
     this.emit("control_changed", blocked ? "disable_move" : undefined);
+  }
+
+  private setFlightFlag(flying: boolean): void {
+    if (flying === this.inFlight) return;
+    this.inFlight = flying;
   }
 }

@@ -48,6 +48,9 @@ export function feedControl(control: ControlRuntime, event: SelfEvent): void {
     case "observed":
       control.observeSelf(event.observation);
       return;
+    case "spline":
+      control.observeSelfSpline(event.move);
+      return;
     default: {
       const unhandled: never = event;
       throw new Error("unhandled self event", { cause: unhandled });
