@@ -163,4 +163,42 @@ describe("talents harness rules", () => {
     );
     expect(later.map((row) => row.event)).toEqual(["talents/points"]);
   });
+
+  test("an info with a glyph change gives one talents/glyph row per slot", () => {
+    const rows = areaDrafts(
+      areaRuleSet(),
+      talents({
+        ...EMPTY_INFO,
+        glyphs: [
+          { from: 0, slot: 1, to: 43_395 },
+          { from: 43_395, slot: 0, to: 0 },
+        ],
+      }),
+      atLevel(15),
+    );
+    expect(rows.map((row) => [row.event, row.data])).toEqual([
+      ["talents/glyph", { glyphId: 43_395, slot: 2 }],
+      ["talents/glyph", { glyphId: 0, slot: 1 }],
+    ]);
+    expect(rows[0]?.text).toBe("Glyph 43395 in slot 2.");
+    expect(rows[1]?.text).toBe("Glyph slot 1 cleared.");
+  });
+
+  test("a reset info with a glyph change keeps both the reset and glyph rows", () => {
+    const rows = areaDrafts(
+      areaRuleSet(),
+      talents({
+        ...EMPTY_INFO,
+        glyphs: [{ from: 43_395, slot: 1, to: 0 }],
+        pointsAfter: 6,
+        pointsBefore: 0,
+        talents: [{ from: 1, talentId: 124, to: 0 }],
+      }),
+      atLevel(15),
+    );
+    expect(rows.map((row) => row.event)).toEqual([
+      "talents/reset",
+      "talents/glyph",
+    ]);
+  });
 });

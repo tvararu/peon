@@ -3,7 +3,7 @@ import { isUnit } from "@peon/core";
 import type { ToolCtx } from "#harness/contract/services";
 
 export type TalentsAfter = {
-  do: "show" | "learn";
+  do: "show" | "learn" | "glyph" | "unglyph";
   freePoints: number | undefined;
   learned: number;
 };
