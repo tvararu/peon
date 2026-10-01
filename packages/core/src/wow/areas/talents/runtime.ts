@@ -85,64 +85,65 @@ function rankOf(snapshot: TalentsState, entry: TalentRank): number | undefined {
     ?.rank;
 }
 
-function finished(
+function gradeReply(
   env: Env,
   entries: readonly TalentRank[],
-): LearnEntryResult[] | undefined {
+): LearnEntryResult[] {
   const snapshot = env.store.snapshot();
-  const results: LearnEntryResult[] = [];
-  for (const entry of entries) {
+  return entries.map((entry) => {
     const rank = rankOf(snapshot, entry);
-    if (rank === undefined || rank < entry.rank) return undefined;
-    results.push({
-      outcome: "learned",
+    return {
+      outcome:
+        rank !== undefined && rank >= entry.rank
+          ? ("learned" as const)
+          : ("refused_by_server" as const),
       rank: entry.rank,
       talentId: entry.talentId,
-    });
-  }
-  return results;
-}
-
-function refusedByServer(entries: readonly TalentRank[]): LearnEntryResult[] {
-  return entries.map((entry) => ({
-    outcome: "refused_by_server" as const,
-    rank: entry.rank,
-    talentId: entry.talentId,
-  }));
-}
-
-async function awaitInfo(env: Env): Promise<void> {
-  const wait = env.ctx.until((event) => event.type === "info", {
-    timeoutMs: LEARN_ANSWER_MS,
+    };
   });
-  await wait;
+}
+
+function refusedEntry(
+  refused: TalentRank,
+  outcome: LearnOutcome,
+): LearnEntryResult {
+  return { outcome, rank: refused.rank, talentId: refused.talentId };
 }
 
 function sendAndWait(
   env: Env,
   toSend: readonly TalentRank[],
 ): Promise<LearnEntryResult[] | "no_reply"> {
-  const reply = (async (): Promise<LearnEntryResult[] | "no_reply"> => {
-    try {
-      await awaitInfo(env);
-    } catch (error) {
+  const body =
+    toSend.length === 1
+      ? buildLearnTalent(toSend[0] as TalentRank)
+      : buildLearnPreviewTalents(toSend);
+  const opcode =
+    toSend.length === 1
+      ? GameOpcode.CMSG_LEARN_TALENT
+      : GameOpcode.CMSG_LEARN_PREVIEW_TALENTS;
+  const scope = new AbortController();
+  const waited = env.ctx.until((event) => event.type === "info", {
+    signal: AbortSignal.any([env.ctx.signal, scope.signal]),
+    timeoutMs: LEARN_ANSWER_MS,
+  });
+  const handled: Promise<LearnEntryResult[] | "no_reply"> = waited.then(
+    () => gradeReply(env, toSend),
+    (error: unknown) => {
       if (error instanceof Error && error.message === "timeout")
         return "no_reply" as const;
       throw error;
-    }
-    return finished(env, toSend) ?? refusedByServer(toSend);
-  })();
-  if (toSend.length === 1)
-    env.ctx.send(
-      GameOpcode.CMSG_LEARN_TALENT,
-      buildLearnTalent(toSend[0] as TalentRank),
-    );
-  else
-    env.ctx.send(
-      GameOpcode.CMSG_LEARN_PREVIEW_TALENTS,
-      buildLearnPreviewTalents(toSend),
-    );
-  return reply;
+    },
+  );
+  try {
+    env.ctx.send(opcode, body);
+  } catch (error) {
+    scope.abort();
+    return handled.catch(() => {
+      throw error;
+    });
+  }
+  return handled;
 }
 
 async function sendDegraded(
@@ -150,34 +151,30 @@ async function sendDegraded(
   plan: readonly TalentRank[],
   state: RulesState,
 ): Promise<LearnTalentsResult> {
-  const refused = plan.filter(
+  const refusedEntries = plan.filter(
     (entry) => decidedLocally(entry, state) !== undefined,
   );
   const toSend = plan.filter(
     (entry) => decidedLocally(entry, state) === undefined,
   );
+  const local = refusedEntries.map((entry) =>
+    refusedEntry(entry, decidedLocally(entry, state) ?? "no_points"),
+  );
   if (toSend.length === 0) {
-    env.store.noteRefused(refused);
-    return {
-      catalog: false,
-      entries: refused.map((entry) => ({
-        outcome: decidedLocally(entry, state) ?? "no_points",
-        rank: entry.rank,
-        talentId: entry.talentId,
-      })),
-    };
+    env.store.noteRefused(refusedEntries);
+    return { catalog: false, entries: local };
   }
+  env.store.noteRefused(refusedEntries);
   const outcome = await sendAndWait(env, toSend);
   if (outcome === "no_reply")
     return {
       catalog: false,
-      entries: toSend.map((entry) => ({
-        outcome: "no_reply" as const,
-        rank: entry.rank,
-        talentId: entry.talentId,
-      })),
+      entries: [
+        ...toSend.map((entry) => refusedEntry(entry, "no_reply")),
+        ...local,
+      ],
     };
-  return { catalog: false, entries: outcome };
+  return { catalog: false, entries: [...outcome, ...local] };
 }
 
 async function sendRuled(
@@ -187,28 +184,24 @@ async function sendRuled(
   catalog: TalentCatalog,
 ): Promise<LearnTalentsResult> {
   const ordered = orderPlan(plan, state, catalog);
+  const local = ordered.refused.map((refusal) =>
+    refusedEntry(refusal.entry, refusal.reason),
+  );
   if (ordered.send.length === 0) {
     env.store.noteRefused(ordered.refused.map((refusal) => refusal.entry));
-    return {
-      catalog: true,
-      entries: ordered.refused.map((refusal) => ({
-        outcome: refusal.reason,
-        rank: refusal.entry.rank,
-        talentId: refusal.entry.talentId,
-      })),
-    };
+    return { catalog: true, entries: local };
   }
+  env.store.noteRefused(ordered.refused.map((refusal) => refusal.entry));
   const outcome = await sendAndWait(env, ordered.send);
   if (outcome === "no_reply")
     return {
       catalog: true,
-      entries: ordered.send.map((entry) => ({
-        outcome: "no_reply" as const,
-        rank: entry.rank,
-        talentId: entry.talentId,
-      })),
+      entries: [
+        ...ordered.send.map((entry) => refusedEntry(entry, "no_reply")),
+        ...local,
+      ],
     };
-  return { catalog: true, entries: outcome };
+  return { catalog: true, entries: [...outcome, ...local] };
 }
 
 async function learn(
