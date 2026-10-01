@@ -134,12 +134,15 @@ export function petUnit(handle: Game, guid: bigint): UnitEntity | undefined {
   return isUnit(entity) ? entity : undefined;
 }
 
-export function petNameOf(handle: Game, state: PetsState): string {
+export function confirmedPetName(state: PetsState): string | undefined {
   const number = state.pet?.number;
-  const saved = number === undefined ? undefined : state.names?.[number]?.name;
+  return number === undefined ? undefined : state.names?.[number]?.name;
+}
+
+export function petNameOf(handle: Game, state: PetsState): string {
   const bar = state.bar;
   const unit = bar === undefined ? undefined : petUnit(handle, bar.guid);
-  return saved ?? unit?.name ?? "Your pet";
+  return confirmedPetName(state) ?? unit?.name ?? "Your pet";
 }
 
 function spellLabel(handle: Game, spell: number): string {

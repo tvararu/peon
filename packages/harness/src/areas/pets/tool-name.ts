@@ -1,7 +1,7 @@
 import {
+  confirmedPetName,
   type PetAfter,
   type PetCtx,
-  petNameOf,
   SETTLE_MS,
   stateOf,
   throwUnlessOk,
@@ -83,7 +83,14 @@ export async function abandonFlow(
 ): Promise<ToolResult<PetAfter>> {
   const state = stateOf(ctx.handle);
   if (!state.bar) throwNoPet("no_pet");
-  const current = petNameOf(ctx.handle, state);
+  const current = confirmedPetName(state);
+  if (current === undefined)
+    throw new Refusal({
+      detail:
+        "the pet name has not arrived yet: ask for the pet status, then retry abandon with the shown name.",
+      next: nextCall("pet"),
+      reason: "name_pending",
+    });
   if (what.trim().toLowerCase() !== current.toLowerCase())
     throw new Refusal({
       body: [`Your pet is named ${current}.`],
@@ -100,6 +107,7 @@ export async function abandonFlow(
       event.event.cleared,
     send: () =>
       ctx.rt.mutex.run(() => {
+        ctx.signal.throwIfAborted();
         throwUnlessOk(ctx.handle.pets.act.abandonPet());
       }),
     signal: ctx.signal,

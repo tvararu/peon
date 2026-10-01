@@ -61,7 +61,7 @@ describe("pet rename and abandon", () => {
   });
 
   test("abandon needs the pet's current name or it is REFUSED confirm_name", async () => {
-    const t = await world({ petEntity: unit(), pets: barState() });
+    const t = await world({ petEntity: unit(), pets: named("Fang") });
     const sent = jest.spyOn(t.game.pets.act, "abandonPet");
     const out = await refusal(
       petSpec.run({ do: "abandon", what: "Wrong" }, toolCtx(t)),
@@ -72,7 +72,7 @@ describe("pet rename and abandon", () => {
   });
 
   test("abandon with the name is DONE on the cleared bar", async () => {
-    const t = await world({ petEntity: unit(), pets: barState() });
+    const t = await world({ petEntity: unit(), pets: named("Fang") });
     jest.spyOn(t.game.pets.act, "abandonPet").mockImplementation(() => {
       t.game.triggerAreaEvent("pets", { cleared: true, type: "bar" });
       return { ok: true };
@@ -82,13 +82,7 @@ describe("pet rename and abandon", () => {
   });
 
   test("abandon names the pet by its own saved name, not the creature's", async () => {
-    const base = barState();
-    const pets = {
-      ...base,
-      names: { 7: { name: "Ravager", number: 7, timestamp: 1 } },
-      pet: base.pet && { ...base.pet, number: 7 },
-    };
-    const t = await world({ petEntity: unit(), pets });
+    const t = await world({ petEntity: unit(), pets: named("Ravager") });
     const sent = jest.spyOn(t.game.pets.act, "abandonPet");
     const out = await refusal(
       petSpec.run({ do: "abandon", what: "Fang" }, toolCtx(t)),
@@ -97,4 +91,40 @@ describe("pet rename and abandon", () => {
     expect(out.detail).toContain("Ravager");
     expect(sent).not.toHaveBeenCalled();
   });
+
+  test("abandon is REFUSED name_pending while the pet name query has no answer", async () => {
+    const t = await world({ petEntity: unit(), pets: barState() });
+    const sent = jest.spyOn(t.game.pets.act, "abandonPet");
+    const out = await refusal(
+      petSpec.run({ do: "abandon", what: "Fang" }, toolCtx(t)),
+    );
+    expect(out.reason).toBe("name_pending");
+    expect(sent).not.toHaveBeenCalled();
+  });
+
+  test("abandon aborted before the mutex send sends nothing", async () => {
+    const t = await world({ petEntity: unit(), pets: named("Fang") });
+    const sent = jest.spyOn(t.game.pets.act, "abandonPet");
+    const gate = Promise.withResolvers<void>();
+    const held = t.rt.mutex.run(() => gate.promise);
+    const controller = new AbortController();
+    controller.abort(new Error("run stopped"));
+    const run = petSpec.run(
+      { do: "abandon", what: "Fang" },
+      toolCtx(t, controller.signal),
+    );
+    gate.resolve();
+    await held;
+    await expect(run).rejects.toThrow("run stopped");
+    expect(sent).not.toHaveBeenCalled();
+  });
 });
+
+function named(name: string) {
+  const base = barState();
+  return {
+    ...base,
+    names: { 7: { name, number: 7, timestamp: 1 } },
+    pet: base.pet && { ...base.pet, number: 7 },
+  };
+}
