@@ -40,6 +40,7 @@ export async function openFlightMap(
   let learned = false;
   for (let attempt = 0; attempt < MAP_TRIES; attempt++) {
     const opened = await ctx.rt.mutex.run(async () => {
+      ctx.signal.throwIfAborted();
       ctx.handle.takeControl("manual_override");
       return await ctx.handle.travel.act.openTaxiMap(npc);
     });
@@ -261,6 +262,7 @@ async function settleOnGround(ops: OpsCtx): Promise<string | undefined> {
   };
   try {
     const stepped = await ops.rt.mutex.run(async () => {
+      ops.signal.throwIfAborted();
       ops.handle.takeControl("manual_override");
       return await ops.handle.walkTowardPoint(target, SETTLE_YD, ops.signal);
     });
@@ -346,6 +348,7 @@ async function planWork(work: FlyWork): Promise<Plan | Report> {
     opened.currentNode,
     destination,
   );
+  ops.signal.throwIfAborted();
   if (planned.status === "refused") throw planRefusal(planned, master);
   if (planned.status !== "ok")
     return result("UNCONFIRMED", {
@@ -385,6 +388,7 @@ export async function flyWork(work: FlyWork): Promise<Report> {
   const landing = watchLanding(ops);
   try {
     const flown = await ops.rt.mutex.run(async () => {
+      ops.signal.throwIfAborted();
       ops.handle.takeControl("manual_override");
       return await ops.handle.travel.act.activateTaxi(guid, route);
     });
