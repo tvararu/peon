@@ -69,6 +69,12 @@ async function run({ handle, args }: FlowContext): Promise<Json> {
     Math.hypot(at.x - dock.x, at.y - dock.y) > FAR_DOCK_YD;
   const arrival = await waitDocked(handle, guid, far, RIDE_WAIT_MS);
   const pose = handle.getControlState().pose;
+  const onboard = pose
+    ? Math.hypot(
+        pose.x - (arrival?.x ?? dock.x),
+        pose.y - (arrival?.y ?? dock.y),
+      )
+    : undefined;
   const leave = await handle.transports.act.leave();
   await Bun.sleep(SETTLE_MS);
   return freeze({
@@ -77,6 +83,7 @@ async function run({ handle, args }: FlowContext): Promise<Json> {
     dock,
     entry,
     leave,
+    onboardYd: onboard,
     pose: pose ? { mapId: pose.mapId, x: pose.x, y: pose.y, z: pose.z } : null,
   });
 }
