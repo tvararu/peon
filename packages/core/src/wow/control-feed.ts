@@ -68,7 +68,7 @@ function feedMovement(control: ControlRuntime, event: MovementEvent): void {
       control.setCanFly(event.counter, event.enable);
       return;
     case "move_flag":
-      control.moveFlag(event.flag, event.enable, event.counter);
+      control.moveFlag(event.flag, event.enable, event.counter, event.guid);
       return;
     case "collision_height":
       control.collisionHeight(event.counter, event.height);

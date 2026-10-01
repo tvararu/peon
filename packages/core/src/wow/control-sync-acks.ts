@@ -22,6 +22,7 @@ import type { MoveFlag } from "#wow/self-store";
 export type AckHost = {
   moveFlags: number;
   observedFlags: number;
+  drivenFlags: number;
   runSpeed: number | undefined;
   runBackSpeed: number | undefined;
   turnRate: number;
@@ -96,9 +97,17 @@ export class ServerAckSync {
     this.emit("control_changed", enable ? "flying" : undefined);
   }
 
-  moveFlag(flag: MoveFlag, enable: boolean, counter: number): void {
+  moveFlag(
+    flag: MoveFlag,
+    enable: boolean,
+    counter: number,
+    driven = false,
+  ): void {
     const { bit, set, clear, applied } = FLAG_ACKS[flag];
-    if (enable) {
+    if (driven) {
+      if (enable) this.host.drivenFlags |= bit;
+      else this.host.drivenFlags &= ~bit;
+    } else if (enable) {
       this.host.observedFlags |= bit;
       this.host.moveFlags |= bit;
     } else {
