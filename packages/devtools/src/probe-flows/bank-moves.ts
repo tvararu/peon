@@ -124,7 +124,8 @@ async function run(ctx: FlowContext): Promise<Json> {
     ),
   );
   if (!banker) throw new Error("no banker is in view.");
-  if (args["far"] !== "1") await reach(handle, banker.entity.guid);
+  if (args["far"] === "1") return farPurchase(handle);
+  await reach(handle, banker.entity.guid);
   const opened = await attempt(() =>
     handle.bank.act.openBank(banker.entity.guid),
   );
@@ -139,6 +140,17 @@ async function run(ctx: FlowContext): Promise<Json> {
     opened,
     state: handle.bank.state(),
     withdraw,
+  });
+}
+
+async function farPurchase(handle: WorldHandle): Promise<Json> {
+  const buy = await attempt(() => handle.bank.act.buyBankSlot());
+  return json({
+    buy: [buy],
+    deposit: { skipped: "far mode sends the purchase for refusal." },
+    opened: { status: "unanswered" },
+    state: handle.bank.state(),
+    withdraw: { skipped: "far mode sends the purchase for refusal." },
   });
 }
 
