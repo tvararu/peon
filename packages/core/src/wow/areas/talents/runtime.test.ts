@@ -317,4 +317,190 @@ describe("talents runtime: learn", () => {
       rig.dispose();
     }
   });
+
+  test("a plan with one legal and one unknown talent reports both and emits the refusal", async () => {
+    const rig = areaRig("talents", {
+      dbc: filesOf(),
+      getEntity: (guid) => (guid === ME ? warrior() : undefined),
+      selfGuid: ME,
+    });
+    const seen: TalentsEvent[] = [];
+    const off = rig.handle.onEvent((event) => seen.push(event));
+    try {
+      rig.inject(INFO, talentsTalentsInfoBody({ freePoints: 3, specs: [{}] }));
+      const pending = rig.handle.act.learnTalents([
+        { rank: 0, talentId: 124 },
+        { rank: 0, talentId: 9999 },
+      ]);
+      await flush();
+      expect(rig.sent.at(-1)?.opcode).toBe(LEARN);
+      expect(rig.sent.at(-1)).toEqual({
+        body: buildLearnTalent({ rank: 0, talentId: 124 }),
+        opcode: LEARN,
+      });
+      rig.inject(
+        INFO,
+        talentsTalentsInfoBody({
+          freePoints: 2,
+          specs: [{ talents: [{ rank: 0, talentId: 124 }] }],
+        }),
+      );
+      expect(await pending).toEqual({
+        catalog: true,
+        entries: [
+          { outcome: "learned", rank: 0, talentId: 124 },
+          { outcome: "unknown_talent", rank: 0, talentId: 9999 },
+        ],
+      });
+      expect(seen.filter((event) => event.type === "refused")).toEqual([
+        {
+          entries: [{ rank: 0, talentId: 9999 }],
+          outcome: "refused",
+          type: "refused",
+        },
+      ]);
+    } finally {
+      off();
+      rig.dispose();
+    }
+  });
+
+  test("a degraded mixed plan refuses the bad rank and reports the sent one", async () => {
+    const { off, rig, seen } = rigged({ dbc: false });
+    try {
+      const pending = rig.handle.act.learnTalents([
+        { rank: 1, talentId: 124 },
+        { rank: 5, talentId: 130 },
+      ]);
+      await flush();
+      expect(rig.sent.at(-1)?.opcode).toBe(LEARN);
+      rig.inject(
+        INFO,
+        talentsTalentsInfoBody({
+          freePoints: 2,
+          specs: [{ talents: [{ rank: 1, talentId: 124 }] }],
+        }),
+      );
+      expect(await pending).toEqual({
+        catalog: false,
+        entries: [
+          { outcome: "learned", rank: 1, talentId: 124 },
+          { outcome: "bad_rank", rank: 5, talentId: 130 },
+        ],
+      });
+      expect(seen.filter((event) => event.type === "refused")).toEqual([
+        {
+          entries: [{ rank: 5, talentId: 130 }],
+          outcome: "refused",
+          type: "refused",
+        },
+      ]);
+    } finally {
+      off();
+      rig.dispose();
+    }
+  });
+
+  test("a degraded mixed plan with no reply reports no_reply and the refusal", async () => {
+    await withFakeTimers(async () => {
+      const { off, rig, seen } = rigged({ dbc: false });
+      try {
+        const pending = rig.handle.act.learnTalents([
+          { rank: 1, talentId: 124 },
+          { rank: 5, talentId: 130 },
+        ]);
+        const assertion = pending.then((result) =>
+          expect(result).toEqual({
+            catalog: false,
+            entries: [
+              { outcome: "no_reply", rank: 1, talentId: 124 },
+              { outcome: "bad_rank", rank: 5, talentId: 130 },
+            ],
+          }),
+        );
+        await elapse(5100);
+        await assertion;
+        expect(seen.filter((event) => event.type === "refused")).toEqual([
+          {
+            entries: [{ rank: 5, talentId: 130 }],
+            outcome: "refused",
+            type: "refused",
+          },
+        ]);
+      } finally {
+        off();
+        rig.dispose();
+      }
+    });
+  });
+
+  test("a partly successful preview learns one entry and refuses the other", async () => {
+    const { off, rig } = rigged({ dbc: false });
+    try {
+      const pending = rig.handle.act.learnTalents([
+        { rank: 2, talentId: 124 },
+        { rank: 0, talentId: 130 },
+      ]);
+      await flush();
+      expect(rig.sent.at(-1)).toEqual(PREVIEW_124_2_130);
+      rig.inject(
+        INFO,
+        talentsTalentsInfoBody({
+          freePoints: 1,
+          specs: [{ talents: [{ rank: 2, talentId: 124 }] }],
+        }),
+      );
+      expect((await pending).entries).toEqual([
+        { outcome: "learned", rank: 2, talentId: 124 },
+        { outcome: "refused_by_server", rank: 0, talentId: 130 },
+      ]);
+    } finally {
+      off();
+      rig.dispose();
+    }
+  });
+
+  test("an oversized plan rejects without leaving a waiter behind", async () => {
+    const unhandled: unknown[] = [];
+    const listener = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", listener);
+    const { off, rig } = rigged({ dbc: false, freePoints: 200 });
+    try {
+      const plan = new Array(151).fill({ rank: 0, talentId: 124 });
+      await expect(rig.handle.act.learnTalents(plan)).rejects.toThrow(
+        "too_many_talents",
+      );
+      rig.dispose();
+      await flush();
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", listener);
+      off();
+      rig.dispose();
+    }
+  });
+
+  test("a failed send rejects without leaving a waiter behind", async () => {
+    await withFakeTimers(async () => {
+      const unhandled: unknown[] = [];
+      const listener = (reason: unknown) => unhandled.push(reason);
+      process.on("unhandledRejection", listener);
+      const { off, rig } = rigged({ dbc: false });
+      try {
+        (rig.sent as unknown[]).push = () => {
+          throw new Error("socket down");
+        };
+        await expect(
+          rig.handle.act.learnTalents([{ rank: 1, talentId: 124 }]),
+        ).rejects.toThrow("socket down");
+        await elapse(5100);
+        await Promise.resolve();
+        expect(unhandled).toEqual([]);
+      } finally {
+        process.off("unhandledRejection", listener);
+        off();
+        rig.dispose();
+      }
+    });
+  });
 });
