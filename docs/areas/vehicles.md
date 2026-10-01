@@ -139,7 +139,7 @@ writes none (the spline flood guard).
 
 ## Capabilities row
 
-No verb (N23).
+`vehicle` (vehicles-5): "Get on a vehicle by clicking it and get off", proven by the eval `t8-vehicles-board` (round 368, run `tmp/evals/368/t8-vehicles-board-1`, verdict `pass`, 4 of 4 checks). The agent called `vehicle` `board` on the 7th Legion Chain Gun (27714, spell-click) and then `vehicle` `leave`; the game log holds `vehicles/entered` (seat 0, guid `0xf150006c42003dd1`) and, on a later line, `vehicles/exited` for the same guid. The scenario uses the chain gun and not the Wintergarde Gryphon 27661, because the Gryphon refuses a Horde character (see "Click targets"). The tool's `seat`, `ride_with` and `eject` verbs have unit tests with fake acts and no scenario. Regressions after the tool landed, round 368: `t1-walk-to-npc` pass (2 of 2) and `t7-halt-resume` pass (3 of 3).
 
 ## Proof
 
