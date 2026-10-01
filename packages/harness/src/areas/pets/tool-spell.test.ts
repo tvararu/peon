@@ -185,6 +185,25 @@ describe("pet cast", () => {
     expect(out.body.join(" ")).toContain("Growl");
   });
 
+  test("a cast aborted after queueing behind the mutex sends nothing", async () => {
+    const t = await world({ petEntity: unit(), pets: barState() });
+    const sent = jest
+      .spyOn(t.game.pets.act, "petCast")
+      .mockImplementation(() => ({ castCount: 1, confirmed: true, ok: true }));
+    const gate = Promise.withResolvers<void>();
+    const held = t.rt.mutex.run(() => gate.promise);
+    const controller = new AbortController();
+    controller.abort(new Error("run stopped"));
+    const run = petSpec.run(
+      { do: "cast", target: "u1", what: "Growl" },
+      toolCtx(t, controller.signal),
+    );
+    gate.resolve();
+    await held;
+    await expect(run).rejects.toThrow("run stopped");
+    expect(sent).not.toHaveBeenCalled();
+  });
+
   test("cast of a passive spell is refused by the act", async () => {
     const t = await world({ petEntity: unit(), pets: barState() });
     const sent = jest
@@ -257,6 +276,25 @@ describe("pet autocast", () => {
       expect(out.status).toBe("UNCONFIRMED");
     });
   });
+
+  test("an autocast aborted after queueing behind the mutex sends nothing", async () => {
+    const t = await world({ petEntity: unit(), pets: barState() });
+    const sent = jest
+      .spyOn(t.game.pets.act, "petAutocast")
+      .mockImplementation(() => ({ ok: true }));
+    const gate = Promise.withResolvers<void>();
+    const held = t.rt.mutex.run(() => gate.promise);
+    const controller = new AbortController();
+    controller.abort(new Error("run stopped"));
+    const run = petSpec.run(
+      { do: "autocast", what: "Bite off" },
+      toolCtx(t, controller.signal),
+    );
+    gate.resolve();
+    await held;
+    await expect(run).rejects.toThrow("run stopped");
+    expect(sent).not.toHaveBeenCalled();
+  });
 });
 
 describe("pet tame", () => {
@@ -309,5 +347,31 @@ describe("pet tame", () => {
     ]);
     const out = await petSpec.run({ do: "tame", target: "u1" }, toolCtx(t));
     expect(out.status).toBe("FAILED");
+  });
+
+  test("a tame aborted after queueing behind the mutex sends nothing", async () => {
+    const t = await world({
+      petEntity: undefined,
+      pets: barState({ bar: undefined, cooldowns: [], pet: undefined }),
+    });
+    const cast = jest.spyOn(t.game, "cast").mockImplementation(() => {});
+    const book = jest.spyOn(t.game, "getSpellbook");
+    const base = await book.getMockImplementation()?.();
+    book.mockImplementation(async () => [
+      ...(base ?? []),
+      definition({ id: 1515, name: "Tame Beast" }),
+    ]);
+    const gate = Promise.withResolvers<void>();
+    const held = t.rt.mutex.run(() => gate.promise);
+    const controller = new AbortController();
+    controller.abort(new Error("run stopped"));
+    const run = petSpec.run(
+      { do: "tame", target: "u1" },
+      toolCtx(t, controller.signal),
+    );
+    gate.resolve();
+    await held;
+    await expect(run).rejects.toThrow("run stopped");
+    expect(cast).not.toHaveBeenCalled();
   });
 });

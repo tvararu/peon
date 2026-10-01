@@ -46,6 +46,25 @@ describe("pet rename and abandon", () => {
     expect(out.detail).toContain("invalid");
   });
 
+  test("a rename aborted after queueing behind the mutex sends nothing", async () => {
+    const t = await world({ petEntity: unit(), pets: barState() });
+    const sent = jest
+      .spyOn(t.game.pets.act, "renamePet")
+      .mockImplementation(() => ({ ok: true }));
+    const gate = Promise.withResolvers<void>();
+    const held = t.rt.mutex.run(() => gate.promise);
+    const controller = new AbortController();
+    controller.abort(new Error("run stopped"));
+    const run = petSpec.run(
+      { do: "rename", what: "Fangtooth" },
+      toolCtx(t, controller.signal),
+    );
+    gate.resolve();
+    await held;
+    await expect(run).rejects.toThrow("run stopped");
+    expect(sent).not.toHaveBeenCalled();
+  });
+
   test("rename with no answer is UNCONFIRMED", async () => {
     await withFakeTimers(async () => {
       const t = await world({ petEntity: unit(), pets: barState() });
@@ -102,6 +121,16 @@ describe("pet rename and abandon", () => {
     expect(sent).not.toHaveBeenCalled();
   });
 
+  test("abandon is REFUSED name_pending when the cached name predates the last rename", async () => {
+    const t = await world({ petEntity: unit(), pets: named("Fang", 2) });
+    const sent = jest.spyOn(t.game.pets.act, "abandonPet");
+    const out = await refusal(
+      petSpec.run({ do: "abandon", what: "Fang" }, toolCtx(t)),
+    );
+    expect(sent).not.toHaveBeenCalled();
+    expect(out.reason).toBe("name_pending");
+  });
+
   test("abandon aborted before the mutex send sends nothing", async () => {
     const t = await world({ petEntity: unit(), pets: named("Fang") });
     const sent = jest.spyOn(t.game.pets.act, "abandonPet");
@@ -120,11 +149,11 @@ describe("pet rename and abandon", () => {
   });
 });
 
-function named(name: string) {
+function named(name: string, renamedAt = 1) {
   const base = barState();
   return {
     ...base,
     names: { 7: { name, number: 7, timestamp: 1 } },
-    pet: base.pet && { ...base.pet, number: 7 },
+    pet: base.pet && { ...base.pet, nameTimestamp: renamedAt, number: 7 },
   };
 }
