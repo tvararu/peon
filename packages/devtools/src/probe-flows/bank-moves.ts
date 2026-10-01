@@ -63,20 +63,25 @@ async function depositStack(handle: WorldHandle, entry: number): Promise<Json> {
   return await attempt(() => handle.bank.act.deposit(stack.bag, stack.slot));
 }
 
+function storedSlots(handle: WorldHandle) {
+  const state = handle.getInventoryState();
+  return [...state.slots, ...(state.bank?.slots ?? [])];
+}
+
 async function withdrawStack(
   handle: WorldHandle,
   settle: Settle,
   entry: number,
 ): Promise<Json> {
   const stored = await settle(() =>
-    handle
-      .getInventoryState()
-      .slots.find(
-        (slot) =>
-          slot.status === "occupied" &&
-          (slot.region === "bank" || slot.region === "bankbag") &&
-          slot.item.entry === entry,
-      ),
+    storedSlots(handle).find(
+      (slot) =>
+        slot.status === "occupied" &&
+        (slot.region === "bank" ||
+          slot.region === "bankbag" ||
+          slot.region === "bank_bag_item") &&
+        slot.item.entry === entry,
+    ),
   );
   if (stored?.status !== "occupied")
     return {

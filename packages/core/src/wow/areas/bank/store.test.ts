@@ -175,7 +175,10 @@ describe("bank store events", () => {
 
   test("a deposit merged into an existing bank stack settles as moved", () => {
     const { rig, world } = bankScene((seeded) => {
-      seeded.put(255, 39, { count: 5, entry: 2589, guid: BANK_CLOTH + 3n });
+      seeded.clear(255, 25);
+      seeded.entities.delete(BANK_CLOTH);
+      seeded.put(255, 25, { count: 5, entry: 2589, guid: BANK_CLOTH });
+      seeded.put(255, 39, { count: 10, entry: 2589, guid: BANK_CLOTH + 3n });
     });
     const seen: BankEvent[] = [];
     rig.handle.onEvent((event) => seen.push(event));
@@ -188,13 +191,12 @@ describe("bank store events", () => {
         guid: BANK_CLOTH,
         kind: "deposit",
         slot: 25,
-        toCount: 5,
-        toGuid: BANK_CLOTH + 3n,
+        toCounts: [10],
         requestedAt: 0,
       });
       world.clear(255, 25);
       world.entities.delete(BANK_CLOTH);
-      world.setCount(BANK_CLOTH + 3n, 25);
+      world.setCount(BANK_CLOTH + 3n, 15);
       rig.touch();
       rig.stores.areas.bank.observeInventory();
       expect(seen.at(-1)).toMatchObject({ kind: "deposit", type: "moved" });
@@ -204,12 +206,42 @@ describe("bank store events", () => {
     }
   });
 
+  test("an unchanged bank snapshot does not settle the pending deposit", () => {
+    const { rig } = bankScene((seeded) => {
+      const full = BANK_CLOTH + 11n;
+      const roomy = BANK_CLOTH + 12n;
+      seeded.put(255, 39, { count: 20, entry: 2589, guid: full });
+      seeded.put(255, 40, { count: 10, entry: 2589, guid: roomy });
+    });
+    const seen: BankEvent[] = [];
+    rig.handle.onEvent((event) => seen.push(event));
+    try {
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      seen.length = 0;
+      rig.stores.areas.bank.begin({
+        bag: 255,
+        entry: 2589,
+        guid: BANK_CLOTH,
+        kind: "deposit",
+        slot: 25,
+        toCounts: [10, 20],
+        requestedAt: 0,
+      });
+      rig.touch();
+      rig.stores.areas.bank.observeInventory();
+      expect(seen).toHaveLength(0);
+      expect(rig.handle.state().pending?.kind).toBe("deposit");
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("a withdrawal merged into a carried stack settles as moved", () => {
     const { rig, world } = bankScene((seeded) => {
       seeded.clear(255, 25);
       seeded.entities.delete(BANK_CLOTH);
-      seeded.put(255, 25, { count: 5, entry: 2589, guid: BANK_CLOTH + 5n });
-      seeded.put(255, 39, { count: 20, entry: 2589, guid: BANK_CLOTH });
+      seeded.put(255, 25, { count: 10, entry: 2589, guid: BANK_CLOTH + 5n });
+      seeded.put(255, 39, { count: 5, entry: 2589, guid: BANK_CLOTH });
     });
     const seen: BankEvent[] = [];
     rig.handle.onEvent((event) => seen.push(event));
@@ -222,8 +254,7 @@ describe("bank store events", () => {
         guid: BANK_CLOTH,
         kind: "withdraw",
         slot: 39,
-        toCount: 5,
-        toGuid: BANK_CLOTH + 5n,
+        toCounts: [10],
         requestedAt: 0,
       });
       bankClear(world, 39);

@@ -85,6 +85,7 @@ function filled(args: {
 function inventory(slots: Record<string, unknown>[]) {
   return {
     bags: [],
+    bank: undefined,
     buyback: undefined,
     coinage: 0,
     freeSlots: 0,
@@ -92,6 +93,25 @@ function inventory(slots: Record<string, unknown>[]) {
     scope: "carried",
     selfGuid: 1n,
     slots,
+    status: "complete",
+  } as never;
+}
+
+function banked(entry: number) {
+  return {
+    bags: [],
+    bank: {
+      bags: [],
+      issues: [],
+      slots: [filled({ bag: 39, entry, region: "bank", slot: 0 })],
+    },
+    buyback: undefined,
+    coinage: 0,
+    freeSlots: 0,
+    issues: [],
+    scope: "carried",
+    selfGuid: 1n,
+    slots: [],
     status: "complete",
   } as never;
 }
@@ -105,7 +125,7 @@ function context(
   const stored = args["item"] === undefined ? 2589 : Number(args["item"]);
   const states = [
     inventory(carried),
-    inventory([filled({ bag: 39, entry: stored, region: "bank", slot: 0 })]),
+    banked(stored),
     inventory([filled({ bag: 255, entry: stored, slot: 25 })]),
   ];
   const handle = createMockHandle();
@@ -172,13 +192,54 @@ describe("bank-moves flow", () => {
       });
     }));
 
-  test("deposits the entry named by item", async () => {
+  test("deposits the entry named by item and completes its round trip", async () => {
     const ctx = context({ item: "6948" }, [
       filled({ bag: 255, entry: 2589, slot: 24 }),
       filled({ bag: 255, entry: 6948, slot: 25 }),
     ]);
-    await flow.run(ctx);
+    const out = await flow.run(ctx);
     expect(ctx.handle.bank.act.deposit).toHaveBeenCalledWith(255, 25);
+    expect(ctx.handle.bank.act.withdraw).toHaveBeenCalledWith(39, 0);
+    expect(out).toMatchObject({
+      deposit: { status: "ok" },
+      withdraw: { status: "ok" },
+    });
+  });
+
+  test("withdraws a stack stored inside a bank bag", async () => {
+    const ctx = context({}, [filled({ bag: 255, entry: 2589, slot: 25 })]);
+    const bagged = {
+      bags: [],
+      bank: {
+        bags: [],
+        issues: [],
+        slots: [
+          filled({ bag: 67, entry: 2589, region: "bank_bag_item", slot: 0 }),
+        ],
+      },
+      buyback: undefined,
+      coinage: 0,
+      freeSlots: 0,
+      issues: [],
+      scope: "carried",
+      selfGuid: 1n,
+      slots: [],
+      status: "complete",
+    } as never;
+    const inv = jest.spyOn(ctx.handle, "getInventoryState");
+    inv.mockReset();
+    inv
+      .mockImplementationOnce(() => inventory([]))
+      .mockImplementationOnce(() =>
+        inventory([filled({ bag: 255, entry: 2589, slot: 25 })]),
+      )
+      .mockImplementationOnce(() => bagged)
+      .mockImplementation(() =>
+        inventory([filled({ bag: 255, entry: 2589, slot: 25 })]),
+      );
+    const out = await flow.run(ctx);
+    expect(ctx.handle.bank.act.withdraw).toHaveBeenCalledWith(67, 0);
+    expect(out).toMatchObject({ withdraw: { status: "ok" } });
   });
 
   test("buys slots until a refusal and reports each outcome", async () => {

@@ -99,6 +99,12 @@ export type InventoryState = {
   issues: InventoryIssue[];
   buyback?: BuybackSlot[] | undefined;
   ammoId?: number | undefined;
+  bank?: InventoryBank | undefined;
+};
+export type InventoryBank = {
+  slots: InventorySlot[];
+  bags: InventoryBag[];
+  issues: InventoryIssue[];
 };
 
 type ReadContext = {
@@ -139,8 +145,14 @@ const ROOTS = [
     offset: PLAYER_FIELDS.CURRENCYTOKEN_SLOT_1.offset,
     region: "currency",
   },
-  ...BANK_ROOTS,
 ] as const;
+
+type RootRange = {
+  first: number;
+  count: number;
+  offset: number;
+  region: InventoryRegion;
+};
 
 const BUYBACK = { first: 74, count: 12 } as const;
 
@@ -301,9 +313,13 @@ function slot(
   };
 }
 
-function roots(context: ReadContext, self: Entity): InventorySlot[] {
+function roots(
+  context: ReadContext,
+  self: Entity,
+  ranges: readonly RootRange[],
+): InventorySlot[] {
   const result: InventorySlot[] = [];
-  for (const range of ROOTS) {
+  for (const range of ranges) {
     for (let i = 0; i < range.count; i++) {
       const offset = range.offset + i * 2;
       const rootGuid = guid(
@@ -397,12 +413,6 @@ function bag(
   return result;
 }
 
-function isBankRegion(region: InventoryRegion): boolean {
-  return (
-    region === "bank" || region === "bankbag" || region === "bank_bag_item"
-  );
-}
-
 function complete(candidate: InventorySlot): boolean {
   if (candidate.status === "unknown") return false;
   if (candidate.status === "empty") return true;
@@ -465,21 +475,15 @@ export function readInventory(
     issues: [],
     seen: new Set(),
   };
-  const slots = roots(context, self);
+  const slots = roots(context, self, ROOTS);
   const bags: InventoryBag[] = [];
   for (const root of slots.filter((candidate) => candidate.region === "bag"))
     bags.push(bag(context, root, slots, "bag_item"));
-  for (const root of slots.filter(
-    (candidate) => candidate.region === "bankbag",
-  ))
-    bags.push(bag(context, root, slots, "bank_bag_item"));
   const coinage = readSelfField(selfGuid, self, PLAYER_FIELDS.COINAGE.offset);
   const known =
     coinage !== undefined &&
     context.issues.length === 0 &&
-    slots
-      .filter((candidate) => !isBankRegion(candidate.region))
-      .every(complete) &&
+    slots.every(complete) &&
     bags.every((bagState) => bagState.size !== undefined);
   return {
     selfGuid,
@@ -492,5 +496,26 @@ export function readInventory(
     issues: context.issues,
     buyback: buyback(self),
     ammoId: fieldOf(self, PLAYER_FIELDS.AMMO_ID.offset),
+    bank: readBank(selfGuid, self, getEntity),
   };
+}
+
+function readBank(
+  selfGuid: bigint,
+  self: Entity,
+  getEntity: EntityLookup,
+): InventoryBank {
+  const context: ReadContext = {
+    selfGuid,
+    getEntity,
+    issues: [],
+    seen: new Set(),
+  };
+  const slots = roots(context, self, BANK_ROOTS);
+  const bags: InventoryBag[] = [];
+  for (const root of slots.filter(
+    (candidate) => candidate.region === "bankbag",
+  ))
+    bags.push(bag(context, root, slots, "bank_bag_item"));
+  return { slots, bags, issues: context.issues };
 }

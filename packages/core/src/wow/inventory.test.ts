@@ -183,8 +183,9 @@ describe("carried inventory authority", () => {
       true,
     );
     expect(
-      state.slots.find((slot) => slot.bag === 255 && slot.slot === 39),
+      state.bank?.slots.find((slot) => slot.bag === 255 && slot.slot === 39),
     ).toMatchObject({ region: "bank", status: "occupied", guid: 9n });
+    expect(state.slots.some((slot) => slot.region === "bank")).toBe(false);
     expect(state.slots.find((slot) => slot.slot === 86)).toMatchObject({
       status: "occupied",
       guid: 3n,
@@ -195,7 +196,7 @@ describe("carried inventory authority", () => {
     });
   });
 
-  test("reads a bank bag's contents without touching carried counts", () => {
+  test("reads a bank bag's contents apart from the carried surface", () => {
     const self = entity(1n, ObjectType.PLAYER, [
       [0x4_92, 987],
       [0x1_ca, 5],
@@ -216,19 +217,36 @@ describe("carried inventory authority", () => {
       [14, 4],
     ]);
     const state = view([self, bag, stored]);
+    const bank = state.bank;
     expect(
-      state.slots.find((slot) => slot.bag === 255 && slot.slot === 67),
+      bank?.slots.find((slot) => slot.bag === 255 && slot.slot === 67),
     ).toMatchObject({ region: "bankbag", status: "occupied", guid: 5n });
     expect(
-      state.slots.find(
+      bank?.slots.find(
         (slot) => slot.region === "bank_bag_item" && slot.bag === 67,
       ),
     ).toMatchObject({ slot: 0, status: "occupied", guid: 6n });
     expect(
-      state.slots.filter((slot) => slot.region === "bank_bag_item"),
+      bank?.slots.filter((slot) => slot.region === "bank_bag_item"),
     ).toHaveLength(2);
-    expect(state.status).toBe("partial");
-    expect(state.freeSlots).toBeUndefined();
+    expect(bank?.bags.find((entry) => entry.slot === 67)?.size).toBe(2);
+    expect(state.slots.some((slot) => slot.region.startsWith("bank"))).toBe(
+      false,
+    );
+  });
+
+  test("keeps an unavailable bank bag out of carried completeness and free slots", () => {
+    const self = entity(1n, ObjectType.PLAYER, [
+      [0x4_92, 987],
+      [0x1_ca, 5],
+      [0x1_cc, 7],
+    ]);
+    const state = view([self]);
+    expect(state.freeSlots).toBe(16);
+    expect(state.bags.every((entry) => entry.size !== undefined)).toBe(true);
+    expect(state.bank?.bags.some((entry) => entry.size === undefined)).toBe(
+      true,
+    );
   });
 
   test("does not count one equipped bag twice through two ambiguous addresses", () => {
