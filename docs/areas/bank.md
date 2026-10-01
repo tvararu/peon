@@ -31,8 +31,8 @@ Each act settles as `ok`, `refused` with the server's reason, `no_change`, or `u
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
-| `CMSG_BANKER_ACTIVATE` | `live` | probe flow `bank-moves` at the Silvermoon bank (Novia, entry 16615) on an `eversong10` character, exit 0; `SMSG_SHOW_BANK` follows and the act settles `ok` | `Handlers/BankHandler.cpp:44-62` |
-| `CMSG_AUTOBANK_ITEM` | `rig` | rig test only: staged cloth arrives by mail and the mail area has no take acts, so no live deposit was possible; the settle path is the same `observeInventory` guid match as withdraw | `Server/Packets/BankPackets.cpp:20-24` |
-| `CMSG_AUTOSTORE_BANK_ITEM` | `rig` | rig test only, same staging blocker as deposit | `Server/Packets/BankPackets.cpp:26-30` |
-| `CMSG_BUY_BANK_SLOT` | `live` | probe flow `bank-moves --arg buy=1`, exit 0; `SMSG_BUY_BANK_SLOT_RESULT` ok follows and truth money falls 50000 to 49000 | `Handlers/BankHandler.cpp:143-184` |
-| `SMSG_BUY_BANK_SLOT_RESULT` | `live` (ok) + `rig` (refusals) | ok live as above; `not_banker`, `insufficient_funds`, `too_many` are rig tests | `Entities/Player/Player.h:112-115` |
+| `CMSG_BANKER_ACTIVATE` | `live` | `bank-moves` at the Silvermoon bank (Novia, entry 16615, guid `0xf1300040e700293e`) on an `eversong10` character, exit 0; `SMSG_SHOW_BANK` follows and the act settles `ok` (`tmp/probe-bank-live`) | `Handlers/BankHandler.cpp:44-62` |
+| `CMSG_AUTOBANK_ITEM` | `live` | `bank-moves --arg item=6948` deposits the carried Hearthstone and settles `ok`; the trace shows `CMSG_AUTOBANK_ITEM` (`tmp/probe-bank-live`) | `Server/Packets/BankPackets.cpp:20-24` |
+| `CMSG_AUTOSTORE_BANK_ITEM` | `live` | the same run withdraws the stone back and settles `ok`; the trace shows `CMSG_AUTOSTORE_BANK_ITEM` (`tmp/probe-bank-live`) | `Server/Packets/BankPackets.cpp:26-30` |
+| `CMSG_BUY_BANK_SLOT` | `live` | `bank-moves --arg buy=7` with staged money buys two slots then stops at `insufficient_funds`; truth money falls 100000 to 89000 (`tmp/probe-bank-rich`) | `Handlers/BankHandler.cpp:143-184` |
+| `SMSG_BUY_BANK_SLOT_RESULT` | `live` (ok, `insufficient_funds`, `not_banker`) + `rig` (`too_many`) | ok and `insufficient_funds` live as above (`tmp/probe-bank-rich`); `not_banker` live by raw `CMSG_BUY_BANK_SLOT` from the Eversong spawn (`tmp/probe-bank-notbanker`); `too_many` is a rig test | `Entities/Player/Player.h:112-115` |

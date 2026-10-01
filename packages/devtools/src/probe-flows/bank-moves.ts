@@ -52,20 +52,21 @@ async function attempt(act: () => Promise<unknown>): Promise<Json> {
   }
 }
 
-async function depositCloth(handle: WorldHandle): Promise<Json> {
-  const cloth = handle
+async function depositStack(handle: WorldHandle, entry: number): Promise<Json> {
+  const stack = handle
     .getInventoryState()
     .slots.find(
-      (slot) => slot.status === "occupied" && slot.item.entry === CLOTH_ENTRY,
+      (slot) => slot.status === "occupied" && slot.item.entry === entry,
     );
-  if (cloth?.status !== "occupied")
-    return { skipped: `no item ${CLOTH_ENTRY} is carried to deposit.` };
-  return await attempt(() => handle.bank.act.deposit(cloth.bag, cloth.slot));
+  if (stack?.status !== "occupied")
+    return { skipped: `no item ${entry} is carried to deposit.` };
+  return await attempt(() => handle.bank.act.deposit(stack.bag, stack.slot));
 }
 
-async function withdrawCloth(
+async function withdrawStack(
   handle: WorldHandle,
   settle: Settle,
+  entry: number,
 ): Promise<Json> {
   const stored = await settle(() =>
     handle
@@ -74,14 +75,34 @@ async function withdrawCloth(
         (slot) =>
           slot.status === "occupied" &&
           (slot.region === "bank" || slot.region === "bankbag") &&
-          slot.item.entry === CLOTH_ENTRY,
+          slot.item.entry === entry,
       ),
   );
   if (stored?.status !== "occupied")
     return {
-      skipped: `no item ${CLOTH_ENTRY} is stored to withdraw.`,
+      skipped: `no item ${entry} is stored to withdraw.`,
     };
   return await attempt(() => handle.bank.act.withdraw(stored.bag, stored.slot));
+}
+
+type OutcomeStatus = { status: string };
+
+function isOutcome(value: unknown): value is OutcomeStatus {
+  if (typeof value !== "object" || value === null) return false;
+  if (!("status" in value)) return false;
+  return typeof value.status === "string";
+}
+
+async function buySlots(args: Args, handle: WorldHandle): Promise<Json> {
+  const count = whole(args, "buy");
+  if (count === undefined || count === 0) return null;
+  const attempts: Json[] = [];
+  for (let i = 0; i < count; i++) {
+    const outcome = await attempt(() => handle.bank.act.buyBankSlot());
+    attempts.push(outcome);
+    if (isOutcome(outcome) && outcome.status !== "ok") break;
+  }
+  return json(attempts);
 }
 
 async function run(ctx: FlowContext): Promise<Json> {
@@ -102,12 +123,10 @@ async function run(ctx: FlowContext): Promise<Json> {
   const opened = await attempt(() =>
     handle.bank.act.openBank(banker.entity.guid),
   );
-  const deposit = await depositCloth(handle);
-  const withdraw = await withdrawCloth(handle, settle);
-  const buy =
-    args["buy"] === "1"
-      ? await attempt(() => handle.bank.act.buyBankSlot())
-      : null;
+  const entry = whole(args, "item") ?? CLOTH_ENTRY;
+  const deposit = await depositStack(handle, entry);
+  const withdraw = await withdrawStack(handle, settle, entry);
+  const buy = await buySlots(args, handle);
   return json({
     banker: summary(banker),
     buy,
@@ -122,5 +141,5 @@ export const flow: ProbeFlow = {
   name: "bank-moves",
   run,
   usage:
-    "--flow bank-moves [--arg npc=<entry>] [--arg buy=1] [--arg far=1]: walk to the nearest banker (with that creature entry) and open the bank, deposit the first carried Linen Cloth, withdraw it again, then buy one bag slot with buy=1; far=1 skips the walk so the acts run out of range.",
+    "--flow bank-moves [--arg npc=<entry>] [--arg item=<entry>] [--arg buy=<n>] [--arg far=1]: walk to the nearest banker (with that creature entry) and open the bank, deposit the first carried stack of item (Linen Cloth unless item names another), withdraw it again, then buy up to n bag slots (stopping at the first refusal) with buy=<n>; far=1 skips the walk so the acts run out of range.",
 };
