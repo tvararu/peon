@@ -40,7 +40,13 @@ export type SelfEvent =
   | { type: "client_control"; control: ClientControl }
   | { type: "force_speed"; spec: SpeedAck; force: ForceSpeed }
   | { type: "can_fly"; counter: number; enable: boolean }
-  | { type: "move_flag"; flag: MoveFlag; enable: boolean; counter: number }
+  | {
+      type: "move_flag";
+      flag: MoveFlag;
+      enable: boolean;
+      counter: number;
+      guid: bigint;
+    }
   | { type: "collision_height"; counter: number; height: number }
   | { type: "spline"; move: MonsterMove }
   | {

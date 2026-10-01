@@ -263,8 +263,13 @@ export class ControlRuntime {
     this.sync.setCanFly(counter, enable);
   }
 
-  moveFlag(flag: MoveFlag, enable: boolean, counter: number): void {
-    this.sync.moveFlag(flag, enable, counter);
+  moveFlag(
+    flag: MoveFlag,
+    enable: boolean,
+    counter: number,
+    guid?: bigint,
+  ): void {
+    this.sync.moveFlag(flag, enable, counter, guid);
   }
 
   collisionHeight(counter: number, height: number): void {
