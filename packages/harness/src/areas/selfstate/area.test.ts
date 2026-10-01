@@ -15,6 +15,13 @@ const BREATH = {
 };
 const IDLE: AreaState<"selfstate"> = {
   collisionHeight: undefined,
+  condition: {
+    drunkState: "sober",
+    drunkValue: 0,
+    restedXp: 0,
+    resting: false,
+    restState: "unknown",
+  },
   ghostPending: false,
   lastTransferAbort: undefined,
   mountDisplayId: 0,
@@ -145,6 +152,33 @@ describe("selfstate harness rules", () => {
       [],
     );
     expect(drafts({ taxi: true, type: "dismounted" })).toEqual([]);
+  });
+
+  test("each drunkenness change logs one passive row naming the new state", () => {
+    const states = ["sober", "tipsy", "drunk", "smashed"] as const;
+    for (const [from, to] of [
+      ["sober", "tipsy"],
+      ["tipsy", "drunk"],
+      ["drunk", "smashed"],
+      ["smashed", "sober"],
+    ] as const) {
+      const rows = drafts({ from, item: 2594, to, type: "drunk_changed" });
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        class: "log",
+        data: { from, item: 2594, to },
+        event: "selfstate/drunk_changed",
+      });
+    }
+    const text = states.map(
+      (to) =>
+        drafts({ from: "sober", item: 0, to, type: "drunk_changed" })[0]?.text,
+    );
+    expect(new Set(text).size).toBe(4);
+    expect(text[1]).toContain("tipsy");
+    expect(text[2]).toContain("drunk");
+    expect(text[3]).toContain("smashed");
+    expect(text[0]).toContain("sober");
   });
 
   test("another rider's animation writes no row", () => {

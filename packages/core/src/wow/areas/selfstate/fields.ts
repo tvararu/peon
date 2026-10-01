@@ -3,6 +3,7 @@ import { ObjectType } from "#wow/protocol/entity-fields";
 import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 export const PLAYER_FLAG_GHOST = 0x10;
+export const PLAYER_FLAG_RESTING = 0x20;
 export const UNIT_FLAG_MOUNT = 0x08_00_00_00;
 
 export type SelfFields = {
@@ -11,6 +12,9 @@ export type SelfFields = {
   mountDisplayId: number | undefined;
   playerFlags: number | undefined;
   selfResSpell: number | undefined;
+  drunkValue: number | undefined;
+  restedXp: number | undefined;
+  restStateByte: number | undefined;
 };
 
 function read(entity: Entity, offset: number): number | undefined {
@@ -31,11 +35,16 @@ export function selfFields(
   )
     return undefined;
   const bytes1 = read(entity, UNIT_FIELDS.BYTES_1.offset);
+  const bytes2 = read(entity, PLAYER_FIELDS.BYTES_2.offset);
+  const bytes3 = read(entity, PLAYER_FIELDS.BYTES_3.offset);
   return {
     standState: bytes1 === undefined ? undefined : bytes1 & 0xff,
     unitFlags: read(entity, UNIT_FIELDS.FLAGS.offset),
     mountDisplayId: read(entity, UNIT_FIELDS.MOUNTDISPLAYID.offset),
     playerFlags: read(entity, PLAYER_FIELDS.FLAGS.offset),
     selfResSpell: read(entity, PLAYER_FIELDS.SELF_RES_SPELL.offset),
+    drunkValue: bytes3 === undefined ? undefined : (bytes3 >>> 8) & 0xff,
+    restedXp: read(entity, PLAYER_FIELDS.REST_STATE_EXPERIENCE.offset),
+    restStateByte: bytes2 === undefined ? undefined : bytes2 >>> 24,
   };
 }

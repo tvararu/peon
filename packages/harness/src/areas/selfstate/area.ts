@@ -82,6 +82,24 @@ function mounted(event: Extract<SelfEvent, { type: "mounted" }>): AreaDraft[] {
   ];
 }
 
+const DRUNK_TEXT = {
+  drunk: "You feel drunk.",
+  smashed: "You feel completely smashed.",
+  sober: "You feel sober again.",
+  tipsy: "You feel tipsy.",
+} as const;
+
+function drunkChanged(
+  event: Extract<SelfEvent, { type: "drunk_changed" }>,
+): AreaDraft {
+  return {
+    class: "log",
+    data: { from: event.from, item: event.item, to: event.to },
+    name: "drunk_changed",
+    text: DRUNK_TEXT[event.to],
+  };
+}
+
 function dismounted(
   event: Extract<SelfEvent, { type: "dismounted" }>,
 ): AreaDraft[] {
@@ -132,6 +150,8 @@ export const selfstateHarness = defineHarnessArea({
           return mounted(event);
         case "dismounted":
           return dismounted(event);
+        case "drunk_changed":
+          return [drunkChanged(event)];
         default:
           return [];
       }
