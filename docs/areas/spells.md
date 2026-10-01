@@ -55,7 +55,14 @@ self update that adds an id or moves a value or max emits
 emits `skill_removed`; the first read only seeds the baseline. The
 harness writes `spells/skill_changed` "Mining is now 12/75." at most
 once per skill per minute ("Mining learned, 1/75." for a new id) and
-`spells/skill_removed` "Mining dropped.". `act.unlearnSkill(id)` drops
+`spells/skill_removed` "Mining dropped.". `state().runes` keeps the death knight's
+six runes (index, current type, readiness, elapsed cooldown byte and regen rate),
+`undefined` for any other class, read from the class byte and the four
+`PLAYER_RUNE_REGEN_1` rates in the self update, from the ready and spent masks and
+the elapsed bytes of a peeked self `SMSG_SPELL_GO` rune list, and from
+`SMSG_CONVERT_RUNE`, which changes one rune's type and emits `rune_converted` with
+the index and both types. The base layout is two blood, two unholy and two frost;
+the four rates start at 0.1. `act.unlearnSkill(id)` drops
 a primary profession with `CMSG_UNLEARN_SKILL`; it refuses, and sends
 nothing, `invalid_skill` for a non-positive id, `not_profession` for an
 id outside the primary list, and `not_known` for a profession the
@@ -226,6 +233,13 @@ ranks in `inactiveRanks`.
 - The trainer sends both to the units that see it, so a purchase made
   before the trainer is in view brings neither
   (`Entities/Unit/Unit.cpp:14757`).
+- `SMSG_CONVERT_RUNE` is a `uint8` index and a `uint8` new type, sent only
+  from `Player::ConvertRune` (`Entities/Player/Player.cpp:13736-13743`).
+- The rune list in `SMSG_SPELL_GO` is a before mask, an after mask and one
+  elapsed byte per spent rune, in slot order (`Spells/Spell.cpp:5033-5050`).
+- The base layout read with `SMSG_CONVERT_RUNE` is two blood, two unholy and two
+  frost. The rune types are 0 blood, 1 unholy, 2 frost and 3 death, and the four
+  regen rates start at 0.1 (`Entities/Player/Player.cpp:13736-13743`).
 - The client direction of `MSG_CHANNEL_START` and `MSG_CHANNEL_UPDATE`
   is `Handle_NULL` (`Server/Protocol/Opcodes.cpp:444-445`).
 
@@ -326,7 +340,6 @@ Disagreements for opcodes later tasks build (AzerothCore wins):
   table and other skills as `skill <id>`.
 ## Left out
 
-- `SMSG_CONVERT_RUNE`: built by spells-9.
 - `CMSG_FAR_SIGHT`, `CMSG_GET_MIRRORIMAGE_DATA`,
   `SMSG_MIRRORIMAGE_DATA`: built by spells-10.
 - `CMSG_UPDATE_MISSILE_TRAJECTORY`, `CMSG_UPDATE_PROJECTILE_POSITION`,
@@ -341,8 +354,7 @@ Cancel one of its own buffs (`t4-spells-cancel-aura`; harmful and passive auras 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
 | `SMSG_TOTEM_CREATED` | `mock` | `packages/core/src/wow/areas/spells/totems.test.ts` "SMSG_TOTEM_CREATED fills the slot and emits totem_created" builds the packet from the AzerothCore writer; not seen live (no shaman preset; a priest that learned 8071 with Earth Totem item 5175 in the bags casts 836 instead, and the create never comes) | `Server/Packets/TotemPackets.cpp:25-33` |
-| `CMSG_TOTEM_DESTROYED` | `builder` | sent live on a `max80` priest: `mise protocol:probe <ACCOUNT> --send CMSG_TOTEM_DESTROYED --body 00 --wait 8`, exit 0, one byte in the trace, no disconnect; effect not seen (slot 0 was empty, which the server ignores); not seen live | `Server/Packets/TotemPackets.cpp:20-23` |
-| `CMSG_UNLEARN_SKILL` | `builder` | sent live on a throwaway `eversong10` priest: raw `CMSG_UNLEARN_SKILL` of 186 (`ba000000`) via the puppet, trace shows the 4-byte packet out with no disconnect and no reply; full `skill_removed` round-trip not seen live (offline `spells/learn` of 2575 stores the spell but the login load drops it, and online `gm learn 2575` stores it without filling the skill triple, so no slot ever held 186) | `Handlers/SkillHandler.cpp:91-100` |
+| `SMSG_CONVERT_RUNE` | `mock` | `packages/core/src/wow/areas/spells/runes.test.ts` "parseConvertRune reads the index and the new type" builds the packet from the AzerothCore writer; not seen live (no death knight preset: T-11 parked, `mise factory soap create eversong55-deathknight` fails unknown preset) | `Entities/Player/Player.cpp:13736-13743` |
 
 | `CMSG_CANCEL_AURA` | `live` | mount cancel on a throwaway `eversong10` character with spell 458 (Brown Horse): `mise protocol:probe <ACCOUNT> --flow selfstate-mount` reports spell 458, collision height null to 2.88, `cancel: ok`, height back to 2.03 after the dismount; the retained trace shows `CMSG_CAST_SPELL` out, `SMSG_MOVE_SET_COLLISION_HGT` and `SMSG_AURA_UPDATE` in, then `CMSG_CANCEL_AURA` out followed by `SMSG_AURA_UPDATE`, `SMSG_MOVE_SET_COLLISION_HGT` and `SMSG_DISMOUNT` in. A puppet cancel of the live mount aura (`CMSG_CAST_SPELL` then raw `CMSG_CANCEL_AURA`) shows the same packet sequence in its retained `packets.jsonl` | `Handlers/SpellHandler.cpp:568-601` |
 | `SMSG_LEARNED_SPELL` | `live` | throwaway `eversong10` character: `soap setup spells/learn` of 33388, 458 and 20608 while offline sent no packet, and the next login's `SMSG_INITIAL_SPELLS` (73 spells) held 33388 and 458 and no 20608; with the character in the world, `soap gm learn 33388` drew `SMSG_LEARNED_SPELL` body `6c8200000000`, outcome `handled` | `Entities/Player/Player.cpp:3137-3145` |

@@ -27,7 +27,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x414` | `CMSG_TOTEM_DESTROYED` | client | handled | not seen live |
 | `0x41e` | `SMSG_SEND_UNLEARN_SPELLS` | server | handled |  |
 | `0x462` | `CMSG_UPDATE_MISSILE_TRAJECTORY` | client | missing |  |
-| `0x486` | `SMSG_CONVERT_RUNE` | server | missing |  |
+| `0x486` | `SMSG_CONVERT_RUNE` | server | handled | not seen live |
 | `0x487` | `SMSG_RESYNC_RUNES` | server | dead |  |
 | `0x488` | `SMSG_ADD_RUNE_POWER` | server | dead |  |
 | `0x491` | `SMSG_MODIFY_COOLDOWN` | server | handled | not seen live |

@@ -3,6 +3,7 @@ import { SPELLS_OPCODES } from "#wow/areas/spells/opcodes";
 import {
   parseChannelStart,
   parseChannelUpdate,
+  parseConvertRune,
   parseModifyCooldown,
   parseSpellModifier,
   parseSpellVisual,
@@ -31,6 +32,7 @@ export const spellsArea = defineArea({
     "unit_cast_end",
     "skill_changed",
     "skill_removed",
+    "rune_converted",
   ],
   store: (deps, core) => new SpellsStore(deps, core),
   register: (wire, store) => {
@@ -60,6 +62,9 @@ export const spellsArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_TOTEM_CREATED, (r) =>
       store.totemCreated(parseTotemCreated(r)),
+    );
+    wire.on(GameOpcode.SMSG_CONVERT_RUNE, (r) =>
+      store.convertRune(parseConvertRune(r)),
     );
     wire.peek(GameOpcode.SMSG_SPELL_FAILURE, (r) =>
       store.spellFailure(parseSpellFailure(r)),
