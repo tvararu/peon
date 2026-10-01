@@ -33,6 +33,9 @@ function context(args: Record<string, string> = {}) {
   const handle = createMockHandle();
   const act = {
     learnPetTalent: jest.fn((_talent: number, _rank: number) => OK),
+    learnPetTalents: jest.fn(
+      (_picks: readonly { talent: number; rank: number }[]) => OK,
+    ),
   };
   const real = handle.pets;
   const pets: Pets = {
@@ -117,6 +120,51 @@ describe("pets-talent flow", () => {
       expect(await fakeAwait(running, 1000)).toMatchObject({
         confirmed: true,
       });
+    }));
+
+  test("it previews several talents and confirms only when all are held", () =>
+    withFakeTimers(async () => {
+      const { act, ctx } = context({ talents: "2119,2120:1" });
+      const running = flow.run(ctx);
+      await elapse(200);
+      expect(act.learnPetTalents).toHaveBeenCalledWith([
+        { rank: 0, talent: 2119 },
+        { rank: 1, talent: 2120 },
+      ]);
+      expect(act.learnPetTalent).not.toHaveBeenCalled();
+      ctx.handle.triggerAreaEvent("talents", {
+        freePoints: 0,
+        talents: [
+          { rank: 0, talentId: 2119 },
+          { rank: 1, talentId: 2120 },
+        ],
+        type: "pet_info",
+      });
+      expect(await fakeAwait(running, 1000)).toMatchObject({
+        confirmed: true,
+        freePoints: 0,
+      });
+    }));
+
+  test("it reports a preview unconfirmed when one pick is missing", () =>
+    withFakeTimers(async () => {
+      const { ctx } = context({ talents: "2119,2120" });
+      const running = flow.run(ctx);
+      await elapse(200);
+      ctx.handle.triggerAreaEvent("talents", {
+        freePoints: 1,
+        talents: [{ rank: 0, talentId: 2119 }],
+        type: "pet_info",
+      });
+      expect(await fakeAwait(running, 1000)).toMatchObject({
+        confirmed: false,
+      });
+    }));
+
+  test("it refuses a malformed talents list", () =>
+    withFakeTimers(async () => {
+      const { ctx } = context({ talents: "2119,x" });
+      expect(await fakeRejection(flow.run(ctx), 1000)).toContain("talents=");
     }));
 
   test("it refuses without a talent id", () =>
