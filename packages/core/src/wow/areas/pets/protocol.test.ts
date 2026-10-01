@@ -9,10 +9,13 @@ import {
   petsPetUnlearnedSpellBody,
   petsStabledPetsBody,
   petsStableResultBody,
+  petsTameFailureBody,
 } from "#test-support/areas/pets";
 import {
   buildBuyStableSlot,
+  buildDismissCritter,
   buildListStabledPets,
+  buildPetAbandon,
   buildPetAction,
   buildPetCancelAura,
   buildPetCastSpell,
@@ -29,12 +32,14 @@ import {
   PET_ACTION,
   type PetNameInvalid,
   type PetNameQueryResponse,
+  type PetTameFailure,
   parsePetActionFeedback,
   parsePetActionSound,
   parsePetDismissSound,
   parsePetNameInvalid,
   parsePetNameQueryResponse,
   parsePetSpellId,
+  parsePetTameFailure,
   parseStabledPets,
   parseStableResult,
   type StableResult,
@@ -372,5 +377,40 @@ describe("pets stable protocol", () => {
       expect(
         parseStableResult(new PacketReader(petsStableResultBody(code))),
       ).toEqual({ code, result });
+  });
+});
+
+describe("pets abandon and tame failure protocol", () => {
+  test("abandon and dismiss critter write one guid (PetHandler.cpp:39-55, 931-953)", () => {
+    for (const body of [buildPetAbandon(PET), buildDismissCritter(PET)]) {
+      const r = new PacketReader(body);
+      expect(r.uint64LE()).toBe(PET);
+      expect(r.remaining).toBe(0);
+    }
+  });
+
+  test("SMSG_PET_TAME_FAILURE names the codes (SharedDefines.h:3931-3944)", () => {
+    const names: [number, PetTameFailure][] = [
+      [1, "invalid_creature"],
+      [2, "too_many"],
+      [3, "already_owned"],
+      [4, "not_tameable"],
+      [5, "another_summon_active"],
+      [6, "units_cant_tame"],
+      [7, "no_pet"],
+      [8, "internal_error"],
+      [9, "too_high_level"],
+      [10, "dead"],
+      [11, "not_dead"],
+      [12, "exotic"],
+      [13, "unknown_error"],
+      [14, "unknown"],
+      [0, "unknown"],
+    ];
+    for (const [code, reason] of names) {
+      const r = new PacketReader(petsTameFailureBody(code));
+      expect(parsePetTameFailure(r)).toEqual({ code, reason });
+      expect(r.remaining).toBe(0);
+    }
   });
 });

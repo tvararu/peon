@@ -157,3 +157,9 @@ export function petsStableResultBody(code: number): Uint8Array {
   w.uint8(code);
   return w.finish();
 }
+
+export function petsTameFailureBody(code: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(code);
+  return w.finish();
+}
