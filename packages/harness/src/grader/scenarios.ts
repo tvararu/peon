@@ -186,6 +186,7 @@ export const ROUND_1: readonly string[] = [
   "t8-pets-spells",
   "t8-pets-rename",
   "t8-pets-abandon",
+  "t9-selfstate-mount",
 ];
 
 const DIR = `${import.meta.dir}/scenarios`;
