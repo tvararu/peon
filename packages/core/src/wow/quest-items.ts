@@ -30,6 +30,12 @@ export function carriedCount(
 ): number | undefined {
   let carried = 0;
   for (const slot of inventory.slots) {
+    if (
+      slot.region === "bank" ||
+      slot.region === "bankbag" ||
+      slot.region === "bank_bag_item"
+    )
+      continue;
     if (slot.status === "unknown") return undefined;
     if (slot.status === "empty") continue;
     if (slot.item.entry === undefined) return undefined;

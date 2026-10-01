@@ -425,4 +425,32 @@ describe("objects runtime key use (Handlers/SpellHandler.cpp:58-193, Entities/Pl
       rig.dispose();
     }
   });
+
+  test("useItemOn with the key only in the bank sends nothing", async () => {
+    const world = new EntityStore();
+    world.create(CHEST, ObjectType.GAMEOBJECT, { entry: ENTRY } as never);
+    const bank = PLAYER_FIELDS.INV_SLOT_HEAD.offset + 39 * 2;
+    world.create(SELF, ObjectType.PLAYER, {
+      rawFields: new Map<number, number>([
+        [bank, Number(KEY & 0xff_ff_ff_ffn)],
+        [bank + 1, Number(KEY >> 32n)],
+      ]),
+    } as never);
+    world.create(KEY, ObjectType.ITEM, {
+      rawFields: new Map([[OBJECT_FIELDS.ENTRY.offset, BAMBOO_CAGE_KEY]]),
+    } as never);
+    const getEntity: SessionDeps["getEntity"] = (guid) => world.get(guid);
+    const rig = areaRig("objects", { getEntity, selfGuid: SELF });
+    rig.stores.items.receive({ entry: BAMBOO_CAGE_KEY, template: cageKey });
+    try {
+      expect(await rig.handle.act.useItemOn(BAMBOO_CAGE_KEY, CHEST)).toEqual({
+        ok: false,
+        reason: "no_item",
+      });
+      expect(rig.sent).toEqual([]);
+      expect(rig.stores.rewards.loot.phase).toBe("closed");
+    } finally {
+      rig.dispose();
+    }
+  });
 });

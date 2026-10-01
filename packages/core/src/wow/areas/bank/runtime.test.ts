@@ -237,4 +237,24 @@ describe("bank acts", () => {
       void bankClear;
     }
   });
+
+  test("a second act while one is pending is refused locally", async () => {
+    const { rig } = bankScene();
+    try {
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      const pending = rig.handle.act.deposit(255, 25);
+      await flush();
+      await expect(rig.handle.act.buyBankSlot()).rejects.toThrow(
+        "already pending",
+      );
+      expect(rig.sent.map((packet) => packet.opcode)).toEqual([
+        GameOpcode.CMSG_AUTOBANK_ITEM,
+      ]);
+      rig.dispose();
+      await expect(pending).rejects.toThrow();
+    } finally {
+      void bankSetRoot;
+      void bankClear;
+    }
+  });
 });

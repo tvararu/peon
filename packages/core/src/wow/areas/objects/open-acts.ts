@@ -116,6 +116,8 @@ function choiceFor(env: Env, lock: LockEntry): OpenLockQuery {
   const carried = readInventory(selfGuid, (guid) => store.entity(guid));
   const entries = new Set<number>();
   for (const slot of carried.slots) {
+    if (slot.region === "bank" || slot.region === "bankbag") continue;
+    if (slot.region === "bank_bag_item") continue;
     if (slot.status === "occupied" && slot.item.entry !== undefined)
       entries.add(slot.item.entry);
   }
@@ -167,6 +169,8 @@ function carriedKey(
   const selfGuid = ctx.selfGuid() ?? 0n;
   const inventory = readInventory(selfGuid, (guid) => store.entity(guid));
   for (const slot of inventory.slots) {
+    if (slot.region === "bank" || slot.region === "bankbag") continue;
+    if (slot.region === "bank_bag_item") continue;
     if (slot.status === "occupied" && slot.item.entry === entry)
       return { bag: slot.bag, slot: slot.slot, guid: slot.guid };
   }

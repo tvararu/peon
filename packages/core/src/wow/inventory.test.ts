@@ -195,6 +195,42 @@ describe("carried inventory authority", () => {
     });
   });
 
+  test("reads a bank bag's contents without touching carried counts", () => {
+    const self = entity(1n, ObjectType.PLAYER, [
+      [0x4_92, 987],
+      [0x1_ca, 5],
+      [0x1_cc, 7],
+    ]);
+    const bag = entity(5n, ObjectType.CONTAINER, [
+      [3, 100],
+      [6, 1],
+      [8, 1],
+      [14, 1],
+      [0x40, 2],
+      [0x42, 6],
+    ]);
+    const stored = entity(6n, ObjectType.ITEM, [
+      [3, 200],
+      [6, 1],
+      [8, 5],
+      [14, 4],
+    ]);
+    const state = view([self, bag, stored]);
+    expect(
+      state.slots.find((slot) => slot.bag === 255 && slot.slot === 67),
+    ).toMatchObject({ region: "bankbag", status: "occupied", guid: 5n });
+    expect(
+      state.slots.find(
+        (slot) => slot.region === "bank_bag_item" && slot.bag === 67,
+      ),
+    ).toMatchObject({ slot: 0, status: "occupied", guid: 6n });
+    expect(
+      state.slots.filter((slot) => slot.region === "bank_bag_item"),
+    ).toHaveLength(2);
+    expect(state.status).toBe("partial");
+    expect(state.freeSlots).toBeUndefined();
+  });
+
   test("does not count one equipped bag twice through two ambiguous addresses", () => {
     const self = entity(1n, ObjectType.PLAYER, [
       [0x1_6a, 2],

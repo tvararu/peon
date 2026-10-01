@@ -172,4 +172,118 @@ describe("bank store events", () => {
       rig.dispose();
     }
   });
+
+  test("a deposit merged into an existing bank stack settles as moved", () => {
+    const { rig, world } = bankScene((seeded) => {
+      seeded.put(255, 39, { count: 5, entry: 2589, guid: BANK_CLOTH + 3n });
+    });
+    const seen: BankEvent[] = [];
+    rig.handle.onEvent((event) => seen.push(event));
+    try {
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      seen.length = 0;
+      rig.stores.areas.bank.begin({
+        bag: 255,
+        entry: 2589,
+        guid: BANK_CLOTH,
+        kind: "deposit",
+        slot: 25,
+        toCount: 5,
+        toGuid: BANK_CLOTH + 3n,
+        requestedAt: 0,
+      });
+      world.clear(255, 25);
+      world.entities.delete(BANK_CLOTH);
+      world.setCount(BANK_CLOTH + 3n, 25);
+      rig.touch();
+      rig.stores.areas.bank.observeInventory();
+      expect(seen.at(-1)).toMatchObject({ kind: "deposit", type: "moved" });
+      expect(rig.handle.state().lastOutcome?.status).toBe("ok");
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a withdrawal merged into a carried stack settles as moved", () => {
+    const { rig, world } = bankScene((seeded) => {
+      seeded.clear(255, 25);
+      seeded.entities.delete(BANK_CLOTH);
+      seeded.put(255, 25, { count: 5, entry: 2589, guid: BANK_CLOTH + 5n });
+      seeded.put(255, 39, { count: 20, entry: 2589, guid: BANK_CLOTH });
+    });
+    const seen: BankEvent[] = [];
+    rig.handle.onEvent((event) => seen.push(event));
+    try {
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      seen.length = 0;
+      rig.stores.areas.bank.begin({
+        bag: 255,
+        entry: 2589,
+        guid: BANK_CLOTH,
+        kind: "withdraw",
+        slot: 39,
+        toCount: 5,
+        toGuid: BANK_CLOTH + 5n,
+        requestedAt: 0,
+      });
+      bankClear(world, 39);
+      world.entities.delete(BANK_CLOTH);
+      world.setCount(BANK_CLOTH + 5n, 25);
+      rig.touch();
+      rig.stores.areas.bank.observeInventory();
+      expect(seen.at(-1)).toMatchObject({ kind: "withdraw", type: "moved" });
+      expect(rig.handle.state().lastOutcome?.status).toBe("ok");
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("result 59 for another item does not settle the pending move", () => {
+    const { rig } = bankScene();
+    const seen: BankEvent[] = [];
+    rig.handle.onEvent((event) => seen.push(event));
+    try {
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      seen.length = 0;
+      rig.stores.areas.bank.begin({
+        bag: 255,
+        guid: BANK_CLOTH,
+        kind: "deposit",
+        requestedAt: 0,
+        slot: 25,
+      });
+      rig.inject(
+        GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE,
+        itemsInventoryChangeFailureBody({ item1: BANK_CLOTH + 9n, result: 59 }),
+      );
+      expect(seen).toHaveLength(0);
+      expect(rig.handle.state().pending?.kind).toBe("deposit");
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a successful purchase after a refusal records ok as the last slot result", () => {
+    const { rig } = bankScene();
+    try {
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      rig.stores.areas.bank.begin({
+        banker: BANK_BANKER,
+        kind: "slot",
+        requestedAt: 0,
+      });
+      rig.stores.areas.bank.receiveSlotResult("insufficient_funds");
+      expect(rig.handle.state().lastSlotResult).toBe("insufficient_funds");
+      rig.stores.areas.bank.begin({
+        banker: BANK_BANKER,
+        kind: "slot",
+        requestedAt: 1,
+      });
+      rig.stores.areas.bank.receiveSlotResult("ok");
+      expect(rig.handle.state().lastSlotResult).toBe("ok");
+      expect(rig.handle.state().lastOutcome?.status).toBe("ok");
+    } finally {
+      rig.dispose();
+    }
+  });
 });

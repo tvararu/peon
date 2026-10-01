@@ -51,7 +51,8 @@ export type InventoryRegion =
   | "bag_item"
   | "buyback"
   | "bank"
-  | "bankbag";
+  | "bankbag"
+  | "bank_bag_item";
 export type InventoryAddress = {
   bag: number;
   slot: number;
@@ -345,6 +346,7 @@ function bag(
   context: ReadContext,
   root: InventorySlot,
   slots: InventorySlot[],
+  childRegion: InventoryRegion,
 ): InventoryBag {
   if (root.status === "empty")
     return { slot: root.slot, guid: 0n, status: "empty", size: 0 };
@@ -386,7 +388,7 @@ function bag(
     slots.push(
       slot(
         context,
-        { bag: root.slot, slot: i, region: "bag_item" },
+        { bag: root.slot, slot: i, region: childRegion },
         child,
         root.guid,
       ),
@@ -396,7 +398,9 @@ function bag(
 }
 
 function isBankRegion(region: InventoryRegion): boolean {
-  return region === "bank" || region === "bankbag";
+  return (
+    region === "bank" || region === "bankbag" || region === "bank_bag_item"
+  );
 }
 
 function complete(candidate: InventorySlot): boolean {
@@ -464,7 +468,11 @@ export function readInventory(
   const slots = roots(context, self);
   const bags: InventoryBag[] = [];
   for (const root of slots.filter((candidate) => candidate.region === "bag"))
-    bags.push(bag(context, root, slots));
+    bags.push(bag(context, root, slots, "bag_item"));
+  for (const root of slots.filter(
+    (candidate) => candidate.region === "bankbag",
+  ))
+    bags.push(bag(context, root, slots, "bank_bag_item"));
   const coinage = readSelfField(selfGuid, self, PLAYER_FIELDS.COINAGE.offset);
   const known =
     coinage !== undefined &&
