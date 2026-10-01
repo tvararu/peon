@@ -46,10 +46,9 @@ export class ForcedRoots {
     this.host.moverRootKnown = true;
     if (rooted) this.host.drivenFlags |= MovementFlag.ROOT;
     else this.host.drivenFlags &= ~MovementFlag.ROOT;
-    if (rooted || !this.host.rooted)
-      this.host.moveFlags = rooted
-        ? this.host.moveFlags | MovementFlag.ROOT
-        : this.host.moveFlags & ~MovementFlag.ROOT;
+    this.host.moveFlags = rooted
+      ? this.host.moveFlags | MovementFlag.ROOT
+      : this.host.moveFlags & ~MovementFlag.ROOT;
   }
 
   adoptFlags(flags: number): void {

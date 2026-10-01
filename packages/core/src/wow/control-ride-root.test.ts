@@ -8,7 +8,9 @@ import {
 import { must } from "#test-support/must";
 import type { ControlRuntime } from "#wow/control";
 import { MovementFlag, MovementFlagExtra } from "#wow/protocol/entity-fields";
+import { parseMovementInfo } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
+import { PacketReader } from "#wow/protocol/packet";
 import type { SelfEvent } from "#wow/self-store";
 
 const VEHICLE = 0xf1_30_00_3e_ea_00_0a_bcn;
@@ -198,5 +200,34 @@ describe("forced pose corrections", () => {
     runtime.face(1.5);
     const packet = lastMove(sent);
     expect(packet.pitch).toBeCloseTo(0.5, 5);
+  });
+});
+
+describe("unroot ack of a driven vehicle", () => {
+  function ackFlags(packet: Sent | undefined): number {
+    const r = new PacketReader(must(packet).body);
+    r.packedGuidBig();
+    r.uint32LE();
+    return parseMovementInfo(r).flags;
+  }
+
+  test("a rooted passenger does not leak its ROOT into the vehicle's unroot ack", () => {
+    const { runtime, sent } = boardLiveOrder(() => undefined);
+    runtime.observeSelf({
+      movementFlags: MovementFlag.ROOT | MovementFlag.ON_TRANSPORT,
+    });
+    runtime.forceRoot(2, VEHICLE);
+    sent.length = 0;
+    runtime.forceUnroot(3, VEHICLE);
+    const ack = must(
+      sent.find(
+        (packet) => packet.opcode === GameOpcode.CMSG_FORCE_MOVE_UNROOT_ACK,
+      ),
+    );
+    expect(ackFlags(ack) & MovementFlag.ROOT).toBe(0);
+    expect(runtime.snapshot().movementAllowed).toBe(true);
+    runtime.clientControl({ allow: false, guid: VEHICLE });
+    runtime.vehicleLeft();
+    expect(runtime.snapshot().blockedReason).toBe("rooted");
   });
 });
