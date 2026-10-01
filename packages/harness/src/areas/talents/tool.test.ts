@@ -231,6 +231,24 @@ describe("talents learn", () => {
     ).rejects.toMatchObject({ reason: "names_need_talent_data" });
   });
 
+  test("learn refuses a name two talents share with ambiguous_name", async () => {
+    const shared: TalentsCatalog = {
+      ...CATALOG,
+      talent: (id) =>
+        id === 124 || id === 1302
+          ? { ranks: [12_282], row: 0, tab: 161 }
+          : undefined,
+      talentsForClass: () => [{ id: 124 }, { id: 1302 }],
+    };
+    const { t } = await rig({ catalog: shared });
+    await expect(
+      talentsSpec.run(
+        { do: "learn", plan: [{ rank: 1, talent: "Improved Heroic Strike" }] },
+        toolCtx(t),
+      ),
+    ).rejects.toMatchObject({ reason: "ambiguous_name" });
+  });
+
   test("learn reports a tier lock with the tab point count", async () => {
     const { learn, t } = await rig();
     learn.mockImplementation(async () => ({
