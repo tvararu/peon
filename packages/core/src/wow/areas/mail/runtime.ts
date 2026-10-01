@@ -60,7 +60,7 @@ export type MailActs = {
     id: number,
     itemLow: number,
     opts?: MailTakeItemOpts,
-  ) => Promise<MailActResult | { status: "sent" }>;
+  ) => Promise<MailActResult>;
   returnMail: (id: number) => Promise<MailActResult>;
   deleteMail: (id: number) => Promise<MailActResult>;
   copyMailText: (id: number) => Promise<MailActResult>;
@@ -177,13 +177,15 @@ function settleResult(result: SendMailResult): MailActResult {
   return { status: "refused", why: result.status };
 }
 
-async function runAct(
-  env: Env,
-  pending: Parameters<MailStore["beginAction"]>[0],
-  opcode: number,
-  body: Uint8Array,
-  match: (result: SendMailResult) => boolean,
-): Promise<MailActResult> {
+type ActSend = {
+  pending: Parameters<MailStore["beginAction"]>[0];
+  opcode: number;
+  body: Uint8Array;
+  match: (result: SendMailResult) => boolean;
+};
+
+async function runAct(env: Env, send: ActSend): Promise<MailActResult> {
+  const { pending, opcode, body, match } = send;
   env.store.beginAction(pending);
   const cancel = new AbortController();
   const settled = env.ctx.until(
@@ -214,13 +216,12 @@ async function takeMailMoney(env: Env, id: number): Promise<MailActResult> {
   const mailbox = actMailbox(env);
   const mail = env.store.snapshot().inbox.find((row) => row.id === id);
   if (!mail) throw new Error("no_such_mail");
-  return runAct(
-    env,
-    { action: "money_taken", id },
-    GameOpcode.CMSG_MAIL_TAKE_MONEY,
-    buildMailTakeMoney(mailbox, id),
-    (result) => result.action === "money_taken" && result.id === id,
-  );
+  return await runAct(env, {
+    pending: { action: "money_taken", id },
+    opcode: GameOpcode.CMSG_MAIL_TAKE_MONEY,
+    body: buildMailTakeMoney(mailbox, id),
+    match: (result) => result.action === "money_taken" && result.id === id,
+  });
 }
 
 async function takeMailItem(
@@ -228,7 +229,7 @@ async function takeMailItem(
   id: number,
   itemLow: number,
   opts?: MailTakeItemOpts,
-): Promise<MailActResult | { status: "sent" }> {
+): Promise<MailActResult> {
   requireWorld(env);
   const mailbox = actMailbox(env);
   const mail = env.store.snapshot().inbox.find((row) => row.id === id);
@@ -243,13 +244,12 @@ async function takeMailItem(
   )
     throw new Error("cod_unpaid");
   const body = buildMailTakeItem(mailbox, id, itemLow);
-  return runAct(
-    env,
-    { action: "item_taken", id },
-    GameOpcode.CMSG_MAIL_TAKE_ITEM,
+  return await runAct(env, {
+    pending: { action: "item_taken", id },
+    opcode: GameOpcode.CMSG_MAIL_TAKE_ITEM,
     body,
-    (result) => result.action === "item_taken" && result.id === id,
-  );
+    match: (result) => result.action === "item_taken" && result.id === id,
+  });
 }
 
 async function returnMail(env: Env, id: number): Promise<MailActResult> {
@@ -258,13 +258,13 @@ async function returnMail(env: Env, id: number): Promise<MailActResult> {
   const mail = env.store.snapshot().inbox.find((row) => row.id === id);
   if (!mail) throw new Error("no_such_mail");
   if (mail.sender.kind !== "player") throw new Error("no_sender");
-  return runAct(
-    env,
-    { action: "returned_to_sender", id },
-    GameOpcode.CMSG_MAIL_RETURN_TO_SENDER,
-    buildMailReturnToSender(mailbox, id, mail.sender.guid),
-    (result) => result.action === "returned_to_sender" && result.id === id,
-  );
+  return await runAct(env, {
+    pending: { action: "returned_to_sender", id },
+    opcode: GameOpcode.CMSG_MAIL_RETURN_TO_SENDER,
+    body: buildMailReturnToSender(mailbox, id, mail.sender.guid),
+    match: (result) =>
+      result.action === "returned_to_sender" && result.id === id,
+  });
 }
 
 async function deleteMail(env: Env, id: number): Promise<MailActResult> {
@@ -274,13 +274,12 @@ async function deleteMail(env: Env, id: number): Promise<MailActResult> {
   if (!mail) throw new Error("no_such_mail");
   if (mail.money > 0 || mail.items.length > 0)
     throw new Error("mail_not_empty");
-  return runAct(
-    env,
-    { action: "deleted", id },
-    GameOpcode.CMSG_MAIL_DELETE,
-    buildMailDelete(mailbox, id, mail.template),
-    (result) => result.action === "deleted" && result.id === id,
-  );
+  return await runAct(env, {
+    pending: { action: "deleted", id },
+    opcode: GameOpcode.CMSG_MAIL_DELETE,
+    body: buildMailDelete(mailbox, id, mail.template),
+    match: (result) => result.action === "deleted" && result.id === id,
+  });
 }
 
 async function copyMailText(env: Env, id: number): Promise<MailActResult> {
@@ -291,38 +290,48 @@ async function copyMailText(env: Env, id: number): Promise<MailActResult> {
   if (mail.flags.copied) throw new Error("already_copied");
   if (mail.body.length === 0 && mail.template === 0)
     throw new Error("nothing_to_copy");
-  return runAct(
-    env,
-    { action: "made_permanent", id },
-    GameOpcode.CMSG_MAIL_CREATE_TEXT_ITEM,
-    buildMailCreateTextItem(mailbox, id),
-    (result) => result.action === "made_permanent" && result.id === id,
-  );
+  return await runAct(env, {
+    pending: { action: "made_permanent", id },
+    opcode: GameOpcode.CMSG_MAIL_CREATE_TEXT_ITEM,
+    body: buildMailCreateTextItem(mailbox, id),
+    match: (result) => result.action === "made_permanent" && result.id === id,
+  });
 }
 
 const MAIL_SEND_POSTAGE = 30;
+
+function checkSendMeta(opts: MailSendOpts): void {
+  if (opts.receiver.length === 0) throw new Error("no_receiver");
+  const texts = [opts.receiver, opts.subject, opts.body];
+  if (texts.some((text) => text.includes("| |"))) throw new Error("bad_text");
+}
+
+function checkSendFunds(
+  env: Env,
+  items: readonly MailDraftItem[],
+  money: number,
+  cod: number,
+): void {
+  if (items.length > MAX_MAIL_ITEMS) throw new Error("too_many_attachments");
+  if (money > 0 && cod > 0) throw new Error("cod_with_money");
+  const postage = MAIL_SEND_POSTAGE * Math.max(items.length, 1);
+  const have = coinage(env);
+  if (have !== undefined && money + postage > have)
+    throw new Error("not_enough_money");
+}
 
 function checkSendMail(env: Env, opts: MailSendOpts): MailDraft {
   const mailbox = opts.mailbox ?? env.store.snapshot().mailbox;
   if (mailbox === undefined) throw new Error("no_mailbox");
   requireMailbox(env, mailbox);
-  if (opts.receiver.length === 0) throw new Error("no_receiver");
-  if (opts.receiver.includes("| |")) throw new Error("bad_text");
-  if (opts.subject.includes("| |") || opts.body.includes("| |"))
-    throw new Error("bad_text");
+  checkSendMeta(opts);
   const self = selfName(env);
   if (self !== undefined && opts.receiver === self)
     throw new Error("cannot_send_to_self");
   const items = opts.items ?? [];
-  if (items.length > MAX_MAIL_ITEMS) throw new Error("too_many_attachments");
   const money = opts.money ?? 0;
   const cod = opts.cod ?? 0;
-  if (money > 0 && cod > 0) throw new Error("cod_with_money");
-  const postage =
-    items.length > 0 ? MAIL_SEND_POSTAGE * items.length : MAIL_SEND_POSTAGE;
-  const have = coinage(env);
-  if (have !== undefined && money + postage > have)
-    throw new Error("not_enough_money");
+  checkSendFunds(env, items, money, cod);
   return {
     body: opts.body,
     cod,
@@ -338,13 +347,12 @@ function checkSendMail(env: Env, opts: MailSendOpts): MailDraft {
 async function sendMail(env: Env, opts: MailSendOpts): Promise<MailActResult> {
   requireWorld(env);
   const draft = checkSendMail(env, opts);
-  return runAct(
-    env,
-    { action: "send", id: 0 },
-    GameOpcode.CMSG_SEND_MAIL,
-    buildSendMail(draft),
-    (result) => result.action === "send" && result.id === 0,
-  );
+  return await runAct(env, {
+    pending: { action: "send", id: 0 },
+    opcode: GameOpcode.CMSG_SEND_MAIL,
+    body: buildSendMail(draft),
+    match: (result) => result.action === "send" && result.id === 0,
+  });
 }
 
 export function mailRuntime(

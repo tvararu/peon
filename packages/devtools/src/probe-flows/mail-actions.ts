@@ -74,6 +74,18 @@ function brief(handle: WorldHandle): Json {
   });
 }
 
+type Letter = ReturnType<WorldHandle["mail"]["state"]>["inbox"][number];
+
+type StepCtx = {
+  handle: WorldHandle;
+  args: Args;
+  boxGuid: bigint;
+  box: Json;
+  listed: Json;
+  letter: Letter | undefined;
+  target: { id: number; subject: string } | null;
+};
+
 function findLetter(handle: WorldHandle, id: number | undefined, step: string) {
   const inbox = handle.mail.state().inbox;
   if (id !== undefined) return inbox.find((mail) => mail.id === id);
@@ -82,11 +94,11 @@ function findLetter(handle: WorldHandle, id: number | undefined, step: string) {
   return inbox.find((mail) => mail.money > 0 || mail.items.length > 0);
 }
 
-async function run(ctx: FlowContext): Promise<Json> {
-  const { handle, args, settle } = ctx;
-  const entry = whole(args, "entry");
-  const id = whole(args, "id");
-  const box = await settle(() =>
+function findMailbox(
+  handle: WorldHandle,
+  entry: number | undefined,
+): () => ReturnType<WorldHandle["queryNearby"]>[number] | undefined {
+  return () =>
     others(handle).find((r) => {
       if (entityType(r) !== "gameobject") return false;
       if (entry !== undefined && r.entity.entry !== entry) return false;
@@ -95,8 +107,127 @@ async function run(ctx: FlowContext): Promise<Json> {
         handle.objects.state().templates.get(r.entity.entry)?.type ===
         MAILBOX_OBJECT_TYPE
       );
+    });
+}
+
+async function takeStep(ctx: StepCtx): Promise<Json> {
+  const { handle, boxGuid, box, listed, letter, target } = ctx;
+  const money =
+    letter !== undefined && letter.money > 0
+      ? await attempt(() => handle.mail.act.takeMailMoney(letter.id))
+      : { skipped: "no letter with money" };
+  const withItems = handle.mail
+    .state()
+    .inbox.find((mail) => mail.items.length > 0);
+  const item =
+    withItems === undefined
+      ? { skipped: "no letter with items" }
+      : await attempt(() =>
+          handle.mail.act.takeMailItem(
+            withItems.id,
+            withItems.items[0]?.guidLow ?? 0,
+          ),
+        );
+  const relisted = await attempt(() => handle.mail.act.listMail(boxGuid));
+  return json({
+    box,
+    item,
+    listed,
+    money,
+    relisted,
+    state: brief(handle),
+    target,
+  });
+}
+
+function actOnce(
+  handle: WorldHandle,
+  kind: "copy" | "delete" | "return",
+  id: number,
+): Promise<unknown> {
+  if (kind === "copy") return handle.mail.act.copyMailText(id);
+  if (kind === "delete") return handle.mail.act.deleteMail(id);
+  return handle.mail.act.returnMail(id);
+}
+
+function stepKey(kind: "copy" | "delete" | "return"): string {
+  if (kind === "copy") return "copy";
+  if (kind === "delete") return "removed";
+  return "returned";
+}
+
+async function singleStep(
+  ctx: StepCtx,
+  kind: "copy" | "delete" | "return",
+): Promise<Json> {
+  const { handle, boxGuid, box, listed, letter, target } = ctx;
+  const outcome =
+    letter === undefined
+      ? { skipped: `no letter to ${kind}` }
+      : await attempt(() => actOnce(handle, kind, letter.id));
+  const relisted =
+    kind === "copy"
+      ? undefined
+      : await attempt(() => handle.mail.act.listMail(boxGuid));
+  return json({
+    box,
+    listed,
+    state: brief(handle),
+    target,
+    ...(relisted === undefined ? {} : { relisted }),
+    [stepKey(kind)]: outcome,
+  });
+}
+
+function sendItems(handle: WorldHandle, args: Args) {
+  const inv = handle.getInventoryState();
+  const itemArgs = [args["item0"], args["item1"]]
+    .map((raw) => raw?.split(":"))
+    .filter(
+      (part): part is [string, string] =>
+        part !== undefined && part.length === 2,
+    );
+  return itemArgs.map(([guid, slot]) => {
+    const row = inv.slots.find(
+      (candidate) =>
+        candidate.status === "occupied" &&
+        candidate.guid === BigInt(guid) &&
+        candidate.item.entry === Number(slot),
+    );
+    if (row?.status !== "occupied")
+      throw new Error(`no carried item ${guid} entry ${slot}.`);
+    return { guid: row.guid, slot: row.slot };
+  });
+}
+
+async function sendStep(ctx: StepCtx, unread: boolean): Promise<Json> {
+  const { handle, args, box, listed } = ctx;
+  const to = args["to"];
+  if (!to) throw new Error("mail-actions needs to=<name> for do=send.");
+  const found = sendItems(handle, args);
+  const sent = await attempt(() =>
+    handle.mail.act.sendMail({
+      body: args["body"] ?? "",
+      receiver: to,
+      subject: args["subject"] ?? "Hello",
+      ...(args["money"] === undefined ? {} : { money: Number(args["money"]) }),
+      ...(found.length === 0 ? {} : { items: found }),
     }),
   );
+  return json({
+    box,
+    listed,
+    sent,
+    state: brief(handle),
+    unread,
+  });
+}
+
+async function run(ctx: FlowContext): Promise<Json> {
+  const { handle, args, settle } = ctx;
+  const entry = whole(args, "entry");
+  const id = whole(args, "id");
+  const box = await settle(findMailbox(handle, entry));
   if (!box) throw new Error("no mailbox is in view.");
   await reach(handle, box.entity.guid);
   const listed = await attempt(() => handle.mail.act.listMail(box.entity.guid));
@@ -105,123 +236,19 @@ async function run(ctx: FlowContext): Promise<Json> {
   const letter = findLetter(handle, id, step);
   const target =
     letter === undefined ? null : { id: letter.id, subject: letter.subject };
-  if (step === "take") {
-    const money =
-      letter && letter.money > 0
-        ? await attempt(() => handle.mail.act.takeMailMoney(letter.id))
-        : { skipped: "no letter with money" };
-    const withItems = handle.mail
-      .state()
-      .inbox.find((mail) => mail.items.length > 0);
-    const item =
-      withItems === undefined
-        ? { skipped: "no letter with items" }
-        : await attempt(() =>
-            handle.mail.act.takeMailItem(
-              withItems.id,
-              withItems.items[0]?.guidLow ?? 0,
-            ),
-          );
-    const relisted = await attempt(() =>
-      handle.mail.act.listMail(box.entity.guid),
-    );
-    return json({
-      box: summary(box),
-      item,
-      listed,
-      money,
-      relisted,
-      state: brief(handle),
-      target,
-    });
-  }
-  if (step === "copy") {
-    const copy =
-      letter === undefined
-        ? { skipped: "no letter to copy" }
-        : await attempt(() => handle.mail.act.copyMailText(letter.id));
-    return json({
-      box: summary(box),
-      copy,
-      listed,
-      state: brief(handle),
-      target,
-    });
-  }
-  if (step === "delete") {
-    const removed =
-      letter === undefined
-        ? { skipped: "no letter to delete" }
-        : await attempt(() => handle.mail.act.deleteMail(letter.id));
-    const relisted = await attempt(() =>
-      handle.mail.act.listMail(box.entity.guid),
-    );
-    return json({
-      box: summary(box),
-      listed,
-      relisted,
-      removed,
-      state: brief(handle),
-      target,
-    });
-  }
-  if (step === "send") {
-    const to = args["to"];
-    if (!to) throw new Error("mail-actions needs to=<name> for do=send.");
-    const inv = handle.getInventoryState();
-    const itemArgs = [args["item0"], args["item1"]]
-      .map((raw) => raw?.split(":"))
-      .filter(
-        (part): part is [string, string] =>
-          part !== undefined && part.length === 2,
-      );
-    const found = itemArgs.map(([guid, slot]) => {
-      const row = inv.slots.find(
-        (candidate) =>
-          candidate.status === "occupied" &&
-          candidate.guid === BigInt(guid) &&
-          candidate.item.entry === Number(slot),
-      );
-      if (!row || row.status !== "occupied")
-        throw new Error(`no carried item ${guid} entry ${slot}.`);
-      return { guid: row.guid, slot: row.slot };
-    });
-    const sent = await attempt(() =>
-      handle.mail.act.sendMail({
-        body: args["body"] ?? "",
-        receiver: to,
-        subject: args["subject"] ?? "Hello",
-        ...(args["money"] === undefined
-          ? {}
-          : { money: Number(args["money"]) }),
-        ...(found.length === 0 ? {} : { items: found }),
-      }),
-    );
-    return json({
-      box: summary(box),
-      listed,
-      sent,
-      state: brief(handle),
-      unread: state.unread,
-    });
-  }
-  if (step === "return") {
-    const returned =
-      letter === undefined
-        ? { skipped: "no letter to return" }
-        : await attempt(() => handle.mail.act.returnMail(letter.id));
-    const relisted = await attempt(() =>
-      handle.mail.act.listMail(box.entity.guid),
-    );
-    return json({
-      box: summary(box),
-      listed,
-      relisted,
-      returned,
-      state: brief(handle),
-      target,
-    });
-  }
+  const stepCtx: StepCtx = {
+    args,
+    box: summary(box),
+    boxGuid: box.entity.guid,
+    handle,
+    letter,
+    listed,
+    target,
+  };
+  if (step === "take") return takeStep(stepCtx);
+  if (step === "copy" || step === "delete" || step === "return")
+    return singleStep(stepCtx, step);
+  if (step === "send") return sendStep(stepCtx, state.unread);
   throw new Error(
     `mail-actions needs do=take|copy|delete|send|return, not "${step}".`,
   );
