@@ -165,3 +165,22 @@ describe("vehicles attach", () => {
     expect(attach()(base, testRuleInput())).toEqual([]);
   });
 });
+
+describe("vehicles/control", () => {
+  test("taking the vehicle writes a wake row and losing it writes one too", () => {
+    const [gained] = rules()({ allow: true, mover: GUID, type: "control" });
+    expect(gained).toMatchObject({
+      class: "wake",
+      data: { allow: true, mover: "0xf130003eea000abc" },
+      name: "control",
+    });
+    expect(gained?.text).toContain("control");
+    const [lost] = rules()({ allow: false, mover: GUID, type: "control" });
+    expect(lost).toMatchObject({
+      class: "wake",
+      data: { allow: false, mover: "0xf130003eea000abc" },
+      name: "control",
+    });
+    expect(lost?.text).not.toBe(gained?.text);
+  });
+});

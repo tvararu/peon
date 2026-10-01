@@ -3,6 +3,7 @@ import type {
   MonsterMoveTransport,
   PlayerVehicleData,
 } from "#wow/areas/vehicles/protocol";
+import type { Position } from "#wow/entity-store";
 import { type MonsterMove, SplineFlag } from "#wow/protocol/monster-move";
 import type { Vec3 } from "#wow/protocol/packet";
 import type { SessionDeps } from "#wow/session-stores";
@@ -17,7 +18,15 @@ export type VehicleSeat = {
   controlling: boolean;
 };
 
+export type VehicleMotion = {
+  pose: Position | undefined;
+  run: number | undefined;
+  runBack: number | undefined;
+  turn: number | undefined;
+};
+
 export type VehiclesEvent =
+  | { type: "control"; mover: bigint; allow: boolean }
   | { type: "player_vehicle"; guid: bigint; vehicleId: number }
   | { type: "ride_aura_cancel" }
   | {
@@ -71,6 +80,7 @@ export class VehiclesStore {
   private readonly pending: VehiclesEvent[] = [];
   private emitting = false;
   private readonly vehicleIds = new Map<bigint, number>();
+  private readonly motion = new Map<bigint, VehicleMotion>();
   private readonly passengers = new Map<
     bigint,
     { transportGuid: bigint; seat: number }
@@ -86,6 +96,19 @@ export class VehiclesStore {
 
   setSeat(seat: VehicleSeat | undefined): void {
     this.seat = seat ? { ...seat } : undefined;
+  }
+
+  setControlling(vehicle: bigint, allow: boolean): void {
+    if (this.seat?.vehicle === vehicle) this.seat.controlling = allow;
+    this.queue({ allow, mover: vehicle, type: "control" });
+  }
+
+  recordMotion(guid: bigint, motion: VehicleMotion): void {
+    this.motion.set(guid, motion);
+  }
+
+  motionOf(guid: bigint): VehicleMotion | undefined {
+    return this.motion.get(guid);
   }
 
   private seat: VehicleSeat | undefined;
@@ -236,12 +259,14 @@ export class VehiclesStore {
   removeVehicleId(guid: bigint): void {
     this.vehicleIds.delete(guid);
     this.passengers.delete(guid);
+    this.motion.delete(guid);
   }
 
   dispose(): void {
     this.events.clear();
     this.vehicleIds.clear();
     this.passengers.clear();
+    this.motion.clear();
     this.seat = undefined;
   }
 

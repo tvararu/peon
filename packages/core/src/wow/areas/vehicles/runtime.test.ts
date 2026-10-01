@@ -163,6 +163,7 @@ describe("vehicles acts", () => {
     } as never);
     const sent: number[] = [];
     const ctx = {
+      listen: () => () => undefined,
       selfGuid: () => self,
       send: (opcode: number) => void sent.push(opcode),
       signal: new AbortController().signal,
