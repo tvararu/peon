@@ -130,6 +130,7 @@ export class ControlRuntime {
       movementInfo: () => this.sync.movementInfo(),
       serverPose: (pose) => this.sync.setFlightPose(pose),
       poseMapId: () => this.sync.mapId,
+      landedWithBlocker: (blockers) => this.sync.restoreFlightBlocker(blockers),
     });
     this.sync.setFlight(this.flight);
   }
