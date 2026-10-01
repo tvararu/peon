@@ -260,7 +260,7 @@ export class QuestStore {
     if (answered) this.answer();
     this.shown = undefined;
     this.giver = undefined;
-    if (window === "trainer" || window === "vendor") {
+    if (window === "trainer" || window === "vendor" || window === "bank") {
       this.emit("window", "packet", undefined, window);
       return;
     }
