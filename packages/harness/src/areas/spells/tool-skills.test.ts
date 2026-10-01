@@ -274,4 +274,34 @@ describe("spell do:destroy_totem", () => {
       expect(performance.now() - started).toBeGreaterThanOrEqual(3000);
     });
   });
+
+  test("a same-element replacement during the wait is not a destroy: UNCONFIRMED while the slot stays occupied", async () => {
+    await withFakeTimers(async () => {
+      const t = await spellWorld();
+      const state: SpellsState = {
+        skills: [],
+        totems: [standingTotem(0), undefined, undefined, undefined],
+      };
+      withSpells(t, state);
+      jest.spyOn(t.handle.spells.act, "destroyTotem").mockImplementation(() => {
+        const event: AreaEventOf<"spells"> = {
+          guid: 0x1n,
+          reason: "replaced",
+          slot: 0,
+          spellId: 3599,
+          spellName: "Searing Totem",
+          type: "totem_gone",
+        };
+        t.handle.triggerAreaEvent("spells", event);
+        return { ok: true };
+      });
+      const run = spellSpec.run(
+        { do: "destroy_totem", element: "fire" },
+        toolCtx(t),
+      );
+      await elapse(500);
+      const out = await fakeAwait(run, 5000);
+      expect(out.status).toBe("UNCONFIRMED");
+    });
+  });
 });
