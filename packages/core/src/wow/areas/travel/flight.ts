@@ -140,7 +140,7 @@ export async function activateFlight(
   const startPhase = store.snapshot().flight.phase;
   if (startPhase === "requested" || startPhase === "flying")
     return { status: "refused", reason: "flight_active" };
-  store.beginFlight(route.nodes);
+  store.beginFlight(route.nodes, route.price);
   let loaded: CatalogRead;
   try {
     loaded = await deps.readCatalog();

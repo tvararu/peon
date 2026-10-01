@@ -10,6 +10,7 @@ import {
 } from "#wow/areas/travel/protocol";
 import { travelRuntime } from "#wow/areas/travel/runtime";
 import { createTravelStore } from "#wow/areas/travel/store";
+import { parseMonsterMove } from "#wow/protocol/monster-move";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 export const travelArea = defineArea({
@@ -48,6 +49,10 @@ export const travelArea = defineArea({
     wire.on(GameOpcode.SMSG_ACTIVATETAXIREPLY, (r) =>
       store.receiveActivateTaxiReply(parseActivateTaxiReply(r)),
     );
+    wire.peek(GameOpcode.SMSG_MONSTER_MOVE, (r) => {
+      const move = parseMonsterMove(r);
+      if (move.kind === "move") store.receiveFlightSpline(move.duration);
+    });
   },
   runtime: travelRuntime,
 });
