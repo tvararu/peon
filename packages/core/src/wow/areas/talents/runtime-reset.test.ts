@@ -190,6 +190,28 @@ describe("resetTalents", () => {
     }
   });
 
+  test("an unrelated purchase failure during the reset does not make a no-talents reply not_enough_money (ItemHandler.cpp:768)", async () => {
+    const { rig } = rigged();
+    try {
+      const pending = rig.handle.act.resetTalents(REQUEST);
+      await flush();
+      rig.inject(
+        BUY_FAILED,
+        talentsBuyFailedBody({ itemId: 2589, result: 2, vendorGuid: TRAINER }),
+      );
+      rig.inject(WIPE, offer(10_000));
+      await flush();
+      rig.inject(
+        BUY_FAILED,
+        talentsBuyFailedBody({ itemId: 2589, result: 2, vendorGuid: TRAINER }),
+      );
+      rig.inject(WIPE, offer(0, 0n));
+      expect(await pending).toEqual({ outcome: "nothing_to_reset" });
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("a guid-0 reply after the confirm without a buy error is nothing_to_reset", async () => {
     const { rig } = rigged();
     try {

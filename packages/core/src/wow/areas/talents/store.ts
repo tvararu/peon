@@ -205,7 +205,12 @@ export class TalentsStore {
   }
 
   buyFailed(failure: BuyItemFailure): void {
-    if (this.resetting && failure.result === BUY_NOT_ENOUGH_MONEY)
+    if (
+      this.resetting &&
+      failure.result === BUY_NOT_ENOUGH_MONEY &&
+      failure.vendorGuid === 0n &&
+      failure.itemId === 0
+    )
       this.paymentFailed = true;
   }
 
