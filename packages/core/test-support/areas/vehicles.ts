@@ -6,17 +6,9 @@ import { UpdateFlag, UpdateType } from "#wow/protocol/entity-fields";
 import { PacketWriter } from "#wow/protocol/packet";
 import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
-export function vehiclesMonsterMoveTransportBody(init: {
-  guid: bigint;
-  transportGuid: bigint;
-  seat: number;
-  stop: boolean;
-  flags?: number;
-}): Uint8Array {
-  const w = new PacketWriter();
-  w.packedGuidBig(init.guid);
-  w.packedGuidBig(init.transportGuid);
-  w.uint8(init.seat & 0xff);
+type MoveInit = { stop: boolean; flags?: number };
+
+function writeMoveTail(w: PacketWriter, init: MoveInit): void {
   w.uint8(0);
   w.floatLE(1);
   w.floatLE(2);
@@ -24,7 +16,7 @@ export function vehiclesMonsterMoveTransportBody(init: {
   w.uint32LE(9);
   if (init.stop) {
     w.uint8(1);
-    return w.finish();
+    return;
   }
   w.uint8(0);
   w.uint32LE(init.flags ?? 0);
@@ -33,6 +25,25 @@ export function vehiclesMonsterMoveTransportBody(init: {
   w.floatLE(10);
   w.floatLE(0);
   w.floatLE(0);
+}
+
+export function vehiclesMonsterMoveTransportBody(
+  init: MoveInit & { guid: bigint; transportGuid: bigint; seat: number },
+): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.guid);
+  w.packedGuidBig(init.transportGuid);
+  w.uint8(init.seat & 0xff);
+  writeMoveTail(w, init);
+  return w.finish();
+}
+
+export function vehiclesMonsterMoveBody(
+  init: MoveInit & { guid: bigint },
+): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.guid);
+  writeMoveTail(w, init);
   return w.finish();
 }
 

@@ -8,6 +8,7 @@ import { vehiclesRuntime } from "#wow/areas/vehicles/runtime";
 import { VehiclesStore } from "#wow/areas/vehicles/store";
 import { inflateCompressedUpdate } from "#wow/protocol/compressed-update";
 import { UpdateFlag } from "#wow/protocol/entity-fields";
+import { parseMonsterMove } from "#wow/protocol/monster-move";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { PacketReader } from "#wow/protocol/packet";
 import { parseUpdateObject } from "#wow/protocol/update-object";
@@ -41,6 +42,10 @@ export const vehiclesArea = defineArea({
     wire.on(GameOpcode.SMSG_MONSTER_MOVE_TRANSPORT, (r) =>
       store.receiveTransport(parseMonsterMoveTransport(r)),
     );
+    wire.peek(GameOpcode.SMSG_MONSTER_MOVE, (r) => {
+      const move = parseMonsterMove(r);
+      store.receiveExit(move.guid, move);
+    });
     wire.peek(GameOpcode.SMSG_UPDATE_OBJECT, (r) => observeUpdates(store, r));
     wire.peek(GameOpcode.SMSG_COMPRESSED_UPDATE_OBJECT, (r) =>
       observeUpdates(store, inflateCompressedUpdate(r)),

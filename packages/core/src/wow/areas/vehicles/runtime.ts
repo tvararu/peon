@@ -7,7 +7,6 @@ import {
   NPC_FLAG_SPELLCLICK,
 } from "#wow/areas/vehicles/protocol";
 import type { VehiclesEvent, VehiclesStore } from "#wow/areas/vehicles/store";
-import { isUnit } from "#wow/entity-store";
 import { SplineFlag } from "#wow/protocol/monster-move";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { CoreStores } from "#wow/session-stores";
@@ -100,7 +99,9 @@ function clickSeat(
 ): Promise<VehiclesOutcome> {
   const self = ctx.selfGuid();
   const target = store.entityOf(guid);
-  if (!(isUnit(target) && target.npcFlags & NPC_FLAG_SPELLCLICK))
+  if (
+    !(target && "npcFlags" in target && target.npcFlags & NPC_FLAG_SPELLCLICK)
+  )
     return Promise.resolve({ status: "refused", reason: "not_clickable" });
   const answer = waitSeatAnswer(ctx, boarded(self));
   ctx.send(GameOpcode.CMSG_SPELLCLICK, buildSpellClick(guid));
@@ -153,14 +154,12 @@ function ejectSeat(
   const self = ctx.selfGuid();
   if (!store.snapshot().vehicleIds.has(self))
     return Promise.resolve({ status: "refused", reason: "not_a_vehicle" });
-  if (currentSeat(store, self) === undefined)
-    return Promise.resolve({ status: "refused", reason: "not_seated" });
   const answer = waitSeatAnswer(
     ctx,
     (event) =>
-      event.type === "player_vehicle" &&
+      event.type === "spline" &&
       event.guid === guid &&
-      event.vehicleId === 0,
+      (event.flags & SplineFlag.TRANSPORT_EXIT) !== 0,
   );
   ctx.send(
     GameOpcode.CMSG_CONTROLLER_EJECT_PASSENGER,

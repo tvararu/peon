@@ -3,12 +3,14 @@ import { deflateSync } from "node:zlib";
 import { areaRig } from "#test-support/area-rig";
 import {
   vehiclesCreateVehicleBlock,
+  vehiclesMonsterMoveBody,
   vehiclesMonsterMoveTransportBody,
   vehiclesPlayerVehicleDataBody,
 } from "#test-support/areas/vehicles";
 import { writePackedGuid } from "#test-support/world-handlers-fixtures";
 import type { VehiclesEvent } from "#wow/areas/vehicles/store";
 import { UpdateType } from "#wow/protocol/entity-fields";
+import { SplineFlag } from "#wow/protocol/monster-move";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketWriter } from "#wow/protocol/packet";
 
@@ -98,6 +100,83 @@ describe("vehicles area wiring", () => {
           type: "spline",
         },
       ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("the live self boarding body (probe click11) parses to seat 0 with TRANSPORT_ENTER", () => {
+    const { rig, seen } = rigWithEvents();
+    const body = Uint8Array.from(
+      Buffer.from(
+        "035111dbd13d426c50f100003333b3bf000000000000000081fff92804000000000000800001000000010000003333b3bf0000000000000000",
+        "hex",
+      ),
+    );
+    try {
+      rig.inject(GameOpcode.SMSG_MONSTER_MOVE_TRANSPORT, body);
+      expect(seen).toEqual([
+        {
+          duration: 1,
+          flags: SplineFlag.TRANSPORT_ENTER,
+          guid: 0x1151n,
+          seat: 0,
+          splineId: 0x28_f9_ff_81,
+          transportGuid: 0xf1_50_00_6c_42_00_3d_d1n,
+          type: "spline",
+        },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a plain SMSG_MONSTER_MOVE with TRANSPORT_EXIT removes the passenger and emits the exit", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_MONSTER_MOVE_TRANSPORT,
+        vehiclesMonsterMoveTransportBody({
+          flags: SplineFlag.TRANSPORT_ENTER,
+          guid: GUID,
+          seat: 1,
+          stop: false,
+          transportGuid: TRANSPORT,
+        }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_MONSTER_MOVE,
+        vehiclesMonsterMoveBody({
+          flags: SplineFlag.TRANSPORT_EXIT,
+          guid: GUID,
+          stop: false,
+        }),
+      );
+      expect(rig.handle.state().passengers.has(GUID)).toBe(false);
+      expect(seen.at(-1)).toMatchObject({
+        flags: SplineFlag.TRANSPORT_EXIT,
+        guid: GUID,
+        seat: -1,
+        transportGuid: TRANSPORT,
+        type: "spline",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a SMSG_MONSTER_MOVE for a unit that never boarded changes nothing", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_MONSTER_MOVE,
+        vehiclesMonsterMoveBody({
+          flags: SplineFlag.TRANSPORT_EXIT,
+          guid: GUID,
+          stop: false,
+        }),
+      );
+      expect(seen).toEqual([]);
     } finally {
       rig.dispose();
     }

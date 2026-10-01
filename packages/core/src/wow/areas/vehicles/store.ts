@@ -1,9 +1,10 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import type { SessionDeps } from "#wow/session-stores";
 import type {
   MonsterMoveTransport,
   PlayerVehicleData,
 } from "#wow/areas/vehicles/protocol";
+import { type MonsterMove, SplineFlag } from "#wow/protocol/monster-move";
+import type { SessionDeps } from "#wow/session-stores";
 
 export type VehicleSeat = {
   vehicle: bigint;
@@ -32,7 +33,11 @@ export type VehiclesState = {
 };
 
 export class VehiclesStore {
-  constructor(private readonly deps: SessionDeps) {}
+  private readonly deps: SessionDeps;
+
+  constructor(deps: SessionDeps) {
+    this.deps = deps;
+  }
 
   entityOf(guid: bigint) {
     return this.deps.getEntity(guid);
@@ -90,6 +95,23 @@ export class VehiclesStore {
       seat: move.seat,
       splineId: move.move.splineId,
       transportGuid: move.transportGuid,
+      type: "spline",
+    });
+  }
+
+  receiveExit(guid: bigint, move: MonsterMove): void {
+    if (move.kind !== "move" || !(move.flags & SplineFlag.TRANSPORT_EXIT))
+      return;
+    const seated = this.passengers.get(guid);
+    if (!seated) return;
+    this.passengers.delete(guid);
+    this.queue({
+      duration: move.duration,
+      flags: move.flags,
+      guid,
+      seat: -1,
+      splineId: move.splineId,
+      transportGuid: seated.transportGuid,
       type: "spline",
     });
   }
