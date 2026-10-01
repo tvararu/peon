@@ -132,6 +132,39 @@ describe("createCharacter", () => {
       server.stop();
     }
   });
+  test("retains the create request and reply through the trace sink", async () => {
+    const server = await startMockWorldServer();
+    try {
+      const rows: { dir: string; opcode: number; body?: string }[] = [];
+      const done = createCharacter(
+        {
+          ...config(server.port),
+          trace: { bodies: true, row: (row) => rows.push(row) },
+        },
+        auth(server.port),
+        spec,
+      );
+      done.catch(() => {});
+      await server.waitForCapture(
+        (p) => p.opcode === GameOpcode.CMSG_CHAR_CREATE,
+      );
+      server.inject(GameOpcode.SMSG_CHAR_CREATE, new Uint8Array([0x31]));
+      await expect(done).rejects.toThrow("failed");
+      const sent = rows.find(
+        (row) =>
+          row.dir === "out" && row.opcode === GameOpcode.CMSG_CHAR_CREATE,
+      );
+      expect(sent?.body).toBe(
+        Buffer.from(buildCharCreate(spec)).toString("hex"),
+      );
+      const reply = rows.find(
+        (row) => row.dir === "in" && row.opcode === GameOpcode.SMSG_CHAR_CREATE,
+      );
+      expect(reply?.body).toBe("31");
+    } finally {
+      server.stop();
+    }
+  });
 
   test("rejects with the reason name for any other code", async () => {
     const server = await startMockWorldServer();

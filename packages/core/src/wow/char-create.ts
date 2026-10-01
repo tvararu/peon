@@ -5,6 +5,7 @@ import {
   connectWorld,
   createWorldConn,
 } from "#wow/client-connection";
+import { closeTap, createTap } from "#wow/packet-trace";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 import { sendPacket } from "#wow/world-handlers";
@@ -67,7 +68,6 @@ type CreateSession = {
   failure: unknown;
   failed: boolean;
 };
-
 function releaseWaits(session: CreateSession): void {
   for (const opcode of [
     GameOpcode.SMSG_AUTH_CHALLENGE,
@@ -75,6 +75,7 @@ function releaseWaits(session: CreateSession): void {
     GameOpcode.SMSG_CHAR_CREATE,
   ])
     session.conn.dispatch.handle(opcode, new PacketReader(new Uint8Array(0)));
+  closeTap(session.conn.trace, session.conn.dispatch);
 }
 
 function observe(session: CreateSession, error?: unknown): void {
@@ -110,6 +111,7 @@ export function createCharacter(
   const { promise, resolve, reject } =
     Promise.withResolvers<CharCreateResult>();
   const conn = createWorldConn();
+  conn.trace = createTap(config.trace);
   conn.dispatch.onUnhandled(() => false);
   const { promise: closed, resolve: onClosed } = Promise.withResolvers<void>();
   const session: CreateSession = {
