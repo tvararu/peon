@@ -29,6 +29,7 @@
       "endpoint": "level"
     }
   ],
+  "spawn": "fairbreeze-south",
   "steers": [],
   "task": "Spend all your talent points.",
   "tier": 8
