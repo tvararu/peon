@@ -342,3 +342,66 @@ export function itemsEquipmentSetUseResultBody(result: number): Uint8Array {
   w.uint8(result);
   return w.finish();
 }
+
+export type RefundCostInit = { entry: number; count: number };
+
+export function itemsRefundInfoResponseBody(init: {
+  itemGuid: bigint;
+  money: number;
+  honor: number;
+  arena: number;
+  costs: readonly [
+    RefundCostInit,
+    RefundCostInit,
+    RefundCostInit,
+    RefundCostInit,
+    RefundCostInit,
+  ];
+  delta: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.itemGuid);
+  w.uint32LE(init.money);
+  w.uint32LE(init.honor);
+  w.uint32LE(init.arena);
+  for (const cost of init.costs) {
+    w.uint32LE(cost.entry);
+    w.uint32LE(cost.count);
+  }
+  w.uint32LE(0);
+  w.uint32LE(init.delta);
+  return w.finish();
+}
+
+export function itemsRefundResultBody(
+  init:
+    | {
+        itemGuid: bigint;
+        result: 0;
+        money: number;
+        honor: number;
+        arena: number;
+        costs: readonly [
+          RefundCostInit,
+          RefundCostInit,
+          RefundCostInit,
+          RefundCostInit,
+          RefundCostInit,
+        ];
+      }
+    | { itemGuid: bigint; result: number },
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.itemGuid);
+  w.uint32LE(init.result);
+  if (init.result !== 0) return w.finish();
+  const success = init as Extract<typeof init, { result: 0 }>;
+  w.uint32LE(success.money);
+  w.uint32LE(success.honor);
+  w.uint32LE(success.arena);
+  for (const cost of success.costs) {
+    w.uint32LE(cost.entry);
+    w.uint32LE(cost.count);
+  }
+  return w.finish();
+}
