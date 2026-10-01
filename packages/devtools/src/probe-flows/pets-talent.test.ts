@@ -55,7 +55,7 @@ function context(args: Record<string, string> = {}) {
 }
 
 describe("pets-talent flow", () => {
-  test("it learns the talent and waits for the pet_info event", () =>
+  test("it confirms only when the reply holds the requested talent", () =>
     withFakeTimers(async () => {
       const { act, ctx } = context({ talent: "2214" });
       const running = flow.run(ctx);
@@ -63,12 +63,59 @@ describe("pets-talent flow", () => {
       expect(act.learnPetTalent).toHaveBeenCalledWith(2214, 0);
       ctx.handle.triggerAreaEvent("talents", {
         freePoints: 0,
-        talents: [],
+        talents: [{ rank: 0, talentId: 2214 }],
         type: "pet_info",
       });
       expect(await fakeAwait(running, 1000)).toMatchObject({
         confirmed: true,
         talent: 2214,
+      });
+    }));
+
+  test("it reports unconfirmed when the reply lacks the talent", () =>
+    withFakeTimers(async () => {
+      const { act, ctx } = context({ talent: "2214" });
+      const running = flow.run(ctx);
+      await elapse(200);
+      expect(act.learnPetTalent).toHaveBeenCalledWith(2214, 0);
+      ctx.handle.triggerAreaEvent("talents", {
+        freePoints: 1,
+        talents: [],
+        type: "pet_info",
+      });
+      expect(await fakeAwait(running, 1000)).toMatchObject({
+        confirmed: false,
+        talent: 2214,
+      });
+    }));
+
+  test("it reports unconfirmed when the reply holds another talent", () =>
+    withFakeTimers(async () => {
+      const { ctx } = context({ talent: "2214" });
+      const running = flow.run(ctx);
+      await elapse(200);
+      ctx.handle.triggerAreaEvent("talents", {
+        freePoints: 0,
+        talents: [{ rank: 0, talentId: 2118 }],
+        type: "pet_info",
+      });
+      expect(await fakeAwait(running, 1000)).toMatchObject({
+        confirmed: false,
+      });
+    }));
+
+  test("it confirms a higher rank than requested", () =>
+    withFakeTimers(async () => {
+      const { ctx } = context({ rank: "0", talent: "2214" });
+      const running = flow.run(ctx);
+      await elapse(200);
+      ctx.handle.triggerAreaEvent("talents", {
+        freePoints: 0,
+        talents: [{ rank: 1, talentId: 2214 }],
+        type: "pet_info",
+      });
+      expect(await fakeAwait(running, 1000)).toMatchObject({
+        confirmed: true,
       });
     }));
 
