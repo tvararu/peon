@@ -168,26 +168,20 @@ export class MovementSync {
     this.ride.boardTransport(planBoard(board, from, this.deps.now()));
     this.moveFlags |= MovementFlag.ON_TRANSPORT;
     this.observedFlags |= MovementFlag.ON_TRANSPORT;
-    this.sendTransportChange();
+    const body = buildMoveMessage(this.deps.selfGuid(), this.movementInfo());
+    this.deps.send(GameOpcode.CMSG_MOVE_CHNG_TRANSPORT, body);
   }
 
   transportLeave(): void {
     this.ride.refreshPose();
     const ride = this.ride.carriage();
     if (!ride) throw new Error("not_boarded");
-    const ground = planLeave(ride, this.mapId, this.deps.ground);
     this.ride.leaveTransport();
     this.moveFlags &= ~MovementFlag.ON_TRANSPORT;
     this.observedFlags &= ~MovementFlag.ON_TRANSPORT;
-    this.adoptServerPose(ground);
-    this.sendTransportChange();
-  }
-
-  private sendTransportChange(): void {
-    this.deps.send(
-      GameOpcode.CMSG_MOVE_CHNG_TRANSPORT,
-      buildMoveMessage(this.deps.selfGuid(), this.movementInfo()),
-    );
+    this.adoptServerPose(planLeave(ride, this.mapId, this.deps.ground));
+    const body = buildMoveMessage(this.deps.selfGuid(), this.movementInfo());
+    this.deps.send(GameOpcode.CMSG_MOVE_CHNG_TRANSPORT, body);
   }
 
   airBlock(): string | undefined {
@@ -500,7 +494,16 @@ export class MovementSync {
   }
 
   private applyForcedPose(dest: MovementInfo, reason: string): void {
-    this.ride.clear();
+    const ride = this.ride.carriage();
+    const offset = dest.transport;
+    if (
+      ride !== undefined &&
+      offset !== undefined &&
+      offset.guid === ride.guid &&
+      (dest.flags & MovementFlag.ON_TRANSPORT) !== 0
+    )
+      ride.offset = { x: offset.x, y: offset.y, z: offset.z };
+    else this.ride.clear();
     if (
       dest.transport !== undefined &&
       (dest.flags & MovementFlag.ON_TRANSPORT) !== 0
