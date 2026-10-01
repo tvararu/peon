@@ -1,8 +1,10 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import type {
-  MailEntry,
-  MailList,
-  NextMailTime,
+import {
+  MAIL_COPIED_FLAG,
+  type MailEntry,
+  type MailList,
+  type NextMailTime,
+  type SendMailResult,
 } from "#wow/areas/mail/protocol";
 import type { Entity } from "#wow/entity-store";
 import { distance } from "#wow/geometry";
@@ -45,6 +47,14 @@ export type MailSenders = {
   readonly delay: number;
 };
 
+export type MailPending =
+  | { action: "send"; id: 0 }
+  | { action: "money_taken"; id: number }
+  | { action: "item_taken"; id: number }
+  | { action: "returned_to_sender"; id: number }
+  | { action: "deleted"; id: number }
+  | { action: "made_permanent"; id: number };
+
 export type MailState = {
   readonly mailbox: bigint | undefined;
   readonly inbox: readonly MailEntry[];
@@ -52,13 +62,16 @@ export type MailState = {
   readonly unread: boolean;
   readonly senders: readonly MailSenders[];
   readonly newMail: boolean;
+  readonly pending: MailPending | undefined;
+  readonly lastResult: SendMailResult | undefined;
 };
 
 export type MailEvent =
   | { type: "listed"; inbox: readonly MailEntry[]; hidden: number }
   | { type: "next_time"; unread: boolean; senders: readonly MailSenders[] }
   | { type: "new_mail" }
-  | { type: "mailbox_shown"; mailbox: bigint };
+  | { type: "mailbox_shown"; mailbox: bigint }
+  | { type: "result"; result: SendMailResult };
 
 export class MailStore {
   private readonly events = new Emitter<[MailEvent]>();
@@ -69,10 +82,14 @@ export class MailStore {
   private unread = false;
   private senders: MailSenders[] = [];
   private newMail = false;
+  private pending: MailPending | undefined;
+  private lastResult: SendMailResult | undefined;
 
   constructor(deps: SessionDeps) {
     this.deps = deps;
   }
+
+  entityOf: SessionDeps["getEntity"] = (guid) => this.deps.getEntity(guid);
 
   snapshot(): MailState {
     return {
@@ -82,6 +99,8 @@ export class MailStore {
       newMail: this.newMail,
       senders: [...this.senders],
       unread: this.unread,
+      pending: this.pending,
+      lastResult: this.lastResult,
     };
   }
 
@@ -139,6 +158,62 @@ export class MailStore {
     this.events.emit({ mailbox, type: "mailbox_shown" });
   }
 
+  beginAction(pending: MailPending): void {
+    if (this.pending) throw new Error("mail_busy");
+    this.pending = pending;
+  }
+
+  releaseAction(): void {
+    this.pending = undefined;
+  }
+
+  receiveSendMailResult(result: SendMailResult): void {
+    this.lastResult = result;
+    this.pending = undefined;
+    if (result.status !== "ok") {
+      this.events.emit({ result, type: "result" });
+      return;
+    }
+    if (result.action === "send") {
+      this.events.emit({ result, type: "result" });
+      return;
+    }
+    const index = this.inbox.findIndex((mail) => mail.id === result.id);
+    if (index < 0) {
+      this.events.emit({ result, type: "result" });
+      return;
+    }
+    const kept = [...this.inbox];
+    const mail = kept[index];
+    if (!mail) {
+      this.events.emit({ result, type: "result" });
+      return;
+    }
+    if (result.action === "money_taken") kept[index] = { ...mail, money: 0 };
+    else if (result.action === "item_taken" && "itemLow" in result)
+      kept[index] = {
+        ...mail,
+        items: mail.items.filter((item) => item.guidLow !== result.itemLow),
+      };
+    else if (result.action === "made_permanent")
+      kept[index] = {
+        ...mail,
+        flags: {
+          ...mail.flags,
+          copied: true,
+          raw: mail.flags.raw | MAIL_COPIED_FLAG,
+        },
+      };
+    else kept.splice(index, 1);
+    this.inbox = kept;
+    this.events.emit({
+      hidden: this.hidden,
+      inbox: [...kept],
+      type: "listed",
+    });
+    this.events.emit({ result, type: "result" });
+  }
+
   dispose(): void {
     this.inbox = [];
     this.hidden = 0;
@@ -146,6 +221,8 @@ export class MailStore {
     this.senders = [];
     this.newMail = false;
     this.mailbox = undefined;
+    this.pending = undefined;
+    this.lastResult = undefined;
     this.events.clear();
   }
 }
