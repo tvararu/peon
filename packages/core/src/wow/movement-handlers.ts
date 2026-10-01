@@ -69,8 +69,17 @@ export function registerMovementHandlers(
   on(GameOpcode.MSG_MOVE_TELEPORT_ACK, (r) =>
     self.receive({ type: "teleport_ack", ack: parseTeleportAck(r) }),
   );
-  on(GameOpcode.SMSG_TRANSFER_PENDING, () => {
-    self.receive({ type: "transfer_pending" });
+  on(GameOpcode.SMSG_TRANSFER_PENDING, (r) => {
+    const mapId = r.remaining >= 4 ? r.uint32LE() : 0;
+    const entry = r.remaining >= 4 ? r.uint32LE() : undefined;
+    const fromMap = r.remaining >= 4 ? r.uint32LE() : undefined;
+    if (entry !== undefined && fromMap !== undefined)
+      self.receive({
+        type: "transfer_pending",
+        mapId,
+        transport: { entry, fromMap },
+      });
+    else self.receive({ type: "transfer_pending", mapId });
     conn.remoteMotion.beginTransfer();
   });
   on(GameOpcode.SMSG_NEW_WORLD, (r) => handleNewWorld(conn, stores, r));

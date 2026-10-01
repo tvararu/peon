@@ -405,7 +405,7 @@ describe("lfg teleport", () => {
       try {
         const pending = rig.handle.act.teleport(true);
         await elapse(9990);
-        rig.stores.self.receive({ type: "transfer_pending" });
+        rig.stores.self.receive({ type: "transfer_pending", mapId: 0 });
         await elapse(10);
         expect(await pending).toEqual({ status: "no_answer" });
         const again = rig.handle.act.teleport(true);
