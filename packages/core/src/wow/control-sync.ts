@@ -6,6 +6,7 @@ import {
   type MovementInput,
 } from "#wow/control-input";
 import { unsupportedReason } from "#wow/control-motion";
+import { VERTICAL_BITS } from "#wow/control-swim";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag, UnitFlag } from "#wow/protocol/entity-fields";
 import type { MonsterMove } from "#wow/protocol/monster-move";
@@ -80,6 +81,7 @@ export class MovementSync {
   turnRate = DEFAULT_TURN_RATE;
   fall: FallData | undefined;
   fallTime = 0;
+  pitch: number | undefined;
   target: bigint | undefined;
   private readonly deps: ControlDeps;
   private readonly emit: Emit;
@@ -116,12 +118,26 @@ export class MovementSync {
   }
 
   blockReason(): string | undefined {
+    return (
+      this.airBlock() ??
+      unsupportedReason(
+        this.observedFlags |
+          (this.moveFlags & (MovementFlag.SWIMMING | MovementFlag.FLYING)),
+      )
+    );
+  }
+
+  airBlock(): string | undefined {
     if (this.teleporting) return "teleporting";
     if (this.flight?.inFlight() ?? false) return "in_flight";
     if (this.rooted) return "rooted";
     if (!this.controlAllowed) return "no_control";
     if (this.unitBlocked) return "disable_move";
-    return unsupportedReason(this.observedFlags);
+    return undefined;
+  }
+
+  canFly(): boolean {
+    return ((this.observedFlags | this.moveFlags) & MovementFlag.CAN_FLY) !== 0;
   }
 
   setFlight(flight: FlightPort): void {
@@ -151,6 +167,7 @@ export class MovementSync {
       z: pose?.z ?? 0,
       orientation: pose?.orientation ?? 0,
       fallTime: this.fallTime,
+      pitch: this.pitch,
       fall: this.fall,
       transport: this.transport,
     };
@@ -263,6 +280,7 @@ export class MovementSync {
     this.observedFlags = 0;
     this.extraFlags = 0;
     this.fall = undefined;
+    this.pitch = undefined;
     this.fallTime = 0;
     this.transport = undefined;
     this.rooted = false;
@@ -329,7 +347,11 @@ export class MovementSync {
       this.moveFlags |= MovementFlag.CAN_FLY;
     } else {
       this.observedFlags &= ~(MovementFlag.CAN_FLY | MovementFlag.FLYING);
-      this.moveFlags &= ~(MovementFlag.CAN_FLY | MovementFlag.FLYING);
+      this.moveFlags &= ~(
+        MovementFlag.CAN_FLY |
+        MovementFlag.FLYING |
+        VERTICAL_BITS
+      );
     }
     this.deps.send(
       GameOpcode.CMSG_MOVE_SET_CAN_FLY_ACK,
@@ -396,6 +418,7 @@ export class MovementSync {
     this.extraFlags = dest.extraFlags;
     this.moveFlags = dest.flags & ~INPUT_BITS;
     this.fall = dest.fall;
+    this.pitch = dest.pitch;
     this.transport = dest.transport;
     this.rooted = (dest.flags & MovementFlag.ROOT) !== 0;
     this.setServerPose({

@@ -84,6 +84,21 @@ describe("MovementInfo round-trip", () => {
     expect(out.pitch).toBeCloseTo(-0.25, 4);
   });
 
+  test("flying carries pitch", () => {
+    const out = reserialize({
+      ...base,
+      flags: MovementFlag.FLYING | MovementFlag.CAN_FLY,
+      pitch: 0.75,
+    });
+    expect(out.pitch).toBeCloseTo(0.75, 4);
+  });
+
+  test("a pitch without SWIMMING, FLYING or the extra flag is not written", () => {
+    const w = new PacketWriter();
+    writeMovementInfo(w, { ...base, flags: MovementFlag.PITCH_UP, pitch: 0.5 });
+    expect(w.finish().byteLength).toBe(30);
+  });
+
   test("always-allow-pitching extra flag carries pitch", () => {
     const out = reserialize({
       ...base,
