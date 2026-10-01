@@ -102,12 +102,12 @@ export class SelfstateStore {
   }
 
   receiveMoveFlag(change: FlagChange, { guid, counter }: MoveCounter): void {
-    if (guid !== this.deps.selfGuid()) return;
     this.core.self.receive({
       type: "move_flag",
       flag: change.flag,
       enable: change.enable,
       counter,
+      guid,
     });
   }
 

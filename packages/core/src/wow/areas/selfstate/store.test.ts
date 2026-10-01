@@ -43,8 +43,20 @@ describe("selfstate move flags", () => {
       selfstateMoveLandWalkBody({ counter: 6, guid: SELF }),
     );
     expect(events).toEqual([
-      { counter: 5, enable: true, flag: "water_walk", type: "move_flag" },
-      { counter: 6, enable: false, flag: "water_walk", type: "move_flag" },
+      {
+        counter: 5,
+        enable: true,
+        flag: "water_walk",
+        type: "move_flag",
+        guid: SELF,
+      },
+      {
+        counter: 6,
+        enable: false,
+        flag: "water_walk",
+        type: "move_flag",
+        guid: SELF,
+      },
     ]);
     rig.dispose();
   });
@@ -60,13 +72,25 @@ describe("selfstate move flags", () => {
       selfstateMoveUnsetHoverBody({ counter: 12, guid: SELF }),
     );
     expect(events).toEqual([
-      { counter: 11, enable: true, flag: "hover", type: "move_flag" },
-      { counter: 12, enable: false, flag: "hover", type: "move_flag" },
+      {
+        counter: 11,
+        enable: true,
+        flag: "hover",
+        type: "move_flag",
+        guid: SELF,
+      },
+      {
+        counter: 12,
+        enable: false,
+        flag: "hover",
+        type: "move_flag",
+        guid: SELF,
+      },
     ]);
     rig.dispose();
   });
 
-  test("a flag packet for another guid gives no event", () => {
+  test("a flag packet for another guid forwards with its guid", () => {
     const { rig, events } = rigWithEvents();
     rig.inject(
       GameOpcode.SMSG_MOVE_WATER_WALK,
@@ -76,7 +100,22 @@ describe("selfstate move flags", () => {
       GameOpcode.SMSG_MOVE_UNSET_HOVER,
       selfstateMoveUnsetHoverBody({ counter: 6, guid: OTHER }),
     );
-    expect(events).toEqual([]);
+    expect(events).toEqual([
+      {
+        counter: 5,
+        enable: true,
+        flag: "water_walk",
+        type: "move_flag",
+        guid: OTHER,
+      },
+      {
+        counter: 6,
+        enable: false,
+        flag: "hover",
+        type: "move_flag",
+        guid: OTHER,
+      },
+    ]);
     rig.dispose();
   });
 });
@@ -93,8 +132,20 @@ describe("selfstate feather fall, gravity and the login compound", () => {
       selfstateMoveNormalFallBody({ counter: 4, guid: SELF }),
     );
     expect(events).toEqual([
-      { counter: 3, enable: true, flag: "feather_fall", type: "move_flag" },
-      { counter: 4, enable: false, flag: "feather_fall", type: "move_flag" },
+      {
+        counter: 3,
+        enable: true,
+        flag: "feather_fall",
+        type: "move_flag",
+        guid: SELF,
+      },
+      {
+        counter: 4,
+        enable: false,
+        flag: "feather_fall",
+        type: "move_flag",
+        guid: SELF,
+      },
     ]);
     rig.dispose();
   });
@@ -114,8 +165,27 @@ describe("selfstate feather fall, gravity and the login compound", () => {
       selfstateMoveGravityDisableBody({ counter: 10, guid: OTHER }),
     );
     expect(events).toEqual([
-      { counter: 8, enable: true, flag: "gravity_off", type: "move_flag" },
-      { counter: 9, enable: false, flag: "gravity_off", type: "move_flag" },
+      {
+        counter: 8,
+        enable: true,
+        flag: "gravity_off",
+        type: "move_flag",
+        guid: SELF,
+      },
+      {
+        counter: 9,
+        enable: false,
+        flag: "gravity_off",
+        type: "move_flag",
+        guid: SELF,
+      },
+      {
+        counter: 10,
+        enable: true,
+        flag: "gravity_off",
+        type: "move_flag",
+        guid: OTHER,
+      },
     ]);
     rig.dispose();
   });
@@ -133,14 +203,32 @@ describe("selfstate feather fall, gravity and the login compound", () => {
     );
     expect(events).toEqual([
       { counter: 1, guid: SELF, type: "force_root" },
-      { counter: 2, enable: true, flag: "feather_fall", type: "move_flag" },
-      { counter: 3, enable: true, flag: "water_walk", type: "move_flag" },
-      { counter: 4, enable: true, flag: "hover", type: "move_flag" },
+      {
+        counter: 2,
+        enable: true,
+        flag: "feather_fall",
+        type: "move_flag",
+        guid: SELF,
+      },
+      {
+        counter: 3,
+        enable: true,
+        flag: "water_walk",
+        type: "move_flag",
+        guid: SELF,
+      },
+      {
+        counter: 4,
+        enable: true,
+        flag: "hover",
+        type: "move_flag",
+        guid: SELF,
+      },
     ]);
     rig.dispose();
   });
 
-  test("SMSG_MULTIPLE_MOVES skips an entry for another guid and an unknown inner opcode", () => {
+  test("SMSG_MULTIPLE_MOVES forwards a non-self flag entry and skips an unknown inner opcode", () => {
     const { rig, events } = rigWithEvents();
     rig.inject(
       GameOpcode.SMSG_MULTIPLE_MOVES,
@@ -153,10 +241,24 @@ describe("selfstate feather fall, gravity and the login compound", () => {
           opcode: GameOpcode.SMSG_MOVE_SET_COLLISION_HGT,
         },
         { counter: 3, guid: SELF, opcode: GameOpcode.SMSG_MOVE_WATER_WALK },
+        { counter: 4, guid: OTHER, opcode: GameOpcode.SMSG_MOVE_SET_HOVER },
       ]),
     );
     expect(events).toEqual([
-      { counter: 3, enable: true, flag: "water_walk", type: "move_flag" },
+      {
+        counter: 3,
+        enable: true,
+        flag: "water_walk",
+        type: "move_flag",
+        guid: SELF,
+      },
+      {
+        counter: 4,
+        enable: true,
+        flag: "hover",
+        type: "move_flag",
+        guid: OTHER,
+      },
     ]);
     rig.dispose();
   });
