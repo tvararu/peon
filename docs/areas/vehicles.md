@@ -21,8 +21,7 @@ refusals send nothing: `not_clickable` (the unit lacks
 request or exit without a seat) and `not_a_vehicle` (`ejectPassenger`
 while the character's own guid has no vehicle id: the handler logs an
 error line for a non-vehicle sender, `Handlers/VehicleHandler.cpp:167-173`).
-A seat is the store's `seat`, or the character's own entry in
-`passengers` while vehicles-3 has not filled `seat`.
+A seat is the store's `seat`.
 
 Resolution signals: `spellClick` and `enterPlayerVehicle` resolve on the
 character's own `SMSG_MONSTER_MOVE_TRANSPORT` carrying
@@ -35,8 +34,48 @@ turn such an exit into a `spline` event (seat `-1`) and drop the
 passenger; other moves change nothing. The seat changes resolve on the
 character's own spline with another seat.
 
-In the harness, `player_vehicle` and `ride_aura_cancel` each write one
-`log` row; `spline` writes none (the spline flood guard).
+## Seat in control
+
+The character's own `SMSG_MONSTER_MOVE_TRANSPORT` without
+`SPLINEFLAG_TRANSPORT_EXIT` fills `seat` (`vehicle`, `seat`, `entry` from
+the vehicle's entity when known, `controlling: false`) and emits
+`entered { vehicle, seat, entry, offset, splineId, duration }`; the offset
+is the last point of the boarding spline. A second spline on the same
+vehicle with another seat emits `seat_changed`; the plain
+`SMSG_MONSTER_MOVE` with `SPLINEFLAG_TRANSPORT_EXIT` clears `seat` and emits
+`exited`. The runtime forwards `entered` to control as `vehicle_seat` (with
+the vehicle's entity pose when known) and `exited` as `vehicle_left`.
+
+Control keeps one `RideState` (`control-ride.ts`). While seated every
+outgoing movement info and ack carries the on-transport flag, the vehicle
+guid, the seat and the seat offset; free movement stays refused with the
+`transport` reason. The server drops every mover packet during the
+boarding spline except the root and unroot acks
+(`Handlers/MovementHandler.cpp:544-559`), so control sends only acks until
+the spline's duration has passed. The pose is the vehicle's position plus
+the seat offset turned by its orientation
+(`Entities/Vehicle/VehicleDefines.h:144`). A teleport ends the ride and its
+timer, as the server's teleport calls `ExitVehicle`
+(`Entities/Player/Player.cpp:1461-1462`). The server sets the seat when the
+passenger enters (`Entities/Unit/Unit.cpp:15203-15259`).
+
+Once, after the duration, control sends `CMSG_MOVE_SPLINE_DONE`: the packed
+guid, the movement info and the spline id, the read order of
+`Handlers/TaxiHandler.cpp:204-214`.
+
+A self create block whose movement info has `ON_TRANSPORT` on a unit or
+vehicle guid (high `0xF130` or `0xF150`) seats the character the same way,
+with no boarding spline: `entered` carries `splineId: undefined`, and
+control sends no spline-done packet for it. The server writes that
+transport block for any living unit in a create block
+(`Entities/Unit/Unit.cpp:15462-15486`). Not seen live: AzerothCore removes a
+player from a vehicle at logout, so no login reached it; the `areaRig` test
+uses the writer's layout.
+
+In the harness, `entered` writes a `wake` row, `exited`, `seat_changed`
+and `player_vehicle` and `ride_aura_cancel` each write a `log` row, and
+`attach` writes one `log` row for a character already seated; `spline`
+writes none (the spline flood guard).
 
 ## Wire notes
 
@@ -105,6 +144,8 @@ No verb (N23).
 | `CMSG_CONTROLLER_EJECT_PASSENGER` | `live` | `tmp/probe/ride9`: `out CMSG_CONTROLLER_EJECT_PASSENGER` body `5311000000000000` (B's guid), then a plain `in SMSG_MONSTER_MOVE` for B with flags `0x01000000` (`TRANSPORT_EXIT`) and `SMSG_AURA_UPDATE` slot removals; the flow returned `eject: ok`. B boarded again right after because its enter loop kept running | `Handlers/VehicleHandler.cpp:165-227` |
 | `CMSG_REQUEST_VEHICLE_NEXT_SEAT`, `CMSG_REQUEST_VEHICLE_PREV_SEAT`, `CMSG_REQUEST_VEHICLE_SWITCH_SEAT` | `builder` | sent live, effect not seen. B, seated on the Grand Ice Mammoth, ran `call nextSeat`, `call prevSeat` and `call switchSeat [2]` in two runs (`tmp/probe/ride11`, `tmp/probe/ride12`); B's trace `tmp/probe/ride12/partner-packets.jsonl` holds `out CMSG_REQUEST_VEHICLE_NEXT_SEAT` (size 0), `out CMSG_REQUEST_VEHICLE_PREV_SEAT` (size 0) and `out CMSG_REQUEST_VEHICLE_SWITCH_SEAT` (size 4: packed guid `03 55 11` and the seat byte) with no disconnect and no seat spline in return. Builder bytes: `protocol.test.ts` | `Handlers/VehicleHandler.cpp:61-88,122-137` |
 
+| `CMSG_MOVE_SPLINE_DONE` (boarding) | `live` | flow `vehicles-click --arg entry=27714` on a `max80` at (3664.0, -1208.5, 102.5) on map 571, run `tmp/probe/seat-v3a`: after `out CMSG_SPELLCLICK` the trace holds `in SMSG_CLIENT_CONTROL_UPDATE`, `out CMSG_FORCE_MOVE_ROOT_ACK` twice, `in SMSG_MONSTER_MOVE_TRANSPORT`, `out CMSG_MOVE_SPLINE_DONE`, then `in SMSG_FORCE_MOVE_UNROOT` with `out CMSG_FORCE_MOVE_UNROOT_ACK`; exit 0, flow `board: ok`, `exit: ok`, events `ride_aura_cancel, spline, entered, spline, exited` | `Handlers/TaxiHandler.cpp:204-214` |
+
 ## Not seen live
 
 `CMSG_REQUEST_VEHICLE_NEXT_SEAT`, `CMSG_REQUEST_VEHICLE_PREV_SEAT` and
@@ -119,3 +160,4 @@ vehicles-3 and vehicles-4.
 
 Accounts: FAC6ABD9C85B3 and FAC6ABD9EA262 (click tries), FAC6ABD9FE660
 and FAC6ABDA1BB23 (click, ride), FAC6ABDA09BFE (partner); all deleted.
+FAC6ABE1031F0 (seat in control, `tmp/probe/seat-v3a`); deleted.
