@@ -1,8 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
-import {
-  fakeAwait,
-  withFakeTimers,
-} from "@peon/core/test-support/fake-time";
+import { fakeAwait, withFakeTimers } from "@peon/core/test-support/fake-time";
 import {
   DISMOUNTED_FIRST,
   dismountFirst,
@@ -49,8 +46,8 @@ describe("dismountFirst", () => {
     const t = await createTestRuntime();
     mountState(t.handle);
     t.handle.selfstate.act.dismount = async () => ({
-      status: "refused",
       reason: "in_flight",
+      status: "refused",
     });
     await expect(dismountFirst(toolCtx<never>(t))).rejects.toMatchObject({
       reason: "in_flight",
