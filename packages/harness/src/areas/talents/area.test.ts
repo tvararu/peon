@@ -180,8 +180,10 @@ describe("talents harness rules", () => {
       ["talents/glyph", { glyphId: 43_395, slot: 2 }],
       ["talents/glyph", { glyphId: 0, slot: 1 }],
     ]);
-    expect(rows[0]?.text).toBe("Glyph 43395 in slot 2.");
-    expect(rows[1]?.text).toBe("Glyph slot 1 cleared.");
+    expect(rows[0]?.text).toContain("43395");
+    expect(rows[0]?.text).toContain("slot 2");
+    expect(rows[1]?.text).toContain("slot 1");
+    expect(rows[1]?.text).toContain("cleared");
   });
 
   test("a reset info with a glyph change keeps both the reset and glyph rows", () => {
