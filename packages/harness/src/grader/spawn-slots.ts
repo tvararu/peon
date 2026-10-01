@@ -258,6 +258,18 @@ const EVERSONG_PETS: Spawn = {
   zone: 3430,
 };
 
+const UNDERCITY_WARRIOR: Spawn = {
+  map: 0,
+  o: 0,
+  points: [
+    [1775.77, 404.6, -57.11],
+    [1771.77, 404.6, -57.11],
+    [1779.77, 404.6, -57.11],
+    [1775.77, 400.6, -57.11],
+  ],
+  zone: 1497,
+};
+
 const NAMED: Readonly<Record<string, Spawn>> = {
   eversong: EVERSONG,
   "eversong-pets": EVERSONG_PETS,
@@ -268,6 +280,7 @@ const NAMED: Readonly<Record<string, Spawn>> = {
   "fairbreeze-east": FAIRBREEZE_EAST,
   "fairbreeze-south": FAIRBREEZE_SOUTH,
   ghostlands: GHOSTLANDS,
+  "undercity-warrior": UNDERCITY_WARRIOR,
 };
 
 export function spawnOf(scenario: Scenario): Spawn | undefined {

@@ -1,0 +1,51 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 18,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "evidence": {
+        "delta": ["money"],
+        "truth": ["money"]
+      },
+      "expect": "T money delta equals minus the cost in the GL talents/wipe_offer row (10000 on a first reset, or 0 when the realm has NoResetTalentsCost on)",
+      "id": "money",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["talents/wipe_offer", "talents/reset"]
+      },
+      "expect": "GL has a talents/wipe_offer row, then a talents/reset row with freePoints 3: the agent reset the spent point and got all three points back from level 12",
+      "id": "reset",
+      "source": "game_log"
+    }
+  ],
+  "id": "t8-talents-reset",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "eversong10-warrior",
+  "setup": [
+    {
+      "body": {
+        "level": 12
+      },
+      "endpoint": "level"
+    },
+    {
+      "body": {
+        "copper": 20000
+      },
+      "endpoint": "money"
+    }
+  ],
+  "spawn": "undercity-warrior",
+  "steers": [],
+  "task": "Have your class trainer reset your talents.",
+  "tier": 8
+}
