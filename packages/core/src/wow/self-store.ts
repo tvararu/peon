@@ -1,5 +1,6 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type { SelfObservation } from "#wow/control-sync";
+import type { TransportBoard } from "#wow/control-transport";
 import type { Position } from "#wow/entity-store";
 import type { MonsterMove } from "#wow/protocol/monster-move";
 import type {
@@ -57,6 +58,8 @@ export type SelfEvent =
       vehiclePose: Position | undefined;
     }
   | { type: "vehicle_left" }
+  | ({ type: "transport_board" } & TransportBoard)
+  | { type: "transport_leave" }
   | { type: "observed"; observation: SelfObservation };
 
 export class SelfStore {

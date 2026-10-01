@@ -41,7 +41,9 @@ type MovementEvent = Extract<
       | "observed"
       | "spline"
       | "vehicle_seat"
-      | "vehicle_left";
+      | "vehicle_left"
+      | "transport_board"
+      | "transport_leave";
   }
 >;
 
@@ -82,6 +84,12 @@ function feedMovement(control: ControlRuntime, event: MovementEvent): void {
       return;
     case "vehicle_left":
       control.vehicleLeft();
+      return;
+    case "transport_board":
+      control.transportBoard(event);
+      return;
+    case "transport_leave":
+      control.transportLeave();
       return;
     default: {
       const unhandled: never = event;

@@ -14,6 +14,7 @@ import {
   observeRemoteMovement,
   registerRemoteMotionHandlers,
 } from "#wow/remote-motion-handlers";
+import type { SelfEvent } from "#wow/self-store";
 import type { SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
 import { selfGuid } from "#wow/world-handlers";
@@ -53,6 +54,19 @@ function handleNewWorld(
   stores.quests.observeQuestLog();
 }
 
+function parseTransferPending(
+  r: PacketReader,
+): Extract<SelfEvent, { type: "transfer_pending" }> {
+  const mapId = r.remaining >= 4 ? r.uint32LE() : 0;
+  if (r.remaining < 8) return { mapId, type: "transfer_pending" };
+  const entry = r.uint32LE();
+  return {
+    mapId,
+    transport: { entry, fromMap: r.uint32LE() },
+    type: "transfer_pending",
+  };
+}
+
 export function registerMovementHandlers(
   conn: WorldConn,
   stores: MovementStores,
@@ -70,16 +84,7 @@ export function registerMovementHandlers(
     self.receive({ type: "teleport_ack", ack: parseTeleportAck(r) }),
   );
   on(GameOpcode.SMSG_TRANSFER_PENDING, (r) => {
-    const mapId = r.remaining >= 4 ? r.uint32LE() : 0;
-    const entry = r.remaining >= 4 ? r.uint32LE() : undefined;
-    const fromMap = r.remaining >= 4 ? r.uint32LE() : undefined;
-    if (entry !== undefined && fromMap !== undefined)
-      self.receive({
-        type: "transfer_pending",
-        mapId,
-        transport: { entry, fromMap },
-      });
-    else self.receive({ type: "transfer_pending", mapId });
+    self.receive(parseTransferPending(r));
     conn.remoteMotion.beginTransfer();
   });
   on(GameOpcode.SMSG_NEW_WORLD, (r) => handleNewWorld(conn, stores, r));

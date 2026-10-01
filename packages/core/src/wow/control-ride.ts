@@ -1,5 +1,6 @@
 import type { ControlDeps } from "#wow/control";
 import type { Emit } from "#wow/control-sync";
+import type { TransportRide } from "#wow/control-transport";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag } from "#wow/protocol/entity-fields";
 import { buildMoveMessage, type MovementInfo } from "#wow/protocol/movement";
@@ -50,6 +51,7 @@ export class RideState {
   private readonly emit: Emit;
   private seat: RideSeat | undefined;
   private splineTimer: TimerId | undefined;
+  private transportRide: TransportRide | undefined;
 
   constructor(parts: RideParts) {
     this.deps = parts.deps;
@@ -61,6 +63,36 @@ export class RideState {
 
   get riding(): boolean {
     return this.seat !== undefined;
+  }
+
+  get onTransport(): boolean {
+    return this.transportRide !== undefined;
+  }
+
+  get transportGuid(): bigint | undefined {
+    return this.transportRide?.guid;
+  }
+
+  boardTransport(ride: TransportRide): void {
+    this.transportRide = ride;
+    this.cancelForced("transport");
+    this.serverPose(seatWorldPose(ride.pose, ride.offset));
+    this.emit("control_changed", "transport");
+  }
+
+  leaveTransport(): void {
+    this.transportRide = undefined;
+    this.emit("control_changed", undefined);
+  }
+
+  carriage(): TransportRide | undefined {
+    return this.transportRide;
+  }
+
+  refreshPose(): void {
+    const ride = this.transportRide;
+    const at = ride?.poseAt(this.deps.now());
+    if (ride && at) ride.pose = { ...at };
   }
 
   board(seat: RideSeat): void {
@@ -92,9 +124,32 @@ export class RideState {
     clearTimeout(this.splineTimer);
     this.splineTimer = undefined;
     this.seat = undefined;
+    this.transportRide = undefined;
   }
 
   apply(info: MovementInfo): MovementInfo {
+    this.refreshPose();
+    const ride = this.transportRide;
+    if (ride) {
+      const carried = seatWorldPose(ride.pose, ride.offset);
+      return {
+        ...info,
+        flags: info.flags | MovementFlag.ON_TRANSPORT,
+        orientation: carried.orientation,
+        transport: {
+          guid: ride.guid,
+          orientation: 0,
+          seat: 0,
+          time: info.time,
+          x: ride.offset.x,
+          y: ride.offset.y,
+          z: ride.offset.z,
+        },
+        x: carried.x,
+        y: carried.y,
+        z: carried.z,
+      };
+    }
     const seat = this.seat;
     if (!seat) return info;
     return {
@@ -116,6 +171,7 @@ export class RideState {
     clearTimeout(this.splineTimer);
     this.splineTimer = undefined;
     this.seat = undefined;
+    this.transportRide = undefined;
   }
 
   private sendSplineDone(): void {

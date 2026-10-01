@@ -13,6 +13,7 @@ import { type MovementGuide, Mover } from "#wow/control-mover";
 import type { RideSeat } from "#wow/control-ride";
 import { AirMoves, type AscendKind, type PitchKind } from "#wow/control-swim";
 import { MovementSync, type SelfObservation } from "#wow/control-sync";
+import type { TransportBoard } from "#wow/control-transport";
 import { DirectedWalk } from "#wow/control-walk";
 import type { Position } from "#wow/entity-store";
 import { bearing, distance2d } from "#wow/geometry";
@@ -196,6 +197,14 @@ export class ControlRuntime {
 
   vehicleLeft(): void {
     this.sync.vehicleLeft();
+  }
+
+  transportBoard(board: TransportBoard): void {
+    this.sync.transportBoard(board);
+  }
+
+  transportLeave(): void {
+    this.sync.transportLeave();
   }
 
   observeTarget(target: bigint): void {
