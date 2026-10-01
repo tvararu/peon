@@ -2,16 +2,21 @@ import type { WorldHandle } from "@peon/core";
 import type { FlowContext, Json, ProbeFlow } from "#tools/probe-flows";
 
 const DEFAULT_HOLD_MS = 2000;
-const MAX_HOLD_MS = 10_000;
+const MAX_MS = 10_000;
 const LEVEL_PITCH = 0.25;
 
-function holdOf(args: Readonly<Record<string, string>>): number {
-  const hold = Number(args["hold"] ?? DEFAULT_HOLD_MS);
-  if (!Number.isInteger(hold) || hold < 1 || hold > MAX_HOLD_MS)
+function msOf(
+  args: Readonly<Record<string, string>>,
+  name: string,
+  fallback: number,
+  min: number,
+): number {
+  const ms = Number(args[name] ?? fallback);
+  if (!Number.isInteger(ms) || ms < min || ms > MAX_MS)
     throw new Error(
-      `selfstate-swim needs hold=<1-${MAX_HOLD_MS} ms>, not "${args["hold"]}".`,
+      `selfstate-swim needs ${name}=<${min}-${MAX_MS} ms>, not "${args[name]}".`,
     );
-  return hold;
+  return ms;
 }
 
 function spellOf(args: Readonly<Record<string, string>>): number {
@@ -99,16 +104,22 @@ async function fly(ctx: FlowContext, holdMs: number): Promise<Json> {
 }
 
 async function run(ctx: FlowContext): Promise<Json> {
-  const holdMs = holdOf(ctx.args);
+  const holdMs = msOf(ctx.args, "hold", DEFAULT_HOLD_MS, 1);
+  const leadMs = msOf(ctx.args, "lead", 0, 0);
   const mode = ctx.args["mode"] ?? "swim";
-  if (mode === "swim") return { mode, steps: await swim(ctx.handle, holdMs) };
-  if (mode === "fly") return { mode, steps: await fly(ctx, holdMs) };
-  throw new Error(`selfstate-swim needs mode=swim or mode=fly, not "${mode}".`);
+  if (mode !== "swim" && mode !== "fly")
+    throw new Error(
+      `selfstate-swim needs mode=swim or mode=fly, not "${mode}".`,
+    );
+  await Bun.sleep(leadMs);
+  const steps =
+    mode === "swim" ? await swim(ctx.handle, holdMs) : await fly(ctx, holdMs);
+  return { mode, steps };
 }
 
 export const flow: ProbeFlow = {
   name: "selfstate-swim",
   run,
   usage:
-    "--flow selfstate-swim [--arg mode=swim|fly] [--arg hold=<ms>] [--arg spell=<flying mount id>]: mode swim (default) sends MSG_MOVE_START_SWIM, pitches up, down and to a set pitch with a hold between each, then MSG_MOVE_STOP_SWIM; mode fly casts the mount spell, waits for CAN_FLY, sends CMSG_MOVE_SET_FLY, ascends, descends and lands.",
+    "--flow selfstate-swim [--arg mode=swim|fly] [--arg hold=<ms>] [--arg lead=<ms>] [--arg spell=<flying mount id>]: mode swim (default) sends MSG_MOVE_START_SWIM, pitches up, down and to a set pitch with a hold between each, then MSG_MOVE_STOP_SWIM; mode fly casts the mount spell, waits for CAN_FLY, sends CMSG_MOVE_SET_FLY, ascends, descends and lands. lead waits that long after login before the first send, so a witness in view has the character's object by then.",
 };
