@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
-import { info, setup } from "#test-support/control-fixtures";
+import { info, oracle, setup } from "#test-support/control-fixtures";
 import { must } from "#test-support/must";
 import { MovementFlag } from "#wow/protocol/entity-fields";
 import { parseMovementInfo } from "#wow/protocol/movement";
@@ -42,6 +42,18 @@ afterEach(() => {
   jest.useRealTimers();
 });
 describe("transport ride in control", () => {
+  test("the leave event carries the ground pose and allows movement", () => {
+    const { runtime, events } = setup({
+      ground: oracle({ height: () => 50 }),
+    });
+    runtime.transportBoard(board());
+    events.length = 0;
+    runtime.transportLeave();
+    const left = events.find((event) => event.type === "control_changed");
+    expect(left?.state.movementAllowed).toBe(true);
+    expect(left?.state.blockedReason).toBeUndefined();
+    expect(left?.state.pose?.z).toBeCloseTo(50, 4);
+  });
   test("boarding sends one CMSG_MOVE_CHNG_TRANSPORT with ON_TRANSPORT (MovementHandler.cpp:362-408)", () => {
     const { runtime, sent } = setup();
     sent.length = 0;
