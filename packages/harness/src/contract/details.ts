@@ -341,10 +341,38 @@ export type BarLine = {
   name: string;
 };
 
+export type ProfessionLine = {
+  id: number;
+  name: string;
+  value: number;
+  max: number;
+};
+
+export type TotemLine = {
+  slot: number;
+  element: string;
+  spellId: number;
+  name: string;
+};
+
+export type RuneLine = {
+  index: number;
+  type: number;
+  ready: boolean;
+};
+
 export type JournalAfter =
   | { about: "quests"; quests: QuestLine[] }
   | { about: "bags"; bags: BagsView }
-  | { about: "spells"; spells: SpellLine[]; auras: AuraLine[]; bar: BarLine[] }
+  | {
+      about: "spells";
+      spells: SpellLine[];
+      auras: AuraLine[];
+      bar: BarLine[];
+      professions: ProfessionLine[];
+      totems: TotemLine[];
+      runes: RuneLine[] | undefined;
+    }
   | { about: "reputation"; factions: string[] }
   | { about: "log"; rows: GameLogEntry[]; more: number; label: string };
 

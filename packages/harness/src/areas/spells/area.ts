@@ -220,5 +220,5 @@ export const spellsHarness = defineHarnessArea({
       },
     };
   },
-  worldActs: ["cancelAura", "destroyTotem", "setActionButton"],
+  worldActs: ["cancelAura", "destroyTotem", "setActionButton", "unlearnSkill"],
 });
