@@ -31,16 +31,55 @@ async function reach(handle: WorldHandle, guid: bigint): Promise<void> {
   }
 }
 
+async function waitForTakeoff(
+  handle: WorldHandle,
+  ms: number,
+): Promise<boolean> {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    if (handle.getControlState().blockedReason === "in_flight") return true;
+    if (handle.getControlState().blockedReason === "teleporting") return false;
+    await Bun.sleep(500);
+  }
+  return handle.getControlState().blockedReason === "in_flight";
+}
+
 async function waitForLanding(
   handle: WorldHandle,
   ms: number,
 ): Promise<boolean> {
   const deadline = Date.now() + ms;
   while (Date.now() < deadline) {
-    if (handle.getControlState().blockedReason !== "in_flight") return true;
+    const reason = handle.getControlState().blockedReason;
+    if (reason !== "in_flight" && reason !== "teleporting") return true;
     await Bun.sleep(500);
   }
-  return handle.getControlState().blockedReason !== "in_flight";
+  const reason = handle.getControlState().blockedReason;
+  return reason !== "in_flight" && reason !== "teleporting";
+}
+
+async function landAndWalk(
+  handle: WorldHandle,
+): Promise<{ landed: boolean; tookOff: boolean }> {
+  const tookOff = await waitForTakeoff(handle, LAND_WAIT_MS);
+  const landed = tookOff && (await waitForLanding(handle, LAND_WAIT_MS));
+  return { landed, tookOff };
+}
+
+async function walkNorth(handle: WorldHandle): Promise<Json> {
+  const after = handle.getControlState();
+  if (after.blockedReason !== undefined) return null;
+  const walked = await handle.walkTowardPoint(
+    {
+      x: (after.pose?.x ?? 0) + NORTH_YARDS,
+      y: after.pose?.y ?? 0,
+      z: after.pose?.z ?? 0,
+    },
+    NORTH_YARDS,
+  );
+  return freeze(
+    walked ? { reason: walked.reason ?? null, traveled: walked.traveled } : null,
+  );
 }
 
 async function run(ctx: FlowContext): Promise<Json> {
@@ -64,20 +103,26 @@ async function run(ctx: FlowContext): Promise<Json> {
     master.entity.guid,
     planned,
   );
-  const tookOff = ctx.handle.getControlState().blockedReason === "in_flight";
-  const landed = await waitForLanding(ctx.handle, LAND_WAIT_MS);
-  const after = ctx.handle.getControlState();
-  const walked =
-    landed && after.blockedReason === undefined
-      ? await ctx.handle.walkTowardPoint(
-          {
-            x: (after.pose?.x ?? 0) + NORTH_YARDS,
-            y: after.pose?.y ?? 0,
-            z: after.pose?.z ?? 0,
-          },
-          NORTH_YARDS,
-        )
-      : null;
+  if (taken.status !== "ok")
+    return freeze({
+      destination: to,
+      landed: false,
+      pose: null,
+      takeoff: taken,
+      tookOff: false,
+      walked: null,
+    });
+  if (taken.status === "ok" && taken.instant)
+    return freeze({
+      destination: to,
+      landed: true,
+      pose: null,
+      takeoff: taken,
+      tookOff: false,
+      walked: null,
+    });
+  const { landed, tookOff } = await landAndWalk(ctx.handle);
+  const walked = landed ? await walkNorth(ctx.handle) : null;
   const pose = ctx.handle.getControlState().pose;
   return freeze({
     destination: to,
@@ -85,9 +130,7 @@ async function run(ctx: FlowContext): Promise<Json> {
     pose: pose ? { mapId: pose.mapId, x: pose.x, y: pose.y, z: pose.z } : null,
     takeoff: taken,
     tookOff,
-    walked: walked
-      ? { reason: walked.reason ?? null, traveled: walked.traveled }
-      : null,
+    walked,
   });
 }
 

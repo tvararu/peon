@@ -120,7 +120,7 @@ export function travelTaxiDbc(init: {
   return dbcFiles(files);
 }
 
-const FLIGHT_SPLINE_FLAGS = 0x00_04_a0_00;
+const FLIGHT_SPLINE_FLAGS = 0x00_00_20_00;
 
 export function travelSelfFlightSplineBody(init: {
   guid: bigint;

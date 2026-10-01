@@ -52,19 +52,20 @@ export class FlightTracker {
   observeSpline(move: MonsterMove): boolean {
     if (move.kind === "stop") {
       if (!this.flying) return false;
-      this.serverPose({
+      const point: Position = {
         mapId: this.poseMapId(),
         orientation: 0,
         x: move.start.x,
         y: move.start.y,
         z: move.start.z,
-      });
+      };
+      this.serverPose(point);
+      if (this.end) this.end = { ...this.end, point };
       return true;
     }
     if (
       move.kind !== "move" ||
       (move.flags & SplineFlag.FLYING) === 0 ||
-      (move.flags & SplineFlag.CATMULLROM) === 0 ||
       move.cyclic
     )
       return false;

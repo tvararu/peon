@@ -414,15 +414,15 @@ export class MovementSync {
   }
 
   private setUnitFlags(unitFlags: number): void {
-    if (this.flight) {
-      this.flight.observeUnitFlags(unitFlags);
-      this.setFlightFlag(this.flight.inFlight());
-      return;
-    }
+    const wasFlying = this.inFlight;
+    const wasBlocked = this.unitBlocked;
+    this.flight?.observeUnitFlags(unitFlags);
+    const flying = this.flight?.inFlight() ?? false;
     const blocked = (unitFlags & UNIT_BLOCK_FLAGS) !== 0;
-    if (blocked === this.unitBlocked) return;
+    this.setFlightFlag(flying);
     this.unitBlocked = blocked;
     if (this.inFlight) return;
+    if (wasFlying || blocked === wasBlocked) return;
     if (blocked) this.motion.stop("disable_move");
     this.emit("control_changed", blocked ? "disable_move" : undefined);
   }
