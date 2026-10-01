@@ -9,6 +9,7 @@ import type { ToolResult } from "#harness/contract/result";
 import type { UnitView } from "#harness/contract/views";
 import { INTERACT_APPROACH_YD, TALK_RANGE_YD } from "#harness/ops/range";
 import { Refusal } from "#harness/ops/refusal";
+import { notAtLastKnown, seekLastKnown } from "#harness/ops/remembered";
 import { resolveUnit, unitRefusal } from "#harness/ops/resolve";
 import { travelLeg } from "#harness/ops/travel-leg";
 import { reachNext } from "#harness/ops/unreached";
@@ -25,11 +26,48 @@ function missing(verb: string, param: string): Refusal {
   });
 }
 
+function ambiguous(
+  candidates: readonly UnitView[],
+  verb: VehicleArgs["do"],
+  param: string,
+): Refusal {
+  const names = [...new Set(candidates.map((unit) => unit.name))].join(", ");
+  const call = (unit: UnitView) =>
+    nextCall("vehicle", { do: verb, [param]: unit.ref });
+  const nearest = candidates.at(0);
+  const where = (unit: UnitView) => {
+    if (unit.distance === undefined) return "distance unknown";
+    if (unit.compass) return `${Math.round(unit.distance)} yd ${unit.compass}`;
+    return `${Math.round(unit.distance)} yd`;
+  };
+  return new Refusal({
+    body: candidates
+      .slice(0, 5)
+      .map((unit) => `${unit.name} ${unit.ref}, ${where(unit)}: ${call(unit)}`),
+    detail: `the name matches ${candidates.length} units (${names}).`,
+    next: nearest ? call(nearest) : nextCall("look"),
+    options: candidates.map((unit) => unit.ref),
+    reason: "ambiguous_unit",
+  });
+}
+
+function vehicleVerb(verb: string): VehicleArgs["do"] {
+  if (verb === "ride with") return "ride_with";
+  if (verb === "eject") return "eject";
+  return "board";
+}
+
 function find(ctx: VehicleCtx, text: string | undefined, verb: string): Target {
   const wanted = text?.trim() ?? "";
   if (wanted === "")
     throw missing(verb, verb === "ride with" ? "player" : "unit");
   const resolved = resolveUnit(ctx, { alive: true, text: wanted });
+  if (resolved.kind === "ambiguous")
+    throw ambiguous(
+      resolved.candidates,
+      vehicleVerb(verb),
+      verb === "ride with" ? "player" : "unit",
+    );
   if (resolved.kind !== "unit")
     throw unitRefusal({
       param: verb === "ride with" ? "player" : "unit",
@@ -39,9 +77,21 @@ function find(ctx: VehicleCtx, text: string | undefined, verb: string): Target {
   return { guid: resolved.guid, unit: resolved.unit };
 }
 
-async function approach(ctx: VehicleCtx, target: Target): Promise<void> {
-  if (target.unit.inView && (target.unit.distance ?? 0) <= TALK_RANGE_YD)
-    return;
+async function approach(ctx: VehicleCtx, target: Target): Promise<Target> {
+  if (target.unit.inView) {
+    if ((target.unit.distance ?? 0) <= TALK_RANGE_YD) return target;
+  } else {
+    const { found, leg } = await seekLastKnown(ctx, target.unit);
+    if (found) return approach(ctx, found);
+    if (leg && leg.status !== "arrived")
+      throw new Refusal({
+        detail: `could not reach ${target.unit.name}: ${leg.detail}.`,
+        next: reachNext(leg, target.unit),
+        reason: leg.reason ?? leg.status,
+        status: "FAILED",
+      });
+    throw notAtLastKnown(ctx, target.unit);
+  }
   const leg = await travelLeg(ctx, {
     goal: { guid: target.guid, kind: "unit", name: target.unit.name },
     within: INTERACT_APPROACH_YD,
@@ -53,6 +103,7 @@ async function approach(ctx: VehicleCtx, target: Target): Promise<void> {
       reason: leg.reason ?? leg.status,
       status: "FAILED",
     });
+  return target;
 }
 
 async function send(
@@ -103,7 +154,19 @@ function seatAct(ctx: VehicleCtx, seat: VehicleArgs["seat"]) {
   const act = ctx.handle.vehicles.act;
   if (seat === "next") return () => act.nextSeat();
   if (seat === "prev") return () => act.prevSeat();
-  if (typeof seat === "number") return () => act.switchSeat(seat);
+  if (
+    typeof seat === "number" &&
+    Number.isInteger(seat) &&
+    seat >= 0 &&
+    seat <= 7
+  )
+    return () => act.switchSeat(seat);
+  if (typeof seat === "number")
+    throw new Refusal({
+      detail: `no vehicle seat ${seat}: pick a seat from 0 to 7.`,
+      next: nextCall("vehicle", { do: "seat", seat: "next" }),
+      reason: "bad_seat",
+    });
   throw new Refusal({
     detail: 'say which seat: "next", "prev" or a seat number.',
     next: nextCall("vehicle", { do: "seat", seat: "next" }),
@@ -131,27 +194,25 @@ export async function vehicleRun(
     );
   }
   if (args.do === "board") {
-    const target = find(ctx, args.unit, "board");
-    await approach(ctx, target);
+    const seen = await approach(ctx, find(ctx, args.unit, "board"));
     return report(
-      await send(ctx, () => act.spellClick(target.guid)),
-      { do: "board", target: target.unit.ref },
-      `You clicked ${target.unit.name} (${target.unit.ref}) and took a seat.`,
+      await send(ctx, () => act.spellClick(seen.guid)),
+      { do: "board", target: seen.unit.ref },
+      `You clicked ${seen.unit.name} (${seen.unit.ref}) and took a seat.`,
     );
   }
   if (args.do === "ride_with") {
-    const target = find(ctx, args.player, "ride with");
-    await approach(ctx, target);
+    const seen = await approach(ctx, find(ctx, args.player, "ride with"));
     return report(
-      await send(ctx, () => act.enterPlayerVehicle(target.guid)),
-      { do: "ride_with", target: target.unit.ref },
-      `You asked to ride with ${target.unit.name}.`,
+      await send(ctx, () => act.enterPlayerVehicle(seen.guid)),
+      { do: "ride_with", target: seen.unit.ref },
+      `You asked to ride with ${seen.unit.name}.`,
     );
   }
-  const target = find(ctx, args.unit, "eject");
+  const seen = await approach(ctx, find(ctx, args.unit, "eject"));
   return report(
-    await send(ctx, () => act.ejectPassenger(target.guid)),
-    { do: "eject", target: target.unit.ref },
-    `You asked ${target.unit.name} to leave the vehicle.`,
+    await send(ctx, () => act.ejectPassenger(seen.guid)),
+    { do: "eject", target: seen.unit.ref },
+    `You asked ${seen.unit.name} to leave the vehicle.`,
   );
 }

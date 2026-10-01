@@ -23,9 +23,12 @@ export const vehicleParams = Type.Object({
     }),
   ),
   seat: Type.Optional(
-    Type.Union([StringEnum(["next", "prev"]), Type.Integer({ minimum: 0 })], {
-      description: 'For seat: "next", "prev" or a seat number from 0.',
-    }),
+    Type.Union(
+      [StringEnum(["next", "prev"]), Type.Integer({ maximum: 7, minimum: 0 })],
+      {
+        description: 'For seat: "next", "prev" or a seat number from 0 to 7.',
+      },
+    ),
   ),
   unit: Type.Optional(
     Type.String({
