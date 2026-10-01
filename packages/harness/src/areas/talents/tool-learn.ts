@@ -39,17 +39,19 @@ export const REASONS: Record<string, string> = {
   wrong_class: "your class cannot learn that talent.",
 };
 
+const DIGITS = /^\d+$/;
+
 function digits(value: string): number | undefined {
-  if (!/^\d+$/.test(value.trim())) return undefined;
+  if (!DIGITS.test(value.trim())) return undefined;
   const id = Number(value.trim());
   return Number.isSafeInteger(id) ? id : undefined;
 }
 
-async function nameToId(
+function nameToId(
   ctx: TalentsCtx,
   catalog: TalentsCatalog,
   want: string,
-): Promise<number> {
+): number {
   const trimmed = want.trim();
   const ids = new Set<number>();
   for (const classId of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
@@ -72,11 +74,11 @@ async function nameToId(
   });
 }
 
-export async function resolveWant(
+export function resolveWant(
   ctx: TalentsCtx,
   catalog: TalentsCatalog | undefined,
   want: { talent: string; rank: number },
-): Promise<LearnWant> {
+): LearnWant {
   const id = digits(want.talent);
   if (id !== undefined) return { rank: want.rank, talent: id };
   if (catalog === undefined)
@@ -85,7 +87,7 @@ export async function resolveWant(
       next: nextCall("talents", { do: "show" }),
       reason: "names_need_talent_data",
     });
-  return { rank: want.rank, talent: await nameToId(ctx, catalog, want.talent) };
+  return { rank: want.rank, talent: nameToId(ctx, catalog, want.talent) };
 }
 
 function learnedText(
@@ -114,7 +116,7 @@ export async function learnTalents(
   const beforeHeld = heldRanks(handle.talents.state());
   const catalog = asCatalog(await handle.talents.act.catalog());
   const entries = [] as LearnWant[];
-  for (const want of wants) entries.push(await resolveWant(ctx, catalog, want));
+  for (const want of wants) entries.push(resolveWant(ctx, catalog, want));
   const wire = entries.map((entry) => ({
     rank: entry.rank - 1,
     talentId: entry.talent,
@@ -150,18 +152,27 @@ export async function learnTalents(
       ? `${text} ${left} point${left === 1 ? "" : "s"} left.`
       : text;
   });
-  const afterResult: TalentsAfter = {
+  return learnResult(outcome.entries, entries.length, body, {
     do: "learn",
     freePoints: left,
     learned,
-  };
-  if (learned === entries.length)
+  });
+}
+
+function learnResult(
+  outcomes: readonly { outcome: LearnOutcome }[],
+  total: number,
+  body: string[],
+  afterResult: TalentsAfter,
+): ToolResult<TalentsAfter> {
+  const learned = afterResult.learned;
+  if (learned === total)
     return result("DONE", {
       after: afterResult,
       body,
       detail: `Learned ${learned} talent${learned === 1 ? "" : "s"}.`,
     });
-  if (outcome.entries.every((entry) => entry.outcome === "no_reply"))
+  if (outcomes.every((entry) => entry.outcome === "no_reply"))
     return result("UNCONFIRMED", {
       after: afterResult,
       body,
@@ -169,9 +180,7 @@ export async function learnTalents(
       next: nextCall("talents", { do: "show" }),
       reason: "no_reply",
     });
-  const first = outcome.entries.find(
-    (entry) => entry.outcome !== "learned",
-  )?.outcome;
+  const first = outcomes.find((entry) => entry.outcome !== "learned")?.outcome;
   return result("REFUSED", {
     after: afterResult,
     body,

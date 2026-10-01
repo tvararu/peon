@@ -17,19 +17,16 @@ import { expectSendKind } from "#test-support/tool-harness";
 
 const CATALOG: TalentsCatalog = {
   glyph: (id) => (id === 21 ? { spellId: 58_366, typeFlags: 0 } : undefined),
-  slotType: (typeId) =>
-    typeId === 21
-      ? { typeFlags: 0 }
-      : typeId === 23
-        ? { typeFlags: 1 }
-        : undefined,
+  slotType: (typeId) => {
+    if (typeId === 21) return { typeFlags: 0 };
+    if (typeId === 23) return { typeFlags: 1 };
+  },
   tab: (id) => (id === 161 ? { id, name: "Arms" } : undefined),
-  talent: (id) =>
-    id === 124
-      ? { ranks: [12_282, 12_663, 12_664], row: 0, tab: 161 }
-      : id === 1302
-        ? { ranks: [12_297], row: 2, tab: 161 }
-        : undefined,
+  talent: (id) => {
+    if (id === 124)
+      return { ranks: [12_282, 12_663, 12_664], row: 0, tab: 161 };
+    if (id === 1302) return { ranks: [12_297], row: 2, tab: 161 };
+  },
   talentsForClass: (classId) =>
     classId === 1 ? [{ id: 124 }, { id: 1302 }] : [],
 };
