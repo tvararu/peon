@@ -147,6 +147,7 @@ const REFUSALS: Record<
 > = {
   not_a_vehicle: "you are not on a vehicle that can do this.",
   not_clickable: "that unit has no seat you can click.",
+  not_controlling: "you are not driving a vehicle.",
   not_seated: "you are not in a vehicle seat.",
 };
 

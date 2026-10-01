@@ -119,5 +119,7 @@ export const vehiclesHarness = defineHarnessArea({
     "switchSeat",
     "enterPlayerVehicle",
     "ejectPassenger",
+    "changeSeatOnControlled",
+    "dismissControlled",
   ],
 });
