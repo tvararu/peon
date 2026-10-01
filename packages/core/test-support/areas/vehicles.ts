@@ -2,7 +2,12 @@ import {
   writePackedGuid,
   writeUpdateMask,
 } from "#test-support/world-handlers-fixtures";
-import { UpdateFlag, UpdateType } from "#wow/protocol/entity-fields";
+import {
+  MovementFlag,
+  UpdateFlag,
+  UpdateType,
+} from "#wow/protocol/entity-fields";
+import { writeMovementInfo } from "#wow/protocol/movement";
 import { PacketWriter } from "#wow/protocol/packet";
 import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
@@ -79,6 +84,40 @@ export function vehiclesCreateVehicleBlock(init: {
   for (let i = 0; i < 9; i++) w.floatLE(i === 1 ? 7 : 0);
   w.uint32LE(init.vehicleId);
   w.floatLE(init.orientation);
+  writeUpdateMask(w, new Map([[UNIT_FIELDS.HEALTH.offset, 100]]));
+  return w.finish();
+}
+
+export function vehiclesCreateSelfOnTransportBlock(init: {
+  guid: bigint;
+  transportGuid: bigint;
+  seat: number;
+  offset: { x: number; y: number; z: number };
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(1);
+  w.uint8(UpdateType.CREATE_OBJECT2);
+  writePackedGuid(w, init.guid);
+  w.uint8(4);
+  w.uint16LE(UpdateFlag.SELF | UpdateFlag.LIVING);
+  writeMovementInfo(w, {
+    extraFlags: 0,
+    fallTime: 0,
+    flags: MovementFlag.ON_TRANSPORT,
+    orientation: 0,
+    time: 0,
+    transport: {
+      guid: init.transportGuid,
+      orientation: 0,
+      seat: init.seat,
+      time: 0,
+      ...init.offset,
+    },
+    x: 5,
+    y: 6,
+    z: 7,
+  });
+  for (let i = 0; i < 9; i++) w.floatLE(i === 1 ? 7 : 0);
   writeUpdateMask(w, new Map([[UNIT_FIELDS.HEALTH.offset, 100]]));
   return w.finish();
 }

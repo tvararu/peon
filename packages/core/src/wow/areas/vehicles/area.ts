@@ -18,7 +18,10 @@ function observeUpdates(store: VehiclesStore, r: PacketReader): void {
   for (const entry of entries) {
     if (entry.type === "outOfRange") {
       for (const guid of entry.guids) store.removeVehicleId(guid);
-    } else if (
+    } else if (entry.type === "create" && entry.movementInfo?.transport) {
+      store.receiveCreatedOnTransport(entry.guid, entry.movementInfo.transport);
+    }
+    if (
       (entry.type === "create" || entry.type === "movement") &&
       entry.updateFlags & UpdateFlag.VEHICLE &&
       entry.vehicle
