@@ -304,12 +304,27 @@ describe("transport ride in control", () => {
   });
 
   test("a transport-driven cross-map change keeps the ride and adopts the local offset (Player.cpp:1607-1640)", () => {
-    const { runtime, sent } = setup();
+    const { runtime, sent, events } = setup();
     sent.length = 0;
     runtime.transportBoard(board());
+    events.length = 0;
     runtime.handleTransferPending({ entry: 176_495, fromMap: 530 });
     runtime.newWorld({ mapId: 571, orientation: 0, x: 4, y: 5, z: 6 });
+    const crossed = events.find(
+      (event) =>
+        event.type === "server_correction" && event.reason === "new_world",
+    );
+    expect(runtime.currentMapId()).toBe(571);
+    expect(crossed?.state.pose?.mapId).toBe(571);
+    expect(crossed?.state.pose?.x).toBeCloseTo(4, 4);
+    expect(crossed?.state.pose?.y).toBeCloseTo(5, 4);
+    expect(crossed?.state.pose?.z).toBeCloseTo(6, 4);
     expect(runtime.snapshot().movementAllowed).toBe(false);
+    const pose = runtime.snapshot().pose;
+    expect(pose?.mapId).toBe(571);
+    expect(pose?.x).toBeCloseTo(4, 4);
+    expect(pose?.y).toBeCloseTo(5, 4);
+    expect(pose?.z).toBeCloseTo(6, 4);
     sent.length = 0;
     runtime.forceRoot(6);
     const r = new PacketReader(must(sent.at(-1)).body);
@@ -321,6 +336,9 @@ describe("transport ride in control", () => {
     expect(parsed.transport?.x).toBeCloseTo(4, 4);
     expect(parsed.transport?.y).toBeCloseTo(5, 4);
     expect(parsed.transport?.z).toBeCloseTo(6, 4);
+    expect(parsed.x).toBeCloseTo(4, 4);
+    expect(parsed.y).toBeCloseTo(5, 4);
+    expect(parsed.z).toBeCloseTo(6, 4);
     expect(() => runtime.transportLeave()).toThrow("not_docked");
   });
 
