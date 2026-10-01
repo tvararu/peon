@@ -15,6 +15,7 @@ export async function runSocket(
 ): Promise<ToolResult<GearAfter>> {
   const { handle, rt } = ctx;
   const found = named(handle.getInventoryState(), item, [
+    "equipment",
     "backpack",
     "bag_item",
   ]);
