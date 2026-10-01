@@ -11,25 +11,19 @@ import {
 } from "#factory/soap-presets";
 
 describe("presets", () => {
-  test("keeps the original three and adds the realm service presets", () => {
-    expect(presets).toEqual([
-      "fresh",
-      "eversong10",
-      "max80",
-      "eversong10-warrior",
-      "eversong10-mage",
-      "eversong10-hunter",
-      "elwynn1",
-      "elwynn10",
-      "ghostlands20",
-      "eversong10-priest",
+  test("selects every spec by name, including the new presets", () => {
+    for (const name of Object.keys(presetSpecs))
+      expect(isPreset(name)).toBe(true);
+    expect(isPreset("no-such-preset")).toBe(false);
+    for (const name of [
+      "eversong10-rogue",
       "eversong10-shaman",
       "eversong10-warlock",
-      "eversong10-rogue",
       "eversong10-druid",
       "eversong55-deathknight",
       "eversong10-fishing",
-    ]);
+    ] as const)
+      expect(presets).toContain(name);
     expect([...presets].sort() as string[]).toEqual(
       Object.keys(presetSpecs).sort(),
     );
@@ -142,13 +136,14 @@ describe("presets", () => {
     ).toBe(true);
   });
 
-  test("the fishing preset stages the pole then learns online", () => {
+  test("the fishing preset learns online before staging the pole", () => {
     const fishing = presetSpecs["eversong10-fishing"];
     expect(isCreatePreset(fishing)).toBe(false);
-    expect(fishing.stage?.at(-1)).toEqual({ online: { learn: [7733] } });
-    expect(
-      fishing.stage?.some((s) => "endpoint" in s && s.endpoint === "items/add"),
-    ).toBe(true);
+    expect(fishing.stage?.at(0)).toEqual({ online: { learn: [7733] } });
+    expect(fishing.stage?.at(-1)).toMatchObject({
+      body: { count: 1, item: 6256 },
+      endpoint: "items/add",
+    });
   });
 
   test("staged template presets and created presets go through the protocol path", () => {

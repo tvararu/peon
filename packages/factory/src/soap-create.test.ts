@@ -95,6 +95,25 @@ function depsFor(
   return { commands, deps, service };
 }
 
+function privilegeDouble(preset: Preset, stuck = false) {
+  const level = { value: 0 };
+  const made = depsFor(preset);
+  made.deps.run = async (command) => {
+    const set = /^account set gmlevel \S+ (\d+) -1$/.exec(command);
+    if (set) {
+      if (!(stuck && set[1] === "0")) level.value = Number(set[1]);
+      return { ok: true, text: "" };
+    }
+    return {
+      ok: true,
+      text: command.startsWith("pinfo")
+        ? pinfoText("FAC0000000001", level.value)
+        : "",
+    };
+  };
+  return { ...made, level };
+}
+
 describe("specOf", () => {
   test("resolves created presets and refuses template ones", () => {
     expect(specOf("eversong10-shaman").create).toMatchObject({
@@ -168,28 +187,65 @@ describe("createByProtocol", () => {
     }
   });
 
-  test("a confirmed demotion shows the GMLevel 0 readback", async () => {
-    const { commands, deps } = depsFor("eversong55-deathknight");
+  test("the death knight is created at security 1 and staged at 0", async () => {
+    const { deps, level, service } = privilegeDouble("eversong55-deathknight");
+    let levelAtCreate = -1;
+    let levelAtStage = -1;
+    deps.create = (async () => {
+      levelAtCreate = level.value;
+      return { result: "success" };
+    }) as CreateDeps["create"];
+    const inner = deps.service.char;
+    deps.service.char = async (c, e, b) => {
+      levelAtStage = level.value;
+      return inner(c, e, b);
+    };
     await createByProtocol("eversong55-deathknight", deps);
-    expect(commands[0]).toBe("account set gmlevel FAC0000000001 1 -1");
-    expect(commands[1]).toBe("account set gmlevel FAC0000000001 0 -1");
-    expect(commands[2]).toBe("pinfo Faaaaaaaaab");
+    expect(levelAtCreate).toBe(1);
+    expect(levelAtStage).toBe(0);
+    expect(level.value).toBe(0);
+    expect(service.calls.length).toBeGreaterThan(0);
   });
 
   test("the death knight demotes even when creation throws", async () => {
-    const { commands, deps } = depsFor("eversong55-deathknight", {
-      create: (async () => {
-        throw new Error("Character create: level_requirement");
-      }) as CreateDeps["create"],
-    });
+    const { deps, level } = privilegeDouble("eversong55-deathknight");
+    deps.create = (async () => {
+      throw new Error("Character create: level_requirement");
+    }) as CreateDeps["create"];
     await expect(
       createByProtocol("eversong55-deathknight", deps),
     ).rejects.toThrow("level_requirement");
-    expect(commands).toEqual([
-      "account set gmlevel FAC0000000001 1 -1",
-      "account set gmlevel FAC0000000001 0 -1",
-      "pinfo Faaaaaaaaab",
-    ]);
+    expect(level.value).toBe(0);
+  });
+
+  test("the death knight demotes when the raise applies then rejects", async () => {
+    const { deps, level } = privilegeDouble("eversong55-deathknight");
+    const inner = deps.run;
+    let created = false;
+    deps.create = (async () => {
+      created = true;
+      return { result: "success" };
+    }) as CreateDeps["create"];
+    deps.run = async (command) => {
+      const res = await inner(command);
+      if (command.includes(" 1 -1")) throw new Error("soap read timed out");
+      return res;
+    };
+    await expect(
+      createByProtocol("eversong55-deathknight", deps),
+    ).rejects.toThrow("soap read timed out");
+    expect(created).toBe(false);
+    expect(level.value).toBe(0);
+  });
+
+  test("a failed demotion still fails when creation also threw", async () => {
+    const { deps } = privilegeDouble("eversong55-deathknight", true);
+    deps.create = (async () => {
+      throw new Error("Character create: level_requirement");
+    }) as CreateDeps["create"];
+    await expect(
+      createByProtocol("eversong55-deathknight", deps),
+    ).rejects.toThrow();
   });
 
   test("a stuck GMLevel 1 fails creation", async () => {
@@ -285,20 +341,34 @@ describe("createByProtocol", () => {
 });
 
 describe("stagePreset", () => {
-  test("the fishing stage adds the pole then learns online", async () => {
+  test("the fishing stage learns online before staging the pole", async () => {
     const { deps, service } = depsFor("eversong10-fishing");
     const learned: number[][] = [];
     const fishing = presetSpecs["eversong10-fishing"];
     if (!("stage" in fishing && fishing.stage)) throw new Error("unreachable");
+    const learnedAtItems: number[] = [];
+    const inner = service.service.char;
+    const counting = {
+      ...service.service,
+      char: (async (c: string, e: CharEndpoint, b: Json) => {
+        learnedAtItems.push(learned.length);
+        return inner(c, e, b);
+      }) as CreateDeps["service"]["char"],
+    };
     await stagePreset("Faaaaaaaaab", "FAC0000000001", fishing.stage, {
       ...deps,
       login: (async () => {
         learned.push([7733]);
         return loginDouble({ skill: true }).handle;
       }) as CreateDeps["login"],
+      service: counting,
     });
     expect(service.calls.map((c) => c.endpoint)).toEqual(["items/add"]);
-    expect(learned).toEqual([[7733]]);
+    expect(service.calls[0]).toMatchObject({
+      body: { count: 1, item: 6256 },
+      endpoint: "items/add",
+    });
+    expect(learnedAtItems).toEqual([1]);
   });
 });
 

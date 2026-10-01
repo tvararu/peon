@@ -90,7 +90,7 @@ export const presetSpecs = {
   "eversong10-fishing": {
     ...eversong,
     faction: "horde",
-    stage: [item(6256), { online: { learn: [7733] } }],
+    stage: [{ online: { learn: [7733] } }, item(6256)],
     template: "Tpleversong",
   },
   "eversong10-hunter": { ...eversong, faction: "horde", template: "Tplhunter" },

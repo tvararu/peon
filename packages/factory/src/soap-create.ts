@@ -162,8 +162,8 @@ export async function createByProtocol(
   const createSpec: CharCreateSpec = { ...spec.create, name: character };
   const config = deps.createConfig(deps.names);
   if (spec.gmLevelForCreate === 1) {
-    await deps.run(`account set gmlevel ${account} 1 -1`);
     try {
+      await deps.run(`account set gmlevel ${account} 1 -1`);
       await deps.create(config, await authForCreate(config, deps), createSpec);
     } finally {
       await demote(deps.run, deps.names, deps.sleep);
