@@ -229,6 +229,67 @@ function attachRows(
   return rows;
 }
 
+function socketRows(
+  event: Extract<
+    ItemsEvent,
+    | { type: "sockets_updated" }
+    | { type: "socket_refused" }
+    | { type: "socket_unanswered" }
+    | { type: "enchantment_log" }
+  >,
+  rc: RuleInput,
+): readonly AreaDraft[] {
+  if (event.type === "sockets_updated")
+    return [
+      {
+        class: "log",
+        data: {
+          bonus: event.bonus,
+          entry: event.entry,
+          sockets: [...event.sockets],
+        },
+        guid: guidText(event.itemGuid),
+        name: "socketed",
+        ref: guidText(event.itemGuid),
+        text: `Socketed ${itemLabel(event.entry, rc)}.`,
+      },
+    ];
+  if (event.type === "socket_refused")
+    return [
+      {
+        class: "wake",
+        data: { entry: event.entry, reason: event.reason },
+        guid: guidText(event.itemGuid),
+        name: "refused",
+        ref: guidText(event.itemGuid),
+        text: `Socket refused: ${event.reason}.`,
+      },
+    ];
+  if (event.type === "socket_unanswered")
+    return [
+      {
+        class: "wake",
+        data: { entry: event.entry },
+        guid: guidText(event.itemGuid),
+        name: "unanswered",
+        ref: guidText(event.itemGuid),
+        text: "The socket went unanswered.",
+      },
+    ];
+  if (event.type === "enchantment_log" && event.own && event.enchantId > 0)
+    return [
+      {
+        class: "log",
+        data: { enchantId: event.enchantId, entry: event.entry },
+        guid: guidText(event.target),
+        name: "enchanted",
+        ref: guidText(event.target),
+        text: `Enchanted ${itemLabel(event.entry, rc)}.`,
+      },
+    ];
+  return [];
+}
+
 function eventRow(event: ItemsEvent, rc: RuleInput): readonly AreaDraft[] {
   if (event.type === "moved") return [movedRow(event, rc)];
   if (event.type === "move_refused")
@@ -254,6 +315,13 @@ function eventRow(event: ItemsEvent, rc: RuleInput): readonly AreaDraft[] {
       },
     ];
   if (event.type === "item_received") return receivedRow(event, rc);
+  if (
+    event.type === "sockets_updated" ||
+    event.type === "socket_refused" ||
+    event.type === "socket_unanswered" ||
+    event.type === "enchantment_log"
+  )
+    return socketRows(event, rc);
   if (event.type === "read_ok")
     return [
       {
@@ -293,6 +361,7 @@ export const itemsHarness = defineHarnessArea({
     "open",
     "read",
     "setAmmo",
+    "socket",
     "split",
     "unequip",
   ],
