@@ -239,12 +239,12 @@ export class ControlRuntime {
     this.sync.newWorld(position);
   }
 
-  forceRoot(counter: number): void {
-    this.sync.forceRoot(counter);
+  forceRoot(counter: number, guid?: bigint): void {
+    this.sync.forceRoot(counter, guid);
   }
 
-  forceUnroot(counter: number): void {
-    this.sync.forceUnroot(counter);
+  forceUnroot(counter: number, guid?: bigint): void {
+    this.sync.forceUnroot(counter, guid);
   }
 
   knockBack(knock: KnockBack): void {

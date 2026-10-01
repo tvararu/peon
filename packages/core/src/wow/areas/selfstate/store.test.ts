@@ -132,7 +132,7 @@ describe("selfstate feather fall, gravity and the login compound", () => {
       ]),
     );
     expect(events).toEqual([
-      { counter: 1, type: "force_root" },
+      { counter: 1, guid: SELF, type: "force_root" },
       { counter: 2, enable: true, flag: "feather_fall", type: "move_flag" },
       { counter: 3, enable: true, flag: "water_walk", type: "move_flag" },
       { counter: 4, enable: true, flag: "hover", type: "move_flag" },

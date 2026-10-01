@@ -128,6 +128,38 @@ describe("driving the vehicle", () => {
     expect(traveled).toBeLessThan(7.2 + 0.6);
   });
 
+  test("a driven vehicle with flight flags refuses ground movement even when the passenger has no flying flag", () => {
+    const { runtime } = setup();
+    runtime.vehicleSeat(seat());
+    runtime.observeSelf({ movementFlags: 0 });
+    runtime.clientControl({ allow: true, guid: VEHICLE });
+    runtime.moverState({
+      flags: MovementFlag.CAN_FLY | MovementFlag.FLYING,
+      guid: VEHICLE,
+      pose: POSE,
+      run: 12,
+      runBack: 6,
+      turn: 2,
+    });
+    expect(runtime.snapshot().blockedReason).toBe("flying");
+    expect(() => runtime.move("forward", 1000)).toThrow("flying");
+  });
+
+  test("a driven ground vehicle permits ground movement", () => {
+    const { runtime } = setup();
+    runtime.vehicleSeat(seat());
+    runtime.clientControl({ allow: true, guid: VEHICLE });
+    runtime.moverState({
+      flags: 0,
+      guid: VEHICLE,
+      pose: POSE,
+      run: 12,
+      runBack: 6,
+      turn: 2,
+    });
+    expect(runtime.snapshot().movementAllowed).toBe(true);
+  });
+
   test("the character's own root does not block the vehicle or reach its movement info (live: SMSG_FORCE_MOVE_ROOT follows the control update)", () => {
     const { runtime, sent } = setup();
     runtime.vehicleSeat(seat());
@@ -146,6 +178,28 @@ describe("driving the vehicle", () => {
     const packet = decodeMove(sent[0]);
     expect(packet.flags & MovementFlag.ROOT).toBe(0);
     expect(packet.guid).toBe(VEHICLE);
+  });
+
+  test("a root for the driven vehicle refuses its movement and keeps the flag in its packet", () => {
+    const { runtime, sent } = setup();
+    runtime.vehicleSeat(seat());
+    runtime.clientControl({ allow: true, guid: VEHICLE });
+    runtime.moverState({
+      flags: 0,
+      guid: VEHICLE,
+      pose: POSE,
+      run: 12,
+      runBack: 6,
+      turn: 2,
+    });
+    runtime.forceRoot(3, VEHICLE);
+    expect(runtime.snapshot().movementAllowed).toBe(false);
+    expect(() => runtime.move("forward", 1000)).toThrow("rooted");
+    expect(sent).toHaveLength(4);
+    runtime.forceUnroot(4, VEHICLE);
+    expect(runtime.snapshot().movementAllowed).toBe(true);
+    const ack = decodeMove(sent.at(-2));
+    expect(ack.guid).toBe(VEHICLE);
   });
 
   test("the character stays rooted after the vehicle is lost until the unroot arrives", () => {

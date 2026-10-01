@@ -28,6 +28,7 @@ function observeUpdates(store: VehiclesStore, r: PacketReader): void {
     ) {
       store.setVehicleId(entry.guid, entry.vehicle.id);
       store.recordMotion(entry.guid, {
+        flags: entry.movementInfo?.flags,
         pose: entry.position,
         run: entry.runSpeed,
         runBack: entry.runBackSpeed,

@@ -73,6 +73,7 @@ export function vehiclesCreateVehicleBlock(init: {
   guid: bigint;
   vehicleId: number;
   orientation: number;
+  flags?: number;
 }): Uint8Array {
   const w = new PacketWriter();
   w.uint32LE(1);
@@ -80,7 +81,7 @@ export function vehiclesCreateVehicleBlock(init: {
   writePackedGuid(w, init.guid);
   w.uint8(3);
   w.uint16LE(UpdateFlag.LIVING | UpdateFlag.VEHICLE);
-  w.uint32LE(0);
+  w.uint32LE(init.flags ?? 0);
   w.uint16LE(0);
   w.uint32LE(0);
   w.floatLE(5);

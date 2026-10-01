@@ -110,18 +110,22 @@ gaining pair is dropped and the second matches.
 
 While the vehicle is the mover, every movement packet and ack carries the
 vehicle's packed guid, its pose, its run speed from the create block, and
-no transport block. The movement flags drop `ON_TRANSPORT` and `ROOT`: the
-server roots the passenger (`Entities/Vehicle/Vehicle.cpp:449`), which does
-not root the vehicle, so the character's own root never blocks driving and
-stays set for the character until its unroot arrives. The runtime reads the
-vehicle's pose from its entity and its speeds from the peeked create block,
-because the entity store keeps no speeds, and hands both to control as
-`mover_state` when `ControlState.mover` becomes the seat vehicle.
+no transport block. The movement flags drop `ON_TRANSPORT` but keep the
+driven root: the server roots the passenger on boarding
+(`Entities/Vehicle/Vehicle.cpp:449`), which does not root the vehicle, so
+the character's own root never blocks driving and stays set for the
+character until its unroot arrives, while a root naming the vehicle refuses
+its movement (`Entities/Player/Player.cpp:13179-13182`,
+`Entities/Unit/Unit.cpp:14094-14097`). The runtime reads the
+vehicle's pose from its entity and its speeds and movement flags from the
+peeked create block, because the entity store keeps no speeds, and hands
+them to control as `mover_state` when `ControlState.mover` becomes the seat
+vehicle. Unsupported-motion checks then read the driven flags, so a vehicle
+already carrying `CAN_FLY` or `FLYING` stays refused for ground movement.
 `ControlState.mover` is the guid being driven, or `undefined`, and
 `control_changed` with reason `vehicle` fires when it changes. The
 character's own run speed and run-back speed return when the vehicle is
 lost, and self observations (position, speeds) do not move the driven pose.
-
 `seat.controlling` follows the `control` core event for the seat vehicle and
 the area emits `control { mover, allow }` on each change.
 
@@ -142,16 +146,18 @@ allow 0 and for the character with allow 1, the unroot, and the exit spline.
 packed accessory guid and an `int8` seat. An accessory of 0 asks for the
 previous seat (seat at most 0) or the next (seat above 0); a real accessory
 clicks that unit's empty seat (`Handlers/VehicleHandler.cpp:89-121`).
-wow_messages has a `u8` seat; AzerothCore wins.
+wow_messages has a `u8` seat; AzerothCore wins. The request resolves on the
+character's own spline for another seat of the same vehicle when the
+accessory is 0, and on the boarding spline for the accessory vehicle and
+seat otherwise.
 
 `CMSG_MOVE_NOT_ACTIVE_MOVER` is the packed guid and the movement info
 (`Handlers/MovementHandler.cpp:795-814`), where wow_messages has a full guid
 (`movement/cmsg/cmsg_move_not_active_mover.wowm:3-6`).
 
 Flying vehicles stay refused (`unsupportedReason`); the Horde Siege Tank
-(25334) is ground only. The area cannot see which unit a
-`SMSG_FORCE_MOVE_ROOT` names, so a rooted vehicle shows as a refused move on
-the server side only.
+(25334) is ground only.
+
 
 In the harness, `entered` and `control` each write a `wake` row, `exited`, `seat_changed`
 and `player_vehicle` and `ride_aura_cancel` each write a `log` row, and

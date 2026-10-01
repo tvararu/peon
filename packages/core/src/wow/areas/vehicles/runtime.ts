@@ -113,6 +113,14 @@ function changedSeat(self: bigint, vehicle: bigint, before: number) {
     event.seat !== before;
 }
 
+function boardedAccessory(self: bigint, accessory: bigint, seat: number) {
+  return (event: VehiclesEvent) =>
+    event.type === "spline" &&
+    event.guid === self &&
+    event.transportGuid === accessory &&
+    (event.flags & SplineFlag.TRANSPORT_EXIT) === 0 &&
+    event.seat === seat;
+}
 function changeSeat(
   { ctx, store }: SeatDeps,
   opcode: number,
@@ -143,6 +151,10 @@ function changeSeatControlled(
   const seat = controlledSeat(deps);
   if (!seat)
     return Promise.resolve({ status: "refused", reason: "not_controlling" });
+  const match =
+    accessory === 0n
+      ? changedSeat(ctx.selfGuid(), seat.vehicle, seat.seat)
+      : boardedAccessory(ctx.selfGuid(), accessory, seatId);
   return sendSeatRequest(
     ctx,
     () =>
@@ -152,7 +164,7 @@ function changeSeatControlled(
         opcode: GameOpcode.CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE,
         type: "mover_packet",
       }),
-    changedSeat(ctx.selfGuid(), seat.vehicle, seat.seat),
+    match,
   );
 }
 
@@ -309,6 +321,7 @@ function watchControl(
     const motion = store.motionOf(mover);
     const pose = store.entityOf(mover)?.position ?? motion?.pose;
     core.self.receive({
+      flags: motion?.flags,
       guid: mover,
       pose: pose && { ...pose },
       run: motion?.run,

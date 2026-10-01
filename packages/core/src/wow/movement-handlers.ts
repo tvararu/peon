@@ -74,15 +74,14 @@ export function registerMovementHandlers(
     conn.remoteMotion.beginTransfer();
   });
   on(GameOpcode.SMSG_NEW_WORLD, (r) => handleNewWorld(conn, stores, r));
-  on(GameOpcode.SMSG_FORCE_MOVE_ROOT, (r) =>
-    self.receive({ type: "force_root", counter: parseMoveCounter(r).counter }),
-  );
-  on(GameOpcode.SMSG_FORCE_MOVE_UNROOT, (r) =>
-    self.receive({
-      type: "force_unroot",
-      counter: parseMoveCounter(r).counter,
-    }),
-  );
+  on(GameOpcode.SMSG_FORCE_MOVE_ROOT, (r) => {
+    const { counter, guid } = parseMoveCounter(r);
+    self.receive({ type: "force_root", counter, guid });
+  });
+  on(GameOpcode.SMSG_FORCE_MOVE_UNROOT, (r) => {
+    const { counter, guid } = parseMoveCounter(r);
+    self.receive({ type: "force_unroot", counter, guid });
+  });
   on(GameOpcode.SMSG_MOVE_KNOCK_BACK, (r) =>
     self.receive({ type: "knock_back", knock: parseKnockBack(r) }),
   );

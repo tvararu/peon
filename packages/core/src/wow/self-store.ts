@@ -34,8 +34,8 @@ export type SelfEvent =
   | { type: "teleport_ack"; ack: MoveAck }
   | { type: "transfer_pending" }
   | { type: "new_world"; position: Position }
-  | { type: "force_root"; counter: number }
-  | { type: "force_unroot"; counter: number }
+  | { type: "force_root"; counter: number; guid: bigint | undefined }
+  | { type: "force_unroot"; counter: number; guid: bigint | undefined }
   | { type: "knock_back"; knock: KnockBack }
   | { type: "client_control"; control: ClientControl }
   | { type: "force_speed"; spec: SpeedAck; force: ForceSpeed }

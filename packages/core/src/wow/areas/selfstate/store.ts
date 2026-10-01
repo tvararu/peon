@@ -156,7 +156,7 @@ export class SelfstateStore {
     for (const { opcode, guid, counter } of entries) {
       if (opcode === GameOpcode.SMSG_FORCE_MOVE_ROOT) {
         if (guid === this.deps.selfGuid())
-          this.core.self.receive({ type: "force_root", counter });
+          this.core.self.receive({ type: "force_root", counter, guid });
         continue;
       }
       const change = FLAG_CHANGES.get(opcode);
