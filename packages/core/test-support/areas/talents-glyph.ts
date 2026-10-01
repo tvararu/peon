@@ -6,6 +6,7 @@ import {
 } from "#test-support/areas/talents";
 import { dbcFiles } from "#test-support/dbc";
 import { EntityStore } from "#test-support/internals";
+import type { DbcSource } from "#wow/dbc";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
@@ -34,9 +35,11 @@ type GlyphRigSetup = {
   glyphIds?: readonly number[];
   glyphProperties?: number;
   catalog?: boolean;
+  catalogPending?: boolean;
   placement?: "backpack" | "bag";
   useSpell?: boolean;
   spellEffect?: boolean;
+  templateCached?: boolean;
 };
 
 function split(guid: bigint): [number, number] {
@@ -105,32 +108,37 @@ export function rigged(setup: GlyphRigSetup = {}) {
   world.create(ITEM, ObjectType.ITEM, {
     rawFields: glyphItemFields(placement === "bag" ? BAG : SELF),
   } as never);
+  let dbc: DbcSource | undefined = dbcFiles(talentsCatalogFiles());
+  if (setup.catalog === false) dbc = undefined;
+  if (setup.catalogPending === true)
+    dbc = () => new Promise<Uint8Array>(() => {});
   const rig = areaRig("talents", {
-    dbc: setup.catalog === false ? undefined : dbcFiles(talentsCatalogFiles()),
+    dbc,
     getEntity: (guid) => world.get(guid),
     selfGuid: SELF,
   });
-  rig.stores.items.receive({
-    entry: GLYPH_ITEM,
-    template: itemsTemplate({
+  if (setup.templateCached !== false)
+    rig.stores.items.receive({
       entry: GLYPH_ITEM,
-      itemClass: 16,
-      name: "Glyph of Battle",
-      spells:
-        setup.useSpell === false
-          ? []
-          : [
-              {
-                category: 0,
-                categoryCooldownMs: -1,
-                charges: 0,
-                cooldownMs: -1,
-                id: USE_SPELL,
-                trigger: 0,
-              },
-            ],
-    }),
-  });
+      template: itemsTemplate({
+        entry: GLYPH_ITEM,
+        itemClass: 16,
+        name: "Glyph of Battle",
+        spells:
+          setup.useSpell === false
+            ? []
+            : [
+                {
+                  category: 0,
+                  categoryCooldownMs: -1,
+                  charges: 0,
+                  cooldownMs: -1,
+                  id: USE_SPELL,
+                  trigger: 0,
+                },
+              ],
+      }),
+    });
   rig.stores.combat.setCatalog({
     get: (id: number) =>
       id === USE_SPELL
@@ -193,6 +201,31 @@ export function castFailed(
   rig.events.combat.emit({
     state: { lastOutcome: snapshot.lastOutcome },
     type: "cast_failed",
+  } as never);
+}
+export function castStarted(
+  rig: ReturnType<typeof rigged>["rig"],
+  spellId: number,
+  timerMs: number,
+) {
+  const sent = rig.sent.find((p) => p.opcode === USE)?.body;
+  const seen = new PacketReader(sent ?? new Uint8Array());
+  seen.uint8();
+  seen.uint8();
+  const castCount = seen.uint8();
+  rig.stores.combat.applySpellStart({
+    castCount,
+    caster: SELF,
+    castItem: ITEM,
+    flags: 0,
+    spellId,
+    targets: { flags: 0, objectGuid: 0n },
+    timer: timerMs,
+  });
+  const snapshot = rig.stores.combat.record(undefined);
+  rig.events.combat.emit({
+    state: { casting: snapshot.casting, lastOutcome: snapshot.lastOutcome },
+    type: "cast_started",
   } as never);
 }
 

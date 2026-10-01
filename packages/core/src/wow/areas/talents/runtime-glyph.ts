@@ -1,3 +1,5 @@
+import { abortable, isAbort } from "#lib/abort";
+import { ignoreFailure } from "#lib/ignore-failure";
 import type { AreaRuntimeCtx } from "#wow/areas/contract";
 import type { GlyphEntry, TalentCatalog } from "#wow/areas/talents/catalog";
 import { buildRemoveGlyph, MAX_GLYPH_SLOT } from "#wow/areas/talents/protocol";
@@ -115,6 +117,41 @@ type PendingApply = {
   item: { bag: number; slot: number; guid: bigint; entry: number };
 };
 
+function replyWaiter(
+  env: GlyphEnv,
+  apply: PendingApply,
+  signal: AbortSignal,
+): { waited: Promise<TalentsEvent>; stop: () => void } {
+  const matches = (event: TalentsEvent): boolean =>
+    event.type === "info" &&
+    event.glyphs.some(
+      (change) =>
+        change.slot === apply.glyphSlot && change.to === apply.glyphId,
+    );
+  const first: Promise<TalentsEvent> = env.ctx.until(matches, {
+    signal,
+    timeoutMs: GLYPH_ANSWER_MS,
+  });
+  let follow: Promise<TalentsEvent> | undefined;
+  const stop = env.ctx.listen("combat", (event) => {
+    if (event.type !== "cast_started") return;
+    const casting = event.state.casting;
+    if (casting?.spellId !== apply.spellId) return;
+    follow = env.ctx.until(matches, {
+      signal,
+      timeoutMs: GLYPH_ANSWER_MS + casting.durationMs,
+    });
+    follow.catch(ignoreFailure);
+    stop();
+  });
+  const waited = first.catch((error: unknown) => {
+    if (error instanceof Error && error.message === "timeout" && follow)
+      return follow;
+    throw error;
+  });
+  return { waited, stop };
+}
+
 async function sendApply(
   env: GlyphEnv,
   apply: PendingApply,
@@ -122,14 +159,7 @@ async function sendApply(
   const { spellId, glyphId, glyphSlot } = apply;
   const scope = new AbortController();
   const signal = AbortSignal.any([env.ctx.signal, scope.signal]);
-  const waited: Promise<TalentsEvent> = env.ctx.until(
-    (event) =>
-      event.type === "info" &&
-      event.glyphs.some(
-        (change) => change.slot === glyphSlot && change.to === glyphId,
-      ),
-    { signal, timeoutMs: GLYPH_ANSWER_MS },
-  );
+  const { waited, stop: stopStarted } = replyWaiter(env, apply, signal);
   const gate = Promise.withResolvers<GlyphApplyResult>();
   const stopListening = env.ctx.listen("combat", (event) => {
     if (event.type !== "cast_failed") return;
@@ -159,6 +189,7 @@ async function sendApply(
     });
   } catch (error) {
     scope.abort();
+    stopStarted();
     stopListening();
     gate.resolve({ outcome: "no_reply" });
     await handled.catch(() => undefined);
@@ -173,6 +204,7 @@ async function sendApply(
     return await handled;
   } finally {
     scope.abort();
+    stopStarted();
     stopListening();
     gate.resolve({ outcome: "no_reply" });
     await handled.catch(() => undefined);
@@ -189,14 +221,20 @@ export async function applyGlyph(
     return { outcome: "slot_locked" };
   const item = findCarried(env, request.bag, request.slot);
   if (!item) throw new Error("no_item");
-  const template = await env.core.items
-    .lookup(item.entry)
-    .catch(() => undefined);
+  const template: ItemTemplate | undefined = await abortable(
+    env.core.items
+      .lookup(item.entry)
+      .catch((error: unknown): ItemTemplate | undefined => {
+        if (isAbort(error)) throw error;
+        return undefined;
+      }),
+    env.ctx.signal,
+  );
   const spellId = useSpellOf(template);
   if (spellId === undefined) return { outcome: "not_a_glyph" };
   const glyphId = glyphOf(env.core.combat.definition(spellId));
   if (glyphId === undefined) return { outcome: "not_a_glyph" };
-  const catalog = await env.catalog();
+  const catalog = await abortable(env.catalog(), env.ctx.signal);
   const glyph = catalog?.glyph(glyphId);
   if (catalog && !glyph) return { outcome: "not_a_glyph" };
   if (glyph) {
