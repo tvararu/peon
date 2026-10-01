@@ -1,4 +1,4 @@
-import type { PacketReader } from "#wow/protocol/packet";
+import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 export type FactionWireSlot = { flags: number; standing: number };
 export type InitializeFactions = { entries: FactionWireSlot[] };
@@ -58,4 +58,35 @@ export function parseSetForcedReactions(r: PacketReader): SetForcedReactions {
     reactions.push({ factionId, rank });
   }
   return { reactions };
+}
+
+export const NO_WATCHED_FACTION = 0xff_ff_ff_ff;
+
+function listIdAndFlag(repListId: number, on: boolean): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(repListId);
+  w.uint8(on ? 1 : 0);
+  return w.finish();
+}
+
+export function buildSetFactionAtWar(
+  repListId: number,
+  atWar: boolean,
+): Uint8Array {
+  return listIdAndFlag(repListId, atWar);
+}
+
+export function buildSetFactionInactive(
+  repListId: number,
+  inactive: boolean,
+): Uint8Array {
+  return listIdAndFlag(repListId, inactive);
+}
+
+export function buildSetWatchedFaction(
+  repListId: number | undefined,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(repListId ?? NO_WATCHED_FACTION);
+  return w.finish();
 }

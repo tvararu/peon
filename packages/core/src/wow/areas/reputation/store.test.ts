@@ -346,6 +346,55 @@ describe("reputation store", () => {
   });
 });
 
+describe("reputation store pending flags", () => {
+  test("a pending war flag shows in the row and raises flags_pending until the next list (ReputationMgr.cpp:195-231)", async () => {
+    const { seen, store } = await setup();
+    store.setPendingFlag(UNKNOWN, "atWar", true);
+    expect(seen.at(-1)).toEqual({
+      atWar: true,
+      name: undefined,
+      repListId: UNKNOWN,
+      type: "flags_pending",
+    });
+    expect(row(store, UNKNOWN)?.atWar).toBe(true);
+    expect(store.flagsOf(UNKNOWN)).toBe(0x03);
+    store.initialize({
+      entries: [
+        ...new Array(UNKNOWN).fill({ flags: 0, standing: 0 }),
+        { flags: 0x01, standing: 0 },
+      ],
+    });
+    expect(row(store, UNKNOWN)?.atWar).toBe(false);
+  });
+
+  test("a pending inactive flag clears and sets independently of war", async () => {
+    const { seen, store } = await setup();
+    store.setPendingFlag(SILVERMOON, "inactive", true);
+    expect(row(store, SILVERMOON)?.inactive).toBe(true);
+    expect(seen.at(-1)).toMatchObject({
+      inactive: true,
+      type: "flags_pending",
+    });
+    store.setPendingFlag(SILVERMOON, "inactive", false);
+    expect(row(store, SILVERMOON)?.inactive).toBe(false);
+    expect(row(store, SILVERMOON)?.atWar).toBe(false);
+  });
+
+  test("a pending flag on a slot the list left out creates the slot", async () => {
+    const { store } = await setup();
+    expect(store.flagsOf(50)).toBeUndefined();
+    store.setPendingFlag(50, "atWar", true);
+    expect(row(store, 50)?.atWar).toBe(true);
+  });
+
+  test("an inferred war flag from a standing change wins over an older pending peace", async () => {
+    const { store } = await setup();
+    store.setPendingFlag(BLOODSAIL, "atWar", false);
+    store.setStanding(standing(BLOODSAIL, -700));
+    expect(row(store, BLOODSAIL)?.atWar).toBe(true);
+  });
+});
+
 describe("reputation store inferred at-war flags", () => {
   test("hostile standing keeps the inferred flag while at war", async () => {
     const { store } = await setup();

@@ -19,6 +19,7 @@ export const reputationArea = defineArea({
     "visible",
     "forced_changed",
     "watched_changed",
+    "flags_pending",
   ],
   store: (deps, core) => new ReputationStore(deps, core),
   register: (wire, store) => {
