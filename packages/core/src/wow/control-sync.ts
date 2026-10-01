@@ -121,6 +121,9 @@ export class MovementSync {
   }
 
   pose(): ControlPose | undefined {
+    const carried = this.ride.carriedPose();
+    if (carried)
+      return { ...carried, source: "server", updatedAt: this.deps.now() };
     return this.predicted ?? this.server;
   }
 

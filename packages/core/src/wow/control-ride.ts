@@ -89,6 +89,12 @@ export class RideState {
     return this.transportRide;
   }
 
+  carriedPose(): Position | undefined {
+    this.refreshPose();
+    const ride = this.transportRide;
+    return ride && seatWorldPose(ride.pose, ride.offset);
+  }
+
   refreshPose(): void {
     const ride = this.transportRide;
     const at = ride?.poseAt(this.deps.now());
@@ -128,10 +134,9 @@ export class RideState {
   }
 
   apply(info: MovementInfo): MovementInfo {
-    this.refreshPose();
+    const carried = this.carriedPose();
     const ride = this.transportRide;
-    if (ride) {
-      const carried = seatWorldPose(ride.pose, ride.offset);
+    if (ride && carried) {
       return {
         ...info,
         flags: info.flags | MovementFlag.ON_TRANSPORT,
