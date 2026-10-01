@@ -334,3 +334,36 @@ export function combatlogSpellGoBody(init: {
   w.uint32LE(0);
   return w.finish();
 }
+
+export function combatlogDispelLogBody(init: {
+  victim: bigint;
+  caster: bigint;
+  spellId: number;
+  auras: readonly { spellId: number; flag?: number }[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.victim);
+  w.packedGuidBig(init.caster);
+  w.uint32LE(init.spellId);
+  w.uint8(0);
+  w.uint32LE(init.auras.length);
+  for (const aura of init.auras) {
+    w.uint32LE(aura.spellId);
+    w.uint8(aura.flag ?? 0);
+  }
+  return w.finish();
+}
+
+export function combatlogDispelFailedBody(init: {
+  caster: bigint;
+  target: bigint;
+  spellId: number;
+  failed: readonly number[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.caster);
+  w.uint64LE(init.target);
+  w.uint32LE(init.spellId);
+  for (const id of init.failed) w.uint32LE(id);
+  return w.finish();
+}

@@ -86,6 +86,12 @@ const DAMAGE = new Set<CombatlogKind>([
   "environmental",
   "instakill",
 ]);
+const UTILITY = new Set<CombatlogKind>([
+  "dispel",
+  "dispel_failed",
+  "steal",
+  "execute",
+]);
 const HEALS = new Set<CombatlogKind>(["heal", "periodic_heal"]);
 export class CombatlogStore {
   private readonly events = new Emitter<[CombatlogEvent]>();
@@ -226,6 +232,7 @@ export class CombatlogStore {
     sourceOurs: boolean,
     targetOurs: boolean,
   ): void {
+    if (UTILITY.has(entry.kind)) return;
     const fight = this.fight ?? this.open(entry.at);
     fight.lastAt = entry.at;
     this.trackUnit(entry.source, sourceOurs);

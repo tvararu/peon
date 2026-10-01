@@ -1,5 +1,7 @@
 import {
   damageShieldEntry,
+  dispelEntries,
+  dispelFailedEntries,
   energizeEntry,
   environmentalEntry,
   healEntry,
@@ -16,6 +18,8 @@ import {
   parseAttackerState,
   parseComboPoints,
   parseDamageShield,
+  parseDispelFailed,
+  parseDispelLog,
   parseEnvironmentalDamage,
   parseInstakill,
   parsePartyKill,
@@ -29,9 +33,21 @@ import {
 } from "#wow/areas/combatlog/protocol";
 import { combatlogRuntime } from "#wow/areas/combatlog/runtime";
 import { CombatlogStore } from "#wow/areas/combatlog/store";
-import { defineArea } from "#wow/areas/contract";
+import { type AreaRegister, defineArea } from "#wow/areas/contract";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { parseSpellGo } from "#wow/protocol/spell";
+
+function registerDispels(wire: AreaRegister, store: CombatlogStore): void {
+  wire.on(GameOpcode.SMSG_SPELLDISPELLOG, (r) =>
+    store.receive(dispelEntries("dispel", parseDispelLog(r))),
+  );
+  wire.on(GameOpcode.SMSG_SPELLSTEALLOG, (r) =>
+    store.receive(dispelEntries("steal", parseDispelLog(r))),
+  );
+  wire.on(GameOpcode.SMSG_DISPEL_FAILED, (r) =>
+    store.receive(dispelFailedEntries(parseDispelFailed(r))),
+  );
+}
 
 export const combatlogArea = defineArea({
   name: "combatlog",
@@ -70,6 +86,7 @@ export const combatlogArea = defineArea({
     wire.on(GameOpcode.SMSG_SPELLINSTAKILLLOG, (r) =>
       store.receive([instakillEntry(parseInstakill(r))]),
     );
+    registerDispels(wire, store);
     wire.peek(GameOpcode.SMSG_SPELL_GO, (r) => {
       const go = parseSpellGo(r);
       store.receive(
