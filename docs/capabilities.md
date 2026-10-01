@@ -44,7 +44,7 @@ or the page names one that does not exist.
 | Use the hearthstone to go home | `t8-travel-hearth-home` | `travel` `hearth` refuses without the stone, on cooldown, in combat or in flight. The scenario starts at the preset's own home, so it does not show a bind at another inn. |
 | Fly to a discovered destination and walk on from the landing | `t8-travel-fly` | `travel` `fly <destination>` flies from a flight master in view, or from one at a known node on the same map within 300 yd; the first visit to a master learns its path and a landing steps onto the ground. A mounted character is refused ("Get off your mount first."). The scenario starts in Tranquillien, 54 yd from the master, and flies to Silvermoon City; the agent walked west when it was asked to walk north. |
 | Command a pet: call, dismiss, attack, follow, stay, stop and stance | `t8-pets-command` | Hunter only; no warlock or death knight preset. |
-| Rename or abandon a hunter pet | `t8-pets-rename` | A pet can be renamed once. Abandon runs only when the agent names the pet; it cannot be undone. Taming a new beast has no scenario. |
+| Rename or abandon a hunter pet | `t8-pets-rename`, `t8-pets-abandon` | A pet can be renamed once. Abandon runs only when the agent names the pet; it cannot be undone. Taming a new beast has no scenario. |
 | Set dungeon difficulty | `t9-instances-difficulty` | A solo change is not confirmed until the next dungeon entry; in a group only the leader can change it. |
 | Queue for the dungeon finder and leave | `t9-lfg-queue` | Joining needs an LFG option on the server; a queue with no reply is reported as disabled. |
 | Enter and leave a dungeon-finder dungeon with a party | `t9-lfg-run` | Needs a full party of five; the dungeon finder cannot bring a ghost back. |

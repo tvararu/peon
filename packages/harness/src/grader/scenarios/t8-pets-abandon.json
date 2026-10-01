@@ -1,0 +1,45 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 20,
+    "turns": 10
+  },
+  "checks": [
+    {
+      "evidence": {
+        "console": {
+          "match": "has no pets",
+          "read": "pet"
+        }
+      },
+      "expect": "the agent-side console read of pet says the character has no pets, so the pet was abandoned and not only dismissed",
+      "id": "no-pet-rows",
+      "source": "console"
+    },
+    {
+      "evidence": {
+        "events": ["pets/gone"]
+      },
+      "expect": "GL has a pets/gone row, so the pet bar was cleared",
+      "id": "pet-gone",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the character calling the pet tool with do abandon and what equal to the pet's own name, not ending REFUSED",
+      "id": "abandon-called",
+      "source": "session"
+    }
+  ],
+  "id": "t8-pets-abandon",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "eversong10-hunter",
+  "setup": [],
+  "spawn": "eversong-pets",
+  "steers": [],
+  "task": "You no longer need your pet. Abandon it.",
+  "tier": 8
+}
