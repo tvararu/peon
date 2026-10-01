@@ -40,11 +40,11 @@ export type LfgGroupActs = {
   voteKick: (agree: boolean) => Promise<LfgVoteResult>;
 };
 
-function isTimeout(error: unknown): boolean {
+export function isTimeout(error: unknown): boolean {
   return error instanceof Error && error.message === "timeout";
 }
 
-async function reply(
+export async function reply(
   ctx: Ctx,
   match: (event: LfgEvent) => boolean,
   send: () => void,

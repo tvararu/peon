@@ -10,6 +10,7 @@ import {
   LFG_MAX_ENTRIES,
 } from "#wow/areas/lfg/protocol";
 import { type LfgGroupActs, lfgGroupActs } from "#wow/areas/lfg/runtime-group";
+import { type LfgListActs, lfgListActs } from "#wow/areas/lfg/runtime-list";
 import type { LfgEvent, LfgStore } from "#wow/areas/lfg/store";
 import type {
   LfgLockView,
@@ -62,7 +63,8 @@ export type LfgActs = {
   leave: () => Promise<LfgLeaveResult>;
   setRoles: (roles: number) => Promise<LfgSetRolesResult>;
   setComment: (comment: string) => Promise<LfgCommentResult>;
-} & LfgGroupActs;
+} & LfgGroupActs &
+  LfgListActs;
 
 type Ctx = AreaRuntimeCtx<LfgEvent>;
 type Env = { ctx: Ctx; store: LfgStore };
@@ -420,6 +422,7 @@ export function lfgRuntime(
   const env: Env = { ctx, store };
   const run = guard({ count: 0 });
   const group = lfgGroupActs(ctx, store, core, guard({ count: 0 }));
+  const list = lfgListActs(ctx, guard({ count: 0 }));
   const requestStatus = () => run(statusAct(env));
   const requestDungeons = () => run(dungeonsAct(env));
   const requestPartyLocks = () => run(partyLocksAct(env));
@@ -431,6 +434,7 @@ export function lfgRuntime(
   return {
     act: {
       ...group,
+      ...list,
       join,
       leave,
       requestDungeons,
