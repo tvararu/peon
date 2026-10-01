@@ -141,6 +141,7 @@ export const ROUND_1: readonly string[] = [
   "t5-vendor-buy-goldshire",
   "t5-buyback-vendor",
   "t2-whisper-reply",
+  "t2-emotes-partner",
   "t0-hostiles",
   "t0-who-is-near",
   "t0-self-state",
