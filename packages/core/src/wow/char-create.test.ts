@@ -180,6 +180,7 @@ describe("createCharacter", () => {
       );
       server.inject(GameOpcode.SMSG_CHAR_CREATE, new Uint8Array([0x3b]));
       await expect(done).rejects.toThrow("level_requirement");
+      await expect(done).rejects.toThrow("0x3b");
     } finally {
       server.stop();
     }

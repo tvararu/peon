@@ -146,9 +146,13 @@ export function createCharacter(
         timeoutMs,
       });
       sendPacket(conn, GameOpcode.CMSG_CHAR_CREATE, buildCharCreate(spec));
-      const name = charCreateResult((await reply).uint8());
+      const code = (await reply).uint8();
+      const name = charCreateResult(code);
       if (name !== "success")
-        observe(session, new Error(`Character create: ${name}`));
+        observe(
+          session,
+          new Error(`Character create: ${name} (0x${code.toString(16)})`),
+        );
       closeCreate(session);
       await closed;
       finishAfterClose(session);
