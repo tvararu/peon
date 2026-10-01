@@ -104,6 +104,7 @@ function ready({ ctx, store }: Env, kind: MoveKind): InventoryState {
     throw new Error(`the character is ${life}`);
   if (store.snapshot().move.pending)
     throw new Error("a move is already pending");
+  if (store.snapshot().sets.usePending) throw new Error("a set use is pending");
   return inventory;
 }
 

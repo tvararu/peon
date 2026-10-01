@@ -135,20 +135,29 @@ async function saveSet(
     items,
     requestedAt: ctx.now(),
   };
+  const stop = new AbortController();
   const settled = ctx.until((event) => SAVE_SETTLED.has(event.type), {
     timeoutMs: SET_ANSWER_MS,
+    signal: stop.signal,
   });
   store.beginSave(request, icon);
-  ctx.send(
-    GameOpcode.CMSG_EQUIPMENT_SET_SAVE,
-    buildEquipmentSetSave({
-      icon,
-      index: request.index,
-      items,
-      name: init.name,
-      setGuid: known?.setGuid ?? 0n,
-    }),
-  );
+  try {
+    ctx.send(
+      GameOpcode.CMSG_EQUIPMENT_SET_SAVE,
+      buildEquipmentSetSave({
+        icon,
+        index: request.index,
+        items,
+        name: init.name,
+        setGuid: known?.setGuid ?? 0n,
+      }),
+    );
+  } catch (error) {
+    stop.abort();
+    settled.catch(() => undefined);
+    store.abandonSave();
+    throw error;
+  }
   try {
     await settled;
   } catch (error) {
@@ -165,8 +174,11 @@ async function saveSet(
 async function useSet(env: Env, index: number): Promise<UseOutcome> {
   const { ctx, store } = env;
   const inventory = inWorld(env);
-  if (store.snapshot().sets.usePending)
-    throw new Error("a set use is already pending");
+  const claims = store.snapshot();
+  if (claims.sets.usePending) throw new Error("a set use is already pending");
+  if (claims.move.pending) throw new Error("a move is already pending");
+  if (claims.read.pending) throw new Error("a read or open is already pending");
+  if (claims.sockets.pending) throw new Error("a socket is already pending");
   const snap = store.snapshot().sets;
   const set = snap.sets.find((entry) => entry.index === index);
   if (!set)
@@ -180,14 +192,23 @@ async function useSet(env: Env, index: number): Promise<UseOutcome> {
     ),
     requestedAt: ctx.now(),
   };
+  const stop = new AbortController();
   const settled = ctx.until((event) => USE_SETTLED.has(event.type), {
     timeoutMs: SET_ANSWER_MS,
+    signal: stop.signal,
   });
   store.beginUse(request);
-  ctx.send(
-    GameOpcode.CMSG_EQUIPMENT_SET_USE,
-    buildEquipmentSetUse(positionsOf(inventory, set.items)),
-  );
+  try {
+    ctx.send(
+      GameOpcode.CMSG_EQUIPMENT_SET_USE,
+      buildEquipmentSetUse(positionsOf(inventory, set.items)),
+    );
+  } catch (error) {
+    stop.abort();
+    settled.catch(() => undefined);
+    store.abandonUse();
+    throw error;
+  }
   try {
     await settled;
   } catch (error) {
@@ -210,6 +231,14 @@ function deleteSet(
   const set = snap.sets.find((entry) => entry.index === index);
   if (!set)
     return Promise.reject(new Error(`no set is stored at index ${index}`));
+  try {
+    ctx.send(
+      GameOpcode.CMSG_DELETEEQUIPMENT_SET,
+      buildEquipmentSetDelete(set.setGuid),
+    );
+  } catch (error) {
+    return Promise.reject(error);
+  }
   const removed = store.beginDelete({
     index,
     setGuid: set.setGuid,
@@ -217,10 +246,6 @@ function deleteSet(
   });
   if (!removed)
     return Promise.reject(new Error(`no set is stored at index ${index}`));
-  ctx.send(
-    GameOpcode.CMSG_DELETEEQUIPMENT_SET,
-    buildEquipmentSetDelete(removed.setGuid),
-  );
   return Promise.resolve({ index: removed.index, setGuid: removed.setGuid });
 }
 
