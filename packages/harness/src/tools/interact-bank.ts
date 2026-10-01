@@ -281,13 +281,17 @@ export const bankStep: InteractStep = async ({ ctx, npc }) => {
   });
 };
 
+type MoveArgs = {
+  npc: NpcTarget;
+  verb: "deposit" | "withdraw";
+  row: BankRow;
+  outcome: BankResult;
+  before: number | undefined;
+};
+
 function moveResult(
   ctx: ToolCtx<InteractAfter>,
-  npc: NpcTarget,
-  verb: "deposit" | "withdraw",
-  row: BankRow,
-  outcome: BankResult,
-  before: number | undefined,
+  { npc, verb, row, outcome, before }: MoveArgs,
 ): ToolResult<InteractAfter> {
   const after = {
     ...baseAfter(ctx, npc, verb),
@@ -342,7 +346,13 @@ async function moveStep(
       ? await ctx.handle.bank.act.deposit(row.bag, row.slot)
       : await ctx.handle.bank.act.withdraw(row.bag, row.slot);
   });
-  return moveResult(ctx, npc, verb, row, outcome, inventory.coinage);
+  return moveResult(ctx, {
+    before: inventory.coinage,
+    npc,
+    outcome,
+    row,
+    verb,
+  });
 }
 
 export const depositStep: InteractStep = async ({ args, ctx, npc }) =>

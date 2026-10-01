@@ -14,13 +14,13 @@ import { type LegResult, travelLeg } from "#harness/ops/travel-leg";
 import { reachNext } from "#harness/ops/unreached";
 import { defineGameTool, emptyUnit, result } from "#harness/tools/define";
 import type { GameToolSpec } from "#harness/tools/game-tool";
-import { bindStep } from "#harness/tools/interact-bind";
 import {
   bankStep,
   buyBankSlotStep,
   depositStep,
   withdrawStep,
 } from "#harness/tools/interact-bank";
+import { bindStep } from "#harness/tools/interact-bind";
 import { buybackStep } from "#harness/tools/interact-buyback";
 import { flightExtra } from "#harness/tools/interact-flight";
 import {

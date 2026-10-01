@@ -8,10 +8,9 @@ import {
   toolCtx,
   unitRow,
 } from "#test-support/ops-fixtures";
-import type { TestRuntime } from "#test-support/runtime-fixture";
+import type { MockHandle, TestRuntime } from "#test-support/runtime-fixture";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 import { expectSendKind } from "#test-support/tool-harness";
-import type { MockHandle } from "#test-support/runtime-fixture";
 
 const BANKER = 0xf1_30_00_00_00_00_00_55n;
 const NAME = "Novia";
