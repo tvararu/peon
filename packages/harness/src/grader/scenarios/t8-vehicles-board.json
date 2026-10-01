@@ -1,0 +1,64 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 20,
+    "turns": 10
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["vehicles/entered"]
+      },
+      "expect": "GL has a vehicles/entered row (the agent clicked the 7th Legion Chain Gun and the server seated it), written by the vehicle tool call and not by an earlier row",
+      "id": "entered",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["vehicles/entered", "vehicles/exited"]
+      },
+      "expect": "GL has a vehicles/exited row on a later line than the vehicles/entered row, and the exited row names the same vehicle guid as the entered row",
+      "id": "exited-after-entered",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "point": {
+          "x": 3664,
+          "y": -1208.5
+        }
+      },
+      "expect": "T final position within 30 yd of the start point (3664.0, -1208.5, map 571); the chain gun does not move, so the agent ended near it",
+      "id": "near-gun",
+      "source": "truth"
+    },
+    {
+      "expect": "the session shows the agent calling the vehicle tool with do board and do leave, not ending REFUSED",
+      "id": "vehicle-called",
+      "source": "session"
+    }
+  ],
+  "id": "t8-vehicles-board",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "max80",
+  "setup": [
+    {
+      "body": {
+        "map": 571,
+        "o": 0,
+        "x": 3664,
+        "y": -1208.5,
+        "z": 102.5,
+        "zone": 65
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Get on the 7th Legion Chain Gun in front of you, then get off.",
+  "tier": 8
+}

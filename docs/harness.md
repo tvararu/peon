@@ -168,6 +168,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | `recover` | Comes back to life: corpse run, spirit healer, a resurrection offer, or `self` with a Soulstone or Reincarnation. |
 | `social` | One chat message or one group action. |
 | `talents` | Shows talents and glyphs and spends talent points. |
+| `vehicle` | Takes a seat on a vehicle by walking to a unit and clicking it (`board`), leaves the seat (`leave`), changes seats (`seat`), asks to ride with a player (`ride_with`) and removes a passenger (`eject`). A seat request the server does not answer is `UNCONFIRMED` with the reason `no_answer`. |
 | `journal` | Quest log, bags and gear, spells, reputation, or the game log. |
 | `stop` | Stops one action or everything. |
 | `gear` | Wears, takes off, moves, splits, opens and reads items. |

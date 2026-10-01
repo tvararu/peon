@@ -95,5 +95,6 @@ These have tools or code but no scenario that checks them live:
 - Give a master-looted item to a group member (`t9-raid-master-loot`, the agent sets master loot but its kills leave empty corpses or it names the loot method wrongly, so no item is given).
 - Answer a raid ready check (`t9-raid-answer`, the agent answers before the check starts, and the repeat guard then refuses its answer during the check).
 - Accept a quest a party member shares (`t8-quests-accept-shared`, the agent's early `accept_invite` is refused as a repeat, so it is not in the group when the partner shares).
+- Changing seats, riding with another player and ejecting a passenger (`vehicle` `seat`, `ride_with`, `eject`).
 
 Peon has no tool for mail or the auction house.

@@ -97,5 +97,13 @@ export const vehiclesHarness = defineHarnessArea({
       return [];
     },
   }),
-  worldActs: [],
+  worldActs: [
+    "spellClick",
+    "exitVehicle",
+    "nextSeat",
+    "prevSeat",
+    "switchSeat",
+    "enterPlayerVehicle",
+    "ejectPassenger",
+  ],
 });
