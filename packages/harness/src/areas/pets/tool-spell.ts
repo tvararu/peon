@@ -117,8 +117,14 @@ function failedCast(
 type CastWatch = {
   chasing: boolean;
   failure: string | undefined;
-  sent: { confirmed: boolean } | undefined;
+  sent: { confirmed: boolean; count: number } | undefined;
   ticks: number;
+};
+
+const CHASE_REASONS: Record<string, true> = {
+  dont_report: true,
+  line_of_sight: true,
+  out_of_range: true,
 };
 
 function noteFailure(watch: CastWatch, reason: string): boolean {
@@ -128,6 +134,22 @@ function noteFailure(watch: CastWatch, reason: string): boolean {
     watch.failure = reason;
     return true;
   }
+  return false;
+}
+
+function matchFailure(
+  watch: CastWatch,
+  spell: number,
+  inner: { type: string; spell?: number; castCount?: number; reason?: string },
+): boolean | undefined {
+  if (inner.type !== "cast_failed" || inner.spell !== spell) return undefined;
+  if (inner.castCount === watch.sent?.count)
+    return noteFailure(watch, inner.reason ?? "");
+  if (
+    watch.chasing &&
+    (inner.reason === undefined || CHASE_REASONS[inner.reason])
+  )
+    return noteFailure(watch, inner.reason ?? "");
   return false;
 }
 
@@ -149,10 +171,9 @@ function castWatcher(handle: Game, spell: number) {
       return cooled() || (!watch.chasing && watch.ticks * POLL_MS >= SETTLE_MS);
     }
     if (!("area" in event) || event.area !== "pets") return false;
-    const inner = event.event;
-    if (inner.type === "cast_failed" && inner.spell === spell)
-      return noteFailure(watch, inner.reason);
-    return inner.type === "bar" && cooled();
+    const failed = matchFailure(watch, spell, event.event);
+    if (failed !== undefined) return failed;
+    return event.event.type === "bar" && cooled();
   };
   return { cooled, match, watch };
 }
@@ -175,7 +196,11 @@ export async function castFlow(
       ctx.rt.mutex.run(() => {
         const outcome = ctx.handle.pets.act.petCast(spell.id, target.spec);
         throwUnlessOk(outcome);
-        if (outcome.ok) watch.sent = { confirmed: outcome.confirmed };
+        if (outcome.ok)
+          watch.sent = {
+            confirmed: outcome.confirmed,
+            count: outcome.castCount,
+          };
       }),
     signal: ctx.signal,
     subscribe: hearCooldowns(ctx.handle),
