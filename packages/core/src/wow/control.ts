@@ -14,6 +14,7 @@ import type { MoverState, RideSeat } from "#wow/control-ride";
 import { AirMoves, type AscendKind, type PitchKind } from "#wow/control-swim";
 import { MovementSync } from "#wow/control-sync";
 import type { SelfObservation } from "#wow/control-sync-types";
+import type { TransportBoard } from "#wow/control-transport";
 import { DirectedWalk } from "#wow/control-walk";
 import type { Position } from "#wow/entity-store";
 import { bearing, distance2d } from "#wow/geometry";
@@ -213,6 +214,14 @@ export class ControlRuntime {
       opcode,
       build(this.sync.moverGuid(), this.sync.movementInfo()),
     );
+  }
+
+  transportBoard(board: TransportBoard): void {
+    this.sync.transportBoard(board);
+  }
+
+  transportLeave(): void {
+    this.sync.transportLeave();
   }
 
   observeTarget(target: bigint): void {

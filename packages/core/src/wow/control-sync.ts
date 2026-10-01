@@ -32,6 +32,11 @@ import type {
   SyncMotion,
   SyncParts,
 } from "#wow/control-sync-types";
+import {
+  planBoard,
+  planLeave,
+  type TransportBoard,
+} from "#wow/control-transport";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag } from "#wow/protocol/entity-fields";
 import type { MonsterMove } from "#wow/protocol/monster-move";
@@ -158,6 +163,34 @@ export class MovementSync {
     this.moverRootKnown = false;
     this.pendingRoots.clear();
     this.ride.leave();
+  }
+
+  transportBoard(board: TransportBoard): void {
+    const from = this.pose();
+    if (!from) throw new Error("no_pose");
+    this.ride.boardTransport(planBoard(board, from, this.deps.now()));
+    this.moveFlags |= MovementFlag.ON_TRANSPORT;
+    this.observedFlags |= MovementFlag.ON_TRANSPORT;
+    this.sendTransportChange();
+  }
+
+  transportLeave(): void {
+    this.ride.refreshPose();
+    const ride = this.ride.carriage();
+    if (!ride) throw new Error("not_boarded");
+    const ground = planLeave(ride, this.mapId, this.deps.ground);
+    this.ride.leaveTransport();
+    this.moveFlags &= ~MovementFlag.ON_TRANSPORT;
+    this.observedFlags &= ~MovementFlag.ON_TRANSPORT;
+    this.adoptServerPose(ground);
+    this.sendTransportChange();
+  }
+
+  private sendTransportChange(): void {
+    this.deps.send(
+      GameOpcode.CMSG_MOVE_CHNG_TRANSPORT,
+      buildMoveMessage(this.deps.selfGuid(), this.movementInfo()),
+    );
   }
 
   airBlock(): string | undefined {
@@ -331,7 +364,8 @@ export class MovementSync {
     this.teleporting = false;
     this.flight?.newWorld();
     this.transport = undefined;
-    this.ride.clear();
+    if (this.ride.carriage() === undefined || position.mapId !== this.mapId)
+      this.ride.clear();
     this.mapId = position.mapId;
     this.moveFlags = 0;
     this.observedFlags = 0;

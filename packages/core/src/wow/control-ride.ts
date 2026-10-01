@@ -2,6 +2,7 @@ import type { ControlDeps } from "#wow/control";
 import { INPUT_BITS } from "#wow/control-input";
 import { AIR_INPUT_BITS } from "#wow/control-swim";
 import type { Emit, SelfObservation } from "#wow/control-sync-types";
+import type { TransportRide } from "#wow/control-transport";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag } from "#wow/protocol/entity-fields";
 import {
@@ -147,6 +148,7 @@ export class RideState {
   private mover: bigint | undefined;
   private pendingMover: bigint | undefined;
   private splineTimer: TimerId | undefined;
+  private transportRide: TransportRide | undefined;
 
   constructor(parts: RideParts) {
     this.deps = parts.deps;
@@ -189,6 +191,36 @@ export class RideState {
     return "refused";
   }
 
+  get onTransport(): boolean {
+    return this.transportRide !== undefined;
+  }
+
+  get transportGuid(): bigint | undefined {
+    return this.transportRide?.guid;
+  }
+
+  boardTransport(ride: TransportRide): void {
+    this.transportRide = ride;
+    this.cancelForced("transport");
+    this.serverPose(seatWorldPose(ride.pose, ride.offset));
+    this.emit("control_changed", "transport");
+  }
+
+  leaveTransport(): void {
+    this.transportRide = undefined;
+    this.emit("control_changed", undefined);
+  }
+
+  carriage(): TransportRide | undefined {
+    return this.transportRide;
+  }
+
+  refreshPose(): void {
+    const ride = this.transportRide;
+    const at = ride?.poseAt(this.deps.now());
+    if (ride && at) ride.pose = { ...at };
+  }
+
   board(seat: RideSeat): void {
     clearTimeout(this.splineTimer);
     this.splineTimer = undefined;
@@ -227,10 +259,14 @@ export class RideState {
     this.splineTimer = undefined;
     this.seat = undefined;
     this.pendingMover = undefined;
+    this.transportRide = undefined;
     this.releaseMover();
   }
 
   apply(info: MovementInfo): MovementInfo {
+    this.refreshPose();
+    const ride = this.transportRide;
+    if (ride && this.mover === undefined) return this.withTransport(ride, info);
     if (!this.seat) return info;
     if (this.mover !== undefined)
       return {
@@ -238,6 +274,27 @@ export class RideState {
         flags: info.flags & ~MovementFlag.ON_TRANSPORT,
       };
     return this.withSeat(this.seat, info);
+  }
+
+  private withTransport(ride: TransportRide, info: MovementInfo): MovementInfo {
+    const carried = seatWorldPose(ride.pose, ride.offset);
+    return {
+      ...info,
+      flags: info.flags | MovementFlag.ON_TRANSPORT,
+      orientation: carried.orientation,
+      transport: {
+        guid: ride.guid,
+        orientation: 0,
+        seat: 0,
+        time: info.time,
+        x: ride.offset.x,
+        y: ride.offset.y,
+        z: ride.offset.z,
+      },
+      x: carried.x,
+      y: carried.y,
+      z: carried.z,
+    };
   }
 
   private withSeat(seat: RideSeat, info: MovementInfo): MovementInfo {
@@ -262,6 +319,7 @@ export class RideState {
     this.seat = undefined;
     this.pendingMover = undefined;
     this.mover = undefined;
+    this.transportRide = undefined;
   }
 
   private sendSwitch(from: bigint, to: bigint, info: MovementInfo): void {
