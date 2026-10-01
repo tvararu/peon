@@ -3,7 +3,11 @@ import {
   MAILBOX_OBJECT,
   mailListResultBody,
   mailRig,
+  mailSendMailResultBody,
 } from "#test-support/areas/mail";
+import { elapse, withFakeTimers } from "#test-support/fake-time";
+import { flushMicrotasks } from "#test-support/microtasks";
+import { MAIL_ANSWER_MS } from "#wow/areas/mail/runtime";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -58,6 +62,46 @@ describe("mail send attachments", () => {
       expect(sentMails(rig)).toHaveLength(1);
       expect(rig.handle.state().pending).toBeDefined();
       void pending.catch(() => undefined);
+    } finally {
+      rig.dispose();
+    }
+  });
+});
+
+describe("mail send after a timeout", () => {
+  const letter = {
+    body: "",
+    receiver: "Friend",
+    subject: "",
+  };
+
+  test("a timed-out send stays unresolved so its late reply cannot settle the next send", async () => {
+    const rig = await listedRig();
+    try {
+      await withFakeTimers(async () => {
+        const first = rig.handle.act.sendMail(letter);
+        await flushMicrotasks();
+        await elapse(MAIL_ANSWER_MS);
+        expect(await first).toEqual({ status: "unanswered" });
+        expect(rig.handle.state().pending).toEqual({ action: "send", id: 0 });
+        await expect(rig.handle.act.sendMail(letter)).rejects.toThrow(
+          "mail_busy",
+        );
+        expect(sentMails(rig)).toHaveLength(1);
+        rig.inject(
+          GameOpcode.SMSG_SEND_MAIL_RESULT,
+          mailSendMailResultBody({ action: 0, id: 0, result: 4 }),
+        );
+        expect(rig.handle.state().pending).toBeUndefined();
+        const second = rig.handle.act.sendMail(letter);
+        await flushMicrotasks();
+        expect(sentMails(rig)).toHaveLength(2);
+        rig.inject(
+          GameOpcode.SMSG_SEND_MAIL_RESULT,
+          mailSendMailResultBody({ action: 0, id: 0, result: 0 }),
+        );
+        expect(await second).toEqual({ status: "ok" });
+      });
     } finally {
       rig.dispose();
     }

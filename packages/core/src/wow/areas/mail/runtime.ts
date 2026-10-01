@@ -207,7 +207,7 @@ async function runAct(env: Env, send: ActSend): Promise<MailActResult> {
     return settleResult(event.result);
   } catch (error) {
     if (!isTimeout(error)) throw error;
-    env.store.releaseAction(pending);
+    if (pending.action !== "send") env.store.releaseAction(pending);
     return { status: "unanswered" };
   }
 }
