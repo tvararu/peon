@@ -202,7 +202,8 @@ export class RideState {
   boardTransport(ride: TransportRide): void {
     this.transportRide = ride;
     this.cancelForced("transport");
-    this.serverPose(seatWorldPose(ride.pose, ride.offset));
+    const carried = this.carriedPose();
+    if (carried) this.serverPose(carried);
     this.emit("control_changed", "transport");
   }
 
@@ -215,7 +216,8 @@ export class RideState {
     const ride = this.transportRide;
     if (!ride) return;
     ride.offset = { ...local };
-    ride.pose = { mapId, moving: true, orientation: 0, x: 0, y: 0, z: 0 };
+    ride.mapId = mapId;
+    ride.pose = undefined;
   }
 
   carriage(): TransportRide | undefined {
@@ -225,13 +227,13 @@ export class RideState {
   carriedPose(): Position | undefined {
     this.refreshPose();
     const ride = this.transportRide;
-    return ride && seatWorldPose(ride.pose, ride.offset);
+    return ride?.pose && seatWorldPose(ride.pose, ride.offset);
   }
 
   refreshPose(): void {
     const ride = this.transportRide;
     const at = ride?.poseAt(this.deps.now());
-    if (!(ride && at) || at.mapId !== ride.pose.mapId) return;
+    if (!(ride && at) || at.mapId !== ride.mapId) return;
     ride.pose = { ...at };
   }
 
@@ -280,7 +282,7 @@ export class RideState {
   apply(info: MovementInfo): MovementInfo {
     const carried = this.carriedPose();
     const ride = this.transportRide;
-    if (ride && carried && this.mover === undefined)
+    if (ride && this.mover === undefined)
       return this.withTransport(ride, carried, info);
     if (!this.seat) return info;
     if (this.mover !== undefined)
@@ -293,13 +295,13 @@ export class RideState {
 
   private withTransport(
     ride: TransportRide,
-    carried: Position,
+    carried: Position | undefined,
     info: MovementInfo,
   ): MovementInfo {
     return {
       ...info,
       flags: info.flags | MovementFlag.ON_TRANSPORT,
-      orientation: carried.orientation,
+      orientation: carried?.orientation ?? info.orientation,
       transport: {
         guid: ride.guid,
         orientation: 0,
@@ -309,9 +311,9 @@ export class RideState {
         y: ride.offset.y,
         z: ride.offset.z,
       },
-      x: carried.x,
-      y: carried.y,
-      z: carried.z,
+      x: carried?.x ?? info.x,
+      y: carried?.y ?? info.y,
+      z: carried?.z ?? info.z,
     };
   }
 

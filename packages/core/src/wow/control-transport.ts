@@ -14,7 +14,8 @@ export type TransportBoard = {
 export type TransportRide = {
   guid: bigint;
   offset: Vec3;
-  pose: DeckPose;
+  mapId: number;
+  pose: DeckPose | undefined;
   poseAt: (now: number) => DeckPose | undefined;
 };
 
@@ -38,6 +39,7 @@ export function planBoard(
       y: dy * cos + dx * sin,
       z: from.z - at.z,
     },
+    mapId: at.mapId,
     pose: { ...at },
     poseAt: board.poseAt,
   };
@@ -49,7 +51,7 @@ export function planLeave(
   ground: GroundOracle | undefined,
 ): Position {
   const at = ride.pose;
-  if (at.mapId !== mapId || at.moving) throw new Error("not_docked");
+  if (!at || at.mapId !== mapId || at.moving) throw new Error("not_docked");
   const z = ground?.height(mapId, at.x, at.y, { x: at.x, y: at.y, z: at.z });
   if (z === undefined) throw new Error("ground_height_unavailable");
   return { mapId, orientation: at.orientation, x: at.x, y: at.y, z };

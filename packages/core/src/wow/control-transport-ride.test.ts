@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { info, oracle, setup } from "#test-support/control-fixtures";
 import { must } from "#test-support/must";
+import { seatWorldPose } from "#wow/control-ride";
+import type { DeckPose } from "#wow/control-transport";
 import { MovementFlag } from "#wow/protocol/entity-fields";
 import { parseMovementInfo } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -26,6 +28,13 @@ function board(over: Partial<Board> = {}): Board {
     type: "transport_board",
     ...over,
   };
+}
+
+function rootBlock(sent: { body: Uint8Array }[]) {
+  const r = new PacketReader(must(sent.at(-1)).body);
+  r.packedGuidBig();
+  r.uint32LE();
+  return parseMovementInfo(r);
 }
 
 function transportOf(body: Uint8Array) {
@@ -303,10 +312,17 @@ describe("transport ride in control", () => {
     expect(parseMovementInfo(r).transport).toBeUndefined();
   });
 
-  test("a transport-driven cross-map change keeps the ride and adopts the local offset (Player.cpp:1607-1640)", () => {
+  test("a transport-driven cross-map change keeps the deck-local numbers out of the world pose (Player.cpp:1634-1640)", () => {
     const { runtime, sent, events } = setup();
-    sent.length = 0;
-    runtime.transportBoard(board());
+    let at: DeckPose = {
+      mapId: 530,
+      moving: false,
+      orientation: 0,
+      x: 8709.46,
+      y: -6671.76,
+      z: 70.34,
+    };
+    runtime.transportBoard(board({ poseAt: () => ({ ...at }) }));
     events.length = 0;
     runtime.handleTransferPending({ entry: 176_495, fromMap: 530 });
     runtime.newWorld({ mapId: 571, orientation: 0, x: 4, y: 5, z: 6 });
@@ -315,31 +331,76 @@ describe("transport ride in control", () => {
         event.type === "server_correction" && event.reason === "new_world",
     );
     expect(runtime.currentMapId()).toBe(571);
-    expect(crossed?.state.pose?.mapId).toBe(571);
-    expect(crossed?.state.pose?.x).toBeCloseTo(4, 4);
-    expect(crossed?.state.pose?.y).toBeCloseTo(5, 4);
-    expect(crossed?.state.pose?.z).toBeCloseTo(6, 4);
+    for (const pose of [crossed?.state.pose, runtime.snapshot().pose]) {
+      expect(pose?.x).toBeCloseTo(8709.46, 2);
+      expect(pose?.y).toBeCloseTo(-6671.76, 2);
+      expect(pose?.stale).toBe(true);
+    }
     expect(runtime.snapshot().movementAllowed).toBe(false);
-    const pose = runtime.snapshot().pose;
-    expect(pose?.mapId).toBe(571);
-    expect(pose?.x).toBeCloseTo(4, 4);
-    expect(pose?.y).toBeCloseTo(5, 4);
-    expect(pose?.z).toBeCloseTo(6, 4);
     sent.length = 0;
     runtime.forceRoot(6);
-    const r = new PacketReader(must(sent.at(-1)).body);
-    r.packedGuidBig();
-    r.uint32LE();
-    const parsed = parseMovementInfo(r);
-    expect(parsed.flags & MovementFlag.ON_TRANSPORT).not.toBe(0);
-    expect(parsed.transport?.guid).toBe(TRANSPORT);
-    expect(parsed.transport?.x).toBeCloseTo(4, 4);
-    expect(parsed.transport?.y).toBeCloseTo(5, 4);
-    expect(parsed.transport?.z).toBeCloseTo(6, 4);
-    expect(parsed.x).toBeCloseTo(4, 4);
-    expect(parsed.y).toBeCloseTo(5, 4);
-    expect(parsed.z).toBeCloseTo(6, 4);
+    const local = rootBlock(sent);
+    expect(local.flags & MovementFlag.ON_TRANSPORT).not.toBe(0);
+    expect(local.transport?.guid).toBe(TRANSPORT);
+    expect(local.transport?.x).toBeCloseTo(4, 4);
+    expect(local.transport?.y).toBeCloseTo(5, 4);
+    expect(local.transport?.z).toBeCloseTo(6, 4);
+    expect(local.x).toBeCloseTo(8709.46, 2);
+    expect(local.y).toBeCloseTo(-6671.76, 2);
     expect(() => runtime.transportLeave()).toThrow("not_docked");
+    at = { ...at, mapId: 530, x: 1, y: 2 };
+    expect(runtime.snapshot().pose?.stale).toBe(true);
+    at = {
+      mapId: 571,
+      moving: false,
+      orientation: Math.PI / 2,
+      x: 100,
+      y: 200,
+      z: 30,
+    };
+    const world = seatWorldPose(at, { x: 4, y: 5, z: 6 });
+    const pose = runtime.snapshot().pose;
+    expect(pose?.mapId).toBe(571);
+    expect(pose?.x).toBeCloseTo(world.x, 4);
+    expect(pose?.y).toBeCloseTo(world.y, 4);
+    expect(pose?.z).toBeCloseTo(world.z, 4);
+    expect(pose?.stale).toBeUndefined();
+    sent.length = 0;
+    runtime.forceRoot(7);
+    const arrived = rootBlock(sent);
+    expect(arrived.transport?.x).toBeCloseTo(4, 4);
+    expect(arrived.x).toBeCloseTo(world.x, 4);
+    expect(arrived.y).toBeCloseTo(world.y, 4);
+  });
+
+  test("the teleport ack after a cross-map transfer restores the world pose until the transport pose arrives", () => {
+    const { runtime } = setup();
+    runtime.transportBoard(board());
+    runtime.handleTransferPending({ entry: 176_495, fromMap: 530 });
+    runtime.newWorld({ mapId: 571, orientation: 0, x: 4, y: 5, z: 6 });
+    runtime.teleportAck({
+      counter: 3,
+      guid: 0x0764n,
+      info: info({
+        flags: MovementFlag.ON_TRANSPORT,
+        transport: {
+          guid: TRANSPORT,
+          orientation: 0,
+          seat: 0,
+          time: 1,
+          x: 4,
+          y: 5,
+          z: 6,
+        },
+        x: 1800,
+        y: 300,
+        z: 40,
+      }),
+    });
+    const pose = runtime.snapshot().pose;
+    expect(pose?.x).toBeCloseTo(1800, 2);
+    expect(pose?.y).toBeCloseTo(300, 2);
+    expect(pose?.stale).toBeUndefined();
   });
 
   test("a same-map world change keeps movement refused", () => {

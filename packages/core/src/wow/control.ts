@@ -37,6 +37,7 @@ const FORWARD: MovementInput = { move: "forward" };
 export type ControlPose = Position & {
   source: "server" | "predicted";
   updatedAt: number;
+  stale?: boolean;
 };
 
 export type WalkOutcome = {

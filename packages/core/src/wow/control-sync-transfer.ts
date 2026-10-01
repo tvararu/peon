@@ -1,4 +1,4 @@
-import type { ControlDeps } from "#wow/control";
+import type { ControlDeps, ControlPose } from "#wow/control";
 import type { RideState } from "#wow/control-ride";
 import type { TransferAbortWatch } from "#wow/control-sync-guards";
 import type { Emit, FlightPort, SyncMotion } from "#wow/control-sync-types";
@@ -43,6 +43,7 @@ export type TransferHost = {
   teleporting: boolean;
   transportTransfer: boolean;
   transport: unknown;
+  server: ControlPose | undefined;
   predicted: unknown;
   cancelForced: (reason: string) => void;
   applyForcedPose: (dest: MovementInfo, reason: string) => void;
@@ -131,7 +132,8 @@ export class WorldTransfer {
     host.moverRooted = false;
     host.moverRootKnown = false;
     host.pendingRoots.clear();
-    host.setServerPose(position);
+    if (!transfer) host.setServerPose(position);
+    else if (host.server) host.server = { ...host.server, stale: true };
     host.predicted = undefined;
     host.deps.send(GameOpcode.MSG_MOVE_WORLDPORT_ACK);
     host.deps.send(
