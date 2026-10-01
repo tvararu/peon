@@ -41,10 +41,33 @@ function regensOf(raw: ReadonlyMap<number, number>): (number | undefined)[] {
   });
 }
 
+function spentBytes(
+  state: SpellRuneState,
+  previous: ReadonlyMap<number, number>,
+): { fresh: Map<number, number>; kept: Map<number, number> } {
+  const fresh = new Map<number, number>();
+  const kept = new Map<number, number>();
+  let order = 0;
+  for (let slot = 0; slot < RUNE_SLOTS; slot++) {
+    const bit = 1 << slot;
+    if (bit & state.after) continue;
+    if (bit & state.initial) {
+      const byte = state.cooldowns[order] ?? 0;
+      order += 1;
+      fresh.set(slot, byte);
+      kept.set(slot, byte);
+      continue;
+    }
+    const byte = previous.get(slot);
+    if (byte !== undefined) kept.set(slot, byte);
+  }
+  return { fresh, kept };
+}
+
 export class Runes {
   private types: readonly number[] | undefined;
   private readyMask: number | undefined;
-  private spentByte: number | undefined;
+  private spentBytes = new Map<number, number>();
 
   private created(raw: ReadonlyMap<number, number> | undefined): boolean {
     return classOf(raw) === DEATH_KNIGHT_CLASS;
@@ -57,23 +80,17 @@ export class Runes {
     if (!this.created(raw)) {
       this.types = undefined;
       this.readyMask = undefined;
-      this.spentByte = undefined;
+      this.spentBytes = new Map();
       return undefined;
     }
     const current = this.types ?? [...RUNE_BASE_TYPES];
     const mask = state?.initial ?? this.readyMask ?? 0x3f;
     const elapsed = new Map<number, number>();
     if (state) {
-      let order = 0;
-      for (let slot = 0; slot < RUNE_SLOTS; slot++) {
-        const bit = 1 << slot;
-        if (bit & state.initial && !(bit & state.after)) {
-          elapsed.set(slot, state.cooldowns[order] ?? 0);
-          order += 1;
-        }
-      }
+      const spent = spentBytes(state, this.spentBytes);
+      for (const [slot, byte] of spent.fresh) elapsed.set(slot, byte);
       this.readyMask = state.after;
-      this.spentByte = state.cooldowns[0];
+      this.spentBytes = spent.kept;
     }
     const regens = raw ? regensOf(raw) : [];
     this.types = current;
@@ -81,7 +98,9 @@ export class Runes {
       const bit = 1 << index;
       const ready = (mask & bit) !== 0;
       return {
-        cooldown: elapsed.get(index) ?? (ready ? undefined : this.spentByte),
+        cooldown:
+          elapsed.get(index) ??
+          (ready ? undefined : this.spentBytes.get(index)),
         index,
         ready,
         regen: regens[type],
@@ -105,6 +124,6 @@ export class Runes {
   clear(): void {
     this.types = undefined;
     this.readyMask = undefined;
-    this.spentByte = undefined;
+    this.spentBytes = new Map();
   }
 }
