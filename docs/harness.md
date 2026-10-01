@@ -97,6 +97,9 @@ warning per missing file on stderr and still exits 0. With no
 | `TalentTab.dbc` | talent trees by class | `enUS/patch-enUS.MPQ` |
 | `GlyphProperties.dbc` | glyph spells and slot types | `enUS/patch-enUS-2.MPQ` |
 | `GlyphSlot.dbc` | glyph slot types | `enUS/locale-enUS.MPQ` |
+| `TaxiPathNode.dbc` | transport path nodes | `enUS/patch-enUS-3.MPQ` |
+| `TransportAnimation.dbc` | lift animation offsets | `enUS/patch-enUS-3.MPQ` |
+| `TransportRotation.dbc` | lift animation rotations | `enUS/patch-enUS-3.MPQ` |
 
 The client resolves each file from the first archive that holds it:
 `enUS/patch-enUS-3.MPQ`, then `enUS/patch-enUS-2.MPQ`, then
