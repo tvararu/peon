@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type {
-  CombatEvent,
-  CombatOutcome,
-  NearbyRow,
-} from "@peon/core";
+import type { CombatEvent, CombatOutcome, NearbyRow } from "@peon/core";
 import { fakeAwait, withFakeTimers } from "@peon/core/test-support/fake-time";
 import {
   createMockHandle,
