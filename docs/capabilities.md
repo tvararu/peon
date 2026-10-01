@@ -49,6 +49,7 @@ or the page names one that does not exist.
 | Rename or abandon a hunter pet | `t8-pets-rename`, `t8-pets-abandon` | A pet can be renamed once. Abandon runs only when the agent names the pet; it cannot be undone. Taming a new beast has no scenario. |
 | Spend talent points | `t8-talents-spend` | Learns only for the active spec. A server refusal has no reason on the wire; the reason shown comes from local rules. |
 | Reset talents at a class trainer | `t8-talents-reset` | Pays only up to the cost the agent allows. |
+| Set dungeon difficulty | `t9-instances-difficulty` | A solo change is not confirmed until the next dungeon entry; in a group only the leader can change it. |
 | Queue for the dungeon finder and leave | `t9-lfg-queue` | Joining needs an LFG option on the server; a queue with no reply is reported as disabled. |
 | Enter and leave a dungeon-finder dungeon with a party | `t9-lfg-run` | Needs a full party of five; the dungeon finder cannot bring a ghost back. |
 | Reset its own dungeons | — (not shown; see below) | Normal difficulty only; a group member cannot reset. |
