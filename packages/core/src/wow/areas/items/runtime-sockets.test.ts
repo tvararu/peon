@@ -221,9 +221,9 @@ describe("items runtime: socket", () => {
     world.put(255, 3, { entry: 32_001, guid: GEM_B });
     const rig = itemsRig(world);
     try {
-      await expect(
-        rig.handle.act.socket(RING, [GEM_B]),
-      ).rejects.toThrow("not in the bags");
+      await expect(rig.handle.act.socket(RING, [GEM_B])).rejects.toThrow(
+        "not in the bags",
+      );
       expect(sends(rig.sent, GameOpcode.CMSG_SOCKET_GEMS)).toEqual([]);
       const pending = rig.handle.act.socket(RING, [BAG_GEM]);
       expect(sends(rig.sent, GameOpcode.CMSG_SOCKET_GEMS)).toHaveLength(1);

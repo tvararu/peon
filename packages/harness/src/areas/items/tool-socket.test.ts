@@ -155,7 +155,8 @@ describe("gear tool socket", () => {
     t.handle.getInventoryState = () => ({
       ...inventory,
       slots: inventory.slots.map((slot) =>
-        slot.status === "occupied" && (slot.guid === RING || slot.guid === WORN_GEM)
+        slot.status === "occupied" &&
+        (slot.guid === RING || slot.guid === WORN_GEM)
           ? { ...slot, region: "equipment" }
           : slot,
       ),
