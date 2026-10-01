@@ -1748,6 +1748,13 @@ writes them, and `social-5a` adds any the seed missed.
 | `SMSG_CHAT_NOT_IN_PARTY` (0x299) | AzerothCore declares it `STATUS_NEVER` (`Server/Protocol/Opcodes.cpp:796`) and has no send site; wowm has no definition. |
 | `SMSG_CHAT_PLAYER_AMBIGUOUS` (0x32d) | Its only writer is `WorldSession::SendPlayerAmbiguousNotice` (`Handlers/ChatHandler.cpp:824-829`), which nothing calls; wowm notes it is never sent (`chat/smsg_chat_player_ambiguous.wowm:1`). |
 
+## Build rulings
+
+| Id | Issue | Ruling |
+|---|---|---|
+| BR-social-14-1 | `t2-emotes-partner` on the `fairbreeze-east` grid (SR3-social-6) puts an emoting agent 4-16 yd from `t2-whisper-reply`, which fails the 60 yd crowd test, and the emote can target the whisper character | Coordinator ruling (P2-17): SR3-social-6's grid sharing is superseded. social-14 adds its own named grid `fairbreeze-emotes` under BR-wave3-3, at least 60 yd from every other ROUND_1 start, with live-stood points; `spawn-slots.test.ts` stays unchanged. |
+| BR-social-14-2 | social-14's fourth review, after three fix rounds, still finds that a queued text emote's caller cannot cancel while it waits for its turn, and one negative test emits the other-player echo before the act resolves | Coordinator ruling (P2-17): social-14 is a leaf task, so BR-wave3-1 gives it no rescue round; it is parked (branch `factory/431-wave3-parked-social-14`) with these two findings listed in the wave PR. |
+
 ## COMPLETE
 
 ## Seed rulings (SEED-1)
