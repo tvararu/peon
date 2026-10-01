@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
-import { type Sent, setup } from "#test-support/control-fixtures";
+import { decodeMove, type Sent, setup } from "#test-support/control-fixtures";
 import { must } from "#test-support/must";
 import { MovementFlag } from "#wow/protocol/entity-fields";
 import { parseMovementInfo } from "#wow/protocol/movement";
@@ -139,5 +139,65 @@ describe("forced movement flags naming the driven vehicle (Unit.cpp:16105-16114)
     runtime.move("forward", 500);
     expect(runtime.snapshot().moving).toBe(true);
     runtime.halt();
+  });
+});
+
+describe("observations while driving a vehicle", () => {
+  test("the passenger's own root block does not root the driven vehicle", () => {
+    const { runtime, sent } = adopt();
+    runtime.observeSelf({
+      movementFlags: MovementFlag.ROOT | MovementFlag.ON_TRANSPORT,
+    });
+    expect(runtime.snapshot().movementAllowed).toBe(true);
+    runtime.move("forward", 500);
+    const packet = decodeMove(sent[0]);
+    expect(packet.guid).toBe(VEHICLE);
+    expect(packet.flags & MovementFlag.ROOT).toBe(0);
+    expect(packet.flags & MovementFlag.FORWARD).toBe(MovementFlag.FORWARD);
+    runtime.halt();
+  });
+
+  test("the passenger's root is remembered for after the ride", () => {
+    const { runtime } = adopt();
+    runtime.observeSelf({
+      movementFlags: MovementFlag.ROOT | MovementFlag.ON_TRANSPORT,
+    });
+    runtime.clientControl({ allow: false, guid: VEHICLE });
+    runtime.vehicleLeft();
+    expect(runtime.snapshot().blockedReason).toBe("rooted");
+  });
+
+  test("unset can fly clears flight flags adopted from the vehicle's create block", () => {
+    const { runtime } = setup();
+    runtime.vehicleSeat(seat());
+    runtime.clientControl({ allow: true, guid: VEHICLE });
+    runtime.moverState({
+      flags: MovementFlag.CAN_FLY | MovementFlag.FLYING,
+      guid: VEHICLE,
+      pose: POSE,
+      run: 12,
+      runBack: 6,
+      turn: 2,
+    });
+    expect(runtime.snapshot().movementAllowed).toBe(false);
+    runtime.setCanFly(9, false);
+    expect(runtime.snapshot().movementAllowed).toBe(true);
+    runtime.move("forward", 500);
+    expect(runtime.snapshot().moving).toBe(true);
+    runtime.halt();
+  });
+
+  test("gravity disabled during a ground drive stops it", () => {
+    const { runtime, sent, advance } = adopt();
+    runtime.move("forward", 5000);
+    advance(200);
+    expect(runtime.snapshot().moving).toBe(true);
+    runtime.moveFlag("gravity_off", true, 5, VEHICLE);
+    expect(runtime.snapshot().moving).toBe(false);
+    sent.length = 0;
+    advance(2000);
+    expect(
+      sent.filter(({ opcode }) => opcode === GameOpcode.MSG_MOVE_HEARTBEAT),
+    ).toHaveLength(0);
   });
 });
