@@ -45,21 +45,20 @@ describe("an unanswered quest request is bounded", () => {
     expect(vendor.snapshot().window?.guid).toBe(ARENA_GUID);
   });
 
-  test("a bank window still answers the option as an unsupported window", () => {
+  test("a bank window answers the option and opens no quest error", () => {
     const { events, packet, runtime } = setup();
     runtime.talk(ARENA_GUID);
     packet(GameOpcode.SMSG_GOSSIP_MESSAGE, captured215.arenaGossip);
     runtime.selectOption(0);
     packet(GameOpcode.SMSG_SHOW_BANK, "ee4900b43b0030f1");
     expect(runtime.snapshot()).toMatchObject({
-      lastError: {
-        guid: ARENA_GUID,
-        kind: "unsupported_window",
-        window: "bank",
-      },
+      dialog: undefined,
+      giver: undefined,
+      lastError: undefined,
       pending: undefined,
+      unresolved: [],
     });
-    expect(events.at(-1)?.detail).toBe("unsupported_window:bank");
+    expect(events.at(-1)).toMatchObject({ detail: "bank", type: "window" });
   });
 
   test("another giver's trainer list does not answer the pending request", () => {
