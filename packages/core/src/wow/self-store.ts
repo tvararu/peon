@@ -1,6 +1,7 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type { SelfObservation } from "#wow/control-sync";
 import type { Position } from "#wow/entity-store";
+import type { MonsterMove } from "#wow/protocol/monster-move";
 import type {
   ClientControl,
   ForceSpeed,
@@ -9,7 +10,6 @@ import type {
   MovementInfo,
   SpeedAck,
 } from "#wow/protocol/movement";
-import type { MonsterMove } from "#wow/protocol/monster-move";
 
 export const LOGIN_TIMEOUT_MS = 10_000;
 

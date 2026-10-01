@@ -21,6 +21,30 @@ export function feedControl(control: ControlRuntime, event: SelfEvent): void {
     case "new_world":
       control.newWorld(event.position);
       return;
+    default:
+      feedMovement(control, event);
+  }
+}
+
+type MovementEvent = Extract<
+  SelfEvent,
+  {
+    type:
+      | "force_root"
+      | "force_unroot"
+      | "knock_back"
+      | "client_control"
+      | "force_speed"
+      | "can_fly"
+      | "move_flag"
+      | "collision_height"
+      | "observed"
+      | "spline";
+  }
+>;
+
+function feedMovement(control: ControlRuntime, event: MovementEvent): void {
+  switch (event.type) {
     case "force_root":
       control.forceRoot(event.counter);
       return;

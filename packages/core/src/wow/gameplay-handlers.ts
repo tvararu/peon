@@ -78,10 +78,10 @@ import {
   parseListInventory,
   parseSellItemFailure,
 } from "#wow/protocol/vendor";
+import type { QuestDialog } from "#wow/quests-requests";
 import type { SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
 import { selfGuid } from "#wow/world-handlers";
-import type { QuestDialog } from "#wow/quests-requests";
 
 type CombatStores = Pick<SessionStores, "combat" | "motion" | "self">;
 
