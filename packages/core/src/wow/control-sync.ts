@@ -33,7 +33,8 @@ import type { MoveFlag, TransferAbortedInput } from "#wow/self-store";
 
 export const TRANSFER_ABORT_TIMEOUT_MS = 10_000;
 
-const RECONCILED_BITS = MovementFlag.SWIMMING | MovementFlag.FLYING;
+const RECONCILED_BITS =
+  MovementFlag.SWIMMING | MovementFlag.FLYING | MovementFlag.CAN_FLY;
 
 const UNIT_BLOCK_FLAGS =
   UnitFlag.DISABLE_MOVE |
@@ -123,7 +124,7 @@ export class MovementSync {
     return (
       this.airBlock() ??
       unsupportedReason(
-        (this.observedFlags & ~MovementFlag.FLYING) |
+        this.observedFlags |
           (this.moveFlags &
             (MovementFlag.SWIMMING | MovementFlag.FLYING | AIR_INPUT_BITS)),
       )
