@@ -25,7 +25,8 @@ Each act settles as `ok`, `refused` with the server's reason, `no_change`, or `u
 
 ## Capabilities row
 
-(to be added by economy-10 with the bank verbs.)
+| Store items in the bank and take them out | `t9-bank-deposit`, `t9-bank-withdraw` | The bank verbs talk to a banker in range; `journal` `about: bank` reads the stored contents from the login snapshot anywhere. |
+| Buy a bank bag slot | `t9-bank-slot` | The first slot of a fresh character costs 1000 copper. |
 
 ## Proof
 
@@ -36,3 +37,6 @@ Each act settles as `ok`, `refused` with the server's reason, `no_change`, or `u
 | `CMSG_AUTOSTORE_BANK_ITEM` | `live` | the same run withdraws the stone back and settles `ok`; the trace shows `CMSG_AUTOSTORE_BANK_ITEM` (run `probe-bank-live`, not committed) | `Server/Packets/BankPackets.cpp:26-30` |
 | `CMSG_BUY_BANK_SLOT` | `live` | `bank-moves --arg buy=7` with staged money buys two slots then stops at `insufficient_funds`; truth money falls 100000 to 89000 (run `probe-bank-rich`, not committed) | `Handlers/BankHandler.cpp:143-184` |
 | `SMSG_BUY_BANK_SLOT_RESULT` | `live` (ok, `insufficient_funds`, `not_banker`) + `rig` (`too_many`) | ok and `insufficient_funds` live as above (run `probe-bank-rich`, not committed); `not_banker` live by `mise protocol:probe <ACCOUNT> --send CMSG_BUY_BANK_SLOT --body 3e2900e7400030f1` (the Silvermoon banker guid, sent from the Eversong spawn): the run `probe-bank-notbanker` (not committed) shows the 8-byte `CMSG_BUY_BANK_SLOT` out and `SMSG_BUY_BANK_SLOT_RESULT` in with body `02000000` (result 2); the `bank-moves` flow has no far mode because `buyBankSlot` refuses out of range before it sends; `too_many` is a rig test | `Entities/Player/Player.h:112-115` |
+| `t9-bank-deposit` | `eval` | Round 423 pass 2/2: the agent deposits 20 Linen Cloth with Novia; truth shows the cloth in a bank row and the game log shows `bank/deposit` for `CMSG_AUTOBANK_ITEM` (`Server/Packets/BankPackets.cpp:20-24`) | `Handlers/BankHandler.cpp:64` |
+| `t9-bank-withdraw` | `eval` | Round 423 pass 2/2: the agent deposits the cloth then withdraws it; truth shows the cloth carried and the game log shows `bank/withdraw` for `CMSG_AUTOSTORE_BANK_ITEM` (`Server/Packets/BankPackets.cpp:26-30`) | `Handlers/BankHandler.cpp:98` |
+| `t9-bank-slot` | `eval` | Round 423 pass 2/2: the agent buys one bank bag slot; the game log shows `bank/slot` with result ok and truth money falls 100000 to 99000 for `CMSG_BUY_BANK_SLOT` (`Handlers/BankHandler.cpp:143-184`) | `Handlers/BankHandler.cpp:143-184` |

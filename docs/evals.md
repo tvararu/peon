@@ -185,7 +185,7 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Quest marks, objective regions, greetings and sharing (look, journal, interact, group) | `t4-quests-find-giver`, `t4-quests-poi-walk`, `t1-quests-read-greeting`, `t1-quests-guard-directions`, `t8-quests-share`, `t8-quests-accept-shared` |
 | Quests (`interact` quest dialogs, quest log, rewards) | `t4-quest-first`, `t4-alliance-first` |
 | Vendors and money | `t5-vendor-buy-goldshire` |
-| Economy (`interact` buyback, bank, auction; `trade`; `mail`) | `t5-buyback-vendor`, `t9-trade-give`, `t9-trade-receive`, `t9-trade-swap`, `t9-trade-cancel` |
+| Economy (`interact` buyback, bank, auction; `trade`; `mail`) | `t5-buyback-vendor`, `t9-trade-give`, `t9-trade-receive`, `t9-trade-swap`, `t9-trade-cancel`, `t9-bank-deposit`, `t9-bank-withdraw`, `t9-bank-slot` |
 | Chat and whispers (`social`, pushed chat events) | `t2-whisper-reply` |
 | Social verbs (`social` emote, channels, inspect) | `t2-emotes-partner` |
 | Nearby units and relations (`look`, entity state) | `t0-who-is-near`, `t0-hostiles` |
