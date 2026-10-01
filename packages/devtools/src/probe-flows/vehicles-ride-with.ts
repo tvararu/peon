@@ -28,11 +28,21 @@ const PASSENGER_WAITS = 6;
 async function waitForPassenger(
   handle: FlowContext["handle"],
   settle: FlowContext["settle"],
+  partner: string,
 ): Promise<string | undefined> {
   for (let attempt = 0; attempt < PASSENGER_WAITS; attempt++) {
     const found = await settle(() => {
-      for (const [guid] of handle.vehicles.state().passengers)
-        return `0x${guid.toString(16)}`;
+      const rows = [...handle.queryNearby()];
+      const row = rows.find(
+        (nearby) => nearby.entity.name === partner && !nearby.self,
+      );
+      if (row === undefined) return;
+      const passenger = handle.vehicles.state().passengers.get(row.entity.guid);
+      if (passenger === undefined) return;
+      const self = rows.find((nearby) => nearby.self);
+      if (self === undefined) return;
+      if (passenger.transportGuid !== self.entity.guid) return;
+      return `0x${row.entity.guid.toString(16)}`;
     });
     if (found !== undefined) return found;
   }
@@ -55,7 +65,7 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
     if (!self) throw new Error("vehicles-ride-with found no self row.");
     const vehicle = `0x${self.entity.guid.toString(16)}`;
     handle.invite(partner);
-    const boarded = await waitForPassenger(handle, settle);
+    const boarded = await waitForPassenger(handle, settle, partner);
     const holds = Number(args["hold"] ?? 0);
     for (let wait = 0; wait < holds; wait++) await settle(() => undefined);
     const eject =
