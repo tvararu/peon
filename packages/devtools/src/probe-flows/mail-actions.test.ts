@@ -118,4 +118,39 @@ describe("mail-actions send", () => {
     expect(handle.mail.act.sendMail).not.toHaveBeenCalled();
     expect(out.sent).toMatchObject({ thrown: expect.any(String) });
   });
+
+  test.each([
+    ["1001:159", "0x3e9:159"],
+    ["0x3E9:159", "1001:159"],
+  ])(
+    "refuses one stack spelled twice (%s, %s) and sends nothing",
+    async (a, b) => {
+      const handle = createMockHandle();
+      handle.getInventoryState = (() => ({
+        slots: [occupied(23, 1001n, 159)],
+      })) as never;
+      const ctx = context(
+        { do: "send", item0: a, item1: b, to: "Target" },
+        handle,
+      );
+      const out = (await flow.run(ctx)) as { sent: unknown };
+      expect(handle.mail.act.sendMail).not.toHaveBeenCalled();
+      expect(out.sent).toMatchObject({
+        thrown: expect.stringContaining("duplicate item 1001"),
+      });
+    },
+  );
+
+  test("reports a malformed guid as a bad item, not a raw SyntaxError", async () => {
+    const handle = createMockHandle();
+    handle.getInventoryState = (() => ({
+      slots: [occupied(23, 1001n, 159)],
+    })) as never;
+    const ctx = context({ do: "send", item0: "abc:159", to: "Target" }, handle);
+    const out = (await flow.run(ctx)) as { sent: unknown };
+    expect(handle.mail.act.sendMail).not.toHaveBeenCalled();
+    expect(out.sent).toMatchObject({
+      thrown: expect.stringContaining("bad item abc:159"),
+    });
+  });
 });

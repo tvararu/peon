@@ -51,7 +51,10 @@ The acts need the character in the world:
 - `sendMail({ receiver, subject, body, items, money, cod })` sends
   `CMSG_SEND_MAIL` and settles on the `send` result with id 0. It
   throws `no_receiver`, `bad_text` (the `| |` crash guard), `too_many_attachments`
-  past 12 items, `cod_with_money`, `cannot_send_to_self` for a known own
+  past 12 items, `duplicate_attachment` for a repeated attachment guid
+  (the server charges postage per listed item but stores one stack per
+  guid, `MailHandler.cpp:162`), `cod_with_money`,
+  `cannot_send_to_self` for a known own
   name and `not_enough_money` for money plus 30 copper postage per item
   (30 with no item) above the known coinage before sending.
 - One action runs at a time; a second act throws `mail_busy` until the
