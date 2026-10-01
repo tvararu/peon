@@ -37,7 +37,11 @@ import type { CoreStores } from "#wow/session-stores";
 export const LEARN_ANSWER_MS = 5000;
 export const RESET_ANSWER_MS = 5000;
 
-export type ResetTalentsRequest = { optionIndex: number; maxCost: number };
+export type ResetTalentsRequest = {
+  maxCost: number;
+  optionIndex: number;
+  signal?: AbortSignal;
+};
 
 export type ResetTalentsResult =
   | { outcome: "reset"; cost: number; freePoints: number }
@@ -261,11 +265,16 @@ function exchange(
   env: Env,
   match: (event: TalentsEvent) => boolean,
   send: () => void,
+  signal?: AbortSignal,
 ): Promise<TalentsEvent | undefined> {
   const scope = new AbortController();
   const waited: Promise<TalentsEvent | undefined> = env.ctx
     .until(match, {
-      signal: AbortSignal.any([env.ctx.signal, scope.signal]),
+      signal: AbortSignal.any(
+        [env.ctx.signal, scope.signal, signal].filter(
+          (entry) => entry !== undefined,
+        ),
+      ),
       timeoutMs: RESET_ANSWER_MS,
     })
     .catch((error: unknown): undefined => {
@@ -274,6 +283,7 @@ function exchange(
     });
   try {
     env.ctx.signal.throwIfAborted();
+    signal?.throwIfAborted();
     send();
   } catch (error) {
     scope.abort();
@@ -315,6 +325,7 @@ async function reset(
             optionIndex: request.optionIndex,
           }),
         ),
+      request.signal,
     );
     if (!offer) return { outcome: "no_reply" };
     if (offer.type !== "wipe_offer") return { outcome: "nothing_to_reset" };
@@ -324,12 +335,14 @@ async function reset(
       env,
       (event) => event.type === "info" || event.type === "wipe_refused",
       () => {
+        request.signal?.throwIfAborted();
         env.store.beginReset();
         env.ctx.send(
           GameOpcode.MSG_TALENT_WIPE_CONFIRM,
           buildTalentWipeConfirm(offer.npcGuid),
         );
       },
+      request.signal,
     );
     if (!answer) return { outcome: "no_reply" };
     if (answer.type === "info")

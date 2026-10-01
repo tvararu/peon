@@ -321,4 +321,44 @@ describe("resetTalents", () => {
     rig.dispose();
     expect(await outcome).not.toBe("resolved");
   });
+
+  test("aborting while awaiting the offer rejects without confirming", async () => {
+    const { rig, sent } = rigged();
+    try {
+      const controller = new AbortController();
+      const pending = rig.handle.act.resetTalents({
+        ...REQUEST,
+        signal: controller.signal,
+      });
+      await flush();
+      expect(sent(SELECT)).toHaveLength(1);
+      controller.abort();
+      await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      expect(sent(WIPE)).toEqual([]);
+      rig.inject(WIPE, offer(10_000));
+      await flush();
+      expect(sent(WIPE)).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("aborting after the offer but before the confirm sends nothing", async () => {
+    const { rig, sent } = rigged();
+    try {
+      const controller = new AbortController();
+      const pending = rig.handle.act.resetTalents({
+        ...REQUEST,
+        signal: controller.signal,
+      });
+      await flush();
+      rig.inject(WIPE, offer(10_000));
+      controller.abort();
+      await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      await flush();
+      expect(sent(WIPE)).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
 });
