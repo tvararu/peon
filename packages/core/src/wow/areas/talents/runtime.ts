@@ -276,7 +276,6 @@ async function reset(
   request: ResetTalentsRequest,
 ): Promise<ResetTalentsResult> {
   const { guid, menuId } = trainerOption(env, request.optionIndex);
-  env.store.beginReset();
   try {
     const offer = await exchange(
       env,
@@ -298,11 +297,13 @@ async function reset(
     const answer = await exchange(
       env,
       (event) => event.type === "info" || event.type === "wipe_refused",
-      () =>
+      () => {
+        env.store.beginReset();
         env.ctx.send(
           GameOpcode.MSG_TALENT_WIPE_CONFIRM,
           buildTalentWipeConfirm(offer.npcGuid),
-        ),
+        );
+      },
     );
     if (!answer) return { outcome: "no_reply" };
     if (answer.type === "info")

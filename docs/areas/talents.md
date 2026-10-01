@@ -99,9 +99,14 @@ give the same packet. With nothing spent, the server returns before the
 money check. With too little money it zeroes the used-talent counter
 first, sends `SMSG_BUY_FAILED` with result 2 and guid 0
 (`Entities/Player/PlayerStorage.cpp:4201-4209`), and returns false, so
-the handler also sends the guid-0 reply. The area records a
-`SMSG_BUY_FAILED` with result 2 that arrives while a reset is in flight,
-and the act reports `not_enough_money` for it.
+the handler also sends the guid-0 reply. The area starts
+recording right before it sends the confirmation and counts only a
+`SMSG_BUY_FAILED` with result 2, guid 0 and item 0, and the act reports
+`not_enough_money` for it.
+
+An ordinary buyback money failure carries the creature guid and the item
+entry (`Handlers/ItemHandler.cpp:768`), so an unrelated purchase failure
+cannot change the result.
 
 ## Left out
 

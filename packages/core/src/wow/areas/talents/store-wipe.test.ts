@@ -118,6 +118,25 @@ describe("talent reset payment failure", () => {
     }
   });
 
+  test("a purchase failure carrying a vendor or item is not a reset payment failure", () => {
+    const { rig, store } = rigged();
+    try {
+      store.beginReset();
+      rig.inject(
+        BUY_FAILED,
+        talentsBuyFailedBody({ itemId: 2589, result: 2, vendorGuid: 7n }),
+      );
+      rig.inject(BUY_FAILED, talentsBuyFailedBody({ itemId: 5, result: 2 }));
+      rig.inject(
+        BUY_FAILED,
+        talentsBuyFailedBody({ result: 2, vendorGuid: 7n }),
+      );
+      expect(store.endReset()).toEqual({ paymentFailed: false });
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("a failure from one reset does not leak into the next", () => {
     const { rig, store } = rigged();
     try {
