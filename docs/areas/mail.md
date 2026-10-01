@@ -59,11 +59,15 @@ The acts need the character in the world:
   (30 with no item) above the known coinage before sending.
 - One action runs at a time; a second act throws `mail_busy` until the
   matching result releases it. A delayed result for an earlier action
-  never releases a newer pending action. A `sendMail` or `takeMailItem`
-  that times out stays pending until its own result arrives, and the
-  next act throws `mail_busy` meanwhile. Other acts release on a
-  5-second timeout. The store keeps `pending` and `lastResult` and emits
-  `result` on every `SMSG_SEND_MAIL_RESULT`.
+  never releases a newer pending action. A timed-out act stays pending
+  until its own result arrives, and the next act throws `mail_busy`
+  meanwhile: every mail reply carries only the letter id, the action
+  and the result (`Entities/Player/Player.cpp:2958-2972`), so a retry
+  of the same letter is indistinguishable from the timed-out act.
+  A list that arrives first clears a guard the server silently dropped
+  (an unreachable mailbox answers nothing), as does `dispose`.
+  The store keeps `pending` and `lastResult` and emits `result` on
+  every `SMSG_SEND_MAIL_RESULT`.
 
 ## Wire notes
 

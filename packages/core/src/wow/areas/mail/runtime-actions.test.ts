@@ -371,7 +371,7 @@ describe("mail actions", () => {
     });
   });
 
-  test("a delayed result cannot open a third action while the second is pending", async () => {
+  test("a timed-out delete holds the guard until its own reply drains", async () => {
     await withFakeTimers(async () => {
       const rig = mailRig();
       try {
@@ -380,7 +380,7 @@ describe("mail actions", () => {
         rig.inject(
           GameOpcode.SMSG_MAIL_LIST_RESULT,
           mailListResultBody({
-            mails: [{ id: 101 }, { id: 102 }, { id: 103 }],
+            mails: [{ id: 101 }, { id: 102 }],
           }),
         );
         expect(await listed).toEqual({ status: "ok" });
@@ -388,27 +388,26 @@ describe("mail actions", () => {
         await flushMicrotasks();
         await elapse(MAIL_ANSWER_MS);
         expect(await first).toEqual({ status: "unanswered" });
-        const second = rig.handle.act.deleteMail(102);
-        await flushMicrotasks();
+        await expect(rig.handle.act.deleteMail(102)).rejects.toThrow(
+          "mail_busy",
+        );
+        expect(
+          rig.sent.filter((row) => row.opcode === GameOpcode.CMSG_MAIL_DELETE),
+        ).toHaveLength(1);
         rig.inject(
           GameOpcode.SMSG_SEND_MAIL_RESULT,
           mailSendMailResultBody({ action: 4, id: 101 }),
         );
-        await expect(rig.handle.act.deleteMail(103)).rejects.toThrow(
-          "mail_busy",
-        );
+        await flushMicrotasks();
+        expect(rig.handle.state().pending).toBeUndefined();
+        expect(rig.handle.state().inbox.map((mail) => mail.id)).toEqual([102]);
+        const second = rig.handle.act.deleteMail(102);
+        await flushMicrotasks();
         rig.inject(
           GameOpcode.SMSG_SEND_MAIL_RESULT,
           mailSendMailResultBody({ action: 4, id: 102 }),
         );
         expect(await second).toEqual({ status: "ok" });
-        const third = rig.handle.act.deleteMail(103);
-        await flushMicrotasks();
-        rig.inject(
-          GameOpcode.SMSG_SEND_MAIL_RESULT,
-          mailSendMailResultBody({ action: 4, id: 103 }),
-        );
-        expect(await third).toEqual({ status: "ok" });
       } finally {
         rig.dispose();
       }
@@ -447,6 +446,7 @@ describe("mail actions", () => {
         await flushMicrotasks();
         expect(rig.handle.state().inbox[0]?.money).toBe(0);
         expect(settled).toBeUndefined();
+        expect(rig.handle.state().pending).toBeUndefined();
         rig.inject(
           GameOpcode.SMSG_MAIL_LIST_RESULT,
           mailListResultBody({ mails: [{ id: 205 }] }),
@@ -460,7 +460,7 @@ describe("mail actions", () => {
     });
   });
 
-  test("a refresh interrupted by a delayed take success ends unanswered", async () => {
+  test("a refresh interrupted by a new list ends unanswered instead", async () => {
     await withFakeTimers(async () => {
       const rig = mailRig();
       try {
@@ -475,12 +475,13 @@ describe("mail actions", () => {
         await flushMicrotasks();
         await elapse(MAIL_ANSWER_MS);
         expect(await take).toEqual({ status: "unanswered" });
-        const refresh = rig.handle.act.listMail(MAILBOX_OBJECT);
-        await flushMicrotasks();
         rig.inject(
           GameOpcode.SMSG_SEND_MAIL_RESULT,
           mailSendMailResultBody({ action: 1, id: 101 }),
         );
+        await flushMicrotasks();
+        expect(rig.handle.state().pending).toBeUndefined();
+        const refresh = rig.handle.act.listMail(MAILBOX_OBJECT);
         await flushMicrotasks();
         await elapse(MAIL_ANSWER_MS);
         expect(await refresh).toEqual({ status: "unanswered" });

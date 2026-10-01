@@ -168,6 +168,7 @@ export class MailStore {
     this.inbox = [...list.mails];
     this.hidden = list.hidden;
     this.newMail = false;
+    this.pending = undefined;
     this.events.emit({
       hidden: list.hidden,
       inbox: [...list.mails],
