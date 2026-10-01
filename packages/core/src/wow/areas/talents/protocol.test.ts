@@ -131,9 +131,9 @@ describe("learn builders", () => {
   test("150 entries are sent and 151 throw because the server drops the rest (SkillHandler.cpp:44-47)", () => {
     const entry = { rank: 0, talentId: 1 };
     expect(
-      words(buildLearnPreviewTalents(Array(150).fill(entry))),
+      words(buildLearnPreviewTalents(new Array(150).fill(entry))),
     ).toHaveLength(301);
-    expect(() => buildLearnPreviewTalents(Array(151).fill(entry))).toThrow(
+    expect(() => buildLearnPreviewTalents(new Array(151).fill(entry))).toThrow(
       "too_many_talents",
     );
   });
