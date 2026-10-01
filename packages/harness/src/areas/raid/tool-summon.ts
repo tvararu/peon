@@ -7,7 +7,6 @@ import {
 } from "#harness/areas/raid/tool-shared";
 import type { ToolResult } from "#harness/contract/result";
 import { Refusal } from "#harness/ops/refusal";
-import { settle } from "#harness/ops/settle";
 import { result } from "#harness/tools/define";
 import { nextCall } from "#harness/tools/next-call";
 
@@ -89,19 +88,37 @@ async function declineSummon(ctx: GroupCtx): Promise<void> {
   }
 }
 
+async function awaitArrival(
+  ctx: GroupCtx,
+  send: () => Promise<void>,
+): Promise<ControlEvent | undefined> {
+  ctx.signal?.throwIfAborted();
+  const outcome = Promise.withResolvers<ControlEvent | undefined>();
+  outcome.promise.catch(() => undefined);
+  const timer = setTimeout(() => outcome.resolve(undefined), SUMMON_WAIT_MS);
+  const abort = () => outcome.reject(ctx.signal?.reason);
+  const unsubscribe = ctx.handle.onControlEvent((event) => {
+    if (arrived(event)) outcome.resolve(event);
+  });
+  ctx.signal?.addEventListener("abort", abort, { once: true });
+  try {
+    await send();
+    return await outcome.promise;
+  } finally {
+    clearTimeout(timer);
+    unsubscribe();
+    ctx.signal?.removeEventListener("abort", abort);
+  }
+}
+
 async function acceptSummon(ctx: GroupCtx): Promise<ControlEvent | undefined> {
   try {
-    return await settle<ControlEvent>({
-      match: arrived,
-      send: () =>
-        ctx.rt.mutex.run(() => {
-          ctx.signal?.throwIfAborted();
-          return ctx.handle.raid.act.answerSummon(true);
-        }),
-      signal: ctx.signal,
-      subscribe: (cb) => ctx.handle.onControlEvent(cb),
-      timeoutMs: SUMMON_WAIT_MS,
-    });
+    return await awaitArrival(ctx, () =>
+      ctx.rt.mutex.run(() => {
+        ctx.signal?.throwIfAborted();
+        return ctx.handle.raid.act.answerSummon(true);
+      }),
+    );
   } catch (error) {
     if (ctx.signal?.aborted) throw error;
     if (error instanceof Refusal) throw error;
