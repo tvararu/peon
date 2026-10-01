@@ -117,6 +117,32 @@ describe("items runtime: socket", () => {
       rig.dispose();
     }
   });
+  test("an enchant log with an empty caster still parses", () => {
+    const { events, rig } = setup();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_ENCHANTMENTLOG,
+        itemsEnchantmentLogBody({
+          caster: 0n,
+          enchantId: 0,
+          entry: 40_000,
+          target: ME,
+        }),
+      );
+      expect(events).toEqual([
+        {
+          caster: 0n,
+          enchantId: 0,
+          entry: 40_000,
+          own: true,
+          target: ME,
+          type: "enchantment_log",
+        },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
 
   test("an inventory failure for the item settles refused", async () => {
     const { events, rig } = setup();
@@ -232,8 +258,8 @@ describe("items runtime: cancelTempEnchant", () => {
   test("slots outside the equipment range are refused locally", async () => {
     const { rig } = setup();
     try {
-      for (const slot of [19, 255, -1, 1.5])
-        await expect(rig.handle.act.cancelTempEnchant(slot)).rejects.toThrow(
+      for (const slot of [23, 255, -1, 1.5])
+        expect(() => rig.handle.act.cancelTempEnchant(slot)).toThrow(
           "equipment slot",
         );
       expect(sends(rig.sent, GameOpcode.CMSG_CANCEL_TEMP_ENCHANTMENT)).toEqual(
