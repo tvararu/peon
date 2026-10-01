@@ -161,7 +161,7 @@ export class MovementSync {
   airBlock(): string | undefined {
     if (this.teleporting) return "teleporting";
     if (this.flight?.inFlight() ?? false) return "in_flight";
-    if (this.rooted) return "rooted";
+    if (this.rooted && !this.ride.controlling) return "rooted";
     if (!this.controlAllowed) return "no_control";
     if (this.unitBlocked) return "disable_move";
     return undefined;

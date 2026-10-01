@@ -124,6 +124,38 @@ describe("driving the vehicle", () => {
     expect(traveled).toBeLessThan(7.2 + 0.6);
   });
 
+  test("the character's own root does not block the vehicle or reach its movement info (live: SMSG_FORCE_MOVE_ROOT follows the control update)", () => {
+    const { runtime, sent } = setup();
+    runtime.vehicleSeat(seat());
+    runtime.clientControl({ allow: true, guid: VEHICLE });
+    runtime.forceRoot(3);
+    runtime.moverState({
+      guid: VEHICLE,
+      pose: POSE,
+      run: 12,
+      runBack: 6,
+      turn: 2,
+    });
+    expect(runtime.snapshot().movementAllowed).toBe(true);
+    sent.length = 0;
+    runtime.move("forward", 1000);
+    const packet = decodeMove(sent[0]);
+    expect(packet.flags & MovementFlag.ROOT).toBe(0);
+    expect(packet.guid).toBe(VEHICLE);
+  });
+
+  test("the character stays rooted after the vehicle is lost until the unroot arrives", () => {
+    const { runtime } = setup();
+    runtime.vehicleSeat(seat());
+    runtime.clientControl({ allow: true, guid: VEHICLE });
+    runtime.forceRoot(3);
+    runtime.clientControl({ allow: false, guid: VEHICLE });
+    expect(runtime.snapshot().blockedReason).toBe("rooted");
+    runtime.forceUnroot(4);
+    runtime.vehicleLeft();
+    expect(runtime.snapshot().movementAllowed).toBe(true);
+  });
+
   test("self observations do not move the driven pose", () => {
     const { runtime } = drive();
     runtime.observeSelf({

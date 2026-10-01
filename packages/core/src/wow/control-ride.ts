@@ -182,7 +182,10 @@ export class RideState {
     const seat = this.seat;
     if (!seat) return info;
     if (this.mover !== undefined)
-      return { ...info, flags: info.flags & ~MovementFlag.ON_TRANSPORT };
+      return {
+        ...info,
+        flags: info.flags & ~(MovementFlag.ON_TRANSPORT | MovementFlag.ROOT),
+      };
     return {
       ...info,
       flags: info.flags | MovementFlag.ON_TRANSPORT,
