@@ -5,14 +5,14 @@ import {
 } from "#test-support/areas/travel";
 import {
   LOGIN,
-  type Sent,
   lastMove,
+  type Sent,
   setup,
 } from "#test-support/control-fixtures";
 import type { ControlEvent, ControlRuntime } from "#wow/control";
 import { UnitFlag } from "#wow/protocol/entity-fields";
-import { parseMovementInfo } from "#wow/protocol/movement";
 import { type MonsterMove, parseMonsterMove } from "#wow/protocol/monster-move";
+import { parseMovementInfo } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 
@@ -200,9 +200,9 @@ describe("self flight spline in control", () => {
     fly(({ runtime, events, advance }) => {
       runtime.observeSelfSpline(flightSpline());
       events.length = 0;
-      advance(FLIGHT_MS + 9_000);
+      advance(FLIGHT_MS + 9000);
       expect(runtime.snapshot().blockedReason).toBe("in_flight");
-      advance(1_500);
+      advance(1500);
       expect(runtime.snapshot().blockedReason).toBeUndefined();
       expect(runtime.snapshot().serverPose?.x).toBeCloseTo(LANDING.x, 2);
       expect(events.filter((e) => e.reason === "flight_landed")).toHaveLength(
@@ -233,7 +233,7 @@ describe("self flight spline in control", () => {
     fly(({ runtime, sent, advance }) => {
       runtime.observeSelfSpline(flightSpline());
       runtime.observeSelf({ unitFlags: FLYING });
-      advance(FLIGHT_MS - 5_000);
+      advance(FLIGHT_MS - 5000);
       runtime.observeSelf({ unitFlags: 0 });
       advance(20_000);
       expect(splineDones(sent)).toHaveLength(0);
