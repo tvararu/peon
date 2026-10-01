@@ -1,10 +1,15 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import { vehiclesMonsterMoveTransportBody } from "#test-support/areas/vehicles";
+import { setup } from "#test-support/control-fixtures";
+import { must } from "#test-support/must";
+import { feedControl } from "#wow/control-feed";
 import type { Entity } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { SplineFlag } from "#wow/protocol/monster-move";
+import { parseMovementInfo } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
+import { PacketReader } from "#wow/protocol/packet";
 
 const SELF = 0xf1_30_00_3e_ea_00_0a_bcn;
 const VEHICLE = 0xf1_30_00_3e_ea_00_0b_bcn;
@@ -88,6 +93,62 @@ describe("vehicles boarding in control", () => {
         type: "vehicle_seat",
         vehiclePose: { mapId: 571, x: 100, y: 200, z: 50 },
       });
+    } finally {
+      off();
+      rig.dispose();
+    }
+  });
+});
+
+describe("vehicles seat change reaches control", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("a new seat on the same vehicle replaces the seat, the ack block and the spline done (Unit.cpp:15265-15281)", () => {
+    const control = setup();
+    const self = 0x0764n;
+    const rig = areaRig("vehicles", { selfGuid: self });
+    const off = rig.stores.self.onEvent((event) =>
+      feedControl(control.runtime, event),
+    );
+    const board = (seat: number, splineId: number, duration: number) =>
+      rig.inject(
+        GameOpcode.SMSG_MONSTER_MOVE_TRANSPORT,
+        vehiclesMonsterMoveTransportBody({
+          duration,
+          flags: SplineFlag.TRANSPORT_ENTER,
+          guid: self,
+          seat,
+          splineId,
+          stop: false,
+          transportGuid: VEHICLE,
+        }),
+      );
+    try {
+      board(0, 11, 800);
+      control.advance(400);
+      board(2, 12, 500);
+      control.sent.length = 0;
+      control.runtime.forceRoot(5);
+      const ack = new PacketReader(must(control.sent.at(-1)).body);
+      ack.packedGuidBig();
+      ack.uint32LE();
+      expect(parseMovementInfo(ack).transport?.seat).toBe(2);
+      control.sent.length = 0;
+      control.advance(500);
+      const dones = control.sent.filter(
+        (packet) => packet.opcode === GameOpcode.CMSG_MOVE_SPLINE_DONE,
+      );
+      expect(dones).toHaveLength(1);
+      const done = new PacketReader(must(dones[0]).body);
+      done.packedGuidBig();
+      expect(parseMovementInfo(done).transport?.seat).toBe(2);
+      expect(done.uint32LE()).toBe(12);
     } finally {
       off();
       rig.dispose();

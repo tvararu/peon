@@ -11,21 +11,26 @@ import { writeMovementInfo } from "#wow/protocol/movement";
 import { PacketWriter } from "#wow/protocol/packet";
 import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
-type MoveInit = { stop: boolean; flags?: number };
+type MoveInit = {
+  stop: boolean;
+  flags?: number;
+  splineId?: number;
+  duration?: number;
+};
 
 function writeMoveTail(w: PacketWriter, init: MoveInit): void {
   w.uint8(0);
   w.floatLE(1);
   w.floatLE(2);
   w.floatLE(3);
-  w.uint32LE(9);
+  w.uint32LE(init.splineId ?? 9);
   if (init.stop) {
     w.uint8(1);
     return;
   }
   w.uint8(0);
   w.uint32LE(init.flags ?? 0);
-  w.uint32LE(1000);
+  w.uint32LE(init.duration ?? 1000);
   w.uint32LE(1);
   w.floatLE(10);
   w.floatLE(0);

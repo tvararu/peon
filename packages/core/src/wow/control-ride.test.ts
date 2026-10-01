@@ -205,4 +205,53 @@ describe("passenger seat in control", () => {
         .map((event) => event.reason),
     ).toEqual(["transport", undefined]);
   });
+
+  test("boarding after a walk or a face adopts the seat pose, not the prediction", () => {
+    const { runtime, sent, advance } = setup();
+    runtime.face(2);
+    runtime.move("forward", 5000);
+    advance(500);
+    runtime.vehicleSeat(
+      seat({
+        offset: { x: 2, y: 0, z: 1 },
+        vehiclePose: {
+          mapId: 530,
+          orientation: Math.PI / 2,
+          x: 100,
+          y: 200,
+          z: 50,
+        },
+      }),
+    );
+    const pose = must(runtime.snapshot().pose);
+    expect(pose.x).toBeCloseTo(100, 4);
+    expect(pose.y).toBeCloseTo(202, 4);
+    expect(pose.z).toBeCloseTo(51, 4);
+    sent.length = 0;
+    advance(1000);
+    const done = new PacketReader(must(splineDones(sent)[0]).body);
+    done.packedGuidBig();
+    const parsed = parseMovementInfo(done);
+    expect(parsed.x).toBeCloseTo(100, 4);
+    expect(parsed.y).toBeCloseTo(202, 4);
+  });
+
+  test("the vehicle-left notification already allows movement", () => {
+    const { runtime, events } = setup();
+    runtime.vehicleSeat(seat());
+    events.length = 0;
+    let during: { allowed: boolean; reason: string | undefined } | undefined;
+    runtime.onEvent((event) => {
+      if (event.type === "control_changed" && event.reason === undefined) {
+        during = {
+          allowed: event.state.movementAllowed,
+          reason: event.state.blockedReason,
+        };
+        runtime.move("forward", 100);
+      }
+    });
+    runtime.vehicleLeft();
+    expect(during).toEqual({ allowed: true, reason: undefined });
+    expect(runtime.snapshot().moving).toBe(true);
+  });
 });
