@@ -256,7 +256,7 @@ describe("parseSendMailResult", () => {
   });
 
   test("names each failure from the AzerothCore result enum", () => {
-    const failures: Array<[number, MailResultStatusName]> = [
+    const failures: [number, MailResultStatusName][] = [
       [2, "cannot_send_to_self"],
       [3, "not_enough_money"],
       [4, "recipient_not_found"],
