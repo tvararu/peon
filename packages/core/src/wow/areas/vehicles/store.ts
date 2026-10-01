@@ -4,6 +4,7 @@ import type {
   PlayerVehicleData,
 } from "#wow/areas/vehicles/protocol";
 import { type MonsterMove, SplineFlag } from "#wow/protocol/monster-move";
+import type { Vec3 } from "#wow/protocol/packet";
 import type { SessionDeps } from "#wow/session-stores";
 
 export type VehicleSeat = {
@@ -21,10 +22,22 @@ export type VehiclesEvent =
       guid: bigint;
       transportGuid: bigint;
       seat: number;
+      offset: Vec3;
       splineId: number;
       duration: number;
       flags: number;
-    };
+    }
+  | {
+      type: "entered";
+      vehicle: bigint;
+      seat: number;
+      entry: number | undefined;
+      offset: Vec3;
+      splineId: number;
+      duration: number;
+    }
+  | { type: "exited"; vehicle: bigint }
+  | { type: "seat_changed"; vehicle: bigint; seat: number };
 
 export type VehiclesState = {
   seat: VehicleSeat | undefined;
@@ -84,19 +97,52 @@ export class VehiclesStore {
   }
 
   receiveTransport(move: MonsterMoveTransport): void {
+    const before = this.seat;
     this.passengers.set(move.guid, {
       seat: move.seat,
       transportGuid: move.transportGuid,
     });
+    const offset = splineOffset(move.move);
     this.queue({
       duration: move.move.kind === "move" ? move.move.duration : 0,
       flags: move.move.kind === "move" ? move.move.flags : 0,
       guid: move.guid,
+      offset,
       seat: move.seat,
       splineId: move.move.splineId,
       transportGuid: move.transportGuid,
       type: "spline",
     });
+    if (move.guid !== this.deps.selfGuid()) return;
+    const flags = move.move.kind === "move" ? move.move.flags : 0;
+    if (flags & SplineFlag.TRANSPORT_EXIT) return;
+    this.setSeat({
+      controlling:
+        before?.vehicle === move.transportGuid
+          ? (before?.controlling ?? false)
+          : false,
+      entry: this.vehicleEntry(move.transportGuid),
+      seat: move.seat,
+      vehicle: move.transportGuid,
+    });
+    if (before?.vehicle === move.transportGuid && before.seat !== move.seat) {
+      this.queue({
+        seat: move.seat,
+        type: "seat_changed",
+        vehicle: move.transportGuid,
+      });
+      return;
+    }
+    if (before?.vehicle !== move.transportGuid)
+      this.queue({
+        duration: move.move.kind === "move" ? move.move.duration : 0,
+        entry: this.vehicleEntry(move.transportGuid),
+        offset,
+        seat: move.seat,
+        splineId: move.move.splineId,
+        type: "entered",
+        vehicle: move.transportGuid,
+      });
   }
 
   receiveExit(guid: bigint, move: MonsterMove): void {
@@ -109,11 +155,22 @@ export class VehiclesStore {
       duration: move.duration,
       flags: move.flags,
       guid,
+      offset: splineOffset(move),
       seat: -1,
       splineId: move.splineId,
       transportGuid: seated.transportGuid,
       type: "spline",
     });
+    if (guid !== this.deps.selfGuid()) return;
+    const vehicle = this.seat?.vehicle ?? seated.transportGuid;
+    this.setSeat(undefined);
+    this.queue({ type: "exited", vehicle });
+  }
+
+  private vehicleEntry(vehicle: bigint): number | undefined {
+    const entity = this.deps.getEntity(vehicle);
+    if (entity && "entry" in entity) return entity.entry;
+    return undefined;
   }
 
   setVehicleId(guid: bigint, vehicleId: number): void {
@@ -149,4 +206,10 @@ export class VehiclesStore {
       this.emitting = false;
     }
   }
+}
+
+function splineOffset(move: MonsterMove): Vec3 {
+  if (move.kind !== "move") return { x: 0, y: 0, z: 0 };
+  const last = (move.points ?? []).at(-1);
+  return last ?? { x: 0, y: 0, z: 0 };
 }

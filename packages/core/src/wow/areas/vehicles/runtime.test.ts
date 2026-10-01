@@ -157,7 +157,10 @@ describe("vehicles acts", () => {
 
   test("the character guid is read when the act runs, not when the runtime is built", async () => {
     let self = 0n;
-    const store = new VehiclesStore({ getEntity: () => undefined } as never);
+    const store = new VehiclesStore({
+      getEntity: () => undefined,
+      selfGuid: () => self,
+    } as never);
     const sent: number[] = [];
     const ctx = {
       selfGuid: () => self,

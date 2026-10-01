@@ -447,6 +447,7 @@ export class MovementSync {
   }
 
   private applyForcedPose(dest: MovementInfo, reason: string): void {
+    this.ride.clear();
     this.observedFlags = dest.flags & ~MovementFlag.ON_TRANSPORT;
     this.extraFlags = dest.extraFlags;
     this.moveFlags = dest.flags & ~INPUT_BITS & ~MovementFlag.ON_TRANSPORT;

@@ -143,6 +143,7 @@ function boardedSelf(): VehiclesEvent {
     duration: 0,
     flags: SplineFlag.TRANSPORT_ENTER,
     guid: SELF,
+    offset: { x: 0, y: 0, z: 0 },
     seat: 1,
     splineId: 1,
     transportGuid: VEHICLE,

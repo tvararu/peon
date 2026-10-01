@@ -29,7 +29,14 @@ function observeUpdates(store: VehiclesStore, r: PacketReader): void {
 }
 
 export const vehiclesArea = defineArea({
-  eventTypes: ["player_vehicle", "ride_aura_cancel", "spline"],
+  eventTypes: [
+    "entered",
+    "exited",
+    "player_vehicle",
+    "ride_aura_cancel",
+    "seat_changed",
+    "spline",
+  ],
   name: "vehicles",
   opcodes: VEHICLES_OPCODES,
   register: (wire: AreaRegister, store: VehiclesStore) => {
