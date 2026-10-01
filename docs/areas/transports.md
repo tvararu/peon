@@ -107,7 +107,10 @@ only near it. The pause and state rules rest on
   The `transfer_pending` self event holds them and the area emits
   `map_change { entry, fromMap, toMap }`. That path is built and unit-tested,
   not seen live: the live ride (Orgrimmar to Thunder Bluff) stays on map 1.
-  A same-map `SMSG_NEW_WORLD` keeps the ride; a different map ends it.
+  A same-map `SMSG_NEW_WORLD` keeps the ride, and a cross-map one keeps it
+  after a transport `SMSG_TRANSFER_PENDING` (entry and old map set) by
+  rebasing the offset; a cross-map `SMSG_NEW_WORLD` without one
+  (an unrelated teleport) ends it.
 
 ## Capabilities row
 
