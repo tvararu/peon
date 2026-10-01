@@ -60,6 +60,7 @@ describe("vehicles flood guard", () => {
       duration: 1000,
       flags: 0,
       guid: GUID,
+      offset: { x: 0, y: 0, z: 0 },
       seat: 2,
       splineId: 9,
       transportGuid: GUID,
@@ -73,5 +74,85 @@ describe("vehicles flood guard", () => {
           testRuleInput({ runActive }),
         ),
       ).toEqual([]);
+  });
+});
+
+describe("vehicles/entered", () => {
+  const entered: VehiclesEvent = {
+    duration: 1200,
+    entry: 31_857,
+    offset: { x: 1, y: 0, z: 2 },
+    seat: 0,
+    splineId: 7,
+    type: "entered",
+    vehicle: GUID,
+  };
+
+  test("sitting down writes a wake row naming the seat", () => {
+    const [row, ...rest] = rules()(entered);
+    expect(rest).toEqual([]);
+    expect(row?.class).toBe("wake");
+    expect(row?.name).toBe("entered");
+    expect(row?.data).toEqual({
+      entry: 31_857,
+      seat: 0,
+      vehicle: "0xf130003eea000abc",
+    });
+  });
+
+  test("an unknown vehicle entry still writes the wake row", () => {
+    const [row] = rules()({ ...entered, entry: undefined } as VehiclesEvent);
+    expect(row?.class).toBe("wake");
+    expect(row?.text).toContain("seat 0");
+  });
+});
+
+describe("vehicles/exited and seat_changed", () => {
+  test("leaving the seat writes a log row", () => {
+    const [row] = rules()({ type: "exited", vehicle: GUID });
+    expect(row?.class).toBe("log");
+    expect(row?.name).toBe("exited");
+    expect(row?.data).toEqual({ vehicle: "0xf130003eea000abc" });
+  });
+
+  test("switching seat writes a log row with the new seat", () => {
+    const [row] = rules()({ seat: 3, type: "seat_changed", vehicle: GUID });
+    expect(row?.class).toBe("log");
+    expect(row?.name).toBe("seat_changed");
+    expect(row?.data).toEqual({ seat: 3, vehicle: "0xf130003eea000abc" });
+  });
+});
+
+describe("vehicles attach", () => {
+  function attach() {
+    const fn = vehiclesHarness.rules?.().attach;
+    if (!fn) throw new Error("vehicles has no attach rule");
+    return fn;
+  }
+  const base = {
+    passengers: new Map(),
+    seat: undefined,
+    vehicleIds: new Map(),
+  };
+
+  test("a character already seated gets one row", () => {
+    const rows = attach()(
+      {
+        ...base,
+        seat: {
+          controlling: false,
+          entry: 31_857,
+          seat: 1,
+          vehicle: GUID,
+        },
+      },
+      testRuleInput(),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.data).toMatchObject({ seat: 1 });
+  });
+
+  test("an unseated character gets no row", () => {
+    expect(attach()(base, testRuleInput())).toEqual([]);
   });
 });
