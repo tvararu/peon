@@ -234,8 +234,33 @@ const EVERSONG_READY: Spawn = {
   zone: 3430,
 };
 
+const EVERSONG_PETS: Spawn = {
+  map: 530,
+  o: 1.686,
+  points: [
+    [8825, -6645, 51.5],
+    [8821, -6645, 52.44],
+    [8825, -6649, 51.32],
+    [8825, -6641, 51.81],
+    [8829, -6645, 50.64],
+    [8821, -6649, 52.36],
+    [8821, -6641, 52.54],
+    [8829, -6649, 50.35],
+    [8829, -6641, 51.09],
+    [8817, -6645, 53.31],
+    [8825, -6653, 51.29],
+    [8825, -6637, 52.26],
+    [8833, -6645, 49.94],
+    [8817, -6649, 53.41],
+    [8817, -6641, 53.09],
+    [8821, -6653, 52.46],
+  ],
+  zone: 3430,
+};
+
 const NAMED: Readonly<Record<string, Spawn>> = {
   eversong: EVERSONG,
+  "eversong-pets": EVERSONG_PETS,
   "eversong-raid": EVERSONG_RAID,
   "eversong-ready": EVERSONG_READY,
   "eversong-trade": EVERSONG_TRADE,
