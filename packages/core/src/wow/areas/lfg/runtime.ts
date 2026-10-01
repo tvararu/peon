@@ -10,13 +10,12 @@ import {
   LFG_MAX_ENTRIES,
 } from "#wow/areas/lfg/protocol";
 import { type LfgGroupActs, lfgGroupActs } from "#wow/areas/lfg/runtime-group";
+import type { LfgEvent, LfgStore } from "#wow/areas/lfg/store";
 import type {
-  LfgEvent,
   LfgLockView,
   LfgPartyLocks,
   LfgRandomView,
-  LfgStore,
-} from "#wow/areas/lfg/store";
+} from "#wow/areas/lfg/views";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { CoreStores } from "#wow/session-stores";
 
