@@ -30,10 +30,12 @@ async function liftRig(init: {
   progress: number;
   pause?: number;
   withTemplate?: boolean;
+  animations?: typeof ANIMATIONS;
+  parentRotationZ?: number;
 }) {
   const clock = { now: 1_000_000 };
   const rig = areaRig("transports", {
-    dbc: transportsDbc({ animations: ANIMATIONS }),
+    dbc: transportsDbc({ animations: init.animations ?? ANIMATIONS }),
     now: () => clock.now,
     selfGuid: SELF,
   });
@@ -47,6 +49,7 @@ async function liftRig(init: {
     transportsCreateBody({
       entry: ENTRY,
       guid: LIFT,
+      parentRotationZ: init.parentRotationZ,
       pathProgress: init.progress,
       pose: { orientation: 0, x: 10, y: 20, z: 100 },
       state: init.state,
@@ -142,6 +145,27 @@ describe("transports lift progress", () => {
       const at = must(rig.handle.act.poseAt(LIFT));
       expect(at.moving).toBe(true);
       expect(at.z).toBeCloseTo(105, 3);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("an omitted parent rotation w decodes as zero for a half turn", async () => {
+    const { clock, rig } = await liftRig({
+      animations: [
+        { entry: ENTRY, timeSeg: 0, x: 0, y: 0, z: 0 },
+        { entry: ENTRY, timeSeg: PAUSE, x: 4, y: 0, z: 10 },
+        { entry: ENTRY, timeSeg: 20_000, x: 0, y: 0, z: 0 },
+      ],
+      parentRotationZ: 1,
+      progress: 0,
+      state: ACTIVE,
+    });
+    try {
+      clock.now += PAUSE;
+      const at = must(rig.handle.act.poseAt(LIFT));
+      expect(at.x).toBeCloseTo(6, 3);
+      expect(at.z).toBeCloseTo(110, 3);
     } finally {
       rig.dispose();
     }

@@ -25,9 +25,10 @@ function asFloat(raw: number | undefined): number | undefined {
 }
 
 function pathRotationOf(fields: ReadonlyMap<number, number>): number {
-  const z = asFloat(fields.get(GAMEOBJECT_FIELDS.PARENTROTATION.offset + 2));
-  const w = asFloat(fields.get(GAMEOBJECT_FIELDS.PARENTROTATION.offset + 3));
-  if (z === undefined || w === undefined) return 0;
+  const z =
+    asFloat(fields.get(GAMEOBJECT_FIELDS.PARENTROTATION.offset + 2)) ?? 0;
+  const w =
+    asFloat(fields.get(GAMEOBJECT_FIELDS.PARENTROTATION.offset + 3)) ?? 0;
   return (z >= 0 ? 1 : -1) * 2 * Math.acos(Math.min(1, Math.max(-1, w)));
 }
 
