@@ -136,7 +136,7 @@ describe("parseMovementBlock vehicle trailer", () => {
 
 const MOTION_TRANSPORT_FLAGS =
   UpdateFlag.TRANSPORT |
-  UpdateFlag.LOW_GUID |
+  UpdateFlag.HIGH_GUID |
   UpdateFlag.HAS_POSITION |
   UpdateFlag.ROTATION;
 

@@ -25,7 +25,6 @@ type AnimNode = { timeSeg: number; x: number; y: number; z: number };
 
 export type LiftRotation = {
   nodes: { timeSeg: number; w: number; z: number }[];
-  totalTime: number;
 };
 
 export type LiftModel = {
@@ -55,16 +54,12 @@ function readRotations(file: DbcFile): Map<number, LiftRotation> {
   const byEntry = new Map<number, LiftRotation>();
   for (let row = 0; row < file.recordCount; row++) {
     const timeSeg = u32(file, row, 2);
-    const current = byEntry.get(u32(file, row, 1)) ?? {
-      nodes: [],
-      totalTime: 0,
-    };
+    const current = byEntry.get(u32(file, row, 1)) ?? { nodes: [] };
     current.nodes.push({
       timeSeg,
       z: f32(file, row, 5),
       w: f32(file, row, 6),
     });
-    current.totalTime = Math.max(current.totalTime, timeSeg);
     byEntry.set(u32(file, row, 1), current);
   }
   for (const rotation of byEntry.values())
@@ -117,6 +112,7 @@ function animNodeAt(
 function rotationAngleAt(
   rotation: LiftRotation | undefined,
   progress: number,
+  period: number,
 ): number {
   if (!rotation || rotation.nodes.length === 0) return 0;
   const at = (node: { w: number; z: number }) =>
@@ -126,12 +122,38 @@ function rotationAngleAt(
     if (!curr || progress < curr.timeSeg) continue;
     const next = rotation.nodes[i + 1] ?? rotation.nodes[0];
     if (!next) return at(curr);
-    const end = rotation.nodes[i + 1] ? next.timeSeg : rotation.totalTime;
+    const end = rotation.nodes[i + 1] ? next.timeSeg : period;
     if (end <= curr.timeSeg) return at(curr);
     const ratio = (progress - curr.timeSeg) / (end - curr.timeSeg);
     return at(curr) + ratio * (at(next) - at(curr));
   }
   return 0;
+}
+
+export const GO_STATE_READY = 1;
+
+export type LiftProgress = { progress: number; held: boolean };
+
+export function liftProgressAt(init: {
+  progress: number;
+  goState: number;
+  elapsed: number;
+  pauseAtTime: number;
+  period: number;
+}): LiftProgress {
+  const { progress, goState, elapsed, pauseAtTime, period } = init;
+  if (pauseAtTime === 0)
+    return { progress: (progress + elapsed) % period, held: false };
+  if (goState === GO_STATE_READY) {
+    if (progress < pauseAtTime) return { progress: 0, held: true };
+    if (progress + elapsed < period)
+      return { progress: progress + elapsed, held: false };
+    return { progress: 0, held: true };
+  }
+  if (progress >= pauseAtTime) return { progress: pauseAtTime, held: true };
+  if (progress + elapsed < pauseAtTime)
+    return { progress: progress + elapsed, held: false };
+  return { progress: pauseAtTime, held: true };
 }
 
 export function liftPoseAt(
@@ -157,7 +179,8 @@ export function liftPoseAt(
     z: offset.z,
   };
   const orientation =
-    stationary.orientation + rotationAngleAt(anim.rotations, wrapped);
+    stationary.orientation +
+    rotationAngleAt(anim.rotations, wrapped, anim.totalTime);
   return {
     x: stationary.x + rotated.x,
     y: stationary.y + rotated.y,

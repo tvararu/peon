@@ -7,6 +7,15 @@ export const LIFT_GUID_HIGH = 0xf1_20n;
 
 export type TransportKind = "motion" | "lift";
 
+export type StateChange = { state: number; at: number };
+
+export type LiftStepper = (
+  entry: number,
+  goState: number,
+  progress: number,
+  elapsed: number,
+) => number | undefined;
+
 export type TransportEntry = {
   guid: bigint;
   entry: number;
@@ -15,6 +24,8 @@ export type TransportEntry = {
   pose: { x: number; y: number; z: number; orientation: number };
   pathRotation: number;
   pathProgress: number;
+  goState: number;
+  changes: readonly StateChange[];
   receivedAt: number;
 };
 
@@ -46,9 +57,21 @@ export class TransportsStore {
   private readonly pending: TransportsEvent[] = [];
   private emitting = false;
 
-  constructor(deps: SessionDeps, init?: { now?: () => number }) {
+  private stepper: LiftStepper | undefined;
+  private readonly selfMap: () => number;
+
+  constructor(
+    deps: SessionDeps,
+    core: { self: { mapId: number } },
+    init?: { now?: () => number },
+  ) {
     this.deps = deps;
+    this.selfMap = () => core.self.mapId;
     this.now = init?.now ?? deps.now;
+  }
+
+  mapId(): number {
+    return this.selfMap();
   }
 
   snapshot(): TransportsState {
@@ -89,6 +112,7 @@ export class TransportsStore {
     pose: TransportEntry["pose"];
     pathRotation: number;
     pathProgress: number | undefined;
+    goState: number;
   }): void {
     const high = init.guid >> 48n;
     let kind: TransportKind | undefined;
@@ -103,6 +127,8 @@ export class TransportsStore {
       pose: { ...init.pose },
       pathRotation: init.pathRotation,
       pathProgress: init.pathProgress ?? 0,
+      goState: init.goState,
+      changes: [],
       receivedAt: this.now(),
     });
     this.queue({ guid: init.guid, type: "transport_seen" });
@@ -115,6 +141,43 @@ export class TransportsStore {
 
   receiveTemplate(row: GameObjectTemplateRow): void {
     this.templates.set(row.entry, { ...row });
+    this.foldAll();
+  }
+
+  receiveState(guid: bigint, state: number): void {
+    const entry = this.transports.get(guid);
+    if (entry?.kind !== "lift") return;
+    const last = entry.changes.at(-1)?.state ?? entry.goState;
+    if (last === state) return;
+    entry.changes = [...entry.changes, { at: this.now(), state }];
+    this.fold(entry);
+  }
+
+  setStepper(stepper: LiftStepper): void {
+    this.stepper = stepper;
+    this.foldAll();
+  }
+
+  private foldAll(): void {
+    for (const entry of this.transports.values()) this.fold(entry);
+  }
+
+  private fold(entry: TransportEntry): void {
+    const stepper = this.stepper;
+    if (!stepper) return;
+    for (const change of entry.changes) {
+      const progress = stepper(
+        entry.entry,
+        entry.goState,
+        entry.pathProgress,
+        Math.max(0, change.at - entry.receivedAt),
+      );
+      if (progress === undefined) return;
+      entry.pathProgress = progress;
+      entry.receivedAt = change.at;
+      entry.goState = change.state;
+      entry.changes = entry.changes.slice(1);
+    }
   }
 
   setModel(paths: number, anims: number): void {

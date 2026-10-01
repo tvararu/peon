@@ -181,7 +181,7 @@ export function transportsCreateBody(init: TransportsCreateInit): Uint8Array {
   w.uint8(ObjectType.GAMEOBJECT);
   w.uint16LE(
     UpdateFlag.TRANSPORT |
-      UpdateFlag.LOW_GUID |
+      UpdateFlag.HIGH_GUID |
       UpdateFlag.HAS_POSITION |
       UpdateFlag.ROTATION,
   );
@@ -208,6 +208,15 @@ export function transportsCreateBody(init: TransportsCreateInit): Uint8Array {
   if (init.state !== undefined)
     fields.set(GAMEOBJECT_FIELDS.BYTES_1.offset, init.state);
   writeUpdateMask(w, fields);
+  return w.finish();
+}
+
+export function transportsStateBody(guid: bigint, state: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(1);
+  w.uint8(UpdateType.VALUES);
+  writePackedGuid(w, guid);
+  writeUpdateMask(w, new Map([[GAMEOBJECT_FIELDS.BYTES_1.offset, state]]));
   return w.finish();
 }
 
