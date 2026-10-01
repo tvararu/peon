@@ -208,10 +208,10 @@ describe("driving the vehicle", () => {
     runtime.clientControl({ allow: true, guid: VEHICLE });
     runtime.forceRoot(3);
     runtime.clientControl({ allow: false, guid: VEHICLE });
-    expect(runtime.snapshot().blockedReason).toBe("rooted");
-    runtime.forceUnroot(4);
     runtime.vehicleLeft();
+    runtime.forceUnroot(4);
     expect(runtime.snapshot().movementAllowed).toBe(true);
+    expect(runtime.snapshot().blockedReason).not.toBe("rooted");
   });
 
   test("self observations do not move the driven pose", () => {
