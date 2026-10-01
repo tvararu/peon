@@ -183,6 +183,7 @@ export const ROUND_1: readonly string[] = [
   "t9-raid-mark",
   "t4-objects-quest-loot",
   "t8-items-socket",
+  "t8-pets-spells",
   "t8-pets-rename",
   "t8-pets-abandon",
 ];
