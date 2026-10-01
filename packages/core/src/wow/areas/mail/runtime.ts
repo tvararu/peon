@@ -315,6 +315,8 @@ function checkSendFunds(
   cod: number,
 ): void {
   if (items.length > MAX_MAIL_ITEMS) throw new Error("too_many_attachments");
+  if (new Set(items.map((item) => item.guid)).size !== items.length)
+    throw new Error("duplicate_attachment");
   if (money > 0 && cod > 0) throw new Error("cod_with_money");
   const postage = MAIL_SEND_POSTAGE * Math.max(items.length, 1);
   const have = coinage(env);

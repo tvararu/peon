@@ -187,20 +187,25 @@ function sendItems(handle: WorldHandle, args: Args) {
       (part): part is [string, string] =>
         part !== undefined && part.length === 2,
     );
-  const seen = new Set<string>();
-  return itemArgs.map(([guid, slot]) => {
-    const key = `${guid}:${slot}`;
-    if (seen.has(key)) throw new Error(`duplicate item ${guid} entry ${slot}.`);
-    seen.add(key);
+  const seen = new Set<bigint>();
+  return itemArgs.map(([text, slot]) => {
+    let guid: bigint;
+    try {
+      guid = BigInt(text);
+    } catch (cause) {
+      throw new Error(`bad item ${text}:${slot}.`, { cause });
+    }
+    if (seen.has(guid)) throw new Error(`duplicate item ${guid}.`);
+    seen.add(guid);
     const entry = Number(slot);
     const row = inv.slots.find(
       (candidate) =>
         candidate.status === "occupied" &&
-        candidate.guid === BigInt(guid) &&
+        candidate.guid === guid &&
         candidate.item.entry === entry,
     );
     if (row?.status !== "occupied")
-      throw new Error(`no carried item ${guid} entry ${slot}.`);
+      throw new Error(`no carried item ${text} entry ${slot}.`);
     return { guid: row.guid, slot: row.slot };
   });
 }
