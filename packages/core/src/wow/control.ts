@@ -10,6 +10,7 @@ import {
 } from "#wow/control-input";
 import { type GroundOracle, MAX_DURATION_MS } from "#wow/control-motion";
 import { type MovementGuide, Mover } from "#wow/control-mover";
+import { AirMoves, type AscendKind, type PitchKind } from "#wow/control-swim";
 import { MovementSync, type SelfObservation } from "#wow/control-sync";
 import { DirectedWalk } from "#wow/control-walk";
 import type { Position } from "#wow/entity-store";
@@ -100,6 +101,7 @@ export class ControlRuntime {
   private readonly sync: MovementSync;
   private readonly mover: Mover;
   private readonly flight: FlightTracker;
+  private readonly air: AirMoves;
   private readonly stops = new Emitter<[string]>();
   private requestedTarget: bigint | undefined;
 
@@ -133,6 +135,15 @@ export class ControlRuntime {
       landedWithBlocker: (blockers) => this.sync.restoreFlightBlocker(blockers),
     });
     this.sync.setFlight(this.flight);
+    this.air = new AirMoves({
+      send: deps.send,
+      selfGuid: deps.selfGuid,
+      host: this.sync,
+      enter: (reason) => {
+        this.mover.stop(reason, true);
+        if (this.mover.airborne) this.mover.abort(reason);
+      },
+    });
   }
 
   onEvent(listener: (event: ControlEvent) => void): Unsubscribe {
@@ -236,6 +247,26 @@ export class ControlRuntime {
 
   timeSkipped(ms: number): void {
     this.sync.timeSkipped(ms);
+  }
+
+  setSwimming(on: boolean): void {
+    this.air.setSwimming(on);
+  }
+
+  setFlying(on: boolean): void {
+    this.air.setFlying(on);
+  }
+
+  pitch(kind: PitchKind): void {
+    this.air.pitch(kind);
+  }
+
+  ascend(kind: AscendKind): void {
+    this.air.ascend(kind);
+  }
+
+  descend(): void {
+    this.air.descend();
   }
 
   resetFall(): void {
