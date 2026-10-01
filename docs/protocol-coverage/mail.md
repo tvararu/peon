@@ -5,15 +5,15 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x238` | `CMSG_SEND_MAIL` | client | missing |  |
-| `0x239` | `SMSG_SEND_MAIL_RESULT` | server | stub |  |
+| `0x238` | `CMSG_SEND_MAIL` | client | handled |  |
+| `0x239` | `SMSG_SEND_MAIL_RESULT` | server | handled |  |
 | `0x23a` | `CMSG_GET_MAIL_LIST` | client | handled |  |
 | `0x23b` | `SMSG_MAIL_LIST_RESULT` | server | handled |  |
-| `0x245` | `CMSG_MAIL_TAKE_MONEY` | client | missing |  |
-| `0x246` | `CMSG_MAIL_TAKE_ITEM` | client | missing |  |
+| `0x245` | `CMSG_MAIL_TAKE_MONEY` | client | handled |  |
+| `0x246` | `CMSG_MAIL_TAKE_ITEM` | client | handled |  |
 | `0x247` | `CMSG_MAIL_MARK_AS_READ` | client | handled |  |
-| `0x248` | `CMSG_MAIL_RETURN_TO_SENDER` | client | missing |  |
-| `0x249` | `CMSG_MAIL_DELETE` | client | missing |  |
-| `0x24a` | `CMSG_MAIL_CREATE_TEXT_ITEM` | client | missing |  |
+| `0x248` | `CMSG_MAIL_RETURN_TO_SENDER` | client | handled |  |
+| `0x249` | `CMSG_MAIL_DELETE` | client | handled |  |
+| `0x24a` | `CMSG_MAIL_CREATE_TEXT_ITEM` | client | handled |  |
 | `0x284` | `MSG_QUERY_NEXT_MAIL_TIME` | both | handled |  |
 | `0x297` | `SMSG_SHOW_MAILBOX` | server | handled | not seen live |
