@@ -347,41 +347,35 @@ describe("interact at a stable master", () => {
     expect(w.sent.filter((s) => s.startsWith("buyStableSlot"))).toEqual([]);
   });
 
-  test("buy_slot reports the balance after the money update arrives", async () => {
+  test("buy_slot reports the balance from the money update, before the wait times out", async () => {
     const w = await world({ bar: true, stable: FULL });
-    let coins = 1_000_000;
-    const inventory = w.t.handle.getInventoryState();
-    w.t.handle.getInventoryState = () => ({ ...inventory, coinage: coins });
-    const act = w.t.handle.pets.act;
-    const settled = Promise.withResolvers<void>();
-    const spy = jest.spyOn(act, "buyStableSlot");
-    spy.mockReset();
-    spy.mockImplementation((() => {
-      w.t.handle.triggerAreaEvent("pets", {
-        code: 0,
-        result: "slot_bought",
-        type: "stable_result",
-      } as never);
-      void settled.promise.then(() => {
-        coins = 999_500;
-        w.t.handle.triggerEntityEvent({
-          changed: ["coinage"],
-          entity: {},
-          type: "update",
-        } as never);
+    await withFakeTimers(async () => {
+      let coins = 1_000_000;
+      const inventory = w.t.handle.getInventoryState();
+      w.t.handle.getInventoryState = () => ({ ...inventory, coinage: coins });
+      const subscribed = jest.spyOn(w.t.handle, "onEntityEvent");
+      w.make("buyStableSlot", "slot_bought");
+      let settled = false;
+      const pending = run(w.t, { do: "buy_slot" }).finally(() => {
+        settled = true;
       });
-      return { ok: true };
-    }) as never);
-    const pending = run(w.t, { do: "buy_slot" });
-    let guard = 0;
-    while (spy.mock.calls.length === 0 && guard++ < 1000)
-      await Promise.resolve();
-    settled.resolve();
-    const out = await pending;
-    expect(out.status).toBe("DONE");
-    expect(out.after?.money).toEqual({
-      after: 999_500,
-      before: 1_000_000,
+      await elapse(0);
+      expect(subscribed).toHaveBeenCalled();
+      expect(settled).toBe(false);
+      coins = 999_500;
+      w.t.handle.triggerEntityEvent({
+        changed: ["coinage"],
+        entity: {},
+        type: "update",
+      } as never);
+      await elapse(0);
+      expect(settled).toBe(true);
+      const out = await pending;
+      expect(out.status).toBe("DONE");
+      expect(out.after?.money).toEqual({
+        after: 999_500,
+        before: 1_000_000,
+      });
     });
   });
 
