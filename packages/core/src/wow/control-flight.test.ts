@@ -408,10 +408,42 @@ describe("self flight spline in control", () => {
       expect(dones[0]?.info.x).toBeCloseTo(LANDING.x, 2);
       advance(20_000);
       expect(runtime.snapshot().blockedReason).toBe("in_flight");
-      expect(splineDones(sent)).toHaveLength(1);
       runtime.observeSelf({ unitFlags: 0 });
       expect(runtime.snapshot().blockedReason).toBeUndefined();
       expect(runtime.snapshot().serverPose?.x).toBeCloseTo(LANDING.x, 2);
+    });
+  });
+
+  test("a flag-first flight landing with no flags clears the blocker for moves", () => {
+    fly(({ runtime }) => {
+      runtime.observeSelf({ unitFlags: FLYING });
+      runtime.observeSelf({ unitFlags: FLYING });
+      runtime.observeSelf({ unitFlags: 0 });
+      expect(runtime.snapshot().blockedReason).toBeUndefined();
+      expect(() => runtime.move("forward", 1000)).not.toThrow();
+      expect(() => runtime.face(1)).not.toThrow();
+    });
+  });
+
+  test("a blocker cleared during the flight is not restored by the fallback landing", () => {
+    fly(({ runtime, advance }) => {
+      runtime.observeSelfSpline(flightSpline());
+      runtime.observeSelf({ unitFlags: UnitFlag.STUNNED });
+      runtime.observeSelf({ unitFlags: 0 });
+      advance(FLIGHT_MS + 10_500);
+      expect(runtime.snapshot().blockedReason).toBeUndefined();
+      expect(() => runtime.move("forward", 1000)).not.toThrow();
+    });
+  });
+
+  test("a taxi-bearing flags update after the duration send does not send a second spline-done", () => {
+    fly(({ runtime, sent, advance }) => {
+      runtime.observeSelfSpline(flightSpline({ splineId: 91 }));
+      runtime.observeSelf({ unitFlags: FLYING });
+      advance(FLIGHT_MS + 1000);
+      expect(splineDones(sent)).toHaveLength(1);
+      runtime.observeSelf({ unitFlags: FLYING });
+      expect(splineDones(sent)).toHaveLength(1);
     });
   });
 });

@@ -113,7 +113,7 @@ export class FlightTracker {
       }
       return true;
     }
-    if (this.flying && blockers !== 0) this.blocked = blockers;
+    if (this.flying) this.blocked = blockers;
     if (!this.flagSeen) return false;
     this.flagSeen = false;
     this.land();
@@ -157,6 +157,7 @@ export class FlightTracker {
   }
 
   private sendSplineDone(): void {
+    this.durationPast = false;
     const end = this.end;
     if (!end) {
       this.land();
