@@ -54,6 +54,12 @@ async function companionLeg(
   const box = await settle(() => squirrelBox(handle));
   if (!box) throw new Error("the Mechanical Squirrel Box is not in the bags.");
   const used = (await handle.useItem(box.bag, box.slot)) ?? null;
+  const learnedAt = Date.now() + 20_000;
+  while (
+    !(await handle.getSpellbook()).some((row) => row.name === SQUIRREL_SPELL) &&
+    Date.now() < learnedAt
+  )
+    await Bun.sleep(POLL_MS);
   const spell = await settle(async () =>
     (await handle.getSpellbook()).find((row) => row.name === SQUIRREL_SPELL),
   );
