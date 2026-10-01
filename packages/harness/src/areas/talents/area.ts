@@ -5,6 +5,7 @@ import { defineHarnessArea } from "#harness/areas/contract";
 type TalentsEvent = AreaEventOf<"talents">;
 type Info = Extract<TalentsEvent, { type: "info" }>;
 type Points = Extract<TalentsEvent, { type: "points" }>;
+type Refused = Extract<TalentsEvent, { type: "refused" }>;
 
 function pointsRow(event: Points): AreaDraft[] {
   const noun = event.after === 1 ? "point" : "points";
@@ -33,9 +34,19 @@ function learnedRows(event: Info): AreaDraft[] {
     }));
 }
 
+function refusedRows(event: Refused): AreaDraft[] {
+  return event.entries.map((entry) => ({
+    class: "log",
+    data: { rank: entry.rank + 1, talentId: entry.talentId },
+    name: "refused",
+    text: `Talent ${entry.talentId} rank ${entry.rank + 1} was not learned.`,
+  }));
+}
+
 function rows(event: TalentsEvent): AreaDraft[] {
   if (event.type === "points") return pointsRow(event);
   if (event.type === "info") return learnedRows(event);
+  if (event.type === "refused") return refusedRows(event);
   return [];
 }
 
@@ -43,5 +54,5 @@ export const talentsHarness = defineHarnessArea({
   area: "talents",
   glyph: "system",
   rules: () => ({ event: rows }),
-  worldActs: [],
+  worldActs: ["learnTalents"],
 });
