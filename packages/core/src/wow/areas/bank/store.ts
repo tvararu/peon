@@ -1,6 +1,7 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import { distance } from "#wow/geometry";
-import { type InventoryState, readInventory } from "#wow/inventory";
+import type { InventorySlot, InventoryState } from "#wow/inventory";
+import { readInventory } from "#wow/inventory";
 import {
   type InventoryChangeFailure,
   type InventoryClaim,
@@ -22,8 +23,7 @@ export type BankMoveRequest =
       slot: number;
       guid: bigint | undefined;
       entry?: number | undefined;
-      toGuid?: bigint | undefined;
-      toCount?: number | undefined;
+      toCounts?: number[] | undefined;
       requestedAt: number;
     }
   | {
@@ -32,8 +32,7 @@ export type BankMoveRequest =
       slot: number;
       guid: bigint | undefined;
       entry?: number | undefined;
-      toGuid?: bigint | undefined;
-      toCount?: number | undefined;
+      toCounts?: number[] | undefined;
       requestedAt: number;
     }
   | { kind: "slot"; banker: bigint; requestedAt: number };
@@ -91,6 +90,10 @@ function legacyClaims(core: CoreStores): (InventoryClaim | undefined)[] {
     quest === "accept" || quest === "chooseReward" ? UNCLAIMED : undefined,
     take ? UNCLAIMED : undefined,
   ];
+}
+
+function bankSlots(inventory: InventoryState): InventorySlot[] {
+  return [...inventory.slots, ...(inventory.bank?.slots ?? [])];
 }
 
 function inBank(region: string): boolean {
@@ -174,7 +177,7 @@ export class BankStore {
     if (request?.kind !== "deposit" && request?.kind !== "withdraw") return;
     if (request.guid === undefined) return;
     const inventory = this.inventory();
-    const found = inventory.slots.find(
+    const found = bankSlots(inventory).find(
       (slot) => slot.status === "occupied" && slot.guid === request.guid,
     );
     if (found?.status === "occupied") {
@@ -187,25 +190,34 @@ export class BankStore {
         return;
       }
     }
-    if (
-      request.entry === undefined ||
-      request.toGuid === undefined ||
-      request.toCount === undefined
-    )
-      return;
-    const target = inventory.slots.find(
-      (slot) => slot.status === "occupied" && slot.guid === request.toGuid,
+    if (request.entry === undefined || request.toCounts === undefined) return;
+    const targets = bankSlots(inventory).filter(
+      (slot) =>
+        slot.status === "occupied" &&
+        slot.item.entry === request.entry &&
+        (request.kind === "deposit"
+          ? inBank(slot.region)
+          : !inBank(slot.region)),
     );
-    if (
-      target?.status === "occupied" &&
-      target.item.entry === request.entry &&
-      target.item.count !== undefined &&
-      target.item.count > request.toCount &&
-      (request.kind === "deposit"
-        ? inBank(target.region)
-        : !inBank(target.region))
-    )
-      this.settleMove(request, request.toGuid);
+    const counts = targets
+      .map((slot) => (slot.status === "occupied" ? slot.item.count : undefined))
+      .filter((count) => count !== undefined)
+      .sort((a, b) => a - b);
+    const before = [...request.toCounts].sort((a, b) => a - b);
+    const grew = counts.some(
+      (count) => !before.includes(count) && count > Math.min(...before),
+    );
+    if (counts.length !== before.length || !grew) return;
+    const grown = targets.find(
+      (slot) =>
+        slot.status === "occupied" &&
+        slot.item.count !== undefined &&
+        slot.guid !== request.guid &&
+        !before.includes(slot.item.count) &&
+        slot.item.count > Math.min(...before),
+    );
+    const grownGuid = grown?.status === "occupied" ? grown.guid : request.guid;
+    if (grownGuid !== undefined) this.settleMove(request, grownGuid);
   }
 
   receiveInventoryFailure(packet: InventoryChangeFailure): void {

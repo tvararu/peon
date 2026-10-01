@@ -86,6 +86,60 @@ describe("bank acts", () => {
     }
   });
 
+  test("a deposit merges into the roomy stack when the first bank stack is full", async () => {
+    const full = BANK_CLOTH + 21n;
+    const roomy = BANK_CLOTH + 22n;
+    const { rig, world } = bankScene((seeded) => {
+      seeded.clear(255, 25);
+      seeded.entities.delete(BANK_CLOTH);
+      seeded.put(255, 25, { count: 5, entry: 2589, guid: BANK_CLOTH });
+      seeded.put(255, 39, { count: 20, entry: 2589, guid: full });
+      seeded.put(255, 40, { count: 10, entry: 2589, guid: roomy });
+    });
+    try {
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      const pending = rig.handle.act.deposit(255, 25);
+      await flush();
+      expect(rig.sent.map((packet) => packet.opcode)).toEqual([
+        GameOpcode.CMSG_AUTOBANK_ITEM,
+      ]);
+      world.clear(255, 25);
+      world.entities.delete(BANK_CLOTH);
+      world.setCount(roomy, 15);
+      rig.touch();
+      expect(await pending).toEqual({ status: "ok" });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a show-bank notice during a pending move does not settle it", async () => {
+    const { rig, world } = bankScene();
+    const seen: BankEvent[] = [];
+    rig.handle.onEvent((event) => seen.push(event));
+    try {
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      seen.length = 0;
+      const pending = rig.handle.act.deposit(255, 25);
+      await flush();
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      expect(rig.handle.state().pending?.kind).toBe("deposit");
+      expect(seen.map((event) => event.type)).toContain("opened");
+      world.clear(255, 25);
+      world.entities.delete(BANK_CLOTH);
+      world.put(255, 39, { count: 20, entry: 2589, guid: BANK_CLOTH });
+      rig.touch();
+      expect(await pending).toEqual({ status: "ok" });
+      expect(seen.at(-1)).toMatchObject({
+        guid: BANK_CLOTH,
+        kind: "deposit",
+        type: "moved",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("withdraw sends CMSG_AUTOSTORE_BANK_ITEM and settles ok when the guid returns to the bags", async () => {
     const { rig, world } = bankScene((seeded) => {
       seeded.clear(255, 25);

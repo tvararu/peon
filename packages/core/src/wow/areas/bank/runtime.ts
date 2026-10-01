@@ -13,7 +13,7 @@ import {
   type BankStore,
 } from "#wow/areas/bank/store";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
-import type { InventoryState } from "#wow/inventory";
+import type { InventorySlot, InventoryState } from "#wow/inventory";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { CoreStores } from "#wow/session-stores";
 
@@ -71,11 +71,13 @@ async function send(
   request: BankMoveRequest,
   packet: readonly [opcode: number, body: Uint8Array],
 ): Promise<BankResult> {
-  const before = env.store.snapshot().lastOutcome;
   env.store.begin(request);
   const settled = env.ctx.until(
-    (event) =>
-      SETTLED.has(event.type) && env.store.snapshot().lastOutcome !== before,
+    (event) => {
+      if (!SETTLED.has(event.type)) return false;
+      const last = env.store.snapshot().lastOutcome;
+      return last !== undefined && last.request === request;
+    },
     {
       signal: env.ctx.signal,
       timeoutMs: BANK_ANSWER_MS,
@@ -116,27 +118,32 @@ function open(env: Env, npc: bigint): Promise<BankResult> {
   ]);
 }
 
-function mergeTarget(
+function allSlots(inventory: InventoryState): InventorySlot[] {
+  return [...inventory.slots, ...(inventory.bank?.slots ?? [])];
+}
+
+function mergeTargets(
   inventory: InventoryState,
   kind: "deposit" | "withdraw",
   guid: bigint | undefined,
   entry: number | undefined,
-): { toGuid: bigint | undefined; toCount: number | undefined } {
-  if (guid === undefined || entry === undefined)
-    return { toCount: undefined, toGuid: undefined };
-  const target = inventory.slots.find(
-    (candidate) =>
-      candidate.status === "occupied" &&
-      candidate.guid !== guid &&
-      candidate.item.entry === entry &&
-      (kind === "deposit"
-        ? candidate.region === "bank" || candidate.region === "bank_bag_item"
-        : candidate.region === "backpack" || candidate.region === "bag_item"),
-  );
-  return {
-    toCount: target?.status === "occupied" ? target.item.count : undefined,
-    toGuid: target?.status === "occupied" ? target.guid : undefined,
-  };
+): { toCount: number | undefined }[] {
+  if (guid === undefined || entry === undefined) return [];
+  const eligible = (region: string): boolean =>
+    kind === "deposit"
+      ? region === "bank" || region === "bank_bag_item"
+      : region === "backpack" || region === "bag_item";
+  return allSlots(inventory)
+    .filter(
+      (
+        candidate,
+      ): candidate is Extract<InventorySlot, { status: "occupied" }> =>
+        candidate.status === "occupied" &&
+        candidate.guid !== guid &&
+        candidate.item.entry === entry &&
+        eligible(candidate.region),
+    )
+    .map((target) => ({ toCount: target.item.count }));
 }
 
 function move(
@@ -155,12 +162,15 @@ function move(
   if (kind === "deposit" && fromBank)
     throw new Error(`bag ${bag} slot ${slot} is already in the bank`);
   const inventory = env.store.inventory();
-  const held = inventory.slots.find(
+  const held = allSlots(inventory).find(
     (candidate) => candidate.bag === bag && candidate.slot === slot,
   );
   const guid = held?.status === "occupied" ? held.guid : undefined;
   const entry = held?.status === "occupied" ? held.item.entry : undefined;
-  const { toGuid, toCount } = mergeTarget(inventory, kind, guid, entry);
+  const targets = mergeTargets(inventory, kind, guid, entry);
+  const toCounts = targets
+    .map((target) => target.toCount)
+    .filter((count) => count !== undefined);
   const body =
     kind === "deposit"
       ? buildAutobankItem(bag, slot)
@@ -178,8 +188,7 @@ function move(
       kind,
       requestedAt: env.ctx.now(),
       slot,
-      toCount,
-      toGuid,
+      toCounts,
     },
     [opcode, body],
   );
