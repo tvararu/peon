@@ -1,0 +1,45 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 20,
+    "turns": 10
+  },
+  "checks": [
+    {
+      "evidence": {
+        "console": {
+          "match": "Name: Fangtooth",
+          "read": "pet"
+        }
+      },
+      "expect": "the agent-side console read of pet lists the pet under the name Fangtooth, so the rename was saved",
+      "id": "pet-named",
+      "source": "console"
+    },
+    {
+      "evidence": {
+        "events": ["pets/renamed"]
+      },
+      "expect": "GL has a pets/renamed row that names Fangtooth (the login rows name the old name), so the server confirmed the new name",
+      "id": "rename-confirmed",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the character calling the pet tool with do rename and what Fangtooth, not ending REFUSED",
+      "id": "rename-called",
+      "source": "session"
+    }
+  ],
+  "id": "t8-pets-rename",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "eversong10-hunter",
+  "setup": [],
+  "spawn": "eversong-pets",
+  "steers": [],
+  "task": "Rename your pet to Fangtooth.",
+  "tier": 8
+}

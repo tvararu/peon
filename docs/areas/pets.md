@@ -270,7 +270,28 @@ the pet's target field equals the target or the `threat` area emits
 the change, else `UNCONFIRMED`. `stop` sends `petStopAttack` (a unit that
 stops its attack clears its target field, `Entities/Unit/Unit.cpp:7221`)
 and then `follow`. `queryPetName` asks for the current pet's name again and `renamePet` renames a hunter pet whose rename bit is set, waiting 5 s for the `name` carrying the requested name or a `name_invalid` refusing it before the store reports `unanswered`.
-`cast`, `autocast`, `abandon`, `tame` and `talent` are refused with `not_built`: pets-10 and pets-12 own them.
+`cast` resolves `what` (a spell name or id) against the bar and sends
+`petCast` through the mutex, with the pet's unit target when `target` is
+given; it settles `DONE` when the spell's cooldown on the bar changes,
+`FAILED` on a `cast_failed` for that spell, and `UNCONFIRMED` when the
+spell definition is unknown (degraded mode sends anyway). The server
+runs the cast in `HandlePetCastSpellOpcode` (`Handlers/PetHandler.cpp:1011`).
+`autocast` takes `"<spell> on"` or `"<spell> off"`, sends `petAutocast`
+and settles `DONE` when the next bar shows the state, without a send when
+it already matches (`HandlePetSpellAutocastOpcode`,
+`Handlers/PetHandler.cpp:955`). `rename` sends `renamePet` and settles
+`DONE` on the `name` carrying the requested name, `REFUSED` with the
+reason on `name_invalid`, `UNCONFIRMED` on `unanswered`
+(`HandlePetRename`, `Handlers/PetHandler.cpp:840`). `abandon` is the one
+irreversible act: it runs only when `what` equals the pet's current name,
+else it is `REFUSED` with `confirm_name`, and it settles `DONE` when the
+bar clears (`HandlePetAbandon`, `Handlers/PetHandler.cpp:931`). `tame`
+casts Tame Beast (1515) through `handle.cast` at the target, is refused
+with `already_out` while a bar is present because the effect does nothing
+with a pet out (`Spells/SpellEffects.cpp:3308`), and settles `DONE` on the
+new bar or `FAILED` on `tame_failed`. No live scenario tames a beast; the
+verb is proven by mock-game tests. Feed Pet needs an item-target cast and
+is not covered. `talent` is refused with `not_built`: pets-12 owns it.
 
 ## Proof
 
