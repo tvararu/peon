@@ -35,6 +35,7 @@ export async function renameFlow(
         event.event.type === "unanswered"),
     send: () =>
       ctx.rt.mutex.run(() => {
+        ctx.signal.throwIfAborted();
         throwUnlessOk(ctx.handle.pets.act.renamePet(name));
       }),
     signal: ctx.signal,

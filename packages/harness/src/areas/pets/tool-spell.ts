@@ -194,6 +194,7 @@ export async function castFlow(
     match,
     send: () =>
       ctx.rt.mutex.run(() => {
+        ctx.signal.throwIfAborted();
         const outcome = ctx.handle.pets.act.petCast(spell.id, target.spec);
         throwUnlessOk(outcome);
         if (outcome.ok)
@@ -279,6 +280,7 @@ export async function autocastFlow(
       shown() === word,
     send: () =>
       ctx.rt.mutex.run(() => {
+        ctx.signal.throwIfAborted();
         throwUnlessOk(ctx.handle.pets.act.petAutocast(spell.id, on));
       }),
     signal: ctx.signal,
@@ -335,6 +337,7 @@ export async function tameFlow(
     match: (event) => tameHeard(event, spell.id) !== false,
     send: () =>
       ctx.rt.mutex.run(() => {
+        ctx.signal.throwIfAborted();
         ctx.handle.cast(spell.id, found.guid);
       }),
     signal: ctx.signal,

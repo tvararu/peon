@@ -58,9 +58,10 @@ export type PetsState = {
         maxHealth: number;
         canAbandon: boolean;
         number?: number;
+        nameTimestamp?: number;
       }
     | undefined;
-  names?: Readonly<Record<number, { name: string }>>;
+  names?: Readonly<Record<number, { name: string; timestamp?: number }>>;
 };
 
 export const SETTLE_MS = 5000;
@@ -136,7 +137,11 @@ export function petUnit(handle: Game, guid: bigint): UnitEntity | undefined {
 
 export function confirmedPetName(state: PetsState): string | undefined {
   const number = state.pet?.number;
-  return number === undefined ? undefined : state.names?.[number]?.name;
+  if (number === undefined) return undefined;
+  const entry = state.names?.[number];
+  if (entry === undefined) return undefined;
+  const renamedAt = state.pet?.nameTimestamp ?? 0;
+  return (entry.timestamp ?? 0) < renamedAt ? undefined : entry.name;
 }
 
 export function petNameOf(handle: Game, state: PetsState): string {
