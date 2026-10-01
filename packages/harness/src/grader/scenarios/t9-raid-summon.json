@@ -8,9 +8,7 @@
   "checks": [
     {
       "evidence": {
-        "events": [
-          "raid/summon"
-        ]
+        "events": ["raid/summon"]
       },
       "expect": "GL has a raid/summon row, so the agent was offered the partner's meeting-stone summon",
       "id": "summon-offered",
@@ -29,11 +27,7 @@
   "partner": null,
   "partnerActions": [
     {
-      "argv": [
-        "call",
-        "invite",
-        "[\"<AGENT>\"]"
-      ],
+      "argv": ["call", "invite", "[\"<AGENT>\"]"],
       "at": {
         "kind": "trigger",
         "nth": 1,
@@ -42,11 +36,7 @@
       "windowMs": 120000
     },
     {
-      "argv": [
-        "call",
-        "invite",
-        "[\"<PARTNER2>\"]"
-      ],
+      "argv": ["call", "invite", "[\"<PARTNER2>\"]"],
       "at": {
         "kind": "elapsed",
         "ms": 5000
@@ -55,10 +45,7 @@
     },
     {
       "actor": 2,
-      "argv": [
-        "call",
-        "acceptInvite"
-      ],
+      "argv": ["call", "acceptInvite"],
       "at": {
         "kind": "elapsed",
         "ms": 15000
@@ -66,11 +53,7 @@
       "windowMs": 120000
     },
     {
-      "argv": [
-        "call",
-        "useMeetingStone",
-        "[\"<AGENT>\"]"
-      ],
+      "argv": ["call", "useMeetingStone", "[\"<AGENT>\"]"],
       "at": {
         "kind": "elapsed",
         "ms": 40000
@@ -79,10 +62,7 @@
     },
     {
       "actor": 2,
-      "argv": [
-        "call",
-        "useSummoningPortal"
-      ],
+      "argv": ["call", "useSummoningPortal"],
       "at": {
         "kind": "elapsed",
         "ms": 50000
