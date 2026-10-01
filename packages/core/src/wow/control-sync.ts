@@ -99,6 +99,7 @@ export class MovementSync {
   private controlAllowed = true;
   private rooted = false;
   private teleporting = false;
+  private transportTransfer = false;
   private unitBlocked = false;
   private readonly abortWatch = new TransferAbortWatch();
   private readonly acks: ForcedAcks;
@@ -143,7 +144,7 @@ export class MovementSync {
           (this.moveFlags &
             (MovementFlag.SWIMMING | MovementFlag.FLYING | AIR_INPUT_BITS)),
       ) ??
-      (this.ride.riding ? "transport" : undefined)
+      (this.ride.riding || this.ride.onTransport ? "transport" : undefined)
     );
   }
 
@@ -174,10 +175,12 @@ export class MovementSync {
     this.ride.refreshPose();
     const ride = this.ride.carriage();
     if (!ride) throw new Error("not_boarded");
+    const dest = planLeave(ride, this.mapId, this.deps.ground);
+    this.transport = undefined;
     this.ride.leaveTransport();
     this.moveFlags &= ~MovementFlag.ON_TRANSPORT;
     this.observedFlags &= ~MovementFlag.ON_TRANSPORT;
-    this.adoptServerPose(planLeave(ride, this.mapId, this.deps.ground));
+    this.adoptServerPose(dest);
     const body = buildMoveMessage(this.deps.selfGuid(), this.movementInfo());
     this.deps.send(GameOpcode.CMSG_MOVE_CHNG_TRANSPORT, body);
   }
@@ -304,9 +307,10 @@ export class MovementSync {
     this.applyForcedPose(dest, "near_teleport");
   }
 
-  handleTransferPending(): void {
+  handleTransferPending(transport?: { entry: number; fromMap: number }): void {
     this.abortWatch.cancel();
     this.teleporting = true;
+    this.transportTransfer = transport !== undefined;
     this.cancelForced("teleport");
     this.emit("control_changed", "teleporting");
   }
@@ -330,11 +334,23 @@ export class MovementSync {
     this.teleporting = false;
     this.flight?.newWorld();
     this.transport = undefined;
-    if (this.ride.carriage() === undefined || position.mapId !== this.mapId)
+    const ride = this.ride.carriage();
+    const transfer = this.transportTransfer && ride !== undefined;
+    this.transportTransfer = false;
+    if (transfer) {
+      this.ride.rebaseTransport(position.mapId, {
+        x: position.x,
+        y: position.y,
+        z: position.z,
+      });
+    } else if (ride === undefined || position.mapId !== this.mapId) {
       this.ride.clear();
+    }
     this.mapId = position.mapId;
-    this.moveFlags = 0;
-    this.observedFlags = 0;
+    const keep =
+      this.ride.carriage() === undefined ? 0 : MovementFlag.ON_TRANSPORT;
+    this.moveFlags = keep;
+    this.observedFlags = keep;
     this.extraFlags = 0;
     this.fall = undefined;
     this.pitch = undefined;
