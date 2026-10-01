@@ -190,6 +190,7 @@ export const ROUND_1: readonly string[] = [
   "t8-talents-spend",
   "t8-talents-reset",
   "t4-spells-unlearn-profession",
+  "t8-vehicles-board",
 ];
 const DIR = `${import.meta.dir}/scenarios`;
 const JSON_FILE = /\.json$/;

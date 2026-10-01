@@ -6,6 +6,7 @@ import { groupTool } from "#harness/areas/raid/tool";
 import { spellTool } from "#harness/areas/spells/tool";
 import { talentsTool } from "#harness/areas/talents/tool";
 import { tradeTool } from "#harness/areas/trade/tool";
+import { vehicleTool } from "#harness/areas/vehicles/tool";
 import type { ToolName } from "#harness/contract/result";
 import { engageTool } from "#harness/tools/engage";
 import { interactTool } from "#harness/tools/interact";
@@ -37,6 +38,7 @@ export const GAME_TOOLS = [
   groupTool,
   tradeTool,
   talentsTool,
+  vehicleTool,
 ] as const;
 
 type Listed = (typeof GAME_TOOLS)[number]["name"];
