@@ -51,6 +51,7 @@ or the page names one that does not exist.
 | Spend talent points | `t8-talents-spend` | Learns only for the active spec. A server refusal has no reason on the wire; the reason shown comes from local rules. |
 | Reset talents at a class trainer | `t8-talents-reset` | Pays only up to the cost the agent allows. |
 | Get on a vehicle by clicking it and get off | `t8-vehicles-board` | The client does not read seat flags, so a request the seat forbids shows as no answer. The scenario uses the 7th Legion Chain Gun in Dragonblight, which a Horde `max80` can click; hostile Riflemen stand near it. |
+| Apply and remove glyphs | `t8-talents-glyph` | Active spec only. The slot type is found by trying. |
 | Set dungeon difficulty | `t9-instances-difficulty` | A solo change is not confirmed until the next dungeon entry; in a group only the leader can change it. |
 | Queue for the dungeon finder and leave | `t9-lfg-queue` | Joining needs an LFG option on the server; a queue with no reply is reported as disabled. |
 | Enter and leave a dungeon-finder dungeon with a party | `t9-lfg-run` | Needs a full party of five; the dungeon finder cannot bring a ghost back. |
