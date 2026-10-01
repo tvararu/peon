@@ -1,8 +1,8 @@
 import { describe, expect, jest, test } from "bun:test";
 import { ObjectType } from "@peon/core";
 import { partyMember } from "@peon/core/test-support/party-fixtures";
-import { createTestRuntime } from "#test-support/runtime-fixture";
 import { useMeetingStone } from "#harness/puppet/meeting-stone";
+import { createTestRuntime } from "#test-support/runtime-fixture";
 
 const TOM = 0x100n;
 const STONE = 0x200n;
@@ -37,7 +37,7 @@ describe("useMeetingStone", () => {
         {
           distance: 4,
           entity: {
-            entry: 179596,
+            entry: 179_596,
             gameObjectType: 23,
             guid: STONE,
             objectType: ObjectType.GAMEOBJECT,
@@ -49,7 +49,7 @@ describe("useMeetingStone", () => {
     const use = jest
       .spyOn(t.handle.objects.act, "use")
       .mockReturnValue({ ok: true } as never);
-    await useMeetingStone(t.handle, "tom");
+    useMeetingStone(t.handle, "tom");
     expect(t.handle.selectTarget).toHaveBeenCalledWith(TOM);
     expect(use).toHaveBeenCalledWith(STONE);
   });
@@ -60,13 +60,36 @@ describe("useMeetingStone", () => {
     empty.members = [];
     t.handle.getPartyState = () => empty;
     t.handle.queryNearby = () => [];
-    await expect(useMeetingStone(t.handle, "Nobody")).rejects.toThrow(
+    expect(() => useMeetingStone(t.handle, "Nobody")).toThrow(
       "not in the group",
     );
     const party = t.handle.getPartyState();
     party.members = [partyMember({ guid: TOM, name: "Tom" })];
-    await expect(useMeetingStone(t.handle, "Tom")).rejects.toThrow(
-      "no meeting stone",
-    );
+    expect(() => useMeetingStone(t.handle, "Tom")).toThrow("no meeting stone");
+  });
+
+  test("reports a refused use", async () => {
+    const t = await world();
+    const party = t.handle.getPartyState();
+    party.members = [partyMember({ guid: TOM, name: "Tom" })];
+    t.handle.getPartyState = () => party;
+    t.handle.queryNearby = () =>
+      [
+        {
+          distance: 4,
+          entity: {
+            entry: 179_596,
+            gameObjectType: 23,
+            guid: STONE,
+            objectType: ObjectType.GAMEOBJECT,
+          },
+          position: { x: 1, y: 2, z: 3 },
+          self: false,
+        },
+      ] as unknown as ReturnType<typeof t.handle.queryNearby>;
+    jest
+      .spyOn(t.handle.objects.act, "use")
+      .mockReturnValue({ ok: false, reason: "unknown" } as never);
+    expect(() => useMeetingStone(t.handle, "Tom")).toThrow("refused");
   });
 });
