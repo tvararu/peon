@@ -75,3 +75,13 @@ export function buildTalentWipeConfirm(npcGuid: bigint): Uint8Array {
   w.uint64LE(npcGuid);
   return w.finish();
 }
+
+export const MAX_GLYPH_SLOT = 5;
+
+export function buildRemoveGlyph(slot: number): Uint8Array {
+  if (!Number.isInteger(slot) || slot < 0 || slot > MAX_GLYPH_SLOT)
+    throw new Error("bad_glyph_slot");
+  const w = new PacketWriter();
+  w.uint32LE(slot);
+  return w.finish();
+}

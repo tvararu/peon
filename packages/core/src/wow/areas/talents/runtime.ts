@@ -16,6 +16,13 @@ import {
   type RulesState,
   type TalentRefusal,
 } from "#wow/areas/talents/rules";
+import {
+  applyGlyph,
+  type GlyphApplyRequest,
+  type GlyphApplyResult,
+  type GlyphRemoveResult,
+  removeGlyph,
+} from "#wow/areas/talents/runtime-glyph";
 import type {
   TalentsEvent,
   TalentsState,
@@ -60,6 +67,8 @@ export type TalentsActs = {
   catalog: () => Promise<TalentCatalog | undefined>;
   learnTalents: (plan: readonly TalentRank[]) => Promise<LearnTalentsResult>;
   resetTalents: (request: ResetTalentsRequest) => Promise<ResetTalentsResult>;
+  applyGlyph: (request: GlyphApplyRequest) => Promise<GlyphApplyResult>;
+  removeGlyph: (slot: number) => Promise<GlyphRemoveResult>;
 };
 
 type Env = {
@@ -357,6 +366,8 @@ export function talentsRuntime(
       catalog: () => env.catalog(),
       learnTalents: (plan) => exclusive(() => learn(env, plan)),
       resetTalents: (request) => exclusive(() => reset(env, request)),
+      applyGlyph: (request) => exclusive(() => applyGlyph(env, request)),
+      removeGlyph: (slot) => exclusive(() => removeGlyph(env, slot)),
     },
     dispose: () => {
       inFlight = false;

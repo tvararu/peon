@@ -7,6 +7,7 @@ import {
 import {
   buildLearnPreviewTalents,
   buildLearnTalent,
+  buildRemoveGlyph,
   buildTalentWipeConfirm,
   parseTalentsInfo,
   parseTalentWipeOffer,
@@ -172,5 +173,19 @@ describe("talent wipe confirm", () => {
     const r = new PacketReader(body);
     expect(r.uint64LE()).toBe(TRAINER);
     expect(r.remaining).toBe(0);
+  });
+});
+
+describe("buildRemoveGlyph (Handlers/CharacterHandler.cpp:1604-1612)", () => {
+  test("writes the slot index as one u32", () => {
+    const r = new PacketReader(buildRemoveGlyph(5));
+    expect(r.uint32LE()).toBe(5);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("a slot outside 0-5 throws bad_glyph_slot", () => {
+    expect(() => buildRemoveGlyph(6)).toThrow("bad_glyph_slot");
+    expect(() => buildRemoveGlyph(-1)).toThrow("bad_glyph_slot");
+    expect(() => buildRemoveGlyph(1.5)).toThrow("bad_glyph_slot");
   });
 });

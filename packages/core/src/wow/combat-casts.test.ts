@@ -124,6 +124,19 @@ describe("CombatCasts channels", () => {
     expect(sent.length).toBe(before);
   });
 
+  test("sendItem writes the glyph index after the item guid", () => {
+    const { casts, send, sent } = setup();
+    casts.sendItem(send, BOLT, { ...ITEM, glyphIndex: 4 });
+    const body = sent.find((p) => p.opcode === GameOpcode.CMSG_USE_ITEM)?.body;
+    const r = new PacketReader(body ?? new Uint8Array());
+    r.uint8();
+    r.uint8();
+    r.uint8();
+    expect(r.uint32LE()).toBe(BOLT);
+    expect(r.uint64LE()).toBe(ITEM.guid);
+    expect(r.uint32LE()).toBe(4);
+  });
+
   test("updateChannel keeps the remaining time and moves the expected end", () => {
     const { advance, casts } = channelling();
     advance(1000);
