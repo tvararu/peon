@@ -201,6 +201,9 @@ on-use spells it read before.
   login, so the store reports `unknown` until the first packet and names
   only the bits that are new. Class 2 is weapons and class 4 armour; other
   classes change nothing.
+- `CMSG_SOCKET_GEMS` is `u64` item then three `u64` gem guids, unused slots zero (`Server/Packets/ItemPackets.cpp:143-148`). `HandleSocketOpcode` (`Handlers/ItemHandler.cpp:1213-1402`) drops the request silently for no item, duplicate gem guids or a gem in a slot with no socket, so core refuses those before sending.
+- `SMSG_SOCKET_GEMS_RESULT` is `u64` item then four `u32` enchant ids, slots 2-5 with the socket bonus last (`Entities/Item/Item.cpp:1071-1077`).
+- `SMSG_ENCHANTMENTLOG` is packed target, packed caster, `u32` entry, `u32` enchant id, no trailing bool (`Server/Packets/ItemPackets.cpp:115-123`). `Item::SetEnchantment` sends the old id with an empty caster then the new id with the caster for every changed slot below 7, to the visible set including the owner (`Handlers/ItemHandler.cpp:1041-1048`). A socket produces one enchant log per changed socket before the result; logs of other players arrive too, so the store marks `own` only when the target is the character and only own logs write `items/enchanted`.
 - Core keeps timers as absolute expiry times from the local clock at
   receipt (`ItemsState.timers`), item cooldowns as item guid, spell and
   time seen, and the weapon and armour masks. The game log writes
@@ -221,7 +224,7 @@ on-use spells it read before.
 
 ## Capabilities row
 
-The game log also writes `items/cooldown` for item cooldowns, `items/expiring` for timed items and temporary enchants (a wake row under 60 s left), `items/durability_loss` when death damages equipment (a wake row that tells the agent to repair), and `items/proficiency` for new weapon or armour skills.
+The game log also writes `items/socketed` on `SMSG_SOCKET_GEMS_RESULT` (the item, the three socket enchants and the socket bonus) and `items/enchanted` for own enchant logs with a non-zero enchant id, both log rows, plus wake rows `items/refused` and `items/unanswered` when the socket is refused or unanswered.
 
 ## Proof
 
@@ -245,3 +248,7 @@ The game log also writes `items/cooldown` for item cooldowns, `items/expiring` f
 | `SMSG_ITEM_ENCHANT_TIME_UPDATE` | `mock` | rig test in `packages/core/src/wow/areas/items/timers.test.ts` ("each timer opcode reaches the store and ends in state") injects a body built from the writer (item, slot, seconds, player) and asserts the event and state; not seen live: no realm-service endpoint can stage a timed temporary enchant | `Server/Packets/ItemPackets.cpp:125-133` |
 | `SMSG_SET_PROFICIENCY` | `live` | the login trace of every probe run shows it: login sends one per class and mask built, and the login of `probe items-snapshot` on a `max80` priest drew 8 (`0200000800`, weapon one-handed maces until swords; `0402000000` and `0403000000`, armour leather and mail) | `Entities/Player/Player.cpp:10282-10285` |
 | `SMSG_DURABILITY_DAMAGE_DEATH` | `live` | eval `t6-die-and-recover` round 315 replica 2, verdict `pass` 4/4 (`tmp/evals/315/t6-die-and-recover-2`, `result.json`): killed by a Springpaw Stalker (death, release, corpse reclaim at game-log seq 57/66/91, final alive), and `packets.jsonl` shows `SMSG_DURABILITY_DAMAGE_DEATH` size 0, outcome `handled`, at the death | `Server/Packets/MiscPackets.h:183-186` |
+| `CMSG_SOCKET_GEMS` | `live` | eval `t8-items-socket` round 330 replica 2, verdict `pass` 2/2 (`tmp/evals/330/t8-items-socket-2`, `result.json`): one `gear do=socket` call (Grotto Mist Gloves 37230, Bold Scarlet Ruby 39996) after `journal bags`; `packets.jsonl` shows `CMSG_SOCKET_GEMS` out (size 32) then the two enchant logs and the result, all `handled` | `Server/Packets/ItemPackets.cpp:143-148` |
+| `SMSG_SOCKET_GEMS_RESULT` | `live` | same eval: `packets.jsonl` shows size 24, outcome `handled`; body `44ae130000000040760d000000000000000000004a0b0000` (item guid, sockets `[3446, 0, 0]`, bonus 2890); GL `items/socketed` row for entry 37230 with the same sockets | `Entities/Item/Item.cpp:1071-1077` |
+| `SMSG_ENCHANTMENTLOG` | `live` | same eval: two logs precede the result, both outcome `handled`; `0367110367116e910000760d0000` (empty caster, old id 0) then `0367110367116e9100004a0b0000` (caster, new id 3446) | `Server/Packets/ItemPackets.cpp:115-123` |
+| `CMSG_CANCEL_TEMP_ENCHANTMENT` | `accepted` | probe on a `max80` character with no temporary enchant, `--send CMSG_CANCEL_TEMP_ENCHANTMENT --body 0f000000` (slot 15), exit 0: trace `tmp/probe/FAC6ABDAAA1CE-20261001T003553Z/packets.jsonl` shows the send, no error packet, and the logout completes | `Server/Packets/ItemPackets.cpp:150-153` |
