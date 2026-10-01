@@ -1,16 +1,18 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import {
   itemsEquipmentSetSavedBody,
   itemsEquipmentSetUseResultBody,
   itemsInventoryChangeFailureBody,
 } from "#test-support/areas/items";
 import { itemsRig, itemsWorld } from "#test-support/areas/items-world";
+import { buildEquipmentSetUse } from "#wow/areas/items/protocol-sets";
 import type { SentPacket } from "#wow/areas/port";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 const ME = 0x0a_00n;
 const HELM = 0x40_00_00_00_00_00_00_01n;
 const CHEST = 0x40_00_00_00_00_00_00_02n;
+const SWAPPED = 0x40_00_00_00_00_00_00_03n;
 const NOT_WHILE_DISARMED = 61;
 const DISARMED = 0x40_00_00_00_00_00_00_07n;
 
@@ -179,6 +181,54 @@ describe("items runtime: sets with an unavailable socket and overlapping acts", 
       );
     } finally {
       rig.dispose();
+    }
+  });
+});
+
+describe("items runtime: set use while the same set is being updated", () => {
+  test("a use is refused until the update settles, then equips the updated outfit", async () => {
+    jest.useFakeTimers();
+    const world = itemsWorld(ME);
+    world.put(255, 0, { entry: 100, guid: HELM });
+    world.put(255, 1, { entry: 101, guid: CHEST });
+    const rig = itemsRig(world);
+    try {
+      const created = rig.handle.act.saveSet({ index: 0, name: "Peon" });
+      rig.inject(
+        GameOpcode.SMSG_EQUIPMENT_SET_SAVED,
+        itemsEquipmentSetSavedBody(0, 9n),
+      );
+      await created;
+      world.clear(255, 1);
+      world.put(255, 1, { entry: 102, guid: SWAPPED });
+      rig.touch();
+      const update = rig.handle.act.saveSet({ index: 0, name: "Peon" });
+      const sentBefore = rig.sent.length;
+      await expect(rig.handle.act.useSet(0)).rejects.toThrow(/save/);
+      expect(rig.sent).toHaveLength(sentBefore);
+      jest.advanceTimersByTime(5000);
+      await update;
+      const use = rig.handle.act.useSet(0);
+      rig.inject(
+        GameOpcode.SMSG_EQUIPMENT_SET_USE_RESULT,
+        itemsEquipmentSetUseResultBody(0),
+      );
+      await use;
+      const sentUse = rig.sent.filter(
+        (packet) => packet.opcode === GameOpcode.CMSG_EQUIPMENT_SET_USE,
+      );
+      expect(sentUse).toHaveLength(1);
+      const expected = buildEquipmentSetUse(
+        Array.from({ length: 19 }, (_, slot) => {
+          if (slot === 0) return { bag: 255, guid: HELM, slot: 0 };
+          if (slot === 1) return { bag: 255, guid: SWAPPED, slot: 1 };
+          return { bag: 0, guid: 0n, slot: 0 };
+        }),
+      );
+      expect(Array.from(sentUse[0]?.body ?? [])).toEqual(Array.from(expected));
+    } finally {
+      rig.dispose();
+      jest.useRealTimers();
     }
   });
 });

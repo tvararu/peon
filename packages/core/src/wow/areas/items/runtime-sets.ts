@@ -98,6 +98,7 @@ function positionsOf(
 
 function checkOverlap({ store }: Env): void {
   const claims = store.snapshot();
+  if (claims.sets.savePending) throw new Error("a set save is already pending");
   if (claims.sets.usePending) throw new Error("a set use is already pending");
   if (claims.move.pending) throw new Error("a move is already pending");
   if (claims.read.pending) throw new Error("a read or open is already pending");
@@ -127,8 +128,6 @@ async function saveSet(
 ): Promise<SaveOutcome> {
   const { ctx, store } = env;
   const inventory = inWorld(env);
-  if (store.snapshot().sets.savePending)
-    throw new Error("a set save is already pending");
   checkOverlap(env);
   const icon = init.icon ?? "";
   checkSetFields(init.index, init.name, icon);
