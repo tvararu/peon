@@ -68,6 +68,7 @@ export type MailState = {
 
 export type MailEvent =
   | { type: "listed"; inbox: readonly MailEntry[]; hidden: number }
+  | { type: "inbox_changed"; inbox: readonly MailEntry[]; hidden: number }
   | { type: "next_time"; unread: boolean; senders: readonly MailSenders[] }
   | { type: "new_mail" }
   | { type: "mailbox_shown"; mailbox: bigint }
@@ -242,7 +243,7 @@ export class MailStore {
     this.events.emit({
       hidden: this.hidden,
       inbox: [...kept],
-      type: "listed",
+      type: "inbox_changed",
     });
     this.events.emit({ result, type: "result" });
   }
