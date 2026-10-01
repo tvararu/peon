@@ -129,7 +129,7 @@ export class MovementSync {
   }
 
   restoreFlightBlocker(blockers: number): void {
-    if ((blockers & UNIT_BLOCK_FLAGS) !== 0) this.unitBlocked = true;
+    this.unitBlocked = (blockers & UNIT_BLOCK_FLAGS) !== 0;
   }
 
   setFlightPose(pose: Position): void {
