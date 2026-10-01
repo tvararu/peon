@@ -34,7 +34,10 @@ async function waitForPassenger(
     const found = await settle(() => {
       const rows = [...handle.queryNearby()];
       const row = rows.find(
-        (nearby) => nearby.entity.name === partner && !nearby.self,
+        (nearby) =>
+          nearby.entity.name !== undefined &&
+          nearby.entity.name.toLowerCase() === partner.toLowerCase() &&
+          !nearby.self,
       );
       if (row === undefined) return;
       const passenger = handle.vehicles.state().passengers.get(row.entity.guid);

@@ -77,6 +77,15 @@ describe("vehicles-ride-with flow", () => {
     });
     expect(ejected).toEqual([PARTNER]);
   });
+  test("matches the partner name regardless of case", async () => {
+    const { ctx, ejected } = context({ mount: "61470", partner: "pal" }, 1);
+    const result = (await flow.run(ctx)) as Record<string, unknown>;
+    expect(result).toMatchObject({
+      boarded: `0x${PARTNER.toString(16)}`,
+      eject: "ok",
+    });
+    expect(ejected).toEqual([PARTNER]);
+  });
   test("reports no boarder and sends no eject when nobody rides", async () => {
     const { ctx, ejected } = context(
       { mount: "61470", partner: "Pal" },
