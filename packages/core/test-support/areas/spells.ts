@@ -216,3 +216,25 @@ export function spellsSkillFields(
   }
   return raw;
 }
+
+export function spellsMirrorImageBody(init: {
+  guid: bigint;
+  displayId: number;
+  race: number;
+  gender: number;
+  classId: number;
+  look: readonly [number, number, number, number, number];
+  guild: number;
+  items: readonly number[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.guid);
+  w.uint32LE(init.displayId);
+  w.uint8(init.race);
+  w.uint8(init.gender);
+  w.uint8(init.classId);
+  for (const byte of init.look) w.uint8(byte);
+  w.uint32LE(init.guild);
+  for (const item of init.items) w.uint32LE(item);
+  return w.finish();
+}

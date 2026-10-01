@@ -142,3 +142,63 @@ export function buildUnlearnSkill(skillId: number): Uint8Array {
   w.uint32LE(skillId);
   return w.finish();
 }
+
+export const MIRROR_IMAGE_ITEM_SLOTS = 11;
+
+export type MirrorImagePacket = {
+  guid: bigint;
+  displayId: number;
+  race: number;
+  gender: number;
+  classId: number;
+  skin: number;
+  face: number;
+  hairStyle: number;
+  hairColor: number;
+  facialHair: number;
+  guild: number;
+  items: readonly number[];
+};
+
+export function parseMirrorImage(r: PacketReader): MirrorImagePacket {
+  const guid = r.uint64LE();
+  const displayId = r.uint32LE();
+  const race = r.uint8();
+  const gender = r.uint8();
+  const classId = r.uint8();
+  const skin = r.uint8();
+  const face = r.uint8();
+  const hairStyle = r.uint8();
+  const hairColor = r.uint8();
+  const facialHair = r.uint8();
+  const guild = r.uint32LE();
+  const items = Array.from({ length: MIRROR_IMAGE_ITEM_SLOTS }, () =>
+    r.uint32LE(),
+  );
+  return {
+    classId,
+    displayId,
+    face,
+    facialHair,
+    gender,
+    guid,
+    guild,
+    hairColor,
+    hairStyle,
+    items,
+    race,
+    skin,
+  };
+}
+
+export function buildMirrorImageRequest(guid: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(guid);
+  return w.finish();
+}
+
+export function buildFarSight(on: boolean): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(on ? 1 : 0);
+  return w.finish();
+}

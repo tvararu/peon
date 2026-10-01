@@ -10,6 +10,7 @@ import {
   buildTotemDestroyed,
   buildUnlearnSkill,
 } from "#wow/areas/spells/protocol";
+import { sightActs } from "#wow/areas/spells/sight";
 import { loadSkillCatalog } from "#wow/areas/spells/skill-names";
 import type { SpellsEvent, SpellsStore } from "#wow/areas/spells/store";
 import { TOTEM_SLOTS } from "#wow/areas/spells/totems";
@@ -32,6 +33,8 @@ export type SpellsActs = {
   setActionBarToggles: (mask: number) => SpellsActResult;
   destroyTotem: (slot: number) => SpellsActResult;
   unlearnSkill: (skillId: number) => SpellsActResult;
+  requestMirrorImage: (guid: bigint) => SpellsActResult;
+  setFarSight: (on: boolean) => SpellsActResult;
 };
 
 const PASSIVE = 0x40;
@@ -211,6 +214,7 @@ export function spellsRuntime(
       ...totemActs(ctx, store),
       ...barActs(ctx, core),
       ...skillActs(ctx, store),
+      ...sightActs(ctx, store),
     },
     dispose: () => {
       off();

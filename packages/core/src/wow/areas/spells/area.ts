@@ -4,6 +4,7 @@ import {
   parseChannelStart,
   parseChannelUpdate,
   parseConvertRune,
+  parseMirrorImage,
   parseModifyCooldown,
   parseSpellModifier,
   parseSpellVisual,
@@ -25,7 +26,7 @@ export const spellsArea = defineArea({
   eventTypes: [
     "channel_start",
     "channel_end",
-    "spell_visual",
+    "mirror_image",
     "totem_created",
     "totem_gone",
     "unit_cast_start",
@@ -62,6 +63,9 @@ export const spellsArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_TOTEM_CREATED, (r) =>
       store.totemCreated(parseTotemCreated(r)),
+    );
+    wire.on(GameOpcode.SMSG_MIRRORIMAGE_DATA, (r) =>
+      store.mirrorImage(parseMirrorImage(r)),
     );
     wire.on(GameOpcode.SMSG_CONVERT_RUNE, (r) =>
       store.convertRune(parseConvertRune(r)),
