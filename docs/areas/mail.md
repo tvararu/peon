@@ -30,7 +30,8 @@ The acts need the character in the world:
   letter's money.
 - `takeMailItem(id, itemLow, { payCod })` sends `CMSG_MAIL_TAKE_ITEM`
   and settles `ok` with the server's item tail on the matching
-  `item_taken` result. It throws `no_such_mail`, `no_such_item` and
+  `item_taken` result, including refusals other than the equip error.
+  It throws `no_such_mail`, `no_such_item` and
   `cod_unpaid` (a COD letter without `payCod: true`) before sending.
 - `returnMail(id)` sends `CMSG_MAIL_RETURN_TO_SENDER` with the letter's
   sender guid and settles on the matching `returned_to_sender` result;
@@ -51,7 +52,9 @@ The acts need the character in the world:
   name and `not_enough_money` for money plus 30 copper postage per item
   (30 with no item) above the known coinage before sending.
 - One action runs at a time; a second act throws `mail_busy` until the
-  result or a 5-second timeout releases it. The store keeps `pending`
+  matching result or a 5-second timeout releases it. A delayed result
+  for an earlier action never releases a newer pending action.
+  The store keeps `pending`
   and `lastResult` and emits `result` on every
   `SMSG_SEND_MAIL_RESULT`.
 
@@ -116,7 +119,9 @@ The acts need the character in the world:
   `EQUIP_ERROR`. `CMSG_MAIL_TAKE_ITEM` reads mailbox, id and the item
   guid low (`:517-634`); a missing letter, a guid the letter does not
   hold, or unpaid COD answer `INTERNAL_ERROR` or `NOT_ENOUGH_MONEY`,
-  and a full inventory answers `EQUIP_ERROR` with the equip code.
+  and a full inventory answers `EQUIP_ERROR` with the equip code. The
+  server clears the letter's COD after the first successful take
+  (`:605`), so later attachments need no further payment.
 - `CMSG_MAIL_RETURN_TO_SENDER` reads mailbox, id and an 8-byte sender
   guid the server skips (`Handlers/MailHandler.cpp:442`); only normal
   player mail is returned, otherwise it is deleted with
@@ -127,9 +132,9 @@ The acts need the character in the world:
   empty body with no template, a deleted letter or an already copied
   bit answers `INTERNAL_ERROR`.
 - `SMSG_SEND_MAIL_RESULT` is the letter id, the action and the result
-  (`Entities/Player/Player.cpp:2958-2972`); the item tail carries the
-  item guid low and the count, and the equip tail carries the equip
-  error, on the matching action or error only.
+  (`Entities/Player/Player.cpp:2958-2972`); every `item_taken` result
+  except the equip error carries the item guid low and the count, and
+  the equip error carries the equip error instead.
 - `SMSG_SHOW_MAILBOX` is the open box as one guid
   (`Handlers/NPCHandler.cpp:74-79`); the server sends it only from the
   `.mailbox` console command and a level-80 achievement companion, so it
@@ -156,8 +161,8 @@ None.
 | `SMSG_SEND_MAIL_RESULT` | `live` | probe flow `mail-actions --arg do=take` on an `elwynn10` character (run `tmp/probe/FAC6ABDAA3CBA-20261001T003349Z`): actions 1 and 2 both ok, the first with no tail and the second with the item guid low and count 5 | `Entities/Player/Player.cpp:2958-2972` |
 | `CMSG_MAIL_TAKE_MONEY` | `live` | probe flow `mail-actions --arg do=take` (run `tmp/probe/FAC6ABDAA3CBA-20261001T003349Z`): money mail 2219 taken, `soap gm read mail` shows its money 0 afterwards, `soap truth` shows money 50250 | `Handlers/MailHandler.cpp:636-678` |
 | `CMSG_MAIL_TAKE_ITEM` | `live` | probe flow `mail-actions --arg do=take` (run `tmp/probe/FAC6ABDAA3CBA-20261001T003349Z`): item mail 2218 taken with the slot-byte order on the wire, `soap gm read mail` shows its items gone, `soap truth` shows entry 159 count 5 | `Handlers/MailHandler.cpp:517-634` |
-| `CMSG_MAIL_RETURN_TO_SENDER` | `partial` | the return guid order is unit-tested against `Handlers/MailHandler.cpp:442`, and the delete step below proves the flow reaches the box; two-account send/return proof is still open | `Handlers/MailHandler.cpp:436-514` |
+| `CMSG_MAIL_RETURN_TO_SENDER` | `live` | two-account proof: A returns B's money letter 2257 (run `tmp/probe/FAC6ABDB41C02-20261001T012545Z`): `CMSG_MAIL_RETURN_TO_SENDER` out with 20 bytes, action 3 ok, and B's `read mail` lists returned letter 2264 with money 100 from A; the return guid order is unit-tested against `Handlers/MailHandler.cpp:442` | `Handlers/MailHandler.cpp:436-514` |
 | `CMSG_MAIL_DELETE` | `live` | probe flow `mail-actions --arg do=delete` (run `tmp/probe/FAC6ABDAA3CBA-20261001T003534Z`): text letter 2220 deleted, `soap gm read mail` lists only 2219 and 2218 afterwards | `Handlers/MailHandler.cpp:406-434` |
 | `CMSG_MAIL_CREATE_TEXT_ITEM` | `live` | probe flow `mail-actions --arg do=copy` (run `tmp/probe/FAC6ABDAA3CBA-20261001T003507Z`): text letter 2220 copied, action 5 ok | `Handlers/MailHandler.cpp:824-846` |
-| `CMSG_SEND_MAIL` | `partial` | the slot-byte order and `u64 0, u8 0` tail are unit-tested against `Handlers/MailHandler.cpp:70-109`; the two-account send with `SMSG_RECEIVED_MAIL` proof is still open | `Handlers/MailHandler.cpp:66-375` |
+| `CMSG_SEND_MAIL` | `live` | two-account proof, B `Fgklnlebnmm` to A `Fgklnlebmac`: money send 100 copper (run `tmp/probe/FAC6ABDB41DCC-20261001T011735Z`): `CMSG_SEND_MAIL` out, action 0 ok, A's puppet trace shows `SMSG_RECEIVED_MAIL`; Linen Cloth send (run `tmp/probe/FAC6ABDB41DCC-20261001T012452Z`): `CMSG_SEND_MAIL` out 62 bytes, action 0 ok, B loses the cloth and money falls 49740 to 49710 (30 postage); refusals: `to=NobodyhereXYZ` answers `recipient_not_found` (run `tmp/probe/FAC6ABDB41DCC-20261001T012018Z`), own name throws `cannot_send_to_self` before sending (run `tmp/probe/FAC6ABDB41DCC-20261001T012049Z`) | `Handlers/MailHandler.cpp:66-375` |
 | `SMSG_SHOW_MAILBOX` | `mock`, not seen live | rig test from `Handlers/NPCHandler.cpp:74-79`; two live tries (a `--send SMSG_SHOW_MAILBOX` probe and the `mail-inbox` flow expecting it) drew no server send | `Handlers/NPCHandler.cpp:74-79` |
