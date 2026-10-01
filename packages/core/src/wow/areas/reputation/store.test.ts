@@ -393,6 +393,34 @@ describe("reputation store pending flags", () => {
     store.setStanding(standing(BLOODSAIL, -700));
     expect(row(store, BLOODSAIL)?.atWar).toBe(true);
   });
+
+  test("a manual peace request after an inferred war keeps a later war declaration", async () => {
+    const { seen, store } = await setup();
+    store.setStanding(standing(BLOODSAIL, -700));
+    store.setPendingFlag(BLOODSAIL, "atWar", false);
+    expect(row(store, BLOODSAIL)?.atWar).toBe(false);
+    expect((store.flagsOf(BLOODSAIL) ?? 0) & FACTION_FLAGS.AT_WAR).toBe(0);
+    expect(seen.at(-1)).toMatchObject({ atWar: false, type: "flags_pending" });
+    store.setPendingFlag(BLOODSAIL, "atWar", true);
+    expect(row(store, BLOODSAIL)?.atWar).toBe(true);
+    expect(store.flagsOf(BLOODSAIL)).toBe(FACTION_FLAGS.AT_WAR);
+  });
+
+  test("a manual war declaration after an inferred peace replaces the inference", async () => {
+    const { store } = await setup();
+    store.setStanding(standing(BLOODSAIL, -700));
+    store.setStanding(standing(BLOODSAIL, 0, true));
+    expect(row(store, BLOODSAIL)?.atWar).toBe(false);
+    store.setPendingFlag(BLOODSAIL, "atWar", true);
+    expect(row(store, BLOODSAIL)?.atWar).toBe(true);
+  });
+
+  test("a manual toggle leaves the inference of other flags alone", async () => {
+    const { store } = await setup();
+    store.setStanding(standing(BLOODSAIL, -700));
+    store.setPendingFlag(BLOODSAIL, "inactive", true);
+    expect(row(store, BLOODSAIL)?.atWar).toBe(true);
+  });
 });
 
 describe("reputation store inferred at-war flags", () => {

@@ -217,7 +217,8 @@ export class ReputationStore {
   }
 
   setPendingFlag(repListId: number, flag: SettingFlag, on: boolean): void {
-    this.stored(repListId);
+    const stored = this.stored(repListId);
+    stored.inferred.delete(SETTING_BITS[flag]);
     const bits = this.pending.get(repListId) ?? new Map<number, boolean>();
     bits.set(SETTING_BITS[flag], on);
     this.pending.set(repListId, bits);
