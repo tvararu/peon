@@ -12,7 +12,11 @@ import { GameOpcode } from "#wow/protocol/opcodes";
 import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 type RoutePlan = { nodes: readonly number[]; price: number };
-type FlightResult = { nodes: readonly number[]; price: number };
+type FlightResult = {
+  instant: boolean;
+  nodes: readonly number[];
+  price: number;
+};
 type TravelOutcome<T> =
   | ({ status: "ok" } & T)
   | { status: "refused"; reason: string }
@@ -106,15 +110,21 @@ async function settleFlight(
   teleport: TeleportWait,
   arrived: { arrived: boolean },
 ): Promise<TravelOutcome<FlightResult>> {
+  const ok = (): TravelOutcome<FlightResult> => ({
+    instant: arrived.arrived,
+    nodes: [...route.nodes],
+    price: route.price,
+    status: "ok",
+  });
   try {
     const event = await wait;
     if (event.type !== "taxi_reply") return { status: "no_answer" };
     if (event.name !== "ok") return { status: "refused", reason: event.name };
-    return { status: "ok", nodes: [...route.nodes], price: route.price };
+    return ok();
   } catch (error) {
     if (!(error instanceof Error && error.message === "timeout")) throw error;
     if (!arrived.arrived) return { status: "no_answer" };
-    return { status: "ok", nodes: [...route.nodes], price: route.price };
+    return ok();
   } finally {
     teleport.cancel();
   }

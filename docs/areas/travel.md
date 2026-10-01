@@ -27,10 +27,11 @@ the summed list price, refusing with `unknown_node`, `ambiguous`,
 sends `CMSG_ACTIVATETAXI` for two nodes and `CMSG_ACTIVATETAXIEXPRESS`
 for a longer route, or for a two-node route when `{ express: true }`.
 `{ unchecked: true }` sends a node that is not in `known`, which the
-probe uses to show `not_visited`. The act settles `ok` with the route
-and list price on `ERR_TAXIOK`, `refused` with the reply's short name
-otherwise, or `no_answer` after 5 seconds of silence. A self teleport
-in that window, with no reply, settles `ok`.
+probe uses to show `not_visited`. The act settles `ok` with the route,
+list price and `instant` on `ERR_TAXIOK`, `refused` with the reply's
+short name otherwise, or `no_answer` after 5 seconds of silence. A self
+teleport in that window, with no reply, settles `ok` with `instant: true`;
+the probe treats that as landed without waiting for `flight_landed`.
 
 ## Wire notes
 

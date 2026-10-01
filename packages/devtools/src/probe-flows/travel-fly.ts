@@ -55,16 +55,19 @@ async function flyRoute(
       planned,
       express ? { express: true } : undefined,
     );
+    const instant =
+      flight.status === "ok" && "instant" in flight && flight.instant === true;
     const deadline = Date.now() + LANDING_WAIT_MS;
     while (
       flight.status === "ok" &&
+      !instant &&
       !seen.includes("flight_landed") &&
       Date.now() < deadline
     )
       await Bun.sleep(200);
     return {
       flight,
-      landed: seen.includes("flight_landed"),
+      landed: instant || seen.includes("flight_landed"),
       phase: ctx.handle.travel.state().flight.phase,
     };
   } finally {
