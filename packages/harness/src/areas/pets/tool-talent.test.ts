@@ -18,7 +18,7 @@ const CUNNING_TAB = 411;
 const FEROCITY_TAB = 410;
 const TALENTS: Record<number, { ranks: number[]; row: number; tab: number }> = {
   2107: { ranks: [61_700], row: 0, tab: FEROCITY_TAB },
-  2118: { ranks: [61_682, 61_683, 61_684], row: 0, tab: CUNNING_TAB },
+  2118: { ranks: [61_682, 61_683], row: 0, tab: CUNNING_TAB },
   2119: { ranks: [61_690, 61_691], row: 0, tab: CUNNING_TAB },
   2165: { ranks: [61_720], row: 2, tab: CUNNING_TAB },
 };
@@ -100,7 +100,7 @@ describe("pet talent", () => {
     expect(learn).toHaveBeenCalledWith(2118, 0);
     expect(out.status).toBe("DONE");
     expect(out.detail).toContain("Cobra Reflexes");
-    expect(out.detail).toContain("1/3");
+    expect(out.detail).toContain("1/2");
     expect(out.detail).toContain("1 point");
   });
 
@@ -255,7 +255,7 @@ describe("pet talent", () => {
     expect(out.detail).toContain("2 ");
     expect(out.detail).toContain("Cunning");
     const body = out.body.join("\n");
-    expect(body).toContain("Cobra Reflexes (2118) 1/3");
+    expect(body).toContain("Cobra Reflexes (2118) 1/2");
     expect(body).toContain("Spider's Bite (2119) 0/2");
     expect(body).not.toContain("Cobra Strikes");
     expect(learn).not.toHaveBeenCalled();
