@@ -359,3 +359,31 @@ export function buildPetAbandon(pet: bigint): Uint8Array {
 export function buildDismissCritter(critter: bigint): Uint8Array {
   return guidBody(critter);
 }
+
+export type PetTalentPick = { talent: number; rank: number };
+
+export function buildPetLearnTalent(
+  pet: bigint,
+  talent: number,
+  rank: number,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(pet);
+  w.uint32LE(talent);
+  w.uint32LE(rank);
+  return w.finish();
+}
+
+export function buildLearnPreviewTalentsPet(
+  pet: bigint,
+  picks: readonly PetTalentPick[],
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(pet);
+  w.uint32LE(picks.length);
+  for (const pick of picks) {
+    w.uint32LE(pick.talent);
+    w.uint32LE(pick.rank);
+  }
+  return w.finish();
+}

@@ -15,7 +15,9 @@ export type PetsRefused = {
     | "passive"
     | "not_removable"
     | "not_renamable"
-    | "no_critter";
+    | "no_critter"
+    | "empty_list"
+    | "too_many";
 };
 export type PetsCast =
   | { ok: true; castCount: number; confirmed: boolean }
