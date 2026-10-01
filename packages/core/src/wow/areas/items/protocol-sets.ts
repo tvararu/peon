@@ -21,12 +21,38 @@ export type EquipmentSetUseEntry = { guid: bigint; bag: number; slot: number };
 export type SaveKind = "create" | "update";
 export type SaveStatus = "saved" | "saved_unconfirmed" | "unanswered";
 export type UseStatus = "ok" | "bags_full" | "unanswered";
-export type SetsListedEvent = { type: "sets_listed"; sets: EquipmentSetEntry[] };
-export type SetSaveRequestedEvent = { type: "set_save_requested"; index: number; kind: SaveKind; name: string };
-export type SetSavedEvent = { type: "set_saved"; index: number; setGuid: bigint; kind: SaveKind; name: string; status: SaveStatus; reason: string | undefined };
+export type SetsListedEvent = {
+  type: "sets_listed";
+  sets: EquipmentSetEntry[];
+};
+export type SetSaveRequestedEvent = {
+  type: "set_save_requested";
+  index: number;
+  kind: SaveKind;
+  name: string;
+};
+export type SetSavedEvent = {
+  type: "set_saved";
+  index: number;
+  setGuid: bigint;
+  kind: SaveKind;
+  name: string;
+  status: SaveStatus;
+  reason: string | undefined;
+};
 export type SetUseRequestedEvent = { type: "set_use_requested"; index: number };
-export type SetUsedEvent = { type: "set_used"; index: number; status: UseStatus; reason: string | undefined; failures: string[] };
-export type SetDeletedEvent = { type: "set_deleted"; index: number; setGuid: bigint };
+export type SetUsedEvent = {
+  type: "set_used";
+  index: number;
+  status: UseStatus;
+  reason: string | undefined;
+  failures: string[];
+};
+export type SetDeletedEvent = {
+  type: "set_deleted";
+  index: number;
+  setGuid: bigint;
+};
 
 function checkSlots(count: number): void {
   if (count !== EQUIPMENT_SLOT_COUNT)

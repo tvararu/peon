@@ -1,16 +1,17 @@
 import { describe, expect, test } from "bun:test";
+import { itemsInventoryChangeFailureBody } from "#test-support/areas/items";
+import { itemsWorld } from "#test-support/areas/items-world";
+import { testStores } from "#test-support/session-fixtures";
+import type { ItemsEvent } from "#wow/areas/items/events";
 import {
-  type EquipmentSetEntry,
   EQUIPMENT_SLOT_COUNT,
+  type EquipmentSetEntry,
 } from "#wow/areas/items/protocol-sets";
+import { ItemsStore } from "#wow/areas/items/store";
 import {
   type InventoryChangeFailure,
   parseInventoryChangeFailure,
 } from "#wow/protocol/inventory";
-import { itemsWorld } from "#test-support/areas/items-world";
-import { itemsInventoryChangeFailureBody } from "#test-support/areas/items";
-import { testStores } from "#test-support/session-fixtures";
-import { type ItemsEvent, ItemsStore } from "#wow/areas/items/store";
 import { PacketReader } from "#wow/protocol/packet";
 import type { SessionDeps } from "#wow/session-stores";
 

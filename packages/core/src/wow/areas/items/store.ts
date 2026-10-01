@@ -1,7 +1,12 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
+import type {
+  ItemReceived,
+  ItemsEvent,
+  MoveHead,
+  ReadHead,
+} from "#wow/areas/items/events";
 import {
   findItem,
-  type MoveKind,
   type MoveOutcome,
   type MoveRequest,
   type MoveState,
@@ -11,14 +16,6 @@ import type {
   ItemTextResponse,
   ReadItemResult,
 } from "#wow/areas/items/protocol-read";
-import type {
-  SetDeletedEvent,
-  SetSavedEvent,
-  SetSaveRequestedEvent,
-  SetUsedEvent,
-  SetUseRequestedEvent,
-  SetsListedEvent,
-} from "#wow/areas/items/protocol-sets";
 import type {
   EnchantmentLogPacket,
   SocketGemsResultPacket,
@@ -30,7 +27,6 @@ import type {
   SetProficiencyPacket,
 } from "#wow/areas/items/protocol-timers";
 import {
-  type ItemText,
   type ReadRequest,
   ReadSlice,
   type ReadState,
@@ -52,7 +48,6 @@ import {
   setsBehavior,
 } from "#wow/areas/items/store-sets";
 import {
-  type ProficiencyKind,
   proficiencyNames,
   TimerSlice,
   type TimersState,
@@ -75,86 +70,6 @@ export type ItemsState = {
   sockets: SocketState;
   sets: SetsState;
 };
-
-type ReadHead = { itemGuid: bigint; entry: number | undefined };
-type MoveHead = { kind: MoveKind; itemGuid: bigint; entry: number | undefined };
-export type ItemReceived = {
-  entry: number;
-  guid: bigint | undefined;
-  itemLevel: number;
-  inventoryType: number;
-  wornItemLevel: number | undefined;
-};
-type SocketHead = { itemGuid: bigint; entry: number | undefined };
-
-export type ItemsEvent =
-  | ({ type: "move_requested" } & MoveHead)
-  | ({ type: "moved" } & MoveHead)
-  | ({ type: "move_refused"; reason: string; result: number } & MoveHead)
-  | ({ type: "move_no_change" } & MoveHead)
-  | ({ type: "move_unanswered" } & MoveHead)
-  | ({ type: "item_received" } & ItemReceived)
-  | ({ type: "read_requested" } & ReadHead)
-  | ({ type: "read_ok" } & ReadHead)
-  | ({
-      type: "read_failed";
-      reason: string;
-      result: number | undefined;
-    } & ReadHead)
-  | ({ type: "read_unanswered" } & ReadHead)
-  | ({ type: "item_text" } & ItemText)
-  | {
-      type: "item_cooldown";
-      itemGuid: bigint;
-      entry: number | undefined;
-      spell: number;
-    }
-  | {
-      type: "item_timer";
-      itemGuid: bigint;
-      entry: number | undefined;
-      seconds: number;
-      expiresAt: number;
-    }
-  | {
-      type: "item_enchant_timer";
-      itemGuid: bigint;
-      entry: number | undefined;
-      slot: number;
-      seconds: number;
-      expiresAt: number;
-    }
-  | { type: "durability_loss_death" }
-  | {
-      type: "proficiency_changed";
-      kind: ProficiencyKind;
-      mask: number;
-      added: number;
-      names: string[];
-    }
-  | {
-      type: "enchantment_log";
-      target: bigint;
-      caster: bigint;
-      entry: number;
-      enchantId: number;
-      own: boolean;
-    }
-  | {
-      type: "sockets_updated";
-      itemGuid: bigint;
-      entry: number | undefined;
-      sockets: [number, number, number];
-      bonus: number;
-    }
-  | ({ type: "socket_refused"; reason: string } & SocketHead)
-  | ({ type: "socket_unanswered" } & SocketHead)
-  | SetsListedEvent
-  | SetSaveRequestedEvent
-  | SetSavedEvent
-  | SetUseRequestedEvent
-  | SetUsedEvent
-  | SetDeletedEvent;
 
 function legacyClaims(core: CoreStores): (InventoryClaim | undefined)[] {
   return [core.rewards, core.vendor, core.quests, core.destroy].map((store) =>

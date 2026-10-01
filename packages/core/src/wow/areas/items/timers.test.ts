@@ -6,7 +6,7 @@ import {
   itemsSetProficiencyBody,
 } from "#test-support/areas/items";
 import { itemsRig, itemsWorld } from "#test-support/areas/items-world";
-import type { ItemsEvent } from "#wow/areas/items/store";
+import type { ItemsEvent } from "#wow/areas/items/events";
 import { TimerSlice } from "#wow/areas/items/timers";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
