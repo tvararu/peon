@@ -241,8 +241,6 @@ last two items, which are not disagreements.
 - `SMSG_SPELLLOGMISS`, `SMSG_SPELLORDAMAGE_IMMUNE`,
   `SMSG_SPELLDAMAGESHIELD`, `SMSG_ENVIRONMENTAL_DAMAGE_LOG` and
   `SMSG_SPELLINSTAKILLLOG`: built by `combat-log-3`.
-- `SMSG_SPELLDISPELLOG`, `SMSG_DISPEL_FAILED` and `SMSG_SPELLSTEALLOG`:
-  built by `combat-log-4`.
 - `SMSG_SPELLLOGEXECUTE`: built by `combat-log-5`.
 - Party scope: an entry between a party member and a unit outside the
   current fight is dropped, because the store has no party view. The
@@ -272,6 +270,9 @@ No verb (N23).
 | `SMSG_SPELLDAMAGESHIELD` | `mock` | tried live twice on an `eversong10-mage` with Thorns (spell 467) learned through `soap setup spells/learn` and teleported to `EversongWoods`/`EastSanctum`: `combatlog-use --arg spell=467` failed with `unknown_spell` because the spell never reached `SMSG_INITIAL_SPELLS`, and a raw `CMSG_CAST_SPELL` drew no server reply (`Handlers/SpellHandler.cpp:450` drops a cast the player has no active spell for). The area test injects a body built from the writer (owner, attacker, spell, damage, overkill, school mask `u32`) | `Entities/Unit/Unit.cpp:2179-2187` |
 | `SMSG_ENVIRONMENTAL_DAMAGE_LOG` | `mock` | not seen live: a live fall needs direct drive to walk off a ledge (contract 0.6). The area test injects bodies built from the writer (`Server/Packets/CombatLogPackets.cpp:22-28`) for every wire type 0-5, and the harness test writes the `combatlog/environmental` row for each | `Server/Packets/CombatLogPackets.cpp:22-28` |
 | `SMSG_SPELLINSTAKILLLOG` | `mock` | not seen live: it needs a boss spell (`Spells/SpellEffects.cpp:288-298`). The area test injects a body built from the writer (caster, target, spell) | `Spells/SpellEffects.cpp:294-298` |
+| `SMSG_SPELLDISPELLOG` | `mock` | not seen live: a `max80` Blood Elf priest (spells 527 and 988 known) teleported to ZebSora ran `combatlog-fight --arg spell=988 --arg entry=16341 --expect SMSG_SPELLDISPELLOG --bodies` (trace `tmp/probe/FAC6ABEC60341-20261001T204401Z`): the cast answered `SMSG_CAST_FAILED` with reason 86, `SPELL_FAILED_NOTHING_TO_DISPEL` in `SpellCastResult`, because the Shadowpine Witch carried no magic buff. A second try found the Witch not yet respawned (`tmp/probe/FAC6ABEC60341-20261001T204809Z`). The area test injects a body built from the writer: one `dispel` entry per aura, caster as source, victim as target, aura id in `extra`; the harness test writes the `combatlog/dispelled` row only when the character is the victim | `Spells/SpellEffects.cpp:2803-2817` |
+| `SMSG_SPELLSTEALLOG` | `mock` | not seen live: Spellsteal (30449) is a mage spell; `soap gm learn 30449` on the priest answered `Syntax: .player learn #playername #spell [all].` for an offline character and no creature with a buff was found (trace `tmp/probe/FAC6ABEC60341-20261001T204809Z`). The area test injects a body built from the writer and expects `steal` entries | `Spells/SpellEffects.cpp:5990-6002` |
+| `SMSG_DISPEL_FAILED` | `mock` | not seen live: it is sent only when a dispel roll fails (`Spells/SpellEffects.cpp:2750-2787`), which a level 80 caster against a level 11 target does not draw. The area test injects a body built from the writer (full guids, the dispel spell, then each failed aura to the end) and expects one `dispel_failed` entry per aura | `Spells/SpellEffects.cpp:2779-2787` |
 | `SMSG_FEIGN_DEATH_RESISTED` | `dead` | both send sites are inside comment blocks | `Spells/Auras/SpellAuraEffects.cpp:2953-2958` |
 | `SMSG_HEALTH_UPDATE` | `dead` | no send site: only the opcode list and the opcode table name it | `Server/Protocol/Opcodes.h:1181` |
 

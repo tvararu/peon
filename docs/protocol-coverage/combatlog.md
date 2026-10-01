@@ -16,12 +16,12 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x24f` | `SMSG_SPELLDAMAGESHIELD` | server | handled | not seen live |
 | `0x250` | `SMSG_SPELLNONMELEEDAMAGELOG` | server | handled |  |
 | `0x260` | `SMSG_PROCRESIST` | server | dead |  |
-| `0x262` | `SMSG_DISPEL_FAILED` | server | missing |  |
+| `0x262` | `SMSG_DISPEL_FAILED` | server | handled | not seen live |
 | `0x263` | `SMSG_SPELLORDAMAGE_IMMUNE` | server | handled | not seen live |
-| `0x27b` | `SMSG_SPELLDISPELLOG` | server | missing |  |
+| `0x27b` | `SMSG_SPELLDISPELLOG` | server | handled | not seen live |
 | `0x2b4` | `SMSG_FEIGN_DEATH_RESISTED` | server | dead |  |
 | `0x32f` | `SMSG_SPELLINSTAKILLLOG` | server | handled | not seen live |
-| `0x333` | `SMSG_SPELLSTEALLOG` | server | missing |  |
+| `0x333` | `SMSG_SPELLSTEALLOG` | server | handled | not seen live |
 | `0x39d` | `SMSG_UPDATE_COMBO_POINTS` | server | handled | not seen live |
 | `0x47f` | `SMSG_HEALTH_UPDATE` | server | dead |  |
 | `0x480` | `SMSG_POWER_UPDATE` | server | handled |  |
