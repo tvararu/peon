@@ -187,11 +187,10 @@ describe("interact at a stable master", () => {
     expect(out.status).toBe("DONE");
     expect(w.sent).toContain(`unstablePet:${MASTER},9`);
   });
-
   test("unstable with a pet out swaps", async () => {
     const w = await world({ bar: true, stable: FULL });
     w.make("swapStabledPet", "unstabled");
-    const out = await run(w.t, { do: "unstable", what: "9" });
+    const out = await run(w.t, { do: "unstable", what: "2" });
     expect(out.status).toBe("DONE");
     expect(w.sent).toContain(`swapStabledPet:${MASTER},9`);
     expect(w.sent.some((s) => s.startsWith("unstablePet"))).toBe(false);
@@ -209,7 +208,7 @@ describe("interact at a stable master", () => {
     expect(w.sent.filter((s) => s.startsWith("unstablePet"))).toEqual([]);
   });
 
-  test("two stabled pets with the same name need the number", async () => {
+  test("two stabled pets with the same name need the line number", async () => {
     const both: Stable = { ...FULL, pets: [RIP, SNAP], slots: 2 };
     const w = await world({ bar: false, stable: both });
     w.make("unstablePet", "unstabled");
@@ -219,7 +218,7 @@ describe("interact at a stable master", () => {
     );
     expect(failure).toBeInstanceOf(Refusal);
     expect(w.sent.filter((s) => s.startsWith("unstablePet"))).toEqual([]);
-    const ok = await run(w.t, { do: "unstable", what: "11" });
+    const ok = await run(w.t, { do: "unstable", what: "2" });
     expect(ok.status).toBe("DONE");
     expect(w.sent).toContain(`unstablePet:${MASTER},11`);
   });
@@ -298,5 +297,102 @@ describe("interact at a stable master", () => {
     await held;
     await pending;
     expect(w.sent.filter((s) => s.startsWith("stablePet"))).toEqual([]);
+  });
+
+  test("a stable aborted after its send queued sends nothing", async () => {
+    const w = await world({ bar: true, stable: FULL });
+    w.make("stablePet", "stabled");
+    const gate = Promise.withResolvers<void>();
+    const held = w.t.rt.mutex.run(() => gate.promise);
+    const controller = new AbortController();
+    const queued = jest.spyOn(w.t.rt.mutex, "run");
+    const pending = interactSpec
+      .run(
+        { do: "stable", npc: NAME } as never,
+        toolCtx<InteractAfter>(w.t, controller.signal),
+      )
+      .then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+    while (queued.mock.calls.length === 0) await Promise.resolve();
+    controller.abort();
+    gate.resolve();
+    await held;
+    await pending;
+    expect(w.sent.filter((s) => s.startsWith("stablePet"))).toEqual([]);
+  });
+
+  test("buy_slot aborted after its send queued sends nothing", async () => {
+    const w = await world({ bar: true, stable: FULL });
+    w.make("buyStableSlot", "slot_bought");
+    const gate = Promise.withResolvers<void>();
+    const held = w.t.rt.mutex.run(() => gate.promise);
+    const controller = new AbortController();
+    const queued = jest.spyOn(w.t.rt.mutex, "run");
+    const pending = interactSpec
+      .run(
+        { do: "buy_slot", npc: NAME } as never,
+        toolCtx<InteractAfter>(w.t, controller.signal),
+      )
+      .then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+    while (queued.mock.calls.length === 0) await Promise.resolve();
+    controller.abort();
+    gate.resolve();
+    await held;
+    await pending;
+    expect(w.sent.filter((s) => s.startsWith("buyStableSlot"))).toEqual([]);
+  });
+
+  test("buy_slot reports the balance after the money update arrives", async () => {
+    const w = await world({ bar: true, stable: FULL });
+    let coins = 1_000_000;
+    const inventory = w.t.handle.getInventoryState();
+    w.t.handle.getInventoryState = () => ({ ...inventory, coinage: coins });
+    const act = w.t.handle.pets.act;
+    const settled = Promise.withResolvers<void>();
+    const spy = jest.spyOn(act, "buyStableSlot");
+    spy.mockReset();
+    spy.mockImplementation((() => {
+      w.t.handle.triggerAreaEvent("pets", {
+        code: 0,
+        result: "slot_bought",
+        type: "stable_result",
+      } as never);
+      void settled.promise.then(() => {
+        coins = 999_500;
+        w.t.handle.triggerEntityEvent({
+          changed: ["coinage"],
+          entity: {},
+          type: "update",
+        } as never);
+      });
+      return { ok: true };
+    }) as never);
+    const pending = run(w.t, { do: "buy_slot" });
+    let guard = 0;
+    while (spy.mock.calls.length === 0 && guard++ < 1000)
+      await Promise.resolve();
+    settled.resolve();
+    const out = await pending;
+    expect(out.status).toBe("DONE");
+    expect(out.after?.money).toEqual({
+      after: 999_500,
+      before: 1_000_000,
+    });
+  });
+
+  test("buy_slot still reports when the money update never lands", async () => {
+    const w = await world({ bar: true, stable: FULL });
+    await withFakeTimers(async () => {
+      w.make("buyStableSlot", "slot_bought");
+      const pending = run(w.t, { do: "buy_slot" });
+      await elapse(6000);
+      const out = await pending;
+      expect(out.status).toBe("DONE");
+    });
   });
 });
