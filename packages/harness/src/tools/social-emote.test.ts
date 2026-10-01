@@ -70,66 +70,58 @@ describe("social do:emote", () => {
     });
   });
 
-  test("an echo with no target does not confirm a targeted emote", async () => {
-    await withFakeTimers(async () => {
-      const { handle, tool } = await world([partner()]);
-      spyOn(handle.emotes.act, "textEmote").mockImplementation(async () => {
-        handle.triggerAreaEvent("emotes", echo(undefined));
-        return { ok: true, textEmote: 101 };
+  async function sendThenEcho(
+    emitted: { target: string | undefined; textEmote?: number },
+    request: { to?: string },
+    rows: NearbyRow[],
+  ) {
+    return withFakeTimers(async () => {
+      const { handle, tool } = await world(rows);
+      const gate = Promise.withResolvers<{ ok: true; textEmote: number }>();
+      spyOn(handle.emotes.act, "textEmote").mockImplementation(
+        () => gate.promise,
+      );
+      const pending = runTool(tool, { do: "emote", what: "wave", ...request });
+      await elapse(100);
+      gate.resolve({ ok: true, textEmote: 101 });
+      await elapse(100);
+      handle.triggerAreaEvent("emotes", {
+        ...echo(emitted.target),
+        ...(emitted.textEmote === undefined
+          ? {}
+          : { textEmote: emitted.textEmote }),
       });
-      const pending = runTool(tool, { do: "emote", to: "u1", what: "wave" });
       await elapse(5000);
-      const out = await pending;
-      expect(out.details.result.status).toBe("UNCONFIRMED");
+      return pending;
     });
+  }
+
+  test("an echo with no target does not confirm a targeted emote", async () => {
+    const out = await sendThenEcho({ target: undefined }, { to: "u1" }, [
+      partner(),
+    ]);
+    expect(out.details.result.status).toBe("UNCONFIRMED");
   });
 
   test("an echo at another name does not confirm a targeted emote", async () => {
-    await withFakeTimers(async () => {
-      const { handle, tool } = await world([partner()]);
-      spyOn(handle.emotes.act, "textEmote").mockImplementation(async () => {
-        handle.triggerAreaEvent("emotes", echo("Jaina"));
-        return { ok: true, textEmote: 101 };
-      });
-      const pending = runTool(tool, { do: "emote", to: "u1", what: "wave" });
-      await elapse(5000);
-      const out = await pending;
-      expect(out.details.result.status).toBe("UNCONFIRMED");
-    });
+    const out = await sendThenEcho({ target: "Jaina" }, { to: "u1" }, [
+      partner(),
+    ]);
+    expect(out.details.result.status).toBe("UNCONFIRMED");
   });
 
   test("an echo for another emote does not confirm the requested one", async () => {
-    await withFakeTimers(async () => {
-      const { handle, tool } = await world([partner()]);
-      spyOn(handle.emotes.act, "textEmote").mockImplementation(async () => {
-        handle.triggerAreaEvent("emotes", {
-          ...echo("Kaelyn"),
-          textEmote: 34,
-        });
-        return { ok: true, textEmote: 101 };
-      });
-      const pending = runTool(tool, { do: "emote", to: "u1", what: "wave" });
-      await elapse(5000);
-      const out = await pending;
-      expect(out.details.result.status).toBe("UNCONFIRMED");
-    });
+    const out = await sendThenEcho(
+      { target: "Kaelyn", textEmote: 34 },
+      { to: "u1" },
+      [partner()],
+    );
+    expect(out.details.result.status).toBe("UNCONFIRMED");
   });
 
   test("an unrelated self echo does not confirm an untargeted emote", async () => {
-    await withFakeTimers(async () => {
-      const { handle, tool } = await world();
-      spyOn(handle.emotes.act, "textEmote").mockImplementation(async () => {
-        handle.triggerAreaEvent("emotes", {
-          ...echo("Kaelyn"),
-          textEmote: 34,
-        });
-        return { ok: true, textEmote: 101 };
-      });
-      const pending = runTool(tool, { do: "emote", what: "wave" });
-      await elapse(5000);
-      const out = await pending;
-      expect(out.details.result.status).toBe("UNCONFIRMED");
-    });
+    const out = await sendThenEcho({ target: "Kaelyn", textEmote: 34 }, {}, []);
+    expect(out.details.result.status).toBe("UNCONFIRMED");
   });
 
   test("a delayed echo from an earlier request does not confirm the later one", async () => {
