@@ -9,6 +9,7 @@ import {
 import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
 import { groupSpec, groupTool } from "#harness/areas/raid/tool";
 import type { GroupAfter } from "#harness/areas/raid/tool-shared";
+import { createRepeatGuard } from "#harness/ops/repeat-guard";
 import { setSelf, toolCtx } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 import { runTool } from "#test-support/tool-harness";
@@ -218,5 +219,32 @@ describe("group tool summon", () => {
     await expect(first).rejects.toThrow("cancelled");
     await second;
     expect(t.answer).toHaveBeenCalledTimes(1);
+  });
+
+  test("an accept after the offer arrives is not refused as a repeat", async () => {
+    const t = await world({ pending: false });
+    const real = createRepeatGuard(t.rt.clock);
+    t.rt.repeats.record = (call) => real.record(call);
+    t.rt.repeats.check = (call) => real.check(call);
+    const tool = groupTool.definition(t.rt);
+    const refused = await runTool(tool, { do: "summon", what: "accept" });
+    expect(refused.text).toContain("REFUSED no_summon");
+    jest.spyOn(t.handle.raid, "state").mockReturnValue({
+      group: undefined,
+      marks: Array.from({ length: 8 }, () => 0n),
+      readyCheck: undefined,
+      stats: new Map(),
+      summon: {
+        expiresAt: 120_000,
+        name: "Tom",
+        summoner: TOM,
+        zoneId: 1637,
+        zoneName: "Orgrimmar",
+      },
+    });
+    t.answer.mockImplementation(() => t.jump("teleport"));
+    const accepted = await runTool(tool, { do: "summon", what: "accept" });
+    expect(accepted.text).toContain("DONE");
+    expect(t.answer).toHaveBeenCalledWith(true);
   });
 });
