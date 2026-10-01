@@ -1,4 +1,4 @@
-import type { AreaActsOf } from "@peon/core";
+import type { AreaActsOf, Unsubscribe } from "@peon/core";
 import {
   castReply,
   type PetAfter,
@@ -22,6 +22,8 @@ import { nextCall } from "#harness/tools/next-call";
 type SpellTarget = Parameters<AreaActsOf<"pets">["petCast"]>[1];
 
 const SPLIT_WORDS = /\s+/;
+const POLL_MS = 250;
+const CHASE_MS = 20_000;
 const TAME_BEAST = "Tame Beast";
 const TAME_SETTLE_MS = 35_000;
 
@@ -80,29 +82,75 @@ function cooldownAt(handle: Game, spell: number): number | "infinite" | 0 {
   return row.infinite ? "infinite" : (row.readyAt ?? 0);
 }
 
-function detailOf(failure: string, spell: string, near: boolean): string {
-  const base = `${spell} failed: ${failure}.`;
-  if (near)
-    return `${base} The pet must stand next to the target: send it with attack first, then cast again.`;
-  if (failure === "not_ready")
-    return `${base} It is on cooldown: autocast may have just used it, so wait a few seconds and check the pet status.`;
-  return base;
+type Tick = { tick: true };
+type Watched = Heard | Tick;
+
+function hearCooldowns(handle: Game) {
+  const hear = hearCasts(handle);
+  return (cb: (event: Watched) => void): Unsubscribe => {
+    const off = hear(cb);
+    const timer = setInterval(() => cb({ tick: true }), POLL_MS);
+    return () => {
+      clearInterval(timer);
+      off();
+    };
+  };
 }
 
-function failedCast(input: {
-  after: PetAfter;
-  failure: string;
-  spell: string;
-  target: string | undefined;
-}): ToolResult<PetAfter> {
-  const { after, failure, spell, target } = input;
-  const near = failure === "out_of_range" && target !== undefined;
+function failedCast(
+  after: PetAfter,
+  failure: string,
+  spell: string,
+): ToolResult<PetAfter> {
+  const base = `${spell} failed: ${failure}.`;
   return result("FAILED", {
     after,
-    detail: detailOf(failure, spell, near),
-    next: near ? nextCall("pet", { do: "attack", target }) : nextCall("pet"),
+    detail:
+      failure === "not_ready"
+        ? `${base} It is on cooldown: autocast may have just used it, so wait a few seconds and check the pet status.`
+        : base,
+    next: nextCall("pet"),
     reason: "cast_failed",
   });
+}
+
+type CastWatch = {
+  chasing: boolean;
+  failure: string | undefined;
+  sent: { confirmed: boolean } | undefined;
+  ticks: number;
+};
+
+function castWatcher(handle: Game, spell: number) {
+  const before = cooldownAt(handle, spell);
+  const watch: CastWatch = {
+    chasing: false,
+    failure: undefined,
+    sent: undefined,
+    ticks: 0,
+  };
+  const cooled = () => {
+    const now = cooldownAt(handle, spell);
+    return watch.sent !== undefined && now !== 0 && now !== before;
+  };
+  const match = (event: Watched): boolean => {
+    if ("tick" in event) {
+      watch.ticks++;
+      return cooled() || (!watch.chasing && watch.ticks * POLL_MS >= SETTLE_MS);
+    }
+    if (!("area" in event) || event.area !== "pets") return false;
+    const inner = event.event;
+    if (inner.type === "cast_failed" && inner.spell === spell) {
+      if (inner.reason === "out_of_range" || inner.reason === "line_of_sight") {
+        watch.chasing = true;
+        return false;
+      }
+      watch.failure = inner.reason;
+      return true;
+    }
+    return inner.type === "bar" && cooled();
+  };
+  return { cooled, match, watch };
 }
 
 export async function castFlow(
@@ -116,50 +164,42 @@ export async function castFlow(
     target: target.ref,
     what: spell.name,
   };
-  const before = cooldownAt(ctx.handle, spell.id);
-  let sent: { confirmed: boolean } | undefined;
-  let failure: string | undefined;
-  const heard = await settle<Heard>({
-    match: (event) => {
-      if ("area" in event && event.area === "pets") {
-        const inner = event.event;
-        if (inner.type === "cast_failed" && inner.spell === spell.id) {
-          failure = inner.reason;
-          return true;
-        }
-        if (inner.type === "bar" && sent) {
-          const now = cooldownAt(ctx.handle, spell.id);
-          return now !== 0 && now !== before;
-        }
-      }
-      return false;
-    },
+  const { cooled, match, watch } = castWatcher(ctx.handle, spell.id);
+  await settle<Watched>({
+    match,
     send: () =>
       ctx.rt.mutex.run(() => {
         const outcome = ctx.handle.pets.act.petCast(spell.id, target.spec);
         throwUnlessOk(outcome);
-        if (outcome.ok) sent = { confirmed: outcome.confirmed };
+        if (outcome.ok) watch.sent = { confirmed: outcome.confirmed };
       }),
     signal: ctx.signal,
-    subscribe: hearCasts(ctx.handle),
-    timeoutMs: SETTLE_MS,
+    subscribe: hearCooldowns(ctx.handle),
+    timeoutMs: CHASE_MS,
   });
-  if (failure !== undefined)
-    return failedCast({
-      after,
-      failure,
-      spell: spell.name,
-      target: target.ref,
-    });
-  if (heard && sent?.confirmed === false)
+  if (watch.failure !== undefined)
+    return failedCast(after, watch.failure, spell.name);
+  if (cooled() && watch.sent?.confirmed === false)
     return result("UNCONFIRMED", {
       after,
       detail: `${spell.name} went out but its definition is not loaded, so the cast is unchecked.`,
       next: nextCall("pet"),
       reason: "unchecked",
     });
-  if (heard)
-    return result("DONE", { after, detail: `Your pet cast ${spell.name}.` });
+  if (cooled())
+    return result("DONE", {
+      after,
+      detail: watch.chasing
+        ? `Your pet closed in and cast ${spell.name}.`
+        : `Your pet cast ${spell.name}.`,
+    });
+  if (watch.chasing)
+    return result("UNCONFIRMED", {
+      after,
+      detail: `Your pet is closing in on the target and will cast ${spell.name} when it arrives.`,
+      next: nextCall("pet"),
+      reason: "closing_in",
+    });
   return result("UNCONFIRMED", {
     after,
     detail: `The server did not show ${spell.name} on cooldown.`,

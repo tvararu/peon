@@ -7,6 +7,7 @@ import {
   barState,
   GROWL,
   PET,
+  type PetsWorld,
   petBarEvent,
   refusal,
   unit,
@@ -86,8 +87,7 @@ describe("pet cast", () => {
     expect(out.detail).toContain("cooldown");
   });
 
-  test("a cast out of range tells the agent to send the pet at the target first", async () => {
-    const t = await world({ petEntity: unit(), pets: barState() });
+  const rangeMiss = (t: PetsWorld) =>
     jest.spyOn(t.game.pets.act, "petCast").mockImplementation(() => {
       queueMicrotask(() =>
         t.game.triggerAreaEvent("pets", {
@@ -99,14 +99,57 @@ describe("pet cast", () => {
       );
       return { castCount: 1, confirmed: true, ok: true };
     });
-    const out = await petSpec.run(
-      { do: "cast", target: "u1", what: "Growl" },
-      toolCtx(t),
-    );
-    expect(out.status).toBe("FAILED");
-    expect(out.detail).toContain("attack");
-    expect(out.next).toContain("attack");
-    expect(out.next).toContain("u1");
+
+  const growlOnCooldown = (t: PetsWorld) => {
+    const state = t.game.pets.state();
+    Object.assign(t.game.pets, {
+      state: () => ({
+        ...state,
+        cooldowns: [{ infinite: false, readyAt: 99_999, spell: GROWL }],
+      }),
+    });
+  };
+
+  test("a range miss is not a failure: the pet closes in and the later cooldown settles DONE", async () => {
+    await withFakeTimers(async () => {
+      const t = await world({ petEntity: unit(), pets: barState() });
+      rangeMiss(t);
+      setTimeout(() => growlOnCooldown(t), 9000);
+      const out = await fakeAwait(
+        petSpec.run({ do: "cast", target: "u1", what: "Growl" }, toolCtx(t)),
+        30_000,
+      );
+      expect(out.status).toBe("DONE");
+      expect(out.detail).toContain("closed in");
+    });
+  });
+
+  test("a range miss with no cast afterwards is UNCONFIRMED and says the pet is closing in", async () => {
+    await withFakeTimers(async () => {
+      const t = await world({ petEntity: unit(), pets: barState() });
+      rangeMiss(t);
+      const out = await fakeAwait(
+        petSpec.run({ do: "cast", target: "u1", what: "Growl" }, toolCtx(t)),
+        60_000,
+      );
+      expect(out.status).toBe("UNCONFIRMED");
+      expect(out.detail).toContain("closing in");
+    });
+  });
+
+  test("a cooldown that arrives without a bar update still settles DONE", async () => {
+    await withFakeTimers(async () => {
+      const t = await world({ petEntity: unit(), pets: barState() });
+      jest.spyOn(t.game.pets.act, "petCast").mockImplementation(() => {
+        setTimeout(() => growlOnCooldown(t), 600);
+        return { castCount: 1, confirmed: true, ok: true };
+      });
+      const out = await fakeAwait(
+        petSpec.run({ do: "cast", target: "u1", what: "Growl" }, toolCtx(t)),
+        10_000,
+      );
+      expect(out.status).toBe("DONE");
+    });
   });
 
   test("cast of an unknown spell names the pet's spells", async () => {

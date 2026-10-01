@@ -272,10 +272,17 @@ stops its attack clears its target field, `Entities/Unit/Unit.cpp:7221`)
 and then `follow`. `queryPetName` asks for the current pet's name again and `renamePet` renames a hunter pet whose rename bit is set, waiting 5 s for the `name` carrying the requested name or a `name_invalid` refusing it before the store reports `unanswered`.
 `cast` resolves `what` (a spell name or id) against the bar and sends
 `petCast` through the mutex, with the pet's unit target when `target` is
-given; it settles `DONE` when the spell's cooldown on the bar changes,
-`FAILED` on a `cast_failed` for that spell, and `UNCONFIRMED` when the
-spell definition is unknown (degraded mode sends anyway). The server
-runs the cast in `HandlePetCastSpellOpcode` (`Handlers/PetHandler.cpp:1011`).
+given; it settles `DONE` when the spell's cooldown on the bar changes (the
+tool also reads the cooldown every 250 ms, because a cooldown update
+raises no pets event), `FAILED` on a `cast_failed`
+for that spell, and `UNCONFIRMED` when the spell definition is unknown
+(degraded mode sends anyway). The server runs the cast in
+`HandlePetCastSpellOpcode` (`Handlers/PetHandler.cpp:1011`). A pet that is
+out of range or without line of sight fails the first cast, but the server
+then sends it after the target and casts the spell on arrival
+(`Unit::PetSpellFail`, `Entities/Unit/Unit.cpp:15860`), so the tool keeps
+waiting up to 20 s for the cooldown and reports `DONE` ("closed in") or
+`UNCONFIRMED` ("closing in"), never `FAILED`, for those two reasons.
 `autocast` takes `"<spell> on"` or `"<spell> off"`, sends `petAutocast`
 and settles `DONE` when the next bar shows the state, without a send when
 it already matches (`HandlePetSpellAutocastOpcode`,

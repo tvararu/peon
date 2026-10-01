@@ -109,6 +109,8 @@ export function unit(init: Partial<UnitEntity> = {}): UnitEntity {
   };
 }
 
+export type PetsWorld = Awaited<ReturnType<typeof world>>;
+
 export type WorldInit = {
   pets?: PetsSnapshot;
   petEntity?: UnitEntity | undefined;
