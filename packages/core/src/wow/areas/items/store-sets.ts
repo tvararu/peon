@@ -9,6 +9,7 @@ import type {
   SetUseRequestedEvent,
   UseStatus,
 } from "#wow/areas/items/protocol-sets";
+import { IGNORED_SLOT } from "#wow/areas/items/protocol-sets";
 import type {
   DeleteRequest,
   SaveOutcome,
@@ -246,8 +247,14 @@ export const noteUseFailure = (
 ): void => {
   const request = host.sets.snapshot().usePending;
   if (!request) return;
-  if (packet.item1 === 0n || packet.item1 === 1n) return;
-  if (!request.items.includes(packet.item1)) return;
+  if (packet.item1 === 0n || packet.item1 === IGNORED_SLOT) return;
+  if (
+    !(
+      request.items.includes(packet.item1) ||
+      request.outgoing.includes(packet.item1)
+    )
+  )
+    return;
   const name = inventoryResultName(packet.result);
   if (name === "none") return;
   host.useFailures.push(name);

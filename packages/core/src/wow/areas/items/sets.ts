@@ -23,6 +23,7 @@ export type SaveOutcome = {
 export type UseRequest = {
   index: number;
   items: readonly bigint[];
+  outgoing: readonly bigint[];
   requestedAt: number;
 };
 export type UseOutcome = {

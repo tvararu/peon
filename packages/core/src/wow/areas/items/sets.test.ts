@@ -20,6 +20,7 @@ const saveRequest = (over: Partial<SaveRequest> = {}): SaveRequest => ({
 const useRequest = (): UseRequest => ({
   index: 3,
   items: items({ 0: HELM }),
+  outgoing: [],
   requestedAt: 1000,
 });
 
