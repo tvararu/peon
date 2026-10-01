@@ -45,6 +45,7 @@ function held({ ctx, store }: Env, from: ItemPosition): HeldSlot {
     throw new Error("the character is not in world");
   if (store.snapshot().read.pending)
     throw new Error("a read or open is already pending");
+  if (store.snapshot().sets.usePending) throw new Error("a set use is pending");
   const refusal = positionRefusal(from);
   if (refusal) throw new Error(refusal);
   const found = slotAt(inventory, from);

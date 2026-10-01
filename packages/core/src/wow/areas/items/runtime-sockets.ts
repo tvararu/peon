@@ -37,6 +37,7 @@ function ready({ ctx, store }: Env): void {
     throw new Error(`the character is ${store.life()}`);
   if (store.snapshot().sockets.pending)
     throw new Error("a socket is already pending");
+  if (store.snapshot().sets.usePending) throw new Error("a set use is pending");
 }
 
 function gemSlots(
