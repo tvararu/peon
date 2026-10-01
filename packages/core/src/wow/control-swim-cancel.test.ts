@@ -60,7 +60,7 @@ describe("explicit swim and fly changes over server-observed flags", () => {
     const off = decodeMove(sent[0]);
     expect(off.opcode).toBe(GameOpcode.CMSG_MOVE_SET_FLY);
     expect(off.flags & MovementFlag.FLYING).toBe(0);
-    expect(runtime.snapshot().blockedReason).toBeUndefined();
+    expect(runtime.snapshot().blockedReason).toBe("flying");
   });
 
   test("setFlying(true) is idempotent over observed flying", () => {

@@ -49,7 +49,7 @@ export class AirMoves {
 
   setSwimming(on: boolean): void {
     this.assertFree();
-    if (this.stateOf(MovementFlag.SWIMMING) === on) return;
+    if (this.has(MovementFlag.SWIMMING) === on) return;
     this.enter("swimming");
     if (on) {
       this.host.moveFlags |= MovementFlag.SWIMMING;
@@ -65,13 +65,16 @@ export class AirMoves {
   setFlying(on: boolean): void {
     this.assertFree();
     if (on && !this.host.canFly()) throw new Error("cannot_fly");
-    if (this.stateOf(MovementFlag.FLYING) === on) return;
+    if (this.has(MovementFlag.FLYING) === on) return;
     this.enter("flying");
     if (on) this.host.moveFlags |= MovementFlag.FLYING;
     else {
-      const off = MovementFlag.FLYING | MovementFlag.CAN_FLY | VERTICAL_BITS;
-      this.host.moveFlags &= ~off;
-      this.host.observedFlags &= ~off;
+      this.host.moveFlags &= ~(
+        MovementFlag.FLYING |
+        VERTICAL_BITS |
+        PITCH_BITS
+      );
+      this.host.observedFlags &= ~MovementFlag.FLYING;
     }
     this.leaveIfGrounded();
     this.emit(GameOpcode.CMSG_MOVE_SET_FLY);
@@ -121,11 +124,9 @@ export class AirMoves {
   }
 
   private has(bit: number): boolean {
-    return (this.host.moveFlags & bit) !== 0;
-  }
-
-  private stateOf(bit: number): boolean {
-    return ((this.host.moveFlags | this.host.observedFlags) & bit) !== 0;
+    return (
+      (this.host.moveFlags & bit) !== 0 || (this.host.observedFlags & bit) !== 0
+    );
   }
 
   private assertFree(): void {

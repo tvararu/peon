@@ -6,7 +6,7 @@ import {
   type MovementInput,
 } from "#wow/control-input";
 import { unsupportedReason } from "#wow/control-motion";
-import { AIR_INPUT_BITS, VERTICAL_BITS } from "#wow/control-swim";
+import { AIR_INPUT_BITS } from "#wow/control-swim";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag, UnitFlag } from "#wow/protocol/entity-fields";
 import type { MonsterMove } from "#wow/protocol/monster-move";
@@ -32,6 +32,8 @@ import { GameOpcode } from "#wow/protocol/opcodes";
 import type { MoveFlag, TransferAbortedInput } from "#wow/self-store";
 
 export const TRANSFER_ABORT_TIMEOUT_MS = 10_000;
+
+const RECONCILED_BITS = MovementFlag.SWIMMING | MovementFlag.FLYING;
 
 const UNIT_BLOCK_FLAGS =
   UnitFlag.DISABLE_MOVE |
@@ -121,7 +123,7 @@ export class MovementSync {
     return (
       this.airBlock() ??
       unsupportedReason(
-        this.observedFlags |
+        (this.observedFlags & ~MovementFlag.FLYING) |
           (this.moveFlags &
             (MovementFlag.SWIMMING | MovementFlag.FLYING | AIR_INPUT_BITS)),
       )
@@ -160,7 +162,7 @@ export class MovementSync {
   movementInfo(): MovementInfo {
     const pose = this.pose();
     return {
-      flags: this.moveFlags,
+      flags: this.reconciled(),
       extraFlags: this.extraFlags,
       time: this.deps.ticks(),
       x: pose?.x ?? 0,
@@ -207,8 +209,9 @@ export class MovementSync {
         source: "server",
         updatedAt: this.deps.now(),
       };
+      this.moveFlags &= ~(INPUT_BITS | AIR_INPUT_BITS);
       if (this.motion.moving()) {
-        this.motion.abort("server_correction");
+        this.cancelForced("server_correction");
         this.predicted = undefined;
         this.emit("server_correction", "observed");
         return;
@@ -216,7 +219,7 @@ export class MovementSync {
       this.predicted = undefined;
     }
     const unsafe = this.blockReason();
-    if (this.motion.moving() && unsafe) this.motion.abort(unsafe);
+    if (this.motion.moving() && unsafe) this.cancelForced(unsafe);
   }
 
   observeTarget(target: bigint): void {
@@ -228,7 +231,7 @@ export class MovementSync {
   teleportAck({ counter, info: dest }: MoveAck): void {
     this.cancelTransferAbortWatch();
     this.teleporting = false;
-    this.motion.abort("teleport");
+    this.cancelForced("teleport");
     this.deps.send(
       GameOpcode.MSG_MOVE_TELEPORT_ACK,
       buildTeleportAck(this.deps.selfGuid(), counter, this.deps.ticks()),
@@ -239,14 +242,14 @@ export class MovementSync {
   nearTeleport(dest: MovementInfo): void {
     this.cancelTransferAbortWatch();
     this.teleporting = false;
-    this.motion.abort("near_teleport");
+    this.cancelForced("near_teleport");
     this.applyForcedPose(dest, "near_teleport");
   }
 
   handleTransferPending(): void {
     this.cancelTransferAbortWatch();
     this.teleporting = true;
-    this.motion.abort("teleport");
+    this.cancelForced("teleport");
     this.emit("control_changed", "teleporting");
   }
 
@@ -275,7 +278,7 @@ export class MovementSync {
     this.cancelTransferAbortWatch();
     this.teleporting = false;
     this.flight?.newWorld();
-    this.motion.abort("teleport");
+    this.cancelForced("teleport");
     this.mapId = position.mapId;
     this.moveFlags = 0;
     this.observedFlags = 0;
@@ -297,9 +300,8 @@ export class MovementSync {
 
   forceRoot(counter: number): void {
     this.rooted = true;
-    this.motion.abort("root");
+    this.cancelForced("root");
     this.moveFlags |= MovementFlag.ROOT;
-    this.moveFlags &= ~AIR_INPUT_BITS;
     this.ackRoot(GameOpcode.CMSG_FORCE_MOVE_ROOT_ACK, counter);
     this.emit("control_changed", "rooted");
   }
@@ -312,10 +314,9 @@ export class MovementSync {
   }
 
   knockBack({ counter, fall }: KnockBack): void {
-    this.motion.abort("knockback");
+    this.cancelForced("knockback");
     this.observedFlags |= MovementFlag.FALLING;
     this.moveFlags |= MovementFlag.FALLING;
-    this.moveFlags &= ~AIR_INPUT_BITS;
     this.fall = fall;
     this.ackRoot(GameOpcode.CMSG_MOVE_KNOCK_BACK_ACK, counter);
     this.emit("server_correction", "knockback");
@@ -325,16 +326,12 @@ export class MovementSync {
     const self = this.deps.selfGuid();
     if (guid !== 0n && guid !== self) {
       this.controlAllowed = false;
-      this.motion.abort("no_control");
-      this.moveFlags &= ~AIR_INPUT_BITS;
+      this.cancelForced("no_control");
       this.emit("control_changed", "no_control");
       return;
     }
     this.controlAllowed = allow;
-    if (!allow) {
-      this.motion.abort("no_control");
-      this.moveFlags &= ~AIR_INPUT_BITS;
-    }
+    if (!allow) this.cancelForced("no_control");
     this.emit("control_changed", allow ? undefined : "no_control");
   }
 
@@ -348,7 +345,7 @@ export class MovementSync {
   }
 
   setCanFly(counter: number, enable: boolean): void {
-    this.motion.abort(enable ? "flying" : "unset_can_fly");
+    this.cancelForced(enable ? "flying" : "unset_can_fly");
     if (enable) {
       this.observedFlags |= MovementFlag.CAN_FLY;
       this.moveFlags |= MovementFlag.CAN_FLY;
@@ -357,7 +354,7 @@ export class MovementSync {
       this.moveFlags &= ~(
         MovementFlag.CAN_FLY |
         MovementFlag.FLYING |
-        VERTICAL_BITS
+        AIR_INPUT_BITS
       );
     }
     this.deps.send(
@@ -412,6 +409,15 @@ export class MovementSync {
     this.deps.send(opcode, buildRootAck(this.moveAck(counter)));
   }
 
+  private cancelForced(reason: string): void {
+    this.motion.abort(reason);
+    this.moveFlags &= ~(INPUT_BITS | AIR_INPUT_BITS);
+  }
+
+  private reconciled(): number {
+    return this.moveFlags | (this.observedFlags & RECONCILED_BITS);
+  }
+
   private moveAck(counter: number): MoveAck {
     return { guid: this.deps.selfGuid(), counter, info: this.movementInfo() };
   }
@@ -447,7 +453,10 @@ export class MovementSync {
     this.flight?.observeUnitFlags(unitFlags);
     if (this.flight?.inFlight() ?? false) return;
     if (wasFlying || blocked === wasBlocked) return;
-    if (blocked) this.motion.stop("disable_move");
+    if (blocked) {
+      this.motion.stop("disable_move");
+      this.moveFlags &= ~(INPUT_BITS | AIR_INPUT_BITS);
+    }
     this.emit("control_changed", blocked ? "disable_move" : undefined);
   }
 }
