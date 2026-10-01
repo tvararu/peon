@@ -9,6 +9,7 @@ import {
   contentOf,
   driveGoto,
   MAP_ID,
+  moveTo,
   setSelf,
   setUnits,
   toolCtx,
@@ -70,6 +71,11 @@ async function world(options: Overrides = {}) {
         : { reason: "unknown_node", status: "refused" as const },
     );
   });
+  jest.spyOn(t.handle, "walkTowardPoint").mockResolvedValue({
+    pose: t.handle.getControlState().pose as never,
+    status: "completed",
+    traveled: 1,
+  });
   if (options.known) {
     const { known } = options;
     Object.defineProperty(t.handle.travel, "state", {
@@ -119,6 +125,59 @@ describe("travel fly", () => {
       destination: "Silvermoon City",
       kind: "fly",
     });
+  });
+
+  test("after the landing it steps 1 yd ahead so the server pose and ground height follow", async () => {
+    const t = await world();
+    landSoon(t.handle);
+    moveTo(t.handle, { x: 10, y: 20, z: 11.5 });
+    const step = jest.spyOn(t.handle, "walkTowardPoint").mockResolvedValue({
+      pose: t.handle.getControlState().pose as never,
+      status: "completed",
+      traveled: 1,
+    });
+    const res = await fly(t);
+    expect(res.status).toBe("DONE");
+    expect(step).toHaveBeenCalledTimes(1);
+    expect(step.mock.calls[0]?.[0]).toMatchObject({ x: 11, y: 20, z: 11.5 });
+    expect(step.mock.calls[0]?.[1]).toBe(1);
+  });
+
+  test("a step that cannot start is reported but the flight still counts as landed", async () => {
+    const t = await world();
+    landSoon(t.handle);
+    jest.spyOn(t.handle, "walkTowardPoint").mockResolvedValue({
+      pose: t.handle.getControlState().pose as never,
+      reason: "obstructed",
+      status: "stopped",
+      traveled: 0,
+    });
+    const res = await fly(t);
+    expect(res.status).toBe("DONE");
+    expect(contentOf(res)).toContain("obstructed");
+  });
+
+  test("a thrown step is reported the same way", async () => {
+    const t = await world();
+    landSoon(t.handle);
+    jest
+      .spyOn(t.handle, "walkTowardPoint")
+      .mockRejectedValue(new Error("no_pose"));
+    const res = await fly(t);
+    expect(res.status).toBe("DONE");
+    expect(contentOf(res)).toContain("no_pose");
+  });
+
+  test("an instant teleport takes no settling step", async () => {
+    const t = await world();
+    jest.spyOn(t.handle.travel.act, "activateTaxi").mockResolvedValue({
+      instant: true,
+      nodes: ROUTE.nodes,
+      price: ROUTE.price,
+      status: "ok",
+    });
+    await fly(t);
+    expect(t.handle.walkTowardPoint).not.toHaveBeenCalled();
   });
 
   test("a landing that arrives before the activate act returns still completes", async () => {
