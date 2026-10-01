@@ -20,6 +20,7 @@ import {
   MAIL_OBJECT_YARDS,
   type MailEvent,
   type MailStore,
+  mailResultMatches,
 } from "#wow/areas/mail/store";
 import { readInventory } from "#wow/inventory";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -244,11 +245,12 @@ async function takeMailItem(
   )
     throw new Error("cod_unpaid");
   const body = buildMailTakeItem(mailbox, id, itemLow);
+  const pending = { action: "item_taken", id, itemLow } as const;
   return await runAct(env, {
-    pending: { action: "item_taken", id },
+    pending,
     opcode: GameOpcode.CMSG_MAIL_TAKE_ITEM,
     body,
-    match: (result) => result.action === "item_taken" && result.id === id,
+    match: (result) => mailResultMatches(pending, result),
   });
 }
 

@@ -29,8 +29,10 @@ The acts need the character in the world:
   refusal, `unanswered` after 5 seconds. An ok result clears the
   letter's money.
 - `takeMailItem(id, itemLow, { payCod })` sends `CMSG_MAIL_TAKE_ITEM`
-  and settles `ok` with the server's item tail on the matching
-  `item_taken` result, including refusals other than the equip error.
+  and settles `ok` with the server's item tail on an `ok` `item_taken`
+  result whose item guid matches the requested one; a refusal settles
+  refused for the pending act, and a delayed ok for another attachment
+  still drops that attachment while leaving the pending act alone.
   It throws `no_such_mail`, `no_such_item` and
   `cod_unpaid` (a COD letter without `payCod: true`) before sending.
 - `returnMail(id)` sends `CMSG_MAIL_RETURN_TO_SENDER` with the letter's

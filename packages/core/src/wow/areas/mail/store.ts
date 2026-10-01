@@ -50,7 +50,7 @@ export type MailSenders = {
 export type MailPending =
   | { action: "send"; id: 0 }
   | { action: "money_taken"; id: number }
-  | { action: "item_taken"; id: number }
+  | { action: "item_taken"; id: number; itemLow: number }
   | { action: "returned_to_sender"; id: number }
   | { action: "deleted"; id: number }
   | { action: "made_permanent"; id: number };
@@ -72,15 +72,17 @@ export type MailEvent =
   | { type: "new_mail" }
   | { type: "mailbox_shown"; mailbox: bigint }
   | { type: "result"; result: SendMailResult };
-type MailResultKey = {
-  readonly action: MailPending["action"];
-  readonly id: number;
-};
-
-function resultKeyOf(result: SendMailResult): MailResultKey {
-  return { action: result.action, id: result.id };
+export function mailResultMatches(
+  pending: MailPending,
+  result: SendMailResult,
+): boolean {
+  if (pending.action !== result.action) return false;
+  if (pending.id !== result.id) return false;
+  if (result.status !== "ok") return true;
+  if (pending.action !== "item_taken") return true;
+  if (!("itemLow" in result)) return true;
+  return pending.itemLow === result.itemLow;
 }
-
 function applyResult(
   kept: MailEntry[],
   at: number,
@@ -203,13 +205,18 @@ export class MailStore {
       this.pending.id !== pending.id
     )
       return;
+    if (
+      this.pending.action === "item_taken" &&
+      pending.action === "item_taken" &&
+      this.pending.itemLow !== pending.itemLow
+    )
+      return;
     this.pending = undefined;
   }
 
   receiveSendMailResult(result: SendMailResult): void {
     this.lastResult = result;
-    const key = resultKeyOf(result);
-    if (this.pending?.action === key.action && this.pending.id === key.id)
+    if (this.pending && mailResultMatches(this.pending, result))
       this.pending = undefined;
     if (result.status !== "ok") {
       this.events.emit({ result, type: "result" });
