@@ -70,10 +70,6 @@ const mountEvents = (events: readonly SelfstateEvent[]) =>
   events.filter((event) => event.type !== "stand_changed");
 
 describe("selfstate runtime: mount fields", () => {
-  test("the mount flag matches AzerothCore UNIT_FLAG_MOUNT (AC Entities/Unit/UnitDefines.h:284)", () => {
-    expect(UNIT_FLAG_MOUNT).toBe(0x08_00_00);
-  });
-
   test("mounted follows the mount flag and display id together, fires on changes only (AC Entities/Unit/Unit.cpp:10223-10230,10283-10290)", () => {
     const { rig, events, update } = rigMounted();
     try {

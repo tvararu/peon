@@ -3,7 +3,7 @@ import { ObjectType } from "#wow/protocol/entity-fields";
 import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 export const PLAYER_FLAG_GHOST = 0x10;
-export const UNIT_FLAG_MOUNT = 0x08_00_00;
+export const UNIT_FLAG_MOUNT = 0x08_00_00_00;
 
 export type SelfFields = {
   standState: number | undefined;
