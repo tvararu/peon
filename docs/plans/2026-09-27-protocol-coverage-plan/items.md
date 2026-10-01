@@ -1149,6 +1149,7 @@ design]), so it stays relevant.
 | Id | Issue | Ruling |
 |---|---|---|
 | BR-items-7-1 | `t8-items-socket` uses the `max80` preset, which the shared `PRESETS` list in `packages/harness/src/grader/scenarios.test.ts` lacks, so the scenario gate fails | Coordinator ruling (P2-17): items-7 may add `max80` to that list, one line, no other edit. |
+| BR-items-9-1 | items-9's fourth review, after three fix rounds, still finds that a set save does not wait for a pending equipment move, so the server saves a cleared slot while the store reports the old outfit | Coordinator ruling (P2-17): items-9 is a leaf task, so BR-wave3-1 gives it no rescue round; it is parked (branch `factory/431-wave3-parked-items-9`) with the finding listed in the wave PR. |
 
 ## COMPLETE
 
