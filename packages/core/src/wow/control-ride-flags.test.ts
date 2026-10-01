@@ -221,6 +221,19 @@ describe("flight granted to the driven vehicle (Unit.cpp:16148-16175)", () => {
     runtime.halt();
   });
 
+  test("a forced flight grant refuses ground moves and the withdrawal allows them again", () => {
+    const { runtime } = adopt();
+    runtime.setCanFly(5, true);
+    expect(runtime.snapshot().movementAllowed).toBe(false);
+    expect(runtime.snapshot().blockedReason).toBe("flying");
+    expect(() => runtime.move("forward", 500)).toThrow("flying");
+    runtime.setCanFly(6, false);
+    expect(runtime.snapshot().movementAllowed).toBe(true);
+    runtime.move("forward", 500);
+    expect(runtime.snapshot().moving).toBe(true);
+    runtime.halt();
+  });
+
   test("a character that could already fly keeps flying after the vehicle's grant is withdrawn", () => {
     const { runtime } = setup();
     runtime.setCanFly(3, true);

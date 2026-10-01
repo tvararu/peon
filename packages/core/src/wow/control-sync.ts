@@ -116,7 +116,11 @@ export class MovementSync {
   blockReason(): string | undefined {
     const unsupported = unsupportedFlags({
       controlling: this.ride.controlling,
-      drivenFlags: this.drivenFlags,
+      drivenFlags:
+        this.drivenFlags |
+        (this.ride.controlling && this.vehicleCanFly
+          ? MovementFlag.CAN_FLY
+          : 0),
       moveFlags: this.moveFlags,
       observedFlags: this.observedFlags,
     });
@@ -462,7 +466,7 @@ export class MovementSync {
       return;
     }
     if (this.moverRooted) this.moveFlags |= MovementFlag.ROOT;
-    else if (!this.rooted) this.moveFlags &= ~MovementFlag.ROOT;
+    else this.moveFlags &= ~MovementFlag.ROOT;
     this.selfMotion.save(this);
   }
 

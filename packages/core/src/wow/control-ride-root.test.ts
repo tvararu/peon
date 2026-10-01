@@ -254,6 +254,24 @@ describe("the passenger's own root across the ride (Unit.cpp:13935-13942 sends n
     expect(ackFlags(harness.sent[0]) & MovementFlag.ROOT).not.toBe(0);
   });
 
+  test("the passenger's root never reaches the vehicle's movement or acks before the ride ends", () => {
+    const harness = setup();
+    harness.runtime.forceRoot(1, SELF);
+    harness.runtime.vehicleSeat(seat());
+    harness.runtime.clientControl({ allow: true, guid: VEHICLE });
+    harness.runtime.moverState(MOVER);
+    harness.sent.length = 0;
+    harness.runtime.move("forward", 1000);
+    const packet = lastMove(harness.sent);
+    expect(packet.guid).toBe(VEHICLE);
+    expect(packet.flags & MovementFlag.FORWARD).not.toBe(0);
+    expect(packet.flags & MovementFlag.ROOT).toBe(0);
+    harness.runtime.halt();
+    harness.sent.length = 0;
+    harness.runtime.moveFlag("hover", true, 7);
+    expect(ackFlags(harness.sent[0]) & MovementFlag.ROOT).toBe(0);
+  });
+
   test("a root of the character received while driving is kept for after the ride", () => {
     const { runtime, sent } = boardLiveOrder((target, counter) =>
       target.forceRoot(counter, SELF),
