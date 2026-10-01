@@ -78,23 +78,23 @@ export type ItemsEvent =
       spell: number;
     }
   | {
-      type: "item_time";
+      type: "item_timer";
       itemGuid: bigint;
       entry: number | undefined;
       seconds: number;
       expiresAt: number;
     }
   | {
-      type: "item_enchant_time";
+      type: "item_enchant_timer";
       itemGuid: bigint;
       entry: number | undefined;
       slot: number;
       seconds: number;
       expiresAt: number;
     }
-  | { type: "durability_loss" }
+  | { type: "durability_loss_death" }
   | {
-      type: "proficiency";
+      type: "proficiency_changed";
       kind: ProficiencyKind;
       mask: number;
       added: number;
@@ -278,7 +278,7 @@ export class ItemsStore {
   receiveItemTime(packet: ItemTimeUpdatePacket): void {
     const { expiresAt } = this.timers.time(packet, this.deps.now());
     this.events.emit({
-      type: "item_time",
+      type: "item_timer",
       itemGuid: packet.itemGuid,
       entry: this.entryOf(packet.itemGuid),
       seconds: packet.seconds,
@@ -289,7 +289,7 @@ export class ItemsStore {
   receiveItemEnchantTime(packet: ItemEnchantTimeUpdatePacket): void {
     const { expiresAt } = this.timers.enchant(packet, this.deps.now());
     this.events.emit({
-      type: "item_enchant_time",
+      type: "item_enchant_timer",
       itemGuid: packet.itemGuid,
       entry: this.entryOf(packet.itemGuid),
       slot: packet.slot,
@@ -299,14 +299,14 @@ export class ItemsStore {
   }
 
   receiveDeathDurability(): void {
-    this.events.emit({ type: "durability_loss" });
+    this.events.emit({ type: "durability_loss_death" });
   }
 
   receiveProficiency(packet: SetProficiencyPacket): void {
     const change = this.timers.proficiency(packet);
     if (!change) return;
     this.events.emit({
-      type: "proficiency",
+      type: "proficiency_changed",
       kind: change.kind,
       mask: packet.mask,
       added: change.added,
