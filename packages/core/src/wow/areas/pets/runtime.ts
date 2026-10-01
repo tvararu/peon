@@ -168,15 +168,19 @@ function waitStable(
   options: {
     pending: PendingStable;
     reply: "stable_list" | "stable_result";
+    npc?: bigint;
     send: () => void;
   },
 ): PetsActResult {
   const scope = new AbortController();
   options.pending.abort();
-  const waiter = ctx.until((event) => event.type === options.reply, {
-    signal: scope.signal,
-    timeoutMs: STABLE_TIMEOUT_MS,
-  });
+  const waiter = ctx.until(
+    (event) =>
+      event.type === options.reply &&
+      (options.npc === undefined ||
+        (event.type === "stable_list" && event.stable.npc === options.npc)),
+    { signal: scope.signal, timeoutMs: STABLE_TIMEOUT_MS },
+  );
   const onAbort = () => {
     waiter.catch(() => undefined).then(() => undefined);
     scope.abort();
@@ -203,6 +207,7 @@ function stableActs(
       waitStable(ctx, store, {
         pending,
         reply: "stable_list",
+        npc,
         send: () =>
           ctx.send(GameOpcode.MSG_LIST_STABLED_PETS, buildListStabledPets(npc)),
       }),

@@ -138,6 +138,31 @@ describe("pets stable runtime", () => {
     });
   });
 
+  test("a delayed list reply of a replaced request does not answer the newer one", async () => {
+    await withFakeTimers(async () => {
+      const { off, r, seen } = rig();
+      const other = 0xf1_30_00_41_11_00_00_02n;
+      try {
+        r.handle.act.listStabledPets(NPC);
+        await elapse(1000);
+        r.handle.act.listStabledPets(other);
+        r.inject(GameOpcode.MSG_LIST_STABLED_PETS, LIST);
+        await elapse(5500);
+        expect(seen).toEqual(["stable_list", "unanswered"]);
+        r.handle.act.listStabledPets(other);
+        r.inject(
+          GameOpcode.MSG_LIST_STABLED_PETS,
+          petsStabledPetsBody({ npc: other, pets: [], slots: 1 }),
+        );
+        await elapse(6000);
+        expect(seen).toEqual(["stable_list", "unanswered", "stable_list"]);
+      } finally {
+        off();
+        r.dispose();
+      }
+    });
+  });
+
   test("a new act replaces the wait and only the newer deadline reports", async () => {
     await withFakeTimers(async () => {
       const { off, r, seen } = rig();
