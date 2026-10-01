@@ -74,9 +74,11 @@ function brief(handle: WorldHandle): Json {
   });
 }
 
-function findLetter(handle: WorldHandle, id: number | undefined) {
+function findLetter(handle: WorldHandle, id: number | undefined, step: string) {
   const inbox = handle.mail.state().inbox;
   if (id !== undefined) return inbox.find((mail) => mail.id === id);
+  if (step === "copy" || step === "delete" || step === "return")
+    return inbox.find((mail) => mail.subject === "Some text") ?? inbox[0];
   return inbox.find((mail) => mail.money > 0 || mail.items.length > 0);
 }
 
@@ -99,10 +101,10 @@ async function run(ctx: FlowContext): Promise<Json> {
   await reach(handle, box.entity.guid);
   const listed = await attempt(() => handle.mail.act.listMail(box.entity.guid));
   const state = handle.mail.state();
-  const letter = findLetter(handle, id);
+  const step = args["do"] ?? "take";
+  const letter = findLetter(handle, id, step);
   const target =
     letter === undefined ? null : { id: letter.id, subject: letter.subject };
-  const step = args["do"] ?? "take";
   if (step === "take") {
     const money =
       letter && letter.money > 0
