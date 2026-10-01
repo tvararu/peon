@@ -20,12 +20,6 @@ import type {
   EnchantmentLogPacket,
   SocketGemsResultPacket,
 } from "#wow/areas/items/protocol-sockets";
-import type {
-  ItemCooldownPacket,
-  ItemEnchantTimeUpdatePacket,
-  ItemTimeUpdatePacket,
-  SetProficiencyPacket,
-} from "#wow/areas/items/protocol-timers";
 import {
   type ReadRequest,
   ReadSlice,
@@ -48,10 +42,10 @@ import {
   setsBehavior,
 } from "#wow/areas/items/store-sets";
 import {
-  proficiencyNames,
-  TimerSlice,
-  type TimersState,
-} from "#wow/areas/items/timers";
+  type TimersBehavior,
+  timersBehavior,
+} from "#wow/areas/items/store-timers";
+import { TimerSlice, type TimersState } from "#wow/areas/items/timers";
 import { type InventoryState, readInventory } from "#wow/inventory";
 import { type PlayerLife, readLife } from "#wow/player-state";
 import {
@@ -99,6 +93,7 @@ export class ItemsStore {
   private readonly saveIcons = new Map<SaveRequest, string>();
   private readonly setApi: SetsBehavior;
   private readonly timers = new TimerSlice();
+  private readonly timerApi: TimersBehavior;
   private pending: MoveRequest | undefined;
   private last: MoveOutcome | undefined;
   private seen: InventoryClaim[] = [];
@@ -115,6 +110,12 @@ export class ItemsStore {
       sets: this.setSlices,
       startClaims: () => this.startClaims(),
       useFailures: this.setFailures,
+    });
+    this.timerApi = timersBehavior({
+      timers: this.timers,
+      events: this.events,
+      now: () => this.deps.now(),
+      entryOf: (itemGuid) => this.entryOf(itemGuid),
     });
   }
 
@@ -335,54 +336,16 @@ export class ItemsStore {
     this.events.emit({ type: "item_received", ...item });
   }
 
-  receiveItemCooldown(packet: ItemCooldownPacket): void {
-    this.timers.cooldown(packet, this.deps.now());
-    this.events.emit({
-      type: "item_cooldown",
-      itemGuid: packet.itemGuid,
-      entry: this.entryOf(packet.itemGuid),
-      spell: packet.spell,
-    });
-  }
-
-  receiveItemTime(packet: ItemTimeUpdatePacket): void {
-    const { expiresAt } = this.timers.time(packet, this.deps.now());
-    this.events.emit({
-      type: "item_timer",
-      itemGuid: packet.itemGuid,
-      entry: this.entryOf(packet.itemGuid),
-      seconds: packet.seconds,
-      expiresAt,
-    });
-  }
-
-  receiveItemEnchantTime(packet: ItemEnchantTimeUpdatePacket): void {
-    const { expiresAt } = this.timers.enchant(packet, this.deps.now());
-    this.events.emit({
-      type: "item_enchant_timer",
-      itemGuid: packet.itemGuid,
-      entry: this.entryOf(packet.itemGuid),
-      slot: packet.slot,
-      seconds: packet.seconds,
-      expiresAt,
-    });
-  }
-
-  receiveDeathDurability(): void {
-    this.events.emit({ type: "durability_loss_death" });
-  }
-
-  receiveProficiency(packet: SetProficiencyPacket): void {
-    const change = this.timers.proficiency(packet);
-    if (!change) return;
-    this.events.emit({
-      type: "proficiency_changed",
-      kind: change.kind,
-      mask: packet.mask,
-      added: change.added,
-      names: proficiencyNames(change.kind, change.added),
-    });
-  }
+  receiveItemCooldown: TimersBehavior["receiveItemCooldown"] = (...a) =>
+    this.timerApi.receiveItemCooldown(...a);
+  receiveItemTime: TimersBehavior["receiveItemTime"] = (...a) =>
+    this.timerApi.receiveItemTime(...a);
+  receiveItemEnchantTime: TimersBehavior["receiveItemEnchantTime"] = (...a) =>
+    this.timerApi.receiveItemEnchantTime(...a);
+  receiveDeathDurability: TimersBehavior["receiveDeathDurability"] = (...a) =>
+    this.timerApi.receiveDeathDurability(...a);
+  receiveProficiency: TimersBehavior["receiveProficiency"] = (...a) =>
+    this.timerApi.receiveProficiency(...a);
 
   dispose(): void {
     this.abandon();
