@@ -347,4 +347,71 @@ describe("self flight spline in control", () => {
       expect(pose?.x).toBeCloseTo(100, 2);
     });
   });
+
+  test("a landing with a retained blocker publishes disable_move in every landing event", () => {
+    fly(({ runtime, events }) => {
+      runtime.observeSelfSpline(flightSpline());
+      runtime.observeSelf({ unitFlags: FLYING | UnitFlag.STUNNED });
+      events.length = 0;
+      runtime.observeSelf({ unitFlags: UnitFlag.STUNNED });
+      const landing = events.filter(
+        (e) => e.type === "control_changed" || e.type === "server_correction",
+      );
+      expect(landing.length).toBeGreaterThan(0);
+      for (const event of landing) {
+        expect(event.state.movementAllowed).toBe(false);
+        expect(event.state.blockedReason).toBe("disable_move");
+      }
+    });
+  });
+
+  test("flight start events already report in_flight and no movement", () => {
+    fly(({ runtime, events }) => {
+      events.length = 0;
+      runtime.observeSelf({ unitFlags: FLYING });
+      const started = events.filter((e) => e.reason === "in_flight");
+      expect(started.length).toBeGreaterThan(0);
+      for (const event of started) {
+        expect(event.state.movementAllowed).toBe(false);
+        expect(event.state.blockedReason).toBe("in_flight");
+      }
+    });
+  });
+
+  for (const [name, flag] of [
+    ["stunned", UnitFlag.STUNNED],
+    ["confused", UnitFlag.CONFUSED],
+    ["fleeing", UnitFlag.FLEEING],
+    ["disable_move", UnitFlag.DISABLE_MOVE],
+  ] as const) {
+    test(`the no-flag fallback landing keeps a ${name} blocker`, () => {
+      fly(({ runtime, advance }) => {
+        runtime.observeSelfSpline(flightSpline());
+        runtime.observeSelf({ unitFlags: flag });
+        expect(runtime.snapshot().blockedReason).toBe("in_flight");
+        advance(FLIGHT_MS + 10_500);
+        expect(runtime.snapshot().blockedReason).toBe("disable_move");
+        expect(() => runtime.move("forward", 1000)).toThrow("disable_move");
+        expect(() => runtime.face(1)).toThrow("disable_move");
+      });
+    });
+  }
+
+  test("a taxi flag arriving after the duration sends spline-done and never lands by fallback", () => {
+    fly(({ runtime, sent, advance }) => {
+      runtime.observeSelfSpline(flightSpline({ splineId: 88 }));
+      advance(FLIGHT_MS + 1000);
+      expect(splineDones(sent)).toHaveLength(0);
+      runtime.observeSelf({ unitFlags: FLYING });
+      const dones = splineDones(sent);
+      expect(dones.map((d) => d.splineId)).toEqual([88]);
+      expect(dones[0]?.info.x).toBeCloseTo(LANDING.x, 2);
+      advance(20_000);
+      expect(runtime.snapshot().blockedReason).toBe("in_flight");
+      expect(splineDones(sent)).toHaveLength(1);
+      runtime.observeSelf({ unitFlags: 0 });
+      expect(runtime.snapshot().blockedReason).toBeUndefined();
+      expect(runtime.snapshot().serverPose?.x).toBeCloseTo(LANDING.x, 2);
+    });
+  });
 });

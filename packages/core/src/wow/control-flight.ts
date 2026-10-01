@@ -7,6 +7,11 @@ import type { MovementInfo } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 const LANDING_GRACE_MS = 10_000;
+const BLOCK_FLAGS =
+  UnitFlag.DISABLE_MOVE |
+  UnitFlag.STUNNED |
+  UnitFlag.CONFUSED |
+  UnitFlag.FLEEING;
 
 export type FlightParts = {
   deps: ControlDeps;
@@ -18,6 +23,7 @@ export type FlightParts = {
   movementInfo: () => MovementInfo;
   serverPose: (pose: Position) => void;
   poseMapId: () => number;
+  landedWithBlocker: (blockers: number) => void;
 };
 
 type FlightEnd = { point: Position; info: MovementInfo; splineId: number };
@@ -29,8 +35,11 @@ export class FlightTracker {
   private readonly movementInfo: () => MovementInfo;
   private readonly serverPose: (pose: Position) => void;
   private readonly poseMapId: () => number;
+  private readonly landedWithBlocker: (blockers: number) => void;
   private flying = false;
   private flagSeen = false;
+  private durationPast = false;
+  private blocked: number | undefined;
   private end: FlightEnd | undefined;
   private splineTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -41,13 +50,11 @@ export class FlightTracker {
     this.movementInfo = parts.movementInfo;
     this.serverPose = parts.serverPose;
     this.poseMapId = parts.poseMapId;
+    this.landedWithBlocker = parts.landedWithBlocker;
   }
-
   inFlight(): boolean {
     return this.flying;
   }
-
-  onLanded: (() => void) | undefined;
 
   observeSpline(move: MonsterMove): boolean {
     if (move.kind === "stop") {
@@ -84,6 +91,7 @@ export class FlightTracker {
       splineId: move.splineId,
     };
     this.flying = true;
+    this.blocked = undefined;
     this.motion.abort("in_flight");
     this.emit("control_changed", "in_flight");
     this.armSplineTimer(move.duration);
@@ -91,15 +99,21 @@ export class FlightTracker {
   }
 
   observeUnitFlags(unitFlags: number): boolean {
+    const blockers = unitFlags & BLOCK_FLAGS;
     if ((unitFlags & UnitFlag.TAXI_FLIGHT) !== 0) {
       this.flagSeen = true;
       if (!this.flying) {
         this.flying = true;
+        this.blocked = undefined;
         this.motion.abort("in_flight");
         this.emit("control_changed", "in_flight");
+      } else if (this.durationPast) {
+        this.durationPast = false;
+        this.sendSplineDone();
       }
       return true;
     }
+    if (this.flying && blockers !== 0) this.blocked = blockers;
     if (!this.flagSeen) return false;
     this.flagSeen = false;
     this.land();
@@ -125,12 +139,15 @@ export class FlightTracker {
       clearTimeout(this.splineTimer);
       this.splineTimer = undefined;
     }
+    this.durationPast = false;
     this.splineTimer = setTimeout(() => {
       this.splineTimer = undefined;
       if (!this.flying) return;
+      this.durationPast = true;
       if (!this.flagSeen) {
         this.splineTimer = setTimeout(() => {
           this.splineTimer = undefined;
+          if (this.flagSeen) return;
           this.land();
         }, LANDING_GRACE_MS);
         return;
@@ -158,14 +175,17 @@ export class FlightTracker {
   private land(): void {
     const end = this.end;
     this.flying = false;
+    this.durationPast = false;
     this.motion.stop("flight_landed");
-    this.onLanded?.();
     if (this.splineTimer !== undefined) {
       clearTimeout(this.splineTimer);
       this.splineTimer = undefined;
     }
     if (end && end.point.mapId === this.poseMapId()) this.serverPose(end.point);
     this.end = undefined;
+    const blockers = this.blocked;
+    this.blocked = undefined;
+    if (blockers !== undefined) this.landedWithBlocker(blockers);
     this.emit("control_changed", undefined);
     this.emit("server_correction", "flight_landed");
   }

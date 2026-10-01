@@ -68,7 +68,6 @@ export type FlightPort = {
   newWorld: () => void;
   observeSpline: (move: MonsterMove) => boolean;
   observeUnitFlags: (unitFlags: number) => boolean;
-  onLanded: (() => void) | undefined;
 };
 
 export class MovementSync {
@@ -92,7 +91,6 @@ export class MovementSync {
   private controlAllowed = true;
   private rooted = false;
   private teleporting = false;
-  private inFlight = false;
   private unitBlocked = false;
   private transferAbortTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -119,7 +117,7 @@ export class MovementSync {
 
   blockReason(): string | undefined {
     if (this.teleporting) return "teleporting";
-    if (this.inFlight) return "in_flight";
+    if (this.flight?.inFlight() ?? false) return "in_flight";
     if (this.rooted) return "rooted";
     if (!this.controlAllowed) return "no_control";
     if (this.unitBlocked) return "disable_move";
@@ -128,7 +126,10 @@ export class MovementSync {
 
   setFlight(flight: FlightPort): void {
     this.flight = flight;
-    flight.onLanded = () => this.syncFlightFlag();
+  }
+
+  restoreFlightBlocker(blockers: number): void {
+    if ((blockers & UNIT_BLOCK_FLAGS) !== 0) this.unitBlocked = true;
   }
 
   setFlightPose(pose: Position): void {
@@ -136,12 +137,7 @@ export class MovementSync {
     this.predicted = undefined;
   }
   observeSelfSpline(move: MonsterMove): void {
-    if (this.flight?.observeSpline(move)) this.syncFlightFlag();
-  }
-
-  syncFlightFlag(): void {
-    if (this.flight) this.setFlightFlag(this.flight.inFlight());
-    if (!this.inFlight) this.unitBlocked = false;
+    this.flight?.observeSpline(move);
   }
 
   movementInfo(): MovementInfo {
@@ -414,21 +410,14 @@ export class MovementSync {
   }
 
   private setUnitFlags(unitFlags: number): void {
-    const wasFlying = this.inFlight;
+    const wasFlying = this.flight?.inFlight() ?? false;
     const wasBlocked = this.unitBlocked;
-    this.flight?.observeUnitFlags(unitFlags);
-    const flying = this.flight?.inFlight() ?? false;
     const blocked = (unitFlags & UNIT_BLOCK_FLAGS) !== 0;
-    this.setFlightFlag(flying);
-    this.unitBlocked = blocked;
-    if (this.inFlight) return;
+    if (!wasFlying) this.unitBlocked = blocked;
+    this.flight?.observeUnitFlags(unitFlags);
+    if (this.flight?.inFlight() ?? false) return;
     if (wasFlying || blocked === wasBlocked) return;
     if (blocked) this.motion.stop("disable_move");
     this.emit("control_changed", blocked ? "disable_move" : undefined);
-  }
-
-  private setFlightFlag(flying: boolean): void {
-    if (flying === this.inFlight) return;
-    this.inFlight = flying;
   }
 }
