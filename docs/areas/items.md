@@ -209,6 +209,8 @@ on-use spells it read before.
 - Only a non-stackable extended-cost purchase with the purchase-record flag becomes refundable (`Entities/Player/Player.cpp:10877-10884`).
 - `SMSG_ITEM_REFUND_RESULT` is `u64` item and `u32` result; the money, honor, arena and item cost block follows only on result 0 (`Entities/Player/Player.cpp:16094-16104`), while an expired offer answers 10 (`Entities/Player/Player.cpp:16041-16049`). The refund destroys the item and grants the cost, so the act reports the packet and leaves inventory to the next observe.
 - `BuyItemFromVendorSlot` drops a destination pack slot above `MAX_BAG_SIZE` (36) with no reply (`Entities/Player/Player.cpp:10906`, `Entities/Item/Container/Bag.h:22`), so pack slots 37 and 38 cannot be bought into; the live run below buys into the first empty slot at 29.
+- `CMSG_WRAP_ITEM` is four `u8`: gift bag, gift slot, item bag, item slot (`Server/Packets/ItemPackets.cpp:135-141`). The handler refuses a missing gift or a gift whose template lacks the wrapper flag `0x200` with `EQUIP_ERR_ITEM_NOT_FOUND` naming the gift guid, or `0` when no gift is there (`Handlers/ItemHandler.cpp:1092-1101`); every other refusal names the target item: not found, already wrapped, equipped, bag, soulbound, stackable and unique or timed (`Handlers/ItemHandler.cpp:1103-1164`). On success the target item keeps its guid, takes the wrapper's entry (5042 becomes 5043, five other papers map likewise), gets the gift creator and the flags `ITEM_FIELD_FLAG_WRAPPED` alone, and one paper is destroyed (`Handlers/ItemHandler.cpp:1177-1210`). The `wrap` move therefore settles when the same guid reads `wrapped`, never on the entry. A failure that names the gift guid also belongs to the wrap; the paper count falls by one afterwards, or the stack is gone. The act refuses locally a gift without the wrapper flag, a gift wrapped onto itself and a worn target.
+- `CMSG_ITEM_NAME_QUERY` is `u32` entry and a `u64` guid that the server skips (`Handlers/ItemHandler.cpp:1061-1065`). Only an entry listed in `item_set_names` is answered, with `u32` entry, the item's own name and a `u32` inventory type (`Handlers/ItemHandler.cpp:1066-1082`; wow_messages writes the type as `u8`, which would leave three bytes unread); any other entry draws no reply. Core calls the text a set-item name, caches it by entry (first reply wins), sends one query per entry and settles `set_item_name_none` after 5 seconds of silence, remembering the miss. It does not read `ItemSet.dbc`.
 - Core keeps timers as absolute expiry times from the local clock at
   receipt (`ItemsState.timers`), item cooldowns as item guid, spell and
   time seen, and the weapon and armour masks. The game log writes
@@ -218,13 +220,13 @@ on-use spells it read before.
 
 ## Left out
 
-- `CMSG_WRAP_ITEM`, `CMSG_ITEM_NAME_QUERY` and
-  `SMSG_ITEM_NAME_QUERY_RESPONSE`: built by `items-11`.
+None.
 
 ## Capabilities row
 
 The game log also writes `items/socketed` on `SMSG_SOCKET_GEMS_RESULT` (the item, the three socket enchants and the socket bonus) and `items/enchanted` for own enchant logs with a non-zero enchant id, both log rows, plus wake rows `items/refused` and `items/unanswered` when the socket is refused or unanswered.
 It writes `items/set_saved` and `items/set_used` for equipment sets, with wake rows when a save or use goes unanswered or the bags are full.
+A confirmed gift wrap writes the log row `items/wrapped`.
 
 
 ## Proof
@@ -265,3 +267,6 @@ It writes `items/set_saved` and `items/set_used` for equipment sets, with wake r
 | `SMSG_ITEM_REFUND_INFO_RESPONSE` | `live` | same account, probe flow `items-refund` (`do=buy`, `npc=18525`, `slot=2`) buys gear 29266 into pack slot 29 as `0x4000000000149a24` (`SMSG_BUY_ITEM` in `tmp/probe/FAC6ABECF92B7-items10/buy7/packets.jsonl`), then `do=info`: trace `tmp/probe/FAC6ABECF92B7-items10/info2/packets.jsonl` shows the 68-byte reply `handled`, parsed as money, honor and arena 0, cost 33xBadge of Justice (29434) and delta 320 | `Entities/Player/Player.cpp:15989-16001` |
 | `CMSG_ITEM_REFUND` | `live` | same account, probe flow `items-refund` (`do=refund`) on `0x4000000000149a24`: trace `tmp/probe/FAC6ABECF92B7-items10/refund/packets.jsonl` shows the 8-byte send answered with result 0 | `Server/Packets/ItemPackets.h:263` |
 | `SMSG_ITEM_REFUND_RESULT` | `live` | same run: the 64-byte reply is `handled` with result 0 and the 33-badge cost block, `SMSG_DESTROY_OBJECT` follows twice, and the later `items-snapshot` (`tmp/probe/FAC6ABECF92B7-items10/inv3.txt`) shows slot 29 empty and badges back at 80 | `Entities/Player/Player.cpp:16094-16104` |
+| `CMSG_WRAP_ITEM` | `live` | probe flow `items-wrap` (`do=wrap`, `gift=5042`, `item=25`) on an `eversong10` priest moved to Brill, account `FAC6ABEE00684` (created and deleted; two earlier accounts `FAC6ABEDECD70` and `FAC6ABEDF9D16` died at the Goldshire mailbox before the flow ran): the Red Ribboned Wrapping Paper and the Worn Shortsword came from `soap gm items 5042:1 25:1` and were taken with `CMSG_MAIL_TAKE_ITEM` (`tmp/probe/FAC6ABEE00684-items11/take/packets.jsonl`). `tmp/probe/FAC6ABEE00684-items11/wrap/packets.jsonl` shows `CMSG_WRAP_ITEM` out (`ff1cff1e`: bag 255 slot 28, bag 255 slot 30), the paper's `SMSG_DESTROY_OBJECT`, and the flow result `confirmed` with item `0x400000000014a353` now entry 5043, `wrapped` true. A second wrap of that item with another paper (`tmp/probe/FAC6ABEE00684-items11/wrapneg/packets.jsonl`) drew `SMSG_INVENTORY_CHANGE_FAILURE` result 45 naming the item, which the flow reports as `refused`, `wrapped_cant_be_wrapped` | `Handlers/ItemHandler.cpp:1085-1210` |
+| `CMSG_ITEM_NAME_QUERY` | `live` | probe flow `items-wrap` (`do=name`, `entry=6473`, then `entry=25`), same account: `tmp/probe/FAC6ABEE00684-items11/name/packets.jsonl` shows both sends out (12 bytes, entry then a zero guid); entry 6473 is answered, entry 25 gets no reply and the flow reports `null` after 5 s | `Handlers/ItemHandler.cpp:1061-1065` |
+| `SMSG_ITEM_NAME_QUERY_RESPONSE` | `live` | same run: the 26-byte reply is `handled` and parses as entry 6473, "Armor of the Fang", inventory type 5 | `Handlers/ItemHandler.cpp:1077-1081` |

@@ -22,6 +22,8 @@ const ME = 0x0a_00n;
 const PAPER = 0x40_00_00_00_00_00_00_01n;
 const SWORD = 0x40_00_00_00_00_00_00_02n;
 const HELM = 0x40_00_00_00_00_00_00_03n;
+const BAG = 0x40_00_00_00_00_00_00_04n;
+const BAG_PAPER = 0x40_00_00_00_00_00_00_05n;
 const FAIL = GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE;
 const WRAPPER = 0x2_00;
 const PAPER_AT = { bag: 255, slot: 24 };
@@ -60,7 +62,7 @@ function wrapped(world: ReturnType<typeof setup>["world"], rig: ItemsRig) {
 }
 
 describe("items runtime: wrap", () => {
-  test("wrap sends CMSG_WRAP_ITEM and settles confirmed once the item is flagged wrapped under its own guid (ItemHandler.cpp:1163-1190)", async () => {
+  test("wrap sends CMSG_WRAP_ITEM and settles confirmed once the item is flagged wrapped under its own guid (ItemHandler.cpp:1177-1210)", async () => {
     const { events, rig, world } = setup();
     try {
       const pending = rig.handle.act.wrap(PAPER_AT, SWORD_AT);
@@ -105,7 +107,7 @@ describe("items runtime: wrap", () => {
     }
   });
 
-  test("a refusal that names the gift paper is the wrap's own (ItemHandler.cpp:1097-1101)", async () => {
+  test("a refusal that names the gift paper is the wrap's own (ItemHandler.cpp:1098-1100)", async () => {
     const { rig } = setup();
     try {
       const pending = rig.handle.act.wrap(PAPER_AT, SWORD_AT);
@@ -178,6 +180,32 @@ describe("items runtime: wrap", () => {
         rig.handle.act.wrap({ bag: 255, slot: 31 }, SWORD_AT),
       ).rejects.toThrow("empty");
       expect(sends(rig.sent, GameOpcode.CMSG_WRAP_ITEM)).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("an equipped bag is worn and cannot be wrapped, but paper inside one can wrap a pack item", async () => {
+    const { rig, world } = setup();
+    try {
+      world.put(255, 19, { bagSlots: 6, entry: 4496, guid: BAG });
+      world.put(19, 0, { count: 2, entry: 5042, guid: BAG_PAPER });
+      rig.touch();
+      await expect(
+        rig.handle.act.wrap(PAPER_AT, { bag: 255, slot: 19 }),
+      ).rejects.toThrow("worn");
+      expect(sends(rig.sent, GameOpcode.CMSG_WRAP_ITEM)).toEqual([]);
+      const pending = rig.handle.act.wrap({ bag: 19, slot: 0 }, SWORD_AT);
+      await flush();
+      expect(sends(rig.sent, GameOpcode.CMSG_WRAP_ITEM)).toEqual([
+        {
+          body: buildWrapItem({ bag: 19, slot: 0 }, SWORD_AT),
+          opcode: GameOpcode.CMSG_WRAP_ITEM,
+        },
+      ]);
+      expect(rig.handle.state().move.pending?.target?.guid).toBe(BAG_PAPER);
+      wrapped(world, rig);
+      await pending;
     } finally {
       rig.dispose();
     }

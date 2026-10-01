@@ -149,7 +149,7 @@ describe("move settle rules (design 5.3)", () => {
     ).toBe(true);
   });
 
-  test("wrap settles on the wrapped flag of the same guid, whatever the entry becomes (ItemHandler.cpp:1163-1190)", () => {
+  test("wrap settles on the wrapped flag of the same guid, whatever the entry becomes (ItemHandler.cpp:1177-1210)", () => {
     const world = itemsWorld(ME);
     world.put(255, 23, { entry: 25, guid: SWORD });
     world.put(255, 24, { count: 2, entry: 5042, guid: WATER });
