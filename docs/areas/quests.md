@@ -142,6 +142,15 @@ every later `CMSG_PUSHQUESTTOPARTY` to the character answers `BUSY`
 log, while `escort-confirm` runs on the partner and prints the
 `SMSG_QUEST_CONFIRM_ACCEPT` offer.
 
+`state().daily` holds the quest ids in the character's own daily field,
+read from the self entity's `rawFields` offsets 1280 to 1304 on its
+create and every update (0 is an empty slot). It is unset until the
+first read. The area emits `daily` with `{ count }` only when the set
+changes, so the first all-zero read emits nothing and the daily reset
+emits `count: 0`. `journal about: "quests"` adds one
+`#<id> <title>: done today.` line after the log lines for each id in
+`daily` that is not in the quest log.
+
 ## Wire notes
 
 - `SMSG_QUESTGIVER_STATUS_MULTIPLE` is a `uint32` count, then per giver
@@ -254,6 +263,15 @@ log, while `escort-confirm` runs on the partner and prints the
   `uint32` icon, `uint32` importance and a `CString` name, sent from a
   gossip option with a POI id while the dialog is still open
   (`Entities/Creature/GossipDef.cpp:247-270`).
+- `PLAYER_FIELD_DAILY_QUESTS_1` is 25 `int32` slots at update-field offset
+  1280, private to the owner
+  (`Entities/Object/Updates/UpdateFields.h:385`,
+  `Entities/Player/Player.h:72`). Rewarding a daily quest writes its id
+  into the first empty slot, except a dungeon-finder daily, which is
+  kept elsewhere (`Entities/Player/PlayerQuest.cpp:832-834`,
+  `Entities/Player/Player.cpp:12337-12363`). The daily reset at 6 AM
+  server time zeroes every slot (`World/World.cpp:1759`,
+  `Entities/Player/Player.cpp:12401-12411`).
 
 ## Left out
 
@@ -306,3 +324,4 @@ See which NPCs have a quest or a quest to turn in (`t4-quests-find-giver`, pass 
 | `SMSG_QUEST_CONFIRM_ACCEPT` | `live` | two `fresh` Blood Elf characters (FAC6ABBABAC6D and FAC6ABBABAC18) level 9 at (8711, -7158) on map 530 beside Apprentice Mirveda (entry 15402), quest 8487 rewarded offline on both so 8488 (`PrevQuestID` 8487) can be taken; grouped by `call invite`/`call acceptInvite`. The sharer's raw `CMSG_QUESTGIVER_ACCEPT_QUEST` (16 bytes, Mirveda's guid, quest 8488) drew `SMSG_QUESTGIVER_QUEST_INVALID` before 8487 was rewarded and, after it, the partner's trace shows `SMSG_GOSSIP_COMPLETE` then the 31-byte `SMSG_QUEST_CONFIRM_ACCEPT`; the partner's `events --json` held `share` `{ type "offered", from 3885, questId 8488, title "Unexpected Results" }` (run traces are not committed) | `Entities/Player/PlayerQuest.cpp:2483-2503` |
 | `CMSG_QUEST_CONFIRM_ACCEPT` | `live` | same run: the partner's `call answerShare ["accept"]` sent the 4-byte packet (`packets.jsonl` `out` row), its `events --json` held `share` `{ type "answered", answer "accept", questId 8488 }`, and `soap truth` listed quest 8488 on both characters | `Server/Packets/QuestPackets.cpp:118-121` |
 | `CMSG_QUESTGIVER_ACCEPT_QUEST` (share accept) | `live` | two `fresh` characters (sharer FAC6ABBABAC6D with 8329 staged offline, partner FAC6ABBABAC18), grouped: `call shareQuest [8329]` drew result 0; the partner's `call answerShare ["accept"]` sent the 16-byte accept (`bodies` trace: sharer guid 0xf2d, quest 0x2089, trailing zero) and the sharer's trace then held `MSG_QUEST_PUSH_RESULT` result 2; `soap truth` listed 8329 on the partner (8326 does not work: it auto-accepts and the accept draws reason 13) | `Handlers/QuestHandler.cpp:154-161` |
+| `PLAYER_FIELD_DAILY_QUESTS_1` (update field, offset 1280, 25 slots) | `live` | one `fresh` character (FAC6ABEC7F00B), the puppet with `--packet-trace headers`, `soap gm quest add 14179`, `quest complete 14179`, `quest reward 14179` ("Call to Arms: Eye of the Storm"): the puppet's `events --json` held no `daily` event after the add or the complete, and `{ type "daily", count 1 }` after the reward; a later `mise protocol:probe --flow quests-daily` login printed `daily [14179]` from the create block. The daily reset at 6 AM is not seen live; the unit tests cover the all-zero update (run traces are not committed) | `Entities/Player/PlayerQuest.cpp:832-834` |

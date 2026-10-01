@@ -825,14 +825,16 @@ and take a quest or an escort another member shares.
 ## Task quests-10: Daily quests done today
 
 **Files:**
-- Create: `areas/quests/store-daily.ts`,
+- Create: `areas/quests/store-daily.ts`, `areas/quests/store-daily.test.ts`,
+  `areas/quests/runtime-daily.test.ts`,
+  `packages/harness/src/areas/quests/journal.test.ts`,
   `packages/devtools/src/probe-flows/quests-daily.ts`
-- Modify: `areas/quests/store.ts` and test, `areas/quests/runtime.ts`
-  and test, `areas/quests/area.ts`,
-  `packages/harness/src/tools/journal.ts` and test (lease),
+- Modify: `areas/quests/store.ts`, `areas/quests/runtime.ts`,
+  `areas/quests/area.ts`,
+  `packages/harness/src/areas/quests/journal.ts` (SR4-quests-1, no lease),
   `docs/areas/quests.md`
 
-**Depends on:** quests-9, quests-4, item6, T-5 (`soap gm`), the quests-10 lease.
+**Depends on:** quests-9, quests-4, item6, T-5 (`soap gm`) (SR4-quests-5).
 
 **Opcodes:** none (update field `PLAYER_FIELD_DAILY_QUESTS_1`, 25 x `u32`
 at offset 1280, `protocol/update-fields.ts:320`).
