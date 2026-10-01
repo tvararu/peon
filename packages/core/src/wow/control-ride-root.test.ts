@@ -203,14 +203,14 @@ describe("forced pose corrections", () => {
   });
 });
 
-describe("unroot ack of a driven vehicle", () => {
-  function ackFlags(packet: Sent | undefined): number {
-    const r = new PacketReader(must(packet).body);
-    r.packedGuidBig();
-    r.uint32LE();
-    return parseMovementInfo(r).flags;
-  }
+function ackFlags(packet: Sent | undefined): number {
+  const r = new PacketReader(must(packet).body);
+  r.packedGuidBig();
+  r.uint32LE();
+  return parseMovementInfo(r).flags;
+}
 
+describe("unroot ack of a driven vehicle", () => {
   test("a rooted passenger does not leak its ROOT into the vehicle's unroot ack", () => {
     const { runtime, sent } = boardLiveOrder(() => undefined);
     runtime.observeSelf({
@@ -229,5 +229,54 @@ describe("unroot ack of a driven vehicle", () => {
     runtime.clientControl({ allow: false, guid: VEHICLE });
     runtime.vehicleLeft();
     expect(runtime.snapshot().blockedReason).toBe("rooted");
+  });
+});
+
+describe("the passenger's own root across the ride (Unit.cpp:13935-13942 sends no unroot on exit)", () => {
+  const SELF = 0x0764n;
+
+  function release(runtime: ControlRuntime): void {
+    runtime.vehicleLeft();
+  }
+
+  test("a root received before boarding survives adopting and dropping an unrooted vehicle", () => {
+    const harness = setup();
+    harness.runtime.forceRoot(1, SELF);
+    harness.runtime.vehicleSeat(seat());
+    harness.runtime.clientControl({ allow: true, guid: VEHICLE });
+    harness.runtime.moverState(MOVER);
+    expect(harness.runtime.snapshot().movementAllowed).toBe(true);
+    release(harness.runtime);
+    expect(harness.runtime.snapshot().blockedReason).toBe("rooted");
+    expect(() => harness.runtime.move("forward", 1000)).toThrow("rooted");
+    harness.sent.length = 0;
+    harness.runtime.moveFlag("hover", true, 7);
+    expect(ackFlags(harness.sent[0]) & MovementFlag.ROOT).not.toBe(0);
+  });
+
+  test("a root of the character received while driving is kept for after the ride", () => {
+    const { runtime, sent } = boardLiveOrder((target, counter) =>
+      target.forceRoot(counter, SELF),
+    );
+    expect(runtime.snapshot().movementAllowed).toBe(true);
+    release(runtime);
+    expect(runtime.snapshot().blockedReason).toBe("rooted");
+    sent.length = 0;
+    runtime.moveFlag("hover", true, 7);
+    expect(ackFlags(sent[0]) & MovementFlag.ROOT).not.toBe(0);
+  });
+
+  test("an unroot of the character received while driving is kept for after the ride", () => {
+    const harness = setup();
+    harness.runtime.forceRoot(1, SELF);
+    harness.runtime.vehicleSeat(seat());
+    harness.runtime.clientControl({ allow: true, guid: VEHICLE });
+    harness.runtime.moverState(MOVER);
+    harness.runtime.forceUnroot(2, SELF);
+    release(harness.runtime);
+    expect(harness.runtime.snapshot().blockedReason).not.toBe("rooted");
+    harness.runtime.move("forward", 500);
+    expect(harness.runtime.snapshot().moving).toBe(true);
+    harness.runtime.halt();
   });
 });

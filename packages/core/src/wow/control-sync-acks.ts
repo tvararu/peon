@@ -23,12 +23,14 @@ export type AckHost = {
   moveFlags: number;
   observedFlags: number;
   drivenFlags: number;
+  vehicleCanFly: boolean;
   runSpeed: number | undefined;
   runBackSpeed: number | undefined;
   turnRate: number;
   fall: MovementInfo["fall"];
   fallTime: number;
   cancelForced: (reason: string) => void;
+  isDriving: () => boolean;
   moveAck: (counter: number) => MoveAck;
   moverGuid: () => bigint;
   movementInfo: () => MovementInfo;
@@ -79,7 +81,11 @@ export class ServerAckSync {
 
   setCanFly(counter: number, enable: boolean): void {
     this.host.cancelForced(enable ? "flying" : "unset_can_fly");
-    if (enable) {
+    if (this.host.isDriving()) {
+      this.host.vehicleCanFly = enable;
+      if (!enable)
+        this.host.drivenFlags &= ~(MovementFlag.CAN_FLY | MovementFlag.FLYING);
+    } else if (enable) {
       this.host.observedFlags |= MovementFlag.CAN_FLY;
       this.host.moveFlags |= MovementFlag.CAN_FLY;
     } else {

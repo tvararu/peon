@@ -201,3 +201,34 @@ describe("observations while driving a vehicle", () => {
     ).toHaveLength(0);
   });
 });
+
+describe("flight granted to the driven vehicle (Unit.cpp:16148-16175)", () => {
+  test("the vehicle flies while driven but the character does not after exiting", () => {
+    const { runtime, sent } = adopt();
+    runtime.setCanFly(5, true);
+    const grant = must(
+      sent.find((p) => p.opcode === GameOpcode.CMSG_MOVE_SET_CAN_FLY_ACK),
+    );
+    expect(decodeAck(grant).guid).toBe(VEHICLE);
+    expect(decodeAck(grant).flags & MovementFlag.CAN_FLY).not.toBe(0);
+    runtime.vehicleLeft();
+    sent.length = 0;
+    expect(() => runtime.setFlying(true)).toThrow("cannot_fly");
+    runtime.moveFlag("hover", true, 7);
+    expect(decodeAck(sent[0]).flags & MovementFlag.CAN_FLY).toBe(0);
+    runtime.move("forward", 500);
+    expect(decodeMove(sent.at(-1)).flags & MovementFlag.CAN_FLY).toBe(0);
+    runtime.halt();
+  });
+
+  test("a character that could already fly keeps flying after the vehicle's grant is withdrawn", () => {
+    const { runtime } = setup();
+    runtime.setCanFly(3, true);
+    runtime.vehicleSeat(seat());
+    runtime.clientControl({ allow: true, guid: VEHICLE });
+    runtime.setCanFly(4, true);
+    runtime.setCanFly(5, false);
+    runtime.vehicleLeft();
+    expect(() => runtime.setFlying(true)).not.toThrow();
+  });
+});

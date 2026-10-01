@@ -34,9 +34,9 @@ export class ForcedRoots {
   ): void {
     if (guid !== undefined && guid !== this.deps.selfGuid())
       this.host.pendingRoots.set(guid, rooted);
-    if (mover !== undefined) return;
     if (guid !== undefined && guid !== this.deps.selfGuid()) return;
     this.host.rooted = rooted;
+    if (mover !== undefined) return;
     if (rooted) this.host.moveFlags |= MovementFlag.ROOT;
     else this.host.moveFlags &= ~MovementFlag.ROOT;
   }

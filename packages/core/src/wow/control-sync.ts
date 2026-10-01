@@ -55,6 +55,7 @@ export class MovementSync {
   moveFlags = 0;
   observedFlags = 0;
   drivenFlags = 0;
+  vehicleCanFly = false;
   mapId = 0;
   runSpeed: number | undefined;
   runBackSpeed: number | undefined;
@@ -170,7 +171,12 @@ export class MovementSync {
     if (this.unitBlocked) return "disable_move";
   }
 
+  isDriving(): boolean {
+    return this.ride.controlling;
+  }
+
   canFly(): boolean {
+    if (this.ride.controlling && this.vehicleCanFly) return true;
     const flags = canFlyFlags({
       controlling: this.ride.controlling,
       drivenFlags: this.drivenFlags,
@@ -327,6 +333,7 @@ export class MovementSync {
     this.moveFlags = 0;
     this.observedFlags = 0;
     this.drivenFlags = 0;
+    this.vehicleCanFly = false;
     this.extraFlags = 0;
     this.fall = undefined;
     this.pitch = undefined;
@@ -430,24 +437,32 @@ export class MovementSync {
   }
   private reconciled(): number {
     const driven = this.ride.controlling ? this.forced.drivenBits() : 0;
-    return this.moveFlags | (this.observedFlags & RECONCILED_BITS) | driven;
+    const vehicleFly =
+      this.ride.controlling && this.vehicleCanFly ? MovementFlag.CAN_FLY : 0;
+    return (
+      this.moveFlags |
+      (this.observedFlags & RECONCILED_BITS) |
+      driven |
+      vehicleFly
+    );
   }
 
   private moverChanged(mover: bigint | undefined): void {
     this.controlAllowed = true;
     this.drivenFlags = 0;
+    this.vehicleCanFly = false;
     this.forced.adoptMover(mover);
     this.moverRooted =
       mover !== undefined && (this.pendingRoots.get(mover) ?? false);
     this.forced.forget(mover);
-    this.moveFlags &= ~MovementFlag.ROOT;
     if (mover === undefined) {
+      this.moveFlags &= ~MovementFlag.ROOT;
       if (this.rooted) this.moveFlags |= MovementFlag.ROOT;
       this.selfMotion.restore(this);
       return;
     }
     if (this.moverRooted) this.moveFlags |= MovementFlag.ROOT;
-    else this.rooted = false;
+    else if (!this.rooted) this.moveFlags &= ~MovementFlag.ROOT;
     this.selfMotion.save(this);
   }
 
@@ -476,6 +491,7 @@ export class MovementSync {
     this.observedFlags = pose.observed;
     this.extraFlags = dest.extraFlags;
     this.moveFlags = pose.move;
+    this.vehicleCanFly = false;
     this.fall = dest.fall;
     this.fallTime = dest.fallTime;
     this.pitch = dest.pitch;
