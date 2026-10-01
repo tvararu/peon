@@ -105,17 +105,21 @@ describe("social do:emote", () => {
   });
 
   test("an unknown emote is REFUSED with the closest names", async () => {
-    const { handle, tool } = await world();
-    spyOn(handle.emotes.act, "textEmote").mockResolvedValue({
-      closest: ["wave", "waive", "wail", "wake", "walk"],
-      ok: false,
-      reason: "unknown_emote",
+    await withFakeTimers(async () => {
+      const { handle, tool } = await world();
+      spyOn(handle.emotes.act, "textEmote").mockResolvedValue({
+        closest: ["wave", "waive", "wail", "wake", "walk"],
+        ok: false,
+        reason: "unknown_emote",
+      });
+      const pending = runTool(tool, { do: "emote", what: "wavv" });
+      await elapse(5000);
+      const out = await pending;
+      expect(out.details.result.status).toBe("REFUSED");
+      expect(out.details.result.reason).toBe("unknown_emote");
+      for (const name of ["wave", "waive", "wail", "wake", "walk"])
+        expect(out.text).toContain(name);
     });
-    const out = await runTool(tool, { do: "emote", what: "wavv" });
-    expect(out.details.result.status).toBe("REFUSED");
-    expect(out.details.result.reason).toBe("unknown_emote");
-    for (const name of ["wave", "waive", "wail", "wake", "walk"])
-      expect(out.text).toContain(name);
   });
 
   test("a ready check is REFUSED and points to group play", async () => {

@@ -37,9 +37,9 @@ describe("line family", () => {
     expect(renderCallLine(socialTool, { text: "hi" })).toBe(
       `${nerd.say} social say "hi"`,
     );
-    expect(renderCallLine(socialTool, { do: "emote", to: "Tessa", what: "wave" })).toBe(
-      `${nerd.whisper} social emote → Tessa "wave"`,
-    );
+    expect(
+      renderCallLine(socialTool, { do: "emote", to: "Tessa", what: "wave" }),
+    ).toBe(`${nerd.whisper} social emote → Tessa "wave"`);
   });
 
   test("collapsed social result is one green status line", () => {

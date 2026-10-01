@@ -401,8 +401,7 @@ function social(
   };
   checkRequest(request, ctx.rt);
   const { action } = request;
-  if (action === "emote")
-    return emoteStep({ to, what: args.what ?? "" }, ctx);
+  if (action === "emote") return emoteStep({ to, what: args.what ?? "" }, ctx);
   return isChat(action)
     ? chat({ action, text: text ?? "", to }, ctx)
     : group({ action, to }, ctx);
