@@ -90,8 +90,8 @@ export class FlightTracker {
       },
       splineId: move.splineId,
     };
+    if (!this.flying) this.blocked = undefined;
     this.flying = true;
-    this.blocked = undefined;
     this.motion.abort("in_flight");
     this.emit("control_changed", "in_flight");
     this.armSplineTimer(move.duration);
