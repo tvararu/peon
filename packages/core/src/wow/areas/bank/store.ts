@@ -254,7 +254,7 @@ export class BankStore {
       const moved =
         request.kind === "deposit"
           ? inBank(found.region)
-          : !inBank(found.region);
+          : isCarried(found.region);
       if (moved) {
         this.settleMove(request, request.guid);
         return;
