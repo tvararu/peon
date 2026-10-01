@@ -67,10 +67,12 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
     args: ["string", "number"],
     run: (h, a) => h.raid.act.moveToSubgroup(text(a, 0), count(a, 1)),
   },
+  nextSeat: { args: [], run: (h) => h.vehicles.act.nextSeat() },
   pingMinimap: {
     args: ["number", "number"],
     run: (h, a) => h.raid.act.pingMinimap(count(a, 0), count(a, 1)),
   },
+  prevSeat: { args: [], run: (h) => h.vehicles.act.prevSeat() },
   requestMemberStats: {
     args: ["string"],
     run: (h, a) => h.raid.act.requestMemberStats(text(a, 0)),

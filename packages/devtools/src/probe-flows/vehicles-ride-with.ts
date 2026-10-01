@@ -23,6 +23,21 @@ function describe(outcome: Outcome): string {
   return outcome.reason ?? outcome.status;
 }
 
+const PASSENGER_WAITS = 6;
+
+async function waitForPassenger(
+  handle: FlowContext["handle"],
+  settle: FlowContext["settle"],
+): Promise<string | undefined> {
+  for (let attempt = 0; attempt < PASSENGER_WAITS; attempt++) {
+    const found = await settle(() => {
+      for (const [guid] of handle.vehicles.state().passengers)
+        return `0x${guid.toString(16)}`;
+    });
+    if (found !== undefined) return found;
+  }
+}
+
 async function run({ handle, args, settle }: FlowContext): Promise<Json> {
   const spell = spellOf(args);
   const partner = argOf(args, "partner");
@@ -40,11 +55,9 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
     if (!self) throw new Error("vehicles-ride-with found no self row.");
     const vehicle = `0x${self.entity.guid.toString(16)}`;
     handle.invite(partner);
-    const boarded = await settle(() => {
-      const passengers = handle.vehicles.state().passengers;
-      for (const [guid] of passengers) return `0x${guid.toString(16)}`;
-      return;
-    });
+    const boarded = await waitForPassenger(handle, settle);
+    const holds = Number(args["hold"] ?? 0);
+    for (let wait = 0; wait < holds; wait++) await settle(() => undefined);
     const eject =
       boarded === undefined
         ? null
@@ -59,5 +72,5 @@ export const flow: ProbeFlow = {
   name: "vehicles-ride-with",
   run,
   usage:
-    "--flow vehicles-ride-with --arg mount=<spell> --arg partner=<name>: cast the mount, invite the partner to ride as passenger, report who boarded, then eject them with the ejectPassenger act.",
+    "--flow vehicles-ride-with --arg mount=<spell> --arg partner=<name> [--arg hold=<n>]: cast the mount, invite the partner to ride as passenger, report who boarded, wait hold settle periods so the partner can change seats, then eject them with the ejectPassenger act.",
 };
