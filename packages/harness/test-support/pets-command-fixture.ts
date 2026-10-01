@@ -42,6 +42,7 @@ export type PetsSnapshot = {
     infinite: boolean;
   }[];
   lastRefusal: { reason: string; at: number } | undefined;
+  renamePending?: readonly number[];
   pet:
     | {
         guid: bigint;

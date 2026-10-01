@@ -101,12 +101,13 @@ function refreshOnTransition(
 ): boolean {
   const { pet } = store.snapshot();
   const renamable = pet?.canRename ?? wasRenamable;
-  if (wasRenamable && !renamable)
+  if (wasRenamable && !renamable) {
+    store.refreshing(query.number);
     ctx.send(
       GameOpcode.CMSG_PET_NAME_QUERY,
       buildPetNameQuery(query.number, query.guid),
     );
-  else sendNameQuery(ctx, store, query);
+  } else sendNameQuery(ctx, store, query);
   return renamable;
 }
 

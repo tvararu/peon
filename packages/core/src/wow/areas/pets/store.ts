@@ -77,6 +77,7 @@ export type PetsState = {
   lastRefusal: PetsRefusal | undefined;
   pet: PetView | undefined;
   names: Readonly<Record<number, PetName>>;
+  renamePending: readonly number[];
   stable: StableState | undefined;
 };
 export type PetsEvent =
@@ -129,6 +130,7 @@ export class PetsStore {
   private cooldowns: PetsCooldown[] = [];
   private lastRefusal: PetsRefusal | undefined;
   private names: Record<number, PetName> = {};
+  private pending: number[] = [];
   private listing: StableState | undefined;
 
   constructor(deps: SessionDeps, _core: CoreStores) {
@@ -156,6 +158,7 @@ export class PetsStore {
       ),
       lastRefusal: this.lastRefusal,
       names: { ...this.names },
+      renamePending: [...this.pending],
       pet: petView(this.getEntity, this.selfGuid()),
       stable: this.listing
         ? {
@@ -176,6 +179,7 @@ export class PetsStore {
     if (isPetBarClear(wire)) {
       this.current = undefined;
       this.cooldowns = [];
+      this.pending = [];
       this.events.emit({ type: "bar", cleared: true });
       return;
     }
@@ -273,7 +277,17 @@ export class PetsStore {
       timestamp: reply.timestamp,
     };
     this.names = { ...this.names, [reply.number]: name };
+    this.pending = this.pending.filter((row) => row !== reply.number);
     this.events.emit({ name, type: "name" });
+  }
+
+  refreshing(number: number): void {
+    if (!this.pending.includes(number))
+      this.pending = [...this.pending, number];
+  }
+
+  refreshed(number: number): void {
+    this.pending = this.pending.filter((row) => row !== number);
   }
 
   nameRefused(refusal: PetNameInvalid): void {
@@ -333,6 +347,7 @@ export class PetsStore {
     this.current = undefined;
     this.cooldowns = [];
     this.names = {};
+    this.pending = [];
     this.listing = undefined;
     this.lastRefusal = undefined;
   }

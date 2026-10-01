@@ -132,6 +132,20 @@ describe("pet rename and abandon", () => {
     expect(out.reason).toBe("name_pending");
   });
 
+  test("abandon is REFUSED name_pending while a same-second rename refreshes", async () => {
+    const base = named("Rex");
+    const t = await world({
+      petEntity: unit(),
+      pets: { ...base, renamePending: [7] },
+    });
+    const sent = jest.spyOn(t.game.pets.act, "abandonPet");
+    const out = await refusal(
+      petSpec.run({ do: "abandon", what: "Rex" }, toolCtx(t)),
+    );
+    expect(sent).not.toHaveBeenCalled();
+    expect(out.reason).toBe("name_pending");
+  });
+
   test("abandon aborted after queueing behind the mutex sends nothing", async () => {
     const t = await world({ petEntity: unit(), pets: named("Fang") });
     const sent = jest.spyOn(t.game.pets.act, "abandonPet");

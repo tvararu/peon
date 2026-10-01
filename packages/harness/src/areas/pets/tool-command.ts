@@ -62,6 +62,7 @@ export type PetsState = {
       }
     | undefined;
   names?: Readonly<Record<number, { name: string; timestamp?: number }>>;
+  renamePending?: readonly number[];
 };
 
 export const SETTLE_MS = 5000;
@@ -138,6 +139,7 @@ export function petUnit(handle: Game, guid: bigint): UnitEntity | undefined {
 export function confirmedPetName(state: PetsState): string | undefined {
   const number = state.pet?.number;
   if (number === undefined) return undefined;
+  if (state.renamePending?.includes(number)) return undefined;
   const entry = state.names?.[number];
   if (entry === undefined) return undefined;
   const renamedAt = state.pet?.nameTimestamp ?? 0;

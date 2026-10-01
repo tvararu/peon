@@ -63,6 +63,7 @@ function state(current: Bar | undefined): PetsState {
     lastRefusal: undefined,
     names: {},
     pet: undefined,
+    renamePending: [],
     stable: undefined,
   };
 }
