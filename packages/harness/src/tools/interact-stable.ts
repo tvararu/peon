@@ -49,7 +49,12 @@ async function waitMoneyMove(
     if (now !== undefined && now !== before) moved.resolve(now);
   });
   try {
-    return await bounded(moved.promise, ctx.signal, MONEY_WAIT_MS, "no money update");
+    return await bounded(
+      moved.promise,
+      ctx.signal,
+      MONEY_WAIT_MS,
+      "no money update",
+    );
   } catch {
     return undefined;
   } finally {
