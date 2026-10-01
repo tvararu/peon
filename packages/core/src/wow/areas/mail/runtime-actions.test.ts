@@ -335,40 +335,36 @@ describe("mail actions", () => {
         await flushMicrotasks();
         await elapse(MAIL_ANSWER_MS);
         expect(await first).toEqual({ status: "unanswered" });
+        expect(rig.handle.state().pending).toEqual({
+          action: "item_taken",
+          id: 102,
+          itemLow: 77,
+        });
+        await expect(rig.handle.act.takeMailItem(102, 78)).rejects.toThrow(
+          "mail_busy",
+        );
+        rig.inject(
+          GameOpcode.SMSG_SEND_MAIL_RESULT,
+          mailSendMailResultBody({ action: 2, count: 5, id: 102, itemLow: 77 }),
+        );
+        await flushMicrotasks();
+        expect(rig.handle.state().pending).toBeUndefined();
+        expect(
+          rig.handle.state().inbox[0]?.items.map((i) => i.guidLow),
+        ).toEqual([78]);
         const second = rig.handle.act.takeMailItem(102, 78);
         await flushMicrotasks();
         let settled = false;
         second.then(() => {
           settled = true;
         });
-        rig.inject(
-          GameOpcode.SMSG_SEND_MAIL_RESULT,
-          mailSendMailResultBody({ action: 2, count: 5, id: 102, itemLow: 77 }),
-        );
         await flushMicrotasks();
         expect(settled).toBe(false);
-        expect(
-          rig.handle.state().inbox[0]?.items.map((i) => i.guidLow),
-        ).toEqual([78]);
-        await expect(rig.handle.act.takeMailItem(102, 78)).rejects.toThrow(
-          "mail_busy",
-        );
-        rig.inject(
-          GameOpcode.SMSG_SEND_MAIL_RESULT,
-          mailSendMailResultBody({ action: 2, id: 102, result: 6 }),
-        );
-        expect(await second).toEqual({
-          status: "refused",
-          why: expect.any(String),
-        });
-        expect(settled).toBe(true);
-        const next = rig.handle.act.takeMailItem(102, 78);
-        await flushMicrotasks();
         rig.inject(
           GameOpcode.SMSG_SEND_MAIL_RESULT,
           mailSendMailResultBody({ action: 2, count: 3, id: 102, itemLow: 78 }),
         );
-        expect(await next).toEqual({ itemLow: 78, status: "ok" });
+        expect(await second).toEqual({ itemLow: 78, status: "ok" });
       } finally {
         rig.dispose();
       }
