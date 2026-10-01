@@ -100,4 +100,21 @@ describe("settle", () => {
       }),
     ).toBe("echo");
   });
+
+  test("a send that rejects after an abort surfaces that error without an unhandled rejection", async () => {
+    const events = channel<number>();
+    const controller = new AbortController();
+    const queued = Promise.withResolvers<void>();
+    const pending = settle({
+      match: () => true,
+      send: () => queued.promise,
+      signal: controller.signal,
+      subscribe: events.subscribe,
+      timeoutMs: 1000,
+    });
+    controller.abort(new Error("stop"));
+    queued.reject(new Error("send failed"));
+    await expect(pending).rejects.toThrow("send failed");
+    expect(events.size()).toBe(0);
+  });
 });
