@@ -5,7 +5,7 @@ import {
   type RollVote,
   type WorldHandle,
 } from "@peon/core";
-
+import { useMeetingStone } from "#harness/puppet/meeting-stone";
 type ArgKind = "string" | "guid" | "number" | readonly string[];
 
 export type PuppetCall = {
@@ -221,6 +221,10 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   uninviteGuid: {
     args: ["string", "string"],
     run: (h, a) => h.raid.act.uninviteGuid(text(a, 0), text(a, 1)),
+  },
+  useMeetingStone: {
+    args: ["string"],
+    run: (h, a) => useMeetingStone(h, text(a, 0)),
   },
   voteKick: {
     args: [["no", "yes"]],
