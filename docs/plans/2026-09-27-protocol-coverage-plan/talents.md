@@ -913,6 +913,7 @@ tail; this unit only reads `specCount` and `activeSpec`.
 | Id | Issue | Ruling |
 |---|---|---|
 | BR-talents-3a-1 | SR3-talents-5 says to subscribe to the `SMSG_TALENTS_INFO` reply after the send; the wave checklist says to subscribe before sending | Coordinator ruling (P2-17): subscribe before the send (the checklist), and release and consume the waiter when building or sending throws. SR3-talents-5 is amended to match. |
+| BR-talents-5a-1 | SR3-talents-22 sets a 5 s `no_reply` for a glyph apply, but the glyph item's own cast takes 5 s (`SMSG_SPELL_START` timer 5000) and the talents reply comes after it | Coordinator ruling (P2-17): the 5 s reply budget starts when the observed cast ends: when the glyph cast's `SMSG_SPELL_START` arrives, the deadline moves to its cast time plus 5 s. SR3-talents-22 is amended to match. |
 
 ## COMPLETE
 
