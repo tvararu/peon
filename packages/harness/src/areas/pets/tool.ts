@@ -11,6 +11,7 @@ import {
   tameFlow,
 } from "#harness/areas/pets/tool-spell";
 import { attackCommand, summonCommand } from "#harness/areas/pets/tool-summon";
+import { talentFlow } from "#harness/areas/pets/tool-talent";
 import type { ToolResult } from "#harness/contract/result";
 import { Refusal } from "#harness/ops/refusal";
 import { defineGameTool } from "#harness/tools/define";
@@ -42,10 +43,11 @@ export const petParams = Type.Object({
         "rename",
         "abandon",
         "tame",
+        "talent",
       ],
       {
         description:
-          'call: bring the pet out. dismiss: send it away. revive: bring a dead pet back. attack: send it at a unit. follow: call it back to you. stay: hold it where it stands. stop: stop its attack and call it back. stance: set its stance. cast: have the pet cast one of its spells on target. autocast: turn a pet spell autocast on or off with what like "Growl off". rename: rename the pet to what. abandon: abandon the pet; what must equal its current name. tame: tame target with Tame Beast.',
+          'call: bring the pet out. dismiss: send it away. revive: bring a dead pet back. attack: send it at a unit. follow: call it back to you. stay: hold it where it stands. stop: stop its attack and call it back. stance: set its stance. cast: have the pet cast one of its spells on target. autocast: turn a pet spell autocast on or off with what like "Growl off". rename: rename the pet to what. abandon: abandon the pet; what must equal its current name. tame: tame target with Tame Beast. talent: learn a pet talent by name or id, or list the points and tree with no what.',
       },
     ),
   ),
@@ -56,7 +58,8 @@ export const petParams = Type.Object({
   ),
   what: Type.Optional(
     Type.String({
-      description: 'For stance: "passive", "defensive" or "aggressive".',
+      description:
+        'For stance: "passive", "defensive" or "aggressive". For talent: the pet talent name or id.',
     }),
   ),
 });
@@ -86,8 +89,9 @@ function petRun(args: PetArgs, ctx: PetCtx): Promise<ToolResult<PetAfter>> {
   if (args.do === "rename") return renameFlow(args.what ?? "", ctx);
   if (args.do === "abandon") return abandonFlow(args.what ?? "", ctx);
   if (args.do === "tame") return tameFlow(args, ctx);
+  if (args.do === "talent") return talentFlow(args.what ?? "", ctx);
   throw new Refusal({
-    detail: `pet cannot ${args.do} yet; the talent verb lands in a later task.`,
+    detail: `pet cannot ${args.do} yet.`,
     next: nextCall("pet"),
     reason: "not_built",
   });
