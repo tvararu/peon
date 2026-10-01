@@ -5,6 +5,10 @@ import {
   parseReadItemResult,
 } from "#wow/areas/items/protocol-read";
 import {
+  parseEnchantmentLog,
+  parseSocketGemsResult,
+} from "#wow/areas/items/protocol-sockets";
+import {
   parseItemCooldown,
   parseItemEnchantTimeUpdate,
   parseItemTimeUpdate,
@@ -35,6 +39,10 @@ export const itemsArea = defineArea({
     "item_enchant_timer",
     "durability_loss_death",
     "proficiency_changed",
+    "enchantment_log",
+    "sockets_updated",
+    "socket_refused",
+    "socket_unanswered",
   ],
   store: (deps, core) => new ItemsStore(deps, core),
   register: (wire, store) => {
@@ -64,6 +72,12 @@ export const itemsArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_SET_PROFICIENCY, (r) =>
       store.receiveProficiency(parseSetProficiency(r)),
+    );
+    wire.on(GameOpcode.SMSG_SOCKET_GEMS_RESULT, (r) =>
+      store.receiveSocketResult(parseSocketGemsResult(r)),
+    );
+    wire.on(GameOpcode.SMSG_ENCHANTMENTLOG, (r) =>
+      store.receiveEnchantmentLog(parseEnchantmentLog(r)),
     );
   },
   runtime: itemsRuntime,

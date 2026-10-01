@@ -295,3 +295,24 @@ describe("ItemsStore timers", () => {
     expect(store.snapshot().timers.timers).toEqual([]);
   });
 });
+
+describe("ItemsStore sockets", () => {
+  test("the socket slice starts empty and dispose clears it", () => {
+    const { store } = setup();
+    expect(store.snapshot().sockets).toEqual({
+      last: undefined,
+      pending: undefined,
+    });
+    store.beginSocket({
+      entry: 25,
+      gems: [OTHER],
+      itemGuid: SWORD,
+      requestedAt: 0,
+    });
+    store.dispose();
+    expect(store.snapshot().sockets).toEqual({
+      last: undefined,
+      pending: undefined,
+    });
+  });
+});

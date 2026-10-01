@@ -12,6 +12,10 @@ import type {
   ReadItemResult,
 } from "#wow/areas/items/protocol-read";
 import type {
+  EnchantmentLogPacket,
+  SocketGemsResultPacket,
+} from "#wow/areas/items/protocol-sockets";
+import type {
   ItemCooldownPacket,
   ItemEnchantTimeUpdatePacket,
   ItemTimeUpdatePacket,
@@ -23,6 +27,12 @@ import {
   ReadSlice,
   type ReadState,
 } from "#wow/areas/items/reads";
+import {
+  type SocketOutcome,
+  type SocketRequest,
+  SocketSlice,
+  type SocketState,
+} from "#wow/areas/items/sockets";
 import {
   type ProficiencyKind,
   proficiencyNames,
@@ -44,6 +54,7 @@ export type ItemsState = {
   move: MoveState;
   read: ReadState;
   timers: TimersState;
+  sockets: SocketState;
 };
 
 type ReadHead = { itemGuid: bigint; entry: number | undefined };
@@ -55,6 +66,8 @@ export type ItemReceived = {
   inventoryType: number;
   wornItemLevel: number | undefined;
 };
+type SocketHead = { itemGuid: bigint; entry: number | undefined };
+
 export type ItemsEvent =
   | ({ type: "move_requested" } & MoveHead)
   | ({ type: "moved" } & MoveHead)
@@ -99,7 +112,24 @@ export type ItemsEvent =
       mask: number;
       added: number;
       names: string[];
-    };
+    }
+  | {
+      type: "enchantment_log";
+      target: bigint;
+      caster: bigint;
+      entry: number;
+      enchantId: number;
+      own: boolean;
+    }
+  | {
+      type: "sockets_updated";
+      itemGuid: bigint;
+      entry: number | undefined;
+      sockets: [number, number, number];
+      bonus: number;
+    }
+  | ({ type: "socket_refused"; reason: string } & SocketHead)
+  | ({ type: "socket_unanswered" } & SocketHead);
 
 function legacyClaims(core: CoreStores): (InventoryClaim | undefined)[] {
   return [core.rewards, core.vendor, core.quests, core.destroy].map((store) =>
@@ -123,6 +153,7 @@ export class ItemsStore {
   private readonly deps: SessionDeps;
   private readonly core: CoreStores;
   private readonly reads = new ReadSlice();
+  private readonly sockets = new SocketSlice();
   private readonly timers = new TimerSlice();
   private pending: MoveRequest | undefined;
   private last: MoveOutcome | undefined;
@@ -138,6 +169,7 @@ export class ItemsStore {
       move: { pending: this.pending, last: this.last },
       read: this.reads.snapshot(),
       timers: this.timers.snapshot(),
+      sockets: this.sockets.snapshot(),
     };
   }
 
@@ -170,7 +202,7 @@ export class ItemsStore {
   }
 
   noteClaims(): void {
-    if (!(this.pending || this.reads.request)) return;
+    if (!(this.pending || this.reads.request || this.sockets.request)) return;
     for (const claim of legacyClaims(this.core))
       if (claim) this.seen.push(claim);
   }
@@ -180,10 +212,25 @@ export class ItemsStore {
     const legacy = [...legacyClaims(this.core), ...this.seen];
     const move = this.pending && { itemGuid: this.pending.itemGuid };
     const read = this.reads.claim();
-    if (move && ownsInventoryFailure(packet, move, [...legacy, read]))
+    const socket = this.sockets.claim();
+    if (move && ownsInventoryFailure(packet, move, [...legacy, read, socket]))
       this.failMove(packet);
-    else if (read && ownsInventoryFailure(packet, read, [...legacy, move]))
+    else if (
+      read &&
+      ownsInventoryFailure(packet, read, [...legacy, move, socket])
+    )
       this.failRead(inventoryResultName(packet.result), packet.result);
+    else if (
+      socket &&
+      ownsInventoryFailure(packet, socket, [...legacy, move, read])
+    )
+      this.settleSocket(
+        this.sockets.fail(
+          "refused",
+          inventoryResultName(packet.result),
+          this.deps.now(),
+        ),
+      );
   }
 
   receiveReadOk({ guid }: ReadItemResult): void {
@@ -222,6 +269,46 @@ export class ItemsStore {
   abandonRead(): void {
     this.reads.abandon();
     this.releaseClaims();
+  }
+
+  beginSocket(request: SocketRequest): void {
+    this.startClaims();
+    this.sockets.begin(request);
+    this.noteClaims();
+  }
+
+  expireSocket(): void {
+    this.settleSocket(
+      this.sockets.fail("unanswered", "server_unanswered", this.deps.now()),
+    );
+  }
+
+  abandonSocket(): void {
+    this.sockets.abandon();
+    this.releaseClaims();
+  }
+
+  receiveSocketResult(packet: SocketGemsResultPacket): void {
+    const outcome = this.sockets.confirm(packet, this.deps.now());
+    if (outcome) this.releaseClaims();
+    this.events.emit({
+      type: "sockets_updated",
+      itemGuid: packet.itemGuid,
+      entry: this.entryOf(packet.itemGuid),
+      sockets: packet.sockets,
+      bonus: packet.bonus,
+    });
+  }
+
+  receiveEnchantmentLog(packet: EnchantmentLogPacket): void {
+    this.events.emit({
+      type: "enchantment_log",
+      target: packet.target,
+      caster: packet.caster,
+      entry: packet.entry,
+      enchantId: packet.enchantId,
+      own: packet.target === this.deps.selfGuid(),
+    });
   }
 
   receiveItemText(response: ItemTextResponse): void {
@@ -317,6 +404,7 @@ export class ItemsStore {
   dispose(): void {
     this.abandon();
     this.reads.clear();
+    this.sockets.clear();
     this.timers.clear();
     this.seen = [];
     this.events.clear();
@@ -327,11 +415,31 @@ export class ItemsStore {
   }
 
   private startClaims(): void {
-    if (!(this.pending || this.reads.request)) this.seen = [];
+    if (!(this.pending || this.reads.request || this.sockets.request))
+      this.seen = [];
   }
 
   private releaseClaims(): void {
-    if (!(this.pending || this.reads.request)) this.seen = [];
+    if (!(this.pending || this.reads.request || this.sockets.request))
+      this.seen = [];
+  }
+
+  private settleSocket(outcome: SocketOutcome | undefined): void {
+    if (!outcome) return;
+    this.releaseClaims();
+    const sockHead = {
+      itemGuid: outcome.request.itemGuid,
+      entry: outcome.request.entry,
+    };
+    this.events.emit(
+      outcome.status === "refused"
+        ? {
+            type: "socket_refused",
+            reason: outcome.reason ?? "unknown",
+            ...sockHead,
+          }
+        : { type: "socket_unanswered", ...sockHead },
+    );
   }
 
   private failMove(packet: Extract<InventoryChangeFailure, { kind: "error" }>) {

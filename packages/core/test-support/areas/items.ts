@@ -279,3 +279,27 @@ export function itemsSetProficiencyBody(
   w.uint32LE(mask);
   return w.finish();
 }
+
+export function itemsSocketGemsResultBody(
+  item: bigint,
+  enchants: readonly [number, number, number, number],
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(item);
+  for (const id of enchants) w.uint32LE(id);
+  return w.finish();
+}
+
+export function itemsEnchantmentLogBody(init: {
+  target: bigint;
+  caster: bigint;
+  entry: number;
+  enchantId: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.target);
+  w.packedGuidBig(init.caster);
+  w.uint32LE(init.entry);
+  w.uint32LE(init.enchantId);
+  return w.finish();
+}
