@@ -30,14 +30,25 @@ const options = {
   gm: { type: "string" },
   hours: { type: "string" },
   owner: { type: "string" },
+  "trace-create": { type: "string" },
   "with-passwords": { type: "boolean" },
 } as const;
 
 export type ListEntry = Omit<Ledger, "password"> & { password?: string };
 
-type CreateArgs = { preset: string; owner?: string; gm?: string };
+type CreateArgs = {
+  preset: string;
+  owner?: string;
+  gm?: string;
+  "trace-create"?: string;
+};
 
-async function create({ preset, owner, gm }: CreateArgs): Promise<number> {
+async function create({
+  preset,
+  owner,
+  gm,
+  "trace-create": traceCreate,
+}: CreateArgs): Promise<number> {
   if (!isPreset(preset)) throw new Error(usage);
   const level = gm === undefined ? undefined : Number(gm);
   if (
@@ -49,6 +60,7 @@ async function create({ preset, owner, gm }: CreateArgs): Promise<number> {
     gm: level,
     owner,
     preset,
+    traceCreateDir: traceCreate,
   });
   console.log(JSON.stringify(session));
   return 0;

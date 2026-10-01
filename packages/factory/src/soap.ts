@@ -50,6 +50,7 @@ export type CreateOptions = {
   preset: Preset;
   owner?: string;
   gm?: number;
+  traceCreateDir?: string;
 };
 export type Session = Names & {
   preset: Preset;
@@ -357,11 +358,22 @@ export async function reserveNames(
   }
   throw new Error(`account create: ${text}`);
 }
+function traceSink(dir: string) {
+  return {
+    bodies: true,
+    row: (row: { opcode: number }) => {
+      void mkdir(dir, { mode: 0o700, recursive: true }).then(() =>
+        appendFile(`${dir}/packets.jsonl`, `${JSON.stringify({ ...row })}\n`),
+      );
+    },
+  };
+}
 
 export async function createAccount({
   preset,
   gm,
   owner,
+  traceCreateDir,
 }: CreateOptions): Promise<Session> {
   const inherited = await inheritedConfig();
   const password = newPassword();
@@ -382,6 +394,9 @@ export async function createAccount({
       const env = (await file.exists()) ? parseEnv(await file.text()) : {};
       await createWired(preset, {
         console: (accounts, command) => consoleCommand(accounts, command),
+        createTrace: traceCreateDir
+          ? () => traceSink(traceCreateDir)
+          : undefined,
         env,
         host: inherited.host,
         loadEntry: loadLedger,

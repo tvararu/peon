@@ -207,6 +207,7 @@ export type { CharEndpoint, Json } from "#factory/realm-service";
 
 export type Wired = {
   console: ConsoleFn;
+  createTrace?: (account: string) => ClientConfig["trace"];
   env: Record<string, string>;
   host: string;
   loadEntry: (
@@ -230,6 +231,9 @@ export async function createWired(preset: Preset, ctx: Wired): Promise<void> {
       host: ctx.host,
       password: ctx.password,
       port: ctx.port,
+      ...(ctx.createTrace?.(n.account) && {
+        trace: ctx.createTrace(n.account),
+      }),
     }),
     login: (config, auth) => worldSession(config, auth),
     loginConfig: async (account) => {
