@@ -1144,6 +1144,12 @@ restricted-licence client; that is a fact about that client, not the
 server, which accepts the opcode (`Handlers/ItemHandler.cpp:62-98` [M,
 design]), so it stays relevant.
 
+## Build rulings
+
+| Id | Issue | Ruling |
+|---|---|---|
+| BR-items-7-1 | `t8-items-socket` uses the `max80` preset, which the shared `PRESETS` list in `packages/harness/src/grader/scenarios.test.ts` lacks, so the scenario gate fails | Coordinator ruling (P2-17): items-7 may add `max80` to that list, one line, no other edit. |
+
 ## COMPLETE
 
 ## Seed rulings (SEED-1)
