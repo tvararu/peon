@@ -223,6 +223,7 @@ export function transportsStateBody(guid: bigint, state: number): Uint8Array {
 export function transportsDestroyBody(guid: bigint): Uint8Array {
   const w = new PacketWriter();
   w.uint64LE(guid);
+  w.uint8(0);
   return w.finish();
 }
 
