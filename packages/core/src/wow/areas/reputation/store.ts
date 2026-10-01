@@ -161,8 +161,9 @@ export class ReputationStore {
   }
 
   setStanding(packet: SetFactionStanding): void {
-    for (const { repListId, standing } of packet.entries)
-      this.applyStanding(repListId, standing, packet.increased);
+    packet.entries.forEach(({ repListId, standing }, position) => {
+      this.applyStanding(repListId, standing, packet.increased, position === 0);
+    });
   }
 
   setVisible(packet: SetFactionVisible): void {
@@ -277,6 +278,7 @@ export class ReputationStore {
     repListId: number,
     delta: number,
     increased: boolean,
+    updated: boolean,
   ): void {
     const stored = this.stored(repListId);
     const unchanged = stored.delta === delta;
@@ -289,7 +291,7 @@ export class ReputationStore {
     stored.delta = delta;
     stored.changedAt = this.now();
     const rank = this.rankAt(repListId, delta);
-    if (!(unchanged && hasPendingWar))
+    if (!(unchanged && hasPendingWar && !updated))
       this.inferAtWar(repListId, stored, oldRank, rank);
     const faction = this.faction(repListId);
     this.events.emit({

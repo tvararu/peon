@@ -55,9 +55,14 @@ reaction wakes the agent outside a run. `initialized`,
   The server does not send it while the character loads
   (`Reputation/ReputationMgr.cpp:254-255`).
 - The store models three standing-driven `AT_WAR` transitions. A fall to
-  Hostile or below sets `AT_WAR` (`Reputation/ReputationMgr.cpp:432-433`).
-  A rise from Hostile to Unfriendly or above clears it only where
-  `CanBeSetAtWar` holds, that is a faction with a reputation list id
+  Hostile or below sets `AT_WAR` (`Reputation/ReputationMgr.cpp:432-433`),
+  and the reputation floor clamps (`Reputation/ReputationMgr.cpp:411-414`)
+  keep a clamped faction at its old standing while `SetAtWar` still fires.
+  The updated faction always rides first in an update packet with other
+  dirty-flag entries appended after (`Reputation/ReputationMgr.cpp:178-209`),
+  while an unchanged appended entry keeps a pending toggle. A rise from
+  Hostile to Unfriendly or above clears it only where `CanBeSetAtWar`
+  holds, that is a faction with a reputation list id
   whose first race mask is 1791 (`Reputation/ReputationMgr.cpp:435-436`,
   `src/server/shared/DataStores/DBCStructure.h:966-969`); a rise on any
   other faction keeps `AT_WAR`. `SetAtWar` refuses to set the flag on a

@@ -411,6 +411,22 @@ describe("reputation store pending flags", () => {
     expect(row(store, BLOODSAIL)?.atWar).toBe(true);
   });
 
+  test("an unchanged standing that heads the packet infers war after a peace request (floor-clamped loss, ReputationMgr.cpp:188-189,409-412,430-433)", async () => {
+    const { store } = await setup();
+    store.setStanding(standing(BLOODSAIL, -700));
+    store.setPendingFlag(BLOODSAIL, "atWar", false);
+    expect(row(store, BLOODSAIL)?.atWar).toBe(false);
+    store.setStanding({
+      entries: [
+        { repListId: BLOODSAIL, standing: -700 },
+        { repListId: SILVERMOON, standing: 300 },
+      ],
+      increased: false,
+    });
+    expect(row(store, BLOODSAIL)?.atWar).toBe(true);
+    expect((store.flagsOf(BLOODSAIL) ?? 0) & FACTION_FLAGS.AT_WAR).not.toBe(0);
+  });
+
   test("a manual peace request after an inferred war keeps a later war declaration", async () => {
     const { seen, store } = await setup();
     store.setStanding(standing(BLOODSAIL, -700));
