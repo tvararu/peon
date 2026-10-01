@@ -319,4 +319,20 @@ describe("spell do:dismount", () => {
     expect((error as Error).message).toBe("human_stop");
     resolve(undefined as never);
   });
+
+  test("an already aborted signal rejects without calling the act", async () => {
+    const t = await world();
+    const dismount = jest.spyOn(t.handle.selfstate.act, "dismount");
+    dismount.mockResolvedValue({ status: "ok" });
+    const stop = new AbortController();
+    stop.abort(new Error("human_stop"));
+    const error = await spellSpec
+      .run({ do: "dismount" }, toolCtx(t, stop.signal))
+      .then(
+        () => undefined,
+        (thrown: unknown) => thrown,
+      );
+    expect((error as Error).message).toBe("human_stop");
+    expect(dismount).not.toHaveBeenCalled();
+  });
 });
