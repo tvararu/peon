@@ -22,9 +22,17 @@ export const interactParams = Type.Object({
         "repair",
         "bind",
         "buyback",
+        "reset_talents",
       ],
       { description: "Default talk: list what this NPC offers." },
     ),
+  ),
+  max_cost: Type.Optional(
+    Type.Integer({
+      description:
+        "The most copper reset_talents may pay. Without it the step only names the cost.",
+      minimum: 0,
+    }),
   ),
   npc: Type.String({
     description:

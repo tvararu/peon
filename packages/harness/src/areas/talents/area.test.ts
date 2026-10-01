@@ -60,19 +60,44 @@ describe("talents harness rules", () => {
     expect(rows[0]?.text).toBe("Learned talent 1862 rank 2.");
   });
 
-  test("info with an empty diff writes nothing", () => {
-    expect(areaDrafts(areaRuleSet(), talents(EMPTY_INFO), atLevel(12))).toEqual(
-      [],
+  test("wipe_offer gives one talents/wipe_offer row naming the cost", () => {
+    const rows = areaDrafts(
+      areaRuleSet(),
+      talents({ cost: 10_000, npcGuid: 0x40n, type: "wipe_offer" }),
+      atLevel(12),
     );
+    expect(rows.map((row) => [row.event, row.data])).toEqual([
+      ["talents/wipe_offer", { cost: 10_000 }],
+    ]);
+    expect(rows[0]?.text).toBe("Talent reset offered for 1g by u64.");
   });
 
-  test("pet_info writes nothing", () => {
+  test("a reset info gives talents/reset and no points row for the same packet", () => {
+    const rows = areaDrafts(
+      areaRuleSet(),
+      talents({
+        ...EMPTY_INFO,
+        pointsAfter: 3,
+        pointsBefore: 0,
+        talents: [{ from: 1, talentId: 124, to: 0 }],
+      }),
+      atLevel(12),
+    );
+    expect(rows.map((row) => [row.event, row.data])).toEqual([
+      ["talents/reset", { freePoints: 3 }],
+    ]);
+    expect(rows[0]?.text).toBe("Talents reset. 3 points free.");
+  });
+
+  test("info with unchanged ranks but the same free points writes nothing", () => {
     expect(
-      areaDrafts(
-        areaRuleSet(),
-        talents({ freePoints: 0, talents: [], type: "pet_info" }),
-        atLevel(12),
-      ),
+      areaDrafts(areaRuleSet(), talents({ ...EMPTY_INFO }), atLevel(12)),
+    ).toEqual([]);
+  });
+
+  test("wipe_refused writes nothing for the step to report", () => {
+    expect(
+      areaDrafts(areaRuleSet(), talents({ type: "wipe_refused" }), atLevel(12)),
     ).toEqual([]);
   });
 });
