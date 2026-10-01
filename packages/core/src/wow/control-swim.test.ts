@@ -77,6 +77,23 @@ describe("ControlRuntime.setSwimming (AC Handlers/MovementHandler.cpp:362-414)",
     }
   });
 
+  test("a jump into the water ends the fall before the swim starts", () => {
+    jest.useFakeTimers();
+    try {
+      const { runtime, sent } = setup();
+      runtime.jump();
+      expect(runtime.snapshot().airborne).toBe(true);
+      sent.length = 0;
+      runtime.setSwimming(true);
+      const swim = decodeMove(sent.at(-1));
+      expect(swim.opcode).toBe(GameOpcode.MSG_MOVE_START_SWIM);
+      expect(swim.flags & MovementFlag.FALLING).toBe(0);
+      expect(runtime.snapshot().airborne).toBe(false);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test("ground moves are refused while swimming", () => {
     const { runtime } = setup();
     runtime.setSwimming(true);

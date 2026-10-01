@@ -2,6 +2,7 @@ import { describe, expect, jest, test } from "bun:test";
 import type { WorldHandle } from "@peon/core";
 import {
   fakeAwait,
+  fakeMsUntilSettled,
   fakeRejection,
   withFakeTimers,
 } from "@peon/core/test-support/fake-time";
@@ -58,6 +59,16 @@ describe("selfstate-swim flow", () => {
         "pitch:0.25",
         "swim:false",
       ]);
+    }));
+
+  test("lead waits before the first send", () =>
+    withFakeTimers(async () => {
+      const { calls, ctx } = context({ hold: "100", lead: "3000" });
+      const run = flow.run(ctx);
+      await fakeMsUntilSettled(Promise.race([run, Bun.sleep(2500)]), 2600);
+      expect(calls).toEqual([]);
+      await fakeAwait(run, 4000);
+      expect(calls[0]).toBe("swim:true");
     }));
 
   test("stops swimming when a pitch send is refused", () =>
@@ -133,6 +144,7 @@ describe("selfstate-swim flow", () => {
   test.each([
     [{ hold: "0" }, "hold="],
     [{ hold: "abc" }, "hold="],
+    [{ lead: "-1" }, "lead="],
     [{ mode: "dive" }, "mode=swim or mode=fly"],
     [{ mode: "fly" }, "spell="],
     [{ mode: "fly", spell: "x" }, "spell="],
