@@ -1,3 +1,4 @@
+import { type MovementInfo, writeMovementInfo } from "#wow/protocol/movement";
 import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 export type BindPoint = {
@@ -134,5 +135,17 @@ export function buildActivateTaxiExpress(
   w.uint64LE(npc);
   w.uint32LE(nodes.length);
   for (const node of nodes) w.uint32LE(node);
+  return w.finish();
+}
+
+export function buildMoveSplineDone(
+  guid: bigint,
+  info: MovementInfo,
+  splineId: number,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(guid);
+  writeMovementInfo(w, info);
+  w.uint32LE(splineId);
   return w.finish();
 }

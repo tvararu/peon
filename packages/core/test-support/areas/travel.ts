@@ -1,6 +1,6 @@
 import { dbcFiles, packDbc } from "#test-support/dbc";
 import type { DbcSource } from "#wow/dbc";
-import { PacketWriter } from "#wow/protocol/packet";
+import { PacketWriter, type Vec3 } from "#wow/protocol/packet";
 
 export function travelActivateTaxiReplyBody(code: number): Uint8Array {
   const w = new PacketWriter();
@@ -118,4 +118,41 @@ export function travelTaxiDbc(init: {
   ]);
   for (const file of init.omit ?? []) files.delete(file);
   return dbcFiles(files);
+}
+
+const FLIGHT_SPLINE_FLAGS = 0x00_04_a0_00;
+
+export function travelSelfFlightSplineBody(init: {
+  guid: bigint;
+  points: readonly Vec3[];
+  durationMs: number;
+  splineId: number;
+}): Uint8Array {
+  const [start, ...extra] = init.points;
+  if (!start) throw new Error("a flight spline needs a start point");
+  const w = new PacketWriter();
+  w.packedGuidBig(init.guid);
+  w.uint8(0);
+  w.vec3(start);
+  w.uint32LE(init.splineId);
+  w.uint8(0);
+  w.uint32LE(FLIGHT_SPLINE_FLAGS);
+  w.uint32LE(init.durationMs);
+  w.uint32LE(extra.length);
+  for (const point of extra) w.vec3(point);
+  return w.finish();
+}
+
+export function travelSelfFlightStopBody(init: {
+  guid: bigint;
+  start: Vec3;
+  splineId: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.guid);
+  w.uint8(0);
+  w.vec3(init.start);
+  w.uint32LE(init.splineId);
+  w.uint8(1);
+  return w.finish();
 }

@@ -9,6 +9,7 @@ import type {
   MovementInfo,
   SpeedAck,
 } from "#wow/protocol/movement";
+import type { MonsterMove } from "#wow/protocol/monster-move";
 
 export const LOGIN_TIMEOUT_MS = 10_000;
 
@@ -39,6 +40,7 @@ export type SelfEvent =
   | { type: "can_fly"; counter: number; enable: boolean }
   | { type: "move_flag"; flag: MoveFlag; enable: boolean; counter: number }
   | { type: "collision_height"; counter: number; height: number }
+  | { type: "spline"; move: MonsterMove }
   | { type: "observed"; observation: SelfObservation };
 
 export class SelfStore {

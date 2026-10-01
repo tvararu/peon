@@ -12,6 +12,7 @@ import {
   buildActivateTaxiExpress,
   buildBinderActivate,
   buildEnableTaxi,
+  buildMoveSplineDone,
   buildSetTaxiBenchmarkMode,
   buildTaxiNodeStatusQuery,
   buildTaxiQueryAvailableNodes,
@@ -22,6 +23,7 @@ import {
   parseShowTaxiNodes,
   parseTaxiNodeStatus,
 } from "#wow/areas/travel/protocol";
+import { writeMovementInfo } from "#wow/protocol/movement";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 const INNKEEPER = 0xf1_30_00_3e_4a_00_12_34n;
@@ -195,7 +197,6 @@ describe("travel flight builders", () => {
     writer.uint32LE(82);
     expect(buildActivateTaxi(TAXI_MASTER, 83, 82)).toEqual(writer.finish());
   });
-
   test("CMSG_ACTIVATETAXIEXPRESS writes guid, count and nodes (TaxiHandler.cpp:165-194; cmsg_activatetaxiexpress.wowm:11-17)", () => {
     const writer = new PacketWriter();
     writer.uint64LE(TAXI_MASTER);
@@ -206,5 +207,25 @@ describe("travel flight builders", () => {
     expect(buildActivateTaxiExpress(TAXI_MASTER, [83, 200, 82])).toEqual(
       writer.finish(),
     );
+  });
+
+  test("CMSG_MOVE_SPLINE_DONE writes guid, movement info and spline id (TaxiHandler.cpp:208-214)", () => {
+    const info = {
+      extraFlags: 0,
+      fall: undefined,
+      fallTime: 0,
+      flags: 0,
+      orientation: 0.5,
+      time: 42,
+      transport: undefined,
+      x: 9400.5,
+      y: -6800.25,
+      z: 83.5,
+    };
+    const writer = new PacketWriter();
+    writer.packedGuidBig(TAXI_MASTER);
+    writeMovementInfo(writer, info);
+    writer.uint32LE(41);
+    expect(buildMoveSplineDone(TAXI_MASTER, info, 41)).toEqual(writer.finish());
   });
 });
