@@ -115,6 +115,7 @@ export const reputationHarness = defineHarnessArea({
               text: `You discovered the faction ${event.name ?? `faction ${event.repListId}`}.`,
             },
           ];
+        case "flags_pending":
         case "watched_changed":
           return [];
         default:
@@ -122,5 +123,5 @@ export const reputationHarness = defineHarnessArea({
       }
     },
   }),
-  worldActs: [],
+  worldActs: ["setAtWar", "setInactive", "setWatched"],
 });
