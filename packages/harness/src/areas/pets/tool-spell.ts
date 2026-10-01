@@ -121,6 +121,16 @@ type CastWatch = {
   ticks: number;
 };
 
+function noteFailure(watch: CastWatch, reason: string): boolean {
+  if (reason === "out_of_range" || reason === "line_of_sight")
+    watch.chasing = true;
+  else if (reason !== "dont_report") {
+    watch.failure = reason;
+    return true;
+  }
+  return false;
+}
+
 function castWatcher(handle: Game, spell: number) {
   const before = cooldownAt(handle, spell);
   const watch: CastWatch = {
@@ -140,14 +150,8 @@ function castWatcher(handle: Game, spell: number) {
     }
     if (!("area" in event) || event.area !== "pets") return false;
     const inner = event.event;
-    if (inner.type === "cast_failed" && inner.spell === spell) {
-      if (inner.reason === "out_of_range" || inner.reason === "line_of_sight") {
-        watch.chasing = true;
-        return false;
-      }
-      watch.failure = inner.reason;
-      return true;
-    }
+    if (inner.type === "cast_failed" && inner.spell === spell)
+      return noteFailure(watch, inner.reason);
     return inner.type === "bar" && cooled();
   };
   return { cooled, match, watch };
