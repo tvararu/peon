@@ -1,6 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
 import type { NearbyRow } from "@peon/core";
+import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
 import { createRefTable } from "#harness/ops/refs";
 import { createSightings } from "#harness/ops/sightings";
 import { socialTool } from "#harness/tools/social";
@@ -173,9 +173,13 @@ describe("social do:emote", () => {
     controller.abort(new Error("stopped"));
     const act = spyOn(handle.emotes.act, "textEmote");
     const tool = socialTool.definition(rt);
-    const out = await runTool(tool, { do: "emote", what: "wave" }, {
-      signal: controller.signal,
-    });
+    const out = await runTool(
+      tool,
+      { do: "emote", what: "wave" },
+      {
+        signal: controller.signal,
+      },
+    );
     expect(out.details.result.status).toBe("FAILED");
     expect(out.text).toContain("stopped");
     expect(act).not.toHaveBeenCalled();
