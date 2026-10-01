@@ -5,8 +5,8 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x1b7` | `CMSG_BANKER_ACTIVATE` | client | missing |  |
-| `0x1b9` | `CMSG_BUY_BANK_SLOT` | client | missing |  |
-| `0x1ba` | `SMSG_BUY_BANK_SLOT_RESULT` | server | missing |  |
-| `0x282` | `CMSG_AUTOSTORE_BANK_ITEM` | client | missing |  |
-| `0x283` | `CMSG_AUTOBANK_ITEM` | client | missing |  |
+| `0x1b7` | `CMSG_BANKER_ACTIVATE` | client | handled |  |
+| `0x1b9` | `CMSG_BUY_BANK_SLOT` | client | handled |  |
+| `0x1ba` | `SMSG_BUY_BANK_SLOT_RESULT` | server | handled |  |
+| `0x282` | `CMSG_AUTOSTORE_BANK_ITEM` | client | handled |  |
+| `0x283` | `CMSG_AUTOBANK_ITEM` | client | handled |  |

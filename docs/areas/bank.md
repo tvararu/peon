@@ -1,0 +1,38 @@
+# bank
+
+The `bank` area lets the character open the bank, move items between the bags and the bank, and buy bank bag slots. World-service code reads it through `session.areas.bank.state()`: `banker` (the banker guid from the last `SMSG_SHOW_BANK`), `bagSlots` (bought slots, byte 2 of `PLAYER_BYTES_2`), `pending` (the open, move or slot purchase in flight), `lastSlotResult` and `lastOutcome`. The area emits `opened` on every show-bank, `moved` when a deposit or withdraw guid reaches the other side, `slot_bought` on every slot result, `refused`, `no_change` on result 59, and `unanswered` after 5 seconds of silence.
+
+The move acts need an open banker in range:
+
+- `openBank(npc)` sends `CMSG_BANKER_ACTIVATE` and settles `ok` on the matching `SMSG_SHOW_BANK`. Out of range sends nothing and settles `unanswered`.
+- `deposit(bag, slot)` sends `CMSG_AUTOBANK_ITEM` and settles `ok` when the item guid reaches a bank position. A bank source is refused locally.
+- `withdraw(bag, slot)` sends `CMSG_AUTOSTORE_BANK_ITEM` and settles `ok` when the item guid returns to the bags. A carried source is refused locally.
+- `buyBankSlot()` sends `CMSG_BUY_BANK_SLOT` and settles on `SMSG_BUY_BANK_SLOT_RESULT` with its name.
+
+Each act settles as `ok`, `refused` with the server's reason, `no_change`, or `unanswered` after 5 seconds of silence.
+
+## Wire notes
+
+- `CMSG_BANKER_ACTIVATE` is one `uint64` banker guid (`Handlers/BankHandler.cpp:44-62`). The server remembers the banker for the later moves.
+- `CMSG_AUTOBANK_ITEM` is `uint8` bag, `uint8` slot (`Server/Packets/BankPackets.cpp:20-24`, `AutoBankItem::Read`; `Handlers/BankHandler.cpp:64`). An empty source position is silent (`Handlers/BankHandler.cpp:75-77`).
+- `CMSG_AUTOSTORE_BANK_ITEM` is `uint8` bag, `uint8` slot (`Server/Packets/BankPackets.cpp:26-30`, `AutoStoreBankItem::Read`; `Handlers/BankHandler.cpp:98`). The same opcode moves both ways: the source position decides, `IsBankPos` (`Handlers/BankHandler.cpp:98`, `HandleAutoStoreBankItemOpcode`).
+- Result 59 (`EQUIP_ERR_NONE`) is sent only when the item is already where `CanBankItem` would put it (`Handlers/BankHandler.cpp:84`, `CanBankItem` in `HandleAutoBankItemOpcode`); the area settles it as `no_change`, not a refusal.
+- `CMSG_BUY_BANK_SLOT` is one `uint64` banker guid (`Handlers/BankHandler.cpp:143-184`). Away from a banker the server answers `not_banker` (`Handlers/BankHandler.cpp:146-151`); without enough money it answers `insufficient_funds` (`Handlers/BankHandler.cpp:168-175`); with every slot bought it answers `too_many` (`Handlers/BankHandler.cpp:156-164`).
+- `SMSG_BUY_BANK_SLOT_RESULT` is one `uint32` with names `too_many`, `insufficient_funds`, `not_banker`, `ok` (`Entities/Player/Player.h:112-115`).
+- The bank roots are `PLAYER_FIELD_INV` words for slots 39 to 66 (`region: "bank"`) and 67 to 73 (`region: "bankbag"`), with `BANK_FIELD_RANGE` in the self ranges (`Handlers/BankHandler.cpp:64`, `HandleAutoBankItemOpcode`). Bank items and bank bags reach the client at login (`Handlers/BankHandler.cpp:64`, `m_currentBankerGUID` in `HandleAutoBankItemOpcode`). `freeSlots` still counts carried bags only.
+- `bagSlots` is byte 2 of `PLAYER_BYTES_2` (`Handlers/BankHandler.cpp:143`, `GetBankBagSlotCount` in `HandleBuyBankSlotOpcode`).
+- `SMSG_SHOW_BANK` is owned by the legacy quest handlers (`gameplay-handlers.ts:208`) and `SMSG_INVENTORY_CHANGE_FAILURE` by the legacy loot handlers (`gameplay-handlers.ts:335`); the area peeks both and leaves their owners in place. A pending `talk` answered by a `bank` window settles without `lastError` because a bank opened through the bank area sets no giver there.
+
+## Capabilities row
+
+(to be added by economy-10 with the bank verbs.)
+
+## Proof
+
+| Opcode | Proof | Evidence | Source |
+|---|---|---|---|
+| `CMSG_BANKER_ACTIVATE` | `live` | probe flow `bank-moves` at the Silvermoon bank (Novia, entry 16615) on an `eversong10` character, exit 0; `SMSG_SHOW_BANK` follows and the act settles `ok` | `Handlers/BankHandler.cpp:44-62` |
+| `CMSG_AUTOBANK_ITEM` | `rig` | rig test only: staged cloth arrives by mail and the mail area has no take acts, so no live deposit was possible; the settle path is the same `observeInventory` guid match as withdraw | `Server/Packets/BankPackets.cpp:20-24` |
+| `CMSG_AUTOSTORE_BANK_ITEM` | `rig` | rig test only, same staging blocker as deposit | `Server/Packets/BankPackets.cpp:26-30` |
+| `CMSG_BUY_BANK_SLOT` | `live` | probe flow `bank-moves --arg buy=1`, exit 0; `SMSG_BUY_BANK_SLOT_RESULT` ok follows and truth money falls 50000 to 49000 | `Handlers/BankHandler.cpp:143-184` |
+| `SMSG_BUY_BANK_SLOT_RESULT` | `live` (ok) + `rig` (refusals) | ok live as above; `not_banker`, `insufficient_funds`, `too_many` are rig tests | `Entities/Player/Player.h:112-115` |
