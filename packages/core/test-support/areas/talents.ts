@@ -169,3 +169,25 @@ export function talentsCatalogFiles(): Map<string, Uint8Array> {
     ],
   ]);
 }
+
+export function talentsWipeOfferBody(init: {
+  npcGuid: bigint;
+  cost: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.npcGuid);
+  w.uint32LE(init.cost);
+  return w.finish();
+}
+
+export function talentsBuyFailedBody(init: {
+  vendorGuid?: bigint;
+  itemId?: number;
+  result: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.vendorGuid ?? 0n);
+  w.uint32LE(init.itemId ?? 0);
+  w.uint8(init.result);
+  return w.finish();
+}
