@@ -5,6 +5,8 @@ import {
   petsStableResultBody,
 } from "#test-support/areas/pets";
 import { elapse, withFakeTimers } from "#test-support/fake-time";
+import { testStores } from "#test-support/session-fixtures";
+import { createModuleRuntimes, looseModule } from "#wow/areas/compose";
 import {
   buildBuyStableSlot,
   buildListStabledPets,
@@ -13,10 +15,13 @@ import {
   buildStableSwapPet,
   buildUnstablePet,
 } from "#wow/areas/pets/protocol";
+import { testPort } from "#wow/areas/port";
+import { AREAS } from "#wow/areas/registry";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 const NPC = 0xf1_30_00_41_11_00_00_01n;
 const OK = { ok: true } as const;
+type StableActsLike = { stablePet: (npc: bigint) => unknown };
 
 function rig() {
   const r = areaRig("pets", { selfGuid: 0x2an });
@@ -205,6 +210,49 @@ describe("pets stable runtime", () => {
         expect(seen).toEqual([]);
       } finally {
         off();
+      }
+    });
+  });
+
+  test("a throwing send rethrows, releases the wait and allows the next request", async () => {
+    await withFakeTimers(async () => {
+      const failure = new Error("no world socket");
+      const flag = { fail: true };
+      const port = testPort({
+        send: () => {
+          if (flag.fail) throw failure;
+        },
+      });
+      const core = testStores({
+        getEntity: () => undefined,
+        now: port.now,
+        selfGuid: () => 0x2an,
+        send: port.send,
+      });
+      const lifetime = createModuleRuntimes(
+        port,
+        [looseModule(AREAS["pets"])],
+        { pets: core.areas.pets },
+        core,
+      );
+      const acts = lifetime.runtimes["pets"]?.act as StableActsLike;
+      const events: string[] = [];
+      core.areas.pets.onEvent((event) => events.push(event.type));
+      const unhandled: unknown[] = [];
+      const onUnhandled = (reason: unknown) => unhandled.push(reason);
+      process.on("unhandledRejection", onUnhandled);
+      try {
+        expect(() => acts.stablePet(NPC)).toThrow(failure);
+        await elapse(6000);
+        expect(events).toEqual([]);
+        expect(unhandled).toEqual([]);
+        flag.fail = false;
+        expect(acts.stablePet(NPC)).toEqual(OK);
+        await elapse(6000);
+        expect(events).toEqual(["unanswered"]);
+      } finally {
+        process.off("unhandledRejection", onUnhandled);
+        lifetime.dispose();
       }
     });
   });

@@ -146,7 +146,6 @@ function renamePetAct(
     scope.abort();
   };
   pending.abort = onAbort;
-  ctx.send(GameOpcode.CMSG_PET_RENAME, buildPetRename(bar.guid, name));
   void waiter.then(
     () => undefined,
     (error: unknown) => {
@@ -155,6 +154,13 @@ function renamePetAct(
         store.unanswered();
     },
   );
+  try {
+    ctx.send(GameOpcode.CMSG_PET_RENAME, buildPetRename(bar.guid, name));
+  } catch (error) {
+    pending.abort = () => undefined;
+    onAbort();
+    throw error;
+  }
   return { ok: true };
 }
 
@@ -185,8 +191,6 @@ function waitStable(
     waiter.catch(() => undefined).then(() => undefined);
     scope.abort();
   };
-  options.pending.abort = onAbort;
-  options.send();
   void waiter.then(
     () => undefined,
     (error: unknown) => {
@@ -195,6 +199,14 @@ function waitStable(
         store.unansweredStable();
     },
   );
+  options.pending.abort = onAbort;
+  try {
+    options.send();
+  } catch (error) {
+    options.pending.abort = () => undefined;
+    onAbort();
+    throw error;
+  }
   return { ok: true };
 }
 function stableActs(
