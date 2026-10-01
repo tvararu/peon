@@ -98,7 +98,21 @@ function bankSlots(inventory: InventoryState): InventorySlot[] {
 
 function inBank(region: string): boolean {
   return (
-    region === "bank" || region === "bankbag" || region === "bank_bag_item"
+    region === "bank" ||
+    region === "bankbag" ||
+    region === "bank_bag_item" ||
+    region === "equipment"
+  );
+}
+
+function isCarried(region: string): boolean {
+  return (
+    region === "backpack" ||
+    region === "bag_item" ||
+    region === "bag" ||
+    region === "equipment" ||
+    region === "keyring" ||
+    region === "currency"
   );
 }
 
@@ -151,7 +165,9 @@ function moveTargets(
     (slot) =>
       slot.status === "occupied" &&
       slot.item.entry === request.entry &&
-      (request.kind === "deposit" ? inBank(slot.region) : !inBank(slot.region)),
+      (request.kind === "deposit"
+        ? inBank(slot.region)
+        : isCarried(slot.region)),
   );
 }
 
@@ -208,7 +224,7 @@ export class BankStore {
 
   receiveShowBank(banker: bigint): void {
     this.banker = banker;
-    if (this.request?.kind === "open")
+    if (this.request?.kind === "open" && this.request.npc === banker)
       this.settle({ status: "ok" }, { banker, type: "opened" });
     else this.events.emit({ banker, type: "opened" });
   }

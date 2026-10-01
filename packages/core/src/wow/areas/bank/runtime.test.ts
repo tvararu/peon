@@ -19,6 +19,19 @@ function guidsOf(rig: { sent: readonly { body: Uint8Array | undefined }[] }) {
   return rig.sent.map((packet) => packet.body);
 }
 
+function breakBankSend(rig: { sent: readonly unknown[] }): () => void {
+  const sent = rig.sent as unknown as {
+    push: (...items: never[]) => number;
+  };
+  const original = sent.push;
+  sent.push = () => {
+    throw new Error("socket closed");
+  };
+  return () => {
+    sent.push = original;
+  };
+}
+
 describe("bank store", () => {
   test("SMSG_SHOW_BANK sets the banker and emits opened; the legacy quest store still sees it", () => {
     const { rig } = bankScene();
@@ -337,6 +350,90 @@ describe("bank acts", () => {
     } finally {
       void bankSetRoot;
       void bankClear;
+    }
+  });
+
+  test("depositing a bag does not settle on an identical bag already in a bank-bag slot", async () => {
+    const spare = BANK_CLOTH + 31n;
+    const equipped = BANK_CLOTH + 32n;
+    const { rig } = bankScene((seeded) => {
+      seeded.put(255, 19, { bagSlots: 4, entry: 4500, guid: spare });
+      seeded.put(255, 67, { bagSlots: 4, entry: 4500, guid: equipped });
+    });
+    try {
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      const pending = rig.handle.act.deposit(255, 19);
+      await flush();
+      rig.touch();
+      expect(rig.handle.state().pending?.kind).toBe("deposit");
+      rig.dispose();
+      await expect(pending).rejects.toThrow();
+    } finally {
+      void bankSetRoot;
+      void bankClear;
+    }
+  });
+
+  test("withdrawing a bag does not settle on an identical bag already equipped", async () => {
+    const stored = BANK_CLOTH + 33n;
+    const equipped = BANK_CLOTH + 34n;
+    const { rig } = bankScene((seeded) => {
+      seeded.put(255, 19, { bagSlots: 4, entry: 4500, guid: equipped });
+      seeded.put(255, 67, { bagSlots: 4, entry: 4500, guid: stored });
+    });
+    try {
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      const pending = rig.handle.act.withdraw(255, 67);
+      await flush();
+      rig.touch();
+      expect(rig.handle.state().pending?.kind).toBe("withdraw");
+      rig.dispose();
+      await expect(pending).rejects.toThrow();
+    } finally {
+      void bankSetRoot;
+      void bankClear;
+    }
+  });
+
+  test("a delayed reply from banker A does not settle the retry on banker B", async () => {
+    jest.useFakeTimers();
+    const { rig } = bankScene();
+    const bankerB = BANK_BANKER + 1n;
+    try {
+      const first = rig.handle.act.openBank(BANK_BANKER);
+      jest.advanceTimersByTime(5000);
+      expect(await first).toEqual({ status: "unanswered" });
+      const second = rig.handle.act.openBank(bankerB);
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      expect(rig.handle.state().pending).toMatchObject({
+        kind: "open",
+        npc: bankerB,
+      });
+      expect(rig.handle.state().banker).toBe(BANK_BANKER);
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(bankerB));
+      expect(await second).toEqual({ status: "ok" });
+      expect(rig.handle.state().banker).toBe(bankerB);
+    } finally {
+      jest.useRealTimers();
+      rig.dispose();
+    }
+  });
+
+  test("a throwing send rejects and leaves no reply timer armed", async () => {
+    jest.useFakeTimers();
+    const { rig } = bankScene();
+    const restore = breakBankSend(rig);
+    try {
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      await expect(rig.handle.act.deposit(255, 25)).rejects.toThrow(
+        "socket closed",
+      );
+      expect(jest.getTimerCount()).toBe(0);
+      expect(rig.handle.state().pending).toBeUndefined();
+    } finally {
+      restore();
+      jest.useRealTimers();
+      rig.dispose();
     }
   });
 });

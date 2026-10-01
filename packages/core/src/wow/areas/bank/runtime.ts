@@ -72,18 +72,20 @@ async function send(
   packet: readonly [opcode: number, body: Uint8Array],
 ): Promise<BankResult> {
   env.store.begin(request);
+  const cancel = new AbortController();
   const settled = env.ctx.until(
     (event) =>
       SETTLED.has(event.type) && env.store.resultOf(request) !== undefined,
     {
-      signal: env.ctx.signal,
+      signal: AbortSignal.any([env.ctx.signal, cancel.signal]),
       timeoutMs: BANK_ANSWER_MS,
     },
   );
+  settled.catch(ignoreFailure);
   try {
     env.ctx.send(...packet);
   } catch (error) {
-    settled.catch(ignoreFailure);
+    cancel.abort();
     env.store.abandon();
     throw error;
   }
@@ -119,6 +121,23 @@ function allSlots(inventory: InventoryState): InventorySlot[] {
   return [...inventory.slots, ...(inventory.bank?.slots ?? [])];
 }
 
+function eligibleRegion(kind: "deposit" | "withdraw", region: string): boolean {
+  if (kind === "deposit")
+    return (
+      region === "bank" ||
+      region === "bankbag" ||
+      region === "bank_bag_item" ||
+      region === "equipment"
+    );
+  return (
+    region === "backpack" ||
+    region === "bag_item" ||
+    region === "bag" ||
+    region === "equipment" ||
+    region === "keyring" ||
+    region === "currency"
+  );
+}
 function mergeTargets(
   inventory: InventoryState,
   kind: "deposit" | "withdraw",
@@ -126,10 +145,6 @@ function mergeTargets(
   entry: number | undefined,
 ): { toCount: number | undefined }[] {
   if (guid === undefined || entry === undefined) return [];
-  const eligible = (region: string): boolean =>
-    kind === "deposit"
-      ? region === "bank" || region === "bank_bag_item"
-      : region === "backpack" || region === "bag_item";
   return allSlots(inventory)
     .filter(
       (
@@ -138,7 +153,7 @@ function mergeTargets(
         candidate.status === "occupied" &&
         candidate.guid !== guid &&
         candidate.item.entry === entry &&
-        eligible(candidate.region),
+        eligibleRegion(kind, candidate.region),
     )
     .map((target) => ({ toCount: target.item.count }));
 }
