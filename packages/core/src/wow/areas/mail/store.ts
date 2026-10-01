@@ -72,6 +72,16 @@ export type MailEvent =
   | { type: "new_mail" }
   | { type: "mailbox_shown"; mailbox: bigint }
   | { type: "result"; result: SendMailResult };
+type MailResultKey = {
+  readonly action: MailPending["action"];
+  readonly id: number;
+};
+
+function resultKeyOf(result: SendMailResult): MailResultKey {
+  if (result.status === "equip_error")
+    return { action: "item_taken", id: result.id };
+  return { action: result.action, id: result.id };
+}
 
 function applyResult(
   kept: MailEntry[],
@@ -85,6 +95,7 @@ function applyResult(
   else if (result.action === "item_taken" && "itemLow" in result)
     kept[at] = {
       ...found,
+      cod: 0,
       items: found.items.filter((item) => item.guidLow !== result.itemLow),
     };
   else if (result.action === "made_permanent")
@@ -188,13 +199,20 @@ export class MailStore {
     this.pending = pending;
   }
 
-  releaseAction(): void {
+  releaseAction(pending: MailPending): void {
+    if (
+      this.pending?.action !== pending.action ||
+      this.pending.id !== pending.id
+    )
+      return;
     this.pending = undefined;
   }
 
   receiveSendMailResult(result: SendMailResult): void {
     this.lastResult = result;
-    this.pending = undefined;
+    const key = resultKeyOf(result);
+    if (this.pending?.action === key.action && this.pending.id === key.id)
+      this.pending = undefined;
     if (result.status !== "ok") {
       this.events.emit({ result, type: "result" });
       return;
