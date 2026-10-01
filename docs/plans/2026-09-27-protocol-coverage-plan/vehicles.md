@@ -786,6 +786,7 @@ Related opcodes that other units own: `CMSG_MOVE_SPLINE_DONE` (`travel`),
 |---|---|---|
 | BR-vehicles-4-1 | Telling a driven vehicle's root from the passenger's boarding root needs the root packet's GUID, which `packages/core/src/wow/movement-handlers.ts` (leased to vehicles-7 only) discards | Coordinator ruling (P2-17): vehicles-4 may keep `parseMoveCounter(r).guid` in the `force_root` and `force_unroot` self events of `movement-handlers.ts`, nothing else; the lease then passes to vehicles-7 as planned. |
 | BR-vehicles-4-2 | Carrying the root packet's GUID (BR-vehicles-4-1) also changes the compound root event the self-state store emits (`packages/core/src/wow/areas/selfstate/store.ts:124`) and its test (`store.test.ts:135`) | Coordinator ruling (P2-17): vehicles-4 may make those two companion edits (pass the GUID through, assert it), nothing else in the self-state files. |
+| BR-vehicles-4-3 | Routing forced movement flags (gravity, hover, water walk, feather fall) for the driven vehicle needs the packet GUID carried through the self-state store and its tests, beyond BR-vehicles-4-2's single emitter | Coordinator ruling (P2-17): vehicles-4 may pass the GUID through the self-state store's move-flag emitters (`packages/core/src/wow/areas/selfstate/store.ts`) and update their expectations in `store.test.ts`, nothing else in self-state files. `self-store.ts`, `control-feed.ts`, `control.ts`, `control-sync.ts` and the new sibling `control-sync-acks.ts` ride its control lease; `control-sync.ts` ends under 480 non-blank lines. |
 
 ## COMPLETE
 
