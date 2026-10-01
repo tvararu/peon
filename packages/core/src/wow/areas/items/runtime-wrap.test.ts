@@ -143,6 +143,40 @@ describe("items runtime: wrap", () => {
     },
   );
 
+  test("a target wrapped by another wrap during the template lookup is rejected unsent", async () => {
+    const { events, rig, world } = setup();
+    try {
+      const spare = 0x40_00_00_00_00_00_00_06n;
+      world.put(255, 24, { count: 5, entry: 6000, guid: PAPER });
+      world.put(255, 26, { count: 5, entry: 5042, guid: spare });
+      rig.touch();
+      const first = rig.handle.act.wrap(PAPER_AT, SWORD_AT);
+      const settled = first.then(
+        () => undefined,
+        (error: Error) => error,
+      );
+      await flush();
+      const second = rig.handle.act.wrap({ bag: 255, slot: 26 }, SWORD_AT);
+      await flush();
+      expect(sends(rig.sent, GameOpcode.CMSG_WRAP_ITEM)).toHaveLength(1);
+      world.put(255, 25, { entry: 5043, guid: SWORD });
+      itemsSetFlags(world.entities.get(SWORD), 0x8);
+      world.setCount(spare, 4);
+      rig.touch();
+      await second;
+      rig.stores.items.receive({
+        entry: 6000,
+        template: itemsTemplate({ entry: 6000, flags: WRAPPER }),
+      });
+      await flush();
+      expect((await settled)?.message).toMatch(/already wrapped/);
+      expect(sends(rig.sent, GameOpcode.CMSG_WRAP_ITEM)).toHaveLength(1);
+      expect(types(events)).toEqual(["move_requested", "moved"]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("a refusal that names the item settles refused with the server's reason", async () => {
     const { rig } = setup();
     try {

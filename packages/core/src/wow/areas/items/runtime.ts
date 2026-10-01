@@ -347,6 +347,8 @@ async function wrap(
     throw new Error("the gift paper changed during the wrapper check");
   if (freshTarget.guid !== target.guid)
     throw new Error("the wrap target changed during the wrapper check");
+  if (freshTarget.item.flagBits?.wrapped === true)
+    throw new Error(`${hex(freshTarget.guid)} is already wrapped`);
   const pending: MoveRequest = {
     ...request(env, "wrap", { held: freshTarget }),
     target: { guid: freshPaper.guid, count: 1 },
