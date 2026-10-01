@@ -337,11 +337,19 @@ async function wrap(
   if (samePlace(gift, item)) throw new Error("a gift cannot wrap itself");
   if (isWorn(target))
     throw new Error(`${hex(target.guid)} is worn and cannot be wrapped`);
+  if (target.item.flagBits?.wrapped === true)
+    throw new Error(`${hex(target.guid)} is already wrapped`);
   await wrapper(env, paper.item.entry);
-  ready(env, "wrap");
+  const after = ready(env, "wrap");
+  const freshPaper = heldAt(after, gift);
+  const freshTarget = heldAt(after, item);
+  if (freshPaper.guid !== paper.guid)
+    throw new Error("the gift paper changed during the wrapper check");
+  if (freshTarget.guid !== target.guid)
+    throw new Error("the wrap target changed during the wrapper check");
   const pending: MoveRequest = {
-    ...request(env, "wrap", { held: target }),
-    target: { guid: paper.guid, count: 1 },
+    ...request(env, "wrap", { held: freshTarget }),
+    target: { guid: freshPaper.guid, count: 1 },
   };
   return await run(env, pending, [
     GameOpcode.CMSG_WRAP_ITEM,

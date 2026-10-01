@@ -90,6 +90,59 @@ describe("items runtime: wrap", () => {
     }
   });
 
+  test("an already wrapped target is rejected before any lookup or send", async () => {
+    const { events, rig, world } = setup();
+    try {
+      world.put(255, 25, { entry: 5043, guid: SWORD });
+      itemsSetFlags(world.entities.get(SWORD), 0x8);
+      rig.touch();
+      await expect(rig.handle.act.wrap(PAPER_AT, SWORD_AT)).rejects.toThrow(
+        /wrapped/,
+      );
+      rig.touch();
+      expect(sends(rig.sent, GameOpcode.CMSG_WRAP_ITEM)).toEqual([]);
+      expect(types(events)).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test.each([
+    ["target", SWORD_AT],
+    ["paper", PAPER_AT],
+  ])(
+    "a %s swapped during the template lookup is rejected unsent",
+    async (_name, at) => {
+      const { events, rig, world } = setup();
+      try {
+        world.put(255, 24, { count: 5, entry: 6000, guid: PAPER });
+        rig.touch();
+        const pending = rig.handle.act.wrap(PAPER_AT, SWORD_AT);
+        const settled = pending.then(
+          () => undefined,
+          (error: Error) => error,
+        );
+        await flush();
+        expect(sends(rig.sent, GameOpcode.CMSG_ITEM_QUERY_SINGLE)).toHaveLength(
+          1,
+        );
+        const replacement = at === PAPER_AT ? PAPER : SWORD;
+        world.put(255, at.slot, { count: 5, entry: 25, guid: 0x99n });
+        rig.stores.items.receive({
+          entry: 6000,
+          template: itemsTemplate({ entry: 6000, flags: WRAPPER }),
+        });
+        await flush();
+        world.entities.delete(replacement);
+        expect((await settled)?.message).toMatch(/changed/);
+        expect(sends(rig.sent, GameOpcode.CMSG_WRAP_ITEM)).toEqual([]);
+        expect(types(events)).toEqual([]);
+      } finally {
+        rig.dispose();
+      }
+    },
+  );
+
   test("a refusal that names the item settles refused with the server's reason", async () => {
     const { rig } = setup();
     try {
