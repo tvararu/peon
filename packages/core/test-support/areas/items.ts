@@ -303,3 +303,42 @@ export function itemsEnchantmentLogBody(init: {
   w.uint32LE(init.enchantId);
   return w.finish();
 }
+
+export type EquipmentSetInit = {
+  setGuid: bigint;
+  index: number;
+  name: string;
+  icon: string;
+  items: readonly bigint[];
+};
+
+export function itemsEquipmentSetListBody(
+  sets: readonly EquipmentSetInit[],
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(sets.length);
+  for (const set of sets) {
+    w.packedGuidBig(set.setGuid);
+    w.uint32LE(set.index);
+    w.cString(set.name);
+    w.cString(set.icon);
+    for (const item of set.items) w.packedGuidBig(item);
+  }
+  return w.finish();
+}
+
+export function itemsEquipmentSetSavedBody(
+  index: number,
+  setGuid: bigint,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(index);
+  w.packedGuidBig(setGuid);
+  return w.finish();
+}
+
+export function itemsEquipmentSetUseResultBody(result: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(result);
+  return w.finish();
+}
