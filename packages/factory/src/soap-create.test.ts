@@ -56,6 +56,9 @@ type ServiceCall = { body: Json; character: string; endpoint: CharEndpoint };
 
 type ServiceDouble = { calls: ServiceCall[]; service: CreateDeps["service"] };
 
+const accountInfoText = (account: string, gmLevel: number) =>
+  `| Account: ${account} (ID: 309),\n\n GMLevel: ${gmLevel}`;
+
 const pinfoText = (account: string, gmLevel: number) =>
   [
     "| Player Faaaaaaaaab (guid: 2515)",
@@ -110,12 +113,14 @@ function privilegeDouble(preset: Preset, stuck = false) {
       if (!(stuck && set[1] === "0")) level.value = Number(set[1]);
       return { ok: true, text: "" };
     }
-    return {
-      ok: true,
-      text: command.startsWith("pinfo")
-        ? pinfoText("FAC0000000001", level.value)
-        : "",
-    };
+    if (command.startsWith("pinfo"))
+      return { ok: true, text: pinfoText("FAC0000000001", level.value) };
+    if (command.startsWith("account info"))
+      return {
+        ok: true,
+        text: accountInfoText("FAC0000000001", level.value),
+      };
+    return { ok: true, text: "" };
   };
   return { ...made, level };
 }
@@ -176,12 +181,11 @@ describe("createByProtocol", () => {
       const { commands, deps, service } = depsFor(preset);
       deps.run = (async (command: string) => {
         commands.push(command);
-        return {
-          ok: true,
-          text: command.startsWith("pinfo")
-            ? pinfoText("FAC0000000001", 0)
-            : "",
-        };
+        if (command.startsWith("pinfo"))
+          return { ok: true, text: pinfoText("FAC0000000001", 0) };
+        if (command.startsWith("account info"))
+          return { ok: true, text: accountInfoText("FAC0000000001", 0) };
+        return { ok: true, text: "" };
       }) as CreateDeps["run"];
       await createByProtocol(preset, deps);
       const text = [...commands, ...service.calls.map((c) => c.endpoint)].join(
@@ -244,6 +248,51 @@ describe("createByProtocol", () => {
     expect(level.value).toBe(0);
   });
 
+  test("a 0x33 refusal reports the server code after the account demotes", async () => {
+    const level = { value: 0 };
+    const commands: string[] = [];
+    const { deps } = depsFor("eversong55-deathknight", {
+      create: (async () => {
+        throw new Error("Character create: disabled (0x33)");
+      }) as CreateDeps["create"],
+      run: (async (command: string) => {
+        commands.push(command);
+        const set = /^account set gmlevel \S+ (\d+) -1$/.exec(command);
+        if (set) {
+          level.value = Number(set[1]);
+          return { ok: true, text: "" };
+        }
+        if (command === "account info FAC0000000001")
+          return {
+            ok: true,
+            text: accountInfoText("FAC0000000001", level.value),
+          };
+        if (command.startsWith("pinfo"))
+          return { ok: true, text: "Character 'Faaaaaaaaab' does not exist." };
+        return { ok: true, text: "" };
+      }) as CreateDeps["run"],
+    });
+    await expect(
+      createByProtocol("eversong55-deathknight", deps),
+    ).rejects.toThrow("disabled (0x33)");
+    expect(level.value).toBe(0);
+    expect(commands).toContain("account info FAC0000000001");
+    expect(commands.some((command) => command.startsWith("pinfo"))).toBe(false);
+  });
+
+  test("a mismatched account in the demotion readback fails creation", async () => {
+    const { deps } = depsFor("eversong55-deathknight", {
+      run: (async (command: string) => {
+        if (command.startsWith("account info"))
+          return { ok: true, text: accountInfoText("FAC0000000002", 0) };
+        return { ok: true, text: "" };
+      }) as CreateDeps["run"],
+    });
+    await expect(
+      createByProtocol("eversong55-deathknight", deps),
+    ).rejects.toThrow("demotion");
+  });
+
   test("a failed demotion still fails when creation also threw", async () => {
     const { deps } = privilegeDouble("eversong55-deathknight", true);
     deps.create = (async () => {
@@ -258,8 +307,8 @@ describe("createByProtocol", () => {
     const { commands, deps } = depsFor("eversong55-deathknight", {
       run: (async (command: string) => {
         commands.push(command);
-        if (command.startsWith("pinfo"))
-          return { ok: true, text: pinfoText("FAC0000000001", 1) };
+        if (command.startsWith("account info"))
+          return { ok: true, text: accountInfoText("FAC0000000001", 1) };
         return { ok: true, text: "" };
       }) as CreateDeps["run"],
     });

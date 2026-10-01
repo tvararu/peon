@@ -232,13 +232,14 @@ async function waitForCharacter(
 
 async function demote(
   run: Run,
-  { account, character }: Names,
+  { account }: Names,
   sleep: CreateDeps["sleep"],
 ): Promise<void> {
+  const identity = new RegExp(`Account:\\s*${account}\\b`);
   await run(`account set gmlevel ${account} 0 -1`);
   for (let i = 0; i < pinfoTries; i++) {
-    const text = (await run(`pinfo ${character}`)).text;
-    if (demoted.test(text)) return;
+    const text = (await run(`account info ${account}`)).text;
+    if (identity.test(text) && demoted.test(text)) return;
     await sleep(pinfoPollMs);
   }
   throw new Error(`demotion of ${account} could not be confirmed`);

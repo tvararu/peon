@@ -77,7 +77,7 @@ stages position, level, money, items and spells through the realm service.
 create connection, bodies included, to `<dir>/packets.jsonl`.
 Only the death knight raises the new account to security 1 inside its own
 creation step, and demotes it to 0 with a confirmed `GMLevel: 0` readback
-before staging; the other created presets never raise privileges. The
+from `account info` before staging; the other created presets never raise privileges. The
 `eversong10-fishing` preset copies its template (honoring the same
 `soap.env` override) and then stages item 6256 plus one online login that
 learns 7733.
