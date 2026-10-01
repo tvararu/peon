@@ -167,6 +167,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | `rest` | Eats and drinks until health and mana reach a percent. |
 | `recover` | Comes back to life: corpse run, spirit healer, a resurrection offer, or `self` with a Soulstone or Reincarnation. |
 | `social` | One chat message or one group action. |
+| `talents` | Shows talents and glyphs and spends talent points. |
 | `journal` | Quest log, bags and gear, spells, reputation, or the game log. |
 | `stop` | Stops one action or everything. |
 | `gear` | Wears, takes off, moves, splits, opens and reads items. |

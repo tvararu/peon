@@ -113,9 +113,9 @@ export const talentsSpec: GameToolSpec<
   >["run"],
   text: {
     description:
-      "Show free talent points, learned talents and glyph slots, or spend talent points. Learn one talent with talent and rank, or several with plan entries of talent and rank 1-5.",
+      "Show free talent points, learned talents and glyph slots, or learn a talent. Each learn call spends one point: pass the next rank to gain, or call again for the rank after.",
     guidelines: [
-      "Call show first so names and ranks are known before learning.",
+      "Call show first so names and ranks are known before learning. Spend points one rank per learn call: a higher rank waits for the ranks below it.",
     ],
     label: "Talents",
   },
