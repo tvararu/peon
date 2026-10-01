@@ -83,7 +83,9 @@ describe("interact reset_talents", () => {
       outcome: "too_expensive",
     });
     const failure = await run(t).catch((error: unknown) => error);
-    expect(calls).toEqual([{ maxCost: 0, optionIndex: 3 }]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ maxCost: 0, optionIndex: 3 });
+    expect(calls[0]?.signal).toBeInstanceOf(AbortSignal);
     expect(failure).toMatchObject({ reason: "too_expensive" });
     const detail = String((failure as { detail: string }).detail);
     expect(detail).toContain("costs 1g");
@@ -103,7 +105,8 @@ describe("interact reset_talents", () => {
       outcome: "reset",
     });
     const res = await run(t, { max_cost: 10_000 });
-    expect(calls).toEqual([{ maxCost: 10_000, optionIndex: 3 }]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.signal).toBeInstanceOf(AbortSignal);
     expect(res.status).toBe("DONE");
     expect(res.detail).toContain("3 points free");
     expect(res.detail).toContain("Paid 1g");

@@ -83,6 +83,7 @@ export const resetTalentsStep: InteractStep = async ({ args, ctx, npc }) => {
     return await ctx.handle.talents.act.resetTalents({
       maxCost: args.max_cost ?? 0,
       optionIndex,
+      signal: ctx.signal,
     });
   });
   queued.then(

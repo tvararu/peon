@@ -51,7 +51,7 @@ function resetRow(event: Info): AreaDraft[] {
 function isReset(event: Info): boolean {
   return (
     event.pointsAfter > event.pointsBefore &&
-    event.talents.every((change) => change.to <= change.from)
+    event.talents.some((change) => change.to < change.from)
   );
 }
 
@@ -95,10 +95,36 @@ function refusedRows(event: Refused): AreaDraft[] {
   }));
 }
 
-function rows(event: TalentsEvent, rc: RuleInput): AreaDraft[] {
-  if (event.type === "points") return pointsRow(event);
-  if (event.type === "info")
+type TalentsMemo = {
+  pendingResetPoints: { after: number; before: number } | undefined;
+};
+
+function rows(
+  event: TalentsEvent,
+  rc: RuleInput,
+  memo?: TalentsMemo,
+): AreaDraft[] {
+  if (event.type === "points") {
+    const paired = memo?.pendingResetPoints;
+    if (
+      memo !== undefined &&
+      paired !== undefined &&
+      event.after === paired.after &&
+      event.before === paired.before
+    ) {
+      memo.pendingResetPoints = undefined;
+      return [];
+    }
+    return pointsRow(event);
+  }
+  if (event.type === "info") {
+    if (memo !== undefined)
+      memo.pendingResetPoints = isReset(event)
+        ? { after: event.pointsAfter, before: event.pointsBefore }
+        : undefined;
     return isReset(event) ? resetRow(event) : learnedRows(event);
+  }
+  if (memo !== undefined) memo.pendingResetPoints = undefined;
   if (event.type === "refused") return refusedRows(event);
   if (event.type === "wipe_offer") return offerRow(event, rc);
   return [];
@@ -107,6 +133,9 @@ function rows(event: TalentsEvent, rc: RuleInput): AreaDraft[] {
 export const talentsHarness = defineHarnessArea({
   area: "talents",
   glyph: "system",
-  rules: () => ({ event: rows }),
+  rules: () => {
+    const memo: TalentsMemo = { pendingResetPoints: undefined };
+    return { event: (event, rc) => rows(event, rc, memo) };
+  },
   worldActs: ["learnTalents", "resetTalents"],
 });

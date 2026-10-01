@@ -100,4 +100,67 @@ describe("talents harness rules", () => {
       areaDrafts(areaRuleSet(), talents({ type: "wipe_refused" }), atLevel(12)),
     ).toEqual([]);
   });
+
+  test("a level-up info with more points but no lost ranks writes nothing", () => {
+    expect(
+      areaDrafts(
+        areaRuleSet(),
+        talents({
+          ...EMPTY_INFO,
+          pointsAfter: 3,
+          pointsBefore: 2,
+          talents: [],
+        }),
+        atLevel(12),
+      ),
+    ).toEqual([]);
+  });
+
+  test("a reset info followed by its paired points event gives only the reset row", () => {
+    const rules = areaRuleSet();
+    const reset = areaDrafts(
+      rules,
+      talents({
+        ...EMPTY_INFO,
+        pointsAfter: 3,
+        pointsBefore: 0,
+        talents: [{ from: 1, talentId: 124, to: 0 }],
+      }),
+      atLevel(12),
+    );
+    const paired = areaDrafts(
+      rules,
+      talents({ after: 3, before: 0, type: "points" }),
+      atLevel(12),
+    );
+    expect(reset.map((row) => [row.event, row.data])).toEqual([
+      ["talents/reset", { freePoints: 3 }],
+    ]);
+    expect(paired).toEqual([]);
+  });
+
+  test("a later points rise after a reset still logs talents/points", () => {
+    const rules = areaRuleSet();
+    areaDrafts(
+      rules,
+      talents({
+        ...EMPTY_INFO,
+        pointsAfter: 3,
+        pointsBefore: 0,
+        talents: [{ from: 1, talentId: 124, to: 0 }],
+      }),
+      atLevel(12),
+    );
+    areaDrafts(
+      rules,
+      talents({ after: 3, before: 0, type: "points" }),
+      atLevel(12),
+    );
+    const later = areaDrafts(
+      rules,
+      talents({ after: 4, before: 3, type: "points" }),
+      atLevel(12),
+    );
+    expect(later.map((row) => row.event)).toEqual(["talents/points"]);
+  });
 });
