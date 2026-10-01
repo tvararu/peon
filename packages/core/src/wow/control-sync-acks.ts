@@ -89,6 +89,7 @@ export class ServerAckSync {
         MovementFlag.FLYING |
         AIR_INPUT_BITS
       );
+      this.host.drivenFlags &= ~(MovementFlag.CAN_FLY | MovementFlag.FLYING);
     }
     this.deps.send(
       GameOpcode.CMSG_MOVE_SET_CAN_FLY_ACK,
@@ -107,6 +108,8 @@ export class ServerAckSync {
     if (driven) {
       if (enable) this.host.drivenFlags |= bit;
       else this.host.drivenFlags &= ~bit;
+      if (enable && (bit & MovementFlag.DISABLE_GRAVITY) !== 0)
+        this.host.cancelForced("disable_gravity");
     } else if (enable) {
       this.host.observedFlags |= bit;
       this.host.moveFlags |= bit;
