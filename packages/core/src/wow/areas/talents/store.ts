@@ -27,7 +27,6 @@ export type TalentsState = {
 };
 export type TalentChange = { talentId: number; from: number; to: number };
 export type GlyphChange = { slot: number; from: number; to: number };
-export type RefusedTalents = { entries: readonly TalentRank[] };
 
 export type TalentsEvent =
   | {
