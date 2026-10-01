@@ -1,4 +1,5 @@
 import { type Entity, type EntityLookup, fieldOf } from "#wow/entity-store";
+import { BANK_ROOTS } from "#wow/inventory-bank";
 import { readSelfField } from "#wow/player-state";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { joinGuid } from "#wow/protocol/packet";
@@ -48,7 +49,9 @@ export type InventoryRegion =
   | "keyring"
   | "currency"
   | "bag_item"
-  | "buyback";
+  | "buyback"
+  | "bank"
+  | "bankbag";
 export type InventoryAddress = {
   bag: number;
   slot: number;
@@ -135,6 +138,7 @@ const ROOTS = [
     offset: PLAYER_FIELDS.CURRENCYTOKEN_SLOT_1.offset,
     region: "currency",
   },
+  ...BANK_ROOTS,
 ] as const;
 
 const BUYBACK = { first: 74, count: 12 } as const;
@@ -391,6 +395,10 @@ function bag(
   return result;
 }
 
+function isBankRegion(region: InventoryRegion): boolean {
+  return region === "bank" || region === "bankbag";
+}
+
 function complete(candidate: InventorySlot): boolean {
   if (candidate.status === "unknown") return false;
   if (candidate.status === "empty") return true;
@@ -461,7 +469,9 @@ export function readInventory(
   const known =
     coinage !== undefined &&
     context.issues.length === 0 &&
-    slots.every(complete) &&
+    slots
+      .filter((candidate) => !isBankRegion(candidate.region))
+      .every(complete) &&
     bags.every((bagState) => bagState.size !== undefined);
   return {
     selfGuid,
