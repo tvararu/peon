@@ -205,4 +205,4 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Talents (`talents`) | `t8-talents-spend`, `t8-talents-reset`, `t8-talents-glyph` |
 | Vehicles (`vehicle`, `travel ride`) | `t8-vehicles-board` |
 | Instances and dungeon finder (`dungeon`) | `t9-instances-difficulty`, `t9-lfg-queue`, `t9-lfg-run` |
-| Groups and raids (`group` tool) | `t9-raid-kick`, `t9-raid-convert`, `t9-raid-master-loot`, `t9-raid-ready`, `t9-raid-answer`, `t9-raid-mark` |
+| Groups and raids (`group` tool) | `t9-raid-kick`, `t9-raid-convert`, `t9-raid-master-loot`, `t9-raid-ready`, `t9-raid-answer`, `t9-raid-summon`, `t9-raid-mark` |

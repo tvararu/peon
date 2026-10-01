@@ -1,0 +1,144 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 20,
+    "turns": 10
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": [
+          "raid/summon"
+        ]
+      },
+      "expect": "GL has a raid/summon row, so the agent was offered the partner's meeting-stone summon",
+      "id": "summon-offered",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent calling the group tool with do summon and what accept, not ending REFUSED",
+      "id": "summon-called",
+      "source": "session"
+    }
+  ],
+  "id": "t9-raid-summon",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "partnerActions": [
+    {
+      "argv": [
+        "call",
+        "invite",
+        "[\"<AGENT>\"]"
+      ],
+      "at": {
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "task_landed"
+      },
+      "windowMs": 120000
+    },
+    {
+      "argv": [
+        "call",
+        "invite",
+        "[\"<PARTNER2>\"]"
+      ],
+      "at": {
+        "kind": "elapsed",
+        "ms": 5000
+      },
+      "windowMs": 120000
+    },
+    {
+      "actor": 2,
+      "argv": [
+        "call",
+        "acceptInvite"
+      ],
+      "at": {
+        "kind": "elapsed",
+        "ms": 15000
+      },
+      "windowMs": 120000
+    },
+    {
+      "argv": [
+        "call",
+        "useMeetingStone",
+        "[\"<AGENT>\"]"
+      ],
+      "at": {
+        "kind": "elapsed",
+        "ms": 40000
+      },
+      "windowMs": 120000
+    },
+    {
+      "actor": 2,
+      "argv": [
+        "call",
+        "useSummoningPortal"
+      ],
+      "at": {
+        "kind": "elapsed",
+        "ms": 50000
+      },
+      "windowMs": 240000
+    }
+  ],
+  "partnerSetup": [
+    {
+      "actor": 1,
+      "body": {
+        "level": 15
+      },
+      "endpoint": "level"
+    },
+    {
+      "actor": 2,
+      "body": {
+        "level": 15
+      },
+      "endpoint": "level"
+    },
+    {
+      "actor": 2,
+      "body": {
+        "map": 0,
+        "o": 0,
+        "x": -8810,
+        "y": 796.5,
+        "z": 98.3,
+        "zone": 1519
+      },
+      "endpoint": "position"
+    }
+  ],
+  "partners": [
+    {
+      "preset": "elwynn10",
+      "role": "partner"
+    },
+    {
+      "preset": "elwynn10",
+      "role": "partner"
+    }
+  ],
+  "preset": "elwynn10",
+  "setup": [
+    {
+      "body": {
+        "level": 15
+      },
+      "endpoint": "level"
+    }
+  ],
+  "spawn": "stormwind-stone",
+  "steers": [],
+  "task": "Join the group you are invited to. A player will summon you with the meeting stone; answer the summon with the group tool and tell me where you arrive.",
+  "tier": 9
+}

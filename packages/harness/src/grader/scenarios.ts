@@ -181,6 +181,7 @@ export const ROUND_1: readonly string[] = [
   "t8-quests-accept-shared",
   "t9-raid-ready",
   "t9-raid-answer",
+  "t9-raid-summon",
   "t9-raid-mark",
   "t4-objects-quest-loot",
   "t8-items-socket",

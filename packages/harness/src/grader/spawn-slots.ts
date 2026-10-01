@@ -298,6 +298,23 @@ const EVERSONG_GLYPH: Spawn = {
   ],
   zone: 3430,
 };
+const STORMWIND_STONE: Spawn = {
+  map: 0,
+  o: 0,
+  points: [
+    [-8814, 799, 98.3],
+    [-8812.5, 799, 98.3],
+    [-8814, 797, 98.3],
+    [-8812.5, 797.5, 98.3],
+    [-8814, 795, 98.3],
+    [-8811.5, 796, 98.3],
+    [-8812, 802, 98.3],
+    [-8811, 799.5, 98.3],
+    [-8808, 802, 98.3],
+    [-8809, 799.5, 98.3],
+  ],
+  zone: 1519,
+};
 const UNDERCITY_WARRIOR: Spawn = {
   map: 0,
   o: 0,
@@ -323,6 +340,7 @@ const NAMED: Readonly<Record<string, Spawn>> = {
   "fairbreeze-emotes": FAIRBREEZE_EMOTES,
   "fairbreeze-south": FAIRBREEZE_SOUTH,
   ghostlands: GHOSTLANDS,
+  "stormwind-stone": STORMWIND_STONE,
   "undercity-warrior": UNDERCITY_WARRIOR,
 };
 
