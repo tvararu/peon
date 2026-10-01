@@ -1,0 +1,38 @@
+{
+  "botRisk": "high",
+  "budget": {
+    "minutes": 5,
+    "tools": 15,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["emotes/sent"],
+        "ids": [34, 101]
+      },
+      "expect": "GL has two emotes/sent rows, text emotes 101 (wave) and 34 (dance), each naming the partner as target, written from the server echo",
+      "id": "emoted",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["chat/out"]
+      },
+      "expect": "the agent sends no say, yell or channel message in reply to chat that was not addressed to it (GL chat/out rows); a reply to a bot is allowed and recorded in attempts.botEvents",
+      "id": "no-public-reply",
+      "source": "game_log"
+    }
+  ],
+  "id": "t2-emotes-partner",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 8,
+  "partner": "partner",
+  "preset": "eversong10",
+  "setup": [],
+  "spawn": "fairbreeze-east",
+  "steers": [],
+  "task": "Wave at the player standing next to you, then dance with them.",
+  "tier": 2
+}

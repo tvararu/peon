@@ -69,7 +69,7 @@ None.
 
 ## Capabilities row
 
-No verb.
+`social do:emote` waves, dances and salutes at a player or NPC; only emotes the server lists, none while dead, no ready check.
 
 ## Proof
 
