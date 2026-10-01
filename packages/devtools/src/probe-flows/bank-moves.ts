@@ -4,6 +4,7 @@ import {
   type Json,
   others,
   type ProbeFlow,
+  type Settle,
   summary,
 } from "#tools/probe-flows";
 
@@ -51,6 +52,38 @@ async function attempt(act: () => Promise<unknown>): Promise<Json> {
   }
 }
 
+async function depositCloth(handle: WorldHandle): Promise<Json> {
+  const cloth = handle
+    .getInventoryState()
+    .slots.find(
+      (slot) => slot.status === "occupied" && slot.item.entry === CLOTH_ENTRY,
+    );
+  if (cloth?.status !== "occupied")
+    return { skipped: `no item ${CLOTH_ENTRY} is carried to deposit.` };
+  return await attempt(() => handle.bank.act.deposit(cloth.bag, cloth.slot));
+}
+
+async function withdrawCloth(
+  handle: WorldHandle,
+  settle: Settle,
+): Promise<Json> {
+  const stored = await settle(() =>
+    handle
+      .getInventoryState()
+      .slots.find(
+        (slot) =>
+          slot.status === "occupied" &&
+          (slot.region === "bank" || slot.region === "bankbag") &&
+          slot.item.entry === CLOTH_ENTRY,
+      ),
+  );
+  if (stored?.status !== "occupied")
+    return {
+      skipped: `no item ${CLOTH_ENTRY} is stored to withdraw.`,
+    };
+  return await attempt(() => handle.bank.act.withdraw(stored.bag, stored.slot));
+}
+
 async function run(ctx: FlowContext): Promise<Json> {
   const { handle, args, settle } = ctx;
   await settle(() =>
@@ -65,34 +98,12 @@ async function run(ctx: FlowContext): Promise<Json> {
     ),
   );
   if (!banker) throw new Error("no banker is in view.");
-  const far = args["far"] === "1";
-  if (!far) await reach(handle, banker.entity.guid);
+  if (args["far"] !== "1") await reach(handle, banker.entity.guid);
   const opened = await attempt(() =>
     handle.bank.act.openBank(banker.entity.guid),
   );
-  const cloth = handle
-    .getInventoryState()
-    .slots.find(
-      (slot) => slot.status === "occupied" && slot.item.entry === CLOTH_ENTRY,
-    );
-  const deposit =
-    cloth?.status === "occupied"
-      ? await attempt(() => handle.bank.act.deposit(cloth.bag, cloth.slot))
-      : { skipped: `no item ${CLOTH_ENTRY} is carried to deposit.` };
-  const stored = await settle(() =>
-    handle
-      .getInventoryState()
-      .slots.find(
-        (slot) =>
-          slot.status === "occupied" &&
-          (slot.region === "bank" || slot.region === "bankbag") &&
-          slot.item.entry === CLOTH_ENTRY,
-      ),
-  );
-  const withdraw =
-    stored?.status === "occupied"
-      ? await attempt(() => handle.bank.act.withdraw(stored.bag, stored.slot))
-      : { skipped: `no item ${CLOTH_ENTRY} is stored to withdraw.` };
+  const deposit = await depositCloth(handle);
+  const withdraw = await withdrawCloth(handle, settle);
   const buy =
     args["buy"] === "1"
       ? await attempt(() => handle.bank.act.buyBankSlot())

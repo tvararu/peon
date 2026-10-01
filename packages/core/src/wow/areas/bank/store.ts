@@ -1,7 +1,6 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import { distance } from "#wow/geometry";
 import { type InventoryState, readInventory } from "#wow/inventory";
-import { readBankBagSlots } from "#wow/inventory-bank";
 import {
   type InventoryChangeFailure,
   type InventoryClaim,
@@ -9,6 +8,7 @@ import {
   isNoChange,
   ownsInventoryFailure,
 } from "#wow/protocol/inventory";
+import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export const BANKER_NPC_FLAG = 0x2_00_00;
@@ -64,6 +64,14 @@ type MoveRequest = Extract<
   { kind: "deposit" } | { kind: "withdraw" }
 >;
 
+function readBagSlots(deps: SessionDeps): number | undefined {
+  const value = deps
+    .getEntity(deps.selfGuid())
+    ?.rawFields.get(PLAYER_FIELDS.BYTES_2.offset);
+  if (value === undefined) return undefined;
+  return (value >>> 16) & 0xff;
+}
+
 const UNCLAIMED: InventoryClaim = { itemGuid: undefined };
 
 function legacyClaims(core: CoreStores): (InventoryClaim | undefined)[] {
@@ -101,7 +109,7 @@ export class BankStore {
 
   snapshot(): BankState {
     return {
-      bagSlots: readBankBagSlots(this.deps.selfGuid(), this.deps.getEntity),
+      bagSlots: readBagSlots(this.deps),
       banker: this.banker,
       lastOutcome: this.last,
       lastSlotResult: this.slotResult,
@@ -161,7 +169,7 @@ export class BankStore {
     const found = this.inventory().slots.find(
       (slot) => slot.status === "occupied" && slot.guid === request.guid,
     );
-    if (!found || found.status !== "occupied") return;
+    if (found?.status !== "occupied") return;
     const moved =
       request.kind === "deposit" ? inBank(found.region) : !inBank(found.region);
     if (moved) this.settleMove(request, request.guid);
