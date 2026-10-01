@@ -5,8 +5,12 @@ import {
   createCharacter,
   worldSession,
 } from "@peon/core/session";
-import type { RealmService } from "#factory/realm-service";
-import { createService, serviceUrl } from "#factory/realm-service";
+import type { CharEndpoint, RealmService } from "#factory/realm-service";
+import {
+  createService,
+  ServiceError,
+  serviceUrl,
+} from "#factory/realm-service";
 import type { Run, SoapResult } from "#factory/soap-copy";
 import { copyConfirmed } from "#factory/soap-copy";
 import {
@@ -18,7 +22,6 @@ import {
   type StageStep,
   templateFor,
 } from "#factory/soap-presets";
-
 export type CreateFn = typeof createCharacter;
 export type LoginFn = (
   config: ClientConfig,
@@ -31,6 +34,9 @@ export type ConsoleFn = (
 export type Names = { account: string; character: string };
 
 export type ServiceChar = Pick<RealmService, "char">;
+
+const offlineTries = 60;
+const offlinePollMs = 2000;
 export type CreateDeps = {
   run: Run;
   copy: (template: string, names: Names) => Promise<unknown>;
@@ -114,7 +120,28 @@ export async function stagePreset(
 ): Promise<void> {
   for (const step of stage) {
     if ("online" in step) await learnOnline(account, step.online.learn, deps);
-    else await deps.service.char(character, step.endpoint, step.body);
+    else await stageOffline(character, step, deps);
+  }
+}
+
+async function stageOffline(
+  character: string,
+  step: Extract<StageStep, { endpoint: CharEndpoint }>,
+  deps: Pick<CreateDeps, "service" | "sleep">,
+): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await deps.service.char(character, step.endpoint, step.body);
+      return;
+    } catch (err) {
+      if (
+        !(err instanceof ServiceError) ||
+        err.reason !== "character_online" ||
+        attempt + 1 >= offlineTries
+      )
+        throw err;
+      await deps.sleep(offlinePollMs);
+    }
   }
 }
 
@@ -204,7 +231,6 @@ async function demote(
 }
 
 export type { CharEndpoint, Json } from "#factory/realm-service";
-
 export type Wired = {
   console: ConsoleFn;
   createTrace?: (account: string) => ClientConfig["trace"];

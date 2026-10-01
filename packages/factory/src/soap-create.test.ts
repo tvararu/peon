@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ClientConfig, WorldHandle } from "@peon/core";
+import { ServiceError } from "#factory/realm-service";
 import type { CharEndpoint, Json } from "#factory/soap-create";
 import {
   type CreateDeps,
@@ -12,8 +13,13 @@ import {
   isCreatePreset,
   type Preset,
   presetSpecs,
+  type StageStep,
 } from "#factory/soap-presets";
 
+const item6256: StageStep = {
+  body: { count: 1, item: 6256 },
+  endpoint: "items/add",
+};
 function serviceDouble() {
   const calls: { character: string; endpoint: CharEndpoint; body: Json }[] = [];
   return {
@@ -369,6 +375,56 @@ describe("stagePreset", () => {
       endpoint: "items/add",
     });
     expect(learnedAtItems).toEqual([1]);
+  });
+
+  test("a pole step retries while the character is still leaving the world", async () => {
+    const { deps, service } = depsFor("eversong10-fishing");
+    let refusals = 2;
+    const slept: number[] = [];
+    await stagePreset("Faaaaaaaaab", "FAC0000000001", [item6256], {
+      ...deps,
+      service: {
+        char: (async (c: string, e: CharEndpoint, b: Json) => {
+          if (refusals-- > 0)
+            throw new ServiceError("character_online", 409, "online");
+          return service.service.char(c, e, b);
+        }) as CreateDeps["service"]["char"],
+      },
+      sleep: async (ms) => {
+        slept.push(ms);
+      },
+    });
+    expect(service.calls).toHaveLength(1);
+    expect(slept).toHaveLength(2);
+  });
+
+  test("other service refusals are not retried", async () => {
+    const { deps } = depsFor("eversong10-fishing");
+    let calls = 0;
+    const err = stagePreset("Faaaaaaaaab", "FAC0000000001", [item6256], {
+      ...deps,
+      service: {
+        char: (async () => {
+          calls++;
+          throw new ServiceError("bad_request", 400, "no");
+        }) as CreateDeps["service"]["char"],
+      },
+    });
+    await expect(err).rejects.toThrow("bad_request");
+    expect(calls).toBe(1);
+  });
+
+  test("a character that never leaves the world fails the step", async () => {
+    const { deps } = depsFor("eversong10-fishing");
+    const err = stagePreset("Faaaaaaaaab", "FAC0000000001", [item6256], {
+      ...deps,
+      service: {
+        char: (async () => {
+          throw new ServiceError("character_online", 409, "online");
+        }) as CreateDeps["service"]["char"],
+      },
+    });
+    await expect(err).rejects.toThrow("character_online");
   });
 });
 
