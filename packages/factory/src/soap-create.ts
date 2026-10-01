@@ -1,7 +1,14 @@
 import type { AuthResult, ClientConfig, WorldHandle } from "@peon/core";
-import type { CharCreateSpec, createCharacter } from "@peon/core/session";
+import type { CharCreateSpec } from "@peon/core/session";
+import {
+  authWithRetry,
+  createCharacter,
+  worldSession,
+} from "@peon/core/session";
 import type { RealmService } from "#factory/realm-service";
+import { createService, serviceUrl } from "#factory/realm-service";
 import type { Run, SoapResult } from "#factory/soap-copy";
+import { copyConfirmed } from "#factory/soap-copy";
 import {
   type CreatePreset,
   isCreatePreset,
@@ -197,3 +204,49 @@ async function demote(
 }
 
 export type { CharEndpoint, Json } from "#factory/realm-service";
+
+export type Wired = {
+  console: ConsoleFn;
+  env: Record<string, string>;
+  host: string;
+  loadEntry: (
+    account: string,
+  ) => Promise<{ character: string; password: string } | undefined>;
+  names: Names;
+  password: string;
+  port: number;
+  run: Run;
+};
+
+export async function createWired(preset: Preset, ctx: Wired): Promise<void> {
+  await createByProtocol(preset, {
+    auth: (config) => authWithRetry(config, { maxAttempts: 2 }),
+    console: ctx.console,
+    copy: (template, n) => copyConfirmed(ctx.run, template, n),
+    create: createCharacter,
+    createConfig: (n) => ({
+      account: n.account,
+      character: n.character,
+      host: ctx.host,
+      password: ctx.password,
+      port: ctx.port,
+    }),
+    login: (config, auth) => worldSession(config, auth),
+    loginConfig: async (account) => {
+      const entry = await ctx.loadEntry(account);
+      if (!entry) throw new Error(`no ledger entry for ${account}`);
+      return {
+        account,
+        character: entry.character,
+        host: ctx.host,
+        password: entry.password,
+        port: ctx.port,
+      };
+    },
+    names: ctx.names,
+    run: ctx.run,
+    service: createService({ baseUrl: serviceUrl(Bun.env, ctx.env) }),
+    sleep: (ms) => Bun.sleep(ms),
+    templateEnv: ctx.env,
+  });
+}

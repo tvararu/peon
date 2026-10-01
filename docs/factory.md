@@ -70,16 +70,18 @@ Presets: `fresh`, `eversong10`, `max80`, `eversong10-warrior`,
 from the `TCPRESETS` account (read only); a `PEON_PRESET_<NAME>` key in
 `soap.env` (`-` as `_`) overrides the template. The created presets
 `eversong10-shaman`, `eversong10-warlock`, `eversong10-rogue`,
-`eversong10-druid`, `eversong55-deathknight` and `eversong10-fishing` are
-built over the protocol instead: `soap create` raises the new account to
-security 1 inside its own creation step, sends `CMSG_CHAR_CREATE` without
-logging in, stages position, level, money, items and spells through the
-realm service, then demotes the account to 0 and confirms the demotion
-before publishing the profile. The death knight starts at 55 with no level
-stage; the fishing preset learns 7733 in one online login. `Tplhunter`
-carries a level 10 Ravager (entry 17525). Service `reset` copies a
-`TCPRESETS` template and so does not know the created presets; the eval
-runner never calls it.
+`eversong10-druid` and `eversong55-deathknight` are built over the protocol
+instead: `soap create` sends `CMSG_CHAR_CREATE` without logging in, then
+stages position, level, money, items and spells through the realm service.
+Only the death knight raises the new account to security 1 inside its own
+creation step, and demotes it to 0 with a confirmed `GMLevel: 0` readback
+before staging; the other created presets never raise privileges. The
+`eversong10-fishing` preset copies its template (honoring the same
+`soap.env` override) and then stages item 6256 plus one online login that
+learns 7733. The death knight starts at 55 with no level stage.
+`Tplhunter` carries a level 10 Ravager (entry 17525). Service `reset`
+copies a `TCPRESETS` template and so does not know the created presets;
+the eval runner never calls it.
 
 Create also writes the launcher `tmp/puppet-<ACCOUNT>` (the soap JSON's
 `.wrapper`). It runs the harness's headless puppet as that account, with
