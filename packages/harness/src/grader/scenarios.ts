@@ -163,6 +163,7 @@ export const ROUND_1: readonly string[] = [
   "t4-spells-stop-channel",
   "t8-travel-bind-inn",
   "t8-travel-hearth-home",
+  "t8-travel-fly",
   "t8-pets-command",
   "t6-selfstate-res",
   "t9-instances-difficulty",
