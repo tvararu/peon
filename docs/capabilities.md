@@ -84,7 +84,7 @@ These have tools or code but no scenario that checks them live:
 - Give a master-looted item to a group member (`t9-raid-master-loot`, the agent sets master loot but its kills leave empty corpses or it names the loot method wrongly, so no item is given).
 - Answer a raid ready check (`t9-raid-answer`, the agent answers before the check starts, and the repeat guard then refuses its answer during the check).
 - Accept a quest a party member shares (`t8-quests-accept-shared`, the agent's early `accept_invite` is refused as a repeat, so it is not in the group when the partner shares).
-- Answer a meeting-stone summon (`t9-raid-summon`, omitted: the Orgrimmar stone 179596 accepts the partner's use and casts Meeting Stone Summon (23598) with a destination-only target, so `EffectSummonPlayer` never addresses a player and no `SMSG_SUMMON_REQUEST` follows; round 328 graded `fail` with 0 of 2 checks met, so the summon stays unproven).
+- Answer a meeting-stone summon (omitted: the Orgrimmar stone 179596 accepts the partner's use and casts Meeting Stone Summon (23598) with a destination-only target, so `EffectSummonPlayer` never addresses a player and no `SMSG_SUMMON_REQUEST` follows; the round 328 summon run graded `fail` with 0 of 2 checks met, so the summon stays unproven).
 
 Peon has no tool for mail, the auction house, flight paths or
 mounts.
