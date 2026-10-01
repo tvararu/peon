@@ -33,6 +33,12 @@ import {
   waitGreeting,
 } from "#harness/tools/interact-quest";
 import { turnInStep } from "#harness/tools/interact-reward";
+import {
+  buySlotStep,
+  stableExtra,
+  stableStep,
+  unstableStep,
+} from "#harness/tools/interact-stable";
 import { resetTalentsStep } from "#harness/tools/interact-talents";
 import {
   repairStep,
@@ -57,6 +63,7 @@ const SHOP_ROLES = new Set([
   "class_trainer",
   "profession_trainer",
   "repair",
+  "stable_master",
 ]);
 
 function emptyInteract(): InteractAfter {
@@ -79,7 +86,7 @@ function emptyInteract(): InteractAfter {
   };
 }
 
-const TALK_EXTRAS: TalkExtra[] = [vendorExtra, trainerExtra];
+const TALK_EXTRAS: TalkExtra[] = [vendorExtra, trainerExtra, stableExtra];
 
 function talkNext(
   npc: NpcTarget,
@@ -164,6 +171,9 @@ const STEPS = new Map<string, InteractStep>([
   ["bind", bindStep],
   ["buyback", buybackStep],
   ["reset_talents", resetTalentsStep],
+  ["stable", stableStep],
+  ["unstable", unstableStep],
+  ["buy_slot", buySlotStep],
 ]);
 
 function objectTalk(ctx: ToolCtx<InteractAfter>, text: string): NpcTarget {
