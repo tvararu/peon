@@ -38,7 +38,12 @@ function flightDrafts(
     ];
   if (event.type === "flight_landed")
     return [
-      { class: "wake", data: {}, name: "flight_landed", text: "Flight landed." },
+      {
+        class: "wake",
+        data: {},
+        name: "flight_landed",
+        text: "Flight landed.",
+      },
     ];
   if (event.type === "taxi_reply" && event.name !== "ok")
     return [
