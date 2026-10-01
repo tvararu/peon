@@ -19,6 +19,7 @@ import {
   type PetSetActionPair,
 } from "#wow/areas/pets/protocol";
 import { abandonActs, NO_PET } from "#wow/areas/pets/runtime-abandon";
+import { type TalentActs, talentActs } from "#wow/areas/pets/runtime-talent";
 import type { PetsEvent, PetsStore } from "#wow/areas/pets/store";
 import type { Entity } from "#wow/entity-store";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -60,6 +61,7 @@ export type PetsActs = {
   queryPetName: () => PetsActResult;
   renamePet: (name: string) => PetsActResult;
 } & AbandonActs &
+  TalentActs &
   StableActs;
 
 const ORDERS: Record<PetOrder, number> = { stay: 0, follow: 1, dismiss: 3 };
@@ -444,6 +446,7 @@ export function petsRuntime(
   const orders = orderActs(ctx, store);
   const spells = spellActs(ctx, store, core);
   const abandon = abandonActs(ctx, store);
+  const talent = talentActs(ctx, store);
   const bar = barActs(ctx, store);
   const offNames = observeNames(ctx, store);
   const pending = { abort: () => undefined };
@@ -453,6 +456,8 @@ export function petsRuntime(
   return {
     act: {
       abandonPet: abandon.abandonPet,
+      learnPetTalent: talent.learnPetTalent,
+      learnPetTalents: talent.learnPetTalents,
       buyStableSlot: stable.buyStableSlot,
       listStabledPets: stable.listStabledPets,
       petAutocast: spells.petAutocast,

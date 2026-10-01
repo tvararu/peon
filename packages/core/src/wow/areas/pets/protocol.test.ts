@@ -14,11 +14,13 @@ import {
 import {
   buildBuyStableSlot,
   buildDismissCritter,
+  buildLearnPreviewTalentsPet,
   buildListStabledPets,
   buildPetAbandon,
   buildPetAction,
   buildPetCancelAura,
   buildPetCastSpell,
+  buildPetLearnTalent,
   buildPetNameQuery,
   buildPetRename,
   buildPetSetAction,
@@ -412,5 +414,29 @@ describe("pets abandon and tame failure protocol", () => {
       expect(parsePetTameFailure(r)).toEqual({ code, reason });
       expect(r.remaining).toBe(0);
     }
+  });
+});
+
+describe("pets talent protocol", () => {
+  test("a single talent writes guid, talent id and 0-based rank (PetHandler.cpp:1128-1138)", () => {
+    const r = new PacketReader(buildPetLearnTalent(PET, 2214, 0));
+    expect(r.uint64LE()).toBe(PET);
+    expect(r.uint32LE()).toBe(2214);
+    expect(r.uint32LE()).toBe(0);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("a preview list writes guid, count, then talent and rank pairs (PetHandler.cpp:1140-1165)", () => {
+    const r = new PacketReader(
+      buildLearnPreviewTalentsPet(PET, [
+        { rank: 0, talent: 2214 },
+        { rank: 2, talent: 2215 },
+      ]),
+    );
+    expect(r.uint64LE()).toBe(PET);
+    expect(r.uint32LE()).toBe(2);
+    expect([r.uint32LE(), r.uint32LE()]).toEqual([2214, 0]);
+    expect([r.uint32LE(), r.uint32LE()]).toEqual([2215, 2]);
+    expect(r.remaining).toBe(0);
   });
 });
