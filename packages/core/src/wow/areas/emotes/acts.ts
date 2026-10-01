@@ -19,7 +19,7 @@ export type EmoteOutcome =
   | { ok: true }
   | { ok: false; reason: "only_wave" | "dead" };
 export type TextEmoteOutcome =
-  | { ok: true }
+  | { ok: true; textEmote: number }
   | { ok: false; reason: "ready_check" | "dead" | "cancelled" }
   | { ok: false; reason: "unknown_emote"; closest: string[] };
 
@@ -28,30 +28,35 @@ export type EmotesActs = {
   textEmote: (
     nameOrId: string | number,
     targetGuid?: bigint,
+    signal?: AbortSignal,
   ) => Promise<TextEmoteOutcome>;
 };
 
 function createWaiter(signal: AbortSignal) {
   const waiting = new Set<() => void>();
-  const wait = (ms: number): Promise<boolean> => {
-    if (signal.aborted) return Promise.resolve(false);
-    const { promise, resolve } = Promise.withResolvers<boolean>();
-    const finish = (completed: boolean) => {
-      clearTimeout(timer);
-      signal.removeEventListener("abort", cancel);
-      waiting.delete(cancel);
-      resolve(completed);
+  const waitFor =
+    (caller: AbortSignal | undefined) =>
+    (ms: number): Promise<boolean> => {
+      if (signal.aborted || caller?.aborted) return Promise.resolve(false);
+      const { promise, resolve } = Promise.withResolvers<boolean>();
+      const finish = (completed: boolean) => {
+        clearTimeout(timer);
+        signal.removeEventListener("abort", cancel);
+        caller?.removeEventListener("abort", cancel);
+        waiting.delete(cancel);
+        resolve(completed);
+      };
+      const cancel = () => finish(false);
+      const timer = setTimeout(() => finish(true), ms);
+      signal.addEventListener("abort", cancel, { once: true });
+      caller?.addEventListener("abort", cancel, { once: true });
+      waiting.add(cancel);
+      return promise;
     };
-    const cancel = () => finish(false);
-    const timer = setTimeout(() => finish(true), ms);
-    signal.addEventListener("abort", cancel, { once: true });
-    waiting.add(cancel);
-    return promise;
-  };
   const cancelAll = () => {
     for (const cancel of [...waiting]) cancel();
   };
-  return { cancelAll, wait };
+  return { cancelAll, waitFor };
 }
 
 function resolveEmote(nameOrId: string | number): number | undefined {
@@ -93,26 +98,27 @@ async function waitGap(
     if (!(await wait(TEXT_EMOTE_GAP_MS - since))) return false;
   }
 }
-
 type QueuedSend = {
   ctx: AreaRuntimeCtx<EmotesEvent>;
   disposed: () => boolean;
   guard: SpamGuard;
   id: number;
   release: () => void;
+  caller: AbortSignal | undefined;
   store: EmoteStore;
   targetGuid: bigint;
   turn: Promise<void>;
-  wait: GapWait;
+  waitFor: (caller: AbortSignal | undefined) => GapWait;
 };
 function sendQueued(send: QueuedSend): Promise<TextEmoteOutcome> {
   const run = async (): Promise<TextEmoteOutcome> => {
     await send.turn;
-    if (send.disposed() || send.ctx.signal.aborted)
+    if (send.disposed() || send.ctx.signal.aborted || send.caller?.aborted)
       return { ok: false, reason: "cancelled" };
-    if (!(await waitGap(send.ctx.now, send.wait, send.guard.lastSentAt)))
+    const wait = send.waitFor(send.caller);
+    if (!(await waitGap(send.ctx.now, wait, send.guard.lastSentAt)))
       return { ok: false, reason: "cancelled" };
-    if (send.disposed() || send.ctx.signal.aborted)
+    if (send.disposed() || send.ctx.signal.aborted || send.caller?.aborted)
       return { ok: false, reason: "cancelled" };
     if (send.store.life() !== "alive") return { ok: false, reason: "dead" };
     send.guard.lastSentAt = send.ctx.now();
@@ -120,7 +126,7 @@ function sendQueued(send: QueuedSend): Promise<TextEmoteOutcome> {
       GameOpcode.CMSG_TEXT_EMOTE,
       buildTextEmote(send.id, NO_EMOTE_NUMBER, send.targetGuid),
     );
-    return { ok: true };
+    return { ok: true, textEmote: send.id };
   };
   return run().finally(send.release);
 }
@@ -131,7 +137,7 @@ export function emoteActs(
 ): { acts: EmotesActs; cancelWaits: () => void } {
   const guard = createSpamGuard();
   let disposed = false;
-  const { cancelAll, wait } = createWaiter(ctx.signal);
+  const { cancelAll, waitFor } = createWaiter(ctx.signal);
   const cancelWaits = () => {
     disposed = true;
     cancelAll();
@@ -147,6 +153,7 @@ export function emoteActs(
   const textEmote = (
     nameOrId: string | number,
     targetGuid = 0n,
+    caller?: AbortSignal,
   ): Promise<TextEmoteOutcome> => {
     const id = resolveEmote(nameOrId);
     if (id === undefined)
@@ -159,8 +166,11 @@ export function emoteActs(
       return Promise.resolve({ ok: false, reason: "ready_check" });
     if (store.life() !== "alive")
       return Promise.resolve({ ok: false, reason: "dead" });
+    if (caller?.aborted === true)
+      return Promise.resolve({ ok: false, reason: "cancelled" });
     const { release, turn } = enqueue(guard);
     return sendQueued({
+      caller,
       ctx,
       disposed: () => disposed,
       guard,
@@ -169,7 +179,7 @@ export function emoteActs(
       store,
       targetGuid,
       turn,
-      wait,
+      waitFor,
     });
   };
 

@@ -11,6 +11,7 @@ import { askHuman, nextCall } from "#harness/tools/next-call";
 type EmoteEvent = AreaEventOf<"emotes">;
 type EmoteCtx = ToolCtx<SocialAfter>;
 type Handle = EmoteCtx["handle"];
+type Echo = Extract<EmoteEvent, { type: "text_emote" }>;
 export type EmoteRequest = { what: string; to: string | undefined };
 
 export const EMOTE_SETTLE_MS = 2000;
@@ -66,29 +67,46 @@ export async function emoteStep(
     text: what,
     to: name,
   });
-  let sent: "ready_check" | "dead" | { closest: string[] } | undefined;
-  const echo = await settle<Extract<EmoteEvent, { type: "text_emote" }>>({
-    match: () => true,
-    send: () =>
-      sendEmote(handle, what, guid).then((miss) => {
-        sent = miss;
-      }),
-    signal,
-    subscribe: (cb) => subscribeEcho(handle, cb),
-    timeoutMs: EMOTE_SETTLE_MS,
+  const seen: Echo[] = [];
+  const isOurs = (event: Echo, id: number | undefined): boolean =>
+    id !== undefined &&
+    event.textEmote === id &&
+    (event.target ?? undefined) === (name ?? undefined);
+  const match = (event: Echo): boolean => {
+    seen.push(event);
+    return isOurs(event, textEmote);
+  };
+  let textEmote: number | undefined;
+  const off = subscribeEcho(handle, match);
+  signal?.throwIfAborted();
+  const miss = await sendEmote(handle, what, guid, signal).catch((error) => {
+    off();
+    throw error;
   });
+  const sent = miss.sent;
+  textEmote = miss.textEmote;
+  const echo =
+    seen.find((event) => isOurs(event, textEmote)) ??
+    (await settle<Echo>({
+      match,
+      signal,
+      subscribe: (cb) => subscribeEcho(handle, cb),
+      timeoutMs: EMOTE_SETTLE_MS,
+    }));
+  off();
   signal?.throwIfAborted();
   if (echo !== undefined) {
-    const { detail, to } = emotedDetail(what, name);
+    const { detail, to } = emotedDetail(what, echo.target ?? name);
     return result("DONE", { after: { ...after(true), to }, detail });
   }
-  if (sent === undefined)
+  if (sent === undefined) {
     return result("UNCONFIRMED", {
       after: after(false),
       detail: `emoted ${what}; no echo in 2 s.`,
       next: nextCall("journal", { about: "log", since: "1m" }),
       reason: "no_answer",
     });
+  }
   return refusedResult(what, after(false), sent);
 }
 
@@ -127,15 +145,20 @@ async function sendEmote(
   handle: Handle,
   what: string,
   guid: bigint | undefined,
-): Promise<undefined | "ready_check" | "dead" | { closest: string[] }> {
-  const outcome = await handle.emotes.act.textEmote(what, guid);
-  if (outcome.ok) return undefined;
-  if (outcome.reason === "unknown_emote") return { closest: outcome.closest };
+  signal: AbortSignal | undefined,
+): Promise<{
+  sent: undefined | "ready_check" | "dead" | { closest: string[] };
+  textEmote: number | undefined;
+}> {
+  const outcome = await handle.emotes.act.textEmote(what, guid, signal);
+  if (outcome.ok) return { sent: undefined, textEmote: outcome.textEmote };
+  if (outcome.reason === "unknown_emote")
+    return { sent: { closest: outcome.closest }, textEmote: undefined };
   if (outcome.reason === "cancelled")
     throw new Refusal({
       detail: "the emote send was cancelled.",
       next: nextCall("social", { do: "emote", what }),
       reason: "cancelled",
     });
-  return outcome.reason;
+  return { sent: outcome.reason, textEmote: undefined };
 }

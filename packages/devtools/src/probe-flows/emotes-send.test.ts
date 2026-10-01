@@ -81,7 +81,7 @@ describe("emotes-send flow", () => {
           textEmote: WAVE,
           type: "text_emote",
         });
-        return { ok: true };
+        return { ok: true, textEmote: WAVE };
       },
     );
     const result = (await flow.run(ctx)) as Record<string, unknown>;
@@ -100,6 +100,7 @@ describe("emotes-send flow", () => {
     }));
     spyOn(ctx.handle.emotes.act, "textEmote").mockImplementation(async () => ({
       ok: true,
+      textEmote: WAVE,
     }));
     await expect(flow.run(ctx)).rejects.toThrow("naming the target");
   });
