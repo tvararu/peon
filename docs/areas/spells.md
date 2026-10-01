@@ -86,6 +86,17 @@ writes no row for it. Nothing requests an image on its own.
 refuses; with no viewpoint the server only re-sets the seer to the character
 (`Handlers/MiscHandler.cpp:1187-1234`).
 
+`act.reportProjectile(spellId, x, y, z)` sends `CMSG_UPDATE_PROJECTILE_POSITION`
+(the character's guid, the spell, the cast count of the running cast and the
+position) and `act.reportMissileTrajectory(spellId, { elevation, speed,
+current, target })` sends `CMSG_UPDATE_MISSILE_TRAJECTORY`; both refuse
+`not_casting`, and send nothing, unless `core.combat.casts.casting` holds that
+spell. `SMSG_SET_PROJECTILE_POSITION` emits `projectile_moved` (caster, cast
+count, x, y, z) for any caster in view, because the server sends it to the whole
+set (`Handlers/SpellHandler.cpp:871`); it keeps no state and the harness writes
+no row for it. The `spells-missile` probe flow casts Flamestrike 2120 at the
+nearest hostile and reports the target's position while the cast runs.
+
 `act.setActionButton(slot, button)` puts a spell, item, macro or
 equipment set on one of the 144 action buttons with
 `CMSG_SET_ACTION_BUTTON`; `undefined` clears the slot. The server sends
@@ -361,10 +372,18 @@ Disagreements for opcodes later tasks build (AzerothCore wins):
   (category 11 is primary, 9 is secondary); without the file the area
   names the eleven primary and four secondary professions from a static
   table and other skills as `skill <id>`.
-## Left out
-
-- `CMSG_UPDATE_MISSILE_TRAJECTORY`, `CMSG_UPDATE_PROJECTILE_POSITION`,
-  `SMSG_SET_PROJECTILE_POSITION`: built by spells-11.
+- `CMSG_UPDATE_PROJECTILE_POSITION` is a `uint64` caster guid, `uint32`
+  spell, `uint8` cast count and three floats; the server needs only a unit
+  with a current spell that has a destination, and answers by moving the
+  destination and broadcasting `SMSG_SET_PROJECTILE_POSITION`: `uint64`
+  caster, `uint8` count, three floats (`Handlers/SpellHandler.cpp:834-872`).
+  No vehicle is involved.
+- `CMSG_UPDATE_MISSILE_TRAJECTORY` is a `uint64` guid, `uint32` spell, two
+  floats (elevation, speed), two vectors (current, target) and a `uint8`
+  `moveStop`. The area always writes `moveStop` 0, so the server's tail read
+  (`Handlers/MiscHandler.cpp:1758-1765`) never runs. It acts only on the
+  caster's generic spell with both a source and a destination and drops the
+  rest silently (`Handlers/MiscHandler.cpp:1724-1766`).
 
 ## Capabilities row
 
@@ -383,3 +402,6 @@ Cancel one of its own buffs (`t4-spells-cancel-aura`; harmful and passive auras 
 | `CMSG_FAR_SIGHT` | `accepted` | sent live on a throwaway `eversong10-mage` character: `mise protocol:probe <ACCOUNT> --send CMSG_FAR_SIGHT --body 00 --wait 3`, exit 0, one byte out in the trace (`tmp/probe/FAC6ABEC72BCA-20261001T205004Z/packets.jsonl`), no packet error and no disconnect; the `00` body releases the viewpoint, which only re-sets the seer to the character | `Handlers/MiscHandler.cpp:1187-1234` |
 | `CMSG_GET_MIRRORIMAGE_DATA` | `live` | the same character, level 80 with Mirror Image 55342 learned through `soap setup spells/learn`: `mise protocol:probe <ACCOUNT> --flow spells-mirror --arg spell=55342 --expect SMSG_MIRRORIMAGE_DATA`; the trace `tmp/probe/FAC6ABEC72BCA-20261001T204900Z/packets.jsonl:170-172` shows three eight-byte `CMSG_GET_MIRRORIMAGE_DATA` out, one per image of NPC 31216 | `Handlers/SpellHandler.cpp:741-758` |
 | `SMSG_MIRRORIMAGE_DATA` | `live` | the same traces: `packets.jsonl:173-175` shows three 68-byte replies, outcome `handled`, 7 ms after the requests; the second run (`tmp/probe/FAC6ABEC72BCA-20261001T205400Z`, after the spell cooldown) reports each image as class 8, race 10, gender 1, display 15475 with items `[0, 0, 2163, 27529, 25858, 25876, 11060, 14736, 16592, 28042, 0]`; a run inside the cooldown cast nothing and found no image | `Handlers/SpellHandler.cpp:760-831` |
+| `CMSG_UPDATE_PROJECTILE_POSITION` | `live` | probe flow `spells-missile` on a throwaway `eversong10-mage` at level 20 with Flamestrike 2120 learned through `soap setup spells/learn`, run `tmp/probe/spells-11-try3` (`FAC6ABED0172C`, deleted): `packets.jsonl:268-272` shows `CMSG_CAST_SPELL`, `SMSG_SPELL_START` in, then 25-byte `CMSG_UPDATE_PROJECTILE_POSITION` out 36 ms later and the broadcast back 6 ms after that, no disconnect | `Handlers/SpellHandler.cpp:834-872` |
+| `SMSG_SET_PROJECTILE_POSITION` | `live` | the same run: `packets.jsonl:272` shows the 21-byte packet, outcome `handled`; the flow reports `projectile_moved` for caster `0x1331` (the character) with cast count 1 | `Handlers/SpellHandler.cpp:865-871` |
+| `CMSG_UPDATE_MISSILE_TRAJECTORY` | `builder` | sent live in the same run (`packets.jsonl:271`, 45 bytes out, no disconnect); effect not seen: the server answers nothing and drops it unless the spell has both a source and a destination [INFERENCE: Flamestrike's source was not observed] | `Handlers/MiscHandler.cpp:1737-1743` |

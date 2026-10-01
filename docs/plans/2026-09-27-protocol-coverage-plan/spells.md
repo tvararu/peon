@@ -1105,11 +1105,16 @@ the far-sight toggle.
 2. **Implement.**
 3. Proof rows, `mise protocol:coverage`, `mise ci:checks`.
 
-**Proof:** `SMSG_SET_PROJECTILE_POSITION`: mock (R22) from
-`SpellHandler.cpp:865-871`, "not seen live". The two client opcodes:
-`builder`, "not proven live: needs vehicle combat" (issue 7), all three
-in `unseen`. `vehicles` owns when to send them and may prove them live
-later.
+**Proof:** `SMSG_SET_PROJECTILE_POSITION` and
+`CMSG_UPDATE_PROJECTILE_POSITION`: `live` (SR4-spells-8 option A). The
+probe flow `spells-missile` on an `eversong10-mage` at level 20 with
+Flamestrike 2120 (staged by `soap setup spells/learn`; `soap gm learn`
+refused the syntax) cast at a Springpaw Stalker and drew the broadcast
+6 ms after the report (`tmp/probe/spells-11-try3/packets.jsonl:268-272`).
+`CMSG_UPDATE_MISSILE_TRAJECTORY` went out in the same run and is
+`builder`, "sent live, effect not seen", the one opcode left in `unseen`.
+The flow's sight is 120 yd, not 60: the nearest hostile stands about
+82 yd from the spawn and the flow walks to 30 yd.
 
 **Commit:**
 
