@@ -1,10 +1,10 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { AreaState } from "@peon/core";
+import type { LookAfter } from "#harness/contract/details";
 import { placeView, selfView } from "#harness/ops/views";
 import { selfLine, talentView } from "#harness/tools/look-self";
-import { createTestRuntime } from "#test-support/runtime-fixture";
-import type { LookAfter } from "#harness/contract/details";
 import { toolCtx } from "#test-support/ops-fixtures";
+import { createTestRuntime } from "#test-support/runtime-fixture";
 import { selfPose, selfRow, setWorld } from "#test-support/world-fixtures";
 
 const NOW = 1_000_000;
