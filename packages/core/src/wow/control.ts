@@ -364,6 +364,7 @@ export class ControlRuntime {
 
   halt(reason = "halt"): void {
     this.mover.stop(reason, true);
+    this.air.stopActiveInputs();
   }
 
   dispose(): void {

@@ -5,6 +5,7 @@ import { GameOpcode } from "#wow/protocol/opcodes";
 
 export type AirHost = {
   moveFlags: number;
+  observedFlags: number;
   pitch: number | undefined;
   movementInfo: () => MovementInfo;
   canFly: () => boolean;
@@ -23,6 +24,8 @@ export type AscendKind = "start" | "stop";
 
 const PITCH_BITS = MovementFlag.PITCH_UP | MovementFlag.PITCH_DOWN;
 export const VERTICAL_BITS = MovementFlag.ASCENDING | MovementFlag.DESCENDING;
+export const AIR_INPUT_BITS =
+  PITCH_BITS | MovementFlag.ASCENDING | MovementFlag.DESCENDING;
 const MAX_PITCH = Math.PI / 2;
 
 const PITCH_OPCODE = {
@@ -46,7 +49,7 @@ export class AirMoves {
 
   setSwimming(on: boolean): void {
     this.assertFree();
-    if (this.has(MovementFlag.SWIMMING) === on) return;
+    if (this.stateOf(MovementFlag.SWIMMING) === on) return;
     this.enter("swimming");
     if (on) {
       this.host.moveFlags |= MovementFlag.SWIMMING;
@@ -54,6 +57,7 @@ export class AirMoves {
       return;
     }
     this.host.moveFlags &= ~MovementFlag.SWIMMING;
+    this.host.observedFlags &= ~MovementFlag.SWIMMING;
     this.leaveIfGrounded();
     this.emit(GameOpcode.MSG_MOVE_STOP_SWIM);
   }
@@ -61,10 +65,14 @@ export class AirMoves {
   setFlying(on: boolean): void {
     this.assertFree();
     if (on && !this.host.canFly()) throw new Error("cannot_fly");
-    if (this.has(MovementFlag.FLYING) === on) return;
+    if (this.stateOf(MovementFlag.FLYING) === on) return;
     this.enter("flying");
     if (on) this.host.moveFlags |= MovementFlag.FLYING;
-    else this.host.moveFlags &= ~(MovementFlag.FLYING | VERTICAL_BITS);
+    else {
+      const off = MovementFlag.FLYING | MovementFlag.CAN_FLY | VERTICAL_BITS;
+      this.host.moveFlags &= ~off;
+      this.host.observedFlags &= ~off;
+    }
     this.leaveIfGrounded();
     this.emit(GameOpcode.CMSG_MOVE_SET_FLY);
   }
@@ -105,8 +113,19 @@ export class AirMoves {
     this.emit(GameOpcode.MSG_MOVE_START_DESCEND);
   }
 
+  stopActiveInputs(): void {
+    const flags = this.host.moveFlags & AIR_INPUT_BITS;
+    if (flags === 0) return;
+    if (flags & VERTICAL_BITS) this.ascendLikeStop();
+    if (flags & PITCH_BITS) this.pitchLikeStop();
+  }
+
   private has(bit: number): boolean {
     return (this.host.moveFlags & bit) !== 0;
+  }
+
+  private stateOf(bit: number): boolean {
+    return ((this.host.moveFlags | this.host.observedFlags) & bit) !== 0;
   }
 
   private assertFree(): void {
@@ -126,6 +145,16 @@ export class AirMoves {
   private leaveIfGrounded(): void {
     if (this.has(MovementFlag.SWIMMING | MovementFlag.FLYING)) return;
     this.host.moveFlags &= ~PITCH_BITS;
+  }
+
+  private ascendLikeStop(): void {
+    this.host.moveFlags &= ~VERTICAL_BITS;
+    this.emit(GameOpcode.MSG_MOVE_STOP_ASCEND);
+  }
+
+  private pitchLikeStop(): void {
+    this.host.moveFlags &= ~PITCH_BITS;
+    this.emit(GameOpcode.MSG_MOVE_STOP_PITCH);
   }
 
   private emit(opcode: number): void {

@@ -6,7 +6,7 @@ import {
   type MovementInput,
 } from "#wow/control-input";
 import { unsupportedReason } from "#wow/control-motion";
-import { VERTICAL_BITS } from "#wow/control-swim";
+import { AIR_INPUT_BITS, VERTICAL_BITS } from "#wow/control-swim";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag, UnitFlag } from "#wow/protocol/entity-fields";
 import type { MonsterMove } from "#wow/protocol/monster-move";
@@ -75,6 +75,7 @@ export class MovementSync {
   predicted: ControlPose | undefined;
   server: ControlPose | undefined;
   moveFlags = 0;
+  observedFlags = 0;
   mapId = 0;
   runSpeed: number | undefined;
   runBackSpeed: number | undefined;
@@ -88,7 +89,6 @@ export class MovementSync {
   private readonly motion: SyncMotion;
   private extraFlags = 0;
   private flight: FlightPort | undefined;
-  private observedFlags = 0;
   private transport: TransportInfo | undefined;
   private controlAllowed = true;
   private rooted = false;
@@ -122,7 +122,8 @@ export class MovementSync {
       this.airBlock() ??
       unsupportedReason(
         this.observedFlags |
-          (this.moveFlags & (MovementFlag.SWIMMING | MovementFlag.FLYING)),
+          (this.moveFlags &
+            (MovementFlag.SWIMMING | MovementFlag.FLYING | AIR_INPUT_BITS)),
       )
     );
   }
@@ -298,6 +299,7 @@ export class MovementSync {
     this.rooted = true;
     this.motion.abort("root");
     this.moveFlags |= MovementFlag.ROOT;
+    this.moveFlags &= ~AIR_INPUT_BITS;
     this.ackRoot(GameOpcode.CMSG_FORCE_MOVE_ROOT_ACK, counter);
     this.emit("control_changed", "rooted");
   }
@@ -313,6 +315,7 @@ export class MovementSync {
     this.motion.abort("knockback");
     this.observedFlags |= MovementFlag.FALLING;
     this.moveFlags |= MovementFlag.FALLING;
+    this.moveFlags &= ~AIR_INPUT_BITS;
     this.fall = fall;
     this.ackRoot(GameOpcode.CMSG_MOVE_KNOCK_BACK_ACK, counter);
     this.emit("server_correction", "knockback");
@@ -323,11 +326,15 @@ export class MovementSync {
     if (guid !== 0n && guid !== self) {
       this.controlAllowed = false;
       this.motion.abort("no_control");
+      this.moveFlags &= ~AIR_INPUT_BITS;
       this.emit("control_changed", "no_control");
       return;
     }
     this.controlAllowed = allow;
-    if (!allow) this.motion.abort("no_control");
+    if (!allow) {
+      this.motion.abort("no_control");
+      this.moveFlags &= ~AIR_INPUT_BITS;
+    }
     this.emit("control_changed", allow ? undefined : "no_control");
   }
 
