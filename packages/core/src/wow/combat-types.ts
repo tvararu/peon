@@ -10,6 +10,7 @@ export type CombatItem = {
   bag: number;
   slot: number;
   guid: bigint;
+  glyphIndex?: number;
 };
 
 export type CombatCast = {
