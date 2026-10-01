@@ -908,6 +908,12 @@ trainer gossip option, switch with an effect-162 spell,
 `Spells/SpellEffects.cpp:6477-6489`) stays with `spells` in the long
 tail; this unit only reads `specCount` and `activeSpec`.
 
+## Build rulings
+
+| Id | Issue | Ruling |
+|---|---|---|
+| BR-talents-3a-1 | SR3-talents-5 says to subscribe to the `SMSG_TALENTS_INFO` reply after the send; the wave checklist says to subscribe before sending | Coordinator ruling (P2-17): subscribe before the send (the checklist), and release and consume the waiter when building or sending throws. SR3-talents-5 is amended to match. |
+
 ## COMPLETE
 
 ## Seed rulings (SEED-1)

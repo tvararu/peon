@@ -92,6 +92,11 @@ warning per missing file on stderr and still exits 0. With no
 | `GameObjectDisplayInfo.dbc` | object display bounds for reach | `enUS/patch-enUS-3.MPQ` |
 | `TaxiPath.dbc` | flight path edges with list prices | `enUS/patch-enUS-3.MPQ` |
 | `AreaTable.dbc` | zone names in summon rows | the first archive that holds it, in the order below |
+| `SkillLine.dbc` | profession and skill names | `enUS/patch-enUS-3.MPQ` |
+| `Talent.dbc` | talent ranks and prerequisites | `enUS/patch-enUS-2.MPQ` |
+| `TalentTab.dbc` | talent trees by class | `enUS/patch-enUS.MPQ` |
+| `GlyphProperties.dbc` | glyph spells and slot types | `enUS/patch-enUS-2.MPQ` |
+| `GlyphSlot.dbc` | glyph slot types | `enUS/locale-enUS.MPQ` |
 
 The client resolves each file from the first archive that holds it:
 `enUS/patch-enUS-3.MPQ`, then `enUS/patch-enUS-2.MPQ`, then
