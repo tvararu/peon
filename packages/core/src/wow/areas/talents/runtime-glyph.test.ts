@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   APPLY,
   castFailed,
+  castStarted,
   flush,
   INFO,
   ITEM,
@@ -210,7 +211,7 @@ describe("applyGlyph", () => {
       expect(rig.sent.length).toBe(before);
       rig.dispose();
       await expect(pending).rejects.toThrow();
-    } catch {
+    } finally {
       rig.dispose();
     }
   });
@@ -233,6 +234,51 @@ describe("applyGlyph", () => {
       await expect(
         rig.handle.act.applyGlyph({ ...APPLY, glyphSlot: 6 }),
       ).rejects.toThrow("bad_glyph_slot");
+      expect(sent(USE)).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+  test("an observed five-second cast moves the reply deadline to cast time plus five seconds", async () => {
+    await withFakeTimers(async () => {
+      const { rig } = rigged();
+      try {
+        const pending = rig.handle.act.applyGlyph(APPLY);
+        await flush();
+        castStarted(rig, USE_SPELL, 5000);
+        await flush();
+        await elapse(GLYPH_ANSWER_MS + 4999);
+        rig.inject(INFO, infoWith([21, 0, 0, 0, 0, 0]));
+        await elapse(1);
+        expect(await pending).toEqual({ glyphId: 21, outcome: "applied" });
+      } finally {
+        rig.dispose();
+      }
+    });
+  });
+
+  test("disposing while the item template loads rejects instead of not_a_glyph", async () => {
+    const { rig, sent } = rigged({ templateCached: false });
+    try {
+      const pending = rig.handle.act.applyGlyph(APPLY);
+      pending.catch(() => undefined);
+      await flush();
+      rig.dispose();
+      await expect(pending).rejects.toThrow();
+      expect(sent(USE)).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("disposing while the catalog loads rejects instead of waiting for it", async () => {
+    const { rig, sent } = rigged({ catalogPending: true });
+    try {
+      const pending = rig.handle.act.applyGlyph(APPLY);
+      pending.catch(() => undefined);
+      await flush();
+      rig.dispose();
+      await expect(pending).rejects.toThrow();
       expect(sent(USE)).toEqual([]);
     } finally {
       rig.dispose();
