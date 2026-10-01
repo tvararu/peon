@@ -98,6 +98,7 @@ async function acceptSummon(ctx: GroupCtx): Promise<ControlEvent | undefined> {
           ctx.signal?.throwIfAborted();
           return ctx.handle.raid.act.answerSummon(true);
         }),
+      signal: ctx.signal,
       subscribe: (cb) => ctx.handle.onControlEvent(cb),
       timeoutMs: SUMMON_WAIT_MS,
     });

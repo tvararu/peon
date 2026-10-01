@@ -233,13 +233,19 @@ s.`; the name falls back to the unit lookup, then `Someone`) and one
 - The summon request is not seen live. No preset has a warlock, `soap gm`
   has no summon verb, and the console `summon` commands refuse the
   console. A mock test built from the writer proves the parser. Two
-  live tries put one character at the Orgrimmar stone 179596 and used
-  it (`CMSG_GAMEOBJ_USE` in the retained headers-only traces); neither
-  trace shows `SMSG_SUMMON_REQUEST`. The traces record no spell id or
-  target payload, so they do not show why no request followed. A
-  two-participant meeting-stone portal (entry 179944) exists but was
-  not tried. The `group` tool answers a pending offer and refuses
-  `no_summon` otherwise; `CMSG_SUMMON_RESPONSE` is proved `accepted`.
+  live tries put a single level-15 character at the Orgrimmar stone
+  179596 and used it through the `objects` act; neither try produced
+  `SMSG_SUMMON_REQUEST`.
+- The stone use sends `CMSG_GAMEOBJ_USE`
+  (`Handlers/SpellHandler.cpp:329`) and requires the user and the
+  selected target in the same group with both at or above its min level
+  13. A two-participant meeting-stone portal (entry 179944) exists but
+  was not tried. The round 328 summon run graded `fail` with 0 of 2
+  checks met (`tmp/evals/328/t9-raid-summon-1/result.json`); its agent
+  trace (`tmp/evals/328/t9-raid-summon-1/packets.jsonl`) holds no
+  `CMSG_GAMEOBJ_USE` and no `SMSG_SUMMON_REQUEST`. The `group` tool
+  answers a pending offer and refuses `no_summon` otherwise;
+  `CMSG_SUMMON_RESPONSE` is proved `accepted`.
 
 ## Left out
 

@@ -243,6 +243,26 @@ describe("group tool summon", () => {
     expect(t.answer).not.toHaveBeenCalled();
     expect(t.handle.raid.state().summon).toBeDefined();
   });
+
+  test("an accept aborted after the send rejects and frees the wait", async () => {
+    const t = await world();
+    const abort = new AbortController();
+    const outcome = withFakeTimers(async () => {
+      const pending = summonTool(
+        { do: "summon", what: "accept" },
+        toolCtx<GroupAfter>(t, abort.signal),
+      ).then(
+        () => "resolved",
+        (error: unknown) => (error instanceof Error ? error.message : "?"),
+      );
+      await elapse(0);
+      expect(t.answer).toHaveBeenCalledWith(true);
+      abort.abort(new Error("cancelled"));
+      return pending;
+    });
+    expect(await outcome).toBe("cancelled");
+    expect(() => t.jump("teleport")).not.toThrow();
+  });
   test("an accept after combat ends is not refused as a repeat", async () => {
     const t = await world({ selfFlags: UnitFlag.IN_COMBAT });
     const real = createRepeatGuard(t.rt.clock);
