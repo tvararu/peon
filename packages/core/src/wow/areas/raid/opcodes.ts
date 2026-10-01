@@ -28,5 +28,5 @@ export const RAID_OPCODES = {
   ],
   stubs: [],
   dead: ["CMSG_GROUP_CANCEL", "SMSG_REAL_GROUP_UPDATE"],
-  unseen: ["SMSG_SUMMON_REQUEST"],
+  unseen: [],
 } as const satisfies AreaOpcodes;

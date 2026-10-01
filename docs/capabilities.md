@@ -67,6 +67,7 @@ or the page names one that does not exist.
 | Share a quest with the group and take one shared back | `t8-quests-share`, `t8-quests-accept-shared` | A share with no member answer is `UNCONFIRMED` after 3 s. |
 | Set loot rules and give master loot | `t9-raid-master-loot` | Needs a corpse that holds an item; the scenario allows three kills. `roll` and `pass_loot` are not shown: a group roll needs an uncommon drop and `pass_loot` has no server reply. |
 | Run and answer ready checks | `t9-raid-ready`, `t9-raid-answer` | Peon ends its own checks after 30 s. |
+| Answer a meeting-stone summon | `t9-raid-summon` | Two partners use the Stormwind stone 179595 and its summoning portal; the agent answers with `group` `summon`. The stone needs a group with both members at level 15. |
 | Mark targets | `t9-raid-mark` | Icon names are unconfirmed. |
 | Spend pet talent points | `t8-pets-talent` | Hunter only; spends one point of the pet's own talent tree at owner level 25. |
 
@@ -101,9 +102,5 @@ These have tools or code but no scenario that checks them live:
 - Answer a raid ready check (`t9-raid-answer`, the agent answers before the check starts, and the repeat guard then refuses its answer during the check).
 - Accept a quest a party member shares (`t8-quests-accept-shared`, the agent's early `accept_invite` is refused as a repeat, so it is not in the group when the partner shares).
 - Changing seats, riding with another player and ejecting a passenger (`vehicle` `seat`, `ride_with`, `eject`).
-- Answer a meeting-stone summon (`t9-raid-summon`, omitted: the Orgrimmar stone 179596 accepts the partner's use and casts Meeting Stone Summon (23598) with a destination-only target, so `EffectSummonPlayer` never addresses a player and no `SMSG_SUMMON_REQUEST` follows; round 328 graded `fail` with 0 of 2 checks met, so the summon stays unproven).
-- Answer a meeting-stone summon (omitted: the Orgrimmar stone 179596 accepts the partner's use and casts Meeting Stone Summon (23598) with a destination-only target, so `EffectSummonPlayer` never addresses a player and no `SMSG_SUMMON_REQUEST` follows; the round 328 summon run graded `fail` with 0 of 2 checks met, so the summon stays unproven).
-- Answer a meeting-stone summon (omitted: two live tries put one character at the Orgrimmar stone 179596 and used it, with no `SMSG_SUMMON_REQUEST` in the retained headers-only traces; the two-participant summoning portal (entry 179944) was not tried; the round 328 summon run graded `fail` with 0 of 2 checks met, so the summon stays unproven).
-- Answer a meeting-stone summon (omitted: two live tries put a single level-15 character at the Orgrimmar stone 179596 and used it through the `objects` act, with no `SMSG_SUMMON_REQUEST` in either try; the two-participant summoning portal (entry 179944) was not tried; the round 328 summon run (`tmp/evals/328/t9-raid-summon-1/result.json`) graded `fail` with 0 of 2 checks met, so the summon stays unproven).
 
 Peon has no tool for mail or the auction house.
