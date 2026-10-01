@@ -46,10 +46,11 @@ function doOf(args: Args): Do {
 
 function guidOf(raw: string | undefined): bigint {
   if (raw === undefined) throw new Error("items-refund needs item=<guid>.");
-  const parsed = Number(raw);
-  if (!Number.isInteger(parsed))
-    throw new Error(`items-refund needs item=<guid>, not "${raw}".`);
-  return BigInt(parsed);
+  try {
+    return BigInt(raw);
+  } catch (cause) {
+    throw new Error(`items-refund needs item=<guid>, not "${raw}".`, { cause });
+  }
 }
 
 async function reach(handle: WorldHandle, guid: bigint): Promise<void> {
@@ -102,9 +103,23 @@ async function buy(ctx: FlowContext, npc: number): Promise<Json> {
     slot: pack,
     vendorSlot: slot,
   });
+  const carried = await settle(() => {
+    const found = handle
+      .getInventoryState()
+      .slots.find((s) => s.bag === BACKPACK && s.slot === pack);
+    return found?.status === "occupied" ? found.guid : undefined;
+  });
   return json({
     bought,
+    carried,
     entry: row?.itemId,
+    paid: window.items
+      .filter((item) => item.extendedCost !== 0)
+      .map((item) => ({
+        extendedCost: item.extendedCost,
+        itemId: item.itemId,
+        slot: item.slot,
+      })),
     slot,
     vendor: summary(vendor),
   });
@@ -135,5 +150,5 @@ export const flow: ProbeFlow = {
   name: "items-refund",
   run,
   usage:
-    "--flow items-refund --arg do=buy --arg npc=<entry> [--arg slot=<vendor slot>]: walk to the vendor and buy its row into the first empty backpack slot; --arg do=info|refund --arg item=<guid>: read the refund offer for the carried item (CMSG_ITEM_REFUND_INFO) or send the refund (CMSG_ITEM_REFUND).",
+    "--flow items-refund --arg do=buy --arg npc=<entry> [--arg slot=<vendor slot>]: walk to the vendor and buy its row into the first empty backpack slot, returning the bought row's entry and carried guid plus every priced row (extendedCost nonzero); --arg do=info|refund --arg item=<guid>: read the refund offer for the carried item (CMSG_ITEM_REFUND_INFO) or send the refund (CMSG_ITEM_REFUND).",
 };
