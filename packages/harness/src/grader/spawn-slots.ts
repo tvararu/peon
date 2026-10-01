@@ -113,6 +113,17 @@ const FAIRBREEZE_SOUTH: Spawn = {
   ],
   zone: 3430,
 };
+const FAIRBREEZE_EMOTES: Spawn = {
+  map: 530,
+  o: 1.686,
+  points: [
+    [8600, -6780, 70],
+    [8596, -6780, 70],
+    [8600, -6784, 70],
+    [8596, -6784, 70],
+  ],
+  zone: 3430,
+};
 
 const FAIRBREEZE_EAST: Spawn = {
   map: 530,
@@ -309,6 +320,7 @@ const NAMED: Readonly<Record<string, Spawn>> = {
   "eversong-unlearn": EVERSONG_UNLEARN,
   "eversong-west": EVERSONG_WEST,
   "fairbreeze-east": FAIRBREEZE_EAST,
+  "fairbreeze-emotes": FAIRBREEZE_EMOTES,
   "fairbreeze-south": FAIRBREEZE_SOUTH,
   ghostlands: GHOSTLANDS,
   "undercity-warrior": UNDERCITY_WARRIOR,

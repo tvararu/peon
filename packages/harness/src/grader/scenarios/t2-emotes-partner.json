@@ -8,8 +8,13 @@
   "checks": [
     {
       "evidence": {
-        "events": ["emotes/sent"],
-        "ids": [34, 101]
+        "events": [
+          "emotes/sent"
+        ],
+        "ids": [
+          34,
+          101
+        ]
       },
       "expect": "GL has two emotes/sent rows, text emotes 101 (wave) and 34 (dance), each naming the partner as target, written from the server echo",
       "id": "emoted",
@@ -17,7 +22,9 @@
     },
     {
       "evidence": {
-        "events": ["chat/out"]
+        "events": [
+          "chat/out"
+        ]
       },
       "expect": "the agent sends no say, yell or channel message in reply to chat that was not addressed to it (GL chat/out rows); a reply to a bot is allowed and recorded in attempts.botEvents",
       "id": "no-public-reply",
@@ -31,7 +38,7 @@
   "partner": "partner",
   "preset": "eversong10",
   "setup": [],
-  "spawn": "fairbreeze-east",
+  "spawn": "fairbreeze-emotes",
   "steers": [],
   "task": "Wave at the player standing next to you, then dance with them.",
   "tier": 2
