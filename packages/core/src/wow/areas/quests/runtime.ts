@@ -247,6 +247,14 @@ function queryGiverStatus(
   return true;
 }
 
+function observeSelf(
+  store: QuestsStore,
+  self: bigint,
+  event: EntityEvent & { type: "appear" | "update" },
+): void {
+  if (event.entity.guid === self) store.receiveDaily(event.entity.rawFields);
+}
+
 export function questsRuntime(
   ctx: AreaRuntimeCtx<QuestsEvent>,
   store: QuestsStore,
@@ -266,11 +274,13 @@ export function questsRuntime(
     if (adds && giver && !was && !store.hasMark(entity.guid)) query.schedule();
   }
   const offEntity = ctx.listen("entity", (event) => {
-    if (event.type === "appear") return observe(event.entity, true);
-    if (event.type === "update")
-      return observe(event.entity, changesGiver(event));
-    known.delete(event.guid);
-    store.forget(event.guid);
+    if (event.type === "disappear") {
+      known.delete(event.guid);
+      store.forget(event.guid);
+      return;
+    }
+    observeSelf(store, ctx.selfGuid(), event);
+    observe(event.entity, event.type === "appear" || changesGiver(event));
   });
   const pois = poiQueue(ctx, store);
   const texts = textQuery({ ctx, store });

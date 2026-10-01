@@ -22,7 +22,15 @@ import {
 export const questsArea = defineArea({
   name: "quests",
   opcodes: QUESTS_OPCODES,
-  eventTypes: ["marks", "poi", "npc_text", "gossip_poi", "completed", "share"],
+  eventTypes: [
+    "marks",
+    "poi",
+    "npc_text",
+    "gossip_poi",
+    "completed",
+    "share",
+    "daily",
+  ],
   store: (deps, core) => new QuestsStore(deps, core),
   register: (wire, store) => {
     wire.on(GameOpcode.SMSG_QUESTGIVER_STATUS_MULTIPLE, (r) =>
