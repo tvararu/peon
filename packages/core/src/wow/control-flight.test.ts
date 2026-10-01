@@ -171,6 +171,52 @@ describe("self flight spline in control", () => {
     });
   });
 
+  test("landing after a stop at a different point leaves the stop point and the next move starts there", () => {
+    fly(({ runtime, sent }) => {
+      const STOP = { x: 8800, y: -6500, z: 99 };
+      runtime.observeSelfSpline(flightSpline());
+      runtime.observeSelf({ unitFlags: FLYING });
+      runtime.observeSelfSpline(stopSpline(STOP));
+      runtime.observeSelf({ unitFlags: 0 });
+      const pose = runtime.snapshot().serverPose;
+      expect(pose?.x).toBeCloseTo(STOP.x, 2);
+      expect(pose?.y).toBeCloseTo(STOP.y, 2);
+      expect(pose?.z).toBeCloseTo(STOP.z, 2);
+      sent.length = 0;
+      runtime.move("forward", 2000);
+      const start = lastMove(sent);
+      expect(start.x).toBeCloseTo(STOP.x, 1);
+      expect(start.y).toBeCloseTo(STOP.y, 1);
+      expect(Math.abs(start.x - LANDING.x)).toBeGreaterThan(100);
+      runtime.halt();
+    });
+  });
+
+  test("a non-flight self update with disable_move still blocks local movement", () => {
+    fly(({ runtime }) => {
+      runtime.observeSelf({ unitFlags: UnitFlag.DISABLE_MOVE });
+      expect(runtime.snapshot().blockedReason).toBe("disable_move");
+      expect(() => runtime.move("forward", 1000)).toThrow("disable_move");
+      runtime.observeSelf({ unitFlags: 0 });
+      expect(runtime.snapshot().blockedReason).toBeUndefined();
+    });
+  });
+
+  test("a landing update that keeps a blocker stays blocked", () => {
+    fly(({ runtime, sent }) => {
+      runtime.observeSelfSpline(flightSpline());
+      runtime.observeSelf({ unitFlags: FLYING | UnitFlag.STUNNED });
+      expect(runtime.snapshot().blockedReason).toBe("in_flight");
+      runtime.observeSelf({ unitFlags: UnitFlag.STUNNED });
+      expect(runtime.snapshot().serverPose?.x).toBeCloseTo(LANDING.x, 2);
+      expect(runtime.snapshot().blockedReason).toBe("disable_move");
+      expect(() => runtime.move("forward", 1000)).toThrow("disable_move");
+      sent.length = 0;
+      runtime.observeSelf({ unitFlags: 0 });
+      expect(runtime.snapshot().blockedReason).toBeUndefined();
+    });
+  });
+
   test("a stop spline outside a flight changes nothing", () => {
     fly(({ runtime, events }) => {
       events.length = 0;
