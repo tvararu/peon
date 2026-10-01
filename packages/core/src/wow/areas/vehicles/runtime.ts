@@ -221,7 +221,7 @@ function ejectSeat(
 export function vehiclesRuntime(
   ctx: Ctx,
   store: VehiclesStore,
-  _core: CoreStores,
+  core: CoreStores,
 ): AreaRuntime<VehiclesActs> {
   const deps: SeatDeps = { ctx, store };
   const switchSeat = (seat: number): Promise<VehiclesOutcome> => {
@@ -234,6 +234,21 @@ export function vehiclesRuntime(
       buildRequestVehicleSwitchSeat(vehicle, seat),
     );
   };
+  const off = store.onEvent((event) => {
+    if (event.type === "entered") {
+      const pose = store.entityOf(event.vehicle)?.position;
+      core.self.receive({
+        duration: event.duration,
+        offset: event.offset,
+        seat: event.seat,
+        splineId: event.splineId,
+        type: "vehicle_seat",
+        vehicle: event.vehicle,
+        vehiclePose: pose ? { ...pose } : undefined,
+      });
+    } else if (event.type === "exited")
+      core.self.receive({ type: "vehicle_left" });
+  });
   return {
     act: {
       spellClick: (guid) => clickSeat(deps, guid),
@@ -246,6 +261,6 @@ export function vehiclesRuntime(
       enterPlayerVehicle: (guid) => enterSeat(deps, guid),
       ejectPassenger: (guid) => ejectSeat(deps, guid),
     },
-    dispose: () => undefined,
+    dispose: () => off(),
   };
 }

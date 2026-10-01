@@ -4,8 +4,11 @@ import { type VehiclesEvent, VehiclesStore } from "#wow/areas/vehicles/store";
 const GUID = 0xf1_30_00_3e_ea_00_0a_bcn;
 const TRANSPORT = 0xf1_30_00_3e_ea_00_0b_bcn;
 
-function storeWithEvents() {
-  const store = new VehiclesStore({ getEntity: () => undefined } as never);
+function storeWithEvents(self = 0n) {
+  const store = new VehiclesStore({
+    getEntity: () => undefined,
+    selfGuid: () => self,
+  } as never);
   const seen: VehiclesEvent[] = [];
   store.onEvent((event) => seen.push(event));
   return { seen, store };
@@ -14,7 +17,10 @@ function storeWithEvents() {
 describe("VehiclesStore", () => {
   test("starts with no seat, vehicles or passengers", () => {
     expect(
-      new VehiclesStore({ getEntity: () => undefined } as never).snapshot(),
+      new VehiclesStore({
+        getEntity: () => undefined,
+        selfGuid: () => 0n,
+      } as never).snapshot(),
     ).toEqual({
       passengers: new Map(),
       seat: undefined,
@@ -50,6 +56,43 @@ describe("VehiclesStore", () => {
     expect(store.snapshot().passengers.get(GUID)).toEqual({
       seat: -1,
       transportGuid: TRANSPORT,
+    });
+  });
+
+  test("a self boarding spline sets the seat and emits entered with the spline id", () => {
+    const { seen, store } = storeWithEvents(GUID);
+    store.receiveTransport({
+      guid: GUID,
+      move: {
+        cyclic: false,
+        duration: 800,
+        extra: 0,
+        facing: { kind: "none" },
+        flags: 0x00_80_00_00,
+        guid: GUID,
+        interpolation: "linear",
+        kind: "move",
+        points: [{ x: 1, y: 2, z: 3 }],
+        splineId: 4242,
+        start: { x: 0, y: 0, z: 0 },
+      },
+      seat: 0,
+      transportGuid: TRANSPORT,
+    });
+    expect(store.snapshot().seat).toEqual({
+      controlling: false,
+      entry: undefined,
+      seat: 0,
+      vehicle: TRANSPORT,
+    });
+    expect(seen.at(-1)).toEqual({
+      duration: 800,
+      entry: undefined,
+      offset: { x: 1, y: 2, z: 3 },
+      seat: 0,
+      splineId: 4242,
+      type: "entered",
+      vehicle: TRANSPORT,
     });
   });
 

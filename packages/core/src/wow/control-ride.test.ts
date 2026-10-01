@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
-import { type Sent, setup } from "#test-support/control-fixtures";
+import { info, type Sent, setup } from "#test-support/control-fixtures";
 import { must } from "#test-support/must";
 import { seatWorldPose } from "#wow/control-ride";
 import { parseMovementInfo } from "#wow/protocol/movement";
@@ -53,6 +53,21 @@ describe("seat world pose", () => {
 });
 
 describe("passenger seat in control", () => {
+  test("a forced teleport ends the boarding timer and the ride", () => {
+    const { runtime, sent, advance } = setup();
+    runtime.vehicleSeat(seat({ duration: 800 }));
+    runtime.teleportAck({ counter: 2, guid: SELF, info: info({}) });
+    advance(5000);
+    expect(splineDones(sent)).toEqual([]);
+    sent.length = 0;
+    runtime.forceRoot(6);
+    const packet = must(sent.at(-1));
+    const r = new PacketReader(packet.body);
+    r.packedGuidBig();
+    r.uint32LE();
+    expect(parseMovementInfo(r).transport).toBeUndefined();
+  });
+
   test("boarding refuses free movement as transport and stops a walk", () => {
     const { runtime } = setup();
     runtime.move("forward", 5000);
