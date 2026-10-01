@@ -6,6 +6,7 @@ import {
   type WorldHandle,
 } from "@peon/core";
 import { useMeetingStone } from "#harness/puppet/meeting-stone";
+
 type ArgKind = "string" | "guid" | "number" | readonly string[];
 
 export type PuppetCall = {
