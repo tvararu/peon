@@ -73,6 +73,7 @@ export class MovementSync {
   private controlAllowed = true;
   private rooted = false;
   private moverRooted = false;
+  private moverRootKnown = false;
   private readonly pendingRoots = new Map<bigint, boolean>();
   private teleporting = false;
   private unitBlocked = false;
@@ -136,12 +137,24 @@ export class MovementSync {
     if (state.run !== undefined) this.runSpeed = state.run;
     if (state.runBack !== undefined) this.runBackSpeed = state.runBack;
     if (state.turn !== undefined) this.turnRate = state.turn;
-    if (state.flags !== undefined) this.drivenFlags = state.flags;
+    if (state.flags !== undefined) this.adoptFlags(state.flags);
     if (state.pose)
       this.adoptServerPose({
         ...state.pose,
         mapId: this.mapId || state.pose.mapId,
       });
+  }
+
+  private adoptFlags(flags: number): void {
+    if (!this.moverRootKnown) {
+      this.drivenFlags = flags;
+      this.moverRooted = (flags & MovementFlag.ROOT) !== 0;
+      if (this.moverRooted) this.moveFlags |= MovementFlag.ROOT;
+      else if (!this.rooted) this.moveFlags &= ~MovementFlag.ROOT;
+      return;
+    }
+    if (this.moverRooted) this.drivenFlags = flags | MovementFlag.ROOT;
+    else this.drivenFlags = flags & ~MovementFlag.ROOT;
   }
 
   vehicleSeat(seat: RideSeat): void {
@@ -154,6 +167,7 @@ export class MovementSync {
     this.transport = undefined;
     this.moveFlags &= ~MovementFlag.ON_TRANSPORT;
     this.observedFlags &= ~MovementFlag.ON_TRANSPORT;
+    this.moverRootKnown = false;
     this.pendingRoots.clear();
     this.ride.leave();
   }
@@ -328,6 +342,7 @@ export class MovementSync {
     this.fallTime = 0;
     this.rooted = false;
     this.moverRooted = false;
+    this.moverRootKnown = false;
     this.pendingRoots.clear();
     this.setServerPose(position);
     this.predicted = undefined;
@@ -341,43 +356,45 @@ export class MovementSync {
 
   forceRoot(counter: number, guid?: bigint): void {
     const mover = this.ride.moverGuid;
-    if (mover !== undefined && guid === mover) {
-      this.moverRooted = true;
-      this.cancelForced("root");
-      this.moveFlags |= MovementFlag.ROOT;
-      this.ackRoot(GameOpcode.CMSG_FORCE_MOVE_ROOT_ACK, counter);
-      this.emit("control_changed", "rooted");
-      return;
-    }
-    if (guid !== undefined && guid !== this.deps.selfGuid())
-      this.pendingRoots.set(guid, true);
+    if (mover !== undefined && guid === mover) this.setMoverRoot(true);
+    else this.notePendingRoot(mover, guid, true);
     this.cancelForced("root");
-    if (mover === undefined) {
-      this.rooted = true;
-      this.moveFlags |= MovementFlag.ROOT;
-    }
     this.ackRoot(GameOpcode.CMSG_FORCE_MOVE_ROOT_ACK, counter);
     this.emit("control_changed", "rooted");
   }
 
   forceUnroot(counter: number, guid?: bigint): void {
     const mover = this.ride.moverGuid;
-    if (mover !== undefined && guid === mover) {
-      this.moverRooted = false;
-      if (!this.rooted) this.moveFlags &= ~MovementFlag.ROOT;
-      this.ackRoot(GameOpcode.CMSG_FORCE_MOVE_UNROOT_ACK, counter);
-      this.emit("control_changed", undefined);
-      return;
-    }
-    if (guid !== undefined && guid !== this.deps.selfGuid())
-      this.pendingRoots.set(guid, false);
+    if (mover !== undefined && guid === mover) this.setMoverRoot(false);
+    else this.notePendingRoot(mover, guid, false);
     this.cancelForced("root");
-    if (mover === undefined) {
-      this.rooted = false;
-      if (!this.moverRooted) this.moveFlags &= ~MovementFlag.ROOT;
-    }
     this.ackRoot(GameOpcode.CMSG_FORCE_MOVE_UNROOT_ACK, counter);
     this.emit("control_changed", undefined);
+  }
+
+  private notePendingRoot(
+    mover: bigint | undefined,
+    guid: bigint | undefined,
+    rooted: boolean,
+  ): void {
+    if (guid !== undefined && guid !== this.deps.selfGuid())
+      this.pendingRoots.set(guid, rooted);
+    if (mover !== undefined) return;
+    if (guid !== undefined && guid !== this.deps.selfGuid()) return;
+    this.rooted = rooted;
+    if (rooted) this.moveFlags |= MovementFlag.ROOT;
+    else this.moveFlags &= ~MovementFlag.ROOT;
+  }
+
+  private setMoverRoot(rooted: boolean): void {
+    this.moverRooted = rooted;
+    this.moverRootKnown = true;
+    if (rooted) this.drivenFlags |= MovementFlag.ROOT;
+    else this.drivenFlags &= ~MovementFlag.ROOT;
+    if (rooted || !this.rooted)
+      this.moveFlags = rooted
+        ? this.moveFlags | MovementFlag.ROOT
+        : this.moveFlags & ~MovementFlag.ROOT;
   }
 
   knockBack(knock: KnockBack): void {
@@ -445,9 +462,11 @@ export class MovementSync {
   private moverChanged(mover: bigint | undefined): void {
     this.controlAllowed = true;
     this.drivenFlags = 0;
+    this.moverRootKnown = mover !== undefined && this.pendingRoots.has(mover);
     this.moverRooted =
-      mover === undefined ? false : (this.pendingRoots.get(mover) ?? false);
-    this.pendingRoots.clear();
+      mover !== undefined && (this.pendingRoots.get(mover) ?? false);
+    if (mover === undefined) this.pendingRoots.clear();
+    else this.pendingRoots.delete(mover);
     this.moveFlags &= ~MovementFlag.ROOT;
     if (mover === undefined) {
       if (this.rooted) this.moveFlags |= MovementFlag.ROOT;
