@@ -58,6 +58,7 @@ function poseState(): ControlState {
     airborne: false,
     blockedReason: undefined,
     input: {},
+    mover: undefined,
     movementAllowed: true,
     moving: false,
     pose: {

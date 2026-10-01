@@ -1,5 +1,6 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import type { SelfObservation } from "#wow/control-sync";
+import type { MoverState } from "#wow/control-ride";
+import type { SelfObservation } from "#wow/control-sync-types";
 import type { Position } from "#wow/entity-store";
 import type { MonsterMove } from "#wow/protocol/monster-move";
 import type {
@@ -53,6 +54,12 @@ export type SelfEvent =
       vehiclePose: Position | undefined;
     }
   | { type: "vehicle_left" }
+  | ({ type: "mover_state" } & MoverState)
+  | {
+      type: "mover_packet";
+      opcode: number;
+      build: (guid: bigint, info: MovementInfo) => Uint8Array;
+    }
   | { type: "observed"; observation: SelfObservation };
 
 export class SelfStore {

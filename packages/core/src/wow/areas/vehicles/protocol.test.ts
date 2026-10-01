@@ -4,6 +4,8 @@ import {
   vehiclesPlayerVehicleDataBody,
 } from "#test-support/areas/vehicles";
 import {
+  buildChangeSeatsOnControlledVehicle,
+  buildDismissControlledVehicle,
   buildEjectPassenger,
   buildPlayerVehicleEnter,
   buildRequestVehicleSwitchSeat,
@@ -13,6 +15,8 @@ import {
   parseMonsterMoveTransport,
   parsePlayerVehicleData,
 } from "#wow/areas/vehicles/protocol";
+import { MovementFlag } from "#wow/protocol/entity-fields";
+import { buildMoveMessage, parseMovementInfo } from "#wow/protocol/movement";
 import { PacketReader } from "#wow/protocol/packet";
 
 const GUID = 0xf1_30_00_3e_ea_00_0a_bcn;
@@ -113,5 +117,55 @@ describe("seat request builders", () => {
     const body = buildEjectPassenger(TRANSPORT);
     expect(body.byteLength).toBe(8);
     expect(new PacketReader(body).uint64LE()).toBe(TRANSPORT);
+  });
+});
+
+describe("controlled vehicle builders", () => {
+  const info = {
+    extraFlags: 0,
+    fallTime: 0,
+    flags: MovementFlag.FORWARD,
+    orientation: 1.25,
+    time: 4242,
+    x: 10,
+    y: 20,
+    z: 30,
+  };
+  const ACCESSORY = 0xf1_30_00_3e_ea_00_0c_bcn;
+
+  test("CMSG_DISMISS_CONTROLLED_VEHICLE is the packed vehicle guid and its movement info (VehicleHandler.cpp:26-59)", () => {
+    const body = buildDismissControlledVehicle(TRANSPORT, info);
+    expect(body).toEqual(buildMoveMessage(TRANSPORT, info));
+    const read = new PacketReader(body);
+    expect(read.packedGuidBig()).toBe(TRANSPORT);
+    const parsed = parseMovementInfo(read);
+    expect(parsed.x).toBe(10);
+    expect(parsed.time).toBe(4242);
+    expect(read.remaining).toBe(0);
+  });
+
+  test("CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE appends the accessory guid and an int8 seat (VehicleHandler.cpp:89-121)", () => {
+    const body = buildChangeSeatsOnControlledVehicle(
+      TRANSPORT,
+      info,
+      ACCESSORY,
+      -1,
+    );
+    const read = new PacketReader(body);
+    expect(read.packedGuidBig()).toBe(TRANSPORT);
+    parseMovementInfo(read);
+    expect(read.packedGuidBig()).toBe(ACCESSORY);
+    expect(read.uint8()).toBe(0xff);
+    expect(read.remaining).toBe(0);
+  });
+
+  test("an accessory of 0 asks for the previous or next seat (VehicleHandler.cpp:109-110)", () => {
+    const read = new PacketReader(
+      buildChangeSeatsOnControlledVehicle(TRANSPORT, info, 0n, 1),
+    );
+    read.packedGuidBig();
+    parseMovementInfo(read);
+    expect(read.packedGuidBig()).toBe(0n);
+    expect(read.uint8()).toBe(1);
   });
 });
