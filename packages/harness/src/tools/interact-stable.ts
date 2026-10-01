@@ -1,4 +1,5 @@
 import type { AreaEvent, AreaEventOf } from "@peon/core";
+import { bounded } from "@peon/core/lib/abort";
 import type { InteractAfter } from "#harness/contract/details";
 import type { ToolCtx } from "#harness/contract/services";
 import type { Game } from "#harness/loops/game";
@@ -35,6 +36,26 @@ type PetsState = {
 
 const STABLE_MASTER = "stable_master";
 const NO_ANSWER = "no_answer";
+const MONEY_WAIT_MS = 500;
+
+async function waitMoneyMove(
+  ctx: ToolCtx<InteractAfter>,
+  before: number | undefined,
+): Promise<number | undefined> {
+  if (before === undefined) return undefined;
+  const moved = Promise.withResolvers<number | undefined>();
+  const off = ctx.handle.onEntityEvent(() => {
+    const now = ctx.handle.getInventoryState().coinage;
+    if (now !== undefined && now !== before) moved.resolve(now);
+  });
+  try {
+    return await bounded(moved.promise, ctx.signal, MONEY_WAIT_MS, "no money update");
+  } catch {
+    return undefined;
+  } finally {
+    off();
+  }
+}
 
 function stateOf(handle: Game): PetsState {
   return handle.pets.state() as unknown as PetsState;
@@ -52,6 +73,7 @@ function listStable(
         (event.event.type === "unanswered" &&
           event.event.request === "stable")),
     send: send(ctx, () => {
+      ctx.signal?.throwIfAborted();
       ctx.handle.pets.act.listStabledPets(npc.guid);
     }),
     signal: ctx.signal,
@@ -110,8 +132,8 @@ function nameTargets(
   text: string,
 ): readonly StablePet[] {
   if (LINE_NUMBER.test(text)) {
-    const pet = pets.find((known) => known.number === Number(text));
-    return pet ? [pet] : [];
+    const row = pets[Number(text) - 1];
+    return row ? [row] : [];
   }
   const lowered = text.toLowerCase();
   return pets.filter((pet) => pet.name.toLowerCase() === lowered);
@@ -173,7 +195,10 @@ function waitResult(
       (event.event.type === "stable_result" ||
         (event.event.type === "unanswered" &&
           event.event.request === "stable")),
-    send: send(ctx, () => call.send(ctx, npc)),
+    send: send(ctx, () => {
+      ctx.signal?.throwIfAborted();
+      call.send(ctx, npc);
+    }),
     signal: ctx.signal,
     subscribe: (cb) => ctx.handle.onAreaEvent(cb),
     timeoutMs: ANSWER_MS,
@@ -199,9 +224,14 @@ async function runStableCall(
   const { ctx, npc } = args;
   const before = ctx.handle.getInventoryState().coinage;
   const outcome = await waitResult(ctx, call, npc);
+  const moved =
+    outcome === "slot_bought" ? await waitMoneyMove(ctx, before) : undefined;
   const after = {
     ...baseAfter(ctx, npc, call.do),
-    money: moneyChange(ctx, before),
+    money:
+      moved === undefined || before === undefined
+        ? moneyChange(ctx, before)
+        : { after: moved, before },
   };
   if (outcome === undefined)
     return {
