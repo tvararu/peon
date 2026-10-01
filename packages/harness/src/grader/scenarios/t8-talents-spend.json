@@ -29,7 +29,7 @@
       "endpoint": "level"
     }
   ],
-  "spawn": "fairbreeze-south",
+  "spawn": "eversong-ready",
   "steers": [],
   "task": "Spend all your talent points.",
   "tier": 8
