@@ -37,12 +37,30 @@ function isTimeout(error: unknown): boolean {
   return error instanceof Error && error.message === "timeout";
 }
 
-async function waitSeatAnswer(
+async function sendSeatRequest(
   ctx: Ctx,
+  opcode: number,
+  body: Uint8Array | undefined,
   match: (event: VehiclesEvent) => boolean,
 ): Promise<VehiclesOutcome> {
+  const scope = new AbortController();
+  const answer = ctx.until(match, {
+    timeoutMs: NO_ANSWER_MS,
+    signal: AbortSignal.any([ctx.signal, scope.signal]),
+  });
+  answer.catch(() => undefined);
   try {
-    await ctx.until(match, { timeoutMs: NO_ANSWER_MS, signal: ctx.signal });
+    ctx.send(opcode, body);
+  } catch (error) {
+    scope.abort(error);
+    await answer.then(
+      () => undefined,
+      () => undefined,
+    );
+    throw error;
+  }
+  try {
+    await answer;
     return { status: "ok" };
   } catch (error) {
     if (isTimeout(error)) return { status: "no_answer" };
@@ -74,9 +92,13 @@ function boarded(self: bigint) {
     (event.flags & SplineFlag.TRANSPORT_ENTER) !== 0;
 }
 
-function changedSeat(self: bigint, before: number) {
+function changedSeat(self: bigint, vehicle: bigint, before: number) {
   return (event: VehiclesEvent) =>
-    event.type === "spline" && event.guid === self && event.seat !== before;
+    event.type === "spline" &&
+    event.guid === self &&
+    event.transportGuid === vehicle &&
+    (event.flags & SplineFlag.TRANSPORT_EXIT) === 0 &&
+    event.seat !== before;
 }
 
 function changeSeat(
@@ -88,9 +110,12 @@ function changeSeat(
   const seat = currentSeat(store, self);
   if (seat === undefined)
     return Promise.resolve({ status: "refused", reason: "not_seated" });
-  const answer = waitSeatAnswer(ctx, changedSeat(self, seat.seat));
-  ctx.send(opcode, body);
-  return answer;
+  return sendSeatRequest(
+    ctx,
+    opcode,
+    body,
+    changedSeat(self, seat.vehicle, seat.seat),
+  );
 }
 
 function clickSeat(
@@ -103,21 +128,29 @@ function clickSeat(
     !(target && "npcFlags" in target && target.npcFlags & NPC_FLAG_SPELLCLICK)
   )
     return Promise.resolve({ status: "refused", reason: "not_clickable" });
-  const answer = waitSeatAnswer(ctx, boarded(self));
-  ctx.send(GameOpcode.CMSG_SPELLCLICK, buildSpellClick(guid));
-  return answer;
+  return sendSeatRequest(
+    ctx,
+    GameOpcode.CMSG_SPELLCLICK,
+    buildSpellClick(guid),
+    boarded(self),
+  );
 }
 
-function waitControlRestored(ctx: Ctx): Promise<VehiclesOutcome> {
+function waitControlRestored(
+  ctx: Ctx,
+  scope: AbortSignal,
+): Promise<VehiclesOutcome> {
   return new Promise((resolve, reject) => {
+    const signals = [ctx.signal, scope];
     const release = (): void => {
       clearTimeout(timer);
       off();
-      ctx.signal.removeEventListener("abort", onAbort);
+      for (const signal of signals)
+        signal.removeEventListener("abort", onAbort);
     };
     const onAbort = (): void => {
       release();
-      reject(ctx.signal.reason ?? new Error("aborted"));
+      reject(ctx.signal.reason ?? scope.reason ?? new Error("aborted"));
     };
     const timer = setTimeout(() => {
       release();
@@ -128,23 +161,43 @@ function waitControlRestored(ctx: Ctx): Promise<VehiclesOutcome> {
       release();
       resolve({ status: "ok" });
     });
-    if (ctx.signal.aborted) onAbort();
-    else ctx.signal.addEventListener("abort", onAbort, { once: true });
+    if (signals.some((signal) => signal.aborted)) onAbort();
+    else
+      for (const signal of signals)
+        signal.addEventListener("abort", onAbort, { once: true });
   });
 }
 
 function exitSeat({ ctx, store }: SeatDeps): Promise<VehiclesOutcome> {
   if (currentSeat(store, ctx.selfGuid()) === undefined)
     return Promise.resolve({ status: "refused", reason: "not_seated" });
-  const answer = waitControlRestored(ctx);
-  ctx.send(GameOpcode.CMSG_REQUEST_VEHICLE_EXIT);
-  return answer;
+  const scope = new AbortController();
+  const restore = waitControlRestored(ctx, scope.signal);
+  restore.catch(() => undefined);
+  try {
+    ctx.send(GameOpcode.CMSG_REQUEST_VEHICLE_EXIT);
+  } catch (error) {
+    scope.abort(error);
+    return restore.then(
+      (outcome) => {
+        if (scope.signal.aborted && scope.signal.reason === error) throw error;
+        return outcome;
+      },
+      () => {
+        throw error;
+      },
+    );
+  }
+  return restore;
 }
 
 function enterSeat({ ctx }: SeatDeps, guid: bigint): Promise<VehiclesOutcome> {
-  const answer = waitSeatAnswer(ctx, boarded(ctx.selfGuid()));
-  ctx.send(GameOpcode.CMSG_PLAYER_VEHICLE_ENTER, buildPlayerVehicleEnter(guid));
-  return answer;
+  return sendSeatRequest(
+    ctx,
+    GameOpcode.CMSG_PLAYER_VEHICLE_ENTER,
+    buildPlayerVehicleEnter(guid),
+    boarded(ctx.selfGuid()),
+  );
 }
 
 function ejectSeat(
@@ -154,18 +207,15 @@ function ejectSeat(
   const self = ctx.selfGuid();
   if (!store.snapshot().vehicleIds.has(self))
     return Promise.resolve({ status: "refused", reason: "not_a_vehicle" });
-  const answer = waitSeatAnswer(
+  return sendSeatRequest(
     ctx,
+    GameOpcode.CMSG_CONTROLLER_EJECT_PASSENGER,
+    buildEjectPassenger(guid),
     (event) =>
       event.type === "spline" &&
       event.guid === guid &&
       (event.flags & SplineFlag.TRANSPORT_EXIT) !== 0,
   );
-  ctx.send(
-    GameOpcode.CMSG_CONTROLLER_EJECT_PASSENGER,
-    buildEjectPassenger(guid),
-  );
-  return answer;
 }
 
 export function vehiclesRuntime(
