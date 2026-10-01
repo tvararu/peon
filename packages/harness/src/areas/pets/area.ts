@@ -185,5 +185,6 @@ export const petsHarness = defineHarnessArea({
     "petAutocast",
     "renamePet",
     "abandonPet",
+    "learnPetTalent",
   ],
 });

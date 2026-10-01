@@ -25,7 +25,8 @@ export type PetDo =
   | "autocast"
   | "rename"
   | "abandon"
-  | "tame";
+  | "tame"
+  | "talent";
 
 export type PetAfter = {
   do: PetDo | "status";
