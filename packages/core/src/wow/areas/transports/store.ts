@@ -35,7 +35,10 @@ export type TransportsData =
 
 export type TransportsEvent =
   | { type: "transport_seen"; guid: bigint }
-  | { type: "transport_gone"; guid: bigint };
+  | { type: "transport_gone"; guid: bigint }
+  | { type: "boarded"; transport: bigint; entry: number }
+  | { type: "left"; transport: bigint }
+  | { type: "map_change"; entry: number; fromMap: number; toMap: number };
 
 export type TransportsState = {
   transports: ReadonlyMap<bigint, TransportEntry>;
@@ -56,6 +59,7 @@ export class TransportsStore {
   private readonly events = new Emitter<[TransportsEvent]>();
   private readonly pending: TransportsEvent[] = [];
   private emitting = false;
+  private boarded: bigint | undefined;
 
   private stepper: LiftStepper | undefined;
   private readonly selfMap: () => number;
@@ -194,5 +198,27 @@ export class TransportsStore {
 
   entityEntry(guid: bigint): number | undefined {
     return this.deps.getEntity(guid)?.entry;
+  }
+
+  boardedGuid(): bigint | undefined {
+    return this.boarded;
+  }
+
+  emitBoarded(transport: bigint, entry: number): void {
+    this.boarded = transport;
+    this.queue({ entry, transport, type: "boarded" });
+  }
+
+  emitLeft(transport: bigint): void {
+    this.boarded = undefined;
+    this.queue({ transport, type: "left" });
+  }
+
+  emitMapChange(change: {
+    entry: number;
+    fromMap: number;
+    toMap: number;
+  }): void {
+    this.queue({ ...change, type: "map_change" });
   }
 }
