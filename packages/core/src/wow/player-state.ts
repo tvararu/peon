@@ -1,4 +1,5 @@
 import { type Entity, type EntityLookup, fieldOf } from "#wow/entity-store";
+import { BANK_FIELD_RANGE } from "#wow/inventory-bank";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 
@@ -14,6 +15,7 @@ const SELF_RANGES = [
   PLAYER_FIELDS.PACK_SLOT_1,
   PLAYER_FIELDS.KEYRING_SLOT_1,
   PLAYER_FIELDS.CURRENCYTOKEN_SLOT_1,
+  BANK_FIELD_RANGE,
 ];
 
 export function readSelfField(

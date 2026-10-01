@@ -8,7 +8,7 @@ export const BANK_OPCODES = {
     "CMSG_BUY_BANK_SLOT",
     "SMSG_BUY_BANK_SLOT_RESULT",
   ],
-  uses: [],
+  uses: ["SMSG_SHOW_BANK", "SMSG_INVENTORY_CHANGE_FAILURE"],
   stubs: [],
   dead: [],
   unseen: [],

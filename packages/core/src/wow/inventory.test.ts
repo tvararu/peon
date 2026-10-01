@@ -183,8 +183,8 @@ describe("carried inventory authority", () => {
       true,
     );
     expect(
-      state.slots.some((slot) => slot.bag === 255 && slot.slot === 39),
-    ).toBe(false);
+      state.slots.find((slot) => slot.bag === 255 && slot.slot === 39),
+    ).toMatchObject({ region: "bank", status: "occupied", guid: 9n });
     expect(state.slots.find((slot) => slot.slot === 86)).toMatchObject({
       status: "occupied",
       guid: 3n,
