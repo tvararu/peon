@@ -108,9 +108,17 @@ only near it. The pause and state rules rest on
   `map_change { entry, fromMap, toMap }`. That path is built and unit-tested,
   not seen live: the live ride (Orgrimmar to Thunder Bluff) stays on map 1.
   A same-map `SMSG_NEW_WORLD` keeps the ride, and a cross-map one keeps it
-  after a transport `SMSG_TRANSFER_PENDING` (entry and old map set) by
-  rebasing the offset; a cross-map `SMSG_NEW_WORLD` without one
-  (an unrelated teleport) ends it.
+  after a transport `SMSG_TRANSFER_PENDING` (entry and old map set); a
+  cross-map `SMSG_NEW_WORLD` without one (an unrelated teleport) ends it.
+  On a transport the server writes the deck-local offset into
+  `SMSG_NEW_WORLD` (the `m_transport` branch,
+  `Entities/Player/Player.cpp:1627-1640`), so control stores the numbers
+  as the ride offset only. The last world pose stays, flagged `stale`, and
+  movement blocks keep `ON_TRANSPORT` with the local offset until `poseAt`
+  returns the transport on the destination map; then the world pose is that
+  pose plus the rotated offset. A `MSG_MOVE_TELEPORT_ACK` position replaces
+  the stale pose earlier. The cross-map path is unit-tested; the live ride
+  order is in "Live validation".
 
 ## Capabilities row
 
