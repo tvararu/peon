@@ -230,6 +230,7 @@ function spellsState(casts: SpellsState["unitCasts"]): SpellsState {
     channel: undefined,
     inactiveRanks: [],
     modifiers: { flat: {}, pct: {} },
+    runes: undefined,
     skills: [],
     totems: [],
     unitCasts: casts,

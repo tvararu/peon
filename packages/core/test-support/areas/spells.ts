@@ -1,5 +1,5 @@
 import { PacketWriter } from "#wow/protocol/packet";
-import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
+import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 
 export function spellsChannelStartBody(init: {
   caster: bigint;
@@ -125,6 +125,7 @@ export function spellsSpellGoBody(init: {
   timestamp: number;
   hits: readonly bigint[];
   target?: bigint;
+  runes?: { after: number; before: number; elapsed: readonly number[] };
 }): Uint8Array {
   const w = new PacketWriter();
   w.packedGuidBig(init.castItem ?? init.caster);
@@ -142,7 +143,31 @@ export function spellsSpellGoBody(init: {
     w.uint32LE(2);
     w.packedGuidBig(init.target);
   }
+  if (init.runes) {
+    w.uint8(init.runes.before);
+    w.uint8(init.runes.after);
+    for (const byte of init.runes.elapsed) w.uint8(byte);
+  }
   return w.finish();
+}
+
+export function spellsConvertRuneBody(index: number, type: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(index);
+  w.uint8(type);
+  return w.finish();
+}
+
+export function spellsSelfRuneFields(init: {
+  classId: number;
+}): Map<number, number> {
+  const raw = new Map<number, number>();
+  raw.set(UNIT_FIELDS.BYTES_0.offset, (init.classId & 0xff) << 8);
+  const bits = new DataView(new ArrayBuffer(4));
+  bits.setFloat32(0, 0.1, true);
+  for (let slot = 0; slot < 4; slot++)
+    raw.set(PLAYER_FIELDS.RUNE_REGEN_1.offset + slot, bits.getUint32(0, true));
+  return raw;
 }
 
 export const spellsSpellFailedOtherBody = spellsSpellFailureBody;

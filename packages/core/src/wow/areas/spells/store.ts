@@ -2,11 +2,13 @@ import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type {
   ChannelStart,
   ChannelUpdate,
+  ConvertRune,
   ModifyCooldown,
   SpellModifier,
   SpellVisual,
   TotemCreatedPacket,
 } from "#wow/areas/spells/protocol";
+import { type Rune, type RuneEvent, Runes } from "#wow/areas/spells/runes";
 import type { SkillCatalog } from "#wow/areas/spells/skill-names";
 import { STATIC_SKILL_CATALOG } from "#wow/areas/spells/skill-names";
 import { readSkills, type Skill } from "#wow/areas/spells/skills";
@@ -32,6 +34,7 @@ export type SpellsState = {
   unitCasts: readonly UnitCast[];
   totems: readonly (Readonly<Totem> | undefined)[];
   skills: readonly Skill[];
+  runes: readonly Rune[] | undefined;
 };
 export type SpellsEvent =
   | {
@@ -51,6 +54,7 @@ export type SpellsEvent =
       max: number;
     }
   | { type: "skill_removed"; id: number; name: string }
+  | RuneEvent
   | TotemEvent
   | UnitCastEvent;
 
@@ -78,6 +82,7 @@ export class SpellsStore {
   private readonly deps: SessionDeps;
   private readonly core: CoreStores;
   private readonly units: UnitCasts;
+  private readonly runes = new Runes();
   private readonly totems: Totems;
   private failed = false;
   private fieldSeen = false;
@@ -118,6 +123,7 @@ export class SpellsStore {
         pct: totals(this.modifiers.pct),
       },
       skills: this.skills(),
+      runes: this.runeSnapshot(),
       totems: this.totems.snapshot(),
       unitCasts: this.units.snapshot(),
     };
@@ -183,8 +189,24 @@ export class SpellsStore {
   }
 
   spellGo(packet: SpellGo): void {
-    if (packet.caster === this.deps.selfGuid()) return;
-    this.units.end(packet.caster, packet.spellId, "succeeded");
+    if (packet.caster !== this.deps.selfGuid()) {
+      this.units.end(packet.caster, packet.spellId, "succeeded");
+      return;
+    }
+    if (packet.runes)
+      this.runes.read(
+        this.deps.getEntity(this.deps.selfGuid())?.rawFields,
+        packet.runes,
+      );
+  }
+
+  convertRune(packet: ConvertRune): void {
+    const event = this.runes.convert(
+      this.deps.getEntity(this.deps.selfGuid())?.rawFields,
+      packet.index,
+      packet.type,
+    );
+    if (event) this.events.emit(event);
   }
 
   spellFailure(packet: SpellFailure): void {
@@ -276,6 +298,12 @@ export class SpellsStore {
     );
   }
 
+  private runeSnapshot(): readonly Rune[] | undefined {
+    return this.runes.read(
+      this.deps.getEntity(this.deps.selfGuid())?.rawFields,
+    );
+  }
+
   private emitSkillChanges(current: readonly Skill[]): void {
     if (!this.skillBaseline) return;
     const before = new Map(
@@ -317,6 +345,7 @@ export class SpellsStore {
     const bytes = fields.get(FIELD_BYTES);
     if (bytes !== undefined) this.barToggles = (bytes >>> 16) & 0xff;
     this.readSkills();
+    this.runes.read(this.deps.getEntity(this.deps.selfGuid())?.rawFields);
     const channel = this.core.combat.casts.channel;
     const spellId = fields.get(CHANNEL_SPELL);
     if (!channel || spellId === undefined) return;
@@ -348,6 +377,7 @@ export class SpellsStore {
   dispose(): void {
     this.units.dispose();
     this.totems.clear();
+    this.runes.clear();
     this.events.clear();
   }
 }
