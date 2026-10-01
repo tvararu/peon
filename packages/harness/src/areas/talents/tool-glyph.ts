@@ -263,7 +263,7 @@ function invalidNext(
     ? nextCall("talents", { do: "show" })
     : nextCall("talents", {
         do: "glyph",
-        item: item.label,
+        item: `bag ${item.bag} slot ${item.slot}`,
         slot: other.index + 1,
       });
 }

@@ -248,6 +248,28 @@ describe("talents glyph", () => {
     expect(out.next).toContain("slot: 2");
   });
 
+  test("invalid_glyph on a duplicate label retries with the resolved bag and slot", async () => {
+    const twin: Held = { ...GLYPH, slot: 25 };
+    const { apply, t } = await rig({
+      apply: { outcome: "invalid_glyph" },
+      held: [GLYPH, twin],
+    });
+    const out = await talentsSpec.run(
+      { do: "glyph", item: "bag 255 slot 25", slot: 1 },
+      toolCtx(t),
+    );
+    expect(out.reason).toBe("invalid_glyph");
+    expect(out.next).toContain("bag 255 slot 25");
+    expect(out.next).toContain("slot: 2");
+    apply.mockClear();
+    const retry = await talentsSpec.run(
+      { do: "glyph", item: "bag 255 slot 25", slot: 2 },
+      toolCtx(t),
+    );
+    expect(retry.reason).not.toBe("ambiguous_item");
+    expect(apply).toHaveBeenCalledWith({ bag: 255, glyphSlot: 1, slot: 25 });
+  });
+
   test("a failed cast carries the server reason", async () => {
     const { t } = await rig({ apply: { outcome: "failed", reason: "dead" } });
     const out = await talentsSpec.run(
