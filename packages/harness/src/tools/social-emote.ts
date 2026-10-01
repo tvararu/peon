@@ -67,47 +67,49 @@ export async function emoteStep(
     text: what,
     to: name,
   });
-  const seen: Echo[] = [];
+  let armed = false;
+  const seen: { armed: boolean; event: Echo }[] = [];
   const isOurs = (event: Echo, id: number | undefined): boolean =>
     id !== undefined &&
     event.textEmote === id &&
     (event.target ?? undefined) === (name ?? undefined);
   const match = (event: Echo): boolean => {
-    seen.push(event);
-    return isOurs(event, textEmote);
+    seen.push({ armed, event });
+    return isOurs(event, armed ? textEmote : undefined);
   };
   let textEmote: number | undefined;
   const off = subscribeEcho(handle, match);
-  signal?.throwIfAborted();
-  const miss = await sendEmote(handle, what, guid, signal).catch((error) => {
+  try {
+    signal?.throwIfAborted();
+    const miss = await sendEmote(handle, what, guid, signal);
+    const sent = miss.sent;
+    textEmote = miss.textEmote;
+    armed = true;
+    const echo =
+      seen.find((row) => row.armed && isOurs(row.event, textEmote))?.event ??
+      (await settle<Echo>({
+        match: (event) => isOurs(event, textEmote),
+        signal,
+        subscribe: (cb) => subscribeEcho(handle, cb),
+        timeoutMs: EMOTE_SETTLE_MS,
+      }));
+    signal?.throwIfAborted();
+    if (echo !== undefined) {
+      const { detail, to } = emotedDetail(what, echo.target ?? name);
+      return result("DONE", { after: { ...after(true), to }, detail });
+    }
+    if (sent === undefined) {
+      return result("UNCONFIRMED", {
+        after: after(false),
+        detail: `emoted ${what}; no echo in 2 s.`,
+        next: nextCall("journal", { about: "log", since: "1m" }),
+        reason: "no_answer",
+      });
+    }
+    return refusedResult(what, after(false), sent);
+  } finally {
     off();
-    throw error;
-  });
-  const sent = miss.sent;
-  textEmote = miss.textEmote;
-  const echo =
-    seen.find((event) => isOurs(event, textEmote)) ??
-    (await settle<Echo>({
-      match,
-      signal,
-      subscribe: (cb) => subscribeEcho(handle, cb),
-      timeoutMs: EMOTE_SETTLE_MS,
-    }));
-  off();
-  signal?.throwIfAborted();
-  if (echo !== undefined) {
-    const { detail, to } = emotedDetail(what, echo.target ?? name);
-    return result("DONE", { after: { ...after(true), to }, detail });
   }
-  if (sent === undefined) {
-    return result("UNCONFIRMED", {
-      after: after(false),
-      detail: `emoted ${what}; no echo in 2 s.`,
-      next: nextCall("journal", { about: "log", since: "1m" }),
-      reason: "no_answer",
-    });
-  }
-  return refusedResult(what, after(false), sent);
 }
 
 function refusedResult(
