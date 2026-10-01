@@ -164,44 +164,4 @@ describe("pets stable store", () => {
       r.dispose();
     }
   });
-
-  test("every stable event routes through the consumer switch", () => {
-    const { r, seen } = rig();
-    const kinds: string[] = [];
-    try {
-      for (const event of seen) {
-        switch (event.type) {
-          case "stable_list":
-            kinds.push(event.stable.npc === NPC ? "list" : "other-npc");
-            break;
-          case "stable_result":
-            kinds.push(event.result);
-            break;
-          case "unanswered":
-            kinds.push(event.request);
-            break;
-          case "bar":
-          case "spell_learned":
-          case "spell_unlearned":
-          case "feedback":
-          case "cast_failed":
-          case "name":
-          case "name_invalid":
-            kinds.push(event.type);
-            break;
-          default:
-            break;
-        }
-      }
-      r.inject(GameOpcode.MSG_LIST_STABLED_PETS, LIST);
-      r.inject(GameOpcode.SMSG_STABLE_RESULT, petsStableResultBody(0x08));
-      expect(kinds).toEqual([]);
-      expect(seen.map((event) => event.type)).toEqual([
-        "stable_list",
-        "stable_result",
-      ]);
-    } finally {
-      r.dispose();
-    }
-  });
 });

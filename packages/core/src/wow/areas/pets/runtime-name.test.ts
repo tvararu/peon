@@ -7,6 +7,7 @@ import {
 } from "#test-support/areas/pets";
 import { elapse, withFakeTimers } from "#test-support/fake-time";
 import { buildPetNameQuery, buildPetRename } from "#wow/areas/pets/protocol";
+import { petsRuntime } from "#wow/areas/pets/runtime";
 import type { Entity } from "#wow/entity-store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { UNIT_FIELDS } from "#wow/protocol/update-fields";
@@ -184,6 +185,44 @@ describe("pets names runtime", () => {
         await elapse(6000);
         expect(seen).toEqual(["unanswered"]);
       } finally {
+        off();
+        r.dispose();
+      }
+    });
+  });
+
+  test("a throwing send rethrows and leaves no wait to report", async () => {
+    await withFakeTimers(async () => {
+      const failure = new Error("no world socket");
+      const { r } = rig(0x01_00_00, 7);
+      const store = r.stores.areas.pets;
+      expect(store.snapshot().pet?.canRename).toBe(true);
+      expect(store.snapshot().bar?.guid).toBe(PET);
+      const ctx = {
+        listen: () => () => undefined,
+        send: () => {
+          throw failure;
+        },
+        signal: new AbortController().signal,
+        until: () =>
+          new Promise<never>((_resolve, reject) => {
+            setTimeout(() => reject(new Error("timeout")), 5000);
+          }),
+      };
+      const seen: string[] = [];
+      const off = store.onEvent((event) => seen.push(event.type));
+      const unhandled: unknown[] = [];
+      const onUnhandled = (reason: unknown) => unhandled.push(reason);
+      process.on("unhandledRejection", onUnhandled);
+      try {
+        const single = petsRuntime(ctx as never, store, r.stores as never);
+        expect(() => single.act.renamePet("Fangtooth")).toThrow(failure);
+        await elapse(6000);
+        expect(seen).not.toContain("unanswered");
+        expect(unhandled).toEqual([]);
+        single.dispose();
+      } finally {
+        process.off("unhandledRejection", onUnhandled);
         off();
         r.dispose();
       }
