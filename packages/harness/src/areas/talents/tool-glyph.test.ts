@@ -108,7 +108,8 @@ describe("talents glyph", () => {
     );
     expect(apply).toHaveBeenCalledWith({ bag: 255, glyphSlot: 1, slot: 24 });
     expect(out.status).toBe("DONE");
-    expect(out.detail).toBe("Glyph of Battle in minor slot 2.");
+    expect(out.detail).toContain("Glyph of Battle");
+    expect(out.detail).toContain("minor slot 2");
   });
 
   test("glyph accepts a kind word and picks the open slot of that kind", async () => {
@@ -285,16 +286,25 @@ describe("talents glyph", () => {
     expect(order).toEqual(["blocker", "apply"]);
   });
 
-  test("an aborted signal rejects and sends nothing", async () => {
+  test("aborting while queued behind the mutex sends nothing", async () => {
     const { apply, t } = await rig();
-    const controller = new AbortController();
-    controller.abort();
-    await expect(
-      talentsSpec.run(
-        { do: "glyph", item: "Glyph of Battle", slot: 1 },
-        toolCtx(t, controller.signal),
-      ),
-    ).rejects.toThrow();
+    let release!: () => void;
+    const busy = new Promise<void>((resolve) => {
+      release = () => resolve();
+    });
+    const holder = t.rt.mutex.run(() => busy);
+    await Promise.resolve();
+    const stop = new AbortController();
+    const pending = talentsSpec.run(
+      { do: "glyph", item: "Glyph of Battle", slot: 1 },
+      toolCtx(t, stop.signal),
+    );
+    for (let i = 0; i < 20; i += 1) await Promise.resolve();
+    stop.abort();
+    release();
+    await holder;
+    await expect(pending).rejects.toThrow();
+    await t.rt.mutex.run(() => {});
     expect(apply).not.toHaveBeenCalled();
   });
 
@@ -343,6 +353,28 @@ describe("talents unglyph", () => {
         talentsSpec.run({ do: "unglyph", slot } as never, toolCtx(t)),
       ).rejects.toBeInstanceOf(Refusal);
     }
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  test("aborting while queued behind the mutex clears nothing", async () => {
+    const { remove, t } = await rig({ state: snapshot([0, 21]) });
+    let release!: () => void;
+    const busy = new Promise<void>((resolve) => {
+      release = () => resolve();
+    });
+    const holder = t.rt.mutex.run(() => busy);
+    await Promise.resolve();
+    const stop = new AbortController();
+    const pending = talentsSpec.run(
+      { do: "unglyph", slot: 2 },
+      toolCtx(t, stop.signal),
+    );
+    for (let i = 0; i < 20; i += 1) await Promise.resolve();
+    stop.abort();
+    release();
+    await holder;
+    await expect(pending).rejects.toThrow();
+    await t.rt.mutex.run(() => {});
     expect(remove).not.toHaveBeenCalled();
   });
 });

@@ -323,16 +323,19 @@ export async function glyphTalents(
   );
   const picked = glyphSlotOf(catalog, state, slot);
   ctx.signal.throwIfAborted();
-  const outcome: ApplyGlyph = await ctx.rt.mutex.run(() =>
-    abortable(
-      handle.talents.act.applyGlyph({
-        bag: found.bag,
-        glyphSlot: picked.index,
-        slot: found.slot,
-      }),
-      ctx.signal,
-    ),
+  const queued = ctx.rt.mutex.run(async () => {
+    ctx.signal.throwIfAborted();
+    return await handle.talents.act.applyGlyph({
+      bag: found.bag,
+      glyphSlot: picked.index,
+      slot: found.slot,
+    });
+  });
+  queued.then(
+    () => undefined,
+    () => undefined,
   );
+  const outcome: ApplyGlyph = await abortable(queued, ctx.signal);
   return glyphOutcome(
     outcome,
     { item: found, state, target: { ...picked, label: found.label } },
@@ -352,9 +355,15 @@ export async function unglyphTalents(
   );
   const kind = slotKind(catalog, snapshot.slots[index]?.typeId);
   ctx.signal.throwIfAborted();
-  const outcome: RemoveGlyph = await ctx.rt.mutex.run(() =>
-    abortable(handle.talents.act.removeGlyph(index), ctx.signal),
+  const removing = ctx.rt.mutex.run(async () => {
+    ctx.signal.throwIfAborted();
+    return await handle.talents.act.removeGlyph(index);
+  });
+  removing.then(
+    () => undefined,
+    () => undefined,
   );
+  const outcome: RemoveGlyph = await abortable(removing, ctx.signal);
   const after: TalentsAfter = {
     do: "unglyph",
     freePoints: undefined,
