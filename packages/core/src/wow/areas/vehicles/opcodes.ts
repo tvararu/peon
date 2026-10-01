@@ -17,11 +17,16 @@ export const VEHICLES_OPCODES = {
     "CMSG_MOVE_NOT_ACTIVE_MOVER",
   ],
   uses: [
+    "SMSG_MONSTER_MOVE",
     "SMSG_UPDATE_OBJECT",
     "SMSG_COMPRESSED_UPDATE_OBJECT",
     "SMSG_DESTROY_OBJECT",
   ],
   stubs: [],
   dead: [],
-  unseen: [],
+  unseen: [
+    "CMSG_REQUEST_VEHICLE_PREV_SEAT",
+    "CMSG_REQUEST_VEHICLE_NEXT_SEAT",
+    "CMSG_REQUEST_VEHICLE_SWITCH_SEAT",
+  ],
 } as const satisfies AreaOpcodes;

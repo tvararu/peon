@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
+  vehiclesMonsterMoveBody,
   vehiclesMonsterMoveTransportBody,
   vehiclesPlayerVehicleDataBody,
 } from "#test-support/areas/vehicles";
@@ -27,6 +28,19 @@ function unit(guid: bigint, npcFlags: number): Entity {
     rawFields: new Map(),
     scale: 1,
   } as unknown as Entity;
+}
+
+function board(rig: ReturnType<typeof rigWith>, guid: bigint): void {
+  rig.inject(
+    GameOpcode.SMSG_MONSTER_MOVE_TRANSPORT,
+    vehiclesMonsterMoveTransportBody({
+      flags: SplineFlag.TRANSPORT_ENTER,
+      guid,
+      seat: 0,
+      stop: false,
+      transportGuid: SELF,
+    }),
+  );
 }
 
 function rigWith(flags: Map<bigint, number>) {
@@ -115,7 +129,7 @@ describe("vehicles acts", () => {
   test("exitVehicle after a boarding spline uses the seat the spline named", async () => {
     const rig = rigWith(new Map([[VEHICLE, 0x01_00_00_00]]));
     try {
-      const board = rig.handle.act.spellClick(VEHICLE);
+      const boarding = rig.handle.act.spellClick(VEHICLE);
       await Promise.resolve();
       rig.inject(
         GameOpcode.SMSG_MONSTER_MOVE_TRANSPORT,
@@ -127,7 +141,7 @@ describe("vehicles acts", () => {
           flags: SplineFlag.TRANSPORT_ENTER,
         }),
       );
-      expect(await board).toEqual({ status: "ok" });
+      expect(await boarding).toEqual({ status: "ok" });
       const exit = rig.handle.act.exitVehicle();
       await Promise.resolve();
       expect(rig.sent.map((packet) => packet.opcode)).toEqual([
@@ -319,9 +333,39 @@ describe("vehicles acts", () => {
       await Promise.resolve();
       const ejectSent = rig.sent.slice(-1).map((packet) => packet.opcode);
       expect(ejectSent).toEqual([GameOpcode.CMSG_CONTROLLER_EJECT_PASSENGER]);
+      board(rig, PARTNER);
       rig.inject(
-        GameOpcode.SMSG_PLAYER_VEHICLE_DATA,
-        vehiclesPlayerVehicleDataBody({ guid: PARTNER, vehicleId: 0 }),
+        GameOpcode.SMSG_MONSTER_MOVE,
+        vehiclesMonsterMoveBody({
+          flags: SplineFlag.TRANSPORT_EXIT,
+          guid: PARTNER,
+          stop: false,
+        }),
+      );
+      expect(await pending).toEqual({ status: "ok" });
+    } finally {
+      rig.dispose();
+    }
+  });
+  test("ejectPassenger sends the passenger guid from a driver with no seat of its own (AC Handlers/VehicleHandler.cpp:167-173)", async () => {
+    const rig = rigWith(new Map());
+    rig.inject(
+      GameOpcode.SMSG_PLAYER_VEHICLE_DATA,
+      vehiclesPlayerVehicleDataBody({ guid: SELF, vehicleId: 123 }),
+    );
+    try {
+      const pending = rig.handle.act.ejectPassenger(PARTNER);
+      await Promise.resolve();
+      const ejectSent = rig.sent.slice(-1).map((packet) => packet.opcode);
+      expect(ejectSent).toEqual([GameOpcode.CMSG_CONTROLLER_EJECT_PASSENGER]);
+      board(rig, PARTNER);
+      rig.inject(
+        GameOpcode.SMSG_MONSTER_MOVE,
+        vehiclesMonsterMoveBody({
+          flags: SplineFlag.TRANSPORT_EXIT,
+          guid: PARTNER,
+          stop: false,
+        }),
       );
       expect(await pending).toEqual({ status: "ok" });
     } finally {
@@ -329,31 +373,53 @@ describe("vehicles acts", () => {
     }
   });
 
-  test("a player_vehicle reply for another guid does not settle the eject", async () => {
+  test("an exit spline for another passenger does not settle the eject", async () => {
+    jest.useFakeTimers();
+    const rig = rigWith(new Map());
+    const other = 0xf1_30_00_3e_ea_00_0d_bcn;
+    rig.inject(
+      GameOpcode.SMSG_PLAYER_VEHICLE_DATA,
+      vehiclesPlayerVehicleDataBody({ guid: SELF, vehicleId: 123 }),
+    );
+    board(rig, PARTNER);
+    board(rig, other);
+    try {
+      const pending = rig.handle.act.ejectPassenger(PARTNER);
+      rig.inject(
+        GameOpcode.SMSG_MONSTER_MOVE,
+        vehiclesMonsterMoveBody({
+          flags: SplineFlag.TRANSPORT_EXIT,
+          guid: other,
+          stop: false,
+        }),
+      );
+      jest.advanceTimersByTime(3000);
+      expect(await pending).toEqual({ status: "no_answer" });
+    } finally {
+      rig.dispose();
+      jest.useRealTimers();
+    }
+  });
+
+  test("a plain move of a passenger does not count as leaving the vehicle", async () => {
     jest.useFakeTimers();
     const rig = rigWith(new Map());
     rig.inject(
       GameOpcode.SMSG_PLAYER_VEHICLE_DATA,
       vehiclesPlayerVehicleDataBody({ guid: SELF, vehicleId: 123 }),
     );
-    rig.stores.areas.vehicles.setSeat({
-      controlling: false,
-      entry: undefined,
-      seat: 0,
-      vehicle: VEHICLE,
-    });
+    board(rig, PARTNER);
     try {
       const pending = rig.handle.act.ejectPassenger(PARTNER);
-      await Promise.resolve();
       rig.inject(
-        GameOpcode.SMSG_PLAYER_VEHICLE_DATA,
-        vehiclesPlayerVehicleDataBody({
-          guid: 0xf1_30_00_3e_ea_00_0d_bcn,
-          vehicleId: 0,
-        }),
+        GameOpcode.SMSG_MONSTER_MOVE,
+        vehiclesMonsterMoveBody({ guid: PARTNER, stop: false }),
       );
       jest.advanceTimersByTime(3000);
       expect(await pending).toEqual({ status: "no_answer" });
+      expect(rig.stores.areas.vehicles.snapshot().passengers.has(PARTNER)).toBe(
+        true,
+      );
     } finally {
       rig.dispose();
       jest.useRealTimers();
