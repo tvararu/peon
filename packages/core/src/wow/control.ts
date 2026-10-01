@@ -236,8 +236,8 @@ export class ControlRuntime {
     this.sync.nearTeleport(dest);
   }
 
-  handleTransferPending(): void {
-    this.sync.handleTransferPending();
+  handleTransferPending(transport?: { entry: number; fromMap: number }): void {
+    this.sync.handleTransferPending(transport);
   }
 
   transferAborted(abort: TransferAbortedInput): void {

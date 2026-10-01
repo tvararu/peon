@@ -227,10 +227,11 @@ describe("transport ride in control", () => {
     expect(parseMovementInfo(r).transport).toBeUndefined();
   });
 
-  test("a cross-map world change ends the transport ride", () => {
+  test("an unrelated cross-map world change ends the transport ride", () => {
     const { runtime, sent } = setup();
     sent.length = 0;
     runtime.transportBoard(board());
+    runtime.handleTransferPending();
     runtime.newWorld({ mapId: 571, orientation: 0, x: 1, y: 2, z: 3 });
     sent.length = 0;
     runtime.forceRoot(6);
@@ -238,5 +239,102 @@ describe("transport ride in control", () => {
     r.packedGuidBig();
     r.uint32LE();
     expect(parseMovementInfo(r).transport).toBeUndefined();
+  });
+
+  test("a transport-driven cross-map change keeps the ride and adopts the local offset (Player.cpp:1607-1640)", () => {
+    const { runtime, sent } = setup();
+    sent.length = 0;
+    runtime.transportBoard(board());
+    runtime.handleTransferPending({ entry: 176_495, fromMap: 530 });
+    runtime.newWorld({ mapId: 571, orientation: 0, x: 4, y: 5, z: 6 });
+    expect(runtime.snapshot().movementAllowed).toBe(false);
+    sent.length = 0;
+    runtime.forceRoot(6);
+    const r = new PacketReader(must(sent.at(-1)).body);
+    r.packedGuidBig();
+    r.uint32LE();
+    const parsed = parseMovementInfo(r);
+    expect(parsed.flags & MovementFlag.ON_TRANSPORT).not.toBe(0);
+    expect(parsed.transport?.guid).toBe(TRANSPORT);
+    expect(parsed.transport?.x).toBeCloseTo(4, 4);
+    expect(parsed.transport?.y).toBeCloseTo(5, 4);
+    expect(parsed.transport?.z).toBeCloseTo(6, 4);
+    expect(() => runtime.transportLeave()).toThrow("not_docked");
+  });
+
+  test("a same-map world change keeps movement refused", () => {
+    const { runtime } = setup();
+    runtime.transportBoard(board());
+    runtime.newWorld({
+      mapId: 530,
+      orientation: 0,
+      x: 8709.46,
+      y: -6671.76,
+      z: 70.34,
+    });
+    expect(runtime.snapshot().movementAllowed).toBe(false);
+    expect(() => runtime.move("forward", 10)).toThrow();
+  });
+
+  test("a refused leave keeps the ride so a later leave succeeds", () => {
+    const { runtime, sent } = setup();
+    let moving = false;
+    runtime.transportBoard(
+      board({
+        poseAt: () => ({
+          mapId: 530,
+          moving,
+          orientation: 0,
+          x: 8709.46,
+          y: -6671.76,
+          z: 70.34,
+        }),
+      }),
+    );
+    moving = true;
+    expect(() => runtime.transportLeave()).toThrow("not_docked");
+    expect(runtime.snapshot().movementAllowed).toBe(false);
+    moving = false;
+    sent.length = 0;
+    runtime.transportLeave();
+    expect(sent).toHaveLength(1);
+  });
+
+  test("a leave without a ground oracle keeps the ride", () => {
+    const { runtime, sent } = setup({ ground: undefined });
+    runtime.transportBoard(board());
+    expect(() => runtime.transportLeave()).toThrow("ground_height_unavailable");
+    expect(runtime.snapshot().movementAllowed).toBe(false);
+    expect(
+      sent.filter((s) => s.opcode === GameOpcode.CMSG_MOVE_CHNG_TRANSPORT),
+    ).toHaveLength(1);
+  });
+
+  test("leaving after a same-transport teleport sends no transport block", () => {
+    const { runtime, sent } = setup();
+    runtime.transportBoard(board());
+    runtime.nearTeleport(
+      info({
+        flags: MovementFlag.ON_TRANSPORT,
+        orientation: 0,
+        transport: {
+          guid: TRANSPORT,
+          orientation: 0,
+          seat: 0,
+          time: 44,
+          x: 1,
+          y: 2,
+          z: 3,
+        },
+        x: 8709.46,
+        y: -6671.76,
+        z: 73.34,
+      }),
+    );
+    sent.length = 0;
+    runtime.transportLeave();
+    const parsed = transportOf(must(sent[0]).body);
+    expect(parsed.flags & MovementFlag.ON_TRANSPORT).toBe(0);
+    expect(parsed.transport).toBeUndefined();
   });
 });

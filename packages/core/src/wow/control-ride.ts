@@ -211,6 +211,13 @@ export class RideState {
     this.emit("control_changed", undefined);
   }
 
+  rebaseTransport(mapId: number, local: Vec3): void {
+    const ride = this.transportRide;
+    if (!ride) return;
+    ride.offset = { ...local };
+    ride.pose = { mapId, moving: true, orientation: 0, x: 0, y: 0, z: 0 };
+  }
+
   carriage(): TransportRide | undefined {
     return this.transportRide;
   }

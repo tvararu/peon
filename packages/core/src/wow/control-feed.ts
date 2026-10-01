@@ -13,7 +13,7 @@ export function feedControl(control: ControlRuntime, event: SelfEvent): void {
       control.teleportAck(event.ack);
       return;
     case "transfer_pending":
-      control.handleTransferPending();
+      control.handleTransferPending(event.transport);
       return;
     case "transfer_aborted":
       control.transferAborted(event);
