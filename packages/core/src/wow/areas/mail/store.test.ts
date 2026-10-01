@@ -6,6 +6,7 @@ import {
   mailNextMailTimeBody,
   mailReceivedMailBody,
   mailRig,
+  mailSendMailResultBody,
   mailShowMailboxBody,
 } from "#test-support/areas/mail";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -113,6 +114,72 @@ describe("mail store", () => {
       expect(seen).toEqual(["mailbox_shown"]);
       rig.inject(GameOpcode.SMSG_SHOW_MAILBOX, mailShowMailboxBody(OTHER));
       expect(rig.handle.state().mailbox).toBe(OTHER);
+    } finally {
+      rig.dispose();
+    }
+  });
+});
+
+describe("mail result", () => {
+  test("a money result clears the money and records the result", () => {
+    const rig = mailRig();
+    const seen: string[] = [];
+    rig.handle.onEvent((event) => seen.push(event.type));
+    try {
+      rig.inject(
+        GameOpcode.SMSG_MAIL_LIST_RESULT,
+        mailListResultBody({ mails: [{ id: 101, money: 250 }] }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_SEND_MAIL_RESULT,
+        mailSendMailResultBody({ action: 1, id: 101 }),
+      );
+      expect(rig.handle.state().inbox[0]?.money).toBe(0);
+      expect(rig.handle.state().lastResult).toMatchObject({
+        id: 101,
+        status: "ok",
+      });
+      expect(seen.at(-1)).toBe("result");
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a delete result drops the letter and releases the pending action", () => {
+    const rig = mailRig();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_MAIL_LIST_RESULT,
+        mailListResultBody({ mails: [{ id: 101 }] }),
+      );
+      expect(rig.handle.state().pending).toBeUndefined();
+      rig.inject(
+        GameOpcode.SMSG_SEND_MAIL_RESULT,
+        mailSendMailResultBody({ action: 4, id: 101 }),
+      );
+      expect(rig.handle.state().inbox).toEqual([]);
+      expect(rig.handle.state().pending).toBeUndefined();
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a refusal keeps the letter and still records the result", () => {
+    const rig = mailRig();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_MAIL_LIST_RESULT,
+        mailListResultBody({ mails: [{ id: 101, money: 250 }] }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_SEND_MAIL_RESULT,
+        mailSendMailResultBody({ action: 1, id: 101, result: 6 }),
+      );
+      expect(rig.handle.state().inbox[0]?.money).toBe(250);
+      expect(rig.handle.state().lastResult).toMatchObject({
+        id: 101,
+        status: "internal_error",
+      });
     } finally {
       rig.dispose();
     }

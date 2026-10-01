@@ -4,6 +4,7 @@ import {
   parseMailList,
   parseNextMailTime,
   parseReceivedMail,
+  parseSendMailResult,
   parseShowMailbox,
 } from "#wow/areas/mail/protocol";
 import { mailRuntime } from "#wow/areas/mail/runtime";
@@ -11,7 +12,7 @@ import { MailStore } from "#wow/areas/mail/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 export const mailArea = defineArea({
-  eventTypes: ["listed", "next_time", "new_mail", "mailbox_shown"],
+  eventTypes: ["listed", "next_time", "new_mail", "mailbox_shown", "result"],
   name: "mail",
   opcodes: MAIL_OPCODES,
   register: (wire, store) => {
@@ -27,6 +28,9 @@ export const mailArea = defineArea({
     });
     wire.on(GameOpcode.SMSG_SHOW_MAILBOX, (reader) => {
       store.receiveMailboxShown(parseShowMailbox(reader));
+    });
+    wire.on(GameOpcode.SMSG_SEND_MAIL_RESULT, (reader) => {
+      store.receiveSendMailResult(parseSendMailResult(reader));
     });
   },
   runtime: mailRuntime,

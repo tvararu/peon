@@ -16,7 +16,7 @@ export const MAIL_OPCODES = {
     "CMSG_SEND_MAIL",
   ],
   uses: ["SMSG_RECEIVED_MAIL"],
-  stubs: [["SMSG_SEND_MAIL_RESULT", "Mail result"]],
+  stubs: [],
   dead: [],
   unseen: ["SMSG_SHOW_MAILBOX"],
 } as const satisfies AreaOpcodes;
