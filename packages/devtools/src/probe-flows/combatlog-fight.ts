@@ -33,9 +33,13 @@ function selfHealth(handle: WorldHandle): number {
   return healthOf(handle.queryNearby().find((row) => row.self));
 }
 
-function nearestHostile(handle: WorldHandle): Row | undefined {
+function nearestHostile(
+  handle: WorldHandle,
+  entry: number | undefined,
+): Row | undefined {
   return others(handle).find(
     (row) =>
+      (entry === undefined || row.entity.entry === entry) &&
       entityType(row) === "unit" &&
       row.attackable &&
       row.relation === "hostile" &&
@@ -53,6 +57,17 @@ function spellOf(args: Readonly<Record<string, string>>): number | undefined {
   if (!(Number.isInteger(spell) && spell > 0))
     throw new Error(`combatlog-fight needs spell=<id>, not "${raw}".`);
   return spell;
+}
+
+function entryOf(args: Readonly<Record<string, string>>): number | undefined {
+  const raw = args["entry"];
+  if (raw === undefined) return undefined;
+  const entry = Number(raw);
+  if (!(Number.isInteger(entry) && entry > 0))
+    throw new Error(
+      `combatlog-fight needs entry=<creature entry>, not "${raw}".`,
+    );
+  return entry;
 }
 
 function secondsOf(args: Readonly<Record<string, string>>): number {
@@ -136,8 +151,9 @@ function killsOf(handle: WorldHandle): Json {
 async function run({ handle, args, settle }: FlowContext): Promise<Json> {
   const spell = spellOf(args);
   const seconds = secondsOf(args);
+  const entry = entryOf(args);
   await handle.loadCatalogs().catch(ignoreFailure);
-  const found = await settle(() => nearestHostile(handle));
+  const found = await settle(() => nearestHostile(handle, entry));
   if (!found)
     throw new Error(`no hostile creature within ${SIGHT_YARDS} yards.`);
   const target = found.entity.guid;
@@ -171,5 +187,5 @@ export const flow: ProbeFlow = {
   name: "combatlog-fight",
   run,
   usage:
-    "--flow combatlog-fight [--arg spell=<id>] [--arg seconds=<n>]: pick the nearest living hostile creature within 60 yards, cast the spell at it once when given and wait 3.5 s for the cast, then attack it in melee, then wait for its death, the character's death or the time limit (90 s by default).",
+    "--flow combatlog-fight [--arg spell=<id>] [--arg entry=<creature entry>] [--arg seconds=<n>]: pick the nearest living hostile creature within 60 yards (only of that creature entry when given), cast the spell at it once when given and wait 3.5 s for the cast, then attack it in melee, then wait for its death, the character's death or the time limit (90 s by default).",
 };
