@@ -116,7 +116,13 @@ driven root: the server roots the passenger on boarding
 the character's own root never blocks driving and stays set for the
 character until its unroot arrives, while a root naming the vehicle refuses
 its movement (`Entities/Player/Player.cpp:13179-13182`,
-`Entities/Unit/Unit.cpp:14094-14097`). The runtime reads the
+`Entities/Unit/Unit.cpp:14094-14097`). Forced gravity, hover, water walking
+and feather fall packets naming the driven vehicle are acknowledged under
+the vehicle guid and adopted into its driven flags, because the server sends
+them to the controlling player with the creature guid
+(`Entities/Unit/Unit.cpp:16105-16114`); a gravity disable then refuses
+ground movement until the enable returns, and packets for unrelated guids
+stay dropped. The runtime reads the
 vehicle's pose from its entity and its speeds and movement flags from the
 peeked create block, because the entity store keeps no speeds, and hands
 them to control as `mover_state` when `ControlState.mover` becomes the seat
