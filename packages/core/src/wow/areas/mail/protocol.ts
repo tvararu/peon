@@ -278,7 +278,7 @@ export type SendMailResult =
   | {
       readonly id: number;
       readonly action: "item_taken";
-      readonly status: "ok";
+      readonly status: Exclude<MailResultStatusName, "equip_error">;
       readonly itemLow: number;
       readonly count: number;
     }
@@ -323,7 +323,7 @@ export function parseSendMailResult(reader: PacketReader): SendMailResult {
   const status = statusName(reader.uint32LE());
   if (status === "equip_error")
     return { action, equipError: reader.uint32LE(), id, status };
-  if (status === "ok" && action === "item_taken") {
+  if (action === "item_taken") {
     const itemLow = reader.uint32LE();
     const count = reader.uint32LE();
     return { action, count, id, itemLow, status };

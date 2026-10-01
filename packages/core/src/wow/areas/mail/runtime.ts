@@ -197,7 +197,7 @@ async function runAct(env: Env, send: ActSend): Promise<MailActResult> {
   } catch (error) {
     cancel.abort();
     settled.catch(ignoreFailure);
-    env.store.releaseAction();
+    env.store.releaseAction(pending);
     throw error;
   }
   try {
@@ -206,7 +206,7 @@ async function runAct(env: Env, send: ActSend): Promise<MailActResult> {
     return settleResult(event.result);
   } catch (error) {
     if (!isTimeout(error)) throw error;
-    env.store.releaseAction();
+    env.store.releaseAction(pending);
     return { status: "unanswered" };
   }
 }
