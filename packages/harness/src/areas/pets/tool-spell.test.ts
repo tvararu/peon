@@ -85,6 +85,29 @@ describe("pet cast", () => {
     expect(out.detail).toContain("not_ready");
   });
 
+  test("a cast out of range tells the agent to send the pet at the target first", async () => {
+    const t = await world({ petEntity: unit(), pets: barState() });
+    jest.spyOn(t.game.pets.act, "petCast").mockImplementation(() => {
+      queueMicrotask(() =>
+        t.game.triggerAreaEvent("pets", {
+          castCount: 1,
+          reason: "out_of_range",
+          spell: GROWL,
+          type: "cast_failed",
+        } as never),
+      );
+      return { castCount: 1, confirmed: true, ok: true };
+    });
+    const out = await petSpec.run(
+      { do: "cast", target: "u1", what: "Growl" },
+      toolCtx(t),
+    );
+    expect(out.status).toBe("FAILED");
+    expect(out.detail).toContain("attack");
+    expect(out.next).toContain("attack");
+    expect(out.next).toContain("u1");
+  });
+
   test("cast of an unknown spell names the pet's spells", async () => {
     const t = await world({ petEntity: unit(), pets: barState() });
     const out = await refusal(

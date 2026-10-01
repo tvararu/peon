@@ -80,6 +80,24 @@ function cooldownAt(handle: Game, spell: number): number | "infinite" | 0 {
   return row.infinite ? "infinite" : (row.readyAt ?? 0);
 }
 
+function failedCast(input: {
+  after: PetAfter;
+  failure: string;
+  spell: string;
+  target: string | undefined;
+}): ToolResult<PetAfter> {
+  const { after, failure, spell, target } = input;
+  const near = failure === "out_of_range" && target !== undefined;
+  return result("FAILED", {
+    after,
+    detail: near
+      ? `${spell} failed: ${failure}. The pet must stand next to the target: send it with attack first, then cast again.`
+      : `${spell} failed: ${failure}.`,
+    next: near ? nextCall("pet", { do: "attack", target }) : nextCall("pet"),
+    reason: "cast_failed",
+  });
+}
+
 export async function castFlow(
   args: PetArgs,
   ctx: PetCtx,
@@ -120,11 +138,11 @@ export async function castFlow(
     timeoutMs: SETTLE_MS,
   });
   if (failure !== undefined)
-    return result("FAILED", {
+    return failedCast({
       after,
-      detail: `${spell.name} failed: ${failure}.`,
-      next: nextCall("pet"),
-      reason: "cast_failed",
+      failure,
+      spell: spell.name,
+      target: target.ref,
     });
   if (heard && sent?.confirmed === false)
     return result("UNCONFIRMED", {
