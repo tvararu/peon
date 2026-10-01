@@ -22,13 +22,14 @@ export const travelArea = defineArea({
     "bound",
     "taxi_node_status",
     "taxi_node_learned",
+    "taxi_node_named",
     "taxi_map",
     "benchmark",
     "taxi_reply",
     "flight_started",
     "flight_landed",
   ],
-  store: (deps) => createTravelStore(deps.now),
+  store: (deps) => createTravelStore(deps.now, deps.selfGuid),
   register: (wire, store) => {
     wire.on(GameOpcode.SMSG_BINDPOINTUPDATE, (r) =>
       store.receiveBindPoint(parseBindPointUpdate(r)),
@@ -49,10 +50,9 @@ export const travelArea = defineArea({
     wire.on(GameOpcode.SMSG_ACTIVATETAXIREPLY, (r) =>
       store.receiveActivateTaxiReply(parseActivateTaxiReply(r)),
     );
-    wire.peek(GameOpcode.SMSG_MONSTER_MOVE, (r) => {
-      const move = parseMonsterMove(r);
-      if (move.kind === "move") store.receiveFlightSpline(move.duration);
-    });
+    wire.peek(GameOpcode.SMSG_MONSTER_MOVE, (r) =>
+      store.receiveFlightSpline(parseMonsterMove(r)),
+    );
   },
   runtime: travelRuntime,
 });

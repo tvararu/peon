@@ -5,6 +5,7 @@ import {
   travelBinderConfirmBody,
   travelBindPointUpdateBody,
   travelPlayerBoundBody,
+  travelSelfFlightSplineBody,
   travelShowTaxiNodesBody,
   travelTaxiNodeStatusBody,
 } from "#test-support/areas/travel";
@@ -14,11 +15,17 @@ import { GameOpcode } from "#wow/protocol/opcodes";
 
 const INNKEEPER = 0xf1_30_00_3e_4a_00_12_34n;
 const HOME = { mapId: 530, x: 9477.5, y: -6857.25, z: 16.5, areaId: 3665 };
+const SELF = 0x0764n;
+const OTHER = 0xf1_30_00_3e_4a_00_12_34n;
+const POINTS = [
+  { x: 1, y: 2, z: 3 },
+  { x: 4, y: 5, z: 6 },
+];
 const NEW_HOME = { mapId: 530, x: 9500, y: -6800, z: 20, areaId: 3487 };
 
 function rigAt(start = 1000) {
   let t = start;
-  const rig = areaRig("travel", { now: () => t });
+  const rig = areaRig("travel", { now: () => t, selfGuid: SELF });
   const seen: TravelEvent[] = [];
   rig.handle.onEvent((event) => seen.push(event));
   return {
@@ -429,15 +436,29 @@ describe("travel store: flight", () => {
     }
   });
 
+  function spline(guid: bigint, durationMs: number, flags?: number) {
+    return travelSelfFlightSplineBody({
+      durationMs,
+      flags,
+      guid,
+      points: POINTS,
+      splineId: 7,
+    });
+  }
+
+  function startFlight(rig: ReturnType<typeof rigAt>["rig"]) {
+    rig.stores.areas.travel.beginFlight([83, 82], 105);
+    rig.inject(
+      GameOpcode.SMSG_ACTIVATETAXIREPLY,
+      travelActivateTaxiReplyBody(0),
+    );
+  }
+
   test("a self flight spline records the duration and re-emits flight_started with fare and duration", () => {
     const { rig, seen } = rigAt();
     try {
-      rig.stores.areas.travel.beginFlight([83, 82], 105);
-      rig.inject(
-        GameOpcode.SMSG_ACTIVATETAXIREPLY,
-        travelActivateTaxiReplyBody(0),
-      );
-      rig.stores.areas.travel.receiveFlightSpline(95_000);
+      startFlight(rig);
+      rig.inject(GameOpcode.SMSG_MONSTER_MOVE, spline(SELF, 95_000));
       expect(rig.handle.state().flight.durationMs).toBe(95_000);
       expect(seen.at(-1)).toEqual({
         durationMs: 95_000,
@@ -450,18 +471,34 @@ describe("travel store: flight", () => {
     }
   });
 
+  test("another unit's spline, a non-flying self spline and a cyclic flying spline leave the duration unknown", () => {
+    const { rig, seen } = rigAt();
+    try {
+      startFlight(rig);
+      const count = seen.length;
+      rig.inject(GameOpcode.SMSG_MONSTER_MOVE, spline(OTHER, 3000));
+      rig.inject(GameOpcode.SMSG_MONSTER_MOVE, spline(SELF, 800, 0));
+      rig.inject(
+        GameOpcode.SMSG_MONSTER_MOVE,
+        spline(SELF, 900, 0x00_00_20_00 | 0x00_08_00_00),
+      );
+      expect(seen.length).toBe(count);
+      expect(rig.handle.state().flight.durationMs).toBeUndefined();
+      rig.inject(GameOpcode.SMSG_MONSTER_MOVE, spline(SELF, 95_000));
+      expect(rig.handle.state().flight.durationMs).toBe(95_000);
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("a second spline and a spline outside a flight change nothing", () => {
     const { rig, seen } = rigAt();
     try {
-      rig.stores.areas.travel.receiveFlightSpline(95_000);
-      rig.stores.areas.travel.beginFlight([83, 82], 105);
-      rig.inject(
-        GameOpcode.SMSG_ACTIVATETAXIREPLY,
-        travelActivateTaxiReplyBody(0),
-      );
-      rig.stores.areas.travel.receiveFlightSpline(95_000);
+      rig.inject(GameOpcode.SMSG_MONSTER_MOVE, spline(SELF, 95_000));
+      startFlight(rig);
+      rig.inject(GameOpcode.SMSG_MONSTER_MOVE, spline(SELF, 95_000));
       const count = seen.length;
-      rig.stores.areas.travel.receiveFlightSpline(96_000);
+      rig.inject(GameOpcode.SMSG_MONSTER_MOVE, spline(SELF, 96_000));
       expect(seen.length).toBe(count);
       expect(rig.handle.state().flight.durationMs).toBe(95_000);
     } finally {

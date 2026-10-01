@@ -15,6 +15,17 @@ function flightDrafts(
   event: TravelEvent,
   rc: RuleInput,
 ): readonly AreaDraft[] | undefined {
+  if (event.type === "taxi_node_named") {
+    return [
+      {
+        class: "log",
+        data: { node: event.node, npc: event.npc.toString(10) },
+        name: "node_learned",
+        progress: true,
+        text: `New flight path: ${event.name ?? `node ${event.node}`}.`,
+      },
+    ];
+  }
   if (event.type === "taxi_node_learned") {
     const master =
       event.npc === undefined ? undefined : rc.lookup.unitName(event.npc);

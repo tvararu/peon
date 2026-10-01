@@ -8,6 +8,8 @@ import type {
   TaxiNodeStatus,
 } from "#wow/areas/travel/protocol";
 
+import { type MonsterMove, SplineFlag } from "#wow/protocol/monster-move";
+
 export const BIND_OFFER_TTL_MS = 60_000;
 
 export type TravelOffer = { npc: bigint; at: number };
@@ -48,6 +50,12 @@ export type TravelEvent =
       node: number | undefined;
       npc: bigint | undefined;
     }
+  | {
+      type: "taxi_node_named";
+      node: number;
+      name: string | undefined;
+      npc: bigint;
+    }
   | { type: "taxi_map"; npc: bigint; currentNode: number; knownCount: number }
   | { type: "benchmark"; on: boolean }
   | { type: "taxi_reply"; code: number; name: string }
@@ -70,12 +78,14 @@ export type TravelStore = {
   receiveShowTaxiNodes: (map: ShowTaxiNodes) => void;
   receiveTaxiNodeStatus: (status: TaxiNodeStatus) => void;
   receiveNewTaxiPath: () => void;
+  learnPending: () => { npc: bigint; node: number | undefined } | undefined;
+  nameLearned: (name: string | undefined) => boolean;
   receiveSelfFlags: (on: boolean) => void;
   beginMap: (npc: bigint) => void;
   endMap: () => void;
   beginFlight: (route: readonly number[], fare?: number) => void;
   endFlight: () => void;
-  receiveFlightSpline: (durationMs: number) => void;
+  receiveFlightSpline: (move: MonsterMove) => void;
   receiveActivateTaxiReply: (reply: ActivateTaxiReply) => void;
   receiveFlightFlag: (on: boolean) => void;
   dispose: () => void;
@@ -89,6 +99,7 @@ type TaxiFields = {
   lastReply: string | undefined;
   flight: TravelFlight;
   flagSeen: boolean;
+  learnPending: { npc: bigint; node: number | undefined } | undefined;
 };
 
 function trackMaster(taxi: TaxiFields, npc: bigint): TravelMaster {
@@ -137,6 +148,7 @@ function receiveShowTaxiNodes(
 ): void {
   taxi.known = [...ids];
   trackMaster(taxi, npc).node = currentNode;
+  if (taxi.learnPending?.npc === npc) taxi.learnPending.node = currentNode;
   events.emit({ type: "taxi_map", npc, currentNode, knownCount: ids.length });
 }
 
@@ -155,6 +167,10 @@ function receiveNewTaxiPath(
   now: () => number,
 ): void {
   taxi.learnedAt = now();
+  taxi.learnPending =
+    taxi.mapPending === undefined
+      ? undefined
+      : { npc: taxi.mapPending, node: undefined };
   const pending =
     taxi.mapPending === undefined
       ? undefined
@@ -164,6 +180,23 @@ function receiveNewTaxiPath(
     npc: taxi.mapPending,
     type: "taxi_node_learned",
   });
+}
+
+function nameLearned(
+  taxi: TaxiFields,
+  events: Emitter<[TravelEvent]>,
+  name: string | undefined,
+): boolean {
+  const pending = taxi.learnPending;
+  if (pending === undefined || pending.node === undefined) return false;
+  taxi.learnPending = undefined;
+  events.emit({
+    name,
+    node: pending.node,
+    npc: pending.npc,
+    type: "taxi_node_named",
+  });
+  return true;
 }
 
 function receiveSelfFlags(
@@ -191,6 +224,22 @@ function enterFlying(taxi: TaxiFields, events: Emitter<[TravelEvent]>): void {
     route: taxi.flight.route ? [...taxi.flight.route] : [],
     type: "flight_started",
   });
+}
+
+function acceptFlightSpline(
+  taxi: TaxiFields,
+  events: Emitter<[TravelEvent]>,
+  self: bigint,
+  move: MonsterMove,
+): void {
+  if (
+    move.kind !== "move" ||
+    move.guid !== self ||
+    move.cyclic ||
+    !(move.flags & SplineFlag.FLYING)
+  )
+    return;
+  receiveFlightSpline(taxi, events, move.duration);
 }
 
 function receiveFlightSpline(
@@ -286,6 +335,7 @@ function emptyTaxi(): TaxiFields {
     known: undefined,
     masters: new Map<bigint, TravelMaster>(),
     learnedAt: undefined,
+    learnPending: undefined,
     mapPending: undefined,
     benchmark: false,
     lastReply: undefined,
@@ -323,7 +373,10 @@ function endFlightRequest(taxi: TaxiFields): void {
   taxi.flagSeen = false;
 }
 
-export function createTravelStore(now: () => number): TravelStore {
+export function createTravelStore(
+  now: () => number,
+  selfGuid: () => bigint,
+): TravelStore {
   const events = new Emitter<[TravelEvent]>();
   const bind = emptyBind();
   const taxi = emptyTaxi();
@@ -357,6 +410,8 @@ export function createTravelStore(now: () => number): TravelStore {
     receiveNewTaxiPath(): void {
       receiveNewTaxiPath(taxi, events, now);
     },
+    learnPending: () => taxi.learnPending,
+    nameLearned: (name: string | undefined) => nameLearned(taxi, events, name),
     receiveSelfFlags(on: boolean): void {
       receiveSelfFlags(taxi, events, on);
     },
@@ -372,9 +427,7 @@ export function createTravelStore(now: () => number): TravelStore {
     endFlight(): void {
       endFlightRequest(taxi);
     },
-    receiveFlightSpline(durationMs: number): void {
-      receiveFlightSpline(taxi, events, durationMs);
-    },
+    receiveFlightSpline: (move) => acceptFlightSpline(taxi, events, selfGuid(), move),
     receiveActivateTaxiReply(reply: ActivateTaxiReply): void {
       receiveActivateTaxiReply(taxi, events, reply);
     },
@@ -382,6 +435,7 @@ export function createTravelStore(now: () => number): TravelStore {
       receiveFlightFlag(taxi, events, on);
     },
     dispose(): void {
+      taxi.learnPending = undefined;
       events.clear();
     },
   };

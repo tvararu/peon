@@ -171,6 +171,88 @@ describe("travel runtime: taxi", () => {
     }
   });
 
+  test("a path learned at an unknown node is named by the re-query's map (TaxiHandler.cpp:76-78,136-147)", async () => {
+    const rig = areaRig("travel", { dbc: taxiDbc() });
+    const named: unknown[] = [];
+    rig.handle.onEvent((event) => {
+      if (event.type === "taxi_node_named") named.push(event);
+    });
+    try {
+      const first = rig.handle.act.openTaxiMap(TAXI_MASTER);
+      rig.inject(GameOpcode.SMSG_NEW_TAXI_PATH, new Uint8Array(0));
+      rig.inject(
+        GameOpcode.SMSG_TAXINODE_STATUS,
+        travelTaxiNodeStatusBody({ npc: TAXI_MASTER, known: true }),
+      );
+      expect(await first).toEqual({ status: "ok", kind: "learned" });
+      expect(named).toEqual([]);
+      const second = rig.handle.act.openTaxiMap(TAXI_MASTER);
+      rig.inject(
+        GameOpcode.SMSG_SHOWTAXINODES,
+        travelShowTaxiNodesBody({
+          npc: TAXI_MASTER,
+          currentNode: 83,
+          mask: maskOf(83),
+        }),
+      );
+      await second;
+      expect(named).toEqual([
+        {
+          name: "Tranquillien",
+          node: 83,
+          npc: TAXI_MASTER,
+          type: "taxi_node_named",
+        },
+      ]);
+      const third = rig.handle.act.openTaxiMap(TAXI_MASTER);
+      rig.inject(
+        GameOpcode.SMSG_SHOWTAXINODES,
+        travelShowTaxiNodesBody({
+          npc: TAXI_MASTER,
+          currentNode: 83,
+          mask: maskOf(83),
+        }),
+      );
+      await third;
+      expect(named).toHaveLength(1);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a learned node is still reported by node id when the taxi data is missing", async () => {
+    const rig = areaRig("travel");
+    const named: unknown[] = [];
+    rig.handle.onEvent((event) => {
+      if (event.type === "taxi_node_named") named.push(event);
+    });
+    try {
+      const first = rig.handle.act.openTaxiMap(TAXI_MASTER);
+      rig.inject(GameOpcode.SMSG_NEW_TAXI_PATH, new Uint8Array(0));
+      await first;
+      const second = rig.handle.act.openTaxiMap(TAXI_MASTER);
+      rig.inject(
+        GameOpcode.SMSG_SHOWTAXINODES,
+        travelShowTaxiNodesBody({
+          npc: TAXI_MASTER,
+          currentNode: 83,
+          mask: maskOf(83),
+        }),
+      );
+      await second;
+      expect(named).toEqual([
+        {
+          name: undefined,
+          node: 83,
+          npc: TAXI_MASTER,
+          type: "taxi_node_named",
+        },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("openTaxiMap with enable sends CMSG_ENABLETAXI (Opcodes.cpp:1302)", async () => {
     const rig = areaRig("travel");
     try {

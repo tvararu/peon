@@ -127,6 +127,7 @@ export function travelSelfFlightSplineBody(init: {
   points: readonly Vec3[];
   durationMs: number;
   splineId: number;
+  flags?: number;
 }): Uint8Array {
   const [start, ...extra] = init.points;
   if (!start) throw new Error("a flight spline needs a start point");
@@ -136,7 +137,7 @@ export function travelSelfFlightSplineBody(init: {
   w.vec3(start);
   w.uint32LE(init.splineId);
   w.uint8(0);
-  w.uint32LE(FLIGHT_SPLINE_FLAGS);
+  w.uint32LE(init.flags ?? FLIGHT_SPLINE_FLAGS);
   w.uint32LE(init.durationMs);
   w.uint32LE(extra.length);
   for (const point of extra) w.vec3(point);
