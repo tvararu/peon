@@ -215,6 +215,7 @@ export async function dismountFlow(
     spell: undefined,
     target: undefined,
   };
+  signal.throwIfAborted();
   const { promise, reject } = Promise.withResolvers<never>();
   const onAbort = () => reject(signal.reason);
   signal.addEventListener("abort", onAbort, { once: true });
