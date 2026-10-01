@@ -7,7 +7,7 @@ columns are explained in [the index](../protocol-coverage.md).
 |---|---|---|---|---|
 | `0x213` | `CMSG_UNLEARN_TALENTS` | client | dead |  |
 | `0x251` | `CMSG_LEARN_TALENT` | client | handled |  |
-| `0x2aa` | `MSG_TALENT_WIPE_CONFIRM` | both | missing |  |
+| `0x2aa` | `MSG_TALENT_WIPE_CONFIRM` | both | handled |  |
 | `0x48a` | `CMSG_REMOVE_GLYPH` | client | missing |  |
 | `0x4c0` | `SMSG_TALENTS_INFO` | server | handled |  |
 | `0x4c1` | `CMSG_LEARN_PREVIEW_TALENTS` | client | handled |  |

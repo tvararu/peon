@@ -79,9 +79,32 @@ type flags match (`Entities/Player/PlayerStorage.cpp:5944`), and the
 server fills slot index `Order - 1` with each ordered slot type at login
 (`Entities/Player/Player.cpp:13605-13610`).
 
+A reset starts with the gossip option "I wish to unlearn my talents" at a
+class trainer (`Entities/Player/PlayerGossip.cpp:96-98`). The first
+reset costs 1 gold, the second 5 gold, then 10 gold and up in steps of 5
+(`Entities/Player/Player.cpp:3844-3850`).
+
+The server answers the option with `MSG_TALENT_WIPE_CONFIRM`: the trainer
+guid then the cost in copper, never a refusal, even for a character with
+nothing spent (`Entities/Player/Player.cpp:9125-9132`). The client
+confirms with the same opcode and the trainer guid alone
+(`Handlers/SkillHandler.cpp:58-63`). The server then resets and sends
+`SMSG_TALENTS_INFO` (`Handlers/SkillHandler.cpp:81-86`), and closes the
+gossip window when it sends the offer. The area keeps the offer for 30
+seconds or until the next player-form `SMSG_TALENTS_INFO`.
+
+A `MSG_TALENT_WIPE_CONFIRM` from the server with guid 0 and cost 0 means
+the reset did not happen (`Handlers/SkillHandler.cpp:78-84`). Two causes
+give the same packet. With nothing spent, the server returns before the
+money check. With too little money it zeroes the used-talent counter
+first, sends `SMSG_BUY_FAILED` with result 2 and guid 0
+(`Entities/Player/PlayerStorage.cpp:4201-4209`), and returns false, so
+the handler also sends the guid-0 reply. The area records a
+`SMSG_BUY_FAILED` with result 2 that arrives while a reset is in flight,
+and the act reports `not_enough_money` for it.
+
 ## Left out
 
-- `MSG_TALENT_WIPE_CONFIRM`: built by `talents-4a`.
 - `CMSG_REMOVE_GLYPH`: built by `talents-5a`.
 - `CMSG_UNLEARN_TALENTS` and `SMSG_TALENTS_INVOLUNTARILY_RESET`: dead.
 
@@ -98,3 +121,4 @@ Added by talents-3b.
 | `CMSG_LEARN_PREVIEW_TALENTS` | `live` | probe flow `talents-learn --arg plan=124:2,130:0` on the same character (2 free left): one `02 00 00 00 82 00 00 00 00 00 00 00 7c 00 00 00 02 00 00 00` went out and one `SMSG_TALENTS_INFO` answered with 0 free and talents 124 at wire rank 2 and 130 at wire rank 0. Account deleted | `Handlers/SkillHandler.cpp:34-56` |
 | `CMSG_UNLEARN_TALENTS` | `dead` | registered `STATUS_NEVER` with `Handle_NULL`; resets go through `MSG_TALENT_WIPE_CONFIRM` | `Server/Protocol/Opcodes.cpp:662` |
 | `SMSG_TALENTS_INVOLUNTARILY_RESET` | `dead` | no writer in AzerothCore `src/`, only its registration; wow_messages says it exists only as a comment | `Server/Protocol/Opcodes.cpp:1405` |
+| `MSG_TALENT_WIPE_CONFIRM` | `live` | both directions on a level-12 `eversong10-warrior` at Undercity warrior trainer 4594 (`soap setup` position map 0, zone 1497, x 1775.77, y 404.6, z -57.11, 5 yd south of the trainer; the point worked unchanged), flow `talents-reset --arg npc=4594 --arg max=20000`. First reset: option 1 went out and `SMSG_GOSSIP_COMPLETE` and an offer with cost 10000 came back, the confirm went out with the trainer guid, and `SMSG_TALENTS_INFO` followed with 3 free. Second offer cost 50000: with `max=20000` the act returned `too_expensive` and sent no confirm. With nothing spent and `max=60000` the confirm drew a guid-0, cost-0 reply and the act returned `nothing_to_reset`. With one point spent and 20000 copper the confirm drew `SMSG_BUY_FAILED` (guid 0, item 0, result 2) then the guid-0 reply, and the act returned `not_enough_money`. Account deleted | `Handlers/SkillHandler.cpp:58-84`, `Entities/Player/Player.cpp:9125-9132` |
