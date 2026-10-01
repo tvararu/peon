@@ -397,6 +397,38 @@ describe("self flight spline in control", () => {
     });
   }
 
+  for (const [name, flag] of [
+    ["stunned", UnitFlag.STUNNED],
+    ["confused", UnitFlag.CONFUSED],
+    ["fleeing", UnitFlag.FLEEING],
+    ["disable_move", UnitFlag.DISABLE_MOVE],
+  ] as const) {
+    test(`a replacement spline keeps the ${name} blocker seen during the flight`, () => {
+      fly(({ runtime, advance }) => {
+        runtime.observeSelfSpline(flightSpline({ splineId: 1 }));
+        runtime.observeSelf({ unitFlags: flag });
+        runtime.observeSelfSpline(flightSpline({ splineId: 2 }));
+        expect(runtime.snapshot().blockedReason).toBe("in_flight");
+        advance(FLIGHT_MS + 10_500);
+        expect(runtime.snapshot().blockedReason).toBe("disable_move");
+        expect(() => runtime.move("forward", 1000)).toThrow("disable_move");
+      });
+    });
+  }
+
+  test("a new flight after landing does not inherit the earlier blocker", () => {
+    fly(({ runtime, advance }) => {
+      runtime.observeSelfSpline(flightSpline({ splineId: 1 }));
+      runtime.observeSelf({ unitFlags: UnitFlag.STUNNED });
+      advance(FLIGHT_MS + 10_500);
+      runtime.observeSelf({ unitFlags: 0 });
+      runtime.observeSelfSpline(flightSpline({ splineId: 2 }));
+      advance(FLIGHT_MS + 10_500);
+      expect(runtime.snapshot().blockedReason).toBeUndefined();
+      expect(() => runtime.move("forward", 1000)).not.toThrow();
+    });
+  });
+
   test("a taxi flag arriving after the duration sends spline-done and never lands by fallback", () => {
     fly(({ runtime, sent, advance }) => {
       runtime.observeSelfSpline(flightSpline({ splineId: 88 }));
