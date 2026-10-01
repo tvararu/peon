@@ -238,7 +238,26 @@ No agent verb; the world-service acts `pets.requestPetInfo`,
 `pets.stableRevivePet`, `pets.abandonPet`, `pets.dismissCritter`,
 `pets.learnPetTalent` and `pets.learnPetTalents` only.
 
-## The pet tool
+## The stable verbs of the interact tool
+
+`talk` at a stable master also lists the stable: the list names each pet
+with its level and whether it is out or stabled, and the free slots
+(`pets.listStabledPets` answers `guid`, the pet count, the slot count and
+one row per pet with a flag of 1 for the pet out and 2 for a stabled pet
+(`Handlers/NPCHandler.cpp:355` sends `MSG_LIST_STABLED_PETS`). `stable`
+stables the pet out and settles `DONE` on `stabled`; it is refused with
+`no_pet` and sends nothing with no bar, because `HandleStablePet` stays
+silent without a `PetStable` (`Handlers/NPCHandler.cpp:449` handles
+`CMSG_STABLE_PET`). `unstable` reads the list first, picks the
+stabled pet by line number or pet number (a name shared by two stabled pets
+needs the number), and sends `CMSG_UNSTABLE_PET` with no pet out or
+`CMSG_STABLE_SWAP_PET` with one out (the client sends the plain packet
+instead of the swap when starting from a stabled slot,
+`Handlers/NPCHandler.cpp:541`). `buy_slot` sends `CMSG_BUY_STABLE_SLOT`.
+Each settles `DONE` on `stabled`, `unstabled` or `slot_bought`, `FAILED`
+with the reason on `money`, `refused` or `exotic`, and `UNCONFIRMED` on
+`unanswered` (`Handlers/NPCHandler.cpp:418` sends `SMSG_STABLE_RESULT`).
+Every wait subscribes before it sends and runs inside `ctx.rt.mutex.run`.
 
 The `pet` tool checks the pet's status, calls, dismisses or revives it,
 attacks with it, moves it (`follow`, `stay`, `stop`) or sets its stance

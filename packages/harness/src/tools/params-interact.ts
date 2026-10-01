@@ -23,6 +23,9 @@ export const interactParams = Type.Object({
         "bind",
         "buyback",
         "reset_talents",
+        "stable",
+        "unstable",
+        "buy_slot",
       ],
       { description: "Default talk: list what this NPC offers." },
     ),
@@ -48,7 +51,7 @@ export const interactParams = Type.Object({
   what: Type.Optional(
     Type.String({
       description:
-        'Line number or title from the talk list, gossip option number, or for buy a stock line number, part of an item name ("water") or "item <id>".',
+        'Line number or title from the talk list, gossip option number, for buy a stock line number, part of an item name ("water") or "item <id>", or for unstable a stable line number or pet name.',
     }),
   ),
 });

@@ -163,7 +163,10 @@ export type InteractAction =
   | "repair"
   | "bind"
   | "buyback"
-  | "reset_talents";
+  | "reset_talents"
+  | "stable"
+  | "unstable"
+  | "buy_slot";
 
 export type QuestOffer = {
   line: number;
