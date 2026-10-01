@@ -232,10 +232,13 @@ s.`; the name falls back to the unit lookup, then `Someone`) and one
   (`Entities/Player/Player.cpp:12691-12700`).
 - The summon request is not seen live. No preset has a warlock, `soap gm`
   has no summon verb, and the console `summon` commands refuse the
-  console (`scripts/Commands/cs_misc.cpp:111-112`); the meeting stone
-  needs the `objects` use act (`Entities/GameObject/GameObject.cpp:1902-1928`).
-  A mock test built from the writer proves the parser. The `group`
-  tool's summon scenario (`t9-raid-summon`) is the live try.
+  console. A mock test built from the writer proves the parser. Two
+  live tries failed to produce the packet: the Orgrimmar stone 179596
+  casts Meeting Stone Summon (23598) with a destination-only target,
+  so its `EffectSummonPlayer` never addresses a player and no
+  `SMSG_SUMMON_REQUEST` follows (`Spells/SpellEffects.cpp:4416-4448`).
+  The `group` tool answers a pending offer and refuses `no_summon`
+  otherwise; `CMSG_SUMMON_RESPONSE` is proved `accepted`.
 
 ## Left out
 
