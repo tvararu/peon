@@ -8,9 +8,10 @@ COD, stationery, money, flags with named bits, days left, template,
 subject, body and items), `hidden` (letters the server held back),
 `unread`, `senders` (up to two waiting senders) and `newMail` (a
 delivery notice arrived since the last list). The area emits `listed`
-when the inbox changes, `next_time` when the wait query answers,
-`new_mail` on a delivery notice and `mailbox_shown` when the server
-names the open box.
+when the server answers a list, `inbox_changed` when a take, return,
+delete or copy result edits the stored inbox locally, `next_time` when
+the wait query answers, `new_mail` on a delivery notice and
+`mailbox_shown` when the server names the open box.
 
 The acts need the character in the world:
 

@@ -12,7 +12,14 @@ import { MailStore } from "#wow/areas/mail/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 export const mailArea = defineArea({
-  eventTypes: ["listed", "next_time", "new_mail", "mailbox_shown", "result"],
+  eventTypes: [
+    "listed",
+    "inbox_changed",
+    "next_time",
+    "new_mail",
+    "mailbox_shown",
+    "result",
+  ],
   name: "mail",
   opcodes: MAIL_OPCODES,
   register: (wire, store) => {
