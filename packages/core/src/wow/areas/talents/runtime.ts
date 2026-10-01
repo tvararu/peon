@@ -185,11 +185,16 @@ async function sendDegraded(
   const local = refusedEntries.map((entry) =>
     refusedEntry(entry, decidedLocally(entry, state) ?? "no_points"),
   );
+  const noted = refusedEntries.map((entry) => ({
+    rank: entry.rank,
+    reason: decidedLocally(entry, state) ?? "no_points",
+    talentId: entry.talentId,
+  }));
   if (toSend.length === 0) {
-    env.store.noteRefused(refusedEntries);
+    env.store.noteRefused(noted);
     return { catalog: false, entries: local };
   }
-  env.store.noteRefused(refusedEntries);
+  env.store.noteRefused(noted);
   const outcome = await sendAndWait(env, toSend);
   if (outcome === "no_reply")
     return {
@@ -213,10 +218,22 @@ async function sendRuled(
     refusedEntry(refusal.entry, refusal.reason),
   );
   if (ordered.send.length === 0) {
-    env.store.noteRefused(ordered.refused.map((refusal) => refusal.entry));
+    env.store.noteRefused(
+      ordered.refused.map((refusal) => ({
+        rank: refusal.entry.rank,
+        reason: refusal.reason,
+        talentId: refusal.entry.talentId,
+      })),
+    );
     return { catalog: true, entries: local };
   }
-  env.store.noteRefused(ordered.refused.map((refusal) => refusal.entry));
+  env.store.noteRefused(
+    ordered.refused.map((refusal) => ({
+      rank: refusal.entry.rank,
+      reason: refusal.reason,
+      talentId: refusal.entry.talentId,
+    })),
+  );
   const outcome = await sendAndWait(env, ordered.send);
   if (outcome === "no_reply")
     return {

@@ -220,7 +220,7 @@ describe("talents runtime: learn", () => {
         entries: [{ outcome: "no_points", rank: 0, talentId: 124 }],
       });
       expect(seen.at(-1)).toEqual({
-        entries: [{ rank: 0, talentId: 124 }],
+        entries: [{ rank: 0, reason: "no_points", talentId: 124 }],
         outcome: "refused",
         type: "refused",
       });
@@ -356,7 +356,7 @@ describe("talents runtime: learn", () => {
       });
       expect(seen.filter((event) => event.type === "refused")).toEqual([
         {
-          entries: [{ rank: 0, talentId: 9999 }],
+          entries: [{ rank: 0, reason: "unknown_talent", talentId: 9999 }],
           outcome: "refused",
           type: "refused",
         },
@@ -392,7 +392,7 @@ describe("talents runtime: learn", () => {
       });
       expect(seen.filter((event) => event.type === "refused")).toEqual([
         {
-          entries: [{ rank: 5, talentId: 130 }],
+          entries: [{ rank: 5, reason: "bad_rank", talentId: 130 }],
           outcome: "refused",
           type: "refused",
         },
@@ -424,7 +424,7 @@ describe("talents runtime: learn", () => {
         await assertion;
         expect(seen.filter((event) => event.type === "refused")).toEqual([
           {
-            entries: [{ rank: 5, talentId: 130 }],
+            entries: [{ rank: 5, reason: "bad_rank", talentId: 130 }],
             outcome: "refused",
             type: "refused",
           },

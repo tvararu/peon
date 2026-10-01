@@ -37,7 +37,11 @@ function learnedRows(event: Info): AreaDraft[] {
 function refusedRows(event: Refused): AreaDraft[] {
   return event.entries.map((entry) => ({
     class: "log",
-    data: { rank: entry.rank + 1, talentId: entry.talentId },
+    data: {
+      rank: entry.rank + 1,
+      reason: entry.reason,
+      talentId: entry.talentId,
+    },
     name: "refused",
     text: `Talent ${entry.talentId} rank ${entry.rank + 1} was not learned.`,
   }));

@@ -34,12 +34,13 @@ export type TalentsState = {
 };
 export type TalentChange = { talentId: number; from: number; to: number };
 export type GlyphChange = { slot: number; from: number; to: number };
+export type RefusedEntry = TalentRank & { reason: string };
 
 export type TalentsEvent =
   | {
       type: "refused";
       outcome: "refused";
-      entries: readonly TalentRank[];
+      entries: readonly RefusedEntry[];
     }
   | {
       type: "info";
@@ -234,7 +235,7 @@ export class TalentsStore {
     return this.deps.getEntity(guid);
   }
 
-  noteRefused(entries: readonly TalentRank[]): void {
+  noteRefused(entries: readonly RefusedEntry[]): void {
     this.events.emit({
       entries: entries.map((entry) => ({ ...entry })),
       outcome: "refused",

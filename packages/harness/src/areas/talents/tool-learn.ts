@@ -1,4 +1,5 @@
 import type { AreaActsOf } from "@peon/core";
+import { abortable } from "@peon/core/lib/abort";
 import {
   asCatalog,
   freePointsOf,
@@ -13,18 +14,21 @@ import type { ToolResult } from "#harness/contract/result";
 import { Refusal } from "#harness/ops/refusal";
 import { result } from "#harness/tools/define";
 import { nextCall } from "#harness/tools/next-call";
-
 export type LearnWant = { talent: number; rank: number };
 
-type LearnOutcome = AreaActsOf<"talents">["learnTalents"] extends (
+type LearnResult = AreaActsOf<"talents">["learnTalents"] extends (
   ...args: never[]
-) => Promise<{ entries: { outcome: infer O }[] }>
-  ? O
+) => Promise<infer R>
+  ? R
   : never;
 
+type LearnOutcome = LearnResult extends { entries: { outcome: infer O }[] }
+  ? O
+  : never;
 export const REASONS: Record<string, string> = {
   ambiguous_name: "more than one talent has that name; use the id.",
   bad_rank: "that rank does not exist; ranks run 1-5.",
+  duplicate_entry: "that talent and rank is already in the plan.",
   missing_plan: "name the talent and rank to learn.",
   names_need_talent_data: "talent names need talent data; use ids.",
   needs_prerequisite: "the talent needs its prerequisite first.",
@@ -35,7 +39,6 @@ export const REASONS: Record<string, string> = {
   refused_by_server: "the server did not accept that rank.",
   tier_locked: "a higher row in the same tab is locked.",
   unknown_name: "no talent has that name; check show.",
-  unknown_talent: "the server knows no talent with that id.",
   wrong_class: "your class cannot learn that talent.",
 };
 
@@ -80,7 +83,15 @@ export function resolveWant(
   want: { talent: string; rank: number },
 ): LearnWant {
   const id = digits(want.talent);
-  if (id !== undefined) return { rank: want.rank, talent: id };
+  if (id !== undefined) {
+    if (id > 0xff_ff_ff_ff)
+      throw new Refusal({
+        detail: `${want.talent} is outside the talent id range; check show.`,
+        next: nextCall("talents", { do: "show" }),
+        reason: "unknown_talent",
+      });
+    return { rank: want.rank, talent: id };
+  }
   if (catalog === undefined)
     throw new Refusal({
       detail: `${want.talent} cannot be spent by name: talent data is missing, so spend by id.`,
@@ -106,7 +117,7 @@ export async function learnTalents(
   ctx: TalentsCtx,
   wants: readonly { talent: string; rank: number }[],
 ): Promise<ToolResult<TalentsAfter>> {
-  const { handle, rt } = ctx;
+  const { handle } = ctx;
   if (wants.length === 0)
     throw new Refusal({
       detail: "name the talent and rank to learn.",
@@ -114,30 +125,19 @@ export async function learnTalents(
       reason: "missing_plan",
     });
   const beforeHeld = heldRanks(handle.talents.state());
-  const catalog = asCatalog(await handle.talents.act.catalog());
-  const entries = [] as LearnWant[];
-  for (const want of wants) entries.push(resolveWant(ctx, catalog, want));
-  const wire = entries.map((entry) => ({
-    rank: entry.rank - 1,
-    talentId: entry.talent,
-  }));
-  const outcome = await rt.mutex.run(() =>
-    handle.talents.act.learnTalents(wire),
+  const catalog = asCatalog(
+    await abortable(handle.talents.act.catalog(), ctx.signal),
   );
-  const order = new Map<string, LearnOutcome>(
-    outcome.entries.map((entry) => [
-      `${entry.talentId}:${entry.rank}`,
-      entry.outcome,
-    ]),
-  );
+  const entries = entriesOf(ctx, catalog, wants);
+  const outcome = await sendEntries(ctx, entries);
+  const outcomes = outcome.entries.map((entry) => entry.outcome);
   const after = handle.talents.state();
   const learned = outcome.entries.filter(
     (entry) => entry.outcome === "learned",
   ).length;
   const left = freePointsOf(after);
-  const body = entries.map((entry) => {
-    const outcomeOf =
-      order.get(`${entry.talent}:${entry.rank - 1}`) ?? "no_reply";
+  const body = entries.map((entry, index) => {
+    const outcomeOf = outcomes[index] ?? "no_reply";
     if (outcomeOf !== "learned") {
       const counted =
         outcomeOf === "tier_locked"
@@ -157,6 +157,46 @@ export async function learnTalents(
     freePoints: left,
     learned,
   });
+}
+
+function entriesOf(
+  ctx: TalentsCtx,
+  catalog: TalentsCatalog | undefined,
+  wants: readonly { talent: string; rank: number }[],
+): LearnWant[] {
+  const entries = [] as LearnWant[];
+  for (const want of wants) entries.push(resolveWant(ctx, catalog, want));
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    const key = `${entry.talent}:${entry.rank}`;
+    if (seen.has(key))
+      throw new Refusal({
+        detail: `${talentName(ctx, catalog, entry.talent)} rank ${entry.rank} is listed twice: learn each rank once.`,
+        next: nextCall("talents", { do: "show" }),
+        reason: "duplicate_entry",
+      });
+    seen.add(key);
+  }
+  return entries;
+}
+
+async function sendEntries(
+  ctx: TalentsCtx,
+  entries: readonly LearnWant[],
+): Promise<LearnResult> {
+  const wire = entries.map((entry) => ({
+    rank: entry.rank - 1,
+    talentId: entry.talent,
+  }));
+  const queued = ctx.rt.mutex.run(async () => {
+    ctx.signal.throwIfAborted();
+    return await ctx.handle.talents.act.learnTalents(wire);
+  });
+  queued.then(
+    () => undefined,
+    () => undefined,
+  );
+  return await abortable(queued, ctx.signal);
 }
 
 function learnResult(

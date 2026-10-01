@@ -43,11 +43,27 @@ function learnedLines(
   state: TalentsSnapshot,
 ): string[] {
   const active = state.player?.specs[state.player.activeSpec];
-  return (active?.talents ?? [])
-    .toSorted((a, b) => a.talentId - b.talentId)
-    .map((talent) =>
-      talentLine(ctx, catalog, talent.talentId, talent.rank + 1),
-    );
+  const sorted = (active?.talents ?? []).toSorted(
+    (a, b) => a.talentId - b.talentId,
+  );
+  const groups: Record<string, string[]> = {};
+  const order: string[] = [];
+  for (const talent of sorted) {
+    const entry = catalog?.talent(talent.talentId);
+    const tab = entry === undefined ? undefined : catalog?.tab(entry.tab)?.name;
+    const line = talentLine(ctx, catalog, talent.talentId, talent.rank + 1);
+    const key = tab ?? "";
+    if (groups[key] === undefined) {
+      groups[key] = [];
+      order.push(key);
+    }
+    groups[key]?.push(line);
+  }
+  return order.map((key) =>
+    key === ""
+      ? (groups[key] ?? []).join("; ")
+      : `${key}: ${(groups[key] ?? []).join("; ")}`,
+  );
 }
 
 function slotText(

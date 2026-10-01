@@ -11,7 +11,7 @@ import type {
   TalentsCatalog,
   TalentsSnapshot,
 } from "#harness/areas/talents/tool-types";
-import { toolCtx } from "#test-support/ops-fixtures";
+import { contentOf, toolCtx } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 import { expectSendKind } from "#test-support/tool-harness";
 
@@ -175,7 +175,7 @@ describe("talents show", () => {
     expect(out.detail).toContain("spec 1 of 1");
     expect(out.detail).toContain("1 talents learned");
     expect(out.body.join("\n")).toContain(
-      "Improved Heroic Strike rank 1 1/3 (Arms)",
+      "Arms: Improved Heroic Strike rank 1 1/3 (Arms)",
     );
     expect(out.body.join("\n")).toContain("slot 1 (major, open): empty");
     expect(out.body.join("\n")).toContain(
@@ -191,6 +191,30 @@ describe("talents show", () => {
     expect(out.body.join("\n")).toContain(
       "Talent names need talent data; use ids.",
     );
+  });
+
+  test("show with 24 learned talents keeps every talent and glyph slot inside the cap", async () => {
+    const talents = Array.from({ length: 24 }, (_, i) => ({
+      rank: 0,
+      talentId: 1000 + i,
+    }));
+    const state = snapshot({
+      player: {
+        activeSpec: 0,
+        freePoints: 0,
+        kind: "player",
+        specCount: 1,
+        specs: [{ glyphs: [0, 0, 0, 0, 0, 0], talents }],
+      },
+    });
+    const { t } = await rig({ state });
+    const out = await talentsSpec.run({ do: "show" }, toolCtx(t));
+    expect(out.body.length).toBeLessThanOrEqual(29);
+    expect(contentOf(out, 30).split("\n")).toHaveLength(out.body.length + 1);
+    for (const talent of talents)
+      expect(out.body.join("\n")).toContain(`${talent.talentId}`);
+    expect(out.body.join("\n")).toContain("slot 1 (major, open): empty");
+    expect(out.body.join("\n")).toContain("slot 6");
   });
 });
 
@@ -261,5 +285,82 @@ describe("talents learn", () => {
     expect(out.body.join("\n")).toContain(
       "Deflection not learned: a higher row in the same tab is locked. (Arms has 1 of 10 points)",
     );
+  });
+
+  test("learn refuses an id past the uint32 wire range without sending", async () => {
+    const { learn, t } = await rig({ catalog: undefined });
+    await expect(
+      talentsSpec.run(
+        { do: "learn", plan: [{ rank: 2, talent: "4294967420" }] },
+        toolCtx(t),
+      ),
+    ).rejects.toMatchObject({ reason: "unknown_talent" });
+    expect(learn).not.toHaveBeenCalled();
+  });
+
+  test("learn accepts the largest uint32 id", async () => {
+    const { learn, t } = await rig({ catalog: undefined });
+    await talentsSpec.run(
+      { do: "learn", plan: [{ rank: 1, talent: "4294967295" }] },
+      toolCtx(t),
+    );
+    expect(learn).toHaveBeenCalledWith([{ rank: 0, talentId: 4_294_967_295 }]);
+  });
+
+  test("learn refuses a duplicated plan entry without sending", async () => {
+    const { learn, t } = await rig();
+    await expect(
+      talentsSpec.run(
+        {
+          do: "learn",
+          plan: [
+            { rank: 2, talent: "124" },
+            { rank: 2, talent: "124" },
+          ],
+        },
+        toolCtx(t),
+      ),
+    ).rejects.toMatchObject({ reason: "duplicate_entry" });
+    expect(learn).not.toHaveBeenCalled();
+  });
+
+  test("cancelling during catalog load sends nothing", async () => {
+    const { learn, t } = await rig();
+    let release!: () => void;
+    const gated = new Promise<TalentsCatalog | undefined>((resolve) => {
+      release = () => resolve(CATALOG);
+    });
+    Object.assign(t.handle.talents.act, { catalog: () => gated });
+    const stop = new AbortController();
+    stop.abort();
+    const pending = talentsSpec.run(
+      { do: "learn", plan: [{ rank: 2, talent: "124" }] },
+      toolCtx(t, stop.signal),
+    );
+    const assertion = expect(pending).rejects.toThrow();
+    release();
+    await assertion;
+    expect(learn).not.toHaveBeenCalled();
+  });
+
+  test("cancelling while the world mutex is busy sends nothing", async () => {
+    const { learn, t } = await rig();
+    let release!: () => void;
+    const busy = new Promise<void>((resolve) => {
+      release = () => resolve();
+    });
+    const holder = t.rt.mutex.run(() => busy);
+    await Promise.resolve();
+    const stop = new AbortController();
+    stop.abort();
+    const pending = talentsSpec.run(
+      { do: "learn", plan: [{ rank: 2, talent: "124" }] },
+      toolCtx(t, stop.signal),
+    );
+    release();
+    await holder;
+    await expect(pending).rejects.toThrow();
+    await t.rt.mutex.run(() => {});
+    expect(learn).not.toHaveBeenCalled();
   });
 });
