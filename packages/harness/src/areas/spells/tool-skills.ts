@@ -106,7 +106,12 @@ function goneTotem(
     return handle.spells.state().totems[slot] === undefined;
   if (event.area !== "spells") return false;
   const inner = event.event;
-  return inner.type === "totem_gone" && inner.slot === slot;
+  return (
+    inner.type === "totem_gone" &&
+    inner.slot === slot &&
+    inner.reason !== "replaced" &&
+    handle.spells.state().totems[slot] === undefined
+  );
 }
 
 export async function totemFlow(
