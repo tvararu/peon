@@ -5,6 +5,11 @@ import {
   parseReadItemResult,
 } from "#wow/areas/items/protocol-read";
 import {
+  parseEquipmentSetList,
+  parseEquipmentSetSaved,
+  parseEquipmentSetUseResult,
+} from "#wow/areas/items/protocol-sets";
+import {
   parseEnchantmentLog,
   parseSocketGemsResult,
 } from "#wow/areas/items/protocol-sockets";
@@ -43,6 +48,12 @@ export const itemsArea = defineArea({
     "sockets_updated",
     "socket_refused",
     "socket_unanswered",
+    "sets_listed",
+    "set_save_requested",
+    "set_saved",
+    "set_use_requested",
+    "set_used",
+    "set_deleted",
   ],
   store: (deps, core) => new ItemsStore(deps, core),
   register: (wire, store) => {
@@ -78,6 +89,19 @@ export const itemsArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_ENCHANTMENTLOG, (r) =>
       store.receiveEnchantmentLog(parseEnchantmentLog(r)),
+    );
+    wire.on(GameOpcode.SMSG_EQUIPMENT_SET_LIST, (r) =>
+      store.receiveSetList(parseEquipmentSetList(r)),
+    );
+    wire.on(GameOpcode.SMSG_EQUIPMENT_SET_SAVED, (r) =>
+      store.confirmSaved(
+        parseEquipmentSetSaved(r),
+        store.pendingSaveName()?.name ?? "",
+        store.pendingSaveName()?.icon ?? "",
+      ),
+    );
+    wire.on(GameOpcode.SMSG_EQUIPMENT_SET_USE_RESULT, (r) =>
+      store.receiveUseResult(parseEquipmentSetUseResult(r)),
     );
   },
   runtime: itemsRuntime,
