@@ -116,6 +116,7 @@ type MountWatch = { done: Promise<boolean>; stop: () => void };
 
 function watchMounted(ctx: SpellCtx): MountWatch {
   const { promise, reject, resolve } = Promise.withResolvers<boolean>();
+  promise.catch(() => undefined);
   const off = ctx.handle.onAreaEvent((event) => {
     if (mountedEvent(event)) resolve(true);
   });
@@ -130,23 +131,40 @@ function watchMounted(ctx: SpellCtx): MountWatch {
   };
 }
 
+async function chooseMount(args: SpellArgs, ctx: SpellCtx): Promise<SpellRef> {
+  if ((args.spell?.trim() ?? "") !== "")
+    return mountSpell(ctx, args.spell ?? "");
+  const ground = await groundPreference(ctx);
+  if (!ground) throw refusalOf("no_mount");
+  return ground;
+}
+
+async function confirmMounted(
+  ctx: SpellCtx,
+  watch: MountWatch,
+): Promise<boolean> {
+  if (ctx.handle.selfstate.state().mounted) {
+    watch.stop();
+    return true;
+  }
+  const { promise, resolve } = Promise.withResolvers<boolean>();
+  const timer = setTimeout(() => resolve(false), MOUNTED_WITHIN_MS);
+  try {
+    return await Promise.race([watch.done, promise]);
+  } finally {
+    clearTimeout(timer);
+    watch.stop();
+  }
+}
+
 export async function mountFlow(
   args: SpellArgs,
   ctx: SpellCtx,
 ): Promise<ToolResult<SpellAfter>> {
-  const { handle } = ctx;
-  if (handle.selfstate.state().mounted) throw refusalOf("already_mounted");
-  const trimmed = args.spell?.trim() ?? "";
-  let spell: SpellRef;
-  if (trimmed === "") {
-    const ground = await groundPreference(ctx);
-    if (!ground) throw refusalOf("no_mount");
-    spell = ground;
-  } else {
-    spell = await mountSpell(ctx, args.spell ?? "");
-  }
+  if (ctx.handle.selfstate.state().mounted) throw refusalOf("already_mounted");
+  const spell = await chooseMount(args, ctx);
   const watch = watchMounted(ctx);
-  let cast;
+  let cast: ToolResult<SpellAfter>;
   try {
     cast = await castFlow({ do: "cast", spell: String(spell.id) }, ctx);
   } catch (error) {
@@ -159,33 +177,15 @@ export async function mountFlow(
     spell,
     target: undefined,
   };
-  if (cast.status === "FAILED") {
-    watch.stop();
-    const reason = FAILURE_REFUSAL[cast.reason ?? ""];
-    if (reason === undefined) return { ...cast, after };
-    throw refusalOf(reason, spell.name);
-  }
   if (cast.status !== "DONE") {
     watch.stop();
+    if (cast.status === "FAILED") {
+      const reason = FAILURE_REFUSAL[cast.reason ?? ""];
+      if (reason !== undefined) throw refusalOf(reason, spell.name);
+    }
     return { ...cast, after };
   }
-  let mounted: boolean;
-  try {
-    const { promise, resolve } = Promise.withResolvers<boolean>();
-    const timer = setTimeout(() => resolve(false), MOUNTED_WITHIN_MS);
-    try {
-      mounted =
-        handle.selfstate.state().mounted ||
-        (await Promise.race([watch.done, promise]));
-    } finally {
-      clearTimeout(timer);
-    }
-  } catch (error) {
-    watch.stop();
-    throw error;
-  }
-  watch.stop();
-  if (mounted)
+  if (await confirmMounted(ctx, watch))
     return result("DONE", {
       after,
       detail: `Mounted ${spell.name}.`,
