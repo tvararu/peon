@@ -96,6 +96,14 @@ function positionsOf(
   });
 }
 
+function checkOverlap({ store }: Env): void {
+  const claims = store.snapshot();
+  if (claims.sets.usePending) throw new Error("a set use is already pending");
+  if (claims.move.pending) throw new Error("a move is already pending");
+  if (claims.read.pending) throw new Error("a read or open is already pending");
+  if (claims.sockets.pending) throw new Error("a socket is already pending");
+}
+
 function lastSave({ store }: Env): SaveOutcome {
   const last = store.snapshot().sets.lastSave;
   if (!last) throw new Error("the save did not settle");
@@ -121,6 +129,7 @@ async function saveSet(
   const inventory = inWorld(env);
   if (store.snapshot().sets.savePending)
     throw new Error("a set save is already pending");
+  checkOverlap(env);
   const icon = init.icon ?? "";
   checkSetFields(init.index, init.name, icon);
   const items = init.items ? [...init.items] : wornGuids(inventory);
@@ -174,11 +183,7 @@ async function saveSet(
 async function useSet(env: Env, index: number): Promise<UseOutcome> {
   const { ctx, store } = env;
   const inventory = inWorld(env);
-  const claims = store.snapshot();
-  if (claims.sets.usePending) throw new Error("a set use is already pending");
-  if (claims.move.pending) throw new Error("a move is already pending");
-  if (claims.read.pending) throw new Error("a read or open is already pending");
-  if (claims.sockets.pending) throw new Error("a socket is already pending");
+  checkOverlap(env);
   const snap = store.snapshot().sets;
   const set = snap.sets.find((entry) => entry.index === index);
   if (!set)

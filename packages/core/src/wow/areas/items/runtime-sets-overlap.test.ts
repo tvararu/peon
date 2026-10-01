@@ -152,4 +152,33 @@ describe("items runtime: sets with an unavailable socket and overlapping acts", 
       rig.dispose();
     }
   });
+
+  test("a set save cannot start while a move is pending, and works after it settles", async () => {
+    const world = itemsWorld(ME);
+    world.put(255, 15, { entry: 100, guid: HELM });
+    const rig = itemsRig(world);
+    try {
+      const move = rig.handle.act.unequip(15);
+      const sentBefore = rig.sent.length;
+      await expect(
+        rig.handle.act.saveSet({ index: 0, name: "Peon" }),
+      ).rejects.toThrow(/move/);
+      expect(rig.sent).toHaveLength(sentBefore);
+      world.clear(255, 15);
+      world.put(255, 30, { entry: 100, guid: HELM });
+      rig.touch();
+      await move;
+      const save = rig.handle.act.saveSet({ index: 0, name: "Peon" });
+      rig.inject(
+        GameOpcode.SMSG_EQUIPMENT_SET_SAVED,
+        itemsEquipmentSetSavedBody(0, 9n),
+      );
+      expect(await save).toMatchObject({ status: "saved" });
+      expect(rig.stores.areas.items.snapshot().sets.sets[0]?.items[15]).toBe(
+        0n,
+      );
+    } finally {
+      rig.dispose();
+    }
+  });
 });
