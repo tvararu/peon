@@ -171,6 +171,29 @@ describe("bank-moves flow", () => {
       });
     }));
 
+  test("deposits the entry named by item", async () => {
+    const ctx = context({ item: "6948" }, [
+      filled({ bag: 255, entry: 2589, slot: 24 }),
+      filled({ bag: 255, entry: 6948, slot: 25 }),
+    ]);
+    await flow.run(ctx);
+    expect(ctx.handle.bank.act.deposit).toHaveBeenCalledWith(255, 25);
+  });
+
+  test("buys slots until a refusal and reports each outcome", async () => {
+    const ctx = context({ buy: "5" });
+    const buy = jest.spyOn(ctx.handle.bank.act, "buyBankSlot");
+    buy.mockResolvedValueOnce({ status: "ok" }).mockResolvedValueOnce({
+      reason: "insufficient_funds",
+      status: "refused",
+    });
+    const out = await flow.run(ctx);
+    expect(buy).toHaveBeenCalledTimes(2);
+    expect(out).toMatchObject({
+      buy: [{ status: "ok" }, { status: "refused" }],
+    });
+  });
+
   test("throws when no banker is in view", () =>
     withFakeTimers(async () => {
       const ctx = context({});
