@@ -9,8 +9,8 @@ import {
   itemsRig,
   itemsWorld,
 } from "#test-support/areas/items-world";
+import type { ItemsEvent } from "#wow/areas/items/events";
 import { buildSetAmmo } from "#wow/areas/items/protocol";
-import type { ItemsEvent } from "#wow/areas/items/store";
 import { registerLootHandlers } from "#wow/gameplay-handlers";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { WorldConn } from "#wow/world-conn";

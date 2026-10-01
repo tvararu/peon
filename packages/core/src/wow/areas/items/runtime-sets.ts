@@ -1,4 +1,5 @@
 import type { AreaRuntimeCtx } from "#wow/areas/contract";
+import type { ItemsEvent } from "#wow/areas/items/events";
 import { findItem } from "#wow/areas/items/moves";
 import {
   buildEquipmentSetDelete,
@@ -14,7 +15,7 @@ import type {
   SaveRequest,
   UseOutcome,
 } from "#wow/areas/items/sets";
-import type { ItemsEvent, ItemsStore } from "#wow/areas/items/store";
+import type { ItemsStore } from "#wow/areas/items/store";
 import type { InventoryState } from "#wow/inventory";
 import { GameOpcode } from "#wow/protocol/opcodes";
 

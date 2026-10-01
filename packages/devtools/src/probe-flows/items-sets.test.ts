@@ -1,10 +1,12 @@
 import { describe, expect, jest, test } from "bun:test";
+import type { WorldHandle } from "@peon/core";
 import {
   createMockHandle,
   type MockHandle,
 } from "@peon/core/test-support/mock-handle";
-import type { WorldHandle } from "@peon/core";
+
 type ItemsActs = WorldHandle["items"]["act"];
+
 import { type FlowContext, settleWithin } from "#tools/probe-flows";
 import { flow } from "#tools/probe-flows/items-sets";
 
@@ -74,7 +76,7 @@ describe("items-sets flow", () => {
     const deleteSet = jest.fn(() => Promise.resolve({ index: 2 }));
     Object.assign(use.handle, {
       items: {
-        act: { useSet, deleteSet } as unknown as ItemsActs,
+        act: { deleteSet, useSet } as unknown as ItemsActs,
         state: () => ({ sets: { sets: [] } }),
       },
     });
@@ -83,7 +85,7 @@ describe("items-sets flow", () => {
     const drop = context({ do: "delete", index: "2" });
     Object.assign(drop.handle, {
       items: {
-        act: { useSet, deleteSet } as unknown as ItemsActs,
+        act: { deleteSet, useSet } as unknown as ItemsActs,
         state: () => ({ sets: { sets: [] } }),
       },
     });

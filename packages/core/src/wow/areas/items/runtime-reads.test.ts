@@ -10,12 +10,12 @@ import {
   itemsRig,
   itemsWorld,
 } from "#test-support/areas/items-world";
+import type { ItemsEvent } from "#wow/areas/items/events";
 import {
   buildItemTextQuery,
   buildOpenItem,
   buildReadItem,
 } from "#wow/areas/items/protocol-read";
-import type { ItemsEvent } from "#wow/areas/items/store";
 import type { SentPacket } from "#wow/areas/port";
 import { registerLootHandlers } from "#wow/gameplay-handlers";
 import { GameOpcode } from "#wow/protocol/opcodes";

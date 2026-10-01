@@ -1,5 +1,6 @@
 import { bounded } from "#lib/abort";
 import type { AreaRuntimeCtx } from "#wow/areas/contract";
+import type { ItemsEvent } from "#wow/areas/items/events";
 import { type HeldSlot, positionRefusal, slotAt } from "#wow/areas/items/moves";
 import type { ItemPosition } from "#wow/areas/items/protocol";
 import {
@@ -8,7 +9,7 @@ import {
   buildReadItem,
 } from "#wow/areas/items/protocol-read";
 import type { ReadKind, ReadOutcome } from "#wow/areas/items/reads";
-import type { ItemsEvent, ItemsStore } from "#wow/areas/items/store";
+import type { ItemsStore } from "#wow/areas/items/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { RewardsOpenLoot } from "#wow/rewards";
 import type { CoreStores } from "#wow/session-stores";

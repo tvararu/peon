@@ -1,5 +1,6 @@
 import { ignoreFailure } from "#lib/ignore-failure";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
+import type { ItemsEvent } from "#wow/areas/items/events";
 import {
   BACKPACK,
   findItem,
@@ -28,7 +29,7 @@ import { type ReadActs, readActs } from "#wow/areas/items/runtime-reads";
 import { type SetActs, setActs } from "#wow/areas/items/runtime-sets";
 import { type SocketActs, socketActs } from "#wow/areas/items/runtime-sockets";
 import { wornItemLevel } from "#wow/areas/items/slots";
-import type { ItemsEvent, ItemsStore } from "#wow/areas/items/store";
+import type { ItemsStore } from "#wow/areas/items/store";
 import type { InventoryState } from "#wow/inventory";
 import type { ItemPushResult } from "#wow/protocol/loot";
 import { GameOpcode } from "#wow/protocol/opcodes";
