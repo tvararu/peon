@@ -7,6 +7,7 @@ import {
   petsPetDismissSoundBody,
   petsPetLearnedSpellBody,
   petsPetUnlearnedSpellBody,
+  petsPetUpdateComboPointsBody,
   petsStabledPetsBody,
   petsStableResultBody,
   petsTameFailureBody,
@@ -37,6 +38,7 @@ import {
   type PetTameFailure,
   parsePetActionFeedback,
   parsePetActionSound,
+  parsePetComboPoints,
   parsePetDismissSound,
   parsePetNameInvalid,
   parsePetNameQueryResponse,
@@ -438,5 +440,33 @@ describe("pets talent protocol", () => {
     expect([r.uint32LE(), r.uint32LE()]).toEqual([2214, 0]);
     expect([r.uint32LE(), r.uint32LE()]).toEqual([2215, 2]);
     expect(r.remaining).toBe(0);
+  });
+});
+
+describe("pets combo points protocol", () => {
+  test("SMSG_PET_UPDATE_COMBO_POINTS reads unit, target and points (Unit.cpp:12867-12879)", () => {
+    const body = petsPetUpdateComboPointsBody({
+      points: 3,
+      target: MOB,
+      unit: PET,
+    });
+    expect(parsePetComboPoints(new PacketReader(body))).toEqual({
+      points: 3,
+      target: MOB,
+      unit: PET,
+    });
+  });
+
+  test("an empty combo target parses as 0n (Unit.cpp:12867-12879)", () => {
+    const body = petsPetUpdateComboPointsBody({
+      points: 0,
+      target: 0n,
+      unit: PET,
+    });
+    expect(parsePetComboPoints(new PacketReader(body))).toEqual({
+      points: 0,
+      target: 0n,
+      unit: PET,
+    });
   });
 });

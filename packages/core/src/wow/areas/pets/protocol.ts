@@ -111,6 +111,15 @@ export function parsePetActionSound(r: PacketReader): PetActionSound {
   return { guid, action };
 }
 
+export type PetComboPoints = { unit: bigint; target: bigint; points: number };
+
+export function parsePetComboPoints(r: PacketReader): PetComboPoints {
+  const unit = r.packedGuidBig();
+  const target = r.packedGuidBig();
+  const points = r.uint8();
+  return { points, target, unit };
+}
+
 export type PetNameQueryResponse = {
   number: number;
   name: string;

@@ -59,6 +59,7 @@ function rules() {
 function state(current: Bar | undefined): PetsState {
   return {
     bar: current,
+    comboPoints: undefined,
     cooldowns: [],
     lastRefusal: undefined,
     names: {},

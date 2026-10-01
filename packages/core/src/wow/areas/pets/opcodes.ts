@@ -52,5 +52,6 @@ export const PETS_OPCODES = {
     "SMSG_PET_ACTION_SOUND",
     "SMSG_PET_DISMISS_SOUND",
     "CMSG_PET_CAST_SPELL",
+    "SMSG_PET_UPDATE_COMBO_POINTS",
   ],
 } as const satisfies AreaOpcodes;
