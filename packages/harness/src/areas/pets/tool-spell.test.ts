@@ -7,7 +7,6 @@ import {
   barState,
   GROWL,
   PET,
-  type PetsWorld,
   petBarEvent,
   refusal,
   unit,
@@ -15,6 +14,8 @@ import {
   world,
 } from "#test-support/pets-command-fixture";
 import { definition } from "#test-support/spell-tool-fixtures";
+
+type PetsWorld = Awaited<ReturnType<typeof world>>;
 
 describe("pet cast", () => {
   test("cast resolves the name, sends the pet cast and is DONE on the new cooldown", async () => {
@@ -85,6 +86,28 @@ describe("pet cast", () => {
     expect(out.status).toBe("FAILED");
     expect(out.detail).toContain("not_ready");
     expect(out.detail).toContain("cooldown");
+  });
+
+  test("a cast_failed for another request of the same spell does not fail this cast", async () => {
+    await withFakeTimers(async () => {
+      const t = await world({ petEntity: unit(), pets: barState() });
+      jest.spyOn(t.game.pets.act, "petCast").mockImplementation(() => {
+        queueMicrotask(() =>
+          t.game.triggerAreaEvent("pets", {
+            castCount: 1,
+            reason: "not_ready",
+            spell: GROWL,
+            type: "cast_failed",
+          } as never),
+        );
+        return { castCount: 2, confirmed: true, ok: true };
+      });
+      const out = await fakeAwait(
+        petSpec.run({ do: "cast", target: "u1", what: "Growl" }, toolCtx(t)),
+        30_000,
+      );
+      expect(out.status).toBe("UNCONFIRMED");
+    });
   });
 
   const rangeMiss = (t: PetsWorld) =>
