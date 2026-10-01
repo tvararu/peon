@@ -6,6 +6,7 @@ import {
   parseConvertRune,
   parseMirrorImage,
   parseModifyCooldown,
+  parseProjectilePosition,
   parseSpellModifier,
   parseSpellVisual,
   parseTotemCreated,
@@ -27,6 +28,7 @@ export const spellsArea = defineArea({
     "channel_start",
     "channel_end",
     "mirror_image",
+    "projectile_moved",
     "totem_created",
     "totem_gone",
     "unit_cast_start",
@@ -66,6 +68,9 @@ export const spellsArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_MIRRORIMAGE_DATA, (r) =>
       store.mirrorImage(parseMirrorImage(r)),
+    );
+    wire.on(GameOpcode.SMSG_SET_PROJECTILE_POSITION, (r) =>
+      store.projectileMoved(parseProjectilePosition(r)),
     );
     wire.on(GameOpcode.SMSG_CONVERT_RUNE, (r) =>
       store.convertRune(parseConvertRune(r)),

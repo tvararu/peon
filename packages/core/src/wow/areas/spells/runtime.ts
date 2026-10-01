@@ -1,5 +1,6 @@
 import { ignoreFailure } from "#lib/ignore-failure";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
+import { type MissileTrajectory, missileActs } from "#wow/areas/spells/missile";
 import {
   ACTION_BUTTON_TYPE_CODES,
   type BarButton,
@@ -35,6 +36,16 @@ export type SpellsActs = {
   unlearnSkill: (skillId: number) => SpellsActResult;
   requestMirrorImage: (guid: bigint) => SpellsActResult;
   setFarSight: (on: boolean) => SpellsActResult;
+  reportProjectile: (
+    spellId: number,
+    x: number,
+    y: number,
+    z: number,
+  ) => SpellsActResult;
+  reportMissileTrajectory: (
+    spellId: number,
+    trajectory: MissileTrajectory,
+  ) => SpellsActResult;
 };
 
 const PASSIVE = 0x40;
@@ -215,6 +226,7 @@ export function spellsRuntime(
       ...barActs(ctx, core),
       ...skillActs(ctx, store),
       ...sightActs(ctx, store),
+      ...missileActs(ctx, core),
     },
     dispose: () => {
       off();

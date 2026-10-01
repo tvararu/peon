@@ -238,3 +238,19 @@ export function spellsMirrorImageBody(init: {
   for (const item of init.items) w.uint32LE(item);
   return w.finish();
 }
+
+export function spellsProjectilePositionBody(init: {
+  caster: bigint;
+  castCount: number;
+  x: number;
+  y: number;
+  z: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.caster);
+  w.uint8(init.castCount);
+  w.floatLE(init.x);
+  w.floatLE(init.y);
+  w.floatLE(init.z);
+  return w.finish();
+}

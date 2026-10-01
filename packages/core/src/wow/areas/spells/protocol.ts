@@ -2,7 +2,11 @@ import type {
   ActionButton,
   ActionButtonType,
 } from "#wow/protocol/action-buttons";
-import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
+import {
+  type PacketReader,
+  PacketWriter,
+  type Vec3,
+} from "#wow/protocol/packet";
 
 const ENDLESS = 0xff_ff_ff_ff;
 
@@ -200,5 +204,55 @@ export function buildMirrorImageRequest(guid: bigint): Uint8Array {
 export function buildFarSight(on: boolean): Uint8Array {
   const w = new PacketWriter();
   w.uint8(on ? 1 : 0);
+  return w.finish();
+}
+
+export type ProjectilePosition = {
+  caster: bigint;
+  castCount: number;
+  x: number;
+  y: number;
+  z: number;
+};
+
+export function parseProjectilePosition(r: PacketReader): ProjectilePosition {
+  const caster = r.uint64LE();
+  const castCount = r.uint8();
+  const x = r.floatLE();
+  const y = r.floatLE();
+  const z = r.floatLE();
+  return { castCount, caster, x, y, z };
+}
+
+export function buildProjectilePosition(init: {
+  caster: bigint;
+  spellId: number;
+  castCount: number;
+  position: Vec3;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.caster);
+  w.uint32LE(init.spellId);
+  w.uint8(init.castCount);
+  w.vec3(init.position);
+  return w.finish();
+}
+
+export function buildMissileTrajectory(init: {
+  caster: bigint;
+  spellId: number;
+  elevation: number;
+  speed: number;
+  current: Vec3;
+  target: Vec3;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.caster);
+  w.uint32LE(init.spellId);
+  w.floatLE(init.elevation);
+  w.floatLE(init.speed);
+  w.vec3(init.current);
+  w.vec3(init.target);
+  w.uint8(0);
   return w.finish();
 }

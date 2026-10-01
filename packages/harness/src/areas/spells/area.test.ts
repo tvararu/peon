@@ -32,6 +32,21 @@ describe("spells harness rules", () => {
     expect(areaDrafts(areaRuleSet(), event, testRuleInput())).toEqual([]);
   });
 
+  test("a projectile position writes no row and no fallback", () => {
+    const event: AreaEvent = {
+      area: "spells",
+      event: {
+        castCount: 2,
+        caster: ME,
+        type: "projectile_moved",
+        x: 1,
+        y: 2,
+        z: 3,
+      },
+    };
+    expect(areaDrafts(areaRuleSet(), event, testRuleInput())).toEqual([]);
+  });
+
   test("a spell visual or impact writes no row", () => {
     const events: AreaEvent[] = [
       {

@@ -197,6 +197,7 @@ function knownRows(
 ): readonly AreaDraft[] | undefined {
   if (event.type === "spell_visual") return [];
   if (event.type === "mirror_image") return [];
+  if (event.type === "projectile_moved") return [];
   if (event.type === "channel_start") return [channelStart(event)];
   if (event.type === "channel_end") return [channelEnd(event)];
   if (event.type === "totem_created") return [totemCreated(event)];

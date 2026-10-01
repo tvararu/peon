@@ -11,6 +11,7 @@ import type {
   ConvertRune,
   MirrorImagePacket,
   ModifyCooldown,
+  ProjectilePosition,
   SpellModifier,
   SpellVisual,
   TotemCreatedPacket,
@@ -65,6 +66,7 @@ export type SpellsEvent =
   | { type: "skill_removed"; id: number; name: string }
   | RuneEvent
   | MirrorImageEvent
+  | ({ type: "projectile_moved" } & ProjectilePosition)
   | TotemEvent
   | UnitCastEvent;
 
@@ -244,6 +246,10 @@ export class SpellsStore {
 
   requestMirrorImage(guid: bigint): MirrorRequest {
     return this.mirrors.request(guid);
+  }
+
+  projectileMoved(packet: ProjectilePosition): void {
+    this.events.emit({ type: "projectile_moved", ...packet });
   }
 
   mirrorImage(packet: MirrorImagePacket): void {
