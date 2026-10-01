@@ -780,6 +780,12 @@ Related opcodes that other units own: `CMSG_MOVE_SPLINE_DONE` (`travel`),
    (`builder`, `unseen`, "sent live, effect not seen"), and this unit uses it.
 4. The DBC data source for vehicles-6 to -8 (design 7.2 question 5).
 
+## Build rulings
+
+| Id | Issue | Ruling |
+|---|---|---|
+| BR-vehicles-4-1 | Telling a driven vehicle's root from the passenger's boarding root needs the root packet's GUID, which `packages/core/src/wow/movement-handlers.ts` (leased to vehicles-7 only) discards | Coordinator ruling (P2-17): vehicles-4 may keep `parseMoveCounter(r).guid` in the `force_root` and `force_unroot` self events of `movement-handlers.ts`, nothing else; the lease then passes to vehicles-7 as planned. |
+
 ## COMPLETE
 
 ## Seed rulings (SEED-3)
