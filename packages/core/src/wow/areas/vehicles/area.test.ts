@@ -310,6 +310,7 @@ describe("vehicles area wiring", () => {
         {
           duration: 0,
           entry: undefined,
+          facing: 0,
           offset: { x: 0, y: 1, z: 2 },
           seat: 1,
           splineId: undefined,

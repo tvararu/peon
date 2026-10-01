@@ -27,6 +27,7 @@ import {
   type MoveAck,
   type MovementInfo,
   type SpeedAck,
+  type TransportInfo,
 } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { MoveFlag, TransferAbortedInput } from "#wow/self-store";
@@ -91,6 +92,7 @@ export class MovementSync {
   private readonly emit: Emit;
   private readonly motion: SyncMotion;
   private extraFlags = 0;
+  private transport: TransportInfo | undefined;
   private flight: FlightPort | undefined;
   private readonly ride: RideState;
   private controlAllowed = true;
@@ -146,6 +148,7 @@ export class MovementSync {
   }
 
   vehicleLeft(): void {
+    this.transport = undefined;
     this.moveFlags &= ~MovementFlag.ON_TRANSPORT;
     this.observedFlags &= ~MovementFlag.ON_TRANSPORT;
     this.ride.leave();
@@ -182,7 +185,7 @@ export class MovementSync {
 
   movementInfo(): MovementInfo {
     const pose = this.pose();
-    return this.ride.apply({
+    const base = {
       extraFlags: this.extraFlags,
       fall: this.fall,
       fallTime: this.fallTime,
@@ -193,7 +196,14 @@ export class MovementSync {
       x: pose?.x ?? 0,
       y: pose?.y ?? 0,
       z: pose?.z ?? 0,
-    });
+    };
+    if (this.transport !== undefined && !this.ride.riding)
+      return {
+        ...base,
+        flags: base.flags | MovementFlag.ON_TRANSPORT,
+        transport: { ...this.transport, time: base.time },
+      };
+    return this.ride.apply(base);
   }
 
   loginVerified(position: Position): void {
@@ -299,6 +309,7 @@ export class MovementSync {
     this.cancelTransferAbortWatch();
     this.teleporting = false;
     this.flight?.newWorld();
+    this.transport = undefined;
     this.ride.clear();
     this.mapId = position.mapId;
     this.moveFlags = 0;
@@ -453,9 +464,21 @@ export class MovementSync {
 
   private applyForcedPose(dest: MovementInfo, reason: string): void {
     this.ride.clear();
-    this.observedFlags = dest.flags & ~MovementFlag.ON_TRANSPORT;
+    if (
+      dest.transport !== undefined &&
+      (dest.flags & MovementFlag.ON_TRANSPORT) !== 0
+    )
+      this.transport = { ...dest.transport };
+    else this.transport = undefined;
+    const keep =
+      dest.transport !== undefined &&
+      (dest.flags & MovementFlag.ON_TRANSPORT) !== 0
+        ? MovementFlag.ON_TRANSPORT
+        : 0;
+    this.observedFlags = (dest.flags & ~MovementFlag.ON_TRANSPORT) | keep;
     this.extraFlags = dest.extraFlags;
-    this.moveFlags = dest.flags & ~INPUT_BITS & ~MovementFlag.ON_TRANSPORT;
+    this.moveFlags =
+      (dest.flags & ~INPUT_BITS & ~MovementFlag.ON_TRANSPORT) | keep;
     this.fall = dest.fall;
     this.pitch = dest.pitch;
     this.rooted = (dest.flags & MovementFlag.ROOT) !== 0;

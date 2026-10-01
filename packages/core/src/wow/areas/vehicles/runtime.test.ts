@@ -191,6 +191,7 @@ describe("vehicles acts", () => {
       move: {
         kind: "move",
         duration: 1,
+        facing: { kind: "none" },
         flags: 0,
         splineId: 1,
       } as never,

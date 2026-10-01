@@ -53,6 +53,7 @@ describe("vehicles boarding in control", () => {
       );
       expect(received.at(-1)).toMatchObject({
         duration: 1000,
+        facing: 0,
         seat: 0,
         splineId: 9,
         type: "vehicle_seat",
@@ -93,6 +94,63 @@ describe("vehicles boarding in control", () => {
         type: "vehicle_seat",
         vehiclePose: { mapId: 571, x: 100, y: 200, z: 50 },
       });
+    } finally {
+      off();
+      rig.dispose();
+    }
+  });
+});
+
+describe("vehicles boarding facing reaches control", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("a nonzero boarding angle reaches the ack and spline done through store, runtime and control (Vehicle.cpp:414,454-466; Unit.cpp:734-750)", () => {
+    const control = setup();
+    const self = 0x0764n;
+    const rig = areaRig("vehicles", { selfGuid: self });
+    const off = rig.stores.self.onEvent((event) =>
+      feedControl(control.runtime, event),
+    );
+    try {
+      rig.inject(
+        GameOpcode.SMSG_MONSTER_MOVE_TRANSPORT,
+        vehiclesMonsterMoveTransportBody({
+          angle: 1.5,
+          duration: 500,
+          flags: SplineFlag.TRANSPORT_ENTER,
+          guid: self,
+          seat: 2,
+          splineId: 12,
+          stop: false,
+          transportGuid: VEHICLE,
+        }),
+      );
+      control.sent.length = 0;
+      control.runtime.forceRoot(5);
+      const ack = new PacketReader(must(control.sent.at(-1)).body);
+      ack.packedGuidBig();
+      ack.uint32LE();
+      const ackInfo = parseMovementInfo(ack);
+      expect(ackInfo.transport?.seat).toBe(2);
+      expect(ackInfo.transport?.orientation).toBeCloseTo(1.5, 5);
+      control.sent.length = 0;
+      control.advance(500);
+      const dones = control.sent.filter(
+        (packet) => packet.opcode === GameOpcode.CMSG_MOVE_SPLINE_DONE,
+      );
+      expect(dones).toHaveLength(1);
+      const done = new PacketReader(must(dones[0]).body);
+      done.packedGuidBig();
+      const doneInfo = parseMovementInfo(done);
+      expect(doneInfo.transport?.seat).toBe(2);
+      expect(doneInfo.transport?.orientation).toBeCloseTo(1.5, 5);
+      expect(done.uint32LE()).toBe(12);
     } finally {
       off();
       rig.dispose();

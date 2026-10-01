@@ -81,6 +81,7 @@ describe("vehicles/entered", () => {
   const entered: VehiclesEvent = {
     duration: 1200,
     entry: 31_857,
+    facing: 0.5,
     offset: { x: 1, y: 0, z: 2 },
     seat: 0,
     splineId: 7,
@@ -118,6 +119,7 @@ describe("vehicles/exited and seat_changed", () => {
   test("switching seat writes a log row with the new seat", () => {
     const [row] = rules()({
       duration: 1,
+      facing: 0,
       offset: { x: 0, y: 0, z: 0 },
       seat: 3,
       splineId: 1,

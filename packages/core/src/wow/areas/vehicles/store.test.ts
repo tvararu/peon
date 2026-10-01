@@ -88,12 +88,59 @@ describe("VehiclesStore", () => {
     expect(seen.at(-1)).toEqual({
       duration: 800,
       entry: undefined,
+      facing: 0,
       offset: { x: 1, y: 2, z: 3 },
       seat: 0,
       splineId: 4242,
       type: "entered",
       vehicle: TRANSPORT,
     });
+  });
+
+  test("a boarding spline facing carries the final angle (Unit.cpp:734-750)", () => {
+    const { seen, store } = storeWithEvents(GUID);
+    store.receiveTransport({
+      guid: GUID,
+      move: {
+        cyclic: false,
+        duration: 800,
+        extra: 0,
+        facing: { kind: "angle", angle: 1.5 },
+        flags: 0x00_80_00_00,
+        guid: GUID,
+        interpolation: "linear",
+        kind: "move",
+        points: [{ x: 1, y: 2, z: 3 }],
+        splineId: 4242,
+        start: { x: 0, y: 0, z: 0 },
+      },
+      seat: 0,
+      transportGuid: TRANSPORT,
+    });
+    expect(seen.at(-1)).toMatchObject({ facing: 1.5, type: "entered" });
+  });
+
+  test("a boarding spline without a final angle carries a zero facing", () => {
+    const { seen, store } = storeWithEvents(GUID);
+    store.receiveTransport({
+      guid: GUID,
+      move: {
+        cyclic: false,
+        duration: 800,
+        extra: 0,
+        facing: { kind: "none" },
+        flags: 0x00_80_00_00,
+        guid: GUID,
+        interpolation: "linear",
+        kind: "move",
+        points: [{ x: 1, y: 2, z: 3 }],
+        splineId: 4242,
+        start: { x: 0, y: 0, z: 0 },
+      },
+      seat: 0,
+      transportGuid: TRANSPORT,
+    });
+    expect(seen.at(-1)).toMatchObject({ facing: 0, type: "entered" });
   });
 
   test("snapshot maps are copies, and dispose clears the store", () => {

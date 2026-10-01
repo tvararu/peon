@@ -36,6 +36,7 @@ export type VehiclesEvent =
       seat: number;
       entry: number | undefined;
       offset: Vec3;
+      facing: number;
       splineId: number | undefined;
       duration: number;
     }
@@ -45,6 +46,7 @@ export type VehiclesEvent =
       vehicle: bigint;
       seat: number;
       offset: Vec3;
+      facing: number;
       splineId: number | undefined;
       duration: number;
     };
@@ -113,6 +115,7 @@ export class VehiclesStore {
       transportGuid: move.transportGuid,
     });
     const offset = splineOffset(move.move);
+    const facing = splineFacing(move.move);
     this.queue({
       duration: move.move.kind === "move" ? move.move.duration : 0,
       flags: move.move.kind === "move" ? move.move.flags : 0,
@@ -138,6 +141,7 @@ export class VehiclesStore {
     if (before?.vehicle === move.transportGuid && before.seat !== move.seat) {
       this.queue({
         duration: move.move.kind === "move" ? move.move.duration : 0,
+        facing,
         offset,
         seat: move.seat,
         splineId: move.move.splineId,
@@ -150,6 +154,7 @@ export class VehiclesStore {
       this.queue({
         duration: move.move.kind === "move" ? move.move.duration : 0,
         entry: this.vehicleEntry(move.transportGuid),
+        facing,
         offset,
         seat: move.seat,
         splineId: move.move.splineId,
@@ -160,7 +165,14 @@ export class VehiclesStore {
 
   receiveCreatedOnTransport(
     guid: bigint,
-    transport: { guid: bigint; seat: number; x: number; y: number; z: number },
+    transport: {
+      guid: bigint;
+      seat: number;
+      orientation: number;
+      x: number;
+      y: number;
+      z: number;
+    },
   ): void {
     if (guid !== this.deps.selfGuid()) return;
     const kind = transport.guid >> 48n;
@@ -180,6 +192,7 @@ export class VehiclesStore {
     this.queue({
       duration: 0,
       entry,
+      facing: transport.orientation,
       offset: { x: transport.x, y: transport.y, z: transport.z },
       seat: transport.seat,
       splineId: undefined,
@@ -255,4 +268,9 @@ function splineOffset(move: MonsterMove): Vec3 {
   if (move.kind !== "move") return { x: 0, y: 0, z: 0 };
   const last = (move.points ?? []).at(-1);
   return last ?? { x: 0, y: 0, z: 0 };
+}
+
+function splineFacing(move: MonsterMove): number {
+  if (move.kind !== "move" || move.facing.kind !== "angle") return 0;
+  return move.facing.angle;
 }

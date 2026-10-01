@@ -198,7 +198,7 @@ describe("ControlRuntime", () => {
     }
   });
 
-  test("a forced teleport pose clears the old transport block", () => {
+  test("a forced teleport that keeps the transport keeps the transport block (Player.cpp:1479-1490)", () => {
     jest.useFakeTimers();
     try {
       const { runtime, sent } = setup();
@@ -223,7 +223,55 @@ describe("ControlRuntime", () => {
       const rootAck = new PacketReader(must(sent[0]).body);
       rootAck.packedGuid();
       expect(rootAck.uint32LE()).toBe(9);
-      expect(parseMovementInfo(rootAck).transport).toBeUndefined();
+      const parsed = parseMovementInfo(rootAck);
+      expect(parsed.flags & MovementFlag.ON_TRANSPORT).toBe(
+        MovementFlag.ON_TRANSPORT,
+      );
+      expect(parsed.transport).toMatchObject({
+        guid: 0x99n,
+        seat: 1,
+        x: 1,
+        y: 2,
+        z: 3,
+      });
+      expect(parsed.transport?.orientation).toBeCloseTo(0.25, 5);
+      expect(rootAck.remaining).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("a transport-free forced teleport drops the old transport block", () => {
+    jest.useFakeTimers();
+    try {
+      const { runtime, sent } = setup();
+      runtime.teleportAck({
+        guid: 0x0764n,
+        counter: 2,
+        info: info({
+          flags: MovementFlag.ON_TRANSPORT,
+          transport: {
+            guid: 0x99n,
+            orientation: 0.25,
+            seat: 1,
+            time: 44,
+            x: 1,
+            y: 2,
+            z: 3,
+          },
+        }),
+      });
+      runtime.teleportAck({ guid: 0x0764n, counter: 3, info: info({}) });
+      sent.length = 0;
+      runtime.forceRoot(9);
+      sent.length = 0;
+      runtime.forceRoot(9);
+      const rootAck = new PacketReader(must(sent[0]).body);
+      rootAck.packedGuid();
+      expect(rootAck.uint32LE()).toBe(9);
+      const parsed = parseMovementInfo(rootAck);
+      expect(parsed.transport).toBeUndefined();
+      expect(parsed.flags & MovementFlag.ON_TRANSPORT).toBe(0);
       expect(rootAck.remaining).toBe(0);
     } finally {
       jest.useRealTimers();

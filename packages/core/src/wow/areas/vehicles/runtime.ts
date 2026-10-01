@@ -239,6 +239,7 @@ export function vehiclesRuntime(
       const pose = store.entityOf(event.vehicle)?.position;
       core.self.receive({
         duration: event.duration,
+        facing: event.facing,
         offset: event.offset,
         seat: event.seat,
         splineId: event.splineId,

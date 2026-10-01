@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { info, type Sent, setup } from "#test-support/control-fixtures";
 import { must } from "#test-support/must";
 import { seatWorldPose } from "#wow/control-ride";
+import { MovementFlag } from "#wow/protocol/entity-fields";
 import { parseMovementInfo } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
@@ -15,6 +16,7 @@ type Seat = Extract<SelfEvent, { type: "vehicle_seat" }>;
 function seat(over: Partial<Seat> = {}): Seat {
   return {
     duration: 1000,
+    facing: 0,
     offset: { x: -1.4, y: 0, z: 0 },
     seat: 0,
     splineId: 77,
@@ -49,6 +51,32 @@ describe("seat world pose", () => {
     expect(pose.y).toBeCloseTo(202, 4);
     expect(pose.z).toBeCloseTo(51, 4);
     expect(pose.mapId).toBe(571);
+  });
+});
+
+describe("passenger seat facing", () => {
+  test("a nonzero seat facing reaches the ack transport orientation (Vehicle.cpp:414,454-466; Unit.cpp:734-750)", () => {
+    const { runtime, sent } = setup();
+    runtime.vehicleSeat(seat({ facing: 1.5, seat: 2 }));
+    sent.length = 0;
+    runtime.forceRoot(5);
+    const r = new PacketReader(must(sent.at(-1)).body);
+    r.packedGuidBig();
+    r.uint32LE();
+    const parsed = parseMovementInfo(r);
+    expect(parsed.transport?.seat).toBe(2);
+    expect(parsed.transport?.orientation).toBeCloseTo(1.5, 5);
+  });
+
+  test("a nonzero seat facing adds to the vehicle orientation in the adopted pose", () => {
+    const { runtime } = setup();
+    runtime.vehicleSeat(
+      seat({
+        facing: 0.5,
+        vehiclePose: { mapId: 571, orientation: 1, x: 100, y: 200, z: 50 },
+      }),
+    );
+    expect(runtime.snapshot().pose?.orientation).toBeCloseTo(1.5, 5);
   });
 });
 
@@ -192,6 +220,39 @@ describe("passenger seat in control", () => {
     runtime.newWorld({ mapId: 1, orientation: 0, x: 1, y: 2, z: 3 });
     advance(5000);
     expect(splineDones(sent)).toEqual([]);
+    sent.length = 0;
+    runtime.forceRoot(6);
+    const r = new PacketReader(must(sent.at(-1)).body);
+    r.packedGuidBig();
+    r.uint32LE();
+    expect(parseMovementInfo(r).transport).toBeUndefined();
+  });
+
+  test("a transport teleport survives a world change only until the worldport", () => {
+    const { runtime, sent } = setup();
+    runtime.teleportAck({
+      guid: SELF,
+      counter: 2,
+      info: info({
+        flags: MovementFlag.ON_TRANSPORT,
+        transport: {
+          guid: VEHICLE,
+          orientation: 0.25,
+          seat: 1,
+          time: 44,
+          x: 1,
+          y: 2,
+          z: 3,
+        },
+      }),
+    });
+    runtime.newWorld({ mapId: 1, orientation: 0, x: 1, y: 2, z: 3 });
+    sent.length = 0;
+    runtime.forceRoot(6);
+    const r = new PacketReader(must(sent.at(-1)).body);
+    r.packedGuidBig();
+    r.uint32LE();
+    expect(parseMovementInfo(r).transport).toBeUndefined();
   });
 
   test("boarding and leaving each announce a control change", () => {
