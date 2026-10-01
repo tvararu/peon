@@ -21,22 +21,25 @@ async function run({ args, handle, settle }: FlowContext): Promise<Json> {
   if (!Number.isInteger(rank) || rank < 0)
     throw new Error("pets-talent needs --arg rank=<non-negative>.");
   await handle.loadCatalogs().catch(ignoreFailure);
-  let petInfo = 0;
+  let arrivals = 0;
   let lastFree = -1;
+  let last: { talentId: number; rank: number }[] = [];
   const stop = handle.talents.onEvent((event) => {
-    if (event.type === "pet_info") {
-      petInfo++;
-      lastFree = event.freePoints;
-    }
+    if (event.type !== "pet_info") return;
+    arrivals++;
+    lastFree = event.freePoints;
+    last = event.talents;
   });
   try {
     await settle(() => (handle.pets.state().bar ? true : undefined));
     if (!handle.pets.state().bar)
       throw new Error("no pet is out; call the pet first.");
-    const seen = petInfo;
+    const seen = arrivals;
     const result = handle.pets.act.learnPetTalent(talent, rank);
     if (!result.ok) return { learned: null, result };
-    const confirmed = await waitFor(() => petInfo > seen);
+    const arrived = await waitFor(() => arrivals > seen);
+    const held = last.find((entry) => entry.talentId === talent);
+    const confirmed = arrived && held !== undefined && held.rank >= rank;
     return {
       confirmed,
       freePoints: lastFree,
