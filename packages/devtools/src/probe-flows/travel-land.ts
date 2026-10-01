@@ -78,7 +78,9 @@ async function walkNorth(handle: WorldHandle): Promise<Json> {
     NORTH_YARDS,
   );
   return freeze(
-    walked ? { reason: walked.reason ?? null, traveled: walked.traveled } : null,
+    walked
+      ? { reason: walked.reason ?? null, traveled: walked.traveled }
+      : null,
   );
 }
 
