@@ -16,8 +16,8 @@ describe("talents refused rule", () => {
       areaRuleSet(),
       talents({
         entries: [
-          { rank: 1, talentId: 124 },
-          { rank: 0, talentId: 1302 },
+          { rank: 1, reason: "not_enough_points", talentId: 124 },
+          { rank: 0, reason: "unknown_talent", talentId: 1302 },
         ],
         outcome: "refused",
         type: "refused",
@@ -25,8 +25,14 @@ describe("talents refused rule", () => {
       atLevel(12),
     );
     expect(rows.map((row) => [row.event, row.data])).toEqual([
-      ["talents/refused", { rank: 2, talentId: 124 }],
-      ["talents/refused", { rank: 1, talentId: 1302 }],
+      [
+        "talents/refused",
+        { rank: 2, reason: "not_enough_points", talentId: 124 },
+      ],
+      [
+        "talents/refused",
+        { rank: 1, reason: "unknown_talent", talentId: 1302 },
+      ],
     ]);
     expect(rows[0]?.text).toContain("124");
     expect(rows[1]?.text).toContain("rank 1");
