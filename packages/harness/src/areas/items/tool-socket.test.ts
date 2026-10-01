@@ -117,4 +117,30 @@ describe("gear tool socket", () => {
       .catch((error) => error);
     expect(res).toMatchObject({ reason: "cant_do_right_now" });
   });
+  test("a gem in an equipped bag slot resolves", async () => {
+    const t = await createTestRuntime();
+    stocked(t.handle, [
+      { bag: 255, entry: 40_000, guid: RING, name: "Sturdy Ring", slot: 25 },
+    ]);
+    const acts = socketActs(t.handle);
+    const bagGem = {
+      bag: 19,
+      guid: GEM,
+      item: { entry: 32_000, name: "Bold Bloodstone" },
+      region: "bag_item",
+      slot: 0,
+      status: "occupied",
+    } as never;
+    const inventory = t.handle.getInventoryState();
+    t.handle.getInventoryState = () => ({
+      ...inventory,
+      slots: [...inventory.slots, bagGem],
+    });
+    const res = await gearSpec.run(
+      { do: "socket", gems: "Bold Bloodstone", item: "Sturdy Ring" },
+      toolCtx(t),
+    );
+    expect(acts.socket).toHaveBeenCalledWith(RING, [GEM]);
+    expect(contentOf(res)).toContain("Sturdy Ring");
+  });
 });

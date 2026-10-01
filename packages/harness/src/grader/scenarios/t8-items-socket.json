@@ -1,0 +1,53 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 6,
+    "tools": 10,
+    "turns": 5
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["items/socketed"],
+        "ids": [37230]
+      },
+      "expect": "GL has an items/socketed row for item 37230 (Grotto Mist Gloves) whose data.sockets holds a non-zero enchant id in its first socket slot",
+      "id": "socketed-row",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "items": [39996],
+        "truth": ["inventory"]
+      },
+      "expect": "T final has no row of item 39996 (Bold Scarlet Ruby): the single gem from the setup is consumed by the socket",
+      "id": "gem-consumed",
+      "source": "truth"
+    }
+  ],
+  "id": "t8-items-socket",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "max80",
+  "setup": [
+    {
+      "body": {
+        "count": 1,
+        "item": 37230
+      },
+      "endpoint": "items/add"
+    },
+    {
+      "body": {
+        "count": 1,
+        "item": 39996
+      },
+      "endpoint": "items/add"
+    }
+  ],
+  "steers": [],
+  "task": "Socket the Bold Scarlet Ruby from your bags into the Grotto Mist Gloves.",
+  "tier": 8
+}
