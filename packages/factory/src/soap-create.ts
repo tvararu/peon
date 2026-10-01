@@ -1,3 +1,4 @@
+import { appendFileSync, mkdirSync } from "node:fs";
 import type { AuthResult, ClientConfig, WorldHandle } from "@peon/core";
 import type { CharCreateSpec } from "@peon/core/session";
 import {
@@ -22,6 +23,19 @@ import {
   type StageStep,
   templateFor,
 } from "#factory/soap-presets";
+
+export function createTraceSink(
+  dir: string,
+): NonNullable<ClientConfig["trace"]> {
+  return {
+    bodies: true,
+    row: (row) => {
+      mkdirSync(dir, { mode: 0o700, recursive: true });
+      appendFileSync(`${dir}/packets.jsonl`, `${JSON.stringify(row)}\n`);
+    },
+  };
+}
+
 export type CreateFn = typeof createCharacter;
 export type LoginFn = (
   config: ClientConfig,

@@ -1,4 +1,3 @@
-import { appendFileSync, mkdirSync } from "node:fs";
 import {
   appendFile,
   chmod,
@@ -24,7 +23,7 @@ import {
   pinfoAccount,
   type SoapResult,
 } from "#factory/soap-copy";
-import { createWired } from "#factory/soap-create";
+import { createTraceSink, createWired } from "#factory/soap-create";
 import {
   needsProtocol,
   type Preset,
@@ -359,15 +358,6 @@ export async function reserveNames(
   }
   throw new Error(`account create: ${text}`);
 }
-function traceSink(dir: string) {
-  return {
-    bodies: true,
-    row: (row: { opcode: number }) => {
-      mkdirSync(dir, { mode: 0o700, recursive: true });
-      appendFileSync(`${dir}/packets.jsonl`, `${JSON.stringify({ ...row })}\n`);
-    },
-  };
-}
 
 export async function createAccount({
   preset,
@@ -395,7 +385,7 @@ export async function createAccount({
       await createWired(preset, {
         console: (accounts, command) => consoleCommand(accounts, command),
         createTrace: traceCreateDir
-          ? () => traceSink(traceCreateDir)
+          ? () => createTraceSink(traceCreateDir)
           : undefined,
         env,
         host: inherited.host,
