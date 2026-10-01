@@ -128,6 +128,32 @@ describe("roots received before the boarding spline", () => {
   });
 });
 
+describe("roots already cached in the movement block", () => {
+  test("a vehicle adopted with ROOT refuses without a root packet (MovementHandler.cpp:610-613)", () => {
+    const { runtime, sent } = boardLiveOrder(() => undefined);
+    runtime.moverState({ ...MOVER, flags: MovementFlag.ROOT });
+    sent.length = 0;
+    expect(() => runtime.move("forward", 1000)).toThrow("rooted");
+    expect(sent).toHaveLength(0);
+  });
+
+  test("an unroot packet naming the vehicle releases the seeded root", () => {
+    const { runtime } = boardLiveOrder(() => undefined);
+    runtime.moverState({ ...MOVER, flags: MovementFlag.ROOT });
+    runtime.forceUnroot(4, VEHICLE);
+    expect(runtime.snapshot().movementAllowed).toBe(true);
+  });
+
+  test("an unroot seen before adoption wins over the cached ROOT flag", () => {
+    const harness = setup();
+    harness.runtime.vehicleSeat(seat());
+    harness.runtime.clientControl({ allow: true, guid: VEHICLE });
+    harness.runtime.forceUnroot(4, VEHICLE);
+    harness.runtime.moverState({ ...MOVER, flags: MovementFlag.ROOT });
+    expect(harness.runtime.snapshot().movementAllowed).toBe(true);
+  });
+});
+
 describe("forced pose corrections", () => {
   const FALL = { cosAngle: 0.5, sinAngle: 0.25, xySpeed: 3, zSpeed: -7 };
 
