@@ -89,14 +89,15 @@ describe("pet cast", () => {
 
   const rangeMiss = (t: PetsWorld) =>
     jest.spyOn(t.game.pets.act, "petCast").mockImplementation(() => {
-      queueMicrotask(() =>
-        t.game.triggerAreaEvent("pets", {
-          castCount: 1,
-          reason: "out_of_range",
-          spell: GROWL,
-          type: "cast_failed",
-        } as never),
-      );
+      for (const reason of ["out_of_range", "dont_report", "dont_report"])
+        queueMicrotask(() =>
+          t.game.triggerAreaEvent("pets", {
+            castCount: 1,
+            reason,
+            spell: GROWL,
+            type: "cast_failed",
+          } as never),
+        );
       return { castCount: 1, confirmed: true, ok: true };
     });
 
