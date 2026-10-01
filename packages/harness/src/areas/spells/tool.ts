@@ -114,7 +114,9 @@ function spellCall(args: unknown, theme: CallInit["theme"]): string {
     icon: "spell",
     parts: [
       argText(args, "do"),
-      argText(args, "spell") ?? argText(args, "item"),
+      argText(args, "spell") ??
+        argText(args, "item") ??
+        argText(args, "element"),
       slot && `slot ${slot}`,
       target && `→ ${target}`,
     ],
@@ -143,7 +145,7 @@ export const spellSpec: GameToolSpec<typeof spellParams, "spell", SpellAfter> =
     run: spellRun,
     text: {
       description:
-        "Cast a spell by name or id, on yourself or on a unit you have seen. Remove one of your own buffs. Put a spell or an item on an action bar slot. You cannot cast while you channel another spell.",
+        "Cast a spell by name or id, on yourself or on a unit you have seen. Remove one of your own buffs. Put a spell or an item on an action bar slot. Drop a profession with confirm. Remove one of your totems by element. You cannot cast while you channel another spell.",
       guidelines: [
         "Read the spells you know with journal about spells before you cast.",
       ],

@@ -161,6 +161,7 @@ export const ROUND_1: readonly string[] = [
   "t4-spells-action-bar",
   "t4-reputation-gain",
   "t4-spells-stop-channel",
+  "t4-spells-unlearn-profession",
   "t8-travel-bind-inn",
   "t8-travel-hearth-home",
   "t8-travel-fly",

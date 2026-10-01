@@ -1,0 +1,40 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 6,
+    "tools": 12,
+    "turns": 6
+  },
+  "checks": [
+    {
+      "evidence": {
+        "truth": ["spells"]
+      },
+      "expect": "T final has none of the Mining spells 2575, 2580, 2656, so the profession is gone from the spellbook and not merely hidden",
+      "id": "mining-gone",
+      "source": "truth"
+    },
+    {
+      "expect": "the session shows the agent calling the spell tool with do \"unlearn_profession\" and Mining (or 186), first without confirm and then with confirm true, and the first call ending REFUSED needs_confirm",
+      "id": "used-unlearn",
+      "source": "session"
+    }
+  ],
+  "id": "t4-spells-unlearn-profession",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 9,
+  "partner": null,
+  "preset": "eversong10",
+  "setup": [
+    {
+      "body": {
+        "spell": 2575
+      },
+      "endpoint": "spells/learn"
+    }
+  ],
+  "steers": [],
+  "task": "You won't need Mining. Drop the profession.",
+  "tier": 4
+}
