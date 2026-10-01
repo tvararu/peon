@@ -258,6 +258,18 @@ const EVERSONG_PETS: Spawn = {
   zone: 3430,
 };
 
+const EVERSONG_UNLEARN: Spawn = {
+  map: 530,
+  o: 1.686,
+  points: [
+    [8900, -6390, 13.52],
+    [8896, -6390, 14.51],
+    [8904, -6390, 12.54],
+    [8900, -6394, 13.95],
+    [8900, -6386, 13.05],
+  ],
+  zone: 3430,
+};
 const UNDERCITY_WARRIOR: Spawn = {
   map: 0,
   o: 0,
@@ -276,6 +288,7 @@ const NAMED: Readonly<Record<string, Spawn>> = {
   "eversong-raid": EVERSONG_RAID,
   "eversong-ready": EVERSONG_READY,
   "eversong-trade": EVERSONG_TRADE,
+  "eversong-unlearn": EVERSONG_UNLEARN,
   "eversong-west": EVERSONG_WEST,
   "fairbreeze-east": FAIRBREEZE_EAST,
   "fairbreeze-south": FAIRBREEZE_SOUTH,
