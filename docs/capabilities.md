@@ -37,6 +37,7 @@ or the page names one that does not exist.
 | Open a container and keep its contents | `t8-items-open` | |
 | Read a letter in its bags | `t8-items-read` | The Dusty Unsent Letter's page text is empty on this server. |
 | Load arrows for a ranged weapon | `t8-items-ammo` | |
+| Socket a gem into gloves | `t8-items-socket` | |
 | Cancel one of its own buffs | `t4-spells-cancel-aura` | Harmful and passive auras cannot be cancelled. |
 | Stop a channelled spell with stop | `t4-spells-stop-channel` | Stop also ends a channel. |
 | Make an inn its home | `t8-travel-bind-inn` | `interact` `bind` walks to the innkeeper first. A bind the server does not answer (dead, out of range or in an instance) is `UNCONFIRMED`. |
