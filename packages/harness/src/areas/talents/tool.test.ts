@@ -307,6 +307,33 @@ describe("talents learn", () => {
     expect(learn).toHaveBeenCalledWith([{ rank: 0, talentId: 4_294_967_295 }]);
   });
 
+  test("learn matches outcomes by talent and rank when the core reorders them", async () => {
+    const { learn, t } = await rig({ catalog: undefined });
+    learn.mockImplementation(async () => ({
+      catalog: false,
+      entries: [
+        { outcome: "learned", rank: 1, talentId: 124 },
+        { outcome: "unknown_talent", rank: 0, talentId: 9999 },
+      ],
+    }));
+    const out = await talentsSpec.run(
+      {
+        do: "learn",
+        plan: [
+          { rank: 1, talent: "9999" },
+          { rank: 2, talent: "124" },
+        ],
+      },
+      toolCtx(t),
+    );
+    const text = out.body.join("\n");
+    expect(out.status).toBe("REFUSED");
+    expect(out.reason).toBe("unknown_talent");
+    expect(text).toMatch(/9999 not learned/);
+    expect(text).toMatch(/Learned talent 124 2\//);
+    expect(text).not.toMatch(/Learned 9999/);
+  });
+
   test("learn refuses a duplicated plan entry without sending", async () => {
     const { learn, t } = await rig();
     await expect(

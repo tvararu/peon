@@ -130,14 +130,20 @@ export async function learnTalents(
   );
   const entries = entriesOf(ctx, catalog, wants);
   const outcome = await sendEntries(ctx, entries);
-  const outcomes = outcome.entries.map((entry) => entry.outcome);
+  const byEntry = new Map(
+    outcome.entries.map((entry) => [
+      `${entry.talentId}:${entry.rank}`,
+      entry.outcome,
+    ]),
+  );
   const after = handle.talents.state();
   const learned = outcome.entries.filter(
     (entry) => entry.outcome === "learned",
   ).length;
   const left = freePointsOf(after);
-  const body = entries.map((entry, index) => {
-    const outcomeOf = outcomes[index] ?? "no_reply";
+  const body = entries.map((entry) => {
+    const outcomeOf =
+      byEntry.get(`${entry.talent}:${entry.rank - 1}`) ?? "no_reply";
     if (outcomeOf !== "learned") {
       const counted =
         outcomeOf === "tier_locked"
