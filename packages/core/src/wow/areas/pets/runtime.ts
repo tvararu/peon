@@ -1,9 +1,7 @@
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import {
   buildBuyStableSlot,
-  buildDismissCritter,
   buildListStabledPets,
-  buildPetAbandon,
   buildPetAction,
   buildPetCancelAura,
   buildPetCastSpell,
@@ -20,6 +18,7 @@ import {
   PET_ACTION,
   type PetSetActionPair,
 } from "#wow/areas/pets/protocol";
+import { abandonActs, NO_PET } from "#wow/areas/pets/runtime-abandon";
 import type { PetsEvent, PetsStore } from "#wow/areas/pets/store";
 import type { Entity } from "#wow/entity-store";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -27,24 +26,19 @@ import type { SpellTarget } from "#wow/protocol/spell-targets";
 import type { CoreStores } from "#wow/session-stores";
 export type PetOrder = "stay" | "follow" | "dismiss";
 export type PetStance = "passive" | "defensive" | "aggressive";
-export type PetsRefused = {
-  ok: false;
-  reason:
-    | "no_pet"
-    | "hunter_pet_dismiss"
-    | "not_known"
-    | "dead"
-    | "not_autocastable"
-    | "bad_slot"
-    | "passive"
-    | "not_removable"
-    | "not_renamable"
-    | "no_critter";
-};
-export type PetsCast =
-  | { ok: true; castCount: number; confirmed: boolean }
-  | PetsRefused;
-export type PetsActResult = { ok: true } | PetsRefused;
+
+import type {
+  AbandonActs,
+  PetsActResult,
+  PetsCast,
+} from "#wow/areas/pets/runtime-abandon";
+
+export type {
+  AbandonActs,
+  PetsActResult,
+  PetsCast,
+  PetsRefused,
+} from "#wow/areas/pets/runtime-abandon";
 export type StableActs = {
   listStabledPets: (npc: bigint) => PetsActResult;
   stablePet: (npc: bigint) => PetsActResult;
@@ -65,9 +59,8 @@ export type PetsActs = {
   petCancelAura: (spell: number) => PetsActResult;
   queryPetName: () => PetsActResult;
   renamePet: (name: string) => PetsActResult;
-  abandonPet: () => PetsActResult;
-  dismissCritter: () => PetsActResult;
-} & StableActs;
+} & AbandonActs &
+  StableActs;
 
 const ORDERS: Record<PetOrder, number> = { stay: 0, follow: 1, dismiss: 3 };
 const STANCES: Record<PetStance, number> = {
@@ -75,7 +68,6 @@ const STANCES: Record<PetStance, number> = {
   defensive: 1,
   aggressive: 2,
 };
-const NO_PET: PetsRefused = { ok: false, reason: "no_pet" };
 
 type Ctx = AreaRuntimeCtx<PetsEvent>;
 const SPELL_ATTR0_PASSIVE = 0x40;
@@ -260,26 +252,6 @@ function stableActs(
       }),
     stableRevivePet: (npc) => {
       ctx.send(GameOpcode.CMSG_STABLE_REVIVE_PET, buildStableRevivePet(npc));
-      return { ok: true };
-    },
-  };
-}
-
-function abandonActs(
-  ctx: Ctx,
-  store: PetsStore,
-): Pick<PetsActs, "abandonPet" | "dismissCritter"> {
-  return {
-    abandonPet: () => {
-      const { bar, pet } = store.snapshot();
-      if (!(bar && pet)) return NO_PET;
-      ctx.send(GameOpcode.CMSG_PET_ABANDON, buildPetAbandon(bar.guid));
-      return { ok: true };
-    },
-    dismissCritter: () => {
-      const critter = store.critter();
-      if (critter === 0n) return { ok: false, reason: "no_critter" };
-      ctx.send(GameOpcode.CMSG_DISMISS_CRITTER, buildDismissCritter(critter));
       return { ok: true };
     },
   };
