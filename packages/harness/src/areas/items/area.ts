@@ -1,9 +1,10 @@
-import type { AreaEventOf } from "@peon/core";
+import type { AreaEventOf, AreaState } from "@peon/core";
 import type { AreaDraft } from "#harness/areas/contract";
 import { defineHarnessArea } from "#harness/areas/contract";
 import { guidText, type RuleInput } from "#harness/events/rules";
 
 type ItemsEvent = AreaEventOf<"items">;
+type ItemsAreaState = AreaState<"items">;
 type Moved = Extract<ItemsEvent, { type: "moved" }>;
 type Received = Extract<ItemsEvent, { type: "item_received" }>;
 
@@ -54,6 +55,58 @@ function receivedRow(event: Received, rc: RuleInput): AreaDraft[] {
   ];
 }
 
+const WEAPON_PROFICIENCY: Record<number, string> = {
+  0: "one-handed axes",
+  1: "two-handed axes",
+  2: "bows",
+  3: "guns",
+  4: "one-handed maces",
+  5: "two-handed maces",
+  6: "polearms",
+  7: "one-handed swords",
+  8: "two-handed swords",
+  10: "staves",
+  13: "fist weapons",
+  15: "daggers",
+  16: "thrown weapons",
+  18: "crossbows",
+  19: "wands",
+  20: "fishing poles",
+};
+const ARMOR_PROFICIENCY: Record<number, string> = {
+  1: "cloth",
+  2: "leather",
+  3: "mail",
+  4: "plate",
+  6: "shields",
+  7: "librams",
+  8: "idols",
+  9: "totems",
+  10: "sigils",
+};
+
+function proficiencyRow(
+  kind: "weapon" | "armor",
+  mask: number,
+): AreaDraft | undefined {
+  const table = kind === "weapon" ? WEAPON_PROFICIENCY : ARMOR_PROFICIENCY;
+  const names: string[] = [];
+  let rest = mask;
+  let bit = 0;
+  while (rest !== 0) {
+    if (rest % 2 === 1) names.push(table[bit] ?? `subclass ${bit}`);
+    rest = Math.floor(rest / 2);
+    bit += 1;
+  }
+  if (names.length === 0) return undefined;
+  return {
+    class: "log",
+    data: { kind, mask, names },
+    name: "proficiency",
+    text: `You can now use ${names.join(", ")}.`,
+  };
+}
+
 const WAKE_UNDER_SECONDS = 60;
 
 function itemLabel(entry: number | undefined, rc: RuleInput): string {
@@ -82,8 +135,8 @@ function timerRows(event: ItemsEvent, rc: RuleInput): readonly AreaDraft[] {
         text: `${itemLabel(event.entry, rc)} is on cooldown.`,
       },
     ];
-  if (event.type === "item_time" || event.type === "item_enchant_time") {
-    const enchant = event.type === "item_enchant_time";
+  if (event.type === "item_timer" || event.type === "item_enchant_timer") {
+    const enchant = event.type === "item_enchant_timer";
     const label = itemLabel(event.entry, rc);
     const left = span(event.seconds);
     return [
@@ -103,7 +156,7 @@ function timerRows(event: ItemsEvent, rc: RuleInput): readonly AreaDraft[] {
       },
     ];
   }
-  if (event.type === "durability_loss")
+  if (event.type === "durability_loss_death")
     return [
       {
         class: "wake",
@@ -112,7 +165,7 @@ function timerRows(event: ItemsEvent, rc: RuleInput): readonly AreaDraft[] {
         text: "Dying damaged your equipment; repair it at a vendor.",
       },
     ];
-  if (event.type === "proficiency" && event.names.length > 0)
+  if (event.type === "proficiency_changed" && event.names.length > 0)
     return [
       {
         class: "log",
@@ -122,6 +175,58 @@ function timerRows(event: ItemsEvent, rc: RuleInput): readonly AreaDraft[] {
       },
     ];
   return [];
+}
+
+function remaining(expiresAt: number, now: number): number {
+  return Math.max(0, Math.ceil((expiresAt - now) / 1000));
+}
+
+function attachRows(
+  state: ItemsAreaState,
+  rc: RuleInput,
+): readonly AreaDraft[] {
+  const rows: AreaDraft[] = [];
+  const { proficiency } = state.timers;
+  for (const kind of ["weapon", "armor"] as const) {
+    const mask = proficiency[kind];
+    if (mask === "unknown" || mask === 0) continue;
+    const row = proficiencyRow(kind, mask);
+    if (row) rows.push(row);
+  }
+  for (const timer of state.timers.timers) {
+    const seconds = remaining(timer.expiresAt, rc.now);
+    if (timer.expiresAt < rc.now) continue;
+    rows.push(
+      ...timerRows(
+        {
+          entry: undefined,
+          expiresAt: timer.expiresAt,
+          itemGuid: timer.itemGuid,
+          seconds,
+          type: "item_timer",
+        } as ItemsEvent,
+        rc,
+      ),
+    );
+  }
+  for (const enchant of state.timers.enchants) {
+    const seconds = remaining(enchant.expiresAt, rc.now);
+    if (enchant.expiresAt < rc.now) continue;
+    rows.push(
+      ...timerRows(
+        {
+          entry: undefined,
+          expiresAt: enchant.expiresAt,
+          itemGuid: enchant.itemGuid,
+          seconds,
+          slot: enchant.slot,
+          type: "item_enchant_timer",
+        } as ItemsEvent,
+        rc,
+      ),
+    );
+  }
+  return rows;
 }
 
 function eventRow(event: ItemsEvent, rc: RuleInput): readonly AreaDraft[] {
@@ -177,7 +282,10 @@ function eventRow(event: ItemsEvent, rc: RuleInput): readonly AreaDraft[] {
 export const itemsHarness = defineHarnessArea({
   area: "items",
   glyph: "bag",
-  rules: () => ({ event: (event, rc) => eventRow(event, rc) }),
+  rules: () => ({
+    attach: (state, rc) => attachRows(state, rc),
+    event: (event, rc) => eventRow(event, rc),
+  }),
   worldActs: [
     "equip",
     "equipTo",

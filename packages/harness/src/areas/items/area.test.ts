@@ -219,7 +219,7 @@ describe("items harness timer rows", () => {
           expiresAt: 0,
           itemGuid: GUID,
           seconds,
-          type: "item_time",
+          type: "item_timer",
         }),
         rc(),
       )[0];
@@ -243,7 +243,7 @@ describe("items harness timer rows", () => {
         itemGuid: GUID,
         seconds: 30,
         slot: 1,
-        type: "item_enchant_time",
+        type: "item_enchant_timer",
       }),
       rc(),
     );
@@ -258,7 +258,7 @@ describe("items harness timer rows", () => {
   test("the death durability notice wakes with a repair hint", () => {
     const rows = areaDrafts(
       areaRuleSet(),
-      timerEvent({ type: "durability_loss" }),
+      timerEvent({ type: "durability_loss_death" }),
       rc(),
     );
     expect(rows).toHaveLength(1);
@@ -277,7 +277,7 @@ describe("items harness timer rows", () => {
         kind: "weapon",
         mask: 3,
         names: ["one-handed axes", "two-handed axes"],
-        type: "proficiency",
+        type: "proficiency_changed",
       }),
       rc(),
     );
@@ -302,9 +302,101 @@ describe("items harness timer rows", () => {
           kind: "armor",
           mask: 2,
           names: [],
-          type: "proficiency",
+          type: "proficiency_changed",
         }),
         rc(),
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("items harness attach replay", () => {
+  const attachOf = () => {
+    const set = areaRuleSet();
+    const attach = set.items?.attach;
+    if (!attach) throw new Error("items has no attach rule");
+    return attach;
+  };
+  const at = (now: number) => testRuleInput({ now });
+  const base = {
+    move: { last: undefined, pending: undefined },
+    read: { last: undefined, pending: undefined, texts: [] },
+  };
+
+  test("attach after login packets replays proficiency rows from retained masks", () => {
+    const rows = attachOf()(
+      {
+        ...base,
+        timers: {
+          cooldowns: [],
+          enchants: [],
+          proficiency: { armor: 12, weapon: 272 },
+          timers: [],
+        },
+      },
+      at(1_000_000),
+    );
+    expect(rows.map((row) => row.name)).toEqual(["proficiency", "proficiency"]);
+    expect(rows[0]?.text).toContain("one-handed maces");
+    expect(rows[1]?.text).toContain("leather");
+  });
+
+  test("attach replays live timers with seconds left and drops expired ones", () => {
+    const rows = attachOf()(
+      {
+        ...base,
+        timers: {
+          cooldowns: [],
+          enchants: [
+            {
+              expiresAt: 1_030_000,
+              itemGuid: GUID,
+              seconds: 30,
+              seenAt: 1_000_000,
+              slot: 1,
+            },
+          ],
+          proficiency: { armor: "unknown", weapon: "unknown" },
+          timers: [
+            {
+              expiresAt: 1_060_000,
+              itemGuid: GUID,
+              seconds: 120,
+              seenAt: 1_000_000,
+            },
+            {
+              expiresAt: 999_000,
+              itemGuid: 0x4000000000000002n,
+              seconds: 5,
+              seenAt: 990_000,
+            },
+          ],
+        },
+      },
+      testRuleInput({
+        lookup: testLookup({ itemName: () => "Dragonmaw Key" }),
+        now: 1_030_000,
+      }),
+    );
+    expect(rows.map((row) => [row.name, row.data])).toEqual([
+      ["expiring", { entry: undefined, seconds: 30 }],
+      ["expiring", { enchantSlot: 1, entry: undefined, seconds: 0 }],
+    ]);
+  });
+
+  test("attach with empty retained state writes no rows", () => {
+    expect(
+      attachOf()(
+        {
+          ...base,
+          timers: {
+            cooldowns: [],
+            enchants: [],
+            proficiency: { armor: "unknown", weapon: "unknown" },
+            timers: [],
+          },
+        },
+        at(1_000_000),
       ),
     ).toEqual([]);
   });
