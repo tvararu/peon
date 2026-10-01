@@ -1,0 +1,57 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 25,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["pets/stable"]
+      },
+      "expect": "GL has a pets/stable row, so the server confirmed the stable action through the stable master",
+      "id": "stable-confirmed",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "delta": ["money"],
+        "truth": ["money"]
+      },
+      "expect": "T delta money < 0, so buying the stable slot cost money",
+      "id": "slot-paid",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "console": {
+          "match": "Slot: 1",
+          "read": "pet"
+        }
+      },
+      "expect": "the agent-side console read of pet lists the pet in slot 1, so the pet is stabled",
+      "id": "pet-stabled",
+      "source": "console"
+    }
+  ],
+  "field": "ghostlands-tranquillien",
+  "id": "t8-pets-stable",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "eversong10-hunter",
+  "setup": [
+    {
+      "body": {
+        "copper": 1000000
+      },
+      "endpoint": "money"
+    }
+  ],
+  "spawn": "ghostlands",
+  "steers": [],
+  "task": "Go to Paniar the stable master in Tranquillien, south of where you start, buy a stable slot and put your pet in it.",
+  "tier": 8
+}
