@@ -197,7 +197,7 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Items and gear (`gear`, `journal` bags) | `t8-items-equip-upgrade`, `t8-items-unequip`, `t8-items-move`, `t8-items-split`, `t8-items-open`, `t8-items-read`, `t8-items-ammo`, `t8-items-socket` |
 | Game objects (`use`) | `t0-objects-read-shrine` |
 | Game objects (area triggers) | `t4-objects-explore-fargodeep` |
-| Spells (spell tool, stop on channels) | `t4-spells-cancel-aura`, `t4-spells-action-bar`, `t4-spells-stop-channel` |
+| Spells (spell tool, stop on channels) | `t4-spells-cancel-aura`, `t4-spells-action-bar`, `t4-spells-stop-channel`, `t4-spells-unlearn-profession` |
 | Reputation and hostility (journal reputation, reputation rows, unit relations) | `t4-reputation-gain`, `t0-hostiles` |
 | Travel (`interact` bind, `travel` hearth and fly) | `t8-travel-bind-inn`, `t8-travel-hearth-home`, `t8-travel-fly` |
 | Pets (pet, interact stable) | `t8-pets-command`, `t8-pets-spells`, `t8-pets-rename`, `t8-pets-abandon` |
