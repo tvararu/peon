@@ -74,22 +74,30 @@ function emptyPet(): PetAfter {
   return { do: "status", target: undefined, what: undefined };
 }
 
+type PetHandler = (args: PetArgs, ctx: PetCtx) => Promise<ToolResult<PetAfter>>;
+
+const petHandlers: Record<NonNullable<PetArgs["do"]>, PetHandler> = {
+  abandon: (args, ctx) => abandonFlow(args.what ?? "", ctx),
+  attack: attackCommand,
+  autocast: autocastFlow,
+  call: (_args, ctx) => summonCommand("call", ctx),
+  cast: castFlow,
+  dismiss: (_args, ctx) => summonCommand("dismiss", ctx),
+  follow: (_args, ctx) => orderCommand("follow", ctx),
+  rename: (args, ctx) => renameFlow(args.what ?? "", ctx),
+  revive: (_args, ctx) => summonCommand("revive", ctx),
+  stance: stanceCommand,
+  stay: (_args, ctx) => orderCommand("stay", ctx),
+  stop: (_args, ctx) => orderCommand("stop", ctx),
+  talent: (args, ctx) => talentFlow(args.what ?? "", ctx),
+  tame: tameFlow,
+};
+
 function petRun(args: PetArgs, ctx: PetCtx): Promise<ToolResult<PetAfter>> {
   if (args.do === undefined)
     return Promise.resolve(statusResult(ctx.handle, ctx.rt.clock.now()));
-  if (args.do === "follow" || args.do === "stay")
-    return orderCommand(args.do, ctx);
-  if (args.do === "stance") return stanceCommand(args, ctx);
-  if (args.do === "stop") return orderCommand("stop", ctx);
-  if (args.do === "attack") return attackCommand(args, ctx);
-  if (args.do === "call" || args.do === "revive" || args.do === "dismiss")
-    return summonCommand(args.do, ctx);
-  if (args.do === "cast") return castFlow(args, ctx);
-  if (args.do === "autocast") return autocastFlow(args, ctx);
-  if (args.do === "rename") return renameFlow(args.what ?? "", ctx);
-  if (args.do === "abandon") return abandonFlow(args.what ?? "", ctx);
-  if (args.do === "tame") return tameFlow(args, ctx);
-  if (args.do === "talent") return talentFlow(args.what ?? "", ctx);
+  const handler = petHandlers[args.do];
+  if (handler !== undefined) return handler(args, ctx);
   throw new Refusal({
     detail: `pet cannot ${args.do} yet.`,
     next: nextCall("pet"),
