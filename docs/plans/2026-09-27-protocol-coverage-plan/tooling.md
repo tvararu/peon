@@ -1006,5 +1006,16 @@ None. This unit owns no opcode.
   Everything else of the created-preset path lives in the owned
   `soap-create.ts`; `soap.ts` keeps only the import and the branch in
   `createAccount` and stays under 480 non-blank lines.
+- **BR-T-11-2.** Coordinator ruling for T-11 (P2-17): the death knight
+  create returns `0x31` on the deployed server, not the `0x3b`/`0x3c`
+  the safety terms name. The not-built fallback applies to any server
+  refusal that is substantiated, not only those two codes: a retained
+  trace of the final preset's own `CMSG_CHAR_CREATE` body (valid factory
+  name) and its `SMSG_CHAR_CREATE` reply, plus the AzerothCore source path
+  that returns that code and the deployed setting or data that takes it
+  (read only, never changed). An unexplained failure or a client-side
+  defect is not a fallback. The fishing proof needs one fresh preset with
+  the skill-356 triple read, the pole equipped and one cast of 7620 at
+  water, reporting whether a bobber appears.
 
 ## COMPLETE
