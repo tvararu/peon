@@ -13,8 +13,19 @@
           "y": -7165.9
         }
       },
-      "expect": "T final position within 40 yd of (9385.2, -7165.9, map 530), 10 yd north of the Silvermoon City landing point (9375.2, -7165.9) that is flight node 82 in the taxi catalog; the Ghostlands start is more than 1800 yd away",
-      "id": "landed-and-walked",
+      "expect": "T final position within 40 yd of (9385.2, -7165.9, map 530), the point 10 yd north of the Silvermoon City landing point (9375.2, -7165.9) that is flight node 82 in the taxi catalog; the Ghostlands start is more than 1800 yd away, so a server that saved the take-off position fails it",
+      "id": "at-silvermoon",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "point": {
+          "x": 9385.2,
+          "y": -7165.9
+        }
+      },
+      "expect": "T final position within 6 yd of (9385.2, -7165.9, map 530): the agent walked about ten yards north from the landing point (9373 to 9375, -7166), which is 12 yd from this point",
+      "id": "walked-north",
       "source": "truth"
     },
     {
