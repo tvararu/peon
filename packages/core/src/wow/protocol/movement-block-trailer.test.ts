@@ -133,3 +133,86 @@ describe("parseMovementBlock vehicle trailer", () => {
     expect(r.remaining).toBe(0);
   });
 });
+
+const MOTION_TRANSPORT_FLAGS =
+  UpdateFlag.TRANSPORT |
+  UpdateFlag.LOW_GUID |
+  UpdateFlag.HAS_POSITION |
+  UpdateFlag.ROTATION;
+
+describe("parseMovementBlock transport trailer", () => {
+  test("a motion transport block returns the path progress", () => {
+    const w = new PacketWriter();
+    w.uint16LE(MOTION_TRANSPORT_FLAGS);
+    w.floatLE(1370);
+    w.floatLE(-4370);
+    w.floatLE(26);
+    w.floatLE(3.2);
+    w.uint32LE(0x1e_d0);
+    w.uint32LE(123_456);
+    w.uint64LE(0n);
+    const r = new PacketReader(w.finish());
+    const m = parseMovementBlock(r);
+    expect(m.pathProgress).toBe(123_456);
+    expect(must(m.point).x).toBeCloseTo(1370);
+    expect(m.rotation).toMatchObject({ w: 1 });
+    expect(r.remaining).toBe(0);
+  });
+
+  test("the path progress follows the attacking target guid", () => {
+    const w = new PacketWriter();
+    w.uint16LE(
+      UpdateFlag.HAS_POSITION |
+        UpdateFlag.HAS_ATTACKING_TARGET |
+        UpdateFlag.TRANSPORT,
+    );
+    w.floatLE(1);
+    w.floatLE(2);
+    w.floatLE(3);
+    w.floatLE(0);
+    w.packedGuidBig(0xf1_30_00_00_00_00_00_07n);
+    w.uint32LE(777);
+    const r = new PacketReader(w.finish());
+    expect(parseMovementBlock(r).pathProgress).toBe(777);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("a block without the transport flag has no path progress", () => {
+    const w = new PacketWriter();
+    w.uint16LE(UpdateFlag.HAS_POSITION);
+    for (let i = 0; i < 4; i++) w.floatLE(0);
+    const m = parseMovementBlock(new PacketReader(w.finish()));
+    expect(m.pathProgress).toBeUndefined();
+  });
+
+  test("a POSITION block on a transport returns its guid and offset", () => {
+    const guid = 0x1f_c0_00_00_00_00_00_14n;
+    const w = new PacketWriter();
+    w.uint16LE(UpdateFlag.POSITION);
+    w.packedGuidBig(guid);
+    w.floatLE(1400);
+    w.floatLE(-4300);
+    w.floatLE(30);
+    w.floatLE(2);
+    w.floatLE(-3);
+    w.floatLE(4);
+    w.floatLE(1.5);
+    w.floatLE(0);
+    const r = new PacketReader(w.finish());
+    const m = parseMovementBlock(r);
+    expect(m.transportGuid).toBe(guid);
+    expect(m.transportOffset).toEqual({ x: 2, y: -3, z: 4 });
+    expect(must(m.point).x).toBeCloseTo(1400);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("a POSITION block off a transport has no guid or offset", () => {
+    const w = new PacketWriter();
+    w.uint16LE(UpdateFlag.POSITION);
+    w.rawBytes(new Uint8Array([0]));
+    for (let i = 0; i < 8; i++) w.floatLE(i);
+    const m = parseMovementBlock(new PacketReader(w.finish()));
+    expect(m.transportGuid).toBeUndefined();
+    expect(m.transportOffset).toBeUndefined();
+  });
+});
