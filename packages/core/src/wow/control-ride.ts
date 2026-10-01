@@ -215,6 +215,12 @@ export class RideState {
     return this.transportRide;
   }
 
+  carriedPose(): Position | undefined {
+    this.refreshPose();
+    const ride = this.transportRide;
+    return ride && seatWorldPose(ride.pose, ride.offset);
+  }
+
   refreshPose(): void {
     const ride = this.transportRide;
     const at = ride?.poseAt(this.deps.now());
@@ -264,9 +270,10 @@ export class RideState {
   }
 
   apply(info: MovementInfo): MovementInfo {
-    this.refreshPose();
+    const carried = this.carriedPose();
     const ride = this.transportRide;
-    if (ride && this.mover === undefined) return this.withTransport(ride, info);
+    if (ride && carried && this.mover === undefined)
+      return this.withTransport(ride, carried, info);
     if (!this.seat) return info;
     if (this.mover !== undefined)
       return {
@@ -276,8 +283,11 @@ export class RideState {
     return this.withSeat(this.seat, info);
   }
 
-  private withTransport(ride: TransportRide, info: MovementInfo): MovementInfo {
-    const carried = seatWorldPose(ride.pose, ride.offset);
+  private withTransport(
+    ride: TransportRide,
+    carried: Position,
+    info: MovementInfo,
+  ): MovementInfo {
     return {
       ...info,
       flags: info.flags | MovementFlag.ON_TRANSPORT,

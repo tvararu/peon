@@ -446,6 +446,25 @@ describe("transport ride in control", () => {
     expect(sent).toHaveLength(1);
   });
 
+  test("the pose follows the transport while the ride lasts", () => {
+    const { runtime } = setup();
+    let x = 8709.46;
+    runtime.transportBoard(
+      board({
+        poseAt: () => ({
+          mapId: 530,
+          moving: false,
+          orientation: 0,
+          x,
+          y: -6671.76,
+          z: 70.34,
+        }),
+      }),
+    );
+    x += 40;
+    expect(runtime.snapshot().pose?.x).toBeCloseTo(8749.46, 2);
+  });
+
   test("a same-map world change keeps the transport ride", () => {
     const { runtime, sent } = setup();
     sent.length = 0;
