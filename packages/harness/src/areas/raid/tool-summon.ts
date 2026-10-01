@@ -1,4 +1,4 @@
-import type { ControlEvent } from "@peon/core";
+import { type ControlEvent, type Entity, isUnit, UnitFlag } from "@peon/core";
 import {
   emptyGroup,
   type GroupAfter,
@@ -17,6 +17,11 @@ const ANSWER_STATES: Record<string, boolean> = {
 };
 
 const SUMMON_WAIT_MS = 5000;
+
+function flaggedInCombat(self: Entity | undefined): boolean {
+  if (!isUnit(self)) return false;
+  return self.unitFlags % (UnitFlag.IN_COMBAT * 2) >= UnitFlag.IN_COMBAT;
+}
 
 function needsName(ctx: GroupCtx): string {
   const pending = ctx.handle.raid.state().summon;
@@ -38,7 +43,8 @@ function openBody(ctx: GroupCtx): void {
       reason: "dead",
     });
   const combat = ctx.handle.getCombatState();
-  if (combat.attackers.length > 0 || combat.attacking)
+  const self = ctx.handle.getEntity(ctx.handle.getControlState().selfGuid);
+  if (combat.attackers.length > 0 || combat.attacking || flaggedInCombat(self))
     throw new Refusal({
       detail: "you cannot answer a summon in combat.",
       next: nextCall("look"),
@@ -72,7 +78,10 @@ function arrived(event: ControlEvent): boolean {
 
 async function declineSummon(ctx: GroupCtx): Promise<void> {
   try {
-    await ctx.rt.mutex.run(() => ctx.handle.raid.act.answerSummon(false));
+    await ctx.rt.mutex.run(() => {
+      ctx.signal?.throwIfAborted();
+      return ctx.handle.raid.act.answerSummon(false);
+    });
   } catch (error) {
     if (ctx.signal?.aborted) throw error;
     if (error instanceof Refusal) throw error;
