@@ -34,7 +34,7 @@
       "endpoint": "spells/learn"
     }
   ],
-  "spawn": "eversong-ready",
+  "spawn": "eversong-unlearn",
   "steers": [],
   "task": "You won't need Mining. Drop the profession.",
   "tier": 4
