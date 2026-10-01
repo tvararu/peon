@@ -36,7 +36,6 @@ function subscribeEcho(
   return off;
 }
 
-
 function emotedDetail(
   what: string,
   name: string | undefined,
@@ -67,15 +66,15 @@ export async function emoteStep(
     text: what,
     to: name,
   });
-  let sent: undefined | "ready_check" | "dead" | { closest: string[] } = undefined;
+  let sent: "ready_check" | "dead" | { closest: string[] } | undefined;
   const echo = await settle<Extract<EmoteEvent, { type: "text_emote" }>>({
     match: () => true,
     send: () =>
       sendEmote(handle, what, guid).then((miss) => {
         sent = miss;
       }),
-    subscribe: (cb) => subscribeEcho(handle, cb),
     signal,
+    subscribe: (cb) => subscribeEcho(handle, cb),
     timeoutMs: EMOTE_SETTLE_MS,
   });
   signal?.throwIfAborted();
@@ -90,35 +89,38 @@ export async function emoteStep(
       next: nextCall("journal", { about: "log", since: "1m" }),
       reason: "no_answer",
     });
+  return refusedResult(what, after(false), sent);
+}
+
+function refusedResult(
+  what: string,
+  after: SocialAfter,
+  sent: "ready_check" | "dead" | { closest: string[] },
+): ToolResult<SocialAfter> {
   if (sent === "ready_check")
     return result("REFUSED", {
-      after: after(false),
+      after,
       detail: "the ready check answers emotes; use group play instead.",
       next: nextCall("group", { do: "ready" }),
       reason: "ready_check",
     });
   if (sent === "dead")
     return result("REFUSED", {
-      after: after(false),
+      after,
       detail: "the character is dead; emotes need a living character.",
       next: askHuman("I am dead. What should I do?"),
       reason: "dead",
     });
-  if (sent !== undefined) {
-    const closest = (sent as { closest: string[] }).closest;
-    return result("REFUSED", {
-      after: after(false),
-      body: closest,
-      detail: `unknown emote "${what}".`,
-      next: nextCall("social", {
-        do: "emote",
-        what: closest.at(0) ?? "wave",
-      }),
-      reason: "unknown_emote",
-    });
-  }
-  const { detail, to } = emotedDetail(what, name);
-  return result("DONE", { after: { ...after(true), to }, detail });
+  return result("REFUSED", {
+    after,
+    body: sent.closest,
+    detail: `unknown emote "${what}".`,
+    next: nextCall("social", {
+      do: "emote",
+      what: sent.closest.at(0) ?? "wave",
+    }),
+    reason: "unknown_emote",
+  });
 }
 
 async function sendEmote(
@@ -129,11 +131,11 @@ async function sendEmote(
   const outcome = await handle.emotes.act.textEmote(what, guid);
   if (outcome.ok) return undefined;
   if (outcome.reason === "unknown_emote") return { closest: outcome.closest };
-  if (outcome.reason === "cancelled") throw new Refusal({
-    detail: "the emote send was cancelled.",
-    next: nextCall("social", { do: "emote", what }),
-    reason: "cancelled",
-  });
+  if (outcome.reason === "cancelled")
+    throw new Refusal({
+      detail: "the emote send was cancelled.",
+      next: nextCall("social", { do: "emote", what }),
+      reason: "cancelled",
+    });
   return outcome.reason;
 }
-
