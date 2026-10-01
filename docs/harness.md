@@ -74,8 +74,8 @@ still applies: it refuses the protected accounts and the character
 without a file in it, the harness degrades to ids: unknown spells and
 factions show as numbers, unit relations read `unknown`, and locks and area
 triggers are not decoded. When `spell_data_dir` is set, `--check` prints one
-warning per missing file on stderr and still exits 0. With no
-`spell_data_dir` it prints no warning.
+warning on stderr for each file of the table below that is missing, and
+still exits 0. With no `spell_data_dir` it prints no warning.
 
 | File | Holds | Client archive (build 12340, enUS) |
 |---|---|---|
@@ -106,7 +106,9 @@ The client resolves each file from the first archive that holds it:
 `enUS/patch-enUS.MPQ`, then the remaining locale, patch and base
 archives. Extract each `DBFilesClient\<name>` from the `Data` directory
 with an MPQ tool such as StormLib, following that order, and copy the files
-into `spell_data_dir` unchanged.
+into `spell_data_dir` unchanged; a rebuild gives the same bytes. Keep the
+directory outside the checkout, for example `~/wow-data/dbc` beside the
+navigation data: `tmp/` is scratch space and may be cleared.
 
 ## Flags
 

@@ -50,8 +50,16 @@ export class TaxiCatalog {
   }
 }
 
-const NODES_LAYOUT = { file: "TaxiNodes.dbc", fields: 24, recordSize: 96 };
-const PATH_LAYOUT = { file: "TaxiPath.dbc", fields: 4, recordSize: 16 };
+export const TAXI_NODES_LAYOUT = {
+  file: "TaxiNodes.dbc",
+  fields: 24,
+  recordSize: 96,
+};
+export const TAXI_PATH_LAYOUT = {
+  file: "TaxiPath.dbc",
+  fields: 4,
+  recordSize: 16,
+};
 
 function readNode(file: DbcFile, row: number): TaxiNode {
   return {
@@ -70,7 +78,7 @@ function missingFile(file: string, cause: unknown): Error {
 
 async function openTaxiFile(
   source: DbcSource,
-  layout: typeof NODES_LAYOUT,
+  layout: typeof TAXI_NODES_LAYOUT,
 ): Promise<DbcFile> {
   try {
     return await openDbc(source, layout);
@@ -80,8 +88,8 @@ async function openTaxiFile(
 }
 
 export async function loadTaxiCatalog(source: DbcSource): Promise<TaxiCatalog> {
-  const nodesFile = await openTaxiFile(source, NODES_LAYOUT);
-  const pathFile = await openTaxiFile(source, PATH_LAYOUT);
+  const nodesFile = await openTaxiFile(source, TAXI_NODES_LAYOUT);
+  const pathFile = await openTaxiFile(source, TAXI_PATH_LAYOUT);
   const nodes: TaxiNode[] = [];
   for (let row = 0; row < nodesFile.recordCount; row++)
     nodes.push(readNode(nodesFile, row));
