@@ -14,8 +14,8 @@ const self: SelfView = {
   level: 10,
   life: "alive",
   maxHp: 217,
-  mounted: false,
   maxPower: 100,
+  mounted: false,
   name: "Fgklibhlflc",
   pose: {
     ageMs: 0,

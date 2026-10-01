@@ -74,7 +74,7 @@ function answerCast(t: SpellWorld, then: "mounted" | "none" = "mounted") {
     );
     if (then === "mounted")
       t.handle.triggerAreaEvent("selfstate", {
-        displayId: 14337,
+        displayId: 14_337,
         taxi: false,
         type: "mounted",
       });
@@ -218,7 +218,7 @@ describe("spell do:mount", () => {
       const run = spellSpec.run({ do: "mount" }, toolCtx(t));
       await elapse(100);
       t.handle.triggerAreaEvent("selfstate", {
-        displayId: 14337,
+        displayId: 14_337,
         taxi: false,
         type: "mounted",
       });
