@@ -11,7 +11,21 @@ import {
   buildGetMailList,
   buildMailMarkAsRead,
 } from "#wow/areas/mail/protocol";
+import { MAIL_ANSWER_MS } from "#wow/areas/mail/runtime";
 import { GameOpcode } from "#wow/protocol/opcodes";
+
+function breakMailSend(rig: { sent: readonly unknown[] }): () => void {
+  const sent = rig.sent as unknown as {
+    push: (...items: never[]) => number;
+  };
+  const original = sent.push;
+  sent.push = () => {
+    throw new Error("world socket is not connected");
+  };
+  return () => {
+    sent.push = original;
+  };
+}
 
 const FAR = 0xf1_10_00_00_00_00_00_09n;
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -140,5 +154,47 @@ describe("mail acts", () => {
     await flush();
     rig.dispose();
     await expect(pending).rejects.toThrow();
+  });
+
+  test("listMail rethrows a send failure and leaks no rejection", async () => {
+    await withFakeTimers(async () => {
+      const unhandled: unknown[] = [];
+      const listener = (reason: unknown) => unhandled.push(reason);
+      process.on("unhandledRejection", listener);
+      const rig = mailRig();
+      const restore = breakMailSend(rig);
+      try {
+        const failed = rig.handle.act.listMail(MAILBOX_OBJECT);
+        await expect(failed).rejects.toThrow("world socket is not connected");
+        await elapse(MAIL_ANSWER_MS + 100);
+        await Promise.resolve();
+        expect(unhandled).toEqual([]);
+      } finally {
+        restore();
+        process.off("unhandledRejection", listener);
+        rig.dispose();
+      }
+    });
+  });
+
+  test("queryNextMail rethrows a send failure and leaks no rejection", async () => {
+    await withFakeTimers(async () => {
+      const unhandled: unknown[] = [];
+      const listener = (reason: unknown) => unhandled.push(reason);
+      process.on("unhandledRejection", listener);
+      const rig = mailRig();
+      const restore = breakMailSend(rig);
+      try {
+        const failed = rig.handle.act.queryNextMail();
+        await expect(failed).rejects.toThrow("world socket is not connected");
+        await elapse(MAIL_ANSWER_MS + 100);
+        await Promise.resolve();
+        expect(unhandled).toEqual([]);
+      } finally {
+        restore();
+        process.off("unhandledRejection", listener);
+        rig.dispose();
+      }
+    });
   });
 });

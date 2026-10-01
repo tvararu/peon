@@ -1,3 +1,4 @@
+import { ignoreFailure } from "#lib/ignore-failure";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import {
   buildGetMailList,
@@ -51,10 +52,18 @@ function isTimeout(error: unknown): boolean {
 async function listMail(env: Env, mailbox: bigint): Promise<MailListResult> {
   requireWorld(env);
   requireMailbox(env, mailbox);
+  const cancel = new AbortController();
   const settled = env.ctx.until((event) => event.type === "listed", {
+    signal: cancel.signal,
     timeoutMs: MAIL_ANSWER_MS,
   });
-  env.ctx.send(GameOpcode.CMSG_GET_MAIL_LIST, buildGetMailList(mailbox));
+  try {
+    env.ctx.send(GameOpcode.CMSG_GET_MAIL_LIST, buildGetMailList(mailbox));
+  } catch (error) {
+    cancel.abort();
+    settled.catch(ignoreFailure);
+    throw error;
+  }
   try {
     await settled;
     env.store.openMailbox(mailbox);
@@ -80,10 +89,18 @@ async function markMailRead(env: Env, id: number): Promise<MailMarkResult> {
 
 async function queryNextMail(env: Env): Promise<MailNextResult> {
   requireWorld(env);
+  const cancel = new AbortController();
   const settled = env.ctx.until((event) => event.type === "next_time", {
+    signal: cancel.signal,
     timeoutMs: MAIL_ANSWER_MS,
   });
-  env.ctx.send(GameOpcode.MSG_QUERY_NEXT_MAIL_TIME, buildQueryNextMailTime());
+  try {
+    env.ctx.send(GameOpcode.MSG_QUERY_NEXT_MAIL_TIME, buildQueryNextMailTime());
+  } catch (error) {
+    cancel.abort();
+    settled.catch(ignoreFailure);
+    throw error;
+  }
   try {
     const event = await settled;
     if (event.type !== "next_time") return { status: "unanswered" };
