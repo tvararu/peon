@@ -123,6 +123,22 @@ describe("orderPlan", () => {
     expect(plan.refused).toEqual([]);
   });
 
+  test("equal-rank entries listed dependent first still send the prerequisite first", async () => {
+    const catalog = await orderedCatalog();
+    const plan = orderPlan([entry(11, 0), entry(10, 0)], warrior(), catalog);
+    expect(plan.send).toEqual([entry(10, 0), entry(11, 0)]);
+    expect(plan.refused).toEqual([]);
+  });
+
+  test("a dependent whose prerequisite is not in the plan is refused", async () => {
+    const catalog = await orderedCatalog();
+    const plan = orderPlan([entry(11, 0)], warrior(), catalog);
+    expect(plan.send).toEqual([]);
+    expect(plan.refused).toEqual([
+      { entry: entry(11, 0), reason: "needs_prerequisite" },
+    ]);
+  });
+
   test("later entries see earlier ones: two ranks of one talent cost two points", async () => {
     const catalog = await loadTalentCatalog(dbcFiles(WARRIOR_FILES));
     const ok = orderPlan(
