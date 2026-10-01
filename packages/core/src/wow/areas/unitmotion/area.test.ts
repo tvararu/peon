@@ -306,3 +306,118 @@ describe("unitmotion turn and pitch rates", () => {
     }
   });
 });
+
+const FALL_FLY_TOGGLES = [
+  [
+    GameOpcode.SMSG_SPLINE_MOVE_FEATHER_FALL,
+    "feather_fall",
+    true,
+    MovementFlag.FORWARD,
+  ],
+  [
+    GameOpcode.SMSG_SPLINE_MOVE_NORMAL_FALL,
+    "feather_fall",
+    false,
+    MovementFlag.FALLING_SLOW | MovementFlag.FORWARD,
+  ],
+  [
+    GameOpcode.SMSG_SPLINE_MOVE_WATER_WALK,
+    "water_walking",
+    true,
+    MovementFlag.FORWARD,
+  ],
+  [
+    GameOpcode.SMSG_SPLINE_MOVE_LAND_WALK,
+    "water_walking",
+    false,
+    MovementFlag.WATERWALKING | MovementFlag.FORWARD,
+  ],
+  [GameOpcode.SMSG_SPLINE_MOVE_SET_HOVER, "hover", true, MovementFlag.FORWARD],
+  [
+    GameOpcode.SMSG_SPLINE_MOVE_SET_FLYING,
+    "can_fly",
+    true,
+    MovementFlag.FORWARD,
+  ],
+  [
+    GameOpcode.SMSG_SPLINE_MOVE_UNSET_FLYING,
+    "can_fly",
+    false,
+    MovementFlag.CAN_FLY | MovementFlag.FORWARD,
+  ],
+  [
+    GameOpcode.SMSG_SPLINE_MOVE_GRAVITY_DISABLE,
+    "disable_gravity",
+    true,
+    MovementFlag.FORWARD,
+  ],
+] as const satisfies readonly (readonly [
+  number,
+  MotionFlagName,
+  boolean,
+  number,
+])[];
+
+describe("unitmotion fall, water walk, hover and flight toggles", () => {
+  test.each(FALL_FLY_TOGGLES)(
+    "opcode %d sets %s to %p and keeps the other bits",
+    (opcode, flag, on, before) => {
+      const rig = areaRig("unitmotion");
+      try {
+        const seen: UnitmotionEvent[] = [];
+        rig.handle.onEvent((event) => seen.push(event));
+        rig.stores.areas.unitmotion.seed(CREATURE, {
+          flags: before,
+          speeds: BASE_SPEEDS,
+        });
+        rig.inject(opcode, unitmotionSplineToggleBody({ guid: CREATURE }));
+        const bit = MOTION_FLAG_BITS[flag];
+        const [row] = rig.handle.state().units;
+        expect(row?.flags).toBe(on ? before | bit : before & ~bit);
+        expect(seen).toEqual([
+          {
+            type: "flag",
+            guid: CREATURE,
+            flag,
+            on,
+            flags: row?.flags ?? -1,
+            self: false,
+          },
+        ]);
+      } finally {
+        rig.dispose();
+      }
+    },
+  );
+
+  test("the eight toggles for a guid with no entity are dropped and counted", () => {
+    const rig = areaRig("unitmotion");
+    try {
+      const body = unitmotionSplineToggleBody({ guid: STRANGER });
+      for (const [opcode] of FALL_FLY_TOGGLES) rig.inject(opcode, body);
+      expect(rig.handle.state()).toEqual({ units: [], dropped: 8 });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a hover toggle with trailing bytes is rejected", () => {
+    const rig = areaRig("unitmotion");
+    try {
+      rig.stores.areas.unitmotion.seed(CREATURE, {
+        flags: 0,
+        speeds: BASE_SPEEDS,
+      });
+      const body = unitmotionSplineToggleBody({ guid: CREATURE });
+      expect(() =>
+        rig.inject(
+          GameOpcode.SMSG_SPLINE_MOVE_SET_HOVER,
+          Uint8Array.of(...body, 0),
+        ),
+      ).toThrow("Unexpected trailing spline unit payload");
+      expect(rig.handle.state().units[0]?.flags).toBe(0);
+    } finally {
+      rig.dispose();
+    }
+  });
+});

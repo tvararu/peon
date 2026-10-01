@@ -108,18 +108,30 @@ speed and flag changes the creature showed.
 
 ## Left out
 
-The parser reads all 25 owned opcodes; the two death toggles, the nine
-speed opcodes and the root, walk mode and swim toggles have a handler.
+The parser reads all 25 owned opcodes and every one has a handler.
 
 Turn and pitch rates ride the shared speed writer; the table rows
 `Unit.h:658` and `:661` pair them with the force-change opcodes and the
 two spline opcodes.
 
-- `SMSG_SPLINE_MOVE_FEATHER_FALL`, `SMSG_SPLINE_MOVE_NORMAL_FALL`,
-  `SMSG_SPLINE_MOVE_WATER_WALK`, `SMSG_SPLINE_MOVE_LAND_WALK`,
-  `SMSG_SPLINE_MOVE_SET_HOVER`, `SMSG_SPLINE_MOVE_SET_FLYING`,
-  `SMSG_SPLINE_MOVE_UNSET_FLYING` and
-  `SMSG_SPLINE_MOVE_GRAVITY_DISABLE`: built by `remote-motion-6`.
+A client-controlled unit gets the `SMSG_MOVE_GRAVITY_DISABLE` form
+with an order counter instead of the spline packet
+(`Entities/Unit/Unit.cpp:16105-16117`), so the eight toggles reach a
+player only for a unit that no client controls.
+
+The callers are the fly, water walk, feather fall and hover auras
+(`Spells/Auras/SpellAuraEffects.cpp:3449-3522`) and the creature air
+check that toggles flight, gravity and hover
+(`Entities/Creature/Creature.cpp:3515-3537`).
+
+A compressed move that holds one of the eight is dispatched like the
+other spline unit packets. AzerothCore never writes the compressed
+moves packet, so this is correctness only.
+
+The probe flow `unitmotion-toggle` targets a unit, casts a spell at it
+and lists the flag changes the unit showed. No preset has a shaman, and
+water walk, feather fall and hover need a friendly or party target that
+is not the caster, so none of the eight was seen live.
 
 ## Capabilities row
 
@@ -146,6 +158,14 @@ No verb (N23).
 | `SMSG_SPLINE_MOVE_STOP_SWIM` | `mock` | the same test; not seen live, for the same reason | `Entities/Creature/Creature.cpp:3407` |
 | `SMSG_SPLINE_SET_TURN_RATE` | `mock` | `area.test.ts` "unitmotion turn and pitch rates"; not seen live: no server code path sends it (see "Turn and pitch rate senders") | `Entities/Unit/Unit.h:658` |
 | `SMSG_SPLINE_SET_PITCH_RATE` | `mock` | the same test; not seen live, for the same reason | `Entities/Unit/Unit.h:661` |
+| `SMSG_SPLINE_MOVE_FEATHER_FALL` | `mock` | `area.test.ts` "unitmotion fall, water walk, hover and flight toggles"; not seen live (see "Left out") | `Entities/Unit/Unit.cpp:16220` |
+| `SMSG_SPLINE_MOVE_NORMAL_FALL` | `mock` | `area.test.ts` "unitmotion fall, water walk, hover and flight toggles"; not seen live (see "Left out") | `Entities/Unit/Unit.cpp:16220` |
+| `SMSG_SPLINE_MOVE_WATER_WALK` | `mock` | `area.test.ts` "unitmotion fall, water walk, hover and flight toggles"; not seen live (see "Left out") | `Entities/Unit/Unit.cpp:16308` |
+| `SMSG_SPLINE_MOVE_LAND_WALK` | `mock` | `area.test.ts` "unitmotion fall, water walk, hover and flight toggles"; not seen live (see "Left out") | `Entities/Unit/Unit.cpp:16308` |
+| `SMSG_SPLINE_MOVE_SET_HOVER` | `mock` | `area.test.ts` "unitmotion fall, water walk, hover and flight toggles"; not seen live (see "Left out") | `Entities/Unit/Unit.cpp:16273` |
+| `SMSG_SPLINE_MOVE_SET_FLYING` | `mock` | `area.test.ts` "unitmotion fall, water walk, hover and flight toggles"; not seen live (see "Left out") | `Entities/Unit/Unit.cpp:16179` |
+| `SMSG_SPLINE_MOVE_UNSET_FLYING` | `mock` | `area.test.ts` "unitmotion fall, water walk, hover and flight toggles"; not seen live (see "Left out") | `Entities/Unit/Unit.cpp:16179` |
+| `SMSG_SPLINE_MOVE_GRAVITY_DISABLE` | `mock` | `area.test.ts` "unitmotion fall, water walk, hover and flight toggles"; not seen live (see "Left out") | `Entities/Unit/Unit.cpp:16118` |
 
 ### Turn and pitch rate senders
 
