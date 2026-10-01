@@ -11,7 +11,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x1f5` | `SMSG_PARTYKILLLOG` | server | handled |  |
 | `0x1fc` | `SMSG_ENVIRONMENTAL_DAMAGE_LOG` | server | handled | not seen live |
 | `0x24b` | `SMSG_SPELLLOGMISS` | server | handled | not seen live |
-| `0x24c` | `SMSG_SPELLLOGEXECUTE` | server | missing |  |
+| `0x24c` | `SMSG_SPELLLOGEXECUTE` | server | handled |  |
 | `0x24e` | `SMSG_PERIODICAURALOG` | server | handled |  |
 | `0x24f` | `SMSG_SPELLDAMAGESHIELD` | server | handled | not seen live |
 | `0x250` | `SMSG_SPELLNONMELEEDAMAGELOG` | server | handled |  |
