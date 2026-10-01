@@ -1,4 +1,4 @@
-import type { ControlDeps, ControlEventType, ControlPose } from "#wow/control";
+import type { ControlDeps, ControlPose } from "#wow/control";
 import { FLAG_ACKS } from "#wow/control-flag-acks";
 import {
   DEFAULT_TURN_RATE,
@@ -6,8 +6,21 @@ import {
   type MovementInput,
 } from "#wow/control-input";
 import { unsupportedReason } from "#wow/control-motion";
-import { type RideSeat, RideState } from "#wow/control-ride";
+import {
+  type MoverState,
+  type RideSeat,
+  RideState,
+  SelfMotion,
+  withoutDrivenFields,
+} from "#wow/control-ride";
 import { AIR_INPUT_BITS } from "#wow/control-swim";
+import type {
+  Emit,
+  FlightPort,
+  SelfObservation,
+  SyncMotion,
+  SyncParts,
+} from "#wow/control-sync-types";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag, UnitFlag } from "#wow/protocol/entity-fields";
 import type { MonsterMove } from "#wow/protocol/monster-move";
@@ -43,38 +56,6 @@ const UNIT_BLOCK_FLAGS =
   UnitFlag.CONFUSED |
   UnitFlag.FLEEING;
 
-export type Emit = (type: ControlEventType, reason?: string) => void;
-
-export type SyncMotion = {
-  moving: () => boolean;
-  settle: () => void;
-  abort: (reason: string) => void;
-  stop: (reason: string) => void;
-};
-
-export type SelfObservation = {
-  position?: Position;
-  movementFlags?: number;
-  runSpeed?: number;
-  runBackSpeed?: number;
-  turnRate?: number;
-  target?: bigint;
-  unitFlags?: number;
-};
-
-export type SyncParts = {
-  deps: ControlDeps;
-  emit: Emit;
-  motion: SyncMotion;
-  flight?: FlightPort | undefined;
-};
-export type FlightPort = {
-  inFlight: () => boolean;
-  newWorld: () => void;
-  observeSpline: (move: MonsterMove) => boolean;
-  observeUnitFlags: (unitFlags: number) => boolean;
-};
-
 export class MovementSync {
   predicted: ControlPose | undefined;
   server: ControlPose | undefined;
@@ -95,6 +76,7 @@ export class MovementSync {
   private transport: TransportInfo | undefined;
   private flight: FlightPort | undefined;
   private readonly ride: RideState;
+  private readonly selfMotion = new SelfMotion();
   private controlAllowed = true;
   private rooted = false;
   private teleporting = false;
@@ -111,6 +93,7 @@ export class MovementSync {
       deps,
       emit,
       movementInfo: () => this.movementInfo(),
+      moverChanged: (mover) => this.moverChanged(mover),
       serverPose: (pose) => this.adoptServerPose(pose),
     });
   }
@@ -133,12 +116,33 @@ export class MovementSync {
     return (
       this.airBlock() ??
       unsupportedReason(
-        this.observedFlags |
+        (this.observedFlags &
+          ~(this.ride.controlling ? MovementFlag.ON_TRANSPORT : 0)) |
           (this.moveFlags &
             (MovementFlag.SWIMMING | MovementFlag.FLYING | AIR_INPUT_BITS)),
       ) ??
-      (this.ride.riding ? "transport" : undefined)
+      (this.ride.riding && !this.ride.controlling ? "transport" : undefined)
     );
+  }
+
+  get mover(): bigint | undefined {
+    return this.ride.moverGuid;
+  }
+
+  moverGuid(): bigint {
+    return this.ride.moverGuid ?? this.deps.selfGuid();
+  }
+
+  moverState(state: MoverState): void {
+    if (this.ride.moverGuid !== state.guid) return;
+    if (state.run !== undefined) this.runSpeed = state.run;
+    if (state.runBack !== undefined) this.runBackSpeed = state.runBack;
+    if (state.turn !== undefined) this.turnRate = state.turn;
+    if (state.pose)
+      this.adoptServerPose({
+        ...state.pose,
+        mapId: this.mapId || state.pose.mapId,
+      });
   }
 
   vehicleSeat(seat: RideSeat): void {
@@ -216,19 +220,18 @@ export class MovementSync {
     );
   }
 
-  observeSelf(input: SelfObservation): void {
+  observeSelf(observed: SelfObservation): void {
+    const input = this.ride.controlling
+      ? withoutDrivenFields(observed)
+      : observed;
     if (input.runSpeed !== undefined) this.runSpeed = input.runSpeed;
     if (input.runBackSpeed !== undefined)
       this.runBackSpeed = input.runBackSpeed;
     if (input.turnRate !== undefined) this.turnRate = input.turnRate;
     if (input.unitFlags !== undefined) this.setUnitFlags(input.unitFlags);
     if (input.target !== undefined) this.observeTarget(input.target);
-    if (input.movementFlags !== undefined) {
-      this.observedFlags = input.movementFlags;
-      this.rooted = (input.movementFlags & MovementFlag.ROOT) !== 0;
-      if (this.rooted) this.moveFlags |= MovementFlag.ROOT;
-      else this.moveFlags &= ~MovementFlag.ROOT;
-    }
+    if (input.movementFlags !== undefined)
+      this.observeFlags(input.movementFlags);
     if (input.position) {
       const stamped = {
         ...input.position,
@@ -250,6 +253,13 @@ export class MovementSync {
     }
     const unsafe = this.blockReason();
     if (this.motion.moving() && unsafe) this.cancelForced(unsafe);
+  }
+
+  private observeFlags(flags: number): void {
+    this.observedFlags = flags;
+    this.rooted = (flags & MovementFlag.ROOT) !== 0;
+    if (this.rooted) this.moveFlags |= MovementFlag.ROOT;
+    else this.moveFlags &= ~MovementFlag.ROOT;
   }
 
   observeTarget(target: bigint): void {
@@ -356,6 +366,12 @@ export class MovementSync {
   clientControl({ guid, allow }: ClientControl): void {
     const self = this.deps.selfGuid();
     if (guid !== 0n && guid !== self) {
+      const ridden = this.ride.control(guid, allow);
+      if (ridden !== "refused") {
+        this.controlAllowed = true;
+        if (ridden === "cleared") this.emit("control_changed", undefined);
+        return;
+      }
       this.controlAllowed = false;
       this.cancelForced("no_control");
       this.emit("control_changed", "no_control");
@@ -432,7 +448,7 @@ export class MovementSync {
     this.moveFlags &= ~MovementFlag.FALLING;
     this.deps.send(
       GameOpcode.CMSG_MOVE_FALL_RESET,
-      buildMoveMessage(this.deps.selfGuid(), this.movementInfo()),
+      buildMoveMessage(this.moverGuid(), this.movementInfo()),
     );
   }
 
@@ -450,7 +466,13 @@ export class MovementSync {
   }
 
   private moveAck(counter: number): MoveAck {
-    return { guid: this.deps.selfGuid(), counter, info: this.movementInfo() };
+    return { guid: this.moverGuid(), counter, info: this.movementInfo() };
+  }
+
+  private moverChanged(mover: bigint | undefined): void {
+    this.controlAllowed = true;
+    if (mover === undefined) this.selfMotion.restore(this);
+    else this.selfMotion.save(this);
   }
 
   private adoptServerPose(position: Position): void {

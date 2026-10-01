@@ -1,8 +1,12 @@
 import type { ControlDeps } from "#wow/control";
-import type { Emit } from "#wow/control-sync";
+import type { Emit, SelfObservation } from "#wow/control-sync-types";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag } from "#wow/protocol/entity-fields";
-import { buildMoveMessage, type MovementInfo } from "#wow/protocol/movement";
+import {
+  buildMoveMessage,
+  buildSetActiveMover,
+  type MovementInfo,
+} from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { Vec3 } from "#wow/protocol/packet";
 
@@ -16,11 +20,49 @@ export type RideSeat = {
   vehiclePose: Position | undefined;
 };
 
+export type MoverState = {
+  guid: bigint;
+  run: number | undefined;
+  runBack: number | undefined;
+  turn: number | undefined;
+  pose: Position | undefined;
+};
+
+export type MotionSpeeds = {
+  runSpeed: number | undefined;
+  runBackSpeed: number | undefined;
+  turnRate: number;
+};
+
+export class SelfMotion {
+  private saved: MotionSpeeds | undefined;
+
+  save({ runSpeed, runBackSpeed, turnRate }: MotionSpeeds): void {
+    this.saved = { runBackSpeed, runSpeed, turnRate };
+  }
+
+  restore(target: MotionSpeeds): void {
+    if (!this.saved) return;
+    target.runSpeed = this.saved.runSpeed;
+    target.runBackSpeed = this.saved.runBackSpeed;
+    target.turnRate = this.saved.turnRate;
+    this.saved = undefined;
+  }
+}
+
+export function withoutDrivenFields(input: SelfObservation): SelfObservation {
+  const { position, runSpeed, runBackSpeed, turnRate, ...rest } = input;
+  return rest;
+}
+
+export type RideControl = "taken" | "dropped" | "cleared" | "refused";
+
 export type RideParts = {
   deps: ControlDeps;
   movementInfo: () => MovementInfo;
   serverPose: (pose: Position) => void;
   cancelForced: (reason: string) => void;
+  moverChanged: (mover: bigint | undefined) => void;
   emit: Emit;
 };
 
@@ -47,8 +89,11 @@ export class RideState {
   private readonly movementInfo: () => MovementInfo;
   private readonly serverPose: (pose: Position) => void;
   private readonly cancelForced: (reason: string) => void;
+  private readonly moverChanged: RideParts["moverChanged"];
   private readonly emit: Emit;
   private seat: RideSeat | undefined;
+  private mover: bigint | undefined;
+  private pendingMover: bigint | undefined;
   private splineTimer: TimerId | undefined;
 
   constructor(parts: RideParts) {
@@ -56,6 +101,7 @@ export class RideState {
     this.movementInfo = parts.movementInfo;
     this.serverPose = parts.serverPose;
     this.cancelForced = parts.cancelForced;
+    this.moverChanged = parts.moverChanged;
     this.emit = parts.emit;
   }
 
@@ -63,16 +109,50 @@ export class RideState {
     return this.seat !== undefined;
   }
 
+  get controlling(): boolean {
+    return this.mover !== undefined;
+  }
+
+  get moverGuid(): bigint | undefined {
+    return this.mover;
+  }
+
+  control(guid: bigint, allow: boolean): RideControl {
+    if (allow) {
+      if (this.seat?.vehicle === guid) {
+        this.takeMover(guid);
+        return "taken";
+      }
+      if (this.seat === undefined) this.pendingMover = guid;
+      return "refused";
+    }
+    if (this.mover === guid) {
+      this.dropMover();
+      return "dropped";
+    }
+    if (this.pendingMover === guid || this.seat?.vehicle === guid) {
+      this.pendingMover = undefined;
+      return "cleared";
+    }
+    return "refused";
+  }
+
   board(seat: RideSeat): void {
     clearTimeout(this.splineTimer);
     this.splineTimer = undefined;
+    if (this.mover !== undefined && this.mover !== seat.vehicle)
+      this.dropMover();
+    const driving = this.mover === seat.vehicle;
     this.seat = seat;
-    this.cancelForced("transport");
-    if (seat.vehiclePose)
+    if (!driving) this.cancelForced("transport");
+    if (seat.vehiclePose && !driving)
       this.serverPose(
         seatWorldPose(seat.vehiclePose, seat.offset, seat.facing),
       );
     this.emit("control_changed", "transport");
+    const pending = this.pendingMover;
+    this.pendingMover = undefined;
+    if (pending === seat.vehicle && !driving) this.takeMover(pending);
     if (seat.splineId === undefined) return;
     this.splineTimer = setTimeout(() => {
       this.splineTimer = undefined;
@@ -84,7 +164,9 @@ export class RideState {
     if (this.seat === undefined && this.splineTimer === undefined) return;
     clearTimeout(this.splineTimer);
     this.splineTimer = undefined;
+    if (this.mover !== undefined) this.dropMover();
     this.seat = undefined;
+    this.pendingMover = undefined;
     this.emit("control_changed", undefined);
   }
 
@@ -92,11 +174,15 @@ export class RideState {
     clearTimeout(this.splineTimer);
     this.splineTimer = undefined;
     this.seat = undefined;
+    this.pendingMover = undefined;
+    this.releaseMover();
   }
 
   apply(info: MovementInfo): MovementInfo {
     const seat = this.seat;
     if (!seat) return info;
+    if (this.mover !== undefined)
+      return { ...info, flags: info.flags & ~MovementFlag.ON_TRANSPORT };
     return {
       ...info,
       flags: info.flags | MovementFlag.ON_TRANSPORT,
@@ -116,6 +202,42 @@ export class RideState {
     clearTimeout(this.splineTimer);
     this.splineTimer = undefined;
     this.seat = undefined;
+    this.pendingMover = undefined;
+    this.mover = undefined;
+  }
+
+  private sendSwitch(from: bigint, to: bigint, info: MovementInfo): void {
+    this.deps.send(
+      GameOpcode.CMSG_MOVE_NOT_ACTIVE_MOVER,
+      buildMoveMessage(from, info),
+    );
+    this.deps.send(GameOpcode.CMSG_SET_ACTIVE_MOVER, buildSetActiveMover(to));
+  }
+
+  private takeMover(vehicle: bigint): void {
+    const own = this.movementInfo();
+    this.mover = vehicle;
+    this.pendingMover = undefined;
+    this.moverChanged(vehicle);
+    this.sendSwitch(this.deps.selfGuid(), vehicle, own);
+    this.emit("control_changed", "vehicle");
+  }
+
+  private dropMover(): void {
+    const from = this.mover;
+    if (from === undefined) return;
+    this.cancelForced("vehicle");
+    const last = this.movementInfo();
+    this.mover = undefined;
+    this.moverChanged(undefined);
+    this.sendSwitch(from, this.deps.selfGuid(), last);
+    this.emit("control_changed", "vehicle");
+  }
+
+  private releaseMover(): void {
+    if (this.mover === undefined) return;
+    this.mover = undefined;
+    this.moverChanged(undefined);
   }
 
   private sendSplineDone(): void {

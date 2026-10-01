@@ -62,6 +62,7 @@ export function createMockHandle(): MockHandle {
     blockedReason: undefined,
     input: {},
     movementAllowed: true,
+    mover: undefined,
     moving: false,
     pose: undefined,
     requestedTarget: undefined,

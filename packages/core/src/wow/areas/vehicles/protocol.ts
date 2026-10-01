@@ -2,6 +2,11 @@ import {
   type MonsterMove,
   parseMonsterMoveBody,
 } from "#wow/protocol/monster-move";
+import {
+  buildMoveMessage,
+  type MovementInfo,
+  writeMovementInfo,
+} from "#wow/protocol/movement";
 import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 export const NPC_FLAG_SPELLCLICK = 0x01_00_00_00;
@@ -58,5 +63,26 @@ export function buildPlayerVehicleEnter(guid: bigint): Uint8Array {
 export function buildEjectPassenger(guid: bigint): Uint8Array {
   const writer = new PacketWriter();
   writer.uint64LE(guid);
+  return writer.finish();
+}
+
+export function buildDismissControlledVehicle(
+  vehicle: bigint,
+  info: MovementInfo,
+): Uint8Array {
+  return buildMoveMessage(vehicle, info);
+}
+
+export function buildChangeSeatsOnControlledVehicle(
+  vehicle: bigint,
+  info: MovementInfo,
+  accessory: bigint,
+  seat: number,
+): Uint8Array {
+  const writer = new PacketWriter();
+  writer.packedGuidBig(vehicle);
+  writeMovementInfo(writer, info);
+  writer.packedGuidBig(accessory);
+  writer.uint8(seat & 0xff);
   return writer.finish();
 }

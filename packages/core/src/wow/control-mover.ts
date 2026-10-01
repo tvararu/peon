@@ -9,7 +9,8 @@ import {
   turnSign,
 } from "#wow/control-input";
 import { type GroundOracle, groundStep } from "#wow/control-motion";
-import type { Emit, MovementSync } from "#wow/control-sync";
+import type { MovementSync } from "#wow/control-sync";
+import type { Emit } from "#wow/control-sync-types";
 import { normalizeAngle } from "#wow/geometry";
 import { MovementFlag } from "#wow/protocol/entity-fields";
 import { buildMoveMessage } from "#wow/protocol/movement";
@@ -372,7 +373,7 @@ export class Mover {
     if (air && this.sync.moveFlags & MovementFlag.FALLING)
       this.sync.fallTime = this.deps.ticks() - air.startTicks;
     const info = this.sync.movementInfo();
-    this.deps.send(opcode, buildMoveMessage(this.deps.selfGuid(), info));
+    this.deps.send(opcode, buildMoveMessage(this.sync.moverGuid(), info));
     this.emit("pose_sent");
   }
 }
