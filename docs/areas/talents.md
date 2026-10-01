@@ -108,9 +108,24 @@ An ordinary buyback money failure carries the creature guid and the item
 entry (`Handlers/ItemHandler.cpp:768`), so an unrelated purchase failure
 cannot change the result.
 
+A glyph item is used with `CMSG_USE_ITEM`, which carries a `u32` glyph
+index after the item guid; the server reads it before the cast flags
+and rejects 6 or more (`Handlers/SpellHandler.cpp:70-79`). A glyph item
+needs the socket index there and every other item sends 0.
+
+The apply effect locks the socket by level, then compares the glyph's
+type flags with the socket's and fails with an invalid-glyph cast
+result on a mismatch. It sends the removal of the old glyph's aura
+spell if any, then the learn packet for the new one, then the talents
+info (`Spells/SpellEffects.cpp:4528-4611`).
+
+`CMSG_REMOVE_GLYPH` on an empty or out-of-range socket gets no answer
+at all. A filled one sends `SMSG_REMOVED_SPELL` for the aura spell then
+`SMSG_TALENTS_INFO` (`Handlers/CharacterHandler.cpp:1604-1642`), so the
+act waits for the info that shows the socket at 0.
+
 ## Left out
 
-- `CMSG_REMOVE_GLYPH`: built by `talents-5a`.
 - `CMSG_UNLEARN_TALENTS` and `SMSG_TALENTS_INVOLUNTARILY_RESET`: dead.
 
 ## Capabilities row
@@ -127,3 +142,4 @@ Added by talents-3b.
 | `CMSG_UNLEARN_TALENTS` | `dead` | registered `STATUS_NEVER` with `Handle_NULL`; resets go through `MSG_TALENT_WIPE_CONFIRM` | `Server/Protocol/Opcodes.cpp:662` |
 | `SMSG_TALENTS_INVOLUNTARILY_RESET` | `dead` | no writer in AzerothCore `src/`, only its registration; wow_messages says it exists only as a comment | `Server/Protocol/Opcodes.cpp:1405` |
 | `MSG_TALENT_WIPE_CONFIRM` | `live` | both directions on a level-12 `eversong10-warrior` at Undercity warrior trainer 4594 (`soap setup` position map 0, zone 1497, x 1775.77, y 404.6, z -57.11, 5 yd south of the trainer; the point worked unchanged), flow `talents-reset --arg npc=4594 --arg max=20000`. First reset: option 1 went out and `SMSG_GOSSIP_COMPLETE` and an offer with cost 10000 came back, the confirm went out with the trainer guid, and `SMSG_TALENTS_INFO` followed with 3 free. Second offer cost 50000: with `max=20000` the act returned `too_expensive` and sent no confirm. With nothing spent and `max=60000` the confirm drew a guid-0, cost-0 reply and the act returned `nothing_to_reset`. With one point spent and 20000 copper the confirm drew `SMSG_BUY_FAILED` (guid 0, item 0, result 2) then the guid-0 reply, and the act returned `not_enough_money`. Account deleted | `Handlers/SkillHandler.cpp:58-84`, `Entities/Player/Player.cpp:9125-9132` |
+| `CMSG_REMOVE_GLYPH` | `live` | probe flow `talents-glyph --arg remove=1` on a level-15 `eversong10-warrior` that held glyph 483 in socket 1 (`tmp/probe/FAC6ABDD61C93-20261001T034113Z`): `01 00 00 00` went out, `SMSG_REMOVED_SPELL` (spell 58095) and an `SMSG_TALENTS_INFO` with the socket at 0 came back, and the act returned `removed`. The apply that filled the socket ran as `--arg item=43395` on the same account (`tmp/probe/FAC6ABDD61C93-20261001T034019Z`): `CMSG_USE_ITEM` carried glyph index 1 after socket 0 was refused locally as `wrong_slot_type`, then `SMSG_LEARNED_SPELL` 58095 and the info with glyph 483 in socket 1. Account deleted | `Handlers/CharacterHandler.cpp:1604-1642` |
