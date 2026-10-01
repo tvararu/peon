@@ -271,6 +271,18 @@ const EVERSONG_UNLEARN: Spawn = {
   ],
   zone: 3430,
 };
+
+const EVERSONG_GLYPH: Spawn = {
+  map: 530,
+  o: 1.686,
+  points: [
+    [8680, -6390, 52.53],
+    [8676, -6390, 52.61],
+    [8684, -6390, 52.57],
+    [8680, -6394, 52.52],
+  ],
+  zone: 3430,
+};
 const UNDERCITY_WARRIOR: Spawn = {
   map: 0,
   o: 0,
@@ -285,6 +297,7 @@ const UNDERCITY_WARRIOR: Spawn = {
 
 const NAMED: Readonly<Record<string, Spawn>> = {
   eversong: EVERSONG,
+  "eversong-glyph": EVERSONG_GLYPH,
   "eversong-pets": EVERSONG_PETS,
   "eversong-raid": EVERSONG_RAID,
   "eversong-ready": EVERSONG_READY,

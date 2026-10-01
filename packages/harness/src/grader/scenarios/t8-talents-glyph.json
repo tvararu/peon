@@ -45,7 +45,7 @@
       "endpoint": "items/add"
     }
   ],
-  "spawn": "eversong-ready",
+  "spawn": "eversong-glyph",
   "steers": [],
   "task": "Put your glyph in a glyph slot, then take it out again.",
   "tier": 8
