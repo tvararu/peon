@@ -177,7 +177,9 @@ export class MovementSync {
   transportBoard(board: TransportBoard): void {
     const from = this.pose();
     if (!from) throw new Error("no_pose");
-    this.ride.boardTransport(planBoard(board, from, this.deps.now()));
+    const plan = planBoard(board, from, this.deps.now());
+    this.transport = undefined;
+    this.ride.boardTransport(plan);
     this.moveFlags |= MovementFlag.ON_TRANSPORT;
     this.observedFlags |= MovementFlag.ON_TRANSPORT;
     const body = buildMoveMessage(this.deps.selfGuid(), this.movementInfo());

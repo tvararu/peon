@@ -226,6 +226,56 @@ describe("transport ride in control", () => {
     expect(parsed.transport?.z).toBeCloseTo(3, 4);
   });
 
+  test("boarding another transport after a same-transport teleport names the new transport", () => {
+    const other = 0xf1_20_00_3e_ad_de_00_02n;
+    const { runtime, sent } = setup();
+    runtime.transportBoard(board());
+    runtime.nearTeleport(
+      info({
+        flags: MovementFlag.ON_TRANSPORT,
+        orientation: 0,
+        transport: {
+          guid: TRANSPORT,
+          orientation: 0,
+          seat: 0,
+          time: 44,
+          x: 1,
+          y: 2,
+          z: 3,
+        },
+        x: 8709.46,
+        y: -6671.76,
+        z: 73.34,
+      }),
+    );
+    sent.length = 0;
+    runtime.transportBoard(
+      board({
+        guid: other,
+        poseAt: () => ({
+          mapId: 530,
+          moving: false,
+          orientation: 0,
+          x: 8715.46,
+          y: -6671.76,
+          z: 70.34,
+        }),
+      }),
+    );
+    expect(sent).toHaveLength(1);
+    const parsed = transportOf(must(sent[0]).body);
+    expect(parsed.transport?.guid).toBe(other);
+    expect(parsed.transport?.x).toBeCloseTo(-5, 4);
+    expect(parsed.transport?.y).toBeCloseTo(2, 4);
+    expect(parsed.transport?.z).toBeCloseTo(3, 4);
+    sent.length = 0;
+    runtime.forceRoot(7);
+    const r = new PacketReader(must(sent.at(-1)).body);
+    r.packedGuidBig();
+    r.uint32LE();
+    expect(parseMovementInfo(r).transport?.guid).toBe(other);
+  });
+
   test("a teleport without the transport block ends the ride", () => {
     const { runtime, sent } = setup();
     sent.length = 0;
