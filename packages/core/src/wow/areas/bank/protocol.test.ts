@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { bytes } from "#test-support/hex";
 import {
+  BUY_BANK_SLOT_RESULT,
   buildAutobankItem,
   buildAutostoreBankItem,
   buildBankerActivate,
   buildBuyBankSlot,
-  BUY_BANK_SLOT_RESULT,
   buyBankSlotResultName,
   parseBuyBankSlotResult,
 } from "#wow/areas/bank/protocol";
@@ -40,9 +40,7 @@ describe("bank builders", () => {
 describe("SMSG_BUY_BANK_SLOT_RESULT", () => {
   test("reads one u32 and names the four results (BankPackets.cpp:37-42, Player.h:112-115)", () => {
     const read = (result: number) =>
-      parseBuyBankSlotResult(
-        new PacketReader(slotResultBody(result)),
-      );
+      parseBuyBankSlotResult(new PacketReader(slotResultBody(result)));
     expect(read(BUY_BANK_SLOT_RESULT.too_many)).toEqual({
       result: 0,
       name: "too_many",
