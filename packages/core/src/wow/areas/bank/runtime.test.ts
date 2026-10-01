@@ -113,6 +113,34 @@ describe("bank acts", () => {
     }
   });
 
+  test("an act started from an opened listener keeps the open outcome", async () => {
+    const { rig } = bankScene();
+    try {
+      const opened = rig.handle.act.openBank(BANK_BANKER);
+      await flush();
+      let bought: Promise<{ status: string }> | undefined;
+      rig.handle.onEvent((event) => {
+        if (event.type !== "opened") return;
+        bought = rig.handle.act.buyBankSlot().catch((error: unknown) => ({
+          status: `threw ${(error as Error).message}`,
+        }));
+      });
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      expect(await opened).toEqual({ status: "ok" });
+      await flush();
+      if (!bought) throw new Error("the listener never started the purchase");
+      rig.inject(
+        GameOpcode.SMSG_BUY_BANK_SLOT_RESULT,
+        bankBuyBankSlotResultBody(1),
+      );
+      expect(await bought).toMatchObject({
+        status: "refused",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("a show-bank notice during a pending move does not settle it", async () => {
     const { rig, world } = bankScene();
     const seen: BankEvent[] = [];

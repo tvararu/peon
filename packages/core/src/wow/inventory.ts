@@ -1,5 +1,10 @@
 import { type Entity, type EntityLookup, fieldOf } from "#wow/entity-store";
-import { BANK_ROOTS } from "#wow/inventory-bank";
+import {
+  type BankReadContext,
+  type InventoryBank,
+  type RootRange,
+  readBank,
+} from "#wow/inventory-bank";
 import { readSelfField } from "#wow/player-state";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { joinGuid } from "#wow/protocol/packet";
@@ -101,18 +106,7 @@ export type InventoryState = {
   ammoId?: number | undefined;
   bank?: InventoryBank | undefined;
 };
-export type InventoryBank = {
-  slots: InventorySlot[];
-  bags: InventoryBag[];
-  issues: InventoryIssue[];
-};
-
-type ReadContext = {
-  selfGuid: bigint;
-  getEntity: EntityLookup;
-  issues: InventoryIssue[];
-  seen: Set<bigint>;
-};
+export type ReadContext = BankReadContext;
 
 const ROOTS = [
   {
@@ -146,13 +140,6 @@ const ROOTS = [
     region: "currency",
   },
 ] as const;
-
-type RootRange = {
-  first: number;
-  count: number;
-  offset: number;
-  region: InventoryRegion;
-};
 
 const BUYBACK = { first: 74, count: 12 } as const;
 
@@ -313,7 +300,7 @@ function slot(
   };
 }
 
-function roots(
+export function roots(
   context: ReadContext,
   self: Entity,
   ranges: readonly RootRange[],
@@ -358,7 +345,7 @@ function buyback(self: Entity): BuybackSlot[] {
   return result;
 }
 
-function bag(
+export function bag(
   context: ReadContext,
   root: InventorySlot,
   slots: InventorySlot[],
@@ -496,26 +483,6 @@ export function readInventory(
     issues: context.issues,
     buyback: buyback(self),
     ammoId: fieldOf(self, PLAYER_FIELDS.AMMO_ID.offset),
-    bank: readBank(selfGuid, self, getEntity),
+    bank: readBank(selfGuid, self, getEntity, { bag, roots }),
   };
-}
-
-function readBank(
-  selfGuid: bigint,
-  self: Entity,
-  getEntity: EntityLookup,
-): InventoryBank {
-  const context: ReadContext = {
-    selfGuid,
-    getEntity,
-    issues: [],
-    seen: new Set(),
-  };
-  const slots = roots(context, self, BANK_ROOTS);
-  const bags: InventoryBag[] = [];
-  for (const root of slots.filter(
-    (candidate) => candidate.region === "bankbag",
-  ))
-    bags.push(bag(context, root, slots, "bank_bag_item"));
-  return { slots, bags, issues: context.issues };
 }

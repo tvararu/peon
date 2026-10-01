@@ -102,10 +102,64 @@ function inBank(region: string): boolean {
   );
 }
 
+function histogram(
+  counts: readonly (number | undefined)[],
+): Map<number, number> {
+  const result = new Map<number, number>();
+  for (const count of counts) {
+    if (count === undefined) continue;
+    result.set(count, (result.get(count) ?? 0) + 1);
+  }
+  return result;
+}
+
+function merged(
+  request: MoveRequest,
+  targets: InventorySlot[],
+): bigint | undefined {
+  const counts = histogram(
+    targets.map((slot) =>
+      slot.status === "occupied" ? slot.item.count : undefined,
+    ),
+  );
+  const before = histogram(request.toCounts ?? []);
+  let added = 0;
+  for (const [count, total] of counts)
+    if (total > (before.get(count) ?? 0))
+      added += total - (before.get(count) ?? 0);
+  let missing = 0;
+  for (const [count, had] of before)
+    if (had > (counts.get(count) ?? 0))
+      missing += had - (counts.get(count) ?? 0);
+  if (added === 0 || missing > added) return undefined;
+  const grown = targets.find(
+    (slot) =>
+      slot.status === "occupied" &&
+      slot.item.count !== undefined &&
+      slot.guid !== request.guid &&
+      (counts.get(slot.item.count) ?? 0) > (before.get(slot.item.count) ?? 0),
+  );
+  if (grown?.status === "occupied") return grown.guid;
+  return request.guid;
+}
+
+function moveTargets(
+  inventory: InventoryState,
+  request: MoveRequest,
+): InventorySlot[] {
+  return bankSlots(inventory).filter(
+    (slot) =>
+      slot.status === "occupied" &&
+      slot.item.entry === request.entry &&
+      (request.kind === "deposit" ? inBank(slot.region) : !inBank(slot.region)),
+  );
+}
+
 export class BankStore {
   private readonly events = new Emitter<[BankEvent]>();
   private readonly deps: SessionDeps;
   private readonly core: CoreStores;
+  private readonly outcomes = new Map<BankMoveRequest, BankResult>();
   private banker: bigint | undefined;
   private request: BankMoveRequest | undefined;
   private last: BankOutcome | undefined;
@@ -191,33 +245,8 @@ export class BankStore {
       }
     }
     if (request.entry === undefined || request.toCounts === undefined) return;
-    const targets = bankSlots(inventory).filter(
-      (slot) =>
-        slot.status === "occupied" &&
-        slot.item.entry === request.entry &&
-        (request.kind === "deposit"
-          ? inBank(slot.region)
-          : !inBank(slot.region)),
-    );
-    const counts = targets
-      .map((slot) => (slot.status === "occupied" ? slot.item.count : undefined))
-      .filter((count) => count !== undefined)
-      .sort((a, b) => a - b);
-    const before = [...request.toCounts].sort((a, b) => a - b);
-    const grew = counts.some(
-      (count) => !before.includes(count) && count > Math.min(...before),
-    );
-    if (counts.length !== before.length || !grew) return;
-    const grown = targets.find(
-      (slot) =>
-        slot.status === "occupied" &&
-        slot.item.count !== undefined &&
-        slot.guid !== request.guid &&
-        !before.includes(slot.item.count) &&
-        slot.item.count > Math.min(...before),
-    );
-    const grownGuid = grown?.status === "occupied" ? grown.guid : request.guid;
-    if (grownGuid !== undefined) this.settleMove(request, grownGuid);
+    const guid = merged(request, moveTargets(inventory, request));
+    if (guid !== undefined) this.settleMove(request, guid);
   }
 
   receiveInventoryFailure(packet: InventoryChangeFailure): void {
@@ -262,12 +291,24 @@ export class BankStore {
     );
   }
 
+  resultOf(request: BankMoveRequest): BankResult | undefined {
+    return this.outcomes.get(request);
+  }
+
+  takeResult(request: BankMoveRequest): BankResult | undefined {
+    const result = this.outcomes.get(request);
+    this.outcomes.delete(request);
+    return result;
+  }
+
   abandon(): void {
+    if (this.request) this.outcomes.delete(this.request);
     this.request = undefined;
   }
 
   dispose(): void {
     this.abandon();
+    this.outcomes.clear();
     this.events.clear();
   }
 
@@ -279,6 +320,7 @@ export class BankStore {
     const request = this.request;
     if (!request) return;
     this.last = { ...result, request, observedAt: this.deps.now() };
+    this.outcomes.set(request, result);
     this.request = undefined;
     this.events.emit(event);
   }

@@ -179,6 +179,7 @@ describe("bank store events", () => {
       seeded.entities.delete(BANK_CLOTH);
       seeded.put(255, 25, { count: 5, entry: 2589, guid: BANK_CLOTH });
       seeded.put(255, 39, { count: 10, entry: 2589, guid: BANK_CLOTH + 3n });
+      seeded.put(255, 40, { count: 15, entry: 2589, guid: BANK_CLOTH + 4n });
     });
     const seen: BankEvent[] = [];
     rig.handle.onEvent((event) => seen.push(event));
@@ -191,7 +192,7 @@ describe("bank store events", () => {
         guid: BANK_CLOTH,
         kind: "deposit",
         slot: 25,
-        toCounts: [10],
+        toCounts: [10, 15],
         requestedAt: 0,
       });
       world.clear(255, 25);
@@ -199,7 +200,11 @@ describe("bank store events", () => {
       world.setCount(BANK_CLOTH + 3n, 15);
       rig.touch();
       rig.stores.areas.bank.observeInventory();
-      expect(seen.at(-1)).toMatchObject({ kind: "deposit", type: "moved" });
+      expect(seen.at(-1)).toMatchObject({
+        guid: BANK_CLOTH + 3n,
+        kind: "deposit",
+        type: "moved",
+      });
       expect(rig.handle.state().lastOutcome?.status).toBe("ok");
     } finally {
       rig.dispose();
@@ -240,7 +245,8 @@ describe("bank store events", () => {
     const { rig, world } = bankScene((seeded) => {
       seeded.clear(255, 25);
       seeded.entities.delete(BANK_CLOTH);
-      seeded.put(255, 25, { count: 10, entry: 2589, guid: BANK_CLOTH + 5n });
+      seeded.put(255, 23, { count: 10, entry: 2589, guid: BANK_CLOTH + 5n });
+      seeded.put(255, 24, { count: 15, entry: 2589, guid: BANK_CLOTH + 6n });
       seeded.put(255, 39, { count: 5, entry: 2589, guid: BANK_CLOTH });
     });
     const seen: BankEvent[] = [];
@@ -248,21 +254,30 @@ describe("bank store events", () => {
     try {
       rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
       seen.length = 0;
+      expect(world.lookup(BANK_CLOTH)?.rawFields.get(14)).toBe(5);
+      expect(world.lookup(BANK_CLOTH + 5n)?.rawFields.get(14)).toBe(10);
+      expect(world.lookup(BANK_CLOTH + 6n)?.rawFields.get(14)).toBe(15);
       rig.stores.areas.bank.begin({
         bag: 255,
         entry: 2589,
         guid: BANK_CLOTH,
         kind: "withdraw",
         slot: 39,
-        toCounts: [10],
+        toCounts: [10, 15],
         requestedAt: 0,
       });
       bankClear(world, 39);
       world.entities.delete(BANK_CLOTH);
-      world.setCount(BANK_CLOTH + 5n, 25);
+      world.setCount(BANK_CLOTH + 5n, 15);
       rig.touch();
       rig.stores.areas.bank.observeInventory();
-      expect(seen.at(-1)).toMatchObject({ kind: "withdraw", type: "moved" });
+      expect(seen.at(-1)).toMatchObject({
+        guid: BANK_CLOTH + 5n,
+        kind: "withdraw",
+        type: "moved",
+      });
+      expect(world.lookup(BANK_CLOTH + 5n)?.rawFields.get(14)).toBe(15);
+      expect(world.lookup(BANK_CLOTH)).toBeUndefined();
       expect(rig.handle.state().lastOutcome?.status).toBe("ok");
     } finally {
       rig.dispose();
