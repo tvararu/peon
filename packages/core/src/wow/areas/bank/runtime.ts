@@ -124,16 +124,12 @@ function allSlots(inventory: InventoryState): InventorySlot[] {
 function eligibleRegion(kind: "deposit" | "withdraw", region: string): boolean {
   if (kind === "deposit")
     return (
-      region === "bank" ||
-      region === "bankbag" ||
-      region === "bank_bag_item" ||
-      region === "equipment"
+      region === "bank" || region === "bankbag" || region === "bank_bag_item"
     );
   return (
     region === "backpack" ||
     region === "bag_item" ||
     region === "bag" ||
-    region === "equipment" ||
     region === "keyring" ||
     region === "currency"
   );

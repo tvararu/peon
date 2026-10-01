@@ -58,7 +58,13 @@ export type BankState = {
 
 export type BankEvent =
   | { type: "opened"; banker: bigint }
-  | { type: "moved"; kind: "deposit" | "withdraw"; guid: bigint }
+  | {
+      type: "moved";
+      kind: "deposit" | "withdraw";
+      guid: bigint;
+      entry: number | undefined;
+      count: number | undefined;
+    }
   | { type: "slot_bought"; result: string }
   | { type: "refused"; kind: BankMoveRequest["kind"]; reason: string }
   | { type: "no_change"; kind: BankMoveRequest["kind"] }
@@ -98,10 +104,7 @@ function bankSlots(inventory: InventoryState): InventorySlot[] {
 
 function inBank(region: string): boolean {
   return (
-    region === "bank" ||
-    region === "bankbag" ||
-    region === "bank_bag_item" ||
-    region === "equipment"
+    region === "bank" || region === "bankbag" || region === "bank_bag_item"
   );
 }
 
@@ -110,7 +113,6 @@ function isCarried(region: string): boolean {
     region === "backpack" ||
     region === "bag_item" ||
     region === "bag" ||
-    region === "equipment" ||
     region === "keyring" ||
     region === "currency"
   );
@@ -256,13 +258,13 @@ export class BankStore {
           ? inBank(found.region)
           : isCarried(found.region);
       if (moved) {
-        this.settleMove(request, request.guid);
+        this.settleMove(request, request.guid, found.item.count);
         return;
       }
     }
     if (request.entry === undefined || request.toCounts === undefined) return;
     const guid = merged(request, moveTargets(inventory, request));
-    if (guid !== undefined) this.settleMove(request, guid);
+    if (guid !== undefined) this.settleMove(request, guid, undefined);
   }
 
   receiveInventoryFailure(packet: InventoryChangeFailure): void {
@@ -328,8 +330,15 @@ export class BankStore {
     this.events.clear();
   }
 
-  private settleMove(request: MoveRequest, guid: bigint): void {
-    this.settle({ status: "ok" }, { guid, kind: request.kind, type: "moved" });
+  private settleMove(
+    request: MoveRequest,
+    guid: bigint,
+    count: number | undefined,
+  ): void {
+    this.settle(
+      { status: "ok" },
+      { count, entry: request.entry, guid, kind: request.kind, type: "moved" },
+    );
   }
 
   private settle(result: BankResult, event: BankEvent): void {

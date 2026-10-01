@@ -242,23 +242,6 @@ describe("bank-moves flow", () => {
     expect(out).toMatchObject({ withdraw: { status: "ok" } });
   });
 
-  test("far mode skips the walk and buys from afar for the server refusal", async () => {
-    const ctx = context({ far: "1" });
-    const buy = jest.spyOn(ctx.handle.bank.act, "buyBankSlot");
-    buy.mockResolvedValueOnce({
-      reason: "not_banker",
-      status: "refused",
-    });
-    const out = await flow.run(ctx);
-    expect(ctx.handle.walkTowardPoint).not.toHaveBeenCalled();
-    expect(ctx.handle.bank.act.openBank).not.toHaveBeenCalled();
-    expect(buy).toHaveBeenCalledTimes(1);
-    expect(out).toMatchObject({
-      buy: [{ reason: "not_banker", status: "refused" }],
-      opened: { status: "unanswered" },
-    });
-  });
-
   test("buys slots until a refusal and reports each outcome", async () => {
     const ctx = context({ buy: "5" });
     const buy = jest.spyOn(ctx.handle.bank.act, "buyBankSlot");

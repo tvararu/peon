@@ -8,6 +8,7 @@ import {
   bankShowBankBody,
 } from "#test-support/areas/bank";
 import { itemsInventoryChangeFailureBody } from "#test-support/areas/items";
+import type { ItemsWorld } from "#test-support/areas/items-world";
 import type { BankEvent } from "#wow/areas/bank/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
@@ -328,6 +329,98 @@ describe("bank store events", () => {
       rig.stores.areas.bank.receiveSlotResult("ok");
       expect(rig.handle.state().lastSlotResult).toBe("ok");
       expect(rig.handle.state().lastOutcome?.status).toBe("ok");
+    } finally {
+      rig.dispose();
+    }
+  });
+});
+
+const CHEST = BANK_CLOTH + 90n;
+
+function equipChest(world: ItemsWorld): void {
+  world.put(255, 4, { count: 1, entry: 2589, guid: CHEST });
+}
+
+describe("bank moves of equipped items", () => {
+  test("a deposit stays pending while equipped and settles in a bank slot", () => {
+    const { rig, world } = bankScene();
+    const seen: BankEvent[] = [];
+    rig.handle.onEvent((event) => seen.push(event));
+    try {
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      equipChest(world);
+      seen.length = 0;
+      rig.stores.areas.bank.begin({
+        bag: 255,
+        entry: 2589,
+        guid: CHEST,
+        kind: "deposit",
+        requestedAt: 0,
+        slot: 4,
+      });
+      rig.touch();
+      rig.stores.areas.bank.observeInventory();
+      expect(rig.handle.state().pending?.kind).toBe("deposit");
+      expect(seen.map((event) => event.type)).not.toContain("moved");
+      world.clear(255, 4);
+      world.entities.delete(CHEST);
+      world.put(255, 39, { count: 1, entry: 2589, guid: CHEST });
+      rig.stores.areas.bank.observeInventory();
+      expect(seen.at(-1)).toMatchObject({
+        count: 1,
+        entry: 2589,
+        guid: CHEST,
+        kind: "deposit",
+        type: "moved",
+      });
+      expect(rig.handle.state().lastOutcome?.status).toBe("ok");
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a bank-full refusal while still equipped settles refused", () => {
+    const { rig, world } = bankScene();
+    try {
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      equipChest(world);
+      rig.stores.areas.bank.begin({
+        bag: 255,
+        guid: CHEST,
+        kind: "deposit",
+        requestedAt: 0,
+        slot: 4,
+      });
+      rig.inject(
+        GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE,
+        itemsInventoryChangeFailureBody({ item1: CHEST, result: 50 }),
+      );
+      expect(rig.handle.state().lastOutcome).toMatchObject({
+        reason: "inventory_full",
+        status: "refused",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a withdraw does not settle on the equipment region", () => {
+    const { rig, world } = bankScene();
+    try {
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      world.put(255, 39, { count: 1, entry: 2589, guid: CHEST });
+      rig.stores.areas.bank.begin({
+        bag: 255,
+        guid: CHEST,
+        kind: "withdraw",
+        requestedAt: 0,
+        slot: 39,
+      });
+      world.clear(255, 39);
+      world.entities.delete(CHEST);
+      equipChest(world);
+      rig.stores.areas.bank.observeInventory();
+      expect(rig.handle.state().pending?.kind).toBe("withdraw");
     } finally {
       rig.dispose();
     }

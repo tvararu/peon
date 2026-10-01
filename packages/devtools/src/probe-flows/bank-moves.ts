@@ -124,7 +124,6 @@ async function run(ctx: FlowContext): Promise<Json> {
     ),
   );
   if (!banker) throw new Error("no banker is in view.");
-  if (args["far"] === "1") return farPurchase(handle);
   await reach(handle, banker.entity.guid);
   const opened = await attempt(() =>
     handle.bank.act.openBank(banker.entity.guid),
@@ -143,20 +142,9 @@ async function run(ctx: FlowContext): Promise<Json> {
   });
 }
 
-async function farPurchase(handle: WorldHandle): Promise<Json> {
-  const buy = await attempt(() => handle.bank.act.buyBankSlot());
-  return json({
-    buy: [buy],
-    deposit: { skipped: "far mode sends the purchase for refusal." },
-    opened: { status: "unanswered" },
-    state: handle.bank.state(),
-    withdraw: { skipped: "far mode sends the purchase for refusal." },
-  });
-}
-
 export const flow: ProbeFlow = {
   name: "bank-moves",
   run,
   usage:
-    "--flow bank-moves [--arg npc=<entry>] [--arg item=<entry>] [--arg buy=<n>] [--arg far=1]: walk to the nearest banker (with that creature entry) and open the bank, deposit the first carried stack of item (Linen Cloth unless item names another), withdraw it again, then buy up to n bag slots (stopping at the first refusal) with buy=<n>; far=1 skips the walk so the acts run out of range.",
+    "--flow bank-moves [--arg npc=<entry>] [--arg item=<entry>] [--arg buy=<n>]: walk to the nearest banker (with that creature entry) and open the bank, deposit the first carried stack of item (Linen Cloth unless item names another), withdraw it again, then buy up to n bag slots (stopping at the first refusal) with buy=<n>.",
 };

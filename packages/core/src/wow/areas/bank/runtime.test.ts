@@ -437,3 +437,53 @@ describe("bank acts", () => {
     }
   });
 });
+
+describe("bank deposit of an equipped item", () => {
+  const chest = BANK_CLOTH + 90n;
+
+  test("stays pending on unrelated updates and settles ok when the chest reads in a bank slot", async () => {
+    const { rig, world } = bankScene((seeded) => {
+      seeded.put(255, 4, { count: 1, entry: 2589, guid: chest });
+    });
+    try {
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      let done = false;
+      const pending = rig.handle.act.deposit(255, 4).then((result) => {
+        done = true;
+        return result;
+      });
+      await flush();
+      rig.touch();
+      await flush();
+      expect(done).toBe(false);
+      world.clear(255, 4);
+      world.entities.delete(chest);
+      world.put(255, 39, { count: 1, entry: 2589, guid: chest });
+      rig.touch();
+      expect(await pending).toEqual({ status: "ok" });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a bank-full failure while still equipped settles refused", async () => {
+    const { rig } = bankScene((seeded) => {
+      seeded.put(255, 4, { count: 1, entry: 2589, guid: chest });
+    });
+    try {
+      rig.inject(GameOpcode.SMSG_SHOW_BANK, bankShowBankBody(BANK_BANKER));
+      const pending = rig.handle.act.deposit(255, 4);
+      await flush();
+      rig.inject(
+        GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE,
+        itemsInventoryChangeFailureBody({ item1: chest, result: 50 }),
+      );
+      expect(await pending).toMatchObject({
+        reason: "inventory_full",
+        status: "refused",
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+});
