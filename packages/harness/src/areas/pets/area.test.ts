@@ -130,6 +130,18 @@ describe("pets rules", () => {
     expect(cast.at(0)?.text).toContain("not_ready");
   });
 
+  test("a silent cast failure writes no row", () => {
+    const r = rules();
+    expect(
+      r.event({
+        castCount: 1,
+        reason: "dont_report",
+        spell: 1742,
+        type: "cast_failed",
+      }),
+    ).toEqual([]);
+  });
+
   test("a learned spell gives one learned row and an unlearned spell gives none", () => {
     const r = rules();
     const learned = r.event({ spell: 1742, type: "spell_learned" });

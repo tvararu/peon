@@ -141,7 +141,9 @@ function laterRow(
 ): AreaDraft | undefined {
   if (event.type === "feedback") return refusedRow(event.reason);
   if (event.type === "cast_failed")
-    return refusedRow(event.reason, event.spell);
+    return event.reason === "dont_report"
+      ? undefined
+      : refusedRow(event.reason, event.spell);
   if (event.type === "spell_learned")
     return {
       class: "log",
