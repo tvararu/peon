@@ -8,9 +8,9 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x052` | `CMSG_PET_NAME_QUERY` | client | handled |  |
 | `0x053` | `SMSG_PET_NAME_QUERY_RESPONSE` | server | handled |  |
 | `0x138` | `SMSG_PET_CAST_FAILED` | server | handled |  |
-| `0x173` | `SMSG_PET_TAME_FAILURE` | server | missing |  |
+| `0x173` | `SMSG_PET_TAME_FAILURE` | server | handled |  |
 | `0x174` | `CMSG_PET_SET_ACTION` | client | handled |  |
-| `0x176` | `CMSG_PET_ABANDON` | client | missing |  |
+| `0x176` | `CMSG_PET_ABANDON` | client | handled |  |
 | `0x177` | `CMSG_PET_RENAME` | client | handled |  |
 | `0x178` | `SMSG_PET_NAME_INVALID` | server | handled |  |
 | `0x179` | `SMSG_PET_SPELLS` | server | handled |  |
@@ -34,7 +34,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x324` | `SMSG_PET_ACTION_SOUND` | server | handled | not seen live |
 | `0x325` | `SMSG_PET_DISMISS_SOUND` | server | handled | not seen live |
 | `0x47a` | `CMSG_PET_LEARN_TALENT` | client | missing |  |
-| `0x48d` | `CMSG_DISMISS_CRITTER` | client | missing |  |
+| `0x48d` | `CMSG_DISMISS_CRITTER` | client | handled |  |
 | `0x492` | `SMSG_PET_UPDATE_COMBO_POINTS` | server | missing |  |
 | `0x499` | `SMSG_PET_LEARNED_SPELL` | server | handled |  |
 | `0x49a` | `SMSG_PET_UNLEARNED_SPELL` | server | handled |  |

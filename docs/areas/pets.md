@@ -184,11 +184,28 @@ corpse (`Handlers/PetHandler.cpp:287-294`).
   otherwise report `unanswered` with `request: "stable"`;
   `pets.stableRevivePet` sends and returns. The stable slice clears on
   logout.
+- `CMSG_PET_ABANDON` is the pet guid (`Handlers/PetHandler.cpp:931-949`):
+  for a hunter pet the server lowers happiness and deletes the pet row at
+  once (`PET_SAVE_AS_DELETED`, `:948`), sending no reply except the
+  cleared bar. `pets.abandonPet()` returns `no_pet` and sends nothing
+  unless a bar and the summoned pet view are both present, else sends the
+  bar's guid.
+- `SMSG_PET_TAME_FAILURE` is one `uint8`
+  (`Entities/Unit/Unit.cpp:15561-15566`). The area keeps the
+  reason as the last refusal and emits `tame_failed` with the code and
+  the name. After an abandon the hunter's `PetStable` still exists and
+  holds no pet, so Call Pet (883) takes the no-pet branch and the server
+  answers `SMSG_PET_TAME_FAILURE` with reason 7 (`no_pet`).
+- `CMSG_DISMISS_CRITTER` is the critter guid
+  (`Server/Packets/PetPackets.cpp:20-23`, handler
+  `Handlers/PetHandler.cpp:39-55`): when the guid is the owner's critter
+  the server unsummons it. `pets.dismissCritter()` reads the owner's
+  `UNIT_FIELD_CRITTER` (the same offset 10 the view reads for the summon)
+  and returns `no_critter` with nothing sent when it is 0, else sends
+  that guid.
 
 ## Left out
 
-- `CMSG_PET_ABANDON`, `SMSG_PET_TAME_FAILURE`, `CMSG_DISMISS_CRITTER`:
-  built by pets-6.
 - `CMSG_PET_LEARN_TALENT`, `CMSG_LEARN_PREVIEW_TALENTS_PET`: built by
   pets-7.
 - `SMSG_PET_UPDATE_COMBO_POINTS`: built by pets-8.
@@ -202,8 +219,8 @@ No agent verb; the world-service acts `pets.requestPetInfo`,
 `pets.petCast`, `pets.petAutocast`, `pets.petSetAction`,
 `pets.petSwapActions`, `pets.petCancelAura`, `pets.queryPetName`,
 `pets.renamePet`, `pets.listStabledPets`, `pets.stablePet`,
-`pets.unstablePet`, `pets.swapStabledPet`, `pets.buyStableSlot` and
-`pets.stableRevivePet` only.
+`pets.unstablePet`, `pets.swapStabledPet`, `pets.buyStableSlot`,
+`pets.stableRevivePet`, `pets.abandonPet` and `pets.dismissCritter` only.
 
 ## The pet tool
 
@@ -274,3 +291,7 @@ and then `follow`. `queryPetName` asks for the current pet's name again and `ren
 | `CMSG_UNSTABLE_PET` | `live` | probe flow `pets-stable --arg do=list,unstable,list,revive --arg number=3722`, exit 0: one 12-byte `CMSG_UNSTABLE_PET` out (guid plus number), answered by `SMSG_STABLE_RESULT` (`unstabled`); `soap gm read pet` afterwards showed pet 3722 back in Slot 0 | `Handlers/NPCHandler.cpp:493` |
 | `CMSG_STABLE_REVIVE_PET` | `accepted` | the same run, exit 0: one 8-byte `CMSG_STABLE_REVIVE_PET` out, no disconnect and no error packet; the handler is empty | `Handlers/NPCHandler.cpp:641` |
 | `CMSG_STABLE_SWAP_PET` | `live` | probe flow `pets-stable --arg do=list,swap --arg number=3722` on the staged Tranquillien hunter (Ravager 3722 stabled, no pet out), exit 0: one 12-byte `CMSG_STABLE_SWAP_PET` out, one 1-byte `SMSG_STABLE_RESULT` in, `results: 1` and `refusals: 0` in the probe output, the listing marked `stale: true`, and a fresh 144-byte `SMSG_PET_SPELLS` pet bar right after in the packet trace (the probe output and trace are not committed). The load-a-stabled-pet branch needs neither a current pet nor a second beast: it loads the stabled pet when both `CurrentPet` and `UnslottedPets` are empty and reports `STABLE_SUCCESS_UNSTABLE` | `Handlers/NPCHandler.cpp:646` |
+| `CMSG_PET_ABANDON` | `live` | probe flow `pets-abandon` on an `eversong10-hunter`, exit 0: one 8-byte `CMSG_PET_ABANDON` out carrying the pet guid, answered by two 8-byte all-zero `SMSG_PET_SPELLS` (the cleared bar); `soap gm read pet` afterwards shows no row | `Handlers/PetHandler.cpp:931` |
+| `SMSG_PET_TAME_FAILURE` | `live` | the same run: the flow casts Call Pet (883) after the abandon, and the server answers one 1-byte `SMSG_PET_TAME_FAILURE` with code 7 (`no_pet`), parsed into `lastRefusal` and a `tame_failed` event | `Entities/Unit/Unit.cpp:15561` |
+| `CMSG_DISMISS_CRITTER` | `live` | probe flow `pets-abandon --arg companion=1` on a fresh `eversong10-hunter` staged with `items/add '{"item":4401}'`, exit 0: `CMSG_USE_ITEM` for the Mechanical Squirrel Box, `CMSG_CAST_SPELL` for Mechanical Squirrel (4055), then one 8-byte `CMSG_DISMISS_CRITTER` out carrying the owner's critter guid, and the owner's `UNIT_FIELD_CRITTER` reads 0 afterwards | `Server/Packets/PetPackets.cpp:20` |
+
