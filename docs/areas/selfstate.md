@@ -202,6 +202,17 @@ describes; `dismount` is a world act.
   so the rider never sees its own packet and `mount_anim` needs a witness
   (`Handlers/MovementHandler.cpp:816-822`).
 - `SMSG_CROSSED_INEBRIATION_THRESHOLD`: built by `self-state-8`.
+- Control sends the swim and fly moves on request and does not test for
+  water: the ground oracle answers `height` and `pathClear` only, and a
+  swim step would need a liquid level that neither it nor the namigator
+  calls give. A walk or `walkToward` therefore still refuses `swimming` and
+  `flying`, since the oracle's heights are the lake bed's. The server does
+  not check the swim bit against the water; it flips its own in-water
+  state to match (`Handlers/MovementHandler.cpp:651-656`). Predicted
+  swim and flight motion also needs swim and flight speeds, which control
+  does not store (the swim, flight and pitch rows of `SPEED_ACKS` have no
+  field). Automatic water detection needs a native liquid query or an
+  ADT liquid reader.
 
 ## Capabilities row
 
@@ -244,3 +255,45 @@ tasks.
 | `CMSG_MOUNTSPECIAL_ANIM` | `live` | partner B on a second `max80` in the same Durotar spot ran `selfstate-mount --arg special=1`, exit 0; sent the empty packet once after mounting and the flow reported `special: ok` (trace not committed) | `Handlers/MovementHandler.cpp:816-822` |
 | `SMSG_MOUNTSPECIAL_ANIM` | `live` | partner A, watching with `--wait 45 --expect SMSG_MOUNTSPECIAL_ANIM`, exit 0; received `2511000000000000` (8 bytes, B's guid as a full `u64`) in the same millisecond B sent the request (trace not committed) | `Handlers/MovementHandler.cpp:816-822` |
 | `SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE` | `live` | the same run; received 32 zero hex chars (16 bytes, not committed) | `Handlers/QueryHandler.cpp:399-409` |
+
+## Sent from control
+
+Control sends the ten swim and fly moves as explicit actions on the
+world handle: `setSwimming(on)`, `pitch("up" | "down" | "stop" | radians)`,
+`setFlying(on)`, `ascend("start" | "stop")` and `descend()`. Each one
+writes the packed self guid and the movement info with its flag bit set
+(`SWIMMING`, `PITCH_UP`, `PITCH_DOWN`, `FLYING`, `ASCENDING`,
+`DESCENDING`); the info carries the pitch float while `SWIMMING` or
+`FLYING` is set, as `ReadMovementInfo` reads it
+(`Server/WorldSession.cpp:1130-1131`). All ten opcodes go through
+`HandleMovementOpcodes`, which relays the info to the players in view
+(`Server/Protocol/Opcodes.cpp:322-324,333-334,350,969,988-989,1066`,
+`Handlers/MovementHandler.cpp:362-414`). A send changes the stored flags
+first, so the bit stays in every later move until the matching stop.
+Entering or leaving the water or the air first stops a walk in progress.
+
+A send is refused with the control reason when the character is
+teleporting, in a taxi flight, rooted, without control or
+`DISABLE_MOVE`. A pitch needs `SWIMMING` or `FLYING` (`not_swimming_or_flying`)
+and a value within half a turn of level (`invalid_pitch`); `setFlying(true)`
+needs `CAN_FLY` from `SMSG_MOVE_SET_CAN_FLY` (`cannot_fly`); ascend and
+descend need `FLYING` (`not_flying`). A descend ends with
+`MSG_MOVE_STOP_ASCEND`, since there is no stop-descend opcode
+(`Server/Protocol/Opcodes.cpp:988-989,1066`).
+
+`ReadMovementInfo` strips `FLYING` and `CAN_FLY` from a player move
+when the mover has no flight aura
+(`Server/WorldSession.cpp:1212-1213`).
+
+| Opcode | Proof | Evidence | Source |
+|---|---|---|---|
+| `MSG_MOVE_START_SWIM` | `live` | probe flow `selfstate-swim --arg lead=6000` on an `eversong10` character at the deep-water point off Eversong (map 530, 9251.47 -6340.63 -16.8), exit 0 and no disconnect; a second `eversong10` witness 2 yd away (probe `--wait 60 --expect`, exit 0) received one relay | `Handlers/MovementHandler.cpp:362-414` |
+| `MSG_MOVE_STOP_SWIM` | `live` | the same run; the witness received one relay 6 s after the start | `Handlers/MovementHandler.cpp:362-414` |
+| `MSG_MOVE_START_PITCH_UP` | `live` | the same run; one relay | `Handlers/MovementHandler.cpp:362-414` |
+| `MSG_MOVE_START_PITCH_DOWN` | `live` | the same run; one relay | `Handlers/MovementHandler.cpp:362-414` |
+| `MSG_MOVE_STOP_PITCH` | `live` | the same run; two relays, one after each pitch | `Handlers/MovementHandler.cpp:362-414` |
+| `MSG_MOVE_SET_PITCH` | `live` | the same run; one relay of the 0.25 rad pitch | `Handlers/MovementHandler.cpp:362-414` |
+| `CMSG_MOVE_SET_FLY` | `live` | probe flow `selfstate-swim --arg mode=fly --arg spell=32243` on a `max80` character in Nagrand with 33388, 33391, 34090 and the Tawny Wind Rider 32243 staged offline via `spells/learn`, exit 0; the witness (a second `eversong10` character beside it) received two relays, takeoff and landing, and `MSG_MOVE_UPDATE_CAN_FLY` showed the server had granted flight | `Handlers/MovementHandler.cpp:362-414` |
+| `MSG_MOVE_START_ASCEND` | `live` | the same run; one relay | `Handlers/MovementHandler.cpp:362-414` |
+| `MSG_MOVE_STOP_ASCEND` | `live` | the same run; two relays, the end of the climb and the end of the descent | `Server/Protocol/Opcodes.cpp:988-989` |
+| `MSG_MOVE_START_DESCEND` | `live` | the same run; one relay, 1 ms after the end of the climb | `Server/Protocol/Opcodes.cpp:1066` |
