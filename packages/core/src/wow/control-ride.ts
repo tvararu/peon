@@ -105,7 +105,8 @@ export class RideState {
   refreshPose(): void {
     const ride = this.transportRide;
     const at = ride?.poseAt(this.deps.now());
-    if (ride && at) ride.pose = { ...at };
+    if (!(ride && at) || at.mapId !== ride.pose.mapId) return;
+    ride.pose = { ...at };
   }
 
   board(seat: RideSeat): void {
