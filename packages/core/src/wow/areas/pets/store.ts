@@ -3,12 +3,14 @@ import type {
   PetFeedback,
   PetNameInvalid,
   PetNameQueryResponse,
+  PetTameFailure,
   StabledPets,
   StablePet,
   StableResult,
 } from "#wow/areas/pets/protocol";
 import { type PetView, petView } from "#wow/areas/pets/view";
 import type { EntityLookup } from "#wow/entity-store";
+import { joinGuid } from "#wow/protocol/packet";
 import {
   isPetBarClear,
   type PetBar,
@@ -22,6 +24,7 @@ import type {
   SpellCooldown,
 } from "#wow/protocol/spell";
 import { spellCastReason } from "#wow/protocol/spell-cast-result";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export type PetReact = "passive" | "defensive" | "aggressive" | "unknown";
@@ -63,6 +66,11 @@ export type StableResultEvent = {
   code: number;
   result: StableResult;
 };
+export type TameFailedEvent = {
+  type: "tame_failed";
+  code: number;
+  reason: PetTameFailure;
+};
 export type PetsState = {
   bar: PetsBar | undefined;
   cooldowns: readonly PetsCooldown[];
@@ -87,6 +95,7 @@ export type PetsEvent =
     }
   | { type: "stable_list"; stable: StableState }
   | StableResultEvent
+  | TameFailedEvent
   | { type: "unanswered"; request: "rename" | "stable" };
 
 const REACTS: readonly PetReact[] = ["passive", "defensive", "aggressive"];
@@ -112,6 +121,7 @@ function cooldownOf(wire: PetCooldown, now: number): PetsCooldown {
 
 export class PetsStore {
   private readonly events = new Emitter<[PetsEvent]>();
+  private readonly deps: SessionDeps;
   private readonly now: () => number;
   private readonly selfGuid: () => bigint;
   private readonly getEntity: EntityLookup;
@@ -122,9 +132,19 @@ export class PetsStore {
   private listing: StableState | undefined;
 
   constructor(deps: SessionDeps, _core: CoreStores) {
+    this.deps = deps;
     this.now = deps.now;
     this.selfGuid = deps.selfGuid;
     this.getEntity = deps.getEntity;
+  }
+
+  critter(): bigint {
+    const raw = this.deps.getEntity(this.deps.selfGuid())?.rawFields;
+    if (!raw) return 0n;
+    return joinGuid(
+      raw.get(UNIT_FIELDS.CRITTER.offset) ?? 0,
+      raw.get(UNIT_FIELDS.CRITTER.offset + 1) ?? 0,
+    );
   }
 
   snapshot(): PetsState {
@@ -283,6 +303,11 @@ export class PetsStore {
       stale: false,
     };
     this.events.emit({ stable: this.listing, type: "stable_list" });
+  }
+
+  tameFailed(code: number, reason: PetTameFailure): void {
+    this.lastRefusal = { at: this.now(), reason };
+    this.events.emit({ code, reason, type: "tame_failed" });
   }
 
   stableResult(code: number, result: StableResult): void {

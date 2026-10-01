@@ -1,7 +1,9 @@
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import {
   buildBuyStableSlot,
+  buildDismissCritter,
   buildListStabledPets,
+  buildPetAbandon,
   buildPetAction,
   buildPetCancelAura,
   buildPetCastSpell,
@@ -36,7 +38,8 @@ export type PetsRefused = {
     | "bad_slot"
     | "passive"
     | "not_removable"
-    | "not_renamable";
+    | "not_renamable"
+    | "no_critter";
 };
 export type PetsCast =
   | { ok: true; castCount: number; confirmed: boolean }
@@ -62,6 +65,8 @@ export type PetsActs = {
   petCancelAura: (spell: number) => PetsActResult;
   queryPetName: () => PetsActResult;
   renamePet: (name: string) => PetsActResult;
+  abandonPet: () => PetsActResult;
+  dismissCritter: () => PetsActResult;
 } & StableActs;
 
 const ORDERS: Record<PetOrder, number> = { stay: 0, follow: 1, dismiss: 3 };
@@ -260,6 +265,26 @@ function stableActs(
   };
 }
 
+function abandonActs(
+  ctx: Ctx,
+  store: PetsStore,
+): Pick<PetsActs, "abandonPet" | "dismissCritter"> {
+  return {
+    abandonPet: () => {
+      const { bar, pet } = store.snapshot();
+      if (!(bar && pet)) return NO_PET;
+      ctx.send(GameOpcode.CMSG_PET_ABANDON, buildPetAbandon(bar.guid));
+      return { ok: true };
+    },
+    dismissCritter: () => {
+      const critter = store.critter();
+      if (critter === 0n) return { ok: false, reason: "no_critter" };
+      ctx.send(GameOpcode.CMSG_DISMISS_CRITTER, buildDismissCritter(critter));
+      return { ok: true };
+    },
+  };
+}
+
 function nameActs(
   ctx: Ctx,
   store: PetsStore,
@@ -446,6 +471,7 @@ export function petsRuntime(
 ): AreaRuntime<PetsActs> {
   const orders = orderActs(ctx, store);
   const spells = spellActs(ctx, store, core);
+  const abandon = abandonActs(ctx, store);
   const bar = barActs(ctx, store);
   const offNames = observeNames(ctx, store);
   const pending = { abort: () => undefined };
@@ -454,10 +480,12 @@ export function petsRuntime(
   const stable = stableActs(ctx, store, stablePending);
   return {
     act: {
+      abandonPet: abandon.abandonPet,
       buyStableSlot: stable.buyStableSlot,
       listStabledPets: stable.listStabledPets,
       petAutocast: spells.petAutocast,
       petCancelAura: spells.petCancelAura,
+      dismissCritter: abandon.dismissCritter,
       petCast: spells.petCast,
       petCommand: orders.petCommand,
       petSetAction: bar.petSetAction,

@@ -305,3 +305,57 @@ export function parseStableResult(r: PacketReader): {
   const code = r.uint8();
   return { code, result: STABLE_RESULTS[code] ?? "unknown" };
 }
+
+export type PetTameFailure =
+  | "invalid_creature"
+  | "too_many"
+  | "already_owned"
+  | "not_tameable"
+  | "another_summon_active"
+  | "units_cant_tame"
+  | "no_pet"
+  | "internal_error"
+  | "too_high_level"
+  | "dead"
+  | "not_dead"
+  | "exotic"
+  | "unknown_error"
+  | "unknown";
+
+const TAME_FAILURES: Record<number, PetTameFailure> = {
+  1: "invalid_creature",
+  2: "too_many",
+  3: "already_owned",
+  4: "not_tameable",
+  5: "another_summon_active",
+  6: "units_cant_tame",
+  7: "no_pet",
+  8: "internal_error",
+  9: "too_high_level",
+  10: "dead",
+  11: "not_dead",
+  12: "exotic",
+  13: "unknown_error",
+};
+
+export function parsePetTameFailure(r: PacketReader): {
+  code: number;
+  reason: PetTameFailure;
+} {
+  const code = r.uint8();
+  return { code, reason: TAME_FAILURES[code] ?? "unknown" };
+}
+
+function guidBody(guid: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(guid);
+  return w.finish();
+}
+
+export function buildPetAbandon(pet: bigint): Uint8Array {
+  return guidBody(pet);
+}
+
+export function buildDismissCritter(critter: bigint): Uint8Array {
+  return guidBody(critter);
+}
