@@ -36,5 +36,8 @@ describe("talents refused rule", () => {
     ]);
     expect(rows[0]?.text).toContain("124");
     expect(rows[1]?.text).toContain("rank 1");
+    expect(rows[0]?.text).toContain("not_enough_points");
+    expect(rows[1]?.text).toContain("unknown_talent");
+    expect(rows[0]?.text).not.toBe(rows[1]?.text);
   });
 });

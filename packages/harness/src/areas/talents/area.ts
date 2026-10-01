@@ -43,7 +43,7 @@ function refusedRows(event: Refused): AreaDraft[] {
       talentId: entry.talentId,
     },
     name: "refused",
-    text: `Talent ${entry.talentId} rank ${entry.rank + 1} was not learned.`,
+    text: `Talent ${entry.talentId} rank ${entry.rank + 1} was not learned: ${entry.reason}.`,
   }));
 }
 
