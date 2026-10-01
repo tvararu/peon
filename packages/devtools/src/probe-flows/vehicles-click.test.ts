@@ -8,7 +8,7 @@ import { type FlowContext, settleWithin } from "#tools/probe-flows";
 import { flow } from "#tools/probe-flows/vehicles-click";
 
 const VEHICLE = 0xf1_30_00_3e_ea_00_0b_bcn;
-const ENTRY = 27661;
+const ENTRY = 27_661;
 
 type Vehicles = WorldHandle["vehicles"];
 
@@ -63,7 +63,7 @@ describe("vehicles-click flow", () => {
 
   test("reports the refusal when the click is refused", async () => {
     const ctx = context({
-      spellClick: async () => ({ status: "refused", reason: "not_clickable" }),
+      spellClick: async () => ({ reason: "not_clickable", status: "refused" }),
     });
     const result = (await flow.run(ctx)) as Record<string, unknown>;
     expect(result).toMatchObject({ board: "not_clickable", exit: null });
