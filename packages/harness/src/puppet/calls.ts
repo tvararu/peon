@@ -5,7 +5,10 @@ import {
   type RollVote,
   type WorldHandle,
 } from "@peon/core";
-import { useMeetingStone } from "#harness/puppet/meeting-stone";
+import {
+  useMeetingStone,
+  useSummoningPortal,
+} from "#harness/puppet/meeting-stone";
 
 type ArgKind = "string" | "guid" | "number" | readonly string[];
 
@@ -241,6 +244,7 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
     args: ["string"],
     run: (h, a) => useMeetingStone(h, text(a, 0)),
   },
+  useSummoningPortal: { args: [], run: (h) => useSummoningPortal(h) },
   voteKick: {
     args: [["no", "yes"]],
     run: (h, a) => h.lfg.act.voteKick(a[0] === "yes"),

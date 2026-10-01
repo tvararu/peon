@@ -1,7 +1,10 @@
 import { describe, expect, jest, test } from "bun:test";
-import { ObjectType } from "@peon/core";
+import { type NearbyRow, ObjectType } from "@peon/core";
 import { partyMember } from "@peon/core/test-support/party-fixtures";
-import { useMeetingStone } from "#harness/puppet/meeting-stone";
+import {
+  useMeetingStone,
+  useSummoningPortal,
+} from "#harness/puppet/meeting-stone";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 
 const TOM = 0x100n;
@@ -45,7 +48,7 @@ describe("useMeetingStone", () => {
           position: { x: 1, y: 2, z: 3 },
           self: false,
         },
-      ] as unknown as ReturnType<typeof t.handle.queryNearby>;
+      ] as unknown as NearbyRow[];
     const use = jest
       .spyOn(t.handle.objects.act, "use")
       .mockReturnValue({ ok: true } as never);
@@ -86,10 +89,53 @@ describe("useMeetingStone", () => {
           position: { x: 1, y: 2, z: 3 },
           self: false,
         },
-      ] as unknown as ReturnType<typeof t.handle.queryNearby>;
+      ] as unknown as NearbyRow[];
     jest
       .spyOn(t.handle.objects.act, "use")
       .mockReturnValue({ ok: false, reason: "unknown" } as never);
     expect(() => useMeetingStone(t.handle, "Tom")).toThrow("refused");
+  });
+});
+
+describe("useSummoningPortal", () => {
+  test("uses the nearest summoning portal", async () => {
+    const t = await world();
+    const portal = 0x500n;
+    t.handle.queryNearby = () =>
+      [
+        {
+          distance: 12,
+          entity: {
+            entry: 11,
+            gameObjectType: 10,
+            guid: 0x400n,
+            objectType: ObjectType.GAMEOBJECT,
+          },
+          position: { x: 1, y: 2, z: 3 },
+          self: false,
+        },
+        {
+          distance: 2,
+          entity: {
+            entry: 179_944,
+            gameObjectType: 18,
+            guid: portal,
+            objectType: ObjectType.GAMEOBJECT,
+          },
+          position: { x: 4, y: 5, z: 6 },
+          self: false,
+        },
+      ] as unknown as NearbyRow[];
+    const use = jest
+      .spyOn(t.handle.objects.act, "use")
+      .mockReturnValue({ ok: true } as never);
+    useSummoningPortal(t.handle);
+    expect(use).toHaveBeenCalledWith(portal);
+  });
+
+  test("throws when no portal is nearby", async () => {
+    const t = await world();
+    t.handle.queryNearby = () => [];
+    expect(() => useSummoningPortal(t.handle)).toThrow("no summoning portal");
   });
 });

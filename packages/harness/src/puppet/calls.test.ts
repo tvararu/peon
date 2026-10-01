@@ -23,6 +23,7 @@ const ALIASES: Readonly<Record<string, readonly [string, string]>> = {
 
 const HANDLE_ALIASES: Readonly<Record<string, string>> = {
   useMeetingStone: "selectTarget",
+  useSummoningPortal: "queryNearby",
   walkToPlayer: "walkTowardPoint",
 };
 
