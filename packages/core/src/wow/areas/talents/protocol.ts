@@ -63,3 +63,15 @@ export function buildLearnPreviewTalents(
   }
   return w.finish();
 }
+
+export type TalentWipeOffer = { npcGuid: bigint; cost: number };
+
+export function parseTalentWipeOffer(r: PacketReader): TalentWipeOffer {
+  return { npcGuid: r.uint64LE(), cost: r.uint32LE() };
+}
+
+export function buildTalentWipeConfirm(npcGuid: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(npcGuid);
+  return w.finish();
+}

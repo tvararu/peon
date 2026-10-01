@@ -2,11 +2,14 @@ import { describe, expect, test } from "bun:test";
 import {
   talentsTalentsInfoBody,
   talentsTalentsInfoPetBody,
+  talentsWipeOfferBody,
 } from "#test-support/areas/talents";
 import {
   buildLearnPreviewTalents,
   buildLearnTalent,
+  buildTalentWipeConfirm,
   parseTalentsInfo,
+  parseTalentWipeOffer,
 } from "#wow/areas/talents/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 
@@ -136,5 +139,38 @@ describe("learn builders", () => {
     expect(() => buildLearnPreviewTalents(new Array(151).fill(entry))).toThrow(
       "too_many_talents",
     );
+  });
+});
+
+describe("talent wipe confirm", () => {
+  const TRAINER = 0xf1_30_00_11_d1_00_00_2an;
+
+  test("an offer is the trainer guid then the copper cost (Player.cpp:9125-9132)", () => {
+    const r = new PacketReader(
+      talentsWipeOfferBody({ cost: 10_000, npcGuid: TRAINER }),
+    );
+    expect(parseTalentWipeOffer(r)).toEqual({ cost: 10_000, npcGuid: TRAINER });
+    expect(r.remaining).toBe(0);
+  });
+
+  test("the no-talents reply has guid 0 and cost 0 (SkillHandler.cpp:78-84)", () => {
+    expect(
+      parseTalentWipeOffer(
+        new PacketReader(talentsWipeOfferBody({ cost: 0, npcGuid: 0n })),
+      ),
+    ).toEqual({ cost: 0, npcGuid: 0n });
+  });
+
+  test("a truncated offer throws instead of reading short", () => {
+    expect(() =>
+      parseTalentWipeOffer(new PacketReader(new Uint8Array(8))),
+    ).toThrow();
+  });
+
+  test("the confirm is the trainer guid alone (SkillHandler.cpp:58-63)", () => {
+    const body = buildTalentWipeConfirm(TRAINER);
+    const r = new PacketReader(body);
+    expect(r.uint64LE()).toBe(TRAINER);
+    expect(r.remaining).toBe(0);
   });
 });

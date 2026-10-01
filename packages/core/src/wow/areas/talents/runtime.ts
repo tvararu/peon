@@ -8,6 +8,7 @@ import {
 import {
   buildLearnPreviewTalents,
   buildLearnTalent,
+  buildTalentWipeConfirm,
 } from "#wow/areas/talents/protocol";
 import {
   MAX_TALENT_RANK,
@@ -20,12 +21,23 @@ import type {
   TalentsState,
   TalentsStore,
 } from "#wow/areas/talents/store";
+import { buildGossipSelectOption } from "#wow/protocol/gossip";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { TalentRank } from "#wow/protocol/talent-spec";
 import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { CoreStores } from "#wow/session-stores";
 
 export const LEARN_ANSWER_MS = 5000;
+export const RESET_ANSWER_MS = 5000;
+
+export type ResetTalentsRequest = { optionIndex: number; maxCost: number };
+
+export type ResetTalentsResult =
+  | { outcome: "reset"; cost: number; freePoints: number }
+  | { outcome: "too_expensive"; cost: number }
+  | { outcome: "nothing_to_reset" }
+  | { outcome: "not_enough_money" }
+  | { outcome: "no_reply" };
 
 export type LearnOutcome =
   | "learned"
@@ -47,11 +59,13 @@ export type LearnTalentsResult = {
 export type TalentsActs = {
   catalog: () => Promise<TalentCatalog | undefined>;
   learnTalents: (plan: readonly TalentRank[]) => Promise<LearnTalentsResult>;
+  resetTalents: (request: ResetTalentsRequest) => Promise<ResetTalentsResult>;
 };
 
 type Env = {
   ctx: AreaRuntimeCtx<TalentsEvent>;
   store: TalentsStore;
+  core: CoreStores;
   catalog: () => Promise<TalentCatalog | undefined>;
 };
 
@@ -217,6 +231,94 @@ async function learn(
   return sendRuled(env, plan, state, catalog);
 }
 
+function exchange(
+  env: Env,
+  match: (event: TalentsEvent) => boolean,
+  send: () => void,
+): Promise<TalentsEvent | undefined> {
+  const scope = new AbortController();
+  const waited: Promise<TalentsEvent | undefined> = env.ctx
+    .until(match, {
+      signal: AbortSignal.any([env.ctx.signal, scope.signal]),
+      timeoutMs: RESET_ANSWER_MS,
+    })
+    .catch((error: unknown): undefined => {
+      if (error instanceof Error && error.message === "timeout") return;
+      throw error;
+    });
+  try {
+    env.ctx.signal.throwIfAborted();
+    send();
+  } catch (error) {
+    scope.abort();
+    return waited.then(
+      () => {
+        throw error;
+      },
+      () => {
+        throw error;
+      },
+    );
+  }
+  return waited;
+}
+
+function trainerOption(env: Env, optionIndex: number) {
+  const dialog = env.core.quests.dialog;
+  if (dialog?.kind !== "gossip") throw new Error("gossip_not_open");
+  if (!dialog.data.options.some((entry) => entry.optionIndex === optionIndex))
+    throw new Error("option_not_offered");
+  return dialog.data;
+}
+
+async function reset(
+  env: Env,
+  request: ResetTalentsRequest,
+): Promise<ResetTalentsResult> {
+  const { guid, menuId } = trainerOption(env, request.optionIndex);
+  env.store.beginReset();
+  try {
+    const offer = await exchange(
+      env,
+      (event) => event.type === "wipe_offer" || event.type === "wipe_refused",
+      () =>
+        env.ctx.send(
+          GameOpcode.CMSG_GOSSIP_SELECT_OPTION,
+          buildGossipSelectOption({
+            guid,
+            menuId,
+            optionIndex: request.optionIndex,
+          }),
+        ),
+    );
+    if (!offer) return { outcome: "no_reply" };
+    if (offer.type !== "wipe_offer") return { outcome: "nothing_to_reset" };
+    if (offer.cost > request.maxCost)
+      return { cost: offer.cost, outcome: "too_expensive" };
+    const answer = await exchange(
+      env,
+      (event) => event.type === "info" || event.type === "wipe_refused",
+      () =>
+        env.ctx.send(
+          GameOpcode.MSG_TALENT_WIPE_CONFIRM,
+          buildTalentWipeConfirm(offer.npcGuid),
+        ),
+    );
+    if (!answer) return { outcome: "no_reply" };
+    if (answer.type === "info")
+      return {
+        cost: offer.cost,
+        freePoints: answer.pointsAfter,
+        outcome: "reset",
+      };
+    return env.store.endReset().paymentFailed
+      ? { outcome: "not_enough_money" }
+      : { outcome: "nothing_to_reset" };
+  } finally {
+    env.store.endReset();
+  }
+}
+
 function catalogLoader(env: Env): () => Promise<TalentCatalog | undefined> {
   let cached: Promise<TalentCatalog | undefined> | undefined;
   return () => {
@@ -230,23 +332,30 @@ function catalogLoader(env: Env): () => Promise<TalentCatalog | undefined> {
 export function talentsRuntime(
   ctx: AreaRuntimeCtx<TalentsEvent>,
   store: TalentsStore,
-  _core: CoreStores,
+  core: CoreStores,
 ): AreaRuntime<TalentsActs> {
-  const env: Env = { catalog: () => Promise.resolve(undefined), ctx, store };
+  const env: Env = {
+    catalog: () => Promise.resolve(undefined),
+    core,
+    ctx,
+    store,
+  };
   env.catalog = catalogLoader(env);
   let inFlight = false;
+  async function exclusive<T>(run: () => Promise<T>): Promise<T> {
+    if (inFlight) throw new Error("talent_request_busy");
+    inFlight = true;
+    try {
+      return await run();
+    } finally {
+      inFlight = false;
+    }
+  }
   return {
     act: {
       catalog: () => env.catalog(),
-      learnTalents: async (plan) => {
-        if (inFlight) throw new Error("talent_request_busy");
-        inFlight = true;
-        try {
-          return await learn(env, plan);
-        } finally {
-          inFlight = false;
-        }
-      },
+      learnTalents: (plan) => exclusive(() => learn(env, plan)),
+      resetTalents: (request) => exclusive(() => reset(env, request)),
     },
     dispose: () => {
       inFlight = false;
