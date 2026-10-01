@@ -83,6 +83,7 @@ describe("pet cast", () => {
     );
     expect(out.status).toBe("FAILED");
     expect(out.detail).toContain("not_ready");
+    expect(out.detail).toContain("cooldown");
   });
 
   test("a cast out of range tells the agent to send the pet at the target first", async () => {

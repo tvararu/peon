@@ -80,6 +80,15 @@ function cooldownAt(handle: Game, spell: number): number | "infinite" | 0 {
   return row.infinite ? "infinite" : (row.readyAt ?? 0);
 }
 
+function detailOf(failure: string, spell: string, near: boolean): string {
+  const base = `${spell} failed: ${failure}.`;
+  if (near)
+    return `${base} The pet must stand next to the target: send it with attack first, then cast again.`;
+  if (failure === "not_ready")
+    return `${base} It is on cooldown: autocast may have just used it, so wait a few seconds and check the pet status.`;
+  return base;
+}
+
 function failedCast(input: {
   after: PetAfter;
   failure: string;
@@ -90,9 +99,7 @@ function failedCast(input: {
   const near = failure === "out_of_range" && target !== undefined;
   return result("FAILED", {
     after,
-    detail: near
-      ? `${spell} failed: ${failure}. The pet must stand next to the target: send it with attack first, then cast again.`
-      : `${spell} failed: ${failure}.`,
+    detail: detailOf(failure, spell, near),
     next: near ? nextCall("pet", { do: "attack", target }) : nextCall("pet"),
     reason: "cast_failed",
   });
