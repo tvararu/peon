@@ -233,12 +233,13 @@ s.`; the name falls back to the unit lookup, then `Someone`) and one
 - The summon request is not seen live. No preset has a warlock, `soap gm`
   has no summon verb, and the console `summon` commands refuse the
   console. A mock test built from the writer proves the parser. Two
-  live tries failed to produce the packet: the Orgrimmar stone 179596
-  casts Meeting Stone Summon (23598) with a destination-only target,
-  so its `EffectSummonPlayer` never addresses a player and no
-  `SMSG_SUMMON_REQUEST` follows (`Spells/SpellEffects.cpp:4416-4448`).
-  The `group` tool answers a pending offer and refuses `no_summon`
-  otherwise; `CMSG_SUMMON_RESPONSE` is proved `accepted`.
+  live tries put one character at the Orgrimmar stone 179596 and used
+  it (`CMSG_GAMEOBJ_USE` in the retained headers-only traces); neither
+  trace shows `SMSG_SUMMON_REQUEST`. The traces record no spell id or
+  target payload, so they do not show why no request followed. A
+  two-participant meeting-stone portal (entry 179944) exists but was
+  not tried. The `group` tool answers a pending offer and refuses
+  `no_summon` otherwise; `CMSG_SUMMON_RESPONSE` is proved `accepted`.
 
 ## Left out
 

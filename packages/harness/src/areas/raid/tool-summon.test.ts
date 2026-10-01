@@ -9,6 +9,7 @@ import {
 import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
 import { groupSpec, groupTool } from "#harness/areas/raid/tool";
 import type { GroupAfter } from "#harness/areas/raid/tool-shared";
+import { summonTool } from "#harness/areas/raid/tool-summon";
 import { createRepeatGuard } from "#harness/ops/repeat-guard";
 import { setSelf, toolCtx } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
@@ -219,6 +220,47 @@ describe("group tool summon", () => {
     await expect(first).rejects.toThrow("cancelled");
     await second;
     expect(t.answer).toHaveBeenCalledTimes(1);
+  });
+  test("an accept aborted while queued sends nothing", async () => {
+    const t = await world();
+    const abort = new AbortController();
+    const gate = Promise.withResolvers<void>();
+    const held = t.rt.mutex.run(() => gate.promise);
+    const first = summonTool(
+      { do: "summon", what: "accept" },
+      toolCtx<GroupAfter>(t, abort.signal),
+    );
+    const done = first.then(
+      () => "resolved",
+      (error: unknown) => (error instanceof Error ? error.message : "?"),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    queueMicrotask(() => abort.abort(new Error("cancelled")));
+    queueMicrotask(() => gate.resolve());
+    await held;
+    expect(await done).toBe("cancelled");
+    expect(t.answer).not.toHaveBeenCalled();
+    expect(t.handle.raid.state().summon).toBeDefined();
+  });
+  test("an accept after combat ends is not refused as a repeat", async () => {
+    const t = await world({ selfFlags: UnitFlag.IN_COMBAT });
+    const real = createRepeatGuard(t.rt.clock);
+    t.rt.repeats.record = (call) => real.record(call);
+    t.rt.repeats.check = (call) => real.check(call);
+    const tool = groupTool.definition(t.rt);
+    const refused = await runTool(tool, { do: "summon", what: "accept" });
+    expect(refused.text).toContain("REFUSED in_combat");
+    t.handle.getEntity = (() => ({
+      guid: t.handle.getControlState().selfGuid,
+      objectType: ObjectType.PLAYER,
+      target: 0n,
+      unitFlags: 0,
+    })) as unknown as typeof t.handle.getEntity;
+    t.answer.mockImplementation(() => t.jump("teleport"));
+    const accepted = await runTool(tool, { do: "summon", what: "accept" });
+    expect(accepted.text).toContain("DONE");
+    expect(t.answer).toHaveBeenCalledWith(true);
   });
 
   test("an accept after the offer arrives is not refused as a repeat", async () => {

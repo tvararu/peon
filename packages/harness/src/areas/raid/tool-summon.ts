@@ -94,8 +94,10 @@ async function acceptSummon(ctx: GroupCtx): Promise<ControlEvent | undefined> {
     return await settle<ControlEvent>({
       match: arrived,
       send: () =>
-        ctx.rt.mutex.run(() => ctx.handle.raid.act.answerSummon(true)),
-      signal: ctx.signal,
+        ctx.rt.mutex.run(() => {
+          ctx.signal?.throwIfAborted();
+          return ctx.handle.raid.act.answerSummon(true);
+        }),
       subscribe: (cb) => ctx.handle.onControlEvent(cb),
       timeoutMs: SUMMON_WAIT_MS,
     });
