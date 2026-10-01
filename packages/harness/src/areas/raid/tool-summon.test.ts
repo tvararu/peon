@@ -1,5 +1,11 @@
 import { describe, expect, jest, test } from "bun:test";
-import type { AreaState, PlayerLife } from "@peon/core";
+import {
+  type AreaState,
+  type Entity,
+  ObjectType,
+  type PlayerLife,
+  UnitFlag,
+} from "@peon/core";
 import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
 import { groupSpec, groupTool } from "#harness/areas/raid/tool";
 import type { GroupAfter } from "#harness/areas/raid/tool-shared";
@@ -15,6 +21,7 @@ type Setup = {
   attackers?: readonly bigint[];
   life?: PlayerLife;
   pending?: boolean;
+  selfFlags?: number;
 };
 
 async function world(setup: Setup = {}) {
@@ -40,6 +47,14 @@ async function world(setup: Setup = {}) {
     .spyOn(t.handle.raid.act, "answerSummon")
     .mockImplementation(() => undefined);
   setSelf(t.handle, { life: setup.life ?? "alive" });
+  const selfGuid = t.handle.getControlState().selfGuid;
+  const selfEntity = {
+    guid: selfGuid,
+    objectType: ObjectType.PLAYER,
+    target: 0n,
+    unitFlags: setup.selfFlags ?? 0,
+  } as Entity;
+  t.handle.getEntity = (() => selfEntity) as typeof t.handle.getEntity;
   const armed = t.handle.getCombatState();
   t.handle.getCombatState = () => ({
     ...armed,
@@ -62,7 +77,7 @@ describe("group tool summon", () => {
     expect(t.answer).not.toHaveBeenCalled();
   });
 
-  test("refuses dead, ghost and in combat, which the server drops", async () => {
+  test("refuses dead, ghost and tracked combat, which the server drops", async () => {
     for (const setup of [
       { life: "dead" as const },
       { life: "ghost" as const },
@@ -73,6 +88,15 @@ describe("group tool summon", () => {
       expect(accept.text).toContain("REFUSED");
       const decline = await runTool(t.tool, { do: "summon", what: "decline" });
       expect(decline.text).toContain("REFUSED");
+      expect(t.answer).not.toHaveBeenCalled();
+    }
+  });
+
+  test("refuses accept and decline when only the self combat flag is set", async () => {
+    for (const what of ["accept", "decline"] as const) {
+      const t = await world({ selfFlags: UnitFlag.IN_COMBAT });
+      const out = await runTool(t.tool, { do: "summon", what });
+      expect(out.text).toContain("REFUSED in_combat");
       expect(t.answer).not.toHaveBeenCalled();
     }
   });
@@ -156,5 +180,43 @@ describe("group tool summon", () => {
       ),
     ).rejects.toThrow("cancelled");
     expect(t.answer).not.toHaveBeenCalled();
+  });
+
+  test("a pre-aborted decline sends nothing and keeps the offer", async () => {
+    const t = await world();
+    const abort = new AbortController();
+    abort.abort(new Error("cancelled"));
+    await expect(
+      groupSpec.run(
+        { do: "summon", what: "decline" },
+        toolCtx<GroupAfter>(t, abort.signal),
+      ),
+    ).rejects.toThrow("cancelled");
+    expect(t.answer).not.toHaveBeenCalled();
+    expect(t.handle.raid.state().summon).toBeDefined();
+  });
+
+  test("a decline aborted while queued sends nothing", async () => {
+    const t = await world();
+    const abort = new AbortController();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const first = groupSpec.run(
+      { do: "summon", what: "decline" },
+      toolCtx<GroupAfter>(t, abort.signal),
+    );
+    const held = t.rt.mutex.run(() => gate);
+    const second = groupSpec.run(
+      { do: "summon", what: "decline" },
+      toolCtx<GroupAfter>(t, new AbortController().signal),
+    );
+    abort.abort(new Error("cancelled"));
+    release();
+    await held;
+    await expect(first).rejects.toThrow("cancelled");
+    await second;
+    expect(t.answer).toHaveBeenCalledTimes(1);
   });
 });
