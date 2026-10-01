@@ -89,7 +89,7 @@ function positionsOf(
   return items.map((guid) => {
     if (guid === 0n || guid === IGNORED_SLOT) return { bag: 0, guid, slot: 0 };
     const held = findItem(inventory, guid);
-    if (!held) return { bag: 0, guid: 0n, slot: 0 };
+    if (!held) return { bag: 0, guid, slot: 0 };
     if (held.bag === 255 && held.slot <= 18)
       return { bag: 255, guid, slot: held.slot };
     return { bag: held.bag, guid, slot: held.slot };

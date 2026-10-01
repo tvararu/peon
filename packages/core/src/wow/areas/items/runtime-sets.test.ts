@@ -6,6 +6,7 @@ import {
 } from "#test-support/areas/items";
 import { itemsRig, itemsWorld } from "#test-support/areas/items-world";
 import type { ItemsEvent } from "#wow/areas/items/events";
+import { buildEquipmentSetUse } from "#wow/areas/items/protocol-sets";
 import type { SentPacket } from "#wow/areas/port";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
@@ -371,6 +372,39 @@ describe("items runtime: equipment sets", () => {
         failures: ["not_while_disarmed"],
         status: "ok",
       });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a saved item missing from the carried snapshot keeps its guid in the use request", async () => {
+    const world = itemsWorld(ME);
+    world.put(255, 0, { entry: 100, guid: HELM });
+    world.put(255, 1, { entry: 101, guid: CHEST });
+    const rig = itemsRig(world);
+    try {
+      const created = rig.handle.act.saveSet({ index: 0, name: "Peon" });
+      rig.inject(
+        GameOpcode.SMSG_EQUIPMENT_SET_SAVED,
+        itemsEquipmentSetSavedBody(0, 9n),
+      );
+      await created;
+      world.clear(255, 1);
+      const pending = rig.handle.act.useSet(0);
+      const [sent] = sends(rig.sent, GameOpcode.CMSG_EQUIPMENT_SET_USE);
+      const expected = buildEquipmentSetUse(
+        Array.from({ length: 19 }, (_, slot) => {
+          if (slot === 0) return { bag: 255, guid: HELM, slot: 0 };
+          if (slot === 1) return { bag: 0, guid: CHEST, slot: 0 };
+          return { bag: 0, guid: 0n, slot: 0 };
+        }),
+      );
+      expect(Array.from(sent?.body ?? [])).toEqual(Array.from(expected));
+      rig.inject(
+        GameOpcode.SMSG_EQUIPMENT_SET_USE_RESULT,
+        itemsEquipmentSetUseResultBody(0),
+      );
+      await pending;
     } finally {
       rig.dispose();
     }
