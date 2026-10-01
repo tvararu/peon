@@ -208,8 +208,6 @@ async function runAct(env: Env, send: ActSend): Promise<MailActResult> {
   } catch (error) {
     if (!isTimeout(error)) throw error;
     cancel.abort();
-    if (pending.action !== "send" && pending.action !== "item_taken")
-      env.store.releaseAction(pending);
     return { status: "unanswered" };
   }
 }
