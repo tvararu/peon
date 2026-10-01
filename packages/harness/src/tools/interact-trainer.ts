@@ -137,19 +137,7 @@ export const trainStep: InteractStep = async ({ args, ctx, npc }) => {
       line.cost <= before &&
       (what === undefined || line.name.toLowerCase().includes(what)),
   );
-  const learned: string[] = [];
-  const refused: string[] = [];
-  for (const line of wanted) {
-    const answer = await trainerStep(ctx, {
-      packet: () => ctx.handle.trainSpell(line.spellId),
-      settled: ["trained", "refused", "unanswered"],
-    });
-    if (answer?.type === "trained") learned.push(spellName(line));
-    else
-      refused.push(
-        answer?.state.lastOutcome?.reason ?? answer?.type ?? "no_answer",
-      );
-  }
+  const { learned, refused } = await learnWanted(ctx, wanted);
   const change = moneyChange(ctx, before);
   const after = {
     ...baseAfter(ctx, npc, "train"),
@@ -178,6 +166,25 @@ export const trainStep: InteractStep = async ({ args, ctx, npc }) => {
     }),
   );
 };
+async function learnWanted(
+  ctx: ToolCtx<InteractAfter>,
+  wanted: readonly TrainerLine[],
+): Promise<{ learned: string[]; refused: string[] }> {
+  const learned: string[] = [];
+  const refused: string[] = [];
+  for (const line of wanted) {
+    const answer = await trainerStep(ctx, {
+      packet: () => ctx.handle.trainSpell(line.spellId),
+      settled: ["trained", "refused", "unanswered"],
+    });
+    if (answer?.type === "trained") learned.push(spellName(line));
+    else
+      refused.push(
+        answer?.state.lastOutcome?.reason ?? answer?.type ?? "no_answer",
+      );
+  }
+  return { learned, refused };
+}
 
 const NOTHING_DAMAGED = "Nothing needs repair";
 
