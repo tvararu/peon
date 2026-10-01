@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { WorldHandle } from "@peon/core";
 import {
+  fakeAwait,
   fakeRejection,
   withFakeTimers,
 } from "@peon/core/test-support/fake-time";
@@ -160,14 +161,15 @@ describe("bank-moves flow", () => {
     });
   });
 
-  test("skips the deposit when no cloth is carried", async () => {
-    const ctx = context({}, []);
-    const out = await flow.run(ctx);
-    expect(ctx.handle.bank.act.deposit).not.toHaveBeenCalled();
-    expect(out).toMatchObject({
-      deposit: { skipped: "no item 2589 is carried to deposit." },
-    });
-  });
+  test("skips the deposit when no cloth is carried", () =>
+    withFakeTimers(async () => {
+      const ctx = context({}, []);
+      const out = await fakeAwait(flow.run(ctx), 1000);
+      expect(ctx.handle.bank.act.deposit).not.toHaveBeenCalled();
+      expect(out).toMatchObject({
+        deposit: { skipped: "no item 2589 is carried to deposit." },
+      });
+    }));
 
   test("throws when no banker is in view", () =>
     withFakeTimers(async () => {

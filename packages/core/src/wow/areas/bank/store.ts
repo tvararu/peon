@@ -21,6 +21,9 @@ export type BankMoveRequest =
       bag: number;
       slot: number;
       guid: bigint | undefined;
+      entry?: number | undefined;
+      toGuid?: bigint | undefined;
+      toCount?: number | undefined;
       requestedAt: number;
     }
   | {
@@ -28,6 +31,9 @@ export type BankMoveRequest =
       bag: number;
       slot: number;
       guid: bigint | undefined;
+      entry?: number | undefined;
+      toGuid?: bigint | undefined;
+      toCount?: number | undefined;
       requestedAt: number;
     }
   | { kind: "slot"; banker: bigint; requestedAt: number };
@@ -138,6 +144,7 @@ export class BankStore {
   }
 
   begin(request: BankMoveRequest): void {
+    if (this.request) throw new Error("a bank request is already pending");
     this.request = request;
     this.last = undefined;
   }
@@ -151,11 +158,11 @@ export class BankStore {
 
   receiveSlotResult(name: string): void {
     if (this.request?.kind !== "slot") return;
+    this.slotResult = name;
     if (name === "ok") {
       this.settle({ status: "ok" }, { result: name, type: "slot_bought" });
       return;
     }
-    this.slotResult = name;
     this.settle(
       { status: "refused", reason: name },
       { result: name, type: "slot_bought" },
@@ -166,27 +173,53 @@ export class BankStore {
     const request = this.request;
     if (request?.kind !== "deposit" && request?.kind !== "withdraw") return;
     if (request.guid === undefined) return;
-    const found = this.inventory().slots.find(
+    const inventory = this.inventory();
+    const found = inventory.slots.find(
       (slot) => slot.status === "occupied" && slot.guid === request.guid,
     );
-    if (found?.status !== "occupied") return;
-    const moved =
-      request.kind === "deposit" ? inBank(found.region) : !inBank(found.region);
-    if (moved) this.settleMove(request, request.guid);
+    if (found?.status === "occupied") {
+      const moved =
+        request.kind === "deposit"
+          ? inBank(found.region)
+          : !inBank(found.region);
+      if (moved) {
+        this.settleMove(request, request.guid);
+        return;
+      }
+    }
+    if (
+      request.entry === undefined ||
+      request.toGuid === undefined ||
+      request.toCount === undefined
+    )
+      return;
+    const target = inventory.slots.find(
+      (slot) => slot.status === "occupied" && slot.guid === request.toGuid,
+    );
+    if (
+      target?.status === "occupied" &&
+      target.item.entry === request.entry &&
+      target.item.count !== undefined &&
+      target.item.count > request.toCount &&
+      (request.kind === "deposit"
+        ? inBank(target.region)
+        : !inBank(target.region))
+    )
+      this.settleMove(request, request.toGuid);
   }
 
   receiveInventoryFailure(packet: InventoryChangeFailure): void {
     if (packet.kind !== "error") return;
-    if (isNoChange(packet)) {
-      this.noChange();
-      return;
-    }
     const pending = this.request;
     const mine =
       pending?.kind === "deposit" || pending?.kind === "withdraw"
         ? { itemGuid: pending.guid }
         : UNCLAIMED;
     if (!ownsInventoryFailure(packet, mine, legacyClaims(this.core))) return;
+    if (isNoChange(packet)) {
+      this.noChange();
+      return;
+    }
     this.refuse(inventoryResultName(packet.result));
   }
 

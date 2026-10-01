@@ -13,6 +13,7 @@ import {
   type BankStore,
 } from "#wow/areas/bank/store";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
+import type { InventoryState } from "#wow/inventory";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { CoreStores } from "#wow/session-stores";
 
@@ -70,11 +71,16 @@ async function send(
   request: BankMoveRequest,
   packet: readonly [opcode: number, body: Uint8Array],
 ): Promise<BankResult> {
+  const before = env.store.snapshot().lastOutcome;
   env.store.begin(request);
-  const settled = env.ctx.until((event) => SETTLED.has(event.type), {
-    signal: env.ctx.signal,
-    timeoutMs: BANK_ANSWER_MS,
-  });
+  const settled = env.ctx.until(
+    (event) =>
+      SETTLED.has(event.type) && env.store.snapshot().lastOutcome !== before,
+    {
+      signal: env.ctx.signal,
+      timeoutMs: BANK_ANSWER_MS,
+    },
+  );
   try {
     env.ctx.send(...packet);
   } catch (error) {
@@ -89,7 +95,7 @@ async function send(
       env.store.abandon();
       throw error;
     }
-    env.store.expire();
+    if (env.store.snapshot().pending === request) env.store.expire();
   }
   return outcome(env.store);
 }
@@ -108,6 +114,29 @@ function open(env: Env, npc: bigint): Promise<BankResult> {
     GameOpcode.CMSG_BANKER_ACTIVATE,
     buildBankerActivate(npc),
   ]);
+}
+
+function mergeTarget(
+  inventory: InventoryState,
+  kind: "deposit" | "withdraw",
+  guid: bigint | undefined,
+  entry: number | undefined,
+): { toGuid: bigint | undefined; toCount: number | undefined } {
+  if (guid === undefined || entry === undefined)
+    return { toCount: undefined, toGuid: undefined };
+  const target = inventory.slots.find(
+    (candidate) =>
+      candidate.status === "occupied" &&
+      candidate.guid !== guid &&
+      candidate.item.entry === entry &&
+      (kind === "deposit"
+        ? candidate.region === "bank" || candidate.region === "bank_bag_item"
+        : candidate.region === "backpack" || candidate.region === "bag_item"),
+  );
+  return {
+    toCount: target?.status === "occupied" ? target.item.count : undefined,
+    toGuid: target?.status === "occupied" ? target.guid : undefined,
+  };
 }
 
 function move(
@@ -130,6 +159,8 @@ function move(
     (candidate) => candidate.bag === bag && candidate.slot === slot,
   );
   const guid = held?.status === "occupied" ? held.guid : undefined;
+  const entry = held?.status === "occupied" ? held.item.entry : undefined;
+  const { toGuid, toCount } = mergeTarget(inventory, kind, guid, entry);
   const body =
     kind === "deposit"
       ? buildAutobankItem(bag, slot)
@@ -138,10 +169,20 @@ function move(
     kind === "deposit"
       ? GameOpcode.CMSG_AUTOBANK_ITEM
       : GameOpcode.CMSG_AUTOSTORE_BANK_ITEM;
-  return send(env, { bag, guid, kind, requestedAt: env.ctx.now(), slot }, [
-    opcode,
-    body,
-  ]);
+  return send(
+    env,
+    {
+      bag,
+      entry,
+      guid,
+      kind,
+      requestedAt: env.ctx.now(),
+      slot,
+      toCount,
+      toGuid,
+    },
+    [opcode, body],
+  );
 }
 
 function buySlot(env: Env): Promise<BankResult> {
