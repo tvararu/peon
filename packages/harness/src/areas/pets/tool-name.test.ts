@@ -54,11 +54,12 @@ describe("pet rename and abandon", () => {
     const gate = Promise.withResolvers<void>();
     const held = t.rt.mutex.run(() => gate.promise);
     const controller = new AbortController();
-    controller.abort(new Error("run stopped"));
     const run = petSpec.run(
       { do: "rename", what: "Fangtooth" },
       toolCtx(t, controller.signal),
     );
+    await Promise.resolve();
+    controller.abort(new Error("run stopped"));
     gate.resolve();
     await held;
     await expect(run).rejects.toThrow("run stopped");
@@ -131,21 +132,70 @@ describe("pet rename and abandon", () => {
     expect(out.reason).toBe("name_pending");
   });
 
-  test("abandon aborted before the mutex send sends nothing", async () => {
+  test("abandon aborted after queueing behind the mutex sends nothing", async () => {
     const t = await world({ petEntity: unit(), pets: named("Fang") });
     const sent = jest.spyOn(t.game.pets.act, "abandonPet");
     const gate = Promise.withResolvers<void>();
     const held = t.rt.mutex.run(() => gate.promise);
     const controller = new AbortController();
-    controller.abort(new Error("run stopped"));
     const run = petSpec.run(
       { do: "abandon", what: "Fang" },
       toolCtx(t, controller.signal),
     );
+    await Promise.resolve();
+    controller.abort(new Error("run stopped"));
     gate.resolve();
     await held;
     await expect(run).rejects.toThrow("run stopped");
     expect(sent).not.toHaveBeenCalled();
+  });
+
+  test("abandon queued behind the mutex refuses when the pet is renamed first", async () => {
+    const t = await world({ petEntity: unit(), pets: named("Fang") });
+    const sent = jest
+      .spyOn(t.game.pets.act, "abandonPet")
+      .mockImplementation(() => ({ ok: true }));
+    const gate = Promise.withResolvers<void>();
+    const held = t.rt.mutex.run(() => gate.promise);
+    const run = petSpec.run({ do: "abandon", what: "Fang" }, toolCtx(t));
+    await Promise.resolve();
+    const before = t.game.pets.state();
+    Object.assign(t.game.pets, {
+      state: () => ({
+        ...before,
+        names: { 7: { name: "Rex", number: 7, timestamp: 2 } },
+        pet:
+          before.pet === undefined
+            ? before.pet
+            : { ...before.pet, nameTimestamp: 1, number: 7 },
+      }),
+    });
+    gate.resolve();
+    await held;
+    const out = await withFakeTimers(async () =>
+      fakeAwait(refusal(run), 10_000),
+    );
+    expect(sent).not.toHaveBeenCalled();
+    expect(out.reason).toBe("confirm_name");
+  });
+
+  test("abandon queued behind the mutex sends when the pet is unchanged", async () => {
+    const t = await world({ petEntity: unit(), pets: named("Fang") });
+    const sent = jest
+      .spyOn(t.game.pets.act, "abandonPet")
+      .mockImplementation(() => {
+        t.game.triggerAreaEvent("pets", { cleared: true, type: "bar" });
+        return { ok: true };
+      });
+    const gate = Promise.withResolvers<void>();
+    const held = t.rt.mutex.run(() => gate.promise);
+    const run = petSpec.run({ do: "abandon", what: "Fang" }, toolCtx(t));
+    await Promise.resolve();
+    gate.resolve();
+    await held;
+    const out = await run;
+    expect(sent).toHaveBeenCalledTimes(1);
+    expect(out.status).toBe("DONE");
   });
 });
 

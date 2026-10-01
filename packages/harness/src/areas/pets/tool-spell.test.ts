@@ -193,11 +193,12 @@ describe("pet cast", () => {
     const gate = Promise.withResolvers<void>();
     const held = t.rt.mutex.run(() => gate.promise);
     const controller = new AbortController();
-    controller.abort(new Error("run stopped"));
     const run = petSpec.run(
       { do: "cast", target: "u1", what: "Growl" },
       toolCtx(t, controller.signal),
     );
+    await Promise.resolve();
+    controller.abort(new Error("run stopped"));
     gate.resolve();
     await held;
     await expect(run).rejects.toThrow("run stopped");
@@ -285,11 +286,12 @@ describe("pet autocast", () => {
     const gate = Promise.withResolvers<void>();
     const held = t.rt.mutex.run(() => gate.promise);
     const controller = new AbortController();
-    controller.abort(new Error("run stopped"));
     const run = petSpec.run(
       { do: "autocast", what: "Bite off" },
       toolCtx(t, controller.signal),
     );
+    await Promise.resolve();
+    controller.abort(new Error("run stopped"));
     gate.resolve();
     await held;
     await expect(run).rejects.toThrow("run stopped");
@@ -364,11 +366,12 @@ describe("pet tame", () => {
     const gate = Promise.withResolvers<void>();
     const held = t.rt.mutex.run(() => gate.promise);
     const controller = new AbortController();
-    controller.abort(new Error("run stopped"));
     const run = petSpec.run(
       { do: "tame", target: "u1" },
       toolCtx(t, controller.signal),
     );
+    await Promise.resolve();
+    controller.abort(new Error("run stopped"));
     gate.resolve();
     await held;
     await expect(run).rejects.toThrow("run stopped");

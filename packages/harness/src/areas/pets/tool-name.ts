@@ -78,12 +78,43 @@ function throwNoPet(reason: string): never {
   });
 }
 
+function throwUnlessSamePet(
+  ctx: PetCtx,
+  guid: bigint,
+  number: number | undefined,
+  current: string,
+): void {
+  const state = stateOf(ctx.handle);
+  const fresh = confirmedPetName(state);
+  const same =
+    state.bar !== undefined &&
+    state.bar.guid === guid &&
+    state.pet?.number === number &&
+    fresh !== undefined &&
+    fresh.toLowerCase() === current.toLowerCase();
+  if (same) return;
+  throw new Refusal({
+    body: fresh === undefined ? undefined : [`Your pet is named ${fresh}.`],
+    detail:
+      fresh === undefined
+        ? "the pet changed while abandon waited: ask for the pet status, then retry abandon with the shown name."
+        : `abandoning is final: pass what "${fresh}".`,
+    next:
+      fresh === undefined
+        ? nextCall("pet")
+        : nextCall("pet", { do: "abandon", what: fresh }),
+    reason: "confirm_name",
+  });
+}
+
 export async function abandonFlow(
   what: string,
   ctx: PetCtx,
 ): Promise<ToolResult<PetAfter>> {
   const state = stateOf(ctx.handle);
   if (!state.bar) throwNoPet("no_pet");
+  const guid = state.bar.guid;
+  const number = state.pet?.number;
   const current = confirmedPetName(state);
   if (current === undefined)
     throw new Refusal({
@@ -109,6 +140,7 @@ export async function abandonFlow(
     send: () =>
       ctx.rt.mutex.run(() => {
         ctx.signal.throwIfAborted();
+        throwUnlessSamePet(ctx, guid, number, current);
         throwUnlessOk(ctx.handle.pets.act.abandonPet());
       }),
     signal: ctx.signal,

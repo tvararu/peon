@@ -12,6 +12,7 @@ export async function settle<E>(init: SettleInit<E>): Promise<E | undefined> {
   const { match, send, signal, subscribe, timeoutMs } = init;
   signal?.throwIfAborted();
   const outcome = Promise.withResolvers<E | undefined>();
+  outcome.promise.catch(() => undefined);
   const timer = setTimeout(() => outcome.resolve(undefined), timeoutMs);
   const abort = () => outcome.reject(signal?.reason);
   const unsubscribe = subscribe((event) => {
