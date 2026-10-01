@@ -127,36 +127,78 @@ export async function activateFlight(
   options?: { express?: boolean; unchecked?: boolean },
 ): Promise<TravelOutcome<FlightResult>> {
   const { ctx, store } = deps;
-  const phase = store.snapshot().flight.phase;
-  if (phase === "requested" || phase === "flying")
+  const startPhase = store.snapshot().flight.phase;
+  if (startPhase === "requested" || startPhase === "flying")
     return { status: "refused", reason: "flight_active" };
-  const loaded = await deps.readCatalog();
-  if ("error" in loaded) return loaded.error;
+  store.beginFlight(route.nodes);
+  let loaded: CatalogRead;
+  try {
+    loaded = await deps.readCatalog();
+  } catch (error) {
+    store.endFlight();
+    throw error;
+  }
+  if (ctx.signal.aborted) {
+    store.endFlight();
+    const reason = ctx.signal.reason;
+    const aborted =
+      reason instanceof Error
+        ? reason
+        : new DOMException("The operation was aborted.", "AbortError");
+    return Promise.reject(aborted);
+  }
+  if (store.snapshot().flight.phase !== "requested") {
+    store.endFlight();
+    return { status: "refused", reason: "flight_active" };
+  }
+  if ("error" in loaded) {
+    store.endFlight();
+    return loaded.error;
+  }
   const known = store.snapshot().known;
   const bad = checkFlightRoute(
     loaded.catalog,
     options?.unchecked || known === undefined ? undefined : new Set(known),
     route,
   );
-  if (bad) return bad;
+  if (bad) {
+    store.endFlight();
+    return bad;
+  }
+  return sendFlightWait(deps, npc, route, options?.express === true);
+}
+
+async function sendFlightWait(
+  deps: FlightDeps,
+  npc: bigint,
+  route: RoutePlan,
+  express: boolean,
+): Promise<TravelOutcome<FlightResult>> {
+  const { ctx, store } = deps;
+  const reply = new AbortController();
   const waited = ctx.until((e) => e.type === "taxi_reply", {
     timeoutMs: FLIGHT_TIMEOUT_MS,
-    signal: ctx.signal,
+    signal: AbortSignal.any
+      ? AbortSignal.any([ctx.signal, reply.signal])
+      : ctx.signal,
   });
   waited.catch(ignoreFailure);
   const arrived = { arrived: false };
   const teleport = awaitTeleport(deps, arrived);
-  store.beginFlight(route.nodes);
   try {
-    sendFlight(ctx, npc, route, options?.express === true);
+    sendFlight(ctx, npc, route, express);
   } catch (error) {
+    reply.abort();
     store.endFlight();
     teleport.cancel();
+    await waited.catch(ignoreFailure);
     throw error;
   }
   try {
     return await settleFlight(route, waited, teleport, arrived);
   } finally {
+    reply.abort();
+    await waited.catch(ignoreFailure);
     if (store.snapshot().flight.phase === "requested") store.endFlight();
   }
 }

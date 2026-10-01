@@ -335,6 +335,31 @@ describe("travel store: flight", () => {
     }
   });
 
+  test("after ERR_TAXIOK a stale self spline position with old flags does not land", () => {
+    const { rig, seen } = rigAt();
+    try {
+      rig.stores.areas.travel.beginFlight([83, 82]);
+      rig.inject(
+        GameOpcode.SMSG_ACTIVATETAXIREPLY,
+        travelActivateTaxiReplyBody(0),
+      );
+      rig.stores.areas.travel.receiveFlightFlag(false);
+      expect(rig.handle.state().flight.phase).toBe("flying");
+      rig.stores.areas.travel.receiveFlightFlag(true);
+      rig.stores.areas.travel.receiveFlightFlag(true);
+      expect(rig.handle.state().flight.phase).toBe("flying");
+      rig.stores.areas.travel.receiveFlightFlag(false);
+      expect(rig.handle.state().flight.phase).toBe("landed");
+      expect(seen).toEqual([
+        { type: "taxi_reply", code: 0, name: "ok" },
+        { type: "flight_started", route: [83, 82] },
+        { type: "flight_landed" },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("a self flight flag enters flying from idle and its clear lands", () => {
     const { rig, seen } = rigAt();
     try {

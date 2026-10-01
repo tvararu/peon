@@ -313,34 +313,95 @@ describe("travel runtime: activateTaxi", () => {
     }
   });
 
-  test("a send that throws clears the requested flight and rejects the caller", async () => {
+  test("a send that throws releases the reply waiter and rejects the caller", async () => {
     const rig = areaRig("travel", { dbc: flightDbc() });
     const sent = rig.sent as unknown as { push: (...items: never[]) => number };
     const push = sent.push;
     try {
       know(rig);
-      sent.push = () => {
-        throw new Error("World socket is not connected");
-      };
-      await expect(
-        rig.handle.act.activateTaxi(TAXI_MASTER, ROUTE),
-      ).rejects.toThrow("World socket is not connected");
-      expect(rig.handle.state().flight.phase).toBe("idle");
+      jest.useFakeTimers();
+      try {
+        sent.push = () => {
+          throw new Error("World socket is not connected");
+        };
+        await expect(
+          rig.handle.act.activateTaxi(TAXI_MASTER, ROUTE),
+        ).rejects.toThrow("World socket is not connected");
+        expect(rig.handle.state().flight.phase).toBe("idle");
+        const pendingTimers = jest.getTimerCount();
+        expect(pendingTimers).toBe(0);
+        sent.push = push;
+        const retry = rig.handle.act.activateTaxi(TAXI_MASTER, ROUTE);
+        for (let tick = 0; tick < 10 && rig.sent.length === 0; tick++)
+          await Promise.resolve();
+        expect(jest.getTimerCount()).toBe(1);
+        rig.inject(
+          GameOpcode.SMSG_ACTIVATETAXIREPLY,
+          travelActivateTaxiReplyBody(0),
+        );
+        expect(await retry).toEqual({
+          status: "ok",
+          nodes: [82, 83],
+          price: 210,
+        });
+        expect(jest.getTimerCount()).toBe(0);
+      } finally {
+        jest.useRealTimers();
+      }
+    } finally {
       sent.push = push;
-      const retry = rig.handle.act.activateTaxi(TAXI_MASTER, ROUTE);
-      for (let tick = 0; tick < 10 && rig.sent.length === 0; tick++)
+      rig.dispose();
+    }
+  });
+
+  test("two activations without an await send one packet (TaxiHandler.cpp:272-278)", async () => {
+    const rig = areaRig("travel", { dbc: flightDbc() });
+    try {
+      know(rig);
+      const first = rig.handle.act.activateTaxi(TAXI_MASTER, ROUTE);
+      const second = rig.handle.act.activateTaxi(TAXI_MASTER, ROUTE);
+      for (let tick = 0; tick < 20 && rig.sent.length === 0; tick++)
         await Promise.resolve();
+      expect(rig.sent).toHaveLength(1);
       rig.inject(
         GameOpcode.SMSG_ACTIVATETAXIREPLY,
         travelActivateTaxiReplyBody(0),
       );
-      expect(await retry).toEqual({
-        status: "ok",
-        nodes: [82, 83],
-        price: 210,
+      const outcomes = await Promise.all([first, second]);
+      expect(
+        outcomes.filter((outcome) => outcome.status === "ok"),
+      ).toHaveLength(1);
+      expect(outcomes).toContainEqual({
+        status: "refused",
+        reason: "flight_active",
       });
     } finally {
-      sent.push = push;
+      rig.dispose();
+    }
+  });
+
+  test("dispose during the catalog load sends no packet (Player.cpp:10424-10425)", async () => {
+    const files = new Map<string, Uint8Array>();
+    const resolvers = Promise.withResolvers<Map<string, Uint8Array>>();
+    const deferred = (file: string): Promise<Uint8Array> => {
+      if (file === "TaxiNodes.dbc")
+        return resolvers.promise.then(
+          () => files.get(file) ?? new Uint8Array(),
+        );
+      const real = flightDbc();
+      return real(file);
+    };
+    const rig = areaRig("travel", { dbc: deferred });
+    try {
+      const pending = rig.handle.act.activateTaxi(TAXI_MASTER, ROUTE);
+      for (let tick = 0; tick < 10; tick++) await Promise.resolve();
+      rig.dispose();
+      resolvers.resolve(files);
+      await expect(pending).rejects.toThrow("borted");
+      expect(rig.sent).toHaveLength(0);
+      expect(rig.handle.state().flight.phase).toBe("idle");
+    } finally {
+      resolvers.resolve(files);
       rig.dispose();
     }
   });

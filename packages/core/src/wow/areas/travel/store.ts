@@ -76,6 +76,7 @@ type TaxiFields = {
   benchmark: boolean;
   lastReply: string | undefined;
   flight: TravelFlight;
+  flagSeen: boolean;
 };
 
 function trackMaster(taxi: TaxiFields, npc: bigint): TravelMaster {
@@ -157,6 +158,7 @@ function receiveSelfFlags(
 
 function enterFlying(taxi: TaxiFields, events: Emitter<[TravelEvent]>): void {
   if (taxi.flight.phase === "flying") return;
+  taxi.flagSeen = false;
   taxi.flight = {
     phase: "flying",
     route: taxi.flight.route ? [...taxi.flight.route] : undefined,
@@ -183,10 +185,13 @@ function receiveFlightFlag(
   on: boolean,
 ): void {
   if (on) {
+    taxi.flagSeen = true;
     enterFlying(taxi, events);
     return;
   }
   if (taxi.flight.phase !== "flying") return;
+  if (!taxi.flagSeen) return;
+  taxi.flagSeen = false;
   taxi.flight = { phase: "landed", route: undefined };
   events.emit({ type: "flight_landed" });
 }
@@ -238,6 +243,7 @@ function emptyTaxi(): TaxiFields {
     benchmark: false,
     lastReply: undefined,
     flight: { phase: "idle", route: undefined },
+    flagSeen: false,
   };
 }
 
@@ -286,10 +292,12 @@ export function createTravelStore(now: () => number): TravelStore {
     },
     beginFlight(route: readonly number[]): void {
       taxi.flight = { phase: "requested", route: [...route] };
+      taxi.flagSeen = false;
     },
     endFlight(): void {
-      if (taxi.flight.phase === "requested")
-        taxi.flight = { phase: "idle", route: undefined };
+      if (taxi.flight.phase !== "requested") return;
+      taxi.flight = { phase: "idle", route: undefined };
+      taxi.flagSeen = false;
     },
     receiveActivateTaxiReply(reply: ActivateTaxiReply): void {
       receiveActivateTaxiReply(taxi, events, reply);

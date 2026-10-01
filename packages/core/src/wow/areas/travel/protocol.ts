@@ -87,11 +87,11 @@ export function buildSetTaxiBenchmarkMode(on: boolean): Uint8Array {
 
 export const ACTIVATE_TAXI_REPLY_NAMES = [
   "ok",
-  "unspecified_server_error",
+  "server_error",
   "no_such_path",
   "not_enough_money",
   "too_far",
-  "no_vendor_nearby",
+  "unknown_5",
   "not_visited",
   "busy",
   "mounted",

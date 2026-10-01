@@ -95,8 +95,8 @@ in that window, with no reply, settles `ok`.
   (`Handlers/TaxiHandler.cpp:199`); the 3.3.5 form has no `total_cost`.
 - `SMSG_ACTIVATETAXIREPLY` is one `uint32` code
   (`Handlers/TaxiHandler.cpp:303`). The 13 codes are `ok`,
-  `unspecified_server_error`, `no_such_path`, `not_enough_money`,
-  `too_far`, `no_vendor_nearby`, `not_visited`, `busy`, `mounted`,
+  `server_error`, `no_such_path`, `not_enough_money`,
+  `too_far`, `unknown_5`, `not_visited`, `busy`, `mounted`,
   `shapeshifted`, `moving`, `same_node` and `not_standing`. An unknown
   code is `unknown_<n>`.
 - A hop with no direct path gets no reply at all: the server clears the
