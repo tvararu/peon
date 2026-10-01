@@ -150,10 +150,17 @@ export class CombatCasts {
     this.pendingCast = undefined;
     this.currentCast = undefined;
     const count = this.nextCount();
-    const { bag, slot, guid: itemGuid } = item;
+    const { bag, slot, guid: itemGuid, glyphIndex } = item;
     send(
       GameOpcode.CMSG_USE_ITEM,
-      buildUseItem({ bag, slot, castCount: count, spellId, itemGuid }),
+      buildUseItem({
+        bag,
+        slot,
+        castCount: count,
+        spellId,
+        itemGuid,
+        ...(glyphIndex === undefined ? {} : { glyphIndex }),
+      }),
     );
     return this.track(spellId, undefined, { count, item });
   }
