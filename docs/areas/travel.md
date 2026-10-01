@@ -141,10 +141,33 @@ without the stone, while the spell is on cooldown, in combat or in
 flight. A cast that ends without a teleport is `interrupted`.
 The Hearthstone is an item, so `spell` `cast` of it refuses with `travel` `to: "hearth"` as the next call; the `travel` description names `to: "hearth"` too.
 
+`travel` with `to: "fly <destination>"` walks to the nearest flight
+master in view and opens the taxi map; a `learned` reply (the first query
+at an unknown node) opens it once more. The current node is the
+`currentNode` of that `taxi_map`, never a guess from coordinates. The
+verb plans from that node with `planFlight`, sends `activateTaxi` and
+waits for the `flight_landed` event; an instant teleport (the server's
+`InstantFlightPaths`) settles at once. The run holds the claim from
+the walk until the landing, so moves during the flight refuse with
+`in_flight`. With no flight master in view it walks only to a known node
+on the same map within 300 yd, else it refuses `no_flight_master`; it
+never plans a route across zones. A mounted character gets "Get off your
+mount first." with no next call. A landing is not waited for longer than
+20 minutes (`no_landing`, `UNCONFIRMED`). Each `planFlight` and
+`activateTaxi` refusal is one short refusal with its reason; an
+ambiguous name lists the matches.
+
+`interact` at a flight master prints the destinations known from its
+node with list prices and a `travel` call for the first one. `look` with
+`find: "flight_master"` lists the flight masters in view or remembered.
+The harness log rows are `travel/node_learned`, `travel/flight_started`,
+`travel/flight_landed` (a wake) and `travel/flight_refused`.
+
 ## Capabilities row
 
 `t8-travel-bind-inn`: make an inn its home. `t8-travel-hearth-home`:
-use the hearthstone to go home. Both are in
+use the hearthstone to go home. `t8-travel-fly`: fly to Silvermoon City
+and walk ten yards north. All are in
 [capabilities.md](../capabilities.md).
 
 ## Proof
