@@ -53,8 +53,9 @@ function selfText({ at, self, hpDelta5s }: NowSnapshot): string {
     ? ` (${hpDelta5s > 0 ? "+" : ""}${hpDelta5s} in 5s)`
     : "";
   const combat = self.inCombat ? " in combat" : "";
+  const riding = self.mounted ? " mounted" : "";
   const head = `[now ${nowClock(at)}] ${self.name} L${self.level} ${self.className}`;
-  return `${head} HP ${self.hp}/${self.maxHp}${delta}${powerText(self)}${comboText(self)} ${self.life}${combat}`;
+  return `${head} HP ${self.hp}/${self.maxHp}${delta}${powerText(self)}${comboText(self)} ${self.life}${combat}${riding}`;
 }
 
 function poseText(pose: PoseView | undefined): string {

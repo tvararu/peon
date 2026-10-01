@@ -205,6 +205,7 @@ export function selfView(ctx: ViewCtx): SelfView {
     inCombat: combat.attackers.length > 0 || combat.attacking,
     level: combat.self.level ?? unit?.level ?? world?.level ?? 0,
     life: handle.getRecoveryState().life,
+    mounted: handle.selfstate.state().mounted,
     name: rt.profile.character,
     pose: poseView(ctx),
     posture: postureOf(handle),

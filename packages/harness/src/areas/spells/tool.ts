@@ -1,4 +1,5 @@
 import { type Static, StringEnum, Type } from "@earendil-works/pi-ai";
+import { routeMount } from "#harness/areas/selfstate/mount-verbs";
 import type { SpellRef } from "#harness/areas/spells/book";
 import { cancelAuraFlow } from "#harness/areas/spells/tool-aura";
 import { barFlow } from "#harness/areas/spells/tool-bar";
@@ -17,9 +18,9 @@ import {
 } from "#harness/ui/renderers/line";
 
 export const spellParams = Type.Object({
-  do: StringEnum(["cast", "cancel_aura", "bar"], {
+  do: StringEnum(["cast", "cancel_aura", "bar", "mount", "dismount"], {
     description:
-      "cast: cast a spell. cancel_aura: remove one of your own buffs. bar: put a spell or an item on an action bar slot.",
+      "cast: cast a spell. cancel_aura: remove one of your own buffs. bar: put a spell or an item on an action bar slot. mount: get on a mount. dismount: get off a mount.",
   }),
   item: Type.Optional(
     Type.String({
@@ -37,7 +38,7 @@ export const spellParams = Type.Object({
   spell: Type.Optional(
     Type.String({
       description:
-        "The spell name or id. For cancel_aura: the buff to remove. For bar: the spell to place.",
+        "The spell name or id. For cancel_aura: the buff to remove. For bar: the spell to place. For mount: the mount name or id, or leave out to pick a ground mount.",
     }),
   ),
   target: Type.Optional(
@@ -49,7 +50,7 @@ export const spellParams = Type.Object({
 });
 
 export type SpellArgs = Static<typeof spellParams>;
-export type SpellDo = "cast" | "cancel_aura" | "bar";
+export type SpellDo = "cast" | "cancel_aura" | "bar" | "mount" | "dismount";
 
 export type SpellAfter = {
   do: SpellDo;
@@ -68,6 +69,8 @@ function spellRun(
   args: SpellArgs,
   ctx: SpellCtx,
 ): Promise<ToolResult<SpellAfter>> {
+  if (args.do === "mount" || args.do === "dismount")
+    return routeMount(args, ctx);
   if (args.do === "cancel_aura") return cancelAuraFlow(args, ctx);
   if (args.do === "bar") return barFlow(args, ctx);
   return castFlow(args, ctx);
