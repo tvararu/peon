@@ -201,8 +201,9 @@ on-use spells it read before.
   login, so the store reports `unknown` until the first packet and names
   only the bits that are new. Class 2 is weapons and class 4 armour; other
   classes change nothing.
-- `CMSG_SOCKET_GEMS` is `u64` item then three `u64` gem guids, unused slots zero (`Server/Packets/ItemPackets.cpp:143-148`). `HandleSocketOpcode` (`Handlers/ItemHandler.cpp:1213-1402`) drops the request silently for no item, duplicate gem guids or a gem in a slot with no socket, so core refuses those before sending.
-- `SMSG_SOCKET_GEMS_RESULT` is `u64` item then four `u32` enchant ids, slots 2-5 with the socket bonus last (`Entities/Item/Item.cpp:1071-1077`).
+- `SMSG_EQUIPMENT_SET_LIST` is `u32` count, then per set a packed set guid, `u32` index, name, icon and 19 packed item guids; raw packed value `1` marks an ignored slot and `0` an empty slot (`Entities/Player/Player.cpp:14894-14922`). `SendEquipmentSetList` also runs at login, so the slice reports `known` only after the first list and a delete is confirmed by the next login list.
+- `CMSG_EQUIPMENT_SET_SAVE` is a packed set guid, `u32` index, name, icon and 19 packed item guids (`Handlers/CharacterHandler.cpp:1778-1847`). A set guid of 0 (one packed byte `0x00`) creates a set and is answered with `SMSG_EQUIPMENT_SET_SAVED` = `u32` index then the packed guid (`Entities/Player/Player.cpp:14952-14959`); a non-zero guid updates in place with no reply, and a guid or index that does not match is dropped silently (`Entities/Player/Player.cpp:14927-14946`). `HandleEquipmentSetSave` refuses an index at or above 10, a name over 16 bytes and an icon over 100 bytes, all silently (`Handlers/CharacterHandler.cpp:1778-1806`), so the act refuses these before sending and only sends guids of worn or carried items.
+- `CMSG_EQUIPMENT_SET_USE` is 19 entries of packed guid, `u8` bag and `u8` slot; the bag and slot are read and ignored (`Handlers/CharacterHandler.cpp:1866-1868`). Guid `1` skips the slot and guid `0` unequips into the bags, and in combat only the weapon slots are processed (`Handlers/CharacterHandler.cpp:1875-1881`). `SMSG_EQUIPMENT_SET_USE_RESULT` is sent exactly once at the end, `0` ok or `4` bags full with the swaps rolled back (`Handlers/CharacterHandler.cpp:1946-1948`); single-slot failures arrive first as `SMSG_INVENTORY_CHANGE_FAILURE`, so `useSet` settles `ok` on result 0 and returns the owned failure names heard in between. `CMSG_DELETEEQUIPMENT_SET` carries only the packed set guid and sends nothing back (`Handlers/CharacterHandler.cpp:1849-1857`).
 - `SMSG_ENCHANTMENTLOG` is packed target, packed caster, `u32` entry, `u32` enchant id, no trailing bool (`Server/Packets/ItemPackets.cpp:115-123`). The new-id log carries the caster (`Handlers/ItemHandler.cpp:1041-1048`); the sender emits the old-id log only when the old id is nonzero, so a fresh single-gem socket shows the gem enchant then the socket bonus, both with the caster. A socket produces one enchant log per changed socket before the result; logs of other players arrive too, so the store marks `own` only when the target is the character and only own logs write `items/enchanted`.
 - Core keeps timers as absolute expiry times from the local clock at
   receipt (`ItemsState.timers`), item cooldowns as item guid, spell and
@@ -213,10 +214,6 @@ on-use spells it read before.
 
 ## Left out
 
-- `SMSG_EQUIPMENT_SET_LIST`, `CMSG_EQUIPMENT_SET_SAVE`,
-  `SMSG_EQUIPMENT_SET_SAVED`, `CMSG_DELETEEQUIPMENT_SET`,
-  `CMSG_EQUIPMENT_SET_USE` and `SMSG_EQUIPMENT_SET_USE_RESULT`: built by
-  `items-9`.
 - `CMSG_ITEM_REFUND_INFO`, `SMSG_ITEM_REFUND_INFO_RESPONSE`,
   `CMSG_ITEM_REFUND` and `SMSG_ITEM_REFUND_RESULT`: built by `items-10`.
 - `CMSG_WRAP_ITEM`, `CMSG_ITEM_NAME_QUERY` and
@@ -225,6 +222,8 @@ on-use spells it read before.
 ## Capabilities row
 
 The game log also writes `items/socketed` on `SMSG_SOCKET_GEMS_RESULT` (the item, the three socket enchants and the socket bonus) and `items/enchanted` for own enchant logs with a non-zero enchant id, both log rows, plus wake rows `items/refused` and `items/unanswered` when the socket is refused or unanswered.
+It writes `items/set_saved` and `items/set_used` for equipment sets, with wake rows when a save or use goes unanswered or the bags are full.
+
 
 ## Proof
 
@@ -252,3 +251,10 @@ The game log also writes `items/socketed` on `SMSG_SOCKET_GEMS_RESULT` (the item
 | `SMSG_SOCKET_GEMS_RESULT` | `live` | the eval's socketed item is guid `400000000013b0d5` (GL seq 36, `items/socketed`, entry 37230, sockets `[3446, 0, 0]`, bonus 2890); the same byte layout occurs with bodies in probe `tmp/probe/FAC6ABDAAA1CE-20261001T003542Z/packets.jsonl`, where `44ae130000000040760d000000000000000000004a0b0000` decodes to guid `400000000013ae44`, sockets `[3446, 0, 0]`, bonus 2890 | `Entities/Item/Item.cpp:1071-1077` |
 | `SMSG_ENCHANTMENTLOG` | `live` | probe `tmp/probe/FAC6ABDAAA1CE-20261001T003542Z/packets.jsonl` shows two logs, both `handled`: `0367110367116e910000760d0000` (target and caster `0x1167`, entry 37230, enchant 3446) then `0367110367116e9100004a0b0000` (target and caster `0x1167`, entry 37230, enchant 2890); the eval's GL seq 34-35 shows the same 3446-then-2890 order for entry 37230, and its `packets.jsonl` shows the two log headers only | `Server/Packets/ItemPackets.cpp:115-123`, `Handlers/ItemHandler.cpp:1041-1048` |
 | `CMSG_CANCEL_TEMP_ENCHANTMENT` | `accepted` | probe on a `max80` character with no temporary enchant, `--send CMSG_CANCEL_TEMP_ENCHANTMENT --body 0f000000` (slot 15), exit 0: trace `tmp/probe/FAC6ABDAAA1CE-20261001T003553Z/packets.jsonl` shows the send, no error packet, and the logout completes | `Server/Packets/ItemPackets.cpp:150-153` |
+| `SMSG_EQUIPMENT_SET_LIST` | `live` | probe login on an `eversong10` priest, exit 0: trace `tmp/probe/FAC6ABDC346D0-20261001T021954Z/packets.jsonl` shows `SMSG_EQUIPMENT_SET_LIST` in (size 4, `handled`, empty list) right after the tutorial flags | `Entities/Player/Player.cpp:14897-14922` |
+| `CMSG_EQUIPMENT_SET_SAVE` | `live` | probe flow `items-sets` (`do=save`, `index=0`, `name=Peon`), exit 0: trace `tmp/probe/FAC6ABDC346D0-20261001T022028Z/packets.jsonl` shows `CMSG_EQUIPMENT_SET_SAVE` out (size 70) with the worn guids, then `SMSG_EQUIPMENT_SET_SAVED` in (size 6, `handled`) | `Handlers/CharacterHandler.cpp:1778-1847` |
+| `SMSG_EQUIPMENT_SET_SAVED` | `live` | same run: the saved reply carries index 0 and a new set guid, and the flow settles `saved` | `Entities/Player/Player.cpp:14956-14959` |
+| `CMSG_EQUIPMENT_SET_USE` | `live` | probe flow `items-sets` (`do=use`, `index=0`), exit 0: trace `tmp/probe/FAC6ABDC346D0-20261001T022100Z/packets.jsonl` shows `CMSG_EQUIPMENT_SET_USE` out (size 97) then `SMSG_EQUIPMENT_SET_USE_RESULT` in (size 1, `handled`), and the act settles `ok` | `Handlers/CharacterHandler.cpp:1859-1950` |
+| `SMSG_EQUIPMENT_SET_USE_RESULT` | `live` | same run: the one-byte result is 0 and the flow outcome is `ok` with no owned failures | `Handlers/CharacterHandler.cpp:1946-1948` |
+| `CMSG_DELETEEQUIPMENT_SET` | `live` | probe flow `items-sets` (`do=delete`, `index=0`), exit 0: trace `tmp/probe/FAC6ABDC346D0-20261001T022127Z/packets.jsonl` shows `CMSG_DELETEEQUIPMENT_SET` out (size 2, the packed set guid) with no reply, and the second login `tmp/probe/FAC6ABDC346D0-20261001T022154Z/packets.jsonl` shows `SMSG_EQUIPMENT_SET_LIST` in (size 4, `handled`, empty again) | `Handlers/CharacterHandler.cpp:1849-1857` |
+
