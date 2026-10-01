@@ -274,6 +274,8 @@ The control regression gates passed on this change: `t1-walk-to-npc` and
 `t7-halt-resume`, round 359 (`tmp/evals/359/t1-walk-to-npc-1`,
 `tmp/evals/359/t7-halt-resume-1`), graded `pass` 2/2 and 3/3.
 
+After the unroot-ACK fix (`ForcedRoots.setMover` always sets or clears ROOT for the driven vehicle, regression `control-ride-root.test.ts`), flow `vehicles-drive` ran once more on a `max80` Horde put at (2780, 6735) on map 571 by `soap setup position`, quest 11652 staged online (`tmp/probe/v4-drive-r4c`): `board: ok`, `exit: ok`, `traveled: 10`; the trace holds `out MSG_MOVE_START_FORWARD`, `out CMSG_DISMISS_CONTROLLED_VEHICLE`, `in SMSG_FORCE_MOVE_UNROOT` and `out CMSG_FORCE_MOVE_UNROOT_ACK`. Account FAC6ABEC590E3, deleted.
+
 Accounts: FAC6ABE1FDF5C (driver) and FAC6ABE207DFA (observer), both
 deleted. Earlier: FAC6ABD9C85B3 and FAC6ABD9EA262 (click tries), FAC6ABD9FE660
 and FAC6ABDA1BB23 (click, ride), FAC6ABDA09BFE (partner); all deleted.
