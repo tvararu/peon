@@ -193,6 +193,57 @@ describe("talents show", () => {
     );
   });
 
+  test("show in degraded mode labels an installed glyph and its slot type as ids", async () => {
+    const state = snapshot({
+      slots: [
+        { glyphId: 483, index: 0, typeId: 1, unlocked: true },
+      ] as unknown as TalentsSnapshot["slots"],
+    });
+    const catalogs = [undefined, { ...CATALOG, glyph: () => undefined }];
+    for (const catalog of catalogs) {
+      const built = await rig({ catalog, state });
+      const out = await talentsSpec.run({ do: "show" }, toolCtx(built.t));
+      const text = out.body.join("\n");
+      expect(text).toContain("glyph 483");
+      expect(text).toContain("type 1");
+      expect(text.includes("spell 483")).toBe(false);
+    }
+  });
+
+  test("learn accepts a number id alone and in a plan", async () => {
+    const built = await rig({ catalog: undefined });
+    const check = (value: {
+      do: string;
+      plan?: { rank: number; talent: number }[];
+      rank?: number;
+      talent?: number;
+    }) =>
+      validateToolArguments(
+        { description: "probe", name: "probe", parameters: talentParams },
+        { arguments: value, id: "c", name: "probe", type: "toolCall" },
+      );
+    const plan = check({ do: "learn", plan: [{ rank: 2, talent: 124 }] });
+    const single = check({ do: "learn", rank: 2, talent: 124 });
+    expect(plan).toEqual({ do: "learn", plan: [{ rank: 2, talent: 124 }] });
+    expect(single).toEqual({ do: "learn", rank: 2, talent: 124 });
+    for (const talent of [1.5, -1, 2 ** 32]) {
+      await expect(
+        talentsSpec.run(
+          { do: "learn", rank: 2, talent } as never,
+          toolCtx(built.t),
+        ),
+      ).rejects.toThrow();
+    }
+    await talentsSpec.run(plan as never, toolCtx(built.t));
+    await talentsSpec.run(single as never, toolCtx(built.t));
+    expect(built.learn).toHaveBeenNthCalledWith(1, [
+      { rank: 1, talentId: 124 },
+    ]);
+    expect(built.learn).toHaveBeenNthCalledWith(2, [
+      { rank: 1, talentId: 124 },
+    ]);
+  });
+
   test("show with 24 learned talents keeps every talent and glyph slot inside the cap", async () => {
     const talents = Array.from({ length: 24 }, (_, i) => ({
       rank: 0,

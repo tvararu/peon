@@ -17,11 +17,18 @@ import {
   resultRenderer,
 } from "#harness/ui/renderers/line";
 
+const talentRef = (description: string) =>
+  Type.Union(
+    [
+      Type.String({ description }),
+      Type.Integer({ description, maximum: 0xff_ff_ff_ff, minimum: 0 }),
+    ],
+    { description },
+  );
+
 export const talentPlanEntry = Type.Object({
   rank: Type.Integer({ description: "The rank to learn, 1-5.", minimum: 1 }),
-  talent: Type.String({
-    description: 'A talent name from show, or its id like "124".',
-  }),
+  talent: talentRef('A talent name from show, or its id like "124".'),
 });
 
 export const talentParams = Type.Object({
@@ -41,24 +48,26 @@ export const talentParams = Type.Object({
     }),
   ),
   talent: Type.Optional(
-    Type.String({
-      description: 'The talent to learn with rank, a name or id like "124".',
-    }),
+    talentRef('The talent to learn with rank, a name or id like "124".'),
   ),
 });
 
 export type TalentsArgs = {
   do: "show" | "learn";
-  plan?: { talent: string; rank: number }[];
+  plan?: { talent: string | number; rank: number }[];
   rank?: number;
-  talent?: string;
+  talent?: string | number;
 };
 
 export function wantsOf(args: TalentsArgs): { talent: string; rank: number }[] {
+  const text = (value: string | number): string => String(value);
   if (args.plan !== undefined && args.talent === undefined)
-    return [...args.plan];
+    return args.plan.map((entry) => ({
+      rank: entry.rank,
+      talent: text(entry.talent),
+    }));
   if (args.talent !== undefined && args.rank !== undefined)
-    return [{ rank: args.rank, talent: args.talent }];
+    return [{ rank: args.rank, talent: text(args.talent) }];
   return [];
 }
 
