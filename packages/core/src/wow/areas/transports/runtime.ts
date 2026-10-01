@@ -3,6 +3,7 @@ import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import {
   type LiftModel,
   liftPoseAt,
+  liftProgressAt,
   readLiftAnimations,
   TRANSPORT_ANIMATION_LAYOUT,
   TRANSPORT_ROTATION_LAYOUT,
@@ -16,6 +17,7 @@ import {
   type TransportPose,
 } from "#wow/areas/transports/path";
 import type {
+  LiftStepper,
   TransportsEvent,
   TransportsStore,
 } from "#wow/areas/transports/store";
@@ -71,11 +73,23 @@ function liftPose(
   now: number,
 ): TransportPose | undefined {
   const entry = store.snapshot().transports.get(guid);
-  if (entry?.kind !== "lift") return undefined;
+  if (entry?.kind !== "lift" || entry.changes.length > 0) return undefined;
   const anim = models.anims.get(entry.entry);
-  if (!anim) return undefined;
-  const elapsed = entry.pathProgress + (now - entry.receivedAt);
-  const at = liftPoseAt(anim, elapsed, entry.pose, entry.pathRotation);
+  const template = store.snapshot().templates.get(entry.entry);
+  if (!(anim && template) || anim.totalTime <= 0) return undefined;
+  const progress = liftProgressAt({
+    elapsed: Math.max(0, now - entry.receivedAt),
+    goState: entry.goState,
+    pauseAtTime: template.pauseAtTime,
+    period: anim.totalTime,
+    progress: entry.pathProgress,
+  });
+  const at = liftPoseAt(
+    anim,
+    progress.progress,
+    entry.pose,
+    entry.pathRotation,
+  );
   if (!at) return undefined;
   return {
     mapId: entry.mapId,
@@ -83,7 +97,22 @@ function liftPose(
     y: at.y,
     z: at.z,
     orientation: at.orientation,
-    moving: true,
+    moving: !progress.held,
+  };
+}
+
+function liftStepper(models: Models, store: TransportsStore): LiftStepper {
+  return (entry, goState, progress, elapsed) => {
+    const anim = models.anims.get(entry);
+    const template = store.snapshot().templates.get(entry);
+    if (!(anim && template) || anim.totalTime <= 0) return;
+    return liftProgressAt({
+      elapsed,
+      goState,
+      pauseAtTime: template.pauseAtTime,
+      period: anim.totalTime,
+      progress,
+    }).progress;
   };
 }
 
@@ -103,7 +132,9 @@ async function loadModels(
   );
   if (ctx.signal.aborted) return undefined;
   store.setData({ anims, paths });
-  return { anims, paths, generated: new Map() };
+  const loaded: Models = { anims, generated: new Map(), paths };
+  store.setStepper(liftStepper(loaded, store));
+  return loaded;
 }
 
 export function transportsRuntime(

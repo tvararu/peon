@@ -131,4 +131,41 @@ describe("liftPoseAt", () => {
       3,
     );
   });
+
+  test("the last rotation node interpolates back over the animation period", async () => {
+    const dbc = transportsDbc({
+      animations: [
+        { entry: 9, timeSeg: 0, x: 0, y: 0, z: 0 },
+        { entry: 9, timeSeg: 4000, x: 0, y: 0, z: 10 },
+      ],
+      rotations: [
+        { entry: 9, timeSeg: 0, x: 0, y: 0, z: 0, w: 1 },
+        {
+          entry: 9,
+          timeSeg: 2000,
+          x: 0,
+          y: 0,
+          z: Math.SQRT1_2,
+          w: Math.SQRT1_2,
+        },
+      ],
+    });
+    const anim = must(
+      (
+        await readLiftAnimations(dbc, TRANSPORT_ANIMATION_LAYOUT, {
+          file: TRANSPORT_ROTATION_LAYOUT.file,
+          fields: TRANSPORT_ROTATION_LAYOUT.fields,
+          recordSize: TRANSPORT_ROTATION_LAYOUT.recordSize,
+        })
+      ).get(9),
+    );
+    expect(must(liftPoseAt(anim, 3000, BASE, 0)).orientation).toBeCloseTo(
+      0.5 + Math.PI / 4,
+      3,
+    );
+    expect(must(liftPoseAt(anim, 2000, BASE, 0)).orientation).toBeCloseTo(
+      0.5 + Math.PI / 2,
+      3,
+    );
+  });
 });

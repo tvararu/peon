@@ -7,11 +7,14 @@ import {
 import { transportsRuntime } from "#wow/areas/transports/runtime";
 import { TransportsStore } from "#wow/areas/transports/store";
 import { inflateCompressedUpdate } from "#wow/protocol/compressed-update";
-import { ObjectType, UpdateFlag } from "#wow/protocol/entity-fields";
+import { ObjectType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { PacketReader } from "#wow/protocol/packet";
 import { GAMEOBJECT_FIELDS, OBJECT_FIELDS } from "#wow/protocol/update-fields";
-import { parseUpdateObject } from "#wow/protocol/update-object";
+import {
+  parseUpdateObject,
+  type UpdateEntry,
+} from "#wow/protocol/update-object";
 
 const bits = new DataView(new ArrayBuffer(4));
 
@@ -28,30 +31,42 @@ function pathRotationOf(fields: ReadonlyMap<number, number>): number {
   return (z >= 0 ? 1 : -1) * 2 * Math.acos(Math.min(1, Math.max(-1, w)));
 }
 
+function goStateOf(fields: ReadonlyMap<number, number>): number | undefined {
+  const bytes = fields.get(GAMEOBJECT_FIELDS.BYTES_1.offset);
+  return bytes === undefined ? undefined : bytes & 0xff;
+}
+
+function observeCreate(
+  store: TransportsStore,
+  entry: Extract<UpdateEntry, { type: "create" }>,
+): void {
+  if (entry.objectType !== ObjectType.GAMEOBJECT) return;
+  const position = entry.position;
+  if (!position) return;
+  store.receiveCreated({
+    entry: entry.fields.get(OBJECT_FIELDS.ENTRY.offset) ?? 0,
+    goState: goStateOf(entry.fields) ?? 0,
+    guid: entry.guid,
+    mapId: position.mapId,
+    pathProgress: entry.pathProgress,
+    pathRotation: pathRotationOf(entry.fields),
+    pose: {
+      x: position.x,
+      y: position.y,
+      z: position.z,
+      orientation: position.orientation,
+    },
+  });
+}
+
 function observeCreates(store: TransportsStore, r: PacketReader): void {
-  for (const entry of parseUpdateObject(r, 0)) {
-    if (entry.type === "outOfRange") {
+  for (const entry of parseUpdateObject(r, store.mapId())) {
+    if (entry.type === "outOfRange")
       for (const guid of entry.guids) store.receiveDestroyed(guid);
-      continue;
-    }
-    if (entry.type !== "create" || entry.objectType !== ObjectType.GAMEOBJECT)
-      continue;
-    const position = entry.position;
-    if (!position) continue;
-    store.receiveCreated({
-      entry: entry.fields.get(OBJECT_FIELDS.ENTRY.offset) ?? 0,
-      guid: entry.guid,
-      mapId: position.mapId,
-      pathProgress: entry.pathProgress,
-      pathRotation: pathRotationOf(entry.fields),
-      pose: {
-        x: position.x,
-        y: position.y,
-        z: position.z,
-        orientation: position.orientation,
-      },
-    });
-    void UpdateFlag.TRANSPORT;
+    else if (entry.type === "values") {
+      const state = goStateOf(entry.fields);
+      if (state !== undefined) store.receiveState(entry.guid, state);
+    } else if (entry.type === "create") observeCreate(store, entry);
   }
 }
 
@@ -73,5 +88,5 @@ export const transportsArea = defineArea({
     });
   },
   runtime: transportsRuntime,
-  store: (deps) => new TransportsStore(deps),
+  store: (deps, core) => new TransportsStore(deps, core),
 });

@@ -60,6 +60,21 @@ describe("transports area wiring", () => {
     }
   });
 
+  test("a transport create uses the self map, not the peek placeholder", () => {
+    const { rig } = rigWithEvents(0);
+    try {
+      rig.stores.self.receive({
+        type: "login_verified",
+        position: { mapId: 1, x: 0, y: 0, z: 0, orientation: 0 },
+      });
+      rig.inject(GameOpcode.SMSG_UPDATE_OBJECT, createMotion());
+      const entry = must(rig.handle.state().transports.get(MOTION));
+      expect(entry.mapId).toBe(1);
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("a second create replaces the progress and resets the clock", () => {
     const { rig, seen } = rigWithEvents(7000);
     try {
