@@ -108,8 +108,9 @@ export function selfLine({
 }: Pick<LookAfter, "channel" | "place" | "self">): string {
   const combat = self.inCombat ? "in combat" : "not in combat";
   const posture = self.posture ? `${self.posture}, ` : "";
+  const riding = self.mounted ? ", mounted" : "";
   const channelling = channel ? `, ${castText("channelling", channel)}` : "";
-  const vitals = `HP ${self.hp}/${self.maxHp}, ${powerText(self)}${self.life}, ${posture}${combat}${channelling}`;
+  const vitals = `HP ${self.hp}/${self.maxHp}, ${powerText(self)}${self.life}, ${posture}${combat}${riding}${channelling}`;
   return `${self.name} L${self.level} ${self.className}, ${vitals}. ${placeText(place)} ${poseText(self.pose)}`;
 }
 

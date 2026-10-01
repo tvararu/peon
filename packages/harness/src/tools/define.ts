@@ -192,6 +192,7 @@ export function emptySelf(): SelfView {
     inCombat: false,
     level: 0,
     life: "unknown",
+    mounted: false,
     name: "",
     pose: undefined,
     race: "unknown",

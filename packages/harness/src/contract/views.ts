@@ -42,6 +42,7 @@ export type SelfView = VitalsView & {
   race: string;
   life: PlayerLife;
   inCombat: boolean;
+  mounted: boolean;
   xpPct: number | undefined;
   copper: number | undefined;
   freeSlots: number | undefined;
