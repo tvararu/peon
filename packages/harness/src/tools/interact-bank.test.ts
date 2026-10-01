@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
+import { fakeAwait, withFakeTimers } from "@peon/core/test-support/fake-time";
 import type { InteractAfter } from "#harness/contract/details";
 import { interactSpec, interactTool } from "#harness/tools/interact";
 import {
@@ -223,31 +224,84 @@ describe("interact bank", () => {
   });
 
   test("buy_bank_slot reports the price from the money fall", async () => {
-    const t = await bankerWorld([CLOTH_CARRIED], []);
-    openOk(t);
-    let coins = 100_000;
-    const inventory = t.handle.getInventoryState();
-    t.handle.getInventoryState = () => ({ ...inventory, coinage: coins });
-    jest.spyOn(t.handle.bank.act, "buyBankSlot").mockImplementation(() => {
-      coins = 99_000;
-      t.handle.triggerEntityEvent({
-        changed: ["coinage"],
-        entity: {},
-        type: "update",
-      } as never);
-      t.handle.triggerAreaEvent("bank", {
-        result: "ok",
-        type: "slot_bought",
+    await withFakeTimers(async () => {
+      const t = await bankerWorld([CLOTH_CARRIED], []);
+      openOk(t);
+      let coins = 100_000;
+      const inventory = t.handle.getInventoryState();
+      t.handle.getInventoryState = () => ({ ...inventory, coinage: coins });
+      jest.spyOn(t.handle.bank.act, "buyBankSlot").mockImplementation(() => {
+        setTimeout(() => {
+          coins = 99_000;
+          t.handle.triggerEntityEvent({
+            changed: ["coinage"],
+            entity: {},
+            type: "update",
+          } as never);
+        }, 10);
+        t.handle.triggerAreaEvent("bank", {
+          result: "ok",
+          type: "slot_bought",
+        });
+        return Promise.resolve({ status: "ok" as const });
       });
-      return Promise.resolve({ status: "ok" as const });
+      const run = interactSpec.run(
+        { do: "buy_bank_slot", npc: NAME },
+        toolCtx<InteractAfter>(t),
+      );
+      const res = await fakeAwait(run, 2000);
+      expect(res.status).toBe("DONE");
+      expect(contentOf(res)).toContain("1000 copper");
+      expect(res.after?.money).toEqual({ after: 99_000, before: 100_000 });
     });
-    const res = await interactSpec.run(
-      { do: "buy_bank_slot", npc: NAME },
-      toolCtx<InteractAfter>(t),
+  });
+
+  test("an abort while opening stops the deposit after a late open", async () => {
+    const t = await bankerWorld([CLOTH_CARRIED], []);
+    const opened = Promise.withResolvers<void>();
+    const reply = Promise.withResolvers<{ status: "ok" }>();
+    jest.spyOn(t.handle.bank.act, "openBank").mockImplementation(() => {
+      opened.resolve();
+      return reply.promise;
+    });
+    const deposit = jest
+      .spyOn(t.handle.bank.act, "deposit")
+      .mockResolvedValue({ status: "ok" as const });
+    const controller = new AbortController();
+    const run = interactSpec.run(
+      { do: "deposit", npc: NAME, what: "linen" },
+      toolCtx<InteractAfter>(t, controller.signal),
     );
-    expect(res.status).toBe("DONE");
-    expect(contentOf(res)).toContain("1000 copper");
-    expect(res.after?.money).toEqual({ after: 99_000, before: 100_000 });
+    await opened.promise;
+    controller.abort();
+    reply.resolve({ status: "ok" });
+    await expect(run).rejects.toMatchObject({ name: "AbortError" });
+    await Promise.resolve();
+    expect(deposit).not.toHaveBeenCalled();
+  });
+
+  test("an abort while opening stops the slot purchase after a late open", async () => {
+    const t = await bankerWorld([CLOTH_CARRIED], []);
+    const opened = Promise.withResolvers<void>();
+    const reply = Promise.withResolvers<{ status: "ok" }>();
+    jest.spyOn(t.handle.bank.act, "openBank").mockImplementation(() => {
+      opened.resolve();
+      return reply.promise;
+    });
+    const buy = jest
+      .spyOn(t.handle.bank.act, "buyBankSlot")
+      .mockResolvedValue({ status: "ok" as const });
+    const controller = new AbortController();
+    const run = interactSpec.run(
+      { do: "buy_bank_slot", npc: NAME },
+      toolCtx<InteractAfter>(t, controller.signal),
+    );
+    await opened.promise;
+    controller.abort();
+    reply.resolve({ status: "ok" });
+    await expect(run).rejects.toMatchObject({ name: "AbortError" });
+    await Promise.resolve();
+    expect(buy).not.toHaveBeenCalled();
   });
 
   test("a non-banker refuses without calling any act", async () => {

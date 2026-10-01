@@ -9,7 +9,7 @@ import type { ToolCtx } from "#harness/contract/services";
 
 type BankResult = Awaited<ReturnType<AreaActsOf<"bank">["deposit"]>>;
 
-import { bounded } from "@peon/core/lib/abort";
+import { abortable, bounded, isAbort } from "@peon/core/lib/abort";
 import { itemIdText, itemLabelIn } from "#harness/ops/item-names";
 import { Refusal } from "#harness/ops/refusal";
 import { result } from "#harness/tools/define";
@@ -187,10 +187,17 @@ async function ensureOpen(
   npc: NpcTarget,
 ): Promise<void> {
   if (ctx.handle.bank.state().banker === npc.guid) return;
-  const outcome = await ctx.rt.mutex.run(async () => {
+  ctx.signal.throwIfAborted();
+  const queued = ctx.rt.mutex.run(async () => {
+    ctx.signal.throwIfAborted();
     ctx.handle.takeControl("manual_override");
     return await ctx.handle.bank.act.openBank(npc.guid);
   });
+  queued.then(
+    () => undefined,
+    () => undefined,
+  );
+  const outcome = await abortable(queued, ctx.signal);
   if (outcome.status !== "ok") throw openRefusal(npc, outcome);
 }
 
@@ -258,7 +265,8 @@ async function waitMoneyMove(
       MONEY_WAIT_MS,
       "no money update",
     );
-  } catch {
+  } catch (error) {
+    if (isAbort(error)) throw error;
     return undefined;
   } finally {
     off();
@@ -340,12 +348,18 @@ async function moveStep(
     what,
     verb,
   );
-  const outcome = await ctx.rt.mutex.run(async () => {
+  const queuedMove = ctx.rt.mutex.run(async () => {
+    ctx.signal.throwIfAborted();
     ctx.handle.takeControl("manual_override");
     return verb === "deposit"
       ? await ctx.handle.bank.act.deposit(row.bag, row.slot)
       : await ctx.handle.bank.act.withdraw(row.bag, row.slot);
   });
+  queuedMove.then(
+    () => undefined,
+    () => undefined,
+  );
+  const outcome = await abortable(queuedMove, ctx.signal);
   return moveResult(ctx, {
     before: inventory.coinage,
     npc,
@@ -365,10 +379,16 @@ export const buyBankSlotStep: InteractStep = async ({ ctx, npc }) => {
   requireBanker(npc);
   await ensureOpen(ctx, npc);
   const before = ctx.handle.getInventoryState().coinage;
-  const outcome = await ctx.rt.mutex.run(async () => {
+  const queuedBuy = ctx.rt.mutex.run(async () => {
+    ctx.signal.throwIfAborted();
     ctx.handle.takeControl("manual_override");
     return await ctx.handle.bank.act.buyBankSlot();
   });
+  queuedBuy.then(
+    () => undefined,
+    () => undefined,
+  );
+  const outcome = await abortable(queuedBuy, ctx.signal);
   const moved = await waitMoneyMove(ctx, before);
   const after = {
     ...baseAfter(ctx, npc, "buy_bank_slot"),
