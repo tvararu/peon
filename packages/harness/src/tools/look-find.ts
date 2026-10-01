@@ -31,6 +31,7 @@ const REMEMBERED_FILTERS: readonly LookFilter[] = [
   "repair",
   "innkeeper",
   "spirit_healer",
+  "flight_master",
 ];
 const LOOK_FILTERS: readonly LookFilter[] = [
   "any",
@@ -45,15 +46,19 @@ const LOOK_FILTERS: readonly LookFilter[] = [
   "player",
   "corpse",
   "spirit_healer",
+  "flight_master",
 ];
 
 export function kindOf(filter: LookFilter): NearestKind | undefined {
-  return filter === "any" || filter === "corpse" ? undefined : filter;
+  if (filter === "any" || filter === "corpse" || filter === "flight_master")
+    return undefined;
+  return filter;
 }
 
 function filterMatches(unit: UnitView, filter: LookFilter): boolean {
   if (filter === "any") return true;
   if (filter === "corpse") return !unit.alive;
+  if (filter === "flight_master") return unit.roles.includes("flight_master");
   return unitMatches(unit, filter);
 }
 
