@@ -48,6 +48,22 @@ describe("coverRows", () => {
     expect(log.get(reward.seq)?.consumedBy).toBe("c1");
   });
 
+  test("an interact bank result covers its own bank rows", () => {
+    const log = setup();
+    log.append({
+      class: "log",
+      data: { toolCallId: "c1" },
+      domain: "tool",
+      event: "tool/call",
+      text: "interact called",
+    });
+    const opened = log.append(draft("bank/opened"));
+    const deposit = log.append(draft("bank/deposit"));
+    coverRows(log, { status: "DONE", tool: "interact", toolCallId: "c1" });
+    expect(log.get(opened.seq)?.consumedBy).toBe("c1");
+    expect(log.get(deposit.seq)?.consumedBy).toBe("c1");
+  });
+
   test("a failed call or another tool covers nothing", () => {
     const log = setup();
     const accepted = log.append(draft("quest/accepted"));

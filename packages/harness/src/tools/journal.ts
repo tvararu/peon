@@ -25,6 +25,7 @@ import {
   bagRow,
   secondsText,
 } from "#harness/tools/journal-bags";
+import { bankBodyOf, bankViewOf } from "#harness/tools/journal-bank";
 import { type JournalArgs, journalParams } from "#harness/tools/params-journal";
 import { journalRenderers } from "#harness/ui/renderers/card";
 
@@ -296,6 +297,22 @@ function logResult(args: JournalArgs, { rt }: Ctx): ToolResult<JournalAfter> {
   });
 }
 
+function bankResult(ctx: Ctx): ToolResult<JournalAfter> {
+  const inventory = ctx.handle.getInventoryState();
+  const view = bankViewOf(inventory);
+  const bagSlots = ctx.handle.bank.state().bagSlots;
+  const body = bankBodyOf(view, bagSlots);
+  const detail =
+    view.free === undefined
+      ? "Bank: unknown."
+      : `${view.lines.length} bank items. ${view.free} free bank slots.`;
+  return result("DONE", {
+    after: { about: "bank", bank: { ...view, bagSlots } },
+    body,
+    detail,
+  });
+}
+
 function journal(
   args: JournalArgs,
   ctx: Ctx,
@@ -303,6 +320,7 @@ function journal(
   if (args.about === "spells") return spellsResult(ctx);
   if (args.about === "quests") return Promise.resolve(questsResult(ctx));
   if (args.about === "bags") return bagsResult(ctx);
+  if (args.about === "bank") return Promise.resolve(bankResult(ctx));
   if (args.about === "reputation")
     return Promise.resolve(reputationResult(args, ctx));
   return Promise.resolve(logResult(args, ctx));

@@ -43,20 +43,7 @@ const BANKED_REGIONS: Record<string, true> = {
   bankbag: true,
 };
 
-export type BankRow = {
-  line: number;
-  name: string;
-  count: number;
-  entry: number | undefined;
-  bag: number;
-  slot: number;
-};
-
-export type BankAfter = {
-  bagSlots: number | undefined;
-  free: number | undefined;
-  lines: BankRow[];
-};
+import type { BankRow, BankView } from "#harness/contract/details";
 
 function carriedOf(inventory: NamedInventoryState): Occupied[] {
   return inventory.slots.filter(
@@ -226,9 +213,10 @@ function bankAfter(
   rows: BankRow[],
 ): InteractAfter {
   const inventory = ctx.handle.getInventoryState();
-  const bank: BankAfter = {
+  const bank: BankView = {
     bagSlots: ctx.handle.bank.state().bagSlots,
     free: freeBankSlots(inventory),
+    known: true,
     lines: rows,
   };
   return { ...baseAfter(ctx, npc, "bank"), bank };

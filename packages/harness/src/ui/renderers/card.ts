@@ -3,6 +3,7 @@ import type {
   AuraLine,
   BagRow,
   BagsView,
+  BankView,
   BarLine,
   InteractAfter,
   JournalAfter,
@@ -230,6 +231,17 @@ function bagRows(theme: Theme, bags: BagsView): string[] {
   return [...(purse ? [purse] : []), ...items, ...worn, ...ammo];
 }
 
+function vaultRows(bank: BankView): string[] {
+  const g = glyphs();
+  const head = [
+    bank.free === undefined ? "" : `${g.bag} ${bank.free} free`,
+    bank.bagSlots === undefined ? "" : `${bank.bagSlots} bag slots`,
+  ]
+    .filter(Boolean)
+    .join("  ");
+  const items = bank.lines.map((row) => `${g.item} ${row.name} ×${row.count}`);
+  return [...(head ? [head] : []), ...items];
+}
 type SpellRowsInit = {
   auras: readonly AuraLine[];
   bar: readonly BarLine[];
@@ -311,6 +323,8 @@ function journalRows(theme: Theme, after: JournalAfter): string[] {
       return questRows(theme, after.quests);
     case "bags":
       return bagRows(theme, after.bags);
+    case "bank":
+      return vaultRows(after.bank);
     case "reputation":
       return after.factions.map((name) => `${glyph("spell")} ${name}`);
     case "spells":

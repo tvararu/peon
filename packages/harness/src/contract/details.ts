@@ -204,15 +204,6 @@ export type RewardChoice = { index: number; name: string; count: number };
 
 export type MoneyChange = { before: number; after: number };
 
-export type BankRow = {
-  line: number;
-  name: string;
-  count: number;
-  entry: number | undefined;
-  bag: number;
-  slot: number;
-};
-
 export type InteractAfter = {
   npc: UnitView;
   action: InteractAction;
@@ -229,13 +220,7 @@ export type InteractAfter = {
   repairCost: number | undefined;
   money: MoneyChange | undefined;
   freeSlots: number | undefined;
-  bank?:
-    | {
-        bagSlots: number | undefined;
-        free: number | undefined;
-        lines: BankRow[];
-      }
-    | undefined;
+  bank?: BankView | undefined;
 };
 
 export type RestAfter = {
@@ -345,6 +330,22 @@ export type BagsView = {
   ammo: { name: string; entry: number } | undefined;
 };
 
+export type BankRow = {
+  line: number;
+  name: string;
+  count: number;
+  entry: number | undefined;
+  bag: number;
+  slot: number;
+};
+
+export type BankView = {
+  lines: BankRow[];
+  free: number | undefined;
+  bagSlots: number | undefined;
+  known: boolean;
+};
+
 export type SpellLine = {
   id: number;
   name: string;
@@ -388,6 +389,7 @@ export type RuneLine = {
 export type JournalAfter =
   | { about: "quests"; quests: QuestLine[] }
   | { about: "bags"; bags: BagsView }
+  | { about: "bank"; bank: BankView }
   | {
       about: "spells";
       spells: SpellLine[];
