@@ -187,19 +187,18 @@ function sendItems(handle: WorldHandle, args: Args) {
       (part): part is [string, string] =>
         part !== undefined && part.length === 2,
     );
+  const seen = new Set<string>();
   return itemArgs.map(([guid, slot]) => {
+    const key = `${guid}:${slot}`;
+    if (seen.has(key)) throw new Error(`duplicate item ${guid} entry ${slot}.`);
+    seen.add(key);
     const entry = Number(slot);
-    const row =
-      inv.slots.find(
-        (candidate) =>
-          candidate.status === "occupied" &&
-          candidate.guid === BigInt(guid) &&
-          candidate.item.entry === entry,
-      ) ??
-      inv.slots.find(
-        (candidate) =>
-          candidate.status === "occupied" && candidate.item.entry === entry,
-      );
+    const row = inv.slots.find(
+      (candidate) =>
+        candidate.status === "occupied" &&
+        candidate.guid === BigInt(guid) &&
+        candidate.item.entry === entry,
+    );
     if (row?.status !== "occupied")
       throw new Error(`no carried item ${guid} entry ${slot}.`);
     return { guid: row.guid, slot: row.slot };
@@ -210,7 +209,18 @@ async function sendStep(ctx: StepCtx, unread: boolean): Promise<Json> {
   const { handle, args, box, listed } = ctx;
   const to = args["to"];
   if (!to) throw new Error("mail-actions needs to=<name> for do=send.");
-  const found = sendItems(handle, args);
+  let found: { guid: bigint; slot: number }[];
+  try {
+    found = sendItems(handle, args);
+  } catch (error) {
+    return json({
+      box,
+      listed,
+      sent: { thrown: error instanceof Error ? error.message : String(error) },
+      state: brief(handle),
+      unread,
+    });
+  }
   const sent = await attempt(() =>
     handle.mail.act.sendMail({
       body: args["body"] ?? "",
