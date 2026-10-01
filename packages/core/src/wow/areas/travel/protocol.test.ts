@@ -161,11 +161,11 @@ describe("travel flight parsers", () => {
   test("SMSG_ACTIVATETAXIREPLY maps each code and unknown codes (TaxiHandler.cpp:300-305; SharedDefines.h:3849-3864)", () => {
     const names = [
       "ok",
-      "unspecified_server_error",
+      "server_error",
       "no_such_path",
       "not_enough_money",
       "too_far",
-      "no_vendor_nearby",
+      "unknown_5",
       "not_visited",
       "busy",
       "mounted",
