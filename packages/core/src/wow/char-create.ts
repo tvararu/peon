@@ -126,7 +126,8 @@ export function createCharacter(
     close() {
       releaseWaits(session);
       onClosed();
-      if (!session.closing) observe(session, new Error("World connection closed"));
+      if (!session.closing)
+        observe(session, new Error("World connection closed"));
       finishAfterClose(session);
     },
     reject: (error) => {
