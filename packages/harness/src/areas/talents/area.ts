@@ -9,11 +9,11 @@ type Points = Extract<TalentsEvent, { type: "points" }>;
 type Refused = Extract<TalentsEvent, { type: "refused" }>;
 type Offer = Extract<TalentsEvent, { type: "wipe_offer" }>;
 
-function copper(copper: number): string {
-  if (copper < 100) return `${copper} copper`;
-  const gold = Math.floor(copper / 10_000);
-  const silver = Math.floor((copper % 10_000) / 100);
-  const rest = copper % 100;
+function copper(amount: number): string {
+  if (amount < 100) return `${amount} copper`;
+  const gold = Math.floor(amount / 10_000);
+  const silver = Math.floor((amount % 10_000) / 100);
+  const rest = amount % 100;
   return [
     gold > 0 ? `${gold}g` : "",
     silver > 0 ? `${silver}s` : "",

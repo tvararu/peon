@@ -68,7 +68,7 @@ function lineOf(outcome: ResetResult): string {
       return "No talents spent: there is nothing to reset.";
     case "not_enough_money":
       return "The trainer could not reset your talents: not enough money.";
-    case "no_reply":
+    default:
       return "The trainer said nothing about the reset; the offer may still be open.";
   }
 }
