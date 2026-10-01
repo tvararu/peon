@@ -993,12 +993,12 @@ owners and fail the S0-2 coverage test. Their proof rows go in
 
 **Steps:**
 
-- [ ] **Step 1: Check the water source.** Core has no liquid level
+- [x] **Step 1: Check the water source.** Core has no liquid level
   today (no `liquid` or `water` symbol in `control*.ts` at `02b83919`).
   Whether the ground oracle can give one could not be determined at plan
   time. If it cannot without a new dependency or a new oracle surface,
   stop `blocked` (contract 0.2) and name the missing member.
-- [ ] **Step 2: Failing tests.** Build each message as
+- [x] **Step 2: Failing tests.** Build each message as
   `Handlers/MovementHandler.cpp:362` (`HandleMovementOpcodes`) reads it:
   the movement info with `SWIMMING` and a pitch; a start and stop swim on
   a water boundary; `CMSG_MOVE_SET_FLY` and the ascend and descend
@@ -1006,9 +1006,9 @@ owners and fail the S0-2 coverage test. Their proof rows go in
   in-water state from the `SWIMMING` bit
   (`Handlers/MovementHandler.cpp:651-656`), so a test pins that the bit
   follows the water test. Control refuses a fly step without `CAN_FLY`.
-- [ ] **Step 3: Implement.**
-- [ ] **Step 4:** tests, `mise typecheck core`, coverage, `mise ci:checks`.
-- [ ] **Step 5: Live proof.** One `eversong10` account A at the
+- [x] **Step 3: Implement.**
+- [x] **Step 4:** tests, `mise typecheck core`, coverage, `mise ci:checks`.
+- [x] **Step 5: Live proof.** One `eversong10` account A at the
   deep-water point of self-state-5 and a witness W beside it:
   `--flow selfstate-swim` walks A into the water and out; W runs
   `mise protocol:probe W --wait 30 --expect MSG_MOVE_START_SWIM --expect
@@ -1018,13 +1018,17 @@ owners and fail the S0-2 coverage test. Their proof rows go in
   `MSG_MOVE_START_ASCEND` and `MSG_MOVE_STOP_ASCEND`. If the flight
   cannot be set up, the fly rows are `builder` with the reader's
   `path:line` and the effect-unseen row of contract 0.6.
-- [ ] **Step 6: Proof rows:** each of the ten `live` with the flow, or as
+- [x] **Step 6: Proof rows:** each of the ten `live` with the flow, or as
   step 5 says.
-- [ ] **Step 7: Commit.**
+- [x] **Step 7: Commit.**
   Subject: `feat: Swim and fly under control`
   Body: `Control refused every step in water or in the air, so the character could not cross a lake or fly. It now sends the swim, pitch and fly moves the server reads.`
 
 **Proof:** live (witness relays of the swim and fly moves).
+
+**Built:** control-swim.ts holds the ten sends as explicit actions (E1,
+SR3-self-state-11); the flow `selfstate-swim` drives them; the ten
+opcodes are `live` under "Sent from control" in `docs/areas/selfstate.md`.
 
 ---
 
