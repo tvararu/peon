@@ -7,6 +7,7 @@ import type {
   SetsListedEvent,
   SetUsedEvent,
   SetUseRequestedEvent,
+  UseStatus,
 } from "#wow/areas/items/protocol-sets";
 import type {
   DeleteRequest,
@@ -156,7 +157,7 @@ const saveTimeoutBehavior = (host: SetsHost) => ({
 const settleUseEvent = (
   host: SetsHost,
   request: UseRequest,
-  status: "ok" | "bags_full" | "unanswered",
+  status: UseStatus,
   reason: string | undefined,
 ): void => {
   const last = host.sets.snapshot().lastUse;
