@@ -258,6 +258,10 @@ truth`), so the click would fail its condition. With the puppet running,
 drive eval therefore stages the quest with the online route and cannot use
 `soap setup` for it.
 
+The control regression gates passed on this change: `t1-walk-to-npc` and
+`t7-halt-resume`, round 359 (`tmp/evals/359/t1-walk-to-npc-1`,
+`tmp/evals/359/t7-halt-resume-1`), graded `pass` 2/2 and 3/3.
+
 Accounts: FAC6ABE1FDF5C (driver) and FAC6ABE207DFA (observer), both
 deleted. Earlier: FAC6ABD9C85B3 and FAC6ABD9EA262 (click tries), FAC6ABD9FE660
 and FAC6ABDA1BB23 (click, ride), FAC6ABDA09BFE (partner); all deleted.
