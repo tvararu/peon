@@ -10,7 +10,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x300` | `SMSG_SPLINE_SET_SWIM_SPEED` | server | handled |  |
 | `0x301` | `SMSG_SPLINE_SET_WALK_SPEED` | server | handled |  |
 | `0x302` | `SMSG_SPLINE_SET_SWIM_BACK_SPEED` | server | handled |  |
-| `0x303` | `SMSG_SPLINE_SET_TURN_RATE` | server | missing |  |
+| `0x303` | `SMSG_SPLINE_SET_TURN_RATE` | server | handled | not seen live |
 | `0x304` | `SMSG_SPLINE_MOVE_UNROOT` | server | handled |  |
 | `0x305` | `SMSG_SPLINE_MOVE_FEATHER_FALL` | server | missing |  |
 | `0x306` | `SMSG_SPLINE_MOVE_NORMAL_FALL` | server | missing |  |
@@ -27,6 +27,6 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x386` | `SMSG_SPLINE_SET_FLIGHT_BACK_SPEED` | server | handled |  |
 | `0x422` | `SMSG_SPLINE_MOVE_SET_FLYING` | server | missing |  |
 | `0x423` | `SMSG_SPLINE_MOVE_UNSET_FLYING` | server | missing |  |
-| `0x45e` | `SMSG_SPLINE_SET_PITCH_RATE` | server | missing |  |
+| `0x45e` | `SMSG_SPLINE_SET_PITCH_RATE` | server | handled | not seen live |
 | `0x4d3` | `SMSG_SPLINE_MOVE_GRAVITY_DISABLE` | server | missing |  |
 | `0x4d4` | `SMSG_SPLINE_MOVE_GRAVITY_ENABLE` | server | handled |  |

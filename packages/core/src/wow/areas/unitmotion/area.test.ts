@@ -249,3 +249,60 @@ describe("unitmotion root, walk mode and swim toggles", () => {
     }
   });
 });
+
+const RATES = [
+  [GameOpcode.SMSG_SPLINE_SET_TURN_RATE, "turn"],
+  [GameOpcode.SMSG_SPLINE_SET_PITCH_RATE, "pitch"],
+] as const satisfies readonly (readonly [number, SpeedKind])[];
+
+describe("unitmotion turn and pitch rates", () => {
+  test("each rate packet sets its own speed and emits a speed event", () => {
+    const rig = areaRig("unitmotion");
+    try {
+      const seen: UnitmotionEvent[] = [];
+      rig.handle.onEvent((event) => seen.push(event));
+      rig.stores.areas.unitmotion.seed(CREATURE, {
+        flags: 0,
+        speeds: BASE_SPEEDS,
+      });
+      for (const [opcode] of RATES)
+        rig.inject(
+          opcode,
+          unitmotionSplineSpeedBody({ guid: CREATURE, speed: 1.5 }),
+        );
+      const [row] = rig.handle.state().units;
+      for (const [, kind] of RATES)
+        expect(row?.speeds[kind]).toMatchObject({
+          value: 1.5,
+          source: "spline",
+        });
+      expect(row?.speeds.run?.value).toBe(BASE_SPEEDS.run);
+      expect(seen).toEqual(
+        RATES.map(([, kind]) => ({
+          type: "speed",
+          guid: CREATURE,
+          kind,
+          value: 1.5,
+          previous: BASE_SPEEDS[kind],
+          self: false,
+        })),
+      );
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a rate packet for a guid with no entity is dropped and counted", () => {
+    const rig = areaRig("unitmotion");
+    try {
+      for (const [opcode] of RATES)
+        rig.inject(
+          opcode,
+          unitmotionSplineSpeedBody({ guid: STRANGER, speed: 1.5 }),
+        );
+      expect(rig.handle.state()).toEqual({ units: [], dropped: 2 });
+    } finally {
+      rig.dispose();
+    }
+  });
+});

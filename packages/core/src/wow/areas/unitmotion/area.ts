@@ -41,6 +41,16 @@ function registerSpeeds(wire: AreaRegister, store: UnitmotionStore): void {
       parseSplineUnitState(GameOpcode.SMSG_SPLINE_SET_FLIGHT_BACK_SPEED, r),
     ),
   );
+  wire.on(GameOpcode.SMSG_SPLINE_SET_TURN_RATE, (r) =>
+    store.receiveSpline(
+      parseSplineUnitState(GameOpcode.SMSG_SPLINE_SET_TURN_RATE, r),
+    ),
+  );
+  wire.on(GameOpcode.SMSG_SPLINE_SET_PITCH_RATE, (r) =>
+    store.receiveSpline(
+      parseSplineUnitState(GameOpcode.SMSG_SPLINE_SET_PITCH_RATE, r),
+    ),
+  );
 }
 
 function registerToggles(wire: AreaRegister, store: UnitmotionStore): void {

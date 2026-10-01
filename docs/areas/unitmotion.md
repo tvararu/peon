@@ -108,11 +108,13 @@ speed and flag changes the creature showed.
 
 ## Left out
 
-The parser reads all 25 owned opcodes; the two death toggles, the seven
+The parser reads all 25 owned opcodes; the two death toggles, the nine
 speed opcodes and the root, walk mode and swim toggles have a handler.
 
-- `SMSG_SPLINE_SET_TURN_RATE` and `SMSG_SPLINE_SET_PITCH_RATE`: built
-  by `remote-motion-5`.
+Turn and pitch rates ride the shared speed writer; the table rows
+`Unit.h:658` and `:661` pair them with the force-change opcodes and the
+two spline opcodes.
+
 - `SMSG_SPLINE_MOVE_FEATHER_FALL`, `SMSG_SPLINE_MOVE_NORMAL_FALL`,
   `SMSG_SPLINE_MOVE_WATER_WALK`, `SMSG_SPLINE_MOVE_LAND_WALK`,
   `SMSG_SPLINE_MOVE_SET_HOVER`, `SMSG_SPLINE_MOVE_SET_FLYING`,
@@ -142,3 +144,16 @@ No verb (N23).
 | `SMSG_SPLINE_MOVE_SET_RUN_MODE` | `mock` | the same test; not seen live, for the same reason | `Entities/Creature/Creature.cpp:3396` |
 | `SMSG_SPLINE_MOVE_START_SWIM` | `mock` | the same test; not seen live: one water-fight try (probe flow `unitmotion-cast` after a teleport to Lake Elrendar; the probe output is not committed) found no hostile creature within 100 yards, so no swimming creature was fought, and no other water fight near an `eversong10` start is known | `Entities/Creature/Creature.cpp:3407` |
 | `SMSG_SPLINE_MOVE_STOP_SWIM` | `mock` | the same test; not seen live, for the same reason | `Entities/Creature/Creature.cpp:3407` |
+| `SMSG_SPLINE_SET_TURN_RATE` | `mock` | `area.test.ts` "unitmotion turn and pitch rates"; not seen live: no server code path sends it (see "Turn and pitch rate senders") | `Entities/Unit/Unit.h:658` |
+| `SMSG_SPLINE_SET_PITCH_RATE` | `mock` | the same test; not seen live, for the same reason | `Entities/Unit/Unit.h:661` |
+
+### Turn and pitch rate senders
+
+The shared speed writer sends a packed guid then the speed float
+(`Entities/Unit/Unit.cpp:11037-11040`). The speed update handles only
+the seven walk, run, swim and flight types
+(`Entities/Unit/Unit.cpp:10842-10925`), and the only calls that set a
+turn or pitch rate are commented out
+(`Entities/Vehicle/Vehicle.cpp:212-213`). SmartAI's speed action passes
+`forced` false (`AI/SmartScripts/SmartScript.cpp:3009`), so no caller
+reaches the send branch for these two types.
