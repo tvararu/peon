@@ -220,16 +220,17 @@ function snapshotState(
     },
   };
 }
-
-export function createTravelStore(now: () => number): TravelStore {
-  const events = new Emitter<[TravelEvent]>();
-  const bind: BindFields = {
+function emptyBind(): BindFields {
+  return {
     home: undefined,
     offer: undefined,
     lastBound: undefined,
     bindPending: undefined,
   };
-  const taxi: TaxiFields = {
+}
+
+function emptyTaxi(): TaxiFields {
+  return {
     known: undefined,
     masters: new Map<bigint, TravelMaster>(),
     learnedAt: undefined,
@@ -238,6 +239,12 @@ export function createTravelStore(now: () => number): TravelStore {
     lastReply: undefined,
     flight: { phase: "idle", route: undefined },
   };
+}
+
+export function createTravelStore(now: () => number): TravelStore {
+  const events = new Emitter<[TravelEvent]>();
+  const bind = emptyBind();
+  const taxi = emptyTaxi();
 
   const freshOffer = () =>
     bind.offer && now() - bind.offer.at <= BIND_OFFER_TTL_MS
