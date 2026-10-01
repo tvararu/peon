@@ -112,16 +112,16 @@ the probe treats that as landed without waiting for `flight_landed`.
   `UNIT_FLAG_TAXI_FLIGHT`), so the send has no visible effect. Control
   sends exactly one when the spline duration has elapsed and
   `TAXI_FLIGHT` is still set, and none when the flag already cleared.
-- A self `SMSG_MONSTER_MOVE` also feeds control: the flight launch
-  (`FlightPathMovementGenerator::DoReset`, which sets `UNIT_FLAG_TAXI_FLIGHT`
-  and launches the spline) arrives as a non-cyclic catmull-rom path with
-  the flying flag; a stop spline during the flight sets the server pose
-  to the stop point, and the flag clearing with no stop spline lands at
-  the last spline point.
+- A self `SMSG_MONSTER_MOVE` starts a flight the way the server launches
+  it: `DoReset` sets `UNIT_FLAG_TAXI_FLIGHT` and calls `SetFly`, which
+  keeps only the flying flag (`0x2000`) and thereby selects catmull-rom
+  interpolation.
+- A self `SMSG_MONSTER_MOVE` stop spline during the flight sets the server
+  pose and the landing endpoint to the stop point, and the flag clearing
+  with no stop spline lands at the last spline point.
   The in-flight predicted pose stays unknown: the motion store cannot
   evaluate a non-cyclic flying catmull-rom path, and the end point is
   enough for correctness.
-
 ## Harness verbs
 
 `interact` with `do: "bind"` makes the inn of a nearby innkeeper the
@@ -164,4 +164,5 @@ use the hearthstone to go home. Both are in
 | `CMSG_ACTIVATETAXI` | `live` | probe flow `travel-fly` on `FAC6ABDA53EE1` (`ghostlands20`, Tranquillien learned): two sends, the known route settled `ok` for nodes 83 to 82 at list price 110; `soap truth` money fell from 200000 to 199895 | `Handlers/TaxiHandler.cpp:279` |
 | `SMSG_ACTIVATETAXIREPLY` | `live` | both `travel-fly` runs: `not_visited` for an unvisited node and `ok` for the known route; both bodies are 4 bytes | `Handlers/TaxiHandler.cpp:303` |
 | `CMSG_ACTIVATETAXIEXPRESS` | `live` | probe flow `travel-fly` with `express=1`: two 20-byte sends (guid, count, two nodes, no total cost); the unvisited node refused `not_visited` and the known route settled `ok`; money fell another 105 | `Handlers/TaxiHandler.cpp:199` |
-| `CMSG_MOVE_SPLINE_DONE` | `builder` | probe flow `travel-land` on `FAC6ABDB6B0CB` (`ghostlands20`, Tranquillien to Silvermoon): one 16-byte `CMSG_ACTIVATETAXI`, one 4-byte `SMSG_ACTIVATETAXIREPLY`, 383 `SMSG_MONSTER_MOVE` and one `SMSG_DISMOUNT` 69.4 s after the send; no `CMSG_MOVE_SPLINE_DONE` in the trace because the single-map flight finalizes itself, so the send has no visible effect; the builder round-trips guid, movement info and spline id | `Handlers/TaxiHandler.cpp:216-257` |
+| `CMSG_MOVE_SPLINE_DONE` | `live` | probe flow `travel-land` on `FAC6ABDC02AB1` (`ghostlands20`, Tranquillien to Silvermoon, nodes 83 to 82 at list price 110): `CMSG_ACTIVATETAXI` sent, `SMSG_ACTIVATETAXIREPLY ok` follows, the first `SMSG_MONSTER_MOVE` arrives 9 ms later, then `SMSG_DISMOUNT` and one `CMSG_MOVE_SPLINE_DONE` 69.4 s after the send; the flow reports `tookOff:true`, `landed:true`, `walked.traveled:10`, and `soap truth` holds map 530 at (9383.08, -7166.07, 11.48) with money 199895; trace `tmp/probe/FAC6ABDC02AB1-20261001T020741Z/packets.jsonl` | `Handlers/TaxiHandler.cpp:216-257` |
+| `SMSG_FLIGHT_SPLINE_SYNC` | `dead` | registered as `STATUS_NEVER` and no AzerothCore code writes it: the only other mention is its enum line (`Server/Protocol/Opcodes.h:934`) | `Server/Protocol/Opcodes.cpp:1035` |
