@@ -25,12 +25,12 @@
     {
       "evidence": {
         "point": {
-          "x": 2226,
-          "y": 5298
+          "x": 1873.32,
+          "y": -6218.15
         }
       },
-      "expect": "T final position within 10 yd of Mark Hanes (2226, 5298, map 571); the truth pose and the live nearby agree on this point",
-      "id": "at-hanes",
+      "expect": "T final position within 10 yd of Timothy Holland (1873.32, -6218.15, map 571); the truth pose and the live nearby agree on this point",
+      "id": "at-innkeeper",
       "source": "truth"
     },
     {
@@ -49,11 +49,11 @@
     {
       "body": {
         "map": 571,
-        "o": 0,
-        "x": 2213.95,
-        "y": 5273.15,
-        "z": 11.26,
-        "zone": 3537
+        "o": 4.7,
+        "x": 1923.72,
+        "y": -5990,
+        "z": 9.3,
+        "zone": 495
       },
       "endpoint": "position"
     },
@@ -71,6 +71,6 @@
     }
   ],
   "steers": [],
-  "task": "Get on your mount, ride north to Mark Hanes in Valiance Keep, then get off.",
+  "task": "Get on your mount, ride to Timothy Holland, the innkeeper at Vengeance Landing, then get off.",
   "tier": 9
 }
