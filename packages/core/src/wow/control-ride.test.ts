@@ -135,6 +135,20 @@ describe("passenger seat in control", () => {
     expect(splineDones(sent)).toHaveLength(1);
   });
 
+  test("a seat without a boarding spline sends no spline done but still carries the transport block", () => {
+    const { runtime, sent, advance } = setup();
+    runtime.vehicleSeat(seat({ duration: 0, splineId: undefined }));
+    advance(10_000);
+    expect(splineDones(sent)).toEqual([]);
+    sent.length = 0;
+    runtime.forceRoot(6);
+    const packet = must(sent.at(-1));
+    const r = new PacketReader(packet.body);
+    r.packedGuidBig();
+    r.uint32LE();
+    expect(parseMovementInfo(r).transport?.guid).toBe(VEHICLE);
+  });
+
   test("leaving before the spline ends sends nothing and clears the ride", () => {
     const { runtime, sent, advance } = setup();
     runtime.vehicleSeat(seat({ duration: 800 }));

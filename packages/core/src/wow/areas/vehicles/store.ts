@@ -7,6 +7,9 @@ import { type MonsterMove, SplineFlag } from "#wow/protocol/monster-move";
 import type { Vec3 } from "#wow/protocol/packet";
 import type { SessionDeps } from "#wow/session-stores";
 
+const UNIT_GUID_HIGH = 0xf130n;
+const VEHICLE_GUID_HIGH = 0xf150n;
+
 export type VehicleSeat = {
   vehicle: bigint;
   seat: number;
@@ -33,7 +36,7 @@ export type VehiclesEvent =
       seat: number;
       entry: number | undefined;
       offset: Vec3;
-      splineId: number;
+      splineId: number | undefined;
       duration: number;
     }
   | { type: "exited"; vehicle: bigint }
@@ -143,6 +146,36 @@ export class VehiclesStore {
         type: "entered",
         vehicle: move.transportGuid,
       });
+  }
+
+  receiveCreatedOnTransport(
+    guid: bigint,
+    transport: { guid: bigint; seat: number; x: number; y: number; z: number },
+  ): void {
+    if (guid !== this.deps.selfGuid()) return;
+    const kind = transport.guid >> 48n;
+    if (kind !== UNIT_GUID_HIGH && kind !== VEHICLE_GUID_HIGH) return;
+    if (this.seat?.vehicle === transport.guid) return;
+    const entry = this.vehicleEntry(transport.guid);
+    this.passengers.set(guid, {
+      seat: transport.seat,
+      transportGuid: transport.guid,
+    });
+    this.setSeat({
+      controlling: false,
+      entry,
+      seat: transport.seat,
+      vehicle: transport.guid,
+    });
+    this.queue({
+      duration: 0,
+      entry,
+      offset: { x: transport.x, y: transport.y, z: transport.z },
+      seat: transport.seat,
+      splineId: undefined,
+      type: "entered",
+      vehicle: transport.guid,
+    });
   }
 
   receiveExit(guid: bigint, move: MonsterMove): void {

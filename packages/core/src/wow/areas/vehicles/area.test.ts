@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { deflateSync } from "node:zlib";
 import { areaRig } from "#test-support/area-rig";
 import {
+  vehiclesCreateSelfOnTransportBlock,
   vehiclesCreateVehicleBlock,
   vehiclesMonsterMoveBody,
   vehiclesMonsterMoveTransportBody,
@@ -246,6 +247,76 @@ describe("vehicles area wiring", () => {
       writePackedGuid(gone, STRANGER);
       rig.inject(GameOpcode.SMSG_UPDATE_OBJECT, gone.finish());
       expect(rig.handle.state().passengers.size).toBe(0);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a self create block on a vehicle seats the character without a boarding spline", () => {
+    const rig = areaRig("vehicles", { selfGuid: GUID });
+    const seen: VehiclesEvent[] = [];
+    rig.handle.onEvent((event) => seen.push(event));
+    try {
+      const body = vehiclesCreateSelfOnTransportBlock({
+        guid: GUID,
+        offset: { x: 0, y: 1, z: 2 },
+        seat: 1,
+        transportGuid: TRANSPORT,
+      });
+      rig.inject(GameOpcode.SMSG_UPDATE_OBJECT, body);
+      expect(rig.handle.state().seat).toMatchObject({
+        seat: 1,
+        vehicle: TRANSPORT,
+      });
+      expect(seen).toEqual([
+        {
+          duration: 0,
+          entry: undefined,
+          offset: { x: 0, y: 1, z: 2 },
+          seat: 1,
+          splineId: undefined,
+          type: "entered",
+          vehicle: TRANSPORT,
+        },
+      ]);
+      rig.inject(GameOpcode.SMSG_UPDATE_OBJECT, body);
+      expect(seen).toHaveLength(1);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a create block for another unit on a vehicle seat changes nothing", () => {
+    const rig = areaRig("vehicles", { selfGuid: GUID });
+    try {
+      rig.inject(
+        GameOpcode.SMSG_UPDATE_OBJECT,
+        vehiclesCreateSelfOnTransportBlock({
+          guid: STRANGER,
+          offset: { x: 0, y: 0, z: 0 },
+          seat: 0,
+          transportGuid: TRANSPORT,
+        }),
+      );
+      expect(rig.handle.state().seat).toBeUndefined();
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("a self create block on a transport gameobject is not a vehicle seat", () => {
+    const rig = areaRig("vehicles", { selfGuid: GUID });
+    try {
+      rig.inject(
+        GameOpcode.SMSG_UPDATE_OBJECT,
+        vehiclesCreateSelfOnTransportBlock({
+          guid: GUID,
+          offset: { x: 0, y: 0, z: 0 },
+          seat: 0,
+          transportGuid: 0xf1_20_00_00_00_00_00_01n,
+        }),
+      );
+      expect(rig.handle.state().seat).toBeUndefined();
     } finally {
       rig.dispose();
     }

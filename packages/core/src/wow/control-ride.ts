@@ -10,7 +10,7 @@ export type RideSeat = {
   vehicle: bigint;
   seat: number;
   offset: Vec3;
-  splineId: number;
+  splineId: number | undefined;
   duration: number;
   vehiclePose: Position | undefined;
 };
@@ -66,6 +66,7 @@ export class RideState {
     if (seat.vehiclePose)
       this.serverPose(seatWorldPose(seat.vehiclePose, seat.offset));
     this.emit("control_changed", "transport");
+    if (seat.splineId === undefined) return;
     this.splineTimer = setTimeout(() => {
       this.splineTimer = undefined;
       this.sendSplineDone();
@@ -112,7 +113,7 @@ export class RideState {
 
   private sendSplineDone(): void {
     const seat = this.seat;
-    if (!seat) return;
+    if (seat?.splineId === undefined) return;
     const info = this.movementInfo();
     const head = buildMoveMessage(this.deps.selfGuid(), info);
     const body = new Uint8Array(head.byteLength + 4);
