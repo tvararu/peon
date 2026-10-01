@@ -370,7 +370,7 @@ describe("repairing", () => {
     if (!self) throw new Error("missing self");
     const low = Number(BANK_SWORD & 0xffff_ffffn);
     const high = Number(BANK_SWORD >> 32n);
-    const invSlotHead = 0x1_44 - 20 * 2;
+    const invSlotHead = 0x1_44;
     const rawFields = new Map([
       ...self.rawFields,
       [invSlotHead + 39 * 2, low],
@@ -386,11 +386,24 @@ describe("repairing", () => {
     );
     f.runtime.repair();
     expect(f.runtime.snapshot().pending).toMatchObject({ action: "repair" });
+    const banked = f.store
+      .inventory()
+      .bank?.slots.find((slot) => slot.status === "occupied");
+    expect(banked).toMatchObject({ bag: 255, slot: 39, region: "bank" });
+    expect(
+      f.store
+        .inventory()
+        .slots.some(
+          (slot) => slot.status === "occupied" && slot.guid === BANK_SWORD,
+        ),
+    ).toBe(false);
     f.set(CHEST, DURABILITY, 50);
     f.set(1n, COINAGE, 49_990);
     expect(f.runtime.snapshot().lastOutcome).toMatchObject({
+      action: "repair",
       status: "confirmed",
     });
+    expect(f.runtime.snapshot().pending).toBeUndefined();
   });
 
   test("a vendor without the repair flag is refused locally", () => {
