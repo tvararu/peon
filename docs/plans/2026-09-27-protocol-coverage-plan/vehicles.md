@@ -785,6 +785,7 @@ Related opcodes that other units own: `CMSG_MOVE_SPLINE_DONE` (`travel`),
 | Id | Issue | Ruling |
 |---|---|---|
 | BR-vehicles-4-1 | Telling a driven vehicle's root from the passenger's boarding root needs the root packet's GUID, which `packages/core/src/wow/movement-handlers.ts` (leased to vehicles-7 only) discards | Coordinator ruling (P2-17): vehicles-4 may keep `parseMoveCounter(r).guid` in the `force_root` and `force_unroot` self events of `movement-handlers.ts`, nothing else; the lease then passes to vehicles-7 as planned. |
+| BR-vehicles-4-2 | Carrying the root packet's GUID (BR-vehicles-4-1) also changes the compound root event the self-state store emits (`packages/core/src/wow/areas/selfstate/store.ts:124`) and its test (`store.test.ts:135`) | Coordinator ruling (P2-17): vehicles-4 may make those two companion edits (pass the GUID through, assert it), nothing else in the self-state files. |
 
 ## COMPLETE
 
