@@ -256,11 +256,15 @@ describe("social do:emote", () => {
   test("an echo from another unit does not confirm the emote", async () => {
     await withFakeTimers(async () => {
       const { handle, tool } = await world();
-      spyOn(handle.emotes.act, "textEmote").mockImplementation(async () => {
-        handle.triggerAreaEvent("emotes", { ...echo(undefined), self: false });
-        return { ok: true, textEmote: 101 };
-      });
+      const gate = Promise.withResolvers<{ ok: true; textEmote: number }>();
+      spyOn(handle.emotes.act, "textEmote").mockImplementation(
+        () => gate.promise,
+      );
       const pending = runTool(tool, { do: "emote", what: "wave" });
+      await elapse(100);
+      gate.resolve({ ok: true, textEmote: 101 });
+      await elapse(100);
+      handle.triggerAreaEvent("emotes", { ...echo(undefined), self: false });
       await elapse(5000);
       const out = await pending;
       expect(out.details.result.status).toBe("UNCONFIRMED");
