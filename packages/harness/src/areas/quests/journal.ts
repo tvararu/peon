@@ -123,6 +123,7 @@ export function questsResult({ handle, rt }: Ctx): ToolResult<JournalAfter> {
     (slot): slot is LoggedSlot =>
       slot.questId !== undefined && slot.questId > 0,
   );
+  const loggedIds = new Set(logged.map((slot) => slot.questId));
   const shown = logged.map((slot) =>
     questLine({ handle, rt } as Ctx, state, slot),
   );
@@ -133,10 +134,21 @@ export function questsResult({ handle, rt }: Ctx): ToolResult<JournalAfter> {
   const to =
     first?.region && "to" in first.region ? first.region.to : undefined;
   const reset = dailyResetLine(handle.time.state(), rt.clock.now());
+  const daily = [...(handle.quests.state().daily ?? [])]
+    .filter((questId) => !loggedIds.has(questId))
+    .sort((a, b) => a - b)
+    .map(
+      (questId) =>
+        `#${questId} ${questTitle({ handle, rt } as Ctx, questId)}: done today.`,
+    );
   const detail = `${quests.length} quests. This is your quest log. To see what an NPC offers, use interact.`;
   return result("DONE", {
     after: { about: "quests", quests },
-    body: [...(reset === undefined ? [] : [reset]), ...shown.map(questText)],
+    body: [
+      ...(reset === undefined ? [] : [reset]),
+      ...shown.map(questText),
+      ...daily,
+    ],
     detail,
     next: to === undefined ? undefined : nextCall("travel", { to }),
   });
