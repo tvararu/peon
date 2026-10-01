@@ -1,3 +1,4 @@
+import { appendFileSync, mkdirSync } from "node:fs";
 import {
   appendFile,
   chmod,
@@ -362,9 +363,8 @@ function traceSink(dir: string) {
   return {
     bodies: true,
     row: (row: { opcode: number }) => {
-      void mkdir(dir, { mode: 0o700, recursive: true }).then(() =>
-        appendFile(`${dir}/packets.jsonl`, `${JSON.stringify({ ...row })}\n`),
-      );
+      mkdirSync(dir, { mode: 0o700, recursive: true });
+      appendFileSync(`${dir}/packets.jsonl`, `${JSON.stringify({ ...row })}\n`);
     },
   };
 }
