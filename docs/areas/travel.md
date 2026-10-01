@@ -160,8 +160,7 @@ ambiguous name lists the matches.
 `interact` at a flight master prints the destinations known from its
 node with list prices and a `travel` call for the first one. `look` with
 `find: "flight_master"` lists the flight masters in view or remembered.
-The harness log rows are `travel/node_learned`, `travel/flight_started`,
-`travel/flight_landed` (a wake) and `travel/flight_refused`.
+The store records a flight spline's duration only from the character's own non-cyclic flying `SMSG_MONSTER_MOVE` (`Movement/Spline/MoveSplineInit.cpp:115-124` writes the moving unit's packed GUID via `SendMessageToSet`, so the peek must filter on it). The harness log rows are `travel/node_learned`, `travel/flight_started`, `travel/flight_landed` (a wake) and `travel/flight_refused`. A fresh node discovery sends `SMSG_NEW_TAXI_PATH` and status with no map (`Handlers/TaxiHandler.cpp:89-102` sends `SMSG_NEW_TAXI_PATH` and status with no map when `SendLearnNewTaxiNode` learns an unknown node); the store remembers the pending learn and emits `taxi_node_named` once the re-query's `SMSG_SHOWTAXINODES` supplies the current node, which the runtime resolves against the taxi catalog for the `node_learned` text.
 
 ## Capabilities row
 

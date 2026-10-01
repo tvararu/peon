@@ -312,11 +312,28 @@ function openTaxiMap(
     store.beginMap(npc);
     try {
       sendMapQuery(ctx, npc, options?.enable === true);
-      return await waitMap(ctx, store, npc);
+      const outcome = await waitMap(ctx, store, npc);
+      if (outcome.status === "ok" && outcome.kind === "map")
+        await namePendingLearn(ctx, state, store, npc);
+      return outcome;
     } finally {
       store.endMap();
     }
   });
+}
+
+async function namePendingLearn(
+  ctx: AreaRuntimeCtx<TravelEvent>,
+  state: TaxiRuntime,
+  store: TravelStore,
+  npc: bigint,
+): Promise<void> {
+  const pending = store.learnPending();
+  if (pending?.npc !== npc || pending.node === undefined) return;
+  const loaded = await readCatalog(ctx, state);
+  store.nameLearned(
+    "catalog" in loaded ? loaded.catalog.node(pending.node)?.name : undefined,
+  );
 }
 
 function setTaxiBenchmark(

@@ -145,6 +145,38 @@ describe("travel harness rules", () => {
     expect(row?.text).toContain("not_enough_money");
   });
 
+  test("a named learned node writes node_learned naming the node from the catalog", () => {
+    const [row] = areaDrafts(
+      areaRuleSet(),
+      travelEvent({
+        name: "Tranquillien",
+        node: 83,
+        npc: 0x55n,
+        type: "taxi_node_named",
+      }),
+      testRuleInput(),
+    );
+    expect(row).toMatchObject({
+      data: { node: 83 },
+      event: "travel/node_learned",
+    });
+    expect(row?.text).toContain("Tranquillien");
+  });
+
+  test("a named learned node without a catalog name falls back to the node id", () => {
+    const [row] = areaDrafts(
+      areaRuleSet(),
+      travelEvent({
+        name: undefined,
+        node: 83,
+        npc: 0x55n,
+        type: "taxi_node_named",
+      }),
+      testRuleInput(),
+    );
+    expect(row?.text).toContain("83");
+  });
+
   test("an ok taxi reply writes no refusal row", () => {
     expect(
       areaDrafts(
