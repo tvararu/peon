@@ -200,6 +200,6 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Spells (spell tool, stop on channels) | `t4-spells-cancel-aura`, `t4-spells-action-bar`, `t4-spells-stop-channel` |
 | Reputation and hostility (journal reputation, reputation rows, unit relations) | `t4-reputation-gain`, `t0-hostiles` |
 | Travel (`interact` bind, `travel` hearth and fly) | `t8-travel-bind-inn`, `t8-travel-hearth-home`, `t8-travel-fly` |
-| Pets (pet, interact stable) | `t8-pets-command`, `t8-pets-rename` |
+| Pets (pet, interact stable) | `t8-pets-command`, `t8-pets-rename`, `t8-pets-abandon` |
 | Instances and dungeon finder (`dungeon`) | `t9-instances-difficulty`, `t9-lfg-queue`, `t9-lfg-run` |
 | Groups and raids (`group` tool) | `t9-raid-kick`, `t9-raid-convert`, `t9-raid-master-loot`, `t9-raid-ready`, `t9-raid-answer`, `t9-raid-mark` |
