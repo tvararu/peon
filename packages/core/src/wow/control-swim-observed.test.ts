@@ -49,21 +49,48 @@ describe("air inputs after server-observed state", () => {
     expect(move.flags & MovementFlag.PITCH_UP).toBe(MovementFlag.PITCH_UP);
   });
 
-  test("pitch, ascend and descend work over observed flying", () => {
+  test("pitch, ascend and descend keep the observed flight grant", () => {
     const { runtime, sent } = observedFlying();
+    const FLY = MovementFlag.FLYING | MovementFlag.CAN_FLY;
     runtime.pitch("down");
-    expect(decodeMove(must(sent.at(-1))).flags & MovementFlag.FLYING).toBe(
-      MovementFlag.FLYING,
-    );
+    expect(decodeMove(must(sent.at(-1))).flags & FLY).toBe(FLY);
     runtime.ascend("start");
     const up = decodeMove(must(sent.at(-1)));
     expect(up.opcode).toBe(GameOpcode.MSG_MOVE_START_ASCEND);
-    expect(up.flags & MovementFlag.FLYING).toBe(MovementFlag.FLYING);
+    expect(up.flags & FLY).toBe(FLY);
     runtime.descend();
     const down = decodeMove(must(sent.at(-1)));
     expect(down.opcode).toBe(GameOpcode.MSG_MOVE_START_DESCEND);
     expect(down.flags & MovementFlag.DESCENDING).toBe(MovementFlag.DESCENDING);
-    expect(down.flags & MovementFlag.FLYING).toBe(MovementFlag.FLYING);
+    expect(down.flags & FLY).toBe(FLY);
+  });
+
+  test("takeoff on an observed grant carries CAN_FLY", () => {
+    const { runtime, sent } = setup();
+    runtime.observeSelf({ movementFlags: MovementFlag.CAN_FLY });
+    runtime.setFlying(true);
+    const takeoff = decodeMove(must(sent.at(-1)));
+    expect(takeoff.opcode).toBe(GameOpcode.CMSG_MOVE_SET_FLY);
+    expect(takeoff.flags & MovementFlag.CAN_FLY).toBe(MovementFlag.CAN_FLY);
+    expect(takeoff.flags & MovementFlag.FLYING).toBe(MovementFlag.FLYING);
+  });
+
+  test("a server update that revokes the grant drops CAN_FLY", () => {
+    const { runtime, sent } = observedFlying();
+    runtime.observeSelf({ movementFlags: MovementFlag.FLYING });
+    runtime.pitch("up");
+    const move = decodeMove(must(sent.at(-1)));
+    expect(move.flags & MovementFlag.CAN_FLY).toBe(0);
+  });
+
+  test("observed FLYING alone refuses ground movement", () => {
+    const { runtime, sent } = setup();
+    runtime.observeSelf({ movementFlags: MovementFlag.FLYING });
+    expect(runtime.snapshot().blockedReason).toBe("flying");
+    sent.length = 0;
+    expect(() => runtime.move("forward", 1000)).toThrow("flying");
+    expect(() => runtime.walkToward({ x: 1, y: 2, z: 3 }, 5)).toThrow("flying");
+    expect(sent).toEqual([]);
   });
 
   test("a server update that drops swimming ends the pitch guard", () => {
