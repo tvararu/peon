@@ -32,6 +32,7 @@ import type {
   SyncMotion,
   SyncParts,
 } from "#wow/control-sync-types";
+import { WorldTransfer } from "#wow/control-sync-transfer";
 import {
   planBoard,
   planLeave,
@@ -42,8 +43,8 @@ import { MovementFlag } from "#wow/protocol/entity-fields";
 import type { MonsterMove } from "#wow/protocol/monster-move";
 import {
   buildRootAck,
+  buildMoveMessage,
   buildSetActiveMover,
-  buildTeleportAck,
   type ClientControl,
   type FallData,
   type ForceSpeed,
@@ -71,12 +72,12 @@ export class MovementSync {
   fallTime = 0;
   pitch: number | undefined;
   target: bigint | undefined;
-  private readonly deps: ControlDeps;
-  private readonly emit: Emit;
-  private readonly motion: SyncMotion;
-  private extraFlags = 0;
-  private transport: TransportInfo | undefined;
-  private flight: FlightPort | undefined;
+  readonly deps: ControlDeps;
+  readonly emit: Emit;
+  readonly motion: SyncMotion;
+  extraFlags = 0;
+  transport: TransportInfo | undefined;
+  flight: FlightPort | undefined;
   readonly ride: RideState;
   private readonly selfMotion = new SelfMotion();
   readonly passenger = new PassengerFlags();
@@ -85,12 +86,13 @@ export class MovementSync {
   moverRooted = false;
   moverRootKnown = false;
   readonly pendingRoots = new Map<bigint, boolean>();
-  private teleporting = false;
-  private transportTransfer = false;
+  teleporting = false;
+  transportTransfer = false;
   private unitBlocked = false;
-  private readonly transferAbort = new TransferAbortWatch();
+  readonly transferAbort = new TransferAbortWatch();
   private readonly acks: ServerAckSync;
   private readonly forced: ForcedRoots;
+  private readonly transfer: WorldTransfer;
 
   constructor({ deps, emit, motion, flight }: SyncParts) {
     this.deps = deps;
@@ -99,6 +101,7 @@ export class MovementSync {
     this.flight = flight;
     this.acks = new ServerAckSync({ deps, emit, host: this, motion });
     this.forced = new ForcedRoots({ deps, host: this });
+    this.transfer = new WorldTransfer(this);
     this.ride = new RideState({
       cancelForced: (reason) => this.cancelForced(reason),
       deps,
@@ -187,10 +190,11 @@ export class MovementSync {
     if (!ride) throw new Error("not_boarded");
     const dest = planLeave(ride, this.mapId, this.deps.ground);
     this.transport = undefined;
-    this.ride.leaveTransport();
     this.moveFlags &= ~MovementFlag.ON_TRANSPORT;
     this.observedFlags &= ~MovementFlag.ON_TRANSPORT;
     this.adoptServerPose(dest);
+    this.motion.stop("transport_leave");
+    this.ride.leaveTransport();
     const body = buildMoveMessage(this.deps.selfGuid(), this.movementInfo());
     this.deps.send(GameOpcode.CMSG_MOVE_CHNG_TRANSPORT, body);
   }
@@ -322,39 +326,20 @@ export class MovementSync {
     this.emit("target_observed");
   }
 
-  teleportAck({ counter, info: dest }: MoveAck): void {
-    this.transferAbort.cancel();
-    this.teleporting = false;
-    this.cancelForced("teleport");
-    this.deps.send(
-      GameOpcode.MSG_MOVE_TELEPORT_ACK,
-      buildTeleportAck(this.deps.selfGuid(), counter, this.deps.ticks()),
-    );
-    this.applyForcedPose(dest, "teleport");
+  teleportAck(ack: MoveAck): void {
+    this.transfer.teleportAck(ack);
   }
 
   nearTeleport(dest: MovementInfo): void {
-    this.transferAbort.cancel();
-    this.teleporting = false;
-    this.cancelForced("near_teleport");
-    this.applyForcedPose(dest, "near_teleport");
+    this.transfer.nearTeleport(dest);
   }
 
   handleTransferPending(transport?: { entry: number; fromMap: number }): void {
-    this.transferAbort.cancel();
-    this.teleporting = true;
-    this.transportTransfer = transport !== undefined;
-    this.cancelForced("teleport");
-    this.emit("control_changed", "teleporting");
+    this.transfer.handleTransferPending(transport);
   }
 
-  transferAborted(_abort: TransferAbortedInput): void {
-    if (!this.teleporting) return;
-    this.transferAbort.start(() => {
-      this.teleporting = false;
-      this.motion.stop("transfer_aborted");
-      this.emit("control_changed", undefined);
-    });
+  transferAborted(abort: TransferAbortedInput): void {
+    this.transfer.transferAborted(abort);
   }
 
   dispose(): void {
@@ -363,45 +348,7 @@ export class MovementSync {
   }
 
   newWorld(position: Position): void {
-    this.transferAbort.cancel();
-    this.teleporting = false;
-    this.flight?.newWorld();
-    this.transport = undefined;
-    const ride = this.ride.carriage();
-    const transfer = this.transportTransfer && ride !== undefined;
-    this.transportTransfer = false;
-    if (transfer) {
-      this.ride.rebaseTransport(position.mapId, {
-        x: position.x,
-        y: position.y,
-        z: position.z,
-      });
-    } else if (ride === undefined || position.mapId !== this.mapId) {
-      this.ride.clear();
-    }
-    this.mapId = position.mapId;
-    const keep =
-      this.ride.carriage() === undefined ? 0 : MovementFlag.ON_TRANSPORT;
-    this.moveFlags = keep;
-    this.observedFlags = keep;
-    this.drivenFlags = 0;
-    this.vehicleCanFly = false;
-    this.extraFlags = 0;
-    this.fall = undefined;
-    this.pitch = undefined;
-    this.fallTime = 0;
-    this.rooted = false;
-    this.moverRooted = false;
-    this.moverRootKnown = false;
-    this.pendingRoots.clear();
-    this.setServerPose(position);
-    this.predicted = undefined;
-    this.deps.send(GameOpcode.MSG_MOVE_WORLDPORT_ACK);
-    this.deps.send(
-      GameOpcode.CMSG_SET_ACTIVE_MOVER,
-      buildSetActiveMover(this.deps.selfGuid()),
-    );
-    this.emit("server_correction", "new_world");
+    this.transfer.newWorld(position);
   }
 
   forceRoot(counter: number, guid?: bigint): void {
@@ -525,11 +472,11 @@ export class MovementSync {
     this.predicted = undefined;
   }
 
-  private setServerPose(position: Position): void {
+  setServerPose(position: Position): void {
     this.server = { ...position, source: "server", updatedAt: this.deps.now() };
   }
 
-  private applyForcedPose(dest: MovementInfo, reason: string): void {
+  applyForcedPose(dest: MovementInfo, reason: string): void {
     const ride = this.ride.carriage();
     const offset = dest.transport;
     if (
