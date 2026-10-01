@@ -185,8 +185,8 @@ function receiveFlightFlag(
   on: boolean,
 ): void {
   if (on) {
-    taxi.flagSeen = true;
     enterFlying(taxi, events);
+    taxi.flagSeen = true;
     return;
   }
   if (taxi.flight.phase !== "flying") return;

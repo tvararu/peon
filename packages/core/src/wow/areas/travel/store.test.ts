@@ -364,7 +364,9 @@ describe("travel store: flight", () => {
     const { rig, seen } = rigAt();
     try {
       rig.stores.areas.travel.receiveFlightFlag(true);
-      rig.stores.areas.travel.receiveFlightFlag(true);
+      expect(rig.handle.state().flight.phase).toBe("flying");
+      rig.stores.areas.travel.receiveFlightFlag(false);
+      expect(rig.handle.state().flight.phase).toBe("landed");
       rig.stores.areas.travel.receiveFlightFlag(false);
       expect(rig.handle.state().flight.phase).toBe("landed");
       expect(seen).toEqual([
