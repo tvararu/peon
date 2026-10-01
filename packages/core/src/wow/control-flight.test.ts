@@ -7,6 +7,7 @@ import {
   LOGIN,
   lastMove,
   type Sent,
+  oracle,
   setup,
 } from "#test-support/control-fixtures";
 import type { ControlEvent, ControlRuntime } from "#wow/control";
@@ -156,6 +157,114 @@ describe("self flight spline in control", () => {
       expect(pose?.z).toBeCloseTo(LANDING.z, 2);
       expect(pose?.mapId).toBe(530);
       expect(runtime.snapshot().blockedReason).toBeUndefined();
+    });
+  });
+
+  describe("landing onto the ground", () => {
+    const HOVER = 2.34;
+
+    function landWith(
+      height: (x: number, y: number) => number | undefined,
+      check: (t: FlightFixture) => void,
+    ): void {
+      jest.useFakeTimers();
+      try {
+        const t = setup({
+          ground: oracle({
+            height: (_map, x, y, from) => (from ? from.z : height(x, y)),
+          }),
+        });
+        t.runtime.observeSelfSpline(flightSpline());
+        t.runtime.observeSelf({ unitFlags: FLYING });
+        t.runtime.observeSelf({ unitFlags: 0 });
+        check(t);
+      } finally {
+        jest.useRealTimers();
+      }
+    }
+
+    test("a landing a few yards above the ground takes the ground height at the landing x, y", () => {
+      landWith(
+        () => LANDING.z - HOVER,
+        ({ runtime }) => {
+          const pose = runtime.snapshot().serverPose;
+          expect(pose?.x).toBeCloseTo(LANDING.x, 2);
+          expect(pose?.y).toBeCloseTo(LANDING.y, 2);
+          expect(pose?.z).toBeCloseTo(LANDING.z - HOVER, 2);
+          expect(runtime.snapshot().pose?.z).toBeCloseTo(LANDING.z - HOVER, 2);
+        },
+      );
+    });
+
+    test("the oracle is asked at the landing point on the landing map", () => {
+      const asked: [number, number][] = [];
+      landWith(
+        (x, y) => {
+          asked.push([x, y]);
+          return LANDING.z - HOVER;
+        },
+        () => {
+          expect(asked).toEqual([
+            [expect.closeTo(LANDING.x, 2), expect.closeTo(LANDING.y, 2)],
+          ]);
+        },
+      );
+    });
+
+    test("the first move after landing starts at the ground height", () => {
+      landWith(
+        () => LANDING.z - HOVER,
+        ({ runtime, sent, advance }) => {
+          sent.length = 0;
+          runtime.move("forward", 2000);
+          expect(lastMove(sent).z).toBeCloseTo(LANDING.z - HOVER, 1);
+          advance(300);
+          runtime.halt();
+        },
+      );
+    });
+
+    test.each([
+      ["a ground height far below", () => LANDING.z - 13],
+      ["a ground height above the landing", () => LANDING.z + 3],
+      ["an unknown ground height", () => undefined],
+      ["a non-finite ground height", () => Number.NaN],
+    ])("%s leaves the landing z alone", (_name, height) => {
+      landWith(height, ({ runtime }) => {
+        expect(runtime.snapshot().serverPose?.z).toBeCloseTo(LANDING.z, 2);
+      });
+    });
+
+    test("with no ground oracle the landing z is the spline point", () => {
+      jest.useFakeTimers();
+      try {
+        const t = setup({ ground: undefined });
+        t.runtime.observeSelfSpline(flightSpline());
+        t.runtime.observeSelf({ unitFlags: FLYING });
+        t.runtime.observeSelf({ unitFlags: 0 });
+        expect(t.runtime.snapshot().serverPose?.z).toBeCloseTo(LANDING.z, 2);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    test("the fallback landing after the duration grounds the pose the same way", () => {
+      jest.useFakeTimers();
+      try {
+        const t = setup({
+          ground: oracle({
+            height: (_map, _x, _y, from) => (from ? from.z : LANDING.z - HOVER),
+          }),
+        });
+        t.runtime.observeSelfSpline(flightSpline());
+        t.advance(FLIGHT_MS + 10_500);
+        expect(t.runtime.snapshot().serverPose?.z).toBeCloseTo(
+          LANDING.z - HOVER,
+          2,
+        );
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 

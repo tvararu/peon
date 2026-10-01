@@ -26,6 +26,8 @@ export type FlightParts = {
   landedWithBlocker: (blockers: number) => void;
 };
 
+const LANDING_DROP_YD = 5;
+
 type FlightEnd = { point: Position; info: MovementInfo; splineId: number };
 
 export class FlightTracker {
@@ -173,6 +175,13 @@ export class FlightTracker {
     );
   }
 
+  private grounded(point: Position): Position {
+    const z = this.deps.ground?.height(point.mapId, point.x, point.y);
+    if (z === undefined || !Number.isFinite(z)) return point;
+    const drop = point.z - z;
+    return drop > 0 && drop <= LANDING_DROP_YD ? { ...point, z } : point;
+  }
+
   private land(): void {
     const end = this.end;
     this.flying = false;
@@ -182,7 +191,8 @@ export class FlightTracker {
       clearTimeout(this.splineTimer);
       this.splineTimer = undefined;
     }
-    if (end && end.point.mapId === this.poseMapId()) this.serverPose(end.point);
+    if (end && end.point.mapId === this.poseMapId())
+      this.serverPose(this.grounded(end.point));
     this.end = undefined;
     const blockers = this.blocked;
     this.blocked = undefined;
