@@ -102,6 +102,40 @@ describe("pets names runtime", () => {
       r.dispose();
     }
   });
+  test("a transition re-query marks the cached name stale until the reply", () => {
+    const { fields, r } = rig(0x01_00_00, 7);
+    try {
+      r.inject(
+        GameOpcode.SMSG_PET_NAME_QUERY_RESPONSE,
+        petsNameQueryResponseBody({
+          name: "Rex",
+          number: NUMBER,
+          timestamp: 7,
+        }),
+      );
+      fields.set(UNIT_FIELDS.BYTES_2.offset, 0);
+      r.events.entity.emit({
+        changed: ["rawFields"],
+        entity: { guid: PET, rawFields: fields } as unknown as Entity,
+        type: "update",
+      });
+      expect(r.sent.at(-1)?.opcode).toBe(GameOpcode.CMSG_PET_NAME_QUERY);
+      expect(r.handle.state().renamePending).toContain(NUMBER);
+      r.inject(
+        GameOpcode.SMSG_PET_NAME_QUERY_RESPONSE,
+        petsNameQueryResponseBody({
+          name: "Fangtooth",
+          number: NUMBER,
+          timestamp: 7,
+        }),
+      );
+      expect(r.handle.state().renamePending).toEqual([]);
+      expect(r.handle.state().names[NUMBER]?.name).toBe("Fangtooth");
+    } finally {
+      r.dispose();
+    }
+  });
+
   test("an entity update with a newer timestamp asks again", () => {
     const { fields, r } = rig(0x01_00_00, 7);
     try {
@@ -263,6 +297,7 @@ describe("pets names runtime", () => {
         );
         await elapse(6000);
         expect(r.handle.state().names[NUMBER]?.name).toBe("Fangtooth");
+        expect(r.handle.state().renamePending).toEqual([]);
         expect(seen).toEqual(["name", "name"]);
       } finally {
         off();

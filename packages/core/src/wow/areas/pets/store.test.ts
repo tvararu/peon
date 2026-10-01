@@ -77,6 +77,7 @@ describe("PetsStore", () => {
         cooldowns: [],
         lastRefusal: undefined,
         names: {},
+        renamePending: [],
         pet: undefined,
         stable: undefined,
       });

@@ -99,4 +99,21 @@ describe("pets names", () => {
       r.dispose();
     }
   });
+
+  test("refreshing marks the number pending and the reply settles it", () => {
+    const { r } = rig();
+    try {
+      const store = r.stores.areas.pets;
+      store.refreshing(7);
+      store.refreshing(7);
+      expect(r.handle.state().renamePending).toEqual([7]);
+      r.inject(
+        GameOpcode.SMSG_PET_NAME_QUERY_RESPONSE,
+        petsNameQueryResponseBody({ name: "Rex", number: 7, timestamp: 5 }),
+      );
+      expect(r.handle.state().renamePending).toEqual([]);
+    } finally {
+      r.dispose();
+    }
+  });
 });
