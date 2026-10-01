@@ -14,6 +14,14 @@ import {
   withoutDrivenFields,
 } from "#wow/control-ride";
 import { AIR_INPUT_BITS } from "#wow/control-swim";
+import {
+  canFlyFlags,
+  forcedPoseFlags,
+  RECONCILED_BITS,
+  TransferAbortWatch,
+  UNIT_BLOCK_FLAGS,
+  unsupportedFlags,
+} from "#wow/control-sync-guards";
 import type {
   Emit,
   FlightPort,
@@ -22,7 +30,7 @@ import type {
   SyncParts,
 } from "#wow/control-sync-types";
 import type { Position } from "#wow/entity-store";
-import { MovementFlag, UnitFlag } from "#wow/protocol/entity-fields";
+import { MovementFlag } from "#wow/protocol/entity-fields";
 import type { MonsterMove } from "#wow/protocol/monster-move";
 import {
   buildCollisionHeightAck,
@@ -44,17 +52,6 @@ import {
 } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { MoveFlag, TransferAbortedInput } from "#wow/self-store";
-
-export const TRANSFER_ABORT_TIMEOUT_MS = 10_000;
-
-const RECONCILED_BITS =
-  MovementFlag.SWIMMING | MovementFlag.FLYING | MovementFlag.CAN_FLY;
-
-const UNIT_BLOCK_FLAGS =
-  UnitFlag.DISABLE_MOVE |
-  UnitFlag.STUNNED |
-  UnitFlag.CONFUSED |
-  UnitFlag.FLEEING;
 
 export class MovementSync {
   predicted: ControlPose | undefined;
@@ -83,7 +80,7 @@ export class MovementSync {
   private moverRooted = false;
   private teleporting = false;
   private unitBlocked = false;
-  private transferAbortTimer: ReturnType<typeof setTimeout> | undefined;
+  private readonly transferAbort = new TransferAbortWatch();
 
   constructor({ deps, emit, motion, flight }: SyncParts) {
     this.deps = deps;
@@ -115,12 +112,12 @@ export class MovementSync {
   }
 
   blockReason(): string | undefined {
-    const suspended = this.ride.controlling ? MovementFlag.ON_TRANSPORT : 0;
-    const unsupported = this.ride.controlling
-      ? (this.drivenFlags | this.moveFlags) & ~suspended
-      : (this.observedFlags & ~suspended) |
-        (this.moveFlags &
-          (MovementFlag.SWIMMING | MovementFlag.FLYING | AIR_INPUT_BITS));
+    const unsupported = unsupportedFlags({
+      controlling: this.ride.controlling,
+      drivenFlags: this.drivenFlags,
+      moveFlags: this.moveFlags,
+      observedFlags: this.observedFlags,
+    });
     return (
       this.airBlock() ??
       unsupportedReason(unsupported) ??
@@ -171,10 +168,12 @@ export class MovementSync {
   }
 
   canFly(): boolean {
-    const suspended = this.ride.controlling ? MovementFlag.ON_TRANSPORT : 0;
-    const flags = this.ride.controlling
-      ? (this.drivenFlags | this.moveFlags) & ~suspended
-      : this.observedFlags | this.moveFlags;
+    const flags = canFlyFlags({
+      controlling: this.ride.controlling,
+      drivenFlags: this.drivenFlags,
+      moveFlags: this.moveFlags,
+      observedFlags: this.observedFlags,
+    });
     return (flags & MovementFlag.CAN_FLY) !== 0;
   }
 
@@ -276,7 +275,7 @@ export class MovementSync {
   }
 
   teleportAck({ counter, info: dest }: MoveAck): void {
-    this.cancelTransferAbortWatch();
+    this.transferAbort.cancel();
     this.teleporting = false;
     this.cancelForced("teleport");
     this.deps.send(
@@ -287,14 +286,14 @@ export class MovementSync {
   }
 
   nearTeleport(dest: MovementInfo): void {
-    this.cancelTransferAbortWatch();
+    this.transferAbort.cancel();
     this.teleporting = false;
     this.cancelForced("near_teleport");
     this.applyForcedPose(dest, "near_teleport");
   }
 
   handleTransferPending(): void {
-    this.cancelTransferAbortWatch();
+    this.transferAbort.cancel();
     this.teleporting = true;
     this.cancelForced("teleport");
     this.emit("control_changed", "teleporting");
@@ -302,28 +301,20 @@ export class MovementSync {
 
   transferAborted(_abort: TransferAbortedInput): void {
     if (!this.teleporting) return;
-    this.cancelTransferAbortWatch();
-    this.transferAbortTimer = setTimeout(() => {
-      this.transferAbortTimer = undefined;
+    this.transferAbort.start(() => {
       this.teleporting = false;
       this.motion.stop("transfer_aborted");
       this.emit("control_changed", undefined);
-    }, TRANSFER_ABORT_TIMEOUT_MS);
-  }
-
-  private cancelTransferAbortWatch(): void {
-    if (this.transferAbortTimer !== undefined)
-      clearTimeout(this.transferAbortTimer);
-    this.transferAbortTimer = undefined;
+    });
   }
 
   dispose(): void {
-    this.cancelTransferAbortWatch();
+    this.transferAbort.cancel();
     this.ride.dispose();
   }
 
   newWorld(position: Position): void {
-    this.cancelTransferAbortWatch();
+    this.transferAbort.cancel();
     this.teleporting = false;
     this.flight?.newWorld();
     this.transport = undefined;
@@ -519,18 +510,14 @@ export class MovementSync {
     )
       this.transport = { ...dest.transport };
     else this.transport = undefined;
-    const keep =
-      dest.transport !== undefined &&
-      (dest.flags & MovementFlag.ON_TRANSPORT) !== 0
-        ? MovementFlag.ON_TRANSPORT
-        : 0;
-    this.observedFlags = (dest.flags & ~MovementFlag.ON_TRANSPORT) | keep;
+    const pose = forcedPoseFlags({
+      flags: dest.flags,
+      hasTransport: dest.transport !== undefined,
+      inputBits: INPUT_BITS,
+    });
+    this.observedFlags = pose.observed;
     this.extraFlags = dest.extraFlags;
-    this.moveFlags =
-      (dest.flags & ~INPUT_BITS & ~MovementFlag.ON_TRANSPORT) | keep;
-    this.fall = dest.fall;
-    this.pitch = dest.pitch;
-    this.rooted = (dest.flags & MovementFlag.ROOT) !== 0;
+    this.moveFlags = pose.move;
     this.setServerPose({
       mapId: this.mapId,
       x: dest.x,
