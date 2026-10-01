@@ -1,3 +1,4 @@
+import { messageOf } from "@peon/core/lib/errors";
 import type { TravelAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { OpsCtx, ToolCtx } from "#harness/contract/services";
@@ -248,6 +249,27 @@ function watchLanding(ctx: OpsCtx): Landing {
   };
 }
 
+const SETTLE_YD = 1;
+
+async function settleOnGround(ops: OpsCtx): Promise<string | undefined> {
+  const pose = ops.handle.getControlState().pose;
+  if (!pose) return "no pose to step from";
+  const target = {
+    x: pose.x + Math.cos(pose.orientation) * SETTLE_YD,
+    y: pose.y + Math.sin(pose.orientation) * SETTLE_YD,
+    z: pose.z,
+  };
+  try {
+    const stepped = await ops.rt.mutex.run(async () => {
+      ops.handle.takeControl("manual_override");
+      return await ops.handle.walkTowardPoint(target, SETTLE_YD, ops.signal);
+    });
+    return stepped.status === "completed" ? undefined : stepped.reason;
+  } catch (error) {
+    return messageOf(error);
+  }
+}
+
 async function nodeName(ops: OpsCtx, id: number): Promise<string> {
   const listed = await ops.handle.travel.act.destinations(id);
   return listed.status === "ok" ? listed.node.name : `node ${id}`;
@@ -262,12 +284,23 @@ async function ending(
   const view = after({ goal: { destination: work.destination, kind: "fly" } });
   const name = await nodeName(ops, route.destination);
   const paid = `list price ${shortMoney(route.price)}`;
-  if (end === "landed" || end === "instant")
+  if (end === "instant")
     return result("DONE", {
       after: view,
-      detail: `${end === "instant" ? "arrived by instant flight at" : "flew and landed at"} ${name} (${paid}). ${youLine(ops)}`,
+      detail: `arrived by instant flight at ${name} (${paid}). ${youLine(ops)}`,
       next: nextCall("look"),
     });
+  if (end === "landed") {
+    const unsettled = await settleOnGround(ops);
+    const note = unsettled
+      ? ` The step onto the ground stopped (${unsettled}).`
+      : "";
+    return result("DONE", {
+      after: view,
+      detail: `flew and landed at ${name} (${paid}).${note} ${youLine(ops)}`,
+      next: nextCall("look"),
+    });
+  }
   if (end === "aborted")
     return result("PARTLY", {
       after: view,
