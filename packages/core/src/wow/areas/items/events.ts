@@ -11,7 +11,7 @@ import type {
   SetUsedEvent,
   SetUseRequestedEvent,
 } from "#wow/areas/items/protocol-sets";
-import type { ItemText } from "#wow/areas/items/reads";
+import type { ItemText, SetItemName } from "#wow/areas/items/reads";
 import type { ProficiencyKind } from "#wow/areas/items/timers";
 
 export type ReadHead = { itemGuid: bigint; entry: number | undefined };
@@ -96,6 +96,8 @@ export type ItemsEvent =
   | ({ type: "refund_info_none" } & RefundHead)
   | ({ type: "refund_result"; result: RefundResultPacket } & RefundHead)
   | ({ type: "refund_unanswered" } & RefundHead)
+  | ({ type: "set_item_name" } & SetItemName)
+  | { type: "set_item_name_none"; entry: number }
   | SetsListedEvent
   | SetSaveRequestedEvent
   | SetSavedEvent

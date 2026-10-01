@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type ReadRequest, ReadSlice } from "#wow/areas/items/reads";
+import { NameSlice, type ReadRequest, ReadSlice } from "#wow/areas/items/reads";
 
 const LETTER = 0x40_00_00_00_00_00_00_05n;
 const TOME = 0x40_00_00_00_00_00_00_06n;
@@ -84,5 +84,59 @@ describe("ReadSlice item text", () => {
     slice.clear();
     expect(await letter.promise).toBeUndefined();
     expect(slice.snapshot().texts).toEqual([]);
+  });
+});
+
+const FANG = { entry: 6473, inventoryType: 5, name: "Armor of the Fang" };
+
+describe("NameSlice set-item names", () => {
+  test("one query per entry; the reply fills every waiter and the cache", async () => {
+    const slice = new NameSlice();
+    const first = slice.await(FANG.entry);
+    const again = slice.await(FANG.entry);
+    expect(first.first).toBe(true);
+    expect(again.first).toBe(false);
+    expect(slice.receive(FANG)).toEqual(FANG);
+    expect(await first.promise).toEqual(FANG);
+    expect(await again.promise).toEqual(FANG);
+    expect(slice.get(FANG.entry)).toEqual(FANG);
+  });
+
+  test("the first reply wins and a repeat is not news", () => {
+    const slice = new NameSlice();
+    slice.receive(FANG);
+    expect(slice.receive({ ...FANG, name: "Other" })).toBeUndefined();
+    expect(slice.get(FANG.entry)?.name).toBe("Armor of the Fang");
+  });
+
+  test("expire settles waiters empty once and remembers the miss", async () => {
+    const slice = new NameSlice();
+    const wait = slice.await(25);
+    expect(slice.expire(25)).toBe(true);
+    expect(await wait.promise).toBeUndefined();
+    expect(slice.expire(25)).toBe(false);
+    const later = slice.await(25);
+    expect(later.first).toBe(false);
+    expect(await later.promise).toBeUndefined();
+  });
+
+  test("a late reply overrides a remembered miss", async () => {
+    const slice = new NameSlice();
+    slice.await(FANG.entry);
+    slice.expire(FANG.entry);
+    expect(slice.receive(FANG)).toEqual(FANG);
+    expect(slice.get(FANG.entry)).toEqual(FANG);
+  });
+
+  test("drop and clear release waiters without remembering a miss", async () => {
+    const slice = new NameSlice();
+    const dropped = slice.await(1);
+    const kept = slice.await(2);
+    slice.drop(1);
+    expect(await dropped.promise).toBeUndefined();
+    expect(slice.await(1).first).toBe(true);
+    slice.clear();
+    expect(await kept.promise).toBeUndefined();
+    expect(slice.await(2).first).toBe(true);
   });
 });

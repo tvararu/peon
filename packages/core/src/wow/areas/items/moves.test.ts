@@ -1,11 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import { itemsSetFlags } from "#test-support/areas/items";
 import { itemsWorld } from "#test-support/areas/items-world";
 import {
   type MoveRequest,
+  moveClaim,
   moveSettled,
   positionRefusal,
 } from "#wow/areas/items/moves";
 import { readInventory } from "#wow/inventory";
+import type { InventoryChangeFailure } from "#wow/protocol/inventory";
 
 const ME = 0x0a_00n;
 const SWORD = 0x40_00_00_00_00_00_00_01n;
@@ -144,6 +147,38 @@ describe("move settle rules (design 5.3)", () => {
     expect(
       moveSettled(request({ entry: 0, kind: "ammo" }), inventory(world)),
     ).toBe(true);
+  });
+
+  test("wrap settles on the wrapped flag of the same guid, whatever the entry becomes (ItemHandler.cpp:1163-1190)", () => {
+    const world = itemsWorld(ME);
+    world.put(255, 23, { entry: 25, guid: SWORD });
+    world.put(255, 24, { count: 2, entry: 5042, guid: WATER });
+    const wrap = request({
+      kind: "wrap",
+      target: { count: 1, guid: WATER },
+    });
+    expect(moveSettled(wrap, inventory(world))).toBe(false);
+    world.put(255, 23, { entry: 5043, guid: SWORD });
+    expect(moveSettled(wrap, inventory(world))).toBe(false);
+    itemsSetFlags(world.entities.get(SWORD), 0x8);
+    expect(moveSettled(wrap, inventory(world))).toBe(true);
+  });
+
+  test("a wrap names its own claim for either guid the failure packet carries", () => {
+    const wrap = request({ kind: "wrap", target: { count: 1, guid: WATER } });
+    const packet = (item1: bigint): InventoryChangeFailure => ({
+      bagType: 0,
+      detail: { kind: "none" },
+      item1,
+      item2: 0n,
+      kind: "error",
+      result: 15,
+    });
+    expect(moveClaim(wrap, packet(WATER))).toEqual({ itemGuid: WATER });
+    expect(moveClaim(wrap, packet(SWORD))).toEqual({ itemGuid: SWORD });
+    expect(moveClaim({ ...wrap, kind: "swap" }, packet(WATER))).toEqual({
+      itemGuid: SWORD,
+    });
   });
 
   test("bank slots, bank bags and buyback slots are refused until economy reads them", () => {

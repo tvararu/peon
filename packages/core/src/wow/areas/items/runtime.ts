@@ -25,6 +25,8 @@ import {
   buildSwapItem,
   type ItemPosition,
 } from "#wow/areas/items/protocol";
+import { buildWrapItem } from "#wow/areas/items/protocol-names";
+import { type NameActs, nameActs } from "#wow/areas/items/runtime-names";
 import { type ReadActs, readActs } from "#wow/areas/items/runtime-reads";
 import { type RefundActs, refundActs } from "#wow/areas/items/runtime-refunds";
 import { type SetActs, setActs } from "#wow/areas/items/runtime-sets";
@@ -37,6 +39,7 @@ import { GameOpcode } from "#wow/protocol/opcodes";
 import type { CoreStores } from "#wow/session-stores";
 
 export const MOVE_ANSWER_MS = 5000;
+const WRAPPER_FLAG = 0x2_00;
 
 export type ItemsActs = {
   equip: (from: ItemPosition) => Promise<MoveState>;
@@ -49,10 +52,12 @@ export type ItemsActs = {
     count: number,
   ) => Promise<MoveState>;
   setAmmo: (entry: number) => Promise<MoveState>;
+  wrap: (gift: ItemPosition, item: ItemPosition) => Promise<MoveState>;
 } & ReadActs &
   SocketActs &
   SetActs &
-  RefundActs;
+  RefundActs &
+  NameActs;
 
 const SETTLED = new Set<ItemsEvent["type"]>([
   "moved",
@@ -308,6 +313,42 @@ async function setAmmo(env: Env, entry: number): Promise<MoveState> {
   ]);
 }
 
+async function wrapper(
+  { core }: Env,
+  entry: number | undefined,
+): Promise<void> {
+  const template =
+    entry === undefined
+      ? undefined
+      : await core.items.lookup(entry).catch(() => undefined);
+  if (!template) throw new Error(`no item template for entry ${entry}`);
+  if ((template.flags & WRAPPER_FLAG) === 0)
+    throw new Error(`item ${entry} is not a wrapper`);
+}
+
+async function wrap(
+  env: Env,
+  gift: ItemPosition,
+  item: ItemPosition,
+): Promise<MoveState> {
+  const inventory = ready(env, "wrap");
+  const paper = heldAt(inventory, gift);
+  const target = heldAt(inventory, item);
+  if (samePlace(gift, item)) throw new Error("a gift cannot wrap itself");
+  if (isWorn(target))
+    throw new Error(`${hex(target.guid)} is worn and cannot be wrapped`);
+  await wrapper(env, paper.item.entry);
+  ready(env, "wrap");
+  const pending: MoveRequest = {
+    ...request(env, "wrap", { held: target }),
+    target: { guid: paper.guid, count: 1 },
+  };
+  return await run(env, pending, [
+    GameOpcode.CMSG_WRAP_ITEM,
+    buildWrapItem(gift, item),
+  ]);
+}
+
 async function received(
   { store, core }: Env,
   push: ItemPushResult,
@@ -355,11 +396,13 @@ export function itemsRuntime(
       unequip: (slot, toBag) => unequip(env, slot, toBag),
       move: (from, to) => move(env, from, to),
       setAmmo: (entry) => setAmmo(env, entry),
+      wrap: (gift, item) => wrap(env, gift, item),
       split: (from, to, count) => split(env, from, to, count),
       ...readActs(env),
       ...socketActs(env),
       ...setActs(env),
       ...refundActs(env),
+      ...nameActs(env),
     },
     dispose: () => {
       for (const off of offs) off();

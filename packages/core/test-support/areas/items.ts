@@ -1,5 +1,7 @@
+import type { Entity } from "#wow/entity-store";
 import type { ItemSpell, ItemTemplate } from "#wow/protocol/item";
 import { PacketWriter } from "#wow/protocol/packet";
+import { ITEM_FIELDS } from "#wow/protocol/update-fields";
 
 const ITEM_SPELL_SLOTS = 5;
 const NO_COOLDOWN = 0xff_ff_ff_ff;
@@ -404,4 +406,23 @@ export function itemsRefundResultBody(
     w.uint32LE(cost.count);
   }
   return w.finish();
+}
+
+export function itemsItemNameResponseBody(init: {
+  entry: number;
+  name: string;
+  inventoryType: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.entry);
+  w.cString(init.name);
+  w.uint32LE(init.inventoryType);
+  return w.finish();
+}
+
+export function itemsSetFlags(entity: Entity | undefined, flags: number): void {
+  (entity?.rawFields as Map<number, number> | undefined)?.set(
+    ITEM_FIELDS.FLAGS.offset,
+    flags,
+  );
 }

@@ -10,8 +10,10 @@ import {
   type MoveOutcome,
   type MoveRequest,
   type MoveState,
+  moveClaim,
   moveSettled,
 } from "#wow/areas/items/moves";
+import type { ItemNameResponse } from "#wow/areas/items/protocol-names";
 import type {
   ItemTextResponse,
   ReadItemResult,
@@ -21,6 +23,7 @@ import type {
   SocketGemsResultPacket,
 } from "#wow/areas/items/protocol-sockets";
 import {
+  NameSlice,
   type ReadRequest,
   ReadSlice,
   type ReadState,
@@ -99,6 +102,7 @@ export class ItemsStore {
   private readonly deps: SessionDeps;
   private readonly core: CoreStores;
   private readonly reads = new ReadSlice();
+  private readonly names = new NameSlice();
   private readonly sockets = new SocketSlice();
   private readonly setSlices = new SetSlice();
   private readonly setFailures: string[] = [];
@@ -122,7 +126,7 @@ export class ItemsStore {
       releaseClaims: () => this.releaseClaims(),
       saveIcons: this.saveIcons,
       sets: this.setSlices,
-      startClaims: () => this.startClaims(),
+      startClaims: () => this.releaseClaims(),
       useFailures: this.setFailures,
     });
     this.timerApi = timersBehavior({
@@ -163,7 +167,7 @@ export class ItemsStore {
   }
 
   begin(request: MoveRequest): void {
-    this.startClaims();
+    this.releaseClaims();
     this.pending = request;
     this.last = undefined;
     this.noteClaims();
@@ -171,7 +175,7 @@ export class ItemsStore {
   }
 
   beginRead(request: ReadRequest): void {
-    this.startClaims();
+    this.releaseClaims();
     this.reads.begin(request);
     this.noteClaims();
     if (request.kind === "read")
@@ -179,23 +183,14 @@ export class ItemsStore {
   }
 
   noteClaims(): void {
-    if (
-      !(
-        this.pending ||
-        this.reads.request ||
-        this.sockets.request ||
-        this.setSlices.snapshot().savePending ||
-        this.setSlices.snapshot().usePending
-      )
-    )
-      return;
+    if (!this.busy()) return;
     for (const claim of legacyClaims(this.core))
       if (claim) this.seen.push(claim);
   }
   receiveInventoryFailure(packet: InventoryChangeFailure): void {
     if (packet.kind !== "error") return;
     const legacy = [...legacyClaims(this.core), ...this.seen];
-    const move = this.pending && { itemGuid: this.pending.itemGuid };
+    const move = this.pending && moveClaim(this.pending, packet);
     const read = this.reads.claim();
     const socket = this.sockets.claim();
     if (move && ownsInventoryFailure(packet, move, [...legacy, read, socket]))
@@ -280,7 +275,7 @@ export class ItemsStore {
   }
 
   beginSocket(request: SocketRequest): void {
-    this.startClaims();
+    this.releaseClaims();
     this.sockets.begin(request);
     this.noteClaims();
   }
@@ -331,6 +326,24 @@ export class ItemsStore {
   }
   dropText(guid: bigint): void {
     this.reads.dropText(guid);
+  }
+
+  setItemName(entry: number) {
+    return this.names.get(entry);
+  }
+  awaitSetItemName(entry: number) {
+    return this.names.await(entry);
+  }
+  dropSetItemName(entry: number): void {
+    this.names.drop(entry);
+  }
+  expireSetItemName(entry: number): void {
+    if (this.names.expire(entry))
+      this.events.emit({ type: "set_item_name_none", entry });
+  }
+  receiveItemName(response: ItemNameResponse): void {
+    const found = this.names.receive(response);
+    if (found) this.events.emit({ type: "set_item_name", ...found });
   }
 
   observeInventory(): void {
@@ -399,6 +412,7 @@ export class ItemsStore {
     this.abandonRefundInfo();
     this.abandonRefund();
     this.reads.clear();
+    this.names.clear();
     this.sockets.clear();
     this.setSlices.clear();
     this.timers.clear();
@@ -411,32 +425,19 @@ export class ItemsStore {
     return findItem(this.inventory(), itemGuid)?.item.entry;
   }
 
-  private startClaims(): void {
+  private busy(): boolean {
     const sets = this.setSlices.snapshot();
-    if (
-      !(
-        this.pending ||
+    return Boolean(
+      this.pending ||
         this.reads.request ||
         this.sockets.request ||
         sets.savePending ||
-        sets.usePending
-      )
-    )
-      this.seen = [];
+        sets.usePending,
+    );
   }
 
   private releaseClaims(): void {
-    const sets = this.setSlices.snapshot();
-    if (
-      !(
-        this.pending ||
-        this.reads.request ||
-        this.sockets.request ||
-        sets.savePending ||
-        sets.usePending
-      )
-    )
-      this.seen = [];
+    if (!this.busy()) this.seen = [];
   }
 
   private settleSocket(outcome: SocketOutcome | undefined): void {

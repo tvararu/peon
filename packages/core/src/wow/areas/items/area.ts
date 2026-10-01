@@ -1,6 +1,7 @@
 import type { AreaRegister } from "#wow/areas/contract";
 import { defineArea } from "#wow/areas/contract";
 import { ITEMS_OPCODES } from "#wow/areas/items/opcodes";
+import { parseItemNameResponse } from "#wow/areas/items/protocol-names";
 import {
   parseItemTextResponse,
   parseReadItemResult,
@@ -41,6 +42,9 @@ function registerReads(wire: AreaRegister, store: ItemsStore): void {
   );
   wire.on(GameOpcode.SMSG_ITEM_TEXT_QUERY_RESPONSE, (r) =>
     store.receiveItemText(parseItemTextResponse(r)),
+  );
+  wire.on(GameOpcode.SMSG_ITEM_NAME_QUERY_RESPONSE, (r) =>
+    store.receiveItemName(parseItemNameResponse(r)),
   );
 }
 
@@ -105,6 +109,8 @@ export const itemsArea = defineArea({
     "read_failed",
     "read_unanswered",
     "item_text",
+    "set_item_name",
+    "set_item_name_none",
     "item_cooldown",
     "item_timer",
     "item_enchant_timer",
