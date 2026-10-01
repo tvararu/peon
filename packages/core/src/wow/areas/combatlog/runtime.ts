@@ -1,6 +1,7 @@
-import type {
-  CombatlogEvent,
-  CombatlogStore,
+import {
+  type CombatlogEvent,
+  type CombatlogStore,
+  UTILITY_KINDS,
 } from "#wow/areas/combatlog/store";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 
@@ -17,6 +18,7 @@ export function combatlogRuntime(
   };
   const off = store.onEvent((event) => {
     if (event.type !== "entry") return;
+    if (UTILITY_KINDS.has(event.kind)) return;
     if (!(store.isOurs(event.source) || store.isOurs(event.target))) return;
     stop();
     timer = setTimeout(() => {

@@ -86,7 +86,7 @@ const DAMAGE = new Set<CombatlogKind>([
   "environmental",
   "instakill",
 ]);
-const UTILITY = new Set<CombatlogKind>([
+export const UTILITY_KINDS = new Set<CombatlogKind>([
   "dispel",
   "dispel_failed",
   "steal",
@@ -232,7 +232,7 @@ export class CombatlogStore {
     sourceOurs: boolean,
     targetOurs: boolean,
   ): void {
-    if (UTILITY.has(entry.kind)) return;
+    if (UTILITY_KINDS.has(entry.kind)) return;
     const fight = this.fight ?? this.open(entry.at);
     fight.lastAt = entry.at;
     this.trackUnit(entry.source, sourceOurs);
