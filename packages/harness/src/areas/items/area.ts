@@ -15,6 +15,7 @@ const MOVED_ROW: Record<string, { name: string; verb: string }> = {
   split: { name: "split", verb: "Split" },
   swap: { name: "moved", verb: "Moved" },
   unequip: { name: "unequipped", verb: "Took off" },
+  wrap: { name: "wrapped", verb: "Wrapped" },
 };
 
 function movedRow(event: Moved, rc: RuleInput): AreaDraft {
