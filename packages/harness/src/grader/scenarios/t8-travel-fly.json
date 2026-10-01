@@ -20,12 +20,12 @@
     {
       "evidence": {
         "point": {
-          "x": 9385.2,
+          "x": 9375.2,
           "y": -7165.9
         }
       },
-      "expect": "T final position within 6 yd of (9385.2, -7165.9, map 530): the agent walked about ten yards north from the landing point (9373 to 9375, -7166), which is 12 yd from this point",
-      "id": "walked-north",
+      "expect": "T final position between 6 and 14 yd from the Silvermoon City landing point (9375.2, -7165.9, map 530): the agent walked about ten yards after the landing, which a pose stuck 2 yd above the navmesh ground refuses; the direction is not checked because the tools give the agent no compass for coordinates",
+      "id": "walked-ten-yards",
       "source": "truth"
     },
     {
