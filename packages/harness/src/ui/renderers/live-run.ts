@@ -68,6 +68,8 @@ function goalText(goal: TravelGoalView): string {
       return "unstick";
     case "hearth":
       return "hearth";
+    case "fly":
+      return `fly ${goal.destination}`;
     default:
       return "corpse";
   }

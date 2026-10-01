@@ -30,6 +30,7 @@ import { defineGameTool, result, UPDATE_EVERY_MS } from "#harness/tools/define";
 import type { GameToolSpec } from "#harness/tools/game-tool";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 import { type TravelArgs, travelParams } from "#harness/tools/params-travel";
+import { flyWork } from "#harness/tools/travel-fly";
 import { hearthWork } from "#harness/tools/travel-hearth";
 import { noteTravel, noteUnstick } from "#harness/tools/travel-recovery";
 import {
@@ -79,22 +80,41 @@ function parseExplore(text: string, lower: string): Goal {
   return { direction, kind: "explore" };
 }
 
+function parseFly(text: string): Goal {
+  const destination = text.slice("fly".length).trim();
+  if (destination === "")
+    throw new Refusal({
+      detail: 'fly needs a destination, for example "fly Silvermoon City".',
+      next: nextCall("look", { find: "flight_master" }),
+      reason: "no_destination",
+    });
+  return { destination, kind: "fly" };
+}
+
 function parseGoal(ctx: ToolCtx<TravelAfter>, to: string): Goal {
   const text = to.trim();
   const lower = text.toLowerCase();
+  if (lower === "fly" || lower.startsWith("fly ")) return parseFly(text);
   if (lower === "corpse") return { kind: "corpse" };
   if (lower === "unstick") return { kind: "unstick" };
   if (lower === "hearth") return { kind: "hearth" };
   if (lower === "explore" || lower.startsWith("explore "))
     return parseExplore(text, lower);
   const coords = COORDS.exec(text);
-  if (coords)
-    return {
-      kind: "point",
-      x: Number(coords[1]),
-      y: Number(coords[2]),
-      z: coords[3] === undefined ? undefined : Number(coords[3]),
-    };
+  if (coords) return pointGoal(coords);
+  return unitGoal(ctx, text);
+}
+
+function pointGoal(coords: RegExpExecArray): Goal {
+  return {
+    kind: "point",
+    x: Number(coords[1]),
+    y: Number(coords[2]),
+    z: coords[3] === undefined ? undefined : Number(coords[3]),
+  };
+}
+
+function unitGoal(ctx: ToolCtx<TravelAfter>, text: string): Goal {
   if (isObjectRef(text)) {
     const object = resolveObjectRef(ctx, text);
     if (object)
@@ -109,6 +129,10 @@ function parseGoal(ctx: ToolCtx<TravelAfter>, to: string): Goal {
   if (resolved.kind !== "unit")
     throw unitRefusal({ param: "to", resolved, tool: "travel" });
   return { guid: resolved.guid, kind: "unit", unit: resolved.unit };
+}
+
+function movedWord(goal: Goal): string {
+  return goal.kind === "fly" ? "moved" : "walked";
 }
 
 function reachOf(ctx: OpsCtx, guid: bigint): number | undefined {
@@ -248,6 +272,8 @@ async function doWork(work: Work): Promise<Report> {
   if (goal.kind === "corpse") return corpseWork(work);
   if (goal.kind === "hearth")
     return hearthWork({ ...work.ctx, signal: work.ops.signal }, work.after);
+  if (goal.kind === "fly")
+    return flyWork({ ...work, destination: goal.destination });
   const wanted = exploreWanted(work.ops, work.args.for);
   const found = await explore(work.ops, { direction: goal.direction, wanted });
   return exploreReport(
@@ -325,7 +351,7 @@ async function launch(init: {
   const after = afterOf(ops, goal);
   const tick = setInterval(() => {
     const now = after({});
-    control.progress(`${yd(now.traveledYd)} yd walked`);
+    control.progress(`${yd(now.traveledYd)} yd ${movedWord(goal)}`);
     partial(now);
   }, UPDATE_EVERY_MS);
   try {
@@ -385,7 +411,7 @@ async function runTravel(
   let latest = emptyTravel();
   const partial = (after: TravelAfter) => {
     latest = after;
-    const detail = `travel to ${goalName(goal)}, ${yd(after.traveledYd)} yd walked.`;
+    const detail = `travel to ${goalName(goal)}, ${yd(after.traveledYd)} yd ${movedWord(goal)}.`;
     ctx.update(result("RUNNING", { after, detail, runId }));
   };
   const run = ctx.rt.runs.start<Report>({
@@ -404,7 +430,7 @@ async function runTravel(
   return result("RUNNING", {
     after: latest,
     body: waited.why === "human" ? [HUMAN_WROTE] : [],
-    detail: `travel to ${goalName(goal)}, ${yd(latest.traveledYd)} yd walked${togo}. ${youLine(ctx)}`,
+    detail: `travel to ${goalName(goal)}, ${yd(latest.traveledYd)} yd ${movedWord(goal)}${togo}. ${youLine(ctx)}`,
     next: `end your turn; a [game] message comes when ${runId} ends. Or ${nextCall("stop", { run: runId })}.`,
     runId,
   });
@@ -424,7 +450,7 @@ export const travelSpec: GameToolSpec<
   run: runTravel,
   text: {
     description:
-      "Walks to a unit, to your corpse or to a point, or explores in a direction. With to hearth it uses your hearthstone and waits for the teleport home. It waits until you arrive or it fails, up to two minutes. Use explore when look does not show a unit that the task needs. Do not use it to fight.",
+      "Walks to a unit, to your corpse or to a point, or explores in a direction. With to hearth it uses your hearthstone and waits for the teleport home. With to fly <destination> it walks to a flight master, pays for the flight and waits for the landing. It waits until you arrive or it fails, up to two minutes. Use explore when look does not show a unit that the task needs. Do not use it to fight.",
     guidelines: [
       "Never invent coordinates. If a refusal gives floors, use one as the third number.",
       'If a result says start_off_mesh, call travel with to "unstick". Then try the goal again.',

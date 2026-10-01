@@ -24,7 +24,8 @@ export type Goal =
   | { kind: "corpse" }
   | { kind: "explore"; direction: Compass | undefined }
   | { kind: "unstick" }
-  | { kind: "hearth" };
+  | { kind: "hearth" }
+  | { kind: "fly"; destination: string };
 
 export type Report = ToolResult<TravelAfter>;
 
@@ -135,12 +136,15 @@ export function goalView(goal: Goal): TravelGoalView {
   if (goal.kind === "unstick")
     return { kind: "unstick", refusedGoal: undefined };
   if (goal.kind === "hearth") return { kind: "hearth" };
+  if (goal.kind === "fly")
+    return { destination: goal.destination, kind: "fly" };
   return { kind: "corpse" };
 }
 
 export function goalName(goal: Goal): string {
   if (goal.kind === "unit") return `${goal.unit.name} (${goal.unit.ref})`;
   if (goal.kind === "point") return `${goal.x}, ${goal.y}`;
+  if (goal.kind === "fly") return `fly ${goal.destination}`;
   return goal.kind;
 }
 

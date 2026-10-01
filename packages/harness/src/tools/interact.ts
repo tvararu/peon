@@ -16,6 +16,7 @@ import { defineGameTool, emptyUnit, result } from "#harness/tools/define";
 import type { GameToolSpec } from "#harness/tools/game-tool";
 import { bindStep } from "#harness/tools/interact-bind";
 import { buybackStep } from "#harness/tools/interact-buyback";
+import { flightExtra } from "#harness/tools/interact-flight";
 import {
   acceptStep,
   baseAfter,
@@ -79,7 +80,11 @@ function emptyInteract(): InteractAfter {
 
 const TALK_EXTRAS: TalkExtra[] = [vendorExtra, trainerExtra];
 
-function talkNext(npc: NpcTarget, after: InteractAfter): string | undefined {
+function talkNext(
+  npc: NpcTarget,
+  after: InteractAfter,
+  flightNext: string | undefined,
+): string | undefined {
   const available = after.offers.find((offer) => offer.state === "available");
   if (available)
     return nextCall("interact", {
@@ -94,6 +99,7 @@ function talkNext(npc: NpcTarget, after: InteractAfter): string | undefined {
       npc: npc.unit.ref,
       what: String(ready.line),
     });
+  return flightNext;
 }
 
 async function talkStep({
@@ -116,6 +122,8 @@ async function talkStep({
     after = { ...after, ...added.after };
     extra.push(...added.lines);
   }
+  const flight = await flightExtra({ ctx, npc });
+  extra.push(...flight.lines);
   const ready = offers
     .filter((offer) => offer.state === "ready")
     .map((offer) => `${offer.line}. ${offer.title} #${offer.id}`);
@@ -135,7 +143,12 @@ async function talkStep({
   const detail = opened
     ? `${npcLabel(npc)} offers:${said}`
     : `${npcLabel(npc)} opened no dialog in 3 s.`;
-  return result("DONE", { after, body, detail, next: talkNext(npc, after) });
+  return result("DONE", {
+    after,
+    body,
+    detail,
+    next: talkNext(npc, after, flight.next),
+  });
 }
 
 const STEPS = new Map<string, InteractStep>([
