@@ -279,6 +279,9 @@ export class ReputationStore {
     increased: boolean,
   ): void {
     const stored = this.stored(repListId);
+    const unchanged = stored.delta === delta;
+    const hasPendingWar =
+      this.pending.get(repListId)?.has(FACTION_FLAGS.AT_WAR) ?? false;
     const oldRank = this.rankAt(repListId, stored.delta);
     const before = this.full(repListId, stored.delta);
     const wasAtWar =
@@ -286,7 +289,8 @@ export class ReputationStore {
     stored.delta = delta;
     stored.changedAt = this.now();
     const rank = this.rankAt(repListId, delta);
-    this.inferAtWar(repListId, stored, oldRank, rank);
+    if (!(unchanged && hasPendingWar))
+      this.inferAtWar(repListId, stored, oldRank, rank);
     const faction = this.faction(repListId);
     this.events.emit({
       type: "standing_changed",
