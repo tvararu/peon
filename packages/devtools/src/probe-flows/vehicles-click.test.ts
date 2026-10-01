@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { WorldHandle } from "@peon/core";
 import {
+  fakeMsUntilSettled,
+  fakeRejection,
+  withFakeTimers,
+} from "@peon/core/test-support/fake-time";
+import {
   createMockHandle,
   type MockHandle,
 } from "@peon/core/test-support/mock-handle";
@@ -38,34 +43,49 @@ function context(acts: Partial<Vehicles["act"]>) {
 }
 
 describe("vehicles-click flow", () => {
-  test("clicks the entry unit and reports its seat", async () => {
-    const ctx = context({});
-    const result = (await flow.run(ctx)) as Record<string, unknown>;
-    expect(result).toMatchObject({
-      board: "ok",
-      entry: ENTRY,
-      exit: "ok",
-      guid: `0x${VEHICLE.toString(16)}`,
-      seat: 0,
-    });
-  });
+  test("clicks the entry unit and reports its seat", () =>
+    withFakeTimers(async () => {
+      const ctx = context({});
+      const running = flow.run(ctx);
+      const ms = await fakeMsUntilSettled(running, 1000);
+      expect(await running).toMatchObject({
+        board: "ok",
+        entry: ENTRY,
+        exit: "ok",
+        guid: `0x${VEHICLE.toString(16)}`,
+        seat: 0,
+      });
+      expect(ms).toBeLessThanOrEqual(100);
+    }));
 
-  test("rejects when no unit of the entry is nearby", async () => {
-    const handle = createMockHandle();
-    handle.queryNearby = () => [];
-    const ctx: FlowContext & { handle: MockHandle } = {
-      args: { entry: String(ENTRY) },
-      handle,
-      settle: settleWithin(100),
-    };
-    await expect(flow.run(ctx)).rejects.toThrow(String(ENTRY));
-  });
+  test("rejects when no unit of the entry is nearby", () =>
+    withFakeTimers(async () => {
+      const handle = createMockHandle();
+      handle.queryNearby = () => [];
+      const ctx: FlowContext & { handle: MockHandle } = {
+        args: { entry: String(ENTRY) },
+        handle,
+        settle: settleWithin(100),
+      };
+      const running = flow.run(ctx);
+      const message = await fakeRejection(running, 1000);
+      expect(message).toContain(String(ENTRY));
+    }));
 
-  test("reports the refusal when the click is refused", async () => {
-    const ctx = context({
-      spellClick: async () => ({ reason: "not_clickable", status: "refused" }),
-    });
-    const result = (await flow.run(ctx)) as Record<string, unknown>;
-    expect(result).toMatchObject({ board: "not_clickable", exit: null });
-  });
+  test("reports the refusal when the click is refused", () =>
+    withFakeTimers(async () => {
+      const ctx = context({
+        spellClick: async () => ({
+          reason: "not_clickable",
+          status: "refused",
+        }),
+      });
+      const running = flow.run(ctx);
+      const ms = await fakeMsUntilSettled(running, 1000);
+      expect(await running).toMatchObject({
+        board: "not_clickable",
+        exit: null,
+      });
+      expect(ms).toBeLessThanOrEqual(100);
+    }));
 });
