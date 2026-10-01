@@ -47,21 +47,26 @@ function echo(target: string | undefined) {
 
 describe("social do:emote", () => {
   test("resolves the ref, sends the text emote and settles on the self echo", async () => {
-    const { handle, tool } = await world([partner()]);
-    const act = spyOn(handle.emotes.act, "textEmote").mockImplementation(
-      async () => {
-        handle.triggerAreaEvent("emotes", echo("Kaelyn"));
-        return { ok: true, textEmote: 101 };
-      },
-    );
-    const out = await runTool(tool, { do: "emote", to: "u1", what: "wave" });
-    expect(act.mock.calls[0]?.slice(0, 2)).toEqual(["wave", PARTNER]);
-    expect(out.text).toContain("DONE");
-    expect(out.text).toContain("wave");
-    expect(out.details.result.after).toMatchObject({
-      action: "emote",
-      confirmed: true,
-      to: "Kaelyn",
+    await withFakeTimers(async () => {
+      const { handle, tool } = await world([partner()]);
+      const gate = Promise.withResolvers<{ ok: true; textEmote: number }>();
+      const act = spyOn(handle.emotes.act, "textEmote").mockImplementation(
+        () => gate.promise,
+      );
+      const pending = runTool(tool, { do: "emote", to: "u1", what: "wave" });
+      await elapse(100);
+      gate.resolve({ ok: true, textEmote: 101 });
+      await elapse(100);
+      handle.triggerAreaEvent("emotes", echo("Kaelyn"));
+      const out = await pending;
+      expect(act.mock.calls[0]?.slice(0, 2)).toEqual(["wave", PARTNER]);
+      expect(out.text).toContain("DONE");
+      expect(out.text).toContain("wave");
+      expect(out.details.result.after).toMatchObject({
+        action: "emote",
+        confirmed: true,
+        to: "Kaelyn",
+      });
     });
   });
 
@@ -147,20 +152,113 @@ describe("social do:emote", () => {
     });
   });
 
-  test("without to the emote has no target", async () => {
-    const { handle, tool } = await world();
-    const act = spyOn(handle.emotes.act, "textEmote").mockImplementation(
-      async () => {
-        handle.triggerAreaEvent("emotes", {
-          ...echo(undefined),
-          textEmote: 34,
-        });
-        return { ok: true, textEmote: 34 };
-      },
+  test("an earlier echo arriving while the act is queued does not confirm the later send", async () => {
+    await withFakeTimers(async () => {
+      const { handle, tool } = await world([partner()]);
+      const gate = Promise.withResolvers<{ ok: true; textEmote: number }>();
+      spyOn(handle.emotes.act, "textEmote").mockImplementation(
+        () => gate.promise,
+      );
+      const pending = runTool(tool, { do: "emote", to: "u1", what: "wave" });
+      await elapse(500);
+      handle.triggerAreaEvent("emotes", echo("Kaelyn"));
+      gate.resolve({ ok: true, textEmote: 101 });
+      await elapse(5000);
+      expect((await pending).details.result.status).toBe("UNCONFIRMED");
+    });
+  });
+
+  test("an echo for the sent request still confirms", async () => {
+    await withFakeTimers(async () => {
+      const { handle, tool } = await world([partner()]);
+      const gate = Promise.withResolvers<{ ok: true; textEmote: number }>();
+      spyOn(handle.emotes.act, "textEmote").mockImplementation(
+        () => gate.promise,
+      );
+      const pending = runTool(tool, { do: "emote", to: "u1", what: "wave" });
+      await elapse(500);
+      gate.resolve({ ok: true, textEmote: 101 });
+      await elapse(100);
+      handle.triggerAreaEvent("emotes", echo("Kaelyn"));
+      expect((await pending).details.result.status).toBe("DONE");
+    });
+  });
+
+  test("an abort during the echo wait releases every echo listener", async () => {
+    await withFakeTimers(async () => {
+      const { handle, rt } = await world([partner()]);
+      let live = 0;
+      const onEvent = handle.emotes.onEvent.bind(handle.emotes);
+      spyOn(handle.emotes, "onEvent").mockImplementation((cb) => {
+        live += 1;
+        const off = onEvent(cb);
+        return () => {
+          live -= 1;
+          off();
+        };
+      });
+      spyOn(handle.emotes.act, "textEmote").mockResolvedValue({
+        ok: true,
+        textEmote: 101,
+      });
+      const controller = new AbortController();
+      const pending = runTool(
+        socialTool.definition(rt),
+        { do: "emote", to: "u1", what: "wave" },
+        { signal: controller.signal },
+      );
+      await elapse(500);
+      controller.abort(new Error("stopped"));
+      await elapse(10);
+      expect((await pending).details.result.status).toBe("FAILED");
+      expect(live).toBe(0);
+    });
+  });
+
+  test("a pre-aborted call releases the echo listener", async () => {
+    const { handle, rt } = await world([partner()]);
+    let live = 0;
+    const onEvent = handle.emotes.onEvent.bind(handle.emotes);
+    spyOn(handle.emotes, "onEvent").mockImplementation((cb) => {
+      live += 1;
+      const off = onEvent(cb);
+      return () => {
+        live -= 1;
+        off();
+      };
+    });
+    const controller = new AbortController();
+    controller.abort(new Error("stopped"));
+    const act = spyOn(handle.emotes.act, "textEmote");
+    const out = await runTool(
+      socialTool.definition(rt),
+      { do: "emote", to: "u1", what: "wave" },
+      { signal: controller.signal },
     );
-    const out = await runTool(tool, { do: "emote", what: "dance" });
-    expect(act.mock.calls[0]?.slice(0, 2)).toEqual(["dance", undefined]);
-    expect(out.details.result.status).toBe("DONE");
+    expect(out.details.result.status).toBe("FAILED");
+    expect(act).not.toHaveBeenCalled();
+    expect(live).toBe(0);
+  });
+
+  test("without to the emote has no target", async () => {
+    await withFakeTimers(async () => {
+      const { handle, tool } = await world();
+      const gate = Promise.withResolvers<{ ok: true; textEmote: number }>();
+      const act = spyOn(handle.emotes.act, "textEmote").mockImplementation(
+        () => gate.promise,
+      );
+      const pending = runTool(tool, { do: "emote", what: "dance" });
+      await elapse(100);
+      gate.resolve({ ok: true, textEmote: 34 });
+      await elapse(100);
+      handle.triggerAreaEvent("emotes", {
+        ...echo(undefined),
+        textEmote: 34,
+      });
+      const out = await pending;
+      expect(act.mock.calls[0]?.slice(0, 2)).toEqual(["dance", undefined]);
+      expect(out.details.result.status).toBe("DONE");
+    });
   });
 
   test("an echo from another unit does not confirm the emote", async () => {
