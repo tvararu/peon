@@ -20,7 +20,8 @@ export function bankViewOf(inventory: NamedInventoryState): BankView {
   if (bank === undefined)
     return { bagSlots: undefined, free: undefined, known: false, lines: [] };
   const held = bank.slots.filter(
-    (slot) => slot.region === "bank" && slot.bag === 255,
+    (slot) =>
+      slot.region === "bank" && slot.bag === 255 && slot.status === "occupied",
   ).length;
   const free = held <= 28 ? 28 - held : 0;
   const lines = occupiedOf(inventory).map((slot, index) => ({

@@ -140,6 +140,30 @@ describe("journal about bank", () => {
     expect(out.text.split("\n").length).toBeLessThanOrEqual(24);
     expect(out.text).toContain("Trade Good 0");
   });
+  test("a sparse live bank still reports the true free count", async () => {
+    const t = await world();
+    const sparse = Array.from({ length: 28 }, (_, index) => ({
+      bag: 255,
+      region: "bank",
+      slot: 39 + index,
+      ...(index < 2
+        ? {
+            count: 20,
+            entry: 2589,
+            guid: BigInt(0x30 + index),
+            name: "Linen Cloth",
+          }
+        : {
+            count: undefined,
+            entry: undefined,
+            guid: undefined,
+            name: undefined,
+          }),
+    }));
+    banked(t.handle, sparse);
+    const out = await runTool(journalTool.definition(t.rt), { about: "bank" });
+    expect(out.text).toContain("26 free bank slots");
+  });
 
   test("an unknown bank says so", async () => {
     const t = await world();
