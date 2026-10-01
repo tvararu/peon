@@ -218,7 +218,7 @@ describe("ItemsStore timers", () => {
         expiresAt: 91_000,
         itemGuid: SWORD,
         seconds: 90,
-        type: "item_time",
+        type: "item_timer",
       },
     ]);
   });
@@ -226,7 +226,7 @@ describe("ItemsStore timers", () => {
   test("an item that is not held still reports its time, with no entry", () => {
     const { events, store } = setup();
     store.receiveItemTime({ itemGuid: OTHER, seconds: 5 });
-    expect(events[0]).toMatchObject({ entry: undefined, type: "item_time" });
+    expect(events[0]).toMatchObject({ entry: undefined, type: "item_timer" });
   });
 
   test("an enchant time keeps the enchant slot and emits item_enchant_time", () => {
@@ -253,7 +253,7 @@ describe("ItemsStore timers", () => {
         itemGuid: SWORD,
         seconds: 1800,
         slot: 1,
-        type: "item_enchant_time",
+        type: "item_enchant_timer",
       },
     ]);
   });
@@ -261,7 +261,7 @@ describe("ItemsStore timers", () => {
   test("the death durability notice emits durability_loss", () => {
     const { events, store } = setup();
     store.receiveDeathDurability();
-    expect(events).toEqual([{ type: "durability_loss" }]);
+    expect(events).toEqual([{ type: "durability_loss_death" }]);
   });
 
   test("a proficiency packet names the new weapon skills and keeps the mask", () => {
@@ -277,7 +277,7 @@ describe("ItemsStore timers", () => {
         kind: "weapon",
         mask: 0b1000_0001,
         names: ["one-handed axes", "one-handed swords"],
-        type: "proficiency",
+        type: "proficiency_changed",
       },
     ]);
   });

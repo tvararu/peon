@@ -150,10 +150,10 @@ describe("items timer packets on the wire", () => {
       );
       expect(events.map((event) => event.type)).toEqual([
         "item_cooldown",
-        "item_time",
-        "item_enchant_time",
-        "durability_loss",
-        "proficiency",
+        "item_timer",
+        "item_enchant_timer",
+        "durability_loss_death",
+        "proficiency_changed",
       ]);
       const state = rig.handle.state().timers;
       expect(state.cooldowns).toHaveLength(1);
