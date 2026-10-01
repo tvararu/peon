@@ -259,6 +259,20 @@ describe("parseUpdateObject", () => {
     expect(must(e.position).z).toBeCloseTo(300);
   });
 
+  test("a transport create carries its path progress", () => {
+    const w = new PacketWriter();
+    w.uint32LE(1);
+    w.uint8(2);
+    writePackedGuid(w, 0x1f_c0_00_00_00_00_00_14n);
+    w.uint8(5);
+    w.uint16LE(UpdateFlag.TRANSPORT | UpdateFlag.HAS_POSITION);
+    for (const v of [1370, -4370, 26, 3.2]) w.floatLE(v);
+    w.uint32LE(54_321);
+    writeUpdateMask(w, new Map([[3, 190_549]]));
+    const e = must(parseUpdateObject(new PacketReader(w.finish()))[0]);
+    expect(e).toMatchObject({ pathProgress: 54_321, type: "create" });
+  });
+
   test("create without a placement flag has no position", () => {
     const w = new PacketWriter();
     w.uint32LE(1);
