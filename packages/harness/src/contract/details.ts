@@ -162,7 +162,8 @@ export type InteractAction =
   | "train"
   | "repair"
   | "bind"
-  | "buyback";
+  | "buyback"
+  | "reset_talents";
 
 export type QuestOffer = {
   line: number;
