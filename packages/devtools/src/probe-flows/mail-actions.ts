@@ -168,6 +168,24 @@ async function run(ctx: FlowContext): Promise<Json> {
   if (step === "send") {
     const to = args["to"];
     if (!to) throw new Error("mail-actions needs to=<name> for do=send.");
+    const inv = handle.getInventoryState();
+    const itemArgs = [args["item0"], args["item1"]]
+      .map((raw) => raw?.split(":"))
+      .filter(
+        (part): part is [string, string] =>
+          part !== undefined && part.length === 2,
+      );
+    const found = itemArgs.map(([guid, slot]) => {
+      const row = inv.slots.find(
+        (candidate) =>
+          candidate.status === "occupied" &&
+          candidate.guid === BigInt(guid) &&
+          candidate.item.entry === Number(slot),
+      );
+      if (!row || row.status !== "occupied")
+        throw new Error(`no carried item ${guid} entry ${slot}.`);
+      return { guid: row.guid, slot: row.slot };
+    });
     const sent = await attempt(() =>
       handle.mail.act.sendMail({
         body: args["body"] ?? "",
@@ -176,6 +194,7 @@ async function run(ctx: FlowContext): Promise<Json> {
         ...(args["money"] === undefined
           ? {}
           : { money: Number(args["money"]) }),
+        ...(found.length === 0 ? {} : { items: found }),
       }),
     );
     return json({
@@ -212,5 +231,5 @@ export const flow: ProbeFlow = {
   name: "mail-actions",
   run,
   usage:
-    "--flow mail-actions [--arg entry=<n>] [--arg id=<n>] [--arg do=take|copy|delete|send|return] [--arg to=<name>] [--arg money=<copper>] [--arg subject=<s>] [--arg body=<s>]: walk to the nearest mailbox, list the inbox and run one mail action. Stage at map 0 (-9452, 48, 56.4), within 10 yd of the Goldshire mailbox (entry 142075).",
+    "--flow mail-actions [--arg entry=<n>] [--arg id=<n>] [--arg do=take|copy|delete|send|return] [--arg to=<name>] [--arg money=<copper>] [--arg item0=<guid>:<entry>] [--arg subject=<s>] [--arg body=<s>]: walk to the nearest mailbox, list the inbox and run one mail action. Stage at map 0 (-9452, 48, 56.4), within 10 yd of the Goldshire mailbox (entry 142075).",
 };
