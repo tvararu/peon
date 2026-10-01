@@ -17,18 +17,6 @@ bun install
 hk install --mise
 '''
 
-[tasks."omp:link-config"]
-description = "Link a worktree's .omp/config.yml to the main checkout's copy"
-run = '''
-set -eu
-main=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
-here=$(git rev-parse --show-toplevel)
-[ "$main" = "$here" ] && exit 0
-[ -f "$main/.omp/config.yml" ] || exit 0
-ln -sfn "$main/.omp/config.yml" .omp/config.yml
-git update-index --skip-worktree .omp/config.yml
-'''
-
 [tasks.test]
 description = "Run all tests in parallel, failing if one writes git config"
 raw = true
