@@ -241,7 +241,8 @@ export type SocialAction =
   | "invite"
   | "accept_invite"
   | "decline_invite"
-  | "leave_group";
+  | "leave_group"
+  | "emote";
 
 export type SocialAfter = {
   action: SocialAction;
