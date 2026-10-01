@@ -230,16 +230,17 @@ export class MovementSync {
   }
 
   observeSelf(observed: SelfObservation): void {
-    const input = this.ride.controlling
-      ? withoutDrivenFields(observed)
-      : observed;
+    const driving = this.ride.controlling;
+    const input = driving ? withoutDrivenFields(observed) : observed;
     if (input.runSpeed !== undefined) this.runSpeed = input.runSpeed;
     if (input.runBackSpeed !== undefined)
       this.runBackSpeed = input.runBackSpeed;
     if (input.turnRate !== undefined) this.turnRate = input.turnRate;
     if (input.unitFlags !== undefined) this.setUnitFlags(input.unitFlags);
     if (input.target !== undefined) this.observeTarget(input.target);
-    if (input.movementFlags !== undefined)
+    if (driving && observed.movementFlags !== undefined)
+      this.rooted = (observed.movementFlags & MovementFlag.ROOT) !== 0;
+    else if (input.movementFlags !== undefined)
       this.observeFlags(input.movementFlags);
     if (input.position) {
       const stamped = {

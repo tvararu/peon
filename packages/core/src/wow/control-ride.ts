@@ -52,8 +52,10 @@ export class SelfMotion {
 }
 
 export function withoutDrivenFields(input: SelfObservation): SelfObservation {
-  const { position, runSpeed, runBackSpeed, turnRate, ...rest } = input;
-  return rest;
+  const { movementFlags, position, runSpeed, runBackSpeed, turnRate, ...rest } =
+    input;
+  if (movementFlags === undefined) return rest;
+  return { ...rest, movementFlags: movementFlags & MovementFlag.ON_TRANSPORT };
 }
 
 export type RideControl = "taken" | "dropped" | "cleared" | "refused";
