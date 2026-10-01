@@ -23,7 +23,7 @@ import { type Totem, type TotemEvent, Totems } from "#wow/areas/spells/totems";
 import type { UnitCast, UnitCastEvent } from "#wow/areas/spells/unit-casts";
 import { UnitCasts } from "#wow/areas/spells/unit-casts";
 import type { CombatChannel } from "#wow/combat-casts";
-import { isUnit } from "#wow/entity-store";
+import { ObjectType } from "#wow/protocol/entity-fields";
 import type { SpellFailure, SpellGo, SpellStart } from "#wow/protocol/spell";
 import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
@@ -119,7 +119,10 @@ export class SpellsStore {
       (event) => this.events.emit(event),
     );
     this.mirrors = new MirrorImages(
-      (guid) => isUnit(deps.getEntity(guid)),
+      (guid) => {
+        const type = deps.getEntity(guid)?.objectType;
+        return type === ObjectType.UNIT || type === ObjectType.PLAYER;
+      },
       (event) => this.events.emit(event),
     );
   }
