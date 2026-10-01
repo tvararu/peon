@@ -9,8 +9,9 @@ per glyph slot with its slot type, whether it is unlocked and the glyph
 of the active spec. The area emits `info` on every player-form packet,
 with the talents, glyphs, free points and active spec that changed since
 the last one; `points` when the free points went up; and `pet_info` for
-the pet form. The game log gets a `talents/points` row for new points
-and one `talents/learned` row for each talent that gained a rank.
+the pet form. The game log gets a `talents/points` row for new points,
+one `talents/learned` row for each talent that gained a rank, and one
+`talents/glyph` row for each glyph slot that changed (`glyphId` 0 when cleared).
 
 ## Wire notes
 
@@ -130,7 +131,7 @@ act waits for the info that shows the socket at 0.
 
 ## Capabilities row
 
-| Talents (`talents`, `interact reset_talents`) | `t8-talents-spend`, `t8-talents-reset` |
+| Talents (`talents`, `interact reset_talents`) | `t8-talents-spend`, `t8-talents-reset`, `t8-talents-glyph` |
 
 ## Proof
 
