@@ -87,6 +87,44 @@ describe("transports pose", () => {
     }
   });
 
+  test("poseAt wraps the server progress at the uint32 boundary", async () => {
+    let now = 0;
+    const rig = areaRig("transports", {
+      now: () => now,
+      selfGuid: SELF,
+      dbc: transportsDbc({ nodes: TRANSPORTS_STRAIGHT_NODES }),
+    });
+    try {
+      await flushMicrotasks();
+      rig.inject(
+        GameOpcode.SMSG_UPDATE_OBJECT,
+        transportsCreateBody({
+          guid: MOTION,
+          entry: TRANSPORTS_STRAIGHT_ENTRY,
+          pathProgress: 4_294_967_290,
+          pose: { x: 100, y: 0, z: 0, orientation: 0 },
+        }),
+      );
+      rig.inject(
+        GameOpcode.SMSG_GAMEOBJECT_QUERY_RESPONSE,
+        transportsGameObjectQueryBody({
+          entry: TRANSPORTS_STRAIGHT_ENTRY,
+          type: 15,
+          data: { 0: TRANSPORTS_STRAIGHT_PATH, 1: 10, 2: 5, 6: 1 },
+        }),
+      );
+      now += 10;
+      expect(must(rig.handle.act.poseAt(MOTION))).toMatchObject({
+        moving: false,
+        x: 100,
+        y: 0,
+        z: 0,
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("poseAt without a template is undefined", async () => {
     const rig = areaRig("transports", {
       now: () => 0,

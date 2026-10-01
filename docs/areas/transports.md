@@ -20,12 +20,16 @@ missing path or animation is never presented as real.
   UPDATEFLAG_STATIONARY_POSITION | UPDATEFLAG_ROTATION` (0x0252;
   `Entities/Transport/Transport.cpp:57,791`, written by
   `Entities/Object/Object.cpp:376-489`), the `u32` path progress after the
-  optional attacking-target guid, and a progress that advances per tick. The
+  optional attacking-target guid, and a progress that advances per tick as a
+  `uint32` (`Entities/Transport/Transport.h:43-44`,
+  `Entities/Transport/Transport.cpp:236` adds the tick diff, so it overflows
+  past 2^32 - 1 before the period modulo at `:238`). The
   stationary pose of a `MotionTransport` create is its current world
   position (`Entities/GameObject/GameObject.h:332-335` returns the live
   position for type 15), so each create is a pose sample; a static lift's
   stationary pose is its fixed base. `poseAt` adds the elapsed milliseconds
-  to the create progress and wraps by the period.
+  to the create progress, wraps at the `uint32` boundary, then wraps by the
+  period.
 - A game object standing on a transport carries `UPDATEFLAG_POSITION` with
   the transport's packed guid, the world position, the transport offset and
   the orientation. The reader returns the guid and offset instead of

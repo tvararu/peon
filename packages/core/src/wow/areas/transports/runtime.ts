@@ -62,7 +62,7 @@ function motionPose(
     models.generated.set(key, path);
   }
   if (!path) return undefined;
-  const elapsed = entry.pathProgress + (now - entry.receivedAt);
+  const elapsed = (entry.pathProgress + (now - entry.receivedAt)) >>> 0;
   return path.poseAt(elapsed);
 }
 
