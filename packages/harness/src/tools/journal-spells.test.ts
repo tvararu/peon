@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import { journalTool } from "#harness/tools/journal";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 import {
@@ -122,5 +122,96 @@ describe("journal about spells", () => {
       "Bar slot 1: Fireball (spell 133).",
     ]);
     expect(lines.length).toBeLessThanOrEqual(25);
+  });
+});
+
+describe("journal about spells professions, totems and runes", () => {
+  test("lists professions with value and max, then the totem, then the runes", async () => {
+    const { handle, tool } = await world();
+    installSpells(handle, { book: [FROST_ARMOR_SPELL] });
+    const base = handle.spells.state();
+    jest.spyOn(handle.spells, "state").mockImplementation(() => ({
+      ...base,
+      runes: [
+        { cooldown: undefined, index: 0, ready: true, regen: 0.1, type: 0 },
+        { cooldown: 40, index: 1, ready: false, regen: 0.1, type: 3 },
+      ],
+      skills: [
+        {
+          id: 186,
+          max: 75,
+          name: "Mining",
+          permBonus: 0,
+          step: 1,
+          tempBonus: 0,
+          value: 12,
+        },
+      ],
+      totems: [
+        undefined,
+        {
+          durationMs: 120_000,
+          guid: 0x1n,
+          slot: 1,
+          spellId: 8071,
+          spellName: "Stoneskin Totem",
+          startedAt: 0,
+        },
+        undefined,
+        undefined,
+      ],
+    }));
+    const out = await runTool(tool, { about: "spells" });
+    const lines = out.text.split("\n");
+    expect(lines.slice(1, 4)).toEqual([
+      "Mining: 12/75.",
+      "Totem (earth): Stoneskin Totem.",
+      "Rune 1: ready.",
+    ]);
+    expect(out.details.result.after).toMatchObject({
+      professions: [{ id: 186, max: 75, name: "Mining", value: 12 }],
+      runes: [
+        { index: 0, ready: true, type: 0 },
+        { index: 1, ready: false, type: 3 },
+      ],
+      totems: [{ element: "earth", name: "Stoneskin Totem", slot: 1 }],
+    });
+  });
+
+  test("caps the profession block at four lines", async () => {
+    const { handle, tool } = await world();
+    installSpells(handle, { book: [] });
+    const base = handle.spells.state();
+    const skills = [171, 164, 333, 202, 186].map((id, index) => ({
+      id,
+      max: 75,
+      name: `Trade ${index}`,
+      permBonus: 0,
+      step: 1,
+      tempBonus: 0,
+      value: 10,
+    }));
+    jest
+      .spyOn(handle.spells, "state")
+      .mockImplementation(() => ({ ...base, skills }));
+    const lines = (await runTool(tool, { about: "spells" })).text.split("\n");
+    expect(lines.slice(1)).toEqual([
+      "Trade 0: 10/75.",
+      "Trade 1: 10/75.",
+      "Trade 2: 10/75.",
+      "+2 more professions.",
+    ]);
+  });
+
+  test("omits the rune block for a non-death-knight", async () => {
+    const { handle, tool } = await world();
+    installSpells(handle, { book: [FROST_ARMOR_SPELL] });
+    const out = await runTool(tool, { about: "spells" });
+    expect(out.text).not.toContain("Rune");
+    expect(out.details.result.after).toMatchObject({
+      professions: [],
+      runes: undefined,
+      totems: [],
+    });
   });
 });

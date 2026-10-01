@@ -132,6 +132,8 @@ const spells: JournalAfter = {
     { id: 7, name: "macro 7", slot: 5, type: "macro" },
     { id: 1, name: "set 1", slot: 9, type: "equipment_set" },
   ],
+  professions: [],
+  runes: undefined,
   spells: [
     { cooldownMs: 30_000, cost: 55, id: 133, name: "Fireball", rank: "Rank 1" },
     {
@@ -142,6 +144,7 @@ const spells: JournalAfter = {
       rank: undefined,
     },
   ],
+  totems: [],
 };
 
 const bags: JournalAfter = {

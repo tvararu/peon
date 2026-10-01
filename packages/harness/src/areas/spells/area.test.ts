@@ -14,6 +14,7 @@ describe("spells harness rules", () => {
       "cancelAura",
       "destroyTotem",
       "setActionButton",
+      "unlearnSkill",
     ]);
   });
 
