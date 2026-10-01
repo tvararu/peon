@@ -89,7 +89,7 @@ export function orderPlan(
   state: RulesState,
   catalog: RulesCatalog,
 ): OrderedPlan {
-  const ordered = [...plan].sort(
+  const sorted = [...plan].sort(
     (a, b) =>
       (catalog.talent(a.talentId)?.row ?? -1) -
         (catalog.talent(b.talentId)?.row ?? -1) || a.rank - b.rank,
@@ -97,14 +97,27 @@ export function orderPlan(
   const send: TalentRank[] = [];
   const refused: PlanRefusal[] = [];
   let current = state;
-  for (const entry of ordered) {
-    const reason = checkEntry(entry, current, catalog);
-    if (reason) {
-      refused.push({ entry, reason });
-      continue;
+  let deferred = sorted;
+  while (deferred.length > 0) {
+    const waiting: PlanRefusal[] = [];
+    let progressed = false;
+    for (const entry of deferred) {
+      const reason = checkEntry(entry, current, catalog);
+      if (!reason) {
+        send.push(entry);
+        current = applyEntry(entry, current);
+        progressed = true;
+        continue;
+      }
+      if (reason === "needs_prerequisite" || reason === "tier_locked")
+        waiting.push({ entry, reason });
+      else refused.push({ entry, reason });
     }
-    send.push(entry);
-    current = applyEntry(entry, current);
+    if (!progressed) {
+      refused.push(...waiting);
+      return { refused, send };
+    }
+    deferred = waiting.map((refusal) => refusal.entry);
   }
   return { refused, send };
 }
