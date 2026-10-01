@@ -427,7 +427,8 @@ export function createTravelStore(
     endFlight(): void {
       endFlightRequest(taxi);
     },
-    receiveFlightSpline: (move) => acceptFlightSpline(taxi, events, selfGuid(), move),
+    receiveFlightSpline: (move) =>
+      acceptFlightSpline(taxi, events, selfGuid(), move),
     receiveActivateTaxiReply(reply: ActivateTaxiReply): void {
       receiveActivateTaxiReply(taxi, events, reply);
     },
