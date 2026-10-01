@@ -10,6 +10,7 @@ export type AirHost = {
   movementInfo: () => MovementInfo;
   canFly: () => boolean;
   airBlock: () => string | undefined;
+  isDriving: () => boolean;
 };
 
 export type AirParts = {
@@ -130,6 +131,7 @@ export class AirMoves {
   }
 
   private assertFree(): void {
+    if (this.host.isDriving()) throw new Error("driving");
     const reason = this.host.airBlock();
     if (reason) throw new Error(reason);
   }

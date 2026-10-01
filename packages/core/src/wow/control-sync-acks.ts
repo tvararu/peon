@@ -1,5 +1,6 @@
 import type { ControlDeps } from "#wow/control";
 import { FLAG_ACKS } from "#wow/control-flag-acks";
+import type { PassengerFlags } from "#wow/control-ride";
 import { AIR_INPUT_BITS } from "#wow/control-swim";
 import type { Emit, SyncMotion } from "#wow/control-sync-types";
 import { MovementFlag } from "#wow/protocol/entity-fields";
@@ -20,6 +21,7 @@ import { GameOpcode } from "#wow/protocol/opcodes";
 import type { MoveFlag } from "#wow/self-store";
 
 export type AckHost = {
+  passenger: PassengerFlags;
   moveFlags: number;
   observedFlags: number;
   drivenFlags: number;
@@ -116,6 +118,8 @@ export class ServerAckSync {
       else this.host.drivenFlags &= ~bit;
       if (enable && (bit & MovementFlag.DISABLE_GRAVITY) !== 0)
         this.host.cancelForced("disable_gravity");
+    } else if (this.host.isDriving()) {
+      this.host.passenger.set(bit, enable);
     } else if (enable) {
       this.host.observedFlags |= bit;
       this.host.moveFlags |= bit;

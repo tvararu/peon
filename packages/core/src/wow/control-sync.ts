@@ -7,6 +7,7 @@ import {
 import { unsupportedReason } from "#wow/control-motion";
 import {
   type MoverState,
+  PassengerFlags,
   type RideSeat,
   RideState,
   SelfMotion,
@@ -17,6 +18,7 @@ import { ServerAckSync } from "#wow/control-sync-acks";
 import { ForcedRoots, flagTarget } from "#wow/control-sync-forced";
 import {
   canFlyFlags,
+  type FlagSources,
   forcedPoseFlags,
   RECONCILED_BITS,
   TransferAbortWatch,
@@ -72,6 +74,7 @@ export class MovementSync {
   private flight: FlightPort | undefined;
   readonly ride: RideState;
   private readonly selfMotion = new SelfMotion();
+  readonly passenger = new PassengerFlags();
   private controlAllowed = true;
   rooted = false;
   moverRooted = false;
@@ -114,19 +117,9 @@ export class MovementSync {
   }
 
   blockReason(): string | undefined {
-    const unsupported = unsupportedFlags({
-      controlling: this.ride.controlling,
-      drivenFlags:
-        this.drivenFlags |
-        (this.ride.controlling && this.vehicleCanFly
-          ? MovementFlag.CAN_FLY
-          : 0),
-      moveFlags: this.moveFlags,
-      observedFlags: this.observedFlags,
-    });
     return (
       this.airBlock() ??
-      unsupportedReason(unsupported) ??
+      unsupportedReason(unsupportedFlags(this.flagSources())) ??
       (this.ride.riding && !this.ride.controlling ? "transport" : undefined)
     );
   }
@@ -180,14 +173,19 @@ export class MovementSync {
   }
 
   canFly(): boolean {
-    if (this.ride.controlling && this.vehicleCanFly) return true;
-    const flags = canFlyFlags({
-      controlling: this.ride.controlling,
-      drivenFlags: this.drivenFlags,
+    return (canFlyFlags(this.flagSources()) & MovementFlag.CAN_FLY) !== 0;
+  }
+
+  private flagSources(): FlagSources {
+    const controlling = this.ride.controlling;
+    return {
+      controlling,
+      drivenFlags:
+        this.drivenFlags |
+        (controlling && this.vehicleCanFly ? MovementFlag.CAN_FLY : 0),
       moveFlags: this.moveFlags,
       observedFlags: this.observedFlags,
-    });
-    return (flags & MovementFlag.CAN_FLY) !== 0;
+    };
   }
 
   setFlight(flight: FlightPort): void {
@@ -248,9 +246,10 @@ export class MovementSync {
     if (input.turnRate !== undefined) this.turnRate = input.turnRate;
     if (input.unitFlags !== undefined) this.setUnitFlags(input.unitFlags);
     if (input.target !== undefined) this.observeTarget(input.target);
-    if (driving && observed.movementFlags !== undefined)
+    if (driving && observed.movementFlags !== undefined) {
+      this.passenger.observe(observed.movementFlags);
       this.rooted = (observed.movementFlags & MovementFlag.ROOT) !== 0;
-    else if (input.movementFlags !== undefined)
+    } else if (input.movementFlags !== undefined)
       this.observeFlags(input.movementFlags);
     if (input.position) {
       const stamped = {
@@ -460,11 +459,13 @@ export class MovementSync {
       mover !== undefined && (this.pendingRoots.get(mover) ?? false);
     this.forced.forget(mover);
     if (mover === undefined) {
+      this.passenger.restore(this);
       this.moveFlags &= ~MovementFlag.ROOT;
       if (this.rooted) this.moveFlags |= MovementFlag.ROOT;
       this.selfMotion.restore(this);
       return;
     }
+    this.passenger.save(this);
     if (this.moverRooted) this.moveFlags |= MovementFlag.ROOT;
     else this.moveFlags &= ~MovementFlag.ROOT;
     this.selfMotion.save(this);

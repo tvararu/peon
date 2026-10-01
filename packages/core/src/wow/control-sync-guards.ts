@@ -12,7 +12,7 @@ export const UNIT_BLOCK_FLAGS =
   UnitFlag.CONFUSED |
   UnitFlag.FLEEING;
 
-type FlagSources = {
+export type FlagSources = {
   controlling: boolean;
   drivenFlags: number;
   moveFlags: number;

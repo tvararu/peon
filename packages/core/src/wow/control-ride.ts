@@ -1,4 +1,6 @@
 import type { ControlDeps } from "#wow/control";
+import { INPUT_BITS } from "#wow/control-input";
+import { AIR_INPUT_BITS } from "#wow/control-swim";
 import type { Emit, SelfObservation } from "#wow/control-sync-types";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag } from "#wow/protocol/entity-fields";
@@ -47,6 +49,53 @@ export class SelfMotion {
     target.runSpeed = this.saved.runSpeed;
     target.runBackSpeed = this.saved.runBackSpeed;
     target.turnRate = this.saved.turnRate;
+    this.saved = undefined;
+  }
+}
+
+type FlagBits = { moveFlags: number; observedFlags: number };
+
+export class PassengerFlags {
+  private saved: { move: number; observed: number } | undefined;
+
+  save(host: FlagBits): void {
+    if (this.saved) return;
+    this.saved = {
+      move:
+        host.moveFlags &
+        ~(
+          INPUT_BITS |
+          AIR_INPUT_BITS |
+          MovementFlag.ROOT |
+          MovementFlag.ON_TRANSPORT
+        ),
+      observed: host.observedFlags & ~MovementFlag.ON_TRANSPORT,
+    };
+    host.moveFlags &= MovementFlag.ON_TRANSPORT;
+    host.observedFlags &= MovementFlag.ON_TRANSPORT;
+  }
+
+  observe(flags: number): void {
+    if (this.saved) this.saved.observed = flags & ~MovementFlag.ON_TRANSPORT;
+  }
+
+  set(bit: number, enable: boolean): void {
+    if (!this.saved) return;
+    if (enable) {
+      this.saved.move |= bit;
+      this.saved.observed |= bit;
+    } else {
+      this.saved.move &= ~bit;
+      this.saved.observed &= ~bit;
+    }
+  }
+
+  restore(host: FlagBits): void {
+    if (!this.saved) return;
+    host.moveFlags =
+      this.saved.move | (host.moveFlags & MovementFlag.ON_TRANSPORT);
+    host.observedFlags =
+      this.saved.observed | (host.observedFlags & MovementFlag.ON_TRANSPORT);
     this.saved = undefined;
   }
 }
