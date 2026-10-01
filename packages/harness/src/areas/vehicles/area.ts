@@ -46,6 +46,19 @@ function enteredRow(
   };
 }
 
+function controlRow(
+  event: Extract<VehiclesEvent, { type: "control" }>,
+): AreaDraft {
+  return {
+    class: "wake",
+    data: { allow: event.allow, mover: hex(event.mover) },
+    name: "control",
+    text: event.allow
+      ? "You now control the vehicle."
+      : "You no longer control the vehicle.",
+  };
+}
+
 export const vehiclesHarness = defineHarnessArea({
   area: "vehicles",
   rules: () => ({
@@ -67,6 +80,7 @@ export const vehiclesHarness = defineHarnessArea({
     event: (event: VehiclesEvent) => {
       if (event.type === "player_vehicle") return [playerVehicleRow(event)];
       if (event.type === "entered") return [enteredRow(event)];
+      if (event.type === "control") return [controlRow(event)];
       if (event.type === "exited")
         return [
           {

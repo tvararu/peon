@@ -27,12 +27,19 @@ function observeUpdates(store: VehiclesStore, r: PacketReader): void {
       entry.vehicle
     ) {
       store.setVehicleId(entry.guid, entry.vehicle.id);
+      store.recordMotion(entry.guid, {
+        pose: entry.position,
+        run: entry.runSpeed,
+        runBack: entry.runBackSpeed,
+        turn: entry.turnRate,
+      });
     }
   }
 }
 
 export const vehiclesArea = defineArea({
   eventTypes: [
+    "control",
     "entered",
     "exited",
     "player_vehicle",
