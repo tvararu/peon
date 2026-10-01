@@ -16,7 +16,11 @@ const ENTRY = 25_334;
 
 type Vehicles = WorldHandle["vehicles"];
 
-function context(options: { controlling: boolean; click?: string }) {
+function context(options: {
+  controlling: boolean;
+  click?: string;
+  seat?: string;
+}) {
   const handle = createMockHandle();
   handle.queryNearby = () =>
     [{ entity: { entry: ENTRY, guid: VEHICLE }, self: false }] as never;
@@ -42,6 +46,7 @@ function context(options: { controlling: boolean; click?: string }) {
   const vehicles: Vehicles = {
     ...handle.vehicles,
     act: {
+      changeSeatOnControlled: async () => ({ status: "no_answer" }),
       exitVehicle: async () => ({ status: "ok" }),
       spellClick: async () =>
         options.click === undefined
@@ -60,7 +65,7 @@ function context(options: { controlling: boolean; click?: string }) {
   };
   Object.assign(handle, { vehicles });
   const ctx: FlowContext & { handle: MockHandle } = {
-    args: {},
+    args: options.seat === undefined ? {} : { seat: options.seat },
     handle,
     settle: settleWithin(100),
   };
@@ -81,6 +86,18 @@ describe("vehicles-drive flow", () => {
         traveled: 10,
       });
       expect(targets).toEqual([{ x: 110, y: 200, z: 7 }]);
+    }));
+
+  test("asks for a seat change only when seat is given and reports the outcome", () =>
+    withFakeTimers(async () => {
+      const { ctx } = context({ controlling: true, seat: "1" });
+      const running = flow.run(ctx);
+      await fakeMsUntilSettled(running, 1000);
+      expect(await running).toMatchObject({ changeSeat: "no_answer" });
+      const plain = context({ controlling: true });
+      const second = flow.run(plain.ctx);
+      await fakeMsUntilSettled(second, 1000);
+      expect(await second).toMatchObject({ changeSeat: null });
     }));
 
   test("does not walk when control never arrives", () =>

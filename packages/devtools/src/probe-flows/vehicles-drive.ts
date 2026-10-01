@@ -4,7 +4,7 @@ const DEFAULT_ENTRY = 25_334;
 const DRIVE_YARDS = 10;
 
 const USAGE =
-  "vehicles-drive takes entry=<id> (default 25334) and yards=<n> (default 10, at most 20).";
+  "vehicles-drive takes entry=<id> (default 25334), yards=<n> (default 10, at most 20) and seat=<n> (optional).";
 
 type Outcome = { status: string; reason?: string };
 
@@ -42,6 +42,18 @@ async function driveAhead(
   return { reason: walked.reason ?? null, traveled: walked.traveled };
 }
 
+async function changeSeatStep(
+  handle: FlowContext["handle"],
+  args: FlowContext["args"],
+): Promise<string | null> {
+  if (args["seat"] === undefined) return null;
+  const outcome = await handle.vehicles.act.changeSeatOnControlled(
+    0n,
+    numberArg(args, "seat", 1),
+  );
+  return describe(outcome);
+}
+
 async function run({ handle, args, settle }: FlowContext): Promise<Json> {
   const entry = numberArg(args, "entry", DEFAULT_ENTRY);
   const yards = numberArg(args, "yards", DRIVE_YARDS);
@@ -71,12 +83,15 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
       controlled === true
         ? await driveAhead(handle, yards)
         : { reason: null, traveled: 0 };
+    const changeSeat =
+      controlled === true ? await changeSeatStep(handle, args) : null;
     const mover = handle.getControlState().mover;
     const exit = describe(await handle.vehicles.act.exitVehicle());
     await settle(() => undefined);
     const after = handle.getControlState();
     return {
       board: describe(board),
+      changeSeat,
       controlled: controlled === true,
       entry,
       events,
@@ -97,5 +112,5 @@ export const flow: ProbeFlow = {
   name: "vehicles-drive",
   run,
   usage:
-    "--flow vehicles-drive --arg entry=<id> --arg yards=<n>: click the nearest unit of that entry, wait for control of the vehicle, walk the given yards along its facing, then dismiss it with the exitVehicle act.",
+    "--flow vehicles-drive --arg entry=<id> --arg yards=<n> --arg seat=<n>: click the nearest unit of that entry, wait for control of the vehicle, walk the given yards along its facing, optionally ask for the next seat with changeSeatOnControlled, then dismiss it with the exitVehicle act.",
 };
