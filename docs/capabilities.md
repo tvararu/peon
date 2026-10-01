@@ -42,6 +42,7 @@ or the page names one that does not exist.
 | Stop a channelled spell with stop | `t4-spells-stop-channel` | Stop also ends a channel. |
 | Make an inn its home | `t8-travel-bind-inn` | `interact` `bind` walks to the innkeeper first. A bind the server does not answer (dead, out of range or in an instance) is `UNCONFIRMED`. |
 | Use the hearthstone to go home | `t8-travel-hearth-home` | `travel` `hearth` refuses without the stone, on cooldown, in combat or in flight. The scenario starts at the preset's own home, so it does not show a bind at another inn. |
+| Ride a mount and get off it | `t9-selfstate-mount` | Needs a known mount spell; mounting fails indoors and in combat,. The scenario starts in Tranquillien, 56 yd from the flight master, and rides to it. |
 | Fly to a discovered destination and walk on from the landing | `t8-travel-fly` | `travel` `fly <destination>` flies from a flight master in view, or from one at a known node on the same map within 300 yd; the first visit to a master learns its path and a landing steps onto the ground. A mounted character is refused ("Get off your mount first."). The scenario starts in Tranquillien, 54 yd from the master, and flies to Silvermoon City; the agent walked west when it was asked to walk north. |
 | Command a pet: call, dismiss, attack, follow, stay, stop and stance | `t8-pets-command` | Hunter only; no warlock or death knight preset. |
 | Cast and autocast pet spells | `t8-pets-spells` | Feed Pet needs an item-target cast and is not covered. A cast whose spell the catalog does not know is `UNCONFIRMED`. A pet far from its target fails out of range: send it with attack first. |
@@ -89,4 +90,4 @@ These have tools or code but no scenario that checks them live:
 - Answer a raid ready check (`t9-raid-answer`, the agent answers before the check starts, and the repeat guard then refuses its answer during the check).
 - Accept a quest a party member shares (`t8-quests-accept-shared`, the agent's early `accept_invite` is refused as a repeat, so it is not in the group when the partner shares).
 
-Peon has no tool for mail, the auction house or mounts.
+Peon has no tool for mail or the auction house.

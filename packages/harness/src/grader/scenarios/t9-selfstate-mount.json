@@ -25,12 +25,12 @@
     {
       "evidence": {
         "point": {
-          "x": 9476.91,
-          "y": -6859.21
+          "x": 7595.16,
+          "y": -6782.24
         }
       },
-      "expect": "T final position within 10 yd of Innkeeper Delaniel (9476.91, -6859.21, map 530); the truth pose and the live nearby agree on this point",
-      "id": "at-innkeeper",
+      "expect": "T final position within 10 yd of the Tranquillien flight master (7595.16, -6782.24, map 530); the truth pose and the live nearby agree on this point",
+      "id": "at-flight-master",
       "source": "truth"
     },
     {
@@ -49,11 +49,11 @@
     {
       "body": {
         "map": 530,
-        "o": 0,
-        "x": 9376.4,
-        "y": -7164.92,
-        "z": 9.02,
-        "zone": 3430
+        "o": 4.007,
+        "x": 7575,
+        "y": -6835,
+        "z": 88.66,
+        "zone": 3433
       },
       "endpoint": "position"
     },
@@ -71,6 +71,6 @@
     }
   ],
   "steers": [],
-  "task": "Get on your mount, ride to Innkeeper Delaniel in Falconwing Square, then get off.",
+  "task": "Get on your mount, ride to the flight master in Tranquillien, then get off.",
   "tier": 9
 }

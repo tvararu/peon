@@ -50,8 +50,9 @@ only the final values (`Entities/Unit/Unit.cpp:10301-10303`,
 for another guid fires `mount_anim`. The act `dismount` refuses
 `not_mounted` and then `in_flight` without a send, otherwise sends the
 empty `CMSG_CANCEL_MOUNT_AURA` and settles `ok` on `dismounted` or
-`no_answer` after 2 s. The act `mountSpecialAnim` refuses `not_mounted`,
-otherwise sends the empty `CMSG_MOUNTSPECIAL_ANIM`.
+`no_answer` after 2 s. The act `mountSpecialAnim` refuses `not_mounted`, otherwise sends the empty `CMSG_MOUNTSPECIAL_ANIM`.
+
+The `spell` verbs `mount` and `dismount` ride out and get off again. `mount` refuses `already_mounted` from the state before any send, `no_mount` when no learned spell carries aura 78 (`SPELL_AURA_MOUNTED`), and maps the server's `affecting_combat`, `only_outdoors`/`no_mounts_allowed` and `only_abovewater` refusals to `in_combat`, `indoors` and `in_water`; with no spell it picks the learned ground mount (aura 78 without aura 207) with the highest speed, last learned first. It subscribes to `mounted` before the cast, casts through the spell `castFlow` on the self, and settles `ok` on the `mounted` event or `no_reply` after 2 s. `dismount` races the `dismount` act against its own abort, settling `DONE` on `ok`, the refusal reason on a refusal, and `UNCONFIRMED` `no_reply` with no answer. `look` and `[now]` add ", mounted" when the state is mounted.
 
 The harness area turns the breath and transfer events into game-log rows:
 a started breath timer wakes the agent with `selfstate/under_water` and
@@ -216,8 +217,9 @@ describes; `dismount` is a world act.
 
 ## Capabilities row
 
-No verb yet; `recover how:"self"` and the mount verbs come with later
-tasks.
+`spell do:"mount"` rides a learned ground mount and reports on `mounted`; `spell do:"dismount"` gets off and reports on `dismounted`. `recover how:"self"` comes with a later task.
+
+Live proof (no new opcode): `t9-selfstate-mount` replica 6 of round 355 passed. A `max80` Blood Elf at Tranquillien called `spell do:"mount"` and got `selfstate/mounted` (display id 19482), `travel` rode 55 yd to the flight master, and `spell do:"dismount"` gave `selfstate/dismounted`. A throwaway probe cast of Brown Horse 458 at Crossroads drew `SMSG_SPELL_GO`, `SMSG_MOVE_SET_COLLISION_HGT` and, after the cancel, `SMSG_DISMOUNT`; the same cast at Dalaran's start point drew `SMSG_CAST_FAILED` reason 93 `only_outdoors`, the `indoors` refusal. Replica 5 at Fairbreeze showed the server ending a mount (`SMSG_DISMOUNT`, no `CMSG_CANCEL_MOUNT_AURA` sent) during a walk to a vendor, cause not determined; the scenario avoids that place. Northrend has no navmesh in `~/wow-data/nav`, so a map 571 start cannot walk.
 
 ## Proof
 
