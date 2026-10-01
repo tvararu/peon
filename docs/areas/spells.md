@@ -109,8 +109,13 @@ aura update removes the aura within 2 s. A mount aura cancels the same
 way: the server treats it like any positive non-passive aura
 (`Handlers/SpellHandler.cpp:568-601`). `do: "bar"` writes slot 1-144 as
 0-143 with `act.setActionButton`, and a call with neither spell nor item
-clears the slot. `journal about: "spells"` lists up to four cancellable
-auras and four filled bar slots before the spellbook, and leaves out the
+clears the slot. `do: "unlearn_profession"` names a profession or skill id,
+refuses `needs_confirm` without `confirm: true`, and is `DONE` when the skill
+leaves `state().skills` within 3 s. `do: "destroy_totem"` names the element
+(fire 0, earth 1, water 2, air 3) and is `DONE` when the slot clears.
+`journal about: "spells"` lists up to four cancellable
+auras, four filled bar slots, four professions, four totems and four runes
+before the spellbook, and leaves out the
 ranks in `inactiveRanks`.
 
 ## Wire notes
@@ -356,6 +361,6 @@ Cancel one of its own buffs (`t4-spells-cancel-aura`; harmful and passive auras 
 | `SMSG_TOTEM_CREATED` | `mock` | `packages/core/src/wow/areas/spells/totems.test.ts` "SMSG_TOTEM_CREATED fills the slot and emits totem_created" builds the packet from the AzerothCore writer; not seen live (no shaman preset; a priest that learned 8071 with Earth Totem item 5175 in the bags casts 836 instead, and the create never comes) | `Server/Packets/TotemPackets.cpp:25-33` |
 | `SMSG_CONVERT_RUNE` | `mock` | `packages/core/src/wow/areas/spells/runes.test.ts` "parseConvertRune reads the index and the new type" builds the packet from the AzerothCore writer; not seen live (no death knight preset: T-11 parked, `mise factory soap create eversong55-deathknight` fails unknown preset) | `Entities/Player/Player.cpp:13736-13743` |
 | `CMSG_TOTEM_DESTROYED` | `builder` | sent live on a `max80` priest: `mise protocol:probe <ACCOUNT> --send CMSG_TOTEM_DESTROYED --body 00 --wait 8`, exit 0, one byte in the trace, no disconnect; effect not seen (slot 0 was empty, which the server ignores); not seen live | `Server/Packets/TotemPackets.cpp:20-23` |
-| `CMSG_UNLEARN_SKILL` | `builder` | sent live on a throwaway `eversong10` priest: raw `CMSG_UNLEARN_SKILL` of 186 (`ba000000`) via the puppet, trace shows the 4-byte packet out with no disconnect and no reply; full `skill_removed` round-trip not seen live (offline `spells/learn` of 2575 stores the spell but the login load drops it, and online `gm learn 2575` stores it without filling the skill triple, so no slot ever held 186) | `Handlers/SkillHandler.cpp:91-100` |
+| `CMSG_UNLEARN_SKILL` | `live` | throwaway `eversong10` priest: offline `spells/learn` 2575 scrubbed at login (no skill 186); online `gm learn 2575` while the puppet stood in the world filled the triple (five `SMSG_LEARNED_SPELL` after the learn at trace time 1790847631601-1602); raw `CMSG_UNLEARN_SKILL` (`ba000000`) drew five `SMSG_REMOVED_SPELL` 7 ms later and cleared 2575 from truth (18 spells); the `COMPRESSED_UPDATE_OBJECT` in the same window carries the cleared triple (`skill_removed`) | `Handlers/SkillHandler.cpp:91-100` |
 | `CMSG_CANCEL_AURA` | `live` | mount cancel on a throwaway `eversong10` character with spell 458 (Brown Horse): `mise protocol:probe <ACCOUNT> --flow selfstate-mount` reports spell 458, collision height null to 2.88, `cancel: ok`, height back to 2.03 after the dismount; the retained trace shows `CMSG_CAST_SPELL` out, `SMSG_MOVE_SET_COLLISION_HGT` and `SMSG_AURA_UPDATE` in, then `CMSG_CANCEL_AURA` out followed by `SMSG_AURA_UPDATE`, `SMSG_MOVE_SET_COLLISION_HGT` and `SMSG_DISMOUNT` in. A puppet cancel of the live mount aura (`CMSG_CAST_SPELL` then raw `CMSG_CANCEL_AURA`) shows the same packet sequence in its retained `packets.jsonl` | `Handlers/SpellHandler.cpp:568-601` |
 | `SMSG_LEARNED_SPELL` | `live` | throwaway `eversong10` character: `soap setup spells/learn` of 33388, 458 and 20608 while offline sent no packet, and the next login's `SMSG_INITIAL_SPELLS` (73 spells) held 33388 and 458 and no 20608; with the character in the world, `soap gm learn 33388` drew `SMSG_LEARNED_SPELL` body `6c8200000000`, outcome `handled` | `Entities/Player/Player.cpp:3137-3145` |
