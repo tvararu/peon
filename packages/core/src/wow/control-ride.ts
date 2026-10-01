@@ -179,13 +179,16 @@ export class RideState {
   }
 
   apply(info: MovementInfo): MovementInfo {
-    const seat = this.seat;
-    if (!seat) return info;
+    if (!this.seat) return info;
     if (this.mover !== undefined)
       return {
         ...info,
         flags: info.flags & ~(MovementFlag.ON_TRANSPORT | MovementFlag.ROOT),
       };
+    return this.withSeat(this.seat, info);
+  }
+
+  private withSeat(seat: RideSeat, info: MovementInfo): MovementInfo {
     return {
       ...info,
       flags: info.flags | MovementFlag.ON_TRANSPORT,
@@ -246,7 +249,7 @@ export class RideState {
   private sendSplineDone(): void {
     const seat = this.seat;
     if (seat?.splineId === undefined) return;
-    const info = this.movementInfo();
+    const info = this.withSeat(seat, this.movementInfo());
     const head = buildMoveMessage(this.deps.selfGuid(), info);
     const body = new Uint8Array(head.byteLength + 4);
     body.set(head, 0);

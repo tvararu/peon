@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { decodeMove, type Sent, setup } from "#test-support/control-fixtures";
 import { must } from "#test-support/must";
 import { MovementFlag } from "#wow/protocol/entity-fields";
-import { buildMoveMessage, type MovementInfo } from "#wow/protocol/movement";
+import {
+  buildMoveMessage,
+  type MovementInfo,
+  parseMovementInfo,
+} from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
 import type { SelfEvent } from "#wow/self-store";
@@ -184,6 +188,25 @@ describe("driving the vehicle", () => {
     const { runtime, sent } = drive();
     runtime.forceRoot(9);
     expect(decodeMove(sent.at(-1)).guid).toBe(VEHICLE);
+  });
+});
+
+describe("boarding spline done while driving", () => {
+  test("the passenger's spline-done keeps its own guid and the seat block (TaxiHandler.cpp:204-214)", () => {
+    const { runtime, sent, advance } = setup();
+    runtime.vehicleSeat(seat({ duration: 800, seat: 1, splineId: 77 }));
+    runtime.clientControl({ allow: true, guid: VEHICLE });
+    sent.length = 0;
+    advance(800);
+    const done = sent.find(
+      (packet) => packet.opcode === GameOpcode.CMSG_MOVE_SPLINE_DONE,
+    );
+    const read = new PacketReader(must(done).body);
+    expect(read.packedGuidBig()).toBe(SELF);
+    const parsed = parseMovementInfo(read);
+    expect(parsed.transport?.guid).toBe(VEHICLE);
+    expect(parsed.transport?.seat).toBe(1);
+    expect(read.uint32LE()).toBe(77);
   });
 });
 
