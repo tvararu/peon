@@ -1,0 +1,47 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 16,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "evidence": {
+        "items": [2589],
+        "truth": ["inventory"]
+      },
+      "expect": "T final holds item 2589 (Linen Cloth) in a carried row: the setup added 20 and the agent put the cloth in the bank, then took it out again",
+      "id": "cloth-carried",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["bank/withdraw"],
+        "ids": [2589]
+      },
+      "expect": "GL has a bank/withdraw row for item 2589",
+      "id": "withdraw-row",
+      "source": "game_log"
+    }
+  ],
+  "id": "t9-bank-withdraw",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "eversong10",
+  "setup": [
+    {
+      "body": {
+        "count": 20,
+        "item": 2589
+      },
+      "endpoint": "items/add"
+    }
+  ],
+  "spawn": "silvermoon-bank",
+  "steers": [],
+  "task": "Put the Linen Cloth in your bank, then take it out again. Talk to the banker Novia.",
+  "tier": 9
+}

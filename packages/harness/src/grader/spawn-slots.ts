@@ -313,6 +313,25 @@ const STORMWIND_STONE: Spawn = {
   ],
   zone: 1519,
 };
+const SILVERMOON_BANK: Spawn = {
+  map: 530,
+  o: 1.686,
+  points: [
+    [9808, -7478, 13.6],
+    [9810, -7478, 13.6],
+    [9812, -7478, 13.6],
+    [9808, -7476, 13.6],
+    [9810, -7476, 13.6],
+    [9812, -7476, 13.6],
+    [9808, -7480, 13.6],
+    [9810, -7480, 13.6],
+    [9812, -7480, 13.6],
+    [9808, -7482, 13.6],
+    [9810, -7482, 13.6],
+    [9812, -7482, 13.6],
+  ],
+  zone: 3487,
+};
 const UNDERCITY_WARRIOR: Spawn = {
   map: 0,
   o: 0,
@@ -338,6 +357,7 @@ const NAMED: Readonly<Record<string, Spawn>> = {
   "fairbreeze-emotes": FAIRBREEZE_EMOTES,
   "fairbreeze-south": FAIRBREEZE_SOUTH,
   ghostlands: GHOSTLANDS,
+  "silvermoon-bank": SILVERMOON_BANK,
   "stormwind-stone": STORMWIND_STONE,
   "undercity-warrior": UNDERCITY_WARRIOR,
 };

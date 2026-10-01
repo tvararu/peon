@@ -196,6 +196,9 @@ export const ROUND_1: readonly string[] = [
   "t8-vehicles-board",
   "t8-talents-glyph",
   "t8-pets-talent",
+  "t9-bank-deposit",
+  "t9-bank-withdraw",
+  "t9-bank-slot",
 ];
 const DIR = `${import.meta.dir}/scenarios`;
 const JSON_FILE = /\.json$/;

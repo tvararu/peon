@@ -92,4 +92,15 @@ describe("startSlots", () => {
       "no start slot for t0-self-state replica 4",
     );
   });
+  test("the silvermoon bank grid starts at the banker with twelve points", () => {
+    const spawn = spawnOf({
+      id: "t9-bank-deposit",
+      spawn: "silvermoon-bank",
+    } as never);
+    expect(spawn?.points).toHaveLength(12);
+    expect(spawn?.points[0]).toEqual([9808, -7478, 13.6]);
+    expect(spawn).toMatchObject({ map: 530, o: 1.686, zone: 3487 });
+    for (const [x, y] of spawn?.points ?? [])
+      expect(Math.hypot(x - 9808, y + 7478)).toBeLessThanOrEqual(16);
+  });
 });
