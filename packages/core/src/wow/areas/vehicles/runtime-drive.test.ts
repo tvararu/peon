@@ -9,7 +9,8 @@ import { buildChangeSeatsOnControlledVehicle } from "#wow/areas/vehicles/protoco
 import type { VehiclesEvent } from "#wow/areas/vehicles/store";
 import type { ControlEvent, ControlState } from "#wow/control";
 import type { Entity } from "#wow/entity-store";
-import { ObjectType } from "#wow/protocol/entity-fields";
+import { MovementFlag, ObjectType } from "#wow/protocol/entity-fields";
+import { SplineFlag } from "#wow/protocol/monster-move";
 import { type MovementInfo, parseMovementInfo } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { PacketReader } from "#wow/protocol/packet";
@@ -113,6 +114,29 @@ describe("seat.controlling follows control", () => {
       made.dispose();
     }
   });
+  test("a vehicle create block with flight flags reaches control as the driven flags", () => {
+    const { made, selfEvents } = rig();
+    try {
+      made.inject(
+        GameOpcode.SMSG_UPDATE_OBJECT,
+        vehiclesCreateVehicleBlock({
+          flags: MovementFlag.CAN_FLY,
+          guid: VEHICLE,
+          orientation: 1,
+          vehicleId: 318,
+        }),
+      );
+      made.events.control.emit(controlEvent("vehicle", VEHICLE));
+      expect(
+        selfEvents.find((event) => event.type === "mover_state"),
+      ).toMatchObject({
+        flags: MovementFlag.CAN_FLY,
+        guid: VEHICLE,
+      });
+    } finally {
+      made.dispose();
+    }
+  });
 
   test("the vehicle's speeds from its create block and its pose reach control as mover_state before the control event", () => {
     const { made, selfEvents, areaEvents } = rig();
@@ -128,6 +152,7 @@ describe("seat.controlling follows control", () => {
       made.events.control.emit(controlEvent("vehicle", VEHICLE));
       const state = selfEvents.find((event) => event.type === "mover_state");
       expect(state).toMatchObject({
+        flags: 0,
         guid: VEHICLE,
         pose: POSE,
         run: 7,
@@ -201,12 +226,12 @@ describe("driving acts", () => {
     }
   });
 
-  test("changeSeatOnControlled builds the accessory and seat tail and settles ok on the seat change spline", async () => {
+  test("changeSeatOnControlled on the vehicle settles ok on another seat of the same vehicle", async () => {
     jest.useFakeTimers();
     const { made, selfEvents } = rig();
     try {
       made.events.control.emit(controlEvent("vehicle", VEHICLE));
-      const pending = made.handle.act.changeSeatOnControlled(ACCESSORY, 2);
+      const pending = made.handle.act.changeSeatOnControlled(0n, 2);
       const packet = must(
         selfEvents.find((event) => event.type === "mover_packet"),
       );
@@ -225,7 +250,7 @@ describe("driving acts", () => {
         z: 3,
       };
       expect(packet.build(VEHICLE, info)).toEqual(
-        buildChangeSeatsOnControlledVehicle(VEHICLE, info, ACCESSORY, 2),
+        buildChangeSeatsOnControlledVehicle(VEHICLE, info, 0n, 2),
       );
       made.inject(
         GameOpcode.SMSG_MONSTER_MOVE_TRANSPORT,
@@ -238,6 +263,73 @@ describe("driving acts", () => {
         }),
       );
       expect(await pending).toEqual({ status: "ok" });
+    } finally {
+      made.dispose();
+      jest.useRealTimers();
+    }
+  });
+
+  test("changeSeatOnControlled on an accessory settles ok on the accessory boarding spline", async () => {
+    jest.useFakeTimers();
+    const { made, selfEvents } = rig();
+    try {
+      made.events.control.emit(controlEvent("vehicle", VEHICLE));
+      const pending = made.handle.act.changeSeatOnControlled(ACCESSORY, 1);
+      const packet = must(
+        selfEvents.find((event) => event.type === "mover_packet"),
+      );
+      if (packet.type !== "mover_packet") throw new Error("not a packet");
+      expect(packet.opcode).toBe(
+        GameOpcode.CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE,
+      );
+      const info: MovementInfo = {
+        extraFlags: 0,
+        fallTime: 0,
+        flags: 0,
+        orientation: 0,
+        time: 1,
+        x: 1,
+        y: 2,
+        z: 3,
+      };
+      expect(packet.build(VEHICLE, info)).toEqual(
+        buildChangeSeatsOnControlledVehicle(VEHICLE, info, ACCESSORY, 1),
+      );
+      made.inject(
+        GameOpcode.SMSG_MONSTER_MOVE_TRANSPORT,
+        vehiclesMonsterMoveTransportBody({
+          flags: SplineFlag.TRANSPORT_ENTER,
+          guid: SELF,
+          seat: 1,
+          stop: false,
+          transportGuid: ACCESSORY,
+        }),
+      );
+      expect(await pending).toEqual({ status: "ok" });
+    } finally {
+      made.dispose();
+      jest.useRealTimers();
+    }
+  });
+
+  test("changeSeatOnControlled on an accessory ignores a same-seat spline on the original vehicle", async () => {
+    jest.useFakeTimers();
+    const { made } = rig();
+    try {
+      made.events.control.emit(controlEvent("vehicle", VEHICLE));
+      const pending = made.handle.act.changeSeatOnControlled(ACCESSORY, 0);
+      made.inject(
+        GameOpcode.SMSG_MONSTER_MOVE_TRANSPORT,
+        vehiclesMonsterMoveTransportBody({
+          flags: SplineFlag.TRANSPORT_ENTER,
+          guid: SELF,
+          seat: 0,
+          stop: false,
+          transportGuid: VEHICLE,
+        }),
+      );
+      jest.advanceTimersByTime(3000);
+      expect(await pending).toEqual({ status: "no_answer" });
     } finally {
       made.dispose();
       jest.useRealTimers();

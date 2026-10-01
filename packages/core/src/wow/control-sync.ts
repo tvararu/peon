@@ -61,6 +61,7 @@ export class MovementSync {
   server: ControlPose | undefined;
   moveFlags = 0;
   observedFlags = 0;
+  drivenFlags = 0;
   mapId = 0;
   runSpeed: number | undefined;
   runBackSpeed: number | undefined;
@@ -79,6 +80,7 @@ export class MovementSync {
   private readonly selfMotion = new SelfMotion();
   private controlAllowed = true;
   private rooted = false;
+  private moverRooted = false;
   private teleporting = false;
   private unitBlocked = false;
   private transferAbortTimer: ReturnType<typeof setTimeout> | undefined;
@@ -113,14 +115,15 @@ export class MovementSync {
   }
 
   blockReason(): string | undefined {
+    const suspended = this.ride.controlling ? MovementFlag.ON_TRANSPORT : 0;
+    const unsupported = this.ride.controlling
+      ? (this.drivenFlags | this.moveFlags) & ~suspended
+      : (this.observedFlags & ~suspended) |
+        (this.moveFlags &
+          (MovementFlag.SWIMMING | MovementFlag.FLYING | AIR_INPUT_BITS));
     return (
       this.airBlock() ??
-      unsupportedReason(
-        (this.observedFlags &
-          ~(this.ride.controlling ? MovementFlag.ON_TRANSPORT : 0)) |
-          (this.moveFlags &
-            (MovementFlag.SWIMMING | MovementFlag.FLYING | AIR_INPUT_BITS)),
-      ) ??
+      unsupportedReason(unsupported) ??
       (this.ride.riding && !this.ride.controlling ? "transport" : undefined)
     );
   }
@@ -138,6 +141,7 @@ export class MovementSync {
     if (state.run !== undefined) this.runSpeed = state.run;
     if (state.runBack !== undefined) this.runBackSpeed = state.runBack;
     if (state.turn !== undefined) this.turnRate = state.turn;
+    if (state.flags !== undefined) this.drivenFlags = state.flags;
     if (state.pose)
       this.adoptServerPose({
         ...state.pose,
@@ -161,14 +165,17 @@ export class MovementSync {
   airBlock(): string | undefined {
     if (this.teleporting) return "teleporting";
     if (this.flight?.inFlight() ?? false) return "in_flight";
-    if (this.rooted && !this.ride.controlling) return "rooted";
+    if (this.ride.controlling ? this.moverRooted : this.rooted) return "rooted";
     if (!this.controlAllowed) return "no_control";
     if (this.unitBlocked) return "disable_move";
-    return undefined;
   }
 
   canFly(): boolean {
-    return ((this.observedFlags | this.moveFlags) & MovementFlag.CAN_FLY) !== 0;
+    const suspended = this.ride.controlling ? MovementFlag.ON_TRANSPORT : 0;
+    const flags = this.ride.controlling
+      ? (this.drivenFlags | this.moveFlags) & ~suspended
+      : this.observedFlags | this.moveFlags;
+    return (flags & MovementFlag.CAN_FLY) !== 0;
   }
 
   setFlight(flight: FlightPort): void {
@@ -324,11 +331,13 @@ export class MovementSync {
     this.mapId = position.mapId;
     this.moveFlags = 0;
     this.observedFlags = 0;
+    this.drivenFlags = 0;
     this.extraFlags = 0;
     this.fall = undefined;
     this.pitch = undefined;
     this.fallTime = 0;
     this.rooted = false;
+    this.moverRooted = false;
     this.setServerPose(position);
     this.predicted = undefined;
     this.deps.send(GameOpcode.MSG_MOVE_WORLDPORT_ACK);
@@ -339,17 +348,32 @@ export class MovementSync {
     this.emit("server_correction", "new_world");
   }
 
-  forceRoot(counter: number): void {
+  forceRoot(counter: number, guid?: bigint): void {
+    if (this.ride.controlling && guid === this.ride.moverGuid) {
+      this.moverRooted = true;
+      this.cancelForced("root");
+      this.moveFlags |= MovementFlag.ROOT;
+      this.ackRoot(GameOpcode.CMSG_FORCE_MOVE_ROOT_ACK, counter);
+      this.emit("control_changed", "rooted");
+      return;
+    }
     this.rooted = true;
     this.cancelForced("root");
-    this.moveFlags |= MovementFlag.ROOT;
+    if (!this.ride.controlling) this.moveFlags |= MovementFlag.ROOT;
     this.ackRoot(GameOpcode.CMSG_FORCE_MOVE_ROOT_ACK, counter);
     this.emit("control_changed", "rooted");
   }
 
-  forceUnroot(counter: number): void {
+  forceUnroot(counter: number, guid?: bigint): void {
+    if (this.ride.controlling && guid === this.ride.moverGuid) {
+      this.moverRooted = false;
+      if (!this.rooted) this.moveFlags &= ~MovementFlag.ROOT;
+      this.ackRoot(GameOpcode.CMSG_FORCE_MOVE_UNROOT_ACK, counter);
+      this.emit("control_changed", undefined);
+      return;
+    }
     this.rooted = false;
-    this.moveFlags &= ~MovementFlag.ROOT;
+    if (!this.moverRooted) this.moveFlags &= ~MovementFlag.ROOT;
     this.ackRoot(GameOpcode.CMSG_FORCE_MOVE_UNROOT_ACK, counter);
     this.emit("control_changed", undefined);
   }
@@ -471,6 +495,9 @@ export class MovementSync {
 
   private moverChanged(mover: bigint | undefined): void {
     this.controlAllowed = true;
+    this.drivenFlags = 0;
+    this.moverRooted = false;
+    if (!this.rooted) this.moveFlags &= ~MovementFlag.ROOT;
     if (mover === undefined) this.selfMotion.restore(this);
     else this.selfMotion.save(this);
   }

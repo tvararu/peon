@@ -50,10 +50,10 @@ type MovementEvent = Extract<
 function feedMovement(control: ControlRuntime, event: MovementEvent): void {
   switch (event.type) {
     case "force_root":
-      control.forceRoot(event.counter);
+      control.forceRoot(event.counter, event.guid);
       return;
     case "force_unroot":
-      control.forceUnroot(event.counter);
+      control.forceUnroot(event.counter, event.guid);
       return;
     case "knock_back":
       control.knockBack(event.knock);

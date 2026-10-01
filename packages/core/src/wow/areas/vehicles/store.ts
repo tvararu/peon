@@ -23,6 +23,7 @@ export type VehicleMotion = {
   run: number | undefined;
   runBack: number | undefined;
   turn: number | undefined;
+  flags: number | undefined;
 };
 
 export type VehiclesEvent =

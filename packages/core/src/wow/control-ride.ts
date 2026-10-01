@@ -26,6 +26,7 @@ export type MoverState = {
   runBack: number | undefined;
   turn: number | undefined;
   pose: Position | undefined;
+  flags?: number | undefined;
 };
 
 export type MotionSpeeds = {
@@ -183,7 +184,7 @@ export class RideState {
     if (this.mover !== undefined)
       return {
         ...info,
-        flags: info.flags & ~(MovementFlag.ON_TRANSPORT | MovementFlag.ROOT),
+        flags: info.flags & ~MovementFlag.ON_TRANSPORT,
       };
     return this.withSeat(this.seat, info);
   }
