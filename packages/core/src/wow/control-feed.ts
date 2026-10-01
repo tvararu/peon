@@ -39,7 +39,9 @@ type MovementEvent = Extract<
       | "move_flag"
       | "collision_height"
       | "observed"
-      | "spline";
+      | "spline"
+      | "vehicle_seat"
+      | "vehicle_left";
   }
 >;
 
@@ -74,6 +76,12 @@ function feedMovement(control: ControlRuntime, event: MovementEvent): void {
       return;
     case "spline":
       control.observeSelfSpline(event.move);
+      return;
+    case "vehicle_seat":
+      control.vehicleSeat(event);
+      return;
+    case "vehicle_left":
+      control.vehicleLeft();
       return;
     default: {
       const unhandled: never = event;

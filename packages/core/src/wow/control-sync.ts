@@ -6,6 +6,7 @@ import {
   type MovementInput,
 } from "#wow/control-input";
 import { unsupportedReason } from "#wow/control-motion";
+import { type RideSeat, RideState } from "#wow/control-ride";
 import { AIR_INPUT_BITS } from "#wow/control-swim";
 import type { Position } from "#wow/entity-store";
 import { MovementFlag, UnitFlag } from "#wow/protocol/entity-fields";
@@ -26,7 +27,6 @@ import {
   type MoveAck,
   type MovementInfo,
   type SpeedAck,
-  type TransportInfo,
 } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { MoveFlag, TransferAbortedInput } from "#wow/self-store";
@@ -92,7 +92,7 @@ export class MovementSync {
   private readonly motion: SyncMotion;
   private extraFlags = 0;
   private flight: FlightPort | undefined;
-  private transport: TransportInfo | undefined;
+  private readonly ride: RideState;
   private controlAllowed = true;
   private rooted = false;
   private teleporting = false;
@@ -104,6 +104,13 @@ export class MovementSync {
     this.emit = emit;
     this.motion = motion;
     this.flight = flight;
+    this.ride = new RideState({
+      cancelForced: (reason) => this.cancelForced(reason),
+      deps,
+      emit,
+      movementInfo: () => this.movementInfo(),
+      serverPose: (pose) => this.setServerPose(pose),
+    });
   }
 
   pose(): ControlPose | undefined {
@@ -127,8 +134,21 @@ export class MovementSync {
         this.observedFlags |
           (this.moveFlags &
             (MovementFlag.SWIMMING | MovementFlag.FLYING | AIR_INPUT_BITS)),
-      )
+      ) ??
+      (this.ride.riding ? "transport" : undefined)
     );
+  }
+
+  vehicleSeat(seat: RideSeat): void {
+    this.ride.board(seat);
+    this.moveFlags |= MovementFlag.ON_TRANSPORT;
+    this.observedFlags |= MovementFlag.ON_TRANSPORT;
+  }
+
+  vehicleLeft(): void {
+    this.ride.leave();
+    this.moveFlags &= ~MovementFlag.ON_TRANSPORT;
+    this.observedFlags &= ~MovementFlag.ON_TRANSPORT;
   }
 
   airBlock(): string | undefined {
@@ -162,19 +182,18 @@ export class MovementSync {
 
   movementInfo(): MovementInfo {
     const pose = this.pose();
-    return {
-      flags: this.reconciled(),
+    return this.ride.apply({
       extraFlags: this.extraFlags,
+      fall: this.fall,
+      fallTime: this.fallTime,
+      flags: this.reconciled(),
+      orientation: pose?.orientation ?? 0,
+      pitch: this.pitch,
       time: this.deps.ticks(),
       x: pose?.x ?? 0,
       y: pose?.y ?? 0,
       z: pose?.z ?? 0,
-      orientation: pose?.orientation ?? 0,
-      fallTime: this.fallTime,
-      pitch: this.pitch,
-      fall: this.fall,
-      transport: this.transport,
-    };
+    });
   }
 
   loginVerified(position: Position): void {
@@ -273,13 +292,14 @@ export class MovementSync {
 
   dispose(): void {
     this.cancelTransferAbortWatch();
+    this.ride.dispose();
   }
 
   newWorld(position: Position): void {
     this.cancelTransferAbortWatch();
     this.teleporting = false;
     this.flight?.newWorld();
-    this.cancelForced("teleport");
+    this.ride.clear();
     this.mapId = position.mapId;
     this.moveFlags = 0;
     this.observedFlags = 0;
@@ -287,7 +307,6 @@ export class MovementSync {
     this.fall = undefined;
     this.pitch = undefined;
     this.fallTime = 0;
-    this.transport = undefined;
     this.rooted = false;
     this.setServerPose(position);
     this.predicted = undefined;
@@ -428,12 +447,11 @@ export class MovementSync {
   }
 
   private applyForcedPose(dest: MovementInfo, reason: string): void {
-    this.observedFlags = dest.flags;
+    this.observedFlags = dest.flags & ~MovementFlag.ON_TRANSPORT;
     this.extraFlags = dest.extraFlags;
-    this.moveFlags = dest.flags & ~INPUT_BITS;
+    this.moveFlags = dest.flags & ~INPUT_BITS & ~MovementFlag.ON_TRANSPORT;
     this.fall = dest.fall;
     this.pitch = dest.pitch;
-    this.transport = dest.transport;
     this.rooted = (dest.flags & MovementFlag.ROOT) !== 0;
     this.setServerPose({
       mapId: this.mapId,

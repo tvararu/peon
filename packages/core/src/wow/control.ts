@@ -10,6 +10,7 @@ import {
 } from "#wow/control-input";
 import { type GroundOracle, MAX_DURATION_MS } from "#wow/control-motion";
 import { type MovementGuide, Mover } from "#wow/control-mover";
+import type { RideSeat } from "#wow/control-ride";
 import { AirMoves, type AscendKind, type PitchKind } from "#wow/control-swim";
 import { MovementSync, type SelfObservation } from "#wow/control-sync";
 import { DirectedWalk } from "#wow/control-walk";
@@ -187,6 +188,14 @@ export class ControlRuntime {
 
   observeSelfSpline(move: MonsterMove): void {
     this.sync.observeSelfSpline(move);
+  }
+
+  vehicleSeat(seat: RideSeat): void {
+    this.sync.vehicleSeat(seat);
+  }
+
+  vehicleLeft(): void {
+    this.sync.vehicleLeft();
   }
 
   observeTarget(target: bigint): void {
