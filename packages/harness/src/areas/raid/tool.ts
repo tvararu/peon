@@ -273,33 +273,38 @@ async function leadTool(
   });
 }
 
+type GroupHandler = (
+  args: GroupArgs,
+  ctx: GroupCtx,
+) => Promise<ToolResult<GroupAfter>>;
+
+const groupHandlers: Readonly<Record<string, GroupHandler>> = {
+  accept_quest: shareTool,
+  decline_quest: shareTool,
+  give: giveTool,
+  kick: kickTool,
+  lead: leadTool,
+  loot_rules: lootRulesTool,
+  mark: markTool,
+  move: moveTool,
+  pass_loot: passTool,
+  ping: pingTool,
+  promote: promoteTool,
+  raid: raidTool,
+  ready: readyTool,
+  ready_check: readyCheckTool,
+  roll: rollTool,
+  share_quest: shareTool,
+  summon: summonTool,
+  swap: swapTool,
+};
+
 function groupRun(
   args: GroupArgs,
   ctx: GroupCtx,
 ): Promise<ToolResult<GroupAfter>> {
-  if (args.do === "kick") return kickTool(args, ctx);
-  if (args.do === "lead") return leadTool(args, ctx);
-  if (args.do === "raid") return raidTool(args, ctx);
-  if (args.do === "move") return moveTool(args, ctx);
-  if (args.do === "swap") return swapTool(args, ctx);
-  if (args.do === "promote") return promoteTool(args, ctx);
-  if (args.do === "loot_rules") return lootRulesTool(args, ctx);
-  if (args.do === "ready_check") return readyCheckTool(args, ctx);
-  if (args.do === "ready") return readyTool(args, ctx);
-  if (args.do === "mark") return markTool(args, ctx);
-  if (args.do === "ping") return pingTool(args, ctx);
-  if (args.do === "give") return giveTool(args, ctx);
-  if (args.do === "pass_loot") return passTool(args, ctx);
-  if (args.do === "roll") return rollTool(args, ctx);
-  if (args.do === "summon") return summonTool(args, ctx);
-  switch (args.do) {
-    case "share_quest":
-    case "accept_quest":
-    case "decline_quest":
-      return shareTool(args, ctx);
-    default:
-      return statusTool(args, ctx);
-  }
+  const handler = groupHandlers[args.do ?? "status"] ?? statusTool;
+  return handler(args, ctx);
 }
 
 function groupCall(args: unknown, theme: CallInit["theme"]): string {
