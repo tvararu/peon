@@ -21,5 +21,5 @@ export const TRAVEL_OPCODES = {
   uses: ["SMSG_SHOWTAXINODES"],
   stubs: [],
   dead: ["SMSG_FLIGHT_SPLINE_SYNC"],
-  unseen: [],
+  unseen: ["CMSG_MOVE_SPLINE_DONE"],
 } as const satisfies AreaOpcodes;
