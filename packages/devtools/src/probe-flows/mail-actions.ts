@@ -188,12 +188,18 @@ function sendItems(handle: WorldHandle, args: Args) {
         part !== undefined && part.length === 2,
     );
   return itemArgs.map(([guid, slot]) => {
-    const row = inv.slots.find(
-      (candidate) =>
-        candidate.status === "occupied" &&
-        candidate.guid === BigInt(guid) &&
-        candidate.item.entry === Number(slot),
-    );
+    const entry = Number(slot);
+    const row =
+      inv.slots.find(
+        (candidate) =>
+          candidate.status === "occupied" &&
+          candidate.guid === BigInt(guid) &&
+          candidate.item.entry === entry,
+      ) ??
+      inv.slots.find(
+        (candidate) =>
+          candidate.status === "occupied" && candidate.item.entry === entry,
+      );
     if (row?.status !== "occupied")
       throw new Error(`no carried item ${guid} entry ${slot}.`);
     return { guid: row.guid, slot: row.slot };

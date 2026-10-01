@@ -255,6 +255,32 @@ describe("parseSendMailResult", () => {
     });
   });
 
+  test("reads the item tail of an item-taken refusal other than the equip error", () => {
+    const refusals: [number, MailResultStatusName][] = [
+      [6, "internal_error"],
+      [3, "not_enough_money"],
+    ];
+    for (const [result, status] of refusals) {
+      const reader = new PacketReader(
+        mailSendMailResultBody({
+          action: 2,
+          count: 5,
+          id: 102,
+          itemLow: 77,
+          result,
+        }),
+      );
+      expect(parseSendMailResult(reader)).toEqual({
+        action: "item_taken",
+        count: 5,
+        id: 102,
+        itemLow: 77,
+        status,
+      });
+      expect(reader.remaining).toBe(0);
+    }
+  });
+
   test("names each failure from the AzerothCore result enum", () => {
     const failures: [number, MailResultStatusName][] = [
       [2, "cannot_send_to_self"],
