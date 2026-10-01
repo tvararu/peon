@@ -78,8 +78,6 @@ type MailResultKey = {
 };
 
 function resultKeyOf(result: SendMailResult): MailResultKey {
-  if (result.status === "equip_error")
-    return { action: "item_taken", id: result.id };
   return { action: result.action, id: result.id };
 }
 
