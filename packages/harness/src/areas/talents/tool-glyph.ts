@@ -328,6 +328,7 @@ export async function glyphTalents(
     return await handle.talents.act.applyGlyph({
       bag: found.bag,
       glyphSlot: picked.index,
+      signal: ctx.signal,
       slot: found.slot,
     });
   });
@@ -357,7 +358,7 @@ export async function unglyphTalents(
   ctx.signal.throwIfAborted();
   const removing = ctx.rt.mutex.run(async () => {
     ctx.signal.throwIfAborted();
-    return await handle.talents.act.removeGlyph(index);
+    return await handle.talents.act.removeGlyph(index, ctx.signal);
   });
   removing.then(
     () => undefined,

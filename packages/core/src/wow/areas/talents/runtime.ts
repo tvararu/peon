@@ -72,7 +72,10 @@ export type TalentsActs = {
   learnTalents: (plan: readonly TalentRank[]) => Promise<LearnTalentsResult>;
   resetTalents: (request: ResetTalentsRequest) => Promise<ResetTalentsResult>;
   applyGlyph: (request: GlyphApplyRequest) => Promise<GlyphApplyResult>;
-  removeGlyph: (slot: number) => Promise<GlyphRemoveResult>;
+  removeGlyph: (
+    slot: number,
+    signal?: AbortSignal,
+  ) => Promise<GlyphRemoveResult>;
 };
 
 type Env = {
@@ -397,7 +400,8 @@ export function talentsRuntime(
       learnTalents: (plan) => exclusive(() => learn(env, plan)),
       resetTalents: (request) => exclusive(() => reset(env, request)),
       applyGlyph: (request) => exclusive(() => applyGlyph(env, request)),
-      removeGlyph: (slot) => exclusive(() => removeGlyph(env, slot)),
+      removeGlyph: (slot, signal) =>
+        exclusive(() => removeGlyph(env, slot, signal)),
     },
     dispose: () => {
       inFlight = false;

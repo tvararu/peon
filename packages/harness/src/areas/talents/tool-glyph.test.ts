@@ -75,9 +75,13 @@ async function rig(init: Init = {}) {
   const catalog = "catalog" in init ? init.catalog : CATALOG;
   const held = init.held ?? [GLYPH];
   const apply = jest.fn(
-    async () => init.apply ?? { glyphId: 21, outcome: "applied" },
+    async (_request: { signal?: AbortSignal }) =>
+      init.apply ?? { glyphId: 21, outcome: "applied" },
   );
-  const remove = jest.fn(async () => init.remove ?? { outcome: "removed" });
+  const remove = jest.fn(
+    async (_slot: number, _signal?: AbortSignal) =>
+      init.remove ?? { outcome: "removed" },
+  );
   Object.assign(t.handle.talents.act, {
     applyGlyph: apply,
     catalog: async () => catalog,
@@ -106,7 +110,12 @@ describe("talents glyph", () => {
       { do: "glyph", item: "Glyph of Battle", slot: 2 },
       toolCtx(t),
     );
-    expect(apply).toHaveBeenCalledWith({ bag: 255, glyphSlot: 1, slot: 24 });
+    expect(apply).toHaveBeenCalledWith({
+      bag: 255,
+      glyphSlot: 1,
+      signal: expect.any(AbortSignal),
+      slot: 24,
+    });
     expect(out.status).toBe("DONE");
     expect(out.detail).toContain("Glyph of Battle");
     expect(out.detail).toContain("minor slot 2");
@@ -118,7 +127,12 @@ describe("talents glyph", () => {
       { do: "glyph", item: "item 43395", slot: "major" },
       toolCtx(t),
     );
-    expect(apply).toHaveBeenCalledWith({ bag: 255, glyphSlot: 0, slot: 24 });
+    expect(apply).toHaveBeenCalledWith({
+      bag: 255,
+      glyphSlot: 0,
+      signal: expect.any(AbortSignal),
+      slot: 24,
+    });
   });
 
   test("a kind word prefers an empty slot over a filled one of the same kind", async () => {
@@ -134,7 +148,12 @@ describe("talents glyph", () => {
       { do: "glyph", item: "Glyph of Battle", slot: "major" },
       toolCtx(t),
     );
-    expect(apply).toHaveBeenCalledWith({ bag: 255, glyphSlot: 2, slot: 24 });
+    expect(apply).toHaveBeenCalledWith({
+      bag: 255,
+      glyphSlot: 2,
+      signal: expect.any(AbortSignal),
+      slot: 24,
+    });
   });
 
   test("a kind word without talent data is refused and sends nothing", async () => {
@@ -204,7 +223,12 @@ describe("talents glyph", () => {
       { do: "glyph", item: "bag 255 slot 25", slot: 1 },
       toolCtx(t),
     );
-    expect(apply).toHaveBeenCalledWith({ bag: 255, glyphSlot: 0, slot: 25 });
+    expect(apply).toHaveBeenCalledWith({
+      bag: 255,
+      glyphSlot: 0,
+      signal: expect.any(AbortSignal),
+      slot: 25,
+    });
   });
 
   test("a glyph in a bag item slot uses that bag's number", async () => {
@@ -215,7 +239,12 @@ describe("talents glyph", () => {
       { do: "glyph", item: "Glyph of Battle", slot: 1 },
       toolCtx(t),
     );
-    expect(apply).toHaveBeenCalledWith({ bag: 19, glyphSlot: 0, slot: 3 });
+    expect(apply).toHaveBeenCalledWith({
+      bag: 19,
+      glyphSlot: 0,
+      signal: expect.any(AbortSignal),
+      slot: 3,
+    });
   });
 
   test("refusal outcomes give REFUSED with the reason and the item stays", async () => {
@@ -267,7 +296,12 @@ describe("talents glyph", () => {
       toolCtx(t),
     );
     expect(retry.reason).not.toBe("ambiguous_item");
-    expect(apply).toHaveBeenCalledWith({ bag: 255, glyphSlot: 1, slot: 25 });
+    expect(apply).toHaveBeenCalledWith({
+      bag: 255,
+      glyphSlot: 1,
+      signal: expect.any(AbortSignal),
+      slot: 25,
+    });
   });
 
   test("a failed cast carries the server reason", async () => {
@@ -330,6 +364,26 @@ describe("talents glyph", () => {
     expect(apply).not.toHaveBeenCalled();
   });
 
+  test("the act receives a signal that follows the tool's abort", async () => {
+    const { apply, t } = await rig();
+    let seen: AbortSignal | undefined;
+    apply.mockImplementation(async (request) => {
+      seen = request.signal;
+      return await new Promise<never>(() => {});
+    });
+    const stop = new AbortController();
+    const pending = talentsSpec.run(
+      { do: "glyph", item: "Glyph of Battle", slot: 1 },
+      toolCtx(t, stop.signal),
+    );
+    pending.catch(() => undefined);
+    for (let i = 0; i < 20; i += 1) await Promise.resolve();
+    expect(seen?.aborted).toBe(false);
+    stop.abort();
+    expect(seen?.aborted).toBe(true);
+    await expect(pending).rejects.toThrow();
+  });
+
   test("an act rejection reaches the caller", async () => {
     const { apply, t } = await rig();
     apply.mockRejectedValue(new Error("boom"));
@@ -346,7 +400,7 @@ describe("talents unglyph", () => {
   test("unglyph sends the 0-based slot and says what came out", async () => {
     const { remove, t } = await rig({ state: snapshot([0, 21]) });
     const out = await talentsSpec.run({ do: "unglyph", slot: 2 }, toolCtx(t));
-    expect(remove).toHaveBeenCalledWith(1);
+    expect(remove).toHaveBeenCalledWith(1, expect.any(AbortSignal));
     expect(out.status).toBe("DONE");
     expect(out.detail).toContain("minor slot 2");
     expect(out.detail).toContain("cleared");
