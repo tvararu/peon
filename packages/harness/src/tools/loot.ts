@@ -1,3 +1,7 @@
+import {
+  dismountFirst,
+  withDismountedFirst,
+} from "#harness/areas/selfstate/dismount-first";
 import type { LootAfter } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
@@ -142,6 +146,7 @@ async function runLoot(
   args: LootArgs,
   ctx: ToolCtx<LootAfter>,
 ): Promise<ToolResult<LootAfter>> {
+  const ride = await dismountFirst(ctx);
   const corpse =
     args.target === undefined
       ? nearestCorpse(ctx)
@@ -149,7 +154,10 @@ async function runLoot(
   const before = completeQuestIds(ctx.handle.getQuestState());
   await approach(ctx, corpse);
   const op = await lootCorpseOp(ctx, corpse.guid);
-  return noteQuestsDone(ctx, before, report(ctx, corpse, op));
+  return withDismountedFirst(
+    ride,
+    noteQuestsDone(ctx, before, report(ctx, corpse, op)),
+  );
 }
 
 export const lootSpec: GameToolSpec<typeof lootParams, "loot", LootAfter> = {
