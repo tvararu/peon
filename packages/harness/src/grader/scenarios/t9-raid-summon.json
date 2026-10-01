@@ -15,7 +15,7 @@
       "source": "game_log"
     },
     {
-      "expect": "the session shows the agent calling the group tool with do summon and what accept, not ending REFUSED",
+      "expect": "the session shows the agent calling the group tool with do summon and what accept, and that accept call ending DONE (a REFUSED, FAILED or UNCONFIRMED accept does not count; an earlier REFUSED no_summon before the offer arrived is fine when a later accept ends DONE), because DONE is the server-confirmed teleport",
       "id": "summon-called",
       "source": "session"
     }
