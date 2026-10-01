@@ -12,7 +12,7 @@ const STEP_YARDS = 20;
 const MAX_STEPS = 6;
 const BACKPACK = 255;
 const PACK_FIRST = 23;
-const PACK_LAST = 38;
+const PACK_ACCEPTED_LAST = 36;
 
 type Args = Readonly<Record<string, string>>;
 
@@ -72,7 +72,7 @@ function emptyPackSlot(handle: WorldHandle): number | undefined {
       (slot) =>
         slot.bag === BACKPACK &&
         slot.slot >= PACK_FIRST &&
-        slot.slot <= PACK_LAST &&
+        slot.slot <= PACK_ACCEPTED_LAST &&
         slot.status === "empty",
     )?.slot;
 }

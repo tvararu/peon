@@ -73,6 +73,29 @@ describe("items runtime: refundInfo", () => {
     }
   });
 
+  test("a cached offer is not returned once the item has left the inventory", async () => {
+    const world = itemsWorld(ME);
+    world.put(255, 23, { entry: 29_266, guid: ITEM });
+    const rig = itemsRig(world);
+    try {
+      const pending = rig.handle.act.refundInfo(ITEM);
+      rig.inject(GameOpcode.SMSG_ITEM_REFUND_INFO_RESPONSE, infoBody(ITEM));
+      await pending;
+      rig.inject(GameOpcode.SMSG_ITEM_REFUND_INFO_RESPONSE, infoBody(STRANGER));
+      world.clear(255, 23);
+      rig.touch();
+      await expect(rig.handle.act.refundInfo(ITEM)).rejects.toThrow(
+        "not in the inventory",
+      );
+      await expect(rig.handle.act.refundInfo(STRANGER)).rejects.toThrow(
+        "not in the inventory",
+      );
+      expect(sends(rig.sent, GameOpcode.CMSG_ITEM_REFUND_INFO)).toHaveLength(1);
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("no reply in 5 s settles none", async () => {
     jest.useFakeTimers();
     const { events, rig } = setup();

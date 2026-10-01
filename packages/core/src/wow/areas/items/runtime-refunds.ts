@@ -50,6 +50,7 @@ async function refundInfo(
   itemGuid: bigint,
 ): Promise<RefundInfoPacket | undefined> {
   ready(env);
+  const request = carried(env, itemGuid);
   const cached = env.store.refundOffer(itemGuid);
   if (cached) return cached;
   const snapshot = env.store.snapshot().refund;
@@ -57,7 +58,7 @@ async function refundInfo(
     throw new Error("a refund query is already pending");
   if (snapshot.refundPending) throw new Error("a refund is already pending");
   const draft: RefundInfoRequest = {
-    ...carried(env, itemGuid),
+    ...request,
     requestedAt: env.ctx.now(),
   };
   env.store.beginRefundInfo(draft);

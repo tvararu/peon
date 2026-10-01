@@ -163,6 +163,27 @@ describe("items-refund flow", () => {
       vendorSlot: 2,
     });
   });
+  test("do=buy refuses a pack slot the server drops instead of sending it", async () => {
+    const full: Inventory = {
+      slots: [
+        ...Array.from({ length: 14 }, (_, index) => ({
+          bag: 255,
+          guid: BigInt(index + 1),
+          item: { entry: 25, guid: BigInt(index + 1) },
+          region: "backpack",
+          slot: 23 + index,
+          status: "occupied",
+        })),
+        { bag: 255, region: "backpack", slot: 37, status: "empty" },
+        { bag: 255, region: "backpack", slot: 38, status: "empty" },
+      ],
+      status: "complete",
+    } as unknown as Inventory;
+    const ctx = context({ do: "buy", npc: "18525", slot: "2" });
+    ctx.handle.getInventoryState = jest.fn(() => full);
+    await expect(flow.run(ctx)).rejects.toThrow("backpack is full");
+    expect(ctx.buy).not.toHaveBeenCalled();
+  });
 
   test("do=buy takes the first vendor row when slot is missing", async () => {
     const ctx = context({ do: "buy", npc: "18525" });
