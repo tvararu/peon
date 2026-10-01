@@ -58,9 +58,12 @@ reaction wakes the agent outside a run. `initialized`,
   Hostile or below sets `AT_WAR` (`Reputation/ReputationMgr.cpp:432-433`),
   and the reputation floor clamps (`Reputation/ReputationMgr.cpp:411-414`)
   keep a clamped faction at its old standing while `SetAtWar` still fires.
-  The updated faction always rides first in an update packet with other
-  dirty-flag entries appended after (`Reputation/ReputationMgr.cpp:178-209`),
-  while an unchanged appended entry keeps a pending toggle. A rise from
+  When the rank cap makes a gain spill-over-only, the head faction's own
+  standing is not updated yet it still heads the packet
+  (`Reputation/ReputationMgr.cpp:364-373`). Entries appended after it
+  can be a dirty-flag flush or a real, possibly floor-clamped, spillover
+  update (`Reputation/ReputationMgr.cpp:178-209`), so an unchanged
+  appended entry does not prove a pending toggle. A rise from
   Hostile to Unfriendly or above clears it only where `CanBeSetAtWar`
   holds, that is a faction with a reputation list id
   whose first race mask is 1791 (`Reputation/ReputationMgr.cpp:435-436`,
@@ -72,6 +75,13 @@ reaction wakes the agent outside a run. `initialized`,
   a manual toggle passes the hidden and invisible-forced check and the
   peace-forced check instead (`Reputation/ReputationMgr.cpp:504-515`).
   All three transitions are proven by these citations.
+
+- `AT_WAR` is a best-effort inference until the next
+  `SMSG_INITIALIZE_FACTIONS`: an unchanged appended
+  `SMSG_SET_FACTION_STANDING` entry cannot distinguish a dirty-flag flush
+  from a floor-clamped spillover update, so `list()`, `flagsOf()`,
+  `relationView()`, at-war warnings and unchanged refusals may disagree
+  with the server.
 - The flag rides only in the `SMSG_INITIALIZE_FACTIONS` packet
   (`Reputation/ReputationMgr.cpp:211-244`) while each
   `SMSG_SET_FACTION_STANDING` packet sends standing only
