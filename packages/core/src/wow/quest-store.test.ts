@@ -53,3 +53,19 @@ describe("quest store shared details dialogs", () => {
     expect(runtime.snapshot().lastError?.kind).toBe("stale_dialog");
   });
 });
+
+describe("quest store bank window", () => {
+  test("a pending talk answered by a bank window settles without lastError (quest-store.ts:253-274)", () => {
+    const { events, runtime, store } = setup();
+    runtime.talk(2n);
+    const w = new PacketWriter();
+    w.uint64LE(2n);
+    packet(store, GameOpcode.SMSG_SHOW_BANK, w.finish());
+    expect(runtime.snapshot().lastError).toBeUndefined();
+    expect(
+      events.some(
+        (event) => event.type === "window" && event.detail === "bank",
+      ),
+    ).toBe(true);
+  });
+});
