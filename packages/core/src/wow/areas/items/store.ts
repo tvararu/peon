@@ -12,6 +12,14 @@ import type {
   ReadItemResult,
 } from "#wow/areas/items/protocol-read";
 import type {
+  SetDeletedEvent,
+  SetSavedEvent,
+  SetSaveRequestedEvent,
+  SetUsedEvent,
+  SetUseRequestedEvent,
+  SetsListedEvent,
+} from "#wow/areas/items/protocol-sets";
+import type {
   EnchantmentLogPacket,
   SocketGemsResultPacket,
 } from "#wow/areas/items/protocol-sockets";
@@ -28,11 +36,21 @@ import {
   type ReadState,
 } from "#wow/areas/items/reads";
 import {
+  type SaveRequest,
+  SetSlice,
+  type SetsState,
+} from "#wow/areas/items/sets";
+import {
   type SocketOutcome,
   type SocketRequest,
   SocketSlice,
   type SocketState,
 } from "#wow/areas/items/sockets";
+import {
+  noteUseFailure,
+  type SetsBehavior,
+  setsBehavior,
+} from "#wow/areas/items/store-sets";
 import {
   type ProficiencyKind,
   proficiencyNames,
@@ -55,6 +73,7 @@ export type ItemsState = {
   read: ReadState;
   timers: TimersState;
   sockets: SocketState;
+  sets: SetsState;
 };
 
 type ReadHead = { itemGuid: bigint; entry: number | undefined };
@@ -129,7 +148,13 @@ export type ItemsEvent =
       bonus: number;
     }
   | ({ type: "socket_refused"; reason: string } & SocketHead)
-  | ({ type: "socket_unanswered" } & SocketHead);
+  | ({ type: "socket_unanswered" } & SocketHead)
+  | SetsListedEvent
+  | SetSaveRequestedEvent
+  | SetSavedEvent
+  | SetUseRequestedEvent
+  | SetUsedEvent
+  | SetDeletedEvent;
 
 function legacyClaims(core: CoreStores): (InventoryClaim | undefined)[] {
   return [core.rewards, core.vendor, core.quests, core.destroy].map((store) =>
@@ -154,6 +179,10 @@ export class ItemsStore {
   private readonly core: CoreStores;
   private readonly reads = new ReadSlice();
   private readonly sockets = new SocketSlice();
+  private readonly setSlices = new SetSlice();
+  private readonly setFailures: string[] = [];
+  private readonly saveIcons = new Map<SaveRequest, string>();
+  private readonly setApi: SetsBehavior;
   private readonly timers = new TimerSlice();
   private pending: MoveRequest | undefined;
   private last: MoveOutcome | undefined;
@@ -162,6 +191,16 @@ export class ItemsStore {
   constructor(deps: SessionDeps, core: CoreStores) {
     this.deps = deps;
     this.core = core;
+    this.setApi = setsBehavior({
+      events: this.events,
+      noteClaims: () => this.noteClaims(),
+      now: () => this.deps.now(),
+      releaseClaims: () => this.releaseClaims(),
+      saveIcons: this.saveIcons,
+      sets: this.setSlices,
+      startClaims: () => this.startClaims(),
+      useFailures: this.setFailures,
+    });
   }
 
   snapshot(): ItemsState {
@@ -170,6 +209,7 @@ export class ItemsStore {
       read: this.reads.snapshot(),
       timers: this.timers.snapshot(),
       sockets: this.sockets.snapshot(),
+      sets: this.setSlices.snapshot(),
     };
   }
 
@@ -202,11 +242,19 @@ export class ItemsStore {
   }
 
   noteClaims(): void {
-    if (!(this.pending || this.reads.request || this.sockets.request)) return;
+    if (
+      !(
+        this.pending ||
+        this.reads.request ||
+        this.sockets.request ||
+        this.setSlices.snapshot().savePending ||
+        this.setSlices.snapshot().usePending
+      )
+    )
+      return;
     for (const claim of legacyClaims(this.core))
       if (claim) this.seen.push(claim);
   }
-
   receiveInventoryFailure(packet: InventoryChangeFailure): void {
     if (packet.kind !== "error") return;
     const legacy = [...legacyClaims(this.core), ...this.seen];
@@ -231,14 +279,37 @@ export class ItemsStore {
           this.deps.now(),
         ),
       );
+    else
+      noteUseFailure(
+        { sets: this.setSlices, useFailures: this.setFailures },
+        packet,
+      );
   }
+
+  receiveSetList: SetsBehavior["receiveSetList"] = (...a) =>
+    this.setApi.receiveSetList(...a);
+  pendingSaveName: SetsBehavior["pendingSaveName"] = () =>
+    this.setApi.pendingSaveName();
+  beginSave: SetsBehavior["beginSave"] = (...a) => this.setApi.beginSave(...a);
+  confirmSaved: SetsBehavior["confirmSaved"] = (...a) =>
+    this.setApi.confirmSaved(...a);
+  confirmUpdated: SetsBehavior["confirmUpdated"] = (...a) =>
+    this.setApi.confirmUpdated(...a);
+  expireSave: SetsBehavior["expireSave"] = () => this.setApi.expireSave();
+  abandonSave: SetsBehavior["abandonSave"] = () => this.setApi.abandonSave();
+  beginUse: SetsBehavior["beginUse"] = (...a) => this.setApi.beginUse(...a);
+  receiveUseResult: SetsBehavior["receiveUseResult"] = (...a) =>
+    this.setApi.receiveUseResult(...a);
+  expireUse: SetsBehavior["expireUse"] = () => this.setApi.expireUse();
+  abandonUse: SetsBehavior["abandonUse"] = () => this.setApi.abandonUse();
+  beginDelete: SetsBehavior["beginDelete"] = (...a) =>
+    this.setApi.beginDelete(...a);
 
   receiveReadOk({ guid }: ReadItemResult): void {
     const request = this.reads.request;
     if (request?.kind !== "read" || request.itemGuid !== guid) return;
     this.settleRead("ok", undefined, { type: "read_ok", ...readHead(request) });
   }
-
   receiveReadFailed({ guid }: ReadItemResult): void {
     const request = this.reads.request;
     if (request?.kind !== "read" || request.itemGuid !== guid) return;
@@ -282,7 +353,6 @@ export class ItemsStore {
       this.sockets.fail("unanswered", "server_unanswered", this.deps.now()),
     );
   }
-
   abandonSocket(): void {
     this.sockets.abandon();
     this.releaseClaims();
@@ -319,11 +389,9 @@ export class ItemsStore {
   text(guid: bigint): string | undefined {
     return this.reads.text(guid);
   }
-
   awaitText(guid: bigint): ReturnType<ReadSlice["awaitText"]> {
     return this.reads.awaitText(guid);
   }
-
   dropText(guid: bigint): void {
     this.reads.dropText(guid);
   }
@@ -403,8 +471,11 @@ export class ItemsStore {
 
   dispose(): void {
     this.abandon();
+    this.abandonSave();
+    this.abandonUse();
     this.reads.clear();
     this.sockets.clear();
+    this.setSlices.clear();
     this.timers.clear();
     this.seen = [];
     this.events.clear();
@@ -415,12 +486,30 @@ export class ItemsStore {
   }
 
   private startClaims(): void {
-    if (!(this.pending || this.reads.request || this.sockets.request))
+    const sets = this.setSlices.snapshot();
+    if (
+      !(
+        this.pending ||
+        this.reads.request ||
+        this.sockets.request ||
+        sets.savePending ||
+        sets.usePending
+      )
+    )
       this.seen = [];
   }
 
   private releaseClaims(): void {
-    if (!(this.pending || this.reads.request || this.sockets.request))
+    const sets = this.setSlices.snapshot();
+    if (
+      !(
+        this.pending ||
+        this.reads.request ||
+        this.sockets.request ||
+        sets.savePending ||
+        sets.usePending
+      )
+    )
       this.seen = [];
   }
 

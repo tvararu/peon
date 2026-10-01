@@ -290,6 +290,63 @@ function socketRows(
   return [];
 }
 
+function setRows(
+  event: Extract<ItemsEvent, { type: "set_saved" } | { type: "set_used" }>,
+): readonly AreaDraft[] {
+  if (event.type === "set_saved")
+    return event.status === "unanswered"
+      ? [
+          {
+            class: "wake",
+            data: { index: event.index, name: event.name },
+            name: "unanswered",
+            text: `The save of equipment set ${event.name} went unanswered.`,
+          },
+        ]
+      : [
+          {
+            class: "log",
+            data: {
+              index: event.index,
+              kind: event.kind,
+              name: event.name,
+              status: event.status,
+            },
+            name: "set_saved",
+            text: `Saved equipment set ${event.name}.`,
+          },
+        ];
+  return event.status === "ok"
+    ? [
+        {
+          class: "log",
+          data: {
+            failures: [...event.failures],
+            index: event.index,
+            status: event.status,
+          },
+          name: "set_used",
+          text: `Wore equipment set ${event.index}.`,
+        },
+      ]
+    : [
+        {
+          class: "wake",
+          data: {
+            failures: [...event.failures],
+            index: event.index,
+            reason: event.reason,
+            status: event.status,
+          },
+          name: "set_used",
+          text:
+            event.status === "bags_full"
+              ? `Equipment set ${event.index} did not fit in the bags.`
+              : `Wearing equipment set ${event.index} went unanswered.`,
+        },
+      ];
+}
+
 function eventRow(event: ItemsEvent, rc: RuleInput): readonly AreaDraft[] {
   if (event.type === "moved") return [movedRow(event, rc)];
   if (event.type === "move_refused")
@@ -322,6 +379,8 @@ function eventRow(event: ItemsEvent, rc: RuleInput): readonly AreaDraft[] {
     event.type === "enchantment_log"
   )
     return socketRows(event, rc);
+  if (event.type === "set_saved" || event.type === "set_used")
+    return setRows(event);
   if (event.type === "read_ok")
     return [
       {
