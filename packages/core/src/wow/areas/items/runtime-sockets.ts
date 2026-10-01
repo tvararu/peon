@@ -53,7 +53,8 @@ function gemSlots(
   if (!item) throw new Error(`item ${itemGuid} is not in the inventory`);
   for (const gem of gems) {
     const held = findItem(inventory, gem);
-    if (held?.bag !== 255) throw new Error(`gem ${gem} is not in the bags`);
+    if (held?.region !== "backpack" && held?.region !== "bag_item")
+      throw new Error(`gem ${gem} is not in the bags`);
     if (gem === itemGuid)
       throw new Error(`gem ${gem} is the item being socketed`);
   }

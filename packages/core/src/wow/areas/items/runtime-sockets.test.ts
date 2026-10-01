@@ -211,6 +211,32 @@ describe("items runtime: socket", () => {
     }
   });
 
+  test("a gem inside an equipped bag is sent, an equipped gem is refused", async () => {
+    const BAG = 0x40_00_00_00_00_00_00_0an;
+    const BAG_GEM = 0x40_00_00_00_00_00_00_0bn;
+    const world = itemsWorld(ME);
+    world.put(255, 15, { entry: 40_000, guid: RING });
+    world.put(255, 19, { bagSlots: 6, entry: 4496, guid: BAG });
+    world.put(19, 2, { entry: 32_000, guid: BAG_GEM });
+    world.put(255, 3, { entry: 32_001, guid: GEM_B });
+    const rig = itemsRig(world);
+    try {
+      await expect(
+        rig.handle.act.socket(RING, [GEM_B]),
+      ).rejects.toThrow("not in the bags");
+      expect(sends(rig.sent, GameOpcode.CMSG_SOCKET_GEMS)).toEqual([]);
+      const pending = rig.handle.act.socket(RING, [BAG_GEM]);
+      expect(sends(rig.sent, GameOpcode.CMSG_SOCKET_GEMS)).toHaveLength(1);
+      rig.inject(
+        GameOpcode.SMSG_SOCKET_GEMS_RESULT,
+        itemsSocketGemsResultBody(RING, [1, 0, 0, 0]),
+      );
+      await pending;
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("a second socket while one is pending is refused", async () => {
     const { rig } = setup();
     try {

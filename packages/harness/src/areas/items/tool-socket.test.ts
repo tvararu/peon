@@ -143,4 +143,35 @@ describe("gear tool socket", () => {
     expect(acts.socket).toHaveBeenCalledWith(RING, [GEM]);
     expect(contentOf(res)).toContain("Sturdy Ring");
   });
+  test("an equipped target resolves while an equipped gem stays refused", async () => {
+    const WORN_GEM = 0x40_00_00_00_00_00_00_09n;
+    const t = await createTestRuntime();
+    stocked(t.handle, [
+      { bag: 255, entry: 40_000, guid: RING, name: "Sturdy Ring", slot: 6 },
+      { bag: 255, entry: 32_000, guid: GEM, name: "Bold Bloodstone", slot: 26 },
+      { bag: 255, entry: 32_001, guid: WORN_GEM, name: "Worn Gem", slot: 7 },
+    ]);
+    const inventory = t.handle.getInventoryState();
+    t.handle.getInventoryState = () => ({
+      ...inventory,
+      slots: inventory.slots.map((slot) =>
+        slot.status === "occupied" && (slot.guid === RING || slot.guid === WORN_GEM)
+          ? { ...slot, region: "equipment" }
+          : slot,
+      ),
+    });
+    const acts = socketActs(t.handle);
+    const res = await gearSpec.run(
+      { do: "socket", gems: "Bold Bloodstone", item: "Sturdy Ring" },
+      toolCtx(t),
+    );
+    expect(acts.socket).toHaveBeenCalledWith(RING, [GEM]);
+    expect(contentOf(res)).toContain("Sturdy Ring");
+    await expect(
+      gearSpec.run(
+        { do: "socket", gems: "Worn Gem", item: "Sturdy Ring" },
+        toolCtx(t),
+      ),
+    ).rejects.toMatchObject({ reason: "no_such_item" });
+  });
 });
