@@ -81,6 +81,9 @@ These have tools or code but no scenario that checks them live:
 
 - Training spells, repairing, and selling junk (`interact` `train`,
   `repair`, `sell_junk`).
+- Place and remove a totem (no shaman preset, so no destroy-totem
+  scenario: `SMSG_TOTEM_CREATED` stays `unseen` and the destroy verb is
+  proven by unit tests only).
 - Group play: inviting, joining, leaving a group, and fighting as a group.
 - Ranged combat as a hunter.
 - Reading a shrine plaque (`t0-objects-read-shrine`, the agent reaches the shrine and `use read` returns the whole page, but the agent quotes the placard line inside the page instead of the page's opening sentence).
