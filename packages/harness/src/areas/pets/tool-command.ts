@@ -20,7 +20,12 @@ export type PetDo =
   | "follow"
   | "stay"
   | "stop"
-  | "stance";
+  | "stance"
+  | "cast"
+  | "autocast"
+  | "rename"
+  | "abandon"
+  | "tame";
 
 export type PetAfter = {
   do: PetDo | "status";

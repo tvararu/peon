@@ -137,4 +137,31 @@ describe("pets rules", () => {
     expect(learned.at(0)?.data).toMatchObject({ spell: 1742 });
     expect(r.event({ spell: 1742, type: "spell_unlearned" })).toEqual([]);
   });
+
+  test("a rename gives a renamed row, a bad name gives refused, a stable result gives a stable row and a silence gives unanswered", () => {
+    const r = rules();
+    const renamed = r.event({
+      name: { name: "Fangtooth", number: 7, timestamp: 1 },
+      type: "name",
+    } as never);
+    expect(renamed.map((row) => row.name)).toEqual(["renamed"]);
+    expect(renamed.at(0)?.text).toContain("Fangtooth");
+    const bad = r.event({
+      declined: undefined,
+      name: "Fangtooth",
+      reason: "profane",
+      type: "name_invalid",
+    } as never);
+    expect(bad.map((row) => row.name)).toEqual(["refused"]);
+    const failed = r.event({ code: 7, reason: "no_pet", type: "tame_failed" });
+    expect(failed.map((row) => row.name)).toEqual(["refused"]);
+    const stabled = r.event({
+      code: 8,
+      result: "stabled",
+      type: "stable_result",
+    });
+    expect(stabled.map((row) => row.name)).toEqual(["stable"]);
+    const silent = r.event({ request: "rename", type: "unanswered" });
+    expect(silent.map((row) => row.name)).toEqual(["unanswered"]);
+  });
 });

@@ -4,6 +4,12 @@ import {
   stanceCommand,
   statusResult,
 } from "#harness/areas/pets/tool-command";
+import { abandonFlow, renameFlow } from "#harness/areas/pets/tool-name";
+import {
+  autocastFlow,
+  castFlow,
+  tameFlow,
+} from "#harness/areas/pets/tool-spell";
 import { attackCommand, summonCommand } from "#harness/areas/pets/tool-summon";
 import type { ToolResult } from "#harness/contract/result";
 import { Refusal } from "#harness/ops/refusal";
@@ -31,10 +37,15 @@ export const petParams = Type.Object({
         "stay",
         "stop",
         "stance",
+        "cast",
+        "autocast",
+        "rename",
+        "abandon",
+        "tame",
       ],
       {
         description:
-          "call: bring the pet out. dismiss: send it away. revive: bring a dead pet back. attack: send it at a unit. follow: call it back to you. stay: hold it where it stands. stop: stop its attack and call it back. stance: set its stance.",
+          'call: bring the pet out. dismiss: send it away. revive: bring a dead pet back. attack: send it at a unit. follow: call it back to you. stay: hold it where it stands. stop: stop its attack and call it back. stance: set its stance. cast: have the pet cast one of its spells on target. autocast: turn a pet spell autocast on or off with what like "Growl off". rename: rename the pet to what. abandon: abandon the pet; what must equal its current name. tame: tame target with Tame Beast.',
       },
     ),
   ),
@@ -70,8 +81,13 @@ function petRun(args: PetArgs, ctx: PetCtx): Promise<ToolResult<PetAfter>> {
   if (args.do === "attack") return attackCommand(args, ctx);
   if (args.do === "call" || args.do === "revive" || args.do === "dismiss")
     return summonCommand(args.do, ctx);
+  if (args.do === "cast") return castFlow(args, ctx);
+  if (args.do === "autocast") return autocastFlow(args, ctx);
+  if (args.do === "rename") return renameFlow(args.what ?? "", ctx);
+  if (args.do === "abandon") return abandonFlow(args.what ?? "", ctx);
+  if (args.do === "tame") return tameFlow(args, ctx);
   throw new Refusal({
-    detail: `pet cannot ${args.do} yet; commands land in a later task.`,
+    detail: `pet cannot ${args.do} yet; the talent verb lands in a later task.`,
     next: nextCall("pet"),
     reason: "not_built",
   });

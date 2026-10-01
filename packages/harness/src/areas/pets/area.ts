@@ -96,6 +96,33 @@ function barRow(
   return [outRow(event.bar, rc, last)];
 }
 
+function renamedRow(name: string): AreaDraft {
+  return {
+    class: "log",
+    data: { name },
+    name: "renamed",
+    text: `Your pet is now named ${name}.`,
+  };
+}
+
+function stableRow(result: string): AreaDraft {
+  return {
+    class: "log",
+    data: { result },
+    name: "stable",
+    text: `Stable: ${result.replaceAll("_", " ")}.`,
+  };
+}
+
+function unansweredRow(request: string): AreaDraft {
+  return {
+    class: "log",
+    data: { request },
+    name: "unanswered",
+    text: `The server did not answer the ${request}.`,
+  };
+}
+
 function refusedRow(reason: string, spell?: number): AreaDraft {
   const text =
     spell === undefined
@@ -107,6 +134,27 @@ function refusedRow(reason: string, spell?: number): AreaDraft {
     name: "refused",
     text,
   };
+}
+
+function laterRow(
+  event: Exclude<PetsEvent, { type: "bar" }>,
+): AreaDraft | undefined {
+  if (event.type === "feedback") return refusedRow(event.reason);
+  if (event.type === "cast_failed")
+    return refusedRow(event.reason, event.spell);
+  if (event.type === "spell_learned")
+    return {
+      class: "log",
+      data: { spell: event.spell },
+      name: "learned",
+      text: `Your pet learned spell ${event.spell}.`,
+    };
+  if (event.type === "name") return renamedRow(event.name.name);
+  if (event.type === "name_invalid") return refusedRow(event.reason);
+  if (event.type === "tame_failed") return refusedRow(event.reason);
+  if (event.type === "stable_result") return stableRow(event.result);
+  if (event.type === "unanswered") return unansweredRow(event.request);
+  return undefined;
 }
 
 export const petsHarness = defineHarnessArea({
@@ -121,21 +169,19 @@ export const petsHarness = defineHarnessArea({
       },
       event: (event: PetsEvent, rc: RuleInput): readonly AreaDraft[] => {
         if (event.type === "bar") return barRow(event, rc, last);
-        if (event.type === "feedback") return [refusedRow(event.reason)];
-        if (event.type === "cast_failed")
-          return [refusedRow(event.reason, event.spell)];
-        if (event.type === "spell_learned")
-          return [
-            {
-              class: "log",
-              data: { spell: event.spell },
-              name: "learned",
-              text: `Your pet learned spell ${event.spell}.`,
-            },
-          ];
-        return [];
+        const row = laterRow(event);
+        return row ? [row] : [];
       },
     };
   },
-  worldActs: ["petCommand", "petStance", "petStopAttack", "requestPetInfo"],
+  worldActs: [
+    "petCommand",
+    "petStance",
+    "petStopAttack",
+    "requestPetInfo",
+    "petCast",
+    "petAutocast",
+    "renamePet",
+    "abandonPet",
+  ],
 });
