@@ -102,10 +102,11 @@ function context(
 ): FlowContext & {
   handle: MockHandle;
 } {
+  const stored = args["item"] === undefined ? 2589 : Number(args["item"]);
   const states = [
     inventory(carried),
-    inventory([filled({ bag: 39, region: "bank", slot: 0 })]),
-    inventory([filled({ bag: 255, slot: 25 })]),
+    inventory([filled({ bag: 39, entry: stored, region: "bank", slot: 0 })]),
+    inventory([filled({ bag: 255, entry: stored, slot: 25 })]),
   ];
   const handle = createMockHandle();
   handle.queryNearby = () => [bankerRow(1)];
