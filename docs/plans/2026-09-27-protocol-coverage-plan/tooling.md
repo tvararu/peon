@@ -1017,5 +1017,17 @@ None. This unit owns no opcode.
   defect is not a fallback. The fishing proof needs one fresh preset with
   the skill-356 triple read, the pole equipped and one cast of 7620 at
   water, reporting whether a bobber appears.
+- **BR-T-11-3.** Coordinator ruling (P2-17): after three fix rounds and
+  a rescue round, the fifth review still finds three gaps: the deployed
+  setting behind the death knight's `0x33` (`CHAR_CREATE_DISABLED`)
+  refusal is not observed (only shipped defaults are cited), the fishing
+  cast and the full skill triple are not in a retained trace, and the
+  trace option added to `soap.ts` and `soap-cli.ts` is outside the
+  files BR-T-11-1 grants. T-11 is parked (branch
+  `factory/431-wave3-parked-T-11`) with these findings listed in the
+  wave PR. Its dependents need its presets, not its code: spells-9 takes
+  its drafted mock fallback for the rune opcodes (SR3-spells-9) and
+  spells-14 its "Not shown" fallback for the totem scenario
+  (SR3-spells-15), and neither waits for T-11.
 
 ## COMPLETE
