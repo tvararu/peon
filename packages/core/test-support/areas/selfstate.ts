@@ -171,3 +171,15 @@ export function selfstateCorpseMapPositionQueryResponseBody(
   for (const value of values) w.floatLE(value);
   return w.finish();
 }
+
+export function selfstateDismountBody(guid: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(guid);
+  return w.finish();
+}
+
+export function selfstateMountspecialAnimBody(guid: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(guid);
+  return w.finish();
+}

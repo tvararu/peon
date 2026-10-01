@@ -5,25 +5,25 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x052` | `CMSG_PET_NAME_QUERY` | client | missing |  |
-| `0x053` | `SMSG_PET_NAME_QUERY_RESPONSE` | server | missing |  |
+| `0x052` | `CMSG_PET_NAME_QUERY` | client | handled |  |
+| `0x053` | `SMSG_PET_NAME_QUERY_RESPONSE` | server | handled |  |
 | `0x138` | `SMSG_PET_CAST_FAILED` | server | handled |  |
-| `0x173` | `SMSG_PET_TAME_FAILURE` | server | missing |  |
+| `0x173` | `SMSG_PET_TAME_FAILURE` | server | handled |  |
 | `0x174` | `CMSG_PET_SET_ACTION` | client | handled |  |
-| `0x176` | `CMSG_PET_ABANDON` | client | missing |  |
-| `0x177` | `CMSG_PET_RENAME` | client | missing |  |
-| `0x178` | `SMSG_PET_NAME_INVALID` | server | missing |  |
+| `0x176` | `CMSG_PET_ABANDON` | client | handled |  |
+| `0x177` | `CMSG_PET_RENAME` | client | handled |  |
+| `0x178` | `SMSG_PET_NAME_INVALID` | server | handled |  |
 | `0x179` | `SMSG_PET_SPELLS` | server | handled |  |
 | `0x17a` | `SMSG_PET_MODE` | server | dead |  |
 | `0x1f0` | `CMSG_PET_CAST_SPELL` | client | handled | not seen live |
 | `0x26b` | `CMSG_PET_CANCEL_AURA` | client | handled |  |
-| `0x26f` | `MSG_LIST_STABLED_PETS` | both | missing |  |
-| `0x270` | `CMSG_STABLE_PET` | client | missing |  |
-| `0x271` | `CMSG_UNSTABLE_PET` | client | missing |  |
-| `0x272` | `CMSG_BUY_STABLE_SLOT` | client | missing |  |
-| `0x273` | `SMSG_STABLE_RESULT` | server | missing |  |
-| `0x274` | `CMSG_STABLE_REVIVE_PET` | client | missing |  |
-| `0x275` | `CMSG_STABLE_SWAP_PET` | client | missing |  |
+| `0x26f` | `MSG_LIST_STABLED_PETS` | both | handled |  |
+| `0x270` | `CMSG_STABLE_PET` | client | handled |  |
+| `0x271` | `CMSG_UNSTABLE_PET` | client | handled |  |
+| `0x272` | `CMSG_BUY_STABLE_SLOT` | client | handled |  |
+| `0x273` | `SMSG_STABLE_RESULT` | server | handled |  |
+| `0x274` | `CMSG_STABLE_REVIVE_PET` | client | handled |  |
+| `0x275` | `CMSG_STABLE_SWAP_PET` | client | handled |  |
 | `0x279` | `CMSG_REQUEST_PET_INFO` | client | handled |  |
 | `0x2af` | `SMSG_PET_BROKEN` | server | dead |  |
 | `0x2c6` | `SMSG_PET_ACTION_FEEDBACK` | server | handled | not seen live |
@@ -33,10 +33,10 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x2f3` | `CMSG_PET_SPELL_AUTOCAST` | client | handled |  |
 | `0x324` | `SMSG_PET_ACTION_SOUND` | server | handled | not seen live |
 | `0x325` | `SMSG_PET_DISMISS_SOUND` | server | handled | not seen live |
-| `0x47a` | `CMSG_PET_LEARN_TALENT` | client | missing |  |
-| `0x48d` | `CMSG_DISMISS_CRITTER` | client | missing |  |
+| `0x47a` | `CMSG_PET_LEARN_TALENT` | client | handled |  |
+| `0x48d` | `CMSG_DISMISS_CRITTER` | client | handled |  |
 | `0x492` | `SMSG_PET_UPDATE_COMBO_POINTS` | server | missing |  |
 | `0x499` | `SMSG_PET_LEARNED_SPELL` | server | handled |  |
 | `0x49a` | `SMSG_PET_UNLEARNED_SPELL` | server | handled |  |
 | `0x4aa` | `SMSG_PET_GUIDS` | server | dead |  |
-| `0x4c2` | `CMSG_LEARN_PREVIEW_TALENTS_PET` | client | missing |  |
+| `0x4c2` | `CMSG_LEARN_PREVIEW_TALENTS_PET` | client | handled |  |

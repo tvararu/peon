@@ -15,6 +15,7 @@ import {
   slotsOf,
 } from "#harness/areas/items/tool-resolve";
 import { afterOf, moveRefusal } from "#harness/areas/items/tool-shared";
+import { runSocket } from "#harness/areas/items/tool-socket";
 import type { LootLine } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
@@ -37,11 +38,17 @@ export const gearParams = Type.Object({
     }),
   ),
   do: StringEnum(
-    ["equip", "unequip", "move", "split", "open", "read", "ammo"],
+    ["equip", "unequip", "move", "split", "open", "read", "ammo", "socket"],
     {
       description:
-        "equip: wear an item. unequip: take worn gear off. move: change bag or slot. split: divide a stack. open: open a container. read: read a readable item. ammo: load arrows or bullets for a ranged weapon.",
+        "equip: wear an item. unequip: take worn gear off. move: change bag or slot. split: divide a stack. open: open a container. read: read a readable item. ammo: load arrows or bullets for a ranged weapon. socket: put gems into a socketed item.",
     },
+  ),
+  gems: Type.Optional(
+    Type.String({
+      description:
+        'For socket: comma-separated gem names as the bags journal shows them, e.g. "Bold Bloodstone, Bright Bloodstone".',
+    }),
   ),
   item: Type.String({
     description:
@@ -389,6 +396,7 @@ function runGear(args: GearArgs, ctx: GearCtx): Promise<ToolResult<GearAfter>> {
     return runSplit(ctx, args.item, args.to, args.count ?? 1);
   if (args.do === "open") return runOpen(ctx, args.item);
   if (args.do === "ammo") return runAmmo(ctx, args.item);
+  if (args.do === "socket") return runSocket(ctx, args.item, args.gems);
   return runRead(ctx, args.item);
 }
 

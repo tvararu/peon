@@ -97,7 +97,6 @@ describe("travel runtime: bindActivate", () => {
     rig.dispose();
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
   });
-
   test("the bind's SMSG_TRAINER_BUY_SUCCEEDED for spell 3286 is no purchase for a pending train (NPCHandler.cpp:321-331, trainer-store.ts:106-112)", () => {
     const rig = areaRig("travel", {
       register: (dispatch, stores) =>

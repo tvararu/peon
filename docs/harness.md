@@ -88,7 +88,18 @@ warning per missing file on stderr and still exits 0. With no
 | `Faction.dbc` | reputation factions | `enUS/patch-enUS-3.MPQ` |
 | `Lock.dbc` | lock requirements | `enUS/patch-enUS-3.MPQ` |
 | `AreaTrigger.dbc` | area trigger volumes | `enUS/patch-enUS-3.MPQ` |
+| `TaxiNodes.dbc` | flight master node positions and names | `enUS/patch-enUS-3.MPQ` |
 | `GameObjectDisplayInfo.dbc` | object display bounds for reach | `enUS/patch-enUS-3.MPQ` |
+| `TaxiPath.dbc` | flight path edges with list prices | `enUS/patch-enUS-3.MPQ` |
+| `AreaTable.dbc` | zone names in summon rows | the first archive that holds it, in the order below |
+| `SkillLine.dbc` | profession and skill names | `enUS/patch-enUS-3.MPQ` |
+| `Talent.dbc` | talent ranks and prerequisites | `enUS/patch-enUS-2.MPQ` |
+| `TalentTab.dbc` | talent trees by class | `enUS/patch-enUS.MPQ` |
+| `GlyphProperties.dbc` | glyph spells and slot types | `enUS/patch-enUS-2.MPQ` |
+| `GlyphSlot.dbc` | glyph slot types | `enUS/locale-enUS.MPQ` |
+| `TaxiPathNode.dbc` | transport path nodes | `enUS/patch-enUS-3.MPQ` |
+| `TransportAnimation.dbc` | lift animation offsets | `enUS/patch-enUS-3.MPQ` |
+| `TransportRotation.dbc` | lift animation rotations | `enUS/patch-enUS-3.MPQ` |
 
 The client resolves each file from the first archive that holds it:
 `enUS/patch-enUS-3.MPQ`, then `enUS/patch-enUS-2.MPQ`, then
@@ -151,19 +162,21 @@ A result that is not `DONE` ends with a `Next:` step.
 
 | Tool | What it does |
 |---|---|
-| `look` | Self, place, target, the running action, and the nearest units with short ids like `u7`; `find: object` lists game objects as `o<n>` with kind and quest, locked and busy flags. |
-| `travel` | Walks to a unit (`to: o<n>` reaches a game object), the corpse or a point, uses the hearthstone (`to: hearth`), explores in a direction, or unsticks. An explore leg refused for an ambiguous navmesh column first retries the same point on the floor nearest the walker, then other distances on the same bearing, and one exhausted bearing counts as a single obstruction. |
+| `look` | Self, place, target, the running action, and the nearest units with short ids like `u7`; `find: object` lists game objects as `o<n>` with kind and quest, locked and busy flags; `find: flight_master` lists flight masters, also one that left view. |
+| `travel` | Walks to a unit (`to: o<n>` reaches a game object), the corpse or a point, uses the hearthstone (`to: hearth`), flies to a discovered flight destination (`to: fly Silvermoon City`), explores in a direction, or unsticks. An explore leg refused for an ambiguous navmesh column first retries the same point on the floor nearest the walker, then other distances on the same bearing, and one exhausted bearing counts as a single obstruction. |
 | `engage` | Chooses a target, walks to it, fights it with Jev and loots it; the result line gives damage dealt and taken, avoided swings and refused spells. An unnamed engage that only sees gray hostiles refuses with a `Next:` step that travels to explore for non-gray hostiles. |
 | `loot` | Loots one corpse, one slot at a time. |
-| `interact` | Talks to an NPC (`npc: o<n>` talks to a quest-giver object): quests, gossip, buy, sell junk, buyback, train, repair, bind at an inn. |
+| `interact` | Talks to an NPC (`npc: o<n>` talks to a quest-giver object): quests, gossip, buy, sell junk, buyback, train, repair, bind at an inn, reset talents at a class trainer (pays only up to `max_cost`); talking to a flight master lists the known destinations with their list prices. |
 | `rest` | Eats and drinks until health and mana reach a percent. |
 | `recover` | Comes back to life: corpse run, spirit healer, a resurrection offer, or `self` with a Soulstone or Reincarnation. |
 | `social` | One chat message or one group action. |
+| `talents` | Shows talents and glyphs and spends talent points; puts glyphs in slots or clears them. |
+| `vehicle` | Takes a seat on a vehicle by walking to a unit and clicking it (`board`), leaves the seat (`leave`), changes seats (`seat`), asks to ride with a player (`ride_with`) and removes a passenger (`eject`). A seat request the server does not answer is `UNCONFIRMED` with the reason `no_answer`. |
 | `journal` | Quest log, bags and gear, spells, reputation, or the game log. |
 | `stop` | Stops one action or everything. |
 | `gear` | Wears, takes off, moves, splits, opens and reads items. |
 | `use` | Uses a game object: opens a locked chest or quest object and takes what is inside, reads a shrine, plaque or book, or presses another usable object. |
-| `spell` | Casts a spell on itself or a unit (`do: cast`), cancels one of its own buffs (`cancel_aura`) or puts a spell or item on an action bar slot (`bar`). |
+| `spell` | Casts a spell on itself or a unit (`do: cast`), cancels one of its own buffs (`cancel_aura`) or puts a spell or item on an action bar slot (`bar`), or gets on a ground mount and off again (`mount`, `dismount`). |
 | `pet` | Checks its pet (`status`), calls, dismisses or revives it, attacks with it, moves it (`follow`, `stay`, `stop`) or sets its stance. |
 | `dungeon` | Difficulty, saved instances, resets, the bind prompt and the dungeon finder queue, role answers, proposal answers, teleports and kick votes. |
 | `group` | Shows the group roster, removes a member, or passes the lead. |

@@ -2,6 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
   ambienceInitWorldStatesBody,
+  ambienceOverrideLightBody,
+  ambiencePlayMusicBody,
+  ambiencePlayObjectSoundBody,
+  ambiencePlaySoundBody,
+  ambienceSetPhaseShiftBody,
   ambienceTriggerCinematicBody,
   ambienceTriggerMovieBody,
   ambienceUpdateWorldStateBody,
@@ -75,7 +80,7 @@ describe("ambience area wiring", () => {
     }
   });
 
-  test("SMSG_NEW_WORLD clears the states and the weather (Player.cpp:1629-1634)", () => {
+  test("SMSG_NEW_WORLD clears the states, weather, music and light and keeps the phase mask (Player.cpp:1629-1634, Map.cpp:3225-3244)", () => {
     const { rig } = rigWithEvents();
     try {
       rig.inject(
@@ -91,13 +96,116 @@ describe("ambience area wiring", () => {
         GameOpcode.SMSG_WEATHER,
         ambienceWeatherBody({ abrupt: true, intensity: 0.25, state: 4 }),
       );
+      rig.inject(GameOpcode.SMSG_PLAY_MUSIC, ambiencePlayMusicBody(6077));
+      rig.inject(
+        GameOpcode.SMSG_OVERRIDE_LIGHT,
+        ambienceOverrideLightBody({ defaultId: 1, fadeMs: 0, overrideId: 9 }),
+      );
+      rig.inject(GameOpcode.SMSG_SET_PHASE_SHIFT, ambienceSetPhaseShiftBody(4));
       rig.inject(GameOpcode.SMSG_NEW_WORLD, newWorldBody());
       expect(rig.handle.state()).toEqual({
         cinematic: undefined,
+        light: undefined,
         movie: undefined,
+        music: undefined,
+        phaseMask: 4,
         states: [],
         weather: undefined,
       });
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_PLAY_SOUND emits a sound event and keeps no state (MiscPackets.cpp:63-68)", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      const before = rig.handle.state();
+      rig.inject(GameOpcode.SMSG_PLAY_SOUND, ambiencePlaySoundBody(3337));
+      expect(seen).toEqual([
+        { kind: "sound", soundKitId: 3337, source: "", type: "sound" },
+      ]);
+      expect(rig.handle.state()).toEqual(before);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_PLAY_MUSIC emits a music event and keeps only the last (MiscPackets.cpp:48-53)", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      rig.inject(GameOpcode.SMSG_PLAY_MUSIC, ambiencePlayMusicBody(6077));
+      rig.inject(GameOpcode.SMSG_PLAY_MUSIC, ambiencePlayMusicBody(6078));
+      expect(rig.handle.state().music).toEqual({ at: 0, soundKitId: 6078 });
+      expect(seen).toEqual([
+        { kind: "music", soundKitId: 6077, source: "", type: "sound" },
+        { kind: "music", soundKitId: 6078, source: "", type: "sound" },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_PLAY_OBJECT_SOUND carries the full guid as a decimal string (MiscPackets.cpp:55-61)", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_PLAY_OBJECT_SOUND,
+        ambiencePlayObjectSoundBody({
+          soundKitId: 7,
+          source: 0xf130_0000_1234_0001n,
+        }),
+      );
+      expect(seen).toEqual([
+        {
+          kind: "object",
+          soundKitId: 7,
+          source: String(0xf130_0000_1234_0001n),
+          type: "sound",
+        },
+      ]);
+      expect(rig.handle.state().music).toBeUndefined();
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_OVERRIDE_LIGHT sets the light with the fade in milliseconds (Map.cpp:3331-3340)", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_OVERRIDE_LIGHT,
+        ambienceOverrideLightBody({
+          defaultId: 12,
+          fadeMs: 5000,
+          overrideId: 1942,
+        }),
+      );
+      const light = { at: 0, defaultId: 12, fadeMs: 5000, overrideId: 1942 };
+      expect(rig.handle.state().light).toEqual(light);
+      expect(seen).toEqual([{ light, type: "light" }]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("SMSG_SET_PHASE_SHIFT sets the mask, defaults to 1 and emits only on a change (MiscHandler.cpp:1632-1637)", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      expect(rig.handle.state().phaseMask).toBe(1);
+      rig.inject(GameOpcode.SMSG_SET_PHASE_SHIFT, ambienceSetPhaseShiftBody(1));
+      expect(seen).toEqual([]);
+      rig.inject(GameOpcode.SMSG_SET_PHASE_SHIFT, ambienceSetPhaseShiftBody(2));
+      rig.inject(GameOpcode.SMSG_SET_PHASE_SHIFT, ambienceSetPhaseShiftBody(2));
+      rig.inject(
+        GameOpcode.SMSG_SET_PHASE_SHIFT,
+        ambienceSetPhaseShiftBody(0xff_ff_ff_ff),
+      );
+      expect(rig.handle.state().phaseMask).toBe(0xff_ff_ff_ff);
+      expect(seen).toEqual([
+        { from: 1, to: 2, type: "phase_changed" },
+        { from: 2, to: 0xff_ff_ff_ff, type: "phase_changed" },
+      ]);
     } finally {
       rig.dispose();
     }

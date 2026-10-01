@@ -1,0 +1,92 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 30,
+    "turns": 15
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["selfstate/mounted"]
+      },
+      "expect": "GL has a selfstate/mounted row with a non-zero displayId and no taxi flag, so spell do mount cast a ground mount",
+      "id": "mounted-row",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["selfstate/dismounted", "nav/route_end"]
+      },
+      "expect": "GL has the selfstate/dismounted row on a later line than nav/route_end, so the agent got off after arriving",
+      "id": "dismounted-after-arrival",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["selfstate/dismounted"]
+      },
+      "expect": "GL has a selfstate/dismounted row after the mounted row, so spell do dismount ended the ride",
+      "id": "dismounted-row",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["selfstate/mounted", "nav/route_start"]
+      },
+      "expect": "GL has the selfstate/mounted row on an earlier line than nav/route_start, so the agent mounted before the ride began",
+      "id": "mounted-before-walk",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "point": {
+          "x": 7595.16,
+          "y": -6782.24
+        }
+      },
+      "expect": "T final position within 10 yd of the Tranquillien flight master (7595.16, -6782.24, map 530); the truth pose and the live nearby agree on this point",
+      "id": "at-flight-master",
+      "source": "truth"
+    },
+    {
+      "expect": "the session shows the agent calling the spell tool with do mount and do dismount, not ending REFUSED",
+      "id": "mount-called",
+      "source": "session"
+    }
+  ],
+  "id": "t9-selfstate-mount",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "max80",
+  "setup": [
+    {
+      "body": {
+        "map": 530,
+        "o": 4.007,
+        "x": 7575,
+        "y": -6835,
+        "z": 88.66,
+        "zone": 3433
+      },
+      "endpoint": "position"
+    },
+    {
+      "body": {
+        "spell": 33388
+      },
+      "endpoint": "spells/learn"
+    },
+    {
+      "body": {
+        "spell": 458
+      },
+      "endpoint": "spells/learn"
+    }
+  ],
+  "steers": [],
+  "task": "Get on your mount, ride to the flight master in Tranquillien, then get off.",
+  "tier": 9
+}

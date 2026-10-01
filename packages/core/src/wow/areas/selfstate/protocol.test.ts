@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   selfstateCorpseMapPositionQueryResponseBody,
+  selfstateDismountBody,
   selfstateForcePitchRateChangeBody,
+  selfstateMountspecialAnimBody,
   selfstateMoveSetCollisionHeightBody,
   selfstateMultipleMovesBody,
   selfstatePreResurrectBody,
@@ -17,7 +19,9 @@ import {
   MIRROR_TIMERS,
   parseCollisionHeight,
   parseCorpseMapPosition,
+  parseDismount,
   parseMirrorTimer,
+  parseMountSpecialAnim,
   parseMultipleMoves,
   parsePreResurrect,
   parseStandState,
@@ -253,6 +257,24 @@ describe("corpse map position float decoding (synthetic, not protocol proof)", (
       selfstateCorpseMapPositionQueryResponseBody([1.5, -2.25, 0, 4]),
     );
     expect(parseCorpseMapPosition(r)).toEqual([1.5, -2.25, 0, 4]);
+    expect(r.remaining).toBe(0);
+  });
+});
+
+describe("mount packets", () => {
+  test("SMSG_DISMOUNT is a packed guid (AC Entities/Unit/Unit.cpp:10301-10303)", () => {
+    const guid = 0x0000_0000_0123_4567n;
+    const r = read(selfstateDismountBody(guid));
+    expect(parseDismount(r)).toBe(guid);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("SMSG_MOUNTSPECIAL_ANIM is a full u64 guid, not packed (AC Handlers/MovementHandler.cpp:816-822)", () => {
+    const guid = 0x0000_0000_0123_4567n;
+    const body = selfstateMountspecialAnimBody(guid);
+    expect(body).toHaveLength(8);
+    const r = read(body);
+    expect(parseMountSpecialAnim(r)).toBe(guid);
     expect(r.remaining).toBe(0);
   });
 });

@@ -10,7 +10,7 @@ export const TALENTS_OPCODES = {
     "CMSG_UNLEARN_TALENTS",
     "SMSG_TALENTS_INVOLUNTARILY_RESET",
   ],
-  uses: [],
+  uses: ["SMSG_BUY_FAILED", "CMSG_GOSSIP_SELECT_OPTION"],
   stubs: [],
   dead: ["CMSG_UNLEARN_TALENTS", "SMSG_TALENTS_INVOLUNTARILY_RESET"],
   unseen: [],

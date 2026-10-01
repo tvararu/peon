@@ -88,3 +88,78 @@ export function petsPetDismissSoundBody(init: {
   w.floatLE(init.z);
   return w.finish();
 }
+
+export function petsNameQueryResponseBody(init: {
+  number: number;
+  name: string;
+  timestamp: number;
+  declined?: readonly string[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.number);
+  w.cString(init.name);
+  w.uint32LE(init.timestamp);
+  if (!init.declined) {
+    w.uint8(0);
+    return w.finish();
+  }
+  w.uint8(1);
+  for (const name of init.declined) w.cString(name);
+  return w.finish();
+}
+
+export function petsNameInvalidBody(init: {
+  code: number;
+  name: string;
+  declined?: readonly string[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.code);
+  w.cString(init.name);
+  if (!init.declined) {
+    w.uint8(0);
+    return w.finish();
+  }
+  w.uint8(1);
+  for (const name of init.declined) w.cString(name);
+  return w.finish();
+}
+
+export type PetsStabledPetInit = {
+  number: number;
+  entry: number;
+  level: number;
+  name: string;
+  flag: number;
+};
+
+export function petsStabledPetsBody(init: {
+  npc: bigint;
+  slots: number;
+  pets: readonly PetsStabledPetInit[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.npc);
+  w.uint8(init.pets.length);
+  w.uint8(init.slots);
+  for (const pet of init.pets) {
+    w.uint32LE(pet.number);
+    w.uint32LE(pet.entry);
+    w.uint32LE(pet.level);
+    w.cString(pet.name);
+    w.uint8(pet.flag);
+  }
+  return w.finish();
+}
+
+export function petsStableResultBody(code: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(code);
+  return w.finish();
+}
+
+export function petsTameFailureBody(code: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(code);
+  return w.finish();
+}

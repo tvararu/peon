@@ -7,7 +7,7 @@ import {
   type Rotation,
   type Speeds,
 } from "#wow/protocol/movement-block";
-import type { PacketReader } from "#wow/protocol/packet";
+import type { PacketReader, Vec3 } from "#wow/protocol/packet";
 import { parseUpdateMask } from "#wow/protocol/update-mask";
 
 type Movement = {
@@ -20,6 +20,10 @@ type Movement = {
   turnRate?: number;
   speeds?: Speeds;
   spline?: CreateSpline;
+  vehicle?: { id: number; orientation: number };
+  pathProgress?: number;
+  transportGuid?: bigint;
+  transportOffset?: Vec3;
 };
 
 export type UpdateEntry =

@@ -153,19 +153,72 @@ function unitCastRows(
   return event.outcome === "interrupted" ? [targetInterrupted(event, rc)] : [];
 }
 
+function skillChanged(
+  event: Extract<SpellsEvent, { type: "skill_changed" }>,
+  rc: RuleInput,
+  seen: Map<number, number>,
+): readonly AreaDraft[] {
+  const at = seen.get(event.id) ?? Number.NEGATIVE_INFINITY;
+  if (rc.now - at < 60_000) return [];
+  seen.set(event.id, rc.now);
+  const text =
+    event.from === undefined
+      ? `${event.name} learned, ${event.to}/${event.max}.`
+      : `${event.name} is now ${event.to}/${event.max}.`;
+  return [
+    {
+      class: "log",
+      data: {
+        from: event.from ?? null,
+        id: event.id,
+        max: event.max,
+        to: event.to,
+      },
+      name: "skill_changed",
+      text,
+    },
+  ];
+}
+
+function skillRemoved(
+  event: Extract<SpellsEvent, { type: "skill_removed" }>,
+): AreaDraft {
+  return {
+    class: "log",
+    data: { id: event.id },
+    name: "skill_removed",
+    text: `${event.name} dropped.`,
+  };
+}
+
+function knownRows(
+  event: SpellsEvent,
+  rc: RuleInput,
+): readonly AreaDraft[] | undefined {
+  if (event.type === "spell_visual") return [];
+  if (event.type === "channel_start") return [channelStart(event)];
+  if (event.type === "channel_end") return [channelEnd(event)];
+  if (event.type === "totem_created") return [totemCreated(event)];
+  if (event.type === "totem_gone") return [totemGone(event)];
+  if (event.type === "unit_cast_start" || event.type === "unit_cast_end")
+    return unitCastRows(event, rc);
+  return undefined;
+}
+
 export const spellsHarness = defineHarnessArea({
   area: "spells",
-  rules: () => ({
-    event: (event, rc) => {
-      if (event.type === "spell_visual") return [];
-      if (event.type === "channel_start") return [channelStart(event)];
-      if (event.type === "channel_end") return [channelEnd(event)];
-      if (event.type === "totem_created") return [totemCreated(event)];
-      if (event.type === "totem_gone") return [totemGone(event)];
-      if (event.type === "unit_cast_start" || event.type === "unit_cast_end")
-        return unitCastRows(event, rc);
-      return [quiet(event)];
-    },
-  }),
-  worldActs: ["cancelAura", "destroyTotem", "setActionButton"],
+  rules: () => {
+    const seen = new Map<number, number>();
+    return {
+      event: (event, rc) => {
+        const known = knownRows(event, rc);
+        if (known) return known;
+        if (event.type === "skill_changed")
+          return skillChanged(event, rc, seen);
+        if (event.type === "skill_removed") return [skillRemoved(event)];
+        return [quiet(event)];
+      },
+    };
+  },
+  worldActs: ["cancelAura", "destroyTotem", "setActionButton", "unlearnSkill"],
 });

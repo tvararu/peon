@@ -22,9 +22,20 @@ export const interactParams = Type.Object({
         "repair",
         "bind",
         "buyback",
+        "reset_talents",
+        "stable",
+        "unstable",
+        "buy_slot",
       ],
       { description: "Default talk: list what this NPC offers." },
     ),
+  ),
+  max_cost: Type.Optional(
+    Type.Integer({
+      description:
+        "The most copper reset_talents may pay. Without it the step only names the cost.",
+      minimum: 0,
+    }),
   ),
   npc: Type.String({
     description:
@@ -40,7 +51,7 @@ export const interactParams = Type.Object({
   what: Type.Optional(
     Type.String({
       description:
-        'Line number or title from the talk list, gossip option number, or for buy a stock line number, part of an item name ("water") or "item <id>".',
+        'Line number or title from the talk list, gossip option number, for buy a stock line number, part of an item name ("water") or "item <id>", or for unstable a stable line number or pet name.',
     }),
   ),
 });

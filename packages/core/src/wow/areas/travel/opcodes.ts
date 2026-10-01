@@ -18,8 +18,8 @@ export const TRAVEL_OPCODES = {
     "CMSG_MOVE_SPLINE_DONE",
     "SMSG_FLIGHT_SPLINE_SYNC",
   ],
-  uses: [],
+  uses: ["SMSG_SHOWTAXINODES", "SMSG_MONSTER_MOVE"],
   stubs: [],
   dead: ["SMSG_FLIGHT_SPLINE_SYNC"],
-  unseen: [],
+  unseen: ["CMSG_MOVE_SPLINE_DONE"],
 } as const satisfies AreaOpcodes;

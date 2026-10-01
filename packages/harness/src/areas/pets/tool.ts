@@ -4,7 +4,14 @@ import {
   stanceCommand,
   statusResult,
 } from "#harness/areas/pets/tool-command";
+import { abandonFlow, renameFlow } from "#harness/areas/pets/tool-name";
+import {
+  autocastFlow,
+  castFlow,
+  tameFlow,
+} from "#harness/areas/pets/tool-spell";
 import { attackCommand, summonCommand } from "#harness/areas/pets/tool-summon";
+import { talentFlow } from "#harness/areas/pets/tool-talent";
 import type { ToolResult } from "#harness/contract/result";
 import { Refusal } from "#harness/ops/refusal";
 import { defineGameTool } from "#harness/tools/define";
@@ -31,10 +38,16 @@ export const petParams = Type.Object({
         "stay",
         "stop",
         "stance",
+        "cast",
+        "autocast",
+        "rename",
+        "abandon",
+        "tame",
+        "talent",
       ],
       {
         description:
-          "call: bring the pet out. dismiss: send it away. revive: bring a dead pet back. attack: send it at a unit. follow: call it back to you. stay: hold it where it stands. stop: stop its attack and call it back. stance: set its stance.",
+          'call: bring the pet out. dismiss: send it away. revive: bring a dead pet back. attack: send it at a unit. follow: call it back to you. stay: hold it where it stands. stop: stop its attack and call it back. stance: set its stance. cast: have the pet cast one of its spells on target. autocast: turn a pet spell autocast on or off with what like "Growl off". rename: rename the pet to what. abandon: abandon the pet; what must equal its current name. tame: tame target with Tame Beast. talent: learn a pet talent by name or id, or list the points and tree with no what.',
       },
     ),
   ),
@@ -45,7 +58,8 @@ export const petParams = Type.Object({
   ),
   what: Type.Optional(
     Type.String({
-      description: 'For stance: "passive", "defensive" or "aggressive".',
+      description:
+        'For stance: "passive", "defensive" or "aggressive". For talent: the pet talent name or id.',
     }),
   ),
 });
@@ -60,18 +74,32 @@ function emptyPet(): PetAfter {
   return { do: "status", target: undefined, what: undefined };
 }
 
+type PetHandler = (args: PetArgs, ctx: PetCtx) => Promise<ToolResult<PetAfter>>;
+
+const petHandlers: Record<NonNullable<PetArgs["do"]>, PetHandler> = {
+  abandon: (args, ctx) => abandonFlow(args.what ?? "", ctx),
+  attack: attackCommand,
+  autocast: autocastFlow,
+  call: (_args, ctx) => summonCommand("call", ctx),
+  cast: castFlow,
+  dismiss: (_args, ctx) => summonCommand("dismiss", ctx),
+  follow: (_args, ctx) => orderCommand("follow", ctx),
+  rename: (args, ctx) => renameFlow(args.what ?? "", ctx),
+  revive: (_args, ctx) => summonCommand("revive", ctx),
+  stance: stanceCommand,
+  stay: (_args, ctx) => orderCommand("stay", ctx),
+  stop: (_args, ctx) => orderCommand("stop", ctx),
+  talent: (args, ctx) => talentFlow(args.what ?? "", ctx),
+  tame: tameFlow,
+};
+
 function petRun(args: PetArgs, ctx: PetCtx): Promise<ToolResult<PetAfter>> {
   if (args.do === undefined)
     return Promise.resolve(statusResult(ctx.handle, ctx.rt.clock.now()));
-  if (args.do === "follow" || args.do === "stay")
-    return orderCommand(args.do, ctx);
-  if (args.do === "stance") return stanceCommand(args, ctx);
-  if (args.do === "stop") return orderCommand("stop", ctx);
-  if (args.do === "attack") return attackCommand(args, ctx);
-  if (args.do === "call" || args.do === "revive" || args.do === "dismiss")
-    return summonCommand(args.do, ctx);
+  const handler = petHandlers[args.do];
+  if (handler !== undefined) return handler(args, ctx);
   throw new Refusal({
-    detail: `pet cannot ${args.do} yet; commands land in a later task.`,
+    detail: `pet cannot ${args.do} yet.`,
     next: nextCall("pet"),
     reason: "not_built",
   });
@@ -101,6 +129,7 @@ const petRenderers: ToolRenderers<"pet", PetAfter> = {
 export const petSpec: GameToolSpec<typeof petParams, "pet", PetAfter> = {
   fallback: emptyPet,
   kind: "action",
+  maxLines: 30,
   minimalArgs: { do: "follow" },
   name: "pet",
   parameters: petParams,

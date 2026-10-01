@@ -68,6 +68,40 @@ describe("ambience/movie", () => {
   });
 });
 
+describe("ambience/phase", () => {
+  test("a phase change is a log row with the plan text", () => {
+    expect(rules()({ from: 1, to: 2, type: "phase_changed" })).toEqual([
+      {
+        class: "log",
+        data: { from: 1, to: 2 },
+        name: "phase",
+        text: "Your phase changed. Some units and objects may appear or vanish.",
+      },
+    ]);
+  });
+
+  test("sound and light write nothing, also inside a run", () => {
+    const quiet: AmbienceEvent[] = [
+      { kind: "sound", soundKitId: 1, source: "", type: "sound" },
+      { kind: "music", soundKitId: 2, source: "", type: "sound" },
+      { kind: "object", soundKitId: 3, source: "99", type: "sound" },
+      {
+        light: { at: 1, defaultId: 1, fadeMs: 0, overrideId: 2 },
+        type: "light",
+      },
+    ];
+    for (const runActive of [false, true])
+      for (const event of quiet)
+        expect(
+          areaDrafts(
+            areaRuleSet(),
+            { area: "ambience", event },
+            testRuleInput({ runActive }),
+          ),
+        ).toEqual([]);
+  });
+});
+
 describe("ambience flood guard", () => {
   test("world_state, weather and a cinematic that did not complete write nothing", () => {
     const set = areaRuleSet();

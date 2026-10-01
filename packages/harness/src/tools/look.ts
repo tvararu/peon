@@ -31,7 +31,12 @@ import {
   rowLine,
 } from "#harness/tools/look-rows";
 import { savesLine } from "#harness/tools/look-saves";
-import { castViews, selfLine, statusLine } from "#harness/tools/look-self";
+import {
+  castViews,
+  selfLine,
+  statusLine,
+  talentView,
+} from "#harness/tools/look-self";
 import { nextCall } from "#harness/tools/next-call";
 import {
   type LookArgs,
@@ -169,6 +174,7 @@ function objectAfter(
   return {
     after: {
       ...castViews(ctx, snapshot.target),
+      ...talentView(ctx),
       danger: dangerView(ctx),
       filter: "any",
       matched: 0,
@@ -201,6 +207,7 @@ function lookAfter(
   );
   return {
     ...castViews(ctx, snapshot.target),
+    ...talentView(ctx),
     danger: dangerView(ctx),
     filter: found.filter,
     matched: found.matched,

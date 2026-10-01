@@ -106,6 +106,7 @@ export type ItemUseRequest = {
   castCount: number;
   spellId: number;
   itemGuid: bigint;
+  glyphIndex?: number;
   target?: SpellTarget;
 };
 
@@ -271,7 +272,7 @@ export function buildUseItem(request: ItemUseRequest): Uint8Array {
   w.uint8(request.castCount);
   w.uint32LE(request.spellId);
   w.uint64LE(request.itemGuid);
-  w.uint32LE(0);
+  w.uint32LE(request.glyphIndex ?? 0);
   w.uint8(0);
   writeSpellTargets(w, request.target ?? { kind: "none" });
   return w.finish();

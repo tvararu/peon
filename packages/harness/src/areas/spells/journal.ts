@@ -1,7 +1,20 @@
+import type { SpellDefinition } from "@peon/core";
+import { visibleSpellbook } from "#harness/areas/spells/book";
 import { auraName, isCancellable } from "#harness/areas/spells/tool-aura";
 import { barLines, barText } from "#harness/areas/spells/tool-bar";
-import type { AuraLine, BarLine } from "#harness/contract/details";
+import type {
+  AuraLine,
+  BarLine,
+  JournalAfter,
+  ProfessionLine,
+  RuneLine,
+  SpellLine,
+  TotemLine,
+} from "#harness/contract/details";
+import type { ToolResult } from "#harness/contract/result";
+import type { OpsCtx } from "#harness/contract/services";
 import type { Game } from "#harness/loops/game";
+import { result } from "#harness/tools/define";
 
 const LINES_PER_BLOCK = 4;
 
@@ -18,13 +31,80 @@ function cancellableAuras(handle: Game): AuraLine[] {
     .map((aura) => ({ name: auraName(handle, aura), spellId: aura.spellId }));
 }
 
+const ELEMENTS = ["fire", "earth", "water", "air"] as const;
+
+function professionLines(handle: Game): {
+  lines: ProfessionLine[];
+  rows: string[];
+} {
+  const lines: ProfessionLine[] = handle.spells
+    .state()
+    .skills.filter((skill) => skill.profession)
+    .map(({ id, max, name, value }) => ({ id, max, name, value }));
+  return {
+    lines,
+    rows: lines.map(({ max, name, value }) => `${name}: ${value}/${max}.`),
+  };
+}
+
+function totemLines(handle: Game): {
+  lines: TotemLine[];
+  rows: string[];
+} {
+  const slots = handle.spells.state().totems;
+  const lines: TotemLine[] = [];
+  for (const [slot, totem] of slots.entries()) {
+    if (totem === undefined) continue;
+    const element = ELEMENTS[slot] ?? `slot ${slot}`;
+    lines.push({
+      element,
+      name:
+        typeof totem.spellName === "string" && totem.spellName !== ""
+          ? totem.spellName
+          : `spell ${totem.spellId}`,
+      slot,
+      spellId: totem.spellId,
+    });
+  }
+  return {
+    lines,
+    rows: lines.map(({ element, name }) => `Totem (${element}): ${name}.`),
+  };
+}
+
+function runeLines(handle: Game): {
+  lines: RuneLine[] | undefined;
+  rows: string[];
+} {
+  const runes = handle.spells.state().runes;
+  if (runes === undefined) return { lines: undefined, rows: [] };
+  const lines: RuneLine[] = runes.map(({ index, ready, type }) => ({
+    index,
+    ready,
+    type,
+  }));
+  return {
+    lines,
+    rows: lines.map(
+      ({ index, ready }) =>
+        `Rune ${index + 1}: ${ready ? "ready" : "on cooldown"}.`,
+    ),
+  };
+}
+
 export function spellsJournalExtras(handle: Game): {
   auras: AuraLine[];
   bar: BarLine[];
+  professions: ProfessionLine[];
+  totems: TotemLine[];
+  runes: RuneLine[] | undefined;
   lines: string[];
 } {
   const auras = cancellableAuras(handle);
   const bar = barLines(handle);
+  const professions = professionLines(handle);
+  const totems = totemLines(handle);
+  const runes = runeLines(handle);
   const auraRows = auras.map(
     ({ name, spellId }) => `Aura you can cancel: ${name} (spell ${spellId}).`,
   );
@@ -35,6 +115,46 @@ export function spellsJournalExtras(handle: Game): {
     lines: [
       ...capped(auraRows, "auras you can cancel"),
       ...capped(barRows, "bar slots"),
+      ...capped(professions.rows, "professions"),
+      ...capped(totems.rows, "totems"),
+      ...capped(runes.rows, "runes"),
     ],
+    professions: professions.lines,
+    runes: runes.lines,
+    totems: totems.lines,
   };
+}
+
+function spellLine(spell: SpellDefinition): SpellLine {
+  return {
+    cooldownMs: spell.cooldown.recoveryTimeMs || undefined,
+    cost: spell.power.costRaw || undefined,
+    id: spell.id,
+    name: spell.name,
+    rank: spell.rank || undefined,
+  };
+}
+
+function spellText({ cooldownMs, cost, name, rank }: SpellLine): string {
+  const rankText = rank ? ` (${rank})` : "";
+  const costText = cost ? `costs ${cost}` : "no cost";
+  const cooldownText = cooldownMs
+    ? `, cooldown ${Math.round(cooldownMs / 1000)} s`
+    : "";
+  return `${name}${rankText}: ${costText}${cooldownText}.`;
+}
+
+export async function spellsResult({
+  handle,
+}: OpsCtx): Promise<ToolResult<JournalAfter>> {
+  const spells = (await visibleSpellbook(handle))
+    .map(spellLine)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const { auras, bar, lines, professions, runes, totems } =
+    spellsJournalExtras(handle);
+  return result("DONE", {
+    after: { about: "spells", auras, bar, professions, runes, spells, totems },
+    body: [...lines, ...spells.map(spellText)],
+    detail: `${spells.length} spells known.`,
+  });
 }

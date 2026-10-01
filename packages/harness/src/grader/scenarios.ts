@@ -163,6 +163,7 @@ export const ROUND_1: readonly string[] = [
   "t4-spells-stop-channel",
   "t8-travel-bind-inn",
   "t8-travel-hearth-home",
+  "t8-travel-fly",
   "t8-pets-command",
   "t6-selfstate-res",
   "t9-instances-difficulty",
@@ -181,8 +182,19 @@ export const ROUND_1: readonly string[] = [
   "t9-raid-answer",
   "t9-raid-mark",
   "t4-objects-quest-loot",
+  "t8-items-socket",
+  "t8-pets-spells",
+  "t8-pets-rename",
+  "t8-pets-abandon",
+  "t8-pets-stable",
+  "t9-selfstate-mount",
+  "t8-talents-spend",
+  "t8-talents-reset",
+  "t4-spells-unlearn-profession",
+  "t8-vehicles-board",
+  "t8-talents-glyph",
+  "t8-pets-talent",
 ];
-
 const DIR = `${import.meta.dir}/scenarios`;
 const JSON_FILE = /\.json$/;
 const SCHEMA = schema as unknown as Schema;

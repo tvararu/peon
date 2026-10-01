@@ -5011,4 +5011,168 @@ fail or are blocked are listed under "Not shown" in `docs/capabilities.md`.
 Filed as issues: #457 (account names), #458 to #465 (the gaps the build
 rulings recorded).
 
+### 8.11 Part 2, wave 3
+
+Wave 3 (phase C, levels 1 to 80) lands its tasks on `factory/431-wave3`,
+which starts from `main` at `2285bec8`. The build ran from 2026-09-30
+20:35 UTC (rulings) to 2026-10-01 18:56 UTC (the last park, vehicles-7 and
+vehicles-8).
+Wave 3 is 48 tasks (47 plan tasks and the preset task T-11): 36 landed and
+12 parked with their findings in the pull request.
+
+#### How it ran
+
+- One omp coordinator drove a Python state machine in its eval kernel:
+  build → check → review → fix → land, one worktree per unit and a second
+  one for the pairs the SEED-3 index marks independent. T-11 started first
+  while SEED-3 was seeded; the cap was 4 builders until the first area
+  task landed, then 8.
+- Roles: `task` builders (Sonnet 5.5 medium), `reviewer` (Sol) with the
+  checker's output in its prompt, `sonic` (Gemini 3.8 Flash) for the
+  mechanical check (revert proof, tests, lint, format, cite-check, line
+  counts), the serial lander and the evals, and `creative` agents for
+  disputed rulings (BR-wave3-9, BR-wave3-10, BR-pets-10-3, BR-spells-14-2
+  and the death knight safety terms). No model change was recorded during
+  the wave.
+- Before the build the coordinator staged 32 client data files (DBC, build
+  12340, enUS) from the maintainer's own client install into
+  `spell_data_dir`, byte for byte, with headers checked against
+  AzerothCore `DBCfmt.h` and no existing file changed: TaxiNodes, TaxiPath,
+  TaxiPathNode, Talent, TalentTab, GlyphProperties, GlyphSlot,
+  CreatureFamily, StableSlotPrices, SkillLine, SkillRaceClassInfo,
+  AreaTable, Map, Faction, GameObjectDisplayInfo, Vehicle, VehicleSeat,
+  TransportAnimation, TransportRotation, Emotes, EmotesText, SoundEntries,
+  ZoneMusic, Light, ChrClasses, ChrRaces, ItemSet, GemProperties,
+  SpellItemEnchantment, ItemLimitCategory, TotemCategory and CharTitles.
+  This is an environment change (BR-wave3-7), so round 290 re-measured the
+  gates on the wave base with the staged files before wave-3 changes were
+  compared against them.
+- Every task landed on a Sol `pass` of its whole final diff, or under a
+  named build ruling. 33 of the 36 landed tasks failed their first review;
+  talents-2, world-6 and self-state-10b passed it. Under BR-wave3-1 a task
+  gets up to three fix rounds, and a task that blocks others gets one
+  rescue round: economy-6, travel-2, travel-4 and pets-10 used it. pets-10
+  landed under BR-pets-10-3 and spells-14 after one landing-only round
+  (BR-spells-14-2). Twelve tasks are parked: economy-7, T-11, economy-9,
+  vehicles-4 and vehicles-7 after the rescue round; items-9, group-11 and
+  social-14 are leaf tasks and get none; economy-8, economy-10, vehicles-9
+  and vehicles-8 depend on parked code and are not built.
+- Builders stopped at the 200-request budget 38 times; the driver
+  restarted each from its report and commits, and nothing was lost.
+- A quota watchdog read `omp usage --json` every 10 minutes: Anthropic
+  7-day usage went from 80% to 84% until the maintainer said to ignore it
+  and the watchdog stopped.
+- Throughput: 48 tasks decided in 22.4 hours, about 2.1 tasks per hour,
+  with up to 8 builders and reviewers at once.
+
+#### Coordinator commits
+
+| Commit | Why |
+|---|---|
+| `6675b071` | Rule the wave-3 seed questions: SEED-3 sections, the merged edit table and the lease chains for the 11 units plus T-11 |
+| `07ecffd3`, `097f1b9b`, `d7f4a74c`, `98e3c560`, `ac573e31`, `5b549010` | SEED-3: seed `mail`, `bank`, `vehicles` and `transports`; move the spells journal block; split the control flag acks; extract the compressed-update inflate; split the movement block trailer tests |
+| `c48da2f8` | Probe fixture retarget and the preset import cycle (BR-economy-6-1, BR-T-11-1) |
+| `a96c7620`, `354e5587`, `7d547a15` | DBC rows in `docs/harness.md` for the files tasks read, and the talent reply wait (BR-wave3-8, BR-talents-3a-1) |
+| `c11888f5` | `max80` preset and the `useMeetingStone` alias in shared test lists (BR-items-7-1, BR-group-11-1) |
+| `0e945dc2`, `fe14a11d` | Repeat guard lines for summon and combat flags, the summon proof wording and the taxi spline flag (BR-group-11-2 to -4, BR-travel-4-1) |
+| `2410d63e`, `6a6ac413` | Death knight fallback evidence and parking T-11 with its consumers' fallbacks (BR-T-11-2, BR-T-11-3) |
+| `970fd0bc` | Park economy-7 and release its leases (BR-wave3-9, BR-wave3-10) |
+| `591599d6` | The `fairbreeze-emotes` grid and parking social-14 (BR-social-14-1, BR-social-14-2) |
+| `3371e5bc`, `0fce6e82` | Park group-11 and items-9; grant the swim handle lines (BR-group-11-5, BR-items-9-1, BR-self-state-12-1) |
+| `e2293f04`, `5f87ea2b`, `5d693726`, `6269636c` | Bank fields in the self ranges, the bank window test, the carried-read migration, and parking economy-9 and economy-10 (BR-economy-9-1 to -4, BR-self-state-12-2) |
+| `7cf9b6a8` | Landing height after a flight and the glyph reply deadline (BR-travel-6-1, BR-talents-5a-1) |
+| `9bbee25c`, `6a90bb97`, `366d6dd1` | Pet command fixture owner, the settle abort rejection fix, and landing pets-10 with its test gap noted (BR-pets-10-1 to -3) |
+| `95f2d110`, `8d6cc840` | `mounted` in `emptySelf`; the mount scenario on map 530 (BR-self-state-10a-1, BR-self-state-10a-2) |
+| `a4c603fa`, `244b8149`, `79993c71`, `4a2e86ea`, `20f066a3` | Root GUID routing for vehicles-4, the vehicles-5 landing order, and parking vehicles-4 and vehicles-9 (BR-vehicles-4-1 to -4, BR-vehicles-5-1) |
+| `c56d9ea7`, `9b73ff72` | The card renderer rows for spells-14 and its landing-only round (BR-spells-14-1, BR-spells-14-2) |
+| `16a65f77` | Grid rulings cover appended points (BR-wave3-11) |
+| `39a16226`, `46e35ca4`, `d18149e0` | Control-sync split for vehicles-7, the live leave proof moved to vehicles-8, and parking vehicles-7 and vehicles-8 (BR-vehicles-7-1 to -4); the branch is rebased onto `main` at `2285bec8` |
+
+#### Build rulings
+
+Seed rulings SR3-n and SEED3-n are in the unit files and the plan, and the
+DESIGN answers are in the plan. Wave-wide build rulings, each marked
+"coordinator ruling (P2-17)" in the plan: BR-wave3-1 (up to three fix
+rounds and a rescue round for tasks that block others), BR-wave3-2 (shared
+fixture fallout), BR-wave3-3 (spawn grids), BR-wave3-4 (`item6` met),
+BR-wave3-5 (T-11 runs first, preset consumers depend on it), BR-wave3-6
+(mock proof only after two live tries), BR-wave3-7 (the DBC staging is an
+environment change), BR-wave3-8 (tasks add the DBC rows they read),
+BR-wave3-9 (a parked task releases its leases), BR-wave3-10 (economy-7
+parked) and BR-wave3-11 (appended points on an existing grid).
+
+Task rulings, each marked "coordinator ruling (P2-17)" in its unit file:
+BR-T-11-1 to -3, BR-economy-6-1, BR-economy-9-1 to -4, BR-group-11-1 to
+-5, BR-items-7-1, BR-items-9-1, BR-pets-10-1 to -3, BR-self-state-10a-1
+and -2, BR-self-state-12-1 and -2, BR-social-14-1 and -2, BR-spells-14-1
+and -2, BR-talents-3a-1, BR-talents-5a-1, BR-travel-4-1, BR-travel-6-1,
+BR-vehicles-4-1 to -4, BR-vehicles-5-1 and BR-vehicles-7-1 to -4 (the
+control-sync split, the new transport module, the live leave proof that
+moved to vehicles-8, and the park).
+
+#### Eval results
+
+Round 292 ran every landed wave-3 scenario and the four gates at the tip `d18149e0`; round 293 ran the two scenarios that share a field with round-292 runs (`t8-pets-spells` with `t7-halt-resume`, `t8-pets-stable` with `t3-ghostlands-kill`), and round 294 two more `t3-ghostlands-kill` replicas. Round 290 had re-measured the gates on the wave base with the staged files (`t1-walk-to-npc` pass 2/2, `t0-hostiles` pass 3/3, `t7-halt-resume` pass 3/3, `t3-ghostlands-kill` fail 2/4, fail 1/4, pass 4/4 with gray-target causes), and round 291 at an earlier tip showed no halt regression. Each run's `run.json` and `result.json` are kept in `~/.local/state/peon-protocol-build/evals/`.
+
+| Scenario | Round, replica | Verdict |
+|---|---|---|
+| `t1-walk-to-npc` | 292 r1 | pass 2/2 |
+| `t7-halt-resume` | 292 r1 | pass 3/3 |
+| `t0-hostiles` | 292 r1 | pass 3/3 |
+| `t3-ghostlands-kill` | 292 r1-2, 294 r1-2 | fail 1/4 (pathing refusals: `target_lost`, `ambiguous_floor`, `path_corner_disagrees`, `no_ground`), pass 4/4; fail 1/4 (gray targets, the base cause), pass 4/4 |
+| `t8-travel-fly` | 292 r1-2 | fail 3/4 (a second landing wake, #492), pass 4/4 |
+| `t9-selfstate-mount` | 292 r1 | pass 6/6 |
+| `t4-spells-unlearn-profession` | 292 r1 | pass 2/2 |
+| `t8-items-socket` | 292 r1 | pass 2/2 |
+| `t8-talents-spend` | 292 r1-2 | fail 0/1 (one learn row for two ranks, #491), pass 1/1 |
+| `t8-talents-reset` | 292 r1 | pass 2/2 |
+| `t8-talents-glyph` | 292 r1 | pass 2/2 |
+| `t8-pets-rename` | 292 r1 | pass 3/3 |
+| `t8-pets-abandon` | 292 r1 | pass 3/3 |
+| `t8-pets-talent` | 292 r1 | pass 2/2 |
+| `t8-pets-spells` | 293 r1 | pass 3/3 |
+| `t8-pets-stable` | 293 r1 | pass 3/3 |
+| `t8-vehicles-board` | 292 r1 | pass 4/4 |
+
+Gates t1, t7 and t0 pass. `t3-ghostlands-kill` passes 2 of 4 replicas, against 1 of 3 on the base; one failure is the base gray-target cause and one is a run of pathing refusals in Ghostlands that the base runs did not show (one sample). The two scenario failures each pass on their second replica and have follow-ups.
+
+#### Coverage counts
+
+`mise protocol:coverage` at the tip (`d18149e0`): 933 opcodes, 580 handled
+(511 after wave 2), 19 stub, 307 missing, 27 dead, 60 not seen live (47
+after wave 2). `mise protocol:tables` and `mise protocol:coverage` give no
+diff at the tip.
+
+#### Incidents
+
+1. Wrong-checkout edits: builders wrote 12 times into the coordinator
+   worktree. A guard reverted each before any commit and saved the diff.
+2. Budget stops: 37 builder restarts at the 200-request budget; one
+   talents-5a agent ignored the force-stop at 305 requests, and the driver
+   continued it from its commits.
+3. Spawn capacity: spells-14's landing failed in the pre-push check because
+   two other tasks had filled `eversong-ready` (BR-spells-14-2), and
+   social-14's shared grid broke the 60 yd crowd test (BR-social-14-1).
+4. T-11's fishing proof stalled for about four minutes of retries while a
+   sibling worktree held the shared template character in the world; the
+   leftover accounts were deleted and the round continued.
+5. The map 571 navigation data is absent, so the mount scenario runs on map
+   530 with a ride of about 56 yd (BR-self-state-10a-2).
+6. A `t7-halt-resume` failure read from round 329 was a misreading of the
+   draft grader, which does not window by steer timestamps; round 291
+   showed no regression at the wave tip.
+7. Meeting-stone summons never produced `SMSG_SUMMON_REQUEST` in two live
+   tries, so it stays mock (BR-group-11-4).
+8. vehicles-7 is parked for a defect its own live ride reaches: a
+   transport-driven world transfer uses the deck-local `SMSG_NEW_WORLD`
+   coordinates as world coordinates (BR-vehicles-7-4). Board and ride were
+   proven live (board packet out, `MSG_MOVE_TELEPORT_ACK` round trip,
+   arrival at the far dock); the leave is proven with the fixture oracle
+   only, so the live leave proof that BR-vehicles-7-3 moved to vehicles-8
+   is not shown. vehicles-8 is not built.
+
+#### Follow-ups
+
+Filed as issues: #490 (finish the parked wave 3 tasks), #491 (grade spent talent points, not learn rows), #492 (do not wake the agent twice on a landing), #493 (window draft checks by steer timestamps). Recorded under "Left out" in the area docs: autonomous water detection, Northrend navigation data for a long mount ride, the two-participant meeting-stone portal, and session-6's dependency on T-11 (wave 4).
+
 ## COMPLETE

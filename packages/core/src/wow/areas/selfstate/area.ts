@@ -4,7 +4,9 @@ import {
   FLAG_OPCODES,
   parseCollisionHeight,
   parseCorpseMapPosition,
+  parseDismount,
   parseMirrorTimer,
+  parseMountSpecialAnim,
   parseMultipleMoves,
   parsePreResurrect,
   parseStandState,
@@ -25,6 +27,9 @@ export const selfstateArea = defineArea({
     "breath_low",
     "ghost_pending",
     "self_res_available",
+    "mounted",
+    "dismounted",
+    "mount_anim",
   ],
   store: (deps, core) => new SelfstateStore(deps, core),
   register: (wire, store) => {
@@ -53,6 +58,12 @@ export const selfstateArea = defineArea({
     wire.on(GameOpcode.SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE, (r) => {
       store.receiveCorpseMapPosition(parseCorpseMapPosition(r));
     });
+    wire.on(GameOpcode.SMSG_DISMOUNT, (r) =>
+      store.receiveDismount(parseDismount(r)),
+    );
+    wire.on(GameOpcode.SMSG_MOUNTSPECIAL_ANIM, (r) =>
+      store.receiveMountAnim(parseMountSpecialAnim(r)),
+    );
     wire.on(GameOpcode.SMSG_TRANSFER_ABORTED, (r) =>
       store.receiveTransferAborted(parseTransferAborted(r)),
     );

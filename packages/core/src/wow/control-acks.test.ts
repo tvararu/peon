@@ -124,7 +124,7 @@ describe("ControlRuntime", () => {
     }
   });
 
-  test("FACE and MOVE refuse unsupported teleport and control loss", () => {
+  test("FACE and MOVE refuse an observed transport and control loss", () => {
     jest.useFakeTimers();
     try {
       const { runtime, sent } = setup();
@@ -136,21 +136,9 @@ describe("ControlRuntime", () => {
       ).toBe(false);
 
       const tele = setup();
-      tele.runtime.teleportAck({
-        guid: 0x0764n,
-        counter: 2,
-        info: info({
-          flags: MovementFlag.ON_TRANSPORT,
-          transport: {
-            guid: 0x99n,
-            x: 0,
-            y: 0,
-            z: 0,
-            orientation: 0,
-            time: 0,
-            seat: 0,
-          },
-        }),
+      tele.runtime.observeSelf({
+        movementFlags: MovementFlag.ON_TRANSPORT,
+        runSpeed: 7,
       });
       tele.sent.length = 0;
       expect(() => tele.runtime.move("forward", 500)).toThrow("transport");
@@ -210,7 +198,7 @@ describe("ControlRuntime", () => {
     }
   });
 
-  test("transport teleport ACKs include the transport block", () => {
+  test("a forced teleport that keeps the transport keeps the transport block (Player.cpp:1479-1490)", () => {
     jest.useFakeTimers();
     try {
       const { runtime, sent } = setup();
@@ -221,12 +209,12 @@ describe("ControlRuntime", () => {
           flags: MovementFlag.ON_TRANSPORT,
           transport: {
             guid: 0x99n,
+            orientation: 0.25,
+            seat: 1,
+            time: 44,
             x: 1,
             y: 2,
             z: 3,
-            orientation: 0.25,
-            time: 44,
-            seat: 1,
           },
         }),
       });
@@ -235,22 +223,56 @@ describe("ControlRuntime", () => {
       const rootAck = new PacketReader(must(sent[0]).body);
       rootAck.packedGuid();
       expect(rootAck.uint32LE()).toBe(9);
-      const rooted = parseMovementInfo(rootAck);
-      expect(rooted.flags & MovementFlag.ON_TRANSPORT).toBe(
+      const parsed = parseMovementInfo(rootAck);
+      expect(parsed.flags & MovementFlag.ON_TRANSPORT).toBe(
         MovementFlag.ON_TRANSPORT,
       );
-      expect(rooted.transport?.guid).toBe(0x99n);
-      expect(rooted.transport?.seat).toBe(1);
+      expect(parsed.transport).toMatchObject({
+        guid: 0x99n,
+        seat: 1,
+        x: 1,
+        y: 2,
+        z: 3,
+      });
+      expect(parsed.transport?.orientation).toBeCloseTo(0.25, 5);
       expect(rootAck.remaining).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("a transport-free forced teleport drops the old transport block", () => {
+    jest.useFakeTimers();
+    try {
+      const { runtime, sent } = setup();
+      runtime.teleportAck({
+        guid: 0x0764n,
+        counter: 2,
+        info: info({
+          flags: MovementFlag.ON_TRANSPORT,
+          transport: {
+            guid: 0x99n,
+            orientation: 0.25,
+            seat: 1,
+            time: 44,
+            x: 1,
+            y: 2,
+            z: 3,
+          },
+        }),
+      });
+      runtime.teleportAck({ guid: 0x0764n, counter: 3, info: info({}) });
       sent.length = 0;
-      runtime.forceSpeed(RUN_SPEED, { guid: 0x0764n, counter: 3, speed: 7 });
-      const speedAck = new PacketReader(must(sent[0]).body);
-      speedAck.packedGuid();
-      expect(speedAck.uint32LE()).toBe(3);
-      const moving = parseMovementInfo(speedAck);
-      expect(moving.transport?.guid).toBe(0x99n);
-      expect(speedAck.floatLE()).toBe(7);
-      expect(speedAck.remaining).toBe(0);
+      runtime.forceRoot(9);
+      sent.length = 0;
+      runtime.forceRoot(9);
+      const rootAck = new PacketReader(must(sent[0]).body);
+      rootAck.packedGuid();
+      expect(rootAck.uint32LE()).toBe(9);
+      const parsed = parseMovementInfo(rootAck);
+      expect(parsed.transport).toBeUndefined();
+      expect(parsed.flags & MovementFlag.ON_TRANSPORT).toBe(0);
+      expect(rootAck.remaining).toBe(0);
     } finally {
       jest.useRealTimers();
     }

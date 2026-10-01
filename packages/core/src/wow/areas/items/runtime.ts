@@ -25,6 +25,7 @@ import {
   type ItemPosition,
 } from "#wow/areas/items/protocol";
 import { type ReadActs, readActs } from "#wow/areas/items/runtime-reads";
+import { type SocketActs, socketActs } from "#wow/areas/items/runtime-sockets";
 import { wornItemLevel } from "#wow/areas/items/slots";
 import type { ItemsEvent, ItemsStore } from "#wow/areas/items/store";
 import type { InventoryState } from "#wow/inventory";
@@ -45,7 +46,8 @@ export type ItemsActs = {
     count: number,
   ) => Promise<MoveState>;
   setAmmo: (entry: number) => Promise<MoveState>;
-} & ReadActs;
+} & ReadActs &
+  SocketActs;
 
 const SETTLED = new Set<ItemsEvent["type"]>([
   "moved",
@@ -349,6 +351,7 @@ export function itemsRuntime(
       setAmmo: (entry) => setAmmo(env, entry),
       split: (from, to, count) => split(env, from, to, count),
       ...readActs(env),
+      ...socketActs(env),
     },
     dispose: () => {
       for (const off of offs) off();

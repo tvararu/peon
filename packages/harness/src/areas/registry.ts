@@ -1,6 +1,7 @@
 import type { AreaName } from "@peon/core";
 import { achievementsHarness } from "#harness/areas/achievements/area";
 import { ambienceHarness } from "#harness/areas/ambience/area";
+import { bankHarness } from "#harness/areas/bank/area";
 import { buybackHarness } from "#harness/areas/buyback/area";
 import { combatlogHarness } from "#harness/areas/combatlog/area";
 import { emotesHarness } from "#harness/areas/emotes/area";
@@ -9,6 +10,7 @@ import { itemsHarness } from "#harness/areas/items/area";
 import { lfgHarness } from "#harness/areas/lfg/area";
 import { loginHarness } from "#harness/areas/login/area";
 import { lootingHarness } from "#harness/areas/looting/area";
+import { mailHarness } from "#harness/areas/mail/area";
 import { objectsHarness } from "#harness/areas/objects/area";
 import { petsHarness } from "#harness/areas/pets/area";
 import { questsHarness } from "#harness/areas/quests/area";
@@ -20,12 +22,15 @@ import { talentsHarness } from "#harness/areas/talents/area";
 import { threatHarness } from "#harness/areas/threat/area";
 import { timeHarness } from "#harness/areas/time/area";
 import { tradeHarness } from "#harness/areas/trade/area";
+import { transportsHarness } from "#harness/areas/transports/area";
 import { travelHarness } from "#harness/areas/travel/area";
 import { unitmotionHarness } from "#harness/areas/unitmotion/area";
+import { vehiclesHarness } from "#harness/areas/vehicles/area";
 
 export const HARNESS_AREAS = {
   achievements: achievementsHarness,
   ambience: ambienceHarness,
+  bank: bankHarness,
   buyback: buybackHarness,
   combatlog: combatlogHarness,
   emotes: emotesHarness,
@@ -34,6 +39,7 @@ export const HARNESS_AREAS = {
   lfg: lfgHarness,
   login: loginHarness,
   looting: lootingHarness,
+  mail: mailHarness,
   objects: objectsHarness,
   pets: petsHarness,
   quests: questsHarness,
@@ -45,8 +51,10 @@ export const HARNESS_AREAS = {
   threat: threatHarness,
   time: timeHarness,
   trade: tradeHarness,
+  transports: transportsHarness,
   travel: travelHarness,
   unitmotion: unitmotionHarness,
+  vehicles: vehiclesHarness,
 };
 export const HARNESS_AREAS_TOTAL: [
   Exclude<AreaName, keyof typeof HARNESS_AREAS>,

@@ -38,7 +38,20 @@ export type CorpseQueryOutcome =
   | { status: "ok"; position: CorpseMapPosition }
   | { status: "no_answer" };
 
+export type DismountOutcome =
+  | { status: "ok" }
+  | { status: "refused"; reason: "not_mounted" | "in_flight" }
+  | { status: "no_answer" };
+
+export type MountSpecialAnimOutcome =
+  | { status: "ok" }
+  | { status: "refused"; reason: "not_mounted" };
+
+export const DISMOUNT_TIMEOUT_MS = 2000;
+
 export type SelfstateActs = {
+  dismount: () => Promise<DismountOutcome>;
+  mountSpecialAnim: () => MountSpecialAnimOutcome;
   setStandState: (state: StandStateName) => Promise<StandOutcome>;
   selfResurrect: () => Promise<SelfResOutcome>;
   queryCorpseMapPosition: () => Promise<CorpseQueryOutcome>;
@@ -112,6 +125,9 @@ function watchSelfFields(
       store.syncStandField(fields.standState);
     if (((fields.playerFlags ?? 0) & PLAYER_FLAG_GHOST) !== 0)
       store.clearGhostPending();
+    const fresh =
+      event.type !== "update" || event.changed.includes("rawFields");
+    store.syncMountFields(fields.unitFlags, fields.mountDisplayId, fresh);
     if (fields.selfResSpell === undefined) return;
     const spellId = fields.selfResSpell;
     if (store.syncSelfResSpell(spellId))
@@ -136,6 +152,46 @@ function standStateAct(ctx: Ctx, store: SelfstateStore) {
       if (isTimeout(error)) return { status: "no_answer" };
       throw error;
     }
+  };
+}
+
+function dismountAct(ctx: Ctx, store: SelfstateStore) {
+  return async (): Promise<DismountOutcome> => {
+    if (!store.snapshot().mounted)
+      return { status: "refused", reason: "not_mounted" };
+    if (store.inFlight()) return { status: "refused", reason: "in_flight" };
+    const wait = new AbortController();
+    const answer = ctx.until((event) => event.type === "dismounted", {
+      timeoutMs: DISMOUNT_TIMEOUT_MS,
+      signal: wait.signal,
+    });
+    answer.catch(ignoreFailure);
+    try {
+      ctx.send(GameOpcode.CMSG_CANCEL_MOUNT_AURA);
+    } catch (error) {
+      wait.abort();
+      await answer.then(
+        () => undefined,
+        () => undefined,
+      );
+      throw error;
+    }
+    try {
+      await answer;
+      return { status: "ok" };
+    } catch (error) {
+      if (isTimeout(error)) return { status: "no_answer" };
+      throw error;
+    }
+  };
+}
+
+function mountSpecialAnimAct(ctx: Ctx, store: SelfstateStore) {
+  return (): MountSpecialAnimOutcome => {
+    if (!store.snapshot().mounted)
+      return { status: "refused", reason: "not_mounted" };
+    ctx.send(GameOpcode.CMSG_MOUNTSPECIAL_ANIM);
+    return { status: "ok" };
   };
 }
 
@@ -270,6 +326,8 @@ export function selfstateRuntime(
   const offFields = watchSelfFields(ctx, store, core);
   return {
     act: {
+      dismount: dismountAct(ctx, store),
+      mountSpecialAnim: mountSpecialAnimAct(ctx, store),
       setStandState: standStateAct(ctx, store),
       selfResurrect: selfResurrectAct(ctx, store),
       queryCorpseMapPosition: corpseQueryAct(ctx, store),

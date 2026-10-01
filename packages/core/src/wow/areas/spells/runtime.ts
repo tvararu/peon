@@ -1,3 +1,4 @@
+import { ignoreFailure } from "#lib/ignore-failure";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import {
   ACTION_BUTTON_TYPE_CODES,
@@ -7,7 +8,9 @@ import {
   buildCancelGrowthAura,
   buildSetActionButton,
   buildTotemDestroyed,
+  buildUnlearnSkill,
 } from "#wow/areas/spells/protocol";
+import { loadSkillCatalog } from "#wow/areas/spells/skill-names";
 import type { SpellsEvent, SpellsStore } from "#wow/areas/spells/store";
 import { TOTEM_SLOTS } from "#wow/areas/spells/totems";
 import { ACTION_BUTTON_SLOTS } from "#wow/protocol/action-buttons";
@@ -28,6 +31,7 @@ export type SpellsActs = {
   ) => SpellsActResult;
   setActionBarToggles: (mask: number) => SpellsActResult;
   destroyTotem: (slot: number) => SpellsActResult;
+  unlearnSkill: (skillId: number) => SpellsActResult;
 };
 
 const PASSIVE = 0x40;
@@ -134,6 +138,22 @@ function totemActs(
   }
   return { destroyTotem };
 }
+
+function skillActs(
+  ctx: AreaRuntimeCtx<SpellsEvent>,
+  store: SpellsStore,
+): Pick<SpellsActs, "unlearnSkill"> {
+  function unlearnSkill(skillId: number): SpellsActResult {
+    if (!Number.isInteger(skillId) || skillId <= 0)
+      return { ok: false, reason: "invalid_skill" };
+    if (!store.isPrimaryProfession(skillId))
+      return { ok: false, reason: "not_profession" };
+    if (!store.skillKnown(skillId)) return { ok: false, reason: "not_known" };
+    ctx.send(GameOpcode.CMSG_UNLEARN_SKILL, buildUnlearnSkill(skillId));
+    return { ok: true };
+  }
+  return { unlearnSkill };
+}
 const MAX_TIMER_MS = 2 ** 31 - 1;
 
 function trackTotemExpiry(
@@ -168,9 +188,18 @@ export function spellsRuntime(
   store: SpellsStore,
   core: CoreStores,
 ): AreaRuntime<SpellsActs> {
+  if (ctx.dbc)
+    loadSkillCatalog(ctx.dbc)
+      .then((catalog) => {
+        if (!ctx.signal.aborted) store.setSkillCatalog(catalog);
+      })
+      .catch(ignoreFailure);
   const disposeTotems = trackTotemExpiry(ctx, store);
   const off = ctx.listen("entity", (event) => {
-    if (event.type === "update" && event.entity.guid === ctx.selfGuid())
+    if (
+      (event.type === "appear" || event.type === "update") &&
+      event.entity.guid === ctx.selfGuid()
+    )
       store.selfFields(event.entity.rawFields);
     if (event.type !== "disappear") return;
     store.dropUnitCast(event.guid);
@@ -181,6 +210,7 @@ export function spellsRuntime(
       ...channelAuraActs(ctx, core),
       ...totemActs(ctx, store),
       ...barActs(ctx, core),
+      ...skillActs(ctx, store),
     },
     dispose: () => {
       off();

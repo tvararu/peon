@@ -16,6 +16,7 @@ import { defineGameTool, emptyUnit, result } from "#harness/tools/define";
 import type { GameToolSpec } from "#harness/tools/game-tool";
 import { bindStep } from "#harness/tools/interact-bind";
 import { buybackStep } from "#harness/tools/interact-buyback";
+import { flightExtra } from "#harness/tools/interact-flight";
 import {
   acceptStep,
   baseAfter,
@@ -32,6 +33,13 @@ import {
   waitGreeting,
 } from "#harness/tools/interact-quest";
 import { turnInStep } from "#harness/tools/interact-reward";
+import {
+  buySlotStep,
+  stableExtra,
+  stableStep,
+  unstableStep,
+} from "#harness/tools/interact-stable";
+import { resetTalentsStep } from "#harness/tools/interact-talents";
 import {
   repairStep,
   trainerExtra,
@@ -55,6 +63,7 @@ const SHOP_ROLES = new Set([
   "class_trainer",
   "profession_trainer",
   "repair",
+  "stable_master",
 ]);
 
 function emptyInteract(): InteractAfter {
@@ -77,9 +86,13 @@ function emptyInteract(): InteractAfter {
   };
 }
 
-const TALK_EXTRAS: TalkExtra[] = [vendorExtra, trainerExtra];
+const TALK_EXTRAS: TalkExtra[] = [vendorExtra, trainerExtra, stableExtra];
 
-function talkNext(npc: NpcTarget, after: InteractAfter): string | undefined {
+function talkNext(
+  npc: NpcTarget,
+  after: InteractAfter,
+  flightNext: string | undefined,
+): string | undefined {
   const available = after.offers.find((offer) => offer.state === "available");
   if (available)
     return nextCall("interact", {
@@ -94,6 +107,7 @@ function talkNext(npc: NpcTarget, after: InteractAfter): string | undefined {
       npc: npc.unit.ref,
       what: String(ready.line),
     });
+  return flightNext;
 }
 
 async function talkStep({
@@ -116,6 +130,8 @@ async function talkStep({
     after = { ...after, ...added.after };
     extra.push(...added.lines);
   }
+  const flight = await flightExtra({ ctx, npc });
+  extra.push(...flight.lines);
   const ready = offers
     .filter((offer) => offer.state === "ready")
     .map((offer) => `${offer.line}. ${offer.title} #${offer.id}`);
@@ -135,7 +151,12 @@ async function talkStep({
   const detail = opened
     ? `${npcLabel(npc)} offers:${said}`
     : `${npcLabel(npc)} opened no dialog in 3 s.`;
-  return result("DONE", { after, body, detail, next: talkNext(npc, after) });
+  return result("DONE", {
+    after,
+    body,
+    detail,
+    next: talkNext(npc, after, flight.next),
+  });
 }
 
 const STEPS = new Map<string, InteractStep>([
@@ -149,6 +170,10 @@ const STEPS = new Map<string, InteractStep>([
   ["repair", repairStep],
   ["bind", bindStep],
   ["buyback", buybackStep],
+  ["reset_talents", resetTalentsStep],
+  ["stable", stableStep],
+  ["unstable", unstableStep],
+  ["buy_slot", buySlotStep],
 ]);
 
 function objectTalk(ctx: ToolCtx<InteractAfter>, text: string): NpcTarget {
@@ -241,7 +266,7 @@ export const interactSpec: GameToolSpec<
   run: runInteract,
   text: {
     description:
-      "Walks to an NPC and does one job with it: talk, accept or turn in a quest, gossip, buy, sell junk, train or repair. talk lists what the NPC offers, with a number for each line.",
+      "Walks to an NPC and does one job with it: talk, accept or turn in a quest, gossip, buy, sell junk, train, repair, reset talents, or stable, unstable and buy stable slots. talk lists what the NPC offers, with a number for each line.",
     guidelines: [
       "talk lists what an NPC offers. Your own quest log is journal.",
       'For buy, what can be a stock line number, part of an item name (for example "water") or "item <id>".',

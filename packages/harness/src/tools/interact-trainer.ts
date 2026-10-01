@@ -1,4 +1,8 @@
 import type { NamedTrainerSpell, TrainerEvent, VendorEvent } from "@peon/core";
+import {
+  dismountFirst,
+  withDismountedFirst,
+} from "#harness/areas/selfstate/dismount-first";
 import type { InteractAfter, TrainerLine } from "#harness/contract/details";
 import type { ToolCtx } from "#harness/contract/services";
 import { Refusal } from "#harness/ops/refusal";
@@ -114,8 +118,8 @@ export const trainerExtra: TalkExtra = async ({ ctx, npc }) => {
     lines: [`${teaches}${nextLevelText(spells)}`],
   };
 };
-
 export const trainStep: InteractStep = async ({ args, ctx, npc }) => {
+  const ride = await dismountFirst(ctx);
   const spells = await openTrainerWindow(ctx, npc);
   if (!spells)
     throw new Refusal({
@@ -133,6 +137,39 @@ export const trainStep: InteractStep = async ({ args, ctx, npc }) => {
       line.cost <= before &&
       (what === undefined || line.name.toLowerCase().includes(what)),
   );
+  const { learned, refused } = await learnWanted(ctx, wanted);
+  const change = moneyChange(ctx, before);
+  const after = {
+    ...baseAfter(ctx, npc, "train"),
+    learned,
+    money: change,
+    spells: lines,
+  };
+  if (wanted.length === 0)
+    return withDismountedFirst(
+      ride,
+      result("DONE", {
+        after,
+        detail: `nothing to learn from ${npcLabel(npc)} now.${nextLevelText(spells)}`,
+      }),
+    );
+  const cost = change ? change.before - change.after : 0;
+  const detail = `learned ${learned.length === 0 ? "nothing" : learned.join(", ")} for ${shortMoney(cost)}${moneyText(change)}.`;
+  if (refused.length === 0)
+    return withDismountedFirst(ride, result("DONE", { after, detail }));
+  return withDismountedFirst(
+    ride,
+    result(learned.length === 0 ? "FAILED" : "PARTLY", {
+      after,
+      detail: `${detail} Refused: ${refused.join(", ")}.`,
+      reason: refused[0] ?? "refused",
+    }),
+  );
+};
+async function learnWanted(
+  ctx: ToolCtx<InteractAfter>,
+  wanted: readonly TrainerLine[],
+): Promise<{ learned: string[]; refused: string[] }> {
   const learned: string[] = [];
   const refused: string[] = [];
   for (const line of wanted) {
@@ -146,27 +183,8 @@ export const trainStep: InteractStep = async ({ args, ctx, npc }) => {
         answer?.state.lastOutcome?.reason ?? answer?.type ?? "no_answer",
       );
   }
-  const change = moneyChange(ctx, before);
-  const after = {
-    ...baseAfter(ctx, npc, "train"),
-    learned,
-    money: change,
-    spells: lines,
-  };
-  if (wanted.length === 0)
-    return result("DONE", {
-      after,
-      detail: `nothing to learn from ${npcLabel(npc)} now.${nextLevelText(spells)}`,
-    });
-  const cost = change ? change.before - change.after : 0;
-  const detail = `learned ${learned.length === 0 ? "nothing" : learned.join(", ")} for ${shortMoney(cost)}${moneyText(change)}.`;
-  if (refused.length === 0) return result("DONE", { after, detail });
-  return result(learned.length === 0 ? "FAILED" : "PARTLY", {
-    after,
-    detail: `${detail} Refused: ${refused.join(", ")}.`,
-    reason: refused[0] ?? "refused",
-  });
-};
+  return { learned, refused };
+}
 
 const NOTHING_DAMAGED = "Nothing needs repair";
 

@@ -4,7 +4,7 @@ import {
   parseCreateSpline,
 } from "#wow/protocol/monster-move";
 import { type MovementInfo, parseMovementInfo } from "#wow/protocol/movement";
-import type { PacketReader } from "#wow/protocol/packet";
+import type { PacketReader, Vec3 } from "#wow/protocol/packet";
 
 type Point = { x: number; y: number; z: number; orientation: number };
 
@@ -32,6 +32,10 @@ export type MovementData = {
   speeds?: Speeds;
   movementInfo?: MovementInfo;
   spline?: CreateSpline;
+  vehicle?: { id: number; orientation: number };
+  pathProgress?: number;
+  transportGuid?: bigint;
+  transportOffset?: Vec3;
 };
 
 type Placement = Omit<MovementData, "updateFlags">;
@@ -68,12 +72,15 @@ function readLiving(r: PacketReader): Placement {
 }
 
 function readStationaryTransport(r: PacketReader): Placement {
-  r.packedGuid();
+  const transportGuid = r.packedGuidBig();
   const position = r.vec3();
-  r.skip(12);
+  const transportOffset = r.vec3();
   const orientation = r.floatLE();
   r.skip(4);
-  return { point: { ...position, orientation } };
+  const point = { ...position, orientation };
+  return transportGuid === 0n
+    ? { point }
+    : { point, transportGuid, transportOffset };
 }
 
 function readPlacement(r: PacketReader, updateFlags: number): Placement {
@@ -97,15 +104,20 @@ export function unpackRotation(packed: bigint): Rotation {
 function readTrailer(
   r: PacketReader,
   updateFlags: number,
-): Pick<MovementData, "rotation"> {
+): Pick<MovementData, "rotation" | "vehicle" | "pathProgress"> {
   if (updateFlags & UpdateFlag.HIGH_GUID) r.skip(4);
   if (updateFlags & UpdateFlag.LOW_GUID) r.skip(4);
   if (updateFlags & UpdateFlag.HAS_ATTACKING_TARGET) r.packedGuid();
-  if (updateFlags & UpdateFlag.TRANSPORT) r.skip(4);
-  if (updateFlags & UpdateFlag.VEHICLE) r.skip(8);
-  if (!(updateFlags & UpdateFlag.ROTATION)) return {};
-  return { rotation: unpackRotation(r.uint64LE()) };
+  const trailer: Pick<MovementData, "rotation" | "vehicle" | "pathProgress"> =
+    {};
+  if (updateFlags & UpdateFlag.TRANSPORT) trailer.pathProgress = r.uint32LE();
+  if (updateFlags & UpdateFlag.VEHICLE)
+    trailer.vehicle = { id: r.uint32LE(), orientation: r.floatLE() };
+  if (updateFlags & UpdateFlag.ROTATION)
+    trailer.rotation = unpackRotation(r.uint64LE());
+  return trailer;
 }
+
 export function parseMovementBlock(r: PacketReader): MovementData {
   const updateFlags = r.uint16LE();
   const placement = readPlacement(r, updateFlags);

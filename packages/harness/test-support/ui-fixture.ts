@@ -132,6 +132,7 @@ export function selfFixture(over: Partial<SelfView> = {}): SelfView {
     life: "alive",
     maxHp: 217,
     maxPower: 300,
+    mounted: false,
     name: "Fgklibhlflc",
     pose: {
       ageMs: 200,

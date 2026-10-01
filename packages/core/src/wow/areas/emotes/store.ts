@@ -1,5 +1,6 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type { EmotePacket, TextEmotePacket } from "#wow/areas/emotes/protocol";
+import { type PlayerLife, readLife } from "#wow/player-state";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export type EmoteState = { guid: bigint; state: number };
@@ -20,8 +21,15 @@ export class EmoteStore {
   private readonly states = new Map<bigint, number>();
   private readonly selfGuid: () => bigint;
 
+  private readonly lifeOf: () => PlayerLife;
+
   constructor(deps: SessionDeps, _core: CoreStores) {
     this.selfGuid = deps.selfGuid;
+    this.lifeOf = () => readLife(deps.selfGuid(), deps.getEntity).life;
+  }
+
+  life(): PlayerLife {
+    return this.lifeOf();
   }
 
   snapshot(): EmotesState {

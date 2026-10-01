@@ -6,7 +6,6 @@ import {
   type QuestQuery,
   type QuestState,
   questSlotStatus,
-  type SpellDefinition,
 } from "@peon/core";
 import { questRegion } from "#harness/areas/quests/reads";
 import {
@@ -14,15 +13,13 @@ import {
   reputationLines,
   reputationRows,
 } from "#harness/areas/reputation/journal";
-import { visibleSpellbook } from "#harness/areas/spells/book";
-import { spellsJournalExtras } from "#harness/areas/spells/journal";
+import { spellsResult } from "#harness/areas/spells/journal";
 import type {
   BagRow,
   BagsView,
   EquipSlotName,
   JournalAfter,
   QuestLine,
-  SpellLine,
 } from "#harness/contract/details";
 import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
@@ -403,39 +400,6 @@ async function bagsResult(ctx: Ctx): Promise<ToolResult<JournalAfter>> {
     after: { about: "bags", bags },
     body: [equippedLine(bags), ...itemLines(bags, sold)],
     detail,
-  });
-}
-
-function spellLine(spell: SpellDefinition): SpellLine {
-  return {
-    cooldownMs: spell.cooldown.recoveryTimeMs || undefined,
-    cost: spell.power.costRaw || undefined,
-    id: spell.id,
-    name: spell.name,
-    rank: spell.rank || undefined,
-  };
-}
-
-function spellText({ cooldownMs, cost, name, rank }: SpellLine): string {
-  const rankText = rank ? ` (${rank})` : "";
-  const costText = cost ? `costs ${cost}` : "no cost";
-  const cooldownText = cooldownMs
-    ? `, cooldown ${Math.round(cooldownMs / 1000)} s`
-    : "";
-  return `${name}${rankText}: ${costText}${cooldownText}.`;
-}
-
-async function spellsResult({
-  handle,
-}: Ctx): Promise<ToolResult<JournalAfter>> {
-  const spells = (await visibleSpellbook(handle))
-    .map(spellLine)
-    .sort((a, b) => a.name.localeCompare(b.name));
-  const { auras, bar, lines } = spellsJournalExtras(handle);
-  return result("DONE", {
-    after: { about: "spells", auras, bar, spells },
-    body: [...lines, ...spells.map(spellText)],
-    detail: `${spells.length} spells known.`,
   });
 }
 

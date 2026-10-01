@@ -81,6 +81,7 @@ import {
 import type { QuestDialog } from "#wow/quests-requests";
 import type { SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
+import { selfGuid } from "#wow/world-handlers";
 
 type CombatStores = Pick<SessionStores, "combat" | "motion" | "self">;
 
@@ -170,6 +171,7 @@ function registerMeleeHandlers(
       orientation: orientation ?? 0,
     });
     motion.monsterMove(move, mapId);
+    if (move.guid === selfGuid(conn)) self.receive({ type: "spline", move });
   });
 }
 

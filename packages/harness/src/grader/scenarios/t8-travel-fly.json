@@ -1,0 +1,66 @@
+{
+  "botRisk": "med",
+  "budget": {
+    "minutes": 10,
+    "tools": 40,
+    "turns": 16
+  },
+  "checks": [
+    {
+      "evidence": {
+        "point": {
+          "x": 9385.2,
+          "y": -7165.9
+        }
+      },
+      "expect": "T final position within 40 yd of (9385.2, -7165.9, map 530), the point 10 yd north of the Silvermoon City landing point (9375.2, -7165.9) that is flight node 82 in the taxi catalog; the Ghostlands start is more than 1800 yd away, so a server that saved the take-off position fails it",
+      "id": "at-silvermoon",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "point": {
+          "x": 9375.2,
+          "y": -7165.9
+        }
+      },
+      "expect": "T final position between 6 and 14 yd from the Silvermoon City landing point (9375.2, -7165.9, map 530): the agent walked about ten yards after the landing, which a pose stuck 2 yd above the navmesh ground refuses; the direction is not checked because the tools give the agent no compass for coordinates",
+      "id": "walked-ten-yards",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "delta": ["money"],
+        "truth": ["money"]
+      },
+      "expect": "T delta money is below 0 and not below -110 (the 110 copper list price of the Tranquillien to Silvermoon City flight)",
+      "id": "paid-fare",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["travel/flight_started", "travel/flight_landed"]
+      },
+      "expect": "GL has a travel/flight_started row followed by a travel/flight_landed row",
+      "id": "flight-rows",
+      "source": "game_log"
+    }
+  ],
+  "id": "t8-travel-fly",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "ghostlands20",
+  "setup": [
+    {
+      "body": {
+        "copper": 5000
+      },
+      "endpoint": "money"
+    }
+  ],
+  "steers": [],
+  "task": "Fly to Silvermoon City, then walk ten yards north.",
+  "tier": 8
+}

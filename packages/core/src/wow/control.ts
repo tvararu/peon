@@ -1,4 +1,5 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
+import { FlightTracker } from "#wow/control-flight";
 import {
   assertInput,
   inputOf,
@@ -9,11 +10,14 @@ import {
 } from "#wow/control-input";
 import { type GroundOracle, MAX_DURATION_MS } from "#wow/control-motion";
 import { type MovementGuide, Mover } from "#wow/control-mover";
+import type { RideSeat } from "#wow/control-ride";
+import { AirMoves, type AscendKind, type PitchKind } from "#wow/control-swim";
 import { MovementSync, type SelfObservation } from "#wow/control-sync";
 import { DirectedWalk } from "#wow/control-walk";
 import type { Position } from "#wow/entity-store";
 import { bearing, distance2d } from "#wow/geometry";
 import type { NavPoint } from "#wow/ground-step";
+import type { MonsterMove } from "#wow/protocol/monster-move";
 import {
   buildSetSelection,
   type ClientControl,
@@ -97,6 +101,8 @@ export class ControlRuntime {
   private readonly events = new Emitter<[ControlEvent]>();
   private readonly sync: MovementSync;
   private readonly mover: Mover;
+  private readonly flight: FlightTracker;
+  private readonly air: AirMoves;
   private readonly stops = new Emitter<[string]>();
   private requestedTarget: bigint | undefined;
 
@@ -110,9 +116,35 @@ export class ControlRuntime {
       stop: (reason: string) => this.mover.stop(reason, false),
     };
     const interrupt = (reason: string): void => this.stops.emit(reason);
+    const emitFlight = (
+      type: "control_changed" | "server_correction",
+      reason?: string,
+    ): void => this.emit(type, reason);
     this.deps = deps;
     this.sync = new MovementSync({ deps, emit, motion });
     this.mover = new Mover({ deps, sync: this.sync, emit, interrupt });
+    this.flight = new FlightTracker({
+      deps,
+      emit: emitFlight,
+      motion: {
+        abort: (reason: string) => this.mover.abort(reason),
+        stop: (reason: string) => this.mover.stop(reason, false),
+      },
+      movementInfo: () => this.sync.movementInfo(),
+      serverPose: (pose) => this.sync.setFlightPose(pose),
+      poseMapId: () => this.sync.mapId,
+      landedWithBlocker: (blockers) => this.sync.restoreFlightBlocker(blockers),
+    });
+    this.sync.setFlight(this.flight);
+    this.air = new AirMoves({
+      send: deps.send,
+      selfGuid: deps.selfGuid,
+      host: this.sync,
+      enter: (reason) => {
+        this.mover.stop(reason, true);
+        if (this.mover.airborne) this.mover.abort(reason);
+      },
+    });
   }
 
   onEvent(listener: (event: ControlEvent) => void): Unsubscribe {
@@ -152,6 +184,18 @@ export class ControlRuntime {
 
   observeSelf(input: SelfObservation): void {
     this.sync.observeSelf(input);
+  }
+
+  observeSelfSpline(move: MonsterMove): void {
+    this.sync.observeSelfSpline(move);
+  }
+
+  vehicleSeat(seat: RideSeat): void {
+    this.sync.vehicleSeat(seat);
+  }
+
+  vehicleLeft(): void {
+    this.sync.vehicleLeft();
   }
 
   observeTarget(target: bigint): void {
@@ -212,6 +256,26 @@ export class ControlRuntime {
 
   timeSkipped(ms: number): void {
     this.sync.timeSkipped(ms);
+  }
+
+  setSwimming(on: boolean): void {
+    this.air.setSwimming(on);
+  }
+
+  setFlying(on: boolean): void {
+    this.air.setFlying(on);
+  }
+
+  pitch(kind: PitchKind): void {
+    this.air.pitch(kind);
+  }
+
+  ascend(kind: AscendKind): void {
+    this.air.ascend(kind);
+  }
+
+  descend(): void {
+    this.air.descend();
   }
 
   resetFall(): void {
@@ -309,10 +373,12 @@ export class ControlRuntime {
 
   halt(reason = "halt"): void {
     this.mover.stop(reason, true);
+    this.air.stopActiveInputs();
   }
 
   dispose(): void {
     this.events.clear();
+    this.flight.dispose();
     this.sync.dispose();
     this.mover.abort("close");
     this.stops.clear();

@@ -132,6 +132,8 @@ const spells: JournalAfter = {
     { id: 7, name: "macro 7", slot: 5, type: "macro" },
     { id: 1, name: "set 1", slot: 9, type: "equipment_set" },
   ],
+  professions: [],
+  runes: undefined,
   spells: [
     { cooldownMs: 30_000, cost: 55, id: 133, name: "Fireball", rank: "Rank 1" },
     {
@@ -142,6 +144,7 @@ const spells: JournalAfter = {
       rank: undefined,
     },
   ],
+  totems: [],
 };
 
 const bags: JournalAfter = {
@@ -339,6 +342,31 @@ describe("card family", () => {
     ).join("\n");
     expect(text).not.toContain("Auras");
     expect(text).not.toContain("Bar");
+    expect(text).not.toContain("Professions");
+    expect(text).not.toContain("Totems");
+    expect(text).not.toContain("Runes");
+  });
+
+  test("journal spells lists professions, the totem and the runes", () => {
+    const full: JournalAfter = {
+      ...spells,
+      professions: [{ id: 186, max: 75, name: "Mining", value: 12 }],
+      runes: [
+        { index: 0, ready: true, type: 0 },
+        { index: 1, ready: false, type: 3 },
+      ],
+      totems: [
+        { element: "earth", name: "Stoneskin Totem", slot: 1, spellId: 8071 },
+      ],
+    };
+    const text = plain(
+      renderResultLines(journalTool, done(full, "2 spells known."), {
+        options: open,
+      }),
+    ).join("\n");
+    expect(text).toContain("Mining 12/75");
+    expect(text).toContain("Stoneskin Totem");
+    expect(text).toContain("Rune 1");
   });
 
   test("journal bags shows worn durability, item marks and ammo", () => {

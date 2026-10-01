@@ -1,15 +1,29 @@
 import { describe, expect, test } from "bun:test";
 import {
+  travelActivateTaxiReplyBody,
   travelBinderConfirmBody,
   travelBindPointUpdateBody,
   travelPlayerBoundBody,
+  travelShowTaxiNodesBody,
+  travelTaxiNodeStatusBody,
 } from "#test-support/areas/travel";
 import {
+  buildActivateTaxi,
+  buildActivateTaxiExpress,
   buildBinderActivate,
+  buildEnableTaxi,
+  buildMoveSplineDone,
+  buildSetTaxiBenchmarkMode,
+  buildTaxiNodeStatusQuery,
+  buildTaxiQueryAvailableNodes,
+  parseActivateTaxiReply,
   parseBinderConfirm,
   parseBindPointUpdate,
   parsePlayerBound,
+  parseShowTaxiNodes,
+  parseTaxiNodeStatus,
 } from "#wow/areas/travel/protocol";
+import { writeMovementInfo } from "#wow/protocol/movement";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 const INNKEEPER = 0xf1_30_00_3e_4a_00_12_34n;
@@ -63,5 +77,155 @@ describe("travel builders", () => {
     w.uint64LE(INNKEEPER);
     expect(buildBinderActivate(INNKEEPER)).toEqual(w.finish());
     expect(buildBinderActivate(INNKEEPER)).toHaveLength(8);
+  });
+});
+
+const TAXI_MASTER = 0xf1_30_00_3d_c1_00_04_57n;
+const ALL_ZERO = new Array<number>(14).fill(0);
+
+function maskOf(...nodes: number[]): number[] {
+  const words = new Array<number>(14).fill(0);
+  for (const node of nodes) {
+    const word = Math.floor((node - 1) / 32);
+    words[word] = ((words[word] ?? 0) | (1 << ((node - 1) % 32))) >>> 0;
+  }
+  return words;
+}
+
+describe("travel taxi parsers", () => {
+  test("SMSG_SHOWTAXINODES reads the npc, the current node and the known nodes from the mask (TaxiHandler.cpp:98-102, PlayerTaxi.h:35-40)", () => {
+    const body = travelShowTaxiNodesBody({
+      npc: TAXI_MASTER,
+      currentNode: 82,
+      mask: maskOf(1, 82, 413),
+    });
+    const parsed = parseShowTaxiNodes(new PacketReader(body));
+    expect(parsed.npc).toBe(TAXI_MASTER);
+    expect(parsed.currentNode).toBe(82);
+    expect(parsed.known).toEqual([1, 82, 413]);
+  });
+
+  test("SMSG_SHOWTAXINODES with an empty mask has no known nodes", () => {
+    const body = travelShowTaxiNodesBody({
+      npc: TAXI_MASTER,
+      currentNode: 82,
+      mask: ALL_ZERO,
+    });
+    expect(parseShowTaxiNodes(new PacketReader(body))).toEqual({
+      npc: TAXI_MASTER,
+      currentNode: 82,
+      known: [],
+    });
+  });
+
+  test("SMSG_TAXINODE_STATUS reads the guid and a boolean (TaxiHandler.cpp:27-55, Player.cpp:10715-10717)", () => {
+    const yes = new PacketReader(
+      travelTaxiNodeStatusBody({ npc: TAXI_MASTER, known: true }),
+    );
+    const no = new PacketReader(
+      travelTaxiNodeStatusBody({ npc: TAXI_MASTER, known: false }),
+    );
+    expect(parseTaxiNodeStatus(yes)).toEqual({ npc: TAXI_MASTER, known: true });
+    expect(parseTaxiNodeStatus(no)).toEqual({
+      npc: TAXI_MASTER,
+      known: false,
+    });
+  });
+
+  test("a short taxi body throws", () => {
+    expect(() =>
+      parseShowTaxiNodes(new PacketReader(new Uint8Array(16))),
+    ).toThrow();
+    expect(() =>
+      parseTaxiNodeStatus(new PacketReader(new Uint8Array(8))),
+    ).toThrow();
+  });
+});
+
+describe("travel taxi builders", () => {
+  test("the node status query, the map query and enable taxi each write the 8-byte npc guid (TaxiHandler.cpp:27-33,60-63; Opcodes.cpp:1302)", () => {
+    const w = new PacketWriter();
+    w.uint64LE(TAXI_MASTER);
+    const expected = w.finish();
+    expect(buildTaxiNodeStatusQuery(TAXI_MASTER)).toEqual(expected);
+    expect(buildTaxiQueryAvailableNodes(TAXI_MASTER)).toEqual(expected);
+    expect(buildEnableTaxi(TAXI_MASTER)).toEqual(expected);
+    expect(buildEnableTaxi(TAXI_MASTER)).toHaveLength(8);
+  });
+
+  test("CMSG_SET_TAXI_BENCHMARK_MODE is one u8 (MiscHandler.cpp:1580-1585)", () => {
+    expect(buildSetTaxiBenchmarkMode(true)).toEqual(new Uint8Array([1]));
+    expect(buildSetTaxiBenchmarkMode(false)).toEqual(new Uint8Array([0]));
+  });
+});
+
+describe("travel flight parsers", () => {
+  test("SMSG_ACTIVATETAXIREPLY maps each code and unknown codes (TaxiHandler.cpp:300-305; SharedDefines.h:3849-3864)", () => {
+    const names = [
+      "ok",
+      "server_error",
+      "no_such_path",
+      "not_enough_money",
+      "too_far",
+      "unknown_5",
+      "not_visited",
+      "busy",
+      "mounted",
+      "shapeshifted",
+      "moving",
+      "same_node",
+      "not_standing",
+    ];
+    for (const [code, name] of names.entries()) {
+      const reader = new PacketReader(travelActivateTaxiReplyBody(code));
+      expect(parseActivateTaxiReply(reader)).toEqual({ code, name });
+      expect(reader.remaining).toBe(0);
+    }
+    const unknown = new PacketReader(travelActivateTaxiReplyBody(99));
+    expect(parseActivateTaxiReply(unknown)).toEqual({
+      code: 99,
+      name: "unknown_99",
+    });
+  });
+});
+
+describe("travel flight builders", () => {
+  test("CMSG_ACTIVATETAXI writes guid, from and to (TaxiHandler.cpp:272-278)", () => {
+    const writer = new PacketWriter();
+    writer.uint64LE(TAXI_MASTER);
+    writer.uint32LE(83);
+    writer.uint32LE(82);
+    expect(buildActivateTaxi(TAXI_MASTER, 83, 82)).toEqual(writer.finish());
+  });
+  test("CMSG_ACTIVATETAXIEXPRESS writes guid, count and nodes (TaxiHandler.cpp:165-194; cmsg_activatetaxiexpress.wowm:11-17)", () => {
+    const writer = new PacketWriter();
+    writer.uint64LE(TAXI_MASTER);
+    writer.uint32LE(3);
+    writer.uint32LE(83);
+    writer.uint32LE(200);
+    writer.uint32LE(82);
+    expect(buildActivateTaxiExpress(TAXI_MASTER, [83, 200, 82])).toEqual(
+      writer.finish(),
+    );
+  });
+
+  test("CMSG_MOVE_SPLINE_DONE writes guid, movement info and spline id (TaxiHandler.cpp:208-214)", () => {
+    const info = {
+      extraFlags: 0,
+      fall: undefined,
+      fallTime: 0,
+      flags: 0,
+      orientation: 0.5,
+      time: 42,
+      transport: undefined,
+      x: 9400.5,
+      y: -6800.25,
+      z: 83.5,
+    };
+    const writer = new PacketWriter();
+    writer.packedGuidBig(TAXI_MASTER);
+    writeMovementInfo(writer, info);
+    writer.uint32LE(41);
+    expect(buildMoveSplineDone(TAXI_MASTER, info, 41)).toEqual(writer.finish());
   });
 });

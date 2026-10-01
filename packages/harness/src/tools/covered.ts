@@ -24,6 +24,7 @@ const COVERS: Partial<Record<ToolName, ReadonlySet<LogEvent>>> = {
     "vendor/repair",
     "trainer/learn",
   ]),
+  vehicle: new Set<LogEvent>(["vehicles/entered", "vehicles/control"]),
 };
 const REPORTED = new Set<ToolStatus>(["DONE", "PARTLY"]);
 

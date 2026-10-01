@@ -37,11 +37,22 @@ or the page names one that does not exist.
 | Open a container and keep its contents | `t8-items-open` | |
 | Read a letter in its bags | `t8-items-read` | The Dusty Unsent Letter's page text is empty on this server. |
 | Load arrows for a ranged weapon | `t8-items-ammo` | |
+| Socket a gem into gloves | `t8-items-socket` | |
 | Cancel one of its own buffs | `t4-spells-cancel-aura` | Harmful and passive auras cannot be cancelled. |
+| Drop a profession | `t4-spells-unlearn-profession` | Only primary professions. |
 | Stop a channelled spell with stop | `t4-spells-stop-channel` | Stop also ends a channel. |
 | Make an inn its home | `t8-travel-bind-inn` | `interact` `bind` walks to the innkeeper first. A bind the server does not answer (dead, out of range or in an instance) is `UNCONFIRMED`. |
 | Use the hearthstone to go home | `t8-travel-hearth-home` | `travel` `hearth` refuses without the stone, on cooldown, in combat or in flight. The scenario starts at the preset's own home, so it does not show a bind at another inn. |
+| Ride a mount and get off it | `t9-selfstate-mount` | Needs a known mount spell; mounting fails indoors and in combat,. The scenario starts in Tranquillien, 56 yd from the flight master, and rides to it. |
+| Fly to a discovered destination and walk on from the landing | `t8-travel-fly` | `travel` `fly <destination>` flies from a flight master in view, or from one at a known node on the same map within 300 yd; the first visit to a master learns its path and a landing steps onto the ground. A mounted character is refused ("Get off your mount first."). The scenario starts in Tranquillien, 54 yd from the master, and flies to Silvermoon City; the agent walked west when it was asked to walk north. |
 | Command a pet: call, dismiss, attack, follow, stay, stop and stance | `t8-pets-command` | Hunter only; no warlock or death knight preset. |
+| Cast and autocast pet spells | `t8-pets-spells` | Feed Pet needs an item-target cast and is not covered. A cast whose spell the catalog does not know is `UNCONFIRMED`. A pet far from its target fails out of range: send it with attack first. |
+| Rename or abandon a hunter pet | `t8-pets-rename`, `t8-pets-abandon` | A pet can be renamed once. Abandon runs only when the agent names the pet; it cannot be undone. Taming a new beast has no scenario. |
+| Stable a pet, call it back and buy a stable slot | `t8-pets-stable` | Needs a stable master near the spawn; the scenario starts in Tranquillien, 48 yd from the master, and walks to it. |
+| Spend talent points | `t8-talents-spend` | Learns only for the active spec. A server refusal has no reason on the wire; the reason shown comes from local rules. |
+| Reset talents at a class trainer | `t8-talents-reset` | Pays only up to the cost the agent allows. |
+| Get on a vehicle by clicking it and get off | `t8-vehicles-board` | The client does not read seat flags, so a request the seat forbids shows as no answer. The scenario uses the 7th Legion Chain Gun in Dragonblight, which a Horde `max80` can click; hostile Riflemen stand near it. |
+| Apply and remove glyphs | `t8-talents-glyph` | Active spec only. The slot type is found by trying. |
 | Set dungeon difficulty | `t9-instances-difficulty` | A solo change is not confirmed until the next dungeon entry; in a group only the leader can change it. |
 | Queue for the dungeon finder and leave | `t9-lfg-queue` | Joining needs an LFG option on the server; a queue with no reply is reported as disabled. |
 | Enter and leave a dungeon-finder dungeon with a party | `t9-lfg-run` | Needs a full party of five; the dungeon finder cannot bring a ghost back. |
@@ -56,6 +67,7 @@ or the page names one that does not exist.
 | Set loot rules and give master loot | `t9-raid-master-loot` | Needs a corpse that holds an item; the scenario allows three kills. `roll` and `pass_loot` are not shown: a group roll needs an uncommon drop and `pass_loot` has no server reply. |
 | Run and answer ready checks | `t9-raid-ready`, `t9-raid-answer` | Peon ends its own checks after 30 s. |
 | Mark targets | `t9-raid-mark` | Icon names are unconfirmed. |
+| Spend pet talent points | `t8-pets-talent` | Hunter only; spends one point of the pet's own talent tree at owner level 25. |
 
 ## Not shown by any scenario
 
@@ -73,6 +85,9 @@ These have tools or code but no scenario that checks them live:
 
 - Training spells, repairing, and selling junk (`interact` `train`,
   `repair`, `sell_junk`).
+- Place and remove a totem (no shaman preset, so no destroy-totem
+  scenario: `SMSG_TOTEM_CREATED` stays `unseen` and the destroy verb is
+  proven by unit tests only).
 - Group play: inviting, joining, leaving a group, and fighting as a group.
 - Ranged combat as a hunter.
 - Reading a shrine plaque (`t0-objects-read-shrine`, the agent reaches the shrine and `use read` returns the whole page, but the agent quotes the placard line inside the page instead of the page's opening sentence).
@@ -84,6 +99,6 @@ These have tools or code but no scenario that checks them live:
 - Give a master-looted item to a group member (`t9-raid-master-loot`, the agent sets master loot but its kills leave empty corpses or it names the loot method wrongly, so no item is given).
 - Answer a raid ready check (`t9-raid-answer`, the agent answers before the check starts, and the repeat guard then refuses its answer during the check).
 - Accept a quest a party member shares (`t8-quests-accept-shared`, the agent's early `accept_invite` is refused as a repeat, so it is not in the group when the partner shares).
+- Changing seats, riding with another player and ejecting a passenger (`vehicle` `seat`, `ride_with`, `eject`).
 
-Peon has no tool for mail, the auction house, flight paths or
-mounts.
+Peon has no tool for mail or the auction house.

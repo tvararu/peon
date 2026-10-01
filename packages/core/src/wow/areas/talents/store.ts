@@ -8,8 +8,11 @@ import type {
   PetTalentsInfo,
   PlayerTalentsInfo,
   TalentsInfo,
+  TalentWipeOffer,
 } from "#wow/areas/talents/protocol";
-import type { TalentSpec } from "#wow/protocol/talent-spec";
+import type { Entity } from "#wow/entity-store";
+import type { TalentRank, TalentSpec } from "#wow/protocol/talent-spec";
+import type { BuyItemFailure } from "#wow/protocol/vendor";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export type GlyphSlot = {
@@ -18,7 +21,12 @@ export type GlyphSlot = {
   unlocked: boolean | undefined;
   glyphId: number | undefined;
 };
+export const WIPE_OFFER_TTL_MS = 30_000;
+const BUY_NOT_ENOUGH_MONEY = 2;
+
+export type PendingWipeOffer = { npcGuid: bigint; cost: number; at: number };
 export type TalentsState = {
+  pendingOffer: PendingWipeOffer | undefined;
   player: PlayerTalentsInfo | undefined;
   pet: PetTalentsInfo | undefined;
   fields: TalentFields;
@@ -26,7 +34,14 @@ export type TalentsState = {
 };
 export type TalentChange = { talentId: number; from: number; to: number };
 export type GlyphChange = { slot: number; from: number; to: number };
+export type RefusedEntry = TalentRank & { reason: string };
+
 export type TalentsEvent =
+  | {
+      type: "refused";
+      outcome: "refused";
+      entries: readonly RefusedEntry[];
+    }
   | {
       type: "info";
       talents: readonly TalentChange[];
@@ -36,6 +51,8 @@ export type TalentsEvent =
       specBefore: number;
       specAfter: number;
     }
+  | { type: "wipe_offer"; npcGuid: bigint; cost: number }
+  | { type: "wipe_refused" }
   | { type: "points"; before: number; after: number }
   | {
       type: "pet_info";
@@ -93,6 +110,9 @@ export class TalentsStore {
   private readonly deps: SessionDeps;
   private player: PlayerTalentsInfo | undefined;
   private pet: PetTalentsInfo | undefined;
+  private offered: PendingWipeOffer | undefined;
+  private resetting = false;
+  private paymentFailed = false;
 
   constructor(deps: SessionDeps, _core: CoreStores) {
     this.deps = deps;
@@ -110,6 +130,7 @@ export class TalentsStore {
       glyphId: spec?.glyphs[index],
     }));
     return {
+      pendingOffer: this.pendingOffer(),
       player: this.player && structuredClone(this.player),
       pet: this.pet && structuredClone(this.pet),
       fields,
@@ -128,6 +149,7 @@ export class TalentsStore {
     }
     const before = this.player;
     this.player = packet;
+    this.offered = undefined;
     const index = packet.activeSpec;
     const pointsBefore = before?.freePoints ?? 0;
     this.events.emit({
@@ -153,6 +175,53 @@ export class TalentsStore {
       });
   }
 
+  offer(packet: TalentWipeOffer): void {
+    if (packet.npcGuid === 0n) {
+      this.offered = undefined;
+      this.events.emit({ type: "wipe_refused" });
+      return;
+    }
+    this.offered = {
+      at: this.deps.now(),
+      cost: packet.cost,
+      npcGuid: packet.npcGuid,
+    };
+    this.events.emit({
+      cost: packet.cost,
+      npcGuid: packet.npcGuid,
+      type: "wipe_offer",
+    });
+  }
+
+  beginReset(): void {
+    this.resetting = true;
+    this.paymentFailed = false;
+  }
+
+  endReset(): { paymentFailed: boolean } {
+    const paymentFailed = this.paymentFailed;
+    this.resetting = false;
+    this.paymentFailed = false;
+    return { paymentFailed };
+  }
+
+  buyFailed(failure: BuyItemFailure): void {
+    if (
+      this.resetting &&
+      failure.result === BUY_NOT_ENOUGH_MONEY &&
+      failure.vendorGuid === 0n &&
+      failure.itemId === 0
+    )
+      this.paymentFailed = true;
+  }
+
+  private pendingOffer(): PendingWipeOffer | undefined {
+    if (!this.offered) return undefined;
+    if (this.deps.now() - this.offered.at >= WIPE_OFFER_TTL_MS)
+      return undefined;
+    return { ...this.offered };
+  }
+
   private receivePet(packet: PetTalentsInfo): void {
     this.pet = packet;
     this.events.emit({
@@ -162,9 +231,24 @@ export class TalentsStore {
     });
   }
 
+  entityOf(guid: bigint): Entity | undefined {
+    return this.deps.getEntity(guid);
+  }
+
+  noteRefused(entries: readonly RefusedEntry[]): void {
+    this.events.emit({
+      entries: entries.map((entry) => ({ ...entry })),
+      outcome: "refused",
+      type: "refused",
+    });
+  }
+
   dispose(): void {
     this.events.clear();
     this.player = undefined;
     this.pet = undefined;
+    this.offered = undefined;
+    this.resetting = false;
+    this.paymentFailed = false;
   }
 }

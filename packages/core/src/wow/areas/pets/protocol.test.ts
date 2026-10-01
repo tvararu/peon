@@ -1,24 +1,50 @@
 import { describe, expect, test } from "bun:test";
 import {
+  petsNameInvalidBody,
+  petsNameQueryResponseBody,
   petsPetActionFeedbackBody,
   petsPetActionSoundBody,
   petsPetDismissSoundBody,
   petsPetLearnedSpellBody,
   petsPetUnlearnedSpellBody,
+  petsStabledPetsBody,
+  petsStableResultBody,
+  petsTameFailureBody,
 } from "#test-support/areas/pets";
 import {
+  buildBuyStableSlot,
+  buildDismissCritter,
+  buildLearnPreviewTalentsPet,
+  buildListStabledPets,
+  buildPetAbandon,
   buildPetAction,
   buildPetCancelAura,
   buildPetCastSpell,
+  buildPetLearnTalent,
+  buildPetNameQuery,
+  buildPetRename,
   buildPetSetAction,
   buildPetSpellAutocast,
   buildPetStopAttack,
   buildRequestPetInfo,
+  buildStablePet,
+  buildStableRevivePet,
+  buildStableSwapPet,
+  buildUnstablePet,
   PET_ACTION,
+  type PetNameInvalid,
+  type PetNameQueryResponse,
+  type PetTameFailure,
   parsePetActionFeedback,
   parsePetActionSound,
   parsePetDismissSound,
+  parsePetNameInvalid,
+  parsePetNameQueryResponse,
   parsePetSpellId,
+  parsePetTameFailure,
+  parseStabledPets,
+  parseStableResult,
+  type StableResult,
 } from "#wow/areas/pets/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 import { buildPetAttack } from "#wow/protocol/pet";
@@ -182,5 +208,235 @@ describe("pets protocol", () => {
     const r = new PacketReader(body);
     expect(r.uint64LE()).toBe(PET);
     expect(r.uint32LE()).toBe(2649);
+  });
+
+  test("CMSG_PET_NAME_QUERY writes the number then the guid (PetHandler.cpp:616-627)", () => {
+    const body = buildPetNameQuery(7, PET);
+    expect(body).toHaveLength(12);
+    const r = new PacketReader(body);
+    expect(r.uint32LE()).toBe(7);
+    expect(r.uint64LE()).toBe(PET);
+  });
+
+  test("SMSG_PET_NAME_QUERY_RESPONSE reads number, name and timestamp (PetHandler.cpp:656-668)", () => {
+    const body = petsNameQueryResponseBody({
+      name: "Fangtooth",
+      number: 7,
+      timestamp: 1_700_000_000,
+    });
+    expect(parsePetNameQueryResponse(new PacketReader(body))).toEqual({
+      declined: undefined,
+      name: "Fangtooth",
+      number: 7,
+      timestamp: 1_700_000_000,
+    } satisfies PetNameQueryResponse);
+  });
+
+  test("SMSG_PET_NAME_QUERY_RESPONSE reads the five declined names when the flag is 1", () => {
+    const body = petsNameQueryResponseBody({
+      declined: ["a", "b", "c", "d", "e"],
+      name: "Rex",
+      number: 2,
+      timestamp: 5,
+    });
+    const parsed = parsePetNameQueryResponse(new PacketReader(body));
+    expect(parsed.declined).toEqual(["a", "b", "c", "d", "e"]);
+  });
+
+  test("SMSG_PET_NAME_QUERY_RESPONSE not-found form gives an empty name (PetHandler.cpp:632-640)", () => {
+    const parsed = parsePetNameQueryResponse(
+      new PacketReader(new Uint8Array([3, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
+    );
+    expect(parsed).toEqual({
+      declined: undefined,
+      name: "",
+      number: 3,
+      timestamp: 0,
+    } satisfies PetNameQueryResponse);
+  });
+
+  test("CMSG_PET_RENAME writes guid, name and a zero declined flag (PetHandler.cpp:846-852)", () => {
+    const body = buildPetRename(PET, "Fangtooth");
+    const r = new PacketReader(body);
+    expect(r.uint64LE()).toBe(PET);
+    expect(r.cString()).toBe("Fangtooth");
+    expect(r.uint8()).toBe(0);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("SMSG_PET_NAME_INVALID names the refusal reasons (SharedDefines.h:3911-3929)", () => {
+    const codes: [number, PetNameInvalid["reason"]][] = [
+      [0, "success"],
+      [1, "invalid"],
+      [3, "too_short"],
+      [4, "too_long"],
+      [16, "declension_mismatch"],
+    ];
+    for (const [code, reason] of codes) {
+      const body = petsNameInvalidBody({ code, name: "A" });
+      expect(parsePetNameInvalid(new PacketReader(body))).toEqual({
+        code,
+        declined: undefined,
+        name: "A",
+        reason,
+      });
+    }
+  });
+
+  test("SMSG_PET_NAME_INVALID reads the declined names after flag 1 (PetHandler.cpp:1112-1126)", () => {
+    const body = petsNameInvalidBody({
+      code: 16,
+      declined: ["a", "b", "c", "d", "e"],
+      name: "Rex",
+    });
+    const parsed = parsePetNameInvalid(new PacketReader(body));
+    expect(parsed.reason).toBe("declension_mismatch");
+    expect(parsed.declined).toEqual(["a", "b", "c", "d", "e"]);
+  });
+});
+
+describe("pets stable protocol", () => {
+  const NPC = 0xf1_30_00_41_11_00_00_01n;
+
+  test("list, stable, buy and revive write one guid (NPCHandler.cpp:334-353,425-491,607-644)", () => {
+    for (const build of [
+      buildListStabledPets,
+      buildStablePet,
+      buildBuyStableSlot,
+      buildStableRevivePet,
+    ]) {
+      const r = new PacketReader(build(NPC));
+      expect(r.uint64LE()).toBe(NPC);
+      expect(r.remaining).toBe(0);
+    }
+  });
+
+  test("unstable and swap write the guid and the pet number (NPCHandler.cpp:493-605,646-738)", () => {
+    for (const build of [buildUnstablePet, buildStableSwapPet]) {
+      const r = new PacketReader(build(NPC, 77));
+      expect(r.uint64LE()).toBe(NPC);
+      expect(r.uint32LE()).toBe(77);
+      expect(r.remaining).toBe(0);
+    }
+  });
+
+  test("the stable list reads count, slots and pets with no loyalty field (NPCHandler.cpp:355-416)", () => {
+    const body = petsStabledPetsBody({
+      npc: NPC,
+      pets: [
+        { entry: 17_525, flag: 1, level: 10, name: "Ravager", number: 5 },
+        { entry: 1, flag: 2, level: 12, name: "Ravager", number: 9 },
+      ],
+      slots: 2,
+    });
+    const r = new PacketReader(body);
+    expect(parseStabledPets(r)).toEqual({
+      npc: NPC,
+      pets: [
+        {
+          entry: 17_525,
+          level: 10,
+          name: "Ravager",
+          number: 5,
+          state: "active",
+        },
+        { entry: 1, level: 12, name: "Ravager", number: 9, state: "stabled" },
+      ],
+      slots: 2,
+    });
+    expect(r.remaining).toBe(0);
+  });
+
+  test("a player with no pet stable reads an empty list (NPCHandler.cpp:365-370)", () => {
+    const r = new PacketReader(
+      petsStabledPetsBody({ npc: NPC, pets: [], slots: 0 }),
+    );
+    expect(parseStabledPets(r)).toEqual({ npc: NPC, pets: [], slots: 0 });
+  });
+
+  test("an unknown pet flag is kept as unknown", () => {
+    const body = petsStabledPetsBody({
+      npc: NPC,
+      pets: [{ entry: 1, flag: 7, level: 1, name: "X", number: 1 }],
+      slots: 1,
+    });
+    expect(parseStabledPets(new PacketReader(body)).pets[0]?.state).toBe(
+      "unknown",
+    );
+  });
+
+  test("SMSG_STABLE_RESULT names the codes (NPCHandler.cpp:38-46)", () => {
+    const names: [number, StableResult][] = [
+      [0x01, "money"],
+      [0x06, "refused"],
+      [0x08, "stabled"],
+      [0x09, "unstabled"],
+      [0x0a, "slot_bought"],
+      [0x0c, "exotic"],
+      [0x02, "unknown"],
+    ];
+    for (const [code, result] of names)
+      expect(
+        parseStableResult(new PacketReader(petsStableResultBody(code))),
+      ).toEqual({ code, result });
+  });
+});
+
+describe("pets abandon and tame failure protocol", () => {
+  test("abandon and dismiss critter write one guid (PetHandler.cpp:39-55, 931-953)", () => {
+    for (const body of [buildPetAbandon(PET), buildDismissCritter(PET)]) {
+      const r = new PacketReader(body);
+      expect(r.uint64LE()).toBe(PET);
+      expect(r.remaining).toBe(0);
+    }
+  });
+
+  test("SMSG_PET_TAME_FAILURE names the codes (SharedDefines.h:3931-3944)", () => {
+    const names: [number, PetTameFailure][] = [
+      [1, "invalid_creature"],
+      [2, "too_many"],
+      [3, "already_owned"],
+      [4, "not_tameable"],
+      [5, "another_summon_active"],
+      [6, "units_cant_tame"],
+      [7, "no_pet"],
+      [8, "internal_error"],
+      [9, "too_high_level"],
+      [10, "dead"],
+      [11, "not_dead"],
+      [12, "exotic"],
+      [13, "unknown_error"],
+      [14, "unknown"],
+      [0, "unknown"],
+    ];
+    for (const [code, reason] of names) {
+      const r = new PacketReader(petsTameFailureBody(code));
+      expect(parsePetTameFailure(r)).toEqual({ code, reason });
+      expect(r.remaining).toBe(0);
+    }
+  });
+});
+
+describe("pets talent protocol", () => {
+  test("a single talent writes guid, talent id and 0-based rank (PetHandler.cpp:1128-1138)", () => {
+    const r = new PacketReader(buildPetLearnTalent(PET, 2214, 0));
+    expect(r.uint64LE()).toBe(PET);
+    expect(r.uint32LE()).toBe(2214);
+    expect(r.uint32LE()).toBe(0);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("a preview list writes guid, count, then talent and rank pairs (PetHandler.cpp:1140-1165)", () => {
+    const r = new PacketReader(
+      buildLearnPreviewTalentsPet(PET, [
+        { rank: 0, talent: 2214 },
+        { rank: 2, talent: 2215 },
+      ]),
+    );
+    expect(r.uint64LE()).toBe(PET);
+    expect(r.uint32LE()).toBe(2);
+    expect([r.uint32LE(), r.uint32LE()]).toEqual([2214, 0]);
+    expect([r.uint32LE(), r.uint32LE()]).toEqual([2215, 2]);
+    expect(r.remaining).toBe(0);
   });
 });

@@ -14,6 +14,7 @@ describe("spells harness rules", () => {
       "cancelAura",
       "destroyTotem",
       "setActionButton",
+      "unlearnSkill",
     ]);
   });
 
@@ -256,5 +257,81 @@ describe("spells totem rows", () => {
         text: "Stoneskin Totem gone (earth, gone).",
       },
     ]);
+  });
+});
+
+describe("spells skill rows", () => {
+  const changed = (from: number | undefined, to: number): AreaEvent => ({
+    area: "spells",
+    event: {
+      from,
+      id: 186,
+      max: 75,
+      name: "Mining",
+      to,
+      type: "skill_changed",
+    },
+  });
+
+  test("a new skill learns, a raise reads is now, and a removal reads dropped", () => {
+    const removed: AreaEvent = {
+      area: "spells",
+      event: { id: 186, name: "Mining", type: "skill_removed" },
+    };
+    expect(
+      areaDrafts(areaRuleSet(), changed(undefined, 1), testRuleInput()),
+    ).toMatchObject([
+      {
+        event: "spells/skill_changed",
+        text: "Mining learned, 1/75.",
+      },
+    ]);
+    expect(
+      areaDrafts(areaRuleSet(), changed(1, 12), testRuleInput()),
+    ).toMatchObject([
+      {
+        event: "spells/skill_changed",
+        text: "Mining is now 12/75.",
+      },
+    ]);
+    expect(areaDrafts(areaRuleSet(), removed, testRuleInput())).toMatchObject([
+      {
+        event: "spells/skill_removed",
+        text: "Mining dropped.",
+      },
+    ]);
+  });
+
+  test("the second row for one skill within a minute stays quiet; another skill writes", () => {
+    const rules = areaRuleSet();
+    const rc = testRuleInput({ now: 1_000_000 });
+    expect(areaDrafts(rules, changed(1, 12), rc)).toHaveLength(1);
+    expect(
+      areaDrafts(rules, changed(12, 13), testRuleInput({ now: 1_000_030 })),
+    ).toEqual([]);
+    expect(
+      areaDrafts(rules, changed(12, 13), testRuleInput({ now: 1_060_001 })),
+    ).toHaveLength(1);
+    const other: AreaEvent = {
+      area: "spells",
+      event: {
+        from: 1,
+        id: 182,
+        max: 75,
+        name: "Herbalism",
+        to: 2,
+        type: "skill_changed",
+      },
+    };
+    expect(
+      areaDrafts(rules, other, testRuleInput({ now: 1_000_030 })),
+    ).toHaveLength(1);
+    const removed: AreaEvent = {
+      area: "spells",
+      event: { id: 186, name: "Mining", type: "skill_removed" },
+    };
+    expect(
+      areaDrafts(rules, removed, testRuleInput({ now: 1_000_030 })),
+    ).toHaveLength(1);
   });
 });

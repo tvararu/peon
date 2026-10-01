@@ -16,6 +16,7 @@ const PRESETS = [
   "elwynn1",
   "elwynn10",
   "ghostlands20",
+  "max80",
 ];
 const ROUNDS = [ROUND_1];
 

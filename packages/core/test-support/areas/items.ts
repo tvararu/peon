@@ -238,3 +238,68 @@ export function itemsLootResponseBody(guid: bigint, money: number): Uint8Array {
   w.uint8(0);
   return w.finish();
 }
+
+export function itemsItemCooldownBody(guid: bigint, spell: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(guid);
+  w.uint32LE(spell);
+  return w.finish();
+}
+
+export function itemsItemTimeUpdateBody(
+  guid: bigint,
+  seconds: number,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(guid);
+  w.uint32LE(seconds);
+  return w.finish();
+}
+
+export function itemsItemEnchantTimeUpdateBody(init: {
+  item: bigint;
+  slot: number;
+  seconds: number;
+  player: bigint;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.item);
+  w.uint32LE(init.slot);
+  w.uint32LE(init.seconds);
+  w.uint64LE(init.player);
+  return w.finish();
+}
+
+export function itemsSetProficiencyBody(
+  itemClass: number,
+  mask: number,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(itemClass);
+  w.uint32LE(mask);
+  return w.finish();
+}
+
+export function itemsSocketGemsResultBody(
+  item: bigint,
+  enchants: readonly [number, number, number, number],
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(item);
+  for (const id of enchants) w.uint32LE(id);
+  return w.finish();
+}
+
+export function itemsEnchantmentLogBody(init: {
+  target: bigint;
+  caster: bigint;
+  entry: number;
+  enchantId: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.target);
+  w.packedGuidBig(init.caster);
+  w.uint32LE(init.entry);
+  w.uint32LE(init.enchantId);
+  return w.finish();
+}

@@ -278,3 +278,23 @@ describe("TalentsStore snapshot slots", () => {
     );
   });
 });
+
+describe("noteRefused", () => {
+  test("emits a refused event with a copy of the entries", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      const entries = [{ rank: 0, reason: "no_points" as const, talentId: 1 }];
+      rig.stores.areas.talents.noteRefused(entries);
+      expect(seen).toEqual([
+        {
+          entries: [{ rank: 0, reason: "no_points", talentId: 1 }],
+          outcome: "refused",
+          type: "refused",
+        },
+      ]);
+      expect(entries).toEqual([{ rank: 0, reason: "no_points", talentId: 1 }]);
+    } finally {
+      rig.dispose();
+    }
+  });
+});

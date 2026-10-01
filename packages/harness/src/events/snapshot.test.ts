@@ -26,6 +26,7 @@ const self: SelfView = {
   life: "alive",
   maxHp: 200,
   maxPower: 300,
+  mounted: false,
   name: "Fgk",
   pose: undefined,
   power: 300,

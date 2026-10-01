@@ -293,3 +293,52 @@ describe("minimap ping harness rules", () => {
     expect(row?.text).toContain("Tom");
   });
 });
+
+describe("summon harness rules", () => {
+  const base = {
+    expiresAt: 121_000,
+    summoner: 0x10n,
+    timeoutMs: 120_000,
+    type: "summon_requested",
+    zoneId: 3430,
+  } as const;
+
+  test("a request writes one wake row naming summoner, zone and seconds", () => {
+    const out = rows({ ...base, name: "Tom", zoneName: "Eversong Woods" });
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      class: "wake",
+      data: { seconds: 120, summoner: "16", zone: "Eversong Woods" },
+      event: "raid/summon",
+    });
+    const text = out[0]?.text ?? "";
+    expect(text).toContain("Tom");
+    expect(text).toContain("Eversong Woods");
+    expect(text).toContain("120");
+  });
+
+  test("without a zone name the row carries the zone id", () => {
+    const [row] = rows({ ...base, name: "Tom", zoneName: undefined });
+    expect(row?.text).toContain("zone 3430");
+  });
+
+  test("an unnamed summoner falls back to the lookup, then to Someone", () => {
+    const named = areaDrafts(
+      areaRuleSet(),
+      {
+        area: "raid",
+        event: { ...base, name: "", zoneName: undefined },
+      },
+      testRuleInput({ lookup: testLookup({ unitName: () => "Ann" }) }),
+    );
+    expect(named[0]?.text).toContain("Ann summons you");
+    const [anon] = rows({ ...base, name: "", zoneName: undefined });
+    expect(anon?.text).toContain("Someone summons you");
+  });
+
+  test("an expiry writes one passive row", () => {
+    expect(
+      rows({ name: "Tom", summoner: 0x10n, type: "summon_expired" }),
+    ).toMatchObject([{ class: "passive", event: "raid/summon_expired" }]);
+  });
+});

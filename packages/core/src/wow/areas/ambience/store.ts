@@ -1,5 +1,9 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import type { UpdateWorldState, Weather } from "#wow/areas/ambience/protocol";
+import type {
+  OverrideLight,
+  UpdateWorldState,
+  Weather,
+} from "#wow/areas/ambience/protocol";
 
 export type AmbienceWorldState = { id: number; value: number };
 
@@ -8,6 +12,9 @@ export type AmbienceState = {
   weather: Weather | undefined;
   cinematic: { sequenceId: number; at: number; completed: boolean } | undefined;
   movie: { movieId: number; at: number } | undefined;
+  music: { soundKitId: number; at: number } | undefined;
+  light: (OverrideLight & { at: number }) | undefined;
+  phaseMask: number;
 };
 
 export type AmbienceEvent =
@@ -27,7 +34,15 @@ export type AmbienceEvent =
       type: "movie";
       movie: NonNullable<AmbienceState["movie"]>;
       previous: AmbienceState["movie"];
-    };
+    }
+  | {
+      type: "sound";
+      kind: "sound" | "music" | "object";
+      soundKitId: number;
+      source: string;
+    }
+  | { type: "light"; light: NonNullable<AmbienceState["light"]> }
+  | { type: "phase_changed"; from: number; to: number };
 
 export class AmbienceStore {
   private readonly events = new Emitter<[AmbienceEvent]>();
@@ -38,6 +53,9 @@ export class AmbienceStore {
   private weather: Weather | undefined;
   private cinematic: AmbienceState["cinematic"];
   private movie: AmbienceState["movie"];
+  private music: AmbienceState["music"];
+  private light: AmbienceState["light"];
+  private phaseMask = 1;
 
   constructor(now: () => number = () => Date.now()) {
     this.now = now;
@@ -51,6 +69,9 @@ export class AmbienceStore {
       weather: this.weather && { ...this.weather },
       cinematic: this.cinematic && { ...this.cinematic },
       movie: this.movie && { ...this.movie },
+      music: this.music && { ...this.music },
+      light: this.light && { ...this.light },
+      phaseMask: this.phaseMask,
     };
   }
 
@@ -121,11 +142,40 @@ export class AmbienceStore {
     });
   }
 
+  playSound(sound: {
+    kind: "sound" | "music" | "object";
+    soundKitId: number;
+    source?: bigint;
+  }): void {
+    if (sound.kind === "music")
+      this.music = { soundKitId: sound.soundKitId, at: this.now() };
+    this.queue({
+      type: "sound",
+      kind: sound.kind,
+      soundKitId: sound.soundKitId,
+      source: sound.source === undefined ? "" : String(sound.source),
+    });
+  }
+
+  setLight(light: OverrideLight): void {
+    this.light = { ...light, at: this.now() };
+    this.queue({ type: "light", light: { ...this.light } });
+  }
+
+  setPhaseMask(mask: number): void {
+    const from = this.phaseMask;
+    this.phaseMask = mask;
+    if (from === mask) return;
+    this.queue({ type: "phase_changed", from, to: mask });
+  }
+
   clear(): void {
     this.states = new Map();
     this.weather = undefined;
     this.cinematic = undefined;
     this.movie = undefined;
+    this.music = undefined;
+    this.light = undefined;
   }
 
   private queue(event: AmbienceEvent): void {

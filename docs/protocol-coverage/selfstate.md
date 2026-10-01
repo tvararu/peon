@@ -15,8 +15,8 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x0f6` | `CMSG_MOVE_HOVER_ACK` | client | handled |  |
 | `0x101` | `CMSG_STANDSTATECHANGE` | client | handled |  |
 | `0x16e` | `SMSG_MOUNTRESULT` | server | dead |  |
-| `0x171` | `CMSG_MOUNTSPECIAL_ANIM` | client | missing |  |
-| `0x172` | `SMSG_MOUNTSPECIAL_ANIM` | server | missing |  |
+| `0x171` | `CMSG_MOUNTSPECIAL_ANIM` | client | handled |  |
+| `0x172` | `SMSG_MOUNTSPECIAL_ANIM` | server | handled |  |
 | `0x1d9` | `SMSG_START_MIRROR_TIMER` | server | handled |  |
 | `0x1da` | `SMSG_PAUSE_MIRROR_TIMER` | server | dead |  |
 | `0x1db` | `SMSG_STOP_MIRROR_TIMER` | server | handled |  |
@@ -28,9 +28,9 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x2cf` | `CMSG_MOVE_FEATHER_FALL_ACK` | client | handled |  |
 | `0x2d0` | `CMSG_MOVE_WATER_WALK_ACK` | client | handled |  |
 | `0x340` | `CMSG_MOVE_SET_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY_ACK` | client | dead |  |
-| `0x375` | `CMSG_CANCEL_MOUNT_AURA` | client | missing |  |
+| `0x375` | `CMSG_CANCEL_MOUNT_AURA` | client | handled |  |
 | `0x37a` | `SMSG_FORCED_DEATH_UPDATE` | server | dead |  |
-| `0x3ac` | `SMSG_DISMOUNT` | server | missing |  |
+| `0x3ac` | `SMSG_DISMOUNT` | server | handled |  |
 | `0x3c1` | `SMSG_CROSSED_INEBRIATION_THRESHOLD` | server | missing |  |
 | `0x45c` | `SMSG_FORCE_PITCH_RATE_CHANGE` | server | handled | not seen live |
 | `0x45d` | `CMSG_FORCE_PITCH_RATE_CHANGE_ACK` | client | handled | not seen live |

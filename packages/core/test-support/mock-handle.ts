@@ -110,6 +110,7 @@ export function createMockHandle(): MockHandle {
     activateSpiritHealer: jest.fn(),
     addFriend: jest.fn(),
     addIgnore: jest.fn(),
+    ascend: jest.fn(),
     attack: jest.fn(),
     buyItem: jest.fn(),
     cancelCast: jest.fn(),
@@ -125,6 +126,7 @@ export function createMockHandle(): MockHandle {
     completeQuest: jest.fn(),
     declineGuildInvite: jest.fn(),
     declineInvite: jest.fn(),
+    descend: jest.fn(),
     destroyItem: jest.fn(),
     drive: jest.fn(),
     face: jest.fn(),
@@ -267,6 +269,7 @@ export function createMockHandle(): MockHandle {
     openTrainer: jest.fn(),
     openVendor: jest.fn(),
     petAttack: jest.fn(),
+    pitch: jest.fn(),
     queryCorpse: jest.fn(),
     queryNearby: jest.fn((query?: NearbyQuery) =>
       queryNearby(
@@ -319,10 +322,12 @@ export function createMockHandle(): MockHandle {
     sendWhisper: jest.fn(),
     sendYell: jest.fn(),
     sent: port.sent,
+    setFlying: jest.fn(),
     setLastChatMode: jest.fn((mode: ChatMode) => {
       lastChatMode = mode;
     }),
     setLeader: jest.fn(),
+    setSwimming: jest.fn(),
     spellDefinition: jest.fn(() => undefined),
     spellReadyAt: jest.fn(() => 0),
     stopAttack: jest.fn(),

@@ -1,0 +1,41 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 20,
+    "turns": 10
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["pets/learned"]
+      },
+      "expect": "GL has a pets/learned row, so the server confirmed a pet talent rank through the pet talent info",
+      "id": "talent-confirmed",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the character calling the pet tool with do talent and a talent name or id, not ending REFUSED",
+      "id": "talent-called",
+      "source": "session"
+    }
+  ],
+  "id": "t8-pets-talent",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "eversong10-hunter",
+  "setup": [
+    {
+      "body": {
+        "level": 25
+      },
+      "endpoint": "level"
+    }
+  ],
+  "spawn": "eversong-pets",
+  "steers": [],
+  "task": "Spend your pet's talent point.",
+  "tier": 8
+}

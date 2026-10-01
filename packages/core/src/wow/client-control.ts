@@ -1,5 +1,5 @@
 import type { WorldHandle } from "#wow/client";
-import type { WalkOutcome } from "#wow/control";
+import type { ControlRuntime, WalkOutcome } from "#wow/control";
 import { bearing } from "#wow/geometry";
 import type { NavPoint } from "#wow/ground-step";
 import { type NearbySources, type NearbyUnits, queryNearby } from "#wow/nearby";
@@ -60,6 +60,26 @@ function nearbySources(conn: WorldConn, rt: Runtimes): NearbySources {
   };
 }
 
+function airMethods(control: ControlRuntime) {
+  return {
+    setSwimming(on) {
+      control.setSwimming(on);
+    },
+    setFlying(on) {
+      control.setFlying(on);
+    },
+    pitch(kind) {
+      control.pitch(kind);
+    },
+    ascend(kind) {
+      control.ascend(kind);
+    },
+    descend() {
+      control.descend();
+    },
+  } satisfies Partial<WorldHandle>;
+}
+
 export function controlMethods(conn: WorldConn, rt: Runtimes) {
   const { control } = rt;
   return {
@@ -95,6 +115,7 @@ export function controlMethods(conn: WorldConn, rt: Runtimes) {
     stopMoving(reason) {
       control.halt(reason);
     },
+    ...airMethods(control),
     observedPosition(guid) {
       return rt.observedTarget(guid);
     },

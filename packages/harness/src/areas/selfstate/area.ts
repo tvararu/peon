@@ -70,6 +70,27 @@ function selfResAvailable(
   };
 }
 
+function mounted(event: Extract<SelfEvent, { type: "mounted" }>): AreaDraft[] {
+  if (event.taxi) return [];
+  return [
+    {
+      class: "log",
+      data: { displayId: event.displayId },
+      name: "mounted",
+      text: "You are mounted.",
+    },
+  ];
+}
+
+function dismounted(
+  event: Extract<SelfEvent, { type: "dismounted" }>,
+): AreaDraft[] {
+  if (event.taxi) return [];
+  return [
+    { class: "log", data: {}, name: "dismounted", text: "You dismounted." },
+  ];
+}
+
 function mirrorTimer(
   event: Extract<SelfEvent, { type: "mirror_timer" }>,
 ): readonly AreaDraft[] {
@@ -107,10 +128,14 @@ export const selfstateHarness = defineHarnessArea({
           return [refusedTransfer(event)];
         case "self_res_available":
           return [selfResAvailable(event)];
+        case "mounted":
+          return mounted(event);
+        case "dismounted":
+          return dismounted(event);
         default:
           return [];
       }
     },
   }),
-  worldActs: ["selfResurrect"],
+  worldActs: ["dismount", "selfResurrect"],
 });

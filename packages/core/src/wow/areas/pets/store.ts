@@ -1,7 +1,16 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import type { PetFeedback } from "#wow/areas/pets/protocol";
+import type {
+  PetFeedback,
+  PetNameInvalid,
+  PetNameQueryResponse,
+  PetTameFailure,
+  StabledPets,
+  StablePet,
+  StableResult,
+} from "#wow/areas/pets/protocol";
 import { type PetView, petView } from "#wow/areas/pets/view";
 import type { EntityLookup } from "#wow/entity-store";
+import { joinGuid } from "#wow/protocol/packet";
 import {
   isPetBarClear,
   type PetBar,
@@ -15,6 +24,7 @@ import type {
   SpellCooldown,
 } from "#wow/protocol/spell";
 import { spellCastReason } from "#wow/protocol/spell-cast-result";
+import { UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export type PetReact = "passive" | "defensive" | "aggressive" | "unknown";
@@ -39,11 +49,36 @@ export type PetsCooldown = {
   infinite: boolean;
 };
 export type PetsRefusal = { reason: string; at: number };
+export type PetName = {
+  number: number;
+  name: string;
+  timestamp: number;
+  declined: readonly string[] | undefined;
+};
+export type StableState = {
+  npc: bigint;
+  slots: number;
+  pets: readonly StablePet[];
+  stale: boolean;
+};
+export type StableResultEvent = {
+  type: "stable_result";
+  code: number;
+  result: StableResult;
+};
+export type TameFailedEvent = {
+  type: "tame_failed";
+  code: number;
+  reason: PetTameFailure;
+};
 export type PetsState = {
   bar: PetsBar | undefined;
   cooldowns: readonly PetsCooldown[];
   lastRefusal: PetsRefusal | undefined;
   pet: PetView | undefined;
+  names: Readonly<Record<number, PetName>>;
+  renamePending: readonly number[];
+  stable: StableState | undefined;
 };
 export type PetsEvent =
   | { type: "bar"; cleared: false; bar: PetsBar }
@@ -51,7 +86,18 @@ export type PetsEvent =
   | { type: "spell_learned"; spell: number }
   | { type: "spell_unlearned"; spell: number }
   | { type: "feedback"; reason: PetFeedback }
-  | { type: "cast_failed"; spell: number; reason: string; castCount: number };
+  | { type: "cast_failed"; spell: number; reason: string; castCount: number }
+  | { type: "name"; name: PetName }
+  | {
+      type: "name_invalid";
+      reason: PetNameInvalid["reason"];
+      name: string;
+      declined: readonly string[] | undefined;
+    }
+  | { type: "stable_list"; stable: StableState }
+  | StableResultEvent
+  | TameFailedEvent
+  | { type: "unanswered"; request: "rename" | "stable" };
 
 const REACTS: readonly PetReact[] = ["passive", "defensive", "aggressive"];
 const COMMANDS: readonly PetCommand[] = ["stay", "follow", "attack", "abandon"];
@@ -76,17 +122,31 @@ function cooldownOf(wire: PetCooldown, now: number): PetsCooldown {
 
 export class PetsStore {
   private readonly events = new Emitter<[PetsEvent]>();
+  private readonly deps: SessionDeps;
   private readonly now: () => number;
   private readonly selfGuid: () => bigint;
   private readonly getEntity: EntityLookup;
   private current: PetsBar | undefined;
   private cooldowns: PetsCooldown[] = [];
   private lastRefusal: PetsRefusal | undefined;
+  private names: Record<number, PetName> = {};
+  private pending: number[] = [];
+  private listing: StableState | undefined;
 
   constructor(deps: SessionDeps, _core: CoreStores) {
+    this.deps = deps;
     this.now = deps.now;
     this.selfGuid = deps.selfGuid;
     this.getEntity = deps.getEntity;
+  }
+
+  critter(): bigint {
+    const raw = this.deps.getEntity(this.deps.selfGuid())?.rawFields;
+    if (!raw) return 0n;
+    return joinGuid(
+      raw.get(UNIT_FIELDS.CRITTER.offset) ?? 0,
+      raw.get(UNIT_FIELDS.CRITTER.offset + 1) ?? 0,
+    );
   }
 
   snapshot(): PetsState {
@@ -97,7 +157,17 @@ export class PetsStore {
         (row) => row.readyAt === undefined || row.readyAt > now,
       ),
       lastRefusal: this.lastRefusal,
+      names: { ...this.names },
+      renamePending: [...this.pending],
       pet: petView(this.getEntity, this.selfGuid()),
+      stable: this.listing
+        ? {
+            npc: this.listing.npc,
+            pets: [...this.listing.pets],
+            slots: this.listing.slots,
+            stale: this.listing.stale,
+          }
+        : undefined,
     };
   }
 
@@ -109,6 +179,7 @@ export class PetsStore {
     if (isPetBarClear(wire)) {
       this.current = undefined;
       this.cooldowns = [];
+      this.pending = [];
       this.events.emit({ type: "bar", cleared: true });
       return;
     }
@@ -197,9 +268,87 @@ export class PetsStore {
     );
   }
 
+  named(reply: PetNameQueryResponse): void {
+    if (reply.name === "") return;
+    const name: PetName = {
+      declined: reply.declined,
+      name: reply.name,
+      number: reply.number,
+      timestamp: reply.timestamp,
+    };
+    this.names = { ...this.names, [reply.number]: name };
+    this.pending = this.pending.filter((row) => row !== reply.number);
+    this.events.emit({ name, type: "name" });
+  }
+
+  refreshing(number: number): void {
+    if (!this.pending.includes(number))
+      this.pending = [...this.pending, number];
+  }
+
+  refreshed(number: number): void {
+    this.pending = this.pending.filter((row) => row !== number);
+  }
+
+  nameRefused(refusal: PetNameInvalid): void {
+    this.lastRefusal = { at: this.now(), reason: refusal.reason };
+    this.events.emit({
+      declined: refusal.declined,
+      name: refusal.name,
+      reason: refusal.reason,
+      type: "name_invalid",
+    });
+  }
+
+  nameStale(number: number, timestamp: number): boolean {
+    const cached = this.names[number];
+    return !cached || cached.timestamp < timestamp;
+  }
+
+  unanswered(): void {
+    this.events.emit({ request: "rename", type: "unanswered" });
+  }
+
+  stable(reply: StabledPets): void {
+    this.listing = {
+      npc: reply.npc,
+      pets: [...reply.pets],
+      slots: reply.slots,
+      stale: false,
+    };
+    this.events.emit({ stable: this.listing, type: "stable_list" });
+  }
+
+  tameFailed(code: number, reason: PetTameFailure): void {
+    this.lastRefusal = { at: this.now(), reason };
+    this.events.emit({ code, reason, type: "tame_failed" });
+  }
+
+  stableResult(code: number, result: StableResult): void {
+    const listing = this.listing;
+    if (
+      listing &&
+      (result === "stabled" ||
+        result === "unstabled" ||
+        result === "slot_bought")
+    )
+      this.listing = { ...listing, stale: true };
+    if (result === "money" || result === "refused" || result === "exotic")
+      this.lastRefusal = { at: this.now(), reason: result };
+    this.events.emit({ code, result, type: "stable_result" });
+  }
+
+  unansweredStable(): void {
+    this.events.emit({ request: "stable", type: "unanswered" });
+  }
+
   dispose(): void {
     this.events.clear();
     this.current = undefined;
     this.cooldowns = [];
+    this.names = {};
+    this.pending = [];
+    this.listing = undefined;
+    this.lastRefusal = undefined;
   }
 }

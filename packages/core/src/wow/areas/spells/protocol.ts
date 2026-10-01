@@ -123,9 +123,22 @@ export function parseTotemCreated(r: PacketReader): TotemCreatedPacket {
   const spellId = r.uint32LE();
   return { durationMs, guid, slot, spellId };
 }
+export type ConvertRune = { index: number; type: number };
+
+export function parseConvertRune(r: PacketReader): ConvertRune {
+  const index = r.uint8();
+  const type = r.uint8();
+  return { index, type };
+}
 
 export function buildTotemDestroyed(slot: number): Uint8Array {
   const w = new PacketWriter();
   w.uint8(slot);
+  return w.finish();
+}
+
+export function buildUnlearnSkill(skillId: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(skillId);
   return w.finish();
 }

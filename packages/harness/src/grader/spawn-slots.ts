@@ -90,6 +90,10 @@ const GHOSTLANDS: Spawn = {
     [7579, -6843, 90.53],
     [7583, -6839, 89.55],
     [7583, -6831, 87.35],
+    [7587, -6835, 88.44],
+    [7587, -6839, 89.58],
+    [7575, -6847, 91.46],
+    [7583, -6843, 90.49],
   ],
   zone: 3433,
 };
@@ -234,15 +238,80 @@ const EVERSONG_READY: Spawn = {
   zone: 3430,
 };
 
+const EVERSONG_PETS: Spawn = {
+  map: 530,
+  o: 1.686,
+  points: [
+    [8825, -6645, 51.5],
+    [8821, -6645, 52.44],
+    [8825, -6649, 51.32],
+    [8825, -6641, 51.81],
+    [8829, -6645, 50.64],
+    [8821, -6649, 52.36],
+    [8821, -6641, 52.54],
+    [8829, -6649, 50.35],
+    [8829, -6641, 51.09],
+    [8817, -6645, 53.31],
+    [8825, -6653, 51.29],
+    [8825, -6637, 52.26],
+    [8833, -6645, 49.94],
+    [8817, -6649, 53.41],
+    [8817, -6641, 53.09],
+    [8821, -6653, 52.46],
+  ],
+  zone: 3430,
+};
+
+const EVERSONG_UNLEARN: Spawn = {
+  map: 530,
+  o: 1.686,
+  points: [
+    [8900, -6390, 13.52],
+    [8896, -6390, 14.51],
+    [8904, -6390, 12.54],
+    [8900, -6394, 13.95],
+    [8900, -6386, 13.05],
+    [8896, -6394, 15.01],
+  ],
+  zone: 3430,
+};
+
+const EVERSONG_GLYPH: Spawn = {
+  map: 530,
+  o: 1.686,
+  points: [
+    [8680, -6390, 52.53],
+    [8676, -6390, 52.61],
+    [8684, -6390, 52.57],
+    [8680, -6394, 52.52],
+  ],
+  zone: 3430,
+};
+const UNDERCITY_WARRIOR: Spawn = {
+  map: 0,
+  o: 0,
+  points: [
+    [1775.77, 409.61, -57.11],
+    [1777.77, 409.61, -57.11],
+    [1773.77, 409.61, -57.11],
+    [1775.77, 411.61, -57.11],
+  ],
+  zone: 1497,
+};
+
 const NAMED: Readonly<Record<string, Spawn>> = {
   eversong: EVERSONG,
+  "eversong-glyph": EVERSONG_GLYPH,
+  "eversong-pets": EVERSONG_PETS,
   "eversong-raid": EVERSONG_RAID,
   "eversong-ready": EVERSONG_READY,
   "eversong-trade": EVERSONG_TRADE,
+  "eversong-unlearn": EVERSONG_UNLEARN,
   "eversong-west": EVERSONG_WEST,
   "fairbreeze-east": FAIRBREEZE_EAST,
   "fairbreeze-south": FAIRBREEZE_SOUTH,
   ghostlands: GHOSTLANDS,
+  "undercity-warrior": UNDERCITY_WARRIOR,
 };
 
 export function spawnOf(scenario: Scenario): Spawn | undefined {

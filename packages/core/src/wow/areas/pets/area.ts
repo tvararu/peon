@@ -4,7 +4,12 @@ import {
   parsePetActionFeedback,
   parsePetActionSound,
   parsePetDismissSound,
+  parsePetNameInvalid,
+  parsePetNameQueryResponse,
   parsePetSpellId,
+  parsePetTameFailure,
+  parseStabledPets,
+  parseStableResult,
 } from "#wow/areas/pets/protocol";
 import { petsRuntime } from "#wow/areas/pets/runtime";
 import { PetsStore } from "#wow/areas/pets/store";
@@ -25,6 +30,12 @@ export const petsArea = defineArea({
     "spell_unlearned",
     "feedback",
     "cast_failed",
+    "name",
+    "name_invalid",
+    "stable_list",
+    "stable_result",
+    "tame_failed",
+    "unanswered",
   ],
   store: (deps, core) => new PetsStore(deps, core),
   register: (wire, store) => {
@@ -52,6 +63,23 @@ export const petsArea = defineArea({
     });
     wire.on(GameOpcode.SMSG_PET_DISMISS_SOUND, (r) => {
       parsePetDismissSound(r);
+    });
+    wire.on(GameOpcode.SMSG_PET_NAME_QUERY_RESPONSE, (r) =>
+      store.named(parsePetNameQueryResponse(r)),
+    );
+    wire.on(GameOpcode.SMSG_PET_NAME_INVALID, (r) =>
+      store.nameRefused(parsePetNameInvalid(r)),
+    );
+    wire.on(GameOpcode.MSG_LIST_STABLED_PETS, (r) =>
+      store.stable(parseStabledPets(r)),
+    );
+    wire.on(GameOpcode.SMSG_PET_TAME_FAILURE, (r) => {
+      const parsed = parsePetTameFailure(r);
+      store.tameFailed(parsed.code, parsed.reason);
+    });
+    wire.on(GameOpcode.SMSG_STABLE_RESULT, (r) => {
+      const parsed = parseStableResult(r);
+      store.stableResult(parsed.code, parsed.result);
     });
   },
   runtime: petsRuntime,

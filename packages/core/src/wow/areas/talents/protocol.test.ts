@@ -2,8 +2,16 @@ import { describe, expect, test } from "bun:test";
 import {
   talentsTalentsInfoBody,
   talentsTalentsInfoPetBody,
+  talentsWipeOfferBody,
 } from "#test-support/areas/talents";
-import { parseTalentsInfo } from "#wow/areas/talents/protocol";
+import {
+  buildLearnPreviewTalents,
+  buildLearnTalent,
+  buildRemoveGlyph,
+  buildTalentWipeConfirm,
+  parseTalentsInfo,
+  parseTalentWipeOffer,
+} from "#wow/areas/talents/protocol";
 import { PacketReader } from "#wow/protocol/packet";
 
 const NO_GLYPHS = [0, 0, 0, 0, 0, 0];
@@ -99,5 +107,85 @@ describe("parseTalentsInfo", () => {
     expect(() =>
       parseTalentsInfo(new PacketReader(new Uint8Array([2, 0, 0, 0, 0]))),
     ).toThrow("unknown_talents_info_type");
+  });
+});
+
+function words(body: Uint8Array): number[] {
+  const r = new PacketReader(body);
+  const out: number[] = [];
+  while (r.remaining > 0) out.push(r.uint32LE());
+  return out;
+}
+
+describe("learn builders", () => {
+  test("a learn is talent id then wire rank, two u32 (SkillHandler.cpp:25-32)", () => {
+    expect(words(buildLearnTalent({ rank: 1, talentId: 124 }))).toEqual([
+      124, 1,
+    ]);
+  });
+
+  test("a preview batch is a count then id and rank pairs in the given order (SkillHandler.cpp:34-56)", () => {
+    const body = buildLearnPreviewTalents([
+      { rank: 2, talentId: 124 },
+      { rank: 0, talentId: 130 },
+    ]);
+    expect(words(body)).toEqual([2, 124, 2, 130, 0]);
+  });
+
+  test("150 entries are sent and 151 throw because the server drops the rest (SkillHandler.cpp:44-47)", () => {
+    const entry = { rank: 0, talentId: 1 };
+    expect(
+      words(buildLearnPreviewTalents(new Array(150).fill(entry))),
+    ).toHaveLength(301);
+    expect(() => buildLearnPreviewTalents(new Array(151).fill(entry))).toThrow(
+      "too_many_talents",
+    );
+  });
+});
+
+describe("talent wipe confirm", () => {
+  const TRAINER = 0xf1_30_00_11_d1_00_00_2an;
+
+  test("an offer is the trainer guid then the copper cost (Player.cpp:9125-9132)", () => {
+    const r = new PacketReader(
+      talentsWipeOfferBody({ cost: 10_000, npcGuid: TRAINER }),
+    );
+    expect(parseTalentWipeOffer(r)).toEqual({ cost: 10_000, npcGuid: TRAINER });
+    expect(r.remaining).toBe(0);
+  });
+
+  test("the no-talents reply has guid 0 and cost 0 (SkillHandler.cpp:78-84)", () => {
+    expect(
+      parseTalentWipeOffer(
+        new PacketReader(talentsWipeOfferBody({ cost: 0, npcGuid: 0n })),
+      ),
+    ).toEqual({ cost: 0, npcGuid: 0n });
+  });
+
+  test("a truncated offer throws instead of reading short", () => {
+    expect(() =>
+      parseTalentWipeOffer(new PacketReader(new Uint8Array(8))),
+    ).toThrow();
+  });
+
+  test("the confirm is the trainer guid alone (SkillHandler.cpp:58-63)", () => {
+    const body = buildTalentWipeConfirm(TRAINER);
+    const r = new PacketReader(body);
+    expect(r.uint64LE()).toBe(TRAINER);
+    expect(r.remaining).toBe(0);
+  });
+});
+
+describe("buildRemoveGlyph (Handlers/CharacterHandler.cpp:1604-1612)", () => {
+  test("writes the slot index as one u32", () => {
+    const r = new PacketReader(buildRemoveGlyph(5));
+    expect(r.uint32LE()).toBe(5);
+    expect(r.remaining).toBe(0);
+  });
+
+  test("a slot outside 0-5 throws bad_glyph_slot", () => {
+    expect(() => buildRemoveGlyph(6)).toThrow("bad_glyph_slot");
+    expect(() => buildRemoveGlyph(-1)).toThrow("bad_glyph_slot");
+    expect(() => buildRemoveGlyph(1.5)).toThrow("bad_glyph_slot");
   });
 });

@@ -39,8 +39,10 @@ export const SPELLS_OPCODES = {
     "SMSG_ADD_RUNE_POWER",
   ],
   unseen: [
+    "CMSG_UNLEARN_SKILL",
     "SMSG_MODIFY_COOLDOWN",
     "SMSG_TOTEM_CREATED",
     "CMSG_TOTEM_DESTROYED",
+    "SMSG_CONVERT_RUNE",
   ],
 } as const satisfies AreaOpcodes;

@@ -47,7 +47,26 @@ the character wears no aura of the spell. A channelled spell id cancels
 the running channel through `cancelChannel` (`not_channelling` when that
 spell is not the channel). The attribute checks need the spell data;
 without it the act checks only the aura flags. `act.cancelGrowthAura()`
-sends the empty `CMSG_CANCEL_GROWTH_AURA`.
+sends the empty `CMSG_CANCEL_GROWTH_AURA`. `state().skills` keeps the
+character's skill lines (id, name, step, value, max and both bonuses),
+read from the 128 `PLAYER_SKILL_INFO` triples at update field 636. A
+self update that adds an id or moves a value or max emits
+`skill_changed` (with no `from` for a new id), and one that drops an id
+emits `skill_removed`; the first read only seeds the baseline. The
+harness writes `spells/skill_changed` "Mining is now 12/75." at most
+once per skill per minute ("Mining learned, 1/75." for a new id) and
+`spells/skill_removed` "Mining dropped.". `state().runes` keeps the death knight's
+six runes (index, current type, readiness, elapsed cooldown byte and regen rate),
+`undefined` for any other class, read from the class byte and the four
+`PLAYER_RUNE_REGEN_1` rates in the self update, from the ready and spent masks and
+the elapsed bytes of a peeked self `SMSG_SPELL_GO` rune list, and from
+`SMSG_CONVERT_RUNE`, which changes one rune's type and emits `rune_converted` with
+the index and both types. The base layout is two blood, two unholy and two frost;
+the four rates start at 0.1. `act.unlearnSkill(id)` drops
+a primary profession with `CMSG_UNLEARN_SKILL`; it refuses, and sends
+nothing, `invalid_skill` for a non-positive id, `not_profession` for an
+id outside the primary list, and `not_known` for a profession the
+character lacks.
 
 `act.setActionButton(slot, button)` puts a spell, item, macro or
 equipment set on one of the 144 action buttons with
@@ -90,8 +109,13 @@ aura update removes the aura within 2 s. A mount aura cancels the same
 way: the server treats it like any positive non-passive aura
 (`Handlers/SpellHandler.cpp:568-601`). `do: "bar"` writes slot 1-144 as
 0-143 with `act.setActionButton`, and a call with neither spell nor item
-clears the slot. `journal about: "spells"` lists up to four cancellable
-auras and four filled bar slots before the spellbook, and leaves out the
+clears the slot. `do: "unlearn_profession"` names a profession or skill id,
+refuses `needs_confirm` without `confirm: true`, and is `DONE` when the skill
+leaves `state().skills` within 3 s. `do: "destroy_totem"` names the element
+(fire 0, earth 1, water 2, air 3) and is `DONE` when the slot clears.
+`journal about: "spells"` lists up to four cancellable
+auras, four filled bar slots, four professions, four totems and four runes
+before the spellbook, and leaves out the
 ranks in `inactiveRanks`.
 
 ## Wire notes
@@ -214,6 +238,13 @@ ranks in `inactiveRanks`.
 - The trainer sends both to the units that see it, so a purchase made
   before the trainer is in view brings neither
   (`Entities/Unit/Unit.cpp:14757`).
+- `SMSG_CONVERT_RUNE` is a `uint8` index and a `uint8` new type, sent only
+  from `Player::ConvertRune` (`Entities/Player/Player.cpp:13736-13743`).
+- The rune list in `SMSG_SPELL_GO` is a before mask, an after mask and one
+  elapsed byte per spent rune, in slot order (`Spells/Spell.cpp:5033-5050`).
+- The base layout read with `SMSG_CONVERT_RUNE` is two blood, two unholy and two
+  frost. The rune types are 0 blood, 1 unholy, 2 frost and 3 death, and the four
+  regen rates start at 0.1 (`Entities/Player/Player.cpp:13736-13743`).
 - The client direction of `MSG_CHANNEL_START` and `MSG_CHANNEL_UPDATE`
   is `Handle_NULL` (`Server/Protocol/Opcodes.cpp:444-445`).
 
@@ -293,10 +324,27 @@ Disagreements for opcodes later tasks build (AzerothCore wins):
 - The server drops a client `CMSG_CAST_SPELL` of a spell it does not
   know or a passive spell without a reply
   (`Handlers/SpellHandler.cpp:449-450`).
+- A skill slot is three `uint32`: the id in the low `u16` of word 0
+  with the step in the high `u16`, the value and max in the low and
+  high `u16` of word 1, and the temporary and permanent bonuses as the
+  two signed `int16` of word 2 (`Entities/Player/Player.h:79-89`).
+- `CMSG_UNLEARN_SKILL` is one `uint32` skill id; the server unlearns the
+  skill when it is a primary profession and drops the rest without a
+  reply (`Handlers/SkillHandler.cpp:91-100`).
+- A primary profession is a `SkillLine` row whose category is 11, while
+  9 marks a secondary profession (`Spells/SpellMgr.cpp:38-48`,
+  `src/server/shared/SharedDefines.h:3309-3311`).
+- Learning a profession spell grants its skill line: `Player::addSpell`
+  reads the spell's `SpellLearnSkillNode` and calls `SetSkill`
+  (`Entities/Player/Player.cpp:3355-3374`); `SetSkill(id, 0, 0, 0)`
+  clears the triple and removes the skill's spells and auras
+  (`Entities/Player/Player.cpp:5537-5556`).
+- Skill names and the profession category come from `SkillLine.dbc`
+  (category 11 is primary, 9 is secondary); without the file the area
+  names the eleven primary and four secondary professions from a static
+  table and other skills as `skill <id>`.
 ## Left out
 
-- `CMSG_UNLEARN_SKILL`: built by spells-7.
-- `SMSG_CONVERT_RUNE`: built by spells-9.
 - `CMSG_FAR_SIGHT`, `CMSG_GET_MIRRORIMAGE_DATA`,
   `SMSG_MIRRORIMAGE_DATA`: built by spells-10.
 - `CMSG_UPDATE_MISSILE_TRAJECTORY`, `CMSG_UPDATE_PROJECTILE_POSITION`,
@@ -311,7 +359,8 @@ Cancel one of its own buffs (`t4-spells-cancel-aura`; harmful and passive auras 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
 | `SMSG_TOTEM_CREATED` | `mock` | `packages/core/src/wow/areas/spells/totems.test.ts` "SMSG_TOTEM_CREATED fills the slot and emits totem_created" builds the packet from the AzerothCore writer; not seen live (no shaman preset; a priest that learned 8071 with Earth Totem item 5175 in the bags casts 836 instead, and the create never comes) | `Server/Packets/TotemPackets.cpp:25-33` |
+| `SMSG_CONVERT_RUNE` | `mock` | `packages/core/src/wow/areas/spells/runes.test.ts` "parseConvertRune reads the index and the new type" builds the packet from the AzerothCore writer; not seen live (no death knight preset: T-11 parked, `mise factory soap create eversong55-deathknight` fails unknown preset) | `Entities/Player/Player.cpp:13736-13743` |
 | `CMSG_TOTEM_DESTROYED` | `builder` | sent live on a `max80` priest: `mise protocol:probe <ACCOUNT> --send CMSG_TOTEM_DESTROYED --body 00 --wait 8`, exit 0, one byte in the trace, no disconnect; effect not seen (slot 0 was empty, which the server ignores); not seen live | `Server/Packets/TotemPackets.cpp:20-23` |
-
+| `CMSG_UNLEARN_SKILL` | `live` | eval `t4-spells-unlearn-profession` round 360 replica 2, verdict `pass` 2/2 (`tmp/evals/360/t4-spells-unlearn-profession-2`, `result.json`): agent calls `spell do=unlearn_profession` Mining, first REFUSED `needs_confirm`, then DONE; `packets.jsonl:197-203` shows `CMSG_UNLEARN_SKILL` out at 1790849260142, five `SMSG_REMOVED_SPELL` in 3 ms later and `SMSG_COMPRESSED_UPDATE_OBJECT` 4 ms after that; `gamelog.jsonl:29` records `spells/skill_removed` "Mining dropped." at 1790849260150; baseline truth holds 2575 (19 spells), final truth lacks 2575, 2580 and 2656 (18 spells) | `Handlers/SkillHandler.cpp:91-100` |
 | `CMSG_CANCEL_AURA` | `live` | mount cancel on a throwaway `eversong10` character with spell 458 (Brown Horse): `mise protocol:probe <ACCOUNT> --flow selfstate-mount` reports spell 458, collision height null to 2.88, `cancel: ok`, height back to 2.03 after the dismount; the retained trace shows `CMSG_CAST_SPELL` out, `SMSG_MOVE_SET_COLLISION_HGT` and `SMSG_AURA_UPDATE` in, then `CMSG_CANCEL_AURA` out followed by `SMSG_AURA_UPDATE`, `SMSG_MOVE_SET_COLLISION_HGT` and `SMSG_DISMOUNT` in. A puppet cancel of the live mount aura (`CMSG_CAST_SPELL` then raw `CMSG_CANCEL_AURA`) shows the same packet sequence in its retained `packets.jsonl` | `Handlers/SpellHandler.cpp:568-601` |
 | `SMSG_LEARNED_SPELL` | `live` | throwaway `eversong10` character: `soap setup spells/learn` of 33388, 458 and 20608 while offline sent no packet, and the next login's `SMSG_INITIAL_SPELLS` (73 spells) held 33388 and 458 and no 20608; with the character in the world, `soap gm learn 33388` drew `SMSG_LEARNED_SPELL` body `6c8200000000`, outcome `handled` | `Entities/Player/Player.cpp:3137-3145` |

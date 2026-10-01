@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { testStores } from "#test-support/session-fixtures";
 import { EmoteStore, type EmotesEvent } from "#wow/areas/emotes/store";
+import type { Entity } from "#wow/entity-store";
+import { ObjectType } from "#wow/protocol/entity-fields";
+import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { SessionDeps } from "#wow/session-stores";
 
 const ME = 0xde1n;
@@ -87,5 +90,49 @@ describe("EmoteStore", () => {
     store.setEmoteState(CREATURE, DANCE_STATE);
     store.forget(CREATURE);
     expect(store.snapshot().emoteStates).toEqual([]);
+  });
+});
+
+describe("EmoteStore life", () => {
+  function lifeOf(fields: [number, number][]) {
+    const deps: SessionDeps = {
+      getEntity: (guid) =>
+        guid === ME
+          ? ({
+              guid: ME,
+              objectType: ObjectType.PLAYER,
+              rawFields: new Map(fields),
+            } as unknown as Entity)
+          : undefined,
+      now: () => 0,
+      selfGuid: () => ME,
+      send: () => undefined,
+      updateEntity: () => undefined,
+    };
+    return new EmoteStore(deps, testStores(deps)).life();
+  }
+
+  test("reads alive, dead and ghost from the self entity", () => {
+    const health = UNIT_FIELDS.HEALTH.offset;
+    const flags = PLAYER_FIELDS.FLAGS.offset;
+    expect(
+      lifeOf([
+        [health, 50],
+        [flags, 0],
+      ]),
+    ).toBe("alive");
+    expect(
+      lifeOf([
+        [health, 0],
+        [flags, 0],
+      ]),
+    ).toBe("dead");
+    expect(
+      lifeOf([
+        [health, 1],
+        [flags, 0x10],
+      ]),
+    ).toBe("ghost");
+    expect(lifeOf([])).toBe("unknown");
   });
 });

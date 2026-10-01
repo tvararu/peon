@@ -15,7 +15,9 @@ export type ToolName =
   | "pet"
   | "dungeon"
   | "group"
-  | "trade";
+  | "trade"
+  | "talents"
+  | "vehicle";
 
 export type ToolKind = "read" | "action" | "run" | "control";
 

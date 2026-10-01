@@ -166,6 +166,14 @@ describe("selfView and placeView", () => {
     expect(selfView(ctx).inCombat).toBe(true);
   });
 
+  test("the mounted flag follows the selfstate store", async () => {
+    const { ctx, handle } = await world();
+    selfstateIs(handle, { mounted: true });
+    expect(selfView(ctx).mounted).toBe(true);
+    selfstateIs(handle, { mounted: false });
+    expect(selfView(ctx).mounted).toBe(false);
+  });
+
   test("place gives zone, area and age", async () => {
     const { ctx, handle, now } = await world();
     setWorld(handle, {
@@ -322,6 +330,8 @@ const IDLE: AreaState<"selfstate"> = {
   collisionHeight: undefined,
   ghostPending: false,
   lastTransferAbort: undefined,
+  mountDisplayId: 0,
+  mounted: false,
   selfResSpell: 0,
   standState: "stand",
   timers: {},

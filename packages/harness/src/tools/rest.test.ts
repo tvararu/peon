@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
+import type { AreaState } from "@peon/core";
 import type { RestAfter } from "#harness/contract/details";
 import { REST_MAX_MS, restSpec } from "#harness/tools/rest";
 import {
@@ -62,6 +63,19 @@ function drinkAura(handle: MockHandle): void {
   const next = { ...state, auras: [aura] };
   handle.getCombatState = () => next;
   handle.triggerCombatEvent({ state: next, type: "aura" });
+}
+
+function dismountState(mounted: boolean): AreaState<"selfstate"> {
+  return {
+    collisionHeight: undefined,
+    ghostPending: false,
+    lastTransferAbort: undefined,
+    mountDisplayId: mounted ? 1234 : 0,
+    mounted,
+    selfResSpell: 0,
+    standState: "stand",
+    timers: {},
+  };
 }
 
 async function flush(): Promise<void> {
@@ -372,6 +386,42 @@ describe("rest", () => {
     setSelf(t.handle, { life: "dead" });
     await expect(restSpec.run({}, toolCtx<RestAfter>(t))).rejects.toMatchObject(
       { next: "recover()", reason: "dead" },
+    );
+  });
+  test("a mounted rest dismounts first and says so", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { hp: 200, maxHp: 200, maxPower: 300, power: 60 });
+    water(t.handle, 5);
+    t.handle.useItem = async () => {
+      setSelf(t.handle, { hp: 200, maxHp: 200, maxPower: 300, power: 285 });
+      water(t.handle, 4);
+      drinkAura(t.handle);
+    };
+    jest
+      .spyOn(t.handle.selfstate, "state")
+      .mockReturnValue(dismountState(true));
+    const spy = jest
+      .spyOn(t.handle.selfstate.act, "dismount")
+      .mockResolvedValue({ status: "ok" });
+    const pending = restSpec.run({}, toolCtx<RestAfter>(t));
+    await flush();
+    const res = await pending;
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(res.detail.startsWith("Dismounted first. ")).toBe(true);
+  });
+
+  test("a taxi mount stops the rest with in_flight", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle, { hp: 100, maxHp: 200, maxPower: 300, power: 300 });
+    jest
+      .spyOn(t.handle.selfstate, "state")
+      .mockReturnValue(dismountState(true));
+    t.handle.selfstate.act.dismount = async () => ({
+      reason: "in_flight",
+      status: "refused",
+    });
+    await expect(restSpec.run({}, toolCtx<RestAfter>(t))).rejects.toMatchObject(
+      { reason: "in_flight" },
     );
   });
 

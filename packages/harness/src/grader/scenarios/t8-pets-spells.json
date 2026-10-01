@@ -1,0 +1,40 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 10,
+    "tools": 25,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "expect": "the session shows the character calling the pet tool with do cast, what Growl and a target that is a Springpaw, ending DONE, so the pet used Growl on the creature; a FAILED cast that the agent answers by sending the pet at the target first does not count against it",
+      "id": "pet-cast-growl",
+      "source": "session"
+    },
+    {
+      "expect": "the session shows the character calling the pet tool with do autocast and what Growl on (or Growl:on), ending DONE after the next bar showed Growl autocast on (the preset pet starts with Growl off), so the tool result is the proof because an autocast change writes no game log row",
+      "id": "growl-autocast-on",
+      "source": "session"
+    },
+    {
+      "evidence": {
+        "events": ["pets/out"]
+      },
+      "expect": "GL has a pets/out row, so the character had a pet bar when the casts were sent",
+      "id": "pet-out",
+      "source": "game_log"
+    }
+  ],
+  "field": "fairbreeze-stalkers",
+  "id": "t8-pets-spells",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 13,
+  "partner": null,
+  "preset": "eversong10-hunter",
+  "setup": [],
+  "spawn": "eversong-pets",
+  "steers": [],
+  "task": "Send your pet at the nearest Springpaw and have it use Growl on it. Then turn on its Growl autocast.",
+  "tier": 8
+}

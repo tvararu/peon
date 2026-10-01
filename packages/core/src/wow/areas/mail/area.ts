@@ -1,0 +1,34 @@
+import { defineArea } from "#wow/areas/contract";
+import { MAIL_OPCODES } from "#wow/areas/mail/opcodes";
+import {
+  parseMailList,
+  parseNextMailTime,
+  parseReceivedMail,
+  parseShowMailbox,
+} from "#wow/areas/mail/protocol";
+import { mailRuntime } from "#wow/areas/mail/runtime";
+import { MailStore } from "#wow/areas/mail/store";
+import { GameOpcode } from "#wow/protocol/opcodes";
+
+export const mailArea = defineArea({
+  eventTypes: ["listed", "next_time", "new_mail", "mailbox_shown"],
+  name: "mail",
+  opcodes: MAIL_OPCODES,
+  register: (wire, store) => {
+    wire.on(GameOpcode.SMSG_MAIL_LIST_RESULT, (reader) => {
+      store.receiveList(parseMailList(reader));
+    });
+    wire.on(GameOpcode.MSG_QUERY_NEXT_MAIL_TIME, (reader) => {
+      store.receiveNextMailTime(parseNextMailTime(reader));
+    });
+    wire.peek(GameOpcode.SMSG_RECEIVED_MAIL, (reader) => {
+      parseReceivedMail(reader);
+      store.receiveReceivedMail();
+    });
+    wire.on(GameOpcode.SMSG_SHOW_MAILBOX, (reader) => {
+      store.receiveMailboxShown(parseShowMailbox(reader));
+    });
+  },
+  runtime: mailRuntime,
+  store: (deps) => new MailStore(deps),
+});

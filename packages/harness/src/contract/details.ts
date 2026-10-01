@@ -28,7 +28,8 @@ export type LookFilter =
   | "lootable"
   | "player"
   | "corpse"
-  | "spirit_healer";
+  | "spirit_healer"
+  | "flight_master";
 
 export type LookCast = {
   kind: "cast" | "channel";
@@ -55,6 +56,7 @@ export type LookAfter = {
   unchanged: number;
   channel?: LookCast;
   targetCast?: LookCast;
+  talentPoints?: number;
 };
 
 export type LegStatus =
@@ -77,7 +79,8 @@ export type TravelGoalView =
   | { kind: "corpse" }
   | { kind: "explore"; direction: Compass | undefined }
   | { kind: "unstick"; refusedGoal: string | undefined }
-  | { kind: "hearth" };
+  | { kind: "hearth" }
+  | { kind: "fly"; destination: string };
 
 export type TravelAfter = {
   goal: TravelGoalView;
@@ -159,7 +162,11 @@ export type InteractAction =
   | "train"
   | "repair"
   | "bind"
-  | "buyback";
+  | "buyback"
+  | "reset_talents"
+  | "stable"
+  | "unstable"
+  | "buy_slot";
 
 export type QuestOffer = {
   line: number;
@@ -337,10 +344,38 @@ export type BarLine = {
   name: string;
 };
 
+export type ProfessionLine = {
+  id: number;
+  name: string;
+  value: number;
+  max: number;
+};
+
+export type TotemLine = {
+  slot: number;
+  element: string;
+  spellId: number;
+  name: string;
+};
+
+export type RuneLine = {
+  index: number;
+  type: number;
+  ready: boolean;
+};
+
 export type JournalAfter =
   | { about: "quests"; quests: QuestLine[] }
   | { about: "bags"; bags: BagsView }
-  | { about: "spells"; spells: SpellLine[]; auras: AuraLine[]; bar: BarLine[] }
+  | {
+      about: "spells";
+      spells: SpellLine[];
+      auras: AuraLine[];
+      bar: BarLine[];
+      professions: ProfessionLine[];
+      totems: TotemLine[];
+      runes: RuneLine[] | undefined;
+    }
   | { about: "reputation"; factions: string[] }
   | { about: "log"; rows: GameLogEntry[]; more: number; label: string };
 

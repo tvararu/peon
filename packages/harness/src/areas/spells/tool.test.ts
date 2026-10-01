@@ -3,7 +3,7 @@ import { validateToolArguments } from "@earendil-works/pi-ai";
 import { spellParams, spellSpec, spellTool } from "#harness/areas/spells/tool";
 import { expectSendKind } from "#test-support/tool-harness";
 
-function accepts(args: Record<string, string | number>): boolean {
+function accepts(args: Record<string, string | number | boolean>): boolean {
   try {
     validateToolArguments(
       { description: "probe", name: "probe", parameters: spellParams },
@@ -20,10 +20,14 @@ describe("spell tool", () => {
     expect(accepts(spellSpec.minimalArgs)).toBe(true);
   });
 
-  test("do takes cast, cancel_aura and bar only", () => {
+  test("do takes the seven verbs", () => {
     expect(accepts({ do: "cast", spell: "Frost Armor" })).toBe(true);
     expect(accepts({ do: "cancel_aura", spell: "Frost Armor" })).toBe(true);
     expect(accepts({ do: "bar", slot: 1 })).toBe(true);
+    expect(accepts({ do: "mount" })).toBe(true);
+    expect(accepts({ do: "dismount" })).toBe(true);
+    expect(accepts({ do: "unlearn_profession", spell: "Mining" })).toBe(true);
+    expect(accepts({ do: "destroy_totem", element: "earth" })).toBe(true);
     expect(accepts({ do: "dance" })).toBe(false);
     expect(accepts({})).toBe(false);
   });

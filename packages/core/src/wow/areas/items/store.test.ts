@@ -194,3 +194,125 @@ describe("ItemsStore moves", () => {
     ]);
   });
 });
+
+describe("ItemsStore timers", () => {
+  test("an item cooldown is kept with the time seen and emits item_cooldown", () => {
+    const { events, store, tick } = setup();
+    tick(250);
+    store.receiveItemCooldown({ itemGuid: SWORD, spell: 7000 });
+    expect(store.snapshot().timers.cooldowns).toEqual([
+      { itemGuid: SWORD, seenAt: 1250, spell: 7000 },
+    ]);
+    expect(events).toEqual([
+      { entry: 25, itemGuid: SWORD, spell: 7000, type: "item_cooldown" },
+    ]);
+  });
+
+  test("an item time becomes an absolute expiry and emits item_time", () => {
+    const { events, store } = setup();
+    store.receiveItemTime({ itemGuid: SWORD, seconds: 90 });
+    expect(store.snapshot().timers.timers[0]?.expiresAt).toBe(91_000);
+    expect(events).toEqual([
+      {
+        entry: 25,
+        expiresAt: 91_000,
+        itemGuid: SWORD,
+        seconds: 90,
+        type: "item_timer",
+      },
+    ]);
+  });
+
+  test("an item that is not held still reports its time, with no entry", () => {
+    const { events, store } = setup();
+    store.receiveItemTime({ itemGuid: OTHER, seconds: 5 });
+    expect(events[0]).toMatchObject({ entry: undefined, type: "item_timer" });
+  });
+
+  test("an enchant time keeps the enchant slot and emits item_enchant_time", () => {
+    const { events, store } = setup();
+    store.receiveItemEnchantTime({
+      itemGuid: SWORD,
+      playerGuid: ME,
+      seconds: 1800,
+      slot: 1,
+    });
+    expect(store.snapshot().timers.enchants).toEqual([
+      {
+        expiresAt: 1_801_000,
+        itemGuid: SWORD,
+        seconds: 1800,
+        seenAt: 1000,
+        slot: 1,
+      },
+    ]);
+    expect(events).toEqual([
+      {
+        entry: 25,
+        expiresAt: 1_801_000,
+        itemGuid: SWORD,
+        seconds: 1800,
+        slot: 1,
+        type: "item_enchant_timer",
+      },
+    ]);
+  });
+
+  test("the death durability notice emits durability_loss", () => {
+    const { events, store } = setup();
+    store.receiveDeathDurability();
+    expect(events).toEqual([{ type: "durability_loss_death" }]);
+  });
+
+  test("a proficiency packet names the new weapon skills and keeps the mask", () => {
+    const { events, store } = setup();
+    store.receiveProficiency({ itemClass: 2, mask: 0b1000_0001 });
+    expect(store.snapshot().timers.proficiency).toEqual({
+      armor: "unknown",
+      weapon: 0b1000_0001,
+    });
+    expect(events).toEqual([
+      {
+        added: 0b1000_0001,
+        kind: "weapon",
+        mask: 0b1000_0001,
+        names: ["one-handed axes", "one-handed swords"],
+        type: "proficiency_changed",
+      },
+    ]);
+  });
+
+  test("a proficiency packet for an unknown item class is ignored", () => {
+    const { events, store } = setup();
+    store.receiveProficiency({ itemClass: 15, mask: 1 });
+    expect(events).toEqual([]);
+  });
+
+  test("dispose clears the timer slice", () => {
+    const { store } = setup();
+    store.receiveItemTime({ itemGuid: SWORD, seconds: 5 });
+    store.dispose();
+    expect(store.snapshot().timers.timers).toEqual([]);
+  });
+});
+
+describe("ItemsStore sockets", () => {
+  test("the socket slice starts empty and dispose clears it", () => {
+    const { store } = setup();
+    expect(store.snapshot().sockets).toEqual({
+      last: undefined,
+      pending: undefined,
+    });
+    store.beginSocket({
+      entry: 25,
+      gems: [OTHER],
+      itemGuid: SWORD,
+      requestedAt: 0,
+    });
+    store.dispose();
+    expect(store.snapshot().sockets).toEqual({
+      last: undefined,
+      pending: undefined,
+    });
+  });
+});

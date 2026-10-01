@@ -906,6 +906,70 @@ those fields.
 
 ---
 
+## Task T-11: Class, death knight and fishing presets
+
+Gate R rulings: none. Coordinator decisions: D-1 to D-4, BR-wave3-5 (plan index). Every preset consumer declares the dependency: `spells-9` and `spells-14` in wave 3, `objects-9` and `session-6` in wave 4.
+
+**Index row:** id `T-11`, unit `tooling`, worktreeUnit `tooling`, phase `3` (label C), codeArea `tooling`, proof `live`, size `M`, deps `T-1`, `T-3`, `T-5`, `T-7c`. It starts at the beginning of wave 3 and needs no `SEED-3` edit (the tasks below depend on it).
+
+**Worktree:** `proto-tooling`, branch `proto/area-tooling`, from `origin/factory/431-wave3`.
+
+**Files:**
+- Create: `packages/core/src/wow/char-create.ts` and `char-create.test.ts`
+- Modify: `packages/core/src/wow/session.ts` (one export line; rider lease, no other holder in wave 3)
+- Modify: `packages/factory/src/soap-presets.ts`, `soap-presets.test.ts`
+- Create: `packages/factory/src/soap-create.ts` and `soap-create.test.ts`
+- Modify: `packages/factory/src/soap.ts` (448 non-blank; at most 12 new lines, one import and the branch in `createAccount`)
+- Modify: `docs/factory.md` (presets list, "Each copies a template..." sentence, new paragraph)
+- Not touched: `TCPRESETS`, any template, `soap-gm.ts`, `soap-copy.ts`, `realm-service.ts`, server config, harness grader files. New scenarios and `spawn-slots.ts` entries for the new presets are added by the first scenario that uses one (BR-wave3-3).
+
+**Depends on:** T-1 (names), T-3 (probe), T-5 (`soap gm`), T-7c (`start --packet-trace`); all landed.
+
+**Safety (D-1):** the temporary security level 1 happens only inside `soap create`'s own account-creation step, after the new account is in the ledger, on that account only; no general gmlevel verb and no account-name argument. Raise, open the create connection, send `CMSG_CHAR_CREATE` without `CMSG_PLAYER_LOGIN`, close and await the connection, then demote to 0 and confirm the demotion (read back, e.g. `pinfo` Security 0) on both the success and failure paths. The profile and wrapper are published only after the demotion is confirmed; if it fails or cannot be confirmed, creation fails and the existing delete cleanup runs; if the delete also fails, the task reports that account and stops. Gameplay always uses a fresh connection. If the DK create itself fails on the deployed server (code `0x3b`/`0x3c`), T-11 lands the non-DK presets and records the DK part as not built; spells-9 then takes its drafted mock fallback.
+
+**Preset table (what the builder adds to `presetSpecs` and `presets`):**
+
+| Preset | Kind | Character | Start | Stage through the realm service (in order) |
+|---|---|---|---|---|
+| `eversong10-priest` | template `Tpleversong` (same character as `eversong10`) | Blood elf priest | Eversong point | none |
+| `eversong10-shaman` | create | Orc male shaman (race 2, class 7, gender 0) | Eversong point | `position`, `level` 10, `money` 50000, `items/add` 5175, 5176 (Earth, Fire Totem), `spells/learn` 8042, 8071, 2484, 2075, 8050 |
+| `eversong10-warlock` | create | Blood elf female warlock (10, 9, 1) | Eversong point | `position`, `level` 10, `money` 50000, `spells/learn` 688, 172, 348, 980 |
+| `eversong10-rogue` | create | Blood elf female rogue (10, 4, 1) | Eversong point | `position`, `level` 10, `money` 50000, `spells/learn` 921, 2983, 6770 |
+| `eversong10-druid` | create | Tauren male druid (6, 11, 0) | Eversong point | `position`, `level` 10, `money` 50000, `spells/learn` 8921, 5487 |
+| `eversong55-deathknight` | create, temporary level 1 only inside its own create step (D-1) | Blood elf male death knight (10, 6, 0) | Eversong point | `position`, `money` 50000 (no `level`: the character starts at 55) |
+| `eversong10-fishing` | template `Tpleversong` plus stage | Blood elf priest | Eversong point | `items/add` 6256, then one online step: log in, `player learn` 7733, wait for the skill, log out (D-4) |
+
+Eversong point is `{ map: 530, x: 8735, y: -6685, z: 70.5, o: 1.686, zone: 3430 }` (`soap-presets.ts:12`, readme). All spell ids above are `[M]` ranks from local `Spell.dbc` (Searing Totem 2075, Stoneskin Totem 8071, Earth Shock 8042, Flame Shock 8050, Earthbind Totem 2484, Summon Imp 688, Corruption 172, Immolate 348, Curse of Agony 980, Pick Pocket 921, Sprint 2983, Sap 6770, Moonfire 8921). Bear Form 5487 is `[M]` in local `Spell.dbc` (effect 6 shapeshift); the builder still checks every id with a throwaway script and drops any that does not exist (the service removes unknown spells at login anyway). Item ids 5175-5178 (Earth, Fire, Water, Air Totem) and 6256 are `[M]` from `item_template.sql`. Appearance bytes are all zero (skin, face, hair style, hair colour, facial hair); `Player::Create` validates them, so the builder checks the zero set live and picks the first valid set per race and gender otherwise.
+
+**Steps (test first; run tests with `mise test <path>`, never `bun`):**
+
+1. **Failing core tests** (`char-create.test.ts`):
+   - `buildCharCreate({name, race, class, gender, skin, face, hairStyle, hairColor, facialHair})` writes the cstring name then nine `u8` (the last is outfit 0), as `CharacterHandler.cpp:269-278`.
+   - `charCreateResult(0x2f)` is `success`; `0x32` `name_in_use`; `0x33` `disabled`; `0x35` `server_limit`; `0x36` `account_limit`; `0x39` `expansion`; `0x3a` `expansion_class`; `0x3b` `level_requirement`; `0x3c` `unique_class_limit`; `0x3e` `restricted_raceclass`; `0x30` `error`; `0x31` `failed`; other codes `code_0x..` (`SharedDefines.h:3623-3643`).
+   - `createCharacter(config, auth, spec)` over `startMockWorldServer` (`test-support/mock-world-server.ts:359`): it sends `CMSG_CHAR_CREATE` after admission, the test reads it with `waitForCapture` and answers with `inject(SMSG_CHAR_CREATE, [0x2f])`; the function resolves `{ result: "success" }`, rejects with the reason name for any other code, and closes the socket. It never sends `CMSG_PLAYER_LOGIN`. See them fail.
+2. **Implement** `char-create.ts`: `createCharacter` uses `createWorldConn`, `connectWorld`, `authenticateWorld` (`client-connection.ts:83,249,311`), `sendPacket` and `conn.dispatch.expect(SMSG_CHAR_CREATE, {timeoutMs})`; unhandled login notices are only counted (`protocol/world.ts:172-219`), not thrown. Export `createCharacter`, `buildCharCreate`, `charCreateResult`, `CharCreateSpec` from `session.ts` (shells may import only `@peon/core/session`, SEED3-7 of the pets draft). Add a one-line wire note in the file's test, not a comment in code.
+3. **Failing factory tests** (`soap-presets.test.ts`, `soap-create.test.ts`; behavioural only, BR-wave3-5):
+   - The usable preset for each new name is selected (seven new names join `presets` and `presetSpecs`); language Horde for all new (`presetLanguage` = 1); the DK spec has no `level` stage and its start is the Eversong point; `templateFor` still resolves `eversong10-priest` and `eversong10-fishing` to `Tpleversong`.
+   - With injected fakes (`run` for SOAP, `createCharacter`, a service double with `char(name, endpoint, body)`, `sleep`): for a created preset the character is created with the right race, class and name; the staged state is observable through the service double in table order; no command or service call in any created-kind preset contains `TCPRESETS`, `pdump` or `Tpl`; for the DK the privilege is restored (demotion confirmed, success and failure paths) and a failed demotion fails creation; a non-success result fails with the reason name; a failure of the fishing online step fails creation.
+4. **Implement** `soap-presets.ts`: `PresetSpec` becomes a union `Base & { template: string; stage?: readonly Stage[] }` or `Base & { create: CharCreateSpec; stage: readonly Stage[]; gmLevelForCreate?: 1 }`; `Stage = { endpoint: CharEndpoint; body: Json } | { online: { learn: readonly number[] } }`. Keep `templateFor` for template kinds only. Implement `soap-create.ts`: `createByProtocol`, `stagePreset`, `learnOnline` (uses `authWithRetry`, `worldSession` from `@peon/core/session`, `consoleCommand` from `soap.ts` for `player learn <C> <spell>`, waits until `handle.getEntity(self)` shows skill 356 in `PLAYER_SKILL_INFO` (offset 636, `update-fields.ts:276`), then `handle.logout()` and awaits `closed`). `createAccount` branches on the spec kind and keeps the existing cleanup on failure. A missing `PEON_REALM_SERVICE` fails with the message `serviceUrl` already writes, only for created kinds. `soap.ts` stays under 470 non-blank.
+5. **Docs**: `docs/factory.md` lists the seven names, says template presets copy from `TCPRESETS` (read only) and created presets are built over the protocol, names the service `reset` limit (see Proof), and records that `Tplhunter` has a level 10 Ravager (entry 17525) (SEED3-8 of the pets draft: no hunter build).
+6. `mise test packages/core/src/wow/char-create.test.ts packages/factory`, `mise typecheck core`, `mise typecheck factory`, `mise ci:checks`.
+
+**Proof (live, each account deleted with `mise factory soap delete <ACCOUNT>`, also on failure):**
+1. For each created preset: `mise factory soap create <preset>`; `mise factory soap truth <ACCOUNT>` shows the expected race, class, level (10, or 55 for the DK), the Eversong position within 16 yd, money 50000, the staged items and spells; `mise factory soap gm <ACCOUNT> read pinfo` shows Security 0 for the DK. Then `tmp/puppet-<ACCOUNT> start --json` and `read --json` (or `mise protocol:probe <ACCOUNT> --flow login`) logs in without a disconnect and shows the class and spells. Report the ids that `Spell.dbc` or the live login dropped.
+2. DK: record the `SMSG_CHAR_CREATE` code; if the deployed config or RBAC differs from the repo defaults (code `0x3b` or `0x3c`), land the non-DK presets and record the DK part as not built (spells-9 takes its mock fallback).
+3. Fishing: after create, log in and read the skill triple for 356 from `handle.getEntity(self).rawFields` (throwaway script, deleted afterwards), equip the pole, cast Fishing (7620) at water near Eversong; report whether a bobber appears. `soap truth` shows item 6256 and spell 7620.
+4. Hunter pet: `soap create eversong10-hunter`, `soap gm <ACCOUNT> read pet` shows the Ravager (entry 17525) in slot 0; record it in the report (no code change).
+5. Service `reset` (`POST /account/<A>/reset {"preset":...}`) copies a `TCPRESETS` template and so does not know the created presets: record that the eval runner does not call it (`grep` in `packages/harness/src/grader` finds no caller `[M]`).
+
+**Commit:**
+
+```
+feat: Build class and fishing presets
+```
+
+Body: "Workers could only test the classes that had a template character. `soap create` now creates the shaman, warlock, rogue, druid, death knight and fishing characters over the protocol on the new account and stages them through the realm service, so no template is added or changed. `spells-9`, `spells-14`, `objects-9` and `session-6` consume the presets."
+
 ## Deferred (not built by this unit)
 
 - **Layout comparator** (N21, design 4.7): not built. A regex extractor
@@ -933,5 +997,37 @@ None. This unit owns no opcode.
   `packages/harness/src/grader/result.test.ts` (the expected enum
   message), because its console checks need them and typecheck fails
   without them. The contract 2.2 row T-10 gains these three files.
+- **BR-T-11-1.** Coordinator ruling for T-11 (P2-17): creating
+  presets through `soap.ts` made an import cycle between `soap.ts` and
+  `realm-service.ts`. T-11 may move `factoryAccount` into a new owned
+  module `packages/factory/src/factory-account.ts` and change the import
+  lines of `soap.ts`, `soap-copy.ts`, `realm-service.ts` and
+  `soap-service-cli.ts` to it, with no other edit to those three files.
+  Everything else of the created-preset path lives in the owned
+  `soap-create.ts`; `soap.ts` keeps only the import and the branch in
+  `createAccount` and stays under 480 non-blank lines.
+- **BR-T-11-2.** Coordinator ruling for T-11 (P2-17): the death knight
+  create returns `0x31` on the deployed server, not the `0x3b`/`0x3c`
+  the safety terms name. The not-built fallback applies to any server
+  refusal that is substantiated, not only those two codes: a retained
+  trace of the final preset's own `CMSG_CHAR_CREATE` body (valid factory
+  name) and its `SMSG_CHAR_CREATE` reply, plus the AzerothCore source path
+  that returns that code and the deployed setting or data that takes it
+  (read only, never changed). An unexplained failure or a client-side
+  defect is not a fallback. The fishing proof needs one fresh preset with
+  the skill-356 triple read, the pole equipped and one cast of 7620 at
+  water, reporting whether a bobber appears.
+- **BR-T-11-3.** Coordinator ruling (P2-17): after three fix rounds and
+  a rescue round, the fifth review still finds three gaps: the deployed
+  setting behind the death knight's `0x33` (`CHAR_CREATE_DISABLED`)
+  refusal is not observed (only shipped defaults are cited), the fishing
+  cast and the full skill triple are not in a retained trace, and the
+  trace option added to `soap.ts` and `soap-cli.ts` is outside the
+  files BR-T-11-1 grants. T-11 is parked (branch
+  `factory/431-wave3-parked-T-11`) with these findings listed in the
+  wave PR. Its dependents need its presets, not its code: spells-9 takes
+  its drafted mock fallback for the rune opcodes (SR3-spells-9) and
+  spells-14 its "Not shown" fallback for the totem scenario
+  (SR3-spells-15), and neither waits for T-11.
 
 ## COMPLETE

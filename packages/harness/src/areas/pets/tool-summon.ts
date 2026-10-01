@@ -25,11 +25,15 @@ import { knownUnits } from "#harness/ops/views";
 import { result } from "#harness/tools/define";
 import { nextCall } from "#harness/tools/next-call";
 
-function unitOf(ctx: PetCtx, args: PetArgs): { guid: bigint; view: UnitView } {
+export function unitOf(
+  ctx: PetCtx,
+  args: PetArgs,
+  verb = "attack",
+): { guid: bigint; view: UnitView } {
   const wanted = args.target?.trim() ?? "";
   if (wanted === "")
     throw new Refusal({
-      detail: "name the unit to attack.",
+      detail: `name the unit to ${verb}.`,
       next: nextCall("look"),
       reason: "missing_target",
     });

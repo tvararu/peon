@@ -1,5 +1,5 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import { selfFields } from "#wow/areas/selfstate/fields";
+import { selfFields, UNIT_FLAG_MOUNT } from "#wow/areas/selfstate/fields";
 import {
   type CollisionHeight,
   type CompoundMove,
@@ -14,6 +14,7 @@ import {
   type TransferAborted,
 } from "#wow/areas/selfstate/protocol";
 import { type PlayerLife, readLife } from "#wow/player-state";
+import { UnitFlag } from "#wow/protocol/entity-fields";
 import type { MoveCounter } from "#wow/protocol/movement";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { TransferAbortedInput } from "#wow/self-store";
@@ -37,6 +38,8 @@ export type SelfstateState = {
   readonly lastTransferAbort: TransferAbort | undefined;
   readonly collisionHeight: number | undefined;
   readonly selfResSpell: number;
+  readonly mounted: boolean;
+  readonly mountDisplayId: number;
 };
 export type TransferAbort = TransferAborted & { readonly at: number };
 export type SelfstateEvent =
@@ -55,6 +58,9 @@ export type SelfstateEvent =
   | { type: "mirror_timer"; timer: MirrorTimerName; change: "stopped" }
   | { type: "breath_low"; remainingMs: number }
   | { type: "ghost_pending" }
+  | { type: "mounted"; displayId: number; taxi: boolean }
+  | { type: "dismounted"; taxi: boolean }
+  | { type: "mount_anim"; guid: bigint }
   | { type: "self_res_available"; spellId: number; name: string | undefined };
 
 export class SelfstateStore {
@@ -68,6 +74,10 @@ export class SelfstateStore {
   private collisionHeight: number | undefined;
   private readonly corpseReplies = new Emitter<[CorpseMapPosition]>();
   private selfResSpell = 0;
+  private mountKnown = false;
+  private mountDisplayId = 0;
+  private taxi = false;
+  private dismountUnconfirmed = false;
 
   constructor(deps: SessionDeps, core: CoreStores) {
     this.deps = deps;
@@ -77,6 +87,8 @@ export class SelfstateStore {
   snapshot(): SelfstateState {
     return {
       collisionHeight: this.collisionHeight,
+      mountDisplayId: this.mountDisplayId,
+      mounted: this.mountDisplayId !== 0,
       selfResSpell: this.selfResSpell,
       standState: this.standState,
       timers: { ...this.timers },
@@ -131,6 +143,44 @@ export class SelfstateStore {
       return;
     }
     this.receiveStandState(value);
+  }
+
+  syncMountFields(
+    unitFlags: number | undefined,
+    displayId: number | undefined,
+    fresh: boolean,
+  ): void {
+    if (unitFlags === undefined || displayId === undefined) return;
+    const mounted = (unitFlags & UNIT_FLAG_MOUNT) !== 0 && displayId !== 0;
+    const taxi = (unitFlags & UnitFlag.TAXI_FLIGHT) !== 0;
+    if (this.dismountUnconfirmed && mounted && !fresh) return;
+    this.dismountUnconfirmed = false;
+    const displayIdNow = mounted ? displayId : 0;
+    const was = this.mountDisplayId !== 0;
+    const taxiBefore = this.taxi;
+    const known = this.mountKnown;
+    this.mountKnown = true;
+    this.mountDisplayId = displayIdNow;
+    this.taxi = taxi;
+    if (!known || mounted === was) return;
+    if (mounted) this.events.emit({ type: "mounted", displayId, taxi });
+    else this.events.emit({ type: "dismounted", taxi: taxiBefore });
+  }
+
+  receiveDismount(guid: bigint): void {
+    if (guid !== this.deps.selfGuid() || this.mountDisplayId === 0) return;
+    this.dismountUnconfirmed = true;
+    this.mountDisplayId = 0;
+    this.events.emit({ type: "dismounted", taxi: this.taxi });
+  }
+
+  receiveMountAnim(guid: bigint): void {
+    if (guid === this.deps.selfGuid()) return;
+    this.events.emit({ type: "mount_anim", guid });
+  }
+
+  inFlight(): boolean {
+    return this.taxi;
   }
 
   receiveMirrorTimer({ timer, ...start }: MirrorTimerStart): void {

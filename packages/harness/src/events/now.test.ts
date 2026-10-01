@@ -15,6 +15,7 @@ const self: SelfView = {
   life: "alive",
   maxHp: 217,
   maxPower: 100,
+  mounted: false,
   name: "Fgklibhlflc",
   pose: {
     ageMs: 0,
@@ -182,6 +183,12 @@ describe("formatNow", () => {
     expect(formatNow(quiet)).toBe(
       "[now 19:13:31] Fgklibhlflc L10 Priest HP 190/217 alive · unknown zone (no position)",
     );
+  });
+
+  test("says mounted after the combat word only while mounted", () => {
+    const line = formatNow(snapshot({ self: { ...self, mounted: true } }));
+    expect(line).toContain("alive in combat mounted ·");
+    expect(formatNow(snapshot())).not.toContain("mounted");
   });
 });
 

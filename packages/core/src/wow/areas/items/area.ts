@@ -4,6 +4,16 @@ import {
   parseItemTextResponse,
   parseReadItemResult,
 } from "#wow/areas/items/protocol-read";
+import {
+  parseEnchantmentLog,
+  parseSocketGemsResult,
+} from "#wow/areas/items/protocol-sockets";
+import {
+  parseItemCooldown,
+  parseItemEnchantTimeUpdate,
+  parseItemTimeUpdate,
+  parseSetProficiency,
+} from "#wow/areas/items/protocol-timers";
 import { itemsRuntime } from "#wow/areas/items/runtime";
 import { ItemsStore } from "#wow/areas/items/store";
 import { parseInventoryChangeFailure } from "#wow/protocol/inventory";
@@ -24,6 +34,15 @@ export const itemsArea = defineArea({
     "read_failed",
     "read_unanswered",
     "item_text",
+    "item_cooldown",
+    "item_timer",
+    "item_enchant_timer",
+    "durability_loss_death",
+    "proficiency_changed",
+    "enchantment_log",
+    "sockets_updated",
+    "socket_refused",
+    "socket_unanswered",
   ],
   store: (deps, core) => new ItemsStore(deps, core),
   register: (wire, store) => {
@@ -38,6 +57,27 @@ export const itemsArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_ITEM_TEXT_QUERY_RESPONSE, (r) =>
       store.receiveItemText(parseItemTextResponse(r)),
+    );
+    wire.on(GameOpcode.SMSG_ITEM_COOLDOWN, (r) =>
+      store.receiveItemCooldown(parseItemCooldown(r)),
+    );
+    wire.on(GameOpcode.SMSG_ITEM_TIME_UPDATE, (r) =>
+      store.receiveItemTime(parseItemTimeUpdate(r)),
+    );
+    wire.on(GameOpcode.SMSG_ITEM_ENCHANT_TIME_UPDATE, (r) =>
+      store.receiveItemEnchantTime(parseItemEnchantTimeUpdate(r)),
+    );
+    wire.on(GameOpcode.SMSG_DURABILITY_DAMAGE_DEATH, () =>
+      store.receiveDeathDurability(),
+    );
+    wire.on(GameOpcode.SMSG_SET_PROFICIENCY, (r) =>
+      store.receiveProficiency(parseSetProficiency(r)),
+    );
+    wire.on(GameOpcode.SMSG_SOCKET_GEMS_RESULT, (r) =>
+      store.receiveSocketResult(parseSocketGemsResult(r)),
+    );
+    wire.on(GameOpcode.SMSG_ENCHANTMENTLOG, (r) =>
+      store.receiveEnchantmentLog(parseEnchantmentLog(r)),
     );
   },
   runtime: itemsRuntime,
