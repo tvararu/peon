@@ -130,7 +130,7 @@ act waits for the info that shows the socket at 0.
 
 ## Capabilities row
 
-| Talents (`talents`, `interact reset_talents`) | `t8-talents-spend` |
+| Talents (`talents`, `interact reset_talents`) | `t8-talents-spend`, `t8-talents-reset` |
 
 ## Proof
 
