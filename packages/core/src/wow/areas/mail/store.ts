@@ -73,6 +73,31 @@ export type MailEvent =
   | { type: "mailbox_shown"; mailbox: bigint }
   | { type: "result"; result: SendMailResult };
 
+function applyResult(
+  kept: MailEntry[],
+  at: number,
+  found: MailEntry,
+  result: SendMailResult,
+): void {
+  if (result.status !== "ok") return;
+  if (result.action === "send") return;
+  if (result.action === "money_taken") kept[at] = { ...found, money: 0 };
+  else if (result.action === "item_taken" && "itemLow" in result)
+    kept[at] = {
+      ...found,
+      items: found.items.filter((item) => item.guidLow !== result.itemLow),
+    };
+  else if (result.action === "made_permanent")
+    kept[at] = {
+      ...found,
+      flags: {
+        ...found.flags,
+        copied: true,
+        raw: found.flags.raw | MAIL_COPIED_FLAG,
+      },
+    };
+  else kept.splice(at, 1);
+}
 export class MailStore {
   private readonly events = new Emitter<[MailEvent]>();
   private readonly deps: SessionDeps;
@@ -178,33 +203,18 @@ export class MailStore {
       this.events.emit({ result, type: "result" });
       return;
     }
-    const index = this.inbox.findIndex((mail) => mail.id === result.id);
-    if (index < 0) {
+    const at = this.inbox.findIndex((entry) => entry.id === result.id);
+    if (at < 0) {
       this.events.emit({ result, type: "result" });
       return;
     }
     const kept = [...this.inbox];
-    const mail = kept[index];
-    if (!mail) {
+    const found = kept[at];
+    if (!found) {
       this.events.emit({ result, type: "result" });
       return;
     }
-    if (result.action === "money_taken") kept[index] = { ...mail, money: 0 };
-    else if (result.action === "item_taken" && "itemLow" in result)
-      kept[index] = {
-        ...mail,
-        items: mail.items.filter((item) => item.guidLow !== result.itemLow),
-      };
-    else if (result.action === "made_permanent")
-      kept[index] = {
-        ...mail,
-        flags: {
-          ...mail.flags,
-          copied: true,
-          raw: mail.flags.raw | MAIL_COPIED_FLAG,
-        },
-      };
-    else kept.splice(index, 1);
+    applyResult(kept, at, found, result);
     this.inbox = kept;
     this.events.emit({
       hidden: this.hidden,
