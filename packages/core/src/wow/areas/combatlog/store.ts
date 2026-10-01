@@ -180,6 +180,10 @@ export class CombatlogStore {
     );
   }
 
+  noteTruncated(): void {
+    this.dropped++;
+  }
+
   dispose(): void {
     this.events.clear();
     this.entries.length = 0;

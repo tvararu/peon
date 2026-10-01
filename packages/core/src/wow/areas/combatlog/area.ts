@@ -13,6 +13,10 @@ import {
   spellDamageEntry,
   spellMissEntries,
 } from "#wow/areas/combatlog/entries";
+import {
+  executeEntries,
+  parseSpellExecute,
+} from "#wow/areas/combatlog/execute";
 import { COMBATLOG_OPCODES } from "#wow/areas/combatlog/opcodes";
 import {
   parseAttackerState,
@@ -47,6 +51,14 @@ function registerDispels(wire: AreaRegister, store: CombatlogStore): void {
   wire.on(GameOpcode.SMSG_DISPEL_FAILED, (r) =>
     store.receive(dispelFailedEntries(parseDispelFailed(r))),
   );
+}
+
+function registerExecute(wire: AreaRegister, store: CombatlogStore): void {
+  wire.on(GameOpcode.SMSG_SPELLLOGEXECUTE, (r) => {
+    const parsed = parseSpellExecute(r);
+    store.receive(executeEntries(parsed));
+    if (parsed.truncated) store.noteTruncated();
+  });
 }
 
 export const combatlogArea = defineArea({
@@ -87,6 +99,7 @@ export const combatlogArea = defineArea({
       store.receive([instakillEntry(parseInstakill(r))]),
     );
     registerDispels(wire, store);
+    registerExecute(wire, store);
     wire.peek(GameOpcode.SMSG_SPELL_GO, (r) => {
       const go = parseSpellGo(r);
       store.receive(

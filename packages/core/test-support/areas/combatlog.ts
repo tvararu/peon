@@ -367,3 +367,56 @@ export function combatlogDispelFailedBody(init: {
   for (const id of init.failed) w.uint32LE(id);
   return w.finish();
 }
+
+export type ExecuteRecordInit =
+  | { guid: bigint; powerTaken: number; powerType: number; multiplier: number }
+  | { guid: bigint; attacks: number }
+  | { guid: bigint; spell: number }
+  | { guid: bigint; item: number; slot: number }
+  | { guid: bigint }
+  | { entry: number }
+  | { raw: Uint8Array };
+
+function writeExecuteRecord(w: PacketWriter, record: ExecuteRecordInit): void {
+  if ("raw" in record) {
+    w.rawBytes(record.raw);
+    return;
+  }
+  if ("entry" in record) {
+    w.uint32LE(record.entry);
+    return;
+  }
+  w.packedGuidBig(record.guid);
+  if ("powerTaken" in record) {
+    w.uint32LE(record.powerTaken);
+    w.uint32LE(record.powerType);
+    w.floatLE(record.multiplier);
+  } else if ("attacks" in record) {
+    w.uint32LE(record.attacks);
+  } else if ("spell" in record) {
+    w.uint32LE(record.spell);
+  } else if ("item" in record) {
+    w.uint32LE(record.item);
+    w.uint32LE(record.slot);
+  }
+}
+
+export function combatlogSpellExecuteBody(init: {
+  caster: bigint;
+  spellId: number;
+  effects: readonly {
+    effect: number;
+    records: readonly ExecuteRecordInit[];
+  }[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.caster);
+  w.uint32LE(init.spellId);
+  w.uint32LE(init.effects.length);
+  for (const { effect, records } of init.effects) {
+    w.uint32LE(effect);
+    w.uint32LE(records.length);
+    for (const record of records) writeExecuteRecord(w, record);
+  }
+  return w.finish();
+}
