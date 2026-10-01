@@ -1,3 +1,4 @@
+import { abortable } from "#lib/abort";
 import { ignoreFailure } from "#lib/ignore-failure";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import {
@@ -65,7 +66,7 @@ function rulesState(env: Env): RulesState {
   const bytes0 = entity?.rawFields.get(UNIT_FIELDS.BYTES_0.offset) ?? 0;
   return {
     classId: (bytes0 >> 8) & 0xff,
-    freePoints: snapshot.fields.freePoints ?? snapshot.player?.freePoints,
+    freePoints: snapshot.player?.freePoints ?? snapshot.fields.freePoints,
     held,
   };
 }
@@ -135,6 +136,7 @@ function sendAndWait(
       throw error;
     },
   );
+  env.ctx.signal.throwIfAborted();
   try {
     env.ctx.send(opcode, body);
   } catch (error) {
@@ -208,8 +210,9 @@ async function learn(
   env: Env,
   plan: readonly TalentRank[],
 ): Promise<LearnTalentsResult> {
-  const catalog = await env.catalog();
+  const catalog = await abortable(env.catalog(), env.ctx.signal);
   const state = rulesState(env);
+  env.ctx.signal.throwIfAborted();
   if (!catalog) return sendDegraded(env, plan, state);
   return sendRuled(env, plan, state, catalog);
 }
