@@ -1,8 +1,10 @@
 import { describe, expect, jest, test } from "bun:test";
 import type { AreaState } from "@peon/core";
 import { placeView, selfView } from "#harness/ops/views";
-import { selfLine } from "#harness/tools/look-self";
+import { selfLine, talentView } from "#harness/tools/look-self";
 import { createTestRuntime } from "#test-support/runtime-fixture";
+import type { LookAfter } from "#harness/contract/details";
+import { toolCtx } from "#test-support/ops-fixtures";
 import { selfPose, selfRow, setWorld } from "#test-support/world-fixtures";
 
 const NOW = 1_000_000;
@@ -49,5 +51,27 @@ describe("selfLine posture", () => {
       "alive, not in combat, mounted.",
     );
     expect(await lineFor("stand")).not.toContain("mounted");
+  });
+});
+
+describe("selfLine talent points", () => {
+  test("appends the free-points sentence after the pose text", async () => {
+    const t = await createTestRuntime({
+      parts: { clock: { now: () => NOW } },
+    });
+    const ctx = toolCtx<LookAfter>(t);
+    const { handle } = t;
+    setWorld(handle, { pose: selfPose(NOW), rows: [selfRow()] });
+    const real = handle.talents.state();
+    jest.spyOn(handle.talents, "state").mockReturnValue({
+      ...real,
+      fields: { ...real.fields, freePoints: 3 },
+    });
+    const after = {
+      place: placeView(ctx),
+      self: selfView(ctx),
+      ...talentView(ctx),
+    };
+    expect(selfLine(after)).toContain("3 talent points free.");
   });
 });

@@ -101,19 +101,33 @@ export function castViews(
   };
 }
 
+export function talentView(
+  ctx: ToolCtx<LookAfter>,
+): Pick<LookAfter, "talentPoints"> {
+  const state = ctx.handle.talents.state();
+  const points = state.player?.freePoints ?? state.fields.freePoints ?? 0;
+  return points > 0 ? { talentPoints: points } : {};
+}
+
+function talentText(points: number | undefined): string {
+  if (points === undefined || points <= 0) return "";
+  const word = points === 1 ? "point" : "points";
+  return ` ${points} talent ${word} free.`;
+}
+
 export function selfLine({
   channel,
   place,
   self,
-}: Pick<LookAfter, "channel" | "place" | "self">): string {
+  talentPoints,
+}: Pick<LookAfter, "channel" | "place" | "self" | "talentPoints">): string {
   const combat = self.inCombat ? "in combat" : "not in combat";
   const posture = self.posture ? `${self.posture}, ` : "";
   const riding = self.mounted ? ", mounted" : "";
   const channelling = channel ? `, ${castText("channelling", channel)}` : "";
   const vitals = `HP ${self.hp}/${self.maxHp}, ${powerText(self)}${self.life}, ${posture}${combat}${riding}${channelling}`;
-  return `${self.name} L${self.level} ${self.className}, ${vitals}. ${placeText(place)} ${poseText(self.pose)}`;
+  return `${self.name} L${self.level} ${self.className}, ${vitals}. ${placeText(place)} ${poseText(self.pose)}${talentText(talentPoints)}`;
 }
-
 export function statusLine({ run, target, targetCast }: LookAfter): string {
   const word = targetCast?.kind === "channel" ? "channelling" : "casting";
   const casting = targetCast ? `, ${castText(word, targetCast)}` : "";

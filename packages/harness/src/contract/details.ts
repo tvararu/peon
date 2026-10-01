@@ -56,6 +56,7 @@ export type LookAfter = {
   unchanged: number;
   channel?: LookCast;
   targetCast?: LookCast;
+  talentPoints?: number;
 };
 
 export type LegStatus =
