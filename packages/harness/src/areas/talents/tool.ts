@@ -1,4 +1,9 @@
 import { StringEnum, Type } from "@earendil-works/pi-ai";
+import {
+  glyphArgsOf,
+  glyphTalents,
+  unglyphTalents,
+} from "#harness/areas/talents/tool-glyph";
 import { learnTalents } from "#harness/areas/talents/tool-learn";
 import { showTalents } from "#harness/areas/talents/tool-show";
 import type {
@@ -32,10 +37,16 @@ export const talentPlanEntry = Type.Object({
 });
 
 export const talentParams = Type.Object({
-  do: StringEnum(["show", "learn"], {
+  do: StringEnum(["show", "learn", "glyph", "unglyph"], {
     description:
-      "show: list free talent points, learned talents and glyph slots. learn: spend points from the plan.",
+      "show: list free talent points, learned talents and glyph slots. learn: spend points from the plan. glyph: put a glyph item in a slot. unglyph: clear a glyph slot.",
   }),
+  item: Type.Optional(
+    Type.String({
+      description:
+        'For glyph: the glyph item as the bags journal shows it, "item <id>", or "bag B slot S".',
+    }),
+  ),
   plan: Type.Optional(
     Type.Array(talentPlanEntry, {
       description: "Talents to learn, each a talent name or id with a rank.",
@@ -47,16 +58,24 @@ export const talentParams = Type.Object({
       minimum: 1,
     }),
   ),
+  slot: Type.Optional(
+    Type.Union([Type.Integer({ minimum: 1 }), Type.String()], {
+      description:
+        "For glyph: the glyph slot 1-6 or a kind shown by show. For unglyph: the slot 1-6 to clear.",
+    }),
+  ),
   talent: Type.Optional(
     talentRef('The talent to learn with rank, a name or id like "124".'),
   ),
 });
 
 export type TalentsArgs = {
-  do: "show" | "learn";
+  do: "show" | "learn" | "glyph" | "unglyph";
   plan?: { talent: string | number; rank: number }[];
   rank?: number;
   talent?: string | number;
+  item?: string;
+  slot?: string | number;
 };
 
 export function wantsOf(args: TalentsArgs): { talent: string; rank: number }[] {
@@ -76,6 +95,11 @@ export function talentsRun(
   ctx: TalentsCtx,
 ): Promise<ToolResult<TalentsAfter>> {
   if (args.do === "show") return showTalents(ctx);
+  if (args.do === "glyph") {
+    const parsed = glyphArgsOf(args);
+    return glyphTalents(ctx, parsed.item, parsed.slot);
+  }
+  if (args.do === "unglyph") return unglyphTalents(ctx, args.slot);
   return learnTalents(ctx, wantsOf(args));
 }
 

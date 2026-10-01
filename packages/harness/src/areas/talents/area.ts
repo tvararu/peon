@@ -95,6 +95,18 @@ function refusedRows(event: Refused): AreaDraft[] {
   }));
 }
 
+function glyphRows(event: Info): AreaDraft[] {
+  return event.glyphs.map((change) => ({
+    class: "log",
+    data: { glyphId: change.to, slot: change.slot + 1 },
+    name: "glyph",
+    text:
+      change.to === 0
+        ? `Glyph slot ${change.slot + 1} cleared.`
+        : `Glyph ${change.to} in slot ${change.slot + 1}.`,
+  }));
+}
+
 type TalentsMemo = {
   pendingResetPoints: { after: number; before: number } | undefined;
 };
@@ -122,7 +134,10 @@ function rows(
       memo.pendingResetPoints = isReset(event)
         ? { after: event.pointsAfter, before: event.pointsBefore }
         : undefined;
-    return isReset(event) ? resetRow(event) : learnedRows(event);
+    const glyph = glyphRows(event);
+    return isReset(event)
+      ? [...resetRow(event), ...glyph]
+      : [...learnedRows(event), ...glyph];
   }
   if (memo !== undefined) memo.pendingResetPoints = undefined;
   if (event.type === "refused") return refusedRows(event);
@@ -137,5 +152,5 @@ export const talentsHarness = defineHarnessArea({
     const memo: TalentsMemo = { pendingResetPoints: undefined };
     return { event: (event, rc) => rows(event, rc, memo) };
   },
-  worldActs: ["learnTalents", "resetTalents"],
+  worldActs: ["learnTalents", "resetTalents", "applyGlyph", "removeGlyph"],
 });
