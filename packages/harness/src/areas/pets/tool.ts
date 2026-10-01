@@ -129,6 +129,7 @@ const petRenderers: ToolRenderers<"pet", PetAfter> = {
 export const petSpec: GameToolSpec<typeof petParams, "pet", PetAfter> = {
   fallback: emptyPet,
   kind: "action",
+  maxLines: 30,
   minimalArgs: { do: "follow" },
   name: "pet",
   parameters: petParams,

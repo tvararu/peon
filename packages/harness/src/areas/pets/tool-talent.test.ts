@@ -2,6 +2,7 @@ import { describe, expect, jest, test } from "bun:test";
 import type { SpellDefinition } from "@peon/core";
 import { fakeAwait, withFakeTimers } from "@peon/core/test-support/fake-time";
 import { petSpec } from "#harness/areas/pets/tool";
+import { formatContent } from "#harness/tools/define";
 import { toolCtx } from "#test-support/ops-fixtures";
 import {
   barState,
@@ -187,7 +188,21 @@ describe("pet talent", () => {
     expect(gone.reason).toBe("no_pet");
   });
 
-  test("a name needs talent data, an id does not", async () => {
+  test("an id learns without talent data and is confirmed through pet_info", async () => {
+    const { reply, t } = await rig({ catalog: undefined });
+    const learn = jest
+      .spyOn(t.game.pets.act, "learnPetTalent")
+      .mockImplementation(() => {
+        reply([{ rank: 0, talentId: 2118 }], 1);
+        return { ok: true };
+      });
+    const out = await petSpec.run({ do: "talent", what: "2118" }, toolCtx(t));
+    expect(learn).toHaveBeenCalledWith(2118, 0);
+    expect(out.status).toBe("DONE");
+    expect(out.detail).toContain("2118");
+  });
+
+  test("a name needs talent data", async () => {
     const { t } = await rig({ catalog: undefined });
     const learn = jest
       .spyOn(t.game.pets.act, "learnPetTalent")
@@ -266,5 +281,25 @@ describe("pet talent", () => {
     const out = await petSpec.run({ do: "talent" }, toolCtx(t));
     expect(out.detail).toContain("unknown");
     expect(out.status).toBe("DONE");
+  });
+  test("the formatted list shows a full tree without hiding choices", async () => {
+    const ids = Array.from({ length: 22 }, (_, index) => 2100 + index);
+    const { t } = await rig({
+      catalog: {
+        ...CATALOG,
+        talent: (id: number) =>
+          ids.includes(id)
+            ? { ranks: [61_000 + id], row: 0, tab: CUNNING_TAB }
+            : undefined,
+      },
+    });
+    const out = await petSpec.run({ do: "talent" }, toolCtx(t));
+    expect(out.body).toHaveLength(22);
+    const text = formatContent(out, {
+      danger: undefined,
+      maxLines: petSpec.maxLines ?? 12,
+    });
+    for (const id of ids) expect(text).toContain(`${id}`);
+    expect(text).not.toContain("more; narrow the call.");
   });
 });

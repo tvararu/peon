@@ -106,9 +106,9 @@ function resolveId(
   const trimmed = what.trim();
   if (DIGITS.test(trimmed)) {
     const id = Number(trimmed);
-    const talent = catalog?.talent(id);
-    const entryTab =
-      talent === undefined ? undefined : catalog?.tab(talent.tab);
+    if (catalog === undefined) return id;
+    const talent = catalog.talent(id);
+    const entryTab = talent === undefined ? undefined : catalog.tab(talent.tab);
     const mask = (entryTab as { petMask?: number } | undefined)?.petMask;
     if (talent !== undefined && mask === tree.mask) return id;
     throw new Refusal({

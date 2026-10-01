@@ -49,7 +49,6 @@ or the page names one that does not exist.
 | Cast and autocast pet spells | `t8-pets-spells` | Feed Pet needs an item-target cast and is not covered. A cast whose spell the catalog does not know is `UNCONFIRMED`. A pet far from its target fails out of range: send it with attack first. |
 | Rename or abandon a hunter pet | `t8-pets-rename`, `t8-pets-abandon` | A pet can be renamed once. Abandon runs only when the agent names the pet; it cannot be undone. Taming a new beast has no scenario. |
 | Stable a pet, call it back and buy a stable slot | `t8-pets-stable` | Needs a stable master near the spawn; the scenario starts in Tranquillien, 48 yd from the master, and walks to it. |
-| Spend pet talent points | `t8-pets-talent` | Hunter only; spends one point of the pet's own talent tree at owner level 25. |
 | Spend talent points | `t8-talents-spend` | Learns only for the active spec. A server refusal has no reason on the wire; the reason shown comes from local rules. |
 | Reset talents at a class trainer | `t8-talents-reset` | Pays only up to the cost the agent allows. |
 | Get on a vehicle by clicking it and get off | `t8-vehicles-board` | The client does not read seat flags, so a request the seat forbids shows as no answer. The scenario uses the 7th Legion Chain Gun in Dragonblight, which a Horde `max80` can click; hostile Riflemen stand near it. |
@@ -68,6 +67,7 @@ or the page names one that does not exist.
 | Set loot rules and give master loot | `t9-raid-master-loot` | Needs a corpse that holds an item; the scenario allows three kills. `roll` and `pass_loot` are not shown: a group roll needs an uncommon drop and `pass_loot` has no server reply. |
 | Run and answer ready checks | `t9-raid-ready`, `t9-raid-answer` | Peon ends its own checks after 30 s. |
 | Mark targets | `t9-raid-mark` | Icon names are unconfirmed. |
+| Spend pet talent points | `t8-pets-talent` | Hunter only; spends one point of the pet's own talent tree at owner level 25. |
 
 ## Not shown by any scenario
 
