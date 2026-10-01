@@ -44,6 +44,7 @@ describe("LfgStore", () => {
         teleportDenied: undefined,
         offerContinue: undefined,
         reward: undefined,
+        raidLists: {},
       });
     } finally {
       rig.dispose();

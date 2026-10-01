@@ -15,6 +15,12 @@ import type {
   RoleCheckUpdate,
   RoleChosen,
 } from "#wow/areas/lfg/protocol";
+import type { LfgList } from "#wow/areas/lfg/protocol-list";
+import {
+  type LfgRaidList,
+  type LfgRaidListEvent,
+  LfgRaidLists,
+} from "#wow/areas/lfg/store-list";
 import {
   bootView,
   copyProposal,
@@ -59,6 +65,7 @@ export type LfgState = {
   teleportDenied: LfgTeleportDeniedView | undefined;
   offerContinue: LfgOfferContinueView | undefined;
   reward: LfgRewardView | undefined;
+  raidLists: Readonly<Record<number, LfgRaidList>>;
 };
 
 export type LfgEvent =
@@ -106,7 +113,8 @@ export type LfgEvent =
       money: number;
       xp: number;
       itemCount: number;
-    };
+    }
+  | LfgRaidListEvent;
 
 const RAID_BROWSER_JOIN = 3;
 const ROLECHECK_ABORT = 4;
@@ -162,6 +170,7 @@ const EMPTY: LfgState = {
   teleportDenied: undefined,
   offerContinue: undefined,
   reward: undefined,
+  raidLists: {},
 };
 
 export class LfgStore {
@@ -169,10 +178,12 @@ export class LfgStore {
   private state: LfgState = EMPTY;
   private readonly now: () => number;
   private readonly deps: SessionDeps;
+  private readonly lists: LfgRaidLists;
 
   constructor(deps: SessionDeps, _core: CoreStores) {
     this.now = deps.now;
     this.deps = deps;
+    this.lists = new LfgRaidLists(deps.now, (event) => this.events.emit(event));
   }
 
   selfInCombat(): boolean {
@@ -223,6 +234,7 @@ export class LfgStore {
           ? undefined
           : { ...this.state.offerContinue },
       reward: copyReward(this.state.reward),
+      raidLists: this.lists.snapshot(),
     };
   }
   onEvent(cb: (event: LfgEvent) => void): Unsubscribe {
@@ -413,6 +425,10 @@ export class LfgStore {
       xp: reward.xp,
       itemCount: reward.items.length,
     });
+  }
+
+  receiveList(list: LfgList): void {
+    this.lists.receive(list);
   }
 
   receiveSearch(on: boolean): void {
