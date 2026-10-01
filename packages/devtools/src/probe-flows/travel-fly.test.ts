@@ -104,7 +104,7 @@ describe("travel-fly flow", () => {
             ctx.handle.triggerAreaEvent("travel", { type: "flight_landed" }),
           10,
         );
-        return { nodes: [83, 82], price: 210, status: "ok" };
+        return { instant: false, nodes: [83, 82], price: 210, status: "ok" };
       });
       const result = await fakeAwait(flow.run(ctx), 1000);
       expect(activate).toHaveBeenCalledWith(MASTER, planned, undefined);
@@ -112,5 +112,40 @@ describe("travel-fly flow", () => {
         flight: { nodes: [83, 82], price: 210, status: "ok" },
         from: 83,
       });
+    }));
+
+  test("an instant teleport lands at once without flight_landed", () =>
+    withFakeTimers(async () => {
+      const ctx = context({ to: "Silvermoon" }, [
+        row(MASTER, 3, ["flight_master"]),
+      ]);
+      ctx.handle.travel.act.openTaxiMap = (async () => ({
+        currentNode: 83,
+        kind: "map",
+        known: [82, 83],
+        status: "ok",
+      })) as typeof ctx.handle.travel.act.openTaxiMap;
+      ctx.handle.travel.act.destinations = (async () => ({
+        from: 83,
+        list: [{ known: true, name: "Silvermoon City", node: 82, price: 210 }],
+        node: { id: 83, map: 530, name: "Tranquillien", x: 1, y: 1, z: 1 },
+        status: "ok",
+      })) as typeof ctx.handle.travel.act.destinations;
+      ctx.handle.travel.act.planFlight = (async () => ({
+        destination: 82,
+        nodes: [83, 82],
+        price: 210,
+        status: "ok",
+      })) as typeof ctx.handle.travel.act.planFlight;
+      ctx.handle.travel.act.activateTaxi = (async () => ({
+        instant: true,
+        nodes: [83, 82],
+        price: 210,
+        status: "ok",
+      })) as typeof ctx.handle.travel.act.activateTaxi;
+      const started = Date.now();
+      const result = await fakeAwait(flow.run(ctx), 1000);
+      expect(Date.now() - started).toBeLessThan(10_000);
+      expect(result).toMatchObject({ landed: true });
     }));
 });

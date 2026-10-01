@@ -83,6 +83,7 @@ export type TravelActs = {
 export type FlightResult = {
   nodes: readonly number[];
   price: number;
+  instant: boolean;
 };
 
 type TaxiRuntime = {

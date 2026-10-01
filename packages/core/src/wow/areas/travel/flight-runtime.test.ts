@@ -94,9 +94,10 @@ describe("travel runtime: activateTaxi", () => {
         travelActivateTaxiReplyBody(0),
       );
       expect(await pending).toEqual({
-        status: "ok",
+        instant: false,
         nodes: [82, 83],
         price: 210,
+        status: "ok",
       });
       expect(rig.handle.state().flight.phase).toBe("flying");
     } finally {
@@ -126,9 +127,10 @@ describe("travel runtime: activateTaxi", () => {
         travelActivateTaxiReplyBody(0),
       );
       expect(await pending).toEqual({
-        status: "ok",
+        instant: false,
         nodes: [83, 200, 82],
         price: 200,
+        status: "ok",
       });
     } finally {
       rig.dispose();
@@ -196,9 +198,10 @@ describe("travel runtime: activateTaxi", () => {
         });
         jest.advanceTimersByTime(5000);
         expect(await pending).toEqual({
-          status: "ok",
+          instant: true,
           nodes: [82, 83],
           price: 210,
+          status: "ok",
         });
       } finally {
         jest.useRealTimers();
@@ -340,9 +343,10 @@ describe("travel runtime: activateTaxi", () => {
           travelActivateTaxiReplyBody(0),
         );
         expect(await retry).toEqual({
-          status: "ok",
+          instant: false,
           nodes: [82, 83],
           price: 210,
+          status: "ok",
         });
         expect(jest.getTimerCount()).toBe(0);
       } finally {
