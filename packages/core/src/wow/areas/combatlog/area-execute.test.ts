@@ -94,4 +94,34 @@ describe("SMSG_SPELLLOGEXECUTE", () => {
       rig.dispose();
     }
   });
+
+  test("a resurrection of a short-GUID player is stored and not dropped", () => {
+    const player = 0x1322n;
+    const rig = areaRig("combatlog", { now: () => 50, selfGuid: player });
+    try {
+      rig.inject(
+        GameOpcode.SMSG_SPELLLOGEXECUTE,
+        combatlogSpellExecuteBody({
+          caster: player,
+          effects: [{ effect: 18, records: [{ guid: player }] }],
+          spellId: 20_484,
+        }),
+      );
+      const state = rig.handle.state();
+      expect(state.dropped).toBe(0);
+      expect(state.entries).toEqual([
+        {
+          at: 50,
+          kind: "execute",
+          source: player,
+          target: player,
+          spellId: 20_484,
+          amount: 0,
+          extra: 18,
+        },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
 });

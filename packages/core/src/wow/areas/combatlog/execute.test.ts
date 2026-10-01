@@ -174,6 +174,63 @@ describe("parseSpellExecute (Spell.cpp:5224-5256, :5258-5322)", () => {
     expect(parsed.effects).toEqual([{ effect: 24, records: [] }]);
   });
 
+  const SHORT_PLAYER = 0x1322n;
+
+  test.each([18, 113])(
+    "a final GUID-only effect %i reads a three-byte player record (Spell.cpp:5319-5322)",
+    (effect) => {
+      const body = combatlogSpellExecuteBody({
+        caster: ME,
+        effects: [{ effect, records: [{ guid: SHORT_PLAYER }] }],
+        spellId: 1,
+      });
+      expect(Array.from(body.slice(body.length - 3))).toEqual([
+        0x03, 0x22, 0x13,
+      ]);
+      const parsed = parse(body);
+      expect(parsed.truncated).toBe(false);
+      expect(parsed.effects).toEqual([
+        { effect, records: [{ guid: SHORT_PLAYER, value: 0 }] },
+      ]);
+    },
+  );
+
+  test("two short GUID-only records in one effect are both read", () => {
+    const parsed = parse(
+      combatlogSpellExecuteBody({
+        caster: ME,
+        effects: [
+          {
+            effect: 113,
+            records: [{ guid: SHORT_PLAYER }, { guid: 0x1323n }],
+          },
+        ],
+        spellId: 1,
+      }),
+    );
+    expect(parsed.truncated).toBe(false);
+    expect(parsed.effects[0]?.records.map((r) => r.guid)).toEqual([
+      SHORT_PLAYER,
+      0x1323n,
+    ]);
+  });
+
+  test("a GUID-only count larger than the bytes left is still truncated", () => {
+    const body = combatlogSpellExecuteBody({
+      caster: ME,
+      effects: [{ effect: 18, records: [{ guid: SHORT_PLAYER }] }],
+      spellId: 1,
+    });
+    new DataView(body.buffer, body.byteOffset).setUint32(
+      body.length - 7,
+      4,
+      true,
+    );
+    const parsed = parse(body);
+    expect(parsed.truncated).toBe(true);
+    expect(parsed.effects).toEqual([{ effect: 18, records: [] }]);
+  });
+
   test("an effect count of zero yields no effects", () => {
     const parsed = parse(
       combatlogSpellExecuteBody({ caster: ME, effects: [], spellId: 7 }),

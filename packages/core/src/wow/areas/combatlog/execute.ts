@@ -72,17 +72,19 @@ const RECORD_READERS: Record<number, RecordReader> = {
   107: readGuidOnly,
 };
 
+const HEADER_BYTES = 4;
 const SMALLEST_RECORD = 4;
+const SMALLEST_GUID_RECORD = 1;
 
 export function parseSpellExecute(r: PacketReader): SpellExecute {
   const caster = r.packedGuidBig();
   const spellId = r.uint32LE();
   const effects: SpellExecute["effects"] = [];
-  if (r.remaining < SMALLEST_RECORD)
+  if (r.remaining < HEADER_BYTES)
     return { caster, spellId, effects, truncated: true };
   const effectCount = r.uint32LE();
   for (let i = 0; i < effectCount; i++) {
-    if (r.remaining < SMALLEST_RECORD * 2)
+    if (r.remaining < HEADER_BYTES * 2)
       return { caster, spellId, effects, truncated: true };
     const effect = r.uint32LE();
     const targetCount = r.uint32LE();
@@ -91,7 +93,9 @@ export function parseSpellExecute(r: PacketReader): SpellExecute {
     effects.push({ effect, records });
     if (read === undefined)
       return { caster, spellId, effects, truncated: true };
-    if (targetCount * SMALLEST_RECORD > r.remaining)
+    const smallest =
+      read === readGuidOnly ? SMALLEST_GUID_RECORD : SMALLEST_RECORD;
+    if (targetCount * smallest > r.remaining)
       return { caster, spellId, effects, truncated: true };
     try {
       for (let j = 0; j < targetCount; j++) records.push(read(r));
