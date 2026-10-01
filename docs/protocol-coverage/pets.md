@@ -33,10 +33,10 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x2f3` | `CMSG_PET_SPELL_AUTOCAST` | client | handled |  |
 | `0x324` | `SMSG_PET_ACTION_SOUND` | server | handled | not seen live |
 | `0x325` | `SMSG_PET_DISMISS_SOUND` | server | handled | not seen live |
-| `0x47a` | `CMSG_PET_LEARN_TALENT` | client | missing |  |
+| `0x47a` | `CMSG_PET_LEARN_TALENT` | client | handled |  |
 | `0x48d` | `CMSG_DISMISS_CRITTER` | client | handled |  |
 | `0x492` | `SMSG_PET_UPDATE_COMBO_POINTS` | server | missing |  |
 | `0x499` | `SMSG_PET_LEARNED_SPELL` | server | handled |  |
 | `0x49a` | `SMSG_PET_UNLEARNED_SPELL` | server | handled |  |
 | `0x4aa` | `SMSG_PET_GUIDS` | server | dead |  |
-| `0x4c2` | `CMSG_LEARN_PREVIEW_TALENTS_PET` | client | missing |  |
+| `0x4c2` | `CMSG_LEARN_PREVIEW_TALENTS_PET` | client | handled |  |

@@ -196,6 +196,23 @@ corpse (`Handlers/PetHandler.cpp:287-294`).
   the name. After an abandon the hunter's `PetStable` still exists and
   holds no pet, so Call Pet (883) takes the no-pet branch and the server
   answers `SMSG_PET_TAME_FAILURE` with reason 7 (`no_pet`).
+- `CMSG_PET_LEARN_TALENT` is the pet guid, a `uint32` talent id and a
+  `uint32` 0-based rank (`Handlers/PetHandler.cpp:1128-1138`):
+  `pets.learnPetTalent(talent, rank)` returns `no_pet` with no bar, else
+  sends the bar's guid with the talent and rank. The server learns the
+  talent and answers with the pet form of `SMSG_TALENTS_INFO`
+  (`Entities/Player/Player.cpp:14840-14849`); the area itself keeps no
+  talent state, and the `talents` area's `pet_info` event confirms the
+  learn.
+- `CMSG_LEARN_PREVIEW_TALENTS_PET` is the pet guid, a `uint32` count and
+  a `uint32` talent with a `uint32` rank per entry
+  (`Handlers/PetHandler.cpp:1140-1165`); the server learns at most the
+  first 30 (`MaxTalentsCount`, `:1153-1155`), then answers with the pet
+  form of `SMSG_TALENTS_INFO` like the single learn. The spell id the
+  pet learns arrives in `SMSG_PET_LEARNED_SPELL`
+  (`Entities/Pet/Pet.cpp:1911-1914`). `pets.learnPetTalents(picks)`
+  refuses `no_pet` with no bar, `empty_list` for an empty list and
+  `too_many` past 30 entries, else sends the bar's guid with the list.
 - `CMSG_DISMISS_CRITTER` is the critter guid
   (`Server/Packets/PetPackets.cpp:20-23`, handler
   `Handlers/PetHandler.cpp:39-55`): when the guid is the owner's critter
@@ -206,8 +223,6 @@ corpse (`Handlers/PetHandler.cpp:287-294`).
 
 ## Left out
 
-- `CMSG_PET_LEARN_TALENT`, `CMSG_LEARN_PREVIEW_TALENTS_PET`: built by
-  pets-7.
 - `SMSG_PET_UPDATE_COMBO_POINTS`: built by pets-8.
 - `SMSG_PET_MODE`, `SMSG_PET_BROKEN`, `CMSG_PET_UNLEARN`,
   `SMSG_PET_UNLEARN_CONFIRM`, `SMSG_PET_GUIDS`: dead (see Proof).
@@ -220,7 +235,8 @@ No agent verb; the world-service acts `pets.requestPetInfo`,
 `pets.petSwapActions`, `pets.petCancelAura`, `pets.queryPetName`,
 `pets.renamePet`, `pets.listStabledPets`, `pets.stablePet`,
 `pets.unstablePet`, `pets.swapStabledPet`, `pets.buyStableSlot`,
-`pets.stableRevivePet`, `pets.abandonPet` and `pets.dismissCritter` only.
+`pets.stableRevivePet`, `pets.abandonPet`, `pets.dismissCritter`,
+`pets.learnPetTalent` and `pets.learnPetTalents` only.
 
 ## The pet tool
 
@@ -293,5 +309,7 @@ and then `follow`. `queryPetName` asks for the current pet's name again and `ren
 | `CMSG_STABLE_SWAP_PET` | `live` | probe flow `pets-stable --arg do=list,swap --arg number=3722` on the staged Tranquillien hunter (Ravager 3722 stabled, no pet out), exit 0: one 12-byte `CMSG_STABLE_SWAP_PET` out, one 1-byte `SMSG_STABLE_RESULT` in, `results: 1` and `refusals: 0` in the probe output, the listing marked `stale: true`, and a fresh 144-byte `SMSG_PET_SPELLS` pet bar right after in the packet trace (the probe output and trace are not committed). The load-a-stabled-pet branch needs neither a current pet nor a second beast: it loads the stabled pet when both `CurrentPet` and `UnslottedPets` are empty and reports `STABLE_SUCCESS_UNSTABLE` | `Handlers/NPCHandler.cpp:646` |
 | `CMSG_PET_ABANDON` | `live` | probe flow `pets-abandon` on an `eversong10-hunter`, exit 0: one 8-byte `CMSG_PET_ABANDON` out carrying the pet guid, answered by two 8-byte all-zero `SMSG_PET_SPELLS` (the cleared bar); `soap gm read pet` afterwards shows no row | `Handlers/PetHandler.cpp:931` |
 | `SMSG_PET_TAME_FAILURE` | `live` | the same run: the flow casts Call Pet (883) after the abandon, and the server answers one 1-byte `SMSG_PET_TAME_FAILURE` with code 7 (`no_pet`), parsed into `lastRefusal` and a `tame_failed` event | `Entities/Unit/Unit.cpp:15561` |
+| `CMSG_PET_LEARN_TALENT` | `live` | probe flow `pets-talent --arg talent=2118` on an `eversong10-hunter` staged with `soap gm level 25` (pet Ravager family 31, Cunning tree, one point at pet level 20): one 16-byte `CMSG_PET_LEARN_TALENT` out (pet guid, talent 2118, rank 0), one 4-byte `SMSG_PET_LEARNED_SPELL` in (spell 61682, the first rank of talent 2118) and one 11-byte pet-form `SMSG_TALENTS_INFO` in showing talent 2118 (free points 0) | `Handlers/PetHandler.cpp:1128` |
+| `CMSG_LEARN_PREVIEW_TALENTS_PET` | `live` | `--send CMSG_LEARN_PREVIEW_TALENTS_PET` with a 20-byte body (pet guid, count 1, talent 2119 rank 0) on the same hunter: the send went out and the server answered the pet-form `SMSG_TALENTS_INFO` showing talent 2119; no `SMSG_PET_LEARNED_SPELL` follows a preview learn with no points left | `Handlers/PetHandler.cpp:1140` |
 | `CMSG_DISMISS_CRITTER` | `live` | probe flow `pets-abandon --arg companion=1` on a fresh `eversong10-hunter` staged with `items/add '{"item":4401}'` and `--expect CMSG_DISMISS_CRITTER`, exit 3 (the sink checks expectations against inbound packets only, so a client opcode in `--expect` is always reported missing; the live effect is unaffected and a rerun should omit that `--expect`): `CMSG_USE_ITEM` for the Mechanical Squirrel Box, `CMSG_CAST_SPELL` for Mechanical Squirrel (4055), then one 8-byte `CMSG_DISMISS_CRITTER` out carrying the owner's critter guid, and the owner's `UNIT_FIELD_CRITTER` reads 0 afterwards | `Server/Packets/PetPackets.cpp:20` |
 
