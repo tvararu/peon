@@ -51,11 +51,11 @@ describe("social do:emote", () => {
     const act = spyOn(handle.emotes.act, "textEmote").mockImplementation(
       async () => {
         handle.triggerAreaEvent("emotes", echo("Kaelyn"));
-        return { ok: true };
+        return { ok: true, textEmote: 101 };
       },
     );
     const out = await runTool(tool, { do: "emote", to: "u1", what: "wave" });
-    expect(act).toHaveBeenCalledWith("wave", PARTNER);
+    expect(act.mock.calls[0]?.slice(0, 2)).toEqual(["wave", PARTNER]);
     expect(out.text).toContain("DONE");
     expect(out.text).toContain("wave");
     expect(out.details.result.after).toMatchObject({
@@ -65,16 +65,101 @@ describe("social do:emote", () => {
     });
   });
 
+  test("an echo with no target does not confirm a targeted emote", async () => {
+    await withFakeTimers(async () => {
+      const { handle, tool } = await world([partner()]);
+      spyOn(handle.emotes.act, "textEmote").mockImplementation(async () => {
+        handle.triggerAreaEvent("emotes", echo(undefined));
+        return { ok: true, textEmote: 101 };
+      });
+      const pending = runTool(tool, { do: "emote", to: "u1", what: "wave" });
+      await elapse(5000);
+      const out = await pending;
+      expect(out.details.result.status).toBe("UNCONFIRMED");
+    });
+  });
+
+  test("an echo at another name does not confirm a targeted emote", async () => {
+    await withFakeTimers(async () => {
+      const { handle, tool } = await world([partner()]);
+      spyOn(handle.emotes.act, "textEmote").mockImplementation(async () => {
+        handle.triggerAreaEvent("emotes", echo("Jaina"));
+        return { ok: true, textEmote: 101 };
+      });
+      const pending = runTool(tool, { do: "emote", to: "u1", what: "wave" });
+      await elapse(5000);
+      const out = await pending;
+      expect(out.details.result.status).toBe("UNCONFIRMED");
+    });
+  });
+
+  test("an echo for another emote does not confirm the requested one", async () => {
+    await withFakeTimers(async () => {
+      const { handle, tool } = await world([partner()]);
+      spyOn(handle.emotes.act, "textEmote").mockImplementation(async () => {
+        handle.triggerAreaEvent("emotes", {
+          ...echo("Kaelyn"),
+          textEmote: 34,
+        });
+        return { ok: true, textEmote: 101 };
+      });
+      const pending = runTool(tool, { do: "emote", to: "u1", what: "wave" });
+      await elapse(5000);
+      const out = await pending;
+      expect(out.details.result.status).toBe("UNCONFIRMED");
+    });
+  });
+
+  test("an unrelated self echo does not confirm an untargeted emote", async () => {
+    await withFakeTimers(async () => {
+      const { handle, tool } = await world();
+      spyOn(handle.emotes.act, "textEmote").mockImplementation(async () => {
+        handle.triggerAreaEvent("emotes", {
+          ...echo("Kaelyn"),
+          textEmote: 34,
+        });
+        return { ok: true, textEmote: 101 };
+      });
+      const pending = runTool(tool, { do: "emote", what: "wave" });
+      await elapse(5000);
+      const out = await pending;
+      expect(out.details.result.status).toBe("UNCONFIRMED");
+    });
+  });
+
+  test("a delayed echo from an earlier request does not confirm the later one", async () => {
+    await withFakeTimers(async () => {
+      const { handle, tool } = await world([partner()]);
+      const ids = [101, 34];
+      spyOn(handle.emotes.act, "textEmote").mockImplementation(async () => ({
+        ok: true,
+        textEmote: ids.shift() ?? 101,
+      }));
+      const first = runTool(tool, { do: "emote", to: "u1", what: "wave" });
+      await elapse(5000);
+      const retried = runTool(tool, { do: "emote", to: "u1", what: "dance" });
+      await elapse(5000);
+      handle.triggerAreaEvent("emotes", echo("Kaelyn"));
+      await elapse(5000);
+      for (const out of [await first, await retried])
+        expect(out.details.result.status).toBe("UNCONFIRMED");
+      expect(handle.emotes.act.textEmote).toHaveBeenCalledTimes(2);
+    });
+  });
+
   test("without to the emote has no target", async () => {
     const { handle, tool } = await world();
     const act = spyOn(handle.emotes.act, "textEmote").mockImplementation(
       async () => {
-        handle.triggerAreaEvent("emotes", echo(undefined));
-        return { ok: true };
+        handle.triggerAreaEvent("emotes", {
+          ...echo(undefined),
+          textEmote: 34,
+        });
+        return { ok: true, textEmote: 34 };
       },
     );
     const out = await runTool(tool, { do: "emote", what: "dance" });
-    expect(act).toHaveBeenCalledWith("dance", undefined);
+    expect(act.mock.calls[0]?.slice(0, 2)).toEqual(["dance", undefined]);
     expect(out.details.result.status).toBe("DONE");
   });
 
@@ -83,7 +168,7 @@ describe("social do:emote", () => {
       const { handle, tool } = await world();
       spyOn(handle.emotes.act, "textEmote").mockImplementation(async () => {
         handle.triggerAreaEvent("emotes", { ...echo(undefined), self: false });
-        return { ok: true };
+        return { ok: true, textEmote: 101 };
       });
       const pending = runTool(tool, { do: "emote", what: "wave" });
       await elapse(5000);
@@ -96,7 +181,10 @@ describe("social do:emote", () => {
   test("no echo is UNCONFIRMED", async () => {
     await withFakeTimers(async () => {
       const { handle, tool } = await world();
-      spyOn(handle.emotes.act, "textEmote").mockResolvedValue({ ok: true });
+      spyOn(handle.emotes.act, "textEmote").mockResolvedValue({
+        ok: true,
+        textEmote: 101,
+      });
       const pending = runTool(tool, { do: "emote", what: "wave" });
       await elapse(5000);
       const out = await pending;

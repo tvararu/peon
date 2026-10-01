@@ -181,6 +181,7 @@ describe("emote acts", () => {
     try {
       expect(await r.handle.act.textEmote("Dance", CREATURE)).toEqual({
         ok: true,
+        textEmote: 34,
       });
       expect(r.sent).toHaveLength(1);
       expect(r.sent[0]?.opcode).toBe(GameOpcode.CMSG_TEXT_EMOTE);
@@ -197,7 +198,10 @@ describe("emote acts", () => {
   test("a numeric id must be a known text emote", async () => {
     const r = actRig();
     try {
-      expect(await r.handle.act.textEmote(101)).toEqual({ ok: true });
+      expect(await r.handle.act.textEmote(101)).toEqual({
+        ok: true,
+        textEmote: 101,
+      });
       const refused = await r.handle.act.textEmote(9999);
       expect(refused.ok).toBe(false);
       expect(r.sent).toHaveLength(1);
@@ -254,9 +258,9 @@ describe("emote acts", () => {
         await elapse(SPAM_MS);
         expect(r.sent).toHaveLength(3);
         expect(await Promise.all([first, second, third])).toEqual([
-          { ok: true },
-          { ok: true },
-          { ok: true },
+          { ok: true, textEmote: 101 },
+          { ok: true, textEmote: 34 },
+          { ok: true, textEmote: 78 },
         ]);
         expect(r.sent.map((p) => words(p.body)[0])).toEqual([101, 34, 78]);
       } finally {
@@ -341,6 +345,82 @@ describe("emote acts", () => {
       expect(r.sent).toHaveLength(1);
     });
   });
+
+  test("a caller signal aborted during the spam wait cancels without sending", async () => {
+    await withFakeTimers(async () => {
+      const r = actRig();
+      try {
+        await r.handle.act.textEmote("wave");
+        const controller = new AbortController();
+        const queued = r.handle.act.textEmote(
+          "dance",
+          undefined,
+          controller.signal,
+        );
+        await elapse(100);
+        controller.abort();
+        await elapse(2000);
+        expect(await queued).toEqual({ ok: false, reason: "cancelled" });
+        expect(r.sent).toHaveLength(1);
+        expect(jest.getTimerCount()).toBe(0);
+      } finally {
+        r.dispose();
+      }
+    });
+  });
+
+  test("a caller signal aborted behind an earlier emote leaves the earlier one alone", async () => {
+    await withFakeTimers(async () => {
+      const r = actRig();
+      try {
+        await r.handle.act.textEmote("wave");
+        const second = r.handle.act.textEmote("dance");
+        const controller = new AbortController();
+        const third = r.handle.act.textEmote(
+          "cheer",
+          undefined,
+          controller.signal,
+        );
+        await elapse(100);
+        controller.abort();
+        await elapse(2000);
+        expect(await third).toEqual({ ok: false, reason: "cancelled" });
+        expect(r.sent).toHaveLength(2);
+        await elapse(1000 * 3);
+        expect(await second).toMatchObject({ ok: true });
+        expect(r.sent.map((p) => words(p.body)[0])).toEqual([101, 34]);
+      } finally {
+        r.dispose();
+      }
+    });
+  });
+
+  test("a caller signal that is already aborted sends nothing", async () => {
+    const r = actRig();
+    try {
+      const outcome = await r.handle.act.textEmote(
+        "wave",
+        undefined,
+        AbortSignal.abort(),
+      );
+      expect(outcome).toEqual({ ok: false, reason: "cancelled" });
+      expect(r.sent).toEqual([]);
+    } finally {
+      r.dispose();
+    }
+  });
+
+  test("the sent outcome names the resolved text emote id", async () => {
+    const r = actRig();
+    try {
+      expect(await r.handle.act.textEmote("dance")).toEqual({
+        ok: true,
+        textEmote: 34,
+      });
+    } finally {
+      r.dispose();
+    }
+  });
 });
 
 describe("emote spam guard under timer lateness", () => {
@@ -368,9 +448,9 @@ describe("emote spam guard under timer lateness", () => {
         await settle();
         expect(r.sent).toHaveLength(3);
         expect(await Promise.all([first, second, third])).toEqual([
-          { ok: true },
-          { ok: true },
-          { ok: true },
+          { ok: true, textEmote: 101 },
+          { ok: true, textEmote: 34 },
+          { ok: true, textEmote: 78 },
         ]);
       } finally {
         r.dispose();
