@@ -13,6 +13,7 @@ const LOOK_KINDS = [
   "player",
   "corpse",
   "spirit_healer",
+  "flight_master",
   "object",
 ] as const;
 

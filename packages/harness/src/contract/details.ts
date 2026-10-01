@@ -28,7 +28,8 @@ export type LookFilter =
   | "lootable"
   | "player"
   | "corpse"
-  | "spirit_healer";
+  | "spirit_healer"
+  | "flight_master";
 
 export type LookCast = {
   kind: "cast" | "channel";
@@ -77,7 +78,8 @@ export type TravelGoalView =
   | { kind: "corpse" }
   | { kind: "explore"; direction: Compass | undefined }
   | { kind: "unstick"; refusedGoal: string | undefined }
-  | { kind: "hearth" };
+  | { kind: "hearth" }
+  | { kind: "fly"; destination: string };
 
 export type TravelAfter = {
   goal: TravelGoalView;
