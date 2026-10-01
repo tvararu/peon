@@ -135,6 +135,53 @@ describe("spells death knight runes", () => {
     }
   });
 
+  test("each newly spent rune keeps its own elapsed byte", () => {
+    const { go, rig, update } = setup();
+    try {
+      update(spellsSelfRuneFields({ classId: 6 }));
+      go({ after: 0x2b, before: 0x3f, elapsed: [16, 48] });
+      const cooldowns = rig.handle.state().runes?.map((rune) => rune.cooldown);
+      expect(cooldowns).toEqual([
+        undefined,
+        undefined,
+        16,
+        undefined,
+        48,
+        undefined,
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("successive spell-go packets keep earlier spent bytes", () => {
+    const { go, rig, update } = setup();
+    try {
+      update(spellsSelfRuneFields({ classId: 6 }));
+      go({ after: 0x3e, before: 0x3f, elapsed: [10] });
+      go({ after: 0x38, before: 0x3e, elapsed: [20, 30] });
+      expect(rig.handle.state().runes?.map((rune) => rune.cooldown)).toEqual([
+        10,
+        20,
+        30,
+        undefined,
+        undefined,
+        undefined,
+      ]);
+      go({ after: 0x38, before: 0x38, elapsed: [] });
+      expect(rig.handle.state().runes?.map((rune) => rune.cooldown)).toEqual([
+        10,
+        20,
+        30,
+        undefined,
+        undefined,
+        undefined,
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("a non-death-knight never creates runes", () => {
     const { convert, rig, seen, update } = setup();
     try {
