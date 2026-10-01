@@ -40,7 +40,14 @@ export type VehiclesEvent =
       duration: number;
     }
   | { type: "exited"; vehicle: bigint }
-  | { type: "seat_changed"; vehicle: bigint; seat: number };
+  | {
+      type: "seat_changed";
+      vehicle: bigint;
+      seat: number;
+      offset: Vec3;
+      splineId: number | undefined;
+      duration: number;
+    };
 
 export type VehiclesState = {
   seat: VehicleSeat | undefined;
@@ -130,7 +137,10 @@ export class VehiclesStore {
     });
     if (before?.vehicle === move.transportGuid && before.seat !== move.seat) {
       this.queue({
+        duration: move.move.kind === "move" ? move.move.duration : 0,
+        offset,
         seat: move.seat,
+        splineId: move.move.splineId,
         type: "seat_changed",
         vehicle: move.transportGuid,
       });

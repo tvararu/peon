@@ -116,7 +116,14 @@ describe("vehicles/exited and seat_changed", () => {
   });
 
   test("switching seat writes a log row with the new seat", () => {
-    const [row] = rules()({ seat: 3, type: "seat_changed", vehicle: GUID });
+    const [row] = rules()({
+      duration: 1,
+      offset: { x: 0, y: 0, z: 0 },
+      seat: 3,
+      splineId: 1,
+      type: "seat_changed",
+      vehicle: GUID,
+    });
     expect(row?.class).toBe("log");
     expect(row?.name).toBe("seat_changed");
     expect(row?.data).toEqual({ seat: 3, vehicle: "0xf130003eea000abc" });

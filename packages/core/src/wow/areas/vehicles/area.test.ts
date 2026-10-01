@@ -134,6 +134,44 @@ describe("vehicles area wiring", () => {
     }
   });
 
+  test("the captured boarding offset equals the staged VehicleSeat.dbc attachment offset", () => {
+    const { rig, seen } = rigWithEvents();
+    const seatRecord = {
+      attachmentId: 13,
+      attachmentOffsetWords: [0xbf_b3_33_33, 0, 0],
+      flags: 0x63_00_08_06,
+      id: 1301,
+    };
+    const words = new DataView(new ArrayBuffer(12));
+    seatRecord.attachmentOffsetWords.forEach((word, index) => {
+      words.setUint32(index * 4, word, true);
+    });
+    const dbcOffset = {
+      x: words.getFloat32(0, true),
+      y: words.getFloat32(4, true),
+      z: words.getFloat32(8, true),
+    };
+    try {
+      rig.inject(
+        GameOpcode.SMSG_MONSTER_MOVE_TRANSPORT,
+        Uint8Array.from(
+          Buffer.from(
+            "035111dbd13d426c50f100003333b3bf000000000000000081fff92804000000000000800001000000010000003333b3bf0000000000000000",
+            "hex",
+          ),
+        ),
+      );
+      const spline = seen.find((event) => event.type === "spline");
+      expect(spline).toMatchObject({
+        offset: dbcOffset,
+        seat: 0,
+        transportGuid: 0xf1_50_00_6c_42_00_3d_d1n,
+      });
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("a plain SMSG_MONSTER_MOVE with TRANSPORT_EXIT removes the passenger and emits the exit", () => {
     const { rig, seen } = rigWithEvents();
     try {

@@ -109,7 +109,7 @@ export class MovementSync {
       deps,
       emit,
       movementInfo: () => this.movementInfo(),
-      serverPose: (pose) => this.setServerPose(pose),
+      serverPose: (pose) => this.adoptServerPose(pose),
     });
   }
 
@@ -140,15 +140,15 @@ export class MovementSync {
   }
 
   vehicleSeat(seat: RideSeat): void {
-    this.ride.board(seat);
     this.moveFlags |= MovementFlag.ON_TRANSPORT;
     this.observedFlags |= MovementFlag.ON_TRANSPORT;
+    this.ride.board(seat);
   }
 
   vehicleLeft(): void {
-    this.ride.leave();
     this.moveFlags &= ~MovementFlag.ON_TRANSPORT;
     this.observedFlags &= ~MovementFlag.ON_TRANSPORT;
+    this.ride.leave();
   }
 
   airBlock(): string | undefined {
@@ -440,6 +440,11 @@ export class MovementSync {
 
   private moveAck(counter: number): MoveAck {
     return { guid: this.deps.selfGuid(), counter, info: this.movementInfo() };
+  }
+
+  private adoptServerPose(position: Position): void {
+    this.setServerPose(position);
+    this.predicted = undefined;
   }
 
   private setServerPose(position: Position): void {

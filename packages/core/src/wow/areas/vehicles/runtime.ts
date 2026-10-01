@@ -235,7 +235,7 @@ export function vehiclesRuntime(
     );
   };
   const off = store.onEvent((event) => {
-    if (event.type === "entered") {
+    if (event.type === "entered" || event.type === "seat_changed") {
       const pose = store.entityOf(event.vehicle)?.position;
       core.self.receive({
         duration: event.duration,

@@ -175,7 +175,9 @@ describe("vehicles acts", () => {
           });
         }),
     } as unknown as Parameters<typeof vehiclesRuntime>[0];
-    const runtime = vehiclesRuntime(ctx, store, {} as never);
+    const runtime = vehiclesRuntime(ctx, store, {
+      self: { receive: () => undefined },
+    } as never);
     self = SELF;
     store.setSeat({
       controlling: false,

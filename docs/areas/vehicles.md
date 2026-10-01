@@ -41,9 +41,10 @@ The character's own `SMSG_MONSTER_MOVE_TRANSPORT` without
 the vehicle's entity when known, `controlling: false`) and emits
 `entered { vehicle, seat, entry, offset, splineId, duration }`; the offset
 is the last point of the boarding spline. A second spline on the same
-vehicle with another seat emits `seat_changed`; the plain
+vehicle with another seat emits `seat_changed { vehicle, seat, offset,
+splineId, duration }`; the plain
 `SMSG_MONSTER_MOVE` with `SPLINEFLAG_TRANSPORT_EXIT` clears `seat` and emits
-`exited`. The runtime forwards `entered` to control as `vehicle_seat` (with
+`exited`. The runtime forwards `entered` and `seat_changed` to control as `vehicle_seat` (with
 the vehicle's entity pose when known) and `exited` as `vehicle_left`.
 
 Control keeps one `RideState` (`control-ride.ts`). While seated every
@@ -57,7 +58,9 @@ the seat offset turned by its orientation
 (`Entities/Vehicle/VehicleDefines.h:144`). A teleport ends the ride and its
 timer, as the server's teleport calls `ExitVehicle`
 (`Entities/Player/Player.cpp:1461-1462`). The server sets the seat when the
-passenger enters (`Entities/Unit/Unit.cpp:15203-15259`).
+passenger enters (`Entities/Unit/Unit.cpp:15203-15259`). A seat change
+removes and re-adds the passenger, so it starts a new boarding spline and
+control replaces the ride (`Entities/Unit/Unit.cpp:15265-15281`).
 
 Once, after the duration, control sends `CMSG_MOVE_SPLINE_DONE`: the packed
 guid, the movement info and the spline id, the read order of
