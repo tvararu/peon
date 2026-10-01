@@ -54,8 +54,8 @@ function gemSlots(
   for (const gem of gems) {
     const held = findItem(inventory, gem);
     if (held?.bag !== 255) throw new Error(`gem ${gem} is not in the bags`);
-    if (held.bag === item.bag && held.slot === item.slot)
-      throw new Error(`gem ${gem} is the socketed item`);
+    if (gem === itemGuid)
+      throw new Error(`gem ${gem} is the item being socketed`);
   }
   return {
     entry: item.item.entry,
