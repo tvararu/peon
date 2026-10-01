@@ -16,6 +16,7 @@ type MoveInit = {
   flags?: number;
   splineId?: number;
   duration?: number;
+  angle?: number;
 };
 
 function writeMoveTail(w: PacketWriter, init: MoveInit): void {
@@ -28,7 +29,8 @@ function writeMoveTail(w: PacketWriter, init: MoveInit): void {
     w.uint8(1);
     return;
   }
-  w.uint8(0);
+  w.uint8(init.angle === undefined ? 0 : 4);
+  if (init.angle !== undefined) w.floatLE(init.angle);
   w.uint32LE(init.flags ?? 0);
   w.uint32LE(init.duration ?? 1000);
   w.uint32LE(1);

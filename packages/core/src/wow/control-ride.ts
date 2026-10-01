@@ -10,6 +10,7 @@ export type RideSeat = {
   vehicle: bigint;
   seat: number;
   offset: Vec3;
+  facing: number;
   splineId: number | undefined;
   duration: number;
   vehiclePose: Position | undefined;
@@ -25,12 +26,16 @@ export type RideParts = {
 
 export type TimerId = ReturnType<typeof setTimeout>;
 
-export function seatWorldPose(vehicle: Position, offset: Vec3): Position {
+export function seatWorldPose(
+  vehicle: Position,
+  offset: Vec3,
+  facing = 0,
+): Position {
   const cos = Math.cos(vehicle.orientation);
   const sin = Math.sin(vehicle.orientation);
   return {
     mapId: vehicle.mapId,
-    orientation: vehicle.orientation,
+    orientation: vehicle.orientation + facing,
     x: vehicle.x + offset.x * cos - offset.y * sin,
     y: vehicle.y + offset.y * cos + offset.x * sin,
     z: vehicle.z + offset.z,
@@ -64,7 +69,9 @@ export class RideState {
     this.seat = seat;
     this.cancelForced("transport");
     if (seat.vehiclePose)
-      this.serverPose(seatWorldPose(seat.vehiclePose, seat.offset));
+      this.serverPose(
+        seatWorldPose(seat.vehiclePose, seat.offset, seat.facing),
+      );
     this.emit("control_changed", "transport");
     if (seat.splineId === undefined) return;
     this.splineTimer = setTimeout(() => {
@@ -95,7 +102,7 @@ export class RideState {
       flags: info.flags | MovementFlag.ON_TRANSPORT,
       transport: {
         guid: seat.vehicle,
-        orientation: 0,
+        orientation: seat.facing,
         seat: seat.seat,
         time: info.time,
         x: seat.offset.x,

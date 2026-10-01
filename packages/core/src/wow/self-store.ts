@@ -47,6 +47,7 @@ export type SelfEvent =
       vehicle: bigint;
       seat: number;
       offset: Vec3;
+      facing: number;
       splineId: number | undefined;
       duration: number;
       vehiclePose: Position | undefined;

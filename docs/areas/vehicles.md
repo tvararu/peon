@@ -39,9 +39,10 @@ character's own spline with another seat.
 The character's own `SMSG_MONSTER_MOVE_TRANSPORT` without
 `SPLINEFLAG_TRANSPORT_EXIT` fills `seat` (`vehicle`, `seat`, `entry` from
 the vehicle's entity when known, `controlling: false`) and emits
-`entered { vehicle, seat, entry, offset, splineId, duration }`; the offset
-is the last point of the boarding spline. A second spline on the same
-vehicle with another seat emits `seat_changed { vehicle, seat, offset,
+`entered { vehicle, seat, entry, offset, facing, splineId, duration }`; the offset
+is the last point of the boarding spline and `facing` is the spline's final
+angle or zero. A second spline on the same
+vehicle with another seat emits `seat_changed { vehicle, seat, offset, facing,
 splineId, duration }`; the plain
 `SMSG_MONSTER_MOVE` with `SPLINEFLAG_TRANSPORT_EXIT` clears `seat` and emits
 `exited`. The runtime forwards `entered` and `seat_changed` to control as `vehicle_seat` (with
@@ -49,15 +50,21 @@ the vehicle's entity pose when known) and `exited` as `vehicle_left`.
 
 Control keeps one `RideState` (`control-ride.ts`). While seated every
 outgoing movement info and ack carries the on-transport flag, the vehicle
-guid, the seat and the seat offset; free movement stays refused with the
-`transport` reason. The server drops every mover packet during the
-boarding spline except the root and unroot acks
+guid, the seat, the seat offset and the boarding facing; free movement stays
+refused with the `transport` reason. The server drops every mover packet
+during the boarding spline except the root and unroot acks
 (`Handlers/MovementHandler.cpp:544-559`), so control sends only acks until
-the spline's duration has passed. The pose is the vehicle's position plus
-the seat offset turned by its orientation
-(`Entities/Vehicle/VehicleDefines.h:144`). A teleport ends the ride and its
-timer, as the server's teleport calls `ExitVehicle`
-(`Entities/Player/Player.cpp:1461-1462`). The server sets the seat when the
+the spline's duration has passed. The facing comes from the seat orientation
+(`Entities/Vehicle/Vehicle.cpp:414,454-466`); the pose is the vehicle's
+position plus the seat offset turned by its orientation, with the facing
+added (`Entities/Unit/Unit.cpp:734-750`).
+A transport teleport keeps the ride's timer cleared but carries the
+destination transport block, because the server near-teleports transport
+passengers without leaving the transport
+(`Entities/Transport/Transport.cpp:623-633`,
+`Entities/Unit/Unit.cpp:15546-15550`,
+`Entities/Player/Player.cpp:1479-1490`); a transport-free teleport drops the
+block. The server sets the seat when the
 passenger enters (`Entities/Unit/Unit.cpp:15203-15259`). A seat change
 removes and re-adds the passenger, so it starts a new boarding spline and
 control replaces the ride (`Entities/Unit/Unit.cpp:15265-15281`).
