@@ -59,7 +59,12 @@ The acts need the character in the world:
   (30 with no item) above the known coinage before sending.
 - One action runs at a time; a second act throws `mail_busy` until the
   matching result or a 5-second timeout releases it. A delayed result
-  for an earlier action never releases a newer pending action.
+  for an earlier action never releases a newer pending action. A
+  `sendMail` that times out stays pending until its own result arrives
+  (`HandleSendMail` answers every send with action `send` and id 0,
+  written by `Entities/Player/Player.cpp:2958-2972`,
+  so a late reply could not be told from a newer send's), and the next
+  act throws `mail_busy` meanwhile.
   The store keeps `pending`
   and `lastResult` and emits `result` on every
   `SMSG_SEND_MAIL_RESULT`.
