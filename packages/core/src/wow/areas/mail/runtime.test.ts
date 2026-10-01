@@ -3,6 +3,7 @@ import {
   MAIL_SENDER,
   MAILBOX_OBJECT,
   mailListResultBody,
+  mailMailbox,
   mailNextMailTimeBody,
   mailRig,
 } from "#test-support/areas/mail";
@@ -12,6 +13,8 @@ import {
   buildMailMarkAsRead,
 } from "#wow/areas/mail/protocol";
 import { MAIL_ANSWER_MS } from "#wow/areas/mail/runtime";
+import { mailboxKind } from "#wow/areas/mail/store";
+import type { Entity } from "#wow/entity-store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 function breakMailSend(rig: { sent: readonly unknown[] }): () => void {
@@ -29,6 +32,28 @@ function breakMailSend(rig: { sent: readonly unknown[] }): () => void {
 
 const FAR = 0xf1_10_00_00_00_00_00_09n;
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+describe("mailboxKind packed type fallback", () => {
+  const recreated = (gameObjectType: number, bytes1: number) =>
+    ({
+      ...mailMailbox({ mapId: 0, orientation: 0, x: 5, y: 0, z: 0 }),
+      bytes1,
+      gameObjectType,
+    }) as Entity;
+
+  test("a recreated mailbox with no query type is recognised from bytes1", () => {
+    expect(mailboxKind(recreated(0, 19 << 8))).toBe("object");
+  });
+
+  test("a packed type other than mailbox is rejected", () => {
+    expect(mailboxKind(recreated(0, 5 << 8))).toBeUndefined();
+    expect(mailboxKind(recreated(0, 0))).toBeUndefined();
+  });
+
+  test("the query type still wins when bytes1 is empty", () => {
+    expect(mailboxKind(recreated(19, 0))).toBe("object");
+  });
+});
 
 describe("mail acts", () => {
   test("listMail throws no_mailbox for an unknown or distant box", async () => {

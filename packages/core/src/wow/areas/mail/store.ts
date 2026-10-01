@@ -19,10 +19,17 @@ export type MailboxReach =
   | { kind: "creature"; distance: number };
 
 export function mailboxKind(entity: Entity): "object" | "creature" | undefined {
-  if (entity.objectType === ObjectType.GAMEOBJECT && "gameObjectType" in entity)
-    return entity.gameObjectType === MAIL_GAMEOBJECT_TYPE
-      ? "object"
-      : undefined;
+  if (
+    entity.objectType === ObjectType.GAMEOBJECT &&
+    "gameObjectType" in entity
+  ) {
+    if (entity.gameObjectType === MAIL_GAMEOBJECT_TYPE) return "object";
+    if ("bytes1" in entity)
+      return ((entity.bytes1 >> 8) & 0xff) === MAIL_GAMEOBJECT_TYPE
+        ? "object"
+        : undefined;
+    return undefined;
+  }
   const unit =
     entity.objectType === ObjectType.UNIT ||
     entity.objectType === ObjectType.PLAYER;
