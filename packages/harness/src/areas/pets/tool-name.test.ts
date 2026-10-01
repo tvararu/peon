@@ -80,4 +80,21 @@ describe("pet rename and abandon", () => {
     const out = await petSpec.run({ do: "abandon", what: "Fang" }, toolCtx(t));
     expect(out.status).toBe("DONE");
   });
+
+  test("abandon names the pet by its own saved name, not the creature's", async () => {
+    const base = barState();
+    const pets = {
+      ...base,
+      names: { 7: { name: "Ravager", number: 7, timestamp: 1 } },
+      pet: base.pet && { ...base.pet, number: 7 },
+    };
+    const t = await world({ petEntity: unit(), pets });
+    const sent = jest.spyOn(t.game.pets.act, "abandonPet");
+    const out = await refusal(
+      petSpec.run({ do: "abandon", what: "Fang" }, toolCtx(t)),
+    );
+    expect(out.reason).toBe("confirm_name");
+    expect(out.detail).toContain("Ravager");
+    expect(sent).not.toHaveBeenCalled();
+  });
 });
