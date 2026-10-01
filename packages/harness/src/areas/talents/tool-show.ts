@@ -69,11 +69,32 @@ function learnedLines(
 function slotText(
   index: number,
   unlocked: boolean | undefined,
-  typeFlags: number | undefined,
+  kind: string,
   glyph: string,
 ): string {
   const lock = unlocked === false ? "locked" : "open";
-  return `slot ${index + 1} (${kindOf(typeFlags)}, ${lock}): ${glyph}`;
+  return `slot ${index + 1} (${kind}, ${lock}): ${glyph}`;
+}
+
+function glyphText(
+  ctx: TalentsCtx,
+  catalog: TalentsCatalog | undefined,
+  glyphId: number,
+): string {
+  const spellId = catalog?.glyph(glyphId)?.spellId;
+  if (spellId === undefined) return `glyph ${glyphId}`;
+  return spellLabel(ctx, spellId);
+}
+
+function slotKind(
+  catalog: TalentsCatalog | undefined,
+  typeId: number | undefined,
+): string {
+  if (typeId === undefined) return kindOf(undefined);
+  if (catalog === undefined) return `type ${typeId}`;
+  const row = catalog.slotType(typeId);
+  if (row === undefined) return `type ${typeId}`;
+  return kindOf(row.typeFlags);
 }
 
 function slotLines(
@@ -86,21 +107,14 @@ function slotLines(
     const glyph =
       glyphId === undefined || glyphId === 0
         ? "empty"
-        : spellLabel(ctx, catalog?.glyph(glyphId)?.spellId ?? glyphId);
+        : glyphText(ctx, catalog, glyphId);
     return slotText(
       slot.index,
       slot.unlocked,
-      catalog ? slotTypeOf(catalog, slot.typeId) : slot.typeId,
+      slotKind(catalog, slot.typeId),
       glyph,
     );
   });
-}
-
-function slotTypeOf(
-  catalog: TalentsCatalog,
-  typeId: number | undefined,
-): number | undefined {
-  return typeId === undefined ? undefined : catalog.slotType(typeId)?.typeFlags;
 }
 
 export async function showTalents(
