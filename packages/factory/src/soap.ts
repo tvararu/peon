@@ -8,7 +8,6 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { homedir } from "node:os";
-import type { ClientConfig } from "@peon/core";
 import {
   type Config,
   parseConfig,
@@ -24,7 +23,7 @@ import {
   pinfoAccount,
   type SoapResult,
 } from "#factory/soap-copy";
-import { createByProtocol } from "#factory/soap-create";
+import { createWired } from "#factory/soap-create";
 import {
   needsProtocol,
   type Preset,
@@ -312,22 +311,6 @@ export async function inheritedConfig(
   return inherited;
 }
 
-async function createdLoginConfig(
-  _root: string,
-  account: string,
-  inherited: Inherited,
-): Promise<ClientConfig> {
-  const entry = await loadLedger(account);
-  if (!entry) throw new Error(`no ledger entry for ${account}`);
-  return {
-    account,
-    character: entry.character,
-    host: inherited.host,
-    password: entry.password,
-    port: inherited.port,
-  };
-}
-
 async function writeSession(
   entry: Ledger & { root: string },
   inherited: Inherited,
@@ -395,31 +378,17 @@ export async function createAccount({
   try {
     await saveLedger(entry);
     if (needsProtocol(presetSpecs[preset])) {
-      const session = await import("@peon/core/session");
-      const { createService, serviceUrl } = await import(
-        "#factory/realm-service"
-      );
       const file = Bun.file(`${factoryConfigDir()}/soap.env`);
       const env = (await file.exists()) ? parseEnv(await file.text()) : {};
-      await createByProtocol(preset, {
-        auth: (config) => session.authWithRetry(config, { maxAttempts: 2 }),
+      await createWired(preset, {
         console: (accounts, command) => consoleCommand(accounts, command),
-        copy: (template, n) => copyConfirmed(soap, template, n),
-        create: session.createCharacter,
-        createConfig: (n) => ({
-          account: n.account,
-          character: n.character,
-          host: inherited.host,
-          password,
-          port: inherited.port,
-        }),
-        login: (config, auth) => session.worldSession(config, auth),
-        loginConfig: (account) => createdLoginConfig(root, account, inherited),
+        env,
+        host: inherited.host,
+        loadEntry: loadLedger,
         names,
+        password,
+        port: inherited.port,
         run: soap,
-        service: createService({ baseUrl: serviceUrl(Bun.env, env) }),
-        sleep: (ms) => Bun.sleep(ms),
-        templateEnv: env,
       });
     } else {
       const template = await presetTemplate(preset);
