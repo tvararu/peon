@@ -1,7 +1,7 @@
 import {
   type PetAfter,
   type PetCtx,
-  petUnit,
+  petNameOf,
   SETTLE_MS,
   stateOf,
   throwUnlessOk,
@@ -12,12 +12,6 @@ import { Refusal } from "#harness/ops/refusal";
 import { settle } from "#harness/ops/settle";
 import { result } from "#harness/tools/define";
 import { nextCall } from "#harness/tools/next-call";
-
-function stateNameOf(ctx: PetCtx): string {
-  const pet = stateOf(ctx.handle).pet;
-  const unit = pet ? petUnit(ctx.handle, pet.guid) : undefined;
-  return unit?.name ?? "Your pet";
-}
 
 export async function renameFlow(
   what: string,
@@ -89,7 +83,7 @@ export async function abandonFlow(
 ): Promise<ToolResult<PetAfter>> {
   const state = stateOf(ctx.handle);
   if (!state.bar) throwNoPet("no_pet");
-  const current = stateNameOf(ctx);
+  const current = petNameOf(ctx.handle, state);
   if (what.trim().toLowerCase() !== current.toLowerCase())
     throw new Refusal({
       body: [`Your pet is named ${current}.`],

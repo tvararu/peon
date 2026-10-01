@@ -57,8 +57,10 @@ export type PetsState = {
         health: number;
         maxHealth: number;
         canAbandon: boolean;
+        number?: number;
       }
     | undefined;
+  names?: Readonly<Record<number, { name: string }>>;
 };
 
 export const SETTLE_MS = 5000;
@@ -132,6 +134,14 @@ export function petUnit(handle: Game, guid: bigint): UnitEntity | undefined {
   return isUnit(entity) ? entity : undefined;
 }
 
+export function petNameOf(handle: Game, state: PetsState): string {
+  const number = state.pet?.number;
+  const saved = number === undefined ? undefined : state.names?.[number]?.name;
+  const bar = state.bar;
+  const unit = bar === undefined ? undefined : petUnit(handle, bar.guid);
+  return saved ?? unit?.name ?? "Your pet";
+}
+
 function spellLabel(handle: Game, spell: number): string {
   return handle.spellDefinition(spell)?.name ?? `spell ${spell}`;
 }
@@ -160,7 +170,7 @@ export function statusResult(handle: Game, now: number): ToolResult<PetAfter> {
     return result("DONE", { after, detail: "You have no pet out." });
   const bar = state.bar;
   const unit = petUnit(handle, bar.guid);
-  const name = unit?.name ?? "Your pet";
+  const name = petNameOf(handle, state);
   const family = FAMILIES[bar.family] ?? `family ${bar.family}`;
   const level = unit === undefined ? "level unknown" : `level ${unit.level}`;
   const pet = state.pet;
