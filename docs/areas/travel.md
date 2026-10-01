@@ -23,7 +23,14 @@ from the node with names, list prices and known flags; `planFlight(from,
 destination)` matches the destination by case-insensitive name part
 and returns the cheapest chain of direct edges over known nodes with
 the summed list price, refusing with `unknown_node`, `ambiguous`,
-`not_known`, `no_route` or `missing_taxi_data`.
+`not_known`, `no_route` or `missing_taxi_data`. `activateTaxi(npc, route)`
+sends `CMSG_ACTIVATETAXI` for two nodes and `CMSG_ACTIVATETAXIEXPRESS`
+for a longer route, or for a two-node route when `{ express: true }`.
+`{ unchecked: true }` sends a node that is not in `known`, which the
+probe uses to show `not_visited`. The act settles `ok` with the route
+and list price on `ERR_TAXIOK`, `refused` with the reply's short name
+otherwise, or `no_answer` after 5 seconds of silence. A self teleport
+in that window, with no reply, settles `ok`.
 
 ## Wire notes
 
@@ -82,11 +89,22 @@ the summed list price, refusing with `unknown_node`, `ambiguous`,
 - The taxi catalog reads the `TaxiNodes.dbc` and `TaxiPath.dbc` files. A
   route is a chain of direct edges; the server looks up only one direct
   edge per hop.
+- `CMSG_ACTIVATETAXI` is the master's full `uint64` guid, then two
+  `uint32` nodes (`Handlers/TaxiHandler.cpp:279`).
+  `CMSG_ACTIVATETAXIEXPRESS` is the guid, a `uint32` count and the nodes
+  (`Handlers/TaxiHandler.cpp:199`); the 3.3.5 form has no `total_cost`.
+- `SMSG_ACTIVATETAXIREPLY` is one `uint32` code
+  (`Handlers/TaxiHandler.cpp:303`). The 13 codes are `ok`,
+  `unspecified_server_error`, `no_such_path`, `not_enough_money`,
+  `too_far`, `no_vendor_nearby`, `not_visited`, `busy`, `mounted`,
+  `shapeshifted`, `moving`, `same_node` and `not_standing`. An unknown
+  code is `unknown_<n>`.
+- A hop with no direct path gets no reply at all: the server clears the
+  destination list and returns before sending. The same silence happens
+  when movement is disabled.
 
 ## Left out
 
-- `CMSG_ACTIVATETAXI`, `CMSG_ACTIVATETAXIEXPRESS` and
-  `SMSG_ACTIVATETAXIREPLY`: built by travel-3.
 - `CMSG_MOVE_SPLINE_DONE`: built by travel-4.
 
 ## Harness verbs
@@ -128,4 +146,7 @@ use the hearthstone to go home. Both are in
 | `SMSG_PLAYERBOUND` | `live` | probe flow `travel-bind` (`--expect SMSG_PLAYERBOUND --expect SMSG_BINDPOINTUPDATE`) at Falconwing Square, exit 0; the binder is the innkeeper | `Spells/SpellEffects.cpp:6663-6666` |
 | `SMSG_BINDER_CONFIRM` | `live` | probe flow `travel-bind` with `--arg gossip=1` (`--expect SMSG_BINDER_CONFIRM`), exit 0; an 8-byte body | `Entities/Player/Player.cpp:9118-9122` |
 | `CMSG_BINDER_ACTIVATE` | `live` | probe flow `travel-bind`, exit 0; `SMSG_BINDPOINTUPDATE` with the inn's area and `SMSG_PLAYERBOUND` follow the send, and the act settles `ok` | `Handlers/NPCHandler.cpp:293-296` |
+| `CMSG_ACTIVATETAXI` | `live` | probe flow `travel-fly` on `FAC6ABDA53EE1` (`ghostlands20`, Tranquillien learned): two sends, the known route settled `ok` for nodes 83 to 82 at list price 110; `soap truth` money fell from 200000 to 199895 | `Handlers/TaxiHandler.cpp:279` |
+| `SMSG_ACTIVATETAXIREPLY` | `live` | both `travel-fly` runs: `not_visited` for an unvisited node and `ok` for the known route; both bodies are 4 bytes | `Handlers/TaxiHandler.cpp:303` |
+| `CMSG_ACTIVATETAXIEXPRESS` | `live` | probe flow `travel-fly` with `express=1`: two 20-byte sends (guid, count, two nodes, no total cost); the unvisited node refused `not_visited` and the known route settled `ok`; money fell another 105 | `Handlers/TaxiHandler.cpp:199` |
 | `SMSG_FLIGHT_SPLINE_SYNC` | `dead` | registered as `STATUS_NEVER` and no AzerothCore code writes it: the only other mention is its enum line (`Server/Protocol/Opcodes.h:934`) | `Server/Protocol/Opcodes.cpp:1035` |
