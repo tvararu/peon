@@ -42,9 +42,15 @@ async function run({ args, handle, settle }: FlowContext): Promise<Json> {
       `reputation-settings needs do=<${MODES.join("|")}>, not "${mode}".`,
     );
   const ready = await settle(() =>
-    handle.reputation.state().factions.length > 0 ? true : undefined,
+    handle.reputation.state().factions.length > 0 &&
+    handle.queryNearby().some((row) => row.self)
+      ? true
+      : undefined,
   );
-  if (!ready) throw new Error("reputation-settings: no faction list arrived.");
+  if (!ready)
+    throw new Error(
+      "reputation-settings: no faction list and character arrived.",
+    );
   const { factions } = handle.reputation.state();
   const capital = rowNamed(factions, CAPITAL).repListId;
   const war = rowNamed(factions, AT_WAR_FACTION).repListId;

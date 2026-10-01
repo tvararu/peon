@@ -34,6 +34,8 @@ function context(args: Record<string, string>, factions: Row[]) {
     forced: [],
     watched: undefined,
   });
+  handle.queryNearby = () =>
+    [{ self: true }] as unknown as ReturnType<MockHandle["queryNearby"]>;
   const calls: string[] = [];
   spyOn(handle.reputation.act, "setWatched").mockImplementation(async (id) => {
     calls.push(`watched ${id}`);

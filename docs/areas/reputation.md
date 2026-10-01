@@ -7,7 +7,7 @@ reputation list id, standing, rank and the rank's floor and ceiling, and
 whether it is visible, at war, inactive or watched, most recently changed
 first, plus the watched faction, the forced reactions and whether the
 faction catalog loaded. The area emits `initialized`, `standing_changed`,
-`visible`, `forced_changed` and `watched_changed` events.
+`visible`, `forced_changed`, `watched_changed` and `flags_pending` events.
 
 The area also decides hostility for creatures of reputation factions.
 Core's `targetRelation`, which `look` and the nearby rows use, reads the
@@ -24,8 +24,8 @@ place in the rank ("Silvermoon City reputation +250: Friendly
 1250/6000."), a new rank logs the rank reached, and a standing change
 that puts a faction at war (the event's `wasAtWar` is false and `atWar`
 true) warns that its guards will attack the character. A faction made visible is logged as discovered, and a forced
-reaction wakes the agent outside a run. `initialized` and
-`watched_changed` write no row.
+reaction wakes the agent outside a run. `initialized`,
+`watched_changed` and `flags_pending` write no row.
 
 ## Wire notes
 
@@ -116,21 +116,67 @@ reaction wakes the agent outside a run. `initialized` and
   rule: the server's player-versus-player branch
   (`Entities/Unit/Unit.cpp:6857-6906`), its forced rank for a player
   target, and pets it treats as player-controlled are not modelled.
+- `CMSG_SET_FACTION_ATWAR` is a `uint32` list id and a `uint8` read as a
+  boolean (`Handlers/CharacterHandler.cpp:1287-1296`);
+  `CMSG_SET_FACTION_INACTIVE` has the same shape
+  (`Handlers/CharacterHandler.cpp:1340-1347`). wow_messages keys both with
+  a `u16` faction; AzerothCore reads a `uint32`.
+- For both flag requests the server refuses in silence an unknown list id (`Reputation/ReputationMgr.cpp:506-508`,
+  `:539-541`), war or peace on a hidden or forced-invisible faction
+  (`:510-512`), war on a peace-forced faction (`:520-521`), inactive on a
+  faction that is not visible or is hidden or forced invisible
+  (`:548-549`), and a change to the state it already has (`:524-525`,
+  `:552-553`).
+- `CMSG_SET_WATCHED_FACTION` is a `uint32` list id stored unchecked in
+  `PLAYER_FIELD_WATCHED_FACTION_INDEX`
+  (`Handlers/CharacterHandler.cpp:1333-1338`); the private field reaches
+  the client in the character's own values update.
 - The watched faction is the player field
   `PLAYER_FIELD_WATCHED_FACTION_INDEX`; `0xFFFFFFFF` means none
   (`Entities/Player/Player.cpp:549`).
 
-## Left out
+## Settings acts
 
-- `CMSG_SET_FACTION_ATWAR`, `CMSG_SET_FACTION_INACTIVE` and
-  `CMSG_SET_WATCHED_FACTION`: built by world-4.
+`session.areas.reputation.act` changes the three pane settings:
+`setAtWar(faction, atWar)`, `setInactive(faction, inactive)` and
+`setWatched(faction | undefined)`. A faction is a reputation list id or a
+faction name from the catalog (case does not matter). The two flag acts
+return `{ sent: true }` or `{ sent: false, reason }`; `setWatched` does
+the same and resolves once the watched field update arrives, rejecting
+with `timeout` after 5 s. `undefined` clears the watched faction.
+
+The server answers neither flag opcode and drops an impossible change in
+silence, so core refuses first and sends nothing. For `setAtWar` the
+reasons are, in order, `unknown_faction` (no such list id or name),
+`cannot_change` (hidden or forced invisible), `own_faction` (war on a
+peace-forced faction) and `unchanged`. For `setInactive(id, true)` they
+are `unknown_faction`, `cannot_change`, `not_visible` and `unchanged`;
+`setInactive(id, false)` only fails as `unknown_faction` or `unchanged`.
+`setWatched` refuses `unknown_faction` and `unchanged` (the server sets
+the field without an update when the value is the same).
+
+An accepted change is pending until the next faction list: the server
+marks it for sending and sends it only inside the next full list
+(`Reputation/ReputationMgr.cpp:195-231`); a standing change carries no
+flags (`:179-181`). Core keeps the change in its own map, shows it in
+`list()` and raises `flags_pending` (`repListId`, `name`, and `atWar` or
+`inactive`); the next full list clears it. A later standing change that
+crosses into Hostile still infers at war over a pending peace. The
+server forces war on a faction at Hated again when it loads the
+character (`Reputation/ReputationMgr.cpp:612-613`), so peace with such a
+faction does not survive a relogin.
+
+## Not seen live
+
+Nothing: all three opcodes were sent live.
 
 ## Capabilities row
 
 Report its reputation with each faction and what changed it |
 `t4-reputation-gain` | Only factions the server lists. Standing is the
 Faction.dbc base plus the server's change; at war and inactive set by the
-agent show only after the next login.
+agent show only after the next login (`flags_pending` and `list()` show
+the change at once).
 
 Limit for the `t0-hostiles` row: hostility of a creature follows the
 character's reputation and forced reactions only when `Faction.dbc` is in
@@ -154,3 +200,6 @@ for `t4-reputation-gain`.
 | `SMSG_SET_FACTION_STANDING` | `live` | probe flow `login` with `soap gm quest reward 8325`: list id 55 changed by 250 while `soap gm read reputation` showed Silvermoon City go from 4000 to 4250; the `quest reward 9148` run below, exit 0, also received and handled one | `Reputation/ReputationMgr.cpp:178-209` |
 | `SMSG_SET_FORCED_REACTIONS` | `live` | probe flow `login` on an `eversong10` character, exit 0; one received with the empty list (body `00000000`) and handled. The non-empty list is the `area.test.ts` case (see the wire notes) | `Reputation/ReputationMgr.cpp:165-176` |
 | `SMSG_SET_FACTION_VISIBLE` | `live` | probe flow `login` with `soap gm quest reward 9148`, exit 0; list id 56 shown, and `soap gm read reputation` then listed Tranquillien as visible at 250 | `Reputation/ReputationMgr.cpp:252-261` |
+| `CMSG_SET_WATCHED_FACTION` | `live` | probe flow `reputation-settings` as the new blood elf `Fgklomjbkbc`: the flow sent it and the watched field update came back (`watched: 55`), and the next login still showed 55 as watched | `Handlers/CharacterHandler.cpp:1333-1338` |
+| `CMSG_SET_FACTION_INACTIVE` | `live` | the same run: `soap gm read reputation` during the probe's 90 s wait listed Silvermoon City with `[inactive]`; a `do=restore` run cleared it again, and a second login with `do=show` showed `inactive: true` between them | `Handlers/CharacterHandler.cpp:1340-1347` |
+| `CMSG_SET_FACTION_ATWAR` | `live` | the same run: `setAtWar(0, false)` was sent and the console read listed Bloodsail Buccaneers without `[at war]`; the read in the `do=restore` run listed `[at war]` again. The server forces war on Hated factions at login, so the cleared flag does not survive a relogin | `Handlers/CharacterHandler.cpp:1287-1296` |
