@@ -66,6 +66,42 @@ logs `selfstate/self_res_available`: "You can come back where you died
 `selfstate/dismounted`, except for a taxi flight, which `travel` already
 describes; `dismount` is a world act.
 
+## Condition
+
+`state().condition` holds `drunkValue`, `drunkState`, `restedXp`,
+`restState` and `resting`; `NO_CONDITION` is the empty value. Each datum has
+one writer. `drunkState` is set only by the inebriation threshold packet,
+which emits `drunk_changed { from, to, item }`; a packet that repeats the
+stored state, names a state above 3 or comes from another guid does nothing.
+`drunkValue` is read only from byte 1 of `PLAYER_BYTES_3`
+(`Entities/Player/Player.h:514`). On the first read of the self object the
+state is derived silently from the value with the server's thresholds (above
+0 tipsy, 50 or more drunk, 90 or more smashed;
+`Entities/Player/Player.cpp:1022-1028`) and emits no event, because the
+value is saved with the character and a login can start drunk. Later field
+changes move `drunkValue` only. `restedXp` is `PLAYER_REST_STATE_EXPERIENCE`
+(`Entities/Player/Player.cpp:10409`), `resting` is bit 0x20 of `PLAYER_FLAGS`
+(`Entities/Player/Player.h:464`) and `restState` is the high byte of
+`PLAYER_BYTES_2`: `rested` 1, `normal` 2, `tired` 3, `tired_reduced` 4,
+`exhausted` 5, `recruit_linked` 6, anything else `unknown`
+(`Entities/Player/Player.h:978-983`). A field update that lacks a field keeps
+the last value. The harness logs one `selfstate/drunk_changed` row per
+change ("You feel tipsy.", "drunk.", "completely smashed.", "sober
+again."; the strings are the client's, the server sends only the number)
+and none for the silent first read. Death clears the value and so sends
+state 0 (`Entities/Player/Player.cpp:1095`).
+
+The server clears no stale `PLAYER_FLAGS_RESTING` bit on login: the flag is
+saved with the character, `RemoveRestFlag` clears it only when its in-memory
+mask was set, and the mask is not saved. A character teleported offline from
+a capital city to the open country therefore logs in with `resting` true and
+loses it only after it has been in a capital in the same session
+(`Entities/Player/Player.cpp:16525`, `Entities/Player/PlayerUpdates.cpp:1355-1362`).
+A capital city sets the flag through `AREA_FLAG_CAPITAL`
+(`Entities/Player/PlayerUpdates.cpp:1355-1362`) and a tavern trigger through
+`SetRestFlag` (`Handlers/MiscHandler.cpp:738`); the store reads the flag as
+sent and does not guess which.
+
 ## Wire notes
 
 - For a player the server does not set water walk or hover itself: it
@@ -202,7 +238,12 @@ describes; `dismount` is a world act.
   relays the empty `CMSG_MOUNTSPECIAL_ANIM` to the set without the sender,
   so the rider never sees its own packet and `mount_anim` needs a witness
   (`Handlers/MovementHandler.cpp:816-822`).
-- `SMSG_CROSSED_INEBRIATION_THRESHOLD`: built by `self-state-8`.
+- `SMSG_CROSSED_INEBRIATION_THRESHOLD` is a full `u64` guid, a `u32` state
+  (0 sober, 1 tipsy, 2 drunk, 3 smashed) and a `u32` item id. It goes to
+  the whole set including the drinker, so the store drops another guid's
+  packet, and it is sent only when the value crosses a state boundary
+  (`Server/Packets/MiscPackets.cpp:128-135`,
+  `Entities/Player/Player.cpp:1043-1055`).
 - Control sends the swim and fly moves on request and does not test for
   water: the ground oracle answers `height` and `pathClear` only, and a
   swim step would need a liquid level that neither it nor the namigator
@@ -257,6 +298,8 @@ Live proof (no new opcode): `t9-selfstate-mount` replica 6 of round 355 passed 6
 | `CMSG_MOUNTSPECIAL_ANIM` | `live` | partner B on a second `max80` in the same Durotar spot ran `selfstate-mount --arg special=1`, exit 0; sent the empty packet once after mounting and the flow reported `special: ok` (trace not committed) | `Handlers/MovementHandler.cpp:816-822` |
 | `SMSG_MOUNTSPECIAL_ANIM` | `live` | partner A, watching with `--wait 45 --expect SMSG_MOUNTSPECIAL_ANIM`, exit 0; received `2511000000000000` (8 bytes, B's guid as a full `u64`) in the same millisecond B sent the request (trace not committed) | `Handlers/MovementHandler.cpp:816-822` |
 | `SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE` | `live` | the same run; received 32 zero hex chars (16 bytes, not committed) | `Handlers/QueryHandler.cpp:399-409` |
+| `SMSG_CROSSED_INEBRIATION_THRESHOLD` | `live` | probe flow `selfstate-drink --arg item=2594 --arg count=5 --expect SMSG_CROSSED_INEBRIATION_THRESHOLD` on a throwaway `eversong10` character with five Flagons of Mead staged by `soap setup items/add`, exit 0, `missing` empty; the trace of an earlier run of the same flow shows `021300000000000001000000220a0000`, `...02000000220a0000` and `...03000000220a0000`: the self guid, states 1, 2 and 3, item 2594; the store emitted `sober` to `tipsy`, `drunk` and `smashed`, each with item 2594, and ended at `drunkValue` 100 (traces not committed) | `Server/Packets/MiscPackets.cpp:128-135` |
+| `PLAYER_FLAGS` resting bit, `restedXp` and `restState` fields | `live` | probe flow `selfstate-drink --arg rest=yes --arg seconds=45` on the same character after `soap gm tele SilvermoonCity` (offline): `resting` true, `restState` `rested`, `restedXp` 849 in every sample; `soap gm tele EversongWoods` issued online 22 s into the run: `resting` false from sample 22 on. A second account's login started `smashed` at `drunkValue` 93 with no event, the silent first read | `Entities/Player/PlayerUpdates.cpp:1355-1362` |
 
 ## Sent from control
 
