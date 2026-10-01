@@ -73,11 +73,8 @@ async function send(
 ): Promise<BankResult> {
   env.store.begin(request);
   const settled = env.ctx.until(
-    (event) => {
-      if (!SETTLED.has(event.type)) return false;
-      const last = env.store.snapshot().lastOutcome;
-      return last !== undefined && last.request === request;
-    },
+    (event) =>
+      SETTLED.has(event.type) && env.store.resultOf(request) !== undefined,
     {
       signal: env.ctx.signal,
       timeoutMs: BANK_ANSWER_MS,
@@ -99,7 +96,7 @@ async function send(
     }
     if (env.store.snapshot().pending === request) env.store.expire();
   }
-  return outcome(env.store);
+  return env.store.takeResult(request) ?? outcome(env.store);
 }
 
 function isBankPosition(bag: number, slot: number): boolean {
