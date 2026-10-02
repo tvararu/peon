@@ -122,7 +122,7 @@ used ready bobber with fishing loot, `Entities/GameObject/GameObject.cpp:1789-17
   with 0x3c (`SPELL_FAILED_NOT_HERE`, `Spells/Spell.cpp:1479`). The splash
   came 10.5 to 10.7 s into the 17 s channel and the escape 4 s after it.
 - `CMSG_GAMEOBJ_USE` is one `ObjectGuid` (`Handlers/SpellHandler.cpp:329-347`).
-  The server drops the use in silence when the object is too far; a
+  The server drops the use in silence when the object is too far; an `open` or `read` past the display bounds refuses `too_far` with a `travel` next instead of sending a use the server would drop; a
   type-2 quest giver answers by preparing and sending its gossip menu.
 - `CMSG_GAMEOBJ_USE` doubles as the harness object proof: `look find:
   "object"` lists the nearby objects as `o<n>` refs with their template
