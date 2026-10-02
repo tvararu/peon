@@ -210,6 +210,69 @@ describe("parseChatMessage", () => {
     expect(msg.senderName).toBeUndefined();
     expect(msg.message).toBe("Boss incoming");
   });
+
+  const chatBody = (
+    type: number,
+    message: string,
+    achievementId?: number,
+  ): Uint8Array => {
+    const w = new PacketWriter();
+    w.uint8(type);
+    w.uint32LE(0);
+    w.uint32LE(0x42);
+    w.uint32LE(0x00);
+    w.uint32LE(0);
+    w.uint32LE(0x42);
+    w.uint32LE(0x00);
+    const bytes = new TextEncoder().encode(message);
+    w.uint32LE(bytes.byteLength + 1);
+    w.rawBytes(bytes);
+    w.uint8(0);
+    w.uint8(0);
+    if (achievementId !== undefined) w.uint32LE(achievementId);
+    return w.finish();
+  };
+
+  test("reads the achievement id after the tag of an achievement message", () => {
+    const msg = parseChatMessage(
+      new PacketReader(chatBody(ChatType.ACHIEVEMENT, "link", 6)),
+    );
+    expect(msg.type).toBe(ChatType.ACHIEVEMENT);
+    expect(msg.message).toBe("link");
+    expect(msg.achievementId).toBe(6);
+  });
+
+  test("reads the achievement id of a guild achievement message", () => {
+    const msg = parseChatMessage(
+      new PacketReader(chatBody(ChatType.GUILD_ACHIEVEMENT, "link", 2188)),
+    );
+    expect(msg.type).toBe(ChatType.GUILD_ACHIEVEMENT);
+    expect(msg.achievementId).toBe(2188);
+  });
+
+  test("leaves the achievement id unset when the body ends at the tag", () => {
+    const msg = parseChatMessage(
+      new PacketReader(chatBody(ChatType.ACHIEVEMENT, "link")),
+    );
+    expect(msg.achievementId).toBeUndefined();
+  });
+
+  test("parses an ignored notice with its message and no achievement id", () => {
+    const msg = parseChatMessage(
+      new PacketReader(chatBody(ChatType.IGNORED, "Own", 9)),
+    );
+    expect(msg.type).toBe(0x19);
+    expect(msg.message).toBe("Own");
+    expect(msg.senderGuidLow).toBe(0x42);
+    expect(msg.achievementId).toBeUndefined();
+  });
+
+  test("an ordinary say has no achievement id", () => {
+    const msg = parseChatMessage(
+      new PacketReader(chatBody(ChatType.SAY, "hi", 5)),
+    );
+    expect(msg.achievementId).toBeUndefined();
+  });
 });
 
 describe("buildChatMessage", () => {

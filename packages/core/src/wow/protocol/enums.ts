@@ -68,6 +68,7 @@ export const ChatType = {
   CHANNEL: 0x11,
   AFK: 0x17,
   DND: 0x18,
+  IGNORED: 0x19,
   BG_SYSTEM_NEUTRAL: 0x24,
   BG_SYSTEM_ALLIANCE: 0x25,
   BG_SYSTEM_HORDE: 0x26,
@@ -78,6 +79,8 @@ export const ChatType = {
   BATTLEGROUND: 0x2c,
   BATTLEGROUND_LEADER: 0x2d,
   BATTLENET: 0x2f,
+  ACHIEVEMENT: 0x30,
+  GUILD_ACHIEVEMENT: 0x31,
   PARTY_LEADER: 0x33,
   ROLL: 0x1_00,
 } as const;
