@@ -5175,4 +5175,156 @@ diff at the tip.
 
 Filed as issues: #490 (finish the parked wave 3 tasks), #491 (grade spent talent points, not learn rows), #492 (do not wake the agent twice on a landing), #493 (window draft checks by steer timestamps). Recorded under "Left out" in the area docs: autonomous water detection, Northrend navigation data for a long mount ride, the two-participant meeting-stone portal, and session-6's dependency on T-11 (wave 4).
 
+### 8.12 Part 2, wave 4, first slice
+
+Wave 4 (phase D, the long tail) lands a 23-task slice on
+`factory/431-wave4`, which starts from `main` at `0495a4fe`. The
+maintainer's goal of 2026-10-01 set the slice for a run of about 10 to 12
+hours (BR-wave4-1): the eight wave-3 tasks parked in #490, economy-8 and
+economy-10 on top of them, and 13 long-tail tasks in existing code areas.
+The rest of phase D (pvp, guild, session, auction, fishing, most of
+social, combat-log-8, vehicles-8 and vehicles-9) is not built. The run
+went from the goal (2026-10-01, about 19:55 UTC) to the last landing at 23:53 UTC.
+21 tasks landed and 2 are parked.
+
+#### How it ran
+
+- The machinery of wave 3 (8.11): a Python state machine in the
+  coordinator's eval kernel runs build → check → review → fix → land, with
+  one worktree per unit and a second one for the pairs the index marks
+  independent. Up to 10 builders and reviewers ran at once.
+- Roles were unchanged: `task` builders (Sonnet 5.5 medium, Opus prewalk),
+  `reviewer` (Sol), `sonic` (Gemini 3.8 Flash) for the mechanical check,
+  the serial lander and the gate evals, and one `creative` ruling
+  (BR-world-4-1).
+- Before the seed the coordinator moved the 43 client DBC files from the
+  main checkout's `tmp/` to `~/wow-data/dbc` (#495). Every sha256 equals
+  the wave-3 staging record, and a rebuild of the nine spell and faction
+  files from the client archives gave the same bytes. `--check` now warns
+  about all 21 files core reads (`851d14fc`).
+- SEED-4: five `task` agents drafted the seed rulings in about 35 minutes.
+  They checked each plan body against the code at `851d14fc` and
+  AzerothCore, cherry-picked the parked branches in scratch clones (all
+  clean but four `docs/capabilities.md` conflicts in group-11) and
+  proposed the index rows. The coordinator answered six DESIGN questions
+  and made one pre-split (SEED4-1, the quests journal block).
+- A parked task resumed under BR-wave4-2: its own commits (`git cherry`
+  against `factory/431-wave3`) were cherry-picked onto the wave branch,
+  and the fixes for the findings that parked it were its fix round 1.
+- 7 of the 21 landed tasks passed their first review. vehicles-4 landed
+  after its rescue round; economy-7's rescue round fixed its timeout races
+  but its fifth review found a new defect, so it is parked. world-4 landed
+  after a landing-only docs round (BR-world-4-1), and quests-10 on a
+  ruling that its last finding was already answered (BR-quests-10-1).
+- Builders stopped at the 200-request budget twice (items-10,
+  economy-10); the driver restarted each from its report and commits.
+- Throughput: 23 tasks decided in 3.2 hours of build (20:39 to 23:53 UTC),
+  about 7 tasks per hour.
+
+#### What landed
+
+| Task | Result |
+|---|---|
+| T-11 | Class and fishing presets; character create over the protocol (`CMSG_CHAR_CREATE`, `SMSG_CHAR_CREATE`). The fishing cast 7620 is live at Lake Elrendar with its bobber. The death knight create is refused `0x33` by the individual-progression module's gate; the deployed setting is not readable here (SR4-tooling-2, option A). |
+| economy-9 | Bank core: open, deposit, withdraw and slot purchase, live at the Silvermoon bank; the probe's far mode is gone (SR4-economy-4). |
+| economy-10 | `interact` bank verbs, `journal about: "bank"` and the `silvermoon-bank` grid, each point proven by a login read; `t9-bank-deposit`, `t9-bank-withdraw` and `t9-bank-slot` pass in round 423. |
+| items-9 | Equipment sets: all six opcodes live, and a changed-outfit use restores the slot (round 401). |
+| items-10 | Item refunds: buy, refund info and refund live at G'eras. |
+| items-11 | Gift wrap and item names: a wrap, a refused second wrap and a name query live. |
+| group-11 | Meeting-stone summons: two partners use the Stormwind stone 179595 and its summoning portal, so `SMSG_SUMMON_REQUEST` is live; `t9-raid-summon` passes (round 408, replica 4; replicas 1 to 3 aborted in setup). |
+| social-14 | The `social` emote verb; `t2-emotes-partner` passes twice in round 409. |
+| vehicles-4 | Driving a controlled vehicle: a live 10 yd drive of a Siege Tank; the passenger's flags stay apart while driving (BR-vehicles-4-5). |
+| vehicles-7 | Boarding and leaving transports: the board half is live on the Orgrimmar zeppelin tower; the leave is proven by tests, as BR-vehicles-7-3 set out. |
+| quests-10 | Daily quests done today, live with quest 14179 in the field, the event and the journal line. |
+| self-state-8 | Drunkenness and rested state, live. |
+| combat-log-4 | Dispel and spell steal logs live; `SMSG_DISPEL_FAILED` is mock. |
+| combat-log-5 | The spell execute log, live for Conjure Water and an interrupt record. |
+| spells-10 | Mirror images live; the far sight toggle is accepted live. |
+| spells-11 | Projectile positions live; the missile trajectory is mock. |
+| remote-motion-5 | Turn and pitch rate, mock: AzerothCore never sends them. |
+| remote-motion-6 | Fall, water walk, hover and flight toggles, mock: it was built before T-11 landed the shaman preset that the water-walk try needs. |
+| world-4 | Faction settings (`setAtWar`, `setInactive`, `setWatched`), live; the `AT_WAR` inference limit is documented. |
+| instances-9 | The raid browser, live with an empty list. |
+| pets-8 | Pet combo points, mock. |
+
+#### Parked
+
+- economy-7 (mail actions): branch `factory/431-wave4-parked-economy-7`.
+  Its fifth review, after the rescue round, finds that the new
+  list-boundary recovery clears the guard of an action whose waiter is
+  still active, so a refresh answered during a send lets a second send
+  through (BR-economy-7-2).
+- economy-8 (the mail tool and its three evals) is not built because it
+  needs economy-7's code. economy-10 started without it once BR-wave3-9
+  released the journal leases.
+
+#### Coordinator commits
+
+| Commit | Why |
+|---|---|
+| `851d14fc` | #495: `--check` warns about every DBC file core reads; the docs say where the directory lives |
+| `e09f6abd` | SEED4-1: the quests journal block moves beside the quests area |
+| `c6142e28` | The SEED-4 rulings and the wave 4 build rulings |
+| `48c4a5be` | Tasks may record their own plan rows (BR-wave4-7) |
+| `6c7e4bad`, `48c0e686` | Execute records, and rescue rounds for economy-7 and vehicles-4 (BR-combat-log-5-1, BR-economy-7-1, BR-vehicles-4-5) |
+| `57572a2c` | The summon alias, the faction flag limit and parking economy-7 (BR-group-11-6, BR-world-4-1, BR-economy-7-2) |
+| `e73c3d56` | The bank card row and quests-10's last finding (BR-economy-10-1, BR-quests-10-1) |
+
+#### Build rulings
+
+Seed rulings SR4-n and SEED4-n are in the unit files and the plan, and
+the DESIGN answers are in the unit files. Wave-wide build rulings, each
+marked "coordinator ruling (P2-17)" in the plan: BR-wave4-1 (the slice),
+BR-wave4-2 (parked tasks resume by cherry-pick), BR-wave4-3 (fix rounds
+and which tasks may get a rescue round), BR-wave4-4 (the DBC directory),
+BR-wave4-5 (no walking where navigation data is missing), BR-wave4-6 (the
+gate baseline) and BR-wave4-7 (tasks record their own plan rows). Task
+rulings: BR-combat-log-5-1, BR-economy-7-1 and -2, BR-economy-10-1,
+BR-group-11-6, BR-quests-10-1, BR-vehicles-4-5 and BR-world-4-1.
+
+#### Eval results
+
+Gate round 490 at the wave tip (`f2006766`), graded by `sonic` agents:
+`t0-hostiles` pass 3/3, `t1-walk-to-npc` pass 2/2, `t7-halt-resume` pass
+3/3, and `t3-ghostlands-kill` pass 4/4 in both replicas. Every gate
+matches or betters the wave-3 baseline (BR-wave4-6). The scenarios new in
+this wave ran in their tasks: `t9-bank-deposit`, `t9-bank-withdraw` and
+`t9-bank-slot` pass in round 423, `t2-emotes-partner` passes twice in
+round 409, and `t9-raid-summon` passes in round 408 replica 4 (replicas 1
+to 3 aborted in setup). The run directories are kept with the
+coordinator's state.
+
+#### Coverage counts
+
+`mise protocol:coverage` at the tip (`f2006766`): 933 opcodes, 632
+handled (580 after wave 3), 18 stub, 256 missing, 27 dead, 74 not seen
+live (60 after wave 3). `mise protocol:tables` and `mise protocol:coverage`
+give no diff at the tip.
+
+#### Incidents
+
+1. Builders wrote into the coordinator worktree four times through
+   relative paths. The driver reverted each edit and now also messages
+   the agent that owns the path, so the builder redid it in its own
+   worktree.
+2. Reviewers cannot run `git fetch`, so several asked whether their view of
+   the rulings was current. The driver now fetches each slot before it
+   starts a review.
+3. Gemini 3.8 Flash ran out of quota at about 22:00 UTC for about 20 minutes.
+   One check failed on the 429; the driver ran checks and landings on
+   `task` agents until the quota came back.
+4. Proof artifacts live in each slot's `tmp/`. Before the slots were
+   removed the coordinator copied them to the coordinator's state
+   directory, as in wave 3.
+
+#### Follow-ups
+
+- #490 keeps economy-7 and economy-8 (above), and vehicles-8 and
+  vehicles-9, which wait for navigation data on maps 1 and 571 (#496).
+- The death knight preset needs the realm's individual-progression module
+  to let factory accounts create one
+  (`IndividualProgression.DeathKnightUnlockProgression` or
+  `ExcludedAccountsRegex`), a maintainer decision.
+- #491, #492, #493, #496, #497, #499 and #500 are unchanged.
+
 ## COMPLETE

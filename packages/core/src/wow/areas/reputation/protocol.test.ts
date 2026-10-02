@@ -6,6 +6,9 @@ import {
   reputationSetForcedReactionsBody,
 } from "#test-support/areas/reputation";
 import {
+  buildSetFactionAtWar,
+  buildSetFactionInactive,
+  buildSetWatchedFaction,
   parseInitializeFactions,
   parseSetFactionStanding,
   parseSetFactionVisible,
@@ -120,5 +123,24 @@ describe("reputation parsers", () => {
     expect(() =>
       parseSetForcedReactions(new PacketReader(w.finish())),
     ).toThrow();
+  });
+});
+
+describe("reputation builders", () => {
+  test("CMSG_SET_FACTION_ATWAR is a u32 list id and a u8 flag (CharacterHandler.cpp:1287-1296)", () => {
+    expect([...buildSetFactionAtWar(7, true)]).toEqual([7, 0, 0, 0, 1]);
+    expect([...buildSetFactionAtWar(0, false)]).toEqual([0, 0, 0, 0, 0]);
+  });
+
+  test("CMSG_SET_FACTION_INACTIVE is a u32 list id and a u8 flag (CharacterHandler.cpp:1340-1347)", () => {
+    expect([...buildSetFactionInactive(55, true)]).toEqual([55, 0, 0, 0, 1]);
+    expect([...buildSetFactionInactive(55, false)]).toEqual([55, 0, 0, 0, 0]);
+  });
+
+  test("CMSG_SET_WATCHED_FACTION is a u32 list id and 0xFFFFFFFF is none (CharacterHandler.cpp:1333-1338, Player.cpp:549)", () => {
+    expect([...buildSetWatchedFaction(14)]).toEqual([14, 0, 0, 0]);
+    expect([...buildSetWatchedFaction(undefined)]).toEqual([
+      0xff, 0xff, 0xff, 0xff,
+    ]);
   });
 });

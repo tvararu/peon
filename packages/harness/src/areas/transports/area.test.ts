@@ -36,4 +36,41 @@ describe("transports rows", () => {
       },
     ]);
   });
+
+  test("boarded, left and map_change each write one log row", () => {
+    expect(
+      rules()({
+        entry: 190_549,
+        transport: 0x1f_c0_00_00_00_00_00_14n,
+        type: "boarded",
+      }),
+    ).toEqual([
+      {
+        class: "log",
+        data: { entry: 190_549, guid: "0x1fc0000000000014" },
+        name: "boarded",
+        text: "Boarded a transport.",
+      },
+    ]);
+    expect(
+      rules()({ transport: 0x1f_c0_00_00_00_00_00_14n, type: "left" }),
+    ).toEqual([
+      {
+        class: "log",
+        data: { guid: "0x1fc0000000000014" },
+        name: "left",
+        text: "Left a transport.",
+      },
+    ]);
+    expect(
+      rules()({ entry: 20_808, fromMap: 1, toMap: 530, type: "map_change" }),
+    ).toEqual([
+      {
+        class: "log",
+        data: { entry: 20_808, fromMap: 1, toMap: 530 },
+        name: "map_change",
+        text: "Changed maps on a transport.",
+      },
+    ]);
+  });
 });

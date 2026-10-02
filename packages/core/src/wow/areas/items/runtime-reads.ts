@@ -1,5 +1,6 @@
 import { bounded } from "#lib/abort";
 import type { AreaRuntimeCtx } from "#wow/areas/contract";
+import type { ItemsEvent } from "#wow/areas/items/events";
 import { type HeldSlot, positionRefusal, slotAt } from "#wow/areas/items/moves";
 import type { ItemPosition } from "#wow/areas/items/protocol";
 import {
@@ -8,7 +9,7 @@ import {
   buildReadItem,
 } from "#wow/areas/items/protocol-read";
 import type { ReadKind, ReadOutcome } from "#wow/areas/items/reads";
-import type { ItemsEvent, ItemsStore } from "#wow/areas/items/store";
+import type { ItemsStore } from "#wow/areas/items/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { RewardsOpenLoot } from "#wow/rewards";
 import type { CoreStores } from "#wow/session-stores";
@@ -44,6 +45,7 @@ function held({ ctx, store }: Env, from: ItemPosition): HeldSlot {
     throw new Error("the character is not in world");
   if (store.snapshot().read.pending)
     throw new Error("a read or open is already pending");
+  if (store.snapshot().sets.usePending) throw new Error("a set use is pending");
   const refusal = positionRefusal(from);
   if (refusal) throw new Error(refusal);
   const found = slotAt(inventory, from);

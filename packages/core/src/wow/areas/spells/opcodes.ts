@@ -44,5 +44,6 @@ export const SPELLS_OPCODES = {
     "SMSG_TOTEM_CREATED",
     "CMSG_TOTEM_DESTROYED",
     "SMSG_CONVERT_RUNE",
+    "CMSG_UPDATE_MISSILE_TRAJECTORY",
   ],
 } as const satisfies AreaOpcodes;

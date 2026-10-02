@@ -1,5 +1,7 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import type { SelfObservation } from "#wow/control-sync";
+import type { MoverState } from "#wow/control-ride";
+import type { SelfObservation } from "#wow/control-sync-types";
+import type { TransportBoard } from "#wow/control-transport";
 import type { Position } from "#wow/entity-store";
 import type { MonsterMove } from "#wow/protocol/monster-move";
 import type {
@@ -31,15 +33,25 @@ export type SelfEvent =
       arg: number | undefined;
     }
   | { type: "teleport_ack"; ack: MoveAck }
-  | { type: "transfer_pending" }
+  | {
+      type: "transfer_pending";
+      mapId: number;
+      transport?: { entry: number; fromMap: number };
+    }
   | { type: "new_world"; position: Position }
-  | { type: "force_root"; counter: number }
-  | { type: "force_unroot"; counter: number }
+  | { type: "force_root"; counter: number; guid: bigint | undefined }
+  | { type: "force_unroot"; counter: number; guid: bigint | undefined }
   | { type: "knock_back"; knock: KnockBack }
   | { type: "client_control"; control: ClientControl }
   | { type: "force_speed"; spec: SpeedAck; force: ForceSpeed }
   | { type: "can_fly"; counter: number; enable: boolean }
-  | { type: "move_flag"; flag: MoveFlag; enable: boolean; counter: number }
+  | {
+      type: "move_flag";
+      flag: MoveFlag;
+      enable: boolean;
+      counter: number;
+      guid: bigint;
+    }
   | { type: "collision_height"; counter: number; height: number }
   | { type: "spline"; move: MonsterMove }
   | {
@@ -53,6 +65,14 @@ export type SelfEvent =
       vehiclePose: Position | undefined;
     }
   | { type: "vehicle_left" }
+  | ({ type: "mover_state" } & MoverState)
+  | {
+      type: "mover_packet";
+      opcode: number;
+      build: (guid: bigint, info: MovementInfo) => Uint8Array;
+    }
+  | ({ type: "transport_board" } & TransportBoard)
+  | { type: "transport_leave" }
   | { type: "observed"; observation: SelfObservation };
 
 export class SelfStore {

@@ -5,11 +5,11 @@ import {
   itemsSocketGemsResultBody,
 } from "#test-support/areas/items";
 import { itemsRig, itemsWorld } from "#test-support/areas/items-world";
+import type { ItemsEvent } from "#wow/areas/items/events";
 import {
   buildCancelTempEnchantment,
   buildSocketGems,
 } from "#wow/areas/items/protocol-sockets";
-import type { ItemsEvent } from "#wow/areas/items/store";
 import type { SentPacket } from "#wow/areas/port";
 import { GameOpcode } from "#wow/protocol/opcodes";
 

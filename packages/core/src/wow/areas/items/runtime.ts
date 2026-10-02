@@ -1,5 +1,6 @@
 import { ignoreFailure } from "#lib/ignore-failure";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
+import type { ItemsEvent } from "#wow/areas/items/events";
 import {
   BACKPACK,
   findItem,
@@ -24,16 +25,21 @@ import {
   buildSwapItem,
   type ItemPosition,
 } from "#wow/areas/items/protocol";
+import { buildWrapItem } from "#wow/areas/items/protocol-names";
+import { type NameActs, nameActs } from "#wow/areas/items/runtime-names";
 import { type ReadActs, readActs } from "#wow/areas/items/runtime-reads";
+import { type RefundActs, refundActs } from "#wow/areas/items/runtime-refunds";
+import { type SetActs, setActs } from "#wow/areas/items/runtime-sets";
 import { type SocketActs, socketActs } from "#wow/areas/items/runtime-sockets";
 import { wornItemLevel } from "#wow/areas/items/slots";
-import type { ItemsEvent, ItemsStore } from "#wow/areas/items/store";
+import type { ItemsStore } from "#wow/areas/items/store";
 import type { InventoryState } from "#wow/inventory";
 import type { ItemPushResult } from "#wow/protocol/loot";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { CoreStores } from "#wow/session-stores";
 
 export const MOVE_ANSWER_MS = 5000;
+const WRAPPER_FLAG = 0x2_00;
 
 export type ItemsActs = {
   equip: (from: ItemPosition) => Promise<MoveState>;
@@ -46,8 +52,12 @@ export type ItemsActs = {
     count: number,
   ) => Promise<MoveState>;
   setAmmo: (entry: number) => Promise<MoveState>;
+  wrap: (gift: ItemPosition, item: ItemPosition) => Promise<MoveState>;
 } & ReadActs &
-  SocketActs;
+  SocketActs &
+  SetActs &
+  RefundActs &
+  NameActs;
 
 const SETTLED = new Set<ItemsEvent["type"]>([
   "moved",
@@ -101,6 +111,7 @@ function ready({ ctx, store }: Env, kind: MoveKind): InventoryState {
     throw new Error(`the character is ${life}`);
   if (store.snapshot().move.pending)
     throw new Error("a move is already pending");
+  if (store.snapshot().sets.usePending) throw new Error("a set use is pending");
   return inventory;
 }
 
@@ -302,6 +313,52 @@ async function setAmmo(env: Env, entry: number): Promise<MoveState> {
   ]);
 }
 
+async function wrapper(
+  { core }: Env,
+  entry: number | undefined,
+): Promise<void> {
+  const template =
+    entry === undefined
+      ? undefined
+      : await core.items.lookup(entry).catch(() => undefined);
+  if (!template) throw new Error(`no item template for entry ${entry}`);
+  if ((template.flags & WRAPPER_FLAG) === 0)
+    throw new Error(`item ${entry} is not a wrapper`);
+}
+
+async function wrap(
+  env: Env,
+  gift: ItemPosition,
+  item: ItemPosition,
+): Promise<MoveState> {
+  const inventory = ready(env, "wrap");
+  const paper = heldAt(inventory, gift);
+  const target = heldAt(inventory, item);
+  if (samePlace(gift, item)) throw new Error("a gift cannot wrap itself");
+  if (isWorn(target))
+    throw new Error(`${hex(target.guid)} is worn and cannot be wrapped`);
+  if (target.item.flagBits?.wrapped === true)
+    throw new Error(`${hex(target.guid)} is already wrapped`);
+  await wrapper(env, paper.item.entry);
+  const after = ready(env, "wrap");
+  const freshPaper = heldAt(after, gift);
+  const freshTarget = heldAt(after, item);
+  if (freshPaper.guid !== paper.guid)
+    throw new Error("the gift paper changed during the wrapper check");
+  if (freshTarget.guid !== target.guid)
+    throw new Error("the wrap target changed during the wrapper check");
+  if (freshTarget.item.flagBits?.wrapped === true)
+    throw new Error(`${hex(freshTarget.guid)} is already wrapped`);
+  const pending: MoveRequest = {
+    ...request(env, "wrap", { held: freshTarget }),
+    target: { guid: freshPaper.guid, count: 1 },
+  };
+  return await run(env, pending, [
+    GameOpcode.CMSG_WRAP_ITEM,
+    buildWrapItem(gift, item),
+  ]);
+}
+
 async function received(
   { store, core }: Env,
   push: ItemPushResult,
@@ -349,9 +406,13 @@ export function itemsRuntime(
       unequip: (slot, toBag) => unequip(env, slot, toBag),
       move: (from, to) => move(env, from, to),
       setAmmo: (entry) => setAmmo(env, entry),
+      wrap: (gift, item) => wrap(env, gift, item),
       split: (from, to, count) => split(env, from, to, count),
       ...readActs(env),
       ...socketActs(env),
+      ...setActs(env),
+      ...refundActs(env),
+      ...nameActs(env),
     },
     dispose: () => {
       for (const off of offs) off();

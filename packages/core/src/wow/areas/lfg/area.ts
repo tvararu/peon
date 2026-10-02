@@ -14,6 +14,7 @@ import {
   parseRoleChosen,
   parseTeleportDenied,
 } from "#wow/areas/lfg/protocol";
+import { parseLfgList } from "#wow/areas/lfg/protocol-list";
 import { lfgRuntime } from "#wow/areas/lfg/runtime";
 import { createLfgStore } from "#wow/areas/lfg/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -33,6 +34,7 @@ export const lfgArea = defineArea({
     "teleport_denied",
     "offer_continue",
     "reward",
+    "raid_list",
   ],
   store: (deps, core) => createLfgStore(deps, core),
   register: (wire, store) => {
@@ -77,6 +79,9 @@ export const lfgArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_LFG_PLAYER_REWARD, (r) =>
       store.receiveReward(parseLfgReward(r)),
+    );
+    wire.on(GameOpcode.SMSG_UPDATE_LFG_LIST, (r) =>
+      store.receiveList(parseLfgList(r)),
     );
   },
   runtime: lfgRuntime,

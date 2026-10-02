@@ -11,6 +11,13 @@ import { createTestRuntime } from "#test-support/runtime-fixture";
 function mountState(handle: { selfstate: { state: () => object } }) {
   jest.spyOn(handle.selfstate, "state").mockReturnValue({
     collisionHeight: undefined,
+    condition: {
+      drunkState: "sober",
+      drunkValue: 0,
+      restedXp: 0,
+      resting: false,
+      restState: "unknown",
+    },
     ghostPending: false,
     lastTransferAbort: undefined,
     mountDisplayId: 1234,

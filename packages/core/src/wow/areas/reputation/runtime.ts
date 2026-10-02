@@ -2,6 +2,10 @@ import { ignoreFailure } from "#lib/ignore-failure";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import { loadFactionCatalog } from "#wow/areas/reputation/catalog";
 import { reputationRelationView } from "#wow/areas/reputation/relation";
+import {
+  type ReputationSettingActs,
+  reputationSettingActs,
+} from "#wow/areas/reputation/runtime-settings";
 import type {
   ReputationEvent,
   ReputationStore,
@@ -10,7 +14,7 @@ import type { Entity } from "#wow/entity-store";
 import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { ReputationRelationView } from "#wow/unit-relation";
 
-export type ReputationActs = {
+export type ReputationActs = ReputationSettingActs & {
   relationView: () => ReputationRelationView;
 };
 
@@ -41,5 +45,8 @@ export function reputationRuntime(
     if (entity && entity.guid === ctx.selfGuid()) readCharacter(store, entity);
   });
   const view = reputationRelationView(store);
-  return { act: { relationView: () => view }, dispose: off };
+  return {
+    act: { ...reputationSettingActs({ ctx, store }), relationView: () => view },
+    dispose: off,
+  };
 }

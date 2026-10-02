@@ -13,7 +13,7 @@ export function feedControl(control: ControlRuntime, event: SelfEvent): void {
       control.teleportAck(event.ack);
       return;
     case "transfer_pending":
-      control.handleTransferPending();
+      control.handleTransferPending(event.transport);
       return;
     case "transfer_aborted":
       control.transferAborted(event);
@@ -26,32 +26,72 @@ export function feedControl(control: ControlRuntime, event: SelfEvent): void {
   }
 }
 
-type MovementEvent = Extract<
+type RideEvent = Extract<
   SelfEvent,
   {
     type:
-      | "force_root"
-      | "force_unroot"
-      | "knock_back"
-      | "client_control"
-      | "force_speed"
-      | "can_fly"
-      | "move_flag"
-      | "collision_height"
-      | "observed"
-      | "spline"
       | "vehicle_seat"
-      | "vehicle_left";
+      | "vehicle_left"
+      | "mover_state"
+      | "mover_packet"
+      | "transport_board"
+      | "transport_leave";
   }
 >;
+
+type MovementEvent =
+  | RideEvent
+  | Extract<
+      SelfEvent,
+      {
+        type:
+          | "force_root"
+          | "force_unroot"
+          | "knock_back"
+          | "client_control"
+          | "force_speed"
+          | "can_fly"
+          | "move_flag"
+          | "collision_height"
+          | "observed"
+          | "spline";
+      }
+    >;
+
+function feedRide(control: ControlRuntime, event: RideEvent): void {
+  switch (event.type) {
+    case "vehicle_seat":
+      control.vehicleSeat(event);
+      return;
+    case "vehicle_left":
+      control.vehicleLeft();
+      return;
+    case "mover_state":
+      control.moverState(event);
+      return;
+    case "mover_packet":
+      control.moverPacket(event.opcode, event.build);
+      return;
+    case "transport_board":
+      control.transportBoard(event);
+      return;
+    case "transport_leave":
+      control.transportLeave();
+      return;
+    default: {
+      const unhandled: never = event;
+      throw new Error("unhandled self event", { cause: unhandled });
+    }
+  }
+}
 
 function feedMovement(control: ControlRuntime, event: MovementEvent): void {
   switch (event.type) {
     case "force_root":
-      control.forceRoot(event.counter);
+      control.forceRoot(event.counter, event.guid);
       return;
     case "force_unroot":
-      control.forceUnroot(event.counter);
+      control.forceUnroot(event.counter, event.guid);
       return;
     case "knock_back":
       control.knockBack(event.knock);
@@ -66,7 +106,7 @@ function feedMovement(control: ControlRuntime, event: MovementEvent): void {
       control.setCanFly(event.counter, event.enable);
       return;
     case "move_flag":
-      control.moveFlag(event.flag, event.enable, event.counter);
+      control.moveFlag(event.flag, event.enable, event.counter, event.guid);
       return;
     case "collision_height":
       control.collisionHeight(event.counter, event.height);
@@ -77,15 +117,8 @@ function feedMovement(control: ControlRuntime, event: MovementEvent): void {
     case "spline":
       control.observeSelfSpline(event.move);
       return;
-    case "vehicle_seat":
-      control.vehicleSeat(event);
+    default:
+      feedRide(control, event);
       return;
-    case "vehicle_left":
-      control.vehicleLeft();
-      return;
-    default: {
-      const unhandled: never = event;
-      throw new Error("unhandled self event", { cause: unhandled });
-    }
   }
 }

@@ -1,12 +1,19 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
+import type {
+  ItemReceived,
+  ItemsEvent,
+  MoveHead,
+  ReadHead,
+} from "#wow/areas/items/events";
 import {
   findItem,
-  type MoveKind,
   type MoveOutcome,
   type MoveRequest,
   type MoveState,
+  moveClaim,
   moveSettled,
 } from "#wow/areas/items/moves";
+import type { ItemNameResponse } from "#wow/areas/items/protocol-names";
 import type {
   ItemTextResponse,
   ReadItemResult,
@@ -15,18 +22,24 @@ import type {
   EnchantmentLogPacket,
   SocketGemsResultPacket,
 } from "#wow/areas/items/protocol-sockets";
-import type {
-  ItemCooldownPacket,
-  ItemEnchantTimeUpdatePacket,
-  ItemTimeUpdatePacket,
-  SetProficiencyPacket,
-} from "#wow/areas/items/protocol-timers";
 import {
-  type ItemText,
+  NameSlice,
   type ReadRequest,
   ReadSlice,
   type ReadState,
 } from "#wow/areas/items/reads";
+import {
+  type RefundInfoRequest,
+  type RefundOutcome,
+  type RefundRequest,
+  RefundSlice,
+  type RefundsState,
+} from "#wow/areas/items/refunds";
+import {
+  type SaveRequest,
+  SetSlice,
+  type SetsState,
+} from "#wow/areas/items/sets";
 import {
   type SocketOutcome,
   type SocketRequest,
@@ -34,11 +47,19 @@ import {
   type SocketState,
 } from "#wow/areas/items/sockets";
 import {
-  type ProficiencyKind,
-  proficiencyNames,
-  TimerSlice,
-  type TimersState,
-} from "#wow/areas/items/timers";
+  type RefundsBehavior,
+  refundsBehavior,
+} from "#wow/areas/items/store-refunds";
+import {
+  noteUseFailure,
+  type SetsBehavior,
+  setsBehavior,
+} from "#wow/areas/items/store-sets";
+import {
+  type TimersBehavior,
+  timersBehavior,
+} from "#wow/areas/items/store-timers";
+import { TimerSlice, type TimersState } from "#wow/areas/items/timers";
 import { type InventoryState, readInventory } from "#wow/inventory";
 import { type PlayerLife, readLife } from "#wow/player-state";
 import {
@@ -55,81 +76,9 @@ export type ItemsState = {
   read: ReadState;
   timers: TimersState;
   sockets: SocketState;
+  sets: SetsState;
+  refund: RefundsState;
 };
-
-type ReadHead = { itemGuid: bigint; entry: number | undefined };
-type MoveHead = { kind: MoveKind; itemGuid: bigint; entry: number | undefined };
-export type ItemReceived = {
-  entry: number;
-  guid: bigint | undefined;
-  itemLevel: number;
-  inventoryType: number;
-  wornItemLevel: number | undefined;
-};
-type SocketHead = { itemGuid: bigint; entry: number | undefined };
-
-export type ItemsEvent =
-  | ({ type: "move_requested" } & MoveHead)
-  | ({ type: "moved" } & MoveHead)
-  | ({ type: "move_refused"; reason: string; result: number } & MoveHead)
-  | ({ type: "move_no_change" } & MoveHead)
-  | ({ type: "move_unanswered" } & MoveHead)
-  | ({ type: "item_received" } & ItemReceived)
-  | ({ type: "read_requested" } & ReadHead)
-  | ({ type: "read_ok" } & ReadHead)
-  | ({
-      type: "read_failed";
-      reason: string;
-      result: number | undefined;
-    } & ReadHead)
-  | ({ type: "read_unanswered" } & ReadHead)
-  | ({ type: "item_text" } & ItemText)
-  | {
-      type: "item_cooldown";
-      itemGuid: bigint;
-      entry: number | undefined;
-      spell: number;
-    }
-  | {
-      type: "item_timer";
-      itemGuid: bigint;
-      entry: number | undefined;
-      seconds: number;
-      expiresAt: number;
-    }
-  | {
-      type: "item_enchant_timer";
-      itemGuid: bigint;
-      entry: number | undefined;
-      slot: number;
-      seconds: number;
-      expiresAt: number;
-    }
-  | { type: "durability_loss_death" }
-  | {
-      type: "proficiency_changed";
-      kind: ProficiencyKind;
-      mask: number;
-      added: number;
-      names: string[];
-    }
-  | {
-      type: "enchantment_log";
-      target: bigint;
-      caster: bigint;
-      entry: number;
-      enchantId: number;
-      own: boolean;
-    }
-  | {
-      type: "sockets_updated";
-      itemGuid: bigint;
-      entry: number | undefined;
-      sockets: [number, number, number];
-      bonus: number;
-    }
-  | ({ type: "socket_refused"; reason: string } & SocketHead)
-  | ({ type: "socket_unanswered" } & SocketHead);
 
 function legacyClaims(core: CoreStores): (InventoryClaim | undefined)[] {
   return [core.rewards, core.vendor, core.quests, core.destroy].map((store) =>
@@ -153,8 +102,16 @@ export class ItemsStore {
   private readonly deps: SessionDeps;
   private readonly core: CoreStores;
   private readonly reads = new ReadSlice();
+  private readonly names = new NameSlice();
   private readonly sockets = new SocketSlice();
+  private readonly setSlices = new SetSlice();
+  private readonly setFailures: string[] = [];
+  private readonly saveIcons = new Map<SaveRequest, string>();
+  private readonly setApi: SetsBehavior;
   private readonly timers = new TimerSlice();
+  private readonly timerApi: TimersBehavior;
+  private readonly refunds = new RefundSlice();
+  private readonly refundApi: RefundsBehavior;
   private pending: MoveRequest | undefined;
   private last: MoveOutcome | undefined;
   private seen: InventoryClaim[] = [];
@@ -162,6 +119,28 @@ export class ItemsStore {
   constructor(deps: SessionDeps, core: CoreStores) {
     this.deps = deps;
     this.core = core;
+    this.setApi = setsBehavior({
+      events: this.events,
+      noteClaims: () => this.noteClaims(),
+      now: () => this.deps.now(),
+      releaseClaims: () => this.releaseClaims(),
+      saveIcons: this.saveIcons,
+      sets: this.setSlices,
+      startClaims: () => this.releaseClaims(),
+      useFailures: this.setFailures,
+    });
+    this.timerApi = timersBehavior({
+      timers: this.timers,
+      events: this.events,
+      now: () => this.deps.now(),
+      entryOf: (itemGuid) => this.entryOf(itemGuid),
+    });
+    this.refundApi = refundsBehavior({
+      refunds: this.refunds,
+      events: this.events,
+      now: () => this.deps.now(),
+      entryOf: (itemGuid) => this.entryOf(itemGuid),
+    });
   }
 
   snapshot(): ItemsState {
@@ -170,6 +149,8 @@ export class ItemsStore {
       read: this.reads.snapshot(),
       timers: this.timers.snapshot(),
       sockets: this.sockets.snapshot(),
+      sets: this.setSlices.snapshot(),
+      refund: this.refunds.snapshot(),
     };
   }
 
@@ -186,7 +167,7 @@ export class ItemsStore {
   }
 
   begin(request: MoveRequest): void {
-    this.startClaims();
+    this.releaseClaims();
     this.pending = request;
     this.last = undefined;
     this.noteClaims();
@@ -194,7 +175,7 @@ export class ItemsStore {
   }
 
   beginRead(request: ReadRequest): void {
-    this.startClaims();
+    this.releaseClaims();
     this.reads.begin(request);
     this.noteClaims();
     if (request.kind === "read")
@@ -202,15 +183,14 @@ export class ItemsStore {
   }
 
   noteClaims(): void {
-    if (!(this.pending || this.reads.request || this.sockets.request)) return;
+    if (!this.busy()) return;
     for (const claim of legacyClaims(this.core))
       if (claim) this.seen.push(claim);
   }
-
   receiveInventoryFailure(packet: InventoryChangeFailure): void {
     if (packet.kind !== "error") return;
     const legacy = [...legacyClaims(this.core), ...this.seen];
-    const move = this.pending && { itemGuid: this.pending.itemGuid };
+    const move = this.pending && moveClaim(this.pending, packet);
     const read = this.reads.claim();
     const socket = this.sockets.claim();
     if (move && ownsInventoryFailure(packet, move, [...legacy, read, socket]))
@@ -231,14 +211,37 @@ export class ItemsStore {
           this.deps.now(),
         ),
       );
+    else
+      noteUseFailure(
+        { sets: this.setSlices, useFailures: this.setFailures },
+        packet,
+      );
   }
+
+  receiveSetList: SetsBehavior["receiveSetList"] = (...a) =>
+    this.setApi.receiveSetList(...a);
+  pendingSaveName: SetsBehavior["pendingSaveName"] = () =>
+    this.setApi.pendingSaveName();
+  beginSave: SetsBehavior["beginSave"] = (...a) => this.setApi.beginSave(...a);
+  confirmSaved: SetsBehavior["confirmSaved"] = (...a) =>
+    this.setApi.confirmSaved(...a);
+  confirmUpdated: SetsBehavior["confirmUpdated"] = (...a) =>
+    this.setApi.confirmUpdated(...a);
+  expireSave: SetsBehavior["expireSave"] = () => this.setApi.expireSave();
+  abandonSave: SetsBehavior["abandonSave"] = () => this.setApi.abandonSave();
+  beginUse: SetsBehavior["beginUse"] = (...a) => this.setApi.beginUse(...a);
+  receiveUseResult: SetsBehavior["receiveUseResult"] = (...a) =>
+    this.setApi.receiveUseResult(...a);
+  expireUse: SetsBehavior["expireUse"] = () => this.setApi.expireUse();
+  abandonUse: SetsBehavior["abandonUse"] = () => this.setApi.abandonUse();
+  beginDelete: SetsBehavior["beginDelete"] = (...a) =>
+    this.setApi.beginDelete(...a);
 
   receiveReadOk({ guid }: ReadItemResult): void {
     const request = this.reads.request;
     if (request?.kind !== "read" || request.itemGuid !== guid) return;
     this.settleRead("ok", undefined, { type: "read_ok", ...readHead(request) });
   }
-
   receiveReadFailed({ guid }: ReadItemResult): void {
     const request = this.reads.request;
     if (request?.kind !== "read" || request.itemGuid !== guid) return;
@@ -272,7 +275,7 @@ export class ItemsStore {
   }
 
   beginSocket(request: SocketRequest): void {
-    this.startClaims();
+    this.releaseClaims();
     this.sockets.begin(request);
     this.noteClaims();
   }
@@ -282,7 +285,6 @@ export class ItemsStore {
       this.sockets.fail("unanswered", "server_unanswered", this.deps.now()),
     );
   }
-
   abandonSocket(): void {
     this.sockets.abandon();
     this.releaseClaims();
@@ -319,13 +321,29 @@ export class ItemsStore {
   text(guid: bigint): string | undefined {
     return this.reads.text(guid);
   }
-
   awaitText(guid: bigint): ReturnType<ReadSlice["awaitText"]> {
     return this.reads.awaitText(guid);
   }
-
   dropText(guid: bigint): void {
     this.reads.dropText(guid);
+  }
+
+  setItemName(entry: number) {
+    return this.names.get(entry);
+  }
+  awaitSetItemName(entry: number) {
+    return this.names.await(entry);
+  }
+  dropSetItemName(entry: number): void {
+    this.names.drop(entry);
+  }
+  expireSetItemName(entry: number): void {
+    if (this.names.expire(entry))
+      this.events.emit({ type: "set_item_name_none", entry });
+  }
+  receiveItemName(response: ItemNameResponse): void {
+    const found = this.names.receive(response);
+    if (found) this.events.emit({ type: "set_item_name", ...found });
   }
 
   observeInventory(): void {
@@ -352,60 +370,53 @@ export class ItemsStore {
     this.events.emit({ type: "item_received", ...item });
   }
 
-  receiveItemCooldown(packet: ItemCooldownPacket): void {
-    this.timers.cooldown(packet, this.deps.now());
-    this.events.emit({
-      type: "item_cooldown",
-      itemGuid: packet.itemGuid,
-      entry: this.entryOf(packet.itemGuid),
-      spell: packet.spell,
-    });
+  receiveItemCooldown: TimersBehavior["receiveItemCooldown"] = (...a) =>
+    this.timerApi.receiveItemCooldown(...a);
+  receiveItemTime: TimersBehavior["receiveItemTime"] = (...a) =>
+    this.timerApi.receiveItemTime(...a);
+  receiveItemEnchantTime: TimersBehavior["receiveItemEnchantTime"] = (...a) =>
+    this.timerApi.receiveItemEnchantTime(...a);
+  receiveDeathDurability: TimersBehavior["receiveDeathDurability"] = (...a) =>
+    this.timerApi.receiveDeathDurability(...a);
+  receiveProficiency: TimersBehavior["receiveProficiency"] = (...a) =>
+    this.timerApi.receiveProficiency(...a);
+  beginRefundInfo(request: RefundInfoRequest): void {
+    this.refunds.beginInfo(request);
   }
-
-  receiveItemTime(packet: ItemTimeUpdatePacket): void {
-    const { expiresAt } = this.timers.time(packet, this.deps.now());
-    this.events.emit({
-      type: "item_timer",
-      itemGuid: packet.itemGuid,
-      entry: this.entryOf(packet.itemGuid),
-      seconds: packet.seconds,
-      expiresAt,
-    });
+  refundOffer(itemGuid: bigint) {
+    return this.refunds.offer(itemGuid);
   }
-
-  receiveItemEnchantTime(packet: ItemEnchantTimeUpdatePacket): void {
-    const { expiresAt } = this.timers.enchant(packet, this.deps.now());
-    this.events.emit({
-      type: "item_enchant_timer",
-      itemGuid: packet.itemGuid,
-      entry: this.entryOf(packet.itemGuid),
-      slot: packet.slot,
-      seconds: packet.seconds,
-      expiresAt,
-    });
+  receiveRefundInfo: RefundsBehavior["receiveRefundInfo"] = (...a) =>
+    this.refundApi.receiveRefundInfo(...a);
+  expireRefundInfo: RefundsBehavior["expireRefundInfo"] = (...a) =>
+    this.refundApi.expireRefundInfo(...a);
+  abandonRefundInfo: RefundsBehavior["abandonRefundInfo"] = (...a) =>
+    this.refundApi.abandonRefundInfo(...a);
+  beginRefund(request: RefundRequest): void {
+    this.refunds.beginRefund(request);
   }
-
-  receiveDeathDurability(): void {
-    this.events.emit({ type: "durability_loss_death" });
+  refundOutcome(): RefundOutcome | undefined {
+    return this.refunds.snapshot().last;
   }
-
-  receiveProficiency(packet: SetProficiencyPacket): void {
-    const change = this.timers.proficiency(packet);
-    if (!change) return;
-    this.events.emit({
-      type: "proficiency_changed",
-      kind: change.kind,
-      mask: packet.mask,
-      added: change.added,
-      names: proficiencyNames(change.kind, change.added),
-    });
-  }
+  receiveRefundResult: RefundsBehavior["receiveRefundResult"] = (...a) =>
+    this.refundApi.receiveRefundResult(...a);
+  expireRefund: RefundsBehavior["expireRefund"] = (...a) =>
+    this.refundApi.expireRefund(...a);
+  abandonRefund: RefundsBehavior["abandonRefund"] = (...a) =>
+    this.refundApi.abandonRefund(...a);
 
   dispose(): void {
     this.abandon();
+    this.abandonSave();
+    this.abandonUse();
+    this.abandonRefundInfo();
+    this.abandonRefund();
     this.reads.clear();
+    this.names.clear();
     this.sockets.clear();
+    this.setSlices.clear();
     this.timers.clear();
+    this.refunds.clear();
     this.seen = [];
     this.events.clear();
   }
@@ -414,14 +425,19 @@ export class ItemsStore {
     return findItem(this.inventory(), itemGuid)?.item.entry;
   }
 
-  private startClaims(): void {
-    if (!(this.pending || this.reads.request || this.sockets.request))
-      this.seen = [];
+  private busy(): boolean {
+    const sets = this.setSlices.snapshot();
+    return Boolean(
+      this.pending ||
+        this.reads.request ||
+        this.sockets.request ||
+        sets.savePending ||
+        sets.usePending,
+    );
   }
 
   private releaseClaims(): void {
-    if (!(this.pending || this.reads.request || this.sockets.request))
-      this.seen = [];
+    if (!this.busy()) this.seen = [];
   }
 
   private settleSocket(outcome: SocketOutcome | undefined): void {

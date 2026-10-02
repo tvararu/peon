@@ -8,6 +8,11 @@ export type FlagAck = {
   clear: number;
   applied: boolean;
 };
+export const DRIVEN_ACK_BITS =
+  MovementFlag.DISABLE_GRAVITY |
+  MovementFlag.HOVER |
+  MovementFlag.WATERWALKING |
+  MovementFlag.FALLING_SLOW;
 
 export const FLAG_ACKS: Readonly<Record<MoveFlag, FlagAck>> = {
   water_walk: {

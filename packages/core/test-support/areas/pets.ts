@@ -75,6 +75,18 @@ export function petsPetActionSoundBody(init: {
   return w.finish();
 }
 
+export function petsPetUpdateComboPointsBody(init: {
+  unit: bigint;
+  target: bigint;
+  points: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.packedGuidBig(init.unit);
+  w.packedGuidBig(init.target);
+  w.uint8(init.points);
+  return w.finish();
+}
+
 export function petsPetDismissSoundBody(init: {
   modelId: number;
   x: number;

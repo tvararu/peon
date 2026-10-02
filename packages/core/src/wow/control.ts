@@ -10,9 +10,11 @@ import {
 } from "#wow/control-input";
 import { type GroundOracle, MAX_DURATION_MS } from "#wow/control-motion";
 import { type MovementGuide, Mover } from "#wow/control-mover";
-import type { RideSeat } from "#wow/control-ride";
+import type { MoverState, RideSeat } from "#wow/control-ride";
 import { AirMoves, type AscendKind, type PitchKind } from "#wow/control-swim";
-import { MovementSync, type SelfObservation } from "#wow/control-sync";
+import { MovementSync } from "#wow/control-sync";
+import type { SelfObservation } from "#wow/control-sync-types";
+import type { TransportBoard } from "#wow/control-transport";
 import { DirectedWalk } from "#wow/control-walk";
 import type { Position } from "#wow/entity-store";
 import { bearing, distance2d } from "#wow/geometry";
@@ -35,6 +37,7 @@ const FORWARD: MovementInput = { move: "forward" };
 export type ControlPose = Position & {
   source: "server" | "predicted";
   updatedAt: number;
+  stale?: boolean;
 };
 
 export type WalkOutcome = {
@@ -56,6 +59,7 @@ export type ControlState = {
   movementAllowed: boolean;
   blockedReason: string | undefined;
   speed: number;
+  mover: bigint | undefined;
 };
 
 export type ControlEventType =
@@ -171,6 +175,7 @@ export class ControlRuntime {
       movementAllowed: block === undefined,
       blockedReason: block ?? mover.blockedReason,
       speed: mover.currentSpeed() ?? 0,
+      mover: sync.mover,
     };
   }
 
@@ -198,6 +203,28 @@ export class ControlRuntime {
     this.sync.vehicleLeft();
   }
 
+  moverState(state: MoverState): void {
+    this.sync.moverState(state);
+  }
+
+  moverPacket(
+    opcode: number,
+    build: (guid: bigint, info: MovementInfo) => Uint8Array,
+  ): void {
+    this.deps.send(
+      opcode,
+      build(this.sync.moverGuid(), this.sync.movementInfo()),
+    );
+  }
+
+  transportBoard(board: TransportBoard): void {
+    this.sync.transportBoard(board);
+  }
+
+  transportLeave(): void {
+    this.sync.transportLeave();
+  }
+
   observeTarget(target: bigint): void {
     this.sync.observeTarget(target);
   }
@@ -210,8 +237,8 @@ export class ControlRuntime {
     this.sync.nearTeleport(dest);
   }
 
-  handleTransferPending(): void {
-    this.sync.handleTransferPending();
+  handleTransferPending(transport?: { entry: number; fromMap: number }): void {
+    this.sync.handleTransferPending(transport);
   }
 
   transferAborted(abort: TransferAbortedInput): void {
@@ -222,12 +249,12 @@ export class ControlRuntime {
     this.sync.newWorld(position);
   }
 
-  forceRoot(counter: number): void {
-    this.sync.forceRoot(counter);
+  forceRoot(counter: number, guid?: bigint): void {
+    this.sync.forceRoot(counter, guid);
   }
 
-  forceUnroot(counter: number): void {
-    this.sync.forceUnroot(counter);
+  forceUnroot(counter: number, guid?: bigint): void {
+    this.sync.forceUnroot(counter, guid);
   }
 
   knockBack(knock: KnockBack): void {
@@ -246,8 +273,13 @@ export class ControlRuntime {
     this.sync.setCanFly(counter, enable);
   }
 
-  moveFlag(flag: MoveFlag, enable: boolean, counter: number): void {
-    this.sync.moveFlag(flag, enable, counter);
+  moveFlag(
+    flag: MoveFlag,
+    enable: boolean,
+    counter: number,
+    guid?: bigint,
+  ): void {
+    this.sync.moveFlag(flag, enable, counter, guid);
   }
 
   collisionHeight(counter: number, height: number): void {

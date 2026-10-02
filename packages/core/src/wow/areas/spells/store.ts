@@ -1,9 +1,17 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
+import {
+  type MirrorImage,
+  type MirrorImageEvent,
+  MirrorImages,
+  type MirrorRequest,
+} from "#wow/areas/spells/mirror";
 import type {
   ChannelStart,
   ChannelUpdate,
   ConvertRune,
+  MirrorImagePacket,
   ModifyCooldown,
+  ProjectilePosition,
   SpellModifier,
   SpellVisual,
   TotemCreatedPacket,
@@ -16,6 +24,7 @@ import { type Totem, type TotemEvent, Totems } from "#wow/areas/spells/totems";
 import type { UnitCast, UnitCastEvent } from "#wow/areas/spells/unit-casts";
 import { UnitCasts } from "#wow/areas/spells/unit-casts";
 import type { CombatChannel } from "#wow/combat-casts";
+import { ObjectType } from "#wow/protocol/entity-fields";
 import type { SpellFailure, SpellGo, SpellStart } from "#wow/protocol/spell";
 import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
@@ -35,6 +44,7 @@ export type SpellsState = {
   totems: readonly (Readonly<Totem> | undefined)[];
   skills: readonly Skill[];
   runes: readonly Rune[] | undefined;
+  mirrorImages: readonly MirrorImage[];
 };
 export type SpellsEvent =
   | {
@@ -55,6 +65,8 @@ export type SpellsEvent =
     }
   | { type: "skill_removed"; id: number; name: string }
   | RuneEvent
+  | MirrorImageEvent
+  | ({ type: "projectile_moved" } & ProjectilePosition)
   | TotemEvent
   | UnitCastEvent;
 
@@ -84,6 +96,7 @@ export class SpellsStore {
   private readonly units: UnitCasts;
   private readonly runes = new Runes();
   private readonly totems: Totems;
+  private readonly mirrors: MirrorImages;
   private failed = false;
   private fieldSeen = false;
   private fieldTarget: bigint | undefined;
@@ -107,6 +120,13 @@ export class SpellsStore {
       (spellId) => core.combat.definition(spellId)?.name,
       (event) => this.events.emit(event),
     );
+    this.mirrors = new MirrorImages(
+      (guid) => {
+        const type = deps.getEntity(guid)?.objectType;
+        return type === ObjectType.UNIT || type === ObjectType.PLAYER;
+      },
+      (event) => this.events.emit(event),
+    );
   }
 
   snapshot(): SpellsState {
@@ -126,6 +146,7 @@ export class SpellsStore {
       runes: this.runeSnapshot(),
       totems: this.totems.snapshot(),
       unitCasts: this.units.snapshot(),
+      mirrorImages: this.mirrors.snapshot(),
     };
   }
 
@@ -220,6 +241,19 @@ export class SpellsStore {
 
   dropUnitCast(guid: bigint): void {
     this.units.drop(guid);
+    this.mirrors.drop(guid);
+  }
+
+  requestMirrorImage(guid: bigint): MirrorRequest {
+    return this.mirrors.request(guid);
+  }
+
+  projectileMoved(packet: ProjectilePosition): void {
+    this.events.emit({ type: "projectile_moved", ...packet });
+  }
+
+  mirrorImage(packet: MirrorImagePacket): void {
+    this.mirrors.accept(packet);
   }
 
   totemCreated(packet: TotemCreatedPacket): void {
@@ -378,6 +412,7 @@ export class SpellsStore {
     this.units.dispose();
     this.totems.clear();
     this.runes.clear();
+    this.mirrors.clear();
     this.events.clear();
   }
 }

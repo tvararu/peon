@@ -11,14 +11,17 @@ movement blocks for `UPDATEFLAG_VEHICLE`, and a peeked
 `SMSG_DESTROY_OBJECT` or `outOfRange` entry drops the guid again.
 
 Seat requests are the `VehiclesActs`: `spellClick(guid)`, `exitVehicle()`,
-`nextSeat()`, `prevSeat()`, `switchSeat(seat)`, `enterPlayerVehicle(guid)`
-and `ejectPassenger(guid)`. The server never answers a refused request
+`nextSeat()`, `prevSeat()`, `switchSeat(seat)`, `enterPlayerVehicle(guid)`,
+`ejectPassenger(guid)`, and the two controlled forms
+`changeSeatOnControlled(accessory, seat)` and `dismissControlled()` (see
+"Driving a controlled vehicle"). The server never answers a refused request
 with an error packet (`Handlers/VehicleHandler.cpp:76,171,240`), so each
 act resolves `ok` on its server effect and `no_answer` after 3 s. Local
 refusals send nothing: `not_clickable` (the unit lacks
 `NPC_FLAG_SPELLCLICK`, `0x01000000`, which the vehicle kit sets at runtime,
 `Entities/Vehicle/Vehicle.cpp:54-56,158,395-397`), `not_seated` (a seat
-request or exit without a seat) and `not_a_vehicle` (`ejectPassenger`
+request or exit without a seat), `not_controlling` (a controlled form
+without control of the vehicle) and `not_a_vehicle` (`ejectPassenger`
 while the character's own guid has no vehicle id: the handler logs an
 error line for a non-vehicle sender, `Handlers/VehicleHandler.cpp:167-173`).
 A seat is the store's `seat`.
@@ -26,7 +29,8 @@ A seat is the store's `seat`.
 Resolution signals: `spellClick` and `enterPlayerVehicle` resolve on the
 character's own `SMSG_MONSTER_MOVE_TRANSPORT` carrying
 `SPLINEFLAG_TRANSPORT_ENTER`; `exitVehicle` on the next `control_changed`
-core event with no reason (the server sends `SMSG_CLIENT_CONTROL_UPDATE`
+core event with no reason (or, while controlling, with reason `vehicle` and no
+mover) (the server sends `SMSG_CLIENT_CONTROL_UPDATE`
 and `SMSG_FORCE_MOVE_UNROOT`, `Entities/Unit/Unit.cpp:14094`);
 `ejectPassenger` on a plain `SMSG_MONSTER_MOVE` of that passenger with
 `SPLINEFLAG_TRANSPORT_EXIT`. The area peeks `SMSG_MONSTER_MOVE` only to
@@ -82,7 +86,86 @@ transport block for any living unit in a create block
 player from a vehicle at logout, so no login reached it; the `areaRig` test
 uses the writer's layout.
 
-In the harness, `entered` writes a `wake` row, `exited`, `seat_changed`
+## Driving a controlled vehicle
+
+The server charms the vehicle for the boarding player and gives the client
+control of it (`Entities/Unit/Unit.cpp:14322-14340`).
+
+The control update is `SMSG_CLIENT_CONTROL_UPDATE { guid, allow }`
+(`Entities/Player/Player.cpp:13151-13175`). Control adopts a non-self guid as
+mover only when it equals the ride's vehicle; the update can arrive before
+the seat, so control remembers it and adopts it when the seat lands. Any
+other guid keeps the old refusal, because possess, mind control and pets
+send the same packet.
+
+Adopting the vehicle sends `CMSG_MOVE_NOT_ACTIVE_MOVER` for the character
+with its movement info, then `CMSG_SET_ACTIVE_MOVER` for the vehicle;
+losing it sends the same pair the other way. The server reads
+`CMSG_SET_ACTIVE_MOVER` as a full `u64` and only logs a mismatch
+(`Handlers/MovementHandler.cpp:780-793`).
+
+The server drops `CMSG_MOVE_NOT_ACTIVE_MOVER` unless its guid is the current
+mover (`Handlers/MovementHandler.cpp:795-814`), so the first packet of the
+gaining pair is dropped and the second matches.
+
+While the vehicle is the mover, every movement packet and ack carries the
+vehicle's packed guid, its pose, its run speed from the create block, and
+no transport block. The movement flags drop `ON_TRANSPORT` but keep the
+driven root: the server roots the passenger on boarding
+(`Entities/Vehicle/Vehicle.cpp:449`), which does not root the vehicle, so
+the character's own root never blocks driving and stays set for the
+character until its unroot arrives, while a root naming the vehicle refuses
+its movement (`Entities/Player/Player.cpp:13179-13182`,
+`Entities/Unit/Unit.cpp:14094-14097`). Forced gravity, hover, water walking
+and feather fall packets naming the driven vehicle are acknowledged under
+the vehicle guid and adopted into its driven flags, because the server sends
+them to the controlling player with the creature guid
+(`Entities/Unit/Unit.cpp:16105-16114`); a gravity disable then refuses
+ground movement until the enable returns, and packets for unrelated guids
+stay dropped. The runtime reads the
+vehicle's pose from its entity and its speeds and movement flags from the
+peeked create block, because the entity store keeps no speeds, and hands
+them to control as `mover_state` when `ControlState.mover` becomes the seat
+vehicle. Unsupported-motion checks then read the driven flags, so a vehicle
+already carrying `CAN_FLY` or `FLYING` stays refused for ground movement.
+`ControlState.mover` is the guid being driven, or `undefined`, and
+`control_changed` with reason `vehicle` fires when it changes. The
+character's own run speed and run-back speed return when the vehicle is
+lost, and self observations (position, speeds) do not move the driven pose.
+`seat.controlling` follows the `control` core event for the seat vehicle and
+the area emits `control { mover, allow }` on each change.
+
+The dismiss form, `CMSG_DISMISS_CONTROLLED_VEHICLE`, is the packed vehicle
+guid plus the movement info, the same bytes as a plain move; the server
+checks that the guid is its mover, applies the movement info and exits the
+vehicle (`Handlers/VehicleHandler.cpp:26-59`). wow_messages describes an
+empty body (`vehicle/cmsg_dismiss_controlled_vehicle.wowm:1-3`); AzerothCore
+wins.
+
+`exitVehicle` while controlling sends the dismiss form through the
+`mover_packet` self event and resolves when control returns. The server then
+returns control to the character and exits the vehicle
+(`Entities/Unit/Unit.cpp:14454-14456`): control updates for the vehicle with
+allow 0 and for the character with allow 1, the unroot, and the exit spline.
+
+`CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE` is the dismiss form followed by a
+packed accessory guid and an `int8` seat. An accessory of 0 asks for the
+previous seat (seat at most 0) or the next (seat above 0); a real accessory
+clicks that unit's empty seat (`Handlers/VehicleHandler.cpp:89-121`).
+wow_messages has a `u8` seat; AzerothCore wins. The request resolves on the
+character's own spline for another seat of the same vehicle when the
+accessory is 0, and on the boarding spline for the accessory vehicle and
+seat otherwise.
+
+`CMSG_MOVE_NOT_ACTIVE_MOVER` is the packed guid and the movement info
+(`Handlers/MovementHandler.cpp:795-814`), where wow_messages has a full guid
+(`movement/cmsg/cmsg_move_not_active_mover.wowm:3-6`).
+
+Flying vehicles stay refused (`unsupportedReason`); the Horde Siege Tank
+(25334) is ground only.
+
+
+In the harness, `entered` and `control` each write a `wake` row, `exited`, `seat_changed`
 and `player_vehicle` and `ride_aura_cancel` each write a `log` row, and
 `attach` writes one `log` row for a character already seated; `spline`
 writes none (the spline flood guard).
@@ -130,9 +213,6 @@ writes none (the spline flood guard).
 
 ## Left out
 
-- `CMSG_DISMISS_CONTROLLED_VEHICLE`,
-  `CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE` and
-  `CMSG_MOVE_NOT_ACTIVE_MOVER`: built by vehicles-4.
 - The `SMSG_COMPRESSED_MOVES` allow-list entry: AzerothCore registers the
   opcode as `STATUS_NEVER` and never writes it
   (`Server/Protocol/Opcodes.cpp:894`).
@@ -156,6 +236,11 @@ writes none (the spline flood guard).
 
 | `CMSG_MOVE_SPLINE_DONE` (boarding) | `live` | flow `vehicles-click --arg entry=27714` on a `max80` at (3664.0, -1208.5, 102.5) on map 571, run `tmp/probe/seat-v3a`: after `out CMSG_SPELLCLICK` the trace holds `in SMSG_CLIENT_CONTROL_UPDATE`, `out CMSG_FORCE_MOVE_ROOT_ACK` twice, `in SMSG_MONSTER_MOVE_TRANSPORT`, `out CMSG_MOVE_SPLINE_DONE`, then `in SMSG_FORCE_MOVE_UNROOT` with `out CMSG_FORCE_MOVE_UNROOT_ACK`; exit 0, flow `board: ok`, `exit: ok`, events `ride_aura_cancel, spline, entered, spline, exited` | `Handlers/TaxiHandler.cpp:204-214` |
 
+| `CMSG_DISMISS_CONTROLLED_VEHICLE` | `live` | flow `vehicles-drive` on a `max80` Horde at Warsong Hold, runs `tmp/probe/v4-drive2` and `tmp/probe/v4-drive4`: after `out CMSG_SPELLCLICK` the trace holds `in SMSG_CLIENT_CONTROL_UPDATE` (vehicle, allow 1), the boarding spline, `out MSG_MOVE_START_FORWARD` and `out MSG_MOVE_STOP` with the vehicle's packed guid, then `out CMSG_DISMISS_CONTROLLED_VEHICLE`, `in SMSG_CLIENT_CONTROL_UPDATE` (vehicle, allow 0), `in SMSG_CLIENT_CONTROL_UPDATE` (character, allow 1) and `in SMSG_FORCE_MOVE_UNROOT`; the flow returned `exit: ok`, `traveled: 10` | `Handlers/VehicleHandler.cpp:26-59` |
+| vehicle moves (`MSG_MOVE_*` with the vehicle as mover) | `live` | second account in range (`tmp/probe/v4-observer`, run with `tmp/probe/v4-drive4`): `in MSG_MOVE_SET_FACING`, `MSG_MOVE_START_FORWARD`, `MSG_MOVE_HEARTBEAT`, `MSG_MOVE_STOP` carrying the vehicle's guid, from (2792.0, 6738.6) to (2788.5, 6729.2), 10.0 yd, so the server accepted and re-broadcast the driver's moves | `Handlers/MovementHandler.cpp:362-408` |
+| `CMSG_MOVE_NOT_ACTIVE_MOVER` | `builder` | sent live twice per run (character on gaining, vehicle on losing; `tmp/probe/v4-drive2`: `out CMSG_MOVE_NOT_ACTIVE_MOVER` 61 bytes with the transport block, then 37 bytes for the vehicle), no disconnect; the server's only effect is stored movement info, so it shows none. Builder bytes: `control-ride-mover.test.ts` | `Handlers/MovementHandler.cpp:795-814` |
+| `CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE` | `builder` | sent live twice with accessory 0 (`tmp/probe/v4-seat1`, `tmp/probe/v4-seat2`: `out CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE`, no seat spline, flow `changeSeat: no_answer`, exit still `ok`); the Siege Tank's driver seat does not switch. Builder bytes: `protocol.test.ts` | `Handlers/VehicleHandler.cpp:89-121` |
+
 ## Not seen live
 
 `CMSG_REQUEST_VEHICLE_NEXT_SEAT`, `CMSG_REQUEST_VEHICLE_PREV_SEAT` and
@@ -168,6 +253,30 @@ was read. A vehicle with a switchable seat would show the effect.
 `SMSG_CLIENT_CONTROL_UPDATE` on boarding is the control-side signal for
 vehicles-3 and vehicles-4.
 
-Accounts: FAC6ABD9C85B3 and FAC6ABD9EA262 (click tries), FAC6ABD9FE660
+`CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE` reached the server in two tries on
+the Horde Siege Tank and moved no seat; the handler drops the packet when
+`CanSwitchFromSeat` is false, which
+is an inference for the tank's driver seat, since no server log was read.
+`CMSG_MOVE_NOT_ACTIVE_MOVER` was sent live in every drive and has no
+visible effect: the server stores the movement info and answers nothing
+(`Handlers/MovementHandler.cpp:795-814`).
+
+Quest 11652 for the Siege Tank's spell click (`CONDITION_QUESTTAKEN` needs
+status incomplete, `Conditions/ConditionMgr.cpp:177-186`): the offline
+`soap setup <ACCOUNT> quest/add` leaves it complete (status 1 in `soap
+truth`), so the click would fail its condition. With the puppet running,
+`soap gm <ACCOUNT> quest remove 11652` then `quest add 11652`, then
+`puppet stop`, leaves status 3 (incomplete) and the click works. The
+drive eval therefore stages the quest with the online route and cannot use
+`soap setup` for it.
+
+The control regression gates passed on this change: `t1-walk-to-npc` and
+`t7-halt-resume`, round 359 (`tmp/evals/359/t1-walk-to-npc-1`,
+`tmp/evals/359/t7-halt-resume-1`), graded `pass` 2/2 and 3/3.
+
+After the unroot-ACK fix (`ForcedRoots.setMover` always sets or clears ROOT for the driven vehicle, regression `control-ride-root.test.ts`), flow `vehicles-drive` ran once more on a `max80` Horde put at (2780, 6735) on map 571 by `soap setup position`, quest 11652 staged online (`tmp/probe/v4-drive-r4c`): `board: ok`, `exit: ok`, `traveled: 10`; the trace holds `out MSG_MOVE_START_FORWARD`, `out CMSG_DISMISS_CONTROLLED_VEHICLE`, `in SMSG_FORCE_MOVE_UNROOT` and `out CMSG_FORCE_MOVE_UNROOT_ACK`. Account FAC6ABEC590E3, deleted.
+
+Accounts: FAC6ABE1FDF5C (driver) and FAC6ABE207DFA (observer), both
+deleted. Earlier: FAC6ABD9C85B3 and FAC6ABD9EA262 (click tries), FAC6ABD9FE660
 and FAC6ABDA1BB23 (click, ride), FAC6ABDA09BFE (partner); all deleted.
 FAC6ABE1031F0 (seat in control, `tmp/probe/seat-v3a`); deleted.

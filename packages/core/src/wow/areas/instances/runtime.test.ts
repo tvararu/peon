@@ -55,7 +55,7 @@ describe("instances runtime", () => {
   test("a login_verified self event clears the per-map state and other self events do not", () => {
     const rig = armed();
     try {
-      rig.stores.self.receive({ type: "transfer_pending" });
+      rig.stores.self.receive({ type: "transfer_pending", mapId: 0 });
       expect(rig.handle.state().mapDifficulty).toMatchObject({ mapId: 36 });
       rig.stores.self.receive({ type: "login_verified", position: ORGRIMMAR });
       expect(rig.handle.state().mapDifficulty).toBeUndefined();
@@ -293,7 +293,7 @@ describe("instances runtime: answerBind", () => {
           body: buildLockResponse(false),
         },
       ]);
-      rig.stores.self.receive({ type: "transfer_pending" });
+      rig.stores.self.receive({ type: "transfer_pending", mapId: 0 });
       rig.stores.self.receive({ type: "new_world", position: ORGRIMMAR });
       expect(await pending).toEqual({ status: "ok" });
     } finally {

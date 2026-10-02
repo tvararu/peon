@@ -23,6 +23,10 @@ const COVERS: Partial<Record<ToolName, ReadonlySet<LogEvent>>> = {
     "vendor/sell",
     "vendor/repair",
     "trainer/learn",
+    "bank/opened",
+    "bank/deposit",
+    "bank/withdraw",
+    "bank/slot",
   ]),
   vehicle: new Set<LogEvent>(["vehicles/entered", "vehicles/control"]),
 };

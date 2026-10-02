@@ -81,7 +81,21 @@ export type ReputationEvent =
       type: "watched_changed";
       repListId: number | undefined;
       name: string | undefined;
+    }
+  | {
+      type: "flags_pending";
+      repListId: number;
+      name: string | undefined;
+      atWar?: boolean;
+      inactive?: boolean;
     };
+
+export type SettingFlag = "atWar" | "inactive";
+
+const SETTING_BITS = {
+  atWar: FACTION_FLAGS.AT_WAR,
+  inactive: FACTION_FLAGS.INACTIVE,
+} as const satisfies Record<SettingFlag, number>;
 
 type Stored = {
   flags: number;
@@ -93,6 +107,7 @@ type Stored = {
 export class ReputationStore {
   private readonly events = new Emitter<[ReputationEvent]>();
   private readonly factions = new Map<number, Stored>();
+  private readonly pending = new Map<number, Map<number, boolean>>();
   private forced = new Map<number, number>();
   private readonly now: () => number;
   private catalog: FactionCatalog | undefined;
@@ -126,6 +141,7 @@ export class ReputationStore {
 
   initialize(packet: InitializeFactions): void {
     this.factions.clear();
+    this.pending.clear();
     let visible = 0;
     packet.entries.forEach(({ flags, standing }, repListId) => {
       if (flags === 0 && standing === 0) return;
@@ -145,8 +161,9 @@ export class ReputationStore {
   }
 
   setStanding(packet: SetFactionStanding): void {
-    for (const { repListId, standing } of packet.entries)
-      this.applyStanding(repListId, standing, packet.increased);
+    packet.entries.forEach(({ repListId, standing }, position) => {
+      this.applyStanding(repListId, standing, packet.increased, position === 0);
+    });
   }
 
   setVisible(packet: SetFactionVisible): void {
@@ -191,12 +208,27 @@ export class ReputationStore {
 
   factionAtWar(factionId: number): boolean {
     const repListId = this.catalog?.byFactionId(factionId)?.repListId;
-    const stored =
-      repListId === undefined ? undefined : this.factions.get(repListId);
-    return (
-      stored !== undefined &&
-      (this.flagsOf(stored) & FACTION_FLAGS.AT_WAR) !== 0
-    );
+    const flags = repListId === undefined ? undefined : this.flagsOf(repListId);
+    return flags !== undefined && (flags & FACTION_FLAGS.AT_WAR) !== 0;
+  }
+
+  flagsOf(repListId: number): number | undefined {
+    const stored = this.factions.get(repListId);
+    return stored && this.effectiveFlags(repListId, stored);
+  }
+
+  setPendingFlag(repListId: number, flag: SettingFlag, on: boolean): void {
+    const stored = this.stored(repListId);
+    stored.inferred.delete(SETTING_BITS[flag]);
+    const bits = this.pending.get(repListId) ?? new Map<number, boolean>();
+    bits.set(SETTING_BITS[flag], on);
+    this.pending.set(repListId, bits);
+    this.events.emit({
+      type: "flags_pending",
+      repListId,
+      name: this.faction(repListId)?.name,
+      [flag]: on,
+    });
   }
 
   receiveWatched(value: number): void {
@@ -231,6 +263,7 @@ export class ReputationStore {
 
   clear(): void {
     this.factions.clear();
+    this.pending.clear();
     this.forced = new Map();
     this.watched = undefined;
     this.character = undefined;
@@ -245,15 +278,21 @@ export class ReputationStore {
     repListId: number,
     delta: number,
     increased: boolean,
+    updated: boolean,
   ): void {
     const stored = this.stored(repListId);
+    const unchanged = stored.delta === delta;
+    const hasPendingWar =
+      this.pending.get(repListId)?.has(FACTION_FLAGS.AT_WAR) ?? false;
     const oldRank = this.rankAt(repListId, stored.delta);
     const before = this.full(repListId, stored.delta);
-    const wasAtWar = (this.flagsOf(stored) & FACTION_FLAGS.AT_WAR) !== 0;
+    const wasAtWar =
+      (this.effectiveFlags(repListId, stored) & FACTION_FLAGS.AT_WAR) !== 0;
     stored.delta = delta;
     stored.changedAt = this.now();
     const rank = this.rankAt(repListId, delta);
-    this.inferAtWar(repListId, stored, oldRank, rank);
+    if (!(unchanged && hasPendingWar && !updated))
+      this.inferAtWar(repListId, stored, oldRank, rank);
     const faction = this.faction(repListId);
     this.events.emit({
       type: "standing_changed",
@@ -266,7 +305,8 @@ export class ReputationStore {
       rankChanged:
         oldRank !== undefined && rank !== undefined && oldRank !== rank,
       increased,
-      atWar: (this.flagsOf(stored) & FACTION_FLAGS.AT_WAR) !== 0,
+      atWar:
+        (this.effectiveFlags(repListId, stored) & FACTION_FLAGS.AT_WAR) !== 0,
       wasAtWar,
     });
   }
@@ -316,8 +356,10 @@ export class ReputationStore {
     return created;
   }
 
-  private flagsOf(stored: Stored): number {
+  private effectiveFlags(repListId: number, stored: Stored): number {
     let flags = stored.flags;
+    for (const [flag, on] of this.pending.get(repListId) ?? [])
+      flags = on ? flags | flag : flags & ~flag;
     for (const [flag, on] of stored.inferred)
       flags = on ? flags | flag : flags & ~flag;
     return flags;
@@ -345,7 +387,7 @@ export class ReputationStore {
 
   private row(repListId: number): ReputationRow {
     const stored = this.stored(repListId);
-    const flags = this.flagsOf(stored);
+    const flags = this.effectiveFlags(repListId, stored);
     const faction = this.faction(repListId);
     const rank = this.rankAt(repListId, stored.delta);
     const bounds = rank === undefined ? undefined : rankBounds(rank);

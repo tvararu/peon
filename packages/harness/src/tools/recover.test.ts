@@ -125,6 +125,13 @@ describe("recover", () => {
       .spyOn(t.handle.selfstate, "state")
       .mockImplementation(() => ({
         collisionHeight: undefined,
+        condition: {
+          drunkState: "sober",
+          drunkValue: 0,
+          restedXp: 0,
+          resting: false,
+          restState: "unknown",
+        },
         ghostPending: false,
         lastTransferAbort: undefined,
         mountDisplayId: 0,
@@ -163,6 +170,13 @@ describe("recover", () => {
     let spell = 21_169;
     jest.spyOn(t.handle.selfstate, "state").mockImplementation(() => ({
       collisionHeight: undefined,
+      condition: {
+        drunkState: "sober",
+        drunkValue: 0,
+        restedXp: 0,
+        resting: false,
+        restState: "unknown",
+      },
       ghostPending: false,
       lastTransferAbort: undefined,
       mountDisplayId: 0,

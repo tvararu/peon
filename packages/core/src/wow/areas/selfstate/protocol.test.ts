@@ -3,6 +3,7 @@ import {
   selfstateCorpseMapPositionQueryResponseBody,
   selfstateDismountBody,
   selfstateForcePitchRateChangeBody,
+  selfstateInebriationBody,
   selfstateMountspecialAnimBody,
   selfstateMoveSetCollisionHeightBody,
   selfstateMultipleMovesBody,
@@ -20,6 +21,7 @@ import {
   parseCollisionHeight,
   parseCorpseMapPosition,
   parseDismount,
+  parseInebriation,
   parseMirrorTimer,
   parseMountSpecialAnim,
   parseMultipleMoves,
@@ -275,6 +277,17 @@ describe("mount packets", () => {
     expect(body).toHaveLength(8);
     const r = read(body);
     expect(parseMountSpecialAnim(r)).toBe(guid);
+    expect(r.remaining).toBe(0);
+  });
+});
+
+describe("SMSG_CROSSED_INEBRIATION_THRESHOLD (AC Server/Packets/MiscPackets.cpp:128-135)", () => {
+  test("reads a full u64 guid, the u32 state and the u32 item id", () => {
+    const guid = 0x0000_0000_0123_4567n;
+    const body = selfstateInebriationBody({ guid, itemId: 2594, threshold: 2 });
+    expect(body).toHaveLength(16);
+    const r = read(body);
+    expect(parseInebriation(r)).toEqual({ guid, itemId: 2594, threshold: 2 });
     expect(r.remaining).toBe(0);
   });
 });

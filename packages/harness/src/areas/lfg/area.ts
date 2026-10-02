@@ -284,6 +284,8 @@ function rule(
       return offerContinue(event);
     case "reward":
       return reward(event);
+    case "raid_list":
+      return [];
     default: {
       const unhandled: never = event;
       return unhandled;

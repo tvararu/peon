@@ -15,6 +15,7 @@ import {
   serializeConfig,
 } from "@peon/core/lib/config";
 import { factoryConfigDir, factoryStateDir } from "#factory/config";
+import { factoryAccount } from "#factory/factory-account";
 import { requirePatchedLibrary } from "#factory/namigator-library";
 import {
   copyConfirmed,
@@ -22,9 +23,12 @@ import {
   pinfoAccount,
   type SoapResult,
 } from "#factory/soap-copy";
+import { createTraceSink, createWired } from "#factory/soap-create";
 import {
+  needsProtocol,
   type Preset,
   presetLanguage,
+  presetSpecs,
   presets,
   templateFor,
 } from "#factory/soap-presets";
@@ -46,6 +50,7 @@ export type CreateOptions = {
   preset: Preset;
   owner?: string;
   gm?: number;
+  traceCreateDir?: string;
 };
 export type Session = Names & {
   preset: Preset;
@@ -61,8 +66,6 @@ export type ConsoleDeps = {
   now: () => Date;
   run: (command: string) => Promise<SoapResult>;
 };
-
-export const factoryAccount = /^FAC[0-9A-F]{10}$/;
 
 const lockStaleMs = 30_000;
 const lockPollMs = 100;
@@ -360,11 +363,9 @@ export async function createAccount({
   preset,
   gm,
   owner,
+  traceCreateDir,
 }: CreateOptions): Promise<Session> {
-  const [template, inherited] = await Promise.all([
-    presetTemplate(preset),
-    inheritedConfig(),
-  ]);
+  const inherited = await inheritedConfig();
   const password = newPassword();
   const names = await reserveNames(password);
   const root = process.cwd();
@@ -378,7 +379,26 @@ export async function createAccount({
   };
   try {
     await saveLedger(entry);
-    await copyConfirmed(soap, template, names);
+    if (needsProtocol(presetSpecs[preset])) {
+      const file = Bun.file(`${factoryConfigDir()}/soap.env`);
+      const env = (await file.exists()) ? parseEnv(await file.text()) : {};
+      await createWired(preset, {
+        console: (accounts, command) => consoleCommand(accounts, command),
+        createTrace: traceCreateDir
+          ? () => createTraceSink(traceCreateDir)
+          : undefined,
+        env,
+        host: inherited.host,
+        loadEntry: loadLedger,
+        names,
+        password,
+        port: inherited.port,
+        run: soap,
+      });
+    } else {
+      const template = await presetTemplate(preset);
+      await copyConfirmed(soap, template, names);
+    }
     if (gm) await must(`account set gmlevel ${entry.account} ${gm} -1`);
     return await writeSession(entry, inherited);
   } catch (err) {

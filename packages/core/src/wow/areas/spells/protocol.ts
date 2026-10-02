@@ -2,7 +2,11 @@ import type {
   ActionButton,
   ActionButtonType,
 } from "#wow/protocol/action-buttons";
-import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
+import {
+  type PacketReader,
+  PacketWriter,
+  type Vec3,
+} from "#wow/protocol/packet";
 
 const ENDLESS = 0xff_ff_ff_ff;
 
@@ -140,5 +144,115 @@ export function buildTotemDestroyed(slot: number): Uint8Array {
 export function buildUnlearnSkill(skillId: number): Uint8Array {
   const w = new PacketWriter();
   w.uint32LE(skillId);
+  return w.finish();
+}
+
+export const MIRROR_IMAGE_ITEM_SLOTS = 11;
+
+export type MirrorImagePacket = {
+  guid: bigint;
+  displayId: number;
+  race: number;
+  gender: number;
+  classId: number;
+  skin: number;
+  face: number;
+  hairStyle: number;
+  hairColor: number;
+  facialHair: number;
+  guild: number;
+  items: readonly number[];
+};
+
+export function parseMirrorImage(r: PacketReader): MirrorImagePacket {
+  const guid = r.uint64LE();
+  const displayId = r.uint32LE();
+  const race = r.uint8();
+  const gender = r.uint8();
+  const classId = r.uint8();
+  const skin = r.uint8();
+  const face = r.uint8();
+  const hairStyle = r.uint8();
+  const hairColor = r.uint8();
+  const facialHair = r.uint8();
+  const guild = r.uint32LE();
+  const items = Array.from({ length: MIRROR_IMAGE_ITEM_SLOTS }, () =>
+    r.uint32LE(),
+  );
+  return {
+    classId,
+    displayId,
+    face,
+    facialHair,
+    gender,
+    guid,
+    guild,
+    hairColor,
+    hairStyle,
+    items,
+    race,
+    skin,
+  };
+}
+
+export function buildMirrorImageRequest(guid: bigint): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(guid);
+  return w.finish();
+}
+
+export function buildFarSight(on: boolean): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(on ? 1 : 0);
+  return w.finish();
+}
+
+export type ProjectilePosition = {
+  caster: bigint;
+  castCount: number;
+  x: number;
+  y: number;
+  z: number;
+};
+
+export function parseProjectilePosition(r: PacketReader): ProjectilePosition {
+  const caster = r.uint64LE();
+  const castCount = r.uint8();
+  const x = r.floatLE();
+  const y = r.floatLE();
+  const z = r.floatLE();
+  return { castCount, caster, x, y, z };
+}
+
+export function buildProjectilePosition(init: {
+  caster: bigint;
+  spellId: number;
+  castCount: number;
+  position: Vec3;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.caster);
+  w.uint32LE(init.spellId);
+  w.uint8(init.castCount);
+  w.vec3(init.position);
+  return w.finish();
+}
+
+export function buildMissileTrajectory(init: {
+  caster: bigint;
+  spellId: number;
+  elevation: number;
+  speed: number;
+  current: Vec3;
+  target: Vec3;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.caster);
+  w.uint32LE(init.spellId);
+  w.floatLE(init.elevation);
+  w.floatLE(init.speed);
+  w.vec3(init.current);
+  w.vec3(init.target);
+  w.uint8(0);
   return w.finish();
 }

@@ -92,7 +92,27 @@ function onEnvironmental(e: Of<"entry">, rc: RuleInput): AreaDraft[] {
   ];
 }
 
+function onDispelled(e: Of<"entry">, rc: RuleInput): AreaDraft[] {
+  if (e.target !== rc.selfGuid || e.source === rc.selfGuid) return [];
+  if (e.source === 0n) return [];
+  const verb = e.kind === "steal" ? "steals" : "dispels";
+  return [
+    unitRow(e.source, rc, {
+      class: "log",
+      data: {
+        aura: e.extra,
+        kind: e.kind,
+        source: guidText(e.source),
+        spellId: e.spellId,
+      },
+      name: "dispelled",
+      text: `${named(e.source, rc)} ${verb} spell ${e.extra} from you.`,
+    }),
+  ];
+}
+
 function onEntry(e: Of<"entry">, state: RuleState, rc: RuleInput) {
+  if (e.kind === "dispel" || e.kind === "steal") return onDispelled(e, rc);
   if (e.kind === "environmental") return onEnvironmental(e, rc);
   if (HEAL_KINDS.has(e.kind)) return onHealIn(e, state.healAt, rc);
   const { seen } = state;

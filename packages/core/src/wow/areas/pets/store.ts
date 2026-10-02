@@ -1,5 +1,6 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type {
+  PetComboPoints,
   PetFeedback,
   PetNameInvalid,
   PetNameQueryResponse,
@@ -73,10 +74,11 @@ export type TameFailedEvent = {
 };
 export type PetsState = {
   bar: PetsBar | undefined;
+  comboPoints: PetComboPoints | undefined;
   cooldowns: readonly PetsCooldown[];
   lastRefusal: PetsRefusal | undefined;
-  pet: PetView | undefined;
   names: Readonly<Record<number, PetName>>;
+  pet: PetView | undefined;
   renamePending: readonly number[];
   stable: StableState | undefined;
 };
@@ -87,6 +89,12 @@ export type PetsEvent =
   | { type: "spell_unlearned"; spell: number }
   | { type: "feedback"; reason: PetFeedback }
   | { type: "cast_failed"; spell: number; reason: string; castCount: number }
+  | {
+      type: "combo_points";
+      unit: bigint;
+      target: bigint;
+      points: number;
+    }
   | { type: "name"; name: PetName }
   | {
       type: "name_invalid";
@@ -127,6 +135,7 @@ export class PetsStore {
   private readonly selfGuid: () => bigint;
   private readonly getEntity: EntityLookup;
   private current: PetsBar | undefined;
+  private combos: PetComboPoints | undefined;
   private cooldowns: PetsCooldown[] = [];
   private lastRefusal: PetsRefusal | undefined;
   private names: Record<number, PetName> = {};
@@ -153,6 +162,7 @@ export class PetsStore {
     const now = this.now();
     return {
       bar: this.current,
+      comboPoints: this.combos,
       cooldowns: this.cooldowns.filter(
         (row) => row.readyAt === undefined || row.readyAt > now,
       ),
@@ -178,6 +188,7 @@ export class PetsStore {
   bar(wire: PetBar | PetBarClear): void {
     if (isPetBarClear(wire)) {
       this.current = undefined;
+      this.combos = undefined;
       this.cooldowns = [];
       this.pending = [];
       this.events.emit({ type: "bar", cleared: true });
@@ -237,6 +248,11 @@ export class PetsStore {
       spell: failed.spellId,
       type: "cast_failed",
     });
+  }
+
+  combo(packet: PetComboPoints): void {
+    this.combos = packet.points === 0 ? undefined : { ...packet };
+    this.events.emit({ ...packet, type: "combo_points" });
   }
 
   cooldown(packet: SpellCooldown): void {
@@ -345,6 +361,7 @@ export class PetsStore {
   dispose(): void {
     this.events.clear();
     this.current = undefined;
+    this.combos = undefined;
     this.cooldowns = [];
     this.names = {};
     this.pending = [];

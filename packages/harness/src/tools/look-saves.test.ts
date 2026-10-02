@@ -43,6 +43,7 @@ function lfgState(over: Partial<LfgState> = {}): LfgState {
     partyLocksAt: undefined,
     proposal: undefined,
     queue: undefined,
+    raidLists: {},
     reward: undefined,
     roleCheck: undefined,
     searching: false,

@@ -278,3 +278,143 @@ export function lfgOfferContinueBody(entry: number): Uint8Array {
   w.uint32LE(entry);
   return w.finish();
 }
+
+export type LfgListCharacterInit = {
+  level: number;
+  classId: number;
+  raceId: number;
+  talents: readonly [number, number, number];
+  armor: number;
+  spellDamage: number;
+  spellHeal: number;
+  critMelee: number;
+  critRanged: number;
+  critSpell: number;
+  mp5: number;
+  mp5Combat: number;
+  attackPower: number;
+  agility: number;
+  health: number;
+  mana: number;
+  online: boolean;
+  avgItemLevel: number;
+  defense: number;
+  dodge: number;
+  block: number;
+  parry: number;
+  haste: number;
+  expertise: number;
+};
+
+export type LfgListGroupInit = {
+  guid: bigint;
+  comment: string;
+  instanceGuid: bigint;
+  encounterMask: number;
+};
+
+export type LfgListPlayerInit = {
+  guid: bigint;
+  flags: number;
+  character?: LfgListCharacterInit;
+  comment?: string;
+  groupGuid?: bigint;
+  roles?: number;
+  area?: number;
+  status?: number;
+  instanceGuid?: bigint;
+  encounterMask?: number;
+};
+
+const LIST_FLAG = {
+  area: 0x20,
+  bound: 0x80,
+  character: 0x01,
+  comment: 0x02,
+  groupGuid: 0x08,
+  leader: 0x04,
+  roles: 0x10,
+  status: 0x40,
+} as const;
+
+function listGroup(w: PacketWriter, group: LfgListGroupInit): void {
+  w.uint64LE(group.guid);
+  w.uint32LE(LIST_FLAG.comment | LIST_FLAG.roles | LIST_FLAG.bound);
+  w.cString(group.comment);
+  for (let i = 0; i < 3; i++) w.uint8(0);
+  w.uint64LE(group.instanceGuid);
+  w.uint32LE(group.encounterMask);
+}
+
+function listCharacter(w: PacketWriter, c: LfgListCharacterInit): void {
+  w.uint8(c.level);
+  w.uint8(c.classId);
+  w.uint8(c.raceId);
+  for (const points of c.talents) w.uint8(points);
+  w.uint32LE(c.armor);
+  w.uint32LE(c.spellDamage);
+  w.uint32LE(c.spellHeal);
+  w.uint32LE(c.critMelee);
+  w.uint32LE(c.critRanged);
+  w.uint32LE(c.critSpell);
+  w.floatLE(c.mp5);
+  w.floatLE(c.mp5Combat);
+  w.uint32LE(c.attackPower);
+  w.uint32LE(c.agility);
+  w.uint32LE(c.health);
+  w.uint32LE(c.mana);
+  w.uint32LE(c.online ? 1 : 0);
+  w.floatLE(c.avgItemLevel);
+  w.uint32LE(c.defense);
+  w.uint32LE(c.dodge);
+  w.uint32LE(c.block);
+  w.uint32LE(c.parry);
+  w.uint32LE(c.haste);
+  w.uint32LE(c.expertise);
+}
+
+function listPlayer(w: PacketWriter, p: LfgListPlayerInit): void {
+  w.uint64LE(p.guid);
+  w.uint32LE(p.flags);
+  if (p.flags & LIST_FLAG.character && p.character)
+    listCharacter(w, p.character);
+  if (p.flags & LIST_FLAG.comment) w.cString(p.comment ?? "");
+  if (p.flags & LIST_FLAG.leader) w.uint8(1);
+  if (p.flags & LIST_FLAG.groupGuid) w.uint64LE(p.groupGuid ?? 0n);
+  if (p.flags & LIST_FLAG.roles) w.uint8(p.roles ?? 0);
+  listPlayerTail(w, p);
+}
+
+function listPlayerTail(w: PacketWriter, p: LfgListPlayerInit): void {
+  if (p.flags & LIST_FLAG.area) w.uint32LE(p.area ?? 0);
+  if (p.flags & LIST_FLAG.status) w.uint8(p.status ?? 0);
+  if (p.flags & LIST_FLAG.bound) {
+    w.uint64LE(p.instanceGuid ?? 0n);
+    w.uint32LE(p.encounterMask ?? 0);
+  }
+}
+
+export function lfgListBody(init: {
+  dungeon: number;
+  deleted?: readonly bigint[];
+  groups?: readonly LfgListGroupInit[];
+  players?: readonly LfgListPlayerInit[];
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(2);
+  w.uint32LE(init.dungeon);
+  w.uint8(init.deleted ? 1 : 0);
+  if (init.deleted) {
+    w.uint32LE(init.deleted.length);
+    for (const guid of init.deleted) w.uint64LE(guid);
+  }
+  const groups = init.groups ?? [];
+  w.uint32LE(groups.length);
+  w.uint32LE(0);
+  for (const group of groups) listGroup(w, group);
+  const players = init.players ?? [];
+  w.uint32LE(players.length);
+  w.uint32LE(0);
+  for (const player of players) listPlayer(w, player);
+  return w.finish();
+}

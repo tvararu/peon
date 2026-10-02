@@ -234,6 +234,7 @@ function spellsState(casts: SpellsState["unitCasts"]): SpellsState {
     skills: [],
     totems: [],
     unitCasts: casts,
+    mirrorImages: [],
   };
 }
 

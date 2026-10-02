@@ -346,6 +346,116 @@ describe("reputation store", () => {
   });
 });
 
+describe("reputation store pending flags", () => {
+  test("a pending war flag shows in the row and raises flags_pending until the next list (ReputationMgr.cpp:195-231)", async () => {
+    const { seen, store } = await setup();
+    store.setPendingFlag(UNKNOWN, "atWar", true);
+    expect(seen.at(-1)).toEqual({
+      atWar: true,
+      name: undefined,
+      repListId: UNKNOWN,
+      type: "flags_pending",
+    });
+    expect(row(store, UNKNOWN)?.atWar).toBe(true);
+    expect(store.flagsOf(UNKNOWN)).toBe(0x03);
+    store.initialize({
+      entries: [
+        ...new Array(UNKNOWN).fill({ flags: 0, standing: 0 }),
+        { flags: 0x01, standing: 0 },
+      ],
+    });
+    expect(row(store, UNKNOWN)?.atWar).toBe(false);
+  });
+
+  test("a pending inactive flag clears and sets independently of war", async () => {
+    const { seen, store } = await setup();
+    store.setPendingFlag(SILVERMOON, "inactive", true);
+    expect(row(store, SILVERMOON)?.inactive).toBe(true);
+    expect(seen.at(-1)).toMatchObject({
+      inactive: true,
+      type: "flags_pending",
+    });
+    store.setPendingFlag(SILVERMOON, "inactive", false);
+    expect(row(store, SILVERMOON)?.inactive).toBe(false);
+    expect(row(store, SILVERMOON)?.atWar).toBe(false);
+  });
+
+  test("a pending flag on a slot the list left out creates the slot", async () => {
+    const { store } = await setup();
+    expect(store.flagsOf(50)).toBeUndefined();
+    store.setPendingFlag(50, "atWar", true);
+    expect(row(store, 50)?.atWar).toBe(true);
+  });
+
+  test("an inferred war flag from a standing change wins over an older pending peace", async () => {
+    const { store } = await setup();
+    store.setPendingFlag(BLOODSAIL, "atWar", false);
+    store.setStanding(standing(BLOODSAIL, -700));
+    expect(row(store, BLOODSAIL)?.atWar).toBe(true);
+  });
+
+  test("an unchanged standing flushed with an unrelated gain keeps a pending peace (ReputationMgr.cpp:193-202,373,532)", async () => {
+    const { store } = await setup();
+    store.setStanding(standing(BLOODSAIL, -700));
+    store.setPendingFlag(BLOODSAIL, "atWar", false);
+    store.setStanding({
+      entries: [
+        { repListId: SILVERMOON, standing: 300 },
+        { repListId: BLOODSAIL, standing: -700 },
+      ],
+      increased: true,
+    });
+    expect(row(store, BLOODSAIL)?.atWar).toBe(false);
+    expect((store.flagsOf(BLOODSAIL) ?? 0) & FACTION_FLAGS.AT_WAR).toBe(0);
+    store.setPendingFlag(BLOODSAIL, "atWar", true);
+    expect(row(store, BLOODSAIL)?.atWar).toBe(true);
+  });
+
+  test("an unchanged standing that heads the packet infers war after a peace request (floor-clamped loss, ReputationMgr.cpp:188-189,409-412,430-433)", async () => {
+    const { store } = await setup();
+    store.setStanding(standing(BLOODSAIL, -700));
+    store.setPendingFlag(BLOODSAIL, "atWar", false);
+    expect(row(store, BLOODSAIL)?.atWar).toBe(false);
+    store.setStanding({
+      entries: [
+        { repListId: BLOODSAIL, standing: -700 },
+        { repListId: SILVERMOON, standing: 300 },
+      ],
+      increased: false,
+    });
+    expect(row(store, BLOODSAIL)?.atWar).toBe(true);
+    expect((store.flagsOf(BLOODSAIL) ?? 0) & FACTION_FLAGS.AT_WAR).not.toBe(0);
+  });
+
+  test("a manual peace request after an inferred war keeps a later war declaration", async () => {
+    const { seen, store } = await setup();
+    store.setStanding(standing(BLOODSAIL, -700));
+    store.setPendingFlag(BLOODSAIL, "atWar", false);
+    expect(row(store, BLOODSAIL)?.atWar).toBe(false);
+    expect((store.flagsOf(BLOODSAIL) ?? 0) & FACTION_FLAGS.AT_WAR).toBe(0);
+    expect(seen.at(-1)).toMatchObject({ atWar: false, type: "flags_pending" });
+    store.setPendingFlag(BLOODSAIL, "atWar", true);
+    expect(row(store, BLOODSAIL)?.atWar).toBe(true);
+    expect(store.flagsOf(BLOODSAIL)).toBe(FACTION_FLAGS.AT_WAR);
+  });
+
+  test("a manual war declaration after an inferred peace replaces the inference", async () => {
+    const { store } = await setup();
+    store.setStanding(standing(BLOODSAIL, -700));
+    store.setStanding(standing(BLOODSAIL, 0, true));
+    expect(row(store, BLOODSAIL)?.atWar).toBe(false);
+    store.setPendingFlag(BLOODSAIL, "atWar", true);
+    expect(row(store, BLOODSAIL)?.atWar).toBe(true);
+  });
+
+  test("a manual toggle leaves the inference of other flags alone", async () => {
+    const { store } = await setup();
+    store.setStanding(standing(BLOODSAIL, -700));
+    store.setPendingFlag(BLOODSAIL, "inactive", true);
+    expect(row(store, BLOODSAIL)?.atWar).toBe(true);
+  });
+});
+
 describe("reputation store inferred at-war flags", () => {
   test("hostile standing keeps the inferred flag while at war", async () => {
     const { store } = await setup();

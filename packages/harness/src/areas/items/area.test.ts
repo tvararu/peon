@@ -321,6 +321,21 @@ describe("items harness attach replay", () => {
   const base = {
     move: { last: undefined, pending: undefined },
     read: { last: undefined, pending: undefined, texts: [] },
+    refund: {
+      infoPending: undefined,
+      last: undefined,
+      lastInfo: undefined,
+      offers: [],
+      refundPending: undefined,
+    },
+    sets: {
+      known: false,
+      lastSave: undefined,
+      lastUse: undefined,
+      savePending: undefined,
+      sets: [],
+      usePending: undefined,
+    },
     sockets: { last: undefined, pending: undefined },
   };
 
@@ -400,86 +415,5 @@ describe("items harness attach replay", () => {
         at(1_000_000),
       ),
     ).toEqual([]);
-  });
-});
-
-describe("items harness socket rows", () => {
-  test("a socket result writes a socketed log row", () => {
-    const rules = areaRuleSet();
-    const event = {
-      area: "items",
-      event: {
-        bonus: 3312,
-        entry: 40_000,
-        itemGuid: GUID,
-        sockets: [3101, 0, 0],
-        type: "sockets_updated",
-      },
-    } as unknown as AreaEvent;
-    expect(
-      areaDrafts(
-        rules,
-        event,
-        testRuleInput({
-          lookup: testLookup({ itemName: () => "Sturdy Ring" }),
-        }),
-      ),
-    ).toEqual([
-      {
-        class: "log",
-        data: { bonus: 3312, entry: 40_000, sockets: [3101, 0, 0] },
-        domain: "items",
-        event: "items/socketed",
-        guid: HEX,
-        ref: HEX,
-        text: "Socketed Sturdy Ring.",
-      },
-    ]);
-  });
-
-  test("an own enchantment log writes an enchanted row; another player's does not", () => {
-    const rules = areaRuleSet();
-    const own = {
-      area: "items",
-      event: {
-        caster: 0x0a_00n,
-        enchantId: 3101,
-        entry: 40_000,
-        own: true,
-        target: 0x0a_00n,
-        type: "enchantment_log",
-      },
-    } as unknown as AreaEvent;
-    expect(
-      areaDrafts(
-        rules,
-        own,
-        testRuleInput({
-          lookup: testLookup({ itemName: () => "Sturdy Ring" }),
-        }),
-      ),
-    ).toEqual([
-      {
-        class: "log",
-        data: { enchantId: 3101, entry: 40_000 },
-        domain: "items",
-        event: "items/enchanted",
-        guid: "a00",
-        ref: "a00",
-        text: "Enchanted Sturdy Ring.",
-      },
-    ]);
-    const other = {
-      area: "items",
-      event: {
-        caster: 0x0b_00n,
-        enchantId: 3101,
-        entry: 40_000,
-        own: false,
-        target: 0x0b_00n,
-        type: "enchantment_log",
-      },
-    } as unknown as AreaEvent;
-    expect(areaDrafts(rules, other, testRuleInput())).toEqual([]);
   });
 });

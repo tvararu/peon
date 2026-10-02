@@ -1,6 +1,8 @@
 import {
   type AttackerState,
   type DamageShield,
+  type DispelFailed,
+  type DispelLog,
   type EnvironmentalDamage,
   type Instakill,
   type PeriodicAuraLog,
@@ -286,4 +288,29 @@ export function instakillEntry(kill: Instakill): CombatlogWire {
     spellId: kill.spellId,
     amount: 0,
   };
+}
+
+export function dispelEntries(
+  kind: "dispel" | "steal",
+  log: DispelLog,
+): CombatlogWire[] {
+  return log.auras.map((aura) => ({
+    kind,
+    source: log.caster,
+    target: log.victim,
+    spellId: log.spellId,
+    amount: 0,
+    extra: aura.spellId,
+  }));
+}
+
+export function dispelFailedEntries(failed: DispelFailed): CombatlogWire[] {
+  return failed.failed.map((aura) => ({
+    kind: "dispel_failed",
+    source: failed.caster,
+    target: failed.target,
+    spellId: failed.spellId,
+    amount: 0,
+    extra: aura,
+  }));
 }

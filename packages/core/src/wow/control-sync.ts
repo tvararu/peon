@@ -1,25 +1,45 @@
-import type { ControlDeps, ControlEventType, ControlPose } from "#wow/control";
-import { FLAG_ACKS } from "#wow/control-flag-acks";
+import type { ControlDeps, ControlPose } from "#wow/control";
 import {
   DEFAULT_TURN_RATE,
   INPUT_BITS,
   type MovementInput,
 } from "#wow/control-input";
 import { unsupportedReason } from "#wow/control-motion";
-import { type RideSeat, RideState } from "#wow/control-ride";
+import {
+  type MoverState,
+  PassengerFlags,
+  type RideSeat,
+  RideState,
+  SelfMotion,
+  withoutDrivenFields,
+} from "#wow/control-ride";
 import { AIR_INPUT_BITS } from "#wow/control-swim";
+import { ServerAckSync } from "#wow/control-sync-acks";
+import { ForcedRoots, flagTarget } from "#wow/control-sync-forced";
+import {
+  canFlyFlags,
+  type FlagSources,
+  forcedPoseFlags,
+  RECONCILED_BITS,
+  TransferAbortWatch,
+  UNIT_BLOCK_FLAGS,
+  unsupportedFlags,
+} from "#wow/control-sync-guards";
+import { WorldTransfer } from "#wow/control-sync-transfer";
+import type {
+  Emit,
+  FlightPort,
+  SelfObservation,
+  SyncMotion,
+  SyncParts,
+} from "#wow/control-sync-types";
+import type { TransportBoard } from "#wow/control-transport";
 import type { Position } from "#wow/entity-store";
-import { MovementFlag, UnitFlag } from "#wow/protocol/entity-fields";
+import { MovementFlag } from "#wow/protocol/entity-fields";
 import type { MonsterMove } from "#wow/protocol/monster-move";
 import {
-  buildCollisionHeightAck,
-  buildFlagAck,
-  buildMoveMessage,
   buildRootAck,
   buildSetActiveMover,
-  buildSpeedAck,
-  buildTeleportAck,
-  buildTimeSkipped,
   type ClientControl,
   type FallData,
   type ForceSpeed,
@@ -32,54 +52,13 @@ import {
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { MoveFlag, TransferAbortedInput } from "#wow/self-store";
 
-export const TRANSFER_ABORT_TIMEOUT_MS = 10_000;
-
-const RECONCILED_BITS =
-  MovementFlag.SWIMMING | MovementFlag.FLYING | MovementFlag.CAN_FLY;
-
-const UNIT_BLOCK_FLAGS =
-  UnitFlag.DISABLE_MOVE |
-  UnitFlag.STUNNED |
-  UnitFlag.CONFUSED |
-  UnitFlag.FLEEING;
-
-export type Emit = (type: ControlEventType, reason?: string) => void;
-
-export type SyncMotion = {
-  moving: () => boolean;
-  settle: () => void;
-  abort: (reason: string) => void;
-  stop: (reason: string) => void;
-};
-
-export type SelfObservation = {
-  position?: Position;
-  movementFlags?: number;
-  runSpeed?: number;
-  runBackSpeed?: number;
-  turnRate?: number;
-  target?: bigint;
-  unitFlags?: number;
-};
-
-export type SyncParts = {
-  deps: ControlDeps;
-  emit: Emit;
-  motion: SyncMotion;
-  flight?: FlightPort | undefined;
-};
-export type FlightPort = {
-  inFlight: () => boolean;
-  newWorld: () => void;
-  observeSpline: (move: MonsterMove) => boolean;
-  observeUnitFlags: (unitFlags: number) => boolean;
-};
-
 export class MovementSync {
   predicted: ControlPose | undefined;
   server: ControlPose | undefined;
   moveFlags = 0;
   observedFlags = 0;
+  drivenFlags = 0;
+  vehicleCanFly = false;
   mapId = 0;
   runSpeed: number | undefined;
   runBackSpeed: number | undefined;
@@ -88,34 +67,49 @@ export class MovementSync {
   fallTime = 0;
   pitch: number | undefined;
   target: bigint | undefined;
-  private readonly deps: ControlDeps;
-  private readonly emit: Emit;
-  private readonly motion: SyncMotion;
-  private extraFlags = 0;
-  private transport: TransportInfo | undefined;
-  private flight: FlightPort | undefined;
-  private readonly ride: RideState;
+  readonly deps: ControlDeps;
+  readonly emit: Emit;
+  readonly motion: SyncMotion;
+  extraFlags = 0;
+  transport: TransportInfo | undefined;
+  flight: FlightPort | undefined;
+  readonly ride: RideState;
+  private readonly selfMotion = new SelfMotion();
+  readonly passenger = new PassengerFlags();
   private controlAllowed = true;
-  private rooted = false;
-  private teleporting = false;
+  rooted = false;
+  moverRooted = false;
+  moverRootKnown = false;
+  readonly pendingRoots = new Map<bigint, boolean>();
+  teleporting = false;
+  transportTransfer = false;
   private unitBlocked = false;
-  private transferAbortTimer: ReturnType<typeof setTimeout> | undefined;
+  readonly transferAbort = new TransferAbortWatch();
+  private readonly acks: ServerAckSync;
+  private readonly forced: ForcedRoots;
+  private readonly transfer: WorldTransfer;
 
   constructor({ deps, emit, motion, flight }: SyncParts) {
     this.deps = deps;
     this.emit = emit;
     this.motion = motion;
     this.flight = flight;
+    this.acks = new ServerAckSync({ deps, emit, host: this, motion });
+    this.forced = new ForcedRoots({ deps, host: this });
+    this.transfer = new WorldTransfer(this);
     this.ride = new RideState({
       cancelForced: (reason) => this.cancelForced(reason),
       deps,
       emit,
       movementInfo: () => this.movementInfo(),
+      moverChanged: (mover) => this.moverChanged(mover),
       serverPose: (pose) => this.adoptServerPose(pose),
     });
   }
-
   pose(): ControlPose | undefined {
+    const carried = this.ride.carriedPose();
+    if (carried)
+      return { ...carried, source: "server", updatedAt: this.deps.now() };
     return this.predicted ?? this.server;
   }
 
@@ -132,13 +126,32 @@ export class MovementSync {
   blockReason(): string | undefined {
     return (
       this.airBlock() ??
-      unsupportedReason(
-        this.observedFlags |
-          (this.moveFlags &
-            (MovementFlag.SWIMMING | MovementFlag.FLYING | AIR_INPUT_BITS)),
-      ) ??
-      (this.ride.riding ? "transport" : undefined)
+      unsupportedReason(unsupportedFlags(this.flagSources())) ??
+      ((this.ride.riding && !this.ride.controlling) || this.ride.onTransport
+        ? "transport"
+        : undefined)
     );
+  }
+
+  get mover(): bigint | undefined {
+    return this.ride.moverGuid;
+  }
+
+  moverGuid(): bigint {
+    return this.ride.moverGuid ?? this.deps.selfGuid();
+  }
+
+  moverState(state: MoverState): void {
+    if (this.ride.moverGuid !== state.guid) return;
+    if (state.run !== undefined) this.runSpeed = state.run;
+    if (state.runBack !== undefined) this.runBackSpeed = state.runBack;
+    if (state.turn !== undefined) this.turnRate = state.turn;
+    if (state.flags !== undefined) this.forced.adoptFlags(state.flags);
+    if (state.pose)
+      this.adoptServerPose({
+        ...state.pose,
+        mapId: this.mapId || state.pose.mapId,
+      });
   }
 
   vehicleSeat(seat: RideSeat): void {
@@ -151,20 +164,45 @@ export class MovementSync {
     this.transport = undefined;
     this.moveFlags &= ~MovementFlag.ON_TRANSPORT;
     this.observedFlags &= ~MovementFlag.ON_TRANSPORT;
+    this.moverRootKnown = false;
+    this.pendingRoots.clear();
     this.ride.leave();
+  }
+
+  transportBoard(board: TransportBoard): void {
+    this.transfer.transportBoard(board);
+  }
+
+  transportLeave(): void {
+    this.transfer.transportLeave();
   }
 
   airBlock(): string | undefined {
     if (this.teleporting) return "teleporting";
     if (this.flight?.inFlight() ?? false) return "in_flight";
-    if (this.rooted) return "rooted";
+    if (this.ride.controlling ? this.moverRooted : this.rooted) return "rooted";
     if (!this.controlAllowed) return "no_control";
     if (this.unitBlocked) return "disable_move";
-    return undefined;
+  }
+
+  isDriving(): boolean {
+    return this.ride.controlling;
   }
 
   canFly(): boolean {
-    return ((this.observedFlags | this.moveFlags) & MovementFlag.CAN_FLY) !== 0;
+    return (canFlyFlags(this.flagSources()) & MovementFlag.CAN_FLY) !== 0;
+  }
+
+  private flagSources(): FlagSources {
+    const controlling = this.ride.controlling;
+    return {
+      controlling,
+      drivenFlags:
+        this.drivenFlags |
+        (controlling && this.vehicleCanFly ? MovementFlag.CAN_FLY : 0),
+      moveFlags: this.moveFlags,
+      observedFlags: this.observedFlags,
+    };
   }
 
   setFlight(flight: FlightPort): void {
@@ -216,19 +254,20 @@ export class MovementSync {
     );
   }
 
-  observeSelf(input: SelfObservation): void {
+  observeSelf(observed: SelfObservation): void {
+    const driving = this.ride.controlling;
+    const input = driving ? withoutDrivenFields(observed) : observed;
     if (input.runSpeed !== undefined) this.runSpeed = input.runSpeed;
     if (input.runBackSpeed !== undefined)
       this.runBackSpeed = input.runBackSpeed;
     if (input.turnRate !== undefined) this.turnRate = input.turnRate;
     if (input.unitFlags !== undefined) this.setUnitFlags(input.unitFlags);
     if (input.target !== undefined) this.observeTarget(input.target);
-    if (input.movementFlags !== undefined) {
-      this.observedFlags = input.movementFlags;
-      this.rooted = (input.movementFlags & MovementFlag.ROOT) !== 0;
-      if (this.rooted) this.moveFlags |= MovementFlag.ROOT;
-      else this.moveFlags &= ~MovementFlag.ROOT;
-    }
+    if (driving && observed.movementFlags !== undefined) {
+      this.passenger.observe(observed.movementFlags);
+      this.rooted = (observed.movementFlags & MovementFlag.ROOT) !== 0;
+    } else if (input.movementFlags !== undefined)
+      this.observeFlags(input.movementFlags);
     if (input.position) {
       const stamped = {
         ...input.position,
@@ -252,110 +291,75 @@ export class MovementSync {
     if (this.motion.moving() && unsafe) this.cancelForced(unsafe);
   }
 
+  private observeFlags(flags: number): void {
+    this.observedFlags = flags;
+    this.rooted = (flags & MovementFlag.ROOT) !== 0;
+    if (this.rooted) this.moveFlags |= MovementFlag.ROOT;
+    else this.moveFlags &= ~MovementFlag.ROOT;
+  }
+
   observeTarget(target: bigint): void {
     if (this.target === target) return;
     this.target = target;
     this.emit("target_observed");
   }
 
-  teleportAck({ counter, info: dest }: MoveAck): void {
-    this.cancelTransferAbortWatch();
-    this.teleporting = false;
-    this.cancelForced("teleport");
-    this.deps.send(
-      GameOpcode.MSG_MOVE_TELEPORT_ACK,
-      buildTeleportAck(this.deps.selfGuid(), counter, this.deps.ticks()),
-    );
-    this.applyForcedPose(dest, "teleport");
+  teleportAck(ack: MoveAck): void {
+    this.transfer.teleportAck(ack);
   }
 
   nearTeleport(dest: MovementInfo): void {
-    this.cancelTransferAbortWatch();
-    this.teleporting = false;
-    this.cancelForced("near_teleport");
-    this.applyForcedPose(dest, "near_teleport");
+    this.transfer.nearTeleport(dest);
   }
 
-  handleTransferPending(): void {
-    this.cancelTransferAbortWatch();
-    this.teleporting = true;
-    this.cancelForced("teleport");
-    this.emit("control_changed", "teleporting");
+  handleTransferPending(transport?: { entry: number; fromMap: number }): void {
+    this.transfer.handleTransferPending(transport);
   }
 
-  transferAborted(_abort: TransferAbortedInput): void {
-    if (!this.teleporting) return;
-    this.cancelTransferAbortWatch();
-    this.transferAbortTimer = setTimeout(() => {
-      this.transferAbortTimer = undefined;
-      this.teleporting = false;
-      this.motion.stop("transfer_aborted");
-      this.emit("control_changed", undefined);
-    }, TRANSFER_ABORT_TIMEOUT_MS);
-  }
-
-  private cancelTransferAbortWatch(): void {
-    if (this.transferAbortTimer !== undefined)
-      clearTimeout(this.transferAbortTimer);
-    this.transferAbortTimer = undefined;
+  transferAborted(abort: TransferAbortedInput): void {
+    this.transfer.transferAborted(abort);
   }
 
   dispose(): void {
-    this.cancelTransferAbortWatch();
+    this.transferAbort.cancel();
     this.ride.dispose();
   }
 
   newWorld(position: Position): void {
-    this.cancelTransferAbortWatch();
-    this.teleporting = false;
-    this.flight?.newWorld();
-    this.transport = undefined;
-    this.ride.clear();
-    this.mapId = position.mapId;
-    this.moveFlags = 0;
-    this.observedFlags = 0;
-    this.extraFlags = 0;
-    this.fall = undefined;
-    this.pitch = undefined;
-    this.fallTime = 0;
-    this.rooted = false;
-    this.setServerPose(position);
-    this.predicted = undefined;
-    this.deps.send(GameOpcode.MSG_MOVE_WORLDPORT_ACK);
-    this.deps.send(
-      GameOpcode.CMSG_SET_ACTIVE_MOVER,
-      buildSetActiveMover(this.deps.selfGuid()),
-    );
-    this.emit("server_correction", "new_world");
+    this.transfer.newWorld(position);
   }
 
-  forceRoot(counter: number): void {
-    this.rooted = true;
+  forceRoot(counter: number, guid?: bigint): void {
+    const mover = this.ride.moverGuid;
+    if (mover !== undefined && guid === mover) this.forced.setMover(true);
+    else this.forced.notePending(mover, guid, true);
     this.cancelForced("root");
-    this.moveFlags |= MovementFlag.ROOT;
     this.ackRoot(GameOpcode.CMSG_FORCE_MOVE_ROOT_ACK, counter);
     this.emit("control_changed", "rooted");
   }
 
-  forceUnroot(counter: number): void {
-    this.rooted = false;
-    this.moveFlags &= ~MovementFlag.ROOT;
+  forceUnroot(counter: number, guid?: bigint): void {
+    const mover = this.ride.moverGuid;
+    if (mover !== undefined && guid === mover) this.forced.setMover(false);
+    else this.forced.notePending(mover, guid, false);
+    this.cancelForced("root");
     this.ackRoot(GameOpcode.CMSG_FORCE_MOVE_UNROOT_ACK, counter);
     this.emit("control_changed", undefined);
   }
 
-  knockBack({ counter, fall }: KnockBack): void {
-    this.cancelForced("knockback");
-    this.observedFlags |= MovementFlag.FALLING;
-    this.moveFlags |= MovementFlag.FALLING;
-    this.fall = fall;
-    this.ackRoot(GameOpcode.CMSG_MOVE_KNOCK_BACK_ACK, counter);
-    this.emit("server_correction", "knockback");
+  knockBack(knock: KnockBack): void {
+    this.acks.knockBack(knock);
   }
 
   clientControl({ guid, allow }: ClientControl): void {
     const self = this.deps.selfGuid();
     if (guid !== 0n && guid !== self) {
+      const ridden = this.ride.control(guid, allow);
+      if (ridden !== "refused") {
+        this.controlAllowed = true;
+        if (ridden === "cleared") this.emit("control_changed", undefined);
+        return;
+      }
       this.controlAllowed = false;
       this.cancelForced("no_control");
       this.emit("control_changed", "no_control");
@@ -366,120 +370,118 @@ export class MovementSync {
     this.emit("control_changed", allow ? undefined : "no_control");
   }
 
-  forceSpeed(spec: SpeedAck, { counter, speed }: ForceSpeed): void {
-    this.motion.settle();
-    if ("field" in spec && spec.field === "runSpeed") this.runSpeed = speed;
-    if ("field" in spec && spec.field === "runBackSpeed")
-      this.runBackSpeed = speed;
-    if ("field" in spec && spec.field === "turnRate") this.turnRate = speed;
-    this.deps.send(spec.ack, buildSpeedAck(this.moveAck(counter), speed));
+  forceSpeed(spec: SpeedAck, force: ForceSpeed): void {
+    this.acks.forceSpeed(spec, force);
   }
 
   setCanFly(counter: number, enable: boolean): void {
-    this.cancelForced(enable ? "flying" : "unset_can_fly");
-    if (enable) {
-      this.observedFlags |= MovementFlag.CAN_FLY;
-      this.moveFlags |= MovementFlag.CAN_FLY;
-    } else {
-      this.observedFlags &= ~(MovementFlag.CAN_FLY | MovementFlag.FLYING);
-      this.moveFlags &= ~(
-        MovementFlag.CAN_FLY |
-        MovementFlag.FLYING |
-        AIR_INPUT_BITS
-      );
-    }
-    this.deps.send(
-      GameOpcode.CMSG_MOVE_SET_CAN_FLY_ACK,
-      buildFlagAck(this.moveAck(counter), enable),
-    );
-    this.emit("control_changed", enable ? "flying" : undefined);
+    this.acks.setCanFly(counter, enable);
   }
 
-  moveFlag(flag: MoveFlag, enable: boolean, counter: number): void {
-    const { bit, set, clear, applied } = FLAG_ACKS[flag];
-    if (enable) {
-      this.observedFlags |= bit;
-      this.moveFlags |= bit;
-    } else {
-      this.observedFlags &= ~bit;
-      this.moveFlags &= ~bit;
-    }
-    const ack = this.moveAck(counter);
-    this.deps.send(
-      enable ? set : clear,
-      applied ? buildFlagAck(ack, enable) : buildRootAck(ack),
-    );
+  moveFlag(
+    flag: MoveFlag,
+    enable: boolean,
+    counter: number,
+    guid?: bigint,
+  ): void {
+    const target = flagTarget(this.ride.moverGuid, this.deps.selfGuid(), guid);
+    if (target === "drop") return;
+    this.acks.moveFlag(flag, enable, counter, target === "driven");
   }
 
   collisionHeight(counter: number, height: number): void {
-    this.deps.send(
-      GameOpcode.CMSG_MOVE_SET_COLLISION_HGT_ACK,
-      buildCollisionHeightAck(this.moveAck(counter), height),
-    );
+    this.acks.collisionHeight(counter, height);
   }
 
   timeSkipped(ms: number): void {
-    this.deps.send(
-      GameOpcode.CMSG_MOVE_TIME_SKIPPED,
-      buildTimeSkipped(this.deps.selfGuid(), ms),
-    );
+    this.acks.timeSkipped(ms);
   }
 
   resetFall(): void {
-    this.fall = undefined;
-    this.fallTime = 0;
-    this.observedFlags &= ~MovementFlag.FALLING;
-    this.moveFlags &= ~MovementFlag.FALLING;
-    this.deps.send(
-      GameOpcode.CMSG_MOVE_FALL_RESET,
-      buildMoveMessage(this.deps.selfGuid(), this.movementInfo()),
-    );
+    this.acks.resetFall();
   }
 
+  moveAck(counter: number): MoveAck {
+    return { guid: this.moverGuid(), counter, info: this.movementInfo() };
+  }
   private ackRoot(opcode: number, counter: number): void {
     this.deps.send(opcode, buildRootAck(this.moveAck(counter)));
   }
 
-  private cancelForced(reason: string): void {
+  cancelForced(reason: string): void {
     this.motion.abort(reason);
     this.moveFlags &= ~(INPUT_BITS | AIR_INPUT_BITS);
   }
-
   private reconciled(): number {
-    return this.moveFlags | (this.observedFlags & RECONCILED_BITS);
+    const driven = this.ride.controlling ? this.forced.drivenBits() : 0;
+    const vehicleFly =
+      this.ride.controlling && this.vehicleCanFly ? MovementFlag.CAN_FLY : 0;
+    return (
+      this.moveFlags |
+      (this.observedFlags & RECONCILED_BITS) |
+      driven |
+      vehicleFly
+    );
   }
 
-  private moveAck(counter: number): MoveAck {
-    return { guid: this.deps.selfGuid(), counter, info: this.movementInfo() };
+  private moverChanged(mover: bigint | undefined): void {
+    this.controlAllowed = true;
+    this.drivenFlags = 0;
+    this.vehicleCanFly = false;
+    this.forced.adoptMover(mover);
+    this.moverRooted =
+      mover !== undefined && (this.pendingRoots.get(mover) ?? false);
+    this.forced.forget(mover);
+    if (mover === undefined) {
+      this.passenger.restore(this);
+      this.moveFlags &= ~MovementFlag.ROOT;
+      if (this.rooted) this.moveFlags |= MovementFlag.ROOT;
+      this.selfMotion.restore(this);
+      return;
+    }
+    this.passenger.save(this);
+    if (this.moverRooted) this.moveFlags |= MovementFlag.ROOT;
+    else this.moveFlags &= ~MovementFlag.ROOT;
+    this.selfMotion.save(this);
   }
 
-  private adoptServerPose(position: Position): void {
+  adoptServerPose(position: Position): void {
     this.setServerPose(position);
     this.predicted = undefined;
   }
 
-  private setServerPose(position: Position): void {
+  setServerPose(position: Position): void {
     this.server = { ...position, source: "server", updatedAt: this.deps.now() };
   }
 
-  private applyForcedPose(dest: MovementInfo, reason: string): void {
-    this.ride.clear();
+  applyForcedPose(dest: MovementInfo, reason: string): void {
+    const ride = this.ride.carriage();
+    const offset = dest.transport;
+    if (
+      ride !== undefined &&
+      offset !== undefined &&
+      offset.guid === ride.guid &&
+      (dest.flags & MovementFlag.ON_TRANSPORT) !== 0
+    )
+      ride.offset = { x: offset.x, y: offset.y, z: offset.z };
+    else this.ride.clear();
     if (
       dest.transport !== undefined &&
       (dest.flags & MovementFlag.ON_TRANSPORT) !== 0
     )
       this.transport = { ...dest.transport };
     else this.transport = undefined;
-    const keep =
-      dest.transport !== undefined &&
-      (dest.flags & MovementFlag.ON_TRANSPORT) !== 0
-        ? MovementFlag.ON_TRANSPORT
-        : 0;
-    this.observedFlags = (dest.flags & ~MovementFlag.ON_TRANSPORT) | keep;
+    const pose = forcedPoseFlags({
+      flags: dest.flags,
+      hasTransport: dest.transport !== undefined,
+      inputBits: INPUT_BITS,
+    });
+    this.observedFlags = pose.observed;
     this.extraFlags = dest.extraFlags;
-    this.moveFlags =
-      (dest.flags & ~INPUT_BITS & ~MovementFlag.ON_TRANSPORT) | keep;
+    this.moveFlags = pose.move;
+    this.vehicleCanFly = false;
     this.fall = dest.fall;
+    this.fallTime = dest.fallTime;
     this.pitch = dest.pitch;
     this.rooted = (dest.flags & MovementFlag.ROOT) !== 0;
     this.setServerPose({

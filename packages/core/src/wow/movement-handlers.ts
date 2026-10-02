@@ -14,6 +14,7 @@ import {
   observeRemoteMovement,
   registerRemoteMotionHandlers,
 } from "#wow/remote-motion-handlers";
+import type { SelfEvent } from "#wow/self-store";
 import type { SessionStores } from "#wow/session-stores";
 import type { WorldConn } from "#wow/world-conn";
 import { selfGuid } from "#wow/world-handlers";
@@ -53,6 +54,19 @@ function handleNewWorld(
   stores.quests.observeQuestLog();
 }
 
+function parseTransferPending(
+  r: PacketReader,
+): Extract<SelfEvent, { type: "transfer_pending" }> {
+  const mapId = r.remaining >= 4 ? r.uint32LE() : 0;
+  if (r.remaining < 8) return { mapId, type: "transfer_pending" };
+  const entry = r.uint32LE();
+  return {
+    mapId,
+    transport: { entry, fromMap: r.uint32LE() },
+    type: "transfer_pending",
+  };
+}
+
 export function registerMovementHandlers(
   conn: WorldConn,
   stores: MovementStores,
@@ -69,20 +83,19 @@ export function registerMovementHandlers(
   on(GameOpcode.MSG_MOVE_TELEPORT_ACK, (r) =>
     self.receive({ type: "teleport_ack", ack: parseTeleportAck(r) }),
   );
-  on(GameOpcode.SMSG_TRANSFER_PENDING, () => {
-    self.receive({ type: "transfer_pending" });
+  on(GameOpcode.SMSG_TRANSFER_PENDING, (r) => {
+    self.receive(parseTransferPending(r));
     conn.remoteMotion.beginTransfer();
   });
   on(GameOpcode.SMSG_NEW_WORLD, (r) => handleNewWorld(conn, stores, r));
-  on(GameOpcode.SMSG_FORCE_MOVE_ROOT, (r) =>
-    self.receive({ type: "force_root", counter: parseMoveCounter(r).counter }),
-  );
-  on(GameOpcode.SMSG_FORCE_MOVE_UNROOT, (r) =>
-    self.receive({
-      type: "force_unroot",
-      counter: parseMoveCounter(r).counter,
-    }),
-  );
+  on(GameOpcode.SMSG_FORCE_MOVE_ROOT, (r) => {
+    const { counter, guid } = parseMoveCounter(r);
+    self.receive({ type: "force_root", counter, guid });
+  });
+  on(GameOpcode.SMSG_FORCE_MOVE_UNROOT, (r) => {
+    const { counter, guid } = parseMoveCounter(r);
+    self.receive({ type: "force_unroot", counter, guid });
+  });
   on(GameOpcode.SMSG_MOVE_KNOCK_BACK, (r) =>
     self.receive({ type: "knock_back", knock: parseKnockBack(r) }),
   );

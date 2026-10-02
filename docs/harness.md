@@ -74,8 +74,8 @@ still applies: it refuses the protected accounts and the character
 without a file in it, the harness degrades to ids: unknown spells and
 factions show as numbers, unit relations read `unknown`, and locks and area
 triggers are not decoded. When `spell_data_dir` is set, `--check` prints one
-warning per missing file on stderr and still exits 0. With no
-`spell_data_dir` it prints no warning.
+warning on stderr for each file of the table below that is missing, and
+still exits 0. With no `spell_data_dir` it prints no warning.
 
 | File | Holds | Client archive (build 12340, enUS) |
 |---|---|---|
@@ -106,7 +106,9 @@ The client resolves each file from the first archive that holds it:
 `enUS/patch-enUS.MPQ`, then the remaining locale, patch and base
 archives. Extract each `DBFilesClient\<name>` from the `Data` directory
 with an MPQ tool such as StormLib, following that order, and copy the files
-into `spell_data_dir` unchanged.
+into `spell_data_dir` unchanged; a rebuild gives the same bytes. Keep the
+directory outside the checkout, for example `~/wow-data/dbc` beside the
+navigation data: `tmp/` is scratch space and may be cleared.
 
 ## Flags
 
@@ -166,13 +168,13 @@ A result that is not `DONE` ends with a `Next:` step.
 | `travel` | Walks to a unit (`to: o<n>` reaches a game object), the corpse or a point, uses the hearthstone (`to: hearth`), flies to a discovered flight destination (`to: fly Silvermoon City`), explores in a direction, or unsticks. An explore leg refused for an ambiguous navmesh column first retries the same point on the floor nearest the walker, then other distances on the same bearing, and one exhausted bearing counts as a single obstruction. |
 | `engage` | Chooses a target, walks to it, fights it with Jev and loots it; the result line gives damage dealt and taken, avoided swings and refused spells. An unnamed engage that only sees gray hostiles refuses with a `Next:` step that travels to explore for non-gray hostiles. |
 | `loot` | Loots one corpse, one slot at a time. |
-| `interact` | Talks to an NPC (`npc: o<n>` talks to a quest-giver object): quests, gossip, buy, sell junk, buyback, train, repair, bind at an inn, reset talents at a class trainer (pays only up to `max_cost`); talking to a flight master lists the known destinations with their list prices. |
+| `interact` | Talks to an NPC (`npc: o<n>` talks to a quest-giver object): quests, gossip, buy, sell junk, buyback, train, repair, bind at an inn, reset talents at a class trainer (pays only up to `max_cost`), bank with a banker (open, deposit, withdraw, buy a bag slot); talking to a flight master lists the known destinations with their list prices. |
 | `rest` | Eats and drinks until health and mana reach a percent. |
 | `recover` | Comes back to life: corpse run, spirit healer, a resurrection offer, or `self` with a Soulstone or Reincarnation. |
 | `social` | One chat message or one group action. |
 | `talents` | Shows talents and glyphs and spends talent points; puts glyphs in slots or clears them. |
 | `vehicle` | Takes a seat on a vehicle by walking to a unit and clicking it (`board`), leaves the seat (`leave`), changes seats (`seat`), asks to ride with a player (`ride_with`) and removes a passenger (`eject`). A seat request the server does not answer is `UNCONFIRMED` with the reason `no_answer`. |
-| `journal` | Quest log, bags and gear, spells, reputation, or the game log. |
+| `journal` | Quest log, bags and gear, bank contents, spells, reputation, or the game log. |
 | `stop` | Stops one action or everything. |
 | `gear` | Wears, takes off, moves, splits, opens and reads items. |
 | `use` | Uses a game object: opens a locked chest or quest object and takes what is inside, reads a shrine, plaque or book, or presses another usable object. |

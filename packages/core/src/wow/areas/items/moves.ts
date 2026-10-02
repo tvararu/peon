@@ -1,5 +1,9 @@
 import type { ItemPosition } from "#wow/areas/items/protocol";
 import type { InventorySlot, InventoryState } from "#wow/inventory";
+import type {
+  InventoryChangeFailure,
+  InventoryClaim,
+} from "#wow/protocol/inventory";
 
 export const BACKPACK = 255;
 export const NULL_BAG = 0;
@@ -18,7 +22,8 @@ export type MoveKind =
   | "unequip"
   | "swap"
   | "split"
-  | "ammo";
+  | "ammo"
+  | "wrap";
 export type MoveTarget = { guid: bigint; count: number };
 export type MoveRequest = {
   kind: MoveKind;
@@ -127,6 +132,8 @@ const RULES: Readonly<
   swap: (request, inventory) => swapped(request, inventory),
   split: (request, inventory) => split(request, inventory),
   ammo: (request, inventory) => inventory.ammoId === request.entry,
+  wrap: (request, inventory) =>
+    findItem(inventory, request.itemGuid)?.item.flagBits?.wrapped === true,
 };
 
 export function moveSettled(
@@ -135,4 +142,13 @@ export function moveSettled(
 ): boolean {
   const held = findItem(inventory, request.itemGuid);
   return RULES[request.kind](request, inventory, held);
+}
+
+export function moveClaim(
+  request: MoveRequest,
+  packet: InventoryChangeFailure,
+): InventoryClaim {
+  const gift = request.kind === "wrap" ? request.target?.guid : undefined;
+  const named = packet.kind === "error" && packet.item1 === gift;
+  return { itemGuid: named ? gift : request.itemGuid };
 }

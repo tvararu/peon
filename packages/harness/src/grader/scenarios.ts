@@ -141,6 +141,7 @@ export const ROUND_1: readonly string[] = [
   "t5-vendor-buy-goldshire",
   "t5-buyback-vendor",
   "t2-whisper-reply",
+  "t2-emotes-partner",
   "t0-hostiles",
   "t0-who-is-near",
   "t0-self-state",
@@ -180,6 +181,7 @@ export const ROUND_1: readonly string[] = [
   "t8-quests-accept-shared",
   "t9-raid-ready",
   "t9-raid-answer",
+  "t9-raid-summon",
   "t9-raid-mark",
   "t4-objects-quest-loot",
   "t8-items-socket",
@@ -194,6 +196,9 @@ export const ROUND_1: readonly string[] = [
   "t8-vehicles-board",
   "t8-talents-glyph",
   "t8-pets-talent",
+  "t9-bank-deposit",
+  "t9-bank-withdraw",
+  "t9-bank-slot",
 ];
 const DIR = `${import.meta.dir}/scenarios`;
 const JSON_FILE = /\.json$/;

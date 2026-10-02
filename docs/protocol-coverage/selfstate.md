@@ -31,7 +31,7 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x375` | `CMSG_CANCEL_MOUNT_AURA` | client | handled |  |
 | `0x37a` | `SMSG_FORCED_DEATH_UPDATE` | server | dead |  |
 | `0x3ac` | `SMSG_DISMOUNT` | server | handled |  |
-| `0x3c1` | `SMSG_CROSSED_INEBRIATION_THRESHOLD` | server | missing |  |
+| `0x3c1` | `SMSG_CROSSED_INEBRIATION_THRESHOLD` | server | handled |  |
 | `0x45c` | `SMSG_FORCE_PITCH_RATE_CHANGE` | server | handled | not seen live |
 | `0x45d` | `CMSG_FORCE_PITCH_RATE_CHANGE_ACK` | client | handled | not seen live |
 | `0x494` | `SMSG_PRE_RESURRECT` | server | handled |  |

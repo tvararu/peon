@@ -3,7 +3,6 @@ import {
   joinReasonName,
   type LfgJoinReason,
   type LfgRoleCheckStateName,
-  roleCheckStateName,
 } from "#wow/areas/lfg/names";
 import type {
   LfgBootUpdate,
@@ -16,18 +15,31 @@ import type {
   RoleCheckUpdate,
   RoleChosen,
 } from "#wow/areas/lfg/protocol";
+import type { LfgList } from "#wow/areas/lfg/protocol-list";
+import {
+  type LfgRaidList,
+  type LfgRaidListEvent,
+  LfgRaidLists,
+} from "#wow/areas/lfg/store-list";
 import {
   bootView,
   copyProposal,
   copyReward,
   LFG_PROPOSAL_SECONDS,
   type LfgBootView,
+  type LfgJoinView,
+  type LfgLockView,
   type LfgOfferContinueView,
+  type LfgPartyLocks,
   type LfgProposalView,
+  type LfgRandomView,
   type LfgRewardView,
+  type LfgRoleCheckView,
   type LfgTeleportDeniedView,
   type LfgTeleportReason,
+  lockView,
   proposalView,
+  roleCheckView,
   teleportReasonName,
 } from "#wow/areas/lfg/views";
 import { UnitFlag } from "#wow/protocol/entity-fields";
@@ -35,50 +47,6 @@ import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export type LfgStatus = "none" | "queued" | "proposal";
 export type LfgUpdateSource = "player" | "party" | "search";
-export type LfgLockReason =
-  | "none"
-  | "insufficient_expansion"
-  | "too_low_level"
-  | "too_high_level"
-  | "too_low_gear_score"
-  | "too_high_gear_score"
-  | "raid_locked"
-  | "attunement_too_low_level"
-  | "attunement_too_high_level"
-  | "quest_not_completed"
-  | "missing_item"
-  | "not_in_season"
-  | "missing_achievement"
-  | "unknown";
-
-export type LfgLockView = {
-  entry: number;
-  id: number;
-  type: number;
-  status: number;
-  reason: LfgLockReason;
-};
-export type LfgRandomView = { entry: number; id: number };
-export type LfgPartyLocks = {
-  guid: bigint;
-  locks: readonly LfgLockView[];
-};
-export type LfgJoinView = {
-  result: number;
-  state: number;
-  reason: LfgJoinReason;
-  partyLocks: readonly LfgPartyLocks[];
-};
-
-export type LfgRoleCheckView = {
-  state: number;
-  stateName: LfgRoleCheckStateName;
-  initializing: boolean;
-  dungeons: readonly number[];
-  ready: readonly bigint[];
-  pending: readonly bigint[];
-};
-
 export type LfgState = {
   status: LfgStatus;
   selected: readonly number[];
@@ -97,6 +65,7 @@ export type LfgState = {
   teleportDenied: LfgTeleportDeniedView | undefined;
   offerContinue: LfgOfferContinueView | undefined;
   reward: LfgRewardView | undefined;
+  raidLists: Readonly<Record<number, LfgRaidList>>;
 };
 
 export type LfgEvent =
@@ -144,48 +113,8 @@ export type LfgEvent =
       money: number;
       xp: number;
       itemCount: number;
-    };
-
-const LOCK_REASONS: Readonly<Record<number, LfgLockReason>> = {
-  0: "none",
-  1: "insufficient_expansion",
-  2: "too_low_level",
-  3: "too_high_level",
-  4: "too_low_gear_score",
-  5: "too_high_gear_score",
-  6: "raid_locked",
-  1001: "attunement_too_low_level",
-  1002: "attunement_too_high_level",
-  1022: "quest_not_completed",
-  1025: "missing_item",
-  1031: "not_in_season",
-  1034: "missing_achievement",
-};
-
-export function lockReason(status: number): LfgLockReason {
-  return LOCK_REASONS[status] ?? "unknown";
-}
-
-export function lockView(entry: number, status: number): LfgLockView {
-  return {
-    entry,
-    id: entry & 0x00_ff_ff_ff,
-    type: (entry >>> 24) & 0xff,
-    status,
-    reason: lockReason(status),
-  };
-}
-
-function roleCheckView(update: RoleCheckUpdate): LfgRoleCheckView {
-  return {
-    state: update.state,
-    stateName: roleCheckStateName(update.state),
-    initializing: update.initializing,
-    dungeons: [...update.dungeons],
-    ready: update.members.filter((m) => m.ready).map((m) => m.guid),
-    pending: update.members.filter((m) => !m.ready).map((m) => m.guid),
-  };
-}
+    }
+  | LfgRaidListEvent;
 
 const RAID_BROWSER_JOIN = 3;
 const ROLECHECK_ABORT = 4;
@@ -241,6 +170,7 @@ const EMPTY: LfgState = {
   teleportDenied: undefined,
   offerContinue: undefined,
   reward: undefined,
+  raidLists: {},
 };
 
 export class LfgStore {
@@ -248,10 +178,12 @@ export class LfgStore {
   private state: LfgState = EMPTY;
   private readonly now: () => number;
   private readonly deps: SessionDeps;
+  private readonly lists: LfgRaidLists;
 
   constructor(deps: SessionDeps, _core: CoreStores) {
     this.now = deps.now;
     this.deps = deps;
+    this.lists = new LfgRaidLists(deps.now, (event) => this.events.emit(event));
   }
 
   selfInCombat(): boolean {
@@ -302,6 +234,7 @@ export class LfgStore {
           ? undefined
           : { ...this.state.offerContinue },
       reward: copyReward(this.state.reward),
+      raidLists: this.lists.snapshot(),
     };
   }
   onEvent(cb: (event: LfgEvent) => void): Unsubscribe {
@@ -492,6 +425,10 @@ export class LfgStore {
       xp: reward.xp,
       itemCount: reward.items.length,
     });
+  }
+
+  receiveList(list: LfgList): void {
+    this.lists.receive(list);
   }
 
   receiveSearch(on: boolean): void {

@@ -163,7 +163,8 @@ function socialCall(args: unknown, theme: Theme): string {
   const to = argText(args, "to");
   const action = argText(args, "do") ?? (to ? "whisper" : "say");
   const text = argText(args, "text");
-  const quoted = text === undefined ? undefined : `"${text}"`;
+  const what = action === "emote" ? argText(args, "what") : undefined;
+  const quoted = (what ?? text) === undefined ? undefined : `"${what ?? text}"`;
   return callLine({
     icon: to ? "whisper" : "say",
     parts: [action, to && `→ ${to}`, quoted],

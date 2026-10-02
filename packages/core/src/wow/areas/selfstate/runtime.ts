@@ -128,6 +128,7 @@ function watchSelfFields(
     const fresh =
       event.type !== "update" || event.changed.includes("rawFields");
     store.syncMountFields(fields.unitFlags, fields.mountDisplayId, fresh);
+    store.syncCondition(fields);
     if (fields.selfResSpell === undefined) return;
     const spellId = fields.selfResSpell;
     if (store.syncSelfResSpell(spellId))

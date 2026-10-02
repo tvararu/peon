@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { deflateSync } from "node:zlib";
 import { unitmotionSplineToggleBody } from "#test-support/areas/unitmotion";
 import {
   info,
@@ -120,6 +121,32 @@ describe("remote motion handlers re-classify a player pose on spline toggles", (
         unitmotionSplineToggleBody({ guid: 0x77n }),
       );
       expect(f.pose()).toEqual(before);
+      expect(f.errors).toEqual([]);
+    } finally {
+      await f.close();
+    }
+  });
+});
+
+describe("remote motion handlers read compressed spline toggles", () => {
+  test("a compressed SMSG_SPLINE_MOVE_SET_HOVER sets hover on the pose", async () => {
+    const f = await motionFixture();
+    try {
+      await f.inject(
+        GameOpcode.MSG_MOVE_START_FORWARD,
+        moveBody(PEER, info(1, MovementFlag.FORWARD)),
+      );
+      const inner = unitmotionSplineToggleBody({ guid: PEER });
+      const raw = new PacketWriter();
+      raw.uint8(inner.length + 2);
+      raw.uint16LE(GameOpcode.SMSG_SPLINE_MOVE_SET_HOVER);
+      raw.rawBytes(inner);
+      const packed = raw.finish();
+      const w = new PacketWriter();
+      w.uint32LE(packed.length);
+      w.rawBytes(deflateSync(packed));
+      await f.inject(GameOpcode.SMSG_COMPRESSED_MOVES, w.finish());
+      expect(f.pose()?.flags).toBe(MovementFlag.FORWARD | MovementFlag.HOVER);
       expect(f.errors).toEqual([]);
     } finally {
       await f.close();

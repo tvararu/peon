@@ -11,17 +11,17 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x1f5` | `SMSG_PARTYKILLLOG` | server | handled |  |
 | `0x1fc` | `SMSG_ENVIRONMENTAL_DAMAGE_LOG` | server | handled | not seen live |
 | `0x24b` | `SMSG_SPELLLOGMISS` | server | handled | not seen live |
-| `0x24c` | `SMSG_SPELLLOGEXECUTE` | server | missing |  |
+| `0x24c` | `SMSG_SPELLLOGEXECUTE` | server | handled |  |
 | `0x24e` | `SMSG_PERIODICAURALOG` | server | handled |  |
 | `0x24f` | `SMSG_SPELLDAMAGESHIELD` | server | handled | not seen live |
 | `0x250` | `SMSG_SPELLNONMELEEDAMAGELOG` | server | handled |  |
 | `0x260` | `SMSG_PROCRESIST` | server | dead |  |
-| `0x262` | `SMSG_DISPEL_FAILED` | server | missing |  |
+| `0x262` | `SMSG_DISPEL_FAILED` | server | handled | not seen live |
 | `0x263` | `SMSG_SPELLORDAMAGE_IMMUNE` | server | handled | not seen live |
-| `0x27b` | `SMSG_SPELLDISPELLOG` | server | missing |  |
+| `0x27b` | `SMSG_SPELLDISPELLOG` | server | handled |  |
 | `0x2b4` | `SMSG_FEIGN_DEATH_RESISTED` | server | dead |  |
 | `0x32f` | `SMSG_SPELLINSTAKILLLOG` | server | handled | not seen live |
-| `0x333` | `SMSG_SPELLSTEALLOG` | server | missing |  |
+| `0x333` | `SMSG_SPELLSTEALLOG` | server | handled |  |
 | `0x39d` | `SMSG_UPDATE_COMBO_POINTS` | server | handled | not seen live |
 | `0x47f` | `SMSG_HEALTH_UPDATE` | server | dead |  |
 | `0x480` | `SMSG_POWER_UPDATE` | server | handled |  |

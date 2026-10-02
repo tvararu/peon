@@ -1,4 +1,5 @@
 import type { AreaRuntimeCtx } from "#wow/areas/contract";
+import type { ItemsEvent } from "#wow/areas/items/events";
 import { findItem, LAST_EQUIPMENT_SLOT } from "#wow/areas/items/moves";
 import {
   buildCancelTempEnchantment,
@@ -6,7 +7,7 @@ import {
   MAX_GEM_SOCKETS,
 } from "#wow/areas/items/protocol-sockets";
 import type { SocketOutcome, SocketRequest } from "#wow/areas/items/sockets";
-import type { ItemsEvent, ItemsStore } from "#wow/areas/items/store";
+import type { ItemsStore } from "#wow/areas/items/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 export const SOCKET_ANSWER_MS = 5000;
@@ -36,6 +37,7 @@ function ready({ ctx, store }: Env): void {
     throw new Error(`the character is ${store.life()}`);
   if (store.snapshot().sockets.pending)
     throw new Error("a socket is already pending");
+  if (store.snapshot().sets.usePending) throw new Error("a set use is pending");
 }
 
 function gemSlots(

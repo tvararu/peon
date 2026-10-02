@@ -1,5 +1,7 @@
+import type { Entity } from "#wow/entity-store";
 import type { ItemSpell, ItemTemplate } from "#wow/protocol/item";
 import { PacketWriter } from "#wow/protocol/packet";
+import { ITEM_FIELDS } from "#wow/protocol/update-fields";
 
 const ITEM_SPELL_SLOTS = 5;
 const NO_COOLDOWN = 0xff_ff_ff_ff;
@@ -302,4 +304,125 @@ export function itemsEnchantmentLogBody(init: {
   w.uint32LE(init.entry);
   w.uint32LE(init.enchantId);
   return w.finish();
+}
+
+export type EquipmentSetInit = {
+  setGuid: bigint;
+  index: number;
+  name: string;
+  icon: string;
+  items: readonly bigint[];
+};
+
+export function itemsEquipmentSetListBody(
+  sets: readonly EquipmentSetInit[],
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(sets.length);
+  for (const set of sets) {
+    w.packedGuidBig(set.setGuid);
+    w.uint32LE(set.index);
+    w.cString(set.name);
+    w.cString(set.icon);
+    for (const item of set.items) w.packedGuidBig(item);
+  }
+  return w.finish();
+}
+
+export function itemsEquipmentSetSavedBody(
+  index: number,
+  setGuid: bigint,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(index);
+  w.packedGuidBig(setGuid);
+  return w.finish();
+}
+
+export function itemsEquipmentSetUseResultBody(result: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(result);
+  return w.finish();
+}
+
+export type RefundCostInit = { entry: number; count: number };
+
+export function itemsRefundInfoResponseBody(init: {
+  itemGuid: bigint;
+  money: number;
+  honor: number;
+  arena: number;
+  costs: readonly [
+    RefundCostInit,
+    RefundCostInit,
+    RefundCostInit,
+    RefundCostInit,
+    RefundCostInit,
+  ];
+  delta: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.itemGuid);
+  w.uint32LE(init.money);
+  w.uint32LE(init.honor);
+  w.uint32LE(init.arena);
+  for (const cost of init.costs) {
+    w.uint32LE(cost.entry);
+    w.uint32LE(cost.count);
+  }
+  w.uint32LE(0);
+  w.uint32LE(init.delta);
+  return w.finish();
+}
+
+export function itemsRefundResultBody(
+  init:
+    | {
+        itemGuid: bigint;
+        result: 0;
+        money: number;
+        honor: number;
+        arena: number;
+        costs: readonly [
+          RefundCostInit,
+          RefundCostInit,
+          RefundCostInit,
+          RefundCostInit,
+          RefundCostInit,
+        ];
+      }
+    | { itemGuid: bigint; result: number },
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(init.itemGuid);
+  w.uint32LE(init.result);
+  if (init.result !== 0) return w.finish();
+  const success = init as Extract<typeof init, { result: 0 }>;
+  w.uint32LE(success.money);
+  w.uint32LE(success.honor);
+  w.uint32LE(success.arena);
+  for (const cost of success.costs) {
+    w.uint32LE(cost.entry);
+    w.uint32LE(cost.count);
+  }
+  return w.finish();
+}
+
+export function itemsItemNameResponseBody(init: {
+  entry: number;
+  name: string;
+  inventoryType: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.entry);
+  w.cString(init.name);
+  w.uint32LE(init.inventoryType);
+  return w.finish();
+}
+
+export function itemsSetFlags(entity: Entity | undefined, flags: number): void {
+  (entity?.rawFields as Map<number, number> | undefined)?.set(
+    ITEM_FIELDS.FLAGS.offset,
+    flags,
+  );
 }

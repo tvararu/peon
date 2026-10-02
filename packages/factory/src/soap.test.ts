@@ -2,13 +2,13 @@ import { describe, expect, test } from "bun:test";
 import { rm, writeFile } from "node:fs/promises";
 import { serializeConfig } from "@peon/core/lib/config";
 import { scratchDir } from "@peon/core/test-support/scratch";
+import { factoryAccount } from "#factory/factory-account";
 import {
   accountAgeHours,
   accountName,
   assertFactory,
   characterName,
   envelope,
-  factoryAccount,
   hasTriple,
   inheritedConfig,
   newNames,

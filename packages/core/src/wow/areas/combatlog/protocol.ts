@@ -388,3 +388,37 @@ export function parseInstakill(r: PacketReader): Instakill {
   const spellId = r.uint32LE();
   return { caster, target, spellId };
 }
+
+export type DispelLog = {
+  victim: bigint;
+  caster: bigint;
+  spellId: number;
+  auras: { spellId: number; flag: number }[];
+};
+export type DispelFailed = {
+  caster: bigint;
+  target: bigint;
+  spellId: number;
+  failed: number[];
+};
+
+export function parseDispelLog(r: PacketReader): DispelLog {
+  const victim = r.packedGuidBig();
+  const caster = r.packedGuidBig();
+  const spellId = r.uint32LE();
+  r.uint8();
+  const count = r.uint32LE();
+  const auras: DispelLog["auras"] = [];
+  for (let i = 0; i < count; i++)
+    auras.push({ spellId: r.uint32LE(), flag: r.uint8() });
+  return { victim, caster, spellId, auras };
+}
+
+export function parseDispelFailed(r: PacketReader): DispelFailed {
+  const caster = r.uint64LE();
+  const target = r.uint64LE();
+  const spellId = r.uint32LE();
+  const failed: number[] = [];
+  while (r.remaining >= 4) failed.push(r.uint32LE());
+  return { caster, target, spellId, failed };
+}

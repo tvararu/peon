@@ -1,14 +1,25 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import { selfFields, UNIT_FLAG_MOUNT } from "#wow/areas/selfstate/fields";
+import {
+  PLAYER_FLAG_RESTING,
+  type SelfFields,
+  selfFields,
+  UNIT_FLAG_MOUNT,
+} from "#wow/areas/selfstate/fields";
 import {
   type CollisionHeight,
   type CompoundMove,
   type CorpseMapPosition,
+  DRUNK_STATES,
+  type DrunkStateName,
+  drunkStateByValue,
   FLAG_CHANGES,
   type FlagChange,
+  type Inebriation,
   type MirrorTimerName,
   type MirrorTimerStart,
   mirrorTimerName,
+  type RestStateName,
+  restStateName,
   type StandStateName,
   standStateName,
   type TransferAborted,
@@ -31,7 +42,22 @@ export type MirrorTimer = {
 export type MirrorTimers = Readonly<
   Partial<Record<MirrorTimerName, MirrorTimer>>
 >;
+export type SelfCondition = {
+  readonly drunkValue: number;
+  readonly drunkState: DrunkStateName;
+  readonly restedXp: number;
+  readonly restState: RestStateName;
+  readonly resting: boolean;
+};
+export const NO_CONDITION: SelfCondition = {
+  drunkState: "sober",
+  drunkValue: 0,
+  restState: "unknown",
+  restedXp: 0,
+  resting: false,
+};
 export type SelfstateState = {
+  readonly condition: SelfCondition;
   readonly standState: StandStateName | undefined;
   readonly timers: MirrorTimers;
   readonly ghostPending: boolean;
@@ -61,6 +87,12 @@ export type SelfstateEvent =
   | { type: "mounted"; displayId: number; taxi: boolean }
   | { type: "dismounted"; taxi: boolean }
   | { type: "mount_anim"; guid: bigint }
+  | {
+      type: "drunk_changed";
+      from: DrunkStateName;
+      to: DrunkStateName;
+      item: number;
+    }
   | { type: "self_res_available"; spellId: number; name: string | undefined };
 
 export class SelfstateStore {
@@ -78,6 +110,8 @@ export class SelfstateStore {
   private mountDisplayId = 0;
   private taxi = false;
   private dismountUnconfirmed = false;
+  private condition: SelfCondition = NO_CONDITION;
+  private drunkKnown = false;
 
   constructor(deps: SessionDeps, core: CoreStores) {
     this.deps = deps;
@@ -86,6 +120,7 @@ export class SelfstateStore {
 
   snapshot(): SelfstateState {
     return {
+      condition: this.condition,
       collisionHeight: this.collisionHeight,
       mountDisplayId: this.mountDisplayId,
       mounted: this.mountDisplayId !== 0,
@@ -102,12 +137,12 @@ export class SelfstateStore {
   }
 
   receiveMoveFlag(change: FlagChange, { guid, counter }: MoveCounter): void {
-    if (guid !== this.deps.selfGuid()) return;
     this.core.self.receive({
       type: "move_flag",
       flag: change.flag,
       enable: change.enable,
       counter,
+      guid,
     });
   }
 
@@ -121,7 +156,7 @@ export class SelfstateStore {
     for (const { opcode, guid, counter } of entries) {
       if (opcode === GameOpcode.SMSG_FORCE_MOVE_ROOT) {
         if (guid === this.deps.selfGuid())
-          this.core.self.receive({ type: "force_root", counter });
+          this.core.self.receive({ type: "force_root", counter, guid });
         continue;
       }
       const change = FLAG_CHANGES.get(opcode);
@@ -177,6 +212,38 @@ export class SelfstateStore {
   receiveMountAnim(guid: bigint): void {
     if (guid === this.deps.selfGuid()) return;
     this.events.emit({ type: "mount_anim", guid });
+  }
+
+  receiveInebriation({ guid, threshold, itemId }: Inebriation): void {
+    const to = DRUNK_STATES[threshold];
+    if (guid !== this.deps.selfGuid() || !to) return;
+    this.drunkKnown = true;
+    const from = this.condition.drunkState;
+    if (to === from) return;
+    this.condition = { ...this.condition, drunkState: to };
+    this.events.emit({ type: "drunk_changed", from, to, item: itemId });
+  }
+
+  syncCondition(fields: SelfFields): void {
+    const { drunkValue, restedXp, restStateByte, playerFlags } = fields;
+    const next = {
+      ...this.condition,
+      drunkValue: drunkValue ?? this.condition.drunkValue,
+      restedXp: restedXp ?? this.condition.restedXp,
+      restState:
+        restStateByte === undefined
+          ? this.condition.restState
+          : restStateName(restStateByte),
+      resting:
+        playerFlags === undefined
+          ? this.condition.resting
+          : (playerFlags & PLAYER_FLAG_RESTING) !== 0,
+    };
+    if (!this.drunkKnown && drunkValue !== undefined) {
+      this.drunkKnown = true;
+      next.drunkState = drunkStateByValue(drunkValue);
+    }
+    this.condition = next;
   }
 
   inFlight(): boolean {

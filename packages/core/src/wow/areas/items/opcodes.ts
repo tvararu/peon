@@ -39,7 +39,7 @@ export const ITEMS_OPCODES = {
     "SMSG_ITEM_NAME_QUERY_RESPONSE",
   ],
   uses: ["SMSG_INVENTORY_CHANGE_FAILURE"],
-  stubs: [["SMSG_EQUIPMENT_SET_LIST", "Equipment sets"]],
+  stubs: [],
   dead: [],
   unseen: ["SMSG_ITEM_ENCHANT_TIME_UPDATE"],
 } as const satisfies AreaOpcodes;

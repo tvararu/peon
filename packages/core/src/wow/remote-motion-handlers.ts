@@ -1,4 +1,7 @@
-import { MOTION_FLAG_BITS } from "#wow/areas/unitmotion/protocol";
+import {
+  MOTION_FLAG_BITS,
+  SPLINE_UNIT_TABLE,
+} from "#wow/areas/unitmotion/protocol";
 import { ROOT_CLEARS } from "#wow/areas/unitmotion/store";
 import { type TraceOutcome, traceIn } from "#wow/packet-trace";
 import type { SpeedKind } from "#wow/protocol/movement-block";
@@ -67,7 +70,8 @@ export function handleCompressedMoves(conn: WorldConn, r: PacketReader): void {
   for (const move of parseCompressedMoves(r)) {
     const supported =
       isRemoteMovementOpcode(move.opcode) ||
-      move.opcode === GameOpcode.SMSG_MONSTER_MOVE;
+      move.opcode === GameOpcode.SMSG_MONSTER_MOVE ||
+      SPLINE_UNIT_TABLE.has(move.opcode);
     let outcome: TraceOutcome = supported ? "error" : "skipped";
     try {
       if (supported)

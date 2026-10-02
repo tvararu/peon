@@ -168,6 +168,7 @@ function state(pose: Position): ControlState {
     movementAllowed: true,
     blockedReason: undefined,
     speed: 7,
+    mover: undefined,
   };
 }
 

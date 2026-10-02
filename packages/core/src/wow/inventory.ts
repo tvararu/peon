@@ -1,4 +1,10 @@
 import { type Entity, type EntityLookup, fieldOf } from "#wow/entity-store";
+import {
+  type BankReadContext,
+  type InventoryBank,
+  type RootRange,
+  readBank,
+} from "#wow/inventory-bank";
 import { readSelfField } from "#wow/player-state";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { joinGuid } from "#wow/protocol/packet";
@@ -48,7 +54,10 @@ export type InventoryRegion =
   | "keyring"
   | "currency"
   | "bag_item"
-  | "buyback";
+  | "buyback"
+  | "bank"
+  | "bankbag"
+  | "bank_bag_item";
 export type InventoryAddress = {
   bag: number;
   slot: number;
@@ -95,14 +104,9 @@ export type InventoryState = {
   issues: InventoryIssue[];
   buyback?: BuybackSlot[] | undefined;
   ammoId?: number | undefined;
+  bank?: InventoryBank | undefined;
 };
-
-type ReadContext = {
-  selfGuid: bigint;
-  getEntity: EntityLookup;
-  issues: InventoryIssue[];
-  seen: Set<bigint>;
-};
+export type ReadContext = BankReadContext;
 
 const ROOTS = [
   {
@@ -296,9 +300,13 @@ function slot(
   };
 }
 
-function roots(context: ReadContext, self: Entity): InventorySlot[] {
+export function roots(
+  context: ReadContext,
+  self: Entity,
+  ranges: readonly RootRange[],
+): InventorySlot[] {
   const result: InventorySlot[] = [];
-  for (const range of ROOTS) {
+  for (const range of ranges) {
     for (let i = 0; i < range.count; i++) {
       const offset = range.offset + i * 2;
       const rootGuid = guid(
@@ -337,10 +345,11 @@ function buyback(self: Entity): BuybackSlot[] {
   return result;
 }
 
-function bag(
+export function bag(
   context: ReadContext,
   root: InventorySlot,
   slots: InventorySlot[],
+  childRegion: InventoryRegion,
 ): InventoryBag {
   if (root.status === "empty")
     return { slot: root.slot, guid: 0n, status: "empty", size: 0 };
@@ -382,7 +391,7 @@ function bag(
     slots.push(
       slot(
         context,
-        { bag: root.slot, slot: i, region: "bag_item" },
+        { bag: root.slot, slot: i, region: childRegion },
         child,
         root.guid,
       ),
@@ -453,10 +462,10 @@ export function readInventory(
     issues: [],
     seen: new Set(),
   };
-  const slots = roots(context, self);
+  const slots = roots(context, self, ROOTS);
   const bags: InventoryBag[] = [];
   for (const root of slots.filter((candidate) => candidate.region === "bag"))
-    bags.push(bag(context, root, slots));
+    bags.push(bag(context, root, slots, "bag_item"));
   const coinage = readSelfField(selfGuid, self, PLAYER_FIELDS.COINAGE.offset);
   const known =
     coinage !== undefined &&
@@ -474,5 +483,6 @@ export function readInventory(
     issues: context.issues,
     buyback: buyback(self),
     ammoId: fieldOf(self, PLAYER_FIELDS.AMMO_ID.offset),
+    bank: readBank(selfGuid, self, getEntity, { bag, roots }),
   };
 }

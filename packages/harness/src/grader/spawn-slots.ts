@@ -113,6 +113,17 @@ const FAIRBREEZE_SOUTH: Spawn = {
   ],
   zone: 3430,
 };
+const FAIRBREEZE_EMOTES: Spawn = {
+  map: 530,
+  o: 1.686,
+  points: [
+    [8600, -6780, 70],
+    [8596, -6780, 70],
+    [8600, -6784, 70],
+    [8596, -6784, 70],
+  ],
+  zone: 3430,
+};
 
 const FAIRBREEZE_EAST: Spawn = {
   map: 530,
@@ -287,6 +298,40 @@ const EVERSONG_GLYPH: Spawn = {
   ],
   zone: 3430,
 };
+const STORMWIND_STONE: Spawn = {
+  map: 0,
+  o: 0,
+  points: [
+    [-8808, 798, 98.3],
+    [-8812, 799, 98.3],
+    [-8808, 794, 98.3],
+    [-8812, 795, 98.3],
+    [-8806, 799, 98.3],
+    [-8810, 800, 98.3],
+    [-8812, 802, 98.3],
+    [-8811, 799.5, 98.3],
+  ],
+  zone: 1519,
+};
+const SILVERMOON_BANK: Spawn = {
+  map: 530,
+  o: 1.686,
+  points: [
+    [9808, -7478, 13.6],
+    [9810, -7478, 13.6],
+    [9812, -7478, 13.6],
+    [9808, -7476, 13.6],
+    [9810, -7476, 13.6],
+    [9812, -7476, 13.6],
+    [9808, -7480, 13.6],
+    [9810, -7480, 13.6],
+    [9812, -7480, 13.6],
+    [9808, -7482, 13.6],
+    [9810, -7482, 13.6],
+    [9812, -7482, 13.6],
+  ],
+  zone: 3487,
+};
 const UNDERCITY_WARRIOR: Spawn = {
   map: 0,
   o: 0,
@@ -309,8 +354,11 @@ const NAMED: Readonly<Record<string, Spawn>> = {
   "eversong-unlearn": EVERSONG_UNLEARN,
   "eversong-west": EVERSONG_WEST,
   "fairbreeze-east": FAIRBREEZE_EAST,
+  "fairbreeze-emotes": FAIRBREEZE_EMOTES,
   "fairbreeze-south": FAIRBREEZE_SOUTH,
   ghostlands: GHOSTLANDS,
+  "silvermoon-bank": SILVERMOON_BANK,
+  "stormwind-stone": STORMWIND_STONE,
   "undercity-warrior": UNDERCITY_WARRIOR,
 };
 

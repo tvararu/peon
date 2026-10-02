@@ -402,6 +402,33 @@ describe("card family", () => {
     );
     expect(text.filter((line) => line.trim() === "")).toHaveLength(0);
   });
+  test("a bank journal shows stored lines", () => {
+    const bank: JournalAfter = {
+      about: "bank",
+      bank: {
+        bagSlots: 1,
+        free: 26,
+        known: true,
+        lines: [
+          {
+            bag: 255,
+            count: 3,
+            entry: 2589,
+            line: 1,
+            name: "Wool Cloth",
+            slot: 39,
+          },
+        ],
+      },
+    };
+    expect(
+      plain(
+        renderResultLines(journalTool, done(bank, "Bank: 1 item."), {
+          options: open,
+        }),
+      ),
+    ).toContain(`${nerd.item} Wool Cloth ×3`);
+  });
 
   test("card results fit a 40-column pane", () => {
     const all = [

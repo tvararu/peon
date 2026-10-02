@@ -41,6 +41,16 @@ function registerSpeeds(wire: AreaRegister, store: UnitmotionStore): void {
       parseSplineUnitState(GameOpcode.SMSG_SPLINE_SET_FLIGHT_BACK_SPEED, r),
     ),
   );
+  wire.on(GameOpcode.SMSG_SPLINE_SET_TURN_RATE, (r) =>
+    store.receiveSpline(
+      parseSplineUnitState(GameOpcode.SMSG_SPLINE_SET_TURN_RATE, r),
+    ),
+  );
+  wire.on(GameOpcode.SMSG_SPLINE_SET_PITCH_RATE, (r) =>
+    store.receiveSpline(
+      parseSplineUnitState(GameOpcode.SMSG_SPLINE_SET_PITCH_RATE, r),
+    ),
+  );
 }
 
 function registerToggles(wire: AreaRegister, store: UnitmotionStore): void {
@@ -86,6 +96,52 @@ function registerToggles(wire: AreaRegister, store: UnitmotionStore): void {
   );
 }
 
+function registerFlightToggles(
+  wire: AreaRegister,
+  store: UnitmotionStore,
+): void {
+  wire.on(GameOpcode.SMSG_SPLINE_MOVE_FEATHER_FALL, (r) =>
+    store.receiveSpline(
+      parseSplineUnitState(GameOpcode.SMSG_SPLINE_MOVE_FEATHER_FALL, r),
+    ),
+  );
+  wire.on(GameOpcode.SMSG_SPLINE_MOVE_NORMAL_FALL, (r) =>
+    store.receiveSpline(
+      parseSplineUnitState(GameOpcode.SMSG_SPLINE_MOVE_NORMAL_FALL, r),
+    ),
+  );
+  wire.on(GameOpcode.SMSG_SPLINE_MOVE_WATER_WALK, (r) =>
+    store.receiveSpline(
+      parseSplineUnitState(GameOpcode.SMSG_SPLINE_MOVE_WATER_WALK, r),
+    ),
+  );
+  wire.on(GameOpcode.SMSG_SPLINE_MOVE_LAND_WALK, (r) =>
+    store.receiveSpline(
+      parseSplineUnitState(GameOpcode.SMSG_SPLINE_MOVE_LAND_WALK, r),
+    ),
+  );
+  wire.on(GameOpcode.SMSG_SPLINE_MOVE_SET_HOVER, (r) =>
+    store.receiveSpline(
+      parseSplineUnitState(GameOpcode.SMSG_SPLINE_MOVE_SET_HOVER, r),
+    ),
+  );
+  wire.on(GameOpcode.SMSG_SPLINE_MOVE_SET_FLYING, (r) =>
+    store.receiveSpline(
+      parseSplineUnitState(GameOpcode.SMSG_SPLINE_MOVE_SET_FLYING, r),
+    ),
+  );
+  wire.on(GameOpcode.SMSG_SPLINE_MOVE_UNSET_FLYING, (r) =>
+    store.receiveSpline(
+      parseSplineUnitState(GameOpcode.SMSG_SPLINE_MOVE_UNSET_FLYING, r),
+    ),
+  );
+  wire.on(GameOpcode.SMSG_SPLINE_MOVE_GRAVITY_DISABLE, (r) =>
+    store.receiveSpline(
+      parseSplineUnitState(GameOpcode.SMSG_SPLINE_MOVE_GRAVITY_DISABLE, r),
+    ),
+  );
+}
+
 export const unitmotionArea = defineArea({
   name: "unitmotion",
   opcodes: UNITMOTION_OPCODES,
@@ -94,6 +150,7 @@ export const unitmotionArea = defineArea({
   register: (wire, store) => {
     registerSpeeds(wire, store);
     registerToggles(wire, store);
+    registerFlightToggles(wire, store);
   },
   runtime: unitmotionRuntime,
 });

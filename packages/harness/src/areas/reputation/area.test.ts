@@ -4,7 +4,10 @@ import type { AreaDraft } from "#harness/areas/contract";
 import { reputationHarness } from "#harness/areas/reputation/area";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
 import type { RuleInput } from "#harness/events/rules";
+import { createWorldService } from "#harness/world/hub";
+import { createMockGame } from "#test-support/mock-game";
 import { testRuleInput } from "#test-support/rule-fixtures";
+import { createTestRuntime } from "#test-support/runtime-fixture";
 
 type ReputationEvent = AreaEventOf<"reputation">;
 type Standing = Extract<ReputationEvent, { type: "standing_changed" }>;
@@ -275,11 +278,12 @@ describe("reputation/forced", () => {
 });
 
 describe("reputation flood guard", () => {
-  test("initialized and watched_changed write no row and no fallback", () => {
+  test("initialized, watched_changed and flags_pending write no row and no fallback", () => {
     const set = areaRuleSet();
     const quiet: ReputationEvent[] = [
       { count: 12, type: "initialized", visible: 6 },
       { name: "Silvermoon City", repListId: 55, type: "watched_changed" },
+      { atWar: true, name: undefined, repListId: 0, type: "flags_pending" },
     ];
     for (const runActive of [false, true])
       for (const event of quiet)
@@ -302,5 +306,35 @@ describe("reputation flood guard", () => {
       domain: "reputation",
       event: "reputation/changed",
     });
+  });
+});
+
+describe("reputation through the world service", () => {
+  test("the world acts are setAtWar, setInactive and setWatched", () => {
+    expect(reputationHarness.worldActs).toEqual([
+      "setAtWar",
+      "setInactive",
+      "setWatched",
+    ]);
+  });
+
+  test("claim.areas.reputation holds the three acts and refuses an unknown faction without sending", async () => {
+    const game = createMockGame();
+    const { rt } = await createTestRuntime({
+      connect: false,
+      parts: { login: async () => game },
+    });
+    const hub = createWorldService(rt);
+    await rt.connect();
+    const claim = hub.service.claim("loop", "probe");
+    const reputation = claim?.areas.reputation;
+    expect(typeof reputation?.setAtWar).toBe("function");
+    expect(typeof reputation?.setInactive).toBe("function");
+    expect(typeof reputation?.setWatched).toBe("function");
+    expect(await reputation?.setAtWar(0, true)).toEqual({
+      reason: "unknown_faction",
+      sent: false,
+    });
+    expect(game.sent).toEqual([]);
   });
 });

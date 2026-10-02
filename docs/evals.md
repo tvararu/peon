@@ -185,8 +185,9 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Quest marks, objective regions, greetings and sharing (look, journal, interact, group) | `t4-quests-find-giver`, `t4-quests-poi-walk`, `t1-quests-read-greeting`, `t1-quests-guard-directions`, `t8-quests-share`, `t8-quests-accept-shared` |
 | Quests (`interact` quest dialogs, quest log, rewards) | `t4-quest-first`, `t4-alliance-first` |
 | Vendors and money | `t5-vendor-buy-goldshire` |
-| Economy (`interact` buyback, bank, auction; `trade`; `mail`) | `t5-buyback-vendor`, `t9-trade-give`, `t9-trade-receive`, `t9-trade-swap`, `t9-trade-cancel` |
+| Economy (`interact` buyback, bank, auction; `trade`; `mail`) | `t5-buyback-vendor`, `t9-trade-give`, `t9-trade-receive`, `t9-trade-swap`, `t9-trade-cancel`, `t9-bank-deposit`, `t9-bank-withdraw`, `t9-bank-slot` |
 | Chat and whispers (`social`, pushed chat events) | `t2-whisper-reply` |
+| Social verbs (`social` emote, channels, inspect) | `t2-emotes-partner` |
 | Nearby units and relations (`look`, entity state) | `t0-who-is-near`, `t0-hostiles` |
 | Self state (level, money, bags, `journal`) | `t0-self-state` |
 | Death and recovery (`recover`) | `t6-die-and-recover` |
@@ -204,4 +205,4 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Talents (`talents`) | `t8-talents-spend`, `t8-talents-reset`, `t8-talents-glyph` |
 | Vehicles (`vehicle`, `travel ride`) | `t8-vehicles-board` |
 | Instances and dungeon finder (`dungeon`) | `t9-instances-difficulty`, `t9-lfg-queue`, `t9-lfg-run` |
-| Groups and raids (`group` tool) | `t9-raid-kick`, `t9-raid-convert`, `t9-raid-master-loot`, `t9-raid-ready`, `t9-raid-answer`, `t9-raid-mark` |
+| Groups and raids (`group` tool) | `t9-raid-kick`, `t9-raid-convert`, `t9-raid-master-loot`, `t9-raid-ready`, `t9-raid-answer`, `t9-raid-summon`, `t9-raid-mark` |

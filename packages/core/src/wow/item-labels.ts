@@ -49,13 +49,19 @@ export function labelInventory(
   state: InventoryState,
   label: ItemLabeler,
 ): NamedInventoryState {
+  const named = (slot: InventorySlot): NamedInventorySlot =>
+    slot.status === "occupied"
+      ? { ...slot, item: { ...slot.item, ...label(slot.item.entry) } }
+      : slot;
   return {
     ...state,
-    slots: state.slots.map((slot) =>
-      slot.status === "occupied"
-        ? { ...slot, item: { ...slot.item, ...label(slot.item.entry) } }
-        : slot,
-    ),
+    bank: state.bank
+      ? {
+          ...state.bank,
+          slots: state.bank.slots.map(named),
+        }
+      : state.bank,
+    slots: state.slots.map(named),
   };
 }
 

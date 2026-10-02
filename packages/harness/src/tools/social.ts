@@ -15,10 +15,12 @@ import { settle } from "#harness/ops/settle";
 import { defineGameTool, result } from "#harness/tools/define";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 import { type SocialArgs, socialParams } from "#harness/tools/params-social";
+import { emoteStep } from "#harness/tools/social-emote";
 import { socialRenderers } from "#harness/ui/renderers/line";
 
 type ChatAction = "say" | "whisper" | "party" | "guild";
-type GroupAction = Exclude<SocialAction, ChatAction>;
+type EmoteAction = "emote";
+type GroupAction = Exclude<SocialAction, ChatAction | EmoteAction>;
 type Request = {
   action: SocialAction;
   text: string | undefined;
@@ -48,6 +50,7 @@ const SOCIAL_ACTIONS: readonly SocialAction[] = [
   "accept_invite",
   "decline_invite",
   "leave_group",
+  "emote",
 ];
 const SETTLE_MS = 2000;
 const INVITE_SETTLE_MS = 3000;
@@ -398,6 +401,7 @@ function social(
   };
   checkRequest(request, ctx.rt);
   const { action } = request;
+  if (action === "emote") return emoteStep({ to, what: args.what ?? "" }, ctx);
   return isChat(action)
     ? chat({ action, text: text ?? "", to }, ctx)
     : group({ action, to }, ctx);

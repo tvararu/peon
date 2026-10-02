@@ -5,6 +5,7 @@ import {
   parseCollisionHeight,
   parseCorpseMapPosition,
   parseDismount,
+  parseInebriation,
   parseMirrorTimer,
   parseMountSpecialAnim,
   parseMultipleMoves,
@@ -30,6 +31,7 @@ export const selfstateArea = defineArea({
     "mounted",
     "dismounted",
     "mount_anim",
+    "drunk_changed",
   ],
   store: (deps, core) => new SelfstateStore(deps, core),
   register: (wire, store) => {
@@ -63,6 +65,9 @@ export const selfstateArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_MOUNTSPECIAL_ANIM, (r) =>
       store.receiveMountAnim(parseMountSpecialAnim(r)),
+    );
+    wire.on(GameOpcode.SMSG_CROSSED_INEBRIATION_THRESHOLD, (r) =>
+      store.receiveInebriation(parseInebriation(r)),
     );
     wire.on(GameOpcode.SMSG_TRANSFER_ABORTED, (r) =>
       store.receiveTransferAborted(parseTransferAborted(r)),

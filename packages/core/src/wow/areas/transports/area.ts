@@ -72,7 +72,13 @@ function observeCreates(store: TransportsStore, r: PacketReader): void {
 }
 
 export const transportsArea = defineArea({
-  eventTypes: ["transport_seen", "transport_gone"],
+  eventTypes: [
+    "transport_seen",
+    "transport_gone",
+    "boarded",
+    "left",
+    "map_change",
+  ],
   name: "transports",
   opcodes: TRANSPORTS_OPCODES,
   register: (wire: AreaRegister, store: TransportsStore) => {

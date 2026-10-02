@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import type { UnitEntity, WorldHandle } from "@peon/core";
 import {
   elapse,
@@ -16,6 +16,7 @@ type Row = ReturnType<WorldHandle["queryNearby"]>[number];
 
 const ME = 0x2an;
 const BOAR = 0xf1_30_00_3b_06_00_00_01n;
+const WITCH = 0xf1_30_00_3f_d5_00_00_09n;
 const GUARD = 0xf1_30_00_3b_09_00_00_04n;
 
 function row(
@@ -114,6 +115,36 @@ describe("combatlog-fight flow", () => {
       expect(ctx.handle.cast).not.toHaveBeenCalled();
       expect(ctx.handle.attack).toHaveBeenCalledWith(BOAR);
     }));
+
+  test("entry=<id> skips nearer hostiles of other creature entries", () =>
+    withFakeTimers(async () => {
+      const health = new Map([
+        [ME, 100],
+        [BOAR, 100],
+        [WITCH, 100],
+      ]);
+      const ctx = context({ entry: "16341", seconds: "1" }, health);
+      ctx.handle.walkTowardPoint = jest.fn(
+        async () => ({ traveled: 0 }) as never,
+      );
+      const witch = row(WITCH, 19, 100);
+      Object.assign(witch.entity, { entry: 16_341 });
+      const near = row(BOAR, 3, 100);
+      ctx.handle.queryNearby = () => [row(ME, 0, 100), near, witch];
+      const running = flow.run(ctx);
+      await elapse(50);
+      health.set(WITCH, 0);
+      ctx.handle.queryNearby = () => [row(ME, 0, 100), near, row(WITCH, 19, 0)];
+      expect(await fakeAwait(running, 1000)).toMatchObject({
+        target: { guid: "0xf130003fd5000009" },
+      });
+      expect(ctx.handle.attack).toHaveBeenCalledWith(WITCH);
+    }));
+
+  test("a bad entry argument throws", () => {
+    const ctx = context({ entry: "witch" }, new Map());
+    expect(async () => await flow.run(ctx)).toThrow("entry=");
+  });
 
   test("a bad spell argument throws", () => {
     const ctx = context({ spell: "fire" }, new Map());

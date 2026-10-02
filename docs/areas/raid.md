@@ -230,12 +230,37 @@ s.`; the name falls back to the unit lookup, then `Someone`) and one
 - The offer is cleared on a decline, an accept after the offer expired is
   ignored, and an answer with no offer returns at once
   (`Entities/Player/Player.cpp:12691-12700`).
-- The summon request is not seen live. No preset has a warlock, `soap gm`
-  has no summon verb, and the console `summon` commands refuse the
-  console (`scripts/Commands/cs_misc.cpp:111-112`); the meeting stone
-  needs the `objects` use act (`Entities/GameObject/GameObject.cpp:1902-1928`).
-  A mock test built from the writer proves the parser. The `group`
-  tool's summon scenario (`t9-raid-summon`) is the live try.
+- The summon request is seen live through the Stormwind meeting stone
+  179595 (map 0), not through a lone stone use. The stone runs
+  `GameObject.cpp:1902-1927` and casts spell 23598, which triggers the
+  ritual (`Spells/SpellEffects.cpp:1124`) and spawns the two-participant
+  summoning portal 179944 (type 18, `reqParticipants` 2). The request
+  itself comes from `Spell::EffectSummonPlayer`
+  (`Spells/SpellEffects.cpp:4415-4445`) once the second group member
+  clicks the portal (`GameObject.cpp:1810-1870`).
+- Live proof: two level-15 `elwynn10` characters placed at the stone with
+  `soap setup position`. A selected B and sent `CMSG_GAMEOBJ_USE` for
+  the stone, then A and B each sent it for the portal. B's trace holds
+  `in` `SMSG_SUMMON_REQUEST` size 16 (summoner A, zone 1519, timeout
+  120000 ms) and, after `answerSummon accept`, `out`
+  `CMSG_SUMMON_RESPONSE` size 9. The traces are kept in the worker's
+  artifact directory, not committed.
+- The Orgrimmar stone 179596 is on map 1, where the host has no
+  navigation data; no use of it is claimed. The round 328 summon run
+  graded `fail` with 0 of 2 checks met: its agent trace holds no
+  `CMSG_GAMEOBJ_USE` and no `SMSG_SUMMON_REQUEST`.
+- Eval `t9-raid-summon` (round 408, replica 4,
+  `tmp/evals/408/t9-raid-summon-4/result.json`) passed 2 of 2: two
+  partners joined the agent's group, one used the stone on the agent and
+  the other the portal, the game log holds `raid/summon`, and `group`
+  with `do` `summon` and `what` `accept` answered `DONE`. Its
+  `packets.jsonl` holds `in` `SMSG_SUMMON_REQUEST` then `out`
+  `CMSG_SUMMON_RESPONSE`. Replicas 1 to 3 aborted on scenario staging (a
+  partner not in the group, then too far from the stone), not on the
+  game.
+- The stone use requires the user and the selected target in the same
+  group with both at or above the stone's min level. The `group` tool
+  answers a pending offer and refuses `no_summon` otherwise.
 
 ## Left out
 
@@ -482,5 +507,5 @@ Mark a target (`t9-raid-mark`, round 90 replica 1, `pass` 3/3; run directory not
 | `MSG_MINIMAP_PING` | `live` | B pings at its own position: B's trace holds `out` size 8, A's trace holds `in` size 16 and B's trace holds no `in` | not committed |
 | `CMSG_GROUP_CANCEL` | `dead` | the server ignores it: no handler | `Server/Protocol/Opcodes.cpp:243` |
 | `SMSG_REAL_GROUP_UPDATE` | `dead` | `STATUS_NEVER` and no send site in AzerothCore | `Server/Protocol/Opcodes.cpp:1050` |
-| `SMSG_SUMMON_REQUEST` | `mock` | not seen live: `protocol-summon.test.ts` and `runtime-summon.test.ts` parse and time a body built from the `Spell::EffectSummonPlayer` writer (`Spells/SpellEffects.cpp:4442-4446`); the reasons are in the wire notes | `Spells/SpellEffects.cpp:4442` |
-| `CMSG_SUMMON_RESPONSE` | `accepted` | one `eversong10` account, puppet started with `--packet-trace headers`: `call answerSummon '["accept"]'` failed locally with `no_summon` and sent nothing; `raw CMSG_SUMMON_RESPONSE 100000000000000001` left one `out` row of size 9 in the retained trace (`tmp/probe/FAC6ABD9E3164-20260930T234539Z/packets.jsonl`, not committed), with 253 later `in` rows and a live `events --json` read in the same directory, so the server did not disconnect it (with no offer the server returns at the expiry check) | `Handlers/MovementHandler.cpp:872-873` |
+| `SMSG_SUMMON_REQUEST` | `live` | the Stormwind stone try: B's trace holds `in` size 16 after A's stone use and both portal clicks (summoner A, zone 1519, timeout 120000 ms); eval `t9-raid-summon` round 408 replica 4: the agent's `packets.jsonl` holds `in` `SMSG_SUMMON_REQUEST`, and the game log holds `raid/summon` | `Spells/SpellEffects.cpp:4442` |
+| `CMSG_SUMMON_RESPONSE` | `live` | B's trace after `call answerSummon '["accept"]'` holds `out` size 9 (summoner guid and byte 1); eval `t9-raid-summon` round 408 replica 4: the agent's `packets.jsonl` holds `out` size 9 right after the `in` request and `group` answered `DONE`; earlier, a raw response with no offer left the account connected (`tmp/probe/FAC6ABD9E3164-20260930T234539Z/packets.jsonl`, not committed) | `Handlers/MovementHandler.cpp:872-873` |

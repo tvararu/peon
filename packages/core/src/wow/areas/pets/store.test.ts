@@ -7,6 +7,7 @@ import {
   petsPetLearnedSpellBody,
   petsPetSpellsBody,
   petsPetUnlearnedSpellBody,
+  petsPetUpdateComboPointsBody,
 } from "#test-support/areas/pets";
 import { testStores } from "#test-support/session-fixtures";
 import { type PetsEvent, PetsStore } from "#wow/areas/pets/store";
@@ -74,11 +75,12 @@ describe("PetsStore", () => {
     try {
       expect(r.handle.state()).toEqual({
         bar: undefined,
+        comboPoints: undefined,
         cooldowns: [],
         lastRefusal: undefined,
         names: {},
-        renamePending: [],
         pet: undefined,
+        renamePending: [],
         stable: undefined,
       });
     } finally {
@@ -399,6 +401,51 @@ describe("PetsStore", () => {
       expect(
         r.handle.state().cooldowns.some((row) => row.spell === GROWL),
       ).toBe(true);
+    } finally {
+      r.dispose();
+    }
+  });
+});
+
+describe("pets combo points", () => {
+  const MOB = 0xf1_30_00_3e_8b_00_12_34n;
+
+  test("a combo update keeps unit, target and points and emits combo_points", () => {
+    const { r, seen } = rig();
+    try {
+      r.inject(
+        GameOpcode.SMSG_PET_UPDATE_COMBO_POINTS,
+        petsPetUpdateComboPointsBody({ points: 3, target: MOB, unit: PET }),
+      );
+      expect(r.handle.state().comboPoints).toEqual({
+        points: 3,
+        target: MOB,
+        unit: PET,
+      });
+      expect(seen).toEqual([
+        { points: 3, target: MOB, type: "combo_points", unit: PET },
+      ]);
+    } finally {
+      r.dispose();
+    }
+  });
+
+  test("zero points with no target clears the combo entry", () => {
+    const { r, seen } = rig();
+    try {
+      r.inject(
+        GameOpcode.SMSG_PET_UPDATE_COMBO_POINTS,
+        petsPetUpdateComboPointsBody({ points: 3, target: MOB, unit: PET }),
+      );
+      r.inject(
+        GameOpcode.SMSG_PET_UPDATE_COMBO_POINTS,
+        petsPetUpdateComboPointsBody({ points: 0, target: 0n, unit: PET }),
+      );
+      expect(r.handle.state().comboPoints).toBe(undefined);
+      expect(seen).toEqual([
+        { points: 3, target: MOB, type: "combo_points", unit: PET },
+        { points: 0, target: 0n, type: "combo_points", unit: PET },
+      ]);
     } finally {
       r.dispose();
     }

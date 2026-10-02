@@ -1,5 +1,6 @@
 import { ignoreFailure } from "#lib/ignore-failure";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
+import { type MissileTrajectory, missileActs } from "#wow/areas/spells/missile";
 import {
   ACTION_BUTTON_TYPE_CODES,
   type BarButton,
@@ -10,6 +11,7 @@ import {
   buildTotemDestroyed,
   buildUnlearnSkill,
 } from "#wow/areas/spells/protocol";
+import { sightActs } from "#wow/areas/spells/sight";
 import { loadSkillCatalog } from "#wow/areas/spells/skill-names";
 import type { SpellsEvent, SpellsStore } from "#wow/areas/spells/store";
 import { TOTEM_SLOTS } from "#wow/areas/spells/totems";
@@ -32,6 +34,18 @@ export type SpellsActs = {
   setActionBarToggles: (mask: number) => SpellsActResult;
   destroyTotem: (slot: number) => SpellsActResult;
   unlearnSkill: (skillId: number) => SpellsActResult;
+  requestMirrorImage: (guid: bigint) => SpellsActResult;
+  setFarSight: (on: boolean) => SpellsActResult;
+  reportProjectile: (
+    spellId: number,
+    x: number,
+    y: number,
+    z: number,
+  ) => SpellsActResult;
+  reportMissileTrajectory: (
+    spellId: number,
+    trajectory: MissileTrajectory,
+  ) => SpellsActResult;
 };
 
 const PASSIVE = 0x40;
@@ -211,6 +225,8 @@ export function spellsRuntime(
       ...totemActs(ctx, store),
       ...barActs(ctx, core),
       ...skillActs(ctx, store),
+      ...sightActs(ctx, store),
+      ...missileActs(ctx, core),
     },
     dispose: () => {
       off();

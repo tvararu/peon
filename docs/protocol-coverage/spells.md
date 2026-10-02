@@ -16,20 +16,20 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x202` | `CMSG_UNLEARN_SKILL` | client | handled | not seen live |
 | `0x266` | `SMSG_SET_FLAT_SPELL_MODIFIER` | server | handled |  |
 | `0x267` | `SMSG_SET_PCT_SPELL_MODIFIER` | server | handled |  |
-| `0x27a` | `CMSG_FAR_SIGHT` | client | missing |  |
+| `0x27a` | `CMSG_FAR_SIGHT` | client | handled |  |
 | `0x29b` | `CMSG_CANCEL_GROWTH_AURA` | client | handled |  |
 | `0x2a6` | `SMSG_SPELL_FAILED_OTHER` | server | handled |  |
 | `0x2bf` | `CMSG_SET_ACTIONBAR_TOGGLES` | client | handled |  |
 | `0x330` | `SMSG_SPELL_UPDATE_CHAIN_TARGETS` | server | dead |  |
-| `0x401` | `CMSG_GET_MIRRORIMAGE_DATA` | client | missing |  |
-| `0x402` | `SMSG_MIRRORIMAGE_DATA` | server | missing |  |
+| `0x401` | `CMSG_GET_MIRRORIMAGE_DATA` | client | handled |  |
+| `0x402` | `SMSG_MIRRORIMAGE_DATA` | server | handled |  |
 | `0x413` | `SMSG_TOTEM_CREATED` | server | handled | not seen live |
 | `0x414` | `CMSG_TOTEM_DESTROYED` | client | handled | not seen live |
 | `0x41e` | `SMSG_SEND_UNLEARN_SPELLS` | server | handled |  |
-| `0x462` | `CMSG_UPDATE_MISSILE_TRAJECTORY` | client | missing |  |
+| `0x462` | `CMSG_UPDATE_MISSILE_TRAJECTORY` | client | handled | not seen live |
 | `0x486` | `SMSG_CONVERT_RUNE` | server | handled | not seen live |
 | `0x487` | `SMSG_RESYNC_RUNES` | server | dead |  |
 | `0x488` | `SMSG_ADD_RUNE_POWER` | server | dead |  |
 | `0x491` | `SMSG_MODIFY_COOLDOWN` | server | handled | not seen live |
-| `0x4be` | `CMSG_UPDATE_PROJECTILE_POSITION` | client | missing |  |
-| `0x4bf` | `SMSG_SET_PROJECTILE_POSITION` | server | missing |  |
+| `0x4be` | `CMSG_UPDATE_PROJECTILE_POSITION` | client | handled |  |
+| `0x4bf` | `SMSG_SET_PROJECTILE_POSITION` | server | handled |  |

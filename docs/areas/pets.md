@@ -5,11 +5,12 @@ pet, vehicle, charmed or possessed unit. World-service code reads it
 through `session.areas.pets.state()`: the bar with the pet's family,
 duration, stance (`react`), command, flags, the ten slots, the spells
 with their autocast state, the running cooldowns as end times, the
-names known by pet number, and a
+names known by pet number, the combo points of the controlled unit, and a
 `pet` view of the summoned pet (pet number, name timestamp, the rename
 and abandon bits, happiness), and the last refusal the server sent. The
 area emits `bar`, `spell_learned`, `spell_unlearned`, `feedback`,
-`cast_failed`, `name`, `name_invalid` and `unanswered` events. The act
+`cast_failed`, `combo_points`, `name`, `name_invalid` and `unanswered`
+events. The act
 `pets.requestPetInfo()` asks the server for the bar
 again. `pets.queryPetName()` asks for the current pet's name again.
 `pets.petCommand("stay" | "follow")` and
@@ -95,6 +96,14 @@ corpse (`Handlers/PetHandler.cpp:287-294`).
   `SMSG_PET_DISMISS_SOUND` is an `int32` model id and three `float`
   coordinates (`Server/Packets/PetPackets.cpp:61-68`). The area reads
   both and keeps nothing.
+- `SMSG_PET_UPDATE_COMBO_POINTS` is the packed guid of the unit, the
+  packed guid of the combo target (an empty packed guid when there is no
+  target) and a `uint8` point count
+  (`Entities/Unit/Unit.cpp:12867-12879`). The area keeps
+  `comboPoints { unit, target, points }` for whichever unit the packet
+  names and emits `combo_points`; a zero count clears the entry, because
+  clearing zeroes the count and re-sends the same packet
+  (`Entities/Unit/Unit.cpp:12867-12879`).
 - Only a summoned (warlock) pet plays the attack sound and the dismiss
   sound (`Handlers/PetHandler.cpp:256`, `Handlers/PetHandler.cpp:291`).
 - Spell ids resolved by name through the spellbook of the
@@ -223,7 +232,6 @@ corpse (`Handlers/PetHandler.cpp:287-294`).
 
 ## Left out
 
-- `SMSG_PET_UPDATE_COMBO_POINTS`: built by pets-8.
 - `SMSG_PET_MODE`, `SMSG_PET_BROKEN`, `CMSG_PET_UNLEARN`,
   `SMSG_PET_UNLEARN_CONFIRM`, `SMSG_PET_GUIDS`: dead (see Proof).
 
@@ -366,4 +374,5 @@ lists the free points and the pet's tree, never another tree.
 | `CMSG_LEARN_PREVIEW_TALENTS_PET` | `live` | probe flow `pets-talent --arg talents=2119,2121` on the same hunter with two free points, built by `learnPetTalents`: one 28-byte `CMSG_LEARN_PREVIEW_TALENTS_PET` out (pet guid, count 2, talents 2119 and 2121 at rank 0), two 4-byte `SMSG_PET_LEARNED_SPELL` in (spells 61684 and 61689) and one 26-byte pet-form `SMSG_TALENTS_INFO` in listing 2118, 2119, 2120 and 2121 with 0 free points; the flow reported `confirmed: true`. The pet guid changes at every login (`0xf140000ed1000975` to `...976` to `...977`), so a hand-written body with a guid from an earlier session is ignored by `Player::LearnPetTalent` and only draws the unchanged reply. The `packets.jsonl` trace is not committed | `Handlers/PetHandler.cpp:1140` |
 | `CMSG_DISMISS_CRITTER` | `live` | probe flow `pets-abandon --arg companion=1` on a fresh `eversong10-hunter` staged with `items/add '{"item":4401}'` and `--expect CMSG_DISMISS_CRITTER`, exit 3 (the sink checks expectations against inbound packets only, so a client opcode in `--expect` is always reported missing; the live effect is unaffected and a rerun should omit that `--expect`): `CMSG_USE_ITEM` for the Mechanical Squirrel Box, `CMSG_CAST_SPELL` for Mechanical Squirrel (4055), then one 8-byte `CMSG_DISMISS_CRITTER` out carrying the owner's critter guid, and the owner's `UNIT_FIELD_CRITTER` reads 0 afterwards | `Server/Packets/PetPackets.cpp:20` |
 | `t8-pets-talent` (eval) | `pass` | round 372 replica 1 (`tmp/evals/372/t8-pets-talent-1`, graded `pass` 2/2): the agent listed the Cunning tree with `pet do talent`, then spent the point with `pet do talent what "Cobra Reflexes"` (`DONE Learned Cobra Reflexes 1/2. 0 points left.`); one 16-byte `CMSG_PET_LEARN_TALENT` out, one 4-byte `SMSG_PET_LEARNED_SPELL` in (spell 61682) and one 11-byte pet-form `SMSG_TALENTS_INFO` in; GL holds `pets/learned` spell 61682 (`gamelog.jsonl:35`) | `Handlers/PetHandler.cpp:1128` |
+| `SMSG_PET_UPDATE_COMBO_POINTS` | `mock` | `packages/core/src/wow/areas/pets/protocol.test.ts` "SMSG_PET_UPDATE_COMBO_POINTS reads unit, target and points" and "an empty combo target parses as 0n"; `packages/core/src/wow/areas/pets/store.test.ts` "a combo update keeps unit, target and points and emits combo_points" and "zero points with no target clears the combo entry". Live try 1 (2026-10-01, account FAC6ABECC048C deleted): probe flow `pets-command --arg do=attack --arg yards=120` on an `eversong10-hunter` showed one inbound `SMSG_PET_UPDATE_COMBO_POINTS` size 16 with outcome `handled` (the packet trace is not committed); a `--bodies` rerun drew none, so the row stays `mock` with the opcode in `unseen` | `Entities/Unit/Unit.cpp:12867-12879` |
 

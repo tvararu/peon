@@ -183,3 +183,21 @@ export function selfstateMountspecialAnimBody(guid: bigint): Uint8Array {
   w.uint64LE(guid);
   return w.finish();
 }
+
+export type InebriationBody = {
+  readonly guid: bigint;
+  readonly threshold: number;
+  readonly itemId: number;
+};
+
+export function selfstateInebriationBody({
+  guid,
+  threshold,
+  itemId,
+}: InebriationBody): Uint8Array {
+  const w = new PacketWriter();
+  w.uint64LE(guid);
+  w.uint32LE(threshold);
+  w.uint32LE(itemId);
+  return w.finish();
+}

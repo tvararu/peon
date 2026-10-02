@@ -6,6 +6,7 @@ import type {
   QuestPoi,
   QuestPoiReply,
 } from "#wow/areas/quests/protocol";
+import { receiveDaily, sameDaily } from "#wow/areas/quests/store-daily";
 import {
   addCompleted,
   type Completed,
@@ -68,6 +69,7 @@ export type QuestsState = {
   gossipPoi: GossipPoiEntry | undefined;
   completed: Completed | undefined;
   share?: ShareState;
+  daily?: ReadonlySet<number>;
 };
 export type QuestsEvent =
   | {
@@ -79,7 +81,8 @@ export type QuestsEvent =
   | { type: "poi"; questIds: readonly number[]; pois: readonly PoiEntryView[] }
   | NpcTextChange
   | { type: "completed"; count: number }
-  | { type: "share"; share: ShareChange };
+  | { type: "share"; share: ShareChange }
+  | { type: "daily"; count: number };
 
 export class QuestsStore {
   private readonly events = new Emitter<[QuestsEvent]>();
@@ -90,6 +93,7 @@ export class QuestsStore {
   private gossipPoi: GossipPoiEntry | undefined;
   private completed: Completed | undefined;
   private share: ShareState = EMPTY_SHARE;
+  private daily: ReadonlySet<number> | undefined;
   private members: () => readonly bigint[] = () => [];
 
   private readonly core: CoreStores;
@@ -107,6 +111,7 @@ export class QuestsStore {
       gossipPoi: this.gossipPoi,
       completed: this.completed,
       share: this.share,
+      daily: this.daily,
     };
   }
 
@@ -173,6 +178,16 @@ export class QuestsStore {
     this.completed = addCompleted(this.completed, questId, this.now());
   }
 
+  receiveDaily(fields: ReadonlyMap<number, number>): void {
+    const next = receiveDaily(fields);
+    if (sameDaily(this.daily, next)) {
+      if (this.daily === undefined) this.daily = next;
+      return;
+    }
+    this.daily = next;
+    this.events.emit({ type: "daily", count: next.size });
+  }
+
   dispose(): void {
     this.events.clear();
     this.marks = new Map();
@@ -181,6 +196,7 @@ export class QuestsStore {
     this.pois = new Map();
     this.completed = undefined;
     this.share = EMPTY_SHARE;
+    this.daily = undefined;
     this.members = () => [];
   }
 

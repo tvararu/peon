@@ -112,3 +112,68 @@ export class ReadSlice {
     this.waiting = [];
   }
 }
+
+export type SetItemName = {
+  entry: number;
+  name: string;
+  inventoryType: number;
+};
+
+export class NameSlice {
+  private readonly names = new Map<number, SetItemName>();
+  private readonly absent = new Set<number>();
+  private waiting = new Map<
+    number,
+    PromiseWithResolvers<SetItemName | undefined>
+  >();
+
+  get(entry: number): SetItemName | undefined {
+    return this.names.get(entry);
+  }
+
+  await(entry: number): {
+    promise: Promise<SetItemName | undefined>;
+    first: boolean;
+  } {
+    const known = this.names.get(entry);
+    if (known) return { promise: Promise.resolve(known), first: false };
+    if (this.absent.has(entry))
+      return { promise: Promise.resolve(undefined), first: false };
+    const wait = this.waiting.get(entry);
+    if (wait) return { promise: wait.promise, first: false };
+    const query = Promise.withResolvers<SetItemName | undefined>();
+    this.waiting.set(entry, query);
+    return { promise: query.promise, first: true };
+  }
+
+  receive(response: SetItemName): SetItemName | undefined {
+    if (this.names.has(response.entry)) return undefined;
+    this.names.set(response.entry, response);
+    this.absent.delete(response.entry);
+    this.release(response.entry, response);
+    return response;
+  }
+
+  expire(entry: number): boolean {
+    if (!this.waiting.has(entry)) return false;
+    this.absent.add(entry);
+    this.release(entry, undefined);
+    return true;
+  }
+
+  drop(entry: number): void {
+    this.release(entry, undefined);
+  }
+
+  clear(): void {
+    for (const wait of this.waiting.values()) wait.resolve(undefined);
+    this.waiting = new Map();
+    this.names.clear();
+    this.absent.clear();
+  }
+
+  private release(entry: number, name: SetItemName | undefined): void {
+    this.waiting.get(entry)?.resolve(name);
+    this.waiting.delete(entry);
+  }
+}

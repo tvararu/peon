@@ -22,10 +22,25 @@ import type {
   TransportsStore,
 } from "#wow/areas/transports/store";
 import { openDbc } from "#wow/dbc";
+import type { CoreStores } from "#wow/session-stores";
+
+export type TransportsOutcome =
+  | { status: "ok" }
+  | {
+      status: "refused";
+      reason:
+        | "transport_data_missing"
+        | "not_docked"
+        | "too_far"
+        | "not_boarded"
+        | "ground_height_unavailable";
+    };
 
 export type TransportsActs = {
   dataStatus: () => string;
   poseAt: (guid: bigint) => TransportPose | undefined;
+  board: (guid: bigint) => Promise<TransportsOutcome> | TransportsOutcome;
+  leave: () => Promise<TransportsOutcome> | TransportsOutcome;
 };
 
 type Models = {
@@ -137,9 +152,65 @@ async function loadModels(
   return loaded;
 }
 
+type Refusal = Extract<TransportsOutcome, { status: "refused" }>["reason"];
+
+const REFUSALS: readonly Refusal[] = [
+  "transport_data_missing",
+  "not_docked",
+  "too_far",
+  "not_boarded",
+  "ground_height_unavailable",
+];
+
+type RideDeps = {
+  store: TransportsStore;
+  core: CoreStores;
+  at: (guid: bigint) => TransportPose | undefined;
+};
+
+function refuse(error: unknown): TransportsOutcome {
+  const reason = REFUSALS.find(
+    (known) => error instanceof Error && error.message === known,
+  );
+  if (!reason) throw error;
+  return { status: "refused", reason };
+}
+
+function boardTransport(
+  { store, core, at }: RideDeps,
+  guid: bigint,
+): TransportsOutcome {
+  const pose = at(guid);
+  if (!pose) return { reason: "transport_data_missing", status: "refused" };
+  if (pose.moving) return { reason: "not_docked", status: "refused" };
+  try {
+    core.self.receive({
+      guid,
+      poseAt: () => at(guid),
+      type: "transport_board",
+    });
+  } catch (error) {
+    return refuse(error);
+  }
+  store.emitBoarded(guid, store.snapshot().transports.get(guid)?.entry ?? 0);
+  return { status: "ok" };
+}
+
+function leaveTransport({ store, core }: RideDeps): TransportsOutcome {
+  const guid = store.boardedGuid();
+  try {
+    core.self.receive({ type: "transport_leave" });
+  } catch (error) {
+    return refuse(error);
+  }
+  if (guid !== undefined) store.emitLeft(guid);
+  return { status: "ok" };
+}
+
 export function transportsRuntime(
   ctx: AreaRuntimeCtx<TransportsEvent>,
   store: TransportsStore,
+  core: CoreStores,
 ): AreaRuntime<TransportsActs> {
   let models: Models | undefined;
   loadModels(ctx, store)
@@ -147,18 +218,30 @@ export function transportsRuntime(
       models = modelsOf(loaded);
     })
     .catch(ignoreFailure);
+  const at = (guid: bigint): TransportPose | undefined => {
+    if (!models) return undefined;
+    return (
+      motionPose(models, store, guid, ctx.now()) ??
+      liftPose(models, store, guid, ctx.now())
+    );
+  };
+  const off = core.self.onEvent((event) => {
+    if (event.type !== "transfer_pending" || !event.transport) return;
+    store.emitMapChange({
+      entry: event.transport.entry,
+      fromMap: event.transport.fromMap,
+      toMap: event.mapId,
+    });
+  });
   return {
     act: {
       dataStatus: () => store.snapshot().data.status,
-      poseAt: (guid) => {
-        if (!models) return;
-        return (
-          motionPose(models, store, guid, ctx.now()) ??
-          liftPose(models, store, guid, ctx.now())
-        );
-      },
+      poseAt: at,
+      board: (guid) => boardTransport({ at, core, store }, guid),
+      leave: () => leaveTransport({ at, core, store }),
     },
     dispose: () => {
+      off();
       models = undefined;
     },
   };

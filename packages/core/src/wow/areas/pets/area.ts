@@ -3,6 +3,7 @@ import { PETS_OPCODES } from "#wow/areas/pets/opcodes";
 import {
   parsePetActionFeedback,
   parsePetActionSound,
+  parsePetComboPoints,
   parsePetDismissSound,
   parsePetNameInvalid,
   parsePetNameQueryResponse,
@@ -30,6 +31,7 @@ export const petsArea = defineArea({
     "spell_unlearned",
     "feedback",
     "cast_failed",
+    "combo_points",
     "name",
     "name_invalid",
     "stable_list",
@@ -51,6 +53,9 @@ export const petsArea = defineArea({
     );
     wire.on(GameOpcode.SMSG_PET_CAST_FAILED, (r) =>
       store.castFailed(parseCastFailed(r)),
+    );
+    wire.on(GameOpcode.SMSG_PET_UPDATE_COMBO_POINTS, (r) =>
+      store.combo(parsePetComboPoints(r)),
     );
     wire.peek(GameOpcode.SMSG_SPELL_COOLDOWN, (r) =>
       store.cooldown(parseSpellCooldown(r)),

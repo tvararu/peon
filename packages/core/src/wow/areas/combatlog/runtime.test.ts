@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
-import { combatlogAttackerStateBody } from "#test-support/areas/combatlog";
+import {
+  combatlogAttackerStateBody,
+  combatlogDispelLogBody,
+} from "#test-support/areas/combatlog";
 import { elapse, withFakeTimers } from "#test-support/fake-time";
 import type { CombatlogEvent } from "#wow/areas/combatlog/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -95,6 +98,39 @@ describe("combatlog runtime fight close", () => {
       rig.dispose();
       await pass(10_000);
       expect(closed).toEqual([]);
+    });
+  });
+});
+
+describe("combatlog runtime utility entries", () => {
+  test("a dispel on the character keeps the entry but does not postpone the close", async () => {
+    await withFakeTimers(async () => {
+      const { closed, pass, rig } = setup();
+      const entries: string[] = [];
+      rig.handle.onEvent((event) => {
+        if (event.type === "entry") entries.push(event.kind);
+      });
+      try {
+        rig.inject(GameOpcode.SMSG_ATTACKERSTATEUPDATE, swing(ME, BOAR, 10));
+        await pass(5000);
+        rig.inject(
+          GameOpcode.SMSG_SPELLDISPELLOG,
+          combatlogDispelLogBody({
+            auras: [{ spellId: 168 }],
+            caster: BOAR,
+            spellId: 527,
+            victim: ME,
+          }),
+        );
+        await pass(1010);
+        expect(closed).toMatchObject([{ dealt: 10, lastAt: 1000 }]);
+        expect(entries).toEqual(["melee", "dispel"]);
+        expect(rig.handle.state().entries.map((e) => e.kind)).toContain(
+          "dispel",
+        );
+      } finally {
+        rig.dispose();
+      }
     });
   });
 });

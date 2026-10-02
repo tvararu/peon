@@ -10,7 +10,10 @@ follow. `answerProposal`, `teleport` and `voteKick` answer a dungeon
 group proposal, move the character into or out of the dungeon and vote
 on a kick. The store also keeps the last `proposal`, `boot`,
 `teleportDenied`, `offerContinue` and `reward` and emits `proposal`,
-`boot`, `teleport_denied`, `offer_continue` and `reward` events.
+`boot`, `teleport_denied`, `offer_continue` and `reward` events. It also
+keeps the raid browser lists per dungeon in `raidLists`, emits
+`raid_list`, and `searchRaids` and `stopSearch` search and leave the
+browser.
 
 ## Wire notes
 
@@ -140,11 +143,61 @@ on a kick. The store also keeps the last `proposal`, `boot`,
   (`Handlers/LFGHandler.cpp:56-60`) and `leave` refuses `not_leader`
   for a grouped non-leader (`Handlers/LFGHandler.cpp:78-92`) before
   sending; a refused join returns the party locks in `LfgJoinResult`.
+- `CMSG_SEARCH_LFG_JOIN` and `CMSG_SEARCH_LFG_LEAVE` are one `u32` each
+  (`Handlers/LFGHandler.cpp:265-272`, `Handlers/LFGHandler.cpp:274-279`).
+  The join masks the id with `0x00FFFFFF`; the leave ignores its `u32`,
+  and the server sends nothing back for it.
+- A browser search stores the player in the team's searchers and answers
+  at once with the cached list or the empty form
+  (`DungeonFinding/LFGMgr.cpp:1038-1041`,
+  `DungeonFinding/LFGMgr.cpp:1048-1066`); it checks no option and no
+  dungeon id, so the empty list comes back for any id. Leaving removes
+  the player (`DungeonFinding/LFGMgr.cpp:1043-1046`). Only a dungeon
+  finder join with a raid-type dungeon fills the browser
+  (`DungeonFinding/LFGMgr.cpp:989-1000`,
+  `DungeonFinding/LFGMgr.cpp:815-825`), and no bot does that, so a fresh
+  account's list is always empty. Later differences are pushed every 5 s
+  while someone searches that dungeon
+  (`DungeonFinding/LFGMgr.cpp:1068-1100`).
+- The raid list packet is the type `u32` (2), the masked dungeon id
+  `u32`, a `u8` that is 0 for a full list and 1 for a difference, for a
+  difference a `u32` deleted count and that many `u64` guids (players and
+  groups), then `u32` group count, a zero `u32`, the groups, `u32` player
+  count, a zero `u32` and the players
+  (`DungeonFinding/LFGMgr.cpp:1391-1429`). A group is the `u64` guid, the
+  flags `u32` (always comment, roles and bound), the comment CString,
+  three zero `u8` and the instance guid `u64` with the encounter mask
+  `u32` (`DungeonFinding/LFGMgr.cpp:1321-1335`). A player is the `u64`
+  guid, the flags `u32` and the parts the flags name in this order:
+  `0x01` character info, `0x02` comment, `0x04` group leader (`u8` 1),
+  `0x08` group guid `u64`, `0x10` roles `u8`, `0x20` area `u32`, `0x40`
+  status `u8` (never set) and `0x80` instance guid `u64` with the
+  encounter mask `u32`, set exactly when the player has no group
+  (`DungeonFinding/LFGMgr.cpp:1337-1389`, flag values
+  `DungeonFinding/LFGMgr.h:136-144`). The parser reads by flags.
+- Three disagreements with `lfg/smsg_update_lfg_list.wowm`; AzerothCore
+  wins. (1) The instance guid and the encounter mask follow a player only
+  with flag `0x80`, where wowm reads them for every player
+  (`DungeonFinding/LFGMgr.cpp:1385-1388`). (2) The average item level is
+  an `f32`, where wowm has a `u32`
+  (`DungeonFinding/LFGMgr.cpp:1364`). (3) The `u8` after the dungeon id is
+  1 for a difference packet with the deleted guids and 0 for a full one,
+  where wowm calls 0 `PARTIAL` and puts the deleted guids there
+  (`DungeonFinding/LFGMgr.cpp:1395-1397`,
+  `DungeonFinding/LFGMgr.cpp:1410`).
+- The store keeps one list per masked dungeon id in `state().raidLists`:
+  a full packet replaces the entry's groups and players, a difference
+  packet deletes the listed guids and replaces or appends the records it
+  carries, and each emits `raid_list`. `searchRaids(entry)` sends the
+  entry as given and settles `ok` with the form on the first list for the
+  masked id, `no_answer` after 5 s; it refuses `bad_entry` for a value
+  outside `1..0xFFFFFFFF` and does not check the entry against the
+  finder's dungeons. `stopSearch(entry)` sends the leave and settles
+  `ok`; it keeps the lists. Neither touches the `searching` flag, which
+  the server drives only through `SMSG_LFG_UPDATE_SEARCH`.
 
 ## Left out
 
-- `CMSG_SEARCH_LFG_JOIN`, `CMSG_SEARCH_LFG_LEAVE` and
-  `SMSG_UPDATE_LFG_LIST`: built by `instances-9`.
 - A non-leader in a partly filled `CMSG_LFG_JOIN` group may join
   (`Handlers/LFGHandler.cpp:50-55`); the join act still refuses
   `not_leader` for every non-leader (SR2-instances-15).
@@ -182,3 +235,6 @@ The `dungeon` tool queues, answers role checks and proposals, teleports in and o
 | `CMSG_LFG_SET_BOOT_VOTE` | `builder` | builder test on `buildLfgBootVote`; a live send needs a kick vote, so not seen live until instances-11 | `Handlers/LFGHandler.cpp:133-141` |
 | `SMSG_LFG_BOOT_PROPOSAL_UPDATE` | `mock` | mock body built by `lfgBootBody`; not seen live | `Handlers/LFGHandler.cpp:513-543` |
 | `SMSG_LFG_PLAYER_REWARD` | `mock` | mock body built by `lfgRewardBody`; needs a finished random dungeon, so not seen live | `Handlers/LFGHandler.cpp:475-511` |
+| `CMSG_SEARCH_LFG_JOIN` | `live` | probe flow `lfg-raid-browser` on a fresh `max80` account, exit 0: the flow takes the first raid-type lock (entry 0x020000f7, dungeon 247) from the `SMSG_LFG_PLAYER_INFO` locks, and the trace `tmp/probe/instances-9-probe2/packets.jsonl` shows `out` size 4, then `SMSG_UPDATE_LFG_LIST` 20 ms later; the first run's trace with bodies, `tmp/probe/instances-9-probe/packets.jsonl`, shows `out` body `f7000002` | `Handlers/LFGHandler.cpp:265-272` |
+| `SMSG_UPDATE_LFG_LIST` | `live` | same runs: `in` size 25, `handled`; the first run's body is `02000000f7000000` and 17 zero bytes, the empty full list for dungeon 247, and the flow result of the second run holds an empty `raidLists[247]` (`tmp/probe/instances-9-probe2/stdout.txt`). The non-empty full and difference forms are rig tests from the writer (`protocol-list.test.ts`, `store-list.test.ts`); no bot fills the browser | `DungeonFinding/LFGMgr.cpp:1048-1066` |
+| `CMSG_SEARCH_LFG_LEAVE` | `accepted` | same run: `out` size 4 three seconds after the join, then six more seconds on the session, a clean logout and exit 0, no disconnect; builder test on `buildSearchLeave` | `Handlers/LFGHandler.cpp:274-279` |

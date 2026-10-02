@@ -361,6 +361,51 @@ describe("repairing", () => {
     });
   });
 
+  test("a damaged bank item does not block a carried repair", () => {
+    const f = fixture();
+    f.listed();
+    f.set(CHEST, DURABILITY, 45);
+    const BANK_SWORD = 0x4000_0000_000f_0003n;
+    const self = f.entities.get(1n);
+    if (!self) throw new Error("missing self");
+    const low = Number(BANK_SWORD & 0xffff_ffffn);
+    const high = Number(BANK_SWORD >> 32n);
+    const invSlotHead = 0x1_44;
+    const rawFields = new Map([
+      ...self.rawFields,
+      [invSlotHead + 39 * 2, low],
+      [invSlotHead + 39 * 2 + 1, high],
+    ]);
+    f.entities.set(1n, { ...self, rawFields });
+    f.entities.set(
+      BANK_SWORD,
+      item(BANK_SWORD, 25, [
+        [DURABILITY, 10],
+        [DURABILITY + 1, 50],
+      ]),
+    );
+    f.runtime.repair();
+    expect(f.runtime.snapshot().pending).toMatchObject({ action: "repair" });
+    const banked = f.store
+      .inventory()
+      .bank?.slots.find((slot) => slot.status === "occupied");
+    expect(banked).toMatchObject({ bag: 255, slot: 39, region: "bank" });
+    expect(
+      f.store
+        .inventory()
+        .slots.some(
+          (slot) => slot.status === "occupied" && slot.guid === BANK_SWORD,
+        ),
+    ).toBe(false);
+    f.set(CHEST, DURABILITY, 50);
+    f.set(1n, COINAGE, 49_990);
+    expect(f.runtime.snapshot().lastOutcome).toMatchObject({
+      action: "repair",
+      status: "confirmed",
+    });
+    expect(f.runtime.snapshot().pending).toBeUndefined();
+  });
+
   test("a vendor without the repair flag is refused locally", () => {
     const f = fixture(0x80);
     f.listed();

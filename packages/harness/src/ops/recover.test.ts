@@ -87,6 +87,13 @@ describe("recoverOp", () => {
     setSelf(t.handle, { life: "dead" });
     jest.spyOn(t.handle.selfstate, "state").mockReturnValue({
       collisionHeight: undefined,
+      condition: {
+        drunkState: "sober",
+        drunkValue: 0,
+        restedXp: 0,
+        resting: false,
+        restState: "unknown",
+      },
       ghostPending: false,
       lastTransferAbort: undefined,
       mountDisplayId: 0,
@@ -125,6 +132,13 @@ describe("recoverOp", () => {
     setSelf(t.handle, { life: "ghost" });
     jest.spyOn(t.handle.selfstate, "state").mockReturnValue({
       collisionHeight: undefined,
+      condition: {
+        drunkState: "sober",
+        drunkValue: 0,
+        restedXp: 0,
+        resting: false,
+        restState: "unknown",
+      },
       ghostPending: false,
       lastTransferAbort: undefined,
       mountDisplayId: 0,
@@ -156,6 +170,13 @@ describe("recoverOp", () => {
     setSelf(t.handle, { life: "dead" });
     jest.spyOn(t.handle.selfstate, "state").mockReturnValue({
       collisionHeight: undefined,
+      condition: {
+        drunkState: "sober",
+        drunkValue: 0,
+        restedXp: 0,
+        resting: false,
+        restState: "unknown",
+      },
       ghostPending: false,
       lastTransferAbort: undefined,
       mountDisplayId: 0,

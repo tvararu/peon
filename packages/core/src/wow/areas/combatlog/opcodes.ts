@@ -33,5 +33,6 @@ export const COMBATLOG_OPCODES = {
     "SMSG_SPELLDAMAGESHIELD",
     "SMSG_ENVIRONMENTAL_DAMAGE_LOG",
     "SMSG_SPELLINSTAKILLLOG",
+    "SMSG_DISPEL_FAILED",
   ],
 } as const satisfies AreaOpcodes;

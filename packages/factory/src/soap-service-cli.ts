@@ -1,3 +1,4 @@
+import { factoryAccount } from "#factory/factory-account";
 import {
   isCharEndpoint,
   type Json,
@@ -5,7 +6,7 @@ import {
   type RealmService,
   ServiceError,
 } from "#factory/realm-service";
-import { characterName, factoryAccount } from "#factory/soap";
+import { characterName } from "#factory/soap";
 
 export type ServiceDeps = {
   service: RealmService;

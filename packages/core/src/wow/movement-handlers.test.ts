@@ -121,4 +121,28 @@ describe("handleNearTeleport", () => {
       orientation: 1,
     });
   });
+
+  test("SMSG_FORCE_MOVE_ROOT keeps the packet guid in the self event", () => {
+    const stores = testStores();
+    const conn = fakeConn(new EntityStore());
+    registerMovementHandlers(conn, stores);
+    const seen: unknown[] = [];
+    stores.self.onEvent((event) => {
+      if (event.type === "force_root") seen.push(event);
+    });
+    const body = new PacketWriter();
+    body.packedGuidBig(0xf1_30_00_3e_ea_00_0a_bcn);
+    body.uint32LE(7);
+    conn.dispatch.handle(
+      GameOpcode.SMSG_FORCE_MOVE_ROOT,
+      new PacketReader(body.finish()),
+    );
+    expect(seen).toEqual([
+      {
+        counter: 7,
+        guid: 0xf1_30_00_3e_ea_00_0a_bcn,
+        type: "force_root",
+      },
+    ]);
+  });
 });

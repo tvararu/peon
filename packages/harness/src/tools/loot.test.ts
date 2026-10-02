@@ -21,6 +21,13 @@ const CORPSE = 0x20n;
 function dismountState(mounted: boolean): AreaState<"selfstate"> {
   return {
     collisionHeight: undefined,
+    condition: {
+      drunkState: "sober",
+      drunkValue: 0,
+      restedXp: 0,
+      resting: false,
+      restState: "unknown",
+    },
     ghostPending: false,
     lastTransferAbort: undefined,
     mountDisplayId: mounted ? 1234 : 0,

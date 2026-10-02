@@ -154,6 +154,40 @@ export function parseMountSpecialAnim(r: PacketReader): bigint {
   return r.uint64LE();
 }
 
+export const DRUNK_STATES = ["sober", "tipsy", "drunk", "smashed"] as const;
+export type DrunkStateName = (typeof DRUNK_STATES)[number];
+
+export function drunkStateByValue(value: number): DrunkStateName {
+  if (value >= 90) return "smashed";
+  if (value >= 50) return "drunk";
+  return value > 0 ? "tipsy" : "sober";
+}
+
+export const REST_STATES = [
+  "unknown",
+  "rested",
+  "normal",
+  "tired",
+  "tired_reduced",
+  "exhausted",
+  "recruit_linked",
+] as const;
+export type RestStateName = (typeof REST_STATES)[number];
+
+export function restStateName(byte: number): RestStateName {
+  return REST_STATES[byte] ?? "unknown";
+}
+
+export type Inebriation = {
+  readonly guid: bigint;
+  readonly threshold: number;
+  readonly itemId: number;
+};
+
+export function parseInebriation(r: PacketReader): Inebriation {
+  return { guid: r.uint64LE(), threshold: r.uint32LE(), itemId: r.uint32LE() };
+}
+
 export type CollisionHeight = MoveCounter & { height: number };
 
 export function parseCollisionHeight(r: PacketReader): CollisionHeight {
