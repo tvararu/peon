@@ -37,7 +37,7 @@ function vehicleSpellsOf(bar: {
   flags: number;
   slots: readonly { action: number; type: number }[] | undefined;
 }): readonly PetSpell[] {
-  if ((bar.flags & VEHICLE_FLAGS) === 0) return [];
+  if (Math.floor(bar.flags / VEHICLE_FLAGS) % 2 === 0) return [];
   return (bar.slots ?? [])
     .filter(
       (slot) =>
