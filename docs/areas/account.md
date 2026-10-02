@@ -8,8 +8,11 @@ The acts wait for the server's answer and reject with `timeout` after 5 s:
 - `accountData(type)` sends `CMSG_REQUEST_ACCOUNT_DATA` with the type and resolves with the inflated text of the matching `SMSG_UPDATE_ACCOUNT_DATA`.
 - `saveAccountData(type, time, text)` sends `CMSG_UPDATE_ACCOUNT_DATA` with the deflated text and resolves when the matching `SMSG_UPDATE_ACCOUNT_DATA_COMPLETE` arrives. A text over 0xFFFF bytes or holding a NUL throws locally.
 - `eraseAccountData(type)` sends the same packet with size 0 and resolves on the matching complete packet.
+- `tutorialFlag(bit)` sends `CMSG_TUTORIAL_FLAG` with a `u32` bit 0-255 and rejects a bit outside that range before sending. `clearTutorials()` sends empty `CMSG_TUTORIAL_CLEAR` (sets every bit) and `resetTutorials()` sends empty `CMSG_TUTORIAL_RESET` (clears every bit). None has a reply, so each resolves as soon as the packet is queued; the new bits show in `session.login.state().tutorials` only at the next world session.
 
-The three CMSGs need `STATUS_AUTHED` (`Server/Protocol/Opcodes.cpp:653-654,1410`); the tutorial CMSGs this area also owns need `STATUS_LOGGEDIN` and are built by session-4.
+The three account-data CMSGs need `STATUS_AUTHED` (`Server/Protocol/Opcodes.cpp:653-654,1410`).
+
+The three tutorial CMSGs need `STATUS_LOGGEDIN`, so they work only in the world. The server saves the bits when the player is saved at logout (`Entities/Player/PlayerStorage.cpp:7311`) and sends them at the next world session.
 
 ## Wire notes
 
@@ -18,10 +21,9 @@ The three CMSGs need `STATUS_AUTHED` (`Server/Protocol/Opcodes.cpp:653-654,1410`
 - `SMSG_UPDATE_ACCOUNT_DATA` is `u64` player guid (0 at the character screen), `u32` type, `u32` time, `u32` decompressed size, then the zlib bytes (`Handlers/MiscHandler.cpp:885-892`). For an empty type the size is 0 but 13 zero bytes follow; the parser returns `text: ""` and ignores the tail. wow_messages has no guid, time or size (`login_logout/smsg_update_account_data.wowm:2`); AzerothCore wins.
 - `CMSG_UPDATE_ACCOUNT_DATA` is `u32` type, `u32` time, `u32` decompressed size, then the zlib bytes (`Handlers/MiscHandler.cpp:810-861`). Size 0 erases the type; a size over 0xFFFF is dropped with no reply (`Handlers/MiscHandler.cpp:832-837`). Whether wow_messages' `compressed` array carries the size prefix could not be determined; AzerothCore wins. The builder writes no NUL, sizes in bytes, and refuses text over 0xFFFF bytes or with a NUL.
 - `SMSG_UPDATE_ACCOUNT_DATA_COMPLETE` is `u32` type and `u32` 0 (`Handlers/MiscHandler.cpp:824-827`).
-
-## Left out
-
-- The three tutorial CMSGs this area owns (`CMSG_TUTORIAL_FLAG`, `CMSG_TUTORIAL_CLEAR`, `CMSG_TUTORIAL_RESET`) are built by session-4.
+- `CMSG_TUTORIAL_FLAG` is one `u32` bit; the word is `bit / 32` and an index of 8 or more is ignored, so a bit over 255 does nothing (`Handlers/CharacterHandler.cpp:1305-1319`). 
+- `CMSG_TUTORIAL_CLEAR` is empty and sets all eight words to `0xFFFFFFFF` (`Handlers/CharacterHandler.cpp:1321-1325`). The name follows AzerothCore: "clear" marks every tutorial as seen.
+- `CMSG_TUTORIAL_RESET` is empty and sets all eight words to 0 (`Handlers/CharacterHandler.cpp:1327-1331`).
 
 ## Capabilities row
 
@@ -36,3 +38,6 @@ No verb (N23).
 | `SMSG_UPDATE_ACCOUNT_DATA` | `live` | probe flow `account-data`, exit 0; save then read returns `"peon"`, erase then read returns empty text | `Handlers/MiscHandler.cpp:885-892` |
 | `CMSG_UPDATE_ACCOUNT_DATA` | `live` | probe flow `account-data`, exit 0; the save and the erase each resolve on the matching complete packet | `Handlers/MiscHandler.cpp:810-861` |
 | `SMSG_UPDATE_ACCOUNT_DATA_COMPLETE` | `live` | probe flow `account-data`, exit 0; type 7 completes twice, once for the save and once for the erase | `Handlers/MiscHandler.cpp:824-827` |
+| `CMSG_TUTORIAL_FLAG` | `live` | probe flow `account-tutorials`, four runs on one throwaway account (`tmp/probe/FAC6ABF810923-20261002T100148Z` reset, `...T100223Z` flag bit 3, `...T100249Z` clear, `...T100314Z` reset); each exit 0 and each trace holds the CMSG. Run 2 sent bit 3 after a reset; run 3 printed `8,0,0,0,0,0,0,0` | `Handlers/CharacterHandler.cpp:1305-1319` |
+| `CMSG_TUTORIAL_CLEAR` | `live` | probe flow `account-tutorials`, four runs on one throwaway account (`tmp/probe/FAC6ABF810923-20261002T100148Z` reset, `...T100223Z` flag bit 3, `...T100249Z` clear, `...T100314Z` reset); each exit 0 and each trace holds the CMSG. Run 3 sent clear; run 4 printed eight `4294967295` | `Handlers/CharacterHandler.cpp:1321-1325` |
+| `CMSG_TUTORIAL_RESET` | `live` | probe flow `account-tutorials`, four runs on one throwaway account (`tmp/probe/FAC6ABF810923-20261002T100148Z` reset, `...T100223Z` flag bit 3, `...T100249Z` clear, `...T100314Z` reset); each exit 0 and each trace holds the CMSG. Run 1 sent reset; run 2 printed eight zeros; run 4 sent reset again | `Handlers/CharacterHandler.cpp:1327-1331` |

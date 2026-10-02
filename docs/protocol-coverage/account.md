@@ -5,9 +5,9 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x0fe` | `CMSG_TUTORIAL_FLAG` | client | missing |  |
-| `0x0ff` | `CMSG_TUTORIAL_CLEAR` | client | missing |  |
-| `0x100` | `CMSG_TUTORIAL_RESET` | client | missing |  |
+| `0x0fe` | `CMSG_TUTORIAL_FLAG` | client | handled |  |
+| `0x0ff` | `CMSG_TUTORIAL_CLEAR` | client | handled |  |
+| `0x100` | `CMSG_TUTORIAL_RESET` | client | handled |  |
 | `0x20a` | `CMSG_REQUEST_ACCOUNT_DATA` | client | handled |  |
 | `0x20b` | `CMSG_UPDATE_ACCOUNT_DATA` | client | handled |  |
 | `0x20c` | `SMSG_UPDATE_ACCOUNT_DATA` | server | handled |  |
