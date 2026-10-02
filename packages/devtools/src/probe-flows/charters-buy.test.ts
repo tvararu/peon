@@ -19,7 +19,7 @@ function masterRow(): Row {
     bearingRadians: null,
     distance: 2.5,
     entity: {
-      entry: 28774,
+      entry: 28_774,
       guid: MASTER,
       name: "Andrew Matthews",
       objectType: 3,
