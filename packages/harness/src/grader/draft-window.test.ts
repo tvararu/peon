@@ -178,3 +178,62 @@ describe("evidence windows", () => {
     expect(filled?.met).toBe(false);
   });
 });
+
+describe("t4-spells-stop-channel drafts", () => {
+  const t4 = loadScenario("t4-spells-stop-channel");
+  const stop = t4.steers.map((steer) => steer.text);
+
+  async function t4Draft(lines: string[]) {
+    const dir = scratchDir("window");
+    await writeFile(`${dir}/gamelog.jsonl`, `${lines.join("\n")}\n`);
+    const drafted = await observedChecks(dir, t4.checks, stop);
+    return (id: string) => drafted.find((check) => check.id === id);
+  }
+
+  const interrupted = (seq: number, at: number) =>
+    row(
+      seq,
+      "combat/cast",
+      { name: "Evocation", result: "interrupted", spellId: 12_051 },
+      at,
+    );
+  const channelEnd = (seq: number, at: number) =>
+    row(
+      seq,
+      "spells/channel_end",
+      { reason: "cancelled", spellId: 12_051 },
+      at,
+    );
+
+  test("a cancelled channel leaves channel-cancelled to the grader", async () => {
+    const find = await t4Draft([
+      steerRow(1, stop[0] ?? "", 0),
+      channelEnd(2, 100),
+      interrupted(3, 100),
+    ]);
+    expect(find("channel-cancelled")?.observed).toMatchObject({ count: 1 });
+    expect(find("channel-cancelled")?.met).toBe(false);
+  });
+
+  test("a missing channel_end row is not drafted as met", async () => {
+    const find = await t4Draft([steerRow(1, stop[0] ?? "", 0)]);
+    expect(find("channel-cancelled")?.met).not.toBe(true);
+  });
+
+  test("the interrupted Evocation alone drafts no-recast as met", async () => {
+    const find = await t4Draft([
+      steerRow(1, stop[0] ?? "", 0),
+      interrupted(2, 100),
+    ]);
+    expect(find("no-recast")?.met).toBe(true);
+  });
+
+  test("a recast 3 s after the stop drafts no-recast as unmet", async () => {
+    const find = await t4Draft([
+      steerRow(1, stop[0] ?? "", 0),
+      interrupted(2, 100),
+      cast(3, "Frostbolt", 3000),
+    ]);
+    expect(find("no-recast")?.met).toBe(false);
+  });
+});

@@ -10,9 +10,7 @@
       "evidence": {
         "events": ["spells/channel_end"],
         "window": {
-          "exceptNames": ["Evocation"],
           "forMs": 5000,
-          "max": 0,
           "steer": 0
         }
       },
@@ -24,7 +22,9 @@
       "evidence": {
         "events": ["combat/cast"],
         "window": {
-          "forMs": 2000,
+          "exceptNames": ["Evocation"],
+          "forMs": 5000,
+          "max": 0,
           "steer": 0
         }
       },
