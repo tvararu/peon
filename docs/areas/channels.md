@@ -20,6 +20,18 @@ longer than 31 characters without sending, `{ ok: false, reason:
 reason: "not_member" }` for a channel the store does not hold. The area
 registers a `peek` on `SMSG_CHANNEL_NOTIFY`; the legacy
 `world-handlers-chat` handler stays its owner.
+
+Two more acts read who is on a channel. `listChannel(channel, { display?
+})` sends `CMSG_CHANNEL_LIST`, or `CMSG_CHANNEL_DISPLAY_LIST` with
+`display: true`, and resolves `{ ok: true, flags, members }` on the
+matching `SMSG_CHANNEL_LIST`, `{ ok: false, reason: "not_member" }` on the
+server's `not_member` notice, or `{ ok: false, reason: "timeout" }` after
+3 s. `channelMemberCount(channel)` sends `CMSG_GET_CHANNEL_MEMBER_COUNT`
+and resolves the count, or `undefined` on `not_member` or silence. Neither
+checks the store first, because the server answers a channel the
+character is not on. Both replies update the channel row (`members`,
+`memberCount`; a count does not clear the member list) and emit
+`channel_members`, with `members: undefined` for a count.
 ## Wire notes
 
 The area handles `SMSG_CHANNEL_NOTIFY` and sends `CMSG_CHANNEL_PASSWORD`,
@@ -49,7 +61,11 @@ The area handles `SMSG_CHANNEL_NOTIFY` and sends `CMSG_CHANNEL_PASSWORD`,
 - After the first join of a custom channel the first joiner becomes its owner, then the room sends `mode_change` with old flags 0 and the owner and moderator flags set (`Chat/Channels/Channel.cpp:242`).
 - An owner moderating itself returns silently (`Chat/Channels/Channel.cpp:573`).
 - `SMSG_USERLIST_UPDATE` also leaves on every flag change (`Chat/Channels/Channel.cpp:1196`), which belongs to `social-10`.
-- The `SMSG_CHANNEL_LIST` row in the coverage doc stays `stub` until `social-9` builds the member list.
+- `CMSG_CHANNEL_LIST` and `CMSG_CHANNEL_DISPLAY_LIST` are a CString channel name, and the display handler calls the list handler (`Handlers/ChannelHandler.cpp:292`).
+- A list or count request for a channel that does not exist gets `not_member` from `ChannelMgr::GetChannel`; a list request for an existing channel the character is not on gets `not_member` from `Channel::List` (`Chat/Channels/Channel.cpp:693`).
+- `SMSG_CHANNEL_LIST` is a `u8` that is always 1, the CString channel name, a `u8` channel flags, a `u32` count, then a `u64` guid and a `u8` member flags each; wow_messages has no leading byte and AzerothCore wins (`Chat/Channels/Channel.cpp:701`).
+- `SMSG_CHANNEL_LIST` carries a count of 0 when the channel rights forbid speaking, and hides members the asker may not see (`Chat/Channels/Channel.cpp:713`).
+- `CMSG_GET_CHANNEL_MEMBER_COUNT` is a CString channel name; the answer `SMSG_CHANNEL_MEMBER_COUNT` is the CString name, a `u8` flags and a `u32` count, and the handler never checks that the asker is on the channel (`Handlers/ChannelHandler.cpp:304`).
 
 ## Left out
 
@@ -71,3 +87,8 @@ No verb.
 | `CMSG_CHANNEL_MUTE` | `live` | same run: 23-byte out body answered by `not_moderator` | `Handlers/ChannelHandler.cpp:177` |
 | `CMSG_CHANNEL_UNMUTE` | `live` | same run: 23-byte out body answered by `not_moderator` | `Handlers/ChannelHandler.cpp:192` |
 | `CMSG_CHANNEL_INVITE` | `live` | same run: 23-byte out body answered by `already_member` with the invitee guid (the partner was already on the room) | `Handlers/ChannelHandler.cpp:207` |
+| `CMSG_CHANNEL_LIST` | `live` | probe flow `channels-list` on channel `peonl9c3d4e` (Own `Fgklpiakaal`, partner `Fgklpiakaod`, both `eversong10`, deleted): 12-byte out body `channel`, answered by `SMSG_CHANNEL_LIST` | `Handlers/ChannelHandler.cpp:92` |
+| `SMSG_CHANNEL_LIST` | `live` | same run: 36-byte body `01` + name + flags `01` + count 2 + guids `0x1375` flags 0 and `0x1376` flags 3 (the partner joined first and owns the room) | `Chat/Channels/Channel.cpp:701` |
+| `CMSG_CHANNEL_DISPLAY_LIST` | `live` | same run: 12-byte out body `channel`, answered by the same 36-byte list | `Handlers/ChannelHandler.cpp:292` |
+| `CMSG_GET_CHANNEL_MEMBER_COUNT` | `live` | same run: 12-byte out body `channel` | `Handlers/ChannelHandler.cpp:298` |
+| `SMSG_CHANNEL_MEMBER_COUNT` | `live` | same run: 17-byte body name + flags `01` + count 2; a `CMSG_CHANNEL_LIST` for `peonl9c3d4eother` (not joined) got `not_member` | `Handlers/ChannelHandler.cpp:304` |

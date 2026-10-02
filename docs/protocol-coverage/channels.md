@@ -5,8 +5,8 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x09a` | `CMSG_CHANNEL_LIST` | client | missing |  |
-| `0x09b` | `SMSG_CHANNEL_LIST` | server | stub |  |
+| `0x09a` | `CMSG_CHANNEL_LIST` | client | handled |  |
+| `0x09b` | `SMSG_CHANNEL_LIST` | server | handled |  |
 | `0x09c` | `CMSG_CHANNEL_PASSWORD` | client | handled |  |
 | `0x09d` | `CMSG_CHANNEL_SET_OWNER` | client | handled |  |
 | `0x09e` | `CMSG_CHANNEL_OWNER` | client | handled |  |
@@ -21,10 +21,10 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x0a7` | `CMSG_CHANNEL_ANNOUNCEMENTS` | client | missing |  |
 | `0x0a8` | `CMSG_CHANNEL_MODERATE` | client | missing |  |
 | `0x3af` | `CMSG_VOICE_SESSION_ENABLE` | client | missing |  |
-| `0x3d2` | `CMSG_CHANNEL_DISPLAY_LIST` | client | missing |  |
+| `0x3d2` | `CMSG_CHANNEL_DISPLAY_LIST` | client | handled |  |
 | `0x3d3` | `CMSG_SET_ACTIVE_VOICE_CHANNEL` | client | missing |  |
-| `0x3d4` | `CMSG_GET_CHANNEL_MEMBER_COUNT` | client | missing |  |
-| `0x3d5` | `SMSG_CHANNEL_MEMBER_COUNT` | server | missing |  |
+| `0x3d4` | `CMSG_GET_CHANNEL_MEMBER_COUNT` | client | handled |  |
+| `0x3d5` | `SMSG_CHANNEL_MEMBER_COUNT` | server | handled |  |
 | `0x3d6` | `CMSG_CHANNEL_VOICE_ON` | client | missing |  |
 | `0x3ef` | `CMSG_SET_CHANNEL_WATCH` | client | missing |  |
 | `0x3f0` | `SMSG_USERLIST_ADD` | server | missing |  |
