@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { transportsDbc } from "@peon/core/test-support/areas/transports";
 import { travelTaxiDbc } from "@peon/core/test-support/areas/travel";
 import {
   namesNear,
   readNodes,
+  readPathStops,
   servesStop,
 } from "#harness/areas/transports/stops";
 
@@ -38,5 +40,22 @@ describe("transport stops", () => {
         travelTaxiDbc({ nodes: NODES, omit: ["TaxiNodes.dbc"], paths: [] }),
       ),
     ).rejects.toThrow("TaxiNodes.dbc");
+  });
+
+  test("reads only the stop frames of each path", async () => {
+    const source = transportsDbc({
+      nodes: [
+        { actionFlag: 2, index: 0, mapId: 1, path: 7, x: 1, y: 2, z: 3 },
+        { index: 1, mapId: 1, path: 7, x: 50, y: 60, z: 3 },
+        { actionFlag: 2, index: 2, mapId: 0, path: 7, x: 9, y: 8, z: 3 },
+        { actionFlag: 2, index: 0, mapId: 1, path: 8, x: 4, y: 5, z: 3 },
+      ],
+    });
+    const paths = await readPathStops(source);
+    expect(paths.get(7)).toEqual([
+      { mapId: 1, x: 1, y: 2 },
+      { mapId: 0, x: 9, y: 8 },
+    ]);
+    expect(paths.get(8)).toEqual([{ mapId: 1, x: 4, y: 5 }]);
   });
 });

@@ -1,8 +1,10 @@
 import { pause } from "@peon/core/lib/abort";
 import { messageOf } from "@peon/core/lib/errors";
 import {
+  type DockAt,
   namesNear,
   readNodes,
+  readPathStops,
   type StopNode,
   servesStop,
 } from "#harness/areas/transports/stops";
@@ -28,13 +30,15 @@ export const FAR_DOCK_YD = 100;
 
 type After = (patch: Partial<TravelAfter>) => TravelAfter;
 type Report = ToolResult<TravelAfter>;
-type RideWork = {
+type StartedWork = {
   ops: OpsCtx;
   ctx: ToolCtx<TravelAfter>;
   args: TravelArgs;
   stop: string;
   after: After;
 };
+type RideData = { nodes: StopNode[]; paths: ReadonlyMap<number, DockAt[]> };
+type RideWork = StartedWork & { data: RideData };
 type Pose = {
   mapId: number;
   x: number;
@@ -56,22 +60,35 @@ function missing(cause?: unknown): Refusal {
   });
 }
 
-async function loadNodes(ops: OpsCtx): Promise<StopNode[]> {
+async function loadData(ops: OpsCtx): Promise<RideData> {
   const source = ops.rt.profile.client.dbc;
   if (!source) throw missing();
   try {
-    return await readNodes(source);
+    return {
+      nodes: await readNodes(source),
+      paths: await readPathStops(source),
+    };
   } catch (error) {
     throw missing(error);
   }
 }
 
-function poses(ops: OpsCtx): Dock[] {
-  const { act } = ops.handle.transports;
+function serves(data: RideData, path: number | undefined, stop: string) {
+  return (
+    path !== undefined &&
+    (data.paths.get(path) ?? []).some((at) => servesStop(data.nodes, at, stop))
+  );
+}
+
+function poses(work: RideWork, routeOnly: boolean): Dock[] {
+  const { ops, data, stop } = work;
+  const state = ops.handle.transports.state();
   const found: Dock[] = [];
-  for (const entry of ops.handle.transports.state().transports.values()) {
+  for (const entry of state.transports.values()) {
     if (entry.kind !== "motion") continue;
-    const pose = act.poseAt(entry.guid);
+    const path = state.templates.get(entry.entry)?.taxiPathId;
+    if (routeOnly && !serves(data, path, stop)) continue;
+    const pose = ops.handle.transports.act.poseAt(entry.guid);
     if (pose) found.push({ guid: entry.guid, pose });
   }
   return found;
@@ -110,9 +127,9 @@ async function poll<T>(
   return undefined;
 }
 
-function dockedNear(ops: OpsCtx): Dock | undefined {
-  return poses(ops).find(
-    (dock) => !dock.pose.moving && away(ops, dock.pose) <= DOCK_NEAR_YD,
+function dockedNear(work: RideWork): Dock | undefined {
+  return poses(work, true).find(
+    (dock) => !dock.pose.moving && away(work.ops, dock.pose) <= DOCK_NEAR_YD,
   );
 }
 
@@ -127,8 +144,14 @@ async function findDock(work: RideWork): Promise<Dock | Report> {
       next: nextCall("travel", { to: "explore" }),
       reason: "no_transport",
     });
-  if (poses(ops).length === 0) throw missing();
-  const docked = await poll(ops, DOCK_WAIT_MS, () => dockedNear(ops));
+  if (poses(work, false).length === 0) throw missing();
+  if (poses(work, true).length === 0)
+    throw new Refusal({
+      detail: `no transport in view goes to ${work.stop}.`,
+      next: nextCall("look"),
+      reason: "no_route",
+    });
+  const docked = await poll(ops, DOCK_WAIT_MS, () => dockedNear(work));
   if (docked) return docked;
   return result("UNCONFIRMED", {
     after: view(work),
@@ -203,9 +226,11 @@ async function leave(work: RideWork): Promise<Report | undefined> {
   });
 }
 
-export async function rideWork(work: RideWork): Promise<Report> {
+export async function rideWork(started: StartedWork): Promise<Report> {
+  const data = await loadData(started.ops);
+  const work: RideWork = { ...started, data };
   const { ops, stop } = work;
-  const nodes = await loadNodes(ops);
+  const { nodes } = data;
   const found = await findDock(work);
   if ("status" in found) return found;
   if (servesStop(nodes, found.pose, stop))

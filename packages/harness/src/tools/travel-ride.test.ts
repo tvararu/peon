@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from "bun:test";
+import { transportsDbc } from "@peon/core/test-support/areas/transports";
 import { travelTaxiDbc } from "@peon/core/test-support/areas/travel";
 import { elapse, withFakeTimers } from "@peon/core/test-support/fake-time";
 import type { TravelAfter } from "#harness/contract/details";
@@ -21,6 +22,14 @@ const NODES = [
   { id: 1, map: MAP_ID, name: "Transport, Orgrimmar", x: 0, y: 0, z: 0 },
   { id: 2, map: MAP_ID, name: "Thunder Bluff", x: 5000, y: 0, z: 0 },
 ];
+const DECOY = 0x1fc0_0000_0000_0002n;
+const PATH = 7;
+const STOPS = [
+  { actionFlag: 2, index: 0, mapId: MAP_ID, path: PATH, x: 0, y: 0, z: 5 },
+  { actionFlag: 2, index: 1, mapId: MAP_ID, path: PATH, x: 5000, y: 0, z: 5 },
+  { actionFlag: 2, index: 0, mapId: MAP_ID, path: 8, x: 0, y: 0, z: 5 },
+  { actionFlag: 2, index: 1, mapId: MAP_ID, path: 8, x: 9000, y: 0, z: 5 },
+];
 const HERE = {
   mapId: MAP_ID,
   moving: false,
@@ -35,19 +44,17 @@ const AWAY = { ...HERE, moving: true, x: 800 };
 type Pose = typeof HERE;
 type World = { t: TestRuntime; pose: { now: Pose | undefined } };
 
-function entry(): never {
-  return {
-    entry: 20,
-    guid: SHIP,
-    kind: "motion",
-    mapId: MAP_ID,
-  } as never;
+function entry(guid: bigint, id: number): never {
+  return { entry: id, guid, kind: "motion", mapId: MAP_ID } as never;
+}
+
+function template(entryId: number, path: number): never {
+  return { entry: entryId, taxiPathId: path } as never;
 }
 
 async function world(init: { dbc?: boolean } = {}): Promise<World> {
   const profile = testProfile();
-  const dbc =
-    init.dbc === false ? undefined : travelTaxiDbc({ nodes: NODES, paths: [] });
+  const dbc = init.dbc === false ? undefined : bothFiles();
   const t = await createTestRuntime({
     parts: {
       profile: { ...profile, client: { ...profile.client, dbc } },
@@ -59,10 +66,20 @@ async function world(init: { dbc?: boolean } = {}): Promise<World> {
   const act = t.handle.transports.act;
   jest.spyOn(t.handle.transports, "state").mockReturnValue({
     data: { animCount: 0, pathCount: 1, status: "ready" },
-    templates: new Map(),
-    transports: new Map([[SHIP, entry()]]),
+    templates: new Map([
+      [20, template(20, PATH)],
+      [21, template(21, 8)],
+    ]),
+    transports: new Map([
+      [SHIP, entry(SHIP, 20)],
+      [DECOY, entry(DECOY, 21)],
+    ]),
   });
-  jest.spyOn(act, "poseAt").mockImplementation(() => pose.now);
+  jest
+    .spyOn(act, "poseAt")
+    .mockImplementation((guid) =>
+      guid === SHIP || pose.now === undefined ? pose.now : HERE,
+    );
   jest.spyOn(act, "board").mockImplementation(() => {
     pose.now = AWAY;
     return { status: "ok" };
@@ -70,6 +87,13 @@ async function world(init: { dbc?: boolean } = {}): Promise<World> {
   jest.spyOn(act, "leave").mockReturnValue({ status: "ok" });
   driveGoto(t.handle, [{}]);
   return { pose, t };
+}
+
+function bothFiles() {
+  const nodes = travelTaxiDbc({ nodes: NODES, paths: [] });
+  const paths = transportsDbc({ nodes: STOPS });
+  return (file: string) =>
+    file === "TaxiPathNode.dbc" ? paths(file) : nodes(file);
 }
 
 function ride(t: TestRuntime, to = "ride Thunder Bluff") {
@@ -134,6 +158,31 @@ describe("travel ride", () => {
     });
     expect(goTo).toHaveBeenCalled();
     expect(t.handle.transports.act.board).toHaveBeenCalledWith(SHIP);
+  });
+
+  test("boards the transport that serves the stop, not another one docked beside it", async () => {
+    const { t, pose } = await world();
+    pose.now = { ...HERE, moving: true };
+    const act = t.handle.transports.act;
+    await withFakeTimers(async () => {
+      const pending = ride(t);
+      await elapse(4000);
+      expect(act.board).not.toHaveBeenCalled();
+      pose.now = HERE;
+      await elapse(2000);
+      pose.now = THERE;
+      await elapse(3000);
+      await pending;
+    });
+    expect(act.board).toHaveBeenCalledWith(SHIP);
+    expect(act.board).not.toHaveBeenCalledWith(DECOY);
+  });
+
+  test("refuses no_route when no transport in view goes to the stop", async () => {
+    const { t } = await world();
+    await expect(ride(t, "ride Undercity")).rejects.toMatchObject({
+      reason: "no_route",
+    });
   });
 
   test("refuses transport_data_missing when no pose can be computed", async () => {

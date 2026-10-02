@@ -65,3 +65,37 @@ export function servesStop(
     name.toLowerCase().includes(needle),
   );
 }
+
+const PATH_FILE = "TaxiPathNode.dbc";
+const PATH_FIELDS = 11;
+const PATH_RECORD_BYTES = 44;
+const STOP_FLAG = 2;
+
+export async function readPathStops(
+  source: DbcSource,
+): Promise<Map<number, DockAt[]>> {
+  const bytes = await source(PATH_FILE);
+  if (bytes.byteLength < HEADER_BYTES)
+    throw new Error(`${PATH_FILE}: truncated`);
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const count = view.getUint32(4, true);
+  if (
+    view.getUint32(8, true) !== PATH_FIELDS ||
+    view.getUint32(12, true) !== PATH_RECORD_BYTES
+  )
+    throw new Error(`${PATH_FILE}: unsupported layout`);
+  const paths = new Map<number, DockAt[]>();
+  for (let row = 0; row < count; row++) {
+    const at = HEADER_BYTES + row * PATH_RECORD_BYTES;
+    if (view.getUint32(at + 7 * 4, true) !== STOP_FLAG) continue;
+    const path = view.getUint32(at + 4, true);
+    const stops = paths.get(path) ?? [];
+    stops.push({
+      mapId: view.getUint32(at + 3 * 4, true),
+      x: view.getFloat32(at + 4 * 4, true),
+      y: view.getFloat32(at + 5 * 4, true),
+    });
+    paths.set(path, stops);
+  }
+  return paths;
+}
