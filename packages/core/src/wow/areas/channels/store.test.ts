@@ -158,11 +158,11 @@ describe("ChannelStore", () => {
   });
 
   test("invite sets the pending invite and hides it after 60 s", () => {
-    let at = 1_000;
+    let at = 1000;
     const { store } = setup(() => at);
     store.notice({ channel: "peonab12cd", inviter: PARTNER, type: "invite" });
     expect(store.snapshot().pendingInvite).toEqual({
-      at: 1_000,
+      at: 1000,
       channel: "peonab12cd",
       inviter: PARTNER,
     });

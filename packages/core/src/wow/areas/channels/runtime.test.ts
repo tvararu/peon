@@ -5,9 +5,10 @@ import {
   channelsNotifyGuidBody,
   channelsYouJoinedBody,
 } from "#test-support/areas/channels";
-import { CHANNEL_ADMIN_OPCODES } from "#wow/areas/channels/protocol";
 import { elapse, withFakeTimers } from "#test-support/fake-time";
+import { CHANNEL_ADMIN_OPCODES } from "#wow/areas/channels/protocol";
 import { GameOpcode } from "#wow/protocol/opcodes";
+
 const ME = 0xde1n;
 const PARTNER = 0xab2n;
 
@@ -124,7 +125,7 @@ describe("channels runtime", () => {
       try {
         const pending = rig.handle.act.channelAdmin("peonab12cd", "owner");
         const run = pending.then((result) => result);
-        await elapse(2_001);
+        await elapse(2001);
         expect(await run).toEqual({ notice: undefined, ok: true });
       } finally {
         rig.dispose();
