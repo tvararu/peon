@@ -3,7 +3,7 @@ import {
   readCriteriaProgress,
 } from "#wow/protocol/achievement-data";
 import { type PackedTime, readPackedTime } from "#wow/protocol/packed-time";
-import type { PacketReader } from "#wow/protocol/packet";
+import { type PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 export type AchievementEarned = { guid: bigint; id: number; at: PackedTime };
 export type ServerFirst = {
@@ -13,6 +13,7 @@ export type ServerFirst = {
   link: number;
 };
 export type AchievementId = { id: number };
+export type TitleEarned = { bit: number; earned: boolean };
 
 export function parseCriteriaUpdate(r: PacketReader): CriteriaProgress {
   return readCriteriaProgress(r, r.uint32LE());
@@ -42,4 +43,15 @@ export function parseCriteriaDeleted(r: PacketReader): AchievementId {
 export function parseAchievementDeleted(r: PacketReader): AchievementId {
   const id = r.uint32LE();
   return { id };
+}
+export function parseTitleEarned(r: PacketReader): TitleEarned {
+  const bit = r.uint32LE();
+  const earned = r.uint32LE();
+  return { bit, earned: earned === 1 };
+}
+
+export function buildSetTitle(bit: number | undefined): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(bit ?? 0xff_ff_ff_ff);
+  return w.finish();
 }
