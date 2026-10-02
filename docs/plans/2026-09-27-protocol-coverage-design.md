@@ -5408,7 +5408,15 @@ Coverage moves from 632 to 721 handled opcodes, 18 to 5 stubs and 256 to
 
 #### Gate
 
-GATE_PLACEHOLDER
+Gate round 591 at `18f57ac4` (the code of `7f460f23` plus one docs
+commit): `t0-hostiles` pass 3/3, `t1-walk-to-npc` pass 2/2,
+`t7-halt-resume` pass 3/3 and `t3-ghostlands-kill` pass 4/4 in both
+replicas, the same as the wave-4 baseline (BR-wave5-8). Round 590 at
+`7f460f23` passed every run but `t3-ghostlands-kill` replica 1: its agent
+met only gray mobs on three explore calls, was silenced twice by a
+Mistbat and declared the task done after 113 s with no kill credit. Its
+replica 2 passed, and nothing in the slice touches `engage` or the priest's
+casts, so the coordinator ran a second full round rather than a fix.
 
 #### Left for later
 
