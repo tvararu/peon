@@ -54,7 +54,7 @@ describe("ground floors at the start and destination", () => {
   });
 
   test("an explicit Z off every floor is refused with the floors, not replaced", () => {
-    for (const z of [0.5, 5, -1]) {
+    for (const z of [1.5, 5, -1.5]) {
       const error = refusal(() =>
         atEnd([10, 0]).plan(530, start, { ...end, z }),
       );

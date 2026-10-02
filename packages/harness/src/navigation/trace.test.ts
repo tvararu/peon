@@ -26,7 +26,7 @@ describe("lost height traces", () => {
           throw groundError("pathfind_find_height failed (UNKNOWN_HEIGHT)");
         return x >= 5 ? 2 : 0;
       },
-      findHeights: (x) => [x >= 5 ? 2 : 0],
+      findHeights: (x) => (x >= 5 ? [2, 20] : [0]),
     });
     expect(() => navigation(map).plan(530, start, { ...end, z: 2 })).toThrow(
       /UNKNOWN_HEIGHT/,

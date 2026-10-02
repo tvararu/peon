@@ -54,6 +54,25 @@ describe("goTo a unit", () => {
   });
 });
 
+describe("goTo with a Z between a column's floors", () => {
+  test("walks to the floor nearest the Z and reports that floor", () => {
+    jest.useFakeTimers();
+    try {
+      const f = fixture((x) => (x > 8719 ? [90, 70.34] : [70.34]));
+      const start = must(f.runtime.snapshot().pose);
+      f.handle.goTo(point(start.x + 10, start.y, 70.8));
+      const destination = must(f.runtime.navigationState().destination);
+      expect(destination.z).toBeCloseTo(70.34, 4);
+      expect(f.runtime.navigationState()).toMatchObject({
+        active: true,
+        refusal: undefined,
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
 describe("goTo without Z", () => {
   test("derives destination height from a unique column and walks there", () => {
     jest.useFakeTimers();

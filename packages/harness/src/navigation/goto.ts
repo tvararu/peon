@@ -107,11 +107,10 @@ function planDestination(
   start: PlanStart = {},
 ): Planned {
   const { x, y, z } = destination;
-  if (z !== undefined)
-    return {
-      resolved: { x, y, z },
-      route: navigation.plan(pose.mapId, pose, { x, y, z }, start),
-    };
+  if (z !== undefined) {
+    const route = navigation.plan(pose.mapId, pose, { x, y, z }, start);
+    return { resolved: { x, y, z: route.points.at(-1)?.z ?? z }, route };
+  }
   const route = navigation.planGround(pose.mapId, pose, { x, y }, start);
   const end = route.points.at(-1);
   if (end === undefined) throw new Error("navigation_route_empty");

@@ -49,6 +49,21 @@ export function continuousFloor(
   const [only] = near;
   return near.length === 1 && only !== undefined ? only : traced;
 }
+export function nearestFloorZ(
+  heights: readonly number[],
+  z: number,
+): { snapped: number; floors: number[] } | undefined {
+  const within = (limit: number) =>
+    heights.filter((floor) => Math.abs(floor - z) <= limit);
+  const exact = within(GROUND_ERROR);
+  const near = exact.length > 0 ? exact : within(WALKABLE_CLIMB);
+  const [snapped] = near;
+  if (near.length !== 1 || snapped === undefined) return undefined;
+  const floors = groundFloors(heights);
+  if (!floors.some((floor) => Math.abs(floor - snapped) <= FLOOR_MERGE))
+    return undefined;
+  return { floors, snapped };
+}
 
 export function clearAbove(heights: readonly number[], z: number): boolean {
   return !heights.some(

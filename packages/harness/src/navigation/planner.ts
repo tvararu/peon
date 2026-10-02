@@ -3,6 +3,7 @@ import {
   CELL_HEIGHT,
   distance2d,
   GROUND_ERROR,
+  MESH_HEIGHT,
   type NavPoint,
   WALKABLE_CLIMB,
 } from "@peon/core";
@@ -13,11 +14,13 @@ import {
   continuousFloor,
   floorError,
   groundFloors,
+  nearestFloorZ,
   settleStart,
 } from "#harness/navigation/column";
 import {
   connectedHeight,
   stepHeight,
+  steppedHeight,
   traceHeight,
   uniqueHeight,
 } from "#harness/navigation/height";
@@ -219,9 +222,14 @@ export function createNavigation(
   };
 }
 
-function planRoute(map: NativeMap, from: NavPoint, to: NavPoint): GroundRoute {
-  loadCorridor(map, from, to);
+function planRoute(
+  map: NativeMap,
+  from: NavPoint,
+  target: NavPoint,
+): GroundRoute {
+  loadCorridor(map, from, target);
   checkStart(map, from);
+  const to = snapDestination(map, target);
   checkDestination(map, to);
   const points = map.findPath(from, to);
   if (points.length === 0) throw new Error("native path is empty");
@@ -298,7 +306,7 @@ function groundPath(
     const corner = stepCorner(map, walk, from, to);
     const agrees =
       i < corners.length - 1
-        ? meshCornerOnGround(map, corner, to.z)
+        ? meshCornerOnGround(map, corner, to.z, walk.rules.columnFallback)
         : Math.abs(corner.z - to.z) <= GROUND_ERROR;
     if (!agrees)
       throw groundError("path corner disagrees with connected ground");
@@ -342,9 +350,11 @@ function meshCornerOnGround(
   map: NativeMap,
   ground: NavPoint,
   meshZ: number,
+  columnFallback: boolean,
 ): boolean {
   const rise = meshZ - ground.z;
-  if (rise < -GROUND_ERROR || rise > CORNER_RISE) return false;
+  const limit = columnFallback ? MESH_HEIGHT : CORNER_RISE;
+  if (rise < -GROUND_ERROR || rise > limit) return false;
   return map
     .findHeights(ground.x, ground.y)
     .every(
@@ -363,13 +373,18 @@ function groundPoint(
   map.loadAdtAt(x, y);
   const traced = traceHeight(map, from, { x, y }, columnFallback);
   const z = continuity
-    ? continuousFloor(columnHeights(map, x, y), traced, from.z)
-    : traced;
+    ? continuousFloor(columnHeights(map, x, y), traced.floor, from.z)
+    : traced.floor;
   const point = { x, y, z };
   const heights = checkRouteGround(map, point, from, ambiguity);
-  const back = returnHeight(map, point, from, { columnFallback, continuity });
-  if (!Number.isFinite(back) || Math.abs(back - from.z) > GROUND_ERROR)
-    throw groundError("ground corridor changes surface");
+  if (!traced.inside) {
+    const back = returnHeight(map, point, from, {
+      columnFallback,
+      continuity,
+    });
+    if (!Number.isFinite(back) || Math.abs(back - from.z) > GROUND_ERROR)
+      throw groundError("ground corridor changes surface");
+  }
   checkCollision(map, from, point, climb);
   return { heights, point };
 }
@@ -380,10 +395,17 @@ function returnHeight(
   from: NavPoint,
   rules: Pick<StepRules, "columnFallback" | "continuity">,
 ): number {
-  const back = traceHeight(map, point, from, rules.columnFallback);
-  const settled = !(rules.continuity && Number.isFinite(back));
-  if (settled || Math.abs(back - from.z) <= GROUND_ERROR) return back;
-  return continuousFloor(columnHeights(map, from.x, from.y), back, point.z);
+  const back = rules.columnFallback
+    ? steppedHeight(map, point, from)
+    : traceHeight(map, point, from, rules.columnFallback);
+  const settled = !(rules.continuity && Number.isFinite(back.floor));
+  if (settled || Math.abs(back.floor - from.z) <= GROUND_ERROR)
+    return back.floor;
+  return continuousFloor(
+    columnHeights(map, from.x, from.y),
+    back.floor,
+    point.z,
+  );
 }
 
 function checkRouteGround(
@@ -415,6 +437,17 @@ function checkStart(map: NativeMap, point: NavPoint): number[] {
   if (!clearAbove(heights, point.z))
     throw groundError("ambiguous ground column at start");
   return heights;
+}
+
+function snapDestination(map: NativeMap, point: NavPoint): NavPoint {
+  validateNativePoint(point);
+  const heights = columnHeights(map, point.x, point.y);
+  const hit = nearestFloorZ(heights, point.z);
+  if (hit === undefined) {
+    checkDestination(map, point);
+    return point;
+  }
+  return { ...point, z: hit.snapped };
 }
 
 function checkDestination(map: NativeMap, point: NavPoint): void {
