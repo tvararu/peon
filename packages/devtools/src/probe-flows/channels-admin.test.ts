@@ -19,7 +19,17 @@ describe("channels-admin flow", () => {
   test("joins, then runs the eight admin actions and prints each notice", async () => {
     const ctx = context({ channel: "peonab12cd", partner: "Partner" });
     const join = spyOn(ctx.handle, "joinChannel").mockImplementation(
-      () => undefined,
+      (channel: string) => {
+        ctx.handle.triggerAreaEvent("channels", {
+          notice: {
+            channel,
+            channelId: 7,
+            flags: 3,
+            type: "you_joined",
+          },
+          type: "channel_notice",
+        });
+      },
     );
     const admin = spyOn(
       ctx.handle.channels.act,
@@ -63,6 +73,12 @@ describe("channels-admin flow", () => {
 
   test("reports a refused admin action", async () => {
     const ctx = context({ channel: "peonab12cd", partner: "Partner" });
+    spyOn(ctx.handle, "joinChannel").mockImplementation((channel: string) => {
+      ctx.handle.triggerAreaEvent("channels", {
+        notice: { channel, channelId: 7, flags: 3, type: "you_joined" },
+        type: "channel_notice",
+      });
+    });
     spyOn(ctx.handle.channels.act, "channelAdmin").mockImplementation(
       async () => ({ ok: false, reason: "not_member" }) as never,
     );

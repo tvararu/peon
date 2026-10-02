@@ -38,17 +38,22 @@ function json(value: unknown): Json {
   );
 }
 
-
-async function run({ handle, args }: FlowContext): Promise<Json> {
+async function run({ handle, args, settle }: FlowContext): Promise<Json> {
   const channel = argOf(args, "channel");
   const partner = argOf(args, "partner");
   const password = args["password"] ?? "abc";
-  const seen: unknown[] = [];
+  const seen: Record<string, unknown>[] = [];
   const off = handle.channels.onEvent((event) => {
-    if (event.type === "channel_notice") seen.push(event.notice);
+    if (event.type === "channel_notice")
+      seen.push(event.notice as Record<string, unknown>);
   });
   try {
     handle.joinChannel(channel);
+    const joined = await settle(() =>
+      seen.find((row) => row["type"] === "you_joined"),
+    );
+    if (joined === undefined)
+      throw new Error(`never joined ${channel}: no you_joined notice.`);
     const rows: Json[] = [];
     const params: Record<ChannelAdminAction, string | undefined> = {
       invite: partner,
