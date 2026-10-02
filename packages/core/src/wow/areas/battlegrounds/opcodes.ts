@@ -35,7 +35,6 @@ export const BATTLEGROUNDS_OPCODES = {
   stubs: [
     ["SMSG_BATTLEFIELD_STATUS", "Battleground status"],
     ["SMSG_BATTLEFIELD_LIST", "Battleground list"],
-    ["SMSG_ZONE_UNDER_ATTACK", "Zone under attack"],
   ],
   dead: [
     "CMSG_BATTLEFIELD_JOIN",
@@ -45,5 +44,9 @@ export const BATTLEGROUNDS_OPCODES = {
     "CMSG_COMMENTATOR_ENABLE",
     "SMSG_BATTLEGROUND_INFO_THROTTLED",
   ],
-  unseen: [],
+  unseen: [
+    "SMSG_PVP_CREDIT",
+    "SMSG_ZONE_UNDER_ATTACK",
+    "SMSG_QUESTUPDATE_ADD_PVP_KILL",
+  ],
 } as const satisfies AreaOpcodes;
