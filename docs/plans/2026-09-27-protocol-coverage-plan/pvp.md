@@ -491,6 +491,14 @@ kills, and it can set the flag and inspect a friendly player's honor.
 | `SMSG_GROUP_JOINED_BATTLEGROUND` | live | `-1` and `-2`; writer `Battlegrounds/BattlegroundMgr.cpp:248-254` |
 | `CMSG_BATTLEFIELD_PORT` | live | step `leave` (action 0), the none reply; reader `Handlers/BattleGroundHandler.cpp:393-617` |
 
+**Built (pvp-2, wave 5):** the eight opcodes are `live`, from account `FAC6ABF824E60` (deleted); the runs and their packets are listed in `docs/areas/battlegrounds.md`. Deviations from the steps above:
+
+- The new helpers are `protocol-queue.ts`, `store-queue.ts` and `runtime-queue.ts` (SR5-pvp-3); the combat test reads `unitFlags & IN_COMBAT` through `BattlegroundsStore.selfInCombat()` (SR5-pvp-4).
+- `join` resolves only on a queued status whose slot was not queued before, because a late status reply for a held queue otherwise resolved a second join before its `-1` arrived (found in the first live run). `leaveQueue` rejects `not_queued` on an invited slot (a leave there is recorded as a desertion, `Handlers/BattleGroundHandler.cpp:600-610`).
+- The status parser also reads `WAIT_LEAVE` (a `leaving` slot kind) and throws on an unknown status.
+- The flow runs one `step` per `--flow`; several `--flow` arguments in one probe keep the queue, and `status` reports the state after a `--send CMSG_BATTLEFIELD_STATUS`.
+- `-4` ran live at level 61 with Warsong Gulch, Arathi Basin and Eye of the Storm (the third queue answered `too_many_queues`); `hello` ran live after `tele MorshanBaseCamp`. The `t0-self-state` rerun belongs to the slice gate (SR5-pvp-7); the login packet is proved by a `--flow login` probe.
+
 **Commit:**
 
 ```
