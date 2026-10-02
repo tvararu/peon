@@ -16,27 +16,24 @@ function context(args: Record<string, string>): FlowContext & {
   return { args, handle, settle: settleWithin(50) };
 }
 
-function wire(ctx: { handle: MockHandle }, partnerJoins: boolean) {
+function wire(ctx: { handle: MockHandle }, partnerOnList: boolean) {
   spyOn(ctx.handle, "joinChannel").mockImplementation((channel: string) => {
     ctx.handle.triggerAreaEvent("channels", {
       notice: { channel, channelId: 7, flags: 3, type: "you_joined" },
       type: "channel_notice",
     });
-    if (partnerJoins)
-      ctx.handle.triggerAreaEvent("channels", {
-        notice: { channel, guid: PARTNER, type: "joined" },
-        type: "channel_notice",
-      });
   });
   const list = spyOn(ctx.handle.channels.act, "listChannel").mockImplementation(
     async (channel: string) =>
       channel === "peonab12cd"
         ? {
             flags: 3,
-            members: [
-              { flags: 3, guid: ME },
-              { flags: 0, guid: PARTNER },
-            ],
+            members: partnerOnList
+              ? [
+                  { flags: 3, guid: ME },
+                  { flags: 0, guid: PARTNER },
+                ]
+              : [{ flags: 3, guid: ME }],
             ok: true,
           }
         : ({ ok: false, reason: "not_member" } as const),
@@ -71,7 +68,7 @@ describe("channels-list flow", () => {
     expect(result.notMember.reason).toBe("not_member");
   });
 
-  test("fails when the partner never joins", async () => {
+  test("fails when the partner is not on the list", async () => {
     const ctx = context({ channel: "peonab12cd" });
     wire(ctx, false);
     await expect(flow.run(ctx)).rejects.toThrow("partner");

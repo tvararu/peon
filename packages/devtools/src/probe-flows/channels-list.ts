@@ -13,18 +13,21 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
   if (channel === undefined || channel.length === 0)
     throw new Error("channels-list needs channel=<name>.");
   const other = args["other"] ?? `${channel}other`;
-  const joinedGuids: bigint[] = [];
+  let joined = false;
   const off = handle.channels.onEvent((event) => {
-    if (event.type === "channel_notice" && event.notice.type === "joined")
-      joinedGuids.push(event.notice.guid);
+    if (event.type === "channel_notice" && event.notice.type === "you_joined")
+      joined = true;
   });
   try {
     handle.joinChannel(channel);
-    const partner = await settle(() => joinedGuids[0]);
-    if (partner === undefined)
-      throw new Error(`no partner joined ${channel} before the wait ended.`);
+    if ((await settle(() => (joined ? true : undefined))) === undefined)
+      throw new Error(`never joined ${channel}: no you_joined notice.`);
     const list = await handle.channels.act.listChannel(channel);
     if (!list.ok) throw new Error(`list of ${channel} failed: ${list.reason}.`);
+    if (list.members.length < 2)
+      throw new Error(
+        `no partner on ${channel}: ${list.members.length} member.`,
+      );
     const display = await handle.channels.act.listChannel(channel, {
       display: true,
     });
@@ -41,7 +44,6 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
       list,
       notMember,
       other,
-      partner,
     });
   } finally {
     off();
@@ -52,5 +54,5 @@ export const flow: ProbeFlow = {
   name: "channels-list",
   run,
   usage:
-    "--flow channels-list --arg channel=<name> [--arg other=<name>]: join the channel, wait for a partner to join it, list it, list it with display, ask the member count, then list a channel it is not on.",
+    "--flow channels-list --arg channel=<name> [--arg other=<name>]: join the channel (a partner account joined it first), list it, fail unless two members show, list it with display, ask the member count, then list a channel it is not on.",
 };
