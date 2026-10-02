@@ -35,13 +35,13 @@ No verb (N23).
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
-| `CMSG_PETITION_SHOWLIST` | `live` | `charters-buy --arg name=Fac<id>`: the trace shows the NPC guid out and `SMSG_PETITION_SHOWLIST` in; the act settles `ok` (run `probe-charters-live`, not committed) | `Handlers/PetitionsHandler.cpp:838-846` |
-| `SMSG_PETITION_SHOWLIST` | `live` | the same run: the guild entry costs 1000 with the live `MinPetitionSigns` in the last field (recorded below) | `Handlers/PetitionsHandler.cpp:848-925` |
-| `CMSG_PETITION_BUY` | `live` | the same run buys a guild charter; the trace shows the full buy body and the item push follows | `Handlers/PetitionsHandler.cpp:32-61` |
-| `CMSG_PETITION_QUERY` | `live` | the same run queries the bought charter with its petition id | `Handlers/PetitionsHandler.cpp:275-286` |
-| `SMSG_PETITION_QUERY_RESPONSE` | `live` | the same run: the response stores the petition by item guid; the act settles `ok` | `Handlers/PetitionsHandler.cpp:288-333` |
-| `CMSG_PETITION_SHOW_SIGNATURES` | `live` | the same run shows the bought charter's signatures (0) | `Handlers/PetitionsHandler.cpp:236-246` |
-| `SMSG_PETITION_SHOW_SIGNATURES` | `live` | the same run: the signature list settles the act with no signers | `Handlers/PetitionsHandler.cpp:259-272` |
-| `MSG_PETITION_RENAME` | `live` | the same run renames the bought charter; the echo settles the act | `Handlers/PetitionsHandler.cpp:335-397` |
+| `CMSG_PETITION_SHOWLIST` | `live` | `charters-buy --arg name=FacFgklphhpapc` on guildless `max80` `Fgklphhpapc` (account `FAC6ABF77F0F2`, deleted): the trace shows the 8-byte NPC guid `b41e0066700030f1` out and `SMSG_PETITION_SHOWLIST` in; the act settles `ok` (artifact `wave5/probe-charters-live`) | `Handlers/PetitionsHandler.cpp:838-846` |
+| `SMSG_PETITION_SHOWLIST` | `live` | the same run: one guild entry `(1, 5863, 16161, 1000, 0, 9)`; the arena run at the organizer shows three entries `(1, 23560, 16161, 800000, 2, 2)`, `(2, 23561, 16161, 1200000, 3, 3)`, `(3, 23562, 16161, 2000000, 5, 5)` (artifacts `wave5/probe-charters-live`, `wave5/probe-charters-arena`) | `Handlers/PetitionsHandler.cpp:848-925` |
+| `CMSG_PETITION_BUY` | `live` | the same run buys index 1 as `FacFgklphhpapc`; the trace shows the full buy body and `SMSG_ITEM_PUSH_RESULT` follows with the charter in slot 29 | `Handlers/PetitionsHandler.cpp:32-61` |
+| `CMSG_PETITION_QUERY` | `live` | the same run queries the bought charter `0x400000000014ca86` with petition id 1 | `Handlers/PetitionsHandler.cpp:275-286` |
+| `SMSG_PETITION_QUERY_RESPONSE` | `live` | the same run: the 88-byte response stores the petition by item guid with owner `0x135c`, `min = max = 9`, type 0; the act settles `ok` | `Handlers/PetitionsHandler.cpp:288-333` |
+| `CMSG_PETITION_SHOW_SIGNATURES` | `live` | the same run shows the bought charter's signatures (0 signers) | `Handlers/PetitionsHandler.cpp:236-246` |
+| `SMSG_PETITION_SHOW_SIGNATURES` | `live` | the same run: the 21-byte list settles the act with no signers | `Handlers/PetitionsHandler.cpp:259-272` |
+| `MSG_PETITION_RENAME` | `live` | the same run renames the charter to `FacFgklphhpapcZ`; the 24-byte echo settles the act | `Handlers/PetitionsHandler.cpp:335-397` |
 
-Live `MinPetitionSigns`: recorded by the guild-7 live run (field 6 of the guild showlist entry).
+Live `MinPetitionSigns`: 9 (field 6 of the guild showlist entry in `wave5/probe-charters-live`).
