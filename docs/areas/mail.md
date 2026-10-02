@@ -64,7 +64,10 @@ The acts need the character in the world:
   meanwhile: every mail reply carries only the letter id, the action
   and the result (`Entities/Player/Player.cpp:2958-2972`), so a retry
   of the same letter is indistinguishable from the timed-out act.
-  A list that arrives first clears a guard the server silently dropped
+  A list clears a guard only when the act timed out first and marked it
+  abandoned: a list answered during a live act keeps the guard, and the
+  next act throws `mail_busy` until the act's own result arrives. A list
+  that arrives after a timeout clears a guard the server silently dropped
   (an unreachable mailbox answers nothing), as does `dispose`.
   The store keeps `pending` and `lastResult` and emits `result` on
   every `SMSG_SEND_MAIL_RESULT`.

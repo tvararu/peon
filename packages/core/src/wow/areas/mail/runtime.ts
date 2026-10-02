@@ -208,6 +208,7 @@ async function runAct(env: Env, send: ActSend): Promise<MailActResult> {
   } catch (error) {
     if (!isTimeout(error)) throw error;
     cancel.abort();
+    env.store.abandonAction(pending);
     return { status: "unanswered" };
   }
 }

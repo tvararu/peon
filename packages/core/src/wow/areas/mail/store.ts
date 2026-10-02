@@ -120,6 +120,7 @@ export class MailStore {
   private senders: MailSenders[] = [];
   private newMail = false;
   private pending: MailPending | undefined;
+  private abandoned = false;
   private lastResult: SendMailResult | undefined;
 
   constructor(deps: SessionDeps) {
@@ -168,7 +169,10 @@ export class MailStore {
     this.inbox = [...list.mails];
     this.hidden = list.hidden;
     this.newMail = false;
-    this.pending = undefined;
+    if (this.abandoned) {
+      this.pending = undefined;
+      this.abandoned = false;
+    }
     this.events.emit({
       hidden: list.hidden,
       inbox: [...list.mails],
@@ -199,6 +203,22 @@ export class MailStore {
   beginAction(pending: MailPending): void {
     if (this.pending) throw new Error("mail_busy");
     this.pending = pending;
+    this.abandoned = false;
+  }
+
+  abandonAction(pending: MailPending): void {
+    if (
+      this.pending?.action !== pending.action ||
+      this.pending.id !== pending.id
+    )
+      return;
+    if (
+      this.pending.action === "item_taken" &&
+      pending.action === "item_taken" &&
+      this.pending.itemLow !== pending.itemLow
+    )
+      return;
+    this.abandoned = true;
   }
 
   releaseAction(pending: MailPending): void {
@@ -214,12 +234,15 @@ export class MailStore {
     )
       return;
     this.pending = undefined;
+    this.abandoned = false;
   }
 
   receiveSendMailResult(result: SendMailResult): void {
     this.lastResult = result;
-    if (this.pending && mailResultMatches(this.pending, result))
+    if (this.pending && mailResultMatches(this.pending, result)) {
       this.pending = undefined;
+      this.abandoned = false;
+    }
     if (result.status !== "ok") {
       this.events.emit({ result, type: "result" });
       return;
@@ -257,6 +280,7 @@ export class MailStore {
     this.newMail = false;
     this.mailbox = undefined;
     this.pending = undefined;
+    this.abandoned = false;
     this.lastResult = undefined;
     this.events.clear();
   }
