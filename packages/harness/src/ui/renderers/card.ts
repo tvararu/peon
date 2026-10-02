@@ -325,6 +325,10 @@ function journalRows(theme: Theme, after: JournalAfter): string[] {
       return bagRows(theme, after.bags);
     case "bank":
       return vaultRows(after.bank);
+    case "mail":
+      return after.mail.lines.map(
+        (mail) => `${glyph("spell")} ${mail.subject}`,
+      );
     case "reputation":
       return after.factions.map((name) => `${glyph("spell")} ${name}`);
     case "spells":

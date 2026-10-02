@@ -1,5 +1,6 @@
 import { dungeonTool } from "#harness/areas/instances/tool";
 import { gearTool } from "#harness/areas/items/tool";
+import { mailTool } from "#harness/areas/mail/tool";
 import { useTool } from "#harness/areas/objects/tool";
 import { petTool } from "#harness/areas/pets/tool";
 import { groupTool } from "#harness/areas/raid/tool";
@@ -38,6 +39,7 @@ export const GAME_TOOLS = [
   groupTool,
   tradeTool,
   talentsTool,
+  mailTool,
   vehicleTool,
 ] as const;
 

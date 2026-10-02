@@ -26,6 +26,7 @@ import {
   secondsText,
 } from "#harness/tools/journal-bags";
 import { bankBodyOf, bankViewOf } from "#harness/tools/journal-bank";
+import { mailBodyOf, mailViewOf } from "#harness/tools/journal-mail";
 import { type JournalArgs, journalParams } from "#harness/tools/params-journal";
 import { journalRenderers } from "#harness/ui/renderers/card";
 
@@ -313,6 +314,23 @@ function bankResult(ctx: Ctx): ToolResult<JournalAfter> {
   });
 }
 
+function mailResult(ctx: Ctx): ToolResult<JournalAfter> {
+  const state = ctx.handle.mail.state();
+  const labelOf = (entry: number) =>
+    ctx.handle.itemLabel(entry).name ?? undefined;
+  const view = mailViewOf(state.inbox, state.unread, labelOf);
+  const body = mailBodyOf(view);
+  const detail =
+    view.lines.length === 0
+      ? "Mail: empty."
+      : `${view.lines.length} waiting letter${view.lines.length === 1 ? "" : "s"}.`;
+  return result("DONE", {
+    after: { about: "mail", mail: view },
+    body,
+    detail,
+  });
+}
+
 function journal(
   args: JournalArgs,
   ctx: Ctx,
@@ -321,6 +339,7 @@ function journal(
   if (args.about === "quests") return Promise.resolve(questsResult(ctx));
   if (args.about === "bags") return bagsResult(ctx);
   if (args.about === "bank") return Promise.resolve(bankResult(ctx));
+  if (args.about === "mail") return Promise.resolve(mailResult(ctx));
   if (args.about === "reputation")
     return Promise.resolve(reputationResult(args, ctx));
   return Promise.resolve(logResult(args, ctx));

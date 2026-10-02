@@ -346,6 +346,21 @@ export type BankView = {
   bagSlots: number | undefined;
   known: boolean;
 };
+export type MailLine = {
+  line: number;
+  sender: string;
+  subject: string;
+  body: string;
+  money: number;
+  cod: number;
+  items: { entry: number; count: number; name: string }[];
+  daysLeft: number;
+};
+
+export type MailView = {
+  lines: MailLine[];
+  unread: boolean;
+};
 
 export type SpellLine = {
   id: number;
@@ -391,6 +406,7 @@ export type JournalAfter =
   | { about: "quests"; quests: QuestLine[] }
   | { about: "bags"; bags: BagsView }
   | { about: "bank"; bank: BankView }
+  | { about: "mail"; mail: MailView }
   | {
       about: "spells";
       spells: SpellLine[];

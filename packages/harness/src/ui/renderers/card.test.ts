@@ -430,6 +430,33 @@ describe("card family", () => {
     ).toContain(`${nerd.item} Wool Cloth ×3`);
   });
 
+  test("a mail journal shows waiting subjects", () => {
+    const mail: JournalAfter = {
+      about: "mail",
+      mail: {
+        lines: [
+          {
+            body: "plain letter.",
+            cod: 0,
+            daysLeft: 30,
+            items: [],
+            line: 1,
+            money: 0,
+            sender: "player 42",
+            subject: "Meet at the inn",
+          },
+        ],
+        unread: true,
+      },
+    };
+    const text = plain(
+      renderResultLines(journalTool, done(mail, "Mail: 1 letter."), {
+        options: open,
+      }),
+    );
+    expect(text.join("\n")).toContain("Meet at the inn");
+  });
+
   test("card results fit a 40-column pane", () => {
     const all = [
       renderResultLines(interactTool, done(talk, "x"), {
