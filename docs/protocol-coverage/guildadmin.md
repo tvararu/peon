@@ -7,9 +7,9 @@ columns are explained in [the index](../protocol-coverage.md).
 |---|---|---|---|---|
 | `0x081` | `CMSG_GUILD_CREATE` | client | missing | not seen live |
 | `0x086` | `SMSG_GUILD_DECLINE` | server | dead |  |
-| `0x087` | `CMSG_GUILD_INFO` | client | missing |  |
-| `0x088` | `SMSG_GUILD_INFO` | server | stub |  |
-| `0x08f` | `CMSG_GUILD_DISBAND` | client | missing |  |
+| `0x087` | `CMSG_GUILD_INFO` | client | handled |  |
+| `0x088` | `SMSG_GUILD_INFO` | server | handled |  |
+| `0x08f` | `CMSG_GUILD_DISBAND` | client | handled |  |
 | `0x1f1` | `MSG_SAVE_GUILD_EMBLEM` | both | missing |  |
 | `0x1f2` | `MSG_TABARDVENDOR_ACTIVATE` | both | missing |  |
 | `0x231` | `CMSG_GUILD_RANK` | client | missing |  |
