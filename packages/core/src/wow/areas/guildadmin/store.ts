@@ -12,6 +12,10 @@ export type GuildadminEvent =
       type: "disbanded";
     };
 
+function detach(info: GuildInfo): GuildInfo {
+  return { ...info, created: { ...info.created } };
+}
+
 export class GuildadminStore {
   private readonly events = new Emitter<[GuildadminEvent]>();
   private infoState: GuildInfo | undefined;
@@ -19,10 +23,7 @@ export class GuildadminStore {
 
   snapshot(): GuildadminState {
     return {
-      info: this.infoState && {
-        ...this.infoState,
-        created: { ...this.infoState.created },
-      },
+      info: this.infoState && detach(this.infoState),
       disbanded: this.disbandedState,
     };
   }
@@ -32,8 +33,8 @@ export class GuildadminStore {
   }
 
   receiveInfo(info: GuildInfo): void {
-    this.infoState = { ...info, created: { ...info.created } };
-    this.events.emit({ type: "info", info: this.snapshot().info as GuildInfo });
+    this.infoState = detach(info);
+    this.events.emit({ type: "info", info: detach(info) });
   }
 
   receiveGuildEvent(code: number): void {

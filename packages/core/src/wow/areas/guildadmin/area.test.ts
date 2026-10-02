@@ -50,6 +50,19 @@ describe("guildadmin area", () => {
     }
   });
 
+  test("a second GE_DISBANDED does not re-emit", () => {
+    const rig = areaRig("guildadmin");
+    const seen: string[] = [];
+    rig.handle.onEvent((event) => seen.push(event.type));
+    try {
+      rig.inject(GameOpcode.SMSG_GUILD_EVENT, guildadminGuildEventBody(8));
+      rig.inject(GameOpcode.SMSG_GUILD_EVENT, guildadminGuildEventBody(8));
+      expect(seen).toEqual(["disbanded"]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
   test("act.info sends CMSG_GUILD_INFO and resolves with the injected reply", async () => {
     const rig = areaRig("guildadmin");
     try {
