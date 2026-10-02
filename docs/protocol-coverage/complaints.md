@@ -5,5 +5,5 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x3c7` | `CMSG_COMPLAIN` | client | missing | not seen live |
-| `0x3c8` | `SMSG_COMPLAIN_RESULT` | server | missing | not seen live |
+| `0x3c7` | `CMSG_COMPLAIN` | client | handled | not seen live |
+| `0x3c8` | `SMSG_COMPLAIN_RESULT` | server | handled | not seen live |
