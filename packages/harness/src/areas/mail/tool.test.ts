@@ -128,13 +128,24 @@ describe("mail tool spec", () => {
       });
       try {
         await mailSpec.run(args, toolCtx(t));
+        expect.unreachable();
       } catch (error) {
-        expect(String(error)).toContain("Mailbox");
+        expect(String(error)).toContain("1, 1");
+        expect(String(error)).toContain("40 yd away");
       }
       expect(t.acts.listMail).not.toHaveBeenCalled();
       expect(t.acts.takeMailMoney).not.toHaveBeenCalled();
       expect(t.acts.sendMail).not.toHaveBeenCalled();
     }
+  });
+
+  test("send with no known mailbox refuses without coordinates", async () => {
+    const t = await world();
+    setUnits(t.handle, []);
+    await expect(
+      mailSpec.run({ do: "send", text: "hi", to: "Fgk" }, toolCtx(t)),
+    ).rejects.toThrow("No mailbox is known nearby");
+    expect(t.acts.sendMail).not.toHaveBeenCalled();
   });
 
   test("check lists, marks each letter read and prints numbered letters", async () => {

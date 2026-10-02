@@ -14,8 +14,6 @@ import { nextCall } from "#harness/tools/next-call";
 type MailLetter = AreaState<"mail">["inbox"][number];
 type MailOutcome = Awaited<ReturnType<AreaActsOf<"mail">["takeMailMoney"]>>;
 
-export const EQUIP_INVENTORY_FULL = 50;
-
 function takeRefusal(reason: string, detail: string): Refusal {
   return new Refusal({
     detail,

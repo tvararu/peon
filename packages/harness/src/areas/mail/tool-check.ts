@@ -5,7 +5,7 @@ import type {
   MailboxPick,
   MailCtx,
 } from "#harness/areas/mail/tool-types";
-import { objectRows } from "#harness/areas/objects/reads";
+import { type ObjectRow, objectRows } from "#harness/areas/objects/reads";
 import type { ToolResult } from "#harness/contract/result";
 import { Refusal } from "#harness/ops/refusal";
 import { result } from "#harness/tools/define";
@@ -39,7 +39,7 @@ export function pickMailbox(ctx: MailCtx): MailboxPick {
 }
 
 export function noMailboxText(
-  known: readonly { distance: number | undefined; name: string }[],
+  known: readonly Pick<ObjectRow, "distance" | "name" | "x" | "y">[],
 ): string {
   if (known.length === 0)
     return "No mailbox is known nearby. Walk to a mailbox and call again.";
@@ -48,10 +48,14 @@ export function noMailboxText(
   );
   if (nearest === undefined)
     return "No mailbox is known nearby. Walk to a mailbox and call again.";
+  const at =
+    nearest.x === undefined || nearest.y === undefined
+      ? ""
+      : ` at ${nearest.x}, ${nearest.y}`;
   const where =
-    nearest.distance === undefined ? "" : ` ${nearest.distance} yd away`;
+    nearest.distance === undefined ? "" : ` (${nearest.distance} yd away)`;
   return (
-    `No mailbox is close enough. The nearest known mailbox is ${nearest.name}${where}. ` +
+    `No mailbox is close enough. The nearest known mailbox is ${nearest.name}${at}${where}. ` +
     "Walk to it with travel, then call again."
   );
 }
