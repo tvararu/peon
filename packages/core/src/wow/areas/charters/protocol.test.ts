@@ -1,32 +1,34 @@
 import { describe, expect, test } from "bun:test";
-import { PacketReader } from "#wow/protocol/packet";
 import {
   ARENA_ENTRIES,
   CHARTERS_GUILD_MASTER,
-  GUILD_ENTRY,
   chartersQueryResponseBody,
   chartersRenameBody,
   chartersShowlistBody,
   chartersSignaturesBody,
+  GUILD_ENTRY,
 } from "#test-support/areas/charters";
 import {
   buildPetitionBuy,
   buildPetitionQuery,
   buildPetitionRename,
-  buildShowSignatures,
   buildShowlist,
+  buildShowSignatures,
   parseQueryResponse,
   parseRename,
   parseShowlist,
   parseSignatures,
 } from "#wow/areas/charters/protocol";
+import { PacketReader } from "#wow/protocol/packet";
 
 const NAME = "FacAbCdeFghIjKlMn";
 
 describe("charters protocol", () => {
   test("showlist parses the guild entry from a tabard designer", () => {
     const parsed = parseShowlist(
-      new PacketReader(chartersShowlistBody(CHARTERS_GUILD_MASTER, [GUILD_ENTRY])),
+      new PacketReader(
+        chartersShowlistBody(CHARTERS_GUILD_MASTER, [GUILD_ENTRY]),
+      ),
     );
     expect(parsed.npc).toBe(CHARTERS_GUILD_MASTER);
     expect(parsed.entries).toEqual([GUILD_ENTRY]);
@@ -34,10 +36,12 @@ describe("charters protocol", () => {
 
   test("showlist parses the three arena entries", () => {
     const parsed = parseShowlist(
-      new PacketReader(chartersShowlistBody(CHARTERS_GUILD_MASTER, ARENA_ENTRIES)),
+      new PacketReader(
+        chartersShowlistBody(CHARTERS_GUILD_MASTER, ARENA_ENTRIES),
+      ),
     );
     expect(parsed.entries.map((entry) => entry.entry)).toEqual([
-      23560, 23561, 23562,
+      23_560, 23_561, 23_562,
     ]);
     expect(parsed.entries.map((entry) => entry.required)).toEqual([2, 3, 5]);
   });

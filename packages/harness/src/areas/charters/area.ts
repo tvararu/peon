@@ -20,10 +20,7 @@ function offerText(event: Listed): string {
   );
 }
 
-function onEvent(
-  event: ChartersEvent,
-  rc: RuleInput,
-): readonly AreaDraft[] {
+function onEvent(event: ChartersEvent, rc: RuleInput): readonly AreaDraft[] {
   if (event.type === "query") return [];
   if (event.type === "showlist")
     return [

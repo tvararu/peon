@@ -30,7 +30,7 @@ export type ShowlistEntry = {
 
 export const GUILD_ENTRY: ShowlistEntry = {
   cost: 1000,
-  displayId: 16161,
+  displayId: 16_161,
   entry: 5863,
   index: 1,
   required: 9,
@@ -39,25 +39,25 @@ export const GUILD_ENTRY: ShowlistEntry = {
 
 export const ARENA_ENTRIES: readonly ShowlistEntry[] = [
   {
-    cost: 800000,
-    displayId: 16161,
-    entry: 23560,
+    cost: 800_000,
+    displayId: 16_161,
+    entry: 23_560,
     index: 1,
     required: 2,
     unknown: 2,
   },
   {
-    cost: 1200000,
-    displayId: 16161,
-    entry: 23561,
+    cost: 1_200_000,
+    displayId: 16_161,
+    entry: 23_561,
     index: 2,
     required: 3,
     unknown: 3,
   },
   {
-    cost: 2000000,
-    displayId: 16161,
-    entry: 23562,
+    cost: 2_000_000,
+    displayId: 16_161,
+    entry: 23_562,
     index: 3,
     required: 5,
     unknown: 5,
@@ -65,11 +65,11 @@ export const ARENA_ENTRIES: readonly ShowlistEntry[] = [
 ];
 
 export function chartersShowlistBody(
-  npc: bigint,
+  vendor: bigint,
   entries: readonly ShowlistEntry[],
 ): Uint8Array {
   const w = new PacketWriter();
-  w.uint64LE(npc);
+  w.uint64LE(vendor);
   w.uint8(entries.length);
   for (const e of entries) {
     w.uint32LE(e.index);
@@ -201,7 +201,7 @@ function here() {
   return { mapId: 0, orientation: 0, x: 0, y: 0, z: 0 };
 }
 
-function npc(guid: bigint, entry: number, flags: number): Entity {
+function charterNpc(guid: bigint, entry: number, flags: number): Entity {
   return {
     displayId: 0,
     entry,
@@ -221,21 +221,25 @@ function npc(guid: bigint, entry: number, flags: number): Entity {
 }
 
 export function chartersGuildMaster(): Entity {
-  return npc(CHARTERS_GUILD_MASTER, 28774, PETITIONER | TABARD_DESIGNER);
+  return charterNpc(
+    CHARTERS_GUILD_MASTER,
+    28_774,
+    PETITIONER | TABARD_DESIGNER,
+  );
 }
 
 export function chartersOrganizer(): Entity {
-  return npc(CHARTERS_ORGANIZER, 29534, PETITIONER);
+  return charterNpc(CHARTERS_ORGANIZER, 29_534, PETITIONER);
 }
 
 export function chartersStranger(guid: bigint): Entity {
-  return npc(guid, 1234, 0);
+  return charterNpc(guid, 1234, 0);
 }
 export function chartersCharter(
   world: ItemsWorld,
   slot: number,
   guid: bigint = CHARTERS_CHARTER,
-  petitionId: number | undefined,
+  petitionId?: number | undefined,
 ): Entity {
   const entity = world.put(255, slot, { entry: 5863, guid });
   if (petitionId !== undefined)
@@ -292,4 +296,4 @@ export function chartersScene(seed: (world: ItemsWorld) => void = () => {}) {
   return { rig, world };
 }
 
-export { low as chartersLow, high as chartersHigh };
+export { high as chartersHigh, low as chartersLow };

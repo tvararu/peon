@@ -41,26 +41,36 @@ export const chartersArea = defineArea({
       const renamed = parseRename(reader);
       store.receiveRename(renamed.item, renamed.name);
     });
-  wire.peek(GameOpcode.SMSG_ITEM_PUSH_RESULT, (reader) => {
-    const push = parseItemPushResult(reader);
-    if (push.itemId === 5863 || push.itemId === 23560 || push.itemId === 23561 || push.itemId === 23562)
-      store.receiveItemPush(push);
-  });
-  wire.peek(GameOpcode.SMSG_BUY_FAILED, (reader) => {
-    const failure = parseBuyFailed(reader);
-    if (failure.itemId === 5863 || failure.itemId === 23560 || failure.itemId === 23561 || failure.itemId === 23562)
-      store.receiveBuyFailure(failure);
-  });
-  wire.peek(GameOpcode.SMSG_GUILD_COMMAND_RESULT, (reader) => {
-    const result = parseGuildCommandResult(reader);
-    if (result.command === 0 && result.result !== 0)
-      store.receiveCommandResult(result.command, result.result);
-  });
-  wire.peek(GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE, (reader) => {
-    const failure = parseInventoryChangeFailure(reader);
-    if (failure.kind === "error" && failure.result !== 59)
-      store.receiveInventoryFailure(failure);
-  });
+    wire.peek(GameOpcode.SMSG_ITEM_PUSH_RESULT, (reader) => {
+      const push = parseItemPushResult(reader);
+      if (
+        push.itemId === 5863 ||
+        push.itemId === 23_560 ||
+        push.itemId === 23_561 ||
+        push.itemId === 23_562
+      )
+        store.receiveItemPush(push);
+    });
+    wire.peek(GameOpcode.SMSG_BUY_FAILED, (reader) => {
+      const failure = parseBuyFailed(reader);
+      if (
+        failure.itemId === 5863 ||
+        failure.itemId === 23_560 ||
+        failure.itemId === 23_561 ||
+        failure.itemId === 23_562
+      )
+        store.receiveBuyFailure(failure);
+    });
+    wire.peek(GameOpcode.SMSG_GUILD_COMMAND_RESULT, (reader) => {
+      const result = parseGuildCommandResult(reader);
+      if (result.command === 0 && result.result !== 0)
+        store.receiveCommandResult(result.command, result.result);
+    });
+    wire.peek(GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE, (reader) => {
+      const failure = parseInventoryChangeFailure(reader);
+      if (failure.kind === "error" && failure.result !== 59)
+        store.receiveInventoryFailure(failure);
+    });
   },
   runtime: chartersRuntime,
 });

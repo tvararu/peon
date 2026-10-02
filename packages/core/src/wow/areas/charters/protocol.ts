@@ -105,7 +105,14 @@ export function parseQueryResponse(r: PacketReader): QueryResponse {
   r.uint32LE();
   const arena = r.uint32LE() !== 0;
 
-  return { id, kind: arena ? "arena" : "guild", maxSigns: second, minSigns: first, name, owner };
+  return {
+    id,
+    kind: arena ? "arena" : "guild",
+    maxSigns: second,
+    minSigns: first,
+    name,
+    owner,
+  };
 }
 
 export type PetitionSignatures = {

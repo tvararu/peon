@@ -3,14 +3,14 @@ import {
   buildPetitionBuy,
   buildPetitionQuery,
   buildPetitionRename,
-  buildShowSignatures,
   buildShowlist,
+  buildShowSignatures,
 } from "#wow/areas/charters/protocol";
-import {
-  type CharterRequest,
-  type CharterResult,
-  type ChartersEvent,
-  type ChartersStore,
+import type {
+  CharterRequest,
+  CharterResult,
+  ChartersEvent,
+  ChartersStore,
 } from "#wow/areas/charters/store";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import { GameOpcode } from "#wow/protocol/opcodes";
@@ -86,11 +86,10 @@ async function send(
 
 function showList(env: Env, npc: bigint): Promise<CharterResult> {
   requireWorld(env);
-  return send(
-    env,
-    { kind: "showlist", npc, requestedAt: env.ctx.now() },
-    [GameOpcode.CMSG_PETITION_SHOWLIST, buildShowlist(npc)],
-  );
+  return send(env, { kind: "showlist", npc, requestedAt: env.ctx.now() }, [
+    GameOpcode.CMSG_PETITION_SHOWLIST,
+    buildShowlist(npc),
+  ]);
 }
 
 function buy(
@@ -141,20 +140,18 @@ function query(env: Env, item: bigint): Promise<CharterResult> {
 
 function showSignatures(env: Env, item: bigint): Promise<CharterResult> {
   requireWorld(env);
-  return send(
-    env,
-    { item, kind: "signatures", requestedAt: env.ctx.now() },
-    [GameOpcode.CMSG_PETITION_SHOW_SIGNATURES, buildShowSignatures(item)],
-  );
+  return send(env, { item, kind: "signatures", requestedAt: env.ctx.now() }, [
+    GameOpcode.CMSG_PETITION_SHOW_SIGNATURES,
+    buildShowSignatures(item),
+  ]);
 }
 
 function rename(env: Env, item: bigint, name: string): Promise<CharterResult> {
   requireWorld(env);
-  return send(
-    env,
-    { item, kind: "rename", name, requestedAt: env.ctx.now() },
-    [GameOpcode.MSG_PETITION_RENAME, buildPetitionRename(item, name)],
-  );
+  return send(env, { item, kind: "rename", name, requestedAt: env.ctx.now() }, [
+    GameOpcode.MSG_PETITION_RENAME,
+    buildPetitionRename(item, name),
+  ]);
 }
 
 export function chartersRuntime(

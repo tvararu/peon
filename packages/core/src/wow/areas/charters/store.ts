@@ -1,14 +1,14 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import { fieldOf, isUnit } from "#wow/entity-store";
-import { distance } from "#wow/geometry";
-import {
-  type CharterOffer,
-  type PetitionSignatures,
-  type QueryResponse,
-  type Showlist,
+import type {
+  CharterOffer,
+  PetitionSignatures,
+  QueryResponse,
+  Showlist,
 } from "#wow/areas/charters/protocol";
+import type { Entity } from "#wow/entity-store";
+import { distance } from "#wow/geometry";
 import { readInventory } from "#wow/inventory";
-import { type BuyItemFailure, buyResultName } from "#wow/protocol/vendor";
+import { ObjectType } from "#wow/protocol/entity-fields";
 import {
   type InventoryChangeFailure,
   type InventoryClaim,
@@ -17,10 +17,11 @@ import {
 } from "#wow/protocol/inventory";
 import type { ItemPushResult } from "#wow/protocol/loot";
 import { ITEM_FIELDS, PLAYER_FIELDS } from "#wow/protocol/update-fields";
+import { type BuyItemFailure, buyResultName } from "#wow/protocol/vendor";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export const GUILD_CHARTER_ENTRY = 5863;
-export const ARENA_CHARTER_ENTRIES = [23560, 23561, 23562] as const;
+export const ARENA_CHARTER_ENTRIES = [23_560, 23_561, 23_562] as const;
 export const CHARTER_ENTRIES = [
   GUILD_CHARTER_ENTRY,
   ...ARENA_CHARTER_ENTRIES,
@@ -40,9 +41,27 @@ export type CharterPetition = {
 };
 
 export type CharterRequest =
-  | { kind: "showlist"; npc: bigint; entries?: number[] | undefined; requestedAt: number }
-  | { kind: "buy"; npc: bigint; name: string; index: number; entries: number[]; before: bigint[]; requestedAt: number }
-  | { kind: "query"; item: bigint; petition: number | undefined; requestedAt: number }
+  | {
+      kind: "showlist";
+      npc: bigint;
+      entries?: number[] | undefined;
+      requestedAt: number;
+    }
+  | {
+      kind: "buy";
+      npc: bigint;
+      name: string;
+      index: number;
+      entries: number[];
+      before: bigint[];
+      requestedAt: number;
+    }
+  | {
+      kind: "query";
+      item: bigint;
+      petition: number | undefined;
+      requestedAt: number;
+    }
   | { kind: "signatures"; item: bigint; requestedAt: number }
   | { kind: "rename"; item: bigint; name: string; requestedAt: number };
 
@@ -150,18 +169,32 @@ export class ChartersStore {
     const from = self?.position;
     const to = other?.position;
     if (!(other && from && to)) return undefined;
-    return distance({ x: from.x, y: from.y, z: from.z }, { x: to.x, y: to.y, z: to.z });
+    return distance(
+      { x: from.x, y: from.y, z: from.z },
+      { x: to.x, y: to.y, z: to.z },
+    );
   }
 
   petitioner(npc: bigint): boolean | undefined {
     const entity = this.deps.getEntity(npc);
-    const flags = isUnit(entity) ? entity.npcFlags : undefined;
-    if (flags === undefined) return undefined;
-    return (flags & PETITIONER_NPC_FLAG) !== 0;
+    const isUnit =
+      entity?.objectType === ObjectType.UNIT ||
+      entity?.objectType === ObjectType.PLAYER;
+    if (!(entity && isUnit && "npcFlags" in entity)) return undefined;
+    return (entity.npcFlags & PETITIONER_NPC_FLAG) !== 0;
+  }
+
+  private field(
+    entity: Entity | undefined,
+    offset: number,
+  ): number | undefined {
+    return (
+      entity?.rawFields.get(offset) ?? (entity?.createComplete ? 0 : undefined)
+    );
   }
 
   guildId(): number | undefined {
-    return fieldOf(
+    return this.field(
       this.deps.getEntity(this.deps.selfGuid()),
       PLAYER_FIELDS.GUILDID.offset,
     );
@@ -179,7 +212,7 @@ export class ChartersStore {
   }
 
   petitionIdOf(item: bigint): number | undefined {
-    return fieldOf(
+    return this.field(
       this.deps.getEntity(item),
       ITEM_FIELDS.ENCHANTMENT_1_1.offset,
     );
@@ -204,8 +237,16 @@ export class ChartersStore {
     this.offers.set(key, [...packet.entries]);
     const request = this.request;
     if (request?.kind === "showlist" && request.npc === packet.npc)
-      this.settle({ status: "ok" }, { entries: [...packet.entries], npc: packet.npc, type: "showlist" });
-    else this.events.emit({ entries: [...packet.entries], npc: packet.npc, type: "showlist" });
+      this.settle(
+        { status: "ok" },
+        { entries: [...packet.entries], npc: packet.npc, type: "showlist" },
+      );
+    else
+      this.events.emit({
+        entries: [...packet.entries],
+        npc: packet.npc,
+        type: "showlist",
+      });
   }
 
   receiveQueryResponse(response: QueryResponse): void {
@@ -247,13 +288,22 @@ export class ChartersStore {
     }
     const request = this.request;
     if (request?.kind === "signatures" && request.item === packet.item)
-      this.settle({ item: packet.item, status: "ok" }, {
+      this.settle(
+        { item: packet.item, status: "ok" },
+        {
+          item: packet.item,
+          offered: !held,
+          signers: [...packet.signers],
+          type: "signatures",
+        },
+      );
+    else
+      this.events.emit({
         item: packet.item,
         offered: !held,
         signers: [...packet.signers],
         type: "signatures",
       });
-    else this.events.emit({ item: packet.item, offered: !held, signers: [...packet.signers], type: "signatures" });
   }
 
   receiveRename(item: bigint, name: string): void {
@@ -271,17 +321,18 @@ export class ChartersStore {
     if (push.guid !== this.deps.selfGuid()) return;
     if (!request.entries.includes(push.itemId)) return;
     const item = this.resolveBought(request, push);
-    this.settle({ item, status: "ok" }, { item, name: request.name, npc: request.npc, type: "bought" });
+    this.settle(
+      { item, status: "ok" },
+      { item, name: request.name, npc: request.npc, type: "bought" },
+    );
   }
 
   receiveBuyFailure(failure: BuyItemFailure): void {
     const request = this.request;
     if (request?.kind !== "buy") return;
-    if (failure.vendorGuid !== 0n && failure.vendorGuid !== request.npc)
-      return;
+    if (failure.vendorGuid !== 0n && failure.vendorGuid !== request.npc) return;
     const mine =
-      failure.itemId === 0 ||
-      request.entries.includes(failure.itemId);
+      failure.itemId === 0 || request.entries.includes(failure.itemId);
     if (mine) this.refuse(buyResultName(failure.result));
   }
 
@@ -301,13 +352,19 @@ export class ChartersStore {
   refuse(reason: string): void {
     const request = this.request;
     if (!request) return;
-    this.settle({ reason, status: "refused" }, { kind: request.kind, reason, type: "refused" });
+    this.settle(
+      { reason, status: "refused" },
+      { kind: request.kind, reason, type: "refused" },
+    );
   }
 
   expire(): void {
     const request = this.request;
     if (!request) return;
-    this.settle({ status: "no_reply" }, { kind: request.kind, type: "unanswered" });
+    this.settle(
+      { status: "no_reply" },
+      { kind: request.kind, type: "unanswered" },
+    );
   }
 
   resultOf(request: CharterRequest): CharterResult | undefined {

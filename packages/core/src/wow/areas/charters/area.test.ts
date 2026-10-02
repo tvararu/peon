@@ -6,7 +6,6 @@ import {
   CHARTERS_ME,
   CHARTERS_ORGANIZER,
   CHARTERS_PETITION_ID,
-  GUILD_ENTRY,
   chartersBuyFailedBody,
   chartersCharter,
   chartersFailureBody,
@@ -16,6 +15,7 @@ import {
   chartersScene,
   chartersShowlistBody,
   chartersSignaturesBody,
+  GUILD_ENTRY,
 } from "#test-support/areas/charters";
 import { elapse, withFakeTimers } from "#test-support/fake-time";
 import {
@@ -29,7 +29,9 @@ import { PacketReader } from "#wow/protocol/packet";
 
 const NAME = "FacAbCdeFghIjKlMn";
 
-function sentBodies(rig: { sent: readonly { body: Uint8Array | undefined }[] }) {
+function sentBodies(rig: {
+  sent: readonly { body: Uint8Array | undefined }[];
+}) {
   return rig.sent.map((packet) => packet.body ?? new Uint8Array());
 }
 
@@ -42,9 +44,9 @@ describe("charters acts", () => {
       expect(rig.sent.map((packet) => packet.opcode)).toEqual([
         GameOpcode.CMSG_PETITION_SHOWLIST,
       ]);
-      expect(new PacketReader(sentBodies(rig)[0] ?? new Uint8Array()).uint64LE()).toBe(
-        CHARTERS_GUILD_MASTER,
-      );
+      expect(
+        new PacketReader(sentBodies(rig)[0] ?? new Uint8Array()).uint64LE(),
+      ).toBe(CHARTERS_GUILD_MASTER);
       rig.inject(
         GameOpcode.SMSG_PETITION_SHOWLIST,
         chartersShowlistBody(CHARTERS_GUILD_MASTER, [GUILD_ENTRY]),
@@ -68,7 +70,10 @@ describe("charters acts", () => {
       );
       chartersCharter(world, 24, CHARTERS_CHARTER, CHARTERS_PETITION_ID);
       rig.touch();
-      rig.inject(GameOpcode.SMSG_ITEM_PUSH_RESULT, chartersItemPushBody(CHARTERS_ME, 5863));
+      rig.inject(
+        GameOpcode.SMSG_ITEM_PUSH_RESULT,
+        chartersItemPushBody(CHARTERS_ME, 5863),
+      );
       const outcome = await pending;
       expect(outcome.status).toBe("ok");
       expect(outcome).toEqual({ item: CHARTERS_CHARTER, status: "ok" });
@@ -86,7 +91,10 @@ describe("charters acts", () => {
         GameOpcode.SMSG_BUY_FAILED,
         chartersBuyFailedBody(CHARTERS_GUILD_MASTER, 5863, 2),
       );
-      expect(await pending).toEqual({ reason: "not_enough_money", status: "refused" });
+      expect(await pending).toEqual({
+        reason: "not_enough_money",
+        status: "refused",
+      });
     } finally {
       rig.dispose();
     }
@@ -97,8 +105,14 @@ describe("charters acts", () => {
     try {
       const pending = rig.handle.act.buy(CHARTERS_GUILD_MASTER, NAME, 1);
       await Promise.resolve();
-      rig.inject(GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE, chartersFailureBody(50));
-      expect(await pending).toEqual({ reason: "inventory_full", status: "refused" });
+      rig.inject(
+        GameOpcode.SMSG_INVENTORY_CHANGE_FAILURE,
+        chartersFailureBody(50),
+      );
+      expect(await pending).toEqual({
+        reason: "inventory_full",
+        status: "refused",
+      });
     } finally {
       rig.dispose();
     }
@@ -137,7 +151,9 @@ describe("charters acts", () => {
     try {
       const pending = rig.handle.act.query(CHARTERS_CHARTER);
       await Promise.resolve();
-      expect(sentBodies(rig)[0]).toEqual(buildPetitionQuery(0, CHARTERS_CHARTER));
+      expect(sentBodies(rig)[0]).toEqual(
+        buildPetitionQuery(0, CHARTERS_CHARTER),
+      );
       rig.dispose();
       await expect(pending).rejects.toThrow();
     } finally {
@@ -181,13 +197,17 @@ describe("charters acts", () => {
       expect(rig.sent.map((packet) => packet.opcode)).toEqual([
         GameOpcode.MSG_PETITION_RENAME,
       ]);
-      expect(sentBodies(rig)[0]).toEqual(buildPetitionRename(CHARTERS_CHARTER, renamed));
+      expect(sentBodies(rig)[0]).toEqual(
+        buildPetitionRename(CHARTERS_CHARTER, renamed),
+      );
       rig.inject(
         GameOpcode.MSG_PETITION_RENAME,
         chartersRenameBody(CHARTERS_CHARTER, renamed),
       );
       expect(await pending).toEqual({ item: CHARTERS_CHARTER, status: "ok" });
-      expect(rig.handle.state().petitions[`0x${CHARTERS_CHARTER.toString(16)}`]).toBeUndefined();
+      expect(
+        rig.handle.state().petitions[`0x${CHARTERS_CHARTER.toString(16)}`],
+      ).toBeUndefined();
     } finally {
       rig.dispose();
     }
@@ -220,7 +240,8 @@ describe("charters acts", () => {
       );
       expect(await pending).toEqual({ item: CHARTERS_CHARTER, status: "ok" });
       expect(
-        rig.handle.state().petitions[`0x${CHARTERS_CHARTER.toString(16)}`]?.name,
+        rig.handle.state().petitions[`0x${CHARTERS_CHARTER.toString(16)}`]
+          ?.name,
       ).toBe(renamed);
     } finally {
       rig.dispose();
@@ -238,7 +259,11 @@ describe("charters acts", () => {
       );
       expect(await pending).toEqual({ status: "ok" });
       expect(
-        rig.handle.state().offers[`0x${CHARTERS_ORGANIZER.toString(16)}`]?.map((entry) => entry.required),
+        rig.handle
+          .state()
+          .offers[`0x${CHARTERS_ORGANIZER.toString(16)}`]?.map(
+            (entry) => entry.required,
+          ),
       ).toEqual([2, 3, 5]);
     } finally {
       rig.dispose();
@@ -261,9 +286,9 @@ describe("charters acts", () => {
     try {
       const first = rig.handle.act.showList(CHARTERS_GUILD_MASTER);
       await Promise.resolve();
-      await expect(rig.handle.act.showList(CHARTERS_GUILD_MASTER)).rejects.toThrow(
-        "a charters request is already pending",
-      );
+      await expect(
+        rig.handle.act.showList(CHARTERS_GUILD_MASTER),
+      ).rejects.toThrow("a charters request is already pending");
       rig.dispose();
       await expect(first).rejects.toThrow();
     } finally {

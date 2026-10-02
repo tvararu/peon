@@ -29,7 +29,7 @@ describe("charters harness rules", () => {
         entries: [
           {
             cost: 1000,
-            displayId: 16161,
+            displayId: 16_161,
             entry: 5863,
             index: 1,
             required: 9,
