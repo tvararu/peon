@@ -8,9 +8,17 @@
   "checks": [
     {
       "evidence": {
+        "events": ["vehicles/entered"]
+      },
+      "expect": "GL has a vehicles/entered row (the agent clicked the Siege Tank and the server seated it), written by the vehicle tool call",
+      "id": "entered",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
         "events": ["vehicles/control"]
       },
-      "expect": "GL has a vehicles/control row with allow true (the server gave the agent control of the Siege Tank after the spell-click board), written by the vehicle tool call",
+      "expect": "GL has a vehicles/control row with allow true for the same vehicle guid as the entered row (the server gave the agent control of the tank it boarded)",
       "id": "control-allow",
       "source": "game_log"
     },
@@ -29,8 +37,8 @@
           "y": 6738
         }
       },
-      "expect": "T final position at least 8 yd from the start point (2792.0, 6738.0, map 571); the agent drove the tank forward before leaving it",
-      "id": "drove-eight-yards",
+      "expect": "T final position at least 8 yd from the start point (2792.0, 6738.0, map 571); the agent moved with the tank before leaving it",
+      "id": "moved-eight-yards",
       "source": "truth"
     },
     {
@@ -77,6 +85,6 @@
     }
   ],
   "steers": [],
-  "task": "Take the quest The Plains of Nasam from Gorge the Corpsegrinder nearby, then use a Horde Siege Tank for it: board the tank, drive it forward, and get off.",
+  "task": "Take the quest The Plains of Nasam from Gorge the Corpsegrinder nearby, then board a Horde Siege Tank: walk to it, get on, move with it, and get off.",
   "tier": 8
 }
