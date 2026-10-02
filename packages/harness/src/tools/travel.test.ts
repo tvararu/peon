@@ -425,9 +425,12 @@ describe("travel", () => {
   test("a flat wide object above the walk plane still plans a route", async () => {
     const t = await world();
     jest.spyOn(t.handle.objects, "state").mockImplementation(() => ({
+      anims: new Map(),
+      despawning: new Set(),
       displays: new DisplayCatalog([
         { id: 7001, maxX: 5, maxY: 5, maxZ: 0.1, minX: -5, minY: -5, minZ: 0 },
       ]),
+      fishing: undefined,
       lastMessage: undefined,
       pages: new Map(),
       pendingUse: undefined,

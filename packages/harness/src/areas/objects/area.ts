@@ -59,6 +59,30 @@ export const objectsHarness = defineHarnessArea({
             text: event.text,
           },
         ];
+      if (event.type === "fish_hooked")
+        return [
+          {
+            class: "wake",
+            data: { bobber: guidText(event.bobber) },
+            guid: guidText(event.bobber),
+            name: "fish_bite",
+            ref: rc.refOf(event.bobber),
+            text: "The bobber splashes; the fish is hooked.",
+          },
+        ];
+      if (event.type === "fish_not_hooked" || event.type === "fish_escaped")
+        return [
+          {
+            class: "log",
+            data: {},
+            name:
+              event.type === "fish_not_hooked" ? "fish_missed" : "fish_fled",
+            text:
+              event.type === "fish_not_hooked"
+                ? "Reeled in too early; no fish was hooked."
+                : "The fish escaped.",
+          },
+        ];
       const fields = Object.entries(event).flatMap(([key, value]) => {
         const plain =
           typeof value === "string" ||

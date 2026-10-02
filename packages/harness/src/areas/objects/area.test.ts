@@ -76,4 +76,31 @@ describe("objects harness area", () => {
       expect(drafts[0]?.progress).toBeUndefined();
     }
   });
+
+  test("a hooked fish wakes the agent with a bite row, misses and escapes log", () => {
+    const hooked = areaDrafts(
+      areaRuleSet(),
+      event("fish_hooked", { bobber: GUID }),
+      testRuleInput(),
+    );
+    expect(hooked).toEqual([
+      expect.objectContaining({ class: "wake", event: "objects/fish_bite" }),
+    ]);
+    const missed = areaDrafts(
+      areaRuleSet(),
+      event("fish_not_hooked", {}),
+      testRuleInput(),
+    );
+    expect(missed).toEqual([
+      expect.objectContaining({ class: "log", event: "objects/fish_missed" }),
+    ]);
+    const fled = areaDrafts(
+      areaRuleSet(),
+      event("fish_escaped", {}),
+      testRuleInput(),
+    );
+    expect(fled).toEqual([
+      expect.objectContaining({ class: "log", event: "objects/fish_fled" }),
+    ]);
+  });
 });

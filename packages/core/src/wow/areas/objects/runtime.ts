@@ -91,6 +91,10 @@ export function objectsRuntime(
     else if (type === "server_correction" && ARRIVALS.has(reason ?? ""))
       store.arrive(state.pose);
   });
+  const offEntity = ctx.listen("entity", (event) => {
+    if (event.type === "disappear") store.entityGone(event.guid);
+    else store.bobberSeen(event.entity.guid);
+  });
   const offSelf = core.self.onEvent(arrival);
   return {
     act: {
@@ -104,6 +108,7 @@ export function objectsRuntime(
     },
     dispose: () => {
       offControl();
+      offEntity();
       offSelf();
     },
   };
