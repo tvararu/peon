@@ -65,7 +65,15 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
     run: (h, a) =>
       h.lfg.act.join({ entries: [count(a, 1)], roles: count(a, 0) }),
   },
+  joinChannel: {
+    args: ["string"],
+    run: (h, a) => h.joinChannel(text(a, 0)),
+  },
   leave: { args: [], run: (h) => h.lfg.act.leave() },
+  leaveChannel: {
+    args: ["string"],
+    run: (h, a) => h.leaveChannel(text(a, 0)),
+  },
   leaveGroup: { args: [], run: (h) => h.leaveGroup() },
   moveToSubgroup: {
     args: ["string", "number"],
@@ -92,6 +100,10 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
     run: (h, a) => h.rollLoot(guid(a, 0), count(a, 1), a[2] as RollVote),
   },
   selectTarget: { args: ["guid"], run: (h, a) => h.selectTarget(guid(a, 0)) },
+  sendChannel: {
+    args: ["string", "string"],
+    run: (h, a) => h.sendChannel(text(a, 0), text(a, 1)),
+  },
   sendParty: { args: ["string"], run: (h, a) => h.sendParty(text(a, 0)) },
   sendRaid: { args: ["string"], run: (h, a) => h.sendRaid(text(a, 0)) },
   sendSay: { args: ["string"], run: (h, a) => h.sendSay(text(a, 0)) },
