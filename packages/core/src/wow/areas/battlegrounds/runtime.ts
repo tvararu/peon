@@ -31,24 +31,26 @@ export function battlegroundsRuntime(
 ): AreaRuntime<BattlegroundsActs> {
   async function setPvp(on: boolean): Promise<BattlegroundsSetPvpResult> {
     if (store.snapshot().self.wantsFlag === on) return { kind: "set", on };
-    ctx.send(GameOpcode.CMSG_TOGGLE_PVP, buildTogglePvp(on));
-    await ctx.until(
+    const answered = ctx.until(
       (event) => event.type === "pvp_flag" && event.wants === on,
       {
         signal: ctx.signal,
         timeoutMs: PVP_ANSWER_MS,
       },
     );
+    ctx.send(GameOpcode.CMSG_TOGGLE_PVP, buildTogglePvp(on));
+    await answered;
     return { kind: "set", on };
   }
 
   async function inspectHonor(guid: bigint): Promise<InspectHonorStats> {
+    const answered = ctx.until(
+      (event) => event.type === "honor_inspect" && event.guid === guid,
+      { signal: ctx.signal, timeoutMs: PVP_ANSWER_MS },
+    );
     ctx.send(GameOpcode.MSG_INSPECT_HONOR_STATS, buildInspectHonorStats(guid));
     try {
-      const event = await ctx.until(
-        (event) => event.type === "honor_inspect" && event.guid === guid,
-        { signal: ctx.signal, timeoutMs: PVP_ANSWER_MS },
-      );
+      const event = await answered;
       if (event.type !== "honor_inspect") throw noAnswer(guid);
       return {
         guid: event.guid,
