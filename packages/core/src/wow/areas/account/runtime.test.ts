@@ -157,4 +157,20 @@ describe("account runtime", () => {
       }
     });
   });
+
+  test("a validation failure leaves no subscribed waiter behind", async () => {
+    const rig = areaRig("account");
+    try {
+      await expect(
+        rig.handle.act.saveAccountData(7, 1, "a\0b"),
+      ).rejects.toThrow("NUL");
+      await expect(
+        rig.handle.act.saveAccountData(7, 1, "x".repeat(0x1_00_00)),
+      ).rejects.toThrow("0xFFFF");
+      await expect(rig.handle.act.accountData(8)).rejects.toThrow("0-7");
+      expect(rig.sent).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
 });

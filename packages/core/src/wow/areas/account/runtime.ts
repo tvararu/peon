@@ -30,15 +30,13 @@ function timeout<T>(env: Env, pending: Promise<T>): Promise<T> {
     timer = setTimeout(() => reject(new Error("timeout")), ACCOUNT_ANSWER_MS);
   });
   limit.catch(ignoreFailure);
-  env.ctx.signal.addEventListener(
-    "abort",
-    () => {
-      clearTimeout(timer);
-    },
-    { once: true },
-  );
+  const abort = () => {
+    clearTimeout(timer);
+  };
+  env.ctx.signal.addEventListener("abort", abort, { once: true });
   return Promise.race([pending, limit]).finally(() => {
     clearTimeout(timer);
+    env.ctx.signal.removeEventListener("abort", abort);
   });
 }
 
@@ -53,6 +51,7 @@ async function ready(env: Env): Promise<number> {
 }
 
 async function read(env: Env, type: number): Promise<string> {
+  const body = buildRequestAccountData(type);
   const pending = env.ctx.expect(GameOpcode.SMSG_UPDATE_ACCOUNT_DATA, {
     match: (reader) => {
       reader.uint64LE();
@@ -60,10 +59,7 @@ async function read(env: Env, type: number): Promise<string> {
     },
   });
   pending.catch(ignoreFailure);
-  env.ctx.send(
-    GameOpcode.CMSG_REQUEST_ACCOUNT_DATA,
-    buildRequestAccountData(type),
-  );
+  env.ctx.send(GameOpcode.CMSG_REQUEST_ACCOUNT_DATA, body);
   return parseUpdateAccountData(await timeout(env, pending)).text;
 }
 
@@ -85,11 +81,9 @@ export function accountRuntime(
     time: number,
     text: string,
   ): Promise<void> {
+    const body = buildUpdateAccountData({ text, time, type });
     const pending = waitSave(env, type);
-    ctx.send(
-      GameOpcode.CMSG_UPDATE_ACCOUNT_DATA,
-      buildUpdateAccountData({ text, time, type }),
-    );
+    ctx.send(GameOpcode.CMSG_UPDATE_ACCOUNT_DATA, body);
     await pending;
   }
   async function eraseAccountData(type: number): Promise<void> {
