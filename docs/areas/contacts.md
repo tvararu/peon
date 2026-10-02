@@ -51,6 +51,17 @@ the runtime reports it; a whisper with no guid sends nothing.
 - `SMSG_CHAT_PLAYER_AMBIGUOUS` (0x32d) is written only by
   `WorldSession::SendPlayerAmbiguousNotice`
   (`Handlers/ChatHandler.cpp:824-829`), which nothing calls.
+- The chat packet types 0x30 (`CHAT_MSG_ACHIEVEMENT`) and 0x31
+  (`CHAT_MSG_GUILD_ACHIEVEMENT`) write the receiver guid, the message, the
+  tag byte and then a `u32` achievement id
+  (`Chat/Chat.cpp:320-323`, `Chat/Chat.cpp:347-348`); say-range players
+  get 0x30 and guild members 0x31
+  (`Achievements/AchievementMgr.cpp:717-724`,
+  `Achievements/AchievementMgr.cpp:757-762`). `parseChatMessage` reads the
+  id after the tag for those two types only and exposes it as
+  `ChatMessage.achievementId` in `protocol/chat.ts`; nothing past the
+  parser carries it (parse-only). 0x19 (`CHAT_MSG_IGNORED`) takes the
+  default branch and has no id (`Chat/Chat.cpp:324-339`).
 
 ## Left out
 
@@ -69,3 +80,4 @@ No verb.
 | `CMSG_CHAT_IGNORED` | `live` | same run: one out `CMSG_CHAT_IGNORED` of 9 bytes in the same second as an in `SMSG_MESSAGE_CHAT` of 36 bytes; Own's headers-only trace keeps sizes only, so the partner-side `CHAT_MSG_IGNORED` receipt has no retained artifact | `Handlers/ChatHandler.cpp:792-807` |
 | `SMSG_CHAT_NOT_IN_PARTY` | `dead` | no send site; declared `STATUS_NEVER` | `Server/Protocol/Opcodes.cpp:796` |
 | `SMSG_CHAT_PLAYER_AMBIGUOUS` | `dead` | only writer is never called | `Handlers/ChatHandler.cpp:824-829` |
+| `SMSG_MESSAGE_CHAT` | `live` | social-5b: Own `soap gm achievement 2188` with a partner standing beside; the partner's `--packet-trace bodies` row `tmp/social-5b/partner-packets.jsonl` shows an in `SMSG_MESSAGE_CHAT` of 68 bytes with type 0x30 and trailing id `8c080000` (2188); the partner's `read --json` printed it as `TYPE_48` | `BuildChatPacket` achievement branch, see Wire notes |
