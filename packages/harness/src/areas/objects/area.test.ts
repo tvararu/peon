@@ -77,7 +77,7 @@ describe("objects harness area", () => {
     }
   });
 
-  test("a hooked fish wakes the agent with a bite row, misses and escapes log", () => {
+  test("a hooked fish wakes the agent, misses and escapes share one passive fish row", () => {
     const hooked = areaDrafts(
       areaRuleSet(),
       event("fish_hooked", { bobber: GUID }),
@@ -92,7 +92,7 @@ describe("objects harness area", () => {
       testRuleInput(),
     );
     expect(missed).toEqual([
-      expect.objectContaining({ class: "log", event: "objects/fish_missed" }),
+      expect.objectContaining({ class: "passive", event: "objects/fish" }),
     ]);
     const fled = areaDrafts(
       areaRuleSet(),
@@ -100,7 +100,7 @@ describe("objects harness area", () => {
       testRuleInput(),
     );
     expect(fled).toEqual([
-      expect.objectContaining({ class: "log", event: "objects/fish_fled" }),
+      expect.objectContaining({ class: "passive", event: "objects/fish" }),
     ]);
   });
 });

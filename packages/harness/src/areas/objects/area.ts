@@ -76,18 +76,12 @@ function fishResultRow(
     | Extract<ObjectsEvent, { type: "fish_not_hooked" }>
     | Extract<ObjectsEvent, { type: "fish_escaped" }>,
 ): AreaDraft {
-  if (event.type === "fish_not_hooked")
-    return {
-      class: "log",
-      data: {},
-      name: "fish_missed",
-      text: "Reeled in too early; no fish was hooked.",
-    };
+  const fled = event.type === "fish_escaped";
   return {
-    class: "log",
-    data: {},
-    name: "fish_fled",
-    text: "The fish escaped.",
+    class: "passive",
+    data: { result: fled ? "escaped" : "not_hooked" },
+    name: "fish",
+    text: fled ? "The fish escaped." : "Reeled in too early; no fish was hooked.",
   };
 }
 

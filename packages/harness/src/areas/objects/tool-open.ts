@@ -93,7 +93,7 @@ async function openCast(
 ): Promise<ToolResult<UseAfter>> {
   const { handle, rt } = ctx;
   if (handle.getRewardsState().loot.phase === "open") await releaseStale(ctx);
-  return withLootWatch(ctx, row, async () => {
+  return withLootWatch(ctx, row, `Opened ${row.name}`, async () => {
     const useOutcome = await rt.mutex.run(() =>
       handle.objects.act.use(row.guid),
     );
@@ -129,9 +129,10 @@ async function castOpen(
   });
 }
 
-async function withLootWatch(
+export async function withLootWatch(
   ctx: UseCtx,
   row: ObjectRow,
+  verb: string,
   send: () => Promise<void>,
 ): Promise<ToolResult<UseAfter>> {
   const waiter = new EventWaiter<RewardsEvent>();
@@ -139,7 +140,7 @@ async function withLootWatch(
   const watch = watchLoot(ctx);
   try {
     await send();
-    return await lootWindow(ctx, row, `Opened ${row.name}`, { waiter, watch });
+    return await lootWindow(ctx, row, verb, { waiter, watch });
   } finally {
     watch.stop();
     off();
@@ -188,7 +189,7 @@ async function openWithKey(
       reason: "no_item",
     });
   if (handle.getRewardsState().loot.phase === "open") await releaseStale(ctx);
-  return withLootWatch(ctx, row, async () => {
+  return withLootWatch(ctx, row, `Opened ${row.name}`, async () => {
     const useOutcome = await rt.mutex.run(() =>
       handle.objects.act.use(row.guid),
     );
@@ -220,7 +221,7 @@ async function openWithKey(
   });
 }
 
-async function releaseStale(ctx: UseCtx): Promise<void> {
+export async function releaseStale(ctx: UseCtx): Promise<void> {
   const { handle, rt } = ctx;
   await rt.mutex.run(() => handle.releaseLoot());
   const waiter = new EventWaiter<RewardsEvent>();

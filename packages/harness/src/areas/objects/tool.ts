@@ -1,4 +1,5 @@
 import { type Static, StringEnum, Type } from "@earendil-works/pi-ai";
+import { fishFlow } from "#harness/areas/objects/tool-fish";
 import { openObjectFlow } from "#harness/areas/objects/tool-open";
 import {
   checkCastReach,
@@ -23,9 +24,9 @@ import {
 
 export const useParams = Type.Object({
   do: Type.Optional(
-    StringEnum(["use", "open", "read"], {
+    StringEnum(["use", "open", "read", "fish"], {
       description:
-        "open: unlock a chest or quest object and take what is inside. read: read the pages of a shrine, plaque or book. Default use.",
+        "open: unlock a chest or quest object and take what is inside. read: read the pages of a shrine, plaque or book. fish: cast for a fish, use the bobber on the bite and take the catch. Default use.",
     }),
   ),
   key: Type.Optional(
@@ -34,14 +35,16 @@ export const useParams = Type.Object({
         "For open: a key item from the bags when the lock names one instead of a spell.",
     }),
   ),
-  object: Type.String({
-    description:
-      'Which object: its "o<n>" ref as the look journal shows it, or its name.',
-  }),
+  object: Type.Optional(
+    Type.String({
+      description:
+        'Which object: its "o<n>" ref as the look journal shows it, or its name. Not needed for fish.',
+    }),
+  ),
 });
 
 export type UseArgs = Static<typeof useParams>;
-export type UseDo = "use" | "open" | "read";
+export type UseDo = "use" | "open" | "read" | "fish";
 
 export type UseAfter = {
   do: UseDo;
@@ -67,8 +70,15 @@ export async function useObject(
   args: UseArgs,
   ctx: UseCtx,
 ): Promise<ToolResult<UseAfter>> {
-  const row = findObject(ctx, args.object);
   const do_ = (args.do ?? "use") as UseDo;
+  if (do_ === "fish") return (await fishFlow(ctx)) as ToolResult<UseAfter>;
+  if (args.object === undefined)
+    throw new Refusal({
+      detail: "name the object to use.",
+      next: nextCall("look", { find: "object" }),
+      reason: "missing_object",
+    });
+  const row = findObject(ctx, args.object);
   if (do_ === "open" || do_ === "read") checkCastReach(row, ctx);
   else checkReach(row, ctx);
   checkUsable(row);
@@ -129,7 +139,7 @@ export const useSpec: GameToolSpec<typeof useParams, "use", UseAfter> = {
   run: useObject,
   text: {
     description:
-      "Use a game object by name or ref. Opens locked chests and quest objects, reads shrines, plaques and books, and presses other usable objects. Walk close to the object first when it is far.",
+      "Use a game object by name or ref. Opens locked chests and quest objects, reads shrines, plaques and books, presses other usable objects, and fishes (do fish) when a pole is equipped. Walk close to the object first when it is far.",
     guidelines: ["Read a page only once per object unless the quest needs it."],
     label: "Use",
   },
