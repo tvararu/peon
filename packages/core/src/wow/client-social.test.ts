@@ -1,4 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import {
+  guildadminCommandResultBody,
+  guildadminQueryResponseBody,
+  guildadminRosterBody,
+} from "#test-support/areas/guildadmin";
 import { startMockWorldServer } from "#test-support/mock-world-server";
 import {
   base,
@@ -7,11 +12,6 @@ import {
 } from "#test-support/world-handlers-fixtures";
 import type { GuildRoster, WorldHandle } from "#wow/client";
 import { worldSession } from "#wow/client";
-import {
-  guildadminCommandResultBody,
-  guildadminQueryResponseBody,
-  guildadminRosterBody,
-} from "#test-support/areas/guildadmin";
 import {
   GuildCommand,
   GuildCommandResult,
@@ -52,8 +52,8 @@ function rosterBody(): Uint8Array {
     info: "",
     ranks: [
       {
-        rights: 0x00f1_1d00,
-        goldPerDay: 0xffff_ffff,
+        rights: 0x00_f1_1d_00,
+        goldPerDay: 0xff_ff_ff_ff,
         tabs: [0, 1, 2, 3, 4, 5].map((i) => ({ flags: i, slots: i })),
       },
     ],
@@ -88,9 +88,7 @@ describe("requestGuildRoster", () => {
     await guildSession({}, async (handle, ws) => {
       const rosterPromise: Promise<GuildRoster | undefined> =
         handle.requestGuildRoster();
-      await ws.waitForCapture(
-        (p) => p.opcode === GameOpcode.CMSG_GUILD_ROSTER,
-      );
+      await ws.waitForCapture((p) => p.opcode === GameOpcode.CMSG_GUILD_ROSTER);
       ws.inject(GameOpcode.SMSG_GUILD_COMMAND_RESULT, notInGuildBody());
       await expect(rosterPromise).resolves.toBeUndefined();
     });
@@ -100,9 +98,7 @@ describe("requestGuildRoster", () => {
     await guildSession({}, async (handle, ws) => {
       const rosterPromise: Promise<GuildRoster | undefined> =
         handle.requestGuildRoster();
-      await ws.waitForCapture(
-        (p) => p.opcode === GameOpcode.CMSG_GUILD_ROSTER,
-      );
+      await ws.waitForCapture((p) => p.opcode === GameOpcode.CMSG_GUILD_ROSTER);
       ws.inject(GameOpcode.SMSG_GUILD_ROSTER, rosterBody());
       const roster = await rosterPromise;
       expect(roster?.members.map((m) => m.name)).toEqual(["Thrall"]);
@@ -113,9 +109,7 @@ describe("requestGuildRoster", () => {
     await guildSession({}, async (handle, ws) => {
       const rosterPromise: Promise<GuildRoster | undefined> =
         handle.requestGuildRoster();
-      await ws.waitForCapture(
-        (p) => p.opcode === GameOpcode.CMSG_GUILD_ROSTER,
-      );
+      await ws.waitForCapture((p) => p.opcode === GameOpcode.CMSG_GUILD_ROSTER);
       ws.inject(
         GameOpcode.SMSG_GUILD_COMMAND_RESULT,
         guildadminCommandResultBody({

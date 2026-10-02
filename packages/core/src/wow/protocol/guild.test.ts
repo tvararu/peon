@@ -1,10 +1,10 @@
+import { describe, expect, test } from "bun:test";
 import {
   guildadminCommandResultBody,
   guildadminEventBody,
   guildadminQueryResponseBody,
   guildadminRosterBody,
 } from "#test-support/areas/guildadmin";
-import { describe, expect, test } from "bun:test";
 import { must } from "#test-support/must";
 import {
   buildGuildQuery,
@@ -254,7 +254,13 @@ describe("parseGuildQueryResponse", () => {
         guildadminQueryResponseBody({
           id: 1,
           name: "TestGuild",
-          rankNames: ["Guild Master", "Officer", "Veteran", "Member", "Initiate"],
+          rankNames: [
+            "Guild Master",
+            "Officer",
+            "Veteran",
+            "Member",
+            "Initiate",
+          ],
           emblem,
           rankCount: 5,
         }),
@@ -306,8 +312,8 @@ describe("parseGuildRoster with rank rights", () => {
   const tabs = (base: number) =>
     [0, 1, 2, 3, 4, 5].map((i) => ({ flags: base + i, slots: base * 2 + i }));
   const ranks = [
-    { rights: 0x00f1_1d00, goldPerDay: 0xffff_ffff, tabs: tabs(10) },
-    { rights: 0x0000_00c0, goldPerDay: 5_000, tabs: tabs(20) },
+    { rights: 0x00_f1_1d_00, goldPerDay: 0xff_ff_ff_ff, tabs: tabs(10) },
+    { rights: 0x00_00_00_c0, goldPerDay: 5000, tabs: tabs(20) },
   ];
   const member = {
     guid: 0x10n,

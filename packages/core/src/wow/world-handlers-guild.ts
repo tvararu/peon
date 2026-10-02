@@ -24,8 +24,11 @@ export function handleGuildQueryResponse(
   conn.guildStore.setGuildMeta(result.name, result.rankNames);
 }
 
+const UINT_PATTERN = /^[0-9]+$/;
+const BANK_BALANCE_PATTERN = /^[0-9A-F]{16}$/;
+
 function toUint(value: string): number | undefined {
-  if (!/^[0-9]+$/.test(value)) return undefined;
+  if (!UINT_PATTERN.test(value)) return undefined;
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed)) return undefined;
   return parsed;
@@ -58,6 +61,25 @@ export function handleGuildEvent(conn: WorldConn, r: PacketReader): void {
         officer: param(1),
       });
       break;
+    case GuildEventCode.LEADER_CHANGED:
+      conn.events.guild.emit({
+        type: "leader_changed",
+        oldLeader: param(0),
+        newLeader: param(1),
+      });
+      break;
+    default:
+      emitGuildRankBankEvent(conn, raw.eventType, param);
+      break;
+  }
+}
+
+function emitGuildRankBankEvent(
+  conn: WorldConn,
+  eventType: number,
+  param: (index: number) => string,
+): void {
+  switch (eventType) {
     case GuildEventCode.RANK_UPDATED: {
       const rankId = toUint(param(0));
       const rankCount = toUint(param(2));
@@ -99,15 +121,8 @@ export function handleGuildEvent(conn: WorldConn, r: PacketReader): void {
     case GuildEventCode.BANK_TAB_AND_MONEY_UPDATED:
       conn.events.guild.emit({ type: "bank_reset" });
       break;
-    case GuildEventCode.LEADER_CHANGED:
-      conn.events.guild.emit({
-        type: "leader_changed",
-        oldLeader: param(0),
-        newLeader: param(1),
-      });
-      break;
     default:
-      emitGuildNotice(conn, raw.eventType, param);
+      emitGuildNotice(conn, eventType, param);
       break;
   }
 }
@@ -145,7 +160,7 @@ function emitGuildNotice(
 }
 
 export function parseBankBalance(param: string): bigint | undefined {
-  if (!/^[0-9A-F]{16}$/.test(param)) return undefined;
+  if (!BANK_BALANCE_PATTERN.test(param)) return undefined;
   let balance = 0n;
   for (let i = 0; i < 8; i++) {
     const byte = Number.parseInt(param.slice(2 * i, 2 * i + 2), 16);

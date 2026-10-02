@@ -1,3 +1,4 @@
+import { ignoreFailure } from "#lib/ignore-failure";
 import type { WorldHandle } from "#wow/client";
 import { isUnit } from "#wow/entity-store";
 import type { GuildRoster } from "#wow/guild-store";
@@ -198,6 +199,31 @@ function selfGuildId(conn: WorldConn): number {
   return self?.rawFields.get(PLAYER_FIELDS.GUILDID.offset) ?? conn.guildId;
 }
 
+async function awaitGuildQuery(
+  conn: WorldConn,
+  queryWaiter: Promise<unknown>,
+): Promise<void> {
+  const error = await new Promise<Error | undefined>((resolve) => {
+    const off = conn.events.packetError.subscribe((opcode, err) => {
+      if (opcode !== GameOpcode.SMSG_GUILD_QUERY_RESPONSE) return;
+      off();
+      resolve(err);
+    });
+    queryWaiter.then(
+      () => {
+        off();
+        resolve(undefined);
+      },
+      (err: unknown) => {
+        off();
+        resolve(err instanceof Error ? err : new Error(String(err)));
+      },
+    );
+  });
+  if (error) throw error;
+  await queryWaiter;
+}
+
 async function requestGuildRoster(
   conn: WorldConn,
 ): Promise<GuildRoster | undefined> {
@@ -207,18 +233,12 @@ async function requestGuildRoster(
     sendPacket(conn, GameOpcode.CMSG_GUILD_QUERY, buildGuildQuery(guildId));
   }
   const rosterWaiter = conn.dispatch.expect(GameOpcode.SMSG_GUILD_ROSTER);
-  rosterWaiter.then(
-    () => {},
-    () => {},
-  );
+  rosterWaiter.catch(ignoreFailure);
   const queryWaiter =
     guildId === 0
       ? undefined
       : conn.dispatch.expect(GameOpcode.SMSG_GUILD_QUERY_RESPONSE);
-  queryWaiter?.then(
-    () => {},
-    () => {},
-  );
+  queryWaiter?.catch(ignoreFailure);
   const noGuild = new Promise<"no-guild">((resolve) => {
     const off = conn.events.guild.subscribe((event) => {
       if (
@@ -239,27 +259,7 @@ async function requestGuildRoster(
     noGuild,
   ]);
   if (settled === "no-guild") return undefined;
-  if (queryWaiter) {
-    const error = await new Promise<Error | undefined>((resolve) => {
-      const off = conn.events.packetError.subscribe((opcode, err) => {
-        if (opcode !== GameOpcode.SMSG_GUILD_QUERY_RESPONSE) return;
-        off();
-        resolve(err);
-      });
-      queryWaiter.then(
-        () => {
-          off();
-          resolve(undefined);
-        },
-        (err) => {
-          off();
-          resolve(err instanceof Error ? err : new Error(String(err)));
-        },
-      );
-    });
-    if (error) throw error;
-    await queryWaiter;
-  }
+  if (queryWaiter) await awaitGuildQuery(conn, queryWaiter);
   return conn.guildStore.get();
 }
 
