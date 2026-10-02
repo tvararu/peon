@@ -219,6 +219,38 @@ describe("pet cast", () => {
       expect.objectContaining({ kind: "unit" }),
     );
   });
+  test("cast ignores a vehicle bar whose slots carry no spell ids", async () => {
+    const TANK = 0xf1_50_00_62_f6_0c_89_41n;
+    const t = await world({
+      petEntity: unit(),
+      pets: barState({
+        bar: undefined,
+        cooldowns: [],
+        lastRefusal: undefined,
+        pet: undefined,
+      }),
+    });
+    Object.assign(t.game.pets, {
+      state: () => ({
+        bar: {
+          command: "unknown",
+          family: 0,
+          flags: 0x8_00,
+          guid: TANK,
+          react: "unknown",
+          slots: [{ action: 0, type: 9 }],
+          spells: [],
+        },
+        cooldowns: [],
+        pet: undefined,
+      }),
+    });
+    const out = await refusal(
+      petSpec.run({ do: "cast", target: "", what: "46598" }, toolCtx(t)),
+    );
+    expect(out.reason).toBe("unknown_pet_spell");
+    expect(out.detail).toContain("46598");
+  });
   test("cast resolves a vehicle bar slot spell by id without a pet view", async () => {
     const TANK = 0xf1_50_00_62_f6_0c_89_41n;
     const CANNON = 46_598;
