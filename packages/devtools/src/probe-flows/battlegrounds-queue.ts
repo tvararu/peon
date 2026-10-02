@@ -8,6 +8,7 @@ import {
 
 const STEPS = ["list", "hello", "join", "join-again", "status", "leave"];
 const DEFAULT_BG = "2";
+const STATUS_SETTLE_MS = 1500;
 
 function json(value: unknown): Json {
   return JSON.parse(
@@ -81,8 +82,10 @@ async function run(ctx: FlowContext): Promise<Json> {
       step,
       ...(await attempt(() => handle.battlegrounds.act.join(bgOf(ctx.args)))),
     });
-  if (step === "status")
+  if (step === "status") {
+    await Bun.sleep(STATUS_SETTLE_MS);
     return json({ queue: handle.battlegrounds.state().queue });
+  }
   if (step === "leave") return leave(ctx);
   throw new Error(
     `battlegrounds-queue needs step=${STEPS.join("|")}, not "${step}".`,

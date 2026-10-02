@@ -206,6 +206,22 @@ describe("battlegrounds queue acts (Handlers/BattleGroundHandler.cpp:37-86,368-4
     }
   });
 
+  test("act.join ignores a refresh of a queue the character already holds and rejects with the -1 that follows", async () => {
+    const scene = battlegroundsScene();
+    try {
+      injectStatus(scene, { bgType: 2, slot: 0, status: 1 });
+      const pending = scene.rig.handle.act.join(2);
+      injectStatus(scene, { bgType: 2, inQueue: 2, slot: 0, status: 1 });
+      scene.rig.inject(
+        GameOpcode.SMSG_GROUP_JOINED_BATTLEGROUND,
+        battlegroundsGroupJoinedBody(-1),
+      );
+      await expect(pending).rejects.toThrow("none");
+    } finally {
+      scene.rig.dispose();
+    }
+  });
+
   test("act.join passes via, instance and the group flag", () => {
     const { rig } = battlegroundsScene();
     try {

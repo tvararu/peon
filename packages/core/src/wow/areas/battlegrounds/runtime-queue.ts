@@ -105,6 +105,7 @@ function joinAct(ctx: Ctx): BattlegroundsQueueActs["join"] {
       ctx,
       (e) =>
         (e.type === "bg_status" &&
+          e.previous !== "queued" &&
           e.status.kind === "queued" &&
           e.status.bgType === bgType) ||
         (e.type === "bg_join_result" && e.error !== undefined),
