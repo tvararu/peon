@@ -5,7 +5,7 @@ import type {
 } from "#wow/areas/achievements/store";
 import { MAX_TITLE_INDEX, readTitles } from "#wow/areas/achievements/titles";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
-import { isUnit } from "#wow/entity-store";
+import { ObjectType } from "#wow/protocol/entity-fields";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 export type SetTitleOutcome =
@@ -23,7 +23,11 @@ export function achievementsRuntime(
   const off = ctx.listen("entity", (event) => {
     if (event.type === "disappear") return;
     const entity = event.entity;
-    if (!(entity && isUnit(entity))) return;
+    if (
+      entity?.objectType !== ObjectType.UNIT &&
+      entity?.objectType !== ObjectType.PLAYER
+    )
+      return;
     if (entity.guid !== ctx.selfGuid()) return;
     const { chosen, known } = readTitles(entity.rawFields);
     store.setTitles(known, chosen);
