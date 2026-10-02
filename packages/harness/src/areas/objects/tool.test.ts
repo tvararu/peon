@@ -453,6 +453,21 @@ describe("use tool", () => {
     };
     expect(outcome.status).toBe("DONE");
   });
+  test("a page renders one sentence per line", async () => {
+    const t = await world(2, "text");
+    const text =
+      "You have discovered the location of the shrine!  Upon further examination, you sense a stronger pulse.$B$BThe bronze placard along the side of the shrine reads:";
+    t.handle.objects.act.readPage = (async () => ({
+      firstPageId: 2936,
+      pages: [{ pageId: 2936, text }],
+    })) as typeof t.handle.objects.act.readPage;
+    const { text: rendered } = await runTool(useTool.definition(t.rt), {
+      do: "read",
+      object: "o1",
+    });
+    const first = rendered.split("\n")[1];
+    expect(first).toBe("You have discovered the location of the shrine!");
+  });
 
   test("a locked chest without an open spell refuses locked", async () => {
     const t = await world();

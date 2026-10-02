@@ -5,6 +5,7 @@ import {
   type GearCtx,
   moveRefusal,
 } from "#harness/areas/items/tool-shared";
+import { SENTENCE_BREAK } from "#harness/areas/objects/tool-read";
 import type { ToolResult } from "#harness/contract/result";
 import { Refusal } from "#harness/ops/refusal";
 import { result } from "#harness/tools/define";
@@ -15,6 +16,7 @@ const PAGE_BREAK = /\$B|\n/;
 function pageLines(text: string): string[] {
   return text
     .split(PAGE_BREAK)
+    .flatMap((line) => line.split(SENTENCE_BREAK))
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 }

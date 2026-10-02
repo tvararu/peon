@@ -10,11 +10,13 @@ import { nextCall } from "#harness/tools/next-call";
 export const READ_LINES = 12;
 export const READ_SETTLE_MS = 5000;
 
-const PAGE_BREAK = /\$B|\n/;
+export const SENTENCE_BREAK = /(?<=[.!?])\s+(?=[A-Z"“])/;
 
+const PAGE_BREAK = /\$B|\n/;
 export function pageLines(text: string): string[] {
   return text
     .split(PAGE_BREAK)
+    .flatMap((line) => line.split(SENTENCE_BREAK))
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 }
