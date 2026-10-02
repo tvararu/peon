@@ -9,6 +9,7 @@ import {
 } from "#harness/events/delivery";
 import { WAKE_MIN_GAP_MS } from "#harness/events/guard";
 import { createGameLog } from "#harness/log/store";
+import { coverRows } from "#harness/tools/covered";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 
 type Sent = { message: Record<string, unknown>; options: unknown };
@@ -386,6 +387,46 @@ describe("attachCallRows", () => {
     log.append(call("c1"));
     log.append(wakeDraft("r4 travel ended"));
     expect(attachCallRows(log, "c1", 100_000)).toBe("");
+  });
+});
+
+describe("flight landing wake", () => {
+  const call: LogDraft = {
+    class: "log",
+    data: { toolCallId: "c1" },
+    domain: "tool",
+    event: "tool/call",
+    text: "travel called",
+  };
+  const landed: LogDraft = {
+    class: "wake",
+    data: {},
+    delivered: false,
+    domain: "travel",
+    event: "travel/flight_landed",
+    text: "Flight landed.",
+  };
+
+  test("a landing inside a DONE fly call starts no turn", async () => {
+    const { delivery, log, pi, rt } = await setup();
+    rt.session.agent = "tool";
+    log.append(call);
+    delivery.wake([log.append(landed)]);
+    coverRows(log, { status: "DONE", tool: "travel", toolCallId: "c1" });
+    rt.session.agent = "idle";
+    delivery.flush();
+    expect(pi.sent).toEqual([]);
+  });
+
+  test("a landing after the call returned wakes the agent", async () => {
+    const { delivery, log, pi, rt } = await setup();
+    rt.session.agent = "tool";
+    log.append(call);
+    coverRows(log, { status: "PARTLY", tool: "travel", toolCallId: "c1" });
+    delivery.wake([log.append(landed)]);
+    rt.session.agent = "idle";
+    delivery.flush();
+    expect(pi.sent.map(content)).toEqual(["[game 0s] Flight landed."]);
   });
 });
 
