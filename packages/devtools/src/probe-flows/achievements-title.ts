@@ -28,9 +28,10 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
     const chosen = handle.achievements.act.setTitle(bit);
     if (!chosen.ok)
       throw new Error(`setTitle refused bit ${bit}: ${chosen.reason}.`);
-    const applied = await settle(
-      () => handle.achievements.state().titles.chosen || undefined,
-    );
+    const applied = await settle(() => {
+      const current = handle.achievements.state().titles.chosen;
+      return current === bit ? current : undefined;
+    });
     if (applied !== bit)
       throw new Error(`the chosen title never became bit ${bit}.`);
     const cleared = handle.achievements.act.setTitle(undefined);

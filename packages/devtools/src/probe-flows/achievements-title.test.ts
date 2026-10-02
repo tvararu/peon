@@ -70,6 +70,43 @@ describe("achievements-title flow", () => {
     expect(ctx.handle.achievements.state().titles.chosen).toBe(0);
   });
 
+  test("ignores a different title already chosen", async () => {
+    const store = { chosen: 7 };
+    const ctx = context(store);
+    const setTitle = jest.fn((bit: number | undefined) => {
+      if (bit === undefined) {
+        store.chosen = 0;
+        return { bit: undefined, ok: true };
+      }
+      queueMicrotask(() => {
+        store.chosen = bit;
+      });
+      return { bit, ok: true };
+    });
+    Object.assign(ctx.handle, {
+      achievements: {
+        ...ctx.handle.achievements,
+        act: { setTitle } as unknown as TitleActs,
+        state: () => ({
+          count: 0,
+          criteria: 0,
+          recent: [],
+          titles: titles(store.chosen),
+        }),
+      },
+    });
+    const running = flow.run(ctx);
+    ctx.handle.triggerAreaEvent("achievements", {
+      bit: BIT,
+      earned: true,
+      type: "title_changed",
+    });
+    const result = (await running) as Record<string, unknown>;
+    expect(setTitle).toHaveBeenCalledWith(BIT);
+    expect(result["bit"]).toBe(BIT);
+    expect(ctx.handle.achievements.state().titles.chosen).toBe(0);
+  });
+
   test("fails when no title is earned", async () => {
     const ctx = context({ chosen: 0 });
     await expect(flow.run(ctx)).rejects.toThrow("no SMSG_TITLE_EARNED");

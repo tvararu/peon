@@ -12,4 +12,4 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x47d` | `SMSG_ALL_ACHIEVEMENT_DATA` | server | handled |  |
 | `0x498` | `SMSG_SERVER_FIRST_ACHIEVEMENT` | server | handled | not seen live |
 | `0x49e` | `SMSG_CRITERIA_DELETED` | server | handled |  |
-| `0x49f` | `SMSG_ACHIEVEMENT_DELETED` | server | handled | not seen live |
+| `0x49f` | `SMSG_ACHIEVEMENT_DELETED` | server | handled |  |

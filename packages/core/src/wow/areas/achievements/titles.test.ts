@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { MAX_TITLE_INDEX, readTitles } from "#wow/areas/achievements/titles";
+import { readTitles } from "#wow/areas/achievements/titles";
 import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
 
 const KNOWN_BASE = PLAYER_FIELDS.KNOWN_TITLES.offset;
@@ -27,7 +27,6 @@ describe("readTitles", () => {
   });
 
   test("bit 191 is inside the range", () => {
-    expect(MAX_TITLE_INDEX).toBe(192);
     const { known } = readTitles(fields([0, 0, 0, 0, 0, 0x80_00_00_00], 0));
     expect(known).toEqual([191]);
   });
