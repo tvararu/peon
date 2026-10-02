@@ -1,3 +1,4 @@
+import type { WorldHandle } from "@peon/core";
 import {
   type FlowContext,
   type Json,
@@ -34,65 +35,114 @@ function parseFacing(text: string | undefined): number | undefined {
   return radians;
 }
 
-function parseUse(text: string | undefined): number | undefined {
-  if (text === undefined) return undefined;
+type UseMode =
+  | { kind: "none" }
+  | { kind: "hooked" }
+  | { kind: "after"; seconds: number };
+
+function parseUse(text: string | undefined): UseMode {
+  if (text === undefined) return { kind: "none" };
+  if (text === "hooked") return { kind: "hooked" };
   const seconds = Number(text);
   if (!Number.isFinite(seconds) || seconds < 0 || seconds > 120)
-    throw new Error(`objects-fish needs use=<0-120>, not "${text}".`);
-  return seconds;
+    throw new Error(`objects-fish needs use=<0-120|hooked>, not "${text}".`);
+  return { kind: "after", seconds };
+}
+
+const POLL_MS = 100;
+const AFTER_USE_MS = 2000;
+
+type Watch = {
+  seen: Json[];
+  ended: boolean;
+  usedAt: number | undefined;
+  useBobber: (guid: bigint) => void;
+  stop: () => void;
+};
+
+function watch(handle: WorldHandle, use: UseMode): Watch {
+  const w: Watch = {
+    ended: false,
+    seen: [],
+    stop: () => undefined,
+    useBobber: (guid) => {
+      if (w.usedAt !== undefined) return;
+      w.usedAt = Date.now();
+      handle.objects.act.use(guid);
+    },
+    usedAt: undefined,
+  };
+  const offFish = handle.objects.onEvent((event) => {
+    if (event.type === "fish_hooked") {
+      w.seen.push({ bobber: hex(event.bobber), event: "fish_hooked" });
+      if (use.kind === "hooked") w.useBobber(event.bobber);
+    } else if (
+      event.type === "fish_not_hooked" ||
+      event.type === "fish_escaped"
+    ) {
+      w.seen.push({ event: event.type });
+      w.ended = true;
+    }
+  });
+  w.stop = offFish;
+  return w;
+}
+
+function bobberJson(handle: WorldHandle, guid: bigint): Json {
+  const row = handle.queryNearby().find((near) => near.entity.guid === guid);
+  return row ? summary(row) : hex(guid);
+}
+
+function fishingJson(handle: WorldHandle): Json {
+  const fishing = handle.objects.state().fishing;
+  if (!fishing) return null;
+  return {
+    bobber: fishing.bobber === undefined ? null : hex(fishing.bobber),
+    phase: fishing.phase,
+  };
 }
 
 async function run({ handle, args, settle }: FlowContext): Promise<Json> {
   const seconds = parseSeconds(args["seconds"]);
   const bobberArg = parseBobber(args["bobber"]);
   const facing = parseFacing(args["facing"]);
-  const useAfter = parseUse(args["use"]);
+  const use = parseUse(args["use"]);
   if (facing !== undefined) handle.face(facing);
-  const seen: Json[] = [];
-  const off = handle.objects.onEvent((event) => {
-    if (event.type === "fish_hooked")
-      seen.push({ bobber: hex(event.bobber), event: "fish_hooked" });
-    else if (event.type === "fish_not_hooked" || event.type === "fish_escaped")
-      seen.push({ event: event.type });
-  });
-  handle.cast(FISHING_SPELL, handle.getControlState().selfGuid);
-  if (useAfter !== undefined) {
-    await Bun.sleep(useAfter * 1000);
-    const bobber = handle.objects.state().fishing?.bobber;
-    if (bobber !== undefined) handle.objects.act.use(bobber);
-  }
+  await settle(() => (handle.queryNearby().length === 0 ? undefined : true));
+  const w = watch(handle, use);
   const deadline = Date.now() + seconds * 1000;
-  await settle(() =>
-    handle.objects.state().fishing?.bobber === undefined
-      ? undefined
-      : handle.objects.state().fishing,
-  );
-  const state = handle.objects.state().fishing;
-  let bobber: Json = null;
-  if (state?.bobber !== undefined) {
-    const guid = bobberArg ?? state.bobber;
-    const row = handle.queryNearby().find((near) => near.entity.guid === guid);
-    bobber = row ? summary(row) : hex(guid);
+  try {
+    handle.cast(FISHING_SPELL, 0n);
+    if (use.kind === "after") {
+      await Bun.sleep(use.seconds * 1000);
+      const own = handle.objects.state().fishing?.bobber;
+      if (own !== undefined) w.useBobber(own);
+    }
+    const state = await settle(() =>
+      handle.objects.state().fishing?.bobber === undefined
+        ? undefined
+        : handle.objects.state().fishing,
+    );
+    const bobber =
+      state?.bobber === undefined
+        ? null
+        : bobberJson(handle, bobberArg ?? state.bobber);
+    while (
+      state?.bobber !== undefined &&
+      !w.ended &&
+      Date.now() < deadline &&
+      (w.usedAt === undefined || Date.now() - w.usedAt < AFTER_USE_MS)
+    )
+      await Bun.sleep(POLL_MS);
+    return { bobber, fishing: fishingJson(handle), seen: w.seen };
+  } finally {
+    w.stop();
   }
-  const left = deadline - Date.now();
-  if (left > 0) await Bun.sleep(Math.min(left, 1000));
-  off();
-  const fishing = handle.objects.state().fishing;
-  return {
-    bobber,
-    fishing: fishing
-      ? {
-          bobber: fishing.bobber === undefined ? null : hex(fishing.bobber),
-          phase: fishing.phase,
-        }
-      : null,
-    seen,
-  };
 }
 
 export const flow: ProbeFlow = {
   name: "objects-fish",
   run,
   usage:
-    "--flow objects-fish [--arg seconds=<s>] [--arg bobber=<0x...>] [--arg facing=<radians>] [--arg use=<seconds-after-cast>]: cast Fishing (7620) on yourself, optionally face first and use the own bobber once after <use> seconds, then report the fishing state and the fish events.",
+    "--flow objects-fish [--arg seconds=<s>] [--arg bobber=<0x...>] [--arg facing=<radians>] [--arg use=<seconds-after-cast|hooked>]: cast Fishing (7620) with no target, optionally face first and use the own bobber once, after <use> seconds or at once on the bite (use=hooked), then wait until a fish event, 2 s after the use or <seconds>, and report the fishing state and the fish events.",
 };
