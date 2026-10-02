@@ -30,16 +30,16 @@ function createdBy(guid: bigint) {
 
 function rig() {
   const world = new EntityStore();
-  const rig = areaRig("objects", {
+  const h = areaRig("objects", {
     getEntity: (guid) => world.get(guid),
     selfGuid: SELF,
   });
-  world.onEvent((event) => rig.events.entity.emit(event));
+  world.onEvent((event) => h.events.entity.emit(event));
   const events: ObjectsEvent[] = [];
-  rig.stores.areas.objects.onEvent((event) => events.push(event));
-  const state = () => rig.stores.areas.objects.snapshot();
+  h.stores.areas.objects.onEvent((event) => events.push(event));
+  const state = () => h.stores.areas.objects.snapshot();
   const cast = (spellId = FISHING, caster = SELF) =>
-    rig.inject(
+    h.inject(
       GameOpcode.SMSG_SPELL_START,
       spellsSpellStartBody({
         caster,
@@ -54,7 +54,7 @@ function rig() {
       entry: BOBBER_ENTRY,
       rawFields: createdBy(owner),
     } as never);
-  return { cast, bobber, events, rig, state, world };
+  return { cast, bobber, events, rig: h, state, world };
 }
 
 function failureBody(spellId: number): Uint8Array {

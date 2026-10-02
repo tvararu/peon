@@ -152,10 +152,10 @@ export class ObjectsStore {
     while (this.despawning.size > DESPAWN_ANIM_MAX_ENTRIES) {
       let oldest: bigint | undefined;
       let at = Number.POSITIVE_INFINITY;
-      for (const [guid, order] of this.despawning) {
+      for (const [id, order] of this.despawning) {
         if (order < at) {
           at = order;
-          oldest = guid;
+          oldest = id;
         }
       }
       if (oldest === undefined) break;
@@ -177,7 +177,7 @@ export class ObjectsStore {
   }
 
   bobberSeen(guid: bigint): void {
-    if (!this.fishing || this.fishing.phase !== "cast") return;
+    if (this.fishing?.phase !== "cast") return;
     const entity = this.deps.getEntity(guid);
     if (entity?.objectType !== GAMEOBJECT_TYPE) return;
     const fields = objectFields(entity);
