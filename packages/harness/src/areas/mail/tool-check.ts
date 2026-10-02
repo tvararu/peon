@@ -99,7 +99,11 @@ export async function runCheck(ctx: MailCtx): Promise<ToolResult<MailAfter>> {
     }
   });
   const body = shown.map((mail, index) =>
-    letterLine(index + 1, mail, (entry) => ctx.handle.itemLabel(entry).name ?? undefined),
+    letterLine(
+      index + 1,
+      mail,
+      (entry) => ctx.handle.itemLabel(entry).name ?? undefined,
+    ),
   );
   const detail =
     inbox.length === 0
