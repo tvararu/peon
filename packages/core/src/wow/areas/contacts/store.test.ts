@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type ContactsEvent, ContactStore } from "#wow/areas/contacts/store";
+import { ContactStore, type ContactsEvent } from "#wow/areas/contacts/store";
 import { truncateNote } from "#wow/friend-store";
 
 const GUID = 0x99n;

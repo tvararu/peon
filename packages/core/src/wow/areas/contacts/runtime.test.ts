@@ -132,9 +132,9 @@ describe("contacts runtime", () => {
         (p) => p.opcode === GameOpcode.CMSG_SET_CONTACT_NOTES,
       );
       expect(sent).toHaveLength(1);
-      expect(new DataView(sent[0]!.body.buffer).getBigUint64(0, true)).toBe(
-        TOM,
-      );
+      const body = sent[0]?.body;
+      if (!body) throw new Error("no CMSG_SET_CONTACT_NOTES body");
+      expect(new DataView(body.buffer).getBigUint64(0, true)).toBe(TOM);
       const lists = rig.sent.filter(
         (p) => p.opcode === GameOpcode.CMSG_CONTACT_LIST,
       );
