@@ -194,6 +194,7 @@ export const ROUND_1: readonly string[] = [
   "t8-talents-reset",
   "t4-spells-unlearn-profession",
   "t8-vehicles-board",
+  "t8-vehicles-drive",
   "t8-talents-glyph",
   "t8-pets-talent",
   "t9-bank-deposit",
