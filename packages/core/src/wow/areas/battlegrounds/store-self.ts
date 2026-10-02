@@ -4,9 +4,9 @@ import { ObjectType } from "#wow/protocol/entity-fields";
 import { PLAYER_FIELDS, UNIT_FIELDS } from "#wow/protocol/update-fields";
 import type { SessionDeps } from "#wow/session-stores";
 
-export const PVP_WANTS_FLAG = 0x200;
-export const PVP_TIMER_FLAG = 0x40000;
-export const PVP_CONTESTED_FLAG = 0x100;
+export const PVP_WANTS_FLAG = 0x2_00;
+export const PVP_TIMER_FLAG = 0x4_00_00;
+export const PVP_CONTESTED_FLAG = 0x1_00;
 
 export type BattlegroundsSelf = {
   wantsFlag: boolean;
@@ -75,8 +75,8 @@ export function battlegroundsSelfOf(
     ffa: (byte2 & 0x04) !== 0,
     flagged: (byte2 & 0x01) !== 0,
     honor,
-    killsToday: kills === undefined ? undefined : kills & 0xffff,
-    killsYesterday: kills === undefined ? undefined : (kills >>> 16) & 0xffff,
+    killsToday: kills === undefined ? undefined : kills & 0xff_ff,
+    killsYesterday: kills === undefined ? undefined : (kills >>> 16) & 0xff_ff,
     lifetimeKills: lifetime,
     sanctuary: (byte2 & 0x08) !== 0,
     timer: (playerFlags & PVP_TIMER_FLAG) !== 0,

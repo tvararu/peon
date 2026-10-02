@@ -14,7 +14,7 @@ describe("battlegrounds store-self flags (Entities/Player/Player.h:467-477)", ()
     const seen: BattlegroundsEvent[] = [];
     rig.handle.onEvent((event) => seen.push(event));
     try {
-      update(0x0b_00n, { byte2: 0x01, playerFlags: 0x200 });
+      update(0x0b_00n, { byte2: 0x01, playerFlags: 0x2_00 });
       const event = seen.find((candidate) => candidate.type === "pvp_flag");
       if (!event) throw new Error("no pvp_flag event");
       expect({ ...flags(event) }).toEqual({
@@ -38,7 +38,7 @@ describe("battlegrounds store-self flags (Entities/Player/Player.h:467-477)", ()
     try {
       update(0x0b_00n, {
         byte2: 0x0c,
-        playerFlags: 0x40100,
+        playerFlags: 0x4_01_00,
       });
       const self = rig.handle.state().self;
       expect(self.timer).toBe(true);
@@ -55,7 +55,7 @@ describe("battlegrounds store-self flags (Entities/Player/Player.h:467-477)", ()
     const seen: BattlegroundsEvent[] = [];
     rig.handle.onEvent((event) => seen.push(event));
     try {
-      update(0x0c_00n, { byte2: 0x02_00_00_01, playerFlags: 0x200 });
+      update(0x0c_00n, { byte2: 0x02_00_00_01, playerFlags: 0x2_00 });
       expect(seen).toEqual([]);
       expect(rig.handle.state().self.wantsFlag).toBe(false);
     } finally {

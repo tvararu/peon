@@ -1,4 +1,3 @@
-import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import {
   buildInspectHonorStats,
   buildTogglePvp,
@@ -8,6 +7,7 @@ import type {
   BattlegroundsEvent,
   BattlegroundsStore,
 } from "#wow/areas/battlegrounds/store";
+import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { CoreStores } from "#wow/session-stores";
 

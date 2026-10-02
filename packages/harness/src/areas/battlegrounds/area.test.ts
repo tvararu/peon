@@ -98,7 +98,7 @@ describe("battlegrounds harness rules", () => {
       areaRuleSet(),
       battlegrounds({
         count: 2,
-        quest: 13233,
+        quest: 13_233,
         required: 15,
         type: "pvp_kill_quest",
       }),

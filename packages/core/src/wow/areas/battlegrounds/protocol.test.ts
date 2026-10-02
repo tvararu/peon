@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { PacketReader } from "#wow/protocol/packet";
 import {
   battlegroundsInspectHonorStatsBody,
   battlegroundsPvpCreditBody,
@@ -14,6 +13,7 @@ import {
   parseQuestUpdateAddPvpKill,
   parseZoneUnderAttack,
 } from "#wow/areas/battlegrounds/protocol";
+import { PacketReader } from "#wow/protocol/packet";
 
 describe("battlegrounds protocol (Handlers/MiscHandler.cpp:500-519,1019-1049)", () => {
   test("parsePvpCredit keeps a negative rank (Entities/Player/Player.cpp:6385-6392)", () => {
@@ -21,7 +21,7 @@ describe("battlegrounds protocol (Handlers/MiscHandler.cpp:500-519,1019-1049)", 
       new PacketReader(
         battlegroundsPvpCreditBody({
           honor: 100,
-          rank: 0xffff_ffff,
+          rank: 0xff_ff_ff_ff,
           victim: 0x0d_00n,
         }),
       ),
@@ -64,12 +64,12 @@ describe("battlegrounds protocol (Handlers/MiscHandler.cpp:500-519,1019-1049)", 
       new PacketReader(
         battlegroundsQuestUpdateAddPvpKillBody({
           count: 2,
-          quest: 13233,
+          quest: 13_233,
           required: 15,
         }),
       ),
     );
-    expect(parsed).toEqual({ count: 2, quest: 13233, required: 15 });
+    expect(parsed).toEqual({ count: 2, quest: 13_233, required: 15 });
   });
 
   test("buildTogglePvp encodes on, off and the empty toggle", () => {

@@ -1,13 +1,13 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import {
-  BattlegroundsSelfTracker,
-  type BattlegroundsFlag,
-  type BattlegroundsSelf,
-} from "#wow/areas/battlegrounds/store-self";
 import type {
   InspectHonorStats,
   PvpCredit,
 } from "#wow/areas/battlegrounds/protocol";
+import {
+  type BattlegroundsFlag,
+  type BattlegroundsSelf,
+  BattlegroundsSelfTracker,
+} from "#wow/areas/battlegrounds/store-self";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export type BattlegroundsHonorCredit = PvpCredit & { type: "honor_credit" };

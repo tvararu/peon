@@ -1,12 +1,12 @@
-import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import {
-  battlegroundsRuntime,
   type BattlegroundsActs,
+  battlegroundsRuntime,
 } from "#wow/areas/battlegrounds/runtime";
 import type {
   BattlegroundsEvent,
   BattlegroundsStore,
 } from "#wow/areas/battlegrounds/store";
+import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import type { CoreStores } from "#wow/session-stores";
 
 export function battlegroundsSelfRuntime(
@@ -19,5 +19,11 @@ export function battlegroundsSelfRuntime(
     store.observeEntity(event.entity.guid);
   });
   const runtime = battlegroundsRuntime(ctx, store, core);
-  return { act: runtime.act, dispose: () => (off(), runtime.dispose()) };
+  return {
+    act: runtime.act,
+    dispose: () => {
+      off();
+      runtime.dispose();
+    },
+  };
 }

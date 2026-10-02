@@ -1,4 +1,3 @@
-import { defineArea } from "#wow/areas/contract";
 import { BATTLEGROUNDS_OPCODES } from "#wow/areas/battlegrounds/opcodes";
 import {
   parseInspectHonorStats,
@@ -8,6 +7,7 @@ import {
 } from "#wow/areas/battlegrounds/protocol";
 import { battlegroundsSelfRuntime } from "#wow/areas/battlegrounds/runtime-self";
 import { BattlegroundsStore } from "#wow/areas/battlegrounds/store";
+import { defineArea } from "#wow/areas/contract";
 import { GameOpcode } from "#wow/protocol/opcodes";
 
 export const battlegroundsArea = defineArea({

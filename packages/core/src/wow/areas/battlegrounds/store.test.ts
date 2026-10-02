@@ -84,7 +84,7 @@ describe("battlegrounds packets (Entities/Player/Player.cpp:6385-6392)", () => {
         GameOpcode.SMSG_QUESTUPDATE_ADD_PVP_KILL,
         battlegroundsQuestUpdateAddPvpKillBody({
           count: 2,
-          quest: 13233,
+          quest: 13_233,
           required: 15,
         }),
       );
