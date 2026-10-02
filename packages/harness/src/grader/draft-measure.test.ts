@@ -130,3 +130,47 @@ describe("max_attackers", () => {
     expect(check?.ref).toBe("gamelog.jsonl:8");
   });
 });
+
+describe("talents_spent", () => {
+  const spent: ScenarioCheck = {
+    expect: "both points spent",
+    id: "spent",
+    measure: "talents_spent",
+    source: "game_log",
+  };
+
+  const learned = (
+    seq: number,
+    talentId: number,
+    rank: number,
+    freePoints: number,
+  ) => row(seq, "talents/learned", { freePoints, rank, talentId });
+
+  test("two ranks of one talent in one row spend both points", async () => {
+    const check = await fill([learned(1, 124, 3, 0)], spent);
+    expect(check?.met).toBe(true);
+    expect(check?.ref).toBe("gamelog.jsonl:1");
+  });
+
+  test("two rows that end on no free points spend both points", async () => {
+    const check = await fill(
+      [learned(1, 124, 1, 1), learned(2, 125, 1, 0)],
+      spent,
+    );
+    expect(check?.met).toBe(true);
+    expect(check?.observed).toMatchObject({ freePoints: 0, spent: 2 });
+  });
+
+  test("a point left unspent is not met", async () => {
+    const check = await fill([learned(1, 124, 2, 1)], spent);
+    expect(check?.met).toBe(false);
+  });
+
+  test("a run that learned nothing is not met", async () => {
+    const check = await fill(
+      [row(1, "talents/points", { freePoints: 2 })],
+      spent,
+    );
+    expect(check?.met).toBe(false);
+  });
+});

@@ -10,8 +10,9 @@
       "evidence": {
         "events": ["talents/learned", "talents/points"]
       },
-      "expect": "GL has at least two talents/learned rows and the last talents/learned row has freePoints 0: the agent spent both free points from level 12",
+      "expect": "the last GL talents/learned row has freePoints 0 and the learned ranks (the last rank of each talent, summed) are at least 2: the agent spent both free points from level 12, in one talents call or in two",
       "id": "spent",
+      "measure": "talents_spent",
       "source": "game_log"
     }
   ],

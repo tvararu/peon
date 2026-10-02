@@ -99,6 +99,28 @@ function maxAttackers(rows: readonly GameLogRow[]): Measured {
   };
 }
 
+const POINTS_SPENT_MIN = 2;
+
+function talentsSpent(rows: readonly GameLogRow[]): Measured {
+  const learned = rows.filter((row) => row.event === "talents/learned");
+  const ranks = new Map<unknown, number>();
+  for (const row of learned)
+    ranks.set(field(row, "talentId"), numberOf(field(row, "rank")));
+  const spent = [...ranks.values()].reduce((total, rank) => total + rank, 0);
+  const last = learned.at(-1);
+  const freePoints = last === undefined ? null : field(last, "freePoints");
+  return {
+    line: last?.line,
+    met: freePoints === 0 && spent >= POINTS_SPENT_MIN,
+    observed: {
+      freePoints,
+      rows: learned.slice(0, ROWS_MAX),
+      spent,
+      talents: ranks.size,
+    },
+  };
+}
+
 const MEASURES: Record<
   CheckMeasure,
   (rows: readonly GameLogRow[], context: MeasureContext) => Measured
@@ -109,6 +131,7 @@ const MEASURES: Record<
   kill_xp: killXp,
   max_attackers: maxAttackers,
   no_fight_after_stop: noFightAfterStop,
+  talents_spent: talentsSpent,
 };
 
 export function measureGameLog(
