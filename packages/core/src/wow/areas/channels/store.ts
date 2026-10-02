@@ -1,5 +1,10 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type { ChannelNotice } from "#wow/areas/channels/notice";
+import type {
+  ChannelList,
+  ChannelMember,
+  ChannelMemberCount,
+} from "#wow/areas/channels/protocol";
 import type { SessionDeps } from "#wow/session-stores";
 
 export type ChannelRow = {
@@ -10,6 +15,8 @@ export type ChannelRow = {
   joinedAt: number;
   owner: bigint | undefined;
   ownerName: string | undefined;
+  members: readonly ChannelMember[] | undefined;
+  memberCount: number | undefined;
 };
 
 export type PendingInvite = {
@@ -23,7 +30,15 @@ export type ChannelsState = {
   pendingInvite: PendingInvite | undefined;
 };
 
-export type ChannelsEvent = { type: "channel_notice"; notice: ChannelNotice };
+export type ChannelsEvent =
+  | { type: "channel_notice"; notice: ChannelNotice }
+  | {
+      type: "channel_members";
+      channel: string;
+      flags: number;
+      count: number;
+      members: readonly ChannelMember[] | undefined;
+    };
 
 export const INVITE_VISIBLE_MS = 60_000;
 
@@ -62,6 +77,8 @@ export class ChannelStore {
           channelId: notice.channelId,
           flags: notice.flags,
           joinedAt: this.now(),
+          memberCount: undefined,
+          members: undefined,
           name: notice.channel,
           owner: undefined,
           ownerName: undefined,
@@ -91,6 +108,34 @@ export class ChannelStore {
         break;
     }
     this.events.emit({ type: "channel_notice", notice });
+  }
+
+  list(list: ChannelList): void {
+    const row = this.rows.get(list.channel.toLowerCase());
+    const members = list.members.map((member) => ({ ...member }));
+    if (row !== undefined) {
+      row.members = members;
+      row.memberCount = members.length;
+    }
+    this.events.emit({
+      channel: list.channel,
+      count: members.length,
+      flags: list.flags,
+      members,
+      type: "channel_members",
+    });
+  }
+
+  count(count: ChannelMemberCount): void {
+    const row = this.rows.get(count.channel.toLowerCase());
+    if (row !== undefined) row.memberCount = count.count;
+    this.events.emit({
+      channel: count.channel,
+      count: count.count,
+      flags: count.flags,
+      members: undefined,
+      type: "channel_members",
+    });
   }
 
   private applyModeChange(key: string, guid: bigint, flags: number): void {

@@ -1,4 +1,8 @@
 import { ignoreFailure } from "#lib/ignore-failure";
+import {
+  type ChannelListActs,
+  channelListActs,
+} from "#wow/areas/channels/list";
 import type { ChannelNotice } from "#wow/areas/channels/notice";
 import {
   buildChannelInvite,
@@ -23,7 +27,7 @@ export type ChannelAdminResult =
   | { ok: true; notice: ChannelNotice | undefined }
   | { ok: false; reason: "too_long" | "bad_name" | "not_member" };
 
-export type ChannelsActs = {
+export type ChannelsActs = ChannelListActs & {
   channelAdmin: (
     channel: string,
     action: ChannelAdminAction,
@@ -124,7 +128,7 @@ export function channelsRuntime(
   }
 
   return {
-    act: { channelAdmin },
+    act: { channelAdmin, ...channelListActs(ctx) },
     dispose: () => undefined,
   };
 }

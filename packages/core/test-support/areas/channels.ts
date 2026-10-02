@@ -168,3 +168,33 @@ export function channelsChannelPlayerBody(init: {
   w.cString(init.player);
   return w.finish();
 }
+
+export function channelsListBody(init: {
+  channel: string;
+  flags: number;
+  members: readonly { guid: bigint; flags: number }[];
+  count?: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint8(1);
+  w.cString(init.channel);
+  w.uint8(init.flags);
+  w.uint32LE(init.count ?? init.members.length);
+  for (const member of init.members) {
+    w.uint64LE(member.guid);
+    w.uint8(member.flags);
+  }
+  return w.finish();
+}
+
+export function channelsMemberCountBody(init: {
+  channel: string;
+  flags: number;
+  count: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.cString(init.channel);
+  w.uint8(init.flags);
+  w.uint32LE(init.count);
+  return w.finish();
+}

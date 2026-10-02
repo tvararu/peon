@@ -190,11 +190,104 @@ describe("ChannelStore", () => {
     });
     store.notice({ channel: "peonab12cd", type: "not_member" });
     expect(store.snapshot()).toEqual(before);
-    expect(seen.map((event) => event.notice.type)).toEqual([
-      "you_joined",
-      "joined",
-      "player_kicked",
-      "not_member",
+    expect(
+      seen.map((event) =>
+        event.type === "channel_notice" ? event.notice.type : event.type,
+      ),
+    ).toEqual(["you_joined", "joined", "player_kicked", "not_member"]);
+  });
+
+  test("a list fills the members of a joined channel and emits channel_members", () => {
+    const { seen, store } = setup();
+    store.notice({
+      channel: "peonab12cd",
+      channelId: 7,
+      flags: 3,
+      type: "you_joined",
+    });
+    store.list({
+      channel: "PeonAB12cd",
+      flags: 3,
+      members: [
+        { flags: 3, guid: ME },
+        { flags: 0, guid: PARTNER },
+      ],
+    });
+    const row = store.snapshot().channels[0];
+    expect(row?.members).toEqual([
+      { flags: 3, guid: ME },
+      { flags: 0, guid: PARTNER },
     ]);
+    expect(row?.memberCount).toBe(2);
+    expect(seen.at(-1)).toEqual({
+      channel: "PeonAB12cd",
+      count: 2,
+      flags: 3,
+      members: [
+        { flags: 3, guid: ME },
+        { flags: 0, guid: PARTNER },
+      ],
+      type: "channel_members",
+    });
+  });
+
+  test("a count updates the row, keeps the member list and emits without members", () => {
+    const { seen, store } = setup();
+    store.notice({
+      channel: "peonab12cd",
+      channelId: 7,
+      flags: 3,
+      type: "you_joined",
+    });
+    store.list({
+      channel: "peonab12cd",
+      flags: 3,
+      members: [{ flags: 3, guid: ME }],
+    });
+    store.count({ channel: "peonab12cd", count: 4, flags: 3 });
+    const row = store.snapshot().channels[0];
+    expect(row?.memberCount).toBe(4);
+    expect(row?.members).toEqual([{ flags: 3, guid: ME }]);
+    expect(seen.at(-1)).toEqual({
+      channel: "peonab12cd",
+      count: 4,
+      flags: 3,
+      members: undefined,
+      type: "channel_members",
+    });
+  });
+
+  test("a count for a channel we are not on emits and leaves the rows alone", () => {
+    const { seen, store } = setup();
+    store.count({ channel: "elsewhere", count: 9, flags: 1 });
+    expect(store.snapshot().channels).toEqual([]);
+    expect(seen).toEqual([
+      {
+        channel: "elsewhere",
+        count: 9,
+        flags: 1,
+        members: undefined,
+        type: "channel_members",
+      },
+    ]);
+  });
+
+  test("a later list replaces the members but a snapshot copy stays unchanged", () => {
+    const { store } = setup();
+    store.notice({
+      channel: "peonab12cd",
+      channelId: 7,
+      flags: 3,
+      type: "you_joined",
+    });
+    store.list({
+      channel: "peonab12cd",
+      flags: 3,
+      members: [{ flags: 3, guid: ME }],
+    });
+    const first = store.snapshot().channels[0]?.members;
+    store.list({ channel: "peonab12cd", flags: 3, members: [] });
+    expect(first).toEqual([{ flags: 3, guid: ME }]);
+    expect(store.snapshot().channels[0]?.members).toEqual([]);
   });
 });

@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { areaRig } from "#test-support/area-rig";
 import {
+  channelsListBody,
+  channelsMemberCountBody,
   channelsModeChangeBody,
+  channelsNotifyBareBody,
   channelsNotifyGuidBody,
   channelsYouJoinedBody,
 } from "#test-support/areas/channels";
@@ -127,6 +130,156 @@ describe("channels runtime", () => {
         const run = pending.then((result) => result);
         await elapse(2001);
         expect(await run).toEqual({ notice: undefined, ok: true });
+      } finally {
+        rig.dispose();
+      }
+    });
+  });
+
+  test("listChannel sends 0x09a and resolves with the members", async () => {
+    const { before, rig } = joined();
+    try {
+      const pending = rig.handle.act.listChannel("peonab12cd");
+      rig.inject(
+        GameOpcode.SMSG_CHANNEL_LIST,
+        channelsListBody({
+          channel: "peonab12cd",
+          flags: 3,
+          members: [
+            { flags: 3, guid: ME },
+            { flags: 0, guid: PARTNER },
+          ],
+        }),
+      );
+      expect(await pending).toEqual({
+        flags: 3,
+        members: [
+          { flags: 3, guid: ME },
+          { flags: 0, guid: PARTNER },
+        ],
+        ok: true,
+      });
+      expect(rig.sent.slice(before).map((packet) => packet.opcode)).toEqual([
+        GameOpcode.CMSG_CHANNEL_LIST,
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("listChannel with display sends 0x3d2", async () => {
+    const { before, rig } = joined();
+    try {
+      const pending = rig.handle.act.listChannel("peonab12cd", {
+        display: true,
+      });
+      rig.inject(
+        GameOpcode.SMSG_CHANNEL_LIST,
+        channelsListBody({ channel: "peonab12cd", flags: 3, members: [] }),
+      );
+      expect(await pending).toEqual({ flags: 3, members: [], ok: true });
+      expect(rig.sent.slice(before).map((packet) => packet.opcode)).toEqual([
+        GameOpcode.CMSG_CHANNEL_DISPLAY_LIST,
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("listChannel on a channel we are not on resolves not_member", async () => {
+    const rig = areaRig("channels", { selfGuid: ME });
+    try {
+      const pending = rig.handle.act.listChannel("elsewhere");
+      rig.inject(
+        GameOpcode.SMSG_CHANNEL_NOTIFY,
+        channelsNotifyBareBody({ channel: "elsewhere", type: "not_member" }),
+      );
+      expect(await pending).toEqual({ ok: false, reason: "not_member" });
+      expect(rig.sent.map((packet) => packet.opcode)).toEqual([
+        GameOpcode.CMSG_CHANNEL_LIST,
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("listChannel ignores a list for another channel", async () => {
+    await withFakeTimers(async () => {
+      const { rig } = joined();
+      try {
+        const pending = rig.handle.act.listChannel("peonab12cd");
+        rig.inject(
+          GameOpcode.SMSG_CHANNEL_LIST,
+          channelsListBody({ channel: "other", flags: 1, members: [] }),
+        );
+        await elapse(3001);
+        expect(await pending).toEqual({ ok: false, reason: "timeout" });
+      } finally {
+        rig.dispose();
+      }
+    });
+  });
+
+  test("listChannel stops waiting when its signal aborts", async () => {
+    const { rig } = joined();
+    try {
+      const cancel = new AbortController();
+      const pending = rig.handle.act.listChannel("peonab12cd", {
+        signal: cancel.signal,
+      });
+      cancel.abort();
+      expect(await pending.catch((error: unknown) => error)).toBeInstanceOf(
+        Error,
+      );
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("channelMemberCount sends 0x3d4 and resolves the count", async () => {
+    const { before, rig } = joined();
+    try {
+      const pending = rig.handle.act.channelMemberCount("peonab12cd");
+      rig.inject(
+        GameOpcode.SMSG_CHANNEL_MEMBER_COUNT,
+        channelsMemberCountBody({ channel: "peonab12cd", count: 2, flags: 3 }),
+      );
+      expect(await pending).toBe(2);
+      expect(rig.sent.slice(before).map((packet) => packet.opcode)).toEqual([
+        GameOpcode.CMSG_GET_CHANNEL_MEMBER_COUNT,
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("channelMemberCount answers for a channel we are not on", async () => {
+    const rig = areaRig("channels", { selfGuid: ME });
+    try {
+      const pending = rig.handle.act.channelMemberCount("elsewhere");
+      rig.inject(
+        GameOpcode.SMSG_CHANNEL_MEMBER_COUNT,
+        channelsMemberCountBody({ channel: "elsewhere", count: 9, flags: 1 }),
+      );
+      expect(await pending).toBe(9);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("channelMemberCount is undefined on not_member and on silence", async () => {
+    await withFakeTimers(async () => {
+      const rig = areaRig("channels", { selfGuid: ME });
+      try {
+        const missing = rig.handle.act.channelMemberCount("nowhere");
+        rig.inject(
+          GameOpcode.SMSG_CHANNEL_NOTIFY,
+          channelsNotifyBareBody({ channel: "nowhere", type: "not_member" }),
+        );
+        expect(await missing).toBeUndefined();
+        const silent = rig.handle.act.channelMemberCount("quiet");
+        await elapse(3001);
+        expect(await silent).toBeUndefined();
       } finally {
         rig.dispose();
       }
