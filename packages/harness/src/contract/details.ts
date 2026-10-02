@@ -80,7 +80,8 @@ export type TravelGoalView =
   | { kind: "explore"; direction: Compass | undefined }
   | { kind: "unstick"; refusedGoal: string | undefined }
   | { kind: "hearth" }
-  | { kind: "fly"; destination: string };
+  | { kind: "fly"; destination: string }
+  | { kind: "ride"; name: string };
 
 export type TravelAfter = {
   goal: TravelGoalView;

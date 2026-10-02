@@ -46,6 +46,7 @@ import {
   yd,
   youLine,
 } from "#harness/tools/travel-report";
+import { rideStop, rideWork } from "#harness/tools/travel-ride";
 import { travelRenderers } from "#harness/ui/renderers/live-run";
 
 type After = (patch: Partial<TravelAfter>) => TravelAfter;
@@ -91,10 +92,22 @@ function parseFly(text: string): Goal {
   return { destination, kind: "fly" };
 }
 
+function parseRide(text: string): Goal {
+  const stop = rideStop(text);
+  if (stop === "")
+    throw new Refusal({
+      detail: 'ride needs a stop, for example "ride Thunder Bluff".',
+      next: nextCall("look"),
+      reason: "no_stop",
+    });
+  return { kind: "ride", stop };
+}
+
 function parseGoal(ctx: ToolCtx<TravelAfter>, to: string): Goal {
   const text = to.trim();
   const lower = text.toLowerCase();
   if (lower === "fly" || lower.startsWith("fly ")) return parseFly(text);
+  if (lower === "ride" || lower.startsWith("ride ")) return parseRide(text);
   if (lower === "corpse") return { kind: "corpse" };
   if (lower === "unstick") return { kind: "unstick" };
   if (lower === "hearth") return { kind: "hearth" };
@@ -132,7 +145,7 @@ function unitGoal(ctx: ToolCtx<TravelAfter>, text: string): Goal {
 }
 
 function movedWord(goal: Goal): string {
-  return goal.kind === "fly" ? "moved" : "walked";
+  return goal.kind === "fly" || goal.kind === "ride" ? "moved" : "walked";
 }
 
 function reachOf(ctx: OpsCtx, guid: bigint): number | undefined {
@@ -274,6 +287,7 @@ async function doWork(work: Work): Promise<Report> {
     return hearthWork({ ...work.ctx, signal: work.ops.signal }, work.after);
   if (goal.kind === "fly")
     return flyWork({ ...work, destination: goal.destination });
+  if (goal.kind === "ride") return rideWork({ ...work, stop: goal.stop });
   const wanted = exploreWanted(work.ops, work.args.for);
   const found = await explore(work.ops, { direction: goal.direction, wanted });
   return exploreReport(
@@ -450,7 +464,7 @@ export const travelSpec: GameToolSpec<
   run: runTravel,
   text: {
     description:
-      "Walks to a unit, to your corpse or to a point, or explores in a direction. With to hearth it uses your hearthstone and waits for the teleport home. With to fly <destination> it walks to a flight master, pays for the flight and waits for the landing. It waits until you arrive or it fails, up to two minutes. Use explore when look does not show a unit that the task needs. Do not use it to fight.",
+      "Walks to a unit, to your corpse or to a point, or explores in a direction. With to hearth it uses your hearthstone and waits for the teleport home. With to ride <stop> it walks to a boat or zeppelin dock, boards when the transport is docked, rides and gets off at the named stop. With to fly <destination> it walks to a flight master, pays for the flight and waits for the landing. It waits until you arrive or it fails, up to two minutes. Use explore when look does not show a unit that the task needs. Do not use it to fight.",
     guidelines: [
       "Never invent coordinates. If a refusal gives floors, use one as the third number.",
       'If a result says start_off_mesh, call travel with to "unstick". Then try the goal again.',
