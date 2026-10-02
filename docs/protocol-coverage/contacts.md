@@ -5,8 +5,8 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x066` | `CMSG_CONTACT_LIST` | client | missing |  |
-| `0x06b` | `CMSG_SET_CONTACT_NOTES` | client | missing |  |
-| `0x225` | `CMSG_CHAT_IGNORED` | client | missing |  |
+| `0x066` | `CMSG_CONTACT_LIST` | client | handled |  |
+| `0x06b` | `CMSG_SET_CONTACT_NOTES` | client | handled |  |
+| `0x225` | `CMSG_CHAT_IGNORED` | client | handled |  |
 | `0x299` | `SMSG_CHAT_NOT_IN_PARTY` | server | dead |  |
 | `0x32d` | `SMSG_CHAT_PLAYER_AMBIGUOUS` | server | dead |  |

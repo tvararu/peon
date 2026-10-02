@@ -27,6 +27,8 @@ const count = (args: readonly unknown[], at: number) => args[at] as number;
 export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   acceptGuildInvite: { args: [], run: (h) => h.acceptGuildInvite() },
   acceptInvite: { args: [], run: (h) => h.acceptInvite() },
+  addFriend: { args: ["string"], run: (h, a) => h.addFriend(text(a, 0)) },
+  addIgnore: { args: ["string"], run: (h, a) => h.addIgnore(text(a, 0)) },
   answerProposal: {
     args: [["decline", "accept"]],
     run: (h, a) => h.lfg.act.answerProposal(a[0] === "accept"),
@@ -107,6 +109,10 @@ export const PUPPET_CALLS: Readonly<Record<string, PuppetCall>> = {
   sendParty: { args: ["string"], run: (h, a) => h.sendParty(text(a, 0)) },
   sendRaid: { args: ["string"], run: (h, a) => h.sendRaid(text(a, 0)) },
   sendSay: { args: ["string"], run: (h, a) => h.sendSay(text(a, 0)) },
+  sendWhisper: {
+    args: ["string", "string"],
+    run: (h, a) => h.sendWhisper(text(a, 0), text(a, 1)),
+  },
   setAssistant: {
     args: ["string", ["off", "on"]],
     run: (h, a) => h.raid.act.setAssistant(text(a, 0), a[1] === "on"),
