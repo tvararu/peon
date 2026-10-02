@@ -41,12 +41,12 @@
     {
       "evidence": {
         "point": {
-          "x": 1873.32,
-          "y": -6218.15
+          "x": 1900,
+          "y": -6100
         }
       },
-      "expect": "T final position within 10 yd of Timothy Holland, the Vengeance Landing innkeeper (1873.32, -6218.15, map 571); the truth pose and the live nearby agree on this point",
-      "id": "at-innkeeper",
+      "expect": "T final position within 10 yd of the south road mark (1900, -6100, map 571); the truth pose and the live nearby agree on this point",
+      "id": "at-south-road",
       "source": "truth"
     },
     {
@@ -87,6 +87,6 @@
     }
   ],
   "steers": [],
-  "task": "Get on your mount, ride to Timothy Holland, the innkeeper at Vengeance Landing, then get off.",
+  "task": "Get on your mount, ride south along the road to the mark at (1900, -6100), then get off.",
   "tier": 9
 }
