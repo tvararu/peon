@@ -3,11 +3,22 @@ import type {
   InspectHonorStats,
   PvpCredit,
 } from "#wow/areas/battlegrounds/protocol";
+import type {
+  BattlefieldList,
+  BattlefieldStatus,
+} from "#wow/areas/battlegrounds/protocol-queue";
+import {
+  type BattlegroundsQueue,
+  type BattlegroundsQueueEvent,
+  BattlegroundsQueueTracker,
+  type BattlegroundsSlot,
+} from "#wow/areas/battlegrounds/store-queue";
 import {
   type BattlegroundsFlag,
   type BattlegroundsSelf,
   BattlegroundsSelfTracker,
 } from "#wow/areas/battlegrounds/store-self";
+import { UnitFlag } from "#wow/protocol/entity-fields";
 import type { CoreStores, SessionDeps } from "#wow/session-stores";
 
 export type BattlegroundsHonorCredit = PvpCredit & { type: "honor_credit" };
@@ -35,10 +46,12 @@ export type BattlegroundsEvent =
   | BattlegroundsHonorCredit
   | BattlegroundsHonorInspect
   | BattlegroundsZoneAlert
-  | BattlegroundsPvpKillQuest;
+  | BattlegroundsPvpKillQuest
+  | BattlegroundsQueueEvent;
 
 export type BattlegroundsState = {
   self: BattlegroundsSelf;
+  queue: BattlegroundsQueue;
   credits: readonly PvpCredit[];
   zoneAlerts: readonly { areaId: number; at: number }[];
   inspect: ReadonlyMap<bigint, InspectHonorStats>;
@@ -51,12 +64,18 @@ export class BattlegroundsStore {
   private readonly events = new Emitter<[BattlegroundsEvent]>();
   private readonly now: () => number;
   private readonly selfTracker: BattlegroundsSelfTracker;
+  private readonly queueTracker: BattlegroundsQueueTracker;
+  private readonly deps: SessionDeps;
   private credits: PvpCredit[] = [];
   private zoneAlerts: { areaId: number; at: number }[] = [];
   private inspect = new Map<bigint, InspectHonorStats>();
 
   constructor(deps: SessionDeps, _core: CoreStores) {
+    this.deps = deps;
     this.now = deps.now;
+    this.queueTracker = new BattlegroundsQueueTracker(deps.now, (event) =>
+      this.events.emit(event),
+    );
     this.selfTracker = new BattlegroundsSelfTracker(deps);
     this.selfTracker.onEvent((event) => this.events.emit(event));
   }
@@ -65,6 +84,7 @@ export class BattlegroundsStore {
     return {
       credits: [...this.credits],
       inspect: new Map(this.inspect),
+      queue: this.queueTracker.snapshot(),
       self: this.selfTracker.snapshot(),
       zoneAlerts: this.zoneAlerts.map((alert) => ({ ...alert })),
     };
@@ -76,6 +96,28 @@ export class BattlegroundsStore {
 
   observeEntity(guid: bigint): void {
     this.selfTracker.observe(guid);
+  }
+
+  selfInCombat(): boolean {
+    const self = this.deps.getEntity(this.deps.selfGuid());
+    if (!(self && "unitFlags" in self)) return false;
+    return (self.unitFlags & UnitFlag.IN_COMBAT) !== 0;
+  }
+
+  slot(index: number): BattlegroundsSlot {
+    return this.queueTracker.slot(index);
+  }
+
+  receiveBattlefieldStatus(status: BattlefieldStatus): void {
+    this.queueTracker.receiveStatus(status);
+  }
+
+  receiveBattlefieldList(list: BattlefieldList): void {
+    this.queueTracker.receiveList(list);
+  }
+
+  receiveGroupJoined(result: number, guid: bigint | undefined): void {
+    this.queueTracker.receiveJoinResult(result, guid);
   }
 
   receivePvpCredit(credit: PvpCredit): void {
@@ -104,6 +146,7 @@ export class BattlegroundsStore {
 
   dispose(): void {
     this.selfTracker.dispose();
+    this.queueTracker.dispose();
     this.credits = [];
     this.zoneAlerts = [];
     this.inspect = new Map();

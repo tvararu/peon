@@ -32,10 +32,7 @@ export const BATTLEGROUNDS_OPCODES = {
     "SMSG_BATTLEGROUND_INFO_THROTTLED",
   ],
   uses: [],
-  stubs: [
-    ["SMSG_BATTLEFIELD_STATUS", "Battleground status"],
-    ["SMSG_BATTLEFIELD_LIST", "Battleground list"],
-  ],
+  stubs: [],
   dead: [
     "CMSG_BATTLEFIELD_JOIN",
     "SMSG_PLAYER_SKINNED",

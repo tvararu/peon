@@ -3,6 +3,10 @@ import {
   buildTogglePvp,
   type InspectHonorStats,
 } from "#wow/areas/battlegrounds/protocol";
+import {
+  type BattlegroundsQueueActs,
+  battlegroundsQueueRuntime,
+} from "#wow/areas/battlegrounds/runtime-queue";
 import type {
   BattlegroundsEvent,
   BattlegroundsStore,
@@ -15,7 +19,7 @@ export const PVP_ANSWER_MS = 3000;
 
 export type BattlegroundsSetPvpResult = { kind: "set"; on: boolean };
 
-export type BattlegroundsActs = {
+export type BattlegroundsActs = BattlegroundsQueueActs & {
   setPvp: (on: boolean) => Promise<BattlegroundsSetPvpResult>;
   inspectHonor: (guid: bigint) => Promise<InspectHonorStats>;
 };
@@ -27,7 +31,7 @@ function noAnswer(guid: bigint): Error {
 export function battlegroundsRuntime(
   ctx: AreaRuntimeCtx<BattlegroundsEvent>,
   store: BattlegroundsStore,
-  _core: CoreStores,
+  core: CoreStores,
 ): AreaRuntime<BattlegroundsActs> {
   async function setPvp(on: boolean): Promise<BattlegroundsSetPvpResult> {
     if (store.snapshot().self.wantsFlag === on) return { kind: "set", on };
@@ -67,5 +71,9 @@ export function battlegroundsRuntime(
     }
   }
 
-  return { act: { inspectHonor, setPvp }, dispose: () => undefined };
+  const queue = battlegroundsQueueRuntime(ctx, store, core);
+  return {
+    act: { ...queue.act, inspectHonor, setPvp },
+    dispose: queue.dispose,
+  };
 }

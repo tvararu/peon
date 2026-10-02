@@ -66,6 +66,7 @@ export type BattlegroundsSelfFields = {
   lifetime?: number;
   honor?: number;
   arena?: number;
+  unitFlags?: number;
 };
 
 export function battlegroundsPlayer(
@@ -99,6 +100,7 @@ export function battlegroundsPlayer(
     rawFields: raw,
     scale: 1,
     target: 0n,
+    unitFlags: fields.unitFlags ?? 0,
   } as Entity;
 }
 export function battlegroundsScene(now: () => number = () => 0) {
@@ -120,4 +122,117 @@ export function battlegroundsScene(now: () => number = () => 0) {
     });
   };
   return { rig, update };
+}
+
+export type BattlegroundsListRewards = {
+  hasWin?: number;
+  winHonor: number;
+  winArena: number;
+  lossHonor: number;
+};
+
+export function battlegroundsBattlefieldListBody(init: {
+  guid: bigint;
+  fromWhere: number;
+  bgType: number;
+  rewards?: BattlegroundsListRewards;
+  random?: BattlegroundsListRewards;
+  instances?: readonly number[];
+}): Uint8Array {
+  const rewards = init.rewards ?? { lossHonor: 0, winArena: 0, winHonor: 0 };
+  const w = new PacketWriter();
+  w.uint64LE(init.guid);
+  w.uint8(init.fromWhere);
+  w.uint32LE(init.bgType);
+  w.uint8(0);
+  w.uint8(0);
+  w.uint8(rewards.hasWin ?? 0);
+  w.uint32LE(rewards.winHonor);
+  w.uint32LE(rewards.winArena);
+  w.uint32LE(rewards.lossHonor);
+  w.uint8(init.random ? 1 : 0);
+  if (init.random) {
+    w.uint8(init.random.hasWin ?? 0);
+    w.uint32LE(init.random.winHonor);
+    w.uint32LE(init.random.winArena);
+    w.uint32LE(init.random.lossHonor);
+  }
+  if (init.bgType === 6) {
+    w.uint32LE(0);
+    return w.finish();
+  }
+  const instances = init.instances ?? [];
+  w.uint32LE(instances.length);
+  for (const id of instances) w.uint32LE(id);
+  return w.finish();
+}
+
+export function battlegroundsStatusNoneBody(slot: number): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(slot);
+  w.uint64LE(0n);
+  return w.finish();
+}
+
+export type BattlegroundsStatusInit = {
+  slot: number;
+  status: number;
+  arenaType?: number;
+  isArena?: number;
+  bgType: number;
+  minLevel?: number;
+  maxLevel?: number;
+  instanceId?: number;
+  rated?: number;
+  avgWait?: number;
+  inQueue?: number;
+  mapId?: number;
+  timeToRemove?: number;
+  autoLeave?: number;
+  elapsed?: number;
+  faction?: number;
+};
+
+function writeStatusTail(w: PacketWriter, init: BattlegroundsStatusInit) {
+  if (init.status === 1) {
+    w.uint32LE(init.avgWait ?? 0);
+    w.uint32LE(init.inQueue ?? 0);
+    return;
+  }
+  if (init.status !== 2 && init.status !== 3) return;
+  w.uint32LE(init.mapId ?? 0);
+  w.uint64LE(0n);
+  if (init.status === 2) {
+    w.uint32LE(init.timeToRemove ?? 0);
+    return;
+  }
+  w.uint32LE(init.autoLeave ?? 0);
+  w.uint32LE(init.elapsed ?? 0);
+  w.uint8(init.faction ?? 0);
+}
+
+export function battlegroundsStatusBody(init: BattlegroundsStatusInit) {
+  const w = new PacketWriter();
+  w.uint32LE(init.slot);
+  w.uint8(init.arenaType ?? 0);
+  w.uint8(init.isArena ?? 0);
+  w.uint32LE(init.bgType);
+  w.uint16LE(0x1f_90);
+  w.uint8(init.minLevel ?? 10);
+  w.uint8(init.maxLevel ?? 19);
+  w.uint32LE(init.instanceId ?? 0);
+  w.uint8(init.rated ?? 0);
+  w.uint32LE(init.status);
+  writeStatusTail(w, init);
+  return w.finish();
+}
+
+export function battlegroundsGroupJoinedBody(
+  result: number,
+  guid?: bigint,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(result);
+  if (guid !== undefined) w.uint64LE(guid);
+  return w.finish();
 }

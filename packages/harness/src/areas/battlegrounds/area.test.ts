@@ -106,4 +106,112 @@ describe("battlegrounds harness rules", () => {
     );
     expect(questRows.map((row) => row.event)).toEqual(["battlegrounds/kill"]);
   });
+
+  const queued = {
+    arenaType: 0,
+    avgWaitMs: 61_000,
+    bgType: 2,
+    inQueueMs: 0,
+    instanceId: 0,
+    isArena: 0,
+    kind: "queued" as const,
+    maxLevel: 19,
+    minLevel: 10,
+    rated: false,
+    receivedAt: 0,
+    word: 0x1f_90,
+  };
+
+  test("bg_status queued writes battlegrounds/queued once and a refresh writes nothing", () => {
+    const first = areaDrafts(
+      areaRuleSet(),
+      battlegrounds({
+        previous: "none",
+        slot: 0,
+        status: queued,
+        type: "bg_status",
+      }),
+      testRuleInput({}),
+    );
+    expect(first.map((row) => [row.event, row.class])).toEqual([
+      ["battlegrounds/queued", "log"],
+    ]);
+    const refresh = areaDrafts(
+      areaRuleSet(),
+      battlegrounds({
+        previous: "queued",
+        slot: 0,
+        status: queued,
+        type: "bg_status",
+      }),
+      testRuleInput({}),
+    );
+    expect(refresh).toEqual([]);
+  });
+
+  test("bg_left after queued writes queue_left and after active writes nothing", () => {
+    const left = (previous: "queued" | "active") =>
+      areaDrafts(
+        areaRuleSet(),
+        battlegrounds({ bgType: 2, previous, slot: 1, type: "bg_left" }),
+        testRuleInput({}),
+      );
+    expect(left("queued").map((row) => row.event)).toEqual([
+      "battlegrounds/queue_left",
+    ]);
+    expect(left("active")).toEqual([]);
+  });
+
+  test("bg_invited wakes with the deadline in data", () => {
+    const rows = areaDrafts(
+      areaRuleSet(),
+      battlegrounds({
+        bgType: 2,
+        expiresAt: 90_000,
+        mapId: 489,
+        slot: 0,
+        type: "bg_invited",
+      }),
+      testRuleInput({}),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      class: "wake",
+      data: { expiresAt: 90_000, mapId: 489, slot: 0 },
+      event: "battlegrounds/invited",
+    });
+  });
+
+  test("bg_join_result writes join_failed for an error and nothing for success; bg_list writes nothing", () => {
+    const result = (error: string | undefined, code: number) =>
+      areaDrafts(
+        areaRuleSet(),
+        battlegrounds({
+          error,
+          guid: undefined,
+          result: code,
+          type: "bg_join_result",
+        }),
+        testRuleInput({}),
+      );
+    expect(result("deserter", -2).map((row) => row.event)).toEqual([
+      "battlegrounds/join_failed",
+    ]);
+    expect(result(undefined, 2)).toEqual([]);
+    expect(
+      areaDrafts(
+        areaRuleSet(),
+        battlegrounds({
+          bgType: 2,
+          fromWhere: 0,
+          guid: 0n,
+          instances: [],
+          random: undefined,
+          rewards: { hasWin: false, lossHonor: 0, winArena: 0, winHonor: 0 },
+          type: "bg_list",
+        }),
+        testRuleInput({}),
+      ),
+    ).toEqual([]);
+  });
 });
