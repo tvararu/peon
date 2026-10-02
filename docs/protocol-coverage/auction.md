@@ -6,18 +6,18 @@ columns are explained in [the index](../protocol-coverage.md).
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
 | `0x255` | `MSG_AUCTION_HELLO` | both | handled |  |
-| `0x256` | `CMSG_AUCTION_SELL_ITEM` | client | missing |  |
-| `0x257` | `CMSG_AUCTION_REMOVE_ITEM` | client | missing |  |
+| `0x256` | `CMSG_AUCTION_SELL_ITEM` | client | handled |  |
+| `0x257` | `CMSG_AUCTION_REMOVE_ITEM` | client | handled |  |
 | `0x258` | `CMSG_AUCTION_LIST_ITEMS` | client | handled |  |
 | `0x259` | `CMSG_AUCTION_LIST_OWNER_ITEMS` | client | handled |  |
-| `0x25a` | `CMSG_AUCTION_PLACE_BID` | client | missing |  |
-| `0x25b` | `SMSG_AUCTION_COMMAND_RESULT` | server | stub |  |
+| `0x25a` | `CMSG_AUCTION_PLACE_BID` | client | handled |  |
+| `0x25b` | `SMSG_AUCTION_COMMAND_RESULT` | server | handled |  |
 | `0x25c` | `SMSG_AUCTION_LIST_RESULT` | server | handled |  |
 | `0x25d` | `SMSG_AUCTION_OWNER_LIST_RESULT` | server | handled |  |
-| `0x25e` | `SMSG_AUCTION_BIDDER_NOTIFICATION` | server | stub |  |
-| `0x25f` | `SMSG_AUCTION_OWNER_NOTIFICATION` | server | stub |  |
+| `0x25e` | `SMSG_AUCTION_BIDDER_NOTIFICATION` | server | handled |  |
+| `0x25f` | `SMSG_AUCTION_OWNER_NOTIFICATION` | server | handled |  |
 | `0x264` | `CMSG_AUCTION_LIST_BIDDER_ITEMS` | client | handled |  |
 | `0x265` | `SMSG_AUCTION_BIDDER_LIST_RESULT` | server | handled |  |
 | `0x28d` | `SMSG_AUCTION_REMOVED_NOTIFICATION` | server | dead |  |
-| `0x48f` | `CMSG_AUCTION_LIST_PENDING_SALES` | client | missing |  |
-| `0x490` | `SMSG_AUCTION_LIST_PENDING_SALES` | server | missing |  |
+| `0x48f` | `CMSG_AUCTION_LIST_PENDING_SALES` | client | handled |  |
+| `0x490` | `SMSG_AUCTION_LIST_PENDING_SALES` | server | handled |  |
