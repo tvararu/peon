@@ -2,20 +2,7 @@ import { GameOpcode } from "#wow/protocol/opcodes";
 import type { OpcodeDispatch } from "#wow/protocol/world";
 
 export const STUBS: [opcode: number, label: string][] = [
-  [GameOpcode.SMSG_CHANNEL_LIST, "Channel member list"],
-  [GameOpcode.SMSG_GUILD_INFO, "Guild info"],
   [GameOpcode.SMSG_GUILD_BANK_LIST, "Guild bank"],
-  [GameOpcode.SMSG_CHAT_PLAYER_AMBIGUOUS, "Ambiguous player name"],
-  [GameOpcode.SMSG_CHAT_NOT_IN_PARTY, "Not in party"],
-  [GameOpcode.SMSG_AUCTION_LIST_RESULT, "Auction results"],
-  [GameOpcode.SMSG_AUCTION_OWNER_NOTIFICATION, "Auction sold"],
-  [GameOpcode.SMSG_AUCTION_BIDDER_NOTIFICATION, "Auction outbid"],
-  [GameOpcode.SMSG_AUCTION_COMMAND_RESULT, "Auction result"],
-  [GameOpcode.SMSG_BATTLEFIELD_STATUS, "Battleground status"],
-  [GameOpcode.SMSG_BATTLEFIELD_LIST, "Battleground list"],
-  [GameOpcode.SMSG_ZONE_UNDER_ATTACK, "Zone under attack"],
-  [GameOpcode.SMSG_CALENDAR_SEND_CALENDAR, "Calendar"],
-  [GameOpcode.SMSG_CALENDAR_EVENT_INVITE_ALERT, "Calendar invite"],
   [GameOpcode.SMSG_ARENA_TEAM_EVENT, "Arena team event"],
   [GameOpcode.SMSG_ARENA_TEAM_COMMAND_RESULT, "Arena command result"],
   [GameOpcode.SMSG_WARDEN_DATA, "Warden anti-cheat"],
