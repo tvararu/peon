@@ -5,8 +5,8 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x429` | `CMSG_CALENDAR_GET_CALENDAR` | client | missing |  |
-| `0x42a` | `CMSG_CALENDAR_GET_EVENT` | client | missing |  |
+| `0x429` | `CMSG_CALENDAR_GET_CALENDAR` | client | handled |  |
+| `0x42a` | `CMSG_CALENDAR_GET_EVENT` | client | handled |  |
 | `0x42b` | `CMSG_CALENDAR_GUILD_FILTER` | client | missing |  |
 | `0x42c` | `CMSG_CALENDAR_ARENA_TEAM` | client | missing |  |
 | `0x42d` | `CMSG_CALENDAR_ADD_EVENT` | client | missing |  |
@@ -18,14 +18,14 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x433` | `CMSG_CALENDAR_EVENT_REMOVE_INVITE` | client | missing |  |
 | `0x434` | `CMSG_CALENDAR_EVENT_STATUS` | client | missing |  |
 | `0x435` | `CMSG_CALENDAR_EVENT_MODERATOR_STATUS` | client | missing |  |
-| `0x436` | `SMSG_CALENDAR_SEND_CALENDAR` | server | stub |  |
-| `0x437` | `SMSG_CALENDAR_SEND_EVENT` | server | missing |  |
+| `0x436` | `SMSG_CALENDAR_SEND_CALENDAR` | server | handled |  |
+| `0x437` | `SMSG_CALENDAR_SEND_EVENT` | server | handled | not seen live |
 | `0x438` | `SMSG_CALENDAR_FILTER_GUILD` | server | missing |  |
 | `0x439` | `SMSG_CALENDAR_ARENA_TEAM` | server | missing |  |
 | `0x43a` | `SMSG_CALENDAR_EVENT_INVITE` | server | missing |  |
 | `0x43b` | `SMSG_CALENDAR_EVENT_INVITE_REMOVED` | server | missing |  |
 | `0x43c` | `SMSG_CALENDAR_EVENT_STATUS` | server | missing |  |
-| `0x43d` | `SMSG_CALENDAR_COMMAND_RESULT` | server | missing |  |
+| `0x43d` | `SMSG_CALENDAR_COMMAND_RESULT` | server | handled |  |
 | `0x43e` | `SMSG_CALENDAR_RAID_LOCKOUT_ADDED` | server | missing |  |
 | `0x43f` | `SMSG_CALENDAR_RAID_LOCKOUT_REMOVED` | server | missing |  |
 | `0x440` | `SMSG_CALENDAR_EVENT_INVITE_ALERT` | server | stub |  |
@@ -34,8 +34,8 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x444` | `SMSG_CALENDAR_EVENT_UPDATED_ALERT` | server | missing |  |
 | `0x445` | `SMSG_CALENDAR_EVENT_MODERATOR_STATUS_ALERT` | server | missing |  |
 | `0x446` | `CMSG_CALENDAR_COMPLAIN` | client | missing |  |
-| `0x447` | `CMSG_CALENDAR_GET_NUM_PENDING` | client | missing |  |
-| `0x448` | `SMSG_CALENDAR_SEND_NUM_PENDING` | server | missing |  |
+| `0x447` | `CMSG_CALENDAR_GET_NUM_PENDING` | client | handled |  |
+| `0x448` | `SMSG_CALENDAR_SEND_NUM_PENDING` | server | handled |  |
 | `0x460` | `SMSG_CALENDAR_EVENT_INVITE_NOTES` | server | dead |  |
 | `0x461` | `SMSG_CALENDAR_EVENT_INVITE_NOTES_ALERT` | server | dead |  |
 | `0x471` | `SMSG_CALENDAR_RAID_LOCKOUT_UPDATED` | server | missing |  |

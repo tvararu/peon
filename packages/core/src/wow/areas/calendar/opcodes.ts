@@ -40,13 +40,10 @@ export const CALENDAR_OPCODES = {
     "SMSG_CALENDAR_CLEAR_PENDING_ACTION",
   ],
   uses: [],
-  stubs: [
-    ["SMSG_CALENDAR_SEND_CALENDAR", "Calendar"],
-    ["SMSG_CALENDAR_EVENT_INVITE_ALERT", "Calendar invite"],
-  ],
+  stubs: [["SMSG_CALENDAR_EVENT_INVITE_ALERT", "Calendar invite"]],
   dead: [
     "SMSG_CALENDAR_EVENT_INVITE_NOTES",
     "SMSG_CALENDAR_EVENT_INVITE_NOTES_ALERT",
   ],
-  unseen: [],
+  unseen: ["SMSG_CALENDAR_SEND_EVENT"],
 } as const satisfies AreaOpcodes;
