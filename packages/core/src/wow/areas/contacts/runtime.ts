@@ -2,10 +2,10 @@ import {
   buildChatIgnored,
   buildContactListRequest,
   buildSetContactNote,
+  truncateNote,
 } from "#wow/areas/contacts/protocol";
 import type { ContactStore, ContactsEvent } from "#wow/areas/contacts/store";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
-import { truncateNote } from "#wow/friend-store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { CoreStores } from "#wow/session-stores";
 

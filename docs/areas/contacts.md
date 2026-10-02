@@ -66,6 +66,6 @@ No verb.
 |---|---|---|---|
 | `CMSG_CONTACT_LIST` | `live` | probe flow `contacts-notes` on `eversong10` Own: two out `CMSG_CONTACT_LIST` rows of 4 bytes answered by in `SMSG_CONTACT_LIST` rows of 38 bytes | `Handlers/Socialhandler.cpp:30-35` |
 | `CMSG_SET_CONTACT_NOTES` | `live` | same run: one out `CMSG_SET_CONTACT_NOTES` of 13 bytes, answered by the flags-1 `SMSG_CONTACT_LIST` of 38 bytes | `Handlers/Socialhandler.cpp:148-154` |
-| `CMSG_CHAT_IGNORED` | `live` | same run: one out `CMSG_CHAT_IGNORED` of 9 bytes after the partner's whisper; the partner's `read --json` shows a chat event of type `TYPE_25` with Own's name as message | `Handlers/ChatHandler.cpp:792-807` |
+| `CMSG_CHAT_IGNORED` | `live` | same run: one out `CMSG_CHAT_IGNORED` of 9 bytes in the same second as an in `SMSG_MESSAGE_CHAT` of 36 bytes; Own's headers-only trace keeps sizes only, so the partner-side `CHAT_MSG_IGNORED` receipt has no retained artifact | `Handlers/ChatHandler.cpp:792-807` |
 | `SMSG_CHAT_NOT_IN_PARTY` | `dead` | no send site; declared `STATUS_NEVER` | `Server/Protocol/Opcodes.cpp:796` |
 | `SMSG_CHAT_PLAYER_AMBIGUOUS` | `dead` | only writer is never called | `Handlers/ChatHandler.cpp:824-829` |

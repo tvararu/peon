@@ -1,5 +1,5 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import { truncateNote } from "#wow/friend-store";
+import { truncateNote } from "#wow/areas/contacts/protocol";
 import type { ContactList } from "#wow/protocol/social";
 
 export type ContactsState = {
