@@ -183,6 +183,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | `dungeon` | Difficulty, saved instances, resets, the bind prompt and the dungeon finder queue, role answers, proposal answers, teleports and kick votes. |
 | `group` | Shows the group roster, removes a member, or passes the lead. |
 | `trade` | Gives items and gold to another player, answers a trade request, changes the offer, accepts, cancels or reads both offers. |
+| `mail` | Reads the letters waiting in the inbox, collects gold and items from them, or sends a letter with gold or items at a mailbox within 10 yards. |
 
 `travel`, `engage`, `rest` and `recover` start a run (`r1`, `r2`, …).
 Only one run can be active. The tool waits for the run to end and

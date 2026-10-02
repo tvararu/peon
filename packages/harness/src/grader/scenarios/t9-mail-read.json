@@ -29,19 +29,19 @@
   "setup": [
     {
       "body": {
-        "quest": 40
+        "quest": 8325
       },
       "endpoint": "quest/add"
     },
     {
       "body": {
-        "quest": 40
+        "quest": 8325
       },
       "endpoint": "quest/complete"
     },
     {
       "body": {
-        "quest": 40
+        "quest": 8325
       },
       "endpoint": "quest/reward"
     },
