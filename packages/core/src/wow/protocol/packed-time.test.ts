@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { parsePackedTime, readPackedTime } from "#wow/protocol/packed-time";
+import {
+  packPackedTime,
+  parsePackedTime,
+  readPackedTime,
+  writePackedTime,
+} from "#wow/protocol/packed-time";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 type Tm = {
@@ -73,5 +78,107 @@ describe("packed time (ByteBuffer.cpp:137-141)", () => {
       parsePackedTime(appendPackedTime(SUNDAY_EVENING)),
     );
     expect(reader.uint32LE()).toBe(7);
+  });
+});
+
+describe("packed-time writer (ByteBuffer.cpp:95-107,137-141)", () => {
+  test("packs September 2026 and parses back to the same object", () => {
+    const time = {
+      year: 2026,
+      month: 9,
+      day: 27,
+      weekday: 0,
+      hour: 20,
+      minute: 5,
+    };
+    expect(parsePackedTime(packPackedTime(time))).toEqual(time);
+  });
+
+  test("replays the live probe1 value 0x1a906bcf", () => {
+    expect(
+      packPackedTime({
+        year: 2026,
+        month: 10,
+        day: 2,
+        weekday: 5,
+        hour: 15,
+        minute: 15,
+      }),
+    ).toBe(0x1a_90_6b_cf);
+  });
+
+  test("replays the live probe2 value 0x1a906bd0", () => {
+    expect(
+      packPackedTime({
+        year: 2026,
+        month: 10,
+        day: 2,
+        weekday: 5,
+        hour: 15,
+        minute: 16,
+      }),
+    ).toBe(0x1a_90_6b_d0);
+  });
+
+  test("accepts year 2031 and rejects 2032 and 1999", () => {
+    const base = {
+      year: 2025,
+      month: 1,
+      day: 1,
+      weekday: 3,
+      hour: 0,
+      minute: 0,
+    };
+    expect(parsePackedTime(packPackedTime({ ...base, year: 2031 }))).toEqual({
+      ...base,
+      year: 2031,
+    });
+    expect(() => packPackedTime({ ...base, year: 2032 })).toThrow();
+    expect(() => packPackedTime({ ...base, year: 1999 })).toThrow();
+  });
+
+  test("rejects month 0 and 13", () => {
+    const base = {
+      year: 2026,
+      month: 7,
+      day: 1,
+      weekday: 3,
+      hour: 0,
+      minute: 0,
+    };
+    expect(() => packPackedTime({ ...base, month: 0 })).toThrow();
+    expect(() => packPackedTime({ ...base, month: 13 })).toThrow();
+  });
+
+  test("rejects out-of-range day, weekday, hour and minute", () => {
+    const base = {
+      year: 2026,
+      month: 10,
+      day: 2,
+      weekday: 5,
+      hour: 15,
+      minute: 15,
+    };
+    expect(() => packPackedTime({ ...base, day: 0 })).toThrow();
+    expect(() => packPackedTime({ ...base, day: 32 })).toThrow();
+    expect(() => packPackedTime({ ...base, weekday: 7 })).toThrow();
+    expect(() => packPackedTime({ ...base, hour: 24 })).toThrow();
+    expect(() => packPackedTime({ ...base, minute: 60 })).toThrow();
+  });
+
+  test("writePackedTime writes the packed value as one u32", () => {
+    const time = {
+      year: 2026,
+      month: 10,
+      day: 2,
+      weekday: 5,
+      hour: 15,
+      minute: 15,
+    };
+    const w = new PacketWriter();
+    writePackedTime(w, time);
+    const reader = new PacketReader(w.finish());
+    expect(reader.uint32LE()).toBe(0x1a_90_6b_cf);
+    expect(readPackedTime(new PacketReader(w.finish()))).toEqual(time);
   });
 });

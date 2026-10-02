@@ -1,4 +1,4 @@
-import type { PacketReader } from "#wow/protocol/packet";
+import type { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 export type PackedTime = {
   year: number;
@@ -20,6 +20,37 @@ export function parsePackedTime(raw: number): PackedTime {
   };
 }
 
+export function packPackedTime(time: PackedTime): number {
+  if (
+    time.year < 2000 ||
+    time.year > 2031 ||
+    time.month < 1 ||
+    time.month > 12 ||
+    time.day < 1 ||
+    time.day > 31 ||
+    time.weekday < 0 ||
+    time.weekday > 6 ||
+    time.hour < 0 ||
+    time.hour > 23 ||
+    time.minute < 0 ||
+    time.minute > 59
+  )
+    throw new RangeError("packed time field out of range");
+  return (
+    (((time.year - 2000) << 24) |
+      ((time.month - 1) << 20) |
+      ((time.day - 1) << 14) |
+      (time.weekday << 11) |
+      (time.hour << 6) |
+      time.minute) >>>
+    0
+  );
+}
+
 export function readPackedTime(reader: PacketReader): PackedTime {
   return parsePackedTime(reader.uint32LE());
+}
+
+export function writePackedTime(writer: PacketWriter, time: PackedTime): void {
+  writer.uint32LE(packPackedTime(time));
 }
