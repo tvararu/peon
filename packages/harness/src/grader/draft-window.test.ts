@@ -40,17 +40,14 @@ describe("t7-halt-resume drafts from retained runs", () => {
     expect(check?.ref).toMatch(/^gamelog\.jsonl:\d+$/);
   });
 
-  test("smite-only-kills looks only at casts after the resume steer", async () => {
+  test("smite-only-kills drops Smite and consumed items after resume", async () => {
     const after = (await draftFixture("round-329-replica-1"))(
       "smite-only-kills",
     );
-    expect(after?.observed).toMatchObject({ count: 3 });
-    const seen = after?.observed as { rows: { text: string }[] };
-    expect(seen.rows.map((entry) => entry.text)).toEqual([
-      "Cast Food succeeded.",
-      "Cast Food succeeded.",
-      "Cast Food succeeded.",
-    ]);
+    expect(after?.observed).toMatchObject({ count: 0 });
+    expect(after?.met).toBe(true);
+    const seen = after?.observed as { related: { text: string } | null };
+    expect(seen.related?.text).toBe("Cast Food succeeded.");
   });
 });
 

@@ -24,7 +24,8 @@
       "evidence": {
         "events": ["combat/cast"],
         "window": {
-          "exceptNames": ["Smite"],
+          "exceptNames": ["Drink", "Food", "Smite"],
+          "max": 0,
           "steer": 1
         }
       },
