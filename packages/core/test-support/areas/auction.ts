@@ -1,4 +1,5 @@
 import { areaRig } from "#test-support/area-rig";
+import type { ItemsWorld } from "#test-support/areas/items-world";
 import type { Entity } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { PacketWriter } from "#wow/protocol/packet";
@@ -115,10 +116,69 @@ export function auctionNpc(
   } as Entity;
 }
 
+export function auctionCommandResultBody(init: {
+  auctionId: number;
+  action: number;
+  error?: number;
+  bidError?: number;
+}): Uint8Array {
+  const error = init.error ?? 0;
+  const w = new PacketWriter();
+  w.uint32LE(init.auctionId);
+  w.uint32LE(init.action);
+  w.uint32LE(error);
+  if (error === 0 && init.action !== 0) w.uint32LE(init.bidError ?? 0);
+  return w.finish();
+}
+
+export function auctionBidderNoticeBody(init: {
+  houseId?: number;
+  auctionId: number;
+  bidder?: bigint;
+  bidSum?: number;
+  diff?: number;
+  itemEntry?: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.houseId ?? 6);
+  w.uint32LE(init.auctionId);
+  w.uint64LE(init.bidder ?? AUCTION_SELF);
+  w.uint32LE(init.bidSum ?? 0);
+  w.uint32LE(init.diff ?? 0);
+  w.uint32LE(init.itemEntry ?? 2589);
+  w.uint32LE(0);
+  return w.finish();
+}
+
+export function auctionOwnerNoticeBody(init: {
+  auctionId: number;
+  bid?: number;
+  itemEntry?: number;
+}): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.auctionId);
+  w.uint32LE(init.bid ?? 0);
+  w.uint32LE(0);
+  w.uint64LE(0n);
+  w.uint32LE(init.itemEntry ?? 2589);
+  w.uint32LE(0);
+  w.floatLE(0);
+  return w.finish();
+}
+
+export function auctionPendingSalesBody(count = 0): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(count);
+  return w.finish();
+}
+
 export function auctionRig(
-  options: { npcDistance?: number; npcFlags?: number } = {},
+  options: { npcDistance?: number; npcFlags?: number; world?: ItemsWorld } = {},
 ) {
-  const self = auctionPlayer({ mapId: 530, orientation: 0, x: 0, y: 0, z: 0 });
+  const here = { mapId: 530, orientation: 0, x: 0, y: 0, z: 0 };
+  const self = options.world
+    ? Object.assign(options.world.player, { position: here })
+    : auctionPlayer(here);
   const npc = auctionNpc(
     {
       mapId: 530,
@@ -133,6 +193,7 @@ export function auctionRig(
     getEntity: (guid) => {
       if (guid === AUCTION_SELF) return self;
       if (guid === AUCTIONEER) return npc;
+      return options.world?.lookup(guid);
     },
     selfGuid: AUCTION_SELF,
   });

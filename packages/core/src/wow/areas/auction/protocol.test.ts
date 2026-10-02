@@ -2,9 +2,13 @@ import { describe, expect, test } from "bun:test";
 import {
   AUCTION_BIDDER,
   AUCTION_OWNER,
+  AUCTION_SELF,
   AUCTIONEER,
+  auctionBidderNoticeBody,
+  auctionCommandResultBody,
   auctionHelloBody,
   auctionListBody,
+  auctionOwnerNoticeBody,
 } from "#test-support/areas/auction";
 import {
   AUCTION_BIDDER_LIST_LIMIT,
@@ -12,8 +16,15 @@ import {
   buildAuctionListBidderItems,
   buildAuctionListItems,
   buildAuctionListOwnerItems,
+  buildAuctionListPendingSales,
+  buildAuctionPlaceBid,
+  buildAuctionRemoveItem,
+  buildAuctionSellItem,
+  parseAuctionBidderNotice,
+  parseAuctionCommandResult,
   parseAuctionHello,
   parseAuctionList,
+  parseAuctionOwnerNotice,
 } from "#wow/areas/auction/protocol";
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
@@ -207,5 +218,99 @@ describe("buildAuctionListBidderItems", () => {
       (_, index) => index + 1,
     );
     expect(() => buildAuctionListBidderItems(AUCTIONEER, 0, ids)).toThrow();
+  });
+});
+
+describe("parseAuctionCommandResult", () => {
+  test("reads id, action and error without the tail on a sell", () => {
+    const result = parseAuctionCommandResult(
+      new PacketReader(auctionCommandResultBody({ action: 0, auctionId: 42 })),
+    );
+    expect(result).toEqual({ action: 0, auctionId: 42, error: 0 });
+  });
+
+  test("reads the extra word only when error is 0 and action is not 0", () => {
+    const cancel = parseAuctionCommandResult(
+      new PacketReader(
+        auctionCommandResultBody({ action: 1, auctionId: 7, bidError: 0 }),
+      ),
+    );
+    expect(cancel).toEqual({ action: 1, auctionId: 7, bidError: 0, error: 0 });
+    const error = parseAuctionCommandResult(
+      new PacketReader(
+        auctionCommandResultBody({ action: 2, auctionId: 0, error: 10 }),
+      ),
+    );
+    expect(error).toEqual({ action: 2, auctionId: 0, error: 10 });
+  });
+});
+
+describe("parseAuctionBidderNotice", () => {
+  test("reads four words after the guid", () => {
+    const notice = parseAuctionBidderNotice(
+      new PacketReader(auctionBidderNoticeBody({ auctionId: 11, bidSum: 0 })),
+    );
+    expect(notice.auctionId).toBe(11);
+    expect(notice.bidder).toBe(AUCTION_SELF);
+    expect(notice.bidSum).toBe(0);
+    expect(notice.itemEntry).toBe(2589);
+  });
+});
+
+describe("parseAuctionOwnerNotice", () => {
+  test("reads the auction id, the bid and the item entry", () => {
+    const notice = parseAuctionOwnerNotice(
+      new PacketReader(auctionOwnerNoticeBody({ auctionId: 9, bid: 9000 })),
+    );
+    expect(notice.auctionId).toBe(9);
+    expect(notice.bid).toBe(9000);
+    expect(notice.itemEntry).toBe(2589);
+  });
+});
+
+describe("buildAuctionSellItem", () => {
+  test("writes the auctioneer, one counted pair, bid, buyout and minutes", () => {
+    const body = buildAuctionSellItem(AUCTIONEER, {
+      bid: 9000,
+      buyout: 10_000,
+      items: [{ guid: AUCTIONEER, count: 2 }],
+      minutes: 720,
+    });
+    expect(body.byteLength).toBe(8 + 4 + 12 + 12);
+    const reader = new PacketReader(body);
+    expect(reader.uint64LE()).toBe(AUCTIONEER);
+    expect(reader.uint32LE()).toBe(1);
+    expect(reader.uint64LE()).toBe(AUCTIONEER);
+    expect(reader.uint32LE()).toBe(2);
+    expect(reader.uint32LE()).toBe(9000);
+    expect(reader.uint32LE()).toBe(10_000);
+    expect(reader.uint32LE()).toBe(720);
+  });
+});
+
+describe("buildAuctionRemoveItem and buildAuctionPlaceBid", () => {
+  test("remove writes the auctioneer and the auction id", () => {
+    const body = buildAuctionRemoveItem(AUCTIONEER, 7);
+    expect(body.byteLength).toBe(12);
+    const reader = new PacketReader(body);
+    expect(reader.uint64LE()).toBe(AUCTIONEER);
+    expect(reader.uint32LE()).toBe(7);
+  });
+
+  test("place bid writes the auctioneer, the auction id and the price", () => {
+    const body = buildAuctionPlaceBid(AUCTIONEER, 7, 9000);
+    expect(body.byteLength).toBe(16);
+    const reader = new PacketReader(body);
+    expect(reader.uint64LE()).toBe(AUCTIONEER);
+    expect(reader.uint32LE()).toBe(7);
+    expect(reader.uint32LE()).toBe(9000);
+  });
+});
+
+describe("buildAuctionListPendingSales", () => {
+  test("writes only the auctioneer guid", () => {
+    const body = buildAuctionListPendingSales(AUCTIONEER);
+    expect(body.byteLength).toBe(8);
+    expect(new PacketReader(body).uint64LE()).toBe(AUCTIONEER);
   });
 });

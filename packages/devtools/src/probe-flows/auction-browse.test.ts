@@ -69,8 +69,10 @@ function context(args: Record<string, string>): FlowContext & {
     bids: { rows: [], searchDelayMs: 300, total: 0 },
     house: { auctioneer: AUCTIONEER, houseId: 6 },
     lastOutcome: undefined,
+    notices: undefined,
     owned: { rows: [], searchDelayMs: 300, total: 0 },
     pending: undefined,
+    pendingCount: undefined,
     search: {
       rows: [
         {

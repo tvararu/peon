@@ -1,22 +1,34 @@
 import { ignoreFailure } from "#lib/ignore-failure";
 import {
+  AUCTION_ANSWER_MS,
+  type AuctionCommandOutcome,
+  bid,
+  type CommandEnv,
+  cancelAuction,
+  isCommandTimeout,
+  listPendingSales,
+  type PendingSalesOutcome,
+  type PostAuctionOpts,
+  postAuction,
+  requireCommandAuctioneer,
+  requireCommandHouse,
+  requireCommandWorld,
+} from "#wow/areas/auction/commands";
+import {
   type AuctionQuery,
   buildAuctionHello,
   buildAuctionListBidderItems,
   buildAuctionListItems,
   buildAuctionListOwnerItems,
 } from "#wow/areas/auction/protocol";
-import {
-  AUCTIONEER_YARDS,
-  type AuctionEvent,
-  type AuctionResult,
-  type AuctionStore,
+import type {
+  AuctionEvent,
+  AuctionResult,
+  AuctionStore,
 } from "#wow/areas/auction/store";
 import type { AreaRuntime, AreaRuntimeCtx } from "#wow/areas/contract";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import type { CoreStores } from "#wow/session-stores";
-
-export const AUCTION_ANSWER_MS = 10_000;
 
 export type AuctionActs = {
   openAuctionHouse: (npc: bigint) => Promise<AuctionResult>;
@@ -25,31 +37,28 @@ export type AuctionActs = {
   ) => Promise<AuctionResult>;
   listOwnAuctions: (from?: number) => Promise<AuctionResult>;
   listBids: (outbidIds?: readonly number[]) => Promise<AuctionResult>;
+  postAuction: (opts: PostAuctionOpts) => Promise<AuctionCommandOutcome>;
+  cancelAuction: (id: number) => Promise<AuctionCommandOutcome>;
+  bid: (id: number, price: number) => Promise<AuctionCommandOutcome>;
+  listPendingSales: () => Promise<PendingSalesOutcome>;
 };
 
-type Env = {
-  ctx: AreaRuntimeCtx<AuctionEvent>;
-  store: AuctionStore;
-};
+type Env = CommandEnv;
 
 function requireWorld(env: Env): void {
-  if (!env.ctx.selfGuid()) throw new Error("the character is not in world");
+  requireCommandWorld(env);
 }
 
 function requireAuctioneer(env: Env, npc: bigint): void {
-  const yards = env.store.reach(npc);
-  if (yards === undefined || yards > AUCTIONEER_YARDS)
-    throw new Error("no auctioneer in range");
+  requireCommandAuctioneer(env, npc);
 }
 
 function requireHouse(env: Env): bigint {
-  const house = env.store.snapshot().house;
-  if (house === undefined) throw new Error("no auction house is open");
-  return house.auctioneer;
+  return requireCommandHouse(env);
 }
 
 function isTimeout(error: unknown): boolean {
-  return error instanceof Error && error.message === "timeout";
+  return isCommandTimeout(error);
 }
 
 async function openAuctionHouse(env: Env, npc: bigint): Promise<AuctionResult> {
@@ -205,9 +214,13 @@ export function auctionRuntime(
   const env = { ctx, store };
   return {
     act: {
+      bid: (id, price) => bid(env, id, price),
+      cancelAuction: (id) => cancelAuction(env, id),
       listBids: (outbidIds) => listBids(env, outbidIds),
       listOwnAuctions: (from) => listOwnAuctions(env, from),
+      listPendingSales: () => listPendingSales(env),
       openAuctionHouse: (npc) => openAuctionHouse(env, npc),
+      postAuction: (opts) => postAuction(env, opts),
       searchAuctions: (query) => searchAuctions(env, query),
     },
     dispose: () => undefined,

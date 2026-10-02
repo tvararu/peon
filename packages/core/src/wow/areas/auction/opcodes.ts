@@ -20,11 +20,7 @@ export const AUCTION_OPCODES = {
     "SMSG_AUCTION_LIST_PENDING_SALES",
   ],
   uses: [],
-  stubs: [
-    ["SMSG_AUCTION_OWNER_NOTIFICATION", "Auction sold"],
-    ["SMSG_AUCTION_BIDDER_NOTIFICATION", "Auction outbid"],
-    ["SMSG_AUCTION_COMMAND_RESULT", "Auction result"],
-  ],
+  stubs: [],
   dead: ["SMSG_AUCTION_REMOVED_NOTIFICATION"],
   unseen: [],
 } as const satisfies AreaOpcodes;
