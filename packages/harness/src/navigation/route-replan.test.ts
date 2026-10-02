@@ -27,6 +27,7 @@ function scene() {
       return start.z;
     },
     findHeights: () => [start.z],
+    findLiquid: () => undefined,
     findPath: () => [],
     lineOfSight: () => true,
     loadAdtAt() {},
@@ -258,6 +259,7 @@ describe("RouteSession limits", () => {
     close() {},
     findHeight: () => 0,
     findHeights: () => [0],
+    findLiquid: () => undefined,
     findPath: () => [],
     lineOfSight: () => true,
     loadAdtAt() {},

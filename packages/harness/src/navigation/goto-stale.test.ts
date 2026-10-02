@@ -12,6 +12,7 @@ function walked() {
     findHeight: (from, x, y) =>
       columns(x, y).find((z) => Math.abs(z - from.z) <= 2) ?? Number.NaN,
     findHeights: (x, y) => columns(x, y),
+    findLiquid: () => undefined,
     findPath: (from: NavPoint, to: NavPoint) => [from, to],
     lineOfSight: () => true,
     loadAdtAt() {},

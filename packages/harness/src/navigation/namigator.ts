@@ -41,6 +41,14 @@ type NamigatorSymbols = {
     stopY: number,
     height: Ptr,
   ) => number;
+  pathfind_find_liquid: (
+    map: Ptr,
+    x: number,
+    y: number,
+    z: number,
+    liquid: Ptr,
+    surface: Ptr,
+  ) => number;
   pathfind_line_of_sight: (
     map: Ptr,
     startX: number,
@@ -100,6 +108,17 @@ const NAMIGATOR_FFI = {
       FFIType.f32,
       FFIType.ptr,
       FFIType.u32,
+      FFIType.ptr,
+    ],
+    returns: FFIType.u8,
+  },
+  pathfind_find_liquid: {
+    args: [
+      FFIType.ptr,
+      FFIType.f32,
+      FFIType.f32,
+      FFIType.f32,
+      FFIType.ptr,
       FFIType.ptr,
     ],
     returns: FFIType.u8,
@@ -242,6 +261,22 @@ class NamigatorMap implements NativeMap {
       throw groundError("pathfind_find_height failed (UNKNOWN_HEIGHT)");
     if (code !== SUCCESS) throw nativeError("pathfind_find_height", code);
     return firstValue(height);
+  }
+
+  findLiquid(point: NativePoint): number | undefined {
+    validateNativePoint(point);
+    const liquid = new Uint8Array(1);
+    const surface = new Float32Array(1);
+    const code = this.symbols.pathfind_find_liquid(
+      this.requireHandle(),
+      point.x,
+      point.y,
+      point.z,
+      ptr(liquid),
+      ptr(surface),
+    );
+    if (code !== SUCCESS) throw nativeError("pathfind_find_liquid", code);
+    return liquid[0] === 1 ? firstValue(surface) : undefined;
   }
 
   lineOfSight(from: NativePoint, to: NativePoint): boolean {

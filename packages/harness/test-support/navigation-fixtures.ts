@@ -20,6 +20,7 @@ export function native(over: Partial<NativeMap> = {}): NativeMap {
     close: () => {},
     findHeight: () => 0,
     findHeights: () => [0],
+    findLiquid: () => undefined,
     findPath: (from, to) => [{ ...from }, { ...to }],
     lineOfSight: () => true,
     loadAdtAt: () => {},
