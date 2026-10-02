@@ -748,6 +748,8 @@ water without portals.
 
 **Proof:** eval `t8-vehicles-zeppelin`.
 
+**Built (wave 5):** `travel ride` in `tools/travel-ride.ts`, stop and path readers in `areas/transports/stops.ts`. Eval `t8-vehicles-zeppelin`, round 516 replica 13: `pass` 3/3 with a live `leave` at Thunder Bluff (`docs/areas/transports.md`, "Live ride through the tool"). Deviation from SR5-vehicles-2: the Thunder Bluff dock has no `Transport,*` taxi node within 700 yd, so the transport is chosen by the stop frames of its path in `TaxiPathNode.dbc` and the name comes from any taxi node within 700 yd of that stop. Cross-map rides are not shown (BR-vehicles-7-4).
+
 **Commit:**
 
 ```

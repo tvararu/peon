@@ -203,6 +203,6 @@ two scenarios closest to it. Every scenario appears in at least one row.
 | Travel (`interact` bind, `travel` hearth and fly) | `t8-travel-bind-inn`, `t8-travel-hearth-home`, `t8-travel-fly` |
 | Pets (pet, interact stable) | `t8-pets-command`, `t8-pets-spells`, `t8-pets-rename`, `t8-pets-abandon`, `t8-pets-stable`, `t8-pets-talent` |
 | Talents (`talents`) | `t8-talents-spend`, `t8-talents-reset`, `t8-talents-glyph` |
-| Vehicles (`vehicle`, `travel ride`) | `t8-vehicles-board` |
+| Vehicles (`vehicle`, `travel ride`) | `t8-vehicles-board`, `t8-vehicles-zeppelin` |
 | Instances and dungeon finder (`dungeon`) | `t9-instances-difficulty`, `t9-lfg-queue`, `t9-lfg-run` |
 | Groups and raids (`group` tool) | `t9-raid-kick`, `t9-raid-convert`, `t9-raid-master-loot`, `t9-raid-ready`, `t9-raid-answer`, `t9-raid-summon`, `t9-raid-mark` |
