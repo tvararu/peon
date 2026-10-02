@@ -11,7 +11,7 @@ export const ACCOUNT_OPCODES = {
     "CMSG_TUTORIAL_CLEAR",
     "CMSG_TUTORIAL_RESET",
   ],
-  uses: [],
+  uses: ["SMSG_ACCOUNT_DATA_TIMES"],
   stubs: [],
   dead: [],
   unseen: [],
