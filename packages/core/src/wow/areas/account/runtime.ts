@@ -1,6 +1,7 @@
 import { ignoreFailure } from "#lib/ignore-failure";
 import {
   buildRequestAccountData,
+  buildTutorialFlag,
   buildUpdateAccountData,
   GLOBAL_ACCOUNT_DATA_MASK,
   parseAccountDataTimesMask,
@@ -18,6 +19,9 @@ export type AccountActs = {
   accountData: (type: number) => Promise<string>;
   saveAccountData: (type: number, time: number, text: string) => Promise<void>;
   eraseAccountData: (type: number) => Promise<void>;
+  tutorialFlag: (bit: number) => Promise<void>;
+  clearTutorials: () => Promise<void>;
+  resetTutorials: () => Promise<void>;
 };
 
 type Env = {
@@ -37,6 +41,13 @@ function timeout<T>(env: Env, pending: Promise<T>): Promise<T> {
   return Promise.race([pending, limit]).finally(() => {
     clearTimeout(timer);
     env.ctx.signal.removeEventListener("abort", abort);
+  });
+}
+
+function sendNow(send: () => void): Promise<void> {
+  return new Promise((resolve) => {
+    send();
+    resolve();
   });
 }
 
@@ -97,9 +108,17 @@ export function accountRuntime(
   return {
     act: {
       accountData: (type) => read(env, type),
+      clearTutorials: () =>
+        sendNow(() => ctx.send(GameOpcode.CMSG_TUTORIAL_CLEAR)),
       eraseAccountData,
       readyForAccountDataTimes: () => ready(env),
+      resetTutorials: () =>
+        sendNow(() => ctx.send(GameOpcode.CMSG_TUTORIAL_RESET)),
       saveAccountData,
+      tutorialFlag: (bit) =>
+        sendNow(() =>
+          ctx.send(GameOpcode.CMSG_TUTORIAL_FLAG, buildTutorialFlag(bit)),
+        ),
     },
     dispose: () => undefined,
   };

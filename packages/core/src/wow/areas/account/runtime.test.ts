@@ -174,3 +174,44 @@ describe("account runtime", () => {
     }
   });
 });
+
+describe("account tutorial acts", () => {
+  test("tutorialFlag sends one u32 bit and resolves at once", async () => {
+    const rig = areaRig("account");
+    try {
+      await rig.handle.act.tutorialFlag(3);
+      expect(rig.sent).toEqual([
+        {
+          opcode: GameOpcode.CMSG_TUTORIAL_FLAG,
+          body: new Uint8Array([3, 0, 0, 0]),
+        },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("tutorialFlag rejects a bit over 255 and sends nothing", async () => {
+    const rig = areaRig("account");
+    try {
+      await expect(rig.handle.act.tutorialFlag(256)).rejects.toThrow("0-255");
+      expect(rig.sent).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("clearTutorials and resetTutorials send empty bodies", async () => {
+    const rig = areaRig("account");
+    try {
+      await rig.handle.act.clearTutorials();
+      await rig.handle.act.resetTutorials();
+      expect(rig.sent).toEqual([
+        { opcode: GameOpcode.CMSG_TUTORIAL_CLEAR, body: new Uint8Array() },
+        { opcode: GameOpcode.CMSG_TUTORIAL_RESET, body: new Uint8Array() },
+      ]);
+    } finally {
+      rig.dispose();
+    }
+  });
+});

@@ -66,3 +66,13 @@ export function buildUpdateAccountData(init: {
   body.set(packed.bytes, 12);
   return body;
 }
+
+export const TUTORIAL_BIT_MAX = 255;
+
+export function buildTutorialFlag(bit: number): Uint8Array {
+  if (!Number.isInteger(bit) || bit < 0 || bit > TUTORIAL_BIT_MAX)
+    throw new Error(`Tutorial bit is 0-255, not ${bit}`);
+  const body = new Uint8Array(4);
+  new DataView(body.buffer).setUint32(0, bit, true);
+  return body;
+}

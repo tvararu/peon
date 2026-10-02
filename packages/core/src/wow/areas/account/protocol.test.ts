@@ -7,6 +7,7 @@ import {
 } from "#test-support/areas/account";
 import {
   buildRequestAccountData,
+  buildTutorialFlag,
   buildUpdateAccountData,
   parseAccountDataTimesMask,
   parseUpdateAccountData,
@@ -118,5 +119,15 @@ describe("SMSG_ACCOUNT_DATA_TIMES mask (Server/WorldSession.h)", () => {
     );
     expect(parseAccountDataTimesMask(r)).toBe(0x15);
     expect(r.remaining).toBeGreaterThan(0);
+  });
+});
+
+describe("CMSG_TUTORIAL_FLAG (Handlers/CharacterHandler.cpp:1305-1319)", () => {
+  test("builds a u32 bit number; bits outside 0-255 throw", () => {
+    expect(buildTutorialFlag(3)).toEqual(new Uint8Array([3, 0, 0, 0]));
+    expect(buildTutorialFlag(255)).toEqual(new Uint8Array([255, 0, 0, 0]));
+    expect(() => buildTutorialFlag(256)).toThrow("0-255");
+    expect(() => buildTutorialFlag(-1)).toThrow("0-255");
+    expect(() => buildTutorialFlag(1.5)).toThrow("0-255");
   });
 });
