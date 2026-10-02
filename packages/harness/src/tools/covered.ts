@@ -32,7 +32,7 @@ const COVERS: Partial<Record<ToolName, ReadonlySet<LogEvent>>> = {
   travel: new Set<LogEvent>(["travel/flight_landed"]),
   vehicle: new Set<LogEvent>(["vehicles/entered", "vehicles/control"]),
 };
-const SINGLE_FLIGHT: Partial<Record<ToolName, true>> = { travel: true };
+const DONE_ONLY: Partial<Record<ToolName, true>> = { travel: true };
 const REPORTED = new Set<ToolStatus>(["DONE", "PARTLY"]);
 
 type Cover = {
@@ -50,7 +50,7 @@ function reported(row: GameLogEntry, events: ReadonlySet<LogEvent>): boolean {
 export function coverRows(log: GameLog, cover: Cover): void {
   const events = COVERS[cover.tool];
   if (!(events && REPORTED.has(cover.status))) return;
-  if (SINGLE_FLIGHT[cover.tool] && cover.status !== "DONE") return;
+  if (DONE_ONLY[cover.tool] && cover.status !== "DONE") return;
   const rows = log.since(0);
   const start = rows.findLastIndex(
     (row) =>
