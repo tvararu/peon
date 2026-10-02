@@ -1,6 +1,5 @@
 import type { GuildMember } from "#wow/guild-store";
 import {
-  GuildCommandResult,
   GuildEventCode,
   parseGuildCommandResult,
   parseGuildEvent,
@@ -23,6 +22,13 @@ export function handleGuildQueryResponse(
 ): void {
   const result = parseGuildQueryResponse(r);
   conn.guildStore.setGuildMeta(result.name, result.rankNames);
+}
+
+function toUint(value: string): number | undefined {
+  if (!/^[0-9]+$/.test(value)) return undefined;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed)) return undefined;
+  return parsed;
 }
 
 export function handleGuildEvent(conn: WorldConn, r: PacketReader): void {
@@ -51,6 +57,47 @@ export function handleGuildEvent(conn: WorldConn, r: PacketReader): void {
         member: param(0),
         officer: param(1),
       });
+      break;
+    case GuildEventCode.RANK_UPDATED: {
+      const rankId = toUint(param(0));
+      const rankCount = toUint(param(2));
+      if (rankId === undefined || rankCount === undefined) break;
+      conn.events.guild.emit({
+        type: "rank_updated",
+        rankId,
+        name: param(1),
+        rankCount,
+      });
+      break;
+    }
+    case GuildEventCode.RANK_DELETED: {
+      const rankCount = toUint(param(0));
+      if (rankCount === undefined) break;
+      conn.events.guild.emit({ type: "rank_deleted", rankCount });
+      break;
+    }
+    case GuildEventCode.BANK_TAB_PURCHASED:
+      conn.events.guild.emit({ type: "bank_tab_purchased" });
+      break;
+    case GuildEventCode.BANK_TAB_UPDATED: {
+      const tabId = toUint(param(0));
+      if (tabId === undefined) break;
+      conn.events.guild.emit({
+        type: "bank_tab_updated",
+        tabId,
+        name: param(1),
+        icon: param(2),
+      });
+      break;
+    }
+    case GuildEventCode.BANK_MONEY_SET: {
+      const balance = parseBankBalance(param(0));
+      if (balance === undefined) break;
+      conn.events.guild.emit({ type: "bank_money", balance });
+      break;
+    }
+    case GuildEventCode.BANK_TAB_AND_MONEY_UPDATED:
+      conn.events.guild.emit({ type: "bank_reset" });
       break;
     case GuildEventCode.LEADER_CHANGED:
       conn.events.guild.emit({
@@ -97,19 +144,27 @@ function emitGuildNotice(
   }
 }
 
+export function parseBankBalance(param: string): bigint | undefined {
+  if (!/^[0-9A-F]{16}$/.test(param)) return undefined;
+  let balance = 0n;
+  for (let i = 0; i < 8; i++) {
+    const byte = Number.parseInt(param.slice(2 * i, 2 * i + 2), 16);
+    balance = (balance << 8n) | BigInt(byte);
+  }
+  return balance;
+}
+
 export function handleGuildCommandResult(
   conn: WorldConn,
   r: PacketReader,
 ): void {
   const packet = parseGuildCommandResult(r);
-  if (packet.result !== GuildCommandResult.PLAYER_NO_MORE_IN_GUILD) {
-    conn.events.guild.emit({
-      type: "command_result",
-      command: packet.command,
-      name: packet.name,
-      result: packet.result,
-    });
-  }
+  conn.events.guild.emit({
+    type: "command_result",
+    command: packet.command,
+    name: packet.name,
+    result: packet.result,
+  });
 }
 
 export function handleGuildInvitePacket(
