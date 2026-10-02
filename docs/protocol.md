@@ -322,6 +322,7 @@ file. An area adds a flow without a shared edit.
 | `login` | none | map, zone, area and position after login |
 | `nearest` | `kind=<unit\|player\|gameobject\|NPC role>` | the five nearest matches |
 | `talk` | `entry=<n>` | talks (`CMSG_GOSSIP_HELLO`) to the nearest entity with that entry |
+| `travel-walk` | `x=<n> y=<n> [z=<n>]` | walks toward the point in 20 yd server-planned steps; reports each step end with the total walked. It stays as the permanent live route tool: it walks the same planned legs the eval rides and reports each step end, which is how the map 1 and map 571 routes were proven live for #496. |
 
 Each flow waits up to 5 s for what it reads (the place, a match, the
 entry) to arrive after login. `talk` does not walk, and the server ignores
