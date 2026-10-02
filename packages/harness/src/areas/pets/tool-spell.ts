@@ -29,11 +29,43 @@ const TAME_SETTLE_MS = 35_000;
 
 type PetSpell = { id: number; name: string };
 
+const VEHICLE_FLAGS = 0x8_00;
+const VEHICLE_BUTTON_FIRST = 8;
+const VEHICLE_BUTTON_LAST = 12;
+
+function vehicleSpellsOf(bar: {
+  flags: number;
+  slots: readonly { action: number; type: number }[] | undefined;
+}): readonly PetSpell[] {
+  if ((bar.flags & VEHICLE_FLAGS) === 0) return [];
+  return (bar.slots ?? [])
+    .filter(
+      (slot) =>
+        slot.action !== 0 &&
+        slot.type >= VEHICLE_BUTTON_FIRST &&
+        slot.type <= VEHICLE_BUTTON_LAST,
+    )
+    .map((slot) => ({ id: slot.action, name: `spell ${slot.action}` }));
+}
+
 function barSpells(handle: Game): readonly PetSpell[] {
-  const bar = stateOf(handle).bar;
-  return (bar?.spells ?? []).map((row) => ({
+  const bar = stateOf(handle).bar as
+    | {
+        flags: number;
+        slots: readonly { action: number; type: number }[] | undefined;
+        spells: readonly { spell: number }[] | undefined;
+      }
+    | undefined;
+  if (!bar) return [];
+  const pet = (bar.spells ?? []).map((row) => ({
     id: row.spell,
     name: handle.spellDefinition(row.spell)?.name ?? `spell ${row.spell}`,
+  }));
+  if (pet.length > 0) return pet;
+  const vehicle = vehicleSpellsOf(bar);
+  return vehicle.map((spell) => ({
+    id: spell.id,
+    name: handle.spellDefinition(spell.id)?.name ?? spell.name,
   }));
 }
 

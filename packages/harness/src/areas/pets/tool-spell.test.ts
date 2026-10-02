@@ -219,6 +219,62 @@ describe("pet cast", () => {
       expect.objectContaining({ kind: "unit" }),
     );
   });
+  test("cast resolves a vehicle bar slot spell by id without a pet view", async () => {
+    const TANK = 0xf1_50_00_62_f6_0c_89_41n;
+    const CANNON = 46_598;
+    const t = await world({
+      petEntity: unit(),
+      pets: barState({
+        bar: undefined,
+        cooldowns: [],
+        lastRefusal: undefined,
+        pet: undefined,
+      }),
+    });
+    Object.assign(t.game.pets, {
+      state: () => ({
+        bar: {
+          command: "unknown",
+          family: 0,
+          flags: 0x8_00,
+          guid: TANK,
+          react: "unknown",
+          slots: [
+            { action: CANNON, type: 8 },
+            { action: 0, type: 9 },
+          ],
+          spells: [],
+        },
+        cooldowns: [],
+        pet: undefined,
+      }),
+    });
+    const sent = jest
+      .spyOn(t.game.pets.act, "petCast")
+      .mockImplementation(() => {
+        Object.assign(t.game.pets, {
+          state: () => ({
+            bar: undefined,
+            cooldowns: [{ infinite: false, readyAt: 99_999, spell: CANNON }],
+            pet: undefined,
+          }),
+        });
+        queueMicrotask(() =>
+          t.game.triggerAreaEvent("pets", petBarEvent(TANK)),
+        );
+        return { castCount: 1, confirmed: true, ok: true };
+      });
+    const out = await petSpec.run(
+      { do: "cast", target: "", what: "46598" },
+      toolCtx(t),
+    );
+    expect(sent).toHaveBeenCalledWith(
+      CANNON,
+      expect.objectContaining({ kind: "none" }),
+    );
+    expect(out.status).toBe("DONE");
+    expect(out.detail).toContain("46598");
+  });
 });
 
 describe("pet autocast", () => {
