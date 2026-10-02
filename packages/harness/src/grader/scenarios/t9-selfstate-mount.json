@@ -41,12 +41,12 @@
     {
       "evidence": {
         "point": {
-          "x": 1900,
-          "y": -6100
+          "x": 1873.32,
+          "y": -6180
         }
       },
-      "expect": "T final position within 10 yd of the south road mark (1900, -6100, map 571); the truth pose and the live nearby agree on this point",
-      "id": "at-south-road",
+      "expect": "T final position within 10 yd of the Vengeance Landing road below the inn (1873.32, -6180, map 571); the truth pose and the live nearby agree on this point",
+      "id": "at-vengeance-road",
       "source": "truth"
     },
     {
@@ -87,6 +87,6 @@
     }
   ],
   "steers": [],
-  "task": "Get on your mount, ride south along the road to the mark at (1900, -6100), then get off.",
+  "task": "Get on your mount, ride south along the road to the Vengeance Landing road below the inn at (1873.32, -6180), in front of the innkeeper Timothy Holland's building, then get off.",
   "tier": 9
 }
