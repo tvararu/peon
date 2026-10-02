@@ -14,8 +14,15 @@ s; `pages` caches each read page chain by its first page id; the area also loads
 holds the state of the `AreaTrigger.dbc` catalog, the current map, the
 triggers the character stands in and the triggers it has sent this
 session; `lastMessage` holds the last trigger message and when it
-arrived. The area emits `used`, `trigger_sent`, `trigger_message`,
-`page_read`, `page_shown` and `page_unanswered` events, and its acts
+arrived; `anims` keeps the last object animation by guid and
+`despawning` keeps the guids the server played the despawn animation for
+(bounded at 256), both cleared for a guid when it disappears; `fishing`
+holds the fishing phase (`cast`, then `waiting` once the character's own
+bobber appears, then `hooked` on its splash animation) and the bobber
+guid, cleared when the fish is hooked-no-more, escapes, the cast fails
+or the bobber disappears. The area emits `used`, `trigger_sent`,
+`trigger_message`, `page_read`, `page_shown`, `page_unanswered`,
+`fish_hooked`, `fish_not_hooked` and `fish_escaped` events, and its acts
 `use(guid)` uses one object by hand, `open(guid, spellId)` casts an
 open-lock spell at one object, `useItemOn(entry, target)` uses a carried
 key on one object, `openLockSpell(entry)` picks the spell or key for a
@@ -84,6 +91,23 @@ and reads shrines, plaques and books.
   object's.
   - A dynamic object sends the despawn animation with its own guid when
     it is removed (`Entities/DynamicObject/DynamicObject.cpp:182`).
+- `SMSG_GAMEOBJECT_CUSTOM_ANIM` is the object guid and then a `uint32`
+  anim (`Entities/GameObject/GameObject.cpp:2148-2154`).
+  `SMSG_GAMEOBJECT_DESPAWN_ANIM` is one guid
+  (`Entities/Object/Object.cpp:2189-2194`), which a deleted game object
+  sends when it is removed.
+  `SMSG_FISH_NOT_HOOKED` and `SMSG_FISH_ESCAPED` are empty
+  (`Entities/GameObject/GameObject.cpp:1796-1803`, `:626-640`).
+- A fishing cast (spell 7620, Fishing) moves `fishing` to `cast` on the
+  character's own `SMSG_SPELL_START`; a failed cast while still in `cast`
+  clears it. The own bobber (entry 35591, its `createdBy` the self guid)
+  moves the phase to `waiting`; the bobber's splash animation sends
+  `SMSG_GAMEOBJECT_CUSTOM_ANIM` in the last 5 s and moves it to `hooked`
+  with a `fish_hooked` event
+  (`Entities/GameObject/GameObject.cpp:498-521`). An early use answers
+  an empty `SMSG_FISH_NOT_HOOKED` and no use after the splash an empty
+  `SMSG_FISH_ESCAPED`, both clearing the state
+  (`Entities/GameObject/GameObject.cpp:1796-1803`, `:626-640`).
 - `CMSG_GAMEOBJ_USE` is one `ObjectGuid` (`Handlers/SpellHandler.cpp:329-347`).
   The server drops the use in silence when the object is too far; a
   type-2 quest giver answers by preparing and sending its gossip menu.
@@ -196,8 +220,7 @@ x and y on the surface never enters it.
 
 ## Left out
 
-- `SMSG_GAMEOBJECT_CUSTOM_ANIM`, `SMSG_GAMEOBJECT_DESPAWN_ANIM`,
-  `SMSG_FISH_NOT_HOOKED` and `SMSG_FISH_ESCAPED`: built by `objects-6`.
+Nothing left out: every owned opcode is handled.
 
 ## Capabilities row
 
