@@ -51,12 +51,23 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
   if (args["far"] === "1") {
     const from = target.position;
     if (!from) throw new Error(`no position for ${name}.`);
+    const pose = handle.getControlState().pose;
+    if (!pose) throw new Error("inspect-partner needs a pose to walk away.");
+    const dx = pose.x - from.x;
+    const dy = pose.y - from.y;
+    const length = Math.hypot(dx, dy);
+    const unit =
+      length > 0 ? { x: dx / length, y: dy / length } : { x: 1, y: 0 };
+    const destination = {
+      x: pose.x + unit.x * FAR_YARDS,
+      y: pose.y + unit.y * FAR_YARDS,
+      z: pose.z,
+    };
     let traveled = 0;
     for (let left = FAR_YARDS; left > 0; left -= 20) {
-      const leg = await handle.walkTowardPoint(
-        { x: from.x, y: from.y, z: from.z },
-        -Math.min(20, left),
-      );
+      const leg = await handle.walkTowardPoint(destination, Math.min(20, left));
+      if (leg.status === "stopped")
+        throw new Error(`walk away stopped: ${leg.reason ?? "unknown"}.`);
       traveled += leg.traveled;
     }
     result["walked"] = traveled;

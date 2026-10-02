@@ -12,8 +12,13 @@ type Row = ReturnType<WorldHandle["queryNearby"]>[number];
 const ME = 0x2an;
 const PARTNER = 0x49_13n;
 
-function row(guid: bigint, name: string, self = false): Row {
-  const position = { mapId: 530, orientation: 0, x: 1, y: 2, z: 3 };
+function row(
+  guid: bigint,
+  name: string,
+  self = false,
+  at = { x: 1, y: 2, z: 3 },
+): Row {
+  const position = { mapId: 530, orientation: 0, ...at };
   const entity = {
     guid,
     name,
@@ -98,8 +103,15 @@ describe("inspect-partner flow", () => {
     expect(result["achievements"]).toBe(0);
   });
 
-  test("far=1 walks away and records the silent reply", async () => {
-    const ctx = context({ far: "1", name: "Partner" }, world);
+  function farContext(
+    partnerAt: { x: number; y: number; z: number },
+    failWalk = false,
+  ) {
+    const mePose = { mapId: 530, orientation: 0, x: 97, y: 100, z: 3 };
+    const ctx = context({ far: "1", name: "Partner" }, [
+      row(ME, "Me", true, mePose),
+      row(PARTNER, "Partner", false, partnerAt),
+    ]);
     let calls = 0;
     spyOn(ctx.handle.inspect.act, "inspect").mockImplementation(async () => {
       calls += 1;
@@ -109,25 +121,73 @@ describe("inspect-partner flow", () => {
     spyOn(ctx.handle.inspect.act, "inspectAchievements").mockImplementation(
       async () => ({ criteria: [], done: [], guid: PARTNER }),
     );
-    const walk = spyOn(ctx.handle, "walkTowardPoint").mockImplementation(
-      async () => ({
-        pose: {
-          mapId: 530,
-          orientation: 0,
-          source: "server" as const,
-          updatedAt: 0,
-          x: 0,
-          y: 0,
-          z: 0,
-        },
-        status: "completed" as const,
-        traveled: 20,
-      }),
+    const pose = { ...mePose, source: "server" as const, updatedAt: 0 };
+    const state = ctx.handle.getControlState();
+    const legs: number[] = [];
+    const legsDestinations: { x: number; y: number }[] = [];
+    spyOn(ctx.handle, "getControlState").mockImplementation(
+      () => ({ ...state, pose }) as never,
     );
+    spyOn(ctx.handle, "walkTowardPoint").mockImplementation(
+      async (destination, yards) => {
+        if (failWalk)
+          return {
+            pose: { ...pose },
+            reason: "no_path",
+            status: "stopped" as const,
+            traveled: 0,
+          };
+        if (!Number.isFinite(yards) || yards <= 0 || yards > 20)
+          throw new Error("invalid_distance");
+        const dx = destination.x - pose.x;
+        const dy = destination.y - pose.y;
+        const length = Math.hypot(dx, dy);
+        const step = Math.min(yards, length);
+        if (length > 0) {
+          pose.x += (dx / length) * step;
+          pose.y += (dy / length) * step;
+        }
+        legs.push(step);
+        legsDestinations.push({ x: destination.x, y: destination.y });
+        return {
+          pose: { ...pose },
+          status: "completed" as const,
+          traveled: step,
+        };
+      },
+    );
+    return { ctx, destinations: legsDestinations, legs, pose };
+  }
+
+  test("far=1 walks 40 yd away in positive legs and records the silent reply", async () => {
+    const partnerAt = { x: 100, y: 100, z: 3 };
+    const { ctx, destinations, legs, pose } = farContext(partnerAt);
     const result = (await flow.run(ctx)) as Record<string, unknown>;
-    expect(walk).toHaveBeenCalledTimes(2);
+    expect(legs.every((leg) => leg > 0 && leg <= 20)).toBe(true);
+    expect(legs.reduce((sum, leg) => sum + leg, 0)).toBeCloseTo(40, 5);
+    expect(
+      destinations.every(
+        (point) =>
+          Math.hypot(point.x - partnerAt.x, point.y - partnerAt.y) >= 40,
+      ),
+    ).toBe(true);
+    expect(
+      Math.hypot(pose.x - partnerAt.x, pose.y - partnerAt.y),
+    ).toBeGreaterThanOrEqual(40);
     expect(result["far"]).toBeNull();
-    expect(result["walked"]).toBe(40);
+    expect(result["walked"]).toBeCloseTo(40, 5);
+  });
+
+  test("far=1 still walks away when standing on the partner", async () => {
+    const { ctx, legs, pose } = farContext({ x: 97, y: 100, z: 3 });
+    await flow.run(ctx);
+    expect(legs.reduce((sum, leg) => sum + leg, 0)).toBeCloseTo(40, 5);
+    expect(Math.hypot(pose.x - 97, pose.y - 100)).toBeGreaterThanOrEqual(40);
+  });
+
+  test("far=1 fails when a walk leg is stopped", async () => {
+    const { ctx } = farContext({ x: 100, y: 100, z: 3 }, true);
+    await expect(flow.run(ctx)).rejects.toThrow("no_path");
   });
 
   test("fails without a name", async () => {
