@@ -453,15 +453,21 @@ describe("pet tame", () => {
     ]);
     const gate = Promise.withResolvers<void>();
     const held = t.rt.mutex.run(() => gate.promise);
+    const queued = jest.spyOn(t.rt.mutex, "run");
     const controller = new AbortController();
     const run = petSpec.run(
       { do: "tame", target: "u1" },
       toolCtx(t, controller.signal),
     );
-    await Promise.resolve();
+    const outcome = run.then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    while (queued.mock.calls.length === 0) await Promise.resolve();
     controller.abort(new Error("run stopped"));
     gate.resolve();
     await held;
+    await outcome;
     await expect(run).rejects.toThrow("run stopped");
     expect(cast).not.toHaveBeenCalled();
   });
