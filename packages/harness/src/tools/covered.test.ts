@@ -110,6 +110,22 @@ describe("coverRows", () => {
     expect(log.get(roster.seq)?.consumedBy).toBe("c1");
   });
 
+  test("a mail check covers its listed rows", () => {
+    const log = setup();
+    log.append({
+      class: "log",
+      data: { toolCallId: "c1" },
+      domain: "tool",
+      event: "tool/call",
+      text: "mail called",
+    });
+    const listed = log.append(draft("mail/listed"));
+    const sent = log.append(draft("mail/sent"));
+    coverRows(log, { status: "DONE", tool: "mail", toolCallId: "c1" });
+    expect(log.get(listed.seq)?.consumedBy).toBe("c1");
+    expect(log.get(sent.seq)?.consumedBy).toBe("c1");
+  });
+
   test("a call whose tool/call row is gone covers nothing", () => {
     const log = setup();
     const accepted = log.append(draft("quest/accepted"));

@@ -164,7 +164,8 @@ describe("mail tool spec", () => {
     ]);
     const out = await mailSpec.run({ do: "check" }, toolCtx(t));
     expect(t.acts.listMail).toHaveBeenCalledWith(BOX);
-    expect(t.acts.markMailRead).not.toHaveBeenCalled();
+    expect(t.acts.markMailRead).toHaveBeenCalledTimes(1);
+    expect(t.acts.markMailRead).toHaveBeenCalledWith(3);
     expect(out.status).toBe("DONE");
     const text = contentOf(out);
     expect(text).toContain("Supplies for the watch");
@@ -254,6 +255,25 @@ describe("mail tool spec", () => {
     expect(t.acts.takeMailItem).toHaveBeenCalledTimes(1);
   });
 
+  test("an equipped sword is not a carried attachment", async () => {
+    const t = await world();
+    stocked(t.handle, [
+      {
+        bag: 255,
+        entry: 25,
+        guid: CLOTH,
+        name: "Worn Shortsword",
+        slot: 16,
+      },
+    ]);
+    await expect(
+      mailSpec.run(
+        { do: "send", items: ["Worn Shortsword"], to: "Fgk" },
+        toolCtx(t),
+      ),
+    ).rejects.toMatchObject({ reason: "no_such_item" });
+    expect(t.acts.sendMail).not.toHaveBeenCalled();
+  });
   test("the same stack named twice is refused before any send", async () => {
     const t = await world();
     stocked(t.handle, [

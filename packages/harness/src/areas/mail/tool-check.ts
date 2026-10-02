@@ -90,12 +90,17 @@ export async function runCheck(ctx: MailCtx): Promise<ToolResult<MailAfter>> {
   });
   if (listed.status !== "ok")
     throw boxRefusal("no_answer", "The mailbox did not answer the list.");
-  const labelOf = (entry: number) =>
-    ctx.handle.itemLabel(entry).name ?? undefined;
-  const snapshot = ctx.handle.mail.state();
-  const inbox = [...snapshot.inbox];
-  const rows = inbox.slice(0, MAIL_LINES_SHOWN);
-  const body = rows.map((mail, index) => letterLine(index + 1, mail, labelOf));
+  const inbox = [...ctx.handle.mail.state().inbox];
+  const shown = inbox.slice(0, MAIL_LINES_SHOWN);
+  await ctx.rt.mutex.run(async () => {
+    for (const mail of shown) {
+      ctx.signal.throwIfAborted();
+      await abortable(act.markMailRead(mail.id), ctx.signal);
+    }
+  });
+  const body = shown.map((mail, index) =>
+    letterLine(index + 1, mail, (entry) => ctx.handle.itemLabel(entry).name ?? undefined),
+  );
   const detail =
     inbox.length === 0
       ? "The inbox is empty."
