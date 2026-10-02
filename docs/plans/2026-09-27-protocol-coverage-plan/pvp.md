@@ -1618,6 +1618,12 @@ Opcode count: 5 + 8 + 6 + 3 (battlegrounds 22) + 7 + 5 + 4 + 3 (arena
 4. A watcher for the pvp-3 bot probe and the pvp-9 Wintergrasp window
    (plan decisions 8 and 10).
 
+## Build rulings
+
+| Id | Issue | Ruling |
+|---|---|---|
+| BR-pvp-1-1 | pvp-1 replaces the `SMSG_ZONE_UNDER_ATTACK` stub with a handler (SR5-pvp-8), and `dev:probe-run.test.ts` (tooling-probe) used that stub for its notice test | Coordinator edit (P2-17), commit `129fcaf9`: the test uses `SMSG_GUILD_BANK_LIST`, a stub no wave-5 task replaces; the coordinator rebased the pvp-1 slot onto it. |
+
 ## COMPLETE
 
 ## Seed rulings (SEED-5)

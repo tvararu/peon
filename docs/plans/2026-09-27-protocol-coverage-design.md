@@ -5327,4 +5327,96 @@ give no diff at the tip.
   `ExcludedAccountsRegex`), a maintainer decision.
 - #491, #492, #493, #496, #497, #499 and #500 are unchanged.
 
+### 8.13 Part 2, wave 5, second slice
+
+Wave 5 lands a second 23-task slice on `factory/431-wave5`, which starts
+from `main` at `ed24b9e5`. The maintainer's goal of 2026-10-02 set it
+(BR-wave5-1): the four tasks #490 still held (economy-7, economy-8,
+vehicles-8, vehicles-9) and nineteen phase D tasks in fishing, auction,
+session, guild, pvp and social. Each task had at most three fix rounds and
+no rescue round (BR-wave5-4). The run went from the seed (about 08:00 UTC)
+to the last landing at 12:48 UTC. All 23 tasks landed; none is parked.
+
+#### How it ran
+
+- The wave-4 machinery (8.12): a Python state machine in the coordinator's
+  eval kernel runs build → check → review → fix → land with up to 10
+  builders and reviewers at once. Slots are named for code areas, not
+  units (BR-wave5-7), so 15 worktrees ran the five units' independent code
+  areas side by side.
+- SEED-5: five `task` agents drafted the seed rulings in about 35 minutes,
+  checking each plan body against the code at `ed24b9e5` and AzerothCore
+  and making at most two live reachability checks each. They found that
+  SEED-4 had seeded none of the phase D code areas, so one coordinator
+  commit (`3608cd20`) seeded ten: `account`, `auction`, `battlegrounds`,
+  `calendar`, `channels`, `charters`, `complaints`, `contacts`,
+  `guildadmin` and `inspect` (BR-wave5-2). A docs commit (`c81a0d15`)
+  recorded the SR5 rulings and the coordinator's answers to fourteen DESIGN
+  questions.
+- In parallel the coordinator built Kalimdor (map 1, 15 minutes) and
+  Northrend (map 571, 20 minutes) navigation data with the pinned
+  namigator commit and merged it into `navigation_data_dir` without
+  changing a byte of the other maps (#496, BR-wave5-9). No code change was
+  needed: the harness already opens maps 1 and 571 by name. vehicles-8 and
+  vehicles-9 waited for it.
+- economy-7 resumed from its wave-4 branch (BR-wave5-3): its 16 own
+  commits cherry-picked clean, and the fix for BR-economy-7-2 (an
+  `abandoned` flag so a list refresh clears only a timed-out guard) was its
+  fix round 1. It passed its next review.
+- 14 of the 23 tasks passed their first review, 8 their second and
+  vehicles-9 its third. Seven builders stopped at the request budget once
+  and were restarted from their reports and commits. The coordinator
+  answered seven build questions (BR-social-5a-1, BR-guild-7-1,
+  BR-guild-2-1, BR-pvp-1-1, BR-objects-6-1, BR-objects-6-2,
+  BR-vehicles-9-1); the only coordinator code edit moved the probe notice
+  test to a stub no slice task replaces (`129fcaf9`).
+- Builders wrote into the coordinator worktree by relative path 12 times;
+  the driver reverted each edit and kept the diff.
+- Throughput: 23 tasks in 4.1 hours of build (08:43 to 12:48 UTC), about
+  5.6 tasks per hour.
+
+#### What landed
+
+| Task | Result |
+|---|---|
+| economy-7 | Mail actions and sending, live on two accounts; a list refresh no longer clears a live action's guard. |
+| economy-8 | The `mail` tool and `journal about: "mail"`; `t9-mail-read`, `t9-mail-collect` and `t9-mail-send` pass in round 517. |
+| economy-11 | Auction browsing at the Silvermoon auctioneer: hello, search pages of 50, own and bidder lists, live. |
+| economy-12 | Auction post, cancel, bid and buyout between two own characters, with the won and sold notices live; the outbid notice is a rig test (BR-wave5-5). |
+| objects-6 | Object animations and the fishing state: all four fishing opcodes live at Lake Elrendar from T-11's pose (BR-objects-6-1). |
+| objects-9 | `use do: fish`: cast, wait for the bite, use the bobber and open the loot window; live in a harness run and a probe. |
+| vehicles-8 | `travel ride <stop>`; `t8-vehicles-zeppelin` passes (round 516), the first live transport leave, on map 1. |
+| vehicles-9 | Casting from a vehicle's action bar; `t8-vehicles-drive` passes 5/5 on map 571 (round 521). |
+| session-3 | Account data: request, update and the data times, live. |
+| session-4 | Tutorial flags: set, clear and reset, live across logins. |
+| guild-1 | The packed-time writer, guild info and disband, live on a staged guild. |
+| guild-2 | The legacy guild opcodes fixed: AzerothCore's command enum, full roster and query bodies, and the no-guild roster no longer hangs (#394). |
+| guild-7 | Charter list, buy, query, signatures and rename, live at the Dalaran guild master; the realm needs 9 signatures. |
+| guild-9 | Calendar read, live; the single-event reply is mock until guild-10. |
+| pvp-1 | The PvP flag and honor stats, live; the three kill-credit opcodes are mock. |
+| pvp-2 | Battleground list, join, status and leave, live on Warsong Gulch, leaving the queue within 20 s so no bot fills it. |
+| social-4 | Titles by bit index, earned and chosen live. |
+| social-5a | Contacts, notes and the ignore reply, live with a partner. |
+| social-5b | The ignored and achievement chat types, with the achievement id parsed. |
+| social-6 | Inspect: talents, gear and achievements of a partner, live. |
+| social-7 | Channel notices and the eight admin sends, live with a partner. |
+| social-9 | Channel list and member count, live. |
+| social-11b | Complaints, mock: a live send writes a `spam_reports` row. |
+
+Coverage moves from 632 to 721 handled opcodes, 18 to 5 stubs and 256 to
+168 missing; 79 opcodes are not seen live.
+
+#### Gate
+
+GATE_PLACEHOLDER
+
+#### Left for later
+
+- The rest of phase D: combat-log-8, session-6 to session-14, economy-13,
+  social-8, social-10 to social-16 outside this slice, guild-3 to guild-6,
+  guild-8, guild-10 to guild-17, and pvp-3 to pvp-13c.
+- The death knight preset (#502).
+- #496's longer Northrend mount ride (`t9-selfstate-mount` on map 571) is
+  not re-staged.
+
 ## COMPLETE

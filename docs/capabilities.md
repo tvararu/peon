@@ -87,8 +87,8 @@ These have tools or code but no scenario that checks them live:
   Walking in from the Ragefire Chasm portal (area trigger 2230, map 1) does
   not work either: two live tries started the agent beside the portal in
   the Cleft of Shadow on a `fresh` character, and both graded `fail` with
-  0 of 4 checks met. `travel` refused with `unsupported_map_1` (no Kalimdor
-  navigation data on this host) and walked 0 yd, so the agent never entered.
+  0 of 4 checks met. `travel` refused with `unsupported_map_1` in those runs
+  and walked 0 yd, so the agent never entered.
   The reset is proven by probe runs, failed inside the dungeon and
   reset outside it.
 

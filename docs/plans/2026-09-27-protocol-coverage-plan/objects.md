@@ -911,6 +911,8 @@ issue.
 | BR-objects-4-1 | objects-4 adds two `miscValue` members to the shared `packages/core/test-support/spell-fixtures.ts` | Allowed: append-only fixture members | coordinator ruling (P2-17) |
 | BR-objects-8-1 | Review of objects-8: an unlocked chest cannot be looted, because the rewards store ignores a loot response while its window is closed and `openLoot` rejects non-unit GUIDs | objects-8 may extend `packages/core/src/wow/rewards-store.ts` and the core `openLoot`/`requestOpen` path (and their tests) to accept game-object GUIDs | coordinator ruling (P2-17) |
 | BR-objects-11-1 | objects-11 needs the encounter cycle to visit an object instead of engaging it, and `loops/encounter-cycle.ts` is on no lease | objects-11 may add an optional `visit` hook to `CycleObjective` in `loops/encounter-cycle.ts` that `pursue` calls for object picks | coordinator ruling (P2-17) |
+| BR-objects-6-1 | objects-6's live casts at LakeElrendar all failed `SPELL_FAILED_NOT_HERE` after offline position staging and facing sweeps | Coordinator ruling (P2-17): reproduce T-11's retained try2 pose (online `soap gm tele LakeElrendar`, relog, map 530 (8453.08, -7748.48, 144.45), orientation 2.73684, no face call); one probe session may cast up to ten times and counts as one live try (rules.md 5). |
+| BR-objects-6-2 | objects-6 adds the required `fishing` field to three typed literals, one in `h:tools/travel.test.ts` (491 non-blank lines on the wave base, 494 after) | Coordinator ruling (P2-17): a field-only add under BR-wave3-2; the 500-line cap holds and the file is not split by objects-6. |
 
 ## Seed rulings (SEED-5)
 

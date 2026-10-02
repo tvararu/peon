@@ -1562,6 +1562,13 @@ the server form of `MSG_PETITION_DECLINE` (mock); `SMSG_CALENDAR_ARENA_TEAM`
 and the three `SMSG_CALENDAR_RAID_LOCKOUT_*` packets (mock unless a
 `pvp` or `instances` flow stages them).
 
+## Build rulings
+
+| Id | Issue | Ruling |
+|---|---|---|
+| BR-guild-7-1 | guild-7 must observe `SMSG_ITEM_PUSH_RESULT`, `SMSG_BUY_FAILED`, `SMSG_GUILD_COMMAND_RESULT` and `SMSG_INVENTORY_CHANGE_FAILURE`, which legacy handlers own, so `wire.on` in the charters area breaks the compose and coverage checks | Coordinator ruling (P2-17): the charters area lists the four in `CHARTERS_OPCODES.uses` and reads them with `wire.peek` / `ctx.expect`, as `areas/bank` reads `SMSG_SHOW_BANK` (`areas/bank/opcodes.ts:11`, `areas/bank/area.ts:21`); ownership stays with the legacy handlers. |
+| BR-guild-2-1 | guild-2 needs a test file beside its leased `protocol/guild.ts` that no owner list names | Coordinator ruling (P2-17): sibling test files of a leased legacy file belong to the lease holder (contract 2.7 colocated-test rule), as SR5-guild-4 granted for its other new tests. |
+
 ## COMPLETE
 
 ## Seed rulings (SEED-5)

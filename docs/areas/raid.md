@@ -245,8 +245,7 @@ s.`; the name falls back to the unit lookup, then `Someone`) and one
   120000 ms) and, after `answerSummon accept`, `out`
   `CMSG_SUMMON_RESPONSE` size 9. The traces are kept in the worker's
   artifact directory, not committed.
-- The Orgrimmar stone 179596 is on map 1, where the host has no
-  navigation data; no use of it is claimed. The round 328 summon run
+- The Orgrimmar stone 179596 is on map 1; no use of it is claimed. The round 328 summon run
   graded `fail` with 0 of 2 checks met: its agent trace holds no
   `CMSG_GAMEOBJ_USE` and no `SMSG_SUMMON_REQUEST`.
 - Eval `t9-raid-summon` (round 408, replica 4,

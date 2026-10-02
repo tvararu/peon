@@ -110,6 +110,8 @@ into `spell_data_dir` unchanged; a rebuild gives the same bytes. Keep the
 directory outside the checkout, for example `~/wow-data/dbc` beside the
 navigation data: `tmp/` is scratch space and may be cleared.
 
+The navigation data directory holds maps 0 (Azeroth), 1 (Kalimdor), 530 (Expansion01), 571 (Northrend) and the Deadmines; walking refuses on other maps. It is built with namigator's MapBuilder at the commit in `vendor/namigator/UPSTREAM`: `MapBuilder -d <client Data dir> -m <map name> -o <out dir> -t 8 -l 1`, which writes `<Map>.map`, `Nav/<Map>/` and BVH files; adding a map to an existing directory copies those and merges `BVH/bvh.idx` as the union of its file entries keyed by MPQ path, sorted, keeping the existing obstacle list (the BVH file names are content hashes, so shared files are identical).
+
 ## Flags
 
 | Flag | Default | What it does |
