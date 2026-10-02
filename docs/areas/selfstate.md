@@ -244,17 +244,7 @@ sent and does not guess which.
   packet, and it is sent only when the value crosses a state boundary
   (`Server/Packets/MiscPackets.cpp:128-135`,
   `Entities/Player/Player.cpp:1043-1055`).
-- Control sends the swim and fly moves on request and does not test for
-  water: the ground oracle answers `height` and `pathClear` only, and a
-  swim step would need a liquid level that neither it nor the namigator
-  calls give. A walk or `walkToward` therefore still refuses `swimming` and
-  `flying`, since the oracle's heights are the lake bed's. The server does
-  not check the swim bit against the water; it flips its own in-water
-  state to match (`Handlers/MovementHandler.cpp:651-656`). Predicted
-  swim and flight motion also needs swim and flight speeds, which control
-  does not store (the swim, flight and pitch rows of `SPEED_ACKS` have no
-  field). Automatic water detection needs a native liquid query or an
-  ADT liquid reader.
+- Control sends the swim and fly moves on request; routes across swim-depth water also swim on their own. The navigation liquid query reports the surface where the navmesh marks a liquid polygon, the planner follows that surface, and the route follower sends `MSG_MOVE_START_SWIM` on entering and `MSG_MOVE_STOP_SWIM` on leaving (`Handlers/MovementHandler.cpp:362-414`). A walk or `walkToward` still refuses `swimming` and `flying`; the server does not check the swim bit against the water, it flips its own in-water state to match (`Handlers/MovementHandler.cpp:651-656`). Shallow water under the swim-depth gate is waded, not swum. Predicted swim and flight motion also needs swim and flight speeds, which control does not store (the swim, flight and pitch rows of `SPEED_ACKS` have no field).
 
 ## Capabilities row
 
