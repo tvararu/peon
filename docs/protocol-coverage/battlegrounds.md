@@ -8,14 +8,14 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x23c` | `CMSG_BATTLEFIELD_LIST` | client | missing |  |
 | `0x23d` | `SMSG_BATTLEFIELD_LIST` | server | stub |  |
 | `0x23e` | `CMSG_BATTLEFIELD_JOIN` | client | dead |  |
-| `0x253` | `CMSG_TOGGLE_PVP` | client | missing |  |
-| `0x254` | `SMSG_ZONE_UNDER_ATTACK` | server | stub |  |
-| `0x28c` | `SMSG_PVP_CREDIT` | server | missing |  |
+| `0x253` | `CMSG_TOGGLE_PVP` | client | handled |  |
+| `0x254` | `SMSG_ZONE_UNDER_ATTACK` | server | handled | not seen live |
+| `0x28c` | `SMSG_PVP_CREDIT` | server | handled | not seen live |
 | `0x2bc` | `SMSG_PLAYER_SKINNED` | server | dead |  |
 | `0x2d3` | `CMSG_BATTLEFIELD_STATUS` | client | missing |  |
 | `0x2d4` | `SMSG_BATTLEFIELD_STATUS` | server | stub |  |
 | `0x2d5` | `CMSG_BATTLEFIELD_PORT` | client | missing |  |
-| `0x2d6` | `MSG_INSPECT_HONOR_STATS` | both | missing |  |
+| `0x2d6` | `MSG_INSPECT_HONOR_STATS` | both | handled |  |
 | `0x2d7` | `CMSG_BATTLEMASTER_HELLO` | client | missing |  |
 | `0x2e0` | `MSG_PVP_LOG_DATA` | both | missing |  |
 | `0x2e1` | `CMSG_LEAVE_BATTLEFIELD` | client | missing |  |
@@ -31,5 +31,5 @@ columns are explained in [the index](../protocol-coverage.md).
 | `0x38a` | `SMSG_JOINED_BATTLEGROUND_QUEUE` | server | dead |  |
 | `0x3b5` | `CMSG_COMMENTATOR_ENABLE` | client | dead |  |
 | `0x3e4` | `CMSG_REPORT_PVP_AFK` | client | missing |  |
-| `0x46f` | `SMSG_QUESTUPDATE_ADD_PVP_KILL` | server | missing |  |
+| `0x46f` | `SMSG_QUESTUPDATE_ADD_PVP_KILL` | server | handled | not seen live |
 | `0x4a6` | `SMSG_BATTLEGROUND_INFO_THROTTLED` | server | dead |  |
