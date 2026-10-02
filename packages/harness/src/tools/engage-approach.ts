@@ -13,7 +13,7 @@ import { selfView, unitViews } from "#harness/ops/views";
 import { result } from "#harness/tools/define";
 import { type FightInit, LEVEL_CAP_ABOVE } from "#harness/tools/engage-choose";
 import { afterOf, type Tally } from "#harness/tools/engage-tally";
-import { askHuman, nextCall } from "#harness/tools/next-call";
+import { nextCall } from "#harness/tools/next-call";
 
 type Report = ToolResult<EngageAfter>;
 export type Walk = { ms: number; yd: number };
@@ -43,12 +43,14 @@ export function otherInView(scene: Scene): UnitView | undefined {
 function unreachedNext(scene: Scene, leg: Unreached): string {
   if (leg.reason === "start_off_mesh")
     return nextCall("travel", { to: "unstick" });
-  const kind = structuralReach(leg);
-  const name = scene.choice.unit?.name ?? "the target";
-  if (kind === "unsupported_map") return structuralAsk(kind, name);
-  const other = otherInView(scene);
-  if (other) return nextCall("engage", { target: other.ref });
-  return askHuman(`I cannot reach ${name} from here. Is there another way?`);
+  if (structuralReach(leg) === "unsupported_map")
+    return structuralAsk(
+      "unsupported_map",
+      scene.choice.unit?.name ?? "the target",
+    );
+  const other = anotherTarget(scene);
+  if (other) return againNext(scene, other);
+  return nextCall("travel", { to: "explore" });
 }
 
 type Loss = { reason: string; what: string };
