@@ -11,8 +11,8 @@ export type AirHost = {
   canFly: () => boolean;
   airBlock: () => string | undefined;
   isDriving: () => boolean;
+  guidedSwim?: () => boolean;
 };
-
 export type AirParts = {
   send: ControlSend;
   selfGuid: () => bigint;
@@ -51,7 +51,8 @@ export class AirMoves {
   setSwimming(on: boolean): void {
     this.assertFree();
     if (this.has(MovementFlag.SWIMMING) === on) return;
-    this.enter("swimming");
+    const guided = this.host.guidedSwim?.() ?? false;
+    if (!guided) this.enter("swimming");
     if (on) {
       this.host.moveFlags |= MovementFlag.SWIMMING;
       this.emit(GameOpcode.MSG_MOVE_START_SWIM);

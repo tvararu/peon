@@ -44,6 +44,7 @@ const nav = createNavigation((mapId) => {
   return {
     loadAdtAt: (x, y) => map.loadAdtAt(x, y),
     findHeights: (x, y) => map.findHeights(x, y),
+    findLiquid: (point) => map.findLiquid(point),
     findPath: (from, to) => map.findPath(from, to),
     lineOfSight: (from, to) => map.lineOfSight(from, to),
     close: () => map.close(),

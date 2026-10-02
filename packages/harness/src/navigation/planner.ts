@@ -1,6 +1,5 @@
 import {
   bearing,
-  CELL_HEIGHT,
   distance2d,
   GROUND_ERROR,
   type NavPoint,
@@ -28,8 +27,23 @@ import {
   validateNativePoint,
   validateNativeXY,
 } from "#harness/navigation/native";
+import {
+  CORNER_RISE,
+  type CornerWalk,
+  cornerMatches,
+  ROUTE_AMBIGUITY,
+  routeStep,
+  START_EXIT_AMBIGUITY,
+  type StepRules,
+  stepCorner,
+  surfaceAt,
+  waterStart,
+} from "#harness/navigation/swim";
 
-export type GroundSample = NavPoint & { orientation: number };
+export type GroundSample = NavPoint & {
+  orientation: number;
+  swimming: boolean;
+};
 export type NavDestination = { x: number; y: number; z?: number };
 export type PlanStart = { stale?: boolean };
 export type Navigation = {
@@ -52,19 +66,15 @@ export type Navigation = {
 };
 
 const ADT_STEP = 64;
-const GROUND_STEP = 0.5;
-const CORNER_RISE = WALKABLE_CLIMB + CELL_HEIGHT;
-const ROUTE_AMBIGUITY = "ambiguous ground column at route";
-const START_EXIT_AMBIGUITY = "ambiguous ground column leaving start";
 
-type GroundWalk = {
-  points: NavPoint[];
-  leavingStart: boolean;
-  rules: RouteRules;
+export type GroundWalk = CornerWalk;
+export type GroundStep = {
+  point: NavPoint;
+  heights: number[];
+  swimming: boolean;
 };
-type GroundStep = { point: NavPoint; heights: number[] };
 export type RouteRules = { climb: number; columnFallback: boolean };
-type StepRules = RouteRules & { ambiguity: string; continuity: boolean };
+
 const STRICT: RouteRules = { climb: 0, columnFallback: false };
 
 export type NavigationRefusal =
@@ -100,15 +110,18 @@ export class GroundRoute {
   readonly length: number;
   private readonly map: NativeMap;
   private readonly rules: RouteRules;
+  private readonly swims: readonly boolean[];
   private readonly distances: number[];
 
   constructor(points: readonly NavPoint[], map: NativeMap, rules = STRICT) {
     if (points.length === 0) throw new Error("ground route has no points");
     this.map = map;
     this.rules = rules;
+    const built = groundPath(map, points, rules);
     this.points = Object.freeze(
-      groundPath(map, points, rules).map((point) => Object.freeze(point)),
+      built.points.map((point) => Object.freeze(point)),
     );
+    this.swims = Object.freeze([...built.swims]);
     this.distances = [0];
     let length = 0;
     for (let i = 1; i < this.points.length; i++) {
@@ -138,15 +151,20 @@ export class GroundRoute {
       x: start.x + (end.x - start.x) * ratio,
       y: start.y + (end.y - start.y) * ratio,
     };
-    const { point } = groundPoint(this.map, start, at, {
-      ...this.rules,
-      ambiguity: ROUTE_AMBIGUITY,
-      continuity: true,
+    const stepped = groundStep({
+      at,
+      from: start,
+      fromSwimming: this.swims[index] ?? false,
+      map: this.map,
+      rules: { ...this.rules, ambiguity: ROUTE_AMBIGUITY, continuity: true },
     });
-    if (travel === 0) Object.assign(point, this.points[0]);
+    const first = this.points[0];
+    if (travel === 0 && first !== undefined)
+      Object.assign(stepped.point, first);
     return {
-      ...point,
+      ...stepped.point,
       orientation: bearing(start, end),
+      swimming: travel === 0 ? (this.swims[0] ?? false) : stepped.swimming,
     };
   }
 
@@ -275,83 +293,84 @@ function groundPath(
   map: NativeMap,
   corners: readonly NavPoint[],
   rules: RouteRules,
-): NavPoint[] {
+): { points: NavPoint[]; swims: boolean[] } {
   const first = corners[0];
   if (first === undefined) throw new Error("ground route has no points");
   validateNativePoint(first);
-  map.loadAdtAt(first.x, first.y);
-  const leavingStart = groundFloors(checkStart(map, first)).length > 1;
+  const start = waterStart(map, first);
+  const leavingStart = groundFloors(checkStart(map, start)).length > 1;
   const ambiguity = leavingStart ? START_EXIT_AMBIGUITY : ROUTE_AMBIGUITY;
-  const initial = groundPoint(map, first, first, {
-    ...rules,
-    ambiguity,
-    continuity: !leavingStart,
-  }).point;
-  if (Math.abs(initial.z - first.z) > GROUND_ERROR)
+  const initial = groundStep({
+    at: start,
+    from: start,
+    fromSwimming: surfaceAt(map, start, start.z) !== undefined,
+    map,
+    rules: { ...rules, ambiguity, continuity: !leavingStart },
+  });
+  const wetStart = surfaceAt(map, start, start.z) !== undefined;
+  if (
+    Math.abs(initial.point.z - start.z) > GROUND_ERROR &&
+    !(wetStart && initial.swimming)
+  )
     throw groundError("start is not on connected ground");
-  const walk: GroundWalk = { leavingStart, points: [{ ...first }], rules };
+  const walk: GroundWalk = {
+    leavingStart,
+    points: [{ ...start }],
+    rules,
+    swims: [initial.swimming],
+  };
   for (let i = 1; i < corners.length; i++) {
     const from = corners[i - 1];
     const to = corners[i];
     if (from === undefined || to === undefined)
       throw new Error("ground route corner missing");
-    const corner = stepCorner(map, walk, from, to);
-    const agrees =
-      i < corners.length - 1
-        ? meshCornerOnGround(map, corner, to.z)
-        : Math.abs(corner.z - to.z) <= GROUND_ERROR;
-    if (!agrees)
-      throw groundError("path corner disagrees with connected ground");
-  }
-  return walk.points;
-}
-
-function stepCorner(
-  map: NativeMap,
-  walk: GroundWalk,
-  from: NavPoint,
-  to: NavPoint,
-): NavPoint {
-  validateNativePoint(to);
-  const span = distance2d(from, to);
-  if (span === 0 && Math.abs(to.z - from.z) > GROUND_ERROR)
-    throw groundError("unsupported vertical ground route");
-  const count = Math.ceil(span / GROUND_STEP);
-  for (let step = 1; step <= count; step++) {
-    const ratio = step / count;
-    const tail = walk.points.at(-1);
-    if (tail === undefined) throw new Error("ground route point missing");
-    const at = {
-      x: from.x + (to.x - from.x) * ratio,
-      y: from.y + (to.y - from.y) * ratio,
-    };
-    const { point, heights } = groundPoint(map, tail, at, {
-      ...walk.rules,
-      ambiguity: walk.leavingStart ? START_EXIT_AMBIGUITY : ROUTE_AMBIGUITY,
-      continuity: !walk.leavingStart,
-    });
-    walk.points.push(point);
-    walk.leavingStart &&= groundFloors(heights).length > 1;
-  }
-  const corner = walk.points.at(-1);
-  if (corner === undefined) throw new Error("ground route point missing");
-  return corner;
-}
-
-function meshCornerOnGround(
-  map: NativeMap,
-  ground: NavPoint,
-  meshZ: number,
-): boolean {
-  const rise = meshZ - ground.z;
-  if (rise < -GROUND_ERROR || rise > CORNER_RISE) return false;
-  return map
-    .findHeights(ground.x, ground.y)
-    .every(
-      (height) =>
-        Math.abs(height - ground.z) <= GROUND_ERROR ||
-        Math.abs(height - meshZ) > Math.abs(rise),
+    const corner = stepCorner(walk, from, to, (tail, at, step) =>
+      groundStep({
+        at,
+        from: tail,
+        fromSwimming: tailSwimming(walk, tail),
+        map,
+        rules: step,
+      }),
     );
+    const swimTo = surfaceAt(map, to, corner.z);
+    if (
+      cornerMatches(map, {
+        corner,
+        interior: i < corners.length - 1,
+        swimTo,
+        to,
+      })
+    )
+      continue;
+    throw groundError("path corner disagrees with connected ground");
+  }
+  return { points: walk.points, swims: walk.swims };
+}
+
+export function tailSwimming(walk: GroundWalk, tail: NavPoint): boolean {
+  const index = walk.points.lastIndexOf(tail);
+  return walk.swims[index] ?? false;
+}
+
+type Attempt = {
+  map: NativeMap;
+  from: NavPoint;
+  fromSwimming: boolean;
+  at: { x: number; y: number };
+  rules: StepRules;
+};
+
+function groundStep({
+  map,
+  from,
+  fromSwimming,
+  at,
+  rules,
+}: Attempt): GroundStep {
+  const ground = (fresh: NavPoint, probe: { x: number; y: number }) =>
+    groundPoint(map, fresh, probe, rules);
+  return routeStep({ at, from, fromSwimming, ground, map, rules });
 }
 
 function groundPoint(
@@ -371,7 +390,7 @@ function groundPoint(
   if (!Number.isFinite(back) || Math.abs(back - from.z) > GROUND_ERROR)
     throw groundError("ground corridor changes surface");
   checkCollision(map, from, point, climb);
-  return { heights, point };
+  return { heights, point, swimming: false };
 }
 
 function returnHeight(
@@ -409,6 +428,9 @@ function checkRouteGround(
 
 function checkStart(map: NativeMap, point: NavPoint): number[] {
   validateNativePoint(point);
+  const surface = surfaceAt(map, point, point.z);
+  if (surface !== undefined && Math.abs(surface - point.z) <= GROUND_ERROR)
+    return [surface];
   const heights = columnHeights(map, point.x, point.y);
   if (heights.every((height) => Math.abs(height - point.z) > GROUND_ERROR))
     throw groundError("position disagrees with ground height");
@@ -419,6 +441,9 @@ function checkStart(map: NativeMap, point: NavPoint): number[] {
 
 function checkDestination(map: NativeMap, point: NavPoint): void {
   validateNativePoint(point);
+  const surface = surfaceAt(map, point, point.z);
+  if (surface !== undefined && Math.abs(surface - point.z) <= GROUND_ERROR)
+    return;
   const heights = columnHeights(map, point.x, point.y);
   const onSurface = heights.some(
     (height) => Math.abs(height - point.z) <= GROUND_ERROR,
@@ -429,6 +454,9 @@ function checkDestination(map: NativeMap, point: NavPoint): void {
 
 function destinationFloor(map: NativeMap, x: number, y: number): number {
   const heights = columnHeights(map, x, y);
+  const [low] = [...heights].sort((a, b) => a - b);
+  const surface = surfaceAt(map, { x, y }, low ?? 0);
+  if (surface !== undefined) return surface;
   const floors = groundFloors(heights);
   const floor = floors[0];
   if (floor === undefined) throw groundError("ground height unavailable");

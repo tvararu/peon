@@ -123,10 +123,17 @@ export class MovementSync {
     return input.move === "backward" ? this.runBackSpeed : this.runSpeed;
   }
 
+  guidedSwim(): boolean {
+    return this.motion.guided()?.swimming !== undefined;
+  }
+
   blockReason(): string | undefined {
     return (
       this.airBlock() ??
-      unsupportedReason(unsupportedFlags(this.flagSources())) ??
+      unsupportedReason(
+        unsupportedFlags(this.flagSources()),
+        this.guidedSwim(),
+      ) ??
       ((this.ride.riding && !this.ride.controlling) || this.ride.onTransport
         ? "transport"
         : undefined)

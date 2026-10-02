@@ -20,6 +20,7 @@ export function native(over: Partial<NativeMap> = {}): NativeMap {
     close: () => {},
     findHeight: () => 0,
     findHeights: () => [0],
+    findLiquid: () => undefined,
     findPath: (from, to) => [{ ...from }, { ...to }],
     lineOfSight: () => true,
     loadAdtAt: () => {},
@@ -38,6 +39,7 @@ export function routeHandle(control: ControlRuntime): RouteHandle {
     getControlState: () => control.snapshot(),
     onEntityEvent: () => () => {},
     onMovementStop: (cb) => control.onStop(cb),
+    setSwimming: (on: boolean) => control.setSwimming(on),
     stopMoving: (reason) => control.halt(reason),
   };
 }

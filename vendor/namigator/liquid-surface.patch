@@ -1,0 +1,117 @@
+diff --git a/pathfind/Map.cpp b/pathfind/Map.cpp
+index 9e5ab9c..7e23c20 100644
+--- a/pathfind/Map.cpp
++++ b/pathfind/Map.cpp
+@@ -975,6 +975,37 @@ bool Map::FindRandomPointAroundCircle(const math::Vertex& centerPosition,
+ }
+ 
+ 
++bool Map::FindLiquid(const math::Vertex& position, float& surface) const
++{
++    constexpr float reach = 0.5f;
++    constexpr float extents[] = {reach, 4.f, reach};
++
++    float recastPosition[3];
++    math::Convert::VertexToRecast(position, recastPosition);
++
++    dtPolyRef polyRef = 0;
++    float nearest[3];
++    if (m_navQuery.findNearestPoly(recastPosition, extents, &m_queryFilter,
++                                   &polyRef, nearest) != DT_SUCCESS ||
++        !polyRef)
++        return false;
++
++    if (std::abs(nearest[0] - recastPosition[0]) > reach ||
++        std::abs(nearest[2] - recastPosition[2]) > reach)
++        return false;
++
++    const dtMeshTile* tile = nullptr;
++    const dtPoly* poly = nullptr;
++    if (m_navMesh.getTileAndPolyByRef(polyRef, &tile, &poly) != DT_SUCCESS)
++        return false;
++
++    if (!(poly->flags & PolyFlags::Liquid))
++        return false;
++
++    surface = nearest[1];
++    return true;
++}
++
+ bool Map::FindHeight(const math::Vertex& source, float x, float y, float& z) const
+ {
+     // ray cast along navmesh from source to target
+diff --git a/pathfind/Map.hpp b/pathfind/Map.hpp
+index 5d66107..b687ee1 100644
+--- a/pathfind/Map.hpp
++++ b/pathfind/Map.hpp
+@@ -156,6 +156,10 @@ public:
+     bool FindHeights(float x, float y,
+                      std::vector<float>& output) const; // scenario two
+ 
++    // Returns true when the mesh polygon nearest to the position contains its
++    // (x, y) and is liquid.  surface is then the height of that polygon.
++    bool FindLiquid(const math::Vertex& position, float& surface) const;
++
+     bool ZoneAndArea(const math::Vertex& position, unsigned int& zone,
+                      unsigned int& area) const;
+ 
+diff --git a/pathfind/pathfind_c_bindings.cpp b/pathfind/pathfind_c_bindings.cpp
+index d1c7ddd..2a81193 100644
+--- a/pathfind/pathfind_c_bindings.cpp
++++ b/pathfind/pathfind_c_bindings.cpp
+@@ -305,6 +305,34 @@ PathfindResultType pathfind_find_height(pathfind::Map* const map, float start_x,
+     }
+ }
+ 
++PathfindResultType pathfind_find_liquid(pathfind::Map* const map, float x,
++                                        float y, float z,
++                                        unsigned char* const liquid,
++                                        float* const surface_z)
++{
++    try
++    {
++        float surface;
++        if (map->FindLiquid({x, y, z}, surface))
++        {
++            *liquid = 1;
++            *surface_z = surface;
++        }
++        else
++            *liquid = 0;
++
++        return static_cast<PathfindResultType>(Result::SUCCESS);
++    }
++    catch (utility::exception& e)
++    {
++        return static_cast<PathfindResultType>(e.ResultCode());
++    }
++    catch (...)
++    {
++        return static_cast<PathfindResultType>(Result::UNKNOWN_EXCEPTION);
++    }
++}
++
+ PathfindResultType pathfind_line_of_sight(pathfind::Map* map,
+                                           float start_x, float start_y, float start_z,
+                                           float stop_x, float stop_y, float stop_z,
+diff --git a/pathfind/pathfind_c_bindings.hpp b/pathfind/pathfind_c_bindings.hpp
+index a5ca5f8..3b884bf 100644
+--- a/pathfind/pathfind_c_bindings.hpp
++++ b/pathfind/pathfind_c_bindings.hpp
+@@ -115,6 +115,16 @@ PathfindResultType pathfind_find_height(pathfind::Map* const map, float start_x,
+                                         float stop_x, float stop_y,
+                                         float* const stop_z);
+ 
++/*
++    Sets `liquid` to 1 and `surface_z` to the height of the nearest mesh
++    polygon when that polygon contains `x`, `y` and is liquid, and sets
++    `liquid` to 0 otherwise.
++*/
++PathfindResultType pathfind_find_liquid(pathfind::Map* const map, float x,
++                                        float y, float z,
++                                        unsigned char* const liquid,
++                                        float* const surface_z);
++
+ /*
+     Calculates whether there is line of sight between `start_x`, `start_y`, `start_z`
+     and `stop_x`, `stop_y`, `stop_z`.

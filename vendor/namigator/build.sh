@@ -18,6 +18,7 @@ git -C "$src" apply "$here/corner-height.patch"
 git -C "$src" apply "$here/boundary-rays.patch"
 git -C "$src" apply "$here/surface-above-hint.patch"
 git -C "$src" apply "$here/adt-edges.patch"
+git -C "$src" apply "$here/liquid-surface.patch"
 
 cmake -S "$src" -B "$build" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
@@ -36,4 +37,5 @@ g++ -shared -o "$out/libnamigator.so" \
 
 symbols=$(nm -D --defined-only "$out/libnamigator.so")
 grep -q " T pathfind_find_height$" <<<"$symbols"
+grep -q " T pathfind_find_liquid$" <<<"$symbols"
 echo "$out/libnamigator.so"

@@ -10,6 +10,7 @@ export type NativeMap = {
   loadAdtAt: (x: number, y: number) => void;
   findHeights: (x: number, y: number) => number[];
   findHeight: (from: NativePoint, x: number, y: number) => number;
+  findLiquid: (point: NativePoint) => number | undefined;
   lineOfSight: (from: NativePoint, to: NativePoint) => boolean;
   findPath: (from: NativePoint, to: NativePoint) => NativePoint[];
   close: () => void;

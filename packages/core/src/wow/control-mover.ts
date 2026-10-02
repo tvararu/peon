@@ -30,6 +30,7 @@ export type MovementGuide = {
   advance: (pose: ControlPose, yards: number, now: number) => GuideStep;
   leaseMs: (now: number) => number;
   end: (reason: string) => void;
+  swimming?: (pose: ControlPose) => boolean;
 };
 
 export type StepTarget = {

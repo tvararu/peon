@@ -1,14 +1,17 @@
-import type { ControlDeps, ControlEventType } from "#wow/control";
+import type { ControlDeps, ControlEventType, ControlPose } from "#wow/control";
 import type { Position } from "#wow/entity-store";
 import type { MonsterMove } from "#wow/protocol/monster-move";
 
 export type Emit = (type: ControlEventType, reason?: string) => void;
+
+export type GuidedState = { swimming?: (pose: ControlPose) => boolean };
 
 export type SyncMotion = {
   moving: () => boolean;
   settle: () => void;
   abort: (reason: string) => void;
   stop: (reason: string) => void;
+  guided: () => GuidedState | undefined;
 };
 
 export type SelfObservation = {

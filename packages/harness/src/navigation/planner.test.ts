@@ -165,6 +165,7 @@ describe("grounded navigation", () => {
     expect(route.length).toBeCloseTo(20);
     expect(route.sample(15)).toEqual({
       orientation: Math.PI / 2,
+      swimming: false,
       x: 10,
       y: 5,
       z: 0,
@@ -237,7 +238,13 @@ describe("validated direct corridor selection", () => {
     });
     const route = navigation(map).plan(530, start, end);
     expect(route.length).toBe(10);
-    expect(route.sample(5)).toEqual({ orientation: 0, x: 5, y: 0, z: 0 });
+    expect(route.sample(5)).toEqual({
+      orientation: 0,
+      swimming: false,
+      x: 5,
+      y: 0,
+      z: 0,
+    });
     expect(route.sample(route.length)).toMatchObject(end);
   });
 
