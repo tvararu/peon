@@ -296,7 +296,26 @@ describe("engage fight", () => {
     });
   });
 
-  test("an unreachable target with no other in view asks the human", async () => {
+  test("an unreachable target with another creature in view points at it", async () => {
+    const t = await field();
+    const lynx = unitRow({
+      distance: 30,
+      guid: LYNX,
+      level: 7,
+      name: "Springpaw Lynx",
+      x: 30,
+      y: 0,
+    });
+    setUnits(t.handle, [stalker(STALKER, 45), lynx]);
+    driveGoto(t.handle, [{ refuse: "stop: ground corridor changes surface" }]);
+    const res = await engageSpec.run(
+      { target: "Springpaw Stalker" },
+      toolCtx<EngageAfter>(t),
+    );
+    expect(res.next).toBe(`engage(target: "${t.rt.refs.refOf(LYNX)}")`);
+  });
+
+  test("an unreachable target with nothing else in view sends the agent exploring", async () => {
     const t = await field();
     setUnits(t.handle, [stalker(STALKER, 45)]);
     driveGoto(t.handle, [{ refuse: "stop: ground corridor changes surface" }]);
@@ -304,9 +323,7 @@ describe("engage fight", () => {
       { target: "Springpaw Stalker" },
       toolCtx<EngageAfter>(t),
     );
-    expect(res.next).toBe(
-      'ask the human: "I cannot reach Springpaw Stalker from here. Is there another way?"',
-    );
+    expect(res.next).toBe('travel(to: "explore")');
   });
 
   test("a map without navigation data asks the human, not another target", async () => {
