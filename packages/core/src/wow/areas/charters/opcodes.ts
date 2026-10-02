@@ -17,7 +17,12 @@ export const CHARTERS_OPCODES = {
     "SMSG_PETITION_QUERY_RESPONSE",
     "MSG_PETITION_RENAME",
   ],
-  uses: [],
+  uses: [
+    "SMSG_ITEM_PUSH_RESULT",
+    "SMSG_BUY_FAILED",
+    "SMSG_GUILD_COMMAND_RESULT",
+    "SMSG_INVENTORY_CHANGE_FAILURE",
+  ],
   stubs: [],
   dead: [],
   unseen: [],
