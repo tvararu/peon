@@ -41,6 +41,6 @@
     }
   ],
   "steers": [],
-  "task": "You stand near the Shrine of Dath'Remar on Sunstrider Isle. Read the shrine and quote the opening sentence of its page text word for word.",
+  "task": "You stand near the Shrine of Dath'Remar on Sunstrider Isle. Read the shrine. The page opens with a sentence about the shrine itself, then describes a placard on its side; quote the page's first sentence word for word, not the inscription quoted further down the page.",
   "tier": 0
 }
