@@ -73,7 +73,12 @@ export function checkCastReach(row: ObjectRow, ctx?: ViewCtx): void {
   }
   const hit = displayVerdict(row, ctx, REACH_MARGIN_YD);
   if (hit === true) return;
-  if (hit === false) return;
+  if (hit === false)
+    throw new Refusal({
+      detail: refuseDetail(row),
+      next: nextCall("travel", { to: row.ref }),
+      reason: "too_far",
+    });
   refuseWhenFar(row, reachYd(row, ctx) + REACH_MARGIN_YD);
 }
 
