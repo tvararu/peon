@@ -28,8 +28,12 @@ open-lock spell at one object, `useItemOn(entry, target)` uses a carried
 key on one object, `openLockSpell(entry)` picks the spell or key for a
 lock, `enterTrigger(id)` sends one trigger by hand, and
 `readPage(pageId)` resolves once with the chained pages, timing out
-after 5 s. The harness `use` tool opens locked chests and quest objects
-and reads shrines, plaques and books.
+after 5 s. The harness `use` tool opens locked chests and quest objects,
+reads shrines, plaques and books, and fishes (`do: fish` casts Fishing,
+uses the bobber on the bite and takes the catch; a hooked fish needs its
+loot window opened before the catch can be taken, so the tool calls the
+rewards open path with the window watching first, as the server answers a
+used ready bobber with fishing loot, `Entities/GameObject/GameObject.cpp:1789-1792`).
 
 ## Wire notes
 
@@ -251,4 +255,3 @@ Nothing left out: every owned opcode is handled.
 | `SMSG_GAMEOBJECT_CUSTOM_ANIM` | `live` | probe flow `objects-fish` (`--arg use=hooked`) on an `eversong10-fishing` character with pole 6256 equipped, moved with an online `soap gm tele LakeElrendar` and logged in again, exit 0 (run `tmp/probe/objects-6-hooked1`): the cast (spell 7620, no target) got `MSG_CHANNEL_START` and the bobber (entry 35591); the splash `SMSG_GAMEOBJECT_CUSTOM_ANIM` for the bobber guid arrived 10.47 s into the 17 s channel and the area emitted `fish_hooked`; the flow used the bobber at once and the server answered `SMSG_LOOT_RESPONSE` for it 10 ms later (the rewards store, not asked to open it, drops that window; the server released it on logout) | `Entities/GameObject/GameObject.cpp:2148-2154` |
 | `SMSG_GAMEOBJECT_DESPAWN_ANIM` | `live` | the same flow (`--arg use=3`, run `tmp/probe/objects-6-proof-noth`) and the escape run below: the bobber's guid comes back in the despawn animation each time the bobber despawns (after `SMSG_FISH_NOT_HOOKED`, after `SMSG_FISH_ESCAPED`, and after the channel is cancelled), as `GameObject::Delete` sends it | `Entities/Object/Object.cpp:2189-2194` |
 | `SMSG_FISH_NOT_HOOKED` | `live` | the same flow (`--arg use=3`, run `tmp/probe/objects-6-proof-noth`): the use 3 s after the cast, before the splash, was answered by the empty `SMSG_FISH_NOT_HOOKED` and then the despawn animation; the flow reported `fish_not_hooked` and the state cleared | `Entities/GameObject/GameObject.cpp:1796-1803` |
-| `SMSG_FISH_ESCAPED` | `live` | the same flow with no use (`--arg seconds=40`, run `tmp/probe/objects-6-escapedb3`): the splash `SMSG_GAMEOBJECT_CUSTOM_ANIM` came 10.74 s after the cast and the empty `SMSG_FISH_ESCAPED` 4 s later, then `MSG_CHANNEL_UPDATE` and the despawn animation; the flow reported `fish_hooked` and `fish_escaped` | `Entities/GameObject/GameObject.cpp:626-640` |

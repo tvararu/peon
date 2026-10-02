@@ -70,12 +70,10 @@ async function world(init: WorldInit = {}): Promise<World> {
         slot: 15,
       },
     ]);
-  jest
-    .spyOn(t.handle, "getItemTemplate")
-    .mockResolvedValue({
-      itemClass: 2,
-      subclass: init.pole === "sword" ? 7 : 20,
-    } as never);
+  jest.spyOn(t.handle, "getItemTemplate").mockResolvedValue({
+    itemClass: 2,
+    subclass: init.pole === "sword" ? 7 : 20,
+  } as never);
   setWorld(t.handle, {
     pose: selfPose(NOW),
     rows: [
@@ -122,7 +120,6 @@ function hooked(t: World) {
 }
 
 type Offer = { itemId: number; slot: number }[];
-
 
 function lootWindow(t: World, items: Offer) {
   const base = t.handle.getRewardsState();
@@ -172,7 +169,11 @@ function lootWindow(t: World, items: Offer) {
     if (index >= 0) offered.splice(index, 1);
     const removed = open(offered);
     set(removed);
-    t.handle.triggerRewardsEvent({ at: 0, state: removed, type: "loot_removed" });
+    t.handle.triggerRewardsEvent({
+      at: 0,
+      state: removed,
+      type: "loot_removed",
+    });
     const push: RewardsState = {
       ...removed,
       lastItemPush: {

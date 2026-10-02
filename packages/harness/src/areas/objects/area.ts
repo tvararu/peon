@@ -81,7 +81,9 @@ function fishResultRow(
     class: "passive",
     data: { result: fled ? "escaped" : "not_hooked" },
     name: "fish",
-    text: fled ? "The fish escaped." : "Reeled in too early; no fish was hooked.",
+    text: fled
+      ? "The fish escaped."
+      : "Reeled in too early; no fish was hooked.",
   };
 }
 

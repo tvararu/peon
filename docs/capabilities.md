@@ -109,5 +109,6 @@ These have tools or code but no scenario that checks them live:
 - Answer a raid ready check (`t9-raid-answer`, the agent answers before the check starts, and the repeat guard then refuses its answer during the check).
 - Accept a quest a party member shares (`t8-quests-accept-shared`, the agent's early `accept_invite` is refused as a repeat, so it is not in the group when the partner shares).
 - Changing seats, riding with another player and ejecting a passenger (`vehicle` `seat`, `ride_with`, `eject`).
+- Fishing (`use` `do: fish` casts Fishing, uses the bobber on the bite and takes the catch; no scenario stages the pole, the skill and calm water, so the run is proven by probe traces and unit tests only).
 
 Peon has no tool for the auction house.
