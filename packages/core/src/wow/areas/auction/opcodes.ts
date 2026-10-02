@@ -21,7 +21,6 @@ export const AUCTION_OPCODES = {
   ],
   uses: [],
   stubs: [
-    ["SMSG_AUCTION_LIST_RESULT", "Auction results"],
     ["SMSG_AUCTION_OWNER_NOTIFICATION", "Auction sold"],
     ["SMSG_AUCTION_BIDDER_NOTIFICATION", "Auction outbid"],
     ["SMSG_AUCTION_COMMAND_RESULT", "Auction result"],
