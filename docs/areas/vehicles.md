@@ -164,6 +164,7 @@ seat otherwise.
 Flying vehicles stay refused (`unsupportedReason`); the Horde Siege Tank
 (25334) is ground only.
 
+`pet` (vehicles-9): "board a Horde Siege Tank: walk to it, get on, move with it, and get off", proven by the eval `t8-vehicles-drive` (round 521, run `tmp/evals/521/t8-vehicles-drive-3`, verdict `pass`, 5 of 5 checks). The agent accepted quest 11652 live from Gorge the Corpsegrinder after offline `quest/add`, `quest/complete` and `quest/reward` of 11651 (offline add leaves 11652 complete so the spell-click condition fails, `Conditions/ConditionMgr.cpp:177-186`); staged at (2792.0, 6738.0, 7.6) on map 571, the navmesh ground height (z 8.0 floats and every route refuses). It walked to the tank, boarded with `vehicle` `board` (spell-click), and the game log holds `vehicles/entered` (seat 0, entry 25334, guid `0xf1500062f60fe9b3`) and `vehicles/control` allow true for the same guid; the trace holds 77 outgoing `MSG_MOVE_*` with the vehicle as mover, and the final truth sits 16.8 yd from the start before `vehicles/exited` for the same guid. The `pet` tool casts the tank's bar from buttons 8-12 of the flagged vehicle bar (`Entities/Player/Player.cpp:9864-9894`, `Handlers/PetHandler.cpp:1025-1034`); the eval drives with `travel` while seated because the `vehicle` tool has no drive verb.
 
 In the harness, `entered` and `control` each write a `wake` row, `exited`, `seat_changed`
 and `player_vehicle` and `ride_aura_cancel` each write a `log` row, and
