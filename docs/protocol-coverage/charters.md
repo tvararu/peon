@@ -5,17 +5,17 @@ columns are explained in [the index](../protocol-coverage.md).
 
 | Opcode | Name | Direction | Status | Live |
 |---|---|---|---|---|
-| `0x1bb` | `CMSG_PETITION_SHOWLIST` | client | missing |  |
-| `0x1bc` | `SMSG_PETITION_SHOWLIST` | server | missing |  |
-| `0x1bd` | `CMSG_PETITION_BUY` | client | missing |  |
-| `0x1be` | `CMSG_PETITION_SHOW_SIGNATURES` | client | missing |  |
-| `0x1bf` | `SMSG_PETITION_SHOW_SIGNATURES` | server | missing |  |
+| `0x1bb` | `CMSG_PETITION_SHOWLIST` | client | handled |  |
+| `0x1bc` | `SMSG_PETITION_SHOWLIST` | server | handled |  |
+| `0x1bd` | `CMSG_PETITION_BUY` | client | handled |  |
+| `0x1be` | `CMSG_PETITION_SHOW_SIGNATURES` | client | handled |  |
+| `0x1bf` | `SMSG_PETITION_SHOW_SIGNATURES` | server | handled |  |
 | `0x1c0` | `CMSG_PETITION_SIGN` | client | missing |  |
 | `0x1c1` | `SMSG_PETITION_SIGN_RESULTS` | server | missing |  |
 | `0x1c2` | `MSG_PETITION_DECLINE` | both | missing |  |
 | `0x1c3` | `CMSG_OFFER_PETITION` | client | missing |  |
 | `0x1c4` | `CMSG_TURN_IN_PETITION` | client | missing |  |
 | `0x1c5` | `SMSG_TURN_IN_PETITION_RESULTS` | server | missing |  |
-| `0x1c6` | `CMSG_PETITION_QUERY` | client | missing |  |
-| `0x1c7` | `SMSG_PETITION_QUERY_RESPONSE` | server | missing |  |
-| `0x2c1` | `MSG_PETITION_RENAME` | both | missing |  |
+| `0x1c6` | `CMSG_PETITION_QUERY` | client | handled |  |
+| `0x1c7` | `SMSG_PETITION_QUERY_RESPONSE` | server | handled |  |
+| `0x2c1` | `MSG_PETITION_RENAME` | both | handled |  |
