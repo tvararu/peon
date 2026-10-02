@@ -1,6 +1,7 @@
 import { fillConsole, readConsoleLog } from "#harness/grader/draft-console";
 import { observeGameLog, parseGameLog } from "#harness/grader/draft-gamelog";
 import { measureGameLog } from "#harness/grader/draft-measure";
+import { windowOf } from "#harness/grader/draft-window";
 import { parseJsonOutput } from "#harness/grader/exec";
 import type { EvalCheck } from "#harness/grader/result";
 import type {
@@ -307,7 +308,7 @@ function observedLog(
     return { met: false, observed: null };
   const { line, met, observed } =
     check.measure === undefined
-      ? observedRows(rows, check)
+      ? observedRows(rows, check, context)
       : measureGameLog(rows, check.measure, context);
   const filled = { met: met ?? false, observed };
   return line === undefined
@@ -318,7 +319,23 @@ function observedLog(
 function observedRows(
   rows: ReturnType<typeof parseGameLog>,
   check: ScenarioCheck,
+  context: LogContext,
 ): { line?: number; met?: boolean; observed: unknown } {
-  const observed = observeGameLog(rows, check);
-  return { line: observed?.match?.line, observed };
+  const window = check.evidence?.window;
+  if (window === undefined) {
+    const observed = observeGameLog(rows, check);
+    return { line: observed?.match?.line, observed };
+  }
+  const bound = windowOf(rows, window, context);
+  if (bound === undefined) return { observed: null };
+  const observed = observeGameLog(rows, check, bound);
+  const max = window.max;
+  return {
+    line: observed?.match?.line,
+    met:
+      max === undefined || observed === null
+        ? undefined
+        : observed.count <= max,
+    observed,
+  };
 }

@@ -8,7 +8,10 @@
   "checks": [
     {
       "evidence": {
-        "events": ["lfg/queued"]
+        "events": ["lfg/queued"],
+        "window": {
+          "steer": 0
+        }
       },
       "expect": "GL has an lfg/queued row for the run party queue",
       "id": "queued",
@@ -16,7 +19,10 @@
     },
     {
       "evidence": {
-        "events": ["lfg/proposal"]
+        "events": ["lfg/proposal"],
+        "window": {
+          "steer": 0
+        }
       },
       "expect": "GL has an lfg/proposal row for the dungeon group proposal",
       "id": "proposal",
@@ -24,7 +30,10 @@
     },
     {
       "evidence": {
-        "events": ["lfg/role_chosen"]
+        "events": ["lfg/role_chosen"],
+        "window": {
+          "steer": 0
+        }
       },
       "expect": "GL has lfg/role_chosen rows for every party member answering the role check",
       "id": "roles-answered",
@@ -32,7 +41,10 @@
     },
     {
       "evidence": {
-        "events": ["lfg/offer_continue"]
+        "events": ["lfg/offer_continue"],
+        "window": {
+          "steer": 0
+        }
       },
       "expect": "GL has an lfg/offer_continue row after a partner leaves the finished group",
       "id": "offer-continue",

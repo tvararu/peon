@@ -1,0 +1,44 @@
+{"text":"Cast LOGINEFFECT succeeded.","seq":6,"ts":1790946788582,"event":"combat/cast","data":{"name":"LOGINEFFECT","result":"succeeded","spellId":836,"target":"0"}}
+{"text":"Human: Kill three Springpaw Stalkers north of town.","seq":16,"ts":1790946790809,"event":"human/input","data":{"stoppedRuns":[],"stopReflex":false,"text":"Kill three Springpaw Stalkers north of town.","via":"input"}}
+{"runId":"r1","seq":25,"ts":1790946794548,"text":"You start to move.","event":"control/move_start","data":{}}
+{"runId":"r1","seq":31,"ts":1790946803764,"text":"Fight started: Springpaw Stalker u15.","ref":"u15","data":{"hpBefore":217,"jevRun":"842398f9-dc0f-43f4-9331-3bcfe189716f","level":6,"manaBefore":607,"maxHp":217,"name":"Springpaw Stalker","target":"f130003d2307be2e"},"guid":"f130003d2307be2e","event":"fight/start"}
+{"runId":"r1","seq":32,"ts":1790946804011,"text":"You stop (arrived).","event":"control/move_stop","data":{"cause":"arrived"}}
+{"runId":"r1","seq":33,"ts":1790946805533,"text":"Cast Mind Blast succeeded.","event":"combat/cast","data":{"name":"Mind Blast","result":"succeeded","spellId":8092,"target":"f130003d2307be2e"}}
+{"text":"Human: Stop! Stop right now.","seq":37,"ts":1790946806454,"event":"human/input","data":{"stoppedRuns":["r1"],"stopReflex":true,"text":"Stop! Stop right now.","via":"reflex"}}
+{"text":"Cast Smite failed (cast_failed:interrupted).","seq":40,"ts":1790946806466,"event":"combat/cast","data":{"name":"Smite","reason":"cast_failed:interrupted","result":"failed","spellId":585}}
+{"text":"Cast Smite interrupted (spell_failure:interrupted).","seq":41,"ts":1790946806466,"event":"combat/cast","data":{"name":"Smite","reason":"spell_failure:interrupted","result":"interrupted","spellId":585}}
+{"text":"Human: OK, carry on, but only use Smite from now on.","seq":48,"ts":1790946831102,"event":"human/input","data":{"stoppedRuns":[],"stopReflex":false,"text":"OK, carry on, but only use Smite from now on.","via":"input"}}
+{"runId":"r2","seq":53,"ts":1790946832647,"text":"Fight started: Springpaw Stalker u15.","ref":"u15","data":{"hpBefore":129,"jevRun":"4c2eab80-65c8-43be-a1ee-343b6b74b313","level":6,"manaBefore":607,"maxHp":217,"name":"Springpaw Stalker","target":"f130003d2307be2e"},"guid":"f130003d2307be2e","event":"fight/start"}
+{"runId":"r2","seq":55,"ts":1790946834896,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307be2e"}}
+{"runId":"r2","seq":56,"ts":1790946837317,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307be2e"}}
+{"runId":"r2","seq":60,"ts":1790946839660,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307be2e"}}
+{"runId":"r2","seq":61,"ts":1790946841625,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307be2e"}}
+{"runId":"r2","seq":64,"ts":1790946844092,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307be2e"}}
+{"runId":"r2","seq":65,"ts":1790946844093,"text":"Kill credit: Springpaw Stalker u15 (+80 XP).","ref":"u15","data":{"name":"Springpaw Stalker","xp":80},"guid":"f130003d2307be2e","event":"combat/kill_credit"}
+{"runId":"r2","seq":68,"ts":1790946844110,"text":"You start to move.","event":"control/move_start","data":{}}
+{"runId":"r2","seq":71,"ts":1790946847361,"text":"You stop (lease).","event":"control/move_stop","data":{"cause":"lease"}}
+{"runId":"r2","seq":77,"ts":1790946850127,"text":"You start to move.","event":"control/move_start","data":{}}
+{"runId":"r2","seq":79,"ts":1790946854881,"text":"Fight started: Springpaw Stalker u22.","ref":"u22","data":{"hpBefore":178,"jevRun":"04102870-d3e9-4e85-be30-05624f205226","level":6,"manaBefore":522,"maxHp":217,"name":"Springpaw Stalker","target":"f130003d2307bea3"},"guid":"f130003d2307bea3","event":"fight/start"}
+{"runId":"r2","seq":80,"ts":1790946855131,"text":"You stop (cycle_approach).","event":"control/move_stop","data":{"cause":"cycle_approach"}}
+{"runId":"r2","seq":82,"ts":1790946856620,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307bea3"}}
+{"runId":"r2","seq":86,"ts":1790946858731,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307bea3"}}
+{"runId":"r2","seq":88,"ts":1790946861174,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307bea3"}}
+{"runId":"r2","seq":89,"ts":1790946863504,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307bea3"}}
+{"runId":"r2","seq":92,"ts":1790946865512,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307bea3"}}
+{"runId":"r2","seq":93,"ts":1790946867916,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307bea3"}}
+{"runId":"r2","seq":95,"ts":1790946870300,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307bea3"}}
+{"runId":"r2","seq":96,"ts":1790946870300,"text":"Kill credit: Springpaw Stalker u22 (+80 XP).","ref":"u22","data":{"name":"Springpaw Stalker","xp":80},"guid":"f130003d2307bea3","event":"combat/kill_credit"}
+{"runId":"r2","seq":99,"ts":1790946870325,"text":"You start to move.","event":"control/move_start","data":{}}
+{"runId":"r2","seq":103,"ts":1790946874194,"text":"You stop (lease).","event":"control/move_stop","data":{"cause":"lease"}}
+{"runId":"r2","seq":107,"ts":1790946876961,"text":"You start to move.","event":"control/move_start","data":{}}
+{"runId":"r2","seq":109,"ts":1790946879214,"text":"Fight started: Springpaw Stalker u21.","ref":"u21","data":{"hpBefore":217,"jevRun":"1b84f840-ad1e-467a-9ce5-5ccd6473c539","level":7,"manaBefore":389,"maxHp":217,"name":"Springpaw Stalker","target":"f130003d2307bf4a"},"guid":"f130003d2307bf4a","event":"fight/start"}
+{"runId":"r2","seq":110,"ts":1790946879464,"text":"You stop (cycle_approach).","event":"control/move_stop","data":{"cause":"cycle_approach"}}
+{"runId":"r2","seq":111,"ts":1790946880977,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307bf4a"}}
+{"runId":"r2","seq":115,"ts":1790946882964,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307bf4a"}}
+{"runId":"r2","seq":117,"ts":1790946885283,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307bf4a"}}
+{"runId":"r2","seq":119,"ts":1790946887315,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307bf4a"}}
+{"runId":"r2","seq":121,"ts":1790946889711,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307bf4a"}}
+{"runId":"r2","seq":122,"ts":1790946892121,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307bf4a"}}
+{"runId":"r2","seq":125,"ts":1790946894509,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307bf4a"}}
+{"runId":"r2","seq":126,"ts":1790946896368,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d2307bf4a"}}
+{"runId":"r2","seq":127,"ts":1790946896368,"text":"Kill credit: Springpaw Stalker u21 (+108 XP).","ref":"u21","data":{"name":"Springpaw Stalker","xp":108},"guid":"f130003d2307bf4a","event":"combat/kill_credit"}

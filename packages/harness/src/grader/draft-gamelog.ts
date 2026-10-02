@@ -1,3 +1,4 @@
+import { rowsIn, type WindowBound } from "#harness/grader/draft-window";
 import { isRecord, parseJsonOutput } from "#harness/grader/exec";
 import type { ScenarioCheck } from "#harness/grader/scenarios";
 
@@ -51,11 +52,16 @@ function holdsId(value: unknown, ids: readonly number[]): boolean {
 export function observeGameLog(
   rows: readonly Row[],
   check: ScenarioCheck,
+  bound?: WindowBound,
 ): GameLogObserved | null {
   const events = check.evidence?.events ?? [];
   if (events.length === 0) return null;
+  const inWindow =
+    bound === undefined
+      ? rows
+      : rowsIn(rows, bound, check.evidence?.window?.exceptNames ?? []);
   const ids = check.evidence?.ids ?? [];
-  const named = rows.filter((row) =>
+  const named = inWindow.filter((row) =>
     events.some((pattern) => eventMatches(pattern, row.event)),
   );
   const matched =

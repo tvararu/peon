@@ -8,7 +8,10 @@
   "checks": [
     {
       "evidence": {
-        "events": ["raid/roster"]
+        "events": ["raid/roster"],
+        "window": {
+          "steer": 0
+        }
       },
       "expect": "GL has a raid/roster row for the group changing shape (converted to a raid)",
       "id": "converted",
@@ -16,7 +19,10 @@
     },
     {
       "evidence": {
-        "events": ["raid/roster"]
+        "events": ["raid/roster"],
+        "window": {
+          "steer": 0
+        }
       },
       "expect": "GL has a raid/roster row for the partner moving to group 2",
       "id": "moved",
@@ -24,7 +30,10 @@
     },
     {
       "evidence": {
-        "events": ["raid/roster"]
+        "events": ["raid/roster"],
+        "window": {
+          "steer": 0
+        }
       },
       "expect": "GL has a raid/roster row for the partner gaining the assistant flag",
       "id": "assistant",
@@ -32,7 +41,10 @@
     },
     {
       "evidence": {
-        "events": ["raid/roster"]
+        "events": ["raid/roster"],
+        "window": {
+          "steer": 0
+        }
       },
       "expect": "GL has a raid/roster row for the partner gaining main tank",
       "id": "main-tank",
