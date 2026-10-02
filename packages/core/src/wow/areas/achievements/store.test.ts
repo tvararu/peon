@@ -34,6 +34,7 @@ describe("AchievementStore", () => {
       count: 0,
       criteria: 0,
       recent: [],
+      titles: { chosen: 0, known: [] },
     });
   });
 
@@ -62,6 +63,7 @@ describe("AchievementStore", () => {
         { at: day(5), id: 7 },
         { at: day(3), id: 6 },
       ],
+      titles: { chosen: 0, known: [] },
     });
     expect(store.counter(10)).toBe(9n);
     expect(store.counter(50)).toBeUndefined();
@@ -112,17 +114,50 @@ describe("AchievementStore", () => {
     });
     store.removeAchievement({ id: 6 });
     store.removeCriteria({ id: 10 });
-    expect(store.snapshot()).toEqual({ count: 0, criteria: 0, recent: [] });
+    expect(store.snapshot()).toEqual({
+      count: 0,
+      criteria: 0,
+      recent: [],
+      titles: { chosen: 0, known: [] },
+    });
     expect(seen).toEqual([
       { id: 6, type: "achievement_removed" },
       { id: 10, type: "criteria_removed" },
     ]);
   });
 
+  test("an earned title joins the known bits and a lost title leaves it", () => {
+    const { store, seen } = setup();
+    store.titleEarned({ bit: 110, earned: true });
+    store.titleEarned({ bit: 40, earned: true });
+    expect(store.snapshot().titles).toEqual({ chosen: 0, known: [40, 110] });
+    store.titleEarned({ bit: 40, earned: false });
+    expect(store.snapshot().titles.known).toEqual([110]);
+    expect(seen).toEqual([
+      { bit: 110, earned: true, type: "title_changed" },
+      { bit: 40, earned: true, type: "title_changed" },
+      { bit: 40, earned: false, type: "title_changed" },
+    ]);
+  });
+
+  test("setTitles replaces the known bits and the chosen bit", () => {
+    const { store } = setup();
+    store.titleEarned({ bit: 7, earned: true });
+    store.setTitles([110], 110);
+    expect(store.snapshot().titles).toEqual({ chosen: 110, known: [110] });
+    expect(store.knows(110)).toBe(true);
+    expect(store.knows(7)).toBe(false);
+  });
+
   test("a realm first emits server_first and changes nothing", () => {
     const { store, seen } = setup();
     store.serverFirst({ guid: OTHER, id: 457, link: 1, name: "Firsty" });
-    expect(store.snapshot()).toEqual({ count: 0, criteria: 0, recent: [] });
+    expect(store.snapshot()).toEqual({
+      count: 0,
+      criteria: 0,
+      recent: [],
+      titles: { chosen: 0, known: [] },
+    });
     expect(seen).toEqual([
       { guid: OTHER, id: 457, name: "Firsty", type: "server_first" },
     ]);

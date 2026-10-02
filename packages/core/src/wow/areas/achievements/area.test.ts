@@ -7,6 +7,7 @@ import {
   achievementsCriteriaDeletedBody,
   achievementsCriteriaUpdateBody,
   achievementsServerFirstAchievementBody,
+  achievementsTitleEarnedBody,
 } from "#test-support/areas/achievements";
 import { packTime } from "#test-support/areas/time";
 import type { AchievementsEvent } from "#wow/areas/achievements/store";
@@ -59,6 +60,7 @@ describe("achievements area wiring", () => {
         count: 1,
         criteria: 2,
         recent: [{ at: LOGIN, id: 6 }],
+        titles: { chosen: 0, known: [] },
       });
       expect(seen).toEqual([]);
     } finally {
@@ -136,6 +138,7 @@ describe("achievements area wiring", () => {
         count: 0,
         criteria: 0,
         recent: [],
+        titles: { chosen: 0, known: [] },
       });
       expect(seen).toEqual([
         { id: 6, type: "achievement_removed" },
@@ -146,6 +149,22 @@ describe("achievements area wiring", () => {
     }
   });
 
+  test("SMSG_TITLE_EARNED joins the known bits and emits title_changed", () => {
+    const { rig, seen } = rigWithEvents();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_TITLE_EARNED,
+        achievementsTitleEarnedBody(110, 1),
+      );
+      expect(rig.handle.state().titles).toEqual({
+        chosen: 0,
+        known: [110],
+      });
+      expect(seen).toEqual([{ bit: 110, earned: true, type: "title_changed" }]);
+    } finally {
+      rig.dispose();
+    }
+  });
   test("the area events reach the world event bus", () => {
     const { rig } = rigWithEvents();
     const areas: string[] = [];

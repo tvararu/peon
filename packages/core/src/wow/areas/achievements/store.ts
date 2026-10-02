@@ -3,6 +3,7 @@ import type {
   AchievementEarned,
   AchievementId,
   ServerFirst,
+  TitleEarned,
 } from "#wow/areas/achievements/protocol";
 import type {
   AchievementData,
@@ -18,11 +19,13 @@ export type AchievementsState = {
   count: number;
   recent: readonly RecentAchievement[];
   criteria: number;
+  titles: { known: readonly number[]; chosen: number };
 };
 export type AchievementsEvent =
   | { type: "achievement_earned"; guid: bigint; self: boolean; id: number }
   | { type: "achievement_removed"; id: number }
   | { type: "criteria_removed"; id: number }
+  | { type: "title_changed"; bit: number; earned: boolean }
   | { type: "server_first"; name: string; guid: bigint; id: number };
 
 function timeKey(at: PackedTime): number {
@@ -35,6 +38,8 @@ export class AchievementStore {
   private readonly events = new Emitter<[AchievementsEvent]>();
   private readonly done = new Map<number, PackedTime>();
   private readonly criteria = new Map<number, CriteriaProgress>();
+  private readonly knownTitles = new Set<number>();
+  private chosenTitle = 0;
   private readonly selfGuid: () => bigint;
 
   constructor(deps: SessionDeps, _core: CoreStores) {
@@ -47,7 +52,15 @@ export class AchievementStore {
       .map(([id, at]) => ({ id, at }))
       .sort((a, b) => timeKey(b.at) - timeKey(a.at))
       .slice(0, RECENT);
-    return { count: this.done.size, recent, criteria: this.criteria.size };
+    return {
+      count: this.done.size,
+      recent,
+      criteria: this.criteria.size,
+      titles: {
+        chosen: this.chosenTitle,
+        known: [...this.knownTitles].sort((a, b) => a - b),
+      },
+    };
   }
 
   onEvent(cb: (event: AchievementsEvent) => void): Unsubscribe {
@@ -93,6 +106,26 @@ export class AchievementStore {
     this.events.emit({ type: "criteria_removed", id: packet.id });
   }
 
+  knows(bit: number): boolean {
+    return this.knownTitles.has(bit);
+  }
+
+  setTitles(bits: readonly number[], chosen: number): void {
+    this.knownTitles.clear();
+    for (const bit of bits) this.knownTitles.add(bit);
+    this.chosenTitle = chosen;
+  }
+
+  titleEarned(packet: TitleEarned): void {
+    if (packet.earned) this.knownTitles.add(packet.bit);
+    else this.knownTitles.delete(packet.bit);
+    this.events.emit({
+      bit: packet.bit,
+      earned: packet.earned,
+      type: "title_changed",
+    });
+  }
+
   serverFirst(packet: ServerFirst): void {
     this.events.emit({
       type: "server_first",
@@ -106,5 +139,7 @@ export class AchievementStore {
     this.events.clear();
     this.done.clear();
     this.criteria.clear();
+    this.knownTitles.clear();
+    this.chosenTitle = 0;
   }
 }
