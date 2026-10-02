@@ -10,10 +10,10 @@
       "evidence": {
         "events": ["spells/channel_end"],
         "window": {
-          "steer": 0,
-          "forMs": 5000,
           "exceptNames": ["Evocation"],
-          "max": 0
+          "forMs": 5000,
+          "max": 0,
+          "steer": 0
         }
       },
       "expect": "GL has a spells/channel_end row with reason cancelled within 2 s of the stop steer, so the channel ended by the stop and not by finishing",
@@ -24,8 +24,8 @@
       "evidence": {
         "events": ["combat/cast"],
         "window": {
-          "steer": 0,
-          "forMs": 2000
+          "forMs": 2000,
+          "steer": 0
         }
       },
       "expect": "GL shows no new combat/cast row from the character in the 5 s after the stop steer; the only combat/cast row allowed in that window is result interrupted for Evocation (spell 12051), which is the cancelled channel's own end, so nothing recast",

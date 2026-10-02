@@ -11,20 +11,24 @@
     },
     {
       "blockedBy": "Reincarnation 20608 is dropped at login (Player::_LoadSpells, CheckSkillLearnedBySpell) for a non-Shaman, and no Shaman preset or Warlock partner exists, so the character has no PLAYER_SELF_RES_SPELL and recover how:self refuses no_self_res",
-      "evidence": { "events": ["life/dead", "life/alive"],
+      "evidence": {
+        "events": ["life/dead", "life/alive"],
         "window": {
           "steer": 0
-        } },
+        }
+      },
       "expect": "GL has life/dead then life/alive with no life/released between, so the character came back in place without a corpse walk",
       "id": "no-corpse-walk",
       "source": "game_log"
     },
     {
       "blockedBy": "Reincarnation 20608 is dropped at login (Player::_LoadSpells, CheckSkillLearnedBySpell) for a non-Shaman, and no Shaman preset or Warlock partner exists, so the character has no PLAYER_SELF_RES_SPELL and recover how:self refuses no_self_res",
-      "evidence": { "events": ["life/dead", "life/alive"],
+      "evidence": {
+        "events": ["life/dead", "life/alive"],
         "window": {
           "steer": 0
-        } },
+        }
+      },
       "expect": "the GL pose at life/alive is within 5 yd of the GL pose at life/dead, so the resurrection happened where the character died",
       "id": "self-res-in-place",
       "source": "game_log"
