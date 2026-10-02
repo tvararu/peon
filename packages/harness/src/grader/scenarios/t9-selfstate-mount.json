@@ -41,12 +41,12 @@
     {
       "evidence": {
         "point": {
-          "x": 7595.16,
-          "y": -6782.24
+          "x": 1873.32,
+          "y": -6218.15
         }
       },
-      "expect": "T final position within 10 yd of the Tranquillien flight master (7595.16, -6782.24, map 530); the truth pose and the live nearby agree on this point",
-      "id": "at-flight-master",
+      "expect": "T final position within 10 yd of Timothy Holland, the Vengeance Landing innkeeper (1873.32, -6218.15, map 571); the truth pose and the live nearby agree on this point",
+      "id": "at-innkeeper",
       "source": "truth"
     },
     {
@@ -64,12 +64,12 @@
   "setup": [
     {
       "body": {
-        "map": 530,
-        "o": 4.007,
-        "x": 7575,
-        "y": -6835,
-        "z": 88.66,
-        "zone": 3433
+        "map": 571,
+        "o": 4.7,
+        "x": 1923.72,
+        "y": -5990,
+        "z": 9.3,
+        "zone": 495
       },
       "endpoint": "position"
     },
@@ -87,6 +87,6 @@
     }
   ],
   "steers": [],
-  "task": "Get on your mount, ride to the flight master in Tranquillien, then get off.",
+  "task": "Get on your mount, ride to Timothy Holland, the innkeeper at Vengeance Landing, then get off.",
   "tier": 9
 }
