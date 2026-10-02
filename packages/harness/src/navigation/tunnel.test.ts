@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { NavPoint } from "@peon/core";
-import { groundError } from "#harness/navigation/native";
+import { groundError, type NativeMap } from "#harness/navigation/native";
 import { native, navigation } from "#test-support/navigation-fixtures";
 
 const UNKNOWN = "pathfind_find_height failed (UNKNOWN_HEIGHT)";
@@ -50,6 +50,31 @@ describe("a tunnel floor under a multi-floor column", () => {
     expect(() => navigation(map).plan(530, start, { ...end, z: 6 })).toThrow(
       /UNKNOWN_HEIGHT/,
     );
+  });
+});
+
+describe("a tunnel corridor whose mesh corners float above the ground", () => {
+  const start: NavPoint = { x: 0, y: 0, z: 0 };
+  const end = { x: 10, y: 0, z: 0 };
+  const corridor = (corner: NavPoint, over: Partial<NativeMap> = {}) =>
+    native({
+      findHeight: (from, x) => {
+        if (from.x < 5 && x >= 5) throw groundError(UNKNOWN);
+        return 0;
+      },
+      findPath: (from, to) => [from, corner, to],
+      lineOfSight: (a, b) => a.x === b.x || a.y !== 0 || b.y !== 0,
+      ...over,
+    });
+
+  test("walks the ground when no straight line is clear", () => {
+    const route = navigation(corridor({ x: 5, y: 1, z: 7 })).plan(
+      530,
+      start,
+      end,
+    );
+    expect(route.points.at(-1)).toMatchObject(end);
+    expect(route.length).toBeGreaterThan(10);
   });
 });
 

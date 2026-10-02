@@ -3,7 +3,6 @@ import {
   CELL_HEIGHT,
   distance2d,
   GROUND_ERROR,
-  MESH_HEIGHT,
   type NavPoint,
   WALKABLE_CLIMB,
 } from "@peon/core";
@@ -12,11 +11,14 @@ import {
   clearAbove,
   columnHeights,
   continuousFloor,
-  floorError,
   groundFloors,
-  nearestFloorZ,
   settleStart,
 } from "#harness/navigation/column";
+import {
+  checkDestination,
+  destinationFloor,
+  snapDestination,
+} from "#harness/navigation/destination";
 import {
   connectedHeight,
   stepHeight,
@@ -66,7 +68,11 @@ type GroundWalk = {
   rules: RouteRules;
 };
 type GroundStep = { point: NavPoint; heights: number[] };
-export type RouteRules = { climb: number; columnFallback: boolean };
+export type RouteRules = {
+  climb: number;
+  columnFallback: boolean;
+  trustWalk?: boolean;
+};
 type StepRules = RouteRules & { ambiguity: string; continuity: boolean };
 const STRICT: RouteRules = { climb: 0, columnFallback: false };
 
@@ -264,10 +270,23 @@ function columnRoute(
   candidates: readonly (readonly NavPoint[])[],
   refusal: Error,
 ): GroundRoute {
-  for (const [index, points] of candidates.entries()) {
-    const climb = index === 0 ? CORNER_RISE : 0;
+  const [corridor] = candidates;
+  const attempts: { points: readonly NavPoint[]; rules: RouteRules }[] =
+    candidates.map((points, index) => ({
+      points,
+      rules: {
+        climb: index === 0 ? CORNER_RISE : 0,
+        columnFallback: true,
+      },
+    }));
+  if (corridor !== undefined)
+    attempts.push({
+      points: corridor,
+      rules: { climb: CORNER_RISE, columnFallback: true, trustWalk: true },
+    });
+  for (const { points, rules } of attempts) {
     try {
-      return new GroundRoute(points, map, { climb, columnFallback: true });
+      return new GroundRoute(points, map, rules);
     } catch (error) {
       if (!isGroundError(error)) throw error;
     }
@@ -306,7 +325,7 @@ function groundPath(
     const corner = stepCorner(map, walk, from, to);
     const agrees =
       i < corners.length - 1
-        ? meshCornerOnGround(map, corner, to.z, walk.rules.columnFallback)
+        ? walk.rules.trustWalk === true || meshCornerOnGround(map, corner, to.z)
         : Math.abs(corner.z - to.z) <= GROUND_ERROR;
     if (!agrees)
       throw groundError("path corner disagrees with connected ground");
@@ -350,11 +369,9 @@ function meshCornerOnGround(
   map: NativeMap,
   ground: NavPoint,
   meshZ: number,
-  columnFallback: boolean,
 ): boolean {
   const rise = meshZ - ground.z;
-  const limit = columnFallback ? MESH_HEIGHT : CORNER_RISE;
-  if (rise < -GROUND_ERROR || rise > limit) return false;
+  if (rise < -GROUND_ERROR || rise > CORNER_RISE) return false;
   return map
     .findHeights(ground.x, ground.y)
     .every(
@@ -437,37 +454,6 @@ function checkStart(map: NativeMap, point: NavPoint): number[] {
   if (!clearAbove(heights, point.z))
     throw groundError("ambiguous ground column at start");
   return heights;
-}
-
-function snapDestination(map: NativeMap, point: NavPoint): NavPoint {
-  validateNativePoint(point);
-  const heights = columnHeights(map, point.x, point.y);
-  const hit = nearestFloorZ(heights, point.z);
-  if (hit === undefined) {
-    checkDestination(map, point);
-    return point;
-  }
-  return { ...point, z: hit.snapped };
-}
-
-function checkDestination(map: NativeMap, point: NavPoint): void {
-  validateNativePoint(point);
-  const heights = columnHeights(map, point.x, point.y);
-  const onSurface = heights.some(
-    (height) => Math.abs(height - point.z) <= GROUND_ERROR,
-  );
-  if (onSurface && clearAbove(heights, point.z)) return;
-  throw floorError("destination is not on a ground floor", heights);
-}
-
-function destinationFloor(map: NativeMap, x: number, y: number): number {
-  const heights = columnHeights(map, x, y);
-  const floors = groundFloors(heights);
-  const floor = floors[0];
-  if (floor === undefined) throw groundError("ground height unavailable");
-  if (floors.length > 1)
-    throw floorError("ambiguous ground column at destination", heights);
-  return floor;
 }
 
 function loadCorridor(map: NativeMap, from: NavPoint, to: NavPoint): void {
