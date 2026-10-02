@@ -189,3 +189,31 @@ describe("FriendStore", () => {
     expect(must(store.all()[0]).name).toBe("Thrall");
   });
 });
+
+describe("FriendStore.setNote", () => {
+  test("setNote changes the note and emits the update event", () => {
+    const store = new FriendStore();
+    const events: FriendEvent[] = [];
+    store.set([makeFriend({ guid: 1n, name: "Thrall", note: "tank" })]);
+    store.onEvent((e) => events.push(e));
+    expect(store.setNote(1n, "peon")).toBe(true);
+    expect(must(store.all()[0]).note).toBe("peon");
+    expect(events.map((e) => e.type)).toEqual(["friend-online"]);
+  });
+
+  test("setNote truncates to 48 UTF-8 bytes", () => {
+    const store = new FriendStore();
+    store.set([makeFriend({ guid: 1n, name: "Thrall" })]);
+    store.onEvent(() => undefined);
+    expect(store.setNote(1n, "x".repeat(60))).toBe(true);
+    expect(must(store.all()[0]).note).toBe("x".repeat(48));
+  });
+
+  test("setNote on an unknown guid changes nothing", () => {
+    const store = new FriendStore();
+    const events: FriendEvent[] = [];
+    store.onEvent((e) => events.push(e));
+    expect(store.setNote(9n, "peon")).toBe(false);
+    expect(events).toEqual([]);
+  });
+});
