@@ -13,11 +13,11 @@ import {
 } from "#test-support/areas/auction";
 import { itemsWorld } from "#test-support/areas/items-world";
 import { elapse, withFakeTimers } from "#test-support/fake-time";
+import { AUCTION_ANSWER_MS } from "#wow/areas/auction/commands";
 import {
   buildAuctionHello,
   buildAuctionSellItem,
 } from "#wow/areas/auction/protocol";
-import { AUCTION_ANSWER_MS } from "#wow/areas/auction/commands";
 import { auctioneerKind } from "#wow/areas/auction/store";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import { ITEM_FIELDS } from "#wow/protocol/update-fields";
