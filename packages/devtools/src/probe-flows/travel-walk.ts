@@ -14,16 +14,33 @@ async function run({ handle, args }: FlowContext): Promise<Json> {
   const start = handle.getControlState().pose;
   if (!start) throw new Error("travel-walk needs a world pose: log in first.");
   const target = { x: point.x, y: point.y, z: z ?? start.z };
-  const route: { status: string; traveled: number; x: number; y: number; z: number }[] = [];
+  const route: {
+    status: string;
+    traveled: number;
+    x: number;
+    y: number;
+    z: number;
+  }[] = [];
   let traveled = 0;
   for (let i = 0; i < MAX_STEPS; i++) {
     const walked = await handle.walkTowardPoint(target, STEP_YARDS);
     traveled += walked.traveled;
     const end = walked.pose;
-    route.push({ status: walked.status, traveled: walked.traveled, x: end.x, y: end.y, z: end.z });
+    route.push({
+      status: walked.status,
+      traveled: walked.traveled,
+      x: end.x,
+      y: end.y,
+      z: end.z,
+    });
     if (walked.status !== "completed" && walked.traveled === 0)
-      return { outcome: { reason: walked.reason ?? null, status: walked.status }, route, traveled };
-    if (Math.hypot(end.x - point.x, end.y - point.y) <= 2) return { outcome: { status: "arrived" }, route, traveled };
+      return {
+        outcome: { reason: walked.reason ?? null, status: walked.status },
+        route,
+        traveled,
+      };
+    if (Math.hypot(end.x - point.x, end.y - point.y) <= 2)
+      return { outcome: { status: "arrived" }, route, traveled };
   }
   return { outcome: { status: "steps_exhausted" }, route, traveled };
 }
