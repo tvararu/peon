@@ -9,7 +9,7 @@ describe("battlegrounds area wiring", () => {
       expect([...BATTLEGROUNDS_OPCODES.owns]).toContain(
         "MSG_INSPECT_HONOR_STATS",
       );
-      update(0x0b_00n, { byte2: 0x01, playerFlags: 0x2_00 });
+      update(0x0b_00n, { byte2: 0x01_00, playerFlags: 0x2_00 });
       expect(rig.handle.state().self).toMatchObject({
         flagged: true,
         wantsFlag: true,

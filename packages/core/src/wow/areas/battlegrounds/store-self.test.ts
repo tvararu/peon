@@ -14,7 +14,7 @@ describe("battlegrounds store-self flags (Entities/Player/Player.h:467-477)", ()
     const seen: BattlegroundsEvent[] = [];
     rig.handle.onEvent((event) => seen.push(event));
     try {
-      update(0x0b_00n, { byte2: 0x01, playerFlags: 0x2_00 });
+      update(0x0b_00n, { byte2: 0x01_00, playerFlags: 0x2_00 });
       const event = seen.find((candidate) => candidate.type === "pvp_flag");
       if (!event) throw new Error("no pvp_flag event");
       expect({ ...flags(event) }).toEqual({
@@ -37,7 +37,7 @@ describe("battlegrounds store-self flags (Entities/Player/Player.h:467-477)", ()
     const { rig, update } = battlegroundsScene();
     try {
       update(0x0b_00n, {
-        byte2: 0x0c,
+        byte2: 0x0c_00,
         playerFlags: 0x4_01_00,
       });
       const self = rig.handle.state().self;
@@ -45,6 +45,19 @@ describe("battlegrounds store-self flags (Entities/Player/Player.h:467-477)", ()
       expect(self.contested).toBe(true);
       expect(self.ffa).toBe(true);
       expect(self.sanctuary).toBe(true);
+    } finally {
+      rig.dispose();
+    }
+  });
+
+  test("sheath byte 0 alone is not a pvp flag", () => {
+    const { rig, update } = battlegroundsScene();
+    try {
+      update(0x0b_00n, { byte2: 0x0d, playerFlags: 0x2_00 });
+      const self = rig.handle.state().self;
+      expect(self.flagged).toBe(false);
+      expect(self.ffa).toBe(false);
+      expect(self.sanctuary).toBe(false);
     } finally {
       rig.dispose();
     }

@@ -63,6 +63,7 @@ export function battlegroundsSelfOf(
   if (!entity || entity.objectType !== ObjectType.PLAYER) return undefined;
   const playerFlags = read(entity, PLAYER_FIELDS.FLAGS.offset) ?? 0;
   const byte2 = read(entity, UNIT_FIELDS.BYTES_2.offset) ?? 0;
+  const pvpByte = (byte2 >>> 8) & 0xff;
   const kills = read(entity, PLAYER_FIELDS.KILLS.offset);
   const today = read(entity, PLAYER_FIELDS.TODAY_CONTRIBUTION.offset);
   const yesterday = read(entity, PLAYER_FIELDS.YESTERDAY_CONTRIBUTION.offset);
@@ -72,13 +73,13 @@ export function battlegroundsSelfOf(
   return {
     arenaPoints: arena,
     contested: (playerFlags & PVP_CONTESTED_FLAG) !== 0,
-    ffa: (byte2 & 0x04) !== 0,
-    flagged: (byte2 & 0x01) !== 0,
+    ffa: (pvpByte & 0x04) !== 0,
+    flagged: (pvpByte & 0x01) !== 0,
     honor,
     killsToday: kills === undefined ? undefined : kills & 0xff_ff,
     killsYesterday: kills === undefined ? undefined : (kills >>> 16) & 0xff_ff,
     lifetimeKills: lifetime,
-    sanctuary: (byte2 & 0x08) !== 0,
+    sanctuary: (pvpByte & 0x08) !== 0,
     timer: (playerFlags & PVP_TIMER_FLAG) !== 0,
     today,
     wantsFlag: (playerFlags & PVP_WANTS_FLAG) !== 0,

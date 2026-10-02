@@ -14,7 +14,7 @@ describe("battlegrounds acts", () => {
       const sent = rig.sent.at(-1);
       expect(sent?.opcode).toBe(GameOpcode.CMSG_TOGGLE_PVP);
       expect([...(sent?.body ?? [])]).toEqual([1]);
-      update(BG_ME, { byte2: 0x01, playerFlags: 0x2_00 });
+      update(BG_ME, { byte2: 0x01_00, playerFlags: 0x2_00 });
       const result = await pending;
       expect(result).toEqual({ kind: "set", on: true });
     } finally {
