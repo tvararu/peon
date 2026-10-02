@@ -39,3 +39,39 @@ describe("objects-fish flow", () => {
     ).rejects.toThrow("objects-fish needs seconds=");
   });
 });
+
+describe("objects-fish flow staging arguments", () => {
+  test("faces the water before the cast", async () => {
+    const ctx = context({ facing: "1.5" });
+    await flows.get("objects-fish")?.run(ctx);
+    expect(ctx.handle.face).toHaveBeenCalledWith(1.5);
+    const faceMock = ctx.handle.face as unknown as {
+      mock: { invocationCallOrder: number[] };
+    };
+    const castMock = ctx.handle.cast as unknown as {
+      mock: { invocationCallOrder: number[] };
+    };
+    expect(faceMock.mock.invocationCallOrder[0]).toBeLessThan(
+      castMock.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  test("uses the own bobber when the use argument names an early use", async () => {
+    const ctx = context({ use: "0.1" });
+    Object.defineProperty(ctx.handle.objects, "state", {
+      value: mock(
+        () => ({ fishing: { bobber: BOBBER, phase: "waiting" } }) as never,
+      ),
+    });
+    const use = mock(() => ({ ok: true as const }));
+    Object.defineProperty(ctx.handle.objects, "act", { value: { use } });
+    await flows.get("objects-fish")?.run(ctx);
+    expect(use).toHaveBeenCalledWith(BOBBER);
+  });
+
+  test("rejects a bad facing argument", async () => {
+    await expect(
+      flows.get("objects-fish")?.run(context({ facing: "north" })),
+    ).rejects.toThrow("objects-fish needs facing=");
+  });
+});

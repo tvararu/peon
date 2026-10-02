@@ -26,9 +26,28 @@ function parseBobber(text: string | undefined): bigint | undefined {
   return BigInt(text);
 }
 
+function parseFacing(text: string | undefined): number | undefined {
+  if (text === undefined) return undefined;
+  const radians = Number(text);
+  if (!Number.isFinite(radians))
+    throw new Error(`objects-fish needs facing=<radians>, not "${text}".`);
+  return radians;
+}
+
+function parseUse(text: string | undefined): number | undefined {
+  if (text === undefined) return undefined;
+  const seconds = Number(text);
+  if (!Number.isFinite(seconds) || seconds < 0 || seconds > 120)
+    throw new Error(`objects-fish needs use=<0-120>, not "${text}".`);
+  return seconds;
+}
+
 async function run({ handle, args, settle }: FlowContext): Promise<Json> {
   const seconds = parseSeconds(args["seconds"]);
   const bobberArg = parseBobber(args["bobber"]);
+  const facing = parseFacing(args["facing"]);
+  const useAfter = parseUse(args["use"]);
+  if (facing !== undefined) handle.face(facing);
   const seen: Json[] = [];
   const off = handle.objects.onEvent((event) => {
     if (event.type === "fish_hooked")
@@ -37,11 +56,16 @@ async function run({ handle, args, settle }: FlowContext): Promise<Json> {
       seen.push({ event: event.type });
   });
   handle.cast(FISHING_SPELL, handle.getControlState().selfGuid);
+  if (useAfter !== undefined) {
+    await Bun.sleep(useAfter * 1000);
+    const bobber = handle.objects.state().fishing?.bobber;
+    if (bobber !== undefined) handle.objects.act.use(bobber);
+  }
   const deadline = Date.now() + seconds * 1000;
   await settle(() =>
-    handle.objects.state().fishing?.phase === "hooked"
-      ? handle.objects.state().fishing
-      : undefined,
+    handle.objects.state().fishing?.bobber === undefined
+      ? undefined
+      : handle.objects.state().fishing,
   );
   const state = handle.objects.state().fishing;
   let bobber: Json = null;
@@ -70,5 +94,5 @@ export const flow: ProbeFlow = {
   name: "objects-fish",
   run,
   usage:
-    "--flow objects-fish [--arg seconds=<s>] [--arg bobber=<0x...>]: cast Fishing (7620) on yourself, wait for the hooked phase, then report the fishing state and the fish events.",
+    "--flow objects-fish [--arg seconds=<s>] [--arg bobber=<0x...>] [--arg facing=<radians>] [--arg use=<seconds-after-cast>]: cast Fishing (7620) on yourself, optionally face first and use the own bobber once after <use> seconds, then report the fishing state and the fish events.",
 };
