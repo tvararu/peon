@@ -9,20 +9,37 @@ import {
 import { PacketReader, PacketWriter } from "#wow/protocol/packet";
 
 describe("GuildCommand", () => {
-  test("INVITE is 1", () => {
-    expect(GuildCommand.INVITE).toBe(1);
+  test("matches AzerothCore's GuildCommandType (Guild.h:97-115)", () => {
+    expect(GuildCommand).toMatchObject({
+      CREATE: 0,
+      INVITE: 1,
+      QUIT: 3,
+      ROSTER: 5,
+      PROMOTE: 6,
+      DEMOTE: 7,
+      REMOVE: 8,
+      CHANGE_LEADER: 10,
+      EDIT_MOTD: 11,
+      GUILD_CHAT: 13,
+      FOUNDER: 14,
+      CHANGE_RANK: 16,
+      PUBLIC_NOTE: 19,
+      VIEW_TAB: 21,
+      MOVE_ITEM: 22,
+      REPAIR: 25,
+    });
   });
+});
 
-  test("QUIT is 2", () => {
-    expect(GuildCommand.QUIT).toBe(2);
-  });
-
-  test("PROMOTE is 3", () => {
-    expect(GuildCommand.PROMOTE).toBe(3);
-  });
-
-  test("FOUNDER is 0x0C", () => {
-    expect(GuildCommand.FOUNDER).toBe(0x0c);
+describe("GuildCommandResult", () => {
+  test("matches AzerothCore's GuildCommandError bank rows (Guild.h:138-142)", () => {
+    expect(GuildCommandResult).toMatchObject({
+      GUILD_UNK1: 20,
+      GUILD_WITHDRAW_LIMIT: 25,
+      GUILD_NOT_ENOUGH_MONEY: 26,
+      GUILD_BANK_FULL: 28,
+      GUILD_ITEM_NOT_FOUND: 29,
+    });
   });
 });
 

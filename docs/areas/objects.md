@@ -14,15 +14,26 @@ s; `pages` caches each read page chain by its first page id; the area also loads
 holds the state of the `AreaTrigger.dbc` catalog, the current map, the
 triggers the character stands in and the triggers it has sent this
 session; `lastMessage` holds the last trigger message and when it
-arrived. The area emits `used`, `trigger_sent`, `trigger_message`,
-`page_read`, `page_shown` and `page_unanswered` events, and its acts
+arrived; `anims` keeps the last object animation by guid and
+`despawning` keeps the guids the server played the despawn animation for
+(bounded at 256), both cleared for a guid when it disappears; `fishing`
+holds the fishing phase (`cast`, then `waiting` once the character's own
+bobber appears, then `hooked` on its splash animation) and the bobber
+guid, cleared when the fish is hooked-no-more, escapes, the cast fails
+or the bobber disappears. The area emits `used`, `trigger_sent`,
+`trigger_message`, `page_read`, `page_shown`, `page_unanswered`,
+`fish_hooked`, `fish_not_hooked` and `fish_escaped` events, and its acts
 `use(guid)` uses one object by hand, `open(guid, spellId)` casts an
 open-lock spell at one object, `useItemOn(entry, target)` uses a carried
 key on one object, `openLockSpell(entry)` picks the spell or key for a
 lock, `enterTrigger(id)` sends one trigger by hand, and
 `readPage(pageId)` resolves once with the chained pages, timing out
-after 5 s. The harness `use` tool opens locked chests and quest objects
-and reads shrines, plaques and books.
+after 5 s. The harness `use` tool opens locked chests and quest objects,
+reads shrines, plaques and books, and fishes (`do: fish` casts Fishing,
+uses the bobber on the bite and takes the catch; a hooked fish needs its
+loot window opened before the catch can be taken, so the tool calls the
+rewards open path with the window watching first, as the server answers a
+used ready bobber with fishing loot, `Entities/GameObject/GameObject.cpp:1789-1792`).
 
 ## Wire notes
 
@@ -84,6 +95,32 @@ and reads shrines, plaques and books.
   object's.
   - A dynamic object sends the despawn animation with its own guid when
     it is removed (`Entities/DynamicObject/DynamicObject.cpp:182`).
+- `SMSG_GAMEOBJECT_CUSTOM_ANIM` is the object guid and then a `uint32`
+  anim (`Entities/GameObject/GameObject.cpp:2148-2154`).
+  `SMSG_GAMEOBJECT_DESPAWN_ANIM` is one guid
+  (`Entities/Object/Object.cpp:2189-2194`), which a deleted game object
+  sends when it is removed.
+  `SMSG_FISH_NOT_HOOKED` and `SMSG_FISH_ESCAPED` are empty
+  (`Entities/GameObject/GameObject.cpp:1796-1803`, `:626-640`).
+- A fishing cast (spell 7620, Fishing) moves `fishing` to `cast` on the
+  character's own `SMSG_SPELL_START`; a failed cast while still in `cast`
+  clears it. The own bobber (entry 35591, its `createdBy` the self guid)
+  moves the phase to `waiting`; the bobber's splash animation sends
+  `SMSG_GAMEOBJECT_CUSTOM_ANIM` in the last 5 s and moves it to `hooked`
+  with a `fish_hooked` event
+  (`Entities/GameObject/GameObject.cpp:498-521`). An early use answers
+  an empty `SMSG_FISH_NOT_HOOKED` and no use after the splash an empty
+  `SMSG_FISH_ESCAPED`, both clearing the state
+  (`Entities/GameObject/GameObject.cpp:1796-1803`, `:626-640`).
+- Fishing stage on a fresh `eversong10-fishing` character: auto-equip pole
+  6256 from bag 255 slot 28 into slot 15, move it with an online
+  `soap gm tele LakeElrendar` and log in again, then cast with no target and
+  without a `facing` argument. The Lake Elrendar frogs kill a level 10
+  character within a minute and a dead character's cast fails with result
+  0x17 (`SPELL_FAILED_CASTER_DEAD`), so `soap gm revive` and the tele go
+  before each try. About a third of the casts land in water; the rest fail
+  with 0x3c (`SPELL_FAILED_NOT_HERE`, `Spells/Spell.cpp:1479`). The splash
+  came 10.5 to 10.7 s into the 17 s channel and the escape 4 s after it.
 - `CMSG_GAMEOBJ_USE` is one `ObjectGuid` (`Handlers/SpellHandler.cpp:329-347`).
   The server drops the use in silence when the object is too far; a
   type-2 quest giver answers by preparing and sending its gossip menu.
@@ -196,8 +233,7 @@ x and y on the surface never enters it.
 
 ## Left out
 
-- `SMSG_GAMEOBJECT_CUSTOM_ANIM`, `SMSG_GAMEOBJECT_DESPAWN_ANIM`,
-  `SMSG_FISH_NOT_HOOKED` and `SMSG_FISH_ESCAPED`: built by `objects-6`.
+Nothing left out: every owned opcode is handled.
 
 ## Capabilities row
 
@@ -216,3 +252,7 @@ x and y on the surface never enters it.
 | `SMSG_GAMEOBJECT_PAGETEXT` | `live` | probe flow `objects-use` (`--arg entry=180516`, the Shrine of Dath'Remar, a type-10 goober with page 2936) on a `fresh` character moved with `soap gm tele ShrineOfDathRemar`, exit 0; the flow reported `shown` with guid 0xf11002c124000887 and page 2936 | `Entities/GameObject/GameObject.cpp:1630-1634` |
 | `CMSG_CAST_SPELL` | `live` | probe flow `objects-open` (`--arg entry=161557`) on an `elwynn1` character given quest 3904, raised to level 20 so the vineyard thugs could not interrupt the cast, and moved with `soap gm tele NorthshireVineyards`, exit 0 (run `tmp/probe/FAC6ABA6E7843-20260928T134300Z`); the flow found Milly's Harvest (`0xf11002771500078e`), walked to 2.0 yards, chose spell 6478 from the lock, and sent the cast with the object target; the server answered `SMSG_SPELL_START` and then `SMSG_LOOT_RESPONSE` for the crate (no items offered). An earlier level 1 try was interrupted (`SMSG_CAST_FAILED` result 40) when thugs killed the character | `Handlers/SpellHandler.cpp:441-445` |
 | `CMSG_USE_ITEM` | `live` | probe flow `objects-open` (`--arg entry=185220`, the Massive Treasure Chest, a type-3 chest whose Data0 is Lock.dbc entry 1726, a lock of type item that needs the Derelict Caravan Chest Key, item 31705) on a `max80` character given the key with `soap gm items 31705:1` (delivered by mail), retrieved at the Ironforge mailbox with probe `--send CMSG_GET_MAIL_LIST` and `CMSG_MAIL_TAKE_ITEM` (the mail then held no item), and moved with `soap gm tele DerelictCaravan`, exit 0 (kept packet trace lines 320-323 and 455): the flow sent `CMSG_GAMEOBJ_USE`, `CMSG_GAMEOBJ_REPORT_USE` and then `CMSG_USE_ITEM` with the key on the chest; the server answered `SMSG_SPELL_START` 8 ms later and `SMSG_LOOT_RESPONSE` at the end of the cast (no items offered). The object-target body is covered by builder tests (`item.test.ts`) and the key use by `useItemOn` in `runtime-open.test.ts` (Bamboo Cage Key 12301, on-use spell 3366) | `Handlers/SpellHandler.cpp:67-73`, `:193` |
+| `SMSG_GAMEOBJECT_CUSTOM_ANIM` | `live` | probe flow `objects-fish` (`--arg use=hooked`) on an `eversong10-fishing` character with pole 6256 equipped, moved with an online `soap gm tele LakeElrendar` and logged in again, exit 0 (run `tmp/probe/objects-6-hooked1`): the cast (spell 7620, no target) got `MSG_CHANNEL_START` and the bobber (entry 35591); the splash `SMSG_GAMEOBJECT_CUSTOM_ANIM` for the bobber guid arrived 10.47 s into the 17 s channel and the area emitted `fish_hooked`; the flow used the bobber at once and the server answered `SMSG_LOOT_RESPONSE` for it 10 ms later (the rewards store, not asked to open it, drops that window; the server released it on logout) | `Entities/GameObject/GameObject.cpp:2148-2154` |
+| `SMSG_GAMEOBJECT_DESPAWN_ANIM` | `live` | the same flow (`--arg use=3`, run `tmp/probe/objects-6-proof-noth`) and the escape run below: the bobber's guid comes back in the despawn animation each time the bobber despawns (after `SMSG_FISH_NOT_HOOKED`, after `SMSG_FISH_ESCAPED`, and after the channel is cancelled), as `GameObject::Delete` sends it | `Entities/Object/Object.cpp:2189-2194` |
+| `SMSG_FISH_NOT_HOOKED` | `live` | the same flow (`--arg use=3`, run `tmp/probe/objects-6-proof-noth`): the use 3 s after the cast, before the splash, was answered by the empty `SMSG_FISH_NOT_HOOKED` and then the despawn animation; the flow reported `fish_not_hooked` and the state cleared | `Entities/GameObject/GameObject.cpp:1796-1803` |
+| `SMSG_FISH_ESCAPED` | `live` | the same flow with no use (`--arg seconds=40`, run `tmp/probe/objects-6-escapedb3`): the splash `SMSG_GAMEOBJECT_CUSTOM_ANIM` came 10.74 s after the cast and the empty `SMSG_FISH_ESCAPED` 4 s later, then `MSG_CHANNEL_UPDATE` and the despawn animation; the flow reported `fish_hooked` and `fish_escaped` | `Entities/GameObject/GameObject.cpp:626-640` |

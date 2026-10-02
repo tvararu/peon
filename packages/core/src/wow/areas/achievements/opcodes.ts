@@ -14,9 +14,5 @@ export const ACHIEVEMENTS_OPCODES = {
   uses: [],
   stubs: [],
   dead: [],
-  unseen: [
-    "SMSG_SERVER_FIRST_ACHIEVEMENT",
-    "SMSG_CRITERIA_DELETED",
-    "SMSG_ACHIEVEMENT_DELETED",
-  ],
+  unseen: ["SMSG_SERVER_FIRST_ACHIEVEMENT"],
 } as const satisfies AreaOpcodes;

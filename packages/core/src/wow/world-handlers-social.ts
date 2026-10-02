@@ -23,8 +23,10 @@ function ensureNameQuery(conn: WorldConn, guid: bigint): void {
 }
 export function handleContactList(conn: WorldConn, r: PacketReader): void {
   const list = parseContactList(r);
-  conn.friendStore.set(collectFriends(conn, list.contacts));
-  conn.ignoreStore.set(collectIgnored(conn, list.contacts));
+  if (list.listMask & SocialFlag.FRIEND)
+    conn.friendStore.set(collectFriends(conn, list.contacts));
+  if (list.listMask & SocialFlag.IGNORED)
+    conn.ignoreStore.set(collectIgnored(conn, list.contacts));
 }
 
 function collectFriends(

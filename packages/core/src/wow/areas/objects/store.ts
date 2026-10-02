@@ -1,9 +1,18 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
 import type { DisplayCatalog } from "#wow/areas/objects/display-catalog";
+import { objectFields } from "#wow/areas/objects/fields";
 import type { LockCatalog } from "#wow/areas/objects/lock-catalog";
 import type {
   AreaTriggerMessage,
+  CastFailed,
+  CustomAnim,
+  DespawnAnim,
   PageTextReply,
+  SpellStart,
+} from "#wow/areas/objects/protocol";
+import {
+  DESPAWN_ANIM_MAX_ENTRIES,
+  FISHING_SPELL,
 } from "#wow/areas/objects/protocol";
 import {
   type GameObjectTemplate,
@@ -45,7 +54,12 @@ export type ObjectsState = {
   };
   lastMessage: { text: string; at: number } | undefined;
   displays: DisplayCatalog | undefined;
+  anims: ReadonlyMap<bigint, number>;
+  despawning: ReadonlySet<bigint>;
+  fishing: FishingState | undefined;
 };
+export type FishingPhase = "cast" | "waiting" | "hooked";
+export type FishingState = { bobber: bigint | undefined; phase: FishingPhase };
 export type OpenUseRecord = UseRecord & {
   how: "use" | "cast";
   spellId?: number;
@@ -62,7 +76,10 @@ export type ObjectsEvent =
   | { type: "trigger_message"; text: string }
   | { type: "page_read"; firstPageId: number; pages: readonly PageText[] }
   | { type: "page_shown"; guid: bigint; pageId: number }
-  | { type: "page_unanswered"; pageId: number };
+  | { type: "page_unanswered"; pageId: number }
+  | { type: "fish_hooked"; bobber: bigint }
+  | { type: "fish_not_hooked" }
+  | { type: "fish_escaped" };
 
 export class ObjectsStore {
   private readonly events = new Emitter<[ObjectsEvent]>();
@@ -86,6 +103,10 @@ export class ObjectsStore {
   private readonly chained = new Map<number, PageText[]>();
   private readonly nexts = new Map<number, number>();
   private readonly pendingShown = new Set<bigint>();
+  private readonly anims = new Map<bigint, number>();
+  private readonly despawning = new Map<bigint, number>();
+  private despawnOrder = 0;
+  private fishing: FishingState | undefined;
 
   constructor(deps: SessionDeps, core: CoreStores) {
     this.deps = deps;
@@ -108,7 +129,78 @@ export class ObjectsStore {
       },
       lastMessage: this.lastMessage && { ...this.lastMessage },
       displays: this.displays,
+      anims: this.anims,
+      despawning: new Set(this.despawning.keys()),
+      fishing: this.fishing && { ...this.fishing },
     };
+  }
+
+  customAnim({ guid, anim }: CustomAnim): void {
+    this.anims.set(guid, anim);
+    if (
+      this.fishing &&
+      this.fishing.bobber === guid &&
+      this.fishing.phase === "waiting"
+    ) {
+      this.fishing = { bobber: guid, phase: "hooked" };
+      this.events.emit({ type: "fish_hooked", bobber: guid });
+    }
+  }
+
+  despawnAnim({ guid }: DespawnAnim): void {
+    this.despawning.set(guid, this.despawnOrder++);
+    while (this.despawning.size > DESPAWN_ANIM_MAX_ENTRIES) {
+      let oldest: bigint | undefined;
+      let at = Number.POSITIVE_INFINITY;
+      for (const [id, order] of this.despawning) {
+        if (order < at) {
+          at = order;
+          oldest = id;
+        }
+      }
+      if (oldest === undefined) break;
+      this.despawning.delete(oldest);
+    }
+  }
+
+  spellStarted(packet: SpellStart): void {
+    if (packet.caster !== this.deps.selfGuid()) return;
+    if (packet.spellId !== FISHING_SPELL) return;
+    if (this.fishing) return;
+    this.fishing = { bobber: undefined, phase: "cast" };
+  }
+
+  spellFailed(packet: CastFailed): void {
+    if (packet.spellId !== FISHING_SPELL) return;
+    if (this.fishing?.phase !== "cast") return;
+    this.fishing = undefined;
+  }
+
+  bobberSeen(guid: bigint): void {
+    if (this.fishing?.phase !== "cast") return;
+    const entity = this.deps.getEntity(guid);
+    if (entity?.objectType !== GAMEOBJECT_TYPE) return;
+    const fields = objectFields(entity);
+    if (fields.createdBy !== this.deps.selfGuid()) return;
+    this.fishing = { bobber: guid, phase: "waiting" };
+  }
+
+  entityGone(guid: bigint): void {
+    this.anims.delete(guid);
+    this.despawning.delete(guid);
+    if (this.fishing?.bobber === guid) this.fishing = undefined;
+  }
+
+  notHooked(): void {
+    if (!this.fishing) return;
+    this.fishing = undefined;
+    this.events.emit({ type: "fish_not_hooked" });
+  }
+
+  escaped(): void {
+    if (!this.fishing) return;
+    this.fishing = undefined;
+    this.events.emit({ type: "fish_escaped" });
   }
 
   onEvent(cb: (event: ObjectsEvent) => void): Unsubscribe {

@@ -1,16 +1,18 @@
 # achievements
 
 The `achievements` area keeps the character's completed achievements and
-criteria counters. World-service code reads it through
-`session.areas.achievements.state()`: the number of completed
-achievements, the five newest with their dates (`recent`, newest first)
-and the number of criteria with progress. The server sends the full set at
-login, a criteria update on every kill or level, and an earned notice for
-the character and for players in range. The area emits
+criteria counters, plus the known and chosen titles. World-service code
+reads it through `session.areas.achievements.state()`: the number of
+completed achievements, the five newest with their dates (`recent`,
+newest first), the number of criteria with progress, and `titles`
+(`known` bit indexes, `chosen` bit index, 0 for none). The server sends
+the full set at login, a criteria update on every kill or level, and an
+earned notice for the character and for players in range. The area emits
 `achievement_earned` (with `self` true for the character's own),
-`achievement_removed`, `criteria_removed` and `server_first`. A criteria
-update emits no event, since it arrives on every kill. Events and the
-snapshot carry achievement ids, not names.
+`achievement_removed`, `criteria_removed`, `title_changed` and
+`server_first`. A criteria update emits no event, since it arrives on
+every kill. Events and the snapshot carry achievement ids, not names,
+and title bit indexes, not `CharTitles` ids.
 
 ## Wire notes
 
@@ -41,14 +43,28 @@ snapshot carry achievement ids, not names.
   (`wow_message_parser/wowm/world/achievement/smsg_server_first_achievement.wowm`).
   AzerothCore wins. Link 0 is the guild form and the plain-name form sent
   to the other faction, link 1 the player form.
+- `SMSG_TITLE_EARNED` is a `u32` title bit index and a `u32` flag (1
+  earned, 0 lost) (`Entities/Player/Player.cpp:13680-13683`).
+- `CMSG_SET_TITLE` is an `int32` title bit index: a value above 0 and
+  below `MAX_TITLE_INDEX` (192) that the player knows sets
+  `PLAYER_CHOSEN_TITLE`, a known-check failure sends nothing, and
+  anything else clears the field to 0
+  (`Handlers/MiscHandler.cpp:1236-1251`). The wire value is the bit
+  index, not the `CharTitles` id: achievement 2188's reward row gives
+  title id 143, whose `CharTitles.dbc` row is bit index 110.
+- The known titles live in the three `u64` known-title fields starting at
+  word 626 of the player update fields, low word first, with the chosen
+  bit index in word 321. The `setTitle` act refuses a bit the character
+  does not know, so the server's silent drop is never relied on; the
+  lost form of `SMSG_TITLE_EARNED` (flag 0) is not sent live because
+  `.titles remove` is console-only.
 
 ## Left out
 
 - Achievement names: the DBC directory of the live profile has no
   `Achievement.dbc`, so events and the snapshot carry ids (contract
   issue 2 of the social plan).
-- `SMSG_TITLE_EARNED`: built by `social-4`.
-- `CMSG_SET_TITLE`: built by `social-4`.
+- Title names: ids only, no `CharTitles.dbc` catalog.
 
 ## Capabilities row
 
@@ -62,5 +78,7 @@ No verb.
 | `SMSG_CRITERIA_UPDATE` | `live` | probe flow `achievements-level` (`--expect SMSG_CRITERIA_UPDATE`), exit 0; the flow killed its target and the store's criteria count rose from 112 to 118 | `Achievements/AchievementMgr.cpp:773-794` |
 | `SMSG_ACHIEVEMENT_EARNED` | `live` | `mise protocol:probe --expect SMSG_ACHIEVEMENT_EARNED` while `soap gm level 20` raised the character from 10, exit 0; the body names the character and achievement 7 | `Achievements/AchievementMgr.cpp:765-770` |
 | `SMSG_SERVER_FIRST_ACHIEVEMENT` | `mock` | `packages/core/src/wow/areas/achievements/area.test.ts`, "SMSG_SERVER_FIRST_ACHIEVEMENT emits server_first" | `Achievements/AchievementMgr.cpp:744-752` |
-| `SMSG_CRITERIA_DELETED` | `mock` | `packages/core/src/wow/areas/achievements/area.test.ts`, "SMSG_CRITERIA_DELETED and SMSG_ACHIEVEMENT_DELETED drop the entries" | `Achievements/AchievementMgr.cpp:2195-2197` |
-| `SMSG_ACHIEVEMENT_DELETED` | `mock` | `packages/core/src/wow/areas/achievements/area.test.ts`, "SMSG_CRITERIA_DELETED and SMSG_ACHIEVEMENT_DELETED drop the entries" | `Achievements/AchievementMgr.cpp:499-501` |
+| `SMSG_CRITERIA_DELETED` | `live` | `mise protocol:probe FAC6ABF75C999 --expect SMSG_ACHIEVEMENT_DELETED --expect SMSG_CRITERIA_DELETED --wait 60` while `mise factory soap gm FAC6ABF75C999 reset-achievements` ran, exit 3 on the missing achievement row only; the trace `tmp/probe/title-run3-packets.jsonl` holds 46 `SMSG_CRITERIA_DELETED` rows (first at 1790932770338) and no `SMSG_ACHIEVEMENT_DELETED` row, because the reset found no completed achievement left to delete | `Achievements/AchievementMgr.cpp:2195-2197` |
+| `SMSG_ACHIEVEMENT_DELETED` | `live` | `mise protocol:probe FAC6ABF7B8086 --expect SMSG_ACHIEVEMENT_DELETED --expect SMSG_CRITERIA_DELETED --wait 90`, exit 0, with `mise factory soap gm FAC6ABF7B8086 achievement 2188` then `reset-achievements` inside the wait; the trace `tmp/probe/title-run4-packets.jsonl` holds 2 `SMSG_ACHIEVEMENT_DELETED` rows (first at 1790933921898) and 90 `SMSG_CRITERIA_DELETED` rows (first at 1790933921898) | `Achievements/AchievementMgr.cpp:499-501` |
+| `SMSG_TITLE_EARNED` | `live` | `mise protocol:probe FAC6ABF75C999 --flow achievements-title --expect SMSG_TITLE_EARNED --wait 90 --bodies`, exit 0, after `mise factory soap gm FAC6ABF75C999 achievement 2188`; the trace `tmp/probe/title-run1-packets.jsonl` holds `SMSG_TITLE_EARNED` body `6e000000 01000000` (bit index 110, earned 1) | `Entities/Player/Player.cpp:13680-13683` |
+| `CMSG_SET_TITLE` | `live` | same run: the flow chose bit 110 then cleared it; the trace holds `CMSG_SET_TITLE` bodies `6e000000` and `ffffffff`, and the flow result reports bit 110 with the chosen title applied then cleared | `Handlers/MiscHandler.cpp:1236-1251` |

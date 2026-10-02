@@ -911,3 +911,33 @@ issue.
 | BR-objects-4-1 | objects-4 adds two `miscValue` members to the shared `packages/core/test-support/spell-fixtures.ts` | Allowed: append-only fixture members | coordinator ruling (P2-17) |
 | BR-objects-8-1 | Review of objects-8: an unlocked chest cannot be looted, because the rewards store ignores a loot response while its window is closed and `openLoot` rejects non-unit GUIDs | objects-8 may extend `packages/core/src/wow/rewards-store.ts` and the core `openLoot`/`requestOpen` path (and their tests) to accept game-object GUIDs | coordinator ruling (P2-17) |
 | BR-objects-11-1 | objects-11 needs the encounter cycle to visit an object instead of engaging it, and `loops/encounter-cycle.ts` is on no lease | objects-11 may add an optional `visit` hook to `CycleObjective` in `loops/encounter-cycle.ts` that `pursue` calls for object picks | coordinator ruling (P2-17) |
+| BR-objects-6-1 | objects-6's live casts at LakeElrendar all failed `SPELL_FAILED_NOT_HERE` after offline position staging and facing sweeps | Coordinator ruling (P2-17): reproduce T-11's retained try2 pose (online `soap gm tele LakeElrendar`, relog, map 530 (8453.08, -7748.48, 144.45), orientation 2.73684, no face call); one probe session may cast up to ten times and counts as one live try (rules.md 5). |
+| BR-objects-6-2 | objects-6 adds the required `fishing` field to three typed literals, one in `h:tools/travel.test.ts` (491 non-blank lines on the wave base, 494 after) | Coordinator ruling (P2-17): a field-only add under BR-wave3-2; the 500-line cap holds and the file is not split by objects-6. |
+
+## Seed rulings (SEED-5)
+
+Wave 5 slice (BR-wave5-1): objects-6, objects-9. The coordinator's SEED-5 agents drafted these rows against `factory/431-wave5` at `ed24b9e5` and AzerothCore; each is a coordinator ruling (P2-17) and the maintainer may reverse any at PR review. Marks: `[M]` read or measured, `[INFERENCE]` not observed. Paths without a prefix are under `packages/core/src/wow/`; `h:` is `packages/harness/src/`, `dev:` `packages/devtools/src/`, `cts:` `packages/core/test-support/`. "Finding <n>" names a finding of the same draft below.
+
+SEED5-5 (the objects-6 dependency and the objects-9 owner rows) is a coordinator edit; the plan's "Coordinator edits for SEED-5" lists it.
+
+| Id | Plan text or question | Ruling | Status |
+|---|---|---|---|
+| SR5-objects-1 | objects-6 deps list economy-8 "to take a staged pole by mail" (`objects.md:758ff`) | Drop economy-8. T-11 `eversong10-fishing` stages pole 6256 in pack + 7620 + skill 356 1/75 (`soap-presets.ts:90-94`, `docs/factory.md:106-118` [M]). Stage: preset → `items do=equip` pole → `tele LakeElrendar` → cast. | coordinator ruling (P2-17) |
+| SR5-objects-2 | objects-6 step 3 says DESPAWN_ANIM via "Milly's Harvest crate (objects-4 flow)" | Strike. Every bobber delete sends DESPAWN_ANIM (`GameObject.cpp:976-981` [M]); the fishing flow proves all four opcodes on 1-2 casts. Crates stay a fallback. | coordinator ruling (P2-17) |
+| SR5-objects-3 | objects-9 proof "catches one fish" with skill 1 (≈1% real catch) | Proof = bite → use → loot window opened/released + `objects/fish` passive row. A real fish NOT required; junk/empty loot counts. No new `setskill` GM verb (out of scope, needs lease + factory review (coordinator DESIGN A: A1)). | coordinator ruling (P2-17) |
+| SR5-objects-4 | objects-9 owner misses `docs/harness.md` (use-tool line) | Add `docs/harness.md` (use line only) to objects-9 owner (SEED5-5). `useParams.object` becomes optional; non-fish verbs refuse `missing_object`. | coordinator ruling (P2-17) |
+
+### Findings behind the SEED-5 rulings
+
+From the `fish-vehicles` draft:
+
+- **Finding 1.** **Fishing wire facts (bobber lifecycle, bite, catch).** [M, AzerothCore `deployed`]
+   - Fishing bobber lifecycle, all live-provable on one cast (map 530, `tele LakeElrendar` 545,(8453.08,-7748.48), `game_tele.sql:586`): `CMSG_CAST_SPELL` 7620 → `SMSG_SPELL_START`, `SMSG_SPELL_GO`, `MSG_CHANNEL_START` (17000 ms), `GAMEOBJECT` create bobber (entry 35591, type 17, created-by self) — facts in `docs/factory.md:106-118` [M].
+   - No water → `SMSG_CAST_FAILED` 0x3c (`Spell.cpp`) [M, same].
+   - Bite: `GameObject.cpp:498-521` — in last 5 s (`FISHING_BOBBER_READY_TIME`, `GameObject.h:117`) splash → `SendCustomAnim(GetGoAnimProgress())`; writer `data << guid << uint32(anim)` (`GameObject.cpp:2150`) [M].
+   - Early use → `SetLootState(GO_JUST_DEACTIVATED)` + empty `SMSG_FISH_NOT_HOOKED` (`GameObject.cpp:1796-1803`) [M]. No use after splash → empty `SMSG_FISH_ESCAPED` + `RemoveGameObject(this,false)` (`GameObject.cpp:626-640`) [M].
+   - Catch (GO_READY): `CONDITION`-free path `player->SendLoot(GetGUID(), LOOT_FISHING)` or `LOOT_FISHING_JUNK` junk (`GameObject.cpp:1783-1792`) [M]. Channel end deletes bobber → `Delete()` → `SendObjectDeSpawnAnim` (`GameObject.cpp:976-981`), writer guid-only (`Object.cpp:2191`) [M] — DESPAWN_ANIM rides free on every cast.
+   - Catch chance at skill 1 in Eversong (area 3430, base skill -70, `skill_fishing_base_level.sql:98`): `chance=(1/25)^2*100→1`, min 1 (`GameObject.cpp:1740-1768`) [M] → expect mostly junk/empty loot. Loot rows `(3430→11001: mackerel/chest)`, junk falls to zone 1 → 11799 (driftwood etc.) [M]. Proof bar: splash + NOT_HOOKED/ESCAPED + DESPAWN_ANIM + loot window opened; a real fish is NOT required (SR5-objects-3).
+- **Finding 2.** **Live reachability.** [M]
+   - objects-6/9: `eversong10-fishing` + `soap gm tele LakeElrendar`; cast/equip/use verified path per `docs/factory.md`. No server/config change; no forbidden account.
+   - Mock-only: none required yet; both fish opcodes + DESPAWN_ANIM are live-reachable.

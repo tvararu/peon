@@ -20,6 +20,7 @@ export const OBJECTS_OPCODES = {
     "CMSG_CAST_SPELL",
     "CMSG_USE_ITEM",
     "SMSG_CAST_FAILED",
+    "SMSG_SPELL_START",
   ],
   stubs: [],
   dead: [],

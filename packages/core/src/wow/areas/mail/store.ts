@@ -1,8 +1,10 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
-import type {
-  MailEntry,
-  MailList,
-  NextMailTime,
+import {
+  MAIL_COPIED_FLAG,
+  type MailEntry,
+  type MailList,
+  type NextMailTime,
+  type SendMailResult,
 } from "#wow/areas/mail/protocol";
 import type { Entity } from "#wow/entity-store";
 import { distance } from "#wow/geometry";
@@ -45,6 +47,14 @@ export type MailSenders = {
   readonly delay: number;
 };
 
+export type MailPending =
+  | { action: "send"; id: 0 }
+  | { action: "money_taken"; id: number }
+  | { action: "item_taken"; id: number; itemLow: number }
+  | { action: "returned_to_sender"; id: number }
+  | { action: "deleted"; id: number }
+  | { action: "made_permanent"; id: number };
+
 export type MailState = {
   readonly mailbox: bigint | undefined;
   readonly inbox: readonly MailEntry[];
@@ -52,14 +62,54 @@ export type MailState = {
   readonly unread: boolean;
   readonly senders: readonly MailSenders[];
   readonly newMail: boolean;
+  readonly pending: MailPending | undefined;
+  readonly lastResult: SendMailResult | undefined;
 };
 
 export type MailEvent =
   | { type: "listed"; inbox: readonly MailEntry[]; hidden: number }
+  | { type: "inbox_changed"; inbox: readonly MailEntry[]; hidden: number }
   | { type: "next_time"; unread: boolean; senders: readonly MailSenders[] }
   | { type: "new_mail" }
-  | { type: "mailbox_shown"; mailbox: bigint };
-
+  | { type: "mailbox_shown"; mailbox: bigint }
+  | { type: "result"; result: SendMailResult };
+export function mailResultMatches(
+  pending: MailPending,
+  result: SendMailResult,
+): boolean {
+  if (pending.action !== result.action) return false;
+  if (pending.id !== result.id) return false;
+  if (result.status !== "ok") return true;
+  if (pending.action !== "item_taken") return true;
+  if (!("itemLow" in result)) return true;
+  return pending.itemLow === result.itemLow;
+}
+function applyResult(
+  kept: MailEntry[],
+  at: number,
+  found: MailEntry,
+  result: SendMailResult,
+): void {
+  if (result.status !== "ok") return;
+  if (result.action === "send") return;
+  if (result.action === "money_taken") kept[at] = { ...found, money: 0 };
+  else if (result.action === "item_taken" && "itemLow" in result)
+    kept[at] = {
+      ...found,
+      cod: 0,
+      items: found.items.filter((item) => item.guidLow !== result.itemLow),
+    };
+  else if (result.action === "made_permanent")
+    kept[at] = {
+      ...found,
+      flags: {
+        ...found.flags,
+        copied: true,
+        raw: found.flags.raw | MAIL_COPIED_FLAG,
+      },
+    };
+  else kept.splice(at, 1);
+}
 export class MailStore {
   private readonly events = new Emitter<[MailEvent]>();
   private readonly deps: SessionDeps;
@@ -69,10 +119,15 @@ export class MailStore {
   private unread = false;
   private senders: MailSenders[] = [];
   private newMail = false;
+  private pending: MailPending | undefined;
+  private abandoned = false;
+  private lastResult: SendMailResult | undefined;
 
   constructor(deps: SessionDeps) {
     this.deps = deps;
   }
+
+  entityOf: SessionDeps["getEntity"] = (guid) => this.deps.getEntity(guid);
 
   snapshot(): MailState {
     return {
@@ -82,6 +137,8 @@ export class MailStore {
       newMail: this.newMail,
       senders: [...this.senders],
       unread: this.unread,
+      pending: this.pending,
+      lastResult: this.lastResult,
     };
   }
 
@@ -112,6 +169,10 @@ export class MailStore {
     this.inbox = [...list.mails];
     this.hidden = list.hidden;
     this.newMail = false;
+    if (this.abandoned) {
+      this.pending = undefined;
+      this.abandoned = false;
+    }
     this.events.emit({
       hidden: list.hidden,
       inbox: [...list.mails],
@@ -139,6 +200,78 @@ export class MailStore {
     this.events.emit({ mailbox, type: "mailbox_shown" });
   }
 
+  beginAction(pending: MailPending): void {
+    if (this.pending) throw new Error("mail_busy");
+    this.pending = pending;
+    this.abandoned = false;
+  }
+
+  abandonAction(pending: MailPending): void {
+    if (
+      this.pending?.action !== pending.action ||
+      this.pending.id !== pending.id
+    )
+      return;
+    if (
+      this.pending.action === "item_taken" &&
+      pending.action === "item_taken" &&
+      this.pending.itemLow !== pending.itemLow
+    )
+      return;
+    this.abandoned = true;
+  }
+
+  releaseAction(pending: MailPending): void {
+    if (
+      this.pending?.action !== pending.action ||
+      this.pending.id !== pending.id
+    )
+      return;
+    if (
+      this.pending.action === "item_taken" &&
+      pending.action === "item_taken" &&
+      this.pending.itemLow !== pending.itemLow
+    )
+      return;
+    this.pending = undefined;
+    this.abandoned = false;
+  }
+
+  receiveSendMailResult(result: SendMailResult): void {
+    this.lastResult = result;
+    if (this.pending && mailResultMatches(this.pending, result)) {
+      this.pending = undefined;
+      this.abandoned = false;
+    }
+    if (result.status !== "ok") {
+      this.events.emit({ result, type: "result" });
+      return;
+    }
+    if (result.action === "send") {
+      this.events.emit({ result, type: "result" });
+      return;
+    }
+    const at = this.inbox.findIndex((entry) => entry.id === result.id);
+    if (at < 0) {
+      this.events.emit({ result, type: "result" });
+      return;
+    }
+    const kept = [...this.inbox];
+    const found = kept[at];
+    if (!found) {
+      this.events.emit({ result, type: "result" });
+      return;
+    }
+    applyResult(kept, at, found, result);
+    this.inbox = kept;
+    this.events.emit({
+      hidden: this.hidden,
+      inbox: [...kept],
+      type: "inbox_changed",
+    });
+    this.events.emit({ result, type: "result" });
+  }
+
   dispose(): void {
     this.inbox = [];
     this.hidden = 0;
@@ -146,6 +279,9 @@ export class MailStore {
     this.senders = [];
     this.newMail = false;
     this.mailbox = undefined;
+    this.pending = undefined;
+    this.abandoned = false;
+    this.lastResult = undefined;
     this.events.clear();
   }
 }

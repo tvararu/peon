@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
   objectsAreaTriggerBody,
   objectsAreaTriggerMessageBody,
+  objectsCustomAnimBody,
+  objectsDespawnAnimBody,
   objectsGameObjectPageTextBody,
   objectsGameObjUseBody,
   objectsPageTextQueryResponseBody,
@@ -12,6 +14,8 @@ import {
   buildGameObjUse,
   buildPageTextQuery,
   parseAreaTriggerMessage,
+  parseCustomAnim,
+  parseDespawnAnim,
   parseGameObjectPageText,
   parsePageText,
 } from "#wow/areas/objects/protocol";
@@ -102,5 +106,22 @@ describe("objects page text packets", () => {
     expect(parseGameObjectPageText(new PacketReader(body))).toEqual({
       guid: SHRINE,
     });
+  });
+});
+
+describe("objects animation packets", () => {
+  test("SMSG_GAMEOBJECT_CUSTOM_ANIM reads the object guid then a u32 anim (GameObject.cpp:2148-2154)", () => {
+    const body = objectsCustomAnimBody(SHRINE, 0x1_02);
+    expect(body.length).toBe(12);
+    expect(parseCustomAnim(new PacketReader(body))).toEqual({
+      guid: SHRINE,
+      anim: 0x1_02,
+    });
+  });
+
+  test("SMSG_GAMEOBJECT_DESPAWN_ANIM reads one full guid (Object.cpp:2189-2194)", () => {
+    const body = objectsDespawnAnimBody(SHRINE);
+    expect(body.length).toBe(8);
+    expect(parseDespawnAnim(new PacketReader(body))).toEqual({ guid: SHRINE });
   });
 });

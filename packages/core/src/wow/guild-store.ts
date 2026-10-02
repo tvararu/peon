@@ -34,6 +34,12 @@ export type GuildEvent =
   | { type: "disbanded" }
   | { type: "signed_on"; name: string }
   | { type: "signed_off"; name: string }
+  | { type: "rank_updated"; rankId: number; name: string; rankCount: number }
+  | { type: "rank_deleted"; rankCount: number }
+  | { type: "bank_tab_purchased" }
+  | { type: "bank_tab_updated"; tabId: number; name: string; icon: string }
+  | { type: "bank_money"; balance: bigint }
+  | { type: "bank_reset" }
   | { type: "command_result"; command: number; name: string; result: number }
   | { type: "guild_invite"; inviter: string; guildName: string };
 
@@ -74,7 +80,7 @@ export class GuildStore {
   }
 
   get(): GuildRoster | undefined {
-    if (this.members.size === 0) return undefined;
+    if (this.members.size === 0 && this.guildName === "") return undefined;
     return {
       guildName: this.guildName,
       motd: this.motd,

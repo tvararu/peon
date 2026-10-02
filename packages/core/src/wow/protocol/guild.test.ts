@@ -1,9 +1,19 @@
 import { describe, expect, test } from "bun:test";
+import {
+  guildadminCommandResultBody,
+  guildadminEventBody,
+  guildadminQueryResponseBody,
+  guildadminRosterBody,
+} from "#test-support/areas/guildadmin";
 import { must } from "#test-support/must";
 import {
   buildGuildQuery,
+  GuildCommand,
+  GuildCommandResult,
   GuildEventCode,
   GuildMemberStatus,
+  parseGuildCommandResult,
+  parseGuildEvent,
   parseGuildQueryResponse,
   parseGuildRoster,
 } from "#wow/protocol/guild";
@@ -212,85 +222,145 @@ describe("parseGuildRoster", () => {
 });
 
 describe("parseGuildQueryResponse", () => {
-  test("parses guild id and name", () => {
-    const w = new PacketWriter();
-    w.uint32LE(42);
-    w.cString("Dark Iron Dwarves");
-    for (let i = 0; i < 10; i++) {
-      w.cString("");
-    }
+  const emblem = {
+    style: 3,
+    color: 4,
+    borderStyle: 5,
+    borderColor: 6,
+    backgroundColor: 7,
+  };
 
-    const result = parseGuildQueryResponse(new PacketReader(w.finish()));
+  test("parses guild id, name, emblem and rank count", () => {
+    const r = new PacketReader(
+      guildadminQueryResponseBody({
+        id: 42,
+        name: "Dark Iron Dwarves",
+        rankNames: ["Guild Master", "Officer"],
+        emblem,
+        rankCount: 5,
+      }),
+    );
+    const result = parseGuildQueryResponse(r);
     expect(result.guildId).toBe(42);
     expect(result.name).toBe("Dark Iron Dwarves");
+    expect(result.emblem).toEqual(emblem);
+    expect(result.rankCount).toBe(5);
+    expect(r.remaining).toBe(0);
   });
 
-  test("parses 10 rank names with some empty", () => {
-    const w = new PacketWriter();
-    w.uint32LE(1);
-    w.cString("TestGuild");
-    w.cString("Guild Master");
-    w.cString("Officer");
-    w.cString("Veteran");
-    w.cString("Member");
-    w.cString("Initiate");
-    w.cString("");
-    w.cString("");
-    w.cString("");
-    w.cString("");
-    w.cString("");
-
-    const result = parseGuildQueryResponse(new PacketReader(w.finish()));
+  test("keeps all ten rank names, unused ones empty", () => {
+    const result = parseGuildQueryResponse(
+      new PacketReader(
+        guildadminQueryResponseBody({
+          id: 1,
+          name: "TestGuild",
+          rankNames: [
+            "Guild Master",
+            "Officer",
+            "Veteran",
+            "Member",
+            "Initiate",
+          ],
+          emblem,
+          rankCount: 5,
+        }),
+      ),
+    );
     expect(result.rankNames).toHaveLength(10);
-    expect(result.rankNames[0]).toBe("Guild Master");
-    expect(result.rankNames[1]).toBe("Officer");
-    expect(result.rankNames[2]).toBe("Veteran");
-    expect(result.rankNames[3]).toBe("Member");
-    expect(result.rankNames[4]).toBe("Initiate");
-    expect(result.rankNames[5]).toBe("");
-    expect(result.rankNames[6]).toBe("");
-    expect(result.rankNames[7]).toBe("");
-    expect(result.rankNames[8]).toBe("");
-    expect(result.rankNames[9]).toBe("");
-  });
-
-  test("parses all 10 rank names populated", () => {
-    const w = new PacketWriter();
-    w.uint32LE(99);
-    w.cString("BigGuild");
-    const names = [
-      "GM",
-      "Co-GM",
+    expect(result.rankNames.slice(0, 5)).toEqual([
+      "Guild Master",
       "Officer",
-      "Raider",
       "Veteran",
       "Member",
-      "Alt",
-      "Trial",
-      "Inactive",
-      "Recruit",
-    ];
-    for (const n of names) {
-      w.cString(n);
-    }
-
-    const result = parseGuildQueryResponse(new PacketReader(w.finish()));
-    expect(result.guildId).toBe(99);
-    expect(result.name).toBe("BigGuild");
-    expect(result.rankNames).toEqual(names);
+      "Initiate",
+    ]);
+    expect(result.rankNames.slice(5)).toEqual(["", "", "", "", ""]);
   });
 
-  test("consumes all bytes", () => {
+  test("reads the live 91-byte shape of an unconfigured emblem", () => {
+    const body = guildadminQueryResponseBody({
+      id: 22,
+      name: "FacSeedAlpha",
+      rankNames: ["Guild Master", "Officer", "Veteran", "Member", "Initiate"],
+      emblem: {
+        style: 0,
+        color: 0,
+        borderStyle: 0,
+        borderColor: 0,
+        backgroundColor: 0,
+      },
+      rankCount: 5,
+    });
+    expect(body.byteLength).toBe(91);
+    expect(parseGuildQueryResponse(new PacketReader(body)).rankCount).toBe(5);
+  });
+
+  test("rejects a response cut before the emblem", () => {
     const w = new PacketWriter();
     w.uint32LE(7);
     w.cString("G");
     for (let i = 0; i < 10; i++) {
       w.cString("");
     }
+    expect(() => parseGuildQueryResponse(new PacketReader(w.finish()))).toThrow(
+      RangeError,
+    );
+  });
+});
 
-    const r = new PacketReader(w.finish());
-    parseGuildQueryResponse(r);
+describe("parseGuildRoster with rank rights", () => {
+  const tabs = (base: number) =>
+    [0, 1, 2, 3, 4, 5].map((i) => ({ flags: base + i, slots: base * 2 + i }));
+  const ranks = [
+    { rights: 0x00_f1_1d_00, goldPerDay: 0xff_ff_ff_ff, tabs: tabs(10) },
+    { rights: 0x00_00_00_c0, goldPerDay: 5000, tabs: tabs(20) },
+  ];
+  const member = {
+    guid: 0x10n,
+    status: GuildMemberStatus.ONLINE,
+    name: "Thrall",
+    rankIndex: 0,
+    level: 80,
+    playerClass: 7,
+    gender: 0,
+    area: 4395,
+    timeOffline: 0,
+    publicNote: "",
+    officerNote: "",
+  };
+
+  test("returns each rank's rights, gold per day and six tab pairs", () => {
+    const r = new PacketReader(
+      guildadminRosterBody({
+        motd: "No message set.",
+        info: "",
+        ranks,
+        members: [member],
+      }),
+    );
+    const roster = parseGuildRoster(r);
+    expect(roster.ranks).toEqual(ranks);
+    expect(roster.rankCount).toBe(2);
+    expect(must(roster.members[0]).name).toBe("Thrall");
     expect(r.remaining).toBe(0);
+  });
+
+  test("reads an offline member's time offline after its area", () => {
+    const roster = parseGuildRoster(
+      new PacketReader(
+        guildadminRosterBody({
+          motd: "",
+          info: "",
+          ranks,
+          members: [
+            { ...member, status: GuildMemberStatus.OFFLINE, timeOffline: 2.5 },
+            { ...member, guid: 0x11n, name: "Jaina" },
+          ],
+        }),
+      ),
+    );
+    expect(must(roster.members[0]).timeOffline).toBe(2.5);
+    expect(must(roster.members[1]).name).toBe("Jaina");
   });
 });
 
@@ -317,11 +387,60 @@ describe("buildGuildQuery", () => {
 });
 
 describe("GuildEventCode", () => {
-  test("PROMOTION is 0", () => {
-    expect(GuildEventCode.PROMOTION).toBe(0);
+  test("matches AzerothCore's GuildEvents (Guild.h:145-165)", () => {
+    expect(GuildEventCode).toMatchObject({
+      PROMOTION: 0,
+      DISBANDED: 8,
+      RANK_UPDATED: 10,
+      RANK_DELETED: 11,
+      SIGNED_OFF: 13,
+      BANK_TAB_PURCHASED: 15,
+      BANK_TAB_UPDATED: 16,
+      BANK_MONEY_SET: 17,
+      BANK_TAB_AND_MONEY_UPDATED: 18,
+    });
+  });
+});
+
+describe("parseGuildEvent", () => {
+  test("reads the bank money parameter and no trailing guid", () => {
+    const r = new PacketReader(
+      guildadminEventBody({
+        code: GuildEventCode.BANK_MONEY_SET,
+        params: ["0000000000000C80"],
+      }),
+    );
+    expect(parseGuildEvent(r)).toEqual({
+      eventType: 17,
+      params: ["0000000000000C80"],
+    });
+    expect(r.remaining).toBe(0);
   });
 
-  test("SIGNED_OFF is 13", () => {
-    expect(GuildEventCode.SIGNED_OFF).toBe(13);
+  test("consumes the trailing guid of a signed-on event", () => {
+    const r = new PacketReader(
+      guildadminEventBody({
+        code: GuildEventCode.SIGNED_ON,
+        params: ["Thrall"],
+        guid: 0x1234n,
+      }),
+    );
+    expect(parseGuildEvent(r).params).toEqual(["Thrall"]);
+    expect(r.remaining).toBe(0);
+  });
+});
+
+describe("parseGuildCommandResult with the builder", () => {
+  test("reads command, name and result", () => {
+    const body = guildadminCommandResultBody({
+      command: GuildCommand.ROSTER,
+      name: "",
+      result: GuildCommandResult.GUILD_PLAYER_NOT_IN_GUILD,
+    });
+    expect(parseGuildCommandResult(new PacketReader(body))).toEqual({
+      command: 5,
+      name: "",
+      result: 9,
+    });
   });
 });

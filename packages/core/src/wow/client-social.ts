@@ -1,3 +1,4 @@
+import { ignoreFailure } from "#lib/ignore-failure";
 import type { WorldHandle } from "#wow/client";
 import { isUnit } from "#wow/entity-store";
 import type { GuildRoster } from "#wow/guild-store";
@@ -24,6 +25,7 @@ import {
   buildGuildPromote,
   buildGuildQuery,
   buildGuildRemove,
+  GuildCommand,
 } from "#wow/protocol/guild";
 import { GameOpcode } from "#wow/protocol/opcodes";
 import {
@@ -32,8 +34,9 @@ import {
   buildDelFriend,
   buildDelIgnore,
 } from "#wow/protocol/social";
+import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
 import type { WorldConn } from "#wow/world-conn";
-import { sendPacket } from "#wow/world-handlers";
+import { selfGuid, sendPacket } from "#wow/world-handlers";
 
 function notify(conn: WorldConn, message: string): void {
   conn.events.message.emit({ type: ChatType.SYSTEM, sender: "", message });
@@ -191,21 +194,72 @@ export function ignoreMethods(conn: WorldConn) {
   } satisfies Partial<WorldHandle>;
 }
 
+function selfGuildId(conn: WorldConn): number {
+  const self = conn.entityStore.get(selfGuid(conn));
+  return self?.rawFields.get(PLAYER_FIELDS.GUILDID.offset) ?? conn.guildId;
+}
+
+async function awaitGuildQuery(
+  conn: WorldConn,
+  queryWaiter: Promise<unknown>,
+): Promise<void> {
+  const error = await new Promise<Error | undefined>((resolve) => {
+    const off = conn.events.packetError.subscribe((opcode, err) => {
+      if (opcode !== GameOpcode.SMSG_GUILD_QUERY_RESPONSE) return;
+      off();
+      resolve(err);
+    });
+    queryWaiter.then(
+      () => {
+        off();
+        resolve(undefined);
+      },
+      (err: unknown) => {
+        off();
+        resolve(err instanceof Error ? err : new Error(String(err)));
+      },
+    );
+  });
+  if (error) throw error;
+  await queryWaiter;
+}
+
 async function requestGuildRoster(
   conn: WorldConn,
 ): Promise<GuildRoster | undefined> {
   sendPacket(conn, GameOpcode.CMSG_GUILD_ROSTER);
-  const replies = [conn.dispatch.expect(GameOpcode.SMSG_GUILD_ROSTER)];
-  const { guildId } = conn;
-  if (guildId) {
+  const guildId = selfGuildId(conn);
+  if (guildId !== 0) {
     sendPacket(conn, GameOpcode.CMSG_GUILD_QUERY, buildGuildQuery(guildId));
-    replies.push(
-      conn.dispatch.expect(GameOpcode.SMSG_GUILD_QUERY_RESPONSE, {
-        match: (r) => r.uint32LE() === guildId,
-      }),
-    );
   }
-  await Promise.all(replies);
+  const rosterWaiter = conn.dispatch.expect(GameOpcode.SMSG_GUILD_ROSTER);
+  rosterWaiter.catch(ignoreFailure);
+  const queryWaiter =
+    guildId === 0
+      ? undefined
+      : conn.dispatch.expect(GameOpcode.SMSG_GUILD_QUERY_RESPONSE);
+  queryWaiter?.catch(ignoreFailure);
+  const noGuild = new Promise<"no-guild">((resolve) => {
+    const off = conn.events.guild.subscribe((event) => {
+      if (
+        event.type !== "command_result" ||
+        event.command !== GuildCommand.ROSTER
+      )
+        return;
+      off();
+      resolve("no-guild");
+    });
+    rosterWaiter.then(
+      () => off(),
+      () => off(),
+    );
+  });
+  const settled = await Promise.race([
+    rosterWaiter.then(() => "roster" as const),
+    noGuild,
+  ]);
+  if (settled === "no-guild") return undefined;
+  if (queryWaiter) await awaitGuildQuery(conn, queryWaiter);
   return conn.guildStore.get();
 }
 

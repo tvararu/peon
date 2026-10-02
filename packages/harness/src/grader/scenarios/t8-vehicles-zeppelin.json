@@ -1,0 +1,56 @@
+{
+  "botRisk": "med",
+  "budget": {
+    "minutes": 25,
+    "tools": 20,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["transports/boarded", "transports/left"]
+      },
+      "expect": "GL has a transports/boarded row followed by a transports/left row, written by the travel ride call (the agent boarded the docked zeppelin and got off at its stop)",
+      "id": "boarded-then-left",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "point": {
+          "x": -1026.9,
+          "y": 375.8
+        }
+      },
+      "expect": "T final position within 30 yd of the Thunder Bluff zeppelin stop (-1026.9, 375.8, map 1), the last frame-2 stop of path 1221 in TaxiPathNode.dbc; the Orgrimmar tower start is more than 4000 yd away, so a character that never left fails",
+      "id": "at-thunder-bluff",
+      "source": "truth"
+    },
+    {
+      "expect": "the session shows the agent calling travel with to ride Thunder Bluff (or a name part of it), not walking or flying",
+      "id": "ride-called",
+      "source": "session"
+    }
+  ],
+  "id": "t8-vehicles-zeppelin",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 28,
+  "partner": null,
+  "preset": "max80",
+  "setup": [
+    {
+      "body": {
+        "map": 1,
+        "o": 0,
+        "x": 1125.4,
+        "y": -4134.9,
+        "z": 70.3,
+        "zone": 14
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Take the zeppelin to Thunder Bluff.",
+  "tier": 8
+}

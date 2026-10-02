@@ -46,6 +46,12 @@ describe("world handler tests", () => {
       for (let i = 0; i < 8; i++) {
         w.cString("");
       }
+      w.uint32LE(0);
+      w.uint32LE(0);
+      w.uint32LE(0);
+      w.uint32LE(0);
+      w.uint32LE(0);
+      w.uint32LE(2);
       return w.finish();
     }
 

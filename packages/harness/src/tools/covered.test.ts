@@ -110,6 +110,40 @@ describe("coverRows", () => {
     expect(log.get(roster.seq)?.consumedBy).toBe("c1");
   });
 
+  test("a mail check covers its listed rows", () => {
+    const log = setup();
+    log.append({
+      class: "log",
+      data: { toolCallId: "c1" },
+      domain: "tool",
+      event: "tool/call",
+      text: "mail called",
+    });
+    const listed = log.append(draft("mail/listed"));
+    const sent = log.append(draft("mail/sent"));
+    coverRows(log, { status: "DONE", tool: "mail", toolCallId: "c1" });
+    expect(log.get(listed.seq)?.consumedBy).toBe("c1");
+    expect(log.get(sent.seq)?.consumedBy).toBe("c1");
+  });
+
+  test("a vehicle call covers its entered and control rows", () => {
+    const log = setup();
+    log.append({
+      class: "log",
+      data: { toolCallId: "c1" },
+      domain: "tool",
+      event: "tool/call",
+      text: "vehicle called",
+    });
+    const entered = log.append(draft("vehicles/entered"));
+    const control = log.append(draft("vehicles/control"));
+    const listed = log.append(draft("mail/listed"));
+    coverRows(log, { status: "DONE", tool: "vehicle", toolCallId: "c1" });
+    expect(log.get(entered.seq)?.consumedBy).toBe("c1");
+    expect(log.get(control.seq)?.consumedBy).toBe("c1");
+    expect(log.get(listed.seq)?.consumedBy).toBeUndefined();
+  });
+
   test("a call whose tool/call row is gone covers nothing", () => {
     const log = setup();
     const accepted = log.append(draft("quest/accepted"));

@@ -82,3 +82,12 @@ export function achievementsAchievementDeletedBody(id: number): Uint8Array {
   w.uint32LE(id);
   return w.finish();
 }
+export function achievementsTitleEarnedBody(
+  bit: number,
+  earned: number,
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(bit);
+  w.uint32LE(earned);
+  return w.finish();
+}

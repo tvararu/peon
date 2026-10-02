@@ -9,7 +9,7 @@ export const travelParams = Type.Object({
   ),
   to: Type.String({
     description:
-      'A unit id (u4), a unit name, "corpse", "hearth", "explore" or "explore north" (any of north, south, east, west, northeast, northwest, southeast, southwest), "unstick", "fly <destination>" (for example "fly Silvermoon City"; needs a flight master and a discovered flight path), or coordinates "8764, -6683" or "8764, -6683, 72.7".',
+      'A unit id (u4), a unit name, "corpse", "hearth", "explore" or "explore north" (any of north, south, east, west, northeast, northwest, southeast, southwest), "unstick", "ride <stop>" (for example "ride Thunder Bluff"; needs a boat or zeppelin dock in view), "fly <destination>" (for example "fly Silvermoon City"; needs a flight master and a discovered flight path), or coordinates "8764, -6683" or "8764, -6683, 72.7".',
   }),
   within: Type.Optional(
     Type.Number({

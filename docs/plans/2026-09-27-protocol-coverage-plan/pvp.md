@@ -491,6 +491,14 @@ kills, and it can set the flag and inspect a friendly player's honor.
 | `SMSG_GROUP_JOINED_BATTLEGROUND` | live | `-1` and `-2`; writer `Battlegrounds/BattlegroundMgr.cpp:248-254` |
 | `CMSG_BATTLEFIELD_PORT` | live | step `leave` (action 0), the none reply; reader `Handlers/BattleGroundHandler.cpp:393-617` |
 
+**Built (pvp-2, wave 5):** the eight opcodes are `live`, from account `FAC6ABF824E60` (deleted); the runs and their packets are listed in `docs/areas/battlegrounds.md`. Deviations from the steps above:
+
+- The new helpers are `protocol-queue.ts`, `store-queue.ts` and `runtime-queue.ts` (SR5-pvp-3); the combat test reads `unitFlags & IN_COMBAT` through `BattlegroundsStore.selfInCombat()` (SR5-pvp-4).
+- `join` resolves only on a queued status whose slot was not queued before, because a late status reply for a held queue otherwise resolved a second join before its `-1` arrived (found in the first live run). `leaveQueue` rejects `not_queued` on an invited slot (a leave there is recorded as a desertion, `Handlers/BattleGroundHandler.cpp:600-610`).
+- The status parser also reads `WAIT_LEAVE` (a `leaving` slot kind) and throws on an unknown status.
+- The flow runs one `step` per `--flow`; several `--flow` arguments in one probe keep the queue, and `status` reports the state after a `--send CMSG_BATTLEFIELD_STATUS`.
+- `-4` ran live at level 61 with Warsong Gulch, Arathi Basin and Eye of the Storm (the third queue answered `too_many_queues`); `hello` ran live after `tele MorshanBaseCamp`. The `t0-self-state` rerun belongs to the slice gate (SR5-pvp-7); the login packet is proved by a `--flow login` probe.
+
 **Commit:**
 
 ```
@@ -1610,4 +1618,62 @@ Opcode count: 5 + 8 + 6 + 3 (battlegrounds 22) + 7 + 5 + 4 + 3 (arena
 4. A watcher for the pvp-3 bot probe and the pvp-9 Wintergrasp window
    (plan decisions 8 and 10).
 
+## Build rulings
+
+| Id | Issue | Ruling |
+|---|---|---|
+| BR-pvp-1-1 | pvp-1 replaces the `SMSG_ZONE_UNDER_ATTACK` stub with a handler (SR5-pvp-8), and `dev:probe-run.test.ts` (tooling-probe) used that stub for its notice test | Coordinator edit (P2-17), commit `129fcaf9`: the test uses `SMSG_GUILD_BANK_LIST`, a stub no wave-5 task replaces; the coordinator rebased the pvp-1 slot onto it. |
+
 ## COMPLETE
+
+## Seed rulings (SEED-5)
+
+Wave 5 slice (BR-wave5-1): pvp-1, pvp-2. The coordinator's SEED-5 agents drafted these rows against `factory/431-wave5` at `ed24b9e5` and AzerothCore; each is a coordinator ruling (P2-17) and the maintainer may reverse any at PR review. Marks: `[M]` read or measured, `[INFERENCE]` not observed. Paths without a prefix are under `packages/core/src/wow/`; `h:` is `packages/harness/src/`, `dev:` `packages/devtools/src/`, `cts:` `packages/core/test-support/`. "Finding <n>" names a finding of the same draft below.
+
+SEED5-1 (the `battlegrounds` seed), SEED5-4 and SEED5-5 (index `deps` and owner rows) are coordinator edits; the plan's "Coordinator edits for SEED-5" lists them.
+
+| Id | Plan text or question | Ruling | Status |
+|---|---|---|---|
+| SR5-pvp-1 | `self.flagged` from "PLAYER_FLAGS 0x200 and byte2 0x01" (pvp-1 step 4) and `setPvp` resolves "on the matching `pvp_flag`" | Two fields: `wantsFlag` = `PLAYER_FLAGS` 0x200, `flagged` = byte2 0x01, plus `timer` 0x40000, `contested`, `ffa`, `sanctuary`. `pvp_flag` carries `{ wants, flagged, timer }` and fires on any change of those. `setPvp(on)` resolves when `wantsFlag === on` (so an "off" resolves at once with `flagged` still true for about 5 min); if it already equals `on` it resolves without sending [INFERENCE: the server sends no update for a no-op]. The flow asserts 0x200 gain/loss and that byte2 0x01 is still set after "off". | coordinator ruling (P2-17) |
+| SR5-pvp-2 | `SMSG_ZONE_UNDER_ATTACK` fires "when attacked"; harness wake rule | Writer fires on a guard's death to the killer's opposing team, any zone (facts above). Wake only when the area id equals the character's area, otherwise `passive`, as the plan has it; fix the wire note in `docs/areas/battlegrounds.md`. Proof (coordinator DESIGN 2: A): mock from the writer and `unseen`, no live try; a live kill broadcasts text to every online Horde player. | coordinator ruling (P2-17) |
+| SR5-pvp-3 | pvp-1/-2 would grow `runtime.ts`/`store.ts` toward 500 (queue plus self plus acts) | pvp-1 puts the self PvP fields in `store-self.ts`/`runtime-self.ts` (new, owned by pvp); pvp-2 adds `store-queue.ts`, `runtime-queue.ts` besides the planned `protocol-queue.ts`. Owner lists updated (SEED5-5). The pvp-2 builder splits before ~480 non-blank lines. | coordinator ruling (P2-17) |
+| SR5-pvp-4 | pvp-2: world-entry status request on "`core.self` events" and "the member it reads" for combat (findings 5, 6) | Use `core.self.onEvent` (`login_verified`, `new_world`, pattern `areas/instances/runtime.ts:215-216`); combat test reads `deps.getEntity(selfGuid).unitFlags & UnitFlag.IN_COMBAT` (pattern `lfg/store.ts:189-193`) ; charm is not modelled (the server also refuses a charmed self, `:419`), stated under "Left out". `in_combat` applies to `leaveQueue` too (`BattleGroundHandler.cpp:419-423`). | coordinator ruling (P2-17) |
+| SR5-pvp-5 | `act.join` takes `via` (battlemaster) | The server ignores the guid (`:72-90,142`): `via` is optional, default guid 0; `join` rejects `timeout` (5 s, no reply) for the silent cases (level under the bracket, already in a battleground). Group join (`asGroup`) stays mock: success needs a party and a positive group-joined packet (`:271`), -11/-12 need group members; the doc marks those forms `mock`, the opcode stays `live` from -1/-2. | coordinator ruling (P2-17) |
+| SR5-pvp-6 | pvp-2 step 7.4: "which `game_tele` lands in view of a battlemaster could not be determined" | `MorshanBaseCamp` (WSG master Gargok) and `HallOfTheBrave` (arena master); verified (table above). The builder records the guid from the `nearest` row. The optional -4 try is made once (level 61, three queues, total queue time under 20 s); if it fails the builder maps -4 to mock with the reason. | coordinator ruling (P2-17) |
+| SR5-pvp-7 | pvp-2 step 9 reruns `t0-self-state` because every login now sends `CMSG_BATTLEFIELD_STATUS` | Coordinator DESIGN 1: B. pvp-2 does not rerun `t0-self-state`; the slice gate round runs `t0-self-state` at the slice head (BR-wave5-8). pvp-2 keeps the login packet unit test and one `probe --flow login` check that `CMSG_BATTLEFIELD_STATUS` is sent and no `SMSG_BATTLEFIELD_STATUS` follows (no queue, no reply). | coordinator ruling (P2-17) |
+| SR5-pvp-8 | `unseen` rows | pvp-1: `SMSG_ZONE_UNDER_ATTACK`, `SMSG_QUESTUPDATE_ADD_PVP_KILL`, `SMSG_PVP_CREDIT`, each "not seen live" with the cause above; the six dead rows get proof rows (`Opcodes.cpp` per `pvp.md` dead table, re-read by the builder) and go into `dead` at the seed. | coordinator ruling (P2-17) |
+
+### Findings behind the SEED-5 rulings
+
+From the `session-pvp` draft:
+
+- **Finding 1.** **Both areas are unseeded.** `ls core:areas` and `h:areas` have no `account`/`battlegrounds`; `AREAS`/`HARNESS_AREAS` lack them; `HARNESS_AREAS_TOTAL` (`h:areas/registry.ts` end) fails to typecheck for any core area without a harness module, so core and harness seeds land together. Template: `bank` (`core:areas/bank/{opcodes,area}.ts`, `h:areas/bank/area.ts` = `defineHarnessArea({ area, worldActs: [] })`). The three battlegrounds stubs still sit in `core:protocol/stubs.ts:14-16` (`SMSG_BATTLEFIELD_STATUS`, `SMSG_BATTLEFIELD_LIST`, `SMSG_ZONE_UNDER_ATTACK`); `registry.test.ts:90-92,332` keeps them frozen through `[...STUBS, ...areaStubs()]`, so moving them changes no test.
+- **Finding 5.** **Combat state member (pvp-2 [I])**: there is no `core.combat` flag; precedent `core:areas/lfg/store.ts:189-193` reads `deps.getEntity(deps.selfGuid()).unitFlags & UnitFlag.IN_COMBAT`.
+- **Finding 6.** **Self events for pvp-2's status request**: `ctx.listen("self")` does not exist (`CoreEvents` has no `self`, `core:world-events.ts:19-38`); areas use `core.self.onEvent` (`areas/time/runtime.ts:41`, `areas/instances/runtime.ts:215-216`). Update-field names are `PLAYER_FIELDS.FLAGS` (offset 150), `UNIT_FIELDS.BYTES_2` (122, `bytes4`), `PLAYER_FIELDS.KILLS` (1225, `u16x2`), `TODAY_CONTRIBUTION`..`ARENA_CURRENCY` (1226-1278) in `core:protocol/update-fields.ts:135,152,309-318`; the reading pattern is `areas/talents/fields.ts:12-30`.
+- **Finding 7.** No task of this group reads a DBC (`ctx.dbc`); no `docs/harness.md` row. No file in the owner lists is near 500 lines (all new).
+
+Wire facts the builders must not get wrong (AzerothCore `deployed`, `src/server/game/`):
+
+PvP flag and honor:
+- `CMSG_TOGGLE_PVP`: one body byte sets `PLAYER_FLAGS_IN_PVP` (0x200), no byte toggles (`Handlers/MiscHandler.cpp:500-519`). **Switching off does not drop the visible flag**: `UpdatePvP(true,false)` keeps `UNIT_BYTE2_FLAG_PVP` (0x01 in byte 1 of `UNIT_FIELD_BYTES_2`) and starts a timer; `PLAYER_FLAGS_PVP_TIMER` (0x40000) is set after 4 s and the flag falls after about 300 s (`Entities/Player/PlayerUpdates.cpp`, `PlayerMisc.cpp`; constants `Player.h`, `UnitDefines.h`). So "wants" (`PLAYER_FLAGS` 0x200) and "flagged" (byte2 0x01) are two facts; `contested` is `PLAYER_FLAGS` 0x100, `ffa` and `sanctuary` are byte2 0x04/0x08.
+- `MSG_INSPECT_HONOR_STATS` reply: `u64` guid, `u8` honor, four `u32`; silent when the target is missing, beyond `INSPECT_DISTANCE`, or a valid attack target (`MiscHandler.cpp:1019-1049`); self-inspect answers (the guid resolves to the player itself, not attackable) [M source, live proof is the flow].
+- `SMSG_PVP_CREDIT`: `i32` honor, `u64` victim, `i32` rank (`Entities/Player/Player.cpp:6278,6305,6385-6392`; sent only if a victim or group exists). `SMSG_ZONE_UNDER_ATTACK`: `u32` area id, to **every session of the team opposing the killer** (`Entities/Creature/Creature.cpp:2870-2875`), fired from `GuardAI::JustDied` (`AI/CoreAI/GuardAI.cpp`) and `SmartScript.cpp`, i.e. when a player kills a guard (the plan's "attacked" is wrong). `SMSG_QUESTUPDATE_ADD_PVP_KILL`: three `u32` (`Server/Packets/QuestPackets.cpp:89-96`); only six quests use the objective, all test quests or the level-77+ dailies 13233/13234 (15 kills) [M `quest_template.sql` `RequiredPlayerKills`].
+
+Battleground queue (all `Handlers/BattleGroundHandler.cpp`, all `STATUS_LOGGEDIN`, `Opcodes.cpp:703,854-858,881`):
+- `CMSG_BATTLEMASTER_JOIN` (`:72-294`): `u64` guid, `u32` BattlemasterList id, `u32` instance, `u8` asGroup. **The guid is never checked** (only passed to the script hook `:142`): a solo join works from anywhere with guid 0; only HELLO needs a battlemaster in view. Silent returns (no reply, the act must time out): bad type, in a battleground, no bracket for the level (`:108-112`), invalid guid group. Errors come as `SMSG_GROUP_JOINED_BATTLEGROUND`: -4 too many queues (`:130-136`), -2 deserter (`:164-166`), -1 already queued for this one (`:172-174`); **success sends only `SMSG_BATTLEFIELD_STATUS` `WAIT_QUEUE`** (`:205-213`), no positive group-joined packet in the solo path (only the group path sends it, `:271`). The queue slot is the status `u32` (`:208`). Levels: WSG 10-80, AB 20-80, EotS 61-80, arenas 10-80 [M `battleground_template.sql`]; the hello and join access test is `Player.cpp`.
+- `CMSG_BATTLEMASTER_HELLO` (`:37-63`): no range check, same map only; below the level a notification, not a list. List writer `Battlegrounds/BattlegroundMgr.cpp` (`u64` guid, `u8` fromWhere, `u32` type, `u8 0`, `u8 0`, `u8` hasWin, 3x`u32`, `u8` isRandom [+13 bytes], `u32` count + ids; arena type 6 writes a lone `u32 0`). `CMSG_BATTLEFIELD_LIST` answers with guid 0 (`:368-391`).
+- `CMSG_BATTLEFIELD_PORT` (`:393-617`): `u8` arenaType, `u8` unk, `u32` type, `u16 0x1F90`, `u8` action. Order of silent drops: unknown type, not in any queue, **charmed or in combat (this also stops a leave)** (`:419-423`), no group info for the (type, arenaType) queue (`:435`), accept without invite. Leave answers the 12-byte none status `u32` slot + `u64 0` (`:584-590`; `BattlegroundMgr.cpp`). Leaving while invited (`STATUS_WAIT_JOIN`) or in progress is recorded as a desertion (`:600-610`, `CHAR_INS_DESERTER_TRACK`, script hook `OnPlayerBattlegroundDesertion`); a flow must never answer an invite, and the leave step runs only while the status is `WAIT_QUEUE`.
+- `CMSG_BATTLEFIELD_STATUS` (`:637-696`): empty; answers one status per active queue/battleground and nothing when the character has none (so the new login packet adds no reply). Status writer `BattlegroundMgr.cpp`, group-joined writer `:248-254`; enum `src/server/shared/SharedDefines.h`, `PLAYER_MAX_BATTLEGROUND_QUEUES` `:153`.
+
+Live reachability:
+
+| Opcode(s) | Route (throwaway account, own character only) |
+|---|---|
+| `CMSG_TOGGLE_PVP`, `MSG_INSPECT_HONOR_STATS` (pvp-1) | `fresh` or `eversong10`; flow `battlegrounds-flag`; `live`. Compare 0x200 (immediate) and byte2 0x01 (stays about 5 min after "off"). |
+| `SMSG_PVP_CREDIT` | mock + `unseen` unless a match credits bonus honor; pvp-3 is not in the slice, so `unseen`. No try is planned. |
+| `SMSG_ZONE_UNDER_ATTACK` | needs a player killing a guard; the message goes to every online player of the guard's faction (maintainer's characters, bots). Mock + `unseen`, no live try (DESIGN 2). |
+| `SMSG_QUESTUPDATE_ADD_PVP_KILL` | needs a player kill and quest 13233/13234 at level 77: mock + `unseen`, no try planned. |
+| list/join/status/leave (pvp-2) | `eversong10` is level 10: WSG (type 2) list, join, status, join-again (-1), leave all work from anywhere (guid 0). `deserter-bg 1m` then join gives -2. Optional -4: `soap gm level 61`, queue WSG, AB (3), EotS (7); the third answers -4. |
+| `CMSG_BATTLEMASTER_HELLO` | **Verified live** (run 2): `soap gm <ACCOUNT> tele MorshanBaseCamp` (`game_tele` 642, map 1 `1035.62,-2106,122.946`) puts Gargok (entry 19910, spawn guid 20428, `1034.16,-2092.87,124.893`, npcflag `0x100001`, permanent: not in `game_event_creature`) 13.4 yd away; `probe --flow nearest --arg kind=battlemaster` returned him with roles `gossip`,`battlemaster`. Artifact `tmp/probe/FAC6ABF6869E7-20261002T081641Z/`, `tmp/seed5-session-pvp/live2.json`. Arena form: `tele HallOfTheBrave` (467) -> Zeggon Botsnap (19912, guid 4762, 28 yd, permanent, faction 35). The Warsong Emissaries in Silvermoon/Orgrimmar and `SilvermoonCity`-near masters are Call-to-Arms event spawns (event 19; `game_event_creature.sql:7127-7130`) and may be absent: do not use them. |
+
+Bots: `RandomPlayerbotMgr::CheckBgQueue` runs every 35 s and counts real players in queues (`modules/mod-playerbots/src/Bot/RandomPlayerbotMgr.cpp:382-385,907-947`, `randomBotJoinBG` default true, `PlayerbotAIConfig.cpp:383`). A queue held under about 20 s is not filled and no invite arrives; the flow must `leave` by then and the builder must never send action 1. Nothing here targets or messages a RNDBOT character; the bots' own reaction to a queue is server behaviour. Retained: run 1 `tmp/probe/FAC6ABF683126-20261002T081545Z/` (teleport + nearest, flow output not saved), run 2 as above. Both accounts deleted (`{"deleted":[...]}`). Two live tries used; the builders have their own.

@@ -7,16 +7,25 @@ import {
   mailNextMailTimeBody,
   mailRawList,
   mailReceivedMailBody,
+  mailSendMailResultBody,
   mailShowMailboxBody,
   mailSized,
 } from "#test-support/areas/mail";
 import {
   buildGetMailList,
+  buildMailCreateTextItem,
+  buildMailDelete,
   buildMailMarkAsRead,
+  buildMailReturnToSender,
+  buildMailTakeItem,
+  buildMailTakeMoney,
   buildQueryNextMailTime,
+  buildSendMail,
   MAX_MAIL_SENDER_ROWS,
+  type MailResultStatusName,
   parseMailList,
   parseNextMailTime,
+  parseSendMailResult,
   parseShowMailbox,
 } from "#wow/areas/mail/protocol";
 import { PacketReader } from "#wow/protocol/packet";
@@ -196,5 +205,142 @@ describe("build mail requests", () => {
 
   test("buildQueryNextMailTime writes an empty body", () => {
     expect(buildQueryNextMailTime()).toEqual(new Uint8Array());
+  });
+});
+
+describe("parseSendMailResult", () => {
+  test("reads the plain success with no tail", () => {
+    const got = parseSendMailResult(
+      new PacketReader(mailSendMailResultBody({ action: 1, id: 101 })),
+    );
+    expect(got).toEqual({ action: "money_taken", id: 101, status: "ok" });
+  });
+
+  test("reads the item-taken tail as low guid and count", () => {
+    const got = parseSendMailResult(
+      new PacketReader(
+        mailSendMailResultBody({
+          action: 2,
+          count: 5,
+          id: 102,
+          itemLow: 77,
+        }),
+      ),
+    );
+    expect(got).toEqual({
+      action: "item_taken",
+      count: 5,
+      id: 102,
+      itemLow: 77,
+      status: "ok",
+    });
+  });
+
+  test("reads the equip error as its own field", () => {
+    const got = parseSendMailResult(
+      new PacketReader(
+        mailSendMailResultBody({
+          action: 2,
+          equipError: 77,
+          id: 102,
+          result: 1,
+        }),
+      ),
+    );
+    expect(got).toEqual({
+      action: "item_taken",
+      equipError: 77,
+      id: 102,
+      status: "equip_error",
+    });
+  });
+
+  test("reads the item tail of an item-taken refusal other than the equip error", () => {
+    const refusals: [number, MailResultStatusName][] = [
+      [6, "internal_error"],
+      [3, "not_enough_money"],
+    ];
+    for (const [result, status] of refusals) {
+      const reader = new PacketReader(
+        mailSendMailResultBody({
+          action: 2,
+          count: 5,
+          id: 102,
+          itemLow: 77,
+          result,
+        }),
+      );
+      expect(parseSendMailResult(reader)).toEqual({
+        action: "item_taken",
+        count: 5,
+        id: 102,
+        itemLow: 77,
+        status,
+      });
+      expect(reader.remaining).toBe(0);
+    }
+  });
+
+  test("names each failure from the AzerothCore result enum", () => {
+    const failures: [number, MailResultStatusName][] = [
+      [2, "cannot_send_to_self"],
+      [3, "not_enough_money"],
+      [4, "recipient_not_found"],
+      [6, "internal_error"],
+      [18, "too_many_attachments"],
+    ];
+    for (const [result, name] of failures)
+      expect(
+        parseSendMailResult(
+          new PacketReader(mailSendMailResultBody({ id: 0, result })),
+        ),
+      ).toEqual({ action: "send", id: 0, status: name });
+  });
+});
+
+describe("build mail actions", () => {
+  test("take, delete and copy write guid then id, return appends the sender", () => {
+    const box = 0xf1_10_00_00_00_00_00_01n;
+    const check = (body: Uint8Array) => {
+      const reader = new PacketReader(body);
+      expect(reader.uint64LE()).toBe(box);
+      expect(reader.uint32LE()).toBe(101);
+      return reader;
+    };
+    expect(check(buildMailTakeMoney(box, 101)).remaining).toBe(0);
+    expect(check(buildMailTakeItem(box, 101, 77)).uint32LE()).toBe(77);
+    const sender = 0x00_00_00_00_00_00_00_2an;
+    expect(check(buildMailReturnToSender(box, 101, sender)).uint64LE()).toBe(
+      sender,
+    );
+    expect(check(buildMailDelete(box, 101, 0)).uint32LE()).toBe(0);
+    expect(check(buildMailCreateTextItem(box, 101)).remaining).toBe(0);
+  });
+
+  test("send writes one slot byte before each guid and ends zero then zero", () => {
+    const reader = new PacketReader(
+      buildSendMail({
+        body: "meet",
+        items: [{ guid: 0x40_00_00_00_00_00_0c_01n, slot: 3 }],
+        mailbox: 0xf1_10_00_00_00_00_00_01n,
+        money: 100,
+        receiver: "Target",
+        subject: "Gift",
+      }),
+    );
+    expect(reader.uint64LE()).toBe(0xf1_10_00_00_00_00_00_01n);
+    expect(reader.cString()).toBe("Target");
+    expect(reader.cString()).toBe("Gift");
+    expect(reader.cString()).toBe("meet");
+    expect(reader.uint32LE()).toBe(41);
+    expect(reader.uint32LE()).toBe(0);
+    expect(reader.uint8()).toBe(1);
+    expect(reader.uint8()).toBe(3);
+    expect(reader.uint64LE()).toBe(0x40_00_00_00_00_00_0c_01n);
+    expect(reader.uint32LE()).toBe(100);
+    expect(reader.uint32LE()).toBe(0);
+    expect(reader.uint64LE()).toBe(0n);
+    expect(reader.uint8()).toBe(0);
+    expect(reader.remaining).toBe(0);
   });
 });

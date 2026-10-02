@@ -16,7 +16,7 @@ import { type ProbeDeps, runProbe } from "#tools/probe-run";
 const ACCOUNT = "FAC0123456789";
 const PING = opcodeNumber("CMSG_PING") ?? -1;
 const PONG = opcodeNumber("SMSG_PONG") ?? -1;
-const STUBBED = opcodeNumber("SMSG_ZONE_UNDER_ATTACK") ?? -1;
+const STUBBED = opcodeNumber("SMSG_GUILD_BANK_LIST") ?? -1;
 const GOSSIP = opcodeNumber("SMSG_GOSSIP_MESSAGE") ?? -1;
 const LOGOUT = opcodeNumber("CMSG_LOGOUT_REQUEST") ?? -1;
 const stops: (() => void)[] = [];
@@ -169,8 +169,8 @@ describe("runProbe", () => {
     expect(report.notices).toEqual([
       {
         at: expect.any(Number),
-        label: "Zone under attack",
-        opcode: "SMSG_ZONE_UNDER_ATTACK",
+        label: "Guild bank",
+        opcode: "SMSG_GUILD_BANK_LIST",
         text: expect.any(String),
       },
     ]);

@@ -1,10 +1,20 @@
 import type { AreaName } from "@peon/core";
+import { accountHarness } from "#harness/areas/account/area";
 import { achievementsHarness } from "#harness/areas/achievements/area";
 import { ambienceHarness } from "#harness/areas/ambience/area";
+import { auctionHarness } from "#harness/areas/auction/area";
 import { bankHarness } from "#harness/areas/bank/area";
+import { battlegroundsHarness } from "#harness/areas/battlegrounds/area";
 import { buybackHarness } from "#harness/areas/buyback/area";
+import { calendarHarness } from "#harness/areas/calendar/area";
+import { channelsHarness } from "#harness/areas/channels/area";
+import { chartersHarness } from "#harness/areas/charters/area";
 import { combatlogHarness } from "#harness/areas/combatlog/area";
+import { complaintsHarness } from "#harness/areas/complaints/area";
+import { contactsHarness } from "#harness/areas/contacts/area";
 import { emotesHarness } from "#harness/areas/emotes/area";
+import { guildadminHarness } from "#harness/areas/guildadmin/area";
+import { inspectHarness } from "#harness/areas/inspect/area";
 import { instancesHarness } from "#harness/areas/instances/area";
 import { itemsHarness } from "#harness/areas/items/area";
 import { lfgHarness } from "#harness/areas/lfg/area";
@@ -28,12 +38,22 @@ import { unitmotionHarness } from "#harness/areas/unitmotion/area";
 import { vehiclesHarness } from "#harness/areas/vehicles/area";
 
 export const HARNESS_AREAS = {
+  account: accountHarness,
   achievements: achievementsHarness,
   ambience: ambienceHarness,
+  auction: auctionHarness,
   bank: bankHarness,
+  battlegrounds: battlegroundsHarness,
   buyback: buybackHarness,
+  calendar: calendarHarness,
+  channels: channelsHarness,
+  charters: chartersHarness,
   combatlog: combatlogHarness,
+  complaints: complaintsHarness,
+  contacts: contactsHarness,
   emotes: emotesHarness,
+  guildadmin: guildadminHarness,
+  inspect: inspectHarness,
   instances: instancesHarness,
   items: itemsHarness,
   lfg: lfgHarness,

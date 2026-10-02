@@ -9,6 +9,7 @@ export type ChatMessage = {
   message: string;
   channel?: string;
   senderName?: string;
+  achievementId?: number;
 };
 
 export type NameQueryResult = {
@@ -84,6 +85,11 @@ export function parseChatMessage(r: PacketReader, isGm = false): ChatMessage {
   const { senderName, channel } = readSenderBlock(r, type, isGm);
   const message = r.sizedString();
   if (r.remaining > 0) r.uint8();
+  const achievementId =
+    (type === ChatType.ACHIEVEMENT || type === ChatType.GUILD_ACHIEVEMENT) &&
+    r.remaining >= 4
+      ? r.uint32LE()
+      : undefined;
 
   return {
     type,
@@ -93,6 +99,7 @@ export function parseChatMessage(r: PacketReader, isGm = false): ChatMessage {
     message,
     channel,
     senderName,
+    achievementId,
   };
 }
 

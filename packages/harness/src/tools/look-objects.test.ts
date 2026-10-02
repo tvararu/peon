@@ -19,7 +19,10 @@ type ObjectsState = AreaState<"objects">;
 
 function objectState(over: Partial<ObjectsState>): ObjectsState {
   return {
+    anims: new Map(),
+    despawning: new Set(),
     displays: undefined,
+    fishing: undefined,
     lastMessage: undefined,
     pages: new Map(),
     pendingUse: undefined,

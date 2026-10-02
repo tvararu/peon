@@ -110,6 +110,8 @@ into `spell_data_dir` unchanged; a rebuild gives the same bytes. Keep the
 directory outside the checkout, for example `~/wow-data/dbc` beside the
 navigation data: `tmp/` is scratch space and may be cleared.
 
+The navigation data directory holds maps 0 (Azeroth), 1 (Kalimdor), 530 (Expansion01), 571 (Northrend) and the Deadmines; walking refuses on other maps. It is built with namigator's MapBuilder at the commit in `vendor/namigator/UPSTREAM`: `MapBuilder -d <client Data dir> -m <map name> -o <out dir> -t 8 -l 1`, which writes `<Map>.map`, `Nav/<Map>/` and BVH files; adding a map to an existing directory copies those and merges `BVH/bvh.idx` as the union of its file entries keyed by MPQ path, sorted, keeping the existing obstacle list (the BVH file names are content hashes, so shared files are identical).
+
 ## Flags
 
 | Flag | Default | What it does |
@@ -165,7 +167,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | Tool | What it does |
 |---|---|
 | `look` | Self, place, target, the running action, and the nearest units with short ids like `u7`; `find: object` lists game objects as `o<n>` with kind and quest, locked and busy flags; `find: flight_master` lists flight masters, also one that left view. |
-| `travel` | Walks to a unit (`to: o<n>` reaches a game object), the corpse or a point, uses the hearthstone (`to: hearth`), flies to a discovered flight destination (`to: fly Silvermoon City`), explores in a direction, or unsticks. An explore leg refused for an ambiguous navmesh column first retries the same point on the floor nearest the walker, then other distances on the same bearing, and one exhausted bearing counts as a single obstruction. |
+| `travel` | Walks to a unit (`to: o<n>` reaches a game object), the corpse or a point, uses the hearthstone (`to: hearth`), flies to a discovered flight destination (`to: fly Silvermoon City`), rides a boat or zeppelin to a named stop (`to: ride Thunder Bluff`), explores in a direction, or unsticks. An explore leg refused for an ambiguous navmesh column first retries the same point on the floor nearest the walker, then other distances on the same bearing, and one exhausted bearing counts as a single obstruction. |
 | `engage` | Chooses a target, walks to it, fights it with Jev and loots it; the result line gives damage dealt and taken, avoided swings and refused spells. An unnamed engage that only sees gray hostiles refuses with a `Next:` step that travels to explore for non-gray hostiles. |
 | `loot` | Loots one corpse, one slot at a time. |
 | `interact` | Talks to an NPC (`npc: o<n>` talks to a quest-giver object): quests, gossip, buy, sell junk, buyback, train, repair, bind at an inn, reset talents at a class trainer (pays only up to `max_cost`), bank with a banker (open, deposit, withdraw, buy a bag slot); talking to a flight master lists the known destinations with their list prices. |
@@ -177,12 +179,13 @@ A result that is not `DONE` ends with a `Next:` step.
 | `journal` | Quest log, bags and gear, bank contents, spells, reputation, or the game log. |
 | `stop` | Stops one action or everything. |
 | `gear` | Wears, takes off, moves, splits, opens and reads items. |
-| `use` | Uses a game object: opens a locked chest or quest object and takes what is inside, reads a shrine, plaque or book, or presses another usable object. |
+| `use` | Uses a game object: opens a locked chest or quest object and takes what is inside, reads a shrine, plaque or book, presses another usable object, or fishes (`do: fish` casts Fishing, uses the bobber on the bite and takes the catch). |
 | `spell` | Casts a spell on itself or a unit (`do: cast`), cancels one of its own buffs (`cancel_aura`) or puts a spell or item on an action bar slot (`bar`), or gets on a ground mount and off again (`mount`, `dismount`). |
 | `pet` | Checks its pet (`status`), calls, dismisses or revives it, attacks with it, moves it (`follow`, `stay`, `stop`) or sets its stance. |
 | `dungeon` | Difficulty, saved instances, resets, the bind prompt and the dungeon finder queue, role answers, proposal answers, teleports and kick votes. |
 | `group` | Shows the group roster, removes a member, or passes the lead. |
 | `trade` | Gives items and gold to another player, answers a trade request, changes the offer, accepts, cancels or reads both offers. |
+| `mail` | Reads the letters waiting in the inbox, collects gold and items from them, or sends a letter with gold or items at a mailbox within 10 yards. |
 
 `travel`, `engage`, `rest` and `recover` start a run (`r1`, `r2`, …).
 Only one run can be active. The tool waits for the run to end and

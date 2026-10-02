@@ -19,18 +19,40 @@ export type GuildMemberRaw = {
   officerNote: string;
 };
 
+export type GuildRankTab = {
+  flags: number;
+  slots: number;
+};
+
+export type GuildRankRaw = {
+  rights: number;
+  goldPerDay: number;
+  tabs: GuildRankTab[];
+};
+
 export type GuildRosterRaw = {
   memberCount: number;
   motd: string;
   guildInfo: string;
   rankCount: number;
+  ranks: GuildRankRaw[];
   members: GuildMemberRaw[];
+};
+
+export type GuildEmblem = {
+  style: number;
+  color: number;
+  borderStyle: number;
+  borderColor: number;
+  backgroundColor: number;
 };
 
 export type GuildQueryResult = {
   guildId: number;
   name: string;
   rankNames: string[];
+  emblem: GuildEmblem;
+  rankCount: number;
 };
 
 export function parseGuildRoster(r: PacketReader): GuildRosterRaw {
@@ -38,13 +60,15 @@ export function parseGuildRoster(r: PacketReader): GuildRosterRaw {
   const motd = r.cString();
   const guildInfo = r.cString();
   const rankCount = r.uint32LE();
+  const ranks: GuildRankRaw[] = [];
   for (let i = 0; i < rankCount; i++) {
-    r.skip(4);
-    r.skip(4);
+    const rights = r.uint32LE();
+    const goldPerDay = r.uint32LE();
+    const tabs: GuildRankTab[] = [];
     for (let j = 0; j < 6; j++) {
-      r.skip(4);
-      r.skip(4);
+      tabs.push({ flags: r.uint32LE(), slots: r.uint32LE() });
     }
+    ranks.push({ rights, goldPerDay, tabs });
   }
   const members: GuildMemberRaw[] = [];
   for (let i = 0; i < memberCount; i++) {
@@ -76,7 +100,7 @@ export function parseGuildRoster(r: PacketReader): GuildRosterRaw {
       officerNote,
     });
   }
-  return { memberCount, motd, guildInfo, rankCount, members };
+  return { memberCount, motd, guildInfo, rankCount, ranks, members };
 }
 
 export function parseGuildQueryResponse(r: PacketReader): GuildQueryResult {
@@ -86,7 +110,15 @@ export function parseGuildQueryResponse(r: PacketReader): GuildQueryResult {
   for (let i = 0; i < 10; i++) {
     rankNames.push(r.cString());
   }
-  return { guildId, name, rankNames };
+  const emblem: GuildEmblem = {
+    style: r.uint32LE(),
+    color: r.uint32LE(),
+    borderStyle: r.uint32LE(),
+    borderColor: r.uint32LE(),
+    backgroundColor: r.uint32LE(),
+  };
+  const rankCount = r.uint32LE();
+  return { guildId, name, rankNames, emblem, rankCount };
 }
 
 export const GuildEventCode = {
@@ -99,8 +131,15 @@ export const GuildEventCode = {
   LEADER_IS: 6,
   LEADER_CHANGED: 7,
   DISBANDED: 8,
+  TABARD_CHANGE: 9,
+  RANK_UPDATED: 10,
+  RANK_DELETED: 11,
   SIGNED_ON: 12,
   SIGNED_OFF: 13,
+  BANK_TAB_PURCHASED: 15,
+  BANK_TAB_UPDATED: 16,
+  BANK_MONEY_SET: 17,
+  BANK_TAB_AND_MONEY_UPDATED: 18,
 } as const;
 
 const HAS_TRAILING_GUID = new Set<number>([
@@ -173,12 +212,20 @@ export function buildGuildMotd(motd: string): Uint8Array {
 export const GuildCommand = {
   CREATE: 0,
   INVITE: 1,
-  QUIT: 2,
-  PROMOTE: 3,
-  FOUNDER: 0x0c,
-  MEMBER: 0x0d,
-  PUBLIC_NOTE_CHANGED: 0x13,
-  OFFICER_NOTE_CHANGED: 0x14,
+  QUIT: 3,
+  ROSTER: 5,
+  PROMOTE: 6,
+  DEMOTE: 7,
+  REMOVE: 8,
+  CHANGE_LEADER: 10,
+  EDIT_MOTD: 11,
+  GUILD_CHAT: 13,
+  FOUNDER: 14,
+  CHANGE_RANK: 16,
+  PUBLIC_NOTE: 19,
+  VIEW_TAB: 21,
+  MOVE_ITEM: 22,
+  REPAIR: 25,
 } as const;
 
 export const GuildCommandResult = {
@@ -200,6 +247,11 @@ export const GuildCommandResult = {
   GUILD_RANKS_LOCKED: 0x11,
   GUILD_RANK_IN_USE: 0x12,
   GUILD_IGNORING_YOU_S: 0x13,
+  GUILD_UNK1: 0x14,
+  GUILD_WITHDRAW_LIMIT: 0x19,
+  GUILD_NOT_ENOUGH_MONEY: 0x1a,
+  GUILD_BANK_FULL: 0x1c,
+  GUILD_ITEM_NOT_FOUND: 0x1d,
 } as const;
 
 export type GuildCommandResultPacket = {

@@ -122,9 +122,15 @@ only near it. The pause and state rules rest on
 
 ## Capabilities row
 
-None yet: `board(guid)` and `leave()` are acts of the area (and
-`worldActs`), not an agent verb. The `travel ride` verb and the zeppelin eval
-arrive in vehicles-8.
+| Capability | Scenario | Limit |
+|---|---|---|
+| Ride a boat or zeppelin to another dock | `t8-vehicles-zeppelin` | needs the transport path and taxi node files from the game's data files |
+
+`travel` `to: "ride <stop>"` (`tools/travel-ride.ts`) reads `TaxiNodes.dbc` and the stop frames (`actionFlag` 2) of `TaxiPathNode.dbc` through `areas/transports/stops.ts`. A transport in view is a candidate when the template's path has a stop with a taxi node of that name within 700 yd on its map (the City node is the nearest one at the Thunder Bluff dock; there is no `Transport,` node there). It refuses `transport_data_missing` without the files or a pose, `no_route` when no transport in view goes to the stop, `already_there` at a dock that serves it and `no_stop` without a name. Otherwise it waits for a candidate docked within 400 yd (it walks only when the dock is beyond boarding range), calls `board`, polls `poseAt` until the transport is docked at a stop that serves the name and at least 100 yd from the boarding dock (or on another map), then calls `leave`. A refused `leave` leaves the character aboard and reports the reason; a stop leaves it aboard too. Each act holds the world mutex on its own; the ride is one run.
+
+## Live ride through the tool
+
+Eval `t8-vehicles-zeppelin`, round 516 replica 13 (`tmp/evals/516/t8-vehicles-zeppelin-13`, verdict `pass` 3/3, account FAC6ABF7F0D44 deleted by the run): a `max80` character on the Orgrimmar tower called `travel { to: "ride Thunder Bluff" }` once. The game log has `transports/boarded` (entry 190549, line 56) and `transports/left` (line 206), the tool ended `DONE` after about 4 min, and the final truth is map 1, zone 1638, (-1026.86, 375.78, 29.35), 0 yd from the stop. This is the live `leave` on the ground that vehicles-7 could not show: the harness has the navigation data for map 1. The first attempt (replica 1, partly kept) picked a zeppelin docked beside the tower that does not serve Thunder Bluff and failed walking to it (`position_disagrees_with`); selection by route fixed that. The cross-map ride (BR-vehicles-7-4) is not shown.
 
 ## Proof
 

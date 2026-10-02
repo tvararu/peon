@@ -29,11 +29,64 @@ const TAME_SETTLE_MS = 35_000;
 
 type PetSpell = { id: number; name: string };
 
+const VEHICLE_FLAGS = 0x8_00;
+const VEHICLE_BUTTON_FIRST = 8;
+const VEHICLE_BUTTON_LAST = 12;
+
+type BarSlot = { action: number; type: number };
+
+type BarView = {
+  flags?: unknown;
+  slots?: unknown;
+  spells?: unknown;
+};
+
+function slotsOf(value: unknown): readonly BarSlot[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const slots = value as readonly Partial<BarSlot>[];
+  if (
+    slots.some(
+      (slot) =>
+        typeof slot.action !== "number" || typeof slot.type !== "number",
+    )
+  )
+    return undefined;
+  return slots as readonly BarSlot[];
+}
+
+function spellIdsOf(value: unknown): readonly number[] {
+  if (!Array.isArray(value)) return [];
+  const rows = value as readonly { spell?: unknown }[];
+  if (rows.some((row) => typeof row.spell !== "number")) return [];
+  return (rows as readonly { spell: number }[]).map((row) => row.spell);
+}
+
+function vehicleSpellsOf(bar: BarView): readonly PetSpell[] {
+  if (typeof bar.flags !== "number") return [];
+  if (Math.floor(bar.flags / VEHICLE_FLAGS) % 2 === 0) return [];
+  return (slotsOf(bar.slots) ?? [])
+    .filter(
+      (slot) =>
+        slot.action !== 0 &&
+        slot.type >= VEHICLE_BUTTON_FIRST &&
+        slot.type <= VEHICLE_BUTTON_LAST,
+    )
+    .map((slot) => ({ id: slot.action, name: `spell ${slot.action}` }));
+}
+
 function barSpells(handle: Game): readonly PetSpell[] {
-  const bar = stateOf(handle).bar;
-  return (bar?.spells ?? []).map((row) => ({
-    id: row.spell,
-    name: handle.spellDefinition(row.spell)?.name ?? `spell ${row.spell}`,
+  const raw: unknown = stateOf(handle).bar;
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return [];
+  const bar = raw as BarView;
+  const pet = spellIdsOf(bar.spells).map((id) => ({
+    id,
+    name: handle.spellDefinition(id)?.name ?? `spell ${id}`,
+  }));
+  if (pet.length > 0) return pet;
+  const vehicle = vehicleSpellsOf(bar);
+  return vehicle.map((spell) => ({
+    id: spell.id,
+    name: handle.spellDefinition(spell.id)?.name ?? spell.name,
   }));
 }
 

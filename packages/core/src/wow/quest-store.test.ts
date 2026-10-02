@@ -69,3 +69,17 @@ describe("quest store bank window", () => {
     ).toBe(true);
   });
 });
+
+describe("quest store auction window", () => {
+  test("a pending talk answered by an auction window settles without lastError (quest-store.ts:253-274)", () => {
+    const { events, runtime, store } = setup();
+    runtime.talk(2n);
+    store.receiveWindow(2n, "auction");
+    expect(runtime.snapshot().lastError).toBeUndefined();
+    expect(
+      events.some(
+        (event) => event.type === "window" && event.detail === "auction",
+      ),
+    ).toBe(true);
+  });
+});

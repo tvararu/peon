@@ -44,6 +44,7 @@ or the page names one that does not exist.
 | Stop a channelled spell with stop | `t4-spells-stop-channel` | Stop also ends a channel. |
 | Make an inn its home | `t8-travel-bind-inn` | `interact` `bind` walks to the innkeeper first. A bind the server does not answer (dead, out of range or in an instance) is `UNCONFIRMED`. |
 | Use the hearthstone to go home | `t8-travel-hearth-home` | `travel` `hearth` refuses without the stone, on cooldown, in combat or in flight. The scenario starts at the preset's own home, so it does not show a bind at another inn. |
+| Ride a boat or zeppelin to another dock | `t8-vehicles-zeppelin` | `travel` `ride <stop>` needs the transport path and taxi node files from the game's data files. The scenario rides the Orgrimmar zeppelin to Thunder Bluff on map 1; cross-map rides are not shown. |
 | Ride a mount and get off it | `t9-selfstate-mount` | Needs a known mount spell; mounting fails indoors and in combat,. The scenario starts in Tranquillien, 56 yd from the flight master, and rides to it. |
 | Fly to a discovered destination and walk on from the landing | `t8-travel-fly` | `travel` `fly <destination>` flies from a flight master in view, or from one at a known node on the same map within 300 yd; the first visit to a master learns its path and a landing steps onto the ground. A mounted character is refused ("Get off your mount first."). The scenario starts in Tranquillien, 54 yd from the master, and flies to Silvermoon City; the agent walked west when it was asked to walk north. |
 | Command a pet: call, dismiss, attack, follow, stay, stop and stance | `t8-pets-command` | Hunter only; no warlock or death knight preset. |
@@ -53,6 +54,7 @@ or the page names one that does not exist.
 | Spend talent points | `t8-talents-spend` | Learns only for the active spec. A server refusal has no reason on the wire; the reason shown comes from local rules. |
 | Reset talents at a class trainer | `t8-talents-reset` | Pays only up to the cost the agent allows. |
 | Get on a vehicle by clicking it and get off | `t8-vehicles-board` | The client does not read seat flags, so a request the seat forbids shows as no answer. The scenario uses the 7th Legion Chain Gun in Dragonblight, which a Horde `max80` can click; hostile Riflemen stand near it. |
+| Drive a vehicle and use its abilities | `t8-vehicles-drive` | Only ground vehicles while control refuses flying. The scenario boards a Horde Siege Tank for quest 11652, moves with it, and gets off. |
 | Apply and remove glyphs | `t8-talents-glyph` | Active spec only. The slot type is found by trying. |
 | Set dungeon difficulty | `t9-instances-difficulty` | A solo change is not confirmed until the next dungeon entry; in a group only the leader can change it. |
 | Queue for the dungeon finder and leave | `t9-lfg-queue` | Joining needs an LFG option on the server; a queue with no reply is reported as disabled. |
@@ -66,6 +68,9 @@ or the page names one that does not exist.
 | Refuse or cancel a trade | `t9-trade-cancel` | |
 | Store items in the bank and take them out | `t9-bank-deposit`, `t9-bank-withdraw` | The bank verbs talk to a banker in range; `journal` `about: bank` reads the stored contents from the login snapshot anywhere. |
 | Buy a bank bag slot | `t9-bank-slot` | The first slot of a fresh character costs 1000 copper. |
+| Read mail | `t9-mail-read` | The letter is staged by an offline quest reward; the answer quotes its fixed body. |
+| Collect gold and items from mail | `t9-mail-collect` | Takes money then attachments in order at a mailbox. |
+| Send gold or items by mail | `t9-mail-send` | Postage is 30 copper per item, 30 with no item. |
 | Share a quest with the group and take one shared back | `t8-quests-share`, `t8-quests-accept-shared` | A share with no member answer is `UNCONFIRMED` after 3 s. |
 | Set loot rules and give master loot | `t9-raid-master-loot` | Needs a corpse that holds an item; the scenario allows three kills. `roll` and `pass_loot` are not shown: a group roll needs an uncommon drop and `pass_loot` has no server reply. |
 | Run and answer ready checks | `t9-raid-ready`, `t9-raid-answer` | Peon ends its own checks after 30 s. |
@@ -82,8 +87,8 @@ These have tools or code but no scenario that checks them live:
   Walking in from the Ragefire Chasm portal (area trigger 2230, map 1) does
   not work either: two live tries started the agent beside the portal in
   the Cleft of Shadow on a `fresh` character, and both graded `fail` with
-  0 of 4 checks met. `travel` refused with `unsupported_map_1` (no Kalimdor
-  navigation data on this host) and walked 0 yd, so the agent never entered.
+  0 of 4 checks met. `travel` refused with `unsupported_map_1` in those runs
+  and walked 0 yd, so the agent never entered.
   The reset is proven by probe runs, failed inside the dungeon and
   reset outside it.
 
@@ -104,5 +109,6 @@ These have tools or code but no scenario that checks them live:
 - Answer a raid ready check (`t9-raid-answer`, the agent answers before the check starts, and the repeat guard then refuses its answer during the check).
 - Accept a quest a party member shares (`t8-quests-accept-shared`, the agent's early `accept_invite` is refused as a repeat, so it is not in the group when the partner shares).
 - Changing seats, riding with another player and ejecting a passenger (`vehicle` `seat`, `ride_with`, `eject`).
+- Fishing (`use` `do: fish` casts Fishing, uses the bobber on the bite and takes the catch; no scenario stages the pole, the skill and calm water, so the run is proven by probe traces and unit tests only).
 
-Peon has no tool for mail or the auction house.
+Peon has no tool for the auction house.

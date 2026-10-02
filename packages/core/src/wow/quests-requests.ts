@@ -38,7 +38,7 @@ export type QuestAction =
   | "abandon"
   | "cancel";
 
-export type QuestWindow = "trainer" | "vendor" | "taxi" | "bank";
+export type QuestWindow = "trainer" | "vendor" | "taxi" | "bank" | "auction";
 
 export type QuestUnresolvedReason =
   | "cancelled"

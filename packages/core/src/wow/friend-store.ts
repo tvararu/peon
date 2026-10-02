@@ -1,4 +1,5 @@
 import { Emitter, type Unsubscribe } from "#lib/emitter";
+
 export type FriendEntry = {
   guid: bigint;
   name: string;
@@ -20,6 +21,24 @@ export type FriendEvent =
 type FriendUpdateFields = Partial<
   Pick<FriendEntry, "status" | "area" | "level" | "playerClass">
 >;
+
+export const CONTACT_NOTE_BYTES = 48;
+
+export function truncateNote(note: string): string {
+  const bytes = new TextEncoder().encode(note);
+  if (bytes.length <= CONTACT_NOTE_BYTES) return note;
+  let end = CONTACT_NOTE_BYTES;
+  while (end > 0) {
+    const prev = bytes[end - 1] ?? 0;
+    if (prev < 0x80) break;
+    if (prev >= 0xc0) {
+      end -= 1;
+      break;
+    }
+    end -= 1;
+  }
+  return new TextDecoder().decode(bytes.subarray(0, end));
+}
 
 export class FriendStore {
   private readonly friends: Map<bigint, FriendEntry>;
@@ -69,6 +88,14 @@ export class FriendStore {
 
     this.friends.delete(guid);
     this.events.emit({ type: "friend-removed", guid, name: entry.name });
+  }
+
+  setNote(guid: bigint, note: string): boolean {
+    const entry = this.friends.get(guid);
+    if (!entry) return false;
+    entry.note = truncateNote(note);
+    this.update(guid, {});
+    return true;
   }
 
   setName(guid: bigint, name: string): void {

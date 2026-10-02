@@ -1,0 +1,61 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 16,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "expect": "the answer holds the fixed phrase \"quest rewards\" from the offline reward mail body",
+      "id": "answer-quotes-letter",
+      "source": "session"
+    },
+    {
+      "evidence": {
+        "events": ["mail/listed"]
+      },
+      "expect": "GL has a mail/listed row",
+      "id": "listed-row",
+      "source": "game_log"
+    }
+  ],
+  "id": "t9-mail-read",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "elwynn10",
+  "setup": [
+    {
+      "body": {
+        "quest": 8325
+      },
+      "endpoint": "quest/add"
+    },
+    {
+      "body": {
+        "quest": 8325
+      },
+      "endpoint": "quest/complete"
+    },
+    {
+      "body": {
+        "quest": 8325
+      },
+      "endpoint": "quest/reward"
+    },
+    {
+      "body": {
+        "map": 0,
+        "x": -9452,
+        "y": 48,
+        "z": 56.4
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Check your mail at the Goldshire mailbox and tell me what the letter says.",
+  "tier": 9
+}

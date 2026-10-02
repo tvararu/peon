@@ -70,6 +70,8 @@ function goalText(goal: TravelGoalView): string {
       return "hearth";
     case "fly":
       return `fly ${goal.destination}`;
+    case "ride":
+      return `ride ${goal.name}`;
     default:
       return "corpse";
   }

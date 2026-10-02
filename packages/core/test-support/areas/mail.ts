@@ -2,6 +2,7 @@ import { areaRig } from "#test-support/area-rig";
 import type { Entity } from "#wow/entity-store";
 import { ObjectType } from "#wow/protocol/entity-fields";
 import { PacketWriter } from "#wow/protocol/packet";
+import { PLAYER_FIELDS } from "#wow/protocol/update-fields";
 
 export const MAIL_SELF = 0x00_00_00_00_00_00_00_07n;
 export const MAIL_SENDER = 0x00_00_00_00_00_00_00_2an;
@@ -230,8 +231,40 @@ export function mailMailbox(position: {
   } as Entity;
 }
 
-export function mailRig() {
+export function mailSendMailResultBody(
+  init: {
+    id?: number;
+    action?: number;
+    result?: number;
+    equipError?: number;
+    itemLow?: number;
+    count?: number;
+  } = {},
+): Uint8Array {
+  const w = new PacketWriter();
+  w.uint32LE(init.id ?? 0);
+  w.uint32LE(init.action ?? 0);
+  w.uint32LE(init.result ?? 0);
+  if ((init.result ?? 0) === 1) w.uint32LE(init.equipError ?? 0);
+  else if ((init.action ?? 0) === 2) {
+    w.uint32LE(init.itemLow ?? 0);
+    w.uint32LE(init.count ?? 0);
+  }
+  return w.finish();
+}
+
+export function mailSelf(opts: { coinage?: number; name?: string } = {}) {
   const self = mailPlayer({ mapId: 0, orientation: 0, x: 0, y: 0, z: 0 });
+  if (opts.coinage !== undefined)
+    (self.rawFields as Map<number, number>).set(
+      PLAYER_FIELDS.COINAGE.offset,
+      opts.coinage,
+    );
+  return { ...self, name: opts.name ?? self.name };
+}
+
+export function mailRig(opts: { coinage?: number; name?: string } = {}) {
+  const self = mailSelf(opts);
   const box = mailMailbox({ mapId: 0, orientation: 0, x: 5, y: 0, z: 0 });
   return areaRig("mail", {
     getEntity: (guid) => {

@@ -1,0 +1,90 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 13,
+    "tools": 30,
+    "turns": 13
+  },
+  "checks": [
+    {
+      "evidence": {
+        "events": ["vehicles/entered"]
+      },
+      "expect": "GL has a vehicles/entered row (the agent clicked the Siege Tank and the server seated it), written by the vehicle tool call",
+      "id": "entered",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["vehicles/control"]
+      },
+      "expect": "GL has a vehicles/control row with allow true for the same vehicle guid as the entered row (the server gave the agent control of the tank it boarded)",
+      "id": "control-allow",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "events": ["vehicles/entered", "vehicles/exited"]
+      },
+      "expect": "GL has a vehicles/exited row on a later line than the vehicles/entered row, and the exited row names the same vehicle guid as the entered row",
+      "id": "exited-after-entered",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "point": {
+          "x": 2792,
+          "y": 6738
+        }
+      },
+      "expect": "T final position at least 8 yd from the start point (2792.0, 6738.0, map 571); the agent moved with the tank before leaving it",
+      "id": "moved-eight-yards",
+      "source": "truth"
+    },
+    {
+      "expect": "the session shows the agent calling the vehicle tool with do board and do leave, not ending REFUSED",
+      "id": "vehicle-called",
+      "source": "session"
+    }
+  ],
+  "id": "t8-vehicles-drive",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 16,
+  "partner": null,
+  "preset": "max80",
+  "setup": [
+    {
+      "body": {
+        "quest": 11651
+      },
+      "endpoint": "quest/add"
+    },
+    {
+      "body": {
+        "quest": 11651
+      },
+      "endpoint": "quest/complete"
+    },
+    {
+      "body": {
+        "quest": 11651
+      },
+      "endpoint": "quest/reward"
+    },
+    {
+      "body": {
+        "map": 571,
+        "o": 0,
+        "x": 2792,
+        "y": 6738,
+        "z": 7.6,
+        "zone": 65
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Take the quest The Plains of Nasam from Gorge the Corpsegrinder nearby, then board a Horde Siege Tank: walk to it, get on, move with it, and get off.",
+  "tier": 8
+}
