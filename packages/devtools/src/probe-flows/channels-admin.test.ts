@@ -51,11 +51,11 @@ describe("channels-admin flow", () => {
     expect(join).toHaveBeenCalledWith("peonab12cd");
     expect(admin.mock.calls.map((call) => call[1])).toEqual([
       "owner",
+      "password",
       "moderator",
       "unmoderator",
       "mute",
       "unmute",
-      "password",
       "set_owner",
       "invite",
     ]);

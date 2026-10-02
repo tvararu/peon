@@ -12,11 +12,11 @@ type ChannelAdminAction =
 
 const ACTIONS: ChannelAdminAction[] = [
   "owner",
+  "password",
   "moderator",
   "unmoderator",
   "mute",
   "unmute",
-  "password",
   "set_owner",
   "invite",
 ];

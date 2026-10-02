@@ -63,3 +63,11 @@ No verb.
 
 | Opcode | Proof | Evidence | Source |
 |---|---|---|---|
+| `CMSG_CHANNEL_PASSWORD` | `live` | probe flow `channels-admin` on channel `peoncccf6a` (Own `Fgklphdbdeo`, partner `Fgklphdbdbo`, both `eversong10`, deleted): 15-byte out body `channel + "abc"` answered by `not_moderator` | `Handlers/ChannelHandler.cpp:105` |
+| `CMSG_CHANNEL_SET_OWNER` | `live` | same run: 23-byte out body `channel + partner name` answered by `not_owner` (the partner joined first and owned the room) | `Handlers/ChannelHandler.cpp:120` |
+| `CMSG_CHANNEL_OWNER` | `live` | same run: 11-byte out body `channel` answered by `channel_owner` naming the partner owner | `Handlers/ChannelHandler.cpp:135` |
+| `CMSG_CHANNEL_MODERATOR` | `live` | same run: 23-byte out body answered by `not_moderator` (a non-owner cannot moderate) | `Handlers/ChannelHandler.cpp:147` |
+| `CMSG_CHANNEL_UNMODERATOR` | `live` | same run: 23-byte out body answered by `not_moderator` | `Handlers/ChannelHandler.cpp:162` |
+| `CMSG_CHANNEL_MUTE` | `live` | same run: 23-byte out body answered by `not_moderator` | `Handlers/ChannelHandler.cpp:177` |
+| `CMSG_CHANNEL_UNMUTE` | `live` | same run: 23-byte out body answered by `not_moderator` | `Handlers/ChannelHandler.cpp:192` |
+| `CMSG_CHANNEL_INVITE` | `live` | same run: 23-byte out body answered by `already_member` with the invitee guid (the partner was already on the room) | `Handlers/ChannelHandler.cpp:207` |
