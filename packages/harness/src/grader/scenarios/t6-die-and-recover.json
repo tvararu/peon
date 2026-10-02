@@ -8,10 +8,7 @@
   "checks": [
     {
       "evidence": {
-        "events": ["life/dead", "life/released", "life/alive"],
-        "window": {
-          "steer": 0
-        }
+        "events": ["life/dead", "life/released", "life/alive"]
       },
       "expect": "GL death, release, reclaim in order (life/dead, life/released, life/alive), where the reclaim is the server's resurrect/alive update, not the request; no death within 10 min is blocked, reason no_death",
       "id": "death-order",
@@ -32,10 +29,7 @@
     },
     {
       "evidence": {
-        "events": ["life/dead", "life/alive"],
-        "window": {
-          "steer": 0
-        }
+        "events": ["life/dead", "life/alive"]
       },
       "expect": "the GL pose at the reclaim is within 40 yd of the GL corpse position (T final position is not a check: the agent may walk on)",
       "id": "reclaim-near-corpse",

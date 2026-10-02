@@ -10,7 +10,7 @@
       "evidence": {
         "events": ["spells/channel_end"],
         "window": {
-          "forMs": 5000,
+          "forMs": 2000,
           "steer": 0
         }
       },

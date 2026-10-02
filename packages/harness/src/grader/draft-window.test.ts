@@ -236,4 +236,43 @@ describe("t4-spells-stop-channel drafts", () => {
     ]);
     expect(find("no-recast")?.met).toBe(false);
   });
+
+  test("a channel_end after 2 s is outside the cancelled window", async () => {
+    const find = await t4Draft([
+      steerRow(1, stop[0] ?? "", 0),
+      channelEnd(2, 2500),
+    ]);
+    expect(find("channel-cancelled")?.observed).toMatchObject({ count: 0 });
+  });
+});
+
+describe("t6-die-and-recover drafts", () => {
+  const t6 = loadScenario("t6-die-and-recover");
+  const texts = t6.steers.map((entry) => entry.text);
+  const steer = texts[0] ?? "";
+
+  const dead = (seq: number, at: number) =>
+    row(seq, "life/dead", { killerName: "Springpaw Stalker" }, at);
+  const released = (seq: number, at: number) =>
+    row(seq, "life/released", {}, at);
+  const alive = (seq: number, at: number) =>
+    row(seq, "life/alive", { via: "corpse" }, at);
+
+  async function t6Draft(lines: string[]) {
+    const dir = scratchDir("window-t6");
+    await writeFile(`${dir}/gamelog.jsonl`, `${lines.join("\n")}\n`);
+    const drafted = await observedChecks(dir, t6.checks, texts);
+    return (id: string) => drafted.find((check) => check.id === id);
+  }
+
+  test("a death before the death-triggered steer still drafts the order", async () => {
+    const find = await t6Draft([
+      dead(1, 0),
+      released(2, 1000),
+      steerRow(3, steer, 2000),
+      alive(4, 3000),
+    ]);
+    expect(find("death-order")?.observed).toMatchObject({ count: 3 });
+    expect(find("death-order")?.ref).toBe("gamelog.jsonl:1");
+  });
 });
