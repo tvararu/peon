@@ -41,10 +41,8 @@ export type PetsState = {
     | {
         guid: bigint;
         family: number;
-        flags: number;
         react: string;
         command: string;
-        slots: readonly { action: number; type: number }[];
         spells: readonly { spell: number; autocast: string }[];
       }
     | undefined;
