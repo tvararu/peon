@@ -42,7 +42,8 @@ export type CheckMeasure =
   | "kill_after_answer"
   | "kill_xp"
   | "max_attackers"
-  | "no_fight_after_stop";
+  | "no_fight_after_stop"
+  | "talents_spent";
 
 export type TruthPick =
   | "alive"
