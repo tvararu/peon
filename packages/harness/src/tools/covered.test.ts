@@ -144,6 +144,50 @@ describe("coverRows", () => {
     expect(log.get(listed.seq)?.consumedBy).toBeUndefined();
   });
 
+  test("a DONE fly covers the landing inside its call", () => {
+    const log = setup();
+    log.append({
+      class: "log",
+      data: { toolCallId: "c1" },
+      domain: "tool",
+      event: "tool/call",
+      text: "travel called",
+    });
+    const started = log.append(draft("travel/flight_started"));
+    const landed = log.append(draft("travel/flight_landed"));
+    coverRows(log, { status: "DONE", tool: "travel", toolCallId: "c1" });
+    expect(log.get(started.seq)?.consumedBy).toBeUndefined();
+    expect(log.get(landed.seq)?.consumedBy).toBe("c1");
+  });
+
+  test("a landing after a DONE fly stays uncovered", () => {
+    const log = setup();
+    log.append({
+      class: "log",
+      data: { toolCallId: "c1" },
+      domain: "tool",
+      event: "tool/call",
+      text: "travel called",
+    });
+    coverRows(log, { status: "DONE", tool: "travel", toolCallId: "c1" });
+    const landed = log.append(draft("travel/flight_landed"));
+    expect(log.get(landed.seq)?.consumedBy).toBeUndefined();
+  });
+
+  test("a landing after a PARTLY fly stays uncovered", () => {
+    const log = setup();
+    log.append({
+      class: "log",
+      data: { toolCallId: "c1" },
+      domain: "tool",
+      event: "tool/call",
+      text: "travel called",
+    });
+    coverRows(log, { status: "PARTLY", tool: "travel", toolCallId: "c1" });
+    const landed = log.append(draft("travel/flight_landed"));
+    expect(log.get(landed.seq)?.consumedBy).toBeUndefined();
+  });
+
   test("a call whose tool/call row is gone covers nothing", () => {
     const log = setup();
     const accepted = log.append(draft("quest/accepted"));

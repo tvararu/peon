@@ -149,9 +149,12 @@ verb plans from that node with `planFlight`, sends `activateTaxi` and
 waits for the `flight_landed` event; an instant teleport (the server's
 `InstantFlightPaths`) settles at once. The run holds the claim from
 the walk until the landing, so moves during the flight refuse with
-`in_flight`. With no flight master in view it walks only to a known node
-on the same map within 300 yd, else it refuses `no_flight_master`; it
-never plans a route across zones. A mounted character gets "Get off your
+`in_flight`. A landing the `DONE` fly result already reports stays with
+that call, so it starts no second turn; a landing after the call returned
+(an aborted `PARTLY` flight, or a later landing) still wakes the agent.
+With no flight master in view it walks only to a known node on the same
+map within 300 yd, else it refuses `no_flight_master`; it never plans a
+route across zones. A mounted character gets "Get off your
 mount first." with no next call. A landing is not waited for longer than
 20 minutes (`no_landing`, `UNCONFIRMED`). Each `planFlight` and
 `activateTaxi` refusal is one short refusal with its reason; an
