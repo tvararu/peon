@@ -1,0 +1,79 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 16,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "evidence": {
+        "delta": ["money"],
+        "truth": ["money"]
+      },
+      "expect": "T delta money is -130 (100 copper sent plus 30 postage, confirmed live)",
+      "id": "money-down-postage",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["mail/sent"]
+      },
+      "expect": "GL has a mail/sent row",
+      "id": "sent-row",
+      "source": "game_log"
+    },
+    {
+      "expect": "the session shows the agent calling the mail tool with do send, not ending REFUSED",
+      "id": "send-called",
+      "source": "session"
+    }
+  ],
+  "id": "t9-mail-send",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "partnerActions": [
+    {
+      "argv": [
+        "send",
+        "-w",
+        "<AGENT>",
+        "hi, could you mail me 1 silver? Thank you"
+      ],
+      "at": {
+        "kind": "elapsed",
+        "ms": 5000
+      },
+      "windowMs": 90000
+    }
+  ],
+  "partners": [
+    {
+      "preset": "elwynn10",
+      "role": "partner"
+    }
+  ],
+  "preset": "elwynn10",
+  "setup": [
+    {
+      "body": {
+        "copper": 500
+      },
+      "endpoint": "money"
+    },
+    {
+      "body": {
+        "map": 0,
+        "x": -9452,
+        "y": 48,
+        "z": 56.4
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "A player will whisper you and ask for 1 silver by mail. Send it.",
+  "tier": 9
+}

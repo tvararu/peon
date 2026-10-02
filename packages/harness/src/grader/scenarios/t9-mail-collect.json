@@ -1,0 +1,65 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 16,
+    "turns": 8
+  },
+  "checks": [
+    {
+      "evidence": {
+        "items": [11119],
+        "truth": ["inventory"]
+      },
+      "expect": "T item 11119 count is up by 8 (the Milly's Harvest reward letter carries 8 of item 11119, confirmed live)",
+      "id": "reward-items-up",
+      "source": "truth"
+    },
+    {
+      "evidence": {
+        "events": ["mail/taken"]
+      },
+      "expect": "GL has a mail/taken row",
+      "id": "taken-row",
+      "source": "game_log"
+    }
+  ],
+  "id": "t9-mail-collect",
+  "navBound": false,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "elwynn10",
+  "setup": [
+    {
+      "body": {
+        "quest": 3904
+      },
+      "endpoint": "quest/add"
+    },
+    {
+      "body": {
+        "quest": 3904
+      },
+      "endpoint": "quest/complete"
+    },
+    {
+      "body": {
+        "quest": 3904
+      },
+      "endpoint": "quest/reward"
+    },
+    {
+      "body": {
+        "map": 0,
+        "x": -9452,
+        "y": 48,
+        "z": 56.4
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "You have mail waiting at the Goldshire mailbox. Collect everything in it.",
+  "tier": 9
+}
