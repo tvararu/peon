@@ -39,6 +39,7 @@ export function routeHandle(control: ControlRuntime): RouteHandle {
     getControlState: () => control.snapshot(),
     onEntityEvent: () => () => {},
     onMovementStop: (cb) => control.onStop(cb),
+    setSwimming: (on: boolean) => control.setSwimming(on),
     stopMoving: (reason) => control.halt(reason),
   };
 }

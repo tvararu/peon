@@ -41,6 +41,7 @@ export type RouteHandle = Pick<
   WorldHandle,
   | "getControlState"
   | "follow"
+  | "setSwimming"
   | "stopMoving"
   | "onMovementStop"
   | "onEntityEvent"
@@ -65,6 +66,7 @@ class RouteGuide implements MovementGuide {
   readonly route: GroundRoute;
   distance = 0;
   sampleFailure = false;
+  swimmingNow = false;
   private readonly follower: RouteFollower;
   private readonly speed: () => number;
 
@@ -78,7 +80,10 @@ class RouteGuide implements MovementGuide {
     const { route } = this;
     const distance = Math.min(route.length, this.distance + yards);
     try {
-      Object.assign(pose, route.sample(distance));
+      const sampled = route.sample(distance);
+      const { swimming, ...point } = sampled;
+      Object.assign(pose, point);
+      this.follower.setSwimming(swimming, this);
     } catch (error) {
       this.sampleFailure = true;
       const reason =
@@ -90,6 +95,10 @@ class RouteGuide implements MovementGuide {
     this.distance = distance;
     this.follower.progressed(route.length - distance);
     return distance >= route.length ? { halt: "arrived" } : undefined;
+  }
+
+  swimming(_pose: ControlPose): boolean {
+    return this.swimmingNow;
   }
 
   leaseMs(): number {
@@ -199,9 +208,19 @@ export class RouteFollower {
     this.navigation.remaining = remaining;
   }
 
+  setSwimming(swimming: boolean, guide: RouteGuide): void {
+    if (this.active !== guide || guide.swimmingNow === swimming) return;
+    guide.swimmingNow = swimming;
+    this.handle.setSwimming(swimming);
+  }
+
   ended(guide: RouteGuide, reason: string): void {
     if (this.active !== guide) return;
     this.active = undefined;
+    if (guide.swimmingNow) {
+      guide.swimmingNow = false;
+      this.handle.setSwimming(false);
+    }
     const session = this.session;
     const replan =
       session !== undefined &&
@@ -224,9 +243,12 @@ export class RouteFollower {
         REPLAN_LIMITS.delayMs,
       );
   }
-
   dispose(): void {
     if (this.disposed) return;
+    if (this.active?.swimmingNow) {
+      this.active.swimmingNow = false;
+      this.handle.setSwimming(false);
+    }
     this.cancelReplan("close");
     this.disposed = true;
     for (const off of this.detach) off();

@@ -118,6 +118,7 @@ export class ControlRuntime {
       settle: () => this.mover.integrate(),
       abort: (reason: string) => this.mover.abort(reason),
       stop: (reason: string) => this.mover.stop(reason, false),
+      guided: () => this.mover.guiding(),
     };
     const interrupt = (reason: string): void => this.stops.emit(reason);
     const emitFlight = (

@@ -34,12 +34,15 @@ export function isStepRefusal(reason: string): reason is StepRefusal {
 
 export type Step = { ok: true; z: number } | { ok: false; reason: StepRefusal };
 
-export function unsupportedReason(flags: number): string | undefined {
+export function unsupportedReason(
+  flags: number,
+  guidedSwim = false,
+): string | undefined {
   if (flags & MovementFlag.ON_TRANSPORT) return "transport";
   if (flags & MovementFlag.FLYING || flags & MovementFlag.CAN_FLY)
     return "flying";
   if (flags & MovementFlag.FALLING) return "falling";
-  if (flags & MovementFlag.SWIMMING) return "swimming";
+  if (!guidedSwim && flags & MovementFlag.SWIMMING) return "swimming";
   if (flags & MovementFlag.DISABLE_GRAVITY) return "disable_gravity";
   if (flags & MovementFlag.SPLINE_ENABLED) return "spline";
   return undefined;
