@@ -10,8 +10,10 @@
       "evidence": {
         "events": ["combat/cast", "combat/attack_start", "control/move_*"],
         "window": {
-          "steer": 1,
-          "exceptNames": ["Smite"]
+          "steer": 0,
+          "afterMs": 5000,
+          "untilSteer": 1,
+          "max": 0
         }
       },
       "expect": "GL shows no cast, attack or movement (combat/cast, combat/attack_start, control/move_*) from the character later than 5 s after the stop steer until the resume steer",
@@ -22,10 +24,8 @@
       "evidence": {
         "events": ["combat/cast"],
         "window": {
-          "steer": 0,
-          "afterMs": 5000,
-          "untilSteer": 1,
-          "max": 0
+          "steer": 1,
+          "exceptNames": ["Smite"]
         }
       },
       "expect": "after resume, 3 kills total with no non-Smite damage spell cast (GL combat/cast)",
