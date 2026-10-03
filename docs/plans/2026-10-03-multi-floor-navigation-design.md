@@ -193,7 +193,8 @@ origins the three hand-checked legs planned with 285, 263 and 272 points;
 from their rebuilt poses the same goals plan with 372, 274 and 272 points
 (-9793.4, 151.2, 24.4; -9752.8, 136.3, 20.3; -9753.4, 135.2, 20.6 to
 (-9843.5, 127.5, 5.4)).
-refused, and so do the other #492 refusals. R3 acts on destinations without
+All 17 replayed Silvermoon corner refusals stay refused, and so do the
+other #492 refusals. R3 acts on destinations without
 a z: of the 43 legs R1 and R2 leave refused, exactly one data floor of the
 destination column routes in 6 (4 in #445, 1 in #492, 1 in round 701), so
 R3 plans those 6 and 37 stay refused. R5 is measured separately above. On
