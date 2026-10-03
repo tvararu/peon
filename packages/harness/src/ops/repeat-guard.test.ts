@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { GameLogEntry } from "#harness/contract/log";
 import type { ToolResult } from "#harness/contract/result";
 import type { RepeatCall } from "#harness/contract/services";
 import type { PoseView } from "#harness/contract/views";
@@ -319,5 +320,119 @@ describe("repeatRefusal", () => {
     expect(refusal.next).toBe(
       'ask the human: "My travel call keeps failing (no_ground). What should I do?"',
     );
+  });
+});
+
+function feed() {
+  const rows: GameLogEntry[] = [];
+  const arrive = (event: string) => {
+    rows.push({ event, seq: rows.length + 1 } as GameLogEntry);
+  };
+  return {
+    arrive,
+    log: {
+      lastSeq: () => rows.length,
+      since: (seq: number) => rows.filter((row) => row.seq > seq),
+    },
+  };
+}
+
+describe("an offer after a missing-offer failure", () => {
+  const cases = [
+    {
+      args: { do: "accept_invite" },
+      event: "group/invite",
+      reason: "nothing_to_accept",
+      tool: "social",
+    },
+    {
+      args: { do: "decline_invite" },
+      event: "group/invite",
+      reason: "nothing_to_decline",
+      tool: "social",
+    },
+    {
+      args: { accept: true, do: "answer" },
+      event: "trade/requested",
+      reason: "no_request",
+      tool: "trade",
+    },
+    {
+      args: { do: "accept_quest" },
+      event: "quests/offered",
+      reason: "no_offer",
+      tool: "group",
+    },
+  ] as const;
+
+  for (const one of cases) {
+    const base = (log: ReturnType<typeof feed>["log"]) =>
+      call({ args: one.args, log, tool: one.tool });
+
+    test(`${one.event} lets ${one.tool} ${one.reason} run again`, () => {
+      const f = feed();
+      const guard = guardAt({ t: 0 });
+      guard.record({ ...base(f.log), result: outcome("FAILED", one.reason) });
+      expect(guard.check(base(f.log))).toMatchObject({ reason: one.reason });
+      f.arrive(one.event);
+      expect(guard.check(base(f.log))).toBeUndefined();
+      expect(guard.blocks(base(f.log))).toBe(false);
+    });
+
+    test(`a repeat of ${one.tool} ${one.reason} with no new offer stays refused`, () => {
+      const f = feed();
+      f.arrive("chat/in");
+      const guard = guardAt({ t: 0 });
+      guard.record({ ...base(f.log), result: outcome("FAILED", one.reason) });
+      f.arrive("chat/in");
+      expect(guard.check(base(f.log))).toMatchObject({ reason: one.reason });
+    });
+
+    test(`an offer that came before the ${one.tool} failure does not clear it`, () => {
+      const f = feed();
+      f.arrive(one.event);
+      const guard = guardAt({ t: 0 });
+      guard.record({ ...base(f.log), result: outcome("FAILED", one.reason) });
+      expect(guard.check(base(f.log))).toMatchObject({ reason: one.reason });
+    });
+  }
+
+  test("a trade request does not clear a failure of another reason", () => {
+    const f = feed();
+    const trade = call({ args: { do: "give" }, log: f.log, tool: "trade" });
+    const guard = guardAt({ t: 0 });
+    guard.record({ ...trade, result: outcome("FAILED", "no_such_item") });
+    f.arrive("trade/requested");
+    expect(guard.check(trade)).toMatchObject({ reason: "no_such_item" });
+  });
+
+  test("an offer for another call does not clear this failure", () => {
+    const f = feed();
+    const accept = call({
+      args: { do: "accept_invite" },
+      log: f.log,
+      tool: "social",
+    });
+    const guard = guardAt({ t: 0 });
+    guard.record({ ...accept, result: outcome("FAILED", "nothing_to_accept") });
+    f.arrive("trade/requested");
+    expect(guard.check(accept)).toMatchObject({ reason: "nothing_to_accept" });
+  });
+
+  test("the retry that follows an offer and fails again is refused until the next offer", () => {
+    const f = feed();
+    const accept = call({
+      args: { do: "accept_invite" },
+      log: f.log,
+      tool: "social",
+    });
+    const guard = guardAt({ t: 0 });
+    guard.record({ ...accept, result: outcome("FAILED", "nothing_to_accept") });
+    f.arrive("group/invite");
+    expect(guard.check(accept)).toBeUndefined();
+    guard.record({ ...accept, result: outcome("FAILED", "nothing_to_accept") });
+    expect(guard.check(accept)).toMatchObject({ reason: "nothing_to_accept" });
+    f.arrive("group/invite");
+    expect(guard.check(accept)).toBeUndefined();
   });
 });

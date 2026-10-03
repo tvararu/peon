@@ -139,6 +139,7 @@ export function guardCall<A>(
       rt.repeats.blocks({
         ...here,
         args: call.args,
+        log: rt.log,
         scene: repeatScene({ handle, rt }, call.args),
         tool: call.tool as ToolName,
       }),
