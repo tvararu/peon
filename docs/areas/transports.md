@@ -9,7 +9,7 @@ the path `rotation`, the create `pathProgress`, the game-object state
 game-object entry (taxi path id, move speed, acceleration, map id, pause
 time, start-open flag). It emits `transport_seen` on every create and
 `transport_gone` on `SMSG_DESTROY_OBJECT` or an `outOfRange` entry. The acts
-are `poseAt(guid)` (the pose at the runtime's clock) and `dataStatus()`
+are `poseAt(guid, offsetMs?)` (the pose at the runtime's clock, or that many milliseconds ahead of it) and `dataStatus()`
 (`missing` or `ready`). Without the DBC files, or for a lift without its
 template, the data is unavailable and `poseAt` returns `undefined`; a
 missing path or animation is never presented as real.
@@ -29,7 +29,10 @@ missing path or animation is never presented as real.
   position for type 15), so each create is a pose sample; a static lift's
   stationary pose is its fixed base. `poseAt` adds the elapsed milliseconds
   to the create progress, wraps at the `uint32` boundary, then wraps by the
-  period.
+  period. The optional offset moves the clock forward, so a caller reads the
+  pose the same path and animation model predicts later; the server advances
+  the same timer by the tick diff and holds a stop frame from arrival to
+  departure (`Entities/Transport/Transport.cpp:242-271`).
 - A game object standing on a transport carries `UPDATEFLAG_POSITION` with
   the transport's packed guid, the world position, the transport offset and
   the orientation. The reader returns the guid and offset instead of
@@ -126,7 +129,7 @@ only near it. The pause and state rules rest on
 |---|---|---|
 | Ride a boat or zeppelin to another dock | `t8-vehicles-zeppelin` | needs the transport path and taxi node files from the game's data files |
 
-`travel` `to: "ride <stop>"` (`tools/travel-ride.ts`) reads `TaxiNodes.dbc` and the stop frames (`actionFlag` 2) of `TaxiPathNode.dbc` through `areas/transports/stops.ts`. A transport in view is a candidate when the template's path has a stop with a taxi node of that name within 700 yd on its map (the City node is the nearest one at the Thunder Bluff dock; there is no `Transport,` node there). It refuses `transport_data_missing` without the files or a pose, `no_route` when no transport in view goes to the stop, `already_there` at a dock that serves it and `no_stop` without a name. Otherwise it waits for a candidate docked within 400 yd (it walks only when the dock is beyond boarding range), calls `board`, polls `poseAt` until the transport is docked at a stop that serves the name and at least 100 yd from the boarding dock (or on another map), then calls `leave`. A refused `leave` leaves the character aboard and reports the reason; a stop leaves it aboard too. Each act holds the world mutex on its own; the ride is one run.
+`travel` `to: "ride <stop>"` (`tools/travel-ride.ts`) reads `TaxiNodes.dbc` and the stop frames (`actionFlag` 2) of `TaxiPathNode.dbc` through `areas/transports/stops.ts`. A transport in view is a candidate when the template's path has a stop with a taxi node of that name within 700 yd on its map (the City node is the nearest one at the Thunder Bluff dock; there is no `Transport,` node there). It refuses `transport_data_missing` without the files or a pose, `no_route` when no transport in view goes to the stop, `already_there` at a dock that serves it and `no_stop` without a name. Otherwise it waits for a candidate docked within 400 yd (it walks only when the dock is beyond boarding range), calls `board`, polls `poseAt` until the transport is docked at a stop that serves the name and at least 100 yd from the boarding dock (or on another map), then calls `leave`. A refused `leave` leaves the character aboard and reports the reason; a stop leaves it aboard too. Each act holds the world mutex on its own; the ride is one run. While it waits for a docked candidate, the run and progress rows and the `RUNNING` result say `waiting at the dock for the transport to <stop>`, and add `expected in about N s` only when `poseAt(guid, offset)` on a serving transport, scanned forward in 5 s steps up to 600 s, reaches a stationary pose within 400 yd of the character; with no such pose there is no estimate. The `RUNNING` Next tells the agent to keep waiting or `stop` the run.
 
 ## Live ride through the tool
 
