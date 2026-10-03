@@ -105,7 +105,7 @@ These have tools or code but no scenario that checks them live:
 - A sustained levelling run across several quests and zones.
 - Report its reputation with each faction and what changed it (`t4-reputation-gain`, no Faction.dbc in the eval profile so the journal names factions by id, not Silvermoon City).
 - Set the action bar (`t4-spells-action-bar`, no server truth for the bar).
-- Come back to life where it died, with Reincarnation or a Soulstone (`t6-selfstate-res`, blocked: the server drops Reincarnation from a non-shaman preset at login, so no preset has a self-resurrection spell).
+- Come back to life where it died, with Reincarnation and an Ankh on the `eversong1-shaman` preset (`t6-selfstate-res`).
 - Give a master-looted item to a group member (`t9-raid-master-loot`, the agent sets master loot but its kills leave empty corpses or it names the loot method wrongly, so no item is given).
 - Answer a raid ready check (`t9-raid-answer`, the agent answers before the check starts, and the repeat guard then refuses its answer during the check).
 - Accept a quest a party member shares (`t8-quests-accept-shared`, the agent's early `accept_invite` is refused as a repeat, so it is not in the group when the partner shares).

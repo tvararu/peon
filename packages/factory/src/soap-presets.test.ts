@@ -121,6 +121,27 @@ describe("presets", () => {
     });
   });
 
+  test("the level 1 shaman is a created Horde shaman placed at the Eversong point with no level stage", () => {
+    const shaman = presetSpecs["eversong1-shaman"];
+    expect(shaman).toMatchObject({
+      create: { class: 7, race: 2 },
+      faction: "horde",
+      map: 530,
+      x: 8735,
+      y: -6685,
+    });
+    expect(isCreatePreset(shaman)).toBe(true);
+    if (!isCreatePreset(shaman)) throw new Error("unreachable");
+    expect(
+      shaman.stage.some((s) => "endpoint" in s && s.endpoint === "position"),
+    ).toBe(true);
+    expect(
+      shaman.stage.some((s) => "endpoint" in s && s.endpoint === "level"),
+    ).toBe(false);
+    expect(presets).toContain("eversong1-shaman");
+    expect(presetLanguage("eversong1-shaman")).toBe(1);
+  });
+
   test("the death knight starts at 55 with no level stage", () => {
     const dk = presetSpecs["eversong55-deathknight"];
     expect(isCreatePreset(dk)).toBe(true);
