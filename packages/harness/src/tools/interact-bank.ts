@@ -52,6 +52,16 @@ function carriedOf(inventory: NamedInventoryState): Occupied[] {
   );
 }
 
+export function depositLine(
+  inventory: NamedInventoryState,
+  position: { bag: number; slot: number },
+): string | undefined {
+  const index = carriedOf(inventory).findIndex(
+    (slot) => slot.bag === position.bag && slot.slot === position.slot,
+  );
+  return index === -1 ? undefined : String(index + 1);
+}
+
 export function bankedOf(inventory: NamedInventoryState): Occupied[] {
   return [...(inventory.bank?.slots ?? [])].filter(
     (slot): slot is Occupied =>
@@ -235,7 +245,7 @@ function bankListing(rows: readonly BankRow[]): string {
     : `Bank: ${rows.map((row) => `${row.line}. ${row.name} x${row.count}`).join("; ")}.`;
 }
 
-function bankBody(after: InteractAfter): string[] {
+function bankBody(after: InteractAfter, npc: NpcTarget): string[] {
   const bank = after.bank;
   const freeText =
     bank?.free === undefined
@@ -245,7 +255,8 @@ function bankBody(after: InteractAfter): string[] {
     bank?.bagSlots === undefined
       ? "bag slots unknown"
       : `${bank.bagSlots} bag slots`;
-  return [bankListing(bank?.lines ?? []), `${freeText}. ${slotsText}.`];
+  const moves = `Deposit with ${nextCall("interact", { do: "deposit", npc: npc.unit.ref, what: "item name" })}; withdraw with ${nextCall("interact", { do: "withdraw", npc: npc.unit.ref, what: "item name" })}.`;
+  return [bankListing(bank?.lines ?? []), `${freeText}. ${slotsText}.`, moves];
 }
 
 async function waitMoneyMove(
@@ -281,7 +292,7 @@ export const bankStep: InteractStep = async ({ ctx, npc }) => {
     npc,
     bankRows(bankedOf(ctx.handle.getInventoryState()), ctx),
   );
-  const body = bankBody(after);
+  const body = bankBody(after, npc);
   return result("DONE", {
     after,
     body,

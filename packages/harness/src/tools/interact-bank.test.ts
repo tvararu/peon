@@ -151,6 +151,8 @@ describe("interact bank", () => {
     const text = contentOf(res);
     expect(text).toContain("Linen Cloth");
     expect(text).toContain("x20");
+    expect(text).toContain("deposit");
+    expect(text).toContain("withdraw");
   });
 
   test("bank skips the open when the banker is already open", async () => {

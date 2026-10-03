@@ -1,6 +1,6 @@
 # bank
 
-The `bank` area lets the character open the bank, move items between the bags and the bank, and buy bank bag slots. World-service code reads it through `session.areas.bank.state()`: `banker` (the banker guid from the last `SMSG_SHOW_BANK`), `bagSlots` (bought slots, byte 2 of `PLAYER_BYTES_2`), `pending` (the open, move or slot purchase in flight), `lastSlotResult` and `lastOutcome`. The area emits `opened` on every show-bank, `moved` when a deposit or withdraw guid reaches the other side, `slot_bought` on every slot result, `refused`, `no_change` on result 59, and `unanswered` after 5 seconds of silence.
+The `bank` area lets the character open the bank, move items between the bags and the bank, and buy bank bag slots. `gear move` with `to: "bank"` deposits the named carried item through `CMSG_AUTOBANK_ITEM` when the bank is open; a closed bank refuses with the `interact` deposit call. The `interact` bank result and `journal` `about: bank` name the deposit and withdraw calls. World-service code reads it through `session.areas.bank.state()`: `banker` (the banker guid from the last `SMSG_SHOW_BANK`), `bagSlots` (bought slots, byte 2 of `PLAYER_BYTES_2`), `pending` (the open, move or slot purchase in flight), `lastSlotResult` and `lastOutcome`. The area emits `opened` on every show-bank, `moved` when a deposit or withdraw guid reaches the other side, `slot_bought` on every slot result, `refused`, `no_change` on result 59, and `unanswered` after 5 seconds of silence.
 
 The move acts need an open banker in range:
 

@@ -13,7 +13,7 @@ const ITEM_REF = /^item (\d+)$/i;
 export const AT_REF = /^bag (\d+) slot (\d+)$/i;
 const BAG_REF = /^bag (\d+)$/i;
 const BAG_NUMBER = /^([12]?[0-9]|2[0-2])$/;
-
+const BANK_WORD = /\bbank\b/i;
 export const EQUIP_SLOTS: Record<string, number> = {
   back: 14,
   chest: 4,
@@ -143,7 +143,7 @@ export function position(text: string, prefix: string): Position {
   if (at?.[1] !== undefined && at[2] !== undefined)
     return { bag: Number(at[1]), slot: Number(at[2]) };
   throw new Refusal({
-    detail: `${prefix}, for example "bag 19 slot 0".`,
+    detail: `${prefix}; got "${text.trim()}", which is not a bag and slot.`,
     next: BAGS,
     reason: "bad_position",
   });
@@ -215,6 +215,13 @@ export function firstFree(
       reason,
     });
   return free;
+}
+
+type BankHit = { kind: "bank" };
+
+export function bankDestination(text: string | undefined): BankHit | undefined {
+  if (text === undefined) return undefined;
+  return BANK_WORD.test(text.trim()) ? { kind: "bank" } : undefined;
 }
 
 export function destination(

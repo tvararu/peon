@@ -1,5 +1,6 @@
 import { type Static, StringEnum, Type } from "@earendil-works/pi-ai";
 import type { NamedInventoryState } from "@peon/core";
+import { runBankDeposit } from "#harness/areas/items/tool-bank";
 import { lootText, takeOffered } from "#harness/areas/items/tool-loot";
 import { runAmmo, runRead } from "#harness/areas/items/tool-read";
 import {
@@ -7,6 +8,7 @@ import {
   atBag,
   BACKPACK,
   BAGS,
+  bankDestination,
   destination,
   equipSlot,
   labelOf,
@@ -63,7 +65,7 @@ export const gearParams = Type.Object({
   to: Type.Optional(
     Type.String({
       description:
-        'For move, split and unequip: "bags", "backpack", "bag 1-4", "bag 19-22", or "bag B slot S". Default: the first free bag slot.',
+        'For move, split and unequip: "bags", "backpack", "bag 1-4", "bag 19-22", or "bag B slot S". For move: "bank" deposits through the open bank. Default: the first free bag slot.',
     }),
   ),
 });
@@ -297,6 +299,8 @@ async function runMove(
     "bag_item",
   ]);
   const from = { bag: found.held.bag, slot: found.held.slot };
+  if (bankDestination(to) !== undefined)
+    return runBankDeposit(ctx, found, from);
   const toAt = destination(handle, to, from);
   const outcome_ = await rt.mutex.run(() => handle.items.act.move(from, toAt));
   if (outcome_.last?.status !== "confirmed")

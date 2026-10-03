@@ -97,6 +97,8 @@ describe("journal about bank", () => {
     });
     expect(out.text).toContain("Bank: empty.");
     expect(out.text).toContain("28 free bank slots");
+    expect(out.text).toContain("deposit");
+    expect(out.text).toContain("withdraw");
   });
 
   test("bank bags read away from the banker", async () => {
