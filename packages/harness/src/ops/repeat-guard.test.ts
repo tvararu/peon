@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { GameLogEntry } from "#harness/contract/log";
+import type { GameLogEntry, LogClass } from "#harness/contract/log";
 import type { ToolResult } from "#harness/contract/result";
 import type { RepeatCall } from "#harness/contract/services";
 import type { PoseView } from "#harness/contract/views";
@@ -325,8 +325,12 @@ describe("repeatRefusal", () => {
 
 function feed() {
   const rows: GameLogEntry[] = [];
-  const arrive = (event: string) => {
-    rows.push({ event, seq: rows.length + 1 } as GameLogEntry);
+  const arrive = (event: string, kind: LogClass = "wake") => {
+    rows.push({
+      class: kind,
+      event,
+      seq: rows.length + 1,
+    } as GameLogEntry);
   };
   return {
     arrive,
@@ -471,4 +475,36 @@ describe("an offer after a missing-offer failure", () => {
     f.arrive("group/invite");
     expect(guard.check(accept)).toBeUndefined();
   });
+
+  const terminal = [
+    {
+      args: { accept: true, do: "answer" },
+      event: "lfg/proposal",
+      reason: "no_proposal",
+    },
+    {
+      args: { do: "roles", roles: 2 },
+      event: "lfg/role_check",
+      reason: "no_role_check",
+    },
+    {
+      args: { accept: true, do: "kick_vote" },
+      event: "lfg/boot_vote",
+      reason: "no_vote",
+    },
+  ] as const;
+
+  for (const one of terminal) {
+    test(`a ${one.event} update row that opens no prompt does not clear ${one.reason}`, () => {
+      const f = feed();
+      const dungeon = call({ args: one.args, log: f.log, tool: "dungeon" });
+      const guard = guardAt({ t: 0 });
+      guard.record({ ...dungeon, result: outcome("FAILED", one.reason) });
+      f.arrive(one.event, "log");
+      expect(guard.check(dungeon)).toMatchObject({ reason: one.reason });
+      expect(guard.blocks(dungeon)).toBe(true);
+      f.arrive(one.event, "wake");
+      expect(guard.check(dungeon)).toBeUndefined();
+    });
+  }
 });

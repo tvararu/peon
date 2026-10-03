@@ -47,6 +47,12 @@ export const OFFERED_BY: Record<string, readonly string[]> = {
   "trade:no_request": ["trade/requested"],
 };
 
+const PROMPT_ROWS_ONLY: readonly string[] = [
+  "lfg/boot_vote",
+  "lfg/proposal",
+  "lfg/role_check",
+];
+
 const REPEAT_TTL_MS = 300_000;
 const UNTRIED_MAX = 3;
 const POSES_MAX = 4;
@@ -136,7 +142,13 @@ function offerArrived(
 ): boolean {
   const events = OFFERED_BY[`${call.tool}:${failure.reason}`];
   if (!events || failure.seq === undefined || !call.log) return false;
-  return call.log.since(failure.seq).some((row) => events.includes(row.event));
+  return call.log
+    .since(failure.seq)
+    .some(
+      (row) =>
+        events.includes(row.event) &&
+        (row.class === "wake" || !PROMPT_ROWS_ONLY.includes(row.event)),
+    );
 }
 
 function storable(
