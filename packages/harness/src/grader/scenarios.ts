@@ -82,6 +82,15 @@ export type ConsoleVerb =
 
 export type ConsoleRead = { read: ConsoleVerb; arg?: string; match: string };
 
+export type CheckWindow = {
+  steer: number;
+  afterMs?: number;
+  untilSteer?: number;
+  forMs?: number;
+  exceptNames?: string[];
+  max?: number;
+};
+
 export type CheckEvidence = {
   truth?: TruthPick[];
   delta?: TruthDelta[];
@@ -89,6 +98,7 @@ export type CheckEvidence = {
   point?: { x: number; y: number };
   events?: string[];
   ids?: number[];
+  window?: CheckWindow;
   who?: TruthWho;
   console?: ConsoleRead;
 };
@@ -235,6 +245,33 @@ function regexError(match: string): string | undefined {
 
 const ARG_READS: ReadonlySet<ConsoleVerb> = new Set(["arena", "guild"]);
 
+function windowErrors({ checks, steers }: Scenario): string[] {
+  return checks.flatMap(({ evidence }, index) => {
+    const at = `$.checks[${index}]`;
+    const window = evidence?.window;
+    if (window === undefined) return [];
+    const last = steers.length - 1;
+    const bad = (slot: number | undefined) =>
+      slot !== undefined && (slot < 0 || slot > last);
+    return [
+      ...(bad(window.steer)
+        ? [`${at}.evidence.window.steer: no steer ${window.steer}`]
+        : []),
+      ...(bad(window.untilSteer)
+        ? [`${at}.evidence.window.untilSteer: no steer ${window.untilSteer}`]
+        : []),
+      ...(window.untilSteer !== undefined &&
+      window.untilSteer <= window.steer &&
+      !bad(window.untilSteer)
+        ? [`${at}.evidence.window.untilSteer: after steer ${window.steer}`]
+        : []),
+      ...(window.forMs !== undefined && window.untilSteer !== undefined
+        ? [`${at}.evidence.window: use forMs or untilSteer, not both`]
+        : []),
+    ];
+  });
+}
+
 function consoleErrors({ checks }: Scenario): string[] {
   return checks.flatMap(({ evidence, source }, index) => {
     const at = `$.checks[${index}]`;
@@ -300,6 +337,7 @@ export function parseScenario(file: string, value: unknown): Scenario {
     errors.push(
       ...partnerErrors(value as Scenario),
       ...consoleErrors(value as Scenario),
+      ...windowErrors(value as Scenario),
     );
   if (errors.length > 0)
     throw new Error(`invalid scenario ${file}: ${errors.join("; ")}`);

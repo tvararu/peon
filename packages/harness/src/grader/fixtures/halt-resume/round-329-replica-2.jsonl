@@ -1,0 +1,44 @@
+{"text":"Human: Kill three Springpaw Stalkers north of town.","seq":11,"ts":1790819641739,"event":"human/input","data":{"stoppedRuns":[],"stopReflex":false,"text":"Kill three Springpaw Stalkers north of town.","via":"input"}}
+{"runId":"r1","seq":19,"ts":1790819644884,"text":"You start to move.","event":"control/move_start","data":{}}
+{"runId":"r1","seq":30,"ts":1790819657707,"text":"You stop (halt).","event":"control/move_stop","data":{"cause":"halt"}}
+{"runId":"r2","seq":36,"ts":1790819658842,"text":"Fight started: Springpaw Stalker u15.","ref":"u15","data":{"hpBefore":217,"jevRun":"619cb6ca-a183-438d-a02f-a2ca9e176c06","level":6,"manaBefore":607,"maxHp":217,"name":"Springpaw Stalker","target":"f130003d23054e86"},"guid":"f130003d23054e86","event":"fight/start"}
+{"runId":"r2","seq":37,"ts":1790819659138,"text":"You attack Springpaw Stalker u15.","event":"combat/attack_start","data":{"name":"Springpaw Stalker","target":"f130003d23054e86"}}
+{"runId":"r2","seq":38,"ts":1790819659428,"text":"Cast Power Word: Shield succeeded.","event":"combat/cast","data":{"name":"Power Word: Shield","result":"succeeded","spellId":17,"target":"11fd"}}
+{"runId":"r2","seq":42,"ts":1790819659997,"text":"You start to move.","event":"control/move_start","data":{}}
+{"runId":"r2","seq":43,"ts":1790819661223,"text":"You stop (halt).","event":"control/move_stop","data":{"cause":"halt"}}
+{"text":"Human: Stop! Stop right now.","seq":45,"ts":1790819661479,"event":"human/input","data":{"stoppedRuns":["r2"],"stopReflex":true,"text":"Stop! Stop right now.","via":"reflex"}}
+{"text":"Cast Mind Blast failed (cast_failed:interrupted).","seq":48,"ts":1790819661491,"event":"combat/cast","data":{"name":"Mind Blast","reason":"cast_failed:interrupted","result":"failed","spellId":8092}}
+{"text":"Cast Mind Blast interrupted (spell_failure:interrupted).","seq":49,"ts":1790819661491,"event":"combat/cast","data":{"name":"Mind Blast","reason":"spell_failure:interrupted","result":"interrupted","spellId":8092}}
+{"text":"Human: OK, carry on, but only use Smite from now on.","seq":57,"ts":1790819684119,"event":"human/input","data":{"stoppedRuns":[],"stopReflex":false,"text":"OK, carry on, but only use Smite from now on.","via":"input"}}
+{"runId":"r3","seq":63,"ts":1790819685402,"text":"Fight started: Springpaw Stalker u15.","ref":"u15","data":{"hpBefore":172,"jevRun":"3a1feaa7-bc9a-4242-87c5-8d9bce754034","level":6,"manaBefore":607,"maxHp":217,"name":"Springpaw Stalker","target":"f130003d23054e86"},"guid":"f130003d23054e86","event":"fight/start"}
+{"runId":"r3","seq":64,"ts":1790819687659,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054e86"}}
+{"runId":"r3","seq":65,"ts":1790819689443,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054e86"}}
+{"runId":"r3","seq":68,"ts":1790819691862,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054e86"}}
+{"runId":"r3","seq":69,"ts":1790819694237,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054e86"}}
+{"runId":"r3","seq":72,"ts":1790819696532,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054e86"}}
+{"runId":"r3","seq":73,"ts":1790819698847,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054e86"}}
+{"runId":"r3","seq":74,"ts":1790819698848,"text":"Kill credit: Springpaw Stalker u15 (+80 XP).","ref":"u15","data":{"name":"Springpaw Stalker","xp":80},"guid":"f130003d23054e86","event":"combat/kill_credit"}
+{"runId":"r3","seq":77,"ts":1790819698861,"text":"You start to move.","event":"control/move_start","data":{}}
+{"runId":"r3","seq":85,"ts":1790819704890,"text":"Fight started: Springpaw Stalker u22.","ref":"u22","data":{"hpBefore":173,"jevRun":"678c055b-57ac-48ff-9626-ccfea3e03415","level":6,"manaBefore":463,"maxHp":217,"name":"Springpaw Stalker","target":"f130003d23054230"},"guid":"f130003d23054230","event":"fight/start"}
+{"runId":"r3","seq":88,"ts":1790819705139,"text":"You stop (cycle_approach).","event":"control/move_stop","data":{"cause":"cycle_approach"}}
+{"runId":"r3","seq":89,"ts":1790819706656,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054230"}}
+{"runId":"r3","seq":92,"ts":1790819708623,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054230"}}
+{"runId":"r3","seq":95,"ts":1790819710868,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054230"}}
+{"runId":"r3","seq":96,"ts":1790819713089,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054230"}}
+{"runId":"r3","seq":99,"ts":1790819715561,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054230"}}
+{"runId":"r3","seq":100,"ts":1790819717965,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054230"}}
+{"runId":"r3","seq":103,"ts":1790819720412,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054230"}}
+{"runId":"r3","seq":104,"ts":1790819720412,"text":"Kill credit: Springpaw Stalker u22 (+80 XP).","ref":"u22","data":{"name":"Springpaw Stalker","xp":80},"guid":"f130003d23054230","event":"combat/kill_credit"}
+{"runId":"r3","seq":111,"ts":1790819720466,"text":"You start to move.","event":"control/move_start","data":{}}
+{"runId":"r3","seq":114,"ts":1790819722969,"text":"Fight started: Springpaw Stalker u21.","ref":"u21","data":{"hpBefore":168,"jevRun":"431bebce-72b8-4401-a14b-54dab3085d37","level":6,"manaBefore":313,"maxHp":217,"name":"Springpaw Stalker","target":"f130003d23054271"},"guid":"f130003d23054271","event":"fight/start"}
+{"runId":"r3","seq":115,"ts":1790819723219,"text":"You stop (cycle_approach).","event":"control/move_stop","data":{"cause":"cycle_approach"}}
+{"runId":"r3","seq":116,"ts":1790819724717,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054271"}}
+{"runId":"r3","seq":121,"ts":1790819726668,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054271"}}
+{"runId":"r3","seq":122,"ts":1790819729121,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054271"}}
+{"runId":"r3","seq":125,"ts":1790819730994,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054271"}}
+{"runId":"r3","seq":126,"ts":1790819733313,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054271"}}
+{"runId":"r3","seq":129,"ts":1790819735599,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054271"}}
+{"runId":"r3","seq":130,"ts":1790819737467,"text":"Cast Smite succeeded.","event":"combat/cast","data":{"name":"Smite","result":"succeeded","spellId":585,"target":"f130003d23054271"}}
+{"runId":"r3","seq":131,"ts":1790819737467,"text":"Kill credit: Springpaw Stalker u21 (+80 XP).","ref":"u21","data":{"name":"Springpaw Stalker","xp":80},"guid":"f130003d23054271","event":"combat/kill_credit"}
+{"runId":"r3","seq":134,"ts":1790819737594,"text":"You start to move.","event":"control/move_start","data":{}}
+{"runId":"r3","seq":138,"ts":1790819740805,"text":"You stop (lease).","event":"control/move_stop","data":{"cause":"lease"}}

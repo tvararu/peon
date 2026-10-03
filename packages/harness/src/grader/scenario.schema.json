@@ -133,6 +133,22 @@
                   "partner3",
                   "partner4"
                 ]
+              },
+              "window": {
+                "additionalProperties": false,
+                "properties": {
+                  "afterMs": { "minimum": 0, "type": "number" },
+                  "exceptNames": {
+                    "items": { "type": "string" },
+                    "type": "array"
+                  },
+                  "forMs": { "minimum": 0, "type": "number" },
+                  "max": { "minimum": 0, "type": "integer" },
+                  "steer": { "minimum": 0, "type": "integer" },
+                  "untilSteer": { "minimum": 0, "type": "integer" }
+                },
+                "required": ["steer"],
+                "type": "object"
               }
             },
             "type": "object"
