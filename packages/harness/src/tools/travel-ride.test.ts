@@ -196,6 +196,29 @@ describe("travel ride", () => {
     expect(res.next).toContain("keep waiting");
     expect(res.after?.wait).toContain("waiting at the dock");
   });
+  test("a human yield before the next publisher tick still names the wait and the expected time", async () => {
+    const { t, pose } = await world();
+    pose.now = { ...HERE, moving: true };
+    const ctx = toolCtx<TravelAfter>(t);
+    const res = await withFakeTimers(async () => {
+      const pending = travelSpec.run({ to: "ride Thunder Bluff" }, ctx);
+      await elapse(100);
+      t.rt.yields.trigger();
+      await elapse(10);
+      const yielded = await pending;
+      pose.now = HERE;
+      await elapse(2000);
+      pose.now = THERE;
+      await elapse(3000);
+      return yielded;
+    });
+    expect(res.status).toBe("RUNNING");
+    expect(res.detail).toContain("Thunder Bluff");
+    expect(res.detail).toContain("waiting at the dock");
+    expect(res.detail).toContain("expected in about");
+    expect(res.next).toContain("keep waiting");
+    expect(res.after?.wait).toContain("waiting at the dock");
+  });
   test("the result yielded while aboard still says the ride is going and progress keeps it", async () => {
     const { t, pose } = await world();
     const ctx = toolCtx<TravelAfter>(t);
