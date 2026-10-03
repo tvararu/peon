@@ -61,6 +61,7 @@ describe("TRIGGER_EVENTS", () => {
       lfg_proposal: ["lfg/proposal"],
       lfg_role_check: ["lfg/role_check"],
       movement_start: ["nav/route_start", "control/move_start"],
+      ready_check: ["raid/ready_check"],
       steer_landed: ["human/input"],
     });
   });

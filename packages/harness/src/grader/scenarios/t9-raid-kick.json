@@ -8,9 +8,9 @@
   "checks": [
     {
       "evidence": {
-        "events": ["raid/roster"]
+        "events": ["group/disbanded"]
       },
-      "expect": "GL has a raid/roster row for the kicked partner leaving the group",
+      "expect": "GL has a group/disbanded row, because kicking the only other member of the two-member group disbands it instead of emitting a left row",
       "id": "kicked-left",
       "source": "game_log"
     },

@@ -6,6 +6,7 @@ export type TriggerName =
   | "kill"
   | "lfg_proposal"
   | "lfg_role_check"
+  | "ready_check"
   | "death"
   | "movement_start"
   | "answer_text"

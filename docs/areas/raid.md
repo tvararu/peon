@@ -470,10 +470,12 @@ directories not committed): the agent joined, took the lead on the timer
 handoff, and kicked the partner with reason `test`; the game log shows
 the raid `roster` disband row and the partner console read matches "not
 in a group". A party of two disbands, so the kicker sees `disbanded`,
-not a `left` row. The round 69 run needed the rescue nudge because the
-leader change does not wake an idle agent. Round 75 re-ran on the
-`ghostlands` spawn after the spawn-slot fix and passed with the same
-shape (kick `DONE`, disband row, partner alone).
+not a `left` row: `Group::RemoveMember` disbands when the group size
+before removal is at most two (`Groups/Group.cpp:769-774`). The round 69
+run needed the rescue nudge because the leader change does not wake an
+idle agent. Round 75 re-ran on the `ghostlands` spawn after the
+spawn-slot fix and passed with the same shape (kick `DONE`, disband row,
+partner alone).
 
 Run a raid (`t9-raid-convert`, round 78 replica 1, `pass` 6/6; run
 directory not committed): the agent joined, took the lead after the
