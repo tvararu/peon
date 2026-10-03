@@ -168,7 +168,9 @@ function tradeEnd(
     if (settled.status !== "ok") throw refusalFor(settled, "give");
     const last = ctx.handle.trade.state().lastOutcome;
     const detail =
-      last?.kind === "completed" ? completedText(ctx, last) : gaveDetail(offer);
+      last?.kind === "completed"
+        ? await completedText(ctx, last, signal)
+        : gaveDetail(offer);
     return {
       status: "succeeded",
       summary: `gave to ${offer.name}`,

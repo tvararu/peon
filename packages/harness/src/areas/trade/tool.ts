@@ -32,7 +32,7 @@ export async function runTrade(
   ctx: TradeCtx,
 ): Promise<ToolResult<TradeAfter>> {
   const verb = (args.do ?? "show") as TradeDo;
-  if (verb === "show") return runShow(ctx);
+  if (verb === "show") return await runShow(ctx);
   if (verb === "give") return await runGive(args, ctx);
   if (verb === "answer") return await runAnswer(args, ctx);
   if (verb === "offer") return await runOffer(args, ctx);

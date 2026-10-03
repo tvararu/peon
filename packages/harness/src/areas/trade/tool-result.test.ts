@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import {
+  elapse,
+  fakeAwait,
+  withFakeTimers,
+} from "@peon/core/test-support/fake-time";
 import { tradeSpec } from "#harness/areas/trade/tool";
+import { ITEM_NAME_WAIT_MS } from "#harness/ops/item-names";
 import { toolCtx } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 import {
@@ -88,6 +94,83 @@ describe("a completed give", () => {
     const said = text(out);
     expect(said).toContain("Linen Cloth");
     expect(said).toContain("20 Tough Jerky");
+  });
+});
+
+function lateNamedWorld(afterMs: number) {
+  return world().then((t) => {
+    let ready = false;
+    setTimeout(() => {
+      ready = true;
+    }, afterMs);
+    t.handle.itemLabel = ((entry: number) => {
+      const name = NAMES[entry];
+      return ready && name !== undefined
+        ? { name, quality: 1 }
+        : { name: null, quality: null };
+    }) as never;
+    return t;
+  });
+}
+
+describe("a completed trade whose item names are still loading", () => {
+  test("accept waits for the names instead of printing item ids", async () => {
+    await withFakeTimers(async () => {
+      const t = await lateNamedWorld(300);
+      tradeState(t.handle, { lastOutcome: COMPLETED, phase: "open" });
+      const running = tradeSpec.run({ do: "accept" }, toolCtx(t));
+      const said = text(await fakeAwait(running, ITEM_NAME_WAIT_MS));
+      expect(said).toContain("20 Tough Jerky");
+      expect(said).toContain("Linen Cloth");
+      expect(said).not.toContain("item 117");
+    });
+  });
+
+  test("give waits for the names instead of printing item ids", async () => {
+    await withFakeTimers(async () => {
+      const t = await lateNamedWorld(300);
+      tradeState(t.handle, { lastOutcome: COMPLETED, phase: "open" });
+      const running = tradeSpec.run(
+        { do: "give", items: [CLOTH_ARG], with: "Fgkllpgpdnj" },
+        toolCtx(t),
+      );
+      const said = text(await fakeAwait(running, ITEM_NAME_WAIT_MS));
+      expect(said).toContain("20 Tough Jerky");
+      expect(said).not.toContain("item 117");
+    });
+  });
+
+  test("falls back to the item id once the wait is over", async () => {
+    await withFakeTimers(async () => {
+      const t = await lateNamedWorld(ITEM_NAME_WAIT_MS * 10);
+      tradeState(t.handle, { lastOutcome: COMPLETED, phase: "open" });
+      const running = tradeSpec.run({ do: "accept" }, toolCtx(t));
+      const said = text(await fakeAwait(running, ITEM_NAME_WAIT_MS * 2));
+      expect(said).toContain("20 item 117");
+    });
+  });
+
+  test("an aborted run stops waiting and still answers", async () => {
+    await withFakeTimers(async () => {
+      const t = await lateNamedWorld(ITEM_NAME_WAIT_MS * 10);
+      tradeState(t.handle, { lastOutcome: COMPLETED, phase: "open" });
+      const abort = new AbortController();
+      const running = tradeSpec.run({ do: "accept" }, toolCtx(t, abort.signal));
+      await elapse(100);
+      abort.abort();
+      const said = text(await fakeAwait(running, 200));
+      expect(said).toContain("completed");
+    });
+  });
+
+  test("show reports the past trade with names that arrive late", async () => {
+    await withFakeTimers(async () => {
+      const t = await lateNamedWorld(300);
+      tradeState(t.handle, { lastOutcome: COMPLETED, phase: "closed" });
+      const running = tradeSpec.run({ do: "show" }, toolCtx(t));
+      const said = text(await fakeAwait(running, ITEM_NAME_WAIT_MS));
+      expect(said).toContain("20 Tough Jerky");
+    });
   });
 });
 

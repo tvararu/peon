@@ -146,7 +146,7 @@ export async function runAccept(
   const last = ctx.handle.trade.state().lastOutcome;
   const detail =
     last?.kind === "completed"
-      ? completedText(ctx, last)
+      ? await completedText(ctx, last, ctx.signal)
       : `Trade with ${playerName(ctx, ctx.handle.trade.state().with ?? 0n)} accepted.`;
   return result("DONE", { after: afterOf("accept", { version }), detail });
 }
@@ -169,10 +169,10 @@ function stateLines(ctx: TradeCtx, state: TradeState): string[] {
   ];
 }
 
-export function runShow(ctx: TradeCtx): ToolResult<TradeAfter> {
+export async function runShow(ctx: TradeCtx): Promise<ToolResult<TradeAfter>> {
   const state = ctx.handle.trade.state();
   if (state.phase !== "open") {
-    const past = lastCompletedLine(ctx);
+    const past = await lastCompletedLine(ctx, ctx.signal);
     return result("DONE", {
       after: afterOf("show", {
         with:
