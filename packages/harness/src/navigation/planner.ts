@@ -10,10 +10,14 @@ import {
   clearAbove,
   columnHeights,
   continuousFloor,
-  floorError,
   groundFloors,
   settleStart,
 } from "#harness/navigation/column";
+import {
+  checkDestination,
+  destinationFloor,
+  routableFloor,
+} from "#harness/navigation/destination";
 import {
   connectedHeight,
   stepHeight,
@@ -59,6 +63,7 @@ export type Navigation = {
     to: { x: number; y: number },
     start?: PlanStart,
   ) => GroundRoute;
+  floorsAt: (mapId: number, x: number, y: number) => number[];
   height: (mapId: number, x: number, y: number, from?: NavPoint) => number;
   stepHeight: (mapId: number, x: number, y: number, from: NavPoint) => number;
   clear: (mapId: number, from: NavPoint, to: NavPoint) => boolean;
@@ -205,6 +210,12 @@ export function createNavigation(
       for (const map of opened.values()) map.close();
       opened.clear();
     },
+    floorsAt(mapId, x, y) {
+      validateNativeXY(x, y);
+      const map = open(mapId);
+      map.loadAdtAt(x, y);
+      return groundFloors(columnHeights(map, x, y));
+    },
     height(mapId, x, y, from) {
       validateNativeXY(x, y);
       const map = open(mapId, ...(from ? [from] : []));
@@ -224,8 +235,7 @@ export function createNavigation(
       const from = settleStart(map, pose, start?.stale);
       checkStart(map, from);
       map.loadAdtAt(to.x, to.y);
-      const z = destinationFloor(map, to.x, to.y);
-      return planRoute(map, from, { x: to.x, y: to.y, z });
+      return planDestination(map, from, to);
     },
     stepHeight(mapId, x, y, from) {
       validateNativeXY(x, y);
@@ -235,6 +245,23 @@ export function createNavigation(
       return stepHeight(map, x, y, from);
     },
   };
+}
+
+function planDestination(
+  map: NativeMap,
+  from: NavPoint,
+  to: { x: number; y: number },
+): GroundRoute {
+  try {
+    const z = destinationFloor(map, to.x, to.y);
+    return planRoute(map, from, { x: to.x, y: to.y, z });
+  } catch (error) {
+    const floors = refusalFloors(error);
+    if (floors === undefined || floors.length < 2) throw error;
+    return routableFloor(floors, (z) =>
+      planRoute(map, from, { x: to.x, y: to.y, z }),
+    );
+  }
 }
 
 function planRoute(map: NativeMap, from: NavPoint, to: NavPoint): GroundRoute {
@@ -437,32 +464,6 @@ function checkStart(map: NativeMap, point: NavPoint): number[] {
   if (!clearAbove(heights, point.z))
     throw groundError("ambiguous ground column at start");
   return heights;
-}
-
-function checkDestination(map: NativeMap, point: NavPoint): void {
-  validateNativePoint(point);
-  const surface = surfaceAt(map, point, point.z);
-  if (surface !== undefined && Math.abs(surface - point.z) <= GROUND_ERROR)
-    return;
-  const heights = columnHeights(map, point.x, point.y);
-  const onSurface = heights.some(
-    (height) => Math.abs(height - point.z) <= GROUND_ERROR,
-  );
-  if (onSurface && clearAbove(heights, point.z)) return;
-  throw floorError("destination is not on a ground floor", heights);
-}
-
-function destinationFloor(map: NativeMap, x: number, y: number): number {
-  const heights = columnHeights(map, x, y);
-  const [low] = [...heights].sort((a, b) => a - b);
-  const surface = surfaceAt(map, { x, y }, low ?? 0);
-  if (surface !== undefined) return surface;
-  const floors = groundFloors(heights);
-  const floor = floors[0];
-  if (floor === undefined) throw groundError("ground height unavailable");
-  if (floors.length > 1)
-    throw floorError("ambiguous ground column at destination", heights);
-  return floor;
 }
 
 function loadCorridor(map: NativeMap, from: NavPoint, to: NavPoint): void {

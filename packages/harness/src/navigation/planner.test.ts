@@ -340,15 +340,6 @@ describe("ground destinations", () => {
     expect(route.sample(0)).toMatchObject(start);
   });
 
-  test("refuses an ambiguous destination even when one floor matches the origin", () => {
-    const nav = navigation(
-      native({ findHeights: (x) => (x === 10 ? [0, 5] : [0]) }),
-    );
-    expect(() => nav.planGround(530, start, end)).toThrow(
-      "ambiguous ground column at destination",
-    );
-  });
-
   test("names the start and route when those columns are ambiguous", () => {
     const atStart = navigation(
       native({ findHeights: (x) => (x === 0 ? [0, 1] : [0]) }),

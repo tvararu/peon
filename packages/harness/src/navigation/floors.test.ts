@@ -7,17 +7,21 @@ import { native, navigation } from "#test-support/navigation-fixtures";
 const start: NavPoint = { x: 0, y: 0, z: 0 };
 const end = { x: 10, y: 0 };
 
-function nearest(column: number[], z: number): number {
-  return column.reduce((best, height) =>
-    Math.abs(height - z) < Math.abs(best - z) ? height : best,
-  );
-}
-
-function atEnd(column: number[]) {
+function atEnd(column: number[], routable: number[] = column) {
+  let target = 0;
   return navigation(
     native({
-      findHeight: (from, x) => (x === 10 ? nearest(column, from.z) : 0),
-      findHeights: (x) => (x === 10 ? column : [0]),
+      findHeight: (_from, x) => (x === 10 ? target : (target * x) / 10),
+      findHeights: (x) => {
+        if (x === 10) return column;
+        return [(target * x) / 10];
+      },
+      findPath: (from, to) => {
+        target = to.z;
+        return routable.includes(to.z)
+          ? [{ ...from }, { ...to }]
+          : [{ ...from }, { ...to, z: to.z + 5 }];
+      },
     }),
   );
 }
@@ -53,10 +57,8 @@ describe("ground floors at the start and destination", () => {
   });
 
   test("lists only the surfaces with headroom, highest first", () => {
-    const error = refusal(() =>
-      atEnd([50.68, 23.82, 25.27]).planGround(530, start, end),
-    );
-    expect(refusalFloors(error)).toEqual([50.68, 25.27]);
+    const error = refusal(() => atEnd([8, 5, 4.5]).planGround(530, start, end));
+    expect(refusalFloors(error)).toEqual([8, 5]);
   });
 
   test("an explicit Z selects one floor of a multi-floor column", () => {
@@ -91,6 +93,38 @@ describe("ground floors at the start and destination", () => {
     expect(() =>
       column([10, 0]).plan(530, { ...start, z: 5 }, { ...end, z: 0 }),
     ).toThrow("position disagrees with ground height");
+  });
+});
+
+describe("destination floors the mesh routes", () => {
+  test("the one routable floor of a multi-floor column is the destination", () => {
+    const route = atEnd([10, 0], [0]).planGround(530, start, end);
+    expect(route.points.at(-1)).toMatchObject({ ...end, z: 0 });
+    const upper = atEnd([10, 0], [10]).planGround(530, start, end);
+    expect(upper.points.at(-1)).toMatchObject({ ...end, z: 10 });
+  });
+
+  test("several routable floors stay ambiguous and list only those", () => {
+    const error = refusal(() =>
+      atEnd([6, 3, 0], [6, 0]).planGround(530, start, end),
+    );
+    expect(refusalFloors(error)).toEqual([6, 0]);
+    expect(error.message).toContain("ambiguous ground column at destination");
+  });
+
+  test("no routable floor refuses", () => {
+    const error = refusal(() => atEnd([10, 0], []).planGround(530, start, end));
+    expect(error.message).toContain("snapped off");
+  });
+
+  test("an explicit Z is never replaced by another routable floor", () => {
+    expect(() =>
+      atEnd([10, 0], [10]).plan(530, start, { ...end, z: 0 }),
+    ).toThrow("snapped off");
+  });
+
+  test("floorsAt lists the clear floors of a column", () => {
+    expect(atEnd([10, 0, 9.9], []).floorsAt(530, 10, 0)).toEqual([10, 0]);
   });
 });
 
