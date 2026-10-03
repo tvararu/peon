@@ -24,6 +24,7 @@ export type EndView = {
   answerAsks: boolean;
   statusAt: number;
   pending: boolean;
+  runActive: boolean;
 };
 export type EndAction =
   | { kind: "wait" }
@@ -133,9 +134,10 @@ function waitsOnHuman({
 }
 
 function isDone(view: EndView, taskMs: number): boolean {
-  const { now, progress, lastAnswerAt, pending } = view;
+  const { now, progress, lastAnswerAt, pending, runActive } = view;
   if (
     pending ||
+    runActive ||
     waitsOnHuman(view) ||
     lastAnswerAt === undefined ||
     lastAnswerAt < taskMs ||
@@ -151,6 +153,7 @@ function isDone(view: EndView, taskMs: number): boolean {
 }
 
 function stuckAction(view: EndView, memory: EndMemory): EndAction {
+  if (view.runActive) return WAIT;
   const active = Math.max(
     memory.taskMs,
     view.lastAnswerAt ?? 0,
