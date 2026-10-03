@@ -36,6 +36,7 @@ type StartedWork = {
   args: TravelArgs;
   stop: string;
   after: After;
+  runId: () => string;
 };
 type RideData = { nodes: StopNode[]; paths: ReadonlyMap<number, DockAt[]> };
 type RideWork = StartedWork & { data: RideData };
@@ -47,6 +48,53 @@ type Pose = {
   moving: boolean;
 };
 type Dock = { guid: bigint; pose: Pose };
+
+const WAIT_STEP_MS = 5000;
+const WAIT_HORIZON_MS = 600_000;
+
+function waitNote(after: After, text: string): TravelAfter {
+  return after({ wait: text });
+}
+
+function pathOf(work: RideWork, dock: Dock): number | undefined {
+  const state = work.ops.handle.transports.state();
+  return state.templates.get(state.transports.get(dock.guid)?.entry ?? -1)
+    ?.taxiPathId;
+}
+
+function arriveIn(work: RideWork): number | undefined {
+  const { ops } = work;
+  let soonest: number | undefined;
+  for (const dock of poses(work, false)) {
+    if (!serves(work.data, pathOf(work, dock), work.stop)) continue;
+    for (let at = 0; at <= WAIT_HORIZON_MS; at += WAIT_STEP_MS) {
+      const ahead = ops.handle.transports.act.poseAt(dock.guid, at);
+      if (!ahead) break;
+      if (!ahead.moving && away(ops, ahead) <= DOCK_NEAR_YD) {
+        if (soonest === undefined || at < soonest) soonest = at;
+        break;
+      }
+    }
+  }
+  return soonest;
+}
+
+function waitText(work: RideWork): string {
+  const due = arriveIn(work);
+  const when =
+    due === undefined
+      ? ""
+      : `, expected in about ${Math.max(1, Math.round(due / 1000))} s`;
+  return `waiting at the dock for the transport to ${work.stop}${when}`;
+}
+
+function refreshWait(
+  work: RideWork,
+  waiting: { text: string | undefined },
+): void {
+  waiting.text = waitText(work);
+  work.ops.progress(waiting.text);
+}
 
 function view(work: RideWork): TravelAfter {
   return work.after({ goal: { kind: "ride", name: work.stop } });
@@ -133,7 +181,10 @@ function dockedNear(work: RideWork): Dock | undefined {
   );
 }
 
-async function findDock(work: RideWork): Promise<Dock | Report> {
+async function findDock(
+  work: RideWork,
+  waiting: { text: string | undefined },
+): Promise<Dock | Report> {
   const { ops } = work;
   const sighted = await poll(ops, SIGHT_WAIT_MS, () =>
     seen(ops) > 0 ? true : undefined,
@@ -151,8 +202,26 @@ async function findDock(work: RideWork): Promise<Dock | Report> {
       next: nextCall("look"),
       reason: "no_route",
     });
-  const docked = await poll(ops, DOCK_WAIT_MS, () => dockedNear(work));
-  if (docked) return docked;
+  waiting.text = waitText(work);
+  ops.progress(waiting.text);
+  const id = work.runId();
+  work.ctx.update(
+    result("RUNNING", {
+      after: waitNote(work.after, waiting.text),
+      detail: waiting.text,
+      next: `keep waiting at the dock; end your turn and let the run continue. Or ${nextCall("stop", { run: id })}.`,
+      runId: id,
+    }),
+  );
+  try {
+    const docked = await poll(ops, DOCK_WAIT_MS, () => {
+      refreshWait(work, waiting);
+      return dockedNear(work);
+    });
+    if (docked) return docked;
+  } finally {
+    waiting.text = undefined;
+  }
   return result("UNCONFIRMED", {
     after: view(work),
     detail: `no transport docked within ${DOCK_NEAR_YD} yd in ${DOCK_WAIT_MS / 60_000} min.`,
@@ -161,7 +230,11 @@ async function findDock(work: RideWork): Promise<Dock | Report> {
   });
 }
 
-async function walkToDeck(work: RideWork, dock: Dock): Promise<Dock | Report> {
+async function walkToDeck(
+  work: RideWork,
+  dock: Dock,
+  waiting: { text: string | undefined },
+): Promise<Dock | Report> {
   const { ops } = work;
   if (away(ops, dock.pose) <= BOARD_RANGE_YD - DECK_WALK_YD) return dock;
   const leg = await travelLeg(ops, {
@@ -176,7 +249,7 @@ async function walkToDeck(work: RideWork, dock: Dock): Promise<Dock | Report> {
       reason: leg.reason ?? "unreachable",
     });
   const still = ops.handle.transports.act.poseAt(dock.guid);
-  if (!still || still.moving) return findDock(work);
+  if (!still || still.moving) return findDock(work, waiting);
   return { guid: dock.guid, pose: still };
 }
 
@@ -226,12 +299,21 @@ async function leave(work: RideWork): Promise<Report | undefined> {
   });
 }
 
-export async function rideWork(started: StartedWork): Promise<Report> {
+export async function rideWork(
+  started: StartedWork,
+  held?: { text: string | undefined },
+): Promise<Report> {
   const data = await loadData(started.ops);
-  const work: RideWork = { ...started, data };
+  const waiting = held ?? { text: undefined };
+  const after: After = (patch) =>
+    started.after({
+      ...(waiting.text === undefined ? {} : { wait: waiting.text }),
+      ...patch,
+    });
+  const work: RideWork = { ...started, after, data };
   const { ops, stop } = work;
   const { nodes } = data;
-  const found = await findDock(work);
+  const found = await findDock(work, waiting);
   if ("status" in found) return found;
   if (servesStop(nodes, found.pose, stop))
     throw new Refusal({
@@ -239,7 +321,7 @@ export async function rideWork(started: StartedWork): Promise<Report> {
       next: nextCall("look"),
       reason: "already_there",
     });
-  const ready = await walkToDeck(work, found);
+  const ready = await walkToDeck(work, found, waiting);
   if ("status" in ready) return ready;
   const refused = await board(work, ready);
   if (refused) return refused;

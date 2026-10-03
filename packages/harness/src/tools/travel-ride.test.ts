@@ -77,8 +77,15 @@ async function world(init: { dbc?: boolean } = {}): Promise<World> {
   });
   jest
     .spyOn(act, "poseAt")
-    .mockImplementation((guid) =>
-      guid === SHIP || pose.now === undefined ? pose.now : HERE,
+    .mockImplementation((guid, offsetMs?: number) =>
+      offsetMs === undefined ||
+      offsetMs === 0 ||
+      pose.now === undefined ||
+      pose.now.moving === false
+        ? guid === SHIP || pose.now === undefined
+          ? pose.now
+          : HERE
+        : { ...HERE, moving: false },
     );
   jest.spyOn(act, "board").mockImplementation(() => {
     pose.now = AWAY;
@@ -126,7 +133,38 @@ describe("travel ride", () => {
     expect(res.status).toBe("DONE");
     expect(res.detail).toContain("Thunder Bluff");
   });
-
+  test("a docked wait names the transport and tells the agent to keep waiting", async () => {
+    const { t, pose } = await world();
+    pose.now = { ...HERE, moving: true };
+    const act = t.handle.transports.act;
+    const ctx = toolCtx<TravelAfter>(t);
+    const res = await withFakeTimers(async () => {
+      const pending = travelSpec.run({ to: "ride Thunder Bluff" }, ctx);
+      await elapse(4000);
+      expect(act.board).not.toHaveBeenCalled();
+      for (
+        let i = 0;
+        i < 10 &&
+        !(t.rt.runs.list()[0]?.progress ?? "").includes("Thunder Bluff");
+        i++
+      )
+        await elapse(600);
+      expect(t.rt.runs.list()[0]?.progress).toContain("Thunder Bluff");
+      const waiting = ctx.updates.find((u) =>
+        u.detail?.includes("Thunder Bluff"),
+      );
+      expect(waiting).toMatchObject({ status: "RUNNING" });
+      expect(waiting?.detail).toContain("waiting at the dock");
+      expect(waiting?.detail).toContain("expected in about");
+      expect(waiting?.next).toContain("keep waiting at the dock");
+      pose.now = HERE;
+      await elapse(2000);
+      pose.now = THERE;
+      await elapse(3000);
+      return await pending;
+    });
+    expect(res.status).toBe("DONE");
+  });
   test("waits for the transport to dock before it boards", async () => {
     const { t, pose } = await world();
     pose.now = { ...HERE, moving: true };
