@@ -387,6 +387,12 @@ describe("an offer after a missing-offer failure", () => {
       reason: "no_offer",
       tool: "group",
     },
+    {
+      args: { do: "ready", what: "yes" },
+      event: "raid/ready_check",
+      reason: "no_check",
+      tool: "group",
+    },
   ] as const;
 
   for (const one of cases) {
