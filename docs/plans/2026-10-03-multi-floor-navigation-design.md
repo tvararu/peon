@@ -33,24 +33,46 @@ other check: floor, climb, return trace, clear headroom and collision.
 Sources: the run directories of #445 (rounds 621 and 622: 8 distinct runs of
 `t4-objects-explore-fargodeep` and 1 of `t1-walk-to-npc`; the round-621
 and round-621-graded copies of the same runs have identical gamelogs and
-count once) and #492 (five `t8-travel-fly` runs, rounds 604, 605 x2, 627
-and 628), and the round 701 evaluation runs (27 runs, finished while this
-note was written).
-Positions are the pose before the refused leg and the leg's goal, in map
-coordinates. The offline experiments below ran the planner on the real
-navigation data (maps 0, 530 and 571) with the `libnamigator.so` built from
+count once), #492 (five `t8-travel-fly` runs, rounds 604, 605 x2, 627
+and 628), and the round 701 evaluation runs (74 runs, 8 of them with a
+`nav/refused` row).
+
+A refusal row in a gamelog carries the goal and no pose, so the pose before
+a refused leg is rebuilt from the surrounding rows. A leg walks from its
+`nav/route_start` to its `nav/route_end`, so the pose is, in this order:
+
+1. the nearest row that carries `self.pose`, before or after the refusal,
+when at most 150 ms of a walking leg lies between that row and the
+refusal (about one yard at running speed);
+2. else the end of the last arrived leg whose goal has a z, when no leg has
+walked since: the goal's x, y and z (the retried floor);
+3. else the origin is unrecoverable. An unrecoverable refusal is counted
+and listed, but never replayed or quoted as a refused-leg replay.
+
+Of the 97 refusals in these logs whose goal has a z, 19 take a pose from a
+row before the refusal, 30 from a row after and 18 from a leg end; 30 are
+unrecoverable (19 in #492, 10 in round 701, 1 in #445). Of the 67 with a
+pose, 3 have a code outside this issue (two `ground_corridor_collision`
+and one `replan_no_progress`) and 9 repeat the (map, pose, goal) of
+another, which leaves 55 distinct replayed legs: 25 from #445, 23 from
+#492 and 7 from round 701. Positions below are these rebuilt poses and the
+leg's goal, in map coordinates; a position that is only a place where the
+character stood, and not the start of a refused leg, is labelled as such.
+
+The offline experiments below ran the planner on the real navigation data
+(maps 0, 530 and 571) with the `libnamigator.so` built from
 `vendor/namigator`, through scratch scripts that are not part of the change.
 
 ### Refusal codes
 
 | Code | Raised where | Why | Where it fired |
 | --- | --- | --- | --- |
-| `ambiguous_floor` | `planner.ts` `destinationFloor` (more than one clear floor in the destination column) and `checkDestination` (the given z is on no floor); `travel-leg.ts` `KNOWN` maps both texts to this code | The point goto has no z, or a z the column lacks, and `findHeights` lists several floors. The refusal is correct; the trouble is what follows it. Floors that differ by less than a step are counted as separate floors (`FLOOR_MERGE` is 0.01) | Fargodeep, map 0, goal (-9820, 143) floors 51.74 and 4.92, in seven of the eight #445 runs (90 refusals); Silvermoon, map 530, goal (9412.8, -7164.9) floors 38.09 and 11.63 (59 refusals in 5 runs); round 701 `t3-ghostlands-kill` goal (7823.4, -6925) floors 82.81 and 80.77 from (7674.1, -6854.6, 84.4); round 701 `t8-vehicles-drive` unit goal floors 7.7585 and 7.7437 (0.015 apart) at (2816.9, 6714.3, 10.1) on map 571 |
+| `ambiguous_floor` | `planner.ts` `destinationFloor` (more than one clear floor in the destination column) and `checkDestination` (the given z is on no floor); `travel-leg.ts` `KNOWN` maps both texts to this code | The point goto has no z, or a z the column lacks, and `findHeights` lists several floors. The refusal is correct; the trouble is what follows it. Floors that differ by less than a step are counted as separate floors (`FLOOR_MERGE` is 0.01) | Fargodeep, map 0, goal (-9820, 143) floors 51.74 and 4.92, in seven of the eight #445 runs (90 refusals); Silvermoon, map 530, goal (9412.8, -7164.9) floors 38.09 and 11.63 (59 refusals in 5 runs); round 701 `t3-ghostlands-kill` goal (7823.4, -6925) floors 82.81 and 80.77 (the pose before that leg is unrecoverable); round 701 `t8-vehicles-drive` unit goal floors 7.7585 and 7.7437 (0.015 apart) from (2816.9, 6714.3, 10.1) on map 571 |
 | `floor_retry` | `travel-leg.ts` `travelLeg` retries once with the floor nearest the player's z (`selfFloor`, `matchFloor`) and `nav-log.ts` `logRouteReplaced` logs it. It is a log reason, not a refusal | The nearest floor to the player is chosen from the data alone. 87 retries in the eight #445 runs; 59 retries in #492 ended 9 arrived and 27 `path_corner_disagrees`, 10 `end_snapped_off`, 9 `unknown_path` and 4 `no_ground`; 7 retries in round 701 ended 3 arrived and 4 `end_snapped_off` | Same positions as `ambiguous_floor` |
-| `end_snapped_off` | `planner.ts` `rejectSnap`: `findPath` returned an end more than the float rounding away from the requested x, y, z | The floor the retry picked has a surface in `findHeights` but no mesh polygon. Of the 24 replayed cases, the other floor of the column routes in 4 (Fargodeep goal (-9820, 143): 4.92 snaps off, 51.74 plans) and the other 20 have no routable floor at all | #445 goal (-9820, 143, 4.9) from (-9793.4, 151.2, 24.4); #492 goal (9412.4, -7224.1, 15.3) from (9412.4, -7164.8, 11.6); round 701 `t3-ghostlands-kill` goal (7791.3, -6806.5, 65.8) from (7632.8, -6806.7, 79.7) |
-| `path_corner_disagrees` | `planner.ts` `groundPath` (the `cornerMatches` check in `swim.ts`, `meshCornerOnGround`) | A corner of the Detour path has a z the walked ground does not match. Two causes, see C1 and C4 | #445 from (-9753.4, 135.2, 20.6) to (-9843.5, 127.5, 5.4); 8 refusals in round 622. #492 from (9412.5, -7164.9, 11.6) to (9432.5, -7164.9, 13.0), 27 refusals in 5 runs |
-| `UNKNOWN_HEIGHT` (`no_ground`) | `namigator.ts` `findHeight` raises it when the navmesh raycast from the source leaves the mesh or `getPolyHeight` fails; `findHeights` returns `[]` for it. `planner.ts` `lostHeight` retries with the column floor; `travel-leg.ts` `KNOWN` maps it to `no_ground` | The ground trace is lost where the corridor runs along a polygon edge, and the column fallback (`slopeFloor`) then refuses a column of thin stacked surfaces. See C2 | #445 from (-9841.7, 173.6, 22.6) and (-9850.5, 179.3, 21.0) to (-9843.5, 127.5, 5.4); #492 `no_ground` at (9384.6, -7252.9, 6.6) |
-| `unreachable` | Not a code in a run: `planner.ts` `classifyNavigationRefusal` groups `UNKNOWN_PATH`, `end snapped off` and `native path omits destination` into this refusal class, which `observation.ts` and the explore fallback read. In the logs the codes are `pathfind_find_path_failed_unknown_path` and `end_snapped_off` | `findPath` has no path between the pose's connected polygons and the goal: the goal floor is on another component | #492 10 `unknown_path` from (9398.5, -7181.3, 11.5) to (9300.7, -7181.3, 17.1) and from (9367.6, -7017, 18.9); #445 `unknown_path` from (-9758.4, 195.4, 49.5) |
+| `end_snapped_off` | `planner.ts` `rejectSnap`: `findPath` returned an end more than the float rounding away from the requested x, y, z | The floor the retry picked has a surface in `findHeights` but no mesh polygon. Of the 13 replayed cases, the other floor of the column routes in 3 (Fargodeep goal (-9820, 143): 4.92 snaps off, 51.74 plans, from three different poses), 1 has several routable floors (31.6 snaps off, 38.3 and 21.1 plan) and 9 have no routable floor at all | #445 goal (-9820, 143, 4.9) from (-9793.4, 151.2, 24.4); #492 `605-t8-travel-fly-1` sequence 128 goal (9412.4, -7224.1, 15.3) from (9412.4, -7204.1, 15.4); round 701 `t3-ghostlands-kill` goal (7858.5, -6551.7, 46.2) from (7872.6, -6537.6, 45.1) |
+| `path_corner_disagrees` | `planner.ts` `groundPath` (the `cornerMatches` check in `swim.ts`, `meshCornerOnGround`) | A corner of the Detour path has a z the walked ground does not match. Two causes, see C1 and C4 | #445 from (-9753.4, 135.2, 20.6) to (-9843.5, 127.5, 5.4); 8 refusals in round 622. #492 from (9412.8, -7164.9, 11.6) (the end of the previous leg) to (9432.5, -7164.9, 13.0), 27 refusals in 5 runs |
+| `UNKNOWN_HEIGHT` (`no_ground`) | `namigator.ts` `findHeight` raises it when the navmesh raycast from the source leaves the mesh or `getPolyHeight` fails; `findHeights` returns `[]` for it. `planner.ts` `lostHeight` retries with the column floor; `travel-leg.ts` `KNOWN` maps it to `no_ground` | The ground trace is lost where the corridor runs along a polygon edge, and the column fallback (`slopeFloor`) then refuses a column of thin stacked surfaces. See C2 | #445 round 621 run 1 sequence 498 from (-9793.4, 151.2, 24.4) and round 622 run 6 sequence 448 from (-9742.8, 136.2, 19.6), both to (-9843.5, 127.5, 5.4); #492 `605-t8-travel-fly-1` sequences 152 and 160 from (9384.6, -7252.9, 6.6) |
+| `unreachable` | Not a code in a run: `planner.ts` `classifyNavigationRefusal` groups `UNKNOWN_PATH`, `end snapped off` and `native path omits destination` into this refusal class, which `observation.ts` and the explore fallback read. In the logs the codes are `pathfind_find_path_failed_unknown_path` and `end_snapped_off` | `findPath` has no path between the pose's connected polygons and the goal: the goal floor is on another component | #492 `605-t8-travel-fly-1` sequence 292 from (9324.8, -7034.9, 15.7) to (9338.9, -7049, 16.3); #445 round 622 run 3 sequence 1121 from (-9749.6, 192.8, 53.2) to (-9772.5, 209.5, 48.4) |
 | `stuck` | `tools/travel.ts` `unstickWork`: the unstick walk moved less than `MIN_UNSTICK_YD` (0.5 yd, `ops/unstick.ts`) | A consequence, not a cause: every unstick destination refuses with the same start fault (`planner.ts` `checkStart`, "ambiguous ground column at start", logged as `ambiguous_ground_column`), then unstick finds no open ground | One incident, #445 round 622 `t4-objects-explore-fargodeep-6` (`gamelog.jsonl` lines 322 to 339): from map 0 (-9784.2, 141.4, 26.3) (pose at line 313) all eight unstick destinations refuse, then `travel FAILED stuck: moved 0 yd`. `findHeights` lists 27.14, 26.24 and 52.79 there: the character stands on 26.24 with a surface 0.9 yd above it, under the 1.6 yd headroom. R1 does not change this refusal; none in the #492 or round 701 runs |
 
 The other refusal rows in the same runs (`ground_corridor_collision`,
@@ -77,8 +99,12 @@ polygon edge, `findHeight` fails and `columnFallback` (`height.ts`
 reachable height to be within 0.01 of the first. At (-9833.4, 207.4) the
 column is 13.85, 13.73 and 14.06, with the walker on 14.059. 13.73 and 13.85
 are not standable (14.06 is within headroom above them), yet `slopeFloor`
-refuses the column. The Fargodeep routes from (-9841.7, 173.6, 22.6) and
-(-9850.5, 179.3, 21.0) fail here, 20 steps after the last good height.
+refuses the column. A probe walk from two places where the character stood
+and fought in round 622 run 4, (-9841.7, 173.6, 22.6) and (-9850.5, 179.3,
+21.0) (no leg was refused from either), to the Fargodeep goal
+(-9843.5, 127.5, 5.4) fails here, 20 steps after the last good height. On the
+refused legs, R1 alone plans one (round 701 `t4-objects-explore-fargodeep-1`
+sequence 586), R2 alone plans eleven and the two together plan twelve.
 
 **C3. A floor with no mesh polygon.** `findHeights` enumerates geometry
 (WMO and doodad triangles from the BVH, plus the ADT height), while the mesh
@@ -100,9 +126,11 @@ floor makes it pass under a surface 0.55 above it at (9421.13, -7219.35),
 and the collision rays then refuse it (`checkCollision`, head height 1.6).
 This is not a surface the data lacks; the mesh corridor goes where collision
 data says a character cannot. Trusting the mesh over collision would walk
-into geometry, so the refusal is right. 23 of the 27 replayed corner
-refusals after R1 and R2 end at this stair base; the other four are four
-more Silvermoon spots with the same shape.
+into geometry, so the refusal is right. Of the 17 replayed Silvermoon corner
+refusals, 15 have a mesh path that passes through the corner at the stair
+base and still refuse with R1 and R2; the other two
+(`605-t8-travel-fly-1` sequences 156 and 263) are other Silvermoon spots
+with the same shape.
 
 **C5. A spurious floor split.** `groundFloors` merges heights within
 `FLOOR_MERGE` (0.01). Two surfaces 0.015 apart count as two floors, which
@@ -135,6 +163,21 @@ floor is the destination. Several routable floors still raise
 guesses z. None routable raises the most specific refusal of the attempts.
 `floor_retry` keeps its role for the several-floors case. Fixes C3.
 
+R3 does not apply to a unit target. `goto.ts` `routeTo` turns a GUID into an
+x, y destination and `planUnitFloor` today reads the unit's observed z only
+after `planGround` has refused with floors. With R3 that refusal no longer
+happens when one floor routes, so the planner would walk to a floor above
+or below the unit (the existing upper-floor contract is
+`goto.test.ts:285-295`). The unit's floor is chosen first: `planUnitFloor`
+asks the planner for the clear floors of the column (`Navigation.floorsAt`,
+built on `groundFloors`). One floor plans as today. Several floors with
+exactly one within `GROUND_ERROR` of the observed z plan with that z
+through `navigation.plan`, which refuses (`end_snapped_off`,
+`path_corner_disagrees`, `unreachable`) when that floor has no route and
+never falls back to another floor. Several floors with none near the unit
+keep today's `ambiguous_floor` listing every floor, because the unit stands
+on none of them.
+
 R4. **Silvermoon's pocket stays refused.** The refusal is correct and is
 documented in `docs/areas/travel.md`. The explore fallback already blocks
 the bearing after `path_corner_disagrees`; that behaviour is unchanged.
@@ -143,15 +186,19 @@ This is a stated limit of the approach, not a fix.
 R5. **`groundFloors` merges floors within `GROUND_ERROR`.** The merged floor
 reports the highest member. Fixes C5.
 
-Measured on the replay (offline, no server): of the 82 distinct refused legs
-in the #445 (deduplicated) and #492 logs that carry a pose and a goal with a
-z (76 when restricted to #445 and #492; the remaining 6 are round 701),
-all 82 refuse on `main` as in the logs, and 9 plan with R1 and R2, every one
-a Fargodeep leg: the three hand-checked legs above plan with 285, 263 and
-272 points. R3 and R5 act on destinations without a z and are measured
-separately above. On 420 random routes (Silvermoon, Fargodeep, Elwynn) R1
-and R2 refuse no route that `main` plans, change no planned route, and plan
-6 that `main` refuses.
+Measured on the replay (offline, no server) of the 55 distinct legs above:
+all 55 refuse on `main` with the code in the log. With R1 and R2, 12 plan,
+every one a Fargodeep leg (9 from #445, 3 from round 701). Under the old
+origins the three hand-checked legs planned with 285, 263 and 272 points;
+from their rebuilt poses the same goals plan with 372, 274 and 272 points
+(-9793.4, 151.2, 24.4; -9752.8, 136.3, 20.3; -9753.4, 135.2, 20.6 to
+(-9843.5, 127.5, 5.4)).
+refused, and so do the other #492 refusals. R3 acts on destinations without
+a z: of the 43 legs R1 and R2 leave refused, exactly one data floor of the
+destination column routes in 6 (4 in #445, 1 in #492, 1 in round 701), so
+R3 plans those 6 and 37 stay refused. R5 is measured separately above. On
+420 random routes (Silvermoon, Fargodeep, Elwynn) R1 and R2 refuse no route
+that `main` plans, change no planned route, and plan 6 that `main` refuses.
 
 ## Alternatives rejected
 
@@ -213,13 +260,22 @@ No step changes a tool's wording, and none needs `mise eval` before the last.
    `goto.test.ts`: two floors with one routable plans that floor with no
    `ambiguous_floor`; two routable refuse with only those floors listed
    (`refusalFloors`); none routable refuses; `floor_retry` in
-   `travel-leg.test.ts` still replaces once. Change `planGround` and
-   `destinationFloor` in `planner.ts`.
+   `travel-leg.test.ts` still replaces once. Unit-target regression in
+   `goto.test.ts`, next to `plans to an upper floor when the creature stands
+   on it`: a column with floors 70.37 and 72.75, the creature observed at
+   72.75, only 70.37 routable: the goto refuses, `plan` is called with z
+   72.75 and never with 70.37. Also a creature observed at 70.37 with only
+   72.75 routable refuses, while the existing no-floor-near-the-creature
+   test keeps its ambiguous refusal. Change `planGround` and
+   `destinationFloor` in `planner.ts`, add `floorsAt`, and choose the unit
+   floor from it in `planUnitFloor` in `goto.ts`.
 5. **Docs.** `docs/areas/travel.md` (the floor rules and the Silvermoon
    pocket), the travel row of `docs/harness.md`, and the `docs/capabilities.md`
    entry for `t4-objects-explore-fargodeep`.
-6. **Offline replay.** Rerun the replay of the 82 legs (76 from #445/#492)
-   battery before and after, and quote the counts in the PR.
+6. **Offline replay.** Rerun the replay of the 55 distinct legs (25 from
+   #445, 23 from #492, 7 from round 701; poses rebuilt as above, the 30
+   unrecoverable ones left out) before and after, and quote the counts in
+   the PR.
 7. **Live proof** below.
 
 ## Proof scenarios
