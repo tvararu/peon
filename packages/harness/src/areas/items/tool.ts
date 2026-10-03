@@ -7,6 +7,7 @@ import {
   atBag,
   BACKPACK,
   BAGS,
+  bankDestination,
   destination,
   equipSlot,
   labelOf,
@@ -14,6 +15,7 @@ import {
   type Occupied,
   slotsOf,
 } from "#harness/areas/items/tool-resolve";
+import { runBankDeposit } from "#harness/areas/items/tool-bank";
 import { afterOf, moveRefusal } from "#harness/areas/items/tool-shared";
 import { runSocket } from "#harness/areas/items/tool-socket";
 import type { LootLine } from "#harness/contract/details";
@@ -63,7 +65,7 @@ export const gearParams = Type.Object({
   to: Type.Optional(
     Type.String({
       description:
-        'For move, split and unequip: "bags", "backpack", "bag 1-4", "bag 19-22", or "bag B slot S". Default: the first free bag slot.',
+        'For move, split and unequip: "bags", "backpack", "bag 1-4", "bag 19-22", or "bag B slot S". For move: "bank" deposits through the open bank. Default: the first free bag slot.',
     }),
   ),
 });
@@ -297,6 +299,8 @@ async function runMove(
     "bag_item",
   ]);
   const from = { bag: found.held.bag, slot: found.held.slot };
+  if (bankDestination(to) !== undefined)
+    return runBankDeposit(ctx, found, from);
   const toAt = destination(handle, to, from);
   const outcome_ = await rt.mutex.run(() => handle.items.act.move(from, toAt));
   if (outcome_.last?.status !== "confirmed")

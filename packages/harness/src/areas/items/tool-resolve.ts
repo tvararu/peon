@@ -143,7 +143,7 @@ export function position(text: string, prefix: string): Position {
   if (at?.[1] !== undefined && at[2] !== undefined)
     return { bag: Number(at[1]), slot: Number(at[2]) };
   throw new Refusal({
-    detail: `${prefix}, for example "bag 19 slot 0".`,
+    detail: `${prefix}; got "${text.trim()}", which is not a bag and slot.`,
     next: BAGS,
     reason: "bad_position",
   });
@@ -215,6 +215,13 @@ export function firstFree(
       reason,
     });
   return free;
+}
+
+type BankHit = { kind: "bank" };
+
+export function bankDestination(text: string | undefined): BankHit | undefined {
+  if (text === undefined) return undefined;
+  return /\bbank\b/i.test(text.trim()) ? { kind: "bank" } : undefined;
 }
 
 export function destination(

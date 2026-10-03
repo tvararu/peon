@@ -40,6 +40,8 @@ export function bankBodyOf(
   bagSlots: number | undefined,
 ): string[] {
   if (!view.known) return ["Bank: unknown."];
+  const moves =
+    'Deposit with interact do "deposit" and the banker; withdraw with interact do "withdraw" and the banker.';
   const head =
     view.lines.length === 0
       ? "Bank: empty."
@@ -50,7 +52,7 @@ export function bankBodyOf(
       : `${view.free} free bank slots`;
   const slotsText =
     bagSlots === undefined ? "bag slots unknown" : `${bagSlots} bag slots`;
-  const lines = [head, `${freeText}. ${slotsText}.`];
+  const lines = [head, `${freeText}. ${slotsText}.`, moves];
   if (view.lines.length <= LINE_BUDGET) return lines;
   const groups = new Map<string, { count: number; name: string }>();
   for (const row of view.lines) {
@@ -64,5 +66,6 @@ export function bankBodyOf(
   return [
     `Bank: ${view.lines.length} items: ${compact.join("; ")}.`,
     `${freeText}. ${slotsText}.`,
+    moves,
   ];
 }
