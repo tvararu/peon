@@ -305,10 +305,10 @@ async function leave(work: RideWork): Promise<Report | undefined> {
 
 export async function rideWork(
   started: StartedWork,
-  held?: { text: string | undefined },
+  held: { text: string | undefined },
 ): Promise<Report> {
   const data = await loadData(started.ops);
-  const waiting = held ?? { text: undefined };
+  const waiting = held;
   const after: After = (patch) =>
     started.after({
       ...(waiting.text === undefined ? {} : { wait: waiting.text }),

@@ -57,6 +57,7 @@ type Work = {
   goal: Goal;
   after: After;
   runId: () => string;
+  held: { text: string | undefined };
 };
 
 const COORDS =
@@ -289,16 +290,7 @@ async function doWork(work: Work): Promise<Report> {
   if (goal.kind === "fly")
     return flyWork({ ...work, destination: goal.destination });
   if (goal.kind === "ride") {
-    const held: { text: string | undefined } = { text: undefined };
-    const after: After = (patch) =>
-      work.after({
-        ...(held.text === undefined ? {} : { wait: held.text }),
-        ...patch,
-      });
-    return rideWork(
-      { ...work, after, runId: work.runId, stop: goal.stop },
-      held,
-    );
+    return rideWork({ ...work, runId: work.runId, stop: goal.stop }, work.held);
   }
   const wanted = exploreWanted(work.ops, work.args.for);
   const found = await explore(work.ops, { direction: goal.direction, wanted });
@@ -375,7 +367,10 @@ async function launch(init: {
     progress: control.progress,
     signal: AbortSignal.any([control.signal, watch.signal]),
   };
-  const after = afterOf(ops, goal);
+  const base = afterOf(ops, goal);
+  const held: { text: string | undefined } = { text: undefined };
+  const after: After = (patch) =>
+    base({ ...(held.text === undefined ? {} : { wait: held.text }), ...patch });
   const tick = setInterval(() => {
     const now = after({});
     if (now.wait === undefined) {
@@ -387,7 +382,7 @@ async function launch(init: {
     }
   }, UPDATE_EVERY_MS);
   try {
-    const report = await doWork({ after, args, ctx, goal, ops, runId });
+    const report = await doWork({ after, args, ctx, goal, held, ops, runId });
     if (control.signal.aborted)
       return runEnd(
         stopReport(control.signal, report.after),
