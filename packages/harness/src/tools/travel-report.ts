@@ -485,6 +485,7 @@ export function yieldTravel(init: {
     runId,
   });
 }
+
 export function interruptReport(
   ctx: ViewCtx,
   cause: InterruptCause,
