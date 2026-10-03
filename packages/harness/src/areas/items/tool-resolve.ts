@@ -13,7 +13,7 @@ const ITEM_REF = /^item (\d+)$/i;
 export const AT_REF = /^bag (\d+) slot (\d+)$/i;
 const BAG_REF = /^bag (\d+)$/i;
 const BAG_NUMBER = /^([12]?[0-9]|2[0-2])$/;
-
+const BANK_WORD = /\bbank\b/i;
 export const EQUIP_SLOTS: Record<string, number> = {
   back: 14,
   chest: 4,
@@ -221,7 +221,7 @@ type BankHit = { kind: "bank" };
 
 export function bankDestination(text: string | undefined): BankHit | undefined {
   if (text === undefined) return undefined;
-  return /\bbank\b/i.test(text.trim()) ? { kind: "bank" } : undefined;
+  return BANK_WORD.test(text.trim()) ? { kind: "bank" } : undefined;
 }
 
 export function destination(

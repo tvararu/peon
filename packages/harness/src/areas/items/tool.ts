@@ -1,5 +1,6 @@
 import { type Static, StringEnum, Type } from "@earendil-works/pi-ai";
 import type { NamedInventoryState } from "@peon/core";
+import { runBankDeposit } from "#harness/areas/items/tool-bank";
 import { lootText, takeOffered } from "#harness/areas/items/tool-loot";
 import { runAmmo, runRead } from "#harness/areas/items/tool-read";
 import {
@@ -15,7 +16,6 @@ import {
   type Occupied,
   slotsOf,
 } from "#harness/areas/items/tool-resolve";
-import { runBankDeposit } from "#harness/areas/items/tool-bank";
 import { afterOf, moveRefusal } from "#harness/areas/items/tool-shared";
 import { runSocket } from "#harness/areas/items/tool-socket";
 import type { LootLine } from "#harness/contract/details";

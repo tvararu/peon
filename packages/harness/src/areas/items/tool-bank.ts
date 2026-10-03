@@ -1,6 +1,5 @@
 import { ObjectType } from "@peon/core";
-import type { GearAfter } from "#harness/areas/items/tool";
-import type { GearCtx } from "#harness/areas/items/tool";
+import type { GearAfter, GearCtx } from "#harness/areas/items/tool";
 import type { ToolResult } from "#harness/contract/result";
 import { Refusal } from "#harness/ops/refusal";
 import { result } from "#harness/tools/define";
@@ -61,12 +60,15 @@ async function sendDeposit(
       ctx.handle.takeControl("manual_override");
       return await ctx.handle.bank.act.deposit(from.bag, from.slot);
     });
-  } catch {
-    throw new Refusal({
+  } catch (error) {
+    ctx.signal.throwIfAborted();
+    const refusal = new Refusal({
       detail: "the banker is out of reach; walk closer then deposit again.",
       next: nextCall("look", { find: "banker" }),
       reason: "banker_too_far",
     });
+    refusal.cause = error;
+    throw refusal;
   }
 }
 

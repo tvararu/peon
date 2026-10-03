@@ -99,8 +99,8 @@ async function refusal(promise: Promise<unknown>): Promise<Refusal> {
     () => undefined,
     (thrown: unknown) => thrown,
   );
-  expect(error).toBeInstanceOf(Refusal);
-  return error as Refusal;
+  if (!(error instanceof Refusal)) throw new Error("expected a Refusal");
+  return error;
 }
 
 describe("gear move to the bank", () => {
