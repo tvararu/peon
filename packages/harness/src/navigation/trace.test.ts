@@ -62,7 +62,7 @@ describe("lost height traces", () => {
       },
       findPath: (from, to) => [from, { x: 5, y: 1, z: 3 }, to],
     });
-    expect(navigation(map).plan(530, start, end).length).toBeCloseTo(10);
+    expect(navigation(map).plan(530, start, end).length).toBeCloseTo(10.2);
   });
 
   test("keeps a lost height trace refused over two walkable floors", () => {

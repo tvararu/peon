@@ -226,12 +226,16 @@ function meshCornerOnGround(
   meshZ: number,
 ): boolean {
   const rise = meshZ - ground.z;
-  if (rise < -GROUND_ERROR || rise > CORNER_RISE) return false;
+  if (rise < -GROUND_ERROR) return false;
+  if (rise <= CORNER_RISE)
+    return map
+      .findHeights(ground.x, ground.y)
+      .every(
+        (height) =>
+          Math.abs(height - ground.z) <= GROUND_ERROR ||
+          Math.abs(height - meshZ) > Math.abs(rise),
+      );
   return map
     .findHeights(ground.x, ground.y)
-    .every(
-      (height) =>
-        Math.abs(height - ground.z) <= GROUND_ERROR ||
-        Math.abs(height - meshZ) > Math.abs(rise),
-    );
+    .every((height) => Math.abs(height - meshZ) > CORNER_RISE);
 }
