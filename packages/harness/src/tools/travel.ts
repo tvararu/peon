@@ -289,6 +289,7 @@ async function doWork(work: Work): Promise<Report> {
   }
   const wanted = exploreWanted(work.ops, work.args.for);
   const found = await explore(work.ops, { direction: goal.direction, wanted });
+  const kind = (work.args.for ?? "hostile").trim().toLowerCase();
   return exploreReport(
     { ...found, passed: passedUnits(work.ops, found.newInView, wanted) },
     work.after({
@@ -296,6 +297,10 @@ async function doWork(work: Work): Promise<Report> {
       newInView: found.newInView,
       traveledYd: found.walkedYd,
     }),
+    {
+      seeksHostile: kind === "" || kind === "hostile",
+      selfLevel: selfView(work.ops).level,
+    },
   );
 }
 
