@@ -1,0 +1,52 @@
+{
+  "botRisk": "high",
+  "budget": { "minutes": 90, "tools": 400, "turns": 120 },
+  "checks": [
+    {
+      "evidence": { "truth": ["level"] },
+      "expect": "T final level is at least 5 (the agent levelled from its level 1 baseline by questing)",
+      "id": "level",
+      "source": "truth"
+    },
+    {
+      "evidence": { "truth": ["quests"] },
+      "expect": "T final rewardedQuests holds at least one quest id absent from T baseline rewardedQuests, so the agent turned quests in itself",
+      "id": "quests-rewarded",
+      "source": "truth"
+    },
+    {
+      "evidence": { "delta": ["totalXp"], "truth": ["totalXp"] },
+      "expect": "T delta total XP is at least the XP of four level crossings from the level 1 baseline, so the levels came from earned XP",
+      "id": "total-xp",
+      "source": "truth"
+    },
+    {
+      "evidence": { "events": ["xp/gain"] },
+      "expect": "GL has xp/gain rows with source quest, and xp/gain rows with source kill, so quest XP and kill XP both contributed",
+      "id": "quest-and-kill-xp",
+      "source": "game_log"
+    },
+    {
+      "evidence": { "events": ["quest/rewarded"] },
+      "expect": "GL has a quest/rewarded row for each rewarded quest id, corroborating and dating the turn-ins",
+      "id": "rewarded-packets",
+      "source": "game_log"
+    },
+    {
+      "expect": "the run has no GM help after the baseline: empty setup, interventions hold at most the one allowed rescue nudge, and the grader marks any other help aborted as grader_contamination",
+      "id": "no-gm-help",
+      "source": "session"
+    }
+  ],
+  "field": "sunstrider-wyrms",
+  "id": "t4-quests-level-five",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 93,
+  "partner": null,
+  "preset": "fresh",
+  "setup": [],
+  "steers": [],
+  "task": "You are newly arrived on Sunstrider Isle. Take quests from the blood elves around you, do what they ask, and keep questing until you reach level 5.",
+  "tier": 4
+}

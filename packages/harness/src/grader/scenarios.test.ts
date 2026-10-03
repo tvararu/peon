@@ -289,6 +289,23 @@ describe("round-1 scenarios", () => {
     expect(scenario.setup).toEqual([]);
     expect(scenario.spawn).toBe("eversong");
   });
+
+  test("t4-quests-level-five starts a fresh level 1 and grades level, rewards and XP on server truth", () => {
+    const scenario = loadScenario("t4-quests-level-five");
+    expect(scenario.preset).toBe("fresh");
+    expect(scenario.setup).toEqual([]);
+    expect(scenario.field).toBe(loadScenario("t4-quest-first").field);
+    expect(scenario.budget.minutes).toBeGreaterThanOrEqual(60);
+    const level = scenario.checks.find((check) => check.id === "level");
+    expect(level).toMatchObject({
+      evidence: { truth: ["level"] },
+      source: "truth",
+    });
+    const rewarded = scenario.checks.find((c) => c.id === "quests-rewarded");
+    expect(rewarded?.evidence?.truth).toContain("quests");
+    const sources = scenario.checks.map((check) => check.source);
+    expect(sources).toContain("game_log");
+  });
 });
 
 describe("checks measure what they name", () => {
