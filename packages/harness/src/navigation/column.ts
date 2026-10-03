@@ -2,8 +2,6 @@ import { GROUND_ERROR, MESH_HEIGHT, WALKABLE_CLIMB } from "@peon/core";
 import { START_SNAP } from "#harness/navigation/collision";
 import { groundError, type NativeMap } from "#harness/navigation/native";
 
-export const FLOOR_MERGE = 0.01;
-
 type Point = { x: number; y: number; z: number };
 
 export function settleStart<P extends Point>(
@@ -28,7 +26,7 @@ export function groundFloors(heights: readonly number[]): number[] {
   for (const height of heights)
     if (
       clearAbove(heights, height) &&
-      !floors.some((floor) => Math.abs(floor - height) <= FLOOR_MERGE)
+      !floors.some((floor) => Math.abs(floor - height) <= GROUND_ERROR)
     )
       floors.push(height);
   return floors.sort((a, b) => b - a);
