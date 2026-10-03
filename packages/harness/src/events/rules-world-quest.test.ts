@@ -251,6 +251,37 @@ describe("rewardsDrafts", () => {
     ).toMatchObject([{ class: "log", event: "loot/release" }]);
   });
 
+  test("a started group roll is a loot wake row", () => {
+    const rc = testRuleInput({
+      lookup: testLookup({ itemName: () => "Linen Cloth" }),
+    });
+    const started = {
+      allowed: ["greed", "pass"] as ("greed" | "pass")[],
+      choice: undefined,
+      corpseGuid: 0x2an,
+      count: 1,
+      countdownMs: 60_000,
+      expiresAt: 60_000,
+      guid: 0x3bn,
+      itemId: 20_797,
+      mapId: 0,
+      randomPropertyId: 0,
+      randomSuffix: 0,
+      remainingMs: 50_000,
+      slot: 1,
+      startedAt: 0,
+      votes: [],
+    };
+    expect(
+      rewardsDrafts(
+        rewards("loot_roll_started", {
+          rolls: { last: undefined, pending: [started] },
+        }),
+        rc,
+      ),
+    ).toMatchObject([{ class: "wake", event: "loot/roll" }]);
+  });
+
   test("money changes come from coinage, with loot as the reason after a notice", () => {
     const rc = testRuleInput();
     expect(rewardsDrafts(rewards("inventory_observed", {}, 100), rc)).toEqual(

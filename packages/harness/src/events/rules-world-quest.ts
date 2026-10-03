@@ -196,15 +196,34 @@ function releaseRows(release: LootRelease, rc: RuleInput): Drafts {
   ];
 }
 
+function rollRow(
+  roll: RewardsState["rolls"]["pending"][number],
+  rc: RuleInput,
+): Drafts {
+  const name = rc.lookup.itemName(roll.itemId) ?? itemIdText(roll.itemId);
+  const data = {
+    allowed: roll.allowed,
+    itemId: roll.itemId,
+    name,
+    slot: roll.slot,
+  };
+  const text = `Group roll started: ${name} x${roll.count}. Answer with group do=roll.`;
+  return [{ class: "wake", data, domain: "loot", event: "loot/roll", text }];
+}
+
 export function lootDrafts(
   { type, state }: RewardsEvent,
   rc: RuleInput,
 ): Drafts {
-  const { lastItemPush, lastRelease, loot } = state;
+  const { lastItemPush, lastRelease, loot, rolls } = state;
   if (type === "item_push" && lastItemPush) return itemRow(lastItemPush, rc);
   if (type === "loot_opened") return openedRow(loot, rc);
   if (type === "loot_release_observed" && lastRelease)
     return releaseRows(lastRelease, rc);
+  if (type === "loot_roll_started") {
+    const [started] = rolls.pending.slice(-1);
+    return started ? rollRow(started, rc) : [];
+  }
   return [];
 }
 

@@ -41,6 +41,7 @@ export const OFFERED_BY: Record<string, readonly string[]> = {
   "dungeon:no_vote": ["lfg/boot_vote"],
   "group:no_check": ["raid/ready_check"],
   "group:no_offer": ["quests/offered"],
+  "group:no_roll": ["loot/roll"],
   "social:nothing_to_accept": ["group/invite"],
   "social:nothing_to_decline": ["group/invite"],
   "trade:no_request": ["trade/requested"],
