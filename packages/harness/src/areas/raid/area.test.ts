@@ -56,7 +56,7 @@ describe("raid harness rules", () => {
     ]);
   });
 
-  test("a change to the receiving character writes a roster row", () => {
+  test("becoming leader writes a wake roster row", () => {
     expect(
       rows({
         changes: [{ kind: "leader", self: true }],
@@ -64,8 +64,30 @@ describe("raid harness rules", () => {
         type: "group_list",
       }),
     ).toMatchObject([
+      { class: "wake", data: { change: "leader" }, event: "raid/roster" },
+    ]);
+  });
+
+  test("another member becoming leader stays passive", () => {
+    expect(
+      rows({
+        changes: [{ kind: "leader", name: "Ann" }],
+        group: GROUP,
+        type: "group_list",
+      }),
+    ).toMatchObject([
       { class: "passive", data: { change: "leader" }, event: "raid/roster" },
     ]);
+  });
+
+  test("other changes to the receiving character stay passive", () => {
+    expect(
+      rows({
+        changes: [{ flag: "assistant", kind: "flag", on: true }],
+        group: GROUP,
+        type: "group_list",
+      }),
+    ).toMatchObject([{ class: "passive", event: "raid/roster" }]);
   });
 
   test("a disband event writes one passive roster row", () => {

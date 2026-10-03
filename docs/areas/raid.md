@@ -52,15 +52,15 @@ status is offline) and emits `ready_check_answer`; a finish stamps
 `finishedAt` and emits `ready_check_finished` with the ready count, the
 names not ready, the offline count and the pending count. Confirms with
 no open check, from a guid outside the roster, or after the finish are
-ignored. Every
-act names another member: a name outside the roster throws
+ignored. Every act names another member: a name outside the roster throws
 `not in your party`, and the caller's own name throws too because the
 server never lists the receiving character. The peeked
 `SMSG_PARTY_COMMAND_RESULT` emits one `command_result` event with the
 operation and result as names and the member name; unknown codes keep
 their number (`result_<n>`, `operation_<n>`). The harness writes one
-`wake` row `command` per result, and one `passive` row `roster` per
-change, except `joined` and `left`, which the legacy `group/roster` row
+`wake` row `command` per result, and one row `roster` per change: `wake`
+when the change makes the receiving character the leader, `passive`
+otherwise, except `joined` and `left`, which the legacy `group/roster` row
 already says; `invite_blocked` writes one `log` row.
 
 The area also keeps `marks`, eight guids where `0` is an empty slot. A

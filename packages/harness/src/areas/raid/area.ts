@@ -73,7 +73,7 @@ function groupList(event: Of<"group_list">): AreaDraft[] {
     if (change.kind === "joined") continue;
     const name = "name" in change ? change.name : undefined;
     rows.push({
-      class: "passive",
+      class: change.kind === "leader" && change.self ? "wake" : "passive",
       data: {
         change: change.kind,
         ...changeDetail(change),

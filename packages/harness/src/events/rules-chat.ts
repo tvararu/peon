@@ -113,8 +113,7 @@ export function chatDrafts(raw: ChatMessage, rc: RuleInput): Drafts {
     },
   ];
 }
-
-function groupRow(event: GroupEvent): GroupRow | undefined {
+function groupRow(event: GroupEvent, rc: RuleInput): GroupRow | undefined {
   switch (event.type) {
     case "invite_received":
       return {
@@ -141,13 +140,17 @@ function groupRow(event: GroupEvent): GroupRow | undefined {
       const data = { leader: event.leader, members };
       return { cls: "passive", data, event: "group/roster", text };
     }
-    case "leader_changed":
+    case "leader_changed": {
+      const self = event.name === rc.selfName;
       return {
-        cls: "passive",
-        data: { leader: event.name },
+        cls: self ? "wake" : "passive",
+        data: self ? {} : { leader: event.name },
         event: "group/roster",
-        text: `${event.name} is now the group leader.`,
+        text: self
+          ? "You lead the group now."
+          : `${event.name} is now the group leader.`,
       };
+    }
     case "invite_declined":
       return {
         cls: "passive",
@@ -159,9 +162,8 @@ function groupRow(event: GroupEvent): GroupRow | undefined {
       return undefined;
   }
 }
-
-export function groupDrafts(event: GroupEvent, _rc: RuleInput): Drafts {
-  const row = groupRow(event);
+export function groupDrafts(event: GroupEvent, rc: RuleInput): Drafts {
+  const row = groupRow(event, rc);
   if (!row) return [];
   const { cls, event: name, text, data = {} } = row;
   return [{ class: cls, data, domain: "group", event: name, text }];
