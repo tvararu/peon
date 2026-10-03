@@ -52,7 +52,7 @@ export function probeHeight(
 }
 
 export function uniqueHeight(map: NativeMap, x: number, y: number): number {
-  const first = groundHeights(map, x, y)[0];
+  const [first] = groundHeights(map, x, y);
   if (first === undefined) throw groundError("ground height unavailable");
   return first;
 }
@@ -89,11 +89,10 @@ export function reachableHeight(
 
 export function groundHeights(map: NativeMap, x: number, y: number): number[] {
   const heights = columnHeights(map, x, y);
-  const first = heights[0];
-  if (first === undefined) throw groundError("ground height unavailable");
-  if (groundFloors(heights).length > 1)
-    throw groundError("ambiguous ground column");
-  return heights;
+  const floors = groundFloors(heights);
+  if (floors.length > 1) throw groundError("ambiguous ground column");
+  if (floors.length === 0) throw groundError("ground height unavailable");
+  return floors;
 }
 
 export function traceHeight(
