@@ -27,8 +27,9 @@ export type Goal =
   | { kind: "hearth" }
   | { kind: "fly"; destination: string }
   | { kind: "ride"; stop: string };
-
 export type Report = ToolResult<TravelAfter>;
+
+const HUMAN_WROTE = "The human wrote a message. Read it before you act.";
 
 const WORD: Record<Compass, string> = {
   E: "east",
@@ -149,6 +150,10 @@ export function goalName(goal: Goal): string {
   if (goal.kind === "fly") return `fly ${goal.destination}`;
   if (goal.kind === "ride") return `ride ${goal.stop}`;
   return goal.kind;
+}
+
+export function movedWord(goal: Goal): string {
+  return goal.kind === "fly" || goal.kind === "ride" ? "moved" : "walked";
 }
 
 export function youLine(ctx: ViewCtx): string {
@@ -445,6 +450,39 @@ export function stopReport(signal: AbortSignal, after: TravelAfter): Report {
     detail: `the run was stopped (${code}).`,
     next: nextCall("look"),
     reason: "cancelled",
+  });
+}
+
+export function yieldTravel(init: {
+  ctx: ViewCtx;
+  goal: Goal;
+  held: { text: string | undefined };
+  latest: TravelAfter;
+  runId: string;
+  waited: { why: "human" | "timeout" };
+}): Report {
+  const { ctx, goal, held, latest, runId, waited } = init;
+  const wait = held.text ?? latest.wait;
+  const togo =
+    latest.remainingYd === undefined
+      ? ""
+      : `, ${yd(latest.remainingYd)} yd to go`;
+  const ride =
+    wait === undefined
+      ? {
+          after: latest,
+          detail: `travel to ${goalName(goal)}, ${yd(latest.traveledYd)} yd ${movedWord(goal)}${togo}. ${youLine(ctx)}`,
+        }
+      : { after: { ...latest, wait }, detail: `${wait}. ${youLine(ctx)}` };
+  return result("RUNNING", {
+    after: ride.after,
+    body: waited.why === "human" ? [HUMAN_WROTE] : [],
+    detail: ride.detail,
+    next:
+      wait === undefined
+        ? `end your turn; a [game] message comes when ${runId} ends. Or ${nextCall("stop", { run: runId })}.`
+        : `keep waiting; end your turn and let the run continue. Or ${nextCall("stop", { run: runId })}.`,
+    runId,
   });
 }
 

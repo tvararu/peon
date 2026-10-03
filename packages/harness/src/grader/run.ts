@@ -375,6 +375,7 @@ async function endView(run: Live, now: number): Promise<EndView> {
       status === undefined
         ? undefined
         : progressOf({ lastAnswerAt: run.answerAt, now, status }),
+    runActive: status?.run !== undefined,
     statusAt: run.statusAt ?? run.memory.taskMs,
     tier: run.scenario.tier,
   };

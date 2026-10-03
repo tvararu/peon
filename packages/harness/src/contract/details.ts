@@ -90,6 +90,7 @@ export type TravelAfter = {
   totalYd: number | undefined;
   remainingYd: number | undefined;
   elapsedMs: number;
+  wait?: string | undefined;
   legs: LegView[];
   floors: number[] | undefined;
   floorRetried: boolean;

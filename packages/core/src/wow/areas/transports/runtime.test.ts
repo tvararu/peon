@@ -134,3 +134,23 @@ describe("transports board and leave", () => {
     }
   });
 });
+
+describe("transports poseAt with an offset", () => {
+  test("a pose a number of ms ahead is the pose the clock reaches then", async () => {
+    const now = { at: 1000 };
+    const guid = transportsGuid(MO_TRANSPORT_HIGH, 0x14);
+    const rig = dockedRig(() => now.at);
+    try {
+      await seedMotion(rig, guid);
+      const ahead = rig.handle.act.poseAt(guid, 30_000);
+      now.at = 31_000;
+      expect(ahead).toEqual(rig.handle.act.poseAt(guid));
+      now.at = 1000;
+      expect(rig.handle.act.poseAt(guid, 0)).toEqual(
+        rig.handle.act.poseAt(guid),
+      );
+    } finally {
+      rig.dispose();
+    }
+  });
+});

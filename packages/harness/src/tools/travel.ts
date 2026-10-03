@@ -40,10 +40,12 @@ import {
   goalView,
   interruptReport,
   legReport,
+  movedWord,
   type Report,
   secs,
   stopReport,
   yd,
+  yieldTravel,
   youLine,
 } from "#harness/tools/travel-report";
 import { rideStop, rideWork } from "#harness/tools/travel-ride";
@@ -56,6 +58,8 @@ type Work = {
   args: TravelArgs;
   goal: Goal;
   after: After;
+  runId: () => string;
+  held: { text: string | undefined };
 };
 
 const COORDS =
@@ -68,7 +72,6 @@ const RUN_STATUS: Record<ToolStatus, Exclude<RunStatus, "running">> = {
   RUNNING: "succeeded",
   UNCONFIRMED: "failed",
 };
-const HUMAN_WROTE = "The human wrote a message. Read it before you act.";
 
 function parseExplore(text: string, lower: string): Goal {
   const direction = parseDirection(lower);
@@ -142,10 +145,6 @@ function unitGoal(ctx: ToolCtx<TravelAfter>, text: string): Goal {
   if (resolved.kind !== "unit")
     throw unitRefusal({ param: "to", resolved, tool: "travel" });
   return { guid: resolved.guid, kind: "unit", unit: resolved.unit };
-}
-
-function movedWord(goal: Goal): string {
-  return goal.kind === "fly" || goal.kind === "ride" ? "moved" : "walked";
 }
 
 function reachOf(ctx: OpsCtx, guid: bigint): number | undefined {
@@ -287,7 +286,9 @@ async function doWork(work: Work): Promise<Report> {
     return hearthWork({ ...work.ctx, signal: work.ops.signal }, work.after);
   if (goal.kind === "fly")
     return flyWork({ ...work, destination: goal.destination });
-  if (goal.kind === "ride") return rideWork({ ...work, stop: goal.stop });
+  if (goal.kind === "ride") {
+    return rideWork({ ...work, runId: work.runId, stop: goal.stop }, work.held);
+  }
   const wanted = exploreWanted(work.ops, work.args.for);
   const found = await explore(work.ops, { direction: goal.direction, wanted });
   return exploreReport(
@@ -349,9 +350,11 @@ async function launch(init: {
   args: TravelArgs;
   goal: Goal;
   control: RunControl;
+  held: { text: string | undefined };
   partial: (after: TravelAfter) => void;
+  runId: () => string;
 }): Promise<RunEnd<Report>> {
-  const { ctx, args, goal, control, partial } = init;
+  const { ctx, args, goal, control, held, partial, runId } = init;
   const rules = { death: true, newAttacker: true, rooted: true };
   const watch = watchInterrupts(
     { ...ctx, progress: control.progress, signal: control.signal },
@@ -362,14 +365,21 @@ async function launch(init: {
     progress: control.progress,
     signal: AbortSignal.any([control.signal, watch.signal]),
   };
-  const after = afterOf(ops, goal);
+  const base = afterOf(ops, goal);
+  const after: After = (patch) =>
+    base({ ...(held.text === undefined ? {} : { wait: held.text }), ...patch });
   const tick = setInterval(() => {
     const now = after({});
-    control.progress(`${yd(now.traveledYd)} yd ${movedWord(goal)}`);
-    partial(now);
+    if (now.wait === undefined) {
+      control.progress(`${yd(now.traveledYd)} yd ${movedWord(goal)}`);
+      partial(now);
+    } else {
+      control.progress(now.wait);
+      partial(now);
+    }
   }, UPDATE_EVERY_MS);
   try {
-    const report = await doWork({ after, args, ctx, goal, ops });
+    const report = await doWork({ after, args, ctx, goal, held, ops, runId });
     if (control.signal.aborted)
       return runEnd(
         stopReport(control.signal, report.after),
@@ -425,29 +435,40 @@ async function runTravel(
   let latest = emptyTravel();
   const partial = (after: TravelAfter) => {
     latest = after;
+    if (after.wait !== undefined) {
+      ctx.update(
+        result("RUNNING", {
+          after,
+          detail: after.wait,
+          next: `keep waiting; end your turn and let the run continue. Or ${nextCall("stop", { run: runId })}.`,
+          runId,
+        }),
+      );
+      return;
+    }
     const detail = `travel to ${goalName(goal)}, ${yd(after.traveledYd)} yd ${movedWord(goal)}.`;
     ctx.update(result("RUNNING", { after, detail, runId }));
   };
+  const held: { text: string | undefined } = { text: undefined };
   const run = ctx.rt.runs.start<Report>({
     args,
     kind: "travel",
-    launch: (control) => launch({ args, control, ctx, goal, partial }),
+    launch: (control) =>
+      launch({
+        args,
+        control,
+        ctx,
+        goal,
+        held,
+        partial,
+        runId: () => runId,
+      }),
     toolCallId: ctx.toolCallId,
   });
   runId = run.id;
   const waited = await awaitRun({ rt: ctx.rt, run });
   if (waited.kind === "ended") return { ...waited.end.value, runId };
-  const togo =
-    latest.remainingYd === undefined
-      ? ""
-      : `, ${yd(latest.remainingYd)} yd to go`;
-  return result("RUNNING", {
-    after: latest,
-    body: waited.why === "human" ? [HUMAN_WROTE] : [],
-    detail: `travel to ${goalName(goal)}, ${yd(latest.traveledYd)} yd ${movedWord(goal)}${togo}. ${youLine(ctx)}`,
-    next: `end your turn; a [game] message comes when ${runId} ends. Or ${nextCall("stop", { run: runId })}.`,
-    runId,
-  });
+  return yieldTravel({ ctx, goal, held, latest, runId, waited });
 }
 
 export const travelSpec: GameToolSpec<

@@ -38,7 +38,7 @@ export type TransportsOutcome =
 
 export type TransportsActs = {
   dataStatus: () => string;
-  poseAt: (guid: bigint) => TransportPose | undefined;
+  poseAt: (guid: bigint, offsetMs?: number) => TransportPose | undefined;
   board: (guid: bigint) => Promise<TransportsOutcome> | TransportsOutcome;
   leave: () => Promise<TransportsOutcome> | TransportsOutcome;
 };
@@ -218,11 +218,11 @@ export function transportsRuntime(
       models = modelsOf(loaded);
     })
     .catch(ignoreFailure);
-  const at = (guid: bigint): TransportPose | undefined => {
+  const at = (guid: bigint, offsetMs = 0): TransportPose | undefined => {
     if (!models) return undefined;
+    const now = ctx.now() + offsetMs;
     return (
-      motionPose(models, store, guid, ctx.now()) ??
-      liftPose(models, store, guid, ctx.now())
+      motionPose(models, store, guid, now) ?? liftPose(models, store, guid, now)
     );
   };
   const off = core.self.onEvent((event) => {

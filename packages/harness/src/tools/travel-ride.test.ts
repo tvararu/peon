@@ -75,11 +75,11 @@ async function world(init: { dbc?: boolean } = {}): Promise<World> {
       [DECOY, entry(DECOY, 21)],
     ]),
   });
-  jest
-    .spyOn(act, "poseAt")
-    .mockImplementation((guid) =>
-      guid === SHIP || pose.now === undefined ? pose.now : HERE,
-    );
+  jest.spyOn(act, "poseAt").mockImplementation((guid, offsetMs?: number) => {
+    const now = pose.now;
+    if (offsetMs && now?.moving) return { ...HERE, moving: false };
+    return guid === SHIP || now === undefined ? now : HERE;
+  });
   jest.spyOn(act, "board").mockImplementation(() => {
     pose.now = AWAY;
     return { status: "ok" };
@@ -126,7 +126,115 @@ describe("travel ride", () => {
     expect(res.status).toBe("DONE");
     expect(res.detail).toContain("Thunder Bluff");
   });
-
+  test("a docked wait names the transport and tells the agent to keep waiting", async () => {
+    const { t, pose } = await world();
+    pose.now = { ...HERE, moving: true };
+    const act = t.handle.transports.act;
+    const ctx = toolCtx<TravelAfter>(t);
+    const res = await withFakeTimers(async () => {
+      const pending = travelSpec.run({ to: "ride Thunder Bluff" }, ctx);
+      await elapse(4000);
+      expect(act.board).not.toHaveBeenCalled();
+      for (
+        let i = 0;
+        i < 10 &&
+        !(t.rt.runs.list()[0]?.progress ?? "").includes("Thunder Bluff");
+        i++
+      )
+        await elapse(600);
+      expect(t.rt.runs.list()[0]?.progress).toContain("Thunder Bluff");
+      const waiting = ctx.updates.find((u) =>
+        u.detail?.includes("Thunder Bluff"),
+      );
+      expect(waiting).toMatchObject({ status: "RUNNING" });
+      expect(waiting?.detail).toContain("waiting at the dock");
+      expect(waiting?.detail).toContain("expected in about");
+      expect(waiting?.next).toContain("keep waiting");
+      pose.now = HERE;
+      await elapse(2000);
+      pose.now = THERE;
+      await elapse(3000);
+      return await pending;
+    });
+    expect(res.status).toBe("DONE");
+  });
+  test("while aboard and riding, the run says it is riding and to keep waiting", async () => {
+    const { t, pose } = await world();
+    const ctx = toolCtx<TravelAfter>(t);
+    const res = await withFakeTimers(async () => {
+      const pending = travelSpec.run({ to: "ride Thunder Bluff" }, ctx);
+      await elapse(6000);
+      const riding = ctx.updates.find((u) => u.detail?.includes("riding"));
+      expect(riding).toMatchObject({ status: "RUNNING" });
+      expect(riding?.detail).toContain("Thunder Bluff");
+      expect(riding?.next).toContain("keep waiting");
+      pose.now = THERE;
+      await elapse(3000);
+      return await pending;
+    });
+    expect(res.status).toBe("DONE");
+  });
+  test("the result yielded after two minutes at the dock still names the wait and the expected time", async () => {
+    const { t, pose } = await world();
+    pose.now = { ...HERE, moving: true };
+    const ctx = toolCtx<TravelAfter>(t);
+    const res = await withFakeTimers(async () => {
+      const pending = travelSpec.run({ to: "ride Thunder Bluff" }, ctx);
+      await elapse(130_000);
+      const yielded = await pending;
+      expect(t.rt.runs.list()[0]?.progress).toContain("waiting at the dock");
+      pose.now = HERE;
+      await elapse(2000);
+      pose.now = THERE;
+      await elapse(3000);
+      return yielded;
+    });
+    expect(res.status).toBe("RUNNING");
+    expect(res.detail).toContain("Thunder Bluff");
+    expect(res.detail).toContain("waiting at the dock");
+    expect(res.detail).toContain("expected in about");
+    expect(res.next).toContain("keep waiting");
+    expect(res.after?.wait).toContain("waiting at the dock");
+  });
+  test("a human yield before the next publisher tick still names the wait and the expected time", async () => {
+    const { t, pose } = await world();
+    pose.now = { ...HERE, moving: true };
+    const ctx = toolCtx<TravelAfter>(t);
+    const res = await withFakeTimers(async () => {
+      const pending = travelSpec.run({ to: "ride Thunder Bluff" }, ctx);
+      await elapse(100);
+      t.rt.yields.trigger();
+      await elapse(10);
+      const yielded = await pending;
+      pose.now = HERE;
+      await elapse(2000);
+      pose.now = THERE;
+      await elapse(3000);
+      return yielded;
+    });
+    expect(res.status).toBe("RUNNING");
+    expect(res.detail).toContain("Thunder Bluff");
+    expect(res.detail).toContain("waiting at the dock");
+    expect(res.detail).toContain("expected in about");
+    expect(res.next).toContain("keep waiting");
+    expect(res.after?.wait).toContain("waiting at the dock");
+  });
+  test("the result yielded while aboard still says the ride is going and progress keeps it", async () => {
+    const { t, pose } = await world();
+    const ctx = toolCtx<TravelAfter>(t);
+    const res = await withFakeTimers(async () => {
+      const pending = travelSpec.run({ to: "ride Thunder Bluff" }, ctx);
+      await elapse(130_000);
+      const yielded = await pending;
+      expect(t.rt.runs.list()[0]?.progress).toContain("still riding");
+      pose.now = THERE;
+      await elapse(3000);
+      return yielded;
+    });
+    expect(res.status).toBe("RUNNING");
+    expect(res.detail).toContain("still riding");
+    expect(res.next).toContain("keep waiting");
+  });
   test("waits for the transport to dock before it boards", async () => {
     const { t, pose } = await world();
     pose.now = { ...HERE, moving: true };

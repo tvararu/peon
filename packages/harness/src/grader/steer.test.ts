@@ -60,6 +60,7 @@ function view(now: number, overrides: Partial<EndView> = {}): EndView {
     now,
     pending: false,
     progress: progress(),
+    runActive: false,
     statusAt: now,
     tier: 1,
     ...overrides,
@@ -190,6 +191,20 @@ describe("endAction", () => {
   test("is not done while an action is pending", () => {
     const answered = { lastAnswerAt: TASK + 5000, pending: true };
     expect(endAction(view(TASK + 90_000, answered), memory())).toEqual({
+      kind: "wait",
+    });
+  });
+
+  test("waits on an active run instead of ending as done", () => {
+    const answered = { lastAnswerAt: TASK + 5000, runActive: true };
+    expect(endAction(view(TASK + 90_000, answered), memory())).toEqual({
+      kind: "wait",
+    });
+  });
+
+  test("skips the stuck nudge while a run is active", () => {
+    const waiting = { runActive: true };
+    expect(endAction(view(TASK + 300_000, waiting), memory())).toEqual({
       kind: "wait",
     });
   });
