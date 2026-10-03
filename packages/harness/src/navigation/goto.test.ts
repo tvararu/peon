@@ -309,11 +309,9 @@ describe("goTo a creature over several floors", () => {
     expect(f.sent.filter((packet) => MOTION.has(packet.opcode))).toEqual([]);
   });
 
-  test("keeps the ambiguous refusal when two floors are near the creature", () => {
+  test("merges two floors near the creature into one destination", () => {
     const f = creatureAt(70.42, (x) => (x > 8715 ? [70.5, 70.34] : [70.34]));
-    expect(() => f.handle.goTo({ guid: 0x99n, kind: "guid" })).toThrow(
-      "pick_destination: ambiguous ground column at destination (floors 70.50, 70.34)",
-    );
-    expect(f.sent.filter((packet) => MOTION.has(packet.opcode))).toEqual([]);
+    f.handle.goTo({ guid: 0x99n, kind: "guid" });
+    expect(f.runtime.navigationState()).toMatchObject({ active: true });
   });
 });

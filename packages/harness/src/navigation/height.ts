@@ -5,7 +5,7 @@ import {
   WALKABLE_SLOPE,
   withinStep,
 } from "@peon/core";
-import { columnHeights, FLOOR_MERGE } from "#harness/navigation/column";
+import { columnHeights, groundFloors } from "#harness/navigation/column";
 import { groundError, type NativeMap } from "#harness/navigation/native";
 
 type Point = { x: number; y: number; z: number };
@@ -87,7 +87,7 @@ export function groundHeights(map: NativeMap, x: number, y: number): number[] {
   const heights = columnHeights(map, x, y);
   const first = heights[0];
   if (first === undefined) throw groundError("ground height unavailable");
-  if (heights.some((height) => Math.abs(height - first) > FLOOR_MERGE))
+  if (groundFloors(heights).length > 1)
     throw groundError("ambiguous ground column");
   return heights;
 }
@@ -112,14 +112,12 @@ export function slopeFloor(
   from: Point,
   { x, y }: { x: number; y: number },
 ): number | undefined {
-  const near = map
-    .findHeights(x, y)
-    .filter((z) => Number.isFinite(z) && withinSlope(from, { x, y, z }));
-  const first = near[0];
-  if (first === undefined) return undefined;
-  return near.every((z) => Math.abs(z - first) <= FLOOR_MERGE)
-    ? first
-    : undefined;
+  const near = groundFloors(
+    map
+      .findHeights(x, y)
+      .filter((z) => Number.isFinite(z) && withinSlope(from, { x, y, z })),
+  );
+  return near.length === 1 ? near[0] : undefined;
 }
 
 export function withinSlope(from: Point, to: Point): boolean {

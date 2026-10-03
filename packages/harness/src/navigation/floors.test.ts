@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { NavPoint } from "@peon/core";
+import { groundFloors } from "#harness/navigation/column";
 import { refusalFloors } from "#harness/navigation/planner";
 import { native, navigation } from "#test-support/navigation-fixtures";
 
@@ -39,6 +40,16 @@ describe("ground floors at the start and destination", () => {
       "ambiguous ground column at destination (floors 0.00, -1.61)",
     );
     expect(refusalFloors(error)).toEqual([0, -1.61]);
+  });
+  test("surfaces within ground error are one floor", () => {
+    expect(groundFloors([7.7437, 7.7585])).toEqual([7.7437]);
+    const route = atEnd([7.7437, 7.7585]).planGround(530, start, end);
+    expect(route.points.at(-1)).toMatchObject({ ...end, z: 7.7437 });
+  });
+
+  test("floors a step apart with headroom between stay two floors", () => {
+    const error = refusal(() => atEnd([10, 8]).planGround(530, start, end));
+    expect(refusalFloors(error)).toEqual([10, 8]);
   });
 
   test("lists only the surfaces with headroom, highest first", () => {
