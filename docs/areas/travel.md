@@ -165,6 +165,31 @@ node with list prices and a `travel` call for the first one. `look` with
 `find: "flight_master"` lists the flight masters in view or remembered.
 The store records a flight spline's duration only from the character's own non-cyclic flying `SMSG_MONSTER_MOVE` (`Movement/Spline/MoveSplineInit.cpp:115-124` writes the moving unit's packed GUID via `SendMessageToSet`, so the peek must filter on it). The harness log rows are `travel/node_learned`, `travel/flight_started`, `travel/flight_landed` (a wake) and `travel/flight_refused`. A fresh node discovery sends `SMSG_NEW_TAXI_PATH` and status with no map (`Handlers/TaxiHandler.cpp:89-102` sends `SMSG_NEW_TAXI_PATH` and status with no map when `SendLearnNewTaxiNode` learns an unknown node); the store remembers the pending learn and emits `taxi_node_named` once the re-query's `SMSG_SHOWTAXINODES` supplies the current node, which the runtime resolves against the taxi catalog for the `node_learned` text.
 
+`travel` on the ground picks the floor from two sources that keep different
+jobs. The height data (`findHeights`) is the only source of a walked z:
+every point of a route sits on a surface it lists. The navmesh decides
+which of those surfaces can be walked: its path gives the xy route, and a
+surface with no polygon is not a floor. A mesh corner z is a hint, not a
+surface. Surfaces within 0.25 yd of each other are one floor, and the
+merged floor reports the highest. A mesh corner more than one climb above
+the walked ground is accepted when no height in its column is within that
+climb of the corner z; a corner below the ground, or above it with a data
+surface near its z, still refuses because the walk is on another floor.
+When the trace is lost along a polygon edge the column fallback takes the
+standable floor nearest the walker and refuses only when several clear
+floors are in reach. A point without a z plans each floor of its column:
+one floor the mesh routes is the destination, several still refuse with
+`ambiguous_floor` listing only those floors, and none refuses with the most
+specific cause. A creature target takes the column floor within 0.25 yd of
+the creature's observed z and never falls back to another floor when that
+floor has no route. A pocket where collision data refuses the mesh
+corridor stays refused: in Silvermoon City the route from the landing at
+the flight master to a point 20 yd east runs 70 yd south through the stair
+base, the mesh corner there is 14.93 while the column holds 16.68 and
+14.67, and the 14.67 floor passes under a surface 0.55 yd above it, so
+`path_corner_disagrees` is correct. The explore fallback blocks that
+bearing.
+
 ## Capabilities row
 
 `t8-travel-bind-inn`: make an inn its home. `t8-travel-hearth-home`:
