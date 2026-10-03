@@ -78,9 +78,9 @@
         "kind": "trigger",
         "trigger": "death"
       },
-      "text": "You died. Come back to life where you died without walking back to your body: use recover with how self. Then run back to Fairbreeze Village at once; do not stop to look, rest, or fight. Rest when you are safe, and when your health is full tell the human you are done and stop."
+      "text": "You died. Come back to life where you died without walking back to your body. Use recover with how self. Do not fight anything after that; rest until your health is full."
     }
   ],
-  "task": "Head northeast out of the village and fight the first big cat you see while moving back toward the village; let it kill you away from where it lives. When you die, come back to life where you died without walking back to your body, then run to the village at once without stopping, rest until your health is full, and tell the human you are done and stop.",
+  "task": "Head northeast out of the village and fight the first big cat you see. When you die, come back to life where you died without walking back to your body, then rest until your health is full.",
   "tier": 6
 }
