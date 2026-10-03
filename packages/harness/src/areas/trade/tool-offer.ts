@@ -22,6 +22,12 @@ export async function runAnswer(
   args: TradeArgs,
   ctx: TradeCtx,
 ): Promise<ToolResult<TradeAfter>> {
+  if (ctx.handle.trade.state().phase !== "requested_in")
+    throw refusalOf(
+      "no_request",
+      "No trade request is pending.",
+      "end your turn and wait for a trade request.",
+    );
   const answer = args.accept === false ? "busy" : "yes";
   const outcome = await ctx.rt.mutex.run(() =>
     ctx.handle.trade.act.answerTrade(answer),

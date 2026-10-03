@@ -217,6 +217,7 @@ describe("trade give", () => {
 describe("trade answer, offer, accept and cancel", () => {
   test("answer yes and busy call answerTrade", async () => {
     const t = await world();
+    tradeState(t.handle, { phase: "requested_in" });
     await tradeSpec.run({ accept: true, do: "answer" }, toolCtx(t));
     expect(t.acts.answerTrade).toHaveBeenCalledWith("yes");
     await tradeSpec.run({ accept: false, do: "answer" }, toolCtx(t));
@@ -297,5 +298,27 @@ describe("trade answer, offer, accept and cancel", () => {
     const t = await world();
     const out = await tradeSpec.run({ do: "show" }, toolCtx(t));
     expect(contentOf(out).split("\n").length).toBeLessThanOrEqual(13);
+  });
+});
+
+describe("trade answer with no pending request", () => {
+  test("answer yes refuses no_request and sends nothing", async () => {
+    const t = await world();
+    tradeState(t.handle, { phase: "none" });
+    await expect(
+      tradeSpec.run({ accept: true, do: "answer" }, toolCtx(t)),
+    ).rejects.toMatchObject({
+      next: "end your turn and wait for a trade request.",
+      reason: "no_request",
+    });
+    expect(t.acts.answerTrade).not.toHaveBeenCalled();
+  });
+
+  test("answer yes runs again once the request arrives", async () => {
+    const t = await world();
+    tradeState(t.handle, { phase: "requested_in" });
+    const out = await tradeSpec.run({ accept: true, do: "answer" }, toolCtx(t));
+    expect(out.status).toBe("DONE");
+    expect(t.acts.answerTrade).toHaveBeenCalledWith("yes");
   });
 });

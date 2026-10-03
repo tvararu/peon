@@ -114,6 +114,7 @@ export type RepeatCall = {
   pose: PoseView | undefined;
   digest: string;
   scene?: RepeatScene;
+  log?: Pick<GameLog, "lastSeq" | "since">;
 };
 
 export type RepeatHit = { reason: string; times: number; untried: string[] };

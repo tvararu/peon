@@ -34,6 +34,12 @@ export const POSITIONAL: ReadonlySet<string> = new Set([
   "not_in_view",
   "obstructed",
 ]);
+export const OFFERED_BY: Record<string, readonly string[]> = {
+  "group:no_offer": ["quests/offered"],
+  "social:nothing_to_accept": ["group/invite"],
+  "social:nothing_to_decline": ["group/invite"],
+  "trade:no_request": ["trade/requested"],
+};
 
 const REPEAT_TTL_MS = 300_000;
 const UNTRIED_MAX = 3;
@@ -56,6 +62,7 @@ type Failure = {
   pose: PoseView | undefined;
   reason: string;
   scene: RepeatScene | undefined;
+  seq: number | undefined;
   times: number;
 };
 
@@ -117,6 +124,15 @@ function sceneMoved(
   return closed || a.combat !== b.combat;
 }
 
+function offerArrived(
+  failure: Failure,
+  call: Probe & { tool: ToolName },
+): boolean {
+  const events = OFFERED_BY[`${call.tool}:${failure.reason}`];
+  if (!events || failure.seq === undefined || !call.log) return false;
+  return call.log.since(failure.seq).some((row) => events.includes(row.event));
+}
+
 function storable(
   result: ToolResult<unknown>,
 ): result is ToolResult<unknown> & { reason: string } {
@@ -148,6 +164,35 @@ function forgetOnDone(failures: Map<string, Failure>, kind: ToolKind): void {
     if (failure.reason === UNANSWERED) failures.delete(key);
 }
 
+type FailureStore = {
+  call: RepeatCall & { result: ToolResult<unknown> };
+  clock: Clock;
+  failures: Map<string, Failure>;
+  positional: Map<ToolName, { at: number; pose: PoseView }[]>;
+};
+
+function recordFailure({ call, clock, failures, positional }: FailureStore) {
+  const { result } = call;
+  if (result.status === "DONE") forgetOnDone(failures, call.kind);
+  if (result.status === "DONE") positional.delete(call.tool);
+  if (storable(result) && POSITIONAL.has(result.reason) && call.pose) {
+    const kept = (positional.get(call.tool) ?? []).slice(1 - POSES_MAX);
+    positional.set(call.tool, [...kept, { at: clock.now(), pose: call.pose }]);
+  }
+  if (call.tool === "look" || !storable(result)) return;
+  const times = failures.get(keyOf(call))?.times ?? 0;
+  failures.set(keyOf(call), {
+    at: clock.now(),
+    digest: call.digest,
+    next: result.next,
+    partly: result.status === "PARTLY",
+    pose: call.pose,
+    reason: result.reason,
+    scene: call.scene,
+    seq: call.log?.lastSeq(),
+    times: times + 1,
+  });
+}
 export function createRepeatGuard(clock: Clock): RepeatGuard {
   const failures = new Map<string, Failure>();
   const positional = new Map<ToolName, { at: number; pose: PoseView }[]>();
@@ -157,7 +202,8 @@ export function createRepeatGuard(clock: Clock): RepeatGuard {
     clock.now() - failure.at <= REPEAT_TTL_MS &&
     failure.digest === call.digest &&
     !moved(failure.pose, call.pose) &&
-    !sceneMoved(failure.scene, call.scene);
+    !sceneMoved(failure.scene, call.scene) &&
+    !offerArrived(failure, call);
   const stored = (call: Probe) =>
     call.tool === "look" ? undefined : failures.get(keyOf(call));
   return {
@@ -182,29 +228,7 @@ export function createRepeatGuard(clock: Clock): RepeatGuard {
         .filter((failure) => clock.now() - failure.at <= REPEAT_TTL_MS)
         .map((failure) => failure.pose),
     record(call) {
-      const { result } = call;
-      if (result.status === "DONE") forgetOnDone(failures, call.kind);
-      if (result.status === "DONE") positional.delete(call.tool);
-      if (storable(result) && POSITIONAL.has(result.reason) && call.pose) {
-        const kept = (positional.get(call.tool) ?? []).slice(1 - POSES_MAX);
-        positional.set(call.tool, [
-          ...kept,
-          { at: clock.now(), pose: call.pose },
-        ]);
-      }
-      if (call.tool === "look" || !storable(result)) return;
-      const times = failures.get(keyOf(call))?.times ?? 0;
-      const failure = {
-        at: clock.now(),
-        digest: call.digest,
-        next: result.next,
-        partly: result.status === "PARTLY",
-        pose: call.pose,
-        reason: result.reason,
-        scene: call.scene,
-        times: times + 1,
-      };
-      failures.set(keyOf(call), failure);
+      recordFailure({ call, clock, failures, positional });
     },
   };
 }
