@@ -263,10 +263,12 @@ export function transferText(
   ctx: TradeCtx,
   offer: TradeState["ownOffer"],
 ): string {
-  const items = offer.items.map(
-    (item) =>
-      `${item.count ?? 1} ${ctx.handle.itemLabel(item.entry ?? 0).name ?? `item ${item.entry ?? 0}`}`,
-  );
+  const items = offer.items
+    .filter((item) => item.slot < TRADE_SLOTS)
+    .map(
+      (item) =>
+        `${item.count ?? 1} ${ctx.handle.itemLabel(item.entry ?? 0).name ?? `item ${item.entry ?? 0}`}`,
+    );
   const held = items.join(", ") || "nothing";
   return offer.gold > 0 ? `${held} and ${offer.gold} copper` : held;
 }

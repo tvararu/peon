@@ -7,6 +7,7 @@ type TradeEvent = AreaEventOf<"trade">;
 type Completed = Extract<TradeEvent, { type: "completed" }>;
 type OfferLine = { gold: string; items: string };
 type Settled = "canceled" | "refused";
+const TRADED_SLOTS = 6;
 
 function player(guid: bigint, rc: RuleInput): string {
   return rc.lookup.unitName(guid) ?? `player ${guidText(guid)}`;
@@ -18,10 +19,11 @@ function itemName(entry: number | undefined, rc: RuleInput): string {
 }
 
 function line(offer: Completed["gave"], rc: RuleInput): OfferLine {
+  const movedItems = offer.items.filter((item) => item.slot < TRADED_SLOTS);
   const items =
-    offer.items.length === 0
+    movedItems.length === 0
       ? "no items"
-      : offer.items
+      : movedItems
           .map((item) => `${item.count ?? 1} ${itemName(item.entry, rc)}`)
           .join(", ");
   return {

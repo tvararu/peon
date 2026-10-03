@@ -1,6 +1,7 @@
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import {
   afterOf,
+  completedText,
   type Picked,
   pickAll,
   playerName,
@@ -165,6 +166,9 @@ function tradeEnd(
       throw error;
     }
     if (settled.status !== "ok") throw refusalFor(settled, "give");
+    const last = ctx.handle.trade.state().lastOutcome;
+    const detail =
+      last?.kind === "completed" ? completedText(ctx, last) : gaveDetail(offer);
     return {
       status: "succeeded",
       summary: `gave to ${offer.name}`,
@@ -175,7 +179,7 @@ function tradeEnd(
           version: undefined,
           with: offer.name,
         }),
-        detail: gaveDetail(offer),
+        detail,
       }),
     };
   };

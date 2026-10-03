@@ -2,7 +2,13 @@ import { describe, expect, test } from "bun:test";
 import { tradeSpec } from "#harness/areas/trade/tool";
 import { toolCtx } from "#test-support/ops-fixtures";
 import { createTestRuntime } from "#test-support/runtime-fixture";
-import { PARTNER, tradeActs, tradeState } from "#test-support/trade-fixtures";
+import {
+  CLOTH_ARG,
+  PARTNER,
+  tradeActs,
+  tradeState,
+  world,
+} from "#test-support/trade-fixtures";
 
 const COMPLETED = {
   gave: {
@@ -62,6 +68,55 @@ describe("a completed trade", () => {
     });
     const out = await tradeSpec.run({ do: "accept" }, toolCtx(t));
     expect(text(out)).toContain("nothing");
+  });
+});
+
+describe("a completed give", () => {
+  test("says what each side gave, with names and counts", async () => {
+    const t = await world();
+    t.handle.itemLabel = ((entry: number) => {
+      const name = NAMES[entry];
+      return name === undefined
+        ? { name: null, quality: null }
+        : { name, quality: 1 };
+    }) as never;
+    tradeState(t.handle, { lastOutcome: COMPLETED, phase: "open" });
+    const out = await tradeSpec.run(
+      { do: "give", items: [CLOTH_ARG], with: "Fgkllpgpdnj" },
+      toolCtx(t),
+    );
+    const said = text(out);
+    expect(said).toContain("Linen Cloth");
+    expect(said).toContain("20 Tough Jerky");
+  });
+});
+
+describe("the non-traded service slot", () => {
+  const SERVICE = {
+    ...COMPLETED,
+    got: {
+      ...COMPLETED.got,
+      items: [
+        { count: 20, entry: 117, guid: undefined, slot: 5 },
+        { count: 1, entry: 2589, guid: undefined, slot: 6 },
+      ],
+    },
+  };
+
+  test("accept does not claim an item in slot 6 was received", async () => {
+    const t = await namedWorld();
+    tradeState(t.handle, { lastOutcome: SERVICE, phase: "open" });
+    const out = await tradeSpec.run({ do: "accept" }, toolCtx(t));
+    const said = text(out);
+    expect(said).toContain("20 Tough Jerky");
+    expect(said.split("you got")[1]).not.toContain("Linen Cloth");
+  });
+
+  test("the past trade does not claim it either", async () => {
+    const t = await namedWorld();
+    tradeState(t.handle, { lastOutcome: SERVICE, phase: "closed" });
+    const out = await tradeSpec.run({ do: "show" }, toolCtx(t));
+    expect(text(out).split("you got")[1]).not.toContain("Linen Cloth");
   });
 });
 
