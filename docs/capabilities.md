@@ -25,7 +25,7 @@ or the page names one that does not exist.
 | See which NPCs have a quest or a quest to turn in | `t4-quests-find-giver` | |
 | Hear what an NPC says when talked to | `t1-quests-read-greeting` | |
 | Follow a guard's directions to a marked point | `t1-quests-guard-directions` | |
-| Walk to where a quest's objective is | `t4-quests-poi-walk` | Accepting a quest with a far region points `next` at `journal`, which names the region and a `travel` call to it. |
+| Walk to where a quest's objective is | `t4-quests-poi-walk` | The accept result names the region and a `travel` call to it; `journal` names it again when asked. |
 | Buy from a vendor | `t5-vendor-buy-goldshire` | |
 | Buy back an item sold by mistake | `t5-buyback-vendor` | Only items sold this session. |
 | Die, then come back to life | `t6-die-and-recover` | |

@@ -22,14 +22,6 @@
       "expect": "final position within 40 yd of the 8325 objective-0 centroid (10309, -6294) from the live SMSG_QUEST_POI_QUERY_RESPONSE capture",
       "id": "walked-to-region",
       "source": "truth"
-    },
-    {
-      "evidence": {
-        "events": ["tool/call"]
-      },
-      "expect": "a journal call is in the game log (the grader confirms its tool/call row names journal before grading it met)",
-      "id": "journal-called",
-      "source": "game_log"
     }
   ],
   "field": "sunstrider-wyrms",
