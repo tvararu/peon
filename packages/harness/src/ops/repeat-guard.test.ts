@@ -358,6 +358,30 @@ describe("an offer after a missing-offer failure", () => {
       tool: "trade",
     },
     {
+      args: { do: "bind" },
+      event: "instances/bind_offer",
+      reason: "no_bind_offer",
+      tool: "dungeon",
+    },
+    {
+      args: { accept: true, do: "answer" },
+      event: "lfg/proposal",
+      reason: "no_proposal",
+      tool: "dungeon",
+    },
+    {
+      args: { do: "roles", roles: 2 },
+      event: "lfg/role_check",
+      reason: "no_role_check",
+      tool: "dungeon",
+    },
+    {
+      args: { accept: true, do: "kick_vote" },
+      event: "lfg/boot_vote",
+      reason: "no_vote",
+      tool: "dungeon",
+    },
+    {
       args: { do: "accept_quest" },
       event: "quests/offered",
       reason: "no_offer",

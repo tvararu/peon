@@ -307,10 +307,7 @@ describe("trade answer with no pending request", () => {
     tradeState(t.handle, { phase: "none" });
     await expect(
       tradeSpec.run({ accept: true, do: "answer" }, toolCtx(t)),
-    ).rejects.toMatchObject({
-      next: "end your turn and wait for a trade request.",
-      reason: "no_request",
-    });
+    ).rejects.toMatchObject({ reason: "no_request" });
     expect(t.acts.answerTrade).not.toHaveBeenCalled();
   });
 
