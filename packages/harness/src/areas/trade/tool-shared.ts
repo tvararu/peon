@@ -3,6 +3,7 @@ import type { AreaState, NamedInventoryState } from "@peon/core";
 import { AT_REF, type Occupied } from "#harness/areas/items/tool-resolve";
 import type { ToolResult } from "#harness/contract/result";
 import type { ToolCtx } from "#harness/contract/services";
+import { awaitItemNames, ITEM_NAME_WAIT_MS } from "#harness/ops/item-names";
 import { parseRef } from "#harness/ops/refs";
 import { Refusal } from "#harness/ops/refusal";
 import { knownUnits } from "#harness/ops/views";
@@ -257,6 +258,59 @@ export function settleOutcome(
 ): ToolResult<TradeAfter> {
   if (outcome.status !== "ok") throw refusalFor(outcome, verb);
   return result("DONE", { after: ok, detail: ok.with ?? `${verb} done.` });
+}
+
+function transferIds(offer: TradeState["ownOffer"]): number[] {
+  const seen: Record<number, true> = {};
+  const ids: number[] = [];
+  for (const item of offer.items) {
+    if (item.slot >= TRADE_SLOTS) continue;
+    const entry = item.entry ?? 0;
+    if (entry <= 0 || seen[entry]) continue;
+    seen[entry] = true;
+    ids.push(entry);
+  }
+  return ids;
+}
+
+export async function transferText(
+  ctx: TradeCtx,
+  offer: TradeState["ownOffer"],
+  signal?: AbortSignal | undefined,
+): Promise<string> {
+  await awaitItemNames(
+    transferIds(offer),
+    (entry) => ctx.handle.itemLabel(entry).name ?? undefined,
+    { signal, timeoutMs: ITEM_NAME_WAIT_MS },
+  );
+  const items = offer.items
+    .filter((item) => item.slot < TRADE_SLOTS)
+    .map(
+      (item) =>
+        `${item.count ?? 1} ${ctx.handle.itemLabel(item.entry ?? 0).name ?? `item ${item.entry ?? 0}`}`,
+    );
+  const held = items.join(", ") || "nothing";
+  return offer.gold > 0 ? `${held} and ${offer.gold} copper` : held;
+}
+
+export async function completedText(
+  ctx: TradeCtx,
+  outcome: Extract<TradeState["lastOutcome"], { kind: "completed" }>,
+  signal?: AbortSignal | undefined,
+): Promise<string> {
+  return `Trade completed: you gave ${await transferText(ctx, outcome.gave, signal)}; you got ${await transferText(ctx, outcome.got, signal)}.`;
+}
+
+export async function lastCompletedLine(
+  ctx: TradeCtx,
+  signal?: AbortSignal | undefined,
+): Promise<string | undefined> {
+  const last = ctx.handle.trade.state().lastOutcome;
+  if (last?.kind !== "completed") return;
+  return (await completedText(ctx, last, signal)).replace(
+    "Trade completed: ",
+    "Last completed trade: ",
+  );
 }
 
 export function throwUnlessOpen(ctx: TradeCtx): TradeState {

@@ -49,7 +49,10 @@ The acts:
   when `theirOffer.version` differs from the seen version; otherwise it
   sends `CMSG_ACCEPT_TRADE` (`Handlers/TradeHandler.cpp:237`), settles
   `ok` with the outcome on `completed`, `refused` on `CLOSE_WINDOW`, and
-  `waiting_for_them` after 60 s with the trade left open.
+  `waiting_for_them` after 60 s with the trade left open. The `trade`
+  tool's `accept` and `give` report the completed trade as what each side
+  gave, with item names and counts, and `show` with no open trade says so
+  without printing the last offer as current.
 - `unacceptTrade()` sends `CMSG_UNACCEPT_TRADE`
   (`Handlers/TradeHandler.cpp:683-690`) only when `selfAccepted`.
 - `cancelTrade()` sends `CMSG_CANCEL_TRADE` and enters `settling`. The
@@ -95,7 +98,12 @@ character can trade again.
   sends `TRADE_CANCELED` (3) to both.
 - `CMSG_ACCEPT_TRADE` reads no body, so the sent `uint32 1` (the
   wow_messages `trade/cmsg_accept_trade.wowm` form) is ignored by
-  AzerothCore (`Handlers/TradeHandler.cpp:237`).
+  AzerothCore (`Handlers/TradeHandler.cpp:237`); its handler moves only
+  slots 0-5 and both the item-info and move loops run to
+  `TRADE_SLOT_TRADED_COUNT` (`Handlers/TradeHandler.cpp:237` and `:495`).
+  Slot 6 is the non-traded service slot (`TRADE_SLOT_NONTRADED` in
+  `Entities/Player/TradeData.h`). Completed tool and log summaries cover
+  only those six moved slots.
 - `SMSG_TRADE_STATUS_EXTENDED` is `u8` side, `u32` trade id, two `u32`
   slot counts (both 7), `u32` gold, `u32` spell, then 7 slots of `u8`
   index and 18 words each; an entry of 0 is an empty slot

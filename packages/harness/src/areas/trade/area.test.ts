@@ -16,6 +16,8 @@ function input() {
 
 const EMPTY = { gold: 0, items: [], spell: 0, version: 1 };
 
+const NAMES: Record<number, string> = { 117: "Tough Jerky", 2589: "Linen" };
+
 describe("trade harness rules", () => {
   test("a requested trade is a wake draft naming the player", () => {
     const rows = areaDrafts(
@@ -75,6 +77,31 @@ describe("trade harness rules", () => {
         progress: true,
       },
     ]);
+  });
+
+  test("a completed row omits the non-traded service slot", () => {
+    const rows = areaDrafts(
+      areaRuleSet(),
+      trade({
+        gave: EMPTY,
+        got: {
+          ...EMPTY,
+          items: [
+            { count: 20, entry: 117, slot: 5 },
+            { count: 1, entry: 2589, slot: 6 },
+          ],
+        },
+        type: "completed",
+      }),
+      testRuleInput({
+        lookup: testLookup({
+          itemName: (entry) => NAMES[entry],
+        }),
+      }),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.text).toContain("Tough Jerky");
+    expect(rows[0]?.text).not.toContain("Linen");
   });
 
   test("back_to_trade writes no row", () => {
