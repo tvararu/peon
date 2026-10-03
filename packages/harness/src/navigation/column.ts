@@ -23,13 +23,13 @@ export function settleStart<P extends Point>(
 
 export function groundFloors(heights: readonly number[]): number[] {
   const floors: number[] = [];
-  for (const height of heights)
+  for (const height of [...heights].sort((a, b) => b - a))
     if (
       clearAbove(heights, height) &&
       !floors.some((floor) => Math.abs(floor - height) <= GROUND_ERROR)
     )
       floors.push(height);
-  return floors.sort((a, b) => b - a);
+  return floors;
 }
 
 export function continuousFloor(

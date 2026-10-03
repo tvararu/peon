@@ -89,6 +89,7 @@ describe("lost height traces", () => {
     const pose = { x: 0, y: 0, z: 14.06 };
     const route = navigation(map).plan(530, pose, { x: 10, y: 0, z: 14.06 });
     expect(route.points.at(-1)).toMatchObject({ x: 10, y: 0, z: 14.06 });
+    expect(route.sample(5).z).toBeCloseTo(14.06);
   });
 
   test("keeps the fallback refused over two clear floors in reach", () => {

@@ -45,10 +45,24 @@ describe("ground floors at the start and destination", () => {
     );
     expect(refusalFloors(error)).toEqual([0, -1.61]);
   });
-  test("surfaces within ground error are one floor", () => {
-    expect(groundFloors([7.7437, 7.7585])).toEqual([7.7437]);
+  test("surfaces within ground error are one floor reported at their highest member in any order", () => {
+    expect(groundFloors([7.7437, 7.7585])).toEqual([7.7585]);
+    expect(groundFloors([7.7585, 7.7437])).toEqual([7.7585]);
+    expect(groundFloors([13.85, 13.73, 14.06])).toEqual([14.06]);
     const route = atEnd([7.7437, 7.7585]).planGround(530, start, end);
-    expect(route.points.at(-1)).toMatchObject({ ...end, z: 7.7437 });
+    expect(route.points.at(-1)).toMatchObject({ ...end, z: 7.7585 });
+  });
+
+  test("a unique height is the clear floor, not the first raw entry", () => {
+    const nav = (column: number[]) => native({ findHeights: () => column });
+    expect(navigation(nav([0, 1])).height(530, 10, 0)).toBe(1);
+    expect(navigation(nav([0, 0.5, 1.2])).height(530, 10, 0)).toBe(1.2);
+    expect(navigation(nav([13.85, 13.73, 14.06])).height(530, 10, 0)).toBe(
+      14.06,
+    );
+    expect(() => navigation(nav([10, 0])).height(530, 10, 0)).toThrow(
+      /ambiguous ground column/,
+    );
   });
 
   test("floors a step apart with headroom between stay two floors", () => {
