@@ -59,7 +59,7 @@
         "nth": 1,
         "trigger": "ready_check"
       },
-      "windowMs": 300000
+      "windowMs": 60000
     }
   ],
   "preset": "eversong10",
