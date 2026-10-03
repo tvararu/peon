@@ -67,7 +67,7 @@ mise eval run <id> --round <n>
 the baseline truth, opens the harness in a pane with its default model and
 thinking level, types the task and the
 steers, ends on done, budget, stuck or abort, takes the final truth,
-deletes the accounts and scans the run directory for a leaked password.
+deletes the accounts and scans the run directory for a leaked password. Done means the agent answered and stayed quiet for 30 s with no harness run active; a turn that ends while a run is still RUNNING waits for the run to end or the scenario budget instead.
 It waits up to 20 minutes while another run holds the same field;
 `--no-wait` exits 1 at once instead. Add `--replica <n>` to run the same
 scenario more than once in a round.
