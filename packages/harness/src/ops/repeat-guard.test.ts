@@ -388,6 +388,12 @@ describe("an offer after a missing-offer failure", () => {
       tool: "group",
     },
     {
+      args: { do: "roll", what: "greed" },
+      event: "loot/roll",
+      reason: "no_roll",
+      tool: "group",
+    },
+    {
       args: { do: "ready", what: "yes" },
       event: "raid/ready_check",
       reason: "no_check",

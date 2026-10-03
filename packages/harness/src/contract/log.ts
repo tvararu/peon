@@ -60,6 +60,7 @@ export type CoreLogEvent =
   | "quest/completed"
   | "quest/rewarded"
   | "loot/item"
+  | "loot/roll"
   | "loot/open"
   | "loot/release"
   | "money/change"
