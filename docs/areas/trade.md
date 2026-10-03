@@ -49,7 +49,10 @@ The acts:
   when `theirOffer.version` differs from the seen version; otherwise it
   sends `CMSG_ACCEPT_TRADE` (`Handlers/TradeHandler.cpp:237`), settles
   `ok` with the outcome on `completed`, `refused` on `CLOSE_WINDOW`, and
-  `waiting_for_them` after 60 s with the trade left open.
+  `waiting_for_them` after 60 s with the trade left open. The `trade`
+  tool's `accept` reports the completed trade as what each side gave, with
+  item names and counts, and `show` with no open trade says so without
+  printing the last offer as current.
 - `unacceptTrade()` sends `CMSG_UNACCEPT_TRADE`
   (`Handlers/TradeHandler.cpp:683-690`) only when `selfAccepted`.
 - `cancelTrade()` sends `CMSG_CANCEL_TRADE` and enters `settling`. The

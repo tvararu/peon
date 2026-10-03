@@ -1,5 +1,7 @@
 import {
   afterOf,
+  completedText,
+  lastCompletedLine,
   offerLine,
   type Picked,
   pickAll,
@@ -139,7 +141,14 @@ export async function runAccept(
       );
     throw error;
   }
-  return settleOutcome(outcome, "accept", afterOf("accept", { version }));
+  if (outcome.status !== "ok")
+    return settleOutcome(outcome, "accept", afterOf("accept", { version }));
+  const last = ctx.handle.trade.state().lastOutcome;
+  const detail =
+    last?.kind === "completed"
+      ? completedText(ctx, last)
+      : `Trade with ${playerName(ctx, ctx.handle.trade.state().with ?? 0n)} accepted.`;
+  return result("DONE", { after: afterOf("accept", { version }), detail });
 }
 
 export async function runCancel(
@@ -162,17 +171,24 @@ function stateLines(ctx: TradeCtx, state: TradeState): string[] {
 
 export function runShow(ctx: TradeCtx): ToolResult<TradeAfter> {
   const state = ctx.handle.trade.state();
-  const lines = stateLines(ctx, state);
+  if (state.phase !== "open") {
+    const past = lastCompletedLine(ctx);
+    return result("DONE", {
+      after: afterOf("show", {
+        with:
+          state.with === undefined ? undefined : playerName(ctx, state.with),
+      }),
+      body: past === undefined ? [] : [past],
+      detail: "No trade is open.",
+    });
+  }
   return result("DONE", {
     after: afterOf("show", {
-      gold: state.phase === "open" ? state.ownOffer.gold : 0,
-      version: state.phase === "open" ? state.theirOffer.version : undefined,
+      gold: state.ownOffer.gold,
+      version: state.theirOffer.version,
       with: state.with === undefined ? undefined : playerName(ctx, state.with),
     }),
-    body: lines,
-    detail:
-      state.phase === "open"
-        ? `Trade with ${playerName(ctx, state.with ?? 0n)}: ${offerLine(ctx, state.ownOffer)}.`
-        : "No trade is open.",
+    body: stateLines(ctx, state),
+    detail: `Trade with ${playerName(ctx, state.with ?? 0n)}: ${offerLine(ctx, state.ownOffer)}.`,
   });
 }

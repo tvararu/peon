@@ -259,6 +259,31 @@ export function settleOutcome(
   return result("DONE", { after: ok, detail: ok.with ?? `${verb} done.` });
 }
 
+export function completedText(
+  ctx: TradeCtx,
+  outcome: Extract<TradeState["lastOutcome"], { kind: "completed" }>,
+): string {
+  const side = (offer: TradeState["ownOffer"]) =>
+    offer.items
+      .map(
+        (item) =>
+          `${item.count ?? 1} ${ctx.handle.itemLabel(item.entry ?? 0).name ?? `item ${item.entry ?? 0}`}`,
+      )
+      .join(", ") || "nothing";
+  const withGold = (offer: TradeState["ownOffer"]) =>
+    offer.gold > 0 ? `${side(offer)} and ${offer.gold} copper` : side(offer);
+  return `Trade completed: you gave ${withGold(outcome.gave)}; you got ${withGold(outcome.got)}.`;
+}
+
+export function lastCompletedLine(ctx: TradeCtx): string | undefined {
+  const last = ctx.handle.trade.state().lastOutcome;
+  if (last?.kind !== "completed") return;
+  return completedText(ctx, last).replace(
+    "Trade completed: ",
+    "Last completed trade: ",
+  );
+}
+
 export function throwUnlessOpen(ctx: TradeCtx): TradeState {
   const state = ctx.handle.trade.state();
   if (state.phase !== "open")
