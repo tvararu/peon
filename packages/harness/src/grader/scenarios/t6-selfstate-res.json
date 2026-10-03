@@ -8,20 +8,15 @@
   "checks": [
     {
       "evidence": {
-        "truth": [
-          "alive"
-        ]
+        "events": ["life/dead", "life/alive", "life/released"]
       },
-      "expect": "T final alive is true and T final deathState is alive",
+      "expect": "GL has a life/alive after the first life/dead with no life/released between, so the first death ended alive; a later death after the self-res does not unmeet this",
       "id": "alive",
-      "source": "truth"
+      "source": "game_log"
     },
     {
       "evidence": {
-        "events": [
-          "life/dead",
-          "life/alive"
-        ]
+        "events": ["life/dead", "life/alive"]
       },
       "expect": "GL has life/dead then life/alive with no life/released between, so the character came back in place without a corpse walk",
       "id": "no-corpse-walk",
@@ -29,10 +24,7 @@
     },
     {
       "evidence": {
-        "events": [
-          "life/dead",
-          "life/alive"
-        ]
+        "events": ["life/dead", "life/alive"]
       },
       "expect": "the GL pose at life/alive is within 5 yd of the GL pose at life/dead, so the resurrection happened where the character died",
       "id": "self-res-in-place",
