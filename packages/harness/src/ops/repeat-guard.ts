@@ -35,6 +35,10 @@ export const POSITIONAL: ReadonlySet<string> = new Set([
   "obstructed",
 ]);
 export const OFFERED_BY: Record<string, readonly string[]> = {
+  "dungeon:no_bind_offer": ["instances/bind_offer"],
+  "dungeon:no_proposal": ["lfg/proposal"],
+  "dungeon:no_role_check": ["lfg/role_check"],
+  "dungeon:no_vote": ["lfg/boot_vote"],
   "group:no_offer": ["quests/offered"],
   "social:nothing_to_accept": ["group/invite"],
   "social:nothing_to_decline": ["group/invite"],
