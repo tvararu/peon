@@ -52,15 +52,15 @@ status is offline) and emits `ready_check_answer`; a finish stamps
 `finishedAt` and emits `ready_check_finished` with the ready count, the
 names not ready, the offline count and the pending count. Confirms with
 no open check, from a guid outside the roster, or after the finish are
-ignored. Every
-act names another member: a name outside the roster throws
+ignored. Every act names another member: a name outside the roster throws
 `not in your party`, and the caller's own name throws too because the
 server never lists the receiving character. The peeked
 `SMSG_PARTY_COMMAND_RESULT` emits one `command_result` event with the
 operation and result as names and the member name; unknown codes keep
 their number (`result_<n>`, `operation_<n>`). The harness writes one
-`wake` row `command` per result, and one `passive` row `roster` per
-change, except `joined` and `left`, which the legacy `group/roster` row
+`wake` row `command` per result, and one row `roster` per change: `wake`
+when the change makes the receiving character the leader, `passive`
+otherwise, except `joined` and `left`, which the legacy `group/roster` row
 already says; `invite_blocked` writes one `log` row.
 
 The area also keeps `marks`, eight guids where `0` is an empty slot. A
@@ -470,10 +470,12 @@ directories not committed): the agent joined, took the lead on the timer
 handoff, and kicked the partner with reason `test`; the game log shows
 the raid `roster` disband row and the partner console read matches "not
 in a group". A party of two disbands, so the kicker sees `disbanded`,
-not a `left` row. The round 69 run needed the rescue nudge because the
-leader change does not wake an idle agent. Round 75 re-ran on the
-`ghostlands` spawn after the spawn-slot fix and passed with the same
-shape (kick `DONE`, disband row, partner alone).
+not a `left` row: `Group::RemoveMember` disbands when the group size
+before removal is at most two (`Groups/Group.cpp:769-774`). The round 69
+run needed the rescue nudge because the leader change does not wake an
+idle agent. Round 75 re-ran on the `ghostlands` spawn after the
+spawn-slot fix and passed with the same shape (kick `DONE`, disband row,
+partner alone).
 
 Run a raid (`t9-raid-convert`, round 78 replica 1, `pass` 6/6; run
 directory not committed): the agent joined, took the lead after the

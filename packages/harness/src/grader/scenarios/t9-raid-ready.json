@@ -54,18 +54,12 @@
     {
       "argv": ["call", "answerReadyCheck", "[\"yes\"]"],
       "at": {
-        "kind": "elapsed",
-        "ms": 170000
+        "delayMs": 2000,
+        "kind": "trigger",
+        "nth": 1,
+        "trigger": "ready_check"
       },
-      "windowMs": 300000
-    },
-    {
-      "argv": ["call", "answerReadyCheck", "[\"yes\"]"],
-      "at": {
-        "kind": "elapsed",
-        "ms": 30000
-      },
-      "windowMs": 300000
+      "windowMs": 60000
     }
   ],
   "preset": "eversong10",

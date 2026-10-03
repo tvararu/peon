@@ -3,13 +3,14 @@ import { appendFile, writeFile } from "node:fs/promises";
 import { scratchDir } from "@peon/core/test-support/scratch";
 import type { StatusJson } from "#harness/contract/config";
 import type { Domain, GameLogEntry, LogEvent } from "#harness/contract/log";
+import { loadScenario } from "#harness/grader/scenarios";
+import { dueSteer } from "#harness/grader/steer";
 import {
   createLogTail,
   lastAnswer,
   lastAnswerAt,
   progressOf,
   readStatus,
-  TRIGGER_EVENTS,
   triggerRows,
 } from "#harness/grader/watch";
 
@@ -50,19 +51,35 @@ function status(overrides: Partial<StatusJson> = {}): StatusJson {
   };
 }
 
-describe("TRIGGER_EVENTS", () => {
-  test("follows the design I.2 table", () => {
-    expect(TRIGGER_EVENTS).toEqual({
-      answer_text: ["agent/message"],
-      channel_start: ["spells/channel_start"],
-      death: ["life/dead"],
-      fight_start: ["fight/start"],
-      kill: ["combat/kill_credit"],
-      lfg_proposal: ["lfg/proposal"],
-      lfg_role_check: ["lfg/role_check"],
-      movement_start: ["nav/route_start", "control/move_start"],
-      steer_landed: ["human/input"],
-    });
+describe("ready check trigger", () => {
+  test("a raid/ready_check row makes the scenario's partner answer due after its delay", () => {
+    const actions = loadScenario("t9-raid-ready").partnerActions ?? [];
+    const triggers = triggerRows([
+      row(1, 100, "xp/gain"),
+      row(2, 40_000, "raid/ready_check", "Ready check started"),
+    ]);
+    expect(triggers).toEqual([
+      {
+        ms: 40_000,
+        seq: 2,
+        text: "Ready check started",
+        trigger: "ready_check",
+      },
+    ]);
+    const cursor = { index: actions.length - 1, since: 0 };
+    const delayMs = actions.at(-1)?.at;
+    expect(
+      delayMs?.kind === "trigger" ? (delayMs.delayMs ?? 0) : -1,
+    ).toBeGreaterThan(0);
+    expect(
+      dueSteer({ cursor, now: 40_000, steers: actions, triggers }),
+    ).toBeUndefined();
+    expect(dueSteer({ cursor, now: 90_000, steers: actions, triggers })).toBe(
+      actions.at(-1),
+    );
+    expect(
+      dueSteer({ cursor, now: 90_000, steers: actions, triggers: [] }),
+    ).toBeUndefined();
   });
 });
 

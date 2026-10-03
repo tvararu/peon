@@ -191,6 +191,19 @@ describe("groupDrafts", () => {
     expect(groupDrafts({ guidLow: 2, type: "member_stats" }, rc)).toEqual([]);
   });
 
+  test("becoming group leader via the set-leader packet wakes", () => {
+    const rc = testRuleInput();
+    expect(
+      groupDrafts({ name: "Fgk", type: "leader_changed" }, rc),
+    ).toMatchObject([
+      {
+        class: "wake",
+        event: "group/roster",
+        text: "You lead the group now.",
+      },
+    ]);
+  });
+
   test("a group list names the members and the leader", () => {
     const members = [
       { guidHigh: 0, guidLow: 2, name: "Bob", online: true },
