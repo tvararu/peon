@@ -78,9 +78,9 @@
         "kind": "trigger",
         "trigger": "death"
       },
-      "text": "You died. Come back to life where you died without walking back to your body. Use recover with how self."
+      "text": "You died. Come back to life where you died without walking back to your body. Use recover with how self. Do not fight anything after that; rest until your health is full."
     }
   ],
-  "task": "Head northeast out of the village and fight the first big cat you see. When you die, come back to life where you died without walking back to your body.",
+  "task": "Head northeast out of the village and fight the first big cat you see. When you die, come back to life where you died without walking back to your body, then rest until your health is full.",
   "tier": 6
 }
