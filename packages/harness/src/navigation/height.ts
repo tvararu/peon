@@ -5,7 +5,11 @@ import {
   WALKABLE_SLOPE,
   withinStep,
 } from "@peon/core";
-import { columnHeights, groundFloors } from "#harness/navigation/column";
+import {
+  clearAbove,
+  columnHeights,
+  groundFloors,
+} from "#harness/navigation/column";
 import { groundError, type NativeMap } from "#harness/navigation/native";
 
 type Point = { x: number; y: number; z: number };
@@ -112,12 +116,19 @@ export function slopeFloor(
   from: Point,
   { x, y }: { x: number; y: number },
 ): number | undefined {
-  const near = groundFloors(
-    map
-      .findHeights(x, y)
-      .filter((z) => Number.isFinite(z) && withinSlope(from, { x, y, z })),
+  const column = map.findHeights(x, y);
+  const floors = groundFloors(
+    column.filter((z) => Number.isFinite(z) && withinSlope(from, { x, y, z })),
   );
-  return near.length === 1 ? near[0] : undefined;
+  const standable = floors.filter((floor) => clearAbove(column, floor));
+  if (standable.length === 0) return undefined;
+  const [first, ...rest] = [...standable].sort(
+    (a, b) => Math.abs(a - from.z) - Math.abs(b - from.z),
+  );
+  if (first === undefined) return undefined;
+  return rest.every((floor) => Math.abs(floor - first) <= GROUND_ERROR)
+    ? first
+    : undefined;
 }
 
 export function withinSlope(from: Point, to: Point): boolean {
