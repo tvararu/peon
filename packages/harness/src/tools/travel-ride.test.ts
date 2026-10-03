@@ -75,18 +75,11 @@ async function world(init: { dbc?: boolean } = {}): Promise<World> {
       [DECOY, entry(DECOY, 21)],
     ]),
   });
-  jest
-    .spyOn(act, "poseAt")
-    .mockImplementation((guid, offsetMs?: number) =>
-      offsetMs === undefined ||
-      offsetMs === 0 ||
-      pose.now === undefined ||
-      pose.now.moving === false
-        ? guid === SHIP || pose.now === undefined
-          ? pose.now
-          : HERE
-        : { ...HERE, moving: false },
-    );
+  jest.spyOn(act, "poseAt").mockImplementation((guid, offsetMs?: number) => {
+    const now = pose.now;
+    if (offsetMs && now?.moving) return { ...HERE, moving: false };
+    return guid === SHIP || now === undefined ? now : HERE;
+  });
   jest.spyOn(act, "board").mockImplementation(() => {
     pose.now = AWAY;
     return { status: "ok" };

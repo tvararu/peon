@@ -62,18 +62,23 @@ function pathOf(work: RideWork, dock: Dock): number | undefined {
     ?.taxiPathId;
 }
 
-function arriveIn(work: RideWork): number | undefined {
+function dockDue(work: RideWork, dock: Dock): number | undefined {
   const { ops } = work;
+  for (let at = 0; at <= WAIT_HORIZON_MS; at += WAIT_STEP_MS) {
+    const ahead = ops.handle.transports.act.poseAt(dock.guid, at);
+    if (!ahead) return undefined;
+    if (!ahead.moving && away(ops, ahead) <= DOCK_NEAR_YD) return at;
+  }
+  return undefined;
+}
+
+function arriveIn(work: RideWork): number | undefined {
   let soonest: number | undefined;
   for (const dock of poses(work, false)) {
     if (!serves(work.data, pathOf(work, dock), work.stop)) continue;
-    for (let at = 0; at <= WAIT_HORIZON_MS; at += WAIT_STEP_MS) {
-      const ahead = ops.handle.transports.act.poseAt(dock.guid, at);
-      if (!ahead) break;
-      if (!ahead.moving && away(ops, ahead) <= DOCK_NEAR_YD) {
-        if (soonest === undefined || at < soonest) soonest = at;
-        break;
-      }
+    const due = dockDue(work, dock);
+    if (due !== undefined && (soonest === undefined || due < soonest)) {
+      soonest = due;
     }
   }
   return soonest;
