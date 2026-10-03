@@ -4,6 +4,7 @@ import type { GearAfter, GearCtx } from "#harness/areas/items/tool";
 import type { ToolResult } from "#harness/contract/result";
 import { Refusal } from "#harness/ops/refusal";
 import { result } from "#harness/tools/define";
+import { depositLine } from "#harness/tools/interact-bank";
 import { nextCall } from "#harness/tools/next-call";
 
 export type BankResult =
@@ -32,20 +33,26 @@ export function bankerOf(ctx: GearCtx): Banker | undefined {
   return undefined;
 }
 
-function closedBank(
-  banker: Banker | undefined,
-  npc: string,
-  label: string,
-): Refusal {
+type DepositTarget = {
+  ctx: GearCtx;
+  banker: Banker | undefined;
+  npc: string;
+  label: string;
+  from: { bag: number; slot: number };
+};
+
+function closedBank(target: DepositTarget): Refusal {
+  const { banker, ctx, from, label, npc } = target;
+  const what = depositLine(ctx.handle.getInventoryState(), from) ?? label;
   return new Refusal({
-    detail: `the bank is not open; open ${npc} first, then ${nextCall("interact", { do: "deposit", npc: banker?.ref ?? "banker", what: label })}.`,
+    detail: `the bank is not open; open ${npc} first, then ${nextCall("interact", { do: "deposit", npc: banker?.ref ?? "banker", what })}.`,
     next:
       banker === undefined
         ? nextCall("look", { find: "banker" })
         : nextCall("interact", {
             do: "deposit",
             npc: banker.ref,
-            what: label,
+            what,
           }),
     reason: "bank_closed",
   });
@@ -83,11 +90,12 @@ async function sendDeposit(
 }
 
 function depositRefusal(
-  banker: Banker,
-  npc: string,
-  label: string,
-  outcome: Exclude<BankResult, { status: "ok" }>,
+  target: DepositTarget & {
+    banker: Banker;
+    outcome: Exclude<BankResult, { status: "ok" }>;
+  },
 ): Refusal {
+  const { banker, ctx, from, label, npc, outcome } = target;
   const reason = outcome.status === "refused" ? outcome.reason : outcome.status;
   if (outcome.status === "no_change")
     return new Refusal({
@@ -107,7 +115,7 @@ function depositRefusal(
     next: nextCall("interact", {
       do: "deposit",
       npc: banker.ref,
-      what: label,
+      what: depositLine(ctx.handle.getInventoryState(), from) ?? label,
     }),
     reason,
   });
@@ -124,7 +132,7 @@ export async function runBankDeposit(
   const npc =
     banker === undefined ? "the banker" : `${banker.name} (${banker.ref})`;
   if (open === undefined || banker === undefined)
-    throw closedBank(banker, npc, label);
+    throw closedBank({ banker, ctx, from, label, npc });
   const outcome = await sendDeposit(ctx, from);
   if (outcome.status === "ok")
     return result("DONE", {
@@ -141,5 +149,5 @@ export async function runBankDeposit(
       },
       detail: `Deposited ${label} in the bank.`,
     });
-  throw depositRefusal(banker, npc, label, outcome);
+  throw depositRefusal({ banker, ctx, from, label, npc, outcome });
 }

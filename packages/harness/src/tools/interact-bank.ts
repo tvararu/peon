@@ -52,6 +52,16 @@ function carriedOf(inventory: NamedInventoryState): Occupied[] {
   );
 }
 
+export function depositLine(
+  inventory: NamedInventoryState,
+  position: { bag: number; slot: number },
+): string | undefined {
+  const index = carriedOf(inventory).findIndex(
+    (slot) => slot.bag === position.bag && slot.slot === position.slot,
+  );
+  return index === -1 ? undefined : String(index + 1);
+}
+
 export function bankedOf(inventory: NamedInventoryState): Occupied[] {
   return [...(inventory.bank?.slots ?? [])].filter(
     (slot): slot is Occupied =>

@@ -3,6 +3,7 @@ import type { NamedInventorySlot } from "@peon/core";
 import { gearSpec } from "#harness/areas/items/tool";
 import { Refusal } from "#harness/ops/refusal";
 import { createRepeatGuard, parseCall } from "#harness/ops/repeat-guard";
+import { interactSpec } from "#harness/tools/interact";
 import {
   contentOf,
   setSelf,
@@ -10,6 +11,7 @@ import {
   toolCtx,
   unitRow,
 } from "#test-support/ops-fixtures";
+import type { TestRuntime } from "#test-support/runtime-fixture";
 import {
   createTestRuntime,
   type MockHandle,
@@ -324,6 +326,72 @@ describe("gear move to the bank", () => {
     );
     expect(res.status).toBe("DONE");
     expect(contentOf(res)).toContain("Deposited Linen Cloth");
+  });
+
+  describe("following Next keeps the selected stack", () => {
+    const TWINS: Held[] = [
+      LINEN,
+      { bag: 255, guid: OTHER, name: "Linen Cloth", slot: 24 },
+    ];
+
+    async function follow(
+      thrown: Refusal,
+      t: TestRuntime,
+    ): Promise<{ bag: number; slot: number }> {
+      const call = parseCall(thrown.next ?? "");
+      if (call?.tool !== "interact") throw new Error("Next is not interact");
+      bankOpen(t.handle, BANKER);
+      t.handle.cancelInteraction = () => undefined;
+      const deposit = jest
+        .spyOn(t.handle.bank.act, "deposit")
+        .mockResolvedValue({ status: "ok" as const });
+      await interactSpec.run(call.args as never, toolCtx(t));
+      const last = deposit.mock.calls.at(-1);
+      if (last === undefined) throw new Error("deposit was not called");
+      return { bag: last[0] as number, slot: last[1] as number };
+    }
+
+    test("a closed bank names the explicitly selected stack", async () => {
+      const t = await world(TWINS, false);
+      const thrown = await refusal(
+        gearSpec.run(
+          { do: "move", item: "bag 255 slot 24", to: "bank" },
+          toolCtx(t),
+        ),
+      );
+      expect(thrown.reason).toBe("bank_closed");
+      expect(await follow(thrown, t)).toEqual({ bag: 255, slot: 24 });
+    });
+
+    test("a server refusal names the explicitly selected stack", async () => {
+      const t = await world(TWINS, true);
+      jest.spyOn(t.handle.bank.act, "deposit").mockResolvedValue({
+        reason: "cant_carry_more",
+        status: "refused" as const,
+      });
+      const thrown = await refusal(
+        gearSpec.run(
+          { do: "move", item: "bag 255 slot 24", to: "bank" },
+          toolCtx(t),
+        ),
+      );
+      expect(await follow(thrown, t)).toEqual({ bag: 255, slot: 24 });
+    });
+
+    test("an item in a carried bag keeps its line after the bank opens", async () => {
+      const t = await world(
+        [LINEN, { bag: 19, guid: OTHER, name: "Silk Cloth", slot: 4 }],
+        false,
+      );
+      const thrown = await refusal(
+        gearSpec.run(
+          { do: "move", item: "bag 19 slot 4", to: "bank" },
+          toolCtx(t),
+        ),
+      );
+      expect(thrown.reason).toBe("bank_closed");
+      expect(await follow(thrown, t)).toEqual({ bag: 19, slot: 4 });
+    });
   });
 });
 
