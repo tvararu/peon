@@ -156,9 +156,25 @@ describe("travel ride", () => {
       expect(waiting).toMatchObject({ status: "RUNNING" });
       expect(waiting?.detail).toContain("waiting at the dock");
       expect(waiting?.detail).toContain("expected in about");
-      expect(waiting?.next).toContain("keep waiting at the dock");
+      expect(waiting?.next).toContain("keep waiting");
       pose.now = HERE;
       await elapse(2000);
+      pose.now = THERE;
+      await elapse(3000);
+      return await pending;
+    });
+    expect(res.status).toBe("DONE");
+  });
+  test("while aboard and riding, the run says it is riding and to keep waiting", async () => {
+    const { t, pose } = await world();
+    const ctx = toolCtx<TravelAfter>(t);
+    const res = await withFakeTimers(async () => {
+      const pending = travelSpec.run({ to: "ride Thunder Bluff" }, ctx);
+      await elapse(6000);
+      const riding = ctx.updates.find((u) => u.detail?.includes("riding"));
+      expect(riding).toMatchObject({ status: "RUNNING" });
+      expect(riding?.detail).toContain("Thunder Bluff");
+      expect(riding?.next).toContain("keep waiting");
       pose.now = THERE;
       await elapse(3000);
       return await pending;

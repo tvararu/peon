@@ -87,13 +87,22 @@ function waitText(work: RideWork): string {
       : `, expected in about ${Math.max(1, Math.round(due / 1000))} s`;
   return `waiting at the dock for the transport to ${work.stop}${when}`;
 }
-
-function refreshWait(
+function publishWait(
   work: RideWork,
   waiting: { text: string | undefined },
+  text: string,
 ): void {
-  waiting.text = waitText(work);
-  work.ops.progress(waiting.text);
+  waiting.text = text;
+  work.ops.progress(text);
+  const id = work.runId();
+  work.ctx.update(
+    result("RUNNING", {
+      after: waitNote(work.after, text),
+      detail: text,
+      next: `keep waiting; end your turn and let the run continue. Or ${nextCall("stop", { run: id })}.`,
+      runId: id,
+    }),
+  );
 }
 
 function view(work: RideWork): TravelAfter {
@@ -202,20 +211,10 @@ async function findDock(
       next: nextCall("look"),
       reason: "no_route",
     });
-  waiting.text = waitText(work);
-  ops.progress(waiting.text);
-  const id = work.runId();
-  work.ctx.update(
-    result("RUNNING", {
-      after: waitNote(work.after, waiting.text),
-      detail: waiting.text,
-      next: `keep waiting at the dock; end your turn and let the run continue. Or ${nextCall("stop", { run: id })}.`,
-      runId: id,
-    }),
-  );
+  publishWait(work, waiting, waitText(work));
   try {
     const docked = await poll(ops, DOCK_WAIT_MS, () => {
-      refreshWait(work, waiting);
+      publishWait(work, waiting, waitText(work));
       return dockedNear(work);
     });
     if (docked) return docked;
@@ -325,10 +324,12 @@ export async function rideWork(
   if ("status" in ready) return ready;
   const refused = await board(work, ready);
   if (refused) return refused;
-  ops.progress(`riding to ${stop}`);
+  publishWait(work, waiting, `aboard the transport to ${stop}, still riding`);
   const landed = await poll(ops, RIDE_WAIT_MS, () =>
     arrived(ops, nodes, { dock: ready, from: ready.pose, stop }),
-  );
+  ).finally(() => {
+    waiting.text = undefined;
+  });
   if (!landed)
     return result("UNCONFIRMED", {
       after: view(work),

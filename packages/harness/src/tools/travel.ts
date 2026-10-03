@@ -448,7 +448,7 @@ async function runTravel(
         result("RUNNING", {
           after,
           detail: after.wait,
-          next: `keep waiting at the dock; end your turn and let the run continue. Or ${nextCall("stop", { run: runId })}.`,
+          next: `keep waiting; end your turn and let the run continue. Or ${nextCall("stop", { run: runId })}.`,
           runId,
         }),
       );
@@ -472,7 +472,7 @@ async function runTravel(
       after: latest,
       body: waited.why === "human" ? [HUMAN_WROTE] : [],
       detail: `${latest.wait}. ${youLine(ctx)}`,
-      next: `keep waiting at the dock; end your turn and let the run continue. Or ${nextCall("stop", { run: runId })}.`,
+      next: `keep waiting; end your turn and let the run continue. Or ${nextCall("stop", { run: runId })}.`,
       runId,
     });
   const togo =
