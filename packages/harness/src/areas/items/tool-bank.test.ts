@@ -2,6 +2,7 @@ import { describe, expect, jest, test } from "bun:test";
 import type { NamedInventorySlot } from "@peon/core";
 import { gearSpec } from "#harness/areas/items/tool";
 import { Refusal } from "#harness/ops/refusal";
+import { createRepeatGuard, parseCall } from "#harness/ops/repeat-guard";
 import {
   contentOf,
   setSelf,
@@ -145,7 +146,7 @@ describe("gear move to the bank", () => {
     expect(thrown.reason).toBe("cant_carry_more");
   });
 
-  test("an unanswered deposit is unconfirmed", async () => {
+  test("an unanswered deposit is unconfirmed and recoverable by reading the bank", async () => {
     const t = await world([LINEN], true);
     jest
       .spyOn(t.handle.bank.act, "deposit")
@@ -154,6 +155,86 @@ describe("gear move to the bank", () => {
       gearSpec.run({ do: "move", item: "Linen Cloth", to: "bank" }, toolCtx(t)),
     );
     expect(thrown.status).toBe("UNCONFIRMED");
+    expect(thrown.reason).toBe("no_answer");
+    const read = parseCall(thrown.next ?? "");
+    expect(read?.tool).toBe("journal");
+    const guard = createRepeatGuard({ now: () => 0 });
+    const pose = { x: 0 } as never;
+    const args = { do: "move", item: "Linen Cloth", to: "bank" };
+    const gear = {
+      args,
+      digest: "d",
+      kind: "action" as const,
+      pose,
+      tool: "gear" as const,
+    };
+    guard.record({
+      ...gear,
+      result: {
+        after: undefined,
+        body: [],
+        detail: thrown.detail,
+        next: thrown.next,
+        reason: thrown.reason,
+        status: thrown.status,
+      },
+    });
+    guard.record({
+      args: read?.args ?? {},
+      digest: "d",
+      kind: "read",
+      pose,
+      result: {
+        after: undefined,
+        body: [],
+        detail: "x.",
+        next: undefined,
+        reason: undefined,
+        status: "DONE",
+      },
+      tool: "journal" as const,
+    });
+    expect(guard.check(gear)).toBeUndefined();
+  });
+
+  test("a transport failure is not reported as a banker out of reach", async () => {
+    const t = await world([LINEN], true);
+    jest.spyOn(t.handle.bank.act, "deposit").mockImplementation(() => {
+      throw new Error("World socket is not connected");
+    });
+    const error = await gearSpec
+      .run({ do: "move", item: "Linen Cloth", to: "bank" }, toolCtx(t))
+      .then(
+        () => undefined,
+        (thrown: unknown) => thrown,
+      );
+    expect(error).not.toBeInstanceOf(Refusal);
+    expect((error as Error).message).toContain("not connected");
+  });
+
+  test("aborting while the deposit reply is pending rejects the call", async () => {
+    const t = await world([LINEN], true);
+    const reply = Promise.withResolvers<{ status: "ok" }>();
+    const deposit = jest
+      .spyOn(t.handle.bank.act, "deposit")
+      .mockReturnValue(reply.promise);
+    const controller = new AbortController();
+    const pending = gearSpec
+      .run(
+        { do: "move", item: "Linen Cloth", to: "bank" },
+        toolCtx(t, controller.signal),
+      )
+      .then(
+        () => undefined,
+        (thrown: unknown) => thrown,
+      );
+    while (deposit.mock.calls.length === 0) await Promise.resolve();
+    controller.abort();
+    reply.resolve({ status: "ok" });
+    await reply.promise;
+    const error = await pending;
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).name).toBe("AbortError");
   });
 
   test("a banker out of range refuses with the banker lookup", async () => {
