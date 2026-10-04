@@ -2,7 +2,7 @@ import { fillConsole, readConsoleLog } from "#harness/grader/draft-console";
 import { observeGameLog, parseGameLog } from "#harness/grader/draft-gamelog";
 import { measureGameLog } from "#harness/grader/draft-measure";
 import { windowOf } from "#harness/grader/draft-window";
-import { parseJsonOutput } from "#harness/grader/exec";
+import { isRecord, parseJsonOutput } from "#harness/grader/exec";
 import type { EvalCheck } from "#harness/grader/result";
 import type {
   CheckEvidence,
@@ -256,12 +256,22 @@ async function readGameLog(file: string) {
   return (await handle.exists()) ? parseGameLog(await handle.text()) : null;
 }
 
-async function readJev(file: string): Promise<unknown[] | null> {
+async function readJsonLines(file: string): Promise<unknown[] | null> {
   const handle = Bun.file(file);
   if (!(await handle.exists())) return null;
   return (await handle.text())
     .split("\n")
     .flatMap((line) => (line.length === 0 ? [] : [parseJsonOutput(line)]));
+}
+
+async function readTools(
+  file: string,
+): Promise<Record<string, unknown> | null> {
+  const handle = Bun.file(file);
+  if (!(await handle.exists())) return null;
+  const parsed = parseJsonOutput(await handle.text());
+  const tools = isRecord(parsed) ? parsed["tools"] : undefined;
+  return isRecord(tools) ? tools : null;
 }
 
 export async function observedChecks(
@@ -278,8 +288,10 @@ export async function observedChecks(
   const rows = await readGameLog(`${runDir}/gamelog.jsonl`);
   const consoleLog = await readConsoleLog(runDir);
   const context = {
-    jev: await readJev(`${runDir}/jev.jsonl`),
+    jev: await readJsonLines(`${runDir}/jev.jsonl`),
+    packets: await readJsonLines(`${runDir}/packets.jsonl`),
     steers: [...steers],
+    tools: await readTools(`${runDir}/tools.json`),
   };
   return checks.map((check) => {
     const { blockedBy, evidence, expect, id, source } = check;

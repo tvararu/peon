@@ -47,6 +47,11 @@ import {
 import { deathDrafts } from "#harness/events/rules-death";
 import { recoveryDrafts } from "#harness/events/rules-life";
 import {
+  type PilotTally,
+  pilotDrafts,
+  poseOf as pilotPoseOf,
+} from "#harness/events/rules-pilot";
+import {
   controlDrafts,
   entityDrafts,
   noticeDrafts,
@@ -88,7 +93,8 @@ type SubscribeInit = {
   route: Route;
   named: Named;
   selfGuid: () => bigint;
-  jev: (event: TacticsEvent) => void;
+  jev: (event: TacticsEvent, loop: "combat" | "pilot") => void;
+  pilot: (event: TacticsEvent) => void;
   logEntities: boolean;
 };
 type LookupInit = { handle: Game; attacks: AttackLedger };
@@ -191,7 +197,7 @@ function routeVendor(init: SubscribeInit, event: VendorEvent): void {
 }
 
 function subscribeAll(init: SubscribeInit): Unsubscribe[] {
-  const { areaRules, handle, route, jev, logEntities } = init;
+  const { areaRules, handle, route, jev, pilot, logEntities } = init;
   return [
     handle.onAreaEvent((event) =>
       route((rc) => areaDrafts(areaRules, event, rc)),
@@ -201,8 +207,12 @@ function subscribeAll(init: SubscribeInit): Unsubscribe[] {
     handle.onDuelEvent((event) => route((rc) => duelDrafts(event, rc))),
     handle.onCombatEvent((event) => route((rc) => combatDrafts(event, rc))),
     handle.onTacticsEvent((event) => {
-      jev(event);
+      jev(event, "combat");
       route((rc) => tacticsDrafts(event, rc));
+    }),
+    handle.onPilotEvent((event) => {
+      jev(event, "pilot");
+      pilot(event);
     }),
     handle.onCycleEvent((event) => route((rc) => cycleDrafts(event, rc))),
     handle.onRecoveryEvent((event) => route((rc) => recoveryDrafts(event, rc))),
@@ -389,6 +399,40 @@ function namedFor(
   };
 }
 
+type PilotRoute = {
+  route: Route;
+  attached: () => Game | undefined;
+  tallies: Map<string, PilotTally>;
+};
+
+function pilotRouteFor(env: PilotRoute): (event: TacticsEvent) => void {
+  return (event: TacticsEvent) => {
+    env.route((rc) => {
+      const state = env.attached()?.getControlState();
+      return pilotDrafts(
+        {
+          airborne: state?.airborne ?? false,
+          event,
+          pose: pilotPoseOf(state?.pose),
+          rc,
+        },
+        env.tallies,
+      );
+    });
+  };
+}
+
+function jevRouteFor(
+  init: RouterInit,
+): (event: TacticsEvent, loop: "combat" | "pilot") => void {
+  return (event: TacticsEvent, loop: "combat" | "pilot") => {
+    const { runId, type } = event;
+    const row =
+      event.type === "stopped" ? { reason: event.reason, runId, type } : event;
+    init.jevLog.write({ ...row, loop, ts: init.context().now });
+  };
+}
+
 export function createEventRouter(init: RouterInit): EventRouter {
   const { log, runs } = init;
   const areaRules = init.areaRules ?? areaRuleSet();
@@ -401,12 +445,10 @@ export function createEventRouter(init: RouterInit): EventRouter {
     for (const draft of make(rc)) writer.record(draft, rc);
     armXp(rc.memo, route);
   };
-  const jev = (event: TacticsEvent) => {
-    const { runId, type } = event;
-    const row =
-      event.type === "stopped" ? { reason: event.reason, runId, type } : event;
-    init.jevLog.write({ ...row, ts: init.context().now });
-  };
+  const tallies = new Map<string, PilotTally>();
+  let attached: Game | undefined;
+  const pilot = pilotRouteFor({ attached: () => attached, route, tallies });
+  const jev = jevRouteFor(init);
   log.subscribe((entry) => {
     writer.observe(entry);
     if (sink) deliver(sink, entry);
@@ -417,6 +459,8 @@ export function createEventRouter(init: RouterInit): EventRouter {
   });
   return {
     attach(handle) {
+      attached = handle;
+      tallies.clear();
       lookup = lookupFor({ attacks: init.attacks, handle });
       memo = createRuleMemo();
       route((rc) => attachDrafts(areaRules, handle, rc));
@@ -427,6 +471,7 @@ export function createEventRouter(init: RouterInit): EventRouter {
         jev,
         logEntities: init.flags.logEntities,
         named: namedFor(lookup.itemName, life.signal),
+        pilot,
         route,
         selfGuid: () => init.context().selfGuid,
       });

@@ -238,6 +238,37 @@ export type RestAfter = {
   auraConfirmed: boolean;
 };
 
+export type PilotGoalView =
+  | { kind: "reach"; x: number; y: number }
+  | {
+      kind: "circle";
+      x: number;
+      y: number;
+      radius: number;
+      direction: "clockwise" | "counterclockwise";
+    };
+
+export type PilotDecisionView = {
+  at: number;
+  actionId: string;
+  call: number;
+  disposition: "applied" | "discarded";
+  reason?: string;
+};
+
+export type PilotAfter = {
+  goal: PilotGoalView;
+  pose: PoseView | undefined;
+  decisions: number;
+  jumps: number;
+  walkedYd: number;
+  finalYd: number | undefined;
+  elapsedMs: number;
+  calls: number;
+  timeouts: number;
+  decisionLog: PilotDecisionView[];
+};
+
 export type RecoverAfter = {
   via: "corpse" | "spirit_healer" | "accept" | "self";
   alive: boolean;

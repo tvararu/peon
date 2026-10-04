@@ -45,7 +45,11 @@ export type CheckMeasure =
   | "kill_xp"
   | "max_attackers"
   | "no_fight_after_stop"
-  | "talents_spent";
+  | "talents_spent"
+  | "pilot_circle"
+  | "pilot_reach"
+  | "pilot_jumps"
+  | "pilot_only_moves";
 
 export type TruthPick =
   | "alive"
@@ -218,6 +222,12 @@ export const ROUND_1: readonly string[] = [
   "t9-mail-read",
   "t9-mail-collect",
   "t9-mail-send",
+  "t3-pilot-circle",
+  "t3-pilot-circle-holdout",
+  "t3-pilot-detour",
+  "t3-pilot-detour-holdout",
+  "t3-pilot-fence",
+  "t3-pilot-fence-holdout",
 ];
 const DIR = `${import.meta.dir}/scenarios`;
 const JSON_FILE = /\.json$/;

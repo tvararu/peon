@@ -221,6 +221,7 @@ describe("createEventRouter", () => {
     ]);
     expect(jevRows[2]).toMatchObject({ call: 1, ts: 1_000_000 });
     expect(jevRows[3]).toEqual({
+      loop: "combat",
       reason: "failed",
       runId: "t1",
       ts: 1_000_000,

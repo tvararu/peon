@@ -4,6 +4,7 @@ import { span } from "#harness/ui/draw";
 
 const VERB: Readonly<Record<RunKind, string>> = {
   engage: "fighting",
+  pilot: "steering",
   recover: "recovering",
   rest: "resting",
   trade: "trading",

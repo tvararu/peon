@@ -1,0 +1,54 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 30,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "expect": "GL pilot/ended is completed with no control/server_correction row during the run",
+      "id": "reached",
+      "measure": "pilot_reach",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "point": {
+          "x": -10315,
+          "y": 184
+        }
+      },
+      "expect": "T final position within 3 yd of the goal behind the obstacle (-10315, 184)",
+      "id": "at-goal",
+      "source": "truth"
+    },
+    {
+      "expect": "tools.json shows a pilot call and no other movement tool (travel, engage, recover): Jev made every movement decision",
+      "id": "only-pilot",
+      "measure": "pilot_only_moves",
+      "source": "game_log"
+    }
+  ],
+  "field": "pilot-elwynn-detour",
+  "id": "t3-pilot-detour-holdout",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "elwynn10",
+  "setup": [
+    {
+      "body": {
+        "map": 0,
+        "x": -10295,
+        "y": 184,
+        "z": 35.83
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Use the pilot tool to walk to the point (-10315, 184). Move only with pilot.",
+  "tier": 3
+}

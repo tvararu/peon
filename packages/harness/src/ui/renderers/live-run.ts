@@ -3,6 +3,7 @@ import type {
   EngageAfter,
   JevDecisionView,
   LegView,
+  PilotAfter,
   RecoverAfter,
   RestAfter,
   TravelAfter,
@@ -324,6 +325,40 @@ function recoverBody({
 export const travelRenderers: ToolRenderers<"travel", TravelAfter> = {
   renderCall: callRenderer(travelCall),
   renderResult: resultRenderer("travel", travelBody),
+};
+
+function pilotCall(args: unknown, theme: Theme): string {
+  const to = argText(args, "to");
+  const circle = argText(args, "circle");
+  const minutes = argText(args, "minutes");
+  return callLine({
+    icon: "route",
+    parts: [to ?? circle ?? "?", minutes && `${minutes} min`],
+    theme,
+    verb: "pilot",
+  });
+}
+
+function pilotBody({ after, theme, expanded }: BodyInit<PilotAfter>): string[] {
+  const goal =
+    after.goal.kind === "reach"
+      ? `(${Math.round(after.goal.x)}, ${Math.round(after.goal.y)})`
+      : `circle (${Math.round(after.goal.x)}, ${Math.round(after.goal.y)}) r${after.goal.radius} ${after.goal.direction}`;
+  const head = `${theme.fg("accent", glyph("route"))} ${after.decisions} decisions · ${after.jumps} jumps · walked ${yards(after.walkedYd)} in ${seconds(after.elapsedMs)}`;
+  const rows = [goal, head];
+  if (!expanded) return rows;
+  const log = after.decisionLog.map((d) =>
+    theme.fg(
+      "dim",
+      `${d.call} ${d.actionId} ${d.disposition}${d.reason ? ` ${d.reason}` : ""}`,
+    ),
+  );
+  return [...rows, ...log];
+}
+
+export const pilotRenderers: ToolRenderers<"pilot", PilotAfter> = {
+  renderCall: callRenderer(pilotCall),
+  renderResult: resultRenderer("pilot", pilotBody),
 };
 
 export const engageRenderers: ToolRenderers<"engage", EngageAfter> = {

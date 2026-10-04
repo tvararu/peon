@@ -169,6 +169,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | `look` | Self, place, target, the running action, and the nearest units with short ids like `u7`; `find: object` lists game objects as `o<n>` with kind and quest, locked and busy flags; `find: flight_master` lists flight masters, also one that left view. |
 | `travel` | Walks to a unit (`to: o<n>` reaches a game object), the corpse or a point (`to: 10 yd north` walks ten yards north), uses the hearthstone (`to: hearth`), flies to a discovered flight destination (`to: fly Silvermoon City`), rides a boat or zeppelin to a named stop (`to: ride Thunder Bluff`), explores in a direction, or unsticks. On the ground, a point without a z walks to the one floor of its column that the navmesh routes and refuses with the routable floors when several remain; a creature target walks to the floor nearest its observed height. A route across swim-depth water swims: the planner follows the liquid surface and the follower sends `MSG_MOVE_START_SWIM` on entering and `MSG_MOVE_STOP_SWIM` on leaving. An explore leg refused for an ambiguous navmesh column first retries the same point on the floor nearest the walker, then other distances on the same bearing, and one exhausted bearing counts as a single obstruction. A leg that starts just off the navmesh first nudges up to 1.5 yd back onto the mesh with a direct walk and then replans once; `unstick` nudges before trying its radial goals. |
 | `engage` | Chooses a target, walks to it, fights it with Jev and loots it; the result line gives damage dealt and taken, avoided swings and refused spells. An unnamed engage that only sees gray hostiles refuses with a `Next:` step that travels to explore for non-gray hostiles. A named engage that cannot reach its target names another reachable hostile in view, or explores when none is in view. When a target that could not be reached is still attacking, the fight stops and reports that attacker instead of pulling another unit. Near Tranquillien, targets on ziggurat tiers and cliff faces refuse as unreachable because the navmesh marks their steep faces as walkable ground while the planner rejects climbs steeper than its walkable slope; the agent explores for a reachable target instead. |
+| `pilot` | Lets Jev steer the character toward a point (`to: { x, y }`) or around a circle (`circle: { x, y, radius, direction }`) for `minutes` (default 3, at most 10); see [Pilot](#pilot). |
 | `loot` | Loots one corpse, one slot at a time. |
 | `interact` | Talks to an NPC (`npc: o<n>` talks to a quest-giver object): quests, gossip, buy, sell junk, buyback, train, repair, bind at an inn, reset talents at a class trainer (pays only up to `max_cost`), bank with a banker (open, deposit, withdraw, buy a bag slot); talking to a flight master lists the known destinations with their list prices. |
 | `rest` | Eats and drinks until health and mana reach a percent. |
@@ -187,7 +188,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | `trade` | Gives items and gold to another player, answers a trade request, changes the offer, accepts, cancels or reads both offers. |
 | `mail` | Reads the letters waiting in the inbox, collects copper and items from them, or sends a letter with copper or items at a mailbox within 10 yards. |
 
-`travel`, `engage`, `rest` and `recover` start a run (`r1`, `r2`, …).
+`travel`, `engage`, `pilot`, `rest` and `recover` start a run (`r1`, `r2`, …).
 Only one run can be active. The tool waits for the run to end and
 streams its progress. When the human types, or after 120 seconds, the
 tool returns `RUNNING`, the run continues, and a `[game]` message tells
@@ -217,6 +218,35 @@ list in `packages/harness/src/tools/registry.ts` registers them, orders
 the tool notes in the prompt and supplies the minimal valid call that a
 tool result gets after two schema failures in a row. A new tool is one
 module, one entry in that list and its name in `ToolName`.
+
+## Pilot
+
+`pilot` runs a second Jev loop that steers the character. Every 50 ms or
+more, Jev chooses one of the movement options the loop offers: `run_ahead`,
+`veer_left`, `veer_right`, `turn_left`, `turn_right`, `turn_around`,
+`strafe_left`, `strafe_right`, `back_up`, `jump_ahead` and `stop`. There is no
+`wait` option. The loop describes each heading by its free distance and
+blocker (open, wall, drop or low obstacle), and it removes any option whose
+heading is blocked inside two yards. It offers `jump_ahead` only when a low
+obstacle 0.3 to 1.4 yd tall stands 1 to 3 yd ahead and the jump arc clears it.
+
+An applied option faces the heading and drives it under a 1.5 s dead-man
+lease. If no new decision renews the lease, the character stops. `stop`,
+`/stop`, F1, a human takeover and death halt the character and end the run.
+A run ends `completed` when the character is within 1.5 yd of the point or
+has swept a full circle back at its start, `failed` when the character dies
+or Jev is unavailable, and `stopped` on a cancel or when the budget runs out.
+
+`pilot` refuses with `no_combat_helper` when `TYPESAFE_API_KEY` is not set,
+with `unsupported_map` when navigation does not cover the map, with `dead`
+when the character is dead and with `bad_objective` unless exactly one of
+`to` and `circle` is given. Like `engage`, it starts a run of kind `pilot`
+that stays `RUNNING` across turns. The report gives the status, the reason,
+the decisions taken, the jumps, the yards walked and the final distance.
+
+The game log records `pilot/started` (objective and position), one
+`pilot/decision` per applied option (call, action, position, airborne) and
+`pilot/ended` (status, reason, decisions, jumps and yards walked).
 
 ## Stopping the agent
 
@@ -444,7 +474,7 @@ A proposed redesign of the screen lives at
 |---|---|
 | `meta.json` | Version, git sha, account and character (no password), model, thinking, glyph set, flags, start and end, exit reason, capabilities. Every exit writes `endedAt` and `exitReason`: `quit` (Ctrl-D, `/quit`, two Ctrl-C), `sigterm`, `sighup`, `sigint` (Ctrl-C during the logout) or `fatal_error`. Only a SIGKILL leaves both empty. |
 | `gamelog.jsonl` | Every game event as one typed row (`domain/event`). |
-| `jev.jsonl` | Every Jev call and every fight-loop event; see [Jev log](#jev-log). |
+| `jev.jsonl` | Every Jev call and every fight-loop and pilot-loop event, each row tagged `loop: "combat"` or `loop: "pilot"`; see [Jev log](#jev-log). |
 | `session.jsonl` | A link to the current Pi session file in `pi-sessions/`. |
 | `tools.json` | Calls, status words, validation errors, repeat refusals and timings per tool. |
 | `runs.jsonl` | One row per run when it ends. |
@@ -460,7 +490,7 @@ A proposed redesign of the screen lives at
 it to debug one bad decision: see the state Jev was shown, what it
 answered and what happened next, then replay that call.
 
-Every row has `type`, `runId` (one fight loop) and `ts`. The rows of one
+Every row has `type`, `loop` (`combat` or `pilot`), `runId` (one loop run) and `ts`. The rows of one
 call also share `call`, which counts from 1 in each `runId`.
 
 | `type` | Content |

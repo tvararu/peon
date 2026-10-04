@@ -1,4 +1,10 @@
-export type RunKind = "travel" | "engage" | "rest" | "recover" | "trade";
+export type RunKind =
+  | "travel"
+  | "engage"
+  | "pilot"
+  | "rest"
+  | "recover"
+  | "trade";
 
 export type RunStatus =
   | "running"

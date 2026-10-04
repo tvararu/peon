@@ -51,6 +51,7 @@ export type {
   ControlState,
   WalkOutcome,
 } from "#wow/control";
+export { GRAVITY, JUMP_VELOCITY } from "#wow/control-air";
 export type {
   MoveAxis,
   MovementDirection,

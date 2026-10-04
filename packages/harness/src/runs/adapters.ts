@@ -119,6 +119,73 @@ export type CycleEnd = { state: CycleState; error: string | undefined };
 
 const JEV_UNAVAILABLE = "jev_unavailable";
 
+export type PilotEnd = {
+  outcome: TacticsOutcome | undefined;
+  error: string | undefined;
+};
+
+type PilotInit = {
+  objective: unknown;
+  signal: AbortSignal;
+  timeoutMs: number;
+};
+
+function watchPilot(handle: Game) {
+  let runId: string | undefined;
+  let outcome: TacticsOutcome | undefined;
+  let done: () => void = ignoreFailure;
+  const ended = new Promise<void>((resolve) => {
+    done = resolve;
+  });
+  const stop = handle.onPilotEvent((event) => {
+    if (event.type === "started" && runId === undefined) runId = event.runId;
+    if (runId === undefined || event.runId !== runId) return;
+    if (event.type === "outcome") {
+      outcome = {
+        observation: event.observation,
+        reason: event.reason,
+        status: event.status,
+      };
+      done();
+    }
+    if (event.type === "stopped") {
+      outcome ??= event.state.lastOutcome;
+      done();
+    }
+  });
+  return { ended, outcome: () => outcome, stop };
+}
+
+export async function awaitPilot(
+  handle: Game,
+  { objective, signal, timeoutMs }: PilotInit,
+): Promise<PilotEnd> {
+  const watch = watchPilot(handle);
+  const onAbort = () => handle.halt();
+  signal.addEventListener("abort", onAbort, { once: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error("pilot_timeout")), timeoutMs);
+  });
+  try {
+    await Promise.race([
+      handle.startPilot(objective as Parameters<Game["startPilot"]>[0], signal),
+      watch.ended,
+      deadline,
+    ]);
+    return {
+      error: undefined,
+      outcome: watch.outcome() ?? handle.getPilotState().lastOutcome,
+    };
+  } catch (error) {
+    return { error: messageOf(error), outcome: watch.outcome() };
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+    watch.stop();
+    signal.removeEventListener("abort", onAbort);
+  }
+}
+
 type TacticsInit = { guid: bigint; instruction: string; signal: AbortSignal };
 type CycleInit = {
   guids: bigint[];

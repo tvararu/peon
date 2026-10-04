@@ -20,6 +20,15 @@ import type {
 } from "#harness/loops/cycle-types";
 import { EncounterCycleRuntime } from "#harness/loops/encounter-cycle";
 import {
+  PilotActions,
+  type PilotFrameDeps,
+} from "#harness/loops/pilot-actions";
+import {
+  type PilotContext,
+  type PilotObjective,
+  pilotInstruction,
+} from "#harness/loops/pilot-types";
+import {
   type CombatPort,
   type ControlPort,
   combatPort,
@@ -56,6 +65,12 @@ export type Loops = Runs & {
   ) => Promise<void>;
   getTacticsState: () => TacticsState;
   onTacticsEvent: (cb: (event: TacticsEvent) => void) => Unsubscribe;
+  startPilot: (
+    objective: PilotObjective,
+    signal?: AbortSignal,
+  ) => Promise<void>;
+  getPilotState: () => TacticsState;
+  onPilotEvent: (cb: (event: TacticsEvent) => void) => Unsubscribe;
   startCycle: (
     guids: bigint[],
     instruction: string,
@@ -83,6 +98,7 @@ type Parts = {
   handle: WorldHandle;
   tactics: TacticsLoop;
   cycle: EncounterCycleRuntime;
+  pilot: TacticsLoop<PilotContext>;
   halt: () => void;
 };
 
@@ -94,11 +110,14 @@ function lifeEnded(event: RecoveryEvent): boolean {
   );
 }
 
-function wire({ handle, tactics, cycle }: Parts): Unsubscribe {
+function wire({ handle, tactics, cycle, pilot }: Parts): Unsubscribe {
   const detach = [
     handle.onControlEvent((event) => cycle.observeControl(event)),
     handle.onRecoveryEvent((event) => {
-      if (lifeEnded(event)) tactics.stop(`self_${event.state.life}`);
+      if (lifeEnded(event)) {
+        tactics.stop(`self_${event.state.life}`);
+        pilot.stop(`self_${event.state.life}`);
+      }
       cycle.observeRecovery(event);
     }),
     handle.onRewardsEvent((event) => cycle.observeRewards(event)),
@@ -148,6 +167,45 @@ function createTactics(ports: Ports, jev: JevPort | undefined): TacticsLoop {
       signal.throwIfAborted();
     },
     select: jev?.select,
+  });
+}
+
+function createPilot(
+  ports: Ports,
+  navigation: SessionNavigation | undefined,
+  jev: JevPort | undefined,
+): TacticsLoop<PilotContext> {
+  const { control, handle } = ports;
+  const frame: PilotFrameDeps = {
+    control,
+    ground: navigation?.ground,
+    life: () => handle.getRecoveryState().life,
+    now: () => Date.now(),
+  };
+  return pilotLoop(frame, handle, jev);
+}
+
+function pilotLoop(
+  frame: PilotFrameDeps,
+  handle: WorldHandle,
+  jev: JevPort | undefined,
+): TacticsLoop<PilotContext> {
+  const actions = new PilotActions(frame);
+  return new TacticsLoop<PilotContext>({
+    activate: () => actions.activate(),
+    defend: () => "none",
+    execute: (id, context) => actions.execute(id, context),
+    halt: () => actions.halt(),
+    maxResultAgeMs: 1000,
+    minIntervalMs: 50,
+    observe: (context) => actions.observe(context),
+    async prepare(_context, signal) {
+      signal.throwIfAborted();
+      await handle.loadCatalogs();
+      signal.throwIfAborted();
+    },
+    select: jev?.select,
+    wait: undefined,
   });
 }
 
@@ -203,6 +261,7 @@ function build(handle: WorldHandle, { jev, navigation }: GameOptions) {
   const entity = (guid: bigint) => handle.getEntity(guid);
   const ports = { combat, control, entity, halt, handle, travel };
   const tactics = createTactics(ports, jev);
+  const pilot = createPilot(ports, navigation, jev);
   const deps = cycleDeps(ports, tactics);
   const cycle = new EncounterCycleRuntime(deps);
   const runs = createRuns({
@@ -215,13 +274,14 @@ function build(handle: WorldHandle, { jev, navigation }: GameOptions) {
       rewards: (cb) => handle.onRewardsEvent(cb),
     },
   });
-  const parts: Parts = { cycle, halt, handle, tactics };
+  const parts: Parts = { cycle, halt, handle, pilot, tactics };
   const unwire = wire(parts);
   const retire = () => {
     if (!live) return;
     live = false;
     unwire();
     tactics.dispose();
+    pilot.dispose();
     cycle.dispose();
     travel.dispose();
   };
@@ -274,17 +334,66 @@ export function createGame(
   options: GameOptions = {},
 ): Game {
   const { parts, runs, retire, shutDown, travel } = build(handle, options);
-  const { tactics, cycle, halt } = parts;
-  handle.closed.then(shutDown, shutDown);
-  const takeControl = (reason: string) => {
+  const { tactics, pilot, cycle, halt } = parts;
+  const takeControl = gameTakeControl(tactics, pilot, cycle);
+  const beginCycle = gameBeginCycle(takeControl, halt);
+  return gameApi({
+    beginCycle,
+    handle,
+    options,
+    parts: { cycle, halt, pilot, runs, tactics, travel },
+    retire,
+    shutDown,
+    takeControl,
+  });
+}
+
+type GameParts = {
+  tactics: TacticsLoop;
+  pilot: TacticsLoop<PilotContext>;
+  cycle: EncounterCycleRuntime;
+  halt: () => void;
+  runs: Runs;
+  travel: TravelSession;
+};
+
+function gameTakeControl(
+  tactics: TacticsLoop,
+  pilot: TacticsLoop<PilotContext>,
+  cycle: EncounterCycleRuntime,
+): (reason: string) => void {
+  return (reason: string) => {
     cycle.stop(reason);
     tactics.stop(reason);
+    pilot.stop(reason);
   };
-  const beginCycle = (start: () => Promise<void>) => {
+}
+
+function gameBeginCycle(
+  takeControl: (reason: string) => void,
+  halt: () => void,
+): (start: () => Promise<void>) => Promise<void> {
+  return (start: () => Promise<void>) => {
     takeControl("manual_override");
     halt();
     return start();
   };
+}
+
+type GameApiInput = {
+  handle: WorldHandle;
+  options: GameOptions;
+  parts: GameParts;
+  takeControl: (reason: string) => void;
+  beginCycle: (start: () => Promise<void>) => Promise<void>;
+  retire: () => void;
+  shutDown: () => void;
+};
+
+function gameApi(input: GameApiInput): Game {
+  const { beginCycle, handle, options, retire, shutDown, takeControl } = input;
+  handle.closed.then(shutDown, shutDown);
+  const { cycle, pilot, runs, tactics, travel } = input.parts;
   return {
     ...handle,
     ...runs,
@@ -292,13 +401,16 @@ export function createGame(
     ...travelApi(travel),
     ...retiring(handle, retire, travel),
     getCycleState: () => cycle.snapshot(),
+    getPilotState: () => pilot.snapshot(),
     getTacticsState: () => tactics.snapshot(),
     halt() {
       tactics.stop("halt");
+      pilot.stop("halt");
       cycle.stop("halt");
       handle.halt();
     },
     onCycleEvent: (cb) => cycle.onEvent(cb),
+    onPilotEvent: (cb) => pilot.onEvent(cb),
     onTacticsEvent: (cb) => tactics.onEvent(cb),
     startCycle: (guids, instruction, maxStarts) =>
       beginCycle(() => cycle.start({ guids, instruction, maxStarts })),
@@ -322,6 +434,15 @@ export function createGame(
       if (life === "dead" || life === "ghost")
         throw new Error("self_not_alive");
       return tactics.start({ framing, instruction, targetGuid }, signal);
+    },
+    startPilot(objective, signal) {
+      const life = handle.getRecoveryState().life;
+      if (life === "dead" || life === "ghost")
+        throw new Error("self_not_alive");
+      return pilot.start(
+        { instruction: pilotInstruction(objective), objective },
+        signal,
+      );
     },
     stopCycle: () => cycle.stop("manual_override"),
     takeControl,

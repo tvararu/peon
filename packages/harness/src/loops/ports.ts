@@ -33,6 +33,7 @@ export type ControlPort = {
   face: (orientation: number) => void;
   move: (direction: MovementDirection, durationMs: number) => void;
   drive: (input: MovementInput, durationMs: number) => void;
+  jump: () => void;
   halt: (reason?: string) => void;
   selectTarget: (guid: bigint) => void;
 };
@@ -76,6 +77,7 @@ export function controlPort(handle: WorldHandle, travel: Travel): ControlPort {
     drive: (input, durationMs) => handle.drive(input, durationMs),
     face: (orientation) => handle.face(orientation),
     halt: (reason) => handle.stopMoving(reason),
+    jump: () => handle.jump(),
     move: (direction, durationMs) => handle.move(direction, durationMs),
     navigationState: () => travel.getNavigationState(),
     selectTarget: (guid) => handle.selectTarget(guid),

@@ -17,6 +17,7 @@ export type MockGame = Omit<MockHandle, "capabilities"> &
   Game & {
     triggerTacticsEvent: (event: TacticsEvent) => void;
     triggerCycleEvent: (event: CycleEvent) => void;
+    triggerPilotEvent: (event: TacticsEvent) => void;
   };
 
 export function createMockGame(): MockGame {
@@ -55,6 +56,7 @@ export function createMockGame(): MockGame {
     },
   });
   const tactics = new Emitter<[TacticsEvent]>();
+  const pilot = new Emitter<[TacticsEvent]>();
   const cycles = new Emitter<[CycleEvent]>();
   cycle.onEvent((event) => cycles.emit(event));
   const game: MockGame = Object.assign(handle, {
@@ -74,6 +76,7 @@ export function createMockGame(): MockGame {
         remaining: undefined,
       }),
     ),
+    getPilotState: jest.fn(() => tacticsState),
     getTacticsState: jest.fn(() => tacticsState),
     goTo: jest.fn(),
     halt: jest.fn(() => {
@@ -85,6 +88,7 @@ export function createMockGame(): MockGame {
       observeNavigation(game.getNavigationState()),
     ),
     onCycleEvent: (cb: (event: CycleEvent) => void) => cycles.subscribe(cb),
+    onPilotEvent: (cb: (event: TacticsEvent) => void) => pilot.subscribe(cb),
     onTacticsEvent: (cb: (event: TacticsEvent) => void) =>
       tactics.subscribe(cb),
     recoverCorpse: jest.fn(async () => ({
@@ -95,6 +99,7 @@ export function createMockGame(): MockGame {
       (guids: bigint[], instruction: string, maxStarts?: number) =>
         cycle.start({ guids, instruction, maxStarts }),
     ),
+    startPilot: jest.fn(async () => {}),
     startQuestCycle: jest.fn(async () => {}),
     startTactics: jest.fn(async () => {}),
     stopCycle: jest.fn(() => {
@@ -105,6 +110,9 @@ export function createMockGame(): MockGame {
     }),
     triggerCycleEvent(event: CycleEvent) {
       cycles.emit(event);
+    },
+    triggerPilotEvent(event: TacticsEvent) {
+      pilot.emit(event);
     },
     triggerTacticsEvent(event: TacticsEvent) {
       tactics.emit(event);
