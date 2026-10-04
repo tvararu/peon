@@ -191,9 +191,9 @@ A result that is not `DONE` ends with a `Next:` step.
 
 `travel`, `engage`, `pilot`, `rest` and `recover` start a run (`r1`, `r2`, …).
 Only one run can be active. The tool waits for the run to end and
-streams its progress. When the human types, or after 120 seconds, the
-tool returns `RUNNING`, the run continues, and a `[game]` message tells
-the agent when it ends.
+streams its progress. When the human types, when chat wakes the agent,
+or after 120 seconds, the tool returns `RUNNING`, the run continues,
+and a `[game]` message tells the agent when it ends.
 
 `UNCONFIRMED` means the game did not answer in time, so the action may or
 may not have happened. It never permits a blind resend: a quest accept or
@@ -278,7 +278,9 @@ a row: chat wakes are exempt from the wake guard. Other wakes still
 pass through it: non-chat wakes share a bucket of three, repeat lines
 from one sender are held back for 20 seconds, and repeated combat hits
 stay limited to one wake per attacker every 30 seconds. Lines that
-arrive together reach the agent as one message.
+arrive together reach the agent as one message. Chat that wakes the
+agent while a run tool waits returns the tool early and reaches the
+agent in the same turn.
 
 ## Who controls the character
 
