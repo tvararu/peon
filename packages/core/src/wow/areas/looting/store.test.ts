@@ -3,6 +3,7 @@ import { areaRig } from "#test-support/area-rig";
 import {
   lootingLootListBody,
   lootingLootMasterListBody,
+  lootingLootOpenBody,
   lootingLootReleaseBody,
 } from "#test-support/areas/looting";
 import type { LootingEvent } from "#wow/areas/looting/store";
@@ -29,7 +30,7 @@ describe("LootingStore", () => {
     try {
       expect(rig.handle.state()).toEqual({
         owners: new Map(),
-        masterCandidates: [],
+        masterCandidates: new Map(),
         passOnLoot: false,
       });
       expect(rig.sent).toEqual([]);
@@ -133,14 +134,21 @@ describe("LootingStore", () => {
     }
   });
 
-  test("a master list sets the candidates and emits master_loot_candidates", () => {
+  test("a master list binds to the opened corpse and emits master_loot_candidates", () => {
     const { rig, seen } = setup();
     try {
       rig.inject(
         GameOpcode.SMSG_LOOT_MASTER_LIST,
         lootingLootMasterListBody([ME, PARTNER]),
       );
-      expect(rig.handle.state().masterCandidates).toEqual([ME, PARTNER]);
+      rig.inject(
+        GameOpcode.SMSG_LOOT_RESPONSE,
+        lootingLootOpenBody(CREATURE, []),
+      );
+      expect(rig.handle.state().masterCandidates.get(CREATURE)).toEqual([
+        ME,
+        PARTNER,
+      ]);
       expect(seen).toEqual([
         {
           type: "master_loot_candidates",
@@ -152,21 +160,56 @@ describe("LootingStore", () => {
     }
   });
 
-  test("a release peek clears the candidates in silence", () => {
+  test("a release keeps the bound candidates for the re-open", () => {
     const { rig, seen } = setup();
     try {
       rig.inject(
         GameOpcode.SMSG_LOOT_MASTER_LIST,
         lootingLootMasterListBody([PARTNER]),
       );
+      rig.inject(
+        GameOpcode.SMSG_LOOT_RESPONSE,
+        lootingLootOpenBody(CREATURE, []),
+      );
       seen.length = 0;
-      expect(rig.handle.state().masterCandidates).toEqual([PARTNER]);
+      expect(rig.handle.state().masterCandidates.get(CREATURE)).toEqual([
+        PARTNER,
+      ]);
       rig.inject(
         GameOpcode.SMSG_LOOT_RELEASE_RESPONSE,
         lootingLootReleaseBody(CREATURE, 1),
       );
-      expect(rig.handle.state().masterCandidates).toEqual([]);
+      expect(rig.handle.state().masterCandidates.get(CREATURE)).toEqual([
+        PARTNER,
+      ]);
       expect(seen).toEqual([]);
+    } finally {
+      rig.dispose();
+    }
+  });
+  test("a re-open without a new list keeps the bound candidates", () => {
+    const { rig } = setup();
+    try {
+      rig.inject(
+        GameOpcode.SMSG_LOOT_MASTER_LIST,
+        lootingLootMasterListBody([ME, PARTNER]),
+      );
+      rig.inject(
+        GameOpcode.SMSG_LOOT_RESPONSE,
+        lootingLootOpenBody(CREATURE, []),
+      );
+      rig.inject(
+        GameOpcode.SMSG_LOOT_RELEASE_RESPONSE,
+        lootingLootReleaseBody(CREATURE, 1),
+      );
+      rig.inject(
+        GameOpcode.SMSG_LOOT_RESPONSE,
+        lootingLootOpenBody(CREATURE, []),
+      );
+      expect(rig.handle.state().masterCandidates.get(CREATURE)).toEqual([
+        ME,
+        PARTNER,
+      ]);
     } finally {
       rig.dispose();
     }
