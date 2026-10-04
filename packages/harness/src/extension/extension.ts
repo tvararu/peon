@@ -13,8 +13,8 @@ import { installUi } from "#harness/ui/install";
 
 export function wowExtension(rt: HarnessRuntime): ExtensionFactory {
   return (pi) => {
+    installGuards(pi);
     installInput(pi, rt);
-    installGuards(pi, rt);
     installTools(pi, rt);
     installEvents(pi, rt);
     installPrompt(pi, rt);

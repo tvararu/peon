@@ -12,7 +12,7 @@ export type PacketTraceMode = "off" | "headers" | "bodies";
 export type HarnessFlags = {
   profile: string;
   runDir: string | undefined;
-  model: string;
+  model: string | undefined;
   thinking: ThinkingLevel;
   connect: boolean;
   wake: boolean;

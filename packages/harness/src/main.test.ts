@@ -2,32 +2,40 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { EventEmitter } from "node:events";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { REQUIRED_DBC_FILES } from "@peon/core";
 import { scratchDir } from "@peon/core/test-support/scratch";
 import { harnessStateDir, parseFlags } from "#harness/config/flags";
-import { ompDbPath } from "#harness/credentials/omp-store";
+import { NO_LOGIN, peonAuthPath } from "#harness/credentials/status";
 import { EXIT, type MainDeps, main } from "#harness/main";
 import {
   EXIT_SIGINT,
   type ExitProcess,
   LOGOUT_NOTICE,
 } from "#harness/runtime/exit";
-import { codexRow, writeOmpDb } from "#test-support/omp-db";
+import { isolateProviderEnv } from "#test-support/isolated-env";
+
+async function writeAuth(text: string): Promise<void> {
+  await mkdir(dirname(peonAuthPath(home)), { recursive: true });
+  await Bun.write(peonAuthPath(home), text);
+}
 
 const NOW = Date.parse("2026-09-26T19:00:00Z");
 
 let home: string;
 let lines: { out: string[]; err: string[] };
+let restoreEnv: () => void;
 
 beforeEach(async () => {
   home = scratchDir("harness-main");
+  restoreEnv = isolateProviderEnv(home);
   lines = { err: [], out: [] };
   proc = new EventEmitter();
   exits = [];
 });
 
 afterEach(async () => {
+  restoreEnv();
   await rm(home, { force: true, recursive: true });
 });
 
@@ -80,40 +88,52 @@ function locks(): string[] {
 }
 
 describe("main --check", () => {
-  test("prints the credential line, exits 0 and releases the lock", async () => {
-    writeOmpDb(ompDbPath(home), [
-      codexRow({ access: "tok", expires: NOW + 3_600_000 }),
-    ]);
+  test("prints the login line, exits 0 and releases the lock", async () => {
+    await writeAuth(
+      JSON.stringify({
+        "openai-codex": {
+          access: "tok",
+          expires: Date.now() + 3_600_000,
+          refresh: "r",
+          type: "oauth",
+        },
+      }),
+    );
     const code = await main(
       parseFlags(["--profile", await ledger(), "--check"]),
       deps(),
     );
     expect(code).toBe(EXIT.ok);
     expect(lines.out).toEqual([
-      "Codex login: valid until 2026-09-26 20:00 UTC (omp).",
+      "Login: openai-codex (OAuth). Model: openai-codex/gpt-6-luna.",
     ]);
     expect(locks()).toEqual([]);
   });
 
-  test("exits 3 when omp has no Codex login", async () => {
+  test("exits 3 with no login", async () => {
     const code = await main(
       parseFlags(["--profile", await ledger(), "--check"]),
       deps(),
     );
     expect(code).toBe(EXIT.credential);
-    expect(lines.err).toEqual([
-      "No Codex login found in omp. Run omp and log in to openai-codex. Then start the harness again.",
-    ]);
+    expect(lines.err).toEqual([NO_LOGIN]);
     expect(locks()).toEqual([]);
   });
 
-  test("exits 3 without --check when the login expires in under 10 minutes", async () => {
-    writeOmpDb(ompDbPath(home), [
-      codexRow({ access: "tok", expires: NOW + 300_000 }),
-    ]);
-    expect(await main(parseFlags(["--profile", await ledger()]), deps())).toBe(
-      EXIT.credential,
-    );
+  test("exits 0 with an env key", async () => {
+    Bun.env["ANTHROPIC_API_KEY"] = "sk-test";
+    try {
+      const code = await main(
+        parseFlags(["--profile", await ledger(), "--check"]),
+        deps(),
+      );
+      expect(code).toBe(EXIT.ok);
+      expect(lines.out).toEqual([
+        "Login: anthropic (ANTHROPIC_API_KEY). Model: anthropic/claude-sonnet-5.",
+      ]);
+    } finally {
+      delete Bun.env["ANTHROPIC_API_KEY"];
+    }
   });
 
   test("refuses a protected account before it takes a lock", async () => {
@@ -129,9 +149,7 @@ describe("main --check", () => {
   });
 
   test("refuses while another live harness holds the character", async () => {
-    writeOmpDb(ompDbPath(home), [
-      codexRow({ access: "tok", expires: NOW + 3_600_000 }),
-    ]);
+    await writeAuth("{}");
     const lockDir = join(harnessStateDir(home), "locks");
     await Bun.write(
       join(lockDir, "FACABC0123456-Fgklibhlflc.lock"),
@@ -148,9 +166,16 @@ describe("main --check", () => {
 
 describe("main without --check", () => {
   test("builds the run dir, starts Pi with the game tools and finishes on quit", async () => {
-    writeOmpDb(ompDbPath(home), [
-      codexRow({ access: "tok", expires: NOW + 3_600_000 }),
-    ]);
+    await writeAuth(
+      JSON.stringify({
+        "openai-codex": {
+          access: "tok",
+          expires: Date.now() + 3_600_000,
+          refresh: "r",
+          type: "oauth",
+        },
+      }),
+    );
     const profile = join(home, "ledger.json");
     await writeFile(
       profile,
@@ -194,15 +219,48 @@ describe("main without --check", () => {
       expect(text).not.toContain("zq-secret-pass");
     }
   });
+
+  test("with no login it still starts on the fallback model so /login can run", async () => {
+    const runDir = join(home, "run1");
+    let reached = false;
+    const starting: MainDeps = {
+      ...deps(),
+      interactive: async (runtime) => {
+        reached = true;
+        await runtime.dispose();
+      },
+    };
+    const flags = [
+      "--profile",
+      await ledger(),
+      "--run-dir",
+      runDir,
+      "--no-connect",
+    ];
+    expect(await main(parseFlags(flags), starting)).toBe(EXIT.ok);
+    expect(reached).toBe(true);
+    expect(lines.err).toEqual([NO_LOGIN]);
+    expect(lines.out).toEqual([LOGOUT_NOTICE]);
+    const meta = JSON.parse(readFileSync(join(runDir, "meta.json"), "utf8"));
+    expect(meta.model).toBe("openai-codex/gpt-6-luna");
+    expect(locks()).toEqual([]);
+  });
 });
 
 describe("main exit paths write endedAt and exitReason", () => {
   async function playing(
     interactive: MainDeps["interactive"],
   ): Promise<{ runDir: string; result: Promise<number> }> {
-    writeOmpDb(ompDbPath(home), [
-      codexRow({ access: "tok", expires: NOW + 3_600_000 }),
-    ]);
+    await writeAuth(
+      JSON.stringify({
+        "openai-codex": {
+          access: "tok",
+          expires: Date.now() + 3_600_000,
+          refresh: "r",
+          type: "oauth",
+        },
+      }),
+    );
     const runDir = join(home, "run1");
     const flags = [
       "--profile",
@@ -290,14 +348,21 @@ describe("main --check spell data", () => {
     for (const file of files) await writeFile(join(dir, file), "");
   }
 
-  function validLogin(): void {
-    writeOmpDb(ompDbPath(home), [
-      codexRow({ access: "tok", expires: NOW + 3_600_000 }),
-    ]);
+  async function validLogin(): Promise<void> {
+    await writeAuth(
+      JSON.stringify({
+        "openai-codex": {
+          access: "tok",
+          expires: Date.now() + 3_600_000,
+          refresh: "r",
+          type: "oauth",
+        },
+      }),
+    );
   }
 
   test("warns once per missing file and still passes the check", async () => {
-    validLogin();
+    await validLogin();
     const dir = join(home, "dbc");
     const present = REQUIRED_DBC_FILES.filter(
       (file) => file !== "Lock.dbc" && file !== "AreaTrigger.dbc",
@@ -314,7 +379,7 @@ describe("main --check spell data", () => {
   });
 
   test("is silent when every file is present", async () => {
-    validLogin();
+    await validLogin();
     const dir = join(home, "dbc");
     await seed(dir, REQUIRED_DBC_FILES);
     const code = await main(
@@ -326,7 +391,7 @@ describe("main --check spell data", () => {
   });
 
   test("is silent when spell_data_dir is unset", async () => {
-    validLogin();
+    await validLogin();
     const code = await main(
       parseFlags(["--profile", await ledger(), "--check"]),
       deps(),

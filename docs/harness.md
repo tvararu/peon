@@ -1,16 +1,19 @@
 # Pi harness
 
 The Pi harness is an interactive terminal agent that plays one World of
-Warcraft 3.3.5a character. A model (by default `openai-codex/gpt-6-luna`
-at thinking `off`) acts through its game tools. A human watches the same
+Warcraft 3.3.5a character. A model (from `--model`, else the first of
+`openai-codex/gpt-6-luna`, `anthropic/claude-sonnet-5` and
+`openai/gpt-6-luna` whose provider has a login) at thinking `off` acts
+through its game tools. A human watches the same
 terminal and can type to the agent at any time. The harness is built on
 `@peon/core` and is the only way to play Peon. The eval scenarios
 that grade it are in [evals.md](evals.md).
 
 ## Run it
 
-1. Log in to Codex once with omp (`omp`, provider `openai-codex`). The
-   harness reads that login and never refreshes it.
+1. Log in with `/login` inside the harness (stored in
+   `~/.config/peon/auth.json`, refreshed by Pi) or set a provider API key
+   such as `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`.
 2. Make a throwaway character. The command prints a JSON profile that
    holds a password, so keep the file private:
 
@@ -41,8 +44,11 @@ that grade it are in [evals.md](evals.md).
    logout. Then delete the character with
    `mise factory soap delete <ACCOUNT>`.
 
-To check the profile, the lock and the Codex login without a game
-connection, add `--check`. The harness prints one line and exits.
+To check the profile, the lock and the model login without a game
+connection, add `--check`. With a login it prints the logins and the model
+and exits 0; without one it prints
+`No model login found. Type /login in the harness, or set an API key such
+as ANTHROPIC_API_KEY or OPENAI_API_KEY.` and exits 3.
 
 ## Play your own character
 
@@ -119,7 +125,7 @@ The navigation data directory holds maps 0 (Azeroth), 1 (Kalimdor), 530 (Expansi
 |---|---|---|
 | `--profile <path>` | `~/.config/peon/config.toml` | The character to play: a soap session JSON, a soap ledger JSON, or a Peon `config.toml`. |
 | `--run-dir <path>` | `~/.local/state/peon-harness/runs/<utc>-<character>` | Where the run files go. The harness refuses a directory that already has `gamelog.jsonl`. |
-| `--model <provider/id>` | `openai-codex/gpt-6-luna` | The model from Pi's bundled catalog. |
+| `--model <provider/id>` | follows the login | The model from Pi's bundled catalog: `--model` when given, else the first of `openai-codex/gpt-6-luna`, `anthropic/claude-sonnet-5` and `openai/gpt-6-luna` whose provider has a login. |
 | `--thinking <level>` | `off` | The Pi thinking level. |
 | `--no-connect` | off | Start without a game connection. Use `/connect` later. |
 | `--wake on\|off` | `on` | When off, game events do not start an agent turn. |
@@ -129,21 +135,20 @@ The navigation data directory holds maps 0 (Azeroth), 1 (Kalimdor), 530 (Expansi
 | `--log-entities` | off | Writes raw entity rows to the game log. |
 | `--packet-trace off\|headers\|bodies` | `off` | `headers` writes one row per game packet to `packets.jsonl`; `bodies` adds each packet body in hex, including whisper and chat text. The login packet never has a body. The eval grader runs every eval with `headers`. |
 | `--extension <path>` | none | Loads a Pi extension file; repeat it for more. See [Extensions](#extensions). |
-| `--check` | off | Checks the profile, the extension paths, the lock and the Codex login, and warns about DBC files missing from `spell_data_dir`, then exits with code 0. |
+| `--check` | off | Checks the profile, the extension paths, the lock and the model login, and warns about DBC files missing from `spell_data_dir`, then exits with code 0 when a model is chosen and 3 without a login. |
 
 The harness reads no `WOW_*` variable. Only `--profile` (or its default
 `~/.config/peon/config.toml`) selects the character.
 
 ## Credentials and safety
 
-- **Codex login.** The harness reads the newest `openai-codex` login from
-  omp's database (`~/.omp/agent/agent.db`), read-only. At start it prints
-  `Codex login: valid until <time> UTC (omp).` When there is no login, or
-  when the login expires in less than 10 minutes, it prints what to do
-  and stops with exit code 3. Run omp once so that it refreshes the
-  login, then start the harness again. If the login expires during a
-  session, the next model call fails with the same advice. `/login` and
-  `/logout` do not change the login that the harness uses.
+- **Model login.** Log in with `/login` inside the harness (stored in
+  `~/.config/peon/auth.json`, refreshed by Pi) or set a provider API key
+  such as `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`. At start the harness
+  prints the logins and the chosen model. Without a login, `--check`
+  prints the no-login line and exits with exit code 3, and an interactive
+  start prints it and still starts on `openai-codex/gpt-6-luna` so `/login`
+  can run.
 - **Fight helper.** `engage` uses Jev for split-second fight decisions. Jev
   needs `TYPESAFE_API_KEY` in the environment. Without it, `engage`
   refuses with `no_combat_helper` and the footer shows a red `no-jev`
@@ -549,7 +554,7 @@ jq -c --arg run "$RUN" --argjson call "$CALL" -s '
 |---|---|
 | 0 | Normal exit, or `--check` passed. |
 | 2 | Bad flags, a bad or protected profile, or a held lock. |
-| 3 | No Codex login, or the login expires in less than 10 minutes. |
+| 3 | `--check` found no model login. An interactive start without a login prints the no-login line and still starts on `openai-codex/gpt-6-luna`. |
 | 1 | A fatal error. `meta.json` says `fatal_error`. |
 | 130 | SIGINT, for example Ctrl-C while the harness waits for the logout. `meta.json` says `sigint`. |
 | 129, 143 | SIGHUP or SIGTERM before Pi has started. After Pi starts, both log out and exit 0. |

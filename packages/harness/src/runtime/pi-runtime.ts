@@ -1,5 +1,5 @@
 import { mkdir } from "node:fs/promises";
-import type { CredentialStore, Provider } from "@earendil-works/pi-ai";
+import type { Provider } from "@earendil-works/pi-ai";
 import {
   type AgentSessionRuntime,
   type CreateAgentSessionRuntimeFactory,
@@ -7,7 +7,7 @@ import {
   createAgentSessionRuntime,
   createAgentSessionServices,
   type ExtensionFactory,
-  ModelRuntime,
+  type ModelRuntime,
   SessionManager,
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
@@ -17,7 +17,8 @@ import { seedManagedTools } from "#harness/runtime/managed-tools";
 
 export type PiRuntimeInit = {
   runtime: HarnessRuntime;
-  credentials: CredentialStore;
+  models: ModelRuntime;
+  model: string;
   agentDir: string;
   extensions: readonly InlineExtension[];
   extensionPaths?: readonly string[];
@@ -49,6 +50,8 @@ export async function createPiRuntime(
   await mkdir(workspace, { recursive: true });
   await mkdir(piSessions, { recursive: true });
   await seedManagedTools(init.agentDir);
+  for (const provider of init.providers ?? [])
+    init.models.registerNativeProvider(provider);
   const sessionManager = SessionManager.create(workspace, piSessions);
   return createAgentSessionRuntime(sessionFactory(init), {
     agentDir: init.agentDir,
@@ -58,13 +61,11 @@ export async function createPiRuntime(
 }
 
 function sessionFactory(init: PiRuntimeInit): CreateAgentSessionRuntimeFactory {
-  const { flags } = init.runtime;
-  const ref = splitModel(flags.model);
+  const ref = splitModel(init.model);
   return async ({ cwd, agentDir, sessionManager, sessionStartEvent }) => {
-    const modelRuntime = await createModels(init);
-    const model = modelRuntime.getModel(ref.provider, ref.id);
+    const model = init.models.getModel(ref.provider, ref.id);
     if (!model)
-      throw new Error(`The model ${flags.model} is not in the Pi catalog.`);
+      throw new Error(`The model ${init.model} is not in the Pi catalog.`);
     const settingsManager = SettingsManager.inMemory({
       compaction: { enabled: false },
       quietStartup: true,
@@ -78,7 +79,7 @@ function sessionFactory(init: PiRuntimeInit): CreateAgentSessionRuntimeFactory {
     const services = await createAgentSessionServices({
       agentDir,
       cwd,
-      modelRuntime,
+      modelRuntime: init.models,
       resourceLoaderOptions,
       settingsManager,
     });
@@ -88,19 +89,8 @@ function sessionFactory(init: PiRuntimeInit): CreateAgentSessionRuntimeFactory {
       services,
       sessionManager,
       sessionStartEvent,
-      thinkingLevel: flags.thinking,
+      thinkingLevel: init.runtime.flags.thinking,
     });
     return { ...created, diagnostics: services.diagnostics, services };
   };
-}
-
-async function createModels(init: PiRuntimeInit): Promise<ModelRuntime> {
-  const models = await ModelRuntime.create({
-    credentials: init.credentials,
-    modelsPath: null,
-    refreshOnCreate: false,
-  });
-  for (const provider of init.providers ?? [])
-    models.registerNativeProvider(provider);
-  return models;
 }

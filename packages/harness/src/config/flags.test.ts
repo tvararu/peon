@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
 import {
-  DEFAULT_MODEL,
   defaultProfilePath,
   harnessStateDir,
   parseFlags,
@@ -17,7 +16,7 @@ describe("parseFlags", () => {
       extensions: [],
       glyphs: undefined,
       logEntities: false,
-      model: DEFAULT_MODEL,
+      model: undefined,
       nowPerCall: false,
       packetTrace: "off",
       profile: "/p.json",
