@@ -178,6 +178,7 @@ async function cycle(scene: Scene): Promise<ModeEnd> {
     error: end?.error,
     jev: stopCause === JEV_UNAVAILABLE ? JEV_UNAVAILABLE : undefined,
     stopCause,
+    stopDetail: end?.state.stopDetail,
   };
 }
 

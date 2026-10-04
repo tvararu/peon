@@ -20,6 +20,7 @@ const NO_XP: Record<string, string> = {
   no_xp_kill: "no kill XP from the server",
 };
 const PLAIN: Record<string, string> = {
+  attacker_unreachable: "is still attacking but cannot be reached",
   died: "you died",
   engaged_by_other: "fighting another player",
   "loot_denied:loot_source_unavailable":

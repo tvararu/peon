@@ -85,6 +85,23 @@ describe("engage stop reasons", () => {
       `0 of 3 kills: ${a} and ${b} died; no XP to you (another player's tap or a gray target), ${c} could not be reached. You: HP`,
     );
   });
+  test("a beset unreachable stop ends REFUSED with the cause", async () => {
+    const t = await field();
+    cycleEnds(
+      t.handle,
+      [blocked(STALKER, "target_unreachable")],
+      "attacker_unreachable",
+      { ref: STALKER },
+    );
+    const res = await engageSpec.run(
+      { count: 2, target: "Springpaw Stalker" },
+      toolCtx<EngageAfter>(t),
+    );
+    expect(res).toMatchObject({
+      reason: "attacker_unreachable",
+      status: "REFUSED",
+    });
+  });
 
   test("a denied loot after kills keeps PARTLY and says what is left", async () => {
     const t = await field();
