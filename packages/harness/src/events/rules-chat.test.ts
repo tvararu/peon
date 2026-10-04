@@ -1,6 +1,7 @@
 import { describe, expect, jest, test } from "bun:test";
 import { type ChatMessage, ChatType } from "@peon/core";
 import type { RunEnd } from "#harness/contract/runs";
+import { createDealings, noteDealt, noteHuman } from "#harness/events/dealings";
 import { createWakeGuard } from "#harness/events/guard";
 import { createEventRouter } from "#harness/events/router";
 import {
@@ -42,10 +43,29 @@ describe("chatDrafts", () => {
       },
       domain: "chat",
       event: "chat/in",
-      text: 'Whisper from Kaelyn: "hey, what level are you?"',
+      text: 'Whisper from Kaelyn: "hey, what level are you?" (unsolicited: no one named Kaelyn, and you have not dealt with them)',
     });
   });
 
+  test("a whisper from a player the agent dealt with is not flagged", () => {
+    const rc = testRuleInput();
+    noteDealt(rc.dealings, "Kaelyn");
+    const [draft] = chatDrafts(
+      msg(ChatType.WHISPER, "Kaelyn", "thanks for the water"),
+      rc,
+    );
+    expect(draft?.text).toBe('Whisper from Kaelyn: "thanks for the water"');
+  });
+
+  test("a whisper from a player the human named is not flagged", () => {
+    const rc = testRuleInput();
+    noteHuman(rc.dealings, "Wait for Kaelyn and give them water.");
+    const [draft] = chatDrafts(
+      msg(ChatType.WHISPER, "Kaelyn", "need water please"),
+      rc,
+    );
+    expect(draft?.text).toBe('Whisper from Kaelyn: "need water please"');
+  });
   test("own echoes never rise above log", () => {
     expect(
       one(msg(ChatType.WHISPER_INFORM, "Kaelyn", "I'm level 10.")),
@@ -150,7 +170,7 @@ describe("chatDrafts", () => {
       ),
     ).toMatchObject({
       data: { text: "sell me [Discolored Fang] pls" },
-      text: 'Whisper from Kaelyn: "sell me [Discolored Fang] pls"',
+      text: 'Whisper from Kaelyn: "sell me [Discolored Fang] pls" (unsolicited: no one named Kaelyn, and you have not dealt with them)',
     });
     expect(
       one(msg(ChatType.SYSTEM, "", "|cffff0000Bob|r has invited you.")),
@@ -265,6 +285,7 @@ describe("router with chat rules", () => {
         lastHitAt: () => undefined,
       },
       context: () => ({
+        dealings: createDealings(),
         now: 5000,
         refOf: (guid) => `u${guid}`,
         runActive: true,

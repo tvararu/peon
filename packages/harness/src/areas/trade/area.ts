@@ -1,6 +1,7 @@
 import type { AreaEventOf } from "@peon/core";
 import type { AreaDraft } from "#harness/areas/contract";
 import { defineHarnessArea } from "#harness/areas/contract";
+import { standingNote } from "#harness/events/dealings";
 import { guidText, type RuleInput } from "#harness/events/rules";
 
 type TradeEvent = AreaEventOf<"trade">;
@@ -51,13 +52,19 @@ function completedRow(event: Completed, rc: RuleInput): AreaDraft {
 
 function requestedRow(event: TradeEvent, rc: RuleInput): AreaDraft {
   if (event.type !== "requested") throw new Error("trade_requested_expected");
+  const name = player(event.from, rc);
+  const note = standingNote(rc.dealings, name);
+  const text =
+    note === undefined
+      ? `${name} wants to trade with you.`
+      : `${name} wants to trade with you; ${note}.`;
   return {
     class: "wake",
     data: { from: guidText(event.from) },
     guid: guidText(event.from),
     name: "requested",
     ref: rc.refOf(event.from),
-    text: `${player(event.from, rc)} wants to trade with you.`,
+    text,
   };
 }
 

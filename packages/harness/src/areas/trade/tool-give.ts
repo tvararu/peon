@@ -165,11 +165,11 @@ function tradeEnd(
           .catch(ignoreFailure);
       throw error;
     }
-    if (settled.status !== "ok") throw refusalFor(settled, "give");
+    if (settled.status !== "ok") throw refusalFor(settled, "give", offer.name);
     const last = ctx.handle.trade.state().lastOutcome;
     const detail =
       last?.kind === "completed"
-        ? await completedText(ctx, last, signal)
+        ? await completedText(ctx, last, signal, offer.name)
         : gaveDetail(offer);
     return {
       status: "succeeded",
@@ -217,7 +217,7 @@ export async function runGive(
         ? "The human wrote a message. Read it before you act."
         : "still waiting; end your turn and the run keeps going.",
     ],
-    detail: `giving to ${seen}; run ${run.id} keeps going. End your turn, or ${nextCall("stop", { run: run.id })}.`,
+    detail: `Giving to ${seen}; run ${run.id} keeps going. End your turn, or ${nextCall("stop", { run: run.id })}.`,
     runId: run.id,
   });
 }

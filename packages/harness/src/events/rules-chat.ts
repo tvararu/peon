@@ -5,6 +5,7 @@ import {
   type GroupEvent,
 } from "@peon/core";
 import type { LogClass, LogDraft, LogEvent } from "#harness/contract/log";
+import { hasDealt } from "#harness/events/dealings";
 import type { Drafts, RuleInput } from "#harness/events/rules";
 
 const WAKE_TYPES = new Set<number>([
@@ -72,8 +73,16 @@ function chatClass({ type, message }: ChatMessage, rc: RuleInput): LogClass {
   return "log";
 }
 
-function chatText({ type, sender, message, channel }: ChatMessage): string {
-  if (WHISPERS.has(type)) return `Whisper from ${sender}: "${message}"`;
+function chatText(
+  { type, sender, message, channel }: ChatMessage,
+  rc: RuleInput,
+): string {
+  if (WHISPERS.has(type)) {
+    const base = `Whisper from ${sender}: "${message}"`;
+    return hasDealt(rc.dealings, sender)
+      ? base
+      : `${base} (unsolicited: no one named ${sender}, and you have not dealt with them)`;
+  }
   if (type === ChatType.SYSTEM) return `[system] ${message}`;
   if (EMOTES.has(type)) return `${sender} ${message}`;
   const tag = TAGS.get(type) ?? channel;
@@ -101,7 +110,7 @@ export function chatDrafts(raw: ChatMessage, rc: RuleInput): Drafts {
       ),
     ];
   if (sender === rc.selfName)
-    return [chatOut({ ...base, self: true }, chatText(msg))];
+    return [chatOut({ ...base, self: true }, chatText(msg, rc))];
   const data = { ...base, self: false };
   return [
     {
@@ -109,7 +118,7 @@ export function chatDrafts(raw: ChatMessage, rc: RuleInput): Drafts {
       data,
       domain: "chat",
       event: "chat/in",
-      text: chatText(msg),
+      text: chatText(msg, rc),
     },
   ];
 }

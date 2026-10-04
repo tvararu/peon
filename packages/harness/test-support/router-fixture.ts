@@ -1,12 +1,12 @@
 import { jest } from "bun:test";
 import type { HarnessFlags } from "#harness/contract/config";
 import type { AttackLedger, JsonlSink } from "#harness/contract/services";
+import { createDealings } from "#harness/events/dealings";
 import { createWakeGuard } from "#harness/events/guard";
 import { createEventRouter } from "#harness/events/router";
 import type { RuleContext } from "#harness/events/rules";
 import { createGameLog, createJsonlSink } from "#harness/log/store";
 import { createRunRegistry } from "#harness/runs/registry";
-
 export const testFlags: HarnessFlags = {
   check: false,
   connect: true,
@@ -46,6 +46,7 @@ export function routerSetup(over: Partial<RuleContext> = {}) {
     lastHitAt: () => undefined,
   };
   const context = (): RuleContext => ({
+    dealings: createDealings(),
     now,
     refOf: (guid) => `u${guid}`,
     runActive: false,

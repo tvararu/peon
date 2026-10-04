@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { AreaEvent } from "@peon/core";
 import { areaDrafts, areaRuleSet } from "#harness/areas/rules";
+import { tradeHarness } from "#harness/areas/trade/area";
+import { noteHuman } from "#harness/events/dealings";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
 function trade(event: unknown): AreaEvent {
@@ -33,6 +35,26 @@ describe("trade harness rules", () => {
     expect(rows[0]?.text).toContain("Unit9");
   });
 
+  test("a requested trade says whether the human named the requester", () => {
+    const named = input();
+    noteHuman(named.dealings, "Wait for Unit9 and take their water.");
+    const [hit] = areaDrafts(
+      areaRuleSet(),
+      trade({ from: 9n, type: "requested" }),
+      named,
+    );
+    expect(hit?.text).toContain("Unit9");
+    expect(hit?.text).toContain("the human's task names Unit9");
+    const other = input();
+    noteHuman(other.dealings, "Wait for Unit10 and take their water.");
+    const [miss] = areaDrafts(
+      areaRuleSet(),
+      trade({ from: 9n, type: "requested" }),
+      other,
+    );
+    expect(miss?.text).toContain("Unit9");
+    expect(miss?.text).toContain("does not name Unit9");
+  });
   test("opened and offer_changed write log rows", () => {
     const opened = areaDrafts(
       areaRuleSet(),

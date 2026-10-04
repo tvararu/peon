@@ -53,8 +53,14 @@ describe("trade show", () => {
     expect(out.body.join("\n")).toContain("version 2");
     expect(t.acts.requestTrade).not.toHaveBeenCalled();
   });
-});
 
+  test("show names the player who requested the open trade", async () => {
+    const t = await world();
+    tradeState(t.handle, { from: PARTNER, phase: "requested_in" });
+    const out = await tradeSpec.run({ do: "show" }, toolCtx(t));
+    expect(out.detail).toContain("Fgkllpgpdnj");
+  });
+});
 describe("trade give", () => {
   test("give requests, offers each item and gold, then accepts the seen version", async () => {
     const t = await world();
@@ -201,13 +207,13 @@ describe("trade give", () => {
 describe("trade answer, offer, accept and cancel", () => {
   test("answer yes and busy call answerTrade", async () => {
     const t = await world();
-    tradeState(t.handle, { phase: "requested_in" });
-    await tradeSpec.run({ accept: true, do: "answer" }, toolCtx(t));
+    tradeState(t.handle, { from: PARTNER, phase: "requested_in" });
+    const yes = await tradeSpec.run({ accept: true, do: "answer" }, toolCtx(t));
     expect(t.acts.answerTrade).toHaveBeenCalledWith("yes");
+    expect(yes.detail).toContain("Fgkllpgpdnj");
     await tradeSpec.run({ accept: false, do: "answer" }, toolCtx(t));
     expect(t.acts.answerTrade).toHaveBeenCalledWith("busy");
   });
-
   test("offer matches the named items and gold, withdrawing the rest", async () => {
     const t = await world();
     tradeState(t.handle, {
@@ -254,13 +260,14 @@ describe("trade answer, offer, accept and cancel", () => {
     });
   });
 
-  test("cancel calls cancelTrade", async () => {
+  test("cancel calls cancelTrade and names the partner", async () => {
     const t = await world();
+    tradeState(t.handle, { phase: "open", with: PARTNER });
     const out = await tradeSpec.run({ do: "cancel" }, toolCtx(t));
     expect(t.acts.cancelTrade).toHaveBeenCalled();
     expect(out.status).toBe("DONE");
+    expect(out.detail).toContain("Fgkllpgpdnj");
   });
-
   test("a give that waits registers a trade run", async () => {
     const t = await world();
     const started = jest.spyOn(t.rt.runs, "start");

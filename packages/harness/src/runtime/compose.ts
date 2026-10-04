@@ -11,6 +11,7 @@ import type {
   TravelMemory,
 } from "#harness/contract/services";
 import { createToolStats } from "#harness/eval/stats";
+import { createDealings } from "#harness/events/dealings";
 import { createWakeGuard } from "#harness/events/guard";
 import { createEventRouter } from "#harness/events/router";
 import type { RuleContext } from "#harness/events/rules";
@@ -75,6 +76,7 @@ export function composeRuntime({
   const shared = {
     attacks,
     clock,
+    dealings: createDealings(),
     flags,
     jevLog,
     log,
@@ -183,6 +185,7 @@ function built(rt: HarnessRuntime | undefined): HarnessRuntime {
 function ruleContext(rt: HarnessRuntime): RuleContext {
   const selfGuid = rt.handle()?.getControlState().selfGuid ?? 0n;
   return {
+    dealings: rt.dealings,
     now: rt.clock.now(),
     refOf: (guid) => rt.refs.refOf(guid),
     runActive: rt.runs.active() !== undefined,

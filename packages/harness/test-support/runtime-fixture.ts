@@ -26,6 +26,7 @@ import type {
   ToolStats,
   WorldSnapshots,
 } from "#harness/contract/services";
+import { createDealings } from "#harness/events/dealings";
 import { Refusal } from "#harness/ops/refusal";
 import { createHarnessRuntime } from "#harness/runtime/harness-runtime";
 import { createWorldMutex } from "#harness/runtime/mutex";
@@ -153,6 +154,7 @@ function defaultParts({
       lastHitAt: () => undefined,
     } satisfies AttackLedger,
     clock,
+    dealings: createDealings(),
     flags,
     jevLog: memorySink(),
     log,

@@ -24,26 +24,33 @@ export async function runAnswer(
   args: TradeArgs,
   ctx: TradeCtx,
 ): Promise<ToolResult<TradeAfter>> {
-  if (ctx.handle.trade.state().phase !== "requested_in")
+  const live = ctx.handle.trade.state();
+  if (live.phase !== "requested_in")
     throw refusalOf(
       "no_request",
       "No trade request is pending.",
       "end your turn and wait for a trade request.",
     );
+  const requester =
+    live.from === undefined ? undefined : playerName(ctx, live.from);
   const answer = args.accept === false ? "busy" : "yes";
   const outcome = await ctx.rt.mutex.run(() =>
     ctx.handle.trade.act.answerTrade(answer),
   );
+  const after = afterOf("answer", { with: requester });
   if (
     args.accept === false &&
     outcome.status === "refused" &&
     (outcome.reason === "busy" || outcome.reason === "trade_canceled")
   )
     return result("DONE", {
-      after: afterOf("answer"),
-      detail: "Declined the trade.",
+      after,
+      detail:
+        requester === undefined
+          ? "Declined the trade."
+          : `Declined the trade with ${requester}.`,
     });
-  return settleOutcome(outcome, "answer", afterOf("answer"));
+  return settleOutcome(outcome, "answer", after);
 }
 type OccupiedSlot = { bag: number; guid: bigint; slot: number };
 
@@ -131,8 +138,10 @@ export async function runAccept(
   args: TradeArgs,
   ctx: TradeCtx,
 ): Promise<ToolResult<TradeAfter>> {
-  throwUnlessOpen(ctx);
-  const version = args.version ?? ctx.handle.trade.state().theirOffer.version;
+  const live = throwUnlessOpen(ctx);
+  const partner =
+    live.with === undefined ? undefined : playerName(ctx, live.with);
+  const version = args.version ?? live.theirOffer.version;
   let outcome: Settled;
   try {
     outcome = await ctx.rt.mutex.run(() =>
@@ -148,22 +157,32 @@ export async function runAccept(
     throw error;
   }
   if (outcome.status !== "ok")
-    return settleOutcome(outcome, "accept", afterOf("accept", { version }));
+    return settleOutcome(
+      outcome,
+      "accept",
+      afterOf("accept", { version, with: partner }),
+    );
   const last = ctx.handle.trade.state().lastOutcome;
   const detail =
     last?.kind === "completed"
-      ? await completedText(ctx, last, ctx.signal)
+      ? await completedText(ctx, last, ctx.signal, partner)
       : `Trade with ${playerName(ctx, ctx.handle.trade.state().with ?? 0n)} accepted.`;
-  return result("DONE", { after: afterOf("accept", { version }), detail });
+  return result("DONE", {
+    after: afterOf("accept", { version, with: partner }),
+    detail,
+  });
 }
 
 export async function runCancel(
   ctx: TradeCtx,
 ): Promise<ToolResult<TradeAfter>> {
+  const live = ctx.handle.trade.state();
+  const partner =
+    live.with === undefined ? undefined : playerName(ctx, live.with);
   const outcome = await ctx.rt.mutex.run(() =>
     ctx.handle.trade.act.cancelTrade(),
   );
-  return settleOutcome(outcome, "cancel", afterOf("cancel"));
+  return settleOutcome(outcome, "cancel", afterOf("cancel", { with: partner }));
 }
 
 function stateLines(ctx: TradeCtx, state: TradeState): string[] {
@@ -177,13 +196,19 @@ function stateLines(ctx: TradeCtx, state: TradeState): string[] {
 
 export async function runShow(ctx: TradeCtx): Promise<ToolResult<TradeAfter>> {
   const state = ctx.handle.trade.state();
-  if (state.phase !== "open") {
-    const past = await lastCompletedLine(ctx, ctx.signal);
+  const requester =
+    state.from === undefined ? undefined : playerName(ctx, state.from);
+  const partner =
+    state.with === undefined ? undefined : playerName(ctx, state.with);
+  if (state.phase === "requested_in" && requester !== undefined)
     return result("DONE", {
-      after: afterOf("show", {
-        with:
-          state.with === undefined ? undefined : playerName(ctx, state.with),
-      }),
+      after: afterOf("show", { with: requester }),
+      detail: `${requester} requested a trade with you; answer it first.`,
+    });
+  if (state.phase !== "open") {
+    const past = await lastCompletedLine(ctx, ctx.signal, partner);
+    return result("DONE", {
+      after: afterOf("show", { with: partner }),
       body: past === undefined ? [] : [past],
       detail: "No trade is open.",
     });
@@ -192,7 +217,7 @@ export async function runShow(ctx: TradeCtx): Promise<ToolResult<TradeAfter>> {
     after: afterOf("show", {
       gold: state.ownOffer.gold,
       version: state.theirOffer.version,
-      with: state.with === undefined ? undefined : playerName(ctx, state.with),
+      with: partner,
     }),
     body: stateLines(ctx, state),
     detail: `Trade with ${playerName(ctx, state.with ?? 0n)}: ${offerLine(ctx, state.ownOffer)}.`,
