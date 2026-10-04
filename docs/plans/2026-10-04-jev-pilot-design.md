@@ -252,17 +252,22 @@ replica.
 | 7683 | Jev hugged the fence | turning to face a close fence was masked, and the frame never said a jump was the short way | line-to-goal status; facing turns and run-up text |
 | 7683 | Detour froze on refused strafes | the frame and the mover used different step checks | one free step shared by both |
 | 7684 | Landed jumps graded missing | the run ended mid-jump; a later empty `pilot` call was graded | landings counted after the end; grade the run that moved |
+| 7685 | Held-out circle failed `only-pilot` | the agent fought off a wandering mob after the lap; the check counted any movement tool all session | count movement runs that start before the pilot run ends |
+| 7685 | Held-out fence passed from the near side | its goal sat 2 yd past the fence, inside the arrival radius from the near side | goal moved 6 yd past the fence |
+| 7686 | Held-out fence stepped over, no jump | a review fix let key moves climb 1 yd risers, which turns a 1 yd fence with a floor-like rail into a step | reverted: key moves keep the no-climb check that directed walks use |
 
-Round 7684, at harness commits `ed04f969` to `01315012` (the later commits
-change only the grader): 18 of 18 replicas pass, 3 per scenario. Every
-call is answered by `jev-1.13.0`, at 3.6–5.2 decisions a second, p50
-196–222 ms, p90 212–300 ms. There are no server corrections, and no
-decision-to-decision segment crosses a wall in the collision data.
+Round 7687, at harness commit `2c82b355` for every replica: 18 of 18
+pass, 3 per scenario. Every call is answered by `jev-1.13.0`, at 3.7–5.0
+decisions a second (median 4.5), p50 198–225 ms, p90 214–280 ms. There are
+no server corrections, and no decision-to-decision segment crosses a wall
+in the collision data.
 
 The training detour runs also took one Jev-chosen jump each, over a low
 obstacle on their way around. Text tuning has no headroom left on these
 tasks. The next objectives are latency and decision count, or harder tasks
-(kiting).
+(kiting). Key moves allow no climb, so a stair riser that blocks the ray
+0.25 yd above the ground stops them. Telling a stair from a fence (a floor
+that continues past the riser) is open.
 
 ## Out of scope
 
