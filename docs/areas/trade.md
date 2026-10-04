@@ -35,7 +35,10 @@ The acts:
   request `refused`, while `cancelTrade` settles it `ok`.
 - `answerTrade("yes" | "busy" | "ignore")` answers a request in
   `requested_in` with `CMSG_BEGIN_TRADE`, `CMSG_BUSY_TRADE` or
-  `CMSG_IGNORE_TRADE`. It throws `no_request` in any other phase.
+  `CMSG_IGNORE_TRADE`. It throws `no_request` in any other phase. The
+  `trade` tool `answer` verb refuses `no_request` without sending when no
+  request is pending; the repeat guard lets the same call run again once
+  the `trade/requested` row arrives.
 - `offerItem(tradeSlot, bag, slot)` sends `CMSG_SET_TRADE_ITEM` and records
   the own slot from `readInventory`. It throws for trade slot 6 or above
   (`TRADE_SLOT_TRADED_COUNT` is 6 in `Entities/Player/TradeData.h`), an

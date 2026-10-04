@@ -72,6 +72,7 @@ test("an offer swaps two offered items without a duplicate-slot error", async ()
 
 test("an answer decline that the server cancels settles DONE", async () => {
   const t = await world();
+  tradeState(t.handle, { phase: "requested_in" });
   t.acts.answerTrade.mockResolvedValue({
     reason: "trade_canceled",
     status: "refused",
@@ -82,6 +83,7 @@ test("an answer decline that the server cancels settles DONE", async () => {
 
 test("an answer decline that the server refuses busy settles DONE", async () => {
   const t = await world();
+  tradeState(t.handle, { phase: "requested_in" });
   t.acts.answerTrade.mockResolvedValue({ reason: "busy", status: "refused" });
   const out = await tradeSpec.run({ accept: false, do: "answer" }, toolCtx(t));
   expect(out.status).toBe("DONE");
