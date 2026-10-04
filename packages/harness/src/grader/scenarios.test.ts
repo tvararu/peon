@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { observeGameLog } from "#harness/grader/draft-gamelog";
 import {
   loadScenario,
   parseScenario,
@@ -351,5 +352,83 @@ describe("checks measure what they name", () => {
     expect(scenario.spawn).toBe("eversong-ready");
     expect(scenario.task).toContain("Springpaw Stalker");
     expect(scenario.task).not.toContain("Lynx");
+  });
+});
+
+describe("t9-lfg-queue when bots fill the queue", () => {
+  test("the wait check is met by a queue row or by the proposal that pre-empts it", () => {
+    const scenario = loadScenario("t9-lfg-queue");
+    const wait = scenario.checks.find((entry) => entry.id === "wait-row");
+    const events = wait?.evidence?.events ?? [];
+    expect(events).toContain("lfg/queue");
+    expect(events).toContain("lfg/proposal");
+    expect(events).toContain("lfg/queued");
+  });
+
+  test("queued and left stay required", () => {
+    const scenario = loadScenario("t9-lfg-queue");
+    const queued = scenario.checks.find((entry) => entry.id === "queued");
+    const left = scenario.checks.find((entry) => entry.id === "left");
+    expect(queued?.evidence?.events).toEqual(["lfg/queued"]);
+    expect(left?.evidence?.events).toEqual(["lfg/left"]);
+  });
+});
+
+describe("t9-lfg-queue wait evidence", () => {
+  const waitCheck = () => {
+    const check = loadScenario("t9-lfg-queue").checks.find(
+      (entry) => entry.id === "wait-row",
+    );
+    if (check === undefined) throw new Error("wait-row missing");
+    return check;
+  };
+  const row = (
+    line: number,
+    event: string,
+    ts: number,
+    data: unknown = {},
+  ) => ({
+    data,
+    event,
+    line,
+    seq: line,
+    text: event,
+    ts,
+  });
+
+  test("a queue row that follows the proposal stays visible beside the join and proposal timing", () => {
+    const observed = observeGameLog(
+      [
+        row(20, "lfg/join_result", 1000),
+        row(21, "lfg/queued", 1000),
+        row(26, "lfg/proposal", 1027),
+        row(28, "lfg/queue", 1528, { dungeon: 1, queuedTime: 1 }),
+        row(40, "lfg/left", 3000),
+      ],
+      waitCheck(),
+    );
+    expect(observed?.rows.map((entry) => entry.event)).toEqual([
+      "lfg/join_result",
+      "lfg/queued",
+      "lfg/proposal",
+      "lfg/queue",
+    ]);
+  });
+
+  test("a run with no queue row shows the join and proposal timing alone", () => {
+    const observed = observeGameLog(
+      [
+        row(16, "lfg/join_result", 1000),
+        row(17, "lfg/queued", 1000),
+        row(22, "lfg/proposal", 1006),
+        row(44, "lfg/left", 3000),
+      ],
+      waitCheck(),
+    );
+    expect(observed?.rows.map((entry) => entry.event)).toEqual([
+      "lfg/join_result",
+      "lfg/queued",
+      "lfg/proposal",
+    ]);
   });
 });

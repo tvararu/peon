@@ -144,6 +144,10 @@ grades the first self-resurrection from the game log: it is met when a
 between them. A later death, which the single Ankh cannot cover, does not
 unmeet it.
 
+`t9-lfg-queue` keeps `queued` and `left` required and grades the wait on the rows the server sends in either case. An `lfg/queue` row that arrived before the answer is authoritative, with its reported wait matching the row's queuedTime: the proposal path calls LFGQueue::RemoveFromQueue with partial true (src/server/game/DungeonFinding/LFGQueue.cpp:469-471), which keeps the QueueDataStore entry (src/server/game/DungeonFinding/LFGQueue.cpp:50-84), so UpdateQueueTimers still sends the status for it (src/server/game/DungeonFinding/LFGQueue.cpp:478-576).
+
+The queued status the timers send through WorldSession::SendLfgQueueStatus is `SMSG_LFG_QUEUE_STATUS` (src/server/game/Handlers/LFGHandler.cpp:456-473). Only a run with no `lfg/queue` row before the answer falls back to an `lfg/queued` row followed within seconds by an `lfg/proposal` row, grounded in the join/proposal timing, which is 0 s.
+
 ## The second character
 
 Scenarios with a `partner` or a witness (`t2-whisper-reply`,
