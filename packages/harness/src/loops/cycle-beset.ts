@@ -1,6 +1,7 @@
 import { type CycleStop, cycleStop } from "#harness/loops/cycle-stop";
 
 const UNREACHABLE = "target_unreachable";
+const MAX_TRIES = 2;
 
 export type BesetRecord = {
   cause?: string;
@@ -16,12 +17,26 @@ export function besetStop(
   const victim = queue.find(
     (entry) =>
       entry.status === "skipped" &&
-      (entry.cause === UNREACHABLE || entry.outcome?.reason === UNREACHABLE) &&
+      unreachable(entry) &&
       attackers?.includes(entry.guid),
   );
   return victim === undefined
     ? undefined
     : cycleStop("attacker_unreachable", { ref: victim.guid });
+}
+
+function unreachable(entry: BesetRecord): boolean {
+  return entry.cause === UNREACHABLE || entry.outcome?.reason === UNREACHABLE;
+}
+
+function spent(queue: readonly BesetRecord[], guid: bigint): boolean {
+  const tries = queue.filter(
+    (entry) => entry.guid === guid && entry.status !== "queued",
+  );
+  return (
+    tries.length >= MAX_TRIES ||
+    tries.some((entry) => entry.status === "done" || unreachable(entry))
+  );
 }
 
 export function attackerFirst<T extends BesetRecord>(
@@ -32,11 +47,7 @@ export function attackerFirst<T extends BesetRecord>(
 ): void {
   const current = queue[index]?.guid;
   const guid = attackers?.find(
-    (candidate) =>
-      candidate !== current &&
-      !queue.some(
-        (entry) => entry.guid === candidate && entry.status !== "queued",
-      ),
+    (candidate) => candidate !== current && !spent(queue, candidate),
   );
   if (guid === undefined) return;
   const later = queue.findIndex(

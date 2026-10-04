@@ -94,3 +94,38 @@ test("fights the attacker at low health, then stops instead of pulling", async (
   expect(starts).toEqual([LYNX_U59, LYNX_U58]);
   expect(state.stopCause).toBe("low_health");
 });
+
+test("re-engages a line-of-sight skipped unit that came to attack", async () => {
+  const starts: bigint[] = [];
+  const attackers: bigint[] = [];
+  const runtime = makeCycle({
+    attackers: () => attackers,
+    control: fakeControl(),
+    loot: fakeLoot({}),
+    now: () => 0,
+    recovery: fakeRecovery({ life: ["alive"] }),
+    tactics: {
+      start: async (ctx) => {
+        starts.push(ctx.targetGuid);
+        attackers.length = 0;
+        if (starts.length === 1) attackers.push(ctx.targetGuid);
+      },
+      stop: () => {},
+      snapshot: () => ({
+        lastOutcome:
+          starts.length === 1
+            ? {
+                status: "blocked" as const,
+                reason: "server_action_rejected:line_of_sight",
+              }
+            : { status: "completed" as const, reason: "server_kill_credit" },
+      }),
+    },
+  });
+  await runtime.start({
+    guids: [LYNX_U59, LYNX_U61],
+    instruction: "fight",
+    maxStarts: 3,
+  });
+  expect(starts).toEqual([LYNX_U59, LYNX_U59, LYNX_U61]);
+});
