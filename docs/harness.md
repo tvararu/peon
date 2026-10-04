@@ -323,7 +323,9 @@ Held keys combine, so `W` with `A` walks in a curve. Each half-yard step
 of a key move checks the ground and the collision geometry from the game
 files (doodads such as trees and fences, and buildings), so the character
 stops at a wall or fence instead of walking through it, and has to jump a
-low one. A terminal that
+low one. The check allows no climb, as directed walks do, so a stair riser
+that blocks the ray 0.25 yd above the ground also stops a key move. A
+terminal that
 reports key releases (the kitty keyboard protocol) stops a key when you
 let go. Other terminals only repeat a held key, so the harness keeps it
 held for 0.6 s after the first press and 0.25 s after each repeat; the

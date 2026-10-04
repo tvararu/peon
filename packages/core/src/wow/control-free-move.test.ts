@@ -86,29 +86,6 @@ test("a key move stops at a wall on flat ground instead of walking through it", 
   });
 });
 
-test("a key move steps up a stair riser the low ray alone cannot clear", () => {
-  faked(() => {
-    const riserX = START_X + FORWARD_X / 2 + 0.05;
-    const top = 70.34 + 0.8;
-    const { runtime, advance } = setup({
-      ground: oracle({
-        height: (_mapId, x) => (x < riserX ? 70.34 : top),
-        pathClear: (_mapId, a, b) => {
-          if ((a.x - riserX) * (b.x - riserX) > 0 || a.x === b.x) return true;
-          const t = (riserX - a.x) / (b.x - a.x);
-          return a.z + (b.z - a.z) * t >= top;
-        },
-      }),
-    });
-    runtime.move("forward", 1000);
-    advance(500);
-    const pose = must(runtime.snapshot().pose);
-    expect(runtime.snapshot().blockedReason).toBeUndefined();
-    expect(pose.x).toBeGreaterThan(riserX);
-    expect(pose.z).toBeCloseTo(top, 4);
-  });
-});
-
 test("a leg follows sloped ground a half yard at a time", () => {
   faked(() => {
     const slope = (x: number) => 70.34 + (x - START_X) * 0.5;
