@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import type { AreaEventOf, AreaState } from "@peon/core";
 import type { AreaDraft } from "#harness/areas/contract";
 import { petsHarness } from "#harness/areas/pets/area";
+import { areaRuleSet, attachDrafts } from "#harness/areas/rules";
 import type { RuleInput } from "#harness/events/rules";
+import { createMockGame } from "#test-support/mock-game";
 import { testLookup, testRuleInput } from "#test-support/rule-fixtures";
 
 type PetsEvent = AreaEventOf<"pets">;
@@ -110,11 +112,36 @@ describe("pets rules", () => {
     expect(r.event(barEvent()).map((row) => row.name)).toEqual(["out"]);
   });
 
-  test("attach seeds the pet in play so the first bar after it gives no out row, and writes no row itself", () => {
+  test("attach with a pet already out gives one out row, and the first bar after it gives none", () => {
     const r = rules();
-    expect(r.attach(state(bar()))).toEqual([]);
+    const rows = r.attach(state(bar()));
+    expect(rows.map((row) => row.name)).toEqual(["out"]);
+    expect(rows.at(0)?.text).toBe("Fang (Wolf) is out: defensive, follow.");
     expect(r.event(barEvent())).toEqual([]);
     expect(r.event(CLEARED).map((row) => row.name)).toEqual(["gone"]);
+  });
+
+  test("attach with no pet out writes no row and the first bar gives an out row", () => {
+    const r = rules();
+    expect(r.attach(state(undefined))).toEqual([]);
+    expect(r.event(barEvent()).map((row) => row.name)).toEqual(["out"]);
+  });
+
+  test("the full registry logs one pets/out row at attach for the pet in play", () => {
+    const game = createMockGame();
+    const pets = game.pets as unknown as { state: () => PetsState };
+    const current = pets.state();
+    const withBar = Object.assign(createMockGame(), {
+      pets: { ...game.pets, state: () => ({ ...current, bar: bar() }) },
+    });
+    const rows = attachDrafts(areaRuleSet(), withBar, input());
+    expect(rows.filter((row) => row.domain === "pets")).toMatchObject([
+      {
+        domain: "pets",
+        event: "pets/out",
+        text: "Fang (Wolf) is out: defensive, follow.",
+      },
+    ]);
   });
 
   test("feedback and a failed pet cast give one refused row each with the reason", () => {
