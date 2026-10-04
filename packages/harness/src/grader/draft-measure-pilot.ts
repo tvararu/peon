@@ -3,7 +3,7 @@ import type { GameLogRow } from "#harness/grader/draft-gamelog";
 import { isRecord } from "#harness/grader/exec";
 
 const RING_TOLERANCE_YD = 5;
-const MOVEMENT_TOOLS = ["travel", "engage", "recover"];
+const MOVEMENT_RUNS = ["travel", "engage", "recover"];
 
 const field = (row: GameLogRow | undefined, key: string): unknown =>
   row !== undefined && isRecord(row.data) ? row.data[key] : undefined;
@@ -225,18 +225,21 @@ export function pilotJumps(
   };
 }
 
-export function pilotOnlyMoves(
-  _rows: readonly GameLogRow[],
-  { tools }: MeasureContext,
-): Measured {
-  if (tools === null)
-    return { met: false, observed: { reason: "tools.json is missing" } };
-  const called = Object.entries(tools).flatMap(([name, row]) =>
-    isRecord(row) && (numberOf(row["calls"]) ?? 0) > 0 ? [name] : [],
-  );
-  const others = called.filter((name) => MOVEMENT_TOOLS.includes(name));
+export function pilotOnlyMoves(rows: readonly GameLogRow[]): Measured {
+  const run = pilotRun(rows);
+  if (run === undefined) return NO_RUN;
+  const others = rows.flatMap((row) => {
+    const kind = field(row, "kind");
+    return row.event === "run/started" &&
+      typeof kind === "string" &&
+      MOVEMENT_RUNS.includes(kind) &&
+      timeOf(row) <= run.until
+      ? [kind]
+      : [];
+  });
   return {
-    met: called.includes("pilot") && others.length === 0,
-    observed: { movementTools: others, pilotCalled: called.includes("pilot") },
+    line: run.started.line,
+    met: others.length === 0,
+    observed: { movementRuns: others },
   };
 }

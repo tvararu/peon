@@ -147,14 +147,16 @@ to 100 ms after the packet (an applied `jump_ahead` arms the jump, which
 goes off once the arc clears the obstacle), and every jump is followed
 by `MSG_MOVE_FALL_LAND` before the next jump, at most 1.5 s after the run
 ends (a run that reaches its goal mid-jump ends before the landing);
-`pilot_only_moves` is met when `tools.json` records a `pilot` call and no
-call to another movement tool (`travel`, `engage`, `recover`). The jump
+`pilot_only_moves` is met when a pilot run exists and no `travel`,
+`engage` or `recover` run (`run/started` rows) starts before that pilot
+run ends; a fight the agent takes up after the objective is done does not
+count. The jump
 match compares packet `at` timestamps against jev `ts` values directly:
 the packet tap stamps the send time while the `applied` row is written a
 few milliseconds later, so each match allows an applied stamp up to
 100 ms after the packet. A missing `pilot/started` row, a missing
-`packets.jsonl`, `jev.jsonl` or `tools.json` input, or a missing
-`pilot/ended` row leaves the measure unmet with a `reason`.
+`packets.jsonl` or `jev.jsonl` input, or a missing `pilot/ended` row
+leaves the measure unmet with a `reason`.
 
 `t6-selfstate-res` runs on the `eversong1-shaman` preset, a level-1 Orc
 shaman. Its setup teaches Reincarnation (20608) and adds one Ankh

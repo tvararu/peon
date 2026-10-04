@@ -24,7 +24,7 @@
       "source": "truth"
     },
     {
-      "expect": "tools.json shows a pilot call and no other movement tool (travel, engage, recover): Jev made every movement decision",
+      "expect": "GL has a pilot run and no travel, engage or recover run starts before it ends: Jev made every movement decision of the objective",
       "id": "only-pilot",
       "measure": "pilot_only_moves",
       "source": "game_log"

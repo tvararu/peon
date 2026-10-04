@@ -30,13 +30,9 @@ type Files = {
   gamelog: string[];
   jev?: unknown[];
   packets?: unknown[];
-  tools?: unknown;
 };
 
-async function fill(
-  { gamelog, jev, packets, tools }: Files,
-  wanted: ScenarioCheck,
-) {
+async function fill({ gamelog, jev, packets }: Files, wanted: ScenarioCheck) {
   const dir = scratchDir("pilot-measure");
   await writeFile(`${dir}/gamelog.jsonl`, `${gamelog.join("\n")}\n`);
   if (jev !== undefined)
@@ -49,8 +45,6 @@ async function fill(
       `${dir}/packets.jsonl`,
       `${packets.map((entry) => JSON.stringify(entry)).join("\n")}\n`,
     );
-  if (tools !== undefined)
-    await writeFile(`${dir}/tools.json`, `${JSON.stringify(tools)}\n`);
   const [filled] = await observedChecks(dir, [wanted]);
   if (filled === undefined) throw new Error("missing check");
   return filled;
@@ -367,44 +361,44 @@ describe("pilot_jumps", () => {
   });
 });
 
-const toolRow = (calls: number) => ({
-  calls,
-  p50Ms: 1,
-  p95Ms: 1,
-  repeatHits: 0,
-  statuses: {},
-  validationErrors: 0,
-});
-const toolsJson = (names: string[]) => ({
-  tools: Object.fromEntries(names.map((name) => [name, toolRow(1)])),
-  updatedAt: T0,
-  v: 1,
-});
+const runStarted = (seq: number, kind: string) =>
+  row(seq, "run/started", { id: `r${seq}`, kind, status: "running" });
 
 describe("pilot_only_moves", () => {
-  test("passes with a pilot call and no other movement tool", async () => {
+  const goal = { kind: "reach", x: 100, y: 0 };
+
+  test("passes when no other movement run starts before the pilot run ends", async () => {
     const filled = await fill(
       {
-        gamelog: [started(1, { kind: "reach", x: 1, y: 0 })],
-        tools: toolsJson(["pilot", "look"]),
+        gamelog: [
+          started(1, goal),
+          decision(2, 10, 0),
+          ended(3, "completed"),
+          runStarted(4, "engage"),
+        ],
       },
       check("pilot_only_moves"),
     );
     expect(filled.met).toBe(true);
   });
 
-  test("fails with another movement tool, no pilot call or no tools.json", async () => {
+  test("fails when another movement run starts before the pilot run ends, or no pilot ran", async () => {
     const travelled = await fill(
-      { gamelog: [], tools: toolsJson(["pilot", "travel"]) },
+      {
+        gamelog: [
+          runStarted(1, "travel"),
+          started(2, goal),
+          decision(3, 10, 0),
+          ended(4, "completed"),
+        ],
+      },
       check("pilot_only_moves"),
     );
     expect(travelled.met).toBe(false);
     const absent = await fill(
-      { gamelog: [], tools: toolsJson(["look"]) },
+      { gamelog: [runStarted(1, "travel")] },
       check("pilot_only_moves"),
     );
     expect(absent.met).toBe(false);
-    const missing = await fill({ gamelog: [] }, check("pilot_only_moves"));
-    expect(missing.met).toBe(false);
   });
 });
