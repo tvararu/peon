@@ -55,6 +55,7 @@ export function installInput(pi: ExtensionAPI, rt: HarnessRuntime): void {
   pi.on("agent_start", () => {
     Object.assign(session, {
       agent: "streaming",
+      previousTurnStartSeq: session.turnStartSeq,
       turnStartSeq: rt.log.lastSeq(),
       turnToolCalls: 0,
     });

@@ -62,6 +62,7 @@ function log(pi: ExtensionAPI, rt: HarnessRuntime): Run {
     const page = queryLog({
       log: rt.log,
       now: rt.clock.now(),
+      previousTurnStartSeq: undefined,
       query,
       runs: rt.runs,
       turnStartSeq: 0,

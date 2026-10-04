@@ -27,6 +27,8 @@ true) warns that its guards will attack the character. A faction made visible is
 reaction wakes the agent outside a run. `initialized`,
 `watched_changed` and `flags_pending` write no row.
 
+Turning in a quest names the standings the reward carried: the turn-in subscribes before it sends the reward choice and waits 500 ms past the rewarded event for the standing changes, because the server runs the quest's reputation rewards (`Entities/Player/PlayerQuest.cpp:753`) before it answers with the completion (`Entities/Player/PlayerQuest.cpp:2431-2445`).
+
 ## Wire notes
 
 - `SMSG_INITIALIZE_FACTIONS` is a `uint32` count (always 128), then per

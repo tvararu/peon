@@ -96,6 +96,7 @@ export function baseAfter(
     npc: npc.unit,
     offers: [],
     repairCost: undefined,
+    reputation: [],
     rewardChoices: [],
     roles: npc.unit.roles,
     sold: [],

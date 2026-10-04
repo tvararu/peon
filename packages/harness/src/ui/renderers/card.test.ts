@@ -59,6 +59,7 @@ const talk: InteractAfter = {
     },
   ],
   repairCost: undefined,
+  reputation: [],
   rewardChoices: [],
   roles: ["questgiver"],
   sold: [],

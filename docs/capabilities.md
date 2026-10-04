@@ -20,7 +20,7 @@ or the page names one that does not exist.
 | Answer whispers from another player | `t2-whisper-reply` | A chat line with no echo within 2 s is `UNCONFIRMED`. |
 | Emote at a player or NPC | `t2-emotes-partner` | Only emotes the server lists; none while dead; no ready check. |
 | Kill creatures at its level, one at a time, with Jev choosing the actions | `t3-ghostlands-kill` | Needs Jev: after repeated failed Jev calls the fight ends as `jev_unavailable`. A hunter can end up in melee range, because `travel` stops 3 yd from a unit, so no scenario proves ranged hunter play. |
-| Take a quest, do it and turn it in | `t4-quest-first`, `t4-alliance-first` | An accept or a turn-in the server does not answer is `UNCONFIRMED`; the agent checks the quest log before it tries again. |
+| Take a quest, do it and turn it in | `t4-quest-first`, `t4-alliance-first` | An accept or a turn-in the server does not answer is `UNCONFIRMED`; the agent checks the quest log before it tries again. A turn-in names the reputation changes the reward carried, and `journal` log search with `since: last_turn` reaches back to the previous turn's start. |
 | Play a new level 1 character to level 5 by doing quests | `t4-quests-level-five` | Graded fail in round 723: level 4 after 22 minutes, with travel refusals near the Sunspire and a final `start_off_mesh`. Round 722 reached level 5 with 7 quests rewarded but was never graded. |
 | Gather quest loot from game-object chests | `t4-objects-quest-loot` | After the last loot, the loop waits up to 3 s for the quest-complete flag before it reports no targets left, and it fights back an attacker that interrupts it. |
 | See which NPCs have a quest or a quest to turn in | `t4-quests-find-giver` | |

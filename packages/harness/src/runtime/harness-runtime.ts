@@ -57,6 +57,7 @@ function initialSession(wake: boolean): SessionFlags {
     humanWaiting: false,
     lastNow: undefined,
     lastToolCallAt: undefined,
+    previousTurnStartSeq: undefined,
     tool: undefined,
     turnStartSeq: 0,
     turnToolCalls: 0,

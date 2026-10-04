@@ -84,6 +84,7 @@ function emptyInteract(): InteractAfter {
     npc: emptyUnit(),
     offers: [],
     repairCost: undefined,
+    reputation: [],
     rewardChoices: [],
     roles: [],
     sold: [],

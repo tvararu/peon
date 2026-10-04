@@ -1,5 +1,11 @@
-import type { QuestDialog } from "@peon/core";
-import type { InteractAfter, QuestOffer } from "#harness/contract/details";
+import type { AreaEventOf, QuestDialog, QuestEvent } from "@peon/core";
+import { pause } from "@peon/core/lib/abort";
+import { standingLine, standingRow } from "#harness/areas/reputation/area";
+import type {
+  InteractAfter,
+  QuestOffer,
+  StandingChange,
+} from "#harness/contract/details";
 import type { ToolCtx } from "#harness/contract/services";
 import {
   completeQuestIds,
@@ -30,6 +36,33 @@ import {
   rewardText,
 } from "#harness/tools/interact-reward-text";
 import { nextCall } from "#harness/tools/next-call";
+
+const REPUTATION_WAIT_MS = 500;
+
+type Standing = Extract<
+  AreaEventOf<"reputation">,
+  { type: "standing_changed" }
+>;
+
+function watchStandings(
+  ctx: ToolCtx<InteractAfter>,
+  seen: Standing[],
+): () => void {
+  return ctx.handle.onAreaEvent((row) => {
+    if (row.area === "reputation" && row.event.type === "standing_changed")
+      seen.push(row.event);
+  });
+}
+
+function reputationText(seen: readonly Standing[]): string {
+  if (seen.length === 0) return "";
+  const changes: StandingChange[] = seen.map((event) => ({
+    after: event.after,
+    before: event.before,
+    name: event.name ?? `Faction ${event.repListId}`,
+  }));
+  return ` Reputation: ${changes.map((row) => standingLine(row)).join("; ")}.`;
+}
 
 async function rewardOffer(
   ctx: ToolCtx<InteractAfter>,
@@ -134,11 +167,19 @@ export const turnInStep: InteractStep = async (init) => {
     throw rewardRefusal(npc, offer, named, args.reward);
   const picked = picking ? (args.reward ?? 1) - 1 : 0;
   const before = ctx.handle.getInventoryState().coinage;
-  const rewarded = await questStep(ctx, {
-    match: (event) => event.type === "rewarded" && event.questId === offer.id,
-    packet: () => ctx.handle.chooseQuestReward(picked),
-    timeoutMs: ANSWER_MS,
-  });
+  const seen: Standing[] = [];
+  const stop = watchStandings(ctx, seen);
+  let rewarded: QuestEvent | undefined;
+  try {
+    rewarded = await questStep(ctx, {
+      match: (event) => event.type === "rewarded" && event.questId === offer.id,
+      packet: () => ctx.handle.chooseQuestReward(picked),
+      timeoutMs: ANSWER_MS,
+    });
+    if (rewarded) await pause(REPUTATION_WAIT_MS, ctx.signal);
+  } finally {
+    stop();
+  }
   if (!rewarded) throw unanswered(npc, `the turn-in of ${offer.title}`, check);
   const last = rewarded.state.lastReward;
   const got = last?.questId === offer.id ? last : undefined;
@@ -147,14 +188,16 @@ export const turnInStep: InteractStep = async (init) => {
       ? { after: before + got.money, before }
       : undefined;
   const rewardChoices = named.map(({ kind: _kind, ...choice }) => choice);
+  const reputation = seen.map(standingRow);
   return result("DONE", {
     after: {
       ...baseAfter(ctx, npc, "turn_in"),
       dialogOpened: true,
       money,
       offers: [offer],
+      reputation,
       rewardChoices,
     },
-    detail: `turned in ${offer.title} #${offer.id}.${rewardText({ handle: ctx.handle, offer: reward, picked, reward: got })}`,
+    detail: `turned in ${offer.title} #${offer.id}.${rewardText({ handle: ctx.handle, offer: reward, picked, reward: got })}${reputationText(seen)}`,
   });
 };

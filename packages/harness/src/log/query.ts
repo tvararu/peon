@@ -12,6 +12,7 @@ type QueryInit = {
   log: GameLog;
   runs: RunRegistry;
   turnStartSeq: number;
+  previousTurnStartSeq?: number | undefined;
   now: number;
   query: LogQuery;
 };
@@ -19,6 +20,7 @@ type SpanInit = {
   log: GameLog;
   runs: RunRegistry;
   turnStartSeq: number;
+  previousTurnStartSeq?: number | undefined;
   now: number;
   since: string;
 };
@@ -57,11 +59,11 @@ function runSpan({ log, runs, now, since }: SpanInit): Span {
 }
 
 function span(init: SpanInit): Span {
-  const { log, now, since, turnStartSeq } = init;
+  const { log, now, previousTurnStartSeq, since, turnStartSeq } = init;
   if (since === "last_turn")
     return {
       label: "since your last turn started",
-      rows: log.since(turnStartSeq),
+      rows: log.since(previousTurnStartSeq ?? turnStartSeq),
     };
   const [, count, unit] = DURATION.exec(since) ?? [];
   if (count !== undefined && unit !== undefined) {
@@ -98,6 +100,7 @@ function rowFilter(find: string | undefined): (row: GameLogEntry) => boolean {
 
 export function queryLog({
   log,
+  previousTurnStartSeq,
   runs,
   turnStartSeq,
   now,
@@ -106,6 +109,7 @@ export function queryLog({
   const picked = span({
     log,
     now,
+    previousTurnStartSeq,
     runs,
     since: query.since ?? "last_turn",
     turnStartSeq,
