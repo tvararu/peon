@@ -88,6 +88,7 @@ browser.
   deadline 40 s after its first update (`DungeonFinding/LFGMgr.h:51`); a
   later state 0 update for the same id keeps that deadline, and state 1
   or 2 ends the proposal.
+- The role-check constant is 45 s: `LFG_TIME_ROLECHECK` is `45 * IN_MILLISECONDS` (`DungeonFinding/LFGMgr.h:49`), and `IN_MILLISECONDS` is 1000 (`Common.h:53`), so the numeric constant is 45000. The deployed server adds that 45000 to a seconds clock (`DungeonFinding/LFGMgr.cpp:834`; `GameTime::GetGameTime` returns seconds in `src/server/game/Time/GameTime.cpp:38-40`), and the expiry sweep compares against the same seconds clock (`DungeonFinding/LFGMgr.cpp:363-370`), so the deployed deadline is 45,000 s, not 45 s. Partners still answer within a few seconds of the wake: the round-1101 failure was an explicit dungeon `leave_queue` (gamelog seq 151) followed by state 5/aborted (seq 152), not a missing-role timeout (state 3). States are 2 initializing, 3 missing role and 5 aborted (`DungeonFinding/LFG.h:125-131`).
 - `SMSG_LFG_BOOT_PROPOSAL_UPDATE` is in progress `u8`, did vote `u8`,
   agree `u8`, the victim `u64`, votes, agrees, seconds left and needed
   votes as `u32`, and the reason CString

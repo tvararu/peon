@@ -13,7 +13,11 @@ import {
 import { recordBots } from "#harness/grader/bots";
 import type { Exec } from "#harness/grader/exec";
 import { harnessCommand, openPane, type Pane } from "#harness/grader/pane";
-import { newPartnerTrack, type PartnerTrack } from "#harness/grader/partner";
+import {
+  newPartnerTrack,
+  type PartnerTrack,
+  sequentialActions,
+} from "#harness/grader/partner";
 import {
   blockersOf,
   heldUntilRemoved,
@@ -352,7 +356,7 @@ async function actPartner(run: Live): Promise<void> {
 function pendingOf(run: Live, now: number): boolean {
   return pendingAction({
     actionIndex: run.partnerTrack.cursor.index,
-    actions: run.scenario.partnerActions?.length ?? 0,
+    actions: sequentialActions(run.scenario.partnerActions ?? []).length,
     lastAnswerAt: run.answerAt,
     lastSteerAt: run.lastSteerAt,
     now,

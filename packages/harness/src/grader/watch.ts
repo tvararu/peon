@@ -14,6 +14,7 @@ export type TriggerRow = {
   trigger: TriggerName;
   seq: number;
   text: string;
+  state?: number;
 };
 
 export type ProgressJson = {
@@ -87,7 +88,16 @@ export function triggerRows(
     const task = found === "steer_landed" && !landed;
     landed ||= task;
     const trigger: TriggerName = task ? "task_landed" : found;
-    return [{ ms: entry.ts, seq: entry.seq, text: entry.text, trigger }];
+    const state = entry.data["state"];
+    return [
+      {
+        ms: entry.ts,
+        seq: entry.seq,
+        text: entry.text,
+        trigger,
+        ...(typeof state === "number" ? { state } : {}),
+      },
+    ];
   });
 }
 

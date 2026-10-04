@@ -8,10 +8,7 @@
   "checks": [
     {
       "evidence": {
-        "events": ["lfg/queued"],
-        "window": {
-          "steer": 0
-        }
+        "events": ["lfg/queued"]
       },
       "expect": "GL has an lfg/queued row for the run party queue",
       "id": "queued",
@@ -19,10 +16,7 @@
     },
     {
       "evidence": {
-        "events": ["lfg/proposal"],
-        "window": {
-          "steer": 0
-        }
+        "events": ["lfg/proposal"]
       },
       "expect": "GL has an lfg/proposal row for the dungeon group proposal",
       "id": "proposal",
@@ -30,10 +24,7 @@
     },
     {
       "evidence": {
-        "events": ["lfg/role_chosen"],
-        "window": {
-          "steer": 0
-        }
+        "events": ["lfg/role_chosen"]
       },
       "expect": "GL has lfg/role_chosen rows for every party member answering the role check",
       "id": "roles-answered",
@@ -41,10 +32,7 @@
     },
     {
       "evidence": {
-        "events": ["lfg/offer_continue"],
-        "window": {
-          "steer": 0
-        }
+        "events": ["lfg/offer_continue"]
       },
       "expect": "GL has an lfg/offer_continue row after a partner leaves the finished group",
       "id": "offer-continue",
@@ -139,45 +127,45 @@
       "actor": 1,
       "argv": ["call", "setRoles", "[2]"],
       "at": {
-        "delayMs": 15000,
+        "delayMs": 2000,
         "kind": "trigger",
-        "nth": 1,
         "trigger": "lfg_role_check"
       },
-      "windowMs": 45000
+      "reactive": true,
+      "windowMs": 10000
     },
     {
       "actor": 2,
       "argv": ["call", "setRoles", "[4]"],
       "at": {
-        "delayMs": 16000,
+        "delayMs": 2000,
         "kind": "trigger",
-        "nth": 1,
         "trigger": "lfg_role_check"
       },
-      "windowMs": 45000
+      "reactive": true,
+      "windowMs": 10000
     },
     {
       "actor": 3,
       "argv": ["call", "setRoles", "[8]"],
       "at": {
-        "delayMs": 17000,
+        "delayMs": 2000,
         "kind": "trigger",
-        "nth": 1,
         "trigger": "lfg_role_check"
       },
-      "windowMs": 45000
+      "reactive": true,
+      "windowMs": 10000
     },
     {
       "actor": 4,
       "argv": ["call", "setRoles", "[8]"],
       "at": {
-        "delayMs": 18000,
+        "delayMs": 2000,
         "kind": "trigger",
-        "nth": 1,
         "trigger": "lfg_role_check"
       },
-      "windowMs": 45000
+      "reactive": true,
+      "windowMs": 10000
     },
     {
       "actor": 1,
