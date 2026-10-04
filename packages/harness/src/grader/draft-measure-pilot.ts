@@ -23,9 +23,17 @@ type PilotRun = {
 };
 
 function pilotRun(rows: readonly GameLogRow[]): PilotRun | undefined {
-  const startIndex = rows.findLastIndex((row) => row.event === "pilot/started");
-  const started = rows[startIndex];
-  if (started === undefined) return undefined;
+  const runs = rows.flatMap((row, index) =>
+    row.event === "pilot/started" ? [runAt(rows, row, index)] : [],
+  );
+  return runs.findLast((run) => run.decisions.length > 0) ?? runs.at(-1);
+}
+
+function runAt(
+  rows: readonly GameLogRow[],
+  started: GameLogRow,
+  startIndex: number,
+): PilotRun {
   const runId = field(started, "runId");
   const later = rows.slice(startIndex + 1);
   const ended = later.find(

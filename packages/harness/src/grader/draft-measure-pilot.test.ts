@@ -301,6 +301,25 @@ describe("pilot_jumps", () => {
     expect(filled.met).toBe(true);
   });
 
+  test("grades the run that jumped when the agent calls pilot again at the goal", async () => {
+    const again = { objective: goal, runId: "r2", x: 100, y: 0, z: 0 };
+    const filled = await fill(
+      {
+        gamelog: [
+          started(1, goal),
+          decision(2, 10, 0),
+          ended(3, "completed"),
+          row(5, "pilot/started", again),
+          row(6, "pilot/ended", { runId: "r2", status: "completed" }),
+        ],
+        jev: [applied(T0 + 2500)],
+        packets: [jumpPacket(T0 + 2500), landPacket(T0 + 2900)],
+      },
+      check("pilot_jumps"),
+    );
+    expect(filled.met).toBe(true);
+  });
+
   test("fails when two jumps share one applied row", async () => {
     const filled = await fill(
       {

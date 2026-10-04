@@ -133,7 +133,9 @@ A `measure` names a computed measure in
 `packages/harness/src/grader/draft-measure.ts` (for example `kill_xp` or
 `max_attackers`); on a check whose source is not `truth` it replaces
 `evidence`. The pilot measures read the `pilot/started`, `pilot/decision`
-and `pilot/ended` rows of the latest pilot run: `pilot_circle` is met when
+and `pilot/ended` rows of the latest pilot run that made a decision (a
+later call that starts at the goal and ends at once is skipped):
+`pilot_circle` is met when
 the run completed, holds at least one decision, and every decision pose
 lies within 5 yd of the objective ring (2D distance from the centre);
 `pilot_reach` is met when the run completed with no
