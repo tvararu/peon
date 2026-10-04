@@ -251,12 +251,14 @@ export class EncounterCycleRuntime {
   }
 
   private async drive(signal: AbortSignal): Promise<void> {
-    const { queue } = this.state;
     for (;;) {
       const recovered = await this.recoverIfDead(signal);
       if (recovered) return this.stop(recovered.cause, recovered.detail);
-      const record = queue[this.state.currentIndex];
-      if (record === undefined) return this.stop("queue_exhausted");
+      const record = this.state.queue[this.state.currentIndex];
+      if (record === undefined) {
+        const beset = besetStop(this.state.queue, this.deps.attackers?.());
+        return this.stop(beset?.cause ?? "queue_exhausted", beset?.detail);
+      }
       if (this.state.startsUsed >= this.state.maxStarts)
         return this.stop("max_starts_reached");
       const failed = await this.engage(record, signal);
