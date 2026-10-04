@@ -9,7 +9,7 @@ import { Emitter, type Unsubscribe } from "@peon/core/lib/emitter";
 import { messageOf } from "@peon/core/lib/errors";
 import { JEV_UNAVAILABLE, JevUnavailableError } from "#harness/jev/failure";
 import { recoverCorpse } from "#harness/loops/corpse-run";
-import { besetStop } from "#harness/loops/cycle-beset";
+import { attackerFirst, besetStop } from "#harness/loops/cycle-beset";
 import { holdApproach, skip } from "#harness/loops/cycle-hold";
 import { pursueObjective } from "#harness/loops/cycle-pursue";
 import { type CycleStop, cycleStop } from "#harness/loops/cycle-stop";
@@ -164,6 +164,12 @@ export class EncounterCycleRuntime {
     for (;;) {
       const recovered = await this.recoverIfDead(signal);
       if (recovered) return this.stop(recovered.cause, recovered.detail);
+      attackerFirst(
+        this.state.queue,
+        this.state.currentIndex,
+        this.deps.attackers?.(),
+        (guid) => ({ guid, status: "queued" }),
+      );
       const record = this.state.queue[this.state.currentIndex];
       if (record === undefined) {
         const beset = besetStop(this.state.queue, this.deps.attackers?.());
