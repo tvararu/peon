@@ -10,9 +10,47 @@ export const PARTNER_READ_EVERY_MS = 5000;
 
 const ACTION_TIMEOUT_MS = 30_000;
 const READ_TIMEOUT_MS = 10_000;
+const TRADE_WAIT_MS = 60_000;
+const WAIT_MARGIN_MS = 15_000;
+
+const TRADE_CALLS: Readonly<Record<string, true>> = {
+  tradeAcceptOffered: true,
+  tradeAnswer: true,
+  tradeRequest: true,
+  tradeRequestQuiet: true,
+};
+
+export function actionTimeoutMs(argv: readonly string[]): number {
+  if (argv[0] === "call" && TRADE_CALLS[argv[1] ?? ""] === true)
+    return TRADE_WAIT_MS + WAIT_MARGIN_MS;
+  return ACTION_TIMEOUT_MS;
+}
+
+const SILENT_FAILURES: Readonly<Record<string, true>> = {
+  no_offer: true,
+  no_request: true,
+  unanswered: true,
+};
+
+type SteerRow = {
+  actor: string;
+  agentSilent?: boolean;
+  code: number;
+  ms: number;
+  text: string;
+  trigger: string;
+};
+
+function silentAgent(code: number, stderr: string): boolean {
+  if (code === 143) return true;
+  if (code !== 1) return false;
+  const last = stderr.trim().split("\n").at(-1) ?? "";
+  return SILENT_FAILURES[last] === true;
+}
 
 export type PartnerTrack = {
   cursor: SteerCursor;
+  silent: boolean;
   windowEnd: number | undefined;
   readAt: number | undefined;
 };
@@ -42,6 +80,7 @@ export function newPartnerTrack(since: number): PartnerTrack {
   return {
     cursor: { index: 0, since },
     readAt: undefined,
+    silent: false,
     windowEnd: undefined,
   };
 }
@@ -109,22 +148,27 @@ async function fire(init: StepInit, action: PartnerAction): Promise<void> {
   });
   const ms = clock.now();
   const { code, stderr } = await exec([partner.names.wrapper, ...argv], {
-    timeoutMs: ACTION_TIMEOUT_MS,
+    timeoutMs: actionTimeoutMs(argv),
   });
-  const row = {
+  const silent = silentAgent(code, stderr);
+  const row: SteerRow = {
     actor: partner.role,
     code,
     ms,
     text: argv.join(" "),
     trigger: describeAt(action.at),
   };
+  if (silent) row.agentSilent = true;
   await appendFile(`${runDir}/steers.jsonl`, `${JSON.stringify(row)}\n`);
-  if (code !== 0)
-    throw new Error(
-      `${partner.role} ${argv[0]} exited ${code}: ${stderr.trim().split("\n").at(-1) ?? ""}`,
-    );
-  track.cursor = { index: track.cursor.index + 1, since: ms };
-  track.windowEnd = ms + action.windowMs;
+  if (code === 0 || silent || (track.silent && argv[0] === "call")) {
+    track.silent = track.silent || silent;
+    track.cursor = { index: track.cursor.index + 1, since: ms };
+    track.windowEnd = ms + action.windowMs;
+    return;
+  }
+  throw new Error(
+    `${partner.role} ${argv[0]} exited ${code}: ${stderr.trim().split("\n").at(-1) ?? ""}`,
+  );
 }
 
 export async function stepPartner(init: StepInit): Promise<void> {
