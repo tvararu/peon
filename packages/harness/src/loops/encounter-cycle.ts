@@ -13,7 +13,13 @@ import { besetStop } from "#harness/loops/cycle-beset";
 import { holdApproach, skip } from "#harness/loops/cycle-hold";
 import { pursueObjective } from "#harness/loops/cycle-pursue";
 import { type CycleStop, cycleStop } from "#harness/loops/cycle-stop";
-import type { CycleDeps, CycleEvent, CycleObjective, CycleState, CycleTargetRecord } from "#harness/loops/cycle-types";
+import type {
+  CycleDeps,
+  CycleEvent,
+  CycleObjective,
+  CycleState,
+  CycleTargetRecord,
+} from "#harness/loops/cycle-types";
 
 export type {
   CycleDeps,
