@@ -3,16 +3,16 @@ import type { ObjectRow } from "#harness/areas/objects/reads";
 import type { ToolCtx } from "#harness/contract/services";
 
 export const mailParams = Type.Object({
-  do: StringEnum(["check", "take", "send"], {
-    description:
-      "check: read the waiting letters. take: collect gold and items from one letter, or every letter. send: post a letter with gold or items. Default check.",
-  }),
-  gold: Type.Optional(
+  copper: Type.Optional(
     Type.Number({
       description:
         "For send: copper to enclose, before the 30 copper postage. Default 0.",
     }),
   ),
+  do: StringEnum(["check", "take", "send"], {
+    description:
+      "check: read the waiting letters. take: collect copper and items from one letter, or every letter. send: post a letter with copper or items. Default check.",
+  }),
   items: Type.Optional(
     Type.Array(Type.String(), {
       description:
