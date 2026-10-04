@@ -44,20 +44,14 @@ type Standing = Extract<
   { type: "standing_changed" }
 >;
 
-async function collectStandings(
+function watchStandings(
   ctx: ToolCtx<InteractAfter>,
   seen: Standing[],
-): Promise<void> {
-  ctx.signal.throwIfAborted();
-  const stop = ctx.handle.onAreaEvent((row) => {
+): () => void {
+  return ctx.handle.onAreaEvent((row) => {
     if (row.area === "reputation" && row.event.type === "standing_changed")
       seen.push(row.event);
   });
-  try {
-    await pause(REPUTATION_WAIT_MS, ctx.signal);
-  } finally {
-    stop();
-  }
 }
 
 function reputationText(seen: readonly Standing[]): string {
@@ -174,10 +168,7 @@ export const turnInStep: InteractStep = async (init) => {
   const picked = picking ? (args.reward ?? 1) - 1 : 0;
   const before = ctx.handle.getInventoryState().coinage;
   const seen: Standing[] = [];
-  const stop = ctx.handle.onAreaEvent((row) => {
-    if (row.area === "reputation" && row.event.type === "standing_changed")
-      seen.push(row.event);
-  });
+  const stop = watchStandings(ctx, seen);
   let rewarded: QuestEvent | undefined;
   try {
     rewarded = await questStep(ctx, {
@@ -185,7 +176,7 @@ export const turnInStep: InteractStep = async (init) => {
       packet: () => ctx.handle.chooseQuestReward(picked),
       timeoutMs: ANSWER_MS,
     });
-    if (rewarded) await collectStandings(ctx, seen);
+    if (rewarded) await pause(REPUTATION_WAIT_MS, ctx.signal);
   } finally {
     stop();
   }
