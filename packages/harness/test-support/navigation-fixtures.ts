@@ -14,6 +14,7 @@ import {
   RouteFollower,
   type RouteHandle,
 } from "#harness/navigation/route-follower";
+import { nudgeOntoMesh } from "#harness/navigation/travel";
 
 export function native(over: Partial<NativeMap> = {}): NativeMap {
   return {
@@ -98,6 +99,8 @@ export function travelFixture(
   };
   const handle = {
     goTo: (target: GotoTarget) => routeTo(deps, target),
+    nudge: (yards: number, signal?: AbortSignal) =>
+      nudgeOntoMesh(deps, yards, signal),
     observedPosition,
     walkToward: (target: WalkTarget, yards: number, signal?: AbortSignal) =>
       walkTowardTarget(deps, target, yards, signal),

@@ -8,7 +8,11 @@ import { poseView } from "#harness/ops/views";
 
 export type UnstickResult = {
   movedYd: number;
-  toward: "last_good_pose" | "open_ground" | "away_from_object";
+  toward:
+    | "off_mesh_nudge"
+    | "last_good_pose"
+    | "open_ground"
+    | "away_from_object";
   refusedGoal: string | undefined;
 };
 
@@ -95,8 +99,11 @@ export async function unstick(
 ): Promise<UnstickResult> {
   const pose = needPose(ctx);
   ctx.handle.takeControl("manual_override");
-  const good = ctx.rt.travel.lastGoodPose;
   const refusedGoal = ctx.rt.travel.lastRefusedGoal;
+  const nudged = await ctx.handle.nudge(UNSTICK_MAX_YD, ctx.signal);
+  if (nudged.arrived && nudged.movedYd >= MIN_UNSTICK_YD)
+    return { movedYd: nudged.movedYd, refusedGoal, toward: "off_mesh_nudge" };
+  const good = ctx.rt.travel.lastGoodPose;
   const back =
     good && good.mapId === pose.mapId
       ? Math.hypot(good.x - pose.x, good.y - pose.y)

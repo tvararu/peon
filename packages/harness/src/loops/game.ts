@@ -252,8 +252,9 @@ function retiring(
 }
 
 function travelApi(travel: Travel): Travel {
-  const { getNavigationState, goTo, observeNavigation, walkToward } = travel;
-  return { getNavigationState, goTo, observeNavigation, walkToward };
+  const { getNavigationState, goTo, nudge, observeNavigation, walkToward } =
+    travel;
+  return { getNavigationState, goTo, nudge, observeNavigation, walkToward };
 }
 
 function gameCapabilities(

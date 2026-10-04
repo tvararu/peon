@@ -72,6 +72,21 @@ export function logRouteReplaced(
   });
 }
 
+export function logRouteNudged(
+  ctx: OpsCtx,
+  goal: LegGoal,
+  movedYd: number,
+): void {
+  append(ctx, {
+    event: "nav/route_replaced",
+    goal,
+    reason: "off_mesh_nudge",
+    status: "replaced",
+    text: `Route to ${goalLabel(goal)} nudged ${Math.round(movedYd * 10) / 10} yd onto the mesh (off_mesh_nudge).`,
+    traveledYd: movedYd,
+  });
+}
+
 export function logRouteEnd(ctx: OpsCtx, goal: LegGoal, leg: LegResult): void {
   const label = goalLabel(goal);
   const walked = Math.round(leg.traveledYd);

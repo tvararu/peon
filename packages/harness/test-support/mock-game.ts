@@ -80,6 +80,7 @@ export function createMockGame(): MockGame {
       cycle.stop("halt");
     }),
     lootCorpse: jest.fn(async () => ({ ok: true as const, record: undefined })),
+    nudge: jest.fn(async () => ({ arrived: false, movedYd: 0 })),
     observeNavigation: jest.fn(() =>
       observeNavigation(game.getNavigationState()),
     ),
