@@ -1,17 +1,12 @@
 # Peon
 
-*The maintainer's description of Peon goes here.*
-
-Peon is an agent harness that plays World of Warcraft 3.3.5a headless, over
-the real game protocol, on an AzerothCore server you run. A model acts
-through game tools in the Pi harness, and Jev (TypeSafe) makes the fast
-combat and movement decisions.
+Peon is a Pi-based harness that gives an LLM tools to interact with a World of Warcraft 3.3.5a server.
 
 ## Run it
 
 ### Prerequisites
 
-- An AzerothCore 3.3.5a server that you run. Peon connects to
+- An AzerothCore 3.3.5a server. Peon connects to  
   `localhost:3724` by default, or to the `host` and `port` in
   `~/.config/peon/config.toml`.
 - The data files of an enUS 3.3.5a (build 12340) client. They supply the
@@ -116,31 +111,29 @@ flowchart LR
 
 ## Progress
 
-- **Protocol:** core handles 721 of 933 opcodes, 80.6% of the 894 that are
-  not dead. The rest: 168 missing, 5 stubs and 39 dead (the server never
-  sends or reads them). The totals come from the per-area files; see
-  [docs/protocol-coverage.md](docs/protocol-coverage.md), and
-  `mise protocol:coverage` prints them.
+- **Protocol:** core handles 721 of 933 opcodes. See  
+[docs/protocol-coverage.md](docs/protocol-coverage.md), and
+`mise protocol:coverage` prints them.
 - **Live evals:** 80 scenarios grade a throwaway character against server
-  truth. See [docs/evals.md](docs/evals.md).
+truth. See [docs/evals.md](docs/evals.md).
 - **Capabilities,** each proven by a scenario in
-  [docs/capabilities.md](docs/capabilities.md):
+[docs/capabilities.md](docs/capabilities.md):
   - questing from level 1 to level 5, walking with Namigator navigation,
-    and Jev-chosen fights and movement;
+  and Jev-chosen fights and movement;
   - items, bags, the bank, mail, vendors and trades;
   - talents and glyphs, pets, vehicles, flight paths and zeppelins;
   - raids: convert, subgroups, ready checks and marks.
 
 ## Scope
 
-- Only 3.3.5a (build 12340). AzerothCore is the reference server. Peon
+- Only 3.3.5a (build 12340) for now. AzerothCore is the reference server. Peon  
   does not target retail or Classic.
 - Headless: no game client is needed to play, only its data files for
   names and navigation.
 - Run agents only on servers you run, with characters that are yours.
-- Not supported or not proven: the auction house has no tool, and no
-  scenario covers inviting players, leaving a group or fighting as a
-  group, ranged hunter combat, sustained levelling across zones or
+- Not supported or not proven yet: the auction house has no tool, and no  
+  scenario covers inviting players, leaving a group or fighting as a  
+  group, ranged hunter combat, sustained levelling across zones or  
   fishing.
 - Navigation covers maps 0, 1, 530, 571 and the Deadmines.
 
