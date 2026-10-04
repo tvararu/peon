@@ -96,6 +96,29 @@ describe("a start just off the mesh", () => {
       /start snapped off/,
     );
   });
+
+  test("refuses a lead whose interior gap misses the plan-time midpoint", () => {
+    const onto = { x: 0.4, y: 0, z: 0 };
+    const map = native({
+      findHeights: (x) => (x > 0.04 && x < 0.12 ? [-10] : [0]),
+      findPath: (_from, to) => [{ ...onto }, { ...to }],
+    });
+    expect(() => navigation(map).plan(0, pose, goal)).toThrow(
+      /start snapped off/,
+    );
+  });
+
+  test("allows a supported lead beneath a separate upper floor", () => {
+    const onto = { x: 0.2, y: 0, z: 0 };
+    const map = native({
+      findHeights: () => [0, 10],
+      findPath: (_from, to) => [{ ...onto }, { ...to }],
+    });
+    const route = navigation(map).plan(0, pose, goal);
+    expect(route.points[0]).toMatchObject(pose);
+    expect(route.points.at(-1)).toMatchObject({ x: goal.x, y: goal.y });
+    expect(route.sample(0.1)).toMatchObject({ x: 0.1, y: 0, z: 0 });
+  });
 });
 
 describe.skipIf(!present)("recorded off-mesh starts on the real mesh", () => {
