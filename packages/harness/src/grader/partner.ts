@@ -80,7 +80,7 @@ export type PartnerTrack = {
   windowEnd: number | undefined;
   readAt: number | undefined;
   startedAt: number;
-  reactedAt: readonly (number | undefined)[];
+  reactedSeq: readonly (number | undefined)[];
 };
 
 export type Partner = {
@@ -107,7 +107,7 @@ type StepInit = Omit<ReadInit, "partner"> & {
 export function newPartnerTrack(since: number): PartnerTrack {
   return {
     cursor: { index: 0, since },
-    reactedAt: [],
+    reactedSeq: [],
     readAt: undefined,
     silent: [],
     startedAt: since,
@@ -177,7 +177,6 @@ export async function readPartner({
 
 async function fireReactive(
   init: StepInit,
-  index: number,
   action: PartnerAction,
 ): Promise<void> {
   const { agent, clock, exec, partners, runDir, track } = init;
@@ -198,9 +197,6 @@ async function fireReactive(
     trigger: describeAt(action.at),
   };
   await appendFile(`${runDir}/steers.jsonl`, `${JSON.stringify(row)}\n`);
-  const reactedAt = [...track.reactedAt];
-  reactedAt[index] = startedAt;
-  track.reactedAt = reactedAt;
   track.windowEnd = startedAt + action.windowMs;
 }
 
@@ -246,24 +242,61 @@ async function fire(init: StepInit, action: PartnerAction): Promise<void> {
   );
 }
 
+const CHECK_OPEN = 2;
+
+type CheckWave = { closeMs: number | undefined; open: TriggerRow };
+
+function checkWaves(
+  triggers: readonly TriggerRow[],
+  trigger: string,
+  since: number,
+  windowMs: number,
+): CheckWave[] {
+  const waves: CheckWave[] = [];
+  for (const row of triggers) {
+    if (row.trigger !== trigger || row.ms <= since) continue;
+    if ((row.state ?? CHECK_OPEN) !== CHECK_OPEN) {
+      const pending = waves.findLast((wave) => wave.closeMs === undefined);
+      if (pending !== undefined) pending.closeMs = row.ms;
+      continue;
+    }
+    const last = waves.at(-1);
+    if (
+      last !== undefined &&
+      last.closeMs === undefined &&
+      row.ms - last.open.ms <= windowMs
+    )
+      continue;
+    waves.push({ closeMs: undefined, open: row });
+  }
+  return waves;
+}
+
 function dueReactive(
   actions: readonly PartnerAction[],
   track: PartnerTrack,
   triggers: readonly TriggerRow[],
   now: number,
-): { action: PartnerAction; index: number }[] {
-  const due: { action: PartnerAction; index: number }[] = [];
+): { action: PartnerAction; index: number; seq: number }[] {
+  const due: { action: PartnerAction; index: number; seq: number }[] = [];
   for (const [index, action] of actions.entries()) {
     if (action.reactive !== true) continue;
     const at = action.at;
     if (at.kind !== "trigger") continue;
-    const last = track.reactedAt[index];
-    const floor = last === undefined ? track.startedAt : last + action.windowMs;
-    const hit = triggers.find(
-      (row) => row.trigger === at.trigger && row.ms > floor,
+    const answered = track.reactedSeq[index];
+    const wave = checkWaves(
+      triggers,
+      at.trigger,
+      track.startedAt,
+      action.windowMs,
+    ).find(
+      (entry) =>
+        entry.open.seq !== answered &&
+        (entry.closeMs === undefined || entry.closeMs > now),
     );
-    if (hit !== undefined && now - hit.ms >= (at.delayMs ?? 0))
-      due.push({ action, index });
+    if (wave === undefined) continue;
+    if (now - wave.open.ms < (at.delayMs ?? 0)) continue;
+    due.push({ action, index, seq: wave.open.seq });
   }
   return due;
 }
@@ -271,8 +304,17 @@ function dueReactive(
 export async function stepPartner(init: StepInit): Promise<void> {
   const { actions, clock, partners, track, triggers } = init;
   const now = clock.now();
-  for (const { action, index } of dueReactive(actions, track, triggers, now))
-    await fireReactive(init, index, action);
+  const pending = dueReactive(actions, track, triggers, now);
+  const reactedSeq = [...track.reactedSeq];
+  for (const { index, seq } of pending) reactedSeq[index] = seq;
+  track.reactedSeq = reactedSeq;
+  const failures = (
+    await Promise.allSettled(
+      pending.map(({ action }) => fireReactive(init, action)),
+    )
+  ).filter((outcome) => outcome.status === "rejected");
+  const first = failures[0];
+  if (first !== undefined) throw first.reason;
   const ordered = sequentialActions(actions);
   const due = dueSteer({
     cursor: track.cursor,
@@ -283,7 +325,7 @@ export async function stepPartner(init: StepInit): Promise<void> {
   if (due !== undefined) await fire(init, due);
   if (
     track.cursor.index === 0 &&
-    track.reactedAt.every((hit) => hit === undefined)
+    track.reactedSeq.every((hit) => hit === undefined)
   )
     return;
   if (track.readAt !== undefined && now - track.readAt < PARTNER_READ_EVERY_MS)

@@ -129,6 +129,33 @@ describe("triggerRows", () => {
     ]);
   });
 
+  test("role check rows keep their update state so a new check opens after a terminal one", () => {
+    const open = {
+      ...row(6, 600, "lfg/role_check", "A role check started"),
+      data: { state: 2, stateName: "initializing" },
+    };
+    const closed = {
+      ...row(7, 700, "lfg/role_check", "The role check changed."),
+      data: { state: 5, stateName: "aborted" },
+    };
+    expect(triggerRows([open, closed])).toEqual([
+      {
+        ms: 600,
+        seq: 6,
+        state: 2,
+        text: "A role check started",
+        trigger: "lfg_role_check",
+      },
+      {
+        ms: 700,
+        seq: 7,
+        state: 5,
+        text: "The role check changed.",
+        trigger: "lfg_role_check",
+      },
+    ]);
+  });
+
   test("lastAnswerAt keeps the newest agent message", () => {
     expect(
       lastAnswerAt(

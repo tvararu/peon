@@ -41,7 +41,16 @@ const ACTIONS = [answer(1, 2), answer(2, 4), answer(3, 8), answer(4, 8)];
 const wake = (ms: number): TriggerRow => ({
   ms,
   seq: ms,
+  state: 2,
   text: "A role check started",
+  trigger: "lfg_role_check",
+});
+
+const settle = (ms: number, state: number): TriggerRow => ({
+  ms,
+  seq: ms,
+  state,
+  text: "The role check changed.",
   trigger: "lfg_role_check",
 });
 
@@ -167,5 +176,79 @@ describe("reactive partner actions", () => {
     const t = rig(actions);
     await t.step(START + 1000, []);
     expect(t.track.cursor.index).toBe(1);
+  });
+
+  test("a partner whose command is still pending does not hold back the others", async () => {
+    let release = () => {};
+    const until = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let started = () => {};
+    const allStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const calls: string[] = [];
+    const slow: Exec = async (argv) => {
+      if (argv[1] === "read") return { code: 0, stderr: "", stdout: "[]" };
+      calls.push(argv.join(" "));
+      if (calls.length === ACTIONS.length) started();
+      if (argv[0] === "/wt/tmp/puppet-1") await until;
+      return { code: 0, stderr: "", stdout: "" };
+    };
+    const runDir = scratchDir("partner-reactive");
+    const track = newPartnerTrack(START);
+    const stepping = stepPartner({
+      actions: ACTIONS,
+      agent: AGENT,
+      clock: { now: () => START + 3000 },
+      exec: slow,
+      partners: PARTNERS,
+      runDir,
+      track,
+      triggers: [wake(START + 1000)],
+    });
+    await allStarted;
+    expect(answered(calls)).toEqual([
+      "/wt/tmp/puppet-1 [2]",
+      "/wt/tmp/puppet-2 [4]",
+      "/wt/tmp/puppet-3 [8]",
+      "/wt/tmp/puppet-4 [8]",
+    ]);
+    release();
+    await stepping;
+    expect(track.reactedSeq).toEqual([
+      START + 1000,
+      START + 1000,
+      START + 1000,
+      START + 1000,
+    ]);
+  });
+
+  test("a check cancelled and reopened within ten seconds is answered by all four again", async () => {
+    const t = rig(ACTIONS);
+    const triggers = [wake(START + 1000)];
+    await t.step(START + 3000, triggers);
+    expect(t.calls).toHaveLength(4);
+    triggers.push(settle(START + 5000, 5), wake(START + 7000));
+    await t.step(START + 9000, triggers);
+    expect(t.calls).toHaveLength(8);
+    await t.step(START + 30_000, triggers);
+    expect(t.calls).toHaveLength(8);
+  });
+
+  test("a terminal update does not consume the reaction to the next check", async () => {
+    const t = rig(ACTIONS);
+    const triggers = [wake(START + 1000)];
+    await t.step(START + 3000, triggers);
+    triggers.push(wake(START + 3500), settle(START + 4000, 1));
+    triggers.push(wake(START + 8000));
+    await t.step(START + 10_000, triggers);
+    expect(t.calls).toHaveLength(8);
+  });
+
+  test("a check that ended before its answer was due is not answered", async () => {
+    const t = rig(ACTIONS);
+    await t.step(START + 5000, [wake(START + 1000), settle(START + 2000, 5)]);
+    expect(t.calls).toEqual([]);
   });
 });
