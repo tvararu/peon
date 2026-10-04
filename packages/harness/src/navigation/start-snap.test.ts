@@ -15,6 +15,17 @@ const present =
 
 const pose: NavPoint = { x: 0, y: 0, z: 0 };
 const goal: NavPoint = { x: 10, y: 0, z: 0 };
+function platformRays(top: number, fromX: number) {
+  return (a: NavPoint, b: NavPoint) => {
+    for (let i = 0; i <= 100; i++) {
+      const t = i / 100;
+      const x = a.x + (b.x - a.x) * t;
+      const z = a.z + (b.z - a.z) * t;
+      if (x >= fromX && z < top) return false;
+    }
+    return true;
+  };
+}
 
 function meshStartingAt(onto: NavPoint, blocked = false) {
   return native({
@@ -58,6 +69,32 @@ describe("a start just off the mesh", () => {
       y: goal.y,
     });
     expect(route.points.at(-1)).toMatchObject({ x: goal.x, y: goal.y });
+  });
+
+  test("refuses a lead whose straight walk crosses a low platform", () => {
+    const onto = { x: 0.3, y: 0, z: 0.3 };
+    const map = native({
+      findHeights: (x, y) => (y === 0 && x >= 0.02 ? [0.3] : [0]),
+      findPath: (_from, to) => [{ ...onto }, { ...to }],
+      lineOfSight: platformRays(0.3, 0.02),
+    });
+    expect(() => navigation(map).plan(0, pose, { x: 10, y: 1, z: 0 })).toThrow(
+      /start snapped off/,
+    );
+  });
+
+  test.each([
+    ["no floor under the lead", [-10]],
+    ["a low ceiling over the lead floor", [0, 1]],
+  ])("refuses a lead crossing %s", (_label, column) => {
+    const onto = { x: 0.4, y: 0, z: 0 };
+    const map = native({
+      findHeights: (x) => (x > 0.1 && x < 0.3 ? column : [0]),
+      findPath: (_from, to) => [{ ...onto }, { ...to }],
+    });
+    expect(() => navigation(map).plan(0, pose, goal)).toThrow(
+      /start snapped off/,
+    );
   });
 });
 
