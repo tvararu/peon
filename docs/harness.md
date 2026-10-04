@@ -183,7 +183,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | `spell` | Casts a spell on itself or a unit (`do: cast`), cancels one of its own buffs (`cancel_aura`) or puts a spell or item on an action bar slot (`bar`), or gets on a ground mount and off again (`mount`, `dismount`). |
 | `pet` | Checks its pet (`status`), calls, dismisses or revives it, attacks with it, moves it (`follow`, `stay`, `stop`) or sets its stance. |
 | `dungeon` | Difficulty, saved instances, resets, the bind prompt and the dungeon finder queue, role answers, proposal answers, teleports and kick votes. |
-| `group` | Shows the group roster, removes a member, or passes the lead. |
+| `group` | Shows the group roster, converts to a raid, moves members, promotes, sets loot rules from `what` (a method in `text` counts only when `what` is empty), runs ready checks, marks, gives master loot, rolls, shares quests and answers summons. |
 | `trade` | Gives items and gold to another player, answers a trade request, changes the offer, accepts, cancels or reads both offers. |
 | `mail` | Reads the letters waiting in the inbox, collects copper and items from them, or sends a letter with copper or items at a mailbox within 10 yards. |
 
