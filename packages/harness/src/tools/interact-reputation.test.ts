@@ -83,10 +83,14 @@ describe("turn-in reputation", () => {
       );
       answer(t.handle, "rewarded", { lastReward }, 8325);
     };
-    const res = await interactSpec.run(
-      { do: "turn_in", npc: "Velan Brightoak", reward: 1 },
-      toolCtx<InteractAfter>(t),
-    );
+    const res = await withFakeTimers(async () => {
+      const run = interactSpec.run(
+        { do: "turn_in", npc: "Velan Brightoak", reward: 1 },
+        toolCtx<InteractAfter>(t),
+      );
+      await elapse(1000);
+      return run;
+    });
     expect(res.detail).toContain("Silvermoon City");
     expect(res.detail).toContain("+250");
     expect(res.detail).toContain("Orgrimmar");
