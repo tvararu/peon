@@ -143,7 +143,8 @@ the run matches a distinct jev.jsonl `applied` row with
 `loop: "pilot"` and `actionId: "jump_ahead"` stamped from 1.5 s before
 to 100 ms after the packet (an applied `jump_ahead` arms the jump, which
 goes off once the arc clears the obstacle), and every jump is followed
-by `MSG_MOVE_FALL_LAND` before the next jump or the end of the run;
+by `MSG_MOVE_FALL_LAND` before the next jump, at most 1.5 s after the run
+ends (a run that reaches its goal mid-jump ends before the landing);
 `pilot_only_moves` is met when `tools.json` records a `pilot` call and no
 call to another movement tool (`travel`, `engage`, `recover`). The jump
 match compares packet `at` timestamps against jev `ts` values directly:

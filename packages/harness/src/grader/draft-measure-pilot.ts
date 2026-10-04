@@ -126,16 +126,18 @@ export function pilotReach(rows: readonly GameLogRow[]): Measured {
 
 type Mark = { at: number; opcode: string };
 
+const LANDING_GRACE_MS = 1500;
+
 function packetMarks(packets: unknown[], run: PilotRun): Mark[] {
   return packets.flatMap((entry) => {
     if (!isRecord(entry) || entry["dir"] !== "out") return [];
     const at = numberOf(entry["at"]);
     const opcode = entry["opcode"];
-    if (at === undefined || typeof opcode !== "string") return [];
-    if (at < run.from || at > run.until) return [];
-    return opcode === "MSG_MOVE_JUMP" || opcode === "MSG_MOVE_FALL_LAND"
-      ? [{ at, opcode }]
-      : [];
+    if (at === undefined || at < run.from) return [];
+    if (opcode === "MSG_MOVE_JUMP" && at <= run.until) return [{ at, opcode }];
+    if (opcode === "MSG_MOVE_FALL_LAND" && at <= run.until + LANDING_GRACE_MS)
+      return [{ at, opcode }];
+    return [];
   });
 }
 

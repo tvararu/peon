@@ -289,6 +289,18 @@ describe("pilot_jumps", () => {
     expect(filled.met).toBe(true);
   });
 
+  test("passes when the run ends at the goal before the jump lands", async () => {
+    const filled = await fill(
+      {
+        gamelog: [started(1, goal), decision(2, 10, 0), ended(3, "completed")],
+        jev: [applied(T0 + 2800)],
+        packets: [jumpPacket(T0 + 2800), landPacket(T0 + 3650)],
+      },
+      check("pilot_jumps"),
+    );
+    expect(filled.met).toBe(true);
+  });
+
   test("fails when two jumps share one applied row", async () => {
     const filled = await fill(
       {
