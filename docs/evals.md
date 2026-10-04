@@ -135,6 +135,15 @@ A `measure` names a computed measure in
 `evidence`.
 A check with neither leaves `observed` null for the grader to fill.
 
+`t6-selfstate-res` runs on the `eversong1-shaman` preset, a level-1 Orc
+shaman. Its setup teaches Reincarnation (20608) and adds one Ankh
+(17030), because the server only keeps a stored Reincarnation row for a
+shaman and the spell needs the Ankh as its reagent. Its `alive` check
+grades the first self-resurrection from the game log: it is met when a
+`life/alive` row follows the first `life/dead` row with no `life/released`
+between them. A later death, which the single Ankh cannot cover, does not
+unmeet it.
+
 ## The second character
 
 Scenarios with a `partner` or a witness (`t2-whisper-reply`,

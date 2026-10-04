@@ -80,6 +80,12 @@ export const presetSpecs = {
     y: 55,
     z: 56.8,
   },
+  "eversong1-shaman": {
+    ...eversong,
+    create: { class: 7, gender: 0, race: 2, ...zeroFace },
+    faction: "horde",
+    stage: [pos()],
+  },
   eversong10: { ...eversong, faction: "horde", template: "Tpleversong" },
   "eversong10-druid": {
     ...eversong,
@@ -182,6 +188,7 @@ export const presets: Preset[] = [
   "eversong10-druid",
   "eversong55-deathknight",
   "eversong10-fishing",
+  "eversong1-shaman",
 ];
 
 const languages: Record<Faction, number> = { alliance: 7, horde: 1 };
