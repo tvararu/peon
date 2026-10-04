@@ -1,6 +1,6 @@
 # Jev pilot: Jev steers the character
 
-Date: 2026-10-04. Status: design for the first slice.
+Date: 2026-10-04. Status: built in #568; live results under "What the live rounds found".
 Item 7 in the maintainer's notes. #531 (off-mesh starts) lands first as its
 own fix.
 
@@ -90,22 +90,33 @@ Code computes all geometry. The frame sends named values with units and
 holds no coordinate arrays.
 
 - **Objective:**
-  - To reach a point: distance and bearing relative to the facing, for
-    example `"23 yd, 40° to your left"`.
+  - To reach a point: distance and a bearing bucket relative to the
+    facing, for example `"23 yd slightly off, 25° to your left"`. The
+    buckets are almost straight ahead (≤ 10°), slightly off (≤ 35°), well off
+    (≤ 100°) and behind, because Jev compares named buckets better than
+    raw angles.
   - To run a circle: how far the character is off the circle (inside or
-    outside), the direction the circle continues relative to the facing, and
-    the share of the lap done.
+    outside), the next lap point 4 yd along the circle (pure pursuit, which
+    corrects the radius and the direction at once), and the share of the lap
+    done.
+  - The straight line to the goal or lap point: clear, crossing a low
+    obstacle that a jump clears, or blocked by a wall to go around.
 - **Self:** the keys held, whether airborne, speed, and the last 3 decisions
   with how far each moved the character.
 - **Surroundings:** for 8 headings relative to the facing, the free distance
   before something blocks (capped at 10 yd) and what blocks it:
-  - a wall (the low and high rays are both blocked),
-  - a low obstacle with its top height (only the low ray is blocked),
+  - a wall (no ray up to 1.6 yd passes),
+  - a low obstacle, with the height where rays first pass over it (rays at
+    0.1 yd steps across a yard past the last free step, so a thin rail reads
+    the same at every approach distance),
   - a drop or slope too steep to walk.
 
-  Free distance comes from the same step-and-collision checks the mover uses
-  (`groundStep`, `collisionFree` in `packages/core/src/wow/ground-step.ts`),
-  marched in 0.5 yd steps along each heading.
+  Free distance comes from the same free step the mover runs for key moves
+  (`groundStep` in `packages/core/src/wow/control-motion.ts`: ground height,
+  slope and the collision rays), marched in 0.5 yd steps along each heading,
+  so an option the frame calls clear is one the mover will walk.
+- **Fresh pose.** The pilot settles the mover (`settle`) before it reads the
+  pose; an unguided move otherwise only integrates on its 500 ms heartbeat.
 
 ### Decide: the options
 
@@ -128,17 +139,24 @@ objective would sit after the turn, for example `"Veer 30° left and run:
 clear for 9 yd; the goal would be 10° to your right"`.
 
 - **Masking (danger in code).** An option whose heading is clear for less than
-  2 yd, which is about one decision of travel, is not offered. `stop` is
-  always offered. Re-observing at commit already discards an answer that is
-  no longer available.
-- **Jump gate.** `jump_ahead` is offered only when code finds a low obstacle
-  ahead (top 0.3–1.4 yd) within the next 1–3 yd, and the jump arc from the
-  current pose clears it and lands on walkable ground. The arc uses
-  `JUMP_VELOCITY` 7.955547 and `GRAVITY` 19.291105, which give an apex of
-  1.64 yd and about 5.8 yd of travel at run speed.
+  2 yd, which is about one decision of travel, is not offered, except a turn
+  that faces a jumpable obstacle: it stays as "face it and stand", and
+  `back_up` then says it gains the run-up. `stop` is always offered.
+  Re-observing at commit already discards an answer that is no longer
+  available.
+- **Jump gate.** `jump_ahead` is offered while a low obstacle (top
+  0.3–1.4 yd) stands 1–6 yd ahead and a jump from 2 yd before it clears it
+  and lands on walkable ground. The arc uses `JUMP_VELOCITY` 7.955547 and
+  `GRAVITY` 19.291105, which give an apex of 1.64 yd and about 5.8 yd of
+  travel at run speed.
 
-  Whether and when to jump is Jev's choice. No code path jumps except an
-  applied `jump_ahead`.
+  Applying `jump_ahead` arms the jump: the character runs on, and a 25 ms
+  check jumps at the first moment the arc from the current pose clears the
+  obstacle. Any other decision, a halt or the end of the run cancels the
+  arm. A decision lands about 250 ms after the frame it was made on, which
+  at run speed is longer than the takeoff window, so the arm keeps the
+  timing in code while whether and which obstacle to jump stays Jev's
+  choice. No code path jumps except an armed, applied `jump_ahead`.
 - **Airborne.** While airborne there are no options and no call is made,
   because momentum is fixed until landing.
 
@@ -216,6 +234,35 @@ The method follows
 - **Cap:** 8 rounds, or 3 rounds in a row without a training gain.
 - **Pinning:** the Jev model is pinned per round from `jev.jsonl`, and the
   baseline is rerun when `jev-latest` moves.
+
+## What the live rounds found
+
+Rounds 7680–7684 ran before any text was tuned. Each failure traced back to a
+code, task or grader defect, not to Jev's wording, so the climb never
+started: the fixed baseline already passed every training and held-out
+replica.
+
+| Round | Failure seen | Cause | Fix |
+|---|---|---|---|
+| 7680 | Circle ran 240 yd away | the circle hint pointed clockwise for a counterclockwise lap; a `wait` option was injected; the time budget left the loop driving | next-lap-point pursuit, no `wait`, halt on budget |
+| 7681 | Fence crossed with no jump | the Brill fence (0.55 yd) is a step the mover climbs | task: fences measured with the mover's own step check |
+| 7681 | Held-out runs died | level-10 characters in a gnoll camp and on the Duskwood border | task: held-out places in horde land, level 80 |
+| 7682 | Detour and fence walked through geometry | key moves checked ground height only, never collision | core: key moves run the collision rays |
+| 7682 | Rails read low, then open | 0.5 yd sampling straddled thin rails; the pose was up to 500 ms stale | ray-height profile; `settle` before reading |
+| 7683 | Jev hugged the fence | turning to face a close fence was masked, and the frame never said a jump was the short way | line-to-goal status; facing turns and run-up text |
+| 7683 | Detour froze on refused strafes | the frame and the mover used different step checks | one free step shared by both |
+| 7684 | Landed jumps graded missing | the run ended mid-jump; a later empty `pilot` call was graded | landings counted after the end; grade the run that moved |
+
+Round 7684, at harness commits `ed04f969` to `01315012` (the later commits
+change only the grader): 18 of 18 replicas pass, 3 per scenario. Every
+call is answered by `jev-1.13.0`, at 3.6–5.2 decisions a second, p50
+196–222 ms, p90 212–300 ms. There are no server corrections, and no
+decision-to-decision segment crosses a wall in the collision data.
+
+The training detour runs also took one Jev-chosen jump each, over a low
+obstacle on their way around. Text tuning has no headroom left on these
+tasks. The next objectives are latency and decision count, or harder tasks
+(kiting).
 
 ## Out of scope
 
