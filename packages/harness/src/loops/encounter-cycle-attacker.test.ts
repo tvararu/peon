@@ -82,3 +82,59 @@ test("moves on to the next unit when the unreachable one is not attacking", asyn
   expect(starts).toEqual([HEADHUNTER_U40, HEADHUNTER_U42]);
   expect(runtime.snapshot().stopCause).not.toBe("attacker_unreachable");
 });
+
+test("does not start the second unit when the unreachable one attacks during its approach", async () => {
+  const starts: bigint[] = [];
+  const attackers: bigint[] = [];
+  const approached: bigint[] = [];
+  const runtime = makeCycle({
+    approach: async (guid) => {
+      approached.push(guid);
+      if (guid === HEADHUNTER_U42) attackers.push(HEADHUNTER_U40);
+    },
+    attackers: () => attackers,
+    control: fakeControl(),
+    loot: fakeLoot({}),
+    now: () => 0,
+    recovery: fakeRecovery({ life: ["alive"] }),
+    tactics: blockedTactics(starts, (guid) =>
+      guid === HEADHUNTER_U40 ? "target_unreachable" : undefined,
+    ),
+  });
+  await runtime.start({
+    guids: [HEADHUNTER_U40, HEADHUNTER_U42],
+    instruction: "fight",
+    maxStarts: 2,
+  });
+  const state = runtime.snapshot();
+  expect(approached).toContain(HEADHUNTER_U42);
+  expect(starts).toEqual([HEADHUNTER_U40]);
+  expect(state.stopCause).toBe("attacker_unreachable");
+  expect(state.stopDetail).toMatchObject({ ref: HEADHUNTER_U40 });
+});
+
+test("stops when a later unreachable unit attacks although an earlier one does not", async () => {
+  const starts: bigint[] = [];
+  const attackers: bigint[] = [];
+  const tactics = blockedTactics(starts, (guid) => {
+    if (guid === 41n) attackers.push(guid);
+    return guid === HEADHUNTER_U42 ? undefined : "target_unreachable";
+  });
+  const runtime = makeCycle({
+    attackers: () => attackers,
+    control: fakeControl(),
+    loot: fakeLoot({}),
+    now: () => 0,
+    recovery: fakeRecovery({ life: ["alive"] }),
+    tactics,
+  });
+  await runtime.start({
+    guids: [HEADHUNTER_U40, 41n, HEADHUNTER_U42],
+    instruction: "fight",
+    maxStarts: 3,
+  });
+  const state = runtime.snapshot();
+  expect(starts).toEqual([HEADHUNTER_U40, 41n]);
+  expect(state.stopCause).toBe("attacker_unreachable");
+  expect(state.stopDetail).toMatchObject({ ref: 41n });
+});

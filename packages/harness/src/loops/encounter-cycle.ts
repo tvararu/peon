@@ -12,6 +12,7 @@ import { messageOf } from "@peon/core/lib/errors";
 import { JEV_UNAVAILABLE, JevUnavailableError } from "#harness/jev/failure";
 import { type CycleRecovery, recoverCorpse } from "#harness/loops/corpse-run";
 import type { CycleApproach } from "#harness/loops/cycle-approach";
+import { besetStop } from "#harness/loops/cycle-beset";
 import type { PullGate } from "#harness/loops/cycle-gate";
 import { pursueObjective } from "#harness/loops/cycle-pursue";
 import { type CycleStop, cycleStop } from "#harness/loops/cycle-stop";
@@ -118,25 +119,9 @@ export type CycleDeps = {
 };
 
 const DEFAULT_MAX_STARTS = 10;
-const UNREACHABLE = "target_unreachable";
-const ATTACKER_UNREACHABLE = "attacker_unreachable";
 
 const progressKey = (progress: ObjectiveProgress | undefined) =>
   JSON.stringify(progress ?? null);
-function besetAttacker(
-  queue: readonly CycleTargetRecord[],
-  attackers: readonly bigint[] | undefined,
-): bigint | undefined {
-  const victim = queue.find(
-    (entry) =>
-      entry.status === "skipped" &&
-      (entry.cause === UNREACHABLE || entry.outcome?.reason === UNREACHABLE),
-  );
-  return victim !== undefined && attackers?.includes(victim.guid)
-    ? victim.guid
-    : undefined;
-}
-
 export class EncounterCycleRuntime {
   private readonly deps: CycleDeps;
   private readonly events = new Emitter<[CycleEvent]>();
@@ -405,25 +390,22 @@ export class EncounterCycleRuntime {
     record: CycleTargetRecord,
     signal: AbortSignal,
   ): Promise<CycleStop | undefined> {
-    const beset = besetAttacker(this.state.queue, this.deps.attackers?.());
-    if (beset !== undefined) {
+    const beset = besetStop(this.state.queue, this.deps.attackers?.());
+    if (beset) {
       signal.throwIfAborted();
-      return cycleStop(ATTACKER_UNREACHABLE, { ref: beset });
+      return beset;
     }
     this.state.phase = "fighting";
-    const { tactics, entity, control, approach, gate } = this.deps;
+    const { tactics, entity, control, gate } = this.deps;
     const vet = () =>
       vetTarget(entity, control.snapshot().selfGuid, record.guid);
     const refused = vet();
     if (refused) return skip(record, refused, undefined);
     const low = gate?.(record.guid);
     if (low) return low;
-    if (approach) {
-      const unreached = await approach(record.guid, signal);
-      signal.throwIfAborted();
-      const cause = vet() ?? unreached;
-      if (cause) return skip(record, cause, undefined);
-    }
+    const held = await this.holdApproach(record, vet, signal);
+    if (held === "skip") return undefined;
+    if (held) return held;
     this.state.startsUsed++;
     const context = {
       targetGuid: record.guid,
@@ -447,6 +429,23 @@ export class EncounterCycleRuntime {
     record.status = "done";
     record.outcome = outcome;
     return this.loot(record, signal);
+  }
+
+  private async holdApproach(
+    record: CycleTargetRecord,
+    vet: () => string | undefined,
+    signal: AbortSignal,
+  ): Promise<"skip" | CycleStop | undefined> {
+    const { approach } = this.deps;
+    if (!approach) return undefined;
+    const unreached = await approach(record.guid, signal);
+    signal.throwIfAborted();
+    const cause = vet() ?? unreached;
+    if (cause) {
+      skip(record, cause, undefined);
+      return "skip";
+    }
+    return besetStop(this.state.queue, this.deps.attackers?.());
   }
 
   private async recover(signal: AbortSignal): Promise<CycleStop | undefined> {
