@@ -79,6 +79,8 @@ export type PartnerTrack = {
   silent: readonly string[];
   windowEnd: number | undefined;
   readAt: number | undefined;
+  startedAt: number;
+  reactedAt: readonly (number | undefined)[];
 };
 
 export type Partner = {
@@ -105,10 +107,18 @@ type StepInit = Omit<ReadInit, "partner"> & {
 export function newPartnerTrack(since: number): PartnerTrack {
   return {
     cursor: { index: 0, since },
+    reactedAt: [],
     readAt: undefined,
     silent: [],
+    startedAt: since,
     windowEnd: undefined,
   };
+}
+
+export function sequentialActions(
+  actions: readonly PartnerAction[],
+): PartnerAction[] {
+  return actions.filter((action) => action.reactive !== true);
 }
 
 export function expandArgv(
@@ -165,6 +175,35 @@ export async function readPartner({
   );
 }
 
+async function fireReactive(
+  init: StepInit,
+  index: number,
+  action: PartnerAction,
+): Promise<void> {
+  const { agent, clock, exec, partners, runDir, track } = init;
+  const partner = actorOf(partners, action);
+  const startedAt = clock.now();
+  const argv = expandArgv(action.argv, {
+    agent: agent.character,
+    partners: partners.map(({ names }) => names.character),
+  });
+  const { code } = await exec([partner.names.wrapper, ...argv], {
+    timeoutMs: actionTimeoutMs(action.argv),
+  });
+  const row: SteerRow = {
+    actor: partner.role,
+    code,
+    ms: startedAt,
+    text: argv.join(" "),
+    trigger: describeAt(action.at),
+  };
+  await appendFile(`${runDir}/steers.jsonl`, `${JSON.stringify(row)}\n`);
+  const reactedAt = [...track.reactedAt];
+  reactedAt[index] = startedAt;
+  track.reactedAt = reactedAt;
+  track.windowEnd = startedAt + action.windowMs;
+}
+
 async function fire(init: StepInit, action: PartnerAction): Promise<void> {
   const { agent, clock, exec, partners, runDir, track } = init;
   const partner = actorOf(partners, action);
@@ -207,17 +246,46 @@ async function fire(init: StepInit, action: PartnerAction): Promise<void> {
   );
 }
 
+function dueReactive(
+  actions: readonly PartnerAction[],
+  track: PartnerTrack,
+  triggers: readonly TriggerRow[],
+  now: number,
+): { action: PartnerAction; index: number }[] {
+  const due: { action: PartnerAction; index: number }[] = [];
+  for (const [index, action] of actions.entries()) {
+    if (action.reactive !== true) continue;
+    const at = action.at;
+    if (at.kind !== "trigger") continue;
+    const last = track.reactedAt[index];
+    const floor = last === undefined ? track.startedAt : last + action.windowMs;
+    const hit = triggers.find(
+      (row) => row.trigger === at.trigger && row.ms > floor,
+    );
+    if (hit !== undefined && now - hit.ms >= (at.delayMs ?? 0))
+      due.push({ action, index });
+  }
+  return due;
+}
+
 export async function stepPartner(init: StepInit): Promise<void> {
   const { actions, clock, partners, track, triggers } = init;
   const now = clock.now();
+  for (const { action, index } of dueReactive(actions, track, triggers, now))
+    await fireReactive(init, index, action);
+  const ordered = sequentialActions(actions);
   const due = dueSteer({
     cursor: track.cursor,
     now,
-    steers: actions,
+    steers: ordered,
     triggers,
   });
   if (due !== undefined) await fire(init, due);
-  if (track.cursor.index === 0) return;
+  if (
+    track.cursor.index === 0 &&
+    track.reactedAt.every((hit) => hit === undefined)
+  )
+    return;
   if (track.readAt !== undefined && now - track.readAt < PARTNER_READ_EVERY_MS)
     return;
   track.readAt = now;

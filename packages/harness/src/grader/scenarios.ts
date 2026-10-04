@@ -29,6 +29,7 @@ export type PartnerAction = {
   argv: string[];
   windowMs: number;
   actor?: number;
+  reactive?: boolean;
 };
 
 export type ScenarioPartner = { role: "partner" | "witness"; preset: string };
@@ -308,11 +309,14 @@ function partnerErrors(scenario: Scenario): string[] {
     partnerSetup = [],
   } = scenario;
   const count = partners?.length ?? (partner === null ? 0 : 1);
-  const errors = partnerActions.flatMap(({ actor }, index) =>
-    actor !== undefined && actor > count
+  const errors = partnerActions.flatMap(({ actor, at, reactive }, index) => [
+    ...(actor !== undefined && actor > count
       ? [`$.partnerActions[${index}].actor: no partner ${actor}`]
-      : [],
-  );
+      : []),
+    ...(reactive === true && at.kind !== "trigger"
+      ? [`$.partnerActions[${index}].reactive: needs a trigger at`]
+      : []),
+  ]);
   errors.push(
     ...partnerSetup.flatMap(({ actor }, index) =>
       (actor ?? 1) > count

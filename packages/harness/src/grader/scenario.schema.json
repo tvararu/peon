@@ -274,6 +274,9 @@
               }
             ]
           },
+          "reactive": {
+            "type": "boolean"
+          },
           "windowMs": {
             "minimum": 1,
             "type": "integer"

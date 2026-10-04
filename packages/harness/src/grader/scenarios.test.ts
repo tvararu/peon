@@ -184,6 +184,18 @@ describe("multi-partner scenarios", () => {
     ).toThrow("$.partners: at most 4 partners");
   });
 
+  test("a reactive action needs a trigger", () => {
+    const [action] = two.partnerActions;
+    expect(() =>
+      parseScenario("t2-whisper-reply.json", {
+        ...two,
+        partnerActions: [
+          { ...action, at: { kind: "elapsed", ms: 1000 }, reactive: true },
+        ],
+      }),
+    ).toThrow("$.partnerActions[0].reactive: needs a trigger at");
+  });
+
   test("an action names an actor the scenario has", () => {
     const [action] = two.partnerActions;
     expect(() =>
