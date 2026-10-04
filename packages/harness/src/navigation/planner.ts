@@ -27,7 +27,11 @@ import {
   validateNativePoint,
   validateNativeXY,
 } from "#harness/navigation/native";
-import { rejectSnap, startStep } from "#harness/navigation/start-snap";
+import {
+  rejectSnap,
+  sampleLead,
+  startStep,
+} from "#harness/navigation/start-snap";
 import {
   CORNER_RISE,
   type CornerWalk,
@@ -184,12 +188,7 @@ export class GroundRoute {
     ratio: number,
     at: { x: number; y: number },
   ): GroundSample {
-    return {
-      ...at,
-      orientation: bearing(start, end),
-      swimming: false,
-      z: start.z + (end.z - start.z) * ratio,
-    };
+    return sampleLead(this.map, { end, ratio, start }, at);
   }
 
   private segment(distance: number): number {

@@ -1,19 +1,15 @@
-import { distance2d, GROUND_ERROR, type NavPoint } from "@peon/core";
+import { bearing, distance2d, GROUND_ERROR, type NavPoint } from "@peon/core";
 import { checkCollision } from "#harness/navigation/collision";
-import {
-  clearAbove,
-  columnHeights,
-  groundFloors,
-} from "#harness/navigation/column";
+import { columnHeights, leadFloor } from "#harness/navigation/column";
 import {
   groundError,
   isGroundError,
   type NativeMap,
   validateNativePoint,
 } from "#harness/navigation/native";
-import { GROUND_STEP } from "#harness/navigation/swim";
 
 const START_REACH = 0.5;
+const LEAD_PROBE_STEP = 0.02;
 
 export function startStep(
   map: NativeMap,
@@ -41,24 +37,46 @@ export function startStep(
   }
 }
 
+export function leadSurface(
+  map: NativeMap,
+  at: { x: number; y: number; z: number },
+  fromZ: number,
+): number {
+  const surface = leadFloor(columnHeights(map, at.x, at.y), at.z, fromZ);
+  if (surface === undefined)
+    throw groundError("ambiguous ground column leaving start");
+  return surface;
+}
+
 function checkLeadGround(map: NativeMap, from: NavPoint, onto: NavPoint): void {
   const span = distance2d(from, onto);
-  const count = Math.max(2, Math.ceil(span / GROUND_STEP));
+  const count = Math.max(2, Math.ceil(span / LEAD_PROBE_STEP));
+  let previous = from.z;
   for (let step = 1; step < count; step++) {
     const ratio = step / count;
-    const x = from.x + (onto.x - from.x) * ratio;
-    const y = from.y + (onto.y - from.y) * ratio;
-    const z = from.z + (onto.z - from.z) * ratio;
-    const heights = columnHeights(map, x, y);
-    if (
-      !(
-        heights.some((height) => Math.abs(height - z) <= GROUND_ERROR) &&
-        clearAbove(heights, z)
-      ) ||
-      groundFloors(heights).length !== 1
-    )
-      throw groundError("ambiguous ground column leaving start");
+    previous = leadSurface(
+      map,
+      {
+        x: from.x + (onto.x - from.x) * ratio,
+        y: from.y + (onto.y - from.y) * ratio,
+        z: from.z + (onto.z - from.z) * ratio,
+      },
+      previous,
+    );
   }
+}
+export function sampleLead(
+  map: NativeMap,
+  leg: { start: NavPoint; end: NavPoint; ratio: number },
+  at: { x: number; y: number },
+): NavPoint & { orientation: number; swimming: false } {
+  const z = leg.start.z + (leg.end.z - leg.start.z) * leg.ratio;
+  return {
+    ...at,
+    orientation: bearing(leg.start, leg.end),
+    swimming: false,
+    z: leadSurface(map, { ...at, z }, leg.start.z),
+  };
 }
 
 export function rejectSnap(

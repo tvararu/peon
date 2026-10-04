@@ -34,6 +34,29 @@ export function groundFloors(heights: readonly number[]): number[] {
   return floors.sort((a, b) => b - a);
 }
 
+export function leadFloor(
+  heights: readonly number[],
+  z: number,
+  fromZ: number,
+): number | undefined {
+  if (heights.every((height) => Math.abs(height - z) > WALKABLE_CLIMB))
+    return undefined;
+  if (clearAbove(heights, z)) {
+    const surface = continuousFloor(heights, z, fromZ);
+    if (Math.abs(surface - z) <= GROUND_ERROR) return surface;
+  }
+  if (Math.abs(z - fromZ) > GROUND_ERROR) return undefined;
+  const [step] = heights
+    .filter(
+      (height) =>
+        height <= fromZ + GROUND_ERROR &&
+        Math.abs(height - z) <= WALKABLE_CLIMB &&
+        clearAbove(heights, height),
+    )
+    .sort((a, b) => Math.abs(a - z) - Math.abs(b - z));
+  return step;
+}
+
 export function continuousFloor(
   heights: readonly number[],
   traced: number,
