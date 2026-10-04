@@ -1,9 +1,6 @@
 import {
   type ControlEvent,
-  type ControlState,
   type EntityEvent,
-  type EntityLookup,
-  type NavPoint,
   type RecoveryEvent,
   type RewardsEvent,
   snapshotEntityEvent,
@@ -11,115 +8,32 @@ import {
 import { Emitter, type Unsubscribe } from "@peon/core/lib/emitter";
 import { messageOf } from "@peon/core/lib/errors";
 import { JEV_UNAVAILABLE, JevUnavailableError } from "#harness/jev/failure";
-import { type CycleRecovery, recoverCorpse } from "#harness/loops/corpse-run";
-import type { CycleApproach } from "#harness/loops/cycle-approach";
+import { recoverCorpse } from "#harness/loops/corpse-run";
 import { besetStop } from "#harness/loops/cycle-beset";
-import type { PullGate } from "#harness/loops/cycle-gate";
 import { holdApproach, skip } from "#harness/loops/cycle-hold";
 import { pursueObjective } from "#harness/loops/cycle-pursue";
 import { type CycleStop, cycleStop } from "#harness/loops/cycle-stop";
+import type { CycleDeps, CycleEvent, CycleObjective, CycleState, CycleTargetRecord } from "#harness/loops/cycle-types";
+
+export type {
+  CycleDeps,
+  CycleEvent,
+  CycleLootRecord,
+  CycleObjective,
+  CyclePhase,
+  CycleState,
+  CycleTargetRecord,
+  CycleVisit,
+  CycleVisitEnd,
+} from "#harness/loops/cycle-types";
+
 import { vetTarget } from "#harness/loops/cycle-vet";
 import { EventWaiter } from "#harness/loops/event-waiter";
 import { lootCorpse } from "#harness/loops/loot-run";
 import type {
-  ControlPort,
-  RecoveryPort,
-  RewardsPort,
-} from "#harness/loops/ports";
-import type {
   ObjectivePick,
   ObjectiveProgress,
 } from "#harness/loops/quest-objective";
-import type {
-  TacticsLoop,
-  TacticsOutcome,
-  TacticsState,
-} from "#harness/loops/tactics";
-
-export type CyclePhase =
-  | "idle"
-  | "fighting"
-  | "looting"
-  | "recovering"
-  | "stopped";
-export type CycleTargetRecord = {
-  guid: bigint;
-  status: "queued" | "done" | "skipped";
-  cause?: string;
-  outcome?: TacticsOutcome;
-  loot?: "looted" | "none";
-};
-export type CycleLootRecord = {
-  guid: string;
-  slotsTaken: number[];
-  slotsLeft: number[];
-  moneyTaken: number;
-  coinageBefore: number | undefined;
-  coinageAfter: number | undefined;
-};
-export type CycleState = {
-  active: boolean;
-  phase: CyclePhase;
-  queue: CycleTargetRecord[];
-  currentIndex: number;
-  instruction: string;
-  maxStarts: number;
-  startsUsed: number;
-  stopCause: string | undefined;
-  stopDetail: Record<string, unknown> | undefined;
-  startedAt: number | undefined;
-  lastLoot: CycleLootRecord | undefined;
-  lastRecovery: (CycleRecovery & { at: number }) | undefined;
-  objective: ObjectiveProgress | undefined;
-};
-export type CycleVisit = Pick<CycleDeps, "approach" | "bags" | "rewards"> & {
-  events: EventWaiter<RewardsEvent>;
-  signal: AbortSignal;
-};
-export type CycleVisitEnd =
-  | { ok: true; cause?: string; record?: CycleLootRecord }
-  | CycleStop;
-export type CycleObjective = {
-  pick: (tried: ReadonlySet<bigint>) => ObjectivePick;
-  progress: () => ObjectiveProgress | undefined;
-  visit?: (
-    pick: Extract<ObjectivePick, { kind: "object" }>,
-    run: CycleVisit,
-  ) => Promise<CycleVisitEnd>;
-  awaitComplete?: (run: Pick<CycleVisit, "signal">) => Promise<boolean>;
-  attackers?: () => readonly bigint[];
-};
-export type CycleEvent = {
-  type:
-    | "started"
-    | "target_done"
-    | "loot_done"
-    | "recovery"
-    | "recovered"
-    | "stopped";
-  state: CycleState;
-  at: number;
-};
-export type CycleDeps = {
-  tactics: Pick<TacticsLoop, "start" | "stop"> & {
-    snapshot: () => Pick<TacticsState, "lastOutcome">;
-  };
-  rewards: RewardsPort;
-  bags: {
-    questItems: () => ReadonlySet<number>;
-    stackSize: (entry: number) => Promise<number | undefined>;
-  };
-  recovery: RecoveryPort;
-  control: Pick<ControlPort, "face" | "move"> & {
-    snapshot: () => Pick<ControlState, "pose" | "selfGuid" | "speed">;
-  };
-  entity: EntityLookup;
-  observed: (guid: bigint) => (NavPoint & { mapId: number }) | undefined;
-  approach?: CycleApproach;
-  gate?: PullGate;
-  attackers?: () => readonly bigint[];
-  now: () => number;
-};
 
 const DEFAULT_MAX_STARTS = 10;
 
