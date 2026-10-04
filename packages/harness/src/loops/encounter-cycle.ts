@@ -14,6 +14,7 @@ import { type CycleRecovery, recoverCorpse } from "#harness/loops/corpse-run";
 import type { CycleApproach } from "#harness/loops/cycle-approach";
 import { besetStop } from "#harness/loops/cycle-beset";
 import type { PullGate } from "#harness/loops/cycle-gate";
+import { holdApproach, skip } from "#harness/loops/cycle-hold";
 import { pursueObjective } from "#harness/loops/cycle-pursue";
 import { type CycleStop, cycleStop } from "#harness/loops/cycle-stop";
 import { vetTarget } from "#harness/loops/cycle-vet";
@@ -405,7 +406,15 @@ export class EncounterCycleRuntime {
     if (refused) return skip(record, refused, undefined);
     const low = gate?.(record.guid);
     if (low) return low;
-    const held = await this.holdApproach(record, vet, signal);
+    const { approach, attackers } = this.deps;
+    const hold = {
+      approach,
+      attackers,
+      queue: this.state.queue,
+      vet,
+      signal,
+    };
+    const held = await holdApproach(hold, record);
     if (held === "skip") return undefined;
     if (held) return held;
     this.state.startsUsed++;
@@ -431,23 +440,6 @@ export class EncounterCycleRuntime {
     record.status = "done";
     record.outcome = outcome;
     return this.loot(record, signal);
-  }
-
-  private async holdApproach(
-    record: CycleTargetRecord,
-    vet: () => string | undefined,
-    signal: AbortSignal,
-  ): Promise<"skip" | CycleStop | undefined> {
-    const { approach } = this.deps;
-    if (!approach) return undefined;
-    const unreached = await approach(record.guid, signal);
-    signal.throwIfAborted();
-    const cause = vet() ?? unreached;
-    if (cause) {
-      skip(record, cause, undefined);
-      return "skip";
-    }
-    return besetStop(this.state.queue, this.deps.attackers?.());
   }
 
   private async recover(signal: AbortSignal): Promise<CycleStop | undefined> {
@@ -514,14 +506,4 @@ export class EncounterCycleRuntime {
   private emit(type: CycleEvent["type"]): void {
     this.events.emit({ type, state: this.snapshot(), at: this.deps.now() });
   }
-}
-
-function skip(
-  record: CycleTargetRecord,
-  cause: string,
-  outcome: TacticsOutcome | undefined,
-): undefined {
-  record.status = "skipped";
-  record.cause = cause;
-  record.outcome = outcome;
 }
