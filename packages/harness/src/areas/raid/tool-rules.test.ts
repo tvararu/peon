@@ -156,6 +156,48 @@ describe("group tool loot_rules", () => {
     ).toContain("REFUSED not_a_member");
     expect(sent(t)).toBe(0);
   });
+  test("a missing method names the what field and the accepted values", async () => {
+    const t = await world();
+    for (const args of [
+      { do: "loot_rules" as const },
+      { do: "loot_rules" as const, text: "greedy" },
+      { do: "loot_rules" as const, what: "greedy" },
+    ]) {
+      const text = (await runTool(t.tool, args)).text;
+      expect(text).toContain("REFUSED bad_loot_method");
+      expect(text).toContain("what");
+      for (const method of [
+        "free_for_all",
+        "round_robin",
+        "master_loot",
+        "group_loot",
+        "need_before_greed",
+      ])
+        expect(text).toContain(method);
+    }
+    expect(sent(t)).toBe(0);
+  });
+
+  test("takes the method from text when what is empty", async () => {
+    const t = await world();
+    t.act.loot.mockImplementation(() => t.changed({ kind: "loot" }));
+    await runTool(t.tool, { do: "loot_rules", text: "master_loot" });
+    expect(t.act.loot).toHaveBeenCalledWith({
+      master: "@self",
+      method: "master_loot",
+      threshold: "uncommon",
+    });
+    await runTool(t.tool, {
+      do: "loot_rules",
+      text: "master_loot",
+      what: "group_loot",
+    });
+    expect(t.act.loot).toHaveBeenLastCalledWith({
+      master: "",
+      method: "group_loot",
+      threshold: "uncommon",
+    });
+  });
 
   test("sets the method and quality and settles on a loot change", async () => {
     const t = await world();

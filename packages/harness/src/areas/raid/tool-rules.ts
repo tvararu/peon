@@ -90,11 +90,12 @@ function parseRules(
   group: RaidGroup,
   members: Parameters<typeof resolveMember>[0],
 ): Rules {
-  const method = pick(LOOT_METHOD_INDEX, args.what);
+  const method =
+    pick(LOOT_METHOD_INDEX, args.what) ?? pick(LOOT_METHOD_INDEX, args.text);
   if (!method)
     refuse(
       "bad_loot_method",
-      "name a loot method: free_for_all, round_robin, master_loot, group_loot or need_before_greed.",
+      "loot_rules reads the method from what: free_for_all, round_robin, master_loot, group_loot or need_before_greed.",
     );
   const quality = args.quality?.trim();
   const named = quality ? pick(LOOT_QUALITY_INDEX, quality) : undefined;
