@@ -16,6 +16,8 @@ import { reachNext } from "#harness/ops/unreached";
 import { result } from "#harness/tools/define";
 import { nextCall } from "#harness/tools/next-call";
 
+const DRIVE_EXAMPLE = "10 yd north";
+
 type Target = { guid: bigint; unit: UnitView };
 
 function missing(verb: string, param: string): Refusal {
@@ -196,11 +198,19 @@ export async function vehicleRun(
   }
   if (args.do === "board") {
     const seen = await approach(ctx, find(ctx, args.unit, "board"));
-    return report(
+    const boarded = report(
       await send(ctx, () => act.spellClick(seen.guid)),
       { do: "board", target: seen.unit.ref },
       `You clicked ${seen.unit.name} (${seen.unit.ref}) and took a seat.`,
     );
+    return boarded.status === "DONE" &&
+      ctx.handle.vehicles.state().seat?.controlling
+      ? {
+          ...boarded,
+          detail: `${boarded.detail} You control it: travel drives it.`,
+          next: nextCall("travel", { to: DRIVE_EXAMPLE }),
+        }
+      : boarded;
   }
   if (args.do === "ride_with") {
     const seen = await approach(ctx, find(ctx, args.player, "ride with"));
