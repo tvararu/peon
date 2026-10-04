@@ -346,4 +346,10 @@ describe("checks measure what they name", () => {
       },
     });
   });
+  test("t9-raid-mark names a creature that spawns at its start", () => {
+    const scenario = loadScenario("t9-raid-mark");
+    expect(scenario.spawn).toBe("eversong-ready");
+    expect(scenario.task).toContain("Springpaw Stalker");
+    expect(scenario.task).not.toContain("Lynx");
+  });
 });
