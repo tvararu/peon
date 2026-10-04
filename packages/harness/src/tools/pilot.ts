@@ -495,7 +495,7 @@ export const pilotSpec: GameToolSpec<typeof pilotParams, "pilot", PilotAfter> =
         "Steers the character with Jev driving every movement decision: reach a point (to) or run one lap of a circle (circle). Jev picks run, veer, turn, strafe, back-up, jump and stop options several times a second from a movement frame. It waits until the objective completes, up to the minutes budget. Use it instead of travel when the task needs Jev-driven movement.",
       guidelines: [
         "Give exactly one of to or circle, with world coordinates. Never invent coordinates.",
-        "The run ends completed, stopped (human takeover, abort, Jev down or time budget) or failed (death).",
+        "The run ends completed, stopped (human takeover, abort or time budget) or failed (death or Jev unavailable).",
       ],
       label: "Pilot",
     },

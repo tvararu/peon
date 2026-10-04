@@ -3,6 +3,7 @@ import {
   collisionFree,
   GROUND_ERROR,
   type NavPoint,
+  WALKABLE_CLIMB,
   withinStep,
 } from "#wow/ground-step";
 import { MovementFlag } from "#wow/protocol/entity-fields";
@@ -63,7 +64,7 @@ export function groundStep(
   const point = { x, y, z };
   const reason = directed
     ? directedRefusal(ground, pose, point)
-    : collisionRefusal(ground, pose, point);
+    : collisionRefusal(ground, pose, point, WALKABLE_CLIMB);
   return reason ? { ok: false, reason } : { ok: true, z };
 }
 
@@ -90,16 +91,17 @@ function directedRefusal(
   const back = finite(ground.height(pose.mapId, pose.x, pose.y, to));
   if (back === undefined || Math.abs(back - pose.z) > GROUND_ERROR)
     return "height_unresolved";
-  return collisionRefusal(ground, pose, to);
+  return collisionRefusal(ground, pose, to, 0);
 }
 
 function collisionRefusal(
   ground: GroundOracle,
   pose: Position,
   to: NavPoint,
+  climb: number,
 ): StepRefusal | undefined {
   const ray = (a: NavPoint, b: NavPoint) => ground.pathClear(pose.mapId, a, b);
-  return collisionFree(ray, pose, to) ? undefined : "obstructed";
+  return collisionFree(ray, pose, to, climb) ? undefined : "obstructed";
 }
 
 function finite(value: number | undefined): number | undefined {

@@ -79,10 +79,6 @@ export class PilotActions {
     };
   }
 
-  peek(context: PilotContext): PilotObserve {
-    return this.frame(context);
-  }
-
   commit(context: PilotContext): PilotObserve {
     const framed = this.frame(context);
     this.committed = { context, framed };
@@ -99,8 +95,6 @@ export class PilotActions {
       (candidate) => candidate.id === actionId,
     );
     if (!option) throw new Error(`unknown_pilot_action: ${actionId}`);
-    if (actionId !== "stop" && option.input === undefined)
-      throw new Error(`unknown_pilot_action: ${actionId}`);
     this.jump.disarm();
     this.settle();
     const state = this.deps.control.snapshot();

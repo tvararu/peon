@@ -32,20 +32,13 @@ function wallAt(distanceYd: number): GroundOracle {
   };
 }
 
-function fence(at = 2): GroundOracle {
+function fence(at = 2.5): GroundOracle {
   return {
-    height: (_mapId, x, _y, from) => {
-      if (x > at && x < at + 1) return 0.8;
-      return from?.z ?? 0;
-    },
+    height: (_mapId, _x, _y, from) => from?.z ?? 0,
     pathClear: (_mapId, from, to) => {
-      const blocked = (x: number, z: number) =>
-        x > at && x < at + 1 && z < 0.8 + 0.25;
-      return !(
-        blocked(from.x, from.z) ||
-        blocked(to.x, to.z) ||
-        blocked((from.x + to.x) / 2, (from.z + to.z) / 2)
-      );
+      if ((from.x - at) * (to.x - at) > 0 || from.x === to.x) return true;
+      const t = (at - from.x) / (to.x - from.x);
+      return from.z + (to.z - from.z) * t >= 1.05;
     },
   };
 }
@@ -315,7 +308,7 @@ describe("pilot execute", () => {
     actions.execute("run_ahead", reach(30));
     const observed = actions.observe(reach(30));
     const self = observed.observation["self"];
-    expect(self).toMatch(/run_ahead moved 1.6 yd; run_ahead moved 0 yd/);
+    expect(self).toMatch(/run_ahead moved 1.6 yd; run_ahead in progress/);
   });
 
   test("a committed frame survives a pose change before execute", () => {

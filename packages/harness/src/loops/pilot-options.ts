@@ -218,11 +218,11 @@ function optionText({
   const after = normalizeAngle(pose.orientation + (turnDeg * Math.PI) / 180);
   const goal = goalAfterTurn(objective, pose, after);
   if (id === "jump_ahead")
-    return `Run at the ${blockerText(scan)} ${scan.freeYd} yd ahead and jump it as you reach it; ${goal}.`;
+    return `Run at ${blockerText(scan)} ${scan.freeYd} yd ahead and jump it as you reach it; ${goal}.`;
   if (scan.freeYd < PILOT_MIN_CLEAR_YD)
-    return `${actions[id]}: faces the ${blockerText(scan)} ${scan.freeYd} yd away, too close to jump; back up first for a run-up; ${goal}.`;
+    return `${actions[id]}: faces ${blockerText(scan)} ${scan.freeYd} yd away, too close to jump; back up first for a run-up; ${goal}.`;
   if (id === "back_up" && !canJump && jumpableTop(ahead.blocker))
-    return `Back up: clear for ${scan.freeYd} yd; gains run-up to jump the ${blockerText(ahead)} ahead; ${goal}.`;
+    return `Back up: clear for ${scan.freeYd} yd; gains run-up to jump ${blockerText(ahead)} ahead; ${goal}.`;
   return `${actions[id]}: clear for ${scan.freeYd} yd; ${goal}.`;
 }
 

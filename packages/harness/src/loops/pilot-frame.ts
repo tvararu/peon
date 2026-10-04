@@ -159,7 +159,11 @@ export function describeSelf(
     memory.decisions.length === 0
       ? "no decisions yet"
       : memory.decisions
-          .map((entry) => `${entry.actionId} moved ${entry.movedYd} yd`)
+          .map((entry, index) =>
+            index === memory.decisions.length - 1
+              ? `${entry.actionId} in progress`
+              : `${entry.actionId} moved ${entry.movedYd} yd`,
+          )
           .join("; ");
   return `holding ${held}; ${airborne ? "airborne" : "on the ground"}; speed ${Math.round(speed * 10) / 10} yd/s; last decisions: ${recent}`;
 }

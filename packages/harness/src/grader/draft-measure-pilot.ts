@@ -57,6 +57,9 @@ function runAt(
 
 const statusOf = (run: PilotRun): unknown => field(run.ended, "status");
 
+const reasonOf = (run: PilotRun): unknown =>
+  run.ended === undefined ? "no pilot/ended" : field(run.ended, "reason");
+
 const objectiveOf = (run: PilotRun): Record<string, unknown> => {
   const objective = field(run.started, "objective");
   return isRecord(objective) ? objective : {};
@@ -103,7 +106,7 @@ export function pilotCircle(rows: readonly GameLogRow[]): Measured {
       max,
       min,
       radius,
-      reason: field(run.ended, "reason"),
+      reason: reasonOf(run),
       status: statusOf(run),
       walkedYd: field(run.ended, "walkedYd"),
     },
@@ -126,7 +129,7 @@ export function pilotReach(rows: readonly GameLogRow[]): Measured {
       corrections: run.corrections.length,
       decisions: run.decisions.length,
       finalDistance,
-      reason: field(run.ended, "reason"),
+      reason: reasonOf(run),
       status: statusOf(run),
     },
   };
@@ -216,6 +219,7 @@ export function pilotJumps(
       firstMismatch: mismatch,
       jumps,
       landings: marks.length - jumps,
+      reason: reasonOf(run),
       status: statusOf(run),
     },
   };
