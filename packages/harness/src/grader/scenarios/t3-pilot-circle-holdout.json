@@ -1,0 +1,54 @@
+{
+  "botRisk": "low",
+  "budget": {
+    "minutes": 8,
+    "tools": 30,
+    "turns": 12
+  },
+  "checks": [
+    {
+      "expect": "GL pilot/ended is completed and every pilot/decision pose is 5-15 yd from the circle centre",
+      "id": "lap",
+      "measure": "pilot_circle",
+      "source": "game_log"
+    },
+    {
+      "evidence": {
+        "point": {
+          "x": 2130,
+          "y": 640
+        }
+      },
+      "expect": "T final position within 3 yd of the start point on the circle (2130, 640)",
+      "id": "back-at-start",
+      "source": "truth"
+    },
+    {
+      "expect": "GL has a pilot run and no travel, engage or recover run starts before it ends: Jev made every movement decision of the objective",
+      "id": "only-pilot",
+      "measure": "pilot_only_moves",
+      "source": "game_log"
+    }
+  ],
+  "field": "pilot-tirisfal-circle",
+  "id": "t3-pilot-circle-holdout",
+  "navBound": true,
+  "needsWatcher": false,
+  "paneMinutes": 11,
+  "partner": null,
+  "preset": "max80",
+  "setup": [
+    {
+      "body": {
+        "map": 0,
+        "x": 2130,
+        "y": 640,
+        "z": 34.39
+      },
+      "endpoint": "position"
+    }
+  ],
+  "steers": [],
+  "task": "Use the pilot tool to run one counterclockwise lap of a 10-yard circle around the point (2120, 640), then tell me how it went. Move only with pilot.",
+  "tier": 3
+}

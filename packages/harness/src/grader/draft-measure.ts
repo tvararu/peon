@@ -7,6 +7,12 @@ import {
   noFightAfterStop,
 } from "#harness/grader/draft-anchors";
 import type { GameLogRow } from "#harness/grader/draft-gamelog";
+import {
+  pilotCircle,
+  pilotJumps,
+  pilotOnlyMoves,
+  pilotReach,
+} from "#harness/grader/draft-measure-pilot";
 import { isRecord } from "#harness/grader/exec";
 import type { CheckMeasure } from "#harness/grader/scenarios";
 
@@ -131,6 +137,10 @@ const MEASURES: Record<
   kill_xp: killXp,
   max_attackers: maxAttackers,
   no_fight_after_stop: noFightAfterStop,
+  pilot_circle: pilotCircle,
+  pilot_jumps: pilotJumps,
+  pilot_only_moves: pilotOnlyMoves,
+  pilot_reach: pilotReach,
   talents_spent: talentsSpent,
 };
 

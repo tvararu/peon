@@ -10,12 +10,13 @@ import type {
 } from "#harness/jev/contract";
 import { JevTransportError, JevUnavailableError } from "#harness/jev/failure";
 import type { FramingVariant } from "#harness/jev/framing";
+import {
+  judge,
+  offers,
+  WAIT_CANDIDATE,
+  withWait,
+} from "#harness/loops/tactics-select";
 
-const WAIT = {
-  id: "wait",
-  description:
-    "Hold current state and start nothing new: if moving, this refreshes the current direction's movement lease; if stationary, this is a no-op. Use stop_moving to release movement explicitly.",
-} as const;
 export const DEFAULT_FIGHT_INSTRUCTION =
   "defeat the selected target while keeping the character alive";
 const DEFAULT_MAX_AGE_MS = 2000;
@@ -25,11 +26,13 @@ export const MAX_CONSECUTIVE_TIMEOUTS = 3;
 export const SERVER_REJECTION = "server_action_rejected:";
 export const TRANSPORT_LIMIT = 3;
 
-export type TacticsContext = {
-  targetGuid: bigint;
+export type TacticsBase<O = unknown> = {
   instruction: string;
   framing?: FramingVariant;
+  objective?: O;
 };
+
+export type TacticsContext = TacticsBase<unknown> & { targetGuid: bigint };
 
 export type TacticsOutcome = {
   status: "completed" | "blocked" | "failed";
@@ -45,13 +48,14 @@ export type TacticsFrame = {
   outcome?: TacticsOutcome;
 };
 
-export type TacticsDeps = {
-  prepare: (context: TacticsContext, signal: AbortSignal) => Promise<void>;
-  activate: (context: TacticsContext) => void;
-  observe: (context: TacticsContext) => TacticsFrame;
-  execute: (actionId: string, context: TacticsContext) => void;
+export type TacticsDeps<C extends TacticsBase = TacticsContext> = {
+  prepare: (context: C, signal: AbortSignal) => Promise<void>;
+  activate: (context: C) => void;
+  observe: (context: C) => TacticsFrame;
+  commit?: (context: C) => TacticsFrame;
+  execute: (actionId: string, context: C) => void;
   halt: () => void;
-  defend: (context: TacticsContext) => TacticsDefense;
+  defend: (context: C) => TacticsDefense;
   select: JevSelect | undefined;
   now?: () => number;
   maxResultAgeMs?: number;
@@ -59,6 +63,7 @@ export type TacticsDeps = {
   requestTimeoutMs?: number;
   fault?: string;
   characterClass?: () => string | undefined;
+  wait?: JevCandidate | null;
 };
 
 type TacticsRequest = {
@@ -94,10 +99,11 @@ export type TacticsEvent =
   | {
       type: "started";
       runId: string;
-      targetGuid: string;
+      targetGuid: string | undefined;
       instruction: string;
       framing: FramingVariant;
       fault?: string;
+      objective?: unknown;
     }
   | { type: "activated"; runId: string }
   | ({ type: "request"; runId: string } & TacticsRequest)
@@ -121,9 +127,9 @@ export type TacticsEvent =
   | { type: "transport"; runId: string; call?: number; error: string }
   | { type: "stopped"; runId: string; reason: string; state: TacticsState };
 
-type Run = {
+type Run<C extends TacticsBase> = {
   runId: string;
-  context: TacticsContext & { framing: FramingVariant };
+  context: C & { framing: FramingVariant };
   select: JevSelect;
   abort: AbortController;
   detach: () => void;
@@ -132,21 +138,21 @@ type Run = {
   calls: number;
 };
 
-type Decision = {
-  run: Run;
+type Decision<C extends TacticsBase> = {
+  run: Run<C>;
   call: number;
   candidates: readonly JevCandidate[];
   sentAtMs: number;
   result: JevActionResult;
 };
 
-export class TacticsLoop {
-  private readonly deps: TacticsDeps;
+export class TacticsLoop<C extends TacticsBase = TacticsContext> {
+  private readonly deps: TacticsDeps<C>;
   private readonly maxResultAgeMs: number;
   private readonly minIntervalMs: number;
   private readonly requestTimeoutMs: number;
   private readonly events = new Emitter<[TacticsEvent]>();
-  private run: Run | undefined;
+  private run: Run<C> | undefined;
   private pending: Promise<void> | undefined;
   private state: TacticsState = {
     status: "idle",
@@ -161,14 +167,14 @@ export class TacticsLoop {
     timeouts: noTimeouts(),
   };
 
-  constructor(deps: TacticsDeps) {
+  constructor(deps: TacticsDeps<C>) {
     this.deps = deps;
     this.maxResultAgeMs = deps.maxResultAgeMs ?? DEFAULT_MAX_AGE_MS;
     this.minIntervalMs = deps.minIntervalMs ?? DEFAULT_INTERVAL_MS;
     this.requestTimeoutMs = deps.requestTimeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
 
-  async start(context: TacticsContext, signal?: AbortSignal): Promise<void> {
+  async start(context: C, signal?: AbortSignal): Promise<void> {
     this.stop("replaced");
     const select = this.deps.select;
     if (!select) throw new JevUnavailableError("missing_jev_key");
@@ -233,12 +239,12 @@ export class TacticsLoop {
   }
 
   private begin(
-    context: TacticsContext,
+    context: C,
     select: JevSelect,
     external: AbortSignal | undefined,
-  ): Run {
+  ): Run<C> {
     const framing = context.framing ?? "none";
-    const run: Run = {
+    const run: Run<C> = {
       runId: crypto.randomUUID(),
       context: { ...context, framing },
       select,
@@ -253,7 +259,11 @@ export class TacticsLoop {
     };
     external?.addEventListener("abort", onExternal, { once: true });
     this.run = run;
-    const { targetGuid, instruction } = context;
+    const { instruction, objective } = context;
+    const targetGuid =
+      "targetGuid" in context
+        ? (context.targetGuid as bigint | undefined)
+        : undefined;
     const fault = this.deps.fault;
     this.state = {
       status: "preparing",
@@ -269,13 +279,14 @@ export class TacticsLoop {
       timeouts: noTimeouts(),
       fault,
     };
-    const guid = `0x${targetGuid.toString(16)}`;
+    const guid =
+      targetGuid === undefined ? undefined : `0x${targetGuid.toString(16)}`;
     const started = { runId: run.runId, targetGuid: guid, instruction };
-    this.emit({ type: "started", ...started, framing, fault });
+    this.emit({ type: "started", ...started, framing, fault, objective });
     return run;
   }
 
-  private async activate(run: Run): Promise<void> {
+  private async activate(run: Run<C>): Promise<void> {
     const signal = run.abort.signal;
     await abortable(this.deps.prepare(run.context, signal), signal);
     if (this.pending)
@@ -287,11 +298,11 @@ export class TacticsLoop {
     this.emit({ type: "activated", runId: run.runId });
   }
 
-  private live(run: Run): boolean {
+  private live(run: Run<C>): boolean {
     return this.run === run && !run.abort.signal.aborted;
   }
 
-  private fail(run: Run, error: unknown, defend = false): void {
+  private fail(run: Run<C>, error: unknown, defend = false): void {
     if (!this.live(run)) return;
     const reason = messageOf(error);
     this.state.lastDiscardReason = reason;
@@ -300,7 +311,7 @@ export class TacticsLoop {
   }
 
   private finish(
-    run: Run,
+    run: Run<C>,
     outcome: TacticsOutcome,
     observation?: TacticsFrame["observation"],
     defend = false,
@@ -314,7 +325,7 @@ export class TacticsLoop {
     if (this.live(run)) this.end(recorded.status, defend);
   }
 
-  private async decide(run: Run): Promise<void> {
+  private async decide(run: Run<C>): Promise<void> {
     while (this.live(run)) {
       const frame = this.deps.observe(run.context);
       if (!this.live(run)) return;
@@ -323,9 +334,10 @@ export class TacticsLoop {
         this.finish(run, frame.outcome, frame.observation, defend);
         return;
       }
-      const candidates = withWait(frame.candidates);
+      const candidates = withWait(frame.candidates, this.deps.wait);
+      const idle = this.deps.wait?.id ?? WAIT_CANDIDATE.id;
       const sentAtMs = this.now();
-      if (candidates.some((candidate) => candidate.id !== WAIT.id)) {
+      if (candidates.some((candidate) => candidate.id !== idle)) {
         run.calls += 1;
         const call = run.calls;
         const result = await this.attempt(run, { ...frame, candidates }, call);
@@ -339,7 +351,7 @@ export class TacticsLoop {
   }
 
   private async attempt(
-    run: Run,
+    run: Run<C>,
     frame: TacticsFrame,
     call: number,
   ): Promise<JevActionResult | undefined> {
@@ -359,7 +371,7 @@ export class TacticsLoop {
     }
   }
 
-  private retry(run: Run, error: unknown): void {
+  private retry(run: Run<C>, error: unknown): void {
     if (error instanceof JevTransportError) {
       run.transportFailures += 1;
       if (run.transportFailures < TRANSPORT_LIMIT) return;
@@ -374,7 +386,7 @@ export class TacticsLoop {
   }
 
   private async select(
-    run: Run,
+    run: Run<C>,
     frame: TacticsFrame,
     call: number,
   ): Promise<JevActionResult> {
@@ -415,7 +427,7 @@ export class TacticsLoop {
   }
 
   private late(
-    run: Run,
+    run: Run<C>,
     call: number,
     result: JevActionResult,
     signal: AbortSignal,
@@ -432,7 +444,13 @@ export class TacticsLoop {
     });
   }
 
-  private commit({ run, call, result, candidates, sentAtMs }: Decision): void {
+  private commit({
+    run,
+    call,
+    result,
+    candidates,
+    sentAtMs,
+  }: Decision<C>): void {
     if (!this.live(run)) return;
     this.state.lastResult = structuredClone(result);
     this.emit({ type: "result", runId: run.runId, call, ...result });
@@ -444,14 +462,16 @@ export class TacticsLoop {
       this.discard(run, call, rejected, choice);
       return;
     }
-    const current = this.deps.observe(run.context);
+    const current = this.deps.commit
+      ? this.deps.commit(run.context)
+      : this.deps.observe(run.context);
     if (!this.live(run)) return;
     if (current.outcome) {
       const defend = current.outcome.reason.startsWith(SERVER_REJECTION);
       this.finish(run, current.outcome, current.observation, defend);
       return;
     }
-    if (!offers(withWait(current.candidates), choice)) {
+    if (!offers(withWait(current.candidates, this.deps.wait), choice)) {
       this.discard(run, call, "unavailable", choice);
       return;
     }
@@ -465,7 +485,7 @@ export class TacticsLoop {
   }
 
   private applied(
-    run: Run,
+    run: Run<C>,
     call: number,
     actionId: string,
     ageMs: number,
@@ -481,7 +501,7 @@ export class TacticsLoop {
   }
 
   private discard(
-    run: Run,
+    run: Run<C>,
     call: number,
     reason: string,
     actionId: string,
@@ -494,27 +514,6 @@ export class TacticsLoop {
 }
 
 const TIMEOUT = "jev_timeout";
-
-function judge(
-  choice: string,
-  ageMs: number,
-  maxAgeMs: number,
-  offered: readonly JevCandidate[],
-): string | undefined {
-  if (ageMs > maxAgeMs) return "stale_age";
-  if (!offers(offered, choice)) return "unknown_id";
-  return undefined;
-}
-
-function offers(candidates: readonly JevCandidate[], id: string): boolean {
-  return candidates.some((candidate) => candidate.id === id);
-}
-
-function withWait(candidates: readonly JevCandidate[]): JevCandidate[] {
-  const list = candidates.map((candidate) => ({ ...candidate }));
-  if (!offers(list, WAIT.id)) list.push({ ...WAIT });
-  return list;
-}
 
 function noTimeouts(): TacticsState["timeouts"] {
   return { consecutive: 0, total: 0, limit: MAX_CONSECUTIVE_TIMEOUTS };

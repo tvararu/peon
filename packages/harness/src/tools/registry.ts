@@ -14,6 +14,7 @@ import { interactTool } from "#harness/tools/interact";
 import { journalTool } from "#harness/tools/journal";
 import { lookTool } from "#harness/tools/look";
 import { lootTool } from "#harness/tools/loot";
+import { pilotTool } from "#harness/tools/pilot";
 import { recoverTool } from "#harness/tools/recover";
 import { restTool } from "#harness/tools/rest";
 import { socialTool } from "#harness/tools/social";
@@ -24,6 +25,7 @@ export const GAME_TOOLS = [
   lookTool,
   travelTool,
   engageTool,
+  pilotTool,
   lootTool,
   interactTool,
   restTool,

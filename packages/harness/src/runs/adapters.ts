@@ -3,6 +3,7 @@ import { messageOf } from "@peon/core/lib/errors";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { CycleState } from "#harness/loops/cycle-types";
 import type { Game } from "#harness/loops/game";
+import type { PilotObjective } from "#harness/loops/pilot-types";
 import type { TacticsOutcome } from "#harness/loops/tactics";
 import type { GotoTarget } from "#harness/navigation/goto";
 import { nextStepFor } from "#harness/navigation/observation";
@@ -118,6 +119,74 @@ export type FightEnd = {
 export type CycleEnd = { state: CycleState; error: string | undefined };
 
 const JEV_UNAVAILABLE = "jev_unavailable";
+
+export type PilotEnd = {
+  outcome: TacticsOutcome | undefined;
+  error: string | undefined;
+};
+
+type PilotInit = {
+  objective: PilotObjective;
+  signal: AbortSignal;
+  timeoutMs: number;
+};
+
+function watchPilot(handle: Game) {
+  let runId: string | undefined;
+  let outcome: TacticsOutcome | undefined;
+  let done: () => void = ignoreFailure;
+  const ended = new Promise<void>((resolve) => {
+    done = resolve;
+  });
+  const stop = handle.onPilotEvent((event) => {
+    if (event.type === "started" && runId === undefined) runId = event.runId;
+    if (runId === undefined || event.runId !== runId) return;
+    if (event.type === "outcome") {
+      outcome = {
+        observation: event.observation,
+        reason: event.reason,
+        status: event.status,
+      };
+      done();
+    }
+    if (event.type === "stopped") {
+      outcome ??= event.state.lastOutcome;
+      done();
+    }
+  });
+  return { ended, outcome: () => outcome, stop };
+}
+
+export async function awaitPilot(
+  handle: Game,
+  { objective, signal, timeoutMs }: PilotInit,
+): Promise<PilotEnd> {
+  const watch = watchPilot(handle);
+  const onAbort = () => handle.halt();
+  signal.addEventListener("abort", onAbort, { once: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error("pilot_timeout")), timeoutMs);
+  });
+  try {
+    await Promise.race([
+      handle.startPilot(objective, signal),
+      watch.ended,
+      deadline,
+    ]);
+    return {
+      error: undefined,
+      outcome: watch.outcome() ?? handle.getPilotState().lastOutcome,
+    };
+  } catch (error) {
+    handle.halt();
+    return { error: messageOf(error), outcome: watch.outcome() };
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+    watch.stop();
+    signal.removeEventListener("abort", onAbort);
+  }
+}
 
 type TacticsInit = { guid: bigint; instruction: string; signal: AbortSignal };
 type CycleInit = {

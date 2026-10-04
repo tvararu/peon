@@ -132,8 +132,31 @@ grader to read. The draft fills the check's `observed` from its typed
 A `measure` names a computed measure in
 `packages/harness/src/grader/draft-measure.ts` (for example `kill_xp` or
 `max_attackers`); on a check whose source is not `truth` it replaces
-`evidence`.
-A check with neither leaves `observed` null for the grader to fill.
+`evidence`. The pilot measures read the `pilot/started`, `pilot/decision`
+and `pilot/ended` rows of the latest pilot run that made a decision (a
+later call that starts at the goal and ends at once is skipped):
+`pilot_circle` is met when
+the run completed, holds at least one decision, and every decision pose
+lies within 5 yd of the objective ring (2D distance from the centre);
+`pilot_reach` is met when the run completed with no
+`control/server_correction` row inside it; `pilot_jumps` is met when the
+run completed with no correction, every client `MSG_MOVE_JUMP` packet of
+the run matches a distinct jev.jsonl `applied` row with
+`loop: "pilot"` and `actionId: "jump_ahead"` stamped from 1.5 s before
+to 100 ms after the packet (an applied `jump_ahead` arms the jump, which
+goes off once the arc clears the obstacle), and every jump is followed
+by `MSG_MOVE_FALL_LAND` before the next jump, at most 1.5 s after the run
+ends (a run that reaches its goal mid-jump ends before the landing);
+`pilot_only_moves` is met when a pilot run exists and no `travel`,
+`engage` or `recover` run (`run/started` rows) starts before that pilot
+run ends; a fight the agent takes up after the objective is done does not
+count. The jump
+match compares packet `at` timestamps against jev `ts` values directly:
+the packet tap stamps the send time while the `applied` row is written a
+few milliseconds later, so each match allows an applied stamp up to
+100 ms after the packet. A missing `pilot/started` row, a missing
+`packets.jsonl` or `jev.jsonl` input, or a missing `pilot/ended` row
+leaves the measure unmet with a `reason`.
 
 `t6-selfstate-res` runs on the `eversong1-shaman` preset, a level-1 Orc
 shaman. Its setup teaches Reincarnation (20608) and adds one Ankh
@@ -196,6 +219,7 @@ two scenarios closest to it. Every scenario appears in at least one row.
 |---|---|
 | Navigation and movement (`travel`, routes, namigator) | `t1-walk-to-npc` |
 | Combat and Jev (`engage`, spells) | `t3-ghostlands-kill`, `t7-halt-resume` |
+| Jev pilot (`pilot`, Jev-driven movement; the `-holdout` scenarios are the held-out split for hill-climbing) | `t3-pilot-circle`, `t3-pilot-detour`, `t3-pilot-fence`, `t3-pilot-circle-holdout`, `t3-pilot-detour-holdout`, `t3-pilot-fence-holdout` |
 | Quest marks, objective regions, greetings and sharing (look, journal, interact, group) | `t4-quests-find-giver`, `t4-quests-poi-walk`, `t1-quests-read-greeting`, `t1-quests-guard-directions`, `t8-quests-share`, `t8-quests-accept-shared` |
  | Quests (`interact` quest dialogs, quest log, rewards) | `t4-quest-first`, `t4-alliance-first`, `t4-quests-level-five` |
 | Vendors and money | `t5-vendor-buy-goldshire` |

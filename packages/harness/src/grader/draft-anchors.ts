@@ -3,7 +3,11 @@ import { isRecord } from "#harness/grader/exec";
 
 export type Measured = { observed: unknown; line?: number; met?: boolean };
 
-export type MeasureContext = { jev: unknown[] | null; steers: string[] };
+export type MeasureContext = {
+  jev: unknown[] | null;
+  packets: unknown[] | null;
+  steers: string[];
+};
 
 const field = (row: GameLogRow, key: string): unknown =>
   isRecord(row.data) ? row.data[key] : undefined;

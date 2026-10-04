@@ -264,8 +264,10 @@ function fightEnd(
 }
 
 export function tacticsDrafts(event: TacticsEvent, rc: RuleInput): Drafts {
-  if (event.type === "started")
+  if (event.type === "started") {
+    if (event.targetGuid === undefined) return [];
     return fightStart(event.runId, BigInt(event.targetGuid), rc);
+  }
   if (event.type === "outcome")
     return fightEnd(
       event.runId,

@@ -26,7 +26,8 @@ export type CoreDomain =
   | "packet"
   | "notice"
   | "snapshot"
-  | "entity";
+  | "entity"
+  | "pilot";
 
 export type Domain = CoreDomain | AreaName;
 
@@ -88,6 +89,9 @@ export type CoreLogEvent =
   | "run/progress"
   | "run/ended"
   | "run/cancelled"
+  | "pilot/started"
+  | "pilot/decision"
+  | "pilot/ended"
   | "tool/call"
   | "tool/result"
   | "tool/validation_error"

@@ -151,6 +151,7 @@ describe("ControlRuntime", () => {
             if (x > startX + 0.5 && x < startX + 1.5) return;
             return from?.z ?? 70.34;
           },
+          pathClear: () => false,
         }),
       });
       const start = must(runtime.snapshot().pose);

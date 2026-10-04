@@ -329,6 +329,7 @@ export function createMockHandle(): MockHandle {
     }),
     setLeader: jest.fn(),
     setSwimming: jest.fn(),
+    settle: jest.fn(),
     spellDefinition: jest.fn(() => undefined),
     spellReadyAt: jest.fn(() => 0),
     stopAttack: jest.fn(),

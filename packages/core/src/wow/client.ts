@@ -236,6 +236,7 @@ export type CoreHandle = {
   move: (direction: MovementDirection, durationMs: number) => void;
   drive: (input: MovementInput, durationMs: number) => void;
   jump: () => void;
+  settle: () => void;
   face: (orientation: number) => void;
   faceGuid: (guid: bigint) => void;
   walkTowardPoint: (

@@ -127,6 +127,7 @@ export const DOMAIN_GLYPH: Readonly<Record<CoreDomain, GlyphName>> = {
   nav: "route",
   notice: "warning",
   packet: "error",
+  pilot: "route",
   quest: "questLog",
   run: "runRunning",
   session: "system",

@@ -2,6 +2,7 @@ export type ToolName =
   | "look"
   | "travel"
   | "engage"
+  | "pilot"
   | "loot"
   | "interact"
   | "rest"

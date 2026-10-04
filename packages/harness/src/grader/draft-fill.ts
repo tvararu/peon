@@ -256,7 +256,7 @@ async function readGameLog(file: string) {
   return (await handle.exists()) ? parseGameLog(await handle.text()) : null;
 }
 
-async function readJev(file: string): Promise<unknown[] | null> {
+async function readJsonLines(file: string): Promise<unknown[] | null> {
   const handle = Bun.file(file);
   if (!(await handle.exists())) return null;
   return (await handle.text())
@@ -278,7 +278,8 @@ export async function observedChecks(
   const rows = await readGameLog(`${runDir}/gamelog.jsonl`);
   const consoleLog = await readConsoleLog(runDir);
   const context = {
-    jev: await readJev(`${runDir}/jev.jsonl`),
+    jev: await readJsonLines(`${runDir}/jev.jsonl`),
+    packets: await readJsonLines(`${runDir}/packets.jsonl`),
     steers: [...steers],
   };
   return checks.map((check) => {
