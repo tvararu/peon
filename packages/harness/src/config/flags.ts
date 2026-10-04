@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
@@ -7,10 +8,9 @@ import type { HarnessFlags, PacketTraceMode } from "#harness/contract/config";
 export class UsageError extends Error {}
 
 export const DEFAULT_MODEL = "openai-codex/gpt-6-luna";
+export const USAGE = `Usage: mise harness [--profile <path>] [options]
 
-export const USAGE = `Usage: mise harness --profile <path> [options]
-
-  --profile <path>        soap session JSON, soap ledger JSON or Peon config.toml (required)
+  --profile <path>        soap session JSON, soap ledger JSON or Peon config.toml (default: ~/.config/peon/config.toml)
   --run-dir <path>        run directory (default: <state>/runs/<utc>-<character>)
   --model <provider/id>   model (default: ${DEFAULT_MODEL})
   --thinking <level>      off|minimal|low|medium|high|xhigh|max (default: off)
@@ -50,13 +50,20 @@ const OPTIONS = {
   wake: { type: "string" },
 } as const;
 
+export function defaultProfilePath(home = homedir()): string {
+  return `${home}/.config/peon/config.toml`;
+}
+
 export function harnessStateDir(home: string): string {
   return `${home}/.local/state/peon-harness`;
 }
 
-export function parseFlags(argv: readonly string[]): HarnessFlags {
+export function parseFlags(
+  argv: readonly string[],
+  home = homedir(),
+): HarnessFlags {
   const values = readArgs(argv);
-  if (!values.profile) throw new UsageError("--profile <path> is required.");
+  const profile = values.profile ?? defaultProfilePath(home);
   return {
     check: values.check ?? false,
     connect: !values["no-connect"],
@@ -66,7 +73,7 @@ export function parseFlags(argv: readonly string[]): HarnessFlags {
     model: values.model ?? DEFAULT_MODEL,
     nowPerCall: values["now-per-call"] ?? false,
     packetTrace: traceMode(values["packet-trace"]),
-    profile: values.profile,
+    profile,
     runDir: values["run-dir"],
     stopReflex: onOff("--stop-reflex", values["stop-reflex"]),
     thinking: thinkingOf(values.thinking),

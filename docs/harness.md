@@ -61,8 +61,10 @@ Alliance), `timeout_minutes` (30), `spell_data_dir`,
 `navigation_data_dir` and `navigation_library` are optional. Then run:
 
 ```
-mise harness --profile ~/.config/peon/config.toml
+mise harness
 ```
+
+Or pass `--profile <path>` to select another profile.
 
 The harness guard in [Credentials and safety](#credentials-and-safety)
 still applies: it refuses the protected accounts and the character
@@ -116,7 +118,7 @@ The navigation data directory holds maps 0 (Azeroth), 1 (Kalimdor), 530 (Expansi
 
 | Flag | Default | What it does |
 |---|---|---|
-| `--profile <path>` | required | The character to play: a soap session JSON, a soap ledger JSON, or a Peon `config.toml`. There is no default profile. |
+| `--profile <path>` | `~/.config/peon/config.toml` | The character to play: a soap session JSON, a soap ledger JSON, or a Peon `config.toml`. |
 | `--run-dir <path>` | `~/.local/state/peon-harness/runs/<utc>-<character>` | Where the run files go. The harness refuses a directory that already has `gamelog.jsonl`. |
 | `--model <provider/id>` | `openai-codex/gpt-6-luna` | The model from Pi's bundled catalog. |
 | `--thinking <level>` | `off` | The Pi thinking level. |
@@ -130,8 +132,8 @@ The navigation data directory holds maps 0 (Azeroth), 1 (Kalimdor), 530 (Expansi
 | `--extension <path>` | none | Loads a Pi extension file; repeat it for more. See [Extensions](#extensions). |
 | `--check` | off | Checks the profile, the extension paths, the lock and the Codex login, and warns about DBC files missing from `spell_data_dir`, then exits with code 0. |
 
-The harness reads no `WOW_*` variable. Only `--profile` selects the
-character.
+The harness reads no `WOW_*` variable. Only `--profile` (or its default
+`~/.config/peon/config.toml`) selects the character.
 
 ## Credentials and safety
 
