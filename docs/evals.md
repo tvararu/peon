@@ -139,14 +139,16 @@ lies within 5 yd of the objective ring (2D distance from the centre);
 `pilot_reach` is met when the run completed with no
 `control/server_correction` row inside it; `pilot_jumps` is met when the
 run completed with no correction, every client `MSG_MOVE_JUMP` packet of
-the run matches a distinct earlier jev.jsonl `applied` row with
-`loop: "pilot"` and `actionId: "jump_ahead"`, and every jump is followed
+the run matches a distinct jev.jsonl `applied` row with
+`loop: "pilot"` and `actionId: "jump_ahead"` stamped within one second
+before to 100 ms after the packet, and every jump is followed
 by `MSG_MOVE_FALL_LAND` before the next jump or the end of the run;
 `pilot_only_moves` is met when `tools.json` records a `pilot` call and no
 call to another movement tool (`travel`, `engage`, `recover`). The jump
 match compares packet `at` timestamps against jev `ts` values directly:
-the packet tap, the game log and the jev log each stamp `Date.now()`, so
-all three share the wall clock. A missing `pilot/started` row, a missing
+the packet tap stamps the send time while the `applied` row is written a
+few milliseconds later, so each match allows an applied stamp up to
+100 ms after the packet. A missing `pilot/started` row, a missing
 `packets.jsonl`, `jev.jsonl` or `tools.json` input, or a missing
 `pilot/ended` row leaves the measure unmet with a `reason`.
 

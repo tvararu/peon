@@ -3,6 +3,7 @@ import { messageOf } from "@peon/core/lib/errors";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
 import type { CycleState } from "#harness/loops/cycle-types";
 import type { Game } from "#harness/loops/game";
+import type { PilotObjective } from "#harness/loops/pilot-types";
 import type { TacticsOutcome } from "#harness/loops/tactics";
 import type { GotoTarget } from "#harness/navigation/goto";
 import { nextStepFor } from "#harness/navigation/observation";
@@ -125,7 +126,7 @@ export type PilotEnd = {
 };
 
 type PilotInit = {
-  objective: unknown;
+  objective: PilotObjective;
   signal: AbortSignal;
   timeoutMs: number;
 };
@@ -169,7 +170,7 @@ export async function awaitPilot(
   });
   try {
     await Promise.race([
-      handle.startPilot(objective as Parameters<Game["startPilot"]>[0], signal),
+      handle.startPilot(objective, signal),
       watch.ended,
       deadline,
     ]);
@@ -178,6 +179,7 @@ export async function awaitPilot(
       outcome: watch.outcome() ?? handle.getPilotState().lastOutcome,
     };
   } catch (error) {
+    handle.halt();
     return { error: messageOf(error), outcome: watch.outcome() };
   } finally {
     if (timer !== undefined) clearTimeout(timer);

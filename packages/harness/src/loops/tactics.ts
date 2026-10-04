@@ -10,12 +10,13 @@ import type {
 } from "#harness/jev/contract";
 import { JevTransportError, JevUnavailableError } from "#harness/jev/failure";
 import type { FramingVariant } from "#harness/jev/framing";
+import {
+  judge,
+  offers,
+  WAIT_CANDIDATE,
+  withWait,
+} from "#harness/loops/tactics-select";
 
-const WAIT = {
-  id: "wait",
-  description:
-    "Hold current state and start nothing new: if moving, this refreshes the current direction's movement lease; if stationary, this is a no-op. Use stop_moving to release movement explicitly.",
-} as const;
 export const DEFAULT_FIGHT_INSTRUCTION =
   "defeat the selected target while keeping the character alive";
 const DEFAULT_MAX_AGE_MS = 2000;
@@ -25,13 +26,13 @@ export const MAX_CONSECUTIVE_TIMEOUTS = 3;
 export const SERVER_REJECTION = "server_action_rejected:";
 export const TRANSPORT_LIMIT = 3;
 
-export type TacticsBase = {
+export type TacticsBase<O = unknown> = {
   instruction: string;
   framing?: FramingVariant;
-  objective?: unknown;
+  objective?: O;
 };
 
-export type TacticsContext = TacticsBase & { targetGuid: bigint };
+export type TacticsContext = TacticsBase<unknown> & { targetGuid: bigint };
 
 export type TacticsOutcome = {
   status: "completed" | "blocked" | "failed";
@@ -51,6 +52,7 @@ export type TacticsDeps<C extends TacticsBase = TacticsContext> = {
   prepare: (context: C, signal: AbortSignal) => Promise<void>;
   activate: (context: C) => void;
   observe: (context: C) => TacticsFrame;
+  commit?: (context: C) => TacticsFrame;
   execute: (actionId: string, context: C) => void;
   halt: () => void;
   defend: (context: C) => TacticsDefense;
@@ -61,7 +63,7 @@ export type TacticsDeps<C extends TacticsBase = TacticsContext> = {
   requestTimeoutMs?: number;
   fault?: string;
   characterClass?: () => string | undefined;
-  wait?: JevCandidate;
+  wait?: JevCandidate | null;
 };
 
 type TacticsRequest = {
@@ -333,7 +335,7 @@ export class TacticsLoop<C extends TacticsBase = TacticsContext> {
         return;
       }
       const candidates = withWait(frame.candidates, this.deps.wait);
-      const idle = this.deps.wait?.id ?? WAIT.id;
+      const idle = this.deps.wait?.id ?? WAIT_CANDIDATE.id;
       const sentAtMs = this.now();
       if (candidates.some((candidate) => candidate.id !== idle)) {
         run.calls += 1;
@@ -460,7 +462,9 @@ export class TacticsLoop<C extends TacticsBase = TacticsContext> {
       this.discard(run, call, rejected, choice);
       return;
     }
-    const current = this.deps.observe(run.context);
+    const current = this.deps.commit
+      ? this.deps.commit(run.context)
+      : this.deps.observe(run.context);
     if (!this.live(run)) return;
     if (current.outcome) {
       const defend = current.outcome.reason.startsWith(SERVER_REJECTION);
@@ -510,31 +514,6 @@ export class TacticsLoop<C extends TacticsBase = TacticsContext> {
 }
 
 const TIMEOUT = "jev_timeout";
-
-function judge(
-  choice: string,
-  ageMs: number,
-  maxAgeMs: number,
-  offered: readonly JevCandidate[],
-): string | undefined {
-  if (ageMs > maxAgeMs) return "stale_age";
-  if (!offers(offered, choice)) return "unknown_id";
-  return undefined;
-}
-
-function offers(candidates: readonly JevCandidate[], id: string): boolean {
-  return candidates.some((candidate) => candidate.id === id);
-}
-
-function withWait(
-  candidates: readonly JevCandidate[],
-  wait: JevCandidate | undefined = WAIT,
-): JevCandidate[] {
-  const list = candidates.map((candidate) => ({ ...candidate }));
-  if (wait === undefined || offers(list, wait.id)) return list;
-  list.push({ ...wait });
-  return list;
-}
 
 function noTimeouts(): TacticsState["timeouts"] {
   return { consecutive: 0, total: 0, limit: MAX_CONSECUTIVE_TIMEOUTS };

@@ -129,20 +129,6 @@ function classifyBlocked(
   return solidKind(ground, pose, heading);
 }
 
-export function blockerAt(
-  ground: GroundOracle,
-  ahead: PilotScan,
-  pose: PilotPose,
-): PilotBlocker {
-  if (ahead.freeYd >= PILOT_RANGE_YD) return { kind: "open" };
-  const blockedAt = {
-    ...pose,
-    x: pose.x + Math.cos(ahead.heading) * ahead.freeYd,
-    y: pose.y + Math.sin(ahead.heading) * ahead.freeYd,
-  };
-  return classifyBlocked(ground, blockedAt, ahead.heading);
-}
-
 function stepKind(
   ground: GroundOracle,
   pose: PilotPose,
@@ -221,7 +207,7 @@ export function jumpGate(
   if (ground === undefined || pose.airborne) return false;
   if (ahead.freeYd < PILOT_JUMP_NEAR_YD || ahead.freeYd > PILOT_JUMP_FAR_YD)
     return false;
-  const blocker = blockerAt(ground, ahead, pose);
+  const blocker = ahead.blocker;
   if (blocker.kind !== "low") return false;
   if (blocker.topYd < PILOT_JUMP_LOW_YD || blocker.topYd > PILOT_JUMP_HIGH_YD)
     return false;
@@ -335,16 +321,31 @@ export function relativeDeg(heading: number, facing: number): number {
 
 export function goalBearingText(relative: number): string {
   const rounded = Math.round(relative);
-  if (rounded === 0) return "straight ahead";
+  const size = Math.abs(rounded);
+  if (size <= 10) return `almost straight ahead (${aside(rounded)})`;
+  if (size <= 35) return `slightly off, ${aside(rounded)}`;
+  if (size <= 100) return `well off, ${aside(rounded)}`;
+  return `behind you, ${aside(rounded)}`;
+}
+
+function aside(rounded: number): string {
+  if (rounded === 0) return "dead ahead";
   if (rounded > 0) return `${rounded}° to your left`;
   return `${-rounded}° to your right`;
 }
 
-export function circleTangent(
+const LAP_LOOKAHEAD_YD = 4;
+
+export function lapPoint(
   objective: Extract<PilotObjective, { kind: "circle" }>,
-  pose: PilotPose,
-): number {
-  const toCentre = Math.atan2(objective.y - pose.y, objective.x - pose.x);
+  pose: { x: number; y: number },
+): { x: number; y: number } {
+  const around = Math.atan2(pose.y - objective.y, pose.x - objective.x);
   const turn = objective.direction === "counterclockwise" ? 1 : -1;
-  return normalizeAngle(toCentre + (turn * Math.PI) / 2);
+  const step = Math.min(Math.PI / 2, LAP_LOOKAHEAD_YD / objective.radius);
+  const angle = around + turn * step;
+  return {
+    x: objective.x + objective.radius * Math.cos(angle),
+    y: objective.y + objective.radius * Math.sin(angle),
+  };
 }

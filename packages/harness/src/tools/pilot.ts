@@ -25,7 +25,15 @@ type Latest = { after: PilotAfter };
 const HUMAN_WROTE = "The human wrote a message. Read it before you act.";
 const NO_MAP_DATA =
   "This map has no navigation data, so no travel can work here.";
-const DECISIONS_KEPT = 200;
+const DECISION_LOG_KEPT = 20;
+
+type SteerTally = {
+  decisions: number;
+  jumps: number;
+  pathYd: number;
+  log: PilotDecisionView[];
+  last: { x: number; y: number } | undefined;
+};
 
 function goalView(objective: PilotObjective): PilotGoalView {
   if (objective.kind === "reach")
@@ -42,6 +50,14 @@ function goalView(objective: PilotObjective): PilotGoalView {
 function goalText(objective: PilotObjective): string {
   if (objective.kind === "reach") return `(${objective.x}, ${objective.y})`;
   return `circle (${objective.x}, ${objective.y}) r${objective.radius} ${objective.direction}`;
+}
+
+function pilotRunArgs(objective: PilotObjective): Record<string, unknown> {
+  if (objective.kind === "reach")
+    return { to: `${objective.x},${objective.y}` };
+  return {
+    circle: `${objective.x},${objective.y} r${objective.radius} ${objective.direction}`,
+  };
 }
 
 export function emptyPilot(objective?: PilotObjective): PilotAfter {
@@ -115,27 +131,59 @@ function checkReady(ctx: ToolCtx<PilotAfter>): void {
     });
 }
 
-function afterOf(ops: OpsCtx, objective: PilotObjective): () => PilotAfter {
-  const startedAt = ops.rt.clock.now();
+function steerTally(ops: OpsCtx): SteerTally {
   const start = poseView(ops);
-  const decisions: PilotDecisionView[] = [];
+  return {
+    decisions: 0,
+    jumps: 0,
+    last: start ? { x: start.x, y: start.y } : undefined,
+    log: [],
+    pathYd: 0,
+  };
+}
+
+function trackApplied(
+  ops: OpsCtx,
+  tally: SteerTally,
+  event: { actionId: string; call: number },
+): void {
+  tally.decisions += 1;
+  if (event.actionId === "jump_ahead") tally.jumps += 1;
+  tally.log.push({
+    actionId: event.actionId,
+    at: ops.rt.clock.now(),
+    call: event.call,
+    disposition: "applied",
+  });
+  if (tally.log.length > DECISION_LOG_KEPT) tally.log.shift();
+  const pose = poseView(ops);
+  if (pose && tally.last)
+    tally.pathYd += Math.hypot(pose.x - tally.last.x, pose.y - tally.last.y);
+  if (pose) tally.last = { x: pose.x, y: pose.y };
+}
+
+function afterOf(
+  ops: OpsCtx,
+  objective: PilotObjective,
+  tally: SteerTally,
+): () => PilotAfter {
+  const startedAt = ops.rt.clock.now();
   return () => {
     const pose = poseView(ops);
     return {
-      calls: decisions.length,
-      decisionLog: [...decisions],
-      decisions: decisions.length,
+      calls: tally.decisions,
+      decisionLog: [...tally.log],
+      decisions: tally.decisions,
       elapsedMs: ops.rt.clock.now() - startedAt,
       finalYd:
         objective.kind === "reach" && pose
           ? Math.hypot(objective.x - pose.x, objective.y - pose.y)
           : undefined,
       goal: goalView(objective),
-      jumps: decisions.filter((d) => d.actionId === "jump_ahead").length,
+      jumps: tally.jumps,
       pose,
       timeouts: ops.handle.getPilotState().timeouts.total,
-      walkedYd:
-        start && pose ? Math.hypot(pose.x - start.x, pose.y - start.y) : 0,
+      walkedYd: tally.pathYd,
     };
   };
 }
@@ -268,6 +316,7 @@ type LaunchInit = {
 type LaunchCtx = LaunchInit & {
   ops: OpsCtx;
   read: () => PilotAfter;
+  tally: SteerTally;
   watch: InterruptWatch;
 };
 
@@ -282,7 +331,8 @@ function launchCtx(init: LaunchInit): LaunchCtx {
     progress: control.progress,
     signal: AbortSignal.any([control.signal, watch.signal]),
   };
-  return { ...init, ops, read: afterOf(ops, objective), watch };
+  const tally = steerTally(ops);
+  return { ...init, ops, read: afterOf(ops, objective, tally), tally, watch };
 }
 
 function launchProgress(env: LaunchCtx): (after: PilotAfter) => void {
@@ -304,7 +354,7 @@ function launchProgress(env: LaunchCtx): (after: PilotAfter) => void {
 
 async function launch(init: LaunchInit): Promise<RunEnd<Report>> {
   const env = launchCtx(init);
-  const { control, latest, objective, ops, read, watch } = env;
+  const { control, latest, objective, ops, read, tally, watch } = env;
   const progress = launchProgress(env);
   try {
     const end = await steer({
@@ -313,6 +363,7 @@ async function launch(init: LaunchInit): Promise<RunEnd<Report>> {
       ops,
       progress,
       read,
+      tally,
     });
     const after = read();
     latest.after = after;
@@ -350,6 +401,7 @@ type SteerInit = {
   ops: OpsCtx;
   progress: (after: PilotAfter) => void;
   read: () => PilotAfter;
+  tally: SteerTally;
   budgetMs: number;
 };
 
@@ -357,36 +409,11 @@ async function steer(init: SteerInit): Promise<{
   outcome: { status: string; reason: string } | undefined;
   error: string | undefined;
 }> {
-  const { objective, ops, progress, read, budgetMs } = init;
-  const seen: PilotDecisionView[] = [];
+  const { objective, ops, progress, read, tally, budgetMs } = init;
   const off = ops.handle.onPilotEvent((event) => {
-    if (event.type === "applied") {
-      const entry: PilotDecisionView = {
-        actionId: event.actionId,
-        at: ops.rt.clock.now(),
-        call: event.call,
-        disposition: event.type,
-      };
-      seen.push(entry);
-      if (seen.length > DECISIONS_KEPT) seen.shift();
-      const after = {
-        ...read(),
-        decisionLog: [...seen],
-        decisions: seen.length,
-      };
-      progress(after);
-    }
-    if (event.type === "discarded") {
-      const entry: PilotDecisionView = {
-        actionId: event.actionId ?? event.reason,
-        at: ops.rt.clock.now(),
-        call: event.call,
-        disposition: event.type,
-        reason: event.reason,
-      };
-      seen.push(entry);
-      if (seen.length > DECISIONS_KEPT) seen.shift();
-    }
+    if (event.type !== "applied") return;
+    trackApplied(ops, tally, event);
+    progress(read());
   });
   try {
     const end = await awaitPilot(ops.handle, {
@@ -428,7 +455,7 @@ async function runPilot(
   const latest: Latest = { after: emptyPilot(objective) };
   let runId = "";
   const run = ctx.rt.runs.start<Report>({
-    args: { ...args },
+    args: pilotRunArgs(objective),
     kind: "pilot",
     launch: (control) =>
       launch({

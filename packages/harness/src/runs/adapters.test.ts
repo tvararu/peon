@@ -7,6 +7,7 @@ import type { NavigationState } from "#harness/navigation/route-follower";
 import {
   awaitCycle,
   awaitGoto,
+  awaitPilot,
   awaitQuestCycle,
   awaitTactics,
   jevCode,
@@ -430,5 +431,19 @@ describe("awaitCycle", () => {
       "fight",
       undefined,
     );
+  });
+});
+
+describe("awaitPilot", () => {
+  test("halts the character when the budget runs out", async () => {
+    const handle = createMockGame();
+    handle.startPilot = jest.fn(() => new Promise<void>(() => {}));
+    const end = await awaitPilot(handle, {
+      objective: { kind: "reach", x: 10, y: 0 },
+      signal: new AbortController().signal,
+      timeoutMs: 5,
+    });
+    expect(end.error).toBe("pilot_timeout");
+    expect(handle.halt).toHaveBeenCalled();
   });
 });

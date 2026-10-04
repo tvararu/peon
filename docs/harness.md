@@ -227,8 +227,9 @@ more, Jev chooses one of the movement options the loop offers: `run_ahead`,
 `strafe_left`, `strafe_right`, `back_up`, `jump_ahead` and `stop`. There is no
 `wait` option. The loop describes each heading by its free distance and
 blocker (open, wall, drop or low obstacle), and it removes any option whose
-heading is blocked inside two yards. It offers `jump_ahead` only when a low
-obstacle 0.3 to 1.4 yd tall stands 1 to 3 yd ahead and the jump arc clears it.
+heading is blocked inside two yards, except `jump_ahead`, which stays while
+a low obstacle 0.3 to 1.4 yd tall stands 1 to 3 yd ahead and the jump arc
+clears it.
 
 An applied option faces the heading and drives it under a 1.5 s dead-man
 lease. If no new decision renews the lease, the character stops. `stop`,

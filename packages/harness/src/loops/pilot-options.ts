@@ -2,9 +2,9 @@ import type { GroundOracle } from "@peon/core";
 import { distance2d, type MovementInput, normalizeAngle } from "@peon/core";
 import type { JevCandidate } from "#harness/jev/contract";
 import {
-  circleTangent,
   goalBearingText,
   jumpGate,
+  lapPoint,
   PILOT_MIN_CLEAR_YD,
   type PilotPose,
   type PilotScan,
@@ -67,19 +67,45 @@ const OPTION_INPUTS: Record<Exclude<PilotOptionId, "stop">, MovementInput> = {
   veer_right: { move: "forward" },
 };
 
+export type ScanCache = {
+  pose: PilotPose;
+  ground: GroundOracle | undefined;
+  scans: Map<number, PilotScan>;
+};
+
+export function scanCache(
+  ground: GroundOracle | undefined,
+  pose: PilotPose,
+): ScanCache {
+  return { ground, pose, scans: new Map() };
+}
+
+export function cachedScan(cache: ScanCache, heading: number): PilotScan {
+  const norm = normalizeAngle(heading);
+  const key = Math.round(norm * 1e6);
+  const hit = cache.scans.get(key);
+  if (hit) return hit;
+  const scan = scanHeading(cache.ground, cache.pose, norm);
+  cache.scans.set(key, scan);
+  return scan;
+}
+
 export type OptionBuild = {
   ground: GroundOracle | undefined;
   objective: PilotObjective;
   pose: PilotPose;
+  cache?: ScanCache;
 };
 
 export function buildOptions({
   ground,
   objective,
   pose,
+  cache,
 }: OptionBuild): PilotOption[] {
   if (pose.airborne) return [];
-  const ahead = scanHeading(ground, pose, pose.orientation);
+  const scans = cache ?? scanCache(ground, pose);
+  const ahead = cachedScan(scans, pose.orientation);
   const canJump = jumpGate(ground, pose, ahead);
   const options: PilotOption[] = [];
   for (const id of PILOT_OPTION_IDS) {
@@ -102,8 +128,8 @@ export function buildOptions({
     const scan =
       id === "run_ahead" || id === "jump_ahead"
         ? ahead
-        : scanHeading(ground, pose, heading + (motion * Math.PI) / 180);
-    if (scan.freeYd < PILOT_MIN_CLEAR_YD) continue;
+        : cachedScan(scans, heading + (motion * Math.PI) / 180);
+    if (id !== "jump_ahead" && scan.freeYd < PILOT_MIN_CLEAR_YD) continue;
     options.push({
       description: optionText({ id, objective, pose, scan, turnDeg }),
       heading,
@@ -116,13 +142,13 @@ export function buildOptions({
 }
 
 export function scansForHeadings(
-  ground: GroundOracle | undefined,
+  cache: ScanCache,
   pose: PilotPose,
 ): PilotScan[] {
   const headings = [0, 45, 90, 135, 180, 225, 270, 315].map(
     (deg) => pose.orientation + (deg * Math.PI) / 180,
   );
-  return headings.map((heading) => scanHeading(ground, pose, heading));
+  return headings.map((heading) => cachedScan(cache, heading));
 }
 
 export function blockerText(scan: PilotScan): string {
@@ -181,6 +207,7 @@ function goalAfterTurn(
     const bearing = Math.atan2(objective.y - pose.y, objective.x - pose.x);
     return `the goal would be ${distance} yd ${goalBearingText(relativeDeg(bearing, facing))}`;
   }
-  const tangent = circleTangent(objective, pose);
-  return `the circle would continue ${goalBearingText(relativeDeg(tangent, facing))}`;
+  const next = lapPoint(objective, pose);
+  const bearing = Math.atan2(next.y - pose.y, next.x - pose.x);
+  return `the next lap point would be ${goalBearingText(relativeDeg(bearing, facing))}`;
 }

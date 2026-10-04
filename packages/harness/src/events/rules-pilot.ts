@@ -25,38 +25,18 @@ function startedText(objective: PilotObjective): string {
   return `Pilot started: circle ${tenth(objective.x)}, ${tenth(objective.y)} r${tenth(objective.radius)} ${objective.direction}.`;
 }
 
-export function pilotObjectiveOf(value: unknown): PilotObjective | undefined {
-  if (typeof value !== "object" || value === null) return undefined;
-  if (!("kind" in value)) return undefined;
-  const kind = value.kind;
-  if (kind === "reach") return reachObjectiveOf(value);
-  if (kind === "circle") return circleObjectiveOf(value);
-  return undefined;
-}
-
-function reachObjectiveOf(value: object): PilotObjective | undefined {
-  if (!("x" in value && "y" in value)) return undefined;
-  const { x, y } = value as { x: unknown; y: unknown };
-  if (typeof x !== "number" || typeof y !== "number") return undefined;
-  return { kind: "reach", x, y };
-}
-
-function circleObjectiveOf(value: object): PilotObjective | undefined {
-  if (
-    !("x" in value && "y" in value && "radius" in value && "direction" in value)
-  )
-    return undefined;
-  const { direction, radius, x, y } = value as {
-    x: unknown;
-    y: unknown;
-    radius: unknown;
-    direction: unknown;
+function pilotObjectiveOf(
+  value: PilotObjective | undefined,
+): PilotObjective | undefined {
+  if (value === undefined) return undefined;
+  if (value.kind === "reach") return { kind: "reach", x: value.x, y: value.y };
+  return {
+    direction: value.direction,
+    kind: "circle",
+    radius: value.radius,
+    x: value.x,
+    y: value.y,
   };
-  if (typeof x !== "number" || typeof y !== "number") return undefined;
-  if (typeof radius !== "number") return undefined;
-  if (direction !== "clockwise" && direction !== "counterclockwise")
-    return undefined;
-  return { direction, kind: "circle", radius, x, y };
 }
 
 function moveYd(from: PoseMemo, to: PoseMemo): number {
@@ -210,7 +190,9 @@ export function pilotDrafts(
   return [];
 }
 
-type StartedEvent = Extract<TacticsEvent, { type: "started" }>;
+type StartedEvent = Extract<TacticsEvent, { type: "started" }> & {
+  objective?: PilotObjective | undefined;
+};
 type AppliedEvent = Extract<TacticsEvent, { type: "applied" }>;
 type OutcomeEvent = Extract<TacticsEvent, { type: "outcome" }>;
 type StoppedEvent = Extract<TacticsEvent, { type: "stopped" }>;
@@ -288,6 +270,7 @@ function stoppedPilotDraft(
   event: StoppedEvent,
   tallies: Map<string, PilotTally>,
 ): Drafts {
+  if (!tallies.has(event.runId)) return [];
   const outcome = event.state.lastOutcome;
   const reason = outcome?.reason ?? event.reason;
   if (!outcome) {

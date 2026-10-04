@@ -3,18 +3,14 @@ import type { ControlState, GroundOracle } from "@peon/core";
 import { PILOT_DEADMAN_MS, PilotActions } from "#harness/loops/pilot-actions";
 import {
   circleOutcome,
+  describeSurroundings,
   freshMemory,
   reachOutcome,
 } from "#harness/loops/pilot-frame";
-import {
-  PILOT_JUMP_FAR_YD,
-  PILOT_JUMP_HIGH_YD,
-  PILOT_JUMP_LOW_YD,
-  PILOT_JUMP_NEAR_YD,
-  poseOf,
-} from "#harness/loops/pilot-geometry";
-import { buildOptions } from "#harness/loops/pilot-options";
+import { lapPoint, poseOf } from "#harness/loops/pilot-geometry";
+import { buildOptions, scanCache } from "#harness/loops/pilot-options";
 import type { PilotContext } from "#harness/loops/pilot-types";
+import type { TacticsFrame } from "#harness/loops/tactics";
 
 function flat(height = 0): GroundOracle {
   return {
@@ -36,20 +32,33 @@ function wallAt(distanceYd: number): GroundOracle {
   };
 }
 
-function fence(): GroundOracle {
+function fence(at = 2): GroundOracle {
   return {
     height: (_mapId, x, _y, from) => {
-      if (x > 2 && x < 3) return 0.8;
+      if (x > at && x < at + 1) return 0.8;
       return from?.z ?? 0;
     },
     pathClear: (_mapId, from, to) => {
       const blocked = (x: number, z: number) =>
-        x > 2 && x < 3 && z < 0.8 + 0.25;
+        x > at && x < at + 1 && z < 0.8 + 0.25;
       return !(
         blocked(from.x, from.z) ||
         blocked(to.x, to.z) ||
         blocked((from.x + to.x) / 2, (from.z + to.z) / 2)
       );
+    },
+  };
+}
+
+function sideWall(): GroundOracle {
+  return {
+    height: (_mapId, _x, y, from) => {
+      if (y > 1) return;
+      return from?.z ?? 0;
+    },
+    pathClear: (_mapId, from, to) => {
+      const mid = (from.y + to.y) / 2;
+      return mid < 1;
     },
   };
 }
@@ -204,11 +213,20 @@ describe("pilot options", () => {
     ).toEqual([]);
   });
 
-  test("jump gate bounds match the contract", () => {
-    expect(PILOT_JUMP_NEAR_YD).toBe(1);
-    expect(PILOT_JUMP_FAR_YD).toBe(3);
-    expect(PILOT_JUMP_LOW_YD).toBe(0.3);
-    expect(PILOT_JUMP_HIGH_YD).toBe(1.4);
+  test("a low fence at 1.5 yd still offers jump_ahead past the 2 yd mask", () => {
+    const pose = poseOf(
+      { mapId: 530, orientation: 0, x: 0, y: 0, z: 0 },
+      7,
+      false,
+    );
+    const options = buildOptions({
+      ground: fence(1),
+      objective: { kind: "reach", x: 30, y: 0 },
+      pose,
+    });
+    const ids = options.map((o) => o.id);
+    expect(ids).toContain("jump_ahead");
+    expect(ids).not.toContain("run_ahead");
   });
 
   test("a low fence inside 1-3 yd offers jump_ahead when the arc clears", () => {
@@ -238,6 +256,18 @@ describe("pilot options", () => {
       pose,
     });
     expect(options.map((o) => o.id)).not.toContain("jump_ahead");
+  });
+
+  test("a wall on the left reads as left, not right", () => {
+    const pose = poseOf(
+      { mapId: 530, orientation: 0, x: 0, y: 0, z: 0 },
+      7,
+      false,
+    );
+    const slots = describeSurroundings(scanCache(sideWall(), pose), pose);
+    expect(slots[2]).toMatch(/^left: /);
+    expect(slots[2]).toMatch(/a wall/);
+    expect(slots[6]).toMatch(/^right: /);
   });
 });
 
@@ -288,6 +318,30 @@ describe("pilot execute", () => {
     expect(() => actions.execute("wait", reach(30))).toThrow(
       "unknown_pilot_action",
     );
+  });
+
+  test("travel lands on the previous decision, not the new one", () => {
+    const { actions, advance } = actionsWith(flat(), [
+      stateAt(0),
+      stateAt(1.6),
+    ]);
+    actions.execute("run_ahead", reach(30));
+    advance();
+    actions.execute("run_ahead", reach(30));
+    const observed = actions.observe(reach(30));
+    const self = observed.observation["self"];
+    expect(self).toMatch(/run_ahead moved 1.6 yd; run_ahead moved 0 yd/);
+  });
+
+  test("a committed frame survives a pose change before execute", () => {
+    const { actions, advance } = actionsWith(flat(), [
+      stateAt(0),
+      stateAt(1.6),
+    ]);
+    const before = actions.commit(reach(30));
+    advance();
+    expect(() => actions.execute("run_ahead", reach(30))).not.toThrow();
+    expect(before.candidates.map((c) => c.id)).toContain("run_ahead");
   });
 });
 
@@ -341,4 +395,57 @@ describe("pilot outcomes", () => {
       circleOutcome({ dead: false, memory, objective, x: -10, y: 0 }),
     ).toBeUndefined();
   });
+
+  test("back-and-forth jitter cannot complete a lap", () => {
+    const objective = {
+      direction: "counterclockwise" as const,
+      kind: "circle" as const,
+      radius: 10,
+      x: 0,
+      y: 0,
+    };
+    const memory = freshMemory();
+    circleOutcome({ dead: false, memory, objective, x: 10, y: 0 });
+    for (let leg = 0; leg < 40; leg += 1) {
+      circleOutcome({ dead: false, memory, objective, x: 9, y: 1 });
+      circleOutcome({ dead: false, memory, objective, x: 10, y: 0 });
+    }
+    expect(memory.sweptRad).toBeLessThan(0.5);
+    expect(
+      circleOutcome({ dead: false, memory, objective, x: 10, y: 0.5 }),
+    ).toBeUndefined();
+  });
+
+  test.each(["counterclockwise", "clockwise"] as const)(
+    "chasing the next lap point completes a %s lap",
+    (direction) => {
+      const objective = {
+        direction,
+        kind: "circle" as const,
+        radius: 10,
+        x: 0,
+        y: 0,
+      };
+      const memory = freshMemory();
+      let at = { x: 10, y: 0 };
+      let done: TacticsFrame["outcome"];
+      let steps = 0;
+      let widest = 0;
+      do {
+        done = circleOutcome({ dead: false, memory, objective, ...at });
+        const next = lapPoint(objective, at);
+        const away = Math.hypot(next.x - at.x, next.y - at.y);
+        at = {
+          x: at.x + (next.x - at.x) / away,
+          y: at.y + (next.y - at.y) / away,
+        };
+        if (steps > 10)
+          widest = Math.max(widest, Math.abs(Math.hypot(at.x, at.y) - 10));
+        steps += 1;
+      } while (!done && steps < 200);
+      expect(done).toEqual({ reason: "lap_completed", status: "completed" });
+      expect(steps).toBeLessThan(90);
+      expect(widest).toBeLessThan(2);
+    },
+  );
 });

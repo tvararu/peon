@@ -265,7 +265,7 @@ describe("pilot_jumps", () => {
     });
   });
 
-  test("fails when a jump has no preceding applied jump_ahead", async () => {
+  test("fails when a jump has no applied jump_ahead near it", async () => {
     const filled = await fill(
       {
         gamelog: [started(1, goal), decision(2, 10, 0), ended(3, "completed")],
@@ -275,6 +275,18 @@ describe("pilot_jumps", () => {
       check("pilot_jumps"),
     );
     expect(filled.met).toBe(false);
+  });
+
+  test("passes when the applied row lands just after the packet", async () => {
+    const filled = await fill(
+      {
+        gamelog: [started(1, goal), decision(2, 10, 0), ended(3, "completed")],
+        jev: [applied(T0 + 1505)],
+        packets: [jumpPacket(T0 + 1500), landPacket(T0 + 1800)],
+      },
+      check("pilot_jumps"),
+    );
+    expect(filled.met).toBe(true);
   });
 
   test("fails when two jumps share one applied row", async () => {

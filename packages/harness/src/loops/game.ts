@@ -193,10 +193,13 @@ function pilotLoop(
   const actions = new PilotActions(frame);
   return new TacticsLoop<PilotContext>({
     activate: () => actions.activate(),
-    defend: () => "none",
+    commit: (context) => actions.commit(context),
+    defend: () => {
+      actions.halt();
+      return "none";
+    },
     execute: (id, context) => actions.execute(id, context),
     halt: () => actions.halt(),
-    maxResultAgeMs: 1000,
     minIntervalMs: 50,
     observe: (context) => actions.observe(context),
     async prepare(_context, signal) {
@@ -205,7 +208,7 @@ function pilotLoop(
       signal.throwIfAborted();
     },
     select: jev?.select,
-    wait: undefined,
+    wait: null,
   });
 }
 

@@ -161,9 +161,11 @@ function firstMismatch(marks: Mark[], applied: number[]): Mismatch | undefined {
   for (const [index, mark] of marks.entries()) {
     if (mark.opcode !== "MSG_MOVE_JUMP") continue;
     jump += 1;
-    const matched = free.findLastIndex((ts) => ts <= mark.at);
+    const matched = free.findLastIndex(
+      (ts) => ts >= mark.at - 1000 && ts <= mark.at + 100,
+    );
     if (matched < 0)
-      return { at: mark.at, jump, reason: "no applied jump_ahead before it" };
+      return { at: mark.at, jump, reason: "no applied jump_ahead near it" };
     free.splice(matched, 1);
     const next = marks.findIndex(
       (later, laterIndex) =>

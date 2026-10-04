@@ -9,7 +9,11 @@ import {
   reachOutcome,
 } from "#harness/loops/pilot-frame";
 import { type PilotPose, poseOf } from "#harness/loops/pilot-geometry";
-import { buildOptions, type PilotOption } from "#harness/loops/pilot-options";
+import {
+  buildOptions,
+  type PilotOption,
+  scanCache,
+} from "#harness/loops/pilot-options";
 import type { PilotContext } from "#harness/loops/pilot-types";
 import type { ControlPort } from "#harness/loops/ports";
 import type { TacticsFrame } from "#harness/loops/tactics";
@@ -34,6 +38,9 @@ export class PilotActions {
   private readonly deps: PilotFrameDeps;
   private memory: PilotMemory = freshMemory();
   private lastPose: { x: number; y: number } | undefined;
+  private committed:
+    | { context: PilotContext; framed: PilotObserve }
+    | undefined;
 
   constructor(deps: PilotFrameDeps) {
     this.deps = deps;
@@ -42,6 +49,7 @@ export class PilotActions {
   activate(): void {
     this.memory = freshMemory();
     this.lastPose = undefined;
+    this.committed = undefined;
   }
 
   observe(context: PilotContext): TacticsFrame {
@@ -57,42 +65,56 @@ export class PilotActions {
     return this.frame(context);
   }
 
-  execute(actionId: string, context: PilotContext): void {
+  commit(context: PilotContext): PilotObserve {
     const framed = this.frame(context);
+    this.committed = { context, framed };
+    return framed;
+  }
+
+  execute(actionId: string, context: PilotContext): void {
+    const framed =
+      this.committed?.context === context
+        ? this.committed.framed
+        : this.frame(context);
+    this.committed = undefined;
     const option = framed.candidates.find(
       (candidate) => candidate.id === actionId,
     );
     if (!option) throw new Error(`unknown_pilot_action: ${actionId}`);
+    if (actionId !== "stop" && option.input === undefined)
+      throw new Error(`unknown_pilot_action: ${actionId}`);
+    this.settle();
     const state = this.deps.control.snapshot();
     const pose = state.pose;
     if (pose) this.lastPose = { x: pose.x, y: pose.y };
     if (actionId === "stop") {
       this.deps.control.halt("pilot_stop");
-      this.note(actionId);
+      this.memory.decisions.push({ actionId, movedYd: 0 });
+      if (this.memory.decisions.length > 3) this.memory.decisions.shift();
       return;
     }
-    if (option.input === undefined)
+    const input = option.input;
+    if (input === undefined)
       throw new Error(`unknown_pilot_action: ${actionId}`);
     this.deps.control.face(option.heading);
-    this.deps.control.drive(option.input, PILOT_DEADMAN_MS);
+    this.deps.control.drive(input, PILOT_DEADMAN_MS);
     if (actionId === "jump_ahead") this.deps.control.jump();
-    this.note(actionId);
+    this.memory.decisions.push({ actionId, movedYd: 0 });
+    if (this.memory.decisions.length > 3) this.memory.decisions.shift();
   }
 
   halt(): void {
     this.deps.control.halt("pilot_halt");
   }
 
-  private note(actionId: string): void {
+  private settle(): void {
+    const previous = this.memory.decisions.at(-1);
     const pose = this.deps.control.snapshot().pose;
-    const moved =
-      pose && this.lastPose
-        ? Math.round(
-            Math.hypot(pose.x - this.lastPose.x, pose.y - this.lastPose.y) * 10,
-          ) / 10
-        : 0;
-    this.memory.decisions.push({ actionId, movedYd: moved });
-    if (this.memory.decisions.length > 3) this.memory.decisions.shift();
+    if (previous && pose && this.lastPose)
+      previous.movedYd =
+        Math.round(
+          Math.hypot(pose.x - this.lastPose.x, pose.y - this.lastPose.y) * 10,
+        ) / 10;
     if (pose) this.lastPose = { x: pose.x, y: pose.y };
   }
 
@@ -230,7 +252,9 @@ function liveFrame({
     x: pose.x,
     y: pose.y,
   });
+  const cache = scanCache(ground, pilotPose);
   const candidates = buildOptions({
+    cache,
     ground,
     objective: context.objective,
     pose: pilotPose,
@@ -241,7 +265,7 @@ function liveFrame({
     observation: {
       objective: framed.detail,
       self: selfText(state, memory),
-      surroundings: describeSurroundings(ground, pilotPose),
+      surroundings: describeSurroundings(cache, pilotPose),
     },
   };
 }

@@ -1,11 +1,15 @@
 import { distance2d, normalizeAngle } from "@peon/core";
-import type { PilotFrameDeps } from "#harness/loops/pilot-actions";
 import {
-  circleTangent,
   goalBearingText,
+  lapPoint,
+  type PilotPose,
   relativeDeg,
 } from "#harness/loops/pilot-geometry";
-import { blockerText, scansForHeadings } from "#harness/loops/pilot-options";
+import {
+  blockerText,
+  type ScanCache,
+  scansForHeadings,
+} from "#harness/loops/pilot-options";
 import type { PilotObjective } from "#harness/loops/pilot-types";
 import type { TacticsFrame } from "#harness/loops/tactics";
 
@@ -63,7 +67,7 @@ export function circleOutcome({
   const delta = normalizeAngle(bearing - previous);
   const signed = delta > Math.PI ? delta - Math.PI * 2 : delta;
   const forward = objective.direction === "counterclockwise" ? signed : -signed;
-  if (forward > 0) memory.sweptRad += forward;
+  memory.sweptRad += forward;
   memory.bearing = bearing;
   const home =
     memory.startPose === undefined
@@ -100,18 +104,12 @@ export function objectiveText({
   }
   const off =
     Math.round((distance2d({ x, y }, objective) - objective.radius) * 10) / 10;
-  const tangent = circleTangent(objective, {
-    airborne: false,
-    mapId: 0,
-    orientation: facing,
-    speed: 0,
-    x,
-    y,
-    z: 0,
-  });
+  const next = lapPoint(objective, { x, y });
+  const bearing = Math.atan2(next.y - y, next.x - x);
+  const nextYd = Math.round(distance2d({ x, y }, next) * 10) / 10;
   const lap = Math.min(1, memory.sweptRad / (Math.PI * 2));
   return {
-    detail: `${circlePositionText(off)}; the circle continues ${goalBearingText(relativeDeg(tangent, facing))}; lap ${Math.round(lap * 100)}% done`,
+    detail: `${circlePositionText(off)}; the next lap point is ${nextYd} yd ${goalBearingText(relativeDeg(bearing, facing))}; lap ${Math.round(lap * 100)}% done`,
     distanceYd: Math.abs(off),
   };
 }
@@ -142,19 +140,20 @@ export function describeSelf(
 }
 
 export function describeSurroundings(
-  ground: PilotFrameDeps["ground"],
-  pose: Parameters<typeof scansForHeadings>[1],
+  cache: ScanCache,
+  pose: PilotPose,
 ): string[] {
-  return scansForHeadings(ground, pose).map((scan, index) => {
+  if (pose.airborne) return [];
+  return scansForHeadings(cache, pose).map((scan, index) => {
     const slots = [
       "ahead",
-      "ahead-right",
-      "right",
-      "behind-right",
-      "behind",
-      "behind-left",
-      "left",
       "ahead-left",
+      "left",
+      "behind-left",
+      "behind",
+      "behind-right",
+      "right",
+      "ahead-right",
     ];
     return `${slots[index]}: clear ${scan.freeYd} yd, ${blockerText(scan)}`;
   });
