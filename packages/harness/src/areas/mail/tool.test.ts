@@ -374,6 +374,50 @@ describe("mail tool spec", () => {
     );
   });
 
+  test("send refuses with both amounts when funds drop while queued", async () => {
+    const t = await world();
+    coinage(t.handle, 20_000);
+    let release!: () => void;
+    const held = t.rt.mutex.run(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    const pending = mailSpec
+      .run({ copper: 10_000, do: "send", to: "Fgkllpgpdnj" }, toolCtx(t))
+      .then(
+        () => undefined,
+        (error: unknown) => error as { detail: string; reason: string },
+      );
+    await Promise.resolve();
+    await Promise.resolve();
+    coinage(t.handle, 500);
+    release();
+    await held;
+    const failed = await pending;
+    expect(failed).toMatchObject({ reason: "not_enough_money" });
+    expect(failed?.detail).toContain("10030");
+    expect(failed?.detail).toContain("500");
+    expect(t.acts.sendMail).not.toHaveBeenCalled();
+  });
+  test("send turns a runtime not_enough_money rejection into the detailed refusal", async () => {
+    const t = await world();
+    coinage(t.handle, 20_000);
+    t.acts.sendMail.mockRejectedValueOnce(new Error("not_enough_money"));
+    const failed = await mailSpec
+      .run({ copper: 10_000, do: "send", to: "Fgkllpgpdnj" }, toolCtx(t))
+      .then(
+        () => undefined,
+        (error: unknown) => error as { detail: string; reason: string },
+      );
+    expect(failed).toMatchObject({ reason: "not_enough_money" });
+    expect(failed?.detail).toContain("10030");
+    expect(failed?.detail).toContain("20000");
+  });
+
   test("the tool sends inside the world mutex", async () => {
     await expectSendKind(mailTool, { do: "check" });
   });

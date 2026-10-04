@@ -138,6 +138,57 @@ function shortfallText(
 
 type MailOutcome = Awaited<ReturnType<AreaActsOf<"mail">["sendMail"]>>;
 
+type GuardedSend = {
+  items: MailDraftItem[];
+  mailbox: bigint;
+};
+
+type GuardedNote = {
+  body: string;
+  copper: number;
+  receiver: string;
+  subject: string;
+};
+
+async function guardedSend(
+  send: GuardedSend,
+  note: GuardedNote,
+  ctx: MailCtx,
+  postage: number,
+): Promise<MailOutcome> {
+  ctx.signal.throwIfAborted();
+  const carried = ctx.handle.getInventoryState().coinage ?? 0;
+  if (note.copper + postage > carried)
+    throw sendRefusal(
+      "not_enough_money",
+      shortfallText(note.copper, postage, carried),
+    );
+  try {
+    return await abortable(
+      ctx.handle.mail.act.sendMail({
+        body: note.body,
+        items: send.items,
+        mailbox: send.mailbox,
+        money: note.copper,
+        receiver: note.receiver,
+        subject: note.subject,
+      }),
+      ctx.signal,
+    );
+  } catch (error) {
+    if (error instanceof Error && error.message === "not_enough_money")
+      throw sendRefusal(
+        "not_enough_money",
+        shortfallText(
+          note.copper,
+          postage,
+          ctx.handle.getInventoryState().coinage ?? 0,
+        ),
+      );
+    throw error;
+  }
+}
+
 function settledSend(
   sent: MailOutcome,
   copper: number,
@@ -175,28 +226,20 @@ export async function runSend(
       `Copper ${copper} is not a copper amount of 0 or more.`,
     );
   const attachments = pickAttachments(ctx.handle.getInventoryState(), names);
-  const act = ctx.handle.mail.act;
   const postage = MAIL_SEND_POSTAGE * Math.max(attachments.items.length, 1);
-  const carried = ctx.handle.getInventoryState().coinage ?? 0;
-  if (copper + postage > carried)
-    throw sendRefusal(
-      "not_enough_money",
-      shortfallText(copper, postage, carried),
-    );
-  const sent = await ctx.rt.mutex.run(async () => {
-    ctx.signal.throwIfAborted();
-    return await abortable(
-      act.sendMail({
+  const sent = await ctx.rt.mutex.run(() =>
+    guardedSend(
+      { items: attachments.items, mailbox: picked.guid },
+      {
         body: args.text ?? "",
-        items: attachments.items,
-        mailbox: picked.guid,
-        money: copper,
+        copper,
         receiver: to,
         subject: args.subject ?? "",
-      }),
-      ctx.signal,
-    );
-  });
+      },
+      ctx,
+      postage,
+    ),
+  );
   settledSend(
     sent,
     copper,
