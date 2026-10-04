@@ -61,12 +61,13 @@ Alliance), `timeout_minutes` (30), `spell_data_dir`,
 `navigation_data_dir` and `navigation_library` are optional. Then run:
 
 ```
-mise harness --profile ~/.config/peon/config.toml
+mise harness
 ```
 
+Or pass `--profile <path>` to select another profile.
+
 The harness guard in [Credentials and safety](#credentials-and-safety)
-still applies: it refuses the protected accounts and the character
-`Xiara`, whatever the profile.
+still applies: it refuses the protected accounts, whatever the profile.
 
 ### DBC files
 
@@ -116,7 +117,7 @@ The navigation data directory holds maps 0 (Azeroth), 1 (Kalimdor), 530 (Expansi
 
 | Flag | Default | What it does |
 |---|---|---|
-| `--profile <path>` | required | The character to play: a soap session JSON, a soap ledger JSON, or a Peon `config.toml`. There is no default profile. |
+| `--profile <path>` | `~/.config/peon/config.toml` | The character to play: a soap session JSON, a soap ledger JSON, or a Peon `config.toml`. |
 | `--run-dir <path>` | `~/.local/state/peon-harness/runs/<utc>-<character>` | Where the run files go. The harness refuses a directory that already has `gamelog.jsonl`. |
 | `--model <provider/id>` | `openai-codex/gpt-6-luna` | The model from Pi's bundled catalog. |
 | `--thinking <level>` | `off` | The Pi thinking level. |
@@ -130,8 +131,8 @@ The navigation data directory holds maps 0 (Azeroth), 1 (Kalimdor), 530 (Expansi
 | `--extension <path>` | none | Loads a Pi extension file; repeat it for more. See [Extensions](#extensions). |
 | `--check` | off | Checks the profile, the extension paths, the lock and the Codex login, and warns about DBC files missing from `spell_data_dir`, then exits with code 0. |
 
-The harness reads no `WOW_*` variable. Only `--profile` selects the
-character.
+The harness reads no `WOW_*` variable. Only `--profile` (or its default
+`~/.config/peon/config.toml`) selects the character.
 
 ## Credentials and safety
 
@@ -147,9 +148,9 @@ character.
   needs `TYPESAFE_API_KEY` in the environment. Without it, `engage`
   refuses with `no_combat_helper` and the footer shows a red `no-jev`
   chip.
-- **Protected characters.** The harness refuses the accounts `ADMIN`,
-  `DEITY`, `X`, `Y`, `AUCTIONHOUSE`, `TCFACTORY`, `TCPRESETS`, every
-  account that starts with `RNDBOT`, and the character `Xiara`. There is
+- **Protected accounts.** The harness refuses the accounts `ADMIN`,
+  `DEITY`, `Y`, `AUCTIONHOUSE`, `TCFACTORY`, `TCPRESETS`, and every
+  account that starts with `RNDBOT`. There is
   no flag to override this.
 - **One owner per character.** A lock file
   `~/.local/state/peon-harness/locks/<ACCOUNT>-<character>.lock`
@@ -190,9 +191,9 @@ A result that is not `DONE` ends with a `Next:` step.
 
 `travel`, `engage`, `pilot`, `rest` and `recover` start a run (`r1`, `r2`, …).
 Only one run can be active. The tool waits for the run to end and
-streams its progress. When the human types, or after 120 seconds, the
-tool returns `RUNNING`, the run continues, and a `[game]` message tells
-the agent when it ends.
+streams its progress. When the human types, when chat wakes the agent,
+or after 120 seconds, the tool returns `RUNNING`, the run continues,
+and a `[game]` message tells the agent when it ends.
 
 `UNCONFIRMED` means the game did not answer in time, so the action may or
 may not have happened. It never permits a blind resend: a quest accept or
@@ -277,7 +278,9 @@ a row: chat wakes are exempt from the wake guard. Other wakes still
 pass through it: non-chat wakes share a bucket of three, repeat lines
 from one sender are held back for 20 seconds, and repeated combat hits
 stay limited to one wake per attacker every 30 seconds. Lines that
-arrive together reach the agent as one message.
+arrive together reach the agent as one message. Chat that wakes the
+agent while a run tool waits returns the tool early and reaches the
+agent in the same turn.
 
 ## Who controls the character
 

@@ -185,6 +185,43 @@ describe("createDelivery", () => {
     expect(log.get(consumed.seq)?.delivered).toBe(false);
   });
 
+  test("a chat wake while busy steers it in and frees the waiting tool", async () => {
+    const { delivery, log, pi, rt } = await setup();
+    rt.session.agent = "tool";
+    const waiting = rt.yields.wait();
+    const whisper = log.append(whisperDraft);
+    delivery.wake([whisper]);
+    expect(pi.sent).toHaveLength(1);
+    expect(pi.sent[0]?.message["customType"]).toBe("wow-event");
+    expect(pi.sent[0]?.message["details"]).toEqual({
+      entries: [whisper],
+      kind: "wake",
+    });
+    expect(pi.sent[0]?.options).toEqual({
+      deliverAs: "steer",
+      triggerTurn: true,
+    });
+    expect(await waiting).toBe("human");
+    expect(log.get(whisper.seq)?.delivered).toBe(true);
+    expect(rt.session.humanWaiting).toBe(false);
+    delivery.flush();
+    expect(pi.sent).toHaveLength(1);
+  });
+
+  test("a non-chat wake while busy waits for idle", async () => {
+    const { delivery, log, pi, rt } = await setup();
+    rt.session.agent = "tool";
+    delivery.wake([log.append(wakeDraft("r2 rest succeeded: 90%"))]);
+    expect(pi.sent).toEqual([]);
+    rt.session.agent = "idle";
+    delivery.flush();
+    expect(pi.sent).toHaveLength(1);
+    expect(pi.sent[0]?.options).toEqual({
+      deliverAs: "followUp",
+      triggerTurn: true,
+    });
+  });
+
   test("a row consumed by a running engage survives a flush and returns if the run stops", async () => {
     const { delivery, log, pi, rt } = await setup();
     const run = rt.runs.start<number>({

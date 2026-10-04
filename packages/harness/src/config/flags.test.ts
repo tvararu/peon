@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
 import {
   DEFAULT_MODEL,
+  defaultProfilePath,
   harnessStateDir,
   parseFlags,
   USAGE,
@@ -79,9 +80,11 @@ describe("parseFlags", () => {
     expect(parseFlags(argv).extensions).toEqual([resolve("b.ts"), "/x/a.ts"]);
   });
 
-  test("requires --profile", () => {
-    expect(() => parseFlags([])).toThrow(UsageError);
-    expect(() => parseFlags([])).toThrow("--profile <path> is required.");
+  test("defaults --profile to ~/.config/peon/config.toml", () => {
+    expect(parseFlags([]).profile).toBe(defaultProfilePath());
+    expect(parseFlags([], "/custom/home").profile).toBe(
+      "/custom/home/.config/peon/config.toml",
+    );
   });
 
   test("refuses an unknown thinking level", () => {

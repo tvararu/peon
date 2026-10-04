@@ -31,6 +31,7 @@ type Send = DeliveryInit & {
   kind: WowEventDetails["kind"];
   wakes: GameLogEntry[];
   passive: GameLogEntry[];
+  steer?: boolean;
 };
 
 function isChat(entry: GameLogEntry): boolean {
@@ -147,7 +148,7 @@ function markDelivered(
   for (const entry of entries) rt.log.mark(entry.seq, { delivered: true });
 }
 
-function send({ pi, rt, kind, wakes, passive }: Send): void {
+function send({ pi, rt, kind, wakes, passive, steer }: Send): void {
   const { more, shown } = capped(passive);
   const entries = [...wakes, ...shown];
   if (entries.length === 0) return;
@@ -156,13 +157,34 @@ function send({ pi, rt, kind, wakes, passive }: Send): void {
   const content = `${formatWake(entries, rt.clock.now())}${tail}`;
   const options =
     kind === "wake"
-      ? { deliverAs: "followUp" as const, triggerTurn: true }
+      ? {
+          deliverAs: steer ? ("steer" as const) : ("followUp" as const),
+          triggerTurn: true,
+        }
       : { triggerTurn: false };
   pi.sendMessage(
     { content, customType: "wow-event", details, display: true },
     options,
   );
   markDelivered(rt, entries);
+}
+
+function steerChatWakes({
+  pi,
+  rt,
+  wakeSeqs,
+}: DeliveryInit & { wakeSeqs: number[] }): void {
+  const chatSeqs = wakeSeqs.filter((seq) => {
+    const entry = rt.log.get(seq);
+    return entry !== undefined && isChatWake(entry);
+  });
+  if (chatSeqs.length === 0) return;
+  for (const seq of chatSeqs) wakeSeqs.splice(wakeSeqs.indexOf(seq), 1);
+  const wakes = drain(rt, chatSeqs);
+  wakeSeqs.push(...chatSeqs);
+  if (wakes.length === 0) return;
+  rt.yields.trigger();
+  send({ kind: "wake", passive: [], pi, rt, steer: true, wakes });
 }
 
 export function createDelivery({ pi, rt }: DeliveryInit): Delivery {
@@ -215,7 +237,8 @@ export function createDelivery({ pi, rt }: DeliveryInit): Delivery {
     },
     wake(entries) {
       wakeSeqs.push(...entries.map((entry) => entry.seq));
-      schedule();
+      if (rt.session.agent === "idle") schedule();
+      else steerChatWakes({ pi, rt, wakeSeqs });
     },
   };
 }
