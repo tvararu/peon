@@ -99,7 +99,7 @@ export function travelFixture(
   };
   const handle = {
     goTo: (target: GotoTarget) => routeTo(deps, target),
-    nudge: (_target: WalkTarget, yards: number, signal?: AbortSignal) =>
+    nudge: (yards: number, signal?: AbortSignal) =>
       nudgeOntoMesh(deps, yards, signal),
     observedPosition,
     walkToward: (target: WalkTarget, yards: number, signal?: AbortSignal) =>

@@ -1,16 +1,15 @@
-import { describe, expect, jest, test } from "bun:test";
-import type { Compass, PoseView } from "#harness/contract/views";
+import { describe, expect, test } from "bun:test";
+import type { Compass } from "#harness/contract/views";
 import { explore, parseDirection } from "#harness/ops/explore";
-import { UNSTICK_MAX_YD, unstick } from "#harness/ops/unstick";
 import {
   driveGoto,
   MAP_ID,
   moveTo,
-  objectRow,
   setSelf,
   setUnits,
   toolCtx,
   unitRow,
+  walked,
 } from "#test-support/ops-fixtures";
 import {
   createTestRuntime,
@@ -41,24 +40,6 @@ function followGoals(handle: MockHandle) {
 function cellOf(target: unknown): string {
   const { x, y } = target as { x: number; y: number };
   return `${MAP_ID}:${Math.floor(x / 20)}:${Math.floor(y / 20)}`;
-}
-
-function walked(handle: MockHandle, traveled: number) {
-  const walk = jest.fn(async () => ({
-    pose: {
-      mapId: MAP_ID,
-      orientation: 0,
-      source: "server" as const,
-      updatedAt: 0,
-      x: 0,
-      y: 0,
-      z: 0,
-    },
-    status: "completed" as const,
-    traveled,
-  }));
-  handle.walkToward = walk;
-  return walk;
 }
 
 const directions: [string, Compass | undefined][] = [
@@ -390,78 +371,6 @@ describe("explore past explored cells", () => {
       untried: "SE",
       walkedYd: 0,
     });
-  });
-});
-
-describe("unstick", () => {
-  const good: PoseView = {
-    ageMs: 0,
-    facing: "N",
-    mapId: MAP_ID,
-    serverFixAgeMs: 0,
-    source: "server",
-    x: 3,
-    y: 4,
-    z: 0,
-  };
-
-  test("walks at most 5 yd toward the last good pose and names the refused goal", async () => {
-    const t = await createTestRuntime();
-    setSelf(t.handle, { x: 0, y: 0 });
-    t.rt.travel.lastGoodPose = good;
-    t.rt.travel.lastRefusedGoal = "u4";
-    const walk = walked(t.handle, 4.8);
-    const ctx = toolCtx(t);
-    const result = await unstick(ctx);
-    expect(walk).toHaveBeenCalledWith(
-      { kind: "point", x: 3, y: 4, z: 0 },
-      UNSTICK_MAX_YD,
-      ctx.signal,
-    );
-    expect(result).toEqual({
-      movedYd: 4.8,
-      refusedGoal: "u4",
-      toward: "last_good_pose",
-    });
-  });
-
-  test("with no good pose it routes to open ground away from the nearest object", async () => {
-    const t = await createTestRuntime();
-    setSelf(t.handle, { x: 0, y: 0 });
-    setUnits(t.handle, [
-      objectRow({ distance: 2, guid: 0x30n, name: "Signpost", x: 2, y: 0 }),
-    ]);
-    const walk = walked(t.handle, 0);
-    const goTo = driveGoto(t.handle, [{ arrive: { x: -8, y: 0 } }]);
-    const result = await unstick(toolCtx(t));
-    expect(goTo).toHaveBeenCalledWith({ kind: "point", x: -8, y: 0 });
-    expect(walk).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ movedYd: 8, toward: "open_ground" });
-  });
-
-  test("samples the other bearings when the first route is refused", async () => {
-    const t = await createTestRuntime();
-    setSelf(t.handle, { x: 0, y: 0 });
-    walked(t.handle, 0);
-    const goTo = driveGoto(t.handle, [
-      { refuse: "unreachable: pathfind_find_path failed (UNKNOWN_PATH)" },
-      { arrive: { x: -5.7, y: -5.7 } },
-    ]);
-    const result = await unstick(toolCtx(t));
-    expect(goTo).toHaveBeenCalledTimes(2);
-    expect(result.movedYd).toBeCloseTo(8, 0);
-  });
-
-  test("reports 0 yd when no bearing and no walk moves you", async () => {
-    const t = await createTestRuntime();
-    setSelf(t.handle, { x: 0, y: 0 });
-    walked(t.handle, 0);
-    const goTo = driveGoto(t.handle, [
-      { refuse: "unreachable: pathfind_find_path failed (UNKNOWN_PATH)" },
-    ]);
-    const result = await unstick(toolCtx(t));
-    expect(goTo).toHaveBeenCalledTimes(8);
-    expect(result.movedYd).toBe(0);
   });
 });
 

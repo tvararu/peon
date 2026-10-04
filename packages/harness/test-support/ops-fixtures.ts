@@ -304,3 +304,21 @@ export function limitProblem(
   if (bytes > MAX_CONTENT_BYTES)
     return `${bytes} bytes, limit ${MAX_CONTENT_BYTES}`;
 }
+
+export function walked(handle: MockHandle, traveled: number) {
+  const walk = jest.fn(async () => ({
+    pose: {
+      mapId: MAP_ID,
+      orientation: 0,
+      source: "server" as const,
+      updatedAt: 0,
+      x: 0,
+      y: 0,
+      z: 0,
+    },
+    status: "completed" as const,
+    traveled,
+  }));
+  handle.walkToward = walk;
+  return walk;
+}

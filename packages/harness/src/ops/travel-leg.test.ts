@@ -422,4 +422,45 @@ describe("off-mesh nudge", () => {
     expect(t.handle.nudge).toHaveBeenCalled();
     expect(goTo).toHaveBeenCalledTimes(1);
   });
+
+  test("a partial nudge that stays off the mesh counts its distance", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle);
+    driveGoto(t.handle, [
+      { refuse: "stop: start snapped off the requested ground position" },
+    ]);
+    t.handle.nudge = mock(async () => ({ arrived: false, movedYd: 0.4 }));
+    const leg = await travelLeg(toolCtx(t), {
+      goal: { kind: "point", x: 50, y: 0 },
+      within: 1,
+    });
+    expect(leg).toMatchObject({
+      nudgedYd: 0.4,
+      reason: "start_off_mesh",
+      status: "refused",
+      traveledYd: 0.4,
+    });
+  });
+
+  test("a stop during the nudge cancels the leg", async () => {
+    const t = await createTestRuntime();
+    setSelf(t.handle);
+    driveGoto(t.handle, [
+      { refuse: "stop: start snapped off the requested ground position" },
+    ]);
+    const stop = new AbortController();
+    t.handle.nudge = mock(async () => {
+      stop.abort(new Error("human_stop"));
+      return { arrived: false, movedYd: 0.4 };
+    });
+    const leg = await travelLeg(toolCtx(t, stop.signal), {
+      goal: { kind: "point", x: 50, y: 0 },
+      within: 1,
+    });
+    expect(leg).toMatchObject({
+      nudgedYd: 0.4,
+      reason: "human_stop",
+      status: "cancelled",
+    });
+  });
 });

@@ -100,11 +100,7 @@ export async function unstick(
   const pose = needPose(ctx);
   ctx.handle.takeControl("manual_override");
   const refusedGoal = ctx.rt.travel.lastRefusedGoal;
-  const nudged = await ctx.handle.nudge(
-    { kind: "point", x: pose.x, y: pose.y, z: 0 },
-    UNSTICK_MAX_YD,
-    ctx.signal,
-  );
+  const nudged = await ctx.handle.nudge(UNSTICK_MAX_YD, ctx.signal);
   if (nudged.arrived && nudged.movedYd >= MIN_UNSTICK_YD)
     return { movedYd: nudged.movedYd, refusedGoal, toward: "off_mesh_nudge" };
   const good = ctx.rt.travel.lastGoodPose;

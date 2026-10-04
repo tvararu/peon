@@ -31,7 +31,6 @@ export type LegResult = {
   pose: PoseView | undefined;
 };
 
-const NUDGE_YD = NUDGE_REACH_YD;
 const WITHIN_POLL_MS = 250;
 const CODE_WORDS = 3;
 const CANCEL_CODES = new Set(["human_stop", "esc", "quit", "stopped_by_tool"]);
@@ -194,12 +193,7 @@ export async function travelLeg(
 ): Promise<LegResult> {
   const first = await legOnce(ctx, init.goal, init.within);
   if (first.status === "refused" && first.reason === "start_off_mesh") {
-    const pose = poseView(ctx);
-    const nudged = await ctx.handle.nudge(
-      { kind: "point", x: pose?.x ?? 0, y: pose?.y ?? 0, z: 0 },
-      NUDGE_YD,
-      ctx.signal,
-    );
+    const nudged = await ctx.handle.nudge(NUDGE_REACH_YD, ctx.signal);
     if (nudged.arrived && nudged.movedYd > 0) {
       logRouteNudged(ctx, init.goal, nudged.movedYd);
       const second = await legOnce(ctx, init.goal, init.within, false);
@@ -209,7 +203,23 @@ export async function travelLeg(
         traveledYd: first.traveledYd + nudged.movedYd + second.traveledYd,
       };
     }
-    return first;
+    if (ctx.signal.aborted) {
+      const stop = stopOf(ctx.signal);
+      return {
+        ...first,
+        ...stop,
+        detail: stop.reason,
+        nudgedYd: nudged.movedYd,
+        pose: poseView(ctx),
+        traveledYd: first.traveledYd + nudged.movedYd,
+      };
+    }
+    return {
+      ...first,
+      nudgedYd: nudged.movedYd,
+      pose: poseView(ctx),
+      traveledYd: first.traveledYd + nudged.movedYd,
+    };
   }
   if (first.status !== "refused" || first.reason !== "ambiguous_floor")
     return first;

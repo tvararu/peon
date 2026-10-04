@@ -1,4 +1,9 @@
-import type { GroundOracle, WalkOutcome, WorldHandle } from "@peon/core";
+import type {
+  GroundOracle,
+  NavPoint,
+  WalkOutcome,
+  WorldHandle,
+} from "@peon/core";
 import {
   type GotoTarget,
   routeTo,
@@ -27,11 +32,7 @@ export type Travel = {
     yards: number,
     signal?: AbortSignal,
   ) => Promise<WalkOutcome>;
-  nudge: (
-    target: WalkTarget,
-    yards: number,
-    signal?: AbortSignal,
-  ) => Promise<NudgeResult>;
+  nudge: (yards: number, signal?: AbortSignal) => Promise<NudgeResult>;
 };
 
 export type NudgeResult = { movedYd: number; arrived: boolean };
@@ -89,7 +90,7 @@ export function createTravel(
       open();
       routeTo(deps, target);
     },
-    async nudge(_target, yards, signal) {
+    async nudge(yards, signal) {
       open();
       return await nudgeOntoMesh(deps, yards, signal);
     },
@@ -101,6 +102,24 @@ export function createTravel(
   };
 }
 
+const STAYED: NudgeResult = { arrived: false, movedYd: 0 };
+
+function planNudge(deps: {
+  handle: Pick<WorldHandle, "getControlState">;
+  navigation: () => Navigation;
+}): { navigation: Navigation; pose: NavPoint; spot: NavPoint } | undefined {
+  try {
+    const navigation = deps.navigation();
+    const pose = deps.handle.getControlState().pose;
+    if (!pose) return undefined;
+    if (navigation.snap(pose.mapId, pose)?.onMesh !== false) return undefined;
+    const spot = nudgeTarget(navigation, pose.mapId, pose);
+    return spot ? { navigation, pose, spot } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function nudgeOntoMesh(
   deps: {
     handle: Pick<WorldHandle, "getControlState" | "walkTowardPoint">;
@@ -109,16 +128,16 @@ export async function nudgeOntoMesh(
   yards: number,
   signal?: AbortSignal,
 ): Promise<NudgeResult> {
-  const navigation = deps.navigation();
-  const pose = deps.handle.getControlState().pose;
-  if (!pose) throw new Error("no_pose");
-  if (navigation.snap(pose.mapId, pose)?.onMesh !== false)
-    return { arrived: false, movedYd: 0 };
-  const spot = nudgeTarget(navigation, pose.mapId, pose);
-  if (!spot) return { arrived: false, movedYd: 0 };
-  const outcome = await deps.handle.walkTowardPoint(spot, yards, signal);
-  const landed = outcome.pose ?? pose;
-  if (navigation.snap(landed.mapId, landed)?.onMesh !== true)
-    return { arrived: false, movedYd: outcome.traveled };
-  return { arrived: true, movedYd: outcome.traveled };
+  signal?.throwIfAborted();
+  const plan = planNudge(deps);
+  if (!plan) return STAYED;
+  const outcome = await deps.handle.walkTowardPoint(plan.spot, yards, signal);
+  const landed = outcome.pose ?? plan.pose;
+  let onMesh = false;
+  try {
+    onMesh = plan.navigation.snap(landed.mapId, landed)?.onMesh === true;
+  } catch {
+    onMesh = false;
+  }
+  return { arrived: onMesh, movedYd: outcome.traveled };
 }
