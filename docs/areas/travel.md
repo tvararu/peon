@@ -191,6 +191,19 @@ base, the mesh corner there is 14.93 while the column holds 16.68 and
 `path_corner_disagrees` is correct. The explore fallback blocks that
 bearing.
 
+A route from a start that sits just off the navmesh (the planner's first
+mesh point is within 0.5 yd of the pose) begins with one short step onto
+that mesh point, taken only when the planner's own collision ray between
+the two is clear. A start farther off, or a blocked step, refuses
+`start_off_mesh` with `travel` `to: "unstick"` as the next call. The server
+accepts the step because it keeps no navmesh check on a client move:
+`VerifyMovementInfo` only rejects an invalid position, a pending spline
+and a disabled mover (`Handlers/MovementHandler.cpp:531-557`), and
+`HandleMoverRelocation` then takes the sent position as the mover's
+position (`Handlers/MovementHandler.cpp:431-434`). Keeping out of
+collision is the client's job, so the step is a walk like any other and
+never a teleport.
+
 ## Capabilities row
 
 `t8-travel-bind-inn`: make an inn its home. `t8-travel-hearth-home`:

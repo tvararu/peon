@@ -31,6 +31,7 @@ import {
   validateNativePoint,
   validateNativeXY,
 } from "#harness/navigation/native";
+import { rejectSnap, startStep } from "#harness/navigation/start-snap";
 import {
   CORNER_RISE,
   type CornerWalk,
@@ -116,17 +117,25 @@ export class GroundRoute {
   private readonly map: NativeMap;
   private readonly rules: RouteRules;
   private readonly swims: readonly boolean[];
+  private readonly lead: boolean;
   private readonly distances: number[];
 
-  constructor(points: readonly NavPoint[], map: NativeMap, rules = STRICT) {
+  constructor(
+    points: readonly NavPoint[],
+    map: NativeMap,
+    rules = STRICT,
+    lead?: NavPoint,
+  ) {
     if (points.length === 0) throw new Error("ground route has no points");
     this.map = map;
     this.rules = rules;
+    this.lead = lead !== undefined;
     const built = groundPath(map, points, rules);
-    this.points = Object.freeze(
-      built.points.map((point) => Object.freeze(point)),
+    const walked = lead === undefined ? built.points : [lead, ...built.points];
+    this.points = Object.freeze(walked.map((point) => Object.freeze(point)));
+    this.swims = Object.freeze(
+      lead === undefined ? [...built.swims] : [false, ...built.swims],
     );
-    this.swims = Object.freeze([...built.swims]);
     this.distances = [0];
     let length = 0;
     for (let i = 1; i < this.points.length; i++) {
@@ -156,6 +165,7 @@ export class GroundRoute {
       x: start.x + (end.x - start.x) * ratio,
       y: start.y + (end.y - start.y) * ratio,
     };
+    if (this.lead && index === 0) return this.leadSample(start, end, ratio, at);
     const stepped = groundStep({
       at,
       from: start,
@@ -170,6 +180,20 @@ export class GroundRoute {
       ...stepped.point,
       orientation: bearing(start, end),
       swimming: travel === 0 ? (this.swims[0] ?? false) : stepped.swimming,
+    };
+  }
+
+  private leadSample(
+    start: NavPoint,
+    end: NavPoint,
+    ratio: number,
+    at: { x: number; y: number },
+  ): GroundSample {
+    return {
+      ...at,
+      orientation: bearing(start, end),
+      swimming: false,
+      z: start.z + (end.z - start.z) * ratio,
     };
   }
 
@@ -275,10 +299,11 @@ function planRoute(map: NativeMap, from: NavPoint, to: NavPoint): GroundRoute {
   const lastNative = points.at(-1);
   if (firstNative === undefined || lastNative === undefined)
     throw new Error("native path is empty");
-  rejectSnap("start", from, firstNative);
+  const stepOnto = startStep(map, from, firstNative);
   rejectSnap("end", to, lastNative);
   if (points.length === 1 && distance2d(from, to) > 0)
     throw new Error("native path omits destination");
+  if (stepOnto !== undefined) return leadRoute(map, from, points, to);
   try {
     return new GroundRoute([from, to], map);
   } catch (error) {
@@ -293,6 +318,30 @@ function planRoute(map: NativeMap, from: NavPoint, to: NavPoint): GroundRoute {
   } catch (error) {
     if (!(isGroundError(error) && lostHeight(error))) throw error;
     return columnRoute(map, [corridor, [from, to]], error);
+  }
+}
+
+function leadRoute(
+  map: NativeMap,
+  from: NavPoint,
+  points: readonly NavPoint[],
+  to: NavPoint,
+): GroundRoute {
+  const [onto] = points;
+  if (onto === undefined) throw new Error("native path is empty");
+  const corridor = points.map((point) => ({ ...point }));
+  if (corridor.length > 1) corridor[corridor.length - 1] = { ...to };
+  const rules = { climb: CORNER_RISE, columnFallback: false };
+  try {
+    return new GroundRoute(corridor, map, rules, from);
+  } catch (error) {
+    if (!(isGroundError(error) && lostHeight(error))) throw error;
+    return new GroundRoute(
+      corridor,
+      map,
+      { climb: CORNER_RISE, columnFallback: true },
+      from,
+    );
   }
 }
 
@@ -474,24 +523,5 @@ function loadCorridor(map: NativeMap, from: NavPoint, to: NavPoint): void {
       from.x + (to.x - from.x) * ratio,
       from.y + (to.y - from.y) * ratio,
     );
-  }
-}
-
-function rejectSnap(
-  label: string,
-  requested: NavPoint,
-  actual: NavPoint,
-): void {
-  validateNativePoint(actual);
-  const dx = Math.abs(actual.x - requested.x);
-  const dy = Math.abs(actual.y - requested.y);
-  const roundX = Math.abs(Math.fround(requested.x) - requested.x) + 1e-6;
-  const roundY = Math.abs(Math.fround(requested.y) - requested.y) + 1e-6;
-  if (
-    dx > roundX ||
-    dy > roundY ||
-    Math.abs(actual.z - requested.z) > GROUND_ERROR
-  ) {
-    throw new Error(`${label} snapped off the requested ground position`);
   }
 }
