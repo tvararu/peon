@@ -185,7 +185,7 @@ export class Mover {
       x: pose.x + Math.cos(heading) * STEP_YARDS,
       y: pose.y + Math.sin(heading) * STEP_YARDS,
     };
-    const step = groundStep(this.ground, pose, to, false);
+    const step = groundStep(this.ground, pose, to, true);
     if (step.ok) return;
     this.blockedReason = step.reason;
     this.emit("control_changed", step.reason);
@@ -254,7 +254,7 @@ export class Mover {
           x: pose.x + (Math.cos(heading) * yards) / steps,
           y: pose.y + (Math.sin(heading) * yards) / steps,
           now,
-          directed: false,
+          directed: true,
         };
         const result = this.step(pose, next);
         if (result) return result;

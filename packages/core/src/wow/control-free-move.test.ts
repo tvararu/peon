@@ -12,6 +12,10 @@ function onlyUpTo(limitX: number): GroundOracle["height"] {
     x <= limitX + 1e-6 ? (from?.z ?? 70.34) : undefined;
 }
 
+function wallPast(limitX: number): GroundOracle["pathClear"] {
+  return (_mapId, a, b) => Math.max(a.x, b.x) <= limitX + 1e-6;
+}
+
 function faked(run: () => void): void {
   jest.useFakeTimers();
   try {
@@ -51,7 +55,10 @@ test("a move whose first step has no ground is refused with its reason and sends
 test("a leg stops at its last reachable half-yard step and keeps the reason", () => {
   faked(() => {
     const { runtime, sent, advance } = setup({
-      ground: oracle({ height: onlyUpTo(START_X + 1.2) }),
+      ground: oracle({
+        height: onlyUpTo(START_X + 1.2),
+        pathClear: wallPast(START_X + 1.2),
+      }),
     });
     runtime.move("forward", 1000);
     advance(500);
@@ -61,6 +68,21 @@ test("a leg stops at its last reachable half-yard step and keeps the reason", ()
     });
     expect(must(runtime.snapshot().pose).x).toBeCloseTo(START_X + FORWARD_X, 4);
     expect(lastMove(sent).opcode).toBe(GameOpcode.MSG_MOVE_STOP);
+  });
+});
+
+test("a key move stops at a wall on flat ground instead of walking through it", () => {
+  faked(() => {
+    const { runtime, advance } = setup({
+      ground: oracle({ pathClear: wallPast(START_X + 1.2) }),
+    });
+    runtime.move("forward", 1000);
+    advance(500);
+    expect(runtime.snapshot()).toMatchObject({
+      moving: false,
+      blockedReason: "obstructed",
+    });
+    expect(must(runtime.snapshot().pose).x).toBeLessThanOrEqual(START_X + 1.2);
   });
 });
 
@@ -82,7 +104,10 @@ test("a leg follows sloped ground a half yard at a time", () => {
 test("backing away or halting clears a refused start", () => {
   faked(() => {
     const { runtime, advance } = setup({
-      ground: oracle({ height: onlyUpTo(START_X) }),
+      ground: oracle({
+        height: onlyUpTo(START_X),
+        pathClear: wallPast(START_X),
+      }),
     });
     expect(() => runtime.move("forward", 1000)).toThrow("obstructed");
     runtime.halt();

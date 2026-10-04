@@ -47,7 +47,7 @@ export function setup(
   const runtime = new ControlRuntime({
     ground: {
       height: (_mapId, _x, _y, from) => from?.z,
-      pathClear: () => false,
+      pathClear: () => true,
     },
     now: nowFn,
     selfGuid: () => 1n,

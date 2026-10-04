@@ -44,7 +44,7 @@ export function info(over: Partial<MovementInfo> = {}): MovementInfo {
 export function oracle(over: Partial<GroundOracle> = {}): GroundOracle {
   return {
     height: (_mapId, _x, _y, from) => from?.z ?? 70.34,
-    pathClear: () => false,
+    pathClear: () => true,
     ...over,
   };
 }

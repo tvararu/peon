@@ -184,8 +184,12 @@ describe("ControlRuntime.jump", () => {
   });
 
   test("a running jump into a wall drops straight down", () => {
-    const { runtime, sent, advance } = setup();
+    let wall = false;
+    const { runtime, sent, advance } = setup({
+      ground: oracle({ pathClear: () => !wall }),
+    });
     runtime.drive({ move: "forward" }, 5000);
+    wall = true;
     runtime.jump();
     advance(900);
     const land = decode(
