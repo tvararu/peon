@@ -1,4 +1,4 @@
-import type { NamedInventoryState } from "@peon/core";
+import type { AreaActsOf, NamedInventoryState } from "@peon/core";
 import { abortable } from "@peon/core/lib/abort";
 import { noMailboxText, pickMailbox } from "#harness/areas/mail/tool-check";
 import type {
@@ -128,6 +128,83 @@ function sendRefusal(reason: string, detail: string): Refusal {
   });
 }
 
+function shortfallText(
+  copper: number,
+  postage: number,
+  carried: number,
+): string {
+  return `The send asks for ${copper + postage} copper (${copper} enclosed plus ${postage} postage) and you carry ${carried} copper.`;
+}
+
+type MailOutcome = Awaited<ReturnType<AreaActsOf<"mail">["sendMail"]>>;
+
+type GuardedSend = {
+  items: MailDraftItem[];
+  mailbox: bigint;
+};
+
+type GuardedNote = {
+  body: string;
+  copper: number;
+  receiver: string;
+  subject: string;
+};
+
+async function guardedSend(
+  send: GuardedSend,
+  note: GuardedNote,
+  ctx: MailCtx,
+  postage: number,
+): Promise<MailOutcome> {
+  ctx.signal.throwIfAborted();
+  const carried = ctx.handle.getInventoryState().coinage ?? 0;
+  if (note.copper + postage > carried)
+    throw sendRefusal(
+      "not_enough_money",
+      shortfallText(note.copper, postage, carried),
+    );
+  try {
+    return await abortable(
+      ctx.handle.mail.act.sendMail({
+        body: note.body,
+        items: send.items,
+        mailbox: send.mailbox,
+        money: note.copper,
+        receiver: note.receiver,
+        subject: note.subject,
+      }),
+      ctx.signal,
+    );
+  } catch (error) {
+    if (error instanceof Error && error.message === "not_enough_money")
+      throw sendRefusal(
+        "not_enough_money",
+        shortfallText(
+          note.copper,
+          postage,
+          ctx.handle.getInventoryState().coinage ?? 0,
+        ),
+      );
+    throw error;
+  }
+}
+
+function settledSend(
+  sent: MailOutcome,
+  copper: number,
+  postage: number,
+  carried: number,
+): void {
+  if (sent.status === "ok") return;
+  if (sent.status === "unanswered")
+    throw sendRefusal("no_answer", "The mailbox did not answer the send.");
+  if (sent.why === "not_enough_money")
+    throw sendRefusal(
+      "not_enough_money",
+      shortfallText(copper, postage, carried),
+    );
+  throw sendRefusal("mail_refused", `The send was refused (${sent.why}).`);
+}
 export async function runSend(
   args: MailArgs,
   ctx: MailCtx,
@@ -142,34 +219,33 @@ export async function runSend(
       "Name the character who gets the letter.",
     );
   const names = args.items ?? [];
-  const gold = args.gold ?? 0;
-  if (!Number.isInteger(gold) || gold < 0)
+  const copper = args.copper ?? 0;
+  if (!Number.isInteger(copper) || copper < 0)
     throw sendRefusal(
-      "bad_gold",
-      `Gold ${gold} is not a copper amount of 0 or more.`,
+      "bad_copper",
+      `Copper ${copper} is not a copper amount of 0 or more.`,
     );
   const attachments = pickAttachments(ctx.handle.getInventoryState(), names);
-  const act = ctx.handle.mail.act;
-  const sent = await ctx.rt.mutex.run(async () => {
-    ctx.signal.throwIfAborted();
-    return await abortable(
-      act.sendMail({
+  const postage = MAIL_SEND_POSTAGE * Math.max(attachments.items.length, 1);
+  const sent = await ctx.rt.mutex.run(() =>
+    guardedSend(
+      { items: attachments.items, mailbox: picked.guid },
+      {
         body: args.text ?? "",
-        items: attachments.items,
-        mailbox: picked.guid,
-        money: gold,
+        copper,
         receiver: to,
         subject: args.subject ?? "",
-      }),
-      ctx.signal,
-    );
-  });
-  if (sent.status !== "ok") {
-    if (sent.status === "unanswered")
-      throw sendRefusal("no_answer", "The mailbox did not answer the send.");
-    throw sendRefusal("mail_refused", `The send was refused (${sent.why}).`);
-  }
-  const postage = MAIL_SEND_POSTAGE * Math.max(attachments.items.length, 1);
+      },
+      ctx,
+      postage,
+    ),
+  );
+  settledSend(
+    sent,
+    copper,
+    postage,
+    ctx.handle.getInventoryState().coinage ?? 0,
+  );
   const detail = `Sent to ${to}; postage ${postage} copper.`;
   return result("DONE", {
     after: { do: "send", letters: 0, sentTo: to, taken: [] },

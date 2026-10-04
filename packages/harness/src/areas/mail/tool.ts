@@ -75,7 +75,7 @@ export const mailSpec: GameToolSpec<typeof mailParams, "mail", MailAfter> = {
   run: mailRun,
   text: {
     description:
-      "Read the letters waiting in your inbox, collect gold and items from them, or send a letter with gold or items at a mailbox within 10 yards.",
+      "Read the letters waiting in your inbox, collect copper and items from them, or send a letter with copper or items at a mailbox within 10 yards.",
     guidelines: [
       "Call check first so letter numbers are known before taking. A take of all collects every waiting letter in order.",
     ],
