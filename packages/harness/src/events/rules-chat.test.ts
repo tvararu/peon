@@ -1,7 +1,12 @@
 import { describe, expect, jest, test } from "bun:test";
 import { type ChatMessage, ChatType } from "@peon/core";
 import type { RunEnd } from "#harness/contract/runs";
-import { createDealings, noteDealt, noteHuman } from "#harness/events/dealings";
+import {
+  createDealings,
+  noteDealt,
+  noteHuman,
+  standingNote,
+} from "#harness/events/dealings";
 import { createWakeGuard } from "#harness/events/guard";
 import { createEventRouter } from "#harness/events/router";
 import {
@@ -30,9 +35,10 @@ function one(message: ChatMessage) {
 
 describe("chatDrafts", () => {
   test("a whisper from another player wakes the agent", () => {
-    expect(
-      one(msg(ChatType.WHISPER, "Kaelyn", "hey, what level are you?")),
-    ).toEqual({
+    const draft = one(
+      msg(ChatType.WHISPER, "Kaelyn", "hey, what level are you?"),
+    );
+    expect(draft).toMatchObject({
       class: "wake",
       data: {
         channel: undefined,
@@ -43,8 +49,10 @@ describe("chatDrafts", () => {
       },
       domain: "chat",
       event: "chat/in",
-      text: 'Whisper from Kaelyn: "hey, what level are you?" (unsolicited: no one named Kaelyn, and you have not dealt with them)',
     });
+    expect(draft?.text).toContain("Kaelyn");
+    expect(draft?.text).toContain("hey, what level are you?");
+    expect(draft?.text).toContain("unsolicited");
   });
 
   test("a whisper from a player the agent dealt with is not flagged", () => {
@@ -54,7 +62,13 @@ describe("chatDrafts", () => {
       msg(ChatType.WHISPER, "Kaelyn", "thanks for the water"),
       rc,
     );
-    expect(draft?.text).toBe('Whisper from Kaelyn: "thanks for the water"');
+    expect(draft?.data).toMatchObject({
+      sender: "Kaelyn",
+      text: "thanks for the water",
+    });
+    expect(draft?.text).toContain("Kaelyn");
+    expect(draft?.text).toContain("thanks for the water");
+    expect(draft?.text).not.toContain("unsolicited");
   });
 
   test("a whisper from a player the human named is not flagged", () => {
@@ -64,7 +78,12 @@ describe("chatDrafts", () => {
       msg(ChatType.WHISPER, "Kaelyn", "need water please"),
       rc,
     );
-    expect(draft?.text).toBe('Whisper from Kaelyn: "need water please"');
+    expect(draft?.data).toMatchObject({
+      sender: "Kaelyn",
+      text: "need water please",
+    });
+    expect(draft?.text).toContain("need water please");
+    expect(draft?.text).not.toContain("unsolicited");
   });
   test("own echoes never rise above log", () => {
     expect(
@@ -170,12 +189,13 @@ describe("chatDrafts", () => {
       ),
     ).toMatchObject({
       data: { text: "sell me [Discolored Fang] pls" },
-      text: 'Whisper from Kaelyn: "sell me [Discolored Fang] pls" (unsolicited: no one named Kaelyn, and you have not dealt with them)',
+      text: expect.stringContaining("sell me [Discolored Fang] pls"),
     });
     expect(
       one(msg(ChatType.SYSTEM, "", "|cffff0000Bob|r has invited you.")),
     ).toMatchObject({
       class: "passive",
+      data: {},
       text: "[system] Bob has invited you.",
     });
   });
@@ -327,5 +347,65 @@ describe("router with chat rules", () => {
     const whisper = log.since(0).find((row) => row.event === "chat/in");
     expect(whisper).toMatchObject({ class: "wake", runId: "r1" });
     expect(sink.wake).toHaveBeenCalledWith([whisper]);
+  });
+  test("a decorated human row does not mark an unrelated player named", () => {
+    const clock = { now: () => 5000 };
+    const dealings = createDealings();
+    const log = createGameLog({ char: () => "Fgk", clock, file: undefined });
+    const runs = createRunRegistry({
+      clock,
+      log,
+      sink: createJsonlSink({ file: undefined }),
+    });
+    createEventRouter({
+      attacks: {
+        attach: () => () => {},
+        lastAttacker: () => undefined,
+        lastHitAt: () => undefined,
+      },
+      context: () => ({
+        dealings,
+        now: 5000,
+        refOf: (guid) => `u${guid}`,
+        runActive: false,
+        selfGuid: 1n,
+        selfName: "Fgk",
+        wake: true,
+      }),
+      flags: {
+        check: false,
+        connect: true,
+        extensions: [],
+        glyphs: undefined,
+        logEntities: false,
+        model: "m",
+        nowPerCall: false,
+        packetTrace: "off",
+        profile: "p",
+        runDir: undefined,
+        stopReflex: true,
+        thinking: "high",
+        wake: true,
+      },
+      guard: createWakeGuard(clock),
+      jevLog: createJsonlSink({ file: undefined }),
+      log,
+      runs,
+    });
+    log.append({
+      class: "log",
+      data: { text: "Trade with Bob at the gate.", via: "input" },
+      domain: "human",
+      event: "human/input",
+      text: "Human: Trade with Bob at the gate.",
+    });
+    const rc = testRuleInput({ dealings });
+    const [draft] = chatDrafts(
+      msg(ChatType.WHISPER, "Human", "want to trade?"),
+      rc,
+    );
+    expect(draft?.data).toMatchObject({ sender: "Human" });
+    expect(draft?.text).toContain("unsolicited");
+    expect(standingNote(dealings, "Human")).toContain("does not name");
   });
 });

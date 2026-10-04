@@ -441,7 +441,10 @@ type Remembered = {
 
 function rememberDealings(entry: GameLogEntry, from: Remembered): void {
   const dealings = from.dealings();
-  if (entry.event === "human/input") noteHuman(dealings, entry.text);
+  if (entry.event === "human/input") {
+    const raw = entry.data["text"];
+    noteHuman(dealings, typeof raw === "string" ? raw : entry.text);
+  }
   if (entry.event === "chat/out") {
     const to = entry.data["to"];
     if (typeof to === "string") noteDealt(dealings, to);
