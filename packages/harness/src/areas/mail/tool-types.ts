@@ -6,7 +6,7 @@ export const mailParams = Type.Object({
   copper: Type.Optional(
     Type.Number({
       description:
-        "For send: copper to enclose, before the 30 copper postage. Default 0.",
+        "For send: copper to enclose as a copper count (100 copper is 1 silver, 10000 is 1 gold), before the 30 copper postage. Default 0.",
     }),
   ),
   do: StringEnum(["check", "take", "send"], {
