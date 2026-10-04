@@ -278,6 +278,7 @@ function logResult(args: JournalArgs, { rt }: Ctx): ToolResult<JournalAfter> {
   const page = queryLog({
     log: rt.log,
     now,
+    previousTurnStartSeq: rt.session.previousTurnStartSeq,
     query,
     runs: rt.runs,
     turnStartSeq: rt.session.turnStartSeq,

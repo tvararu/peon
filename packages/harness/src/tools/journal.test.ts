@@ -440,6 +440,34 @@ describe("journal", () => {
     expect(out.details.result.after).toMatchObject({ about: "log" });
   });
 
+  test("log find:reputation since:last_turn matches a turn-in gain", async () => {
+    const { rt, tool } = await world();
+    rt.log.append({
+      class: "log",
+      data: {},
+      domain: "tool",
+      event: "tool/result",
+      text: "interact DONE",
+    });
+    const changed = rt.log.append({
+      class: "log",
+      data: { after: 4250, before: 4000 },
+      domain: "reputation",
+      event: "reputation/changed",
+      text: "Silvermoon City reputation +250: Friendly 1250/6000.",
+    });
+    rt.session.previousTurnStartSeq = changed.seq - 2;
+    rt.session.turnStartSeq = rt.log.lastSeq();
+    const out = await runTool(tool, {
+      about: "log",
+      find: "reputation",
+      since: "last_turn",
+    });
+    for (const line of formatLogRows([changed], NOW))
+      expect(out.text).toContain(line);
+    expect(out.text).not.toContain("0 events");
+  });
+
   test("log says how many older rows it left out", async () => {
     const { rt, tool } = await world();
     rt.session.turnStartSeq = rt.log.lastSeq();

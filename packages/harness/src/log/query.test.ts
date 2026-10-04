@@ -49,6 +49,27 @@ describe("queryLog", () => {
     expect(page.more).toBe(0);
   });
 
+  test("last_turn reaches back to the previous turn's start", () => {
+    const { add, log, runs } = setup();
+    add({ text: "older" }, 1000);
+    const previousTurnStartSeq = log.lastSeq();
+    add({ text: "turn-in gain" }, 2000);
+    const turnStartSeq = log.lastSeq();
+    add({ text: "this turn" }, 3000);
+    const page = queryLog({
+      log,
+      now: 4000,
+      previousTurnStartSeq,
+      query: {},
+      runs,
+      turnStartSeq,
+    });
+    expect(page.rows.map((row) => row.text)).toEqual([
+      "turn-in gain",
+      "this turn",
+    ]);
+  });
+
   test("hides area fallback rows unless the query names their domain", () => {
     const { add, log, runs } = setup();
     const area = { area: "beta", event: { type: "synced" } } as never;
