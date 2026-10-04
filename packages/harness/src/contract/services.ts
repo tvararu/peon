@@ -186,6 +186,7 @@ export type SessionFlags = {
   tool: string | undefined;
   lastToolCallAt: number | undefined;
   turnStartSeq: number;
+  previousTurnStartSeq: number | undefined;
   lastNow: string | undefined;
   wake: boolean;
   unreadWhispers: number;

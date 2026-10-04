@@ -26,6 +26,24 @@ function progress(after: number, rank: number): string | undefined {
   if (width === undefined || width <= 1) return undefined;
   return ` ${after - floorOf(rank)}/${width}`;
 }
+export type StandingRow = {
+  after: number;
+  before: number;
+  name: string;
+};
+
+export function standingRow(e: Of<"standing_changed">): StandingRow {
+  return {
+    after: e.after,
+    before: e.before,
+    name: e.name ?? `Faction ${e.repListId}`,
+  };
+}
+
+export function standingLine(row: StandingRow): string {
+  const delta = `${row.after - row.before >= 0 ? "+" : ""}${row.after - row.before}`;
+  return `${row.name} reputation ${delta}`;
+}
 
 function whom(e: Of<"standing_changed">): string {
   return e.name ?? `Faction ${e.repListId}`;

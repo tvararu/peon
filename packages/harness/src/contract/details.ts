@@ -204,6 +204,8 @@ export type TrainerLine = {
 
 export type RewardChoice = { index: number; name: string; count: number };
 
+export type StandingChange = { after: number; before: number; name: string };
+
 export type MoneyChange = { before: number; after: number };
 
 export type InteractAfter = {
@@ -221,6 +223,7 @@ export type InteractAfter = {
   learned: string[];
   repairCost: number | undefined;
   money: MoneyChange | undefined;
+  reputation: StandingChange[];
   freeSlots: number | undefined;
   bank?: BankView | undefined;
 };
