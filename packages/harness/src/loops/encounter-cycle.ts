@@ -118,9 +118,24 @@ export type CycleDeps = {
 };
 
 const DEFAULT_MAX_STARTS = 10;
+const UNREACHABLE = "target_unreachable";
+const ATTACKER_UNREACHABLE = "attacker_unreachable";
 
 const progressKey = (progress: ObjectiveProgress | undefined) =>
   JSON.stringify(progress ?? null);
+function besetAttacker(
+  queue: readonly CycleTargetRecord[],
+  attackers: readonly bigint[] | undefined,
+): bigint | undefined {
+  const victim = queue.find(
+    (entry) =>
+      entry.status === "skipped" &&
+      (entry.cause === UNREACHABLE || entry.outcome?.reason === UNREACHABLE),
+  );
+  return victim !== undefined && attackers?.includes(victim.guid)
+    ? victim.guid
+    : undefined;
+}
 
 export class EncounterCycleRuntime {
   private readonly deps: CycleDeps;
@@ -390,8 +405,13 @@ export class EncounterCycleRuntime {
     record: CycleTargetRecord,
     signal: AbortSignal,
   ): Promise<CycleStop | undefined> {
-    const { tactics, entity, control, approach, gate } = this.deps;
+    const beset = besetAttacker(this.state.queue, this.deps.attackers?.());
+    if (beset !== undefined) {
+      signal.throwIfAborted();
+      return cycleStop(ATTACKER_UNREACHABLE, { ref: beset });
+    }
     this.state.phase = "fighting";
+    const { tactics, entity, control, approach, gate } = this.deps;
     const vet = () =>
       vetTarget(entity, control.snapshot().selfGuid, record.guid);
     const refused = vet();
