@@ -62,7 +62,9 @@ function footerChrome({ pi, rt, ctx }: MountInit): FooterChrome {
     glyphSet: glyphSetName(),
     logRows: rt.log.count(),
     missing: missingOf(rt.ready.inWorld()?.capabilities),
-    model: ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : rt.flags.model,
+    model: ctx.model
+      ? `${ctx.model.provider}/${ctx.model.id}`
+      : "openai-codex/gpt-6-luna",
     thinking: pi.getThinkingLevel(),
     unreadWhispers: rt.session.unreadWhispers,
     wake: rt.session.wake,

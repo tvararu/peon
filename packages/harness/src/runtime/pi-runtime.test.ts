@@ -1,14 +1,18 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { fauxAssistantMessage, Type } from "@earendil-works/pi-ai";
+import {
+  fauxAssistantMessage,
+  fauxProvider,
+  Type,
+} from "@earendil-works/pi-ai";
 import type { ExtensionFactory } from "@earendil-works/pi-coding-agent";
 import { createPiRuntime, splitModel } from "#harness/runtime/pi-runtime";
 import {
   createFauxSession,
-  emptyCredentials,
   FAUX_MODEL,
   type FauxSession,
+  sharedModels,
 } from "#test-support/faux-session";
 import { createTestRuntime } from "#test-support/runtime-fixture";
 
@@ -122,14 +126,14 @@ describe("createPiRuntime", () => {
   });
 
   test("refuses a model that is not in the catalog", async () => {
-    const { rt } = await createTestRuntime({
-      flags: { model: "faux/missing" },
-    });
+    const { rt } = await createTestRuntime();
+    const faux = fauxProvider({ models: [{ id: "faux-1" }] });
     await expect(
       createPiRuntime({
         agentDir: rt.paths.dir,
-        credentials: emptyCredentials,
         extensions: [{ factory: probeTool, name: "wow" }],
+        model: "faux/missing",
+        models: await sharedModels([faux.provider]),
         runtime: rt,
       }),
     ).rejects.toThrow("The model faux/missing is not in the Pi catalog.");
@@ -137,13 +141,13 @@ describe("createPiRuntime", () => {
   });
 
   test("seeds fd and rg so Pi prints no fd not found warning", async () => {
-    const { rt } = await createTestRuntime({
-      flags: { model: "faux/missing" },
-    });
+    const { rt } = await createTestRuntime();
+    const faux = fauxProvider({ models: [{ id: "faux-1" }] });
     await createPiRuntime({
       agentDir: rt.paths.dir,
-      credentials: emptyCredentials,
       extensions: [{ factory: probeTool, name: "wow" }],
+      model: "faux/missing",
+      models: await sharedModels([faux.provider]),
       runtime: rt,
     }).catch(() => undefined);
     for (const [bin, names] of [

@@ -1,10 +1,10 @@
 import { homedir } from "node:os";
-import type { CredentialStore } from "@earendil-works/pi-ai";
 import {
   type AgentSessionRuntime,
   type ExtensionFactory,
   InteractiveMode,
   initTheme,
+  ModelRuntime,
 } from "@earendil-works/pi-coding-agent";
 import { messageOf } from "@peon/core/lib/errors";
 import { harnessStateDir } from "#harness/config/flags";
@@ -20,14 +20,15 @@ import type {
   RunMeta,
   RunPaths,
 } from "#harness/contract/config";
-import type {
-  Clock,
-  HarnessRuntime,
-  QuestMemory,
-  TravelMemory,
-} from "#harness/contract/services";
-import { OmpCredentialStore, ompDbPath } from "#harness/credentials/omp-store";
-import { credentialStatus, startupCheck } from "#harness/credentials/status";
+import type { HarnessRuntime } from "#harness/contract/services";
+import {
+  chooseModel,
+  FALLBACK_MODEL,
+  findLogins,
+  NO_LOGIN,
+  peonAuthPath,
+  startupLine,
+} from "#harness/credentials/status";
 import { driveExtension } from "#harness/drive/extension";
 import {
   createRunDir,
@@ -38,42 +39,25 @@ import {
   writeMeta,
   writeMetaSync,
 } from "#harness/eval/run-dir";
-import { createToolStats, STATS_EVERY_MS } from "#harness/eval/stats";
+import { STATS_EVERY_MS } from "#harness/eval/stats";
 import {
   createStatusWriter,
   STATUS_EVERY_MS,
   type StatusWriter,
   statusSnapshot,
 } from "#harness/eval/status";
-import { createWakeGuard } from "#harness/events/guard";
-import { createEventRouter } from "#harness/events/router";
-import type { RuleContext } from "#harness/events/rules";
-import { createWorldSnapshots } from "#harness/events/snapshot";
 import { wowExtension } from "#harness/extension/extension";
 import { createPacketTrace, type PacketTrace } from "#harness/log/packet-trace";
-import { createGameLog, createJsonlSink } from "#harness/log/store";
-import { createAttackLedger } from "#harness/ops/danger";
-import { createProgressTracker } from "#harness/ops/progress";
-import { createRefTable } from "#harness/ops/refs";
-import { pinnedBy } from "#harness/ops/remembered";
-import { createRepeatGuard } from "#harness/ops/repeat-guard";
-import { createSightings } from "#harness/ops/sightings";
-import { snapshotWorld } from "#harness/ops/views";
-import { createRunRegistry } from "#harness/runs/registry";
-import { defaultLogin } from "#harness/runtime/connection";
+import { composeRuntime, runMeta } from "#harness/runtime/compose";
 import { missingDbcWarnings } from "#harness/runtime/dbc-check";
 import {
   createExitRecorder,
   type ExitProcess,
   type ExitRecorder,
 } from "#harness/runtime/exit";
-import { createHarnessRuntime } from "#harness/runtime/harness-runtime";
-import { createWorldMutex } from "#harness/runtime/mutex";
-import { createPiRuntime } from "#harness/runtime/pi-runtime";
-import { createReadyGate } from "#harness/runtime/ready";
-import { createYieldGate } from "#harness/runtime/yield";
+import { createPiRuntime, splitModel } from "#harness/runtime/pi-runtime";
 import { setGlyphs } from "#harness/ui/context";
-import { type GlyphSetName, resolveGlyphSet } from "#harness/ui/glyphs";
+import { resolveGlyphSet } from "#harness/ui/glyphs";
 import { worldExtension } from "#harness/world/extension";
 
 export const EXIT = { credential: 3, ok: 0, refused: 2, usage: 2 } as const;
@@ -92,7 +76,8 @@ type Started = {
   deps: MainDeps;
   profile: Profile;
   lock: Lock;
-  credentials: CredentialStore;
+  models: ModelRuntime;
+  model: string;
   extensionPaths: string[];
 };
 type Finish = {
@@ -144,22 +129,30 @@ async function start(flags: HarnessFlags, deps: MainDeps): Promise<number> {
     stateDir: harnessStateDir(deps.home),
   });
   deps.proc.on("exit", lock.releaseSync);
-  const credentials = new OmpCredentialStore({
-    dbPath: ompDbPath(deps.home),
-    now: deps.now,
+  const models = await ModelRuntime.create({
+    authPath: peonAuthPath(deps.home),
+    modelsPath: null,
+    refreshOnCreate: false,
   });
+  await warnDbc(profile, deps);
+  const logins = await findLogins(models);
+  const chosen = chooseModel({ explicit: flags.model, logins });
+  const model = chosen ?? flags.model ?? FALLBACK_MODEL;
+  if (flags.model) splitModel(flags.model);
+  if (chosen) deps.out(startupLine(logins, chosen));
+  else deps.err(NO_LOGIN);
+  if (flags.check) {
+    await lock.release();
+    return chosen ? EXIT.ok : EXIT.credential;
+  }
+  await play({ deps, extensionPaths, flags, lock, model, models, profile });
+  return EXIT.ok;
+}
+
+async function warnDbc(profile: Profile, deps: MainDeps): Promise<void> {
   if (profile.spellDataDir)
     for (const warning of await missingDbcWarnings(profile.spellDataDir))
       deps.err(warning);
-  const check = startupCheck(await credentialStatus(credentials, deps.now()));
-  if (check.ok) deps.out(check.line);
-  else deps.err(check.line);
-  if (!check.ok || flags.check) {
-    await lock.release();
-    return check.ok ? EXIT.ok : EXIT.credential;
-  }
-  await play({ credentials, deps, extensionPaths, flags, lock, profile });
-  return EXIT.ok;
 }
 
 async function play({
@@ -167,9 +160,52 @@ async function play({
   deps,
   profile,
   lock,
-  credentials,
+  models,
+  model,
   extensionPaths,
 }: Started): Promise<void> {
+  const opened = await openRun({ deps, flags, lock, model, profile });
+  const { exit, finish, paths, rt } = opened;
+  const piRuntime = await openedPi({
+    deps,
+    exit,
+    extensionPaths,
+    finish,
+    model,
+    models,
+    rt,
+  });
+  await linkSession(
+    paths,
+    piRuntime.session.sessionManager.getSessionFile() ?? paths.session,
+  );
+  if (flags.connect)
+    rt.connect().catch((error: unknown) =>
+      deps.err(
+        `The harness could not connect: ${messageOf(error)}. Use /connect to try again.`,
+      ),
+    );
+  exit.piOwnsSignals();
+  await deps.interactive(piRuntime);
+}
+
+type Opened = {
+  paths: RunPaths;
+  trace: PacketTrace;
+  rt: HarnessRuntime;
+  meta: RunMeta;
+  exit: ExitRecorder;
+  status: StatusWriter;
+  finish: () => Promise<void>;
+};
+
+async function openRun({
+  deps,
+  flags,
+  lock,
+  model,
+  profile,
+}: Omit<Started, "extensionPaths" | "models">): Promise<Opened> {
   const paths = await createRunDir({
     character: profile.character,
     flag: flags.runDir,
@@ -184,7 +220,13 @@ async function play({
     deps.err,
   );
   setGlyphs(glyphs);
-  const meta = runMeta({ flags, glyphs, profile, startedAt: deps.now() });
+  const meta = runMeta({
+    flags,
+    glyphs,
+    model,
+    profile,
+    startedAt: deps.now(),
+  });
   await writeMeta(paths, meta);
   const exit = createExitRecorder({
     meta,
@@ -201,197 +243,40 @@ async function play({
   });
   status.start(STATUS_EVERY_MS);
   const finish = finisher({ exit, lock, paths, rt, status, trace });
+  return { exit, finish, meta, paths, rt, status, trace };
+}
+
+async function openedPi({
+  deps,
+  exit,
+  extensionPaths,
+  finish,
+  model,
+  models,
+  rt,
+}: {
+  deps: MainDeps;
+  exit: ExitRecorder;
+  extensionPaths: readonly string[];
+  finish: () => Promise<void>;
+  model: string;
+  models: ModelRuntime;
+  rt: HarnessRuntime;
+}): Promise<AgentSessionRuntime> {
   const agentDir = `${harnessStateDir(deps.home)}/agent`;
   const piRuntime = await createPiRuntime({
     agentDir,
-    credentials,
-    extensionPaths,
+    extensionPaths: [...extensionPaths],
     extensions: [
       { factory: worldExtension(rt), name: "world" },
       { factory: driveExtension(), name: "drive" },
       { factory: withFinish(wowExtension(rt), exit, finish), name: "wow" },
     ],
+    model,
+    models,
     runtime: rt,
   });
-  await linkSession(
-    paths,
-    piRuntime.session.sessionManager.getSessionFile() ?? paths.session,
-  );
-  if (flags.connect)
-    rt.connect().catch((error: unknown) =>
-      deps.err(
-        `The harness could not connect: ${messageOf(error)}. Use /connect to try again.`,
-      ),
-    );
-  exit.piOwnsSignals();
-  await deps.interactive(piRuntime);
-}
-
-function composeRuntime({
-  flags,
-  paths,
-  profile,
-  trace,
-}: {
-  flags: HarnessFlags;
-  paths: RunPaths;
-  profile: Profile;
-  trace: PacketTrace;
-}): HarnessRuntime {
-  const clock: Clock = { now: () => Date.now() };
-  const log = createGameLog({
-    char: () => profile.character,
-    clock,
-    file: paths.gamelog,
-  });
-  const runs = createRunRegistry({
-    clock,
-    log,
-    sink: createJsonlSink({ file: paths.runs }),
-  });
-  const attacks = createAttackLedger(clock);
-  const jevLog = createJsonlSink({ file: paths.jev });
-  const late: { rt?: HarnessRuntime } = {};
-  const router = createEventRouter({
-    attacks,
-    context: () => ruleContext(built(late.rt)),
-    flags,
-    guard: createWakeGuard(clock),
-    jevLog,
-    log,
-    runs,
-  });
-  const snapshots = createWorldSnapshots({
-    clock,
-    log,
-    paths,
-    world: () => snapshotWorld(built(late.rt)),
-  });
-  const quests: QuestMemory = new Map();
-  const shared = {
-    attacks,
-    clock,
-    flags,
-    jevLog,
-    log,
-    login: (player: Profile) => defaultLogin(player, trace),
-    paths,
-    profile,
-    quests,
-    router,
-    runs,
-    snapshots,
-    travel: travelMemory(),
-  };
-  late.rt = createHarnessRuntime({
-    ...shared,
-    ...services({ clock, log, profile, quests }),
-  });
-  return late.rt;
-}
-
-function travelMemory(): TravelMemory {
-  return {
-    blockedBearings: new Map(),
-    exploreOrigin: undefined,
-    explores: [],
-    lastGoodPose: undefined,
-    lastRefusedGoal: undefined,
-    obstructedExplores: new Map(),
-    recovery: undefined,
-    triggers: undefined,
-    visitedCells: new Set<string>(),
-  };
-}
-
-function services({
-  clock,
-  log,
-  profile,
-  quests,
-}: {
-  clock: Clock;
-  log: ReturnType<typeof createGameLog>;
-  profile: Profile;
-  quests: QuestMemory;
-}) {
-  return {
-    mutex: createWorldMutex(),
-    progress: createProgressTracker({ clock, log }),
-    ready: createReadyGate({ clock, log, profile }),
-    refs: createRefTable(),
-    repeats: createRepeatGuard(clock),
-    sightings: createSightings(clock, pinnedBy(quests)),
-    stats: createToolStats(clock),
-    yields: createYieldGate(),
-  };
-}
-
-function built(rt: HarnessRuntime | undefined): HarnessRuntime {
-  if (!rt) throw new Error("The harness runtime is not built yet.");
-  return rt;
-}
-
-function ruleContext(rt: HarnessRuntime): RuleContext {
-  const selfGuid = rt.handle()?.getControlState().selfGuid ?? 0n;
-  return {
-    now: rt.clock.now(),
-    refOf: (guid) => rt.refs.refOf(guid),
-    runActive: rt.runs.active() !== undefined,
-    selfGuid,
-    selfName: rt.profile.character,
-    wake: rt.session.wake,
-  };
-}
-
-function runMeta({
-  flags,
-  glyphs,
-  profile,
-  startedAt,
-}: {
-  flags: HarnessFlags;
-  glyphs: GlyphSetName;
-  profile: Profile;
-  startedAt: number;
-}): RunMeta {
-  const files = {
-    gamelog: "gamelog.jsonl",
-    jev: "jev.jsonl",
-    packetCounts: "packets.json",
-    packets: "packets.jsonl",
-    runs: "runs.jsonl",
-    session: "session.jsonl",
-    status: "status.json",
-    tools: "tools.json",
-  };
-  const run = {
-    capabilities: undefined,
-    characterGuid: undefined,
-    endedAt: undefined,
-    exitReason: undefined,
-    gitSha: gitSha(),
-    startedAt,
-  };
-  return {
-    ...run,
-    account: profile.account,
-    character: profile.character,
-    files,
-    flags,
-    glyphs,
-    model: flags.model,
-    thinking: flags.thinking,
-    v: 1,
-  };
-}
-
-function gitSha(): string | undefined {
-  const proc = Bun.spawnSync(["git", "rev-parse", "HEAD"], {
-    cwd: import.meta.dir,
-    stderr: "ignore",
-  });
-  return proc.exitCode === 0 ? proc.stdout.toString().trim() : undefined;
+  return piRuntime;
 }
 
 function finisher({

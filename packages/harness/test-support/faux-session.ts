@@ -1,12 +1,13 @@
 import {
-  type CredentialStore,
   type FauxProviderHandle,
   fauxProvider,
+  type Provider,
 } from "@earendil-works/pi-ai";
-import type {
-  AgentSession,
-  AgentSessionRuntime,
-  ExtensionFactory,
+import {
+  type AgentSession,
+  type AgentSessionRuntime,
+  type ExtensionFactory,
+  ModelRuntime,
 } from "@earendil-works/pi-coding-agent";
 import { scratchDir } from "@peon/core/test-support/scratch";
 import type { HarnessRuntime } from "#harness/contract/services";
@@ -22,12 +23,17 @@ export type FauxSession = {
   dispose: () => Promise<void>;
 };
 
-export const emptyCredentials: CredentialStore = {
-  delete: async () => {},
-  list: async () => [],
-  modify: async () => undefined,
-  read: async () => undefined,
-};
+export async function sharedModels(
+  providers: readonly Provider[],
+): Promise<ModelRuntime> {
+  const models = await ModelRuntime.create({
+    authPath: `${scratchDir("harness-auth")}/auth.json`,
+    modelsPath: null,
+    refreshOnCreate: false,
+  });
+  for (const provider of providers) models.registerNativeProvider(provider);
+  return models;
+}
 
 export async function createFauxSession(init: {
   rt: HarnessRuntime;
@@ -41,13 +47,13 @@ export async function createFauxSession(init: {
   const agentDir = scratchDir("harness-agent");
   const runtime = await createPiRuntime({
     agentDir,
-    credentials: emptyCredentials,
     extensionPaths: init.extensionPaths,
     extensions: [
       { factory: worldExtension(init.rt), name: "world" },
       { factory: init.extension, name: "wow" },
     ],
-    providers: [faux.provider],
+    model: FAUX_MODEL,
+    models: await sharedModels([faux.provider]),
     runtime: init.rt,
   });
   return {

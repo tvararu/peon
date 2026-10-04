@@ -7,12 +7,11 @@ import type { HarnessFlags, PacketTraceMode } from "#harness/contract/config";
 
 export class UsageError extends Error {}
 
-export const DEFAULT_MODEL = "openai-codex/gpt-6-luna";
 export const USAGE = `Usage: mise harness [--profile <path>] [options]
 
   --profile <path>        soap session JSON, soap ledger JSON or Peon config.toml (default: ~/.config/peon/config.toml)
   --run-dir <path>        run directory (default: <state>/runs/<utc>-<character>)
-  --model <provider/id>   model (default: ${DEFAULT_MODEL})
+  --model <provider/id>   model (default: follows the login; see docs/harness.md)
   --thinking <level>      off|minimal|low|medium|high|xhigh|max (default: off)
   --no-connect            do not log in at start; use /connect
   --wake on|off           let game events start a turn (default: on)
@@ -22,7 +21,7 @@ export const USAGE = `Usage: mise harness [--profile <path>] [options]
   --log-entities          write raw entity rows to the game log
   --packet-trace <mode>   off|headers|bodies: write packets.jsonl (default: off)
   --extension <path>      load a Pi extension file; repeat for more (after the profile's extensions)
-  --check                 check the profile, the lock and the Codex login, then exit`;
+  --check                 check the profile, the lock and the model login, then exit`;
 
 const THINKING: readonly ThinkingLevel[] = [
   "off",
@@ -70,7 +69,7 @@ export function parseFlags(
     extensions: (values.extension ?? []).map((path) => resolve(path)),
     glyphs: values.glyphs,
     logEntities: values["log-entities"] ?? false,
-    model: values.model ?? DEFAULT_MODEL,
+    model: values.model,
     nowPerCall: values["now-per-call"] ?? false,
     packetTrace: traceMode(values["packet-trace"]),
     profile,

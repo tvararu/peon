@@ -1,10 +1,9 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
-import { rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { scratchDir } from "@peon/core/test-support/scratch";
-import { ompDbPath } from "#harness/credentials/omp-store";
-import { codexRow, writeOmpDb } from "#test-support/omp-db";
+import { peonAuthPath } from "#harness/credentials/status";
 
 const ENTRY = join(import.meta.dir, "entry.ts");
 
@@ -39,12 +38,18 @@ test("a usage error prints the usage and exits 2", async () => {
 });
 
 test("--check runs the pre-flight through the dynamic import and exits 0", async () => {
-  writeOmpDb(ompDbPath(home), [
-    codexRow({
-      access: "access-never-printed",
-      expires: Date.now() + 3_600_000,
+  await mkdir(dirname(peonAuthPath(home)), { recursive: true });
+  await Bun.write(
+    peonAuthPath(home),
+    JSON.stringify({
+      "openai-codex": {
+        access: "access-never-printed",
+        expires: Date.now() + 3_600_000,
+        refresh: "r",
+        type: "oauth",
+      },
     }),
-  ]);
+  );
   const profile = join(home, "ledger.json");
   await writeFile(
     profile,
@@ -59,7 +64,7 @@ test("--check runs the pre-flight through the dynamic import and exits 0", async
   );
   const result = await run(["--profile", profile, "--check"]);
   expect(result.code).toBe(0);
-  expect(result.stdout).toContain("Codex login: valid until");
+  expect(result.stdout).toContain("Login: openai-codex (OAuth).");
   expect(result.stdout).not.toContain("access-never-printed");
   expect(existsSync(join(home, ".pi"))).toBe(false);
-});
+}, 15_000);

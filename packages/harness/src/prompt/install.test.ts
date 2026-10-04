@@ -6,7 +6,6 @@ import {
   fauxAssistantMessage,
   fauxProvider,
   getCurrentSystemPrompt,
-  InMemoryCredentialStore,
   type TranscriptMessages,
   Type,
 } from "@earendil-works/pi-ai";
@@ -199,7 +198,7 @@ describe("installPrompt", () => {
       sessionStartEvent,
     }) => {
       const modelRuntime = await ModelRuntime.create({
-        credentials: new InMemoryCredentialStore(),
+        authPath: `${dir}/auth.json`,
         modelsPath: null,
         refreshOnCreate: false,
       });

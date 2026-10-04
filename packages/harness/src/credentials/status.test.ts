@@ -1,101 +1,73 @@
 import { describe, expect, test } from "bun:test";
-import type { Credential, CredentialStore } from "@earendil-works/pi-ai";
-import { credentialStatus, startupCheck } from "#harness/credentials/status";
+import {
+  chooseModel,
+  FALLBACK_MODEL,
+  type Login,
+  NO_LOGIN,
+  peonAuthPath,
+  startupLine,
+} from "#harness/credentials/status";
 
-const NOW = Date.parse("2026-09-26T19:00:00Z");
+const CODEX: Login = { provider: "openai-codex", source: "OAuth" };
+const CLAUDE: Login = { provider: "anthropic", source: "ANTHROPIC_API_KEY" };
+const GPT: Login = { provider: "openai", source: "OPENAI_API_KEY" };
 
-function storeWith(credential: Credential | undefined): CredentialStore {
-  return {
-    delete: async () => {},
-    list: async () => [],
-    modify: async () => credential,
-    read: async () => credential,
-  };
-}
-
-const oauth = (expires: number): Credential => ({
-  access: "token-never-printed",
-  expires,
-  refresh: "",
-  type: "oauth",
-});
-
-describe("credentialStatus", () => {
-  test("reports expiry and remaining time of the codex login", async () => {
-    expect(
-      await credentialStatus(storeWith(oauth(NOW + 3_600_000)), NOW),
-    ).toEqual({
-      expiresAt: NOW + 3_600_000,
-      present: true,
-      validForMs: 3_600_000,
-    });
-  });
-
-  test("reports a missing login", async () => {
-    expect(await credentialStatus(storeWith(undefined), NOW)).toEqual({
-      expiresAt: undefined,
-      present: false,
-      validForMs: undefined,
-    });
+describe("peonAuthPath", () => {
+  test("lives under the Peon config dir", () => {
+    expect(peonAuthPath("/home/me")).toBe("/home/me/.config/peon/auth.json");
   });
 });
 
-describe("startupCheck", () => {
-  test("accepts a valid login without a warning", () => {
-    const check = startupCheck({
-      expiresAt: Date.parse("2026-09-30T20:20:18Z"),
-      present: true,
-      validForMs: 3_600_000,
-    });
-    expect(check).toEqual({
-      line: "Codex login: valid until 2026-09-30 20:20 UTC (omp).",
-      ok: true,
-      warn: false,
-    });
-  });
-
-  test("warns under 30 minutes", () => {
-    expect(
-      startupCheck({
-        expiresAt: NOW + 1_200_000,
-        present: true,
-        validForMs: 1_200_000,
-      }),
-    ).toMatchObject({ ok: true, warn: true });
-  });
-
-  test("refuses under 10 minutes with exit code 3", () => {
-    expect(
-      startupCheck({
-        expiresAt: NOW + 540_000,
-        present: true,
-        validForMs: 540_000,
-      }),
-    ).toEqual({
-      exitCode: 3,
-      line: "The Codex login expires in 9 min. Run omp once so that it refreshes the login. Then start the harness again.",
-      ok: false,
-    });
-  });
-
-  test("refuses a missing login with exit code 3", () => {
-    expect(
-      startupCheck({
-        expiresAt: undefined,
-        present: false,
-        validForMs: undefined,
-      }),
-    ).toEqual({
-      exitCode: 3,
-      line: "No Codex login found in omp. Run omp and log in to openai-codex. Then start the harness again.",
-      ok: false,
-    });
-  });
-
-  test("never prints the token", async () => {
-    const check = startupCheck(
-      await credentialStatus(storeWith(oauth(NOW + 3_600_000)), NOW),
+describe("chooseModel", () => {
+  test("--model wins over any login", () => {
+    expect(chooseModel({ explicit: "custom/model", logins: [CLAUDE] })).toBe(
+      "custom/model",
     );
-    expect(check.line).not.toContain("token-never-printed");
+  });
+
+  test("prefers codex before anthropic before openai", () => {
+    expect(chooseModel({ explicit: undefined, logins: [GPT, CLAUDE] })).toBe(
+      "anthropic/claude-sonnet-5",
+    );
+    expect(
+      chooseModel({ explicit: undefined, logins: [GPT, CLAUDE, CODEX] }),
+    ).toBe("openai-codex/gpt-6-luna");
+    expect(chooseModel({ explicit: undefined, logins: [GPT] })).toBe(
+      "openai/gpt-6-luna",
+    );
+  });
+
+  test("an unknown provider gives no model", () => {
+    expect(chooseModel({ explicit: undefined, logins: [] })).toBe(undefined);
+    expect(
+      chooseModel({
+        explicit: undefined,
+        logins: [{ provider: "other", source: "OTHER_KEY" }],
+      }),
+    ).toBe(undefined);
+  });
+
+  test("the fallback is the codex model", () => {
+    expect(FALLBACK_MODEL).toBe("openai-codex/gpt-6-luna");
+  });
+});
+
+describe("startupLine", () => {
+  test("names a single login and the model", () => {
+    expect(startupLine([CODEX], "openai-codex/gpt-6-luna")).toBe(
+      "Login: openai-codex (OAuth). Model: openai-codex/gpt-6-luna.",
+    );
+  });
+
+  test("names every login", () => {
+    expect(startupLine([CODEX, CLAUDE], "openai-codex/gpt-6-luna")).toBe(
+      "Logins: openai-codex (OAuth), anthropic (ANTHROPIC_API_KEY). Model: openai-codex/gpt-6-luna.",
+    );
+  });
+
+  test("the no-login line is stable", () => {
+    expect(NO_LOGIN).toBe(
+      "No model login found. Type /login in the harness, or set an API key such as ANTHROPIC_API_KEY or OPENAI_API_KEY.",
+    );
   });
 });

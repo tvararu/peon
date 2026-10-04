@@ -20,8 +20,9 @@ Peon is a Pi-based harness that gives an LLM tools to interact with a World of W
   [docs/factory.md](docs/factory.md).
 - [mise](https://mise.jdx.dev), which installs Bun and the other tools in
   `mise.toml`.
-- A Codex login in omp (`omp`, provider `openai-codex`). The harness reads
-  only that login and never refreshes it. Other providers are not read.
+- A model login for the harness: `/login` inside it (stored in
+  `~/.config/peon/auth.json`) or a provider API key such as
+  `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`.
 - A TypeSafe API key in `TYPESAFE_API_KEY`. Jev needs it for `engage` and
   `pilot`; without it both refuse with `no_combat_helper`.
 
@@ -80,8 +81,8 @@ Peon is a Pi-based harness that gives an LLM tools to interact with a World of W
    character out first. Delete a throwaway character with
    `mise factory soap delete <ACCOUNT>`.
 
-`mise harness --check` verifies the profile, the lock and the Codex login
-without a game connection.
+`mise harness --check` verifies the profile, the lock and the model login
+without a game connection: exit 0 with a login, exit 3 without one.
 
 Press F1 to switch to PLAY mode and drive the character yourself with the
 keyboard. Esc hands it back to the agent. The keys are in
