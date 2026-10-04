@@ -165,6 +165,19 @@ node with list prices and a `travel` call for the first one. `look` with
 `find: "flight_master"` lists the flight masters in view or remembered.
 The store records a flight spline's duration only from the character's own non-cyclic flying `SMSG_MONSTER_MOVE` (`Movement/Spline/MoveSplineInit.cpp:115-124` writes the moving unit's packed GUID via `SendMessageToSet`, so the peek must filter on it). The harness log rows are `travel/node_learned`, `travel/flight_started`, `travel/flight_landed` (a wake) and `travel/flight_refused`. A fresh node discovery sends `SMSG_NEW_TAXI_PATH` and status with no map (`Handlers/TaxiHandler.cpp:89-102` sends `SMSG_NEW_TAXI_PATH` and status with no map when `SendLearnNewTaxiNode` learns an unknown node); the store remembers the pending learn and emits `taxi_node_named` once the re-query's `SMSG_SHOWTAXINODES` supplies the current node, which the runtime resolves against the taxi catalog for the `node_learned` text.
 
+A route from a start that sits just off the navmesh (the planner's first
+mesh point is within 0.5 yd of the pose) begins with one short step onto
+that mesh point, taken only when the planner's own collision ray between
+the two is clear. A start farther off, or a blocked step, refuses
+`start_off_mesh` with `travel` `to: "unstick"` as the next call. The server
+accepts the step because it keeps no navmesh check on a client move:
+`VerifyMovementInfo` only rejects an invalid position, a pending spline
+and a disabled mover (`Handlers/MovementHandler.cpp:531-557`), and
+`HandleMoverRelocation` then takes the sent position as the mover's
+position (`Handlers/MovementHandler.cpp:431-434`). Keeping out of
+collision is the client's job, so the step is a walk like any other and
+never a teleport.
+
 ## Capabilities row
 
 `t8-travel-bind-inn`: make an inn its home. `t8-travel-hearth-home`:
