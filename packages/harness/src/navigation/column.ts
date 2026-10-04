@@ -39,22 +39,18 @@ export function leadFloor(
   z: number,
   fromZ: number,
 ): number | undefined {
-  if (heights.every((height) => Math.abs(height - z) > WALKABLE_CLIMB))
-    return undefined;
-  if (clearAbove(heights, z)) {
-    const surface = continuousFloor(heights, z, fromZ);
-    if (Math.abs(surface - z) <= GROUND_ERROR) return surface;
-  }
-  if (Math.abs(z - fromZ) > GROUND_ERROR) return undefined;
-  const [step] = heights
-    .filter(
-      (height) =>
-        height <= fromZ + GROUND_ERROR &&
-        Math.abs(height - z) <= WALKABLE_CLIMB &&
-        clearAbove(heights, height),
-    )
-    .sort((a, b) => Math.abs(a - z) - Math.abs(b - z));
-  return step;
+  const floors = groundFloors(heights);
+  const below = floors.filter(
+    (floor) =>
+      floor <= Math.max(z, fromZ) + GROUND_ERROR &&
+      (z - floor <= WALKABLE_CLIMB || floor >= fromZ - WALKABLE_CLIMB) &&
+      floor <= fromZ + GROUND_ERROR,
+  );
+  const [first, second] = [...below].sort(
+    (a, b) => Math.abs(a - z) - Math.abs(b - z),
+  );
+  if (first === undefined || second !== undefined) return undefined;
+  return first;
 }
 
 export function continuousFloor(
