@@ -193,8 +193,10 @@ bearing.
 
 A route from a start that sits just off the navmesh (the planner's first
 mesh point is within 0.5 yd of the pose) begins with one short step onto
-that mesh point, taken only when the planner's own collision ray between
-the two is clear. A start farther off, or a blocked step, refuses
+that mesh point, taken only when the planner's collision rays along the
+heights the character actually walks are clear: the lead is probed every
+0.02 yd, each probe sits on a listed floor, and the segments between the
+probed floors pass collision. A start farther off, or a blocked step, refuses
 `start_off_mesh` with `travel` `to: "unstick"` as the next call. The server
 accepts the step because it keeps no navmesh check on a client move:
 `VerifyMovementInfo` only rejects an invalid position, a pending spline

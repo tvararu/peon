@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import type { NavPoint } from "@peon/core";
 import { navigationSource } from "#harness/navigation/maps";
 import { createNavigation, type Navigation } from "#harness/navigation/planner";
+import { startStep } from "#harness/navigation/start-snap";
 import { native, navigation } from "#test-support/navigation-fixtures";
 
 const dataPath = process.env["NAV_DATA"] ?? "";
@@ -27,11 +28,20 @@ function platformRays(top: number, fromX: number) {
   };
 }
 
+function wallRays(wallX: number, top: number) {
+  return (a: NavPoint, b: NavPoint) => {
+    if ((a.x - wallX) * (b.x - wallX) > 0) return true;
+    if (a.x === b.x) return a.x !== wallX || a.z >= top;
+    const z = a.z + ((b.z - a.z) * (wallX - a.x)) / (b.x - a.x);
+    return z >= top;
+  };
+}
+
 function meshStartingAt(onto: NavPoint, blocked = false) {
   return native({
     findPath: (_from, to) => [{ ...onto }, { ...to }],
     lineOfSight: (a, b) =>
-      !(blocked && a.x === pose.x && a.y === pose.y && b.x === onto.x),
+      !(blocked && Math.min(a.x, b.x) <= 0.1 && Math.max(a.x, b.x) >= 0.1),
   });
 }
 
@@ -148,6 +158,30 @@ describe("a start just off the mesh", () => {
       /ground height|snapped off/,
     );
   });
+
+  test("refuses a lead whose floor-resolved walk crosses a wall the direct ray clears", () => {
+    const map = native({
+      findHeights: () => [0],
+      lineOfSight: wallRays(0.04, 0.5),
+    });
+    expect(() =>
+      startStep(map, { x: 0, y: 0, z: 0.4 }, { x: 0.3, y: 0, z: 0 }),
+    ).toThrow(/start snapped off/);
+  });
+
+  test("walks a rising lead on the floor it planned", () => {
+    const onto = { x: 0.3, y: 0, z: 0.4 };
+    const rise = (x: number) => Math.min(0.4, (x * 0.4) / 0.3);
+    const map = native({
+      findHeight: (_from, x) => rise(x),
+      findHeights: (x) => [rise(x)],
+      findPath: (_from, to) => [{ ...onto }, { ...to }],
+    });
+    const route = navigation(map).plan(0, pose, { ...goal, z: 0.4 });
+    const sample = route.sample(0.2);
+    expect(sample.x).toBeCloseTo(0.2);
+    expect(sample.z).toBeCloseTo(rise(0.2), 1);
+  });
 });
 
 describe.skipIf(!present)("recorded off-mesh starts on the real mesh", () => {
@@ -168,6 +202,7 @@ describe.skipIf(!present)("recorded off-mesh starts on the real mesh", () => {
     );
     expect(route.points[0]).toMatchObject({ x: 10_408.6, y: -6337.8, z: 37.4 });
     expect(route.points.at(-1)).toMatchObject({ x: 10_402.9, y: -6343.5 });
+    for (let at = 0; at <= 1; at += 0.05) route.sample(at);
   });
 
   test("Fargo Deep start 0.2 yd off the mesh plans to the next room", () => {
@@ -178,5 +213,22 @@ describe.skipIf(!present)("recorded off-mesh starts on the real mesh", () => {
     );
     expect(route.points[0]).toMatchObject({ x: -9754.3, y: 139.3, z: 20.6 });
     expect(route.points.at(-1)).toMatchObject({ x: -9746.3, y: 139.3 });
+    for (let at = 0; at <= 1; at += 0.05) route.sample(at);
+  });
+  test.each([
+    [10_411.4, -6368.8],
+    [10_413.7, -6374.5],
+    [10_405.7, -6366.5],
+    [10_411.4, -6380.2],
+    [10_400, -6368.8],
+    [10_405.7, -6382.5],
+    [10_397.7, -6374.5],
+    [10_400, -6380.2],
+  ])("Sunstrider Isle start refused at round 901 plans to %p,%p", (x, y) => {
+    const sunstrider = { x: 10_405.7, y: -6374.5, z: 35.7 };
+    const route = nav().planGround(530, sunstrider, { x, y });
+    expect(route.points[0]).toMatchObject(sunstrider);
+    expect(route.points.at(-1)).toMatchObject({ x, y });
+    for (let at = 0; at <= 1; at += 0.05) route.sample(at);
   });
 });

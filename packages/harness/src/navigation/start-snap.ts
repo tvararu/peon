@@ -28,9 +28,17 @@ export function startStep(
     );
     if (reach > START_REACH) throw error;
     try {
-      const climb = native.z < from.z ? CORNER_RISE : 0;
-      checkCollision(map, from, native, climb);
-      checkLeadGround(map, from, native);
+      const chain = leadChain(map, from, native);
+      for (let index = 1; index < chain.length; index++) {
+        const previous = chain[index - 1] as NavPoint;
+        const next = chain[index] as NavPoint;
+        checkCollision(
+          map,
+          previous,
+          next,
+          next.z < previous.z ? CORNER_RISE : 0,
+        );
+      }
     } catch (stepError) {
       if (isGroundError(stepError)) throw error;
       throw stepError;
@@ -50,9 +58,10 @@ export function leadSurface(
   return surface;
 }
 
-function checkLeadGround(map: NativeMap, from: NavPoint, onto: NavPoint): void {
+function leadChain(map: NativeMap, from: NavPoint, onto: NavPoint): NavPoint[] {
   const span = distance2d(from, onto);
   const count = Math.max(2, Math.ceil(span / LEAD_PROBE_STEP));
+  const chain: NavPoint[] = [{ ...from }];
   let previous = from.z;
   for (let step = 1; step < count; step++) {
     const ratio = step / count;
@@ -65,20 +74,55 @@ function checkLeadGround(map: NativeMap, from: NavPoint, onto: NavPoint): void {
       },
       previous,
     );
+    chain.push({
+      x: from.x + (onto.x - from.x) * ratio,
+      y: from.y + (onto.y - from.y) * ratio,
+      z: previous,
+    });
   }
+  chain.push({ ...onto });
+  return chain;
 }
 export function sampleLead(
   map: NativeMap,
   leg: { start: NavPoint; end: NavPoint; ratio: number },
   at: { x: number; y: number },
 ): NavPoint & { orientation: number; swimming: false } {
-  const z = leg.start.z + (leg.end.z - leg.start.z) * leg.ratio;
+  const span = distance2d(leg.start, leg.end);
+  const interpolated = {
+    x: leg.start.x + (leg.end.x - leg.start.x) * leg.ratio,
+    y: leg.start.y + (leg.end.y - leg.start.y) * leg.ratio,
+    z: leg.start.z + (leg.end.z - leg.start.z) * leg.ratio,
+  };
+  const surface = leadSurface(map, interpolated, anchorFloor(map, leg, span));
+  checkCollision(
+    map,
+    { ...leg.start, z: surface },
+    { ...at, z: surface },
+    surface < leg.start.z ? CORNER_RISE : 0,
+  );
   return {
     ...at,
     orientation: bearing(leg.start, leg.end),
     swimming: false,
-    z: leadSurface(map, { ...at, z }, leg.start.z),
+    z: surface,
   };
+}
+
+function anchorFloor(
+  map: NativeMap,
+  leg: { start: NavPoint; end: NavPoint; ratio: number },
+  span: number,
+): number {
+  const chain = leadChain(map, leg.start, leg.end);
+  const target = leg.ratio * span;
+  let anchor = leg.start.z;
+  for (let index = 1; index < chain.length - 1; index++) {
+    const point = chain[index] as NavPoint;
+    if (distance2d(leg.start, point) > target) break;
+    anchor = point.z;
+  }
+  return anchor;
 }
 
 export function rejectSnap(
