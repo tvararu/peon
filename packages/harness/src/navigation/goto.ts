@@ -5,6 +5,7 @@ import {
   type WalkOutcome,
   type WorldHandle,
 } from "@peon/core";
+import { floorError } from "#harness/navigation/column";
 import {
   classifyNavigationRefusal,
   type GroundRoute,
@@ -124,21 +125,21 @@ function planUnitFloor(
   destination: NavDestination,
   unitZ: number,
 ): Planned {
-  try {
+  const floors = navigation.floorsAt(pose.mapId, destination.x, destination.y);
+  if (floors.length < 2)
     return planDestination(navigation, pose, destination, start);
-  } catch (error) {
-    const near = (refusalFloors(error) ?? []).filter(
-      (height) => Math.abs(height - unitZ) <= GROUND_ERROR,
-    );
-    const [picked] = near;
-    if (near.length !== 1 || picked === undefined) throw error;
-    return planDestination(
-      navigation,
-      pose,
-      { ...destination, z: picked },
-      start,
-    );
-  }
+  const near = floors.filter(
+    (height) => Math.abs(height - unitZ) <= GROUND_ERROR,
+  );
+  const [picked] = near;
+  if (near.length !== 1 || picked === undefined)
+    throw floorError("ambiguous ground column at destination", floors);
+  return planDestination(
+    navigation,
+    pose,
+    { ...destination, z: picked },
+    start,
+  );
 }
 
 function pointOf(target: GotoTarget): NavDestination | undefined {

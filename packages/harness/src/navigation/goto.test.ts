@@ -82,17 +82,25 @@ describe("goTo without Z", () => {
   });
 
   test("refuses an ambiguous column at pick_destination with its floors, then walks to a chosen floor", () => {
-    const f = fixture((x) =>
-      x > 8715 ? [70.34, 80.34] : [70.34 + (x - 8709.46) / 100],
-    );
+    let goal = { x: Number.POSITIVE_INFINITY, z: 70.34 };
+    const ramp = (x: number) =>
+      70.34 +
+      ((goal.z - 70.34) * Math.max(0, x - 8709.46)) / (goal.x - 8709.46);
+    const f = fixture((x) => (x > 8719 ? [70.34, 72.34] : [ramp(x)]), {
+      findHeight: (_from, x) => ramp(x),
+      findPath: (from, to) => {
+        goal = { x: to.x, z: to.z };
+        return [from, to];
+      },
+    });
     const start = must(f.runtime.snapshot().pose);
     expect(() => f.handle.goTo(point(start.x + 10, start.y))).toThrow(
-      "pick_destination: ambiguous ground column at destination (floors 80.34, 70.34)",
+      "pick_destination: ambiguous ground column at destination (floors 72.34, 70.34)",
     );
     expect(f.runtime.navigationState()).toMatchObject({
       active: false,
       destination: { x: start.x + 10, y: start.y },
-      floors: [80.34, 70.34],
+      floors: [72.34, 70.34],
       refusal: "pick_destination",
     });
     expect(f.runtime.navigationState().destination).not.toHaveProperty("z");
@@ -254,8 +262,16 @@ describe("goTo a creature over several floors", () => {
   const columns = (x: number) => (x > 8715 ? MULTI : [70.34]);
 
   function creatureAt(z: number, floors = columns) {
+    return creatureAtOver(z, {}, floors);
+  }
+
+  function creatureAtOver(
+    z: number,
+    over: Partial<NativeMap>,
+    floors = columns,
+  ) {
     const targets = new Map<bigint, NavPoint>();
-    const f = fixture(floors, {}, targets);
+    const f = fixture(floors, over, targets);
     const start = must(f.runtime.snapshot().pose);
     targets.set(0x99n, { x: start.x + 10, y: start.y, z });
     return { ...f, start };
@@ -294,6 +310,22 @@ describe("goTo a creature over several floors", () => {
     );
   });
 
+  test("never falls back to another floor when the creature's floor has no route", () => {
+    const routes = (only: number) => ({
+      findPath: (from: NavPoint, to: NavPoint) =>
+        to.z === only ? [from, to] : [from, { ...to, z: to.z + 5 }],
+    });
+    const upper = creatureAtOver(72.84, routes(70.37));
+    const planUpper = jest.spyOn(upper.navigation, "plan");
+    expect(() => upper.handle.goTo({ guid: 0x99n, kind: "guid" })).toThrow();
+    const zs = planUpper.mock.calls.map((call) => call[2].z);
+    expect(zs).toContain(72.75);
+    expect(zs).not.toContain(70.37);
+    const lower = creatureAtOver(70.45, routes(72.75));
+    expect(() => lower.handle.goTo({ guid: 0x99n, kind: "guid" })).toThrow();
+    expect(lower.runtime.navigationState()).toMatchObject({ active: false });
+  });
+
   test("keeps the ambiguous refusal when no floor is near the creature", () => {
     const f = creatureAt(80);
     expect(() => f.handle.goTo({ guid: 0x99n, kind: "guid" })).toThrow(
@@ -309,11 +341,9 @@ describe("goTo a creature over several floors", () => {
     expect(f.sent.filter((packet) => MOTION.has(packet.opcode))).toEqual([]);
   });
 
-  test("keeps the ambiguous refusal when two floors are near the creature", () => {
+  test("merges two floors near the creature into one destination", () => {
     const f = creatureAt(70.42, (x) => (x > 8715 ? [70.5, 70.34] : [70.34]));
-    expect(() => f.handle.goTo({ guid: 0x99n, kind: "guid" })).toThrow(
-      "pick_destination: ambiguous ground column at destination (floors 70.50, 70.34)",
-    );
-    expect(f.sent.filter((packet) => MOTION.has(packet.opcode))).toEqual([]);
+    f.handle.goTo({ guid: 0x99n, kind: "guid" });
+    expect(f.runtime.navigationState()).toMatchObject({ active: true });
   });
 });

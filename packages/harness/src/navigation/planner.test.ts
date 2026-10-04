@@ -87,7 +87,7 @@ describe("grounded navigation", () => {
     expect(route.points.every((point) => point.z === 0)).toBe(true);
   });
 
-  test("accepts a mesh corner up to one climb and cell above the ground", () => {
+  test("treats a high mesh corner with no data near it as a hint", () => {
     const corner = (z: number, column: number[]) =>
       navigation(
         native({
@@ -98,15 +98,24 @@ describe("grounded navigation", () => {
           findPath: (from, to) => [from, { x: 5, y: 5, z }, to],
         }),
       );
-    expect(corner(1.25, [0]).plan(530, start, end).length).toBeCloseTo(14.142);
-    for (const [z, column] of [
-      [1.3, [0]],
-      [-0.3, [0]],
-      [1.2, [0, 2]],
-    ] as const)
-      expect(() => corner(z, [...column]).plan(530, start, end)).toThrow(
-        /corner disagrees/,
-      );
+    expect(corner(8, [0]).plan(530, start, end).length).toBeCloseTo(14.142);
+    expect(corner(1.2, [0]).plan(530, start, end).length).toBeCloseTo(14.142);
+    expect(() => corner(-0.3, [0]).plan(530, start, end)).toThrow(
+      /corner disagrees/,
+    );
+  });
+
+  test("refuses a high corner when the data holds a surface near it", () => {
+    const map = native({
+      findHeights: (x, y) => {
+        if (x === 5 && y === 5) return [0, 8];
+        return y === 0 && x > 4 && x < 6 ? [0, 1] : [0];
+      },
+      findPath: (from, to) => [from, { x: 5, y: 5, z: 8 }, to],
+    });
+    expect(() => navigation(map).plan(530, start, end)).toThrow(
+      /corner disagrees/,
+    );
   });
 
   test("rejects unsafe native endpoint clamping even inside the old eight-yard limit", () => {
@@ -329,15 +338,6 @@ describe("ground destinations", () => {
     const route = navigation(map).planGround(530, start, { x: 10, y: 0 });
     expect(route.sample(route.length)).toMatchObject({ x: 10, y: 0, z: 5 });
     expect(route.sample(0)).toMatchObject(start);
-  });
-
-  test("refuses an ambiguous destination even when one floor matches the origin", () => {
-    const nav = navigation(
-      native({ findHeights: (x) => (x === 10 ? [0, 5] : [0]) }),
-    );
-    expect(() => nav.planGround(530, start, end)).toThrow(
-      "ambiguous ground column at destination",
-    );
   });
 
   test("names the start and route when those columns are ambiguous", () => {

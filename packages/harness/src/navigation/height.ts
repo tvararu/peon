@@ -5,7 +5,11 @@ import {
   WALKABLE_SLOPE,
   withinStep,
 } from "@peon/core";
-import { columnHeights, FLOOR_MERGE } from "#harness/navigation/column";
+import {
+  clearAbove,
+  columnHeights,
+  groundFloors,
+} from "#harness/navigation/column";
 import { groundError, type NativeMap } from "#harness/navigation/native";
 
 type Point = { x: number; y: number; z: number };
@@ -48,7 +52,7 @@ export function probeHeight(
 }
 
 export function uniqueHeight(map: NativeMap, x: number, y: number): number {
-  const first = groundHeights(map, x, y)[0];
+  const [first] = groundHeights(map, x, y);
   if (first === undefined) throw groundError("ground height unavailable");
   return first;
 }
@@ -85,11 +89,10 @@ export function reachableHeight(
 
 export function groundHeights(map: NativeMap, x: number, y: number): number[] {
   const heights = columnHeights(map, x, y);
-  const first = heights[0];
-  if (first === undefined) throw groundError("ground height unavailable");
-  if (heights.some((height) => Math.abs(height - first) > FLOOR_MERGE))
-    throw groundError("ambiguous ground column");
-  return heights;
+  const floors = groundFloors(heights);
+  if (floors.length > 1) throw groundError("ambiguous ground column");
+  if (floors.length === 0) throw groundError("ground height unavailable");
+  return floors;
 }
 
 export function traceHeight(
@@ -112,12 +115,17 @@ export function slopeFloor(
   from: Point,
   { x, y }: { x: number; y: number },
 ): number | undefined {
-  const near = map
-    .findHeights(x, y)
-    .filter((z) => Number.isFinite(z) && withinSlope(from, { x, y, z }));
-  const first = near[0];
+  const column = map.findHeights(x, y);
+  const floors = groundFloors(
+    column.filter((z) => Number.isFinite(z) && withinSlope(from, { x, y, z })),
+  );
+  const standable = floors.filter((floor) => clearAbove(column, floor));
+  if (standable.length === 0) return undefined;
+  const [first, ...rest] = [...standable].sort(
+    (a, b) => Math.abs(a - from.z) - Math.abs(b - from.z),
+  );
   if (first === undefined) return undefined;
-  return near.every((z) => Math.abs(z - first) <= FLOOR_MERGE)
+  return rest.every((floor) => Math.abs(floor - first) <= GROUND_ERROR)
     ? first
     : undefined;
 }

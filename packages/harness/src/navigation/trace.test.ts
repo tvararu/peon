@@ -62,7 +62,7 @@ describe("lost height traces", () => {
       },
       findPath: (from, to) => [from, { x: 5, y: 1, z: 3 }, to],
     });
-    expect(navigation(map).plan(530, start, end).length).toBeCloseTo(10);
+    expect(navigation(map).plan(530, start, end).length).toBeCloseTo(10.2);
   });
 
   test("keeps a lost height trace refused over two walkable floors", () => {
@@ -72,6 +72,33 @@ describe("lost height traces", () => {
         return 0;
       },
       findHeights: (x) => (x >= 5 && x < 6 ? [0, 0.4] : [0]),
+    });
+    expect(() => navigation(map).plan(530, start, end)).toThrow(
+      /UNKNOWN_HEIGHT/,
+    );
+  });
+
+  test("falls back to the standable floor nearest the walker", () => {
+    const map = native({
+      findHeight: (from, x) => {
+        if (from.x < 5 && x >= 5) throw groundError("UNKNOWN_HEIGHT");
+        return 14.06;
+      },
+      findHeights: (x) => (x >= 5 && x < 6 ? [13.85, 13.73, 14.06] : [14.06]),
+    });
+    const pose = { x: 0, y: 0, z: 14.06 };
+    const route = navigation(map).plan(530, pose, { x: 10, y: 0, z: 14.06 });
+    expect(route.points.at(-1)).toMatchObject({ x: 10, y: 0, z: 14.06 });
+    expect(route.sample(5).z).toBeCloseTo(14.06);
+  });
+
+  test("keeps the fallback refused over two clear floors in reach", () => {
+    const map = native({
+      findHeight: (from, x) => {
+        if (from.x < 5 && x >= 5) throw groundError("UNKNOWN_HEIGHT");
+        return 0;
+      },
+      findHeights: (x) => (x >= 5 && x < 6 ? [0, 0.6] : [0]),
     });
     expect(() => navigation(map).plan(530, start, end)).toThrow(
       /UNKNOWN_HEIGHT/,
