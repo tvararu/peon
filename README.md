@@ -92,24 +92,6 @@ Press F1 to switch to PLAY mode and drive the character yourself with the
 keyboard. Esc hands it back to the agent. The keys are in
 [docs/harness.md](docs/harness.md#drive-the-character-yourself).
 
-## What it looks like
-
-![Jev pilots a level 80 priest to a map point in Eversong Woods](docs/images/pilot.png)
-
-`pilot`: Jev steers to a map point in Eversong Woods (23 decisions, goal reached).
-
-![engage kills a Shadowpine Oracle in Ghostlands](docs/images/combat.png)
-
-`engage`: Jev's per-tick decisions kill a Shadowpine Oracle in Ghostlands, then travel to a blacksmith.
-
-![Turning in Reclaiming Sunstrider Isle to Magistrix Erona](docs/images/quest.png)
-
-Questing: turning in "Reclaiming Sunstrider Isle" to Magistrix Erona and choosing a reward.
-
-![Accepting a dungeon finder proposal and joining a five-player party](docs/images/group.png)
-
-Dungeon finder: accepting a proposal and joining a five-player party.
-
 ## Architecture
 
 ```mermaid
