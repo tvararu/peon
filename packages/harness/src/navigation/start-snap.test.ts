@@ -182,6 +182,27 @@ describe("a start just off the mesh", () => {
     expect(sample.x).toBeCloseTo(0.2);
     expect(sample.z).toBeCloseTo(rise(0.2), 1);
   });
+
+  test("walks a descending lead off a platform edge on the floors it planned", () => {
+    const onto = { x: 0.25, y: 0, z: 0 };
+    const map = native({
+      findHeight: (_from, x) => (x < 0.08 ? 0.4 : 0),
+      findHeights: (x) => [x < 0.08 ? 0.4 : 0],
+      findPath: (_from, to) => [{ ...onto }, { ...to }],
+      lineOfSight: (a, b) => {
+        for (let i = 0; i <= 100; i++) {
+          const t = i / 100;
+          const x = a.x + (b.x - a.x) * t;
+          const z = a.z + (b.z - a.z) * t;
+          if (z < (x < 0.08 ? 0.4 : 0) - 1e-9) return false;
+        }
+        return true;
+      },
+    });
+    const route = navigation(map).plan(0, { x: 0, y: 0, z: 0.4 }, goal);
+    expect(route.points[1]).toMatchObject({ x: onto.x });
+    expect(route.sample(0.15)).toMatchObject({ x: 0.15, y: 0, z: 0 });
+  });
 });
 
 describe.skipIf(!present)("recorded off-mesh starts on the real mesh", () => {

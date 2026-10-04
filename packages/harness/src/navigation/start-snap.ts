@@ -28,22 +28,20 @@ export function startStep(
     );
     if (reach > START_REACH) throw error;
     try {
-      const chain = leadChain(map, from, native);
-      for (let index = 1; index < chain.length; index++) {
-        const previous = chain[index - 1] as NavPoint;
-        const next = chain[index] as NavPoint;
-        checkCollision(
-          map,
-          previous,
-          next,
-          next.z < previous.z ? CORNER_RISE : 0,
-        );
-      }
+      checkLeadWalk(map, leadChain(map, from, native));
     } catch (stepError) {
       if (isGroundError(stepError)) throw error;
       throw stepError;
     }
     return native;
+  }
+}
+
+function checkLeadWalk(map: NativeMap, walked: NavPoint[]): void {
+  for (let index = 1; index < walked.length; index++) {
+    const previous = walked[index - 1] as NavPoint;
+    const next = walked[index] as NavPoint;
+    checkCollision(map, previous, next, next.z < previous.z ? CORNER_RISE : 0);
   }
 }
 
@@ -94,13 +92,13 @@ export function sampleLead(
     y: leg.start.y + (leg.end.y - leg.start.y) * leg.ratio,
     z: leg.start.z + (leg.end.z - leg.start.z) * leg.ratio,
   };
-  const surface = leadSurface(map, interpolated, anchorFloor(map, leg, span));
-  checkCollision(
+  const walked = leadChain(map, leg.start, leg.end);
+  const surface = leadSurface(
     map,
-    { ...leg.start, z: surface },
-    { ...at, z: surface },
-    surface < leg.start.z ? CORNER_RISE : 0,
+    interpolated,
+    anchorFloor(walked, leg.start, leg.ratio * span),
   );
+  checkLeadWalk(map, walkedTo(walked, leg.start, { ...at, z: surface }));
   return {
     ...at,
     orientation: bearing(leg.start, leg.end),
@@ -109,17 +107,30 @@ export function sampleLead(
   };
 }
 
+function walkedTo(
+  walked: NavPoint[],
+  from: NavPoint,
+  onto: NavPoint,
+): NavPoint[] {
+  const points = [from];
+  for (let index = 1; index < walked.length; index++) {
+    const point = walked[index] as NavPoint;
+    if (distance2d(from, point) >= distance2d(from, onto)) break;
+    points.push(point);
+  }
+  points.push(onto);
+  return points;
+}
+
 function anchorFloor(
-  map: NativeMap,
-  leg: { start: NavPoint; end: NavPoint; ratio: number },
-  span: number,
+  walked: NavPoint[],
+  from: NavPoint,
+  target: number,
 ): number {
-  const chain = leadChain(map, leg.start, leg.end);
-  const target = leg.ratio * span;
-  let anchor = leg.start.z;
-  for (let index = 1; index < chain.length - 1; index++) {
-    const point = chain[index] as NavPoint;
-    if (distance2d(leg.start, point) > target) break;
+  let anchor = from.z;
+  for (let index = 1; index < walked.length - 1; index++) {
+    const point = walked[index] as NavPoint;
+    if (distance2d(from, point) > target) break;
     anchor = point.z;
   }
   return anchor;
