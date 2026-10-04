@@ -47,11 +47,18 @@ export const OFFERED_BY: Record<string, readonly string[]> = {
   "trade:no_request": ["trade/requested"],
 };
 
-const PROMPT_ROWS_ONLY: readonly string[] = [
-  "lfg/boot_vote",
-  "lfg/proposal",
-  "lfg/role_check",
-];
+type PromptData = {
+  deadline?: unknown;
+  inProgress?: unknown;
+  state?: unknown;
+  stateName?: unknown;
+};
+
+const OPENS_PROMPT: Record<string, (data: PromptData) => boolean> = {
+  "lfg/boot_vote": (data) => data.inProgress === true,
+  "lfg/proposal": (data) => data.state === 0 && "deadline" in data,
+  "lfg/role_check": (data) => data.stateName === "initializing",
+};
 
 const REPEAT_TTL_MS = 300_000;
 const UNTRIED_MAX = 3;
@@ -147,7 +154,7 @@ function offerArrived(
     .some(
       (row) =>
         events.includes(row.event) &&
-        (row.class === "wake" || !PROMPT_ROWS_ONLY.includes(row.event)),
+        (OPENS_PROMPT[row.event]?.(row.data) ?? true),
     );
 }
 
