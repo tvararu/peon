@@ -166,7 +166,7 @@ names (1-based; the default is the single partner or partner 1), and its
 `argv` replaces `<AGENT>` with the agent's character, `<PARTNER1>` to
 `<PARTNER4>` with each partner's character and `<PARTNER>` with the
 first. The grader reads each partner that has an action with `read
---json` while the actions run and once at the end. A partner `call` that waits on the agent (`tradeRequest`, `tradeRequestQuiet`, `tradeAnswer`, `tradeAcceptOffered`) gets a timeout past the puppet's own trade wait; other actions keep the default. A partner action that fails because the agent never answered (`unanswered`, `no_request`, `no_offer`, or a call killed by its own timeout) lands in `steers.jsonl` with `agentSilent: true` and the run grades on its checks, as do the trade calls after it; any other partner failure aborts the run. A scenario lists
+--json` while the actions run and once at the end. A partner `call` that waits on the agent (`tradeRequest`, `tradeRequestQuiet`, `tradeAnswer`, `tradeAccept`, `tradeAcceptOffered`) gets a timeout past the puppet's own wait for that method; other actions keep the default. A partner action that fails because the agent never answered (`unanswered`, `no_request`, `no_offer`, or an agent-waiting call killed by its own timeout) lands in `steers.jsonl` with `agentSilent: true` and the run grades on its checks, as do the trade calls that fail on the resulting missing trade for the same partner; any other partner failure aborts the run. A scenario lists
 optional `partnerSetup` steps as `{ "actor" (default 1), "endpoint",
 "body" }`; after the start point is placed, each step runs through
 `soap setup` on its partner's account, so a partner can start with a

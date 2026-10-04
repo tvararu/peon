@@ -13,23 +13,43 @@ const READ_TIMEOUT_MS = 10_000;
 const TRADE_WAIT_MS = 60_000;
 const WAIT_MARGIN_MS = 15_000;
 
-const TRADE_CALLS: Readonly<Record<string, true>> = {
-  tradeAcceptOffered: true,
-  tradeAnswer: true,
-  tradeRequest: true,
-  tradeRequestQuiet: true,
+const AGENT_WAITS: Readonly<Record<string, number>> = {
+  tradeAccept: TRADE_WAIT_MS,
+  tradeAcceptOffered: 2 * TRADE_WAIT_MS,
+  tradeAnswer: TRADE_WAIT_MS,
+  tradeRequest: TRADE_WAIT_MS,
+  tradeRequestQuiet: TRADE_WAIT_MS,
 };
 
 export function actionTimeoutMs(argv: readonly string[]): number {
-  if (argv[0] === "call" && TRADE_CALLS[argv[1] ?? ""] === true)
-    return TRADE_WAIT_MS + WAIT_MARGIN_MS;
-  return ACTION_TIMEOUT_MS;
+  if (argv[0] !== "call") return ACTION_TIMEOUT_MS;
+  const waits = AGENT_WAITS[argv[1] ?? ""];
+  if (waits === undefined) return ACTION_TIMEOUT_MS;
+  return waits + WAIT_MARGIN_MS;
 }
 
 const SILENT_FAILURES: Readonly<Record<string, true>> = {
   no_offer: true,
   no_request: true,
   unanswered: true,
+};
+
+const TRADE_CONTINUE: Readonly<Record<string, true>> = {
+  "no trade is open": true,
+  "no trade to cancel": true,
+  no_offer: true,
+  no_request: true,
+  "the trade is not accepted": true,
+  unanswered: true,
+};
+const CONTINUE_CALLS: Readonly<Record<string, true>> = {
+  tradeAccept: true,
+  tradeAcceptOffered: true,
+  tradeAnswer: true,
+  tradeCancel: true,
+  tradeOffer: true,
+  tradeRequest: true,
+  tradeRequestQuiet: true,
 };
 
 type SteerRow = {
@@ -41,8 +61,14 @@ type SteerRow = {
   trigger: string;
 };
 
-function silentAgent(code: number, stderr: string): boolean {
-  if (code === 143) return true;
+function silentAgent(
+  method: string,
+  code: number,
+  stderr: string,
+  timedOut: boolean,
+): boolean {
+  if (AGENT_WAITS[method] === undefined) return false;
+  if (code === 143) return timedOut;
   if (code !== 1) return false;
   const last = stderr.trim().split("\n").at(-1) ?? "";
   return SILENT_FAILURES[last] === true;
@@ -50,7 +76,7 @@ function silentAgent(code: number, stderr: string): boolean {
 
 export type PartnerTrack = {
   cursor: SteerCursor;
-  silent: boolean;
+  silent: readonly string[];
   windowEnd: number | undefined;
   readAt: number | undefined;
 };
@@ -80,7 +106,7 @@ export function newPartnerTrack(since: number): PartnerTrack {
   return {
     cursor: { index: 0, since },
     readAt: undefined,
-    silent: false,
+    silent: [],
     windowEnd: undefined,
   };
 }
@@ -146,24 +172,34 @@ async function fire(init: StepInit, action: PartnerAction): Promise<void> {
     agent: agent.character,
     partners: partners.map(({ names }) => names.character),
   });
-  const ms = clock.now();
+  const method = argv[0] === "call" ? argv[1] : argv[0];
+  const timeoutMs = actionTimeoutMs(argv);
+  const startedAt = clock.now();
   const { code, stderr } = await exec([partner.names.wrapper, ...argv], {
-    timeoutMs: actionTimeoutMs(argv),
+    timeoutMs,
   });
-  const silent = silentAgent(code, stderr);
+  const timedOut = code === 143 && clock.now() - startedAt >= timeoutMs;
+  const silent = silentAgent(method ?? "", code, stderr, timedOut);
   const row: SteerRow = {
     actor: partner.role,
     code,
-    ms,
+    ms: startedAt,
     text: argv.join(" "),
     trigger: describeAt(action.at),
   };
   if (silent) row.agentSilent = true;
   await appendFile(`${runDir}/steers.jsonl`, `${JSON.stringify(row)}\n`);
-  if (code === 0 || silent || (track.silent && argv[0] === "call")) {
-    track.silent = track.silent || silent;
-    track.cursor = { index: track.cursor.index + 1, since: ms };
-    track.windowEnd = ms + action.windowMs;
+  const last = stderr.trim().split("\n").at(-1) ?? "";
+  const continues =
+    code === 1 &&
+    argv[0] === "call" &&
+    CONTINUE_CALLS[method ?? ""] === true &&
+    TRADE_CONTINUE[last] === true &&
+    track.silent.includes(partner.role);
+  if (code === 0 || silent || continues) {
+    track.silent = silent ? [...track.silent, partner.role] : track.silent;
+    track.cursor = { index: track.cursor.index + 1, since: startedAt };
+    track.windowEnd = startedAt + action.windowMs;
     return;
   }
   throw new Error(
