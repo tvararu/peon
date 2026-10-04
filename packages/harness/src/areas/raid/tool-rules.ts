@@ -90,8 +90,11 @@ function parseRules(
   group: RaidGroup,
   members: Parameters<typeof resolveMember>[0],
 ): Rules {
-  const method =
-    pick(LOOT_METHOD_INDEX, args.what) ?? pick(LOOT_METHOD_INDEX, args.text);
+  const primary = pick(LOOT_METHOD_INDEX, args.what);
+  const fallback = args.what?.trim()
+    ? undefined
+    : pick(LOOT_METHOD_INDEX, args.text);
+  const method = primary ?? fallback;
   if (!method)
     refuse(
       "bad_loot_method",

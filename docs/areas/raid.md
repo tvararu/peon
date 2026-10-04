@@ -273,6 +273,12 @@ s.`; the name falls back to the unit lookup, then `Someone`) and one
   the character's position and gets no echo, mirroring the
   `MSG_MINIMAP_PING` handler (`Handlers/GroupHandler.cpp:584-595`)
   and its broadcast (`Groups/Group.cpp:2272-2280`).
+- `loot_rules` sets the loot method from the `what` field:
+  `free_for_all`, `round_robin`, `master_loot`, `group_loot` or
+  `need_before_greed`. A call without a method in `what` is refused
+  naming the field and the accepted values. `text` carries the method
+  only when `what` is absent or blank; a non-empty `what` always wins,
+  so an invalid `what` is refused even when `text` names a method.
 
 ## Live evidence
 
