@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { InventorySlot, RewardsEvent } from "@peon/core";
-import type { CycleDeps } from "#harness/loops/encounter-cycle";
+import type { CycleDeps } from "#harness/loops/cycle-types";
 import { fakeRecovery } from "#test-support/cycle-recovery-fixtures";
 import {
   fakeControl,

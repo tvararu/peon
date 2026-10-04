@@ -9,7 +9,7 @@ import {
 } from "#harness/events/rules";
 import { watchUnit } from "#harness/events/rules-death";
 import { levelDrafts, xpDrafts } from "#harness/events/rules-xp";
-import type { CycleEvent } from "#harness/loops/encounter-cycle";
+import type { CycleEvent } from "#harness/loops/cycle-types";
 import type { TacticsEvent, TacticsOutcome } from "#harness/loops/tactics";
 
 const LOW_HEALTH = [50, 25];

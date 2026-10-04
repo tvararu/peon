@@ -12,10 +12,7 @@ import {
 import { abortable } from "@peon/core/lib/abort";
 import { messageOf } from "@peon/core/lib/errors";
 import { type CycleStop, cycleStop as stop } from "#harness/loops/cycle-stop";
-import type {
-  CycleDeps,
-  CycleLootRecord,
-} from "#harness/loops/encounter-cycle";
+import type { CycleDeps, CycleLootRecord } from "#harness/loops/cycle-types";
 import type { EventWaiter } from "#harness/loops/event-waiter";
 import {
   approachCorpse,

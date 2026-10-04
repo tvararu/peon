@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { cycleStop } from "#harness/loops/cycle-stop";
-import type { CycleObjective } from "#harness/loops/encounter-cycle";
+import type { CycleObjective } from "#harness/loops/cycle-types";
 import type {
   ObjectivePick,
   ObjectiveProgress,

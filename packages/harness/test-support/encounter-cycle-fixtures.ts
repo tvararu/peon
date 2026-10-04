@@ -16,10 +16,8 @@ import {
   type UnitEntity,
 } from "@peon/core";
 import { Emitter, type Unsubscribe } from "@peon/core/lib/emitter";
-import {
-  type CycleDeps,
-  EncounterCycleRuntime,
-} from "#harness/loops/encounter-cycle";
+import type { CycleDeps } from "#harness/loops/cycle-types";
+import { EncounterCycleRuntime } from "#harness/loops/encounter-cycle";
 
 export function fakeTactics(outcomes: (string | Error)[]) {
   let calls = 0;
@@ -351,18 +349,22 @@ const noQuestItems: CycleDeps["bags"] = {
 };
 
 export function makeCycle(
-  deps: Omit<CycleDeps, "rewards" | "bags" | "entity"> & {
+  deps: Omit<CycleDeps, "rewards" | "bags" | "entity" | "observed"> & {
     bags?: CycleDeps["bags"];
     entity?: CycleDeps["entity"];
+    observed?: CycleDeps["observed"];
     loot: CycleDeps["rewards"] & Wired<RewardsEvent>;
     recovery: CycleDeps["recovery"] & Wired<RecoveryEvent>;
     control: CycleDeps["control"] & Wired<ControlEvent>;
   },
 ): EncounterCycleRuntime {
+  const entity = deps.entity ?? liveUnit;
   const runtime = new EncounterCycleRuntime({
     ...deps,
     bags: deps.bags ?? noQuestItems,
-    entity: deps.entity ?? liveUnit,
+    entity,
+    now: deps.now,
+    observed: deps.observed ?? ((guid) => entity(guid)?.position),
     rewards: deps.loot,
   });
   deps.loot.onEvent((event) => runtime.observeRewards(event));

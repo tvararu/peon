@@ -9,7 +9,7 @@ import type {
 } from "#harness/contract/details";
 import type { OpsCtx, ViewCtx } from "#harness/contract/services";
 import { petOf } from "#harness/loops/combat-actions-pet";
-import type { CycleState } from "#harness/loops/encounter-cycle";
+import type { CycleState } from "#harness/loops/cycle-types";
 import type { TacticsEvent } from "#harness/loops/tactics";
 import { itemIdText } from "#harness/ops/item-names";
 import { guidHex } from "#harness/ops/refs";

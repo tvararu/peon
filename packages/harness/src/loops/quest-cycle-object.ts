@@ -1,7 +1,7 @@
 import { distance2d, type QuestEvent, type WorldHandle } from "@peon/core";
 import { messageOf } from "@peon/core/lib/errors";
 import { cycleStop } from "#harness/loops/cycle-stop";
-import type { CycleVisit, CycleVisitEnd } from "#harness/loops/encounter-cycle";
+import type { CycleVisit, CycleVisitEnd } from "#harness/loops/cycle-types";
 import { EventWaiter } from "#harness/loops/event-waiter";
 import { lootObject } from "#harness/loops/loot-run";
 import type { ObjectivePick } from "#harness/loops/quest-objective";

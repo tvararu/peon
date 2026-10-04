@@ -78,6 +78,13 @@ AzerothCore and wow_messages agree on the five bodies
   uncommon to artifact, or master loot names a non-member
   (`Handlers/GroupHandler.cpp:524-540`); otherwise it answers with
   `SMSG_GROUP_LIST` to every member (`Handlers/GroupHandler.cpp:546`).
+- The corpse approach walks to the motion-predicted corpse position, not
+  the cached entity position, because a mob that died mid-chase rests
+  where the chase ended while the entity cache keeps the last spline
+  start. The server refuses a corpse loot past interaction range with no
+  loot window (`Entities/Player/Player.cpp:8217-8221`), and corpses carry
+  the lootable flag only while loot remains
+  (`Entities/Unit/Unit.cpp:13765-13771`).
 
 The five loot methods are 0 to 4 in the order the act names them
 (`Loot/LootMgr.h:56-63`), and the thresholds are item qualities 2 to 6

@@ -29,6 +29,7 @@ test("a new hostile is not pulled while the unreachable one still attacks across
     },
     entity: (guid) => liveUnit(guid),
     now: () => 0,
+    observed: (guid) => liveUnit(guid)?.position,
     recovery: recoveryPort(t.handle),
     rewards: rewardsPort(t.handle),
     tactics: {

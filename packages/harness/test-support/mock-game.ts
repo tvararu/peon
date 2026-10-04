@@ -5,10 +5,8 @@ import {
   createMockHandle,
   type MockHandle,
 } from "@peon/core/test-support/mock-handle";
-import {
-  type CycleEvent,
-  EncounterCycleRuntime,
-} from "#harness/loops/encounter-cycle";
+import type { CycleEvent } from "#harness/loops/cycle-types";
+import { EncounterCycleRuntime } from "#harness/loops/encounter-cycle";
 import type { Game } from "#harness/loops/game";
 import { recoveryPort, rewardsPort } from "#harness/loops/ports";
 import type { TacticsEvent, TacticsState } from "#harness/loops/tactics";
@@ -44,6 +42,7 @@ export function createMockGame(): MockGame {
     },
     entity: () => undefined,
     now: () => 0,
+    observed: () => undefined,
     recovery: recoveryPort(handle),
     rewards: rewardsPort(handle),
     tactics: {

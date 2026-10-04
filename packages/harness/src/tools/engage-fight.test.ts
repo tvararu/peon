@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { EngageAfter } from "#harness/contract/details";
-import type { CycleTargetRecord } from "#harness/loops/encounter-cycle";
+import type { CycleTargetRecord } from "#harness/loops/cycle-types";
 import { engageSpec } from "#harness/tools/engage";
 import {
   cycleEnds,
