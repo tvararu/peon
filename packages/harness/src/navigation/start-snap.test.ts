@@ -233,6 +233,34 @@ describe("a start just off the mesh", () => {
     expect(second.x).toBeCloseTo(0.2);
     expect(second.z).toBeCloseTo(rise(0.2), 3);
   });
+
+  test("refuses a move that leaves the lead across a wall", () => {
+    const start = { x: 0, y: 0, z: 0.4 };
+    const onto = { x: 0.3, y: 0, z: 0 };
+    const map = native({
+      findHeights: (x) => (x < 0.001 ? [0.4] : [0]),
+      findPath: (_from, to) => [{ ...onto }, { ...to }],
+      lineOfSight: wallRays(0.01, 0.5),
+    });
+    const route = navigation(map).plan(0, start, goal);
+    const first = route.sample(0.007);
+    expect(first).toMatchObject({ z: 0 });
+    expect(() => route.sample(0.35, first)).toThrow(/collision/);
+  });
+
+  test("walks a single update that climbs more than a step on a rising lead", () => {
+    const onto = { x: 0.4, y: 0, z: 0.3 };
+    const rise = (x: number) => Math.min(0.3, 0.75 * x);
+    const map = native({
+      findHeight: (_from, x) => rise(x),
+      findHeights: (x) => [rise(x)],
+      findPath: (_from, to) => [{ ...onto }, { ...to }],
+    });
+    const route = navigation(map).plan(0, pose, { ...goal, z: 0.3 });
+    const sample = route.sample(0.36, pose);
+    expect(sample.x).toBeCloseTo(0.36);
+    expect(sample.z).toBeCloseTo(0.27, 2);
+  });
 });
 
 describe.skipIf(!present)("recorded off-mesh starts on the real mesh", () => {

@@ -33,6 +33,7 @@ import {
 } from "#harness/navigation/native";
 import {
   rejectSnap,
+  sampleBeyond,
   sampleLead,
   startStep,
 } from "#harness/navigation/start-snap";
@@ -179,6 +180,8 @@ export class GroundRoute {
       rules: { ...this.rules, ambiguity: ROUTE_AMBIGUITY, continuity: true },
     });
     const first = this.points[0];
+    if (this.lead && previous !== undefined)
+      sampleBeyond(this.map, previous, stepped.point);
     if (travel === 0 && first !== undefined)
       Object.assign(stepped.point, first);
     return {

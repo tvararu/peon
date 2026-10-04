@@ -81,6 +81,19 @@ function leadChain(map: NativeMap, from: NavPoint, onto: NavPoint): NavPoint[] {
   chain.push({ ...onto });
   return chain;
 }
+export function sampleBeyond(
+  map: NativeMap,
+  previous: NavPoint,
+  stepped: NavPoint,
+): void {
+  checkCollision(
+    map,
+    previous,
+    stepped,
+    stepped.z < previous.z ? CORNER_RISE : 0,
+  );
+}
+
 export function sampleLead(
   map: NativeMap,
   leg: { start: NavPoint; end: NavPoint; ratio: number },
@@ -94,19 +107,13 @@ export function sampleLead(
     z: leg.start.z + (leg.end.z - leg.start.z) * leg.ratio,
   };
   const walked = leadChain(map, leg.start, leg.end);
-  const anchor =
-    previous === undefined
-      ? anchorFloor(walked, leg.start, leg.ratio * span)
-      : previous.z;
+  const anchor = anchorFloor(walked, leg.start, leg.ratio * span);
   const surface = leadSurface(map, interpolated, anchor);
   checkLeadWalk(
     map,
-    walkedTo(
-      walked,
-      previous ?? leg.start,
-      { ...at, z: surface },
-      previous !== undefined,
-    ),
+    previous === undefined
+      ? walkedTo(walked, leg.start, { ...at, z: surface })
+      : [previous, { ...at, z: surface }],
   );
   return {
     ...at,
