@@ -1,8 +1,5 @@
 import type { QuestEvent, QuestQueryResponse, WorldHandle } from "@peon/core";
-import type {
-  CycleObjective,
-  CycleVisit,
-} from "#harness/loops/encounter-cycle";
+import type { CycleObjective, CycleVisit } from "#harness/loops/cycle-types";
 import { visitObject } from "#harness/loops/quest-cycle-object";
 import {
   objectiveProgress,

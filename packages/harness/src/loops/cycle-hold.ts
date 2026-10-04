@@ -1,7 +1,7 @@
 import type { CycleApproach } from "#harness/loops/cycle-approach";
 import { besetStop } from "#harness/loops/cycle-beset";
 import type { CycleStop } from "#harness/loops/cycle-stop";
-import type { CycleTargetRecord } from "#harness/loops/encounter-cycle";
+import type { CycleTargetRecord } from "#harness/loops/cycle-types";
 import type { TacticsOutcome } from "#harness/loops/tactics";
 
 export function skip(

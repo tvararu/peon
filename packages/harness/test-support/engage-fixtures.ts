@@ -1,4 +1,4 @@
-import type { CycleTargetRecord } from "#harness/loops/encounter-cycle";
+import type { CycleTargetRecord } from "#harness/loops/cycle-types";
 import type { TacticsOutcome } from "#harness/loops/tactics";
 import { setSelf, setUnits, unitRow } from "#test-support/ops-fixtures";
 import {

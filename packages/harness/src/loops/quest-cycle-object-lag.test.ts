@@ -2,7 +2,7 @@ import { describe, expect, jest, test } from "bun:test";
 import { JevUnavailableError } from "#harness/jev/failure";
 import { type PullVitals, pullGate } from "#harness/loops/cycle-gate";
 import { cycleStop } from "#harness/loops/cycle-stop";
-import type { CycleObjective } from "#harness/loops/encounter-cycle";
+import type { CycleObjective } from "#harness/loops/cycle-types";
 import { questCycleObjective } from "#harness/loops/quest-cycle";
 import type { ObjectivePick } from "#harness/loops/quest-objective";
 import { fakeRecovery } from "#test-support/cycle-recovery-fixtures";

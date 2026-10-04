@@ -3,7 +3,7 @@ import type { CycleStop } from "#harness/loops/cycle-stop";
 import type {
   CycleObjective,
   CycleTargetRecord,
-} from "#harness/loops/encounter-cycle";
+} from "#harness/loops/cycle-types";
 import { type ObjectivePick, outOfReach } from "#harness/loops/quest-objective";
 
 export type PursueLoop = {

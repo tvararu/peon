@@ -8,10 +8,7 @@ import {
 } from "@peon/core";
 import { type CycleRecovery, recoverCorpse } from "#harness/loops/corpse-run";
 import { type CycleStop, cycleStop } from "#harness/loops/cycle-stop";
-import type {
-  CycleDeps,
-  CycleLootRecord,
-} from "#harness/loops/encounter-cycle";
+import type { CycleDeps, CycleLootRecord } from "#harness/loops/cycle-types";
 import { EventWaiter } from "#harness/loops/event-waiter";
 import { lootCorpse } from "#harness/loops/loot-run";
 

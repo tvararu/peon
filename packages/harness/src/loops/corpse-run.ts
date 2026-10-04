@@ -7,7 +7,7 @@ import type {
 import { pause } from "@peon/core/lib/abort";
 import { legDetail, walkToCorpse } from "#harness/loops/corpse-legs";
 import { type CycleStop, cycleStop as stop } from "#harness/loops/cycle-stop";
-import type { CycleDeps } from "#harness/loops/encounter-cycle";
+import type { CycleDeps } from "#harness/loops/cycle-types";
 import type { EventWaiter } from "#harness/loops/event-waiter";
 
 const RECLAIM_MARGIN_MS = 2000;

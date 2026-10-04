@@ -3,7 +3,7 @@ import type { ToolResult } from "#harness/contract/result";
 import type { ViewCtx } from "#harness/contract/services";
 import { grayLevel } from "#harness/loops/combat-actions-credit";
 import { MIN_HP_PCT } from "#harness/loops/cycle-gate";
-import type { CycleState } from "#harness/loops/encounter-cycle";
+import type { CycleState } from "#harness/loops/cycle-types";
 import { DEFAULT_FIGHT_INSTRUCTION } from "#harness/loops/tactics";
 import { dangerView } from "#harness/ops/danger";
 import { ITEM_NAME_WAIT_MS, nameLootLines } from "#harness/ops/item-names";

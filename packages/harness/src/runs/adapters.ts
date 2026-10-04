@@ -1,7 +1,7 @@
 import type { ControlPose } from "@peon/core";
 import { messageOf } from "@peon/core/lib/errors";
 import { ignoreFailure } from "@peon/core/lib/ignore-failure";
-import type { CycleState } from "#harness/loops/encounter-cycle";
+import type { CycleState } from "#harness/loops/cycle-types";
 import type { Game } from "#harness/loops/game";
 import type { TacticsOutcome } from "#harness/loops/tactics";
 import type { GotoTarget } from "#harness/navigation/goto";

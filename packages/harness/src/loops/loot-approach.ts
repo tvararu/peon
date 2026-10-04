@@ -1,5 +1,5 @@
 import { bearing, type ControlEvent, distance, type Vec3 } from "@peon/core";
-import type { CycleDeps } from "#harness/loops/encounter-cycle";
+import type { CycleDeps } from "#harness/loops/cycle-types";
 import type { EventWaiter } from "#harness/loops/event-waiter";
 
 export const LOOT_REACH_YD = 4;

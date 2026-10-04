@@ -12,12 +12,13 @@ import { defendTarget } from "#harness/loops/combat-defense";
 import { readRangedGear } from "#harness/loops/combat-ranged-gear";
 import { approachUnit, handleApproach } from "#harness/loops/cycle-approach";
 import { pullGate } from "#harness/loops/cycle-gate";
-import {
-  type CycleDeps,
-  type CycleEvent,
-  type CycleState,
-  EncounterCycleRuntime,
-} from "#harness/loops/encounter-cycle";
+import type {
+  CycleDeps,
+  CycleEvent,
+  CycleState,
+  ObservedCorpse,
+} from "#harness/loops/cycle-types";
+import { EncounterCycleRuntime } from "#harness/loops/encounter-cycle";
 import {
   type CombatPort,
   type ControlPort,
@@ -150,10 +151,7 @@ function createTactics(ports: Ports, jev: JevPort | undefined): TacticsLoop {
   });
 }
 
-function observedCorpse(
-  handle: WorldHandle,
-  guid: bigint,
-): CycleDeps["observed"] extends (guid: bigint) => infer R ? R : never {
+function observedCorpse(handle: WorldHandle, guid: bigint): ObservedCorpse {
   let at: { x: number; y: number; z: number } | undefined;
   try {
     at = handle.observedPosition(guid);

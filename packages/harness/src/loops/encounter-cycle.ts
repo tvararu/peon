@@ -20,19 +20,6 @@ import type {
   CycleState,
   CycleTargetRecord,
 } from "#harness/loops/cycle-types";
-
-export type {
-  CycleDeps,
-  CycleEvent,
-  CycleLootRecord,
-  CycleObjective,
-  CyclePhase,
-  CycleState,
-  CycleTargetRecord,
-  CycleVisit,
-  CycleVisitEnd,
-} from "#harness/loops/cycle-types";
-
 import { vetTarget } from "#harness/loops/cycle-vet";
 import { EventWaiter } from "#harness/loops/event-waiter";
 import { lootCorpse } from "#harness/loops/loot-run";

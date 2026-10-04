@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import type { JevSelect } from "#harness/jev/contract";
 import { JevUnavailableError } from "#harness/jev/failure";
-import type { CycleDeps } from "#harness/loops/encounter-cycle";
+import type { CycleDeps } from "#harness/loops/cycle-types";
 import { TacticsLoop } from "#harness/loops/tactics";
 import { fakeRecovery } from "#test-support/cycle-recovery-fixtures";
 import {

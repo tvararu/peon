@@ -88,6 +88,7 @@ export type CycleEvent = {
   state: CycleState;
   at: number;
 };
+export type ObservedCorpse = (NavPoint & { mapId: number }) | undefined;
 export type CycleDeps = {
   tactics: Pick<TacticsLoop, "start" | "stop"> & {
     snapshot: () => Pick<TacticsState, "lastOutcome">;
@@ -102,7 +103,7 @@ export type CycleDeps = {
     snapshot: () => Pick<ControlState, "pose" | "selfGuid" | "speed">;
   };
   entity: EntityLookup;
-  observed: (guid: bigint) => (NavPoint & { mapId: number }) | undefined;
+  observed: (guid: bigint) => ObservedCorpse;
   approach?: CycleApproach;
   gate?: PullGate;
   attackers?: () => readonly bigint[];

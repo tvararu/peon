@@ -16,10 +16,8 @@ import {
   type UnitEntity,
 } from "@peon/core";
 import { Emitter, type Unsubscribe } from "@peon/core/lib/emitter";
-import {
-  type CycleDeps,
-  EncounterCycleRuntime,
-} from "#harness/loops/encounter-cycle";
+import type { CycleDeps } from "#harness/loops/cycle-types";
+import { EncounterCycleRuntime } from "#harness/loops/encounter-cycle";
 
 export function fakeTactics(outcomes: (string | Error)[]) {
   let calls = 0;
