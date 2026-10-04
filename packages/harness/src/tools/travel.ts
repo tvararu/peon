@@ -31,6 +31,12 @@ import type { GameToolSpec } from "#harness/tools/game-tool";
 import { askHuman, nextCall } from "#harness/tools/next-call";
 import { type TravelArgs, travelParams } from "#harness/tools/params-travel";
 import { flyWork } from "#harness/tools/travel-fly";
+import {
+  COORDS,
+  parseYards,
+  pointGoal,
+  YARDS,
+} from "#harness/tools/travel-goal";
 import { hearthWork } from "#harness/tools/travel-hearth";
 import { noteTravel, noteUnstick } from "#harness/tools/travel-recovery";
 import {
@@ -62,8 +68,6 @@ type Work = {
   held: { text: string | undefined };
 };
 
-const COORDS =
-  /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*(-?\d+(?:\.\d+)?)\s*)?$/;
 const RUN_STATUS: Record<ToolStatus, Exclude<RunStatus, "running">> = {
   DONE: "succeeded",
   FAILED: "failed",
@@ -118,16 +122,9 @@ function parseGoal(ctx: ToolCtx<TravelAfter>, to: string): Goal {
     return parseExplore(text, lower);
   const coords = COORDS.exec(text);
   if (coords) return pointGoal(coords);
+  const yards = YARDS.exec(text);
+  if (yards) return parseYards(ctx, text, yards);
   return unitGoal(ctx, text);
-}
-
-function pointGoal(coords: RegExpExecArray): Goal {
-  return {
-    kind: "point",
-    x: Number(coords[1]),
-    y: Number(coords[2]),
-    z: coords[3] === undefined ? undefined : Number(coords[3]),
-  };
 }
 
 function unitGoal(ctx: ToolCtx<TravelAfter>, text: string): Goal {

@@ -140,6 +140,7 @@ home the server keeps (`Spells/Spell.cpp:1441-1444`). The step refuses
 without the stone, while the spell is on cooldown, in combat or in
 flight. A cast that ends without a teleport is `interrupted`.
 The Hearthstone is an item, so `spell` `cast` of it refuses with `travel` `to: "hearth"` as the next call; the `travel` description names `to: "hearth"` too.
+`travel` with `to: "<N> yd <direction>"` (for example `"10 yd north"`) walks N yards from the current server pose in one of the eight compass directions, up to 200 yards. The server's X axis runs north and south and its Y axis runs east and west, with larger values to the northwest (`Maps/AreaBoundary.h:78`). The verb resolves the form to the matching point and walks the same point-destination path as coordinates, so it refuses what the same point as coordinates refuses.
 
 `travel` with `to: "fly <destination>"` walks to the nearest flight
 master in view and opens the taxi map; a `learned` reply (the first query
