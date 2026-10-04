@@ -144,7 +144,7 @@ grades the first self-resurrection from the game log: it is met when a
 between them. A later death, which the single Ankh cannot cover, does not
 unmeet it.
 
-`t9-lfg-queue` keeps `queued` and `left` required and grades the wait on the rows the server sends in either case. A run with a real queue wait meets `wait-row` on an `lfg/queue` row holding the reported wait; a run where bots fill the queue meets it on an `lfg/queued` row followed within seconds by an `lfg/proposal` row, because the server only sends `SMSG_LFG_QUEUE_STATUS` on its 8 s queue timer while a proposal removes the character from the queue at once, so the status row never arrives and the reported wait is 0 s.
+`t9-lfg-queue` keeps `queued` and `left` required and grades the wait on the rows the server sends in either case. An `lfg/queue` row that arrived before the answer is authoritative, with its reported wait matching the row's queuedTime: the proposal path calls LFGQueue::RemoveFromQueue with partial true (src/server/game/DungeonFinding/LFGQueue.cpp:471), which keeps the QueueDataStore entry (src/server/game/DungeonFinding/LFGQueue.cpp:50-80), so UpdateQueueTimers still sends SMSG_LFG_QUEUE_STATUS for it (src/server/game/DungeonFinding/LFGQueue.cpp:530-573). Only a run with no `lfg/queue` row before the answer falls back to an `lfg/queued` row followed within seconds by an `lfg/proposal` row, grounded in the join/proposal timing, which is 0 s.
 
 ## The second character
 
