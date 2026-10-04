@@ -88,6 +88,7 @@ browser.
   deadline 40 s after its first update (`DungeonFinding/LFGMgr.h:51`); a
   later state 0 update for the same id keeps that deadline, and state 1
   or 2 ends the proposal.
+- A group role check lasts 45 s (`DungeonFinding/LFGMgr.h:49`): opening one sets its cancel time 45 s out (`DungeonFinding/LFGMgr.cpp:834`), so every member answers well inside that window.
 - `SMSG_LFG_BOOT_PROPOSAL_UPDATE` is in progress `u8`, did vote `u8`,
   agree `u8`, the victim `u64`, votes, agrees, seconds left and needed
   votes as `u32`, and the reason CString

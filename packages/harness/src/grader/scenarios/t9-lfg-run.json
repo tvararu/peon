@@ -139,45 +139,45 @@
       "actor": 1,
       "argv": ["call", "setRoles", "[2]"],
       "at": {
-        "delayMs": 15000,
+        "delayMs": 2000,
         "kind": "trigger",
-        "nth": 1,
         "trigger": "lfg_role_check"
       },
-      "windowMs": 45000
+      "reactive": true,
+      "windowMs": 10000
     },
     {
       "actor": 2,
       "argv": ["call", "setRoles", "[4]"],
       "at": {
-        "delayMs": 16000,
+        "delayMs": 2000,
         "kind": "trigger",
-        "nth": 1,
         "trigger": "lfg_role_check"
       },
-      "windowMs": 45000
+      "reactive": true,
+      "windowMs": 10000
     },
     {
       "actor": 3,
       "argv": ["call", "setRoles", "[8]"],
       "at": {
-        "delayMs": 17000,
+        "delayMs": 2000,
         "kind": "trigger",
-        "nth": 1,
         "trigger": "lfg_role_check"
       },
-      "windowMs": 45000
+      "reactive": true,
+      "windowMs": 10000
     },
     {
       "actor": 4,
       "argv": ["call", "setRoles", "[8]"],
       "at": {
-        "delayMs": 18000,
+        "delayMs": 2000,
         "kind": "trigger",
-        "nth": 1,
         "trigger": "lfg_role_check"
       },
-      "windowMs": 45000
+      "reactive": true,
+      "windowMs": 10000
     },
     {
       "actor": 1,
