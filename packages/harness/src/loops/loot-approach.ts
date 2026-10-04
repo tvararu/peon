@@ -10,7 +10,10 @@ const MIN_LEG_MS = 200;
 const STOP_MARGIN_MS = 1000;
 const PROGRESS_YD = 1;
 
-export type CorpseApproach = Pick<CycleDeps, "control" | "entity"> & {
+export type CorpseApproach = Pick<
+  CycleDeps,
+  "control" | "entity" | "observed"
+> & {
   motion: EventWaiter<ControlEvent>;
   signal: AbortSignal;
 };
@@ -20,7 +23,7 @@ export async function approachCorpse(
   guid: bigint,
 ): Promise<number> {
   for (let legs = 0; legs < MAX_LEGS; legs++) {
-    const corpse = run.entity(guid)?.position;
+    const corpse = run.observed(guid) ?? run.entity(guid)?.position;
     const pose = run.control.snapshot().pose;
     if (!(corpse && pose) || corpse.mapId !== pose.mapId) return legs;
     const gap = distance(pose, corpse);

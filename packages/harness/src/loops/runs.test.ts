@@ -17,6 +17,9 @@ type Fakes = {
   control?: ReturnType<typeof fakeControl>;
   cycleActive?: () => boolean;
   entity?: EntityLookup;
+  observed?: (
+    guid: bigint,
+  ) => { mapId: number; x: number; y: number; z: number } | undefined;
 };
 
 const idle = new AbortController().signal;
@@ -35,11 +38,13 @@ function wire(fakes: Fakes) {
     stackSize: async () => undefined,
   };
   const entity = fakes.entity ?? (() => undefined);
+  const observed = fakes.observed ?? ((guid: bigint) => entity(guid)?.position);
   const deps = {
     bags,
     control,
     cycleActive,
     entity,
+    observed,
     events: {
       control: events.control.subscribe.bind(events.control),
       entity: events.entity.subscribe.bind(events.entity),

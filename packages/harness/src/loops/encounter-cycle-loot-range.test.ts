@@ -43,7 +43,7 @@ function corpseAt(x: number, lootable = true) {
   };
 }
 
-function tracked(corpseX: number, lootable = true) {
+function tracked(corpseX: number, lootable = true, movedTo?: number) {
   const order: string[] = [];
   const control = fakeControl({ pose: START });
   const move = control.move.bind(control);
@@ -57,12 +57,18 @@ function tracked(corpseX: number, lootable = true) {
     order.push("open");
     return open(guid);
   };
+  const rest = corpseAt(corpseX, lootable);
+  const observed =
+    movedTo === undefined
+      ? undefined
+      : () => ({ mapId: 0, x: movedTo, y: 0, z: 0 });
   const runtime = makeCycle({
-    ...corpseAt(corpseX, lootable),
+    ...rest,
     loot,
     recovery: fakeRecovery({ life: ["alive"] }),
     control,
     now: () => 0,
+    ...(observed ? { observed } : {}),
   });
   return { control, loot, order, runtime };
 }
@@ -87,6 +93,13 @@ test("a corpse at 8.8 yd is approached before the loot open", async () => {
 
 test("a corpse already within reach is opened without moving", async () => {
   const { order, runtime } = tracked(3);
+  await runtime.start({ guids: [2n], instruction: "fight" });
+  expect(order).toEqual(["open"]);
+  expect(runtime.snapshot().queue[0]?.loot).toBe("looted");
+});
+
+test("a corpse chased to melee range is opened without moving", async () => {
+  const { order, runtime } = tracked(8.8, true, 3);
   await runtime.start({ guids: [2n], instruction: "fight" });
   expect(order).toEqual(["open"]);
   expect(runtime.snapshot().queue[0]?.loot).toBe("looted");

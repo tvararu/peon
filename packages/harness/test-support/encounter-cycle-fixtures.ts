@@ -351,18 +351,22 @@ const noQuestItems: CycleDeps["bags"] = {
 };
 
 export function makeCycle(
-  deps: Omit<CycleDeps, "rewards" | "bags" | "entity"> & {
+  deps: Omit<CycleDeps, "rewards" | "bags" | "entity" | "observed"> & {
     bags?: CycleDeps["bags"];
     entity?: CycleDeps["entity"];
+    observed?: CycleDeps["observed"];
     loot: CycleDeps["rewards"] & Wired<RewardsEvent>;
     recovery: CycleDeps["recovery"] & Wired<RecoveryEvent>;
     control: CycleDeps["control"] & Wired<ControlEvent>;
   },
 ): EncounterCycleRuntime {
+  const entity = deps.entity ?? liveUnit;
   const runtime = new EncounterCycleRuntime({
     ...deps,
     bags: deps.bags ?? noQuestItems,
-    entity: deps.entity ?? liveUnit,
+    entity,
+    now: deps.now,
+    observed: deps.observed ?? ((guid) => entity(guid)?.position),
     rewards: deps.loot,
   });
   deps.loot.onEvent((event) => runtime.observeRewards(event));

@@ -3,6 +3,7 @@ import {
   type ControlState,
   type EntityEvent,
   type EntityLookup,
+  type NavPoint,
   type RecoveryEvent,
   type RewardsEvent,
   snapshotEntityEvent,
@@ -113,6 +114,7 @@ export type CycleDeps = {
     snapshot: () => Pick<ControlState, "pose" | "selfGuid" | "speed">;
   };
   entity: EntityLookup;
+  observed: (guid: bigint) => (NavPoint & { mapId: number }) | undefined;
   approach?: CycleApproach;
   gate?: PullGate;
   attackers?: () => readonly bigint[];
@@ -480,9 +482,17 @@ export class EncounterCycleRuntime {
     this.bodyEvents = bodies;
     this.motionEvents = motion;
     try {
-      const { rewards, bags, control, entity } = this.deps;
+      const { rewards, bags, control, entity, observed } = this.deps;
       const waiters = { events, bodies: bodies.waiter, motion };
-      const run = { rewards, bags, control, entity, ...waiters, signal };
+      const run = {
+        rewards,
+        bags,
+        control,
+        entity,
+        observed,
+        ...waiters,
+        signal,
+      };
       const result = await lootCorpse(run, target.guid);
       if (!result.ok) return result;
       target.loot = result.record ? "looted" : "none";

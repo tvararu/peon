@@ -150,6 +150,22 @@ function createTactics(ports: Ports, jev: JevPort | undefined): TacticsLoop {
   });
 }
 
+function observedCorpse(
+  handle: WorldHandle,
+  guid: bigint,
+): CycleDeps["observed"] extends (guid: bigint) => infer R ? R : never {
+  let at: { x: number; y: number; z: number } | undefined;
+  try {
+    at = handle.observedPosition(guid);
+  } catch {
+    at = undefined;
+  }
+  const mapId = handle.getEntity(guid)?.position?.mapId;
+  return at && mapId !== undefined
+    ? { mapId, x: at.x, y: at.y, z: at.z }
+    : undefined;
+}
+
 function cycleDeps(ports: Ports, tactics: TacticsLoop): CycleDeps {
   const { handle, travel, control, entity } = ports;
   return {
@@ -166,6 +182,7 @@ function cycleDeps(ports: Ports, tactics: TacticsLoop): CycleDeps {
     },
     control,
     entity,
+    observed: (guid) => observedCorpse(handle, guid),
     gate: pullGate(() => handle.getCombatState()),
     attackers: () => handle.getCombatState().attackers,
     now: () => Date.now(),

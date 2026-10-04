@@ -44,6 +44,7 @@ export function createMockGame(): MockGame {
     },
     entity: () => undefined,
     now: () => 0,
+    observed: () => undefined,
     recovery: recoveryPort(handle),
     rewards: rewardsPort(handle),
     tactics: {

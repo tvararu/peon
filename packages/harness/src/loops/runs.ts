@@ -22,7 +22,7 @@ export type RecoveryOutcome = ({ ok: true } & CycleRecovery) | CycleStop;
 
 export type RunDeps = Pick<
   CycleDeps,
-  "rewards" | "bags" | "recovery" | "control" | "entity"
+  "rewards" | "bags" | "recovery" | "control" | "entity" | "observed"
 > & {
   events: RunEvents;
   cycleActive: () => boolean;
@@ -79,9 +79,17 @@ async function lootRun({ deps, guid, signal }: LootCall): Promise<LootOutcome> {
     deps.events.control((event) => motion.push(event)),
   ];
   try {
-    const { rewards, bags, control, entity } = deps;
+    const { rewards, bags, control, entity, observed } = deps;
     const waiters = { events, bodies, motion };
-    const run = { rewards, bags, control, entity, ...waiters, signal };
+    const run = {
+      rewards,
+      bags,
+      control,
+      entity,
+      observed,
+      ...waiters,
+      signal,
+    };
     return await lootCorpse(run, guid);
   } finally {
     for (const off of detach) off();
