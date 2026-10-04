@@ -18,7 +18,7 @@ working, protocol-correct gameplay on a real server.
 
 ## Ways of working
 
-Two modes, both described in [README.md](README.md). Both land through a
+Two modes. Both land through a
 PR with green `signoff/ci`, `factory/ci` and `factory/review` statuses.
 
 - **Paired** (the current mode): the maintainer works one item with one

@@ -1,7 +1,7 @@
 # Dev factory
 
 The factory is one of two ways of working on Peon; the other, paired work
-with one interactive agent session, is described in [README.md](../README.md).
+with one interactive agent session, is described in [AGENTS.md](../AGENTS.md).
 Design history lives in
 [archive/2026-09-25-dev-factory-design.md](archive/2026-09-25-dev-factory-design.md)
 and [archive/2026-09-26-project-board-design.md](archive/2026-09-26-project-board-design.md).
