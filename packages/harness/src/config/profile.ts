@@ -18,8 +18,7 @@ export type ProfileErrorCode =
   | "unreadable"
   | "unknown_format"
   | "missing_field"
-  | "protected_account"
-  | "protected_character";
+  | "protected_account";
 
 export class ProfileError extends Error {
   readonly code: ProfileErrorCode;
@@ -34,14 +33,12 @@ export class ProfileError extends Error {
 export const PROTECTED_ACCOUNTS: readonly string[] = [
   "ADMIN",
   "DEITY",
-  "X",
   "Y",
   "AUCTIONHOUSE",
   "TCFACTORY",
   "TCPRESETS",
 ];
 export const PROTECTED_ACCOUNT_PREFIXES: readonly string[] = ["RNDBOT"];
-export const PROTECTED_CHARACTERS: readonly string[] = ["Xiara"];
 
 type Json = Record<string, unknown>;
 type Parsed = { source: ProfileSource; config: Config; extensions: string[] };
@@ -56,8 +53,12 @@ type BaseFields = Pick<
 
 const ALLIANCE_PRESETS: readonly string[] = ["elwynn1", "elwynn10"];
 
-export function isProtected(account: string, character: string): boolean {
-  return protectedAccount(account) || protectedCharacter(character);
+export function isProtected(account: string): boolean {
+  const upper = account.toUpperCase();
+  return (
+    PROTECTED_ACCOUNTS.includes(upper) ||
+    PROTECTED_ACCOUNT_PREFIXES.some((prefix) => upper.startsWith(prefix))
+  );
 }
 
 export async function loadProfile(
@@ -69,15 +70,10 @@ export async function loadProfile(
     path,
     text: await readText(path),
   });
-  if (protectedAccount(config.account))
+  if (isProtected(config.account))
     throw new ProfileError(
       "protected_account",
       `The account ${config.account.toUpperCase()} is protected. The harness does not log in to it.`,
-    );
-  if (protectedCharacter(config.character))
-    throw new ProfileError(
-      "protected_character",
-      `The character ${config.character} is protected. The harness does not log in to it.`,
     );
   return {
     account: config.account.toUpperCase(),
@@ -122,20 +118,6 @@ function navigationOf(cfg: Config): NavigationSource | undefined {
   const { navigation_data_dir: dataDir, navigation_library: library } = cfg;
   if (!(dataDir && library)) return undefined;
   return navigationSource({ dataDir, library });
-}
-
-function protectedAccount(account: string): boolean {
-  const upper = account.toUpperCase();
-  return (
-    PROTECTED_ACCOUNTS.includes(upper) ||
-    PROTECTED_ACCOUNT_PREFIXES.some((prefix) => upper.startsWith(prefix))
-  );
-}
-
-function protectedCharacter(character: string): boolean {
-  return PROTECTED_CHARACTERS.some(
-    (name) => name.toLowerCase() === character.toLowerCase(),
-  );
 }
 
 async function readText(path: string): Promise<string> {

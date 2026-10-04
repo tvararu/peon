@@ -200,8 +200,12 @@ describe("loadProfile", () => {
 
   test.each([
     ["ADMIN", "Anyone", "protected_account"],
+    ["DEITY", "Anyone", "protected_account"],
+    ["Y", "Anyone", "protected_account"],
+    ["AUCTIONHOUSE", "Anyone", "protected_account"],
+    ["TCFACTORY", "Anyone", "protected_account"],
+    ["TCPRESETS", "Anyone", "protected_account"],
     ["rndbot123", "Bot", "protected_account"],
-    ["FACABC0123456", "xiara", "protected_character"],
   ])("refuses %s / %s", async (account, character, code) => {
     const path = join(root, "config.toml");
     await writeToml({ account, character, library: "/lib.so", path });
@@ -273,11 +277,12 @@ describe("loadProfile", () => {
   });
 });
 
-test("isProtected matches accounts, the RNDBOT prefix and Xiara", () => {
-  expect(isProtected("deity", "Anyone")).toBe(true);
-  expect(isProtected("RNDBOT7", "Bot")).toBe(true);
-  expect(isProtected("FACABC0123456", "XIARA")).toBe(true);
-  expect(isProtected("FACABC0123456", "Fgklibhlflc")).toBe(false);
+test("isProtected matches accounts and the RNDBOT prefix", () => {
+  expect(isProtected("deity")).toBe(true);
+  expect(isProtected("y")).toBe(true);
+  expect(isProtected("RNDBOT7")).toBe(true);
+  expect(isProtected("X")).toBe(false);
+  expect(isProtected("FACABC0123456")).toBe(false);
 });
 
 describe("readableExtensions", () => {

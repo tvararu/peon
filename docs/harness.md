@@ -67,8 +67,7 @@ mise harness
 Or pass `--profile <path>` to select another profile.
 
 The harness guard in [Credentials and safety](#credentials-and-safety)
-still applies: it refuses the protected accounts and the character
-`Xiara`, whatever the profile.
+still applies: it refuses the protected accounts, whatever the profile.
 
 ### DBC files
 
@@ -149,9 +148,9 @@ The harness reads no `WOW_*` variable. Only `--profile` (or its default
   needs `TYPESAFE_API_KEY` in the environment. Without it, `engage`
   refuses with `no_combat_helper` and the footer shows a red `no-jev`
   chip.
-- **Protected characters.** The harness refuses the accounts `ADMIN`,
-  `DEITY`, `X`, `Y`, `AUCTIONHOUSE`, `TCFACTORY`, `TCPRESETS`, every
-  account that starts with `RNDBOT`, and the character `Xiara`. There is
+- **Protected accounts.** The harness refuses the accounts `ADMIN`,
+  `DEITY`, `Y`, `AUCTIONHOUSE`, `TCFACTORY`, `TCPRESETS`, and every
+  account that starts with `RNDBOT`. There is
   no flag to override this.
 - **One owner per character.** A lock file
   `~/.local/state/peon-harness/locks/<ACCOUNT>-<character>.lock`

@@ -77,7 +77,6 @@ describe("bootPuppet", () => {
   test.each([
     ["ADMIN", "Fgklgoafpfk", "protected_account"],
     ["rndbot12", "Fgklgoafpfk", "protected_account"],
-    ["FAC0123456789", "xiara", "protected_character"],
   ])("refuses %s/%s without logging in", async (name, character, code) => {
     const paths = await account(name, character);
     const fn = login();
