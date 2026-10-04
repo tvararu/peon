@@ -82,7 +82,7 @@ export const vehicleSpec: GameToolSpec<
     description:
       "Use a vehicle: walk to a unit and take its seat, leave the seat, change seats, ride with a player or remove a passenger. The game does not tell you which seats exist, so a request the seat forbids shows as no answer.",
     guidelines: [
-      "Call look first to find the vehicle, then board it by name or ref. After no answer, look again before you retry.",
+      "Call look first to find the vehicle, then board it by name or ref. After no answer, look again before you retry. When a board gives you control, use travel to drive it.",
     ],
     label: "Vehicle",
   },

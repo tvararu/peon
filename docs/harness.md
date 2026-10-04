@@ -175,7 +175,7 @@ A result that is not `DONE` ends with a `Next:` step.
 | `recover` | Comes back to life: corpse run, spirit healer, a resurrection offer, or `self` with a Soulstone or Reincarnation. |
 | `social` | One chat message or one group action. |
 | `talents` | Shows talents and glyphs and spends talent points; puts glyphs in slots or clears them. |
-| `vehicle` | Takes a seat on a vehicle by walking to a unit and clicking it (`board`), leaves the seat (`leave`), changes seats (`seat`), asks to ride with a player (`ride_with`) and removes a passenger (`eject`). A seat request the server does not answer is `UNCONFIRMED` with the reason `no_answer`. |
+| `vehicle` | Takes a seat on a vehicle by walking to a unit and clicking it (`board`), leaves the seat (`leave`), changes seats (`seat`), asks to ride with a player (`ride_with`) and removes a passenger (`eject`). When a board gives control of the vehicle, the result says `travel` drives it and Next names a `travel` call. A seat request the server does not answer is `UNCONFIRMED` with the reason `no_answer`. |
 | `journal` | Quest log, bags and gear, bank contents, spells, reputation, or the game log. |
 | `gear` | Wears, takes off, moves, splits, opens and reads items. `gear move` with `to: bank` deposits the named carried item when the bank is open, else refuses with the `interact` deposit call. |
 | `stop` | Stops one action or everything. |

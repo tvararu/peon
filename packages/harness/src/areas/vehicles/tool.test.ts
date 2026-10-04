@@ -101,6 +101,39 @@ describe("vehicle tool spec", () => {
   });
 });
 
+function seatState(controlling: boolean) {
+  return () => ({
+    passengers: new Map(),
+    seat: { controlling, entry: 1, seat: 0, vehicle: GRYPHON },
+    vehicleIds: new Map(),
+  });
+}
+
+describe("vehicle board and driving", () => {
+  test("a board that gives control says travel drives it and names a travel call", async () => {
+    const { t } = await world();
+    Object.assign(t.handle.vehicles, { state: seatState(true) });
+    const res = await run(t, { do: "board", unit: "Wintergarde Gryphon" });
+    expect(res.status).toBe("DONE");
+    expect(res.detail).toContain("travel");
+    expect(res.next).toContain("travel(");
+  });
+
+  test("a board into a passenger seat has no driving hint", async () => {
+    const { t } = await world();
+    Object.assign(t.handle.vehicles, { state: seatState(false) });
+    const res = await run(t, { do: "board", unit: "Wintergarde Gryphon" });
+    expect(res.detail).not.toContain("travel");
+    expect(res.next ?? "").not.toContain("travel(");
+  });
+
+  test("a board without any seat recorded has no driving hint", async () => {
+    const { t } = await world();
+    const res = await run(t, { do: "board", unit: "Wintergarde Gryphon" });
+    expect(res.detail).not.toContain("travel");
+  });
+});
+
 describe("vehicle board", () => {
   test("clicks the named unit and reports the seat", async () => {
     const { calls, t } = await world();
