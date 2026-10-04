@@ -162,7 +162,7 @@ function firstMismatch(marks: Mark[], applied: number[]): Mismatch | undefined {
     if (mark.opcode !== "MSG_MOVE_JUMP") continue;
     jump += 1;
     const matched = free.findLastIndex(
-      (ts) => ts >= mark.at - 1000 && ts <= mark.at + 100,
+      (ts) => ts >= mark.at - 1500 && ts <= mark.at + 100,
     );
     if (matched < 0)
       return { at: mark.at, jump, reason: "no applied jump_ahead near it" };

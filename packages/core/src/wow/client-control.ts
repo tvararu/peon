@@ -95,6 +95,9 @@ export function controlMethods(conn: WorldConn, rt: Runtimes) {
     jump() {
       control.jump();
     },
+    settle() {
+      control.settle();
+    },
     face(orientation) {
       control.face(orientation);
     },

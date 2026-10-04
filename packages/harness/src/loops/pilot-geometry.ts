@@ -17,12 +17,16 @@ export const PILOT_RANGE_YD = 10;
 export const PILOT_MIN_CLEAR_YD = 2;
 export const PILOT_JUMP_NEAR_YD = 1;
 export const PILOT_JUMP_FAR_YD = 3;
+export const PILOT_JUMP_OFFER_YD = 6;
+export const PILOT_JUMP_TAKEOFF_YD = 2;
 export const PILOT_JUMP_LOW_YD = 0.3;
 export const PILOT_JUMP_HIGH_YD = 1.4;
 export const PILOT_JUMP_TOP_MARGIN_YD = 0.1;
 export const PILOT_RUN_SPEED_YD = 7;
 const LOW_RAY_YD = 0.25;
 const HIGH_RAY_YD = 1.6;
+const PROFILE_SPAN_YD = 1;
+const PROFILE_STEP_YD = 0.1;
 const JUMP_SAMPLE_MS = 50;
 
 export type PilotPose = {
@@ -121,82 +125,49 @@ function classifyBlocked(
   pose: PilotPose,
   heading: number,
 ): PilotBlocker {
-  const top = lowTopYd(ground, pose, heading);
-  if (top !== undefined) {
-    if (top < PILOT_JUMP_LOW_YD) return stepKind(ground, pose, heading);
-    return { kind: "low", topYd: top };
-  }
-  return solidKind(ground, pose, heading);
+  const top = obstacleTopYd(ground, pose, heading);
+  if (top === undefined) return { kind: "drop" };
+  if (top > HIGH_RAY_YD) return { kind: "wall" };
+  return { kind: "low", topYd: top };
 }
 
-function stepKind(
-  ground: GroundOracle,
-  pose: PilotPose,
-  heading: number,
-): PilotBlocker {
-  const to = {
-    x: pose.x + Math.cos(heading) * PILOT_STEP_YD,
-    y: pose.y + Math.sin(heading) * PILOT_STEP_YD,
-  };
-  const step = groundStep(ground, marchOrigin(pose), to, false);
-  if (step.ok) return { kind: "open" };
-  if (step.reason === "too_steep") return { kind: "drop" };
-  return solidKind(ground, pose, heading);
-}
-
-function solidKind(
-  ground: GroundOracle,
-  pose: PilotPose,
-  heading: number,
-): PilotBlocker {
-  const ray = (a: NavPoint, b: NavPoint) => ground.pathClear(pose.mapId, a, b);
-  const from = { x: pose.x, y: pose.y, z: pose.z };
-  const to = {
-    x: pose.x + Math.cos(heading) * PILOT_STEP_YD,
-    y: pose.y + Math.sin(heading) * PILOT_STEP_YD,
-    z: pose.z,
-  };
-  const lowBlocked = !collisionFree(
-    ray,
-    { ...from, z: from.z + LOW_RAY_YD },
-    { ...to, z: to.z + LOW_RAY_YD },
-  );
-  const highBlocked = !collisionFree(
-    ray,
-    { ...from, z: from.z + HIGH_RAY_YD },
-    { ...to, z: to.z + HIGH_RAY_YD },
-  );
-  return lowBlocked && highBlocked ? { kind: "wall" } : { kind: "drop" };
-}
-
-export function lowTopYd(
+export function obstacleTopYd(
   ground: GroundOracle,
   pose: PilotPose,
   heading: number,
 ): number | undefined {
-  const origin = marchOrigin(pose);
-  const from = { x: pose.x, y: pose.y, z: pose.z };
-  const to = {
-    x: pose.x + Math.cos(heading) * PILOT_STEP_YD,
-    y: pose.y + Math.sin(heading) * PILOT_STEP_YD,
-    z: pose.z,
+  const end = {
+    x: pose.x + Math.cos(heading) * PROFILE_SPAN_YD,
+    y: pose.y + Math.sin(heading) * PROFILE_SPAN_YD,
   };
-  const ray = (a: NavPoint, b: NavPoint) => ground.pathClear(pose.mapId, a, b);
-  const lowFree = collisionFree(
-    ray,
-    { ...from, z: from.z + LOW_RAY_YD },
-    { ...to, z: to.z + LOW_RAY_YD },
-  );
-  if (lowFree) return undefined;
-  const highFree = collisionFree(
-    ray,
-    { ...from, z: from.z + HIGH_RAY_YD },
-    { ...to, z: to.z + HIGH_RAY_YD },
-  );
-  if (!highFree) return undefined;
-  const top = ground.height(pose.mapId, to.x, to.y, origin);
-  if (top === undefined || !Number.isFinite(top)) return undefined;
-  return Math.round((top - pose.z) * 10) / 10;
+  const steps = Math.round((HIGH_RAY_YD - LOW_RAY_YD) / PROFILE_STEP_YD);
+  for (let i = 0; i <= steps; i++) {
+    const lift = LOW_RAY_YD + i * PROFILE_STEP_YD;
+    const from = { x: pose.x, y: pose.y, z: pose.z + lift };
+    if (ground.pathClear(pose.mapId, from, { ...end, z: pose.z + lift }))
+      return i === 0 ? undefined : Math.round(lift * 10) / 10;
+  }
+  return Number.POSITIVE_INFINITY;
+}
+
+export function jumpOffered(
+  ground: GroundOracle | undefined,
+  pose: PilotPose,
+  ahead: PilotScan,
+): boolean {
+  if (ground === undefined || pose.airborne) return false;
+  if (ahead.freeYd < PILOT_JUMP_NEAR_YD || ahead.freeYd > PILOT_JUMP_OFFER_YD)
+    return false;
+  const blocker = ahead.blocker;
+  if (!jumpableTop(blocker)) return false;
+  const takeoff = Math.min(ahead.freeYd, PILOT_JUMP_TAKEOFF_YD);
+  const shift = ahead.freeYd - takeoff;
+  const x = pose.x + Math.cos(ahead.heading) * shift;
+  const y = pose.y + Math.sin(ahead.heading) * shift;
+  const z = finiteGround(ground, pose.mapId, { x, y }, pose);
+  if (z === undefined) return false;
+  const at = { ...pose, x, y, z };
+  return arcClears(ground, at, { ...ahead, freeYd: takeoff }, blocker.topYd);
 }
 
 export function jumpGate(
@@ -208,10 +179,18 @@ export function jumpGate(
   if (ahead.freeYd < PILOT_JUMP_NEAR_YD || ahead.freeYd > PILOT_JUMP_FAR_YD)
     return false;
   const blocker = ahead.blocker;
-  if (blocker.kind !== "low") return false;
-  if (blocker.topYd < PILOT_JUMP_LOW_YD || blocker.topYd > PILOT_JUMP_HIGH_YD)
-    return false;
+  if (!jumpableTop(blocker)) return false;
   return arcClears(ground, pose, ahead, blocker.topYd);
+}
+
+function jumpableTop(
+  blocker: PilotBlocker,
+): blocker is Extract<PilotBlocker, { kind: "low" }> {
+  return (
+    blocker.kind === "low" &&
+    blocker.topYd >= PILOT_JUMP_LOW_YD &&
+    blocker.topYd <= PILOT_JUMP_HIGH_YD
+  );
 }
 
 type ArcScan = { speed: number; startZ: number; origin: NavPoint };

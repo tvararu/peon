@@ -140,8 +140,9 @@ lies within 5 yd of the objective ring (2D distance from the centre);
 `control/server_correction` row inside it; `pilot_jumps` is met when the
 run completed with no correction, every client `MSG_MOVE_JUMP` packet of
 the run matches a distinct jev.jsonl `applied` row with
-`loop: "pilot"` and `actionId: "jump_ahead"` stamped within one second
-before to 100 ms after the packet, and every jump is followed
+`loop: "pilot"` and `actionId: "jump_ahead"` stamped from 1.5 s before
+to 100 ms after the packet (an applied `jump_ahead` arms the jump, which
+goes off once the arc clears the obstacle), and every jump is followed
 by `MSG_MOVE_FALL_LAND` before the next jump or the end of the run;
 `pilot_only_moves` is met when `tools.json` records a `pilot` call and no
 call to another movement tool (`travel`, `engage`, `recover`). The jump

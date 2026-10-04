@@ -389,6 +389,10 @@ export class ControlRuntime {
     this.mover.jump();
   }
 
+  settle(): void {
+    this.mover.integrate();
+  }
+
   face(orientation: number): void {
     if (!Number.isFinite(orientation)) throw new Error("invalid_orientation");
     const reason = this.sync.blockReason();

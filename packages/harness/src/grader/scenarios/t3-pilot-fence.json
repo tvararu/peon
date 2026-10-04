@@ -15,11 +15,11 @@
     {
       "evidence": {
         "point": {
-          "x": 2314.3,
-          "y": 225.7
+          "x": 8677.8,
+          "y": -6592.2
         }
       },
-      "expect": "T final position within 3 yd of the goal across the fence (2314.3, 225.7)",
+      "expect": "T final position within 3 yd of the goal across the fence (8677.8, -6592.2)",
       "id": "at-goal",
       "source": "truth"
     },
@@ -30,7 +30,7 @@
       "source": "game_log"
     }
   ],
-  "field": "pilot-brill-fence",
+  "field": "pilot-fairbreeze-fence",
   "id": "t3-pilot-fence",
   "navBound": true,
   "needsWatcher": false,
@@ -40,15 +40,15 @@
   "setup": [
     {
       "body": {
-        "map": 0,
-        "x": 2320,
-        "y": 220,
-        "z": 28.12
+        "map": 530,
+        "x": 8670,
+        "y": -6600,
+        "z": 70.38
       },
       "endpoint": "position"
     }
   ],
   "steers": [],
-  "task": "Use the pilot tool to walk to the point (2314.3, 225.7). Move only with pilot.",
+  "task": "Use the pilot tool to walk to the point (8677.8, -6592.2). Move only with pilot.",
   "tier": 3
 }

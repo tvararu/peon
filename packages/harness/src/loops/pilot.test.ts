@@ -134,6 +134,7 @@ function actionsWith(ground: GroundOracle | undefined, states: ControlState[]) {
     jump: () => {
       calls.jumps += 1;
     },
+    settle: () => {},
     snapshot: () => states[Math.min(index, states.length - 1)] as ControlState,
   };
   const actions = new PilotActions({
@@ -211,22 +212,6 @@ describe("pilot options", () => {
         pose,
       }),
     ).toEqual([]);
-  });
-
-  test("a low fence at 1.5 yd still offers jump_ahead past the 2 yd mask", () => {
-    const pose = poseOf(
-      { mapId: 530, orientation: 0, x: 0, y: 0, z: 0 },
-      7,
-      false,
-    );
-    const options = buildOptions({
-      ground: fence(1),
-      objective: { kind: "reach", x: 30, y: 0 },
-      pose,
-    });
-    const ids = options.map((o) => o.id);
-    expect(ids).toContain("jump_ahead");
-    expect(ids).not.toContain("run_ahead");
   });
 
   test("a low fence inside 1-3 yd offers jump_ahead when the arc clears", () => {

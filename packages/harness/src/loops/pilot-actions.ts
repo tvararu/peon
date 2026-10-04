@@ -8,7 +8,12 @@ import {
   type PilotMemory,
   reachOutcome,
 } from "#harness/loops/pilot-frame";
-import { type PilotPose, poseOf } from "#harness/loops/pilot-geometry";
+import {
+  type PilotPose,
+  poseOf,
+  scanHeading,
+} from "#harness/loops/pilot-geometry";
+import { JumpArm } from "#harness/loops/pilot-jump";
 import {
   buildOptions,
   type PilotOption,
@@ -21,7 +26,10 @@ import type { TacticsFrame } from "#harness/loops/tactics";
 export const PILOT_DEADMAN_MS = 1500;
 
 export type PilotFrameDeps = {
-  control: Pick<ControlPort, "snapshot" | "face" | "drive" | "jump" | "halt">;
+  control: Pick<
+    ControlPort,
+    "snapshot" | "face" | "drive" | "jump" | "halt" | "settle"
+  >;
   ground: GroundOracle | undefined;
   life: () => RecoveryState["life"];
   now?: () => number;
@@ -41,15 +49,22 @@ export class PilotActions {
   private committed:
     | { context: PilotContext; framed: PilotObserve }
     | undefined;
+  private readonly jump: JumpArm;
 
   constructor(deps: PilotFrameDeps) {
     this.deps = deps;
+    this.jump = new JumpArm({
+      control: deps.control,
+      ground: deps.ground,
+      now: deps.now ?? (() => Date.now()),
+    });
   }
 
   activate(): void {
     this.memory = freshMemory();
     this.lastPose = undefined;
     this.committed = undefined;
+    this.jump.disarm();
   }
 
   observe(context: PilotContext): TacticsFrame {
@@ -83,6 +98,7 @@ export class PilotActions {
     if (!option) throw new Error(`unknown_pilot_action: ${actionId}`);
     if (actionId !== "stop" && option.input === undefined)
       throw new Error(`unknown_pilot_action: ${actionId}`);
+    this.jump.disarm();
     this.settle();
     const state = this.deps.control.snapshot();
     const pose = state.pose;
@@ -98,13 +114,22 @@ export class PilotActions {
       throw new Error(`unknown_pilot_action: ${actionId}`);
     this.deps.control.face(option.heading);
     this.deps.control.drive(input, PILOT_DEADMAN_MS);
-    if (actionId === "jump_ahead") this.deps.control.jump();
+    if (actionId === "jump_ahead") this.armJump();
     this.memory.decisions.push({ actionId, movedYd: 0 });
     if (this.memory.decisions.length > 3) this.memory.decisions.shift();
   }
 
   halt(): void {
+    this.jump.disarm();
     this.deps.control.halt("pilot_halt");
+  }
+
+  private armJump(): void {
+    const state = this.deps.control.snapshot();
+    if (state.pose === undefined) return;
+    const pose = poseOf(state.pose, state.speed, state.airborne);
+    const ahead = scanHeading(this.deps.ground, pose, pose.orientation);
+    this.jump.arm(ahead.freeYd);
   }
 
   private settle(): void {
@@ -119,6 +144,7 @@ export class PilotActions {
   }
 
   private frame(context: PilotContext): PilotObserve {
+    this.deps.control.settle();
     const state = this.deps.control.snapshot();
     const pose = state.pose;
     const dead = isDead(this.deps.life());

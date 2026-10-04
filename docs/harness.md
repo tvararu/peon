@@ -221,15 +221,22 @@ module, one entry in that list and its name in `ToolName`.
 
 ## Pilot
 
-`pilot` runs a second Jev loop that steers the character. Every 50 ms or
-more, Jev chooses one of the movement options the loop offers: `run_ahead`,
+`pilot` runs a second Jev loop that steers the character. As soon as one
+answer is applied the next call starts (at most one every 50 ms), and Jev
+chooses one of the movement options the loop offers: `run_ahead`,
 `veer_left`, `veer_right`, `turn_left`, `turn_right`, `turn_around`,
 `strafe_left`, `strafe_right`, `back_up`, `jump_ahead` and `stop`. There is no
-`wait` option. The loop describes each heading by its free distance and
-blocker (open, wall, drop or low obstacle), and it removes any option whose
-heading is blocked inside two yards, except `jump_ahead`, which stays while
-a low obstacle 0.3 to 1.4 yd tall stands 1 to 3 yd ahead and the jump arc
-clears it.
+`wait` option. The frame names the objective as a distance and a bearing
+bucket (almost straight ahead, slightly off, well off, behind); a circle
+objective names the next lap point a few yards along the circle. The loop
+describes each of eight headings by its free distance and blocker (open,
+wall, drop, or low obstacle with the height where rays first pass over it),
+and it removes any option whose heading is blocked inside two yards.
+`jump_ahead` is offered while a low obstacle 0.3 to 1.4 yd tall stands 1 to
+6 yd ahead and a jump from two yards before it clears it and lands on
+walkable ground. Applying it arms the jump: the character runs on and
+jumps at the first moment the arc from where it stands clears the obstacle,
+and any other decision cancels the arm. Nothing else jumps.
 
 An applied option faces the heading and drives it under a 1.5 s dead-man
 lease. If no new decision renews the lease, the character stops. `stop`,

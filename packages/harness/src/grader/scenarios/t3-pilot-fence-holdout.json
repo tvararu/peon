@@ -15,11 +15,11 @@
     {
       "evidence": {
         "point": {
-          "x": 8676,
-          "y": -6600
+          "x": -10428.2,
+          "y": 209.8
         }
       },
-      "expect": "T final position within 3 yd of the goal across the fence (8676, -6600)",
+      "expect": "T final position within 3 yd of the goal across the fence (-10428.2, 209.8)",
       "id": "at-goal",
       "source": "truth"
     },
@@ -30,7 +30,7 @@
       "source": "game_log"
     }
   ],
-  "field": "pilot-fairbreeze-fence",
+  "field": "pilot-westfall-fence",
   "id": "t3-pilot-fence-holdout",
   "navBound": true,
   "needsWatcher": false,
@@ -40,15 +40,15 @@
   "setup": [
     {
       "body": {
-        "map": 530,
-        "x": 8666,
-        "y": -6600,
-        "z": 70.58
+        "map": 0,
+        "x": -10436,
+        "y": 202,
+        "z": 35.38
       },
       "endpoint": "position"
     }
   ],
   "steers": [],
-  "task": "Use the pilot tool to walk to the point (8676, -6600). Move only with pilot.",
+  "task": "Use the pilot tool to walk to the point (-10428.2, 209.8). Move only with pilot.",
   "tier": 3
 }

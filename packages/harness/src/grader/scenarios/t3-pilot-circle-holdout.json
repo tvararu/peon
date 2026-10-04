@@ -15,11 +15,11 @@
     {
       "evidence": {
         "point": {
-          "x": -9990,
-          "y": 580
+          "x": 2130,
+          "y": 640
         }
       },
-      "expect": "T final position within 3 yd of the start point on the circle (-9990, 580)",
+      "expect": "T final position within 3 yd of the start point on the circle (2130, 640)",
       "id": "back-at-start",
       "source": "truth"
     },
@@ -30,25 +30,25 @@
       "source": "game_log"
     }
   ],
-  "field": "pilot-elwynn-circle",
+  "field": "pilot-tirisfal-circle",
   "id": "t3-pilot-circle-holdout",
   "navBound": true,
   "needsWatcher": false,
   "paneMinutes": 11,
   "partner": null,
-  "preset": "elwynn10",
+  "preset": "max80",
   "setup": [
     {
       "body": {
         "map": 0,
-        "x": -9990,
-        "y": 580,
-        "z": 37.66
+        "x": 2130,
+        "y": 640,
+        "z": 34.39
       },
       "endpoint": "position"
     }
   ],
   "steers": [],
-  "task": "Use the pilot tool to run one counterclockwise lap of a 10-yard circle around the point (-10000, 580), then tell me how it went. Move only with pilot.",
+  "task": "Use the pilot tool to run one counterclockwise lap of a 10-yard circle around the point (2120, 640), then tell me how it went. Move only with pilot.",
   "tier": 3
 }

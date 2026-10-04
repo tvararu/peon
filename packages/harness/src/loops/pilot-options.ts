@@ -3,7 +3,7 @@ import { distance2d, type MovementInput, normalizeAngle } from "@peon/core";
 import type { JevCandidate } from "#harness/jev/contract";
 import {
   goalBearingText,
-  jumpGate,
+  jumpOffered,
   lapPoint,
   PILOT_MIN_CLEAR_YD,
   type PilotPose,
@@ -106,7 +106,7 @@ export function buildOptions({
   if (pose.airborne) return [];
   const scans = cache ?? scanCache(ground, pose);
   const ahead = cachedScan(scans, pose.orientation);
-  const canJump = jumpGate(ground, pose, ahead);
+  const canJump = jumpOffered(ground, pose, ahead);
   const options: PilotOption[] = [];
   for (const id of PILOT_OPTION_IDS) {
     if (id === "stop") {
@@ -189,7 +189,7 @@ function optionText({
   const after = normalizeAngle(pose.orientation + (turnDeg * Math.PI) / 180);
   const goal = goalAfterTurn(objective, pose, after);
   if (id === "jump_ahead")
-    return `${actions[id]} over the low obstacle ahead: clear; ${goal}.`;
+    return `Run at the ${blockerText(scan)} ${scan.freeYd} yd ahead and jump it as you reach it; ${goal}.`;
   return `${actions[id]}: clear for ${scan.freeYd} yd; ${goal}.`;
 }
 
