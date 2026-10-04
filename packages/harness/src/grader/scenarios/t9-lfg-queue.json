@@ -24,14 +24,14 @@
     },
     {
       "evidence": {
-        "events": ["lfg/queue"]
+        "events": ["lfg/queue", "lfg/proposal", "lfg/queued"]
       },
-      "expect": "GL has at least one lfg/queue row with the reported wait",
+      "expect": "GL shows the queue wait the server reports: at least one lfg/queue row with the reported wait, or an lfg/queued row followed within seconds by an lfg/proposal row when bots fill the queue before the 8 s queue-status tick, in which case the reported wait is 0 s",
       "id": "wait-row",
       "source": "game_log"
     },
     {
-      "expect": "the session shows the agent calling the dungeon tool with do queue and then with do leave_queue, and reporting the wait from the last lfg/queue row",
+      "expect": "the session shows the agent calling the dungeon tool with do queue and then with do leave_queue, and reporting the wait from the last lfg/queue row, or 0 s when an lfg/proposal row pre-empts the queue-status tick",
       "id": "queue-and-leave",
       "source": "session"
     }

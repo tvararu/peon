@@ -353,3 +353,22 @@ describe("checks measure what they name", () => {
     expect(scenario.task).not.toContain("Lynx");
   });
 });
+
+describe("t9-lfg-queue when bots fill the queue", () => {
+  test("the wait check is met by a queue row or by the proposal that pre-empts it", () => {
+    const scenario = loadScenario("t9-lfg-queue");
+    const wait = scenario.checks.find((entry) => entry.id === "wait-row");
+    const events = wait?.evidence?.events ?? [];
+    expect(events).toContain("lfg/queue");
+    expect(events).toContain("lfg/proposal");
+    expect(events).toContain("lfg/queued");
+  });
+
+  test("queued and left stay required", () => {
+    const scenario = loadScenario("t9-lfg-queue");
+    const queued = scenario.checks.find((entry) => entry.id === "queued");
+    const left = scenario.checks.find((entry) => entry.id === "left");
+    expect(queued?.evidence?.events).toEqual(["lfg/queued"]);
+    expect(left?.evidence?.events).toEqual(["lfg/left"]);
+  });
+});

@@ -144,6 +144,8 @@ grades the first self-resurrection from the game log: it is met when a
 between them. A later death, which the single Ankh cannot cover, does not
 unmeet it.
 
+`t9-lfg-queue` keeps `queued` and `left` required and grades the wait on the rows the server sends in either case. A run with a real queue wait meets `wait-row` on an `lfg/queue` row holding the reported wait; a run where bots fill the queue meets it on an `lfg/queued` row followed within seconds by an `lfg/proposal` row, because the server only sends `SMSG_LFG_QUEUE_STATUS` on its 8 s queue timer while a proposal removes the character from the queue at once, so the status row never arrives and the reported wait is 0 s.
+
 ## The second character
 
 Scenarios with a `partner` or a witness (`t2-whisper-reply`,
