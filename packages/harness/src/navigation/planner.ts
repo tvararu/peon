@@ -153,7 +153,7 @@ export class GroundRoute {
     this.length = length;
   }
 
-  sample(distance: number): GroundSample {
+  sample(distance: number, previous?: NavPoint): GroundSample {
     if (!Number.isFinite(distance)) throw new Error("invalid route distance");
     const travel = Math.min(this.length, Math.max(0, distance));
     const index = this.segment(travel);
@@ -169,7 +169,8 @@ export class GroundRoute {
       x: start.x + (end.x - start.x) * ratio,
       y: start.y + (end.y - start.y) * ratio,
     };
-    if (this.lead && index === 0) return this.leadSample(start, end, ratio, at);
+    if (this.lead && index === 0)
+      return sampleLead(this.map, { end, ratio, start }, at, previous);
     const stepped = groundStep({
       at,
       from: start,
@@ -185,15 +186,6 @@ export class GroundRoute {
       orientation: bearing(start, end),
       swimming: travel === 0 ? (this.swims[0] ?? false) : stepped.swimming,
     };
-  }
-
-  private leadSample(
-    start: NavPoint,
-    end: NavPoint,
-    ratio: number,
-    at: { x: number; y: number },
-  ): GroundSample {
-    return sampleLead(this.map, { end, ratio, start }, at);
   }
 
   private segment(distance: number): number {

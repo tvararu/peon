@@ -85,6 +85,7 @@ export function sampleLead(
   map: NativeMap,
   leg: { start: NavPoint; end: NavPoint; ratio: number },
   at: { x: number; y: number },
+  previous?: NavPoint,
 ): NavPoint & { orientation: number; swimming: false } {
   const span = distance2d(leg.start, leg.end);
   const interpolated = {
@@ -93,12 +94,20 @@ export function sampleLead(
     z: leg.start.z + (leg.end.z - leg.start.z) * leg.ratio,
   };
   const walked = leadChain(map, leg.start, leg.end);
-  const surface = leadSurface(
+  const anchor =
+    previous === undefined
+      ? anchorFloor(walked, leg.start, leg.ratio * span)
+      : previous.z;
+  const surface = leadSurface(map, interpolated, anchor);
+  checkLeadWalk(
     map,
-    interpolated,
-    anchorFloor(walked, leg.start, leg.ratio * span),
+    walkedTo(
+      walked,
+      previous ?? leg.start,
+      { ...at, z: surface },
+      previous !== undefined,
+    ),
   );
-  checkLeadWalk(map, walkedTo(walked, leg.start, { ...at, z: surface }));
   return {
     ...at,
     orientation: bearing(leg.start, leg.end),
@@ -111,7 +120,9 @@ function walkedTo(
   walked: NavPoint[],
   from: NavPoint,
   onto: NavPoint,
+  direct = false,
 ): NavPoint[] {
+  if (direct) return [from, onto];
   const points = [from];
   for (let index = 1; index < walked.length; index++) {
     const point = walked[index] as NavPoint;

@@ -80,7 +80,7 @@ class RouteGuide implements MovementGuide {
     const { route } = this;
     const distance = Math.min(route.length, this.distance + yards);
     try {
-      const sampled = route.sample(distance);
+      const sampled = route.sample(distance, pose);
       const { swimming, ...point } = sampled;
       Object.assign(pose, point);
       this.follower.setSwimming(swimming, this);
