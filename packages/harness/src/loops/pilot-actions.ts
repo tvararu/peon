@@ -9,6 +9,7 @@ import {
   reachOutcome,
 } from "#harness/loops/pilot-frame";
 import {
+  lapPoint,
   type PilotPose,
   poseOf,
   scanHeading,
@@ -16,6 +17,8 @@ import {
 import { JumpArm } from "#harness/loops/pilot-jump";
 import {
   buildOptions,
+  cachedScan,
+  lineText,
   type PilotOption,
   scanCache,
 } from "#harness/loops/pilot-options";
@@ -220,8 +223,10 @@ function outcomeOf(
   dead: boolean,
 ): TacticsFrame["outcome"] {
   const objective = context.objective;
+  const from = memory.lastSeen;
+  memory.lastSeen = { x: pose.x, y: pose.y };
   return objective.kind === "reach"
-    ? reachOutcome(objective, pose.x, pose.y, dead)
+    ? reachOutcome({ at: pose, dead, from, objective })
     : circleOutcome({ dead, memory, objective, x: pose.x, y: pose.y });
 }
 
@@ -279,17 +284,25 @@ function liveFrame({
     y: pose.y,
   });
   const cache = scanCache(ground, pilotPose);
+  const objective = context.objective;
+  const target =
+    objective.kind === "reach" ? objective : lapPoint(objective, pose);
+  const line = cachedScan(
+    cache,
+    Math.atan2(target.y - pose.y, target.x - pose.x),
+  );
+  const span = Math.hypot(target.x - pose.x, target.y - pose.y);
   const candidates = buildOptions({
     cache,
     ground,
-    objective: context.objective,
+    objective,
     pose: pilotPose,
   });
   return {
     candidates,
     distanceYd: framed.distanceYd,
     observation: {
-      objective: framed.detail,
+      objective: `${framed.detail}; ${lineText(line, span)}`,
       self: selfText(state, memory),
       surroundings: describeSurroundings(cache, pilotPose),
     },

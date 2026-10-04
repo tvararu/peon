@@ -3,9 +3,12 @@ import { distance2d, type MovementInput, normalizeAngle } from "@peon/core";
 import type { JevCandidate } from "#harness/jev/contract";
 import {
   goalBearingText,
+  jumpableTop,
   jumpOffered,
   lapPoint,
   PILOT_MIN_CLEAR_YD,
+  PILOT_RANGE_YD,
+  PILOT_STEP_YD,
   type PilotPose,
   type PilotScan,
   relativeDeg,
@@ -107,38 +110,51 @@ export function buildOptions({
   const scans = cache ?? scanCache(ground, pose);
   const ahead = cachedScan(scans, pose.orientation);
   const canJump = jumpOffered(ground, pose, ahead);
-  const options: PilotOption[] = [];
-  for (const id of PILOT_OPTION_IDS) {
-    if (id === "stop") {
-      options.push({
-        description: stopText(objective, pose),
-        heading: pose.orientation,
-        id,
-        input: undefined,
-        turnDeg: 0,
-      });
-      continue;
-    }
-    if (id === "jump_ahead" && !canJump) continue;
-    const turnDeg = OPTION_TURNS[id];
-    const heading = normalizeAngle(
-      pose.orientation + (turnDeg * Math.PI) / 180,
-    );
-    const motion = OPTION_MOTION[id] ?? 0;
-    const scan =
-      id === "run_ahead" || id === "jump_ahead"
-        ? ahead
-        : cachedScan(scans, heading + (motion * Math.PI) / 180);
-    if (id !== "jump_ahead" && scan.freeYd < PILOT_MIN_CLEAR_YD) continue;
-    options.push({
-      description: optionText({ id, objective, pose, scan, turnDeg }),
-      heading,
-      id,
-      input: OPTION_INPUTS[id],
-      turnDeg,
-    });
-  }
-  return options;
+  return PILOT_OPTION_IDS.flatMap((id) => {
+    if (id === "stop")
+      return [
+        {
+          description: stopText(objective, pose),
+          heading: pose.orientation,
+          id,
+          input: undefined,
+          turnDeg: 0,
+        },
+      ];
+    const option = moveOption({ ahead, canJump, id, objective, pose, scans });
+    return option ? [option] : [];
+  });
+}
+
+type MoveBuild = {
+  id: Exclude<PilotOptionId, "stop">;
+  ahead: PilotScan;
+  canJump: boolean;
+  objective: PilotObjective;
+  pose: PilotPose;
+  scans: ScanCache;
+};
+
+function moveOption(build: MoveBuild): PilotOption | undefined {
+  const { ahead, canJump, id, pose, scans } = build;
+  if (id === "jump_ahead" && !canJump) return undefined;
+  const turnDeg = OPTION_TURNS[id];
+  const heading = normalizeAngle(pose.orientation + (turnDeg * Math.PI) / 180);
+  const motion = OPTION_MOTION[id];
+  const scan =
+    id === "run_ahead" || id === "jump_ahead"
+      ? ahead
+      : cachedScan(scans, heading + ((motion ?? 0) * Math.PI) / 180);
+  const tooClose = id !== "jump_ahead" && scan.freeYd < PILOT_MIN_CLEAR_YD;
+  if (tooClose && !(motion === undefined && jumpableTop(scan.blocker)))
+    return undefined;
+  return {
+    description: optionText({ ...build, scan, turnDeg }),
+    heading,
+    id,
+    input: tooClose ? {} : OPTION_INPUTS[id],
+    turnDeg,
+  };
 }
 
 export function scansForHeadings(
@@ -159,15 +175,28 @@ export function blockerText(scan: PilotScan): string {
   return `a low obstacle ${blocker.topYd.toFixed(1)} yd high`;
 }
 
+export function lineText(line: PilotScan, spanYd: number): string {
+  if (line.freeYd >= Math.min(spanYd, PILOT_RANGE_YD) - PILOT_STEP_YD)
+    return "the straight line to it is clear";
+  const what = `${blockerText(line)} ${line.freeYd} yd away`;
+  if (jumpableTop(line.blocker))
+    return `the straight line to it crosses ${what}, low enough to jump`;
+  return `the straight line to it is blocked by ${what}; go around it`;
+}
+
 type OptionTextInput = {
   id: Exclude<PilotOptionId, "stop">;
   objective: PilotObjective;
   pose: PilotPose;
   scan: PilotScan;
+  ahead: PilotScan;
+  canJump: boolean;
   turnDeg: number;
 };
 
 function optionText({
+  ahead,
+  canJump,
   id,
   objective,
   pose,
@@ -190,6 +219,10 @@ function optionText({
   const goal = goalAfterTurn(objective, pose, after);
   if (id === "jump_ahead")
     return `Run at the ${blockerText(scan)} ${scan.freeYd} yd ahead and jump it as you reach it; ${goal}.`;
+  if (scan.freeYd < PILOT_MIN_CLEAR_YD)
+    return `${actions[id]}: faces the ${blockerText(scan)} ${scan.freeYd} yd away, too close to jump; back up first for a run-up; ${goal}.`;
+  if (id === "back_up" && !canJump && jumpableTop(ahead.blocker))
+    return `Back up: clear for ${scan.freeYd} yd; gains run-up to jump the ${blockerText(ahead)} ahead; ${goal}.`;
   return `${actions[id]}: clear for ${scan.freeYd} yd; ${goal}.`;
 }
 

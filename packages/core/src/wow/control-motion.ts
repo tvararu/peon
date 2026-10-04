@@ -60,9 +60,10 @@ export function groundStep(
   if (z === undefined)
     return { ok: false, reason: blockedStep(ground, pose, x, y) };
   if (!withinStep(pose, { x, y, z })) return { ok: false, reason: "too_steep" };
+  const point = { x, y, z };
   const reason = directed
-    ? directedRefusal(ground, pose, { x, y, z })
-    : undefined;
+    ? directedRefusal(ground, pose, point)
+    : collisionRefusal(ground, pose, point);
   return reason ? { ok: false, reason } : { ok: true, z };
 }
 
@@ -89,6 +90,14 @@ function directedRefusal(
   const back = finite(ground.height(pose.mapId, pose.x, pose.y, to));
   if (back === undefined || Math.abs(back - pose.z) > GROUND_ERROR)
     return "height_unresolved";
+  return collisionRefusal(ground, pose, to);
+}
+
+function collisionRefusal(
+  ground: GroundOracle,
+  pose: Position,
+  to: NavPoint,
+): StepRefusal | undefined {
   const ray = (a: NavPoint, b: NavPoint) => ground.pathClear(pose.mapId, a, b);
   return collisionFree(ray, pose, to) ? undefined : "obstructed";
 }

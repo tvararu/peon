@@ -94,10 +94,7 @@ export function scanHeading(
       y: pose.y + Math.sin(norm) * d,
     };
     const step = groundStep(ground, at, next, false);
-    const rayBlocked =
-      step.ok &&
-      !segmentFree(ground, pose.mapId, at, { x: next.x, y: next.y, z: step.z });
-    if (!step.ok || rayBlocked) {
+    if (!step.ok) {
       const probe = { ...pose, x: at.x, y: at.y, z: at.z };
       blocked = classifyBlocked(ground, probe, norm);
       break;
@@ -108,16 +105,6 @@ export function scanHeading(
   if (freeYd >= PILOT_RANGE_YD)
     return { blocker: { kind: "open" }, freeYd, heading: norm };
   return { blocker: blocked ?? { kind: "drop" }, freeYd, heading: norm };
-}
-
-function segmentFree(
-  ground: GroundOracle,
-  mapId: number,
-  from: NavPoint,
-  to: NavPoint,
-): boolean {
-  const ray = (a: NavPoint, b: NavPoint) => ground.pathClear(mapId, a, b);
-  return collisionFree(ray, from, to);
 }
 
 function classifyBlocked(
@@ -183,7 +170,7 @@ export function jumpGate(
   return arcClears(ground, pose, ahead, blocker.topYd);
 }
 
-function jumpableTop(
+export function jumpableTop(
   blocker: PilotBlocker,
 ): blocker is Extract<PilotBlocker, { kind: "low" }> {
   return (

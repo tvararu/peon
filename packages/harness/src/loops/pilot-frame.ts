@@ -18,27 +18,52 @@ export type PilotMemory = {
   bearing: number | undefined;
   sweptRad: number;
   decisions: { actionId: string; movedYd: number }[];
+  lastSeen: { x: number; y: number } | undefined;
 };
 
 export function freshMemory(): PilotMemory {
   return {
     bearing: undefined,
     decisions: [],
+    lastSeen: undefined,
     startPose: undefined,
     sweptRad: 0,
   };
 }
 
-export function reachOutcome(
-  objective: Extract<PilotObjective, { kind: "reach" }>,
-  x: number,
-  y: number,
-  dead: boolean,
-): TacticsFrame["outcome"] {
+const ARRIVE_YD = 1.5;
+
+type Point = { x: number; y: number };
+
+export type ReachInput = {
+  objective: Extract<PilotObjective, { kind: "reach" }>;
+  at: Point;
+  from?: Point;
+  dead: boolean;
+};
+
+export function reachOutcome({
+  at,
+  dead,
+  from,
+  objective,
+}: ReachInput): TacticsFrame["outcome"] {
   if (dead) return { reason: "self_dead", status: "failed" };
-  if (distance2d({ x, y }, objective) <= 1.5)
+  if (sweptDistance(from ?? at, at, objective) <= ARRIVE_YD)
     return { reason: "goal_reached", status: "completed" };
   return undefined;
+}
+
+function sweptDistance(start: Point, end: Point, goal: Point): number {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = dx * dx + dy * dy;
+  const along =
+    length === 0
+      ? 0
+      : ((goal.x - start.x) * dx + (goal.y - start.y) * dy) / length;
+  const t = Math.max(0, Math.min(1, along));
+  return distance2d({ x: start.x + dx * t, y: start.y + dy * t }, goal);
 }
 
 export type CircleOutcomeInput = {

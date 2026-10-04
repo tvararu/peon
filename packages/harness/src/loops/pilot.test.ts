@@ -331,21 +331,30 @@ describe("pilot execute", () => {
 });
 
 describe("pilot outcomes", () => {
+  const goal = { kind: "reach" as const, x: 10, y: 0 };
+
   test("reach completes within 1.5 yd", () => {
-    expect(reachOutcome({ kind: "reach", x: 10, y: 0 }, 9, 0, false)).toEqual({
-      reason: "goal_reached",
-      status: "completed",
-    });
     expect(
-      reachOutcome({ kind: "reach", x: 10, y: 0 }, 0, 0, false),
+      reachOutcome({ at: { x: 9, y: 0 }, dead: false, objective: goal }),
+    ).toEqual({ reason: "goal_reached", status: "completed" });
+    expect(
+      reachOutcome({ at: { x: 0, y: 0 }, dead: false, objective: goal }),
     ).toBeUndefined();
   });
 
-  test("death fails the run", () => {
-    expect(reachOutcome({ kind: "reach", x: 10, y: 0 }, 0, 0, true)).toEqual({
-      reason: "self_dead",
-      status: "failed",
+  test("reach completes when the path since the last frame passed the goal", () => {
+    const passed = { at: { x: 12, y: 1 }, dead: false, objective: goal };
+    expect(reachOutcome({ ...passed, from: { x: 8, y: 1 } })).toEqual({
+      reason: "goal_reached",
+      status: "completed",
     });
+    expect(reachOutcome({ ...passed, from: { x: 8, y: 3 } })).toBeUndefined();
+  });
+
+  test("death fails the run", () => {
+    expect(
+      reachOutcome({ at: { x: 0, y: 0 }, dead: true, objective: goal }),
+    ).toEqual({ reason: "self_dead", status: "failed" });
   });
 
   test("a circle completes after a full sweep back at the start", () => {

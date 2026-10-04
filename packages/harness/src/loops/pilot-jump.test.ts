@@ -13,6 +13,7 @@ import {
   poseOf,
   scanHeading,
 } from "#harness/loops/pilot-geometry";
+import { buildOptions } from "#harness/loops/pilot-options";
 import type { PilotContext } from "#harness/loops/pilot-types";
 
 const RAIL_YD = 5;
@@ -80,6 +81,36 @@ describe("pilot jumps", () => {
       if (s <= 2.5) expect(jumpOffered(ground, pose, ahead)).toBe(true);
       if (s >= 3.1) expect(jumpOffered(ground, pose, ahead)).toBe(false);
     }
+  });
+
+  test("a rail too close to jump stays faceable and back_up offers the run-up", () => {
+    const ground = rail();
+    const at = {
+      ...LOGIN,
+      x: LOGIN.x + Math.cos(heading) * 4.4,
+      y: LOGIN.y + Math.sin(heading) * 4.4,
+    };
+    const sideways = poseOf(
+      { ...at, orientation: heading + Math.PI / 2 },
+      0,
+      false,
+    );
+    const turn = buildOptions({
+      ground,
+      objective: context.objective,
+      pose: sideways,
+    }).find((option) => option.id === "turn_right");
+    expect(turn?.input).toEqual({});
+    const facing = poseOf(at, 0, false);
+    const options = buildOptions({
+      ground,
+      objective: context.objective,
+      pose: facing,
+    });
+    expect(options.map((option) => option.id)).not.toContain("jump_ahead");
+    expect(
+      options.find((option) => option.id === "back_up")?.description,
+    ).toContain("run-up");
   });
 
   test("an armed jump leaves the ground before the rail and lands past it", () => {
