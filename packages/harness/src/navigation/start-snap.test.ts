@@ -119,6 +119,35 @@ describe("a start just off the mesh", () => {
     expect(route.points.at(-1)).toMatchObject({ x: goal.x, y: goal.y });
     expect(route.sample(0.1)).toMatchObject({ x: 0.1, y: 0, z: 0 });
   });
+
+  test("steps down off a ledge under a distant canopy, every sample on a floor", () => {
+    const start = { x: 0, y: 0, z: 0.4 };
+    const onto = { x: 0.03, y: 0, z: -0.04 };
+    const column = (x: number) =>
+      x < 0.0225 ? [-0.08, 0.45, 12, 18] : [-0.08, 12, 18];
+    const map = native({
+      findHeights: (x) => column(x),
+      findPath: (_from, to) => [{ ...onto }, { ...to }],
+    });
+    const route = navigation(map).plan(0, start, goal);
+    expect(route.points[1]).toMatchObject({ x: onto.x });
+    for (let at = 0.003; at <= 0.03; at += 0.003) {
+      const sample = route.sample(at);
+      expect(column(sample.x)).toContain(sample.z);
+    }
+    expect(route.sample(0.003)).toMatchObject({ x: 0.003, y: 0, z: 0.45 });
+  });
+
+  test("refuses a lead whose pose has no floor within step height below", () => {
+    const onto = { x: 0.2, y: 0, z: 0 };
+    const map = native({
+      findHeights: () => [-3, 10],
+      findPath: (_from, to) => [{ ...onto }, { ...to }],
+    });
+    expect(() => navigation(map).plan(0, pose, goal)).toThrow(
+      /ground height|snapped off/,
+    );
+  });
 });
 
 describe.skipIf(!present)("recorded off-mesh starts on the real mesh", () => {

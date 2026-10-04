@@ -7,6 +7,7 @@ import {
   type NativeMap,
   validateNativePoint,
 } from "#harness/navigation/native";
+import { CORNER_RISE } from "#harness/navigation/swim";
 
 const START_REACH = 0.5;
 const LEAD_PROBE_STEP = 0.02;
@@ -27,7 +28,8 @@ export function startStep(
     );
     if (reach > START_REACH) throw error;
     try {
-      checkCollision(map, from, native, 0);
+      const climb = native.z < from.z ? CORNER_RISE : 0;
+      checkCollision(map, from, native, climb);
       checkLeadGround(map, from, native);
     } catch (stepError) {
       if (isGroundError(stepError)) throw error;
