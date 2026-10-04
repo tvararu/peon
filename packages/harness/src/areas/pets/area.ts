@@ -165,9 +165,9 @@ export const petsHarness = defineHarnessArea({
   rules: () => {
     const last: { guid: bigint | undefined } = { guid: undefined };
     return {
-      attach: (state: PetsState) => {
-        last.guid = state.bar?.guid;
-        return [] as readonly AreaDraft[];
+      attach: (state: PetsState, rc: RuleInput) => {
+        if (!state.bar) return [];
+        return [outRow(state.bar, rc, last)];
       },
       event: (event: PetsEvent, rc: RuleInput): readonly AreaDraft[] => {
         if (event.type === "bar") return barRow(event, rc, last);

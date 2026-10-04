@@ -229,6 +229,9 @@ corpse (`Handlers/PetHandler.cpp:287-294`).
   `UNIT_FIELD_CRITTER` (the same offset 10 the view reads for the summon)
   and returns `no_critter` with nothing sent when it is 0, else sends
   that guid.
+- The game log writes `pets/out` for a new pet bar guid, and at attach for
+  the bar already in play, so a pet that is out at login grades the same as
+  one summoned during the run.
 
 ## Left out
 
